@@ -1535,6 +1535,40 @@ struct hl_dmabuf_priv {
 	uint64_t			device_address;
 };
 
+#define HL_CS_OUTCOME_HISTORY_LEN 256
+
+/**
+ * struct hl_cs_outcome - represents a single completed CS outcome
+ * @list_link: link to either container's used list or free list
+ * @map_link: list to the container hash map
+ * @ts: completion ts
+ * @seq: the original cs sequence
+ * @error: error code cs completed with, if any
+ */
+struct hl_cs_outcome {
+	struct list_head list_link;
+	struct hlist_node map_link;
+	ktime_t ts;
+	u64 seq;
+	int error;
+};
+
+/**
+ * struct hl_cs_outcome_store - represents a limited store of completed CS outcomes
+ * @outcome_map: index of completed CS searcheable by sequence number
+ * @used_list: list of outcome objects currently in use
+ * @free_list: list of outcome objects currently not in use
+ * @nodes_pool: a static pool of preallocated outcome objects
+ * @db_lock: any operation on the store must take this lock
+ */
+struct hl_cs_outcome_store {
+	DECLARE_HASHTABLE(outcome_map, 8);
+	struct list_head used_list;
+	struct list_head free_list;
+	struct hl_cs_outcome nodes_pool[HL_CS_OUTCOME_HISTORY_LEN];
+	spinlock_t db_lock;
+};
+
 /**
  * struct hl_ctx - user/kernel context.
  * @mem_hash: holds mapping from virtual address to virtual memory area
@@ -1545,6 +1579,8 @@ struct hl_dmabuf_priv {
  * @refcount: reference counter for the context. Context is released only when
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of hl fence objects representing pending CS.
+ * @outcome_store: storage data structure used to remember ouitcomes of completed
+ *                 command submissions for a long time after CS id wraparound.
  * @va_range: holds available virtual addresses for host and dram mappings.
  * @mem_hash_lock: protects the mem_hash.
  * @mmu_lock: protects the MMU page tables. Any change to the PGT, modifying the
@@ -1580,6 +1616,7 @@ struct hl_ctx {
 	struct hl_device		*hdev;
 	struct kref			refcount;
 	struct hl_fence			**cs_pending;
+	struct hl_cs_outcome_store	outcome_store;
 	struct hl_va_range		*va_range[HL_VA_RANGE_TYPE_MAX];
 	struct mutex			mem_hash_lock;
 	struct mutex			mmu_lock;

@@ -181,7 +181,7 @@ out_err:
 
 int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 {
-	int rc = 0;
+	int rc = 0, i;
 
 	ctx->hdev = hdev;
 
@@ -196,6 +196,13 @@ int hl_ctx_init(struct hl_device *hdev, struct hl_ctx *ctx, bool is_kernel_ctx)
 				GFP_KERNEL);
 	if (!ctx->cs_pending)
 		return -ENOMEM;
+
+	INIT_LIST_HEAD(&ctx->outcome_store.used_list);
+	INIT_LIST_HEAD(&ctx->outcome_store.free_list);
+	hash_init(ctx->outcome_store.outcome_map);
+	for (i = 0; i < ARRAY_SIZE(ctx->outcome_store.nodes_pool); ++i)
+		list_add(&ctx->outcome_store.nodes_pool[i].list_link,
+			 &ctx->outcome_store.free_list);
 
 	hl_hw_block_mem_init(ctx);
 

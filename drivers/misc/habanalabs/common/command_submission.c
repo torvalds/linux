@@ -34,6 +34,84 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 				enum hl_cs_wait_status *status, s64 *timestamp);
 static void cs_do_release(struct kref *ref);
 
+static void hl_push_cs_outcome(struct hl_device *hdev,
+			       struct hl_cs_outcome_store *outcome_store,
+			       u64 seq, ktime_t ts, int error)
+{
+	struct hl_cs_outcome *node;
+	unsigned long flags;
+
+	/*
+	 * CS outcome store supports the following operations:
+	 * push outcome - store a recent CS outcome in the store
+	 * pop outcome - retrieve a SPECIFIC (by seq) CS outcome from the store
+	 * It uses 2 lists: used list and free list.
+	 * It has a pre-allocated amount of nodes, each node stores
+	 * a single CS outcome.
+	 * Initially, all the nodes are in the free list.
+	 * On push outcome, a node (any) is taken from the free list, its
+	 * information is filled in, and the node is moved to the used list.
+	 * It is possible, that there are no nodes left in the free list.
+	 * In this case, we will lose some information about old outcomes. We
+	 * will pop the OLDEST node from the used list, and make it free.
+	 * On pop, the node is searched for in the used list (using a search
+	 * index).
+	 * If found, the node is then removed from the used list, and moved
+	 * back to the free list. The outcome data that the node contained is
+	 * returned back to the user.
+	 */
+
+	spin_lock_irqsave(&outcome_store->db_lock, flags);
+
+	if (list_empty(&outcome_store->free_list)) {
+		node = list_last_entry(&outcome_store->used_list,
+				       struct hl_cs_outcome, list_link);
+		hash_del(&node->map_link);
+		dev_dbg(hdev->dev, "CS %llu outcome was lost\n", node->seq);
+	} else {
+		node = list_last_entry(&outcome_store->free_list,
+				       struct hl_cs_outcome, list_link);
+	}
+
+	list_del_init(&node->list_link);
+
+	node->seq = seq;
+	node->ts = ts;
+	node->error = error;
+
+	list_add(&node->list_link, &outcome_store->used_list);
+	hash_add(outcome_store->outcome_map, &node->map_link, node->seq);
+
+	spin_unlock_irqrestore(&outcome_store->db_lock, flags);
+}
+
+static bool hl_pop_cs_outcome(struct hl_cs_outcome_store *outcome_store,
+			       u64 seq, ktime_t *ts, int *error)
+{
+	struct hl_cs_outcome *node;
+	unsigned long flags;
+
+	spin_lock_irqsave(&outcome_store->db_lock, flags);
+
+	hash_for_each_possible(outcome_store->outcome_map, node, map_link, seq)
+		if (node->seq == seq) {
+			*ts = node->ts;
+			*error = node->error;
+
+			hash_del(&node->map_link);
+			list_del_init(&node->list_link);
+			list_add(&node->list_link, &outcome_store->free_list);
+
+			spin_unlock_irqrestore(&outcome_store->db_lock, flags);
+
+			return true;
+		}
+
+	spin_unlock_irqrestore(&outcome_store->db_lock, flags);
+
+	return false;
+}
+
 static void hl_sob_reset(struct kref *ref)
 {
 	struct hl_hw_sob *hw_sob = container_of(ref, struct hl_hw_sob,
@@ -678,7 +756,6 @@ out:
 	 */
 	hl_debugfs_remove_cs(cs);
 
-	hl_ctx_put(cs->ctx);
 
 	/* We need to mark an error for not submitted because in that case
 	 * the hl fence release flow is different. Mainly, we don't need
@@ -698,8 +775,14 @@ out:
 			div_u64(jiffies - cs->submission_time_jiffies, HZ));
 	}
 
-	if (cs->timestamp)
+	if (cs->timestamp) {
 		cs->fence->timestamp = ktime_get();
+		hl_push_cs_outcome(hdev, &cs->ctx->outcome_store, cs->sequence,
+				   cs->fence->timestamp, cs->fence->error);
+	}
+
+	hl_ctx_put(cs->ctx);
+
 	complete_all(&cs->fence->completion);
 	complete_multi_cs(hdev, cs);
 
@@ -2325,8 +2408,9 @@ static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence
 				s64 *timestamp)
 {
 	struct hl_device *hdev = ctx->hdev;
+	ktime_t timestamp_kt;
 	long completion_rc;
-	int rc = 0;
+	int rc = 0, error;
 
 	if (IS_ERR(fence)) {
 		rc = PTR_ERR(fence);
@@ -2338,12 +2422,17 @@ static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence
 	}
 
 	if (!fence) {
-		dev_dbg(hdev->dev,
+		if (!hl_pop_cs_outcome(&ctx->outcome_store, seq, &timestamp_kt, &error)) {
+			dev_dbg(hdev->dev,
 			"Can't wait on seq %llu because current CS is at seq %llu (Fence is gone)\n",
 				seq, ctx->cs_sequence);
 
-		*status = CS_WAIT_STATUS_GONE;
-		return 0;
+			*status = CS_WAIT_STATUS_GONE;
+			return 0;
+		}
+
+		completion_rc = 1;
+		goto report_results;
 	}
 
 	if (!timeout_us) {
@@ -2358,18 +2447,20 @@ static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence
 				&fence->completion, timeout);
 	}
 
+	error = fence->error;
+	timestamp_kt = fence->timestamp;
+
+report_results:
 	if (completion_rc > 0) {
 		*status = CS_WAIT_STATUS_COMPLETED;
 		if (timestamp)
-			*timestamp = ktime_to_ns(fence->timestamp);
+			*timestamp = ktime_to_ns(timestamp_kt);
 	} else {
 		*status = CS_WAIT_STATUS_BUSY;
 	}
 
-	if (fence->error == -ETIMEDOUT)
-		rc = -ETIMEDOUT;
-	else if (fence->error == -EIO)
-		rc = -EIO;
+	if (error == -ETIMEDOUT || error == -EIO)
+		rc = error;
 
 	return rc;
 }
