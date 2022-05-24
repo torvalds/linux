@@ -240,8 +240,11 @@ static void nbio_v4_3_update_medium_grain_clock_gating(struct amdgpu_device *ade
 {
 	uint32_t def, data;
 
+	if (enable && !(adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG))
+		return;
+
 	def = data = RREG32_SOC15(NBIO, 0, regCPM_CONTROL);
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_MGCG)) {
+	if (enable) {
 		data |= (CPM_CONTROL__LCLK_DYN_GATE_ENABLE_MASK |
 			 CPM_CONTROL__TXCLK_DYN_GATE_ENABLE_MASK |
 			 CPM_CONTROL__TXCLK_LCNT_GATE_ENABLE_MASK |
@@ -266,9 +269,12 @@ static void nbio_v4_3_update_medium_grain_light_sleep(struct amdgpu_device *adev
 {
 	uint32_t def, data;
 
+	if (enable && !(adev->cg_flags & AMD_CG_SUPPORT_BIF_LS))
+		return;
+
 	/* TODO: need update in future */
 	def = data = RREG32_SOC15(NBIO, 0, regPCIE_CNTL2);
-	if (enable && (adev->cg_flags & AMD_CG_SUPPORT_BIF_LS)) {
+	if (enable) {
 		data |= PCIE_CNTL2__SLV_MEM_LS_EN_MASK;
 	} else {
 		data &= ~PCIE_CNTL2__SLV_MEM_LS_EN_MASK;
