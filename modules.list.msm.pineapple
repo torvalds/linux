@@ -4,6 +4,7 @@ pinctrl-msm.ko
 pinctrl-pineapple.ko
 clk-qcom.ko
 clk-dummy.ko
+dispcc-pineapple.ko
 gcc-pineapple.ko
 stub-regulator.ko
 phy-qcom-ufs.ko
