@@ -979,7 +979,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_rsrc_update	rsrc_update;
 		struct io_xattr		xattr;
 		struct io_uring_cmd	uring_cmd;
 	};
@@ -7800,23 +7799,26 @@ done:
 static int io_files_update_prep(struct io_kiocb *req,
 				const struct io_uring_sqe *sqe)
 {
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+
 	if (unlikely(req->flags & (REQ_F_FIXED_FILE | REQ_F_BUFFER_SELECT)))
 		return -EINVAL;
 	if (sqe->rw_flags || sqe->splice_fd_in)
 		return -EINVAL;
 
-	req->rsrc_update.offset = READ_ONCE(sqe->off);
-	req->rsrc_update.nr_args = READ_ONCE(sqe->len);
-	if (!req->rsrc_update.nr_args)
+	up->offset = READ_ONCE(sqe->off);
+	up->nr_args = READ_ONCE(sqe->len);
+	if (!up->nr_args)
 		return -EINVAL;
-	req->rsrc_update.arg = READ_ONCE(sqe->addr);
+	up->arg = READ_ONCE(sqe->addr);
 	return 0;
 }
 
 static int io_files_update_with_index_alloc(struct io_kiocb *req,
 					    unsigned int issue_flags)
 {
-	__s32 __user *fds = u64_to_user_ptr(req->rsrc_update.arg);
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
+	__s32 __user *fds = u64_to_user_ptr(up->arg);
 	unsigned int done;
 	struct file *file;
 	int ret, fd;
@@ -7824,7 +7826,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 	if (!req->ctx->file_data)
 		return -ENXIO;
 
-	for (done = 0; done < req->rsrc_update.nr_args; done++) {
+	for (done = 0; done < up->nr_args; done++) {
 		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
 			ret = -EFAULT;
 			break;
@@ -7853,23 +7855,24 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 
 static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_rsrc_update *up = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *ctx = req->ctx;
-	struct io_uring_rsrc_update2 up;
+	struct io_uring_rsrc_update2 up2;
 	int ret;
 
-	up.offset = req->rsrc_update.offset;
-	up.data = req->rsrc_update.arg;
-	up.nr = 0;
-	up.tags = 0;
-	up.resv = 0;
-	up.resv2 = 0;
+	up2.offset = up->offset;
+	up2.data = up->arg;
+	up2.nr = 0;
+	up2.tags = 0;
+	up2.resv = 0;
+	up2.resv2 = 0;
 
-	if (req->rsrc_update.offset == IORING_FILE_INDEX_ALLOC) {
+	if (up->offset == IORING_FILE_INDEX_ALLOC) {
 		ret = io_files_update_with_index_alloc(req, issue_flags);
 	} else {
 		io_ring_submit_lock(ctx, issue_flags);
 		ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
-				&up, req->rsrc_update.nr_args);
+						&up2, up->nr_args);
 		io_ring_submit_unlock(ctx, issue_flags);
 	}
 
