@@ -187,4 +187,6 @@ _rtw_write32s_mask(struct rtw_dev *rtwdev, u32 addr, u32 mask, u32 data)
 #define REG_ANTWT	0x1904
 #define REG_IQKFAILMSK	0x1bf0
 
+extern const struct rtw_chip_info rtw8822b_hw_spec;
+
 #endif
