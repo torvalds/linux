@@ -104,17 +104,12 @@ static int cs553x_write_ctrl_byte(struct cs553x_nand_controller *cs553x,
 				  u32 ctl, u8 data)
 {
 	u8 status;
-	int ret;
 
 	writeb(ctl, cs553x->mmio + MM_NAND_CTL);
 	writeb(data, cs553x->mmio + MM_NAND_IO);
-	ret = readb_poll_timeout_atomic(cs553x->mmio + MM_NAND_STS, status,
+	return readb_poll_timeout_atomic(cs553x->mmio + MM_NAND_STS, status,
 					!(status & CS_NAND_CTLR_BUSY), 1,
 					100000);
-	if (ret)
-		return ret;
-
-	return 0;
 }
 
 static void cs553x_data_in(struct cs553x_nand_controller *cs553x, void *buf,
