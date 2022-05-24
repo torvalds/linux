@@ -264,15 +264,16 @@ static void cleanup_one_si(struct smi_info *smi_info);
 static void cleanup_ipmi_si(void);
 
 #ifdef DEBUG_TIMING
-void debug_timestamp(char *msg)
+void debug_timestamp(struct smi_info *smi_info, char *msg)
 {
 	struct timespec64 t;
 
 	ktime_get_ts64(&t);
-	pr_debug("**%s: %lld.%9.9ld\n", msg, t.tv_sec, t.tv_nsec);
+	dev_dbg(smi_info->io.dev, "**%s: %lld.%9.9ld\n",
+		msg, t.tv_sec, t.tv_nsec);
 }
 #else
-#define debug_timestamp(x)
+#define debug_timestamp(smi_info, x)
 #endif
 
 static ATOMIC_NOTIFIER_HEAD(xaction_notifier_list);
@@ -318,7 +319,7 @@ static enum si_sm_result start_next_msg(struct smi_info *smi_info)
 
 		smi_info->curr_msg = smi_info->waiting_msg;
 		smi_info->waiting_msg = NULL;
-		debug_timestamp("Start2");
+		debug_timestamp(smi_info, "Start2");
 		err = atomic_notifier_call_chain(&xaction_notifier_list,
 				0, smi_info);
 		if (err & NOTIFY_STOP_MASK) {
@@ -538,7 +539,7 @@ static void handle_transaction_done(struct smi_info *smi_info)
 {
 	struct ipmi_smi_msg *msg;
 
-	debug_timestamp("Done");
+	debug_timestamp(smi_info, "Done");
 	switch (smi_info->si_state) {
 	case SI_NORMAL:
 		if (!smi_info->curr_msg)
@@ -901,7 +902,7 @@ static void sender(void                *send_info,
 	struct smi_info   *smi_info = send_info;
 	unsigned long     flags;
 
-	debug_timestamp("Enqueue");
+	debug_timestamp(smi_info, "Enqueue");
 
 	if (smi_info->run_to_completion) {
 		/*
@@ -1079,7 +1080,7 @@ static void smi_timeout(struct timer_list *t)
 	long		  timeout;
 
 	spin_lock_irqsave(&(smi_info->si_lock), flags);
-	debug_timestamp("Timer");
+	debug_timestamp(smi_info, "Timer");
 
 	jiffies_now = jiffies;
 	time_diff = (((long)jiffies_now - (long)smi_info->last_timeout_jiffies)
@@ -1128,7 +1129,7 @@ irqreturn_t ipmi_si_irq_handler(int irq, void *data)
 
 	smi_inc_stat(smi_info, interrupts);
 
-	debug_timestamp("Interrupt");
+	debug_timestamp(smi_info, "Interrupt");
 
 	smi_event_handler(smi_info, 0);
 	spin_unlock_irqrestore(&(smi_info->si_lock), flags);

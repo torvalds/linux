@@ -442,8 +442,7 @@ static int ipmi_ipmb_remove(struct i2c_client *client)
 	return 0;
 }
 
-static int ipmi_ipmb_probe(struct i2c_client *client,
-			   const struct i2c_device_id *id)
+static int ipmi_ipmb_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct ipmi_ipmb_dev *iidev;
@@ -476,6 +475,7 @@ static int ipmi_ipmb_probe(struct i2c_client *client,
 	slave_np = of_parse_phandle(dev->of_node, "slave-dev", 0);
 	if (slave_np) {
 		slave_adap = of_get_i2c_adapter_by_node(slave_np);
+		of_node_put(slave_np);
 		if (!slave_adap) {
 			dev_notice(&client->dev,
 				   "Could not find slave adapter\n");
@@ -570,7 +570,7 @@ static struct i2c_driver ipmi_ipmb_driver = {
 		.name = DEVICE_NAME,
 		.of_match_table = of_ipmi_ipmb_match,
 	},
-	.probe		= ipmi_ipmb_probe,
+	.probe_new	= ipmi_ipmb_probe,
 	.remove		= ipmi_ipmb_remove,
 	.id_table	= ipmi_ipmb_id,
 };

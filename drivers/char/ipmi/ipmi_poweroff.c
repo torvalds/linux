@@ -94,12 +94,8 @@ static void dummy_recv_free(struct ipmi_recv_msg *msg)
 {
 	atomic_dec(&dummy_count);
 }
-static struct ipmi_smi_msg halt_smi_msg = {
-	.done = dummy_smi_free
-};
-static struct ipmi_recv_msg halt_recv_msg = {
-	.done = dummy_recv_free
-};
+static struct ipmi_smi_msg halt_smi_msg = INIT_IPMI_SMI_MSG(dummy_smi_free);
+static struct ipmi_recv_msg halt_recv_msg = INIT_IPMI_RECV_MSG(dummy_recv_free);
 
 
 /*
