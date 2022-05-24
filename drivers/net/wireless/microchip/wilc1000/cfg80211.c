@@ -20,9 +20,11 @@
 static const struct ieee80211_txrx_stypes
 	wilc_wfi_cfg80211_mgmt_types[NUM_NL80211_IFTYPES] = {
 	[NL80211_IFTYPE_STATION] = {
-		.tx = 0xffff,
+		.tx = BIT(IEEE80211_STYPE_ACTION >> 4) |
+			BIT(IEEE80211_STYPE_AUTH >> 4),
 		.rx = BIT(IEEE80211_STYPE_ACTION >> 4) |
-			BIT(IEEE80211_STYPE_PROBE_REQ >> 4)
+			BIT(IEEE80211_STYPE_PROBE_REQ >> 4) |
+			BIT(IEEE80211_STYPE_AUTH >> 4)
 	},
 	[NL80211_IFTYPE_AP] = {
 		.tx = 0xffff,
@@ -350,6 +352,16 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 		auth_type = WILC_FW_AUTH_OPEN_SYSTEM;
 		break;
 
+	case NL80211_AUTHTYPE_SAE:
+		auth_type = WILC_FW_AUTH_SAE;
+		if (sme->ssid_len) {
+			memcpy(vif->auth.ssid.ssid, sme->ssid, sme->ssid_len);
+			vif->auth.ssid.ssid_len = sme->ssid_len;
+		}
+		vif->auth.key_mgmt_suite = cpu_to_be32(sme->crypto.akm_suites[0]);
+		ether_addr_copy(vif->auth.bssid, sme->bssid);
+		break;
+
 	default:
 		break;
 	}
@@ -357,6 +369,10 @@ static int connect(struct wiphy *wiphy, struct net_device *dev,
 	if (sme->crypto.n_akm_suites) {
 		if (sme->crypto.akm_suites[0] == WLAN_AKM_SUITE_8021X)
 			auth_type = WILC_FW_AUTH_IEEE8021;
+		else if (sme->crypto.akm_suites[0] == WLAN_AKM_SUITE_PSK_SHA256)
+			auth_type = WILC_FW_AUTH_OPEN_SYSTEM_SHA256;
+		else if (sme->crypto.akm_suites[0] == WLAN_AKM_SUITE_8021X_SHA256)
+			auth_type = WILC_FW_AUTH_IEE8021X_SHA256;
 	}
 
 	if (wfi_drv->usr_scan_req.scan_result) {
@@ -905,6 +921,18 @@ static inline void wilc_wfi_cfg_parse_ch_attr(u8 *buf, u32 len, u8 sta_ch)
 	}
 }
 
+bool wilc_wfi_mgmt_frame_rx(struct wilc_vif *vif, u8 *buff, u32 size)
+{
+	struct wilc *wl = vif->wilc;
+	struct wilc_priv *priv = &vif->priv;
+	int freq, ret;
+
+	freq = ieee80211_channel_to_frequency(wl->op_ch, NL80211_BAND_2GHZ);
+	ret = cfg80211_rx_mgmt(&priv->wdev, freq, 0, buff, size, 0);
+
+	return ret;
+}
+
 void wilc_wfi_p2p_rx(struct wilc_vif *vif, u8 *buff, u32 size)
 {
 	struct wilc *wl = vif->wilc;
@@ -1090,8 +1118,14 @@ static int mgmt_tx(struct wiphy *wiphy,
 		goto out_txq_add_pkt;
 	}
 
-	if (!ieee80211_is_public_action((struct ieee80211_hdr *)buf, len))
+	if (!ieee80211_is_public_action((struct ieee80211_hdr *)buf, len)) {
+		if (chan)
+			wilc_set_mac_chnl_num(vif, chan->hw_value);
+		else
+			wilc_set_mac_chnl_num(vif, vif->wilc->op_ch);
+
 		goto out_set_timeout;
+	}
 
 	d = (struct wilc_p2p_pub_act_frame *)(&mgmt->u.action);
 	if (d->oui_type != WLAN_OUI_TYPE_WFA_P2P ||
@@ -1158,6 +1192,7 @@ void wilc_update_mgmt_frame_registrations(struct wiphy *wiphy,
 	struct wilc_vif *vif = netdev_priv(wdev->netdev);
 	u32 presp_bit = BIT(IEEE80211_STYPE_PROBE_REQ >> 4);
 	u32 action_bit = BIT(IEEE80211_STYPE_ACTION >> 4);
+	u32 pauth_bit = BIT(IEEE80211_STYPE_AUTH >> 4);
 
 	if (wl->initialized) {
 		bool prev = vif->mgmt_reg_stypes & presp_bit;
@@ -1171,10 +1206,26 @@ void wilc_update_mgmt_frame_registrations(struct wiphy *wiphy,
 
 		if (now != prev)
 			wilc_frame_register(vif, IEEE80211_STYPE_ACTION, now);
+
+		prev = vif->mgmt_reg_stypes & pauth_bit;
+		now = upd->interface_stypes & pauth_bit;
+		if (now != prev)
+			wilc_frame_register(vif, IEEE80211_STYPE_AUTH, now);
 	}
 
 	vif->mgmt_reg_stypes =
-		upd->interface_stypes & (presp_bit | action_bit);
+		upd->interface_stypes & (presp_bit | action_bit | pauth_bit);
+}
+
+static int external_auth(struct wiphy *wiphy, struct net_device *dev,
+			 struct cfg80211_external_auth_params *auth)
+{
+	struct wilc_vif *vif = netdev_priv(dev);
+
+	if (auth->status == WLAN_STATUS_SUCCESS)
+		wilc_set_external_auth_param(vif, auth);
+
+	return 0;
 }
 
 static int set_cqm_rssi_config(struct wiphy *wiphy, struct net_device *dev,
@@ -1590,6 +1641,7 @@ static const struct cfg80211_ops wilc_cfg80211_ops = {
 	.change_bss = change_bss,
 	.set_wiphy_params = set_wiphy_params,
 
+	.external_auth = external_auth,
 	.set_pmksa = set_pmksa,
 	.del_pmksa = del_pmksa,
 	.flush_pmksa = flush_pmksa,
@@ -1732,7 +1784,7 @@ struct wilc *wilc_create_wiphy(struct device *dev)
 				BIT(NL80211_IFTYPE_P2P_GO) |
 				BIT(NL80211_IFTYPE_P2P_CLIENT);
 	wiphy->flags |= WIPHY_FLAG_HAS_REMAIN_ON_CHANNEL;
-
+	wiphy->features |= NL80211_FEATURE_SAE;
 	set_wiphy_dev(wiphy, dev);
 	wl->wiphy = wiphy;
 	ret = wiphy_register(wiphy);

@@ -306,7 +306,10 @@ static int wilc_send_connect_wid(struct wilc_vif *vif)
 		netdev_err(vif->ndev, "failed to send config packet\n");
 		goto error;
 	} else {
-		hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
+                if (conn_attr->auth_type == WILC_FW_AUTH_SAE)
+                        hif_drv->hif_state = HOST_IF_EXTERNAL_AUTH;
+                else
+                        hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
 	}
 
 	return 0;
@@ -665,7 +668,12 @@ static void handle_rcvd_gnrl_async_info(struct work_struct *work)
 		goto free_msg;
 	}
 
-	if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
+
+        if (hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH) {
+                cfg80211_external_auth_request(vif->ndev, &vif->auth,
+					       GFP_KERNEL);
+                hif_drv->hif_state = HOST_IF_WAITING_CONN_RESP;
+        } else if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP) {
 		host_int_parse_assoc_resp_info(vif, mac_info->status);
 	} else if (mac_info->status == WILC_MAC_STATUS_DISCONNECTED) {
 		if (hif_drv->hif_state == HOST_IF_CONNECTED) {
@@ -710,7 +718,8 @@ int wilc_disconnect(struct wilc_vif *vif)
 	}
 
 	if (conn_info->conn_result) {
-		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP)
+		if (hif_drv->hif_state == HOST_IF_WAITING_CONN_RESP ||
+		    hif_drv->hif_state == HOST_IF_EXTERNAL_AUTH)
 			del_timer(&hif_drv->connect_timer);
 
 		conn_info->conn_result(CONN_DISCONN_EVENT_DISCONN_NOTIF, 0,
@@ -984,6 +993,31 @@ void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled)
 	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (ret)
 		pr_err("Failed to send wowlan trigger config packet\n");
+}
+
+int wilc_set_external_auth_param(struct wilc_vif *vif,
+				 struct cfg80211_external_auth_params *auth)
+{
+	int ret;
+	struct wid wid;
+	struct wilc_external_auth_param *param;
+
+	wid.id = WID_EXTERNAL_AUTH_PARAM;
+	wid.type = WID_BIN_DATA;
+	wid.size = sizeof(*param);
+	param = kzalloc(sizeof(*param), GFP_KERNEL);
+	if (!param)
+		return -EINVAL;
+
+	wid.val = (u8 *)param;
+	param->action = auth->action;
+	ether_addr_copy(param->bssid, auth->bssid);
+	memcpy(param->ssid, auth->ssid.ssid, auth->ssid.ssid_len);
+	param->ssid_len = auth->ssid.ssid_len;
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+
+	kfree(param);
+	return ret;
 }
 
 static void handle_scan_timer(struct work_struct *work)
@@ -1646,6 +1680,10 @@ void wilc_frame_register(struct wilc_vif *vif, u16 frame_type, bool reg)
 	case IEEE80211_STYPE_PROBE_REQ:
 		reg_frame.reg_id = WILC_FW_PROBE_REQ_IDX;
 		break;
+
+        case IEEE80211_STYPE_AUTH:
+                reg_frame.reg_id = WILC_FW_AUTH_REQ_IDX;
+                break;
 
 	default:
 		break;

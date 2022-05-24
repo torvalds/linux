@@ -185,6 +185,7 @@ struct wilc_vif {
 	struct wilc_priv priv;
 	struct list_head list;
 	struct cfg80211_bss *bss;
+	struct cfg80211_external_auth_params auth;
 };
 
 struct wilc_tx_queue_status {
@@ -278,7 +279,7 @@ struct wilc_wfi_mon_priv {
 void wilc_frmw_to_host(struct wilc *wilc, u8 *buff, u32 size, u32 pkt_offset);
 void wilc_mac_indicate(struct wilc *wilc);
 void wilc_netdev_cleanup(struct wilc *wilc);
-void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size);
+void wilc_wfi_mgmt_rx(struct wilc *wilc, u8 *buff, u32 size, bool is_auth);
 void wilc_wlan_set_bssid(struct net_device *wilc_netdev, const u8 *bssid,
 			 u8 mode);
 struct wilc_vif *wilc_netdev_ifc_init(struct wilc *wl, const char *name,

@@ -47,6 +47,7 @@ enum host_if_state {
 	HOST_IF_WAITING_CONN_RESP	= 3,
 	HOST_IF_CONNECTED		= 4,
 	HOST_IF_P2P_LISTEN		= 5,
+	HOST_IF_EXTERNAL_AUTH           = 6,
 	HOST_IF_FORCE_32BIT		= 0xFFFFFFFF
 };
 
@@ -202,6 +203,8 @@ int wilc_get_vif_idx(struct wilc_vif *vif);
 int wilc_set_tx_power(struct wilc_vif *vif, u8 tx_power);
 int wilc_get_tx_power(struct wilc_vif *vif, u8 *tx_power);
 void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled);
+int wilc_set_external_auth_param(struct wilc_vif *vif,
+				 struct cfg80211_external_auth_params *param);
 void wilc_scan_complete_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_network_info_received(struct wilc *wilc, u8 *buffer, u32 length);
 void wilc_gnrl_async_info_received(struct wilc *wilc, u8 *buffer, u32 length);
