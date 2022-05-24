@@ -1867,6 +1867,68 @@ static void vop_plane_atomic_disable(struct drm_plane *plane,
 	spin_unlock(&vop->reg_lock);
 }
 
+static void vop_plane_setup_color_key(struct drm_plane *plane)
+{
+	struct drm_plane_state *pstate = plane->state;
+	struct vop_plane_state *vpstate = to_vop_plane_state(pstate);
+	struct drm_framebuffer *fb = pstate->fb;
+	struct vop_win *win = to_vop_win(plane);
+	struct vop *vop = win->vop;
+	uint32_t color_key_en = 0;
+	uint32_t color_key;
+	uint32_t r = 0;
+	uint32_t g = 0;
+	uint32_t b = 0;
+
+	if (!(vpstate->color_key & VOP_COLOR_KEY_MASK) || fb->format->is_yuv) {
+		VOP_WIN_SET(vop, win, color_key_en, 0);
+		return;
+	}
+
+	switch (fb->format->format) {
+	case DRM_FORMAT_RGB565:
+	case DRM_FORMAT_BGR565:
+		r = (vpstate->color_key & 0xf800) >> 11;
+		g = (vpstate->color_key & 0x7e0) >> 5;
+		b = (vpstate->color_key & 0x1f);
+		if (VOP_WIN_SUPPORT(vop, win, fmt_10)) {
+			r <<= 5;
+			g <<= 4;
+			b <<= 5;
+		} else {
+			r <<= 3;
+			g <<= 2;
+			b <<= 3;
+		}
+		color_key_en = 1;
+		break;
+	case DRM_FORMAT_XRGB8888:
+	case DRM_FORMAT_ARGB8888:
+	case DRM_FORMAT_XBGR8888:
+	case DRM_FORMAT_ABGR8888:
+	case DRM_FORMAT_RGB888:
+	case DRM_FORMAT_BGR888:
+		r = (vpstate->color_key & 0xff0000) >> 16;
+		g = (vpstate->color_key & 0xff00) >> 8;
+		b = (vpstate->color_key & 0xff);
+		if (VOP_WIN_SUPPORT(vop, win, fmt_10)) {
+			r <<= 2;
+			g <<= 2;
+			b <<= 2;
+		}
+		color_key_en = 1;
+		break;
+	}
+
+	if (VOP_WIN_SUPPORT(vop, win, fmt_10))
+		color_key = (r << 20) | (g << 10) | b;
+	else
+		color_key = (r << 16) | (g << 8) | b;
+
+	VOP_WIN_SET(vop, win, color_key_en, color_key_en);
+	VOP_WIN_SET(vop, win, color_key, color_key);
+}
+
 static void vop_plane_atomic_update(struct drm_plane *plane,
 		struct drm_plane_state *old_state)
 {
@@ -1986,6 +2048,9 @@ static void vop_plane_atomic_update(struct drm_plane *plane,
 		scl_vop_cal_scl_fac(vop, win, actual_w, actual_h,
 				    drm_rect_width(dest), drm_rect_height(dest),
 				    fb->format->format);
+
+	if (VOP_WIN_SUPPORT(vop, win, color_key))
+		vop_plane_setup_color_key(&win->base);
 
 	VOP_WIN_SET(vop, win, act_info, act_info);
 	VOP_WIN_SET(vop, win, dsp_info, dsp_info);
@@ -4408,8 +4473,9 @@ static int vop_plane_init(struct vop *vop, struct vop_win *win,
 	 * Bit 31 is used as a flag to disable (0) or enable
 	 * color keying (1).
 	 */
-	win->color_key_prop = drm_property_create_range(vop->drm_dev, 0,
-							"colorkey", 0, 0x80ffffff);
+	if (VOP_WIN_SUPPORT(vop, win, color_key))
+		win->color_key_prop = drm_property_create_range(vop->drm_dev, 0,
+								"colorkey", 0, 0x80ffffff);
 	if (!win->input_width_prop || !win->input_height_prop ||
 	    !win->scale_prop || !win->color_key_prop) {
 		DRM_ERROR("failed to create property\n");
