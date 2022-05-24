@@ -34,6 +34,7 @@ properties:
       - nxp,sa56004
       - onnn,nct1008
       - ti,tmp451
+      - ti,tmp461
       - winbond,w83l771
 
 
@@ -52,9 +53,28 @@ properties:
   vcc-supply:
     description: phandle to the regulator that provides the +VCC supply
 
+  ti,extended-range-enable:
+    description: Set to enable extended range temperature.
+    type: boolean
+
 required:
   - compatible
   - reg
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - adi,adt7461
+                - adi,adt7461a
+                - ti,tmp451
+                - ti,tmp461
+    then:
+      properties:
+        ti,extended-range-enable: false
 
 additionalProperties: false
 

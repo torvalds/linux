@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Hardware monitoring driver for Maxim MAX16508 and MAX16601.
+ * Hardware monitoring driver for Maxim MAX16508, MAX16601 and MAX16602.
  *
  * Implementation notes:
  *
@@ -31,7 +31,7 @@
 
 #include "pmbus.h"
 
-enum chips { max16508, max16601 };
+enum chips { max16508, max16601, max16602 };
 
 #define REG_DEFAULT_NUM_POP	0xc4
 #define REG_SETPT_DVID		0xd1
@@ -202,7 +202,7 @@ static int max16601_identify(struct i2c_client *client,
 	else
 		info->vrm_version[0] = vr12;
 
-	if (data->id != max16601)
+	if (data->id != max16601 && data->id != max16602)
 		return 0;
 
 	reg = i2c_smbus_read_byte_data(client, REG_DEFAULT_NUM_POP);
@@ -264,6 +264,7 @@ static void max16601_remove(void *_data)
 static const struct i2c_device_id max16601_id[] = {
 	{"max16508", max16508},
 	{"max16601", max16601},
+	{"max16602", max16602},
 	{}
 };
 MODULE_DEVICE_TABLE(i2c, max16601_id);
@@ -280,13 +281,15 @@ static int max16601_get_id(struct i2c_client *client)
 		return -ENODEV;
 
 	/*
-	 * PMBUS_IC_DEVICE_ID is expected to return "MAX16601y.xx"
-	 * or "MAX16500y.xx".
+	 * PMBUS_IC_DEVICE_ID is expected to return "MAX16601y.xx" or
+	 * MAX16602y.xx or "MAX16500y.xx".cdxxcccccccccc
 	 */
 	if (!strncmp(buf, "MAX16500", 8)) {
 		id = max16508;
 	} else if (!strncmp(buf, "MAX16601", 8)) {
 		id = max16601;
+	} else if (!strncmp(buf, "MAX16602", 8)) {
+		id = max16602;
 	} else {
 		buf[ret] = '\0';
 		dev_err(dev, "Unsupported chip '%s'\n", buf);

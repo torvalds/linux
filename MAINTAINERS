@@ -1447,6 +1447,7 @@ F:	drivers/media/i2c/aptina-pll.*
 
 AQUACOMPUTER D5 NEXT PUMP SENSOR DRIVER
 M:	Aleksa Savic <savicaleksa83@gmail.com>
+M:	Jack Doan <me@jackdoan.com>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/aquacomputer_d5next.rst
@@ -13554,12 +13555,21 @@ M:	Samuel Mendoza-Jonas <sam@mendozajonas.com>
 S:	Maintained
 F:	net/ncsi/
 
-NCT6775 HARDWARE MONITOR DRIVER
+NCT6775 HARDWARE MONITOR DRIVER - CORE & PLATFORM DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
 F:	Documentation/hwmon/nct6775.rst
-F:	drivers/hwmon/nct6775.c
+F:	drivers/hwmon/nct6775-core.c
+F:	drivers/hwmon/nct6775-platform.c
+F:	drivers/hwmon/nct6775.h
+
+NCT6775 HARDWARE MONITOR DRIVER - I2C DRIVER
+M:	Zev Weiss <zev@bewilderbeest.net>
+L:	linux-hwmon@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/hwmon/nuvoton,nct6775.yaml
+F:	drivers/hwmon/nct6775-i2c.c
 
 NETDEVSIM
 M:	Jakub Kicinski <kuba@kernel.org>
@@ -19870,6 +19880,7 @@ TMP401 HARDWARE MONITOR DRIVER
 M:	Guenter Roeck <linux@roeck-us.net>
 L:	linux-hwmon@vger.kernel.org
 S:	Maintained
+F:	Documentation/devicetree/bindings/hwmon/ti,tmp401.yaml
 F:	Documentation/hwmon/tmp401.rst
 F:	drivers/hwmon/tmp401.c
 
