@@ -61,7 +61,8 @@ bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
 }
 #endif
 
-struct bpf_map * __weak
+#ifndef HAVE_LIBBPF_BPF_OBJECT__NEXT_MAP
+struct bpf_map *
 bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 {
 #pragma GCC diagnostic push
@@ -69,6 +70,7 @@ bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 	return bpf_map__next(prev, obj);
 #pragma GCC diagnostic pop
 }
+#endif
 
 const void * __weak
 btf__raw_data(const struct btf *btf_ro, __u32 *size)
