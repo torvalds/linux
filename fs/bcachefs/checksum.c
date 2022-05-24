@@ -116,7 +116,12 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 {
 	struct scatterlist sg;
 
-	sg_init_one(&sg, buf, len);
+	sg_init_table(&sg, 1);
+	sg_set_page(&sg,
+		    is_vmalloc_addr(buf)
+		    ? vmalloc_to_page(buf)
+		    : virt_to_page(buf),
+		    len, offset_in_page(buf));
 	return do_encrypt_sg(tfm, nonce, &sg, len);
 }
 
