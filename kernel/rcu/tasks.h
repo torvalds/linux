@@ -1497,8 +1497,9 @@ static void show_stalled_task_trace(struct task_struct *t, bool *firstreport)
 	}
 	cpu = task_cpu(t);
 	if (!task_call_func(t, trc_check_slow_task, &trc_rdr))
-		pr_alert("P%d: %c\n",
+		pr_alert("P%d: %c%c\n",
 			 t->pid,
+			 ".I"[t->trc_ipi_to_cpu >= 0],
 			 ".i"[is_idle_tsk]);
 	else
 		pr_alert("P%d: %c%c%c nesting: %d%c cpu: %d\n",
