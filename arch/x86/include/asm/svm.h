@@ -569,23 +569,23 @@ struct vmcb {
 	(offsetof(struct ghcb_save_area, field) / sizeof(u64))
 
 #define DEFINE_GHCB_ACCESSORS(field)						\
-	static inline bool ghcb_##field##_is_valid(const struct ghcb *ghcb)	\
+	static __always_inline bool ghcb_##field##_is_valid(const struct ghcb *ghcb) \
 	{									\
 		return test_bit(GHCB_BITMAP_IDX(field),				\
 				(unsigned long *)&ghcb->save.valid_bitmap);	\
 	}									\
 										\
-	static inline u64 ghcb_get_##field(struct ghcb *ghcb)			\
+	static __always_inline u64 ghcb_get_##field(struct ghcb *ghcb)		\
 	{									\
 		return ghcb->save.field;					\
 	}									\
 										\
-	static inline u64 ghcb_get_##field##_if_valid(struct ghcb *ghcb)	\
+	static __always_inline u64 ghcb_get_##field##_if_valid(struct ghcb *ghcb) \
 	{									\
 		return ghcb_##field##_is_valid(ghcb) ? ghcb->save.field : 0;	\
 	}									\
 										\
-	static inline void ghcb_set_##field(struct ghcb *ghcb, u64 value)	\
+	static __always_inline void ghcb_set_##field(struct ghcb *ghcb, u64 value) \
 	{									\
 		__set_bit(GHCB_BITMAP_IDX(field),				\
 			  (unsigned long *)&ghcb->save.valid_bitmap);		\

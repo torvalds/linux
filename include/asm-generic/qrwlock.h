@@ -33,8 +33,8 @@ extern void queued_read_lock_slowpath(struct qrwlock *lock);
 extern void queued_write_lock_slowpath(struct qrwlock *lock);
 
 /**
- * queued_read_trylock - try to acquire read lock of a queue rwlock
- * @lock : Pointer to queue rwlock structure
+ * queued_read_trylock - try to acquire read lock of a queued rwlock
+ * @lock : Pointer to queued rwlock structure
  * Return: 1 if lock acquired, 0 if failed
  */
 static inline int queued_read_trylock(struct qrwlock *lock)
@@ -52,8 +52,8 @@ static inline int queued_read_trylock(struct qrwlock *lock)
 }
 
 /**
- * queued_write_trylock - try to acquire write lock of a queue rwlock
- * @lock : Pointer to queue rwlock structure
+ * queued_write_trylock - try to acquire write lock of a queued rwlock
+ * @lock : Pointer to queued rwlock structure
  * Return: 1 if lock acquired, 0 if failed
  */
 static inline int queued_write_trylock(struct qrwlock *lock)
@@ -68,8 +68,8 @@ static inline int queued_write_trylock(struct qrwlock *lock)
 				_QW_LOCKED));
 }
 /**
- * queued_read_lock - acquire read lock of a queue rwlock
- * @lock: Pointer to queue rwlock structure
+ * queued_read_lock - acquire read lock of a queued rwlock
+ * @lock: Pointer to queued rwlock structure
  */
 static inline void queued_read_lock(struct qrwlock *lock)
 {
@@ -84,8 +84,8 @@ static inline void queued_read_lock(struct qrwlock *lock)
 }
 
 /**
- * queued_write_lock - acquire write lock of a queue rwlock
- * @lock : Pointer to queue rwlock structure
+ * queued_write_lock - acquire write lock of a queued rwlock
+ * @lock : Pointer to queued rwlock structure
  */
 static inline void queued_write_lock(struct qrwlock *lock)
 {
@@ -98,8 +98,8 @@ static inline void queued_write_lock(struct qrwlock *lock)
 }
 
 /**
- * queued_read_unlock - release read lock of a queue rwlock
- * @lock : Pointer to queue rwlock structure
+ * queued_read_unlock - release read lock of a queued rwlock
+ * @lock : Pointer to queued rwlock structure
  */
 static inline void queued_read_unlock(struct qrwlock *lock)
 {
@@ -110,8 +110,8 @@ static inline void queued_read_unlock(struct qrwlock *lock)
 }
 
 /**
- * queued_write_unlock - release write lock of a queue rwlock
- * @lock : Pointer to queue rwlock structure
+ * queued_write_unlock - release write lock of a queued rwlock
+ * @lock : Pointer to queued rwlock structure
  */
 static inline void queued_write_unlock(struct qrwlock *lock)
 {
@@ -120,7 +120,7 @@ static inline void queued_write_unlock(struct qrwlock *lock)
 
 /**
  * queued_rwlock_is_contended - check if the lock is contended
- * @lock : Pointer to queue rwlock structure
+ * @lock : Pointer to queued rwlock structure
  * Return: 1 if lock contended, 0 otherwise
  */
 static inline int queued_rwlock_is_contended(struct qrwlock *lock)
@@ -130,7 +130,7 @@ static inline int queued_rwlock_is_contended(struct qrwlock *lock)
 
 /*
  * Remapping rwlock architecture specific functions to the corresponding
- * queue rwlock functions.
+ * queued rwlock functions.
  */
 #define arch_read_lock(l)		queued_read_lock(l)
 #define arch_write_lock(l)		queued_write_lock(l)
