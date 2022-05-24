@@ -671,11 +671,12 @@ static void ufshpb_execute_umap_req(struct ufshpb_lu *hpb,
 
 	req->timeout = 0;
 	req->end_io_data = umap_req;
+	req->end_io = ufshpb_umap_req_compl_fn;
 
 	ufshpb_set_unmap_cmd(scmd->cmnd, rgn);
 	scmd->cmd_len = HPB_WRITE_BUFFER_CMD_LENGTH;
 
-	blk_execute_rq_nowait(req, true, ufshpb_umap_req_compl_fn);
+	blk_execute_rq_nowait(req, true);
 
 	hpb->stats.umap_req_cnt++;
 }
@@ -707,6 +708,7 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 	blk_rq_append_bio(req, map_req->bio);
 
 	req->end_io_data = map_req;
+	req->end_io = ufshpb_map_req_compl_fn;
 
 	if (unlikely(last))
 		mem_size = hpb->last_srgn_entries * HPB_ENTRY_SIZE;
@@ -716,7 +718,7 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 				map_req->rb.srgn_idx, mem_size);
 	scmd->cmd_len = HPB_READ_BUFFER_CMD_LENGTH;
 
-	blk_execute_rq_nowait(req, true, ufshpb_map_req_compl_fn);
+	blk_execute_rq_nowait(req, true);
 
 	hpb->stats.map_req_cnt++;
 	return 0;
