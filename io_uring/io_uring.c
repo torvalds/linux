@@ -556,7 +556,7 @@ struct io_uring_task {
  * First field must be the file pointer in all the
  * iocb unions! See also 'struct kiocb' in <linux/fs.h>
  */
-struct io_poll_iocb {
+struct io_poll {
 	struct file			*file;
 	struct wait_queue_head		*head;
 	__poll_t			events;
@@ -919,8 +919,8 @@ enum {
 };
 
 struct async_poll {
-	struct io_poll_iocb	poll;
-	struct io_poll_iocb	*double_poll;
+	struct io_poll		poll;
+	struct io_poll		*double_poll;
 };
 
 typedef void (*io_req_tw_func_t)(struct io_kiocb *req, bool *locked);
@@ -976,7 +976,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_poll_iocb	poll;
 		struct io_poll_update	poll_update;
 		struct io_accept	accept;
 		struct io_sync		sync;
@@ -6579,7 +6578,7 @@ static void io_poll_mark_cancelled(struct io_kiocb *req)
 	atomic_or(IO_POLL_CANCEL_FLAG, &req->poll_refs);
 }
 
-static struct io_poll_iocb *io_poll_get_double(struct io_kiocb *req)
+static struct io_poll *io_poll_get_double(struct io_kiocb *req)
 {
 	/* pure poll stashes this in ->async_data, poll driven retry elsewhere */
 	if (req->opcode == IORING_OP_POLL_ADD)
@@ -6587,10 +6586,10 @@ static struct io_poll_iocb *io_poll_get_double(struct io_kiocb *req)
 	return req->apoll->double_poll;
 }
 
-static struct io_poll_iocb *io_poll_get_single(struct io_kiocb *req)
+static struct io_poll *io_poll_get_single(struct io_kiocb *req)
 {
 	if (req->opcode == IORING_OP_POLL_ADD)
-		return &req->poll;
+		return io_kiocb_to_cmd(req);
 	return &req->apoll->poll;
 }
 
@@ -6603,7 +6602,7 @@ static void io_poll_req_insert(struct io_kiocb *req)
 	hlist_add_head(&req->hash_node, list);
 }
 
-static void io_init_poll_iocb(struct io_poll_iocb *poll, __poll_t events,
+static void io_init_poll_iocb(struct io_poll *poll, __poll_t events,
 			      wait_queue_func_t wake_func)
 {
 	poll->head = NULL;
@@ -6614,7 +6613,7 @@ static void io_init_poll_iocb(struct io_poll_iocb *poll, __poll_t events,
 	init_waitqueue_func_entry(&poll->wait, wake_func);
 }
 
-static inline void io_poll_remove_entry(struct io_poll_iocb *poll)
+static inline void io_poll_remove_entry(struct io_poll *poll)
 {
 	struct wait_queue_head *head = smp_load_acquire(&poll->head);
 
@@ -6740,7 +6739,9 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 		return;
 
 	if (!ret) {
-		req->cqe.res = mangle_poll(req->cqe.res & req->poll.events);
+		struct io_poll *poll = io_kiocb_to_cmd(req);
+
+		req->cqe.res = mangle_poll(req->cqe.res & poll->events);
 	} else {
 		req->cqe.res = ret;
 		req_set_fail(req);
@@ -6816,8 +6817,7 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 			void *key)
 {
 	struct io_kiocb *req = wqe_to_req(wait);
-	struct io_poll_iocb *poll = container_of(wait, struct io_poll_iocb,
-						 wait);
+	struct io_poll *poll = container_of(wait, struct io_poll, wait);
 	__poll_t mask = key_to_poll(key);
 
 	if (unlikely(mask & POLLFREE)) {
@@ -6863,20 +6863,20 @@ static int io_poll_wake(struct wait_queue_entry *wait, unsigned mode, int sync,
 	return 1;
 }
 
-static void __io_queue_proc(struct io_poll_iocb *poll, struct io_poll_table *pt,
+static void __io_queue_proc(struct io_poll *poll, struct io_poll_table *pt,
 			    struct wait_queue_head *head,
-			    struct io_poll_iocb **poll_ptr)
+			    struct io_poll **poll_ptr)
 {
 	struct io_kiocb *req = pt->req;
 	unsigned long wqe_private = (unsigned long) req;
 
 	/*
 	 * The file being polled uses multiple waitqueues for poll handling
-	 * (e.g. one for read, one for write). Setup a separate io_poll_iocb
+	 * (e.g. one for read, one for write). Setup a separate io_poll
 	 * if this happens.
 	 */
 	if (unlikely(pt->nr_entries)) {
-		struct io_poll_iocb *first = poll;
+		struct io_poll *first = poll;
 
 		/* double add on the same waitqueue head, ignore */
 		if (first->head == head)
@@ -6918,13 +6918,14 @@ static void io_poll_queue_proc(struct file *file, struct wait_queue_head *head,
 			       struct poll_table_struct *p)
 {
 	struct io_poll_table *pt = container_of(p, struct io_poll_table, pt);
+	struct io_poll *poll = io_kiocb_to_cmd(pt->req);
 
-	__io_queue_proc(&pt->req->poll, pt, head,
-			(struct io_poll_iocb **) &pt->req->async_data);
+	__io_queue_proc(poll, pt, head,
+			(struct io_poll **) &pt->req->async_data);
 }
 
 static int __io_arm_poll_handler(struct io_kiocb *req,
-				 struct io_poll_iocb *poll,
+				 struct io_poll *poll,
 				 struct io_poll_table *ipt, __poll_t mask)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -7207,7 +7208,7 @@ static int io_poll_remove_prep(struct io_kiocb *req,
 
 static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_poll_iocb *poll = &req->poll;
+	struct io_poll *poll = io_kiocb_to_cmd(req);
 	u32 flags;
 
 	if (sqe->buf_index || sqe->off || sqe->addr)
@@ -7225,13 +7226,13 @@ static int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe
 
 static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_poll_iocb *poll = &req->poll;
+	struct io_poll *poll = io_kiocb_to_cmd(req);
 	struct io_poll_table ipt;
 	int ret;
 
 	ipt.pt._qproc = io_poll_queue_proc;
 
-	ret = __io_arm_poll_handler(req, &req->poll, &ipt, poll->events);
+	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events);
 	if (!ret && ipt.error)
 		req_set_fail(req);
 	ret = ret ?: ipt.error;
@@ -7260,9 +7261,11 @@ static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	if (req->poll_update.update_events || req->poll_update.update_user_data) {
 		/* only mask one event flags, keep behavior flags */
 		if (req->poll_update.update_events) {
-			preq->poll.events &= ~0xffff;
-			preq->poll.events |= req->poll_update.events & 0xffff;
-			preq->poll.events |= IO_POLL_UNMASK;
+			struct io_poll *poll = io_kiocb_to_cmd(preq);
+
+			poll->events &= ~0xffff;
+			poll->events |= req->poll_update.events & 0xffff;
+			poll->events |= IO_POLL_UNMASK;
 		}
 		if (req->poll_update.update_user_data)
 			preq->cqe.user_data = req->poll_update.new_user_data;
