@@ -333,6 +333,7 @@ struct cxl_nvdimm {
  * @dports: cxl_dport instances referenced by decoders
  * @endpoints: cxl_ep instances, endpoints that are a descendant of this port
  * @decoder_ida: allocator for decoder ids
+ * @hdm_end: track last allocated HDM decoder instance for allocation ordering
  * @component_reg_phys: component register capability base address (optional)
  * @dead: last ep has been removed, force port re-creation
  * @depth: How deep this port is relative to the root. depth 0 is the root.
@@ -347,6 +348,7 @@ struct cxl_port {
 	struct list_head dports;
 	struct list_head endpoints;
 	struct ida decoder_ida;
+	int hdm_end;
 	resource_size_t component_reg_phys;
 	bool dead;
 	unsigned int depth;

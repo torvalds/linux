@@ -502,6 +502,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 
 	port->component_reg_phys = component_reg_phys;
 	ida_init(&port->decoder_ida);
+	port->hdm_end = -1;
 	INIT_LIST_HEAD(&port->dports);
 	INIT_LIST_HEAD(&port->endpoints);
 

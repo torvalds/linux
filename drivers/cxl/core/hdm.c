@@ -160,6 +160,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_dpa_debug, CXL);
 static void __cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+	struct cxl_port *port = cxled_to_port(cxled);
 	struct cxl_dev_state *cxlds = cxlmd->cxlds;
 	struct resource *res = cxled->dpa_res;
 	resource_size_t skip_start;
@@ -173,6 +174,7 @@ static void __cxl_dpa_release(struct cxl_endpoint_decoder *cxled)
 		__release_region(&cxlds->dpa_res, skip_start, cxled->skip);
 	cxled->skip = 0;
 	cxled->dpa_res = NULL;
+	port->hdm_end--;
 }
 
 static void cxl_dpa_release(void *cxled)
@@ -200,6 +202,18 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 	if (cxled->dpa_res) {
 		dev_dbg(dev, "decoder%d.%d: existing allocation %pr assigned\n",
 			port->id, cxled->cxld.id, cxled->dpa_res);
+		return -EBUSY;
+	}
+
+	if (port->hdm_end + 1 != cxled->cxld.id) {
+		/*
+		 * Assumes alloc and commit order is always in hardware instance
+		 * order per expectations from 8.2.5.12.20 Committing Decoder
+		 * Programming that enforce decoder[m] committed before
+		 * decoder[m+1] commit start.
+		 */
+		dev_dbg(dev, "decoder%d.%d: expected decoder%d.%d\n", port->id,
+			cxled->cxld.id, port->id, port->hdm_end + 1);
 		return -EBUSY;
 	}
 
@@ -235,6 +249,7 @@ static int __cxl_dpa_reserve(struct cxl_endpoint_decoder *cxled,
 			cxled->cxld.id, cxled->dpa_res);
 		cxled->mode = CXL_DECODER_MIXED;
 	}
+	port->hdm_end++;
 
 	return 0;
 }
