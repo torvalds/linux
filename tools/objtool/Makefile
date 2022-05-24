@@ -39,15 +39,13 @@ CFLAGS += $(if $(elfshdr),,-DLIBELF_USE_DEPRECATED)
 
 AWK = awk
 
-SUBCMD_CHECK := n
-SUBCMD_ORC := n
+BUILD_ORC := n
 
 ifeq ($(SRCARCH),x86)
-	SUBCMD_CHECK := y
-	SUBCMD_ORC := y
+	BUILD_ORC := y
 endif
 
-export SUBCMD_CHECK SUBCMD_ORC
+export BUILD_ORC
 export srctree OUTPUT CFLAGS SRCARCH AWK
 include $(srctree)/tools/build/Makefile.include
 
@@ -65,7 +63,7 @@ $(LIBSUBCMD): fixdep FORCE
 clean:
 	$(call QUIET_CLEAN, objtool) $(RM) $(OBJTOOL)
 	$(Q)find $(OUTPUT) -name '*.o' -delete -o -name '\.*.cmd' -delete -o -name '\.*.d' -delete
-	$(Q)$(RM) $(OUTPUT)arch/x86/inat-tables.c $(OUTPUT)fixdep
+	$(Q)$(RM) $(OUTPUT)arch/x86/lib/inat-tables.c $(OUTPUT)fixdep $(LIBSUBCMD)
 
 FORCE:
 

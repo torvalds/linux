@@ -338,7 +338,7 @@ next:
 	}
 }
 
-#if defined(CONFIG_RETPOLINE) && defined(CONFIG_STACK_VALIDATION)
+#if defined(CONFIG_RETPOLINE) && defined(CONFIG_OBJTOOL)
 
 /*
  * CALL/JMP *%\reg
@@ -507,11 +507,11 @@ void __init_or_module noinline apply_retpolines(s32 *start, s32 *end)
 	}
 }
 
-#else /* !RETPOLINES || !CONFIG_STACK_VALIDATION */
+#else /* !CONFIG_RETPOLINE || !CONFIG_OBJTOOL */
 
 void __init_or_module noinline apply_retpolines(s32 *start, s32 *end) { }
 
-#endif /* CONFIG_RETPOLINE && CONFIG_STACK_VALIDATION */
+#endif /* CONFIG_RETPOLINE && CONFIG_OBJTOOL */
 
 #ifdef CONFIG_X86_KERNEL_IBT
 
