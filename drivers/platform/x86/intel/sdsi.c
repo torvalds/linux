@@ -51,6 +51,8 @@
 #define MBOX_TIMEOUT_US			2000
 #define MBOX_TIMEOUT_ACQUIRE_US		1000
 #define MBOX_POLLING_PERIOD_US		100
+#define MBOX_ACQUIRE_NUM_RETRIES	5
+#define MBOX_ACQUIRE_RETRY_DELAY_MS	500
 #define MBOX_MAX_PACKETS		4
 
 #define MBOX_OWNER_NONE			0x00
@@ -81,7 +83,7 @@ enum sdsi_command {
 
 struct sdsi_mbox_info {
 	u64	*payload;
-	u64	*buffer;
+	void	*buffer;
 	int	size;
 };
 
@@ -163,9 +165,7 @@ static int sdsi_mbox_cmd_read(struct sdsi_priv *priv, struct sdsi_mbox_info *inf
 	total = 0;
 	loop = 0;
 	do {
-		int offset = SDSI_SIZE_MAILBOX * loop;
-		void __iomem *addr = priv->mbox_addr + offset;
-		u64 *buf = info->buffer + offset / SDSI_SIZE_CMD;
+		void *buf = info->buffer + (SDSI_SIZE_MAILBOX * loop);
 		u32 packet_size;
 
 		/* Poll on ready bit */
@@ -196,7 +196,7 @@ static int sdsi_mbox_cmd_read(struct sdsi_priv *priv, struct sdsi_mbox_info *inf
 			break;
 		}
 
-		sdsi_memcpy64_fromio(buf, addr, round_up(packet_size, SDSI_SIZE_CMD));
+		sdsi_memcpy64_fromio(buf, priv->mbox_addr, round_up(packet_size, SDSI_SIZE_CMD));
 
 		total += packet_size;
 
@@ -243,8 +243,8 @@ static int sdsi_mbox_cmd_write(struct sdsi_priv *priv, struct sdsi_mbox_info *in
 		  FIELD_PREP(CTRL_PACKET_SIZE, info->size);
 	writeq(control, priv->control_addr);
 
-	/* Poll on run_busy bit */
-	ret = readq_poll_timeout(priv->control_addr, control, !(control & CTRL_RUN_BUSY),
+	/* Poll on ready bit */
+	ret = readq_poll_timeout(priv->control_addr, control, control & CTRL_READY,
 				 MBOX_POLLING_PERIOD_US, MBOX_TIMEOUT_US);
 
 	if (ret)
@@ -263,7 +263,7 @@ static int sdsi_mbox_acquire(struct sdsi_priv *priv, struct sdsi_mbox_info *info
 {
 	u64 control;
 	u32 owner;
-	int ret;
+	int ret, retries = 0;
 
 	lockdep_assert_held(&priv->mb_lock);
 
@@ -273,13 +273,29 @@ static int sdsi_mbox_acquire(struct sdsi_priv *priv, struct sdsi_mbox_info *info
 	if (owner != MBOX_OWNER_NONE)
 		return -EBUSY;
 
-	/* Write first qword of payload */
-	writeq(info->payload[0], priv->mbox_addr);
+	/*
+	 * If there has been no recent transaction and no one owns the mailbox,
+	 * we should acquire it in under 1ms. However, if we've accessed it
+	 * recently it may take up to 2.1 seconds to acquire it again.
+	 */
+	do {
+		/* Write first qword of payload */
+		writeq(info->payload[0], priv->mbox_addr);
 
-	/* Check for ownership */
-	ret = readq_poll_timeout(priv->control_addr, control,
-				 FIELD_GET(CTRL_OWNER, control) & MBOX_OWNER_INBAND,
-				 MBOX_POLLING_PERIOD_US, MBOX_TIMEOUT_ACQUIRE_US);
+		/* Check for ownership */
+		ret = readq_poll_timeout(priv->control_addr, control,
+			FIELD_GET(CTRL_OWNER, control) == MBOX_OWNER_INBAND,
+			MBOX_POLLING_PERIOD_US, MBOX_TIMEOUT_ACQUIRE_US);
+
+		if (FIELD_GET(CTRL_OWNER, control) == MBOX_OWNER_NONE &&
+		    retries++ < MBOX_ACQUIRE_NUM_RETRIES) {
+			msleep(MBOX_ACQUIRE_RETRY_DELAY_MS);
+			continue;
+		}
+
+		/* Either we got it or someone else did. */
+		break;
+	} while (true);
 
 	return ret;
 }

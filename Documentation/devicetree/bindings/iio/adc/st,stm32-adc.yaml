@@ -138,7 +138,6 @@ allOf:
             - const: bus
             - const: adc
           minItems: 1
-          maxItems: 2
 
         interrupts:
           items:
@@ -170,7 +169,6 @@ allOf:
             - const: bus
             - const: adc
           minItems: 1
-          maxItems: 2
 
         interrupts:
           items:

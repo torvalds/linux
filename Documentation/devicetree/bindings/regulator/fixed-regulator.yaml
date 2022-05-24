@@ -18,23 +18,23 @@ description:
 
 allOf:
   - $ref: "regulator.yaml#"
-
-if:
-  properties:
-    compatible:
-      contains:
-        const: regulator-fixed-clock
-  required:
-    - clocks
-else:
-  if:
-    properties:
-      compatible:
-        contains:
-          const: regulator-fixed-domain
-    required:
-      - power-domains
-      - required-opps
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: regulator-fixed-clock
+    then:
+      required:
+        - clocks
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: regulator-fixed-domain
+    then:
+      required:
+        - power-domains
+        - required-opps
 
 properties:
   compatible:

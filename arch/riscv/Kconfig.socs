@@ -38,7 +38,7 @@ config SOC_VIRT
 	select SIFIVE_PLIC
 	select PM_GENERIC_DOMAINS if PM
 	select PM_GENERIC_DOMAINS_OF if PM && OF
-	select RISCV_SBI_CPUIDLE if CPU_IDLE
+	select RISCV_SBI_CPUIDLE if CPU_IDLE && RISCV_SBI
 	help
 	  This enables support for QEMU Virt Machine.
 

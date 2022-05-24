@@ -403,6 +403,7 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 {
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
+	struct ocelot_vcap_block *block_vcap_is2;
 	struct ocelot_vcap_filter *trap;
 	enum ocelot_mask_mode mask_mode;
 	unsigned long port_mask;
@@ -422,9 +423,13 @@ static int felix_update_trapping_destinations(struct dsa_switch *ds,
 	/* We are sure that "cpu" was found, otherwise
 	 * dsa_tree_setup_default_cpu() would have failed earlier.
 	 */
+	block_vcap_is2 = &ocelot->block[VCAP_IS2];
 
 	/* Make sure all traps are set up for that destination */
-	list_for_each_entry(trap, &ocelot->traps, trap_list) {
+	list_for_each_entry(trap, &block_vcap_is2->rules, list) {
+		if (!trap->is_trap)
+			continue;
+
 		/* Figure out the current trapping destination */
 		if (using_tag_8021q) {
 			/* Redirect to the tag_8021q CPU port. If timestamps
@@ -670,12 +675,35 @@ static int felix_change_tag_protocol(struct dsa_switch *ds, int cpu,
 	struct ocelot *ocelot = ds->priv;
 	struct felix *felix = ocelot_to_felix(ocelot);
 	enum dsa_tag_protocol old_proto = felix->tag_proto;
+	bool cpu_port_active = false;
+	struct dsa_port *dp;
 	int err;
 
 	if (proto != DSA_TAG_PROTO_SEVILLE &&
 	    proto != DSA_TAG_PROTO_OCELOT &&
 	    proto != DSA_TAG_PROTO_OCELOT_8021Q)
 		return -EPROTONOSUPPORT;
+
+	/* We don't support multiple CPU ports, yet the DT blob may have
+	 * multiple CPU ports defined. The first CPU port is the active one,
+	 * the others are inactive. In this case, DSA will call
+	 * ->change_tag_protocol() multiple times, once per CPU port.
+	 * Since we implement the tagging protocol change towards "ocelot" or
+	 * "seville" as effectively initializing the NPI port, what we are
+	 * doing is effectively changing who the NPI port is to the last @cpu
+	 * argument passed, which is an unused DSA CPU port and not the one
+	 * that should actively pass traffic.
+	 * Suppress DSA's calls on CPU ports that are inactive.
+	 */
+	dsa_switch_for_each_user_port(dp, ds) {
+		if (dp->cpu_dp->index == cpu) {
+			cpu_port_active = true;
+			break;
+		}
+	}
+
+	if (!cpu_port_active)
+		return 0;
 
 	felix_del_tag_protocol(ds, cpu, old_proto);
 

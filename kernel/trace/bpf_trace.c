@@ -2349,11 +2349,11 @@ kprobe_multi_link_handler(struct fprobe *fp, unsigned long entry_ip,
 }
 
 static int
-kprobe_multi_resolve_syms(const void *usyms, u32 cnt,
+kprobe_multi_resolve_syms(const void __user *usyms, u32 cnt,
 			  unsigned long *addrs)
 {
 	unsigned long addr, size;
-	const char **syms;
+	const char __user **syms;
 	int err = -ENOMEM;
 	unsigned int i;
 	char *func;

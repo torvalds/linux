@@ -103,6 +103,24 @@ static int lan966x_create_targets(struct platform_device *pdev,
 	return 0;
 }
 
+static bool lan966x_port_unique_address(struct net_device *dev)
+{
+	struct lan966x_port *port = netdev_priv(dev);
+	struct lan966x *lan966x = port->lan966x;
+	int p;
+
+	for (p = 0; p < lan966x->num_phys_ports; ++p) {
+		port = lan966x->ports[p];
+		if (!port || port->dev == dev)
+			continue;
+
+		if (ether_addr_equal(dev->dev_addr, port->dev->dev_addr))
+			return false;
+	}
+
+	return true;
+}
+
 static int lan966x_port_set_mac_address(struct net_device *dev, void *p)
 {
 	struct lan966x_port *port = netdev_priv(dev);
@@ -110,16 +128,26 @@ static int lan966x_port_set_mac_address(struct net_device *dev, void *p)
 	const struct sockaddr *addr = p;
 	int ret;
 
+	if (ether_addr_equal(addr->sa_data, dev->dev_addr))
+		return 0;
+
 	/* Learn the new net device MAC address in the mac table. */
 	ret = lan966x_mac_cpu_learn(lan966x, addr->sa_data, HOST_PVID);
 	if (ret)
 		return ret;
+
+	/* If there is another port with the same address as the dev, then don't
+	 * delete it from the MAC table
+	 */
+	if (!lan966x_port_unique_address(dev))
+		goto out;
 
 	/* Then forget the previous one. */
 	ret = lan966x_mac_cpu_forget(lan966x, dev->dev_addr, HOST_PVID);
 	if (ret)
 		return ret;
 
+out:
 	eth_hw_addr_set(dev, addr->sa_data);
 	return ret;
 }
@@ -446,6 +474,12 @@ static bool lan966x_hw_offload(struct lan966x *lan966x, u32 port,
 		     ANA_CPU_FWD_CFG_MLD_REDIR_ENA)))
 		return true;
 
+	if (eth_type_vlan(skb->protocol)) {
+		skb = skb_vlan_untag(skb);
+		if (unlikely(!skb))
+			return false;
+	}
+
 	if (skb->protocol == htons(ETH_P_IP) &&
 	    ip_hdr(skb)->protocol == IPPROTO_IGMP)
 		return false;
@@ -665,6 +699,9 @@ static void lan966x_cleanup_ports(struct lan966x *lan966x)
 		disable_irq(lan966x->ana_irq);
 		lan966x->ana_irq = -ENXIO;
 	}
+
+	if (lan966x->ptp_irq)
+		devm_free_irq(lan966x->dev, lan966x->ptp_irq, lan966x);
 }
 
 static int lan966x_probe_port(struct lan966x *lan966x, u32 p,

@@ -25,11 +25,11 @@ TRACE_CUSTOM_EVENT(sched_switch,
 	 * that the custom event is using.
 	 */
 	TP_PROTO(bool preempt,
-		 unsigned int prev_state,
 		 struct task_struct *prev,
-		 struct task_struct *next),
+		 struct task_struct *next,
+		 unsigned int prev_state),
 
-	TP_ARGS(preempt, prev_state, prev, next),
+	TP_ARGS(preempt, prev, next, prev_state),
 
 	/*
 	 * The next fields are where the customization happens.

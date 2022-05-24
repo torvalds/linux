@@ -101,7 +101,7 @@ __module_alloc(unsigned long size, unsigned long start, unsigned long end, bool 
 	 * too.
 	 */
 	return __vmalloc_node_range(size, 1, start, end, gfp, prot,
-				    VM_FLUSH_RESET_PERMS | VM_NO_HUGE_VMAP,
+				    VM_FLUSH_RESET_PERMS,
 				    NUMA_NO_NODE, __builtin_return_address(0));
 }
 

@@ -405,8 +405,8 @@ static int scmi_optee_chan_free(int id, void *p, void *data)
 	return 0;
 }
 
-static struct scmi_shared_mem *get_channel_shm(struct scmi_optee_channel *chan,
-					       struct scmi_xfer *xfer)
+static struct scmi_shared_mem __iomem *
+get_channel_shm(struct scmi_optee_channel *chan, struct scmi_xfer *xfer)
 {
 	if (!chan)
 		return NULL;
@@ -419,7 +419,7 @@ static int scmi_optee_send_message(struct scmi_chan_info *cinfo,
 				   struct scmi_xfer *xfer)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
-	struct scmi_shared_mem *shmem = get_channel_shm(channel, xfer);
+	struct scmi_shared_mem __iomem *shmem = get_channel_shm(channel, xfer);
 	int ret;
 
 	mutex_lock(&channel->mu);
@@ -436,7 +436,7 @@ static void scmi_optee_fetch_response(struct scmi_chan_info *cinfo,
 				      struct scmi_xfer *xfer)
 {
 	struct scmi_optee_channel *channel = cinfo->transport_info;
-	struct scmi_shared_mem *shmem = get_channel_shm(channel, xfer);
+	struct scmi_shared_mem __iomem *shmem = get_channel_shm(channel, xfer);
 
 	shmem_fetch_response(shmem, xfer);
 }
