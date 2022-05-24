@@ -569,44 +569,6 @@ static void mock_companion(struct acpi_device *adev, struct device *dev)
 #define SZ_512G (SZ_64G * 8)
 #endif
 
-static struct platform_device *alloc_memdev(int id)
-{
-	struct resource res[] = {
-		[0] = {
-			.flags = IORESOURCE_MEM,
-		},
-		[1] = {
-			.flags = IORESOURCE_MEM,
-			.desc = IORES_DESC_PERSISTENT_MEMORY,
-		},
-	};
-	struct platform_device *pdev;
-	int i, rc;
-
-	for (i = 0; i < ARRAY_SIZE(res); i++) {
-		struct cxl_mock_res *r = alloc_mock_res(SZ_256M);
-
-		if (!r)
-			return NULL;
-		res[i].start = r->range.start;
-		res[i].end = r->range.end;
-	}
-
-	pdev = platform_device_alloc("cxl_mem", id);
-	if (!pdev)
-		return NULL;
-
-	rc = platform_device_add_resources(pdev, res, ARRAY_SIZE(res));
-	if (rc)
-		goto err;
-
-	return pdev;
-
-err:
-	platform_device_put(pdev);
-	return NULL;
-}
-
 static __init int cxl_test_init(void)
 {
 	int rc, i;
@@ -709,7 +671,7 @@ static __init int cxl_test_init(void)
 		struct platform_device *dport = cxl_switch_dport[i];
 		struct platform_device *pdev;
 
-		pdev = alloc_memdev(i);
+		pdev = platform_device_alloc("cxl_mem", i);
 		if (!pdev)
 			goto err_mem;
 		pdev->dev.parent = &dport->dev;

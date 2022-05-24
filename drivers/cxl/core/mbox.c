@@ -718,12 +718,7 @@ EXPORT_SYMBOL_NS_GPL(cxl_enumerate_cmds, CXL);
  */
 static int cxl_mem_get_partition_info(struct cxl_dev_state *cxlds)
 {
-	struct cxl_mbox_get_partition_info {
-		__le64 active_volatile_cap;
-		__le64 active_persistent_cap;
-		__le64 next_volatile_cap;
-		__le64 next_persistent_cap;
-	} __packed pi;
+	struct cxl_mbox_get_partition_info pi;
 	int rc;
 
 	rc = cxl_mbox_send_cmd(cxlds, CXL_MBOX_OP_GET_PARTITION_INFO, NULL, 0,

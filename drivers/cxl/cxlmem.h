@@ -301,6 +301,13 @@ struct cxl_mbox_identify {
 	u8 qos_telemetry_caps;
 } __packed;
 
+struct cxl_mbox_get_partition_info {
+	__le64 active_volatile_cap;
+	__le64 active_persistent_cap;
+	__le64 next_volatile_cap;
+	__le64 next_persistent_cap;
+} __packed;
+
 struct cxl_mbox_get_lsa {
 	__le32 offset;
 	__le32 length;
