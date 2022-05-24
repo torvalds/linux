@@ -71,6 +71,7 @@ struct regmap_config regmap_config = {
 	.max_register = 512 * sizeof(u32),
 	.num_reg_defaults_raw = 512,
 	.use_relaxed_mmio = true,
+	.use_raw_spinlock = true,
 };
 
 /* No locking needed to mask/unmask IRQs as the interrupt mode is per pin-register. */
