@@ -39,6 +39,7 @@
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
 #include "nbio_v7_9.h"
+#include "nbio_v7_11.h"
 #include "hdp_v4_0.h"
 #include "vega10_ih.h"
 #include "vega20_ih.h"
@@ -2411,6 +2412,10 @@ int amdgpu_discovery_set_ip_blocks(struct amdgpu_device *adev)
 	case IP_VERSION(7, 9, 0):
 		adev->nbio.funcs = &nbio_v7_9_funcs;
 		adev->nbio.hdp_flush_reg = &nbio_v7_9_hdp_flush_reg;
+		break;
+	case IP_VERSION(7, 11, 0):
+		adev->nbio.funcs = &nbio_v7_11_funcs;
+		adev->nbio.hdp_flush_reg = &nbio_v7_11_hdp_flush_reg;
 		break;
 	case IP_VERSION(7, 2, 0):
 	case IP_VERSION(7, 2, 1):
