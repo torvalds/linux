@@ -972,6 +972,17 @@ config ARM_ERRATA_764369
 	  relevant cache maintenance functions and sets a specific bit
 	  in the diagnostic control register of the SCU.
 
+config ARM_ERRATA_764319
+	bool "ARM errata: Read to DBGPRSR and DBGOSLSR may generate Undefined instruction"
+	depends on CPU_V7
+	help
+	  This option enables the workaround for the 764319 Cortex A-9 erratum.
+	  CP14 read accesses to the DBGPRSR and DBGOSLSR registers generate an
+	  unexpected Undefined Instruction exception when the DBGSWENABLE
+	  external pin is set to 0, even when the CP14 accesses are performed
+	  from a privileged mode. This work around catches the exception in a
+	  way the kernel does not stop execution.
+
 config ARM_ERRATA_775420
        bool "ARM errata: A data cache maintenance operation which aborts, might lead to deadlock"
        depends on CPU_V7
