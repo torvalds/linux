@@ -42,7 +42,6 @@ void x86_configure_nx(void);
 
 extern int reboot_force;
 
-long do_arch_prctl_common(struct task_struct *task, int option,
-			  unsigned long arg2);
+long do_arch_prctl_common(int option, unsigned long arg2);
 
 #endif /* _ASM_X86_PROTO_H */
