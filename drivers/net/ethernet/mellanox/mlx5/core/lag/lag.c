@@ -68,14 +68,15 @@ static int get_port_sel_mode(enum mlx5_lag_mode mode, unsigned long flags)
 static int mlx5_cmd_create_lag(struct mlx5_core_dev *dev, u8 *ports, int mode,
 			       unsigned long flags)
 {
-	bool shared_fdb = test_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, &flags);
+	bool fdb_sel_mode = test_bit(MLX5_LAG_MODE_FLAG_FDB_SEL_MODE_NATIVE,
+				     &flags);
 	int port_sel_mode = get_port_sel_mode(mode, flags);
 	u32 in[MLX5_ST_SZ_DW(create_lag_in)] = {};
 	void *lag_ctx;
 
 	lag_ctx = MLX5_ADDR_OF(create_lag_in, in, ctx);
 	MLX5_SET(create_lag_in, in, opcode, MLX5_CMD_OP_CREATE_LAG);
-	MLX5_SET(lagc, lag_ctx, fdb_selection_mode, shared_fdb);
+	MLX5_SET(lagc, lag_ctx, fdb_selection_mode, fdb_sel_mode);
 	if (port_sel_mode == MLX5_LAG_PORT_SELECT_MODE_QUEUE_AFFINITY) {
 		MLX5_SET(lagc, lag_ctx, tx_remap_affinity_1, ports[0]);
 		MLX5_SET(lagc, lag_ctx, tx_remap_affinity_2, ports[1]);
@@ -471,8 +472,13 @@ static int mlx5_lag_set_flags(struct mlx5_lag *ldev, enum mlx5_lag_mode mode,
 	bool roce_lag = mode == MLX5_LAG_MODE_ROCE;
 
 	*flags = 0;
-	if (shared_fdb)
+	if (shared_fdb) {
 		set_bit(MLX5_LAG_MODE_FLAG_SHARED_FDB, flags);
+		set_bit(MLX5_LAG_MODE_FLAG_FDB_SEL_MODE_NATIVE, flags);
+	}
+
+	if (mode == MLX5_LAG_MODE_MPESW)
+		set_bit(MLX5_LAG_MODE_FLAG_FDB_SEL_MODE_NATIVE, flags);
 
 	if (roce_lag)
 		return mlx5_lag_set_port_sel_mode_roce(ldev, flags);
