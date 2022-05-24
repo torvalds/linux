@@ -37,7 +37,8 @@ properties:
     default: 8
 
   adi,phy-output-clock:
-    description: Select clock output on GP_CLK pin. Two clocks are available:
+    description: |
+      Select clock output on GP_CLK pin. Two clocks are available:
       A 25MHz reference and a free-running 125MHz.
       The phy can alternatively automatically switch between the reference and
       the 125MHz clocks based on its internal state.
