@@ -466,7 +466,6 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 			.end = -1,
 		};
 
-		cxld->flags = CXL_DECODER_F_ENABLE;
 		cxld->interleave_ways = min_not_zero(target_count, 1);
 		cxld->interleave_granularity = SZ_4K;
 		cxld->target_type = CXL_DECODER_EXPANDER;
