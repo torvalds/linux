@@ -5380,6 +5380,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	struct sta_priv *pstapriv = &padapter->stapriv;
 	struct registry_priv *pregpriv = &padapter->registrypriv;
 	struct ieee80211_mgmt *mgmt;
+	u16 capab;
 
 	pmgntframe = alloc_mgtxmitframe(pxmitpriv);
 	if (!pmgntframe)
@@ -5419,9 +5420,12 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 		mgmt->u.action.u.addba_req.dialog_token = pmlmeinfo->dialogToken;
 		pattrib->pktlen++;
 
-		BA_para_set = (0x1002 | ((status & 0xf) << 2)); /* immediate ack & 64 buffer size */
-		le_tmp = cpu_to_le16(BA_para_set);
-		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		/* immediate ack & 64 buffer size */
+		capab = u16_encode_bits(64, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
+		capab |= u16_encode_bits(1, IEEE80211_ADDBA_PARAM_POLICY_MASK);
+		capab |= u16_encode_bits(status, IEEE80211_ADDBA_PARAM_TID_MASK);
+		mgmt->u.action.u.addba_req.capab = cpu_to_le16(capab);
+		pattrib->pktlen += 2;
 
 		mgmt->u.action.u.addba_req.timeout = cpu_to_le16(5000); /* 5 ms */
 		pattrib->pktlen += 2;
