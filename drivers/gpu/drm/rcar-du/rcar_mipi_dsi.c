@@ -683,19 +683,10 @@ static int rcar_mipi_dsi_parse_dt(struct rcar_mipi_dsi *dsi)
 	u32 data_lanes[4];
 	int ret;
 
-	ep = of_graph_get_endpoint_by_regs(dsi->dev->of_node, 1, 0);
-	if (!ep) {
-		dev_dbg(dsi->dev, "unconnected port@1\n");
-		return -ENODEV;
-	}
-
-	ret = of_property_read_variable_u32_array(ep, "data-lanes", data_lanes,
-						  1, 4);
-	of_node_put(ep);
-
+	ret = drm_of_get_data_lanes_count_ep(dsi->dev->of_node, 1, 0, 1, 4);
 	if (ret < 0) {
 		dev_err(dsi->dev, "missing or invalid data-lanes property\n");
-		return -ENODEV;
+		return ret;
 	}
 
 	dsi->num_data_lanes = ret;
