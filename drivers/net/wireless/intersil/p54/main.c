@@ -449,7 +449,7 @@ static int p54_get_stats(struct ieee80211_hw *dev,
 static void p54_bss_info_changed(struct ieee80211_hw *dev,
 				 struct ieee80211_vif *vif,
 				 struct ieee80211_bss_conf *info,
-				 u32 changed)
+				 u64 changed)
 {
 	struct p54_common *priv = dev->priv;
 

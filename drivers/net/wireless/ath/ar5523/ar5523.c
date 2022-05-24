@@ -1273,7 +1273,7 @@ static int ar5523_write_associd(struct ar5523 *ar, struct ieee80211_vif *vif)
 static void ar5523_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss,
-				    u32 changed)
+				    u64 changed)
 {
 	struct ar5523 *ar = hw->priv;
 	int error;

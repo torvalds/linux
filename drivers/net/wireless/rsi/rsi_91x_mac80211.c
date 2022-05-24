@@ -783,7 +783,7 @@ static void rsi_switch_channel(struct rsi_hw *adapter,
 static void rsi_mac80211_bss_info_changed(struct ieee80211_hw *hw,
 					  struct ieee80211_vif *vif,
 					  struct ieee80211_bss_conf *bss_conf,
-					  u32 changed)
+					  u64 changed)
 {
 	struct rsi_hw *adapter = hw->priv;
 	struct rsi_common *common = adapter->priv;

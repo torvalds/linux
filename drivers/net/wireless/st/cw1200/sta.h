@@ -103,7 +103,7 @@ void cw1200_sta_notify(struct ieee80211_hw *dev, struct ieee80211_vif *vif,
 void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *info,
-			     u32 changed);
+			     u64 changed);
 int cw1200_ampdu_action(struct ieee80211_hw *hw,
 			struct ieee80211_vif *vif,
 			struct ieee80211_ampdu_params *params);

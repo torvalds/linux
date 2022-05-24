@@ -1077,7 +1077,7 @@ out:
 static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
-				       u32 changed)
+				       u64 changed)
 {
 	struct wl1251 *wl = hw->priv;
 	struct sk_buff *beacon, *skb;

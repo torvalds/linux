@@ -1699,8 +1699,8 @@ void ieee80211_set_wmm_default(struct ieee80211_sub_if_data *sdata,
 	    sdata->vif.type != NL80211_IFTYPE_NAN) {
 		sdata->vif.bss_conf.qos = enable_qos;
 		if (bss_notify)
-			ieee80211_bss_info_change_notify(sdata,
-							 BSS_CHANGED_QOS);
+			ieee80211_link_info_change_notify(sdata, 0,
+							  BSS_CHANGED_QOS);
 	}
 }
 

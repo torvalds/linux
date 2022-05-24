@@ -336,7 +336,7 @@ static void rtw89_station_mode_sta_assoc(struct rtw89_dev *rtwdev,
 static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *conf,
-				       u32 changed)
+				       u64 changed)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;

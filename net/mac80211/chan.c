@@ -799,8 +799,7 @@ out:
 
 	if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 	    sdata->vif.type != NL80211_IFTYPE_MONITOR)
-		ieee80211_bss_info_change_notify(sdata,
-						 BSS_CHANGED_IDLE);
+		ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_IDLE);
 
 	ieee80211_check_fast_xmit_iface(sdata);
 
@@ -1188,7 +1187,7 @@ ieee80211_vif_use_reserved_reassign(struct ieee80211_sub_if_data *sdata)
 	ieee80211_recalc_radar_chanctx(local, new_ctx);
 
 	if (changed)
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_link_info_change_notify(sdata, 0, changed);
 
 out:
 	ieee80211_vif_chanctx_reservation_complete(sdata);
@@ -1533,8 +1532,8 @@ static int ieee80211_vif_use_reserved_switch(struct ieee80211_local *local)
 			ieee80211_vif_update_chandef(sdata,
 						     &sdata->deflink.reserved_chandef);
 			if (changed)
-				ieee80211_bss_info_change_notify(sdata,
-								 changed);
+				ieee80211_link_info_change_notify(sdata, 0,
+								  changed);
 
 			ieee80211_recalc_txpower(sdata, false);
 		}

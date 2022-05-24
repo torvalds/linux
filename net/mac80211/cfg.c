@@ -39,7 +39,8 @@ static void ieee80211_set_mu_mimo_follow(struct ieee80211_sub_if_data *sdata,
 		memcpy(sdata->vif.bss_conf.mu_group.position,
 		       params->vht_mumimo_groups + WLAN_MEMBERSHIP_LEN,
 		       WLAN_USER_POSITION_LEN);
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
+		ieee80211_link_info_change_notify(sdata, 0,
+						  BSS_CHANGED_MU_GROUPS);
 		/* don't care about endianness - just check for 0 */
 		memcpy(&membership, params->vht_mumimo_groups,
 		       WLAN_MEMBERSHIP_LEN);
@@ -1333,7 +1334,7 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 		err |= BSS_CHANGED_HE_BSS_COLOR;
 	}
 
-	ieee80211_bss_info_change_notify(sdata, err);
+	ieee80211_link_info_change_notify(sdata, 0, err);
 	return 0;
 }
 
@@ -1414,7 +1415,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	sdata->beacon_rate_set = false;
 	sdata->vif.cfg.ssid_len = 0;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_BEACON_ENABLED);
+	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_BEACON_ENABLED);
 
 	if (sdata->wdev.cac_started) {
 		chandef = sdata->vif.bss_conf.chandef;
@@ -2347,7 +2348,7 @@ static int ieee80211_update_mesh_config(struct wiphy *wiphy,
 	if (_chg_mesh_attr(NL80211_MESHCONF_HT_OPMODE, mask)) {
 		conf->ht_opmode = nconf->ht_opmode;
 		sdata->vif.bss_conf.ht_operation_mode = nconf->ht_opmode;
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_HT);
+		ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_HT);
 	}
 	if (_chg_mesh_attr(NL80211_MESHCONF_HWMP_PATH_TO_ROOT_TIMEOUT, mask))
 		conf->dot11MeshHWMPactivePathToRootTimeout =
@@ -2502,7 +2503,7 @@ static int ieee80211_change_bss(struct wiphy *wiphy,
 		changed |= BSS_CHANGED_P2P_PS;
 	}
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_link_info_change_notify(sdata, 0, changed);
 
 	return 0;
 }
@@ -2543,7 +2544,7 @@ static int ieee80211_set_txq_params(struct wiphy *wiphy,
 		return -EINVAL;
 	}
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_QOS);
+	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_QOS);
 
 	return 0;
 }
@@ -2692,7 +2693,7 @@ static int ieee80211_set_mcast_rate(struct wiphy *wiphy, struct net_device *dev,
 	memcpy(sdata->vif.bss_conf.mcast_rate, rate,
 	       sizeof(int) * NUM_NL80211_BANDS);
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MCAST_RATE);
+	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_MCAST_RATE);
 
 	return 0;
 }
@@ -3026,7 +3027,7 @@ static int ieee80211_set_cqm_rssi_config(struct wiphy *wiphy,
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated &&
 	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
+		ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_CQM);
 
 	return 0;
 }
@@ -3051,7 +3052,7 @@ static int ieee80211_set_cqm_rssi_range_config(struct wiphy *wiphy,
 	/* tell the driver upon association, unless already associated */
 	if (sdata->u.mgd.associated &&
 	    sdata->vif.driver_flags & IEEE80211_VIF_SUPPORTS_CQM_RSSI)
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_CQM);
+		ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_CQM);
 
 	return 0;
 }
@@ -3389,7 +3390,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 	if (err)
 		return err;
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_link_info_change_notify(sdata, 0, changed);
 
 	if (sdata->deflink.csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
@@ -3677,7 +3678,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 					  params->count, params->block_tx);
 
 	if (changed) {
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_link_info_change_notify(sdata, 0, changed);
 		drv_channel_switch_beacon(sdata, &params->chandef);
 	} else {
 		/* if the beacon didn't change, we can finalize immediately */
@@ -3980,7 +3981,7 @@ static int ieee80211_set_ap_chanwidth(struct wiphy *wiphy,
 
 	ret = ieee80211_vif_change_bandwidth(sdata, chandef, &changed);
 	if (ret == 0)
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_link_info_change_notify(sdata, 0, changed);
 
 	return ret;
 }
@@ -4389,7 +4390,7 @@ ieee80211_color_change_bss_config_notify(struct ieee80211_sub_if_data *sdata,
 	sdata->vif.bss_conf.he_bss_color.enabled = enable;
 	changed |= BSS_CHANGED_HE_BSS_COLOR;
 
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_link_info_change_notify(sdata, 0, changed);
 
 	if (!sdata->vif.bss_conf.nontransmitted && sdata->vif.mbssid_tx_vif) {
 		struct ieee80211_sub_if_data *child;
@@ -4399,8 +4400,8 @@ ieee80211_color_change_bss_config_notify(struct ieee80211_sub_if_data *sdata,
 			if (child != sdata && child->vif.mbssid_tx_vif == &sdata->vif) {
 				child->vif.bss_conf.he_bss_color.color = color;
 				child->vif.bss_conf.he_bss_color.enabled = enable;
-				ieee80211_bss_info_change_notify(child,
-								 BSS_CHANGED_HE_BSS_COLOR);
+				ieee80211_link_info_change_notify(child, 0,
+								  BSS_CHANGED_HE_BSS_COLOR);
 			}
 		}
 		mutex_unlock(&sdata->local->iflist_mtx);

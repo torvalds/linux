@@ -587,12 +587,12 @@ static void plfxlc_op_configure_filter(struct ieee80211_hw *hw,
 static void plfxlc_op_bss_info_changed(struct ieee80211_hw *hw,
 				       struct ieee80211_vif *vif,
 				       struct ieee80211_bss_conf *bss_conf,
-				       u32 changes)
+				       u64 changes)
 {
 	struct plfxlc_mac *mac = plfxlc_hw_mac(hw);
 	int associated;
 
-	dev_dbg(plfxlc_mac_dev(mac), "changes: %x\n", changes);
+	dev_dbg(plfxlc_mac_dev(mac), "changes: %llx\n", changes);
 
 	if (mac->type != NL80211_IFTYPE_ADHOC) { /* for STATION */
 		associated = is_valid_ether_addr(bss_conf->bssid);

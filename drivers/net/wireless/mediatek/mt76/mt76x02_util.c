@@ -636,7 +636,7 @@ EXPORT_SYMBOL_GPL(mt76x02_sta_ps);
 void mt76x02_bss_info_changed(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
 			      struct ieee80211_bss_conf *info,
-			      u32 changed)
+			      u64 changed)
 {
 	struct mt76x02_vif *mvif = (struct mt76x02_vif *)vif->drv_priv;
 	struct mt76x02_dev *dev = hw->priv;

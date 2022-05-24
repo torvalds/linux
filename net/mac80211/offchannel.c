@@ -118,8 +118,8 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 			set_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
 				&sdata->state);
 			sdata->vif.bss_conf.enable_beacon = false;
-			ieee80211_bss_info_change_notify(
-				sdata, BSS_CHANGED_BEACON_ENABLED);
+			ieee80211_link_info_change_notify(
+				sdata, 0, BSS_CHANGED_BEACON_ENABLED);
 		}
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
@@ -155,8 +155,8 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 		if (test_and_clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED,
 				       &sdata->state)) {
 			sdata->vif.bss_conf.enable_beacon = true;
-			ieee80211_bss_info_change_notify(
-				sdata, BSS_CHANGED_BEACON_ENABLED);
+			ieee80211_link_info_change_notify(
+				sdata, 0, BSS_CHANGED_BEACON_ENABLED);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);

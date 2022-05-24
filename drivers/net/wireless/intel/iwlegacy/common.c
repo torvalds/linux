@@ -5311,13 +5311,13 @@ il_beacon_update(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
 
 void
 il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			struct ieee80211_bss_conf *bss_conf, u32 changes)
+			struct ieee80211_bss_conf *bss_conf, u64 changes)
 {
 	struct il_priv *il = hw->priv;
 	int ret;
 
 	mutex_lock(&il->mutex);
-	D_MAC80211("enter: changes 0x%x\n", changes);
+	D_MAC80211("enter: changes 0x%llx\n", changes);
 
 	if (!il_is_alive(il)) {
 		D_MAC80211("leave - not alive\n");
@@ -5438,7 +5438,7 @@ il_mac_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	}
 
 	if (changes && il_is_associated(il) && vif->cfg.aid) {
-		D_MAC80211("Changes (%#x) while associated\n", changes);
+		D_MAC80211("Changes (%#llx) while associated\n", changes);
 		ret = il_send_rxon_assoc(il);
 		if (!ret) {
 			/* Sync active_rxon with latest change. */

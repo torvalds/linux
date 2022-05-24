@@ -665,7 +665,7 @@ void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
 	       mgmt->u.action.u.vht_group_notif.position,
 	       WLAN_USER_POSITION_LEN);
 
-	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_MU_GROUPS);
+	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_MU_GROUPS);
 }
 
 void ieee80211_update_mu_groups(struct ieee80211_vif *vif,

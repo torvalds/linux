@@ -5163,7 +5163,7 @@ out:
 
 static void
 mwl8k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_bss_conf *info, u32 changed)
+		       struct ieee80211_bss_conf *info, u64 changed)
 {
 	if (vif->type == NL80211_IFTYPE_STATION)
 		mwl8k_bss_info_changed_sta(hw, vif, info, changed);

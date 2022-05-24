@@ -1278,12 +1278,12 @@ static void set_rts_cts(struct zd_mac *mac, unsigned int short_preamble)
 static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 				   struct ieee80211_vif *vif,
 				   struct ieee80211_bss_conf *bss_conf,
-				   u32 changes)
+				   u64 changes)
 {
 	struct zd_mac *mac = zd_hw_mac(hw);
 	int associated;
 
-	dev_dbg_f(zd_mac_dev(mac), "changes: %x\n", changes);
+	dev_dbg_f(zd_mac_dev(mac), "changes: %llx\n", changes);
 
 	if (mac->type == NL80211_IFTYPE_MESH_POINT ||
 	    mac->type == NL80211_IFTYPE_ADHOC ||

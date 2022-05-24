@@ -506,7 +506,7 @@ static void wfx_enable_beacon(struct wfx_vif *wvif, bool enable)
 }
 
 void wfx_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-			  struct ieee80211_bss_conf *info, u32 changed)
+			  struct ieee80211_bss_conf *info, u64 changed)
 {
 	struct wfx_dev *wdev = hw->priv;
 	struct wfx_vif *wvif = (struct wfx_vif *)vif->drv_priv;

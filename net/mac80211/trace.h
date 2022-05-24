@@ -390,22 +390,71 @@ TRACE_EVENT(drv_config,
 	)
 );
 
-TRACE_EVENT(drv_bss_info_changed,
+TRACE_EVENT(drv_vif_cfg_changed,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
-		 struct ieee80211_bss_conf *info,
-		 u32 changed),
+		 u64 changed),
 
-	TP_ARGS(local, sdata, info, changed),
+	TP_ARGS(local, sdata, changed),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
-		__field(u32, changed)
+		__field(u64, changed)
 		__field(bool, assoc)
 		__field(bool, ibss_joined)
 		__field(bool, ibss_creator)
 		__field(u16, aid)
+		__dynamic_array(u32, arp_addr_list,
+				sdata->vif.cfg.arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
+					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
+					sdata->vif.cfg.arp_addr_cnt)
+		__field(int, arp_addr_cnt)
+		__dynamic_array(u8, ssid, sdata->vif.cfg.ssid_len)
+		__field(int, s1g)
+		__field(bool, idle)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		__entry->changed = changed;
+		__entry->aid = sdata->vif.cfg.aid;
+		__entry->assoc = sdata->vif.cfg.assoc;
+		__entry->ibss_joined = sdata->vif.cfg.ibss_joined;
+		__entry->ibss_creator = sdata->vif.cfg.ibss_creator;
+
+		__entry->arp_addr_cnt = sdata->vif.cfg.arp_addr_cnt;
+		memcpy(__get_dynamic_array(arp_addr_list),
+		       sdata->vif.cfg.arp_addr_list,
+		       sizeof(u32) * (sdata->vif.cfg.arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
+					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
+					sdata->vif.cfg.arp_addr_cnt));
+		memcpy(__get_dynamic_array(ssid),
+		       sdata->vif.cfg.ssid,
+		       sdata->vif.cfg.ssid_len);
+		__entry->s1g = sdata->vif.cfg.s1g;
+		__entry->idle = sdata->vif.cfg.idle;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT  VIF_PR_FMT " changed:%#llx",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->changed
+	)
+);
+
+TRACE_EVENT(drv_link_info_changed,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 int link_id, u64 changed),
+
+	TP_ARGS(local, sdata, link_id, changed),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		__field(u64, changed)
+		__field(int, link_id)
 		__field(bool, cts)
 		__field(bool, shortpre)
 		__field(bool, shortslot)
@@ -424,15 +473,8 @@ TRACE_EVENT(drv_bss_info_changed,
 		__field(u32, channel_width)
 		__field(u32, channel_cfreq1)
 		__field(u32, channel_cfreq1_offset)
-		__dynamic_array(u32, arp_addr_list,
-				sdata->vif.cfg.arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
-					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
-					sdata->vif.cfg.arp_addr_cnt)
-		__field(int, arp_addr_cnt)
 		__field(bool, qos)
-		__field(bool, idle)
 		__field(bool, ps)
-		__dynamic_array(u8, ssid, sdata->vif.cfg.ssid_len)
 		__field(bool, hidden_ssid)
 		__field(int, txpower)
 		__field(u8, p2p_oppps_ctwindow)
@@ -442,49 +484,37 @@ TRACE_EVENT(drv_bss_info_changed,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->changed = changed;
-		__entry->aid = sdata->vif.cfg.aid;
-		__entry->assoc = sdata->vif.cfg.assoc;
-		__entry->ibss_joined = sdata->vif.cfg.ibss_joined;
-		__entry->ibss_creator = sdata->vif.cfg.ibss_creator;
-		__entry->shortpre = info->use_short_preamble;
-		__entry->cts = info->use_cts_prot;
-		__entry->shortslot = info->use_short_slot;
-		__entry->enable_beacon = info->enable_beacon;
-		__entry->dtimper = info->dtim_period;
-		__entry->bcnint = info->beacon_int;
-		__entry->assoc_cap = info->assoc_capability;
-		__entry->sync_tsf = info->sync_tsf;
-		__entry->sync_device_ts = info->sync_device_ts;
-		__entry->sync_dtim_count = info->sync_dtim_count;
-		__entry->basic_rates = info->basic_rates;
-		memcpy(__entry->mcast_rate, info->mcast_rate,
+		__entry->link_id = link_id;
+		__entry->shortpre = sdata->vif.bss_conf.use_short_preamble;
+		__entry->cts = sdata->vif.bss_conf.use_cts_prot;
+		__entry->shortslot = sdata->vif.bss_conf.use_short_slot;
+		__entry->enable_beacon = sdata->vif.bss_conf.enable_beacon;
+		__entry->dtimper = sdata->vif.bss_conf.dtim_period;
+		__entry->bcnint = sdata->vif.bss_conf.beacon_int;
+		__entry->assoc_cap = sdata->vif.bss_conf.assoc_capability;
+		__entry->sync_tsf = sdata->vif.bss_conf.sync_tsf;
+		__entry->sync_device_ts = sdata->vif.bss_conf.sync_device_ts;
+		__entry->sync_dtim_count = sdata->vif.bss_conf.sync_dtim_count;
+		__entry->basic_rates = sdata->vif.bss_conf.basic_rates;
+		memcpy(__entry->mcast_rate, sdata->vif.bss_conf.mcast_rate,
 		       sizeof(__entry->mcast_rate));
-		__entry->ht_operation_mode = info->ht_operation_mode;
-		__entry->cqm_rssi_thold = info->cqm_rssi_thold;
-		__entry->cqm_rssi_hyst = info->cqm_rssi_hyst;
-		__entry->channel_width = info->chandef.width;
-		__entry->channel_cfreq1 = info->chandef.center_freq1;
-		__entry->channel_cfreq1_offset = info->chandef.freq1_offset;
-		__entry->arp_addr_cnt = sdata->vif.cfg.arp_addr_cnt;
-		memcpy(__get_dynamic_array(arp_addr_list),
-		       sdata->vif.cfg.arp_addr_list,
-		       sizeof(u32) * (sdata->vif.cfg.arp_addr_cnt > IEEE80211_BSS_ARP_ADDR_LIST_LEN ?
-					IEEE80211_BSS_ARP_ADDR_LIST_LEN :
-					sdata->vif.cfg.arp_addr_cnt));
-		__entry->qos = info->qos;
-		__entry->idle = sdata->vif.cfg.idle;
-		__entry->ps = info->ps;
-		memcpy(__get_dynamic_array(ssid),
-		       sdata->vif.cfg.ssid,
-		       sdata->vif.cfg.ssid_len);
-		__entry->hidden_ssid = info->hidden_ssid;
-		__entry->txpower = info->txpower;
-		__entry->p2p_oppps_ctwindow = info->p2p_noa_attr.oppps_ctwindow;
+		__entry->ht_operation_mode = sdata->vif.bss_conf.ht_operation_mode;
+		__entry->cqm_rssi_thold = sdata->vif.bss_conf.cqm_rssi_thold;
+		__entry->cqm_rssi_hyst = sdata->vif.bss_conf.cqm_rssi_hyst;
+		__entry->channel_width = sdata->vif.bss_conf.chandef.width;
+		__entry->channel_cfreq1 = sdata->vif.bss_conf.chandef.center_freq1;
+		__entry->channel_cfreq1_offset = sdata->vif.bss_conf.chandef.freq1_offset;
+		__entry->qos = sdata->vif.bss_conf.qos;
+		__entry->ps = sdata->vif.bss_conf.ps;
+		__entry->hidden_ssid = sdata->vif.bss_conf.hidden_ssid;
+		__entry->txpower = sdata->vif.bss_conf.txpower;
+		__entry->p2p_oppps_ctwindow = sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT  VIF_PR_FMT " changed:%#x",
-		LOCAL_PR_ARG, VIF_PR_ARG, __entry->changed
+		LOCAL_PR_FMT  VIF_PR_FMT " link_id:%d, changed:%#llx",
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id,
+		__entry->changed
 	)
 );
 

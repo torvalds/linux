@@ -1040,7 +1040,7 @@ EXPORT_SYMBOL_GPL(rtl_update_beacon_work_callback);
 static void rtl_op_bss_info_changed(struct ieee80211_hw *hw,
 				    struct ieee80211_vif *vif,
 				    struct ieee80211_bss_conf *bss_conf,
-				    u32 changed)
+				    u64 changed)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
 	struct rtl_hal *rtlhal = rtl_hal(rtlpriv);

@@ -3091,7 +3091,7 @@ static int ath11k_mac_config_obss_pd(struct ath11k *ar,
 static void ath11k_mac_op_bss_info_changed(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
 					   struct ieee80211_bss_conf *info,
-					   u32 changed)
+					   u64 changed)
 {
 	struct ath11k *ar = hw->priv;
 	struct ath11k_vif *arvif = ath11k_vif_to_arvif(vif);

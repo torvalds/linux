@@ -1796,14 +1796,14 @@ static int cw1200_set_btcoexinfo(struct cw1200_common *priv)
 void cw1200_bss_info_changed(struct ieee80211_hw *dev,
 			     struct ieee80211_vif *vif,
 			     struct ieee80211_bss_conf *info,
-			     u32 changed)
+			     u64 changed)
 {
 	struct cw1200_common *priv = dev->priv;
 	bool do_join = false;
 
 	mutex_lock(&priv->conf_mutex);
 
-	pr_debug("BSS CHANGED:  %08x\n", changed);
+	pr_debug("BSS CHANGED:  %llx\n", changed);
 
 	/* TODO: BSS_CHANGED_QOS */
 	/* TODO: BSS_CHANGED_TXPOWER */

@@ -80,7 +80,8 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
 {
 	if (__ieee80211_recalc_txpower(sdata) ||
 	    (update_bss && ieee80211_sdata_running(sdata)))
-		ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_TXPOWER);
+		ieee80211_link_info_change_notify(sdata, 0,
+						  BSS_CHANGED_TXPOWER);
 }
 
 static u32 __ieee80211_idle_off(struct ieee80211_local *local)
@@ -1281,7 +1282,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 		    sdata->vif.type != NL80211_IFTYPE_NAN)
 			changed |= ieee80211_reset_erp_info(sdata);
-		ieee80211_bss_info_change_notify(sdata, changed);
+		ieee80211_link_info_change_notify(sdata, 0, changed);
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:

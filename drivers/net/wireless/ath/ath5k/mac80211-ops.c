@@ -250,7 +250,7 @@ unlock:
 
 static void
 ath5k_bss_info_changed(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
-		       struct ieee80211_bss_conf *bss_conf, u32 changes)
+		       struct ieee80211_bss_conf *bss_conf, u64 changes)
 {
 	struct ath5k_vif *avf = (void *)vif->drv_priv;
 	struct ath5k_hw *ah = hw->priv;
