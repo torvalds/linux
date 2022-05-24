@@ -295,7 +295,7 @@ extern void netfs_stats_show(struct seq_file *);
  */
 static inline struct netfs_i_context *netfs_i_context(struct inode *inode)
 {
-	return (struct netfs_i_context *)(inode + 1);
+	return (void *)inode + sizeof(*inode);
 }
 
 /**
@@ -307,7 +307,7 @@ static inline struct netfs_i_context *netfs_i_context(struct inode *inode)
  */
 static inline struct inode *netfs_inode(struct netfs_i_context *ctx)
 {
-	return ((struct inode *)ctx) - 1;
+	return (void *)ctx - sizeof(struct inode);
 }
 
 /**

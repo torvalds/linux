@@ -732,10 +732,7 @@ config ARCH_SUPPORTS_CFI_CLANG
 config CFI_CLANG
 	bool "Use Clang's Control Flow Integrity (CFI)"
 	depends on LTO_CLANG && ARCH_SUPPORTS_CFI_CLANG
-	# Clang >= 12:
-	# - https://bugs.llvm.org/show_bug.cgi?id=46258
-	# - https://bugs.llvm.org/show_bug.cgi?id=47479
-	depends on CLANG_VERSION >= 120000
+	depends on CLANG_VERSION >= 140000
 	select KALLSYMS
 	help
 	  This option enables Clang’s forward-edge Control Flow Integrity

@@ -266,4 +266,77 @@ config ZERO_CALL_USED_REGS
 
 endmenu
 
+config CC_HAS_RANDSTRUCT
+	def_bool $(cc-option,-frandomize-layout-seed-file=/dev/null)
+
+choice
+	prompt "Randomize layout of sensitive kernel structures"
+	default RANDSTRUCT_FULL if COMPILE_TEST && (GCC_PLUGINS || CC_HAS_RANDSTRUCT)
+	default RANDSTRUCT_NONE
+	help
+	  If you enable this, the layouts of structures that are entirely
+	  function pointers (and have not been manually annotated with
+	  __no_randomize_layout), or structures that have been explicitly
+	  marked with __randomize_layout, will be randomized at compile-time.
+	  This can introduce the requirement of an additional information
+	  exposure vulnerability for exploits targeting these structure
+	  types.
+
+	  Enabling this feature will introduce some performance impact,
+	  slightly increase memory usage, and prevent the use of forensic
+	  tools like Volatility against the system (unless the kernel
+	  source tree isn't cleaned after kernel installation).
+
+	  The seed used for compilation is in scripts/basic/randomize.seed.
+	  It remains after a "make clean" to allow for external modules to
+	  be compiled with the existing seed and will be removed by a
+	  "make mrproper" or "make distclean". This file should not be made
+	  public, or the structure layout can be determined.
+
+	config RANDSTRUCT_NONE
+		bool "Disable structure layout randomization"
+		help
+		  Build normally: no structure layout randomization.
+
+	config RANDSTRUCT_FULL
+		bool "Fully randomize structure layout"
+		depends on CC_HAS_RANDSTRUCT || GCC_PLUGINS
+		select MODVERSIONS if MODULES
+		help
+		  Fully randomize the member layout of sensitive
+		  structures as much as possible, which may have both a
+		  memory size and performance impact.
+
+		  One difference between the Clang and GCC plugin
+		  implementations is the handling of bitfields. The GCC
+		  plugin treats them as fully separate variables,
+		  introducing sometimes significant padding. Clang tries
+		  to keep adjacent bitfields together, but with their bit
+		  ordering randomized.
+
+	config RANDSTRUCT_PERFORMANCE
+		bool "Limit randomization of structure layout to cache-lines"
+		depends on GCC_PLUGINS
+		select MODVERSIONS if MODULES
+		help
+		  Randomization of sensitive kernel structures will make a
+		  best effort at restricting randomization to cacheline-sized
+		  groups of members. It will further not randomize bitfields
+		  in structures. This reduces the performance hit of RANDSTRUCT
+		  at the cost of weakened randomization.
+endchoice
+
+config RANDSTRUCT
+	def_bool !RANDSTRUCT_NONE
+
+config GCC_PLUGIN_RANDSTRUCT
+	def_bool GCC_PLUGINS && RANDSTRUCT
+	help
+	  Use GCC plugin to randomize structure layout.
+
+	  This plugin was ported from grsecurity/PaX. More
+	  information at:
+	   * https://grsecurity.net/
+	   * https://pax.grsecurity.net/
+
 endmenu
