@@ -2382,20 +2382,6 @@ static inline void rseq_syscall(struct pt_regs *regs)
 
 #endif
 
-const struct sched_avg *sched_trace_cfs_rq_avg(struct cfs_rq *cfs_rq);
-char *sched_trace_cfs_rq_path(struct cfs_rq *cfs_rq, char *str, int len);
-int sched_trace_cfs_rq_cpu(struct cfs_rq *cfs_rq);
-
-const struct sched_avg *sched_trace_rq_avg_rt(struct rq *rq);
-const struct sched_avg *sched_trace_rq_avg_dl(struct rq *rq);
-const struct sched_avg *sched_trace_rq_avg_irq(struct rq *rq);
-
-int sched_trace_rq_cpu(struct rq *rq);
-int sched_trace_rq_cpu_capacity(struct rq *rq);
-int sched_trace_rq_nr_running(struct rq *rq);
-
-const struct cpumask *sched_trace_rd_span(struct root_domain *rd);
-
 #ifdef CONFIG_SCHED_CORE
 extern void sched_core_free(struct task_struct *tsk);
 extern void sched_core_fork(struct task_struct *p);
@@ -2405,5 +2391,7 @@ extern int sched_core_share_pid(unsigned int cmd, pid_t pid, enum pid_type type,
 static inline void sched_core_free(struct task_struct *tsk) { }
 static inline void sched_core_fork(struct task_struct *p) { }
 #endif
+
+extern void sched_set_stop_task(int cpu, struct task_struct *stop);
 
 #endif

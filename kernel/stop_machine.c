@@ -535,8 +535,6 @@ void stop_machine_park(int cpu)
 	kthread_park(stopper->thread);
 }
 
-extern void sched_set_stop_task(int cpu, struct task_struct *stop);
-
 static void cpu_stop_create(unsigned int cpu)
 {
 	sched_set_stop_task(cpu, per_cpu(cpu_stopper.thread, cpu));
