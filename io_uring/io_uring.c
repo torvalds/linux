@@ -91,6 +91,7 @@
 #include "io-wq.h"
 
 #include "io_uring_types.h"
+#include "io_uring.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -1876,21 +1877,15 @@ static void io_req_complete_post(struct io_kiocb *req, s32 res, u32 cflags)
 	io_cqring_ev_posted(ctx);
 }
 
-static inline void io_req_complete_state(struct io_kiocb *req, s32 res,
-					 u32 cflags)
-{
-	req->cqe.res = res;
-	req->cqe.flags = cflags;
-	req->flags |= REQ_F_COMPLETE_INLINE;
-}
-
 static inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags,
 				     s32 res, u32 cflags)
 {
-	if (issue_flags & IO_URING_F_COMPLETE_DEFER)
-		io_req_complete_state(req, res, cflags);
-	else
+	if (issue_flags & IO_URING_F_COMPLETE_DEFER) {
+		io_req_set_res(req, res, cflags);
+		req->flags |= REQ_F_COMPLETE_INLINE;
+	} else {
 		io_req_complete_post(req, res, cflags);
+	}
 }
 
 static inline void io_req_complete(struct io_kiocb *req, s32 res)
@@ -2749,7 +2744,8 @@ static inline void io_req_task_complete(struct io_kiocb *req, bool *locked)
 	int res = req->cqe.res;
 
 	if (*locked) {
-		io_req_complete_state(req, res, io_put_kbuf(req, 0));
+		io_req_set_res(req, res, io_put_kbuf(req, 0));
+		req->flags |= REQ_F_COMPLETE_INLINE;
 		io_req_add_compl_list(req);
 	} else {
 		io_req_complete_post(req, res,
@@ -4394,6 +4390,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 	if (ret < 0)
 		req_set_fail(req);
 
+	io_req_set_res(req, 0, ret);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
 	io_req_complete(req, ret);
