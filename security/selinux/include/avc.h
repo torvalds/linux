@@ -104,6 +104,7 @@ int slow_avc_audit(struct selinux_state *state,
 
 /**
  * avc_audit - Audit the granting or denial of permissions.
+ * @state: SELinux state
  * @ssid: source security identifier
  * @tsid: target security identifier
  * @tclass: target security class
