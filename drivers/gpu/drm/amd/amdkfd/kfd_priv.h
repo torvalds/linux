@@ -289,6 +289,7 @@ struct kfd_node {
 	 * from the HW ring into a SW ring.
 	 */
 	bool interrupts_active;
+	uint32_t interrupt_bitmap; /* Only used for GFX 9.4.3 */
 
 	/* QCM Device instance */
 	struct device_queue_manager *dqm;
@@ -971,9 +972,8 @@ struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
-int kfd_process_gpuid_from_adev(struct kfd_process *p,
-			       struct amdgpu_device *adev, uint32_t *gpuid,
-			       uint32_t *gpuidx);
+int kfd_process_gpuid_from_node(struct kfd_process *p, struct kfd_node *node,
+				uint32_t *gpuid, uint32_t *gpuidx);
 static inline int kfd_process_gpuid_from_gpuidx(struct kfd_process *p,
 				uint32_t gpuidx, uint32_t *gpuid) {
 	return gpuidx < p->n_pdds ? p->pdds[gpuidx]->dev->id : -EINVAL;
@@ -1073,6 +1073,30 @@ struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_node *kfd_device_by_pci_dev(const struct pci_dev *pdev);
 struct kfd_node *kfd_device_by_adev(const struct amdgpu_device *adev);
+static inline bool kfd_irq_is_from_node(struct kfd_node *node, uint32_t client_id,
+				     uint32_t node_id)
+{
+	if ((node->interrupt_bitmap & (0x1U << node_id)) ||
+	    ((node_id % 4) == 0 &&
+	    (node->interrupt_bitmap >> 16) & (0x1U << client_id)))
+		return true;
+
+	return false;
+}
+static inline struct kfd_node *kfd_node_by_irq_ids(struct amdgpu_device *adev,
+					uint32_t client_id, uint32_t node_id) {
+	struct kfd_dev *dev = adev->kfd.dev;
+	uint32_t i;
+
+	if (adev->ip_versions[GC_HWIP][0] != IP_VERSION(9, 4, 3))
+		return dev->nodes[0];
+
+	for (i = 0; i < dev->num_nodes; i++)
+		if (kfd_irq_is_from_node(dev->nodes[i], client_id, node_id))
+			return dev->nodes[i];
+
+	return NULL;
+}
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_node **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
 void kfd_double_confirm_iommu_support(struct kfd_dev *gpu);

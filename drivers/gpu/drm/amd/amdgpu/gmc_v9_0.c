@@ -557,10 +557,23 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	u64 addr;
 	uint32_t cam_index = 0;
 	int ret;
-	uint32_t node_id;
+	uint32_t node_id = 0;
 
 	addr = (u64)entry->src_data[0] << 12;
 	addr |= ((u64)entry->src_data[1] & 0xf) << 44;
+
+	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
+		hub_name = "mmhub0";
+		hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
+	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
+		hub_name = "mmhub1";
+		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
+	} else {
+		hub_name = "gfxhub0";
+		node_id = (adev->ip_versions[GC_HWIP][0] ==
+			   IP_VERSION(9, 4, 3)) ? entry->node_id : 0;
+		hub = &adev->vmhub[node_id/2];
+	}
 
 	if (retry_fault) {
 		if (adev->irq.retry_cam_enabled) {
@@ -574,7 +587,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 
 			cam_index = entry->src_data[2] & 0x3ff;
 
-			ret = amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault);
+			ret = amdgpu_vm_handle_fault(adev, entry->pasid, entry->client_id, node_id,
+						     addr, write_fault);
 			WDOORBELL32(adev->irq.retry_cam_doorbell_index, cam_index);
 			if (ret)
 				return 1;
@@ -596,7 +610,8 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 			/* Try to handle the recoverable page faults by filling page
 			 * tables
 			 */
-			if (amdgpu_vm_handle_fault(adev, entry->pasid, addr, write_fault))
+			if (amdgpu_vm_handle_fault(adev, entry->pasid, entry->client_id, node_id,
+						   addr, write_fault))
 				return 1;
 		}
 	}
@@ -604,18 +619,6 @@ static int gmc_v9_0_process_interrupt(struct amdgpu_device *adev,
 	if (!printk_ratelimit())
 		return 0;
 
-	if (entry->client_id == SOC15_IH_CLIENTID_VMC) {
-		hub_name = "mmhub0";
-		hub = &adev->vmhub[AMDGPU_MMHUB0(0)];
-	} else if (entry->client_id == SOC15_IH_CLIENTID_VMC1) {
-		hub_name = "mmhub1";
-		hub = &adev->vmhub[AMDGPU_MMHUB1(0)];
-	} else {
-		hub_name = "gfxhub0";
-		node_id = (adev->ip_versions[GC_HWIP][0] ==
-			   IP_VERSION(9, 4, 3)) ? entry->node_id : 0;
-		hub = &adev->vmhub[node_id/2];
-	}
 
 	memset(&task_info, 0, sizeof(struct amdgpu_task_info));
 	amdgpu_vm_get_task_info(adev, entry->pasid, &task_info);
