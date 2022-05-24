@@ -4,5 +4,3 @@ obj-y					+= bswapdi.o
 obj-y					+= bswapsi.o
 obj-y					+= cacheflush.o
 obj-y					+= mmap.o
-obj-y					+= memcpy.o
-obj-y					+= strksyms.o
