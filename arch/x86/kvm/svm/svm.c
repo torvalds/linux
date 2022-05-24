@@ -1285,7 +1285,7 @@ static void __svm_vcpu_reset(struct kvm_vcpu *vcpu)
 
 	svm_init_osvw(vcpu);
 	vcpu->arch.microcode_version = 0x01000065;
-	svm->tsc_ratio_msr = kvm_default_tsc_scaling_ratio;
+	svm->tsc_ratio_msr = kvm_caps.default_tsc_scaling_ratio;
 
 	if (sev_es_guest(vcpu->kvm))
 		sev_es_vcpu_reset(svm);
@@ -4868,7 +4868,7 @@ static __init void svm_set_cpu_caps(void)
 {
 	kvm_set_cpu_caps();
 
-	supported_xss = 0;
+	kvm_caps.supported_xss = 0;
 
 	/* CPUID 0x80000001 and 0x8000000A (SVM features) */
 	if (nested) {
@@ -4944,7 +4944,8 @@ static __init int svm_hardware_setup(void)
 
 	init_msrpm_offsets();
 
-	supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS | XFEATURE_MASK_BNDCSR);
+	kvm_caps.supported_xcr0 &= ~(XFEATURE_MASK_BNDREGS |
+				     XFEATURE_MASK_BNDCSR);
 
 	if (boot_cpu_has(X86_FEATURE_FXSR_OPT))
 		kvm_enable_efer_bits(EFER_FFXSR);
@@ -4954,11 +4955,11 @@ static __init int svm_hardware_setup(void)
 			tsc_scaling = false;
 		} else {
 			pr_info("TSC scaling supported\n");
-			kvm_has_tsc_control = true;
+			kvm_caps.has_tsc_control = true;
 		}
 	}
-	kvm_max_tsc_scaling_ratio = SVM_TSC_RATIO_MAX;
-	kvm_tsc_scaling_ratio_frac_bits = 32;
+	kvm_caps.max_tsc_scaling_ratio = SVM_TSC_RATIO_MAX;
+	kvm_caps.tsc_scaling_ratio_frac_bits = 32;
 
 	tsc_aux_uret_slot = kvm_add_user_return_msr(MSR_TSC_AUX);
 

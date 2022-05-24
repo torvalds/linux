@@ -200,7 +200,7 @@ void kvm_update_pv_runtime(struct kvm_vcpu *vcpu)
 
 /*
  * Calculate guest's supported XCR0 taking into account guest CPUID data and
- * supported_xcr0 (comprised of host configuration and KVM_SUPPORTED_XCR0).
+ * KVM's supported XCR0 (comprised of host's XCR0 and KVM_SUPPORTED_XCR0).
  */
 static u64 cpuid_get_supported_xcr0(struct kvm_cpuid_entry2 *entries, int nent)
 {
@@ -210,7 +210,7 @@ static u64 cpuid_get_supported_xcr0(struct kvm_cpuid_entry2 *entries, int nent)
 	if (!best)
 		return 0;
 
-	return (best->eax | ((u64)best->edx << 32)) & supported_xcr0;
+	return (best->eax | ((u64)best->edx << 32)) & kvm_caps.supported_xcr0;
 }
 
 static void __kvm_update_cpuid_runtime(struct kvm_vcpu *vcpu, struct kvm_cpuid_entry2 *entries,
@@ -912,8 +912,8 @@ static inline int __do_cpuid_func(struct kvm_cpuid_array *array, u32 function)
 		}
 		break;
 	case 0xd: {
-		u64 permitted_xcr0 = supported_xcr0 & xstate_get_guest_group_perm();
-		u64 permitted_xss = supported_xss;
+		u64 permitted_xcr0 = kvm_caps.supported_xcr0 & xstate_get_guest_group_perm();
+		u64 permitted_xss = kvm_caps.supported_xss;
 
 		entry->eax &= permitted_xcr0;
 		entry->ebx = xstate_required_size(permitted_xcr0, false);
