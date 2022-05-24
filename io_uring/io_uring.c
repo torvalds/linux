@@ -980,7 +980,6 @@ struct io_kiocb {
 		struct file		*file;
 		struct io_cmd_data	cmd;
 		struct io_rsrc_update	rsrc_update;
-		struct io_splice	splice;
 		struct io_provide_buf	pbuf;
 		struct io_msg		msg;
 		struct io_xattr		xattr;
@@ -4918,7 +4917,7 @@ static int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 static int __io_splice_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
-	struct io_splice *sp = &req->splice;
+	struct io_splice *sp = io_kiocb_to_cmd(req);
 	unsigned int valid_flags = SPLICE_F_FD_IN_FIXED | SPLICE_F_ALL;
 
 	sp->len = READ_ONCE(sqe->len);
@@ -4939,7 +4938,7 @@ static int io_tee_prep(struct io_kiocb *req,
 
 static int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_splice *sp = &req->splice;
+	struct io_splice *sp = io_kiocb_to_cmd(req);
 	struct file *out = sp->file_out;
 	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
 	struct file *in;
@@ -4971,7 +4970,7 @@ done:
 
 static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	struct io_splice *sp = &req->splice;
+	struct io_splice *sp = io_kiocb_to_cmd(req);
 
 	sp->off_in = READ_ONCE(sqe->splice_off_in);
 	sp->off_out = READ_ONCE(sqe->off);
@@ -4980,7 +4979,7 @@ static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 
 static int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_splice *sp = &req->splice;
+	struct io_splice *sp = io_kiocb_to_cmd(req);
 	struct file *out = sp->file_out;
 	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
 	loff_t *poff_in, *poff_out;
