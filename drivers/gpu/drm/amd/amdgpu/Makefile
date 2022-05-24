@@ -183,6 +183,7 @@ amdgpu-y += \
 	vcn_v2_5.o \
 	vcn_v3_0.o \
 	vcn_v4_0.o \
+	vcn_v4_0_3.o \
 	amdgpu_jpeg.o \
 	jpeg_v1_0.o \
 	jpeg_v2_0.o \
