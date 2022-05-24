@@ -366,7 +366,7 @@
 .macro	VLM	vfrom, vto, disp, base, hint=3
 	VX_NUM	v1, \vfrom
 	VX_NUM	v3, \vto
-	GR_NUM	b2, \base	    /* Base register */
+	GR_NUM	b2, \base
 	.word	0xE700 | ((v1&15) << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	\hint, 0x36, v1, v3
@@ -376,7 +376,7 @@
 .macro	VST	vr1, disp, index="%r0", base
 	VX_NUM	v1, \vr1
 	GR_NUM	x2, \index
-	GR_NUM	b2, \base	    /* Base register */
+	GR_NUM	b2, \base
 	.word	0xE700 | ((v1&15) << 4) | (x2&15)
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	0, 0x0E, v1
@@ -386,7 +386,7 @@
 .macro	VSTM	vfrom, vto, disp, base, hint=3
 	VX_NUM	v1, \vfrom
 	VX_NUM	v3, \vto
-	GR_NUM	b2, \base	    /* Base register */
+	GR_NUM	b2, \base
 	.word	0xE700 | ((v1&15) << 4) | (v3&15)
 	.word	(b2 << 12) | (\disp)
 	MRXBOPC	\hint, 0x3E, v1, v3

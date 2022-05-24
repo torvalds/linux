@@ -33,7 +33,7 @@
  * But the maximum time limit managed by the stomper code is set to 60sec.
  * Hence we have to wait at least that time period.
  */
-#define CEX4_CLEANUP_TIME	(900*HZ)
+#define CEX4_CLEANUP_TIME	(900 * HZ)
 
 MODULE_AUTHOR("IBM Corporation");
 MODULE_DESCRIPTION("CEX[45678] Cryptographic Card device driver, " \
@@ -123,11 +123,12 @@ static ssize_t cca_mkvps_show(struct device *dev,
 		     &ci, zq->online);
 
 	if (ci.new_aes_mk_state >= '1' && ci.new_aes_mk_state <= '3')
-		n = scnprintf(buf, PAGE_SIZE, "AES NEW: %s 0x%016llx\n",
-			      new_state[ci.new_aes_mk_state - '1'],
-			      ci.new_aes_mkvp);
+		n += scnprintf(buf + n, PAGE_SIZE,
+			       "AES NEW: %s 0x%016llx\n",
+			       new_state[ci.new_aes_mk_state - '1'],
+			       ci.new_aes_mkvp);
 	else
-		n = scnprintf(buf, PAGE_SIZE, "AES NEW: - -\n");
+		n += scnprintf(buf + n, PAGE_SIZE, "AES NEW: - -\n");
 
 	if (ci.cur_aes_mk_state >= '1' && ci.cur_aes_mk_state <= '2')
 		n += scnprintf(buf + n, PAGE_SIZE - n,
@@ -168,6 +169,33 @@ static ssize_t cca_mkvps_show(struct device *dev,
 			       ci.old_apka_mkvp);
 	else
 		n += scnprintf(buf + n, PAGE_SIZE - n, "APKA OLD: - -\n");
+
+	if (ci.new_asym_mk_state >= '1' && ci.new_asym_mk_state <= '3')
+		n += scnprintf(buf + n, PAGE_SIZE,
+			       "ASYM NEW: %s 0x%016llx%016llx\n",
+			       new_state[ci.new_asym_mk_state - '1'],
+			       *((u64 *)(ci.new_asym_mkvp)),
+			       *((u64 *)(ci.new_asym_mkvp + sizeof(u64))));
+	else
+		n += scnprintf(buf + n, PAGE_SIZE, "ASYM NEW: - -\n");
+
+	if (ci.cur_asym_mk_state >= '1' && ci.cur_asym_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "ASYM CUR: %s 0x%016llx%016llx\n",
+			       cao_state[ci.cur_asym_mk_state - '1'],
+			       *((u64 *)(ci.cur_asym_mkvp)),
+			       *((u64 *)(ci.cur_asym_mkvp + sizeof(u64))));
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "ASYM CUR: - -\n");
+
+	if (ci.old_asym_mk_state >= '1' && ci.old_asym_mk_state <= '2')
+		n += scnprintf(buf + n, PAGE_SIZE - n,
+			       "ASYM OLD: %s 0x%016llx%016llx\n",
+			       cao_state[ci.old_asym_mk_state - '1'],
+			       *((u64 *)(ci.old_asym_mkvp)),
+			       *((u64 *)(ci.old_asym_mkvp + sizeof(u64))));
+	else
+		n += scnprintf(buf + n, PAGE_SIZE - n, "ASYM OLD: - -\n");
 
 	return n;
 }
@@ -336,8 +364,9 @@ static ssize_t ep11_mkvps_show(struct device *dev,
 		bin2hex(buf + n, di.cur_wkvp, sizeof(di.cur_wkvp));
 		n += 2 * sizeof(di.cur_wkvp);
 		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
-	} else
+	} else {
 		n = scnprintf(buf, PAGE_SIZE, "WK CUR: - -\n");
+	}
 
 	if (di.new_wk_state == '0') {
 		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: %s -\n",
@@ -348,8 +377,9 @@ static ssize_t ep11_mkvps_show(struct device *dev,
 		bin2hex(buf + n, di.new_wkvp, sizeof(di.new_wkvp));
 		n += 2 * sizeof(di.new_wkvp);
 		n += scnprintf(buf + n, PAGE_SIZE - n, "\n");
-	} else
+	} else {
 		n += scnprintf(buf + n, PAGE_SIZE - n, "WK NEW: - -\n");
+	}
 
 	return n;
 }

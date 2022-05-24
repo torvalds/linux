@@ -494,7 +494,7 @@ static void __init setup_lowcore_dat_off(void)
 	lc->return_mcck_lpswe = gen_lpswe(__LC_RETURN_MCCK_PSW);
 	lc->preempt_count = PREEMPT_DISABLED;
 
-	set_prefix((u32)(unsigned long) lc);
+	set_prefix(__pa(lc));
 	lowcore_ptr[0] = lc;
 }
 

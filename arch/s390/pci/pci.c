@@ -799,7 +799,7 @@ struct zpci_dev *zpci_create_device(u32 fid, u32 fh, enum zpci_state state)
 	struct zpci_dev *zdev;
 	int rc;
 
-	zpci_dbg(3, "add fid:%x, fh:%x, c:%d\n", fid, fh, state);
+	zpci_dbg(1, "add fid:%x, fh:%x, c:%d\n", fid, fh, state);
 	zdev = kzalloc(sizeof(*zdev), GFP_KERNEL);
 	if (!zdev)
 		return ERR_PTR(-ENOMEM);
