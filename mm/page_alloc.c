@@ -1114,13 +1114,18 @@ void split_free_page(struct page *free_page,
 	unsigned long flags;
 	int free_page_order;
 
+	if (split_pfn_offset == 0)
+		return;
+
 	spin_lock_irqsave(&zone->lock, flags);
 	del_page_from_free_list(free_page, zone, order);
 	for (pfn = free_page_pfn;
 	     pfn < free_page_pfn + (1UL << order);) {
 		int mt = get_pfnblock_migratetype(pfn_to_page(pfn), pfn);
 
-		free_page_order = ffs(split_pfn_offset) - 1;
+		free_page_order = min_t(int,
+					pfn ? __ffs(pfn) : order,
+					__fls(split_pfn_offset));
 		__free_one_page(pfn_to_page(pfn), pfn, zone, free_page_order,
 				mt, FPI_NONE);
 		pfn += 1UL << free_page_order;

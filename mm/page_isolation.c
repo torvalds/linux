@@ -283,6 +283,7 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  * isolate_single_pageblock() -- tries to isolate a pageblock that might be
  * within a free or in-use page.
  * @boundary_pfn:		pageblock-aligned pfn that a page might cross
+ * @flags:			isolation flags
  * @gfp_flags:			GFP flags used for migrating pages
  * @isolate_before:	isolate the pageblock before the boundary_pfn
  *
@@ -298,14 +299,15 @@ __first_valid_page(unsigned long pfn, unsigned long nr_pages)
  * either. The function handles this by splitting the free page or migrating
  * the in-use page then splitting the free page.
  */
-static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
-			bool isolate_before)
+static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
+			gfp_t gfp_flags, bool isolate_before)
 {
 	unsigned char saved_mt;
 	unsigned long start_pfn;
 	unsigned long isolate_pageblock;
 	unsigned long pfn;
 	struct zone *zone;
+	int ret;
 
 	VM_BUG_ON(!IS_ALIGNED(boundary_pfn, pageblock_nr_pages));
 
@@ -325,7 +327,11 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
 				      zone->zone_start_pfn);
 
 	saved_mt = get_pageblock_migratetype(pfn_to_page(isolate_pageblock));
-	set_pageblock_migratetype(pfn_to_page(isolate_pageblock), MIGRATE_ISOLATE);
+	ret = set_migratetype_isolate(pfn_to_page(isolate_pageblock), saved_mt, flags,
+			isolate_pageblock, isolate_pageblock + pageblock_nr_pages);
+
+	if (ret)
+		return ret;
 
 	/*
 	 * Bail out early when the to-be-isolated pageblock does not form
@@ -374,7 +380,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
 			struct page *head = compound_head(page);
 			unsigned long head_pfn = page_to_pfn(head);
 
-			if (head_pfn + nr_pages < boundary_pfn) {
+			if (head_pfn + nr_pages <= boundary_pfn) {
 				pfn = head_pfn + nr_pages;
 				continue;
 			}
@@ -386,7 +392,8 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
 			if (PageHuge(page) || PageLRU(page) || __PageMovable(page)) {
 				int order;
 				unsigned long outer_pfn;
-				int ret;
+				int page_mt = get_pageblock_migratetype(page);
+				bool isolate_page = !is_migrate_isolate_page(page);
 				struct compact_control cc = {
 					.nr_migratepages = 0,
 					.order = -1,
@@ -399,8 +406,30 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
 				};
 				INIT_LIST_HEAD(&cc.migratepages);
 
+				/*
+				 * XXX: mark the page as MIGRATE_ISOLATE so that
+				 * no one else can grab the freed page after migration.
+				 * Ideally, the page should be freed as two separate
+				 * pages to be added into separate migratetype free
+				 * lists.
+				 */
+				if (isolate_page) {
+					ret = set_migratetype_isolate(page, page_mt,
+						flags, head_pfn, head_pfn + nr_pages);
+					if (ret)
+						goto failed;
+				}
+
 				ret = __alloc_contig_migrate_range(&cc, head_pfn,
 							head_pfn + nr_pages);
+
+				/*
+				 * restore the page's migratetype so that it can
+				 * be split into separate migratetype free lists
+				 * later.
+				 */
+				if (isolate_page)
+					unset_migratetype_isolate(page, page_mt);
 
 				if (ret)
 					goto failed;
@@ -417,10 +446,9 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
 				order = 0;
 				outer_pfn = pfn;
 				while (!PageBuddy(pfn_to_page(outer_pfn))) {
-					if (++order >= MAX_ORDER) {
-						outer_pfn = pfn;
-						break;
-					}
+					/* stop if we cannot find the free page */
+					if (++order >= MAX_ORDER)
+						goto failed;
 					outer_pfn &= ~0UL << order;
 				}
 				pfn = outer_pfn;
@@ -435,7 +463,7 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, gfp_t gfp_flags,
 	return 0;
 failed:
 	/* restore the original migratetype */
-	set_pageblock_migratetype(pfn_to_page(isolate_pageblock), saved_mt);
+	unset_migratetype_isolate(pfn_to_page(isolate_pageblock), saved_mt);
 	return -EBUSY;
 }
 
@@ -496,12 +524,12 @@ int start_isolate_page_range(unsigned long start_pfn, unsigned long end_pfn,
 	int ret;
 
 	/* isolate [isolate_start, isolate_start + pageblock_nr_pages) pageblock */
-	ret = isolate_single_pageblock(isolate_start, gfp_flags, false);
+	ret = isolate_single_pageblock(isolate_start, flags, gfp_flags, false);
 	if (ret)
 		return ret;
 
 	/* isolate [isolate_end - pageblock_nr_pages, isolate_end) pageblock */
-	ret = isolate_single_pageblock(isolate_end, gfp_flags, true);
+	ret = isolate_single_pageblock(isolate_end, flags, gfp_flags, true);
 	if (ret) {
 		unset_migratetype_isolate(pfn_to_page(isolate_start), migratetype);
 		return ret;
