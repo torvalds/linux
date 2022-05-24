@@ -14,7 +14,7 @@
 #define NR_CXL_HOST_BRIDGES 2
 #define NR_CXL_ROOT_PORTS 2
 #define NR_CXL_SWITCH_PORTS 2
-#define NR_CXL_PORT_DECODERS 2
+#define NR_CXL_PORT_DECODERS 8
 
 static struct platform_device *cxl_acpi;
 static struct platform_device *cxl_host_bridge[NR_CXL_HOST_BRIDGES];
@@ -118,7 +118,7 @@ static struct {
 			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
 					ACPI_CEDT_CFMWS_RESTRICT_VOLATILE,
 			.qtg_id = 0,
-			.window_size = SZ_256M,
+			.window_size = SZ_256M * 4UL,
 		},
 		.target = { 0 },
 	},
@@ -133,7 +133,7 @@ static struct {
 			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
 					ACPI_CEDT_CFMWS_RESTRICT_VOLATILE,
 			.qtg_id = 1,
-			.window_size = SZ_256M * 2,
+			.window_size = SZ_256M * 8UL,
 		},
 		.target = { 0, 1, },
 	},
@@ -148,7 +148,7 @@ static struct {
 			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = 2,
-			.window_size = SZ_256M,
+			.window_size = SZ_256M * 4UL,
 		},
 		.target = { 0 },
 	},
@@ -163,7 +163,7 @@ static struct {
 			.restrictions = ACPI_CEDT_CFMWS_RESTRICT_TYPE3 |
 					ACPI_CEDT_CFMWS_RESTRICT_PMEM,
 			.qtg_id = 3,
-			.window_size = SZ_256M * 2,
+			.window_size = SZ_256M * 8UL,
 		},
 		.target = { 0, 1, },
 	},
