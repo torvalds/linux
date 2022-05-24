@@ -76,10 +76,10 @@ CPPFLAGS_vmlinux.lds += -DTEXT_OFFSET="$(TEXT_OFFSET)"
 CPPFLAGS_vmlinux.lds += -DMALLOC_SIZE="$(MALLOC_SIZE)"
 
 compress-$(CONFIG_KERNEL_GZIP) = gzip
-compress-$(CONFIG_KERNEL_LZO)  = lzo
-compress-$(CONFIG_KERNEL_LZMA) = lzma
-compress-$(CONFIG_KERNEL_XZ)   = xzkern
-compress-$(CONFIG_KERNEL_LZ4)  = lz4
+compress-$(CONFIG_KERNEL_LZO)  = lzo_with_size
+compress-$(CONFIG_KERNEL_LZMA) = lzma_with_size
+compress-$(CONFIG_KERNEL_XZ)   = xzkern_with_size
+compress-$(CONFIG_KERNEL_LZ4)  = lz4_with_size
 
 libfdt_objs := fdt_rw.o fdt_ro.o fdt_wip.o fdt.o
 
@@ -92,17 +92,13 @@ ifeq ($(CONFIG_USE_OF),y)
 OBJS	+= $(libfdt_objs) fdt_check_mem_start.o
 endif
 
-# -fstack-protector-strong triggers protection checks in this code,
-# but it is being used too early to link to meaningful stack_chk logic.
-$(foreach o, $(libfdt_objs) atags_to_fdt.o fdt_check_mem_start.o, \
-	$(eval CFLAGS_$(o) := -I $(srctree)/scripts/dtc/libfdt -fno-stack-protector))
-
 targets       := vmlinux vmlinux.lds piggy_data piggy.o \
 		 head.o $(OBJS)
 
 KBUILD_CFLAGS += -DDISABLE_BRANCH_PROFILING
 
 ccflags-y := -fpic $(call cc-option,-mno-single-pic-base,) -fno-builtin \
+	     -I$(srctree)/scripts/dtc/libfdt -fno-stack-protector \
 	     -I$(obj) $(DISABLE_ARM_SSP_PER_TASK_PLUGIN)
 ccflags-remove-$(CONFIG_FUNCTION_TRACER) += -pg
 asflags-y := -DZIMAGE

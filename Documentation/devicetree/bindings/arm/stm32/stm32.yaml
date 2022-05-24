@@ -28,6 +28,12 @@ properties:
           - enum:
               - st,stm32mp153
               - st,stm32mp157
+
+      - description: emtrion STM32MP1 Argon based Boards
+        items:
+          - const: emtrion,stm32mp157c-emsbc-argon
+          - const: emtrion,stm32mp157c-emstamp-argon
+          - const: st,stm32mp157
       - items:
           - enum:
               - st,stm32f429i-disco

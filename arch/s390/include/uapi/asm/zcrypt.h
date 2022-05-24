@@ -288,7 +288,7 @@ struct zcrypt_device_matrix_ext {
  *	 0x08: CEX3A
  *	 0x0a: CEX4
  *	 0x0b: CEX5
- *	 0x0c: CEX6 and CEX7
+ *	 0x0c: CEX6, CEX7 or CEX8
  *	 0x0d: device is disabled
  *
  *   ZCRYPT_QDEPTH_MASK

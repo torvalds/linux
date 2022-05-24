@@ -338,7 +338,7 @@ static void mcf_tx_chars(struct mcf_uart *pp)
 	}
 
 	while (readb(port->membase + MCFUART_USR) & MCFUART_USR_TXREADY) {
-		if (xmit->head == xmit->tail)
+		if (uart_circ_empty(xmit))
 			break;
 		writeb(xmit->buf[xmit->tail], port->membase + MCFUART_UTB);
 		xmit->tail = (xmit->tail + 1) & (UART_XMIT_SIZE -1);
@@ -348,9 +348,8 @@ static void mcf_tx_chars(struct mcf_uart *pp)
 	if (uart_circ_chars_pending(xmit) < WAKEUP_CHARS)
 		uart_write_wakeup(port);
 
-	if (xmit->head == xmit->tail) {
-		pp->imr &= ~MCFUART_UIR_TXREADY;
-		writeb(pp->imr, port->membase + MCFUART_UIMR);
+	if (uart_circ_empty(xmit)) {
+		mcf_stop_tx(port);
 		/* Disable TX to negate RTS automatically */
 		if (port->rs485.flags & SER_RS485_ENABLED)
 			writeb(MCFUART_UCR_TXDISABLE,

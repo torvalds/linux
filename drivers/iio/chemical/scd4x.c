@@ -423,7 +423,7 @@ static ssize_t calibration_auto_enable_show(struct device *dev,
 
 	val = (be16_to_cpu(bval) & SCD4X_READY_MASK) ? 1 : 0;
 
-	return sprintf(buf, "%d\n", val);
+	return sysfs_emit(buf, "%d\n", val);
 }
 
 static ssize_t calibration_auto_enable_store(struct device *dev,

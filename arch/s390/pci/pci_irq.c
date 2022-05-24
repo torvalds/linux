@@ -99,7 +99,7 @@ static int zpci_clear_directed_irq(struct zpci_dev *zdev)
 }
 
 /* Register adapter interruptions */
-int zpci_set_irq(struct zpci_dev *zdev)
+static int zpci_set_irq(struct zpci_dev *zdev)
 {
 	int rc;
 
@@ -115,7 +115,7 @@ int zpci_set_irq(struct zpci_dev *zdev)
 }
 
 /* Clear adapter interruptions */
-int zpci_clear_irq(struct zpci_dev *zdev)
+static int zpci_clear_irq(struct zpci_dev *zdev)
 {
 	int rc;
 

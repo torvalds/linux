@@ -62,6 +62,10 @@ struct tlmi_pwd_setting {
 	char kbdlang[TLMI_LANG_MAXLEN];
 	int index; /*Used for HDD and NVME auth */
 	enum level_option level;
+	bool cert_installed;
+	char *certificate;
+	char *signature;
+	char *save_signature;
 };
 
 /* Attribute setting details */
@@ -82,6 +86,7 @@ struct think_lmi {
 	bool pending_changes;
 	bool can_debug_cmd;
 	bool opcode_support;
+	bool certificate_support;
 
 	struct tlmi_attr_setting *setting[TLMI_SETTINGS_COUNT];
 	struct device *class_dev;

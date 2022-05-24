@@ -161,11 +161,13 @@ struct mlx5dr_ste_ctx {
 	u32 actions_caps;
 	void (*set_actions_rx)(struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
+			       u32 actions_caps,
 			       u8 *hw_ste_arr,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
 	void (*set_actions_tx)(struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
+			       u32 actions_caps,
 			       u8 *hw_ste_arr,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
@@ -197,7 +199,8 @@ struct mlx5dr_ste_ctx {
 	void (*prepare_for_postsend)(u8 *hw_ste_p, u32 ste_size);
 };
 
-extern struct mlx5dr_ste_ctx ste_ctx_v0;
-extern struct mlx5dr_ste_ctx ste_ctx_v1;
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v0(void);
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v1(void);
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v2(void);
 
 #endif  /* _DR_STE_ */

@@ -191,6 +191,8 @@ static struct vdpa_mgmt_dev mgmt_dev = {
 	.ops = &vdpasim_net_mgmtdev_ops,
 	.config_attr_mask = (1 << VDPA_ATTR_DEV_NET_CFG_MACADDR |
 			     1 << VDPA_ATTR_DEV_NET_CFG_MTU),
+	.max_supported_vqs = VDPASIM_NET_VQ_NUM,
+	.supported_features = VDPASIM_NET_FEATURES,
 };
 
 static int __init vdpasim_net_init(void)

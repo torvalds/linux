@@ -14,7 +14,7 @@
 int early_acpi_osi_init(void);
 int acpi_osi_init(void);
 acpi_status acpi_os_initialize1(void);
-int acpi_scan_init(void);
+void acpi_scan_init(void);
 #ifdef CONFIG_PCI
 void acpi_pci_root_init(void);
 void acpi_pci_link_init(void);
@@ -95,8 +95,6 @@ void acpi_scan_table_notify(void);
 			  ACPI_STA_DEVICE_UI | ACPI_STA_DEVICE_FUNCTIONING)
 
 extern struct list_head acpi_bus_id_list;
-
-#define ACPI_MAX_DEVICE_INSTANCES	4096
 
 struct acpi_device_bus_id {
 	const char *bus_id;

@@ -58,7 +58,7 @@ static int cbas_ec_query_base(struct cros_ec_device *ec_dev, bool get_state,
 	struct cros_ec_command *msg;
 	int ret;
 
-	msg = kzalloc(sizeof(*msg) + max(sizeof(u32), sizeof(*params)),
+	msg = kzalloc(struct_size(msg, data, max(sizeof(u32), sizeof(*params))),
 		      GFP_KERNEL);
 	if (!msg)
 		return -ENOMEM;

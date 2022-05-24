@@ -477,14 +477,14 @@ static const struct intel_ddi_buf_trans icl_combo_phy_trans_hdmi = {
 static const union intel_ddi_buf_trans_entry _ehl_combo_phy_trans_dp[] = {
 							/* NT mV Trans mV db    */
 	{ .icl = { 0xA, 0x33, 0x3F, 0x00, 0x00 } },	/* 350   350      0.0   */
-	{ .icl = { 0xA, 0x47, 0x36, 0x00, 0x09 } },	/* 350   500      3.1   */
-	{ .icl = { 0xC, 0x64, 0x34, 0x00, 0x0B } },	/* 350   700      6.0   */
-	{ .icl = { 0x6, 0x7F, 0x30, 0x00, 0x0F } },	/* 350   900      8.2   */
+	{ .icl = { 0xA, 0x47, 0x38, 0x00, 0x07 } },	/* 350   500      3.1   */
+	{ .icl = { 0xC, 0x64, 0x33, 0x00, 0x0C } },	/* 350   700      6.0   */
+	{ .icl = { 0x6, 0x7F, 0x2F, 0x00, 0x10 } },	/* 350   900      8.2   */
 	{ .icl = { 0xA, 0x46, 0x3F, 0x00, 0x00 } },	/* 500   500      0.0   */
-	{ .icl = { 0xC, 0x64, 0x38, 0x00, 0x07 } },	/* 500   700      2.9   */
+	{ .icl = { 0xC, 0x64, 0x37, 0x00, 0x08 } },	/* 500   700      2.9   */
 	{ .icl = { 0x6, 0x7F, 0x32, 0x00, 0x0D } },	/* 500   900      5.1   */
 	{ .icl = { 0xC, 0x61, 0x3F, 0x00, 0x00 } },	/* 650   700      0.6   */
-	{ .icl = { 0x6, 0x7F, 0x38, 0x00, 0x07 } },	/* 600   900      3.5   */
+	{ .icl = { 0x6, 0x7F, 0x37, 0x00, 0x08 } },	/* 600   900      3.5   */
 	{ .icl = { 0x6, 0x7F, 0x3F, 0x00, 0x00 } },	/* 900   900      0.0   */
 };
 
@@ -985,15 +985,15 @@ static const struct intel_ddi_buf_trans adlp_dkl_phy_trans_dp_hbr2_hbr3 = {
 };
 
 static const union intel_ddi_buf_trans_entry _dg2_snps_trans[] = {
-	{ .snps = { 26, 0, 0 } },	/* VS 0, pre-emph 0 */
-	{ .snps = { 33, 0, 6 } },	/* VS 0, pre-emph 1 */
-	{ .snps = { 38, 0, 12 } },	/* VS 0, pre-emph 2 */
-	{ .snps = { 43, 0, 19 } },	/* VS 0, pre-emph 3 */
-	{ .snps = { 39, 0, 0 } },	/* VS 1, pre-emph 0 */
-	{ .snps = { 44, 0, 8 } },	/* VS 1, pre-emph 1 */
-	{ .snps = { 47, 0, 15 } },	/* VS 1, pre-emph 2 */
-	{ .snps = { 52, 0, 0 } },	/* VS 2, pre-emph 0 */
-	{ .snps = { 51, 0, 10 } },	/* VS 2, pre-emph 1 */
+	{ .snps = { 25, 0, 0 } },	/* VS 0, pre-emph 0 */
+	{ .snps = { 32, 0, 6 } },	/* VS 0, pre-emph 1 */
+	{ .snps = { 35, 0, 10 } },	/* VS 0, pre-emph 2 */
+	{ .snps = { 43, 0, 17 } },	/* VS 0, pre-emph 3 */
+	{ .snps = { 35, 0, 0 } },	/* VS 1, pre-emph 0 */
+	{ .snps = { 45, 0, 8 } },	/* VS 1, pre-emph 1 */
+	{ .snps = { 48, 0, 14 } },	/* VS 1, pre-emph 2 */
+	{ .snps = { 47, 0, 0 } },	/* VS 2, pre-emph 0 */
+	{ .snps = { 55, 0, 7 } },	/* VS 2, pre-emph 1 */
 	{ .snps = { 62, 0, 0 } },	/* VS 3, pre-emph 0 */
 };
 
@@ -1005,21 +1005,21 @@ static const struct intel_ddi_buf_trans dg2_snps_trans = {
 
 static const union intel_ddi_buf_trans_entry _dg2_snps_trans_uhbr[] = {
 	{ .snps = { 62, 0, 0 } },	/* preset 0 */
-	{ .snps = { 56, 0, 6 } },	/* preset 1 */
-	{ .snps = { 51, 0, 11 } },	/* preset 2 */
-	{ .snps = { 48, 0, 14 } },	/* preset 3 */
-	{ .snps = { 43, 0, 19 } },	/* preset 4 */
+	{ .snps = { 55, 0, 7 } },	/* preset 1 */
+	{ .snps = { 50, 0, 12 } },	/* preset 2 */
+	{ .snps = { 44, 0, 18 } },	/* preset 3 */
+	{ .snps = { 35, 0, 21 } },	/* preset 4 */
 	{ .snps = { 59, 3, 0 } },	/* preset 5 */
 	{ .snps = { 53, 3, 6 } },	/* preset 6 */
-	{ .snps = { 49, 3, 10 } },	/* preset 7 */
-	{ .snps = { 45, 3, 14 } },	/* preset 8 */
-	{ .snps = { 42, 3, 17 } },	/* preset 9 */
+	{ .snps = { 48, 3, 11 } },	/* preset 7 */
+	{ .snps = { 42, 5, 15 } },	/* preset 8 */
+	{ .snps = { 37, 5, 20 } },	/* preset 9 */
 	{ .snps = { 56, 6, 0 } },	/* preset 10 */
-	{ .snps = { 50, 6, 6 } },	/* preset 11 */
-	{ .snps = { 47, 6, 9 } },	/* preset 12 */
-	{ .snps = { 42, 6, 14 } },	/* preset 13 */
-	{ .snps = { 46, 8, 8 } },	/* preset 14 */
-	{ .snps = { 56, 3, 3 } },	/* preset 15 */
+	{ .snps = { 48, 7, 7 } },	/* preset 11 */
+	{ .snps = { 45, 7, 10 } },	/* preset 12 */
+	{ .snps = { 39, 8, 15 } },	/* preset 13 */
+	{ .snps = { 48, 14, 0 } },	/* preset 14 */
+	{ .snps = { 45, 4, 4 } },	/* preset 15 */
 };
 
 static const struct intel_ddi_buf_trans dg2_snps_trans_uhbr = {
@@ -1321,7 +1321,7 @@ tgl_get_combo_buf_trans_dp(struct intel_encoder *encoder,
 	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
 
 	if (crtc_state->port_clock > 270000) {
-		if (IS_TGL_U(dev_priv) || IS_TGL_Y(dev_priv)) {
+		if (IS_TGL_UY(dev_priv)) {
 			return intel_get_buf_trans(&tgl_uy_combo_phy_trans_dp_hbr2,
 						   n_entries);
 		} else {

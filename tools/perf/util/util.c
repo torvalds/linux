@@ -416,3 +416,49 @@ char *perf_exe(char *buf, int len)
 	}
 	return strcpy(buf, "perf");
 }
+
+void perf_debuginfod_setup(struct perf_debuginfod *di)
+{
+	/*
+	 * By default '!di->set' we clear DEBUGINFOD_URLS, so debuginfod
+	 * processing is not triggered, otherwise we set it to 'di->urls'
+	 * value. If 'di->urls' is "system" we keep DEBUGINFOD_URLS value.
+	 */
+	if (!di->set)
+		setenv("DEBUGINFOD_URLS", "", 1);
+	else if (di->urls && strcmp(di->urls, "system"))
+		setenv("DEBUGINFOD_URLS", di->urls, 1);
+
+	pr_debug("DEBUGINFOD_URLS=%s\n", getenv("DEBUGINFOD_URLS"));
+}
+
+/*
+ * Return a new filename prepended with task's root directory if it's in
+ * a chroot.  Callers should free the returned string.
+ */
+char *filename_with_chroot(int pid, const char *filename)
+{
+	char buf[PATH_MAX];
+	char proc_root[32];
+	char *new_name = NULL;
+	int ret;
+
+	scnprintf(proc_root, sizeof(proc_root), "/proc/%d/root", pid);
+	ret = readlink(proc_root, buf, sizeof(buf) - 1);
+	if (ret <= 0)
+		return NULL;
+
+	/* readlink(2) does not append a null byte to buf */
+	buf[ret] = '\0';
+
+	if (!strcmp(buf, "/"))
+		return NULL;
+
+	if (strstr(buf, "(deleted)"))
+		return NULL;
+
+	if (asprintf(&new_name, "%s/%s", buf, filename) < 0)
+		return NULL;
+
+	return new_name;
+}

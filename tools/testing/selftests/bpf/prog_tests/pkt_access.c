@@ -6,23 +6,27 @@ void test_pkt_access(void)
 {
 	const char *file = "./test_pkt_access.o";
 	struct bpf_object *obj;
-	__u32 duration, retval;
 	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = &pkt_v4,
+		.data_size_in = sizeof(pkt_v4),
+		.repeat = 100000,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_SCHED_CLS, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
-	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v4, sizeof(pkt_v4),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "ipv4",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "ipv4 test_run_opts err");
+	ASSERT_OK(topts.retval, "ipv4 test_run_opts retval");
 
-	err = bpf_prog_test_run(prog_fd, 100000, &pkt_v6, sizeof(pkt_v6),
-				NULL, NULL, &retval, &duration);
-	CHECK(err || retval, "ipv6",
-	      "err %d errno %d retval %d duration %d\n",
-	      err, errno, retval, duration);
+	topts.data_in = &pkt_v6;
+	topts.data_size_in = sizeof(pkt_v6);
+	topts.data_size_out = 0; /* reset from last call */
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "ipv6 test_run_opts err");
+	ASSERT_OK(topts.retval, "ipv6 test_run_opts retval");
+
 	bpf_object__close(obj);
 }

@@ -1445,7 +1445,7 @@ struct hal_rx_desc_ipq8074 {
 	__le32 hdr_status_tag;
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 } __packed;
 
 struct hal_rx_desc_qcn9074 {
@@ -1464,7 +1464,7 @@ struct hal_rx_desc_qcn9074 {
 	__le32 hdr_status_tag;
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 } __packed;
 
 struct hal_rx_desc_wcn6855 {
@@ -1483,7 +1483,7 @@ struct hal_rx_desc_wcn6855 {
 	__le32 hdr_status_tag;
 	__le32 phy_ppdu_id;
 	u8 hdr_status[HAL_RX_DESC_HDR_STATUS_LEN];
-	u8 msdu_payload[0];
+	u8 msdu_payload[];
 } __packed;
 
 struct hal_rx_desc {

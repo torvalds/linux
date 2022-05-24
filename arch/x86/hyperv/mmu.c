@@ -68,15 +68,6 @@ static void hyperv_flush_tlb_multi(const struct cpumask *cpus,
 
 	local_irq_save(flags);
 
-	/*
-	 * Only check the mask _after_ interrupt has been disabled to avoid the
-	 * mask changing under our feet.
-	 */
-	if (cpumask_empty(cpus)) {
-		local_irq_restore(flags);
-		return;
-	}
-
 	flush_pcpu = (struct hv_tlb_flush **)
 		     this_cpu_ptr(hyperv_pcpu_input_arg);
 
@@ -115,7 +106,9 @@ static void hyperv_flush_tlb_multi(const struct cpumask *cpus,
 		 * must. We will also check all VP numbers when walking the
 		 * supplied CPU set to remain correct in all cases.
 		 */
-		if (hv_cpu_number_to_vp_number(cpumask_last(cpus)) >= 64)
+		cpu = cpumask_last(cpus);
+
+		if (cpu < nr_cpumask_bits && hv_cpu_number_to_vp_number(cpu) >= 64)
 			goto do_ex_hypercall;
 
 		for_each_cpu(cpu, cpus) {
@@ -130,6 +123,12 @@ static void hyperv_flush_tlb_multi(const struct cpumask *cpus,
 
 			__set_bit(vcpu, (unsigned long *)
 				  &flush->processor_mask);
+		}
+
+		/* nothing to flush if 'processor_mask' ends up being empty */
+		if (!flush->processor_mask) {
+			local_irq_restore(flags);
+			return;
 		}
 	}
 

@@ -190,14 +190,14 @@ int ceph_compare_options(struct ceph_options *new_opt,
 }
 EXPORT_SYMBOL(ceph_compare_options);
 
-static int parse_fsid(const char *str, struct ceph_fsid *fsid)
+int ceph_parse_fsid(const char *str, struct ceph_fsid *fsid)
 {
 	int i = 0;
 	char tmp[3];
 	int err = -EINVAL;
 	int d;
 
-	dout("parse_fsid '%s'\n", str);
+	dout("%s '%s'\n", __func__, str);
 	tmp[2] = 0;
 	while (*str && i < 16) {
 		if (ispunct(*str)) {
@@ -217,9 +217,10 @@ static int parse_fsid(const char *str, struct ceph_fsid *fsid)
 
 	if (i == 16)
 		err = 0;
-	dout("parse_fsid ret %d got fsid %pU\n", err, fsid);
+	dout("%s ret %d got fsid %pU\n", __func__, err, fsid);
 	return err;
 }
+EXPORT_SYMBOL(ceph_parse_fsid);
 
 /*
  * ceph options
@@ -245,6 +246,7 @@ enum {
 	Opt_cephx_sign_messages,
 	Opt_tcp_nodelay,
 	Opt_abort_on_full,
+	Opt_rxbounce,
 };
 
 enum {
@@ -294,6 +296,7 @@ static const struct fs_parameter_spec ceph_parameters[] = {
 	fsparam_u32	("osdkeepalive",		Opt_osdkeepalivetimeout),
 	fsparam_enum	("read_from_replica",		Opt_read_from_replica,
 			 ceph_param_read_from_replica),
+	fsparam_flag	("rxbounce",			Opt_rxbounce),
 	fsparam_enum	("ms_mode",			Opt_ms_mode,
 			 ceph_param_ms_mode),
 	fsparam_string	("secret",			Opt_secret),
@@ -395,14 +398,14 @@ out:
 }
 
 int ceph_parse_mon_ips(const char *buf, size_t len, struct ceph_options *opt,
-		       struct fc_log *l)
+		       struct fc_log *l, char delim)
 {
 	struct p_log log = {.prefix = "libceph", .log = l};
 	int ret;
 
-	/* ip1[:port1][,ip2[:port2]...] */
+	/* ip1[:port1][<delim>ip2[:port2]...] */
 	ret = ceph_parse_ips(buf, buf + len, opt->mon_addr, CEPH_MAX_MON,
-			     &opt->num_mon);
+			     &opt->num_mon, delim);
 	if (ret) {
 		error_plog(&log, "Failed to parse monitor IPs: %d", ret);
 		return ret;
@@ -428,8 +431,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_ip:
 		err = ceph_parse_ips(param->string,
 				     param->string + param->size,
-				     &opt->my_addr,
-				     1, NULL);
+				     &opt->my_addr, 1, NULL, ',');
 		if (err) {
 			error_plog(&log, "Failed to parse ip: %d", err);
 			return err;
@@ -438,7 +440,7 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 		break;
 
 	case Opt_fsid:
-		err = parse_fsid(param->string, &opt->fsid);
+		err = ceph_parse_fsid(param->string, &opt->fsid);
 		if (err) {
 			error_plog(&log, "Failed to parse fsid: %d", err);
 			return err;
@@ -584,6 +586,9 @@ int ceph_parse_param(struct fs_parameter *param, struct ceph_options *opt,
 	case Opt_abort_on_full:
 		opt->flags |= CEPH_OPT_ABORT_ON_FULL;
 		break;
+	case Opt_rxbounce:
+		opt->flags |= CEPH_OPT_RXBOUNCE;
+		break;
 
 	default:
 		BUG();
@@ -660,6 +665,8 @@ int ceph_print_client_options(struct seq_file *m, struct ceph_client *client,
 		seq_puts(m, "notcp_nodelay,");
 	if (show_all && (opt->flags & CEPH_OPT_ABORT_ON_FULL))
 		seq_puts(m, "abort_on_full,");
+	if (opt->flags & CEPH_OPT_RXBOUNCE)
+		seq_puts(m, "rxbounce,");
 
 	if (opt->mount_timeout != CEPH_MOUNT_TIMEOUT_DEFAULT)
 		seq_printf(m, "mount_timeout=%d,",

@@ -6,11 +6,11 @@
  *    Author(s): Martin Schwidefsky (schwidefsky@de.ibm.com),
  *		 Hartmut Penner (hp@de.ibm.com),
  *		 Denis Joseph Barrow (djbarrow@de.ibm.com,barrow_dj@yahoo.com),
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/init.h>
 #include <linux/linkage.h>
+#include <asm/asm-extable.h>
 #include <asm/alternative-asm.h>
 #include <asm/processor.h>
 #include <asm/cache.h>
@@ -96,11 +96,6 @@ _LPP_OFFSET	= __LC_LPP
 #else
 	j	\oklabel
 #endif
-	.endm
-
-	.macro STCK savearea
-	ALTERNATIVE ".insn	s,0xb2050000,\savearea", \
-		    ".insn	s,0xb27c0000,\savearea", 25
 	.endm
 
 	/*
@@ -191,7 +186,6 @@ _LPP_OFFSET	= __LC_LPP
 #endif
 
 	GEN_BR_THUNK %r14
-	GEN_BR_THUNK %r14,%r13
 
 	.section .kprobes.text, "ax"
 .Ldummy:
@@ -232,7 +226,7 @@ ENTRY(__switch_to)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	ALTERNATIVE "", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
 ENDPROC(__switch_to)
 
@@ -443,7 +437,7 @@ ENDPROC(pgm_check_handler)
  */
 .macro INT_HANDLER name,lc_old_psw,handler
 ENTRY(\name)
-	STCK	__LC_INT_CLOCK
+	stckf	__LC_INT_CLOCK
 	stpt	__LC_SYS_ENTER_TIMER
 	STBEAR	__LC_LAST_BREAK
 	BPOFF
@@ -515,7 +509,7 @@ ENTRY(psw_idle)
 .Lpsw_idle_stcctm:
 	oi	__LC_CPU_FLAGS+7,_CIF_ENABLED_WAIT
 	BPON
-	STCK	__CLOCK_IDLE_ENTER(%r2)
+	stckf	__CLOCK_IDLE_ENTER(%r2)
 	stpt	__TIMER_IDLE_ENTER(%r2)
 	lpswe	__SF_EMPTY(%r15)
 .globl psw_idle_exit
@@ -527,7 +521,7 @@ ENDPROC(psw_idle)
  * Machine check handler routines
  */
 ENTRY(mcck_int_handler)
-	STCK	__LC_MCCK_CLOCK
+	stckf	__LC_MCCK_CLOCK
 	BPOFF
 	la	%r1,4095		# validate r1
 	spt	__LC_CPU_TIMER_SAVE_AREA-4095(%r1)	# validate cpu timer
@@ -654,7 +648,7 @@ ENTRY(mcck_int_handler)
 ENDPROC(mcck_int_handler)
 
 ENTRY(restart_int_handler)
-	ALTERNATIVE "", ".insn s,0xb2800000,_LPP_OFFSET", 40
+	ALTERNATIVE "", "lpp _LPP_OFFSET", 40
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f

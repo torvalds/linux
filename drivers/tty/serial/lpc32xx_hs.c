@@ -122,7 +122,7 @@ static void wait_for_xmit_ready(struct uart_port *port)
 	}
 }
 
-static void lpc32xx_hsuart_console_putchar(struct uart_port *port, int ch)
+static void lpc32xx_hsuart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	wait_for_xmit_ready(port);
 	writel((u32)ch, LPC32XX_HSUART_FIFO(port->membase));
@@ -276,10 +276,11 @@ static void __serial_lpc32xx_rx(struct uart_port *port)
 	tty_flip_buffer_push(tport);
 }
 
+static void serial_lpc32xx_stop_tx(struct uart_port *port);
+
 static void __serial_lpc32xx_tx(struct uart_port *port)
 {
 	struct circ_buf *xmit = &port->state->xmit;
-	unsigned int tmp;
 
 	if (port->x_char) {
 		writel((u32)port->x_char, LPC32XX_HSUART_FIFO(port->membase));
@@ -306,11 +307,8 @@ static void __serial_lpc32xx_tx(struct uart_port *port)
 		uart_write_wakeup(port);
 
 exit_tx:
-	if (uart_circ_empty(xmit)) {
-		tmp = readl(LPC32XX_HSUART_CTRL(port->membase));
-		tmp &= ~LPC32XX_HSU_TX_INT_EN;
-		writel(tmp, LPC32XX_HSUART_CTRL(port->membase));
-	}
+	if (uart_circ_empty(xmit))
+		serial_lpc32xx_stop_tx(port);
 }
 
 static irqreturn_t serial_lpc32xx_interrupt(int irq, void *dev_id)

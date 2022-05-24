@@ -83,11 +83,11 @@ static irqreturn_t mpc5xxx_uart_process_int(struct uart_port *port);
 
 struct psc_ops {
 	void		(*fifo_init)(struct uart_port *port);
-	int		(*raw_rx_rdy)(struct uart_port *port);
-	int		(*raw_tx_rdy)(struct uart_port *port);
-	int		(*rx_rdy)(struct uart_port *port);
-	int		(*tx_rdy)(struct uart_port *port);
-	int		(*tx_empty)(struct uart_port *port);
+	unsigned int	(*raw_rx_rdy)(struct uart_port *port);
+	unsigned int	(*raw_tx_rdy)(struct uart_port *port);
+	unsigned int	(*rx_rdy)(struct uart_port *port);
+	unsigned int	(*tx_rdy)(struct uart_port *port);
+	unsigned int	(*tx_empty)(struct uart_port *port);
 	void		(*stop_rx)(struct uart_port *port);
 	void		(*start_tx)(struct uart_port *port);
 	void		(*stop_tx)(struct uart_port *port);
@@ -203,34 +203,34 @@ static void mpc52xx_psc_fifo_init(struct uart_port *port)
 	out_be16(&psc->mpc52xx_psc_imr, port->read_status_mask);
 }
 
-static int mpc52xx_psc_raw_rx_rdy(struct uart_port *port)
+static unsigned int mpc52xx_psc_raw_rx_rdy(struct uart_port *port)
 {
 	return in_be16(&PSC(port)->mpc52xx_psc_status)
 	    & MPC52xx_PSC_SR_RXRDY;
 }
 
-static int mpc52xx_psc_raw_tx_rdy(struct uart_port *port)
+static unsigned int mpc52xx_psc_raw_tx_rdy(struct uart_port *port)
 {
 	return in_be16(&PSC(port)->mpc52xx_psc_status)
 	    & MPC52xx_PSC_SR_TXRDY;
 }
 
 
-static int mpc52xx_psc_rx_rdy(struct uart_port *port)
+static unsigned int mpc52xx_psc_rx_rdy(struct uart_port *port)
 {
 	return in_be16(&PSC(port)->mpc52xx_psc_isr)
 	    & port->read_status_mask
 	    & MPC52xx_PSC_IMR_RXRDY;
 }
 
-static int mpc52xx_psc_tx_rdy(struct uart_port *port)
+static unsigned int mpc52xx_psc_tx_rdy(struct uart_port *port)
 {
 	return in_be16(&PSC(port)->mpc52xx_psc_isr)
 	    & port->read_status_mask
 	    & MPC52xx_PSC_IMR_TXRDY;
 }
 
-static int mpc52xx_psc_tx_empty(struct uart_port *port)
+static unsigned int mpc52xx_psc_tx_empty(struct uart_port *port)
 {
 	u16 sts = in_be16(&PSC(port)->mpc52xx_psc_status);
 
@@ -1365,7 +1365,7 @@ static const struct uart_ops mpc52xx_uart_ops = {
 /* Interrupt handling                                                       */
 /* ======================================================================== */
 
-static inline int
+static inline unsigned int
 mpc52xx_uart_int_rx_chars(struct uart_port *port)
 {
 	struct tty_port *tport = &port->state->port;

@@ -2,7 +2,7 @@
 
 config VIDEO_HDPVR
 	tristate "Hauppauge HD PVR support"
-	depends on VIDEO_DEV && VIDEO_V4L2
+	depends on VIDEO_DEV
 	help
 	  This is a video4linux driver for Hauppauge's HD PVR USB device.
 

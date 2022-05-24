@@ -22,9 +22,10 @@ static void afs_write_to_cache(struct afs_vnode *vnode, loff_t start, size_t len
  * Mark a page as having been made dirty and thus needing writeback.  We also
  * need to pin the cache object to write back to.
  */
-int afs_set_page_dirty(struct page *page)
+bool afs_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	return fscache_set_page_dirty(page, afs_vnode_cache(AFS_FS_I(page->mapping->host)));
+	return fscache_dirty_folio(mapping, folio,
+				afs_vnode_cache(AFS_FS_I(mapping->host)));
 }
 static void afs_folio_start_fscache(bool caching, struct folio *folio)
 {
@@ -703,7 +704,7 @@ static int afs_writepages_region(struct address_space *mapping,
 	struct folio *folio;
 	struct page *head_page;
 	ssize_t ret;
-	int n;
+	int n, skips = 0;
 
 	_enter("%llx,%llx,", start, end);
 
@@ -754,8 +755,15 @@ static int afs_writepages_region(struct address_space *mapping,
 #ifdef CONFIG_AFS_FSCACHE
 				folio_wait_fscache(folio);
 #endif
+			} else {
+				start += folio_size(folio);
 			}
 			folio_put(folio);
+			if (wbc->sync_mode == WB_SYNC_NONE) {
+				if (skips >= 5 || need_resched())
+					break;
+				skips++;
+			}
 			continue;
 		}
 
@@ -972,9 +980,8 @@ void afs_prune_wb_keys(struct afs_vnode *vnode)
 /*
  * Clean up a page during invalidation.
  */
-int afs_launder_page(struct page *subpage)
+int afs_launder_folio(struct folio *folio)
 {
-	struct folio *folio = page_folio(subpage);
 	struct afs_vnode *vnode = AFS_FS_I(folio_inode(folio));
 	struct iov_iter iter;
 	struct bio_vec bv[1];
@@ -982,7 +989,7 @@ int afs_launder_page(struct page *subpage)
 	unsigned int f, t;
 	int ret = 0;
 
-	_enter("{%lx}", folio_index(folio));
+	_enter("{%lx}", folio->index);
 
 	priv = (unsigned long)folio_get_private(folio);
 	if (folio_clear_dirty_for_io(folio)) {

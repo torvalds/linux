@@ -157,6 +157,10 @@
 	};
 };
 
+&ftm_alarm0 {
+	status = "okay";
+};
+
 &gpio1 {
 	gpio-line-names =
 		"", "", "", "", "", "", "", "",

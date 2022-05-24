@@ -91,7 +91,7 @@ extern bool qid_valid(struct kqid qid);
  *
  *	When there is no mapping defined for the user-namespace, type,
  *	qid tuple an invalid kqid is returned.  Callers are expected to
- *	test for and handle handle invalid kqids being returned.
+ *	test for and handle invalid kqids being returned.
  *	Invalid kqids may be tested for using qid_valid().
  */
 static inline struct kqid make_kqid(struct user_namespace *from,

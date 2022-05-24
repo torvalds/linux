@@ -33,7 +33,7 @@
 #define DEBUGP(fmt , ...)
 #endif
 
-#define PLT_ENTRY_SIZE 20
+#define PLT_ENTRY_SIZE 22
 
 void *module_alloc(unsigned long size)
 {
@@ -45,7 +45,7 @@ void *module_alloc(unsigned long size)
 	p = __vmalloc_node_range(size, MODULE_ALIGN, MODULES_VADDR, MODULES_END,
 				 gfp_mask, PAGE_KERNEL_EXEC, VM_DEFER_KMEMLEAK, NUMA_NO_NODE,
 				 __builtin_return_address(0));
-	if (p && (kasan_module_alloc(p, size, gfp_mask) < 0)) {
+	if (p && (kasan_alloc_module_shadow(p, size, gfp_mask) < 0)) {
 		vfree(p);
 		return NULL;
 	}
@@ -341,27 +341,26 @@ static int apply_rela(Elf_Rela *rela, Elf_Addr base, Elf_Sym *symtab,
 	case R_390_PLTOFF32:	/* 32 bit offset from GOT to PLT. */
 	case R_390_PLTOFF64:	/* 16 bit offset from GOT to PLT. */
 		if (info->plt_initialized == 0) {
-			unsigned int insn[5];
-			unsigned int *ip = me->core_layout.base +
-					   me->arch.plt_offset +
-					   info->plt_offset;
+			unsigned char insn[PLT_ENTRY_SIZE];
+			char *plt_base;
+			char *ip;
 
-			insn[0] = 0x0d10e310;	/* basr 1,0  */
-			insn[1] = 0x100a0004;	/* lg	1,10(1) */
+			plt_base = me->core_layout.base + me->arch.plt_offset;
+			ip = plt_base + info->plt_offset;
+			*(int *)insn = 0x0d10e310;	/* basr 1,0  */
+			*(int *)&insn[4] = 0x100c0004;	/* lg	1,12(1) */
 			if (IS_ENABLED(CONFIG_EXPOLINE) && !nospec_disable) {
-				unsigned int *ij;
-				ij = me->core_layout.base +
-					me->arch.plt_offset +
-					me->arch.plt_size - PLT_ENTRY_SIZE;
-				insn[2] = 0xa7f40000 +	/* j __jump_r1 */
-					(unsigned int)(u16)
-					(((unsigned long) ij - 8 -
-					  (unsigned long) ip) / 2);
+				char *jump_r1;
+
+				jump_r1 = plt_base + me->arch.plt_size -
+					PLT_ENTRY_SIZE;
+				/* brcl	0xf,__jump_r1 */
+				*(short *)&insn[8] = 0xc0f4;
+				*(int *)&insn[10] = (jump_r1 - (ip + 8)) / 2;
 			} else {
-				insn[2] = 0x07f10000;	/* br %r1 */
+				*(int *)&insn[8] = 0x07f10000;	/* br %r1 */
 			}
-			insn[3] = (unsigned int) (val >> 32);
-			insn[4] = (unsigned int) val;
+			*(long *)&insn[14] = val;
 
 			write(ip, insn, sizeof(insn));
 			info->plt_initialized = 1;
@@ -518,15 +517,9 @@ int module_finalize(const Elf_Ehdr *hdr,
 
 		ij = me->core_layout.base + me->arch.plt_offset +
 			me->arch.plt_size - PLT_ENTRY_SIZE;
-		if (test_facility(35)) {
-			ij[0] = 0xc6000000;	/* exrl	%r0,.+10	*/
-			ij[1] = 0x0005a7f4;	/* j	.		*/
-			ij[2] = 0x000007f1;	/* br	%r1		*/
-		} else {
-			ij[0] = 0x44000000 | (unsigned int)
-				offsetof(struct lowcore, br_r1_trampoline);
-			ij[1] = 0xa7f40000;	/* j	.		*/
-		}
+		ij[0] = 0xc6000000;	/* exrl	%r0,.+10	*/
+		ij[1] = 0x0005a7f4;	/* j	.		*/
+		ij[2] = 0x000007f1;	/* br	%r1		*/
 	}
 
 	secstrings = (void *)hdr + sechdrs[hdr->e_shstrndx].sh_offset;

@@ -22,7 +22,8 @@
 static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __maybe_unused,
 						  int subtest __maybe_unused)
 {
-	int err = -1, fd, cpu;
+	int err = -1, fd, idx;
+	struct perf_cpu cpu;
 	struct perf_cpu_map *cpus;
 	struct evsel *evsel;
 	unsigned int nr_openat_calls = 111, i;
@@ -58,23 +59,23 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 		goto out_evsel_delete;
 	}
 
-	for (cpu = 0; cpu < cpus->nr; ++cpu) {
-		unsigned int ncalls = nr_openat_calls + cpu;
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
+		unsigned int ncalls = nr_openat_calls + idx;
 		/*
 		 * XXX eventually lift this restriction in a way that
 		 * keeps perf building on older glibc installations
 		 * without CPU_ALLOC. 1024 cpus in 2010 still seems
 		 * a reasonable upper limit tho :-)
 		 */
-		if (cpus->map[cpu] >= CPU_SETSIZE) {
-			pr_debug("Ignoring CPU %d\n", cpus->map[cpu]);
+		if (cpu.cpu >= CPU_SETSIZE) {
+			pr_debug("Ignoring CPU %d\n", cpu.cpu);
 			continue;
 		}
 
-		CPU_SET(cpus->map[cpu], &cpu_set);
+		CPU_SET(cpu.cpu, &cpu_set);
 		if (sched_setaffinity(0, sizeof(cpu_set), &cpu_set) < 0) {
 			pr_debug("sched_setaffinity() failed on CPU %d: %s ",
-				 cpus->map[cpu],
+				 cpu.cpu,
 				 str_error_r(errno, sbuf, sizeof(sbuf)));
 			goto out_close_fd;
 		}
@@ -82,37 +83,29 @@ static int test__openat_syscall_event_on_all_cpus(struct test_suite *test __mayb
 			fd = openat(0, "/etc/passwd", O_RDONLY);
 			close(fd);
 		}
-		CPU_CLR(cpus->map[cpu], &cpu_set);
+		CPU_CLR(cpu.cpu, &cpu_set);
 	}
 
-	/*
-	 * Here we need to explicitly preallocate the counts, as if
-	 * we use the auto allocation it will allocate just for 1 cpu,
-	 * as we start by cpu 0.
-	 */
-	if (evsel__alloc_counts(evsel, cpus->nr, 1) < 0) {
-		pr_debug("evsel__alloc_counts(ncpus=%d)\n", cpus->nr);
-		goto out_close_fd;
-	}
+	evsel->core.cpus = perf_cpu_map__get(cpus);
 
 	err = 0;
 
-	for (cpu = 0; cpu < cpus->nr; ++cpu) {
+	perf_cpu_map__for_each_cpu(cpu, idx, cpus) {
 		unsigned int expected;
 
-		if (cpus->map[cpu] >= CPU_SETSIZE)
+		if (cpu.cpu >= CPU_SETSIZE)
 			continue;
 
-		if (evsel__read_on_cpu(evsel, cpu, 0) < 0) {
+		if (evsel__read_on_cpu(evsel, idx, 0) < 0) {
 			pr_debug("evsel__read_on_cpu\n");
 			err = -1;
 			break;
 		}
 
-		expected = nr_openat_calls + cpu;
-		if (perf_counts(evsel->counts, cpu, 0)->val != expected) {
+		expected = nr_openat_calls + idx;
+		if (perf_counts(evsel->counts, idx, 0)->val != expected) {
 			pr_debug("evsel__read_on_cpu: expected to intercept %d calls on cpu %d, got %" PRIu64 "\n",
-				 expected, cpus->map[cpu], perf_counts(evsel->counts, cpu, 0)->val);
+				 expected, cpu.cpu, perf_counts(evsel->counts, idx, 0)->val);
 			err = -1;
 		}
 	}

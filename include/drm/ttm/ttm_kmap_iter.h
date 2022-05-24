@@ -8,7 +8,7 @@
 #include <linux/types.h>
 
 struct ttm_kmap_iter;
-struct dma_buf_map;
+struct iosys_map;
 
 /**
  * struct ttm_kmap_iter_ops - Ops structure for a struct
@@ -24,22 +24,22 @@ struct ttm_kmap_iter_ops {
 	 * kmap_local semantics.
 	 * @res_iter: Pointer to the struct ttm_kmap_iter representing
 	 * the resource.
-	 * @dmap: The struct dma_buf_map holding the virtual address after
+	 * @dmap: The struct iosys_map holding the virtual address after
 	 * the operation.
 	 * @i: The location within the resource to map. PAGE_SIZE granularity.
 	 */
 	void (*map_local)(struct ttm_kmap_iter *res_iter,
-			  struct dma_buf_map *dmap, pgoff_t i);
+			  struct iosys_map *dmap, pgoff_t i);
 	/**
 	 * unmap_local() - Unmap a PAGE_SIZE part of the resource previously
 	 * mapped using kmap_local.
 	 * @res_iter: Pointer to the struct ttm_kmap_iter representing
 	 * the resource.
-	 * @dmap: The struct dma_buf_map holding the virtual address after
+	 * @dmap: The struct iosys_map holding the virtual address after
 	 * the operation.
 	 */
 	void (*unmap_local)(struct ttm_kmap_iter *res_iter,
-			    struct dma_buf_map *dmap);
+			    struct iosys_map *dmap);
 	bool maps_tt;
 };
 

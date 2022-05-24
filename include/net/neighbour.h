@@ -350,7 +350,8 @@ static inline struct neighbour *neigh_create(struct neigh_table *tbl,
 	return __neigh_create(tbl, pkey, dev, true);
 }
 void neigh_destroy(struct neighbour *neigh);
-int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb);
+int __neigh_event_send(struct neighbour *neigh, struct sk_buff *skb,
+		       const bool immediate_ok);
 int neigh_update(struct neighbour *neigh, const u8 *lladdr, u8 new, u32 flags,
 		 u32 nlmsg_pid);
 void __neigh_set_probe_once(struct neighbour *neigh);
@@ -460,15 +461,22 @@ static inline struct neighbour * neigh_clone(struct neighbour *neigh)
 
 #define neigh_hold(n)	refcount_inc(&(n)->refcnt)
 
-static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
+static __always_inline int neigh_event_send_probe(struct neighbour *neigh,
+						  struct sk_buff *skb,
+						  const bool immediate_ok)
 {
 	unsigned long now = jiffies;
-	
+
 	if (READ_ONCE(neigh->used) != now)
 		WRITE_ONCE(neigh->used, now);
-	if (!(neigh->nud_state&(NUD_CONNECTED|NUD_DELAY|NUD_PROBE)))
-		return __neigh_event_send(neigh, skb);
+	if (!(neigh->nud_state & (NUD_CONNECTED | NUD_DELAY | NUD_PROBE)))
+		return __neigh_event_send(neigh, skb, immediate_ok);
 	return 0;
+}
+
+static inline int neigh_event_send(struct neighbour *neigh, struct sk_buff *skb)
+{
+	return neigh_event_send_probe(neigh, skb, true);
 }
 
 #if IS_ENABLED(CONFIG_BRIDGE_NETFILTER)

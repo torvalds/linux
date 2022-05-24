@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: ISC
 /*
- * Device Tree file for Gateway 7001 AP
+ * Device Tree file for Gateway 7001 AP based on IXP422
  * Derived from boardfiles written by Imre Kaloz
  */
 
@@ -29,7 +29,6 @@
 	aliases {
 		/* second UART is the primary console */
 		serial0 = &uart1;
-		serial1 = &uart0;
 	};
 
 	soc {

@@ -1436,7 +1436,6 @@ static void usb_gadget_remove_driver(struct usb_udc *udc)
 	usb_gadget_udc_stop(udc);
 
 	udc->driver = NULL;
-	udc->dev.driver = NULL;
 	udc->gadget->dev.driver = NULL;
 }
 
@@ -1498,7 +1497,6 @@ static int udc_bind_to_driver(struct usb_udc *udc, struct usb_gadget_driver *dri
 			driver->function);
 
 	udc->driver = driver;
-	udc->dev.driver = &driver->driver;
 	udc->gadget->dev.driver = &driver->driver;
 
 	usb_gadget_udc_set_speed(udc, driver->max_speed);
@@ -1521,14 +1519,13 @@ err1:
 		dev_err(&udc->dev, "failed to start %s: %d\n",
 			udc->driver->function, ret);
 	udc->driver = NULL;
-	udc->dev.driver = NULL;
 	udc->gadget->dev.driver = NULL;
 	return ret;
 }
 
 int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 {
-	struct usb_udc		*udc = NULL;
+	struct usb_udc		*udc = NULL, *iter;
 	int			ret = -ENODEV;
 
 	if (!driver || !driver->bind || !driver->setup)
@@ -1536,10 +1533,12 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 
 	mutex_lock(&udc_lock);
 	if (driver->udc_name) {
-		list_for_each_entry(udc, &udc_list, list) {
-			ret = strcmp(driver->udc_name, dev_name(&udc->dev));
-			if (!ret)
-				break;
+		list_for_each_entry(iter, &udc_list, list) {
+			ret = strcmp(driver->udc_name, dev_name(&iter->dev));
+			if (ret)
+				continue;
+			udc = iter;
+			break;
 		}
 		if (ret)
 			ret = -ENODEV;
@@ -1548,10 +1547,12 @@ int usb_gadget_probe_driver(struct usb_gadget_driver *driver)
 		else
 			goto found;
 	} else {
-		list_for_each_entry(udc, &udc_list, list) {
+		list_for_each_entry(iter, &udc_list, list) {
 			/* For now we take the first one */
-			if (!udc->driver)
-				goto found;
+			if (iter->driver)
+				continue;
+			udc = iter;
+			goto found;
 		}
 	}
 

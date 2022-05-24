@@ -19,9 +19,6 @@
 #include <asm/glue-df.h>
 #include <asm/glue-pf.h>
 #include <asm/vfpmacros.h>
-#ifndef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-#include <mach/entry-macro.S>
-#endif
 #include <asm/thread_notify.h>
 #include <asm/unwind.h>
 #include <asm/unistd.h>
@@ -30,19 +27,35 @@
 #include <asm/uaccess-asm.h>
 
 #include "entry-header.S"
-#include <asm/entry-macro-multi.S>
 #include <asm/probes.h>
 
 /*
  * Interrupt handling.
  */
-	.macro	irq_handler
-#ifdef CONFIG_GENERIC_IRQ_MULTI_HANDLER
-	mov	r0, sp
-	bl	generic_handle_arch_irq
-#else
-	arch_irq_handler_default
+	.macro	irq_handler, from_user:req
+	mov	r1, sp
+	ldr_this_cpu r2, irq_stack_ptr, r2, r3
+	.if	\from_user == 0
+	@
+	@ If we took the interrupt while running in the kernel, we may already
+	@ be using the IRQ stack, so revert to the original value in that case.
+	@
+	subs	r3, r2, r1		@ SP above bottom of IRQ stack?
+	rsbscs	r3, r3, #THREAD_SIZE	@ ... and below the top?
+#ifdef CONFIG_VMAP_STACK
+	ldr_va	r3, high_memory, cc	@ End of the linear region
+	cmpcc	r3, r1			@ Stack pointer was below it?
 #endif
+	bcc	0f			@ If not, switch to the IRQ stack
+	mov	r0, r1
+	bl	generic_handle_arch_irq
+	b	1f
+0:
+	.endif
+
+	mov_l	r0, generic_handle_arch_irq
+	bl	call_with_stack
+1:
 	.endm
 
 	.macro	pabt_helper
@@ -140,27 +153,35 @@ ENDPROC(__und_invalid)
 #define SPFIX(code...)
 #endif
 
-	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1
+	.macro	svc_entry, stack_hole=0, trace=1, uaccess=1, overflow_check=1
  UNWIND(.fnstart		)
- UNWIND(.save {r0 - pc}		)
-	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
+	sub	sp, sp, #(SVC_REGS_SIZE + \stack_hole)
+ THUMB(	add	sp, r1		)	@ get SP in a GPR without
+ THUMB(	sub	r1, sp, r1	)	@ using a temp register
+
+	.if	\overflow_check
+ UNWIND(.save	{r0 - pc}	)
+	do_overflow_check (SVC_REGS_SIZE + \stack_hole)
+	.endif
+
 #ifdef CONFIG_THUMB2_KERNEL
- SPFIX(	str	r0, [sp]	)	@ temporarily saved
- SPFIX(	mov	r0, sp		)
- SPFIX(	tst	r0, #4		)	@ test original stack alignment
- SPFIX(	ldr	r0, [sp]	)	@ restored
+	tst	r1, #4			@ test stack pointer alignment
+	sub	r1, sp, r1		@ restore original R1
+	sub	sp, r1			@ restore original SP
 #else
  SPFIX(	tst	sp, #4		)
 #endif
- SPFIX(	subeq	sp, sp, #4	)
-	stmia	sp, {r1 - r12}
+ SPFIX(	subne	sp, sp, #4	)
+
+ ARM(	stmib	sp, {r1 - r12}	)
+ THUMB(	stmia	sp, {r0 - r12}	)	@ No STMIB in Thumb-2
 
 	ldmia	r0, {r3 - r5}
-	add	r7, sp, #S_SP - 4	@ here for interlock avoidance
+	add	r7, sp, #S_SP		@ here for interlock avoidance
 	mov	r6, #-1			@  ""  ""      ""       ""
-	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole - 4)
- SPFIX(	addeq	r2, r2, #4	)
-	str	r3, [sp, #-4]!		@ save the "real" r0 copied
+	add	r2, sp, #(SVC_REGS_SIZE + \stack_hole)
+ SPFIX(	addne	r2, r2, #4	)
+	str	r3, [sp]		@ save the "real" r0 copied
 					@ from the exception stack
 
 	mov	r3, lr
@@ -199,7 +220,7 @@ ENDPROC(__dabt_svc)
 	.align	5
 __irq_svc:
 	svc_entry
-	irq_handler
+	irq_handler from_user=0
 
 #ifdef CONFIG_PREEMPTION
 	ldr	r8, [tsk, #TI_PREEMPT]		@ get preempt count
@@ -426,7 +447,7 @@ ENDPROC(__dabt_usr)
 __irq_usr:
 	usr_entry
 	kuser_cmpxchg_check
-	irq_handler
+	irq_handler from_user=1
 	get_thread_info tsk
 	mov	why, #0
 	b	ret_to_user_from_irq
@@ -752,16 +773,17 @@ ENTRY(__switch_to)
 	ldr	r6, [r2, #TI_CPU_DOMAIN]
 #endif
 	switch_tls r1, r4, r5, r3, r7
-#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
-	ldr	r7, [r2, #TI_TASK]
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
+    !defined(CONFIG_STACKPROTECTOR_PER_TASK)
 	ldr	r8, =__stack_chk_guard
 	.if (TSK_STACK_CANARY > IMM12_MASK)
-	add	r7, r7, #TSK_STACK_CANARY & ~IMM12_MASK
+	add	r9, r2, #TSK_STACK_CANARY & ~IMM12_MASK
+	ldr	r9, [r9, #TSK_STACK_CANARY & IMM12_MASK]
+	.else
+	ldr	r9, [r2, #TSK_STACK_CANARY & IMM12_MASK]
 	.endif
-	ldr	r7, [r7, #TSK_STACK_CANARY & IMM12_MASK]
-#elif defined(CONFIG_CURRENT_POINTER_IN_TPIDRURO)
-	mov	r7, r2				@ Preserve 'next'
 #endif
+	mov	r7, r2				@ Preserve 'next'
 #ifdef CONFIG_CPU_USE_DOMAINS
 	mcr	p15, 0, r6, c3, c0, 0		@ Set domain register
 #endif
@@ -770,18 +792,101 @@ ENTRY(__switch_to)
 	ldr	r0, =thread_notify_head
 	mov	r1, #THREAD_NOTIFY_SWITCH
 	bl	atomic_notifier_call_chain
-#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP)
-	str	r7, [r8]
+#if defined(CONFIG_STACKPROTECTOR) && !defined(CONFIG_SMP) && \
+    !defined(CONFIG_STACKPROTECTOR_PER_TASK)
+	str	r9, [r8]
 #endif
- THUMB(	mov	ip, r4			   )
 	mov	r0, r5
-	set_current r7
- ARM(	ldmia	r4, {r4 - sl, fp, sp, pc}  )	@ Load all regs saved previously
- THUMB(	ldmia	ip!, {r4 - sl, fp}	   )	@ Load all regs saved previously
- THUMB(	ldr	sp, [ip], #4		   )
- THUMB(	ldr	pc, [ip]		   )
+#if !defined(CONFIG_THUMB2_KERNEL) && !defined(CONFIG_VMAP_STACK)
+	set_current r7, r8
+	ldmia	r4, {r4 - sl, fp, sp, pc}	@ Load all regs saved previously
+#else
+	mov	r1, r7
+	ldmia	r4, {r4 - sl, fp, ip, lr}	@ Load all regs saved previously
+#ifdef CONFIG_VMAP_STACK
+	@
+	@ Do a dummy read from the new stack while running from the old one so
+	@ that we can rely on do_translation_fault() to fix up any stale PMD
+	@ entries covering the vmalloc region.
+	@
+	ldr	r2, [ip]
+#endif
+
+	@ When CONFIG_THREAD_INFO_IN_TASK=n, the update of SP itself is what
+	@ effectuates the task switch, as that is what causes the observable
+	@ values of current and current_thread_info to change. When
+	@ CONFIG_THREAD_INFO_IN_TASK=y, setting current (and therefore
+	@ current_thread_info) is done explicitly, and the update of SP just
+	@ switches us to another stack, with few other side effects. In order
+	@ to prevent this distinction from causing any inconsistencies, let's
+	@ keep the 'set_current' call as close as we can to the update of SP.
+	set_current r1, r2
+	mov	sp, ip
+	ret	lr
+#endif
  UNWIND(.fnend		)
 ENDPROC(__switch_to)
+
+#ifdef CONFIG_VMAP_STACK
+	.text
+	.align	2
+__bad_stack:
+	@
+	@ We've just detected an overflow. We need to load the address of this
+	@ CPU's overflow stack into the stack pointer register. We have only one
+	@ scratch register so let's use a sequence of ADDs including one
+	@ involving the PC, and decorate them with PC-relative group
+	@ relocations. As these are ARM only, switch to ARM mode first.
+	@
+	@ We enter here with IP clobbered and its value stashed on the mode
+	@ stack.
+	@
+THUMB(	bx	pc		)
+THUMB(	nop			)
+THUMB(	.arm			)
+	ldr_this_cpu_armv6 ip, overflow_stack_ptr
+
+	str	sp, [ip, #-4]!			@ Preserve original SP value
+	mov	sp, ip				@ Switch to overflow stack
+	pop	{ip}				@ Original SP in IP
+
+#if defined(CONFIG_UNWINDER_FRAME_POINTER) && defined(CONFIG_CC_IS_GCC)
+	mov	ip, ip				@ mov expected by unwinder
+	push	{fp, ip, lr, pc}		@ GCC flavor frame record
+#else
+	str	ip, [sp, #-8]!			@ store original SP
+	push	{fpreg, lr}			@ Clang flavor frame record
+#endif
+UNWIND( ldr	ip, [r0, #4]	)		@ load exception LR
+UNWIND( str	ip, [sp, #12]	)		@ store in the frame record
+	ldr	ip, [r0, #12]			@ reload IP
+
+	@ Store the original GPRs to the new stack.
+	svc_entry uaccess=0, overflow_check=0
+
+UNWIND( .save   {sp, pc}	)
+UNWIND( .save   {fpreg, lr}	)
+UNWIND( .setfp  fpreg, sp	)
+
+	ldr	fpreg, [sp, #S_SP]		@ Add our frame record
+						@ to the linked list
+#if defined(CONFIG_UNWINDER_FRAME_POINTER) && defined(CONFIG_CC_IS_GCC)
+	ldr	r1, [fp, #4]			@ reload SP at entry
+	add	fp, fp, #12
+#else
+	ldr	r1, [fpreg, #8]
+#endif
+	str	r1, [sp, #S_SP]			@ store in pt_regs
+
+	@ Stash the regs for handle_bad_stack
+	mov	r0, sp
+
+	@ Time to die
+	bl	handle_bad_stack
+	nop
+UNWIND( .fnend			)
+ENDPROC(__bad_stack)
+#endif
 
 	__INIT
 
@@ -1002,12 +1107,11 @@ vector_\name:
 	sub	lr, lr, #\correction
 	.endif
 
-	@
-	@ Save r0, lr_<exception> (parent PC) and spsr_<exception>
-	@ (parent CPSR)
-	@
+	@ Save r0, lr_<exception> (parent PC)
 	stmia	sp, {r0, lr}		@ save r0, lr
-	mrs	lr, spsr
+
+	@ Save spsr_<exception> (parent CPSR)
+2:	mrs	lr, spsr
 	str	lr, [sp, #8]		@ save spsr
 
 	@
@@ -1028,6 +1132,44 @@ vector_\name:
 	movs	pc, lr			@ branch to handler in SVC mode
 ENDPROC(vector_\name)
 
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+	.subsection 1
+	.align 5
+vector_bhb_loop8_\name:
+	.if \correction
+	sub	lr, lr, #\correction
+	.endif
+
+	@ Save r0, lr_<exception> (parent PC)
+	stmia	sp, {r0, lr}
+
+	@ bhb workaround
+	mov	r0, #8
+3:	b	. + 4
+	subs	r0, r0, #1
+	bne	3b
+	dsb
+	isb
+	b	2b
+ENDPROC(vector_bhb_loop8_\name)
+
+vector_bhb_bpiall_\name:
+	.if \correction
+	sub	lr, lr, #\correction
+	.endif
+
+	@ Save r0, lr_<exception> (parent PC)
+	stmia	sp, {r0, lr}
+
+	@ bhb workaround
+	mcr	p15, 0, r0, c7, c5, 6	@ BPIALL
+	@ isb not needed due to "movs pc, lr" in the vector stub
+	@ which gives a "context synchronisation".
+	b	2b
+ENDPROC(vector_bhb_bpiall_\name)
+	.previous
+#endif
+
 	.align	2
 	@ handler addresses follow this label
 1:
@@ -1036,6 +1178,10 @@ ENDPROC(vector_\name)
 	.section .stubs, "ax", %progbits
 	@ This must be the first word
 	.word	vector_swi
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+	.word	vector_bhb_loop8_swi
+	.word	vector_bhb_bpiall_swi
+#endif
 
 vector_rst:
  ARM(	swi	SYS_ERROR0	)
@@ -1150,8 +1296,10 @@ vector_addrexcptn:
  * FIQ "NMI" handler
  *-----------------------------------------------------------------------------
  * Handle a FIQ using the SVC stack allowing FIQ act like NMI on x86
- * systems.
+ * systems. This must be the last vector stub, so lets place it in its own
+ * subsection.
  */
+	.subsection 2
 	vector_stub	fiq, FIQ_MODE, 4
 
 	.long	__fiq_usr			@  0  (USR_26 / USR_32)
@@ -1183,6 +1331,30 @@ vector_addrexcptn:
 	W(b)	vector_addrexcptn
 	W(b)	vector_irq
 	W(b)	vector_fiq
+
+#ifdef CONFIG_HARDEN_BRANCH_HISTORY
+	.section .vectors.bhb.loop8, "ax", %progbits
+.L__vectors_bhb_loop8_start:
+	W(b)	vector_rst
+	W(b)	vector_bhb_loop8_und
+	W(ldr)	pc, .L__vectors_bhb_loop8_start + 0x1004
+	W(b)	vector_bhb_loop8_pabt
+	W(b)	vector_bhb_loop8_dabt
+	W(b)	vector_addrexcptn
+	W(b)	vector_bhb_loop8_irq
+	W(b)	vector_bhb_loop8_fiq
+
+	.section .vectors.bhb.bpiall, "ax", %progbits
+.L__vectors_bhb_bpiall_start:
+	W(b)	vector_rst
+	W(b)	vector_bhb_bpiall_und
+	W(ldr)	pc, .L__vectors_bhb_bpiall_start + 0x1008
+	W(b)	vector_bhb_bpiall_pabt
+	W(b)	vector_bhb_bpiall_dabt
+	W(b)	vector_addrexcptn
+	W(b)	vector_bhb_bpiall_irq
+	W(b)	vector_bhb_bpiall_fiq
+#endif
 
 	.data
 	.align	2

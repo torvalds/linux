@@ -134,7 +134,6 @@ struct ad74413r_state {
 #define AD74413R_CH_EN_MASK(x)		BIT(x)
 
 #define AD74413R_REG_DIN_COMP_OUT		0x25
-#define AD74413R_DIN_COMP_OUT_SHIFT_X(x)	x
 
 #define AD74413R_REG_ADC_RESULT_X(x)	(0x26 + (x))
 #define AD74413R_ADC_RESULT_MAX		GENMASK(15, 0)
@@ -288,7 +287,7 @@ static void ad74413r_gpio_set_multiple(struct gpio_chip *chip,
 	unsigned int offset = 0;
 	int ret;
 
-	for_each_set_bit_from(offset, mask, AD74413R_CHANNEL_MAX) {
+	for_each_set_bit_from(offset, mask, chip->ngpio) {
 		unsigned int real_offset = st->gpo_gpio_offsets[offset];
 
 		ret = ad74413r_set_gpo_config(st, real_offset,
@@ -316,7 +315,7 @@ static int ad74413r_gpio_get(struct gpio_chip *chip, unsigned int offset)
 	if (ret)
 		return ret;
 
-	status &= AD74413R_DIN_COMP_OUT_SHIFT_X(real_offset);
+	status &= BIT(real_offset);
 
 	return status ? 1 : 0;
 }
@@ -334,11 +333,10 @@ static int ad74413r_gpio_get_multiple(struct gpio_chip *chip,
 	if (ret)
 		return ret;
 
-	for_each_set_bit_from(offset, mask, AD74413R_CHANNEL_MAX) {
+	for_each_set_bit_from(offset, mask, chip->ngpio) {
 		unsigned int real_offset = st->comp_gpio_offsets[offset];
 
-		if (val & BIT(real_offset))
-			*bits |= offset;
+		__assign_bit(offset, bits, val & BIT(real_offset));
 	}
 
 	return ret;
@@ -840,7 +838,7 @@ static int ad74413r_update_scan_mode(struct iio_dev *indio_dev,
 {
 	struct ad74413r_state *st = iio_priv(indio_dev);
 	struct spi_transfer *xfer = st->adc_samples_xfer;
-	u8 *rx_buf = &st->adc_samples_buf.rx_buf[-1 * AD74413R_FRAME_SIZE];
+	u8 *rx_buf = st->adc_samples_buf.rx_buf;
 	u8 *tx_buf = st->adc_samples_tx_buf;
 	unsigned int channel;
 	int ret = -EINVAL;
@@ -894,9 +892,10 @@ static int ad74413r_update_scan_mode(struct iio_dev *indio_dev,
 
 		spi_message_add_tail(xfer, &st->adc_samples_msg);
 
-		xfer++;
 		tx_buf += AD74413R_FRAME_SIZE;
-		rx_buf += AD74413R_FRAME_SIZE;
+		if (xfer != st->adc_samples_xfer)
+			rx_buf += AD74413R_FRAME_SIZE;
+		xfer++;
 	}
 
 	xfer->rx_buf = rx_buf;

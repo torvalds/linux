@@ -311,7 +311,7 @@ hardware.
 	This call must not sleep
 
   set_ldisc(port,termios)
-	Notifier for discipline change. See Documentation/driver-api/serial/tty.rst.
+	Notifier for discipline change. See Documentation/tty/tty_ldisc.rst.
 
 	Locking: caller holds tty_port->mutex
 

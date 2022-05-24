@@ -190,7 +190,7 @@ static inline void decrease_duration(struct ir_raw_event *ev, unsigned duration)
 /* Returns true if event is normal pulse/space event */
 static inline bool is_timing_event(struct ir_raw_event ev)
 {
-	return !ev.carrier_report && !ev.reset;
+	return !ev.carrier_report && !ev.overflow;
 }
 
 #define TO_STR(is_pulse)		((is_pulse) ? "pulse" : "space")

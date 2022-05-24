@@ -30,7 +30,7 @@
 #include <linux/hrtimer.h>
 #include <linux/io-64-nonatomic-lo-hi.h>
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 struct drm_i915_private;
 struct intel_runtime_pm;
@@ -246,6 +246,8 @@ void intel_uncore_forcewake_get(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
 void intel_uncore_forcewake_put(struct intel_uncore *uncore,
 				enum forcewake_domains domains);
+void intel_uncore_forcewake_put_delayed(struct intel_uncore *uncore,
+					enum forcewake_domains domains);
 void intel_uncore_forcewake_flush(struct intel_uncore *uncore,
 				  enum forcewake_domains fw_domains);
 

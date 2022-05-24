@@ -32,7 +32,9 @@ static int cs35l41_hda_i2c_probe(struct i2c_client *clt, const struct i2c_device
 
 static int cs35l41_hda_i2c_remove(struct i2c_client *clt)
 {
-	return cs35l41_hda_remove(&clt->dev);
+	cs35l41_hda_remove(&clt->dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id cs35l41_hda_i2c_id[] = {
@@ -58,9 +60,9 @@ static struct i2c_driver cs35l41_i2c_driver = {
 	.probe		= cs35l41_hda_i2c_probe,
 	.remove		= cs35l41_hda_i2c_remove,
 };
-
 module_i2c_driver(cs35l41_i2c_driver);
 
 MODULE_DESCRIPTION("HDA CS35L41 driver");
+MODULE_IMPORT_NS(SND_HDA_SCODEC_CS35L41);
 MODULE_AUTHOR("Lucas Tanure <tanureal@opensource.cirrus.com>");
 MODULE_LICENSE("GPL");

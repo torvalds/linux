@@ -44,10 +44,10 @@ static void bio_csum(struct bio *bio, struct bkey *k)
 	uint64_t csum = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
-		void *d = kmap(bv.bv_page) + bv.bv_offset;
+		void *d = bvec_kmap_local(&bv);
 
 		csum = crc64_be(csum, d, bv.bv_len);
-		kunmap(bv.bv_page);
+		kunmap_local(d);
 	}
 
 	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
@@ -685,8 +685,7 @@ static void do_bio_hook(struct search *s,
 {
 	struct bio *bio = &s->bio.bio;
 
-	bio_init(bio, NULL, 0);
-	__bio_clone_fast(bio, orig_bio);
+	bio_init_clone(bio->bi_bdev, bio, orig_bio, GFP_NOIO);
 	/*
 	 * bi_end_io can be set separately somewhere else, e.g. the
 	 * variants in,
@@ -831,11 +830,11 @@ static void cached_dev_read_done(struct closure *cl)
 	 */
 
 	if (s->iop.bio) {
-		bio_reset(s->iop.bio);
+		bio_reset(s->iop.bio, s->cache_miss->bi_bdev, REQ_OP_READ);
 		s->iop.bio->bi_iter.bi_sector =
 			s->cache_miss->bi_iter.bi_sector;
-		bio_copy_dev(s->iop.bio, s->cache_miss);
 		s->iop.bio->bi_iter.bi_size = s->insert_bio_sectors << 9;
+		bio_clone_blkg_association(s->iop.bio, s->cache_miss);
 		bch_bio_map(s->iop.bio, NULL);
 
 		bio_copy_data(s->cache_miss, s->iop.bio);
@@ -913,14 +912,13 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	/* btree_search_recurse()'s btree iterator is no good anymore */
 	ret = miss == bio ? MAP_DONE : -EINTR;
 
-	cache_bio = bio_alloc_bioset(GFP_NOWAIT,
+	cache_bio = bio_alloc_bioset(miss->bi_bdev,
 			DIV_ROUND_UP(s->insert_bio_sectors, PAGE_SECTORS),
-			&dc->disk.bio_split);
+			0, GFP_NOWAIT, &dc->disk.bio_split);
 	if (!cache_bio)
 		goto out_submit;
 
 	cache_bio->bi_iter.bi_sector	= miss->bi_iter.bi_sector;
-	bio_copy_dev(cache_bio, miss);
 	cache_bio->bi_iter.bi_size	= s->insert_bio_sectors << 9;
 
 	cache_bio->bi_end_io	= backing_request_endio;
@@ -1025,21 +1023,21 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			 */
 			struct bio *flush;
 
-			flush = bio_alloc_bioset(GFP_NOIO, 0,
-						 &dc->disk.bio_split);
+			flush = bio_alloc_bioset(bio->bi_bdev, 0,
+						 REQ_OP_WRITE | REQ_PREFLUSH,
+						 GFP_NOIO, &dc->disk.bio_split);
 			if (!flush) {
 				s->iop.status = BLK_STS_RESOURCE;
 				goto insert_data;
 			}
-			bio_copy_dev(flush, bio);
 			flush->bi_end_io = backing_request_endio;
 			flush->bi_private = cl;
-			flush->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 			/* I/O request sent to backing device */
 			closure_bio_submit(s->iop.c, flush, cl);
 		}
 	} else {
-		s->iop.bio = bio_clone_fast(bio, GFP_NOIO, &dc->disk.bio_split);
+		s->iop.bio = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO,
+					     &dc->disk.bio_split);
 		/* I/O request sent to backing device */
 		bio->bi_end_io = backing_request_endio;
 		closure_bio_submit(s->iop.c, bio, cl);

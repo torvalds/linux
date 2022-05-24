@@ -11,7 +11,6 @@
 #include <linux/blkdev.h>
 #include <linux/fcntl.h>
 #include <linux/async.h>
-#include <linux/genhd.h>
 #include <linux/ndctl.h>
 #include <linux/sched.h>
 #include <linux/slab.h>

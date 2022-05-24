@@ -58,7 +58,7 @@ static struct virtio_pci_legacy_device *vdpa_to_ldev(struct vdpa_device *vdpa)
 	return &eni_vdpa->ldev;
 }
 
-static u64 eni_vdpa_get_features(struct vdpa_device *vdpa)
+static u64 eni_vdpa_get_device_features(struct vdpa_device *vdpa)
 {
 	struct virtio_pci_legacy_device *ldev = vdpa_to_ldev(vdpa);
 	u64 features = vp_legacy_get_features(ldev);
@@ -69,7 +69,7 @@ static u64 eni_vdpa_get_features(struct vdpa_device *vdpa)
 	return features;
 }
 
-static int eni_vdpa_set_features(struct vdpa_device *vdpa, u64 features)
+static int eni_vdpa_set_driver_features(struct vdpa_device *vdpa, u64 features)
 {
 	struct virtio_pci_legacy_device *ldev = vdpa_to_ldev(vdpa);
 
@@ -82,6 +82,13 @@ static int eni_vdpa_set_features(struct vdpa_device *vdpa, u64 features)
 	vp_legacy_set_features(ldev, (u32)features);
 
 	return 0;
+}
+
+static u64 eni_vdpa_get_driver_features(struct vdpa_device *vdpa)
+{
+	struct virtio_pci_legacy_device *ldev = vdpa_to_ldev(vdpa);
+
+	return vp_legacy_get_driver_features(ldev);
 }
 
 static u8 eni_vdpa_get_status(struct vdpa_device *vdpa)
@@ -401,8 +408,9 @@ static void eni_vdpa_set_config_cb(struct vdpa_device *vdpa,
 }
 
 static const struct vdpa_config_ops eni_vdpa_ops = {
-	.get_features	= eni_vdpa_get_features,
-	.set_features	= eni_vdpa_set_features,
+	.get_device_features = eni_vdpa_get_device_features,
+	.set_driver_features = eni_vdpa_set_driver_features,
+	.get_driver_features = eni_vdpa_get_driver_features,
 	.get_status	= eni_vdpa_get_status,
 	.set_status	= eni_vdpa_set_status,
 	.reset		= eni_vdpa_reset,
@@ -450,11 +458,6 @@ static u16 eni_vdpa_get_num_queues(struct eni_vdpa *eni_vdpa)
 	return num;
 }
 
-static void eni_vdpa_free_irq_vectors(void *data)
-{
-	pci_free_irq_vectors(data);
-}
-
 static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
 	struct device *dev = &pdev->dev;
@@ -487,13 +490,6 @@ static int eni_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 
 	eni_vdpa->vdpa.dma_dev = &pdev->dev;
 	eni_vdpa->queues = eni_vdpa_get_num_queues(eni_vdpa);
-
-	ret = devm_add_action_or_reset(dev, eni_vdpa_free_irq_vectors, pdev);
-	if (ret) {
-		ENI_ERR(pdev,
-			"failed for adding devres for freeing irq vectors\n");
-		goto err;
-	}
 
 	eni_vdpa->vring = devm_kcalloc(&pdev->dev, eni_vdpa->queues,
 				      sizeof(*eni_vdpa->vring),

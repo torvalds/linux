@@ -962,7 +962,7 @@ static struct attribute *nx842_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group nx842_attribute_group = {
+static const struct attribute_group nx842_attribute_group = {
 	.name = NULL,		/* put in device directory */
 	.attrs = nx842_sysfs_entries,
 };
@@ -992,7 +992,7 @@ static struct attribute *nxcop_caps_sysfs_entries[] = {
 	NULL,
 };
 
-static struct attribute_group nxcop_caps_attr_group = {
+static const struct attribute_group nxcop_caps_attr_group = {
 	.name	=	"nx_gzip_caps",
 	.attrs	=	nxcop_caps_sysfs_entries,
 };

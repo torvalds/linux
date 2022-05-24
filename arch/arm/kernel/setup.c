@@ -141,10 +141,10 @@ EXPORT_SYMBOL(outer_cache);
 int __cpu_architecture __read_mostly = CPU_ARCH_UNKNOWN;
 
 struct stack {
-	u32 irq[3];
-	u32 abt[3];
-	u32 und[3];
-	u32 fiq[3];
+	u32 irq[4];
+	u32 abt[4];
+	u32 und[4];
+	u32 fiq[4];
 } ____cacheline_aligned;
 
 #ifndef CONFIG_CPU_V7M

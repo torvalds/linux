@@ -299,4 +299,42 @@ void mctrl_gpio_disable_ms(struct mctrl_gpios *gpios)
 }
 EXPORT_SYMBOL_GPL(mctrl_gpio_disable_ms);
 
+void mctrl_gpio_enable_irq_wake(struct mctrl_gpios *gpios)
+{
+	enum mctrl_gpio_idx i;
+
+	if (!gpios)
+		return;
+
+	if (!gpios->mctrl_on)
+		return;
+
+	for (i = 0; i < UART_GPIO_MAX; ++i) {
+		if (!gpios->irq[i])
+			continue;
+
+		enable_irq_wake(gpios->irq[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(mctrl_gpio_enable_irq_wake);
+
+void mctrl_gpio_disable_irq_wake(struct mctrl_gpios *gpios)
+{
+	enum mctrl_gpio_idx i;
+
+	if (!gpios)
+		return;
+
+	if (!gpios->mctrl_on)
+		return;
+
+	for (i = 0; i < UART_GPIO_MAX; ++i) {
+		if (!gpios->irq[i])
+			continue;
+
+		disable_irq_wake(gpios->irq[i]);
+	}
+}
+EXPORT_SYMBOL_GPL(mctrl_gpio_disable_irq_wake);
+
 MODULE_LICENSE("GPL");

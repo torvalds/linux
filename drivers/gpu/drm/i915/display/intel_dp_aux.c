@@ -10,7 +10,7 @@
 #include "intel_pps.h"
 #include "intel_tc.h"
 
-u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
+static u32 intel_dp_aux_pack(const u8 *src, int src_bytes)
 {
 	int i;
 	u32 v = 0;
@@ -22,7 +22,7 @@ u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
 	return v;
 }
 
-static void intel_dp_unpack_aux(u32 src, u8 *dst, int dst_bytes)
+static void intel_dp_aux_unpack(u32 src, u8 *dst, int dst_bytes)
 {
 	int i;
 
@@ -267,7 +267,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			for (i = 0; i < send_bytes; i += 4)
 				intel_uncore_write(uncore,
 						   ch_data[i >> 2],
-						   intel_dp_pack_aux(send + i,
+						   intel_dp_aux_pack(send + i,
 								     send_bytes - i));
 
 			/* Send the command and wait for it to complete */
@@ -352,7 +352,7 @@ done:
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		intel_dp_unpack_aux(intel_uncore_read(uncore, ch_data[i >> 2]),
+		intel_dp_aux_unpack(intel_uncore_read(uncore, ch_data[i >> 2]),
 				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;

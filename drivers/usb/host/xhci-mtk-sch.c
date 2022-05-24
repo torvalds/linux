@@ -248,7 +248,6 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 	struct mu3h_sch_bw_info *bw_info;
 	struct mu3h_sch_tt *tt = NULL;
 	u32 len_bw_budget_table;
-	size_t mem_size;
 
 	bw_info = get_bw_info(mtk, udev, ep);
 	if (!bw_info)
@@ -262,9 +261,9 @@ create_sch_ep(struct xhci_hcd_mtk *mtk, struct usb_device *udev,
 	else
 		len_bw_budget_table = 1;
 
-	mem_size = sizeof(struct mu3h_sch_ep_info) +
-			len_bw_budget_table * sizeof(u32);
-	sch_ep = kzalloc(mem_size, GFP_KERNEL);
+	sch_ep = kzalloc(struct_size(sch_ep, bw_budget_table,
+				     len_bw_budget_table),
+			 GFP_KERNEL);
 	if (!sch_ep)
 		return ERR_PTR(-ENOMEM);
 

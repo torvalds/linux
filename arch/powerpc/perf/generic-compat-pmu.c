@@ -130,7 +130,7 @@ static struct attribute *generic_compat_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group generic_compat_pmu_events_group = {
+static const struct attribute_group generic_compat_pmu_events_group = {
 	.name = "events",
 	.attrs = generic_compat_events_attr,
 };
@@ -146,7 +146,7 @@ static struct attribute *generic_compat_pmu_format_attr[] = {
 	NULL,
 };
 
-static struct attribute_group generic_compat_pmu_format_group = {
+static const struct attribute_group generic_compat_pmu_format_group = {
 	.name = "format",
 	.attrs = generic_compat_pmu_format_attr,
 };

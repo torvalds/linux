@@ -7,7 +7,7 @@
 
 #include "intel_engine.h"
 #include "intel_gt.h"
-#include "intel_lrc_reg.h"
+#include "intel_gt_regs.h"
 #include "intel_mocs.h"
 #include "intel_ring.h"
 

@@ -28,7 +28,6 @@
 #include <asm/prom.h>
 #include <asm/smp.h>
 #include <asm/hw_breakpoint.h>
-#include <asm/asm-prototypes.h>
 #include <asm/svm.h>
 #include <asm/ultravisor.h>
 
@@ -291,7 +290,7 @@ static union thread_union kexec_stack __init_task_data =
  * For similar reasons to the stack above, the kexecing CPU needs to be on a
  * static PACA; we switch to kexec_paca.
  */
-struct paca_struct kexec_paca;
+static struct paca_struct kexec_paca;
 
 /* Our assembly helper, in misc_64.S */
 extern void kexec_sequence(void *newstack, unsigned long start,

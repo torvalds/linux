@@ -9,6 +9,8 @@ title: PWM controllers (providers)
 maintainers:
   - Thierry Reding <thierry.reding@gmail.com>
 
+select: false
+
 properties:
   $nodename:
     pattern: "^pwm(@.*|-[0-9a-f])*$"

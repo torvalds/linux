@@ -14,7 +14,7 @@
  */
 enum panfrost_hw_issue {
 	/* Need way to guarantee that all previously-translated memory accesses
-	 * are commited */
+	 * are committed */
 	HW_ISSUE_6367,
 
 	/* On job complete with non-done the cache is not flushed */

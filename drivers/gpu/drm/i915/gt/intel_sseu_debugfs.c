@@ -6,6 +6,7 @@
 
 #include "i915_drv.h"
 #include "intel_gt_debugfs.h"
+#include "intel_gt_regs.h"
 #include "intel_sseu_debugfs.h"
 
 static void sseu_copy_subslices(const struct sseu_dev_info *sseu,

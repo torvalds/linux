@@ -958,7 +958,7 @@ void wil_netif_rx(struct sk_buff *skb, struct net_device *ndev, int cid,
 		if (gro)
 			napi_gro_receive(&wil->napi_rx, skb);
 		else
-			netif_rx_ni(skb);
+			netif_rx(skb);
 	}
 	ndev->stats.rx_packets++;
 	stats->rx_packets++;

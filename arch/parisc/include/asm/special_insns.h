@@ -55,8 +55,8 @@ static inline void set_eiem(unsigned long val)
 #define mfsp(reg)	({		\
 	unsigned long cr;		\
 	__asm__ __volatile__(		\
-		"mfsp " #reg ",%0" :	\
-		 "=r" (cr)		\
+		"mfsp %%sr%1,%0"	\
+		: "=r" (cr) : "i"(reg)	\
 	);				\
 	cr;				\
 })

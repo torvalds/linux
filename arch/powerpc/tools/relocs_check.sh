@@ -39,6 +39,7 @@ $objdump -R "$vmlinux" |
 	#	R_PPC_NONE
 	grep -F -w -v 'R_PPC64_RELATIVE
 R_PPC64_NONE
+R_PPC64_UADDR64
 R_PPC_ADDR16_LO
 R_PPC_ADDR16_HI
 R_PPC_ADDR16_HA
@@ -54,9 +55,3 @@ fi
 num_bad=$(echo "$bad_relocs" | wc -l)
 echo "WARNING: $num_bad bad relocations"
 echo "$bad_relocs"
-
-# If we see this type of relocation it's an idication that
-# we /may/ be using an old version of binutils.
-if echo "$bad_relocs" | grep -q -F -w R_PPC64_UADDR64; then
-	echo "WARNING: You need at least binutils >= 2.19 to build a CONFIG_RELOCATABLE kernel"
-fi

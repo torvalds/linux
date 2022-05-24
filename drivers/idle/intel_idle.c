@@ -64,6 +64,7 @@ static struct cpuidle_driver intel_idle_driver = {
 /* intel_idle.max_cstate=0 disables driver */
 static int max_cstate = CPUIDLE_STATE_MAX - 1;
 static unsigned int disabled_states_mask;
+static unsigned int preferred_states_mask;
 
 static struct cpuidle_device __percpu *intel_idle_cpuidle_devices;
 
@@ -120,9 +121,6 @@ static unsigned int mwait_substates __initdata;
  *
  * If the local APIC timer is not known to be reliable in the target idle state,
  * enable one-shot tick broadcasting for the target CPU before executing MWAIT.
- *
- * Optionally call leave_mm() for the target CPU upfront to avoid wakeups due to
- * flushing user TLBs.
  *
  * Must be called under local_irq_disable().
  */
@@ -761,6 +759,46 @@ static struct cpuidle_state icx_cstates[] __initdata = {
 		.enter = NULL }
 };
 
+/*
+ * On Sapphire Rapids Xeon C1 has to be disabled if C1E is enabled, and vice
+ * versa. On SPR C1E is enabled only if "C1E promotion" bit is set in
+ * MSR_IA32_POWER_CTL. But in this case there effectively no C1, because C1
+ * requests are promoted to C1E. If the "C1E promotion" bit is cleared, then
+ * both C1 and C1E requests end up with C1, so there is effectively no C1E.
+ *
+ * By default we enable C1 and disable C1E by marking it with
+ * 'CPUIDLE_FLAG_UNUSABLE'.
+ */
+static struct cpuidle_state spr_cstates[] __initdata = {
+	{
+		.name = "C1",
+		.desc = "MWAIT 0x00",
+		.flags = MWAIT2flg(0x00),
+		.exit_latency = 1,
+		.target_residency = 1,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C1E",
+		.desc = "MWAIT 0x01",
+		.flags = MWAIT2flg(0x01) | CPUIDLE_FLAG_ALWAYS_ENABLE |
+					   CPUIDLE_FLAG_UNUSABLE,
+		.exit_latency = 2,
+		.target_residency = 4,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.name = "C6",
+		.desc = "MWAIT 0x20",
+		.flags = MWAIT2flg(0x20) | CPUIDLE_FLAG_TLB_FLUSHED,
+		.exit_latency = 290,
+		.target_residency = 800,
+		.enter = &intel_idle,
+		.enter_s2idle = intel_idle_s2idle, },
+	{
+		.enter = NULL }
+};
+
 static struct cpuidle_state atom_cstates[] __initdata = {
 	{
 		.name = "C1E",
@@ -1104,6 +1142,12 @@ static const struct idle_cpu idle_cpu_icx __initconst = {
 	.use_acpi = true,
 };
 
+static const struct idle_cpu idle_cpu_spr __initconst = {
+	.state_table = spr_cstates,
+	.disable_promotion_to_c1e = true,
+	.use_acpi = true,
+};
+
 static const struct idle_cpu idle_cpu_avn __initconst = {
 	.state_table = avn_cstates,
 	.disable_promotion_to_c1e = true,
@@ -1166,6 +1210,7 @@ static const struct x86_cpu_id intel_idle_ids[] __initconst = {
 	X86_MATCH_INTEL_FAM6_MODEL(SKYLAKE_X,		&idle_cpu_skx),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_X,		&idle_cpu_icx),
 	X86_MATCH_INTEL_FAM6_MODEL(ICELAKE_D,		&idle_cpu_icx),
+	X86_MATCH_INTEL_FAM6_MODEL(SAPPHIRERAPIDS_X,	&idle_cpu_spr),
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNL,	&idle_cpu_knl),
 	X86_MATCH_INTEL_FAM6_MODEL(XEON_PHI_KNM,	&idle_cpu_knl),
 	X86_MATCH_INTEL_FAM6_MODEL(ATOM_GOLDMONT,	&idle_cpu_bxt),
@@ -1353,6 +1398,8 @@ static inline void intel_idle_init_cstates_acpi(struct cpuidle_driver *drv) { }
 static inline bool intel_idle_off_by_default(u32 mwait_hint) { return false; }
 #endif /* !CONFIG_ACPI_PROCESSOR_CSTATE */
 
+static void c1e_promotion_enable(void);
+
 /**
  * ivt_idle_state_table_update - Tune the idle states table for Ivy Town.
  *
@@ -1523,6 +1570,41 @@ static void __init skx_idle_state_table_update(void)
 	}
 }
 
+/**
+ * spr_idle_state_table_update - Adjust Sapphire Rapids idle states table.
+ */
+static void __init spr_idle_state_table_update(void)
+{
+	unsigned long long msr;
+
+	/* Check if user prefers C1E over C1. */
+	if (preferred_states_mask & BIT(2)) {
+		if (preferred_states_mask & BIT(1))
+			/* Both can't be enabled, stick to the defaults. */
+			return;
+
+		spr_cstates[0].flags |= CPUIDLE_FLAG_UNUSABLE;
+		spr_cstates[1].flags &= ~CPUIDLE_FLAG_UNUSABLE;
+
+		/* Enable C1E using the "C1E promotion" bit. */
+		c1e_promotion_enable();
+		disable_promotion_to_c1e = false;
+	}
+
+	/*
+	 * By default, the C6 state assumes the worst-case scenario of package
+	 * C6. However, if PC6 is disabled, we update the numbers to match
+	 * core C6.
+	 */
+	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr);
+
+	/* Limit value 2 and above allow for PC6. */
+	if ((msr & 0x7) < 2) {
+		spr_cstates[2].exit_latency = 190;
+		spr_cstates[2].target_residency = 600;
+	}
+}
+
 static bool __init intel_idle_verify_cstate(unsigned int mwait_hint)
 {
 	unsigned int mwait_cstate = MWAIT_HINT2CSTATE(mwait_hint) + 1;
@@ -1556,6 +1638,9 @@ static void __init intel_idle_init_cstates_icpu(struct cpuidle_driver *drv)
 		break;
 	case INTEL_FAM6_SKYLAKE_X:
 		skx_idle_state_table_update();
+		break;
+	case INTEL_FAM6_SAPPHIRERAPIDS_X:
+		spr_idle_state_table_update();
 		break;
 	}
 
@@ -1627,6 +1712,15 @@ static void auto_demotion_disable(void)
 	rdmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
 	msr_bits &= ~auto_demotion_disable_flags;
 	wrmsrl(MSR_PKG_CST_CONFIG_CONTROL, msr_bits);
+}
+
+static void c1e_promotion_enable(void)
+{
+	unsigned long long msr_bits;
+
+	rdmsrl(MSR_IA32_POWER_CTL, msr_bits);
+	msr_bits |= 0x2;
+	wrmsrl(MSR_IA32_POWER_CTL, msr_bits);
 }
 
 static void c1e_promotion_disable(void)
@@ -1798,3 +1892,14 @@ module_param(max_cstate, int, 0444);
  */
 module_param_named(states_off, disabled_states_mask, uint, 0444);
 MODULE_PARM_DESC(states_off, "Mask of disabled idle states");
+/*
+ * Some platforms come with mutually exclusive C-states, so that if one is
+ * enabled, the other C-states must not be used. Example: C1 and C1E on
+ * Sapphire Rapids platform. This parameter allows for selecting the
+ * preferred C-states among the groups of mutually exclusive C-states - the
+ * selected C-states will be registered, the other C-states from the mutually
+ * exclusive group won't be registered. If the platform has no mutually
+ * exclusive C-states, this parameter has no effect.
+ */
+module_param_named(preferred_cstates, preferred_states_mask, uint, 0444);
+MODULE_PARM_DESC(preferred_cstates, "Mask of preferred idle states");

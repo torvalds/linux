@@ -622,7 +622,7 @@ static int vlan_dev_init(struct net_device *dev)
 }
 
 /* Note: this function might be called multiple times for the same device. */
-void vlan_dev_uninit(struct net_device *dev)
+void vlan_dev_free_egress_priority(const struct net_device *dev)
 {
 	struct vlan_priority_tci_mapping *pm;
 	struct vlan_dev_priv *vlan = vlan_dev_priv(dev);
@@ -634,6 +634,11 @@ void vlan_dev_uninit(struct net_device *dev)
 			kfree(pm);
 		}
 	}
+}
+
+static void vlan_dev_uninit(struct net_device *dev)
+{
+	vlan_dev_free_egress_priority(dev);
 }
 
 static netdev_features_t vlan_dev_fix_features(struct net_device *dev,

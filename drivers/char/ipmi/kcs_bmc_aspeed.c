@@ -128,11 +128,6 @@ struct aspeed_kcs_bmc {
 	} obe;
 };
 
-struct aspeed_kcs_of_ops {
-	int (*get_channel)(struct platform_device *pdev);
-	int (*get_io_address)(struct platform_device *pdev, u32 addrs[2]);
-};
-
 static inline struct aspeed_kcs_bmc *to_aspeed_kcs_bmc(struct kcs_bmc_device *kcs_bmc)
 {
 	return container_of(kcs_bmc, struct aspeed_kcs_bmc, kcs_bmc);
@@ -475,38 +470,7 @@ static const struct kcs_ioreg ast_kcs_bmc_ioregs[KCS_CHANNEL_MAX] = {
 	{ .idr = LPC_IDR4, .odr = LPC_ODR4, .str = LPC_STR4 },
 };
 
-static int aspeed_kcs_of_v1_get_channel(struct platform_device *pdev)
-{
-	struct device_node *np;
-	u32 channel;
-	int rc;
-
-	np = pdev->dev.of_node;
-
-	rc = of_property_read_u32(np, "kcs_chan", &channel);
-	if ((rc != 0) || (channel == 0 || channel > KCS_CHANNEL_MAX)) {
-		dev_err(&pdev->dev, "no valid 'kcs_chan' configured\n");
-		return -EINVAL;
-	}
-
-	return channel;
-}
-
-static int
-aspeed_kcs_of_v1_get_io_address(struct platform_device *pdev, u32 addrs[2])
-{
-	int rc;
-
-	rc = of_property_read_u32(pdev->dev.of_node, "kcs_addr", addrs);
-	if (rc || addrs[0] > 0xffff) {
-		dev_err(&pdev->dev, "no valid 'kcs_addr' configured\n");
-		return -EINVAL;
-	}
-
-	return 1;
-}
-
-static int aspeed_kcs_of_v2_get_channel(struct platform_device *pdev)
+static int aspeed_kcs_of_get_channel(struct platform_device *pdev)
 {
 	struct device_node *np;
 	struct kcs_ioreg ioreg;
@@ -535,12 +499,11 @@ static int aspeed_kcs_of_v2_get_channel(struct platform_device *pdev)
 		if (!memcmp(&ast_kcs_bmc_ioregs[i], &ioreg, sizeof(ioreg)))
 			return i + 1;
 	}
-
 	return -EINVAL;
 }
 
 static int
-aspeed_kcs_of_v2_get_io_address(struct platform_device *pdev, u32 addrs[2])
+aspeed_kcs_of_get_io_address(struct platform_device *pdev, u32 addrs[2])
 {
 	int rc;
 
@@ -567,7 +530,6 @@ aspeed_kcs_of_v2_get_io_address(struct platform_device *pdev, u32 addrs[2])
 
 static int aspeed_kcs_probe(struct platform_device *pdev)
 {
-	const struct aspeed_kcs_of_ops *ops;
 	struct kcs_bmc_device *kcs_bmc;
 	struct aspeed_kcs_bmc *priv;
 	struct device_node *np;
@@ -585,15 +547,11 @@ static int aspeed_kcs_probe(struct platform_device *pdev)
 		return -ENODEV;
 	}
 
-	ops = of_device_get_match_data(&pdev->dev);
-	if (!ops)
-		return -EINVAL;
-
-	channel = ops->get_channel(pdev);
+	channel = aspeed_kcs_of_get_channel(pdev);
 	if (channel < 0)
 		return channel;
 
-	nr_addrs = ops->get_io_address(pdev, addrs);
+	nr_addrs = aspeed_kcs_of_get_io_address(pdev, addrs);
 	if (nr_addrs < 0)
 		return nr_addrs;
 
@@ -678,21 +636,10 @@ static int aspeed_kcs_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static const struct aspeed_kcs_of_ops of_v1_ops = {
-	.get_channel = aspeed_kcs_of_v1_get_channel,
-	.get_io_address = aspeed_kcs_of_v1_get_io_address,
-};
-
-static const struct aspeed_kcs_of_ops of_v2_ops = {
-	.get_channel = aspeed_kcs_of_v2_get_channel,
-	.get_io_address = aspeed_kcs_of_v2_get_io_address,
-};
-
 static const struct of_device_id ast_kcs_bmc_match[] = {
-	{ .compatible = "aspeed,ast2400-kcs-bmc", .data = &of_v1_ops },
-	{ .compatible = "aspeed,ast2500-kcs-bmc", .data = &of_v1_ops },
-	{ .compatible = "aspeed,ast2400-kcs-bmc-v2", .data = &of_v2_ops },
-	{ .compatible = "aspeed,ast2500-kcs-bmc-v2", .data = &of_v2_ops },
+	{ .compatible = "aspeed,ast2400-kcs-bmc-v2" },
+	{ .compatible = "aspeed,ast2500-kcs-bmc-v2" },
+	{ .compatible = "aspeed,ast2600-kcs-bmc" },
 	{ }
 };
 MODULE_DEVICE_TABLE(of, ast_kcs_bmc_match);

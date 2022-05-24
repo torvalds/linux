@@ -28,6 +28,7 @@ config TEGRA30_EMC
 	default y
 	depends on ARCH_TEGRA_3x_SOC || COMPILE_TEST
 	select PM_OPP
+	select DDR
 	help
 	  This driver is for the External Memory Controller (EMC) found on
 	  Tegra30 chips. The EMC controls the external DRAM on the board.

@@ -633,8 +633,8 @@ static bool is_cppc_supported(int revision, int num_ent)
  *  )
  */
 
-#ifndef init_freq_invariance_cppc
-static inline void init_freq_invariance_cppc(void) { }
+#ifndef arch_init_invariance_cppc
+static inline void arch_init_invariance_cppc(void) { }
 #endif
 
 /**
@@ -655,6 +655,9 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 	int pcc_subspace_id = -1;
 	acpi_status status;
 	int ret = -EFAULT;
+
+	if (osc_sb_cppc_not_supported)
+		return -ENODEV;
 
 	/* Parse the ACPI _CPC table for this CPU. */
 	status = acpi_evaluate_object_typed(handle, "_CPC", NULL, &output,
@@ -816,7 +819,7 @@ int acpi_cppc_processor_probe(struct acpi_processor *pr)
 		goto out_free;
 	}
 
-	init_freq_invariance_cppc();
+	arch_init_invariance_cppc();
 
 	kfree(output.pointer);
 	return 0;
@@ -915,30 +918,31 @@ int __weak cpc_write_ffh(int cpunum, struct cpc_reg *reg, u64 val)
 
 static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 {
-	int ret_val = 0;
 	void __iomem *vaddr = NULL;
 	int pcc_ss_id = per_cpu(cpu_pcc_subspace_idx, cpu);
 	struct cpc_reg *reg = &reg_res->cpc_entry.reg;
 
 	if (reg_res->type == ACPI_TYPE_INTEGER) {
 		*val = reg_res->cpc_entry.int_value;
-		return ret_val;
+		return 0;
 	}
 
 	*val = 0;
 
 	if (reg->space_id == ACPI_ADR_SPACE_SYSTEM_IO) {
 		u32 width = 8 << (reg->access_width - 1);
+		u32 val_u32;
 		acpi_status status;
 
 		status = acpi_os_read_port((acpi_io_address)reg->address,
-					   (u32 *)val, width);
+					   &val_u32, width);
 		if (ACPI_FAILURE(status)) {
 			pr_debug("Error: Failed to read SystemIO port %llx\n",
 				 reg->address);
 			return -EFAULT;
 		}
 
+		*val = val_u32;
 		return 0;
 	} else if (reg->space_id == ACPI_ADR_SPACE_PLATFORM_COMM && pcc_ss_id >= 0)
 		vaddr = GET_PCC_VADDR(reg->address, pcc_ss_id);
@@ -966,10 +970,10 @@ static int cpc_read(int cpu, struct cpc_register_resource *reg_res, u64 *val)
 	default:
 		pr_debug("Error: Cannot read %u bit width from PCC for ss: %d\n",
 			 reg->bit_width, pcc_ss_id);
-		ret_val = -EFAULT;
+		return -EFAULT;
 	}
 
-	return ret_val;
+	return 0;
 }
 
 static int cpc_write(int cpu, struct cpc_register_resource *reg_res, u64 val)

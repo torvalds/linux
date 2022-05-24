@@ -48,11 +48,6 @@ __iomem void *plat_of_remap_node(const char *node)
 	return ioremap(res.start, resource_size(&res));
 }
 
-void __init device_tree_init(void)
-{
-	unflatten_and_copy_device_tree();
-}
-
 void __init plat_mem_setup(void)
 {
 	void *dtb;

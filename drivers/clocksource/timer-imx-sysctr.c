@@ -110,7 +110,7 @@ static struct timer_of to_sysctr = {
 	},
 	.of_irq = {
 		.handler		= sysctr_timer_interrupt,
-		.flags			= IRQF_TIMER | IRQF_IRQPOLL,
+		.flags			= IRQF_TIMER,
 	},
 	.of_clk = {
 		.name = "per",

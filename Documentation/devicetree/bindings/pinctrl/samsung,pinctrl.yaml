@@ -1,0 +1,393 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/samsung,pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S3C/S5P/Exynos SoC pin controller
+
+maintainers:
+  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Sylwester Nawrocki <s.nawrocki@samsung.com>
+  - Tomasz Figa <tomasz.figa@gmail.com>
+
+description: |
+  This is a part of device tree bindings for Samsung S3C/S5P/Exynos SoC pin
+  controller.
+
+  Pin group settings (like drive strength, pull up/down) are available as
+  macros in include/dt-bindings/pinctrl/samsung.h.
+
+  All the pin controller nodes should be represented in the aliases node using
+  the following format 'pinctrl{n}' where n is a unique number for the alias.
+
+  The controller supports three types of interrupts::
+   - External GPIO interrupts (see interrupts property in pin controller node);
+
+   - External wake-up interrupts - multiplexed (capable of waking up the system
+     see interrupts property in external wake-up interrupt controller node -
+     samsung,pinctrl-wakeup-interrupt.yaml);
+
+   - External wake-up interrupts - direct (capable of waking up the system, see
+     interrupts property in every bank of pin controller with external wake-up
+     interrupt controller - samsung,pinctrl-gpio-bank.yaml).
+
+properties:
+  $nodename:
+    pattern: "^pinctrl(@.*)?"
+
+  compatible:
+    enum:
+      - samsung,s3c2412-pinctrl
+      - samsung,s3c2416-pinctrl
+      - samsung,s3c2440-pinctrl
+      - samsung,s3c2450-pinctrl
+      - samsung,s3c64xx-pinctrl
+      - samsung,s5pv210-pinctrl
+      - samsung,exynos3250-pinctrl
+      - samsung,exynos4210-pinctrl
+      - samsung,exynos4x12-pinctrl
+      - samsung,exynos5250-pinctrl
+      - samsung,exynos5260-pinctrl
+      - samsung,exynos5410-pinctrl
+      - samsung,exynos5420-pinctrl
+      - samsung,exynos5433-pinctrl
+      - samsung,exynos7-pinctrl
+      - samsung,exynos7885-pinctrl
+      - samsung,exynos850-pinctrl
+      - samsung,exynosautov9-pinctrl
+      - tesla,fsd-pinctrl
+
+  interrupts:
+    description:
+      Required for GPIO banks supporting external GPIO interrupts.
+    maxItems: 1
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    description:
+      Second base address of the pin controller if the specific registers of
+      the pin controller are separated into the different base address.
+      Only certain banks of certain pin controller might need it.
+    minItems: 1
+    maxItems: 2
+
+  wakeup-interrupt-controller:
+    $ref: samsung,pinctrl-wakeup-interrupt.yaml
+
+patternProperties:
+  "^[a-z]+[0-9]*-gpio-bank$":
+    description:
+      Pin banks of the controller are represented by child nodes of the
+      controller node. Bank name is taken from name of the node.
+    $ref: samsung,pinctrl-gpio-bank.yaml
+
+  "^[a-z0-9-]+-pins$":
+    oneOf:
+      - $ref: samsung,pinctrl-pins-cfg.yaml
+        required:
+          - samsung,pins
+      - type: object
+        patternProperties:
+          "^[a-z0-9-]+-pins$":
+            $ref: samsung,pinctrl-pins-cfg.yaml
+
+        additionalProperties: false
+
+  "^(initial|sleep)-state$":
+    patternProperties:
+      "^(pin-[a-z0-9-]+|[a-z0-9-]+-pin)$":
+        $ref: samsung,pinctrl-pins-cfg.yaml
+
+        properties:
+          samsung,pins:
+            description: See samsung,pinctrl-pins-cfg.yaml
+            $ref: /schemas/types.yaml#/definitions/string-array
+            maxItems: 1
+
+        required:
+          - samsung,pins
+
+        unevaluatedProperties: false
+
+required:
+  - compatible
+  - reg
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5433-pinctrl
+    then:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 2
+    else:
+      properties:
+        reg:
+          minItems: 1
+          maxItems: 1
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/pinctrl/samsung.h>
+
+    pinctrl@7f008000 {
+        compatible = "samsung,s3c64xx-pinctrl";
+        reg = <0x7f008000 0x1000>;
+        interrupt-parent = <&vic1>;
+        interrupts = <21>;
+
+        wakeup-interrupt-controller {
+            compatible = "samsung,s3c64xx-wakeup-eint";
+            interrupts-extended = <&vic0 0>,
+                                  <&vic0 1>,
+                                  <&vic1 0>,
+                                  <&vic1 1>;
+        };
+
+        /* Pin bank with external GPIO or muxed external wake-up interrupts */
+        gpa-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+        };
+
+        // ...
+
+        uart0-data-pins {
+            samsung,pins = "gpa-0", "gpa-1";
+            samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+            samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
+        };
+
+        // ...
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/samsung.h>
+
+    pinctrl@11400000 {
+        compatible = "samsung,exynos4210-pinctrl";
+        reg = <0x11400000 0x1000>;
+        interrupts = <GIC_SPI 47 IRQ_TYPE_LEVEL_HIGH>;
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&sleep0>;
+
+        /* Pin bank with external GPIO or muxed external wake-up interrupts */
+        gpa0-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+        };
+
+        // ...
+
+        uart0-data-pins {
+            samsung,pins = "gpa0-0", "gpa0-1";
+            samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+            samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+            samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+        };
+
+        // ...
+
+        sleep0: sleep-state {
+            gpa0-0-pin {
+                samsung,pins = "gpa0-0";
+                samsung,pin-con-pdn = <EXYNOS_PIN_PDN_INPUT>;
+                samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+            };
+
+            gpa0-1-pin {
+                samsung,pins = "gpa0-1";
+                samsung,pin-con-pdn = <EXYNOS_PIN_PDN_OUT0>;
+                samsung,pin-pud-pdn = <EXYNOS_PIN_PULL_NONE>;
+            };
+
+            // ...
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/samsung.h>
+
+    pinctrl@11000000 {
+        compatible = "samsung,exynos4210-pinctrl";
+        reg = <0x11000000 0x1000>;
+        interrupts = <GIC_SPI 46 IRQ_TYPE_LEVEL_HIGH>;
+
+        wakeup-interrupt-controller {
+            compatible = "samsung,exynos4210-wakeup-eint";
+            interrupt-parent = <&gic>;
+            interrupts = <GIC_SPI 32 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        /* Pin bank with external GPIO or muxed external wake-up interrupts */
+        gpj0-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+        };
+
+        /* Pin bank without external interrupts */
+        gpy0-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+        };
+
+        /* Pin bank with external direct wake-up interrupts */
+        gpx0-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            interrupt-controller;
+            interrupt-parent = <&gic>;
+            interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 17 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 18 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 19 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 20 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 21 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 22 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 23 IRQ_TYPE_LEVEL_HIGH>;
+            #interrupt-cells = <2>;
+        };
+
+        // ...
+
+        sd0-clk-pins {
+            samsung,pins = "gpk0-0";
+            samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+            samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+            samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
+        };
+
+        sd4-bus-width8-pins {
+            part-1-pins {
+                samsung,pins = "gpk0-3", "gpk0-4",
+                               "gpk0-5", "gpk0-6";
+                samsung,pin-function = <EXYNOS_PIN_FUNC_3>;
+                samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+                samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
+            };
+
+            part-2-pins {
+                samsung,pins = "gpk1-3", "gpk1-4",
+                               "gpk1-5", "gpk1-6";
+                samsung,pin-function = <EXYNOS_PIN_FUNC_4>;
+                samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
+                samsung,pin-drv = <EXYNOS4_PIN_DRV_LV4>;
+            };
+        };
+
+        // ...
+
+        otg-gp-pins {
+            samsung,pins = "gpx3-3";
+            samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
+            samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+            samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
+            samsung,pin-val = <0>;
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/samsung.h>
+
+    pinctrl@10580000 {
+        compatible = "samsung,exynos5433-pinctrl";
+        reg = <0x10580000 0x1a20>, <0x11090000 0x100>;
+
+        pinctrl-names = "default";
+        pinctrl-0 = <&initial_alive>;
+
+        wakeup-interrupt-controller {
+            compatible = "samsung,exynos7-wakeup-eint";
+            interrupts = <GIC_SPI 16 IRQ_TYPE_LEVEL_HIGH>;
+        };
+
+        /* Pin bank with external direct wake-up interrupts */
+        gpa0-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+
+            interrupt-controller;
+            interrupt-parent = <&gic>;
+            interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 1 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 2 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 3 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 4 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 5 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 6 IRQ_TYPE_LEVEL_HIGH>,
+                         <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+            #interrupt-cells = <2>;
+        };
+
+        // ...
+
+        te-irq-pins {
+            samsung,pins = "gpf1-3";
+            samsung,pin-function = <0xf>;
+        };
+
+        // ..
+
+        initial_alive: initial-state {
+            gpa0-0-pin {
+                samsung,pins = "gpa0-0";
+                samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
+                samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
+                samsung,pin-drv = <EXYNOS5433_PIN_DRV_FAST_SR1>;
+            };
+
+            // ...
+        };
+    };
+
+  - |
+    #include <dt-bindings/interrupt-controller/arm-gic.h>
+    #include <dt-bindings/pinctrl/samsung.h>
+
+    pinctrl@114b0000 {
+        compatible = "samsung,exynos5433-pinctrl";
+        reg = <0x114b0000 0x1000>;
+        interrupts = <GIC_SPI 68 IRQ_TYPE_LEVEL_HIGH>;
+        power-domains = <&pd_aud>;
+
+        /* Pin bank with external GPIO or muxed external wake-up interrupts */
+        gpz0-gpio-bank {
+            gpio-controller;
+            #gpio-cells = <2>;
+            interrupt-controller;
+            #interrupt-cells = <2>;
+        };
+
+        // ...
+
+        i2s0-bus-pins {
+            samsung,pins = "gpz0-0", "gpz0-1", "gpz0-2", "gpz0-3",
+                           "gpz0-4", "gpz0-5", "gpz0-6";
+            samsung,pin-function = <EXYNOS_PIN_FUNC_2>;
+            samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
+            samsung,pin-drv = <EXYNOS5433_PIN_DRV_FAST_SR1>;
+        };
+
+        // ...
+    };

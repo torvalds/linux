@@ -226,6 +226,15 @@ struct ice_aqc_get_sw_cfg_resp_elem {
 #define ICE_AQC_GET_SW_CONF_RESP_IS_VF		BIT(15)
 };
 
+/* Set Port parameters, (direct, 0x0203) */
+struct ice_aqc_set_port_params {
+	__le16 cmd_flags;
+#define ICE_AQC_SET_P_PARAMS_DOUBLE_VLAN_ENA	BIT(2)
+	__le16 bad_frame_vsi;
+	__le16 swid;
+	u8 reserved[10];
+};
+
 /* These resource type defines are used for all switch resource
  * commands where a resource type is required, such as:
  * Get Resource Allocation command (indirect 0x0204)
@@ -281,6 +290,40 @@ struct ice_aqc_alloc_free_res_elem {
 				(0xF << ICE_AQC_RES_TYPE_VSI_PRUNE_LIST_S)
 	__le16 num_elems;
 	struct ice_aqc_res_elem elem[];
+};
+
+/* Request buffer for Set VLAN Mode AQ command (indirect 0x020C) */
+struct ice_aqc_set_vlan_mode {
+	u8 reserved;
+	u8 l2tag_prio_tagging;
+#define ICE_AQ_VLAN_PRIO_TAG_S			0
+#define ICE_AQ_VLAN_PRIO_TAG_M			(0x7 << ICE_AQ_VLAN_PRIO_TAG_S)
+#define ICE_AQ_VLAN_PRIO_TAG_NOT_SUPPORTED	0x0
+#define ICE_AQ_VLAN_PRIO_TAG_STAG		0x1
+#define ICE_AQ_VLAN_PRIO_TAG_OUTER_CTAG		0x2
+#define ICE_AQ_VLAN_PRIO_TAG_OUTER_VLAN		0x3
+#define ICE_AQ_VLAN_PRIO_TAG_INNER_CTAG		0x4
+#define ICE_AQ_VLAN_PRIO_TAG_MAX		0x4
+#define ICE_AQ_VLAN_PRIO_TAG_ERROR		0x7
+	u8 l2tag_reserved[64];
+	u8 rdma_packet;
+#define ICE_AQ_VLAN_RDMA_TAG_S			0
+#define ICE_AQ_VLAN_RDMA_TAG_M			(0x3F << ICE_AQ_VLAN_RDMA_TAG_S)
+#define ICE_AQ_SVM_VLAN_RDMA_PKT_FLAG_SETTING	0x10
+#define ICE_AQ_DVM_VLAN_RDMA_PKT_FLAG_SETTING	0x1A
+	u8 rdma_reserved[2];
+	u8 mng_vlan_prot_id;
+#define ICE_AQ_VLAN_MNG_PROTOCOL_ID_OUTER	0x10
+#define ICE_AQ_VLAN_MNG_PROTOCOL_ID_INNER	0x11
+	u8 prot_id_reserved[30];
+};
+
+/* Response buffer for Get VLAN Mode AQ command (indirect 0x020D) */
+struct ice_aqc_get_vlan_mode {
+	u8 vlan_mode;
+#define ICE_AQ_VLAN_MODE_DVM_ENA	BIT(0)
+	u8 l2tag_prio_tagging;
+	u8 reserved[98];
 };
 
 /* Add VSI (indirect 0x0210)
@@ -343,108 +386,113 @@ struct ice_aqc_vsi_props {
 #define ICE_AQ_VSI_SW_FLAG_SRC_PRUNE		BIT(7)
 	u8 sw_flags2;
 #define ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_S	0
-#define ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M	\
-				(0xF << ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_S)
+#define ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_M	(0xF << ICE_AQ_VSI_SW_FLAG_RX_PRUNE_EN_S)
 #define ICE_AQ_VSI_SW_FLAG_RX_VLAN_PRUNE_ENA	BIT(0)
 #define ICE_AQ_VSI_SW_FLAG_LAN_ENA		BIT(4)
 	u8 veb_stat_id;
 #define ICE_AQ_VSI_SW_VEB_STAT_ID_S		0
-#define ICE_AQ_VSI_SW_VEB_STAT_ID_M	(0x1F << ICE_AQ_VSI_SW_VEB_STAT_ID_S)
+#define ICE_AQ_VSI_SW_VEB_STAT_ID_M		(0x1F << ICE_AQ_VSI_SW_VEB_STAT_ID_S)
 #define ICE_AQ_VSI_SW_VEB_STAT_ID_VALID		BIT(5)
 	/* security section */
 	u8 sec_flags;
 #define ICE_AQ_VSI_SEC_FLAG_ALLOW_DEST_OVRD	BIT(0)
 #define ICE_AQ_VSI_SEC_FLAG_ENA_MAC_ANTI_SPOOF	BIT(2)
-#define ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S	4
-#define ICE_AQ_VSI_SEC_TX_PRUNE_ENA_M	(0xF << ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S)
+#define ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S		4
+#define ICE_AQ_VSI_SEC_TX_PRUNE_ENA_M		(0xF << ICE_AQ_VSI_SEC_TX_PRUNE_ENA_S)
 #define ICE_AQ_VSI_SEC_TX_VLAN_PRUNE_ENA	BIT(0)
 	u8 sec_reserved;
 	/* VLAN section */
-	__le16 pvid; /* VLANS include priority bits */
-	u8 pvlan_reserved[2];
-	u8 vlan_flags;
-#define ICE_AQ_VSI_VLAN_MODE_S	0
-#define ICE_AQ_VSI_VLAN_MODE_M	(0x3 << ICE_AQ_VSI_VLAN_MODE_S)
-#define ICE_AQ_VSI_VLAN_MODE_UNTAGGED	0x1
-#define ICE_AQ_VSI_VLAN_MODE_TAGGED	0x2
-#define ICE_AQ_VSI_VLAN_MODE_ALL	0x3
-#define ICE_AQ_VSI_PVLAN_INSERT_PVID	BIT(2)
-#define ICE_AQ_VSI_VLAN_EMOD_S		3
-#define ICE_AQ_VSI_VLAN_EMOD_M		(0x3 << ICE_AQ_VSI_VLAN_EMOD_S)
-#define ICE_AQ_VSI_VLAN_EMOD_STR_BOTH	(0x0 << ICE_AQ_VSI_VLAN_EMOD_S)
-#define ICE_AQ_VSI_VLAN_EMOD_STR_UP	(0x1 << ICE_AQ_VSI_VLAN_EMOD_S)
-#define ICE_AQ_VSI_VLAN_EMOD_STR	(0x2 << ICE_AQ_VSI_VLAN_EMOD_S)
-#define ICE_AQ_VSI_VLAN_EMOD_NOTHING	(0x3 << ICE_AQ_VSI_VLAN_EMOD_S)
-	u8 pvlan_reserved2[3];
+	__le16 port_based_inner_vlan; /* VLANS include priority bits */
+	u8 inner_vlan_reserved[2];
+	u8 inner_vlan_flags;
+#define ICE_AQ_VSI_INNER_VLAN_TX_MODE_S		0
+#define ICE_AQ_VSI_INNER_VLAN_TX_MODE_M		(0x3 << ICE_AQ_VSI_INNER_VLAN_TX_MODE_S)
+#define ICE_AQ_VSI_INNER_VLAN_TX_MODE_ACCEPTUNTAGGED	0x1
+#define ICE_AQ_VSI_INNER_VLAN_TX_MODE_ACCEPTTAGGED	0x2
+#define ICE_AQ_VSI_INNER_VLAN_TX_MODE_ALL	0x3
+#define ICE_AQ_VSI_INNER_VLAN_INSERT_PVID	BIT(2)
+#define ICE_AQ_VSI_INNER_VLAN_EMODE_S		3
+#define ICE_AQ_VSI_INNER_VLAN_EMODE_M		(0x3 << ICE_AQ_VSI_INNER_VLAN_EMODE_S)
+#define ICE_AQ_VSI_INNER_VLAN_EMODE_STR_BOTH	(0x0 << ICE_AQ_VSI_INNER_VLAN_EMODE_S)
+#define ICE_AQ_VSI_INNER_VLAN_EMODE_STR_UP	(0x1 << ICE_AQ_VSI_INNER_VLAN_EMODE_S)
+#define ICE_AQ_VSI_INNER_VLAN_EMODE_STR		(0x2 << ICE_AQ_VSI_INNER_VLAN_EMODE_S)
+#define ICE_AQ_VSI_INNER_VLAN_EMODE_NOTHING	(0x3 << ICE_AQ_VSI_INNER_VLAN_EMODE_S)
+	u8 inner_vlan_reserved2[3];
 	/* ingress egress up sections */
 	__le32 ingress_table; /* bitmap, 3 bits per up */
-#define ICE_AQ_VSI_UP_TABLE_UP0_S	0
-#define ICE_AQ_VSI_UP_TABLE_UP0_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP0_S)
-#define ICE_AQ_VSI_UP_TABLE_UP1_S	3
-#define ICE_AQ_VSI_UP_TABLE_UP1_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP1_S)
-#define ICE_AQ_VSI_UP_TABLE_UP2_S	6
-#define ICE_AQ_VSI_UP_TABLE_UP2_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP2_S)
-#define ICE_AQ_VSI_UP_TABLE_UP3_S	9
-#define ICE_AQ_VSI_UP_TABLE_UP3_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP3_S)
-#define ICE_AQ_VSI_UP_TABLE_UP4_S	12
-#define ICE_AQ_VSI_UP_TABLE_UP4_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP4_S)
-#define ICE_AQ_VSI_UP_TABLE_UP5_S	15
-#define ICE_AQ_VSI_UP_TABLE_UP5_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP5_S)
-#define ICE_AQ_VSI_UP_TABLE_UP6_S	18
-#define ICE_AQ_VSI_UP_TABLE_UP6_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP6_S)
-#define ICE_AQ_VSI_UP_TABLE_UP7_S	21
-#define ICE_AQ_VSI_UP_TABLE_UP7_M	(0x7 << ICE_AQ_VSI_UP_TABLE_UP7_S)
+#define ICE_AQ_VSI_UP_TABLE_UP0_S		0
+#define ICE_AQ_VSI_UP_TABLE_UP0_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP0_S)
+#define ICE_AQ_VSI_UP_TABLE_UP1_S		3
+#define ICE_AQ_VSI_UP_TABLE_UP1_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP1_S)
+#define ICE_AQ_VSI_UP_TABLE_UP2_S		6
+#define ICE_AQ_VSI_UP_TABLE_UP2_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP2_S)
+#define ICE_AQ_VSI_UP_TABLE_UP3_S		9
+#define ICE_AQ_VSI_UP_TABLE_UP3_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP3_S)
+#define ICE_AQ_VSI_UP_TABLE_UP4_S		12
+#define ICE_AQ_VSI_UP_TABLE_UP4_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP4_S)
+#define ICE_AQ_VSI_UP_TABLE_UP5_S		15
+#define ICE_AQ_VSI_UP_TABLE_UP5_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP5_S)
+#define ICE_AQ_VSI_UP_TABLE_UP6_S		18
+#define ICE_AQ_VSI_UP_TABLE_UP6_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP6_S)
+#define ICE_AQ_VSI_UP_TABLE_UP7_S		21
+#define ICE_AQ_VSI_UP_TABLE_UP7_M		(0x7 << ICE_AQ_VSI_UP_TABLE_UP7_S)
 	__le32 egress_table;   /* same defines as for ingress table */
 	/* outer tags section */
-	__le16 outer_tag;
-	u8 outer_tag_flags;
-#define ICE_AQ_VSI_OUTER_TAG_MODE_S	0
-#define ICE_AQ_VSI_OUTER_TAG_MODE_M	(0x3 << ICE_AQ_VSI_OUTER_TAG_MODE_S)
-#define ICE_AQ_VSI_OUTER_TAG_NOTHING	0x0
-#define ICE_AQ_VSI_OUTER_TAG_REMOVE	0x1
-#define ICE_AQ_VSI_OUTER_TAG_COPY	0x2
-#define ICE_AQ_VSI_OUTER_TAG_TYPE_S	2
-#define ICE_AQ_VSI_OUTER_TAG_TYPE_M	(0x3 << ICE_AQ_VSI_OUTER_TAG_TYPE_S)
-#define ICE_AQ_VSI_OUTER_TAG_NONE	0x0
-#define ICE_AQ_VSI_OUTER_TAG_STAG	0x1
-#define ICE_AQ_VSI_OUTER_TAG_VLAN_8100	0x2
-#define ICE_AQ_VSI_OUTER_TAG_VLAN_9100	0x3
-#define ICE_AQ_VSI_OUTER_TAG_INSERT	BIT(4)
-#define ICE_AQ_VSI_OUTER_TAG_ACCEPT_HOST BIT(6)
-	u8 outer_tag_reserved;
+	__le16 port_based_outer_vlan;
+	u8 outer_vlan_flags;
+#define ICE_AQ_VSI_OUTER_VLAN_EMODE_S		0
+#define ICE_AQ_VSI_OUTER_VLAN_EMODE_M		(0x3 << ICE_AQ_VSI_OUTER_VLAN_EMODE_S)
+#define ICE_AQ_VSI_OUTER_VLAN_EMODE_SHOW_BOTH	0x0
+#define ICE_AQ_VSI_OUTER_VLAN_EMODE_SHOW_UP	0x1
+#define ICE_AQ_VSI_OUTER_VLAN_EMODE_SHOW	0x2
+#define ICE_AQ_VSI_OUTER_VLAN_EMODE_NOTHING	0x3
+#define ICE_AQ_VSI_OUTER_TAG_TYPE_S		2
+#define ICE_AQ_VSI_OUTER_TAG_TYPE_M		(0x3 << ICE_AQ_VSI_OUTER_TAG_TYPE_S)
+#define ICE_AQ_VSI_OUTER_TAG_NONE		0x0
+#define ICE_AQ_VSI_OUTER_TAG_STAG		0x1
+#define ICE_AQ_VSI_OUTER_TAG_VLAN_8100		0x2
+#define ICE_AQ_VSI_OUTER_TAG_VLAN_9100		0x3
+#define ICE_AQ_VSI_OUTER_VLAN_PORT_BASED_INSERT		BIT(4)
+#define ICE_AQ_VSI_OUTER_VLAN_TX_MODE_S			5
+#define ICE_AQ_VSI_OUTER_VLAN_TX_MODE_M			(0x3 << ICE_AQ_VSI_OUTER_VLAN_TX_MODE_S)
+#define ICE_AQ_VSI_OUTER_VLAN_TX_MODE_ACCEPTUNTAGGED	0x1
+#define ICE_AQ_VSI_OUTER_VLAN_TX_MODE_ACCEPTTAGGED	0x2
+#define ICE_AQ_VSI_OUTER_VLAN_TX_MODE_ALL		0x3
+#define ICE_AQ_VSI_OUTER_VLAN_BLOCK_TX_DESC		BIT(7)
+	u8 outer_vlan_reserved;
 	/* queue mapping section */
 	__le16 mapping_flags;
-#define ICE_AQ_VSI_Q_MAP_CONTIG	0x0
-#define ICE_AQ_VSI_Q_MAP_NONCONTIG	BIT(0)
+#define ICE_AQ_VSI_Q_MAP_CONTIG			0x0
+#define ICE_AQ_VSI_Q_MAP_NONCONTIG		BIT(0)
 	__le16 q_mapping[16];
-#define ICE_AQ_VSI_Q_S		0
-#define ICE_AQ_VSI_Q_M		(0x7FF << ICE_AQ_VSI_Q_S)
+#define ICE_AQ_VSI_Q_S				0
+#define ICE_AQ_VSI_Q_M				(0x7FF << ICE_AQ_VSI_Q_S)
 	__le16 tc_mapping[8];
-#define ICE_AQ_VSI_TC_Q_OFFSET_S	0
-#define ICE_AQ_VSI_TC_Q_OFFSET_M	(0x7FF << ICE_AQ_VSI_TC_Q_OFFSET_S)
-#define ICE_AQ_VSI_TC_Q_NUM_S		11
-#define ICE_AQ_VSI_TC_Q_NUM_M		(0xF << ICE_AQ_VSI_TC_Q_NUM_S)
+#define ICE_AQ_VSI_TC_Q_OFFSET_S		0
+#define ICE_AQ_VSI_TC_Q_OFFSET_M		(0x7FF << ICE_AQ_VSI_TC_Q_OFFSET_S)
+#define ICE_AQ_VSI_TC_Q_NUM_S			11
+#define ICE_AQ_VSI_TC_Q_NUM_M			(0xF << ICE_AQ_VSI_TC_Q_NUM_S)
 	/* queueing option section */
 	u8 q_opt_rss;
-#define ICE_AQ_VSI_Q_OPT_RSS_LUT_S	0
-#define ICE_AQ_VSI_Q_OPT_RSS_LUT_M	(0x3 << ICE_AQ_VSI_Q_OPT_RSS_LUT_S)
-#define ICE_AQ_VSI_Q_OPT_RSS_LUT_VSI	0x0
-#define ICE_AQ_VSI_Q_OPT_RSS_LUT_PF	0x2
-#define ICE_AQ_VSI_Q_OPT_RSS_LUT_GBL	0x3
-#define ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_S	2
-#define ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_M	(0xF << ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_S)
-#define ICE_AQ_VSI_Q_OPT_RSS_HASH_S	6
-#define ICE_AQ_VSI_Q_OPT_RSS_HASH_M	(0x3 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
-#define ICE_AQ_VSI_Q_OPT_RSS_TPLZ	(0x0 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
-#define ICE_AQ_VSI_Q_OPT_RSS_SYM_TPLZ	(0x1 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
-#define ICE_AQ_VSI_Q_OPT_RSS_XOR	(0x2 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
-#define ICE_AQ_VSI_Q_OPT_RSS_JHASH	(0x3 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_S		0
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_M		(0x3 << ICE_AQ_VSI_Q_OPT_RSS_LUT_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_VSI		0x0
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_PF		0x2
+#define ICE_AQ_VSI_Q_OPT_RSS_LUT_GBL		0x3
+#define ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_S		2
+#define ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_M		(0xF << ICE_AQ_VSI_Q_OPT_RSS_GBL_LUT_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_HASH_S		6
+#define ICE_AQ_VSI_Q_OPT_RSS_HASH_M		(0x3 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_TPLZ		(0x0 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_SYM_TPLZ		(0x1 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_XOR		(0x2 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
+#define ICE_AQ_VSI_Q_OPT_RSS_JHASH		(0x3 << ICE_AQ_VSI_Q_OPT_RSS_HASH_S)
 	u8 q_opt_tc;
-#define ICE_AQ_VSI_Q_OPT_TC_OVR_S	0
-#define ICE_AQ_VSI_Q_OPT_TC_OVR_M	(0x1F << ICE_AQ_VSI_Q_OPT_TC_OVR_S)
-#define ICE_AQ_VSI_Q_OPT_PROF_TC_OVR	BIT(7)
+#define ICE_AQ_VSI_Q_OPT_TC_OVR_S		0
+#define ICE_AQ_VSI_Q_OPT_TC_OVR_M		(0x1F << ICE_AQ_VSI_Q_OPT_TC_OVR_S)
+#define ICE_AQ_VSI_Q_OPT_PROF_TC_OVR		BIT(7)
 	u8 q_opt_flags;
-#define ICE_AQ_VSI_Q_OPT_PE_FLTR_EN	BIT(0)
+#define ICE_AQ_VSI_Q_OPT_PE_FLTR_EN		BIT(0)
 	u8 q_opt_reserved[3];
 	/* outer up section */
 	__le32 outer_up_table; /* same structure and defines as ingress tbl */
@@ -452,27 +500,27 @@ struct ice_aqc_vsi_props {
 	__le16 sect_10_reserved;
 	/* flow director section */
 	__le16 fd_options;
-#define ICE_AQ_VSI_FD_ENABLE		BIT(0)
-#define ICE_AQ_VSI_FD_TX_AUTO_ENABLE	BIT(1)
-#define ICE_AQ_VSI_FD_PROG_ENABLE	BIT(3)
+#define ICE_AQ_VSI_FD_ENABLE			BIT(0)
+#define ICE_AQ_VSI_FD_TX_AUTO_ENABLE		BIT(1)
+#define ICE_AQ_VSI_FD_PROG_ENABLE		BIT(3)
 	__le16 max_fd_fltr_dedicated;
 	__le16 max_fd_fltr_shared;
 	__le16 fd_def_q;
-#define ICE_AQ_VSI_FD_DEF_Q_S		0
-#define ICE_AQ_VSI_FD_DEF_Q_M		(0x7FF << ICE_AQ_VSI_FD_DEF_Q_S)
-#define ICE_AQ_VSI_FD_DEF_GRP_S	12
-#define ICE_AQ_VSI_FD_DEF_GRP_M	(0x7 << ICE_AQ_VSI_FD_DEF_GRP_S)
+#define ICE_AQ_VSI_FD_DEF_Q_S			0
+#define ICE_AQ_VSI_FD_DEF_Q_M			(0x7FF << ICE_AQ_VSI_FD_DEF_Q_S)
+#define ICE_AQ_VSI_FD_DEF_GRP_S			12
+#define ICE_AQ_VSI_FD_DEF_GRP_M			(0x7 << ICE_AQ_VSI_FD_DEF_GRP_S)
 	__le16 fd_report_opt;
-#define ICE_AQ_VSI_FD_REPORT_Q_S	0
-#define ICE_AQ_VSI_FD_REPORT_Q_M	(0x7FF << ICE_AQ_VSI_FD_REPORT_Q_S)
-#define ICE_AQ_VSI_FD_DEF_PRIORITY_S	12
-#define ICE_AQ_VSI_FD_DEF_PRIORITY_M	(0x7 << ICE_AQ_VSI_FD_DEF_PRIORITY_S)
-#define ICE_AQ_VSI_FD_DEF_DROP		BIT(15)
+#define ICE_AQ_VSI_FD_REPORT_Q_S		0
+#define ICE_AQ_VSI_FD_REPORT_Q_M		(0x7FF << ICE_AQ_VSI_FD_REPORT_Q_S)
+#define ICE_AQ_VSI_FD_DEF_PRIORITY_S		12
+#define ICE_AQ_VSI_FD_DEF_PRIORITY_M		(0x7 << ICE_AQ_VSI_FD_DEF_PRIORITY_S)
+#define ICE_AQ_VSI_FD_DEF_DROP			BIT(15)
 	/* PASID section */
 	__le32 pasid_id;
-#define ICE_AQ_VSI_PASID_ID_S		0
-#define ICE_AQ_VSI_PASID_ID_M		(0xFFFFF << ICE_AQ_VSI_PASID_ID_S)
-#define ICE_AQ_VSI_PASID_ID_VALID	BIT(31)
+#define ICE_AQ_VSI_PASID_ID_S			0
+#define ICE_AQ_VSI_PASID_ID_M			(0xFFFFF << ICE_AQ_VSI_PASID_ID_S)
+#define ICE_AQ_VSI_PASID_ID_VALID		BIT(31)
 	u8 reserved[24];
 };
 
@@ -489,9 +537,13 @@ struct ice_aqc_add_get_recipe {
 
 struct ice_aqc_recipe_content {
 	u8 rid;
+#define ICE_AQ_RECIPE_ID_S		0
+#define ICE_AQ_RECIPE_ID_M		(0x3F << ICE_AQ_RECIPE_ID_S)
 #define ICE_AQ_RECIPE_ID_IS_ROOT	BIT(7)
 #define ICE_AQ_SW_ID_LKUP_IDX		0
 	u8 lkup_indx[5];
+#define ICE_AQ_RECIPE_LKUP_DATA_S	0
+#define ICE_AQ_RECIPE_LKUP_DATA_M	(0x3F << ICE_AQ_RECIPE_LKUP_DATA_S)
 #define ICE_AQ_RECIPE_LKUP_IGNORE	BIT(7)
 #define ICE_AQ_SW_ID_LKUP_MASK		0x00FF
 	__le16 mask[5];
@@ -502,15 +554,25 @@ struct ice_aqc_recipe_content {
 	u8 rsvd0[3];
 	u8 act_ctrl_join_priority;
 	u8 act_ctrl_fwd_priority;
+#define ICE_AQ_RECIPE_FWD_PRIORITY_S	0
+#define ICE_AQ_RECIPE_FWD_PRIORITY_M	(0xF << ICE_AQ_RECIPE_FWD_PRIORITY_S)
 	u8 act_ctrl;
+#define ICE_AQ_RECIPE_ACT_NEED_PASS_L2	BIT(0)
+#define ICE_AQ_RECIPE_ACT_ALLOW_PASS_L2	BIT(1)
 #define ICE_AQ_RECIPE_ACT_INV_ACT	BIT(2)
+#define ICE_AQ_RECIPE_ACT_PRUNE_INDX_S	4
+#define ICE_AQ_RECIPE_ACT_PRUNE_INDX_M	(0x3 << ICE_AQ_RECIPE_ACT_PRUNE_INDX_S)
 	u8 rsvd1;
 	__le32 dflt_act;
+#define ICE_AQ_RECIPE_DFLT_ACT_S	0
+#define ICE_AQ_RECIPE_DFLT_ACT_M	(0x7FFFF << ICE_AQ_RECIPE_DFLT_ACT_S)
+#define ICE_AQ_RECIPE_DFLT_ACT_VALID	BIT(31)
 };
 
 struct ice_aqc_recipe_data_elem {
 	u8 recipe_indx;
 	u8 resp_bits;
+#define ICE_AQ_RECIPE_WAS_UPDATED	BIT(0)
 	u8 rsvd0[2];
 	u8 recipe_bitmap[8];
 	u8 rsvd1[4];
@@ -1339,6 +1401,24 @@ struct ice_aqc_get_link_topo {
 	u8 rsvd[9];
 };
 
+/* Read I2C (direct, 0x06E2) */
+struct ice_aqc_i2c {
+	struct ice_aqc_link_topo_addr topo_addr;
+	__le16 i2c_addr;
+	u8 i2c_params;
+#define ICE_AQC_I2C_DATA_SIZE_M		GENMASK(3, 0)
+#define ICE_AQC_I2C_USE_REPEATED_START	BIT(7)
+
+	u8 rsvd;
+	__le16 i2c_bus_addr;
+	u8 rsvd2[4];
+};
+
+/* Read I2C Response (direct, 0x06E2) */
+struct ice_aqc_read_i2c_resp {
+	u8 i2c_data[16];
+};
+
 /* Set Port Identification LED (direct, 0x06E9) */
 struct ice_aqc_set_port_id_led {
 	u8 lport_num;
@@ -1883,7 +1963,7 @@ struct ice_aqc_get_clear_fw_log {
 };
 
 /* Download Package (indirect 0x0C40) */
-/* Also used for Update Package (indirect 0x0C42) */
+/* Also used for Update Package (indirect 0x0C41 and 0x0C42) */
 struct ice_aqc_download_pkg {
 	u8 flags;
 #define ICE_AQC_DOWNLOAD_PKG_LAST_BUF	0x01
@@ -2009,6 +2089,7 @@ struct ice_aq_desc {
 		struct ice_aqc_sff_eeprom read_write_sff_param;
 		struct ice_aqc_set_port_id_led set_port_id_led;
 		struct ice_aqc_get_sw_cfg get_sw_conf;
+		struct ice_aqc_set_port_params set_port_params;
 		struct ice_aqc_sw_rules sw_rules;
 		struct ice_aqc_add_get_recipe add_get_recipe;
 		struct ice_aqc_recipe_to_profile recipe_to_profile;
@@ -2049,6 +2130,8 @@ struct ice_aq_desc {
 		struct ice_aqc_get_link_status get_link_status;
 		struct ice_aqc_event_lan_overflow lan_overflow;
 		struct ice_aqc_get_link_topo get_link_topo;
+		struct ice_aqc_i2c read_i2c;
+		struct ice_aqc_read_i2c_resp read_i2c_resp;
 	} params;
 };
 
@@ -2110,10 +2193,13 @@ enum ice_adminq_opc {
 
 	/* internal switch commands */
 	ice_aqc_opc_get_sw_cfg				= 0x0200,
+	ice_aqc_opc_set_port_params			= 0x0203,
 
 	/* Alloc/Free/Get Resources */
 	ice_aqc_opc_alloc_res				= 0x0208,
 	ice_aqc_opc_free_res				= 0x0209,
+	ice_aqc_opc_set_vlan_mode_parameters		= 0x020C,
+	ice_aqc_opc_get_vlan_mode_parameters		= 0x020D,
 
 	/* VSI commands */
 	ice_aqc_opc_add_vsi				= 0x0210,
@@ -2160,6 +2246,7 @@ enum ice_adminq_opc {
 	ice_aqc_opc_set_event_mask			= 0x0613,
 	ice_aqc_opc_set_mac_lb				= 0x0620,
 	ice_aqc_opc_get_link_topo			= 0x06E0,
+	ice_aqc_opc_read_i2c				= 0x06E2,
 	ice_aqc_opc_set_port_id_led			= 0x06E9,
 	ice_aqc_opc_set_gpio				= 0x06EC,
 	ice_aqc_opc_get_gpio				= 0x06ED,
@@ -2204,6 +2291,7 @@ enum ice_adminq_opc {
 
 	/* package commands */
 	ice_aqc_opc_download_pkg			= 0x0C40,
+	ice_aqc_opc_upload_section			= 0x0C41,
 	ice_aqc_opc_update_pkg				= 0x0C42,
 	ice_aqc_opc_get_pkg_info_list			= 0x0C43,
 

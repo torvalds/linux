@@ -22,6 +22,7 @@ u64 id_aa64pfr0_el1_sys_val;
 u64 id_aa64pfr1_el1_sys_val;
 u64 id_aa64isar0_el1_sys_val;
 u64 id_aa64isar1_el1_sys_val;
+u64 id_aa64isar2_el1_sys_val;
 u64 id_aa64mmfr0_el1_sys_val;
 u64 id_aa64mmfr1_el1_sys_val;
 u64 id_aa64mmfr2_el1_sys_val;
@@ -183,6 +184,17 @@ static u64 get_pvm_id_aa64isar1(const struct kvm_vcpu *vcpu)
 	return id_aa64isar1_el1_sys_val & allow_mask;
 }
 
+static u64 get_pvm_id_aa64isar2(const struct kvm_vcpu *vcpu)
+{
+	u64 allow_mask = PVM_ID_AA64ISAR2_ALLOW;
+
+	if (!vcpu_has_ptrauth(vcpu))
+		allow_mask &= ~(ARM64_FEATURE_MASK(ID_AA64ISAR2_APA3) |
+				ARM64_FEATURE_MASK(ID_AA64ISAR2_GPA3));
+
+	return id_aa64isar2_el1_sys_val & allow_mask;
+}
+
 static u64 get_pvm_id_aa64mmfr0(const struct kvm_vcpu *vcpu)
 {
 	u64 set_mask;
@@ -225,6 +237,8 @@ u64 pvm_read_id_reg(const struct kvm_vcpu *vcpu, u32 id)
 		return get_pvm_id_aa64isar0(vcpu);
 	case SYS_ID_AA64ISAR1_EL1:
 		return get_pvm_id_aa64isar1(vcpu);
+	case SYS_ID_AA64ISAR2_EL1:
+		return get_pvm_id_aa64isar2(vcpu);
 	case SYS_ID_AA64MMFR0_EL1:
 		return get_pvm_id_aa64mmfr0(vcpu);
 	case SYS_ID_AA64MMFR1_EL1:

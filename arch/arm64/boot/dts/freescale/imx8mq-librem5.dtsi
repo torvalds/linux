@@ -278,6 +278,7 @@
 
 &ddrc {
 	operating-points-v2 = <&ddrc_opp_table>;
+	status = "okay";
 
 	ddrc_opp_table: opp-table {
 		compatible = "operating-points-v2";
@@ -1115,8 +1116,8 @@
 	status = "okay";
 
 	ports {
-		port@1 {
-			reg = <1>;
+		port@0 {
+			reg = <0>;
 
 			mipi1_sensor_ep: endpoint {
 				remote-endpoint = <&camera1_ep>;

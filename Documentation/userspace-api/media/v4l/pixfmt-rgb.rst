@@ -672,8 +672,8 @@ nomenclature that instead use the order of components as seen in a 24- or
       - ``V4L2_PIX_FMT_BGR24``
       - 'BGR3'
 
-      - G\ :sub:`7-0`
       - B\ :sub:`7-0`
+      - G\ :sub:`7-0`
       - R\ :sub:`7-0`
       -
     * .. _V4L2-PIX-FMT-RGB24:

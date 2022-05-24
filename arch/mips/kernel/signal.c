@@ -35,7 +35,6 @@
 #include <asm/sim.h>
 #include <asm/ucontext.h>
 #include <asm/cpu-features.h>
-#include <asm/war.h>
 #include <asm/dsp.h>
 #include <asm/inst.h>
 #include <asm/msa.h>

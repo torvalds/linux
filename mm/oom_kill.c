@@ -93,9 +93,6 @@ static bool oom_cpuset_eligible(struct task_struct *start,
 	bool ret = false;
 	const nodemask_t *mask = oc->nodemask;
 
-	if (is_memcg_oom(oc))
-		return true;
-
 	rcu_read_lock();
 	for_each_thread(start, tsk) {
 		if (mask) {
@@ -526,7 +523,7 @@ bool __oom_reap_task_mm(struct mm_struct *mm)
 	set_bit(MMF_UNSTABLE, &mm->flags);
 
 	for (vma = mm->mmap ; vma; vma = vma->vm_next) {
-		if (!can_madv_lru_vma(vma))
+		if (vma->vm_flags & (VM_HUGETLB|VM_PFNMAP))
 			continue;
 
 		/*
@@ -793,7 +790,7 @@ static inline bool __task_will_free_mem(struct task_struct *task)
 	 * coredump_task_exit(), so the oom killer cannot assume that
 	 * the process will promptly exit and release memory.
 	 */
-	if (sig->flags & SIGNAL_GROUP_COREDUMP)
+	if (sig->core_state)
 		return false;
 
 	if (sig->flags & SIGNAL_GROUP_EXIT)

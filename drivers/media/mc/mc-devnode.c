@@ -217,7 +217,7 @@ int __must_check media_devnode_register(struct media_device *mdev,
 
 	/* Part 1: Find a free minor number */
 	mutex_lock(&media_devnode_lock);
-	minor = find_next_zero_bit(media_devnode_nums, MEDIA_NUM_DEVICES, 0);
+	minor = find_first_zero_bit(media_devnode_nums, MEDIA_NUM_DEVICES);
 	if (minor == MEDIA_NUM_DEVICES) {
 		mutex_unlock(&media_devnode_lock);
 		pr_err("could not get a free minor\n");

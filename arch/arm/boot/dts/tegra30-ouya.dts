@@ -4553,7 +4553,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		smsc@2 { /* SMSC 10/100T Ethernet Controller */
+		ethernet@2 { /* SMSC 10/100T Ethernet Controller */
 			compatible = "usb424,9e00";
 			reg = <2>;
 			local-mac-address = [00 11 22 33 44 55];

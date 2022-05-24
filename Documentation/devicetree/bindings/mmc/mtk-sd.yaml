@@ -30,6 +30,9 @@ properties:
           - const: mediatek,mt7623-mmc
           - const: mediatek,mt2701-mmc
       - items:
+          - const: mediatek,mt8186-mmc
+          - const: mediatek,mt8183-mmc
+      - items:
           - const: mediatek,mt8192-mmc
           - const: mediatek,mt8183-mmc
       - items:

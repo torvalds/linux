@@ -658,7 +658,7 @@ pages, however the address_space has finer control of write sizes.
 
 The read process essentially only requires 'readpage'.  The write
 process is more complicated and uses write_begin/write_end or
-set_page_dirty to write data into the address_space, and writepage and
+dirty_folio to write data into the address_space, and writepage and
 writepages to writeback data to storage.
 
 Adding and removing pages to/from an address_space is protected by the
@@ -724,7 +724,7 @@ cache in your filesystem.  The following members are defined:
 		int (*writepage)(struct page *page, struct writeback_control *wbc);
 		int (*readpage)(struct file *, struct page *);
 		int (*writepages)(struct address_space *, struct writeback_control *);
-		int (*set_page_dirty)(struct page *page);
+		bool (*dirty_folio)(struct address_space *, struct folio *);
 		void (*readahead)(struct readahead_control *);
 		int (*readpages)(struct file *filp, struct address_space *mapping,
 				 struct list_head *pages, unsigned nr_pages);
@@ -735,7 +735,7 @@ cache in your filesystem.  The following members are defined:
 				 loff_t pos, unsigned len, unsigned copied,
 				 struct page *page, void *fsdata);
 		sector_t (*bmap)(struct address_space *, sector_t);
-		void (*invalidatepage) (struct page *, unsigned int, unsigned int);
+		void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 		int (*releasepage) (struct page *, int);
 		void (*freepage)(struct page *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
@@ -745,10 +745,10 @@ cache in your filesystem.  The following members are defined:
 		int (*migratepage) (struct page *, struct page *);
 		/* put migration-failed page back to right list */
 		void (*putback_page) (struct page *);
-		int (*launder_page) (struct page *);
+		int (*launder_folio) (struct folio *);
 
-		int (*is_partially_uptodate) (struct page *, unsigned long,
-					      unsigned long);
+		bool (*is_partially_uptodate) (struct folio *, size_t from,
+					       size_t count);
 		void (*is_dirty_writeback) (struct page *, bool *, bool *);
 		int (*error_remove_page) (struct mapping *mapping, struct page *page);
 		int (*swap_activate)(struct file *);
@@ -793,25 +793,29 @@ cache in your filesystem.  The following members are defined:
 	This will choose pages from the address space that are tagged as
 	DIRTY and will pass them to ->writepage.
 
-``set_page_dirty``
-	called by the VM to set a page dirty.  This is particularly
-	needed if an address space attaches private data to a page, and
-	that data needs to be updated when a page is dirtied.  This is
+``dirty_folio``
+	called by the VM to mark a folio as dirty.  This is particularly
+	needed if an address space attaches private data to a folio, and
+	that data needs to be updated when a folio is dirtied.  This is
 	called, for example, when a memory mapped page gets modified.
-	If defined, it should set the PageDirty flag, and the
-	PAGECACHE_TAG_DIRTY tag in the radix tree.
+	If defined, it should set the folio dirty flag, and the
+	PAGECACHE_TAG_DIRTY search mark in i_pages.
 
 ``readahead``
 	Called by the VM to read pages associated with the address_space
 	object.  The pages are consecutive in the page cache and are
 	locked.  The implementation should decrement the page refcount
 	after starting I/O on each page.  Usually the page will be
-	unlocked by the I/O completion handler.  If the filesystem decides
-	to stop attempting I/O before reaching the end of the readahead
-	window, it can simply return.  The caller will decrement the page
-	refcount and unlock the remaining pages for you.  Set PageUptodate
-	if the I/O completes successfully.  Setting PageError on any page
-	will be ignored; simply unlock the page if an I/O error occurs.
+	unlocked by the I/O completion handler.  The set of pages are
+	divided into some sync pages followed by some async pages,
+	rac->ra->async_size gives the number of async pages.  The
+	filesystem should attempt to read all sync pages but may decide
+	to stop once it reaches the async pages.  If it does decide to
+	stop attempting I/O, it can simply return.  The caller will
+	remove the remaining pages from the address space, unlock them
+	and decrement the page refcount.  Set PageUptodate if the I/O
+	completes successfully.  Setting PageError on any page will be
+	ignored; simply unlock the page if an I/O error occurs.
 
 ``readpages``
 	called by the VM to read pages associated with the address_space
@@ -868,15 +872,15 @@ cache in your filesystem.  The following members are defined:
 	to find out where the blocks in the file are and uses those
 	addresses directly.
 
-``invalidatepage``
-	If a page has PagePrivate set, then invalidatepage will be
-	called when part or all of the page is to be removed from the
+``invalidate_folio``
+	If a folio has private data, then invalidate_folio will be
+	called when part or all of the folio is to be removed from the
 	address space.  This generally corresponds to either a
 	truncation, punch hole or a complete invalidation of the address
 	space (in the latter case 'offset' will always be 0 and 'length'
-	will be PAGE_SIZE).  Any private data associated with the page
+	will be folio_size()).  Any private data associated with the page
 	should be updated to reflect this truncation.  If offset is 0
-	and length is PAGE_SIZE, then the private data should be
+	and length is folio_size(), then the private data should be
 	released, because the page must be able to be completely
 	discarded.  This may be done by calling the ->releasepage
 	function, but in this case the release MUST succeed.
@@ -930,16 +934,16 @@ cache in your filesystem.  The following members are defined:
 ``putback_page``
 	Called by the VM when isolated page's migration fails.
 
-``launder_page``
-	Called before freeing a page - it writes back the dirty page.
-	To prevent redirtying the page, it is kept locked during the
+``launder_folio``
+	Called before freeing a folio - it writes back the dirty folio.
+	To prevent redirtying the folio, it is kept locked during the
 	whole operation.
 
 ``is_partially_uptodate``
 	Called by the VM when reading a file through the pagecache when
-	the underlying blocksize != pagesize.  If the required block is
-	up to date then the read can complete without needing the IO to
-	bring the whole page up to date.
+	the underlying blocksize is smaller than the size of the folio.
+	If the required block is up to date then the read can complete
+	without needing I/O to bring the whole page up to date.
 
 ``is_dirty_writeback``
 	Called by the VM when attempting to reclaim a page.  The VM uses

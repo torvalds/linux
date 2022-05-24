@@ -29,22 +29,22 @@ TRACE_EVENT(io_uring_create,
 	TP_ARGS(fd, ctx, sq_entries, cq_entries, flags),
 
 	TP_STRUCT__entry (
-		__field(  int,		fd			)
-		__field(  void *,	ctx			)
+		__field(  int,		fd		)
+		__field(  void *,	ctx		)
 		__field(  u32,		sq_entries	)
 		__field(  u32,		cq_entries	)
 		__field(  u32,		flags		)
 	),
 
 	TP_fast_assign(
-		__entry->fd			= fd;
+		__entry->fd		= fd;
 		__entry->ctx		= ctx;
 		__entry->sq_entries	= sq_entries;
 		__entry->cq_entries	= cq_entries;
 		__entry->flags		= flags;
 	),
 
-	TP_printk("ring %p, fd %d sq size %d, cq size %d, flags %d",
+	TP_printk("ring %p, fd %d sq size %d, cq size %d, flags 0x%x",
 			  __entry->ctx, __entry->fd, __entry->sq_entries,
 			  __entry->cq_entries, __entry->flags)
 );
@@ -57,10 +57,9 @@ TRACE_EVENT(io_uring_create,
  * @opcode:		describes which operation to perform
  * @nr_user_files:	number of registered files
  * @nr_user_bufs:	number of registered buffers
- * @cq_ev_fd:		whether eventfs registered or not
  * @ret:		return code
  *
- * Allows to trace fixed files/buffers/eventfds, that could be registered to
+ * Allows to trace fixed files/buffers, that could be registered to
  * avoid an overhead of getting references to them for every operation. This
  * event, together with io_uring_file_get, can provide a full picture of how
  * much overhead one can reduce via fixing.
@@ -68,17 +67,16 @@ TRACE_EVENT(io_uring_create,
 TRACE_EVENT(io_uring_register,
 
 	TP_PROTO(void *ctx, unsigned opcode, unsigned nr_files,
-			 unsigned nr_bufs, bool eventfd, long ret),
+			 unsigned nr_bufs, long ret),
 
-	TP_ARGS(ctx, opcode, nr_files, nr_bufs, eventfd, ret),
+	TP_ARGS(ctx, opcode, nr_files, nr_bufs, ret),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx			)
-		__field(  unsigned,	opcode		)
-		__field(  unsigned,	nr_files	)
-		__field(  unsigned,	nr_bufs		)
-		__field(  bool,		eventfd		)
-		__field(  long,		ret			)
+		__field(  void *,	ctx	)
+		__field(  unsigned,	opcode	)
+		__field(  unsigned,	nr_files)
+		__field(  unsigned,	nr_bufs	)
+		__field(  long,		ret	)
 	),
 
 	TP_fast_assign(
@@ -86,20 +84,21 @@ TRACE_EVENT(io_uring_register,
 		__entry->opcode		= opcode;
 		__entry->nr_files	= nr_files;
 		__entry->nr_bufs	= nr_bufs;
-		__entry->eventfd	= eventfd;
 		__entry->ret		= ret;
 	),
 
 	TP_printk("ring %p, opcode %d, nr_user_files %d, nr_user_bufs %d, "
-			  "eventfd %d, ret %ld",
+			  "ret %ld",
 			  __entry->ctx, __entry->opcode, __entry->nr_files,
-			  __entry->nr_bufs, __entry->eventfd, __entry->ret)
+			  __entry->nr_bufs, __entry->ret)
 );
 
 /**
  * io_uring_file_get - called before getting references to an SQE file
  *
  * @ctx:	pointer to a ring context structure
+ * @req:	pointer to a submitted request
+ * @user_data:	user data associated with the request
  * @fd:		SQE file descriptor
  *
  * Allows to trace out how often an SQE file reference is obtained, which can
@@ -108,59 +107,71 @@ TRACE_EVENT(io_uring_register,
  */
 TRACE_EVENT(io_uring_file_get,
 
-	TP_PROTO(void *ctx, int fd),
+	TP_PROTO(void *ctx, void *req, unsigned long long user_data, int fd),
 
-	TP_ARGS(ctx, fd),
+	TP_ARGS(ctx, req, user_data, fd),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx	)
-		__field(  int,		fd	)
+		__field(  void *,	ctx		)
+		__field(  void *,	req		)
+		__field(  u64,		user_data	)
+		__field(  int,		fd		)
 	),
 
 	TP_fast_assign(
-		__entry->ctx	= ctx;
+		__entry->ctx		= ctx;
+		__entry->req		= req;
+		__entry->user_data	= user_data;
 		__entry->fd		= fd;
 	),
 
-	TP_printk("ring %p, fd %d", __entry->ctx, __entry->fd)
+	TP_printk("ring %p, req %p, user_data 0x%llx, fd %d",
+		__entry->ctx, __entry->req, __entry->user_data, __entry->fd)
 );
 
 /**
  * io_uring_queue_async_work - called before submitting a new async work
  *
  * @ctx:	pointer to a ring context structure
- * @hashed:	type of workqueue, hashed or normal
  * @req:	pointer to a submitted request
+ * @user_data:	user data associated with the request
+ * @opcode:	opcode of request
+ * @flags	request flags
  * @work:	pointer to a submitted io_wq_work
+ * @rw:		type of workqueue, hashed or normal
  *
  * Allows to trace asynchronous work submission.
  */
 TRACE_EVENT(io_uring_queue_async_work,
 
-	TP_PROTO(void *ctx, int rw, void * req, struct io_wq_work *work,
-			 unsigned int flags),
+	TP_PROTO(void *ctx, void * req, unsigned long long user_data, u8 opcode,
+		unsigned int flags, struct io_wq_work *work, int rw),
 
-	TP_ARGS(ctx, rw, req, work, flags),
+	TP_ARGS(ctx, req, user_data, flags, opcode, work, rw),
 
 	TP_STRUCT__entry (
-		__field(  void *,			ctx	)
-		__field(  int,				rw	)
-		__field(  void *,			req	)
-		__field(  struct io_wq_work *,		work	)
-		__field(  unsigned int,			flags	)
+		__field(  void *,			ctx		)
+		__field(  void *,			req		)
+		__field(  u64,				user_data	)
+		__field(  u8,				opcode		)
+		__field(  unsigned int,			flags		)
+		__field(  struct io_wq_work *,		work		)
+		__field(  int,				rw		)
 	),
 
 	TP_fast_assign(
-		__entry->ctx	= ctx;
-		__entry->rw	= rw;
-		__entry->req	= req;
-		__entry->work	= work;
-		__entry->flags	= flags;
+		__entry->ctx		= ctx;
+		__entry->req		= req;
+		__entry->user_data	= user_data;
+		__entry->flags		= flags;
+		__entry->opcode		= opcode;
+		__entry->work		= work;
+		__entry->rw		= rw;
 	),
 
-	TP_printk("ring %p, request %p, flags %d, %s queue, work %p",
-			  __entry->ctx, __entry->req, __entry->flags,
-			  __entry->rw ? "hashed" : "normal", __entry->work)
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d, flags 0x%x, %s queue, work %p",
+		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
+		__entry->flags, __entry->rw ? "hashed" : "normal", __entry->work)
 );
 
 /**
@@ -169,30 +180,33 @@ TRACE_EVENT(io_uring_queue_async_work,
  * @ctx:	pointer to a ring context structure
  * @req:	pointer to a deferred request
  * @user_data:	user data associated with the request
+ * @opcode:	opcode of request
  *
  * Allows to track deferred requests, to get an insight about what requests are
  * not started immediately.
  */
 TRACE_EVENT(io_uring_defer,
 
-	TP_PROTO(void *ctx, void *req, unsigned long long user_data),
+	TP_PROTO(void *ctx, void *req, unsigned long long user_data, u8 opcode),
 
-	TP_ARGS(ctx, req, user_data),
+	TP_ARGS(ctx, req, user_data, opcode),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx		)
-		__field(  void *,	req		)
-		__field(  unsigned long long, data	)
+		__field(  void *,		ctx	)
+		__field(  void *,		req	)
+		__field(  unsigned long long,	data	)
+		__field(  u8,			opcode	)
 	),
 
 	TP_fast_assign(
 		__entry->ctx	= ctx;
 		__entry->req	= req;
 		__entry->data	= user_data;
+		__entry->opcode	= opcode;
 	),
 
-	TP_printk("ring %p, request %p user_data %llu", __entry->ctx,
-			__entry->req, __entry->data)
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d",
+		__entry->ctx, __entry->req, __entry->data, __entry->opcode)
 );
 
 /**
@@ -250,7 +264,7 @@ TRACE_EVENT(io_uring_cqring_wait,
 	),
 
 	TP_fast_assign(
-		__entry->ctx	= ctx;
+		__entry->ctx		= ctx;
 		__entry->min_events	= min_events;
 	),
 
@@ -260,7 +274,10 @@ TRACE_EVENT(io_uring_cqring_wait,
 /**
  * io_uring_fail_link - called before failing a linked request
  *
+ * @ctx:	pointer to a ring context structure
  * @req:	request, which links were cancelled
+ * @user_data:	user data associated with the request
+ * @opcode:	opcode of request
  * @link:	cancelled link
  *
  * Allows to track linked requests cancellation, to see not only that some work
@@ -268,27 +285,36 @@ TRACE_EVENT(io_uring_cqring_wait,
  */
 TRACE_EVENT(io_uring_fail_link,
 
-	TP_PROTO(void *req, void *link),
+	TP_PROTO(void *ctx, void *req, unsigned long long user_data, u8 opcode, void *link),
 
-	TP_ARGS(req, link),
+	TP_ARGS(ctx, req, user_data, opcode, link),
 
 	TP_STRUCT__entry (
-		__field(  void *,	req	)
-		__field(  void *,	link	)
+		__field(  void *,		ctx		)
+		__field(  void *,		req		)
+		__field(  unsigned long long,	user_data	)
+		__field(  u8,			opcode		)
+		__field(  void *,		link		)
 	),
 
 	TP_fast_assign(
-		__entry->req	= req;
-		__entry->link	= link;
+		__entry->ctx		= ctx;
+		__entry->req		= req;
+		__entry->user_data	= user_data;
+		__entry->opcode		= opcode;
+		__entry->link		= link;
 	),
 
-	TP_printk("request %p, link %p", __entry->req, __entry->link)
+	TP_printk("ring %p, request %p, user_data 0x%llx, opcode %d, link %p",
+		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
+		__entry->link)
 );
 
 /**
  * io_uring_complete - called when completing an SQE
  *
  * @ctx:		pointer to a ring context structure
+ * @req:		pointer to a submitted request
  * @user_data:		user data associated with the request
  * @res:		result of the request
  * @cflags:		completion flags
@@ -296,12 +322,13 @@ TRACE_EVENT(io_uring_fail_link,
  */
 TRACE_EVENT(io_uring_complete,
 
-	TP_PROTO(void *ctx, u64 user_data, int res, unsigned cflags),
+	TP_PROTO(void *ctx, void *req, u64 user_data, int res, unsigned cflags),
 
-	TP_ARGS(ctx, user_data, res, cflags),
+	TP_ARGS(ctx, req, user_data, res, cflags),
 
 	TP_STRUCT__entry (
 		__field(  void *,	ctx		)
+		__field(  void *,	req		)
 		__field(  u64,		user_data	)
 		__field(  int,		res		)
 		__field(  unsigned,	cflags		)
@@ -309,14 +336,16 @@ TRACE_EVENT(io_uring_complete,
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
+		__entry->req		= req;
 		__entry->user_data	= user_data;
 		__entry->res		= res;
 		__entry->cflags		= cflags;
 	),
 
-	TP_printk("ring %p, user_data 0x%llx, result %d, cflags %x",
-			  __entry->ctx, (unsigned long long)__entry->user_data,
-			  __entry->res, __entry->cflags)
+	TP_printk("ring %p, req %p, user_data 0x%llx, result %d, cflags 0x%x",
+		__entry->ctx, __entry->req,
+		__entry->user_data,
+		__entry->res, __entry->cflags)
 );
 
 /**
@@ -324,8 +353,8 @@ TRACE_EVENT(io_uring_complete,
  *
  * @ctx:		pointer to a ring context structure
  * @req:		pointer to a submitted request
- * @opcode:		opcode of request
  * @user_data:		user data associated with the request
+ * @opcode:		opcode of request
  * @flags		request flags
  * @force_nonblock:	whether a context blocking or not
  * @sq_thread:		true if sq_thread has submitted this SQE
@@ -335,34 +364,34 @@ TRACE_EVENT(io_uring_complete,
  */
 TRACE_EVENT(io_uring_submit_sqe,
 
-	TP_PROTO(void *ctx, void *req, u8 opcode, u64 user_data, u32 flags,
+	TP_PROTO(void *ctx, void *req, unsigned long long user_data, u8 opcode, u32 flags,
 		 bool force_nonblock, bool sq_thread),
 
-	TP_ARGS(ctx, req, opcode, user_data, flags, force_nonblock, sq_thread),
+	TP_ARGS(ctx, req, user_data, opcode, flags, force_nonblock, sq_thread),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx		)
-		__field(  void *,	req		)
-		__field(  u8,		opcode		)
-		__field(  u64,		user_data	)
-		__field(  u32,		flags		)
-		__field(  bool,		force_nonblock	)
-		__field(  bool,		sq_thread	)
+		__field(  void *,		ctx		)
+		__field(  void *,		req		)
+		__field(  unsigned long long,	user_data	)
+		__field(  u8,			opcode		)
+		__field(  u32,			flags		)
+		__field(  bool,			force_nonblock	)
+		__field(  bool,			sq_thread	)
 	),
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->req		= req;
-		__entry->opcode		= opcode;
 		__entry->user_data	= user_data;
+		__entry->opcode		= opcode;
 		__entry->flags		= flags;
 		__entry->force_nonblock	= force_nonblock;
 		__entry->sq_thread	= sq_thread;
 	),
 
-	TP_printk("ring %p, req %p, op %d, data 0x%llx, flags %u, "
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, flags 0x%x, "
 		  "non block %d, sq_thread %d", __entry->ctx, __entry->req,
-		  __entry->opcode, (unsigned long long)__entry->user_data,
+		  __entry->user_data, __entry->opcode,
 		  __entry->flags, __entry->force_nonblock, __entry->sq_thread)
 );
 
@@ -371,8 +400,8 @@ TRACE_EVENT(io_uring_submit_sqe,
  *
  * @ctx:		pointer to a ring context structure
  * @req:		pointer to the armed request
- * @opcode:		opcode of request
  * @user_data:		user data associated with the request
+ * @opcode:		opcode of request
  * @mask:		request poll events mask
  * @events:		registered events of interest
  *
@@ -381,155 +410,110 @@ TRACE_EVENT(io_uring_submit_sqe,
  */
 TRACE_EVENT(io_uring_poll_arm,
 
-	TP_PROTO(void *ctx, void *req, u8 opcode, u64 user_data,
+	TP_PROTO(void *ctx, void *req, u64 user_data, u8 opcode,
 		 int mask, int events),
 
-	TP_ARGS(ctx, req, opcode, user_data, mask, events),
+	TP_ARGS(ctx, req, user_data, opcode, mask, events),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx		)
-		__field(  void *,	req		)
-		__field(  u8,		opcode		)
-		__field(  u64,		user_data	)
-		__field(  int,		mask		)
-		__field(  int,		events		)
+		__field(  void *,		ctx		)
+		__field(  void *,		req		)
+		__field(  unsigned long long,	user_data	)
+		__field(  u8,			opcode		)
+		__field(  int,			mask		)
+		__field(  int,			events		)
 	),
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->req		= req;
-		__entry->opcode		= opcode;
 		__entry->user_data	= user_data;
+		__entry->opcode		= opcode;
 		__entry->mask		= mask;
 		__entry->events		= events;
 	),
 
-	TP_printk("ring %p, req %p, op %d, data 0x%llx, mask 0x%x, events 0x%x",
-		  __entry->ctx, __entry->req, __entry->opcode,
-		  (unsigned long long) __entry->user_data,
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, mask 0x%x, events 0x%x",
+		  __entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
 		  __entry->mask, __entry->events)
 );
 
-TRACE_EVENT(io_uring_poll_wake,
-
-	TP_PROTO(void *ctx, u8 opcode, u64 user_data, int mask),
-
-	TP_ARGS(ctx, opcode, user_data, mask),
-
-	TP_STRUCT__entry (
-		__field(  void *,	ctx		)
-		__field(  u8,		opcode		)
-		__field(  u64,		user_data	)
-		__field(  int,		mask		)
-	),
-
-	TP_fast_assign(
-		__entry->ctx		= ctx;
-		__entry->opcode		= opcode;
-		__entry->user_data	= user_data;
-		__entry->mask		= mask;
-	),
-
-	TP_printk("ring %p, op %d, data 0x%llx, mask 0x%x",
-			  __entry->ctx, __entry->opcode,
-			  (unsigned long long) __entry->user_data,
-			  __entry->mask)
-);
-
-TRACE_EVENT(io_uring_task_add,
-
-	TP_PROTO(void *ctx, u8 opcode, u64 user_data, int mask),
-
-	TP_ARGS(ctx, opcode, user_data, mask),
-
-	TP_STRUCT__entry (
-		__field(  void *,	ctx		)
-		__field(  u8,		opcode		)
-		__field(  u64,		user_data	)
-		__field(  int,		mask		)
-	),
-
-	TP_fast_assign(
-		__entry->ctx		= ctx;
-		__entry->opcode		= opcode;
-		__entry->user_data	= user_data;
-		__entry->mask		= mask;
-	),
-
-	TP_printk("ring %p, op %d, data 0x%llx, mask %x",
-			  __entry->ctx, __entry->opcode,
-			  (unsigned long long) __entry->user_data,
-			  __entry->mask)
-);
-
 /*
- * io_uring_task_run - called when task_work_run() executes the poll events
- *                     notification callbacks
+ * io_uring_task_add - called after adding a task
  *
  * @ctx:		pointer to a ring context structure
- * @req:		pointer to the armed request
- * @opcode:		opcode of request
+ * @req:		pointer to request
  * @user_data:		user data associated with the request
+ * @opcode:		opcode of request
+ * @mask:		request poll events mask
  *
- * Allows to track when notified poll events are processed
  */
-TRACE_EVENT(io_uring_task_run,
+TRACE_EVENT(io_uring_task_add,
 
-	TP_PROTO(void *ctx, void *req, u8 opcode, u64 user_data),
+	TP_PROTO(void *ctx, void *req, unsigned long long user_data, u8 opcode, int mask),
 
-	TP_ARGS(ctx, req, opcode, user_data),
+	TP_ARGS(ctx, req, user_data, opcode, mask),
 
 	TP_STRUCT__entry (
-		__field(  void *,	ctx		)
-		__field(  void *,	req		)
-		__field(  u8,		opcode		)
-		__field(  u64,		user_data	)
+		__field(  void *,		ctx		)
+		__field(  void *,		req		)
+		__field(  unsigned long long,	user_data	)
+		__field(  u8,			opcode		)
+		__field(  int,			mask		)
 	),
 
 	TP_fast_assign(
 		__entry->ctx		= ctx;
 		__entry->req		= req;
-		__entry->opcode		= opcode;
 		__entry->user_data	= user_data;
+		__entry->opcode		= opcode;
+		__entry->mask		= mask;
 	),
 
-	TP_printk("ring %p, req %p, op %d, data 0x%llx",
-		  __entry->ctx, __entry->req, __entry->opcode,
-		  (unsigned long long) __entry->user_data)
+	TP_printk("ring %p, req %p, user_data 0x%llx, opcode %d, mask %x",
+		__entry->ctx, __entry->req, __entry->user_data, __entry->opcode,
+		__entry->mask)
 );
 
 /*
  * io_uring_req_failed - called when an sqe is errored dring submission
  *
  * @sqe:		pointer to the io_uring_sqe that failed
+ * @ctx:		pointer to a ring context structure
+ * @req:		pointer to request
  * @error:		error it failed with
  *
  * Allows easier diagnosing of malformed requests in production systems.
  */
 TRACE_EVENT(io_uring_req_failed,
 
-	TP_PROTO(const struct io_uring_sqe *sqe, int error),
+	TP_PROTO(const struct io_uring_sqe *sqe, void *ctx, void *req, int error),
 
-	TP_ARGS(sqe, error),
+	TP_ARGS(sqe, ctx, req, error),
 
 	TP_STRUCT__entry (
-		__field(  u8,	opcode )
-		__field(  u8,	flags )
-		__field(  u8,	ioprio )
-		__field( u64,	off )
-		__field( u64,	addr )
-		__field( u32,	len )
-		__field( u32,	op_flags )
-		__field( u64,	user_data )
-		__field( u16,	buf_index )
-		__field( u16,	personality )
-		__field( u32,	file_index )
-		__field( u64,	pad1 )
-		__field( u64,	pad2 )
-		__field( int,	error )
+		__field(  void *,		ctx		)
+		__field(  void *,		req		)
+		__field(  unsigned long long,	user_data	)
+		__field(  u8,			opcode		)
+		__field(  u8,			flags		)
+		__field(  u8,			ioprio		)
+		__field( u64,			off		)
+		__field( u64,			addr		)
+		__field( u32,			len		)
+		__field( u32,			op_flags	)
+		__field( u16,			buf_index	)
+		__field( u16,			personality	)
+		__field( u32,			file_index	)
+		__field( u64,			pad1		)
+		__field( u64,			pad2		)
+		__field( int,			error		)
 	),
 
 	TP_fast_assign(
+		__entry->ctx		= ctx;
+		__entry->req		= req;
+		__entry->user_data	= sqe->user_data;
 		__entry->opcode		= sqe->opcode;
 		__entry->flags		= sqe->flags;
 		__entry->ioprio		= sqe->ioprio;
@@ -537,7 +521,6 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->addr		= sqe->addr;
 		__entry->len		= sqe->len;
 		__entry->op_flags	= sqe->rw_flags;
-		__entry->user_data	= sqe->user_data;
 		__entry->buf_index	= sqe->buf_index;
 		__entry->personality	= sqe->personality;
 		__entry->file_index	= sqe->file_index;
@@ -546,13 +529,15 @@ TRACE_EVENT(io_uring_req_failed,
 		__entry->error		= error;
 	),
 
-	TP_printk("op %d, flags=0x%x, prio=%d, off=%llu, addr=%llu, "
-		  "len=%u, rw_flags=0x%x, user_data=0x%llx, buf_index=%d, "
+	TP_printk("ring %p, req %p, user_data 0x%llx, "
+		"op %d, flags 0x%x, prio=%d, off=%llu, addr=%llu, "
+		  "len=%u, rw_flags=0x%x, buf_index=%d, "
 		  "personality=%d, file_index=%d, pad=0x%llx/%llx, error=%d",
+		  __entry->ctx, __entry->req, __entry->user_data,
 		  __entry->opcode, __entry->flags, __entry->ioprio,
 		  (unsigned long long)__entry->off,
 		  (unsigned long long) __entry->addr, __entry->len,
-		  __entry->op_flags, (unsigned long long) __entry->user_data,
+		  __entry->op_flags,
 		  __entry->buf_index, __entry->personality, __entry->file_index,
 		  (unsigned long long) __entry->pad1,
 		  (unsigned long long) __entry->pad2, __entry->error)

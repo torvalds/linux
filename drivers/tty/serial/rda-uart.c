@@ -573,7 +573,7 @@ static const struct uart_ops rda_uart_ops = {
 
 #ifdef CONFIG_SERIAL_RDA_CONSOLE
 
-static void rda_console_putchar(struct uart_port *port, int ch)
+static void rda_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	if (!port->membase)
 		return;

@@ -449,7 +449,7 @@ struct smb2_netname_neg_context {
  */
 
 /* Flags */
-#define SMB2_ACCEPT_TRANSFORM_LEVEL_SECURITY	0x00000001
+#define SMB2_ACCEPT_TRANSPORT_LEVEL_SECURITY	0x00000001
 
 struct smb2_transport_capabilities_context {
 	__le16	ContextType; /* 6 */

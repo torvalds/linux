@@ -189,6 +189,20 @@ cleanup_pagelistinfo(struct vchiq_pagelist_info *pagelistinfo)
 			  pagelistinfo->pagelist, pagelistinfo->dma_addr);
 }
 
+static inline bool
+is_adjacent_block(u32 *addrs, u32 addr, unsigned int k)
+{
+	u32 tmp;
+
+	if (!k)
+		return false;
+
+	tmp = (addrs[k - 1] & PAGE_MASK) +
+	      (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT);
+
+	return tmp == (addr & PAGE_MASK);
+}
+
 /* There is a potential problem with partial cache lines (pages?)
  * at the ends of the block when reading. If the CPU accessed anything in
  * the same line (page?) then it may have pulled old data into the cache,
@@ -349,10 +363,7 @@ create_pagelist(char *buf, char __user *ubuf,
 		WARN_ON(len == 0);
 		WARN_ON(i && (i != (dma_buffers - 1)) && (len & ~PAGE_MASK));
 		WARN_ON(i && (addr & ~PAGE_MASK));
-		if (k > 0 &&
-		    ((addrs[k - 1] & PAGE_MASK) +
-		     (((addrs[k - 1] & ~PAGE_MASK) + 1) << PAGE_SHIFT))
-		    == (addr & PAGE_MASK))
+		if (is_adjacent_block(addrs, addr, k))
 			addrs[k - 1] += ((len + PAGE_SIZE - 1) >> PAGE_SHIFT);
 		else
 			addrs[k++] = (addr & PAGE_MASK) |
@@ -582,8 +593,7 @@ vchiq_platform_init_state(struct vchiq_state *state)
 	return 0;
 }
 
-struct vchiq_arm_state*
-vchiq_platform_get_arm_state(struct vchiq_state *state)
+static struct vchiq_arm_state *vchiq_platform_get_arm_state(struct vchiq_state *state)
 {
 	struct vchiq_2835_state *platform_state;
 
@@ -1058,15 +1068,27 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
 
+	rcu_read_lock();
 	service = handle_to_service(handle);
-	if (WARN_ON(!service))
+	if (WARN_ON(!service)) {
+		rcu_read_unlock();
 		return VCHIQ_SUCCESS;
+	}
 
 	user_service = (struct user_service *)service->base.userdata;
 	instance = user_service->instance;
 
-	if (!instance || instance->closing)
+	if (!instance || instance->closing) {
+		rcu_read_unlock();
 		return VCHIQ_SUCCESS;
+	}
+
+	/*
+	 * As hopping around different synchronization mechanism,
+	 * taking an extra reference results in simpler implementation.
+	 */
+	vchiq_service_get(service);
+	rcu_read_unlock();
 
 	vchiq_log_trace(vchiq_arm_log_level,
 			"%s - service %lx(%d,%p), reason %d, header %lx, instance %lx, bulk_userdata %lx",
@@ -1097,6 +1119,7 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 							bulk_userdata);
 				if (status != VCHIQ_SUCCESS) {
 					DEBUG_TRACE(SERVICE_CALLBACK_LINE);
+					vchiq_service_put(service);
 					return status;
 				}
 			}
@@ -1105,10 +1128,12 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 			if (wait_for_completion_interruptible(&user_service->remove_event)) {
 				vchiq_log_info(vchiq_arm_log_level, "%s interrupted", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
+				vchiq_service_put(service);
 				return VCHIQ_RETRY;
 			} else if (instance->closing) {
 				vchiq_log_info(vchiq_arm_log_level, "%s closing", __func__);
 				DEBUG_TRACE(SERVICE_CALLBACK_LINE);
+				vchiq_service_put(service);
 				return VCHIQ_ERROR;
 			}
 			DEBUG_TRACE(SERVICE_CALLBACK_LINE);
@@ -1137,6 +1162,7 @@ service_callback(enum vchiq_reason reason, struct vchiq_header *header,
 		header = NULL;
 	}
 	DEBUG_TRACE(SERVICE_CALLBACK_LINE);
+	vchiq_service_put(service);
 
 	if (skip_completion)
 		return VCHIQ_SUCCESS;
@@ -1192,6 +1218,9 @@ int vchiq_dump_platform_instances(void *dump_context)
 	char buf[80];
 	int len;
 	int i;
+
+	if (!state)
+		return -ENOTCONN;
 
 	/*
 	 * There is no list of instances, so instead scan all services,
@@ -1274,14 +1303,18 @@ int vchiq_dump_platform_service_state(void *dump_context,
 struct vchiq_state *
 vchiq_get_state(void)
 {
-	if (!g_state.remote)
+	if (!g_state.remote) {
 		pr_err("%s: g_state.remote == NULL\n", __func__);
-	else if (g_state.remote->initialised != 1)
+		return NULL;
+	}
+
+	if (g_state.remote->initialised != 1) {
 		pr_notice("%s: g_state.remote->initialised != 1 (%d)\n",
 			  __func__, g_state.remote->initialised);
+		return NULL;
+	}
 
-	return (g_state.remote &&
-		(g_state.remote->initialised == 1)) ? &g_state : NULL;
+	return &g_state;
 }
 
 /*

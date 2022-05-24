@@ -58,6 +58,14 @@ int kvm_arch_hardware_enable(void)
 
 void kvm_arch_hardware_disable(void)
 {
+	/*
+	 * After clearing the hideleg CSR, the host kernel will receive
+	 * spurious interrupts if hvip CSR has pending interrupts and the
+	 * corresponding enable bits in vsie CSR are asserted. To avoid it,
+	 * hvip CSR and vsie CSR must be cleared before clearing hideleg CSR.
+	 */
+	csr_write(CSR_VSIE, 0);
+	csr_write(CSR_HVIP, 0);
 	csr_write(CSR_HEDELEG, 0);
 	csr_write(CSR_HIDELEG, 0);
 }

@@ -283,9 +283,6 @@ int zpci_dma_exit_device(struct zpci_dev *zdev);
 int __init zpci_irq_init(void);
 void __init zpci_irq_exit(void);
 
-int zpci_set_irq(struct zpci_dev *zdev);
-int zpci_clear_irq(struct zpci_dev *zdev);
-
 /* FMB */
 int zpci_fmb_enable_device(struct zpci_dev *);
 int zpci_fmb_disable_device(struct zpci_dev *);

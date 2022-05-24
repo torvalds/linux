@@ -14,6 +14,8 @@ description: |
   NVRAM can be accessed on Broadcom BCM47xx MIPS and Northstar ARM Cortex-A9
   devices usiong I/O mapped memory.
 
+  NVRAM variables can be defined as NVMEM device subnodes.
+
 maintainers:
   - Rafał Miłecki <rafal@milecki.pl>
 
@@ -27,11 +29,30 @@ properties:
   reg:
     maxItems: 1
 
+  board_id:
+    type: object
+    description: Board identification name
+
+  et0macaddr:
+    type: object
+    description: First Ethernet interface's MAC address
+
+  et1macaddr:
+    type: object
+    description: Second Ethernet interface's MAC address
+
+  et2macaddr:
+    type: object
+    description: Third Ethernet interface's MAC address
+
 unevaluatedProperties: false
 
 examples:
   - |
     nvram@1eff0000 {
-            compatible = "brcm,nvram";
-            reg = <0x1eff0000 0x10000>;
+        compatible = "brcm,nvram";
+        reg = <0x1eff0000 0x10000>;
+
+        mac: et0macaddr {
+        };
     };

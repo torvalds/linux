@@ -26,9 +26,8 @@ properties:
   reg-io-width:
     description:
       Width (in bytes) of the registers specified by the reg property.
-    allOf:
-      - $ref: /schemas/types.yaml#/definitions/uint32
-      - enum: [1, 4]
+    $ref: /schemas/types.yaml#/definitions/uint32
+    enum: [1, 4]
     default: 1
 
   clocks:

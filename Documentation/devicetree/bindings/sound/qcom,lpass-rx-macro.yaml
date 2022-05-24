@@ -39,6 +39,14 @@ properties:
     items:
       - const: mclk
 
+  power-domains:
+    maxItems: 2
+
+  power-domain-names:
+    items:
+      - const: macro
+      - const: dcodec
+
 required:
   - compatible
   - reg

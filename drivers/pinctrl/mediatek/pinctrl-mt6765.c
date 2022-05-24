@@ -1082,21 +1082,16 @@ static const struct mtk_pin_soc mt6765_data = {
 };
 
 static const struct of_device_id mt6765_pinctrl_of_match[] = {
-	{ .compatible = "mediatek,mt6765-pinctrl", },
+	{ .compatible = "mediatek,mt6765-pinctrl", .data = &mt6765_data },
 	{ }
 };
-
-static int mt6765_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_paris_pinctrl_probe(pdev, &mt6765_data);
-}
 
 static struct platform_driver mt6765_pinctrl_driver = {
 	.driver = {
 		.name = "mt6765-pinctrl",
 		.of_match_table = mt6765_pinctrl_of_match,
 	},
-	.probe = mt6765_pinctrl_probe,
+	.probe = mtk_paris_pinctrl_probe,
 };
 
 static int __init mt6765_pinctrl_init(void)

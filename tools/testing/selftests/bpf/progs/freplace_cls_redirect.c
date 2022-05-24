@@ -7,12 +7,12 @@
 #include <bpf/bpf_endian.h>
 #include <bpf/bpf_helpers.h>
 
-struct bpf_map_def SEC("maps") sock_map = {
-	.type = BPF_MAP_TYPE_SOCKMAP,
-	.key_size = sizeof(int),
-	.value_size = sizeof(int),
-	.max_entries = 2,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_SOCKMAP);
+	__type(key, int);
+	__type(value, int);
+	__uint(max_entries, 2);
+} sock_map SEC(".maps");
 
 SEC("freplace/cls_redirect")
 int freplace_cls_redirect_test(struct __sk_buff *skb)

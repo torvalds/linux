@@ -10,6 +10,7 @@
 #include <linux/fs.h>
 #include <linux/mm.h>
 #include <linux/pagemap.h>
+#include <linux/rmap.h>
 #include <linux/tracepoint-defs.h>
 
 struct folio_batch;
@@ -66,15 +67,11 @@ static inline void wake_throttle_isolated(pg_data_t *pgdat)
 vm_fault_t do_swap_page(struct vm_fault *vmf);
 void folio_rotate_reclaimable(struct folio *folio);
 bool __folio_end_writeback(struct folio *folio);
+void deactivate_file_folio(struct folio *folio);
 
 void free_pgtables(struct mmu_gather *tlb, struct vm_area_struct *start_vma,
 		unsigned long floor, unsigned long ceiling);
 void pmd_install(struct mm_struct *mm, pmd_t *pmd, pgtable_t *pte);
-
-static inline bool can_madv_lru_vma(struct vm_area_struct *vma)
-{
-	return !(vma->vm_flags & (VM_LOCKED|VM_HUGETLB|VM_PFNMAP));
-}
 
 struct zap_details;
 void unmap_page_range(struct mmu_gather *tlb,
@@ -82,8 +79,8 @@ void unmap_page_range(struct mmu_gather *tlb,
 			     unsigned long addr, unsigned long end,
 			     struct zap_details *details);
 
-void do_page_cache_ra(struct readahead_control *, unsigned long nr_to_read,
-		unsigned long lookahead_size);
+void page_cache_ra_order(struct readahead_control *, struct file_ra_state *,
+		unsigned int order);
 void force_page_cache_ra(struct readahead_control *, unsigned long nr);
 static inline void force_page_cache_readahead(struct address_space *mapping,
 		struct file *file, pgoff_t index, unsigned long nr_to_read)
@@ -100,6 +97,9 @@ void filemap_free_folio(struct address_space *mapping, struct folio *folio);
 int truncate_inode_folio(struct address_space *mapping, struct folio *folio);
 bool truncate_inode_partial_folio(struct folio *folio, loff_t start,
 		loff_t end);
+long invalidate_inode_page(struct page *page);
+unsigned long invalidate_mapping_pagevec(struct address_space *mapping,
+		pgoff_t start, pgoff_t end, unsigned long *nr_pagevec);
 
 /**
  * folio_evictable - Test whether a folio is evictable.
@@ -155,10 +155,18 @@ extern unsigned long highest_memmap_pfn;
 #define MAX_RECLAIM_RETRIES 16
 
 /*
+ * in mm/early_ioremap.c
+ */
+pgprot_t __init early_memremap_pgprot_adjust(resource_size_t phys_addr,
+					unsigned long size, pgprot_t prot);
+
+/*
  * in mm/vmscan.c:
  */
-extern int isolate_lru_page(struct page *page);
-extern void putback_lru_page(struct page *page);
+int isolate_lru_page(struct page *page);
+int folio_isolate_lru(struct folio *folio);
+void putback_lru_page(struct page *page);
+void folio_putback_lru(struct folio *folio);
 extern void reclaim_throttle(pg_data_t *pgdat, enum vmscan_throttle_state reason);
 
 /*
@@ -390,6 +398,7 @@ static inline bool is_data_mapping(vm_flags_t flags)
 void __vma_link_list(struct mm_struct *mm, struct vm_area_struct *vma,
 		struct vm_area_struct *prev);
 void __vma_unlink_list(struct mm_struct *mm, struct vm_area_struct *vma);
+struct anon_vma *folio_anon_vma(struct folio *folio);
 
 #ifdef CONFIG_MMU
 void unmap_mapping_folio(struct folio *folio);
@@ -398,32 +407,56 @@ extern long populate_vma_page_range(struct vm_area_struct *vma,
 extern long faultin_vma_page_range(struct vm_area_struct *vma,
 				   unsigned long start, unsigned long end,
 				   bool write, int *locked);
-extern void munlock_vma_pages_range(struct vm_area_struct *vma,
-			unsigned long start, unsigned long end);
-static inline void munlock_vma_pages_all(struct vm_area_struct *vma)
-{
-	munlock_vma_pages_range(vma, vma->vm_start, vma->vm_end);
-}
-
-/*
- * must be called with vma's mmap_lock held for read or write, and page locked.
- */
-extern void mlock_vma_page(struct page *page);
-extern unsigned int munlock_vma_page(struct page *page);
-
 extern int mlock_future_check(struct mm_struct *mm, unsigned long flags,
 			      unsigned long len);
-
 /*
- * Clear the page's PageMlocked().  This can be useful in a situation where
- * we want to unconditionally remove a page from the pagecache -- e.g.,
- * on truncation or freeing.
+ * mlock_vma_page() and munlock_vma_page():
+ * should be called with vma's mmap_lock held for read or write,
+ * under page table lock for the pte/pmd being added or removed.
  *
- * It is legal to call this function for any page, mlocked or not.
- * If called for a page that is still mapped by mlocked vmas, all we do
- * is revert to lazy LRU behaviour -- semantics are not broken.
+ * mlock is usually called at the end of page_add_*_rmap(),
+ * munlock at the end of page_remove_rmap(); but new anon
+ * pages are managed by lru_cache_add_inactive_or_unevictable()
+ * calling mlock_new_page().
+ *
+ * @compound is used to include pmd mappings of THPs, but filter out
+ * pte mappings of THPs, which cannot be consistently counted: a pte
+ * mapping of the THP head cannot be distinguished by the page alone.
  */
-extern void clear_page_mlock(struct page *page);
+void mlock_folio(struct folio *folio);
+static inline void mlock_vma_folio(struct folio *folio,
+			struct vm_area_struct *vma, bool compound)
+{
+	/*
+	 * The VM_SPECIAL check here serves two purposes.
+	 * 1) VM_IO check prevents migration from double-counting during mlock.
+	 * 2) Although mmap_region() and mlock_fixup() take care that VM_LOCKED
+	 *    is never left set on a VM_SPECIAL vma, there is an interval while
+	 *    file->f_op->mmap() is using vm_insert_page(s), when VM_LOCKED may
+	 *    still be set while VM_SPECIAL bits are added: so ignore it then.
+	 */
+	if (unlikely((vma->vm_flags & (VM_LOCKED|VM_SPECIAL)) == VM_LOCKED) &&
+	    (compound || !folio_test_large(folio)))
+		mlock_folio(folio);
+}
+
+static inline void mlock_vma_page(struct page *page,
+			struct vm_area_struct *vma, bool compound)
+{
+	mlock_vma_folio(page_folio(page), vma, compound);
+}
+
+void munlock_page(struct page *page);
+static inline void munlock_vma_page(struct page *page,
+			struct vm_area_struct *vma, bool compound)
+{
+	if (unlikely(vma->vm_flags & VM_LOCKED) &&
+	    (compound || !PageTransCompound(page)))
+		munlock_page(page);
+}
+void mlock_new_page(struct page *page);
+bool need_mlock_page_drain(int cpu);
+void mlock_page_drain(int cpu);
 
 extern pmd_t maybe_pmd_mkwrite(pmd_t pmd, struct vm_area_struct *vma);
 
@@ -457,18 +490,20 @@ vma_address(struct page *page, struct vm_area_struct *vma)
 }
 
 /*
- * Then at what user virtual address will none of the page be found in vma?
+ * Then at what user virtual address will none of the range be found in vma?
  * Assumes that vma_address() already returned a good starting address.
- * If page is a compound head, the entire compound page is considered.
  */
-static inline unsigned long
-vma_address_end(struct page *page, struct vm_area_struct *vma)
+static inline unsigned long vma_address_end(struct page_vma_mapped_walk *pvmw)
 {
+	struct vm_area_struct *vma = pvmw->vma;
 	pgoff_t pgoff;
 	unsigned long address;
 
-	VM_BUG_ON_PAGE(PageKsm(page), page);	/* KSM page->index unusable */
-	pgoff = page_to_pgoff(page) + compound_nr(page);
+	/* Common case, plus ->pgoff is invalid for KSM */
+	if (pvmw->nr_pages == 1)
+		return pvmw->address + PAGE_SIZE;
+
+	pgoff = pvmw->pgoff + pvmw->nr_pages;
 	address = vma->vm_start + ((pgoff - vma->vm_pgoff) << PAGE_SHIFT);
 	/* Check for address beyond vma (or wrapped through 0?) */
 	if (address < vma->vm_start || address > vma->vm_end)
@@ -498,8 +533,13 @@ static inline struct file *maybe_unlock_mmap_for_io(struct vm_fault *vmf,
 }
 #else /* !CONFIG_MMU */
 static inline void unmap_mapping_folio(struct folio *folio) { }
-static inline void clear_page_mlock(struct page *page) { }
-static inline void mlock_vma_page(struct page *page) { }
+static inline void mlock_vma_page(struct page *page,
+			struct vm_area_struct *vma, bool compound) { }
+static inline void munlock_vma_page(struct page *page,
+			struct vm_area_struct *vma, bool compound) { }
+static inline void mlock_new_page(struct page *page) { }
+static inline bool need_mlock_page_drain(int cpu) { return false; }
+static inline void mlock_page_drain(int cpu) { }
 static inline void vunmap_range_noflush(unsigned long start, unsigned long end)
 {
 }
@@ -571,17 +611,6 @@ static inline void mminit_verify_zonelist(void)
 {
 }
 #endif /* CONFIG_DEBUG_MEMORY_INIT */
-
-/* mminit_validate_memmodel_limits is independent of CONFIG_DEBUG_MEMORY_INIT */
-#if defined(CONFIG_SPARSEMEM)
-extern void mminit_validate_memmodel_limits(unsigned long *start_pfn,
-				unsigned long *end_pfn);
-#else
-static inline void mminit_validate_memmodel_limits(unsigned long *start_pfn,
-				unsigned long *end_pfn)
-{
-}
-#endif /* CONFIG_SPARSEMEM */
 
 #define NODE_RECLAIM_NOSCAN	-2
 #define NODE_RECLAIM_FULL	-1
@@ -717,5 +746,14 @@ void vunmap_range_noflush(unsigned long start, unsigned long end);
 
 int numa_migrate_prep(struct page *page, struct vm_area_struct *vma,
 		      unsigned long addr, int page_nid, int *flags);
+
+void free_zone_device_page(struct page *page);
+
+/*
+ * mm/gup.c
+ */
+struct folio *try_grab_folio(struct page *page, int refs, unsigned int flags);
+
+DECLARE_PER_CPU(struct per_cpu_nodestat, boot_nodestats);
 
 #endif	/* __MM_INTERNAL_H */

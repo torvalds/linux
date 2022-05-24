@@ -24,7 +24,28 @@ from the unflattened device tree data structure. This interface is used by
 most of the device drivers in various use cases.
 
 
-2. Test-data
+2. Verbose Output (EXPECT)
+==========================
+
+If unittest detects a problem it will print a warning or error message to
+the console.  Unittest also triggers warning and error messages from other
+kernel code as a result of intentionally bad unittest data.  This has led
+to confusion as to whether the triggered messages are an expected result
+of a test or whether there is a real problem that is independent of unittest.
+
+'EXPECT \ : text' (begin) and 'EXPECT / : text' (end) messages have been
+added to unittest to report that a warning or error is expected.  The
+begin is printed before triggering the warning or error, and the end is
+printed after triggering the warning or error.
+
+The EXPECT messages result in very noisy console messages that are difficult
+to read.  The script scripts/dtc/of_unittest_expect was created to filter
+this verbosity and highlight mismatches between triggered warnings and
+errors vs expected warnings and errors.  More information is available
+from 'scripts/dtc/of_unittest_expect --help'.
+
+
+3. Test-data
 ============
 
 The Device Tree Source file (drivers/of/unittest-data/testcases.dts) contains
@@ -56,7 +77,7 @@ The assembly file is compiled into an object file (testcases.dtb.o), and is
 linked into the kernel image.
 
 
-2.1. Adding the test data
+3.1. Adding the test data
 -------------------------
 
 Un-flattened device tree structure:
@@ -191,7 +212,7 @@ properties are updated to the live tree's node by calling the function
 update_node_properties().
 
 
-2.2. Removing the test data
+3.2. Removing the test data
 ---------------------------
 
 Once the test case execution is complete, selftest_data_remove is called in

@@ -43,6 +43,7 @@ properties:
       by remote SCP firmware for use by SCPI message protocol should be
       specified in any order.
     minItems: 1
+    maxItems: 4
 
   shmem:
     description:
@@ -51,6 +52,7 @@ properties:
       be any memory reserved for the purpose of this communication between the
       processors.
     minItems: 1
+    maxItems: 4
 
   power-controller:
     type: object
@@ -235,8 +237,8 @@ examples:
     firmware {
         scpi {
             compatible = "amlogic,meson-gxbb-scpi", "arm,scpi-pre-1.0";
-            mboxes = <&mailbox 1 &mailbox 2>;
-            shmem = <&cpu_scp_lpri &cpu_scp_hpri>;
+            mboxes = <&mailbox 1>, <&mailbox 2>;
+            shmem = <&cpu_scp_lpri>, <&cpu_scp_hpri>;
 
             scpi_sensors1: sensors {
                 compatible = "amlogic,meson-gxbb-scpi-sensors", "arm,scpi-sensors";

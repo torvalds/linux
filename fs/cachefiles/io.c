@@ -138,7 +138,6 @@ static int cachefiles_read(struct netfs_cache_resources *cres,
 	ki->iocb.ki_filp	= file;
 	ki->iocb.ki_pos		= start_pos + skipped;
 	ki->iocb.ki_flags	= IOCB_DIRECT;
-	ki->iocb.ki_hint	= ki_hint_validate(file_write_hint(file));
 	ki->iocb.ki_ioprio	= get_current_ioprio();
 	ki->skipped		= skipped;
 	ki->object		= object;
@@ -189,6 +188,64 @@ presubmission_error:
 	if (term_func)
 		term_func(term_func_priv, ret < 0 ? ret : skipped, false);
 	return ret;
+}
+
+/*
+ * Query the occupancy of the cache in a region, returning where the next chunk
+ * of data starts and how long it is.
+ */
+static int cachefiles_query_occupancy(struct netfs_cache_resources *cres,
+				      loff_t start, size_t len, size_t granularity,
+				      loff_t *_data_start, size_t *_data_len)
+{
+	struct cachefiles_object *object;
+	struct file *file;
+	loff_t off, off2;
+
+	*_data_start = -1;
+	*_data_len = 0;
+
+	if (!fscache_wait_for_operation(cres, FSCACHE_WANT_READ))
+		return -ENOBUFS;
+
+	object = cachefiles_cres_object(cres);
+	file = cachefiles_cres_file(cres);
+	granularity = max_t(size_t, object->volume->cache->bsize, granularity);
+
+	_enter("%pD,%li,%llx,%zx/%llx",
+	       file, file_inode(file)->i_ino, start, len,
+	       i_size_read(file_inode(file)));
+
+	off = cachefiles_inject_read_error();
+	if (off == 0)
+		off = vfs_llseek(file, start, SEEK_DATA);
+	if (off == -ENXIO)
+		return -ENODATA; /* Beyond EOF */
+	if (off < 0 && off >= (loff_t)-MAX_ERRNO)
+		return -ENOBUFS; /* Error. */
+	if (round_up(off, granularity) >= start + len)
+		return -ENODATA; /* No data in range */
+
+	off2 = cachefiles_inject_read_error();
+	if (off2 == 0)
+		off2 = vfs_llseek(file, off, SEEK_HOLE);
+	if (off2 == -ENXIO)
+		return -ENODATA; /* Beyond EOF */
+	if (off2 < 0 && off2 >= (loff_t)-MAX_ERRNO)
+		return -ENOBUFS; /* Error. */
+
+	/* Round away partial blocks */
+	off = round_up(off, granularity);
+	off2 = round_down(off2, granularity);
+	if (off2 <= off)
+		return -ENODATA;
+
+	*_data_start = off;
+	if (off2 > start + len)
+		*_data_len = len;
+	else
+		*_data_len = off2 - off;
+	return 0;
 }
 
 /*
@@ -255,7 +312,6 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 	ki->iocb.ki_filp	= file;
 	ki->iocb.ki_pos		= start_pos;
 	ki->iocb.ki_flags	= IOCB_DIRECT | IOCB_WRITE;
-	ki->iocb.ki_hint	= ki_hint_validate(file_write_hint(file));
 	ki->iocb.ki_ioprio	= get_current_ioprio();
 	ki->object		= object;
 	ki->inval_counter	= cres->inval_counter;
@@ -264,7 +320,7 @@ static int cachefiles_write(struct netfs_cache_resources *cres,
 	ki->term_func		= term_func;
 	ki->term_func_priv	= term_func_priv;
 	ki->was_async		= true;
-	ki->b_writing		= (len + (1 << cache->bshift)) >> cache->bshift;
+	ki->b_writing		= (len + (1 << cache->bshift) - 1) >> cache->bshift;
 
 	if (ki->term_func)
 		ki->iocb.ki_complete = cachefiles_write_complete;
@@ -545,6 +601,7 @@ static const struct netfs_cache_ops cachefiles_netfs_cache_ops = {
 	.write			= cachefiles_write,
 	.prepare_read		= cachefiles_prepare_read,
 	.prepare_write		= cachefiles_prepare_write,
+	.query_occupancy	= cachefiles_query_occupancy,
 };
 
 /*

@@ -71,12 +71,13 @@ static int iwl_mvm_vendor_host_get_ownership(struct wiphy *wiphy,
 {
 	struct ieee80211_hw *hw = wiphy_to_ieee80211_hw(wiphy);
 	struct iwl_mvm *mvm = IWL_MAC80211_GET_MVM(hw);
+	int ret;
 
 	mutex_lock(&mvm->mutex);
-	iwl_mvm_mei_get_ownership(mvm);
+	ret = iwl_mvm_mei_get_ownership(mvm);
 	mutex_unlock(&mvm->mutex);
 
-	return 0;
+	return ret;
 }
 
 static const struct wiphy_vendor_command iwl_mvm_vendor_commands[] = {

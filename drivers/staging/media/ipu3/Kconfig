@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 config VIDEO_IPU3_IMGU
 	tristate "Intel ipu3-imgu driver"
-	depends on PCI && VIDEO_V4L2
+	depends on PCI && VIDEO_DEV
 	depends on X86
 	select MEDIA_CONTROLLER
 	select VIDEO_V4L2_SUBDEV_API

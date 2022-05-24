@@ -18,15 +18,6 @@
 #define MLXREG_FAN_MAX_STATE		10
 #define MLXREG_FAN_MIN_DUTY		51	/* 20% */
 #define MLXREG_FAN_MAX_DUTY		255	/* 100% */
-/*
- * Minimum and maximum FAN allowed speed in percent: from 20% to 100%. Values
- * MLXREG_FAN_MAX_STATE + x, where x is between 2 and 10 are used for
- * setting FAN speed dynamic minimum. For example, if value is set to 14 (40%)
- * cooling levels vector will be set to 4, 4, 4, 4, 4, 5, 6, 7, 8, 9, 10 to
- * introduce PWM speed in percent: 40, 40, 40, 40, 40, 50, 60. 70, 80, 90, 100.
- */
-#define MLXREG_FAN_SPEED_MIN			(MLXREG_FAN_MAX_STATE + 2)
-#define MLXREG_FAN_SPEED_MAX			(MLXREG_FAN_MAX_STATE * 2)
 #define MLXREG_FAN_SPEED_MIN_LEVEL		2	/* 20 percent */
 #define MLXREG_FAN_TACHO_SAMPLES_PER_PULSE_DEF	44
 #define MLXREG_FAN_TACHO_DIV_MIN		283
@@ -87,13 +78,16 @@ struct mlxreg_fan_tacho {
  * @connected: indicates if PWM is connected;
  * @reg: register offset;
  * @cooling: cooling device levels;
+ * @last_hwmon_state: last cooling state set by hwmon subsystem;
+ * @last_thermal_state: last cooling state set by thermal subsystem;
  * @cdev: cooling device;
  */
 struct mlxreg_fan_pwm {
 	struct mlxreg_fan *fan;
 	bool connected;
 	u32 reg;
-	u8 cooling_levels[MLXREG_FAN_MAX_STATE + 1];
+	unsigned long last_hwmon_state;
+	unsigned long last_thermal_state;
 	struct thermal_cooling_device *cdev;
 };
 
@@ -118,6 +112,9 @@ struct mlxreg_fan {
 	int samples;
 	int divider;
 };
+
+static int mlxreg_fan_set_cur_state(struct thermal_cooling_device *cdev,
+				    unsigned long state);
 
 static int
 mlxreg_fan_read(struct device *dev, enum hwmon_sensor_types type, u32 attr,
@@ -213,6 +210,18 @@ mlxreg_fan_write(struct device *dev, enum hwmon_sensor_types type, u32 attr,
 			    val > MLXREG_FAN_MAX_DUTY)
 				return -EINVAL;
 			pwm = &fan->pwm[channel];
+			/* If thermal is configured - handle PWM limit setting. */
+			if (IS_REACHABLE(CONFIG_THERMAL)) {
+				pwm->last_hwmon_state = MLXREG_FAN_PWM_DUTY2STATE(val);
+				/*
+				 * Update PWM only in case requested state is not less than the
+				 * last thermal state.
+				 */
+				if (pwm->last_hwmon_state >= pwm->last_thermal_state)
+					return mlxreg_fan_set_cur_state(pwm->cdev,
+									pwm->last_hwmon_state);
+				return 0;
+			}
 			return regmap_write(fan->regmap, pwm->reg, val);
 		default:
 			return -EOPNOTSUPP;
@@ -338,58 +347,22 @@ static int mlxreg_fan_set_cur_state(struct thermal_cooling_device *cdev,
 {
 	struct mlxreg_fan_pwm *pwm = cdev->devdata;
 	struct mlxreg_fan *fan = pwm->fan;
-	unsigned long cur_state;
-	int i, config = 0;
-	u32 regval;
 	int err;
-
-	/*
-	 * Verify if this request is for changing allowed FAN dynamical
-	 * minimum. If it is - update cooling levels accordingly and update
-	 * state, if current state is below the newly requested minimum state.
-	 * For example, if current state is 5, and minimal state is to be
-	 * changed from 4 to 6, fan->cooling_levels[0 to 5] will be changed all
-	 * from 4 to 6. And state 5 (fan->cooling_levels[4]) should be
-	 * overwritten.
-	 */
-	if (state >= MLXREG_FAN_SPEED_MIN && state <= MLXREG_FAN_SPEED_MAX) {
-		/*
-		 * This is configuration change, which is only supported through sysfs.
-		 * For configuration non-zero value is to be returned to avoid thermal
-		 * statistics update.
-		 */
-		config = 1;
-		state -= MLXREG_FAN_MAX_STATE;
-		for (i = 0; i < state; i++)
-			pwm->cooling_levels[i] = state;
-		for (i = state; i <= MLXREG_FAN_MAX_STATE; i++)
-			pwm->cooling_levels[i] = i;
-
-		err = regmap_read(fan->regmap, pwm->reg, &regval);
-		if (err) {
-			dev_err(fan->dev, "Failed to query PWM duty\n");
-			return err;
-		}
-
-		cur_state = MLXREG_FAN_PWM_DUTY2STATE(regval);
-		if (state < cur_state)
-			return config;
-
-		state = cur_state;
-	}
 
 	if (state > MLXREG_FAN_MAX_STATE)
 		return -EINVAL;
 
-	/* Normalize the state to the valid speed range. */
-	state = pwm->cooling_levels[state];
+	/* Save thermal state. */
+	pwm->last_thermal_state = state;
+
+	state = max_t(unsigned long, state, pwm->last_hwmon_state);
 	err = regmap_write(fan->regmap, pwm->reg,
 			   MLXREG_FAN_PWM_STATE2DUTY(state));
 	if (err) {
 		dev_err(fan->dev, "Failed to write PWM duty\n");
 		return err;
 	}
-	return config;
+	return 0;
 }
 
 static const struct thermal_cooling_device_ops mlxreg_fan_cooling_ops = {
@@ -564,7 +537,7 @@ static int mlxreg_fan_config(struct mlxreg_fan *fan,
 
 static int mlxreg_fan_cooling_config(struct device *dev, struct mlxreg_fan *fan)
 {
-	int i, j;
+	int i;
 
 	for (i = 0; i < MLXREG_FAN_MAX_PWM; i++) {
 		struct mlxreg_fan_pwm *pwm = &fan->pwm[i];
@@ -579,11 +552,8 @@ static int mlxreg_fan_cooling_config(struct device *dev, struct mlxreg_fan *fan)
 			return PTR_ERR(pwm->cdev);
 		}
 
-		/* Init cooling levels per PWM state. */
-		for (j = 0; j < MLXREG_FAN_SPEED_MIN_LEVEL; j++)
-			pwm->cooling_levels[j] = MLXREG_FAN_SPEED_MIN_LEVEL;
-		for (j = MLXREG_FAN_SPEED_MIN_LEVEL; j <= MLXREG_FAN_MAX_STATE; j++)
-			pwm->cooling_levels[j] = j;
+		/* Set minimal PWM speed. */
+		pwm->last_hwmon_state = MLXREG_FAN_PWM_DUTY2STATE(MLXREG_FAN_MIN_DUTY);
 	}
 
 	return 0;

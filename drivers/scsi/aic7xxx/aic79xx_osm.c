@@ -755,11 +755,7 @@ ahd_linux_biosparam(struct scsi_device *sdev, struct block_device *bdev,
 static int
 ahd_linux_abort(struct scsi_cmnd *cmd)
 {
-	int error;
-	
-	error = ahd_linux_queue_abort_cmd(cmd);
-
-	return error;
+	return ahd_linux_queue_abort_cmd(cmd);
 }
 
 /*

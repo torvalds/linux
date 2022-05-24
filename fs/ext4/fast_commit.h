@@ -55,13 +55,13 @@ struct ext4_fc_del_range {
 struct ext4_fc_dentry_info {
 	__le32 fc_parent_ino;
 	__le32 fc_ino;
-	__u8 fc_dname[0];
+	__u8 fc_dname[];
 };
 
 /* Value structure for EXT4_FC_TAG_INODE and EXT4_FC_TAG_INODE_PARTIAL. */
 struct ext4_fc_inode {
 	__le32 fc_ino;
-	__u8 fc_raw_inode[0];
+	__u8 fc_raw_inode[];
 };
 
 /* Value structure for tag EXT4_FC_TAG_TAIL. */
@@ -93,7 +93,6 @@ enum {
 	EXT4_FC_REASON_RENAME_DIR,
 	EXT4_FC_REASON_FALLOC_RANGE,
 	EXT4_FC_REASON_INODE_JOURNAL_DATA,
-	EXT4_FC_COMMIT_FAILED,
 	EXT4_FC_REASON_MAX
 };
 
@@ -109,6 +108,7 @@ struct ext4_fc_dentry_update {
 	struct qstr fcd_name;	/* Dirent name */
 	unsigned char fcd_iname[DNAME_INLINE_LEN];	/* Dirent name string */
 	struct list_head fcd_list;
+	struct list_head fcd_dilist;
 };
 
 struct ext4_fc_stats {

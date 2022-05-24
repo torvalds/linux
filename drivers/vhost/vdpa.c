@@ -170,7 +170,7 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 	 * Userspace shouldn't remove status bits unless reset the
 	 * status to 0.
 	 */
-	if (status != 0 && (ops->get_status(vdpa) & ~status) != 0)
+	if (status != 0 && (status_old & ~status) != 0)
 		return -EINVAL;
 
 	if ((status_old & VIRTIO_CONFIG_S_DRIVER_OK) && !(status & VIRTIO_CONFIG_S_DRIVER_OK))
@@ -178,11 +178,11 @@ static long vhost_vdpa_set_status(struct vhost_vdpa *v, u8 __user *statusp)
 			vhost_vdpa_unsetup_vq_irq(v, i);
 
 	if (status == 0) {
-		ret = ops->reset(vdpa);
+		ret = vdpa_reset(vdpa);
 		if (ret)
 			return ret;
 	} else
-		ops->set_status(vdpa, status);
+		vdpa_set_status(vdpa, status);
 
 	if ((status & VIRTIO_CONFIG_S_DRIVER_OK) && !(status_old & VIRTIO_CONFIG_S_DRIVER_OK))
 		for (i = 0; i < nvqs; i++)
@@ -195,7 +195,7 @@ static int vhost_vdpa_config_validate(struct vhost_vdpa *v,
 				      struct vhost_vdpa_config *c)
 {
 	struct vdpa_device *vdpa = v->vdpa;
-	long size = vdpa->config->get_config_size(vdpa);
+	size_t size = vdpa->config->get_config_size(vdpa);
 
 	if (c->len == 0 || c->off > size)
 		return -EINVAL;
@@ -262,7 +262,7 @@ static long vhost_vdpa_get_features(struct vhost_vdpa *v, u64 __user *featurep)
 	const struct vdpa_config_ops *ops = vdpa->config;
 	u64 features;
 
-	features = ops->get_features(vdpa);
+	features = ops->get_device_features(vdpa);
 
 	if (copy_to_user(featurep, &features, sizeof(features)))
 		return -EFAULT;

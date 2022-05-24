@@ -101,7 +101,7 @@ not_n32_scall:
 
 	END(handle_sysn32)
 
-#define __SYSCALL(nr, entry)	PTR entry
+#define __SYSCALL(nr, entry)	PTR_WD entry
 	.type	sysn32_call_table, @object
 EXPORT(sysn32_call_table)
 #include <asm/syscall_table_n32.h>

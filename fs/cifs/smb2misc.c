@@ -847,16 +847,17 @@ smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *serve
  * SMB2 header.
  *
  * @ses:	server session structure
+ * @server:	pointer to server info
  * @iov:	array containing the SMB request we will send to the server
  * @nvec:	number of array entries for the iov
  */
 int
-smb311_update_preauth_hash(struct cifs_ses *ses, struct kvec *iov, int nvec)
+smb311_update_preauth_hash(struct cifs_ses *ses, struct TCP_Server_Info *server,
+			   struct kvec *iov, int nvec)
 {
 	int i, rc;
 	struct sdesc *d;
 	struct smb2_hdr *hdr;
-	struct TCP_Server_Info *server = cifs_ses_server(ses);
 
 	hdr = (struct smb2_hdr *)iov[0].iov_base;
 	/* neg prot are always taken */

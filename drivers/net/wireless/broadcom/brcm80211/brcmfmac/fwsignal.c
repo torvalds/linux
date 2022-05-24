@@ -1664,7 +1664,7 @@ static void brcmf_rxreorder_get_skb_list(struct brcmf_ampdu_rx_reorder *rfi,
 	rfi->pend_pkts -= skb_queue_len(skb_list);
 }
 
-void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt, bool inirq)
+void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt)
 {
 	struct brcmf_pub *drvr = ifp->drvr;
 	u8 *reorder_data;
@@ -1682,7 +1682,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt, bool inirq)
 	/* validate flags and flow id */
 	if (flags == 0xFF) {
 		bphy_err(drvr, "invalid flags...so ignore this packet\n");
-		brcmf_netif_rx(ifp, pkt, inirq);
+		brcmf_netif_rx(ifp, pkt);
 		return;
 	}
 
@@ -1694,7 +1694,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt, bool inirq)
 		if (rfi == NULL) {
 			brcmf_dbg(INFO, "received flags to cleanup, but no flow (%d) yet\n",
 				  flow_id);
-			brcmf_netif_rx(ifp, pkt, inirq);
+			brcmf_netif_rx(ifp, pkt);
 			return;
 		}
 
@@ -1719,7 +1719,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt, bool inirq)
 		rfi = kzalloc(buf_size, GFP_ATOMIC);
 		if (rfi == NULL) {
 			bphy_err(drvr, "failed to alloc buffer\n");
-			brcmf_netif_rx(ifp, pkt, inirq);
+			brcmf_netif_rx(ifp, pkt);
 			return;
 		}
 
@@ -1833,7 +1833,7 @@ void brcmf_fws_rxreorder(struct brcmf_if *ifp, struct sk_buff *pkt, bool inirq)
 netif_rx:
 	skb_queue_walk_safe(&reorder_list, pkt, pnext) {
 		__skb_unlink(pkt, &reorder_list);
-		brcmf_netif_rx(ifp, pkt, inirq);
+		brcmf_netif_rx(ifp, pkt);
 	}
 }
 

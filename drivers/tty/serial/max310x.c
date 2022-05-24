@@ -1487,10 +1487,9 @@ static int max310x_spi_probe(struct spi_device *spi)
 	return max310x_probe(&spi->dev, devtype, regmap, spi->irq);
 }
 
-static int max310x_spi_remove(struct spi_device *spi)
+static void max310x_spi_remove(struct spi_device *spi)
 {
 	max310x_remove(&spi->dev);
-	return 0;
 }
 
 static const struct spi_device_id max310x_id_table[] = {

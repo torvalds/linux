@@ -161,7 +161,7 @@ Shadow pages contain the following information:
     If clear, this page corresponds to a guest page table denoted by the gfn
     field.
   role.quadrant:
-    When role.gpte_is_8_bytes=0, the guest uses 32-bit gptes while the host uses 64-bit
+    When role.has_4_byte_gpte=1, the guest uses 32-bit gptes while the host uses 64-bit
     sptes.  That means a guest page table contains more ptes than the host,
     so multiple shadow pages are needed to shadow one guest page.
     For first-level shadow pages, role.quadrant can be 0 or 1 and denotes the
@@ -177,9 +177,9 @@ Shadow pages contain the following information:
     The page is invalid and should not be used.  It is a root page that is
     currently pinned (by a cpu hardware register pointing to it); once it is
     unpinned it will be destroyed.
-  role.gpte_is_8_bytes:
-    Reflects the size of the guest PTE for which the page is valid, i.e. '1'
-    if 64-bit gptes are in use, '0' if 32-bit gptes are in use.
+  role.has_4_byte_gpte:
+    Reflects the size of the guest PTE for which the page is valid, i.e. '0'
+    if direct map or 64-bit gptes are in use, '1' if 32-bit gptes are in use.
   role.efer_nx:
     Contains the value of efer.nx for which the page is valid.
   role.cr0_wp:

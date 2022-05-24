@@ -663,7 +663,7 @@ static int mana_gd_create_dma_region(struct gdma_dev *gd,
 	struct gdma_context *gc = gd->gdma_context;
 	struct hw_channel_context *hwc;
 	u32 length = gmi->length;
-	u32 req_msg_size;
+	size_t req_msg_size;
 	int err;
 	int i;
 
@@ -674,7 +674,7 @@ static int mana_gd_create_dma_region(struct gdma_dev *gd,
 		return -EINVAL;
 
 	hwc = gc->hwc.driver_data;
-	req_msg_size = sizeof(*req) + num_page * sizeof(u64);
+	req_msg_size = struct_size(req, page_addr_list, num_page);
 	if (req_msg_size > hwc->max_req_msg_size)
 		return -EINVAL;
 

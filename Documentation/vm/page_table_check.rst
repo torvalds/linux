@@ -9,7 +9,7 @@ Page Table Check
 Introduction
 ============
 
-Page table check allows to hardern the kernel by ensuring that some types of
+Page table check allows to harden the kernel by ensuring that some types of
 the memory corruptions are prevented.
 
 Page table check performs extra verifications at the time when new pages become

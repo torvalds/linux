@@ -239,7 +239,7 @@ prototypes::
 	int (*writepage)(struct page *page, struct writeback_control *wbc);
 	int (*readpage)(struct file *, struct page *);
 	int (*writepages)(struct address_space *, struct writeback_control *);
-	int (*set_page_dirty)(struct page *page);
+	bool (*dirty_folio)(struct address_space *, struct folio *folio);
 	void (*readahead)(struct readahead_control *);
 	int (*readpages)(struct file *filp, struct address_space *mapping,
 			struct list_head *pages, unsigned nr_pages);
@@ -250,21 +250,21 @@ prototypes::
 				loff_t pos, unsigned len, unsigned copied,
 				struct page *page, void *fsdata);
 	sector_t (*bmap)(struct address_space *, sector_t);
-	void (*invalidatepage) (struct page *, unsigned int, unsigned int);
+	void (*invalidate_folio) (struct folio *, size_t start, size_t len);
 	int (*releasepage) (struct page *, int);
 	void (*freepage)(struct page *);
 	int (*direct_IO)(struct kiocb *, struct iov_iter *iter);
 	bool (*isolate_page) (struct page *, isolate_mode_t);
 	int (*migratepage)(struct address_space *, struct page *, struct page *);
 	void (*putback_page) (struct page *);
-	int (*launder_page)(struct page *);
-	int (*is_partially_uptodate)(struct page *, unsigned long, unsigned long);
+	int (*launder_folio)(struct folio *);
+	bool (*is_partially_uptodate)(struct folio *, size_t from, size_t count);
 	int (*error_remove_page)(struct address_space *, struct page *);
 	int (*swap_activate)(struct file *);
 	int (*swap_deactivate)(struct file *);
 
 locking rules:
-	All except set_page_dirty and freepage may block
+	All except dirty_folio and freepage may block
 
 ======================	======================== =========	===============
 ops			PageLocked(page)	 i_rwsem	invalidate_lock
@@ -272,20 +272,20 @@ ops			PageLocked(page)	 i_rwsem	invalidate_lock
 writepage:		yes, unlocks (see below)
 readpage:		yes, unlocks				shared
 writepages:
-set_page_dirty		no
+dirty_folio		maybe
 readahead:		yes, unlocks				shared
 readpages:		no					shared
 write_begin:		locks the page		 exclusive
 write_end:		yes, unlocks		 exclusive
 bmap:
-invalidatepage:		yes					exclusive
+invalidate_folio:	yes					exclusive
 releasepage:		yes
 freepage:		yes
 direct_IO:
 isolate_page:		yes
 migratepage:		yes (both)
 putback_page:		yes
-launder_page:		yes
+launder_folio:		yes
 is_partially_uptodate:	yes
 error_remove_page:	yes
 swap_activate:		no
@@ -361,22 +361,22 @@ If nr_to_write is NULL, all dirty pages must be written.
 writepages should _only_ write pages which are present on
 mapping->io_pages.
 
-->set_page_dirty() is called from various places in the kernel
-when the target page is marked as needing writeback.  It may be called
-under spinlock (it cannot block) and is sometimes called with the page
-not locked.
+->dirty_folio() is called from various places in the kernel when
+the target folio is marked as needing writeback.  The folio cannot be
+truncated because either the caller holds the folio lock, or the caller
+has found the folio while holding the page table lock which will block
+truncation.
 
 ->bmap() is currently used by legacy ioctl() (FIBMAP) provided by some
 filesystems and by the swapper. The latter will eventually go away.  Please,
 keep it that way and don't breed new callers.
 
-->invalidatepage() is called when the filesystem must attempt to drop
+->invalidate_folio() is called when the filesystem must attempt to drop
 some or all of the buffers from the page when it is being truncated. It
-returns zero on success. If ->invalidatepage is zero, the kernel uses
-block_invalidatepage() instead. The filesystem must exclusively acquire
-invalidate_lock before invalidating page cache in truncate / hole punch path
-(and thus calling into ->invalidatepage) to block races between page cache
-invalidation and page cache filling functions (fault, read, ...).
+returns zero on success.  The filesystem must exclusively acquire
+invalidate_lock before invalidating page cache in truncate / hole punch
+path (and thus calling into ->invalidate_folio) to block races between page
+cache invalidation and page cache filling functions (fault, read, ...).
 
 ->releasepage() is called when the kernel is about to try to drop the
 buffers from the page in preparation for freeing it.  It returns zero to
@@ -386,9 +386,9 @@ the kernel assumes that the fs has no private interest in the buffers.
 ->freepage() is called when the kernel is done dropping the page
 from the page cache.
 
-->launder_page() may be called prior to releasing a page if
-it is still found to be dirty. It returns zero if the page was successfully
-cleaned, or an error value if not. Note that in order to prevent the page
+->launder_folio() may be called prior to releasing a folio if
+it is still found to be dirty. It returns zero if the folio was successfully
+cleaned, or an error value if not. Note that in order to prevent the folio
 getting mapped back in and redirtied, it needs to be kept locked
 across the entire operation.
 
@@ -438,13 +438,13 @@ prototypes::
 locking rules:
 
 ======================	=============	=================	=========
-ops			inode->i_lock	blocked_lock_lock	may block
+ops			   flc_lock  	blocked_lock_lock	may block
 ======================	=============	=================	=========
-lm_notify:		yes		yes			no
+lm_notify:		no      	yes			no
 lm_grant:		no		no			no
 lm_break:		yes		no			no
 lm_change		yes		no			no
-lm_breaker_owns_lease:	no		no			no
+lm_breaker_owns_lease:	yes     	no			no
 ======================	=============	=================	=========
 
 buffer_head

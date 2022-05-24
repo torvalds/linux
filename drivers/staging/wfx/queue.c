@@ -38,8 +38,7 @@ void wfx_tx_flush(struct wfx_dev *wdev)
 
 	wfx_tx_lock(wdev);
 	mutex_lock(&wdev->hif_cmd.lock);
-	ret = wait_event_timeout(wdev->hif.tx_buffers_empty,
-				 !wdev->hif.tx_buffers_used,
+	ret = wait_event_timeout(wdev->hif.tx_buffers_empty, !wdev->hif.tx_buffers_used,
 				 msecs_to_jiffies(3000));
 	if (!ret) {
 		dev_warn(wdev->dev, "cannot flush tx buffers (%d still busy)\n",
@@ -60,9 +59,8 @@ void wfx_tx_lock_flush(struct wfx_dev *wdev)
 
 void wfx_tx_queues_init(struct wfx_vif *wvif)
 {
-	/* The device is in charge to respect the details of the QoS parameters.
-	 * The driver just ensure that it roughtly respect the priorities to
-	 * avoid any shortage.
+	/* The device is in charge to respect the details of the QoS parameters. The driver just
+	 * ensure that it roughtly respect the priorities to avoid any shortage.
 	 */
 	const int priorities[IEEE80211_NUM_ACS] = { 1, 2, 64, 128 };
 	int i;
@@ -76,8 +74,7 @@ void wfx_tx_queues_init(struct wfx_vif *wvif)
 
 bool wfx_tx_queue_empty(struct wfx_vif *wvif, struct wfx_queue *queue)
 {
-	return skb_queue_empty_lockless(&queue->normal) &&
-	       skb_queue_empty_lockless(&queue->cab);
+	return skb_queue_empty_lockless(&queue->normal) && skb_queue_empty_lockless(&queue->cab);
 }
 
 void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
@@ -91,8 +88,7 @@ void wfx_tx_queues_check_empty(struct wfx_vif *wvif)
 }
 
 static void __wfx_tx_queue_drop(struct wfx_vif *wvif,
-				struct sk_buff_head *skb_queue,
-				struct sk_buff_head *dropped)
+				struct sk_buff_head *skb_queue, struct sk_buff_head *dropped)
 {
 	struct sk_buff *skb, *tmp;
 
@@ -127,13 +123,12 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 {
 	struct wfx_queue *queue;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
-	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device",
-	     __func__);
+	WARN(!wdev->chip_frozen, "%s should only be used to recover a frozen device", __func__);
 	while ((skb = skb_dequeue(&wdev->tx_pending)) != NULL) {
-		hif = (struct hif_msg *)skb->data;
+		hif = (struct wfx_hif_msg *)skb->data;
 		wvif = wdev_to_wvif(wdev, hif->interface);
 		if (wvif) {
 			queue = &wvif->tx_queue[skb_get_queue_mapping(skb)];
@@ -148,15 +143,15 @@ void wfx_pending_drop(struct wfx_dev *wdev, struct sk_buff_head *dropped)
 struct sk_buff *wfx_pending_get(struct wfx_dev *wdev, u32 packet_id)
 {
 	struct wfx_queue *queue;
-	struct hif_req_tx *req;
+	struct wfx_hif_req_tx *req;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	spin_lock_bh(&wdev->tx_pending.lock);
 	skb_queue_walk(&wdev->tx_pending, skb) {
-		hif = (struct hif_msg *)skb->data;
-		req = (struct hif_req_tx *)hif->body;
+		hif = (struct wfx_hif_msg *)skb->data;
+		req = (struct wfx_hif_req_tx *)hif->body;
 		if (req->packet_id != packet_id)
 			continue;
 		spin_unlock_bh(&wdev->tx_pending.lock);
@@ -179,7 +174,7 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 {
 	ktime_t now = ktime_get();
 	struct wfx_tx_priv *tx_priv;
-	struct hif_req_tx *req;
+	struct wfx_hif_req_tx *req;
 	struct sk_buff *skb;
 	bool first = true;
 
@@ -187,23 +182,20 @@ void wfx_pending_dump_old_frames(struct wfx_dev *wdev, unsigned int limit_ms)
 	skb_queue_walk(&wdev->tx_pending, skb) {
 		tx_priv = wfx_skb_tx_priv(skb);
 		req = wfx_skb_txreq(skb);
-		if (ktime_after(now, ktime_add_ms(tx_priv->xmit_timestamp,
-						  limit_ms))) {
+		if (ktime_after(now, ktime_add_ms(tx_priv->xmit_timestamp, limit_ms))) {
 			if (first) {
 				dev_info(wdev->dev, "frames stuck in firmware since %dms or more:\n",
 					 limit_ms);
 				first = false;
 			}
 			dev_info(wdev->dev, "   id %08x sent %lldms ago\n",
-				 req->packet_id,
-				 ktime_ms_delta(now, tx_priv->xmit_timestamp));
+				 req->packet_id, ktime_ms_delta(now, tx_priv->xmit_timestamp));
 		}
 	}
 	spin_unlock_bh(&wdev->tx_pending.lock);
 }
 
-unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev,
-					  struct sk_buff *skb)
+unsigned int wfx_pending_get_pkt_us_delay(struct wfx_dev *wdev, struct sk_buff *skb)
 {
 	ktime_t now = ktime_get();
 	struct wfx_tx_priv *tx_priv = wfx_skb_tx_priv(skb);
@@ -218,8 +210,8 @@ bool wfx_tx_queues_has_cab(struct wfx_vif *wvif)
 	if (wvif->vif->type != NL80211_IFTYPE_AP)
 		return false;
 	for (i = 0; i < IEEE80211_NUM_ACS; ++i)
-		/* Note: since only AP can have mcast frames in queue and only
-		 * one vif can be AP, all queued frames has same interface id
+		/* Note: since only AP can have mcast frames in queue and only one vif can be AP,
+		 * all queued frames has same interface id
 		 */
 		if (!skb_queue_empty_lockless(&wvif->tx_queue[i].cab))
 			return true;
@@ -236,7 +228,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 	struct wfx_queue *queues[IEEE80211_NUM_ACS * ARRAY_SIZE(wdev->vif)];
 	int i, j, num_queues = 0;
 	struct wfx_vif *wvif;
-	struct hif_msg *hif;
+	struct wfx_hif_msg *hif;
 	struct sk_buff *skb;
 
 	/* sort the queues */
@@ -261,14 +253,12 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 			skb = skb_dequeue(&queues[i]->cab);
 			if (!skb)
 				continue;
-			/* Note: since only AP can have mcast frames in queue
-			 * and only one vif can be AP, all queued frames has
-			 * same interface id
+			/* Note: since only AP can have mcast frames in queue and only one vif can
+			 * be AP, all queued frames has same interface id
 			 */
-			hif = (struct hif_msg *)skb->data;
+			hif = (struct wfx_hif_msg *)skb->data;
 			WARN_ON(hif->interface != wvif->id);
-			WARN_ON(queues[i] !=
-				&wvif->tx_queue[skb_get_queue_mapping(skb)]);
+			WARN_ON(queues[i] != &wvif->tx_queue[skb_get_queue_mapping(skb)]);
 			atomic_inc(&queues[i]->pending_frames);
 			trace_queues_stats(wdev, queues[i]);
 			return skb;
@@ -289,7 +279,7 @@ static struct sk_buff *wfx_tx_queues_get_skb(struct wfx_dev *wdev)
 	return NULL;
 }
 
-struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
+struct wfx_hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 {
 	struct wfx_tx_priv *tx_priv;
 	struct sk_buff *skb;
@@ -303,5 +293,5 @@ struct hif_msg *wfx_tx_queues_get(struct wfx_dev *wdev)
 	wake_up(&wdev->tx_dequeue);
 	tx_priv = wfx_skb_tx_priv(skb);
 	tx_priv->xmit_timestamp = ktime_get();
-	return (struct hif_msg *)skb->data;
+	return (struct wfx_hif_msg *)skb->data;
 }

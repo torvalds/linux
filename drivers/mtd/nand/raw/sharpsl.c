@@ -6,7 +6,6 @@
  *  Based on Sharp's NAND driver sharp_sl.c
  */
 
-#include <linux/genhd.h>
 #include <linux/slab.h>
 #include <linux/module.h>
 #include <linux/delay.h>

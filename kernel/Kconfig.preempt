@@ -96,8 +96,9 @@ config PREEMPTION
 config PREEMPT_DYNAMIC
 	bool "Preemption behaviour defined on boot"
 	depends on HAVE_PREEMPT_DYNAMIC && !PREEMPT_RT
+	select JUMP_LABEL if HAVE_PREEMPT_DYNAMIC_KEY
 	select PREEMPT_BUILD
-	default y
+	default y if HAVE_PREEMPT_DYNAMIC_CALL
 	help
 	  This option allows to define the preemption model on the kernel
 	  command line parameter and thus override the default preemption
@@ -132,4 +133,14 @@ config SCHED_CORE
 	  which is the likely usage by Linux distributions, there should
 	  be no measurable impact on performance.
 
+config ARCH_WANTS_RT_DELAYED_SIGNALS
+	bool
+	help
+	  This option is selected by architectures where raising signals
+	  can happen in atomic contexts on PREEMPT_RT enabled kernels. This
+	  option delays raising the signal until the return to user space
+	  loop where it is also delivered. X86 requires this to deliver
+	  signals from trap handlers which run on IST stacks.
 
+config RT_DELAYED_SIGNALS
+	def_bool PREEMPT_RT && ARCH_WANTS_RT_DELAYED_SIGNALS

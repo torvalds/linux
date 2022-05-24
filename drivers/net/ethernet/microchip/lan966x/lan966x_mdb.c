@@ -504,3 +504,48 @@ void lan966x_mdb_erase_entries(struct lan966x *lan966x, u16 vid)
 			lan966x_mdb_l2_cpu_remove(lan966x, mdb_entry, type);
 	}
 }
+
+void lan966x_mdb_clear_entries(struct lan966x *lan966x)
+{
+	struct lan966x_mdb_entry *mdb_entry;
+	enum macaccess_entry_type type;
+	unsigned char mac[ETH_ALEN];
+
+	list_for_each_entry(mdb_entry, &lan966x->mdb_entries, list) {
+		type = lan966x_mdb_classify(mdb_entry->mac);
+
+		lan966x_mdb_encode_mac(mac, mdb_entry, type);
+		/* Remove just the MAC entry, still keep the PGID in case of L2
+		 * entries because this can be restored at later point
+		 */
+		lan966x_mac_forget(lan966x, mac, mdb_entry->vid, type);
+	}
+}
+
+void lan966x_mdb_restore_entries(struct lan966x *lan966x)
+{
+	struct lan966x_mdb_entry *mdb_entry;
+	enum macaccess_entry_type type;
+	unsigned char mac[ETH_ALEN];
+	bool cpu_copy = false;
+
+	list_for_each_entry(mdb_entry, &lan966x->mdb_entries, list) {
+		type = lan966x_mdb_classify(mdb_entry->mac);
+
+		lan966x_mdb_encode_mac(mac, mdb_entry, type);
+		if (type == ENTRYTYPE_MACV4 || type == ENTRYTYPE_MACV6) {
+			/* Copy the frame to CPU only if the CPU is in the VLAN */
+			if (lan966x_vlan_cpu_member_cpu_vlan_mask(lan966x,
+								  mdb_entry->vid) &&
+			    mdb_entry->cpu_copy)
+				cpu_copy = true;
+
+			lan966x_mac_ip_learn(lan966x, cpu_copy, mac,
+					     mdb_entry->vid, type);
+		} else {
+			lan966x_mac_learn(lan966x, mdb_entry->pgid->index,
+					  mdb_entry->mac,
+					  mdb_entry->vid, type);
+		}
+	}
+}

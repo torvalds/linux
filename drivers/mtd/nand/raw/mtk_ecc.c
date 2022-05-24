@@ -579,7 +579,7 @@ static struct platform_driver mtk_ecc_driver = {
 	.probe  = mtk_ecc_probe,
 	.driver = {
 		.name  = "mtk-ecc",
-		.of_match_table = of_match_ptr(mtk_ecc_dt_match),
+		.of_match_table = mtk_ecc_dt_match,
 #ifdef CONFIG_PM_SLEEP
 		.pm = &mtk_ecc_pm_ops,
 #endif

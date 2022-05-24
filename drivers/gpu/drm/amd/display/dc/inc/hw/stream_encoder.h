@@ -164,10 +164,6 @@ struct stream_encoder_funcs {
 	void (*stop_dp_info_packets)(
 		struct stream_encoder *enc);
 
-	void (*reset_fifo)(
-		struct stream_encoder *enc
-	);
-
 	void (*dp_blank)(
 		struct dc_link *link,
 		struct stream_encoder *enc);
@@ -249,7 +245,6 @@ struct stream_encoder_funcs {
 		struct stream_encoder *enc);
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 struct hpo_dp_stream_encoder_state {
 	uint32_t stream_enc_enabled;
 	uint32_t vid_stream_enabled;
@@ -328,7 +323,10 @@ struct hpo_dp_stream_encoder_funcs {
 	void (*read_state)(
 			struct hpo_dp_stream_encoder *enc,
 			struct hpo_dp_stream_encoder_state *state);
+
+	void (*set_hblank_min_symbol_width)(
+			struct hpo_dp_stream_encoder *enc,
+			uint16_t width);
 };
-#endif
 
 #endif /* STREAM_ENCODER_H_ */

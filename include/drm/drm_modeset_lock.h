@@ -34,6 +34,7 @@ struct drm_modeset_lock;
  * struct drm_modeset_acquire_ctx - locking context (see ww_acquire_ctx)
  * @ww_ctx: base acquire ctx
  * @contended: used internally for -EDEADLK handling
+ * @stack_depot: used internally for contention debugging
  * @locked: list of held locks
  * @trylock_only: trylock mode used in atomic contexts/panic notifiers
  * @interruptible: whether interruptible locking should be used.

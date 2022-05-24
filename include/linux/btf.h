@@ -12,11 +12,33 @@
 #define BTF_TYPE_EMIT(type) ((void)(type *)0)
 #define BTF_TYPE_EMIT_ENUM(enum_val) ((void)enum_val)
 
+enum btf_kfunc_type {
+	BTF_KFUNC_TYPE_CHECK,
+	BTF_KFUNC_TYPE_ACQUIRE,
+	BTF_KFUNC_TYPE_RELEASE,
+	BTF_KFUNC_TYPE_RET_NULL,
+	BTF_KFUNC_TYPE_MAX,
+};
+
 struct btf;
 struct btf_member;
 struct btf_type;
 union bpf_attr;
 struct btf_show;
+struct btf_id_set;
+
+struct btf_kfunc_id_set {
+	struct module *owner;
+	union {
+		struct {
+			struct btf_id_set *check_set;
+			struct btf_id_set *acquire_set;
+			struct btf_id_set *release_set;
+			struct btf_id_set *ret_null_set;
+		};
+		struct btf_id_set *sets[BTF_KFUNC_TYPE_MAX];
+	};
+};
 
 extern const struct file_operations btf_fops;
 
@@ -216,6 +238,11 @@ static inline bool btf_type_is_var(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_VAR;
 }
 
+static inline bool btf_type_is_type_tag(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_TYPE_TAG;
+}
+
 /* union is only a special case of struct:
  * all its offsetof(member) == 0
  */
@@ -300,6 +327,11 @@ static inline const struct btf_var_secinfo *btf_type_var_secinfo(
 	return (const struct btf_var_secinfo *)(t + 1);
 }
 
+static inline struct btf_param *btf_params(const struct btf_type *t)
+{
+	return (struct btf_param *)(t + 1);
+}
+
 #ifdef CONFIG_BPF_SYSCALL
 struct bpf_prog;
 
@@ -307,6 +339,11 @@ const struct btf_type *btf_type_by_id(const struct btf *btf, u32 type_id);
 const char *btf_name_by_offset(const struct btf *btf, u32 offset);
 struct btf *btf_parse_vmlinux(void);
 struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog);
+bool btf_kfunc_id_set_contains(const struct btf *btf,
+			       enum bpf_prog_type prog_type,
+			       enum btf_kfunc_type type, u32 kfunc_btf_id);
+int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
+			      const struct btf_kfunc_id_set *s);
 #else
 static inline const struct btf_type *btf_type_by_id(const struct btf *btf,
 						    u32 type_id)
@@ -318,50 +355,18 @@ static inline const char *btf_name_by_offset(const struct btf *btf,
 {
 	return NULL;
 }
-#endif
-
-struct kfunc_btf_id_set {
-	struct list_head list;
-	struct btf_id_set *set;
-	struct module *owner;
-};
-
-struct kfunc_btf_id_list {
-	struct list_head list;
-	struct mutex mutex;
-};
-
-#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
-void register_kfunc_btf_id_set(struct kfunc_btf_id_list *l,
-			       struct kfunc_btf_id_set *s);
-void unregister_kfunc_btf_id_set(struct kfunc_btf_id_list *l,
-				 struct kfunc_btf_id_set *s);
-bool bpf_check_mod_kfunc_call(struct kfunc_btf_id_list *klist, u32 kfunc_id,
-			      struct module *owner);
-
-extern struct kfunc_btf_id_list bpf_tcp_ca_kfunc_list;
-extern struct kfunc_btf_id_list prog_test_kfunc_list;
-#else
-static inline void register_kfunc_btf_id_set(struct kfunc_btf_id_list *l,
-					     struct kfunc_btf_id_set *s)
-{
-}
-static inline void unregister_kfunc_btf_id_set(struct kfunc_btf_id_list *l,
-					       struct kfunc_btf_id_set *s)
-{
-}
-static inline bool bpf_check_mod_kfunc_call(struct kfunc_btf_id_list *klist,
-					    u32 kfunc_id, struct module *owner)
+static inline bool btf_kfunc_id_set_contains(const struct btf *btf,
+					     enum bpf_prog_type prog_type,
+					     enum btf_kfunc_type type,
+					     u32 kfunc_btf_id)
 {
 	return false;
 }
-
-static struct kfunc_btf_id_list bpf_tcp_ca_kfunc_list __maybe_unused;
-static struct kfunc_btf_id_list prog_test_kfunc_list __maybe_unused;
+static inline int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
+					    const struct btf_kfunc_id_set *s)
+{
+	return 0;
+}
 #endif
-
-#define DEFINE_KFUNC_BTF_ID_SET(set, name)                                     \
-	struct kfunc_btf_id_set name = { LIST_HEAD_INIT(name.list), (set),     \
-					 THIS_MODULE }
 
 #endif

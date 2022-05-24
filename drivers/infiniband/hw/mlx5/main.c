@@ -4178,7 +4178,7 @@ static int mlx5_ib_stage_delay_drop_init(struct mlx5_ib_dev *dev)
 	if (!mlx5_debugfs_root)
 		return 0;
 
-	root = debugfs_create_dir("delay_drop", dev->mdev->priv.dbg_root);
+	root = debugfs_create_dir("delay_drop", mlx5_debugfs_get_dev_root(dev->mdev));
 	dev->delay_drop.dir_debugfs = root;
 
 	debugfs_create_atomic_t("num_timeout_events", 0400, root,

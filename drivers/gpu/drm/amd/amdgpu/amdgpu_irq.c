@@ -199,13 +199,13 @@ static irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	 * ack the interrupt if it is there
 	 */
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF)) {
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->handle_ras_controller_intr_no_bifring)
-			adev->nbio.ras_funcs->handle_ras_controller_intr_no_bifring(adev);
+		if (adev->nbio.ras &&
+		    adev->nbio.ras->handle_ras_controller_intr_no_bifring)
+			adev->nbio.ras->handle_ras_controller_intr_no_bifring(adev);
 
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->handle_ras_err_event_athub_intr_no_bifring)
-			adev->nbio.ras_funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
+		if (adev->nbio.ras &&
+		    adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring)
+			adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring(adev);
 	}
 
 	return ret;

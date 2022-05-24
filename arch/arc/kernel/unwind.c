@@ -245,14 +245,9 @@ static void swap_eh_frame_hdr_table_entries(void *p1, void *p2, int size)
 {
 	struct eh_frame_hdr_table_entry *e1 = p1;
 	struct eh_frame_hdr_table_entry *e2 = p2;
-	unsigned long v;
 
-	v = e1->start;
-	e1->start = e2->start;
-	e2->start = v;
-	v = e1->fde;
-	e1->fde = e2->fde;
-	e2->fde = v;
+	swap(e1->start, e2->start);
+	swap(e1->fde, e2->fde);
 }
 
 static void init_unwind_hdr(struct unwind_table *table,

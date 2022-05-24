@@ -39,3 +39,8 @@ obj-$(CONFIG_KGDB)			+= kgdb.o
 obj-$(CONFIG_KPROBES)			+= kprobes.o
 obj-$(CONFIG_KEXEC_CORE)		+= kexec.o relocate_kernel.o
 obj-$(CONFIG_KEXEC_FILE)		+= kexec_file.o
+
+# vdso
+obj-y			+= vdso.o
+obj-$(CONFIG_64BIT)	+= vdso64/
+obj-y			+= vdso32/

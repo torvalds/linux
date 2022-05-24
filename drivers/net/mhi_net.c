@@ -225,7 +225,7 @@ static void mhi_net_dl_callback(struct mhi_device *mhi_dev,
 		u64_stats_inc(&mhi_netdev->stats.rx_packets);
 		u64_stats_add(&mhi_netdev->stats.rx_bytes, skb->len);
 		u64_stats_update_end(&mhi_netdev->stats.rx_syncp);
-		netif_rx(skb);
+		__netif_rx(skb);
 	}
 
 	/* Refill if RX buffers queue becomes low */

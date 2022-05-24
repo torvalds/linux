@@ -740,7 +740,7 @@ static void mcp251x_hw_rx(struct spi_device *spi, int buf_idx)
 
 	can_led_event(priv->net, CAN_LED_EVENT_RX);
 
-	netif_rx_ni(skb);
+	netif_rx(skb);
 }
 
 static void mcp251x_hw_sleep(struct spi_device *spi)
@@ -987,7 +987,7 @@ static void mcp251x_error_skb(struct net_device *net, int can_id, int data1)
 	if (skb) {
 		frame->can_id |= can_id;
 		frame->data[1] = data1;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	} else {
 		netdev_err(net, "cannot allocate error skb\n");
 	}
@@ -1427,7 +1427,7 @@ out_free:
 	return ret;
 }
 
-static int mcp251x_can_remove(struct spi_device *spi)
+static void mcp251x_can_remove(struct spi_device *spi)
 {
 	struct mcp251x_priv *priv = spi_get_drvdata(spi);
 	struct net_device *net = priv->net;
@@ -1442,8 +1442,6 @@ static int mcp251x_can_remove(struct spi_device *spi)
 	clk_disable_unprepare(priv->clk);
 
 	free_candev(net);
-
-	return 0;
 }
 
 static int __maybe_unused mcp251x_can_suspend(struct device *dev)

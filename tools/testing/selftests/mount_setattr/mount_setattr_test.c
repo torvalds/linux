@@ -1236,7 +1236,7 @@ static int get_userns_fd(unsigned long nsid, unsigned long hostid, unsigned long
 }
 
 /**
- * Validate that an attached mount in our mount namespace can be idmapped.
+ * Validate that an attached mount in our mount namespace cannot be idmapped.
  * (The kernel enforces that the mount's mount namespace and the caller's mount
  *  namespace match.)
  */
@@ -1259,7 +1259,7 @@ TEST_F(mount_setattr_idmapped, attached_mount_inside_current_mount_namespace)
 
 	attr.userns_fd	= get_userns_fd(0, 10000, 10000);
 	ASSERT_GE(attr.userns_fd, 0);
-	ASSERT_EQ(sys_mount_setattr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
+	ASSERT_NE(sys_mount_setattr(open_tree_fd, "", AT_EMPTY_PATH, &attr, sizeof(attr)), 0);
 	ASSERT_EQ(close(attr.userns_fd), 0);
 	ASSERT_EQ(close(open_tree_fd), 0);
 }

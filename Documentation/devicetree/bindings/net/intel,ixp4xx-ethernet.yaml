@@ -29,12 +29,18 @@ properties:
 
   queue-rx:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the RX queue node
+          - description: RX queue instance to use
     description: phandle to the RX queue on the NPE
 
   queue-txready:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the TX READY queue node
+          - description: TX READY queue instance to use
     description: phandle to the TX READY queue on the NPE
 
   phy-mode: true
@@ -43,7 +49,10 @@ properties:
 
   intel,npe-handle:
     $ref: '/schemas/types.yaml#/definitions/phandle-array'
-    maxItems: 1
+    items:
+      - items:
+          - description: phandle to the NPE this ethernet instance is using
+          - description: the NPE instance to use
     description: phandle to the NPE this ethernet instance is using
       and the instance to use in the second cell
 

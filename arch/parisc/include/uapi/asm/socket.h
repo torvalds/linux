@@ -125,6 +125,8 @@
 
 #define SO_RESERVE_MEM		0x4047
 
+#define SO_TXREHASH		0x4048
+
 #if !defined(__KERNEL__)
 
 #if __BITS_PER_LONG == 64

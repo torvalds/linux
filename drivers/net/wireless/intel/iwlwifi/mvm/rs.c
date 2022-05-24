@@ -454,8 +454,6 @@ static const u16 expected_tpt_mimo2_160MHz[4][IWL_RATE_COUNT] = {
 	{0, 0, 0, 0, 971, 0, 1925, 2861, 3779, 5574, 7304, 8147, 8976, 10592, 11640},
 };
 
-#define MCS_INDEX_PER_STREAM	(8)
-
 static const char *rs_pretty_lq_type(enum iwl_table_type type)
 {
 	static const char * const lq_types[] = {

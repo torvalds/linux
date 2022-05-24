@@ -750,7 +750,7 @@ ipv4_ping_vrf()
 		log_start
 		show_hint "Fails since address on vrf device is out of device scope"
 		run_cmd ping -c1 -w1 -I ${NSA_DEV} ${a}
-		log_test_addr ${a} $? 1 "ping local, device bind"
+		log_test_addr ${a} $? 2 "ping local, device bind"
 	done
 
 	#
@@ -4059,6 +4059,9 @@ usage: ${0##*/} OPTS
 	-p          Pause on fail
 	-P          Pause after each test
 	-v          Be verbose
+
+Tests:
+	$TESTS_IPV4 $TESTS_IPV6 $TESTS_OTHER
 EOF
 }
 

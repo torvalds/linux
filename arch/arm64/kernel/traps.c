@@ -9,7 +9,6 @@
 #include <linux/bug.h>
 #include <linux/context_tracking.h>
 #include <linux/signal.h>
-#include <linux/personality.h>
 #include <linux/kallsyms.h>
 #include <linux/kprobes.h>
 #include <linux/spinlock.h>
@@ -235,7 +234,7 @@ void die(const char *str, struct pt_regs *regs, int err)
 	raw_spin_unlock_irqrestore(&die_lock, flags);
 
 	if (ret != NOTIFY_STOP)
-		do_exit(SIGSEGV);
+		make_task_dead(SIGSEGV);
 }
 
 static void arm64_show_signal(int signo, const char *str)
@@ -519,7 +518,7 @@ void do_ptrauth_fault(struct pt_regs *regs, unsigned int esr)
 NOKPROBE_SYMBOL(do_ptrauth_fault);
 
 #define __user_cache_maint(insn, address, res)			\
-	if (address >= user_addr_max()) {			\
+	if (address >= TASK_SIZE_MAX) {				\
 		res = -EFAULT;					\
 	} else {						\
 		uaccess_ttbr0_enable();				\

@@ -208,7 +208,7 @@ cleanup:
 	 * from re-instantiating cached pages we are truncating (since unlike
 	 * normal file accesses, garbage collection isn't limited by i_size).
 	 */
-	down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+	f2fs_down_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 	truncate_inode_pages(inode->i_mapping, inode->i_size);
 	err2 = f2fs_truncate(inode);
 	if (err2) {
@@ -216,7 +216,7 @@ cleanup:
 			 err2);
 		set_sbi_flag(sbi, SBI_NEED_FSCK);
 	}
-	up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
+	f2fs_up_write(&F2FS_I(inode)->i_gc_rwsem[WRITE]);
 	clear_inode_flag(inode, FI_VERITY_IN_PROGRESS);
 	return err ?: err2;
 }

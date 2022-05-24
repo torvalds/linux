@@ -570,8 +570,7 @@ static int st21nfca_hci_i2c_remove(struct i2c_client *client)
 
 	if (phy->powered)
 		st21nfca_hci_i2c_disable(phy);
-	if (phy->pending_skb)
-		kfree_skb(phy->pending_skb);
+	kfree_skb(phy->pending_skb);
 
 	return 0;
 }

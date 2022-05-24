@@ -24,7 +24,7 @@
 		ethernet0 = &gmac1;
 	};
 
-	regulator_3_3v: 3-3-v-regulator {
+	regulator_3_3v: regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "3.3V";
 		regulator-min-microvolt = <3300000>;

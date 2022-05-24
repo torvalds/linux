@@ -268,11 +268,11 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 	if (params_channels(params) == 2)
 		ifc1b |= MAX9860_ST;
 
-	switch (max9860->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (max9860->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		master = 0;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		master = MAX9860_MASTER;
 		break;
 	default:

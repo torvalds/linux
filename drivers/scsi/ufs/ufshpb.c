@@ -494,7 +494,7 @@ static struct ufshpb_req *ufshpb_get_map_req(struct ufshpb_lu *hpb,
 	if (!map_req)
 		return NULL;
 
-	bio = bio_alloc(GFP_KERNEL, hpb->pages_per_srgn);
+	bio = bio_alloc(NULL, hpb->pages_per_srgn, 0, GFP_KERNEL);
 	if (!bio) {
 		ufshpb_put_req(hpb, map_req);
 		return NULL;
@@ -666,15 +666,14 @@ static void ufshpb_execute_umap_req(struct ufshpb_lu *hpb,
 				   struct ufshpb_req *umap_req,
 				   struct ufshpb_region *rgn)
 {
-	struct request *req;
-	struct scsi_request *rq;
+	struct request *req = umap_req->req;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 
-	req = umap_req->req;
 	req->timeout = 0;
-	req->end_io_data = (void *)umap_req;
-	rq = scsi_req(req);
-	ufshpb_set_unmap_cmd(rq->cmd, rgn);
-	rq->cmd_len = HPB_WRITE_BUFFER_CMD_LENGTH;
+	req->end_io_data = umap_req;
+
+	ufshpb_set_unmap_cmd(scmd->cmnd, rgn);
+	scmd->cmd_len = HPB_WRITE_BUFFER_CMD_LENGTH;
 
 	blk_execute_rq_nowait(req, true, ufshpb_umap_req_compl_fn);
 
@@ -686,7 +685,7 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 {
 	struct request_queue *q;
 	struct request *req;
-	struct scsi_request *rq;
+	struct scsi_cmnd *scmd;
 	int mem_size = hpb->srgn_mem_size;
 	int ret = 0;
 	int i;
@@ -709,14 +708,13 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 
 	req->end_io_data = map_req;
 
-	rq = scsi_req(req);
-
 	if (unlikely(last))
 		mem_size = hpb->last_srgn_entries * HPB_ENTRY_SIZE;
 
-	ufshpb_set_read_buf_cmd(rq->cmd, map_req->rb.rgn_idx,
+	scmd = blk_mq_rq_to_pdu(req);
+	ufshpb_set_read_buf_cmd(scmd->cmnd, map_req->rb.rgn_idx,
 				map_req->rb.srgn_idx, mem_size);
-	rq->cmd_len = HPB_READ_BUFFER_CMD_LENGTH;
+	scmd->cmd_len = HPB_READ_BUFFER_CMD_LENGTH;
 
 	blk_execute_rq_nowait(req, true, ufshpb_map_req_compl_fn);
 
@@ -2050,7 +2048,7 @@ static int ufshpb_pre_req_mempool_init(struct ufshpb_lu *hpb)
 		INIT_LIST_HEAD(&pre_req->list_req);
 		pre_req->req = NULL;
 
-		pre_req->bio = bio_alloc(GFP_KERNEL, 1);
+		pre_req->bio = bio_alloc(NULL, 1, 0, GFP_KERNEL);
 		if (!pre_req->bio)
 			goto release_mem;
 

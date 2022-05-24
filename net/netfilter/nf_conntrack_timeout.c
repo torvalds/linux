@@ -22,12 +22,8 @@
 #include <net/netfilter/nf_conntrack_l4proto.h>
 #include <net/netfilter/nf_conntrack_timeout.h>
 
-struct nf_ct_timeout *
-(*nf_ct_timeout_find_get_hook)(struct net *net, const char *name) __read_mostly;
-EXPORT_SYMBOL_GPL(nf_ct_timeout_find_get_hook);
-
-void (*nf_ct_timeout_put_hook)(struct nf_ct_timeout *timeout) __read_mostly;
-EXPORT_SYMBOL_GPL(nf_ct_timeout_put_hook);
+const struct nf_ct_timeout_hooks *nf_ct_timeout_hook __read_mostly;
+EXPORT_SYMBOL_GPL(nf_ct_timeout_hook);
 
 static int untimeout(struct nf_conn *ct, void *timeout)
 {
@@ -48,31 +44,30 @@ EXPORT_SYMBOL_GPL(nf_ct_untimeout);
 
 static void __nf_ct_timeout_put(struct nf_ct_timeout *timeout)
 {
-	typeof(nf_ct_timeout_put_hook) timeout_put;
+	const struct nf_ct_timeout_hooks *h = rcu_dereference(nf_ct_timeout_hook);
 
-	timeout_put = rcu_dereference(nf_ct_timeout_put_hook);
-	if (timeout_put)
-		timeout_put(timeout);
+	if (h)
+		h->timeout_put(timeout);
 }
 
 int nf_ct_set_timeout(struct net *net, struct nf_conn *ct,
 		      u8 l3num, u8 l4num, const char *timeout_name)
 {
-	typeof(nf_ct_timeout_find_get_hook) timeout_find_get;
+	const struct nf_ct_timeout_hooks *h;
 	struct nf_ct_timeout *timeout;
 	struct nf_conn_timeout *timeout_ext;
 	const char *errmsg = NULL;
 	int ret = 0;
 
 	rcu_read_lock();
-	timeout_find_get = rcu_dereference(nf_ct_timeout_find_get_hook);
-	if (!timeout_find_get) {
+	h = rcu_dereference(nf_ct_timeout_hook);
+	if (!h) {
 		ret = -ENOENT;
 		errmsg = "Timeout policy base is empty";
 		goto out;
 	}
 
-	timeout = timeout_find_get(net, timeout_name);
+	timeout = h->timeout_find_get(net, timeout_name);
 	if (!timeout) {
 		ret = -ENOENT;
 		pr_info_ratelimited("No such timeout policy \"%s\"\n",
@@ -119,37 +114,18 @@ EXPORT_SYMBOL_GPL(nf_ct_set_timeout);
 void nf_ct_destroy_timeout(struct nf_conn *ct)
 {
 	struct nf_conn_timeout *timeout_ext;
-	typeof(nf_ct_timeout_put_hook) timeout_put;
+	const struct nf_ct_timeout_hooks *h;
 
 	rcu_read_lock();
-	timeout_put = rcu_dereference(nf_ct_timeout_put_hook);
+	h = rcu_dereference(nf_ct_timeout_hook);
 
-	if (timeout_put) {
+	if (h) {
 		timeout_ext = nf_ct_timeout_find(ct);
 		if (timeout_ext) {
-			timeout_put(timeout_ext->timeout);
+			h->timeout_put(timeout_ext->timeout);
 			RCU_INIT_POINTER(timeout_ext->timeout, NULL);
 		}
 	}
 	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(nf_ct_destroy_timeout);
-
-static const struct nf_ct_ext_type timeout_extend = {
-	.len	= sizeof(struct nf_conn_timeout),
-	.align	= __alignof__(struct nf_conn_timeout),
-	.id	= NF_CT_EXT_TIMEOUT,
-};
-
-int nf_conntrack_timeout_init(void)
-{
-	int ret = nf_ct_extend_register(&timeout_extend);
-	if (ret < 0)
-		pr_err("nf_ct_timeout: Unable to register timeout extension.\n");
-	return ret;
-}
-
-void nf_conntrack_timeout_fini(void)
-{
-	nf_ct_extend_unregister(&timeout_extend);
-}

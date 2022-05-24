@@ -16,20 +16,15 @@ case "$KBUILD_VERBOSE" in
 	;;
 esac
 
-# We need access to CONFIG_ symbols
-. include/config/auto.conf
-
 needed_symbols=
 
 # Special case for modversions (see modpost.c)
-if [ -n "$CONFIG_MODVERSIONS" ]; then
+if grep -q "^CONFIG_MODVERSIONS=y$" include/config/auto.conf; then
 	needed_symbols="$needed_symbols module_layout"
 fi
 
-ksym_wl=
-if [ -n "$CONFIG_UNUSED_KSYMS_WHITELIST" ]; then
-	# Use 'eval' to expand the whitelist path and check if it is relative
-	eval ksym_wl="$CONFIG_UNUSED_KSYMS_WHITELIST"
+ksym_wl=$(sed -n 's/^CONFIG_UNUSED_KSYMS_WHITELIST=\(.*\)$/\1/p' include/config/auto.conf)
+if [ -n "$ksym_wl" ]; then
 	[ "${ksym_wl}" != "${ksym_wl#/}" ] || ksym_wl="$abs_srctree/$ksym_wl"
 	if [ ! -f "$ksym_wl" ] || [ ! -r "$ksym_wl" ]; then
 		echo "ERROR: '$ksym_wl' whitelist file not found" >&2

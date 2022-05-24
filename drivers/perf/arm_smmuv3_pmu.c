@@ -654,6 +654,7 @@ static int smmu_pmu_offline_cpu(unsigned int cpu, struct hlist_node *node)
 static irqreturn_t smmu_pmu_handle_irq(int irq_num, void *data)
 {
 	struct smmu_pmu *smmu_pmu = data;
+	DECLARE_BITMAP(ovs, BITS_PER_TYPE(u64));
 	u64 ovsr;
 	unsigned int idx;
 
@@ -663,7 +664,8 @@ static irqreturn_t smmu_pmu_handle_irq(int irq_num, void *data)
 
 	writeq(ovsr, smmu_pmu->reloc_base + SMMU_PMCG_OVSCLR0);
 
-	for_each_set_bit(idx, (unsigned long *)&ovsr, smmu_pmu->num_counters) {
+	bitmap_from_u64(ovs, ovsr);
+	for_each_set_bit(idx, ovs, smmu_pmu->num_counters) {
 		struct perf_event *event = smmu_pmu->events[idx];
 		struct hw_perf_event *hwc;
 

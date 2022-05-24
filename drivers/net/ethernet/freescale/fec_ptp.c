@@ -101,7 +101,6 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 	u32 val, tempval;
 	struct timespec64 ts;
 	u64 ns;
-	val = 0;
 
 	if (fep->pps_enable == enable)
 		return 0;

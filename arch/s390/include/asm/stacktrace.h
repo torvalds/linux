@@ -36,22 +36,14 @@ static inline bool on_stack(struct stack_info *info,
 
 /*
  * Stack layout of a C stack frame.
+ * Kernel uses the packed stack layout (-mpacked-stack).
  */
-#ifndef __PACK_STACK
-struct stack_frame {
-	unsigned long back_chain;
-	unsigned long empty1[5];
-	unsigned long gprs[10];
-	unsigned int  empty2[8];
-};
-#else
 struct stack_frame {
 	unsigned long empty1[5];
 	unsigned int  empty2[8];
 	unsigned long gprs[10];
 	unsigned long back_chain;
 };
-#endif
 
 /*
  * Unlike current_stack_pointer() which simply returns current value of %r15

@@ -936,9 +936,6 @@ static int it66121_probe(struct i2c_client *client,
 		return -EPROBE_DEFER;
 	}
 
-	if (!ctx->next_bridge)
-		return -EPROBE_DEFER;
-
 	i2c_set_clientdata(client, ctx);
 	mutex_init(&ctx->lock);
 

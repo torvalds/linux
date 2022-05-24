@@ -4,22 +4,25 @@
 void test_xdp_perf(void)
 {
 	const char *file = "./xdp_dummy.o";
-	__u32 duration, retval, size;
 	struct bpf_object *obj;
 	char in[128], out[128];
 	int err, prog_fd;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = in,
+		.data_size_in = sizeof(in),
+		.data_out = out,
+		.data_size_out = sizeof(out),
+		.repeat = 1000000,
+	);
 
 	err = bpf_prog_test_load(file, BPF_PROG_TYPE_XDP, &obj, &prog_fd);
 	if (CHECK_FAIL(err))
 		return;
 
-	err = bpf_prog_test_run(prog_fd, 1000000, &in[0], 128,
-				out, &size, &retval, &duration);
-
-	CHECK(err || retval != XDP_PASS || size != 128,
-	      "xdp-perf",
-	      "err %d errno %d retval %d size %d\n",
-	      err, errno, retval, size);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
+	ASSERT_OK(err, "test_run");
+	ASSERT_EQ(topts.retval, XDP_PASS, "test_run retval");
+	ASSERT_EQ(topts.data_size_out, 128, "test_run data_size_out");
 
 	bpf_object__close(obj);
 }

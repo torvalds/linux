@@ -424,7 +424,7 @@ static void __finalize_command(struct brcmstb_dpfe_priv *priv)
 
 	/*
 	 * It depends on the API version which MBOX register we have to write to
-	 * to signal we are done.
+	 * signal we are done.
 	 */
 	release_mbox = (priv->dpfe_api->version < 2)
 			? REG_TO_HOST_MBOX : REG_TO_DCPU_MBOX;

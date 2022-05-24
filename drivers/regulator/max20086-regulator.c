@@ -7,6 +7,7 @@
 
 #include <linux/err.h>
 #include <linux/gpio.h>
+#include <linux/gpio/consumer.h>
 #include <linux/i2c.h>
 #include <linux/module.h>
 #include <linux/regmap.h>
@@ -140,7 +141,7 @@ static int max20086_parse_regulators_dt(struct max20086 *chip, bool *boot_on)
 	node = of_get_child_by_name(chip->dev->of_node, "regulators");
 	if (!node) {
 		dev_err(chip->dev, "regulators node not found\n");
-		return PTR_ERR(node);
+		return -ENODEV;
 	}
 
 	for (i = 0; i < chip->info->num_outputs; ++i)

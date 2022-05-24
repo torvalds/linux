@@ -1233,6 +1233,11 @@ static int tegra_i2c_xfer_msg(struct tegra_i2c_dev *i2c_dev,
 		return err;
 
 	i2c_dev->msg_buf = msg->buf;
+
+	/* The condition true implies smbus block read and len is already read */
+	if (msg->flags & I2C_M_RECV_LEN && end_state != MSG_END_CONTINUE)
+		i2c_dev->msg_buf = msg->buf + 1;
+
 	i2c_dev->msg_buf_remaining = msg->len;
 	i2c_dev->msg_err = I2C_ERR_NONE;
 	i2c_dev->msg_read = !!(msg->flags & I2C_M_RD);
@@ -1389,6 +1394,15 @@ static int tegra_i2c_xfer(struct i2c_adapter *adap, struct i2c_msg msgs[],
 			else
 				end_type = MSG_END_REPEAT_START;
 		}
+		/* If M_RECV_LEN use ContinueXfer to read the first byte */
+		if (msgs[i].flags & I2C_M_RECV_LEN) {
+			ret = tegra_i2c_xfer_msg(i2c_dev, &msgs[i], MSG_END_CONTINUE);
+			if (ret)
+				break;
+			/* Set the read byte as msg len */
+			msgs[i].len = msgs[i].buf[0];
+			dev_dbg(i2c_dev->dev, "reading %d bytes\n", msgs[i].len);
+		}
 		ret = tegra_i2c_xfer_msg(i2c_dev, &msgs[i], end_type);
 		if (ret)
 			break;
@@ -1416,10 +1430,10 @@ static u32 tegra_i2c_func(struct i2c_adapter *adap)
 {
 	struct tegra_i2c_dev *i2c_dev = i2c_get_adapdata(adap);
 	u32 ret = I2C_FUNC_I2C | (I2C_FUNC_SMBUS_EMUL & ~I2C_FUNC_SMBUS_QUICK) |
-		  I2C_FUNC_10BIT_ADDR |	I2C_FUNC_PROTOCOL_MANGLING;
+		  I2C_FUNC_10BIT_ADDR | I2C_FUNC_PROTOCOL_MANGLING;
 
 	if (i2c_dev->hw->has_continue_xfer_support)
-		ret |= I2C_FUNC_NOSTART;
+		ret |= I2C_FUNC_NOSTART | I2C_FUNC_SMBUS_READ_BLOCK_DATA;
 
 	return ret;
 }

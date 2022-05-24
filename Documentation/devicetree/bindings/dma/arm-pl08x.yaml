@@ -10,6 +10,7 @@ maintainers:
   - Vinod Koul <vkoul@kernel.org>
 
 allOf:
+  - $ref: /schemas/arm/primecell.yaml#
   - $ref: "dma-controller.yaml#"
 
 # We need a select here so we don't match all nodes with 'arm,primecell'
@@ -88,6 +89,9 @@ properties:
       - 32
       - 64
     description: bus width used for memcpy in bits. FTDMAC020 also accept 64 bits
+
+  resets:
+    maxItems: 1
 
 required:
   - reg

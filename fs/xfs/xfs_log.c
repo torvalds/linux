@@ -812,10 +812,9 @@ xfs_log_mount_finish(
 	 * mount failure occurs.
 	 */
 	mp->m_super->s_flags |= SB_ACTIVE;
+	xfs_log_work_queue(mp);
 	if (xlog_recovery_needed(log))
 		error = xlog_recover_finish(log);
-	if (!error)
-		xfs_log_work_queue(mp);
 	mp->m_super->s_flags &= ~SB_ACTIVE;
 	evict_inodes(mp->m_super);
 
@@ -1102,7 +1101,7 @@ xfs_log_item_init(
 	int			type,
 	const struct xfs_item_ops *ops)
 {
-	item->li_mountp = mp;
+	item->li_log = mp->m_log;
 	item->li_ailp = mp->m_ail;
 	item->li_type = type;
 	item->li_ops = ops;
@@ -1883,19 +1882,19 @@ xlog_write_iclog(
 		return;
 	}
 
-	bio_init(&iclog->ic_bio, iclog->ic_bvec, howmany(count, PAGE_SIZE));
-	bio_set_dev(&iclog->ic_bio, log->l_targ->bt_bdev);
-	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + bno;
-	iclog->ic_bio.bi_end_io = xlog_bio_end_io;
-	iclog->ic_bio.bi_private = iclog;
-
 	/*
 	 * We use REQ_SYNC | REQ_IDLE here to tell the block layer the are more
 	 * IOs coming immediately after this one. This prevents the block layer
 	 * writeback throttle from throttling log writes behind background
 	 * metadata writeback and causing priority inversions.
 	 */
-	iclog->ic_bio.bi_opf = REQ_OP_WRITE | REQ_META | REQ_SYNC | REQ_IDLE;
+	bio_init(&iclog->ic_bio, log->l_targ->bt_bdev, iclog->ic_bvec,
+		 howmany(count, PAGE_SIZE),
+		 REQ_OP_WRITE | REQ_META | REQ_SYNC | REQ_IDLE);
+	iclog->ic_bio.bi_iter.bi_sector = log->l_logBBstart + bno;
+	iclog->ic_bio.bi_end_io = xlog_bio_end_io;
+	iclog->ic_bio.bi_private = iclog;
+
 	if (iclog->ic_flags & XLOG_ICL_NEED_FLUSH) {
 		iclog->ic_bio.bi_opf |= REQ_PREFLUSH;
 		/*

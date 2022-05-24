@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -368,10 +369,9 @@ out:
 	return retval;
 }
 
-int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
+int pm_send_unmap_queue(struct packet_manager *pm,
 			enum kfd_unmap_queues_filter filter,
-			uint32_t filter_param, bool reset,
-			unsigned int sdma_engine)
+			uint32_t filter_param, bool reset)
 {
 	uint32_t *buffer, size;
 	int retval = 0;
@@ -386,8 +386,7 @@ int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
 		goto out;
 	}
 
-	retval = pm->pmf->unmap_queues(pm, buffer, type, filter, filter_param,
-				       reset, sdma_engine);
+	retval = pm->pmf->unmap_queues(pm, buffer, filter, filter_param, reset);
 	if (!retval)
 		kq_submit_packet(pm->priv_queue);
 	else

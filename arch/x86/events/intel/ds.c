@@ -1203,7 +1203,10 @@ static void intel_pmu_pebs_via_pt_enable(struct perf_event *event)
 	if (hwc->idx >= INTEL_PMC_IDX_FIXED) {
 		base = MSR_RELOAD_FIXED_CTR0;
 		idx = hwc->idx - INTEL_PMC_IDX_FIXED;
-		value = ds->pebs_event_reset[MAX_PEBS_EVENTS + idx];
+		if (x86_pmu.intel_cap.pebs_format < 5)
+			value = ds->pebs_event_reset[MAX_PEBS_EVENTS_FMT4 + idx];
+		else
+			value = ds->pebs_event_reset[MAX_PEBS_EVENTS + idx];
 	}
 	wrmsrl(base + idx, value);
 }
@@ -1232,8 +1235,12 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 		}
 	}
 
-	if (idx >= INTEL_PMC_IDX_FIXED)
-		idx = MAX_PEBS_EVENTS + (idx - INTEL_PMC_IDX_FIXED);
+	if (idx >= INTEL_PMC_IDX_FIXED) {
+		if (x86_pmu.intel_cap.pebs_format < 5)
+			idx = MAX_PEBS_EVENTS_FMT4 + (idx - INTEL_PMC_IDX_FIXED);
+		else
+			idx = MAX_PEBS_EVENTS + (idx - INTEL_PMC_IDX_FIXED);
+	}
 
 	/*
 	 * Use auto-reload if possible to save a MSR write in the PMI.
@@ -2204,6 +2211,7 @@ void __init intel_ds_init(void)
 			break;
 
 		case 4:
+		case 5:
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_icl;
 			x86_pmu.pebs_record_size = sizeof(struct pebs_basic);
 			if (x86_pmu.intel_cap.pebs_baseline) {

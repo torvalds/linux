@@ -8,6 +8,7 @@
 #include <linux/dax.h>
 #include <linux/pci.h>
 #include <linux/pfn_t.h>
+#include <linux/memremap.h>
 #include <linux/module.h>
 #include <linux/virtio.h>
 #include <linux/virtio_fs.h>
@@ -891,7 +892,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 	return 0;
 
 out_vqs:
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtio_fs_cleanup_vqs(vdev, fs);
 	kfree(fs->vqs);
 
@@ -923,7 +924,7 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 	list_del_init(&fs->list);
 	virtio_fs_stop_all_queues(fs);
 	virtio_fs_drain_all_queues_locked(fs);
-	vdev->config->reset(vdev);
+	virtio_reset_device(vdev);
 	virtio_fs_cleanup_vqs(vdev, fs);
 
 	vdev->priv = NULL;

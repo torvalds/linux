@@ -55,6 +55,7 @@
 
 enum rv8803_type {
 	rv_8803,
+	rx_8804,
 	rx_8900
 };
 
@@ -601,6 +602,7 @@ static int rv8803_probe(struct i2c_client *client,
 
 static const struct i2c_device_id rv8803_id[] = {
 	{ "rv8803", rv_8803 },
+	{ "rv8804", rx_8804 },
 	{ "rx8803", rv_8803 },
 	{ "rx8900", rx_8900 },
 	{ }
@@ -615,6 +617,10 @@ static const __maybe_unused struct of_device_id rv8803_of_match[] = {
 	{
 		.compatible = "epson,rx8803",
 		.data = (void *)rv_8803
+	},
+	{
+		.compatible = "epson,rx8804",
+		.data = (void *)rx_8804
 	},
 	{
 		.compatible = "epson,rx8900",

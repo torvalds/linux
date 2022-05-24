@@ -8,7 +8,7 @@
 
 #include "core.h"
 
-static const struct flash_info xmc_parts[] = {
+static const struct flash_info xmc_nor_parts[] = {
 	/* XMC (Wuhan Xinxin Semiconductor Manufacturing Corp.) */
 	{ "XM25QH64A", INFO(0x207017, 0, 64 * 1024, 128)
 		NO_SFDP_FLAGS(SECT_4K | SPI_NOR_DUAL_READ |
@@ -20,6 +20,6 @@ static const struct flash_info xmc_parts[] = {
 
 const struct spi_nor_manufacturer spi_nor_xmc = {
 	.name = "xmc",
-	.parts = xmc_parts,
-	.nparts = ARRAY_SIZE(xmc_parts),
+	.parts = xmc_nor_parts,
+	.nparts = ARRAY_SIZE(xmc_nor_parts),
 };

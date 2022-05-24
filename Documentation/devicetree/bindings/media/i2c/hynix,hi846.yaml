@@ -49,7 +49,8 @@ properties:
     description: Definition of the regulator used for the VDDD power supply.
 
   port:
-    $ref: /schemas/graph.yaml#/properties/port
+    $ref: /schemas/graph.yaml#/$defs/port-base
+    unevaluatedProperties: false
 
     properties:
       endpoint:
@@ -68,8 +69,11 @@ properties:
                   - const: 1
                   - const: 2
 
+          link-frequencies: true
+
         required:
           - data-lanes
+          - link-frequencies
 
 required:
   - compatible

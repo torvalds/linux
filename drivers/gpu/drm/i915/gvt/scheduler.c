@@ -38,11 +38,13 @@
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
 #include "gt/intel_execlists_submission.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_gem_gtt.h"
+#include "i915_perf_oa_regs.h"
 #include "gvt.h"
 
 #define RING_CTX_OFF(x) \

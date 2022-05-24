@@ -38,6 +38,9 @@ EXPORT_SYMBOL(flush_dcache_page_asm);
 void purge_dcache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 void flush_icache_page_asm(unsigned long phys_addr, unsigned long vaddr);
 
+/* Internal implementation in arch/parisc/kernel/pacache.S */
+void flush_data_cache_local(void *);  /* flushes local data-cache only */
+void flush_instruction_cache_local(void); /* flushes local code-cache only */
 
 /* On some machines (i.e., ones with the Merced bus), there can be
  * only a single PxTLB broadcast at a time; this must be guaranteed
@@ -58,26 +61,35 @@ struct pdc_cache_info cache_info __ro_after_init;
 static struct pdc_btlb_info btlb_info __ro_after_init;
 #endif
 
-#ifdef CONFIG_SMP
-void
-flush_data_cache(void)
-{
-	on_each_cpu(flush_data_cache_local, NULL, 1);
-}
-void 
-flush_instruction_cache(void)
-{
-	on_each_cpu(flush_instruction_cache_local, NULL, 1);
-}
-#endif
+DEFINE_STATIC_KEY_TRUE(parisc_has_cache);
+DEFINE_STATIC_KEY_TRUE(parisc_has_dcache);
+DEFINE_STATIC_KEY_TRUE(parisc_has_icache);
 
-void
-flush_cache_all_local(void)
+static void cache_flush_local_cpu(void *dummy)
 {
-	flush_instruction_cache_local(NULL);
-	flush_data_cache_local(NULL);
+	if (static_branch_likely(&parisc_has_icache))
+		flush_instruction_cache_local();
+	if (static_branch_likely(&parisc_has_dcache))
+		flush_data_cache_local(NULL);
 }
-EXPORT_SYMBOL(flush_cache_all_local);
+
+void flush_cache_all_local(void)
+{
+	cache_flush_local_cpu(NULL);
+}
+
+void flush_cache_all(void)
+{
+	if (static_branch_likely(&parisc_has_cache))
+		on_each_cpu(cache_flush_local_cpu, NULL, 1);
+}
+
+static inline void flush_data_cache(void)
+{
+	if (static_branch_likely(&parisc_has_dcache))
+		on_each_cpu(flush_data_cache_local, NULL, 1);
+}
+
 
 /* Virtual address of pfn.  */
 #define pfn_va(pfn)	__va(PFN_PHYS(pfn))
@@ -303,6 +315,8 @@ static inline void
 __flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 		   unsigned long physaddr)
 {
+	if (!static_branch_likely(&parisc_has_cache))
+		return;
 	preempt_disable();
 	flush_dcache_page_asm(physaddr, vmaddr);
 	if (vma->vm_flags & VM_EXEC)
@@ -314,6 +328,8 @@ static inline void
 __purge_cache_page(struct vm_area_struct *vma, unsigned long vmaddr,
 		   unsigned long physaddr)
 {
+	if (!static_branch_likely(&parisc_has_cache))
+		return;
 	preempt_disable();
 	purge_dcache_page_asm(physaddr, vmaddr);
 	if (vma->vm_flags & VM_EXEC)
@@ -375,7 +391,6 @@ EXPORT_SYMBOL(flush_dcache_page);
 
 /* Defined in arch/parisc/kernel/pacache.S */
 EXPORT_SYMBOL(flush_kernel_dcache_range_asm);
-EXPORT_SYMBOL(flush_data_cache_local);
 EXPORT_SYMBOL(flush_kernel_icache_range_asm);
 
 #define FLUSH_THRESHOLD 0x80000 /* 0.5MB */
@@ -388,7 +403,7 @@ void __init parisc_setup_cache_timing(void)
 {
 	unsigned long rangetime, alltime;
 	unsigned long size;
-	unsigned long threshold;
+	unsigned long threshold, threshold2;
 
 	alltime = mfctl(16);
 	flush_data_cache();
@@ -403,8 +418,20 @@ void __init parisc_setup_cache_timing(void)
 		alltime, size, rangetime);
 
 	threshold = L1_CACHE_ALIGN(size * alltime / rangetime);
-	if (threshold > cache_info.dc_size)
-		threshold = cache_info.dc_size;
+
+	/*
+	 * The threshold computed above isn't very reliable since the
+	 * flush times depend greatly on the percentage of dirty lines
+	 * in the flush range. Further, the whole cache time doesn't
+	 * include the time to refill lines that aren't in the mm/vma
+	 * being flushed. By timing glibc build and checks on mako cpus,
+	 * the following formula seems to work reasonably well. The
+	 * value from the timing calculation is too small, and increases
+	 * build and check times by almost a factor two.
+	 */
+	threshold2 = cache_info.dc_size * num_online_cpus();
+	if (threshold2 > threshold)
+		threshold = threshold2;
 	if (threshold)
 		parisc_cache_flush_threshold = threshold;
 	printk(KERN_INFO "Cache flush threshold set to %lu KiB\n",
@@ -457,7 +484,7 @@ void flush_kernel_dcache_page_addr(void *addr)
 
 	flush_kernel_dcache_page_asm(addr);
 	purge_tlb_start(flags);
-	pdtlb_kernel(addr);
+	pdtlb(SR_KERNEL, addr);
 	purge_tlb_end(flags);
 }
 EXPORT_SYMBOL(flush_kernel_dcache_page_addr);
@@ -496,23 +523,13 @@ int __flush_tlb_range(unsigned long sid, unsigned long start,
 	   but cause a purge request to be broadcast to other TLBs.  */
 	while (start < end) {
 		purge_tlb_start(flags);
-		mtsp(sid, 1);
-		pdtlb(start);
-		pitlb(start);
+		mtsp(sid, SR_TEMP1);
+		pdtlb(SR_TEMP1, start);
+		pitlb(SR_TEMP1, start);
 		purge_tlb_end(flags);
 		start += PAGE_SIZE;
 	}
 	return 0;
-}
-
-static void cacheflush_h_tmp_function(void *dummy)
-{
-	flush_cache_all_local();
-}
-
-void flush_cache_all(void)
-{
-	on_each_cpu(cacheflush_h_tmp_function, NULL, 1);
 }
 
 static inline unsigned long mm_total_size(struct mm_struct *mm)
@@ -558,15 +575,6 @@ static void flush_cache_pages(struct vm_area_struct *vma, struct mm_struct *mm,
 	}
 }
 
-static void flush_user_cache_tlb(struct vm_area_struct *vma,
-				 unsigned long start, unsigned long end)
-{
-	flush_user_dcache_range_asm(start, end);
-	if (vma->vm_flags & VM_EXEC)
-		flush_user_icache_range_asm(start, end);
-	flush_tlb_range(vma, start, end);
-}
-
 void flush_cache_mm(struct mm_struct *mm)
 {
 	struct vm_area_struct *vma;
@@ -575,23 +583,14 @@ void flush_cache_mm(struct mm_struct *mm)
 	   rp3440, etc.  So, avoid it if the mm isn't too big.  */
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    mm_total_size(mm) >= parisc_cache_flush_threshold) {
-		if (mm->context)
+		if (mm->context.space_id)
 			flush_tlb_all();
 		flush_cache_all();
 		return;
 	}
 
-	preempt_disable();
-	if (mm->context == mfsp(3)) {
-		for (vma = mm->mmap; vma; vma = vma->vm_next)
-			flush_user_cache_tlb(vma, vma->vm_start, vma->vm_end);
-		preempt_enable();
-		return;
-	}
-
 	for (vma = mm->mmap; vma; vma = vma->vm_next)
 		flush_cache_pages(vma, mm, vma->vm_start, vma->vm_end);
-	preempt_enable();
 }
 
 void flush_cache_range(struct vm_area_struct *vma,
@@ -599,29 +598,21 @@ void flush_cache_range(struct vm_area_struct *vma,
 {
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    end - start >= parisc_cache_flush_threshold) {
-		if (vma->vm_mm->context)
+		if (vma->vm_mm->context.space_id)
 			flush_tlb_range(vma, start, end);
 		flush_cache_all();
 		return;
 	}
 
-	preempt_disable();
-	if (vma->vm_mm->context == mfsp(3)) {
-		flush_user_cache_tlb(vma, start, end);
-		preempt_enable();
-		return;
-	}
-
-	flush_cache_pages(vma, vma->vm_mm, vma->vm_start, vma->vm_end);
-	preempt_enable();
+	flush_cache_pages(vma, vma->vm_mm, start, end);
 }
 
 void
 flush_cache_page(struct vm_area_struct *vma, unsigned long vmaddr, unsigned long pfn)
 {
 	if (pfn_valid(pfn)) {
-		if (likely(vma->vm_mm->context)) {
-			flush_tlb_page(vma, vmaddr);
+		flush_tlb_page(vma, vmaddr);
+		if (likely(vma->vm_mm->context.space_id)) {
 			__flush_cache_page(vma, vmaddr, PFN_PHYS(pfn));
 		} else {
 			__purge_cache_page(vma, vmaddr, PFN_PHYS(pfn));
@@ -633,6 +624,7 @@ void flush_kernel_vmap_range(void *vaddr, int size)
 {
 	unsigned long start = (unsigned long)vaddr;
 	unsigned long end = start + size;
+	unsigned long flags, physaddr;
 
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    (unsigned long)size >= parisc_cache_flush_threshold) {
@@ -641,8 +633,14 @@ void flush_kernel_vmap_range(void *vaddr, int size)
 		return;
 	}
 
-	flush_kernel_dcache_range_asm(start, end);
-	flush_tlb_kernel_range(start, end);
+	while (start < end) {
+		physaddr = lpa(start);
+		purge_tlb_start(flags);
+		pdtlb(SR_KERNEL, start);
+		purge_tlb_end(flags);
+		flush_dcache_page_asm(physaddr, start);
+		start += PAGE_SIZE;
+	}
 }
 EXPORT_SYMBOL(flush_kernel_vmap_range);
 
@@ -650,6 +648,7 @@ void invalidate_kernel_vmap_range(void *vaddr, int size)
 {
 	unsigned long start = (unsigned long)vaddr;
 	unsigned long end = start + size;
+	unsigned long flags, physaddr;
 
 	if ((!IS_ENABLED(CONFIG_SMP) || !arch_irqs_disabled()) &&
 	    (unsigned long)size >= parisc_cache_flush_threshold) {
@@ -658,7 +657,13 @@ void invalidate_kernel_vmap_range(void *vaddr, int size)
 		return;
 	}
 
-	purge_kernel_dcache_range_asm(start, end);
-	flush_tlb_kernel_range(start, end);
+	while (start < end) {
+		physaddr = lpa(start);
+		purge_tlb_start(flags);
+		pdtlb(SR_KERNEL, start);
+		purge_tlb_end(flags);
+		purge_dcache_page_asm(physaddr, start);
+		start += PAGE_SIZE;
+	}
 }
 EXPORT_SYMBOL(invalidate_kernel_vmap_range);

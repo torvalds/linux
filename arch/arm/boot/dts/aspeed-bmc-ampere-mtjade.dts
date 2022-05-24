@@ -339,17 +339,8 @@
 			<&adc10mux 0>, <&adc10mux 1>,
 			<&adc11mux 0>, <&adc11mux 1>,
 			<&adc12mux 0>, <&adc12mux 1>,
-			<&adc13mux 0>, <&adc13mux 1>;
-	};
-
-	iio-hwmon-adc14 {
-		compatible = "iio-hwmon";
-		io-channels = <&adc 14>;
-	};
-
-	iio-hwmon-battery {
-		compatible = "iio-hwmon";
-		io-channels = <&adc 15>;
+			<&adc13mux 0>, <&adc13mux 1>,
+			<&adc 14>, <&adc 15>;
 	};
 };
 
@@ -361,6 +352,13 @@
 		label = "bmc";
 		/* spi-max-frequency = <50000000>; */
 #include "openbmc-flash-layout-64.dtsi"
+	};
+
+	flash@1 {
+		status = "okay";
+		m25p,fast-read;
+		label = "alt-bmc";
+#include "openbmc-flash-layout-64-alt.dtsi"
 	};
 };
 
@@ -853,7 +851,7 @@
 	/*E0-E7*/	"","","","","","","","",
 	/*F0-F7*/	"","","BMC_SYS_PSON_L","S0_DDR_SAVE","PGOOD",
 			"S1_DDR_SAVE","","",
-	/*G0-G7*/	"S0_FW_BOOT_OK","SHD_REQ_L","","S0_OVERTEMP_L","","",
+	/*G0-G7*/	"host0-ready","SHD_REQ_L","","S0_OVERTEMP_L","","",
 			"","",
 	/*H0-H7*/	"","","","","PSU1_VIN_GOOD","PSU2_VIN_GOOD","","",
 	/*I0-I7*/	"PSU1_PRESENT","PSU2_PRESENT","S1_BMC_SPECIAL_BOOT",
@@ -869,7 +867,7 @@
 	/*Q0-Q7*/	"","","","","","UID_BUTTON","","",
 	/*R0-R7*/	"","","BMC_EXT_HIGHTEMP_L","OCP_AUX_PWREN",
 			"OCP_MAIN_PWREN","RESET_BUTTON","","",
-	/*S0-S7*/	"","","","","RTC_BAT_SEN_EN","","","",
+	/*S0-S7*/	"","","","","rtc-battery-voltage-read-enable","","","",
 	/*T0-T7*/	"","","","","","","","",
 	/*U0-U7*/	"","","","","","","","",
 	/*V0-V7*/	"","","","","","","","",
@@ -884,7 +882,7 @@
 	/*AC0-AC7*/	"SYS_PWR_GD","","","","","BMC_READY","SLAVE_PRESENT_L",
 			"BMC_OCP_PG";
 
-	i2c4_o_en {
+	i2c4-o-en-hog {
 		gpio-hog;
 		gpios = <ASPEED_GPIO(Y, 2) GPIO_ACTIVE_HIGH>;
 		output-high;

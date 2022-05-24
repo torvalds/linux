@@ -724,6 +724,12 @@
 		hvc<n>	Use the hypervisor console device <n>. This is for
 			both Xen and PowerPC hypervisors.
 
+		{ null | "" }
+			Use to disable console output, i.e., to have kernel
+			console messages discarded.
+			This must be the only console= parameter used on the
+			kernel command line.
+
 		If the device connected to the port is not a TTY but a braille
 		device, prepend "brl," before the device type, for instance
 			console=brl,ttyS0
@@ -943,6 +949,30 @@
 			will timeout at the end of initcalls. This option will also
 			dump out devices still on the deferred probe list after
 			retrying.
+
+	dell_smm_hwmon.ignore_dmi=
+			[HW] Continue probing hardware even if DMI data
+			indicates that the driver is running on unsupported
+			hardware.
+
+	dell_smm_hwmon.force=
+			[HW] Activate driver even if SMM BIOS signature does
+			not match list of supported models and enable otherwise
+			blacklisted features.
+
+	dell_smm_hwmon.power_status=
+			[HW] Report power status in /proc/i8k
+			(disabled by default).
+
+	dell_smm_hwmon.restricted=
+			[HW] Allow controlling fans only if SYS_ADMIN
+			capability is set.
+
+	dell_smm_hwmon.fan_mult=
+			[HW] Factor to multiply fan speed with.
+
+	dell_smm_hwmon.fan_max=
+			[HW] Maximum configurable fan speed.
 
 	dfltcc=		[HW,S390]
 			Format: { on | off | def_only | inf_only | always }
@@ -1435,6 +1465,14 @@
 			as early as possible in order to facilitate early
 			boot debugging.
 
+	ftrace_boot_snapshot
+			[FTRACE] On boot up, a snapshot will be taken of the
+			ftrace ring buffer that can be read at:
+			/sys/kernel/tracing/snapshot.
+			This is useful if you need tracing information from kernel
+			boot up that is likely to be overridden by user space
+			start up functionality.
+
 	ftrace_dump_on_oops[=orig_cpu]
 			[FTRACE] will dump the trace buffers on oops.
 			If no parameter is passed, ftrace will dump
@@ -1625,7 +1663,7 @@
 			[KNL] Reguires CONFIG_HUGETLB_PAGE_FREE_VMEMMAP
 			enabled.
 			Allows heavy hugetlb users to free up some more
-			memory (6 * PAGE_SIZE for each 2MB hugetlb page).
+			memory (7 * PAGE_SIZE for each 2MB hugetlb page).
 			Format: { on | off (default) }
 
 			on:  enable the feature
@@ -1702,17 +1740,6 @@
 			[HW] Allow deferred probing upon i8042 probe errors
 
 	i810=		[HW,DRM]
-
-	i8k.ignore_dmi	[HW] Continue probing hardware even if DMI data
-			indicates that the driver is running on unsupported
-			hardware.
-	i8k.force	[HW] Activate i8k driver even if SMM BIOS signature
-			does not match list of supported models.
-	i8k.power_status
-			[HW] Report power status in /proc/i8k
-			(disabled by default)
-	i8k.restricted	[HW] Allow controlling fans only if SYS_ADMIN
-			capability is set.
 
 	i915.invert_brightness=
 			[DRM] Invert the sense of the variable that is used to
@@ -2339,12 +2366,34 @@
 	kvm.ignore_msrs=[KVM] Ignore guest accesses to unhandled MSRs.
 			Default is 0 (don't ignore, but inject #GP)
 
+	kvm.eager_page_split=
+			[KVM,X86] Controls whether or not KVM will try to
+			proactively split all huge pages during dirty logging.
+			Eager page splitting reduces interruptions to vCPU
+			execution by eliminating the write-protection faults
+			and MMU lock contention that would otherwise be
+			required to split huge pages lazily.
+
+			VM workloads that rarely perform writes or that write
+			only to a small region of VM memory may benefit from
+			disabling eager page splitting to allow huge pages to
+			still be used for reads.
+
+			The behavior of eager page splitting depends on whether
+			KVM_DIRTY_LOG_INITIALLY_SET is enabled or disabled. If
+			disabled, all huge pages in a memslot will be eagerly
+			split when dirty logging is enabled on that memslot. If
+			enabled, eager page splitting will be performed during
+			the KVM_CLEAR_DIRTY ioctl, and only for the pages being
+			cleared.
+
+			Eager page splitting currently only supports splitting
+			huge pages mapped by the TDP MMU.
+
+			Default is Y (on).
+
 	kvm.enable_vmware_backdoor=[KVM] Support VMware backdoor PV interface.
 				   Default is false (don't support).
-
-	kvm.mmu_audit=	[KVM] This is a R/W parameter which allows audit
-			KVM MMU at runtime.
-			Default is 0 (off)
 
 	kvm.nx_huge_pages=
 			[KVM] Controls the software workaround for the
@@ -2827,6 +2876,9 @@
 
 			For details see: Documentation/admin-guide/hw-vuln/mds.rst
 
+	mem=nn[KMG]	[HEXAGON] Set the memory size.
+			Must be specified, otherwise memory size will be 0.
+
 	mem=nn[KMG]	[KNL,BOOT] Force usage of a specific amount of memory
 			Amount of memory to be used in cases as follows:
 
@@ -2834,6 +2886,13 @@
 			2 when the kernel is not able to see the whole system memory;
 			3 memory that lies after 'mem=' boundary is excluded from
 			 the hypervisor, then assigned to KVM guests.
+			4 to limit the memory available for kdump kernel.
+
+			[ARC,MICROBLAZE] - the limit applies only to low memory,
+			high memory is not affected.
+
+			[ARM64] - only limits memory covered by the linear
+			mapping. The NOMAP regions are not affected.
 
 			[X86] Work as limiting max address. Use together
 			with memmap= to avoid physical address space collisions.
@@ -2843,6 +2902,14 @@
 			Note that this only takes effects during boot time since
 			in above case 3, memory may need be hot added after boot
 			if system memory of hypervisor is not sufficient.
+
+	mem=nn[KMG]@ss[KMG]
+			[ARM,MIPS] - override the memory layout reported by
+			firmware.
+			Define a memory region of size nn[KMG] starting at
+			ss[KMG].
+			Multiple different regions can be specified with
+			multiple mem= parameters on the command line.
 
 	mem=nopentium	[BUGS=X86-32] Disable usage of 4MB pages for kernel
 			memory.
@@ -3485,8 +3552,7 @@
 			difficult since unequal pointers can no longer be
 			compared.  However, if this command-line option is
 			specified, then all normal pointers will have their true
-			value printed.  Pointers printed via %pK may still be
-			hashed.  This option should only be specified when
+			value printed. This option should only be specified when
 			debugging the kernel.  Please do not use on production
 			kernels.
 
@@ -3726,6 +3792,11 @@
 			bit 3: print locks info if CONFIG_LOCKDEP is on
 			bit 4: print ftrace buffer
 			bit 5: print all printk messages in buffer
+			bit 6: print all CPUs backtrace (if available in the arch)
+			*Be aware* that this option may print a _lot_ of lines,
+			so there are risks of losing older messages in the log.
+			Use this option carefully, maybe worth to setup a
+			bigger log buffer with "log_buf_len" along with this.
 
 	panic_on_taint=	Bitmask for conditionally calling panic() in add_taint()
 			Format: <hex>[,nousertaint]
@@ -4504,6 +4575,8 @@
 			(the least-favored priority).  Otherwise, when
 			RCU_BOOST is not set, valid values are 0-99 and
 			the default is zero (non-realtime operation).
+			When RCU_NOCB_CPU is set, also adjust the
+			priority of NOCB callback kthreads.
 
 	rcutree.rcu_nocb_gp_stride= [KNL]
 			Set the number of NOCB callback kthreads in
@@ -5361,8 +5434,12 @@
 			Specific mitigations can also be selected manually:
 
 			retpoline	  - replace indirect branches
-			retpoline,generic - google's original retpoline
-			retpoline,amd     - AMD-specific minimal thunk
+			retpoline,generic - Retpolines
+			retpoline,lfence  - LFENCE; indirect branch
+			retpoline,amd     - alias for retpoline,lfence
+			eibrs		  - enhanced IBRS
+			eibrs,retpoline   - enhanced IBRS + Retpolines
+			eibrs,lfence      - enhanced IBRS + LFENCE
 
 			Not specifying this option is equivalent to
 			spectre_v2=auto.

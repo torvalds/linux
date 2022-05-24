@@ -263,8 +263,11 @@ properties:
       Value for REFCLKPER field of GUCTL register for reference clock period in
       nanoseconds, when the hardware set default does not match the actual
       clock.
-    minimum: 1
-    maximum: 0x3ff
+
+      This binding is deprecated. Instead, provide an appropriate reference clock.
+    minimum: 8
+    maximum: 62
+    deprecated: true
 
   snps,rx-thr-num-pkt-prd:
     description:
@@ -331,6 +334,12 @@ properties:
     uniqueItems: true
     items:
       enum: [1, 4, 8, 16, 32, 64, 128, 256]
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      This port is used with the 'usb-role-switch' property  to connect the
+      dwc3 to type C connector.
 
 unevaluatedProperties: false
 

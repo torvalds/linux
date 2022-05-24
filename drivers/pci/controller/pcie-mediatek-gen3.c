@@ -292,7 +292,7 @@ static int mtk_pcie_startup_port(struct mtk_gen3_pcie *pcie)
 	/* Set class code */
 	val = readl_relaxed(pcie->base + PCIE_PCI_IDS_1);
 	val &= ~GENMASK(31, 8);
-	val |= PCI_CLASS(PCI_CLASS_BRIDGE_PCI << 8);
+	val |= PCI_CLASS(PCI_CLASS_BRIDGE_PCI_NORMAL);
 	writel_relaxed(val, pcie->base + PCIE_PCI_IDS_1);
 
 	/* Mask all INTx interrupts */

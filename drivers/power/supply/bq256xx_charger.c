@@ -1523,6 +1523,9 @@ static int bq256xx_hw_init(struct bq256xx_device *bq)
 						BQ256XX_WDT_BIT_SHIFT);
 
 	ret = power_supply_get_battery_info(bq->charger, &bat_info);
+	if (ret == -ENOMEM)
+		return ret;
+
 	if (ret) {
 		dev_warn(bq->dev, "battery info missing, default values will be applied\n");
 

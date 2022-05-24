@@ -97,7 +97,6 @@ struct nf_conn {
 	unsigned long status;
 
 	u16		cpu;
-	u16		local_origin:1;
 	possible_net_t ct_net;
 
 #if IS_ENABLED(CONFIG_NF_NAT)

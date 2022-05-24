@@ -142,8 +142,9 @@ int st_lsm9ds0_probe(struct st_lsm9ds0 *lsm9ds0, struct regmap *regmap)
 	/* Setup magnetometer device */
 	return st_lsm9ds0_probe_magn(lsm9ds0, regmap);
 }
-EXPORT_SYMBOL_GPL(st_lsm9ds0_probe);
+EXPORT_SYMBOL_NS_GPL(st_lsm9ds0_probe, IIO_ST_SENSORS);
 
 MODULE_AUTHOR("Andy Shevchenko <andriy.shevchenko@linux.intel.com>");
 MODULE_DESCRIPTION("STMicroelectronics LSM9DS0 IMU core driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_ST_SENSORS);

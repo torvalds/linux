@@ -23,7 +23,7 @@ properties:
       - st,stm32mp1-booster
 
   st,syscfg:
-    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    $ref: "/schemas/types.yaml#/definitions/phandle"
     description: phandle to system configuration controller.
 
   vdda-supply:

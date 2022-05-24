@@ -14,6 +14,12 @@
 #define ACPAXI2AXI_ATU_CTRL                           0xC40
 #define ACPAXI2AXI_ATU_PAGE_SIZE_GRP_5                0xC20
 #define ACPAXI2AXI_ATU_BASE_ADDR_GRP_5                0xC24
+
+#define ACP_PGFSM_CONTROL			0x141C
+#define ACP_PGFSM_STATUS                        0x1420
+#define ACP_SOFT_RESET                          0x1000
+#define ACP_CONTROL                             0x1004
+
 #define ACP_EXTERNAL_INTR_ENB                         0x1800
 #define ACP_EXTERNAL_INTR_CNTL                        0x1804
 #define ACP_EXTERNAL_INTR_STAT                        0x1808
@@ -72,5 +78,25 @@
 #define ACP_BTTDM_RXFRMT                              0x2808
 #define ACP_BTTDM_ITER                                0x280C
 #define ACP_BTTDM_TXFRMT                              0x2810
+
+/* Registers from ACP_WOV_PDM block */
+
+#define ACP_WOV_PDM_ENABLE                            0x2C04
+#define ACP_WOV_PDM_DMA_ENABLE                        0x2C08
+#define ACP_WOV_RX_RINGBUFADDR                        0x2C0C
+#define ACP_WOV_RX_RINGBUFSIZE                        0x2C10
+#define ACP_WOV_RX_LINKPOSITIONCNTR                   0x2C14
+#define ACP_WOV_RX_LINEARPOSITIONCNTR_HIGH            0x2C18
+#define ACP_WOV_RX_LINEARPOSITIONCNTR_LOW             0x2C1C
+#define ACP_WOV_RX_INTR_WATERMARK_SIZE                0x2C20
+#define ACP_WOV_PDM_FIFO_FLUSH                        0x2C24
+#define ACP_WOV_PDM_NO_OF_CHANNELS                    0x2C28
+#define ACP_WOV_PDM_DECIMATION_FACTOR                 0x2C2C
+#define ACP_WOV_PDM_VAD_CTRL                          0x2C30
+#define ACP_WOV_BUFFER_STATUS                         0x2C58
+#define ACP_WOV_MISC_CTRL                             0x2C5C
+#define ACP_WOV_CLK_CTRL                              0x2C60
+#define ACP_PDM_VAD_DYNAMIC_CLK_GATING_EN             0x2C64
+#define ACP_WOV_ERROR_STATUS_REGISTER                 0x2C68
 
 #endif

@@ -43,14 +43,16 @@ struct dc_link_status {
 	struct dpcd_caps *dpcd_caps;
 };
 
+struct dprx_states {
+	bool cable_id_written;
+};
+
 /* DP MST stream allocation (payload bandwidth number) */
 struct link_mst_stream_allocation {
 	/* DIG front */
 	const struct stream_encoder *stream_enc;
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* HPO DP Stream Encoder */
 	const struct hpo_dp_stream_encoder *hpo_dp_stream_enc;
-#endif
 	/* associate DRM payload table with DC stream encoder */
 	uint8_t vcp_id;
 	/* number of slots required for the DP stream in transport packet */
@@ -72,6 +74,28 @@ struct time_stamp {
 
 struct link_trace {
 	struct time_stamp time_stamp;
+};
+
+struct dp_trace_lt_counts {
+	unsigned int total;
+	unsigned int fail;
+};
+
+struct dp_trace_lt {
+	struct dp_trace_lt_counts counts;
+	struct dp_trace_timestamps {
+		unsigned long long start;
+		unsigned long long end;
+	} timestamps;
+	enum link_training_result result;
+	bool is_logged;
+};
+
+struct dp_trace {
+	struct dp_trace_lt detect_lt_trace;
+	struct dp_trace_lt commit_lt_trace;
+	unsigned int link_loss_count;
+	bool is_initialized;
 };
 
 /* PSR feature flags */
@@ -118,6 +142,8 @@ struct dc_link {
 	bool is_hpd_pending; /* Indicates a new received hpd */
 
 	bool edp_sink_present;
+
+	struct dp_trace dp_trace;
 
 	/* caps is the same as reported_link_cap. link_traing use
 	 * reported_link_cap. Will clean up.  TODO
@@ -197,10 +223,13 @@ struct dc_link {
 		bool dp_mot_reset_segment;
 		/* Some USB4 docks do not handle turning off MST DSC once it has been enabled. */
 		bool dpia_mst_dsc_always_on;
+		/* Forced DPIA into TBT3 compatibility mode. */
+		bool dpia_forced_tbt3_mode;
 	} wa_flags;
 	struct link_mst_stream_allocation_table mst_stream_alloc_table;
 
 	struct dc_link_status link_status;
+	struct dprx_states dprx_states;
 
 	struct link_trace link_trace;
 	struct gpio *hpd_gpio;
@@ -307,6 +336,7 @@ void dc_link_blank_dp_stream(struct dc_link *link, bool hw_init);
  */
 enum dc_detect_reason {
 	DETECT_REASON_BOOT,
+	DETECT_REASON_RESUMEFROMS3S4,
 	DETECT_REASON_HPD,
 	DETECT_REASON_HPDRX,
 	DETECT_REASON_FALLBACK,
@@ -316,10 +346,8 @@ enum dc_detect_reason {
 bool dc_link_detect(struct dc_link *dc_link, enum dc_detect_reason reason);
 bool dc_link_get_hpd_state(struct dc_link *dc_link);
 enum dc_status dc_link_allocate_mst_payload(struct pipe_ctx *pipe_ctx);
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 enum dc_status dc_link_reduce_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t req_pbn);
 enum dc_status dc_link_increase_mst_payload(struct pipe_ctx *pipe_ctx, uint32_t req_pbn);
-#endif
 
 /* Notify DC about DP RX Interrupt (aka Short Pulse Interrupt).
  * Return:
@@ -438,6 +466,11 @@ const struct dc_link_settings *dc_link_get_link_cap(
 void dc_link_overwrite_extended_receiver_cap(
 		struct dc_link *link);
 
+bool dc_is_oem_i2c_device_present(
+	struct dc *dc,
+	size_t slave_address
+);
+
 bool dc_submit_i2c(
 		struct dc *dc,
 		uint32_t link_index,
@@ -453,14 +486,29 @@ uint32_t dc_bandwidth_in_kbps_from_timing(
 bool dc_link_is_fec_supported(const struct dc_link *link);
 bool dc_link_should_enable_fec(const struct dc_link *link);
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 uint32_t dc_link_bw_kbps_from_raw_frl_link_rate_data(uint8_t bw);
 enum dp_link_encoding dc_link_dp_mst_decide_link_encoding_format(const struct dc_link *link);
-#endif
 
-const struct link_resource *dc_link_get_cur_link_res(const struct dc_link *link);
+void dc_link_get_cur_link_res(const struct dc_link *link,
+		struct link_resource *link_res);
 /* take a snapshot of current link resource allocation state */
 void dc_get_cur_link_res_map(const struct dc *dc, uint32_t *map);
 /* restore link resource allocation state from a snapshot */
 void dc_restore_link_res_map(const struct dc *dc, uint32_t *map);
+void dc_link_clear_dprx_states(struct dc_link *link);
+struct gpio *get_hpd_gpio(struct dc_bios *dcb,
+		struct graphics_object_id link_id,
+		struct gpio_service *gpio_service);
+void dp_trace_reset(struct dc_link *link);
+bool dc_dp_trace_is_initialized(struct dc_link *link);
+unsigned long long dc_dp_trace_get_lt_end_timestamp(struct dc_link *link,
+		bool in_detection);
+void dc_dp_trace_set_is_logged_flag(struct dc_link *link,
+		bool in_detection,
+		bool is_logged);
+bool dc_dp_trace_is_logged(struct dc_link *link,
+		bool in_detection);
+struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
+		bool in_detection);
+unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 #endif /* DC_LINK_H_ */

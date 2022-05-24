@@ -1816,7 +1816,6 @@ static int kvmppc_handle_exit_hv(struct kvm_vcpu *vcpu,
 
 static int kvmppc_handle_nested_exit(struct kvm_vcpu *vcpu)
 {
-	struct kvm_nested_guest *nested = vcpu->arch.nested;
 	int r;
 	int srcu_idx;
 
@@ -1922,7 +1921,7 @@ static int kvmppc_handle_nested_exit(struct kvm_vcpu *vcpu)
 		 * it into a HEAI.
 		 */
 		if (!(vcpu->arch.hfscr_permitted & (1UL << cause)) ||
-					(nested->hfscr & (1UL << cause))) {
+				(vcpu->arch.nested_hfscr & (1UL << cause))) {
 			vcpu->arch.trap = BOOK3S_INTERRUPT_H_EMUL_ASSIST;
 
 			/*
@@ -2084,7 +2083,7 @@ static void kvmppc_set_lpcr(struct kvm_vcpu *vcpu, u64 new_lpcr,
 	 */
 	if ((new_lpcr & LPCR_ILE) != (vc->lpcr & LPCR_ILE)) {
 		struct kvm_vcpu *vcpu;
-		int i;
+		unsigned long i;
 
 		kvm_for_each_vcpu(i, vcpu, kvm) {
 			if (vcpu->arch.vcore != vc)
@@ -2768,20 +2767,17 @@ static const struct file_operations debugfs_timings_ops = {
 };
 
 /* Create a debugfs directory for the vcpu */
-static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+static int kvmppc_arch_create_vcpu_debugfs_hv(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry)
 {
-	char buf[16];
-	struct kvm *kvm = vcpu->kvm;
-
-	snprintf(buf, sizeof(buf), "vcpu%u", id);
-	vcpu->arch.debugfs_dir = debugfs_create_dir(buf, kvm->arch.debugfs_dir);
-	debugfs_create_file("timings", 0444, vcpu->arch.debugfs_dir, vcpu,
+	debugfs_create_file("timings", 0444, debugfs_dentry, vcpu,
 			    &debugfs_timings_ops);
+	return 0;
 }
 
 #else /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
-static void debugfs_vcpu_init(struct kvm_vcpu *vcpu, unsigned int id)
+static int kvmppc_arch_create_vcpu_debugfs_hv(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry)
 {
+	return 0;
 }
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 
@@ -2903,8 +2899,6 @@ static int kvmppc_core_vcpu_create_hv(struct kvm_vcpu *vcpu)
 
 	vcpu->arch.cpu_type = KVM_CPU_3S_64;
 	kvmppc_sanity_check(vcpu);
-
-	debugfs_vcpu_init(vcpu, id);
 
 	return 0;
 }
@@ -4798,8 +4792,8 @@ static int kvm_vm_ioctl_get_dirty_log_hv(struct kvm *kvm,
 {
 	struct kvm_memslots *slots;
 	struct kvm_memory_slot *memslot;
-	int i, r;
-	unsigned long n;
+	int r;
+	unsigned long n, i;
 	unsigned long *buf, *p;
 	struct kvm_vcpu *vcpu;
 
@@ -4866,41 +4860,38 @@ static void kvmppc_core_free_memslot_hv(struct kvm_memory_slot *slot)
 }
 
 static int kvmppc_core_prepare_memory_region_hv(struct kvm *kvm,
-					struct kvm_memory_slot *slot,
-					const struct kvm_userspace_memory_region *mem,
-					enum kvm_mr_change change)
+				const struct kvm_memory_slot *old,
+				struct kvm_memory_slot *new,
+				enum kvm_mr_change change)
 {
-	unsigned long npages = mem->memory_size >> PAGE_SHIFT;
-
 	if (change == KVM_MR_CREATE) {
-		unsigned long size = array_size(npages, sizeof(*slot->arch.rmap));
+		unsigned long size = array_size(new->npages, sizeof(*new->arch.rmap));
 
 		if ((size >> PAGE_SHIFT) > totalram_pages())
 			return -ENOMEM;
 
-		slot->arch.rmap = vzalloc(size);
-		if (!slot->arch.rmap)
+		new->arch.rmap = vzalloc(size);
+		if (!new->arch.rmap)
 			return -ENOMEM;
+	} else if (change != KVM_MR_DELETE) {
+		new->arch.rmap = old->arch.rmap;
 	}
 
 	return 0;
 }
 
 static void kvmppc_core_commit_memory_region_hv(struct kvm *kvm,
-				const struct kvm_userspace_memory_region *mem,
-				const struct kvm_memory_slot *old,
+				struct kvm_memory_slot *old,
 				const struct kvm_memory_slot *new,
 				enum kvm_mr_change change)
 {
-	unsigned long npages = mem->memory_size >> PAGE_SHIFT;
-
 	/*
-	 * If we are making a new memslot, it might make
+	 * If we are creating or modifying a memslot, it might make
 	 * some address that was previously cached as emulated
 	 * MMIO be no longer emulated MMIO, so invalidate
 	 * all the caches of emulated MMIO translations.
 	 */
-	if (npages)
+	if (change != KVM_MR_DELETE)
 		atomic64_inc(&kvm->arch.mmio_update);
 
 	/*
@@ -5227,7 +5218,6 @@ void kvmppc_free_host_rm_ops(void)
 static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 {
 	unsigned long lpcr, lpid;
-	char buf[32];
 	int ret;
 
 	mutex_init(&kvm->arch.uvmem_lock);
@@ -5360,15 +5350,14 @@ static int kvmppc_core_init_vm_hv(struct kvm *kvm)
 		kvm->arch.smt_mode = 1;
 	kvm->arch.emul_smt_mode = 1;
 
-	/*
-	 * Create a debugfs directory for the VM
-	 */
-	snprintf(buf, sizeof(buf), "vm%d", current->pid);
-	kvm->arch.debugfs_dir = debugfs_create_dir(buf, kvm_debugfs_dir);
+	return 0;
+}
+
+static int kvmppc_arch_create_vm_debugfs_hv(struct kvm *kvm)
+{
 	kvmppc_mmu_debugfs_init(kvm);
 	if (radix_enabled())
 		kvmhv_radix_debugfs_init(kvm);
-
 	return 0;
 }
 
@@ -5383,8 +5372,6 @@ static void kvmppc_free_vcores(struct kvm *kvm)
 
 static void kvmppc_core_destroy_vm_hv(struct kvm *kvm)
 {
-	debugfs_remove_recursive(kvm->arch.debugfs_dir);
-
 	if (!cpu_has_feature(CPU_FTR_ARCH_300))
 		kvm_hv_vm_deactivated();
 
@@ -5901,7 +5888,7 @@ static int kvmhv_svm_off(struct kvm *kvm)
 	int mmu_was_ready;
 	int srcu_idx;
 	int ret = 0;
-	int i;
+	unsigned long i;
 
 	if (!(kvm->arch.secure_guest & KVMPPC_SECURE_INIT_START))
 		return ret;
@@ -5923,11 +5910,12 @@ static int kvmhv_svm_off(struct kvm *kvm)
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
 		struct kvm_memory_slot *memslot;
 		struct kvm_memslots *slots = __kvm_memslots(kvm, i);
+		int bkt;
 
 		if (!slots)
 			continue;
 
-		kvm_for_each_memslot(memslot, slots) {
+		kvm_for_each_memslot(memslot, bkt, slots) {
 			kvmppc_uvmem_drop_pages(memslot, kvm, true);
 			uv_unregister_mem_slot(kvm->arch.lpid, memslot->id);
 		}
@@ -6045,6 +6033,8 @@ static struct kvmppc_ops kvm_ops_hv = {
 	.svm_off = kvmhv_svm_off,
 	.enable_dawr1 = kvmhv_enable_dawr1,
 	.hash_v3_possible = kvmppc_hash_v3_possible,
+	.create_vcpu_debugfs = kvmppc_arch_create_vcpu_debugfs_hv,
+	.create_vm_debugfs = kvmppc_arch_create_vm_debugfs_hv,
 };
 
 static int kvm_init_subcore_bitmap(void)
@@ -6106,7 +6096,7 @@ static int kvmppc_book3s_init_hv(void)
 	if (!cpu_has_feature(CPU_FTR_ARCH_300)) {
 		r = kvm_init_subcore_bitmap();
 		if (r)
-			return r;
+			goto err;
 	}
 
 	/*
@@ -6122,15 +6112,13 @@ static int kvmppc_book3s_init_hv(void)
 		np = of_find_compatible_node(NULL, NULL, "ibm,opal-intc");
 		if (!np) {
 			pr_err("KVM-HV: Cannot determine method for accessing XICS\n");
-			return -ENODEV;
+			r = -ENODEV;
+			goto err;
 		}
 		/* presence of intc confirmed - node can be dropped again */
 		of_node_put(np);
 	}
 #endif
-
-	kvm_ops_hv.owner = THIS_MODULE;
-	kvmppc_hv_ops = &kvm_ops_hv;
 
 	init_default_hcalls();
 
@@ -6138,14 +6126,28 @@ static int kvmppc_book3s_init_hv(void)
 
 	r = kvmppc_mmu_hv_init();
 	if (r)
-		return r;
+		goto err;
 
-	if (kvmppc_radix_possible())
+	if (kvmppc_radix_possible()) {
 		r = kvmppc_radix_init();
+		if (r)
+			goto err;
+	}
 
 	r = kvmppc_uvmem_init();
-	if (r < 0)
+	if (r < 0) {
 		pr_err("KVM-HV: kvmppc_uvmem_init failed %d\n", r);
+		return r;
+	}
+
+	kvm_ops_hv.owner = THIS_MODULE;
+	kvmppc_hv_ops = &kvm_ops_hv;
+
+	return 0;
+
+err:
+	kvmhv_nested_exit();
+	kvmppc_radix_exit();
 
 	return r;
 }

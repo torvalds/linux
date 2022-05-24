@@ -3098,6 +3098,9 @@ int qed_hw_init(struct qed_dev *cdev, struct qed_hw_init_params *p_params)
 			continue;
 		}
 
+		/* Some flows may keep variable set */
+		p_hwfn->mcp_info->mcp_handling_status = 0;
+
 		rc = qed_calc_hw_mode(p_hwfn);
 		if (rc)
 			return rc;

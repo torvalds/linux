@@ -42,23 +42,11 @@ config INTEGRATOR_IMPD1
 	  allows ARM(R) Ltd PrimeCells to be developed and evaluated.
 	  The IM-PD1 can be found on the Integrator/PP2 platform.
 
-config INTEGRATOR_CM7TDMI
-	bool "Integrator/CM7TDMI core module"
-	depends on ARCH_INTEGRATOR_AP
-	depends on ARCH_MULTI_V4 && !MMU
-	select CPU_ARM7TDMI
-
 config INTEGRATOR_CM720T
 	bool "Integrator/CM720T core module"
 	depends on ARCH_INTEGRATOR_AP
 	depends on ARCH_MULTI_V4T
 	select CPU_ARM720T
-
-config INTEGRATOR_CM740T
-	bool "Integrator/CM740T core module"
-	depends on ARCH_INTEGRATOR_AP
-	depends on ARCH_MULTI_V4T && !MMU
-	select CPU_ARM740T
 
 config INTEGRATOR_CM920T
 	bool "Integrator/CM920T core module"
@@ -77,23 +65,6 @@ config INTEGRATOR_CM926EJS
 	depends on ARCH_INTEGRATOR_AP
 	depends on ARCH_MULTI_V5
 	select CPU_ARM926T
-
-config INTEGRATOR_CM940T
-	bool "Integrator/CM940T core module"
-	depends on ARCH_INTEGRATOR_AP
-	depends on ARCH_MULTI_V4T && !MMU
-	select CPU_ARM940T
-
-config INTEGRATOR_CM946ES
-	bool "Integrator/CM946E-S core module"
-	depends on ARCH_INTEGRATOR_AP
-	depends on ARCH_MULTI_V5 && !MMU
-	select CPU_ARM946E
-
-config INTEGRATOR_CM966ES
-	bool "Integrator/CM966E-S core module"
-	depends on ARCH_INTEGRATOR_AP
-	depends on BROKEN # no kernel support
 
 config INTEGRATOR_CM10200E_REV0
 	bool "Integrator/CM10200E rev.0 core module"
@@ -127,19 +98,13 @@ config INTEGRATOR_CM1136JFS
 
 config ARCH_INTEGRATOR_CP
 	bool "Support Integrator/CP platform"
-	depends on (!MMU || ARCH_MULTI_V5 || ARCH_MULTI_V6)
+	depends on ARCH_MULTI_V5 || ARCH_MULTI_V6
 	select ARM_TIMER_SP804
 	select SERIAL_AMBA_PL011 if TTY
 	select SERIAL_AMBA_PL011_CONSOLE if TTY
 	select SOC_BUS
 	help
 	  Include support for the ARM(R) Integrator CP platform.
-
-config INTEGRATOR_CT7T
-	bool "Integrator/CT7TD (ARM7TDMI) core tile"
-	depends on ARCH_INTEGRATOR_CP
-	depends on ARCH_MULTI_V4T && !MMU
-	select CPU_ARM7TDMI
 
 config INTEGRATOR_CT926
 	bool "Integrator/CT926 (ARM926EJ-S) core tile"

@@ -141,40 +141,29 @@ struct irdma_hmc_del_obj_info {
 	bool privileged;
 };
 
-enum irdma_status_code irdma_copy_dma_mem(struct irdma_hw *hw, void *dest_buf,
-					  struct irdma_dma_mem *src_mem,
-					  u64 src_offset, u64 size);
-enum irdma_status_code
-irdma_sc_create_hmc_obj(struct irdma_sc_dev *dev,
-			struct irdma_hmc_create_obj_info *info);
-enum irdma_status_code irdma_sc_del_hmc_obj(struct irdma_sc_dev *dev,
-					    struct irdma_hmc_del_obj_info *info,
-					    bool reset);
-enum irdma_status_code irdma_hmc_sd_one(struct irdma_sc_dev *dev, u8 hmc_fn_id,
-					u64 pa, u32 sd_idx,
-					enum irdma_sd_entry_type type,
-					bool setsd);
-enum irdma_status_code
-irdma_update_sds_noccq(struct irdma_sc_dev *dev,
-		       struct irdma_update_sds_info *info);
+int irdma_copy_dma_mem(struct irdma_hw *hw, void *dest_buf,
+		       struct irdma_dma_mem *src_mem, u64 src_offset, u64 size);
+int irdma_sc_create_hmc_obj(struct irdma_sc_dev *dev,
+			    struct irdma_hmc_create_obj_info *info);
+int irdma_sc_del_hmc_obj(struct irdma_sc_dev *dev,
+			 struct irdma_hmc_del_obj_info *info, bool reset);
+int irdma_hmc_sd_one(struct irdma_sc_dev *dev, u8 hmc_fn_id, u64 pa, u32 sd_idx,
+		     enum irdma_sd_entry_type type,
+		     bool setsd);
+int irdma_update_sds_noccq(struct irdma_sc_dev *dev,
+			   struct irdma_update_sds_info *info);
 struct irdma_vfdev *irdma_vfdev_from_fpm(struct irdma_sc_dev *dev,
 					 u8 hmc_fn_id);
 struct irdma_hmc_info *irdma_vf_hmcinfo_from_fpm(struct irdma_sc_dev *dev,
 						 u8 hmc_fn_id);
-enum irdma_status_code irdma_add_sd_table_entry(struct irdma_hw *hw,
-						struct irdma_hmc_info *hmc_info,
-						u32 sd_index,
-						enum irdma_sd_entry_type type,
-						u64 direct_mode_sz);
-enum irdma_status_code irdma_add_pd_table_entry(struct irdma_sc_dev *dev,
-						struct irdma_hmc_info *hmc_info,
-						u32 pd_index,
-						struct irdma_dma_mem *rsrc_pg);
-enum irdma_status_code irdma_remove_pd_bp(struct irdma_sc_dev *dev,
-					  struct irdma_hmc_info *hmc_info,
-					  u32 idx);
-enum irdma_status_code irdma_prep_remove_sd_bp(struct irdma_hmc_info *hmc_info,
-					       u32 idx);
-enum irdma_status_code
-irdma_prep_remove_pd_page(struct irdma_hmc_info *hmc_info, u32 idx);
+int irdma_add_sd_table_entry(struct irdma_hw *hw,
+			     struct irdma_hmc_info *hmc_info, u32 sd_index,
+			     enum irdma_sd_entry_type type, u64 direct_mode_sz);
+int irdma_add_pd_table_entry(struct irdma_sc_dev *dev,
+			     struct irdma_hmc_info *hmc_info, u32 pd_index,
+			     struct irdma_dma_mem *rsrc_pg);
+int irdma_remove_pd_bp(struct irdma_sc_dev *dev,
+		       struct irdma_hmc_info *hmc_info, u32 idx);
+int irdma_prep_remove_sd_bp(struct irdma_hmc_info *hmc_info, u32 idx);
+int irdma_prep_remove_pd_page(struct irdma_hmc_info *hmc_info, u32 idx);
 #endif /* IRDMA_HMC_H */

@@ -97,4 +97,8 @@ void cedrus_device_run(void *priv)
 		v4l2_ctrl_request_complete(src_req, &ctx->hdl);
 
 	dev->dec_ops[ctx->current_codec]->trigger(ctx);
+
+	/* Start the watchdog timer. */
+	schedule_delayed_work(&dev->watchdog_work,
+			      msecs_to_jiffies(2000));
 }

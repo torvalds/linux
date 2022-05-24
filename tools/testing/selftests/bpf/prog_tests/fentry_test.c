@@ -6,9 +6,9 @@
 static int fentry_test(struct fentry_test_lskel *fentry_skel)
 {
 	int err, prog_fd, i;
-	__u32 duration = 0, retval;
 	int link_fd;
 	__u64 *result;
+	LIBBPF_OPTS(bpf_test_run_opts, topts);
 
 	err = fentry_test_lskel__attach(fentry_skel);
 	if (!ASSERT_OK(err, "fentry_attach"))
@@ -20,10 +20,9 @@ static int fentry_test(struct fentry_test_lskel *fentry_skel)
 		return -1;
 
 	prog_fd = fentry_skel->progs.test1.prog_fd;
-	err = bpf_prog_test_run(prog_fd, 1, NULL, 0,
-				NULL, NULL, &retval, &duration);
+	err = bpf_prog_test_run_opts(prog_fd, &topts);
 	ASSERT_OK(err, "test_run");
-	ASSERT_EQ(retval, 0, "test_run");
+	ASSERT_EQ(topts.retval, 0, "test_run");
 
 	result = (__u64 *)fentry_skel->bss;
 	for (i = 0; i < sizeof(*fentry_skel->bss) / sizeof(__u64); i++) {

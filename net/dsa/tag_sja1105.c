@@ -226,7 +226,7 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 	 * TX VLAN that targets the bridge's entire broadcast domain,
 	 * instead of just the specific port.
 	 */
-	tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(bridge_num);
+	tx_vid = dsa_tag_8021q_bridge_vid(bridge_num);
 
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp), tx_vid);
 }
@@ -267,7 +267,7 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 
 	if (skb->offload_fwd_mark)
 		return sja1105_imprecise_xmit(skb, netdev);
@@ -295,7 +295,7 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
-	u16 tx_vid = dsa_tag_8021q_tx_vid(dp);
+	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 	__be32 *tx_trailer;
 	__be16 *tx_header;
 	int trailer_pos;
@@ -509,7 +509,7 @@ static bool sja1110_skb_has_inband_control_extension(const struct sk_buff *skb)
  * packet.
  */
 static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
-			     int *switch_id, u16 *vid)
+			     int *switch_id, int *vbid, u16 *vid)
 {
 	struct vlan_ethhdr *hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
 	u16 vlan_tci;
@@ -519,8 +519,8 @@ static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 	else
 		vlan_tci = ntohs(hdr->h_vlan_TCI);
 
-	if (vid_is_dsa_8021q_rxvlan(vlan_tci & VLAN_VID_MASK))
-		return dsa_8021q_rcv(skb, source_port, switch_id);
+	if (vid_is_dsa_8021q(vlan_tci & VLAN_VID_MASK))
+		return dsa_8021q_rcv(skb, source_port, switch_id, vbid);
 
 	/* Try our best with imprecise RX */
 	*vid = vlan_tci & VLAN_VID_MASK;
@@ -529,7 +529,7 @@ static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
-	int source_port = -1, switch_id = -1;
+	int source_port = -1, switch_id = -1, vbid = -1;
 	struct sja1105_meta meta = {0};
 	struct ethhdr *hdr;
 	bool is_link_local;
@@ -542,7 +542,7 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
-		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vid);
+		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vbid, &vid);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
@@ -561,7 +561,9 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		return NULL;
 	}
 
-	if (source_port == -1 || switch_id == -1)
+	if (vbid >= 1)
+		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
+	else if (source_port == -1 || switch_id == -1)
 		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	else
 		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
@@ -686,7 +688,7 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
-	int source_port = -1, switch_id = -1;
+	int source_port = -1, switch_id = -1, vbid = -1;
 	bool host_only = false;
 	u16 vid = 0;
 
@@ -700,9 +702,11 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 
 	/* Packets with in-band control extensions might still have RX VLANs */
 	if (likely(sja1105_skb_has_tag_8021q(skb)))
-		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vid);
+		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vbid, &vid);
 
-	if (source_port == -1 || switch_id == -1)
+	if (vbid >= 1)
+		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
+	else if (source_port == -1 || switch_id == -1)
 		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	else
 		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);

@@ -615,72 +615,33 @@ int amdgpu_get_gfx_off_status(struct amdgpu_device *adev, uint32_t *value)
 
 	mutex_lock(&adev->gfx.gfx_off_mutex);
 
-	r = smu_get_status_gfxoff(adev, value);
+	r = amdgpu_dpm_get_status_gfxoff(adev, value);
 
 	mutex_unlock(&adev->gfx.gfx_off_mutex);
 
 	return r;
 }
 
-int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev)
+int amdgpu_gfx_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block)
 {
 	int r;
-	struct ras_fs_if fs_info = {
-		.sysfs_name = "gfx_err_count",
-	};
-	struct ras_ih_if ih_info = {
-		.cb = amdgpu_gfx_process_ras_data_cb,
-	};
-
-	if (!adev->gfx.ras_if) {
-		adev->gfx.ras_if = kmalloc(sizeof(struct ras_common_if), GFP_KERNEL);
-		if (!adev->gfx.ras_if)
-			return -ENOMEM;
-		adev->gfx.ras_if->block = AMDGPU_RAS_BLOCK__GFX;
-		adev->gfx.ras_if->type = AMDGPU_RAS_ERROR__MULTI_UNCORRECTABLE;
-		adev->gfx.ras_if->sub_block_index = 0;
-	}
-	fs_info.head = ih_info.head = *adev->gfx.ras_if;
-	r = amdgpu_ras_late_init(adev, adev->gfx.ras_if,
-				 &fs_info, &ih_info);
+	r = amdgpu_ras_block_late_init(adev, ras_block);
 	if (r)
-		goto free;
+		return r;
 
-	if (amdgpu_ras_is_supported(adev, adev->gfx.ras_if->block)) {
+	if (amdgpu_ras_is_supported(adev, ras_block->block)) {
 		if (!amdgpu_persistent_edc_harvesting_supported(adev))
 			amdgpu_ras_reset_error_status(adev, AMDGPU_RAS_BLOCK__GFX);
 
 		r = amdgpu_irq_get(adev, &adev->gfx.cp_ecc_error_irq, 0);
 		if (r)
 			goto late_fini;
-	} else {
-		/* free gfx ras_if if ras is not supported */
-		r = 0;
-		goto free;
 	}
 
 	return 0;
 late_fini:
-	amdgpu_ras_late_fini(adev, adev->gfx.ras_if, &ih_info);
-free:
-	kfree(adev->gfx.ras_if);
-	adev->gfx.ras_if = NULL;
+	amdgpu_ras_block_late_fini(adev, ras_block);
 	return r;
-}
-
-void amdgpu_gfx_ras_fini(struct amdgpu_device *adev)
-{
-	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX) &&
-			adev->gfx.ras_if) {
-		struct ras_common_if *ras_if = adev->gfx.ras_if;
-		struct ras_ih_if ih_info = {
-			.head = *ras_if,
-			.cb = amdgpu_gfx_process_ras_data_cb,
-		};
-
-		amdgpu_ras_late_fini(adev, ras_if, &ih_info);
-		kfree(ras_if);
-	}
 }
 
 int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
@@ -695,9 +656,9 @@ int amdgpu_gfx_process_ras_data_cb(struct amdgpu_device *adev,
 	 */
 	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__GFX)) {
 		kgd2kfd_set_sram_ecc_flag(adev->kfd.dev);
-		if (adev->gfx.ras_funcs &&
-		    adev->gfx.ras_funcs->query_ras_error_count)
-			adev->gfx.ras_funcs->query_ras_error_count(adev, err_data);
+		if (adev->gfx.ras && adev->gfx.ras->ras_block.hw_ops &&
+		    adev->gfx.ras->ras_block.hw_ops->query_ras_error_count)
+			adev->gfx.ras->ras_block.hw_ops->query_ras_error_count(adev, err_data);
 		amdgpu_ras_reset_gpu(adev);
 	}
 	return AMDGPU_RAS_SUCCESS;
@@ -851,20 +812,4 @@ int amdgpu_gfx_get_num_kcq(struct amdgpu_device *adev)
 		return 8;
 	}
 	return amdgpu_num_kcq;
-}
-
-/* amdgpu_gfx_state_change_set - Handle gfx power state change set
- * @adev: amdgpu_device pointer
- * @state: gfx power state(1 -sGpuChangeState_D0Entry and 2 -sGpuChangeState_D3Entry)
- *
- */
-
-void amdgpu_gfx_state_change_set(struct amdgpu_device *adev, enum gfx_change_state state)
-{
-	mutex_lock(&adev->pm.mutex);
-	if (adev->powerplay.pp_funcs &&
-	    adev->powerplay.pp_funcs->gfx_state_change_set)
-		((adev)->powerplay.pp_funcs->gfx_state_change_set(
-			(adev)->powerplay.pp_handle, state));
-	mutex_unlock(&adev->pm.mutex);
 }

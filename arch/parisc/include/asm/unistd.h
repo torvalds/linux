@@ -63,10 +63,6 @@
 		);							\
 		__sys_res = (long)__res;				\
 	}								\
-	if ( (unsigned long)__sys_res >= (unsigned long)-4095 ){	\
-		errno = -__sys_res;		        		\
-		__sys_res = -1;						\
-	}								\
 	__sys_res;							\
 })
 

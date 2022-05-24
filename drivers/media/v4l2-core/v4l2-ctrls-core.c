@@ -112,7 +112,9 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 	struct v4l2_ctrl_mpeg2_picture *p_mpeg2_picture;
 	struct v4l2_ctrl_mpeg2_quantisation *p_mpeg2_quant;
 	struct v4l2_ctrl_vp8_frame *p_vp8_frame;
+	struct v4l2_ctrl_vp9_frame *p_vp9_frame;
 	struct v4l2_ctrl_fwht_params *p_fwht_params;
+	struct v4l2_ctrl_h264_scaling_matrix *p_h264_scaling_matrix;
 	void *p = ptr.p + idx * ctrl->elem_size;
 
 	if (ctrl->p_def.p_const)
@@ -152,6 +154,13 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		p_vp8_frame = p;
 		p_vp8_frame->num_dct_parts = 1;
 		break;
+	case V4L2_CTRL_TYPE_VP9_FRAME:
+		p_vp9_frame = p;
+		p_vp9_frame->profile = 0;
+		p_vp9_frame->bit_depth = 8;
+		p_vp9_frame->flags |= V4L2_VP9_FRAME_FLAG_X_SUBSAMPLING |
+			V4L2_VP9_FRAME_FLAG_Y_SUBSAMPLING;
+		break;
 	case V4L2_CTRL_TYPE_FWHT_PARAMS:
 		p_fwht_params = p;
 		p_fwht_params->version = V4L2_FWHT_VERSION;
@@ -159,6 +168,15 @@ static void std_init_compound(const struct v4l2_ctrl *ctrl, u32 idx,
 		p_fwht_params->height = 720;
 		p_fwht_params->flags = V4L2_FWHT_FL_PIXENC_YUV |
 			(2 << V4L2_FWHT_FL_COMPONENTS_NUM_OFFSET);
+		break;
+	case V4L2_CTRL_TYPE_H264_SCALING_MATRIX:
+		p_h264_scaling_matrix = p;
+		/*
+		 * The default (flat) H.264 scaling matrix when none are
+		 * specified in the bitstream, this is according to formulas
+		 *  (7-8) and (7-9) of the specification.
+		 */
+		memset(p_h264_scaling_matrix, 16, sizeof(*p_h264_scaling_matrix));
 		break;
 	}
 }
@@ -382,7 +400,7 @@ validate_vp9_seg_params(struct v4l2_vp9_segmentation *seg)
 	}
 
 	for (i = 0; i < ARRAY_SIZE(seg->feature_data); i++) {
-		const int range[] = { 255, 63, 3, 0 };
+		static const int range[] = { 255, 63, 3, 0 };
 
 		for (j = 0; j < ARRAY_SIZE(seg->feature_data[j]); j++) {
 			if (seg->feature_data[i][j] < -range[j] ||

@@ -1033,7 +1033,7 @@ static enum rx_handler_result handle_not_macsec(struct sk_buff *skb)
 				else
 					nskb->pkt_type = PACKET_MULTICAST;
 
-				netif_rx(nskb);
+				__netif_rx(nskb);
 			}
 			continue;
 		}
@@ -1056,7 +1056,7 @@ static enum rx_handler_result handle_not_macsec(struct sk_buff *skb)
 
 		nskb->dev = ndev;
 
-		if (netif_rx(nskb) == NET_RX_SUCCESS) {
+		if (__netif_rx(nskb) == NET_RX_SUCCESS) {
 			u64_stats_update_begin(&secy_stats->syncp);
 			secy_stats->stats.InPktsUntagged++;
 			u64_stats_update_end(&secy_stats->syncp);
@@ -1288,7 +1288,7 @@ nosci:
 
 		macsec_reset_skb(nskb, macsec->secy.netdev);
 
-		ret = netif_rx(nskb);
+		ret = __netif_rx(nskb);
 		if (ret == NET_RX_SUCCESS) {
 			u64_stats_update_begin(&secy_stats->syncp);
 			secy_stats->stats.InPktsUnknownSCI++;
@@ -3870,6 +3870,18 @@ static void macsec_common_dellink(struct net_device *dev, struct list_head *head
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev = macsec->real_dev;
 
+	/* If h/w offloading is available, propagate to the device */
+	if (macsec_is_offloaded(macsec)) {
+		const struct macsec_ops *ops;
+		struct macsec_context ctx;
+
+		ops = macsec_get_ops(netdev_priv(dev), &ctx);
+		if (ops) {
+			ctx.secy = &macsec->secy;
+			macsec_offload(ops->mdo_del_secy, &ctx);
+		}
+	}
+
 	unregister_netdevice_queue(dev, head);
 	list_del_rcu(&macsec->secys);
 	macsec_del_dev(macsec);
@@ -3883,18 +3895,6 @@ static void macsec_dellink(struct net_device *dev, struct list_head *head)
 	struct macsec_dev *macsec = macsec_priv(dev);
 	struct net_device *real_dev = macsec->real_dev;
 	struct macsec_rxh_data *rxd = macsec_data_rtnl(real_dev);
-
-	/* If h/w offloading is available, propagate to the device */
-	if (macsec_is_offloaded(macsec)) {
-		const struct macsec_ops *ops;
-		struct macsec_context ctx;
-
-		ops = macsec_get_ops(netdev_priv(dev), &ctx);
-		if (ops) {
-			ctx.secy = &macsec->secy;
-			macsec_offload(ops->mdo_del_secy, &ctx);
-		}
-	}
 
 	macsec_common_dellink(dev, head);
 
@@ -4017,6 +4017,15 @@ static int macsec_newlink(struct net *net, struct net_device *dev,
 	if (macsec->offload != MACSEC_OFFLOAD_OFF &&
 	    !macsec_check_offload(macsec->offload, macsec))
 		return -EOPNOTSUPP;
+
+	/* send_sci must be set to true when transmit sci explicitly is set */
+	if ((data && data[IFLA_MACSEC_SCI]) &&
+	    (data && data[IFLA_MACSEC_INC_SCI])) {
+		u8 send_sci = !!nla_get_u8(data[IFLA_MACSEC_INC_SCI]);
+
+		if (!send_sci)
+			return -EINVAL;
+	}
 
 	if (data && data[IFLA_MACSEC_ICV_LEN])
 		icv_len = nla_get_u8(data[IFLA_MACSEC_ICV_LEN]);

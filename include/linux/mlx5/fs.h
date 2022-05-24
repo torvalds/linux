@@ -224,6 +224,7 @@ struct mlx5_flow_act {
 	u32 flags;
 	struct mlx5_fs_vlan vlan[MLX5_FS_VLAN_DEPTH];
 	struct ib_counters *counters;
+	struct mlx5_flow_group *fg;
 };
 
 #define MLX5_DECLARE_FLOW_ACT(name) \

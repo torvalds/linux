@@ -17,6 +17,7 @@
 #include <linux/regmap.h>
 
 #define CHGRIRQ_REG					0x0a
+#define MCHGRIRQ_REG					0x17
 
 struct crystal_cove_charger_data {
 	struct mutex buslock; /* irq_bus_lock */
@@ -25,8 +26,8 @@ struct crystal_cove_charger_data {
 	struct irq_domain *irq_domain;
 	int irq;
 	int charger_irq;
-	bool irq_enabled;
-	bool irq_is_enabled;
+	u8 mask;
+	u8 new_mask;
 };
 
 static irqreturn_t crystal_cove_charger_irq(int irq, void *data)
@@ -53,13 +54,9 @@ static void crystal_cove_charger_irq_bus_sync_unlock(struct irq_data *data)
 {
 	struct crystal_cove_charger_data *charger = irq_data_get_irq_chip_data(data);
 
-	if (charger->irq_is_enabled != charger->irq_enabled) {
-		if (charger->irq_enabled)
-			enable_irq(charger->irq);
-		else
-			disable_irq(charger->irq);
-
-		charger->irq_is_enabled = charger->irq_enabled;
+	if (charger->mask != charger->new_mask) {
+		regmap_write(charger->regmap, MCHGRIRQ_REG, charger->new_mask);
+		charger->mask = charger->new_mask;
 	}
 
 	mutex_unlock(&charger->buslock);
@@ -69,14 +66,14 @@ static void crystal_cove_charger_irq_unmask(struct irq_data *data)
 {
 	struct crystal_cove_charger_data *charger = irq_data_get_irq_chip_data(data);
 
-	charger->irq_enabled = true;
+	charger->new_mask &= ~BIT(data->hwirq);
 }
 
 static void crystal_cove_charger_irq_mask(struct irq_data *data)
 {
 	struct crystal_cove_charger_data *charger = irq_data_get_irq_chip_data(data);
 
-	charger->irq_enabled = false;
+	charger->new_mask |= BIT(data->hwirq);
 }
 
 static void crystal_cove_charger_rm_irq_domain(void *data)
@@ -130,10 +127,13 @@ static int crystal_cove_charger_probe(struct platform_device *pdev)
 	irq_set_nested_thread(charger->charger_irq, true);
 	irq_set_noprobe(charger->charger_irq);
 
+	/* Mask the single 2nd level IRQ before enabling the 1st level IRQ */
+	charger->mask = charger->new_mask = BIT(0);
+	regmap_write(charger->regmap, MCHGRIRQ_REG, charger->mask);
+
 	ret = devm_request_threaded_irq(&pdev->dev, charger->irq, NULL,
 					crystal_cove_charger_irq,
-					IRQF_ONESHOT | IRQF_NO_AUTOEN,
-					KBUILD_MODNAME, charger);
+					IRQF_ONESHOT, KBUILD_MODNAME, charger);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret, "requesting irq\n");
 

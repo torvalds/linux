@@ -52,6 +52,9 @@
 #define SPRN_TFHAR      0x80    /* Transaction Failure Handler Addr */
 #define SPRN_TAR        0x32f	/* Target Address Register */
 
+#define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)
+#define SPRN_PVR	0x11F
+
 #define SPRN_DSCR_PRIV 0x11	/* Privilege State DSCR */
 #define SPRN_DSCR      0x03	/* Data Stream Control Register */
 #define SPRN_PPR       896	/* Program Priority Register */
@@ -84,6 +87,7 @@
 #define TEXASR_ROT	0x0000000002000000
 
 /* MSR register bits */
+#define MSR_HV 		(1ul << 60)	/* Hypervisor state */
 #define MSR_TS_S_LG     33              /* Trans Mem state: Suspended */
 #define MSR_TS_T_LG	34              /* Trans Mem state: Active */
 

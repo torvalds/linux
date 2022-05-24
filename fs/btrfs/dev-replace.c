@@ -243,6 +243,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 				  struct btrfs_device *srcdev,
 				  struct btrfs_device **device_out)
 {
+	struct btrfs_fs_devices *fs_devices = fs_info->fs_devices;
 	struct btrfs_device *device;
 	struct block_device *bdev;
 	struct rcu_string *name;
@@ -271,7 +272,7 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 
 	sync_blockdev(bdev);
 
-	list_for_each_entry(device, &fs_info->fs_devices->devices, dev_list) {
+	list_for_each_entry(device, &fs_devices->devices, dev_list) {
 		if (device->bdev == bdev) {
 			btrfs_err(fs_info,
 				  "target device is in the filesystem!");
@@ -302,6 +303,9 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 		goto error;
 	}
 	rcu_assign_pointer(device->name, name);
+	ret = lookup_bdev(device_path, &device->devt);
+	if (ret)
+		goto error;
 
 	set_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state);
 	device->generation = 0;
@@ -320,17 +324,17 @@ static int btrfs_init_dev_replace_tgtdev(struct btrfs_fs_info *fs_info,
 	device->mode = FMODE_EXCL;
 	device->dev_stats_valid = 1;
 	set_blocksize(device->bdev, BTRFS_BDEV_BLOCKSIZE);
-	device->fs_devices = fs_info->fs_devices;
+	device->fs_devices = fs_devices;
 
 	ret = btrfs_get_dev_zone_info(device, false);
 	if (ret)
 		goto error;
 
-	mutex_lock(&fs_info->fs_devices->device_list_mutex);
-	list_add(&device->dev_list, &fs_info->fs_devices->devices);
-	fs_info->fs_devices->num_devices++;
-	fs_info->fs_devices->open_devices++;
-	mutex_unlock(&fs_info->fs_devices->device_list_mutex);
+	mutex_lock(&fs_devices->device_list_mutex);
+	list_add(&device->dev_list, &fs_devices->devices);
+	fs_devices->num_devices++;
+	fs_devices->open_devices++;
+	mutex_unlock(&fs_devices->device_list_mutex);
 
 	*device_out = device;
 	return 0;

@@ -340,7 +340,7 @@ enum wake_event_bits {
 struct netdev_desc {
 	__le32 next_desc;
 	__le32 status;
-	struct desc_frag { __le32 addr, length; } frag[1];
+	struct desc_frag { __le32 addr, length; } frag;
 };
 
 /* Bits in netdev_desc.status */
@@ -980,8 +980,8 @@ static void tx_timeout(struct net_device *dev, unsigned int txqueue)
 				le32_to_cpu(np->tx_ring[i].next_desc),
 				le32_to_cpu(np->tx_ring[i].status),
 				(le32_to_cpu(np->tx_ring[i].status) >> 2) & 0xff,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
-				le32_to_cpu(np->tx_ring[i].frag[0].length));
+				le32_to_cpu(np->tx_ring[i].frag.addr),
+				le32_to_cpu(np->tx_ring[i].frag.length));
 		}
 		printk(KERN_DEBUG "TxListPtr=%08x netif_queue_stopped=%d\n",
 			ioread32(np->base + TxListPtr),
@@ -1027,7 +1027,7 @@ static void init_ring(struct net_device *dev)
 		np->rx_ring[i].next_desc = cpu_to_le32(np->rx_ring_dma +
 			((i+1)%RX_RING_SIZE)*sizeof(*np->rx_ring));
 		np->rx_ring[i].status = 0;
-		np->rx_ring[i].frag[0].length = 0;
+		np->rx_ring[i].frag.length = 0;
 		np->rx_skbuff[i] = NULL;
 	}
 
@@ -1039,16 +1039,16 @@ static void init_ring(struct net_device *dev)
 		if (skb == NULL)
 			break;
 		skb_reserve(skb, 2);	/* 16 byte align the IP header. */
-		np->rx_ring[i].frag[0].addr = cpu_to_le32(
+		np->rx_ring[i].frag.addr = cpu_to_le32(
 			dma_map_single(&np->pci_dev->dev, skb->data,
 				np->rx_buf_sz, DMA_FROM_DEVICE));
 		if (dma_mapping_error(&np->pci_dev->dev,
-					np->rx_ring[i].frag[0].addr)) {
+					np->rx_ring[i].frag.addr)) {
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 			break;
 		}
-		np->rx_ring[i].frag[0].length = cpu_to_le32(np->rx_buf_sz | LastFrag);
+		np->rx_ring[i].frag.length = cpu_to_le32(np->rx_buf_sz | LastFrag);
 	}
 	np->dirty_rx = (unsigned int)(i - RX_RING_SIZE);
 
@@ -1097,12 +1097,12 @@ start_tx (struct sk_buff *skb, struct net_device *dev)
 
 	txdesc->next_desc = 0;
 	txdesc->status = cpu_to_le32 ((entry << 2) | DisableAlign);
-	txdesc->frag[0].addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
+	txdesc->frag.addr = cpu_to_le32(dma_map_single(&np->pci_dev->dev,
 				skb->data, skb->len, DMA_TO_DEVICE));
 	if (dma_mapping_error(&np->pci_dev->dev,
-				txdesc->frag[0].addr))
+				txdesc->frag.addr))
 			goto drop_frame;
-	txdesc->frag[0].length = cpu_to_le32 (skb->len | LastFrag);
+	txdesc->frag.length = cpu_to_le32 (skb->len | LastFrag);
 
 	/* Increment cur_tx before tasklet_schedule() */
 	np->cur_tx++;
@@ -1151,7 +1151,7 @@ reset_tx (struct net_device *dev)
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			dma_unmap_single(&np->pci_dev->dev,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
+				le32_to_cpu(np->tx_ring[i].frag.addr),
 				skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb_any(skb);
 			np->tx_skbuff[i] = NULL;
@@ -1271,12 +1271,12 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				skb = np->tx_skbuff[entry];
 				/* Free the original skb. */
 				dma_unmap_single(&np->pci_dev->dev,
-					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
+					le32_to_cpu(np->tx_ring[entry].frag.addr),
 					skb->len, DMA_TO_DEVICE);
 				dev_consume_skb_irq(np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
-				np->tx_ring[entry].frag[0].addr = 0;
-				np->tx_ring[entry].frag[0].length = 0;
+				np->tx_ring[entry].frag.addr = 0;
+				np->tx_ring[entry].frag.length = 0;
 			}
 			spin_unlock(&np->lock);
 		} else {
@@ -1290,12 +1290,12 @@ static irqreturn_t intr_handler(int irq, void *dev_instance)
 				skb = np->tx_skbuff[entry];
 				/* Free the original skb. */
 				dma_unmap_single(&np->pci_dev->dev,
-					le32_to_cpu(np->tx_ring[entry].frag[0].addr),
+					le32_to_cpu(np->tx_ring[entry].frag.addr),
 					skb->len, DMA_TO_DEVICE);
 				dev_consume_skb_irq(np->tx_skbuff[entry]);
 				np->tx_skbuff[entry] = NULL;
-				np->tx_ring[entry].frag[0].addr = 0;
-				np->tx_ring[entry].frag[0].length = 0;
+				np->tx_ring[entry].frag.addr = 0;
+				np->tx_ring[entry].frag.length = 0;
 			}
 			spin_unlock(&np->lock);
 		}
@@ -1372,16 +1372,16 @@ static void rx_poll(struct tasklet_struct *t)
 			    (skb = netdev_alloc_skb(dev, pkt_len + 2)) != NULL) {
 				skb_reserve(skb, 2);	/* 16 byte align the IP header */
 				dma_sync_single_for_cpu(&np->pci_dev->dev,
-						le32_to_cpu(desc->frag[0].addr),
+						le32_to_cpu(desc->frag.addr),
 						np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_copy_to_linear_data(skb, np->rx_skbuff[entry]->data, pkt_len);
 				dma_sync_single_for_device(&np->pci_dev->dev,
-						le32_to_cpu(desc->frag[0].addr),
+						le32_to_cpu(desc->frag.addr),
 						np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_put(skb, pkt_len);
 			} else {
 				dma_unmap_single(&np->pci_dev->dev,
-					le32_to_cpu(desc->frag[0].addr),
+					le32_to_cpu(desc->frag.addr),
 					np->rx_buf_sz, DMA_FROM_DEVICE);
 				skb_put(skb = np->rx_skbuff[entry], pkt_len);
 				np->rx_skbuff[entry] = NULL;
@@ -1427,18 +1427,18 @@ static void refill_rx (struct net_device *dev)
 			if (skb == NULL)
 				break;		/* Better luck next round. */
 			skb_reserve(skb, 2);	/* Align IP on 16 byte boundaries */
-			np->rx_ring[entry].frag[0].addr = cpu_to_le32(
+			np->rx_ring[entry].frag.addr = cpu_to_le32(
 				dma_map_single(&np->pci_dev->dev, skb->data,
 					np->rx_buf_sz, DMA_FROM_DEVICE));
 			if (dma_mapping_error(&np->pci_dev->dev,
-				    np->rx_ring[entry].frag[0].addr)) {
+				    np->rx_ring[entry].frag.addr)) {
 			    dev_kfree_skb_irq(skb);
 			    np->rx_skbuff[entry] = NULL;
 			    break;
 			}
 		}
 		/* Perhaps we need not reset this field. */
-		np->rx_ring[entry].frag[0].length =
+		np->rx_ring[entry].frag.length =
 			cpu_to_le32(np->rx_buf_sz | LastFrag);
 		np->rx_ring[entry].status = 0;
 		cnt++;
@@ -1870,14 +1870,14 @@ static int netdev_close(struct net_device *dev)
 			   (int)(np->tx_ring_dma));
 		for (i = 0; i < TX_RING_SIZE; i++)
 			printk(KERN_DEBUG " #%d desc. %4.4x %8.8x %8.8x.\n",
-				   i, np->tx_ring[i].status, np->tx_ring[i].frag[0].addr,
-				   np->tx_ring[i].frag[0].length);
+				   i, np->tx_ring[i].status, np->tx_ring[i].frag.addr,
+				   np->tx_ring[i].frag.length);
 		printk(KERN_DEBUG "  Rx ring %8.8x:\n",
 			   (int)(np->rx_ring_dma));
 		for (i = 0; i < /*RX_RING_SIZE*/4 ; i++) {
 			printk(KERN_DEBUG " #%d desc. %4.4x %4.4x %8.8x\n",
-				   i, np->rx_ring[i].status, np->rx_ring[i].frag[0].addr,
-				   np->rx_ring[i].frag[0].length);
+				   i, np->rx_ring[i].status, np->rx_ring[i].frag.addr,
+				   np->rx_ring[i].frag.length);
 		}
 	}
 #endif /* __i386__ debugging only */
@@ -1892,19 +1892,19 @@ static int netdev_close(struct net_device *dev)
 		skb = np->rx_skbuff[i];
 		if (skb) {
 			dma_unmap_single(&np->pci_dev->dev,
-				le32_to_cpu(np->rx_ring[i].frag[0].addr),
+				le32_to_cpu(np->rx_ring[i].frag.addr),
 				np->rx_buf_sz, DMA_FROM_DEVICE);
 			dev_kfree_skb(skb);
 			np->rx_skbuff[i] = NULL;
 		}
-		np->rx_ring[i].frag[0].addr = cpu_to_le32(0xBADF00D0); /* poison */
+		np->rx_ring[i].frag.addr = cpu_to_le32(0xBADF00D0); /* poison */
 	}
 	for (i = 0; i < TX_RING_SIZE; i++) {
 		np->tx_ring[i].next_desc = 0;
 		skb = np->tx_skbuff[i];
 		if (skb) {
 			dma_unmap_single(&np->pci_dev->dev,
-				le32_to_cpu(np->tx_ring[i].frag[0].addr),
+				le32_to_cpu(np->tx_ring[i].frag.addr),
 				skb->len, DMA_TO_DEVICE);
 			dev_kfree_skb(skb);
 			np->tx_skbuff[i] = NULL;

@@ -1111,29 +1111,14 @@ EXPORT_SYMBOL(snd_card_file_remove);
  */
 int snd_power_ref_and_wait(struct snd_card *card)
 {
-	wait_queue_entry_t wait;
-	int result = 0;
-
 	snd_power_ref(card);
-	/* fastpath */
 	if (snd_power_get_state(card) == SNDRV_CTL_POWER_D0)
 		return 0;
-	init_waitqueue_entry(&wait, current);
-	add_wait_queue(&card->power_sleep, &wait);
-	while (1) {
-		if (card->shutdown) {
-			result = -ENODEV;
-			break;
-		}
-		if (snd_power_get_state(card) == SNDRV_CTL_POWER_D0)
-			break;
-		snd_power_unref(card);
-		set_current_state(TASK_UNINTERRUPTIBLE);
-		schedule_timeout(30 * HZ);
-		snd_power_ref(card);
-	}
-	remove_wait_queue(&card->power_sleep, &wait);
-	return result;
+	wait_event_cmd(card->power_sleep,
+		       card->shutdown ||
+		       snd_power_get_state(card) == SNDRV_CTL_POWER_D0,
+		       snd_power_unref(card), snd_power_ref(card));
+	return card->shutdown ? -ENODEV : 0;
 }
 EXPORT_SYMBOL_GPL(snd_power_ref_and_wait);
 

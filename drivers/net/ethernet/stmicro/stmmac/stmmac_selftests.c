@@ -1777,9 +1777,9 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 	if (ret)
 		return ret;
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if (!curr_time) {
 		ret = -EOPNOTSUPP;
@@ -1799,9 +1799,9 @@ static int stmmac_test_tbs(struct stmmac_priv *priv)
 		goto fail_disable;
 
 	/* Check if expected time has elapsed */
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &curr_time);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	if ((curr_time - start_time) < STMMAC_TBS_LT_OFFSET)
 		ret = -EINVAL;

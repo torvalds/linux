@@ -11,7 +11,6 @@
 
 #include <linux/kthread.h>
 #include <linux/ktime.h>
-#include <linux/genhd.h>
 #include <linux/blk-mq.h>
 #include <linux/blk-crypto-profile.h>
 
@@ -65,11 +64,21 @@ struct mapped_device {
 	struct gendisk *disk;
 	struct dax_device *dax_dev;
 
+	wait_queue_head_t wait;
+	unsigned long __percpu *pending_io;
+
+	/* forced geometry settings */
+	struct hd_geometry geometry;
+
+	/*
+	 * Processing queue (flush)
+	 */
+	struct workqueue_struct *wq;
+
 	/*
 	 * A list of ios that arrived while we were suspended.
 	 */
 	struct work_struct work;
-	wait_queue_head_t wait;
 	spinlock_t deferred_lock;
 	struct bio_list deferred;
 
@@ -84,8 +93,18 @@ struct mapped_device {
 	struct list_head uevent_list;
 	spinlock_t uevent_lock; /* Protect access to uevent_list */
 
+	/* for blk-mq request-based DM support */
+	bool init_tio_pdu:1;
+	struct blk_mq_tag_set *tag_set;
+
+	struct dm_stats stats;
+
 	/* the number of internal suspends */
 	unsigned internal_suspend_count;
+
+	int swap_bios;
+	struct semaphore swap_bios_semaphore;
+	struct mutex swap_bios_lock;
 
 	/*
 	 * io objects are allocated from here.
@@ -93,26 +112,8 @@ struct mapped_device {
 	struct bio_set io_bs;
 	struct bio_set bs;
 
-	/*
-	 * Processing queue (flush)
-	 */
-	struct workqueue_struct *wq;
-
-	/* forced geometry settings */
-	struct hd_geometry geometry;
-
 	/* kobject and completion */
 	struct dm_kobject_holder kobj_holder;
-
-	int swap_bios;
-	struct semaphore swap_bios_semaphore;
-	struct mutex swap_bios_lock;
-
-	struct dm_stats stats;
-
-	/* for blk-mq request-based DM support */
-	struct blk_mq_tag_set *tag_set;
-	bool init_tio_pdu:1;
 
 	struct srcu_struct io_barrier;
 
@@ -141,7 +142,6 @@ struct mapped_device {
 #define DMF_EMULATE_ZONE_APPEND 9
 
 void disable_discard(struct mapped_device *md);
-void disable_write_same(struct mapped_device *md);
 void disable_write_zeroes(struct mapped_device *md);
 
 static inline sector_t dm_get_size(struct mapped_device *md)
@@ -207,34 +207,75 @@ struct dm_table {
 /*
  * One of these is allocated per clone bio.
  */
-#define DM_TIO_MAGIC 7282014
+#define DM_TIO_MAGIC 28714
 struct dm_target_io {
-	unsigned int magic;
+	unsigned short magic;
+	unsigned short flags;
+	unsigned int target_bio_nr;
 	struct dm_io *io;
 	struct dm_target *ti;
-	unsigned int target_bio_nr;
 	unsigned int *len_ptr;
-	bool inside_dm_io;
+	sector_t old_sector;
 	struct bio clone;
 };
+
+/*
+ * dm_target_io flags
+ */
+enum {
+	DM_TIO_INSIDE_DM_IO,
+	DM_TIO_IS_DUPLICATE_BIO
+};
+
+static inline bool dm_tio_flagged(struct dm_target_io *tio, unsigned int bit)
+{
+	return (tio->flags & (1U << bit)) != 0;
+}
+
+static inline void dm_tio_set_flag(struct dm_target_io *tio, unsigned int bit)
+{
+	tio->flags |= (1U << bit);
+}
 
 /*
  * One of these is allocated per original bio.
  * It contains the first clone used for that original.
  */
-#define DM_IO_MAGIC 5191977
+#define DM_IO_MAGIC 19577
 struct dm_io {
-	unsigned int magic;
-	struct mapped_device *md;
-	blk_status_t status;
+	unsigned short magic;
+	unsigned short flags;
 	atomic_t io_count;
+	struct mapped_device *md;
 	struct bio *orig_bio;
+	blk_status_t status;
+	spinlock_t lock;
 	unsigned long start_time;
-	spinlock_t endio_lock;
+	void *data;
+	struct hlist_node node;
+	struct task_struct *map_task;
 	struct dm_stats_aux stats_aux;
 	/* last member of dm_target_io is 'struct bio' */
 	struct dm_target_io tio;
 };
+
+/*
+ * dm_io flags
+ */
+enum {
+	DM_IO_START_ACCT,
+	DM_IO_ACCOUNTED
+};
+
+static inline bool dm_io_flagged(struct dm_io *io, unsigned int bit)
+{
+	return (io->flags & (1U << bit)) != 0;
+}
+
+static inline void dm_io_set_flag(struct dm_io *io, unsigned int bit)
+{
+	io->flags |= (1U << bit);
+}
 
 static inline void dm_io_inc_pending(struct dm_io *io)
 {

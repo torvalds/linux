@@ -18,8 +18,8 @@
 #include "hif_api_cmd.h"
 #include "hif_api_mib.h"
 
-/* The hell below need some explanations. For each symbolic number, we need to
- * define it with TRACE_DEFINE_ENUM() and in a list for __print_symbolic.
+/* The hell below need some explanations. For each symbolic number, we need to define it with
+ * TRACE_DEFINE_ENUM() and in a list for __print_symbolic.
  *
  *   1. Define a new macro that call TRACE_DEFINE_ENUM():
  *
@@ -41,9 +41,8 @@
  *          #undef xxx_name
  *          #define xxx_name(msg) { msg, #msg },
  *
- *   5. list_name can now nearly be used with __print_symbolic() but,
- *      __print_symbolic() dislike last comma of list. So we define a new list
- *      with a dummy element:
+ *   5. list_name can now nearly be used with __print_symbolic() but, __print_symbolic() dislike
+ *      last comma of list. So we define a new list with a dummy element:
  *
  *          #define list_for_print_symbolic list_names { -1, NULL }
  */
@@ -158,7 +157,7 @@ hif_mib_list_enum
 #define hif_mib_list hif_mib_list_enum { -1, NULL }
 
 DECLARE_EVENT_CLASS(hif_data,
-	TP_PROTO(const struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_PROTO(const struct wfx_hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv),
 	TP_STRUCT__entry(
 		__field(int, tx_fill_level)
@@ -190,9 +189,8 @@ DECLARE_EVENT_CLASS(hif_data,
 			__entry->mib = -1;
 			header_len = 0;
 		}
-		__entry->buf_len = min_t(int, __entry->msg_len,
-					 sizeof(__entry->buf))
-				   - sizeof(struct hif_msg) - header_len;
+		__entry->buf_len = min_t(int, __entry->msg_len, sizeof(__entry->buf))
+				   - sizeof(struct wfx_hif_msg) - header_len;
 		memcpy(__entry->buf, hif->body + header_len, __entry->buf_len);
 	),
 	TP_printk("%d:%d:%s_%s%s%s: %s%s (%d bytes)",
@@ -208,12 +206,12 @@ DECLARE_EVENT_CLASS(hif_data,
 	)
 );
 DEFINE_EVENT(hif_data, hif_send,
-	TP_PROTO(const struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_PROTO(const struct wfx_hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv));
 #define _trace_hif_send(hif, tx_fill_level)\
 	trace_hif_send(hif, tx_fill_level, false)
 DEFINE_EVENT(hif_data, hif_recv,
-	TP_PROTO(const struct hif_msg *hif, int tx_fill_level, bool is_recv),
+	TP_PROTO(const struct wfx_hif_msg *hif, int tx_fill_level, bool is_recv),
 	TP_ARGS(hif, tx_fill_level, is_recv));
 #define _trace_hif_recv(hif, tx_fill_level)\
 	trace_hif_recv(hif, tx_fill_level, true)
@@ -250,8 +248,7 @@ DECLARE_EVENT_CLASS(io_data,
 		__entry->reg = reg;
 		__entry->addr = addr;
 		__entry->msg_len = len;
-		__entry->buf_len = min_t(int, sizeof(__entry->buf),
-					 __entry->msg_len);
+		__entry->buf_len = min_t(int, sizeof(__entry->buf), __entry->msg_len);
 		memcpy(__entry->buf, io_buf, __entry->buf_len);
 		if (addr >= 0)
 			snprintf(__entry->addr_str, 10, "/%08x", addr);
@@ -364,7 +361,7 @@ TRACE_EVENT(bh_stats,
 	trace_bh_stats(ind, req, cnf, busy, release)
 
 TRACE_EVENT(tx_stats,
-	TP_PROTO(const struct hif_cnf_tx *tx_cnf, const struct sk_buff *skb,
+	TP_PROTO(const struct wfx_hif_cnf_tx *tx_cnf, const struct sk_buff *skb,
 		 int delay),
 	TP_ARGS(tx_cnf, skb, delay),
 	TP_STRUCT__entry(
@@ -379,8 +376,7 @@ TRACE_EVENT(tx_stats,
 	),
 	TP_fast_assign(
 		/* Keep sync with wfx_rates definition in main.c */
-		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9,
-					       10, 11, 12, 13 };
+		static const int hw_rate[] = { 0, 1, 2, 3, 6, 7, 8, 9, 10, 11, 12, 13 };
 		const struct ieee80211_tx_info *tx_info =
 			(const struct ieee80211_tx_info *)skb->cb;
 		const struct ieee80211_tx_rate *rates = tx_info->driver_rates;
@@ -420,9 +416,8 @@ TRACE_EVENT(tx_stats,
 	TP_printk("packet ID: %08x, rate policy: %s %d|%d %d|%d %d|%d %d|%d -> %d attempt, Delays media/queue/total: %4dus/%4dus/%4dus",
 		__entry->pkt_id,
 		__print_flags(__entry->flags, NULL,
-			{ 0x01, "M" }, { 0x02, "S" }, { 0x04, "G" },
-			{ 0x08, "R" }, { 0x10, "D" }, { 0x20, "F" },
-			{ 0x40, "Q" }),
+			{ 0x01, "M" }, { 0x02, "S" }, { 0x04, "G" }, { 0x08, "R" },
+			{ 0x10, "D" }, { 0x20, "F" }, { 0x40, "Q" }),
 		__entry->rate[0],
 		__entry->tx_count[0],
 		__entry->rate[1],

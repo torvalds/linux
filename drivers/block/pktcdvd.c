@@ -693,6 +693,7 @@ static void pkt_rbtree_insert(struct pktcdvd_device *pd, struct pkt_rb_node *nod
 static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *cgc)
 {
 	struct request_queue *q = bdev_get_queue(pd->bdev);
+	struct scsi_cmnd *scmd;
 	struct request *rq;
 	int ret = 0;
 
@@ -700,6 +701,7 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
 	if (cgc->buflen) {
 		ret = blk_rq_map_kern(q, rq, cgc->buffer, cgc->buflen,
@@ -708,15 +710,15 @@ static int pkt_generic_packet(struct pktcdvd_device *pd, struct packet_command *
 			goto out;
 	}
 
-	scsi_req(rq)->cmd_len = COMMAND_SIZE(cgc->cmd[0]);
-	memcpy(scsi_req(rq)->cmd, cgc->cmd, CDROM_PACKET_SIZE);
+	scmd->cmd_len = COMMAND_SIZE(cgc->cmd[0]);
+	memcpy(scmd->cmnd, cgc->cmd, CDROM_PACKET_SIZE);
 
 	rq->timeout = 60*HZ;
 	if (cgc->quiet)
 		rq->rq_flags |= RQF_QUIET;
 
 	blk_execute_rq(rq, false);
-	if (scsi_req(rq)->result)
+	if (scmd->result)
 		ret = -EIO;
 out:
 	blk_mq_free_request(rq);
@@ -1020,9 +1022,8 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 			continue;
 
 		bio = pkt->r_bios[f];
-		bio_reset(bio);
+		bio_reset(bio, pd->bdev, REQ_OP_READ);
 		bio->bi_iter.bi_sector = pkt->sector + f * (CD_FRAMESIZE >> 9);
-		bio_set_dev(bio, pd->bdev);
 		bio->bi_end_io = pkt_end_io_read;
 		bio->bi_private = pkt;
 
@@ -1034,7 +1035,6 @@ static void pkt_gather_data(struct pktcdvd_device *pd, struct packet_data *pkt)
 			BUG();
 
 		atomic_inc(&pkt->io_wait);
-		bio_set_op_attrs(bio, REQ_OP_READ, 0);
 		pkt_queue_bio(pd, bio);
 		frames_read++;
 	}
@@ -1235,9 +1235,8 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 {
 	int f;
 
-	bio_reset(pkt->w_bio);
+	bio_reset(pkt->w_bio, pd->bdev, REQ_OP_WRITE);
 	pkt->w_bio->bi_iter.bi_sector = pkt->sector;
-	bio_set_dev(pkt->w_bio, pd->bdev);
 	pkt->w_bio->bi_end_io = pkt_end_io_packet_write;
 	pkt->w_bio->bi_private = pkt;
 
@@ -1270,7 +1269,6 @@ static void pkt_start_write(struct pktcdvd_device *pd, struct packet_data *pkt)
 
 	/* Start the write request */
 	atomic_set(&pkt->io_wait, 1);
-	bio_set_op_attrs(pkt->w_bio, REQ_OP_WRITE, 0);
 	pkt_queue_bio(pd, pkt->w_bio);
 }
 
@@ -2298,12 +2296,12 @@ static void pkt_end_io_read_cloned(struct bio *bio)
 
 static void pkt_make_request_read(struct pktcdvd_device *pd, struct bio *bio)
 {
-	struct bio *cloned_bio = bio_clone_fast(bio, GFP_NOIO, &pkt_bio_set);
+	struct bio *cloned_bio =
+		bio_alloc_clone(pd->bdev, bio, GFP_NOIO, &pkt_bio_set);
 	struct packet_stacked_data *psd = mempool_alloc(&psd_pool, GFP_NOIO);
 
 	psd->pd = pd;
 	psd->bio = bio;
-	bio_set_dev(cloned_bio, pd->bdev);
 	cloned_bio->bi_private = psd;
 	cloned_bio->bi_end_io = pkt_end_io_read_cloned;
 	pd->stats.secs_r += bio_sectors(bio);
@@ -2404,17 +2402,10 @@ static void pkt_make_request_write(struct request_queue *q, struct bio *bio)
 
 static void pkt_submit_bio(struct bio *bio)
 {
-	struct pktcdvd_device *pd;
-	char b[BDEVNAME_SIZE];
+	struct pktcdvd_device *pd = bio->bi_bdev->bd_disk->queue->queuedata;
 	struct bio *split;
 
 	blk_queue_split(&bio);
-
-	pd = bio->bi_bdev->bd_disk->queue->queuedata;
-	if (!pd) {
-		pr_err("%s incorrect request queue\n", bio_devname(bio, b));
-		goto end_io;
-	}
 
 	pkt_dbg(2, pd, "start = %6llx stop = %6llx\n",
 		(unsigned long long)bio->bi_iter.bi_sector,

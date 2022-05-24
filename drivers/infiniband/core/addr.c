@@ -37,7 +37,6 @@
 #include <linux/inetdevice.h>
 #include <linux/slab.h>
 #include <linux/workqueue.h>
-#include <linux/module.h>
 #include <net/arp.h>
 #include <net/neighbour.h>
 #include <net/route.h>

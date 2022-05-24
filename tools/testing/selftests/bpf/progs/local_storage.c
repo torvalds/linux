@@ -37,6 +37,13 @@ struct {
 } sk_storage_map SEC(".maps");
 
 struct {
+	__uint(type, BPF_MAP_TYPE_SK_STORAGE);
+	__uint(map_flags, BPF_F_NO_PREALLOC | BPF_F_CLONE);
+	__type(key, int);
+	__type(value, struct local_storage);
+} sk_storage_map2 SEC(".maps");
+
+struct {
 	__uint(type, BPF_MAP_TYPE_TASK_STORAGE);
 	__uint(map_flags, BPF_F_NO_PREALLOC);
 	__type(key, int);
@@ -115,7 +122,19 @@ int BPF_PROG(socket_bind, struct socket *sock, struct sockaddr *address,
 	if (storage->value != DUMMY_STORAGE_VALUE)
 		sk_storage_result = -1;
 
+	/* This tests that we can associate multiple elements
+	 * with the local storage.
+	 */
+	storage = bpf_sk_storage_get(&sk_storage_map2, sock->sk, 0,
+				     BPF_LOCAL_STORAGE_GET_F_CREATE);
+	if (!storage)
+		return 0;
+
 	err = bpf_sk_storage_delete(&sk_storage_map, sock->sk);
+	if (err)
+		return 0;
+
+	err = bpf_sk_storage_delete(&sk_storage_map2, sock->sk);
 	if (!err)
 		sk_storage_result = err;
 

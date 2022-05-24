@@ -6,6 +6,7 @@
 #include <linux/sort.h>
 
 #include "i915_selftest.h"
+#include "intel_engine_regs.h"
 #include "intel_gpu_commands.h"
 #include "intel_gt_clock_utils.h"
 #include "selftest_engine.h"

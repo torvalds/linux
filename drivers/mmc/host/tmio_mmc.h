@@ -186,10 +186,6 @@ struct tmio_mmc_host {
 	void (*fixup_request)(struct tmio_mmc_host *host, struct mmc_request *mrq);
 	unsigned int (*get_timeout_cycles)(struct tmio_mmc_host *host);
 
-	void (*prepare_hs400_tuning)(struct tmio_mmc_host *host);
-	void (*hs400_downgrade)(struct tmio_mmc_host *host);
-	void (*hs400_complete)(struct tmio_mmc_host *host);
-
 	const struct tmio_mmc_dma_ops *dma_ops;
 };
 

@@ -31,6 +31,44 @@ static bool mdt_phdr_valid(const struct elf32_phdr *phdr)
 	return true;
 }
 
+static ssize_t mdt_load_split_segment(void *ptr, const struct elf32_phdr *phdrs,
+				      unsigned int segment, const char *fw_name,
+				      struct device *dev)
+{
+	const struct elf32_phdr *phdr = &phdrs[segment];
+	const struct firmware *seg_fw;
+	char *seg_name;
+	ssize_t ret;
+
+	if (strlen(fw_name) < 4)
+		return -EINVAL;
+
+	seg_name = kstrdup(fw_name, GFP_KERNEL);
+	if (!seg_name)
+		return -ENOMEM;
+
+	sprintf(seg_name + strlen(fw_name) - 3, "b%02d", segment);
+	ret = request_firmware_into_buf(&seg_fw, seg_name, dev,
+					ptr, phdr->p_filesz);
+	if (ret) {
+		dev_err(dev, "error %zd loading %s\n", ret, seg_name);
+		kfree(seg_name);
+		return ret;
+	}
+
+	if (seg_fw->size != phdr->p_filesz) {
+		dev_err(dev,
+			"failed to load segment %d from truncated file %s\n",
+			segment, seg_name);
+		ret = -EINVAL;
+	}
+
+	release_firmware(seg_fw);
+	kfree(seg_name);
+
+	return ret;
+}
+
 /**
  * qcom_mdt_get_size() - acquire size of the memory region needed to load mdt
  * @fw:		firmware object for the mdt file
@@ -83,13 +121,17 @@ EXPORT_SYMBOL_GPL(qcom_mdt_get_size);
  *
  * Return: pointer to data, or ERR_PTR()
  */
-void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len)
+void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len,
+			     const char *fw_name, struct device *dev)
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_hdr *ehdr;
+	unsigned int hash_segment = 0;
 	size_t hash_offset;
 	size_t hash_size;
 	size_t ehdr_size;
+	unsigned int i;
+	ssize_t ret;
 	void *data;
 
 	ehdr = (struct elf32_hdr *)fw->data;
@@ -101,24 +143,44 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len)
 	if (phdrs[0].p_type == PT_LOAD)
 		return ERR_PTR(-EINVAL);
 
-	if ((phdrs[1].p_flags & QCOM_MDT_TYPE_MASK) != QCOM_MDT_TYPE_HASH)
+	for (i = 1; i < ehdr->e_phnum; i++) {
+		if ((phdrs[i].p_flags & QCOM_MDT_TYPE_MASK) == QCOM_MDT_TYPE_HASH) {
+			hash_segment = i;
+			break;
+		}
+	}
+
+	if (!hash_segment) {
+		dev_err(dev, "no hash segment found in %s\n", fw_name);
 		return ERR_PTR(-EINVAL);
+	}
 
 	ehdr_size = phdrs[0].p_filesz;
-	hash_size = phdrs[1].p_filesz;
+	hash_size = phdrs[hash_segment].p_filesz;
 
 	data = kmalloc(ehdr_size + hash_size, GFP_KERNEL);
 	if (!data)
 		return ERR_PTR(-ENOMEM);
 
-	/* Is the header and hash already packed */
-	if (ehdr_size + hash_size == fw->size)
-		hash_offset = phdrs[0].p_filesz;
-	else
-		hash_offset = phdrs[1].p_offset;
-
+	/* Copy ELF header */
 	memcpy(data, fw->data, ehdr_size);
-	memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
+
+	if (ehdr_size + hash_size == fw->size) {
+		/* Firmware is split and hash is packed following the ELF header */
+		hash_offset = phdrs[0].p_filesz;
+		memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
+	} else if (phdrs[hash_segment].p_offset + hash_size <= fw->size) {
+		/* Hash is in its own segment, but within the loaded file */
+		hash_offset = phdrs[hash_segment].p_offset;
+		memcpy(data + ehdr_size, fw->data + hash_offset, hash_size);
+	} else {
+		/* Hash is in its own segment, beyond the loaded file */
+		ret = mdt_load_split_segment(data + ehdr_size, phdrs, hash_segment, fw_name, dev);
+		if (ret) {
+			kfree(data);
+			return ERR_PTR(ret);
+		}
+	}
 
 	*data_len = ehdr_size + hash_size;
 
@@ -126,23 +188,85 @@ void *qcom_mdt_read_metadata(const struct firmware *fw, size_t *data_len)
 }
 EXPORT_SYMBOL_GPL(qcom_mdt_read_metadata);
 
+/**
+ * qcom_mdt_pas_init() - initialize PAS region for firmware loading
+ * @dev:	device handle to associate resources with
+ * @fw:		firmware object for the mdt file
+ * @firmware:	name of the firmware, for construction of segment file names
+ * @pas_id:	PAS identifier
+ * @mem_phys:	physical address of allocated memory region
+ * @ctx:	PAS metadata context, to be released by caller
+ *
+ * Returns 0 on success, negative errno otherwise.
+ */
+int qcom_mdt_pas_init(struct device *dev, const struct firmware *fw,
+		      const char *fw_name, int pas_id, phys_addr_t mem_phys,
+		      struct qcom_scm_pas_metadata *ctx)
+{
+	const struct elf32_phdr *phdrs;
+	const struct elf32_phdr *phdr;
+	const struct elf32_hdr *ehdr;
+	phys_addr_t min_addr = PHYS_ADDR_MAX;
+	phys_addr_t max_addr = 0;
+	size_t metadata_len;
+	void *metadata;
+	int ret;
+	int i;
+
+	ehdr = (struct elf32_hdr *)fw->data;
+	phdrs = (struct elf32_phdr *)(ehdr + 1);
+
+	for (i = 0; i < ehdr->e_phnum; i++) {
+		phdr = &phdrs[i];
+
+		if (!mdt_phdr_valid(phdr))
+			continue;
+
+		if (phdr->p_paddr < min_addr)
+			min_addr = phdr->p_paddr;
+
+		if (phdr->p_paddr + phdr->p_memsz > max_addr)
+			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
+	}
+
+	metadata = qcom_mdt_read_metadata(fw, &metadata_len, fw_name, dev);
+	if (IS_ERR(metadata)) {
+		ret = PTR_ERR(metadata);
+		dev_err(dev, "error %d reading firmware %s metadata\n", ret, fw_name);
+		goto out;
+	}
+
+	ret = qcom_scm_pas_init_image(pas_id, metadata, metadata_len, ctx);
+	kfree(metadata);
+	if (ret) {
+		/* Invalid firmware metadata */
+		dev_err(dev, "error %d initializing firmware %s\n", ret, fw_name);
+		goto out;
+	}
+
+	ret = qcom_scm_pas_mem_setup(pas_id, mem_phys, max_addr - min_addr);
+	if (ret) {
+		/* Unable to set up relocation */
+		dev_err(dev, "error %d setting up firmware %s\n", ret, fw_name);
+		goto out;
+	}
+
+out:
+	return ret;
+}
+EXPORT_SYMBOL_GPL(qcom_mdt_pas_init);
+
 static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
-			   const char *firmware, int pas_id, void *mem_region,
+			   const char *fw_name, int pas_id, void *mem_region,
 			   phys_addr_t mem_phys, size_t mem_size,
 			   phys_addr_t *reloc_base, bool pas_init)
 {
 	const struct elf32_phdr *phdrs;
 	const struct elf32_phdr *phdr;
 	const struct elf32_hdr *ehdr;
-	const struct firmware *seg_fw;
 	phys_addr_t mem_reloc;
 	phys_addr_t min_addr = PHYS_ADDR_MAX;
-	phys_addr_t max_addr = 0;
-	size_t metadata_len;
-	size_t fw_name_len;
 	ssize_t offset;
-	void *metadata;
-	char *fw_name;
 	bool relocate = false;
 	void *ptr;
 	int ret = 0;
@@ -153,34 +277,6 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 	ehdr = (struct elf32_hdr *)fw->data;
 	phdrs = (struct elf32_phdr *)(ehdr + 1);
-
-	fw_name_len = strlen(firmware);
-	if (fw_name_len <= 4)
-		return -EINVAL;
-
-	fw_name = kstrdup(firmware, GFP_KERNEL);
-	if (!fw_name)
-		return -ENOMEM;
-
-	if (pas_init) {
-		metadata = qcom_mdt_read_metadata(fw, &metadata_len);
-		if (IS_ERR(metadata)) {
-			ret = PTR_ERR(metadata);
-			dev_err(dev, "error %d reading firmware %s metadata\n",
-				ret, fw_name);
-			goto out;
-		}
-
-		ret = qcom_scm_pas_init_image(pas_id, metadata, metadata_len);
-
-		kfree(metadata);
-		if (ret) {
-			/* Invalid firmware metadata */
-			dev_err(dev, "error %d initializing firmware %s\n",
-				ret, fw_name);
-			goto out;
-		}
-	}
 
 	for (i = 0; i < ehdr->e_phnum; i++) {
 		phdr = &phdrs[i];
@@ -193,23 +289,9 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 		if (phdr->p_paddr < min_addr)
 			min_addr = phdr->p_paddr;
-
-		if (phdr->p_paddr + phdr->p_memsz > max_addr)
-			max_addr = ALIGN(phdr->p_paddr + phdr->p_memsz, SZ_4K);
 	}
 
 	if (relocate) {
-		if (pas_init) {
-			ret = qcom_scm_pas_mem_setup(pas_id, mem_phys,
-						     max_addr - min_addr);
-			if (ret) {
-				/* Unable to set up relocation */
-				dev_err(dev, "error %d setting up firmware %s\n",
-					ret, fw_name);
-				goto out;
-			}
-		}
-
 		/*
 		 * The image is relocatable, so offset each segment based on
 		 * the lowest segment address.
@@ -246,7 +328,8 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 		ptr = mem_region + offset;
 
-		if (phdr->p_filesz && phdr->p_offset < fw->size) {
+		if (phdr->p_filesz && phdr->p_offset < fw->size &&
+		    phdr->p_offset + phdr->p_filesz <= fw->size) {
 			/* Firmware is large enough to be non-split */
 			if (phdr->p_offset + phdr->p_filesz > fw->size) {
 				dev_err(dev, "file %s segment %d would be truncated\n",
@@ -258,25 +341,9 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 			memcpy(ptr, fw->data + phdr->p_offset, phdr->p_filesz);
 		} else if (phdr->p_filesz) {
 			/* Firmware not large enough, load split-out segments */
-			sprintf(fw_name + fw_name_len - 3, "b%02d", i);
-			ret = request_firmware_into_buf(&seg_fw, fw_name, dev,
-							ptr, phdr->p_filesz);
-			if (ret) {
-				dev_err(dev, "error %d loading %s\n",
-					ret, fw_name);
+			ret = mdt_load_split_segment(ptr, phdrs, i, fw_name, dev);
+			if (ret)
 				break;
-			}
-
-			if (seg_fw->size != phdr->p_filesz) {
-				dev_err(dev,
-					"failed to load segment %d from truncated file %s\n",
-					i, fw_name);
-				release_firmware(seg_fw);
-				ret = -EINVAL;
-				break;
-			}
-
-			release_firmware(seg_fw);
 		}
 
 		if (phdr->p_memsz > phdr->p_filesz)
@@ -285,9 +352,6 @@ static int __qcom_mdt_load(struct device *dev, const struct firmware *fw,
 
 	if (reloc_base)
 		*reloc_base = mem_reloc;
-
-out:
-	kfree(fw_name);
 
 	return ret;
 }
@@ -310,6 +374,12 @@ int qcom_mdt_load(struct device *dev, const struct firmware *fw,
 		  phys_addr_t mem_phys, size_t mem_size,
 		  phys_addr_t *reloc_base)
 {
+	int ret;
+
+	ret = qcom_mdt_pas_init(dev, fw, firmware, pas_id, mem_phys, NULL);
+	if (ret)
+		return ret;
+
 	return __qcom_mdt_load(dev, fw, firmware, pas_id, mem_region, mem_phys,
 			       mem_size, reloc_base, true);
 }

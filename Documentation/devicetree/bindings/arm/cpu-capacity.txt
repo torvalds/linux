@@ -62,8 +62,8 @@ Example 1 (ARM 64-bit, 6-cpu system, two clusters):
 The capacities-dmips-mhz or DMIPS/MHz values (scaled to 1024)
 are 1024 and 578 for cluster0 and cluster1. Further normalization
 is done by the operating system based on cluster0@max-freq=1100 and
-custer1@max-freq=850, final capacities are 1024 for cluster0 and
-446 for cluster1 (576*850/1100).
+cluster1@max-freq=850, final capacities are 1024 for cluster0 and
+446 for cluster1 (578*850/1100).
 
 cpus {
 	#address-cells = <2>;

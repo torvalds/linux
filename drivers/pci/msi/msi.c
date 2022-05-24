@@ -1111,7 +1111,8 @@ const struct cpumask *pci_irq_get_affinity(struct pci_dev *dev, int nr)
 	if (!desc)
 		return cpu_possible_mask;
 
-	if (WARN_ON_ONCE(!desc->affinity))
+	/* MSI[X] interrupts can be allocated without affinity descriptor */
+	if (!desc->affinity)
 		return NULL;
 
 	/*

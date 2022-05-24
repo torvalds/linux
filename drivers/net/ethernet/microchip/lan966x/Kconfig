@@ -1,5 +1,6 @@
 config LAN966X_SWITCH
 	tristate "Lan966x switch driver"
+	depends on PTP_1588_CLOCK_OPTIONAL
 	depends on HAS_IOMEM
 	depends on OF
 	depends on NET_SWITCHDEV

@@ -369,6 +369,32 @@ governor (for the policies it is attached to), or by the ``CPUFreq`` core (for t
 policies with other scaling governors).
 
 
+Tracer Tool
+-------------
+
+``amd_pstate_tracer.py`` can record and parse ``amd-pstate`` trace log, then
+generate performance plots. This utility can be used to debug and tune the
+performance of ``amd-pstate`` driver. The tracer tool needs to import intel
+pstate tracer.
+
+Tracer tool located in ``linux/tools/power/x86/amd_pstate_tracer``. It can be
+used in two ways. If trace file is available, then directly parse the file
+with command ::
+
+ ./amd_pstate_trace.py [-c cpus] -t <trace_file> -n <test_name>
+
+Or generate trace file with root privilege, then parse and plot with command ::
+
+ sudo ./amd_pstate_trace.py [-c cpus] -n <test_name> -i <interval> [-m kbytes]
+
+The test result can be found in ``results/test_name``. Following is the example
+about part of the output. ::
+
+ common_cpu  common_secs  common_usecs  min_perf  des_perf  max_perf  freq    mperf   apef    tsc       load   duration_ms  sample_num  elapsed_time  common_comm
+ CPU_005     712          116384        39        49        166       0.7565  9645075 2214891 38431470  25.1   11.646       469         2.496         kworker/5:0-40
+ CPU_006     712          116408        39        49        166       0.6769  8950227 1839034 37192089  24.06  11.272       470         2.496         kworker/6:0-1264
+
+
 Reference
 ===========
 

@@ -208,7 +208,7 @@ static ssize_t show_fault(struct device *dev, u8 faultbit, char *buf)
 
 	fault = data->buf[0] & faultbit;
 
-	return sprintf(buf, "%d\n", fault);
+	return sysfs_emit(buf, "%d\n", fault);
 }
 
 static ssize_t show_fault_ovuv(struct device *dev,
@@ -225,7 +225,7 @@ static ssize_t show_filter(struct device *dev,
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	struct max31865_data *data = iio_priv(indio_dev);
 
-	return sprintf(buf, "%d\n", data->filter_50hz ? 50 : 60);
+	return sysfs_emit(buf, "%d\n", data->filter_50hz ? 50 : 60);
 }
 
 static ssize_t set_filter(struct device *dev,

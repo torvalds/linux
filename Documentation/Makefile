@@ -26,7 +26,7 @@ SPHINX_CONF   = conf.py
 PAPER         =
 BUILDDIR      = $(obj)/output
 PDFLATEX      = xelatex
-LATEXOPTS     = -interaction=batchmode
+LATEXOPTS     = -interaction=batchmode -no-shell-escape
 
 ifeq ($(KBUILD_VERBOSE),0)
 SPHINXOPTS    += "-q"

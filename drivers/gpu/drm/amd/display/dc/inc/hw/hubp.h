@@ -195,6 +195,7 @@ struct hubp_funcs {
 
 	void (*hubp_set_flip_int)(struct hubp *hubp);
 
+	void (*hubp_wait_pipe_read_start)(struct hubp *hubp);
 };
 
 #endif

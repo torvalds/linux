@@ -159,8 +159,16 @@ struct rfkill_event_ext {
  * old behaviour for all userspace, unless it explicitly opts in to the
  * rules outlined here by using the new &struct rfkill_event_ext.
  *
- * Userspace using &struct rfkill_event_ext must adhere to the following
- * rules
+ * Additionally, some other userspace (bluez, g-s-d) was reading with a
+ * large size but as streaming reads rather than message-based, or with
+ * too strict checks for the returned size. So eventually, we completely
+ * reverted this, and extended messages need to be opted in to by using
+ * an ioctl:
+ *
+ *  ioctl(fd, RFKILL_IOCTL_MAX_SIZE, sizeof(struct rfkill_event_ext));
+ *
+ * Userspace using &struct rfkill_event_ext and the ioctl must adhere to
+ * the following rules:
  *
  * 1. accept short writes, optionally using them to detect that it's
  *    running on an older kernel;
@@ -175,6 +183,8 @@ struct rfkill_event_ext {
 #define RFKILL_IOC_MAGIC	'R'
 #define RFKILL_IOC_NOINPUT	1
 #define RFKILL_IOCTL_NOINPUT	_IO(RFKILL_IOC_MAGIC, RFKILL_IOC_NOINPUT)
+#define RFKILL_IOC_MAX_SIZE	2
+#define RFKILL_IOCTL_MAX_SIZE	_IOW(RFKILL_IOC_MAGIC, RFKILL_IOC_EXT_SIZE, __u32)
 
 /* and that's all userspace gets */
 

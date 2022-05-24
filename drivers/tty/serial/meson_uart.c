@@ -513,7 +513,7 @@ static void meson_uart_enable_tx_engine(struct uart_port *port)
 	writel(val, port->membase + AML_UART_CONTROL);
 }
 
-static void meson_console_putchar(struct uart_port *port, int ch)
+static void meson_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	if (!port->membase)
 		return;

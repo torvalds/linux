@@ -759,7 +759,7 @@ struct smb2_file_rename_info { /* encoding of request for level 10 */
 	__u8   Reserved[7];
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
-	char   FileName[0];     /* New name to be assigned */
+	char   FileName[];     /* New name to be assigned */
 } __packed; /* level 10 Set */
 
 struct smb2_file_link_info { /* encoding of request for level 11 */
@@ -768,7 +768,7 @@ struct smb2_file_link_info { /* encoding of request for level 11 */
 	__u8   Reserved[7];
 	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
 	__le32 FileNameLength;
-	char   FileName[0];     /* Name to be assigned to new link */
+	char   FileName[];     /* Name to be assigned to new link */
 } __packed; /* level 11 Set */
 
 /*
@@ -810,7 +810,7 @@ struct smb2_file_basic_info { /* data block encoding of response to level 18 */
 
 struct smb2_file_alt_name_info {
 	__le32 FileNameLength;
-	char FileName[0];
+	char FileName[];
 } __packed;
 
 struct smb2_file_stream_info {
@@ -818,7 +818,7 @@ struct smb2_file_stream_info {
 	__le32  StreamNameLength;
 	__le64 StreamSize;
 	__le64 StreamAllocationSize;
-	char   StreamName[0];
+	char   StreamName[];
 } __packed;
 
 struct smb2_file_eof_info { /* encoding of request for level 10 */
@@ -980,6 +980,7 @@ int init_smb3_11_server(struct ksmbd_conn *conn);
 void init_smb2_max_read_size(unsigned int sz);
 void init_smb2_max_write_size(unsigned int sz);
 void init_smb2_max_trans_size(unsigned int sz);
+void init_smb2_max_credits(unsigned int sz);
 
 bool is_smb2_neg_cmd(struct ksmbd_work *work);
 bool is_smb2_rsp(struct ksmbd_work *work);

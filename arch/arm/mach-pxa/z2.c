@@ -570,7 +570,6 @@ static struct pxa2xx_spi_chip z2_lbs_chip_info = {
 	.rx_threshold	= 8,
 	.tx_threshold	= 8,
 	.timeout	= 1000,
-	.gpio_cs	= GPIO24_ZIPITZ2_WIFI_CS,
 };
 
 static struct libertas_spi_platform_data z2_lbs_pdata = {
@@ -584,7 +583,6 @@ static struct pxa2xx_spi_chip lms283_chip_info = {
 	.rx_threshold	= 1,
 	.tx_threshold	= 1,
 	.timeout	= 64,
-	.gpio_cs	= GPIO88_ZIPITZ2_LCD_CS,
 };
 
 static struct gpiod_lookup_table lms283_gpio_table = {
@@ -624,8 +622,26 @@ static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 	.num_chipselect	= 1,
 };
 
+static struct gpiod_lookup_table pxa_ssp1_gpio_table = {
+	.dev_id = "pxa2xx-spi.1",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO24_ZIPITZ2_WIFI_CS, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
+static struct gpiod_lookup_table pxa_ssp2_gpio_table = {
+	.dev_id = "pxa2xx-spi.2",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO88_ZIPITZ2_LCD_CS, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
+};
+
 static void __init z2_spi_init(void)
 {
+	gpiod_add_lookup_table(&pxa_ssp1_gpio_table);
+	gpiod_add_lookup_table(&pxa_ssp2_gpio_table);
 	pxa2xx_set_spi_info(1, &pxa_ssp1_master_info);
 	pxa2xx_set_spi_info(2, &pxa_ssp2_master_info);
 	gpiod_add_lookup_table(&lms283_gpio_table);
