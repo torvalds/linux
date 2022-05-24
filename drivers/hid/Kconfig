@@ -697,6 +697,14 @@ config HID_MAYFLASH
 	Say Y here if you have HJZ Mayflash PS3 game controller adapters
 	and want to enable force feedback support.
 
+config HID_MEGAWORLD_FF
+	tristate "Mega World based game controller force feedback support"
+	depends on USB_HID
+	select INPUT_FF_MEMLESS
+	help
+	Say Y here if you have a Mega World based game controller and want
+	to have force feedback support for it.
+
 config HID_REDRAGON
 	tristate "Redragon keyboards"
 	depends on HID

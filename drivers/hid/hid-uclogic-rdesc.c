@@ -21,7 +21,7 @@
 /* Fixed WP4030U report descriptor */
 __u8 uclogic_rdesc_wp4030u_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -66,7 +66,7 @@ const size_t uclogic_rdesc_wp4030u_fixed_size =
 /* Fixed WP5540U report descriptor */
 __u8 uclogic_rdesc_wp5540u_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -143,7 +143,7 @@ const size_t uclogic_rdesc_wp5540u_fixed_size =
 /* Fixed WP8060U report descriptor */
 __u8 uclogic_rdesc_wp8060u_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -220,7 +220,7 @@ const size_t uclogic_rdesc_wp8060u_fixed_size =
 /* Fixed WP1062 report descriptor */
 __u8 uclogic_rdesc_wp1062_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -268,7 +268,7 @@ const size_t uclogic_rdesc_wp1062_fixed_size =
 /* Fixed PF1209 report descriptor */
 __u8 uclogic_rdesc_pf1209_fixed_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -345,7 +345,7 @@ const size_t uclogic_rdesc_pf1209_fixed_size =
 /* Fixed PID 0522 tablet report descriptor, interface 0 (stylus) */
 __u8 uclogic_rdesc_twhl850_fixed0_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -457,7 +457,7 @@ const size_t uclogic_rdesc_twhl850_fixed2_size =
 /* Fixed TWHA60 report descriptor, interface 0 (stylus) */
 __u8 uclogic_rdesc_twha60_fixed0_arr[] = {
 	0x05, 0x0D,         /*  Usage Page (Digitizer),             */
-	0x09, 0x02,         /*  Usage (Pen),                        */
+	0x09, 0x01,         /*  Usage (Digitizer),                  */
 	0xA1, 0x01,         /*  Collection (Application),           */
 	0x85, 0x09,         /*      Report ID (9),                  */
 	0x09, 0x20,         /*      Usage (Stylus),                 */
@@ -534,7 +534,7 @@ const size_t uclogic_rdesc_twha60_fixed1_size =
 /* Fixed report descriptor template for (tweaked) v1 pen reports */
 const __u8 uclogic_rdesc_v1_pen_template_arr[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),                 */
-	0x09, 0x02,             /*  Usage (Pen),                            */
+	0x09, 0x01,             /*  Usage (Digitizer),                      */
 	0xA1, 0x01,             /*  Collection (Application),               */
 	0x85, 0x07,             /*      Report ID (7),                      */
 	0x09, 0x20,             /*      Usage (Stylus),                     */
@@ -588,7 +588,7 @@ const size_t uclogic_rdesc_v1_pen_template_size =
 /* Fixed report descriptor template for (tweaked) v2 pen reports */
 const __u8 uclogic_rdesc_v2_pen_template_arr[] = {
 	0x05, 0x0D,             /*  Usage Page (Digitizer),                 */
-	0x09, 0x02,             /*  Usage (Pen),                            */
+	0x09, 0x01,             /*  Usage (Digitizer),                      */
 	0xA1, 0x01,             /*  Collection (Application),               */
 	0x85, 0x08,             /*      Report ID (8),                      */
 	0x09, 0x20,             /*      Usage (Stylus),                     */
@@ -652,12 +652,12 @@ const size_t uclogic_rdesc_v2_pen_template_size =
 			sizeof(uclogic_rdesc_v2_pen_template_arr);
 
 /*
- * Expand to the contents of a generic frame report descriptor.
+ * Expand to the contents of a generic frame buttons report descriptor.
  *
  * @_id:	The report ID to use.
  * @_size:	Size of the report to pad to, including report ID, bytes.
  */
-#define UCLOGIC_RDESC_FRAME_BYTES(_id, _size) \
+#define UCLOGIC_RDESC_FRAME_BUTTONS_BYTES(_id, _size) \
 	0x05, 0x01,     /*  Usage Page (Desktop),               */ \
 	0x09, 0x07,     /*  Usage (Keypad),                     */ \
 	0xA1, 0x01,     /*  Collection (Application),           */ \
@@ -700,17 +700,164 @@ const size_t uclogic_rdesc_v2_pen_template_size =
 
 /* Fixed report descriptor for (tweaked) v1 frame reports */
 const __u8 uclogic_rdesc_v1_frame_arr[] = {
-	UCLOGIC_RDESC_FRAME_BYTES(UCLOGIC_RDESC_V1_FRAME_ID, 8)
+	UCLOGIC_RDESC_FRAME_BUTTONS_BYTES(UCLOGIC_RDESC_V1_FRAME_ID, 8)
 };
 const size_t uclogic_rdesc_v1_frame_size =
 			sizeof(uclogic_rdesc_v1_frame_arr);
 
-/* Fixed report descriptor for (tweaked) v2 frame reports */
-const __u8 uclogic_rdesc_v2_frame_arr[] = {
-	UCLOGIC_RDESC_FRAME_BYTES(UCLOGIC_RDESC_V2_FRAME_ID, 12)
+/* Fixed report descriptor for (tweaked) v2 frame button reports */
+const __u8 uclogic_rdesc_v2_frame_buttons_arr[] = {
+	UCLOGIC_RDESC_FRAME_BUTTONS_BYTES(UCLOGIC_RDESC_V2_FRAME_BUTTONS_ID,
+					  12)
 };
-const size_t uclogic_rdesc_v2_frame_size =
-			sizeof(uclogic_rdesc_v2_frame_arr);
+const size_t uclogic_rdesc_v2_frame_buttons_size =
+			sizeof(uclogic_rdesc_v2_frame_buttons_arr);
+
+/* Fixed report descriptor for (tweaked) v2 frame touch ring reports */
+const __u8 uclogic_rdesc_v2_frame_touch_ring_arr[] = {
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x07,         /*  Usage (Keypad),                     */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, UCLOGIC_RDESC_V2_FRAME_TOUCH_ID,
+			    /*      Report ID (TOUCH_ID),           */
+	0x14,               /*      Logical Minimum (0),            */
+	0x05, 0x0D,         /*      Usage Page (Digitizer),         */
+	0x09, 0x39,         /*      Usage (Tablet Function Keys),   */
+	0xA0,               /*      Collection (Physical),          */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x05, 0x09,         /*          Usage Page (Button),        */
+	0x09, 0x01,         /*          Usage (01h),                */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x07,         /*          Report Count (7),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x05, 0x0D,         /*          Usage Page (Digitizer),     */
+	0x0A, 0xFF, 0xFF,   /*          Usage (FFFFh),              */
+	0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x15, 0x00,         /*          Logical Minimum (0),        */
+	0x25, 0x0B,         /*          Logical Maximum (11),       */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x2E,         /*          Report Count (46),          */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
+};
+const size_t uclogic_rdesc_v2_frame_touch_ring_size =
+			sizeof(uclogic_rdesc_v2_frame_touch_ring_arr);
+
+/* Fixed report descriptor for (tweaked) v2 frame touch strip reports */
+const __u8 uclogic_rdesc_v2_frame_touch_strip_arr[] = {
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x07,         /*  Usage (Keypad),                     */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, UCLOGIC_RDESC_V2_FRAME_TOUCH_ID,
+			    /*      Report ID (TOUCH_ID),           */
+	0x14,               /*      Logical Minimum (0),            */
+	0x05, 0x0D,         /*      Usage Page (Digitizer),         */
+	0x09, 0x39,         /*      Usage (Tablet Function Keys),   */
+	0xA0,               /*      Collection (Physical),          */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x05, 0x09,         /*          Usage Page (Button),        */
+	0x09, 0x01,         /*          Usage (01h),                */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x07,         /*          Report Count (7),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x05, 0x0D,         /*          Usage Page (Digitizer),     */
+	0x0A, 0xFF, 0xFF,   /*          Usage (FFFFh),              */
+	0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x15, 0x00,         /*          Logical Minimum (0),        */
+	0x25, 0x07,         /*          Logical Maximum (7),        */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x2E,         /*          Report Count (46),          */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
+};
+const size_t uclogic_rdesc_v2_frame_touch_strip_size =
+			sizeof(uclogic_rdesc_v2_frame_touch_strip_arr);
+
+/* Fixed report descriptor for (tweaked) v2 frame dial reports */
+const __u8 uclogic_rdesc_v2_frame_dial_arr[] = {
+	0x05, 0x01,         /*  Usage Page (Desktop),               */
+	0x09, 0x07,         /*  Usage (Keypad),                     */
+	0xA1, 0x01,         /*  Collection (Application),           */
+	0x85, UCLOGIC_RDESC_V2_FRAME_DIAL_ID,
+			    /*      Report ID (DIAL_ID),            */
+	0x14,               /*      Logical Minimum (0),            */
+	0x05, 0x0D,         /*      Usage Page (Digitizer),         */
+	0x09, 0x39,         /*      Usage (Tablet Function Keys),   */
+	0xA0,               /*      Collection (Physical),          */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x05, 0x09,         /*          Usage Page (Button),        */
+	0x09, 0x01,         /*          Usage (01h),                */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x06,         /*          Report Count (6),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x75, 0x08,         /*          Report Size (8),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0x05, 0x0D,         /*          Usage Page (Digitizer),     */
+	0x0A, 0xFF, 0xFF,   /*          Usage (FFFFh),              */
+	0x26, 0xFF, 0x00,   /*          Logical Maximum (255),      */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x05, 0x01,         /*          Usage Page (Desktop),       */
+	0x09, 0x38,         /*          Usage (Wheel),              */
+	0x95, 0x01,         /*          Report Count (1),           */
+	0x15, 0xFF,         /*          Logical Minimum (-1),       */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x81, 0x06,         /*          Input (Variable, Relative), */
+	0x09, 0x30,         /*          Usage (X),                  */
+	0x09, 0x31,         /*          Usage (Y),                  */
+	0x14,               /*          Logical Minimum (0),        */
+	0x25, 0x01,         /*          Logical Maximum (1),        */
+	0x75, 0x01,         /*          Report Size (1),            */
+	0x95, 0x02,         /*          Report Count (2),           */
+	0x81, 0x02,         /*          Input (Variable),           */
+	0x95, 0x2E,         /*          Report Count (46),          */
+	0x81, 0x01,         /*          Input (Constant),           */
+	0xC0,               /*      End Collection,                 */
+	0xC0                /*  End Collection                      */
+};
+const size_t uclogic_rdesc_v2_frame_dial_size =
+			sizeof(uclogic_rdesc_v2_frame_dial_arr);
 
 /* Fixed report descriptor for Ugee EX07 frame */
 const __u8 uclogic_rdesc_ugee_ex07_frame_arr[] = {
