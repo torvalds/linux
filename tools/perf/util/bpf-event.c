@@ -50,7 +50,8 @@ int bpf_prog_load(enum bpf_prog_type prog_type,
 }
 #endif
 
-struct bpf_program * __weak
+#ifndef HAVE_LIBBPF_BPF_OBJECT__NEXT_PROGRAM
+struct bpf_program *
 bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
 {
 #pragma GCC diagnostic push
@@ -58,6 +59,7 @@ bpf_object__next_program(const struct bpf_object *obj, struct bpf_program *prev)
 	return bpf_program__next(prev, obj);
 #pragma GCC diagnostic pop
 }
+#endif
 
 struct bpf_map * __weak
 bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)

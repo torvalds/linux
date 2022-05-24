@@ -100,6 +100,7 @@ FEATURE_TESTS_EXTRA :=                  \
          libbpf                         \
          libbpf-btf__load_from_kernel_by_id \
          libbpf-bpf_prog_load           \
+         libbpf-bpf_object__next_program \
          libpfm4                        \
          libdebuginfod			\
          clang-bpf-co-re
