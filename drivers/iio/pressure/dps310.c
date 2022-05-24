@@ -397,6 +397,44 @@ static int dps310_get_temp_k(struct dps310_data *data)
 	return scale_factors[ilog2(rc)];
 }
 
+/*
+ * Called with lock held. Returns a negative value on error, a positive value
+ * when the device is not ready, and zero when the device is ready.
+ */
+static int dps310_check_reset_meas_cfg(struct dps310_data *data, int ready_bit)
+{
+	int meas_cfg;
+	int rc = regmap_read(data->regmap, DPS310_MEAS_CFG, &meas_cfg);
+
+	if (rc < 0)
+		return rc;
+
+	/* Device is ready, proceed to measurement */
+	if (meas_cfg & ready_bit)
+		return 0;
+
+	/* Device is OK, just not ready */
+	if (meas_cfg & (DPS310_PRS_EN | DPS310_TEMP_EN | DPS310_BACKGROUND))
+		return 1;
+
+	/* DPS310 register state corrupt, better start from scratch */
+	rc = regmap_write(data->regmap, DPS310_RESET, DPS310_RESET_MAGIC);
+	if (rc < 0)
+		return rc;
+
+	/* Wait for device chip access: 2.5ms in specification */
+	usleep_range(2500, 12000);
+
+	/* Reinitialize the chip */
+	rc = dps310_startup(data);
+	if (rc)
+		return rc;
+
+	dev_info(&data->client->dev,
+		 "recovered from corrupted MEAS_CFG=%02x\n", meas_cfg);
+	return 1;
+}
+
 static int dps310_read_pres_raw(struct dps310_data *data)
 {
 	int rc;
@@ -409,15 +447,25 @@ static int dps310_read_pres_raw(struct dps310_data *data)
 	if (mutex_lock_interruptible(&data->lock))
 		return -EINTR;
 
-	rate = dps310_get_pres_samp_freq(data);
-	timeout = DPS310_POLL_TIMEOUT_US(rate);
-
-	/* Poll for sensor readiness; base the timeout upon the sample rate. */
-	rc = regmap_read_poll_timeout(data->regmap, DPS310_MEAS_CFG, ready,
-				      ready & DPS310_PRS_RDY,
-				      DPS310_POLL_SLEEP_US(timeout), timeout);
-	if (rc)
+	rc = dps310_check_reset_meas_cfg(data, DPS310_PRS_RDY);
+	if (rc < 0)
 		goto done;
+
+	if (rc > 0) {
+		rate = dps310_get_pres_samp_freq(data);
+		timeout = DPS310_POLL_TIMEOUT_US(rate);
+
+		/*
+		 * Poll for sensor readiness; base the timeout upon the sample
+		 * rate.
+		 */
+		rc = regmap_read_poll_timeout(data->regmap, DPS310_MEAS_CFG,
+					      ready, ready & DPS310_PRS_RDY,
+					      DPS310_POLL_SLEEP_US(timeout),
+					      timeout);
+		if (rc)
+			goto done;
+	}
 
 	rc = regmap_bulk_read(data->regmap, DPS310_PRS_BASE, val, sizeof(val));
 	if (rc < 0)
@@ -458,15 +506,25 @@ static int dps310_read_temp_raw(struct dps310_data *data)
 	if (mutex_lock_interruptible(&data->lock))
 		return -EINTR;
 
-	rate = dps310_get_temp_samp_freq(data);
-	timeout = DPS310_POLL_TIMEOUT_US(rate);
-
-	/* Poll for sensor readiness; base the timeout upon the sample rate. */
-	rc = regmap_read_poll_timeout(data->regmap, DPS310_MEAS_CFG, ready,
-				      ready & DPS310_TMP_RDY,
-				      DPS310_POLL_SLEEP_US(timeout), timeout);
+	rc = dps310_check_reset_meas_cfg(data, DPS310_TMP_RDY);
 	if (rc < 0)
 		goto done;
+
+	if (rc > 0) {
+		rate = dps310_get_temp_samp_freq(data);
+		timeout = DPS310_POLL_TIMEOUT_US(rate);
+
+		/*
+		 * Poll for sensor readiness; base the timeout upon the sample
+		 * rate.
+		 */
+		rc = regmap_read_poll_timeout(data->regmap, DPS310_MEAS_CFG,
+					      ready, ready & DPS310_TMP_RDY,
+					      DPS310_POLL_SLEEP_US(timeout),
+					      timeout);
+		if (rc < 0)
+			goto done;
+	}
 
 	rc = dps310_read_temp_ready(data);
 
