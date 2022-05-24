@@ -4296,6 +4296,7 @@ int kvm_vm_ioctl_check_extension(struct kvm *kvm, long ext)
 	case KVM_CAP_GET_MSR_FEATURES:
 	case KVM_CAP_MSR_PLATFORM_INFO:
 	case KVM_CAP_EXCEPTION_PAYLOAD:
+	case KVM_CAP_X86_TRIPLE_FAULT_EVENT:
 	case KVM_CAP_SET_GUEST_DEBUG:
 	case KVM_CAP_LAST_CPU:
 	case KVM_CAP_X86_USER_SPACE_MSR:
@@ -4942,6 +4943,10 @@ static void kvm_vcpu_ioctl_x86_get_vcpu_events(struct kvm_vcpu *vcpu,
 			 | KVM_VCPUEVENT_VALID_SMM);
 	if (vcpu->kvm->arch.exception_payload_enabled)
 		events->flags |= KVM_VCPUEVENT_VALID_PAYLOAD;
+	if (vcpu->kvm->arch.triple_fault_event) {
+		events->triple_fault.pending = kvm_test_request(KVM_REQ_TRIPLE_FAULT, vcpu);
+		events->flags |= KVM_VCPUEVENT_VALID_TRIPLE_FAULT;
+	}
 
 	memset(&events->reserved, 0, sizeof(events->reserved));
 }
@@ -4955,7 +4960,8 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 			      | KVM_VCPUEVENT_VALID_SIPI_VECTOR
 			      | KVM_VCPUEVENT_VALID_SHADOW
 			      | KVM_VCPUEVENT_VALID_SMM
-			      | KVM_VCPUEVENT_VALID_PAYLOAD))
+			      | KVM_VCPUEVENT_VALID_PAYLOAD
+			      | KVM_VCPUEVENT_VALID_TRIPLE_FAULT))
 		return -EINVAL;
 
 	if (events->flags & KVM_VCPUEVENT_VALID_PAYLOAD) {
@@ -5026,6 +5032,15 @@ static int kvm_vcpu_ioctl_x86_set_vcpu_events(struct kvm_vcpu *vcpu,
 			else
 				clear_bit(KVM_APIC_INIT, &vcpu->arch.apic->pending_events);
 		}
+	}
+
+	if (events->flags & KVM_VCPUEVENT_VALID_TRIPLE_FAULT) {
+		if (!vcpu->kvm->arch.triple_fault_event)
+			return -EINVAL;
+		if (events->triple_fault.pending)
+			kvm_make_request(KVM_REQ_TRIPLE_FAULT, vcpu);
+		else
+			kvm_clear_request(KVM_REQ_TRIPLE_FAULT, vcpu);
 	}
 
 	kvm_make_request(KVM_REQ_EVENT, vcpu);
@@ -6027,6 +6042,10 @@ split_irqchip_unlock:
 		break;
 	case KVM_CAP_EXCEPTION_PAYLOAD:
 		kvm->arch.exception_payload_enabled = cap->args[0];
+		r = 0;
+		break;
+	case KVM_CAP_X86_TRIPLE_FAULT_EVENT:
+		kvm->arch.triple_fault_event = cap->args[0];
 		r = 0;
 		break;
 	case KVM_CAP_X86_USER_SPACE_MSR:
