@@ -5417,7 +5417,8 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 		do {
 			pmlmeinfo->dialogToken++;
 		} while (pmlmeinfo->dialogToken == 0);
-		pframe = rtw_set_fixed_ie(pframe, 1, &pmlmeinfo->dialogToken, &pattrib->pktlen);
+		mgmt->u.action.u.addba_req.dialog_token = pmlmeinfo->dialogToken;
+		pattrib->pktlen++;
 
 		BA_para_set = (0x1002 | ((status & 0xf) << 2)); /* immediate ack & 64 buffer size */
 		le_tmp = cpu_to_le16(BA_para_set);
