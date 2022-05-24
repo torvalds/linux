@@ -1011,6 +1011,7 @@ dtb-$(CONFIG_ARCH_ROCKCHIP) += \
 	rk3066a-rayeager.dtb \
 	rk3126c-evb-ddr3-v10-linux.dtb \
 	rk3126c-evb-ddr3-v10-linux-slc.dtb \
+	rk3128-evb-ddr3-v10-linux.dtb \
 	rk3188-bqedison2qc.dtb \
 	rk3188-px3-evb.dtb \
 	rk3188-radxarock.dtb \
