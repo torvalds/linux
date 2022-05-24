@@ -5413,22 +5413,18 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	switch (action) {
 	case WLAN_ACTION_ADDBA_REQ:
 		mgmt->u.action.u.addba_req.action_code = WLAN_ACTION_ADDBA_REQ;
-		pattrib->pktlen++;
 		do {
 			pmlmeinfo->dialogToken++;
 		} while (pmlmeinfo->dialogToken == 0);
 		mgmt->u.action.u.addba_req.dialog_token = pmlmeinfo->dialogToken;
-		pattrib->pktlen++;
 
 		/* immediate ack & 64 buffer size */
 		capab = u16_encode_bits(64, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
 		capab |= u16_encode_bits(1, IEEE80211_ADDBA_PARAM_POLICY_MASK);
 		capab |= u16_encode_bits(status, IEEE80211_ADDBA_PARAM_TID_MASK);
 		mgmt->u.action.u.addba_req.capab = cpu_to_le16(capab);
-		pattrib->pktlen += 2;
 
 		mgmt->u.action.u.addba_req.timeout = cpu_to_le16(5000); /* 5 ms */
-		pattrib->pktlen += 2;
 
 		psta = rtw_get_stainfo(pstapriv, raddr);
 		if (psta) {
@@ -5439,7 +5435,9 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 			BA_starting_seqctrl = start_seq << 4;
 		}
 		mgmt->u.action.u.addba_req.start_seq_num = cpu_to_le16(BA_starting_seqctrl);
-		pattrib->pktlen += 2;
+
+		pattrib->pktlen = offsetofend(struct ieee80211_mgmt,
+					      u.action.u.addba_req.start_seq_num);
 		break;
 	case WLAN_ACTION_ADDBA_RESP:
 		mgmt->u.action.u.addba_resp.action_code = WLAN_ACTION_ADDBA_RESP;
