@@ -28,8 +28,9 @@ static struct landlock_ruleset *create_ruleset(const u32 num_layers)
 {
 	struct landlock_ruleset *new_ruleset;
 
-	new_ruleset = kzalloc(struct_size(new_ruleset, fs_access_masks,
-				num_layers), GFP_KERNEL_ACCOUNT);
+	new_ruleset =
+		kzalloc(struct_size(new_ruleset, fs_access_masks, num_layers),
+			GFP_KERNEL_ACCOUNT);
 	if (!new_ruleset)
 		return ERR_PTR(-ENOMEM);
 	refcount_set(&new_ruleset->usage, 1);
@@ -44,7 +45,8 @@ static struct landlock_ruleset *create_ruleset(const u32 num_layers)
 	return new_ruleset;
 }
 
-struct landlock_ruleset *landlock_create_ruleset(const u32 fs_access_mask)
+struct landlock_ruleset *
+landlock_create_ruleset(const access_mask_t fs_access_mask)
 {
 	struct landlock_ruleset *new_ruleset;
 
@@ -66,11 +68,10 @@ static void build_check_rule(void)
 	BUILD_BUG_ON(rule.num_layers < LANDLOCK_MAX_NUM_LAYERS);
 }
 
-static struct landlock_rule *create_rule(
-		struct landlock_object *const object,
-		const struct landlock_layer (*const layers)[],
-		const u32 num_layers,
-		const struct landlock_layer *const new_layer)
+static struct landlock_rule *
+create_rule(struct landlock_object *const object,
+	    const struct landlock_layer (*const layers)[], const u32 num_layers,
+	    const struct landlock_layer *const new_layer)
 {
 	struct landlock_rule *new_rule;
 	u32 new_num_layers;
@@ -85,7 +86,7 @@ static struct landlock_rule *create_rule(
 		new_num_layers = num_layers;
 	}
 	new_rule = kzalloc(struct_size(new_rule, layers, new_num_layers),
-			GFP_KERNEL_ACCOUNT);
+			   GFP_KERNEL_ACCOUNT);
 	if (!new_rule)
 		return ERR_PTR(-ENOMEM);
 	RB_CLEAR_NODE(&new_rule->node);
@@ -94,7 +95,7 @@ static struct landlock_rule *create_rule(
 	new_rule->num_layers = new_num_layers;
 	/* Copies the original layer stack. */
 	memcpy(new_rule->layers, layers,
-			flex_array_size(new_rule, layers, num_layers));
+	       flex_array_size(new_rule, layers, num_layers));
 	if (new_layer)
 		/* Adds a copy of @new_layer on the layer stack. */
 		new_rule->layers[new_rule->num_layers - 1] = *new_layer;
@@ -142,9 +143,9 @@ static void build_check_ruleset(void)
  * access rights.
  */
 static int insert_rule(struct landlock_ruleset *const ruleset,
-		struct landlock_object *const object,
-		const struct landlock_layer (*const layers)[],
-		size_t num_layers)
+		       struct landlock_object *const object,
+		       const struct landlock_layer (*const layers)[],
+		       size_t num_layers)
 {
 	struct rb_node **walker_node;
 	struct rb_node *parent_node = NULL;
@@ -156,8 +157,8 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 		return -ENOENT;
 	walker_node = &(ruleset->root.rb_node);
 	while (*walker_node) {
-		struct landlock_rule *const this = rb_entry(*walker_node,
-				struct landlock_rule, node);
+		struct landlock_rule *const this =
+			rb_entry(*walker_node, struct landlock_rule, node);
 
 		if (this->object != object) {
 			parent_node = *walker_node;
@@ -194,7 +195,7 @@ static int insert_rule(struct landlock_ruleset *const ruleset,
 		 * ruleset and a domain.
 		 */
 		new_rule = create_rule(object, &this->layers, this->num_layers,
-				&(*layers)[0]);
+				       &(*layers)[0]);
 		if (IS_ERR(new_rule))
 			return PTR_ERR(new_rule);
 		rb_replace_node(&this->node, &new_rule->node, &ruleset->root);
@@ -228,13 +229,14 @@ static void build_check_layer(void)
 
 /* @ruleset must be locked by the caller. */
 int landlock_insert_rule(struct landlock_ruleset *const ruleset,
-		struct landlock_object *const object, const u32 access)
+			 struct landlock_object *const object,
+			 const access_mask_t access)
 {
-	struct landlock_layer layers[] = {{
+	struct landlock_layer layers[] = { {
 		.access = access,
 		/* When @level is zero, insert_rule() extends @ruleset. */
 		.level = 0,
-	}};
+	} };
 
 	build_check_layer();
 	return insert_rule(ruleset, object, &layers, ARRAY_SIZE(layers));
@@ -257,7 +259,7 @@ static void put_hierarchy(struct landlock_hierarchy *hierarchy)
 }
 
 static int merge_ruleset(struct landlock_ruleset *const dst,
-		struct landlock_ruleset *const src)
+			 struct landlock_ruleset *const src)
 {
 	struct landlock_rule *walker_rule, *next_rule;
 	int err = 0;
@@ -282,11 +284,11 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 	dst->fs_access_masks[dst->num_layers - 1] = src->fs_access_masks[0];
 
 	/* Merges the @src tree. */
-	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule,
-			&src->root, node) {
-		struct landlock_layer layers[] = {{
+	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule, &src->root,
+					     node) {
+		struct landlock_layer layers[] = { {
 			.level = dst->num_layers,
-		}};
+		} };
 
 		if (WARN_ON_ONCE(walker_rule->num_layers != 1)) {
 			err = -EINVAL;
@@ -298,7 +300,7 @@ static int merge_ruleset(struct landlock_ruleset *const dst,
 		}
 		layers[0].access = walker_rule->layers[0].access;
 		err = insert_rule(dst, walker_rule->object, &layers,
-				ARRAY_SIZE(layers));
+				  ARRAY_SIZE(layers));
 		if (err)
 			goto out_unlock;
 	}
@@ -310,7 +312,7 @@ out_unlock:
 }
 
 static int inherit_ruleset(struct landlock_ruleset *const parent,
-		struct landlock_ruleset *const child)
+			   struct landlock_ruleset *const child)
 {
 	struct landlock_rule *walker_rule, *next_rule;
 	int err = 0;
@@ -325,9 +327,10 @@ static int inherit_ruleset(struct landlock_ruleset *const parent,
 
 	/* Copies the @parent tree. */
 	rbtree_postorder_for_each_entry_safe(walker_rule, next_rule,
-			&parent->root, node) {
+					     &parent->root, node) {
 		err = insert_rule(child, walker_rule->object,
-				&walker_rule->layers, walker_rule->num_layers);
+				  &walker_rule->layers,
+				  walker_rule->num_layers);
 		if (err)
 			goto out_unlock;
 	}
@@ -338,7 +341,7 @@ static int inherit_ruleset(struct landlock_ruleset *const parent,
 	}
 	/* Copies the parent layer stack and leaves a space for the new layer. */
 	memcpy(child->fs_access_masks, parent->fs_access_masks,
-			flex_array_size(parent, fs_access_masks, parent->num_layers));
+	       flex_array_size(parent, fs_access_masks, parent->num_layers));
 
 	if (WARN_ON_ONCE(!parent->hierarchy)) {
 		err = -EINVAL;
@@ -358,8 +361,7 @@ static void free_ruleset(struct landlock_ruleset *const ruleset)
 	struct landlock_rule *freeme, *next;
 
 	might_sleep();
-	rbtree_postorder_for_each_entry_safe(freeme, next, &ruleset->root,
-			node)
+	rbtree_postorder_for_each_entry_safe(freeme, next, &ruleset->root, node)
 		free_rule(freeme);
 	put_hierarchy(ruleset->hierarchy);
 	kfree(ruleset);
@@ -397,9 +399,9 @@ void landlock_put_ruleset_deferred(struct landlock_ruleset *const ruleset)
  * Returns the intersection of @parent and @ruleset, or returns @parent if
  * @ruleset is empty, or returns a duplicate of @ruleset if @parent is empty.
  */
-struct landlock_ruleset *landlock_merge_ruleset(
-		struct landlock_ruleset *const parent,
-		struct landlock_ruleset *const ruleset)
+struct landlock_ruleset *
+landlock_merge_ruleset(struct landlock_ruleset *const parent,
+		       struct landlock_ruleset *const ruleset)
 {
 	struct landlock_ruleset *new_dom;
 	u32 num_layers;
@@ -421,8 +423,8 @@ struct landlock_ruleset *landlock_merge_ruleset(
 	new_dom = create_ruleset(num_layers);
 	if (IS_ERR(new_dom))
 		return new_dom;
-	new_dom->hierarchy = kzalloc(sizeof(*new_dom->hierarchy),
-			GFP_KERNEL_ACCOUNT);
+	new_dom->hierarchy =
+		kzalloc(sizeof(*new_dom->hierarchy), GFP_KERNEL_ACCOUNT);
 	if (!new_dom->hierarchy) {
 		err = -ENOMEM;
 		goto out_put_dom;
@@ -449,9 +451,9 @@ out_put_dom:
 /*
  * The returned access has the same lifetime as @ruleset.
  */
-const struct landlock_rule *landlock_find_rule(
-		const struct landlock_ruleset *const ruleset,
-		const struct landlock_object *const object)
+const struct landlock_rule *
+landlock_find_rule(const struct landlock_ruleset *const ruleset,
+		   const struct landlock_object *const object)
 {
 	const struct rb_node *node;
 
@@ -459,8 +461,8 @@ const struct landlock_rule *landlock_find_rule(
 		return NULL;
 	node = ruleset->root.rb_node;
 	while (node) {
-		struct landlock_rule *this = rb_entry(node,
-				struct landlock_rule, node);
+		struct landlock_rule *this =
+			rb_entry(node, struct landlock_rule, node);
 
 		if (this->object == object)
 			return this;
