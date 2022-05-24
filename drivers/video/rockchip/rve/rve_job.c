@@ -506,7 +506,6 @@ int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 {
 	struct rve_pending_ctx_manager *ctx_manager;
 	struct rve_internal_ctx_t *ctx;
-	struct rve_cmd_reg_array_t *regcmd_data;
 	int ret = 0;
 	unsigned long flags;
 
@@ -528,16 +527,19 @@ int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 
 	spin_unlock_irqrestore(&ctx->lock, flags);
 
-	regcmd_data = kmalloc(sizeof(struct rve_cmd_reg_array_t), GFP_KERNEL);
-	if (regcmd_data == NULL) {
-		pr_err("regcmd_data alloc error!\n");
-		return -ENOMEM;
-	}
-
 	/* TODO: user cmd_num */
 	user_ctx->cmd_num = 1;
 
-	if (unlikely(copy_from_user(regcmd_data,
+	if (ctx->regcmd_data == NULL) {
+		ctx->regcmd_data = kmalloc_array(user_ctx->cmd_num,
+			sizeof(struct rve_cmd_reg_array_t), GFP_KERNEL);
+		if (ctx->regcmd_data == NULL) {
+			pr_err("regcmd_data alloc error!\n");
+			return -ENOMEM;
+		}
+	}
+
+	if (unlikely(copy_from_user(ctx->regcmd_data,
 					u64_to_user_ptr(user_ctx->regcmd_data),
 				    sizeof(struct rve_cmd_reg_array_t) * user_ctx->cmd_num))) {
 		pr_err("regcmd_data copy_from_user failed\n");
@@ -548,7 +550,6 @@ int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 
 	ctx->sync_mode = user_ctx->sync_mode;
 	ctx->cmd_num = user_ctx->cmd_num;
-	ctx->regcmd_data = regcmd_data;
 	ctx->priority = user_ctx->priority;
 	ctx->in_fence_fd = user_ctx->in_fence_fd;
 
@@ -557,7 +558,7 @@ int rve_job_config_by_user_ctx(struct rve_user_ctx_t *user_ctx)
 	return ret;
 
 err_free_regcmd_data:
-	kfree(regcmd_data);
+	kfree(ctx->regcmd_data);
 	return ret;
 }
 
@@ -918,6 +919,8 @@ int rve_internal_ctx_alloc_to_get_idr_id(struct rve_session *session)
 
 	idr_preload_end();
 
+	ctx->regcmd_data = NULL;
+
 	kref_init(&ctx->refcount);
 
 	return ctx->id;
@@ -981,9 +984,8 @@ void rve_internal_ctx_kref_release(struct kref *ref)
 		}
 	}
 
-	kfree(ctx->regcmd_data);
-
 free_ctx:
+	kfree(ctx->regcmd_data);
 	rve_internal_ctx_free_remove_idr(ctx);
 }
 
