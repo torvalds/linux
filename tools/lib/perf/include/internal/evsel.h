@@ -50,6 +50,7 @@ struct perf_evsel {
 	/* parse modifier helper */
 	int			 nr_members;
 	bool			 system_wide;
+	bool			 requires_cpu;
 	int			 idx;
 };
 
