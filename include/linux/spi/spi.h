@@ -17,6 +17,7 @@
 
 #include <uapi/linux/spi/spi.h>
 #include <linux/acpi.h>
+#include <linux/u64_stats_sync.h>
 
 struct dma_chan;
 struct software_node;
@@ -59,37 +60,42 @@ extern struct bus_type spi_bus_type;
  *                 maxsize limit
  */
 struct spi_statistics {
-	spinlock_t		lock; /* lock for the whole structure */
+	struct u64_stats_sync	syncp;
 
-	unsigned long		messages;
-	unsigned long		transfers;
-	unsigned long		errors;
-	unsigned long		timedout;
+	u64_stats_t		messages;
+	u64_stats_t		transfers;
+	u64_stats_t		errors;
+	u64_stats_t		timedout;
 
-	unsigned long		spi_sync;
-	unsigned long		spi_sync_immediate;
-	unsigned long		spi_async;
+	u64_stats_t		spi_sync;
+	u64_stats_t		spi_sync_immediate;
+	u64_stats_t		spi_async;
 
-	unsigned long long	bytes;
-	unsigned long long	bytes_rx;
-	unsigned long long	bytes_tx;
+	u64_stats_t		bytes;
+	u64_stats_t		bytes_rx;
+	u64_stats_t		bytes_tx;
 
 #define SPI_STATISTICS_HISTO_SIZE 17
-	unsigned long transfer_bytes_histo[SPI_STATISTICS_HISTO_SIZE];
+	u64_stats_t	transfer_bytes_histo[SPI_STATISTICS_HISTO_SIZE];
 
-	unsigned long transfers_split_maxsize;
+	u64_stats_t	transfers_split_maxsize;
 };
 
-#define SPI_STATISTICS_ADD_TO_FIELD(stats, field, count)	\
-	do {							\
-		unsigned long flags;				\
-		spin_lock_irqsave(&(stats)->lock, flags);	\
-		(stats)->field += count;			\
-		spin_unlock_irqrestore(&(stats)->lock, flags);	\
+#define SPI_STATISTICS_ADD_TO_FIELD(pcpu_stats, field, count)		\
+	do {								\
+		struct spi_statistics *__lstats = this_cpu_ptr(pcpu_stats); \
+		u64_stats_update_begin(&__lstats->syncp);		\
+		u64_stats_add(&__lstats->field, count);			\
+		u64_stats_update_end(&__lstats->syncp);			\
 	} while (0)
 
-#define SPI_STATISTICS_INCREMENT_FIELD(stats, field)	\
-	SPI_STATISTICS_ADD_TO_FIELD(stats, field, 1)
+#define SPI_STATISTICS_INCREMENT_FIELD(pcpu_stats, field)		\
+	do {								\
+		struct spi_statistics *__lstats = this_cpu_ptr(pcpu_stats); \
+		u64_stats_update_begin(&__lstats->syncp);		\
+		u64_stats_inc(&__lstats->field);			\
+		u64_stats_update_end(&__lstats->syncp);			\
+	} while (0)
 
 /**
  * struct spi_delay - SPI delay information
@@ -194,7 +200,7 @@ struct spi_device {
 	struct spi_delay	cs_inactive;
 
 	/* the statistics */
-	struct spi_statistics	statistics;
+	struct spi_statistics __percpu	*pcpu_statistics;
 
 	/*
 	 * likely need more hooks for more protocol options affecting how
@@ -647,7 +653,7 @@ struct spi_controller {
 	s8			max_native_cs;
 
 	/* statistics */
-	struct spi_statistics	statistics;
+	struct spi_statistics __percpu	*pcpu_statistics;
 
 	/* DMA channels for use with core dmaengine helpers */
 	struct dma_chan		*dma_tx;

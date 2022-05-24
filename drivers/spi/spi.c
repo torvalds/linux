@@ -33,6 +33,7 @@
 #include <linux/idr.h>
 #include <linux/platform_data/x86/apple.h>
 #include <linux/ptp_clock_kernel.h>
+#include <linux/percpu.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/spi.h>
@@ -49,6 +50,7 @@ static void spidev_release(struct device *dev)
 
 	spi_controller_put(spi->controller);
 	kfree(spi->driver_override);
+	free_percpu(spi->pcpu_statistics);
 	kfree(spi);
 }
 
@@ -93,6 +95,47 @@ static ssize_t driver_override_show(struct device *dev,
 }
 static DEVICE_ATTR_RW(driver_override);
 
+static struct spi_statistics *spi_alloc_pcpu_stats(struct device *dev)
+{
+	struct spi_statistics __percpu *pcpu_stats;
+
+	if (dev)
+		pcpu_stats = devm_alloc_percpu(dev, struct spi_statistics);
+	else
+		pcpu_stats = alloc_percpu_gfp(struct spi_statistics, GFP_KERNEL);
+
+	if (pcpu_stats) {
+		int cpu;
+
+		for_each_possible_cpu(cpu) {
+			struct spi_statistics *stat;
+
+			stat = per_cpu_ptr(pcpu_stats, cpu);
+			u64_stats_init(&stat->syncp);
+		}
+	}
+	return pcpu_stats;
+}
+
+#define spi_pcpu_stats_totalize(ret, in, field)				\
+do {									\
+	int i;								\
+	ret = 0;							\
+	for_each_possible_cpu(i) {					\
+		const struct spi_statistics *pcpu_stats;		\
+		u64 inc;						\
+		unsigned int start;					\
+		pcpu_stats = per_cpu_ptr(in, i);			\
+		do {							\
+			start = u64_stats_fetch_begin_irq(		\
+					&pcpu_stats->syncp);		\
+			inc = u64_stats_read(&pcpu_stats->field);	\
+		} while (u64_stats_fetch_retry_irq(			\
+					&pcpu_stats->syncp, start));	\
+		ret += inc;						\
+	}								\
+} while (0)
+
 #define SPI_STATISTICS_ATTRS(field, file)				\
 static ssize_t spi_controller_##field##_show(struct device *dev,	\
 					     struct device_attribute *attr, \
@@ -100,7 +143,7 @@ static ssize_t spi_controller_##field##_show(struct device *dev,	\
 {									\
 	struct spi_controller *ctlr = container_of(dev,			\
 					 struct spi_controller, dev);	\
-	return spi_statistics_##field##_show(&ctlr->statistics, buf);	\
+	return spi_statistics_##field##_show(ctlr->pcpu_statistics, buf); \
 }									\
 static struct device_attribute dev_attr_spi_controller_##field = {	\
 	.attr = { .name = file, .mode = 0444 },				\
@@ -111,47 +154,46 @@ static ssize_t spi_device_##field##_show(struct device *dev,		\
 					char *buf)			\
 {									\
 	struct spi_device *spi = to_spi_device(dev);			\
-	return spi_statistics_##field##_show(&spi->statistics, buf);	\
+	return spi_statistics_##field##_show(spi->pcpu_statistics, buf); \
 }									\
 static struct device_attribute dev_attr_spi_device_##field = {		\
 	.attr = { .name = file, .mode = 0444 },				\
 	.show = spi_device_##field##_show,				\
 }
 
-#define SPI_STATISTICS_SHOW_NAME(name, file, field, format_string)	\
+#define SPI_STATISTICS_SHOW_NAME(name, file, field)			\
 static ssize_t spi_statistics_##name##_show(struct spi_statistics *stat, \
 					    char *buf)			\
 {									\
-	unsigned long flags;						\
 	ssize_t len;							\
-	spin_lock_irqsave(&stat->lock, flags);				\
-	len = sysfs_emit(buf, format_string "\n", stat->field);		\
-	spin_unlock_irqrestore(&stat->lock, flags);			\
+	u64 val;							\
+	spi_pcpu_stats_totalize(val, stat, field);			\
+	len = sysfs_emit(buf, "%llu\n", val);				\
 	return len;							\
 }									\
 SPI_STATISTICS_ATTRS(name, file)
 
-#define SPI_STATISTICS_SHOW(field, format_string)			\
+#define SPI_STATISTICS_SHOW(field)					\
 	SPI_STATISTICS_SHOW_NAME(field, __stringify(field),		\
-				 field, format_string)
+				 field)
 
-SPI_STATISTICS_SHOW(messages, "%lu");
-SPI_STATISTICS_SHOW(transfers, "%lu");
-SPI_STATISTICS_SHOW(errors, "%lu");
-SPI_STATISTICS_SHOW(timedout, "%lu");
+SPI_STATISTICS_SHOW(messages);
+SPI_STATISTICS_SHOW(transfers);
+SPI_STATISTICS_SHOW(errors);
+SPI_STATISTICS_SHOW(timedout);
 
-SPI_STATISTICS_SHOW(spi_sync, "%lu");
-SPI_STATISTICS_SHOW(spi_sync_immediate, "%lu");
-SPI_STATISTICS_SHOW(spi_async, "%lu");
+SPI_STATISTICS_SHOW(spi_sync);
+SPI_STATISTICS_SHOW(spi_sync_immediate);
+SPI_STATISTICS_SHOW(spi_async);
 
-SPI_STATISTICS_SHOW(bytes, "%llu");
-SPI_STATISTICS_SHOW(bytes_rx, "%llu");
-SPI_STATISTICS_SHOW(bytes_tx, "%llu");
+SPI_STATISTICS_SHOW(bytes);
+SPI_STATISTICS_SHOW(bytes_rx);
+SPI_STATISTICS_SHOW(bytes_tx);
 
 #define SPI_STATISTICS_TRANSFER_BYTES_HISTO(index, number)		\
 	SPI_STATISTICS_SHOW_NAME(transfer_bytes_histo##index,		\
 				 "transfer_bytes_histo_" number,	\
-				 transfer_bytes_histo[index],  "%lu")
+				 transfer_bytes_histo[index])
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(0,  "0-1");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(1,  "2-3");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(2,  "4-7");
@@ -170,7 +212,7 @@ SPI_STATISTICS_TRANSFER_BYTES_HISTO(14, "16384-32767");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(15, "32768-65535");
 SPI_STATISTICS_TRANSFER_BYTES_HISTO(16, "65536+");
 
-SPI_STATISTICS_SHOW(transfers_split_maxsize, "%lu");
+SPI_STATISTICS_SHOW(transfers_split_maxsize);
 
 static struct attribute *spi_dev_attrs[] = {
 	&dev_attr_modalias.attr,
@@ -267,30 +309,30 @@ static const struct attribute_group *spi_master_groups[] = {
 	NULL,
 };
 
-static void spi_statistics_add_transfer_stats(struct spi_statistics *stats,
+static void spi_statistics_add_transfer_stats(struct spi_statistics *pcpu_stats,
 					      struct spi_transfer *xfer,
 					      struct spi_controller *ctlr)
 {
-	unsigned long flags;
 	int l2len = min(fls(xfer->len), SPI_STATISTICS_HISTO_SIZE) - 1;
+	struct spi_statistics *stats = this_cpu_ptr(pcpu_stats);
 
 	if (l2len < 0)
 		l2len = 0;
 
-	spin_lock_irqsave(&stats->lock, flags);
+	u64_stats_update_begin(&stats->syncp);
 
-	stats->transfers++;
-	stats->transfer_bytes_histo[l2len]++;
+	u64_stats_inc(&stats->transfers);
+	u64_stats_inc(&stats->transfer_bytes_histo[l2len]);
 
-	stats->bytes += xfer->len;
+	u64_stats_add(&stats->bytes, xfer->len);
 	if ((xfer->tx_buf) &&
 	    (xfer->tx_buf != ctlr->dummy_tx))
-		stats->bytes_tx += xfer->len;
+		u64_stats_add(&stats->bytes_tx, xfer->len);
 	if ((xfer->rx_buf) &&
 	    (xfer->rx_buf != ctlr->dummy_rx))
-		stats->bytes_rx += xfer->len;
+		u64_stats_add(&stats->bytes_rx, xfer->len);
 
-	spin_unlock_irqrestore(&stats->lock, flags);
+	u64_stats_update_end(&stats->syncp);
 }
 
 /*
@@ -519,13 +561,18 @@ struct spi_device *spi_alloc_device(struct spi_controller *ctlr)
 		return NULL;
 	}
 
+	spi->pcpu_statistics = spi_alloc_pcpu_stats(NULL);
+	if (!spi->pcpu_statistics) {
+		kfree(spi);
+		spi_controller_put(ctlr);
+		return NULL;
+	}
+
 	spi->master = spi->controller = ctlr;
 	spi->dev.parent = &ctlr->dev;
 	spi->dev.bus = &spi_bus_type;
 	spi->dev.release = spidev_release;
 	spi->mode = ctlr->buswidth_override_bits;
-
-	spin_lock_init(&spi->statistics.lock);
 
 	device_initialize(&spi->dev);
 	return spi;
@@ -1225,8 +1272,8 @@ static int spi_transfer_wait(struct spi_controller *ctlr,
 			     struct spi_message *msg,
 			     struct spi_transfer *xfer)
 {
-	struct spi_statistics *statm = &ctlr->statistics;
-	struct spi_statistics *stats = &msg->spi->statistics;
+	struct spi_statistics *statm = ctlr->pcpu_statistics;
+	struct spi_statistics *stats = msg->spi->pcpu_statistics;
 	u32 speed_hz = xfer->speed_hz;
 	unsigned long long ms;
 
@@ -1382,8 +1429,8 @@ static int spi_transfer_one_message(struct spi_controller *ctlr,
 	struct spi_transfer *xfer;
 	bool keep_cs = false;
 	int ret = 0;
-	struct spi_statistics *statm = &ctlr->statistics;
-	struct spi_statistics *stats = &msg->spi->statistics;
+	struct spi_statistics *statm = ctlr->pcpu_statistics;
+	struct spi_statistics *stats = msg->spi->pcpu_statistics;
 
 	spi_set_cs(msg->spi, true, false);
 
@@ -3029,7 +3076,11 @@ int spi_register_controller(struct spi_controller *ctlr)
 		}
 	}
 	/* add statistics */
-	spin_lock_init(&ctlr->statistics.lock);
+	ctlr->pcpu_statistics = spi_alloc_pcpu_stats(dev);
+	if (!ctlr->pcpu_statistics) {
+		dev_err(dev, "Error allocating per-cpu statistics\n");
+		goto destroy_queue;
+	}
 
 	mutex_lock(&board_lock);
 	list_add_tail(&ctlr->list, &spi_controller_list);
@@ -3042,6 +3093,8 @@ int spi_register_controller(struct spi_controller *ctlr)
 	acpi_register_spi_devices(ctlr);
 	return status;
 
+destroy_queue:
+	spi_destroy_queue(ctlr);
 free_bus_id:
 	mutex_lock(&board_lock);
 	idr_remove(&spi_master_idr, ctlr->bus_num);
@@ -3367,9 +3420,9 @@ static int __spi_split_transfer_maxsize(struct spi_controller *ctlr,
 	*xferp = &xfers[count - 1];
 
 	/* increment statistics counters */
-	SPI_STATISTICS_INCREMENT_FIELD(&ctlr->statistics,
+	SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics,
 				       transfers_split_maxsize);
-	SPI_STATISTICS_INCREMENT_FIELD(&msg->spi->statistics,
+	SPI_STATISTICS_INCREMENT_FIELD(msg->spi->pcpu_statistics,
 				       transfers_split_maxsize);
 
 	return 0;
@@ -3760,8 +3813,8 @@ static int __spi_async(struct spi_device *spi, struct spi_message *message)
 
 	message->spi = spi;
 
-	SPI_STATISTICS_INCREMENT_FIELD(&ctlr->statistics, spi_async);
-	SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics, spi_async);
+	SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics, spi_async);
+	SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics, spi_async);
 
 	trace_spi_message_submit(message);
 
@@ -3908,8 +3961,8 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	message->context = &done;
 	message->spi = spi;
 
-	SPI_STATISTICS_INCREMENT_FIELD(&ctlr->statistics, spi_sync);
-	SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics, spi_sync);
+	SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics, spi_sync);
+	SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics, spi_sync);
 
 	/*
 	 * If we're not using the legacy transfer method then we will
@@ -3932,9 +3985,9 @@ static int __spi_sync(struct spi_device *spi, struct spi_message *message)
 	if (status == 0) {
 		/* Push out the messages in the calling context if we can */
 		if (ctlr->transfer == spi_queued_transfer) {
-			SPI_STATISTICS_INCREMENT_FIELD(&ctlr->statistics,
+			SPI_STATISTICS_INCREMENT_FIELD(ctlr->pcpu_statistics,
 						       spi_sync_immediate);
-			SPI_STATISTICS_INCREMENT_FIELD(&spi->statistics,
+			SPI_STATISTICS_INCREMENT_FIELD(spi->pcpu_statistics,
 						       spi_sync_immediate);
 			__spi_pump_messages(ctlr, false);
 		}
