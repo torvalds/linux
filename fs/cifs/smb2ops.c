@@ -2700,7 +2700,7 @@ smb2_query_info_compound(const unsigned int xid, struct cifs_tcon *tcon,
 	memset(rsp_iov, 0, sizeof(rsp_iov));
 
 	if (!strcmp(path, ""))
-		rc = open_cached_dir(xid, tcon, path, cifs_sb, &cfid);
+		open_cached_dir(xid, tcon, path, cifs_sb, &cfid); /* cfid null if open dir failed */
 
 	memset(&open_iov, 0, sizeof(open_iov));
 	rqst[0].rq_iov = open_iov;
