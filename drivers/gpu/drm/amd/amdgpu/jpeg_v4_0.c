@@ -105,7 +105,7 @@ static int jpeg_v4_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	ring = &adev->jpeg.inst->ring_dec;
+	ring = adev->jpeg.inst->ring_dec;
 	ring->use_doorbell = true;
 	ring->doorbell_index = amdgpu_sriov_vf(adev) ? (((adev->doorbell_index.vcn.vcn_ring0_1) << 1) + 4) : ((adev->doorbell_index.vcn.vcn_ring0_1 << 1) + 1);
 	ring->vm_hub = AMDGPU_MMHUB0(0);
@@ -116,8 +116,8 @@ static int jpeg_v4_0_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->jpeg.internal.jpeg_pitch = regUVD_JPEG_PITCH_INTERNAL_OFFSET;
-	adev->jpeg.inst->external.jpeg_pitch = SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_PITCH);
+	adev->jpeg.internal.jpeg_pitch[0] = regUVD_JPEG_PITCH_INTERNAL_OFFSET;
+	adev->jpeg.inst->external.jpeg_pitch[0] = SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_PITCH);
 
 	r = amdgpu_jpeg_ras_sw_init(adev);
 	if (r)
@@ -156,7 +156,7 @@ static int jpeg_v4_0_sw_fini(void *handle)
 static int jpeg_v4_0_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->jpeg.inst->ring_dec;
+	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 	int r;
 
 	if (amdgpu_sriov_vf(adev)) {
@@ -363,7 +363,7 @@ static int jpeg_v4_0_enable_static_power_gating(struct amdgpu_device *adev)
  */
 static int jpeg_v4_0_start(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = &adev->jpeg.inst->ring_dec;
+	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 	int r;
 
 	if (adev->pm.dpm_enabled)
@@ -441,7 +441,7 @@ static int jpeg_v4_0_start_sriov(struct amdgpu_device *adev)
 
 	table_size = 0;
 
-	ring = &adev->jpeg.inst->ring_dec;
+	ring = adev->jpeg.inst->ring_dec;
 
 	MMSCH_V4_0_INSERT_DIRECT_WT(SOC15_REG_OFFSET(JPEG, 0,
 		regUVD_LMI_JRBC_RB_64BIT_BAR_LOW),
@@ -678,7 +678,7 @@ static int jpeg_v4_0_process_interrupt(struct amdgpu_device *adev,
 
 	switch (entry->src_id) {
 	case VCN_4_0__SRCID__JPEG_DECODE:
-		amdgpu_fence_process(&adev->jpeg.inst->ring_dec);
+		amdgpu_fence_process(adev->jpeg.inst->ring_dec);
 		break;
 	case VCN_4_0__SRCID_DJPEG0_POISON:
 	case VCN_4_0__SRCID_EJPEG0_POISON:
@@ -744,7 +744,7 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_dec_ring_vm_funcs = {
 
 static void jpeg_v4_0_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
-	adev->jpeg.inst->ring_dec.funcs = &jpeg_v4_0_dec_ring_vm_funcs;
+	adev->jpeg.inst->ring_dec->funcs = &jpeg_v4_0_dec_ring_vm_funcs;
 	DRM_DEV_INFO(adev->dev, "JPEG decode is enabled in VM mode\n");
 }
 

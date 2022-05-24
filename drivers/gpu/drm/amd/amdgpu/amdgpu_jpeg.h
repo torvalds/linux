@@ -27,16 +27,17 @@
 #include "amdgpu_ras.h"
 
 #define AMDGPU_MAX_JPEG_INSTANCES	2
+#define AMDGPU_MAX_JPEG_RINGS		8
 
 #define AMDGPU_JPEG_HARVEST_JPEG0 (1 << 0)
 #define AMDGPU_JPEG_HARVEST_JPEG1 (1 << 1)
 
 struct amdgpu_jpeg_reg{
-	unsigned jpeg_pitch;
+	unsigned jpeg_pitch[AMDGPU_MAX_JPEG_RINGS];
 };
 
 struct amdgpu_jpeg_inst {
-	struct amdgpu_ring ring_dec;
+	struct amdgpu_ring ring_dec[AMDGPU_MAX_JPEG_RINGS];
 	struct amdgpu_irq_src irq;
 	struct amdgpu_jpeg_reg external;
 };
@@ -48,6 +49,7 @@ struct amdgpu_jpeg_ras {
 struct amdgpu_jpeg {
 	uint8_t	num_jpeg_inst;
 	struct amdgpu_jpeg_inst inst[AMDGPU_MAX_JPEG_INSTANCES];
+	unsigned num_jpeg_rings;
 	struct amdgpu_jpeg_reg internal;
 	unsigned harvest_config;
 	struct delayed_work idle_work;

@@ -85,7 +85,7 @@ static int jpeg_v4_0_3_sw_init(void *handle)
 	if (r)
 		return r;
 
-	ring = &adev->jpeg.inst->ring_dec;
+	ring = adev->jpeg.inst->ring_dec;
 	ring->use_doorbell = false;
 	ring->vm_hub = AMDGPU_MMHUB0(0);
 	sprintf(ring->name, "jpeg_dec");
@@ -94,8 +94,8 @@ static int jpeg_v4_0_3_sw_init(void *handle)
 	if (r)
 		return r;
 
-	adev->jpeg.internal.jpeg_pitch = regUVD_JPEG_PITCH_INTERNAL_OFFSET;
-	adev->jpeg.inst->external.jpeg_pitch = SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_PITCH);
+	adev->jpeg.internal.jpeg_pitch[0] = regUVD_JPEG_PITCH_INTERNAL_OFFSET;
+	adev->jpeg.inst->external.jpeg_pitch[0] = SOC15_REG_OFFSET(JPEG, 0, regUVD_JPEG_PITCH);
 
 	return 0;
 }
@@ -130,7 +130,7 @@ static int jpeg_v4_0_3_sw_fini(void *handle)
 static int jpeg_v4_0_3_hw_init(void *handle)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
-	struct amdgpu_ring *ring = &adev->jpeg.inst->ring_dec;
+	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 	int r;
 
 	r = amdgpu_ring_test_helper(ring);
@@ -254,7 +254,7 @@ static void jpeg_v4_0_3_enable_clock_gating(struct amdgpu_device *adev)
  */
 static int jpeg_v4_0_3_start(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *ring = &adev->jpeg.inst->ring_dec;
+	struct amdgpu_ring *ring = adev->jpeg.inst->ring_dec;
 
 	WREG32_SOC15(JPEG, 0, regUVD_PGFSM_CONFIG,
 		1 << UVD_PGFSM_CONFIG__UVDJ_PWR_CONFIG__SHIFT);
@@ -675,7 +675,7 @@ static int jpeg_v4_0_3_process_interrupt(struct amdgpu_device *adev,
 
 	switch (entry->src_id) {
 	case VCN_2_0__SRCID__JPEG_DECODE:
-		amdgpu_fence_process(&adev->jpeg.inst->ring_dec);
+		amdgpu_fence_process(adev->jpeg.inst->ring_dec);
 		break;
 	default:
 		DRM_DEV_ERROR(adev->dev, "Unhandled interrupt: %d %d\n",
@@ -737,8 +737,8 @@ static const struct amdgpu_ring_funcs jpeg_v4_0_3_dec_ring_vm_funcs = {
 
 static void jpeg_v4_0_3_set_dec_ring_funcs(struct amdgpu_device *adev)
 {
-	adev->jpeg.inst->ring_dec.funcs = &jpeg_v4_0_3_dec_ring_vm_funcs;
-	adev->jpeg.inst->ring_dec.me = 0;
+	adev->jpeg.inst->ring_dec->funcs = &jpeg_v4_0_3_dec_ring_vm_funcs;
+	adev->jpeg.inst->ring_dec->me = 0;
 	DRM_DEV_INFO(adev->dev, "JPEG decode is enabled in VM mode\n");
 }
 
