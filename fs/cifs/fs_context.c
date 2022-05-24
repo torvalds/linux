@@ -119,6 +119,7 @@ const struct fs_parameter_spec smb3_fs_parameters[] = {
 	fsparam_flag_no("persistenthandles", Opt_persistent),
 	fsparam_flag_no("resilienthandles", Opt_resilient),
 	fsparam_flag_no("tcpnodelay", Opt_tcp_nodelay),
+	fsparam_flag("nosparse", Opt_nosparse),
 	fsparam_flag("domainauto", Opt_domainauto),
 	fsparam_flag("rdma", Opt_rdma),
 	fsparam_flag("modesid", Opt_modesid),
@@ -942,6 +943,9 @@ static int smb3_fs_context_parse_param(struct fs_context *fc,
 		break;
 	case Opt_nolease:
 		ctx->no_lease = 1;
+		break;
+	case Opt_nosparse:
+		ctx->no_sparse = 1;
 		break;
 	case Opt_nodelete:
 		ctx->nodelete = 1;

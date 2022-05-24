@@ -116,7 +116,8 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		tcon->ses->server->ops->dump_share_caps(m, tcon);
 	if (tcon->use_witness)
 		seq_puts(m, " Witness");
-
+	if (tcon->broken_sparse_sup)
+		seq_puts(m, " nosparse");
 	if (tcon->need_reconnect)
 		seq_puts(m, "\tDISCONNECTED ");
 	seq_putc(m, '\n');
