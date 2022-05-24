@@ -1203,28 +1203,6 @@ static void blk_add_rq_to_plug(struct blk_plug *plug, struct request *rq)
 	plug->rq_count++;
 }
 
-static void __blk_execute_rq_nowait(struct request *rq, bool at_head,
-		rq_end_io_fn *done, bool use_plug)
-{
-	WARN_ON(irqs_disabled());
-	WARN_ON(!blk_rq_is_passthrough(rq));
-
-	rq->end_io = done;
-
-	blk_account_io_start(rq);
-
-	if (use_plug && current->plug) {
-		blk_add_rq_to_plug(current->plug, rq);
-		return;
-	}
-	/*
-	 * don't check dying flag for MQ because the request won't
-	 * be reused after dying flag is set
-	 */
-	blk_mq_sched_insert_request(rq, at_head, true, false);
-}
-
-
 /**
  * blk_execute_rq_nowait - insert a request to I/O scheduler for execution
  * @rq:		request to insert
@@ -1240,8 +1218,16 @@ static void __blk_execute_rq_nowait(struct request *rq, bool at_head,
  */
 void blk_execute_rq_nowait(struct request *rq, bool at_head, rq_end_io_fn *done)
 {
-	__blk_execute_rq_nowait(rq, at_head, done, true);
+	WARN_ON(irqs_disabled());
+	WARN_ON(!blk_rq_is_passthrough(rq));
 
+	rq->end_io = done;
+
+	blk_account_io_start(rq);
+	if (current->plug)
+		blk_add_rq_to_plug(current->plug, rq);
+	else
+		blk_mq_sched_insert_request(rq, at_head, true, false);
 }
 EXPORT_SYMBOL_GPL(blk_execute_rq_nowait);
 
@@ -1277,27 +1263,32 @@ static void blk_rq_poll_completion(struct request *rq, struct completion *wait)
 blk_status_t blk_execute_rq(struct request *rq, bool at_head)
 {
 	DECLARE_COMPLETION_ONSTACK(wait);
-	unsigned long hang_check;
 
-	/*
-	 * iopoll requires request to be submitted to driver, so can't
-	 * use plug
-	 */
+	WARN_ON(irqs_disabled());
+	WARN_ON(!blk_rq_is_passthrough(rq));
+
 	rq->end_io_data = &wait;
-	__blk_execute_rq_nowait(rq, at_head, blk_end_sync_rq,
-			!blk_rq_is_poll(rq));
+	rq->end_io = blk_end_sync_rq;
 
-	/* Prevent hang_check timer from firing at us during very long I/O */
-	hang_check = sysctl_hung_task_timeout_secs;
+	blk_account_io_start(rq);
+	blk_mq_sched_insert_request(rq, at_head, true, false);
 
-	if (blk_rq_is_poll(rq))
+	if (blk_rq_is_poll(rq)) {
 		blk_rq_poll_completion(rq, &wait);
-	else if (hang_check)
-		while (!wait_for_completion_io_timeout(&wait,
-				hang_check * (HZ/2)))
-			;
-	else
-		wait_for_completion_io(&wait);
+	} else {
+		/*
+		 * Prevent hang_check timer from firing at us during very long
+		 * I/O
+		 */
+		unsigned long hang_check = sysctl_hung_task_timeout_secs;
+
+		if (hang_check)
+			while (!wait_for_completion_io_timeout(&wait,
+					hang_check * (HZ/2)))
+				;
+		else
+			wait_for_completion_io(&wait);
+	}
 
 	return (blk_status_t)(uintptr_t)rq->end_io_data;
 }
