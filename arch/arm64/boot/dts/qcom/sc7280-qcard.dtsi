@@ -604,7 +604,6 @@ mos_bt_uart: &uart7 {
 	ts_rst_conn: ts-rst-conn {
 		pins = "gpio54";
 		function = "gpio";
-		bias-pull-up;
 		drive-strength = <2>;
 	};
 };
