@@ -4192,7 +4192,7 @@ static int sienna_cichlid_get_default_config_table_settings(struct smu_context *
 	table->gfx_activity_average_tau = 10;
 	table->mem_activity_average_tau = 10;
 	table->socket_power_average_tau = 100;
-	if (adev->asic_type != CHIP_SIENNA_CICHLID)
+	if (adev->ip_versions[MP1_HWIP][0] != IP_VERSION(11, 0, 7))
 		table->apu_socket_power_average_tau = 100;
 
 	return 0;
