@@ -976,7 +976,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_poll_update	poll_update;
 		struct io_accept	accept;
 		struct io_sync		sync;
 		struct io_cancel	cancel;
@@ -7178,7 +7177,7 @@ static __poll_t io_poll_parse_events(const struct io_uring_sqe *sqe,
 static int io_poll_remove_prep(struct io_kiocb *req,
 			       const struct io_uring_sqe *sqe)
 {
-	struct io_poll_update *upd = &req->poll_update;
+	struct io_poll_update *upd = io_kiocb_to_cmd(req);
 	u32 flags;
 
 	if (sqe->buf_index || sqe->splice_fd_in)
@@ -7243,7 +7242,8 @@ static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_cancel_data cd = { .data = req->poll_update.old_user_data, };
+	struct io_poll_update *poll_update = io_kiocb_to_cmd(req);
+	struct io_cancel_data cd = { .data = poll_update->old_user_data, };
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_kiocb *preq;
 	int ret2, ret = 0;
@@ -7258,17 +7258,17 @@ static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	}
 	spin_unlock(&ctx->completion_lock);
 
-	if (req->poll_update.update_events || req->poll_update.update_user_data) {
+	if (poll_update->update_events || poll_update->update_user_data) {
 		/* only mask one event flags, keep behavior flags */
-		if (req->poll_update.update_events) {
+		if (poll_update->update_events) {
 			struct io_poll *poll = io_kiocb_to_cmd(preq);
 
 			poll->events &= ~0xffff;
-			poll->events |= req->poll_update.events & 0xffff;
+			poll->events |= poll_update->events & 0xffff;
 			poll->events |= IO_POLL_UNMASK;
 		}
-		if (req->poll_update.update_user_data)
-			preq->cqe.user_data = req->poll_update.new_user_data;
+		if (poll_update->update_user_data)
+			preq->cqe.user_data = poll_update->new_user_data;
 
 		ret2 = io_poll_add(preq, issue_flags);
 		/* successfully updated, don't complete poll request */
