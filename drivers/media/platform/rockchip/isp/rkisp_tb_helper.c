@@ -21,6 +21,8 @@
 #include "rkisp_tb_helper.h"
 
 static struct platform_device *rkisp_tb_pdev;
+static struct clk_bulk_data *rkisp_tb_clk;
+static int rkisp_tb_clk_num;
 
 struct shm_data {
 	int npages;
@@ -159,16 +161,26 @@ static struct dma_buf *shm_alloc(struct rkisp_thunderboot_shmem *shmem)
 
 static int __maybe_unused rkisp_tb_clocks_loader_protect(void)
 {
+	int ret = 0;
+
 	if (rkisp_tb_pdev) {
 		pm_runtime_enable(&rkisp_tb_pdev->dev);
 		pm_runtime_get_sync(&rkisp_tb_pdev->dev);
+		if (rkisp_tb_clk_num) {
+			ret = clk_bulk_prepare_enable(rkisp_tb_clk_num, rkisp_tb_clk);
+			if (ret)
+				dev_err(&rkisp_tb_pdev->dev, "Cannot enable clock\n");
+		}
 	}
-	return 0;
+
+	return ret;
 }
 
 static int __maybe_unused rkisp_tb_clocks_loader_unprotect(void)
 {
 	if (rkisp_tb_pdev) {
+		if (rkisp_tb_clk_num)
+			clk_bulk_disable_unprepare(rkisp_tb_clk_num, rkisp_tb_clk);
 		pm_runtime_put_sync(&rkisp_tb_pdev->dev);
 		pm_runtime_disable(&rkisp_tb_pdev->dev);
 	}
@@ -202,6 +214,11 @@ static const struct of_device_id rkisp_tb_plat_of_match[] = {
 static int rkisp_tb_plat_probe(struct platform_device *pdev)
 {
 	rkisp_tb_pdev = pdev;
+	rkisp_tb_clk_num = devm_clk_bulk_get_all(&pdev->dev, &rkisp_tb_clk);
+	if (rkisp_tb_clk_num <= 0) {
+		dev_warn(&pdev->dev, "get clk fail:%d\n", rkisp_tb_clk_num);
+		rkisp_tb_clk_num = 0;
+	}
 	rkisp_tb_clocks_loader_protect();
 	return 0;
 }
