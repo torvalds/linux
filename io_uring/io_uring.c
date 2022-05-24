@@ -93,6 +93,7 @@
 #include "io_uring.h"
 
 #include "xattr.h"
+#include "nop.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -4295,20 +4296,6 @@ done:
 	if (ret != sp->len)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-}
-
-static int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	return 0;
-}
-
-/*
- * IORING_OP_NOP just posts a completion event, nothing else.
- */
-static int io_nop(struct io_kiocb *req, unsigned int issue_flags)
-{
-	io_req_set_res(req, 0, 0);
 	return IOU_OK;
 }
 
