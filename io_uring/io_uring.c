@@ -980,8 +980,6 @@ struct io_kiocb {
 		struct file		*file;
 		struct io_cmd_data	cmd;
 		struct io_rsrc_update	rsrc_update;
-		struct io_provide_buf	pbuf;
-		struct io_msg		msg;
 		struct io_xattr		xattr;
 		struct io_uring_cmd	uring_cmd;
 	};
@@ -5030,19 +5028,21 @@ static int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 static int io_msg_ring_prep(struct io_kiocb *req,
 			    const struct io_uring_sqe *sqe)
 {
+	struct io_msg *msg = io_kiocb_to_cmd(req);
+
 	if (unlikely(sqe->addr || sqe->rw_flags || sqe->splice_fd_in ||
 		     sqe->buf_index || sqe->personality))
 		return -EINVAL;
 
-	req->msg.user_data = READ_ONCE(sqe->off);
-	req->msg.len = READ_ONCE(sqe->len);
+	msg->user_data = READ_ONCE(sqe->off);
+	msg->len = READ_ONCE(sqe->len);
 	return 0;
 }
 
 static int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_msg *msg = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *target_ctx;
-	struct io_msg *msg = &req->msg;
 	bool filled;
 	int ret;
 
@@ -5324,7 +5324,7 @@ static int io_openat(struct io_kiocb *req, unsigned int issue_flags)
 static int io_remove_buffers_prep(struct io_kiocb *req,
 				  const struct io_uring_sqe *sqe)
 {
-	struct io_provide_buf *p = &req->pbuf;
+	struct io_provide_buf *p = io_kiocb_to_cmd(req);
 	u64 tmp;
 
 	if (sqe->rw_flags || sqe->addr || sqe->len || sqe->off ||
@@ -5381,7 +5381,7 @@ static int __io_remove_buffers(struct io_ring_ctx *ctx,
 
 static int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_provide_buf *p = &req->pbuf;
+	struct io_provide_buf *p = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
 	int ret = 0;
@@ -5409,7 +5409,7 @@ static int io_provide_buffers_prep(struct io_kiocb *req,
 				   const struct io_uring_sqe *sqe)
 {
 	unsigned long size, tmp_check;
-	struct io_provide_buf *p = &req->pbuf;
+	struct io_provide_buf *p = io_kiocb_to_cmd(req);
 	u64 tmp;
 
 	if (sqe->rw_flags || sqe->splice_fd_in)
@@ -5528,7 +5528,7 @@ static __cold int io_init_bl_list(struct io_ring_ctx *ctx)
 
 static int io_provide_buffers(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_provide_buf *p = &req->pbuf;
+	struct io_provide_buf *p = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_buffer_list *bl;
 	int ret = 0;
