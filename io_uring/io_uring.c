@@ -980,7 +980,6 @@ struct io_kiocb {
 		struct file		*file;
 		struct io_cmd_data	cmd;
 		struct io_rsrc_update	rsrc_update;
-		struct io_epoll		epoll;
 		struct io_splice	splice;
 		struct io_provide_buf	pbuf;
 		struct io_msg		msg;
@@ -5577,18 +5576,20 @@ static int io_epoll_ctl_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
 #if defined(CONFIG_EPOLL)
+	struct io_epoll *epoll = io_kiocb_to_cmd(req);
+
 	if (sqe->buf_index || sqe->splice_fd_in)
 		return -EINVAL;
 
-	req->epoll.epfd = READ_ONCE(sqe->fd);
-	req->epoll.op = READ_ONCE(sqe->len);
-	req->epoll.fd = READ_ONCE(sqe->off);
+	epoll->epfd = READ_ONCE(sqe->fd);
+	epoll->op = READ_ONCE(sqe->len);
+	epoll->fd = READ_ONCE(sqe->off);
 
-	if (ep_op_has_event(req->epoll.op)) {
+	if (ep_op_has_event(epoll->op)) {
 		struct epoll_event __user *ev;
 
 		ev = u64_to_user_ptr(READ_ONCE(sqe->addr));
-		if (copy_from_user(&req->epoll.event, ev, sizeof(*ev)))
+		if (copy_from_user(&epoll->event, ev, sizeof(*ev)))
 			return -EFAULT;
 	}
 
@@ -5601,7 +5602,7 @@ static int io_epoll_ctl_prep(struct io_kiocb *req,
 static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 {
 #if defined(CONFIG_EPOLL)
-	struct io_epoll *ie = &req->epoll;
+	struct io_epoll *ie = io_kiocb_to_cmd(req);
 	int ret;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
 
