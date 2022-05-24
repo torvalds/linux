@@ -27,6 +27,34 @@
 			reg = <0x001900000 (5 * 0x00100000)>;
 		};
 	};
+
+	thunder_boot_rkisp: thunder-boot-rkisp {
+		compatible = "rockchip,thunder-boot-rkisp";
+		clocks = <&cru ACLK_ISP3P2>, <&cru HCLK_ISP3P2>,
+			 <&cru CLK_CORE_ISP3P2>, <&cru ISP0CLK_VICAP>,
+			 <&cru ACLK_VICAP>, <&cru HCLK_VICAP>,
+			 <&cru DCLK_VICAP>, <&cru PCLK_VICAP>,
+			 <&cru I0CLK_VICAP>, <&cru I1CLK_VICAP>,
+			 <&cru RX0PCLK_VICAP>, <&cru RX1PCLK_VICAP>,
+			 <&cru ISP0CLK_VICAP>, <&cru SCLK_VICAP_M0>,
+			 <&cru SCLK_VICAP_M1>, <&cru PCLK_VICAP_VEPU>,
+			 <&cru PCLK_CSIHOST0>, <&cru CLK_RXBYTECLKHS_0>,
+			 <&cru PCLK_CSIHOST1>, <&cru CLK_RXBYTECLKHS_1>,
+			 <&cru CLK_I2C4>, <&cru PCLK_I2C4>,
+			 <&cru MCLK_REF_MIPI0>;
+		clock-names = "aclk_isp", "hclk_isp",
+			      "clk_isp_core", "clk_isp_core_vicap",
+			      "aclk_cif","hclk_cif",
+			      "dclk_cif", "pclk_cif",
+			      "i0clk_cif", "i1clk_cif",
+			      "rx0clk_cif", "rx1clk_cif",
+			      "isp0clk_cif", "sclk_m0_cif",
+			      "sclk_m1_cif", "pclk_vepu_cif",
+			      "pclk_csi2host0", "clk_rxbyte_hs0",
+			      "pclk_csi2host1", "clk_rxbyte_hs1",
+			      "i2c", "pclk", "xvclk";
+		status = "okay";
+	};
 };
 
 &hw_decompress {
