@@ -466,11 +466,10 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 
 		memcpy(&ctx->isp_cfg, cfg, sizeof(struct dvbm_isp_cfg_t));
 		rk_dvbm_setup_iobuf(ctx);
-		rk_dvbm_reg_init(ctx);
 		init_isp_infos(ctx);
+		rk_dvbm_update_next_adr(ctx);
 	} break;
 	case DVBM_ISP_FRM_START: {
-		ctx->isp_frm_start = *(u32 *)arg;
 		rk_dvbm_update_isp_frm_info(ctx, 0);
 		rk_dvbm_show_time(ctx);
 	} break;
@@ -482,6 +481,7 @@ int rk_dvbm_ctrl(struct dvbm_port *port, enum dvbm_cmd cmd, void *arg)
 		ctx->isp_frm_info.frame_cnt = (ctx->isp_frm_start + 1) % 256;
 		rk_dvbm_update_next_adr(ctx);
 		rk_dvbm_update_isp_frm_info(ctx, line_cnt);
+		ctx->isp_frm_start++;
 		dvbm_debug("isp frame end[%d : %d]\n", ctx->isp_frm_start, ctx->isp_frm_end);
 	} break;
 	case DVBM_ISP_FRM_QUARTER: {
