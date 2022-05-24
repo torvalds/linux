@@ -172,10 +172,10 @@ EXPORT_SYMBOL_GPL(dev_pm_domain_attach_by_name);
  * @dev: Device to detach.
  * @power_off: Used to indicate whether we should power off the device.
  *
- * This functions will reverse the actions from dev_pm_domain_attach() and
- * dev_pm_domain_attach_by_id(), thus it detaches @dev from its PM domain.
- * Typically it should be invoked during the remove phase, either from
- * subsystem level code or from drivers.
+ * This functions will reverse the actions from dev_pm_domain_attach(),
+ * dev_pm_domain_attach_by_id() and dev_pm_domain_attach_by_name(), thus it
+ * detaches @dev from its PM domain.  Typically it should be invoked during the
+ * remove phase, either from subsystem level code or from drivers.
  *
  * Callers must ensure proper synchronization of this function with power
  * management callbacks.
