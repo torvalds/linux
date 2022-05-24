@@ -30,6 +30,7 @@
 #include <linux/thread_info.h>
 
 #include <asm/cacheflush.h>
+#include <asm/coprocessor.h>
 #include <asm/kdebug.h>
 #include <asm/mmu_context.h>
 #include <asm/mxregs.h>
@@ -272,6 +273,12 @@ int __cpu_disable(void)
 	 */
 	set_cpu_online(cpu, false);
 
+#if XTENSA_HAVE_COPROCESSORS
+	/*
+	 * Flush coprocessor contexts that are active on the current CPU.
+	 */
+	local_coprocessors_flush_release_all();
+#endif
 	/*
 	 * OK - migrate IRQs away from this CPU
 	 */

@@ -99,7 +99,7 @@ static inline unsigned long __fls(unsigned long word)
 #if XCHAL_HAVE_EXCLUSIVE
 
 #define BIT_OP(op, insn, inv)						\
-static inline void op##_bit(unsigned int bit, volatile unsigned long *p)\
+static inline void arch_##op##_bit(unsigned int bit, volatile unsigned long *p)\
 {									\
 	unsigned long tmp;						\
 	unsigned long mask = 1UL << (bit & 31);				\
@@ -119,7 +119,7 @@ static inline void op##_bit(unsigned int bit, volatile unsigned long *p)\
 
 #define TEST_AND_BIT_OP(op, insn, inv)					\
 static inline int							\
-test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
+arch_test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
 {									\
 	unsigned long tmp, value;					\
 	unsigned long mask = 1UL << (bit & 31);				\
@@ -142,7 +142,7 @@ test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
 #elif XCHAL_HAVE_S32C1I
 
 #define BIT_OP(op, insn, inv)						\
-static inline void op##_bit(unsigned int bit, volatile unsigned long *p)\
+static inline void arch_##op##_bit(unsigned int bit, volatile unsigned long *p)\
 {									\
 	unsigned long tmp, value;					\
 	unsigned long mask = 1UL << (bit & 31);				\
@@ -163,7 +163,7 @@ static inline void op##_bit(unsigned int bit, volatile unsigned long *p)\
 
 #define TEST_AND_BIT_OP(op, insn, inv)					\
 static inline int							\
-test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
+arch_test_and_##op##_bit(unsigned int bit, volatile unsigned long *p)	\
 {									\
 	unsigned long tmp, value;					\
 	unsigned long mask = 1UL << (bit & 31);				\
@@ -204,6 +204,8 @@ BIT_OPS(change, "xor", )
 #undef BIT_OPS
 #undef BIT_OP
 #undef TEST_AND_BIT_OP
+
+#include <asm-generic/bitops/instrumented-atomic.h>
 
 #include <asm-generic/bitops/le.h>
 
