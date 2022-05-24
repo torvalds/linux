@@ -281,7 +281,7 @@
 
 	sound: sound {
 		compatible = "rockchip,rk3399-gru-sound";
-		rockchip,cpu = <&i2s0 &i2s2>;
+		rockchip,cpu = <&i2s0 &spdif>;
 	};
 };
 
@@ -432,10 +432,6 @@ ap_i2c_audio: &i2c8 {
 	status = "okay";
 };
 
-&i2s2 {
-	status = "okay";
-};
-
 &io_domains {
 	status = "okay";
 
@@ -530,6 +526,17 @@ ap_i2c_audio: &i2c8 {
 	sd-uhs-sdr104;
 	vmmc-supply = <&pp3000_sd_slot>;
 	vqmmc-supply = <&ppvar_sd_card_io>;
+};
+
+&spdif {
+	status = "okay";
+
+	/*
+	 * SPDIF is routed internally to DP; we either don't use these pins, or
+	 * mux them to something else.
+	 */
+	/delete-property/ pinctrl-0;
+	/delete-property/ pinctrl-names;
 };
 
 &spi1 {
