@@ -979,7 +979,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_cancel	cancel;
 		struct io_timeout	timeout;
 		struct io_timeout_rem	timeout_rem;
 		struct io_open		open;
@@ -7699,19 +7698,21 @@ out:
 static int io_async_cancel_prep(struct io_kiocb *req,
 				const struct io_uring_sqe *sqe)
 {
+	struct io_cancel *cancel = io_kiocb_to_cmd(req);
+
 	if (unlikely(req->flags & REQ_F_BUFFER_SELECT))
 		return -EINVAL;
 	if (sqe->off || sqe->len || sqe->splice_fd_in)
 		return -EINVAL;
 
-	req->cancel.addr = READ_ONCE(sqe->addr);
-	req->cancel.flags = READ_ONCE(sqe->cancel_flags);
-	if (req->cancel.flags & ~CANCEL_FLAGS)
+	cancel->addr = READ_ONCE(sqe->addr);
+	cancel->flags = READ_ONCE(sqe->cancel_flags);
+	if (cancel->flags & ~CANCEL_FLAGS)
 		return -EINVAL;
-	if (req->cancel.flags & IORING_ASYNC_CANCEL_FD) {
-		if (req->cancel.flags & IORING_ASYNC_CANCEL_ANY)
+	if (cancel->flags & IORING_ASYNC_CANCEL_FD) {
+		if (cancel->flags & IORING_ASYNC_CANCEL_ANY)
 			return -EINVAL;
-		req->cancel.fd = READ_ONCE(sqe->fd);
+		cancel->fd = READ_ONCE(sqe->fd);
 	}
 
 	return 0;
@@ -7753,20 +7754,21 @@ static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
 
 static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 {
+	struct io_cancel *cancel = io_kiocb_to_cmd(req);
 	struct io_cancel_data cd = {
 		.ctx	= req->ctx,
-		.data	= req->cancel.addr,
-		.flags	= req->cancel.flags,
+		.data	= cancel->addr,
+		.flags	= cancel->flags,
 		.seq	= atomic_inc_return(&req->ctx->cancel_seq),
 	};
 	int ret;
 
 	if (cd.flags & IORING_ASYNC_CANCEL_FD) {
 		if (req->flags & REQ_F_FIXED_FILE)
-			req->file = io_file_get_fixed(req, req->cancel.fd,
+			req->file = io_file_get_fixed(req, cancel->fd,
 							issue_flags);
 		else
-			req->file = io_file_get_normal(req, req->cancel.fd);
+			req->file = io_file_get_normal(req, cancel->fd);
 		if (!req->file) {
 			ret = -EBADF;
 			goto done;
