@@ -34,22 +34,47 @@ properties:
           - fsl,imx6ull-usdhc
           - fsl,imx7d-usdhc
           - fsl,imx7ulp-usdhc
+          - fsl,imx8mm-usdhc
           - fsl,imxrt1050-usdhc
           - nxp,s32g2-usdhc
       - items:
           - enum:
-              - fsl,imx8mm-usdhc
-              - fsl,imx8mn-usdhc
-              - fsl,imx8mp-usdhc
               - fsl,imx8mq-usdhc
-              - fsl,imx8qm-usdhc
-              - fsl,imx8qxp-usdhc
           - const: fsl,imx7d-usdhc
       - items:
           - enum:
+              - fsl,imx8mn-usdhc
+              - fsl,imx8mp-usdhc
               - fsl,imx93-usdhc
               - fsl,imx8ulp-usdhc
           - const: fsl,imx8mm-usdhc
+      - items:
+          - enum:
+              - fsl,imx8qm-usdhc
+          - const: fsl,imx8qxp-usdhc
+      - items:
+          - enum:
+              - fsl,imx8dxl-usdhc
+              - fsl,imx8mm-usdhc
+              - fsl,imx8mn-usdhc
+              - fsl,imx8mp-usdhc
+              - fsl,imx8qm-usdhc
+              - fsl,imx8qxp-usdhc
+          - const: fsl,imx7d-usdhc
+        deprecated: true
+      - items:
+          - enum:
+              - fsl,imx8mn-usdhc
+              - fsl,imx8mp-usdhc
+          - const: fsl,imx8mm-usdhc
+          - const: fsl,imx7d-usdhc
+        deprecated: true
+      - items:
+          - enum:
+              - fsl,imx8qm-usdhc
+          - const: fsl,imx8qxp-usdhc
+          - const: fsl,imx7d-usdhc
+        deprecated: true
 
   reg:
     maxItems: 1

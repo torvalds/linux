@@ -1619,6 +1619,8 @@ static irqreturn_t mmci_irq(int irq, void *dev_id)
 
 	do {
 		status = readl(host->base + MMCISTATUS);
+		if (!status)
+			break;
 
 		if (host->singleirq) {
 			if (status & host->mask1_reg)
@@ -1745,10 +1747,6 @@ static void mmci_set_ios(struct mmc_host *mmc, struct mmc_ios *ios)
 	u32 pwr = 0;
 	unsigned long flags;
 	int ret;
-
-	if (host->plat->ios_handler &&
-		host->plat->ios_handler(mmc_dev(mmc), ios))
-			dev_err(mmc_dev(mmc), "platform ios_handler failed\n");
 
 	switch (ios->power_mode) {
 	case MMC_POWER_OFF:
