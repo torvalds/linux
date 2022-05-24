@@ -11,6 +11,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/seq_file.h>
+#include <linux/string.h>
 
 #include <linux/soc/qcom/smem.h>
 #include <clocksource/arm_arch_timer.h>
@@ -50,6 +51,7 @@ static const struct subsystem_data subsystems[] = {
 	{ "display", 610, 0 },
 	{ "adsp_island", 613, 2 },
 	{ "slpi_island", 613, 3 },
+	{ "apss", 631, QCOM_SMEM_HOST_ANY },
 };
 
 struct stats_config {
@@ -266,21 +268,30 @@ static void qcom_create_soc_sleep_stat_files(struct dentry *root, void __iomem *
 }
 
 static void qcom_create_subsystem_stat_files(struct dentry *root,
-					     const struct stats_config *config)
+					     const struct stats_config *config,
+					     struct device_node *node)
 {
-	const struct sleep_stats *stat;
-	int i;
+	int i, j, n_subsystems;
+	const char *name;
 
 	if (!config->subsystem_stats_in_smem)
 		return;
 
-	for (i = 0; i < ARRAY_SIZE(subsystems); i++) {
-		stat = qcom_smem_get(subsystems[i].pid, subsystems[i].smem_item, NULL);
-		if (IS_ERR(stat))
-			continue;
+	n_subsystems = of_property_count_strings(node, "ss-name");
+	if (n_subsystems < 0)
+		return;
 
-		debugfs_create_file(subsystems[i].name, 0400, root, (void *)&subsystems[i],
-				    &qcom_subsystem_sleep_stats_fops);
+	for (i = 0; i < n_subsystems; i++) {
+		of_property_read_string_index(node, "ss-name", i, &name);
+
+		for (j = 0; j < ARRAY_SIZE(subsystems); j++) {
+			if (!strcmp(subsystems[j].name, name)) {
+				debugfs_create_file(subsystems[j].name, 0400, root,
+						    (void *)&subsystems[j],
+						    &qcom_subsystem_sleep_stats_fops);
+				break;
+			}
+		}
 	}
 }
 
@@ -310,7 +321,7 @@ static int qcom_stats_probe(struct platform_device *pdev)
 
 	root = debugfs_create_dir("qcom_stats", NULL);
 
-	qcom_create_subsystem_stat_files(root, config);
+	qcom_create_subsystem_stat_files(root, config, pdev->dev.of_node);
 	qcom_create_soc_sleep_stat_files(root, reg, d, config);
 	qcom_create_ddr_stat_files(root, reg, d, config);
 
