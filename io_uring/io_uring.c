@@ -625,7 +625,6 @@ static void io_uring_try_cancel_requests(struct io_ring_ctx *ctx,
 					 bool cancel_all);
 static void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 
-static void __io_req_complete_post(struct io_kiocb *req, s32 res, u32 cflags);
 static void io_dismantle_req(struct io_kiocb *req);
 static void io_queue_linked_timeout(struct io_kiocb *req);
 static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
@@ -1126,7 +1125,7 @@ static inline void req_set_fail(struct io_kiocb *req)
 static inline void req_fail_link_node(struct io_kiocb *req, int res)
 {
 	req_set_fail(req);
-	req->cqe.res = res;
+	io_req_set_res(req, res, 0);
 }
 
 static inline void io_req_add_to_cache(struct io_kiocb *req, struct io_ring_ctx *ctx)
@@ -1855,50 +1854,37 @@ static void __io_req_complete_put(struct io_kiocb *req)
 	}
 }
 
-static void __io_req_complete_post(struct io_kiocb *req, s32 res,
-				   u32 cflags)
+static void __io_req_complete_post(struct io_kiocb *req)
 {
-	if (!(req->flags & REQ_F_CQE_SKIP)) {
-		req->cqe.res = res;
-		req->cqe.flags = cflags;
+	if (!(req->flags & REQ_F_CQE_SKIP))
 		__io_fill_cqe_req(req->ctx, req);
-	}
 	__io_req_complete_put(req);
 }
 
-static void io_req_complete_post(struct io_kiocb *req, s32 res, u32 cflags)
+static void io_req_complete_post(struct io_kiocb *req)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 
 	spin_lock(&ctx->completion_lock);
-	__io_req_complete_post(req, res, cflags);
+	__io_req_complete_post(req);
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
 	io_cqring_ev_posted(ctx);
 }
 
-static inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags,
-				     s32 res, u32 cflags)
+static inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags)
 {
-	if (issue_flags & IO_URING_F_COMPLETE_DEFER) {
-		io_req_set_res(req, res, cflags);
+	if (issue_flags & IO_URING_F_COMPLETE_DEFER)
 		req->flags |= REQ_F_COMPLETE_INLINE;
-	} else {
-		io_req_complete_post(req, res, cflags);
-	}
-}
-
-static inline void io_req_complete(struct io_kiocb *req, s32 res)
-{
-	if (res < 0)
-		req_set_fail(req);
-	__io_req_complete(req, 0, res, 0);
+	else
+		io_req_complete_post(req);
 }
 
 static void io_req_complete_failed(struct io_kiocb *req, s32 res)
 {
 	req_set_fail(req);
-	io_req_complete_post(req, res, io_put_kbuf(req, IO_URING_F_UNLOCKED));
+	io_req_set_res(req, res, io_put_kbuf(req, IO_URING_F_UNLOCKED));
+	io_req_complete_post(req);
 }
 
 /*
@@ -2071,7 +2057,8 @@ static void io_fail_links(struct io_kiocb *req)
 			link->flags |= REQ_F_CQE_SKIP;
 		else
 			link->flags &= ~REQ_F_CQE_SKIP;
-		__io_req_complete_post(link, res, 0);
+		io_req_set_res(link, res, 0);
+		__io_req_complete_post(link);
 		link = nxt;
 	}
 }
@@ -2185,11 +2172,12 @@ static void handle_prev_tw_list(struct io_wq_work_node *node,
 			if (unlikely(!*uring_locked))
 				spin_lock(&(*ctx)->completion_lock);
 		}
-		if (likely(*uring_locked))
+		if (likely(*uring_locked)) {
 			req->io_task_work.func(req, uring_locked);
-		else
-			__io_req_complete_post(req, req->cqe.res,
-						io_put_kbuf_comp(req));
+		} else {
+			req->cqe.flags = io_put_kbuf_comp(req);
+			__io_req_complete_post(req);
+		}
 		node = next;
 	} while (node);
 
@@ -2317,13 +2305,12 @@ static void io_req_task_prio_work_add(struct io_kiocb *req)
 
 static void io_req_tw_post(struct io_kiocb *req, bool *locked)
 {
-	io_req_complete_post(req, req->cqe.res, req->cqe.flags);
+	io_req_complete_post(req);
 }
 
 static void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags)
 {
-	req->cqe.res = res;
-	req->cqe.flags = cflags;
+	io_req_set_res(req, res, cflags);
 	req->io_task_work.func = io_req_tw_post;
 	io_req_task_work_add(req);
 }
@@ -2347,7 +2334,7 @@ static void io_req_task_submit(struct io_kiocb *req, bool *locked)
 
 static void io_req_task_queue_fail(struct io_kiocb *req, int ret)
 {
-	req->cqe.res = ret;
+	io_req_set_res(req, ret, 0);
 	req->io_task_work.func = io_req_task_cancel;
 	io_req_task_work_add(req);
 }
@@ -2741,15 +2728,13 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 
 static inline void io_req_task_complete(struct io_kiocb *req, bool *locked)
 {
-	int res = req->cqe.res;
-
 	if (*locked) {
-		io_req_set_res(req, res, io_put_kbuf(req, 0));
+		req->cqe.flags |= io_put_kbuf(req, 0);
 		req->flags |= REQ_F_COMPLETE_INLINE;
 		io_req_add_compl_list(req);
 	} else {
-		io_req_complete_post(req, res,
-					io_put_kbuf(req, IO_URING_F_UNLOCKED));
+		req->cqe.flags |= io_put_kbuf(req, IO_URING_F_UNLOCKED);
+		io_req_complete_post(req);
 	}
 }
 
@@ -2758,8 +2743,8 @@ static void __io_complete_rw(struct io_kiocb *req, long res,
 {
 	if (__io_complete_rw_common(req, res))
 		return;
-	__io_req_complete(req, issue_flags, req->cqe.res,
-				io_put_kbuf(req, issue_flags));
+	io_req_set_res(req, req->cqe.res, io_put_kbuf(req, issue_flags));
+	__io_req_complete(req, issue_flags);
 }
 
 static void io_complete_rw(struct kiocb *kiocb, long res)
@@ -2769,7 +2754,7 @@ static void io_complete_rw(struct kiocb *kiocb, long res)
 
 	if (__io_complete_rw_common(req, res))
 		return;
-	req->cqe.res = res;
+	io_req_set_res(req, res, 0);
 	req->io_task_work.func = io_req_task_complete;
 	io_req_task_prio_work_add(req);
 }
@@ -3745,7 +3730,7 @@ static int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		 */
 		ret = io_iter_do_read(rw, &s->iter);
 		if (ret == -EIOCBQUEUED)
-			return 0;
+			return IOU_ISSUE_SKIP_COMPLETE;
 		/* we got some bytes, but not all. retry. */
 		kiocb->ki_flags &= ~IOCB_WAITQ;
 		iov_iter_restore(&s->iter, &s->iter_state);
@@ -3756,7 +3741,7 @@ out_free:
 	/* it's faster to check here then delegate to kfree */
 	if (iovec)
 		kfree(iovec);
-	return 0;
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static int io_write(struct io_kiocb *req, unsigned int issue_flags)
@@ -3850,6 +3835,7 @@ static int io_write(struct io_kiocb *req, unsigned int issue_flags)
 			goto copy_iov;
 done:
 		kiocb_done(req, ret2, issue_flags);
+		ret = IOU_ISSUE_SKIP_COMPLETE;
 	} else {
 copy_iov:
 		iov_iter_restore(&s->iter, &s->iter_state);
@@ -3906,8 +3892,8 @@ static int io_renameat(struct io_kiocb *req, unsigned int issue_flags)
 				ren->newpath, ren->flags);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static void io_renameat_cleanup(struct io_kiocb *req)
@@ -3934,7 +3920,7 @@ static void io_xattr_finish(struct io_kiocb *req, int ret)
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 
 	io_xattr_cleanup(req);
-	io_req_complete(req, ret);
+	io_req_set_res(req, ret, 0);
 }
 
 static int __io_getxattr_prep(struct io_kiocb *req,
@@ -4015,7 +4001,7 @@ static int io_fgetxattr(struct io_kiocb *req, unsigned int issue_flags)
 			&ix->ctx);
 
 	io_xattr_finish(req, ret);
-	return 0;
+	return IOU_OK;
 }
 
 static int io_getxattr(struct io_kiocb *req, unsigned int issue_flags)
@@ -4043,7 +4029,7 @@ retry:
 	}
 
 	io_xattr_finish(req, ret);
-	return 0;
+	return IOU_OK;
 }
 
 static int __io_setxattr_prep(struct io_kiocb *req,
@@ -4129,8 +4115,7 @@ static int io_fsetxattr(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = __io_setxattr(req, issue_flags, &req->file->f_path);
 	io_xattr_finish(req, ret);
-
-	return 0;
+	return IOU_OK;
 }
 
 static int io_setxattr(struct io_kiocb *req, unsigned int issue_flags)
@@ -4155,7 +4140,7 @@ retry:
 	}
 
 	io_xattr_finish(req, ret);
-	return 0;
+	return IOU_OK;
 }
 
 static int io_unlinkat_prep(struct io_kiocb *req,
@@ -4198,8 +4183,8 @@ static int io_unlinkat(struct io_kiocb *req, unsigned int issue_flags)
 		ret = do_unlinkat(un->dfd, un->filename);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static void io_unlinkat_cleanup(struct io_kiocb *req)
@@ -4243,8 +4228,8 @@ static int io_mkdirat(struct io_kiocb *req, unsigned int issue_flags)
 	ret = do_mkdirat(mkd->dfd, mkd->filename, mkd->mode);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static void io_mkdirat_cleanup(struct io_kiocb *req)
@@ -4294,8 +4279,8 @@ static int io_symlinkat(struct io_kiocb *req, unsigned int issue_flags)
 	ret = do_symlinkat(sl->oldpath, sl->new_dfd, sl->newpath);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_linkat_prep(struct io_kiocb *req,
@@ -4341,8 +4326,8 @@ static int io_linkat(struct io_kiocb *req, unsigned int issue_flags)
 				lnk->newpath, lnk->flags);
 
 	req->flags &= ~REQ_F_NEED_CLEANUP;
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static void io_link_cleanup(struct io_kiocb *req)
@@ -4393,7 +4378,7 @@ void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 	io_req_set_res(req, 0, ret);
 	if (req->ctx->flags & IORING_SETUP_CQE32)
 		io_req_set_cqe32_extra(req, res2, 0);
-	io_req_complete(req, ret);
+	__io_req_complete(req, 0);
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
@@ -4450,9 +4435,12 @@ static int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 	}
 
-	if (ret != -EIOCBQUEUED)
+	if (ret != -EIOCBQUEUED) {
 		io_uring_cmd_done(ioucmd, ret, 0);
-	return 0;
+		return IOU_OK;
+	}
+
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static int __io_splice_prep(struct io_kiocb *req,
@@ -4505,8 +4493,8 @@ static int io_tee(struct io_kiocb *req, unsigned int issue_flags)
 done:
 	if (ret != sp->len)
 		req_set_fail(req);
-	__io_req_complete(req, 0, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -4550,8 +4538,8 @@ static int io_splice(struct io_kiocb *req, unsigned int issue_flags)
 done:
 	if (ret != sp->len)
 		req_set_fail(req);
-	__io_req_complete(req, 0, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -4564,8 +4552,8 @@ static int io_nop_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
  */
 static int io_nop(struct io_kiocb *req, unsigned int issue_flags)
 {
-	__io_req_complete(req, issue_flags, 0, 0);
-	return 0;
+	io_req_set_res(req, 0, 0);
+	return IOU_OK;
 }
 
 static int io_msg_ring_prep(struct io_kiocb *req,
@@ -4609,11 +4597,11 @@ static int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 done:
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
+	io_req_set_res(req, ret, 0);
 	/* put file to avoid an attempt to IOPOLL the req */
 	io_put_file(req->file);
 	req->file = NULL;
-	return 0;
+	return IOU_OK;
 }
 
 static int io_fsync_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -4644,8 +4632,8 @@ static int io_fsync(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = vfs_fsync_range(req->file, sync->off, end > 0 ? end : LLONG_MAX,
 				sync->flags & IORING_FSYNC_DATASYNC);
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_fallocate_prep(struct io_kiocb *req,
@@ -4673,8 +4661,8 @@ static int io_fallocate(struct io_kiocb *req, unsigned int issue_flags)
 	ret = vfs_fallocate(req->file, sync->mode, sync->off, sync->len);
 	if (ret >= 0)
 		fsnotify_modify(req->file);
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -4855,8 +4843,8 @@ err:
 	req->flags &= ~REQ_F_NEED_CLEANUP;
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_openat(struct io_kiocb *req, unsigned int issue_flags)
@@ -4951,9 +4939,10 @@ static int io_remove_buffers(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 
 	/* complete before unlock, IOPOLL may need the lock */
-	__io_req_complete(req, issue_flags, ret, 0);
+	io_req_set_res(req, ret, 0);
+	__io_req_complete(req, issue_flags);
 	io_ring_submit_unlock(ctx, issue_flags);
-	return 0;
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static int io_provide_buffers_prep(struct io_kiocb *req,
@@ -5117,9 +5106,10 @@ err:
 	if (ret < 0)
 		req_set_fail(req);
 	/* complete before unlock, IOPOLL may need the lock */
-	__io_req_complete(req, issue_flags, ret, 0);
+	io_req_set_res(req, ret, 0);
+	__io_req_complete(req, issue_flags);
 	io_ring_submit_unlock(ctx, issue_flags);
-	return 0;
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static int io_epoll_ctl_prep(struct io_kiocb *req,
@@ -5162,8 +5152,8 @@ static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -5196,8 +5186,8 @@ static int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	ret = do_madvise(current->mm, ma->addr, ma->len, ma->advice);
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 #else
 	return -EOPNOTSUPP;
 #endif
@@ -5235,8 +5225,8 @@ static int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
 	ret = vfs_fadvise(req->file, fa->offset, fa->len, fa->advice);
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -5279,8 +5269,8 @@ static int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	ret = do_statx(sx->dfd, sx->filename, sx->flags, sx->mask, sx->buffer);
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static void io_statx_cleanup(struct io_kiocb *req)
@@ -5350,8 +5340,8 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 err:
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_sfr_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -5377,8 +5367,8 @@ static int io_sync_file_range(struct io_kiocb *req, unsigned int issue_flags)
 		return -EAGAIN;
 
 	ret = sync_file_range(req->file, sync->off, sync->len, sync->flags);
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 #if defined(CONFIG_NET)
@@ -5409,8 +5399,8 @@ static int io_shutdown(struct io_kiocb *req, unsigned int issue_flags)
 		return -ENOTSOCK;
 
 	ret = __sys_shutdown_sock(sock, shutdown->how);
-	io_req_complete(req, ret);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static bool io_net_retry(struct socket *sock, int flags)
@@ -5548,8 +5538,8 @@ static int io_sendmsg(struct io_kiocb *req, unsigned int issue_flags)
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_send(struct io_kiocb *req, unsigned int issue_flags)
@@ -5605,8 +5595,8 @@ static int io_send(struct io_kiocb *req, unsigned int issue_flags)
 		ret += sr->done_io;
 	else if (sr->done_io)
 		ret = sr->done_io;
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int __io_recvmsg_copy_hdr(struct io_kiocb *req,
@@ -5805,8 +5795,8 @@ static int io_recvmsg(struct io_kiocb *req, unsigned int issue_flags)
 	cflags = io_put_kbuf(req, issue_flags);
 	if (kmsg->msg.msg_inq)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
-	__io_req_complete(req, issue_flags, ret, cflags);
-	return 0;
+	io_req_set_res(req, ret, cflags);
+	return IOU_OK;
 }
 
 static int io_recv(struct io_kiocb *req, unsigned int issue_flags)
@@ -5881,8 +5871,8 @@ out_free:
 	cflags = io_put_kbuf(req, issue_flags);
 	if (msg.msg_inq)
 		cflags |= IORING_CQE_F_SOCK_NONEMPTY;
-	__io_req_complete(req, issue_flags, ret, cflags);
-	return 0;
+	io_req_set_res(req, ret, cflags);
+	return IOU_OK;
 }
 
 static int io_accept_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
@@ -5948,7 +5938,7 @@ retry:
 			 */
 			if ((req->flags & IO_APOLL_MULTI_POLLED) ==
 			    IO_APOLL_MULTI_POLLED)
-				ret = 0;
+				ret = IOU_ISSUE_SKIP_COMPLETE;
 			return ret;
 		}
 		if (ret == -ERESTARTSYS)
@@ -5963,8 +5953,8 @@ retry:
 	}
 
 	if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
-		__io_req_complete(req, issue_flags, ret, 0);
-		return 0;
+		io_req_set_res(req, ret, 0);
+		return IOU_OK;
 	}
 	if (ret >= 0) {
 		bool filled;
@@ -6034,8 +6024,8 @@ static int io_socket(struct io_kiocb *req, unsigned int issue_flags)
 		ret = io_fixed_fd_install(req, issue_flags, file,
 					    sock->file_slot);
 	}
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_connect_prep_async(struct io_kiocb *req)
@@ -6096,8 +6086,8 @@ static int io_connect(struct io_kiocb *req, unsigned int issue_flags)
 out:
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 #else /* !CONFIG_NET */
 #define IO_NETOP_FN(op)							\
@@ -6328,7 +6318,8 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	io_poll_remove_entries(req);
 	spin_lock(&ctx->completion_lock);
 	hash_del(&req->hash_node);
-	__io_req_complete_post(req, req->cqe.res, 0);
+	req->cqe.flags = 0;
+	__io_req_complete_post(req);
 	io_commit_cqring(ctx);
 	spin_unlock(&ctx->completion_lock);
 	io_cqring_ev_posted(ctx);
@@ -6357,7 +6348,7 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 static void __io_poll_execute(struct io_kiocb *req, int mask,
 			      __poll_t __maybe_unused events)
 {
-	req->cqe.res = mask;
+	io_req_set_res(req, mask, 0);
 	/*
 	 * This is useful for poll that is armed on behalf of another
 	 * request, and where the wakeup path could be on a different
@@ -6810,12 +6801,16 @@ static int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 	ipt.pt._qproc = io_poll_queue_proc;
 
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events);
-	if (!ret && ipt.error)
+	if (ret) {
+		io_req_set_res(req, ret, 0);
+		return IOU_OK;
+	}
+	if (ipt.error) {
 		req_set_fail(req);
-	ret = ret ?: ipt.error;
-	if (ret)
-		__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+		return ipt.error;
+	}
+
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
@@ -6850,20 +6845,22 @@ static int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 
 		ret2 = io_poll_add(preq, issue_flags);
 		/* successfully updated, don't complete poll request */
-		if (!ret2)
+		if (!ret2 || ret2 == -EIOCBQUEUED)
 			goto out;
 	}
 
 	req_set_fail(preq);
-	preq->cqe.res = -ECANCELED;
+	io_req_set_res(preq, -ECANCELED, 0);
 	locked = !(issue_flags & IO_URING_F_UNLOCKED);
 	io_req_task_complete(preq, &locked);
 out:
-	if (ret < 0)
+	if (ret < 0) {
 		req_set_fail(req);
+		return ret;
+	}
 	/* complete update request, we're done with it */
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
@@ -6884,7 +6881,7 @@ static enum hrtimer_restart io_timeout_fn(struct hrtimer *timer)
 	if (!(data->flags & IORING_TIMEOUT_ETIME_SUCCESS))
 		req_set_fail(req);
 
-	req->cqe.res = -ETIME;
+	io_req_set_res(req, -ETIME, 0);
 	req->io_task_work.func = io_req_task_complete;
 	io_req_task_work_add(req);
 	return HRTIMER_NORESTART;
@@ -7069,8 +7066,8 @@ static int io_timeout_remove(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret < 0)
 		req_set_fail(req);
-	io_req_complete_post(req, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int __io_timeout_prep(struct io_kiocb *req,
@@ -7191,7 +7188,7 @@ add:
 	data->timer.function = io_timeout_fn;
 	hrtimer_start(&data->timer, timespec64_to_ktime(data->ts), data->mode);
 	spin_unlock_irq(&ctx->timeout_lock);
-	return 0;
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static bool io_cancel_cb(struct io_wq_work *work, void *data)
@@ -7359,8 +7356,8 @@ static int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 done:
 	if (ret < 0)
 		req_set_fail(req);
-	io_req_complete_post(req, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_files_update_prep(struct io_kiocb *req,
@@ -7445,8 +7442,8 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (ret < 0)
 		req_set_fail(req);
-	__io_req_complete(req, issue_flags, ret, 0);
-	return 0;
+	io_req_set_res(req, ret, 0);
+	return IOU_OK;
 }
 
 static int io_req_prep_async(struct io_kiocb *req)
@@ -7590,8 +7587,12 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (creds)
 		revert_creds(creds);
-	if (ret)
+
+	if (ret == IOU_OK)
+		__io_req_complete(req, issue_flags);
+	else if (ret != IOU_ISSUE_SKIP_COMPLETE)
 		return ret;
+
 	/* If the op doesn't have a file, we're not polling for it */
 	if ((req->ctx->flags & IORING_SETUP_IOPOLL) && req->file)
 		io_iopoll_req_issued(req, issue_flags);
@@ -7668,7 +7669,7 @@ fail:
 	} while (1);
 
 	/* avoid locking problems by failing it from a clean context */
-	if (ret)
+	if (ret < 0)
 		io_req_task_queue_fail(req, ret);
 }
 
@@ -7745,10 +7746,12 @@ static void io_req_task_link_timeout(struct io_kiocb *req, bool *locked)
 
 			ret = io_try_cancel(req, &cd);
 		}
-		io_req_complete_post(req, ret ?: -ETIME, 0);
+		io_req_set_res(req, ret ?: -ETIME, 0);
+		io_req_complete_post(req);
 		io_put_req(prev);
 	} else {
-		io_req_complete_post(req, -ETIME, 0);
+		io_req_set_res(req, -ETIME, 0);
+		io_req_complete_post(req);
 	}
 }
 
