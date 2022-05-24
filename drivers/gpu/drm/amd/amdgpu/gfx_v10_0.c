@@ -3568,7 +3568,7 @@ static void gfx10_kiq_unmap_queues(struct amdgpu_ring *kiq_ring,
 	struct amdgpu_device *adev = kiq_ring->adev;
 	uint32_t eng_sel = ring->funcs->type == AMDGPU_RING_TYPE_GFX ? 4 : 0;
 
-	if (adev->enable_mes && !adev->gfx.kiq.ring.sched.ready) {
+	if (adev->enable_mes && !adev->gfx.kiq[0].ring.sched.ready) {
 		amdgpu_mes_unmap_legacy_queue(adev, ring, action, gpu_addr, seq);
 		return;
 	}
@@ -3636,7 +3636,7 @@ static const struct kiq_pm4_funcs gfx_v10_0_kiq_pm4_funcs = {
 
 static void gfx_v10_0_set_kiq_pm4_funcs(struct amdgpu_device *adev)
 {
-	adev->gfx.kiq.pmf = &gfx_v10_0_kiq_pm4_funcs;
+	adev->gfx.kiq[0].pmf = &gfx_v10_0_kiq_pm4_funcs;
 }
 
 static void gfx_v10_0_init_spm_golden_registers(struct amdgpu_device *adev)
@@ -4550,7 +4550,7 @@ static int gfx_v10_0_sw_init(void *handle)
 	/* KIQ event */
 	r = amdgpu_irq_add_id(adev, SOC15_IH_CLIENTID_GRBM_CP,
 			      GFX_10_1__SRCID__CP_IB2_INTERRUPT_PKT,
-			      &adev->gfx.kiq.irq);
+			      &adev->gfx.kiq[0].irq);
 	if (r)
 		return r;
 
@@ -4635,7 +4635,7 @@ static int gfx_v10_0_sw_init(void *handle)
 			return r;
 		}
 
-		kiq = &adev->gfx.kiq;
+		kiq = &adev->gfx.kiq[0];
 		r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
 		if (r)
 			return r;
@@ -4693,7 +4693,7 @@ static int gfx_v10_0_sw_fini(void *handle)
 	amdgpu_gfx_mqd_sw_fini(adev);
 
 	if (!adev->enable_mes_kiq) {
-		amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq.ring);
+		amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq[0].ring);
 		amdgpu_gfx_kiq_fini(adev);
 	}
 
@@ -6214,7 +6214,7 @@ static void gfx_v10_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 				      CP_MEC_CNTL__MEC_ME2_HALT_MASK));
 			break;
 		}
-		adev->gfx.kiq.ring.sched.ready = false;
+		adev->gfx.kiq[0].ring.sched.ready = false;
 	}
 	udelay(50);
 }
@@ -6524,8 +6524,8 @@ static int gfx_v10_0_gfx_init_queue(struct amdgpu_ring *ring)
 #ifndef BRING_UP_DEBUG
 static int gfx_v10_0_kiq_enable_kgq(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 	int r, i;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues)
@@ -6885,7 +6885,7 @@ static int gfx_v10_0_kiq_resume(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	int r;
 
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 
 	r = amdgpu_bo_reserve(ring->mqd_obj, false);
 	if (unlikely(r != 0))
@@ -7243,7 +7243,7 @@ static int gfx_v10_0_hw_init(void *handle)
 #ifndef BRING_UP_DEBUG
 static int gfx_v10_0_kiq_disable_kgq(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	int i;
 
@@ -8640,7 +8640,7 @@ static int gfx_v10_0_ring_preempt_ib(struct amdgpu_ring *ring)
 {
 	int i, r = 0;
 	struct amdgpu_device *adev = ring->adev;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	unsigned long flags;
 
@@ -9148,7 +9148,7 @@ static int gfx_v10_0_kiq_set_interrupt_state(struct amdgpu_device *adev,
 					     enum amdgpu_interrupt_state state)
 {
 	uint32_t tmp, target;
-	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
+	struct amdgpu_ring *ring = &(adev->gfx.kiq[0].ring);
 
 	if (ring->me == 1)
 		target = SOC15_REG_OFFSET(GC, 0, mmCP_ME1_PIPE0_INT_CNTL);
@@ -9192,7 +9192,7 @@ static int gfx_v10_0_kiq_irq(struct amdgpu_device *adev,
 			     struct amdgpu_iv_entry *entry)
 {
 	u8 me_id, pipe_id, queue_id;
-	struct amdgpu_ring *ring = &(adev->gfx.kiq.ring);
+	struct amdgpu_ring *ring = &(adev->gfx.kiq[0].ring);
 
 	me_id = (entry->ring_id & 0x0c) >> 2;
 	pipe_id = (entry->ring_id & 0x03) >> 0;
@@ -9369,7 +9369,7 @@ static void gfx_v10_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	adev->gfx.kiq.ring.funcs = &gfx_v10_0_ring_funcs_kiq;
+	adev->gfx.kiq[0].ring.funcs = &gfx_v10_0_ring_funcs_kiq;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		adev->gfx.gfx_ring[i].funcs = &gfx_v10_0_ring_funcs_gfx;
@@ -9403,8 +9403,8 @@ static void gfx_v10_0_set_irq_funcs(struct amdgpu_device *adev)
 	adev->gfx.eop_irq.num_types = AMDGPU_CP_IRQ_LAST;
 	adev->gfx.eop_irq.funcs = &gfx_v10_0_eop_irq_funcs;
 
-	adev->gfx.kiq.irq.num_types = AMDGPU_CP_KIQ_IRQ_LAST;
-	adev->gfx.kiq.irq.funcs = &gfx_v10_0_kiq_irq_funcs;
+	adev->gfx.kiq[0].irq.num_types = AMDGPU_CP_KIQ_IRQ_LAST;
+	adev->gfx.kiq[0].irq.funcs = &gfx_v10_0_kiq_irq_funcs;
 
 	adev->gfx.priv_reg_irq.num_types = 1;
 	adev->gfx.priv_reg_irq.funcs = &gfx_v10_0_priv_reg_irq_funcs;

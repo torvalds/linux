@@ -864,8 +864,8 @@ static void mes_v11_0_queue_init_register(struct amdgpu_ring *ring)
 
 static int mes_v11_0_kiq_enable_queue(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 	int r;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues)
@@ -894,7 +894,7 @@ static int mes_v11_0_queue_init(struct amdgpu_device *adev,
 	int r;
 
 	if (pipe == AMDGPU_MES_KIQ_PIPE)
-		ring = &adev->gfx.kiq.ring;
+		ring = &adev->gfx.kiq[0].ring;
 	else if (pipe == AMDGPU_MES_SCHED_PIPE)
 		ring = &adev->mes.ring;
 	else
@@ -961,9 +961,9 @@ static int mes_v11_0_kiq_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
 
-	spin_lock_init(&adev->gfx.kiq.ring_lock);
+	spin_lock_init(&adev->gfx.kiq[0].ring_lock);
 
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 
 	ring->me = 3;
 	ring->pipe = 1;
@@ -989,7 +989,7 @@ static int mes_v11_0_mqd_sw_init(struct amdgpu_device *adev,
 	struct amdgpu_ring *ring;
 
 	if (pipe == AMDGPU_MES_KIQ_PIPE)
-		ring = &adev->gfx.kiq.ring;
+		ring = &adev->gfx.kiq[0].ring;
 	else if (pipe == AMDGPU_MES_SCHED_PIPE)
 		ring = &adev->mes.ring;
 	else
@@ -1074,15 +1074,15 @@ static int mes_v11_0_sw_fini(void *handle)
 		amdgpu_ucode_release(&adev->mes.fw[pipe]);
 	}
 
-	amdgpu_bo_free_kernel(&adev->gfx.kiq.ring.mqd_obj,
-			      &adev->gfx.kiq.ring.mqd_gpu_addr,
-			      &adev->gfx.kiq.ring.mqd_ptr);
+	amdgpu_bo_free_kernel(&adev->gfx.kiq[0].ring.mqd_obj,
+			      &adev->gfx.kiq[0].ring.mqd_gpu_addr,
+			      &adev->gfx.kiq[0].ring.mqd_ptr);
 
 	amdgpu_bo_free_kernel(&adev->mes.ring.mqd_obj,
 			      &adev->mes.ring.mqd_gpu_addr,
 			      &adev->mes.ring.mqd_ptr);
 
-	amdgpu_ring_fini(&adev->gfx.kiq.ring);
+	amdgpu_ring_fini(&adev->gfx.kiq[0].ring);
 	amdgpu_ring_fini(&adev->mes.ring);
 
 	if (adev->firmware.load_type == AMDGPU_FW_LOAD_DIRECT) {
@@ -1175,7 +1175,7 @@ static int mes_v11_0_kiq_hw_init(struct amdgpu_device *adev)
 
 	mes_v11_0_enable(adev, true);
 
-	mes_v11_0_kiq_setting(&adev->gfx.kiq.ring);
+	mes_v11_0_kiq_setting(&adev->gfx.kiq[0].ring);
 
 	r = mes_v11_0_queue_init(adev, AMDGPU_MES_KIQ_PIPE);
 	if (r)
@@ -1196,7 +1196,7 @@ static int mes_v11_0_kiq_hw_fini(struct amdgpu_device *adev)
 	}
 
 	if (amdgpu_sriov_vf(adev)) {
-		mes_v11_0_kiq_dequeue(&adev->gfx.kiq.ring);
+		mes_v11_0_kiq_dequeue(&adev->gfx.kiq[0].ring);
 		mes_v11_0_kiq_clear(adev);
 	}
 
@@ -1244,7 +1244,7 @@ static int mes_v11_0_hw_init(void *handle)
 	 * MES uses KIQ ring exclusively so driver cannot access KIQ ring
 	 * with MES enabled.
 	 */
-	adev->gfx.kiq.ring.sched.ready = false;
+	adev->gfx.kiq[0].ring.sched.ready = false;
 	adev->mes.ring.sched.ready = true;
 
 	return 0;

@@ -296,7 +296,7 @@ int amdgpu_gfx_kiq_init_ring(struct amdgpu_device *adev,
 			     struct amdgpu_ring *ring,
 			     struct amdgpu_irq_src *irq)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 	int r = 0;
 
 	spin_lock_init(&kiq->ring_lock);
@@ -329,7 +329,7 @@ void amdgpu_gfx_kiq_free_ring(struct amdgpu_ring *ring)
 
 void amdgpu_gfx_kiq_fini(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 
 	amdgpu_bo_free_kernel(&kiq->eop_obj, &kiq->eop_gpu_addr, NULL);
 }
@@ -339,7 +339,7 @@ int amdgpu_gfx_kiq_init(struct amdgpu_device *adev,
 {
 	int r;
 	u32 *hpd;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 
 	r = amdgpu_bo_create_kernel(adev, hpd_size, PAGE_SIZE,
 				    AMDGPU_GEM_DOMAIN_GTT, &kiq->eop_obj,
@@ -368,7 +368,7 @@ int amdgpu_gfx_mqd_sw_init(struct amdgpu_device *adev,
 	int r, i;
 
 	/* create MQD for KIQ */
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 	if (!adev->enable_mes_kiq && !ring->mqd_obj) {
 		/* originaly the KIQ MQD is put in GTT domain, but for SRIOV VRAM domain is a must
 		 * otherwise hypervisor trigger SAVE_VF fail after driver unloaded which mean MQD
@@ -458,7 +458,7 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 				      &ring->mqd_ptr);
 	}
 
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 	kfree(adev->gfx.mec.mqd_backup[AMDGPU_MAX_COMPUTE_RINGS]);
 	amdgpu_bo_free_kernel(&ring->mqd_obj,
 			      &ring->mqd_gpu_addr,
@@ -467,17 +467,17 @@ void amdgpu_gfx_mqd_sw_fini(struct amdgpu_device *adev)
 
 int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 	struct amdgpu_ring *kiq_ring = &kiq->ring;
 	int i, r = 0;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_unmap_queues)
 		return -EINVAL;
 
-	spin_lock(&adev->gfx.kiq.ring_lock);
+	spin_lock(&adev->gfx.kiq[0].ring_lock);
 	if (amdgpu_ring_alloc(kiq_ring, kiq->pmf->unmap_queues_size *
 					adev->gfx.num_compute_rings)) {
-		spin_unlock(&adev->gfx.kiq.ring_lock);
+		spin_unlock(&adev->gfx.kiq[0].ring_lock);
 		return -ENOMEM;
 	}
 
@@ -485,9 +485,9 @@ int amdgpu_gfx_disable_kcq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_unmap_queues(kiq_ring, &adev->gfx.compute_ring[i],
 					   RESET_QUEUES, 0, 0);
 
-	if (adev->gfx.kiq.ring.sched.ready && !adev->job_hang)
+	if (adev->gfx.kiq[0].ring.sched.ready && !adev->job_hang)
 		r = amdgpu_ring_test_helper(kiq_ring);
-	spin_unlock(&adev->gfx.kiq.ring_lock);
+	spin_unlock(&adev->gfx.kiq[0].ring_lock);
 
 	return r;
 }
@@ -507,8 +507,8 @@ int amdgpu_queue_mask_bit_to_set_resource_bit(struct amdgpu_device *adev,
 
 int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 	uint64_t queue_mask = 0;
 	int r, i;
 
@@ -532,13 +532,13 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 
 	DRM_INFO("kiq ring mec %d pipe %d q %d\n", kiq_ring->me, kiq_ring->pipe,
 							kiq_ring->queue);
-	spin_lock(&adev->gfx.kiq.ring_lock);
+	spin_lock(&adev->gfx.kiq[0].ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, kiq->pmf->map_queues_size *
 					adev->gfx.num_compute_rings +
 					kiq->pmf->set_resources_size);
 	if (r) {
 		DRM_ERROR("Failed to lock KIQ (%d).\n", r);
-		spin_unlock(&adev->gfx.kiq.ring_lock);
+		spin_unlock(&adev->gfx.kiq[0].ring_lock);
 		return r;
 	}
 
@@ -550,7 +550,7 @@ int amdgpu_gfx_enable_kcq(struct amdgpu_device *adev)
 		kiq->pmf->kiq_map_queues(kiq_ring, &adev->gfx.compute_ring[i]);
 
 	r = amdgpu_ring_test_helper(kiq_ring);
-	spin_unlock(&adev->gfx.kiq.ring_lock);
+	spin_unlock(&adev->gfx.kiq[0].ring_lock);
 	if (r)
 		DRM_ERROR("KCQ enable failed\n");
 
@@ -788,7 +788,7 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	signed long r, cnt = 0;
 	unsigned long flags;
 	uint32_t seq, reg_val_offs = 0, value = 0;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 	struct amdgpu_ring *ring = &kiq->ring;
 
 	if (amdgpu_device_skip_hw_access(adev))
@@ -856,7 +856,7 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 	signed long r, cnt = 0;
 	unsigned long flags;
 	uint32_t seq;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 	struct amdgpu_ring *ring = &kiq->ring;
 
 	BUG_ON(!ring->funcs->emit_wreg);

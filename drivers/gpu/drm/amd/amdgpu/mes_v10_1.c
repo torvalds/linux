@@ -797,8 +797,8 @@ static void mes_v10_1_queue_init_register(struct amdgpu_ring *ring)
 
 static int mes_v10_1_kiq_enable_queue(struct amdgpu_device *adev)
 {
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 	int r;
 
 	if (!kiq->pmf || !kiq->pmf->kiq_map_queues)
@@ -863,9 +863,9 @@ static int mes_v10_1_kiq_ring_init(struct amdgpu_device *adev)
 {
 	struct amdgpu_ring *ring;
 
-	spin_lock_init(&adev->gfx.kiq.ring_lock);
+	spin_lock_init(&adev->gfx.kiq[0].ring_lock);
 
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 
 	ring->me = 3;
 	ring->pipe = 1;
@@ -891,7 +891,7 @@ static int mes_v10_1_mqd_sw_init(struct amdgpu_device *adev,
 	struct amdgpu_ring *ring;
 
 	if (pipe == AMDGPU_MES_KIQ_PIPE)
-		ring = &adev->gfx.kiq.ring;
+		ring = &adev->gfx.kiq[0].ring;
 	else if (pipe == AMDGPU_MES_SCHED_PIPE)
 		ring = &adev->mes.ring;
 	else
@@ -974,15 +974,15 @@ static int mes_v10_1_sw_fini(void *handle)
 		amdgpu_ucode_release(&adev->mes.fw[pipe]);
 	}
 
-	amdgpu_bo_free_kernel(&adev->gfx.kiq.ring.mqd_obj,
-			      &adev->gfx.kiq.ring.mqd_gpu_addr,
-			      &adev->gfx.kiq.ring.mqd_ptr);
+	amdgpu_bo_free_kernel(&adev->gfx.kiq[0].ring.mqd_obj,
+			      &adev->gfx.kiq[0].ring.mqd_gpu_addr,
+			      &adev->gfx.kiq[0].ring.mqd_ptr);
 
 	amdgpu_bo_free_kernel(&adev->mes.ring.mqd_obj,
 			      &adev->mes.ring.mqd_gpu_addr,
 			      &adev->mes.ring.mqd_ptr);
 
-	amdgpu_ring_fini(&adev->gfx.kiq.ring);
+	amdgpu_ring_fini(&adev->gfx.kiq[0].ring);
 	amdgpu_ring_fini(&adev->mes.ring);
 
 	amdgpu_mes_fini(adev);
@@ -1038,7 +1038,7 @@ static int mes_v10_1_kiq_hw_init(struct amdgpu_device *adev)
 
 	mes_v10_1_enable(adev, true);
 
-	mes_v10_1_kiq_setting(&adev->gfx.kiq.ring);
+	mes_v10_1_kiq_setting(&adev->gfx.kiq[0].ring);
 
 	r = mes_v10_1_queue_init(adev);
 	if (r)
@@ -1090,7 +1090,7 @@ static int mes_v10_1_hw_init(void *handle)
 	 * MES uses KIQ ring exclusively so driver cannot access KIQ ring
 	 * with MES enabled.
 	 */
-	adev->gfx.kiq.ring.sched.ready = false;
+	adev->gfx.kiq[0].ring.sched.ready = false;
 	adev->mes.ring.sched.ready = true;
 
 	return 0;

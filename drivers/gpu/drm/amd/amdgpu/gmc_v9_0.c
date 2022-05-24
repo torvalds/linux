@@ -824,7 +824,7 @@ static void gmc_v9_0_flush_gpu_tlb(struct amdgpu_device *adev, uint32_t vmid,
 	/* This is necessary for a HW workaround under SRIOV as well
 	 * as GFXOFF under bare metal
 	 */
-	if (adev->gfx.kiq.ring.sched.ready &&
+	if (adev->gfx.kiq[0].ring.sched.ready &&
 	    (amdgpu_sriov_runtime(adev) || !amdgpu_sriov_vf(adev)) &&
 	    down_read_trylock(&adev->reset_domain->sem)) {
 		uint32_t req = hub->vm_inv_eng0_req + hub->eng_distance * eng;
@@ -934,8 +934,8 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 	uint16_t queried_pasid;
 	bool ret;
 	u32 usec_timeout = amdgpu_sriov_vf(adev) ? SRIOV_USEC_TIMEOUT : adev->usec_timeout;
-	struct amdgpu_ring *ring = &adev->gfx.kiq.ring;
-	struct amdgpu_kiq *kiq = &adev->gfx.kiq;
+	struct amdgpu_ring *ring = &adev->gfx.kiq[0].ring;
+	struct amdgpu_kiq *kiq = &adev->gfx.kiq[0];
 
 	if (amdgpu_in_reset(adev))
 		return -EIO;
@@ -955,7 +955,7 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		if (vega20_xgmi_wa)
 			ndw += kiq->pmf->invalidate_tlbs_size;
 
-		spin_lock(&adev->gfx.kiq.ring_lock);
+		spin_lock(&adev->gfx.kiq[0].ring_lock);
 		/* 2 dwords flush + 8 dwords fence */
 		amdgpu_ring_alloc(ring, ndw);
 		if (vega20_xgmi_wa)
@@ -966,13 +966,13 @@ static int gmc_v9_0_flush_gpu_tlb_pasid(struct amdgpu_device *adev,
 		r = amdgpu_fence_emit_polling(ring, &seq, MAX_KIQ_REG_WAIT);
 		if (r) {
 			amdgpu_ring_undo(ring);
-			spin_unlock(&adev->gfx.kiq.ring_lock);
+			spin_unlock(&adev->gfx.kiq[0].ring_lock);
 			up_read(&adev->reset_domain->sem);
 			return -ETIME;
 		}
 
 		amdgpu_ring_commit(ring);
-		spin_unlock(&adev->gfx.kiq.ring_lock);
+		spin_unlock(&adev->gfx.kiq[0].ring_lock);
 		r = amdgpu_fence_wait_polling(ring, seq, usec_timeout);
 		if (r < 1) {
 			dev_err(adev->dev, "wait for kiq fence error: %ld.\n", r);

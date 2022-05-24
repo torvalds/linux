@@ -288,7 +288,7 @@ static int kgd_hiq_mqd_load(struct amdgpu_device *adev, void *mqd,
 			    uint32_t pipe_id, uint32_t queue_id,
 			    uint32_t doorbell_off)
 {
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 	struct v10_compute_mqd *m;
 	uint32_t mec, pipe;
 	int r;
@@ -303,7 +303,7 @@ static int kgd_hiq_mqd_load(struct amdgpu_device *adev, void *mqd,
 	pr_debug("kfd: set HIQ, mec:%d, pipe:%d, queue:%d.\n",
 		 mec, pipe, queue_id);
 
-	spin_lock(&adev->gfx.kiq.ring_lock);
+	spin_lock(&adev->gfx.kiq[0].ring_lock);
 	r = amdgpu_ring_alloc(kiq_ring, 7);
 	if (r) {
 		pr_err("Failed to alloc KIQ (%d).\n", r);
@@ -330,7 +330,7 @@ static int kgd_hiq_mqd_load(struct amdgpu_device *adev, void *mqd,
 	amdgpu_ring_commit(kiq_ring);
 
 out_unlock:
-	spin_unlock(&adev->gfx.kiq.ring_lock);
+	spin_unlock(&adev->gfx.kiq[0].ring_lock);
 	release_queue(adev);
 
 	return r;

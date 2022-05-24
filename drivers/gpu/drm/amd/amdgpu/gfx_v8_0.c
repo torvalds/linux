@@ -2021,7 +2021,7 @@ static int gfx_v8_0_sw_init(void *handle)
 		return r;
 	}
 
-	kiq = &adev->gfx.kiq;
+	kiq = &adev->gfx.kiq[0];
 	r = amdgpu_gfx_kiq_init_ring(adev, &kiq->ring, &kiq->irq);
 	if (r)
 		return r;
@@ -2051,7 +2051,7 @@ static int gfx_v8_0_sw_fini(void *handle)
 		amdgpu_ring_fini(&adev->gfx.compute_ring[i]);
 
 	amdgpu_gfx_mqd_sw_fini(adev);
-	amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq.ring);
+	amdgpu_gfx_kiq_free_ring(&adev->gfx.kiq[0].ring);
 	amdgpu_gfx_kiq_fini(adev);
 
 	gfx_v8_0_mec_fini(adev);
@@ -4292,7 +4292,7 @@ static void gfx_v8_0_cp_compute_enable(struct amdgpu_device *adev, bool enable)
 		WREG32(mmCP_MEC_CNTL, 0);
 	} else {
 		WREG32(mmCP_MEC_CNTL, (CP_MEC_CNTL__MEC_ME1_HALT_MASK | CP_MEC_CNTL__MEC_ME2_HALT_MASK));
-		adev->gfx.kiq.ring.sched.ready = false;
+		adev->gfx.kiq[0].ring.sched.ready = false;
 	}
 	udelay(50);
 }
@@ -4314,7 +4314,7 @@ static void gfx_v8_0_kiq_setting(struct amdgpu_ring *ring)
 
 static int gfx_v8_0_kiq_kcq_enable(struct amdgpu_device *adev)
 {
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 	uint64_t queue_mask = 0;
 	int r, i;
 
@@ -4678,7 +4678,7 @@ static int gfx_v8_0_kiq_resume(struct amdgpu_device *adev)
 	struct amdgpu_ring *ring;
 	int r;
 
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 
 	r = amdgpu_bo_reserve(ring->mqd_obj, false);
 	if (unlikely(r != 0))
@@ -4741,7 +4741,7 @@ static int gfx_v8_0_cp_test_all_rings(struct amdgpu_device *adev)
 	if (r)
 		return r;
 
-	ring = &adev->gfx.kiq.ring;
+	ring = &adev->gfx.kiq[0].ring;
 	r = amdgpu_ring_test_helper(ring);
 	if (r)
 		return r;
@@ -4808,7 +4808,7 @@ static int gfx_v8_0_hw_init(void *handle)
 static int gfx_v8_0_kcq_disable(struct amdgpu_device *adev)
 {
 	int r, i;
-	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq.ring;
+	struct amdgpu_ring *kiq_ring = &adev->gfx.kiq[0].ring;
 
 	r = amdgpu_ring_alloc(kiq_ring, 6 * adev->gfx.num_compute_rings);
 	if (r)
@@ -7001,7 +7001,7 @@ static void gfx_v8_0_set_ring_funcs(struct amdgpu_device *adev)
 {
 	int i;
 
-	adev->gfx.kiq.ring.funcs = &gfx_v8_0_ring_funcs_kiq;
+	adev->gfx.kiq[0].ring.funcs = &gfx_v8_0_ring_funcs_kiq;
 
 	for (i = 0; i < adev->gfx.num_gfx_rings; i++)
 		adev->gfx.gfx_ring[i].funcs = &gfx_v8_0_ring_funcs_gfx;
