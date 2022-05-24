@@ -151,12 +151,6 @@ struct host_if_drv {
 };
 
 struct wilc_vif;
-int wilc_remove_wep_key(struct wilc_vif *vif, u8 index);
-int wilc_set_wep_default_keyid(struct wilc_vif *vif, u8 index);
-int wilc_add_wep_key_bss_sta(struct wilc_vif *vif, const u8 *key, u8 len,
-			     u8 index);
-int wilc_add_wep_key_bss_ap(struct wilc_vif *vif, const u8 *key, u8 len,
-			    u8 index, u8 mode, enum authtype auth_type);
 int wilc_add_ptk(struct wilc_vif *vif, const u8 *ptk, u8 ptk_key_len,
 		 const u8 *mac_addr, const u8 *rx_mic, const u8 *tx_mic,
 		 u8 mode, u8 cipher_mode, u8 index);

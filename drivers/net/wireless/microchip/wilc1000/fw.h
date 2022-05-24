@@ -41,12 +41,6 @@ struct wilc_drv_handler {
 	u8 mode;
 } __packed;
 
-struct wilc_wep_key {
-	u8 index;
-	u8 key_len;
-	u8 key[];
-} __packed;
-
 struct wilc_sta_wpa_ptk {
 	u8 mac_addr[ETH_ALEN];
 	u8 key_len;
