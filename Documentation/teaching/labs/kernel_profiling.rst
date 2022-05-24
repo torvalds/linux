@@ -245,9 +245,9 @@ Exercises
 
     In order to improve the course of SO2, its components and the way it is
     conducted, your opinions are very useful to us.
-    `curs.upb.ro platform <https://curs.upb.ro/mod/feedbackadm/view.php?id=26596>`_
+    `curs.upb.ro platform <https://curs.upb.ro/2021/mod/feedbackadm/view.php?id=16907>`_
 
-    The form is anonymous and is active between May 24 and June 4, 2021. The
+    The form is anonymous and is active between May 21 and June 2, 2021. The
     results will be visible to the SO2 team after all the grades have been
     marked.
 
