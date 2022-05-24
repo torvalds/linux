@@ -979,7 +979,6 @@ struct io_kiocb {
 		 */
 		struct file		*file;
 		struct io_cmd_data	cmd;
-		struct io_uring_cmd	uring_cmd;
 	};
 
 	u8				opcode;
@@ -4814,15 +4813,17 @@ static int io_linkat(struct io_kiocb *req, unsigned int issue_flags)
 
 static void io_uring_cmd_work(struct io_kiocb *req, bool *locked)
 {
-	req->uring_cmd.task_work_cb(&req->uring_cmd);
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
+
+	ioucmd->task_work_cb(ioucmd);
 }
 
 void io_uring_cmd_complete_in_task(struct io_uring_cmd *ioucmd,
 			void (*task_work_cb)(struct io_uring_cmd *))
 {
-	struct io_kiocb *req = container_of(ioucmd, struct io_kiocb, uring_cmd);
+	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
-	req->uring_cmd.task_work_cb = task_work_cb;
+	ioucmd->task_work_cb = task_work_cb;
 	req->io_task_work.func = io_uring_cmd_work;
 	io_req_task_work_add(req);
 }
@@ -4842,7 +4843,7 @@ static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
  */
 void io_uring_cmd_done(struct io_uring_cmd *ioucmd, ssize_t ret, ssize_t res2)
 {
-	struct io_kiocb *req = container_of(ioucmd, struct io_kiocb, uring_cmd);
+	struct io_kiocb *req = cmd_to_io_kiocb(ioucmd);
 
 	if (ret < 0)
 		req_set_fail(req);
@@ -4855,18 +4856,19 @@ EXPORT_SYMBOL_GPL(io_uring_cmd_done);
 
 static int io_uring_cmd_prep_async(struct io_kiocb *req)
 {
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
 	size_t cmd_size;
 
 	cmd_size = uring_cmd_pdu_size(req->ctx->flags & IORING_SETUP_SQE128);
 
-	memcpy(req->async_data, req->uring_cmd.cmd, cmd_size);
+	memcpy(req->async_data, ioucmd->cmd, cmd_size);
 	return 0;
 }
 
 static int io_uring_cmd_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
-	struct io_uring_cmd *ioucmd = &req->uring_cmd;
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
 
 	if (sqe->rw_flags || sqe->__pad1)
 		return -EINVAL;
@@ -4877,7 +4879,7 @@ static int io_uring_cmd_prep(struct io_kiocb *req,
 
 static int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 {
-	struct io_uring_cmd *ioucmd = &req->uring_cmd;
+	struct io_uring_cmd *ioucmd = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file = req->file;
 	int ret;
