@@ -72,7 +72,8 @@ bpf_object__next_map(const struct bpf_object *obj, const struct bpf_map *prev)
 }
 #endif
 
-const void * __weak
+#ifndef HAVE_LIBBPF_BTF__RAW_DATA
+const void *
 btf__raw_data(const struct btf *btf_ro, __u32 *size)
 {
 #pragma GCC diagnostic push
@@ -80,6 +81,7 @@ btf__raw_data(const struct btf *btf_ro, __u32 *size)
 	return btf__get_raw_data(btf_ro, size);
 #pragma GCC diagnostic pop
 }
+#endif
 
 static int snprintf_hex(char *buf, size_t size, unsigned char *data, size_t len)
 {
