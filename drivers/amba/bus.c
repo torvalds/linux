@@ -493,13 +493,8 @@ static int amba_device_try_add(struct amba_device *dev, struct resource *parent)
 		goto skip_probe;
 
 	ret = amba_read_periphid(dev);
-	if (ret) {
-		if (ret != -EPROBE_DEFER) {
-			amba_device_put(dev);
-			goto err_out;
-		}
+	if (ret)
 		goto err_release;
-	}
 
 skip_probe:
 	ret = device_add(&dev->dev);
@@ -546,6 +541,7 @@ static int amba_deferred_retry(void)
 			continue;
 
 		list_del_init(&ddev->node);
+		amba_device_put(ddev->dev);
 		kfree(ddev);
 	}
 
