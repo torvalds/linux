@@ -5415,60 +5415,58 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	pframe = rtw_set_fixed_ie(pframe, 1, &(category), &pattrib->pktlen);
 	pframe = rtw_set_fixed_ie(pframe, 1, &(action), &pattrib->pktlen);
 
-	if (category == 3) {
-		switch (action) {
-		case 0: /* ADDBA req */
-			do {
-				pmlmeinfo->dialogToken++;
-			} while (pmlmeinfo->dialogToken == 0);
-			pframe = rtw_set_fixed_ie(pframe, 1, &pmlmeinfo->dialogToken, &pattrib->pktlen);
+	switch (action) {
+	case 0: /* ADDBA req */
+		do {
+			pmlmeinfo->dialogToken++;
+		} while (pmlmeinfo->dialogToken == 0);
+		pframe = rtw_set_fixed_ie(pframe, 1, &pmlmeinfo->dialogToken, &pattrib->pktlen);
 
-			BA_para_set = (0x1002 | ((status & 0xf) << 2)); /* immediate ack & 64 buffer size */
-			le_tmp = cpu_to_le16(BA_para_set);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		BA_para_set = (0x1002 | ((status & 0xf) << 2)); /* immediate ack & 64 buffer size */
+		le_tmp = cpu_to_le16(BA_para_set);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
 
-			BA_timeout_value = 5000;/*  5ms */
-			le_tmp = cpu_to_le16(BA_timeout_value);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		BA_timeout_value = 5000;/*  5ms */
+		le_tmp = cpu_to_le16(BA_timeout_value);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
 
-			psta = rtw_get_stainfo(pstapriv, raddr);
-			if (psta) {
-				start_seq = (psta->sta_xmitpriv.txseq_tid[status & 0x07] & 0xfff) + 1;
+		psta = rtw_get_stainfo(pstapriv, raddr);
+		if (psta) {
+			start_seq = (psta->sta_xmitpriv.txseq_tid[status & 0x07] & 0xfff) + 1;
 
-				psta->BA_starting_seqctrl[status & 0x07] = start_seq;
+			psta->BA_starting_seqctrl[status & 0x07] = start_seq;
 
-				BA_starting_seqctrl = start_seq << 4;
-			}
-			le_tmp = cpu_to_le16(BA_starting_seqctrl);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
-			break;
-		case 1: /* ADDBA rsp */
-			pframe = rtw_set_fixed_ie(pframe, 1, &pmlmeinfo->ADDBA_req.dialog_token, &pattrib->pktlen);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&status, &pattrib->pktlen);
-			BA_para_set = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
-			BA_para_set |= 0x1000; /* 64 buffer size */
-
-			if (pregpriv->ampdu_amsdu == 0)/* disabled */
-				BA_para_set = BA_para_set & ~BIT(0);
-			else if (pregpriv->ampdu_amsdu == 1)/* enabled */
-				BA_para_set = BA_para_set | BIT(0);
-			le_tmp = cpu_to_le16(BA_para_set);
-
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&pmlmeinfo->ADDBA_req.BA_timeout_value, &pattrib->pktlen);
-			break;
-		case 2:/* DELBA */
-			BA_para_set = (status & 0x1F) << 3;
-			le_tmp = cpu_to_le16(BA_para_set);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
-
-			reason_code = 37;/* Requested from peer STA as it does not want to use the mechanism */
-			le_tmp = cpu_to_le16(reason_code);
-			pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
-			break;
-		default:
-			break;
+			BA_starting_seqctrl = start_seq << 4;
 		}
+		le_tmp = cpu_to_le16(BA_starting_seqctrl);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		break;
+	case 1: /* ADDBA rsp */
+		pframe = rtw_set_fixed_ie(pframe, 1, &pmlmeinfo->ADDBA_req.dialog_token, &pattrib->pktlen);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&status, &pattrib->pktlen);
+		BA_para_set = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
+		BA_para_set |= 0x1000; /* 64 buffer size */
+
+		if (pregpriv->ampdu_amsdu == 0)/* disabled */
+			BA_para_set = BA_para_set & ~BIT(0);
+		else if (pregpriv->ampdu_amsdu == 1)/* enabled */
+			BA_para_set = BA_para_set | BIT(0);
+		le_tmp = cpu_to_le16(BA_para_set);
+
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&pmlmeinfo->ADDBA_req.BA_timeout_value, &pattrib->pktlen);
+		break;
+	case 2:/* DELBA */
+		BA_para_set = (status & 0x1F) << 3;
+		le_tmp = cpu_to_le16(BA_para_set);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+
+		reason_code = 37;/* Requested from peer STA as it does not want to use the mechanism */
+		le_tmp = cpu_to_le16(reason_code);
+		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		break;
+	default:
+		break;
 	}
 
 	pattrib->last_txcmdsz = pattrib->pktlen;
