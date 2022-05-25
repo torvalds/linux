@@ -159,6 +159,9 @@
 #define RKMODULE_GET_CSI_DSI_INFO       \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 33, __u32)
 
+#define RKMODULE_GET_HDMI_MODE       \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 34, __u32)
+
 struct rkmodule_i2cdev_info {
 	u8 slave_addr;
 } __attribute__ ((packed));
@@ -596,6 +599,13 @@ enum rkmodule_start_stream_seq {
 	RKMODULE_START_STREAM_FRONT,
 };
 
+/*
+ * HDMI to MIPI-CSI MODE IOCTL
+ */
+enum rkmodule_hdmiin_mode_seq {
+	RKMODULE_HDMIIN_DEFAULT = 0,
+	RKMODULE_HDMIIN_MODE,
+};
 /*
  * the causation to do cif reset work
  */
