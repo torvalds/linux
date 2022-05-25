@@ -128,6 +128,7 @@ void io_req_task_work_add(struct io_kiocb *req);
 void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
 void io_req_task_complete(struct io_kiocb *req, bool *locked);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
+void tctx_task_work(struct callback_head *cb);
 int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd);
 __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 int io_uring_alloc_task_context(struct task_struct *task,
@@ -135,6 +136,9 @@ int io_uring_alloc_task_context(struct task_struct *task,
 
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
+
+struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
+void io_wq_submit_work(struct io_wq_work *work);
 
 void io_free_req(struct io_kiocb *req);
 void io_queue_next(struct io_kiocb *req);
