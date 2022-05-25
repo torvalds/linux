@@ -26,7 +26,7 @@ static bool is_rockchip_logo_fb(struct drm_framebuffer *fb)
 	return fb->flags & ROCKCHIP_DRM_MODE_LOGO_FB ? true : false;
 }
 
-static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
+static void __rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 {
 	int i = 0;
 
@@ -46,6 +46,27 @@ static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
 		}
 
 		kfree(fb);
+	}
+}
+
+static void rockchip_drm_fb_destroy_work(struct work_struct *work)
+{
+	struct rockchip_drm_logo_fb *fb;
+
+	fb = container_of(to_delayed_work(work), struct rockchip_drm_logo_fb, destroy_work);
+
+	__rockchip_drm_fb_destroy(&fb->fb);
+}
+
+static void rockchip_drm_fb_destroy(struct drm_framebuffer *fb)
+{
+
+	if (is_rockchip_logo_fb(fb)) {
+		struct rockchip_drm_logo_fb *rockchip_logo_fb = to_rockchip_logo_fb(fb);
+
+		schedule_delayed_work(&rockchip_logo_fb->destroy_work, HZ);
+	} else {
+		__rockchip_drm_fb_destroy(fb);
 	}
 }
 
@@ -123,7 +144,7 @@ rockchip_drm_logo_fb_alloc(struct drm_device *dev, const struct drm_mode_fb_cmd2
 	rockchip_logo_fb->rk_obj.dma_addr = logo->dma_addr;
 	rockchip_logo_fb->rk_obj.kvaddr = logo->kvaddr;
 	logo->count++;
-
+	INIT_DELAYED_WORK(&rockchip_logo_fb->destroy_work, rockchip_drm_fb_destroy_work);
 	return &rockchip_logo_fb->fb;
 }
 

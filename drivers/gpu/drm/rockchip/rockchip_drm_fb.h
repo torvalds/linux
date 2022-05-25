@@ -31,6 +31,10 @@ struct rockchip_drm_logo_fb {
 	struct drm_framebuffer fb;
 	struct rockchip_logo *logo;
 	struct rockchip_gem_object rk_obj;
+	/*
+	 * Used for delayed logo fb release
+	 */
+	struct delayed_work destroy_work;
 };
 
 #endif /* _ROCKCHIP_DRM_FB_H */
