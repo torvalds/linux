@@ -18,17 +18,11 @@
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 
-#define MTK_PMIC_PWRKEY_RST_EN_MASK	0x1
-#define MTK_PMIC_PWRKEY_RST_EN_SHIFT	6
-#define MTK_PMIC_HOMEKEY_RST_EN_MASK	0x1
-#define MTK_PMIC_HOMEKEY_RST_EN_SHIFT	5
-#define MTK_PMIC_RST_DU_MASK		0x3
-#define MTK_PMIC_RST_DU_SHIFT		8
-
-#define MTK_PMIC_PWRKEY_RST		\
-	(MTK_PMIC_PWRKEY_RST_EN_MASK << MTK_PMIC_PWRKEY_RST_EN_SHIFT)
-#define MTK_PMIC_HOMEKEY_RST		\
-	(MTK_PMIC_HOMEKEY_RST_EN_MASK << MTK_PMIC_HOMEKEY_RST_EN_SHIFT)
+#define MTK_PMIC_RST_DU_MASK	GENMASK(9, 8)
+#define MTK_PMIC_RST_DU_SHIFT	8
+#define MTK_PMIC_RST_KEY_MASK	GENMASK(6, 5)
+#define MTK_PMIC_PWRKEY_RST	BIT(6)
+#define MTK_PMIC_HOMEKEY_RST	BIT(5)
 
 #define MTK_PMIC_PWRKEY_INDEX	0
 #define MTK_PMIC_HOMEKEY_INDEX	1
@@ -108,53 +102,44 @@ enum mtk_pmic_keys_lp_mode {
 };
 
 static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
-		u32 pmic_rst_reg)
+					 u32 pmic_rst_reg)
 {
-	int ret;
 	u32 long_press_mode, long_press_debounce;
+	u32 value, mask;
+	int error;
 
-	ret = of_property_read_u32(keys->dev->of_node,
-		"power-off-time-sec", &long_press_debounce);
-	if (ret)
+	error = of_property_read_u32(keys->dev->of_node, "power-off-time-sec",
+				     &long_press_debounce);
+	if (error)
 		long_press_debounce = 0;
 
-	regmap_update_bits(keys->regmap, pmic_rst_reg,
-			   MTK_PMIC_RST_DU_MASK << MTK_PMIC_RST_DU_SHIFT,
-			   long_press_debounce << MTK_PMIC_RST_DU_SHIFT);
+	mask = MTK_PMIC_RST_DU_MASK;
+	value = long_press_debounce << MTK_PMIC_RST_DU_SHIFT;
 
-	ret = of_property_read_u32(keys->dev->of_node,
-		"mediatek,long-press-mode", &long_press_mode);
-	if (ret)
+	error  = of_property_read_u32(keys->dev->of_node,
+				      "mediatek,long-press-mode",
+				      &long_press_mode);
+	if (error)
 		long_press_mode = LP_DISABLE;
 
 	switch (long_press_mode) {
-	case LP_ONEKEY:
-		regmap_update_bits(keys->regmap, pmic_rst_reg,
-				   MTK_PMIC_PWRKEY_RST,
-				   MTK_PMIC_PWRKEY_RST);
-		regmap_update_bits(keys->regmap, pmic_rst_reg,
-				   MTK_PMIC_HOMEKEY_RST,
-				   0);
-		break;
 	case LP_TWOKEY:
-		regmap_update_bits(keys->regmap, pmic_rst_reg,
-				   MTK_PMIC_PWRKEY_RST,
-				   MTK_PMIC_PWRKEY_RST);
-		regmap_update_bits(keys->regmap, pmic_rst_reg,
-				   MTK_PMIC_HOMEKEY_RST,
-				   MTK_PMIC_HOMEKEY_RST);
-		break;
+		value |= MTK_PMIC_HOMEKEY_RST;
+		fallthrough;
+
+	case LP_ONEKEY:
+		value |= MTK_PMIC_PWRKEY_RST;
+		fallthrough;
+
 	case LP_DISABLE:
-		regmap_update_bits(keys->regmap, pmic_rst_reg,
-				   MTK_PMIC_PWRKEY_RST,
-				   0);
-		regmap_update_bits(keys->regmap, pmic_rst_reg,
-				   MTK_PMIC_HOMEKEY_RST,
-				   0);
+		mask |= MTK_PMIC_RST_KEY_MASK;
 		break;
+
 	default:
 		break;
 	}
+
+	regmap_update_bits(keys->regmap, pmic_rst_reg, mask, value);
 }
 
 static irqreturn_t mtk_pmic_keys_irq_handler_thread(int irq, void *data)
