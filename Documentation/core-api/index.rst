@@ -20,6 +20,7 @@ it.
    workqueue
    printk-basics
    printk-formats
+   printk-index
    symbol-namespaces
 
 Data structures and low-level utilities
