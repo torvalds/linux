@@ -1616,7 +1616,8 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	ret = ctlr->transfer_one_message(ctlr, msg);
 	if (ret) {
 		dev_err(&ctlr->dev,
-			"failed to transfer one message from queue\n");
+			"failed to transfer one message from queue: %d\n",
+			ret);
 		goto out;
 	}
 
