@@ -1192,9 +1192,6 @@ EXPORT_SYMBOL_GPL(rcu_trace_lock_map);
 
 #ifdef CONFIG_TASKS_TRACE_RCU
 
-static atomic_t trc_n_readers_need_end;		// Number of waited-for readers.
-static DECLARE_WAIT_QUEUE_HEAD(trc_wait);	// List of holdout tasks.
-
 // Record outstanding IPIs to each CPU.  No point in sending two...
 static DEFINE_PER_CPU(bool, trc_ipi_to_cpu);
 
@@ -1241,16 +1238,6 @@ u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 }
 EXPORT_SYMBOL_GPL(rcu_trc_cmpxchg_need_qs);
 
-/*
- * This irq_work handler allows rcu_read_unlock_trace() to be invoked
- * while the scheduler locks are held.
- */
-static void rcu_read_unlock_iw(struct irq_work *iwp)
-{
-	wake_up(&trc_wait);
-}
-static DEFINE_IRQ_WORK(rcu_tasks_trace_iw, rcu_read_unlock_iw);
-
 /* If we are the last reader, wake up the grace-period kthread. */
 void rcu_read_unlock_trace_special(struct task_struct *t)
 {
@@ -1267,8 +1254,6 @@ void rcu_read_unlock_trace_special(struct task_struct *t)
 			  "%s: result = %d", __func__, result);
 	}
 	WRITE_ONCE(t->trc_reader_nesting, 0);
-	if (nqs && atomic_dec_and_test(&trc_n_readers_need_end))
-		irq_work_queue(&rcu_tasks_trace_iw);
 }
 EXPORT_SYMBOL_GPL(rcu_read_unlock_trace_special);
 
@@ -1313,8 +1298,7 @@ static void trc_read_check_handler(void *t_in)
 	// Get here if the task is in a read-side critical section.  Set
 	// its state so that it will awaken the grace-period kthread upon
 	// exit from that critical section.
-	if (!rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS | TRC_NEED_QS_CHECKED))
-		atomic_inc(&trc_n_readers_need_end); // One more to wait on.
+	rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS | TRC_NEED_QS_CHECKED);
 
 reset_ipi:
 	// Allow future IPIs to be sent on CPU and for task.
@@ -1367,10 +1351,8 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 	// The task is in a read-side critical section, so set up its
 	// state so that it will awaken the grace-period kthread upon exit
 	// from that critical section.
-	if (!rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS | TRC_NEED_QS_CHECKED)) {
-		atomic_inc(&trc_n_readers_need_end); // One more to wait on.
+	if (!rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS | TRC_NEED_QS_CHECKED))
 		trc_add_holdout(t, bhp);
-	}
 	return 0;
 }
 
@@ -1435,9 +1417,6 @@ static void trc_wait_for_one_reader(struct task_struct *t,
 static void rcu_tasks_trace_pregp_step(void)
 {
 	int cpu;
-
-	// Allow for fast-acting IPIs.
-	atomic_set(&trc_n_readers_need_end, 1);
 
 	// There shouldn't be any old IPIs, but...
 	for_each_possible_cpu(cpu)
@@ -1581,10 +1560,6 @@ static void rcu_tasks_trace_empty_fn(void *unused)
 static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 {
 	int cpu;
-	bool firstreport;
-	struct task_struct *g, *t;
-	LIST_HEAD(holdouts);
-	long ret;
 
 	// Wait for any lingering IPI handlers to complete.  Note that
 	// if a CPU has gone offline or transitioned to userspace in the
@@ -1595,37 +1570,6 @@ static void rcu_tasks_trace_postgp(struct rcu_tasks *rtp)
 		if (WARN_ON_ONCE(smp_load_acquire(per_cpu_ptr(&trc_ipi_to_cpu, cpu))))
 			smp_call_function_single(cpu, rcu_tasks_trace_empty_fn, NULL, 1);
 
-	// Remove the safety count.
-	smp_mb__before_atomic();  // Order vs. earlier atomics
-	atomic_dec(&trc_n_readers_need_end);
-	smp_mb__after_atomic();  // Order vs. later atomics
-
-	// Wait for readers.
-	set_tasks_gp_state(rtp, RTGS_WAIT_READERS);
-	for (;;) {
-		ret = wait_event_idle_exclusive_timeout(
-				trc_wait,
-				atomic_read(&trc_n_readers_need_end) == 0,
-				READ_ONCE(rcu_task_stall_timeout));
-		if (ret)
-			break;  // Count reached zero.
-		// Stall warning time, so make a list of the offenders.
-		rcu_read_lock();
-		for_each_process_thread(g, t)
-			if (rcu_ld_need_qs(t) & TRC_NEED_QS)
-				trc_add_holdout(t, &holdouts);
-		rcu_read_unlock();
-		firstreport = true;
-		list_for_each_entry_safe(t, g, &holdouts, trc_holdout_list) {
-			if (rcu_ld_need_qs(t) & TRC_NEED_QS)
-				show_stalled_task_trace(t, &firstreport);
-			trc_del_holdout(t); // Release task_struct reference.
-		}
-		if (firstreport)
-			pr_err("INFO: rcu_tasks_trace detected stalls? (Counter/taskslist mismatch?)\n");
-		show_stalled_ipi_trace();
-		pr_err("\t%d holdouts\n", atomic_read(&trc_n_readers_need_end));
-	}
 	smp_mb(); // Caller's code must be ordered after wakeup.
 		  // Pairs with pretty much every ordering primitive.
 }
@@ -1725,7 +1669,7 @@ void show_rcu_tasks_trace_gp_kthread(void)
 {
 	char buf[64];
 
-	sprintf(buf, "N%d h:%lu/%lu/%lu", atomic_read(&trc_n_readers_need_end),
+	sprintf(buf, "h:%lu/%lu/%lu",
 		data_race(n_heavy_reader_ofl_updates),
 		data_race(n_heavy_reader_updates),
 		data_race(n_heavy_reader_attempts));
