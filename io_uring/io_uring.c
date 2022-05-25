@@ -315,6 +315,8 @@ struct io_op_def {
 	/* size of async data needed, if any */
 	unsigned short		async_size;
 
+	const char		*name;
+
 	int (*prep)(struct io_kiocb *, const struct io_uring_sqe *);
 	int (*issue)(struct io_kiocb *, unsigned int);
 	int (*prep_async)(struct io_kiocb *);
@@ -349,104 +351,8 @@ static struct kmem_cache *req_cachep;
 
 const char *io_uring_get_opcode(u8 opcode)
 {
-	switch ((enum io_uring_op)opcode) {
-	case IORING_OP_NOP:
-		return "NOP";
-	case IORING_OP_READV:
-		return "READV";
-	case IORING_OP_WRITEV:
-		return "WRITEV";
-	case IORING_OP_FSYNC:
-		return "FSYNC";
-	case IORING_OP_READ_FIXED:
-		return "READ_FIXED";
-	case IORING_OP_WRITE_FIXED:
-		return "WRITE_FIXED";
-	case IORING_OP_POLL_ADD:
-		return "POLL_ADD";
-	case IORING_OP_POLL_REMOVE:
-		return "POLL_REMOVE";
-	case IORING_OP_SYNC_FILE_RANGE:
-		return "SYNC_FILE_RANGE";
-	case IORING_OP_SENDMSG:
-		return "SENDMSG";
-	case IORING_OP_RECVMSG:
-		return "RECVMSG";
-	case IORING_OP_TIMEOUT:
-		return "TIMEOUT";
-	case IORING_OP_TIMEOUT_REMOVE:
-		return "TIMEOUT_REMOVE";
-	case IORING_OP_ACCEPT:
-		return "ACCEPT";
-	case IORING_OP_ASYNC_CANCEL:
-		return "ASYNC_CANCEL";
-	case IORING_OP_LINK_TIMEOUT:
-		return "LINK_TIMEOUT";
-	case IORING_OP_CONNECT:
-		return "CONNECT";
-	case IORING_OP_FALLOCATE:
-		return "FALLOCATE";
-	case IORING_OP_OPENAT:
-		return "OPENAT";
-	case IORING_OP_CLOSE:
-		return "CLOSE";
-	case IORING_OP_FILES_UPDATE:
-		return "FILES_UPDATE";
-	case IORING_OP_STATX:
-		return "STATX";
-	case IORING_OP_READ:
-		return "READ";
-	case IORING_OP_WRITE:
-		return "WRITE";
-	case IORING_OP_FADVISE:
-		return "FADVISE";
-	case IORING_OP_MADVISE:
-		return "MADVISE";
-	case IORING_OP_SEND:
-		return "SEND";
-	case IORING_OP_RECV:
-		return "RECV";
-	case IORING_OP_OPENAT2:
-		return "OPENAT2";
-	case IORING_OP_EPOLL_CTL:
-		return "EPOLL_CTL";
-	case IORING_OP_SPLICE:
-		return "SPLICE";
-	case IORING_OP_PROVIDE_BUFFERS:
-		return "PROVIDE_BUFFERS";
-	case IORING_OP_REMOVE_BUFFERS:
-		return "REMOVE_BUFFERS";
-	case IORING_OP_TEE:
-		return "TEE";
-	case IORING_OP_SHUTDOWN:
-		return "SHUTDOWN";
-	case IORING_OP_RENAMEAT:
-		return "RENAMEAT";
-	case IORING_OP_UNLINKAT:
-		return "UNLINKAT";
-	case IORING_OP_MKDIRAT:
-		return "MKDIRAT";
-	case IORING_OP_SYMLINKAT:
-		return "SYMLINKAT";
-	case IORING_OP_LINKAT:
-		return "LINKAT";
-	case IORING_OP_MSG_RING:
-		return "MSG_RING";
-	case IORING_OP_FSETXATTR:
-		return "FSETXATTR";
-	case IORING_OP_SETXATTR:
-		return "SETXATTR";
-	case IORING_OP_FGETXATTR:
-		return "FGETXATTR";
-	case IORING_OP_GETXATTR:
-		return "GETXATTR";
-	case IORING_OP_SOCKET:
-		return "SOCKET";
-	case IORING_OP_URING_CMD:
-		return "URING_CMD";
-	case IORING_OP_LAST:
-		return "INVALID";
-	}
+	if (opcode < IORING_OP_LAST)
+		return io_op_defs[opcode].name;
 	return "INVALID";
 }
 
@@ -8307,6 +8213,7 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_NOP] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
+		.name			= "NOP",
 		.prep			= io_nop_prep,
 		.issue			= io_nop,
 	},
@@ -8320,6 +8227,7 @@ static const struct io_op_def io_op_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.name			= "READV",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
 		.prep_async		= io_readv_prep_async,
@@ -8335,6 +8243,7 @@ static const struct io_op_def io_op_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.name			= "WRITEV",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
 		.prep_async		= io_writev_prep_async,
@@ -8343,6 +8252,7 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_FSYNC] = {
 		.needs_file		= 1,
 		.audit_skip		= 1,
+		.name			= "FSYNC",
 		.prep			= io_fsync_prep,
 		.issue			= io_fsync,
 	},
@@ -8355,6 +8265,7 @@ static const struct io_op_def io_op_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.name			= "READ_FIXED",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
 	},
@@ -8368,6 +8279,7 @@ static const struct io_op_def io_op_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.name			= "WRITE_FIXED",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
 	},
@@ -8375,17 +8287,20 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.audit_skip		= 1,
+		.name			= "POLL_ADD",
 		.prep			= io_poll_add_prep,
 		.issue			= io_poll_add,
 	},
 	[IORING_OP_POLL_REMOVE] = {
 		.audit_skip		= 1,
+		.name			= "POLL_REMOVE",
 		.prep			= io_poll_remove_prep,
 		.issue			= io_poll_remove,
 	},
 	[IORING_OP_SYNC_FILE_RANGE] = {
 		.needs_file		= 1,
 		.audit_skip		= 1,
+		.name			= "SYNC_FILE_RANGE",
 		.prep			= io_sfr_prep,
 		.issue			= io_sync_file_range,
 	},
@@ -8394,6 +8309,7 @@ static const struct io_op_def io_op_defs[] = {
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
 		.ioprio			= 1,
+		.name			= "SENDMSG",
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_sendmsg_prep,
@@ -8410,6 +8326,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollin			= 1,
 		.buffer_select		= 1,
 		.ioprio			= 1,
+		.name			= "RECVMSG",
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_msghdr),
 		.prep			= io_recvmsg_prep,
@@ -8423,12 +8340,14 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_TIMEOUT] = {
 		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_timeout_data),
+		.name			= "TIMEOUT",
 		.prep			= io_timeout_prep,
 		.issue			= io_timeout,
 	},
 	[IORING_OP_TIMEOUT_REMOVE] = {
 		/* used by timeout updates' prep() */
 		.audit_skip		= 1,
+		.name			= "TIMEOUT_REMOVE",
 		.prep			= io_timeout_remove_prep,
 		.issue			= io_timeout_remove,
 	},
@@ -8438,6 +8357,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollin			= 1,
 		.poll_exclusive		= 1,
 		.ioprio			= 1,	/* used for flags */
+		.name			= "ACCEPT",
 #if defined(CONFIG_NET)
 		.prep			= io_accept_prep,
 		.issue			= io_accept,
@@ -8447,12 +8367,14 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_ASYNC_CANCEL] = {
 		.audit_skip		= 1,
+		.name			= "ASYNC_CANCEL",
 		.prep			= io_async_cancel_prep,
 		.issue			= io_async_cancel,
 	},
 	[IORING_OP_LINK_TIMEOUT] = {
 		.audit_skip		= 1,
 		.async_size		= sizeof(struct io_timeout_data),
+		.name			= "LINK_TIMEOUT",
 		.prep			= io_link_timeout_prep,
 		.issue			= io_no_issue,
 	},
@@ -8460,6 +8382,7 @@ static const struct io_op_def io_op_defs[] = {
 		.needs_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.pollout		= 1,
+		.name			= "CONNECT",
 #if defined(CONFIG_NET)
 		.async_size		= sizeof(struct io_async_connect),
 		.prep			= io_connect_prep,
@@ -8471,26 +8394,31 @@ static const struct io_op_def io_op_defs[] = {
 	},
 	[IORING_OP_FALLOCATE] = {
 		.needs_file		= 1,
+		.name			= "FALLOCATE",
 		.prep			= io_fallocate_prep,
 		.issue			= io_fallocate,
 	},
 	[IORING_OP_OPENAT] = {
+		.name			= "OPENAT",
 		.prep			= io_openat_prep,
 		.issue			= io_openat,
 		.cleanup		= io_open_cleanup,
 	},
 	[IORING_OP_CLOSE] = {
+		.name			= "CLOSE",
 		.prep			= io_close_prep,
 		.issue			= io_close,
 	},
 	[IORING_OP_FILES_UPDATE] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
+		.name			= "FILES_UPDATE",
 		.prep			= io_files_update_prep,
 		.issue			= io_files_update,
 	},
 	[IORING_OP_STATX] = {
 		.audit_skip		= 1,
+		.name			= "STATX",
 		.prep			= io_statx_prep,
 		.issue			= io_statx,
 		.cleanup		= io_statx_cleanup,
@@ -8505,6 +8433,7 @@ static const struct io_op_def io_op_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.name			= "READ",
 		.prep			= io_prep_rw,
 		.issue			= io_read,
 	},
@@ -8518,16 +8447,19 @@ static const struct io_op_def io_op_defs[] = {
 		.ioprio			= 1,
 		.iopoll			= 1,
 		.async_size		= sizeof(struct io_async_rw),
+		.name			= "WRITE",
 		.prep			= io_prep_rw,
 		.issue			= io_write,
 	},
 	[IORING_OP_FADVISE] = {
 		.needs_file		= 1,
 		.audit_skip		= 1,
+		.name			= "FADVISE",
 		.prep			= io_fadvise_prep,
 		.issue			= io_fadvise,
 	},
 	[IORING_OP_MADVISE] = {
+		.name			= "MADVISE",
 		.prep			= io_madvise_prep,
 		.issue			= io_madvise,
 	},
@@ -8537,6 +8469,7 @@ static const struct io_op_def io_op_defs[] = {
 		.pollout		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
+		.name			= "SEND",
 #if defined(CONFIG_NET)
 		.prep			= io_sendmsg_prep,
 		.issue			= io_send,
@@ -8551,6 +8484,7 @@ static const struct io_op_def io_op_defs[] = {
 		.buffer_select		= 1,
 		.audit_skip		= 1,
 		.ioprio			= 1,
+		.name			= "RECV",
 #if defined(CONFIG_NET)
 		.prep			= io_recvmsg_prep,
 		.issue			= io_recv,
@@ -8559,6 +8493,7 @@ static const struct io_op_def io_op_defs[] = {
 #endif
 	},
 	[IORING_OP_OPENAT2] = {
+		.name			= "OPENAT2",
 		.prep			= io_openat2_prep,
 		.issue			= io_openat2,
 		.cleanup		= io_open_cleanup,
@@ -8566,6 +8501,7 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
 		.audit_skip		= 1,
+		.name			= "EPOLL",
 #if defined(CONFIG_EPOLL)
 		.prep			= io_epoll_ctl_prep,
 		.issue			= io_epoll_ctl,
@@ -8578,18 +8514,21 @@ static const struct io_op_def io_op_defs[] = {
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.audit_skip		= 1,
+		.name			= "SPLICE",
 		.prep			= io_splice_prep,
 		.issue			= io_splice,
 	},
 	[IORING_OP_PROVIDE_BUFFERS] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
+		.name			= "PROVIDE_BUFFERS",
 		.prep			= io_provide_buffers_prep,
 		.issue			= io_provide_buffers,
 	},
 	[IORING_OP_REMOVE_BUFFERS] = {
 		.audit_skip		= 1,
 		.iopoll			= 1,
+		.name			= "REMOVE_BUFFERS",
 		.prep			= io_remove_buffers_prep,
 		.issue			= io_remove_buffers,
 	},
@@ -8598,11 +8537,13 @@ static const struct io_op_def io_op_defs[] = {
 		.hash_reg_file		= 1,
 		.unbound_nonreg_file	= 1,
 		.audit_skip		= 1,
+		.name			= "TEE",
 		.prep			= io_tee_prep,
 		.issue			= io_tee,
 	},
 	[IORING_OP_SHUTDOWN] = {
 		.needs_file		= 1,
+		.name			= "SHUTDOWN",
 #if defined(CONFIG_NET)
 		.prep			= io_shutdown_prep,
 		.issue			= io_shutdown,
@@ -8611,26 +8552,31 @@ static const struct io_op_def io_op_defs[] = {
 #endif
 	},
 	[IORING_OP_RENAMEAT] = {
+		.name			= "RENAMEAT",
 		.prep			= io_renameat_prep,
 		.issue			= io_renameat,
 		.cleanup		= io_renameat_cleanup,
 	},
 	[IORING_OP_UNLINKAT] = {
+		.name			= "UNLINKAT",
 		.prep			= io_unlinkat_prep,
 		.issue			= io_unlinkat,
 		.cleanup		= io_unlinkat_cleanup,
 	},
 	[IORING_OP_MKDIRAT] = {
+		.name			= "MKDIRAT",
 		.prep			= io_mkdirat_prep,
 		.issue			= io_mkdirat,
 		.cleanup		= io_mkdirat_cleanup,
 	},
 	[IORING_OP_SYMLINKAT] = {
+		.name			= "SYMLINKAT",
 		.prep			= io_symlinkat_prep,
 		.issue			= io_symlinkat,
 		.cleanup		= io_link_cleanup,
 	},
 	[IORING_OP_LINKAT] = {
+		.name			= "LINKAT",
 		.prep			= io_linkat_prep,
 		.issue			= io_linkat,
 		.cleanup		= io_link_cleanup,
@@ -8638,33 +8584,39 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_MSG_RING] = {
 		.needs_file		= 1,
 		.iopoll			= 1,
+		.name			= "MSG_RING",
 		.prep			= io_msg_ring_prep,
 		.issue			= io_msg_ring,
 	},
 	[IORING_OP_FSETXATTR] = {
 		.needs_file = 1,
+		.name			= "FSETXATTR",
 		.prep			= io_fsetxattr_prep,
 		.issue			= io_fsetxattr,
 		.cleanup		= io_xattr_cleanup,
 	},
 	[IORING_OP_SETXATTR] = {
+		.name			= "SETXATTR",
 		.prep			= io_setxattr_prep,
 		.issue			= io_setxattr,
 		.cleanup		= io_xattr_cleanup,
 	},
 	[IORING_OP_FGETXATTR] = {
 		.needs_file = 1,
+		.name			= "FGETXATTR",
 		.prep			= io_fgetxattr_prep,
 		.issue			= io_fgetxattr,
 		.cleanup		= io_xattr_cleanup,
 	},
 	[IORING_OP_GETXATTR] = {
+		.name			= "GETXATTR",
 		.prep			= io_getxattr_prep,
 		.issue			= io_getxattr,
 		.cleanup		= io_xattr_cleanup,
 	},
 	[IORING_OP_SOCKET] = {
 		.audit_skip		= 1,
+		.name			= "SOCKET",
 #if defined(CONFIG_NET)
 		.prep			= io_socket_prep,
 		.issue			= io_socket,
@@ -8675,6 +8627,7 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_URING_CMD] = {
 		.needs_file		= 1,
 		.plug			= 1,
+		.name			= "URING_CMD",
 		.async_size		= uring_cmd_pdu_size(1),
 		.prep			= io_uring_cmd_prep,
 		.issue			= io_uring_cmd,
@@ -8752,6 +8705,7 @@ static int __init io_uring_init(void)
 		BUG_ON(!io_op_defs[i].prep);
 		if (io_op_defs[i].prep != io_eopnotsupp_prep)
 			BUG_ON(!io_op_defs[i].issue);
+		WARN_ON_ONCE(!io_op_defs[i].name);
 	}
 
 	req_cachep = KMEM_CACHE(io_kiocb, SLAB_HWCACHE_ALIGN | SLAB_PANIC |
