@@ -127,9 +127,11 @@ static void gfs2_glock_dealloc(struct rcu_head *rcu)
 	struct gfs2_glock *gl = container_of(rcu, struct gfs2_glock, gl_rcu);
 
 	kfree(gl->gl_lksb.sb_lvbptr);
-	if (gl->gl_ops->go_flags & GLOF_ASPACE)
-		kmem_cache_free(gfs2_glock_aspace_cachep, gl);
-	else
+	if (gl->gl_ops->go_flags & GLOF_ASPACE) {
+		struct gfs2_glock_aspace *gla =
+			container_of(gl, struct gfs2_glock_aspace, glock);
+		kmem_cache_free(gfs2_glock_aspace_cachep, gla);
+	} else
 		kmem_cache_free(gfs2_glock_cachep, gl);
 }
 
@@ -1159,7 +1161,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 				    .ln_sbd = sdp };
 	struct gfs2_glock *gl, *tmp;
 	struct address_space *mapping;
-	struct kmem_cache *cachep;
 	int ret = 0;
 
 	gl = find_insert_glock(&name, NULL);
@@ -1170,20 +1171,24 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	if (!create)
 		return -ENOENT;
 
-	if (glops->go_flags & GLOF_ASPACE)
-		cachep = gfs2_glock_aspace_cachep;
-	else
-		cachep = gfs2_glock_cachep;
-	gl = kmem_cache_alloc(cachep, GFP_NOFS);
-	if (!gl)
-		return -ENOMEM;
-
+	if (glops->go_flags & GLOF_ASPACE) {
+		struct gfs2_glock_aspace *gla =
+			kmem_cache_alloc(gfs2_glock_aspace_cachep, GFP_NOFS);
+		if (!gla)
+			return -ENOMEM;
+		gl = &gla->glock;
+	} else {
+		gl = kmem_cache_alloc(gfs2_glock_cachep, GFP_NOFS);
+		if (!gl)
+			return -ENOMEM;
+	}
 	memset(&gl->gl_lksb, 0, sizeof(struct dlm_lksb));
+	gl->gl_ops = glops;
 
 	if (glops->go_flags & GLOF_LVB) {
 		gl->gl_lksb.sb_lvbptr = kzalloc(GDLM_LVB_SIZE, GFP_NOFS);
 		if (!gl->gl_lksb.sb_lvbptr) {
-			kmem_cache_free(cachep, gl);
+			gfs2_glock_dealloc(&gl->gl_rcu);
 			return -ENOMEM;
 		}
 	}
@@ -1197,7 +1202,6 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	gl->gl_state = LM_ST_UNLOCKED;
 	gl->gl_target = LM_ST_UNLOCKED;
 	gl->gl_demote_state = LM_ST_EXCLUSIVE;
-	gl->gl_ops = glops;
 	gl->gl_dstamp = 0;
 	preempt_disable();
 	/* We use the global stats to estimate the initial per-glock stats */
@@ -1234,8 +1238,7 @@ int gfs2_glock_get(struct gfs2_sbd *sdp, u64 number,
 	*glp = tmp;
 
 out_free:
-	kfree(gl->gl_lksb.sb_lvbptr);
-	kmem_cache_free(cachep, gl);
+	gfs2_glock_dealloc(&gl->gl_rcu);
 	if (atomic_dec_and_test(&sdp->sd_glock_disposal))
 		wake_up(&sdp->sd_glock_wait);
 
