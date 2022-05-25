@@ -58,13 +58,35 @@ static inline void io_ring_submit_lock(struct io_ring_ctx *ctx,
 	lockdep_assert_held(&ctx->uring_lock);
 }
 
+static inline void io_commit_cqring(struct io_ring_ctx *ctx)
+{
+	/* order cqe stores with ring update */
+	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
+}
+
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
+
+bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
+		     u32 cflags);
+void io_cqring_ev_posted(struct io_ring_ctx *ctx);
+void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
+			      unsigned int issue_flags);
+unsigned int io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
+
+static inline bool io_do_buffer_select(struct io_kiocb *req)
+{
+	if (!(req->flags & REQ_F_BUFFER_SELECT))
+		return false;
+	return !(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING));
+}
 
 struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
 int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 			struct file *file, unsigned int file_slot);
+int io_install_fixed_file(struct io_kiocb *req, struct file *file,
+			  unsigned int issue_flags, u32 slot_index);
 
 int io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
 int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
