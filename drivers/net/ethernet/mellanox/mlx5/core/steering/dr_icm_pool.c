@@ -470,6 +470,16 @@ void mlx5dr_icm_free_chunk(struct mlx5dr_icm_chunk *chunk)
 	mutex_unlock(&pool->mutex);
 }
 
+struct mlx5dr_ste_htbl *mlx5dr_icm_pool_alloc_htbl(struct mlx5dr_icm_pool *pool)
+{
+	return kmem_cache_alloc(pool->dmn->htbls_kmem_cache, GFP_KERNEL);
+}
+
+void mlx5dr_icm_pool_free_htbl(struct mlx5dr_icm_pool *pool, struct mlx5dr_ste_htbl *htbl)
+{
+	kmem_cache_free(pool->dmn->htbls_kmem_cache, htbl);
+}
+
 struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 					       enum mlx5dr_icm_type icm_type)
 {
