@@ -132,6 +132,9 @@ enum panfrost_hw_issue {
 	 * to hang */
 	HW_ISSUE_TTRX_3076,
 
+	/* Must issue a dummy job before starting real work to prevent hangs */
+	HW_ISSUE_TTRX_3485,
+
 	HW_ISSUE_END
 };
 
