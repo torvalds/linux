@@ -97,6 +97,7 @@
 #include "fs.h"
 #include "splice.h"
 #include "sync.h"
+#include "advise.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -406,20 +407,6 @@ struct io_rsrc_update {
 	u64				arg;
 	u32				nr_args;
 	u32				offset;
-};
-
-struct io_fadvise {
-	struct file			*file;
-	u64				offset;
-	u32				len;
-	u32				advice;
-};
-
-struct io_madvise {
-	struct file			*file;
-	u64				addr;
-	u32				len;
-	u32				advice;
 };
 
 struct io_epoll {
@@ -4426,76 +4413,6 @@ static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 #else
 	return -EOPNOTSUPP;
 #endif
-}
-
-static int io_madvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-#if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
-	struct io_madvise *ma = io_kiocb_to_cmd(req);
-
-	if (sqe->buf_index || sqe->off || sqe->splice_fd_in)
-		return -EINVAL;
-
-	ma->addr = READ_ONCE(sqe->addr);
-	ma->len = READ_ONCE(sqe->len);
-	ma->advice = READ_ONCE(sqe->fadvise_advice);
-	return 0;
-#else
-	return -EOPNOTSUPP;
-#endif
-}
-
-static int io_madvise(struct io_kiocb *req, unsigned int issue_flags)
-{
-#if defined(CONFIG_ADVISE_SYSCALLS) && defined(CONFIG_MMU)
-	struct io_madvise *ma = io_kiocb_to_cmd(req);
-	int ret;
-
-	if (issue_flags & IO_URING_F_NONBLOCK)
-		return -EAGAIN;
-
-	ret = do_madvise(current->mm, ma->addr, ma->len, ma->advice);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-#else
-	return -EOPNOTSUPP;
-#endif
-}
-
-static int io_fadvise_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_fadvise *fa = io_kiocb_to_cmd(req);
-
-	if (sqe->buf_index || sqe->addr || sqe->splice_fd_in)
-		return -EINVAL;
-
-	fa->offset = READ_ONCE(sqe->off);
-	fa->len = READ_ONCE(sqe->len);
-	fa->advice = READ_ONCE(sqe->fadvise_advice);
-	return 0;
-}
-
-static int io_fadvise(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_fadvise *fa = io_kiocb_to_cmd(req);
-	int ret;
-
-	if (issue_flags & IO_URING_F_NONBLOCK) {
-		switch (fa->advice) {
-		case POSIX_FADV_NORMAL:
-		case POSIX_FADV_RANDOM:
-		case POSIX_FADV_SEQUENTIAL:
-			break;
-		default:
-			return -EAGAIN;
-		}
-	}
-
-	ret = vfs_fadvise(req->file, fa->offset, fa->len, fa->advice);
-	if (ret < 0)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
 }
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
