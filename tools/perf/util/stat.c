@@ -117,7 +117,9 @@ static void perf_stat_evsel_id_init(struct evsel *evsel)
 	/* ps->id is 0 hence PERF_STAT_EVSEL_ID__NONE by default */
 
 	for (i = 0; i < PERF_STAT_EVSEL_ID__MAX; i++) {
-		if (!strcmp(evsel__name(evsel), id_str[i])) {
+		if (!strcmp(evsel__name(evsel), id_str[i]) ||
+		    (strstr(evsel__name(evsel), id_str[i]) && evsel->pmu_name
+		     && strstr(evsel__name(evsel), evsel->pmu_name))) {
 			ps->id = i;
 			break;
 		}
@@ -235,14 +237,12 @@ void evlist__reset_prev_raw_counts(struct evlist *evlist)
 
 static void evsel__copy_prev_raw_counts(struct evsel *evsel)
 {
-	int ncpus = evsel__nr_cpus(evsel);
-	int nthreads = perf_thread_map__nr(evsel->core.threads);
+	int idx, nthreads = perf_thread_map__nr(evsel->core.threads);
 
 	for (int thread = 0; thread < nthreads; thread++) {
-		for (int cpu = 0; cpu < ncpus; cpu++) {
-			*perf_counts(evsel->counts, cpu, thread) =
-				*perf_counts(evsel->prev_raw_counts, cpu,
-					     thread);
+		perf_cpu_map__for_each_idx(idx, evsel__cpus(evsel)) {
+			*perf_counts(evsel->counts, idx, thread) =
+				*perf_counts(evsel->prev_raw_counts, idx, thread);
 		}
 	}
 

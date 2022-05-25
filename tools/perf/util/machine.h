@@ -18,6 +18,7 @@ struct symbol;
 struct target;
 struct thread;
 union perf_event;
+struct machines;
 
 /* Native host kernel uses -1 as pid index in machine */
 #define	HOST_KERNEL_ID			(-1)
@@ -59,6 +60,7 @@ struct machine {
 		void	  *priv;
 		u64	  db_id;
 	};
+	struct machines   *machines;
 	bool		  trampolines_mapped;
 };
 
@@ -162,10 +164,11 @@ void machines__process_guests(struct machines *machines,
 
 struct machine *machines__add(struct machines *machines, pid_t pid,
 			      const char *root_dir);
-struct machine *machines__find_host(struct machines *machines);
 struct machine *machines__find(struct machines *machines, pid_t pid);
 struct machine *machines__findnew(struct machines *machines, pid_t pid);
 struct machine *machines__find_guest(struct machines *machines, pid_t pid);
+struct thread *machines__findnew_guest_code(struct machines *machines, pid_t pid);
+struct thread *machine__findnew_guest_code(struct machine *machine, pid_t pid);
 
 void machines__set_id_hdr_size(struct machines *machines, u16 id_hdr_size);
 void machines__set_comm_exec(struct machines *machines, bool comm_exec);

@@ -54,6 +54,7 @@ struct perf_annotate {
 	bool	   skip_missing;
 	bool	   has_br_stack;
 	bool	   group_set;
+	float	   min_percent;
 	const char *sym_hist_filter;
 	const char *cpu_list;
 	DECLARE_BITMAP(cpu_bitmap, MAX_NR_CPUS);
@@ -324,6 +325,17 @@ static void hists__find_annotations(struct hists *hists,
 		    (strcmp(he->ms.sym->name, ann->sym_hist_filter) != 0))
 			goto find_next;
 
+		if (ann->min_percent) {
+			float percent = 0;
+			u64 total = hists__total_period(hists);
+
+			if (total)
+				percent = 100.0 * he->stat.period / total;
+
+			if (percent < ann->min_percent)
+				goto find_next;
+		}
+
 		notes = symbol__annotation(he->ms.sym);
 		if (notes->src == NULL) {
 find_next:
@@ -457,6 +469,16 @@ out:
 	return ret;
 }
 
+static int parse_percent_limit(const struct option *opt, const char *str,
+			       int unset __maybe_unused)
+{
+	struct perf_annotate *ann = opt->value;
+	double pcnt = strtof(str, NULL);
+
+	ann->min_percent = pcnt;
+	return 0;
+}
+
 static const char * const annotate_usage[] = {
 	"perf annotate [<options>]",
 	NULL
@@ -557,6 +579,8 @@ int cmd_annotate(int argc, const char **argv)
 	OPT_CALLBACK(0, "percent-type", &annotate.opts, "local-period",
 		     "Set percent type local/global-period/hits",
 		     annotate_parse_percent_type),
+	OPT_CALLBACK(0, "percent-limit", &annotate, "percent",
+		     "Don't show entries under that percent", parse_percent_limit),
 	OPT_CALLBACK_OPTARG(0, "itrace", &itrace_synth_opts, NULL, "opts",
 			    "Instruction Tracing options\n" ITRACE_HELP,
 			    itrace_parse_synth_opts),
