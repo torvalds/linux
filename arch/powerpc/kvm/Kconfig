@@ -128,7 +128,11 @@ config KVM_BOOK3S_64_PR
 	  and system calls on the host.
 
 config KVM_BOOK3S_HV_EXIT_TIMING
-	bool "Detailed timing for hypervisor real-mode code"
+	bool
+
+config KVM_BOOK3S_HV_P8_TIMING
+	bool "Detailed timing for hypervisor real-mode code (for POWER8)"
+	select KVM_BOOK3S_HV_EXIT_TIMING
 	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS
 	help
 	  Calculate time taken for each vcpu in the real-mode guest entry,
