@@ -146,28 +146,6 @@ struct io_overflow_cqe {
 	struct io_uring_cqe cqe;
 };
 
-/*
- * FFS_SCM is only available on 64-bit archs, for 32-bit we just define it as 0
- * and define IO_URING_SCM_ALL. For this case, we use SCM for all files as we
- * can't safely always dereference the file when the task has exited and ring
- * cleanup is done. If a file is tracked and part of SCM, then unix gc on
- * process exit may reap it before __io_sqe_files_unregister() is run.
- */
-#define FFS_NOWAIT		0x1UL
-#define FFS_ISREG		0x2UL
-#if defined(CONFIG_64BIT)
-#define FFS_SCM			0x4UL
-#else
-#define IO_URING_SCM_ALL
-#define FFS_SCM			0x0UL
-#endif
-#define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG|FFS_SCM)
-
-struct io_fixed_file {
-	/* file * with additional FFS_* flags */
-	unsigned long file_ptr;
-};
-
 struct io_rsrc_put {
 	struct list_head list;
 	u64 tag;
@@ -3983,27 +3961,6 @@ static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return __io_openat_prep(req, sqe);
 }
 
-static int io_file_bitmap_get(struct io_ring_ctx *ctx)
-{
-	struct io_file_table *table = &ctx->file_table;
-	unsigned long nr = ctx->nr_user_files;
-	int ret;
-
-	do {
-		ret = find_next_zero_bit(table->bitmap, nr, table->alloc_hint);
-		if (ret != nr)
-			return ret;
-
-		if (!table->alloc_hint)
-			break;
-
-		nr = table->alloc_hint;
-		table->alloc_hint = 0;
-	} while (1);
-
-	return -ENFILE;
-}
-
 /*
  * Note when io_fixed_fd_install() returns error value, it will ensure
  * fput() is called correspondingly.
@@ -6832,12 +6789,6 @@ fail:
 		io_req_task_queue_fail(req, ret);
 }
 
-static inline struct io_fixed_file *io_fixed_file_slot(struct io_file_table *table,
-						       unsigned i)
-{
-	return &table->files[i];
-}
-
 static inline struct file *io_file_from_index(struct io_ring_ctx *ctx,
 					      int index)
 {
@@ -7932,43 +7883,6 @@ static __cold int io_rsrc_data_alloc(struct io_ring_ctx *ctx, rsrc_put_fn *do_pu
 fail:
 	io_rsrc_data_free(data);
 	return ret;
-}
-
-static bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files)
-{
-	table->files = kvcalloc(nr_files, sizeof(table->files[0]),
-				GFP_KERNEL_ACCOUNT);
-	if (unlikely(!table->files))
-		return false;
-
-	table->bitmap = bitmap_zalloc(nr_files, GFP_KERNEL_ACCOUNT);
-	if (unlikely(!table->bitmap)) {
-		kvfree(table->files);
-		return false;
-	}
-
-	return true;
-}
-
-static void io_free_file_tables(struct io_file_table *table)
-{
-	kvfree(table->files);
-	bitmap_free(table->bitmap);
-	table->files = NULL;
-	table->bitmap = NULL;
-}
-
-static inline void io_file_bitmap_set(struct io_file_table *table, int bit)
-{
-	WARN_ON_ONCE(test_bit(bit, table->bitmap));
-	__set_bit(bit, table->bitmap);
-	table->alloc_hint = bit + 1;
-}
-
-static inline void io_file_bitmap_clear(struct io_file_table *table, int bit)
-{
-	__clear_bit(bit, table->bitmap);
-	table->alloc_hint = bit;
 }
 
 static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)

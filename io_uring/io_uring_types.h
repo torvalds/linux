@@ -5,6 +5,7 @@
 #include <linux/task_work.h>
 
 #include "io-wq.h"
+#include "filetable.h"
 
 struct io_uring {
 	u32 head ____cacheline_aligned_in_smp;
@@ -120,12 +121,6 @@ struct io_ev_fd {
 	struct eventfd_ctx	*cq_ev_fd;
 	unsigned int		eventfd_async: 1;
 	struct rcu_head		rcu;
-};
-
-struct io_file_table {
-	struct io_fixed_file *files;
-	unsigned long *bitmap;
-	unsigned int alloc_hint;
 };
 
 struct io_ring_ctx {
