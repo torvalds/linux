@@ -295,6 +295,10 @@ static const struct of_device_id __maybe_unused lm90_of_match[] = {
 		.data = (void *)adt7461a
 	},
 	{
+		.compatible = "adi,adt7481",
+		.data = (void *)adt7481
+	},
+	{
 		.compatible = "gmt,g781",
 		.data = (void *)g781
 	},
