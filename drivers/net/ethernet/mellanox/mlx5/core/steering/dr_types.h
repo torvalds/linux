@@ -915,6 +915,7 @@ struct mlx5dr_domain {
 	struct mlx5dr_icm_pool *action_icm_pool;
 	struct mlx5dr_send_info_pool *send_info_pool_rx;
 	struct mlx5dr_send_info_pool *send_info_pool_tx;
+	struct kmem_cache *chunks_kmem_cache;
 	struct mlx5dr_send_ring *send_ring;
 	struct mlx5dr_domain_info info;
 	struct xarray csum_fts_xa;

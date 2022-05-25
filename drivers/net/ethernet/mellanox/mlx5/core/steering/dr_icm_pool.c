@@ -9,6 +9,8 @@ struct mlx5dr_icm_pool {
 	enum mlx5dr_icm_type icm_type;
 	enum mlx5dr_icm_chunk_size max_log_chunk_sz;
 	struct mlx5dr_domain *dmn;
+	struct kmem_cache *chunks_kmem_cache;
+
 	/* memory management */
 	struct mutex mutex; /* protect the ICM pool and ICM buddy */
 	struct list_head buddy_mem_list;
@@ -193,10 +195,13 @@ static void dr_icm_chunk_ste_init(struct mlx5dr_icm_chunk *chunk, int offset)
 
 static void dr_icm_chunk_destroy(struct mlx5dr_icm_chunk *chunk)
 {
+	struct kmem_cache *chunks_cache =
+		chunk->buddy_mem->pool->chunks_kmem_cache;
+
 	chunk->buddy_mem->used_memory -= mlx5dr_icm_pool_get_chunk_byte_size(chunk);
 	list_del(&chunk->chunk_list);
 
-	kvfree(chunk);
+	kmem_cache_free(chunks_cache, chunk);
 }
 
 static int dr_icm_buddy_init_ste_cache(struct mlx5dr_icm_buddy_mem *buddy)
@@ -302,10 +307,11 @@ dr_icm_chunk_create(struct mlx5dr_icm_pool *pool,
 		    struct mlx5dr_icm_buddy_mem *buddy_mem_pool,
 		    unsigned int seg)
 {
+	struct kmem_cache *chunks_cache = buddy_mem_pool->pool->chunks_kmem_cache;
 	struct mlx5dr_icm_chunk *chunk;
 	int offset;
 
-	chunk = kvzalloc(sizeof(*chunk), GFP_KERNEL);
+	chunk = kmem_cache_alloc(chunks_cache, GFP_KERNEL);
 	if (!chunk)
 		return NULL;
 
@@ -482,6 +488,7 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 	pool->dmn = dmn;
 	pool->icm_type = icm_type;
 	pool->max_log_chunk_sz = max_log_chunk_sz;
+	pool->chunks_kmem_cache = dmn->chunks_kmem_cache;
 
 	INIT_LIST_HEAD(&pool->buddy_mem_list);
 

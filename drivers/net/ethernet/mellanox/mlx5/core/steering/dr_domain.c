@@ -60,10 +60,19 @@ static int dr_domain_init_mem_resources(struct mlx5dr_domain *dmn)
 {
 	int ret;
 
+	dmn->chunks_kmem_cache = kmem_cache_create("mlx5_dr_chunks",
+						   sizeof(struct mlx5dr_icm_chunk), 0,
+						   SLAB_HWCACHE_ALIGN, NULL);
+	if (!dmn->chunks_kmem_cache) {
+		mlx5dr_err(dmn, "Couldn't create chunks kmem_cache\n");
+		return -ENOMEM;
+	}
+
 	dmn->ste_icm_pool = mlx5dr_icm_pool_create(dmn, DR_ICM_TYPE_STE);
 	if (!dmn->ste_icm_pool) {
 		mlx5dr_err(dmn, "Couldn't get icm memory\n");
-		return -ENOMEM;
+		ret = -ENOMEM;
+		goto free_chunks_kmem_cache;
 	}
 
 	dmn->action_icm_pool = mlx5dr_icm_pool_create(dmn, DR_ICM_TYPE_MODIFY_ACTION);
@@ -85,6 +94,9 @@ free_action_icm_pool:
 	mlx5dr_icm_pool_destroy(dmn->action_icm_pool);
 free_ste_icm_pool:
 	mlx5dr_icm_pool_destroy(dmn->ste_icm_pool);
+free_chunks_kmem_cache:
+	kmem_cache_destroy(dmn->chunks_kmem_cache);
+
 	return ret;
 }
 
@@ -93,6 +105,7 @@ static void dr_domain_uninit_mem_resources(struct mlx5dr_domain *dmn)
 	mlx5dr_send_info_pool_destroy(dmn);
 	mlx5dr_icm_pool_destroy(dmn->action_icm_pool);
 	mlx5dr_icm_pool_destroy(dmn->ste_icm_pool);
+	kmem_cache_destroy(dmn->chunks_kmem_cache);
 }
 
 static int dr_domain_init_resources(struct mlx5dr_domain *dmn)
