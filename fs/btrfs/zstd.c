@@ -93,22 +93,26 @@ static inline struct workspace *list_to_workspace(struct list_head *list)
 
 void zstd_free_workspace(struct list_head *ws);
 struct list_head *zstd_alloc_workspace(unsigned int level);
-/*
- * zstd_reclaim_timer_fn - reclaim timer
+
+/**
+ * Timer callback to free unused workspaces.
+ *
  * @t: timer
  *
  * This scans the lru_list and attempts to reclaim any workspace that hasn't
  * been used for ZSTD_BTRFS_RECLAIM_JIFFIES.
+ *
+ * The context is softirq and does not need the _bh locking primitives.
  */
 static void zstd_reclaim_timer_fn(struct timer_list *timer)
 {
 	unsigned long reclaim_threshold = jiffies - ZSTD_BTRFS_RECLAIM_JIFFIES;
 	struct list_head *pos, *next;
 
-	spin_lock_bh(&wsm.lock);
+	spin_lock(&wsm.lock);
 
 	if (list_empty(&wsm.lru_list)) {
-		spin_unlock_bh(&wsm.lock);
+		spin_unlock(&wsm.lock);
 		return;
 	}
 
@@ -137,7 +141,7 @@ static void zstd_reclaim_timer_fn(struct timer_list *timer)
 	if (!list_empty(&wsm.lru_list))
 		mod_timer(&wsm.timer, jiffies + ZSTD_BTRFS_RECLAIM_JIFFIES);
 
-	spin_unlock_bh(&wsm.lock);
+	spin_unlock(&wsm.lock);
 }
 
 /*

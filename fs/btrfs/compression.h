@@ -102,8 +102,8 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 				  unsigned int write_flags,
 				  struct cgroup_subsys_state *blkcg_css,
 				  bool writeback);
-blk_status_t btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
-				 int mirror_num, unsigned long bio_flags);
+void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
+				  int mirror_num);
 
 unsigned int btrfs_compress_str2level(unsigned int type, const char *str);
 
