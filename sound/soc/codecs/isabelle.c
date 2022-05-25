@@ -1108,8 +1108,7 @@ static const struct regmap_config isabelle_regmap_config = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int isabelle_i2c_probe(struct i2c_client *i2c,
-			      const struct i2c_device_id *id)
+static int isabelle_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *isabelle_regmap;
 	int ret = 0;
@@ -1144,7 +1143,7 @@ static struct i2c_driver isabelle_i2c_driver = {
 	.driver = {
 		.name = "isabelle",
 	},
-	.probe = isabelle_i2c_probe,
+	.probe_new = isabelle_i2c_probe,
 	.id_table = isabelle_i2c_id,
 };
 

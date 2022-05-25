@@ -45,7 +45,7 @@ config SND_PXA2XX_SOC_CORGI
 	tristate "SoC Audio support for Sharp Zaurus SL-C7x0"
 	depends on SND_PXA2XX_SOC && PXA_SHARP_C7xx && I2C
 	select SND_PXA2XX_SOC_I2S
-	select SND_SOC_WM8731
+	select SND_SOC_WM8731_I2C
 	help
 	  Say Y if you want to add support for SoC audio on Sharp
 	  Zaurus SL-C7x0 models (Corgi, Shepherd, Husky).
@@ -71,7 +71,7 @@ config SND_PXA2XX_SOC_POODLE
 	tristate "SoC Audio support for Poodle"
 	depends on SND_PXA2XX_SOC && MACH_POODLE && I2C
 	select SND_PXA2XX_SOC_I2S
-	select SND_SOC_WM8731
+	select SND_SOC_WM8731_I2C
 	help
 	  Say Y if you want to add support for SoC audio on Sharp
 	  Zaurus SL-5600 model (Poodle).

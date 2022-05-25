@@ -197,6 +197,8 @@ config SND_SOC_SC7280
 	select SND_SOC_LPASS_MACRO_COMMON
 	imply SND_SOC_LPASS_RX_MACRO
 	imply SND_SOC_LPASS_TX_MACRO
+	select SND_SOC_RT5682_I2C
+	select SND_SOC_RT5682S
 	help
 	  Add support for audio on Qualcomm Technologies Inc.
 	  SC7280 SoC-based systems.

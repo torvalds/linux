@@ -250,14 +250,13 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 	}
 
 	if (sof_debug_check_flag(SOF_DBG_ENABLE_TRACE)) {
-		sdev->dtrace_is_supported = true;
+		sdev->fw_trace_is_supported = true;
 
-		/* init DMA trace */
-		ret = snd_sof_init_trace(sdev);
+		/* init firmware tracing */
+		ret = sof_fw_trace_init(sdev);
 		if (ret < 0) {
 			/* non fatal */
-			dev_warn(sdev->dev,
-				 "warning: failed to initialize trace %d\n",
+			dev_warn(sdev->dev, "failed to initialize firmware tracing %d\n",
 				 ret);
 		}
 	} else {
@@ -308,7 +307,7 @@ static int sof_probe_continue(struct snd_sof_dev *sdev)
 sof_machine_err:
 	snd_sof_machine_unregister(sdev, plat_data);
 fw_trace_err:
-	snd_sof_free_trace(sdev);
+	sof_fw_trace_free(sdev);
 fw_run_err:
 	snd_sof_fw_unload(sdev);
 fw_load_err:
@@ -342,6 +341,7 @@ static void sof_probe_work(struct work_struct *work)
 int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 {
 	struct snd_sof_dev *sdev;
+	int ret;
 
 	sdev = devm_kzalloc(dev, sizeof(*sdev), GFP_KERNEL);
 	if (!sdev)
@@ -357,11 +357,23 @@ int snd_sof_device_probe(struct device *dev, struct snd_sof_pdata *plat_data)
 	sdev->first_boot = true;
 	dev_set_drvdata(dev, sdev);
 
+	/* check IPC support */
+	if (!(BIT(plat_data->ipc_type) & plat_data->desc->ipc_supported_mask)) {
+		dev_err(dev, "ipc_type %d is not supported on this platform, mask is %#x\n",
+			plat_data->ipc_type, plat_data->desc->ipc_supported_mask);
+		return -EINVAL;
+	}
+
+	/* init ops, if necessary */
+	ret = sof_ops_init(sdev);
+	if (ret < 0)
+		return ret;
+
 	/* check all mandatory ops */
 	if (!sof_ops(sdev) || !sof_ops(sdev)->probe || !sof_ops(sdev)->run ||
 	    !sof_ops(sdev)->block_read || !sof_ops(sdev)->block_write ||
 	    !sof_ops(sdev)->send_msg || !sof_ops(sdev)->load_firmware ||
-	    !sof_ops(sdev)->ipc_msg_data || !sof_ops(sdev)->fw_ready) {
+	    !sof_ops(sdev)->ipc_msg_data) {
 		dev_err(dev, "error: missing mandatory ops\n");
 		return -EINVAL;
 	}
@@ -434,7 +446,7 @@ int snd_sof_device_remove(struct device *dev)
 	snd_sof_machine_unregister(sdev, pdata);
 
 	if (sdev->fw_state > SOF_FW_BOOT_NOT_STARTED) {
-		snd_sof_free_trace(sdev);
+		sof_fw_trace_free(sdev);
 		ret = snd_sof_dsp_power_down_notify(sdev);
 		if (ret < 0)
 			dev_warn(dev, "error: %d failed to prepare DSP for device removal",

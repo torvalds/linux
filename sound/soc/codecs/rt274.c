@@ -1114,8 +1114,7 @@ static const struct acpi_device_id rt274_acpi_match[] = {
 MODULE_DEVICE_TABLE(acpi, rt274_acpi_match);
 #endif
 
-static int rt274_i2c_probe(struct i2c_client *i2c,
-			   const struct i2c_device_id *id)
+static int rt274_i2c_probe(struct i2c_client *i2c)
 {
 	struct rt274_priv *rt274;
 
@@ -1227,7 +1226,7 @@ static struct i2c_driver rt274_i2c_driver = {
 		   .of_match_table = of_match_ptr(rt274_of_match),
 #endif
 		   },
-	.probe = rt274_i2c_probe,
+	.probe_new = rt274_i2c_probe,
 	.remove = rt274_i2c_remove,
 	.id_table = rt274_i2c_id,
 };
