@@ -16,7 +16,6 @@
 #include <linux/file.h>
 #include <linux/quotaops.h>
 #include <linux/random.h>
-#include <linux/uuid.h>
 #include <linux/uaccess.h>
 #include <linux/delay.h>
 #include <linux/iversion.h>
@@ -503,18 +502,6 @@ journal_err_out:
 	iput(inode_bl);
 	return err;
 }
-
-#ifdef CONFIG_FS_ENCRYPTION
-static int uuid_is_zero(__u8 u[16])
-{
-	int	i;
-
-	for (i = 0; i < 16; i++)
-		if (u[i])
-			return 0;
-	return 1;
-}
-#endif
 
 /*
  * If immutable is set and we are not clearing it, we're not allowed to change
@@ -1428,51 +1415,9 @@ resizefs_out:
 			return -EOPNOTSUPP;
 		return fscrypt_ioctl_set_policy(filp, (const void __user *)arg);
 
-	case FS_IOC_GET_ENCRYPTION_PWSALT: {
-#ifdef CONFIG_FS_ENCRYPTION
-		int err, err2;
-		struct ext4_sb_info *sbi = EXT4_SB(sb);
-		handle_t *handle;
+	case FS_IOC_GET_ENCRYPTION_PWSALT:
+		return ext4_ioctl_get_encryption_pwsalt(filp, (void __user *)arg);
 
-		if (!ext4_has_feature_encrypt(sb))
-			return -EOPNOTSUPP;
-		if (uuid_is_zero(sbi->s_es->s_encrypt_pw_salt)) {
-			err = mnt_want_write_file(filp);
-			if (err)
-				return err;
-			handle = ext4_journal_start_sb(sb, EXT4_HT_MISC, 1);
-			if (IS_ERR(handle)) {
-				err = PTR_ERR(handle);
-				goto pwsalt_err_exit;
-			}
-			err = ext4_journal_get_write_access(handle, sb,
-							    sbi->s_sbh,
-							    EXT4_JTR_NONE);
-			if (err)
-				goto pwsalt_err_journal;
-			lock_buffer(sbi->s_sbh);
-			generate_random_uuid(sbi->s_es->s_encrypt_pw_salt);
-			ext4_superblock_csum_set(sb);
-			unlock_buffer(sbi->s_sbh);
-			err = ext4_handle_dirty_metadata(handle, NULL,
-							 sbi->s_sbh);
-		pwsalt_err_journal:
-			err2 = ext4_journal_stop(handle);
-			if (err2 && !err)
-				err = err2;
-		pwsalt_err_exit:
-			mnt_drop_write_file(filp);
-			if (err)
-				return err;
-		}
-		if (copy_to_user((void __user *) arg,
-				 sbi->s_es->s_encrypt_pw_salt, 16))
-			return -EFAULT;
-		return 0;
-#else
-		return -EOPNOTSUPP;
-#endif
-	}
 	case FS_IOC_GET_ENCRYPTION_POLICY:
 		if (!ext4_has_feature_encrypt(sb))
 			return -EOPNOTSUPP;

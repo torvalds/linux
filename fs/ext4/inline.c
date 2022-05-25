@@ -1083,14 +1083,14 @@ static void ext4_update_final_de(void *de_buf, int old_size, int new_size)
 	void *limit;
 	int de_len;
 
-	de = (struct ext4_dir_entry_2 *)de_buf;
+	de = de_buf;
 	if (old_size) {
 		limit = de_buf + old_size;
 		do {
 			prev_de = de;
 			de_len = ext4_rec_len_from_disk(de->rec_len, old_size);
 			de_buf += de_len;
-			de = (struct ext4_dir_entry_2 *)de_buf;
+			de = de_buf;
 		} while (de_buf < limit);
 
 		prev_de->rec_len = ext4_rec_len_to_disk(de_len + new_size -
@@ -1155,7 +1155,7 @@ static int ext4_finish_convert_inline_dir(handle_t *handle,
 	 * First create "." and ".." and then copy the dir information
 	 * back to the block.
 	 */
-	de = (struct ext4_dir_entry_2 *)target;
+	de = target;
 	de = ext4_init_dot_dotdot(inode, de,
 		inode->i_sb->s_blocksize, csum_size,
 		le32_to_cpu(((struct ext4_dir_entry_2 *)buf)->inode), 1);
@@ -2005,6 +2005,18 @@ int ext4_convert_inline_data(struct inode *inode)
 	if (!ext4_has_inline_data(inode)) {
 		ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
 		return 0;
+	} else if (!ext4_test_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA)) {
+		/*
+		 * Inode has inline data but EXT4_STATE_MAY_INLINE_DATA is
+		 * cleared. This means we are in the middle of moving of
+		 * inline data to delay allocated block. Just force writeout
+		 * here to finish conversion.
+		 */
+		error = filemap_flush(inode->i_mapping);
+		if (error)
+			return error;
+		if (!ext4_has_inline_data(inode))
+			return 0;
 	}
 
 	needed_blocks = ext4_writepage_trans_blocks(inode);

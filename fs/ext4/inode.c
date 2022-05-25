@@ -41,7 +41,6 @@
 #include <linux/bitops.h>
 #include <linux/iomap.h>
 #include <linux/iversion.h>
-#include <linux/dax.h>
 
 #include "ext4_jbd2.h"
 #include "xattr.h"
@@ -199,8 +198,7 @@ void ext4_evict_inode(struct inode *inode)
 		 */
 		if (inode->i_ino != EXT4_JOURNAL_INO &&
 		    ext4_should_journal_data(inode) &&
-		    (S_ISLNK(inode->i_mode) || S_ISREG(inode->i_mode)) &&
-		    inode->i_data.nrpages) {
+		    S_ISREG(inode->i_mode) && inode->i_data.nrpages) {
 			journal_t *journal = EXT4_SB(inode->i_sb)->s_journal;
 			tid_t commit_tid = EXT4_I(inode)->i_datasync_tid;
 
@@ -545,12 +543,21 @@ int ext4_map_blocks(handle_t *handle, struct inode *inode,
 		} else {
 			BUG();
 		}
+
+		if (flags & EXT4_GET_BLOCKS_CACHED_NOWAIT)
+			return retval;
 #ifdef ES_AGGRESSIVE_TEST
 		ext4_map_blocks_es_recheck(handle, inode, map,
 					   &orig_map, flags);
 #endif
 		goto found;
 	}
+	/*
+	 * In the query cache no-wait mode, nothing we can do more if we
+	 * cannot find extent in the cache.
+	 */
+	if (flags & EXT4_GET_BLOCKS_CACHED_NOWAIT)
+		return 0;
 
 	/*
 	 * Try to see if we can get the block without requesting a new
@@ -837,10 +844,12 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 	struct ext4_map_blocks map;
 	struct buffer_head *bh;
 	int create = map_flags & EXT4_GET_BLOCKS_CREATE;
+	bool nowait = map_flags & EXT4_GET_BLOCKS_CACHED_NOWAIT;
 	int err;
 
 	ASSERT((EXT4_SB(inode->i_sb)->s_mount_state & EXT4_FC_REPLAY)
 		    || handle != NULL || create == 0);
+	ASSERT(create == 0 || !nowait);
 
 	map.m_lblk = block;
 	map.m_len = 1;
@@ -850,6 +859,9 @@ struct buffer_head *ext4_getblk(handle_t *handle, struct inode *inode,
 		return create ? ERR_PTR(-ENOSPC) : NULL;
 	if (err < 0)
 		return ERR_PTR(err);
+
+	if (nowait)
+		return sb_find_get_block(inode->i_sb, map.m_pblk);
 
 	bh = sb_getblk(inode->i_sb, map.m_pblk);
 	if (unlikely(!bh))
@@ -2944,8 +2956,7 @@ static int ext4_da_write_begin(struct file *file, struct address_space *mapping,
 
 	index = pos >> PAGE_SHIFT;
 
-	if (ext4_nonda_switch(inode->i_sb) || S_ISLNK(inode->i_mode) ||
-	    ext4_verity_in_progress(inode)) {
+	if (ext4_nonda_switch(inode->i_sb) || ext4_verity_in_progress(inode)) {
 		*fsdata = (void *)FALL_BACK_TO_NONDELALLOC;
 		return ext4_write_begin(file, mapping, pos,
 					len, flags, pagep, fsdata);
@@ -3967,15 +3978,6 @@ int ext4_punch_hole(struct file *file, loff_t offset, loff_t length)
 
 	trace_ext4_punch_hole(inode, offset, length, 0);
 
-	ext4_clear_inode_state(inode, EXT4_STATE_MAY_INLINE_DATA);
-	if (ext4_has_inline_data(inode)) {
-		filemap_invalidate_lock(mapping);
-		ret = ext4_convert_inline_data(inode);
-		filemap_invalidate_unlock(mapping);
-		if (ret)
-			return ret;
-	}
-
 	/*
 	 * Write out all dirty pages to avoid race conditions
 	 * Then release them.
@@ -4991,7 +4993,6 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 		}
 		if (IS_ENCRYPTED(inode)) {
 			inode->i_op = &ext4_encrypted_symlink_inode_operations;
-			ext4_set_aops(inode);
 		} else if (ext4_inode_is_fast_symlink(inode)) {
 			inode->i_link = (char *)ei->i_data;
 			inode->i_op = &ext4_fast_symlink_inode_operations;
@@ -4999,9 +5000,7 @@ struct inode *__ext4_iget(struct super_block *sb, unsigned long ino,
 				sizeof(ei->i_data) - 1);
 		} else {
 			inode->i_op = &ext4_symlink_inode_operations;
-			ext4_set_aops(inode);
 		}
-		inode_nohighmem(inode);
 	} else if (S_ISCHR(inode->i_mode) || S_ISBLK(inode->i_mode) ||
 	      S_ISFIFO(inode->i_mode) || S_ISSOCK(inode->i_mode)) {
 		inode->i_op = &ext4_special_inode_operations;
@@ -5398,6 +5397,7 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	if (attr->ia_valid & ATTR_SIZE) {
 		handle_t *handle;
 		loff_t oldsize = inode->i_size;
+		loff_t old_disksize;
 		int shrink = (attr->ia_size < inode->i_size);
 
 		if (!(ext4_test_inode_flag(inode, EXT4_INODE_EXTENTS))) {
@@ -5469,6 +5469,7 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 					inode->i_sb->s_blocksize_bits);
 
 			down_write(&EXT4_I(inode)->i_data_sem);
+			old_disksize = EXT4_I(inode)->i_disksize;
 			EXT4_I(inode)->i_disksize = attr->ia_size;
 			rc = ext4_mark_inode_dirty(handle, inode);
 			if (!error)
@@ -5480,6 +5481,8 @@ int ext4_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 			 */
 			if (!error)
 				i_size_write(inode, attr->ia_size);
+			else
+				EXT4_I(inode)->i_disksize = old_disksize;
 			up_write(&EXT4_I(inode)->i_data_sem);
 			ext4_journal_stop(handle);
 			if (error)
