@@ -37,6 +37,4 @@ examples:
         compatible = "fsl,imx27-nand";
         reg = <0xd8000000 0x1000>;
         interrupts = <29>;
-        nand-bus-width = <8>;
-        nand-ecc-mode = "hw";
     };
