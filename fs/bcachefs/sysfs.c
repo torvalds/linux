@@ -174,7 +174,7 @@ read_attribute(minor);
 read_attribute(bucket_size);
 read_attribute(first_bucket);
 read_attribute(nbuckets);
-read_attribute(durability);
+rw_attribute(durability);
 read_attribute(iodone);
 
 read_attribute(io_latency_read);
@@ -906,6 +906,19 @@ STORE(bch2_dev)
 
 		if (v != BCH_MEMBER_DISCARD(mi)) {
 			SET_BCH_MEMBER_DISCARD(mi, v);
+			bch2_write_super(c);
+		}
+		mutex_unlock(&c->sb_lock);
+	}
+
+	if (attr == &sysfs_durability) {
+		u64 v = strtoul_or_return(buf);
+
+		mutex_lock(&c->sb_lock);
+		mi = &bch2_sb_get_members(c->disk_sb.sb)->members[ca->dev_idx];
+
+		if (v != BCH_MEMBER_DURABILITY(mi)) {
+			SET_BCH_MEMBER_DURABILITY(mi, v + 1);
 			bch2_write_super(c);
 		}
 		mutex_unlock(&c->sb_lock);
