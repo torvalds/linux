@@ -1373,7 +1373,7 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 	struct super_block *sb = inode->i_sb;
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	int ret;
+	int ret = 0;
 
 	inode->i_ino = zone->start >> sbi->s_zone_sectors_shift;
 	inode->i_mode = S_IFREG | sbi->s_perm;
@@ -1420,7 +1420,7 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
 
-	return 0;
+	return ret;
 }
 
 static struct dentry *zonefs_create_inode(struct dentry *parent,
