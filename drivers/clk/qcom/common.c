@@ -2,6 +2,7 @@
 /*
  * Copyright (c) 2013-2014, 2017-2021, The Linux Foundation.
  * All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/export.h>
@@ -588,12 +589,6 @@ int qcom_cc_runtime_suspend(struct device *dev)
 	return 0;
 }
 EXPORT_SYMBOL(qcom_cc_runtime_suspend);
-
-static int __init qcom_clk_init(void)
-{
-	return clk_debug_init();
-}
-subsys_initcall(qcom_clk_init);
 
 static void __exit qcom_clk_exit(void)
 {
