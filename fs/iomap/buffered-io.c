@@ -154,9 +154,6 @@ static void iomap_iop_set_range_uptodate(struct folio *folio,
 static void iomap_set_range_uptodate(struct folio *folio,
 		struct iomap_page *iop, size_t off, size_t len)
 {
-	if (folio_test_error(folio))
-		return;
-
 	if (iop)
 		iomap_iop_set_range_uptodate(folio, iop, off, len);
 	else
