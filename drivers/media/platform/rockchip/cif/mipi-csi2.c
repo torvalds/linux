@@ -908,8 +908,6 @@ static int csi2_probe(struct platform_device *pdev)
 	if (ret)
 		goto rmmutex;
 
-	csi2_hw_do_reset(csi2);
-
 	v4l2_info(&csi2->sd, "probe success, v4l2_dev:%s!\n", csi2->sd.v4l2_dev->name);
 
 	return 0;

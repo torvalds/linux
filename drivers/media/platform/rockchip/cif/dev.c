@@ -1958,7 +1958,6 @@ static int rkcif_plat_probe(struct platform_device *pdev)
 		dev_warn(dev, "dev:%s create proc failed\n", dev_name(dev));
 
 	rkcif_init_reset_monitor(cif_dev);
-	rkcif_soft_reset(cif_dev, false);
 	pm_runtime_enable(&pdev->dev);
 
 	return 0;
