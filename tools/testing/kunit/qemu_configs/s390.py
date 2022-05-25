@@ -10,5 +10,5 @@ CONFIG_MODULES=y''',
 			   kernel_path='arch/s390/boot/bzImage',
 			   kernel_command_line='console=ttyS0',
 			   extra_qemu_params=[
-					   '-machine s390-ccw-virtio',
-					   '-cpu qemu',])
+					   '-machine', 's390-ccw-virtio',
+					   '-cpu', 'qemu',])

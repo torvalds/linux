@@ -1566,14 +1566,6 @@ static void test_exit(struct kunit *test)
 	torture_cleanup_end();
 }
 
-static struct kunit_suite kcsan_test_suite = {
-	.name = "kcsan",
-	.test_cases = kcsan_test_cases,
-	.init = test_init,
-	.exit = test_exit,
-};
-static struct kunit_suite *kcsan_test_suites[] = { &kcsan_test_suite, NULL };
-
 __no_kcsan
 static void register_tracepoints(struct tracepoint *tp, void *ignore)
 {
@@ -1589,11 +1581,7 @@ static void unregister_tracepoints(struct tracepoint *tp, void *ignore)
 		tracepoint_probe_unregister(tp, probe_console, NULL);
 }
 
-/*
- * We only want to do tracepoints setup and teardown once, therefore we have to
- * customize the init and exit functions and cannot rely on kunit_test_suite().
- */
-static int __init kcsan_test_init(void)
+static int kcsan_suite_init(struct kunit_suite *suite)
 {
 	/*
 	 * Because we want to be able to build the test as a module, we need to
@@ -1601,18 +1589,25 @@ static int __init kcsan_test_init(void)
 	 * won't work here.
 	 */
 	for_each_kernel_tracepoint(register_tracepoints, NULL);
-	return __kunit_test_suites_init(kcsan_test_suites);
+	return 0;
 }
 
-static void kcsan_test_exit(void)
+static void kcsan_suite_exit(struct kunit_suite *suite)
 {
-	__kunit_test_suites_exit(kcsan_test_suites);
 	for_each_kernel_tracepoint(unregister_tracepoints, NULL);
 	tracepoint_synchronize_unregister();
 }
 
-late_initcall_sync(kcsan_test_init);
-module_exit(kcsan_test_exit);
+static struct kunit_suite kcsan_test_suite = {
+	.name = "kcsan",
+	.test_cases = kcsan_test_cases,
+	.init = test_init,
+	.exit = test_exit,
+	.suite_init = kcsan_suite_init,
+	.suite_exit = kcsan_suite_exit,
+};
+
+kunit_test_suites(&kcsan_test_suite);
 
 MODULE_LICENSE("GPL v2");
 MODULE_AUTHOR("Marco Elver <elver@google.com>");

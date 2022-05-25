@@ -7,4 +7,4 @@ CONFIG_SERIAL_8250_CONSOLE=y''',
 			   qemu_arch='sparc',
 			   kernel_path='arch/sparc/boot/zImage',
 			   kernel_command_line='console=ttyS0 mem=256M',
-			   extra_qemu_params=['-m 256'])
+			   extra_qemu_params=['-m', '256'])
