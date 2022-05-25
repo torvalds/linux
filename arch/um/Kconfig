@@ -82,7 +82,7 @@ config ARCH_HAS_CACHE_LINE_SIZE
 source "arch/$(HEADER_ARCH)/um/Kconfig"
 
 config MAY_HAVE_RUNTIME_DEPS
-        bool
+	bool
 
 config STATIC_LINK
 	bool "Force a static link"
