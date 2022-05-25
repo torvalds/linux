@@ -5,5 +5,5 @@
 obj-$(CONFIG_IO_URING)		+= io_uring.o xattr.o nop.o fs.o splice.o \
 					sync.o advise.o filetable.o \
 					openclose.o uring_cmd.o epoll.o \
-					statx.o net.o
+					statx.o net.o msg_ring.o
 obj-$(CONFIG_IO_WQ)		+= io-wq.o
