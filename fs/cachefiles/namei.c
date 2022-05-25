@@ -452,10 +452,9 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 	struct dentry *fan = volume->fanout[(u8)object->cookie->key_hash];
 	struct file *file;
 	struct path path;
-	uint64_t ni_size = object->cookie->object_size;
+	uint64_t ni_size;
 	long ret;
 
-	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
 
 	cachefiles_begin_secure(cache, &saved_cred);
 
@@ -480,6 +479,15 @@ struct file *cachefiles_create_tmpfile(struct cachefiles_object *object)
 		file = ERR_PTR(-EBUSY);
 		goto out_dput;
 	}
+
+	ret = cachefiles_ondemand_init_object(object);
+	if (ret < 0) {
+		file = ERR_PTR(ret);
+		goto out_unuse;
+	}
+
+	ni_size = object->cookie->object_size;
+	ni_size = round_up(ni_size, CACHEFILES_DIO_BLOCK_SIZE);
 
 	if (ni_size > 0) {
 		trace_cachefiles_trunc(object, d_backing_inode(path.dentry), 0, ni_size,
@@ -585,6 +593,10 @@ static bool cachefiles_open_file(struct cachefiles_object *object,
 		goto error_fput;
 	}
 	_debug("file -> %pd positive", dentry);
+
+	ret = cachefiles_ondemand_init_object(object);
+	if (ret < 0)
+		goto error_fput;
 
 	ret = cachefiles_check_auxdata(object, file);
 	if (ret < 0)
