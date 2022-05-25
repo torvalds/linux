@@ -4,7 +4,7 @@
 Intel(R) Dynamic Platform and Thermal Framework Sysfs Interface
 ===============================================================
 
-:Copyright: |copy| 2022 Intel Corporation
+:Copyright: © 2022 Intel Corporation
 
 :Author: Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>
 
