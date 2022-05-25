@@ -1433,8 +1433,9 @@ static void rcu_tasks_trace_pertask(struct task_struct *t,
 				    struct list_head *hop)
 {
 	// During early boot when there is only the one boot CPU, there
-	// is no idle task for the other CPUs. Just return.
-	if (unlikely(t == NULL))
+	// is no idle task for the other CPUs.  Also, the grace-period
+	// kthread is always in a quiescent state.  Either way, just return.
+	if (unlikely(t == NULL) || t == current)
 		return;
 
 	rcu_st_need_qs(t, 0);
