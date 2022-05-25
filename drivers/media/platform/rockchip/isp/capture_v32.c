@@ -693,6 +693,7 @@ static void mp_disable_mi(struct rkisp_stream *stream)
 	struct rkisp_stream *t = &dev->cap_dev.stream[stream->conn_id];
 	u32 mask = CIF_MI_CTRL_MP_ENABLE | CIF_MI_CTRL_RAW_ENABLE;
 
+	rkisp_set_bits(dev, 0x1814, 0, BIT(0), false);
 	rkisp_clear_bits(stream->ispdev, ISP3X_MI_WR_CTRL, mask, false);
 
 	/* disable mpds path output */
@@ -1131,6 +1132,9 @@ static int rkisp_start(struct rkisp_stream *stream)
 	}
 	if (stream->ops->enable_mi)
 		stream->ops->enable_mi(stream);
+
+	stream_self_update(stream);
+
 	if (is_update)
 		dev->irq_ends_mask |= get_stream_irq_mask(stream);
 	stream->streaming = true;
@@ -1251,7 +1255,10 @@ static int rkisp_create_dummy_buf(struct rkisp_stream *stream)
 	if (!dev->cap_dev.wrap_line || stream->id != RKISP_STREAM_MP)
 		return 0;
 
-	buf->size = stream->out_fmt.plane_fmt[0].sizeimage;
+	buf->size = dev->isp_sdev.in_crop.width * dev->cap_dev.wrap_line * 2;
+	if (stream->out_isp_fmt.output_format == ISP32_MI_OUTPUT_YUV420)
+		buf->size = buf->size - buf->size / 4;
+
 	buf->is_need_dbuf = true;
 	ret = rkisp_alloc_buffer(stream->ispdev, buf);
 	if (ret == 0) {
