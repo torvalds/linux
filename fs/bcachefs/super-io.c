@@ -1059,7 +1059,7 @@ static void bch2_sb_members_to_text(struct printbuf *out, struct bch_sb *sb,
 		       : "unknown");
 		pr_newline(out);
 
-		pr_buf(out, "Group:");
+		pr_buf(out, "Label:");
 		pr_tab(out);
 		if (BCH_MEMBER_GROUP(m)) {
 			unsigned idx = BCH_MEMBER_GROUP(m) - 1;
