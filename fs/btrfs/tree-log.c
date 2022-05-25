@@ -2287,7 +2287,7 @@ static noinline int check_item_in_log(struct btrfs_trans_handle *trans,
 	struct btrfs_key location;
 
 	/*
-	 * Currenly we only log dir index keys. Even if we replay a log created
+	 * Currently we only log dir index keys. Even if we replay a log created
 	 * by an older kernel that logged both dir index and dir item keys, all
 	 * we need to do is process the dir index keys, we (and our caller) can
 	 * safely ignore dir item keys (key type BTRFS_DIR_ITEM_KEY).

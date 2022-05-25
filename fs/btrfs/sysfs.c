@@ -296,7 +296,7 @@ BTRFS_FEAT_ATTR_COMPAT_RO(verity, VERITY);
 /*
  * Features which depend on feature bits and may differ between each fs.
  *
- * /sys/fs/btrfs/features      - all available features implemeted by this version
+ * /sys/fs/btrfs/features      - all available features implemented by this version
  * /sys/fs/btrfs/UUID/features - features of the fs which are enabled or
  *                               can be changed on a mounted filesystem.
  */

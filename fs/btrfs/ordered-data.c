@@ -275,7 +275,7 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
 /*
  * Mark all ordered extents io inside the specified range finished.
  *
- * @page:	 The invovled page for the opeartion.
+ * @page:	 The involved page for the operation.
  *		 For uncompressed buffered IO, the page status also needs to be
  *		 updated to indicate whether the pending ordered io is finished.
  *		 Can be NULL for direct IO and compressed write.
@@ -285,7 +285,7 @@ void btrfs_add_ordered_sum(struct btrfs_ordered_extent *entry,
  *		 extent are finished.
  *
  * This function is called for endio, thus the range must have ordered
- * extent(s) coveri it.
+ * extent(s) covering it.
  */
 void btrfs_mark_ordered_io_finished(struct btrfs_inode *inode,
 				struct page *page, u64 file_offset,

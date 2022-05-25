@@ -4228,7 +4228,7 @@ skip_backref:
 	/*
 	 * If we are in a rename context, we don't need to update anything in the
 	 * log. That will be done later during the rename by btrfs_log_new_name().
-	 * Besides that, doing it here would only cause extra unncessary btree
+	 * Besides that, doing it here would only cause extra unnecessary btree
 	 * operations on the log tree, increasing latency for applications.
 	 */
 	if (!rename_ctx) {

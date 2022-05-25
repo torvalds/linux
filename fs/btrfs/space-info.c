@@ -1280,7 +1280,7 @@ static void priority_reclaim_metadata_space(struct btrfs_fs_info *fs_info,
 	to_reclaim = btrfs_calc_reclaim_metadata_size(fs_info, space_info);
 	/*
 	 * This is the priority reclaim path, so to_reclaim could be >0 still
-	 * because we may have only satisified the priority tickets and still
+	 * because we may have only satisfied the priority tickets and still
 	 * left non priority tickets on the list.  We would then have
 	 * to_reclaim but ->bytes == 0.
 	 */

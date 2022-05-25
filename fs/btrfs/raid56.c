@@ -132,7 +132,7 @@ struct btrfs_raid_bio {
 	/* Number of data stripes (no p/q) */
 	u8 nr_data;
 
-	/* Numer of all stripes (including P/Q) */
+	/* Number of all stripes (including P/Q) */
 	u8 real_stripes;
 
 	/* How many pages there are for each stripe */

@@ -72,7 +72,7 @@ static int btrfs_remount(struct super_block *sb, int *flags, char *data);
 #define STATE_STRING_BUF_LEN	(sizeof(STATE_STRING_PREFACE) + BTRFS_FS_STATE_COUNT)
 
 /*
- * Characters to print to indicate error conditions or uncommon filesystem sate.
+ * Characters to print to indicate error conditions or uncommon filesystem state.
  * RO is not an error.
  */
 static const char fs_state_chars[] = {
