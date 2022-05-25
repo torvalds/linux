@@ -65,7 +65,8 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 }
 
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
-
+void io_req_complete_post(struct io_kiocb *req);
+void __io_req_complete_post(struct io_kiocb *req);
 bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 		     u32 cflags);
 void io_cqring_ev_posted(struct io_ring_ctx *ctx);
@@ -96,5 +97,15 @@ void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_work_add(struct io_kiocb *req);
+void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
+void io_req_task_complete(struct io_kiocb *req, bool *locked);
+void io_req_task_queue_fail(struct io_kiocb *req, int ret);
+int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd);
+
+void io_free_req(struct io_kiocb *req);
+void io_queue_next(struct io_kiocb *req);
+
+#define io_for_each_link(pos, head) \
+	for (pos = (head); pos; pos = pos->link)
 
 #endif

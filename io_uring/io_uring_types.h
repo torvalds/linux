@@ -488,4 +488,14 @@ struct io_kiocb {
 	struct io_wq_work		work;
 };
 
+struct io_cancel_data {
+	struct io_ring_ctx *ctx;
+	union {
+		u64 data;
+		struct file *file;
+	};
+	u32 flags;
+	int seq;
+};
+
 #endif
