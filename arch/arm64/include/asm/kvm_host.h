@@ -991,8 +991,25 @@ void kvm_arm_setup_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_clear_debug(struct kvm_vcpu *vcpu);
 void kvm_arm_reset_debug_ptr(struct kvm_vcpu *vcpu);
 
+#define __vcpu_save_guest_debug_regs(vcpu)				\
+	do {								\
+		u64 val = vcpu_read_sys_reg(vcpu, MDSCR_EL1);		\
+									\
+		(vcpu)->arch.guest_debug_preserved.mdscr_el1 = val;	\
+	} while(0)
+
+#define __vcpu_restore_guest_debug_regs(vcpu)				\
+	do {								\
+		u64 val = (vcpu)->arch.guest_debug_preserved.mdscr_el1;	\
+									\
+		vcpu_write_sys_reg(vcpu, val, MDSCR_EL1);		\
+	} while (0)
+
 #define kvm_vcpu_os_lock_enabled(vcpu)		\
 	(!!(__vcpu_sys_reg(vcpu, OSLSR_EL1) & SYS_OSLSR_OSLK))
+
+#define kvm_vcpu_needs_debug_regs(vcpu)		\
+	((vcpu)->guest_debug || kvm_vcpu_os_lock_enabled(vcpu))
 
 int kvm_arm_vcpu_arch_set_attr(struct kvm_vcpu *vcpu,
 			       struct kvm_device_attr *attr);
