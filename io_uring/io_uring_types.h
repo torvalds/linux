@@ -498,4 +498,17 @@ struct io_cancel_data {
 	int seq;
 };
 
+struct io_overflow_cqe {
+	struct list_head list;
+	struct io_uring_cqe cqe;
+};
+
+struct io_mapped_ubuf {
+	u64		ubuf;
+	u64		ubuf_end;
+	unsigned int	nr_bvecs;
+	unsigned long	acct_pages;
+	struct bio_vec	bvec[];
+};
+
 #endif

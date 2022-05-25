@@ -36,6 +36,8 @@ bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files);
 void io_free_file_tables(struct io_file_table *table);
 int io_file_bitmap_get(struct io_ring_ctx *ctx);
 
+unsigned int io_file_get_flags(struct file *file);
+
 static inline void io_file_bitmap_clear(struct io_file_table *table, int bit)
 {
 	__clear_bit(bit, table->bitmap);
@@ -53,6 +55,23 @@ static inline struct io_fixed_file *
 io_fixed_file_slot(struct io_file_table *table, unsigned i)
 {
 	return &table->files[i];
+}
+
+static inline struct file *io_file_from_index(struct io_file_table *table,
+					      int index)
+{
+	struct io_fixed_file *slot = io_fixed_file_slot(table, index);
+
+	return (struct file *) (slot->file_ptr & FFS_MASK);
+}
+
+static inline void io_fixed_file_set(struct io_fixed_file *file_slot,
+				     struct file *file)
+{
+	unsigned long file_ptr = (unsigned long) file;
+
+	file_ptr |= io_file_get_flags(file);
+	file_slot->file_ptr = file_ptr;
 }
 
 #endif
