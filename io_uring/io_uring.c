@@ -2309,7 +2309,7 @@ static bool __io_file_supports_nowait(struct file *file, umode_t mode)
 	if (S_ISREG(mode)) {
 		if (IS_ENABLED(CONFIG_BLOCK) &&
 		    io_bdev_nowait(file->f_inode->i_sb->s_bdev) &&
-		    file->f_op != &io_uring_fops)
+		    !io_is_uring_fops(file))
 			return true;
 		return false;
 	}
@@ -4857,7 +4857,7 @@ struct file *io_file_get_normal(struct io_kiocb *req, int fd)
 	trace_io_uring_file_get(req->ctx, req, req->cqe.user_data, fd);
 
 	/* we don't allow fixed io_uring files */
-	if (file && file->f_op == &io_uring_fops)
+	if (file && io_is_uring_fops(file))
 		io_req_track_inflight(req);
 	return file;
 }
@@ -5949,7 +5949,7 @@ static int io_sqe_files_register(struct io_ring_ctx *ctx, void __user *arg,
 		 * handle it just fine, but there's still no point in allowing
 		 * a ring fd as it doesn't support regular read/write anyway.
 		 */
-		if (file->f_op == &io_uring_fops) {
+		if (io_is_uring_fops(file)) {
 			fput(file);
 			goto fail;
 		}
@@ -5996,7 +5996,7 @@ int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 	struct io_fixed_file *file_slot;
 	int ret;
 
-	if (file->f_op == &io_uring_fops)
+	if (io_is_uring_fops(file))
 		return -EBADF;
 	if (!ctx->file_data)
 		return -ENXIO;
@@ -6096,7 +6096,7 @@ static int __io_sqe_files_update(struct io_ring_ctx *ctx,
 			 * still no point in allowing a ring fd as it doesn't
 			 * support regular read/write anyway.
 			 */
-			if (file->f_op == &io_uring_fops) {
+			if (io_is_uring_fops(file)) {
 				fput(file);
 				err = -EBADF;
 				break;
@@ -7416,7 +7416,7 @@ static int io_ring_add_registered_fd(struct io_uring_task *tctx, int fd,
 		file = fget(fd);
 		if (!file) {
 			return -EBADF;
-		} else if (file->f_op != &io_uring_fops) {
+		} else if (!io_is_uring_fops(file)) {
 			fput(file);
 			return -EOPNOTSUPP;
 		}
@@ -7677,7 +7677,7 @@ SYSCALL_DEFINE6(io_uring_enter, unsigned int, fd, u32, to_submit,
 		return -EBADF;
 
 	ret = -EOPNOTSUPP;
-	if (unlikely(f.file->f_op != &io_uring_fops))
+	if (unlikely(!io_is_uring_fops(f.file)))
 		goto out_fput;
 
 	ret = -ENXIO;
@@ -8852,7 +8852,7 @@ SYSCALL_DEFINE4(io_uring_register, unsigned int, fd, unsigned int, opcode,
 		return -EBADF;
 
 	ret = -EOPNOTSUPP;
-	if (f.file->f_op != &io_uring_fops)
+	if (!io_is_uring_fops(f.file))
 		goto out_fput;
 
 	ctx = f.file->private_data;
