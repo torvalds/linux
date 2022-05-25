@@ -71,6 +71,11 @@ properties:
     description:
       Delay, in microseconds, after a read transfer.
 
+  rx-sample-delay-ns:
+    description: SPI Rx sample delay offset, unit is nanoseconds.
+      The delay from the default sample time before the actual
+      sample of the rxd input signal occurs.
+
   spi-tx-bus-width:
     description:
       Bus width to the SPI bus used for write transfers.

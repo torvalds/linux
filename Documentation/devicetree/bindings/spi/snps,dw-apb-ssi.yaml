@@ -124,9 +124,16 @@ properties:
 
   rx-sample-delay-ns:
     default: 0
-    description: Default value of the rx-sample-delay-ns property.
+    description: |
+      Default value of the rx-sample-delay-ns property.
       This value will be used if the property is not explicitly defined
-      for a SPI slave device. See below.
+      for a SPI slave device.
+
+      SPI Rx sample delay offset, unit is nanoseconds.
+      The delay from the default sample time before the actual sample of the
+      rxd input signal occurs. The "rx_sample_delay" is an optional feature
+      of the designware controller, and the upper limit is also subject to
+      controller configuration.
 
 patternProperties:
   "^.*@[0-9a-f]+$":
@@ -141,13 +148,6 @@ patternProperties:
 
       spi-tx-bus-width:
         const: 1
-
-      rx-sample-delay-ns:
-        description: SPI Rx sample delay offset, unit is nanoseconds.
-          The delay from the default sample time before the actual
-          sample of the rxd input signal occurs. The "rx_sample_delay"
-          is an optional feature of the designware controller, and the
-          upper limit is also subject to controller configuration.
 
 unevaluatedProperties: false
 
