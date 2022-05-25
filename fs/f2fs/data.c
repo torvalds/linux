@@ -584,6 +584,34 @@ static bool __has_merged_page(struct bio *bio, struct inode *inode,
 	return false;
 }
 
+int f2fs_init_write_merge_io(struct f2fs_sb_info *sbi)
+{
+	int i;
+
+	for (i = 0; i < NR_PAGE_TYPE; i++) {
+		int n = (i == META) ? 1 : NR_TEMP_TYPE;
+		int j;
+
+		sbi->write_io[i] = f2fs_kmalloc(sbi,
+				array_size(n, sizeof(struct f2fs_bio_info)),
+				GFP_KERNEL);
+		if (!sbi->write_io[i])
+			return -ENOMEM;
+
+		for (j = HOT; j < n; j++) {
+			init_f2fs_rwsem(&sbi->write_io[i][j].io_rwsem);
+			sbi->write_io[i][j].sbi = sbi;
+			sbi->write_io[i][j].bio = NULL;
+			spin_lock_init(&sbi->write_io[i][j].io_lock);
+			INIT_LIST_HEAD(&sbi->write_io[i][j].io_list);
+			INIT_LIST_HEAD(&sbi->write_io[i][j].bio_list);
+			init_f2fs_rwsem(&sbi->write_io[i][j].bio_list_lock);
+		}
+	}
+
+	return 0;
+}
+
 static void __f2fs_submit_merged_write(struct f2fs_sb_info *sbi,
 				enum page_type type, enum temp_type temp)
 {
