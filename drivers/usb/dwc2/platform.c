@@ -795,19 +795,45 @@ static int __maybe_unused dwc2_resume(struct device *dev)
 
 	dwc2_drd_resume(dwc2);
 
-	/* Stop hcd if dr_mode is host and PD is power off when suspend */
-	if (dwc2->op_state == OTG_STATE_A_HOST && dwc2_is_device_mode(dwc2)) {
-		spin_lock_irqsave(&dwc2->lock, flags);
-		dwc2_hcd_disconnect(dwc2, true);
-		dwc2->op_state = OTG_STATE_B_PERIPHERAL;
-		dwc2->lx_state = DWC2_L3;
-		if (!dwc2->driver)
-			dwc2_hsotg_core_init_disconnected(dwc2, false);
-		spin_unlock_irqrestore(&dwc2->lock, flags);
-	}
+	if (dwc2_is_device_mode(dwc2)) {
+		if (dwc2->dr_mode == USB_DR_MODE_HOST) {
+			/* Reinit for Host mode if lost power */
+			dwc2_force_mode(dwc2, true);
 
-	if (dwc2_is_device_mode(dwc2))
-		ret = dwc2_hsotg_resume(dwc2);
+			spin_lock_irqsave(&dwc2->lock, flags);
+			dwc2_hsotg_disconnect(dwc2);
+			spin_unlock_irqrestore(&dwc2->lock, flags);
+
+			dwc2->op_state = OTG_STATE_A_HOST;
+			/* Initialize the Core for Host mode */
+			dwc2_core_init(dwc2, false);
+			dwc2_enable_global_interrupts(dwc2);
+			dwc2_hcd_start(dwc2);
+		} else {
+			/* Reinit for OTG in Host mode if lost power */
+			if (dwc2->dr_mode == USB_DR_MODE_OTG &&
+			    dwc2->op_state == OTG_STATE_A_HOST) {
+				/*
+				 * Reinit the core to device mode, and later
+				 * after do dwc2_hsotg_resume, it can trigger
+				 * the ID status change interrupt if the OTG
+				 * cable is still connected, then we can init
+				 * for Host mode in the ID status change
+				 * interrupt handler.
+				 */
+				spin_lock_irqsave(&dwc2->lock, flags);
+				dwc2_hcd_disconnect(dwc2, true);
+				dwc2->op_state = OTG_STATE_B_PERIPHERAL;
+				dwc2->lx_state = DWC2_L3;
+				if (!dwc2->driver)
+					dwc2_hsotg_core_init_disconnected(dwc2, false);
+				spin_unlock_irqrestore(&dwc2->lock, flags);
+
+			}
+
+			ret = dwc2_hsotg_resume(dwc2);
+		}
+	}
 
 	return ret;
 }
