@@ -103,6 +103,8 @@ static const char *__perf_reg_name_arm64(int id)
 		return "lr";
 	case PERF_REG_ARM64_PC:
 		return "pc";
+	case PERF_REG_ARM64_VG:
+		return "vg";
 	default:
 		return NULL;
 	}
