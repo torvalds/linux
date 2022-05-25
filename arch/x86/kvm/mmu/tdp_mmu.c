@@ -1742,12 +1742,12 @@ static void zap_collapsible_spte_range(struct kvm *kvm,
 	gfn_t start = slot->base_gfn;
 	gfn_t end = start + slot->npages;
 	struct tdp_iter iter;
+	int max_mapping_level;
 	kvm_pfn_t pfn;
 
 	rcu_read_lock();
 
 	tdp_root_for_each_pte(iter, root, start, end) {
-retry:
 		if (tdp_mmu_iter_cond_resched(kvm, &iter, false, true))
 			continue;
 
@@ -1755,15 +1755,41 @@ retry:
 		    !is_last_spte(iter.old_spte, iter.level))
 			continue;
 
+		/*
+		 * This is a leaf SPTE. Check if the PFN it maps can
+		 * be mapped at a higher level.
+		 */
 		pfn = spte_to_pfn(iter.old_spte);
-		if (kvm_is_reserved_pfn(pfn) ||
-		    iter.level >= kvm_mmu_max_mapping_level(kvm, slot, iter.gfn,
-							    pfn, PG_LEVEL_NUM))
+
+		if (kvm_is_reserved_pfn(pfn))
 			continue;
 
+		max_mapping_level = kvm_mmu_max_mapping_level(kvm, slot,
+				iter.gfn, pfn, PG_LEVEL_NUM);
+
+		WARN_ON(max_mapping_level < iter.level);
+
+		/*
+		 * If this page is already mapped at the highest
+		 * viable level, there's nothing more to do.
+		 */
+		if (max_mapping_level == iter.level)
+			continue;
+
+		/*
+		 * The page can be remapped at a higher level, so step
+		 * up to zap the parent SPTE.
+		 */
+		while (max_mapping_level > iter.level)
+			tdp_iter_step_up(&iter);
+
 		/* Note, a successful atomic zap also does a remote TLB flush. */
-		if (tdp_mmu_zap_spte_atomic(kvm, &iter))
-			goto retry;
+		tdp_mmu_zap_spte_atomic(kvm, &iter);
+
+		/*
+		 * If the atomic zap fails, the iter will recurse back into
+		 * the same subtree to retry.
+		 */
 	}
 
 	rcu_read_unlock();
