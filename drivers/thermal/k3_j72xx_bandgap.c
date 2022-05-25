@@ -433,7 +433,7 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 				     GFP_KERNEL);
 	if (!derived_table) {
 		ret = -ENOMEM;
-		goto err_alloc;
+		goto err_free_ref_table;
 	}
 
 	/* Workaround not needed if bit30/bit31 is set even for J721e */
@@ -483,7 +483,7 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 		if (IS_ERR(ti_thermal)) {
 			dev_err(bgp->dev, "thermal zone device is NULL\n");
 			ret = PTR_ERR(ti_thermal);
-			goto err_alloc;
+			goto err_free_ref_table;
 		}
 	}
 
@@ -513,6 +513,9 @@ static int k3_j72xx_bandgap_probe(struct platform_device *pdev)
 	kfree(ref_table);
 
 	return 0;
+
+err_free_ref_table:
+	kfree(ref_table);
 
 err_alloc:
 	pm_runtime_put_sync(&pdev->dev);
