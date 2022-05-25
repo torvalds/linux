@@ -438,7 +438,7 @@ void restore_p9_host_os_sprs(struct kvm_vcpu *vcpu,
 EXPORT_SYMBOL_GPL(restore_p9_host_os_sprs);
 
 #ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
-static void __accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next)
+void accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;
 	struct kvmhv_tb_accumulator *curr;
@@ -468,14 +468,7 @@ static void __accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator
 	smp_wmb();
 	curr->seqcount = seq + 2;
 }
-
-#define start_timing(vcpu, next) __accumulate_time(vcpu, next)
-#define end_timing(vcpu) __accumulate_time(vcpu, NULL)
-#define accumulate_time(vcpu, next) __accumulate_time(vcpu, next)
-#else
-#define start_timing(vcpu, next) do {} while (0)
-#define end_timing(vcpu) do {} while (0)
-#define accumulate_time(vcpu, next) do {} while (0)
+EXPORT_SYMBOL_GPL(accumulate_time);
 #endif
 
 static inline u64 mfslbv(unsigned int idx)
