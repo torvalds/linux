@@ -108,11 +108,11 @@ static void compat_input(struct dlm_write_request *kb,
 		kb->i.lock.parent = kb32->i.lock.parent;
 		kb->i.lock.xid = kb32->i.lock.xid;
 		kb->i.lock.timeout = kb32->i.lock.timeout;
-		kb->i.lock.castparam = (void *)(long)kb32->i.lock.castparam;
-		kb->i.lock.castaddr = (void *)(long)kb32->i.lock.castaddr;
-		kb->i.lock.bastparam = (void *)(long)kb32->i.lock.bastparam;
-		kb->i.lock.bastaddr = (void *)(long)kb32->i.lock.bastaddr;
-		kb->i.lock.lksb = (void *)(long)kb32->i.lock.lksb;
+		kb->i.lock.castparam = (__user void *)(long)kb32->i.lock.castparam;
+		kb->i.lock.castaddr = (__user void *)(long)kb32->i.lock.castaddr;
+		kb->i.lock.bastparam = (__user void *)(long)kb32->i.lock.bastparam;
+		kb->i.lock.bastaddr = (__user void *)(long)kb32->i.lock.bastaddr;
+		kb->i.lock.lksb = (__user void *)(long)kb32->i.lock.lksb;
 		memcpy(kb->i.lock.lvb, kb32->i.lock.lvb, DLM_USER_LVB_LEN);
 		memcpy(kb->i.lock.name, kb32->i.lock.name, namelen);
 	}
@@ -127,9 +127,9 @@ static void compat_output(struct dlm_lock_result *res,
 	res32->version[1] = res->version[1];
 	res32->version[2] = res->version[2];
 
-	res32->user_astaddr = (__u32)(long)res->user_astaddr;
-	res32->user_astparam = (__u32)(long)res->user_astparam;
-	res32->user_lksb = (__u32)(long)res->user_lksb;
+	res32->user_astaddr = (__u32)(__force long)res->user_astaddr;
+	res32->user_astparam = (__u32)(__force long)res->user_astparam;
+	res32->user_lksb = (__u32)(__force long)res->user_lksb;
 	res32->bast_mode = res->bast_mode;
 
 	res32->lvb_offset = res->lvb_offset;
