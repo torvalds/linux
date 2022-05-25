@@ -128,6 +128,13 @@ struct msm_hw_fence_mem_addr {
  * @HW_FENCE_CLIENT_ID_CTL3: DPU Client 3.
  * @HW_FENCE_CLIENT_ID_CTL4: DPU Client 4.
  * @HW_FENCE_CLIENT_ID_CTL5: DPU Client 5.
+ * @HW_FENCE_CLIENT_ID_VAL0: debug Validation client 0.
+ * @HW_FENCE_CLIENT_ID_VAL1: debug Validation client 1.
+ * @HW_FENCE_CLIENT_ID_VAL2: debug Validation client 2.
+ * @HW_FENCE_CLIENT_ID_VAL3: debug Validation client 3.
+ * @HW_FENCE_CLIENT_ID_VAL4: debug Validation client 4.
+ * @HW_FENCE_CLIENT_ID_VAL5: debug Validation client 5.
+ * @HW_FENCE_CLIENT_ID_VAL6: debug Validation client 6.
  * @HW_FENCE_CLIENT_MAX: Max number of clients, any client must be added
  *                       before this enum.
  */
@@ -139,6 +146,13 @@ enum hw_fence_client_id {
 	HW_FENCE_CLIENT_ID_CTL3,
 	HW_FENCE_CLIENT_ID_CTL4,
 	HW_FENCE_CLIENT_ID_CTL5,
+	HW_FENCE_CLIENT_ID_VAL0,
+	HW_FENCE_CLIENT_ID_VAL1,
+	HW_FENCE_CLIENT_ID_VAL2,
+	HW_FENCE_CLIENT_ID_VAL3,
+	HW_FENCE_CLIENT_ID_VAL4,
+	HW_FENCE_CLIENT_ID_VAL5,
+	HW_FENCE_CLIENT_ID_VAL6,
 	HW_FENCE_CLIENT_MAX
 };
 
