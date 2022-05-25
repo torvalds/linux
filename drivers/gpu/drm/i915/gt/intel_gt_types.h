@@ -225,6 +225,9 @@ struct intel_gt {
 	} mocs;
 
 	struct intel_pxp pxp;
+
+	/* gt/gtN sysfs */
+	struct kobject sysfs_gt;
 };
 
 enum intel_gt_scratch_field {
