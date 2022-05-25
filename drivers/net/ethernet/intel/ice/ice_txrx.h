@@ -133,6 +133,7 @@ static inline int ice_skb_pad(void)
 #define ICE_XDP_CONSUMED	BIT(0)
 #define ICE_XDP_TX		BIT(1)
 #define ICE_XDP_REDIR		BIT(2)
+#define ICE_XDP_EXIT		BIT(3)
 
 #define ICE_RX_DMA_ATTR \
 	(DMA_ATTR_SKIP_CPU_SYNC | DMA_ATTR_WEAK_ORDERING)

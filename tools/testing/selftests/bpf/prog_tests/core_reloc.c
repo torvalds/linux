@@ -277,13 +277,21 @@ static int duration = 0;
 #define SIZE_OUTPUT_DATA(type)						\
 	STRUCT_TO_CHAR_PTR(core_reloc_size_output) {			\
 		.int_sz = sizeof(((type *)0)->int_field),		\
+		.int_off = offsetof(type, int_field),			\
 		.struct_sz = sizeof(((type *)0)->struct_field),		\
+		.struct_off = offsetof(type, struct_field),		\
 		.union_sz = sizeof(((type *)0)->union_field),		\
+		.union_off = offsetof(type, union_field),		\
 		.arr_sz = sizeof(((type *)0)->arr_field),		\
-		.arr_elem_sz = sizeof(((type *)0)->arr_field[0]),	\
+		.arr_off = offsetof(type, arr_field),			\
+		.arr_elem_sz = sizeof(((type *)0)->arr_field[1]),	\
+		.arr_elem_off = offsetof(type, arr_field[1]),		\
 		.ptr_sz = 8, /* always 8-byte pointer for BPF */	\
+		.ptr_off = offsetof(type, ptr_field),			\
 		.enum_sz = sizeof(((type *)0)->enum_field),		\
+		.enum_off = offsetof(type, enum_field),			\
 		.float_sz = sizeof(((type *)0)->float_field),		\
+		.float_off = offsetof(type, float_field),		\
 	}
 
 #define SIZE_CASE(name) {						\
@@ -714,9 +722,10 @@ static const struct core_reloc_test_case test_cases[] = {
 	}),
 	BITFIELDS_ERR_CASE(bitfields___err_too_big_bitfield),
 
-	/* size relocation checks */
+	/* field size and offset relocation checks */
 	SIZE_CASE(size),
 	SIZE_CASE(size___diff_sz),
+	SIZE_CASE(size___diff_offs),
 	SIZE_ERR_CASE(size___err_ambiguous),
 
 	/* validate type existence and size relocations */

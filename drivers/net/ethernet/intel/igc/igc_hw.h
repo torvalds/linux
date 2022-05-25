@@ -53,11 +53,6 @@ enum igc_mac_type {
 	igc_num_macs  /* List is 1-based, so subtract 1 for true count. */
 };
 
-enum igc_phy_type {
-	igc_phy_unknown = 0,
-	igc_phy_i225,
-};
-
 enum igc_media_type {
 	igc_media_type_unknown = 0,
 	igc_media_type_copper = 1,
@@ -137,8 +132,6 @@ struct igc_nvm_info {
 
 struct igc_phy_info {
 	struct igc_phy_operations ops;
-
-	enum igc_phy_type type;
 
 	u32 addr;
 	u32 id;

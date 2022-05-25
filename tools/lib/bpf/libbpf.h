@@ -323,6 +323,24 @@ struct bpf_insn;
  * different.
  */
 LIBBPF_API const struct bpf_insn *bpf_program__insns(const struct bpf_program *prog);
+
+/**
+ * @brief **bpf_program__set_insns()** can set BPF program's underlying
+ * BPF instructions.
+ *
+ * WARNING: This is a very advanced libbpf API and users need to know
+ * what they are doing. This should be used from prog_prepare_load_fn
+ * callback only.
+ *
+ * @param prog BPF program for which to return instructions
+ * @param new_insns a pointer to an array of BPF instructions
+ * @param new_insn_cnt number of `struct bpf_insn`'s that form
+ * specified BPF program
+ * @return 0, on success; negative error code, otherwise
+ */
+LIBBPF_API int bpf_program__set_insns(struct bpf_program *prog,
+				      struct bpf_insn *new_insns, size_t new_insn_cnt);
+
 /**
  * @brief **bpf_program__insn_cnt()** returns number of `struct bpf_insn`'s
  * that form specified BPF program.
@@ -378,7 +396,31 @@ struct bpf_link;
 LIBBPF_API struct bpf_link *bpf_link__open(const char *path);
 LIBBPF_API int bpf_link__fd(const struct bpf_link *link);
 LIBBPF_API const char *bpf_link__pin_path(const struct bpf_link *link);
+/**
+ * @brief **bpf_link__pin()** pins the BPF link to a file
+ * in the BPF FS specified by a path. This increments the links
+ * reference count, allowing it to stay loaded after the process
+ * which loaded it has exited.
+ *
+ * @param link BPF link to pin, must already be loaded
+ * @param path file path in a BPF file system
+ * @return 0, on success; negative error code, otherwise
+ */
+
 LIBBPF_API int bpf_link__pin(struct bpf_link *link, const char *path);
+
+/**
+ * @brief **bpf_link__unpin()** unpins the BPF link from a file
+ * in the BPFFS specified by a path. This decrements the links
+ * reference count.
+ *
+ * The file pinning the BPF link can also be unlinked by a different
+ * process in which case this function will return an error.
+ *
+ * @param prog BPF program to unpin
+ * @param path file path to the pin in a BPF file system
+ * @return 0, on success; negative error code, otherwise
+ */
 LIBBPF_API int bpf_link__unpin(struct bpf_link *link);
 LIBBPF_API int bpf_link__update_program(struct bpf_link *link,
 					struct bpf_program *prog);
@@ -386,6 +428,22 @@ LIBBPF_API void bpf_link__disconnect(struct bpf_link *link);
 LIBBPF_API int bpf_link__detach(struct bpf_link *link);
 LIBBPF_API int bpf_link__destroy(struct bpf_link *link);
 
+/**
+ * @brief **bpf_program__attach()** is a generic function for attaching
+ * a BPF program based on auto-detection of program type, attach type,
+ * and extra paremeters, where applicable.
+ *
+ * @param prog BPF program to attach
+ * @return Reference to the newly created BPF link; or NULL is returned on error,
+ * error code is stored in errno
+ *
+ * This is supported for:
+ *   - kprobe/kretprobe (depends on SEC() definition)
+ *   - uprobe/uretprobe (depends on SEC() definition)
+ *   - tracepoint
+ *   - raw tracepoint
+ *   - tracing programs (typed raw TP/fentry/fexit/fmod_ret)
+ */
 LIBBPF_API struct bpf_link *
 bpf_program__attach(const struct bpf_program *prog);
 
@@ -459,9 +517,17 @@ struct bpf_uprobe_opts {
 	__u64 bpf_cookie;
 	/* uprobe is return probe, invoked at function return time */
 	bool retprobe;
+	/* Function name to attach to.  Could be an unqualified ("abc") or library-qualified
+	 * "abc@LIBXYZ" name.  To specify function entry, func_name should be set while
+	 * func_offset argument to bpf_prog__attach_uprobe_opts() should be 0.  To trace an
+	 * offset within a function, specify func_name and use func_offset argument to specify
+	 * offset within the function.  Shared library functions must specify the shared library
+	 * binary_path.
+	 */
+	const char *func_name;
 	size_t :0;
 };
-#define bpf_uprobe_opts__last_field retprobe
+#define bpf_uprobe_opts__last_field func_name
 
 /**
  * @brief **bpf_program__attach_uprobe()** attaches a BPF program
@@ -503,6 +569,37 @@ bpf_program__attach_uprobe_opts(const struct bpf_program *prog, pid_t pid,
 				const char *binary_path, size_t func_offset,
 				const struct bpf_uprobe_opts *opts);
 
+struct bpf_usdt_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* custom user-provided value accessible through usdt_cookie() */
+	__u64 usdt_cookie;
+	size_t :0;
+};
+#define bpf_usdt_opts__last_field usdt_cookie
+
+/**
+ * @brief **bpf_program__attach_usdt()** is just like
+ * bpf_program__attach_uprobe_opts() except it covers USDT (User-space
+ * Statically Defined Tracepoint) attachment, instead of attaching to
+ * user-space function entry or exit.
+ *
+ * @param prog BPF program to attach
+ * @param pid Process ID to attach the uprobe to, 0 for self (own process),
+ * -1 for all processes
+ * @param binary_path Path to binary that contains provided USDT probe
+ * @param usdt_provider USDT provider name
+ * @param usdt_name USDT probe name
+ * @param opts Options for altering program attachment
+ * @return Reference to the newly created BPF link; or NULL is returned on error,
+ * error code is stored in errno
+ */
+LIBBPF_API struct bpf_link *
+bpf_program__attach_usdt(const struct bpf_program *prog,
+			 pid_t pid, const char *binary_path,
+			 const char *usdt_provider, const char *usdt_name,
+			 const struct bpf_usdt_opts *opts);
+
 struct bpf_tracepoint_opts {
 	/* size of this struct, for forward/backward compatiblity */
 	size_t sz;
@@ -524,8 +621,20 @@ bpf_program__attach_tracepoint_opts(const struct bpf_program *prog,
 LIBBPF_API struct bpf_link *
 bpf_program__attach_raw_tracepoint(const struct bpf_program *prog,
 				   const char *tp_name);
+
+struct bpf_trace_opts {
+	/* size of this struct, for forward/backward compatibility */
+	size_t sz;
+	/* custom user-provided value fetchable through bpf_get_attach_cookie() */
+	__u64 cookie;
+};
+#define bpf_trace_opts__last_field cookie
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_trace(const struct bpf_program *prog);
+LIBBPF_API struct bpf_link *
+bpf_program__attach_trace_opts(const struct bpf_program *prog, const struct bpf_trace_opts *opts);
+
 LIBBPF_API struct bpf_link *
 bpf_program__attach_lsm(const struct bpf_program *prog);
 LIBBPF_API struct bpf_link *
@@ -647,12 +756,37 @@ LIBBPF_DEPRECATED_SINCE(0, 8, "use bpf_program__set_type() instead")
 LIBBPF_API int bpf_program__set_sk_lookup(struct bpf_program *prog);
 
 LIBBPF_API enum bpf_prog_type bpf_program__type(const struct bpf_program *prog);
-LIBBPF_API void bpf_program__set_type(struct bpf_program *prog,
-				      enum bpf_prog_type type);
+
+/**
+ * @brief **bpf_program__set_type()** sets the program
+ * type of the passed BPF program.
+ * @param prog BPF program to set the program type for
+ * @param type program type to set the BPF map to have
+ * @return error code; or 0 if no error. An error occurs
+ * if the object is already loaded.
+ *
+ * This must be called before the BPF object is loaded,
+ * otherwise it has no effect and an error is returned.
+ */
+LIBBPF_API int bpf_program__set_type(struct bpf_program *prog,
+				     enum bpf_prog_type type);
 
 LIBBPF_API enum bpf_attach_type
 bpf_program__expected_attach_type(const struct bpf_program *prog);
-LIBBPF_API void
+
+/**
+ * @brief **bpf_program__set_expected_attach_type()** sets the
+ * attach type of the passed BPF program. This is used for
+ * auto-detection of attachment when programs are loaded.
+ * @param prog BPF program to set the attach type for
+ * @param type attach type to set the BPF map to have
+ * @return error code; or 0 if no error. An error occurs
+ * if the object is already loaded.
+ *
+ * This must be called before the BPF object is loaded,
+ * otherwise it has no effect and an error is returned.
+ */
+LIBBPF_API int
 bpf_program__set_expected_attach_type(struct bpf_program *prog,
 				      enum bpf_attach_type type);
 
@@ -668,6 +802,17 @@ LIBBPF_API int bpf_program__set_log_level(struct bpf_program *prog, __u32 log_le
 LIBBPF_API const char *bpf_program__log_buf(const struct bpf_program *prog, size_t *log_size);
 LIBBPF_API int bpf_program__set_log_buf(struct bpf_program *prog, char *log_buf, size_t log_size);
 
+/**
+ * @brief **bpf_program__set_attach_target()** sets BTF-based attach target
+ * for supported BPF program types:
+ *   - BTF-aware raw tracepoints (tp_btf);
+ *   - fentry/fexit/fmod_ret;
+ *   - lsm;
+ *   - freplace.
+ * @param prog BPF program to set the attach type for
+ * @param type attach type to set the BPF map to have
+ * @return error code; or 0 if no error occurred.
+ */
 LIBBPF_API int
 bpf_program__set_attach_target(struct bpf_program *prog, int attach_prog_fd,
 			       const char *attach_func_name);
@@ -752,6 +897,28 @@ LIBBPF_API struct bpf_map *
 bpf_object__prev_map(const struct bpf_object *obj, const struct bpf_map *map);
 
 /**
+ * @brief **bpf_map__set_autocreate()** sets whether libbpf has to auto-create
+ * BPF map during BPF object load phase.
+ * @param map the BPF map instance
+ * @param autocreate whether to create BPF map during BPF object load
+ * @return 0 on success; -EBUSY if BPF object was already loaded
+ *
+ * **bpf_map__set_autocreate()** allows to opt-out from libbpf auto-creating
+ * BPF map. By default, libbpf will attempt to create every single BPF map
+ * defined in BPF object file using BPF_MAP_CREATE command of bpf() syscall
+ * and fill in map FD in BPF instructions.
+ *
+ * This API allows to opt-out of this process for specific map instance. This
+ * can be useful if host kernel doesn't support such BPF map type or used
+ * combination of flags and user application wants to avoid creating such
+ * a map in the first place. User is still responsible to make sure that their
+ * BPF-side code that expects to use such missing BPF map is recognized by BPF
+ * verifier as dead code, otherwise BPF verifier will reject such BPF program.
+ */
+LIBBPF_API int bpf_map__set_autocreate(struct bpf_map *map, bool autocreate);
+LIBBPF_API bool bpf_map__autocreate(const struct bpf_map *map);
+
+/**
  * @brief **bpf_map__fd()** gets the file descriptor of the passed
  * BPF map
  * @param map the BPF map instance
@@ -822,6 +989,110 @@ LIBBPF_API int bpf_map__unpin(struct bpf_map *map, const char *path);
 
 LIBBPF_API int bpf_map__set_inner_map_fd(struct bpf_map *map, int fd);
 LIBBPF_API struct bpf_map *bpf_map__inner_map(struct bpf_map *map);
+
+/**
+ * @brief **bpf_map__lookup_elem()** allows to lookup BPF map value
+ * corresponding to provided key.
+ * @param map BPF map to lookup element in
+ * @param key pointer to memory containing bytes of the key used for lookup
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @param value pointer to memory in which looked up value will be stored
+ * @param value_sz size in byte of value data memory; it has to match BPF map
+ * definition's **value_size**. For per-CPU BPF maps value size has to be
+ * a product of BPF map value size and number of possible CPUs in the system
+ * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * per-CPU values value size has to be aligned up to closest 8 bytes for
+ * alignment reasons, so expected size is: `round_up(value_size, 8)
+ * * libbpf_num_possible_cpus()`.
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__lookup_elem()** is high-level equivalent of
+ * **bpf_map_lookup_elem()** API with added check for key and value size.
+ */
+LIBBPF_API int bpf_map__lookup_elem(const struct bpf_map *map,
+				    const void *key, size_t key_sz,
+				    void *value, size_t value_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__update_elem()** allows to insert or update value in BPF
+ * map that corresponds to provided key.
+ * @param map BPF map to insert to or update element in
+ * @param key pointer to memory containing bytes of the key
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @param value pointer to memory containing bytes of the value
+ * @param value_sz size in byte of value data memory; it has to match BPF map
+ * definition's **value_size**. For per-CPU BPF maps value size has to be
+ * a product of BPF map value size and number of possible CPUs in the system
+ * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * per-CPU values value size has to be aligned up to closest 8 bytes for
+ * alignment reasons, so expected size is: `round_up(value_size, 8)
+ * * libbpf_num_possible_cpus()`.
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__update_elem()** is high-level equivalent of
+ * **bpf_map_update_elem()** API with added check for key and value size.
+ */
+LIBBPF_API int bpf_map__update_elem(const struct bpf_map *map,
+				    const void *key, size_t key_sz,
+				    const void *value, size_t value_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__delete_elem()** allows to delete element in BPF map that
+ * corresponds to provided key.
+ * @param map BPF map to delete element from
+ * @param key pointer to memory containing bytes of the key
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__delete_elem()** is high-level equivalent of
+ * **bpf_map_delete_elem()** API with added check for key size.
+ */
+LIBBPF_API int bpf_map__delete_elem(const struct bpf_map *map,
+				    const void *key, size_t key_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__lookup_and_delete_elem()** allows to lookup BPF map value
+ * corresponding to provided key and atomically delete it afterwards.
+ * @param map BPF map to lookup element in
+ * @param key pointer to memory containing bytes of the key used for lookup
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @param value pointer to memory in which looked up value will be stored
+ * @param value_sz size in byte of value data memory; it has to match BPF map
+ * definition's **value_size**. For per-CPU BPF maps value size has to be
+ * a product of BPF map value size and number of possible CPUs in the system
+ * (could be fetched with **libbpf_num_possible_cpus()**). Note also that for
+ * per-CPU values value size has to be aligned up to closest 8 bytes for
+ * alignment reasons, so expected size is: `round_up(value_size, 8)
+ * * libbpf_num_possible_cpus()`.
+ * @flags extra flags passed to kernel for this operation
+ * @return 0, on success; negative error, otherwise
+ *
+ * **bpf_map__lookup_and_delete_elem()** is high-level equivalent of
+ * **bpf_map_lookup_and_delete_elem()** API with added check for key and value size.
+ */
+LIBBPF_API int bpf_map__lookup_and_delete_elem(const struct bpf_map *map,
+					       const void *key, size_t key_sz,
+					       void *value, size_t value_sz, __u64 flags);
+
+/**
+ * @brief **bpf_map__get_next_key()** allows to iterate BPF map keys by
+ * fetching next key that follows current key.
+ * @param map BPF map to fetch next key from
+ * @param cur_key pointer to memory containing bytes of current key or NULL to
+ * fetch the first key
+ * @param next_key pointer to memory to write next key into
+ * @param key_sz size in bytes of key data, needs to match BPF map definition's **key_size**
+ * @return 0, on success; -ENOENT if **cur_key** is the last key in BPF map;
+ * negative error, otherwise
+ *
+ * **bpf_map__get_next_key()** is high-level equivalent of
+ * **bpf_map_get_next_key()** API with added check for key size.
+ */
+LIBBPF_API int bpf_map__get_next_key(const struct bpf_map *map,
+				     const void *cur_key, void *next_key, size_t key_sz);
 
 /**
  * @brief **libbpf_get_error()** extracts the error code from the passed

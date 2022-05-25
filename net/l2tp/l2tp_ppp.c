@@ -191,8 +191,7 @@ static int pppol2tp_recvmsg(struct socket *sock, struct msghdr *msg,
 		goto end;
 
 	err = 0;
-	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
-				flags & MSG_DONTWAIT, &err);
+	skb = skb_recv_datagram(sk, flags, &err);
 	if (!skb)
 		goto end;
 

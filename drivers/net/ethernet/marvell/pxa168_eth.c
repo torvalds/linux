@@ -1486,7 +1486,8 @@ static int pxa168_eth_probe(struct platform_device *pdev)
 
 	/* Hardware supports only 3 ports */
 	BUG_ON(pep->port_num > 2);
-	netif_napi_add(dev, &pep->napi, pxa168_rx_poll, pep->rx_ring_size);
+	netif_napi_add_weight(dev, &pep->napi, pxa168_rx_poll,
+			      pep->rx_ring_size);
 
 	memset(&pep->timeout, 0, sizeof(struct timer_list));
 	timer_setup(&pep->timeout, rxq_refill_timer_wrapper, 0);

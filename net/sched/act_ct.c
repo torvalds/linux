@@ -1584,7 +1584,8 @@ static void tcf_stats_update(struct tc_action *a, u64 bytes, u64 packets,
 }
 
 static int tcf_ct_offload_act_setup(struct tc_action *act, void *entry_data,
-				    u32 *index_inc, bool bind)
+				    u32 *index_inc, bool bind,
+				    struct netlink_ext_ack *extack)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;

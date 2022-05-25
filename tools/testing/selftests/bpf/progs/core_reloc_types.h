@@ -785,13 +785,21 @@ struct core_reloc_bitfields___err_too_big_bitfield {
  */
 struct core_reloc_size_output {
 	int int_sz;
+	int int_off;
 	int struct_sz;
+	int struct_off;
 	int union_sz;
+	int union_off;
 	int arr_sz;
+	int arr_off;
 	int arr_elem_sz;
+	int arr_elem_off;
 	int ptr_sz;
+	int ptr_off;
 	int enum_sz;
+	int enum_off;
 	int float_sz;
+	int float_off;
 };
 
 struct core_reloc_size {
@@ -812,6 +820,16 @@ struct core_reloc_size___diff_sz {
 	void *ptr_field;
 	enum { OTHER_VALUE = 0xFFFFFFFFFFFFFFFF } enum_field;
 	double float_field;
+};
+
+struct core_reloc_size___diff_offs {
+	float float_field;
+	enum { YET_OTHER_VALUE = 123 } enum_field;
+	void *ptr_field;
+	int arr_field[4];
+	union { int x; } union_field;
+	struct { int x; } struct_field;
+	int int_field;
 };
 
 /* Error case of two candidates with the fields (int_field) at the same

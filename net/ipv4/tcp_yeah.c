@@ -71,11 +71,11 @@ static void tcp_yeah_cong_avoid(struct sock *sk, u32 ack, u32 acked)
 
 	if (!yeah->doing_reno_now) {
 		/* Scalable */
-		tcp_cong_avoid_ai(tp, min(tp->snd_cwnd, TCP_SCALABLE_AI_CNT),
+		tcp_cong_avoid_ai(tp, min(tcp_snd_cwnd(tp), TCP_SCALABLE_AI_CNT),
 				  acked);
 	} else {
 		/* Reno */
-		tcp_cong_avoid_ai(tp, tp->snd_cwnd, acked);
+		tcp_cong_avoid_ai(tp, tcp_snd_cwnd(tp), acked);
 	}
 
 	/* The key players are v_vegas.beg_snd_una and v_beg_snd_nxt.
@@ -130,7 +130,7 @@ do_vegas:
 			/* Compute excess number of packets above bandwidth
 			 * Avoid doing full 64 bit divide.
 			 */
-			bw = tp->snd_cwnd;
+			bw = tcp_snd_cwnd(tp);
 			bw *= rtt - yeah->vegas.baseRTT;
 			do_div(bw, rtt);
 			queue = bw;
@@ -138,20 +138,20 @@ do_vegas:
 			if (queue > TCP_YEAH_ALPHA ||
 			    rtt - yeah->vegas.baseRTT > (yeah->vegas.baseRTT / TCP_YEAH_PHY)) {
 				if (queue > TCP_YEAH_ALPHA &&
-				    tp->snd_cwnd > yeah->reno_count) {
+				    tcp_snd_cwnd(tp) > yeah->reno_count) {
 					u32 reduction = min(queue / TCP_YEAH_GAMMA ,
-							    tp->snd_cwnd >> TCP_YEAH_EPSILON);
+							    tcp_snd_cwnd(tp) >> TCP_YEAH_EPSILON);
 
-					tp->snd_cwnd -= reduction;
+					tcp_snd_cwnd_set(tp, tcp_snd_cwnd(tp) - reduction);
 
-					tp->snd_cwnd = max(tp->snd_cwnd,
-							   yeah->reno_count);
+					tcp_snd_cwnd_set(tp, max(tcp_snd_cwnd(tp),
+								 yeah->reno_count));
 
-					tp->snd_ssthresh = tp->snd_cwnd;
+					tp->snd_ssthresh = tcp_snd_cwnd(tp);
 				}
 
 				if (yeah->reno_count <= 2)
-					yeah->reno_count = max(tp->snd_cwnd>>1, 2U);
+					yeah->reno_count = max(tcp_snd_cwnd(tp)>>1, 2U);
 				else
 					yeah->reno_count++;
 
@@ -176,7 +176,7 @@ do_vegas:
 		 */
 		yeah->vegas.beg_snd_una  = yeah->vegas.beg_snd_nxt;
 		yeah->vegas.beg_snd_nxt  = tp->snd_nxt;
-		yeah->vegas.beg_snd_cwnd = tp->snd_cwnd;
+		yeah->vegas.beg_snd_cwnd = tcp_snd_cwnd(tp);
 
 		/* Wipe the slate clean for the next RTT. */
 		yeah->vegas.cntRTT = 0;
@@ -193,16 +193,16 @@ static u32 tcp_yeah_ssthresh(struct sock *sk)
 	if (yeah->doing_reno_now < TCP_YEAH_RHO) {
 		reduction = yeah->lastQ;
 
-		reduction = min(reduction, max(tp->snd_cwnd>>1, 2U));
+		reduction = min(reduction, max(tcp_snd_cwnd(tp)>>1, 2U));
 
-		reduction = max(reduction, tp->snd_cwnd >> TCP_YEAH_DELTA);
+		reduction = max(reduction, tcp_snd_cwnd(tp) >> TCP_YEAH_DELTA);
 	} else
-		reduction = max(tp->snd_cwnd>>1, 2U);
+		reduction = max(tcp_snd_cwnd(tp)>>1, 2U);
 
 	yeah->fast_count = 0;
 	yeah->reno_count = max(yeah->reno_count>>1, 2U);
 
-	return max_t(int, tp->snd_cwnd - reduction, 2);
+	return max_t(int, tcp_snd_cwnd(tp) - reduction, 2);
 }
 
 static struct tcp_congestion_ops tcp_yeah __read_mostly = {

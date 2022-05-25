@@ -381,7 +381,8 @@ static int sparx5_fdma_rx_alloc(struct sparx5 *sparx5)
 		}
 		sparx5_fdma_rx_add_dcb(rx, dcb, rx->dma + sizeof(*dcb) * idx);
 	}
-	netif_napi_add(rx->ndev, &rx->napi, sparx5_fdma_napi_callback, FDMA_WEIGHT);
+	netif_napi_add_weight(rx->ndev, &rx->napi, sparx5_fdma_napi_callback,
+			      FDMA_WEIGHT);
 	napi_enable(&rx->napi);
 	sparx5_fdma_rx_activate(sparx5, rx);
 	return 0;

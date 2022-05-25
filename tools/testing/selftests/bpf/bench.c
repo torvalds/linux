@@ -8,7 +8,6 @@
 #include <fcntl.h>
 #include <pthread.h>
 #include <sys/sysinfo.h>
-#include <sys/resource.h>
 #include <signal.h>
 #include "bench.h"
 #include "testing_helpers.h"

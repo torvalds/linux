@@ -4,14 +4,16 @@
 #include <network_helpers.h>
 #include "for_each_hash_map_elem.skel.h"
 #include "for_each_array_map_elem.skel.h"
+#include "for_each_map_elem_write_key.skel.h"
 
 static unsigned int duration;
 
 static void test_hash_map(void)
 {
-	int i, err, hashmap_fd, max_entries, percpu_map_fd;
+	int i, err, max_entries;
 	struct for_each_hash_map_elem *skel;
 	__u64 *percpu_valbuf = NULL;
+	size_t percpu_val_sz;
 	__u32 key, num_cpus;
 	__u64 val;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
@@ -24,26 +26,27 @@ static void test_hash_map(void)
 	if (!ASSERT_OK_PTR(skel, "for_each_hash_map_elem__open_and_load"))
 		return;
 
-	hashmap_fd = bpf_map__fd(skel->maps.hashmap);
 	max_entries = bpf_map__max_entries(skel->maps.hashmap);
 	for (i = 0; i < max_entries; i++) {
 		key = i;
 		val = i + 1;
-		err = bpf_map_update_elem(hashmap_fd, &key, &val, BPF_ANY);
+		err = bpf_map__update_elem(skel->maps.hashmap, &key, sizeof(key),
+					   &val, sizeof(val), BPF_ANY);
 		if (!ASSERT_OK(err, "map_update"))
 			goto out;
 	}
 
 	num_cpus = bpf_num_possible_cpus();
-	percpu_map_fd = bpf_map__fd(skel->maps.percpu_map);
-	percpu_valbuf = malloc(sizeof(__u64) * num_cpus);
+	percpu_val_sz = sizeof(__u64) * num_cpus;
+	percpu_valbuf = malloc(percpu_val_sz);
 	if (!ASSERT_OK_PTR(percpu_valbuf, "percpu_valbuf"))
 		goto out;
 
 	key = 1;
 	for (i = 0; i < num_cpus; i++)
 		percpu_valbuf[i] = i + 1;
-	err = bpf_map_update_elem(percpu_map_fd, &key, percpu_valbuf, BPF_ANY);
+	err = bpf_map__update_elem(skel->maps.percpu_map, &key, sizeof(key),
+				   percpu_valbuf, percpu_val_sz, BPF_ANY);
 	if (!ASSERT_OK(err, "percpu_map_update"))
 		goto out;
 
@@ -57,7 +60,7 @@ static void test_hash_map(void)
 	ASSERT_EQ(skel->bss->hashmap_elems, max_entries, "hashmap_elems");
 
 	key = 1;
-	err = bpf_map_lookup_elem(hashmap_fd, &key, &val);
+	err = bpf_map__lookup_elem(skel->maps.hashmap, &key, sizeof(key), &val, sizeof(val), 0);
 	ASSERT_ERR(err, "hashmap_lookup");
 
 	ASSERT_EQ(skel->bss->percpu_called, 1, "percpu_called");
@@ -74,9 +77,10 @@ out:
 static void test_array_map(void)
 {
 	__u32 key, num_cpus, max_entries;
-	int i, arraymap_fd, percpu_map_fd, err;
+	int i, err;
 	struct for_each_array_map_elem *skel;
 	__u64 *percpu_valbuf = NULL;
+	size_t percpu_val_sz;
 	__u64 val, expected_total;
 	LIBBPF_OPTS(bpf_test_run_opts, topts,
 		.data_in = &pkt_v4,
@@ -88,7 +92,6 @@ static void test_array_map(void)
 	if (!ASSERT_OK_PTR(skel, "for_each_array_map_elem__open_and_load"))
 		return;
 
-	arraymap_fd = bpf_map__fd(skel->maps.arraymap);
 	expected_total = 0;
 	max_entries = bpf_map__max_entries(skel->maps.arraymap);
 	for (i = 0; i < max_entries; i++) {
@@ -97,21 +100,23 @@ static void test_array_map(void)
 		/* skip the last iteration for expected total */
 		if (i != max_entries - 1)
 			expected_total += val;
-		err = bpf_map_update_elem(arraymap_fd, &key, &val, BPF_ANY);
+		err = bpf_map__update_elem(skel->maps.arraymap, &key, sizeof(key),
+					   &val, sizeof(val), BPF_ANY);
 		if (!ASSERT_OK(err, "map_update"))
 			goto out;
 	}
 
 	num_cpus = bpf_num_possible_cpus();
-	percpu_map_fd = bpf_map__fd(skel->maps.percpu_map);
-	percpu_valbuf = malloc(sizeof(__u64) * num_cpus);
+	percpu_val_sz = sizeof(__u64) * num_cpus;
+	percpu_valbuf = malloc(percpu_val_sz);
 	if (!ASSERT_OK_PTR(percpu_valbuf, "percpu_valbuf"))
 		goto out;
 
 	key = 0;
 	for (i = 0; i < num_cpus; i++)
 		percpu_valbuf[i] = i + 1;
-	err = bpf_map_update_elem(percpu_map_fd, &key, percpu_valbuf, BPF_ANY);
+	err = bpf_map__update_elem(skel->maps.percpu_map, &key, sizeof(key),
+				   percpu_valbuf, percpu_val_sz, BPF_ANY);
 	if (!ASSERT_OK(err, "percpu_map_update"))
 		goto out;
 
@@ -129,10 +134,21 @@ out:
 	for_each_array_map_elem__destroy(skel);
 }
 
+static void test_write_map_key(void)
+{
+	struct for_each_map_elem_write_key *skel;
+
+	skel = for_each_map_elem_write_key__open_and_load();
+	if (!ASSERT_ERR_PTR(skel, "for_each_map_elem_write_key__open_and_load"))
+		for_each_map_elem_write_key__destroy(skel);
+}
+
 void test_for_each(void)
 {
 	if (test__start_subtest("hash_map"))
 		test_hash_map();
 	if (test__start_subtest("array_map"))
 		test_array_map();
+	if (test__start_subtest("write_map_key"))
+		test_write_map_key();
 }

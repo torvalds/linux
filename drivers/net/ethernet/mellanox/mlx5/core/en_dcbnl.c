@@ -1026,15 +1026,6 @@ void mlx5e_dcbnl_build_netdev(struct net_device *netdev)
 		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
 }
 
-void mlx5e_dcbnl_build_rep_netdev(struct net_device *netdev)
-{
-	struct mlx5e_priv *priv = netdev_priv(netdev);
-	struct mlx5_core_dev *mdev = priv->mdev;
-
-	if (MLX5_CAP_GEN(mdev, qos))
-		netdev->dcbnl_ops = &mlx5e_dcbnl_ops;
-}
-
 static void mlx5e_dcbnl_query_dcbx_mode(struct mlx5e_priv *priv,
 					enum mlx5_dcbx_oper_mode *mode)
 {

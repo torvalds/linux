@@ -26,6 +26,7 @@
 #define TMP_REG_2 (MAX_BPF_JIT_REG + 1)
 #define TCALL_CNT (MAX_BPF_JIT_REG + 2)
 #define TMP_REG_3 (MAX_BPF_JIT_REG + 3)
+#define FP_BOTTOM (MAX_BPF_JIT_REG + 4)
 
 #define check_imm(bits, imm) do {				\
 	if ((((imm) > 0) && ((imm) >> (bits))) ||		\
@@ -63,6 +64,7 @@ static const int bpf2a64[] = {
 	[TCALL_CNT] = A64_R(26),
 	/* temporary register for blinding constants */
 	[BPF_REG_AX] = A64_R(9),
+	[FP_BOTTOM] = A64_R(27),
 };
 
 struct jit_ctx {
@@ -73,6 +75,7 @@ struct jit_ctx {
 	int exentry_idx;
 	__le32 *image;
 	u32 stack_size;
+	int fpb_offset;
 };
 
 static inline void emit(const u32 insn, struct jit_ctx *ctx)
@@ -191,11 +194,53 @@ static bool is_addsub_imm(u32 imm)
 	return !(imm & ~0xfff) || !(imm & ~0xfff000);
 }
 
+/*
+ * There are 3 types of AArch64 LDR/STR (immediate) instruction:
+ * Post-index, Pre-index, Unsigned offset.
+ *
+ * For BPF ldr/str, the "unsigned offset" type is sufficient.
+ *
+ * "Unsigned offset" type LDR(immediate) format:
+ *
+ *    3                   2                   1                   0
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |x x|1 1 1 0 0 1 0 1|         imm12         |    Rn   |    Rt   |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * scale
+ *
+ * "Unsigned offset" type STR(immediate) format:
+ *    3                   2                   1                   0
+ *  1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0 9 8 7 6 5 4 3 2 1 0
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * |x x|1 1 1 0 0 1 0 0|         imm12         |    Rn   |    Rt   |
+ * +-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+-+
+ * scale
+ *
+ * The offset is calculated from imm12 and scale in the following way:
+ *
+ * offset = (u64)imm12 << scale
+ */
+static bool is_lsi_offset(int offset, int scale)
+{
+	if (offset < 0)
+		return false;
+
+	if (offset > (0xFFF << scale))
+		return false;
+
+	if (offset & ((1 << scale) - 1))
+		return false;
+
+	return true;
+}
+
 /* Tail call offset to jump into */
-#if IS_ENABLED(CONFIG_ARM64_BTI_KERNEL)
-#define PROLOGUE_OFFSET 8
+#if IS_ENABLED(CONFIG_ARM64_BTI_KERNEL) || \
+	IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL)
+#define PROLOGUE_OFFSET 9
 #else
-#define PROLOGUE_OFFSET 7
+#define PROLOGUE_OFFSET 8
 #endif
 
 static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
@@ -207,6 +252,7 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	const u8 r9 = bpf2a64[BPF_REG_9];
 	const u8 fp = bpf2a64[BPF_REG_FP];
 	const u8 tcc = bpf2a64[TCALL_CNT];
+	const u8 fpb = bpf2a64[FP_BOTTOM];
 	const int idx0 = ctx->idx;
 	int cur_offset;
 
@@ -233,8 +279,11 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	 *
 	 */
 
+	/* Sign lr */
+	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
+		emit(A64_PACIASP, ctx);
 	/* BTI landing pad */
-	if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL))
+	else if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL))
 		emit(A64_BTI_C, ctx);
 
 	/* Save FP and LR registers to stay align with ARM64 AAPCS */
@@ -245,6 +294,7 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 	emit(A64_PUSH(r6, r7, A64_SP), ctx);
 	emit(A64_PUSH(r8, r9, A64_SP), ctx);
 	emit(A64_PUSH(fp, tcc, A64_SP), ctx);
+	emit(A64_PUSH(fpb, A64_R(28), A64_SP), ctx);
 
 	/* Set up BPF prog stack base register */
 	emit(A64_MOV(1, fp, A64_SP), ctx);
@@ -264,6 +314,8 @@ static int build_prologue(struct jit_ctx *ctx, bool ebpf_from_cbpf)
 		if (IS_ENABLED(CONFIG_ARM64_BTI_KERNEL))
 			emit(A64_BTI_J, ctx);
 	}
+
+	emit(A64_SUB_I(1, fpb, fp, ctx->fpb_offset), ctx);
 
 	/* Stack must be multiples of 16B */
 	ctx->stack_size = round_up(prog->aux->stack_depth, 16);
@@ -512,10 +564,13 @@ static void build_epilogue(struct jit_ctx *ctx)
 	const u8 r8 = bpf2a64[BPF_REG_8];
 	const u8 r9 = bpf2a64[BPF_REG_9];
 	const u8 fp = bpf2a64[BPF_REG_FP];
+	const u8 fpb = bpf2a64[FP_BOTTOM];
 
 	/* We're done with BPF stack */
 	emit(A64_ADD_I(1, A64_SP, A64_SP, ctx->stack_size), ctx);
 
+	/* Restore x27 and x28 */
+	emit(A64_POP(fpb, A64_R(28), A64_SP), ctx);
 	/* Restore fs (x25) and x26 */
 	emit(A64_POP(fp, A64_R(26), A64_SP), ctx);
 
@@ -528,6 +583,10 @@ static void build_epilogue(struct jit_ctx *ctx)
 
 	/* Set return value */
 	emit(A64_MOV(1, A64_R(0), r0), ctx);
+
+	/* Authenticate lr */
+	if (IS_ENABLED(CONFIG_ARM64_PTR_AUTH_KERNEL))
+		emit(A64_AUTIASP, ctx);
 
 	emit(A64_RET(A64_LR), ctx);
 }
@@ -609,6 +668,8 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	const u8 src = bpf2a64[insn->src_reg];
 	const u8 tmp = bpf2a64[TMP_REG_1];
 	const u8 tmp2 = bpf2a64[TMP_REG_2];
+	const u8 fp = bpf2a64[BPF_REG_FP];
+	const u8 fpb = bpf2a64[FP_BOTTOM];
 	const s16 off = insn->off;
 	const s32 imm = insn->imm;
 	const int i = insn - ctx->prog->insnsi;
@@ -617,6 +678,9 @@ static int build_insn(const struct bpf_insn *insn, struct jit_ctx *ctx,
 	u8 jmp_cond;
 	s32 jmp_offset;
 	u32 a64_insn;
+	u8 src_adj;
+	u8 dst_adj;
+	int off_adj;
 	int ret;
 
 	switch (code) {
@@ -971,19 +1035,45 @@ emit_cond_jmp:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_W:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_H:
 	case BPF_LDX | BPF_PROBE_MEM | BPF_B:
-		emit_a64_mov_i(1, tmp, off, ctx);
+		if (ctx->fpb_offset > 0 && src == fp) {
+			src_adj = fpb;
+			off_adj = off + ctx->fpb_offset;
+		} else {
+			src_adj = src;
+			off_adj = off;
+		}
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
-			emit(A64_LDR32(dst, src, tmp), ctx);
+			if (is_lsi_offset(off_adj, 2)) {
+				emit(A64_LDR32I(dst, src_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDR32(dst, src, tmp), ctx);
+			}
 			break;
 		case BPF_H:
-			emit(A64_LDRH(dst, src, tmp), ctx);
+			if (is_lsi_offset(off_adj, 1)) {
+				emit(A64_LDRHI(dst, src_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDRH(dst, src, tmp), ctx);
+			}
 			break;
 		case BPF_B:
-			emit(A64_LDRB(dst, src, tmp), ctx);
+			if (is_lsi_offset(off_adj, 0)) {
+				emit(A64_LDRBI(dst, src_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDRB(dst, src, tmp), ctx);
+			}
 			break;
 		case BPF_DW:
-			emit(A64_LDR64(dst, src, tmp), ctx);
+			if (is_lsi_offset(off_adj, 3)) {
+				emit(A64_LDR64I(dst, src_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_LDR64(dst, src, tmp), ctx);
+			}
 			break;
 		}
 
@@ -1010,21 +1100,47 @@ emit_cond_jmp:
 	case BPF_ST | BPF_MEM | BPF_H:
 	case BPF_ST | BPF_MEM | BPF_B:
 	case BPF_ST | BPF_MEM | BPF_DW:
+		if (ctx->fpb_offset > 0 && dst == fp) {
+			dst_adj = fpb;
+			off_adj = off + ctx->fpb_offset;
+		} else {
+			dst_adj = dst;
+			off_adj = off;
+		}
 		/* Load imm to a register then store it */
-		emit_a64_mov_i(1, tmp2, off, ctx);
 		emit_a64_mov_i(1, tmp, imm, ctx);
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
-			emit(A64_STR32(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off_adj, 2)) {
+				emit(A64_STR32I(tmp, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STR32(tmp, dst, tmp2), ctx);
+			}
 			break;
 		case BPF_H:
-			emit(A64_STRH(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off_adj, 1)) {
+				emit(A64_STRHI(tmp, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STRH(tmp, dst, tmp2), ctx);
+			}
 			break;
 		case BPF_B:
-			emit(A64_STRB(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off_adj, 0)) {
+				emit(A64_STRBI(tmp, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STRB(tmp, dst, tmp2), ctx);
+			}
 			break;
 		case BPF_DW:
-			emit(A64_STR64(tmp, dst, tmp2), ctx);
+			if (is_lsi_offset(off_adj, 3)) {
+				emit(A64_STR64I(tmp, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp2, off, ctx);
+				emit(A64_STR64(tmp, dst, tmp2), ctx);
+			}
 			break;
 		}
 		break;
@@ -1034,19 +1150,45 @@ emit_cond_jmp:
 	case BPF_STX | BPF_MEM | BPF_H:
 	case BPF_STX | BPF_MEM | BPF_B:
 	case BPF_STX | BPF_MEM | BPF_DW:
-		emit_a64_mov_i(1, tmp, off, ctx);
+		if (ctx->fpb_offset > 0 && dst == fp) {
+			dst_adj = fpb;
+			off_adj = off + ctx->fpb_offset;
+		} else {
+			dst_adj = dst;
+			off_adj = off;
+		}
 		switch (BPF_SIZE(code)) {
 		case BPF_W:
-			emit(A64_STR32(src, dst, tmp), ctx);
+			if (is_lsi_offset(off_adj, 2)) {
+				emit(A64_STR32I(src, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STR32(src, dst, tmp), ctx);
+			}
 			break;
 		case BPF_H:
-			emit(A64_STRH(src, dst, tmp), ctx);
+			if (is_lsi_offset(off_adj, 1)) {
+				emit(A64_STRHI(src, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STRH(src, dst, tmp), ctx);
+			}
 			break;
 		case BPF_B:
-			emit(A64_STRB(src, dst, tmp), ctx);
+			if (is_lsi_offset(off_adj, 0)) {
+				emit(A64_STRBI(src, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STRB(src, dst, tmp), ctx);
+			}
 			break;
 		case BPF_DW:
-			emit(A64_STR64(src, dst, tmp), ctx);
+			if (is_lsi_offset(off_adj, 3)) {
+				emit(A64_STR64I(src, dst_adj, off_adj), ctx);
+			} else {
+				emit_a64_mov_i(1, tmp, off, ctx);
+				emit(A64_STR64(src, dst, tmp), ctx);
+			}
 			break;
 		}
 		break;
@@ -1067,6 +1209,79 @@ emit_cond_jmp:
 	}
 
 	return 0;
+}
+
+/*
+ * Return 0 if FP may change at runtime, otherwise find the minimum negative
+ * offset to FP, converts it to positive number, and align down to 8 bytes.
+ */
+static int find_fpb_offset(struct bpf_prog *prog)
+{
+	int i;
+	int offset = 0;
+
+	for (i = 0; i < prog->len; i++) {
+		const struct bpf_insn *insn = &prog->insnsi[i];
+		const u8 class = BPF_CLASS(insn->code);
+		const u8 mode = BPF_MODE(insn->code);
+		const u8 src = insn->src_reg;
+		const u8 dst = insn->dst_reg;
+		const s32 imm = insn->imm;
+		const s16 off = insn->off;
+
+		switch (class) {
+		case BPF_STX:
+		case BPF_ST:
+			/* fp holds atomic operation result */
+			if (class == BPF_STX && mode == BPF_ATOMIC &&
+			    ((imm == BPF_XCHG ||
+			      imm == (BPF_FETCH | BPF_ADD) ||
+			      imm == (BPF_FETCH | BPF_AND) ||
+			      imm == (BPF_FETCH | BPF_XOR) ||
+			      imm == (BPF_FETCH | BPF_OR)) &&
+			     src == BPF_REG_FP))
+				return 0;
+
+			if (mode == BPF_MEM && dst == BPF_REG_FP &&
+			    off < offset)
+				offset = insn->off;
+			break;
+
+		case BPF_JMP32:
+		case BPF_JMP:
+			break;
+
+		case BPF_LDX:
+		case BPF_LD:
+			/* fp holds load result */
+			if (dst == BPF_REG_FP)
+				return 0;
+
+			if (class == BPF_LDX && mode == BPF_MEM &&
+			    src == BPF_REG_FP && off < offset)
+				offset = off;
+			break;
+
+		case BPF_ALU:
+		case BPF_ALU64:
+		default:
+			/* fp holds ALU result */
+			if (dst == BPF_REG_FP)
+				return 0;
+		}
+	}
+
+	if (offset < 0) {
+		/*
+		 * safely be converted to a positive 'int', since insn->off
+		 * is 's16'
+		 */
+		offset = -offset;
+		/* align down to 8 bytes */
+		offset = ALIGN_DOWN(offset, 8);
+	}
+
+	return offset;
 }
 
 static int build_body(struct jit_ctx *ctx, bool extra_pass)
@@ -1189,6 +1404,8 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 		prog = orig_prog;
 		goto out_off;
 	}
+
+	ctx.fpb_offset = find_fpb_offset(prog);
 
 	/*
 	 * 1. Initial fake pass to compute ctx->idx and ctx->offset.

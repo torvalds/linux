@@ -303,7 +303,7 @@ static void rt2x00queue_create_tx_descriptor_ht(struct rt2x00_dev *rt2x00dev,
 	if (sta) {
 		sta_priv = sta_to_rt2x00_sta(sta);
 		txdesc->u.ht.wcid = sta_priv->wcid;
-		density = sta->ht_cap.ampdu_density;
+		density = sta->deflink.ht_cap.ampdu_density;
 	}
 
 	/*

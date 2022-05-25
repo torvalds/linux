@@ -533,7 +533,7 @@ static int pcan_usb_handle_bus_evt(struct pcan_usb_msg_context *mc, u8 ir)
 {
 	struct pcan_usb *pdev = mc->pdev;
 
-	/* acccording to the content of the packet */
+	/* according to the content of the packet */
 	switch (ir) {
 	case PCAN_USB_ERR_CNT_DEC:
 	case PCAN_USB_ERR_CNT_INC:

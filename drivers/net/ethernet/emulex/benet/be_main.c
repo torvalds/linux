@@ -2983,7 +2983,7 @@ static int be_evt_queues_create(struct be_adapter *adapter)
 		cpumask_set_cpu(cpumask_local_spread(i, numa_node),
 				eqo->affinity_mask);
 		netif_napi_add(adapter->netdev, &eqo->napi, be_poll,
-			       BE_NAPI_WEIGHT);
+			       NAPI_POLL_WEIGHT);
 	}
 	return 0;
 }
@@ -5204,7 +5204,7 @@ static void be_netdev_init(struct net_device *netdev)
 
 	netdev->flags |= IFF_MULTICAST;
 
-	netif_set_gso_max_size(netdev, BE_MAX_GSO_SIZE - ETH_HLEN);
+	netif_set_tso_max_size(netdev, BE_MAX_GSO_SIZE - ETH_HLEN);
 
 	netdev->netdev_ops = &be_netdev_ops;
 

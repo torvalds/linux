@@ -20,9 +20,13 @@ allOf:
 properties:
   compatible:
     const: aspeed,ast2600-mdio
+
   reg:
     maxItems: 1
     description: The register range of the MDIO controller instance
+
+  resets:
+    maxItems: 1
 
 required:
   - compatible
@@ -34,11 +38,13 @@ unevaluatedProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/ast2600-clock.h>
     mdio0: mdio@1e650000 {
             compatible = "aspeed,ast2600-mdio";
             reg = <0x1e650000 0x8>;
             #address-cells = <1>;
             #size-cells = <0>;
+            resets = <&syscon ASPEED_RESET_MII>;
 
             ethphy0: ethernet-phy@0 {
                     compatible = "ethernet-phy-ieee802.3-c22";

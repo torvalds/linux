@@ -564,22 +564,22 @@ static bool get_packet_dst(struct real_definition **real,
 	hash = get_packet_hash(pckt, hash_16bytes);
 	if (hash != 0x358459b7 /* jhash of ipv4 packet */  &&
 	    hash != 0x2f4bc6bb /* jhash of ipv6 packet */)
-		return 0;
+		return false;
 	key = 2 * vip_info->vip_num + hash % 2;
 	real_pos = bpf_map_lookup_elem(&ch_rings, &key);
 	if (!real_pos)
-		return 0;
+		return false;
 	key = *real_pos;
 	*real = bpf_map_lookup_elem(&reals, &key);
 	if (!(*real))
-		return 0;
+		return false;
 	if (!(vip_info->flags & (1 << 1))) {
 		__u32 conn_rate_key = 512 + 2;
 		struct lb_stats *conn_rate_stats =
 		    bpf_map_lookup_elem(&stats, &conn_rate_key);
 
 		if (!conn_rate_stats)
-			return 1;
+			return true;
 		cur_time = bpf_ktime_get_ns();
 		if ((cur_time - conn_rate_stats->v2) >> 32 > 0xffFFFF) {
 			conn_rate_stats->v1 = 1;
@@ -587,14 +587,14 @@ static bool get_packet_dst(struct real_definition **real,
 		} else {
 			conn_rate_stats->v1 += 1;
 			if (conn_rate_stats->v1 >= 1)
-				return 1;
+				return true;
 		}
 		if (pckt->flow.proto == IPPROTO_UDP)
 			new_dst_lru.atime = cur_time;
 		new_dst_lru.pos = key;
 		bpf_map_update_elem(lru_map, &pckt->flow, &new_dst_lru, 0);
 	}
-	return 1;
+	return true;
 }
 
 __attribute__ ((noinline))

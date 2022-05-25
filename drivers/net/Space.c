@@ -222,9 +222,6 @@ static struct devprobe2 isa_probes[] __initdata = {
 #ifdef CONFIG_CS89x0_ISA
 	{cs89x0_probe, 0},
 #endif
-#ifdef CONFIG_NI65
-	{ni65_probe, 0},
-#endif
 	{NULL, 0},
 };
 

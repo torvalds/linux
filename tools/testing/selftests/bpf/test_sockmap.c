@@ -18,7 +18,6 @@
 #include <sched.h>
 
 #include <sys/time.h>
-#include <sys/resource.h>
 #include <sys/types.h>
 #include <sys/sendfile.h>
 
@@ -37,7 +36,6 @@
 #include <bpf/libbpf.h>
 
 #include "bpf_util.h"
-#include "bpf_rlimit.h"
 #include "cgroup_helpers.h"
 
 int running;
@@ -2016,6 +2014,9 @@ int main(int argc, char **argv)
 			return cg_fd;
 		cg_created = 1;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (test == SELFTESTS) {
 		err = test_selftest(cg_fd, &options);

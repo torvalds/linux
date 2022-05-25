@@ -38,6 +38,7 @@
 
 static int i_zero;
 static int i_one_hundred = 100;
+static int match_int_ok = 1;
 
 struct test_sysctl_data {
 	int int_0001;
@@ -96,6 +97,13 @@ static struct ctl_table test_table[] = {
 		.proc_handler	= proc_dointvec,
 	},
 	{
+		.procname	= "match_int",
+		.data		= &match_int_ok,
+		.maxlen		= sizeof(match_int_ok),
+		.mode		= 0444,
+		.proc_handler	= proc_dointvec,
+	},
+	{
 		.procname	= "boot_int",
 		.data		= &test_data.boot_int,
 		.maxlen		= sizeof(test_data.boot_int),
@@ -132,6 +140,30 @@ static struct ctl_table_header *test_sysctl_header;
 
 static int __init test_sysctl_init(void)
 {
+	int i;
+
+	struct {
+		int defined;
+		int wanted;
+	} match_int[] = {
+		{.defined = *(int *)SYSCTL_ZERO,	.wanted = 0},
+		{.defined = *(int *)SYSCTL_ONE,		.wanted = 1},
+		{.defined = *(int *)SYSCTL_TWO,		.wanted = 2},
+		{.defined = *(int *)SYSCTL_THREE,	.wanted = 3},
+		{.defined = *(int *)SYSCTL_FOUR,	.wanted = 4},
+		{.defined = *(int *)SYSCTL_ONE_HUNDRED, .wanted = 100},
+		{.defined = *(int *)SYSCTL_TWO_HUNDRED,	.wanted = 200},
+		{.defined = *(int *)SYSCTL_ONE_THOUSAND, .wanted = 1000},
+		{.defined = *(int *)SYSCTL_THREE_THOUSAND, .wanted = 3000},
+		{.defined = *(int *)SYSCTL_INT_MAX,	.wanted = INT_MAX},
+		{.defined = *(int *)SYSCTL_MAXOLDUID,	.wanted = 65535},
+		{.defined = *(int *)SYSCTL_NEG_ONE,	.wanted = -1},
+	};
+
+	for (i = 0; i < ARRAY_SIZE(match_int); i++)
+		if (match_int[i].defined != match_int[i].wanted)
+			match_int_ok = 0;
+
 	test_data.bitmap_0001 = kzalloc(SYSCTL_TEST_BITMAP_SIZE/8, GFP_KERNEL);
 	if (!test_data.bitmap_0001)
 		return -ENOMEM;

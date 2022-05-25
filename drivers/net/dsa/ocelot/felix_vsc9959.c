@@ -28,6 +28,7 @@
 
 #define VSC9959_PORT_MODE_SERDES	(OCELOT_PORT_MODE_SGMII | \
 					 OCELOT_PORT_MODE_QSGMII | \
+					 OCELOT_PORT_MODE_1000BASEX | \
 					 OCELOT_PORT_MODE_2500BASEX | \
 					 OCELOT_PORT_MODE_USXGMII)
 
@@ -638,6 +639,7 @@ static const struct ocelot_stat_layout vsc9959_stats_layout[] = {
 	{ .offset = 0x10F,	.name = "drop_green_prio_5", },
 	{ .offset = 0x110,	.name = "drop_green_prio_6", },
 	{ .offset = 0x111,	.name = "drop_green_prio_7", },
+	OCELOT_STAT_END
 };
 
 static const struct vcap_field vsc9959_vcap_es0_keys[] = {
@@ -972,6 +974,7 @@ static void vsc9959_phylink_validate(struct ocelot *ocelot, int port,
 	phylink_set(mask, 100baseT_Full);
 	phylink_set(mask, 1000baseT_Half);
 	phylink_set(mask, 1000baseT_Full);
+	phylink_set(mask, 1000baseX_Full);
 
 	if (state->interface == PHY_INTERFACE_MODE_INTERNAL ||
 	    state->interface == PHY_INTERFACE_MODE_2500BASEX ||
@@ -2159,7 +2162,8 @@ static void vsc9959_cut_through_fwd(struct ocelot *ocelot)
 			if (ocelot->npi >= 0)
 				mask |= BIT(ocelot->npi);
 			else
-				mask |= ocelot_get_dsa_8021q_cpu_mask(ocelot);
+				mask |= ocelot_port_assigned_dsa_8021q_cpu_mask(ocelot,
+										port);
 		}
 
 		/* Calculate the minimum link speed, among the ports that are
@@ -2216,7 +2220,6 @@ static const struct felix_info felix_info_vsc9959 = {
 	.map			= vsc9959_regmap,
 	.ops			= &vsc9959_ops,
 	.stats_layout		= vsc9959_stats_layout,
-	.num_stats		= ARRAY_SIZE(vsc9959_stats_layout),
 	.vcap			= vsc9959_vcap_props,
 	.vcap_pol_base		= VSC9959_VCAP_POLICER_BASE,
 	.vcap_pol_max		= VSC9959_VCAP_POLICER_MAX,

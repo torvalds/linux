@@ -772,7 +772,7 @@ static int starfire_init_one(struct pci_dev *pdev,
 	dev->watchdog_timeo = TX_TIMEOUT;
 	dev->ethtool_ops = &ethtool_ops;
 
-	netif_napi_add(dev, &np->napi, netdev_poll, max_interrupt_work);
+	netif_napi_add_weight(dev, &np->napi, netdev_poll, max_interrupt_work);
 
 	if (mtu)
 		dev->mtu = mtu;

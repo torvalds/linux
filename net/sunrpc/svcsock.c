@@ -464,7 +464,7 @@ static int svc_udp_recvfrom(struct svc_rqst *rqstp)
 			     0, 0, MSG_PEEK | MSG_DONTWAIT);
 	if (err < 0)
 		goto out_recv_err;
-	skb = skb_recv_udp(svsk->sk_sk, 0, 1, &err);
+	skb = skb_recv_udp(svsk->sk_sk, MSG_DONTWAIT, &err);
 	if (!skb)
 		goto out_recv_err;
 

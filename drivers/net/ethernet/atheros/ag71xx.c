@@ -1922,7 +1922,8 @@ static int ag71xx_probe(struct platform_device *pdev)
 		return err;
 	}
 
-	netif_napi_add(ndev, &ag->napi, ag71xx_poll, AG71XX_NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &ag->napi, ag71xx_poll,
+			      AG71XX_NAPI_WEIGHT);
 
 	err = clk_prepare_enable(ag->clk_eth);
 	if (err) {

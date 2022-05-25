@@ -1039,7 +1039,7 @@ static void rs_tx_status(void *priv_r, struct ieee80211_supported_band *sband,
 	lq_sta->last_rate_n_flags = tx_rate;
 done:
 	/* See if there's a better rate or modulation mode to try. */
-	if (sta && sta->supp_rates[sband->band])
+	if (sta && sta->deflink.supp_rates[sband->band])
 		rs_rate_scale_perform(priv, skb, sta, lq_sta);
 
 	if (priv->lib->bt_params && priv->lib->bt_params->advanced_bt_coexist)
@@ -1239,7 +1239,7 @@ static int rs_switch_to_mimo2(struct iwl_priv *priv,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
-	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
 	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
@@ -1294,7 +1294,7 @@ static int rs_switch_to_mimo3(struct iwl_priv *priv,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
-	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
 	if (sta->smps_mode == IEEE80211_SMPS_STATIC)
@@ -1350,7 +1350,7 @@ static int rs_switch_to_siso(struct iwl_priv *priv,
 	struct iwl_station_priv *sta_priv = (void *)sta->drv_priv;
 	struct iwl_rxon_context *ctx = sta_priv->ctx;
 
-	if (!conf_is_ht(conf) || !sta->ht_cap.ht_supported)
+	if (!conf_is_ht(conf) || !sta->deflink.ht_cap.ht_supported)
 		return -1;
 
 	IWL_DEBUG_RATE(priv, "LQ: try to switch to SISO\n");
@@ -1570,7 +1570,7 @@ static void rs_move_siso_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
@@ -1740,7 +1740,7 @@ static void rs_move_mimo2_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
@@ -1908,7 +1908,7 @@ static void rs_move_mimo3_to_other(struct iwl_priv *priv,
 	struct iwl_scale_tbl_info *search_tbl =
 				&(lq_sta->lq_info[(1 - lq_sta->active_tbl)]);
 	struct iwl_rate_scale_data *window = &(tbl->win[index]);
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	u32 sz = (sizeof(struct iwl_scale_tbl_info) -
 		  (sizeof(struct iwl_rate_scale_data) * IWL_RATE_COUNT));
 	u8 start_action;
@@ -2212,7 +2212,7 @@ static void rs_rate_scale_perform(struct iwl_priv *priv,
 	    info->flags & IEEE80211_TX_CTL_NO_ACK)
 		return;
 
-	lq_sta->supp_rates = sta->supp_rates[lq_sta->band];
+	lq_sta->supp_rates = sta->deflink.supp_rates[lq_sta->band];
 
 	tid = rs_tl_add_packet(lq_sta, hdr);
 	if ((tid != IWL_MAX_TID_COUNT) &&
@@ -2763,7 +2763,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	int i, j;
 	struct ieee80211_hw *hw = priv->hw;
 	struct ieee80211_conf *conf = &priv->hw->conf;
-	struct ieee80211_sta_ht_cap *ht_cap = &sta->ht_cap;
+	struct ieee80211_sta_ht_cap *ht_cap = &sta->deflink.ht_cap;
 	struct iwl_station_priv *sta_priv;
 	struct iwl_lq_sta *lq_sta;
 	struct ieee80211_supported_band *sband;
@@ -2781,7 +2781,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 			rs_rate_scale_clear_window(&lq_sta->lq_info[j].win[i]);
 
 	lq_sta->flush_timer = 0;
-	lq_sta->supp_rates = sta->supp_rates[sband->band];
+	lq_sta->supp_rates = sta->deflink.supp_rates[sband->band];
 
 	IWL_DEBUG_RATE(priv, "LQ: *** rate scale station global init for station %d ***\n",
 		       sta_id);
@@ -2798,7 +2798,7 @@ void iwl_rs_rate_init(struct iwl_priv *priv, struct ieee80211_sta *sta, u8 sta_i
 	/*
 	 * active legacy rates as per supported rates bitmap
 	 */
-	supp = sta->supp_rates[sband->band];
+	supp = sta->deflink.supp_rates[sband->band];
 	lq_sta->active_legacy_rate = 0;
 	for_each_set_bit(i, &supp, BITS_PER_LONG)
 		lq_sta->active_legacy_rate |= BIT(sband->bitrates[i].hw_value);

@@ -106,10 +106,10 @@ static void iwl_mvm_fill_sf_command(struct iwl_mvm *mvm,
 	 * capabilities of the AP station, and choose the watermark accordingly.
 	 */
 	if (sta) {
-		if (sta->ht_cap.ht_supported ||
-		    sta->vht_cap.vht_supported ||
-		    sta->he_cap.has_he) {
-			switch (sta->rx_nss) {
+		if (sta->deflink.ht_cap.ht_supported ||
+		    sta->deflink.vht_cap.vht_supported ||
+		    sta->deflink.he_cap.has_he) {
+			switch (sta->deflink.rx_nss) {
 			case 1:
 				watermark = SF_W_MARK_SISO;
 				break;

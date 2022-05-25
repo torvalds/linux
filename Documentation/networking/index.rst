@@ -1,5 +1,5 @@
-Linux Networking Documentation
-==============================
+Networking
+==========
 
 Refer to :ref:`netdev-FAQ` for a guide on netdev development process specifics.
 
@@ -97,6 +97,7 @@ Contents:
    sctp
    secid
    seg6-sysctl
+   skbuff
    smc-sysctl
    statistics
    strparser

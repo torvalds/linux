@@ -117,8 +117,8 @@ static void tulip_build_fake_mediatable(struct tulip_private *tp)
 			  0x00, 0x06  /* ttm bit map */
 			};
 
-		tp->mtable = kmalloc(sizeof(struct mediatable) +
-				     sizeof(struct medialeaf), GFP_KERNEL);
+		tp->mtable = devm_kmalloc(&tp->pdev->dev, sizeof(struct mediatable) +
+					  sizeof(struct medialeaf), GFP_KERNEL);
 
 		if (tp->mtable == NULL)
 			return; /* Horrible, impossible failure. */
@@ -224,7 +224,8 @@ subsequent_board:
 		        return;
 		}
 
-		mtable = kmalloc(struct_size(mtable, mleaf, count), GFP_KERNEL);
+		mtable = devm_kmalloc(&tp->pdev->dev, struct_size(mtable, mleaf, count),
+				      GFP_KERNEL);
 		if (mtable == NULL)
 			return;				/* Horrible, impossible failure. */
 		last_mediatable = tp->mtable = mtable;

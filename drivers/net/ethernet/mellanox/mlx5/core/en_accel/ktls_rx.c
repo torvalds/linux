@@ -3,7 +3,7 @@
 
 #include <net/inet6_hashtables.h>
 #include "en_accel/en_accel.h"
-#include "en_accel/tls.h"
+#include "en_accel/ktls.h"
 #include "en_accel/ktls_txrx.h"
 #include "en_accel/ktls_utils.h"
 #include "en_accel/fs_tcp.h"

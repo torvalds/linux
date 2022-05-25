@@ -26,7 +26,6 @@
 #include <bpf/bpf.h>
 
 #include "bpf_util.h"
-#include "bpf_rlimit.h"
 
 struct tlpm_node {
 	struct tlpm_node *next;
@@ -409,16 +408,13 @@ static void test_lpm_ipaddr(void)
 
 	/* Test some lookups that should not match any entry */
 	inet_pton(AF_INET, "10.0.0.1", key_ipv4->data);
-	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -ENOENT);
 
 	inet_pton(AF_INET, "11.11.11.11", key_ipv4->data);
-	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_lookup_elem(map_fd_ipv4, key_ipv4, &value) == -ENOENT);
 
 	inet_pton(AF_INET6, "2a00:ffff::", key_ipv6->data);
-	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_lookup_elem(map_fd_ipv6, key_ipv6, &value) == -ENOENT);
 
 	close(map_fd_ipv4);
 	close(map_fd_ipv6);
@@ -475,18 +471,15 @@ static void test_lpm_delete(void)
 	/* remove non-existent node */
 	key->prefixlen = 32;
 	inet_pton(AF_INET, "10.0.0.1", key->data);
-	assert(bpf_map_lookup_elem(map_fd, key, &value) == -1 &&
-		errno == ENOENT);
+	assert(bpf_map_lookup_elem(map_fd, key, &value) == -ENOENT);
 
 	key->prefixlen = 30; // unused prefix so far
 	inet_pton(AF_INET, "192.255.0.0", key->data);
-	assert(bpf_map_delete_elem(map_fd, key) == -1 &&
-		errno == ENOENT);
+	assert(bpf_map_delete_elem(map_fd, key) == -ENOENT);
 
 	key->prefixlen = 16; // same prefix as the root node
 	inet_pton(AF_INET, "192.255.0.0", key->data);
-	assert(bpf_map_delete_elem(map_fd, key) == -1 &&
-		errno == ENOENT);
+	assert(bpf_map_delete_elem(map_fd, key) == -ENOENT);
 
 	/* assert initial lookup */
 	key->prefixlen = 32;
@@ -531,8 +524,7 @@ static void test_lpm_delete(void)
 
 	key->prefixlen = 32;
 	inet_pton(AF_INET, "192.168.128.1", key->data);
-	assert(bpf_map_lookup_elem(map_fd, key, &value) == -1 &&
-		errno == ENOENT);
+	assert(bpf_map_lookup_elem(map_fd, key, &value) == -ENOENT);
 
 	close(map_fd);
 }
@@ -553,8 +545,7 @@ static void test_lpm_get_next_key(void)
 	assert(map_fd >= 0);
 
 	/* empty tree. get_next_key should return ENOENT */
-	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_get_next_key(map_fd, NULL, key_p) == -ENOENT);
 
 	/* get and verify the first key, get the second one should fail. */
 	key_p->prefixlen = 16;
@@ -566,8 +557,7 @@ static void test_lpm_get_next_key(void)
 	assert(key_p->prefixlen == 16 && key_p->data[0] == 192 &&
 	       key_p->data[1] == 168);
 
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
 
 	/* no exact matching key should get the first one in post order. */
 	key_p->prefixlen = 8;
@@ -591,8 +581,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
 
 	/* Add one more element (total three) */
 	key_p->prefixlen = 24;
@@ -615,8 +604,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
 
 	/* Add one more element (total four) */
 	key_p->prefixlen = 24;
@@ -644,8 +632,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
 
 	/* Add one more element (total five) */
 	key_p->prefixlen = 28;
@@ -679,8 +666,7 @@ static void test_lpm_get_next_key(void)
 	       next_key_p->data[1] == 168);
 
 	memcpy(key_p, next_key_p, key_size);
-	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -1 &&
-	       errno == ENOENT);
+	assert(bpf_map_get_next_key(map_fd, key_p, next_key_p) == -ENOENT);
 
 	/* no exact matching key should return the first one in post order */
 	key_p->prefixlen = 22;
@@ -790,6 +776,9 @@ int main(void)
 
 	/* we want predictable, pseudo random tests */
 	srand(0xf00ba1);
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	test_lpm_basic();
 	test_lpm_order();

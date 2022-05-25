@@ -132,7 +132,7 @@ struct nvmetcp_task_params {
  *				connection.
  *			@param p_doorbell - qed will fill the address of the
  *				doorbell.
- *			@return 0 on sucesss, otherwise error value.
+ *			@return 0 on success, otherwise error value.
  * @release_conn:	release a previously acquired nvmetcp connection
  *			@param cdev
  *			@param handle - the connection handle.

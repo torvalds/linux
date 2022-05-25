@@ -12,6 +12,8 @@
 #include "aq_common.h"
 #include "aq_nic.h"
 
+DECLARE_STATIC_KEY_FALSE(aq_xdp_locking_key);
+
 void aq_ndev_schedule_work(struct work_struct *work);
 struct net_device *aq_ndev_alloc(void);
 

@@ -1035,8 +1035,7 @@ static int qrtr_recvmsg(struct socket *sock, struct msghdr *msg,
 		return -EADDRNOTAVAIL;
 	}
 
-	skb = skb_recv_datagram(sk, flags & ~MSG_DONTWAIT,
-				flags & MSG_DONTWAIT, &rc);
+	skb = skb_recv_datagram(sk, flags, &rc);
 	if (!skb) {
 		release_sock(sk);
 		return rc;

@@ -517,16 +517,16 @@ void br_mtu_auto_adjust(struct net_bridge *br)
 
 static void br_set_gso_limits(struct net_bridge *br)
 {
-	unsigned int gso_max_size = GSO_MAX_SIZE;
-	u16 gso_max_segs = GSO_MAX_SEGS;
+	unsigned int tso_max_size = TSO_MAX_SIZE;
 	const struct net_bridge_port *p;
+	u16 tso_max_segs = TSO_MAX_SEGS;
 
 	list_for_each_entry(p, &br->port_list, list) {
-		gso_max_size = min(gso_max_size, p->dev->gso_max_size);
-		gso_max_segs = min(gso_max_segs, p->dev->gso_max_segs);
+		tso_max_size = min(tso_max_size, p->dev->tso_max_size);
+		tso_max_segs = min(tso_max_segs, p->dev->tso_max_segs);
 	}
-	netif_set_gso_max_size(br->dev, gso_max_size);
-	netif_set_gso_max_segs(br->dev, gso_max_segs);
+	netif_set_tso_max_size(br->dev, tso_max_size);
+	netif_set_tso_max_segs(br->dev, tso_max_segs);
 }
 
 /*

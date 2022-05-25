@@ -1827,10 +1827,9 @@ static int
 mlxsw_sp_acl_tcam_mr_rule_activity_get(struct mlxsw_sp *mlxsw_sp,
 				       void *rule_priv, bool *activity)
 {
-	struct mlxsw_sp_acl_tcam_mr_rule *rule = rule_priv;
+	*activity = false;
 
-	return mlxsw_sp_acl_tcam_ventry_activity_get(mlxsw_sp, &rule->ventry,
-						     activity);
+	return 0;
 }
 
 static const struct mlxsw_sp_acl_profile_ops mlxsw_sp_acl_tcam_mr_ops = {

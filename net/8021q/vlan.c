@@ -319,8 +319,7 @@ static void vlan_transfer_features(struct net_device *dev,
 {
 	struct vlan_dev_priv *vlan = vlan_dev_priv(vlandev);
 
-	netif_set_gso_max_size(vlandev, dev->gso_max_size);
-	netif_set_gso_max_segs(vlandev, dev->gso_max_segs);
+	netif_inherit_tso_max(vlandev, dev);
 
 	if (vlan_hw_offload_capable(dev->features, vlan->vlan_proto))
 		vlandev->hard_header_len = dev->hard_header_len;

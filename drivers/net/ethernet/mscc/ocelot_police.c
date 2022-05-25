@@ -20,7 +20,7 @@
 /* Default policer order */
 #define POL_ORDER 0x1d3 /* Ocelot policer order: Serial (QoS -> Port -> VCAP) */
 
-int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
+int qos_policer_conf_set(struct ocelot *ocelot, u32 pol_ix,
 			 struct qos_policer_conf *conf)
 {
 	u32 cf = 0, cir_ena = 0, frm_mode = POL_MODE_LINERATE;
@@ -102,26 +102,30 @@ int qos_policer_conf_set(struct ocelot *ocelot, int port, u32 pol_ix,
 
 	/* Check limits */
 	if (pir > GENMASK(15, 0)) {
-		dev_err(ocelot->dev, "Invalid pir for port %d: %u (max %lu)\n",
-			port, pir, GENMASK(15, 0));
+		dev_err(ocelot->dev,
+			"Invalid pir for policer %u: %u (max %lu)\n",
+			pol_ix, pir, GENMASK(15, 0));
 		return -EINVAL;
 	}
 
 	if (cir > GENMASK(15, 0)) {
-		dev_err(ocelot->dev, "Invalid cir for port %d: %u (max %lu)\n",
-			port, cir, GENMASK(15, 0));
+		dev_err(ocelot->dev,
+			"Invalid cir for policer %u: %u (max %lu)\n",
+			pol_ix, cir, GENMASK(15, 0));
 		return -EINVAL;
 	}
 
 	if (pbs > pbs_max) {
-		dev_err(ocelot->dev, "Invalid pbs for port %d: %u (max %u)\n",
-			port, pbs, pbs_max);
+		dev_err(ocelot->dev,
+			"Invalid pbs for policer %u: %u (max %u)\n",
+			pol_ix, pbs, pbs_max);
 		return -EINVAL;
 	}
 
 	if (cbs > cbs_max) {
-		dev_err(ocelot->dev, "Invalid cbs for port %d: %u (max %u)\n",
-			port, cbs, cbs_max);
+		dev_err(ocelot->dev,
+			"Invalid cbs for policer %u: %u (max %u)\n",
+			pol_ix, cbs, cbs_max);
 		return -EINVAL;
 	}
 
@@ -211,7 +215,7 @@ int ocelot_port_policer_add(struct ocelot *ocelot, int port,
 	dev_dbg(ocelot->dev, "%s: port %u pir %u kbps, pbs %u bytes\n",
 		__func__, port, pp.pir, pp.pbs);
 
-	err = qos_policer_conf_set(ocelot, port, POL_IX_PORT + port, &pp);
+	err = qos_policer_conf_set(ocelot, POL_IX_PORT + port, &pp);
 	if (err)
 		return err;
 
@@ -235,7 +239,7 @@ int ocelot_port_policer_del(struct ocelot *ocelot, int port)
 
 	pp.mode = MSCC_QOS_RATE_MODE_DISABLED;
 
-	err = qos_policer_conf_set(ocelot, port, POL_IX_PORT + port, &pp);
+	err = qos_policer_conf_set(ocelot, POL_IX_PORT + port, &pp);
 	if (err)
 		return err;
 

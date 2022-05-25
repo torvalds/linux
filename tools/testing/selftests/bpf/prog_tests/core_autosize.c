@@ -167,7 +167,7 @@ void test_core_autosize(void)
 	if (!ASSERT_OK_PTR(bss_map, "bss_map_find"))
 		goto cleanup;
 
-	err = bpf_map_lookup_elem(bpf_map__fd(bss_map), &zero, (void *)&out);
+	err = bpf_map__lookup_elem(bss_map, &zero, sizeof(zero), &out, sizeof(out), 0);
 	if (!ASSERT_OK(err, "bss_lookup"))
 		goto cleanup;
 

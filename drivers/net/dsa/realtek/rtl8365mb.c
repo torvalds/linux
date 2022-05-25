@@ -1778,7 +1778,7 @@ static int rtl8365mb_cpu_config(struct realtek_priv *priv)
 	return 0;
 }
 
-static int rtl8365mb_change_tag_protocol(struct dsa_switch *ds, int cpu_index,
+static int rtl8365mb_change_tag_protocol(struct dsa_switch *ds,
 					 enum dsa_tag_protocol proto)
 {
 	struct realtek_priv *priv = ds->priv;

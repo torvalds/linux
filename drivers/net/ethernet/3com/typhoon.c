@@ -2464,7 +2464,7 @@ typhoon_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	/* The chip-specific entries in the device structure. */
 	dev->netdev_ops		= &typhoon_netdev_ops;
-	netif_napi_add(dev, &tp->napi, typhoon_poll, 16);
+	netif_napi_add_weight(dev, &tp->napi, typhoon_poll, 16);
 	dev->watchdog_timeo	= TX_TIMEOUT;
 
 	dev->ethtool_ops = &typhoon_ethtool_ops;

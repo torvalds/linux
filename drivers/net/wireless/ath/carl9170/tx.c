@@ -1044,8 +1044,9 @@ static int carl9170_tx_prepare(struct ar9170 *ar,
 		if (unlikely(!sta || !cvif))
 			goto err_out;
 
-		factor = min_t(unsigned int, 1u, sta->ht_cap.ampdu_factor);
-		density = sta->ht_cap.ampdu_density;
+		factor = min_t(unsigned int, 1u,
+			       sta->deflink.ht_cap.ampdu_factor);
+		density = sta->deflink.ht_cap.ampdu_density;
 
 		if (density) {
 			/*
@@ -1558,6 +1559,9 @@ static struct carl9170_vif_info *carl9170_pick_beaconing_vif(struct ar9170 *ar)
 					goto out;
 			}
 		} while (ar->beacon_enabled && i--);
+
+		/* no entry found in list */
+		return NULL;
 	}
 
 out:

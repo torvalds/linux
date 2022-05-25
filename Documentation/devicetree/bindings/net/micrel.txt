@@ -45,3 +45,12 @@ Optional properties:
 
 	In fiber mode, auto-negotiation is disabled and the PHY can only work in
 	100base-fx (full and half duplex) modes.
+
+ - coma-mode-gpios: If present the given gpio will be deasserted when the
+		    PHY is probed.
+
+	Some PHYs have a COMA mode input pin which puts the PHY into
+	isolate and power-down mode. On some boards this input is connected
+	to a GPIO of the SoC.
+
+	Supported on the LAN8814.

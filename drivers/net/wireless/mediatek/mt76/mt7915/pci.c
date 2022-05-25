@@ -12,6 +12,9 @@
 #include "mac.h"
 #include "../trace.h"
 
+static bool wed_enable = false;
+module_param(wed_enable, bool, 0644);
+
 static LIST_HEAD(hif_list);
 static DEFINE_SPINLOCK(hif_lock);
 static u32 hif_idx;
@@ -92,12 +95,79 @@ static int mt7915_pci_hif2_probe(struct pci_dev *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+static int mt7915_wed_offload_enable(struct mtk_wed_device *wed)
+{
+	struct mt7915_dev *dev;
+	int ret;
+
+	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+
+	spin_lock_bh(&dev->mt76.token_lock);
+	dev->mt76.token_size = wed->wlan.token_start;
+	spin_unlock_bh(&dev->mt76.token_lock);
+
+	ret = wait_event_timeout(dev->mt76.tx_wait,
+				 !dev->mt76.wed_token_count, HZ);
+	if (!ret)
+		return -EAGAIN;
+
+	return 0;
+}
+
+static void mt7915_wed_offload_disable(struct mtk_wed_device *wed)
+{
+	struct mt7915_dev *dev;
+
+	dev = container_of(wed, struct mt7915_dev, mt76.mmio.wed);
+
+	spin_lock_bh(&dev->mt76.token_lock);
+	dev->mt76.token_size = MT7915_TOKEN_SIZE;
+	spin_unlock_bh(&dev->mt76.token_lock);
+}
+#endif
+
+static int
+mt7915_pci_wed_init(struct mt7915_dev *dev, struct pci_dev *pdev, int *irq)
+{
+#ifdef CONFIG_NET_MEDIATEK_SOC_WED
+	struct mtk_wed_device *wed = &dev->mt76.mmio.wed;
+	int ret;
+
+	if (!wed_enable)
+		return 0;
+
+	wed->wlan.pci_dev = pdev;
+	wed->wlan.wpdma_phys = pci_resource_start(pdev, 0) +
+			       MT_WFDMA_EXT_CSR_BASE;
+	wed->wlan.nbuf = 4096;
+	wed->wlan.token_start = MT7915_TOKEN_SIZE - wed->wlan.nbuf;
+	wed->wlan.init_buf = mt7915_wed_init_buf;
+	wed->wlan.offload_enable = mt7915_wed_offload_enable;
+	wed->wlan.offload_disable = mt7915_wed_offload_disable;
+
+	if (mtk_wed_device_attach(wed) != 0)
+		return 0;
+
+	*irq = wed->irq;
+	dev->mt76.dma_dev = wed->dev;
+
+	ret = dma_set_mask(wed->dev, DMA_BIT_MASK(32));
+	if (ret)
+		return ret;
+
+	return 1;
+#else
+	return 0;
+#endif
+}
+
 static int mt7915_pci_probe(struct pci_dev *pdev,
 			    const struct pci_device_id *id)
 {
+	struct mt7915_hif *hif2 = NULL;
 	struct mt7915_dev *dev;
 	struct mt76_dev *mdev;
-	struct mt7915_hif *hif2;
 	int irq;
 	int ret;
 
@@ -126,19 +196,27 @@ static int mt7915_pci_probe(struct pci_dev *pdev,
 		return PTR_ERR(dev);
 
 	mdev = &dev->mt76;
+	mt7915_wfsys_reset(dev);
 	hif2 = mt7915_pci_init_hif2(pdev);
 
-	ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+	ret = mt7915_pci_wed_init(dev, pdev, &irq);
 	if (ret < 0)
-		goto free_device;
+		goto free_wed_or_irq_vector;
 
-	irq = pdev->irq;
+	if (!ret) {
+		hif2 = mt7915_pci_init_hif2(pdev);
+
+		ret = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_ALL_TYPES);
+		if (ret < 0)
+			goto free_device;
+
+		irq = pdev->irq;
+	}
+
 	ret = devm_request_irq(mdev->dev, irq, mt7915_irq_handler,
 			       IRQF_SHARED, KBUILD_MODNAME, dev);
 	if (ret)
-		goto free_irq_vector;
-
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
+		goto free_wed_or_irq_vector;
 
 	/* master switch of PCIe tnterrupt enable */
 	mt76_wr(dev, MT_PCIE_MAC_INT_ENABLE, 0xff);
@@ -173,8 +251,11 @@ free_hif2:
 	if (dev->hif2)
 		put_device(dev->hif2->dev);
 	devm_free_irq(mdev->dev, irq, dev);
-free_irq_vector:
-	pci_free_irq_vectors(pdev);
+free_wed_or_irq_vector:
+	if (mtk_wed_device_active(&mdev->mmio.wed))
+		mtk_wed_device_detach(&mdev->mmio.wed);
+	else
+		pci_free_irq_vectors(pdev);
 free_device:
 	mt76_free_device(&dev->mt76);
 
