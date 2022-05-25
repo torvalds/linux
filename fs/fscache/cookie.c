@@ -372,17 +372,22 @@ nomem:
 	return NULL;
 }
 
+static inline bool fscache_cookie_is_dropped(struct fscache_cookie *cookie)
+{
+	return READ_ONCE(cookie->state) == FSCACHE_COOKIE_STATE_DROPPED;
+}
+
 static void fscache_wait_on_collision(struct fscache_cookie *candidate,
 				      struct fscache_cookie *wait_for)
 {
 	enum fscache_cookie_state *statep = &wait_for->state;
 
-	wait_var_event_timeout(statep, READ_ONCE(*statep) == FSCACHE_COOKIE_STATE_DROPPED,
+	wait_var_event_timeout(statep, fscache_cookie_is_dropped(wait_for),
 			       20 * HZ);
-	if (READ_ONCE(*statep) != FSCACHE_COOKIE_STATE_DROPPED) {
+	if (!fscache_cookie_is_dropped(wait_for)) {
 		pr_notice("Potential collision c=%08x old: c=%08x",
 			  candidate->debug_id, wait_for->debug_id);
-		wait_var_event(statep, READ_ONCE(*statep) == FSCACHE_COOKIE_STATE_DROPPED);
+		wait_var_event(statep, fscache_cookie_is_dropped(wait_for));
 	}
 }
 
