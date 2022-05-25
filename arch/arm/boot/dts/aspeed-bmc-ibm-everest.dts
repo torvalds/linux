@@ -1958,6 +1958,12 @@
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <2>;
+
+			si8021-a20@40 {
+				compatible = "silabs,si7020";
+				reg = <0x40>;
+			};
+
 			eeprom@50 {
 				compatible = "atmel,24c32";
 				reg = <0x50>;
