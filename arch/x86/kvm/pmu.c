@@ -283,7 +283,7 @@ out:
 	return allow_event;
 }
 
-void reprogram_gp_counter(struct kvm_pmc *pmc)
+static void reprogram_gp_counter(struct kvm_pmc *pmc)
 {
 	u64 config;
 	u32 type = PERF_TYPE_RAW;
@@ -325,9 +325,8 @@ void reprogram_gp_counter(struct kvm_pmc *pmc)
 			      !(eventsel & ARCH_PERFMON_EVENTSEL_OS),
 			      eventsel & ARCH_PERFMON_EVENTSEL_INT);
 }
-EXPORT_SYMBOL_GPL(reprogram_gp_counter);
 
-void reprogram_fixed_counter(struct kvm_pmc *pmc)
+static void reprogram_fixed_counter(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
 	int idx = pmc->idx - INTEL_PMC_IDX_FIXED;
@@ -355,7 +354,6 @@ void reprogram_fixed_counter(struct kvm_pmc *pmc)
 			      !(en_field & 0x1), /* exclude kernel */
 			      pmi);
 }
-EXPORT_SYMBOL_GPL(reprogram_fixed_counter);
 
 void reprogram_counter(struct kvm_pmc *pmc)
 {
