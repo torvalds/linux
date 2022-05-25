@@ -98,6 +98,7 @@
 #include "splice.h"
 #include "sync.h"
 #include "advise.h"
+#include "openclose.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -283,12 +284,6 @@ struct io_poll_update {
 	bool				update_user_data;
 };
 
-struct io_close {
-	struct file			*file;
-	int				fd;
-	u32				file_slot;
-};
-
 struct io_timeout_data {
 	struct io_kiocb			*req;
 	struct hrtimer			timer;
@@ -369,15 +364,6 @@ struct io_sr_msg {
 	size_t				len;
 	size_t				done_io;
 	unsigned int			flags;
-};
-
-struct io_open {
-	struct file			*file;
-	int				dfd;
-	u32				file_slot;
-	struct filename			*filename;
-	struct open_how			how;
-	unsigned long			nofile;
 };
 
 struct io_rsrc_update {
@@ -555,9 +541,6 @@ static int io_req_prep_async(struct io_kiocb *req);
 
 static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 				 unsigned int issue_flags, u32 slot_index);
-static int __io_close_fixed(struct io_kiocb *req, unsigned int issue_flags,
-			    unsigned int offset);
-static inline int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags);
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer);
 static void io_eventfd_signal(struct io_ring_ctx *ctx);
@@ -670,10 +653,15 @@ const char *io_uring_get_opcode(u8 opcode)
 	return "INVALID";
 }
 
+bool io_is_uring_fops(struct file *file)
+{
+	return file->f_op == &io_uring_fops;
+}
+
 struct sock *io_uring_get_socket(struct file *file)
 {
 #if defined(CONFIG_UNIX)
-	if (file->f_op == &io_uring_fops) {
+	if (io_is_uring_fops(file)) {
 		struct io_ring_ctx *ctx = file->private_data;
 
 		return ctx->ring_sock->sk;
@@ -698,26 +686,6 @@ static inline bool io_file_need_scm(struct file *filp)
 	return false;
 }
 #endif
-
-static void io_ring_submit_unlock(struct io_ring_ctx *ctx, unsigned issue_flags)
-{
-	lockdep_assert_held(&ctx->uring_lock);
-	if (issue_flags & IO_URING_F_UNLOCKED)
-		mutex_unlock(&ctx->uring_lock);
-}
-
-static void io_ring_submit_lock(struct io_ring_ctx *ctx, unsigned issue_flags)
-{
-	/*
-	 * "Normal" inline submissions always hold the uring_lock, since we
-	 * grab it from the system call. Same is true for the SQPOLL offload.
-	 * The only exception is when we've detached the request and issue it
-	 * from an async worker thread, grab the lock for that case.
-	 */
-	if (issue_flags & IO_URING_F_UNLOCKED)
-		mutex_lock(&ctx->uring_lock);
-	lockdep_assert_held(&ctx->uring_lock);
-}
 
 static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
 {
@@ -3899,74 +3867,12 @@ done:
 	return IOU_OK;
 }
 
-static int __io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_open *open = io_kiocb_to_cmd(req);
-	const char __user *fname;
-	int ret;
-
-	if (unlikely(sqe->buf_index))
-		return -EINVAL;
-	if (unlikely(req->flags & REQ_F_FIXED_FILE))
-		return -EBADF;
-
-	/* open.how should be already initialised */
-	if (!(open->how.flags & O_PATH) && force_o_largefile())
-		open->how.flags |= O_LARGEFILE;
-
-	open->dfd = READ_ONCE(sqe->fd);
-	fname = u64_to_user_ptr(READ_ONCE(sqe->addr));
-	open->filename = getname(fname);
-	if (IS_ERR(open->filename)) {
-		ret = PTR_ERR(open->filename);
-		open->filename = NULL;
-		return ret;
-	}
-
-	open->file_slot = READ_ONCE(sqe->file_index);
-	if (open->file_slot && (open->how.flags & O_CLOEXEC))
-		return -EINVAL;
-
-	open->nofile = rlimit(RLIMIT_NOFILE);
-	req->flags |= REQ_F_NEED_CLEANUP;
-	return 0;
-}
-
-static int io_openat_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_open *open = io_kiocb_to_cmd(req);
-	u64 mode = READ_ONCE(sqe->len);
-	u64 flags = READ_ONCE(sqe->open_flags);
-
-	open->how = build_open_how(flags, mode);
-	return __io_openat_prep(req, sqe);
-}
-
-static int io_openat2_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_open *open = io_kiocb_to_cmd(req);
-	struct open_how __user *how;
-	size_t len;
-	int ret;
-
-	how = u64_to_user_ptr(READ_ONCE(sqe->addr2));
-	len = READ_ONCE(sqe->len);
-	if (len < OPEN_HOW_SIZE_VER0)
-		return -EINVAL;
-
-	ret = copy_struct_from_user(&open->how, sizeof(open->how), how, len);
-	if (ret)
-		return ret;
-
-	return __io_openat_prep(req, sqe);
-}
-
 /*
  * Note when io_fixed_fd_install() returns error value, it will ensure
  * fput() is called correspondingly.
  */
-static int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
-			       struct file *file, unsigned int file_slot)
+int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
+			struct file *file, unsigned int file_slot)
 {
 	bool alloc_slot = file_slot == IORING_FILE_INDEX_ALLOC;
 	struct io_ring_ctx *ctx = req->ctx;
@@ -3991,86 +3897,6 @@ err:
 	if (unlikely(ret < 0))
 		fput(file);
 	return ret;
-}
-
-static int io_openat2(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_open *open = io_kiocb_to_cmd(req);
-	struct open_flags op;
-	struct file *file;
-	bool resolve_nonblock, nonblock_set;
-	bool fixed = !!open->file_slot;
-	int ret;
-
-	ret = build_open_flags(&open->how, &op);
-	if (ret)
-		goto err;
-	nonblock_set = op.open_flag & O_NONBLOCK;
-	resolve_nonblock = open->how.resolve & RESOLVE_CACHED;
-	if (issue_flags & IO_URING_F_NONBLOCK) {
-		/*
-		 * Don't bother trying for O_TRUNC, O_CREAT, or O_TMPFILE open,
-		 * it'll always -EAGAIN
-		 */
-		if (open->how.flags & (O_TRUNC | O_CREAT | O_TMPFILE))
-			return -EAGAIN;
-		op.lookup_flags |= LOOKUP_CACHED;
-		op.open_flag |= O_NONBLOCK;
-	}
-
-	if (!fixed) {
-		ret = __get_unused_fd_flags(open->how.flags, open->nofile);
-		if (ret < 0)
-			goto err;
-	}
-
-	file = do_filp_open(open->dfd, open->filename, &op);
-	if (IS_ERR(file)) {
-		/*
-		 * We could hang on to this 'fd' on retrying, but seems like
-		 * marginal gain for something that is now known to be a slower
-		 * path. So just put it, and we'll get a new one when we retry.
-		 */
-		if (!fixed)
-			put_unused_fd(ret);
-
-		ret = PTR_ERR(file);
-		/* only retry if RESOLVE_CACHED wasn't already set by application */
-		if (ret == -EAGAIN &&
-		    (!resolve_nonblock && (issue_flags & IO_URING_F_NONBLOCK)))
-			return -EAGAIN;
-		goto err;
-	}
-
-	if ((issue_flags & IO_URING_F_NONBLOCK) && !nonblock_set)
-		file->f_flags &= ~O_NONBLOCK;
-	fsnotify_open(file);
-
-	if (!fixed)
-		fd_install(ret, file);
-	else
-		ret = io_fixed_fd_install(req, issue_flags, file,
-						open->file_slot);
-err:
-	putname(open->filename);
-	req->flags &= ~REQ_F_NEED_CLEANUP;
-	if (ret < 0)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-}
-
-static int io_openat(struct io_kiocb *req, unsigned int issue_flags)
-{
-	return io_openat2(req, issue_flags);
-}
-
-static void io_open_cleanup(struct io_kiocb *req)
-{
-	struct io_open *open = io_kiocb_to_cmd(req);
-
-	if (open->filename)
-		putname(open->filename);
 }
 
 static int io_remove_buffers_prep(struct io_kiocb *req,
@@ -4422,69 +4248,6 @@ static void io_statx_cleanup(struct io_kiocb *req)
 
 	if (sx->filename)
 		putname(sx->filename);
-}
-
-static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_close *close = io_kiocb_to_cmd(req);
-
-	if (sqe->off || sqe->addr || sqe->len || sqe->rw_flags || sqe->buf_index)
-		return -EINVAL;
-	if (req->flags & REQ_F_FIXED_FILE)
-		return -EBADF;
-
-	close->fd = READ_ONCE(sqe->fd);
-	close->file_slot = READ_ONCE(sqe->file_index);
-	if (close->file_slot && close->fd)
-		return -EINVAL;
-
-	return 0;
-}
-
-static int io_close(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct files_struct *files = current->files;
-	struct io_close *close = io_kiocb_to_cmd(req);
-	struct fdtable *fdt;
-	struct file *file;
-	int ret = -EBADF;
-
-	if (close->file_slot) {
-		ret = io_close_fixed(req, issue_flags);
-		goto err;
-	}
-
-	spin_lock(&files->file_lock);
-	fdt = files_fdtable(files);
-	if (close->fd >= fdt->max_fds) {
-		spin_unlock(&files->file_lock);
-		goto err;
-	}
-	file = rcu_dereference_protected(fdt->fd[close->fd],
-			lockdep_is_held(&files->file_lock));
-	if (!file || file->f_op == &io_uring_fops) {
-		spin_unlock(&files->file_lock);
-		goto err;
-	}
-
-	/* if the file has a flush method, be safe and punt to async */
-	if (file->f_op->flush && (issue_flags & IO_URING_F_NONBLOCK)) {
-		spin_unlock(&files->file_lock);
-		return -EAGAIN;
-	}
-
-	file = __close_fd_get_file(close->fd);
-	spin_unlock(&files->file_lock);
-	if (!file)
-		goto err;
-
-	/* No ->flush() or already async, safely close from here */
-	ret = filp_close(file, current->files);
-err:
-	if (ret < 0)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
 }
 
 #if defined(CONFIG_NET)
@@ -7744,8 +7507,8 @@ static struct io_rsrc_node *io_rsrc_node_alloc(void)
 	return ref_node;
 }
 
-static void io_rsrc_node_switch(struct io_ring_ctx *ctx,
-				struct io_rsrc_data *data_to_kill)
+void io_rsrc_node_switch(struct io_ring_ctx *ctx,
+			 struct io_rsrc_data *data_to_kill)
 	__must_hold(&ctx->uring_lock)
 {
 	WARN_ON_ONCE(!ctx->rsrc_backup_node);
@@ -7772,7 +7535,7 @@ static void io_rsrc_node_switch(struct io_ring_ctx *ctx,
 	}
 }
 
-static int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
+int io_rsrc_node_switch_start(struct io_ring_ctx *ctx)
 {
 	if (ctx->rsrc_backup_node)
 		return 0;
@@ -8319,8 +8082,8 @@ fail:
 	return ret;
 }
 
-static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
-				 struct io_rsrc_node *node, void *rsrc)
+int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
+			  struct io_rsrc_node *node, void *rsrc)
 {
 	u64 *tag_slot = io_get_tag_slot(data, idx);
 	struct io_rsrc_put *prsrc;
@@ -8384,52 +8147,6 @@ err:
 	if (ret)
 		fput(file);
 	return ret;
-}
-
-static int __io_close_fixed(struct io_kiocb *req, unsigned int issue_flags,
-			    unsigned int offset)
-{
-	struct io_ring_ctx *ctx = req->ctx;
-	struct io_fixed_file *file_slot;
-	struct file *file;
-	int ret;
-
-	io_ring_submit_lock(ctx, issue_flags);
-	ret = -ENXIO;
-	if (unlikely(!ctx->file_data))
-		goto out;
-	ret = -EINVAL;
-	if (offset >= ctx->nr_user_files)
-		goto out;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		goto out;
-
-	offset = array_index_nospec(offset, ctx->nr_user_files);
-	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
-	ret = -EBADF;
-	if (!file_slot->file_ptr)
-		goto out;
-
-	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-	ret = io_queue_rsrc_removal(ctx->file_data, offset, ctx->rsrc_node, file);
-	if (ret)
-		goto out;
-
-	file_slot->file_ptr = 0;
-	io_file_bitmap_clear(&ctx->file_table, offset);
-	io_rsrc_node_switch(ctx, ctx->file_data);
-	ret = 0;
-out:
-	io_ring_submit_unlock(ctx, issue_flags);
-	return ret;
-}
-
-static inline int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_close *close = io_kiocb_to_cmd(req);
-
-	return __io_close_fixed(req, issue_flags, close->file_slot - 1);
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
