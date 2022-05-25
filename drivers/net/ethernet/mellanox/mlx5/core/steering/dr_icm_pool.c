@@ -177,41 +177,24 @@ static int dr_icm_buddy_get_ste_size(struct mlx5dr_icm_buddy_mem *buddy)
 
 static void dr_icm_chunk_ste_init(struct mlx5dr_icm_chunk *chunk, int offset)
 {
+	int num_of_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
 	struct mlx5dr_icm_buddy_mem *buddy = chunk->buddy_mem;
+	int ste_size = dr_icm_buddy_get_ste_size(buddy);
 	int index = offset / DR_STE_SIZE;
 
 	chunk->ste_arr = &buddy->ste_arr[index];
 	chunk->miss_list = &buddy->miss_list[index];
-	chunk->hw_ste_arr = buddy->hw_ste_arr +
-			    index * dr_icm_buddy_get_ste_size(buddy);
-}
+	chunk->hw_ste_arr = buddy->hw_ste_arr + index * ste_size;
 
-static void dr_icm_chunk_ste_cleanup(struct mlx5dr_icm_chunk *chunk)
-{
-	int num_of_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
-	struct mlx5dr_icm_buddy_mem *buddy = chunk->buddy_mem;
-
-	memset(chunk->hw_ste_arr, 0,
-	       num_of_entries * dr_icm_buddy_get_ste_size(buddy));
+	memset(chunk->hw_ste_arr, 0, num_of_entries * ste_size);
 	memset(chunk->ste_arr, 0,
 	       num_of_entries * sizeof(chunk->ste_arr[0]));
 }
 
-static enum mlx5dr_icm_type
-get_chunk_icm_type(struct mlx5dr_icm_chunk *chunk)
-{
-	return chunk->buddy_mem->pool->icm_type;
-}
-
 static void dr_icm_chunk_destroy(struct mlx5dr_icm_chunk *chunk)
 {
-	enum mlx5dr_icm_type icm_type = get_chunk_icm_type(chunk);
-
 	chunk->buddy_mem->used_memory -= mlx5dr_icm_pool_get_chunk_byte_size(chunk);
 	list_del(&chunk->chunk_list);
-
-	if (icm_type == DR_ICM_TYPE_STE)
-		dr_icm_chunk_ste_cleanup(chunk);
 
 	kvfree(chunk);
 }
