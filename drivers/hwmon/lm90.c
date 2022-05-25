@@ -685,6 +685,7 @@ struct lm90_data {
 	struct device *hwmon_dev;
 	u32 chip_config[2];
 	u32 channel_config[MAX_CHANNELS + 1];
+	const char *channel_label[MAX_CHANNELS];
 	struct hwmon_channel_info chip_info;
 	struct hwmon_channel_info temp_info;
 	const struct hwmon_channel_info *info[3];
@@ -1587,6 +1588,7 @@ static umode_t lm90_temp_is_visible(const void *data, u32 attr, int channel)
 	case hwmon_temp_emergency_alarm:
 	case hwmon_temp_emergency_hyst:
 	case hwmon_temp_fault:
+	case hwmon_temp_label:
 		return 0444;
 	case hwmon_temp_min:
 	case hwmon_temp_max:
@@ -1704,6 +1706,16 @@ static int lm90_read(struct device *dev, enum hwmon_sensor_types type,
 	default:
 		return -EOPNOTSUPP;
 	}
+}
+
+static int lm90_read_string(struct device *dev, enum hwmon_sensor_types type,
+			    u32 attr, int channel, const char **str)
+{
+	struct lm90_data *data = dev_get_drvdata(dev);
+
+	*str = data->channel_label[channel];
+
+	return 0;
 }
 
 static int lm90_write(struct device *dev, enum hwmon_sensor_types type,
@@ -2611,10 +2623,63 @@ static void lm90_regulator_disable(void *regulator)
 	regulator_disable(regulator);
 }
 
+static int lm90_probe_channel_from_dt(struct i2c_client *client,
+				      struct device_node *child,
+				      struct lm90_data *data)
+{
+	u32 id;
+	int err;
+	struct device *dev = &client->dev;
+
+	err = of_property_read_u32(child, "reg", &id);
+	if (err) {
+		dev_err(dev, "missing reg property of %pOFn\n", child);
+		return err;
+	}
+
+	if (id >= MAX_CHANNELS) {
+		dev_err(dev, "invalid reg property value %d in %pOFn\n", id, child);
+		return -EINVAL;
+	}
+
+	err = of_property_read_string(child, "label", &data->channel_label[id]);
+	if (err == -ENODATA || err == -EILSEQ) {
+		dev_err(dev, "invalid label property in %pOFn\n", child);
+		return err;
+	}
+
+	if (data->channel_label[id])
+		data->channel_config[id] |= HWMON_T_LABEL;
+
+	return 0;
+}
+
+static int lm90_parse_dt_channel_info(struct i2c_client *client,
+				      struct lm90_data *data)
+{
+	int err;
+	struct device_node *child;
+	struct device *dev = &client->dev;
+	const struct device_node *np = dev->of_node;
+
+	for_each_child_of_node(np, child) {
+		if (strcmp(child->name, "channel"))
+			continue;
+
+		err = lm90_probe_channel_from_dt(client, child, data);
+		if (err) {
+			of_node_put(child);
+			return err;
+		}
+	}
+
+	return 0;
+}
 
 static const struct hwmon_ops lm90_ops = {
 	.is_visible = lm90_is_visible,
 	.read = lm90_read,
+	.read_string = lm90_read_string,
 	.write = lm90_write,
 };
 
@@ -2749,6 +2814,13 @@ static int lm90_probe(struct i2c_client *client)
 
 	/* Set maximum conversion rate */
 	data->max_convrate = lm90_params[data->kind].max_convrate;
+
+	/* Parse device-tree channel information */
+	if (client->dev.of_node) {
+		err = lm90_parse_dt_channel_info(client, data);
+		if (err)
+			return err;
+	}
 
 	/* Initialize the LM90 chip */
 	err = lm90_init_client(client, data);
