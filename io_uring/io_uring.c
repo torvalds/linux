@@ -95,6 +95,7 @@
 #include "xattr.h"
 #include "nop.h"
 #include "fs.h"
+#include "splice.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -436,15 +437,6 @@ struct io_epoll {
 	struct epoll_event		event;
 };
 
-struct io_splice {
-	struct file			*file_out;
-	loff_t				off_out;
-	loff_t				off_in;
-	u64				len;
-	int				splice_fd_in;
-	unsigned int			flags;
-};
-
 struct io_provide_buf {
 	struct file			*file;
 	__u64				addr;
@@ -596,9 +588,6 @@ static int __io_register_rsrc_update(struct io_ring_ctx *ctx, unsigned type,
 				     struct io_uring_rsrc_update2 *up,
 				     unsigned nr_args);
 static void io_clean_op(struct io_kiocb *req);
-static inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
-					     unsigned issue_flags);
-static struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 static void io_queue_sqe(struct io_kiocb *req);
 static void io_rsrc_put_work(struct work_struct *work);
 
@@ -1076,15 +1065,6 @@ static bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
 static inline bool req_has_async_data(struct io_kiocb *req)
 {
 	return req->flags & REQ_F_ASYNC_DATA;
-}
-
-static inline void req_set_fail(struct io_kiocb *req)
-{
-	req->flags |= REQ_F_FAIL;
-	if (req->flags & REQ_F_CQE_SKIP) {
-		req->flags &= ~REQ_F_CQE_SKIP;
-		req->flags |= REQ_F_SKIP_LINK_CQES;
-	}
 }
 
 static inline void req_fail_link_node(struct io_kiocb *req, int res)
@@ -1939,12 +1919,6 @@ static inline struct io_kiocb *io_alloc_req(struct io_ring_ctx *ctx)
 
 	node = wq_stack_extract(&ctx->submit_state.free_list);
 	return container_of(node, struct io_kiocb, comp_list);
-}
-
-static inline void io_put_file(struct file *file)
-{
-	if (file)
-		fput(file);
 }
 
 static inline void io_dismantle_req(struct io_kiocb *req)
@@ -3917,105 +3891,6 @@ static int io_uring_cmd(struct io_kiocb *req, unsigned int issue_flags)
 	}
 
 	return IOU_ISSUE_SKIP_COMPLETE;
-}
-
-static int __io_splice_prep(struct io_kiocb *req,
-			    const struct io_uring_sqe *sqe)
-{
-	struct io_splice *sp = io_kiocb_to_cmd(req);
-	unsigned int valid_flags = SPLICE_F_FD_IN_FIXED | SPLICE_F_ALL;
-
-	sp->len = READ_ONCE(sqe->len);
-	sp->flags = READ_ONCE(sqe->splice_flags);
-	if (unlikely(sp->flags & ~valid_flags))
-		return -EINVAL;
-	sp->splice_fd_in = READ_ONCE(sqe->splice_fd_in);
-	return 0;
-}
-
-static int io_tee_prep(struct io_kiocb *req,
-		       const struct io_uring_sqe *sqe)
-{
-	if (READ_ONCE(sqe->splice_off_in) || READ_ONCE(sqe->off))
-		return -EINVAL;
-	return __io_splice_prep(req, sqe);
-}
-
-static int io_tee(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_splice *sp = io_kiocb_to_cmd(req);
-	struct file *out = sp->file_out;
-	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
-	struct file *in;
-	long ret = 0;
-
-	if (issue_flags & IO_URING_F_NONBLOCK)
-		return -EAGAIN;
-
-	if (sp->flags & SPLICE_F_FD_IN_FIXED)
-		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
-	else
-		in = io_file_get_normal(req, sp->splice_fd_in);
-	if (!in) {
-		ret = -EBADF;
-		goto done;
-	}
-
-	if (sp->len)
-		ret = do_tee(in, out, sp->len, flags);
-
-	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
-		io_put_file(in);
-done:
-	if (ret != sp->len)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-}
-
-static int io_splice_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
-{
-	struct io_splice *sp = io_kiocb_to_cmd(req);
-
-	sp->off_in = READ_ONCE(sqe->splice_off_in);
-	sp->off_out = READ_ONCE(sqe->off);
-	return __io_splice_prep(req, sqe);
-}
-
-static int io_splice(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_splice *sp = io_kiocb_to_cmd(req);
-	struct file *out = sp->file_out;
-	unsigned int flags = sp->flags & ~SPLICE_F_FD_IN_FIXED;
-	loff_t *poff_in, *poff_out;
-	struct file *in;
-	long ret = 0;
-
-	if (issue_flags & IO_URING_F_NONBLOCK)
-		return -EAGAIN;
-
-	if (sp->flags & SPLICE_F_FD_IN_FIXED)
-		in = io_file_get_fixed(req, sp->splice_fd_in, issue_flags);
-	else
-		in = io_file_get_normal(req, sp->splice_fd_in);
-	if (!in) {
-		ret = -EBADF;
-		goto done;
-	}
-
-	poff_in = (sp->off_in == -1) ? NULL : &sp->off_in;
-	poff_out = (sp->off_out == -1) ? NULL : &sp->off_out;
-
-	if (sp->len)
-		ret = do_splice(in, poff_in, out, poff_out, sp->len, flags);
-
-	if (!(sp->flags & SPLICE_F_FD_IN_FIXED))
-		io_put_file(in);
-done:
-	if (ret != sp->len)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
 }
 
 static int io_msg_ring_prep(struct io_kiocb *req,
@@ -7157,8 +7032,8 @@ static void io_fixed_file_set(struct io_fixed_file *file_slot, struct file *file
 	file_slot->file_ptr = file_ptr;
 }
 
-static inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
-					     unsigned int issue_flags)
+inline struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
+				      unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	struct file *file = NULL;
@@ -7181,7 +7056,7 @@ out:
 	return file;
 }
 
-static struct file *io_file_get_normal(struct io_kiocb *req, int fd)
+struct file *io_file_get_normal(struct io_kiocb *req, int fd)
 {
 	struct file *file = fget(fd);
 
