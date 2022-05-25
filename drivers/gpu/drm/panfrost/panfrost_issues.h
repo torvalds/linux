@@ -128,6 +128,10 @@ enum panfrost_hw_issue {
 	/* Must set SC_VAR_ALGORITHM */
 	HW_ISSUE_TTRX_2968_TTRX_3162,
 
+	/* Bus fault from occlusion query write may cause future fragment jobs
+	 * to hang */
+	HW_ISSUE_TTRX_3076,
+
 	HW_ISSUE_END
 };
 
