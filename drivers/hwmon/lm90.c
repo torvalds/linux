@@ -110,6 +110,9 @@
 #include <linux/slab.h>
 #include <linux/workqueue.h>
 
+/* The maximum number of channels currently supported */
+#define MAX_CHANNELS	3
+
 /*
  * Addresses to scan
  * Address is fully defined internally and cannot be changed except for
@@ -681,7 +684,7 @@ struct lm90_data {
 	struct i2c_client *client;
 	struct device *hwmon_dev;
 	u32 chip_config[2];
-	u32 channel_config[4];
+	u32 channel_config[MAX_CHANNELS + 1];
 	struct hwmon_channel_info chip_info;
 	struct hwmon_channel_info temp_info;
 	const struct hwmon_channel_info *info[3];
@@ -1424,32 +1427,32 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 	return lm90_write_reg(data->client, LM90_REG_TCRIT_HYST, data->temp_hyst);
 }
 
-static const u8 lm90_temp_index[3] = {
+static const u8 lm90_temp_index[MAX_CHANNELS] = {
 	LOCAL_TEMP, REMOTE_TEMP, REMOTE2_TEMP
 };
 
-static const u8 lm90_temp_min_index[3] = {
+static const u8 lm90_temp_min_index[MAX_CHANNELS] = {
 	LOCAL_LOW, REMOTE_LOW, REMOTE2_LOW
 };
 
-static const u8 lm90_temp_max_index[3] = {
+static const u8 lm90_temp_max_index[MAX_CHANNELS] = {
 	LOCAL_HIGH, REMOTE_HIGH, REMOTE2_HIGH
 };
 
-static const u8 lm90_temp_crit_index[3] = {
+static const u8 lm90_temp_crit_index[MAX_CHANNELS] = {
 	LOCAL_CRIT, REMOTE_CRIT, REMOTE2_CRIT
 };
 
-static const u8 lm90_temp_emerg_index[3] = {
+static const u8 lm90_temp_emerg_index[MAX_CHANNELS] = {
 	LOCAL_EMERG, REMOTE_EMERG, REMOTE2_EMERG
 };
 
-static const u16 lm90_min_alarm_bits[3] = { BIT(5), BIT(3), BIT(11) };
-static const u16 lm90_max_alarm_bits[3] = { BIT(6), BIT(4), BIT(12) };
-static const u16 lm90_crit_alarm_bits[3] = { BIT(0), BIT(1), BIT(9) };
-static const u16 lm90_crit_alarm_bits_swapped[3] = { BIT(1), BIT(0), BIT(9) };
-static const u16 lm90_emergency_alarm_bits[3] = { BIT(15), BIT(13), BIT(14) };
-static const u16 lm90_fault_bits[3] = { BIT(0), BIT(2), BIT(10) };
+static const u16 lm90_min_alarm_bits[MAX_CHANNELS] = { BIT(5), BIT(3), BIT(11) };
+static const u16 lm90_max_alarm_bits[MAX_CHANNELS] = { BIT(6), BIT(4), BIT(12) };
+static const u16 lm90_crit_alarm_bits[MAX_CHANNELS] = { BIT(0), BIT(1), BIT(9) };
+static const u16 lm90_crit_alarm_bits_swapped[MAX_CHANNELS] = { BIT(1), BIT(0), BIT(9) };
+static const u16 lm90_emergency_alarm_bits[MAX_CHANNELS] = { BIT(15), BIT(13), BIT(14) };
+static const u16 lm90_fault_bits[MAX_CHANNELS] = { BIT(0), BIT(2), BIT(10) };
 
 static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 {
