@@ -2372,8 +2372,9 @@ next_page:
 	return ret;
 }
 
-static int f2fs_read_data_page(struct file *file, struct page *page)
+static int f2fs_read_data_folio(struct file *file, struct folio *folio)
 {
+	struct page *page = &folio->page;
 	struct inode *inode = page_file_mapping(page)->host;
 	int ret = -EAGAIN;
 
@@ -3314,8 +3315,7 @@ unlock_out:
 }
 
 static int f2fs_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags,
-		struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
 {
 	struct inode *inode = mapping->host;
 	struct f2fs_sb_info *sbi = F2FS_I_SB(inode);
@@ -3325,7 +3325,7 @@ static int f2fs_write_begin(struct file *file, struct address_space *mapping,
 	block_t blkaddr = NULL_ADDR;
 	int err = 0;
 
-	trace_f2fs_write_begin(inode, pos, len, flags);
+	trace_f2fs_write_begin(inode, pos, len);
 
 	if (!f2fs_is_checkpoint_ready(sbi)) {
 		err = -ENOSPC;
@@ -3528,28 +3528,30 @@ void f2fs_invalidate_folio(struct folio *folio, size_t offset, size_t length)
 	folio_detach_private(folio);
 }
 
-int f2fs_release_page(struct page *page, gfp_t wait)
+bool f2fs_release_folio(struct folio *folio, gfp_t wait)
 {
-	/* If this is dirty page, keep PagePrivate */
-	if (PageDirty(page))
-		return 0;
+	struct f2fs_sb_info *sbi;
+
+	/* If this is dirty folio, keep private data */
+	if (folio_test_dirty(folio))
+		return false;
 
 	/* This is atomic written page, keep Private */
-	if (page_private_atomic(page))
-		return 0;
+	if (page_private_atomic(&folio->page))
+		return false;
 
-	if (test_opt(F2FS_P_SB(page), COMPRESS_CACHE)) {
-		struct inode *inode = page->mapping->host;
+	sbi = F2FS_M_SB(folio->mapping);
+	if (test_opt(sbi, COMPRESS_CACHE)) {
+		struct inode *inode = folio->mapping->host;
 
-		if (inode->i_ino == F2FS_COMPRESS_INO(F2FS_I_SB(inode)))
-			clear_page_private_data(page);
+		if (inode->i_ino == F2FS_COMPRESS_INO(sbi))
+			clear_page_private_data(&folio->page);
 	}
 
-	clear_page_private_gcing(page);
+	clear_page_private_gcing(&folio->page);
 
-	detach_page_private(page);
-	set_page_private(page, 0);
-	return 1;
+	folio_detach_private(folio);
+	return true;
 }
 
 static bool f2fs_dirty_data_folio(struct address_space *mapping,
@@ -3936,7 +3938,7 @@ static void f2fs_swap_deactivate(struct file *file)
 #endif
 
 const struct address_space_operations f2fs_dblock_aops = {
-	.readpage	= f2fs_read_data_page,
+	.read_folio	= f2fs_read_data_folio,
 	.readahead	= f2fs_readahead,
 	.writepage	= f2fs_write_data_page,
 	.writepages	= f2fs_write_data_pages,
@@ -3944,7 +3946,7 @@ const struct address_space_operations f2fs_dblock_aops = {
 	.write_end	= f2fs_write_end,
 	.dirty_folio	= f2fs_dirty_data_folio,
 	.invalidate_folio = f2fs_invalidate_folio,
-	.releasepage	= f2fs_release_page,
+	.release_folio	= f2fs_release_folio,
 	.direct_IO	= noop_direct_IO,
 	.bmap		= f2fs_bmap,
 	.swap_activate  = f2fs_swap_activate,

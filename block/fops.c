@@ -372,9 +372,9 @@ static int blkdev_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, blkdev_get_block, wbc);
 }
 
-static int blkdev_readpage(struct file * file, struct page * page)
+static int blkdev_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page, blkdev_get_block);
+	return block_read_full_folio(folio, blkdev_get_block);
 }
 
 static void blkdev_readahead(struct readahead_control *rac)
@@ -383,11 +383,9 @@ static void blkdev_readahead(struct readahead_control *rac)
 }
 
 static int blkdev_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags, struct page **pagep,
-		void **fsdata)
+		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
 {
-	return block_write_begin(mapping, pos, len, flags, pagep,
-				 blkdev_get_block);
+	return block_write_begin(mapping, pos, len, pagep, blkdev_get_block);
 }
 
 static int blkdev_write_end(struct file *file, struct address_space *mapping,
@@ -412,7 +410,7 @@ static int blkdev_writepages(struct address_space *mapping,
 const struct address_space_operations def_blk_aops = {
 	.dirty_folio	= block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage	= blkdev_readpage,
+	.read_folio	= blkdev_read_folio,
 	.readahead	= blkdev_readahead,
 	.writepage	= blkdev_writepage,
 	.write_begin	= blkdev_write_begin,

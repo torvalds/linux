@@ -42,7 +42,7 @@ static void afs_folio_start_fscache(bool caching, struct folio *folio)
  * prepare to perform part of a write to a page
  */
 int afs_write_begin(struct file *file, struct address_space *mapping,
-		    loff_t pos, unsigned len, unsigned flags,
+		    loff_t pos, unsigned len,
 		    struct page **_page, void **fsdata)
 {
 	struct afs_vnode *vnode = AFS_FS_I(file_inode(file));
@@ -60,7 +60,7 @@ int afs_write_begin(struct file *file, struct address_space *mapping,
 	 * file.  We need to do this before we get a lock on the page in case
 	 * there's more than one writer competing for the same cache block.
 	 */
-	ret = netfs_write_begin(file, mapping, pos, len, flags, &folio, fsdata);
+	ret = netfs_write_begin(file, mapping, pos, len, &folio, fsdata);
 	if (ret < 0)
 		return ret;
 

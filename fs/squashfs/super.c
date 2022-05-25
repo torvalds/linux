@@ -148,7 +148,7 @@ static int squashfs_fill_super(struct super_block *sb, struct fs_context *fc)
 
 	/*
 	 * squashfs provides 'backing_dev_info' in order to disable read-ahead. For
-	 * squashfs, I/O is not deferred, it is done immediately in readpage,
+	 * squashfs, I/O is not deferred, it is done immediately in read_folio,
 	 * which means the user would always have to wait their own I/O. So the effect
 	 * of readahead is very weak for squashfs. squashfs_bdi_init will set
 	 * sb->s_bdi->ra_pages and sb->s_bdi->io_pages to 0 and close readahead for

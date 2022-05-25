@@ -1181,7 +1181,7 @@ static pageout_t pageout(struct folio *folio, struct address_space *mapping)
 		 * folio->mapping == NULL while being dirty with clean buffers.
 		 */
 		if (folio_test_private(folio)) {
-			if (try_to_free_buffers(&folio->page)) {
+			if (try_to_free_buffers(folio)) {
 				folio_clear_dirty(folio);
 				pr_info("%s: orphaned folio\n", __func__);
 				return PAGE_CLEAN;
@@ -1282,9 +1282,9 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 		xa_unlock_irq(&mapping->i_pages);
 		put_swap_page(&folio->page, swap);
 	} else {
-		void (*freepage)(struct page *);
+		void (*free_folio)(struct folio *);
 
-		freepage = mapping->a_ops->freepage;
+		free_folio = mapping->a_ops->free_folio;
 		/*
 		 * Remember a shadow entry for reclaimed file cache in
 		 * order to detect refaults, thus thrashing, later on.
@@ -1310,8 +1310,8 @@ static int __remove_mapping(struct address_space *mapping, struct folio *folio,
 			inode_add_lru(mapping->host);
 		spin_unlock(&mapping->host->i_lock);
 
-		if (freepage != NULL)
-			freepage(&folio->page);
+		if (free_folio)
+			free_folio(folio);
 	}
 
 	return 1;
@@ -1451,7 +1451,7 @@ static void folio_check_dirty_writeback(struct folio *folio,
 
 	mapping = folio_mapping(folio);
 	if (mapping && mapping->a_ops->is_dirty_writeback)
-		mapping->a_ops->is_dirty_writeback(&folio->page, dirty, writeback);
+		mapping->a_ops->is_dirty_writeback(folio, dirty, writeback);
 }
 
 static struct page *alloc_demote_page(struct page *page, unsigned long node)

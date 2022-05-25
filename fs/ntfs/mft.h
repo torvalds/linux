@@ -79,7 +79,7 @@ extern int write_mft_record_nolock(ntfs_inode *ni, MFT_RECORD *m, int sync);
  * paths and via the page cache write back code paths or between writing
  * neighbouring mft records residing in the same page.
  *
- * Locking the page also serializes us against ->readpage() if the page is not
+ * Locking the page also serializes us against ->read_folio() if the page is not
  * uptodate.
  *
  * On success, clean the mft record and return 0.  On error, leave the mft

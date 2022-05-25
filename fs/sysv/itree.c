@@ -456,9 +456,9 @@ static int sysv_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page,get_block,wbc);
 }
 
-static int sysv_readpage(struct file *file, struct page *page)
+static int sysv_read_folio(struct file *file, struct folio *folio)
 {
-	return block_read_full_page(page,get_block);
+	return block_read_full_folio(folio, get_block);
 }
 
 int sysv_prepare_chunk(struct page *page, loff_t pos, unsigned len)
@@ -477,12 +477,12 @@ static void sysv_write_failed(struct address_space *mapping, loff_t to)
 }
 
 static int sysv_write_begin(struct file *file, struct address_space *mapping,
-			loff_t pos, unsigned len, unsigned flags,
+			loff_t pos, unsigned len,
 			struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, flags, pagep, get_block);
+	ret = block_write_begin(mapping, pos, len, pagep, get_block);
 	if (unlikely(ret))
 		sysv_write_failed(mapping, pos + len);
 
@@ -497,7 +497,7 @@ static sector_t sysv_bmap(struct address_space *mapping, sector_t block)
 const struct address_space_operations sysv_aops = {
 	.dirty_folio = block_dirty_folio,
 	.invalidate_folio = block_invalidate_folio,
-	.readpage = sysv_readpage,
+	.read_folio = sysv_read_folio,
 	.writepage = sysv_writepage,
 	.write_begin = sysv_write_begin,
 	.write_end = generic_write_end,

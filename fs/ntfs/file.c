@@ -251,14 +251,14 @@ do_non_resident_extend:
 		 *
 		 * TODO: For sparse pages could optimize this workload by using
 		 * the FsMisc / MiscFs page bit as a "PageIsSparse" bit.  This
-		 * would be set in readpage for sparse pages and here we would
+		 * would be set in read_folio for sparse pages and here we would
 		 * not need to mark dirty any pages which have this bit set.
 		 * The only caveat is that we have to clear the bit everywhere
 		 * where we allocate any clusters that lie in the page or that
 		 * contain the page.
 		 *
 		 * TODO: An even greater optimization would be for us to only
-		 * call readpage() on pages which are not in sparse regions as
+		 * call read_folio() on pages which are not in sparse regions as
 		 * determined from the runlist.  This would greatly reduce the
 		 * number of pages we read and make dirty in the case of sparse
 		 * files.

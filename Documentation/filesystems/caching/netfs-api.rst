@@ -433,11 +433,11 @@ has done a write and then the page it wrote from has been released by the VM,
 after which it *has* to look in the cache.
 
 To inform fscache that a page might now be in the cache, the following function
-should be called from the ``releasepage`` address space op::
+should be called from the ``release_folio`` address space op::
 
 	void fscache_note_page_release(struct fscache_cookie *cookie);
 
-if the page has been released (ie. releasepage returned true).
+if the page has been released (ie. release_folio returned true).
 
 Page release and page invalidation should also wait for any mark left on the
 page to say that a DIO write is underway from that page::

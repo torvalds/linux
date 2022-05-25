@@ -178,7 +178,7 @@ int jffs2_do_setattr (struct inode *inode, struct iattr *iattr)
 	jffs2_complete_reservation(c);
 
 	/* We have to do the truncate_setsize() without f->sem held, since
-	   some pages may be locked and waiting for it in readpage().
+	   some pages may be locked and waiting for it in read_folio().
 	   We are protected from a simultaneous write() extending i_size
 	   back past iattr->ia_size, because do_truncate() holds the
 	   generic inode semaphore. */
