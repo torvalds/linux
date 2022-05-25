@@ -315,11 +315,6 @@ static int __f2fs_commit_atomic_write(struct inode *inode)
 
 			new = f2fs_kmem_cache_alloc(revoke_entry_slab, GFP_NOFS,
 							true, NULL);
-			if (!new) {
-				f2fs_put_dnode(&dn);
-				ret = -ENOMEM;
-				goto out;
-			}
 
 			ret = __replace_atomic_write_block(inode, index, blkaddr,
 							&new->old_addr, false);
