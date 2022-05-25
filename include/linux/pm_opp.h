@@ -90,6 +90,32 @@ struct dev_pm_set_opp_data {
 	struct device *dev;
 };
 
+/**
+ * struct dev_pm_opp_config - Device OPP configuration values
+ * @clk_names: Clk names, NULL terminated array, max 1 clock for now.
+ * @prop_name: Name to postfix to properties.
+ * @set_opp: Custom set OPP helper.
+ * @supported_hw: Array of hierarchy of versions to match.
+ * @supported_hw_count: Number of elements in the array.
+ * @regulator_names: Array of pointers to the names of the regulator, NULL terminated.
+ * @genpd_names: Null terminated array of pointers containing names of genpd to
+ *		 attach.
+ * @virt_devs: Pointer to return the array of virtual devices.
+ *
+ * This structure contains platform specific OPP configurations for the device.
+ */
+struct dev_pm_opp_config {
+	/* NULL terminated */
+	const char * const *clk_names;
+	const char *prop_name;
+	int (*set_opp)(struct dev_pm_set_opp_data *data);
+	const unsigned int *supported_hw;
+	unsigned int supported_hw_count;
+	const char * const *regulator_names;
+	const char * const *genpd_names;
+	struct device ***virt_devs;
+};
+
 #if defined(CONFIG_PM_OPP)
 
 struct opp_table *dev_pm_opp_get_opp_table(struct device *dev);
@@ -153,6 +179,10 @@ int dev_pm_opp_disable(struct device *dev, unsigned long freq);
 
 int dev_pm_opp_register_notifier(struct device *dev, struct notifier_block *nb);
 int dev_pm_opp_unregister_notifier(struct device *dev, struct notifier_block *nb);
+
+int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config);
+int devm_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config);
+void dev_pm_opp_clear_config(int token);
 
 struct opp_table *dev_pm_opp_set_supported_hw(struct device *dev, const u32 *versions, unsigned int count);
 void dev_pm_opp_put_supported_hw(struct opp_table *opp_table);
@@ -417,6 +447,18 @@ static inline int devm_pm_opp_attach_genpd(struct device *dev,
 {
 	return -EOPNOTSUPP;
 }
+
+static inline int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int devm_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline void dev_pm_opp_clear_config(int token) {}
 
 static inline struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table,
 				struct opp_table *dst_table, struct dev_pm_opp *src_opp)

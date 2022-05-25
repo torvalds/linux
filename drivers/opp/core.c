@@ -13,11 +13,12 @@
 #include <linux/clk.h>
 #include <linux/errno.h>
 #include <linux/err.h>
-#include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/export.h>
 #include <linux/pm_domain.h>
 #include <linux/regulator/consumer.h>
+#include <linux/slab.h>
+#include <linux/xarray.h>
 
 #include "opp.h"
 
@@ -35,6 +36,9 @@ LIST_HEAD(lazy_opp_tables);
 DEFINE_MUTEX(opp_table_lock);
 /* Flag indicating that opp_tables list is being updated at the moment */
 static bool opp_tables_busy;
+
+/* OPP ID allocator */
+static DEFINE_XARRAY_ALLOC1(opp_configs);
 
 static bool _find_opp_dev(const struct device *dev, struct opp_table *opp_table)
 {
@@ -2623,6 +2627,229 @@ int devm_pm_opp_attach_genpd(struct device *dev, const char * const *names,
 					opp_table);
 }
 EXPORT_SYMBOL_GPL(devm_pm_opp_attach_genpd);
+
+static void _opp_clear_config(struct opp_config_data *data)
+{
+	if (data->flags & OPP_CONFIG_GENPD)
+		dev_pm_opp_detach_genpd(data->opp_table);
+	if (data->flags & OPP_CONFIG_REGULATOR)
+		dev_pm_opp_put_regulators(data->opp_table);
+	if (data->flags & OPP_CONFIG_SUPPORTED_HW)
+		dev_pm_opp_put_supported_hw(data->opp_table);
+	if (data->flags & OPP_CONFIG_REGULATOR_HELPER)
+		dev_pm_opp_unregister_set_opp_helper(data->opp_table);
+	if (data->flags & OPP_CONFIG_PROP_NAME)
+		dev_pm_opp_put_prop_name(data->opp_table);
+	if (data->flags & OPP_CONFIG_CLK)
+		dev_pm_opp_put_clkname(data->opp_table);
+
+	dev_pm_opp_put_opp_table(data->opp_table);
+	kfree(data);
+}
+
+/**
+ * dev_pm_opp_set_config() - Set OPP configuration for the device.
+ * @dev: Device for which configuration is being set.
+ * @config: OPP configuration.
+ *
+ * This allows all device OPP configurations to be performed at once.
+ *
+ * This must be called before any OPPs are initialized for the device. This may
+ * be called multiple times for the same OPP table, for example once for each
+ * CPU that share the same table. This must be balanced by the same number of
+ * calls to dev_pm_opp_clear_config() in order to free the OPP table properly.
+ *
+ * This returns a token to the caller, which must be passed to
+ * dev_pm_opp_clear_config() to free the resources later. The value of the
+ * returned token will be >= 1 for success and negative for errors. The minimum
+ * value of 1 is chosen here to make it easy for callers to manage the resource.
+ */
+int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
+{
+	struct opp_table *opp_table, *err;
+	struct opp_config_data *data;
+	unsigned int id;
+	int ret;
+
+	data = kmalloc(sizeof(*data), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
+	opp_table = _add_opp_table(dev, false);
+	if (IS_ERR(opp_table)) {
+		kfree(data);
+		return PTR_ERR(opp_table);
+	}
+
+	data->opp_table = opp_table;
+	data->flags = 0;
+
+	/* This should be called before OPPs are initialized */
+	if (WARN_ON(!list_empty(&opp_table->opp_list))) {
+		ret = -EBUSY;
+		goto err;
+	}
+
+	/* Configure clocks */
+	if (config->clk_names) {
+		const char * const *temp = config->clk_names;
+		int count = 0;
+
+		/* Count number of clks */
+		while (*temp++)
+			count++;
+
+		/*
+		 * This is a special case where we have a single clock, whose
+		 * connection id name is NULL, i.e. first two entries are NULL
+		 * in the array.
+		 */
+		if (!count && !config->clk_names[1])
+			count = 1;
+
+		/* We support only one clock name for now */
+		if (count != 1) {
+			ret = -EINVAL;
+			goto err;
+		}
+
+		err = dev_pm_opp_set_clkname(dev, config->clk_names[0]);
+		if (IS_ERR(err)) {
+			ret = PTR_ERR(err);
+			goto err;
+		}
+
+		data->flags |= OPP_CONFIG_CLK;
+	}
+
+	/* Configure property names */
+	if (config->prop_name) {
+		err = dev_pm_opp_set_prop_name(dev, config->prop_name);
+		if (IS_ERR(err)) {
+			ret = PTR_ERR(err);
+			goto err;
+		}
+
+		data->flags |= OPP_CONFIG_PROP_NAME;
+	}
+
+	/* Configure opp helper */
+	if (config->set_opp) {
+		err = dev_pm_opp_register_set_opp_helper(dev, config->set_opp);
+		if (IS_ERR(err)) {
+			ret = PTR_ERR(err);
+			goto err;
+		}
+
+		data->flags |= OPP_CONFIG_REGULATOR_HELPER;
+	}
+
+	/* Configure supported hardware */
+	if (config->supported_hw) {
+		err = dev_pm_opp_set_supported_hw(dev, config->supported_hw,
+						  config->supported_hw_count);
+		if (IS_ERR(err)) {
+			ret = PTR_ERR(err);
+			goto err;
+		}
+
+		data->flags |= OPP_CONFIG_SUPPORTED_HW;
+	}
+
+	/* Configure supplies */
+	if (config->regulator_names) {
+		err = dev_pm_opp_set_regulators(dev, config->regulator_names);
+		if (IS_ERR(err)) {
+			ret = PTR_ERR(err);
+			goto err;
+		}
+
+		data->flags |= OPP_CONFIG_REGULATOR;
+	}
+
+	/* Attach genpds */
+	if (config->genpd_names) {
+		err = dev_pm_opp_attach_genpd(dev, config->genpd_names,
+					      config->virt_devs);
+		if (IS_ERR(err)) {
+			ret = PTR_ERR(err);
+			goto err;
+		}
+
+		data->flags |= OPP_CONFIG_GENPD;
+	}
+
+	ret = xa_alloc(&opp_configs, &id, data, XA_LIMIT(1, INT_MAX),
+		       GFP_KERNEL);
+	if (ret)
+		goto err;
+
+	return id;
+
+err:
+	_opp_clear_config(data);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_set_config);
+
+/**
+ * dev_pm_opp_clear_config() - Releases resources blocked for OPP configuration.
+ * @opp_table: OPP table returned from dev_pm_opp_set_config().
+ *
+ * This allows all device OPP configurations to be cleared at once. This must be
+ * called once for each call made to dev_pm_opp_set_config(), in order to free
+ * the OPPs properly.
+ *
+ * Currently the first call itself ends up freeing all the OPP configurations,
+ * while the later ones only drop the OPP table reference. This works well for
+ * now as we would never want to use an half initialized OPP table and want to
+ * remove the configurations together.
+ */
+void dev_pm_opp_clear_config(int token)
+{
+	struct opp_config_data *data;
+
+	/*
+	 * This lets the callers call this unconditionally and keep their code
+	 * simple.
+	 */
+	if (unlikely(token <= 0))
+		return;
+
+	data = xa_erase(&opp_configs, token);
+	if (WARN_ON(!data))
+		return;
+
+	_opp_clear_config(data);
+}
+EXPORT_SYMBOL_GPL(dev_pm_opp_clear_config);
+
+static void devm_pm_opp_config_release(void *token)
+{
+	dev_pm_opp_clear_config((unsigned long)token);
+}
+
+/**
+ * devm_pm_opp_set_config() - Set OPP configuration for the device.
+ * @dev: Device for which configuration is being set.
+ * @config: OPP configuration.
+ *
+ * This allows all device OPP configurations to be performed at once.
+ * This is a resource-managed variant of dev_pm_opp_set_config().
+ *
+ * Return: 0 on success and errorno otherwise.
+ */
+int devm_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
+{
+	int token = dev_pm_opp_set_config(dev, config);
+
+	if (token < 0)
+		return token;
+
+	return devm_add_action_or_reset(dev, devm_pm_opp_config_release,
+					(void *) ((unsigned long) token));
+}
+EXPORT_SYMBOL_GPL(devm_pm_opp_set_config);
 
 /**
  * dev_pm_opp_xlate_required_opp() - Find required OPP for @src_table OPP.

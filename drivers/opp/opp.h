@@ -28,6 +28,27 @@ extern struct mutex opp_table_lock;
 
 extern struct list_head opp_tables, lazy_opp_tables;
 
+/* OPP Config flags */
+#define OPP_CONFIG_CLK			BIT(0)
+#define OPP_CONFIG_REGULATOR		BIT(1)
+#define OPP_CONFIG_REGULATOR_HELPER	BIT(2)
+#define OPP_CONFIG_PROP_NAME		BIT(3)
+#define OPP_CONFIG_SUPPORTED_HW		BIT(4)
+#define OPP_CONFIG_GENPD		BIT(5)
+
+/**
+ * struct opp_config_data - data for set config operations
+ * @opp_table: OPP table
+ * @flags: OPP config flags
+ *
+ * This structure stores the OPP config information for each OPP table
+ * configuration by the callers.
+ */
+struct opp_config_data {
+	struct opp_table *opp_table;
+	unsigned int flags;
+};
+
 /*
  * Internal data structure organization with the OPP layer library is as
  * follows:
