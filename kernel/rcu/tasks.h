@@ -1318,27 +1318,26 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 	int nesting;
 	bool ofl = cpu_is_offline(cpu);
 
-	if (task_curr(t)) {
-		WARN_ON_ONCE(ofl && !is_idle_task(t));
-
+	if (task_curr(t) && !ofl) {
 		// If no chance of heavyweight readers, do it the hard way.
-		if (!ofl && !IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
+		if (!IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB))
 			return -EINVAL;
 
 		// If heavyweight readers are enabled on the remote task,
 		// we can inspect its state despite its currently running.
 		// However, we cannot safely change its state.
 		n_heavy_reader_attempts++;
-		if (!ofl && // Check for "running" idle tasks on offline CPUs.
-		    !rcu_dynticks_zero_in_eqs(cpu, &t->trc_reader_nesting))
+		// Check for "running" idle tasks on offline CPUs.
+		if (!rcu_dynticks_zero_in_eqs(cpu, &t->trc_reader_nesting))
 			return -EINVAL; // No quiescent state, do it the hard way.
 		n_heavy_reader_updates++;
-		if (ofl)
-			n_heavy_reader_ofl_updates++;
 		nesting = 0;
 	} else {
 		// The task is not running, so C-language access is safe.
 		nesting = t->trc_reader_nesting;
+		WARN_ON_ONCE(ofl && task_curr(t) && !is_idle_task(t));
+		if (IS_ENABLED(CONFIG_TASKS_TRACE_RCU_READ_MB) && ofl)
+			n_heavy_reader_ofl_updates++;
 	}
 
 	// If not exiting a read-side critical section, mark as checked
