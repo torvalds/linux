@@ -9,6 +9,7 @@
 
 #include "dev.h"
 #include "capture.h"
+#include "regs.h"
 
 static struct rockit_cfg *rockit_cfg;
 
@@ -242,6 +243,8 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 
 		rockit_cfg->frame.u32TimeRef = seq;
 	}
+
+	rockit_cfg->is_color = !rkisp_read(dev, ISP3X_IMG_EFF_CTRL, true);
 
 	rockit_cfg->frame.u32Height = stream->out_fmt.height;
 

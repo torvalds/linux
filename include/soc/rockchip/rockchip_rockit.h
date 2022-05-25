@@ -55,6 +55,7 @@ struct rockit_cfg {
 	bool is_alloc;
 	bool is_empty;
 	bool is_qbuf;
+	bool is_color;
 	char *current_name;
 	dma_addr_t dma_addr;
 	int *buff_id;
