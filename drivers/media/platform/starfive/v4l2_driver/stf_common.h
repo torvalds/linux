@@ -176,8 +176,8 @@ static inline void reg_clr_highest_bit(void __iomem *base, u32 reg)
 
 static inline void print_reg(unsigned int module, void __iomem *base, u32 reg)
 {
-	st_debug(module, "REG 0x%x = 0x%x\n",
-			base + reg, ioread32(base + reg));
+	//st_debug(module, "REG 0x%x = 0x%x\n",
+	//		base + reg, ioread32(base + reg));
 }
 
 #endif /* STF_COMMON_H */

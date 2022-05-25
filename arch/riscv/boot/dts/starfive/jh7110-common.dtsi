@@ -299,7 +299,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sdcard_pins>;
 	//cd-gpios = <&gpio 23 0>;
-	status = "disabled";
+	status = "okay";
 };
 
 &sdio1 {
@@ -344,7 +344,7 @@
 				hsync-active = <1>;
 				vsync-active = <0>;
 				pclk-sample = <1>;
-				status = "okay";
+				status = "failed";
 			};
 
 			/* Parallel bus endpoint */
@@ -373,7 +373,7 @@
 				bus-type = <4>;      /* MIPI CSI-2 D-PHY */
 				clock-lanes = <0>;
 				data-lanes = <1 2 3 4>;
-				status = "okay";
+				status = "failed";
 			};
 
 			/* CSI2 bus endpoint */

@@ -143,10 +143,7 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 	struct csi2phy_cfg *cfg;
 	struct stf_csiphy_dev *csiphy0_dev =
 		&csiphy_dev->stfcamss->csiphy_dev[0];
-	struct stf_csiphy_dev *csiphy1_dev =
-		&csiphy_dev->stfcamss->csiphy_dev[1];
 	struct csi2phy_cfg *phy0cfg = csiphy0_dev->csiphy;
-	struct csi2phy_cfg *phy1cfg = csiphy1_dev->csiphy;
 	int id = csiphy_dev->id;
 
 	if (!phy0cfg)

@@ -39,7 +39,6 @@
 
 static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 {
-	struct stfcamss *stfcamss = csi_dev->stfcamss;
 	void __iomem *aon_syscon;
 
 	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD18_MIPIRX, on);

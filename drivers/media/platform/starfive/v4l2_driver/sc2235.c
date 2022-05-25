@@ -46,6 +46,7 @@
 #define SC2235_REG_TIMING_TC_REG21		0x3221
 #define SC2235_REG_SC_PLL_CTRL0			0x3039
 #define SC2235_REG_SC_PLL_CTRL1			0x303a
+#define SC2235_REG_STREAM_ON            0x0100
 
 enum sc2235_mode_id {
 	SC2235_MODE_1080P_1920_1080 = 0,
@@ -295,7 +296,7 @@ static struct reg_value sc2235_init_tbl_1080p_7fps[] = {
 	{0x5780, 0xff, 0, 0},
 	{0x5781, 0x04, 0, 0},
 	{0x5785, 0x18, 0, 0},
-	{0x0100, 0x01, 0, 0},
+	//{0x0100, 0x01, 0, 0},
 	{0x330b, 0x5d, 0, 0},
 	{0x3301, 0x0a, 0, 0},
 	{0x3631, 0x88, 0, 0},
@@ -608,7 +609,8 @@ static int sc2235_set_autogain(struct sc2235_dev *sensor, bool on)
 
 static int sc2235_set_stream_dvp(struct sc2235_dev *sensor, bool on)
 {
-	return 0;
+	return sc2235_mod_reg(sensor, SC2235_REG_STREAM_ON,
+				BIT(0), on);
 }
 
 #ifdef UNUSED_CODE

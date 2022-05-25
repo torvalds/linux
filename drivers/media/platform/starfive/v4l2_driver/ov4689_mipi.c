@@ -1699,6 +1699,7 @@ static int ov4689_load_regs(struct ov4689_dev *sensor,
 	return ov4689_set_timings(sensor, mode);
 }
 
+#ifdef UNUSED_CODE
 static int ov4689_get_exposure(struct ov4689_dev *sensor)
 {
 	int exp, ret;
@@ -1719,6 +1720,7 @@ static int ov4689_get_exposure(struct ov4689_dev *sensor)
 
 	return exp >> 4;
 }
+#endif
 
 static int ov4689_set_exposure(struct ov4689_dev *sensor, u32 exposure)
 {
@@ -1759,8 +1761,6 @@ static int ov4689_get_gain(struct ov4689_dev *sensor)
 
 static int ov4689_set_gain(struct ov4689_dev *sensor, int gain)
 {
-	u8 val;
-
 	ov4689_write_reg(sensor, OV4689_REG_GAIN_H,
 				(gain >> 16) & 0x3);
 	ov4689_write_reg(sensor, OV4689_REG_GAIN_M,
@@ -1775,6 +1775,7 @@ static int ov4689_set_stream_mipi(struct ov4689_dev *sensor, bool on)
 	return 0;
 }
 
+#ifdef UNUSED_CODE
 static int ov4689_get_sysclk(struct ov4689_dev *sensor)
 {
 	return 0;
@@ -1796,6 +1797,7 @@ static int ov4689_get_hts(struct ov4689_dev *sensor)
 		return ret;
 	return hts;
 }
+#endif
 
 static int ov4689_get_vts(struct ov4689_dev *sensor)
 {
@@ -1808,6 +1810,7 @@ static int ov4689_get_vts(struct ov4689_dev *sensor)
 	return vts;
 }
 
+#ifdef UNUSED_CODE
 static int ov4689_set_vts(struct ov4689_dev *sensor, int vts)
 {
 	return ov4689_write_reg16(sensor, OV4689_REG_TIMING_VTS, vts);
@@ -1837,6 +1840,7 @@ static int ov4689_set_binning(struct ov4689_dev *sensor, bool enable)
 {
 	return 0;
 }
+#endif
 
 static const struct ov4689_mode_info *
 ov4689_find_mode(struct ov4689_dev *sensor, enum ov4689_frame_rate fr,
@@ -1972,8 +1976,8 @@ static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
 				unsigned long rate)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
-	const struct ov4689_mode_info *orig_mode = sensor->last_mode;
-	u8 mult, val;
+	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+	u8 val;
 	int ret = 0;
 	int fps = ov4689_framerates[sensor->current_fr];
 	u16 htot, val16;
@@ -2012,7 +2016,7 @@ static int ov4689_set_mode_direct(struct ov4689_dev *sensor,
 static int ov4689_set_mode(struct ov4689_dev *sensor)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
-	const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
 	int ret = 0;
 
 	ret = ov4689_set_mode_direct(sensor, mode);
@@ -2280,7 +2284,6 @@ static int ov4689_try_fmt_internal(struct v4l2_subdev *sd,
 {
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	const struct ov4689_mode_info *mode;
-	int i;
 
 	mode = ov4689_find_mode(sensor, fr, fmt->width, fmt->height, true);
 	if (!mode)
@@ -2656,9 +2659,9 @@ static int ov4689_enum_frame_interval(
 	struct v4l2_subdev_state *state,
 	struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	//struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	struct v4l2_fract tpf;
-	int ret;
+	//int ret;
 
 	if (fie->pad != 0)
 		return -EINVAL;
@@ -2853,7 +2856,6 @@ static int ov4689_probe(struct i2c_client *client)
 	struct v4l2_mbus_framefmt *fmt;
 	u32 rotation;
 	int ret;
-	u8 chip_id_high, chip_id_low;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
@@ -2942,10 +2944,6 @@ static int ov4689_probe(struct i2c_client *client)
 						GPIOD_OUT_HIGH);
 	if (IS_ERR(sensor->reset_gpio))
 		return PTR_ERR(sensor->reset_gpio);
-
-	if (!sensor->reset_gpio) {
-		dev_err(dev, "--------Could not parse reset_gpio\n");
-	}
 
 	v4l2_i2c_subdev_init(&sensor->sd, client, &ov4689_subdev_ops);
 
