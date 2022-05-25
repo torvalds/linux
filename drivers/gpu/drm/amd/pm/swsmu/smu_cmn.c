@@ -682,16 +682,13 @@ static const char *smu_get_feature_name(struct smu_context *smu,
 size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 				   char *buf)
 {
+	int8_t sort_feature[max(SMU_FEATURE_COUNT, SMU_FEATURE_MAX)];
 	uint64_t feature_mask;
-	int feature_index = 0;
+	int i, feature_index;
 	uint32_t count = 0;
-	int8_t sort_feature[SMU_FEATURE_COUNT];
 	size_t size = 0;
-	int ret = 0, i;
-	int feature_id;
 
-	ret = __smu_get_enabled_features(smu, &feature_mask);
-	if (ret)
+	if (__smu_get_enabled_features(smu, &feature_mask))
 		return 0;
 
 	size =  sysfs_emit_at(buf, size, "features high: 0x%08x low: 0x%08x\n",
@@ -712,22 +709,15 @@ size_t smu_cmn_get_pp_feature_mask(struct smu_context *smu,
 	size += sysfs_emit_at(buf, size, "%-2s. %-20s  %-3s : %-s\n",
 			"No", "Feature", "Bit", "State");
 
-	for (i = 0; i < SMU_FEATURE_COUNT; i++) {
-		if (sort_feature[i] < 0)
-			continue;
-
-		/* convert to asic spcific feature ID */
-		feature_id = smu_cmn_to_asic_specific_index(smu,
-							    CMN2ASIC_MAPPING_FEATURE,
-							    sort_feature[i]);
-		if (feature_id < 0)
+	for (feature_index = 0; feature_index < SMU_FEATURE_MAX; feature_index++) {
+		if (sort_feature[feature_index] < 0)
 			continue;
 
 		size += sysfs_emit_at(buf, size, "%02d. %-20s (%2d) : %s\n",
 				count++,
-				smu_get_feature_name(smu, sort_feature[i]),
-				i,
-				!!test_bit(feature_id, (unsigned long *)&feature_mask) ?
+				smu_get_feature_name(smu, sort_feature[feature_index]),
+				feature_index,
+				!!test_bit(feature_index, (unsigned long *)&feature_mask) ?
 				"enabled" : "disabled");
 	}
 
