@@ -8,6 +8,7 @@
 #include <drm/drm_managed.h>
 
 #include <linux/list.h>
+#include <linux/mutex.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
 
@@ -262,3 +263,29 @@ void drmm_kfree(struct drm_device *dev, void *data)
 	free_dr(dr_match);
 }
 EXPORT_SYMBOL(drmm_kfree);
+
+static void drmm_mutex_release(struct drm_device *dev, void *res)
+{
+	struct mutex *lock = res;
+
+	mutex_destroy(lock);
+}
+
+/**
+ * drmm_mutex_init - &drm_device-managed mutex_init()
+ * @dev: DRM device
+ * @lock: lock to be initialized
+ *
+ * Returns:
+ * 0 on success, or a negative errno code otherwise.
+ *
+ * This is a &drm_device-managed version of mutex_init(). The initialized
+ * lock is automatically destroyed on the final drm_dev_put().
+ */
+int drmm_mutex_init(struct drm_device *dev, struct mutex *lock)
+{
+	mutex_init(lock);
+
+	return drmm_add_action_or_reset(dev, drmm_mutex_release, lock);
+}
+EXPORT_SYMBOL(drmm_mutex_init);

@@ -42,7 +42,7 @@ gv100_gsp_nofw(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 	return 0;
 }
 
-struct nvkm_gsp_fwif
+static struct nvkm_gsp_fwif
 gv100_gsp[] = {
 	{ -1, gv100_gsp_nofw, &gv100_gsp_flcn },
 	{}

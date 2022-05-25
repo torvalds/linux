@@ -644,7 +644,7 @@ void drm_calc_timestamping_constants(struct drm_crtc *crtc,
 
 	vblank->linedur_ns  = linedur_ns;
 	vblank->framedur_ns = framedur_ns;
-	vblank->hwmode = *mode;
+	drm_mode_copy(&vblank->hwmode, mode);
 
 	drm_dbg_core(dev,
 		     "crtc %u: hwmode: htotal %d, vtotal %d, vdisplay %d\n",

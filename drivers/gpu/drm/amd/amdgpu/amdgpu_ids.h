@@ -47,7 +47,7 @@ struct amdgpu_vmid {
 
 	uint64_t		pd_gpu_addr;
 	/* last flushed PD/PT update */
-	struct dma_fence	*flushed_updates;
+	uint64_t		flushed_updates;
 
 	uint32_t                current_gpu_reset_count;
 

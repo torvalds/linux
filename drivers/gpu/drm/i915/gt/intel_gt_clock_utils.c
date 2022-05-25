@@ -161,6 +161,10 @@ void intel_gt_init_clock_frequency(struct intel_gt *gt)
 	if (gt->clock_frequency)
 		gt->clock_period_ns = intel_gt_clock_interval_to_ns(gt, 1);
 
+	/* Icelake appears to use another fixed frequency for CTX_TIMESTAMP */
+	if (GRAPHICS_VER(gt->i915) == 11)
+		gt->clock_period_ns = NSEC_PER_SEC / 13750000;
+
 	GT_TRACE(gt,
 		 "Using clock frequency: %dkHz, period: %dns, wrap: %lldms\n",
 		 gt->clock_frequency / 1000,

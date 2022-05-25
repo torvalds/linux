@@ -15,9 +15,9 @@
 #include <linux/mutex.h>
 #include <linux/spinlock.h>
 
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_bridge.h>
 #include <drm/drm_connector.h>
-#include <drm/dp/drm_dp_helper.h>
 
 struct clk;
 struct device;

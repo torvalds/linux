@@ -3,6 +3,8 @@
  * Copyright © 2016-2019 Intel Corporation
  */
 
+#include <linux/string_helpers.h>
+
 #include "gt/intel_gt.h"
 #include "gt/intel_reset.h"
 #include "intel_guc.h"
@@ -78,10 +80,10 @@ static void __confirm_options(struct intel_uc *uc)
 	drm_dbg(&i915->drm,
 		"enable_guc=%d (guc:%s submission:%s huc:%s slpc:%s)\n",
 		i915->params.enable_guc,
-		yesno(intel_uc_wants_guc(uc)),
-		yesno(intel_uc_wants_guc_submission(uc)),
-		yesno(intel_uc_wants_huc(uc)),
-		yesno(intel_uc_wants_guc_slpc(uc)));
+		str_yes_no(intel_uc_wants_guc(uc)),
+		str_yes_no(intel_uc_wants_guc_submission(uc)),
+		str_yes_no(intel_uc_wants_huc(uc)),
+		str_yes_no(intel_uc_wants_guc_slpc(uc)));
 
 	if (i915->params.enable_guc == 0) {
 		GEM_BUG_ON(intel_uc_wants_guc(uc));
@@ -522,9 +524,9 @@ static int __uc_init_hw(struct intel_uc *uc)
 	}
 
 	drm_info(&i915->drm, "GuC submission %s\n",
-		 enableddisabled(intel_uc_uses_guc_submission(uc)));
+		 str_enabled_disabled(intel_uc_uses_guc_submission(uc)));
 	drm_info(&i915->drm, "GuC SLPC %s\n",
-		 enableddisabled(intel_uc_uses_guc_slpc(uc)));
+		 str_enabled_disabled(intel_uc_uses_guc_slpc(uc)));
 
 	return 0;
 

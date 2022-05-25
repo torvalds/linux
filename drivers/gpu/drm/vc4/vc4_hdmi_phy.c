@@ -365,7 +365,7 @@ void vc5_hdmi_phy_init(struct vc4_hdmi *vc4_hdmi,
 {
 	const struct phy_lane_settings *chan0_settings, *chan1_settings, *chan2_settings, *clock_settings;
 	const struct vc4_hdmi_variant *variant = vc4_hdmi->variant;
-	unsigned long long pixel_freq = conn_state->pixel_rate;
+	unsigned long long pixel_freq = conn_state->tmds_char_rate;
 	unsigned long long vco_freq;
 	unsigned char word_sel;
 	unsigned long flags;

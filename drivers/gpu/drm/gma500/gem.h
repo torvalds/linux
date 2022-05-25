@@ -14,6 +14,10 @@
 
 struct drm_device;
 
+/*
+ * PSB GEM object
+ */
+
 struct psb_gem_object {
 	struct drm_gem_object base;
 
@@ -23,7 +27,6 @@ struct psb_gem_object {
 	bool stolen;			/* Backed from stolen RAM */
 	bool mmapping;			/* Is mmappable */
 	struct page **pages;		/* Backing pages if present */
-	int npage;			/* Number of backing pages */
 };
 
 static inline struct psb_gem_object *to_psb_gem_object(struct drm_gem_object *obj)
@@ -36,5 +39,13 @@ psb_gem_create(struct drm_device *dev, u64 size, const char *name, bool stolen, 
 
 int psb_gem_pin(struct psb_gem_object *pobj);
 void psb_gem_unpin(struct psb_gem_object *pobj);
+
+/*
+ * Memory management
+ */
+
+int psb_gem_mm_init(struct drm_device *dev);
+void psb_gem_mm_fini(struct drm_device *dev);
+int psb_gem_mm_resume(struct drm_device *dev);
 
 #endif

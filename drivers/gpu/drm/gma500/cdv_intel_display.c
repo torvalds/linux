@@ -584,13 +584,14 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 	bool ok;
 	bool is_lvds = false;
 	bool is_dp = false;
-	struct drm_mode_config *mode_config = &dev->mode_config;
+	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector;
 	const struct gma_limit_t *limit;
 	u32 ddi_select = 0;
 	bool is_edp = false;
 
-	list_for_each_entry(connector, &mode_config->connector_list, head) {
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
 		struct gma_encoder *gma_encoder =
 					gma_attached_encoder(connector);
 
@@ -613,10 +614,14 @@ static int cdv_intel_crtc_mode_set(struct drm_crtc *crtc,
 			is_edp = true;
 			break;
 		default:
+			drm_connector_list_iter_end(&conn_iter);
 			DRM_ERROR("invalid output type.\n");
 			return 0;
 		}
+
+		break;
 	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	if (dev_priv->dplla_96mhz)
 		/* low-end sku, 96/100 mhz */

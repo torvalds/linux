@@ -1419,8 +1419,8 @@ typedef struct {
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
   uint16_t AverageGfxclkFrequencyTarget;
-  uint16_t Padding16_2;
 
+  uint16_t Padding16_2;
 } SmuMetrics_t;
 
 typedef struct {
@@ -1476,8 +1476,8 @@ typedef struct {
   uint8_t  PcieRate               ;
   uint8_t  PcieWidth              ;
   uint16_t AverageGfxclkFrequencyTarget;
-  uint16_t Padding16_2;
 
+  uint16_t Padding16_2;
 } SmuMetrics_V2_t;
 
 typedef struct {
@@ -1535,13 +1535,79 @@ typedef struct {
   uint8_t  PcieWidth;
   uint16_t AverageGfxclkFrequencyTarget;
 
+  uint32_t PublicSerialNumLower32;
+  uint32_t PublicSerialNumUpper32;
+
 } SmuMetrics_V3_t;
+
+typedef struct {
+	uint32_t CurrClock[PPCLK_COUNT];
+
+	uint16_t AverageGfxclkFrequencyPreDs;
+	uint16_t AverageGfxclkFrequencyPostDs;
+	uint16_t AverageFclkFrequencyPreDs;
+	uint16_t AverageFclkFrequencyPostDs;
+	uint16_t AverageUclkFrequencyPreDs;
+	uint16_t AverageUclkFrequencyPostDs;
+
+
+	uint16_t AverageGfxActivity;
+	uint16_t AverageUclkActivity;
+	uint8_t  CurrSocVoltageOffset;
+	uint8_t  CurrGfxVoltageOffset;
+	uint8_t  CurrMemVidOffset;
+	uint8_t  Padding8;
+	uint16_t AverageSocketPower;
+	uint16_t TemperatureEdge;
+	uint16_t TemperatureHotspot;
+	uint16_t TemperatureMem;
+	uint16_t TemperatureVrGfx;
+	uint16_t TemperatureVrMem0;
+	uint16_t TemperatureVrMem1;
+	uint16_t TemperatureVrSoc;
+	uint16_t TemperatureLiquid0;
+	uint16_t TemperatureLiquid1;
+	uint16_t TemperaturePlx;
+	uint16_t Padding16;
+	uint32_t AccCnt;
+	uint8_t  ThrottlingPercentage[THROTTLER_COUNT];
+
+
+	uint8_t  LinkDpmLevel;
+	uint8_t  CurrFanPwm;
+	uint16_t CurrFanSpeed;
+
+	//BACO metrics, PMFW-1721
+	//metrics for D3hot entry/exit and driver ARM msgs
+	uint8_t D3HotEntryCountPerMode[D3HOT_SEQUENCE_COUNT];
+	uint8_t D3HotExitCountPerMode[D3HOT_SEQUENCE_COUNT];
+	uint8_t ArmMsgReceivedCountPerMode[D3HOT_SEQUENCE_COUNT];
+
+	//PMFW-4362
+	uint32_t EnergyAccumulator;
+	uint16_t AverageVclk0Frequency;
+	uint16_t AverageDclk0Frequency;
+	uint16_t AverageVclk1Frequency;
+	uint16_t AverageDclk1Frequency;
+	uint16_t VcnUsagePercentage0;
+	uint16_t VcnUsagePercentage1;
+	uint8_t  PcieRate;
+	uint8_t  PcieWidth;
+	uint16_t AverageGfxclkFrequencyTarget;
+
+	uint8_t  ApuSTAPMSmartShiftLimit;
+	uint8_t  AverageApuSocketPower;
+	uint8_t  ApuSTAPMLimit;
+	uint8_t  Padding8_2;
+
+} SmuMetrics_V4_t;
 
 typedef struct {
   union {
     SmuMetrics_t SmuMetrics;
     SmuMetrics_V2_t SmuMetrics_V2;
     SmuMetrics_V3_t SmuMetrics_V3;
+    SmuMetrics_V4_t SmuMetrics_V4;
   };
   uint32_t Spare[1];
 

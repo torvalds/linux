@@ -16,6 +16,7 @@ struct dp_power_private {
 	struct dp_parser *parser;
 	struct platform_device *pdev;
 	struct device *dev;
+	struct drm_device *drm_dev;
 	struct clk *link_clk_src;
 	struct clk *pixel_provider;
 	struct clk *link_provider;
@@ -208,7 +209,12 @@ static int dp_power_clk_set_rate(struct dp_power_private *power,
 
 int dp_power_clk_status(struct dp_power *dp_power, enum dp_pm_type pm_type)
 {
-	DRM_DEBUG_DP("core_clk_on=%d link_clk_on=%d stream_clk_on=%d\n",
+	struct dp_power_private *power;
+
+	power = container_of(dp_power, struct dp_power_private, dp_power);
+
+	drm_dbg_dp(power->drm_dev,
+		"core_clk_on=%d link_clk_on=%d stream_clk_on=%d\n",
 		dp_power->core_clks_on, dp_power->link_clks_on, dp_power->stream_clks_on);
 
 	if (pm_type == DP_CORE_PM)
@@ -240,22 +246,26 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 
 	if (enable) {
 		if (pm_type == DP_CORE_PM && dp_power->core_clks_on) {
-			DRM_DEBUG_DP("core clks already enabled\n");
+			drm_dbg_dp(power->drm_dev,
+					"core clks already enabled\n");
 			return 0;
 		}
 
 		if (pm_type == DP_CTRL_PM && dp_power->link_clks_on) {
-			DRM_DEBUG_DP("links clks already enabled\n");
+			drm_dbg_dp(power->drm_dev,
+					"links clks already enabled\n");
 			return 0;
 		}
 
 		if (pm_type == DP_STREAM_PM && dp_power->stream_clks_on) {
-			DRM_DEBUG_DP("pixel clks already enabled\n");
+			drm_dbg_dp(power->drm_dev,
+					"pixel clks already enabled\n");
 			return 0;
 		}
 
 		if ((pm_type == DP_CTRL_PM) && (!dp_power->core_clks_on)) {
-			DRM_DEBUG_DP("Enable core clks before link clks\n");
+			drm_dbg_dp(power->drm_dev,
+					"Enable core clks before link clks\n");
 
 			rc = dp_power_clk_set_rate(power, DP_CORE_PM, enable);
 			if (rc) {
@@ -282,10 +292,11 @@ int dp_power_clk_enable(struct dp_power *dp_power,
 	else
 		dp_power->link_clks_on = enable;
 
-	DRM_DEBUG_DP("%s clocks for %s\n",
+	drm_dbg_dp(power->drm_dev, "%s clocks for %s\n",
 			enable ? "enable" : "disable",
 			dp_parser_pm_name(pm_type));
-	DRM_DEBUG_DP("strem_clks:%s link_clks:%s core_clks:%s\n",
+	drm_dbg_dp(power->drm_dev,
+		"strem_clks:%s link_clks:%s core_clks:%s\n",
 		dp_power->stream_clks_on ? "on" : "off",
 		dp_power->link_clks_on ? "on" : "off",
 		dp_power->core_clks_on ? "on" : "off");

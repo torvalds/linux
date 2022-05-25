@@ -467,19 +467,6 @@ out:
 	return fence;
 }
 
-static int
-prev_deps(struct ttm_buffer_object *bo, struct ttm_operation_ctx *ctx,
-	  struct i915_deps *deps)
-{
-	int ret;
-
-	ret = i915_deps_add_dependency(deps, bo->moving, ctx);
-	if (!ret)
-		ret = i915_deps_add_resv(deps, bo->base.resv, ctx);
-
-	return ret;
-}
-
 /**
  * i915_ttm_move - The TTM move callback used by i915.
  * @bo: The buffer object.
@@ -534,7 +521,7 @@ int i915_ttm_move(struct ttm_buffer_object *bo, bool evict,
 		struct i915_deps deps;
 
 		i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
-		ret = prev_deps(bo, ctx, &deps);
+		ret = i915_deps_add_resv(&deps, bo->base.resv, ctx);
 		if (ret) {
 			i915_refct_sgt_put(dst_rsgt);
 			return ret;
@@ -611,7 +598,11 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	assert_object_held(src);
 	i915_deps_init(&deps, GFP_KERNEL | __GFP_NORETRY | __GFP_NOWARN);
 
-	ret = dma_resv_reserve_shared(src_bo->base.resv, 1);
+	ret = dma_resv_reserve_fences(src_bo->base.resv, 1);
+	if (ret)
+		return ret;
+
+	ret = dma_resv_reserve_fences(dst_bo->base.resv, 1);
 	if (ret)
 		return ret;
 
@@ -633,9 +624,8 @@ int i915_gem_obj_copy_ttm(struct drm_i915_gem_object *dst,
 	if (IS_ERR_OR_NULL(copy_fence))
 		return PTR_ERR_OR_ZERO(copy_fence);
 
-	dma_resv_add_excl_fence(dst_bo->base.resv, copy_fence);
-	dma_resv_add_shared_fence(src_bo->base.resv, copy_fence);
-
+	dma_resv_add_fence(dst_bo->base.resv, copy_fence, DMA_RESV_USAGE_WRITE);
+	dma_resv_add_fence(src_bo->base.resv, copy_fence, DMA_RESV_USAGE_READ);
 	dma_fence_put(copy_fence);
 
 	return 0;

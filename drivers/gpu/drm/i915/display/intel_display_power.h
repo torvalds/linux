@@ -8,70 +8,67 @@
 
 #include "intel_runtime_pm.h"
 
+enum aux_ch;
 enum dpio_channel;
 enum dpio_phy;
+enum port;
 struct drm_i915_private;
 struct i915_power_well;
 struct intel_encoder;
 
+/*
+ * Keep the pipe, transcoder, port (DDI_LANES,DDI_IO,AUX) domain instances
+ * consecutive, so that the pipe,transcoder,port -> power domain macros
+ * work correctly.
+ */
 enum intel_display_power_domain {
 	POWER_DOMAIN_DISPLAY_CORE,
 	POWER_DOMAIN_PIPE_A,
 	POWER_DOMAIN_PIPE_B,
 	POWER_DOMAIN_PIPE_C,
 	POWER_DOMAIN_PIPE_D,
-	POWER_DOMAIN_PIPE_A_PANEL_FITTER,
-	POWER_DOMAIN_PIPE_B_PANEL_FITTER,
-	POWER_DOMAIN_PIPE_C_PANEL_FITTER,
-	POWER_DOMAIN_PIPE_D_PANEL_FITTER,
+	POWER_DOMAIN_PIPE_PANEL_FITTER_A,
+	POWER_DOMAIN_PIPE_PANEL_FITTER_B,
+	POWER_DOMAIN_PIPE_PANEL_FITTER_C,
+	POWER_DOMAIN_PIPE_PANEL_FITTER_D,
 	POWER_DOMAIN_TRANSCODER_A,
 	POWER_DOMAIN_TRANSCODER_B,
 	POWER_DOMAIN_TRANSCODER_C,
 	POWER_DOMAIN_TRANSCODER_D,
 	POWER_DOMAIN_TRANSCODER_EDP,
-	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
-	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
 	POWER_DOMAIN_TRANSCODER_DSI_A,
 	POWER_DOMAIN_TRANSCODER_DSI_C,
-	POWER_DOMAIN_PORT_DDI_A_LANES,
-	POWER_DOMAIN_PORT_DDI_B_LANES,
-	POWER_DOMAIN_PORT_DDI_C_LANES,
-	POWER_DOMAIN_PORT_DDI_D_LANES,
-	POWER_DOMAIN_PORT_DDI_E_LANES,
-	POWER_DOMAIN_PORT_DDI_F_LANES,
-	POWER_DOMAIN_PORT_DDI_G_LANES,
-	POWER_DOMAIN_PORT_DDI_H_LANES,
-	POWER_DOMAIN_PORT_DDI_I_LANES,
 
-	POWER_DOMAIN_PORT_DDI_LANES_TC1 = POWER_DOMAIN_PORT_DDI_D_LANES, /* tgl+ */
+	/* VDSC/joining for eDP/DSI transcoder (ICL) or pipe A (TGL) */
+	POWER_DOMAIN_TRANSCODER_VDSC_PW2,
+
+	POWER_DOMAIN_PORT_DDI_LANES_A,
+	POWER_DOMAIN_PORT_DDI_LANES_B,
+	POWER_DOMAIN_PORT_DDI_LANES_C,
+	POWER_DOMAIN_PORT_DDI_LANES_D,
+	POWER_DOMAIN_PORT_DDI_LANES_E,
+	POWER_DOMAIN_PORT_DDI_LANES_F,
+
+	POWER_DOMAIN_PORT_DDI_LANES_TC1,
 	POWER_DOMAIN_PORT_DDI_LANES_TC2,
 	POWER_DOMAIN_PORT_DDI_LANES_TC3,
 	POWER_DOMAIN_PORT_DDI_LANES_TC4,
 	POWER_DOMAIN_PORT_DDI_LANES_TC5,
 	POWER_DOMAIN_PORT_DDI_LANES_TC6,
 
-	POWER_DOMAIN_PORT_DDI_LANES_D_XELPD = POWER_DOMAIN_PORT_DDI_LANES_TC5, /* XELPD */
-	POWER_DOMAIN_PORT_DDI_LANES_E_XELPD,
+	POWER_DOMAIN_PORT_DDI_IO_A,
+	POWER_DOMAIN_PORT_DDI_IO_B,
+	POWER_DOMAIN_PORT_DDI_IO_C,
+	POWER_DOMAIN_PORT_DDI_IO_D,
+	POWER_DOMAIN_PORT_DDI_IO_E,
+	POWER_DOMAIN_PORT_DDI_IO_F,
 
-	POWER_DOMAIN_PORT_DDI_A_IO,
-	POWER_DOMAIN_PORT_DDI_B_IO,
-	POWER_DOMAIN_PORT_DDI_C_IO,
-	POWER_DOMAIN_PORT_DDI_D_IO,
-	POWER_DOMAIN_PORT_DDI_E_IO,
-	POWER_DOMAIN_PORT_DDI_F_IO,
-	POWER_DOMAIN_PORT_DDI_G_IO,
-	POWER_DOMAIN_PORT_DDI_H_IO,
-	POWER_DOMAIN_PORT_DDI_I_IO,
-
-	POWER_DOMAIN_PORT_DDI_IO_TC1 = POWER_DOMAIN_PORT_DDI_D_IO, /* tgl+ */
+	POWER_DOMAIN_PORT_DDI_IO_TC1,
 	POWER_DOMAIN_PORT_DDI_IO_TC2,
 	POWER_DOMAIN_PORT_DDI_IO_TC3,
 	POWER_DOMAIN_PORT_DDI_IO_TC4,
 	POWER_DOMAIN_PORT_DDI_IO_TC5,
 	POWER_DOMAIN_PORT_DDI_IO_TC6,
-
-	POWER_DOMAIN_PORT_DDI_IO_D_XELPD = POWER_DOMAIN_PORT_DDI_IO_TC5, /* XELPD */
-	POWER_DOMAIN_PORT_DDI_IO_E_XELPD,
 
 	POWER_DOMAIN_PORT_DSI,
 	POWER_DOMAIN_PORT_CRT,
@@ -85,30 +82,17 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_AUX_D,
 	POWER_DOMAIN_AUX_E,
 	POWER_DOMAIN_AUX_F,
-	POWER_DOMAIN_AUX_G,
-	POWER_DOMAIN_AUX_H,
-	POWER_DOMAIN_AUX_I,
 
-	POWER_DOMAIN_AUX_USBC1 = POWER_DOMAIN_AUX_D, /* tgl+ */
+	POWER_DOMAIN_AUX_USBC1,
 	POWER_DOMAIN_AUX_USBC2,
 	POWER_DOMAIN_AUX_USBC3,
 	POWER_DOMAIN_AUX_USBC4,
 	POWER_DOMAIN_AUX_USBC5,
 	POWER_DOMAIN_AUX_USBC6,
 
-	POWER_DOMAIN_AUX_D_XELPD = POWER_DOMAIN_AUX_USBC5, /* XELPD */
-	POWER_DOMAIN_AUX_E_XELPD,
-
 	POWER_DOMAIN_AUX_IO_A,
-	POWER_DOMAIN_AUX_C_TBT,
-	POWER_DOMAIN_AUX_D_TBT,
-	POWER_DOMAIN_AUX_E_TBT,
-	POWER_DOMAIN_AUX_F_TBT,
-	POWER_DOMAIN_AUX_G_TBT,
-	POWER_DOMAIN_AUX_H_TBT,
-	POWER_DOMAIN_AUX_I_TBT,
 
-	POWER_DOMAIN_AUX_TBT1 = POWER_DOMAIN_AUX_D_TBT, /* tgl+ */
+	POWER_DOMAIN_AUX_TBT1,
 	POWER_DOMAIN_AUX_TBT2,
 	POWER_DOMAIN_AUX_TBT3,
 	POWER_DOMAIN_AUX_TBT4,
@@ -123,38 +107,19 @@ enum intel_display_power_domain {
 	POWER_DOMAIN_INIT,
 
 	POWER_DOMAIN_NUM,
-};
-
-/*
- * i915_power_well_id:
- *
- * IDs used to look up power wells. Power wells accessed directly bypassing
- * the power domains framework must be assigned a unique ID. The rest of power
- * wells must be assigned DISP_PW_ID_NONE.
- */
-enum i915_power_well_id {
-	DISP_PW_ID_NONE,
-
-	VLV_DISP_PW_DISP2D,
-	BXT_DISP_PW_DPIO_CMN_A,
-	VLV_DISP_PW_DPIO_CMN_BC,
-	GLK_DISP_PW_DPIO_CMN_C,
-	CHV_DISP_PW_DPIO_CMN_D,
-	HSW_DISP_PW_GLOBAL,
-	SKL_DISP_PW_MISC_IO,
-	SKL_DISP_PW_1,
-	SKL_DISP_PW_2,
-	ICL_DISP_PW_3,
-	SKL_DISP_DC_OFF,
-	TGL_DISP_PW_TC_COLD_OFF,
+	POWER_DOMAIN_INVALID = POWER_DOMAIN_NUM,
 };
 
 #define POWER_DOMAIN_PIPE(pipe) ((pipe) + POWER_DOMAIN_PIPE_A)
 #define POWER_DOMAIN_PIPE_PANEL_FITTER(pipe) \
-		((pipe) + POWER_DOMAIN_PIPE_A_PANEL_FITTER)
+		((pipe) + POWER_DOMAIN_PIPE_PANEL_FITTER_A)
 #define POWER_DOMAIN_TRANSCODER(tran) \
 	((tran) == TRANSCODER_EDP ? POWER_DOMAIN_TRANSCODER_EDP : \
 	 (tran) + POWER_DOMAIN_TRANSCODER_A)
+
+struct intel_power_domain_mask {
+	DECLARE_BITMAP(bits, POWER_DOMAIN_NUM);
+};
 
 struct i915_power_domains {
 	/*
@@ -173,41 +138,21 @@ struct i915_power_domains {
 
 	struct delayed_work async_put_work;
 	intel_wakeref_t async_put_wakeref;
-	u64 async_put_domains[2];
+	struct intel_power_domain_mask async_put_domains[2];
 
 	struct i915_power_well *power_wells;
 };
 
 struct intel_display_power_domain_set {
-	u64 mask;
+	struct intel_power_domain_mask mask;
 #ifdef CONFIG_DRM_I915_DEBUG_RUNTIME_PM
 	intel_wakeref_t wakerefs[POWER_DOMAIN_NUM];
 #endif
 };
 
-#define for_each_power_domain(domain, mask)				\
-	for ((domain) = 0; (domain) < POWER_DOMAIN_NUM; (domain)++)	\
-		for_each_if(BIT_ULL(domain) & (mask))
-
-#define for_each_power_well(__dev_priv, __power_well)				\
-	for ((__power_well) = (__dev_priv)->power_domains.power_wells;	\
-	     (__power_well) - (__dev_priv)->power_domains.power_wells <	\
-		(__dev_priv)->power_domains.power_well_count;		\
-	     (__power_well)++)
-
-#define for_each_power_well_reverse(__dev_priv, __power_well)			\
-	for ((__power_well) = (__dev_priv)->power_domains.power_wells +		\
-			      (__dev_priv)->power_domains.power_well_count - 1;	\
-	     (__power_well) - (__dev_priv)->power_domains.power_wells >= 0;	\
-	     (__power_well)--)
-
-#define for_each_power_domain_well(__dev_priv, __power_well, __domain_mask)	\
-	for_each_power_well(__dev_priv, __power_well)				\
-		for_each_if((__power_well)->desc->domains & (__domain_mask))
-
-#define for_each_power_domain_well_reverse(__dev_priv, __power_well, __domain_mask) \
-	for_each_power_well_reverse(__dev_priv, __power_well)		        \
-		for_each_if((__power_well)->desc->domains & (__domain_mask))
+#define for_each_power_domain(__domain, __mask)				\
+	for ((__domain) = 0; (__domain) < POWER_DOMAIN_NUM; (__domain)++)	\
+		for_each_if(test_bit((__domain), (__mask)->bits))
 
 int intel_power_domains_init(struct drm_i915_private *dev_priv);
 void intel_power_domains_cleanup(struct drm_i915_private *dev_priv);
@@ -232,8 +177,6 @@ intel_display_power_domain_str(enum intel_display_power_domain domain);
 
 bool intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				    enum intel_display_power_domain domain);
-bool intel_display_power_well_is_enabled(struct drm_i915_private *dev_priv,
-					 enum i915_power_well_id power_well_id);
 bool __intel_display_power_is_enabled(struct drm_i915_private *dev_priv,
 				      enum intel_display_power_domain domain);
 intel_wakeref_t intel_display_power_get(struct drm_i915_private *dev_priv,
@@ -290,16 +233,25 @@ intel_display_power_get_in_set_if_enabled(struct drm_i915_private *i915,
 void
 intel_display_power_put_mask_in_set(struct drm_i915_private *i915,
 				    struct intel_display_power_domain_set *power_domain_set,
-				    u64 mask);
+				    struct intel_power_domain_mask *mask);
 
 static inline void
 intel_display_power_put_all_in_set(struct drm_i915_private *i915,
 				   struct intel_display_power_domain_set *power_domain_set)
 {
-	intel_display_power_put_mask_in_set(i915, power_domain_set, power_domain_set->mask);
+	intel_display_power_put_mask_in_set(i915, power_domain_set, &power_domain_set->mask);
 }
 
 void intel_display_power_debug(struct drm_i915_private *i915, struct seq_file *m);
+
+enum intel_display_power_domain
+intel_display_power_ddi_lanes_domain(struct drm_i915_private *i915, enum port port);
+enum intel_display_power_domain
+intel_display_power_ddi_io_domain(struct drm_i915_private *i915, enum port port);
+enum intel_display_power_domain
+intel_display_power_legacy_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
+enum intel_display_power_domain
+intel_display_power_tbt_aux_domain(struct drm_i915_private *i915, enum aux_ch aux_ch);
 
 /*
  * FIXME: We should probably switch this to a 0-based scheme to be consistent
@@ -323,10 +275,5 @@ void gen9_dbuf_slices_update(struct drm_i915_private *dev_priv,
 #define with_intel_display_power_if_enabled(i915, domain, wf) \
 	for ((wf) = intel_display_power_get_if_enabled((i915), (domain)); (wf); \
 	     intel_display_power_put_async((i915), (domain), (wf)), (wf) = 0)
-
-void chv_phy_powergate_lanes(struct intel_encoder *encoder,
-			     bool override, unsigned int mask);
-bool chv_phy_powergate_ch(struct drm_i915_private *dev_priv, enum dpio_phy phy,
-			  enum dpio_channel ch, bool override);
 
 #endif /* __INTEL_DISPLAY_POWER_H__ */

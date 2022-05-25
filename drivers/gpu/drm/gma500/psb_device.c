@@ -168,8 +168,10 @@ static void psb_init_pm(struct drm_device *dev)
 static int psb_save_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_connector *gma_connector;
 	struct drm_crtc *crtc;
-	struct gma_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration control + watermarks */
@@ -189,9 +191,13 @@ static int psb_save_display_registers(struct drm_device *dev)
 			dev_priv->ops->save_crtc(crtc);
 	}
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
-		if (connector->save)
-			connector->save(&connector->base);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		gma_connector = to_gma_connector(connector);
+		if (gma_connector->save)
+			gma_connector->save(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -206,8 +212,10 @@ static int psb_save_display_registers(struct drm_device *dev)
 static int psb_restore_display_registers(struct drm_device *dev)
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
+	struct gma_connector *gma_connector;
 	struct drm_crtc *crtc;
-	struct gma_connector *connector;
+	struct drm_connector_list_iter conn_iter;
+	struct drm_connector *connector;
 	struct psb_state *regs = &dev_priv->regs.psb;
 
 	/* Display arbitration + watermarks */
@@ -228,9 +236,13 @@ static int psb_restore_display_registers(struct drm_device *dev)
 		if (drm_helper_crtc_in_use(crtc))
 			dev_priv->ops->restore_crtc(crtc);
 
-	list_for_each_entry(connector, &dev->mode_config.connector_list, base.head)
-		if (connector->restore)
-			connector->restore(&connector->base);
+	drm_connector_list_iter_begin(dev, &conn_iter);
+	drm_for_each_connector_iter(connector, &conn_iter) {
+		gma_connector = to_gma_connector(connector);
+		if (gma_connector->restore)
+			gma_connector->restore(connector);
+	}
+	drm_connector_list_iter_end(&conn_iter);
 
 	drm_modeset_unlock_all(dev);
 	return 0;
@@ -329,7 +341,6 @@ const struct psb_ops psb_chip_ops = {
 	.chip_teardown = psb_chip_teardown,
 
 	.crtc_helper = &psb_intel_helper_funcs,
-	.crtc_funcs = &gma_intel_crtc_funcs,
 	.clock_funcs = &psb_clock_funcs,
 
 	.output_init = psb_output_init,

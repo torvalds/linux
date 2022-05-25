@@ -4,6 +4,7 @@
  * Copyright © 2016 Intel Corporation
  */
 
+#include <linux/highmem.h>
 #include <linux/prime_numbers.h>
 
 #include "gem/i915_gem_internal.h"
@@ -1220,8 +1221,8 @@ static int __igt_mmap_migrate(struct intel_memory_region **placements,
 					  expand32(POISON_INUSE), &rq);
 	i915_gem_object_unpin_pages(obj);
 	if (rq) {
-		dma_resv_add_excl_fence(obj->base.resv, &rq->fence);
-		i915_gem_object_set_moving_fence(obj, &rq->fence);
+		dma_resv_add_fence(obj->base.resv, &rq->fence,
+				   DMA_RESV_USAGE_KERNEL);
 		i915_request_put(rq);
 	}
 	i915_gem_object_unlock(obj);

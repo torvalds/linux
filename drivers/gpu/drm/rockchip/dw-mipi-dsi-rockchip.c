@@ -181,8 +181,6 @@
 
 #define HIWORD_UPDATE(val, mask)	(val | (mask) << 16)
 
-#define to_dsi(nm)	container_of(nm, struct dw_mipi_dsi_rockchip, nm)
-
 enum {
 	DW_DSI_USAGE_IDLE,
 	DW_DSI_USAGE_DSI,
@@ -236,7 +234,7 @@ struct rockchip_dw_dsi_chip_data {
 
 struct dw_mipi_dsi_rockchip {
 	struct device *dev;
-	struct drm_encoder encoder;
+	struct rockchip_encoder encoder;
 	void __iomem *base;
 
 	struct regmap *grf_regmap;
@@ -270,6 +268,13 @@ struct dw_mipi_dsi_rockchip {
 
 	bool dsi_bound;
 };
+
+static struct dw_mipi_dsi_rockchip *to_dsi(struct drm_encoder *encoder)
+{
+	struct rockchip_encoder *rkencoder = to_rockchip_encoder(encoder);
+
+	return container_of(rkencoder, struct dw_mipi_dsi_rockchip, encoder);
+}
 
 struct dphy_pll_parameter_map {
 	unsigned int max_mbps;
@@ -770,7 +775,7 @@ static void dw_mipi_dsi_encoder_enable(struct drm_encoder *encoder)
 	int ret, mux;
 
 	mux = drm_of_encoder_active_endpoint_id(dsi->dev->of_node,
-						&dsi->encoder);
+						&dsi->encoder.encoder);
 	if (mux < 0)
 		return;
 
@@ -801,7 +806,7 @@ dw_mipi_dsi_encoder_helper_funcs = {
 static int rockchip_dsi_drm_create_encoder(struct dw_mipi_dsi_rockchip *dsi,
 					   struct drm_device *drm_dev)
 {
-	struct drm_encoder *encoder = &dsi->encoder;
+	struct drm_encoder *encoder = &dsi->encoder.encoder;
 	int ret;
 
 	encoder->possible_crtcs = drm_of_find_possible_crtcs(drm_dev,
@@ -959,7 +964,7 @@ static int dw_mipi_dsi_rockchip_bind(struct device *dev,
 		goto out_pll_clk;
 	}
 
-	ret = dw_mipi_dsi_bind(dsi->dmd, &dsi->encoder);
+	ret = dw_mipi_dsi_bind(dsi->dmd, &dsi->encoder.encoder);
 	if (ret) {
 		DRM_DEV_ERROR(dev, "Failed to bind: %d\n", ret);
 		goto out_pll_clk;

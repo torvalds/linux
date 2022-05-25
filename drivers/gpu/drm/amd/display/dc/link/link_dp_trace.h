@@ -54,4 +54,9 @@ struct dp_trace_lt_counts *dc_dp_trace_get_lt_counts(struct dc_link *link,
 		bool in_detection);
 unsigned int dc_dp_trace_get_link_loss_count(struct dc_link *link);
 
+void dp_trace_set_edp_power_timestamp(struct dc_link *link,
+		bool power_up);
+uint64_t dp_trace_get_edp_poweron_timestamp(struct dc_link *link);
+uint64_t dp_trace_get_edp_poweroff_timestamp(struct dc_link *link);
+
 #endif /* __LINK_DP_TRACE_H__ */
