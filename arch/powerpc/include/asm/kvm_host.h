@@ -830,11 +830,19 @@ struct kvm_vcpu_arch {
 #ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
 	struct kvmhv_tb_accumulator *cur_activity;	/* What we're timing */
 	u64	cur_tb_start;			/* when it started */
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
 	struct kvmhv_tb_accumulator rm_entry;	/* real-mode entry code */
 	struct kvmhv_tb_accumulator rm_intr;	/* real-mode intr handling */
 	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
 	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
 	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
+#else
+	struct kvmhv_tb_accumulator rm_entry;	/* real-mode entry code */
+	struct kvmhv_tb_accumulator rm_intr;	/* real-mode intr handling */
+	struct kvmhv_tb_accumulator rm_exit;	/* real-mode exit code */
+	struct kvmhv_tb_accumulator guest_time;	/* guest execution */
+	struct kvmhv_tb_accumulator cede_time;	/* time napping inside guest */
+#endif
 #endif /* CONFIG_KVM_BOOK3S_HV_EXIT_TIMING */
 };
 

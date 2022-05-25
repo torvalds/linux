@@ -437,7 +437,7 @@ void restore_p9_host_os_sprs(struct kvm_vcpu *vcpu,
 }
 EXPORT_SYMBOL_GPL(restore_p9_host_os_sprs);
 
-#ifdef CONFIG_KVM_BOOK3S_HV_EXIT_TIMING
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
 static void __accumulate_time(struct kvm_vcpu *vcpu, struct kvmhv_tb_accumulator *next)
 {
 	struct kvmppc_vcore *vc = vcpu->arch.vcore;

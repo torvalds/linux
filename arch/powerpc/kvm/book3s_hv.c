@@ -2660,11 +2660,19 @@ static struct debugfs_timings_element {
 	const char *name;
 	size_t offset;
 } timings[] = {
+#ifdef CONFIG_KVM_BOOK3S_HV_P9_TIMING
 	{"rm_entry",	offsetof(struct kvm_vcpu, arch.rm_entry)},
 	{"rm_intr",	offsetof(struct kvm_vcpu, arch.rm_intr)},
 	{"rm_exit",	offsetof(struct kvm_vcpu, arch.rm_exit)},
 	{"guest",	offsetof(struct kvm_vcpu, arch.guest_time)},
 	{"cede",	offsetof(struct kvm_vcpu, arch.cede_time)},
+#else
+	{"rm_entry",	offsetof(struct kvm_vcpu, arch.rm_entry)},
+	{"rm_intr",	offsetof(struct kvm_vcpu, arch.rm_intr)},
+	{"rm_exit",	offsetof(struct kvm_vcpu, arch.rm_exit)},
+	{"guest",	offsetof(struct kvm_vcpu, arch.guest_time)},
+	{"cede",	offsetof(struct kvm_vcpu, arch.cede_time)},
+#endif
 };
 
 #define N_TIMINGS	(ARRAY_SIZE(timings))
@@ -2783,8 +2791,9 @@ static const struct file_operations debugfs_timings_ops = {
 /* Create a debugfs directory for the vcpu */
 static int kvmppc_arch_create_vcpu_debugfs_hv(struct kvm_vcpu *vcpu, struct dentry *debugfs_dentry)
 {
-	debugfs_create_file("timings", 0444, debugfs_dentry, vcpu,
-			    &debugfs_timings_ops);
+	if (cpu_has_feature(CPU_FTR_ARCH_300) == IS_ENABLED(CONFIG_KVM_BOOK3S_HV_P9_TIMING))
+		debugfs_create_file("timings", 0444, debugfs_dentry, vcpu,
+				    &debugfs_timings_ops);
 	return 0;
 }
 
