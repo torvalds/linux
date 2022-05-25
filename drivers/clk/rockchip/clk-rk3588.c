@@ -645,13 +645,13 @@ static struct rockchip_clk_branch rk3588_hdmirx_aud_fracmux __initdata =
 
 static struct rockchip_pll_clock rk3588_pll_clks[] __initdata = {
 	[b0pll] = PLL(pll_rk3588_core, PLL_B0PLL, "b0pll", mux_pll_p,
-		     0, RK3588_B0_PLL_CON(0),
+		     CLK_IGNORE_UNUSED, RK3588_B0_PLL_CON(0),
 		     RK3588_B0_PLL_MODE_CON0, 0, 15, 0, rk3588_pll_rates),
 	[b1pll] = PLL(pll_rk3588_core, PLL_B1PLL, "b1pll", mux_pll_p,
-		     0, RK3588_B1_PLL_CON(8),
+		     CLK_IGNORE_UNUSED, RK3588_B1_PLL_CON(8),
 		     RK3588_B1_PLL_MODE_CON0, 0, 15, 0, rk3588_pll_rates),
 	[lpll] = PLL(pll_rk3588_core, PLL_LPLL, "lpll", mux_pll_p,
-		     0, RK3588_LPLL_CON(16),
+		     CLK_IGNORE_UNUSED, RK3588_LPLL_CON(16),
 		     RK3588_LPLL_MODE_CON0, 0, 15, 0, rk3588_pll_rates),
 	[v0pll] = PLL(pll_rk3588, PLL_V0PLL, "v0pll", mux_pll_p,
 		     0, RK3588_PLL_CON(88),
