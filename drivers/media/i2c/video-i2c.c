@@ -9,6 +9,7 @@
  * - Melexis MLX90640 Thermal Cameras
  */
 
+#include <linux/bits.h>
 #include <linux/delay.h>
 #include <linux/freezer.h>
 #include <linux/hwmon.h>
@@ -33,6 +34,37 @@
 #include <media/videobuf2-vmalloc.h>
 
 #define VIDEO_I2C_DRIVER	"video-i2c"
+
+/* Power control register */
+#define AMG88XX_REG_PCTL	0x00
+#define AMG88XX_PCTL_NORMAL		0x00
+#define AMG88XX_PCTL_SLEEP		0x10
+
+/* Reset register */
+#define AMG88XX_REG_RST		0x01
+#define AMG88XX_RST_FLAG		0x30
+#define AMG88XX_RST_INIT		0x3f
+
+/* Frame rate register */
+#define AMG88XX_REG_FPSC	0x02
+#define AMG88XX_FPSC_1FPS		BIT(0)
+
+/* Thermistor register */
+#define AMG88XX_REG_TTHL	0x0e
+
+/* Temperature register */
+#define AMG88XX_REG_T01L	0x80
+
+/* RAM */
+#define MLX90640_RAM_START_ADDR		0x0400
+
+/* EEPROM */
+#define MLX90640_EEPROM_START_ADDR	0x2400
+
+/* Control register */
+#define MLX90640_REG_CTL1		0x800d
+#define MLX90640_REG_CTL1_MASK		GENMASK(9, 7)
+#define MLX90640_REG_CTL1_MASK_SHIFT	7
 
 struct video_i2c_chip;
 
@@ -124,7 +156,7 @@ static int mlx90640_nvram_read(void *priv, unsigned int offset, void *val,
 {
 	struct video_i2c_data *data = priv;
 
-	return regmap_bulk_read(data->regmap, 0x2400 + offset, val, bytes);
+	return regmap_bulk_read(data->regmap, MLX90640_EEPROM_START_ADDR + offset, val, bytes);
 }
 
 static struct nvmem_config mlx90640_nvram_config = {
@@ -135,31 +167,6 @@ static struct nvmem_config mlx90640_nvram_config = {
 	.reg_read = mlx90640_nvram_read,
 };
 
-/* Power control register */
-#define AMG88XX_REG_PCTL	0x00
-#define AMG88XX_PCTL_NORMAL		0x00
-#define AMG88XX_PCTL_SLEEP		0x10
-
-/* Reset register */
-#define AMG88XX_REG_RST		0x01
-#define AMG88XX_RST_FLAG		0x30
-#define AMG88XX_RST_INIT		0x3f
-
-/* Frame rate register */
-#define AMG88XX_REG_FPSC	0x02
-#define AMG88XX_FPSC_1FPS		BIT(0)
-
-/* Thermistor register */
-#define AMG88XX_REG_TTHL	0x0e
-
-/* Temperature register */
-#define AMG88XX_REG_T01L	0x80
-
-/* Control register */
-#define MLX90640_REG_CTL1		0x800d
-#define MLX90640_REG_CTL1_MASK		0x0380
-#define MLX90640_REG_CTL1_MASK_SHIFT	7
-
 static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 {
 	return regmap_bulk_read(data->regmap, AMG88XX_REG_T01L, buf,
@@ -168,7 +175,7 @@ static int amg88xx_xfer(struct video_i2c_data *data, char *buf)
 
 static int mlx90640_xfer(struct video_i2c_data *data, char *buf)
 {
-	return regmap_bulk_read(data->regmap, 0x400, buf,
+	return regmap_bulk_read(data->regmap, MLX90640_RAM_START_ADDR, buf,
 				data->chip->buffer_size);
 }
 

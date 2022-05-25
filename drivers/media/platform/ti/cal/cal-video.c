@@ -47,13 +47,9 @@ static char *fourcc_to_str(u32 fmt)
 static int cal_querycap(struct file *file, void *priv,
 			struct v4l2_capability *cap)
 {
-	struct cal_ctx *ctx = video_drvdata(file);
-
 	strscpy(cap->driver, CAL_MODULE_NAME, sizeof(cap->driver));
 	strscpy(cap->card, CAL_MODULE_NAME, sizeof(cap->card));
 
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "platform:%s", dev_name(ctx->cal->dev));
 	return 0;
 }
 

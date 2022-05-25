@@ -485,6 +485,7 @@ static int imgu_vb2_start_streaming(struct vb2_queue *vq, unsigned int count)
 
 	pipe = node->pipe;
 	imgu_pipe = &imgu->imgu_pipe[pipe];
+	atomic_set(&node->sequence, 0);
 	r = media_pipeline_start(&node->vdev.entity, &imgu_pipe->pipeline);
 	if (r < 0)
 		goto fail_return_bufs;

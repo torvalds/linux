@@ -440,6 +440,16 @@ fail_start_streaming:
 	return r;
 }
 
+static void imgu_video_nodes_exit(struct imgu_device *imgu)
+{
+	int i;
+
+	for (i = 0; i < IMGU_MAX_PIPE_NUM; i++)
+		imgu_dummybufs_cleanup(imgu, i);
+
+	imgu_v4l2_unregister(imgu);
+}
+
 static int imgu_video_nodes_init(struct imgu_device *imgu)
 {
 	struct v4l2_pix_format_mplane *fmts[IPU3_CSS_QUEUES] = { NULL };
@@ -489,22 +499,9 @@ static int imgu_video_nodes_init(struct imgu_device *imgu)
 	return 0;
 
 out_cleanup:
-	for (j = 0; j < IMGU_MAX_PIPE_NUM; j++)
-		imgu_dummybufs_cleanup(imgu, j);
-
-	imgu_v4l2_unregister(imgu);
+	imgu_video_nodes_exit(imgu);
 
 	return r;
-}
-
-static void imgu_video_nodes_exit(struct imgu_device *imgu)
-{
-	int i;
-
-	for (i = 0; i < IMGU_MAX_PIPE_NUM; i++)
-		imgu_dummybufs_cleanup(imgu, i);
-
-	imgu_v4l2_unregister(imgu);
 }
 
 /**************** PCI interface ****************/

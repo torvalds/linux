@@ -401,12 +401,8 @@ static const struct v4l2_file_operations vip_fops = {
 static int vidioc_querycap(struct file *file, void *priv,
 			   struct v4l2_capability *cap)
 {
-	struct sta2x11_vip *vip = video_drvdata(file);
-
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, KBUILD_MODNAME, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "PCI:%s",
-		 pci_name(vip->pdev));
 	return 0;
 }
 

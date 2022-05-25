@@ -302,9 +302,28 @@ __poll_t vb2_poll(struct vb2_queue *q, struct file *file, poll_table *wait);
  * The following functions are not part of the vb2 core API, but are simple
  * helper functions that you can use in your struct v4l2_file_operations,
  * struct v4l2_ioctl_ops and struct vb2_ops. They will serialize if vb2_queue->lock
- * or video_device->lock is set, and they will set and test vb2_queue->owner
- * to check if the calling filehandle is permitted to do the queuing operation.
+ * or video_device->lock is set, and they will set and test the queue owner
+ * (vb2_queue->owner) to check if the calling filehandle is permitted to do the
+ * queuing operation.
  */
+
+/**
+ * vb2_queue_is_busy() - check if the queue is busy
+ * @q:		pointer to &struct vb2_queue with videobuf2 queue.
+ * @file:	file through which the vb2 queue access is performed
+ *
+ * The queue is considered busy if it has an owner and the owner is not the
+ * @file.
+ *
+ * Queue ownership is acquired and checked by some of the v4l2_ioctl_ops helpers
+ * below. Drivers can also use this function directly when they need to
+ * open-code ioctl handlers, for instance to add additional checks between the
+ * queue ownership test and the call to the corresponding vb2 operation.
+ */
+static inline bool vb2_queue_is_busy(struct vb2_queue *q, struct file *file)
+{
+	return q->owner && q->owner != file->private_data;
+}
 
 /* struct v4l2_ioctl_ops helpers */
 

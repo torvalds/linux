@@ -12194,7 +12194,7 @@ T:	git git://linuxtv.org/media_tree.git
 F:	Documentation/admin-guide/media/imx7.rst
 F:	Documentation/devicetree/bindings/media/nxp,imx-mipi-csi2.yaml
 F:	Documentation/devicetree/bindings/media/nxp,imx7-csi.yaml
-F:	drivers/media/platform/imx/imx-mipi-csis.c
+F:	drivers/media/platform/nxp/imx-mipi-csis.c
 F:	drivers/staging/media/imx/imx7-media-csi.c
 
 MEDIA DRIVERS FOR HELENE
@@ -12249,7 +12249,7 @@ L:	linux-media@vger.kernel.org
 L:	linux-tegra@vger.kernel.org
 S:	Maintained
 T:	git git://linuxtv.org/media_tree.git
-F:	Documentation/devicetree/bindings/media/nvidia,tegra-vde.txt
+F:	Documentation/devicetree/bindings/media/nvidia,tegra-vde.yaml
 F:	drivers/media/platform/nvidia/tegra-vde/
 
 MEDIA DRIVERS FOR RENESAS - CEU
@@ -12412,10 +12412,9 @@ F:	drivers/iommu/mtk_iommu*
 F:	include/dt-bindings/memory/mt*-port.h
 
 MEDIATEK JPEG DRIVER
-M:	Rick Chang <rick.chang@mediatek.com>
 M:	Bin Liu <bin.liu@mediatek.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/media/mediatek-jpeg-decoder.txt
+F:	Documentation/devicetree/bindings/media/mediatek-jpeg-*.yaml
 F:	drivers/media/platform/mediatek/jpeg/
 
 MEDIATEK MDP DRIVER
@@ -12431,7 +12430,7 @@ MEDIATEK MEDIA DRIVER
 M:	Tiffany Lin <tiffany.lin@mediatek.com>
 M:	Andrew-CT Chen <andrew-ct.chen@mediatek.com>
 S:	Supported
-F:	Documentation/devicetree/bindings/media/mediatek-vcodec.txt
+F:	Documentation/devicetree/bindings/media/mediatek,vcodec*.yaml
 F:	Documentation/devicetree/bindings/media/mediatek-vpu.txt
 F:	drivers/media/platform/mediatek/vcodec/
 F:	drivers/media/platform/mediatek/vpu/
@@ -14246,7 +14245,7 @@ R:	NXP Linux Team <linux-imx@nxp.com>
 L:	linux-media@vger.kernel.org
 S:	Maintained
 F:	Documentation/devicetree/bindings/media/nxp,imx8-jpeg.yaml
-F:	drivers/media/platform/imx-jpeg
+F:	drivers/media/platform/nxp/imx-jpeg
 
 NZXT-KRAKEN2 HARDWARE MONITORING DRIVER
 M:	Jonas Malaco <jonas@protocubo.io>
@@ -20583,7 +20582,6 @@ F:	drivers/usb/host/uhci*
 
 USB VIDEO CLASS
 M:	Laurent Pinchart <laurent.pinchart@ideasonboard.com>
-L:	linux-uvc-devel@lists.sourceforge.net (subscribers-only)
 L:	linux-media@vger.kernel.org
 S:	Maintained
 W:	http://www.ideasonboard.org/uvc/

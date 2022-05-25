@@ -475,5 +475,7 @@ void hantro_postproc_disable(struct hantro_ctx *ctx);
 void hantro_postproc_enable(struct hantro_ctx *ctx);
 void hantro_postproc_free(struct hantro_ctx *ctx);
 int hantro_postproc_alloc(struct hantro_ctx *ctx);
+int hanto_postproc_enum_framesizes(struct hantro_ctx *ctx,
+				   struct v4l2_frmsizeenum *fsize);
 
 #endif /* HANTRO_H_ */

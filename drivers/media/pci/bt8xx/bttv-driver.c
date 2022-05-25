@@ -2435,8 +2435,6 @@ static int bttv_querycap(struct file *file, void  *priv,
 
 	strscpy(cap->driver, "bttv", sizeof(cap->driver));
 	strscpy(cap->card, btv->video_dev.name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "PCI:%s", pci_name(btv->c.pci));
 	cap->capabilities = V4L2_CAP_VIDEO_CAPTURE | V4L2_CAP_READWRITE |
 			    V4L2_CAP_STREAMING | V4L2_CAP_DEVICE_CAPS;
 	if (no_overlay <= 0)

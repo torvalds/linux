@@ -762,8 +762,6 @@ static int tw686x_querycap(struct file *file, void *priv,
 
 	strscpy(cap->driver, "tw686x", sizeof(cap->driver));
 	strscpy(cap->card, dev->name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info),
-		 "PCI:%s", pci_name(dev->pci_dev));
 	return 0;
 }
 

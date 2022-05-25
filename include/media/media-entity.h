@@ -1030,7 +1030,6 @@ __must_check media_devnode_create(struct media_device *mdev,
  * removed.
  */
 void media_devnode_remove(struct media_intf_devnode *devnode);
-struct media_link *
 
 /**
  * media_create_intf_link() - creates a link between an entity and an interface
@@ -1061,6 +1060,7 @@ struct media_link *
  *    the interface and media_device_register_entity() should be called for the
  *    interface that will be part of the link.
  */
+struct media_link *
 __must_check media_create_intf_link(struct media_entity *entity,
 				    struct media_interface *intf,
 				    u32 flags);
@@ -1120,5 +1120,24 @@ void media_remove_intf_links(struct media_interface *intf);
 #define media_entity_call(entity, operation, args...)			\
 	(((entity)->ops && (entity)->ops->operation) ?			\
 	 (entity)->ops->operation((entity) , ##args) : -ENOIOCTLCMD)
+
+/**
+ * media_create_ancillary_link() - create an ancillary link between two
+ *				   instances of &media_entity
+ *
+ * @primary:	pointer to the primary &media_entity
+ * @ancillary:	pointer to the ancillary &media_entity
+ *
+ * Create an ancillary link between two entities, indicating that they
+ * represent two connected pieces of hardware that form a single logical unit.
+ * A typical example is a camera lens controller being linked to the sensor that
+ * it is supporting.
+ *
+ * The function sets both MEDIA_LNK_FL_ENABLED and MEDIA_LNK_FL_IMMUTABLE for
+ * the new link.
+ */
+struct media_link *
+media_create_ancillary_link(struct media_entity *primary,
+			    struct media_entity *ancillary);
 
 #endif

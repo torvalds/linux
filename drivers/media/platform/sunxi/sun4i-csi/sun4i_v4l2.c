@@ -53,12 +53,8 @@ const struct sun4i_csi_format *sun4i_csi_find_format(const u32 *fourcc,
 static int sun4i_csi_querycap(struct file *file, void *priv,
 			      struct v4l2_capability *cap)
 {
-	struct sun4i_csi *csi = video_drvdata(file);
-
 	strscpy(cap->driver, KBUILD_MODNAME, sizeof(cap->driver));
 	strscpy(cap->card, "sun4i-csi", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(csi->dev));
 
 	return 0;
 }

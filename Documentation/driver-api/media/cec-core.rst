@@ -109,6 +109,7 @@ your driver:
 		int (*adap_monitor_all_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_monitor_pin_enable)(struct cec_adapter *adap, bool enable);
 		int (*adap_log_addr)(struct cec_adapter *adap, u8 logical_addr);
+		void (*adap_configured)(struct cec_adapter *adap, bool configured);
 		int (*adap_transmit)(struct cec_adapter *adap, u8 attempts,
 				      u32 signal_free_time, struct cec_msg *msg);
 		void (*adap_status)(struct cec_adapter *adap, struct seq_file *file);
@@ -117,7 +118,7 @@ your driver:
 		/* Error injection callbacks */
 		...
 
-		/* High-level callbacks */
+		/* High-level callback */
 		...
 	};
 
@@ -176,6 +177,16 @@ should return -ENXIO. Once a logical address is programmed the CEC hardware
 can receive directed messages to that address.
 
 Note that adap_log_addr must return 0 if logical_addr is CEC_LOG_ADDR_INVALID.
+
+
+Called when the adapter is fully configured or unconfigured::
+
+	void (*adap_configured)(struct cec_adapter *adap, bool configured);
+
+If configured == true, then the adapter is fully configured, i.e. all logical
+addresses have been successfully claimed. If configured == false, then the
+adapter is unconfigured. If the driver has to take specific actions after
+(un)configuration, then that can be done through this optional callback.
 
 
 To transmit a new message::

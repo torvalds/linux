@@ -380,6 +380,13 @@ u32 coda_mpeg4_parse_headers(struct coda_ctx *ctx, u8 *buf, u32 size);
 void coda_update_profile_level_ctrls(struct coda_ctx *ctx, u8 profile_idc,
 				     u8 level_idc);
 
+static inline int coda_jpeg_scale(int src, int dst)
+{
+	return (dst <= src / 8) ? 3 :
+	       (dst <= src / 4) ? 2 :
+	       (dst <= src / 2) ? 1 : 0;
+}
+
 bool coda_jpeg_check_buffer(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_jpeg_decode_header(struct coda_ctx *ctx, struct vb2_buffer *vb);
 int coda_jpeg_write_tables(struct coda_ctx *ctx);
