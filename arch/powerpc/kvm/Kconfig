@@ -135,10 +135,11 @@ config KVM_BOOK3S_HV_P9_TIMING
 	select KVM_BOOK3S_HV_EXIT_TIMING
 	depends on KVM_BOOK3S_HV_POSSIBLE && DEBUG_FS
 	help
-	  Calculate time taken for each vcpu in various parts of the
-	  code. The total, minimum and maximum times in nanoseconds
-	  together with the number of executions are reported in debugfs in
-	  kvm/vm#/vcpu#/timings.
+	  Calculate time taken for each vcpu during vcpu entry and
+	  exit, time spent inside the guest and time spent handling
+	  hypercalls and page faults. The total, minimum and maximum
+	  times in nanoseconds together with the number of executions
+	  are reported in debugfs in kvm/vm#/vcpu#/timings.
 
 	  If unsure, say N.
 
