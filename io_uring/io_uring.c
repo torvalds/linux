@@ -70,11 +70,9 @@
 #include <linux/sizes.h>
 #include <linux/hugetlb.h>
 #include <linux/highmem.h>
-#include <linux/namei.h>
 #include <linux/fsnotify.h>
 #include <linux/fadvise.h>
 #include <linux/eventpoll.h>
-#include <linux/splice.h>
 #include <linux/task_work.h>
 #include <linux/pagemap.h>
 #include <linux/io_uring.h>
@@ -86,7 +84,6 @@
 
 #include <uapi/linux/io_uring.h>
 
-#include "../fs/internal.h"
 #include "io-wq.h"
 
 #include "io_uring_types.h"
@@ -138,8 +135,6 @@
 				 IO_REQ_CLEAN_FLAGS)
 
 #define IO_TCTX_REFS_CACHE_NR	(1U << 10)
-
-struct io_ring_ctx;
 
 struct io_rsrc_put {
 	struct list_head list;
@@ -352,8 +347,6 @@ static void io_eventfd_signal(struct io_ring_ctx *ctx);
 
 static struct kmem_cache *req_cachep;
 
-static const struct file_operations io_uring_fops;
-
 const char *io_uring_get_opcode(u8 opcode)
 {
 	switch ((enum io_uring_op)opcode) {
@@ -455,11 +448,6 @@ const char *io_uring_get_opcode(u8 opcode)
 		return "INVALID";
 	}
 	return "INVALID";
-}
-
-bool io_is_uring_fops(struct file *file)
-{
-	return file->f_op == &io_uring_fops;
 }
 
 struct sock *io_uring_get_socket(struct file *file)
@@ -7401,6 +7389,11 @@ static const struct file_operations io_uring_fops = {
 	.show_fdinfo	= io_uring_show_fdinfo,
 #endif
 };
+
+bool io_is_uring_fops(struct file *file)
+{
+	return file->f_op == &io_uring_fops;
+}
 
 static __cold int io_allocate_scq_urings(struct io_ring_ctx *ctx,
 					 struct io_uring_params *p)
