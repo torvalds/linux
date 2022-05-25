@@ -100,6 +100,7 @@
 #include "advise.h"
 #include "openclose.h"
 #include "uring_cmd.h"
+#include "epoll.h"
 
 #define IORING_MAX_ENTRIES	32768
 #define IORING_MAX_CQ_ENTRIES	(2 * IORING_MAX_ENTRIES)
@@ -372,14 +373,6 @@ struct io_rsrc_update {
 	u64				arg;
 	u32				nr_args;
 	u32				offset;
-};
-
-struct io_epoll {
-	struct file			*file;
-	int				epfd;
-	int				op;
-	int				fd;
-	struct epoll_event		event;
 };
 
 struct io_provide_buf {
@@ -4039,47 +4032,6 @@ static __maybe_unused int io_eopnotsupp_prep(struct io_kiocb *kiocb,
 {
 	return -EOPNOTSUPP;
 }
-
-#if defined(CONFIG_EPOLL)
-static int io_epoll_ctl_prep(struct io_kiocb *req,
-			     const struct io_uring_sqe *sqe)
-{
-	struct io_epoll *epoll = io_kiocb_to_cmd(req);
-
-	if (sqe->buf_index || sqe->splice_fd_in)
-		return -EINVAL;
-
-	epoll->epfd = READ_ONCE(sqe->fd);
-	epoll->op = READ_ONCE(sqe->len);
-	epoll->fd = READ_ONCE(sqe->off);
-
-	if (ep_op_has_event(epoll->op)) {
-		struct epoll_event __user *ev;
-
-		ev = u64_to_user_ptr(READ_ONCE(sqe->addr));
-		if (copy_from_user(&epoll->event, ev, sizeof(*ev)))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
-static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
-{
-	struct io_epoll *ie = io_kiocb_to_cmd(req);
-	int ret;
-	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
-
-	ret = do_epoll_ctl(ie->epfd, ie->op, ie->fd, &ie->event, force_nonblock);
-	if (force_nonblock && ret == -EAGAIN)
-		return -EAGAIN;
-
-	if (ret < 0)
-		req_set_fail(req);
-	io_req_set_res(req, ret, 0);
-	return IOU_OK;
-}
-#endif
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
