@@ -1476,7 +1476,7 @@ static int trc_check_slow_task(struct task_struct *t, void *arg)
 {
 	struct trc_stall_chk_rdr *trc_rdrp = arg;
 
-	if (task_curr(t))
+	if (task_curr(t) && cpu_online(task_cpu(t)))
 		return false; // It is running, so decline to inspect it.
 	trc_rdrp->nesting = READ_ONCE(t->trc_reader_nesting);
 	trc_rdrp->ipi_to_cpu = READ_ONCE(t->trc_ipi_to_cpu);
