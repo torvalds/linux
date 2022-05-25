@@ -4034,10 +4034,16 @@ err:
 	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
+static __maybe_unused int io_eopnotsupp_prep(struct io_kiocb *kiocb,
+					     const struct io_uring_sqe *sqe)
+{
+	return -EOPNOTSUPP;
+}
+
+#if defined(CONFIG_EPOLL)
 static int io_epoll_ctl_prep(struct io_kiocb *req,
 			     const struct io_uring_sqe *sqe)
 {
-#if defined(CONFIG_EPOLL)
 	struct io_epoll *epoll = io_kiocb_to_cmd(req);
 
 	if (sqe->buf_index || sqe->splice_fd_in)
@@ -4056,14 +4062,10 @@ static int io_epoll_ctl_prep(struct io_kiocb *req,
 	}
 
 	return 0;
-#else
-	return -EOPNOTSUPP;
-#endif
 }
 
 static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 {
-#if defined(CONFIG_EPOLL)
 	struct io_epoll *ie = io_kiocb_to_cmd(req);
 	int ret;
 	bool force_nonblock = issue_flags & IO_URING_F_NONBLOCK;
@@ -4076,10 +4078,8 @@ static int io_epoll_ctl(struct io_kiocb *req, unsigned int issue_flags)
 		req_set_fail(req);
 	io_req_set_res(req, ret, 0);
 	return IOU_OK;
-#else
-	return -EOPNOTSUPP;
-#endif
 }
+#endif
 
 static int io_statx_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
@@ -11246,8 +11246,12 @@ static const struct io_op_def io_op_defs[] = {
 	[IORING_OP_EPOLL_CTL] = {
 		.unbound_nonreg_file	= 1,
 		.audit_skip		= 1,
+#if defined(CONFIG_EPOLL)
 		.prep			= io_epoll_ctl_prep,
 		.issue			= io_epoll_ctl,
+#else
+		.prep			= io_eopnotsupp_prep,
+#endif
 	},
 	[IORING_OP_SPLICE] = {
 		.needs_file		= 1,
@@ -11418,7 +11422,8 @@ static int __init io_uring_init(void)
 
 	for (i = 0; i < ARRAY_SIZE(io_op_defs); i++) {
 		BUG_ON(!io_op_defs[i].prep);
-		BUG_ON(!io_op_defs[i].issue);
+		if (io_op_defs[i].prep != io_eopnotsupp_prep)
+			BUG_ON(!io_op_defs[i].issue);
 	}
 
 	req_cachep = KMEM_CACHE(io_kiocb, SLAB_HWCACHE_ALIGN | SLAB_PANIC |
