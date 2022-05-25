@@ -710,6 +710,7 @@ config DEBUG_SLAB
 config SLUB_DEBUG_ON
 	bool "SLUB debugging on by default"
 	depends on SLUB && SLUB_DEBUG
+	select STACKDEPOT_ALWAYS_INIT if STACKTRACE_SUPPORT
 	default n
 	help
 	  Boot with debugging on by default. SLUB boots by default with
