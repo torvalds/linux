@@ -147,6 +147,7 @@ struct mlx5dr_rule_rx_tx;
 struct mlx5dr_matcher_rx_tx;
 struct mlx5dr_ste_ctx;
 struct mlx5dr_send_info_pool;
+struct mlx5dr_icm_hot_chunk;
 
 struct mlx5dr_ste {
 	/* refcount: indicates the num of rules that using this ste */

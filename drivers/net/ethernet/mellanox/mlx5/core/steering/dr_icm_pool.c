@@ -6,6 +6,12 @@
 #define DR_ICM_MODIFY_HDR_ALIGN_BASE 64
 #define DR_ICM_POOL_HOT_MEMORY_FRACTION 4
 
+struct mlx5dr_icm_hot_chunk {
+	struct mlx5dr_icm_buddy_mem *buddy_mem;
+	unsigned int seg;
+	enum mlx5dr_icm_chunk_size size;
+};
+
 struct mlx5dr_icm_pool {
 	enum mlx5dr_icm_type icm_type;
 	enum mlx5dr_icm_chunk_size max_log_chunk_sz;
@@ -15,6 +21,13 @@ struct mlx5dr_icm_pool {
 	/* memory management */
 	struct mutex mutex; /* protect the ICM pool and ICM buddy */
 	struct list_head buddy_mem_list;
+
+	/* Hardware may be accessing this memory but at some future,
+	 * undetermined time, it might cease to do so.
+	 * sync_ste command sets them free.
+	 */
+	struct mlx5dr_icm_hot_chunk *hot_chunks_arr;
+	u32 hot_chunks_num;
 	u64 hot_memory_size;
 };
 
@@ -286,9 +299,6 @@ static void dr_icm_buddy_destroy(struct mlx5dr_icm_buddy_mem *buddy)
 {
 	struct mlx5dr_icm_chunk *chunk, *next;
 
-	list_for_each_entry_safe(chunk, next, &buddy->hot_list, chunk_list)
-		dr_icm_chunk_destroy(chunk);
-
 	list_for_each_entry_safe(chunk, next, &buddy->used_list, chunk_list)
 		dr_icm_chunk_destroy(chunk);
 
@@ -347,10 +357,28 @@ static bool dr_icm_pool_is_sync_required(struct mlx5dr_icm_pool *pool)
 	return pool->hot_memory_size > allow_hot_size;
 }
 
+static void dr_icm_pool_clear_hot_chunks_arr(struct mlx5dr_icm_pool *pool)
+{
+	struct mlx5dr_icm_hot_chunk *hot_chunk;
+	u32 i, num_entries;
+
+	for (i = 0; i < pool->hot_chunks_num; i++) {
+		hot_chunk = &pool->hot_chunks_arr[i];
+		num_entries = mlx5dr_icm_pool_chunk_size_to_entries(hot_chunk->size);
+		mlx5dr_buddy_free_mem(hot_chunk->buddy_mem,
+				      hot_chunk->seg, ilog2(num_entries));
+		hot_chunk->buddy_mem->used_memory -=
+			mlx5dr_icm_pool_chunk_size_to_byte(hot_chunk->size,
+							   pool->icm_type);
+	}
+
+	pool->hot_chunks_num = 0;
+	pool->hot_memory_size = 0;
+}
+
 static int dr_icm_pool_sync_all_buddy_pools(struct mlx5dr_icm_pool *pool)
 {
 	struct mlx5dr_icm_buddy_mem *buddy, *tmp_buddy;
-	u32 num_entries;
 	int err;
 
 	err = mlx5dr_cmd_sync_steering(pool->dmn->mdev);
@@ -359,16 +387,9 @@ static int dr_icm_pool_sync_all_buddy_pools(struct mlx5dr_icm_pool *pool)
 		return err;
 	}
 
+	dr_icm_pool_clear_hot_chunks_arr(pool);
+
 	list_for_each_entry_safe(buddy, tmp_buddy, &pool->buddy_mem_list, list_node) {
-		struct mlx5dr_icm_chunk *chunk, *tmp_chunk;
-
-		list_for_each_entry_safe(chunk, tmp_chunk, &buddy->hot_list, chunk_list) {
-			num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
-			mlx5dr_buddy_free_mem(buddy, chunk->seg, ilog2(num_entries));
-			pool->hot_memory_size -= mlx5dr_icm_pool_get_chunk_byte_size(chunk);
-			dr_icm_chunk_destroy(chunk);
-		}
-
 		if (!buddy->used_memory && pool->icm_type == DR_ICM_TYPE_STE)
 			dr_icm_buddy_destroy(buddy);
 	}
@@ -459,11 +480,23 @@ void mlx5dr_icm_free_chunk(struct mlx5dr_icm_chunk *chunk)
 {
 	struct mlx5dr_icm_buddy_mem *buddy = chunk->buddy_mem;
 	struct mlx5dr_icm_pool *pool = buddy->pool;
+	struct mlx5dr_icm_hot_chunk *hot_chunk;
+	struct kmem_cache *chunks_cache;
 
-	/* move the memory to the waiting list AKA "hot" */
+	chunks_cache = pool->chunks_kmem_cache;
+
+	/* move the chunk to the waiting chunks array, AKA "hot" memory */
 	mutex_lock(&pool->mutex);
-	list_move_tail(&chunk->chunk_list, &buddy->hot_list);
+
 	pool->hot_memory_size += mlx5dr_icm_pool_get_chunk_byte_size(chunk);
+
+	hot_chunk = &pool->hot_chunks_arr[pool->hot_chunks_num++];
+	hot_chunk->buddy_mem = chunk->buddy_mem;
+	hot_chunk->seg = chunk->seg;
+	hot_chunk->size = chunk->size;
+
+	list_del(&chunk->chunk_list);
+	kmem_cache_free(chunks_cache, chunk);
 
 	/* Check if we have chunks that are waiting for sync-ste */
 	if (dr_icm_pool_is_sync_required(pool))
@@ -485,6 +518,7 @@ void mlx5dr_icm_pool_free_htbl(struct mlx5dr_icm_pool *pool, struct mlx5dr_ste_h
 struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 					       enum mlx5dr_icm_type icm_type)
 {
+	u32 num_of_chunks, entry_size, max_hot_size;
 	enum mlx5dr_icm_chunk_size max_log_chunk_sz;
 	struct mlx5dr_icm_pool *pool;
 
@@ -506,16 +540,37 @@ struct mlx5dr_icm_pool *mlx5dr_icm_pool_create(struct mlx5dr_domain *dmn,
 
 	mutex_init(&pool->mutex);
 
+	entry_size = mlx5dr_icm_pool_dm_type_to_entry_size(pool->icm_type);
+
+	max_hot_size = mlx5dr_icm_pool_chunk_size_to_byte(pool->max_log_chunk_sz,
+							  pool->icm_type) /
+		       DR_ICM_POOL_HOT_MEMORY_FRACTION;
+
+	num_of_chunks = DIV_ROUND_UP(max_hot_size, entry_size) + 1;
+
+	pool->hot_chunks_arr = kvcalloc(num_of_chunks,
+					sizeof(struct mlx5dr_icm_hot_chunk),
+					GFP_KERNEL);
+	if (!pool->hot_chunks_arr)
+		goto free_pool;
+
 	return pool;
+
+free_pool:
+	kvfree(pool);
+	return NULL;
 }
 
 void mlx5dr_icm_pool_destroy(struct mlx5dr_icm_pool *pool)
 {
 	struct mlx5dr_icm_buddy_mem *buddy, *tmp_buddy;
 
+	dr_icm_pool_clear_hot_chunks_arr(pool);
+
 	list_for_each_entry_safe(buddy, tmp_buddy, &pool->buddy_mem_list, list_node)
 		dr_icm_buddy_destroy(buddy);
 
+	kvfree(pool->hot_chunks_arr);
 	mutex_destroy(&pool->mutex);
 	kvfree(pool);
 }

@@ -168,12 +168,6 @@ struct mlx5dr_icm_buddy_mem {
 	struct list_head	used_list;
 	u64			used_memory;
 
-	/* Hardware may be accessing this memory but at some future,
-	 * undetermined time, it might cease to do so.
-	 * sync_ste command sets them free.
-	 */
-	struct list_head	hot_list;
-
 	/* Memory optimisation */
 	struct mlx5dr_ste	*ste_arr;
 	struct list_head	*miss_list;
