@@ -1101,8 +1101,8 @@ static void add_threaded_test(struct dmatest_info *info)
 
 	/* Copy test parameters */
 	params->buf_size = test_buf_size;
-	strlcpy(params->channel, strim(test_channel), sizeof(params->channel));
-	strlcpy(params->device, strim(test_device), sizeof(params->device));
+	strscpy(params->channel, strim(test_channel), sizeof(params->channel));
+	strscpy(params->device, strim(test_device), sizeof(params->device));
 	params->threads_per_chan = threads_per_chan;
 	params->max_channels = max_channels;
 	params->iterations = iterations;
@@ -1246,7 +1246,7 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 				dtc = list_last_entry(&info->channels,
 						      struct dmatest_chan,
 						      node);
-				strlcpy(chan_reset_val,
+				strscpy(chan_reset_val,
 					dma_chan_name(dtc->chan),
 					sizeof(chan_reset_val));
 				ret = -EBUSY;
@@ -1269,14 +1269,14 @@ static int dmatest_chan_set(const char *val, const struct kernel_param *kp)
 		if ((strcmp(dma_chan_name(dtc->chan), strim(test_channel)) != 0)
 		    && (strcmp("", strim(test_channel)) != 0)) {
 			ret = -EINVAL;
-			strlcpy(chan_reset_val, dma_chan_name(dtc->chan),
+			strscpy(chan_reset_val, dma_chan_name(dtc->chan),
 				sizeof(chan_reset_val));
 			goto add_chan_err;
 		}
 
 	} else {
 		/* Clear test_channel if no channels were added successfully */
-		strlcpy(chan_reset_val, "", sizeof(chan_reset_val));
+		strscpy(chan_reset_val, "", sizeof(chan_reset_val));
 		ret = -EBUSY;
 		goto add_chan_err;
 	}
@@ -1301,7 +1301,7 @@ static int dmatest_chan_get(char *val, const struct kernel_param *kp)
 	mutex_lock(&info->lock);
 	if (!is_threaded_test_run(info) && !is_threaded_test_pending(info)) {
 		stop_threaded_test(info);
-		strlcpy(test_channel, "", sizeof(test_channel));
+		strscpy(test_channel, "", sizeof(test_channel));
 	}
 	mutex_unlock(&info->lock);
 
