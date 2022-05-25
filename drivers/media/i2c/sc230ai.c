@@ -25,6 +25,7 @@
 #include <media/v4l2-ctrls.h>
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
+#include "../platform/rockchip/isp/rkisp_tb_helper.h"
 
 #define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
 
@@ -167,6 +168,8 @@ struct sc230ai {
 	const char		*len_name;
 	u32			cur_vts;
 	bool			has_init_exp;
+	bool			is_thunderboot;
+	bool			is_first_streamoff;
 	struct preisp_hdrae_exp_s init_hdrae_exp;
 };
 
@@ -859,24 +862,25 @@ static int __sc230ai_start_stream(struct sc230ai *sc230ai)
 {
 	int ret;
 
-	ret = sc230ai_write_array(sc230ai->client, sc230ai->cur_mode->reg_list);
-	if (ret)
-		return ret;
-
-	/* In case these controls are set before streaming */
-	ret = __v4l2_ctrl_handler_setup(&sc230ai->ctrl_handler);
-	if (ret)
-		return ret;
-	if (sc230ai->has_init_exp && sc230ai->cur_mode->hdr_mode != NO_HDR) {
-		ret = sc230ai_ioctl(&sc230ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
-			&sc230ai->init_hdrae_exp);
-		if (ret) {
-			dev_err(&sc230ai->client->dev,
-				"init exp fail in hdr mode\n");
+	if (!sc230ai->is_thunderboot) {
+		ret = sc230ai_write_array(sc230ai->client, sc230ai->cur_mode->reg_list);
+		if (ret)
 			return ret;
+
+		/* In case these controls are set before streaming */
+		ret = __v4l2_ctrl_handler_setup(&sc230ai->ctrl_handler);
+		if (ret)
+			return ret;
+		if (sc230ai->has_init_exp && sc230ai->cur_mode->hdr_mode != NO_HDR) {
+			ret = sc230ai_ioctl(&sc230ai->subdev, PREISP_CMD_SET_HDRAE_EXP,
+				&sc230ai->init_hdrae_exp);
+			if (ret) {
+				dev_err(&sc230ai->client->dev,
+					"init exp fail in hdr mode\n");
+				return ret;
+			}
 		}
 	}
-
 	return sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
 				 SC230AI_REG_VALUE_08BIT, SC230AI_MODE_STREAMING);
 }
@@ -884,10 +888,13 @@ static int __sc230ai_start_stream(struct sc230ai *sc230ai)
 static int __sc230ai_stop_stream(struct sc230ai *sc230ai)
 {
 	sc230ai->has_init_exp = false;
+	if (sc230ai->is_thunderboot)
+		sc230ai->is_first_streamoff = true;
 	return sc230ai_write_reg(sc230ai->client, SC230AI_REG_CTRL_MODE,
 				 SC230AI_REG_VALUE_08BIT, SC230AI_MODE_SW_STANDBY);
 }
 
+static int __sc230ai_power_on(struct sc230ai *sc230ai);
 static int sc230ai_s_stream(struct v4l2_subdev *sd, int on)
 {
 	struct sc230ai *sc230ai = to_sc230ai(sd);
@@ -900,6 +907,10 @@ static int sc230ai_s_stream(struct v4l2_subdev *sd, int on)
 		goto unlock_and_return;
 
 	if (on) {
+		if (sc230ai->is_thunderboot && rkisp_tb_get_state() == RKISP_TB_NG) {
+			sc230ai->is_thunderboot = false;
+			__sc230ai_power_on(sc230ai);
+		}
 		ret = pm_runtime_get_sync(&client->dev);
 		if (ret < 0) {
 			pm_runtime_put_noidle(&client->dev);
@@ -943,12 +954,13 @@ static int sc230ai_s_power(struct v4l2_subdev *sd, int on)
 			pm_runtime_put_noidle(&client->dev);
 			goto unlock_and_return;
 		}
-
-		ret = sc230ai_write_array(sc230ai->client, sc230ai_global_regs);
-		if (ret) {
-			v4l2_err(sd, "could not set init registers\n");
-			pm_runtime_put_noidle(&client->dev);
-			goto unlock_and_return;
+		if (!sc230ai->is_thunderboot) {
+			ret = sc230ai_write_array(sc230ai->client, sc230ai_global_regs);
+			if (ret) {
+				v4l2_err(sd, "could not set init registers\n");
+				pm_runtime_put_noidle(&client->dev);
+				goto unlock_and_return;
+			}
 		}
 
 		sc230ai->power_on = true;
@@ -975,6 +987,8 @@ static int __sc230ai_power_on(struct sc230ai *sc230ai)
 	u32 delay_us;
 	struct device *dev = &sc230ai->client->dev;
 
+	if (sc230ai->is_thunderboot)
+		return 0;
 	if (!IS_ERR_OR_NULL(sc230ai->pins_default)) {
 		ret = pinctrl_select_state(sc230ai->pinctrl,
 					   sc230ai->pins_default);
@@ -1029,6 +1043,14 @@ static void __sc230ai_power_off(struct sc230ai *sc230ai)
 	int ret;
 	struct device *dev = &sc230ai->client->dev;
 
+	if (sc230ai->is_thunderboot) {
+		if (sc230ai->is_first_streamoff) {
+			sc230ai->is_thunderboot = false;
+			sc230ai->is_first_streamoff = false;
+		} else {
+			return;
+		}
+	}
 	if (!IS_ERR(sc230ai->pwdn_gpio))
 		gpiod_set_value_cansleep(sc230ai->pwdn_gpio, 0);
 	clk_disable_unprepare(sc230ai->xvclk);
@@ -1329,6 +1351,10 @@ static int sc230ai_check_sensor_id(struct sc230ai *sc230ai,
 	u32 id = 0;
 	int ret;
 
+	if (sc230ai->is_thunderboot) {
+		dev_info(dev, "Enable thunderboot mode, skip sensor id check\n");
+		return 0;
+	}
 	ret = sc230ai_read_reg(client, SC230AI_REG_CHIP_ID,
 			       SC230AI_REG_VALUE_16BIT, &id);
 	if (id != CHIP_ID) {
@@ -1386,7 +1412,7 @@ static int sc230ai_probe(struct i2c_client *client,
 		dev_err(dev, "could not get module information!\n");
 		return -EINVAL;
 	}
-
+	sc230ai->is_thunderboot = IS_ENABLED(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP);
 	sc230ai->client = client;
 	for (i = 0; i < ARRAY_SIZE(supported_modes); i++) {
 		if (hdr_mode == supported_modes[i].hdr_mode) {
@@ -1403,11 +1429,11 @@ static int sc230ai_probe(struct i2c_client *client,
 		return -EINVAL;
 	}
 
-	sc230ai->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_OUT_LOW);
+	sc230ai->reset_gpio = devm_gpiod_get(dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(sc230ai->reset_gpio))
 		dev_warn(dev, "Failed to get reset-gpios\n");
 
-	sc230ai->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_OUT_LOW);
+	sc230ai->pwdn_gpio = devm_gpiod_get(dev, "pwdn", GPIOD_ASIS);
 	if (IS_ERR(sc230ai->pwdn_gpio))
 		dev_warn(dev, "Failed to get pwdn-gpios\n");
 
