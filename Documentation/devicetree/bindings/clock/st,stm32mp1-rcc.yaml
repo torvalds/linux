@@ -41,6 +41,7 @@ description: |
 
   The list of valid indices for STM32MP1 is available in:
   include/dt-bindings/reset-controller/stm32mp1-resets.h
+  include/dt-bindings/reset-controller/stm32mp13-resets.h
 
   This file implements defines like:
   #define LTDC_R	3072
@@ -57,6 +58,7 @@ properties:
       - enum:
           - st,stm32mp1-rcc-secure
           - st,stm32mp1-rcc
+          - st,stm32mp13-rcc
       - const: syscon
 
   reg:
