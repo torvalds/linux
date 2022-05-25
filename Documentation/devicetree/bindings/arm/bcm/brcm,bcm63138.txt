@@ -30,7 +30,7 @@ Example:
 
 	cpus {
 		cpu@0 {
-			compatible = "arm,cotex-a9";
+			compatible = "arm,cortex-a9";
 			reg = <0>;
 			...
 			enable-method = "brcm,bcm63138";

@@ -63,4 +63,3 @@ examples:
         compatible = "sprd,display-subsystem";
         ports = <&dpu_out>;
     };
-

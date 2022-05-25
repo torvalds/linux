@@ -17,7 +17,6 @@ properties:
     maxItems: 1
 
   interrupts:
-    minItems: 3
     maxItems: 3
     description: |
       A list of 3 interrupts; one per timer channel.

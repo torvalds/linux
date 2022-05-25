@@ -40,4 +40,3 @@ examples:
             #power-domain-cells = <1>;
         };
     };
-

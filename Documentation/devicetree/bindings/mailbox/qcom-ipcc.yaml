@@ -27,6 +27,7 @@ properties:
           - qcom,sm6350-ipcc
           - qcom,sm8250-ipcc
           - qcom,sm8350-ipcc
+          - qcom,sm8450-ipcc
           - qcom,sc7280-ipcc
       - const: qcom,ipcc
 

@@ -37,6 +37,7 @@ properties:
     const: stmmaceth
 
   mode-reg:
+    $ref: /schemas/types.yaml#/definitions/phandle
     description: An extra syscon register that control ethernet interface and timing delay
 
   rx-clk-delay-ps:
