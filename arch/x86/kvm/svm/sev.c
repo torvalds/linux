@@ -1594,23 +1594,50 @@ static void sev_unlock_two_vms(struct kvm *dst_kvm, struct kvm *src_kvm)
 	atomic_set_release(&src_sev->migration_in_progress, 0);
 }
 
+/* vCPU mutex subclasses.  */
+enum sev_migration_role {
+	SEV_MIGRATION_SOURCE = 0,
+	SEV_MIGRATION_TARGET,
+	SEV_NR_MIGRATION_ROLES,
+};
 
-static int sev_lock_vcpus_for_migration(struct kvm *kvm)
+static int sev_lock_vcpus_for_migration(struct kvm *kvm,
+					enum sev_migration_role role)
 {
 	struct kvm_vcpu *vcpu;
 	unsigned long i, j;
+	bool first = true;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
-		if (mutex_lock_killable(&vcpu->mutex))
+		if (mutex_lock_killable_nested(&vcpu->mutex, role))
 			goto out_unlock;
+
+		if (first) {
+			/*
+			 * Reset the role to one that avoids colliding with
+			 * the role used for the first vcpu mutex.
+			 */
+			role = SEV_NR_MIGRATION_ROLES;
+			first = false;
+		} else {
+			mutex_release(&vcpu->mutex.dep_map, _THIS_IP_);
+		}
 	}
 
 	return 0;
 
 out_unlock:
+
+	first = true;
 	kvm_for_each_vcpu(j, vcpu, kvm) {
 		if (i == j)
 			break;
+
+		if (first)
+			first = false;
+		else
+			mutex_acquire(&vcpu->mutex.dep_map, role, 0, _THIS_IP_);
+
 
 		mutex_unlock(&vcpu->mutex);
 	}
@@ -1621,8 +1648,15 @@ static void sev_unlock_vcpus_for_migration(struct kvm *kvm)
 {
 	struct kvm_vcpu *vcpu;
 	unsigned long i;
+	bool first = true;
 
 	kvm_for_each_vcpu(i, vcpu, kvm) {
+		if (first)
+			first = false;
+		else
+			mutex_acquire(&vcpu->mutex.dep_map,
+				      SEV_NR_MIGRATION_ROLES, 0, _THIS_IP_);
+
 		mutex_unlock(&vcpu->mutex);
 	}
 }
@@ -1748,10 +1782,10 @@ int sev_vm_move_enc_context_from(struct kvm *kvm, unsigned int source_fd)
 		charged = true;
 	}
 
-	ret = sev_lock_vcpus_for_migration(kvm);
+	ret = sev_lock_vcpus_for_migration(kvm, SEV_MIGRATION_SOURCE);
 	if (ret)
 		goto out_dst_cgroup;
-	ret = sev_lock_vcpus_for_migration(source_kvm);
+	ret = sev_lock_vcpus_for_migration(source_kvm, SEV_MIGRATION_TARGET);
 	if (ret)
 		goto out_dst_vcpu;
 

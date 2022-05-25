@@ -779,10 +779,10 @@ static int reconfig_close_windows(struct vas_caps *vcap, int excess_creds,
  * changes. Reconfig window configurations based on the credits
  * availability from this new capabilities.
  */
-int vas_reconfig_capabilties(u8 type)
+int vas_reconfig_capabilties(u8 type, int new_nr_creds)
 {
 	struct vas_cop_feat_caps *caps;
-	int old_nr_creds, new_nr_creds;
+	int old_nr_creds;
 	struct vas_caps *vcaps;
 	int rc = 0, nr_active_wins;
 
@@ -795,12 +795,6 @@ int vas_reconfig_capabilties(u8 type)
 	caps = &vcaps->caps;
 
 	mutex_lock(&vas_pseries_mutex);
-	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES, vcaps->feat,
-				      (u64)virt_to_phys(&hv_cop_caps));
-	if (rc)
-		goto out;
-
-	new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
 
 	old_nr_creds = atomic_read(&caps->nr_total_credits);
 
@@ -832,7 +826,6 @@ int vas_reconfig_capabilties(u8 type)
 					false);
 	}
 
-out:
 	mutex_unlock(&vas_pseries_mutex);
 	return rc;
 }
@@ -850,7 +843,7 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 	struct of_reconfig_data *rd = data;
 	struct device_node *dn = rd->dn;
 	const __be32 *intserv = NULL;
-	int len, rc = 0;
+	int new_nr_creds, len, rc = 0;
 
 	if ((action == OF_RECONFIG_ATTACH_NODE) ||
 		(action == OF_RECONFIG_DETACH_NODE))
@@ -862,7 +855,15 @@ static int pseries_vas_notifier(struct notifier_block *nb,
 	if (!intserv)
 		return NOTIFY_OK;
 
-	rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE);
+	rc = h_query_vas_capabilities(H_QUERY_VAS_CAPABILITIES,
+					vascaps[VAS_GZIP_DEF_FEAT_TYPE].feat,
+					(u64)virt_to_phys(&hv_cop_caps));
+	if (!rc) {
+		new_nr_creds = be16_to_cpu(hv_cop_caps.target_lpar_creds);
+		rc = vas_reconfig_capabilties(VAS_GZIP_DEF_FEAT_TYPE,
+						new_nr_creds);
+	}
+
 	if (rc)
 		pr_err("Failed reconfig VAS capabilities with DLPAR\n");
 

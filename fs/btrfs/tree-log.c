@@ -3721,11 +3721,29 @@ static noinline int insert_dir_log_key(struct btrfs_trans_handle *trans,
 	key.offset = first_offset;
 	key.type = BTRFS_DIR_LOG_INDEX_KEY;
 	ret = btrfs_insert_empty_item(trans, log, path, &key, sizeof(*item));
-	if (ret)
+	/*
+	 * -EEXIST is fine and can happen sporadically when we are logging a
+	 * directory and have concurrent insertions in the subvolume's tree for
+	 * items from other inodes and that result in pushing off some dir items
+	 * from one leaf to another in order to accommodate for the new items.
+	 * This results in logging the same dir index range key.
+	 */
+	if (ret && ret != -EEXIST)
 		return ret;
 
 	item = btrfs_item_ptr(path->nodes[0], path->slots[0],
 			      struct btrfs_dir_log_item);
+	if (ret == -EEXIST) {
+		const u64 curr_end = btrfs_dir_log_end(path->nodes[0], item);
+
+		/*
+		 * btrfs_del_dir_entries_in_log() might have been called during
+		 * an unlink between the initial insertion of this key and the
+		 * current update, or we might be logging a single entry deletion
+		 * during a rename, so set the new last_offset to the max value.
+		 */
+		last_offset = max(last_offset, curr_end);
+	}
 	btrfs_set_dir_log_end(path->nodes[0], item, last_offset);
 	btrfs_mark_buffer_dirty(path->nodes[0]);
 	btrfs_release_path(path);
@@ -3849,13 +3867,6 @@ static int process_dir_items_leaf(struct btrfs_trans_handle *trans,
 				ret = insert_dir_log_key(trans, log, dst_path,
 						 ino, *last_old_dentry_offset + 1,
 						 key.offset - 1);
-				/*
-				 * -EEXIST should never happen because when we
-				 * log a directory in full mode (LOG_INODE_ALL)
-				 * we drop all BTRFS_DIR_LOG_INDEX_KEY keys from
-				 * the log tree.
-				 */
-				ASSERT(ret != -EEXIST);
 				if (ret < 0)
 					return ret;
 			}
@@ -5805,6 +5816,18 @@ static int btrfs_log_inode(struct btrfs_trans_handle *trans,
 	}
 
 	/*
+	 * For symlinks, we must always log their content, which is stored in an
+	 * inline extent, otherwise we could end up with an empty symlink after
+	 * log replay, which is invalid on linux (symlink(2) returns -ENOENT if
+	 * one attempts to create an empty symlink).
+	 * We don't need to worry about flushing delalloc, because when we create
+	 * the inline extent when the symlink is created (we never have delalloc
+	 * for symlinks).
+	 */
+	if (S_ISLNK(inode->vfs_inode.i_mode))
+		inode_only = LOG_INODE_ALL;
+
+	/*
 	 * Before logging the inode item, cache the value returned by
 	 * inode_logged(), because after that we have the need to figure out if
 	 * the inode was previously logged in this transaction.
@@ -6182,7 +6205,7 @@ again:
 			}
 
 			ctx->log_new_dentries = false;
-			if (type == BTRFS_FT_DIR || type == BTRFS_FT_SYMLINK)
+			if (type == BTRFS_FT_DIR)
 				log_mode = LOG_INODE_ALL;
 			ret = btrfs_log_inode(trans, BTRFS_I(di_inode),
 					      log_mode, ctx);
@@ -7019,12 +7042,12 @@ void btrfs_log_new_name(struct btrfs_trans_handle *trans,
 		/*
 		 * Other concurrent task might be logging the old directory,
 		 * as it can be triggered when logging other inode that had or
-		 * still has a dentry in the old directory. So take the old
-		 * directory's log_mutex to prevent getting an -EEXIST when
-		 * logging a key to record the deletion, or having that other
-		 * task logging the old directory get an -EEXIST if it attempts
-		 * to log the same key after we just did it. In both cases that
-		 * would result in falling back to a transaction commit.
+		 * still has a dentry in the old directory. We lock the old
+		 * directory's log_mutex to ensure the deletion of the old
+		 * name is persisted, because during directory logging we
+		 * delete all BTRFS_DIR_LOG_INDEX_KEY keys and the deletion of
+		 * the old name's dir index item is in the delayed items, so
+		 * it could be missed by an in progress directory logging.
 		 */
 		mutex_lock(&old_dir->log_mutex);
 		ret = del_logged_dentry(trans, log, path, btrfs_ino(old_dir),
