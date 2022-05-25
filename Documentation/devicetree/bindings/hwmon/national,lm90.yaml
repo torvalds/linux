@@ -16,6 +16,7 @@ properties:
       - adi,adm1032
       - adi,adt7461
       - adi,adt7461a
+      - adi,adt7481
       - dallas,max6646
       - dallas,max6647
       - dallas,max6649
@@ -70,6 +71,7 @@ allOf:
               enum:
                 - adi,adt7461
                 - adi,adt7461a
+                - adi,adt7481
                 - ti,tmp451
                 - ti,tmp461
     then:
