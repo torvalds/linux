@@ -64,6 +64,34 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
 }
 
+static inline bool io_sqring_full(struct io_ring_ctx *ctx)
+{
+	struct io_rings *r = ctx->rings;
+
+	return READ_ONCE(r->sq.tail) - ctx->cached_sq_head == ctx->sq_entries;
+}
+
+static inline unsigned int io_sqring_entries(struct io_ring_ctx *ctx)
+{
+	struct io_rings *rings = ctx->rings;
+
+	/* make sure SQ entry isn't read before tail */
+	return smp_load_acquire(&rings->sq.tail) - ctx->cached_sq_head;
+}
+
+static inline bool io_run_task_work(void)
+{
+	if (test_thread_flag(TIF_NOTIFY_SIGNAL) || task_work_pending(current)) {
+		__set_current_state(TASK_RUNNING);
+		clear_notify_signal();
+		if (task_work_pending(current))
+			task_work_run();
+		return true;
+	}
+
+	return false;
+}
+
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
 void io_req_complete_post(struct io_kiocb *req);
 void __io_req_complete_post(struct io_kiocb *req);
@@ -101,6 +129,12 @@ void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
 void io_req_task_complete(struct io_kiocb *req, bool *locked);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
 int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd);
+__cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
+int io_uring_alloc_task_context(struct task_struct *task,
+				struct io_ring_ctx *ctx);
+
+int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
+int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
 
 void io_free_req(struct io_kiocb *req);
 void io_queue_next(struct io_kiocb *req);
