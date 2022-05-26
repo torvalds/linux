@@ -274,7 +274,7 @@ extern int amdgpu_vcnfw_log;
 #define CIK_CURSOR_WIDTH 128
 #define CIK_CURSOR_HEIGHT 128
 
-/* smasrt shift bias level limits */
+/* smart shift bias level limits */
 #define AMDGPU_SMARTSHIFT_MAX_BIAS (100)
 #define AMDGPU_SMARTSHIFT_MIN_BIAS (-100)
 
