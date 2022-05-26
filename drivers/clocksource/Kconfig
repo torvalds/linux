@@ -567,26 +567,6 @@ config CLKSRC_PXA
 	  This enables OST0 support available on PXA and SA-11x0
 	  platforms.
 
-config H8300_TMR8
-	bool "Clockevent timer for the H8300 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the 8 bits timer for the H8300 platform.
-
-config H8300_TMR16
-	bool "Clockevent timer for the H83069 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the 16 bits timer for the H8300 platform with the
-	  H83069 CPU.
-
-config H8300_TPU
-	bool "Clocksource for the H8300 platform" if COMPILE_TEST
-	depends on HAS_IOMEM
-	help
-	  This enables the clocksource for the H8300 platform with the
-	  H8S2678 CPU.
-
 config CLKSRC_IMX_GPT
 	bool "Clocksource using i.MX GPT" if COMPILE_TEST
 	depends on (ARM || ARM64) && HAVE_CLK
