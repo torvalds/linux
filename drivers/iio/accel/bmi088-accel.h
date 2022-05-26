@@ -9,6 +9,7 @@
 struct device;
 
 enum bmi_device_type {
+	BOSCH_BMI085,
 	BOSCH_BMI088,
 	BOSCH_UNKNOWN,
 };
