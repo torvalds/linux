@@ -80,6 +80,7 @@
 #include <xen/interface/version.h>
 #include <xen/interface/memory.h>
 #include <xen/hvc-console.h>
+#include <xen/swiotlb-xen.h>
 
 #include "multicalls.h"
 #include "mmu.h"
