@@ -747,6 +747,7 @@ struct dc_debug_options {
 	union aux_wake_wa_options aux_wake_wa;
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
+	bool use_legacy_soc_bb_mechanism;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
