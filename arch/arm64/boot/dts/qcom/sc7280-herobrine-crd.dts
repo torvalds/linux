@@ -1,0 +1,365 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * sc7280 CRD 3+ board device tree source
+ *
+ * Copyright 2022 Google LLC.
+ */
+
+/dts-v1/;
+
+#include "sc7280-herobrine.dtsi"
+
+/ {
+	model = "Qualcomm Technologies, Inc. sc7280 CRD platform (rev5+)";
+	compatible = "google,hoglin", "qcom,sc7280";
+
+	/* FIXED REGULATORS */
+
+	/*
+	 * On most herobrine boards PPVAR_SYS directly provides VREG_EDP_BL.
+	 * However, on CRD there's an extra regulator in the way. Since this
+	 * is expected to be uncommon, we'll leave the "vreg_edp_bl" label
+	 * in the baseboard herobrine.dtsi point at "ppvar_sys" and then
+	 * make a "_crd" specific version here.
+	 */
+	vreg_edp_bl_crd: vreg-edp-bl-crd-regulator {
+		compatible = "regulator-fixed";
+		regulator-name = "vreg_edp_bl_crd";
+
+		gpio = <&pm8350c_gpios 6 GPIO_ACTIVE_HIGH>;
+		enable-active-high;
+		pinctrl-names = "default";
+		pinctrl-0 = <&edp_bl_reg_en>;
+
+		vin-supply = <&ppvar_sys>;
+	};
+};
+
+/* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
+
+&apps_rsc {
+	pmg1110-regulators {
+		compatible = "qcom,pmg1110-rpmh-regulators";
+		qcom,pmic-id = "k";
+
+		vreg_s1k_1p0: smps1 {
+			regulator-min-microvolt = <1010000>;
+			regulator-max-microvolt = <1170000>;
+		};
+	};
+};
+
+ap_tp_i2c: &i2c0 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	trackpad: trackpad@15 {
+		compatible = "hid-over-i2c";
+		reg = <0x15>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&tp_int_odl>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <7 IRQ_TYPE_EDGE_FALLING>;
+
+		post-power-on-delay-ms = <20>;
+		hid-descr-addr = <0x0001>;
+		vdd-supply = <&pp3300_z1>;
+
+		wakeup-source;
+	};
+};
+
+&ap_sar_sensor_i2c {
+	status = "okay";
+};
+
+&ap_sar_sensor0 {
+	status = "okay";
+};
+
+&ap_sar_sensor1 {
+	status = "okay";
+};
+
+ap_ts_pen_1v8: &i2c13 {
+	status = "okay";
+	clock-frequency = <400000>;
+
+	ap_ts: touchscreen@5c {
+		compatible = "hid-over-i2c";
+		reg = <0x5c>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&ts_int_conn>, <&ts_rst_conn>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <55 IRQ_TYPE_LEVEL_LOW>;
+
+		post-power-on-delay-ms = <500>;
+		hid-descr-addr = <0x0000>;
+
+		vdd-supply = <&pp3300_left_in_mlb>;
+	};
+};
+
+&mdss_edp {
+	status = "okay";
+};
+
+&mdss_edp_phy {
+	status = "okay";
+};
+
+/* For nvme */
+&pcie1 {
+	status = "okay";
+};
+
+/* For nvme */
+&pcie1_phy {
+	status = "okay";
+};
+
+&pm8350c_pwm_backlight {
+	power-supply = <&vreg_edp_bl_crd>;
+};
+
+/* For eMMC */
+&sdhc_1 {
+	status = "okay";
+};
+
+/* For SD Card */
+&sdhc_2 {
+	status = "okay";
+};
+
+/* PINCTRL - BOARD-SPECIFIC */
+
+/*
+ * Methodology for gpio-line-names:
+ * - If a pin goes to CRD board and is named it gets that name.
+ * - If a pin goes to CRD board and is not named, it gets no name.
+ * - If a pin is totally internal to Qcard then it gets Qcard name.
+ * - If a pin is not hooked up on Qcard, it gets no name.
+ */
+
+&pm8350c_gpios {
+	gpio-line-names = "FLASH_STROBE_1",		/* 1 */
+			  "AP_SUSPEND",
+			  "PM8008_1_RST_N",
+			  "",
+			  "",
+			  "EDP_BL_REG_EN",
+			  "PMIC_EDP_BL_EN",
+			  "PMIC_EDP_BL_PWM",
+			  "";
+
+	edp_bl_reg_en: edp-bl-reg-en {
+		pins = "gpio6";
+		function = "normal";
+		bias-disable;
+		qcom,drive-strength = <PMIC_GPIO_STRENGTH_LOW>;
+	};
+};
+
+&tlmm {
+	gpio-line-names = "AP_TP_I2C_SDA",		/* 0 */
+			  "AP_TP_I2C_SCL",
+			  "PCIE1_RESET_N",
+			  "PCIE1_WAKE_N",
+			  "APPS_I2C_SDA",
+			  "APPS_I2C_SCL",
+			  "",
+			  "TPAD_INT_N",
+			  "",
+			  "",
+
+			  "GNSS_L1_EN",			/* 10 */
+			  "GNSS_L5_EN",
+			  "QSPI_DATA_0",
+			  "QSPI_DATA_1",
+			  "QSPI_CLK",
+			  "QSPI_CS_N_1",
+			  /*
+			   * AP_FLASH_WP is crossystem ABI. Schematics call it
+			   * BIOS_FLASH_WP_L (the '_L' suffix is misleading, the
+			   * signal is active high).
+			   */
+			  "AP_FLASH_WP",
+			  "",
+			  "AP_EC_INT_N",
+			  "",
+
+			  "CAM0_RST_N",			/* 20 */
+			  "CAM1_RST_N",
+			  "SM_DBG_UART_TX",
+			  "SM_DBG_UART_RX",
+			  "",
+			  "PM8008_IRQ_1",
+			  "HOST2WLAN_SOL",
+			  "WLAN2HOST_SOL",
+			  "MOS_BT_UART_CTS",
+			  "MOS_BT_UART_RFR",
+
+			  "MOS_BT_UART_TX",		/* 30 */
+			  "MOS_BT_UART_RX",
+			  "",
+			  "HUB_RST",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "EC_SPI_MISO_GPIO40",		/* 40 */
+			  "EC_SPI_MOSI_GPIO41",
+			  "EC_SPI_CLK_GPIO42",
+			  "EC_SPI_CS_GPIO43",
+			  "",
+			  "EARLY_EUD_EN",
+			  "",
+			  "DP_HOT_PLUG_DETECT",
+			  "AP_BRD_ID_0",
+			  "AP_BRD_ID_1",
+
+			  "AP_BRD_ID_2",		/* 50 */
+			  "NVME_PWR_REG_EN",
+			  "TS_I2C_SDA_CONN",
+			  "TS_I2C_CLK_CONN",
+			  "TS_RST_CONN",
+			  "TS_INT_CONN",
+			  "AP_I2C_TPM_SDA",
+			  "AP_I2C_TPM_SCL",
+			  "",
+			  "",
+
+			  "EDP_HOT_PLUG_DET_N",		/* 60 */
+			  "",
+			  "",
+			  "AMP_EN",
+			  "CAM0_MCLK_GPIO_64",
+			  "CAM1_MCLK_GPIO_65",
+			  "",
+			  "",
+			  "",
+			  "CCI_I2C_SDA0",
+
+			  "CCI_I2C_SCL0",		/* 70 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "PCIE1_CLK_REQ_N",
+
+			  "EN_PP3300_DX_EDP",		/* 80 */
+			  "US_EURO_HS_SEL",
+			  "FORCED_USB_BOOT",
+			  "WCD_RESET_N",
+			  "MOS_WLAN_EN",
+			  "MOS_BT_EN",
+			  "MOS_SW_CTRL",
+			  "MOS_PCIE0_RST",
+			  "MOS_PCIE0_CLKREQ_N",
+			  "MOS_PCIE0_WAKE_N",
+
+			  "MOS_LAA_AS_EN",		/* 90 */
+			  "SD_CARD_DET_CONN",
+			  "",
+			  "",
+			  "MOS_BT_WLAN_SLIMBUS_CLK",
+			  "MOS_BT_WLAN_SLIMBUS_DAT0",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "",				/* 100 */
+			  "",
+			  "",
+			  "",
+			  "H1_AP_INT_N",
+			  "",
+			  "AMP_BCLK",
+			  "AMP_DIN",
+			  "AMP_LRCLK",
+			  "UIM1_DATA_GPIO_109",
+
+			  "UIM1_CLK_GPIO_110",		/* 110 */
+			  "UIM1_RESET_GPIO_111",
+			  "",
+			  "UIM1_DATA",
+			  "UIM1_CLK",
+			  "UIM1_RESET",
+			  "UIM1_PRESENT",
+			  "SDM_RFFE0_CLK",
+			  "SDM_RFFE0_DATA",
+			  "",
+
+			  "SDM_RFFE1_DATA",		/* 120 */
+			  "SC_GPIO_121",
+			  "FASTBOOT_SEL_1",
+			  "SC_GPIO_123",
+			  "FASTBOOT_SEL_2",
+			  "SM_RFFE4_CLK_GRFC_8",
+			  "SM_RFFE4_DATA_GRFC_9",
+			  "WLAN_COEX_UART1_RX",
+			  "WLAN_COEX_UART1_TX",
+			  "",
+
+			  "",				/* 130 */
+			  "",
+			  "",
+			  "SDR_QLINK_REQ",
+			  "SDR_QLINK_EN",
+			  "QLINK0_WMSS_RESET_N",
+			  "SMR526_QLINK1_REQ",
+			  "SMR526_QLINK1_EN",
+			  "SMR526_QLINK1_WMSS_RESET_N",
+			  "",
+
+			  "SAR1_INT_N",			/* 140 */
+			  "SAR0_INT_N",
+			  "",
+			  "",
+			  "WCD_SWR_TX_CLK",
+			  "WCD_SWR_TX_DATA0",
+			  "WCD_SWR_TX_DATA1",
+			  "WCD_SWR_RX_CLK",
+			  "WCD_SWR_RX_DATA0",
+			  "WCD_SWR_RX_DATA1",
+
+			  "DMIC01_CLK",			/* 150 */
+			  "DMIC01_DATA",
+			  "DMIC23_CLK",
+			  "DMIC23_DATA",
+			  "",
+			  "",
+			  "EC_IN_RW_N",
+			  "EN_PP3300_HUB",
+			  "WCD_SWR_TX_DATA2",
+			  "",
+
+			  "",				/* 160 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  "",				/* 170 */
+			  "MOS_BLE_UART_TX",
+			  "MOS_BLE_UART_RX",
+			  "",
+			  "",
+			  "";
+};

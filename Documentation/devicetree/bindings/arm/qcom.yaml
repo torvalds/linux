@@ -99,6 +99,7 @@ properties:
 
       - items:
           - enum:
+              - asus,sparrow
               - lg,lenok
           - const: qcom,apq8026
 

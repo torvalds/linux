@@ -746,7 +746,7 @@
 	pinctrl-0 = <&qspi_pins>;
 
 	spi-max-frequency = <48000000>;
-	m25p80@0 {
+	flash@0 {
 		compatible = "mx66l51235l";
 		spi-max-frequency = <48000000>;
 		reg = <0>;
@@ -891,6 +891,10 @@
 			vsync-active = <0>;
 		};
 	};
+};
+
+&wkup_m3_ipc {
+	firmware-name = "am43x-evm-scale-data.bin";
 };
 
 &pruss1_mdio {

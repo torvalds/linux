@@ -19,7 +19,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <14>; /* CS14 */
-		spi-flash@6 {
+		flash@6 {
 			compatible = "spi-nand";
 			pinctrl-0 = <&cs14_pins>;
 			pinctrl-names = "default";

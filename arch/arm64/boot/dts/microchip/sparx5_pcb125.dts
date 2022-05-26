@@ -47,7 +47,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <0>;	/* CS0 */
-		spi-flash@9 {
+		flash@9 {
 			compatible = "jedec,spi-nor";
 			spi-max-frequency = <8000000>;
 			reg = <0x9>;	/* SPI */
@@ -59,7 +59,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		reg = <1>; /* CS1 */
-		spi-flash@9 {
+		flash@9 {
 			compatible = "spi-nand";
 			pinctrl-0 = <&cs1_pins>;
 			pinctrl-names = "default";

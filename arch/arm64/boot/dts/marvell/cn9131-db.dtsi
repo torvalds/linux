@@ -137,7 +137,7 @@
 	pinctrl-0 = <&cp1_spi0_pins>;
 	reg = <0x700680 0x50>;
 
-	spi-flash@0 {
+	flash@0 {
 		#address-cells = <0x1>;
 		#size-cells = <0x1>;
 		compatible = "jedec,spi-nor";

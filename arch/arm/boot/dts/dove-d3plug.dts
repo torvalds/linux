@@ -79,7 +79,7 @@
 	status = "okay";
 
 	/* spi0.0: 2M Flash Macronix MX25L1605D */
-	spi-flash@0 {
+	flash@0 {
 		compatible = "st,m25l1605d";
 		spi-max-frequency = <86000000>;
 		reg = <0>;

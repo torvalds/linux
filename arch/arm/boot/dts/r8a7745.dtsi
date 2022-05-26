@@ -270,6 +270,7 @@
 		rwdt: watchdog@e6020000 {
 			compatible = "renesas,r8a7745-wdt",
 				     "renesas,rcar-gen2-wdt";
+			interrupts = <GIC_SPI 140 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0 0xe6020000 0 0x0c>;
 			clocks = <&cpg CPG_MOD 402>;
 			power-domains = <&sysc R8A7745_PD_ALWAYS_ON>;

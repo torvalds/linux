@@ -1,0 +1,190 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Common part of the device tree for the Kontron KSwitch D10 MMT
+ */
+
+/dts-v1/;
+#include "lan966x.dtsi"
+#include "dt-bindings/phy/phy-lan966x-serdes.h"
+
+/ {
+	aliases {
+		serial0 = &usart0;
+	};
+
+	chosen {
+		stdout-path = "serial0:115200n8";
+	};
+
+	gpio-restart {
+		compatible = "gpio-restart";
+		gpios = <&gpio 56 GPIO_ACTIVE_LOW>;
+		priority = <200>;
+	};
+};
+
+&flx0 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_USART>;
+	status = "okay";
+
+	usart0: serial@200 {
+		pinctrl-0 = <&usart0_pins>;
+		pinctrl-names = "default";
+		status = "okay";
+	};
+};
+
+&flx3 {
+	atmel,flexcom-mode = <ATMEL_FLEXCOM_MODE_SPI>;
+	status = "okay";
+
+	spi3: spi@400 {
+		pinctrl-0 = <&fc3_b_pins>;
+		pinctrl-names = "default";
+		status = "okay";
+		cs-gpios = <&gpio 46 GPIO_ACTIVE_LOW>;
+	};
+};
+
+&gpio {
+	fc3_b_pins: fc3-b-pins {
+		/* SCK, MISO, MOSI */
+		pins = "GPIO_51", "GPIO_52", "GPIO_53";
+		function = "fc3_b";
+	};
+
+	miim_c_pins: miim-c-pins {
+		/* MDC, MDIO */
+		pins = "GPIO_59", "GPIO_60";
+		function = "miim_c";
+	};
+
+	sgpio_a_pins: sgpio-a-pins {
+		/* SCK, D0, D1 */
+		pins = "GPIO_32", "GPIO_33", "GPIO_34";
+		function = "sgpio_a";
+	};
+
+	sgpio_b_pins: sgpio-b-pins {
+		/* LD */
+		pins = "GPIO_64";
+		function = "sgpio_b";
+	};
+
+	usart0_pins: usart0-pins {
+		/* RXD, TXD */
+		pins = "GPIO_25", "GPIO_26";
+		function = "fc0_b";
+	};
+};
+
+&mdio0 {
+	pinctrl-0 = <&miim_c_pins>;
+	pinctrl-names = "default";
+	reset-gpios = <&gpio 29 GPIO_ACTIVE_LOW>;
+	clock-frequency = <2500000>;
+	status = "okay";
+
+	phy4: ethernet-phy@5 {
+		reg = <5>;
+		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+	};
+
+	phy5: ethernet-phy@6 {
+		reg = <6>;
+		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+	};
+
+	phy6: ethernet-phy@7 {
+		reg = <7>;
+		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+	};
+
+	phy7: ethernet-phy@8 {
+		reg = <8>;
+		coma-mode-gpios = <&gpio 37 GPIO_ACTIVE_HIGH>;
+	};
+};
+
+&mdio1 {
+	status = "okay";
+};
+
+&phy0 {
+	status = "okay";
+};
+
+&phy1 {
+	status = "okay";
+};
+
+&port0 {
+	phys = <&serdes 0 CU(0)>;
+	phy-handle = <&phy0>;
+	phy-mode = "gmii";
+	status = "okay";
+};
+
+&port1 {
+	phys = <&serdes 1 CU(1)>;
+	phy-handle = <&phy1>;
+	phy-mode = "gmii";
+	status = "okay";
+};
+
+&port4 {
+	phys = <&serdes 4 SERDES6G(2)>;
+	phy-handle = <&phy4>;
+	phy-mode = "qsgmii";
+	status = "okay";
+};
+
+&port5 {
+	phys = <&serdes 5 SERDES6G(2)>;
+	phy-handle = <&phy5>;
+	phy-mode = "qsgmii";
+	status = "okay";
+};
+
+&port6 {
+	phys = <&serdes 6 SERDES6G(2)>;
+	phy-handle = <&phy6>;
+	phy-mode = "qsgmii";
+	status = "okay";
+};
+
+&port7 {
+	phys = <&serdes 7 SERDES6G(2)>;
+	phy-handle = <&phy7>;
+	phy-mode = "qsgmii";
+	status = "okay";
+};
+
+&serdes {
+	status = "okay";
+};
+
+&sgpio {
+	pinctrl-0 = <&sgpio_a_pins>, <&sgpio_b_pins>;
+	pinctrl-names = "default";
+	bus-frequency = <8000000>;
+	/* arbitrary range because all GPIOs are in software mode */
+	microchip,sgpio-port-ranges = <0 11>;
+	status = "okay";
+
+	sgpio_in: gpio@0 {
+		ngpios = <128>;
+	};
+
+	sgpio_out: gpio@1 {
+		ngpios = <128>;
+	};
+};
+
+&switch {
+	status = "okay";
+};
+
+&watchdog {
+	status = "okay";
+};

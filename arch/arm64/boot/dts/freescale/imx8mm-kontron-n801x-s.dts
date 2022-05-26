@@ -182,7 +182,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		usbnet: usbether@1 {
+		usbnet: ethernet@1 {
 			compatible = "usb424,ec00";
 			reg = <1>;
 			local-mac-address = [ 00 00 00 00 00 00 ];

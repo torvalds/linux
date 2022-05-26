@@ -51,7 +51,7 @@
 				pinctrl-0 = <&spi2_pins_a>;
 				status = "okay";
 
-				flash: m25p80@0 {
+				flash: flash@0 {
 					#address-cells = <1>;
 					#size-cells = <1>;
 					compatible = "everspin,mr25h256", "mr25h256";

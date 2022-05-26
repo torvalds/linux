@@ -295,7 +295,7 @@
 	pinctrl-0 = <&pinctrl_usbh>;
 	vbus-supply = <&reg_usb_h1_vbus>;
 	clocks = <&clks IMX6QDL_CLK_CKO>;
-	status = "okay";
+	status = "disabled";
 };
 
 &usbotg {

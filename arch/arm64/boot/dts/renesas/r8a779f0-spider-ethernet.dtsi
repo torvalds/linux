@@ -1,0 +1,15 @@
+// SPDX-License-Identifier: GPL-2.0
+/*
+ * Device Tree Source for the Spider Ethernet sub-board
+ *
+ * Copyright (C) 2021 Renesas Electronics Corp.
+ */
+
+&i2c4 {
+	eeprom@52 {
+		compatible = "rohm,br24g01", "atmel,24c01";
+		label = "ethernet-sub-board";
+		reg = <0x52>;
+		pagesize = <8>;
+	};
+};

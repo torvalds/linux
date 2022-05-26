@@ -67,7 +67,7 @@
 
 &fiu0 {
 	status = "okay";
-	spi-nor@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -128,7 +128,7 @@
 &fiu3 {
 	pinctrl-0 = <&spi3_pins>, <&spi3quad_pins>;
 	status = "okay";
-	spi-nor@0 {
+	flash@0 {
 		compatible = "jedec,spi-nor";
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -324,7 +324,7 @@
 &spi0 {
 	cs-gpios = <&gpio6 11 GPIO_ACTIVE_LOW>;
 	status = "okay";
-	Flash@0 {
+	flash@0 {
 		compatible = "winbond,w25q128",
 		"jedec,spi-nor";
 		reg = <0x0>;
@@ -345,7 +345,7 @@
 &spi1 {
 	cs-gpios = <&gpio0 20 GPIO_ACTIVE_LOW>;
 	status = "okay";
-	Flash@0 {
+	flash@0 {
 		compatible = "winbond,w25q128fw",
 		"jedec,spi-nor";
 		reg = <0x0>;

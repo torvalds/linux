@@ -678,6 +678,7 @@
 	fsl,refclk-pad-mode = <IMX8_PCIE_REFCLK_PAD_INPUT>;
 	fsl,clkreq-unsupported;
 	clocks = <&pcie0_refclk>;
+	clock-names = "ref";
 	status = "okay";
 };
 
@@ -716,6 +717,7 @@
 	dtr-gpios = <&gpio1 14 GPIO_ACTIVE_LOW>;
 	dsr-gpios = <&gpio1 1 GPIO_ACTIVE_LOW>;
 	dcd-gpios = <&gpio1 11 GPIO_ACTIVE_LOW>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -731,6 +733,7 @@
 	pinctrl-0 = <&pinctrl_uart3>, <&pinctrl_uart3_gpio>;
 	cts-gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
 	rts-gpios = <&gpio4 9 GPIO_ACTIVE_LOW>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -739,6 +742,7 @@
 	pinctrl-0 = <&pinctrl_uart4>, <&pinctrl_uart4_gpio>;
 	cts-gpios = <&gpio5 11 GPIO_ACTIVE_LOW>;
 	rts-gpios = <&gpio5 12 GPIO_ACTIVE_LOW>;
+	uart-has-rtscts;
 	status = "okay";
 };
 
@@ -1086,16 +1090,4 @@
 			MX8MM_IOMUXC_GPIO1_IO02_WDOG1_WDOG_B	0xc6
 		>;
 	};
-};
-
-&cpu_alert0 {
-	temperature = <95000>;
-	hysteresis = <2000>;
-	type = "passive";
-};
-
-&cpu_crit0 {
-	temperature = <105000>;
-	hysteresis = <2000>;
-	type = "critical";
 };

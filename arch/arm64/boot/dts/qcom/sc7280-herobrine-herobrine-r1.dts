@@ -14,6 +14,36 @@
 	compatible = "google,herobrine", "qcom,sc7280";
 };
 
+/*
+ * ADDITIONS TO FIXED REGULATORS DEFINED IN PARENT DEVICE TREE FILES
+ *
+ * Sort order matches the order in the parent files (parents before children).
+ */
+
+&pp3300_codec {
+	status = "okay";
+};
+
+&pp3300_fp_mcu {
+	status = "okay";
+};
+
+&pp2850_vcm_wf_cam {
+	status = "okay";
+};
+
+&pp2850_wf_cam {
+	status = "okay";
+};
+
+&pp1800_wf_cam {
+	status = "okay";
+};
+
+&pp1200_wf_cam {
+	status = "okay";
+};
+
 /* ADDITIONS TO NODES DEFINED IN PARENT DEVICE TREE FILES */
 
 &ap_spi_fp {
@@ -68,6 +98,14 @@ ts_i2c: &i2c13 {
 
 		vdd-supply = <&ts_avdd>;
 	};
+};
+
+&mdss_edp {
+	status = "okay";
+};
+
+&mdss_edp_phy {
+	status = "okay";
 };
 
 /* For nvme */
