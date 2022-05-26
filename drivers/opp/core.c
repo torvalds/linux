@@ -1997,7 +1997,7 @@ static void _opp_put_supported_hw(struct opp_table *opp_table)
 }
 
 /**
- * dev_pm_opp_set_prop_name() - Set prop-extn name
+ * _opp_set_prop_name() - Set prop-extn name
  * @dev: Device for which the prop-name has to be set.
  * @name: name to postfix to properties.
  *
@@ -2006,50 +2006,33 @@ static void _opp_put_supported_hw(struct opp_table *opp_table)
  * which the extension will apply are opp-microvolt and opp-microamp. OPP core
  * should postfix the property name with -<name> while looking for them.
  */
-struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name)
+static int _opp_set_prop_name(struct opp_table *opp_table, const char *name)
 {
-	struct opp_table *opp_table;
-
-	opp_table = _add_opp_table(dev, false);
-	if (IS_ERR(opp_table))
-		return opp_table;
-
-	/* Make sure there are no concurrent readers while updating opp_table */
-	WARN_ON(!list_empty(&opp_table->opp_list));
-
 	/* Another CPU that shares the OPP table has set the property ? */
-	if (opp_table->prop_name)
-		return opp_table;
-
-	opp_table->prop_name = kstrdup(name, GFP_KERNEL);
 	if (!opp_table->prop_name) {
-		dev_pm_opp_put_opp_table(opp_table);
-		return ERR_PTR(-ENOMEM);
+		opp_table->prop_name = kstrdup(name, GFP_KERNEL);
+		if (!opp_table->prop_name)
+			return -ENOMEM;
 	}
 
-	return opp_table;
+	return 0;
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_set_prop_name);
 
 /**
- * dev_pm_opp_put_prop_name() - Releases resources blocked for prop-name
- * @opp_table: OPP table returned by dev_pm_opp_set_prop_name().
+ * _opp_put_prop_name() - Releases resources blocked for prop-name
+ * @opp_table: OPP table returned by _opp_set_prop_name().
  *
  * This is required only for the V2 bindings, and is called for a matching
- * dev_pm_opp_set_prop_name(). Until this is called, the opp_table structure
+ * _opp_set_prop_name(). Until this is called, the opp_table structure
  * will not be freed.
  */
-void dev_pm_opp_put_prop_name(struct opp_table *opp_table)
+static void _opp_put_prop_name(struct opp_table *opp_table)
 {
-	if (unlikely(!opp_table))
-		return;
-
-	kfree(opp_table->prop_name);
-	opp_table->prop_name = NULL;
-
-	dev_pm_opp_put_opp_table(opp_table);
+	if (opp_table->prop_name) {
+		kfree(opp_table->prop_name);
+		opp_table->prop_name = NULL;
+	}
 }
-EXPORT_SYMBOL_GPL(dev_pm_opp_put_prop_name);
 
 /**
  * _opp_set_regulators() - Set regulator names for the device
@@ -2414,7 +2397,7 @@ static void _opp_clear_config(struct opp_config_data *data)
 	if (data->flags & OPP_CONFIG_REGULATOR_HELPER)
 		_opp_unregister_set_opp_helper(data->opp_table);
 	if (data->flags & OPP_CONFIG_PROP_NAME)
-		dev_pm_opp_put_prop_name(data->opp_table);
+		_opp_put_prop_name(data->opp_table);
 	if (data->flags & OPP_CONFIG_CLK)
 		_opp_put_clknames(data->opp_table);
 
@@ -2441,7 +2424,7 @@ static void _opp_clear_config(struct opp_config_data *data)
  */
 int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 {
-	struct opp_table *opp_table, *err;
+	struct opp_table *opp_table;
 	struct opp_config_data *data;
 	unsigned int id;
 	int ret;
@@ -2476,11 +2459,9 @@ int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 
 	/* Configure property names */
 	if (config->prop_name) {
-		err = dev_pm_opp_set_prop_name(dev, config->prop_name);
-		if (IS_ERR(err)) {
-			ret = PTR_ERR(err);
+		ret = _opp_set_prop_name(opp_table, config->prop_name);
+		if (ret)
 			goto err;
-		}
 
 		data->flags |= OPP_CONFIG_PROP_NAME;
 	}
