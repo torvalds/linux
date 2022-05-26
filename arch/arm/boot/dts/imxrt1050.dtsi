@@ -83,7 +83,7 @@
 		};
 
 		usdhc1: mmc@402c0000 {
-			compatible ="fsl,imxrt1050-usdhc", "fsl,imx6sl-usdhc";
+			compatible = "fsl,imxrt1050-usdhc", "fsl,imx6sl-usdhc";
 			reg = <0x402c0000 0x4000>;
 			interrupts = <110>;
 			clocks = <&clks IMXRT1050_CLK_IPG_PDOF>,
@@ -95,7 +95,7 @@
 			no-1-8-v;
 			max-frequency = <4000000>;
 			fsl,tuning-start-tap = <20>;
-			fsl,tuning-step= <2>;
+			fsl,tuning-step = <2>;
 			status = "disabled";
 		};
 

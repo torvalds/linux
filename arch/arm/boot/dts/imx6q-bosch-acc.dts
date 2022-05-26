@@ -594,7 +594,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_wdog1>;
 	fsl,ext-reset-output;
-	timeout-sec=<10>;
+	timeout-sec = <10>;
 	status = "okay";
 };
 
