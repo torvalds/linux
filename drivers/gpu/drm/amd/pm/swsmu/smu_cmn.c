@@ -37,40 +37,6 @@
 #undef pr_info
 #undef pr_debug
 
-/*
- * Although these are defined in each ASIC's specific header file.
- * They share the same definitions and values. That makes common
- * APIs for SMC messages issuing for all ASICs possible.
- */
-#define mmMP1_SMN_C2PMSG_66                                                                            0x0282
-#define mmMP1_SMN_C2PMSG_66_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_82                                                                            0x0292
-#define mmMP1_SMN_C2PMSG_82_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_90                                                                            0x029a
-#define mmMP1_SMN_C2PMSG_90_BASE_IDX                                                                   0
-
-#define mmMP1_SMN_C2PMSG_66_V13_0_4			0x0282
-#define mmMP1_SMN_C2PMSG_66_V13_0_4_BASE_IDX            1
-
-#define mmMP1_SMN_C2PMSG_82_V13_0_4			0x0292
-#define mmMP1_SMN_C2PMSG_82_V13_0_4_BASE_IDX            1
-
-#define mmMP1_SMN_C2PMSG_90_V13_0_4			0x029a
-#define mmMP1_SMN_C2PMSG_90_V13_0_4_BASE_IDX		1
-
-/* SMU 13.0.5 has its specific mailbox messaging registers */
-
-#define mmMP1_C2PMSG_2                                                                            (0xbee142 + 0xb00000 / 4)
-#define mmMP1_C2PMSG_2_BASE_IDX                                                                   0
-
-#define mmMP1_C2PMSG_34                                                                           (0xbee262 + 0xb00000 / 4)
-#define mmMP1_C2PMSG_34_BASE_IDX                                                                   0
-
-#define mmMP1_C2PMSG_33                                                                                (0xbee261 + 0xb00000 / 4)
-#define mmMP1_C2PMSG_33_BASE_IDX                                                                   0
-
 #define MP1_C2PMSG_90__CONTENT_MASK                                                                    0xFFFFFFFFL
 
 #undef __SMU_DUMMY_MAP
@@ -99,12 +65,7 @@ static void smu_cmn_read_arg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
-		*arg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
-	else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4))
-		*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82_V13_0_4);
-	else
-		*arg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	*arg = RREG32(smu->param_reg);
 }
 
 /* Redefine the SMU error codes here.
@@ -150,12 +111,7 @@ static u32 __smu_cmn_poll_stat(struct smu_context *smu)
 	u32 reg;
 
 	for ( ; timeout > 0; timeout--) {
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5))
-			reg = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33);
-		else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4))
-			reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90_V13_0_4);
-		else
-			reg = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90);
+		reg = RREG32(smu->resp_reg);
 		if ((reg & MP1_C2PMSG_90__CONTENT_MASK) != 0)
 			break;
 
@@ -177,16 +133,8 @@ static void __smu_cmn_reg_print_error(struct smu_context *smu,
 
 	switch (reg_c2pmsg_90) {
 	case SMU_RESP_NONE: {
-		if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
-			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2);
-			prm     = RREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34);
-		} else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4)) {
-			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66_V13_0_4);
-			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82_V13_0_4);
-		} else {
-			msg_idx = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66);
-			prm     = RREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82);
-		}
+		msg_idx = RREG32(smu->msg_reg);
+		prm     = RREG32(smu->param_reg);
 		dev_err_ratelimited(adev->dev,
 				    "SMU: I'm not done with your previous command: SMN_C2PMSG_66:0x%08X SMN_C2PMSG_82:0x%08X",
 				    msg_idx, prm);
@@ -280,20 +228,9 @@ static void __smu_cmn_send_msg(struct smu_context *smu,
 {
 	struct amdgpu_device *adev = smu->adev;
 
-	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 5)) {
-		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_33, 0);
-		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_34, param);
-		WREG32_SOC15(MP1, 0, mmMP1_C2PMSG_2, msg);
-	} else if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 4)) {
-		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90_V13_0_4, 0);
-		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82_V13_0_4, param);
-		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66_V13_0_4, msg);
-	} else {
-		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_90, 0);
-		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_82, param);
-		WREG32_SOC15(MP1, 0, mmMP1_SMN_C2PMSG_66, msg);
-	}
-
+	WREG32(smu->resp_reg, 0);
+	WREG32(smu->param_reg, param);
+	WREG32(smu->msg_reg, msg);
 }
 
 /**
