@@ -915,7 +915,7 @@
 		};
 
 		codec {
-			sound-dai =  <&lt9611_codec 0>;
+			sound-dai = <&lt9611_codec 0>;
 		};
 	};
 

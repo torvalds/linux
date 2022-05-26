@@ -2201,7 +2201,7 @@
 		lpasscore: clock-controller@3900000 {
 			compatible = "qcom,sc7280-lpasscorecc";
 			reg = <0 0x03900000 0 0x50000>;
-			clocks =  <&rpmhcc RPMH_CXO_CLK>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
 			clock-names = "bi_tcxo";
 			power-domains = <&lpass_hm LPASS_CORE_CC_LPASS_CORE_HM_GDSC>;
 			#clock-cells = <1>;
@@ -2397,7 +2397,7 @@
 		};
 
 		gmu: gmu@3d6a000 {
-			compatible="qcom,adreno-gmu-635.0", "qcom,adreno-gmu";
+			compatible = "qcom,adreno-gmu-635.0", "qcom,adreno-gmu";
 			reg = <0 0x03d6a000 0 0x34000>,
 				<0 0x3de0000 0 0x10000>,
 				<0 0x0b290000 0 0x10000>;
@@ -3820,7 +3820,7 @@
 					 <&dispcc DISP_CC_MDSS_DP_LINK_CLK>,
 					 <&dispcc DISP_CC_MDSS_DP_LINK_INTF_CLK>,
 					 <&dispcc DISP_CC_MDSS_DP_PIXEL_CLK>;
-				clock-names =	"core_iface",
+				clock-names = "core_iface",
 						"core_aux",
 						"ctrl_link",
 						"ctrl_link_iface",

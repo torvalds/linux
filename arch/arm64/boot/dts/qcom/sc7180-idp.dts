@@ -389,7 +389,7 @@
 	pinctrl-names = "default","sleep";
 	pinctrl-0 = <&sdc2_on>;
 	pinctrl-1 = <&sdc2_off>;
-	vmmc-supply  = <&vreg_l9c_2p9>;
+	vmmc-supply = <&vreg_l9c_2p9>;
 	vqmmc-supply = <&vreg_l6c_2p9>;
 
 	cd-gpios = <&tlmm 69 GPIO_ACTIVE_LOW>;

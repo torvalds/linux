@@ -581,7 +581,7 @@
 		};
 
 		codec {
-			sound-dai =  <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
+			sound-dai = <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
 		};
 	};
 
@@ -611,7 +611,7 @@
 		};
 
 		codec {
-			sound-dai =  <&wcd9340 2>;
+			sound-dai = <&wcd9340 2>;
 		};
 	};
 };
@@ -817,5 +817,5 @@
 
 &crypto {
 	/* FIXME: qce_start triggers an SError */
-	status= "disable";
+	status = "disable";
 };

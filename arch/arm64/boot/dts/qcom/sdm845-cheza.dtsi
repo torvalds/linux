@@ -130,7 +130,7 @@
 	};
 
 	panel: panel {
-		compatible ="innolux,p120zdg-bf1";
+		compatible = "innolux,p120zdg-bf1";
 		power-supply = <&pp3300_dx_edp>;
 		backlight = <&backlight>;
 		no-hpd;

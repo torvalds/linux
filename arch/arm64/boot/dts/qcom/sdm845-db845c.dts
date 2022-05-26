@@ -718,7 +718,7 @@
 		};
 
 		codec {
-			sound-dai =  <&lt9611_codec 0>;
+			sound-dai = <&lt9611_codec 0>;
 		};
 	};
 
@@ -733,7 +733,7 @@
 		};
 
 		codec {
-			sound-dai =  <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
+			sound-dai = <&left_spkr>, <&right_spkr>, <&swm 0>, <&wcd9340 0>;
 		};
 	};
 

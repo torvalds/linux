@@ -2048,7 +2048,7 @@
 		};
 
 		gmu: gmu@506a000 {
-			compatible="qcom,adreno-gmu-618.0", "qcom,adreno-gmu";
+			compatible = "qcom,adreno-gmu-618.0", "qcom,adreno-gmu";
 			reg = <0 0x0506a000 0 0x31000>, <0 0x0b290000 0 0x10000>,
 				<0 0x0b490000 0 0x10000>;
 			reg-names = "gmu", "gmu_pdc", "gmu_pdc_seq";
@@ -3579,7 +3579,7 @@
 			compatible = "qcom,sc7180-lpass-cpu";
 
 			reg = <0 0x62d87000 0 0x68000>, <0 0x62f00000 0 0x29000>;
-			reg-names =  "lpass-hdmiif", "lpass-lpaif";
+			reg-names = "lpass-hdmiif", "lpass-lpaif";
 
 			iommus = <&apps_smmu 0x1020 0>,
 				<&apps_smmu 0x1021 0>,

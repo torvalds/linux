@@ -419,7 +419,7 @@
 		};
 
 		codec {
-			sound-dai =  <&wcd9340 0>;
+			sound-dai = <&wcd9340 0>;
 		};
 	};
 

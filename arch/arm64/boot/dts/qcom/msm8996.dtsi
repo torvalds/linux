@@ -1017,7 +1017,7 @@
 			#cooling-cells = <2>;
 
 			gpu_opp_table: opp-table {
-				compatible  ="operating-points-v2";
+				compatible = "operating-points-v2";
 
 				/*
 				 * 624Mhz and 560Mhz are only available on speed
@@ -1639,7 +1639,7 @@
 					<&gcc GCC_PCIE_0_MSTR_AXI_CLK>,
 					<&gcc GCC_PCIE_0_SLV_AXI_CLK>;
 
-				clock-names =  "pipe",
+				clock-names = "pipe",
 						"aux",
 						"cfg",
 						"bus_master",
@@ -1653,7 +1653,7 @@
 				bus-range = <0x00 0xff>;
 				num-lanes = <1>;
 
-				status  = "disabled";
+				status = "disabled";
 
 				reg = <0x00608000 0x2000>,
 				      <0x0d000000 0xf1d>,
@@ -1693,7 +1693,7 @@
 					<&gcc GCC_PCIE_1_MSTR_AXI_CLK>,
 					<&gcc GCC_PCIE_1_SLV_AXI_CLK>;
 
-				clock-names =  "pipe",
+				clock-names = "pipe",
 						"aux",
 						"cfg",
 						"bus_master",
@@ -1743,7 +1743,7 @@
 					<&gcc GCC_PCIE_2_MSTR_AXI_CLK>,
 					<&gcc GCC_PCIE_2_SLV_AXI_CLK>;
 
-				clock-names =  "pipe",
+				clock-names = "pipe",
 						"aux",
 						"cfg",
 						"bus_master",
@@ -3102,7 +3102,7 @@
 			compatible = "qcom,bam-v1.7.0";
 			qcom,controlled-remotely;
 			reg = <0x09184000 0x32000>;
-			num-channels  = <31>;
+			num-channels = <31>;
 			interrupts = <0 164 IRQ_TYPE_LEVEL_HIGH>;
 			#dma-cells = <1>;
 			qcom,ee = <1>;
@@ -3114,7 +3114,7 @@
 			reg = <0x091c0000 0x2C000>;
 			reg-names = "ctrl";
 			interrupts = <0 163 IRQ_TYPE_LEVEL_HIGH>;
-			dmas =	<&slimbam 3>, <&slimbam 4>,
+			dmas = <&slimbam 3>, <&slimbam 4>,
 				<&slimbam 5>, <&slimbam 6>;
 			dma-names = "rx", "tx", "tx2", "rx2";
 			#address-cells = <1>;
@@ -3126,7 +3126,7 @@
 
 				tasha_ifd: tas-ifd {
 					compatible = "slim217,1a0";
-					reg  = <0 0>;
+					reg = <0 0>;
 				};
 
 				wcd9335: codec@1{
@@ -3134,17 +3134,17 @@
 					pinctrl-names = "default";
 
 					compatible = "slim217,1a0";
-					reg  = <1 0>;
+					reg = <1 0>;
 
 					interrupt-parent = <&tlmm>;
 					interrupts = <54 IRQ_TYPE_LEVEL_HIGH>,
 						     <53 IRQ_TYPE_LEVEL_HIGH>;
-					interrupt-names  = "intr1", "intr2";
+					interrupt-names = "intr1", "intr2";
 					interrupt-controller;
 					#interrupt-cells = <1>;
 					reset-gpios = <&tlmm 64 0>;
 
-					slim-ifc-dev  = <&tasha_ifd>;
+					slim-ifc-dev = <&tasha_ifd>;
 
 					#sound-dai-cells = <1>;
 				};

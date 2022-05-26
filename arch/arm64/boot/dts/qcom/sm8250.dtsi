@@ -2569,7 +2569,7 @@
 		};
 
 		gmu: gmu@3d6a000 {
-			compatible="qcom,adreno-gmu-650.2", "qcom,adreno-gmu";
+			compatible = "qcom,adreno-gmu-650.2", "qcom,adreno-gmu";
 
 			reg = <0 0x03d6a000 0 0x30000>,
 			      <0 0x3de0000 0 0x10000>,

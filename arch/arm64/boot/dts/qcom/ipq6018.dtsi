@@ -321,7 +321,7 @@
 			clocks = <&gcc GCC_BLSP1_QUP2_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
-			clock-frequency  = <400000>;
+			clock-frequency = <400000>;
 			dmas = <&blsp_dma 14>, <&blsp_dma 15>;
 			dma-names = "tx", "rx";
 			status = "disabled";
@@ -336,7 +336,7 @@
 			clocks = <&gcc GCC_BLSP1_QUP3_I2C_APPS_CLK>,
 				 <&gcc GCC_BLSP1_AHB_CLK>;
 			clock-names = "core", "iface";
-			clock-frequency  = <400000>;
+			clock-frequency = <400000>;
 			dmas = <&blsp_dma 16>, <&blsp_dma 17>;
 			dma-names = "tx", "rx";
 			status = "disabled";

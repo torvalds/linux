@@ -929,7 +929,7 @@
 			interrupts = <GIC_SPI 405 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "msi";
 			interrupt-map-mask = <0 0 0 0x7>;
-			interrupt-map =	<0 0 0 1 &intc 0 0 135 IRQ_TYPE_LEVEL_HIGH>,
+			interrupt-map = <0 0 0 1 &intc 0 0 135 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 2 &intc 0 0 136 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 3 &intc 0 0 138 IRQ_TYPE_LEVEL_HIGH>,
 					<0 0 0 4 &intc 0 0 139 IRQ_TYPE_LEVEL_HIGH>;
@@ -1389,7 +1389,7 @@
 			status = "disabled";
 
 			gpu_opp_table: opp-table {
-				compatible  = "operating-points-v2";
+				compatible = "operating-points-v2";
 				opp-710000097 {
 					opp-hz = /bits/ 64 <710000097>;
 					opp-level = <RPM_SMD_LEVEL_TURBO>;

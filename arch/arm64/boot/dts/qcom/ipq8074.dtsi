@@ -119,7 +119,7 @@
 				<&xo>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			resets =  <&gcc GCC_USB1_PHY_BCR>,
+			resets = <&gcc GCC_USB1_PHY_BCR>,
 				<&gcc GCC_USB3PHY_1_PHY_BCR>;
 			reset-names = "phy","common";
 			status = "disabled";
@@ -162,7 +162,7 @@
 				<&xo>;
 			clock-names = "aux", "cfg_ahb", "ref";
 
-			resets =  <&gcc GCC_USB0_PHY_BCR>,
+			resets = <&gcc GCC_USB0_PHY_BCR>,
 				<&gcc GCC_USB3PHY_0_PHY_BCR>;
 			reset-names = "phy","common";
 			status = "disabled";

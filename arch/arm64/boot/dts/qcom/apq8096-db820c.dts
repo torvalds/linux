@@ -49,11 +49,11 @@
 		serial0 = &blsp2_uart2;
 		serial1 = &blsp2_uart3;
 		serial2 = &blsp1_uart2;
-		i2c0	= &blsp1_i2c3;
-		i2c1	= &blsp2_i2c1;
-		i2c2	= &blsp2_i2c1;
-		spi0	= &blsp1_spi1;
-		spi1	= &blsp2_spi6;
+		i2c0 = &blsp1_i2c3;
+		i2c1 = &blsp2_i2c1;
+		i2c2 = &blsp2_i2c1;
+		spi0 = &blsp1_spi1;
+		spi1 = &blsp2_spi6;
 	};
 
 	chosen {
@@ -958,7 +958,7 @@
 &sound {
 	compatible = "qcom,apq8096-sndcard";
 	model = "DB820c";
-	audio-routing =	"RX_BIAS", "MCLK",
+	audio-routing = "RX_BIAS", "MCLK",
 		"MM_DL1",  "MultiMedia1 Playback",
 		"MM_DL2",  "MultiMedia2 Playback",
 		"MultiMedia3 Capture", "MM_UL3";

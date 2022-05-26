@@ -468,7 +468,7 @@
 };
 
 &i2c5 {
-	status="okay";
+	status = "okay";
 
 	touchscreen@38 {
 		compatible = "focaltech,fts8719";
