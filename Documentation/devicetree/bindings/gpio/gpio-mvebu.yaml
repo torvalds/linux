@@ -21,17 +21,21 @@ properties:
           - enum:
               - marvell,mv78200-gpio
               - marvell,armada-370-gpio
-              - marvell,armadaxp-gpio
           - const: marvell,orion-gpio
+
+      - description: Deprecated binding
+        items:
+          - const: marvell,armadaxp-gpio
+          - const: marvell,orion-gpio
+        deprecated: true
 
   reg:
     description: |
       Address and length of the register set for the device. Not used for
       marvell,armada-8k-gpio.
 
-      For the "marvell,armadaxp-gpio" variant a second entry is expected for
-      the per-cpu registers. For other variants second entry can be provided,
-      for the PWM function using the GPIO Blink Counter on/off registers.
+      A second entry can be provided, for the PWM function using the GPIO Blink
+      Counter on/off registers.
     minItems: 1
     maxItems: 2
 
@@ -102,18 +106,6 @@ allOf:
     else:
       required:
         - reg
-
-  - if:
-      properties:
-        compatible:
-          contains:
-            const: marvell,armadaxp-gpio
-    then:
-      properties:
-        reg:
-          minItems: 2
-        reg-names:
-          minItems: 2
 
 unevaluatedProperties: true
 
