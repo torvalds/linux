@@ -560,8 +560,8 @@ static inline int inode_need_compress(struct btrfs_inode *inode, u64 start,
 	 * will unlock the full page.
 	 */
 	if (fs_info->sectorsize < PAGE_SIZE) {
-		if (!IS_ALIGNED(start, PAGE_SIZE) ||
-		    !IS_ALIGNED(end + 1, PAGE_SIZE))
+		if (!PAGE_ALIGNED(start) ||
+		    !PAGE_ALIGNED(end + 1))
 			return 0;
 	}
 
@@ -678,8 +678,8 @@ again:
 	 * Thus we must also check against @actual_end, not just @end.
 	 */
 	if (blocksize < PAGE_SIZE) {
-		if (!IS_ALIGNED(start, PAGE_SIZE) ||
-		    !IS_ALIGNED(round_up(actual_end, blocksize), PAGE_SIZE))
+		if (!PAGE_ALIGNED(start) ||
+		    !PAGE_ALIGNED(round_up(actual_end, blocksize)))
 			goto cleanup_and_bail_uncompressed;
 	}
 
