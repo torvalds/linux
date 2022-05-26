@@ -1706,6 +1706,10 @@
 			between unregistering the boot console and initializing
 			the real console.
 
+	kunit.enable=	[KUNIT] Enable executing KUnit tests in modules on load.
+			Requires CONFIG_KUNIT to be enabled.
+			Default is 0 (disabled)
+
 	i2c_bus=	[HW]	Override the default board specific I2C bus speed
 				or register an additional I2C bus that is not
 				registered from board initialization code.

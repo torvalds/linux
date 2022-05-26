@@ -474,7 +474,8 @@ static inline int ra_alloc_folio(struct readahead_control *ractl, pgoff_t index,
 
 	if (!folio)
 		return -ENOMEM;
-	if (mark - index < (1UL << order))
+	mark = round_up(mark, 1UL << order);
+	if (index == mark)
 		folio_set_readahead(folio);
 	err = filemap_add_folio(ractl->mapping, folio, index, gfp);
 	if (err)
@@ -555,8 +556,9 @@ static void ondemand_readahead(struct readahead_control *ractl,
 	struct file_ra_state *ra = ractl->ra;
 	unsigned long max_pages = ra->ra_pages;
 	unsigned long add_pages;
-	unsigned long index = readahead_index(ractl);
-	pgoff_t prev_index;
+	pgoff_t index = readahead_index(ractl);
+	pgoff_t expected, prev_index;
+	unsigned int order = folio ? folio_order(folio) : 0;
 
 	/*
 	 * If the request exceeds the readahead window, allow the read to
@@ -575,8 +577,9 @@ static void ondemand_readahead(struct readahead_control *ractl,
 	 * It's the expected callback index, assume sequential access.
 	 * Ramp up sizes, and push forward the readahead window.
 	 */
-	if ((index == (ra->start + ra->size - ra->async_size) ||
-	     index == (ra->start + ra->size))) {
+	expected = round_up(ra->start + ra->size - ra->async_size,
+			1UL << order);
+	if (index == expected || index == (ra->start + ra->size)) {
 		ra->start += ra->size;
 		ra->size = get_next_ra_size(ra, max_pages);
 		ra->async_size = ra->size;
@@ -662,7 +665,7 @@ readit:
 	}
 
 	ractl->_index = ra->start;
-	page_cache_ra_order(ractl, ra, folio ? folio_order(folio) : 0);
+	page_cache_ra_order(ractl, ra, order);
 }
 
 void page_cache_sync_ra(struct readahead_control *ractl,

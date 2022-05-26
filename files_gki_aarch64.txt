@@ -526,6 +526,7 @@ crypto/crypto_null.c
 crypto/ctr.c
 crypto/cts.c
 crypto/deflate.c
+crypto/des_generic.c
 crypto/drbg.c
 crypto/ecb.c
 crypto/ecc.c
@@ -1225,6 +1226,7 @@ drivers/net/can/dev/skb.c
 drivers/net/dummy.c
 drivers/net/ifb.c
 drivers/net/loopback.c
+drivers/net/macsec.c
 drivers/net/mdio/fwnode_mdio.c
 drivers/net/mdio/of_mdio.c
 drivers/net/mii.c
@@ -1259,6 +1261,7 @@ drivers/net/usb/asix_common.c
 drivers/net/usb/asix_devices.c
 drivers/net/usb/asix.h
 drivers/net/usb/ax88172a.c
+drivers/net/usb/ax88179_178a.c
 drivers/net/usb/cdc_eem.c
 drivers/net/usb/cdc_ether.c
 drivers/net/usb/cdc_ncm.c
@@ -1525,6 +1528,7 @@ drivers/soc/sunxi/sunxi_mbus.c
 drivers/soc/sunxi/sunxi_sram.c
 drivers/spi/internals.h
 drivers/spi/spi.c
+drivers/spi/spi-mem.c
 drivers/spmi/spmi.c
 drivers/staging/android/ashmem.c
 drivers/staging/android/ashmem.h
@@ -1583,6 +1587,7 @@ drivers/tty/tty_jobctrl.c
 drivers/tty/tty_ldisc.c
 drivers/tty/tty_ldsem.c
 drivers/tty/tty_mutex.c
+drivers/tty/ttynull.c
 drivers/tty/tty_port.c
 drivers/uio/uio.c
 drivers/usb/class/cdc-acm.c
@@ -2299,6 +2304,7 @@ include/crypto/chacha20poly1305.h
 include/crypto/chacha.h
 include/crypto/ctr.h
 include/crypto/curve25519.h
+include/crypto/des.h
 include/crypto/drbg.h
 include/crypto/ecc_curve.h
 include/crypto/ecdh.h
@@ -2316,6 +2322,7 @@ include/crypto/internal/blake2b.h
 include/crypto/internal/blake2s.h
 include/crypto/internal/chacha.h
 include/crypto/internal/cipher.h
+include/crypto/internal/des.h
 include/crypto/internal/ecc.h
 include/crypto/internal/geniv.h
 include/crypto/internal/hash.h
@@ -2732,6 +2739,7 @@ include/linux/firmware-map.h
 include/linux/fixp-arith.h
 include/linux/flex_proportions.h
 include/linux/font.h
+include/linux/fortify-string.h
 include/linux/fprobe.h
 include/linux/freelist.h
 include/linux/freezer.h
@@ -3759,6 +3767,7 @@ include/net/llc_sap.h
 include/net/lwtunnel.h
 include/net/mac80211.h
 include/net/mac802154.h
+include/net/macsec.h
 include/net/mctp.h
 include/net/mip6.h
 include/net/mld.h
@@ -4224,6 +4233,7 @@ include/uapi/linux/if_hippi.h
 include/uapi/linux/if_infiniband.h
 include/uapi/linux/if_link.h
 include/uapi/linux/if_ltalk.h
+include/uapi/linux/if_macsec.h
 include/uapi/linux/if_packet.h
 include/uapi/linux/if_pppol2tp.h
 include/uapi/linux/if_pppox.h
@@ -4951,6 +4961,7 @@ lib/crypto/chacha.c
 lib/crypto/curve25519.c
 lib/crypto/curve25519-generic.c
 lib/crypto/curve25519-hacl64.c
+lib/crypto/des.c
 lib/crypto/libchacha.c
 lib/crypto/poly1305.c
 lib/crypto/poly1305-donna64.c
