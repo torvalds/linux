@@ -186,9 +186,6 @@ void dev_pm_opp_clear_config(int token);
 
 struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name);
 void dev_pm_opp_put_prop_name(struct opp_table *opp_table);
-struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char * const *names, struct device ***virt_devs);
-void dev_pm_opp_detach_genpd(struct opp_table *opp_table);
-int devm_pm_opp_attach_genpd(struct device *dev, const char * const *names, struct device ***virt_devs);
 struct dev_pm_opp *dev_pm_opp_xlate_required_opp(struct opp_table *src_table, struct opp_table *dst_table, struct dev_pm_opp *src_opp);
 int dev_pm_opp_xlate_performance_state(struct opp_table *src_table, struct opp_table *dst_table, unsigned int pstate);
 int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq);
@@ -366,20 +363,6 @@ static inline struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, con
 }
 
 static inline void dev_pm_opp_put_prop_name(struct opp_table *opp_table) {}
-
-static inline struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char * const *names, struct device ***virt_devs)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void dev_pm_opp_detach_genpd(struct opp_table *opp_table) {}
-
-static inline int devm_pm_opp_attach_genpd(struct device *dev,
-					   const char * const *names,
-					   struct device ***virt_devs)
-{
-	return -EOPNOTSUPP;
-}
 
 static inline int dev_pm_opp_set_config(struct device *dev, struct dev_pm_opp_config *config)
 {
@@ -638,5 +621,36 @@ static inline void dev_pm_opp_unregister_set_opp_helper(int token)
 {
 	dev_pm_opp_clear_config(token);
 }
+
+/* genpd helpers */
+static inline int dev_pm_opp_attach_genpd(struct device *dev,
+					  const char * const *names,
+					  struct device ***virt_devs)
+{
+	struct dev_pm_opp_config config = {
+		.genpd_names = names,
+		.virt_devs = virt_devs,
+	};
+
+	return dev_pm_opp_set_config(dev, &config);
+}
+
+static inline void dev_pm_opp_detach_genpd(int token)
+{
+	dev_pm_opp_clear_config(token);
+}
+
+static inline int devm_pm_opp_attach_genpd(struct device *dev,
+					   const char * const *names,
+					   struct device ***virt_devs)
+{
+	struct dev_pm_opp_config config = {
+		.genpd_names = names,
+		.virt_devs = virt_devs,
+	};
+
+	return devm_pm_opp_set_config(dev, &config);
+}
+
 
 #endif		/* __LINUX_OPP_H__ */
