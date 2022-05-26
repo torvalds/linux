@@ -1711,11 +1711,11 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 	int max_send_sges, max_rw_wrs, max_send_wrs;
 	unsigned int max_sge_per_wr, wrs_per_credit;
 
-	/* need 2 more sge. because a SMB_DIRECT header will be mapped,
-	 * and maybe a send buffer could be not page aligned.
+	/* need 3 more sge. because a SMB_DIRECT header, SMB2 header,
+	 * SMB2 response could be mapped.
 	 */
 	t->max_send_size = smb_direct_max_send_size;
-	max_send_sges = DIV_ROUND_UP(t->max_send_size, PAGE_SIZE) + 2;
+	max_send_sges = DIV_ROUND_UP(t->max_send_size, PAGE_SIZE) + 3;
 	if (max_send_sges > SMB_DIRECT_MAX_SEND_SGES) {
 		pr_err("max_send_size %d is too large\n", t->max_send_size);
 		return -EINVAL;
@@ -1736,6 +1736,8 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 
 	max_sge_per_wr = min_t(unsigned int, device->attrs.max_send_sge,
 			       device->attrs.max_sge_rd);
+	max_sge_per_wr = max_t(unsigned int, max_sge_per_wr,
+			       max_send_sges);
 	wrs_per_credit = max_t(unsigned int, 4,
 			       DIV_ROUND_UP(t->pages_per_rw_credit,
 					    max_sge_per_wr) + 1);
@@ -1760,11 +1762,6 @@ static int smb_direct_init_params(struct smb_direct_transport *t,
 		return -EINVAL;
 	}
 
-	if (device->attrs.max_send_sge < SMB_DIRECT_MAX_SEND_SGES) {
-		pr_err("warning: device max_send_sge = %d too small\n",
-		       device->attrs.max_send_sge);
-		return -EINVAL;
-	}
 	if (device->attrs.max_recv_sge < SMB_DIRECT_MAX_RECV_SGES) {
 		pr_err("warning: device max_recv_sge = %d too small\n",
 		       device->attrs.max_recv_sge);
