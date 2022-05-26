@@ -1246,7 +1246,7 @@ use_clean:
 
 		set_bit(BCH_FS_MAY_GO_RW, &c->flags);
 
-		bch_verbose(c, "starting journal replay, %zu keys", c->journal_keys.nr);
+		bch_info(c, "starting journal replay, %zu keys", c->journal_keys.nr);
 		err = "journal replay failed";
 		ret = bch2_journal_replay(c);
 		if (ret)
