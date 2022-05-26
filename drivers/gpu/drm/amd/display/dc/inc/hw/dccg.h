@@ -80,6 +80,7 @@ struct dtbclk_dto_params {
 	int req_audio_dtbclk_khz;
 	int num_odm_segments;
 	int ref_dtbclk_khz;
+	bool is_hdmi;
 };
 
 struct dccg_funcs {
