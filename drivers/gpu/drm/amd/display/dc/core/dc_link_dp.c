@@ -1326,7 +1326,9 @@ static enum link_training_result perform_channel_equalization_sequence(
 
 		/* 5. check CR done*/
 		if (!dp_is_cr_done(lane_count, dpcd_lane_status))
-			return LINK_TRAINING_EQ_FAIL_CR;
+			return dpcd_lane_status[0].bits.CR_DONE_0 ?
+					LINK_TRAINING_EQ_FAIL_CR_PARTIAL :
+					LINK_TRAINING_EQ_FAIL_CR;
 
 		/* 6. check CHEQ done*/
 		if (dp_is_ch_eq_done(lane_count, dpcd_lane_status) &&
@@ -1881,6 +1883,9 @@ static void print_status_message(
 		break;
 	case LINK_TRAINING_EQ_FAIL_CR:
 		lt_result = "CR failed in EQ";
+		break;
+	case LINK_TRAINING_EQ_FAIL_CR_PARTIAL:
+		lt_result = "CR failed in EQ partially";
 		break;
 	case LINK_TRAINING_EQ_FAIL_EQ:
 		lt_result = "EQ failed";
@@ -3612,11 +3617,6 @@ static bool decide_fallback_link_setting(
 		struct dc_link_settings *cur,
 		enum link_training_result training_result)
 {
-	if (!cur)
-		return false;
-	if (!max)
-		return false;
-
 	if (dp_get_link_encoding_format(max) == DP_128b_132b_ENCODING ||
 			link->dc->debug.force_dp2_lt_fallback_method)
 		return decide_fallback_link_setting_max_bw_policy(link, max, cur,
@@ -3646,6 +3646,7 @@ static bool decide_fallback_link_setting(
 		break;
 	}
 	case LINK_TRAINING_EQ_FAIL_EQ:
+	case LINK_TRAINING_EQ_FAIL_CR_PARTIAL:
 	{
 		if (!reached_minimum_lane_count(cur->lane_count)) {
 			cur->lane_count = reduce_lane_count(cur->lane_count);
