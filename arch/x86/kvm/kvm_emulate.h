@@ -301,6 +301,17 @@ struct fastop;
 
 typedef void (*fastop_t)(struct fastop *);
 
+/*
+ * The emulator's _regs array tracks only the GPRs, i.e. excludes RIP.  RIP is
+ * tracked/accessed via _eip, and except for RIP relative addressing, which
+ * also uses _eip, RIP cannot be a register operand nor can it be an operand in
+ * a ModRM or SIB byte.
+ *
+ * TODO: this is technically wrong for 32-bit KVM, which only supports 8 GPRs;
+ * R8-R15 don't exist.
+ */
+#define NR_EMULATOR_GPRS	16
+
 struct x86_emulate_ctxt {
 	void *vcpu;
 	const struct x86_emulate_ops *ops;
@@ -363,7 +374,7 @@ struct x86_emulate_ctxt {
 	struct operand src2;
 	struct operand dst;
 	struct operand memop;
-	unsigned long _regs[NR_VCPU_REGS];
+	unsigned long _regs[NR_EMULATOR_GPRS];
 	struct operand *memopp;
 	struct fetch_cache fetch;
 	struct read_cache io_read;

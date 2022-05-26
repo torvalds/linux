@@ -247,8 +247,8 @@ enum x86_transfer_type {
 
 static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
 {
-	if (WARN_ON_ONCE(nr >= 16))
-		nr &= 16 - 1;
+	if (WARN_ON_ONCE(nr >= NR_EMULATOR_GPRS))
+		nr &= NR_EMULATOR_GPRS - 1;
 
 	if (!(ctxt->regs_valid & (1 << nr))) {
 		ctxt->regs_valid |= 1 << nr;
@@ -259,8 +259,8 @@ static ulong reg_read(struct x86_emulate_ctxt *ctxt, unsigned nr)
 
 static ulong *reg_write(struct x86_emulate_ctxt *ctxt, unsigned nr)
 {
-	if (WARN_ON_ONCE(nr >= 16))
-		nr &= 16 - 1;
+	if (WARN_ON_ONCE(nr >= NR_EMULATOR_GPRS))
+		nr &= NR_EMULATOR_GPRS - 1;
 
 	ctxt->regs_valid |= 1 << nr;
 	ctxt->regs_dirty |= 1 << nr;
@@ -278,7 +278,7 @@ static void writeback_registers(struct x86_emulate_ctxt *ctxt)
 	unsigned long dirty = ctxt->regs_dirty;
 	unsigned reg;
 
-	for_each_set_bit(reg, &dirty, 16)
+	for_each_set_bit(reg, &dirty, NR_EMULATOR_GPRS)
 		ctxt->ops->write_gpr(ctxt, reg, ctxt->_regs[reg]);
 }
 
