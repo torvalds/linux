@@ -606,7 +606,7 @@ int tb_switch_tmu_enable(struct tb_switch *sw)
 /**
  * tb_switch_tmu_configure() - Configure the TMU rate and directionality
  * @sw: Router whose mode to change
- * @rate: Rate to configure Off/LowRes/HiFi
+ * @rate: Rate to configure Off/Normal/HiFi
  * @unidirectional: If uni-directional (bi-directional otherwise)
  *
  * Selects the rate of the TMU and directionality (uni-directional or
