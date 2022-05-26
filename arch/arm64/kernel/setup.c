@@ -445,4 +445,5 @@ void kvm_arm_init_hyp_services(void)
 {
 	kvm_init_ioremap_services();
 	kvm_init_memshare_services();
+	kvm_init_memrelinquish_services();
 }
