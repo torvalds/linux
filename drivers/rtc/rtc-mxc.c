@@ -311,7 +311,7 @@ static int mxc_rtc_probe(struct platform_device *pdev)
 	if (!pdata)
 		return -ENOMEM;
 
-	pdata->devtype = (enum imx_rtc_type)of_device_get_match_data(&pdev->dev);
+	pdata->devtype = (uintptr_t)of_device_get_match_data(&pdev->dev);
 
 	pdata->ioaddr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(pdata->ioaddr))
