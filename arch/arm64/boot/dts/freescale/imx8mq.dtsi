@@ -94,7 +94,7 @@
 	clk_ext4: clock-ext4 {
 		compatible = "fixed-clock";
 		#clock-cells = <0>;
-		clock-frequency= <133000000>;
+		clock-frequency = <133000000>;
 		clock-output-names = "clk_ext4";
 	};
 
@@ -507,7 +507,7 @@
 						      <0x00030005 0x00000053>,
 						      <0x00030006 0x0000005f>,
 						      <0x00030007 0x00000071>;
-				#thermal-sensor-cells =  <1>;
+				#thermal-sensor-cells = <1>;
 			};
 
 			wdog1: watchdog@30280000 {

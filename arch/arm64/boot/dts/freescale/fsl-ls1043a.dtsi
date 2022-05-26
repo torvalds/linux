@@ -144,7 +144,7 @@
 	};
 
 	reboot {
-		compatible ="syscon-reboot";
+		compatible = "syscon-reboot";
 		regmap = <&dcfg>;
 		offset = <0xb0>;
 		mask = <0x02>;
@@ -354,7 +354,7 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x10000 0x10000>;
+				reg = <0x10000 0x10000>;
 				interrupts = <0 71 0x4>;
 			};
 
@@ -362,7 +362,7 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x20000 0x10000>;
+				reg = <0x20000 0x10000>;
 				interrupts = <0 72 0x4>;
 			};
 
@@ -370,7 +370,7 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x30000 0x10000>;
+				reg = <0x30000 0x10000>;
 				interrupts = <0 73 0x4>;
 			};
 
@@ -378,7 +378,7 @@
 				compatible = "fsl,sec-v5.4-job-ring",
 					     "fsl,sec-v5.0-job-ring",
 					     "fsl,sec-v4.0-job-ring";
-				reg	   = <0x40000 0x10000>;
+				reg = <0x40000 0x10000>;
 				interrupts = <0 74 0x4>;
 			};
 		};

@@ -286,8 +286,8 @@
 				regulator-name = "buck1";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-min-microamp  = <3800000>;
-				regulator-max-microamp  = <6800000>;
+				regulator-min-microamp = <3800000>;
+				regulator-max-microamp = <6800000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
@@ -297,8 +297,8 @@
 				regulator-name = "buck2";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <900000>;
-				regulator-min-microamp  = <2200000>;
-				regulator-max-microamp  = <5200000>;
+				regulator-min-microamp = <2200000>;
+				regulator-max-microamp = <5200000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
@@ -308,8 +308,8 @@
 				regulator-name = "buck3";
 				regulator-min-microvolt = <800000>;
 				regulator-max-microvolt = <1000000>;
-				regulator-min-microamp  = <3800000>;
-				regulator-max-microamp  = <6800000>;
+				regulator-min-microamp = <3800000>;
+				regulator-max-microamp = <6800000>;
 				regulator-always-on;
 			};
 
@@ -318,8 +318,8 @@
 				regulator-name = "buck4";
 				regulator-min-microvolt = <1800000>;
 				regulator-max-microvolt = <1800000>;
-				regulator-min-microamp  = <2200000>;
-				regulator-max-microamp  = <5200000>;
+				regulator-min-microamp = <2200000>;
+				regulator-max-microamp = <5200000>;
 				regulator-boot-on;
 				regulator-always-on;
 			};
