@@ -207,14 +207,6 @@ config SAMSUNG_DEV_PWM
 	help
 	  Compile in platform device definition for PWM Timer
 
-config S3C24XX_PWM
-	bool "PWM device support"
-	select PWM
-	select PWM_SAMSUNG
-	help
-	  Support for exporting the PWM timer blocks via the pwm device
-	  system
-
 config GPIO_SAMSUNG
 	def_bool y
 

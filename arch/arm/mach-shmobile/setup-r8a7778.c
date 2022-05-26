@@ -43,7 +43,7 @@ static void __init r8a7778_init_irq_dt(void)
 
 static const char *const r8a7778_compat_dt[] __initconst = {
 	"renesas,r8a7778",
-	NULL,
+	NULL
 };
 
 DT_MACHINE_START(R8A7778_DT, "Generic R8A7778 (Flattened Device Tree)")
