@@ -425,7 +425,7 @@
 
 	psu: regulator@60 {
 		compatible = "ti,tps62363";
-		reg =  <0x60>;
+		reg = <0x60>;
 		regulator-name = "tps62363-vout";
 		regulator-min-microvolt = <500000>;
 		regulator-max-microvolt = <1500000>;
@@ -574,7 +574,7 @@
 	pinctrl-0 = <&mcu_spi0_pins_default>;
 
 	#address-cells = <1>;
-	#size-cells= <0>;
+	#size-cells = <0>;
 	ti,pindir-d0-out-d1-in;
 };
 
