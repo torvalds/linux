@@ -371,9 +371,13 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 		if (PageBuddy(page)) {
 			int order = buddy_order(page);
 
-			if (pfn + (1UL << order) > boundary_pfn)
-				split_free_page(page, order, boundary_pfn - pfn);
-			pfn += (1UL << order);
+			if (pfn + (1UL << order) > boundary_pfn) {
+				/* free page changed before split, check it again */
+				if (split_free_page(page, order, boundary_pfn - pfn))
+					continue;
+			}
+
+			pfn += 1UL << order;
 			continue;
 		}
 		/*
