@@ -720,7 +720,6 @@ static int dw8250_suspend(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
 
-	serial8250_suspend_port(data->data.line);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (device_may_wakeup(dev)) {
 		if (!enable_irq_wake(data->irq))
@@ -728,6 +727,7 @@ static int dw8250_suspend(struct device *dev)
 		return 0;
 	}
 #endif
+	serial8250_suspend_port(data->data.line);
 
 	return 0;
 }
@@ -736,7 +736,6 @@ static int dw8250_resume(struct device *dev)
 {
 	struct dw8250_data *data = dev_get_drvdata(dev);
 
-	serial8250_resume_port(data->data.line);
 #ifdef CONFIG_ARCH_ROCKCHIP
 	if (device_may_wakeup(dev)) {
 		if (data->irq_wake) {
@@ -746,6 +745,7 @@ static int dw8250_resume(struct device *dev)
 		return 0;
 	}
 #endif
+	serial8250_resume_port(data->data.line);
 
 	return 0;
 }
