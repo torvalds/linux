@@ -1141,10 +1141,12 @@ static void btree_node_read_work(struct work_struct *work)
 	struct bch_io_failures failed = { .nr = 0 };
 	struct printbuf buf = PRINTBUF;
 	bool saw_error = false;
+	bool retry = false;
 	bool can_retry;
 
 	goto start;
 	while (1) {
+		retry = true;
 		bch_info(c, "retrying read");
 		ca = bch_dev_bkey_exists(c, rb->pick.ptr.dev);
 		rb->have_ioref		= bch2_dev_get_ioref(ca, READ);
@@ -1174,8 +1176,11 @@ start:
 				&failed, &rb->pick) > 0;
 
 		if (!bio->bi_status &&
-		    !bch2_btree_node_read_done(c, ca, b, can_retry))
+		    !bch2_btree_node_read_done(c, ca, b, can_retry)) {
+			if (retry)
+				bch_info(c, "retry success");
 			break;
+		}
 
 		saw_error = true;
 
