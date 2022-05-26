@@ -45,6 +45,8 @@
 #include "trace_output.h"
 #include "trace_stat.h"
 
+#define FTRACE_INVALID_FUNCTION		"__ftrace_invalid_address__"
+
 #define FTRACE_WARN_ON(cond)			\
 	({					\
 		int ___r = cond;		\
@@ -3654,6 +3656,105 @@ static void add_trampoline_func(struct seq_file *m, struct ftrace_ops *ops,
 		seq_printf(m, " ->%pS", ptr);
 }
 
+#ifdef FTRACE_MCOUNT_MAX_OFFSET
+/*
+ * Weak functions can still have an mcount/fentry that is saved in
+ * the __mcount_loc section. These can be detected by having a
+ * symbol offset of greater than FTRACE_MCOUNT_MAX_OFFSET, as the
+ * symbol found by kallsyms is not the function that the mcount/fentry
+ * is part of. The offset is much greater in these cases.
+ *
+ * Test the record to make sure that the ip points to a valid kallsyms
+ * and if not, mark it disabled.
+ */
+static int test_for_valid_rec(struct dyn_ftrace *rec)
+{
+	char str[KSYM_SYMBOL_LEN];
+	unsigned long offset;
+	const char *ret;
+
+	ret = kallsyms_lookup(rec->ip, NULL, &offset, NULL, str);
+
+	/* Weak functions can cause invalid addresses */
+	if (!ret || offset > FTRACE_MCOUNT_MAX_OFFSET) {
+		rec->flags |= FTRACE_FL_DISABLED;
+		return 0;
+	}
+	return 1;
+}
+
+static struct workqueue_struct *ftrace_check_wq __initdata;
+static struct work_struct ftrace_check_work __initdata;
+
+/*
+ * Scan all the mcount/fentry entries to make sure they are valid.
+ */
+static __init void ftrace_check_work_func(struct work_struct *work)
+{
+	struct ftrace_page *pg;
+	struct dyn_ftrace *rec;
+
+	mutex_lock(&ftrace_lock);
+	do_for_each_ftrace_rec(pg, rec) {
+		test_for_valid_rec(rec);
+	} while_for_each_ftrace_rec();
+	mutex_unlock(&ftrace_lock);
+}
+
+static int __init ftrace_check_for_weak_functions(void)
+{
+	INIT_WORK(&ftrace_check_work, ftrace_check_work_func);
+
+	ftrace_check_wq = alloc_workqueue("ftrace_check_wq", WQ_UNBOUND, 0);
+
+	queue_work(ftrace_check_wq, &ftrace_check_work);
+	return 0;
+}
+
+static int __init ftrace_check_sync(void)
+{
+	/* Make sure the ftrace_check updates are finished */
+	if (ftrace_check_wq)
+		destroy_workqueue(ftrace_check_wq);
+	return 0;
+}
+
+late_initcall_sync(ftrace_check_sync);
+subsys_initcall(ftrace_check_for_weak_functions);
+
+static int print_rec(struct seq_file *m, unsigned long ip)
+{
+	unsigned long offset;
+	char str[KSYM_SYMBOL_LEN];
+	char *modname;
+	const char *ret;
+
+	ret = kallsyms_lookup(ip, NULL, &offset, &modname, str);
+	/* Weak functions can cause invalid addresses */
+	if (!ret || offset > FTRACE_MCOUNT_MAX_OFFSET) {
+		snprintf(str, KSYM_SYMBOL_LEN, "%s_%ld",
+			 FTRACE_INVALID_FUNCTION, offset);
+		ret = NULL;
+	}
+
+	seq_puts(m, str);
+	if (modname)
+		seq_printf(m, " [%s]", modname);
+	return ret == NULL ? -1 : 0;
+}
+#else
+static inline int test_for_valid_rec(struct dyn_ftrace *rec)
+{
+	return 1;
+}
+
+static inline int print_rec(struct seq_file *m, unsigned long ip)
+{
+	seq_printf(m, "%ps", (void *)ip);
+	return 0;
+}
+#endif
+
 static int t_show(struct seq_file *m, void *v)
 {
 	struct ftrace_iterator *iter = m->private;
@@ -3678,7 +3779,13 @@ static int t_show(struct seq_file *m, void *v)
 	if (!rec)
 		return 0;
 
-	seq_printf(m, "%ps", (void *)rec->ip);
+	if (print_rec(m, rec->ip)) {
+		/* This should only happen when a rec is disabled */
+		WARN_ON_ONCE(!(rec->flags & FTRACE_FL_DISABLED));
+		seq_putc(m, '\n');
+		return 0;
+	}
+
 	if (iter->flags & FTRACE_ITER_ENABLED) {
 		struct ftrace_ops *ops;
 
@@ -3996,6 +4103,24 @@ add_rec_by_index(struct ftrace_hash *hash, struct ftrace_glob *func_g,
 	return 0;
 }
 
+#ifdef FTRACE_MCOUNT_MAX_OFFSET
+static int lookup_ip(unsigned long ip, char **modname, char *str)
+{
+	unsigned long offset;
+
+	kallsyms_lookup(ip, NULL, &offset, modname, str);
+	if (offset > FTRACE_MCOUNT_MAX_OFFSET)
+		return -1;
+	return 0;
+}
+#else
+static int lookup_ip(unsigned long ip, char **modname, char *str)
+{
+	kallsyms_lookup(ip, NULL, NULL, modname, str);
+	return 0;
+}
+#endif
+
 static int
 ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
 		struct ftrace_glob *mod_g, int exclude_mod)
@@ -4003,7 +4128,12 @@ ftrace_match_record(struct dyn_ftrace *rec, struct ftrace_glob *func_g,
 	char str[KSYM_SYMBOL_LEN];
 	char *modname;
 
-	kallsyms_lookup(rec->ip, NULL, NULL, &modname, str);
+	if (lookup_ip(rec->ip, &modname, str)) {
+		/* This should only happen when a rec is disabled */
+		WARN_ON_ONCE(system_state == SYSTEM_RUNNING &&
+			     !(rec->flags & FTRACE_FL_DISABLED));
+		return 0;
+	}
 
 	if (mod_g) {
 		int mod_matches = (modname) ? ftrace_match(modname, mod_g) : 0;
@@ -6818,6 +6948,13 @@ void ftrace_module_enable(struct module *mod)
 		if (!within_module_core(rec->ip, mod) &&
 		    !within_module_init(rec->ip, mod))
 			break;
+
+		/* Weak functions should still be ignored */
+		if (!test_for_valid_rec(rec)) {
+			/* Clear all other flags. Should not be enabled anyway */
+			rec->flags = FTRACE_FL_DISABLED;
+			continue;
+		}
 
 		cnt = 0;
 
