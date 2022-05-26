@@ -7915,7 +7915,16 @@ static int emulator_set_xcr(struct x86_emulate_ctxt *ctxt, u32 index, u64 xcr)
 	return __kvm_set_xcr(emul_to_vcpu(ctxt), index, xcr);
 }
 
+static void emulator_vm_bugged(struct x86_emulate_ctxt *ctxt)
+{
+	struct kvm *kvm = emul_to_vcpu(ctxt)->kvm;
+
+	if (!kvm->vm_bugged)
+		kvm_vm_bugged(kvm);
+}
+
 static const struct x86_emulate_ops emulate_ops = {
+	.vm_bugged           = emulator_vm_bugged,
 	.read_gpr            = emulator_read_gpr,
 	.write_gpr           = emulator_write_gpr,
 	.read_std            = emulator_read_std,

@@ -89,6 +89,7 @@ struct x86_instruction_info {
 #define X86EMUL_INTERCEPTED     6 /* Intercepted by nested VMCB/VMCS */
 
 struct x86_emulate_ops {
+	void (*vm_bugged)(struct x86_emulate_ctxt *ctxt);
 	/*
 	 * read_gpr: read a general purpose register (rax - r15)
 	 *
@@ -382,6 +383,15 @@ struct x86_emulate_ctxt {
 	struct read_cache mem_read;
 	bool is_branch;
 };
+
+#define KVM_EMULATOR_BUG_ON(cond, ctxt)		\
+({						\
+	int __ret = (cond);			\
+						\
+	if (WARN_ON_ONCE(__ret))		\
+		ctxt->ops->vm_bugged(ctxt);	\
+	unlikely(__ret);			\
+})
 
 /* Repeat String Operation Prefix */
 #define REPE_PREFIX	0xf3
