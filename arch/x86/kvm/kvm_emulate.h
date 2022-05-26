@@ -306,11 +306,12 @@ typedef void (*fastop_t)(struct fastop *);
  * tracked/accessed via _eip, and except for RIP relative addressing, which
  * also uses _eip, RIP cannot be a register operand nor can it be an operand in
  * a ModRM or SIB byte.
- *
- * TODO: this is technically wrong for 32-bit KVM, which only supports 8 GPRs;
- * R8-R15 don't exist.
  */
+#ifdef CONFIG_X86_64
 #define NR_EMULATOR_GPRS	16
+#else
+#define NR_EMULATOR_GPRS	8
+#endif
 
 struct x86_emulate_ctxt {
 	void *vcpu;
