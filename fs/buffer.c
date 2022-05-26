@@ -282,10 +282,10 @@ static void end_buffer_async_read(struct buffer_head *bh, int uptodate)
 	spin_unlock_irqrestore(&first->b_uptodate_lock, flags);
 
 	/*
-	 * If none of the buffers had errors and they are all
-	 * uptodate then we can set the page uptodate.
+	 * If all of the buffers are uptodate then we can set the page
+	 * uptodate.
 	 */
-	if (page_uptodate && !PageError(page))
+	if (page_uptodate)
 		SetPageUptodate(page);
 	unlock_page(page);
 	return;
