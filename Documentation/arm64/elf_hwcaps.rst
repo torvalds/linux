@@ -297,6 +297,10 @@ HWCAP2_SME_FA64
 
     Functionality implied by ID_AA64SMFR0_EL1.FA64 == 0b1.
 
+HWCAP2_WFXT
+
+    Functionality implied by ID_AA64ISAR2_EL1.WFXT == 0b0010.
+
 4. Unused AT_HWCAP bits
 -----------------------
 

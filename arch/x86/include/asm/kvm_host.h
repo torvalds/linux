@@ -281,11 +281,11 @@ struct kvm_kernel_irq_routing_entry;
 /*
  * kvm_mmu_page_role tracks the properties of a shadow page (where shadow page
  * also includes TDP pages) to determine whether or not a page can be used in
- * the given MMU context.  This is a subset of the overall kvm_mmu_role to
+ * the given MMU context.  This is a subset of the overall kvm_cpu_role to
  * minimize the size of kvm_memory_slot.arch.gfn_track, i.e. allows allocating
  * 2 bytes per gfn instead of 4 bytes per gfn.
  *
- * Indirect upper-level shadow pages are tracked for write-protection via
+ * Upper-level shadow pages having gptes are tracked for write-protection via
  * gfn_track.  As above, gfn_track is a 16 bit counter, so KVM must not create
  * more than 2^16-1 upper-level shadow pages at a single gfn, otherwise
  * gfn_track will overflow and explosions will ensure.
@@ -331,7 +331,8 @@ union kvm_mmu_page_role {
 		unsigned smap_andnot_wp:1;
 		unsigned ad_disabled:1;
 		unsigned guest_mode:1;
-		unsigned :6;
+		unsigned passthrough:1;
+		unsigned :5;
 
 		/*
 		 * This is left at the top of the word so that
@@ -367,8 +368,6 @@ union kvm_mmu_extended_role {
 	struct {
 		unsigned int valid:1;
 		unsigned int execonly:1;
-		unsigned int cr0_pg:1;
-		unsigned int cr4_pae:1;
 		unsigned int cr4_pse:1;
 		unsigned int cr4_pke:1;
 		unsigned int cr4_smap:1;
@@ -378,7 +377,7 @@ union kvm_mmu_extended_role {
 	};
 };
 
-union kvm_mmu_role {
+union kvm_cpu_role {
 	u64 as_u64;
 	struct {
 		union kvm_mmu_page_role base;
@@ -438,19 +437,8 @@ struct kvm_mmu {
 			 struct kvm_mmu_page *sp);
 	void (*invlpg)(struct kvm_vcpu *vcpu, gva_t gva, hpa_t root_hpa);
 	struct kvm_mmu_root_info root;
-	union kvm_mmu_role mmu_role;
-	u8 root_level;
-	u8 shadow_root_level;
-	u8 ept_ad;
-	bool direct_map;
-	struct kvm_mmu_root_info prev_roots[KVM_MMU_NUM_PREV_ROOTS];
-
-	/*
-	 * Bitmap; bit set = permission fault
-	 * Byte index: page fault error code [4:1]
-	 * Bit index: pte permissions in ACC_* format
-	 */
-	u8 permissions[16];
+	union kvm_cpu_role cpu_role;
+	union kvm_mmu_page_role root_role;
 
 	/*
 	* The pkru_mask indicates if protection key checks are needed.  It
@@ -459,6 +447,15 @@ struct kvm_mmu {
 	* Each domain has 2 bits which are ANDed with AD and WD from PKRU.
 	*/
 	u32 pkru_mask;
+
+	struct kvm_mmu_root_info prev_roots[KVM_MMU_NUM_PREV_ROOTS];
+
+	/*
+	 * Bitmap; bit set = permission fault
+	 * Byte index: page fault error code [4:1]
+	 * Bit index: pte permissions in ACC_* format
+	 */
+	u8 permissions[16];
 
 	u64 *pae_root;
 	u64 *pml4_root;
@@ -607,16 +604,21 @@ struct kvm_vcpu_hv {
 struct kvm_vcpu_xen {
 	u64 hypercall_rip;
 	u32 current_runstate;
-	bool vcpu_info_set;
-	bool vcpu_time_info_set;
-	bool runstate_set;
-	struct gfn_to_hva_cache vcpu_info_cache;
-	struct gfn_to_hva_cache vcpu_time_info_cache;
-	struct gfn_to_hva_cache runstate_cache;
+	u8 upcall_vector;
+	struct gfn_to_pfn_cache vcpu_info_cache;
+	struct gfn_to_pfn_cache vcpu_time_info_cache;
+	struct gfn_to_pfn_cache runstate_cache;
 	u64 last_steal;
 	u64 runstate_entry_time;
 	u64 runstate_times[4];
 	unsigned long evtchn_pending_sel;
+	u32 vcpu_id; /* The Xen / ACPI vCPU ID */
+	u32 timer_virq;
+	u64 timer_expires; /* In guest epoch */
+	atomic_t timer_pending;
+	struct hrtimer timer;
+	int poll_evtchn;
+	struct timer_list poll_timer;
 };
 
 struct kvm_vcpu_arch {
@@ -753,8 +755,7 @@ struct kvm_vcpu_arch {
 	gpa_t time;
 	struct pvclock_vcpu_time_info hv_clock;
 	unsigned int hw_tsc_khz;
-	struct gfn_to_hva_cache pv_time;
-	bool pv_time_enabled;
+	struct gfn_to_pfn_cache pv_time;
 	/* set guest stopped flag in pvclock flags field */
 	bool pvclock_set_guest_stopped_request;
 
@@ -1024,9 +1025,12 @@ struct msr_bitmap_range {
 
 /* Xen emulation context */
 struct kvm_xen {
+	u32 xen_version;
 	bool long_mode;
 	u8 upcall_vector;
 	struct gfn_to_pfn_cache shinfo_cache;
+	struct idr evtchn_ports;
+	unsigned long poll_mask[BITS_TO_LONGS(KVM_MAX_VCPUS)];
 };
 
 enum kvm_irqchip_mode {
@@ -1118,6 +1122,8 @@ struct kvm_arch {
 	u64 cur_tsc_offset;
 	u64 cur_tsc_generation;
 	int nr_vcpus_matched_tsc;
+
+	u32 default_tsc_khz;
 
 	seqcount_raw_spinlock_t pvclock_sc;
 	bool use_master_clock;
@@ -1263,7 +1269,12 @@ struct kvm_vm_stat {
 
 struct kvm_vcpu_stat {
 	struct kvm_vcpu_stat_generic generic;
+	u64 pf_taken;
 	u64 pf_fixed;
+	u64 pf_emulate;
+	u64 pf_spurious;
+	u64 pf_fast;
+	u64 pf_mmio_spte_created;
 	u64 pf_guest;
 	u64 tlb_flush;
 	u64 invlpg;
@@ -1455,8 +1466,6 @@ struct kvm_x86_ops {
 	int cpu_dirty_log_size;
 	void (*update_cpu_dirty_logging)(struct kvm_vcpu *vcpu);
 
-	/* pmu operations of sub-arch */
-	const struct kvm_pmu_ops *pmu_ops;
 	const struct kvm_x86_nested_ops *nested_ops;
 
 	void (*vcpu_blocking)(struct kvm_vcpu *vcpu);
@@ -1499,11 +1508,18 @@ struct kvm_x86_ops {
 	int (*complete_emulated_msr)(struct kvm_vcpu *vcpu, int err);
 
 	void (*vcpu_deliver_sipi_vector)(struct kvm_vcpu *vcpu, u8 vector);
+
+	/*
+	 * Returns vCPU specific APICv inhibit reasons
+	 */
+	unsigned long (*vcpu_get_apicv_inhibit_reasons)(struct kvm_vcpu *vcpu);
 };
 
 struct kvm_x86_nested_ops {
 	void (*leave_nested)(struct kvm_vcpu *vcpu);
 	int (*check_events)(struct kvm_vcpu *vcpu);
+	bool (*handle_page_fault_workaround)(struct kvm_vcpu *vcpu,
+					     struct x86_exception *fault);
 	bool (*hv_timer_pending)(struct kvm_vcpu *vcpu);
 	void (*triple_fault)(struct kvm_vcpu *vcpu);
 	int (*get_state)(struct kvm_vcpu *vcpu,
@@ -1528,6 +1544,7 @@ struct kvm_x86_init_ops {
 	unsigned int (*handle_intel_pt_intr)(void);
 
 	struct kvm_x86_ops *runtime_ops;
+	struct kvm_pmu_ops *pmu_ops;
 };
 
 struct kvm_arch_async_pf {
@@ -1548,20 +1565,6 @@ extern struct kvm_x86_ops kvm_x86_ops;
 #define KVM_X86_OP_OPTIONAL KVM_X86_OP
 #define KVM_X86_OP_OPTIONAL_RET0 KVM_X86_OP
 #include <asm/kvm-x86-ops.h>
-
-static inline void kvm_ops_static_call_update(void)
-{
-#define __KVM_X86_OP(func) \
-	static_call_update(kvm_x86_##func, kvm_x86_ops.func);
-#define KVM_X86_OP(func) \
-	WARN_ON(!kvm_x86_ops.func); __KVM_X86_OP(func)
-#define KVM_X86_OP_OPTIONAL __KVM_X86_OP
-#define KVM_X86_OP_OPTIONAL_RET0(func) \
-	static_call_update(kvm_x86_##func, (void *)kvm_x86_ops.func ? : \
-					   (void *)__static_call_return0);
-#include <asm/kvm-x86-ops.h>
-#undef __KVM_X86_OP
-}
 
 #define __KVM_HAVE_ARCH_VM_ALLOC
 static inline struct kvm *kvm_arch_alloc_vm(void)
@@ -1800,6 +1803,7 @@ gpa_t kvm_mmu_gva_to_gpa_system(struct kvm_vcpu *vcpu, gva_t gva,
 				struct x86_exception *exception);
 
 bool kvm_apicv_activated(struct kvm *kvm);
+bool kvm_vcpu_apicv_activated(struct kvm_vcpu *vcpu);
 void kvm_vcpu_update_apicv(struct kvm_vcpu *vcpu);
 void __kvm_set_or_clear_apicv_inhibit(struct kvm *kvm,
 				      enum kvm_apicv_inhibit reason, bool set);
@@ -1989,6 +1993,7 @@ int memslot_rmap_alloc(struct kvm_memory_slot *slot, unsigned long npages);
 	 KVM_X86_QUIRK_CD_NW_CLEARED |		\
 	 KVM_X86_QUIRK_LAPIC_MMIO_HOLE |	\
 	 KVM_X86_QUIRK_OUT_7E_INC_RIP |		\
-	 KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT)
+	 KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT |	\
+	 KVM_X86_QUIRK_FIX_HYPERCALL_INSN)
 
 #endif /* _ASM_X86_KVM_HOST_H */

@@ -39,6 +39,8 @@ struct kvm_pmu_ops {
 	void (*cleanup)(struct kvm_vcpu *vcpu);
 };
 
+void kvm_pmu_ops_update(const struct kvm_pmu_ops *pmu_ops);
+
 static inline u64 pmc_bitmask(struct kvm_pmc *pmc)
 {
 	struct kvm_pmu *pmu = pmc_to_pmu(pmc);
@@ -84,11 +86,6 @@ static inline bool pmc_is_gp(struct kvm_pmc *pmc)
 static inline bool pmc_is_fixed(struct kvm_pmc *pmc)
 {
 	return pmc->type == KVM_PMC_FIXED;
-}
-
-static inline bool pmc_is_enabled(struct kvm_pmc *pmc)
-{
-	return kvm_x86_ops.pmu_ops->pmc_is_enabled(pmc);
 }
 
 static inline bool kvm_valid_perf_global_ctrl(struct kvm_pmu *pmu,

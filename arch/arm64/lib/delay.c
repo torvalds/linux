@@ -27,7 +27,17 @@ void __delay(unsigned long cycles)
 {
 	cycles_t start = get_cycles();
 
-	if (arch_timer_evtstrm_available()) {
+	if (cpus_have_const_cap(ARM64_HAS_WFXT)) {
+		u64 end = start + cycles;
+
+		/*
+		 * Start with WFIT. If an interrupt makes us resume
+		 * early, use a WFET loop to complete the delay.
+		 */
+		wfit(end);
+		while ((get_cycles() - start) < cycles)
+			wfet(end);
+	} else 	if (arch_timer_evtstrm_available()) {
 		const cycles_t timer_evt_period =
 			USECS_TO_CYCLES(ARCH_TIMER_EVT_STREAM_PERIOD_US);
 

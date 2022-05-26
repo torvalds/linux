@@ -80,24 +80,51 @@ static int handle_no_fpsimd(struct kvm_vcpu *vcpu)
  *
  * @vcpu:	the vcpu pointer
  *
- * WFE: Yield the CPU and come back to this vcpu when the scheduler
+ * WFE[T]: Yield the CPU and come back to this vcpu when the scheduler
  * decides to.
  * WFI: Simply call kvm_vcpu_halt(), which will halt execution of
  * world-switches and schedule other host processes until there is an
  * incoming IRQ or FIQ to the VM.
+ * WFIT: Same as WFI, with a timed wakeup implemented as a background timer
+ *
+ * WF{I,E}T can immediately return if the deadline has already expired.
  */
 static int kvm_handle_wfx(struct kvm_vcpu *vcpu)
 {
-	if (kvm_vcpu_get_esr(vcpu) & ESR_ELx_WFx_ISS_WFE) {
+	u64 esr = kvm_vcpu_get_esr(vcpu);
+
+	if (esr & ESR_ELx_WFx_ISS_WFE) {
 		trace_kvm_wfx_arm64(*vcpu_pc(vcpu), true);
 		vcpu->stat.wfe_exit_stat++;
-		kvm_vcpu_on_spin(vcpu, vcpu_mode_priv(vcpu));
 	} else {
 		trace_kvm_wfx_arm64(*vcpu_pc(vcpu), false);
 		vcpu->stat.wfi_exit_stat++;
-		kvm_vcpu_wfi(vcpu);
 	}
 
+	if (esr & ESR_ELx_WFx_ISS_WFxT) {
+		if (esr & ESR_ELx_WFx_ISS_RV) {
+			u64 val, now;
+
+			now = kvm_arm_timer_get_reg(vcpu, KVM_REG_ARM_TIMER_CNT);
+			val = vcpu_get_reg(vcpu, kvm_vcpu_sys_get_rt(vcpu));
+
+			if (now >= val)
+				goto out;
+		} else {
+			/* Treat WFxT as WFx if RN is invalid */
+			esr &= ~ESR_ELx_WFx_ISS_WFxT;
+		}
+	}
+
+	if (esr & ESR_ELx_WFx_ISS_WFE) {
+		kvm_vcpu_on_spin(vcpu, vcpu_mode_priv(vcpu));
+	} else {
+		if (esr & ESR_ELx_WFx_ISS_WFxT)
+			vcpu->arch.flags |= KVM_ARM64_WFIT;
+
+		kvm_vcpu_wfi(vcpu);
+	}
+out:
 	kvm_incr_pc(vcpu);
 
 	return 1;
@@ -169,6 +196,7 @@ static exit_handle_fn arm_exit_handlers[] = {
 	[ESR_ELx_EC_CP15_64]	= kvm_handle_cp15_64,
 	[ESR_ELx_EC_CP14_MR]	= kvm_handle_cp14_32,
 	[ESR_ELx_EC_CP14_LS]	= kvm_handle_cp14_load_store,
+	[ESR_ELx_EC_CP10_ID]	= kvm_handle_cp10_id,
 	[ESR_ELx_EC_CP14_64]	= kvm_handle_cp14_64,
 	[ESR_ELx_EC_HVC32]	= handle_hvc,
 	[ESR_ELx_EC_SMC32]	= handle_smc,
@@ -297,13 +325,8 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 	u64 elr_in_kimg = __phys_to_kimg(elr_phys);
 	u64 hyp_offset = elr_in_kimg - kaslr_offset() - elr_virt;
 	u64 mode = spsr & PSR_MODE_MASK;
+	u64 panic_addr = elr_virt + hyp_offset;
 
-	/*
-	 * The nVHE hyp symbols are not included by kallsyms to avoid issues
-	 * with aliasing. That means that the symbols cannot be printed with the
-	 * "%pS" format specifier, so fall back to the vmlinux address if
-	 * there's no better option.
-	 */
 	if (mode != PSR_MODE_EL2t && mode != PSR_MODE_EL2h) {
 		kvm_err("Invalid host exception to nVHE hyp!\n");
 	} else if (ESR_ELx_EC(esr) == ESR_ELx_EC_BRK64 &&
@@ -323,9 +346,11 @@ void __noreturn __cold nvhe_hyp_panic_handler(u64 esr, u64 spsr,
 		if (file)
 			kvm_err("nVHE hyp BUG at: %s:%u!\n", file, line);
 		else
-			kvm_err("nVHE hyp BUG at: %016llx!\n", elr_virt + hyp_offset);
+			kvm_err("nVHE hyp BUG at: [<%016llx>] %pB!\n", panic_addr,
+					(void *)panic_addr);
 	} else {
-		kvm_err("nVHE hyp panic at: %016llx!\n", elr_virt + hyp_offset);
+		kvm_err("nVHE hyp panic at: [<%016llx>] %pB!\n", panic_addr,
+				(void *)panic_addr);
 	}
 
 	/*

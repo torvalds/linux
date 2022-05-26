@@ -165,9 +165,8 @@ free_avic:
 	return err;
 }
 
-void avic_init_vmcb(struct vcpu_svm *svm)
+void avic_init_vmcb(struct vcpu_svm *svm, struct vmcb *vmcb)
 {
-	struct vmcb *vmcb = svm->vmcb;
 	struct kvm_svm *kvm_svm = to_kvm_svm(svm->vcpu.kvm);
 	phys_addr_t bpa = __sme_set(page_to_phys(svm->avic_backing_page));
 	phys_addr_t lpa = __sme_set(page_to_phys(kvm_svm->avic_logical_id_table_page));
@@ -285,11 +284,77 @@ void avic_ring_doorbell(struct kvm_vcpu *vcpu)
 	put_cpu();
 }
 
-static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
-				   u32 icrl, u32 icrh)
+/*
+ * A fast-path version of avic_kick_target_vcpus(), which attempts to match
+ * destination APIC ID to vCPU without looping through all vCPUs.
+ */
+static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source,
+				       u32 icrl, u32 icrh, u32 index)
 {
+	u32 dest, apic_id;
 	struct kvm_vcpu *vcpu;
+	int dest_mode = icrl & APIC_DEST_MASK;
+	int shorthand = icrl & APIC_SHORT_MASK;
+	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
+	u32 *avic_logical_id_table = page_address(kvm_svm->avic_logical_id_table_page);
+
+	if (shorthand != APIC_DEST_NOSHORT)
+		return -EINVAL;
+
+	/*
+	 * The AVIC incomplete IPI #vmexit info provides index into
+	 * the physical APIC ID table, which can be used to derive
+	 * guest physical APIC ID.
+	 */
+	if (dest_mode == APIC_DEST_PHYSICAL) {
+		apic_id = index;
+	} else {
+		if (!apic_x2apic_mode(source)) {
+			/* For xAPIC logical mode, the index is for logical APIC table. */
+			apic_id = avic_logical_id_table[index] & 0x1ff;
+		} else {
+			return -EINVAL;
+		}
+	}
+
+	/*
+	 * Assuming vcpu ID is the same as physical apic ID,
+	 * and use it to retrieve the target vCPU.
+	 */
+	vcpu = kvm_get_vcpu_by_id(kvm, apic_id);
+	if (!vcpu)
+		return -EINVAL;
+
+	if (apic_x2apic_mode(vcpu->arch.apic))
+		dest = icrh;
+	else
+		dest = GET_APIC_DEST_FIELD(icrh);
+
+	/*
+	 * Try matching the destination APIC ID with the vCPU.
+	 */
+	if (kvm_apic_match_dest(vcpu, source, shorthand, dest, dest_mode)) {
+		vcpu->arch.apic->irr_pending = true;
+		svm_complete_interrupt_delivery(vcpu,
+						icrl & APIC_MODE_MASK,
+						icrl & APIC_INT_LEVELTRIG,
+						icrl & APIC_VECTOR_MASK);
+		return 0;
+	}
+
+	return -EINVAL;
+}
+
+static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
+				   u32 icrl, u32 icrh, u32 index)
+{
 	unsigned long i;
+	struct kvm_vcpu *vcpu;
+
+	if (!avic_kick_target_vcpus_fast(kvm, source, icrl, icrh, index))
+		return;
+
+	trace_kvm_avic_kick_vcpu_slowpath(icrh, icrl, index);
 
 	/*
 	 * Wake any target vCPUs that are blocking, i.e. waiting for a wake
@@ -316,7 +381,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	u32 icrh = svm->vmcb->control.exit_info_1 >> 32;
 	u32 icrl = svm->vmcb->control.exit_info_1;
 	u32 id = svm->vmcb->control.exit_info_2 >> 32;
-	u32 index = svm->vmcb->control.exit_info_2 & 0xFF;
+	u32 index = svm->vmcb->control.exit_info_2 & 0x1FF;
 	struct kvm_lapic *apic = vcpu->arch.apic;
 
 	trace_kvm_avic_incomplete_ipi(vcpu->vcpu_id, icrh, icrl, id, index);
@@ -343,7 +408,7 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 		 * set the appropriate IRR bits on the valid target
 		 * vcpus. So, we just need to kick the appropriate vcpu.
 		 */
-		avic_kick_target_vcpus(vcpu->kvm, apic, icrl, icrh);
+		avic_kick_target_vcpus(vcpu->kvm, apic, icrl, icrh, index);
 		break;
 	case AVIC_IPI_FAILURE_INVALID_TARGET:
 		break;
@@ -355,6 +420,13 @@ int avic_incomplete_ipi_interception(struct kvm_vcpu *vcpu)
 	}
 
 	return 1;
+}
+
+unsigned long avic_vcpu_get_apicv_inhibit_reasons(struct kvm_vcpu *vcpu)
+{
+	if (is_guest_mode(vcpu))
+		return APICV_INHIBIT_REASON_NESTED;
+	return 0;
 }
 
 static u32 *avic_get_logical_id_entry(struct kvm_vcpu *vcpu, u32 ldr, bool flat)
