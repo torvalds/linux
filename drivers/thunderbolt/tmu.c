@@ -11,6 +11,55 @@
 
 #include "tb.h"
 
+static int tb_switch_set_tmu_mode_params(struct tb_switch *sw,
+					 enum tb_switch_tmu_rate rate)
+{
+	u32 freq_meas_wind[2] = { 30, 800 };
+	u32 avg_const[2] = { 4, 8 };
+	u32 freq, avg, val;
+	int ret;
+
+	if (rate == TB_SWITCH_TMU_RATE_NORMAL) {
+		freq = freq_meas_wind[0];
+		avg = avg_const[0];
+	} else if (rate == TB_SWITCH_TMU_RATE_HIFI) {
+		freq = freq_meas_wind[1];
+		avg = avg_const[1];
+	} else {
+		return 0;
+	}
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->tmu.cap + TMU_RTR_CS_0, 1);
+	if (ret)
+		return ret;
+
+	val &= ~TMU_RTR_CS_0_FREQ_WIND_MASK;
+	val |= FIELD_PREP(TMU_RTR_CS_0_FREQ_WIND_MASK, freq);
+
+	ret = tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			  sw->tmu.cap + TMU_RTR_CS_0, 1);
+	if (ret)
+		return ret;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH,
+			 sw->tmu.cap + TMU_RTR_CS_15, 1);
+	if (ret)
+		return ret;
+
+	val &= ~TMU_RTR_CS_15_FREQ_AVG_MASK &
+		~TMU_RTR_CS_15_DELAY_AVG_MASK &
+		~TMU_RTR_CS_15_OFFSET_AVG_MASK &
+		~TMU_RTR_CS_15_ERROR_AVG_MASK;
+	val |=  FIELD_PREP(TMU_RTR_CS_15_FREQ_AVG_MASK, avg) |
+		FIELD_PREP(TMU_RTR_CS_15_DELAY_AVG_MASK, avg) |
+		FIELD_PREP(TMU_RTR_CS_15_OFFSET_AVG_MASK, avg) |
+		FIELD_PREP(TMU_RTR_CS_15_ERROR_AVG_MASK, avg);
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH,
+			   sw->tmu.cap + TMU_RTR_CS_15, 1);
+}
+
 static const char *tb_switch_tmu_mode_name(const struct tb_switch *sw)
 {
 	bool root_switch = !tb_route(sw);
@@ -348,7 +397,7 @@ int tb_switch_tmu_disable(struct tb_switch *sw)
 
 
 	if (tb_route(sw)) {
-		bool unidirectional = tb_switch_tmu_hifi_is_enabled(sw, true);
+		bool unidirectional = sw->tmu.unidirectional;
 		struct tb_switch *parent = tb_switch_parent(sw);
 		struct tb_port *down, *up;
 		int ret;
@@ -412,6 +461,7 @@ static void __tb_switch_tmu_off(struct tb_switch *sw, bool unidirectional)
 	else
 		tb_switch_tmu_rate_write(sw, TB_SWITCH_TMU_RATE_OFF);
 
+	tb_switch_set_tmu_mode_params(sw, sw->tmu.rate);
 	tb_port_tmu_unidirectional_disable(down);
 	tb_port_tmu_unidirectional_disable(up);
 }
@@ -493,7 +543,11 @@ static int __tb_switch_tmu_enable_unidirectional(struct tb_switch *sw)
 
 	up = tb_upstream_port(sw);
 	down = tb_port_at(tb_route(sw), parent);
-	ret = tb_switch_tmu_rate_write(parent, TB_SWITCH_TMU_RATE_HIFI);
+	ret = tb_switch_tmu_rate_write(parent, sw->tmu.rate_request);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_set_tmu_mode_params(sw, sw->tmu.rate_request);
 	if (ret)
 		return ret;
 
@@ -520,7 +574,83 @@ out:
 	return ret;
 }
 
-static int tb_switch_tmu_hifi_enable(struct tb_switch *sw)
+static void __tb_switch_tmu_change_mode_prev(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *down, *up;
+
+	down = tb_port_at(tb_route(sw), parent);
+	up = tb_upstream_port(sw);
+	/*
+	 * In case of any failure in one of the steps when change mode,
+	 * get back to the TMU configurations in previous mode.
+	 * In case of additional failures in the functions below,
+	 * ignore them since the caller shall already report a failure.
+	 */
+	tb_port_tmu_set_unidirectional(down, sw->tmu.unidirectional);
+	if (sw->tmu.unidirectional_request)
+		tb_switch_tmu_rate_write(parent, sw->tmu.rate);
+	else
+		tb_switch_tmu_rate_write(sw, sw->tmu.rate);
+
+	tb_switch_set_tmu_mode_params(sw, sw->tmu.rate);
+	tb_port_tmu_set_unidirectional(up, sw->tmu.unidirectional);
+}
+
+static int __tb_switch_tmu_change_mode(struct tb_switch *sw)
+{
+	struct tb_switch *parent = tb_switch_parent(sw);
+	struct tb_port *up, *down;
+	int ret;
+
+	up = tb_upstream_port(sw);
+	down = tb_port_at(tb_route(sw), parent);
+	ret = tb_port_tmu_set_unidirectional(down, sw->tmu.unidirectional_request);
+	if (ret)
+		goto out;
+
+	if (sw->tmu.unidirectional_request)
+		ret = tb_switch_tmu_rate_write(parent, sw->tmu.rate_request);
+	else
+		ret = tb_switch_tmu_rate_write(sw, sw->tmu.rate_request);
+	if (ret)
+		return ret;
+
+	ret = tb_switch_set_tmu_mode_params(sw, sw->tmu.rate_request);
+	if (ret)
+		return ret;
+
+	ret = tb_port_tmu_set_unidirectional(up, sw->tmu.unidirectional_request);
+	if (ret)
+		goto out;
+
+	ret = tb_port_tmu_time_sync_enable(down);
+	if (ret)
+		goto out;
+
+	ret = tb_port_tmu_time_sync_enable(up);
+	if (ret)
+		goto out;
+
+	return 0;
+
+out:
+	__tb_switch_tmu_change_mode_prev(sw);
+	return ret;
+}
+
+/**
+ * tb_switch_tmu_enable() - Enable TMU on a router
+ * @sw: Router whose TMU to enable
+ *
+ * Enables TMU of a router to be in uni-directional Normal/HiFi
+ * or bi-directional HiFi mode. Calling tb_switch_tmu_configure() is required
+ * before calling this function, to select the mode Normal/HiFi and
+ * directionality (uni-directional/bi-directional).
+ * In HiFi mode all tunneling should work. In Normal mode, DP tunneling can't
+ * work. Uni-directional mode is required for CLx (Link Low-Power) to work.
+ */
+int tb_switch_tmu_enable(struct tb_switch *sw)
 {
 	bool unidirectional = sw->tmu.unidirectional_request;
 	int ret;
@@ -536,12 +666,15 @@ static int tb_switch_tmu_hifi_enable(struct tb_switch *sw)
 	if (!tb_switch_is_clx_supported(sw))
 		return 0;
 
-	if (tb_switch_tmu_hifi_is_enabled(sw, sw->tmu.unidirectional_request))
+	if (tb_switch_tmu_is_enabled(sw, sw->tmu.unidirectional_request))
 		return 0;
 
 	if (tb_switch_is_titan_ridge(sw) && unidirectional) {
-		/* Titan Ridge supports only CL0s */
-		if (!tb_switch_is_cl0s_enabled(sw))
+		/*
+		 * Titan Ridge supports CL0s and CL1 only. CL0s and CL1 are
+		 * enabled and supported together.
+		 */
+		if (!tb_switch_is_clx_enabled(sw, TB_CL1))
 			return -EOPNOTSUPP;
 
 		ret = tb_switch_tmu_objection_mask(sw);
@@ -558,12 +691,20 @@ static int tb_switch_tmu_hifi_enable(struct tb_switch *sw)
 		return ret;
 
 	if (tb_route(sw)) {
-		/* The used mode changes are from OFF to HiFi-Uni/HiFi-BiDir */
+		/*
+		 * The used mode changes are from OFF to
+		 * HiFi-Uni/HiFi-BiDir/Normal-Uni or from Normal-Uni to
+		 * HiFi-Uni.
+		 */
 		if (sw->tmu.rate == TB_SWITCH_TMU_RATE_OFF) {
 			if (unidirectional)
 				ret = __tb_switch_tmu_enable_unidirectional(sw);
 			else
 				ret = __tb_switch_tmu_enable_bidirectional(sw);
+			if (ret)
+				return ret;
+		} else if (sw->tmu.rate == TB_SWITCH_TMU_RATE_NORMAL) {
+			ret = __tb_switch_tmu_change_mode(sw);
 			if (ret)
 				return ret;
 		}
@@ -575,33 +716,15 @@ static int tb_switch_tmu_hifi_enable(struct tb_switch *sw)
 		 * of the child node - see above.
 		 * Here only the host router' rate configuration is written.
 		 */
-		ret = tb_switch_tmu_rate_write(sw, TB_SWITCH_TMU_RATE_HIFI);
+		ret = tb_switch_tmu_rate_write(sw, sw->tmu.rate_request);
 		if (ret)
 			return ret;
 	}
 
-	sw->tmu.rate = TB_SWITCH_TMU_RATE_HIFI;
+	sw->tmu.rate = sw->tmu.rate_request;
 
 	tb_sw_dbg(sw, "TMU: mode set to: %s\n", tb_switch_tmu_mode_name(sw));
 	return tb_switch_tmu_set_time_disruption(sw, false);
-}
-
-/**
- * tb_switch_tmu_enable() - Enable TMU on a router
- * @sw: Router whose TMU to enable
- *
- * Enables TMU of a router to be in uni-directional or bi-directional HiFi mode.
- * Calling tb_switch_tmu_configure() is required before calling this function,
- * to select the mode HiFi and directionality (uni-directional/bi-directional).
- * In both modes all tunneling should work. Uni-directional mode is required for
- * CLx (Link Low-Power) to work.
- */
-int tb_switch_tmu_enable(struct tb_switch *sw)
-{
-	if (sw->tmu.rate_request == TB_SWITCH_TMU_RATE_NORMAL)
-		return -EOPNOTSUPP;
-
-	return tb_switch_tmu_hifi_enable(sw);
 }
 
 /**

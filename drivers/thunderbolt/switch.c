@@ -3133,10 +3133,12 @@ void tb_switch_suspend(struct tb_switch *sw, bool runtime)
 	/*
 	 * Actually only needed for Titan Ridge but for simplicity can be
 	 * done for USB4 device too as CLx is re-enabled at resume.
+	 * CL0s and CL1 are enabled and supported together.
 	 */
-	if (tb_switch_is_clx_enabled(sw)) {
-		if (tb_switch_disable_clx(sw, TB_CL0S))
-			tb_sw_warn(sw, "failed to disable CLx on upstream port\n");
+	if (tb_switch_is_clx_enabled(sw, TB_CL1)) {
+		if (tb_switch_disable_clx(sw, TB_CL1))
+			tb_sw_warn(sw, "failed to disable %s on upstream port\n",
+				   tb_switch_clx_name(TB_CL1));
 	}
 
 	err = tb_plug_events_active(sw, false);
@@ -3428,13 +3430,12 @@ static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
 	}
 
 	switch (clx) {
-	case TB_CL0S:
-		/* CL0s support requires also CL1 support */
+	case TB_CL1:
+		/* CL0s and CL1 are enabled and supported together */
 		mask = LANE_ADP_CS_0_CL0S_SUPPORT | LANE_ADP_CS_0_CL1_SUPPORT;
 		break;
 
-	/* For now we support only CL0s. Not CL1, CL2 */
-	case TB_CL1:
+	/* For now we support only CL0s and CL1. Not CL2 */
 	case TB_CL2:
 	default:
 		return false;
@@ -3448,18 +3449,18 @@ static bool tb_port_clx_supported(struct tb_port *port, enum tb_clx clx)
 	return !!(val & mask);
 }
 
-static inline bool tb_port_cl0s_supported(struct tb_port *port)
-{
-	return tb_port_clx_supported(port, TB_CL0S);
-}
-
-static int __tb_port_cl0s_set(struct tb_port *port, bool enable)
+static int __tb_port_clx_set(struct tb_port *port, enum tb_clx clx, bool enable)
 {
 	u32 phy, mask;
 	int ret;
 
-	/* To enable CL0s also required to enable CL1 */
-	mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
+	/* CL0s and CL1 are enabled and supported together */
+	if (clx == TB_CL1)
+		mask = LANE_ADP_CS_1_CL0S_ENABLE | LANE_ADP_CS_1_CL1_ENABLE;
+	else
+		/* For now we support only CL0s and CL1. Not CL2 */
+		return -EOPNOTSUPP;
+
 	ret = tb_port_read(port, &phy, TB_CFG_PORT,
 			   port->cap_phy + LANE_ADP_CS_1, 1);
 	if (ret)
@@ -3474,20 +3475,20 @@ static int __tb_port_cl0s_set(struct tb_port *port, bool enable)
 			     port->cap_phy + LANE_ADP_CS_1, 1);
 }
 
-static int tb_port_cl0s_disable(struct tb_port *port)
+static int tb_port_clx_disable(struct tb_port *port, enum tb_clx clx)
 {
-	return __tb_port_cl0s_set(port, false);
+	return __tb_port_clx_set(port, clx, false);
 }
 
-static int tb_port_cl0s_enable(struct tb_port *port)
+static int tb_port_clx_enable(struct tb_port *port, enum tb_clx clx)
 {
-	return __tb_port_cl0s_set(port, true);
+	return __tb_port_clx_set(port, clx, true);
 }
 
-static int tb_switch_enable_cl0s(struct tb_switch *sw)
+static int __tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 {
 	struct tb_switch *parent = tb_switch_parent(sw);
-	bool up_cl0s_support, down_cl0s_support;
+	bool up_clx_support, down_clx_support;
 	struct tb_port *up, *down;
 	int ret;
 
@@ -3512,37 +3513,37 @@ static int tb_switch_enable_cl0s(struct tb_switch *sw)
 	up = tb_upstream_port(sw);
 	down = tb_port_at(tb_route(sw), parent);
 
-	up_cl0s_support = tb_port_cl0s_supported(up);
-	down_cl0s_support = tb_port_cl0s_supported(down);
+	up_clx_support = tb_port_clx_supported(up, clx);
+	down_clx_support = tb_port_clx_supported(down, clx);
 
-	tb_port_dbg(up, "CL0s %ssupported\n",
-		    up_cl0s_support ? "" : "not ");
-	tb_port_dbg(down, "CL0s %ssupported\n",
-		    down_cl0s_support ? "" : "not ");
+	tb_port_dbg(up, "%s %ssupported\n", tb_switch_clx_name(clx),
+		    up_clx_support ? "" : "not ");
+	tb_port_dbg(down, "%s %ssupported\n", tb_switch_clx_name(clx),
+		    down_clx_support ? "" : "not ");
 
-	if (!up_cl0s_support || !down_cl0s_support)
+	if (!up_clx_support || !down_clx_support)
 		return -EOPNOTSUPP;
 
-	ret = tb_port_cl0s_enable(up);
+	ret = tb_port_clx_enable(up, clx);
 	if (ret)
 		return ret;
 
-	ret = tb_port_cl0s_enable(down);
+	ret = tb_port_clx_enable(down, clx);
 	if (ret) {
-		tb_port_cl0s_disable(up);
+		tb_port_clx_disable(up, clx);
 		return ret;
 	}
 
 	ret = tb_switch_mask_clx_objections(sw);
 	if (ret) {
-		tb_port_cl0s_disable(up);
-		tb_port_cl0s_disable(down);
+		tb_port_clx_disable(up, clx);
+		tb_port_clx_disable(down, clx);
 		return ret;
 	}
 
-	sw->clx = TB_CL0S;
+	sw->clx = clx;
 
-	tb_port_dbg(up, "CL0s enabled\n");
+	tb_port_dbg(up, "%s enabled\n", tb_switch_clx_name(clx));
 	return 0;
 }
 
@@ -3575,15 +3576,16 @@ int tb_switch_enable_clx(struct tb_switch *sw, enum tb_clx clx)
 		return 0;
 
 	switch (clx) {
-	case TB_CL0S:
-		return tb_switch_enable_cl0s(sw);
+	case TB_CL1:
+		/* CL0s and CL1 are enabled and supported together */
+		return __tb_switch_enable_clx(sw, clx);
 
 	default:
 		return -EOPNOTSUPP;
 	}
 }
 
-static int tb_switch_disable_cl0s(struct tb_switch *sw)
+static int __tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 {
 	struct tb_switch *parent = tb_switch_parent(sw);
 	struct tb_port *up, *down;
@@ -3605,17 +3607,17 @@ static int tb_switch_disable_cl0s(struct tb_switch *sw)
 
 	up = tb_upstream_port(sw);
 	down = tb_port_at(tb_route(sw), parent);
-	ret = tb_port_cl0s_disable(up);
+	ret = tb_port_clx_disable(up, clx);
 	if (ret)
 		return ret;
 
-	ret = tb_port_cl0s_disable(down);
+	ret = tb_port_clx_disable(down, clx);
 	if (ret)
 		return ret;
 
 	sw->clx = TB_CLX_DISABLE;
 
-	tb_port_dbg(up, "CL0s disabled\n");
+	tb_port_dbg(up, "%s disabled\n", tb_switch_clx_name(clx));
 	return 0;
 }
 
@@ -3632,8 +3634,9 @@ int tb_switch_disable_clx(struct tb_switch *sw, enum tb_clx clx)
 		return 0;
 
 	switch (clx) {
-	case TB_CL0S:
-		return tb_switch_disable_cl0s(sw);
+	case TB_CL1:
+		/* CL0s and CL1 are enabled and supported together */
+		return __tb_switch_disable_clx(sw, clx);
 
 	default:
 		return -EOPNOTSUPP;
