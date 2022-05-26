@@ -2124,6 +2124,7 @@ void mt7915_mac_reset_work(struct work_struct *work)
 	struct mt7915_phy *phy2;
 	struct mt76_phy *ext_phy;
 	struct mt7915_dev *dev;
+	int i;
 
 	dev = container_of(work, struct mt7915_dev, reset_work);
 	ext_phy = dev->mt76.phy2;
@@ -2145,9 +2146,8 @@ void mt7915_mac_reset_work(struct work_struct *work)
 		cancel_delayed_work_sync(&phy2->mt76->mac_work);
 	}
 	mt76_worker_disable(&dev->mt76.tx_worker);
-	napi_disable(&dev->mt76.napi[0]);
-	napi_disable(&dev->mt76.napi[1]);
-	napi_disable(&dev->mt76.napi[2]);
+	mt76_for_each_q_rx(&dev->mt76, i)
+		napi_disable(&dev->mt76.napi[i]);
 	napi_disable(&dev->mt76.tx_napi);
 
 	mutex_lock(&dev->mt76.mutex);
@@ -2170,14 +2170,10 @@ void mt7915_mac_reset_work(struct work_struct *work)
 		clear_bit(MT76_RESET, &phy2->mt76->state);
 
 	local_bh_disable();
-	napi_enable(&dev->mt76.napi[0]);
-	napi_schedule(&dev->mt76.napi[0]);
-
-	napi_enable(&dev->mt76.napi[1]);
-	napi_schedule(&dev->mt76.napi[1]);
-
-	napi_enable(&dev->mt76.napi[2]);
-	napi_schedule(&dev->mt76.napi[2]);
+	mt76_for_each_q_rx(&dev->mt76, i) {
+		napi_enable(&dev->mt76.napi[i]);
+		napi_schedule(&dev->mt76.napi[i]);
+	}
 	local_bh_enable();
 
 	tasklet_schedule(&dev->irq_tasklet);
