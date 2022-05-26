@@ -310,8 +310,8 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg, int width, i
 		pr_err("stream id %d config failed\n", stream->id);
 		return -EINVAL;
 	}
-
-	rkisp_dvbm_init(stream);
+	if (stream->ispdev->cap_dev.wrap_line && stream->id == RKISP_STREAM_MP)
+		rkisp_dvbm_init(stream);
 
 	if (stream->curr_buf) {
 		list_add_tail(&stream->curr_buf->queue, &stream->buf_queue);
