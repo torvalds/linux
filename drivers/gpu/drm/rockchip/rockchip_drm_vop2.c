@@ -4325,11 +4325,10 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 	 */
 	if (win->splice_mode_right) {
 		splice_pixel_offset = (src->x1 - left_src->x1) >> 16;
-		splice_yrgb_offset = splice_pixel_offset * fb->format->cpp[0];
-
+		splice_yrgb_offset = drm_format_info_min_pitch(fb->format, 0, splice_pixel_offset);
 		if (fb->format->is_yuv && fb->format->num_planes > 1) {
 			hsub = fb->format->hsub;
-			splice_uv_offset = splice_pixel_offset * fb->format->cpp[1] / hsub;
+			splice_uv_offset = drm_format_info_min_pitch(fb->format, 1, splice_pixel_offset / hsub);
 		}
 	}
 
