@@ -389,6 +389,7 @@ static int bmi088_accel_read_avail(struct iio_dev *indio_dev,
 			     long mask)
 {
 	struct bmi088_accel_data *data = iio_priv(indio_dev);
+
 	switch (mask) {
 	case IIO_CHAN_INFO_SCALE:
 		*vals = (const int *)data->chip_info->scale_table;
@@ -464,8 +465,8 @@ static const struct iio_chan_spec bmi088_accel_channels[] = {
 };
 
 static const struct bmi088_accel_chip_info bmi088_accel_chip_info_tbl[] = {
-	[0] = {
-		.name = "bmi088a",
+	[BOSCH_BMI088] = {
+		.name = "bmi088-accel",
 		.chip_id = 0x1E,
 		.channels = bmi088_accel_channels,
 		.num_channels = ARRAY_SIZE(bmi088_accel_channels),
@@ -484,11 +485,14 @@ static const unsigned long bmi088_accel_scan_masks[] = {
 	0
 };
 
-static int bmi088_accel_chip_init(struct bmi088_accel_data *data)
+static int bmi088_accel_chip_init(struct bmi088_accel_data *data, enum bmi_device_type type)
 {
 	struct device *dev = regmap_get_device(data->regmap);
 	int ret, i;
 	unsigned int val;
+
+	if (type >= BOSCH_UNKNOWN)
+		return -ENODEV;
 
 	/* Do a dummy read to enable SPI interface, won't harm I2C */
 	regmap_read(data->regmap, BMI088_ACCEL_REG_INT_STATUS, &val);
@@ -515,22 +519,23 @@ static int bmi088_accel_chip_init(struct bmi088_accel_data *data)
 	}
 
 	/* Validate chip ID */
-	for (i = 0; i < ARRAY_SIZE(bmi088_accel_chip_info_tbl); i++) {
-		if (bmi088_accel_chip_info_tbl[i].chip_id == val) {
-			data->chip_info = &bmi088_accel_chip_info_tbl[i];
+	for (i = 0; i < ARRAY_SIZE(bmi088_accel_chip_info_tbl); i++)
+		if (bmi088_accel_chip_info_tbl[i].chip_id == val)
 			break;
-		}
-	}
-	if (i == ARRAY_SIZE(bmi088_accel_chip_info_tbl)) {
-		dev_err(dev, "Invalid chip %x\n", val);
-		return -ENODEV;
-	}
+
+	if (i == ARRAY_SIZE(bmi088_accel_chip_info_tbl))
+		data->chip_info = &bmi088_accel_chip_info_tbl[type];
+	else
+		data->chip_info = &bmi088_accel_chip_info_tbl[i];
+
+	if (i != type)
+		dev_warn(dev, "unexpected chip id 0x%X\n", val);
 
 	return 0;
 }
 
 int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
-	int irq, const char *name, bool block_supported)
+	int irq, enum bmi_device_type type)
 {
 	struct bmi088_accel_data *data;
 	struct iio_dev *indio_dev;
@@ -545,13 +550,13 @@ int bmi088_accel_core_probe(struct device *dev, struct regmap *regmap,
 
 	data->regmap = regmap;
 
-	ret = bmi088_accel_chip_init(data);
+	ret = bmi088_accel_chip_init(data, type);
 	if (ret)
 		return ret;
 
 	indio_dev->channels = data->chip_info->channels;
 	indio_dev->num_channels = data->chip_info->num_channels;
-	indio_dev->name = name ? name : data->chip_info->name;
+	indio_dev->name = data->chip_info->name;
 	indio_dev->available_scan_masks = bmi088_accel_scan_masks;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 	indio_dev->info = &bmi088_accel_info;
