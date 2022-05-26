@@ -622,6 +622,28 @@ static int rk_pcie_ep_atu_init(struct rk_pcie *rk_pcie)
 	return 0;
 }
 
+#if defined(CONFIG_PCIEASPM)
+static void disable_aspm_l1ss(struct rk_pcie *rk_pcie)
+{
+	u32 val, cfg_link_cap_l1sub;
+
+	val = dw_pcie_find_ext_capability(rk_pcie->pci, PCI_EXT_CAP_ID_L1SS);
+	if (!val) {
+		dev_err(rk_pcie->pci->dev, "can't find l1ss cap\n");
+
+		return;
+	}
+
+	cfg_link_cap_l1sub = val + PCI_L1SS_CAP;
+
+	val = dw_pcie_readl_dbi(rk_pcie->pci, cfg_link_cap_l1sub);
+	val &= ~(PCI_L1SS_CAP_ASPM_L1_1 | PCI_L1SS_CAP_ASPM_L1_2 | PCI_L1SS_CAP_L1_PM_SS);
+	dw_pcie_writel_dbi(rk_pcie->pci, cfg_link_cap_l1sub, val);
+}
+#else
+static inline void disable_aspm_l1ss(struct rk_pcie *rk_pcie) { return; }
+#endif
+
 static inline void rk_pcie_set_mode(struct rk_pcie *rk_pcie)
 {
 	switch (rk_pcie->mode) {
@@ -635,6 +657,7 @@ static inline void rk_pcie_set_mode(struct rk_pcie *rk_pcie)
 		} else {
 			/* Pull down CLKREQ# to assert the connecting CLOCK_GEN OE */
 			rk_pcie_writel_apb(rk_pcie, PCIE_CLIENT_POWER, 0x30011000);
+			disable_aspm_l1ss(rk_pcie);
 		}
 		rk_pcie_writel_apb(rk_pcie, 0x0, 0xf00040);
 		/*
