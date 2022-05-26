@@ -186,9 +186,6 @@ void dev_pm_opp_clear_config(int token);
 
 struct opp_table *dev_pm_opp_set_prop_name(struct device *dev, const char *name);
 void dev_pm_opp_put_prop_name(struct opp_table *opp_table);
-struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev, int (*set_opp)(struct dev_pm_set_opp_data *data));
-void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table);
-int devm_pm_opp_register_set_opp_helper(struct device *dev, int (*set_opp)(struct dev_pm_set_opp_data *data));
 struct opp_table *dev_pm_opp_attach_genpd(struct device *dev, const char * const *names, struct device ***virt_devs);
 void dev_pm_opp_detach_genpd(struct opp_table *opp_table);
 int devm_pm_opp_attach_genpd(struct device *dev, const char * const *names, struct device ***virt_devs);
@@ -359,20 +356,6 @@ static inline int dev_pm_opp_register_notifier(struct device *dev, struct notifi
 }
 
 static inline int dev_pm_opp_unregister_notifier(struct device *dev, struct notifier_block *nb)
-{
-	return -EOPNOTSUPP;
-}
-
-static inline struct opp_table *dev_pm_opp_register_set_opp_helper(struct device *dev,
-			int (*set_opp)(struct dev_pm_set_opp_data *data))
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void dev_pm_opp_unregister_set_opp_helper(struct opp_table *opp_table) {}
-
-static inline int devm_pm_opp_register_set_opp_helper(struct device *dev,
-				    int (*set_opp)(struct dev_pm_set_opp_data *data))
 {
 	return -EOPNOTSUPP;
 }
@@ -638,6 +621,22 @@ static inline int devm_pm_opp_set_clkname(struct device *dev, const char *name)
 	};
 
 	return devm_pm_opp_set_config(dev, &config);
+}
+
+/* set-opp helpers */
+static inline int dev_pm_opp_register_set_opp_helper(struct device *dev,
+			int (*set_opp)(struct dev_pm_set_opp_data *data))
+{
+	struct dev_pm_opp_config config = {
+		.set_opp = set_opp,
+	};
+
+	return dev_pm_opp_set_config(dev, &config);
+}
+
+static inline void dev_pm_opp_unregister_set_opp_helper(int token)
+{
+	dev_pm_opp_clear_config(token);
 }
 
 #endif		/* __LINUX_OPP_H__ */

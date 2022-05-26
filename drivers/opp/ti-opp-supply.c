@@ -405,9 +405,9 @@ static int ti_opp_supply_probe(struct platform_device *pdev)
 			return ret;
 	}
 
-	ret = PTR_ERR_OR_ZERO(dev_pm_opp_register_set_opp_helper(cpu_dev,
-								 ti_opp_supply_set_opp));
-	if (ret)
+	ret = dev_pm_opp_register_set_opp_helper(cpu_dev,
+						 ti_opp_supply_set_opp);
+	if (ret < 0)
 		_free_optimized_voltages(dev, &opp_data);
 
 	return ret;
