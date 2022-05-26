@@ -11065,6 +11065,7 @@ static void io_destroy_buffers(struct io_ring_ctx *ctx)
 	xa_for_each(&ctx->io_bl_xa, index, bl) {
 		xa_erase(&ctx->io_bl_xa, bl->bgid);
 		__io_remove_buffers(ctx, bl, -1U);
+		kfree(bl);
 	}
 
 	while (!list_empty(&ctx->io_buffers_pages)) {
