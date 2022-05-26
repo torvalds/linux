@@ -398,6 +398,14 @@ static void finish_compressed_bio_write(struct compressed_bio *cb)
 	kfree(cb);
 }
 
+static void btrfs_finish_compressed_write_work(struct work_struct *work)
+{
+	struct compressed_bio *cb =
+		container_of(work, struct compressed_bio, write_end_work);
+
+	finish_compressed_bio_write(cb);
+}
+
 /*
  * Do the cleanup once all the compressed pages hit the disk.  This will clear
  * writeback on the file pages and free the compressed pages.
@@ -409,27 +417,13 @@ static void end_compressed_bio_write(struct bio *bio)
 {
 	struct compressed_bio *cb = bio->bi_private;
 
-	if (!dec_and_test_compressed_bio(cb, bio))
-		goto out;
+	if (dec_and_test_compressed_bio(cb, bio)) {
+		struct btrfs_fs_info *fs_info = btrfs_sb(cb->inode->i_sb);
 
-	btrfs_record_physical_zoned(cb->inode, cb->start, bio);
-
-	finish_compressed_bio_write(cb);
-out:
+		btrfs_record_physical_zoned(cb->inode, cb->start, bio);
+		queue_work(fs_info->compressed_write_workers, &cb->write_end_work);
+	}
 	bio_put(bio);
-}
-
-static blk_status_t submit_compressed_bio(struct btrfs_fs_info *fs_info,
-					  struct bio *bio, int mirror_num)
-{
-	blk_status_t ret;
-
-	ASSERT(bio->bi_iter.bi_size);
-	ret = btrfs_bio_wq_end_io(fs_info, bio, BTRFS_WQ_ENDIO_DATA);
-	if (ret)
-		return ret;
-	ret = btrfs_map_bio(fs_info, bio, mirror_num);
-	return ret;
 }
 
 /*
@@ -528,7 +522,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 	cb->compressed_pages = compressed_pages;
 	cb->compressed_len = compressed_len;
 	cb->writeback = writeback;
-	cb->orig_bio = NULL;
+	INIT_WORK(&cb->write_end_work, btrfs_finish_compressed_write_work);
 	cb->nr_pages = nr_pages;
 
 	if (blkcg_css)
@@ -598,7 +592,8 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 					goto finish_cb;
 			}
 
-			ret = submit_compressed_bio(fs_info, bio, 0);
+			ASSERT(bio->bi_iter.bi_size);
+			ret = btrfs_map_bio(fs_info, bio, 0);
 			if (ret)
 				goto finish_cb;
 			bio = NULL;
@@ -935,7 +930,12 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 						  fs_info->sectorsize);
 			sums += fs_info->csum_size * nr_sectors;
 
-			ret = submit_compressed_bio(fs_info, comp_bio, mirror_num);
+			ASSERT(comp_bio->bi_iter.bi_size);
+			ret = btrfs_bio_wq_end_io(fs_info, comp_bio,
+						  BTRFS_WQ_ENDIO_DATA);
+			if (ret)
+				goto finish_cb;
+			ret = btrfs_map_bio(fs_info, comp_bio, mirror_num);
 			if (ret)
 				goto finish_cb;
 			comp_bio = NULL;
