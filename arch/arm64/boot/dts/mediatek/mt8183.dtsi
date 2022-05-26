@@ -581,8 +581,8 @@
 	};
 
 	psci {
-		compatible      = "arm,psci-1.0";
-		method          = "smc";
+		compatible = "arm,psci-1.0";
+		method = "smc";
 	};
 
 	clk26m: oscillator {
@@ -790,7 +790,7 @@
 
 				power-domain@MT8183_POWER_DOMAIN_MFG_ASYNC {
 					reg = <MT8183_POWER_DOMAIN_MFG_ASYNC>;
-					clocks =  <&topckgen CLK_TOP_MUX_MFG>;
+					clocks = <&topckgen CLK_TOP_MUX_MFG>;
 					clock-names = "mfg";
 					#address-cells = <1>;
 					#size-cells = <0>;
@@ -1448,7 +1448,7 @@
 		};
 
 		ssusb: usb@11201000 {
-			compatible ="mediatek,mt8183-mtu3", "mediatek,mtu3";
+			compatible = "mediatek,mt8183-mtu3", "mediatek,mtu3";
 			reg = <0 0x11201000 0 0x2e00>,
 			      <0 0x11203e00 0 0x0100>;
 			reg-names = "mac", "ippc";

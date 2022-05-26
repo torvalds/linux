@@ -336,14 +336,14 @@
 	i2c1_pins: i2c1-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c1_0";
+			groups = "i2c1_0";
 		};
 	};
 
 	i2c2_pins: i2c2-pins {
 		mux {
 			function = "i2c";
-			groups =  "i2c2_0";
+			groups = "i2c2_0";
 		};
 	};
 
@@ -366,14 +366,14 @@
 	irrx_pins: irrx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_rx";
+			groups = "ir_1_rx";
 		};
 	};
 
 	irtx_pins: irtx-pins {
 		mux {
 			function = "ir";
-			groups =  "ir_1_tx";
+			groups = "ir_1_tx";
 		};
 	};
 

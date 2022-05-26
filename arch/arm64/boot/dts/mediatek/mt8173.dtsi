@@ -246,9 +246,9 @@
 	psci {
 		compatible = "arm,psci-1.0", "arm,psci-0.2", "arm,psci";
 		method = "smc";
-		cpu_suspend   = <0x84000001>;
-		cpu_off	      = <0x84000002>;
-		cpu_on	      = <0x84000003>;
+		cpu_suspend = <0x84000001>;
+		cpu_off	 = <0x84000002>;
+		cpu_on	 = <0x84000003>;
 	};
 
 	clk26m: oscillator0 {
@@ -1505,7 +1505,7 @@
 
 		vcodec_enc_vp8: vcodec@19002000 {
 			compatible = "mediatek,mt8173-vcodec-enc-vp8";
-			reg =  <0 0x19002000 0 0x1000>; /* VENC_LT_SYS */
+			reg = <0 0x19002000 0 0x1000>; /* VENC_LT_SYS */
 			interrupts = <GIC_SPI 202 IRQ_TYPE_LEVEL_LOW>;
 			iommus = <&iommu M4U_PORT_VENC_RCPU_SET2>,
 				 <&iommu M4U_PORT_VENC_REC_FRM_SET2>,
