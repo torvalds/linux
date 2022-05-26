@@ -1035,11 +1035,13 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cam;
 	}
 
+#ifdef UNUSED_CODE
 	vin->isp1_irq = platform_get_irq(pdev, 2);
 	if (vin->isp1_irq <= 0) {
 		st_err(ST_CAMSS, "Could not get isp1 irq\n");
 		goto err_cam;
 	}
+#endif
 
 	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
 	stfcamss->sys_clk = stfcamss_clocks;

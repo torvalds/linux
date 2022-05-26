@@ -321,8 +321,9 @@
 };
 
 &vin_sysctl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&dvp_pins>;
+	/* when use dvp open this pinctrl*/
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&dvp_pins>;
 	status = "okay";
 
 	ports {
