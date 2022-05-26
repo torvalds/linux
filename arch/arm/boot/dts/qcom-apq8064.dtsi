@@ -430,8 +430,8 @@
 		};
 
 		sps_sic_non_secure: sps-sic-non-secure@12100000 {
-			compatible	= "syscon";
-			reg		= <0x12100000 0x10000>;
+			compatible = "syscon";
+			reg = <0x12100000 0x10000>;
 		};
 
 		gsbi1: gsbi@12440000 {
@@ -836,22 +836,22 @@
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible	= "qcom,kpss-gcc", "syscon";
-			reg		= <0x2011000 0x1000>;
+			compatible = "qcom,kpss-gcc", "syscon";
+			reg = <0x2011000 0x1000>;
 		};
 
 		rpm@108000 {
-			compatible	= "qcom,rpm-apq8064";
-			reg		= <0x108000 0x1000>;
-			qcom,ipc	= <&l2cc 0x8 2>;
+			compatible = "qcom,rpm-apq8064";
+			reg = <0x108000 0x1000>;
+			qcom,ipc = <&l2cc 0x8 2>;
 
-			interrupts	= <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
-					  <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
-					  <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
-			interrupt-names	= "ack", "err", "wakeup";
+			interrupts = <GIC_SPI 19 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 21 IRQ_TYPE_EDGE_RISING>,
+				     <GIC_SPI 22 IRQ_TYPE_EDGE_RISING>;
+			interrupt-names = "ack", "err", "wakeup";
 
 			rpmcc: clock-controller {
-				compatible	= "qcom,rpmcc-apq8064", "qcom,rpmcc";
+				compatible = "qcom,rpmcc-apq8064", "qcom,rpmcc";
 				#clock-cells = <1>;
 			};
 
@@ -1004,39 +1004,39 @@
 		};
 
 		sata_phy0: phy@1b400000 {
-			compatible	= "qcom,apq8064-sata-phy";
-			status		= "disabled";
-			reg		= <0x1b400000 0x200>;
-			reg-names	= "phy_mem";
-			clocks		= <&gcc SATA_PHY_CFG_CLK>;
-			clock-names	= "cfg";
-			#phy-cells	= <0>;
+			compatible = "qcom,apq8064-sata-phy";
+			status = "disabled";
+			reg = <0x1b400000 0x200>;
+			reg-names = "phy_mem";
+			clocks = <&gcc SATA_PHY_CFG_CLK>;
+			clock-names = "cfg";
+			#phy-cells = <0>;
 		};
 
 		sata0: sata@29000000 {
-			compatible		= "qcom,apq8064-ahci", "generic-ahci";
-			status			= "disabled";
-			reg			= <0x29000000 0x180>;
-			interrupts		= <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
+			compatible = "qcom,apq8064-ahci", "generic-ahci";
+			status	 = "disabled";
+			reg	 = <0x29000000 0x180>;
+			interrupts = <GIC_SPI 209 IRQ_TYPE_LEVEL_HIGH>;
 
-			clocks			= <&gcc SFAB_SATA_S_H_CLK>,
-						<&gcc SATA_H_CLK>,
-						<&gcc SATA_A_CLK>,
-						<&gcc SATA_RXOOB_CLK>,
-						<&gcc SATA_PMALIVE_CLK>;
-			clock-names		= "slave_iface",
-						"iface",
-						"bus",
-						"rxoob",
-						"core_pmalive";
+			clocks = <&gcc SFAB_SATA_S_H_CLK>,
+				 <&gcc SATA_H_CLK>,
+				 <&gcc SATA_A_CLK>,
+				 <&gcc SATA_RXOOB_CLK>,
+				 <&gcc SATA_PMALIVE_CLK>;
+			clock-names = "slave_iface",
+				      "iface",
+				      "bus",
+				      "rxoob",
+				      "core_pmalive";
 
-			assigned-clocks		= <&gcc SATA_RXOOB_CLK>,
-						<&gcc SATA_PMALIVE_CLK>;
-			assigned-clock-rates	= <100000000>, <100000000>;
+			assigned-clocks = <&gcc SATA_RXOOB_CLK>,
+					  <&gcc SATA_PMALIVE_CLK>;
+			assigned-clock-rates = <100000000>, <100000000>;
 
-			phys			= <&sata_phy0>;
-			phy-names		= "sata-phy";
-			ports-implemented	= <0x1>;
+			phys = <&sata_phy0>;
+			phy-names = "sata-phy";
+			ports-implemented = <0x1>;
 		};
 
 		/* Temporary fixed regulator */
@@ -1076,18 +1076,18 @@
 			#size-cells = <1>;
 			ranges;
 			sdcc1: mmc@12400000 {
-				status		= "disabled";
-				compatible	= "arm,pl18x", "arm,primecell";
-				pinctrl-names	= "default";
-				pinctrl-0	= <&sdcc1_pins>;
+				status = "disabled";
+				compatible = "arm,pl18x", "arm,primecell";
+				pinctrl-names = "default";
+				pinctrl-0 = <&sdcc1_pins>;
 				arm,primecell-periphid = <0x00051180>;
-				reg		= <0x12400000 0x2000>;
-				interrupts	= <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <8>;
-				max-frequency	= <96000000>;
+				reg = <0x12400000 0x2000>;
+				interrupts = <GIC_SPI 104 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC1_CLK>, <&gcc SDC1_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <8>;
+				max-frequency = <96000000>;
 				non-removable;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
@@ -1096,36 +1096,36 @@
 			};
 
 			sdcc3: mmc@12180000 {
-				compatible	= "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				status		= "disabled";
-				reg		= <0x12180000 0x2000>;
-				interrupts	= <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <4>;
+				status = "disabled";
+				reg = <0x12180000 0x2000>;
+				interrupts = <GIC_SPI 102 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC3_CLK>, <&gcc SDC3_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <4>;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				max-frequency	= <192000000>;
+				max-frequency = <192000000>;
 				no-1-8-v;
 				dmas = <&sdcc3bam 2>, <&sdcc3bam 1>;
 				dma-names = "tx", "rx";
 			};
 
 			sdcc4: mmc@121c0000 {
-				compatible	= "arm,pl18x", "arm,primecell";
+				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
-				status		= "disabled";
-				reg		= <0x121c0000 0x2000>;
-				interrupts	= <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
-				interrupt-names	= "cmd_irq";
-				clocks		= <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
-				clock-names	= "mclk", "apb_pclk";
-				bus-width	= <4>;
+				status = "disabled";
+				reg = <0x121c0000 0x2000>;
+				interrupts = <GIC_SPI 101 IRQ_TYPE_LEVEL_HIGH>;
+				interrupt-names = "cmd_irq";
+				clocks = <&gcc SDC4_CLK>, <&gcc SDC4_H_CLK>;
+				clock-names = "mclk", "apb_pclk";
+				bus-width = <4>;
 				cap-sd-highspeed;
 				cap-mmc-highspeed;
-				max-frequency	= <48000000>;
+				max-frequency = <48000000>;
 				dmas = <&sdcc4bam 2>, <&sdcc4bam 1>;
 				dma-names = "tx", "rx";
 				pinctrl-names = "default";

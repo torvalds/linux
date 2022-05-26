@@ -78,9 +78,9 @@
 
 &imem {
 	reboot-mode {
-		mode-normal	= <0x77665501>;
-		mode-bootloader	= <0x77665500>;
-		mode-recovery	= <0x77665502>;
+		mode-normal = <0x77665501>;
+		mode-bootloader = <0x77665500>;
+		mode-recovery = <0x77665502>;
 	};
 };
 
