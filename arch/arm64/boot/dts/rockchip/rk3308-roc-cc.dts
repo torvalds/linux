@@ -147,9 +147,6 @@
 };
 
 &pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&rtc_32k>;
-
 	ir-receiver {
 		ir_recv_pin: ir-recv-pin  {
 			rockchip,pins = <0 RK_PC0 RK_FUNC_GPIO &pcfg_pull_none>;
