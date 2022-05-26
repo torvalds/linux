@@ -171,6 +171,9 @@ void dccg32_set_dtbclk_dto(
 		REG_UPDATE_2(OTG_PIXEL_RATE_CNTL[params->otg_inst],
 				DTBCLK_DTO_ENABLE[params->otg_inst], 0,
 				PIPE_DTO_SRC_SEL[params->otg_inst], 1);
+		if (params->is_hdmi)
+			REG_UPDATE(OTG_PIXEL_RATE_CNTL[params->otg_inst],
+				PIPE_DTO_SRC_SEL[params->otg_inst], 0);
 
 		REG_WRITE(DTBCLK_DTO_MODULO[params->otg_inst], 0);
 		REG_WRITE(DTBCLK_DTO_PHASE[params->otg_inst], 0);
@@ -188,6 +191,7 @@ static void dccg32_set_valid_pixel_rate(
 	dto_params.ref_dtbclk_khz = ref_dtbclk_khz;
 	dto_params.otg_inst = otg_inst;
 	dto_params.pixclk_khz = pixclk_khz;
+	dto_params.is_hdmi = true;
 
 	dccg32_set_dtbclk_dto(dccg, &dto_params);
 }
