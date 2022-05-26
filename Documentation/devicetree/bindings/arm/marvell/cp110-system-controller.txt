@@ -156,7 +156,7 @@ GPIO:
 -----
 
 For common binding part and usage, refer to
-Documentation/devicetree/bindings/gpio/gpio-mvebu.txt.
+Documentation/devicetree/bindings/gpio/gpio-mvebu.yaml.
 
 Required properties:
 
