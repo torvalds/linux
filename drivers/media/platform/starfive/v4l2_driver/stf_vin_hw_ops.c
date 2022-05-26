@@ -7,6 +7,8 @@
 #include <media/v4l2-async.h>
 #include <media/v4l2-fwnode.h>
 #include <media/v4l2-subdev.h>
+#include <linux/clk-provider.h>
+#include <soc/starfive/jh7110_pmu.h>
 
 static void vin_intr_clear(void __iomem *sysctrl_base)
 {
@@ -62,8 +64,36 @@ static irqreturn_t stf_vin_isp_irq_handler(int irq, void *priv)
 }
 
 
-static int stf_vin_clk_init(struct stf_vin2_dev *vin_dev)
+static int stf_vin_top_clk_init(struct stf_vin2_dev *vin_dev)
 {
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
+
+	starfive_power_domain_set(POWER_DOMAIN_ISP, 1);
+
+	if (!__clk_is_enabled(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk))
+		clk_prepare_enable(stfcamss->sys_clk[STFCLK_NOC_BUS_CLK_ISP_AXI].clk);
+	else
+		st_warn(ST_VIN, "noc_bus_clk_isp_axi already enable\n");
+
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
+
+	return 0;
+}
+
+static int stf_vin_top_clk_deinit(struct stf_vin2_dev *vin_dev)
+{
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
+
+	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_AXI].rstc);
+	reset_control_assert(stfcamss->sys_rst[STFRST_ISP_TOP_N].rstc);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISP_AXI].clk);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_ISPCORE_2X].clk);
+
+	starfive_power_domain_set(POWER_DOMAIN_ISP, 0);
+
 	return 0;
 }
 
@@ -71,24 +101,15 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
-	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_PCLK].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
 	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PCLK].clk);
-	clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
 
 	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 51200000);
 	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 307200000);
-
-	clk_set_phase(stfcamss->sys_clk[STFCLK_DVP_INV].clk, 0);
-	clk_set_parent(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk,
-		stfcamss->sys_clk[STFCLK_DVP_INV].clk);
-	clk_set_parent(stfcamss->sys_clk[STFCLK_AXIWR].clk,
-		stfcamss->sys_clk[STFCLK_DVP_INV].clk);
 
 	return 0;
 }
@@ -116,16 +137,13 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
-	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
-	if (on) {
+	if (on)
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
-	} else {
-		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
-		usleep_range(500, 1000);
+	else
 		reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
-	}
+
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 
 	return 0;
@@ -229,23 +247,11 @@ void dump_vin_reg(void *__iomem regbase)
 	print_reg(ST_VIN, regbase, 0x20);
 	print_reg(ST_VIN, regbase, 0x24);
 	print_reg(ST_VIN, regbase, 0x28);
-	print_reg(ST_VIN, regbase, 0x2c);
-	print_reg(ST_VIN, regbase, 0x30);
-	print_reg(ST_VIN, regbase, 0x34);
-	print_reg(ST_VIN, regbase, 0x38);
-	print_reg(ST_VIN, regbase, 0x3c);
-	print_reg(ST_VIN, regbase, 0x40);
-	print_reg(ST_VIN, regbase, 0x44);
-	print_reg(ST_VIN, regbase, 0x48);
-	print_reg(ST_VIN, regbase, 0x4c);
-	print_reg(ST_VIN, regbase, 0x50);
-	print_reg(ST_VIN, regbase, 0x54);
-	print_reg(ST_VIN, regbase, 0x58);
-	print_reg(ST_VIN, regbase, 0x5c);
 }
 
 struct vin_hw_ops vin_ops = {
-	.vin_clk_init          = stf_vin_clk_init,
+	.vin_top_clk_init      = stf_vin_top_clk_init,
+	.vin_top_clk_deinit    = stf_vin_top_clk_deinit,
 	.vin_clk_enable        = stf_vin_clk_enable,
 	.vin_clk_disable       = stf_vin_clk_disable,
 	.vin_config_set        = stf_vin_config_set,
@@ -258,5 +264,4 @@ struct vin_hw_ops vin_ops = {
 	.vin_isp_set_raw_addr  = stf_vin_isp_set_raw_addr,
 	.vin_wr_irq_handler    = stf_vin_wr_irq_handler,
 	.vin_isp_irq_handler   = stf_vin_isp_irq_handler,
-
 };

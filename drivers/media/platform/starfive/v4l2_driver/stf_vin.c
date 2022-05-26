@@ -175,6 +175,7 @@ exit_line:
 	mutex_lock(&vin_dev->power_lock);
 	if (on) {
 		if (vin_dev->power_count == 0) {
+			vin_dev->hw_ops->vin_top_clk_init(vin_dev);
 			vin_dev->hw_ops->vin_clk_enable(vin_dev);
 			vin_dev->hw_ops->vin_config_set(vin_dev);
 		}
@@ -185,8 +186,10 @@ exit_line:
 				"vin_dev power off on power_count == 0\n");
 			goto exit;
 		}
-		if (vin_dev->power_count == 1)
+		if (vin_dev->power_count == 1) {
 			vin_dev->hw_ops->vin_clk_disable(vin_dev);
+			vin_dev->hw_ops->vin_top_clk_deinit(vin_dev);
+		}
 		vin_dev->power_count--;
 	}
 exit:

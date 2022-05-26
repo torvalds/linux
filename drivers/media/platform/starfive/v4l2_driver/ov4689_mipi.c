@@ -62,9 +62,9 @@
 
 
 enum ov4689_mode_id {
-	OV4689_MODE_720P_1280_720 = 0,
-	OV4689_MODE_1080P_1920_1080,
-	OV4689_MODE_4M_2688_1520,
+	//OV4689_MODE_720P_1280_720 = 0,
+	OV4689_MODE_1080P_1920_1080 = 0,
+	//OV4689_MODE_4M_2688_1520,
 	OV4689_NUM_MODES,
 };
 
@@ -206,7 +206,258 @@ static inline struct v4l2_subdev *ctrl_to_sd(struct v4l2_ctrl *ctrl)
 
 /* ov4689 initial register */
 static const struct reg_value ov4689_init_setting_30fps_1080P[] = {
-
+/* ov4689_1080p_30fps_4d */
+	{0x0103, 0x01, 0, 0},
+	{0x3638, 0x00, 0, 0},
+	{0x0300, 0x02, 0, 0},
+	{0x0302, 0x32, 0, 0},
+	{0x0303, 0x00, 0, 0},
+	{0x0304, 0x03, 0, 0},
+	{0x030b, 0x00, 0, 0},
+	{0x030d, 0x1e, 0, 0},
+	{0x030e, 0x04, 0, 0},
+	{0x030f, 0x01, 0, 0},
+	{0x0312, 0x01, 0, 0},
+	{0x031e, 0x00, 0, 0},
+	{0x3000, 0x20, 0, 0},
+	{0x3002, 0x00, 0, 0},
+	{0x3018, 0x72, 0, 0},
+	{0x3020, 0x93, 0, 0},
+	{0x3021, 0x03, 0, 0},
+	{0x3022, 0x01, 0, 0},
+	{0x3031, 0x0a, 0, 0},
+	{0x3305, 0xf1, 0, 0},
+	{0x3307, 0x04, 0, 0},
+	{0x3309, 0x29, 0, 0},
+	{0x3500, 0x00, 0, 0},
+	{0x3501, 0x4c, 0, 0},
+	{0x3502, 0x00, 0, 0},
+	{0x3503, 0x04, 0, 0},
+	{0x3504, 0x00, 0, 0},
+	{0x3505, 0x00, 0, 0},
+	{0x3506, 0x00, 0, 0},
+	{0x3507, 0x00, 0, 0},
+	{0x3508, 0x00, 0, 0},
+	{0x3509, 0x80, 0, 0},
+	{0x350a, 0x00, 0, 0},
+	{0x350b, 0x00, 0, 0},
+	{0x350c, 0x00, 0, 0},
+	{0x350d, 0x00, 0, 0},
+	{0x350e, 0x00, 0, 0},
+	{0x350f, 0x80, 0, 0},
+	{0x3510, 0x00, 0, 0},
+	{0x3511, 0x00, 0, 0},
+	{0x3512, 0x00, 0, 0},
+	{0x3513, 0x00, 0, 0},
+	{0x3514, 0x00, 0, 0},
+	{0x3515, 0x80, 0, 0},
+	{0x3516, 0x00, 0, 0},
+	{0x3517, 0x00, 0, 0},
+	{0x3518, 0x00, 0, 0},
+	{0x3519, 0x00, 0, 0},
+	{0x351a, 0x00, 0, 0},
+	{0x351b, 0x80, 0, 0},
+	{0x351c, 0x00, 0, 0},
+	{0x351d, 0x00, 0, 0},
+	{0x351e, 0x00, 0, 0},
+	{0x351f, 0x00, 0, 0},
+	{0x3520, 0x00, 0, 0},
+	{0x3521, 0x80, 0, 0},
+	{0x3522, 0x08, 0, 0},
+	{0x3524, 0x08, 0, 0},
+	{0x3526, 0x08, 0, 0},
+	{0x3528, 0x08, 0, 0},
+	{0x352a, 0x08, 0, 0},
+	{0x3602, 0x00, 0, 0},
+	{0x3603, 0x40, 0, 0},
+	{0x3604, 0x02, 0, 0},
+	{0x3605, 0x00, 0, 0},
+	{0x3606, 0x00, 0, 0},
+	{0x3607, 0x00, 0, 0},
+	{0x3609, 0x12, 0, 0},
+	{0x360a, 0x40, 0, 0},
+	{0x360c, 0x08, 0, 0},
+	{0x360f, 0xe5, 0, 0},
+	{0x3608, 0x8f, 0, 0},
+	{0x3611, 0x00, 0, 0},
+	{0x3613, 0xf7, 0, 0},
+	{0x3616, 0x58, 0, 0},
+	{0x3619, 0x99, 0, 0},
+	{0x361b, 0x60, 0, 0},
+	{0x361c, 0x7a, 0, 0},
+	{0x361e, 0x79, 0, 0},
+	{0x361f, 0x02, 0, 0},
+	{0x3632, 0x00, 0, 0},
+	{0x3633, 0x10, 0, 0},
+	{0x3634, 0x10, 0, 0},
+	{0x3635, 0x10, 0, 0},
+	{0x3636, 0x15, 0, 0},
+	{0x3646, 0x86, 0, 0},
+	{0x364a, 0x0b, 0, 0},
+	{0x3700, 0x17, 0, 0},
+	{0x3701, 0x22, 0, 0},
+	{0x3703, 0x10, 0, 0},
+	{0x370a, 0x37, 0, 0},
+	{0x3705, 0x00, 0, 0},
+	{0x3706, 0x63, 0, 0},
+	{0x3709, 0x3c, 0, 0},
+	{0x370b, 0x01, 0, 0},
+	{0x370c, 0x30, 0, 0},
+	{0x3710, 0x24, 0, 0},
+	{0x3711, 0x0c, 0, 0},
+	{0x3716, 0x00, 0, 0},
+	{0x3720, 0x28, 0, 0},
+	{0x3729, 0x7b, 0, 0},
+	{0x372a, 0x84, 0, 0},
+	{0x372b, 0xbd, 0, 0},
+	{0x372c, 0xbc, 0, 0},
+	{0x372e, 0x52, 0, 0},
+	{0x373c, 0x0e, 0, 0},
+	{0x373e, 0x33, 0, 0},
+	{0x3743, 0x10, 0, 0},
+	{0x3744, 0x88, 0, 0},
+	{0x3745, 0xc0, 0, 0},
+	{0x374a, 0x43, 0, 0},
+	{0x374c, 0x00, 0, 0},
+	{0x374e, 0x23, 0, 0},
+	{0x3751, 0x7b, 0, 0},
+	{0x3752, 0x84, 0, 0},
+	{0x3753, 0xbd, 0, 0},
+	{0x3754, 0xbc, 0, 0},
+	{0x3756, 0x52, 0, 0},
+	{0x375c, 0x00, 0, 0},
+	{0x3760, 0x00, 0, 0},
+	{0x3761, 0x00, 0, 0},
+	{0x3762, 0x00, 0, 0},
+	{0x3763, 0x00, 0, 0},
+	{0x3764, 0x00, 0, 0},
+	{0x3767, 0x04, 0, 0},
+	{0x3768, 0x04, 0, 0},
+	{0x3769, 0x08, 0, 0},
+	{0x376a, 0x08, 0, 0},
+	{0x376b, 0x20, 0, 0},
+	{0x376c, 0x00, 0, 0},
+	{0x376d, 0x00, 0, 0},
+	{0x376e, 0x00, 0, 0},
+	{0x3773, 0x00, 0, 0},
+	{0x3774, 0x51, 0, 0},
+	{0x3776, 0xbd, 0, 0},
+	{0x3777, 0xbd, 0, 0},
+	{0x3781, 0x18, 0, 0},
+	{0x3783, 0x25, 0, 0},
+	{0x3798, 0x1b, 0, 0},
+	{0x3800, 0x01, 0, 0},
+	{0x3801, 0x88, 0, 0},
+	{0x3802, 0x00, 0, 0},
+	{0x3803, 0xe0, 0, 0},
+	{0x3804, 0x09, 0, 0},
+	{0x3805, 0x17, 0, 0},
+	{0x3806, 0x05, 0, 0},
+	{0x3807, 0x1f, 0, 0},
+	{0x3808, 0x07, 0, 0},
+	{0x3809, 0x80, 0, 0},
+	{0x380a, 0x04, 0, 0},
+	{0x380b, 0x38, 0, 0},
+	{0x380c, 0x0d, 0, 0},
+	{0x380d, 0x70, 0, 0},
+	{0x380e, 0x04, 0, 0},
+	{0x380f, 0x8A, 0, 0},
+	{0x3810, 0x00, 0, 0},
+	{0x3811, 0x08, 0, 0},
+	{0x3812, 0x00, 0, 0},
+	{0x3813, 0x04, 0, 0},
+	{0x3814, 0x01, 0, 0},
+	{0x3815, 0x01, 0, 0},
+	{0x3819, 0x01, 0, 0},
+	{0x3820, 0x06, 0, 0},
+	{0x3821, 0x00, 0, 0},
+	{0x3829, 0x00, 0, 0},
+	{0x382a, 0x01, 0, 0},
+	{0x382b, 0x01, 0, 0},
+	{0x382d, 0x7f, 0, 0},
+	{0x3830, 0x04, 0, 0},
+	{0x3836, 0x01, 0, 0},
+	{0x3837, 0x00, 0, 0},
+	{0x3841, 0x02, 0, 0},
+	{0x3846, 0x08, 0, 0},
+	{0x3847, 0x07, 0, 0},
+	{0x3d85, 0x36, 0, 0},
+	{0x3d8c, 0x71, 0, 0},
+	{0x3d8d, 0xcb, 0, 0},
+	{0x3f0a, 0x00, 0, 0},
+	{0x4000, 0xf1, 0, 0},
+	{0x4001, 0x40, 0, 0},
+	{0x4002, 0x04, 0, 0},
+	{0x4003, 0x14, 0, 0},
+	{0x400e, 0x00, 0, 0},
+	{0x4011, 0x00, 0, 0},
+	{0x401a, 0x00, 0, 0},
+	{0x401b, 0x00, 0, 0},
+	{0x401c, 0x00, 0, 0},
+	{0x401d, 0x00, 0, 0},
+	{0x401f, 0x00, 0, 0},
+	{0x4020, 0x00, 0, 0},
+	{0x4021, 0x10, 0, 0},
+	{0x4022, 0x06, 0, 0},
+	{0x4023, 0x13, 0, 0},
+	{0x4024, 0x07, 0, 0},
+	{0x4025, 0x40, 0, 0},
+	{0x4026, 0x07, 0, 0},
+	{0x4027, 0x50, 0, 0},
+	{0x4028, 0x00, 0, 0},
+	{0x4029, 0x02, 0, 0},
+	{0x402a, 0x06, 0, 0},
+	{0x402b, 0x04, 0, 0},
+	{0x402c, 0x02, 0, 0},
+	{0x402d, 0x02, 0, 0},
+	{0x402e, 0x0e, 0, 0},
+	{0x402f, 0x04, 0, 0},
+	{0x4302, 0xff, 0, 0},
+	{0x4303, 0xff, 0, 0},
+	{0x4304, 0x00, 0, 0},
+	{0x4305, 0x00, 0, 0},
+	{0x4306, 0x00, 0, 0},
+	{0x4308, 0x02, 0, 0},
+	{0x4500, 0x6c, 0, 0},
+	{0x4501, 0xc4, 0, 0},
+	{0x4502, 0x40, 0, 0},
+	{0x4503, 0x01, 0, 0},
+	{0x4601, 0x77, 0, 0},
+	{0x4800, 0x04, 0, 0},
+	{0x4813, 0x08, 0, 0},
+	{0x481f, 0x40, 0, 0},
+	{0x4829, 0x78, 0, 0},
+	{0x4837, 0x10, 0, 0},
+	{0x4b00, 0x2a, 0, 0},
+	{0x4b0d, 0x00, 0, 0},
+	{0x4d00, 0x04, 0, 0},
+	{0x4d01, 0x42, 0, 0},
+	{0x4d02, 0xd1, 0, 0},
+	{0x4d03, 0x93, 0, 0},
+	{0x4d04, 0xf5, 0, 0},
+	{0x4d05, 0xc1, 0, 0},
+	{0x5000, 0xf3, 0, 0},
+	{0x5001, 0x11, 0, 0},
+	{0x5004, 0x00, 0, 0},
+	{0x500a, 0x00, 0, 0},
+	{0x500b, 0x00, 0, 0},
+	{0x5032, 0x00, 0, 0},
+	{0x5040, 0x00, 0, 0},
+	{0x5050, 0x0c, 0, 0},
+	{0x5500, 0x00, 0, 0},
+	{0x5501, 0x10, 0, 0},
+	{0x5502, 0x01, 0, 0},
+	{0x5503, 0x0f, 0, 0},
+	{0x8000, 0x00, 0, 0},
+	{0x8001, 0x00, 0, 0},
+	{0x8002, 0x00, 0, 0},
+	{0x8003, 0x00, 0, 0},
+	{0x8004, 0x00, 0, 0},
+	{0x8005, 0x00, 0, 0},
+	{0x8006, 0x00, 0, 0},
+	{0x8007, 0x00, 0, 0},
+	{0x8008, 0x00, 0, 0},
+	{0x3638, 0x00, 0, 0},
 };
 
 static const struct reg_value ov4689_setting_VGA_640_480[] = {
@@ -1282,29 +1533,31 @@ static const struct reg_value ov4689_setting_4M_2688_1520[] = {
 
 /* power-on sensor init reg table */
 static const struct ov4689_mode_info ov4689_mode_init_data = {
-	OV4689_MODE_1080P_1920_1080, SCALING,
-	1920, 0x6e0, 1080, 0x470,
-	ov4689_init_setting_30fps_1080P,
-	ARRAY_SIZE(ov4689_init_setting_30fps_1080P),
-	OV4689_60_FPS,
+
 };
 
 static const struct ov4689_mode_info
 ov4689_mode_data[OV4689_NUM_MODES] = {
-	{OV4689_MODE_720P_1280_720, SUBSAMPLING,
-	 1280, 0x408, 720, 0x305,
-	 ov4689_setting_720P_1280_720,
-	 ARRAY_SIZE(ov4689_setting_720P_1280_720),
-	 OV4689_150_FPS},
+	// {OV4689_MODE_720P_1280_720, SUBSAMPLING,
+	//  1280, 0x408, 720, 0x305,
+	//  ov4689_setting_720P_1280_720,
+	//  ARRAY_SIZE(ov4689_setting_720P_1280_720),
+	//  OV4689_150_FPS},
+	// {OV4689_MODE_1080P_1920_1080, SCALING,
+	//  1920, 0x6e0, 1080, 0x470,
+	//  ov4689_setting_1080P_1920_1080,
+	//  ARRAY_SIZE(ov4689_setting_1080P_1920_1080),
+	//  OV4689_60_FPS},
+	// {OV4689_MODE_4M_2688_1520, SCALING,
+	//  2688, 0xa0a, 1520, 0x612,
+	//  ov4689_setting_4M_2688_1520,
+	//  ARRAY_SIZE(ov4689_setting_4M_2688_1520),
+	//  OV4689_60_FPS},
+
 	{OV4689_MODE_1080P_1920_1080, SCALING,
 	 1920, 0x6e0, 1080, 0x470,
-	 ov4689_setting_1080P_1920_1080,
-	 ARRAY_SIZE(ov4689_setting_1080P_1920_1080),
-	 OV4689_60_FPS},
-	{OV4689_MODE_4M_2688_1520, SCALING,
-	 2688, 0xa0a, 1520, 0x612,
-	 ov4689_setting_4M_2688_1520,
-	 ARRAY_SIZE(ov4689_setting_4M_2688_1520),
+	 ov4689_init_setting_30fps_1080P,
+	 ARRAY_SIZE(ov4689_init_setting_30fps_1080P),
 	 OV4689_60_FPS},
 };
 
@@ -1412,8 +1665,6 @@ static int ov4689_mod_reg(struct ov4689_dev *sensor, u16 reg,
 static int ov4689_set_timings(struct ov4689_dev *sensor,
 			const struct ov4689_mode_info *mode)
 {
-	int ret;
-
 	return 0;
 }
 
@@ -1448,6 +1699,7 @@ static int ov4689_load_regs(struct ov4689_dev *sensor,
 	return ov4689_set_timings(sensor, mode);
 }
 
+#ifdef UNUSED_CODE
 static int ov4689_get_exposure(struct ov4689_dev *sensor)
 {
 	int exp, ret;
@@ -1468,6 +1720,7 @@ static int ov4689_get_exposure(struct ov4689_dev *sensor)
 
 	return exp >> 4;
 }
+#endif
 
 static int ov4689_set_exposure(struct ov4689_dev *sensor, u32 exposure)
 {
@@ -1508,8 +1761,6 @@ static int ov4689_get_gain(struct ov4689_dev *sensor)
 
 static int ov4689_set_gain(struct ov4689_dev *sensor, int gain)
 {
-	u8 val;
-
 	ov4689_write_reg(sensor, OV4689_REG_GAIN_H,
 				(gain >> 16) & 0x3);
 	ov4689_write_reg(sensor, OV4689_REG_GAIN_M,
@@ -1524,6 +1775,7 @@ static int ov4689_set_stream_mipi(struct ov4689_dev *sensor, bool on)
 	return 0;
 }
 
+#ifdef UNUSED_CODE
 static int ov4689_get_sysclk(struct ov4689_dev *sensor)
 {
 	return 0;
@@ -1545,6 +1797,7 @@ static int ov4689_get_hts(struct ov4689_dev *sensor)
 		return ret;
 	return hts;
 }
+#endif
 
 static int ov4689_get_vts(struct ov4689_dev *sensor)
 {
@@ -1557,6 +1810,7 @@ static int ov4689_get_vts(struct ov4689_dev *sensor)
 	return vts;
 }
 
+#ifdef UNUSED_CODE
 static int ov4689_set_vts(struct ov4689_dev *sensor, int vts)
 {
 	return ov4689_write_reg16(sensor, OV4689_REG_TIMING_VTS, vts);
@@ -1586,6 +1840,7 @@ static int ov4689_set_binning(struct ov4689_dev *sensor, bool enable)
 {
 	return 0;
 }
+#endif
 
 static const struct ov4689_mode_info *
 ov4689_find_mode(struct ov4689_dev *sensor, enum ov4689_frame_rate fr,
@@ -1721,8 +1976,8 @@ static int ov4689_set_mipi_pclk(struct ov4689_dev *sensor,
 				unsigned long rate)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
-	const struct ov4689_mode_info *orig_mode = sensor->last_mode;
-	u8 mult, val;
+	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+	u8 val;
 	int ret = 0;
 	int fps = ov4689_framerates[sensor->current_fr];
 	u16 htot, val16;
@@ -1761,7 +2016,7 @@ static int ov4689_set_mode_direct(struct ov4689_dev *sensor,
 static int ov4689_set_mode(struct ov4689_dev *sensor)
 {
 	const struct ov4689_mode_info *mode = sensor->current_mode;
-	const struct ov4689_mode_info *orig_mode = sensor->last_mode;
+	//const struct ov4689_mode_info *orig_mode = sensor->last_mode;
 	int ret = 0;
 
 	ret = ov4689_set_mode_direct(sensor, mode);
@@ -1984,7 +2239,7 @@ find_mode:
 }
 
 static int ov4689_enum_mbus_code(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_mbus_code_enum *code)
 {
 	if (code->pad != 0)
@@ -1998,7 +2253,7 @@ static int ov4689_enum_mbus_code(struct v4l2_subdev *sd,
 }
 
 static int ov4689_get_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *state,
 			struct v4l2_subdev_format *format)
 {
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
@@ -2010,7 +2265,7 @@ static int ov4689_get_fmt(struct v4l2_subdev *sd,
 	mutex_lock(&sensor->lock);
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(&sensor->sd, cfg,
+		fmt = v4l2_subdev_get_try_format(&sensor->sd, state,
 						format->pad);
 	else
 		fmt = &sensor->fmt;
@@ -2029,7 +2284,6 @@ static int ov4689_try_fmt_internal(struct v4l2_subdev *sd,
 {
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	const struct ov4689_mode_info *mode;
-	int i;
 
 	mode = ov4689_find_mode(sensor, fr, fmt->width, fmt->height, true);
 	if (!mode)
@@ -2046,7 +2300,7 @@ static int ov4689_try_fmt_internal(struct v4l2_subdev *sd,
 }
 
 static int ov4689_set_fmt(struct v4l2_subdev *sd,
-			struct v4l2_subdev_pad_config *cfg,
+			struct v4l2_subdev_state *state,
 			struct v4l2_subdev_format *format)
 {
 	struct ov4689_dev *sensor = to_ov4689_dev(sd);
@@ -2070,7 +2324,7 @@ static int ov4689_set_fmt(struct v4l2_subdev *sd,
 		goto out;
 
 	if (format->which == V4L2_SUBDEV_FORMAT_TRY)
-		fmt = v4l2_subdev_get_try_format(sd, cfg, 0);
+		fmt = v4l2_subdev_get_try_format(sd, state, 0);
 	else
 		fmt = &sensor->fmt;
 
@@ -2382,7 +2636,7 @@ free_ctrls:
 }
 
 static int ov4689_enum_frame_size(struct v4l2_subdev *sd,
-				struct v4l2_subdev_pad_config *cfg,
+				struct v4l2_subdev_state *state,
 				struct v4l2_subdev_frame_size_enum *fse)
 {
 	if (fse->pad != 0)
@@ -2402,12 +2656,12 @@ static int ov4689_enum_frame_size(struct v4l2_subdev *sd,
 
 static int ov4689_enum_frame_interval(
 	struct v4l2_subdev *sd,
-	struct v4l2_subdev_pad_config *cfg,
+	struct v4l2_subdev_state *state,
 	struct v4l2_subdev_frame_interval_enum *fie)
 {
-	struct ov4689_dev *sensor = to_ov4689_dev(sd);
+	//struct ov4689_dev *sensor = to_ov4689_dev(sd);
 	struct v4l2_fract tpf;
-	int ret;
+	//int ret;
 
 	if (fie->pad != 0)
 		return -EINVAL;
@@ -2602,7 +2856,6 @@ static int ov4689_probe(struct i2c_client *client)
 	struct v4l2_mbus_framefmt *fmt;
 	u32 rotation;
 	int ret;
-	u8 chip_id_high, chip_id_low;
 
 	sensor = devm_kzalloc(dev, sizeof(*sensor), GFP_KERNEL);
 	if (!sensor)
@@ -2716,7 +2969,7 @@ static int ov4689_probe(struct i2c_client *client)
 	if (ret)
 		goto entity_cleanup;
 
-	ret = v4l2_async_register_subdev_sensor_common(&sensor->sd);
+	ret = v4l2_async_register_subdev_sensor(&sensor->sd);
 	if (ret)
 		goto free_ctrls;
 

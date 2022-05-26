@@ -67,6 +67,12 @@ static struct clk_bulk_data stfcamss_clocks[] = {
 	{ .id = "clk_pixel_clk_if1" },
 	{ .id = "clk_pixel_clk_if2" },
 	{ .id = "clk_pixel_clk_if3" },
+	{ .id = "clk_m31dphy_cfgclk_in" },
+	{ .id = "clk_m31dphy_refclk_in" },
+	{ .id = "clk_m31dphy_txclkesc_lan0" },
+	{ .id = "clk_ispcore_2x" },
+	{ .id = "clk_isp_axi" },
+	{ .id = "clk_noc_bus_clk_isp_axi" },
 };
 
 static struct reset_control_bulk_data stfcamss_resets[] = {
@@ -82,6 +88,8 @@ static struct reset_control_bulk_data stfcamss_resets[] = {
 	{ .id = "rst_pixel_clk_if3" },
 	{ .id = "rst_m31dphy_hw" },
 	{ .id = "rst_m31dphy_b09_always_on" },
+	{ .id = "rst_isp_top_n" },
+	{ .id = "rst_isp_top_axi" },
 };
 
 int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
@@ -1027,11 +1035,13 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cam;
 	}
 
+#ifdef UNUSED_CODE
 	vin->isp1_irq = platform_get_irq(pdev, 2);
 	if (vin->isp1_irq <= 0) {
 		st_err(ST_CAMSS, "Could not get isp1 irq\n");
 		goto err_cam;
 	}
+#endif
 
 	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
 	stfcamss->sys_clk = stfcamss_clocks;
