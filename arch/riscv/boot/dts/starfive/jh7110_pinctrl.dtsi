@@ -1009,4 +1009,22 @@
 			sf,pin-gpio-doen = <OEN_LOW>;
 		};
 	};
+
+	usb_pins: usb-pins {
+		drive-vbus-pin {
+			sf,pins = <PAD_GPIO33>;
+			sf,pinmux = <PAD_GPIO33_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-dout = <GPO_USB0_DRIVE_VBUS_IO>;
+			sf,pin-gpio-doen = <OEN_LOW>;
+		};
+
+		overcurrent-pin {
+			sf,pins = <PAD_GPIO34>;
+			sf,pinmux = <PAD_GPIO34_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-din = <GPI_USB0_OVERCURRENT_N_IO>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+		};
+	};
 };
