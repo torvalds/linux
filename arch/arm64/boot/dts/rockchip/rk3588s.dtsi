@@ -5590,8 +5590,12 @@
 			      "lcpll";
 		rockchip,grf = <&hdptxphy0_grf>;
 		#phy-cells = <0>;
-		#clock-cells = <0>;
 		status = "disabled";
+
+		hdptxphy_hdmi_clk0: clk-port {
+			#clock-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 	usbdp_phy0: phy@fed80000 {

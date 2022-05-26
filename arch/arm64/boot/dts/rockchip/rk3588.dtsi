@@ -803,8 +803,12 @@
 			      "lcpll";
 		rockchip,grf = <&hdptxphy1_grf>;
 		#phy-cells = <0>;
-		#clock-cells = <0>;
 		status = "disabled";
+
+		hdptxphy_hdmi_clk1: clk-port {
+			#clock-cells = <0>;
+			status = "disabled";
+		};
 	};
 
 
