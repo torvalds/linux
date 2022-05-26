@@ -6676,8 +6676,8 @@ static int io_socket(struct io_kiocb *req, unsigned int issue_flags)
 		fd_install(fd, file);
 		ret = fd;
 	} else {
-		ret = io_install_fixed_file(req, file, issue_flags,
-					    sock->file_slot - 1);
+		ret = io_fixed_fd_install(req, issue_flags, file,
+					    sock->file_slot);
 	}
 	__io_req_complete(req, issue_flags, ret, 0);
 	return 0;
