@@ -92,6 +92,7 @@ static inline bool io_run_task_work(void)
 	return false;
 }
 
+void io_req_complete_failed(struct io_kiocb *req, s32 res);
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
 void io_req_complete_post(struct io_kiocb *req);
 void __io_req_complete_post(struct io_kiocb *req);
@@ -107,6 +108,32 @@ static inline bool io_do_buffer_select(struct io_kiocb *req)
 	if (!(req->flags & REQ_F_BUFFER_SELECT))
 		return false;
 	return !(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING));
+}
+
+void __io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags);
+static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
+{
+	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
+		return;
+	/*
+	 * For legacy provided buffer mode, don't recycle if we already did
+	 * IO to this buffer. For ring-mapped provided buffer mode, we should
+	 * increment ring->head to explicitly monopolize the buffer to avoid
+	 * multiple use.
+	 */
+	if ((req->flags & REQ_F_BUFFER_SELECTED) &&
+	    (req->flags & REQ_F_PARTIAL_IO))
+		return;
+
+	/*
+	 * READV uses fields in `struct io_rw` (len/addr) to stash the selected
+	 * buffer data. However if that buffer is recycled the original request
+	 * data stored in addr is lost. Therefore forbid recycling for now.
+	 */
+	if (req->opcode == IORING_OP_READV)
+		return;
+
+	__io_kbuf_recycle(req, issue_flags);
 }
 
 struct file *io_file_get_normal(struct io_kiocb *req, int fd);
@@ -128,12 +155,14 @@ void io_req_task_work_add(struct io_kiocb *req);
 void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
 void io_req_task_complete(struct io_kiocb *req, bool *locked);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
+void io_req_task_submit(struct io_kiocb *req, bool *locked);
 void tctx_task_work(struct callback_head *cb);
 int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd);
 __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 int io_uring_alloc_task_context(struct task_struct *task,
 				struct io_ring_ctx *ctx);
 
+int io_poll_issue(struct io_kiocb *req, bool *locked);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
 
@@ -142,6 +171,9 @@ void io_wq_submit_work(struct io_wq_work *work);
 
 void io_free_req(struct io_kiocb *req);
 void io_queue_next(struct io_kiocb *req);
+
+bool io_match_task_safe(struct io_kiocb *head, struct task_struct *task,
+			bool cancel_all);
 
 #define io_for_each_link(pos, head) \
 	for (pos = (head); pos; pos = pos->link)
