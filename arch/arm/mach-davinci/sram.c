@@ -9,7 +9,7 @@
 #include <linux/io.h>
 #include <linux/genalloc.h>
 
-#include <mach/common.h>
+#include "common.h"
 #include "sram.h"
 
 static struct gen_pool *sram_pool;

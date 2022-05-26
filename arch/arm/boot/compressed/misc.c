@@ -23,6 +23,7 @@ unsigned int __machine_arch_type;
 #include <linux/types.h>
 #include <linux/linkage.h>
 #include "misc.h"
+#include "misc-ep93xx.h"
 
 static void putstr(const char *ptr);
 
@@ -143,6 +144,9 @@ decompress_kernel(unsigned long output_start, unsigned long free_mem_ptr_p,
 	free_mem_end_ptr	= free_mem_ptr_end_p;
 	__machine_arch_type	= arch_id;
 
+#ifdef CONFIG_ARCH_EP93XX
+	ep93xx_decomp_setup();
+#endif
 	arch_decomp_setup();
 
 	putstr("Uncompressing Linux...");

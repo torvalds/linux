@@ -67,11 +67,6 @@ static struct map_desc vr1000_iodesc[] __initdata = {
 	  .pfn		= PA_CS2(BAST_PA_ISAIO),
 	  .length	= SZ_16M,
 	  .type		= MT_DEVICE,
-  }, {
-	  .virtual	= (u32)S3C24XX_VA_ISA_WORD,
-	  .pfn		= PA_CS3(BAST_PA_ISAIO),
-	  .length	= SZ_16M,
-	  .type		= MT_DEVICE,
   },
 
   /*  CPLD control registers, and external interrupt controls */
@@ -361,6 +356,7 @@ static void __init vr1000_init(void)
 MACHINE_START(VR1000, "Thorcom-VR1000")
 	/* Maintainer: Ben Dooks <ben@simtec.co.uk> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.map_io		= vr1000_map_io,
 	.init_machine	= vr1000_init,
 	.init_irq	= s3c2410_init_irq,

@@ -104,6 +104,7 @@ MACHINE_START(SMDK2410, "SMDK2410") /* @TODO: request a new identifier and switc
 				    * to SMDK2410 */
 	/* Maintainer: Jonas Dietsche */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.map_io		= smdk2410_map_io,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= smdk2410_init,

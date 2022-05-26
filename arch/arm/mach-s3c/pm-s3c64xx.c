@@ -15,7 +15,7 @@
 #include <linux/pm_domain.h>
 
 #include "map.h"
-#include <mach/irqs.h>
+#include "irqs.h"
 
 #include "cpu.h"
 #include "devs.h"

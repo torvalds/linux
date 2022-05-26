@@ -43,16 +43,6 @@ static struct map_desc smdk2440_iodesc[] __initdata = {
 	/* ISA IO Space map (memory space selected by A24) */
 
 	{
-		.virtual	= (u32)S3C24XX_VA_ISA_WORD,
-		.pfn		= __phys_to_pfn(S3C2410_CS2),
-		.length		= 0x10000,
-		.type		= MT_DEVICE,
-	}, {
-		.virtual	= (u32)S3C24XX_VA_ISA_WORD + 0x10000,
-		.pfn		= __phys_to_pfn(S3C2410_CS2 + (1<<24)),
-		.length		= SZ_4M,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= (u32)S3C24XX_VA_ISA_BYTE,
 		.pfn		= __phys_to_pfn(S3C2410_CS2),
 		.length		= 0x10000,
@@ -181,6 +171,7 @@ static void __init smdk2440_machine_init(void)
 MACHINE_START(S3C2440, "SMDK2440")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2440,
 
 	.init_irq	= s3c2440_init_irq,
 	.map_io		= smdk2440_map_io,

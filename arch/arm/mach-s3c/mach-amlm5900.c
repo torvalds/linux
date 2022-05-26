@@ -239,7 +239,9 @@ static void __init amlm5900_init(void)
 
 MACHINE_START(AML_M5900, "AML_M5900")
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.map_io		= amlm5900_map_io,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.init_irq	= s3c2410_init_irq,
 	.init_machine	= amlm5900_init,
 	.init_time	= amlm5900_init_time,

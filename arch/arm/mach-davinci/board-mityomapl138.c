@@ -28,12 +28,14 @@
 #include <asm/io.h>
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
-#include <mach/common.h>
-#include <mach/da8xx.h>
+
+#include "common.h"
+#include "da8xx.h"
+#include "mux.h"
+
 #include <linux/platform_data/mtd-davinci.h>
 #include <linux/platform_data/mtd-davinci-aemif.h>
 #include <linux/platform_data/ti-aemif.h>
-#include <mach/mux.h>
 #include <linux/platform_data/spi-davinci.h>
 
 #define MITYOMAPL138_PHY_ID		""

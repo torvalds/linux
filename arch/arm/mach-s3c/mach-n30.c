@@ -656,6 +656,7 @@ MACHINE_START(N30, "Acer-N30")
 				Ben Dooks <ben-linux@fluff.org>
 	*/
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.init_time	= n30_init_time,
 	.init_machine	= n30_init,
 	.init_irq	= s3c2410_init_irq,
@@ -666,6 +667,7 @@ MACHINE_START(N35, "Acer-N35")
 	/* Maintainer: Christer Weinigel <christer@weinigel.se>
 	*/
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.init_time	= n30_init_time,
 	.init_machine	= n30_init,
 	.init_irq	= s3c2410_init_irq,

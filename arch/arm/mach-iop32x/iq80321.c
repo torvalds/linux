@@ -183,6 +183,7 @@ static void __init iq80321_init_machine(void)
 MACHINE_START(IQ80321, "Intel IQ80321")
 	/* Maintainer: Intel Corp. */
 	.atag_offset	= 0x100,
+	.nr_irqs	= IOP32X_NR_IRQS,
 	.map_io		= iq80321_map_io,
 	.init_irq	= iop32x_init_irq,
 	.init_time	= iq80321_timer_init,

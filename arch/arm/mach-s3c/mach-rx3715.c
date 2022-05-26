@@ -48,13 +48,7 @@
 
 static struct map_desc rx3715_iodesc[] __initdata = {
 	/* dump ISA space somewhere unused */
-
 	{
-		.virtual	= (u32)S3C24XX_VA_ISA_WORD,
-		.pfn		= __phys_to_pfn(S3C2410_CS3),
-		.length		= SZ_1M,
-		.type		= MT_DEVICE,
-	}, {
 		.virtual	= (u32)S3C24XX_VA_ISA_BYTE,
 		.pfn		= __phys_to_pfn(S3C2410_CS3),
 		.length		= SZ_1M,
@@ -210,6 +204,7 @@ static void __init rx3715_init_machine(void)
 MACHINE_START(RX3715, "IPAQ-RX3715")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2440,
 	.map_io		= rx3715_map_io,
 	.reserve	= rx3715_reserve,
 	.init_irq	= s3c2440_init_irq,

@@ -2,6 +2,7 @@
 menuconfig ARCH_NOMADIK
 	bool "ST-Ericsson Nomadik"
 	depends on ARCH_MULTI_V5
+	depends on CPU_LITTLE_ENDIAN
 	select ARM_AMBA
 	select ARM_VIC
 	select CLKSRC_NOMADIK_MTU

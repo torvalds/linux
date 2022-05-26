@@ -14,7 +14,7 @@
 #include <linux/gpio/consumer.h>
 #include <linux/lcd.h>
 
-#include <mach/hardware.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include "omapfb.h"
 
@@ -128,7 +128,6 @@ static struct lcd_panel ams_delta_panel = {
 static int ams_delta_panel_probe(struct platform_device *pdev)
 {
 	struct lcd_device *lcd_device = NULL;
-	int ret;
 
 	gpiod_vblen = devm_gpiod_get(&pdev->dev, "vblen", GPIOD_OUT_LOW);
 	if (IS_ERR(gpiod_vblen))
@@ -145,7 +144,8 @@ static int ams_delta_panel_probe(struct platform_device *pdev)
 						&ams_delta_lcd_ops);
 
 	if (IS_ERR(lcd_device)) {
-		ret = PTR_ERR(lcd_device);
+		int ret = PTR_ERR(lcd_device);
+
 		dev_err(&pdev->dev, "failed to register device\n");
 		return ret;
 	}
