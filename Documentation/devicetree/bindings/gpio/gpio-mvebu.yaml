@@ -45,6 +45,10 @@ properties:
       - const: pwm
     minItems: 1
 
+  offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Offset in the register map for the gpio registers (in bytes)
+
   interrupts:
     description: |
       The list of interrupts that are used for all the pins managed by this
@@ -67,6 +71,10 @@ properties:
 
   "#gpio-cells":
     const: 2
+
+  marvell,pwm-offset:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    description: Offset in the register map for the pwm registers (in bytes)
 
   "#pwm-cells":
     description:
