@@ -540,9 +540,10 @@ restart:
 			continue;
 		if (!may_grant(gl, first_gh, gh)) {
 			/*
-			 * If we get here, it means we may not grant this holder for
-			 * some reason. If this holder is the head of the list, it
-			 * means we have a blocked holder at the head, so return 1.
+			 * If we get here, it means we may not grant this
+			 * holder for some reason. If this holder is at the
+			 * head of the list, it means we have a blocked holder
+			 * at the head, so return 1.
 			 */
 			if (list_is_first(&gh->gh_list, &gl->gl_holders))
 				return 1;
