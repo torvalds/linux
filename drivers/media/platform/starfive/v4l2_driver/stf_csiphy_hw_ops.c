@@ -149,9 +149,8 @@ static int csi2rx_dphy_config(struct stf_vin_dev *vin,
 	if (!phy0cfg)
 		return -EINVAL;
 
-	if (id == 0) {
+	if (id == 0)
 		cfg = phy0cfg;
-	}
 
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_4, 0x0);
 	reg_write(vin->rstgen_base, M31DPHY_APBCFGSAIF__SYSCFG_8, 0x0);

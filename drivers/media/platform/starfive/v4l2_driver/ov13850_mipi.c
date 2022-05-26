@@ -1032,7 +1032,7 @@ static int ov13850_set_power(struct ov13850_dev *sensor, bool on)
 		if (ret)
 			return ret;
 
-#if 0
+#ifdef UNUSED_CODE
 		ret = ov13850_read_reg16(sensor, OV13850_REG_CHIP_ID, &chip_id);
 		if (ret) {
 			dev_err(&sensor->i2c_client->dev, "%s: failed to read chip identifier\n",
@@ -1555,10 +1555,10 @@ static int ov13850_enum_frame_interval(
 	tpf.denominator = ov13850_framerates[fie->index];
 
 /*	ret = ov13850_try_frame_interval(sensor, &tpf,
-					fie->width, fie->height);
-	if (ret < 0)
-		return -EINVAL;
-*/
+ *					fie->width, fie->height);
+ *	if (ret < 0)
+ *		return -EINVAL;
+ */
 	fie->interval = tpf;
 
 	return 0;
@@ -1723,7 +1723,7 @@ static int ov13850_check_chip_id(struct ov13850_dev *sensor)
 	if (ret)
 		return ret;
 
-#if 0
+#ifdef UNUSED_CODE
 	ret = ov13850_read_reg16(sensor, OV13850_REG_CHIP_ID, &chip_id);
 	if (ret) {
 		dev_err(&client->dev, "%s: failed to read chip identifier\n",

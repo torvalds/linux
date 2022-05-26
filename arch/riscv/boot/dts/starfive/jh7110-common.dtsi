@@ -74,7 +74,7 @@
 &uart3 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&uart3_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &dma {
@@ -317,7 +317,7 @@
 	post-power-on-delay-ms = <200>;
 	pinctrl-names = "default";
 	pinctrl-0 = <&mmc1_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &vin_sysctl {
@@ -428,7 +428,7 @@
 &can0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&can0_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &can1 {
@@ -438,7 +438,7 @@
 &tdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tdm0_pins>;
-	status = "disabled";
+	status = "okay";
 };
 
 &spdif0 {
