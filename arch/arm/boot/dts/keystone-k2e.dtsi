@@ -141,7 +141,7 @@
 			clock-names = "pcie";
 			#address-cells = <3>;
 			#size-cells = <2>;
-			reg =  <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
+			reg = <0x21021000 0x2000>, <0x21020000 0x1000>, <0x02620128 4>;
 			ranges = <0x82000000 0 0x60000000 0x60000000
 				  0 0x10000000>;
 
@@ -185,14 +185,14 @@
 		};
 
 		mdio: mdio@24200f00 {
-			compatible	= "ti,keystone_mdio", "ti,davinci_mdio";
+			compatible = "ti,keystone_mdio", "ti,davinci_mdio";
 			#address-cells = <1>;
 			#size-cells = <0>;
 			reg = <0x24200f00 0x100>;
 			status = "disabled";
 			clocks = <&clkcpgmac>;
 			clock-names = "fck";
-			bus_freq	= <2500000>;
+			bus_freq = <2500000>;
 		};
 		/include/ "keystone-k2e-netcp.dtsi"
 };
