@@ -575,6 +575,7 @@ static void tb_scan_port(struct tb_port *port)
 	struct tb_cm *tcm = tb_priv(port->sw->tb);
 	struct tb_port *upstream_port;
 	struct tb_switch *sw;
+	int ret;
 
 	if (tb_is_upstream_port(port))
 		return;
@@ -663,7 +664,9 @@ static void tb_scan_port(struct tb_port *port)
 	tb_switch_lane_bonding_enable(sw);
 	/* Set the link configured */
 	tb_switch_configure_link(sw);
-	if (tb_switch_enable_clx(sw, TB_CL0S))
+	/* Silently ignore CLx enabling in case CLx is not supported */
+	ret = tb_switch_enable_clx(sw, TB_CL0S);
+	if (ret && ret != -EOPNOTSUPP)
 		tb_sw_warn(sw, "failed to enable CLx on upstream port\n");
 
 	tb_switch_tmu_configure(sw, TB_SWITCH_TMU_RATE_HIFI,
@@ -1446,12 +1449,15 @@ static int tb_suspend_noirq(struct tb *tb)
 static void tb_restore_children(struct tb_switch *sw)
 {
 	struct tb_port *port;
+	int ret;
 
 	/* No need to restore if the router is already unplugged */
 	if (sw->is_unplugged)
 		return;
 
-	if (tb_switch_enable_clx(sw, TB_CL0S))
+	/* Silently ignore CLx re-enabling in case CLx is not supported */
+	ret = tb_switch_enable_clx(sw, TB_CL0S);
+	if (ret && ret != -EOPNOTSUPP)
 		tb_sw_warn(sw, "failed to re-enable CLx on upstream port\n");
 
 	/*
