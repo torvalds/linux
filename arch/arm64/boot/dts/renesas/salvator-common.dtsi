@@ -832,7 +832,7 @@
 				frame-master = <&rsnd_endpoint0>;
 
 				playback = <&ssi0>, <&src0>, <&dvc0>;
-				capture  = <&ssi1>, <&src1>, <&dvc1>;
+				capture = <&ssi1>, <&src1>, <&dvc1>;
 			};
 		};
 
