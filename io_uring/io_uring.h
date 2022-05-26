@@ -106,10 +106,6 @@ struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
 struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 			       unsigned issue_flags);
-int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
-			struct file *file, unsigned int file_slot);
-int io_install_fixed_file(struct io_kiocb *req, struct file *file,
-			  unsigned int issue_flags, u32 slot_index);
 
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);

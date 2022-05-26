@@ -3,6 +3,7 @@
 #define IOU_FILE_TABLE_H
 
 struct io_ring_ctx;
+struct io_kiocb;
 
 /*
  * FFS_SCM is only available on 64-bit archs, for 32-bit we just define it as 0
@@ -34,7 +35,9 @@ struct io_file_table {
 
 bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files);
 void io_free_file_tables(struct io_file_table *table);
-int io_file_bitmap_get(struct io_ring_ctx *ctx);
+
+int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
+			struct file *file, unsigned int file_slot);
 
 unsigned int io_file_get_flags(struct file *file);
 
