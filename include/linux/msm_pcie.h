@@ -187,6 +187,16 @@ int msm_pcie_deregister_event(struct msm_pcie_register_event *reg);
  */
 int msm_pcie_enumerate(u32 rc_idx);
 
+/**
+ * msm_pcie_deenumerate - deenumerates the Endpoints.
+ * @rc_idx:	RC that Endpoints connect to.
+ *
+ * This function de-enumerates Endpoints connected to RC.
+ *
+ * Return: 0 on success, negative value on error
+ */
+int msm_pcie_deenumerate(u32 rc_idx);
+
 /*
  * msm_pcie_debug_info - run a PCIe specific debug testcase.
  * @dev:	pci device structure
@@ -258,6 +268,11 @@ static inline int msm_pcie_deregister_event(struct msm_pcie_register_event *reg)
 }
 
 static inline int msm_pcie_enumerate(u32 rc_idx)
+{
+	return -ENODEV;
+}
+
+static inline int msm_pcie_deenumerate(u32 rc_idx)
 {
 	return -ENODEV;
 }
