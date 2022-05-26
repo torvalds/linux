@@ -10,12 +10,12 @@
 #include "xfs_trans_resv.h"
 #include "xfs_mount.h"
 #include "xfs_inode.h"
+#include "xfs_da_format.h"
+#include "xfs_da_btree.h"
 #include "xfs_attr.h"
 #include "xfs_trace.h"
 #include "xfs_error.h"
 #include "xfs_acl.h"
-#include "xfs_da_format.h"
-#include "xfs_da_btree.h"
 #include "xfs_trans.h"
 
 #include <linux/posix_acl_xattr.h>

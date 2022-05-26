@@ -136,10 +136,7 @@ xfs_qm_adjust_res_timer(
 			res->timer = xfs_dquot_set_timeout(mp,
 					ktime_get_real_seconds() + qlim->time);
 	} else {
-		if (res->timer == 0)
-			res->warnings = 0;
-		else
-			res->timer = 0;
+		res->timer = 0;
 	}
 }
 
@@ -322,6 +319,9 @@ xfs_dquot_disk_alloc(
 
 	error = xfs_iext_count_may_overflow(quotip, XFS_DATA_FORK,
 			XFS_IEXT_ADD_NOSPLIT_CNT);
+	if (error == -EFBIG)
+		error = xfs_iext_count_upgrade(tp, quotip,
+				XFS_IEXT_ADD_NOSPLIT_CNT);
 	if (error)
 		goto err_cancel;
 
@@ -589,10 +589,6 @@ xfs_dquot_from_disk(
 	dqp->q_ino.count = be64_to_cpu(ddqp->d_icount);
 	dqp->q_rtb.count = be64_to_cpu(ddqp->d_rtbcount);
 
-	dqp->q_blk.warnings = be16_to_cpu(ddqp->d_bwarns);
-	dqp->q_ino.warnings = be16_to_cpu(ddqp->d_iwarns);
-	dqp->q_rtb.warnings = be16_to_cpu(ddqp->d_rtbwarns);
-
 	dqp->q_blk.timer = xfs_dquot_from_disk_ts(ddqp, ddqp->d_btimer);
 	dqp->q_ino.timer = xfs_dquot_from_disk_ts(ddqp, ddqp->d_itimer);
 	dqp->q_rtb.timer = xfs_dquot_from_disk_ts(ddqp, ddqp->d_rtbtimer);
@@ -634,9 +630,9 @@ xfs_dquot_to_disk(
 	ddqp->d_icount = cpu_to_be64(dqp->q_ino.count);
 	ddqp->d_rtbcount = cpu_to_be64(dqp->q_rtb.count);
 
-	ddqp->d_bwarns = cpu_to_be16(dqp->q_blk.warnings);
-	ddqp->d_iwarns = cpu_to_be16(dqp->q_ino.warnings);
-	ddqp->d_rtbwarns = cpu_to_be16(dqp->q_rtb.warnings);
+	ddqp->d_bwarns = 0;
+	ddqp->d_iwarns = 0;
+	ddqp->d_rtbwarns = 0;
 
 	ddqp->d_btimer = xfs_dquot_to_disk_ts(dqp, dqp->q_blk.timer);
 	ddqp->d_itimer = xfs_dquot_to_disk_ts(dqp, dqp->q_ino.timer);
