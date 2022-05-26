@@ -305,7 +305,7 @@ enum offs_rev {
 #define MT_MIB_SDR9_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR9))
 #define MT_MIB_SDR9_CCA_BUSY_TIME_MASK		GENMASK(23, 0)
 
-#define MT_MIB_SDR10_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR10))
+#define MT_MIB_SDR10(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR10))
 #define MT_MIB_SDR10_MRDY_COUNT_MASK		GENMASK(25, 0)
 #define MT_MIB_SDR10_MRDY_COUNT_MASK_MT7916	GENMASK(31, 0)
 
@@ -329,24 +329,24 @@ enum offs_rev {
 #define MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK_MT7916	GENMASK(31, 0)
 
 /* in units of 'us' */
-#define MT_MIB_SDR16_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR16))
+#define MT_MIB_SDR16(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR16))
 #define MT_MIB_SDR16_PRIMARY_CCA_BUSY_TIME_MASK	GENMASK(23, 0)
 
-#define MT_MIB_SDR17_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR17))
+#define MT_MIB_SDR17(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR17))
 #define MT_MIB_SDR17_SECONDARY_CCA_BUSY_TIME_MASK	GENMASK(23, 0)
 
 #define MT_MIB_SDR18(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR18))
 #define MT_MIB_SDR18_PRIMARY_ENERGY_DETECT_TIME_MASK	GENMASK(23, 0)
 
 /* units are us */
-#define MT_MIB_SDR19_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR19))
+#define MT_MIB_SDR19(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR19))
 #define MT_MIB_SDR19_CCK_MDRDY_TIME_MASK	GENMASK(23, 0)
 
-#define MT_MIB_SDR20_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR20))
+#define MT_MIB_SDR20(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR20))
 #define MT_MIB_SDR20_OFDM_VHT_MDRDY_TIME_MASK	GENMASK(23, 0)
 
-#define MT_MIB_SDR21_DNR(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR21))
-#define MT_MIB_SDR20_GREEN_MDRDY_TIME_MASK	GENMASK(23, 0)
+#define MT_MIB_SDR21(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR21))
+#define MT_MIB_SDR21_GREEN_MDRDY_TIME_MASK	GENMASK(23, 0)
 
 /* rx ampdu count, 32-bit */
 #define MT_MIB_SDR22(_band)		MT_WF_MIB(_band, __OFFS(MIB_SDR22))
@@ -940,7 +940,7 @@ enum offs_rev {
 #define MT_ADIE_TYPE_MASK		BIT(1)
 
 /* FW MODE SYNC */
-#define MT_FW_EXCEPTION		__REG(FW_EXCEPTION_ADDR)
+#define MT_FW_EXCEPTION			__REG(FW_EXCEPTION_ADDR)
 
 #define MT_SWDEF_BASE			__REG(SWDEF_BASE_ADDR)
 

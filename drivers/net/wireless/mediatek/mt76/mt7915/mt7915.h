@@ -200,8 +200,15 @@ struct mib_stats {
 	/* rx stats */
 	u32 rx_fifo_full_cnt;
 	u32 channel_idle_cnt;
+	u32 primary_cca_busy_time;
+	u32 secondary_cca_busy_time;
+	u32 primary_energy_detect_time;
+	u32 cck_mdrdy_time;
+	u32 ofdm_mdrdy_time;
+	u32 green_mdrdy_time;
 	u32 rx_vector_mismatch_cnt;
 	u32 rx_delimiter_fail_cnt;
+	u32 rx_mrdy_cnt;
 	u32 rx_len_mismatch_cnt;
 	u32 rx_mpdu_cnt;
 	u32 rx_ampdu_cnt;

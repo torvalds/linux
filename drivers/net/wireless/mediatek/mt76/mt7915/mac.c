@@ -2214,7 +2214,8 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	u32 val;
 
 	cnt = mt76_rr(dev, MT_MIB_SDR3(phy->band_idx));
-	mib->fcs_err_cnt += is_mt7915(&dev->mt76) ? FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK, cnt) :
+	mib->fcs_err_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK, cnt) :
 		FIELD_GET(MT_MIB_SDR3_FCS_ERR_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR4(phy->band_idx));
@@ -2227,19 +2228,28 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->channel_idle_cnt += FIELD_GET(MT_MIB_SDR6_CHANNEL_IDL_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR7(phy->band_idx));
-	mib->rx_vector_mismatch_cnt += FIELD_GET(MT_MIB_SDR7_RX_VECTOR_MISMATCH_CNT_MASK, cnt);
+	mib->rx_vector_mismatch_cnt +=
+		FIELD_GET(MT_MIB_SDR7_RX_VECTOR_MISMATCH_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR8(phy->band_idx));
-	mib->rx_delimiter_fail_cnt += FIELD_GET(MT_MIB_SDR8_RX_DELIMITER_FAIL_CNT_MASK, cnt);
+	mib->rx_delimiter_fail_cnt +=
+		FIELD_GET(MT_MIB_SDR8_RX_DELIMITER_FAIL_CNT_MASK, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR10(phy->band_idx));
+	mib->rx_mrdy_cnt += is_mt7915(&dev->mt76) ?
+		FIELD_GET(MT_MIB_SDR10_MRDY_COUNT_MASK, cnt) :
+		FIELD_GET(MT_MIB_SDR10_MRDY_COUNT_MASK_MT7916, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR11(phy->band_idx));
-	mib->rx_len_mismatch_cnt += FIELD_GET(MT_MIB_SDR11_RX_LEN_MISMATCH_CNT_MASK, cnt);
+	mib->rx_len_mismatch_cnt +=
+		FIELD_GET(MT_MIB_SDR11_RX_LEN_MISMATCH_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR12(phy->band_idx));
 	mib->tx_ampdu_cnt += cnt;
 
 	cnt = mt76_rr(dev, MT_MIB_SDR13(phy->band_idx));
-	mib->tx_stop_q_empty_cnt += FIELD_GET(MT_MIB_SDR13_TX_STOP_Q_EMPTY_CNT_MASK, cnt);
+	mib->tx_stop_q_empty_cnt +=
+		FIELD_GET(MT_MIB_SDR13_TX_STOP_Q_EMPTY_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR14(phy->band_idx));
 	mib->tx_mpdu_attempts_cnt += is_mt7915(&dev->mt76) ?
@@ -2250,6 +2260,29 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->tx_mpdu_success_cnt += is_mt7915(&dev->mt76) ?
 		FIELD_GET(MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK, cnt) :
 		FIELD_GET(MT_MIB_SDR15_TX_MPDU_SUCCESS_CNT_MASK_MT7916, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR16(phy->band_idx));
+	mib->primary_cca_busy_time +=
+		FIELD_GET(MT_MIB_SDR16_PRIMARY_CCA_BUSY_TIME_MASK, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR17(phy->band_idx));
+	mib->secondary_cca_busy_time +=
+		FIELD_GET(MT_MIB_SDR17_SECONDARY_CCA_BUSY_TIME_MASK, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR18(phy->band_idx));
+	mib->primary_energy_detect_time +=
+		FIELD_GET(MT_MIB_SDR18_PRIMARY_ENERGY_DETECT_TIME_MASK, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR19(phy->band_idx));
+	mib->cck_mdrdy_time += FIELD_GET(MT_MIB_SDR19_CCK_MDRDY_TIME_MASK, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR20(phy->band_idx));
+	mib->ofdm_mdrdy_time +=
+		FIELD_GET(MT_MIB_SDR20_OFDM_VHT_MDRDY_TIME_MASK, cnt);
+
+	cnt = mt76_rr(dev, MT_MIB_SDR21(phy->band_idx));
+	mib->green_mdrdy_time +=
+		FIELD_GET(MT_MIB_SDR21_GREEN_MDRDY_TIME_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR22(phy->band_idx));
 	mib->rx_ampdu_cnt += cnt;
@@ -2266,10 +2299,12 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	mib->rx_ampdu_valid_subframe_bytes_cnt += cnt;
 
 	cnt = mt76_rr(dev, MT_MIB_SDR27(phy->band_idx));
-	mib->tx_rwp_fail_cnt += FIELD_GET(MT_MIB_SDR27_TX_RWP_FAIL_CNT_MASK, cnt);
+	mib->tx_rwp_fail_cnt +=
+		FIELD_GET(MT_MIB_SDR27_TX_RWP_FAIL_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR28(phy->band_idx));
-	mib->tx_rwp_need_cnt += FIELD_GET(MT_MIB_SDR28_TX_RWP_NEED_CNT_MASK, cnt);
+	mib->tx_rwp_need_cnt +=
+		FIELD_GET(MT_MIB_SDR28_TX_RWP_NEED_CNT_MASK, cnt);
 
 	cnt = mt76_rr(dev, MT_MIB_SDR29(phy->band_idx));
 	mib->rx_pfdrop_cnt += is_mt7915(&dev->mt76) ?
@@ -2311,7 +2346,8 @@ void mt7915_mac_update_stats(struct mt7915_phy *phy)
 	if (is_mt7915(&dev->mt76)) {
 		for (i = 0, aggr1 = aggr0 + 4; i < 4; i++) {
 			val = mt76_rr(dev, MT_MIB_MB_SDR1(phy->band_idx, (i << 4)));
-			mib->ba_miss_cnt += FIELD_GET(MT_MIB_BA_MISS_COUNT_MASK, val);
+			mib->ba_miss_cnt +=
+				FIELD_GET(MT_MIB_BA_MISS_COUNT_MASK, val);
 			mib->ack_fail_cnt +=
 				FIELD_GET(MT_MIB_ACK_FAIL_COUNT_MASK, val);
 

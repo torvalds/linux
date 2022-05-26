@@ -1146,8 +1146,15 @@ static const char mt7915_gstrings_stats[][ETH_GSTRING_LEN] = {
 	"rx_fifo_full_cnt",
 	"rx_mpdu_cnt",
 	"channel_idle_cnt",
+	"primary_cca_busy_time",
+	"secondary_cca_busy_time",
+	"primary_energy_detect_time",
+	"cck_mdrdy_time",
+	"ofdm_mdrdy_time",
+	"green_mdrdy_time",
 	"rx_vector_mismatch_cnt",
 	"rx_delimiter_fail_cnt",
+	"rx_mrdy_cnt",
 	"rx_len_mismatch_cnt",
 	"rx_ampdu_cnt",
 	"rx_ampdu_bytes_cnt",
@@ -1287,8 +1294,15 @@ void mt7915_get_et_stats(struct ieee80211_hw *hw,
 	data[ei++] = mib->rx_fifo_full_cnt;
 	data[ei++] = mib->rx_mpdu_cnt;
 	data[ei++] = mib->channel_idle_cnt;
+	data[ei++] = mib->primary_cca_busy_time;
+	data[ei++] = mib->secondary_cca_busy_time;
+	data[ei++] = mib->primary_energy_detect_time;
+	data[ei++] = mib->cck_mdrdy_time;
+	data[ei++] = mib->ofdm_mdrdy_time;
+	data[ei++] = mib->green_mdrdy_time;
 	data[ei++] = mib->rx_vector_mismatch_cnt;
 	data[ei++] = mib->rx_delimiter_fail_cnt;
+	data[ei++] = mib->rx_mrdy_cnt;
 	data[ei++] = mib->rx_len_mismatch_cnt;
 	data[ei++] = mib->rx_ampdu_cnt;
 	data[ei++] = mib->rx_ampdu_bytes_cnt;
