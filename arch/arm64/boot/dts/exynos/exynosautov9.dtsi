@@ -381,7 +381,7 @@
 		};
 
 		ufs_0: ufs0@17e00000 {
-			compatible ="samsung,exynosautov9-ufs";
+			compatible = "samsung,exynosautov9-ufs";
 
 			reg = <0x17e00000 0x100>,  /* 0: HCI standard */
 				<0x17e01100 0x410>,  /* 1: Vendor-specific */
