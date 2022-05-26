@@ -16,10 +16,6 @@
 
 struct task_struct;
 
-/* for sysctl */
-extern int prove_locking;
-extern int lock_stat;
-
 #ifdef CONFIG_LOCKDEP
 
 #include <linux/linkage.h>

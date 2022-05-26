@@ -86,7 +86,7 @@ struct ftrace_ops ftrace_list_end __read_mostly = {
 
 /* ftrace_enabled is a method to turn ftrace on or off */
 int ftrace_enabled __read_mostly;
-static int last_ftrace_enabled;
+static int __maybe_unused last_ftrace_enabled;
 
 /* Current function tracing op */
 struct ftrace_ops *function_trace_op __read_mostly = &ftrace_list_end;
@@ -3063,40 +3063,6 @@ int ftrace_shutdown(struct ftrace_ops *ops, int command)
 	}
 
 	return 0;
-}
-
-static void ftrace_startup_sysctl(void)
-{
-	int command;
-
-	if (unlikely(ftrace_disabled))
-		return;
-
-	/* Force update next time */
-	saved_ftrace_func = NULL;
-	/* ftrace_start_up is true if we want ftrace running */
-	if (ftrace_start_up) {
-		command = FTRACE_UPDATE_CALLS;
-		if (ftrace_graph_active)
-			command |= FTRACE_START_FUNC_RET;
-		ftrace_startup_enable(command);
-	}
-}
-
-static void ftrace_shutdown_sysctl(void)
-{
-	int command;
-
-	if (unlikely(ftrace_disabled))
-		return;
-
-	/* ftrace_start_up is true if ftrace is running */
-	if (ftrace_start_up) {
-		command = FTRACE_DISABLE_CALLS;
-		if (ftrace_graph_active)
-			command |= FTRACE_STOP_FUNC_RET;
-		ftrace_run_update_code(command);
-	}
 }
 
 static u64		ftrace_update_time;
@@ -7267,9 +7233,6 @@ core_initcall(ftrace_nodyn_init);
 static inline int ftrace_init_dyn_tracefs(struct dentry *d_tracer) { return 0; }
 static inline void ftrace_startup_all(int command) { }
 
-# define ftrace_startup_sysctl()	do { } while (0)
-# define ftrace_shutdown_sysctl()	do { } while (0)
-
 static void ftrace_update_trampoline(struct ftrace_ops *ops)
 {
 }
@@ -7909,62 +7872,6 @@ int unregister_ftrace_function(struct ftrace_ops *ops)
 }
 EXPORT_SYMBOL_GPL(unregister_ftrace_function);
 
-static bool is_permanent_ops_registered(void)
-{
-	struct ftrace_ops *op;
-
-	do_for_each_ftrace_op(op, ftrace_ops_list) {
-		if (op->flags & FTRACE_OPS_FL_PERMANENT)
-			return true;
-	} while_for_each_ftrace_op(op);
-
-	return false;
-}
-
-int
-ftrace_enable_sysctl(struct ctl_table *table, int write,
-		     void *buffer, size_t *lenp, loff_t *ppos)
-{
-	int ret = -ENODEV;
-
-	mutex_lock(&ftrace_lock);
-
-	if (unlikely(ftrace_disabled))
-		goto out;
-
-	ret = proc_dointvec(table, write, buffer, lenp, ppos);
-
-	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
-		goto out;
-
-	if (ftrace_enabled) {
-
-		/* we are starting ftrace again */
-		if (rcu_dereference_protected(ftrace_ops_list,
-			lockdep_is_held(&ftrace_lock)) != &ftrace_list_end)
-			update_ftrace_function();
-
-		ftrace_startup_sysctl();
-
-	} else {
-		if (is_permanent_ops_registered()) {
-			ftrace_enabled = true;
-			ret = -EBUSY;
-			goto out;
-		}
-
-		/* stopping ftrace calls (just send to ftrace_stub) */
-		ftrace_trace_function = ftrace_stub;
-
-		ftrace_shutdown_sysctl();
-	}
-
-	last_ftrace_enabled = !!ftrace_enabled;
- out:
-	mutex_unlock(&ftrace_lock);
-	return ret;
-}
-
 static int symbols_cmp(const void *a, const void *b)
 {
 	const char **str_a = (const char **) a;
@@ -8026,3 +7933,119 @@ int ftrace_lookup_symbols(const char **sorted_syms, size_t cnt, unsigned long *a
 		return err;
 	return args.found == args.cnt ? 0 : -ESRCH;
 }
+
+#ifdef CONFIG_SYSCTL
+
+#ifdef CONFIG_DYNAMIC_FTRACE
+static void ftrace_startup_sysctl(void)
+{
+	int command;
+
+	if (unlikely(ftrace_disabled))
+		return;
+
+	/* Force update next time */
+	saved_ftrace_func = NULL;
+	/* ftrace_start_up is true if we want ftrace running */
+	if (ftrace_start_up) {
+		command = FTRACE_UPDATE_CALLS;
+		if (ftrace_graph_active)
+			command |= FTRACE_START_FUNC_RET;
+		ftrace_startup_enable(command);
+	}
+}
+
+static void ftrace_shutdown_sysctl(void)
+{
+	int command;
+
+	if (unlikely(ftrace_disabled))
+		return;
+
+	/* ftrace_start_up is true if ftrace is running */
+	if (ftrace_start_up) {
+		command = FTRACE_DISABLE_CALLS;
+		if (ftrace_graph_active)
+			command |= FTRACE_STOP_FUNC_RET;
+		ftrace_run_update_code(command);
+	}
+}
+#else
+# define ftrace_startup_sysctl()       do { } while (0)
+# define ftrace_shutdown_sysctl()      do { } while (0)
+#endif /* CONFIG_DYNAMIC_FTRACE */
+
+static bool is_permanent_ops_registered(void)
+{
+	struct ftrace_ops *op;
+
+	do_for_each_ftrace_op(op, ftrace_ops_list) {
+		if (op->flags & FTRACE_OPS_FL_PERMANENT)
+			return true;
+	} while_for_each_ftrace_op(op);
+
+	return false;
+}
+
+static int
+ftrace_enable_sysctl(struct ctl_table *table, int write,
+		     void *buffer, size_t *lenp, loff_t *ppos)
+{
+	int ret = -ENODEV;
+
+	mutex_lock(&ftrace_lock);
+
+	if (unlikely(ftrace_disabled))
+		goto out;
+
+	ret = proc_dointvec(table, write, buffer, lenp, ppos);
+
+	if (ret || !write || (last_ftrace_enabled == !!ftrace_enabled))
+		goto out;
+
+	if (ftrace_enabled) {
+
+		/* we are starting ftrace again */
+		if (rcu_dereference_protected(ftrace_ops_list,
+			lockdep_is_held(&ftrace_lock)) != &ftrace_list_end)
+			update_ftrace_function();
+
+		ftrace_startup_sysctl();
+
+	} else {
+		if (is_permanent_ops_registered()) {
+			ftrace_enabled = true;
+			ret = -EBUSY;
+			goto out;
+		}
+
+		/* stopping ftrace calls (just send to ftrace_stub) */
+		ftrace_trace_function = ftrace_stub;
+
+		ftrace_shutdown_sysctl();
+	}
+
+	last_ftrace_enabled = !!ftrace_enabled;
+ out:
+	mutex_unlock(&ftrace_lock);
+	return ret;
+}
+
+static struct ctl_table ftrace_sysctls[] = {
+	{
+		.procname       = "ftrace_enabled",
+		.data           = &ftrace_enabled,
+		.maxlen         = sizeof(int),
+		.mode           = 0644,
+		.proc_handler   = ftrace_enable_sysctl,
+	},
+	{}
+};
+
+static int __init ftrace_sysctl_init(void)
+{
+	register_sysctl_init("kernel", ftrace_sysctls);
+	return 0;
+}
+late_initcall(ftrace_sysctl_init);
+#endif
