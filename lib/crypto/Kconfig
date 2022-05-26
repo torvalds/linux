@@ -85,6 +85,7 @@ config CRYPTO_LIB_POLY1305_RSIZE
 	default 11 if X86_64
 	default 9 if ARM || ARM64
 	default 1
+	depends on CRYPTO_LIB_POLY1305
 
 config CRYPTO_ARCH_HAVE_LIB_POLY1305
 	tristate
