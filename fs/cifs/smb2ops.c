@@ -770,6 +770,7 @@ smb2_cached_lease_break(struct work_struct *work)
 /*
  * Open the and cache a directory handle.
  * Only supported for the root handle.
+ * If error then *cfid is not initialized.
  */
 int open_cached_dir(unsigned int xid, struct cifs_tcon *tcon,
 		const char *path,
