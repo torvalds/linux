@@ -6616,11 +6616,27 @@ int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 	return __btrfs_map_block(fs_info, op, logical, length, bioc_ret, 0, 1);
 }
 
-static inline void btrfs_end_bioc(struct btrfs_io_context *bioc)
+static struct workqueue_struct *btrfs_end_io_wq(struct btrfs_io_context *bioc)
+{
+	if (bioc->orig_bio->bi_opf & REQ_META)
+		return bioc->fs_info->endio_meta_workers;
+	return bioc->fs_info->endio_workers;
+}
+
+static void btrfs_end_bio_work(struct work_struct *work)
+{
+	struct btrfs_bio *bbio =
+		container_of(work, struct btrfs_bio, end_io_work);
+
+	bio_endio(&bbio->bio);
+}
+
+static void btrfs_end_bioc(struct btrfs_io_context *bioc, bool async)
 {
 	struct bio *orig_bio = bioc->orig_bio;
+	struct btrfs_bio *bbio = btrfs_bio(orig_bio);
 
-	btrfs_bio(orig_bio)->mirror_num = bioc->mirror_num;
+	bbio->mirror_num = bioc->mirror_num;
 	orig_bio->bi_private = bioc->private;
 	orig_bio->bi_end_io = bioc->end_io;
 
@@ -6632,7 +6648,14 @@ static inline void btrfs_end_bioc(struct btrfs_io_context *bioc)
 		orig_bio->bi_status = BLK_STS_IOERR;
 	else
 		orig_bio->bi_status = BLK_STS_OK;
-	bio_endio(orig_bio);
+
+	if (btrfs_op(orig_bio) == BTRFS_MAP_READ && async) {
+		INIT_WORK(&bbio->end_io_work, btrfs_end_bio_work);
+		queue_work(btrfs_end_io_wq(bioc), &bbio->end_io_work);
+	} else {
+		bio_endio(orig_bio);
+	}
+
 	btrfs_put_bioc(bioc);
 }
 
@@ -6664,7 +6687,7 @@ static void btrfs_end_bio(struct bio *bio)
 
 	btrfs_bio_counter_dec(bioc->fs_info);
 	if (atomic_dec_and_test(&bioc->stripes_pending))
-		btrfs_end_bioc(bioc);
+		btrfs_end_bioc(bioc, true);
 }
 
 static void submit_stripe_bio(struct btrfs_io_context *bioc, struct bio *bio,
@@ -6762,7 +6785,7 @@ blk_status_t btrfs_map_bio(struct btrfs_fs_info *fs_info, struct bio *bio,
 		    !test_bit(BTRFS_DEV_STATE_WRITEABLE, &dev->dev_state))) {
 			atomic_inc(&bioc->error);
 			if (atomic_dec_and_test(&bioc->stripes_pending))
-				btrfs_end_bioc(bioc);
+				btrfs_end_bioc(bioc, false);
 			continue;
 		}
 
