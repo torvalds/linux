@@ -472,11 +472,10 @@ static int __init da830_evm_ui_expander_setup(struct i2c_client *client,
 	return 0;
 }
 
-static int da830_evm_ui_expander_teardown(struct i2c_client *client, int gpio,
+static void da830_evm_ui_expander_teardown(struct i2c_client *client, int gpio,
 		unsigned ngpio, void *context)
 {
 	gpio_free(gpio + 6);
-	return 0;
 }
 
 static struct pcf857x_platform_data __initdata da830_evm_ui_expander_info = {
