@@ -107,7 +107,7 @@
 		vdd3-supply = <&lcd_vdd3_reg>;
 		vci-supply = <&ldo25_reg>;
 		reset-gpios = <&gpf2 1 GPIO_ACTIVE_HIGH>;
-		power-on-delay= <50>;
+		power-on-delay = <50>;
 		reset-delay = <100>;
 		init-delay = <100>;
 		flip-horizontal;
