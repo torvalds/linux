@@ -1278,6 +1278,7 @@ static void trc_del_holdout(struct task_struct *t)
 /* IPI handler to check task state. */
 static void trc_read_check_handler(void *t_in)
 {
+	int nesting;
 	struct task_struct *t = current;
 	struct task_struct *texp = t_in;
 
@@ -1287,12 +1288,13 @@ static void trc_read_check_handler(void *t_in)
 
 	// If the task is not in a read-side critical section, and
 	// if this is the last reader, awaken the grace-period kthread.
-	if (likely(!READ_ONCE(t->trc_reader_nesting))) {
+	nesting = READ_ONCE(t->trc_reader_nesting);
+	if (likely(!nesting)) {
 		rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS_CHECKED);
 		goto reset_ipi;
 	}
 	// If we are racing with an rcu_read_unlock_trace(), try again later.
-	if (unlikely(READ_ONCE(t->trc_reader_nesting) < 0))
+	if (unlikely(nesting < 0))
 		goto reset_ipi;
 
 	// Get here if the task is in a read-side critical section.  Set
