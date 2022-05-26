@@ -4411,11 +4411,12 @@ static void android_rvh_sched_fork_init(void *unused, struct task_struct *p)
 	__sched_fork_init(p);
 }
 
-static void android_rvh_ttwu_cond(void *unused, bool *cond)
+static void android_rvh_ttwu_cond(void *unused, int cpu, bool *cond)
 {
 	if (unlikely(walt_disabled))
 		return;
-	*cond = sysctl_sched_many_wakeup_threshold < WALT_MANY_WAKEUP_DEFAULT;
+	*cond = (sysctl_sched_many_wakeup_threshold < WALT_MANY_WAKEUP_DEFAULT) &&
+			(cpu != smp_processor_id());
 }
 
 static void android_rvh_sched_exec(void *unused, bool *cond)
