@@ -825,10 +825,9 @@ static struct fc_exch *fc_exch_em_alloc(struct fc_lport *lport,
 	}
 	memset(ep, 0, sizeof(*ep));
 
-	cpu = get_cpu();
+	cpu = raw_smp_processor_id();
 	pool = per_cpu_ptr(mp->pool, cpu);
 	spin_lock_bh(&pool->lock);
-	put_cpu();
 
 	/* peek cache of free slot */
 	if (pool->left != FC_XID_UNKNOWN) {

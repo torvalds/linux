@@ -5,12 +5,7 @@
 #ifndef UFS_BSG_H
 #define UFS_BSG_H
 
-#include <linux/bsg-lib.h>
-#include <scsi/scsi.h>
-#include <scsi/scsi_host.h>
-
-#include "ufshcd.h"
-#include "ufs.h"
+struct ufs_hba;
 
 #ifdef CONFIG_SCSI_UFS_BSG
 void ufs_bsg_remove(struct ufs_hba *hba);

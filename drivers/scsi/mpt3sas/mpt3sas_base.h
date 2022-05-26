@@ -77,8 +77,8 @@
 #define MPT3SAS_DRIVER_NAME		"mpt3sas"
 #define MPT3SAS_AUTHOR "Avago Technologies <MPT-FusionLinux.pdl@avagotech.com>"
 #define MPT3SAS_DESCRIPTION	"LSI MPT Fusion SAS 3.0 Device Driver"
-#define MPT3SAS_DRIVER_VERSION		"40.100.00.00"
-#define MPT3SAS_MAJOR_VERSION		40
+#define MPT3SAS_DRIVER_VERSION		"42.100.00.00"
+#define MPT3SAS_MAJOR_VERSION		42
 #define MPT3SAS_MINOR_VERSION		100
 #define MPT3SAS_BUILD_VERSION		0
 #define MPT3SAS_RELEASE_VERSION	00
@@ -1588,7 +1588,7 @@ struct MPT3SAS_ADAPTER {
 	u8		combined_reply_index_count;
 	u8		smp_affinity_enable;
 	/* reply post register index */
-	resource_size_t	**replyPostRegisterIndex;
+	resource_size_t	__iomem **replyPostRegisterIndex;
 
 	struct list_head delayed_tr_list;
 	struct list_head delayed_tr_volume_list;

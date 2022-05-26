@@ -319,8 +319,10 @@ __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
 	struct lpfc_nodelist *ndlp;
 	uint32_t status;
 
-	pnvme_lsreq = (struct nvmefc_ls_req *)cmdwqe->context2;
-	ndlp = (struct lpfc_nodelist *)cmdwqe->context1;
+	pnvme_lsreq = cmdwqe->context_un.nvme_lsreq;
+	ndlp = cmdwqe->ndlp;
+	buf_ptr = cmdwqe->bpl_dmabuf;
+
 	status = bf_get(lpfc_wcqe_c_status, wcqe) & LPFC_IOCB_STATUS_MASK;
 
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
@@ -330,16 +332,16 @@ __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
 			 pnvme_lsreq, ndlp ? ndlp->nlp_DID : 0,
 			 cmdwqe->sli4_xritag, status,
 			 (wcqe->parameter & 0xffff),
-			 cmdwqe, pnvme_lsreq, cmdwqe->context3, ndlp);
+			 cmdwqe, pnvme_lsreq, cmdwqe->bpl_dmabuf,
+			 ndlp);
 
 	lpfc_nvmeio_data(phba, "NVMEx LS CMPL: xri x%x stat x%x parm x%x\n",
 			 cmdwqe->sli4_xritag, status, wcqe->parameter);
 
-	if (cmdwqe->context3) {
-		buf_ptr = (struct lpfc_dmabuf *)cmdwqe->context3;
+	if (buf_ptr) {
 		lpfc_mbuf_free(phba, buf_ptr->virt, buf_ptr->phys);
 		kfree(buf_ptr);
-		cmdwqe->context3 = NULL;
+		cmdwqe->bpl_dmabuf = NULL;
 	}
 	if (pnvme_lsreq->done)
 		pnvme_lsreq->done(pnvme_lsreq, status);
@@ -351,7 +353,7 @@ __lpfc_nvme_ls_req_cmp(struct lpfc_hba *phba,  struct lpfc_vport *vport,
 				cmdwqe->sli4_xritag, status);
 	if (ndlp) {
 		lpfc_nlp_put(ndlp);
-		cmdwqe->context1 = NULL;
+		cmdwqe->ndlp = NULL;
 	}
 	lpfc_sli_release_iocbq(phba, cmdwqe);
 }
@@ -407,19 +409,19 @@ lpfc_nvme_gen_req(struct lpfc_vport *vport, struct lpfc_dmabuf *bmp,
 	/* Initialize only 64 bytes */
 	memset(wqe, 0, sizeof(union lpfc_wqe));
 
-	genwqe->context3 = (uint8_t *)bmp;
+	genwqe->bpl_dmabuf = bmp;
 	genwqe->cmd_flag |= LPFC_IO_NVME_LS;
 
 	/* Save for completion so we can release these resources */
-	genwqe->context1 = lpfc_nlp_get(ndlp);
-	if (!genwqe->context1) {
+	genwqe->ndlp = lpfc_nlp_get(ndlp);
+	if (!genwqe->ndlp) {
 		dev_warn(&phba->pcidev->dev,
 			 "Warning: Failed node ref, not sending LS_REQ\n");
 		lpfc_sli_release_iocbq(phba, genwqe);
 		return 1;
 	}
 
-	genwqe->context2 = (uint8_t *)pnvme_lsreq;
+	genwqe->context_un.nvme_lsreq = pnvme_lsreq;
 	/* Fill in payload, bp points to frame payload */
 
 	if (!tmo)
@@ -730,7 +732,7 @@ __lpfc_nvme_ls_abort(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp,
 	spin_lock_irq(&phba->hbalock);
 	spin_lock(&pring->ring_lock);
 	list_for_each_entry_safe(wqe, next_wqe, &pring->txcmplq, list) {
-		if (wqe->context2 == pnvme_lsreq) {
+		if (wqe->context_un.nvme_lsreq == pnvme_lsreq) {
 			wqe->cmd_flag |= LPFC_DRIVER_ABORTED;
 			foundit = true;
 			break;
@@ -929,8 +931,7 @@ static void
 lpfc_nvme_io_cmd_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 		      struct lpfc_iocbq *pwqeOut)
 {
-	struct lpfc_io_buf *lpfc_ncmd =
-		(struct lpfc_io_buf *)pwqeIn->context1;
+	struct lpfc_io_buf *lpfc_ncmd = pwqeIn->io_buf;
 	struct lpfc_wcqe_complete *wcqe = &pwqeOut->wcqe_cmpl;
 	struct lpfc_vport *vport = pwqeIn->vport;
 	struct nvmefc_fcp_req *nCmd;
@@ -1400,8 +1401,8 @@ lpfc_nvme_prep_io_dma(struct lpfc_vport *vport,
 				if ((nseg - 1) == i)
 					bf_set(lpfc_sli4_sge_last, sgl, 1);
 
-				physaddr = data_sg->dma_address;
-				dma_len = data_sg->length;
+				physaddr = sg_dma_address(data_sg);
+				dma_len = sg_dma_len(data_sg);
 				sgl->addr_lo = cpu_to_le32(
 							 putPaddrLow(physaddr));
 				sgl->addr_hi = cpu_to_le32(
@@ -2356,6 +2357,11 @@ lpfc_nvme_register_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 		rpinfo.dev_loss_tmo = vport->cfg_devloss_tmo;
 
 	spin_lock_irq(&ndlp->lock);
+
+	/* If an oldrport exists, so does the ndlp reference.  If not
+	 * a new reference is needed because either the node has never
+	 * been registered or it's been unregistered and getting deleted.
+	 */
 	oldrport = lpfc_ndlp_get_nrport(ndlp);
 	if (oldrport) {
 		prev_ndlp = oldrport->ndlp;
@@ -2466,12 +2472,12 @@ lpfc_nvme_rescan_port(struct lpfc_vport *vport, struct lpfc_nodelist *ndlp)
 	if (!nrport || !remoteport)
 		goto rescan_exit;
 
-	/* Only rescan if we are an NVME target in the MAPPED state */
+	/* Rescan an NVME target in MAPPED state with DISCOVERY role set */
 	if (remoteport->port_role & FC_PORT_ROLE_NVME_DISCOVERY &&
 	    ndlp->nlp_state == NLP_STE_MAPPED_NODE) {
 		nvme_fc_rescan_remoteport(remoteport);
 
-		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
+		lpfc_printf_vlog(vport, KERN_INFO, LOG_NVME_DISC,
 				 "6172 NVME rescanned DID x%06x "
 				 "port_state x%x\n",
 				 ndlp->nlp_DID, remoteport->port_state);
@@ -2717,7 +2723,7 @@ lpfc_nvme_cancel_iocb(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeIn,
 	struct lpfc_wcqe_complete wcqe;
 	struct lpfc_wcqe_complete *wcqep = &wcqe;
 
-	lpfc_ncmd = (struct lpfc_io_buf *)pwqeIn->context1;
+	lpfc_ncmd = pwqeIn->io_buf;
 	if (!lpfc_ncmd) {
 		lpfc_sli_release_iocbq(phba, pwqeIn);
 		return;

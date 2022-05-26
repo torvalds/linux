@@ -9,6 +9,7 @@
  */
 
 #include <linux/clk.h>
+#include <linux/delay.h>
 #include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
@@ -704,7 +705,7 @@ static void exynos_ufs_establish_connt(struct exynos_ufs *ufs)
 
 	/* local unipro attributes */
 	ufshcd_dme_set(hba, UIC_ARG_MIB(N_DEVICEID), DEV_ID);
-	ufshcd_dme_set(hba, UIC_ARG_MIB(N_DEVICEID_VALID), TRUE);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(N_DEVICEID_VALID), true);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(T_PEERDEVICEID), PEER_DEV_ID);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(T_PEERCPORTID), PEER_CPORT_ID);
 	ufshcd_dme_set(hba, UIC_ARG_MIB(T_CPORTFLAGS), CPORT_DEF_FLAGS);
@@ -1028,7 +1029,7 @@ static int exynos_ufs_post_link(struct ufs_hba *hba)
 
 	if (ufs->opts & EXYNOS_UFS_OPT_SKIP_CONNECTION_ESTAB)
 		ufshcd_dme_set(hba,
-			UIC_ARG_MIB(T_DBG_SKIP_INIT_HIBERN8_EXIT), TRUE);
+			UIC_ARG_MIB(T_DBG_SKIP_INIT_HIBERN8_EXIT), true);
 
 	if (attr->pa_granularity) {
 		exynos_ufs_enable_dbg_mode(hba);

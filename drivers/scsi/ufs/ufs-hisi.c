@@ -7,6 +7,8 @@
  */
 
 #include <linux/time.h>
+#include <linux/delay.h>
+#include <linux/module.h>
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/dma-mapping.h>

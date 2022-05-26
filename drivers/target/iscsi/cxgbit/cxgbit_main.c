@@ -657,7 +657,7 @@ cxgbit_dcbevent_notify(struct notifier_block *nb, unsigned long action,
 }
 #endif
 
-static enum target_prot_op cxgbit_get_sup_prot_ops(struct iscsi_conn *conn)
+static enum target_prot_op cxgbit_get_sup_prot_ops(struct iscsit_conn *conn)
 {
 	return TARGET_PROT_NORMAL;
 }

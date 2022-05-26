@@ -8,6 +8,7 @@
 #include <linux/units.h>
 
 #include "ufshcd.h"
+#include "ufshcd-priv.h"
 
 struct ufs_hwmon_data {
 	struct ufs_hba *hba;

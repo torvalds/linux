@@ -10,8 +10,12 @@
  */
 
 #include <asm/unaligned.h>
+#include <linux/delay.h>
+#include <linux/device.h>
+#include <linux/module.h>
+#include <scsi/scsi_cmnd.h>
 
-#include "ufshcd.h"
+#include "ufshcd-priv.h"
 #include "ufshpb.h"
 #include "../sd.h"
 
@@ -90,12 +94,8 @@ static bool ufshpb_is_general_lun(int lun)
 
 static bool ufshpb_is_pinned_region(struct ufshpb_lu *hpb, int rgn_idx)
 {
-	if (hpb->lu_pinned_end != PINNED_NOT_SET &&
-	    rgn_idx >= hpb->lu_pinned_start &&
-	    rgn_idx <= hpb->lu_pinned_end)
-		return true;
-
-	return false;
+	return hpb->lu_pinned_end != PINNED_NOT_SET &&
+	       rgn_idx >= hpb->lu_pinned_start && rgn_idx <= hpb->lu_pinned_end;
 }
 
 static void ufshpb_kick_map_work(struct ufshpb_lu *hpb)
@@ -563,7 +563,7 @@ static void ufshpb_update_active_info(struct ufshpb_lu *hpb, int rgn_idx,
 	if (list_empty(&srgn->list_act_srgn))
 		list_add_tail(&srgn->list_act_srgn, &hpb->lh_act_srgn);
 
-	hpb->stats.rb_active_cnt++;
+	hpb->stats.rcmd_active_cnt++;
 }
 
 static void ufshpb_update_inactive_info(struct ufshpb_lu *hpb, int rgn_idx)
@@ -580,7 +580,7 @@ static void ufshpb_update_inactive_info(struct ufshpb_lu *hpb, int rgn_idx)
 	if (list_empty(&rgn->list_inact_rgn))
 		list_add_tail(&rgn->list_inact_rgn, &hpb->lh_inact_rgn);
 
-	hpb->stats.rb_inactive_cnt++;
+	hpb->stats.rcmd_inactive_cnt++;
 }
 
 static void ufshpb_activate_subregion(struct ufshpb_lu *hpb,
@@ -930,11 +930,6 @@ static int ufshpb_issue_umap_single_req(struct ufshpb_lu *hpb,
 	return ufshpb_issue_umap_req(hpb, rgn, true);
 }
 
-static int ufshpb_issue_umap_all_req(struct ufshpb_lu *hpb)
-{
-	return ufshpb_issue_umap_req(hpb, NULL, false);
-}
-
 static void __ufshpb_evict_region(struct ufshpb_lu *hpb,
 				 struct ufshpb_region *rgn)
 {
@@ -1142,6 +1137,39 @@ out:
 	spin_unlock_irqrestore(&hpb->rgn_state_lock, flags);
 	return ret;
 }
+/**
+ *ufshpb_submit_region_inactive() - submit a region to be inactivated later
+ *@hpb: per-LU HPB instance
+ *@region_index: the index associated with the region that will be inactivated later
+ */
+static void ufshpb_submit_region_inactive(struct ufshpb_lu *hpb, int region_index)
+{
+	int subregion_index;
+	struct ufshpb_region *rgn;
+	struct ufshpb_subregion *srgn;
+
+	/*
+	 * Remove this region from active region list and add it to inactive list
+	 */
+	spin_lock(&hpb->rsp_list_lock);
+	ufshpb_update_inactive_info(hpb, region_index);
+	spin_unlock(&hpb->rsp_list_lock);
+
+	rgn = hpb->rgn_tbl + region_index;
+
+	/*
+	 * Set subregion state to be HPB_SRGN_INVALID, there will no HPB read on this subregion
+	 */
+	spin_lock(&hpb->rgn_state_lock);
+	if (rgn->rgn_state != HPB_RGN_INACTIVE) {
+		for (subregion_index = 0; subregion_index < rgn->srgn_cnt; subregion_index++) {
+			srgn = rgn->srgn_tbl + subregion_index;
+			if (srgn->srgn_state == HPB_SRGN_VALID)
+				srgn->srgn_state = HPB_SRGN_INVALID;
+		}
+	}
+	spin_unlock(&hpb->rgn_state_lock);
+}
 
 static void ufshpb_rsp_req_region_update(struct ufshpb_lu *hpb,
 					 struct utp_hpb_rsp *rsp_field)
@@ -1201,25 +1229,8 @@ static void ufshpb_rsp_req_region_update(struct ufshpb_lu *hpb,
 
 	for (i = 0; i < rsp_field->inactive_rgn_cnt; i++) {
 		rgn_i = be16_to_cpu(rsp_field->hpb_inactive_field[i]);
-		dev_dbg(&hpb->sdev_ufs_lu->sdev_dev,
-			"inactivate(%d) region %d\n", i, rgn_i);
-
-		spin_lock(&hpb->rsp_list_lock);
-		ufshpb_update_inactive_info(hpb, rgn_i);
-		spin_unlock(&hpb->rsp_list_lock);
-
-		rgn = hpb->rgn_tbl + rgn_i;
-
-		spin_lock(&hpb->rgn_state_lock);
-		if (rgn->rgn_state != HPB_RGN_INACTIVE) {
-			for (srgn_i = 0; srgn_i < rgn->srgn_cnt; srgn_i++) {
-				srgn = rgn->srgn_tbl + srgn_i;
-				if (srgn->srgn_state == HPB_SRGN_VALID)
-					srgn->srgn_state = HPB_SRGN_INVALID;
-			}
-		}
-		spin_unlock(&hpb->rgn_state_lock);
-
+		dev_dbg(&hpb->sdev_ufs_lu->sdev_dev, "inactivate(%d) region %d\n", i, rgn_i);
+		ufshpb_submit_region_inactive(hpb, rgn_i);
 	}
 
 out:
@@ -1230,7 +1241,10 @@ out:
 		queue_work(ufshpb_wq, &hpb->map_work);
 }
 
-static void ufshpb_dev_reset_handler(struct ufshpb_lu *hpb)
+/*
+ * Set the flags of all active regions to RGN_FLAG_UPDATE to let host side reload L2P entries later
+ */
+static void ufshpb_set_regions_update(struct ufshpb_lu *hpb)
 {
 	struct victim_select_info *lru_info = &hpb->lru_info;
 	struct ufshpb_region *rgn;
@@ -1242,6 +1256,42 @@ static void ufshpb_dev_reset_handler(struct ufshpb_lu *hpb)
 		set_bit(RGN_FLAG_UPDATE, &rgn->rgn_flags);
 
 	spin_unlock_irqrestore(&hpb->rgn_state_lock, flags);
+}
+
+static void ufshpb_dev_reset_handler(struct ufs_hba *hba)
+{
+	struct scsi_device *sdev;
+	struct ufshpb_lu *hpb;
+
+	__shost_for_each_device(sdev, hba->host) {
+		hpb = ufshpb_get_hpb_data(sdev);
+		if (!hpb)
+			continue;
+
+		if (hpb->is_hcm) {
+			/*
+			 * For the HPB host control mode, in case device powered up and lost HPB
+			 * information, we will set the region flag to be RGN_FLAG_UPDATE, it will
+			 * let host reload its L2P entries(reactivate region in the UFS device).
+			 */
+			ufshpb_set_regions_update(hpb);
+		} else {
+			/*
+			 * For the HPB device control mode, if host side receives 02h:HPB Operation
+			 * in UPIU response, which means device recommends the host side should
+			 * inactivate all active regions. Here we add all active regions to inactive
+			 * list, they will be inactivated later in ufshpb_map_work_handler().
+			 */
+			struct victim_select_info *lru_info = &hpb->lru_info;
+			struct ufshpb_region *rgn;
+
+			list_for_each_entry(rgn, &lru_info->lh_lru_rgn, list_lru_rgn)
+				ufshpb_submit_region_inactive(hpb, rgn->rgn_idx);
+
+			if (ufshpb_get_state(hpb) == HPB_PRESENT)
+				queue_work(ufshpb_wq, &hpb->map_work);
+		}
+	}
 }
 
 /*
@@ -1300,7 +1350,7 @@ void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	if (!ufshpb_is_hpb_rsp_valid(hba, lrbp, rsp_field))
 		return;
 
-	hpb->stats.rb_noti_cnt++;
+	hpb->stats.rcmd_noti_cnt++;
 
 	switch (rsp_field->hpb_op) {
 	case HPB_RSP_REQ_REGION_UPDATE:
@@ -1313,17 +1363,7 @@ void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	case HPB_RSP_DEV_RESET:
 		dev_warn(&hpb->sdev_ufs_lu->sdev_dev,
 			 "UFS device lost HPB information during PM.\n");
-
-		if (hpb->is_hcm) {
-			struct scsi_device *sdev;
-
-			__shost_for_each_device(sdev, hba->host) {
-				struct ufshpb_lu *h = sdev->hostdata;
-
-				if (h)
-					ufshpb_dev_reset_handler(h);
-			}
-		}
+		ufshpb_dev_reset_handler(hba);
 
 		break;
 	default:
@@ -1713,18 +1753,18 @@ static DEVICE_ATTR_RO(__name)
 
 ufshpb_sysfs_attr_show_func(hit_cnt);
 ufshpb_sysfs_attr_show_func(miss_cnt);
-ufshpb_sysfs_attr_show_func(rb_noti_cnt);
-ufshpb_sysfs_attr_show_func(rb_active_cnt);
-ufshpb_sysfs_attr_show_func(rb_inactive_cnt);
+ufshpb_sysfs_attr_show_func(rcmd_noti_cnt);
+ufshpb_sysfs_attr_show_func(rcmd_active_cnt);
+ufshpb_sysfs_attr_show_func(rcmd_inactive_cnt);
 ufshpb_sysfs_attr_show_func(map_req_cnt);
 ufshpb_sysfs_attr_show_func(umap_req_cnt);
 
 static struct attribute *hpb_dev_stat_attrs[] = {
 	&dev_attr_hit_cnt.attr,
 	&dev_attr_miss_cnt.attr,
-	&dev_attr_rb_noti_cnt.attr,
-	&dev_attr_rb_active_cnt.attr,
-	&dev_attr_rb_inactive_cnt.attr,
+	&dev_attr_rcmd_noti_cnt.attr,
+	&dev_attr_rcmd_active_cnt.attr,
+	&dev_attr_rcmd_inactive_cnt.attr,
 	&dev_attr_map_req_cnt.attr,
 	&dev_attr_umap_req_cnt.attr,
 	NULL,
@@ -2087,9 +2127,9 @@ static void ufshpb_stat_init(struct ufshpb_lu *hpb)
 {
 	hpb->stats.hit_cnt = 0;
 	hpb->stats.miss_cnt = 0;
-	hpb->stats.rb_noti_cnt = 0;
-	hpb->stats.rb_active_cnt = 0;
-	hpb->stats.rb_inactive_cnt = 0;
+	hpb->stats.rcmd_noti_cnt = 0;
+	hpb->stats.rcmd_active_cnt = 0;
+	hpb->stats.rcmd_inactive_cnt = 0;
 	hpb->stats.map_req_cnt = 0;
 	hpb->stats.umap_req_cnt = 0;
 }
@@ -2272,38 +2312,28 @@ out:
 	return flag_res;
 }
 
-void ufshpb_reset(struct ufs_hba *hba)
+/**
+ * ufshpb_toggle_state - switch HPB state of all LUs
+ * @hba: per-adapter instance
+ * @src: expected current HPB state
+ * @dest: target HPB state to switch to
+ */
+void ufshpb_toggle_state(struct ufs_hba *hba, enum UFSHPB_STATE src, enum UFSHPB_STATE dest)
 {
 	struct ufshpb_lu *hpb;
 	struct scsi_device *sdev;
 
 	shost_for_each_device(sdev, hba->host) {
 		hpb = ufshpb_get_hpb_data(sdev);
-		if (!hpb)
+
+		if (!hpb || ufshpb_get_state(hpb) != src)
 			continue;
+		ufshpb_set_state(hpb, dest);
 
-		if (ufshpb_get_state(hpb) != HPB_RESET)
-			continue;
-
-		ufshpb_set_state(hpb, HPB_PRESENT);
-	}
-}
-
-void ufshpb_reset_host(struct ufs_hba *hba)
-{
-	struct ufshpb_lu *hpb;
-	struct scsi_device *sdev;
-
-	shost_for_each_device(sdev, hba->host) {
-		hpb = ufshpb_get_hpb_data(sdev);
-		if (!hpb)
-			continue;
-
-		if (ufshpb_get_state(hpb) != HPB_PRESENT)
-			continue;
-		ufshpb_set_state(hpb, HPB_RESET);
-		ufshpb_cancel_jobs(hpb);
-		ufshpb_discard_rsp_lists(hpb);
+		if (dest == HPB_RESET) {
+			ufshpb_cancel_jobs(hpb);
+			ufshpb_discard_rsp_lists(hpb);
+		}
 	}
 }
 
@@ -2314,11 +2344,9 @@ void ufshpb_suspend(struct ufs_hba *hba)
 
 	shost_for_each_device(sdev, hba->host) {
 		hpb = ufshpb_get_hpb_data(sdev);
-		if (!hpb)
+		if (!hpb || ufshpb_get_state(hpb) != HPB_PRESENT)
 			continue;
 
-		if (ufshpb_get_state(hpb) != HPB_PRESENT)
-			continue;
 		ufshpb_set_state(hpb, HPB_SUSPEND);
 		ufshpb_cancel_jobs(hpb);
 	}
@@ -2331,20 +2359,15 @@ void ufshpb_resume(struct ufs_hba *hba)
 
 	shost_for_each_device(sdev, hba->host) {
 		hpb = ufshpb_get_hpb_data(sdev);
-		if (!hpb)
+		if (!hpb || ufshpb_get_state(hpb) != HPB_SUSPEND)
 			continue;
 
-		if ((ufshpb_get_state(hpb) != HPB_PRESENT) &&
-		    (ufshpb_get_state(hpb) != HPB_SUSPEND))
-			continue;
 		ufshpb_set_state(hpb, HPB_PRESENT);
 		ufshpb_kick_map_work(hpb);
 		if (hpb->is_hcm) {
-			unsigned int poll =
-				hpb->params.timeout_polling_interval_ms;
+			unsigned int poll = hpb->params.timeout_polling_interval_ms;
 
-			schedule_delayed_work(&hpb->ufshpb_read_to_work,
-				msecs_to_jiffies(poll));
+			schedule_delayed_work(&hpb->ufshpb_read_to_work, msecs_to_jiffies(poll));
 		}
 	}
 }
@@ -2450,8 +2473,6 @@ static void ufshpb_hpb_lu_prepared(struct ufs_hba *hba)
 			ufshpb_set_state(hpb, HPB_PRESENT);
 			if ((hpb->lu_pinned_end - hpb->lu_pinned_start) > 0)
 				queue_work(ufshpb_wq, &hpb->map_work);
-			if (!hpb->is_hcm)
-				ufshpb_issue_umap_all_req(hpb);
 		} else {
 			dev_err(hba->dev, "destroy HPB lu %d\n", hpb->lun);
 			ufshpb_destroy_lu(hba, sdev);

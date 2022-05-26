@@ -234,7 +234,7 @@ static void mac53c94_interrupt(int irq, void *dev_id)
 		++mac53c94_errors;
 		writeb(CMD_NOP + CMD_DMA_MODE, &regs->command);
 	}
-	if (cmd == 0) {
+	if (!cmd) {
 		printk(KERN_DEBUG "53c94: interrupt with no command active?\n");
 		return;
 	}

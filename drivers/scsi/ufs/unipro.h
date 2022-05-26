@@ -1,7 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0-or-later */
 /*
- * drivers/scsi/ufs/unipro.h
- *
  * Copyright (C) 2013 Samsung Electronics Co., Ltd.
  */
 
@@ -103,7 +101,7 @@
 #define UNIPRO_CB_OFFSET(x)			(0x8000 | x)
 
 /*
- * PHY Adpater attributes
+ * PHY Adapter attributes
  */
 #define PA_ACTIVETXDATALANES	0x1560
 #define PA_ACTIVERXDATALANES	0x1580
@@ -299,20 +297,6 @@ enum ufs_unipro_ver {
 #define T_CPORTMODE		0x402B
 #define T_TC0TXMAXSDUSIZE	0x4060
 #define T_TC1TXMAXSDUSIZE	0x4061
-
-#ifdef FALSE
-#undef FALSE
-#endif
-
-#ifdef TRUE
-#undef TRUE
-#endif
-
-/* Boolean attribute values */
-enum {
-	FALSE = 0,
-	TRUE,
-};
 
 /* CPort setting */
 #define E2EFC_ON	(1 << 0)

@@ -248,22 +248,22 @@ long exynos_ufs_calc_time_cntr(struct exynos_ufs *, long);
 
 static inline void exynos_ufs_enable_ov_tm(struct ufs_hba *hba)
 {
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OV_TM), TRUE);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OV_TM), true);
 }
 
 static inline void exynos_ufs_disable_ov_tm(struct ufs_hba *hba)
 {
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OV_TM), FALSE);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_OV_TM), false);
 }
 
 static inline void exynos_ufs_enable_dbg_mode(struct ufs_hba *hba)
 {
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), TRUE);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), true);
 }
 
 static inline void exynos_ufs_disable_dbg_mode(struct ufs_hba *hba)
 {
-	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), FALSE);
+	ufshcd_dme_set(hba, UIC_ARG_MIB(PA_DBG_MODE), false);
 }
 
 #endif /* _UFS_EXYNOS_H_ */
