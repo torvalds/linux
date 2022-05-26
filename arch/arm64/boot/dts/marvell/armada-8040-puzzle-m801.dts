@@ -70,7 +70,7 @@
 		los-gpio = <&sfpplus_gpio 11 GPIO_ACTIVE_HIGH>;
 		mod-def0-gpio = <&sfpplus_gpio 10 GPIO_ACTIVE_LOW>;
 		tx-disable-gpio = <&sfpplus_gpio 9 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&sfpplus_gpio 8 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio = <&sfpplus_gpio 8 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
 	};
 
@@ -80,7 +80,7 @@
 		los-gpio = <&sfpplus_gpio 3 GPIO_ACTIVE_HIGH>;
 		mod-def0-gpio = <&sfpplus_gpio 2 GPIO_ACTIVE_LOW>;
 		tx-disable-gpio = <&sfpplus_gpio 1 GPIO_ACTIVE_HIGH>;
-		tx-fault-gpio  = <&sfpplus_gpio 0 GPIO_ACTIVE_HIGH>;
+		tx-fault-gpio = <&sfpplus_gpio 0 GPIO_ACTIVE_HIGH>;
 		maximum-power-milliwatt = <3000>;
 	};
 
