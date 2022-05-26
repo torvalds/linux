@@ -742,3 +742,32 @@ void tb_switch_tmu_configure(struct tb_switch *sw,
 	sw->tmu.unidirectional_request = unidirectional;
 	sw->tmu.rate_request = rate;
 }
+
+static int tb_switch_tmu_config_enable(struct device *dev, void *rate)
+{
+	if (tb_is_switch(dev)) {
+		struct tb_switch *sw = tb_to_switch(dev);
+
+		tb_switch_tmu_configure(sw, *(enum tb_switch_tmu_rate *)rate,
+					tb_switch_is_clx_enabled(sw, TB_CL1));
+		if (tb_switch_tmu_enable(sw))
+			tb_sw_dbg(sw, "fail switching TMU mode for 1st depth router\n");
+	}
+
+	return 0;
+}
+
+/**
+ * tb_switch_enable_tmu_1st_child - Configure and enable TMU for 1st chidren
+ * @sw: The router to configure and enable it's children TMU
+ * @rate: Rate of the TMU to configure the router's chidren to
+ *
+ * Configures and enables the TMU mode of 1st depth children of the specified
+ * router to the specified rate.
+ */
+void tb_switch_enable_tmu_1st_child(struct tb_switch *sw,
+				    enum tb_switch_tmu_rate rate)
+{
+	device_for_each_child(&sw->dev, &rate,
+			      tb_switch_tmu_config_enable);
+}
