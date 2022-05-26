@@ -12,6 +12,7 @@
 #include <linux/kref.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/acpi.h>
 #include <linux/reset.h>
 #include <linux/reset-controller.h>
 #include <linux/slab.h>
@@ -1100,12 +1101,24 @@ EXPORT_SYMBOL_GPL(__devm_reset_control_bulk_get);
  *
  * Convenience wrapper for __reset_control_get() and reset_control_reset().
  * This is useful for the common case of devices with single, dedicated reset
- * lines.
+ * lines. _RST firmware method will be called for devices with ACPI.
  */
 int __device_reset(struct device *dev, bool optional)
 {
 	struct reset_control *rstc;
 	int ret;
+
+#ifdef CONFIG_ACPI
+	acpi_handle handle = ACPI_HANDLE(dev);
+
+	if (handle) {
+		if (!acpi_has_method(handle, "_RST"))
+			return optional ? 0 : -ENOENT;
+		if (ACPI_FAILURE(acpi_evaluate_object(handle, "_RST", NULL,
+						      NULL)))
+			return -EIO;
+	}
+#endif
 
 	rstc = __reset_control_get(dev, NULL, 0, 0, optional, true);
 	if (IS_ERR(rstc))

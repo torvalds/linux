@@ -394,6 +394,8 @@ struct tegra_pmc_soc {
  * @domain: IRQ domain provided by the PMC
  * @irq: chip implementation for the IRQ domain
  * @clk_nb: pclk clock changes handler
+ * @core_domain_state_synced: flag marking the core domain's state as synced
+ * @core_domain_registered: flag marking the core domain as registered
  */
 struct tegra_pmc {
 	struct device *dev;
@@ -3766,7 +3768,7 @@ static const struct tegra_pmc_regs tegra234_pmc_regs = {
 };
 
 static const char * const tegra234_reset_sources[] = {
-	"SYS_RESET_N",
+	"SYS_RESET_N",	/* 0x0 */
 	"AOWDT",
 	"BCCPLEXWDT",
 	"BPMPWDT",
@@ -3774,19 +3776,36 @@ static const char * const tegra234_reset_sources[] = {
 	"SPEWDT",
 	"APEWDT",
 	"LCCPLEXWDT",
-	"SENSOR",
-	"AOTAG",
-	"VFSENSOR",
+	"SENSOR",	/* 0x8 */
+	NULL,
+	NULL,
 	"MAINSWRST",
 	"SC7",
 	"HSM",
-	"CSITE",
+	NULL,
 	"RCEWDT",
-	"PVA0WDT",
-	"PVA1WDT",
-	"L1A_ASYNC",
+	NULL,		/* 0x10 */
+	NULL,
+	NULL,
 	"BPMPBOOT",
 	"FUSECRC",
+	"DCEWDT",
+	"PSCWDT",
+	"PSC",
+	"CSITE_SW",	/* 0x18 */
+	"POD",
+	"SCPM",
+	"VREFRO_POWERBAD",
+	"VMON",
+	"FMON",
+	"FSI_R5WDT",
+	"FSI_THERM",
+	"FSI_R52C0WDT",	/* 0x20 */
+	"FSI_R52C1WDT",
+	"FSI_R52C2WDT",
+	"FSI_R52C3WDT",
+	"FSI_FMON",
+	"FSI_VMON",	/* 0x25 */
 };
 
 static const struct tegra_wake_event tegra234_wake_events[] = {

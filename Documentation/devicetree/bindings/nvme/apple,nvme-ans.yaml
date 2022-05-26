@@ -1,0 +1,111 @@
+# SPDX-License-Identifier: GPL-2.0 OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/nvme/apple,nvme-ans.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Apple ANS NVM Express host controller
+
+maintainers:
+  - Sven Peter <sven@svenpeter.dev>
+
+properties:
+  compatible:
+    items:
+      - enum:
+          - apple,t8103-nvme-ans2
+          - apple,t6000-nvme-ans2
+      - const: apple,nvme-ans2
+
+  reg:
+    items:
+      - description: NVMe and NVMMU registers
+      - description: ANS2 co-processor control registers
+
+  reg-names:
+    items:
+      - const: nvme
+      - const: ans
+
+  resets:
+    maxItems: 1
+
+  power-domains:
+    # two domains for t8103, three for t6000
+    minItems: 2
+    items:
+      - description: power domain for the NVMe controller.
+      - description: power domain for the first PCIe bus connecting the NVMe
+          controller to the storage modules.
+      - description: optional power domain for the second PCIe bus
+          connecting the NVMe controller to the storage modules.
+
+  power-domain-names:
+    minItems: 2
+    items:
+      - const: ans
+      - const: apcie0
+      - const: apcie1
+
+  mboxes:
+    maxItems: 1
+    description: Mailbox of the ANS2 co-processor
+
+  interrupts:
+    maxItems: 1
+
+  apple,sart:
+    maxItems: 1
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description: |
+      Reference to the SART address filter.
+
+      The SART address filter is documented in iommu/apple,sart.yaml.
+
+if:
+  properties:
+    compatible:
+      contains:
+        const: apple,t8103-nvme-ans2
+then:
+  properties:
+    power-domains:
+      maxItems: 2
+    power-domain-names:
+      maxItems: 2
+else:
+  properties:
+    power-domains:
+      minItems: 3
+    power-domain-names:
+      minItems: 3
+
+required:
+  - compatible
+  - reg
+  - reg-names
+  - resets
+  - power-domains
+  - power-domain-names
+  - mboxes
+  - interrupts
+  - apple,sart
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/interrupt-controller/apple-aic.h>
+    #include <dt-bindings/interrupt-controller/irq.h>
+
+    nvme@7bcc0000 {
+      compatible = "apple,t8103-nvme-ans2", "apple,nvme-ans2";
+      reg = <0x7bcc0000 0x40000>, <0x77400000 0x4000>;
+      reg-names = "nvme", "ans";
+      interrupts = <AIC_IRQ 590 IRQ_TYPE_LEVEL_HIGH>;
+      mboxes = <&ans>;
+      apple,sart = <&sart>;
+      power-domains = <&ps_ans2>, <&ps_apcie_st>;
+      power-domain-names = "ans", "apcie0";
+      resets = <&ps_ans2>;
+    };

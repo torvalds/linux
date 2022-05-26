@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 # Generic Trusted Execution Environment Configuration
-config TEE
+menuconfig TEE
 	tristate "Trusted Execution Environment support"
 	depends on HAVE_ARM_SMCCC || COMPILE_TEST || CPU_SUP_AMD
 	select CRYPTO
@@ -13,10 +13,7 @@ config TEE
 
 if TEE
 
-menu "TEE drivers"
-
 source "drivers/tee/optee/Kconfig"
 source "drivers/tee/amdtee/Kconfig"
-endmenu
 
 endif
