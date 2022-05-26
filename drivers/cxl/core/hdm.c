@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2022 Intel Corporation. All rights reserved. */
 #include <linux/io-64-nonatomic-hi-lo.h>
+#include <linux/seq_file.h>
 #include <linux/device.h>
 #include <linux/delay.h>
 
@@ -15,6 +16,8 @@
  * instances per CXL port and per CXL endpoint. Define common helpers
  * for enumerating these registers and capabilities.
  */
+
+static DECLARE_RWSEM(cxl_dpa_rwsem);
 
 static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			   int *target_map)
@@ -127,6 +130,28 @@ struct cxl_hdm *devm_cxl_setup_hdm(struct cxl_port *port)
 	return cxlhdm;
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_setup_hdm, CXL);
+
+static void __cxl_dpa_debug(struct seq_file *file, struct resource *r, int depth)
+{
+	unsigned long long start = r->start, end = r->end;
+
+	seq_printf(file, "%*s%08llx-%08llx : %s\n", depth * 2, "", start, end,
+		   r->name);
+}
+
+void cxl_dpa_debug(struct seq_file *file, struct cxl_dev_state *cxlds)
+{
+	struct resource *p1, *p2;
+
+	down_read(&cxl_dpa_rwsem);
+	for (p1 = cxlds->dpa_res.child; p1; p1 = p1->sibling) {
+		__cxl_dpa_debug(file, p1, 0);
+		for (p2 = p1->child; p2; p2 = p2->sibling)
+			__cxl_dpa_debug(file, p2, 1);
+	}
+	up_read(&cxl_dpa_rwsem);
+}
+EXPORT_SYMBOL_NS_GPL(cxl_dpa_debug, CXL);
 
 static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			    int *target_map, void __iomem *hdm, int which)

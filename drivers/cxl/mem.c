@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /* Copyright(c) 2022 Intel Corporation. All rights reserved. */
+#include <linux/debugfs.h>
 #include <linux/device.h>
 #include <linux/module.h>
 #include <linux/pci.h>
@@ -56,10 +57,26 @@ static void enable_suspend(void *data)
 	cxl_mem_active_dec();
 }
 
+static void remove_debugfs(void *dentry)
+{
+	debugfs_remove_recursive(dentry);
+}
+
+static int cxl_mem_dpa_show(struct seq_file *file, void *data)
+{
+	struct device *dev = file->private;
+	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
+
+	cxl_dpa_debug(file, cxlmd->cxlds);
+
+	return 0;
+}
+
 static int cxl_mem_probe(struct device *dev)
 {
 	struct cxl_memdev *cxlmd = to_cxl_memdev(dev);
 	struct cxl_port *parent_port;
+	struct dentry *dentry;
 	int rc;
 
 	/*
@@ -72,6 +89,12 @@ static int cxl_mem_probe(struct device *dev)
 	 */
 	if (work_pending(&cxlmd->detach_work))
 		return -EBUSY;
+
+	dentry = cxl_debugfs_create_dir(dev_name(dev));
+	debugfs_create_devm_seqfile(dev, "dpamem", dentry, cxl_mem_dpa_show);
+	rc = devm_add_action_or_reset(dev, remove_debugfs, dentry);
+	if (rc)
+		return rc;
 
 	rc = devm_cxl_enumerate_ports(cxlmd);
 	if (rc)

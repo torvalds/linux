@@ -1506,6 +1506,7 @@ struct dentry *cxl_debugfs_create_dir(const char *dir)
 {
 	return debugfs_create_dir(dir, cxl_debugfs);
 }
+EXPORT_SYMBOL_NS_GPL(cxl_debugfs_create_dir, CXL);
 
 static __init int cxl_core_init(void)
 {
