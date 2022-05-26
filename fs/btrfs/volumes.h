@@ -412,7 +412,12 @@ static inline void btrfs_bio_free_csum(struct btrfs_bio *bbio)
 
 struct btrfs_io_stripe {
 	struct btrfs_device *dev;
-	u64 physical;
+	union {
+		/* Block mapping */
+		u64 physical;
+		/* For the endio handler */
+		struct btrfs_io_context *bioc;
+	};
 	u64 length; /* only used for discard mappings */
 };
 
