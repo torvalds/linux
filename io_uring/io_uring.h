@@ -157,7 +157,6 @@ void io_req_task_complete(struct io_kiocb *req, bool *locked);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
 void io_req_task_submit(struct io_kiocb *req, bool *locked);
 void tctx_task_work(struct callback_head *cb);
-int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd);
 __cold void io_uring_cancel_generic(bool cancel_all, struct io_sq_data *sqd);
 int io_uring_alloc_task_context(struct task_struct *task,
 				struct io_ring_ctx *ctx);
