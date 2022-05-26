@@ -137,14 +137,14 @@
 	tlv320aic23_1: codec@1a {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1a>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 
 	tlv320aic23_2: codec@1b {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1b>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 };
@@ -154,7 +154,7 @@
 	tlv320aic23_3: codec@1a {
 		compatible = "ti,tlv320aic23";
 		reg = <0x1a>;
-		#sound-dai-cells= <0>;
+		#sound-dai-cells = <0>;
 		status = "okay";
 	};
 
