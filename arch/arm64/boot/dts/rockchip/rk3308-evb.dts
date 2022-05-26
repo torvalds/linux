@@ -196,9 +196,6 @@
 };
 
 &pinctrl {
-	pinctrl-names = "default";
-	pinctrl-0 = <&rtc_32k>;
-
 	buttons {
 		pwr_key: pwr-key {
 			rockchip,pins = <0 RK_PA6 0 &pcfg_pull_up>;
