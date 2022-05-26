@@ -353,11 +353,11 @@
 					 * Drive DISP1 reset high (not reset), driver DISP2 reset low (reset)
 					 */
 					hrefv60_cfg1 {
-						pins ="GPIO65_F1";
+						pins = "GPIO65_F1";
 						ste,config = <&gpio_out_hi>;
 					};
 					hrefv60_cfg2 {
-						pins ="GPIO66_G3";
+						pins = "GPIO66_G3";
 						ste,config = <&gpio_out_lo>;
 					};
 				};
