@@ -43,6 +43,15 @@
 #undef pr_info
 #undef pr_debug
 
+#define mmMP1_SMN_C2PMSG_66			0x0282
+#define mmMP1_SMN_C2PMSG_66_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_82			0x0292
+#define mmMP1_SMN_C2PMSG_82_BASE_IDX            1
+
+#define mmMP1_SMN_C2PMSG_90			0x029a
+#define mmMP1_SMN_C2PMSG_90_BASE_IDX		1
+
 #define FEATURE_MASK(feature) (1ULL << feature)
 
 #define SMC_DPM_FEATURE ( \
@@ -1035,9 +1044,14 @@ static const struct pptable_funcs smu_v13_0_4_ppt_funcs = {
 
 void smu_v13_0_4_set_ppt_funcs(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
+
 	smu->ppt_funcs = &smu_v13_0_4_ppt_funcs;
 	smu->message_map = smu_v13_0_4_message_map;
 	smu->feature_map = smu_v13_0_4_feature_mask_map;
 	smu->table_map = smu_v13_0_4_table_map;
 	smu->is_apu = true;
+	smu->param_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_82);
+	smu->msg_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_66);
+	smu->resp_reg = SOC15_REG_OFFSET(MP1, 0, mmMP1_SMN_C2PMSG_90);
 }

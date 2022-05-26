@@ -563,6 +563,10 @@ struct smu_context
 	struct stb_context stb_context;
 
 	struct firmware pptable_firmware;
+
+	u32 param_reg;
+	u32 msg_reg;
+	u32 resp_reg;
 };
 
 struct i2c_adapter;
