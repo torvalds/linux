@@ -150,7 +150,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 {
 	struct dentry *ds;
 	const unsigned char **wnames, *uname;
-	int i, n, l, clone, access;
+	int i, n, l, access;
 	struct v9fs_session_info *v9ses;
 	struct p9_fid *fid, *root_fid, *old_fid;
 
@@ -214,7 +214,6 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	}
 	fid = root_fid;
 	old_fid = root_fid;
-	clone = 1;
 	i = 0;
 	while (i < n) {
 		l = min(n - i, P9_MAXWELEM);
@@ -222,7 +221,8 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		 * We need to hold rename lock when doing a multipath
 		 * walk to ensure none of the patch component change
 		 */
-		fid = p9_client_walk(old_fid, l, &wnames[i], clone);
+		fid = p9_client_walk(old_fid, l, &wnames[i],
+				     old_fid == root_fid /* clone */);
 		/* non-cloning walk will return the same fid */
 		if (fid != old_fid) {
 			p9_client_clunk(old_fid);
@@ -233,7 +233,6 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 			goto err_out;
 		}
 		i += l;
-		clone = 0;
 	}
 	kfree(wnames);
 fid_out:
