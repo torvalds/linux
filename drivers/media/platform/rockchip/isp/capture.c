@@ -1468,7 +1468,7 @@ static int rkisp_set_fps(struct rkisp_stream *stream, int *fps)
 	if (dev->isp_ver != ISP_V32)
 		return -EINVAL;
 
-	rkisp_rockit_fps_set(fps, stream->id);
+	rkisp_rockit_fps_set(fps, stream);
 	return 0;
 }
 
@@ -1479,7 +1479,7 @@ static int rkisp_get_fps(struct rkisp_stream *stream, int *fps)
 	if (dev->isp_ver != ISP_V32)
 		return -EINVAL;
 
-	rkisp_rockit_fps_get(fps, stream->id);
+	rkisp_rockit_fps_get(fps, stream);
 	return 0;
 }
 

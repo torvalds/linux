@@ -83,7 +83,7 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 	struct rkisp_rockit_buffer *isprk_buf = NULL;
 	struct rkisp_device *ispdev = NULL;
 	const struct vb2_mem_ops *g_ops = NULL;
-	int i, ret, height, offset;
+	int i, ret, height, offset, dev_id;
 	struct rkisp_stream_cfg *stream_cfg = NULL;
 	void *mem = NULL;
 	struct sg_table  *sg_tbl;
@@ -96,7 +96,20 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 		return -EINVAL;
 	}
 
-	stream_cfg = &rockit_cfg->rkisp_stream_cfg[stream->id];
+	dev_id = stream->ispdev->dev_id;
+	ispdev = stream->ispdev;
+	g_ops = ispdev->hw_dev->mem_ops;
+
+	if (!rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id]) {
+		rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id] =
+			kzalloc(sizeof(struct rkisp_stream_cfg), GFP_KERNEL);
+	}
+
+	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
+	stream_cfg->node = input_rockit_cfg->node;
+
+	if (!input_rockit_cfg->buf)
+		return -EINVAL;
 
 	for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
 		if (stream_cfg->buff_id[i] == input_rockit_cfg->mpi_id) {
@@ -104,14 +117,6 @@ int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg)
 			break;
 		}
 	}
-
-	stream_cfg->node = input_rockit_cfg->node;
-
-	if (!input_rockit_cfg->buf)
-		return -EINVAL;
-
-	ispdev = stream->ispdev;
-	g_ops = ispdev->hw_dev->mem_ops;
 
 	if (input_rockit_cfg->is_alloc) {
 		for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
@@ -202,9 +207,11 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_rockit_buffer *isprk_buf = NULL;
-	struct rkisp_stream_cfg *stream_cfg = &rockit_cfg->rkisp_stream_cfg[stream->id];
-	u32 seq;
+	struct rkisp_stream_cfg *stream_cfg = NULL;
+	u32 seq, dev_id = stream->ispdev->dev_id;
 	u64 ns = 0;
+
+	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
 
 	if (!rockit_cfg->rkisp_rockit_mpibuf_done)
 		return -EINVAL;
@@ -367,23 +374,25 @@ EXPORT_SYMBOL(rkisp_rockit_resume_stream);
 int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 {
 	struct rkisp_rockit_buffer *isprk_buf = NULL;
-	int i = 0;
+	u32 i = 0, dev_id = stream->ispdev->dev_id;
 	const struct vb2_mem_ops *g_ops = stream->ispdev->hw_dev->mem_ops;
-	struct rkisp_stream_cfg *stream_cfg = &rockit_cfg->rkisp_stream_cfg[stream->id];
+	struct rkisp_stream_cfg *stream_cfg = NULL;
 
-	stream_cfg->is_discard = false;
-
-	for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
-		if (stream_cfg->rkisp_buff[i]) {
-			isprk_buf = (struct rkisp_rockit_buffer *)stream_cfg->rkisp_buff[i];
-			if (isprk_buf->mpi_mem) {
-				g_ops->unmap_dmabuf(isprk_buf->mpi_mem);
-				g_ops->detach_dmabuf(isprk_buf->mpi_mem);
-				dma_buf_put(isprk_buf->dmabuf);
+	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
+	if (stream_cfg) {
+		stream_cfg->is_discard = false;
+		for (i = 0; i < ROCKIT_BUF_NUM_MAX; i++) {
+			if (stream_cfg->rkisp_buff[i]) {
+				isprk_buf = (struct rkisp_rockit_buffer *)stream_cfg->rkisp_buff[i];
+				if (isprk_buf->mpi_mem) {
+					g_ops->unmap_dmabuf(isprk_buf->mpi_mem);
+					g_ops->detach_dmabuf(isprk_buf->mpi_mem);
+					dma_buf_put(isprk_buf->dmabuf);
+				}
+				kfree(stream_cfg->rkisp_buff[i]);
+				stream_cfg->rkisp_buff[i] = NULL;
+				stream_cfg->buff_id[i] = 0;
 			}
-			kfree(stream_cfg->rkisp_buff[i]);
-			stream_cfg->rkisp_buff[i] = NULL;
-			stream_cfg->buff_id[i] = 0;
 		}
 	}
 	return 0;
@@ -409,9 +418,12 @@ void rkisp_rockit_dev_init(struct rkisp_device *dev)
 	}
 }
 
-void rkisp_rockit_fps_set(int *dst_fps, unsigned int id)
+void rkisp_rockit_fps_set(int *dst_fps, struct rkisp_stream *stream)
 {
-	if (id >= ROCKIT_STREAM_NUM_MAX) {
+	int dev_id = stream->ispdev->dev_id;
+	int id = stream->id;
+
+	if (stream->id >= ROCKIT_STREAM_NUM_MAX) {
 		pr_err("fps_set stream id %u exceeds maximum\n", id);
 		return;
 	}
@@ -421,12 +433,15 @@ void rkisp_rockit_fps_set(int *dst_fps, unsigned int id)
 		return;
 	}
 
-	rockit_cfg->rkisp_stream_cfg[id].dst_fps = *dst_fps;
-	rockit_cfg->rkisp_stream_cfg[id].fps_cnt = *dst_fps;
+	rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id]->dst_fps = *dst_fps;
+	rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id]->fps_cnt = *dst_fps;
 }
 
-void rkisp_rockit_fps_get(int *dst_fps, unsigned int id)
+void rkisp_rockit_fps_get(int *dst_fps, struct rkisp_stream *stream)
 {
+	int dev_id = stream->ispdev->dev_id;
+	int id = stream->id;
+
 	if (id >= ROCKIT_STREAM_NUM_MAX) {
 		pr_err("fps_get stream id %u exceeds maximum\n", id);
 		return;
@@ -437,21 +452,24 @@ void rkisp_rockit_fps_get(int *dst_fps, unsigned int id)
 		return;
 	}
 
-	*dst_fps = rockit_cfg->rkisp_stream_cfg[id].cur_fps;
+	*dst_fps = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id]->cur_fps;
 }
 
 bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 {
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_sensor_info *sensor = NULL;
-	int *fps_cnt = &rockit_cfg->rkisp_stream_cfg[stream->id].fps_cnt;
+	int dev_id = stream->ispdev->dev_id, id = stream->id;
+	struct rkisp_stream_cfg *stream_cfg =
+		rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id];
+	int *fps_cnt = &stream_cfg->fps_cnt;
 	int ret, dst_fps;
 	static int fps_in, cur_fps[ROCKIT_STREAM_NUM_MAX];
 	u32 denominator = 0, numerator = 0;
-	bool *is_discard = &rockit_cfg->rkisp_stream_cfg[stream->id].is_discard;
-	u64 cur_time, *old_time = &rockit_cfg->rkisp_stream_cfg[stream->id].old_time;
+	bool *is_discard = &stream_cfg->is_discard;
+	u64 cur_time, *old_time = &stream_cfg->old_time;
 
-	dst_fps = rockit_cfg->rkisp_stream_cfg[stream->id].dst_fps;
+	dst_fps = stream_cfg->dst_fps;
 	if (dst_fps == 0 || !stream->streaming) {
 		*is_discard  = false;
 		return false;
@@ -495,8 +513,7 @@ bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 			cur_time = ktime_get_ns();
 			if (cur_time - *old_time >= 1000000000) {
 				*old_time = cur_time;
-				rockit_cfg->rkisp_stream_cfg[stream->id].cur_fps =
-					cur_fps[stream->id];
+				stream_cfg->cur_fps = cur_fps[stream->id];
 				cur_fps[stream->id] = 0;
 			}
 		}

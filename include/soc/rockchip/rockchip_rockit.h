@@ -49,6 +49,7 @@ struct ISP_VIDEO_FRAMES {
 struct rkisp_dev_cfg {
 	char *isp_name;
 	void *isp_dev;
+	struct rkisp_stream_cfg *rkisp_stream_cfg[ROCKIT_STREAM_NUM_MAX];
 };
 
 struct rockit_cfg {
@@ -69,7 +70,6 @@ struct rockit_cfg {
 	struct dma_buf *buf;
 	struct ISP_VIDEO_FRAMES frame;
 	struct rkisp_dev_cfg rkisp_dev_cfg[ROCKIT_ISP_NUM_MAX];
-	struct rkisp_stream_cfg rkisp_stream_cfg[ROCKIT_STREAM_NUM_MAX];
 	int (*rkisp_rockit_mpibuf_done)(struct rockit_cfg *rockit_isp_cfg);
 };
 
