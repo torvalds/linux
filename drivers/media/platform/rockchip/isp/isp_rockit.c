@@ -205,10 +205,8 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 	u32 seq;
 	u64 ns = 0;
 
-	if (!rockit_cfg->rkisp_rockit_mpibuf_done) {
-		pr_err("mpi_buf_done is null\n");
+	if (!rockit_cfg->rkisp_rockit_mpibuf_done)
 		return -EINVAL;
-	}
 
 	if (cmd == ROCKIT_DVBM_END) {
 		isprk_buf =
