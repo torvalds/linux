@@ -2275,9 +2275,15 @@ int ceph_try_to_choose_auth_mds(struct inode *inode, int mask)
 	 *
 	 * This cost much when doing the Locker state transition and
 	 * usually will need to revoke caps from clients.
+	 *
+	 * And for the 'Xs' caps for getxattr we will also choose the
+	 * auth MDS, because the MDS side code is buggy due to setxattr
+	 * won't notify the replica MDSes when the values changed and
+	 * the replica MDS will return the old values. Though we will
+	 * fix it in MDS code, but this still makes sense for old ceph.
 	 */
 	if (((mask & CEPH_CAP_ANY_SHARED) && (issued & CEPH_CAP_ANY_EXCL))
-	    || (mask & CEPH_STAT_RSTAT))
+	    || (mask & (CEPH_STAT_RSTAT | CEPH_STAT_CAP_XATTR)))
 		return USE_AUTH_MDS;
 	else
 		return USE_ANY_MDS;
