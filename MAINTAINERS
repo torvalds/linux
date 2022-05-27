@@ -5056,6 +5056,7 @@ M:	Johannes Weiner <hannes@cmpxchg.org>
 M:	Michal Hocko <mhocko@kernel.org>
 M:	Roman Gushchin <roman.gushchin@linux.dev>
 M:	Shakeel Butt <shakeelb@google.com>
+R:	Muchun Song <songmuchun@bytedance.com>
 L:	cgroups@vger.kernel.org
 L:	linux-mm@kvack.org
 S:	Maintained
@@ -16096,7 +16097,6 @@ F:	arch/*/ptrace*.c
 F:	include/asm-generic/syscall.h
 F:	include/linux/ptrace.h
 F:	include/linux/regset.h
-F:	include/uapi/linux/ptrace.h
 F:	include/uapi/linux/ptrace.h
 F:	kernel/ptrace.c
 
