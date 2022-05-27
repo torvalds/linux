@@ -33,6 +33,9 @@
 /* 002Ah, 0034h */
 #define LINK_LOCKED		BIT(0)
 
+/* 0076h, 0086h */
+#define DIS_REM_CC		BIT(7)
+
 /* 0100h */
 #define VID_LINK_SEL		GENMASK(2, 1)
 #define VID_TX_EN		BIT(0)

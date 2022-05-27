@@ -43,18 +43,26 @@ static int max96745_select(struct i2c_mux_core *muxc, u32 chan)
 {
 	struct max96745 *max96745 = dev_get_drvdata(muxc->dev);
 
-	if (chan == 0) {
-		regmap_update_bits(max96745->regmap, 0x0028, LINK_EN,
-				   FIELD_PREP(LINK_EN, 1));
-	} else if (chan == 1) {
-		regmap_update_bits(max96745->regmap, 0x0032, LINK_EN,
-				   FIELD_PREP(LINK_EN, 1));
-	} else {
-		regmap_update_bits(max96745->regmap, 0x0028, LINK_EN,
-				   FIELD_PREP(LINK_EN, 1));
-		regmap_update_bits(max96745->regmap, 0x0032, LINK_EN,
-				   FIELD_PREP(LINK_EN, 1));
-	}
+	if (chan == 1)
+		regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+	else
+		regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 0));
+
+	return 0;
+}
+
+static int max96745_deselect(struct i2c_mux_core *muxc, u32 chan)
+{
+	struct max96745 *max96745 = dev_get_drvdata(muxc->dev);
+
+	if (chan == 1)
+		regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
+	else
+		regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
+				   FIELD_PREP(DIS_REM_CC, 1));
 
 	return 0;
 }
@@ -88,6 +96,12 @@ static int max96745_power_on(struct max96745 *max96745)
 
 	msleep(100);
 
+	regmap_update_bits(max96745->regmap, 0x0076, DIS_REM_CC,
+			   FIELD_PREP(DIS_REM_CC, 1));
+	regmap_update_bits(max96745->regmap, 0x0086, DIS_REM_CC,
+			   FIELD_PREP(DIS_REM_CC, 1));
+
+
 	return 0;
 }
 
@@ -110,8 +124,9 @@ static int max96745_i2c_probe(struct i2c_client *client)
 	if (!max96745)
 		return -ENOMEM;
 
-	max96745->muxc = i2c_mux_alloc(client->adapter, dev, nr, 0,
-				       I2C_MUX_LOCKED, max96745_select, NULL);
+	max96745->muxc = i2c_mux_alloc(client->adapter, dev, nr,
+				       0, I2C_MUX_LOCKED,
+				       max96745_select, max96745_deselect);
 	if (!max96745->muxc)
 		return -ENOMEM;
 
