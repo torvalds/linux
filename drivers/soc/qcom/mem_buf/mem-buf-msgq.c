@@ -310,7 +310,6 @@ static void mem_buf_process_alloc_resp(struct mem_buf_msgq_desc *desc, void *buf
 		if (!alloc_resp->ret) {
 			desc->msgq_ops->relinquish_memparcel_hdl(desc->hdlr_data, hdr->txn_id,
 								 alloc_resp->hdl);
-			kfree(buf);
 		}
 	} else {
 		txn->txn_ret = desc->msgq_ops->alloc_resp_hdlr(desc->hdlr_data, buf, size,
@@ -328,7 +327,6 @@ static void mem_buf_process_msg(struct mem_buf_msgq_desc *desc, void *buf, size_
 	if (size < sizeof(*hdr) || hdr->msg_size != size) {
 		pr_err("%s: message received is not of a proper size: 0x%lx\n",
 		       __func__, size);
-		kfree(buf);
 		return;
 	}
 
@@ -345,7 +343,6 @@ static void mem_buf_process_msg(struct mem_buf_msgq_desc *desc, void *buf, size_
 	default:
 		pr_err("%s: received message of unknown type: %d\n", __func__,
 		       hdr->msg_type);
-		kfree(buf);
 	}
 }
 
@@ -367,20 +364,20 @@ static int mem_buf_msgq_recv_fn(void *data)
 	size_t size;
 	int ret;
 
-	while (!kthread_should_stop()) {
-		buf = kzalloc(GH_MSGQ_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
-		if (!buf)
-			continue;
+	buf = kzalloc(GH_MSGQ_MAX_MSG_SIZE_BYTES, GFP_KERNEL);
+	if (!buf)
+		return -ENOMEM;
 
+	while (!kthread_should_stop()) {
 		ret = gh_msgq_recv(desc->msgq_hdl, buf, GH_MSGQ_MAX_MSG_SIZE_BYTES, &size, 0);
 		if (ret < 0) {
-			kfree(buf);
 			pr_err_ratelimited("%s failed to receive message rc: %d\n", __func__, ret);
 		} else {
 			mem_buf_process_msg(desc, buf, size);
 		}
 	}
 
+	kfree(buf);
 	return 0;
 }
 

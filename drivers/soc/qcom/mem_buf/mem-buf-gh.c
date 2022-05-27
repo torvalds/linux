@@ -445,6 +445,7 @@ static void mem_buf_alloc_req_work(struct work_struct *work)
 	}
 
 	resp_msg = mem_buf_construct_alloc_resp(req_msg, ret, hdl);
+
 	kfree(rmt_msg->msg);
 	kfree(rmt_msg);
 	if (IS_ERR(resp_msg))
@@ -510,7 +511,6 @@ static int mem_buf_alloc_resp_hdlr(void *hdlr_data, void *msg_buf, size_t size, 
 
 	trace_receive_alloc_resp_msg(alloc_resp);
 	if (!(mem_buf_capability & MEM_BUF_CAP_CONSUMER)) {
-		kfree(msg_buf);
 		return -EPERM;
 	}
 
@@ -521,23 +521,26 @@ static int mem_buf_alloc_resp_hdlr(void *hdlr_data, void *msg_buf, size_t size, 
 		membuf->memparcel_hdl = get_alloc_resp_hdl(alloc_resp);
 	}
 
-	kfree(msg_buf);
 	return ret;
 }
 
 /* Functions invoked when treating allocation requests to other VMs. */
-static void mem_buf_alloc_req_hdlr(void *hdlr_data, void *buf, size_t size)
+static void mem_buf_alloc_req_hdlr(void *hdlr_data, void *_buf, size_t size)
 {
 	struct mem_buf_rmt_msg *rmt_msg;
+	void *buf;
 
 	if (!(mem_buf_capability & MEM_BUF_CAP_SUPPLIER)) {
-		kfree(buf);
 		return;
 	}
 
 	rmt_msg = kmalloc(sizeof(*rmt_msg), GFP_KERNEL);
-	if (!rmt_msg) {
-		kfree(buf);
+	if (!rmt_msg)
+		return;
+
+	buf = kmemdup(_buf, size, GFP_KERNEL);
+	if (!buf) {
+		kfree(rmt_msg);
 		return;
 	}
 
@@ -547,18 +550,22 @@ static void mem_buf_alloc_req_hdlr(void *hdlr_data, void *buf, size_t size)
 	queue_work(mem_buf_wq, &rmt_msg->work);
 }
 
-static void mem_buf_relinquish_hdlr(void *hdlr_data, void *buf, size_t size)
+static void mem_buf_relinquish_hdlr(void *hdlr_data, void *_buf, size_t size)
 {
 	struct mem_buf_rmt_msg *rmt_msg;
+	void *buf;
 
 	if (!(mem_buf_capability & MEM_BUF_CAP_SUPPLIER)) {
-		kfree(buf);
 		return;
 	}
 
 	rmt_msg = kmalloc(sizeof(*rmt_msg), GFP_KERNEL);
-	if (!rmt_msg) {
-		kfree(buf);
+	if (!rmt_msg)
+		return;
+
+	buf = kmemdup(_buf, size, GFP_KERNEL);
+	if (!buf) {
+		kfree(rmt_msg);
 		return;
 	}
 
