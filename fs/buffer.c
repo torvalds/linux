@@ -2259,6 +2259,7 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 	unsigned int blocksize, bbits;
 	int nr, i;
 	int fully_mapped = 1;
+	bool page_error = false;
 
 	VM_BUG_ON_FOLIO(folio_test_large(folio), folio);
 
@@ -2283,8 +2284,10 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 			if (iblock < lblock) {
 				WARN_ON(bh->b_size != blocksize);
 				err = get_block(inode, iblock, bh, 0);
-				if (err)
+				if (err) {
 					folio_set_error(folio);
+					page_error = true;
+				}
 			}
 			if (!buffer_mapped(bh)) {
 				folio_zero_range(folio, i * blocksize,
@@ -2311,7 +2314,7 @@ int block_read_full_folio(struct folio *folio, get_block_t *get_block)
 		 * All buffers are uptodate - we can set the folio uptodate
 		 * as well. But not if get_block() returned an error.
 		 */
-		if (!folio_test_error(folio))
+		if (!page_error)
 			folio_mark_uptodate(folio);
 		folio_unlock(folio);
 		return 0;
