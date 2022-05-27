@@ -93,7 +93,7 @@ static void *run_vcpu(void *_cpu_nr)
 
 int main(int argc, char *argv[])
 {
-        if (!kvm_check_cap(KVM_CAP_VM_TSC_CONTROL)) {
+	if (!kvm_has_cap(KVM_CAP_VM_TSC_CONTROL)) {
 		print_skip("KVM_CAP_VM_TSC_CONTROL not available");
 		exit(KSFT_SKIP);
 	}

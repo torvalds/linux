@@ -80,7 +80,7 @@ unsigned int kvm_check_cap(long cap)
 
 	close(kvm_fd);
 
-	return ret;
+	return (unsigned int)ret;
 }
 
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size)
@@ -93,7 +93,7 @@ static void vm_open(struct kvm_vm *vm)
 {
 	vm->kvm_fd = _open_kvm_dev_path_or_exit(O_RDWR);
 
-	if (!kvm_check_cap(KVM_CAP_IMMEDIATE_EXIT)) {
+	if (!kvm_has_cap(KVM_CAP_IMMEDIATE_EXIT)) {
 		print_skip("immediate_exit not available");
 		exit(KSFT_SKIP);
 	}

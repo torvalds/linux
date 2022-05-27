@@ -169,7 +169,7 @@ int main(int argc, char *argv[])
 	 */
 	nested_vmx_check_supported();
 
-	if (!kvm_check_cap(KVM_CAP_NESTED_STATE)) {
+	if (!kvm_has_cap(KVM_CAP_NESTED_STATE)) {
 		print_skip("KVM_CAP_NESTED_STATE not supported");
 		exit(KSFT_SKIP);
 	}

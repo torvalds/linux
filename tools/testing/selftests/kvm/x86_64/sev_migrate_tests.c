@@ -400,8 +400,8 @@ int main(int argc, char *argv[])
 {
 	struct kvm_cpuid_entry2 *cpuid;
 
-	if (!kvm_check_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM) &&
-	    !kvm_check_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM)) {
+	if (!kvm_has_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM) &&
+	    !kvm_has_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM)) {
 		print_skip("Capabilities not available");
 		exit(KSFT_SKIP);
 	}

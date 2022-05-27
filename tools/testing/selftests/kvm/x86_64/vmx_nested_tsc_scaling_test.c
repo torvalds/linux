@@ -118,7 +118,7 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 
 static void tsc_scaling_check_supported(void)
 {
-	if (!kvm_check_cap(KVM_CAP_TSC_CONTROL)) {
+	if (!kvm_has_cap(KVM_CAP_TSC_CONTROL)) {
 		print_skip("TSC scaling not supported by the HW");
 		exit(KSFT_SKIP);
 	}

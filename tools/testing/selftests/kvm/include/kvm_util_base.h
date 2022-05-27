@@ -169,6 +169,11 @@ int open_path_or_exit(const char *path, int flags);
 int open_kvm_dev_path_or_exit(void);
 unsigned int kvm_check_cap(long cap);
 
+static inline bool kvm_has_cap(long cap)
+{
+	return kvm_check_cap(cap);
+}
+
 #define __KVM_SYSCALL_ERROR(_name, _ret) \
 	"%s failed, rc: %i errno: %i (%s)", (_name), (_ret), errno, strerror(errno)
 

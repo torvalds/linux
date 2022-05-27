@@ -137,7 +137,7 @@ int main(int argc, char *argv[])
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
-	if (!kvm_check_cap(KVM_CAP_HYPERV_CPUID)) {
+	if (!kvm_has_cap(KVM_CAP_HYPERV_CPUID)) {
 		print_skip("KVM_CAP_HYPERV_CPUID not supported");
 		exit(KSFT_SKIP);
 	}
@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 	free(hv_cpuid_entries);
 
 	if (!nested_vmx_supported() ||
-	    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
+	    !kvm_has_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
 		print_skip("Enlightened VMCS is unsupported");
 		goto do_sys;
 	}
@@ -163,7 +163,7 @@ int main(int argc, char *argv[])
 
 do_sys:
 	/* Test system ioctl version */
-	if (!kvm_check_cap(KVM_CAP_SYS_HYPERV_CPUID)) {
+	if (!kvm_has_cap(KVM_CAP_SYS_HYPERV_CPUID)) {
 		print_skip("KVM_CAP_SYS_HYPERV_CPUID not supported");
 		goto out;
 	}

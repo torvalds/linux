@@ -209,8 +209,8 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	if (!nested_vmx_supported() ||
-	    !kvm_check_cap(KVM_CAP_NESTED_STATE) ||
-	    !kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
+	    !kvm_has_cap(KVM_CAP_NESTED_STATE) ||
+	    !kvm_has_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
 		print_skip("Enlightened VMCS is unsupported");
 		exit(KSFT_SKIP);
 	}

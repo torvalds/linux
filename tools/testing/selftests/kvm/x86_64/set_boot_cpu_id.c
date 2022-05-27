@@ -123,7 +123,7 @@ static void check_set_bsp_busy(void)
 
 int main(int argc, char *argv[])
 {
-	if (!kvm_check_cap(KVM_CAP_SET_BOOT_CPU_ID)) {
+	if (!kvm_has_cap(KVM_CAP_SET_BOOT_CPU_ID)) {
 		print_skip("set_boot_cpu_id not available");
 		return 0;
 	}

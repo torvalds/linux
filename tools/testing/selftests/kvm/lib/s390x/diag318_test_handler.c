@@ -61,7 +61,7 @@ uint64_t get_diag318_info(void)
 	 * If KVM does not support diag318, then return 0 to
 	 * ensure tests do not break.
 	 */
-	if (!kvm_check_cap(KVM_CAP_S390_DIAG318)) {
+	if (!kvm_has_cap(KVM_CAP_S390_DIAG318)) {
 		if (!printed_skip) {
 			fprintf(stdout, "KVM_CAP_S390_DIAG318 not supported. "
 				"Skipping diag318 test.\n");

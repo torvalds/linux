@@ -210,7 +210,7 @@ static void sem_wait_until(sem_t *sem)
 
 static bool clear_log_supported(void)
 {
-	return kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
+	return kvm_has_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
 }
 
 static void clear_log_create_vm_done(struct kvm_vm *vm)
@@ -264,7 +264,7 @@ static void default_after_vcpu_run(struct kvm_vcpu *vcpu, int ret, int err)
 
 static bool dirty_ring_supported(void)
 {
-	return kvm_check_cap(KVM_CAP_DIRTY_LOG_RING);
+	return kvm_has_cap(KVM_CAP_DIRTY_LOG_RING);
 }
 
 static void dirty_ring_create_vm_done(struct kvm_vm *vm)

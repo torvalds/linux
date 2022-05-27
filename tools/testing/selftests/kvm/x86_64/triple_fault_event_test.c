@@ -51,7 +51,7 @@ int main(void)
 		exit(KSFT_SKIP);
 	}
 
-	if (!kvm_check_cap(KVM_CAP_X86_TRIPLE_FAULT_EVENT)) {
+	if (!kvm_has_cap(KVM_CAP_X86_TRIPLE_FAULT_EVENT)) {
 		print_skip("KVM_CAP_X86_TRIPLE_FAULT_EVENT not supported");
 		exit(KSFT_SKIP);
 	}
