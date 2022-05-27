@@ -510,7 +510,7 @@ static inline int fls(unsigned int x)
 	return 32 - cnt;
 }
 
-static inline int __fls(int x)
+static inline unsigned long __fls(unsigned long x)
 {
 	return fls(x) - 1;
 }
