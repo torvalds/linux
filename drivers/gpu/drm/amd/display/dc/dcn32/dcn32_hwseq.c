@@ -1084,8 +1084,13 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	unsigned int odm_combine_factor = 0;
 	struct dc *dc = pipe_ctx->stream->ctx->dc;
-	bool two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
+	bool two_pix_per_container = false;
 
+	// For phantom pipes, use the same programming as the main pipes
+	if (pipe_ctx->stream->mall_stream_config.type == SUBVP_PHANTOM) {
+		stream = pipe_ctx->stream->mall_stream_config.paired_stream;
+	}
+	two_pix_per_container = optc2_is_two_pixels_per_containter(&stream->timing);
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
 	if (is_dp_128b_132b_signal(pipe_ctx)) {
