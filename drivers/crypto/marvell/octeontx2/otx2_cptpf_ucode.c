@@ -476,7 +476,7 @@ release_fw:
 	return ret;
 }
 
-static struct otx2_cpt_engs_rsvd *find_engines_by_type(
+struct otx2_cpt_engs_rsvd *find_engines_by_type(
 					struct otx2_cpt_eng_grp_info *eng_grp,
 					int eng_type)
 {
