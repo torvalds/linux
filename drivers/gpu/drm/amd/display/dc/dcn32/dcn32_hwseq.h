@@ -79,4 +79,9 @@ void dcn32_subvp_pipe_control_lock(struct dc *dc,
 		struct pipe_ctx *top_pipe_to_program,
 		bool subvp_prev_use);
 
+void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings);
+
+bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx);
+
 #endif /* __DC_HWSS_DCN32_H__ */

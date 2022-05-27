@@ -748,6 +748,8 @@ struct dc_debug_options {
 	enum dml_hostvm_override_opts dml_hostvm_override;
 	bool use_legacy_soc_bb_mechanism;
 	bool exit_idle_opt_for_cursor_updates;
+	bool enable_single_display_2to1_odm_policy;
+	bool enable_dp_dig_pixel_rate_div_policy;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;

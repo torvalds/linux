@@ -3036,6 +3036,12 @@ int dcn32_populate_dml_pipes_from_context(
 				break;
 			}
 		}
+
+		pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_dal;
+		if (context->stream_count == 1) {
+			if (dc->debug.enable_single_display_2to1_odm_policy)
+				pipes[pipe_cnt].pipe.dest.odm_combine_policy = dm_odm_combine_policy_2to1;
+		}
 		pipe_cnt++;
 	}
 

@@ -50,7 +50,7 @@ static const struct hw_sequencer_funcs dcn32_funcs = {
 	.send_immediate_sdp_message = dcn10_send_immediate_sdp_message,
 	.enable_stream = dcn20_enable_stream,
 	.disable_stream = dce110_disable_stream,
-	.unblank_stream = dcn20_unblank_stream,
+	.unblank_stream = dcn32_unblank_stream,
 	.blank_stream = dce110_blank_stream,
 	.enable_audio_stream = dce110_enable_audio_stream,
 	.disable_audio_stream = dce110_disable_audio_stream,
@@ -143,6 +143,7 @@ static const struct hwseq_private_funcs dcn32_private_funcs = {
 	.update_mall_sel = dcn32_update_mall_sel,
 	.calculate_dccg_k1_k2_values = dcn32_calculate_dccg_k1_k2_values,
 	.set_pixels_per_cycle = dcn32_set_pixels_per_cycle,
+	.is_dp_dig_pixel_rate_div_policy = dcn32_is_dp_dig_pixel_rate_div_policy,
 };
 
 void dcn32_hw_sequencer_init_functions(struct dc *dc)

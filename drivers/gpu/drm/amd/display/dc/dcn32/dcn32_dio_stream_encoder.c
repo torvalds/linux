@@ -249,6 +249,7 @@ static void enc32_stream_encoder_dp_unblank(
 		const struct encoder_unblank_param *param)
 {
 	struct dcn10_stream_encoder *enc1 = DCN10STRENC_FROM_STRENC(enc);
+	struct dc *dc = enc->ctx->dc;
 
 	if (param->link_settings.link_rate != LINK_RATE_UNKNOWN) {
 		uint32_t n_vid = 0x8000;
@@ -257,7 +258,8 @@ static void enc32_stream_encoder_dp_unblank(
 		uint64_t m_vid_l = n_vid;
 
 		/* YCbCr 4:2:0 : Computed VID_M will be 2X the input rate */
-		if (is_two_pixels_per_containter(&param->timing) || param->opp_cnt > 1) {
+		if (is_two_pixels_per_containter(&param->timing) || param->opp_cnt > 1
+			|| dc->debug.enable_dp_dig_pixel_rate_div_policy) {
 			/*this logic should be the same in get_pixel_clock_parameters() */
 			n_multiply = 1;
 		}

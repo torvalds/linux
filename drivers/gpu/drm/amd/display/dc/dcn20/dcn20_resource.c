@@ -1237,6 +1237,8 @@ static void get_pixel_clock_parameters(
 	int opp_cnt = 1;
 	struct dc_link *link = stream->link;
 	struct link_encoder *link_enc = NULL;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	struct dce_hwseq *hws = dc->hwseq;
 
 	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
 		opp_cnt++;
@@ -1267,6 +1269,11 @@ static void get_pixel_clock_parameters(
 		pixel_clk_params->requested_pix_clk_100hz /= 4;
 	else if (optc2_is_two_pixels_per_containter(&stream->timing) || opp_cnt == 2)
 		pixel_clk_params->requested_pix_clk_100hz /= 2;
+
+	else if (hws->funcs.is_dp_dig_pixel_rate_div_policy) {
+		if (hws->funcs.is_dp_dig_pixel_rate_div_policy(pipe_ctx))
+			pixel_clk_params->requested_pix_clk_100hz /= 2;
+	}
 
 	if (stream->timing.timing_3d_format == TIMING_3D_FORMAT_HW_FRAME_PACKING)
 		pixel_clk_params->requested_pix_clk_100hz *= 2;

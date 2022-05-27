@@ -1083,6 +1083,7 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 {
 	struct dc_stream_state *stream = pipe_ctx->stream;
 	unsigned int odm_combine_factor = 0;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
 
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
 
@@ -1102,9 +1103,7 @@ unsigned int dcn32_calculate_dccg_k1_k2_values(struct pipe_ctx *pipe_ctx, unsign
 			*k1_div = PIXEL_RATE_DIV_BY_2;
 			*k2_div = PIXEL_RATE_DIV_BY_2;
 		} else {
-			if (odm_combine_factor == 1)
-				*k2_div = PIXEL_RATE_DIV_BY_4;
-			else if (odm_combine_factor == 2)
+			if ((odm_combine_factor == 2) || dc->debug.enable_dp_dig_pixel_rate_div_policy)
 				*k2_div = PIXEL_RATE_DIV_BY_2;
 		}
 	}
@@ -1124,10 +1123,61 @@ void dcn32_set_pixels_per_cycle(struct pipe_ctx *pipe_ctx)
 		return;
 
 	odm_combine_factor = get_odm_config(pipe_ctx, NULL);
-	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1)
+	if (optc2_is_two_pixels_per_containter(&pipe_ctx->stream->timing) || odm_combine_factor > 1
+		|| dcn32_is_dp_dig_pixel_rate_div_policy(pipe_ctx))
 		pix_per_cycle = 2;
 
 	if (pipe_ctx->stream_res.stream_enc->funcs->set_input_mode)
 		pipe_ctx->stream_res.stream_enc->funcs->set_input_mode(pipe_ctx->stream_res.stream_enc,
 				pix_per_cycle);
+}
+
+void dcn32_unblank_stream(struct pipe_ctx *pipe_ctx,
+		struct dc_link_settings *link_settings)
+{
+	struct encoder_unblank_param params = {0};
+	struct dc_stream_state *stream = pipe_ctx->stream;
+	struct dc_link *link = stream->link;
+	struct dce_hwseq *hws = link->dc->hwseq;
+	struct pipe_ctx *odm_pipe;
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+	uint32_t pix_per_cycle = 1;
+
+	params.opp_cnt = 1;
+	for (odm_pipe = pipe_ctx->next_odm_pipe; odm_pipe; odm_pipe = odm_pipe->next_odm_pipe)
+		params.opp_cnt++;
+
+	/* only 3 items below are used by unblank */
+	params.timing = pipe_ctx->stream->timing;
+
+	params.link_settings.link_rate = link_settings->link_rate;
+
+	if (is_dp_128b_132b_signal(pipe_ctx)) {
+		/* TODO - DP2.0 HW: Set ODM mode in dp hpo encoder here */
+		pipe_ctx->stream_res.hpo_dp_stream_enc->funcs->dp_unblank(
+				pipe_ctx->stream_res.hpo_dp_stream_enc,
+				pipe_ctx->stream_res.tg->inst);
+	} else if (dc_is_dp_signal(pipe_ctx->stream->signal)) {
+		if (optc2_is_two_pixels_per_containter(&stream->timing) || params.opp_cnt > 1
+			|| dc->debug.enable_dp_dig_pixel_rate_div_policy) {
+			params.timing.pix_clk_100hz /= 2;
+			pix_per_cycle = 2;
+		}
+		pipe_ctx->stream_res.stream_enc->funcs->dp_set_odm_combine(
+				pipe_ctx->stream_res.stream_enc, pix_per_cycle > 1);
+		pipe_ctx->stream_res.stream_enc->funcs->dp_unblank(link, pipe_ctx->stream_res.stream_enc, &params);
+	}
+
+	if (link->local_sink && link->local_sink->sink_signal == SIGNAL_TYPE_EDP)
+		hws->funcs.edp_backlight_control(link, true);
+}
+
+bool dcn32_is_dp_dig_pixel_rate_div_policy(struct pipe_ctx *pipe_ctx)
+{
+	struct dc *dc = pipe_ctx->stream->ctx->dc;
+
+	if (dc_is_dp_signal(pipe_ctx->stream->signal) && !is_dp_128b_132b_signal(pipe_ctx) &&
+		dc->debug.enable_dp_dig_pixel_rate_div_policy)
+		return true;
+	return false;
 }
