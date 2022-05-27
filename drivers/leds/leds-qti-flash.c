@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2016-2021, The Linux Foundation. All rights reserved.
- * Copyright (c) 2021 Qualcomm Innovation Center, Inc. All rights reserved.
+ * Copyright (c) 2021-2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 #define pr_fmt(fmt)	"qti-flash: %s: " fmt, __func__
 
@@ -819,15 +819,15 @@ static struct led_classdev *trigger_to_lcdev(struct led_trigger *trig)
 {
 	struct led_classdev *led_cdev;
 
-	read_lock(&trig->leddev_list_lock);
-	list_for_each_entry(led_cdev, &trig->led_cdevs, trig_list) {
+	rcu_read_lock();
+	list_for_each_entry_rcu(led_cdev, &trig->led_cdevs, trig_list) {
 		if (!strcmp(led_cdev->default_trigger, trig->name)) {
-			read_unlock(&trig->leddev_list_lock);
+			rcu_read_unlock();
 			return led_cdev;
 		}
 	}
+	rcu_read_unlock();
 
-	read_unlock(&trig->leddev_list_lock);
 	return NULL;
 }
 
