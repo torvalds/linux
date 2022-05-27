@@ -3605,6 +3605,8 @@ static u32 rkcif_align_bits_per_pixel(struct rkcif_stream *stream,
 		case V4L2_PIX_FMT_SRGGB16:
 		case V4l2_PIX_FMT_SPD16:
 		case V4l2_PIX_FMT_EBD8:
+		case V4L2_PIX_FMT_Y10:
+		case V4L2_PIX_FMT_Y12:
 			if (stream->cifdev->chip_id < CHIP_RV1126_CIF) {
 				bpp = max(fmt->bpp[plane_index], (u8)CIF_RAW_STORED_BIT_WIDTH);
 				cal = CIF_RAW_STORED_BIT_WIDTH;
