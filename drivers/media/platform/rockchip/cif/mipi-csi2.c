@@ -625,6 +625,17 @@ v4l2_async_notifier_operations csi2_async_ops = {
 	.unbind = csi2_notifier_unbind,
 };
 
+static void csi2_find_err_vc(int val, char *vc_info)
+{
+	int i;
+
+	memset(vc_info, 0, sizeof(*vc_info));
+	for (i = 0; i < 4; i++) {
+		if ((val >> i) & 0x1)
+			snprintf(vc_info, CSI_VCINFO_LEN, "%s %d", vc_info, i);
+	}
+}
+
 static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 {
 	struct device *dev = ctx;
@@ -632,63 +643,67 @@ static irqreturn_t rk_csirx_irq1_handler(int irq, void *ctx)
 	struct csi2_err_stats *err_list = NULL;
 	unsigned long err_stat = 0;
 	u32 val;
+	char err_str[CSI_ERRSTR_LEN] = {0};
+	char vc_info[CSI_VCINFO_LEN] = {0};
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR1);
 	if (val) {
-		write_csihost_reg(csi2->base,
-				  CSIHOST_ERR1, 0x0);
 		if (val & CSIHOST_ERR1_PHYERR_SPTSYNCHS) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_SOTSYN];
 			err_list->cnt++;
 			if (csi2->match_data->chip_id == CHIP_RK3588_CSI2) {
 				if (csi2->err_list[RK_CSI2_ERR_ALL].cnt > err_list->cnt) {
-					dev_err(csi2->dev,
-						"ERR1: start of transmission error(no synchronization achieved), reg: 0x%x,cnt:%d\n",
-						val, err_list->cnt);
+					csi2_find_err_vc(val & 0xf, vc_info);
+					snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
 				} else {
 					if (csi2->is_check_sot_sync) {
+						csi2_find_err_vc(val & 0xf, vc_info);
+						snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
 						write_csihost_reg(csi2->base, CSIHOST_MSK1, 0xf);
 						csi2->is_check_sot_sync = false;
 					}
 				}
 			} else {
-				dev_err(csi2->dev,
-					"ERR1: start of transmission error(no synchronization achieved), reg: 0x%x,cnt:%d\n",
-					val, err_list->cnt);
+				csi2_find_err_vc(val & 0xf, vc_info);
+				snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot sync,lane:%s) ", err_str, vc_info);
 			}
 		}
 
 		if (val & CSIHOST_ERR1_ERR_BNDRY_MATCH) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_FS_FE_MIS];
 			err_list->cnt++;
-			dev_err(csi2->dev,
-				 "ERR1: error matching frame start with frame end, reg: 0x%x,cnt:%d\n",
-				 val, err_list->cnt);
+			csi2_find_err_vc((val >> 4) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(fs/fe mis,vc:%s) ", err_str, vc_info);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_SEQ) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_FRM_SEQ_ERR];
 			err_list->cnt++;
-			dev_err(csi2->dev,
-				 "ERR1: incorrect frame sequence detected, reg: 0x%x,cnt:%d\n",
-				 val, err_list->cnt);
+			csi2_find_err_vc((val >> 8) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(f_seq,vc:%s) ", err_str, vc_info);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_FRM_DATA) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC_ONCE];
 			err_list->cnt++;
-			v4l2_dbg(1, csi2_debug, &csi2->sd,
-				 "ERR1: at least one crc error, reg: 0x%x\n,cnt:%d", val, err_list->cnt);
+			csi2_find_err_vc((val >> 12) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err_data,vc:%s) ", err_str, vc_info);
 		}
 
 		if (val & CSIHOST_ERR1_ERR_CRC) {
 			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
 			err_list->cnt++;
-			dev_err(csi2->dev,
-				 "ERR1: crc errors, reg: 0x%x, cnt:%d\n",
-				 val, err_list->cnt);
+			csi2_find_err_vc((val >> 24) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(crc,vc:%s) ", err_str, vc_info);
 		}
 
+		if (val & CSIHOST_ERR1_ERR_ECC2) {
+			err_list = &csi2->err_list[RK_CSI2_ERR_CRC];
+			err_list->cnt++;
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ecc2)", err_str);
+		}
+
+		pr_err("%s ERR1:0x%x %s\n", csi2->dev_name, val, err_str);
 		csi2->err_list[RK_CSI2_ERR_ALL].cnt++;
 		err_stat = ((csi2->err_list[RK_CSI2_ERR_FS_FE_MIS].cnt & 0xff) << 8) |
 			    ((csi2->err_list[RK_CSI2_ERR_ALL].cnt) & 0xff);
@@ -707,25 +722,31 @@ static irqreturn_t rk_csirx_irq2_handler(int irq, void *ctx)
 	struct device *dev = ctx;
 	struct csi2_dev *csi2 = sd_to_dev(dev_get_drvdata(dev));
 	u32 val;
+	char err_str[CSI_ERRSTR_LEN] = {0};
+	char vc_info[CSI_VCINFO_LEN] = {0};
 
 	val = read_csihost_reg(csi2->base, CSIHOST_ERR2);
 	if (val) {
-		if (val & CSIHOST_ERR2_PHYERR_ESC)
-			dev_err(csi2->dev, "ERR2: escape entry error(ULPM), reg: 0x%x\n", val);
-		if (val & CSIHOST_ERR2_PHYERR_SOTHS)
-			dev_err(csi2->dev,
-				 "ERR2: start of transmission error(synchronization can still be achieved), reg: 0x%x\n",
-				 val);
-		if (val & CSIHOST_ERR2_ECC_CORRECTED)
-			v4l2_dbg(1, csi2_debug, &csi2->sd,
-				 "ERR2: header error detected and corrected, reg: 0x%x\n",
-				 val);
-		if (val & CSIHOST_ERR2_ERR_ID)
-			dev_err(csi2->dev,
-				 "ERR2: unrecognized or unimplemented data type detected, reg: 0x%x\n",
-				 val);
+		if (val & CSIHOST_ERR2_PHYERR_ESC) {
+			csi2_find_err_vc(val & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ULPM,lane:%s) ", err_str, vc_info);
+		}
+		if (val & CSIHOST_ERR2_PHYERR_SOTHS) {
+			csi2_find_err_vc((val >> 4) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(sot,lane:%s) ", err_str, vc_info);
+		}
+		if (val & CSIHOST_ERR2_ECC_CORRECTED) {
+			csi2_find_err_vc((val >> 8) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(ecc,vc:%s) ", err_str, vc_info);
+		}
+		if (val & CSIHOST_ERR2_ERR_ID) {
+			csi2_find_err_vc((val >> 12) & 0xf, vc_info);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err id,vc:%s) ", err_str, vc_info);
+		}
 		if (val & CSIHOST_ERR2_PHYERR_CODEHS)
-			dev_err(csi2->dev, "ERR2: receiv error code, reg: 0x%x\n", val);
+			snprintf(err_str, CSI_ERRSTR_LEN, "%s(err code) ", err_str);
+
+		pr_err("%s ERR2:0x%x %s\n", csi2->dev_name, val, err_str);
 	}
 
 	return IRQ_HANDLED;
@@ -833,6 +854,7 @@ static int csi2_probe(struct platform_device *pdev)
 	csi2->dev = &pdev->dev;
 	csi2->match_data = data;
 
+	csi2->dev_name = node->name;
 	v4l2_subdev_init(&csi2->sd, &csi2_subdev_ops);
 	v4l2_set_subdevdata(&csi2->sd, &pdev->dev);
 	csi2->sd.entity.ops = &csi2_entity_ops;
