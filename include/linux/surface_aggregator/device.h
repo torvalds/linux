@@ -177,6 +177,8 @@ struct ssam_device_driver {
 	void (*remove)(struct ssam_device *sdev);
 };
 
+#ifdef CONFIG_SURFACE_AGGREGATOR_BUS
+
 extern struct bus_type ssam_bus_type;
 extern const struct device_type ssam_device_type;
 
@@ -192,6 +194,15 @@ static inline bool is_ssam_device(struct device *d)
 {
 	return d->type == &ssam_device_type;
 }
+
+#else /* CONFIG_SURFACE_AGGREGATOR_BUS */
+
+static inline bool is_ssam_device(struct device *d)
+{
+	return false;
+}
+
+#endif /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
 /**
  * to_ssam_device() - Casts the given device to a SSAM client device.
