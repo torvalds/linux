@@ -1286,6 +1286,13 @@ config REGULATOR_VQMMC_IPQ4019
 	  This driver provides support for the VQMMC LDO I/0
 	  voltage regulator of the IPQ4019 SD/EMMC controller.
 
+config REGULATOR_WL2868C
+	tristate "WILLSEMI WL2868C PMIC regulators"
+	depends on I2C
+	help
+	  Support the voltage and current regulators of the WL2868C series
+	  of PMIC devices.
+
 config REGULATOR_WM831X
 	tristate "Wolfson Microelectronics WM831x PMIC regulators"
 	depends on MFD_WM831X
