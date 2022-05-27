@@ -289,7 +289,7 @@
 };
 /* default sd card */
 &sdio0 {
-	clock-frequency = <204800000>;
+	clock-frequency = <102400000>;
 	max-frequency = <200000000>;
 	card-detect-delay = <300>;
 	bus-width = <4>;
