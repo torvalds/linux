@@ -5438,6 +5438,10 @@ static int io_file_bitmap_get(struct io_ring_ctx *ctx)
 	return -ENFILE;
 }
 
+/*
+ * Note when io_fixed_fd_install() returns error value, it will ensure
+ * fput() is called correspondingly.
+ */
 static int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 			       struct file *file, unsigned int file_slot)
 {
@@ -5450,6 +5454,7 @@ static int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 		ret = io_file_bitmap_get(ctx);
 		if (unlikely(ret < 0)) {
 			io_ring_submit_unlock(ctx, issue_flags);
+			fput(file);
 			return ret;
 		}
 
