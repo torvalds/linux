@@ -11,6 +11,9 @@
 #include <linux/v4l2-controls.h>
 #include <linux/rkisp3-config.h>
 
+#define RKISP_CMD_GET_TB_HEAD_V32 \
+	_IOR('V', BASE_VIDIOC_PRIVATE + 12, struct rkisp32_thunderboot_resmem_head)
+
 #define ISP32_MODULE_DPCC		ISP3X_MODULE_DPCC
 #define ISP32_MODULE_BLS		ISP3X_MODULE_BLS
 #define ISP32_MODULE_SDG		ISP3X_MODULE_SDG
@@ -1397,4 +1400,8 @@ struct rkisp32_isp_stat_buffer {
 	u32 frame_id;
 } __attribute__ ((packed));
 
+struct rkisp32_thunderboot_resmem_head {
+	struct rkisp_thunderboot_resmem_head head;
+	struct isp32_isp_params_cfg cfg;
+};
 #endif /* _UAPI_RKISP32_CONFIG_H */

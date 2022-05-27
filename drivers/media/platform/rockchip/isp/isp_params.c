@@ -147,6 +147,7 @@ static void rkisp_params_vb2_buf_queue(struct vb2_buffer *vb)
 	if (params_vdev->first_params) {
 		first_param = vb2_plane_vaddr(vb, 0);
 		params_vdev->ops->save_first_param(params_vdev, first_param);
+		params_vdev->is_first_cfg = true;
 		vbuf->sequence = cur_frame_id;
 		vb2_buffer_done(&params_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 		params_vdev->first_params = false;
@@ -212,7 +213,6 @@ rkisp_params_vb2_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp_isp_params_vdev *params_vdev = queue->drv_priv;
 	unsigned long flags;
 
-	params_vdev->is_first_cfg = true;
 	params_vdev->hdrtmo_en = false;
 	params_vdev->afaemode_en = false;
 	params_vdev->cur_buf = NULL;

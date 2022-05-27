@@ -674,14 +674,13 @@ void rkisp_stats_first_ddr_config_v32(struct rkisp_isp_stats_vdev *stats_vdev)
 	struct rkisp_device *dev = stats_vdev->dev;
 	u32 size = stats_vdev->vdev_fmt.fmt.meta.buffersize;
 
-	if (!stats_vdev->streamon)
+	if (dev->isp_sdev.in_fmt.fmt_type == FMT_YUV)
 		return;
 
 	stats_vdev->stats_buf[0].is_need_vaddr = true;
 	stats_vdev->stats_buf[0].size = sizeof(struct rkisp32_isp_stat_buffer);
 	if (rkisp_alloc_buffer(dev, &stats_vdev->stats_buf[0]))
-		v4l2_warn(&dev->v4l2_dev,
-			  "stats alloc buf fail\n");
+		v4l2_warn(&dev->v4l2_dev, "stats alloc buf fail\n");
 	rkisp_stats_update_buf(stats_vdev);
 	rkisp_write(dev, ISP3X_MI_DBR_WR_SIZE, size, false);
 	rkisp_set_bits(dev, ISP3X_SWS_CFG, 0, ISP3X_3A_DDR_WRITE_EN, false);

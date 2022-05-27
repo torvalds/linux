@@ -212,7 +212,10 @@ struct rkisp_device {
 	wait_queue_head_t sync_onoff;
 	dma_addr_t resmem_addr;
 	phys_addr_t resmem_pa;
+	dma_addr_t resmem_addr_curr;
 	size_t resmem_size;
+	struct rkisp_thunderboot_resmem_head tb_head;
+	bool is_thunderboot;
 	int dev_id;
 	unsigned int skip_frame;
 	unsigned int irq_ends;
