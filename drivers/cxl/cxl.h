@@ -347,7 +347,7 @@ struct cxl_port {
 	struct device *host_bridge;
 	int id;
 	struct list_head dports;
-	struct list_head endpoints;
+	struct xarray endpoints;
 	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
 	int hdm_end;
@@ -381,12 +381,10 @@ struct cxl_dport {
  * struct cxl_ep - track an endpoint's interest in a port
  * @ep: device that hosts a generic CXL endpoint (expander or accelerator)
  * @dport: which dport routes to this endpoint on @port
- * @list: node on port->endpoints list
  */
 struct cxl_ep {
 	struct device *ep;
 	struct cxl_dport *dport;
-	struct list_head list;
 };
 
 /*

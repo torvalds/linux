@@ -431,22 +431,27 @@ static struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 
 static void cxl_ep_release(struct cxl_ep *ep)
 {
-	if (!ep)
-		return;
-	list_del(&ep->list);
 	put_device(ep->ep);
 	kfree(ep);
+}
+
+static void cxl_ep_remove(struct cxl_port *port, struct cxl_ep *ep)
+{
+	if (!ep)
+		return;
+	xa_erase(&port->endpoints, (unsigned long) ep->ep);
+	cxl_ep_release(ep);
 }
 
 static void cxl_port_release(struct device *dev)
 {
 	struct cxl_port *port = to_cxl_port(dev);
-	struct cxl_ep *ep, *_e;
+	unsigned long index;
+	struct cxl_ep *ep;
 
-	device_lock(dev);
-	list_for_each_entry_safe(ep, _e, &port->endpoints, list)
-		cxl_ep_release(ep);
-	device_unlock(dev);
+	xa_for_each(&port->endpoints, index, ep)
+		cxl_ep_remove(port, ep);
+	xa_destroy(&port->endpoints);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -577,7 +582,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	ida_init(&port->decoder_ida);
 	port->hdm_end = -1;
 	INIT_LIST_HEAD(&port->dports);
-	INIT_LIST_HEAD(&port->endpoints);
+	xa_init(&port->endpoints);
 
 	device_initialize(dev);
 	lockdep_set_class_and_subclass(&dev->mutex, &cxl_port_key, port->depth);
@@ -873,33 +878,21 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_add_dport, CXL);
 
-static struct cxl_ep *find_ep(struct cxl_port *port, struct device *ep_dev)
-{
-	struct cxl_ep *ep;
-
-	device_lock_assert(&port->dev);
-	list_for_each_entry(ep, &port->endpoints, list)
-		if (ep->ep == ep_dev)
-			return ep;
-	return NULL;
-}
-
 static int add_ep(struct cxl_ep *new)
 {
 	struct cxl_port *port = new->dport->port;
-	struct cxl_ep *dup;
+	int rc;
 
 	device_lock(&port->dev);
 	if (port->dead) {
 		device_unlock(&port->dev);
 		return -ENXIO;
 	}
-	dup = find_ep(port, new->ep);
-	if (!dup)
-		list_add_tail(&new->list, &port->endpoints);
+	rc = xa_insert(&port->endpoints, (unsigned long)new->ep, new,
+		       GFP_KERNEL);
 	device_unlock(&port->dev);
 
-	return dup ? -EEXIST : 0;
+	return rc;
 }
 
 /**
@@ -920,7 +913,6 @@ static int cxl_add_ep(struct cxl_dport *dport, struct device *ep_dev)
 	if (!ep)
 		return -ENOMEM;
 
-	INIT_LIST_HEAD(&ep->list);
 	ep->ep = get_device(ep_dev);
 	ep->dport = dport;
 
@@ -1063,6 +1055,12 @@ static void delete_switch_port(struct cxl_port *port, struct list_head *dports)
 	devm_release_action(port->dev.parent, unregister_port, port);
 }
 
+static struct cxl_ep *cxl_ep_load(struct cxl_port *port,
+				  struct cxl_memdev *cxlmd)
+{
+	return xa_load(&port->endpoints, (unsigned long)&cxlmd->dev);
+}
+
 static void cxl_detach_ep(void *data)
 {
 	struct cxl_memdev *cxlmd = data;
@@ -1101,11 +1099,11 @@ static void cxl_detach_ep(void *data)
 		}
 
 		device_lock(&port->dev);
-		ep = find_ep(port, &cxlmd->dev);
+		ep = cxl_ep_load(port, cxlmd);
 		dev_dbg(&cxlmd->dev, "disconnect %s from %s\n",
 			ep ? dev_name(ep->ep) : "", dev_name(&port->dev));
-		cxl_ep_release(ep);
-		if (ep && !port->dead && list_empty(&port->endpoints) &&
+		cxl_ep_remove(port, ep);
+		if (ep && !port->dead && xa_empty(&port->endpoints) &&
 		    !is_cxl_root(parent_port)) {
 			/*
 			 * This was the last ep attached to a dynamically
@@ -1199,7 +1197,7 @@ out:
 		dev_dbg(&cxlmd->dev, "add to new port %s:%s\n",
 			dev_name(&port->dev), dev_name(port->uport));
 		rc = cxl_add_ep(dport, &cxlmd->dev);
-		if (rc == -EEXIST) {
+		if (rc == -EBUSY) {
 			/*
 			 * "can't" happen, but this error code means
 			 * something to the caller, so translate it.
@@ -1262,7 +1260,7 @@ retry:
 			 * the parent_port lock as the current port may be being
 			 * reaped.
 			 */
-			if (rc && rc != -EEXIST) {
+			if (rc && rc != -EBUSY) {
 				put_device(&port->dev);
 				return rc;
 			}
