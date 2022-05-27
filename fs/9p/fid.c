@@ -219,7 +219,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		l = min(n - i, P9_MAXWELEM);
 		/*
 		 * We need to hold rename lock when doing a multipath
-		 * walk to ensure none of the patch component change
+		 * walk to ensure none of the path components change
 		 */
 		fid = p9_client_walk(old_fid, l, &wnames[i],
 				     old_fid == root_fid /* clone */);
