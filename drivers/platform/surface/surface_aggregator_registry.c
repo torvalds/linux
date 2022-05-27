@@ -468,7 +468,7 @@ static int ssam_base_hub_probe(struct ssam_device *sdev)
 
 	ssam_device_set_drvdata(sdev, hub);
 
-	status = ssam_notifier_register(sdev->ctrl, &hub->notif);
+	status = ssam_device_notifier_register(sdev, &hub->notif);
 	if (status)
 		return status;
 
@@ -480,7 +480,7 @@ static int ssam_base_hub_probe(struct ssam_device *sdev)
 	return 0;
 
 err:
-	ssam_notifier_unregister(sdev->ctrl, &hub->notif);
+	ssam_device_notifier_unregister(sdev, &hub->notif);
 	cancel_delayed_work_sync(&hub->update_work);
 	ssam_remove_clients(&sdev->dev);
 	return status;
@@ -492,7 +492,7 @@ static void ssam_base_hub_remove(struct ssam_device *sdev)
 
 	sysfs_remove_group(&sdev->dev.kobj, &ssam_base_hub_group);
 
-	ssam_notifier_unregister(sdev->ctrl, &hub->notif);
+	ssam_device_notifier_unregister(sdev, &hub->notif);
 	cancel_delayed_work_sync(&hub->update_work);
 	ssam_remove_clients(&sdev->dev);
 }
