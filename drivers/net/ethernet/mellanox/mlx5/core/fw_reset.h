@@ -16,6 +16,7 @@ int mlx5_fw_reset_set_live_patch(struct mlx5_core_dev *dev);
 int mlx5_fw_reset_wait_reset_done(struct mlx5_core_dev *dev);
 void mlx5_fw_reset_events_start(struct mlx5_core_dev *dev);
 void mlx5_fw_reset_events_stop(struct mlx5_core_dev *dev);
+void mlx5_drain_fw_reset(struct mlx5_core_dev *dev);
 int mlx5_fw_reset_init(struct mlx5_core_dev *dev);
 void mlx5_fw_reset_cleanup(struct mlx5_core_dev *dev);
 
