@@ -248,6 +248,15 @@ config QTI_BATTERY_GLINK_DEBUG
 	  Glink from charger and gauging firmware running on a remote subsystem
 	  (e.g. DSP).
 
+config QTI_CHARGER_ULOG_GLINK
+	tristate "Enable support for QTI charger ulog glink driver"
+	depends on QTI_PMIC_GLINK && DEBUG_FS
+	help
+	  Qualcomm Technologies, Inc. charger ulog glink driver helps to
+	  obtain ulogs from battery charging and gauging stack over PMIC
+	  Glink from the charger firmware running on a remote subsystem
+	  (e.g. DSP).
+
 config QTI_ALTMODE_GLINK
 	tristate "Type-C alternate mode over GLINK"
 	depends on QTI_PMIC_GLINK
