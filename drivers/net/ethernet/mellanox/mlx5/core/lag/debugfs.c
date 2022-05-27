@@ -44,7 +44,7 @@ static int port_sel_mode_show(struct seq_file *file, void *priv)
 	ldev = dev->priv.lag;
 	mutex_lock(&ldev->lock);
 	if (__mlx5_lag_is_active(ldev))
-		mode = mlx5_get_str_port_sel_mode(ldev);
+		mode = mlx5_get_str_port_sel_mode(ldev->mode, ldev->mode_flags);
 	else
 		ret = -EINVAL;
 	mutex_unlock(&ldev->lock);

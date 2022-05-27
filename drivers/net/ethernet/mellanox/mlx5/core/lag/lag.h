@@ -115,7 +115,7 @@ bool mlx5_shared_fdb_supported(struct mlx5_lag *ldev);
 void mlx5_lag_del_mpesw_rule(struct mlx5_core_dev *dev);
 int mlx5_lag_add_mpesw_rule(struct mlx5_core_dev *dev);
 
-char *mlx5_get_str_port_sel_mode(struct mlx5_lag *ldev);
+char *mlx5_get_str_port_sel_mode(enum mlx5_lag_mode mode, unsigned long flags);
 void mlx5_infer_tx_enabled(struct lag_tracker *tracker, u8 num_ports,
 			   u8 *ports, int *num_enabled);
 

@@ -487,9 +487,9 @@ static int mlx5_lag_set_flags(struct mlx5_lag *ldev, enum mlx5_lag_mode mode,
 	return 0;
 }
 
-char *mlx5_get_str_port_sel_mode(struct mlx5_lag *ldev)
+char *mlx5_get_str_port_sel_mode(enum mlx5_lag_mode mode, unsigned long flags)
 {
-	int port_sel_mode = get_port_sel_mode(ldev->mode, ldev->mode_flags);
+	int port_sel_mode = get_port_sel_mode(mode, flags);
 
 	switch (port_sel_mode) {
 	case MLX5_LAG_PORT_SELECT_MODE_QUEUE_AFFINITY: return "queue_affinity";
@@ -513,7 +513,7 @@ static int mlx5_create_lag(struct mlx5_lag *ldev,
 	if (tracker)
 		mlx5_lag_print_mapping(dev0, ldev, tracker, flags);
 	mlx5_core_info(dev0, "shared_fdb:%d mode:%s\n",
-		       shared_fdb, mlx5_get_str_port_sel_mode(ldev));
+		       shared_fdb, mlx5_get_str_port_sel_mode(mode, flags));
 
 	err = mlx5_cmd_create_lag(dev0, ldev->v2p_map, mode, flags);
 	if (err) {
