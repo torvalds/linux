@@ -346,7 +346,7 @@ struct evlist_cpu_iterator evlist__cpu_begin(struct evlist *evlist, struct affin
 {
 	struct evlist_cpu_iterator itr = {
 		.container = evlist,
-		.evsel = evlist__first(evlist),
+		.evsel = NULL,
 		.cpu_map_idx = 0,
 		.evlist_cpu_map_idx = 0,
 		.evlist_cpu_map_nr = perf_cpu_map__nr(evlist->core.all_cpus),
@@ -354,16 +354,22 @@ struct evlist_cpu_iterator evlist__cpu_begin(struct evlist *evlist, struct affin
 		.affinity = affinity,
 	};
 
-	if (itr.affinity) {
-		itr.cpu = perf_cpu_map__cpu(evlist->core.all_cpus, 0);
-		affinity__set(itr.affinity, itr.cpu.cpu);
-		itr.cpu_map_idx = perf_cpu_map__idx(itr.evsel->core.cpus, itr.cpu);
-		/*
-		 * If this CPU isn't in the evsel's cpu map then advance through
-		 * the list.
-		 */
-		if (itr.cpu_map_idx == -1)
-			evlist_cpu_iterator__next(&itr);
+	if (evlist__empty(evlist)) {
+		/* Ensure the empty list doesn't iterate. */
+		itr.evlist_cpu_map_idx = itr.evlist_cpu_map_nr;
+	} else {
+		itr.evsel = evlist__first(evlist);
+		if (itr.affinity) {
+			itr.cpu = perf_cpu_map__cpu(evlist->core.all_cpus, 0);
+			affinity__set(itr.affinity, itr.cpu.cpu);
+			itr.cpu_map_idx = perf_cpu_map__idx(itr.evsel->core.cpus, itr.cpu);
+			/*
+			 * If this CPU isn't in the evsel's cpu map then advance
+			 * through the list.
+			 */
+			if (itr.cpu_map_idx == -1)
+				evlist_cpu_iterator__next(&itr);
+		}
 	}
 	return itr;
 }

@@ -29,7 +29,7 @@ struct evsel *arch_evlist__leader(struct list_head *list)
 
 	__evlist__for_each_entry(list, evsel) {
 		if (evsel->pmu_name && !strcmp(evsel->pmu_name, "cpu") &&
-			evsel->name && strstr(evsel->name, "slots"))
+			evsel->name && strcasestr(evsel->name, "slots"))
 			return evsel;
 	}
 	return first;
