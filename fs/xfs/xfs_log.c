@@ -3910,8 +3910,8 @@ xfs_attr_use_log_assist(
 	if (error)
 		goto drop_incompat;
 
-	xfs_warn_once(mp,
-"EXPERIMENTAL logged extended attributes feature added. Use at your own risk!");
+	xfs_warn_mount(mp, XFS_OPSTATE_WARNED_LARP,
+ "EXPERIMENTAL logged extended attributes feature in use. Use at your own risk!");
 
 	return 0;
 drop_incompat:

@@ -395,6 +395,8 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
 #define XFS_OPSTATE_WARNED_SCRUB	7
 /* Kernel has logged a warning about shrink being used on this fs. */
 #define XFS_OPSTATE_WARNED_SHRINK	8
+/* Kernel has logged a warning about logged xattr updates being used. */
+#define XFS_OPSTATE_WARNED_LARP		9
 
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
@@ -433,7 +435,8 @@ xfs_should_warn(struct xfs_mount *mp, long nr)
 	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }, \
 	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }, \
 	{ (1UL << XFS_OPSTATE_WARNED_SCRUB),		"wscrub" }, \
-	{ (1UL << XFS_OPSTATE_WARNED_SHRINK),		"wshrink" }
+	{ (1UL << XFS_OPSTATE_WARNED_SHRINK),		"wshrink" }, \
+	{ (1UL << XFS_OPSTATE_WARNED_LARP),		"wlarp" }
 
 /*
  * Max and min values for mount-option defined I/O
