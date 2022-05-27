@@ -25,7 +25,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
 #include "xfs_attr_item.h"
-#include "xfs_log.h"
+#include "xfs_xattr.h"
 
 struct kmem_cache		*xfs_attr_intent_cache;
 
@@ -1028,7 +1028,7 @@ xfs_attr_set(
 	}
 
 	if (use_logging) {
-		error = xfs_attr_use_log_assist(mp);
+		error = xfs_attr_grab_log_assist(mp);
 		if (error)
 			return error;
 	}
@@ -1102,7 +1102,7 @@ out_unlock:
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
 drop_incompat:
 	if (use_logging)
-		xlog_drop_incompat_feat(mp->m_log);
+		xfs_attr_rele_log_assist(mp);
 	return error;
 
 out_trans_cancel:

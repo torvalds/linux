@@ -39,6 +39,7 @@
 #include "xfs_ag.h"
 #include "xfs_defer.h"
 #include "xfs_attr_item.h"
+#include "xfs_xattr.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
