@@ -4207,8 +4207,6 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 	struct rkisp_isp_params_val_v32 *priv_val =
 		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
 
-	tasklet_enable(&priv_val->lsc_tasklet);
-	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp32_params);
 	dev->is_bigmode = rkisp_params_check_bigmode_v32(params_vdev);
 	spin_lock(&params_vdev->config_lock);
 	/* override the default things */
@@ -4240,7 +4238,12 @@ rkisp_params_first_cfg_v32(struct rkisp_isp_params_vdev *params_vdev)
 
 static void rkisp_save_first_param_v32(struct rkisp_isp_params_vdev *params_vdev, void *param)
 {
+	struct rkisp_isp_params_val_v32 *priv_val =
+		(struct rkisp_isp_params_val_v32 *)params_vdev->priv_val;
+
 	memcpy(params_vdev->isp32_params, param, params_vdev->vdev_fmt.fmt.meta.buffersize);
+	tasklet_enable(&priv_val->lsc_tasklet);
+	rkisp_alloc_internal_buf(params_vdev, params_vdev->isp32_params);
 }
 
 static void rkisp_clear_first_param_v32(struct rkisp_isp_params_vdev *params_vdev)
