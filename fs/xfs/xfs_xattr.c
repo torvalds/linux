@@ -27,7 +27,7 @@
  * they must release the permission by calling xlog_drop_incompat_feat
  * when they're done.
  */
-int
+static inline int
 xfs_attr_grab_log_assist(
 	struct xfs_mount	*mp)
 {
@@ -61,12 +61,40 @@ drop_incompat:
 	return error;
 }
 
-void
+static inline void
 xfs_attr_rele_log_assist(
 	struct xfs_mount	*mp)
 {
 	xlog_drop_incompat_feat(mp->m_log);
 }
+
+/*
+ * Set or remove an xattr, having grabbed the appropriate logging resources
+ * prior to calling libxfs.
+ */
+int
+xfs_attr_change(
+	struct xfs_da_args	*args)
+{
+	struct xfs_mount	*mp = args->dp->i_mount;
+	bool			use_logging = false;
+	int			error;
+
+	if (xfs_has_larp(mp)) {
+		error = xfs_attr_grab_log_assist(mp);
+		if (error)
+			return error;
+
+		use_logging = true;
+	}
+
+	error = xfs_attr_set(args);
+
+	if (use_logging)
+		xfs_attr_rele_log_assist(mp);
+	return error;
+}
+
 
 static int
 xfs_xattr_get(const struct xattr_handler *handler, struct dentry *unused,
@@ -105,7 +133,7 @@ xfs_xattr_set(const struct xattr_handler *handler,
 	};
 	int			error;
 
-	error = xfs_attr_set(&args);
+	error = xfs_attr_change(&args);
 	if (!error && (handler->flags & XFS_ATTR_ROOT))
 		xfs_forget_acl(inode, name);
 	return error;
