@@ -1,7 +1,7 @@
 /*
  * linux/mfd/tps65218.h
  *
- * Functions to access TPS65219 power management chip.
+ * Functions to access TPS65218 power management chip.
  *
  * Copyright (C) 2014 Texas Instruments Incorporated - https://www.ti.com/
  *

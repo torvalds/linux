@@ -1036,15 +1036,11 @@ static void clocks_init(struct device *dev,
 static int twl_remove(struct i2c_client *client)
 {
 	unsigned i, num_slaves;
-	int status;
 
 	if (twl_class_is_4030())
-		status = twl4030_exit_irq();
+		twl4030_exit_irq();
 	else
-		status = twl6030_exit_irq();
-
-	if (status < 0)
-		return status;
+		twl6030_exit_irq();
 
 	num_slaves = twl_get_num_slaves();
 	for (i = 0; i < num_slaves; i++) {
