@@ -213,7 +213,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Check the extension for binary stats */
-	if (kvm_check_cap(KVM_CAP_BINARY_STATS_FD) <= 0) {
+	if (!kvm_check_cap(KVM_CAP_BINARY_STATS_FD)) {
 		print_skip("Binary form statistics interface is not supported");
 		exit(KSFT_SKIP);
 	}

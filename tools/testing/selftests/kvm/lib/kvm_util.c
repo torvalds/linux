@@ -69,7 +69,7 @@ int open_kvm_dev_path_or_exit(void)
  * Looks up and returns the value corresponding to the capability
  * (KVM_CAP_*) given by cap.
  */
-int kvm_check_cap(long cap)
+unsigned int kvm_check_cap(long cap)
 {
 	int ret;
 	int kvm_fd;

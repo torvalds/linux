@@ -167,7 +167,7 @@ extern const struct vm_guest_mode_params vm_guest_mode_params[];
 
 int open_path_or_exit(const char *path, int flags);
 int open_kvm_dev_path_or_exit(void);
-int kvm_check_cap(long cap);
+unsigned int kvm_check_cap(long cap);
 
 #define __KVM_SYSCALL_ERROR(_name, _ret) \
 	"%s failed, rc: %i errno: %i (%s)", (_name), (_ret), errno, strerror(errno)
