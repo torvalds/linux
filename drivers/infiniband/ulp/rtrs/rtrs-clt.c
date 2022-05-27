@@ -2785,7 +2785,7 @@ static void free_clt(struct rtrs_clt_sess *clt)
 /**
  * rtrs_clt_open() - Open a path to an RTRS server
  * @ops: holds the link event callback and the private pointer.
- * @sessname: name of the session
+ * @pathname: name of the path to an RTRS server
  * @paths: Paths to be established defined by their src and dst addresses
  * @paths_num: Number of elements in the @paths array
  * @port: port to be used by the RTRS session

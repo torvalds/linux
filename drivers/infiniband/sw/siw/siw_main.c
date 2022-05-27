@@ -119,6 +119,7 @@ static int siw_dev_qualified(struct net_device *netdev)
 	 * <linux/if_arp.h> for type identifiers.
 	 */
 	if (netdev->type == ARPHRD_ETHER || netdev->type == ARPHRD_IEEE802 ||
+	    netdev->type == ARPHRD_NONE ||
 	    (netdev->type == ARPHRD_LOOPBACK && loopback_enabled))
 		return 1;
 
@@ -315,12 +316,12 @@ static struct siw_device *siw_device_create(struct net_device *netdev)
 
 	sdev->netdev = netdev;
 
-	if (netdev->type != ARPHRD_LOOPBACK) {
+	if (netdev->type != ARPHRD_LOOPBACK && netdev->type != ARPHRD_NONE) {
 		addrconf_addr_eui48((unsigned char *)&base_dev->node_guid,
 				    netdev->dev_addr);
 	} else {
 		/*
-		 * The loopback device does not have a HW address,
+		 * This device does not have a HW address,
 		 * but connection mangagement lib expects gid != 0
 		 */
 		size_t len = min_t(size_t, strlen(base_dev->name), 6);
