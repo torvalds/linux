@@ -638,6 +638,7 @@ static const struct of_device_id rockchip_iodomain_match[] = {
 };
 MODULE_DEVICE_TABLE(of, rockchip_iodomain_match);
 
+#ifndef MODULE
 static const char *rdev_get_name(struct regulator_dev *rdev)
 {
 	if (rdev->constraints && rdev->constraints->name)
@@ -708,6 +709,13 @@ static void rockchip_iodomain_dump(const struct platform_device *pdev,
 				rdev_get_name(r));
 	}
 }
+#else
+static inline void
+rockchip_iodomain_dump(const struct platform_device *pdev,
+		       struct rockchip_iodomain_supply *supply)
+{
+}
+#endif
 
 static int rv1126_iodomain_notify(struct notifier_block *nb,
 				  unsigned long event,
