@@ -148,17 +148,30 @@ struct ssam_device_uid {
 #define SSAM_SDEV(cat, tid, iid, fun) \
 	SSAM_DEVICE(SSAM_DOMAIN_SERIALHUB, SSAM_SSH_TC_##cat, tid, iid, fun)
 
+/*
+ * enum ssam_device_flags - Flags for SSAM client devices.
+ * @SSAM_DEVICE_HOT_REMOVED_BIT:
+ *	The device has been hot-removed. Further communication with it may time
+ *	out and should be avoided.
+ */
+enum ssam_device_flags {
+	SSAM_DEVICE_HOT_REMOVED_BIT = 0,
+};
+
 /**
  * struct ssam_device - SSAM client device.
- * @dev:  Driver model representation of the device.
- * @ctrl: SSAM controller managing this device.
- * @uid:  UID identifying the device.
+ * @dev:   Driver model representation of the device.
+ * @ctrl:  SSAM controller managing this device.
+ * @uid:   UID identifying the device.
+ * @flags: Device state flags, see &enum ssam_device_flags.
  */
 struct ssam_device {
 	struct device dev;
 	struct ssam_controller *ctrl;
 
 	struct ssam_device_uid uid;
+
+	unsigned long flags;
 };
 
 /**
@@ -250,6 +263,35 @@ struct ssam_device *ssam_device_alloc(struct ssam_controller *ctrl,
 
 int ssam_device_add(struct ssam_device *sdev);
 void ssam_device_remove(struct ssam_device *sdev);
+
+/**
+ * ssam_device_mark_hot_removed() - Mark the given device as hot-removed.
+ * @sdev: The device to mark as hot-removed.
+ *
+ * Mark the device as having been hot-removed. This signals drivers using the
+ * device that communication with the device should be avoided and may lead to
+ * timeouts.
+ */
+static inline void ssam_device_mark_hot_removed(struct ssam_device *sdev)
+{
+	dev_dbg(&sdev->dev, "marking device as hot-removed\n");
+	set_bit(SSAM_DEVICE_HOT_REMOVED_BIT, &sdev->flags);
+}
+
+/**
+ * ssam_device_is_hot_removed() - Check if the given device has been
+ * hot-removed.
+ * @sdev: The device to check.
+ *
+ * Checks if the given device has been marked as hot-removed. See
+ * ssam_device_mark_hot_removed() for more details.
+ *
+ * Return: Returns ``true`` if the device has been marked as hot-removed.
+ */
+static inline bool ssam_device_is_hot_removed(struct ssam_device *sdev)
+{
+	return test_bit(SSAM_DEVICE_HOT_REMOVED_BIT, &sdev->flags);
+}
 
 /**
  * ssam_device_get() - Increment reference count of SSAM client device.
