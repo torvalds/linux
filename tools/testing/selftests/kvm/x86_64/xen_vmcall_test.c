@@ -80,14 +80,12 @@ static void guest_code(void)
 
 int main(int argc, char *argv[])
 {
+	unsigned int xen_caps;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	if (!(kvm_check_cap(KVM_CAP_XEN_HVM) &
-	      KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL) ) {
-		print_skip("KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL not available");
-		exit(KSFT_SKIP);
-	}
+	xen_caps = kvm_check_cap(KVM_CAP_XEN_HVM);
+	TEST_REQUIRE(xen_caps & KVM_XEN_HVM_CONFIG_INTERCEPT_HCALL);
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	vcpu_set_hv_cpuid(vcpu);

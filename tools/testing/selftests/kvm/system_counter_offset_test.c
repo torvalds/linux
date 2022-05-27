@@ -28,11 +28,9 @@ static struct test_case test_cases[] = {
 
 static void check_preconditions(struct kvm_vcpu *vcpu)
 {
-	if (!__vcpu_has_device_attr(vcpu, KVM_VCPU_TSC_CTRL, KVM_VCPU_TSC_OFFSET))
-		return;
-
-	print_skip("KVM_VCPU_TSC_OFFSET not supported; skipping test");
-	exit(KSFT_SKIP);
+	__TEST_REQUIRE(!__vcpu_has_device_attr(vcpu, KVM_VCPU_TSC_CTRL,
+					       KVM_VCPU_TSC_OFFSET),
+		       "KVM_VCPU_TSC_OFFSET not supported; skipping test");
 }
 
 static void setup_system_counter(struct kvm_vcpu *vcpu, struct test_case *test)

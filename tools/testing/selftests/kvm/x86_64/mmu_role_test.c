@@ -117,16 +117,10 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (!do_gbpages && !do_maxphyaddr) {
-		print_skip("No sub-tests selected");
-		return 0;
-	}
+	__TEST_REQUIRE(do_gbpages || do_maxphyaddr, "No sub-tests selected");
 
 	entry = kvm_get_supported_cpuid_entry(0x80000001);
-	if (!(entry->edx & CPUID_GBPAGES)) {
-		print_skip("1gb hugepages not supported");
-		return 0;
-	}
+	TEST_REQUIRE(entry->edx & CPUID_GBPAGES);
 
 	if (do_gbpages) {
 		pr_info("Test MMIO after toggling CPUID.GBPAGES\n\n");

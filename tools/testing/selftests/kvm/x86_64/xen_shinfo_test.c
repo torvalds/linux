@@ -362,10 +362,7 @@ int main(int argc, char *argv[])
 			       !strncmp(argv[1], "--verbose", 10));
 
 	int xen_caps = kvm_check_cap(KVM_CAP_XEN_HVM);
-	if (!(xen_caps & KVM_XEN_HVM_CONFIG_SHARED_INFO) ) {
-		print_skip("KVM_XEN_HVM_CONFIG_SHARED_INFO not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(xen_caps & KVM_XEN_HVM_CONFIG_SHARED_INFO);
 
 	bool do_runstate_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_RUNSTATE);
 	bool do_eventfd_tests = !!(xen_caps & KVM_XEN_HVM_CONFIG_EVTCHN_2LEVEL);

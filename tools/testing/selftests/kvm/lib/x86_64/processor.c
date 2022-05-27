@@ -609,14 +609,14 @@ void vm_xsave_req_perm(int bit)
 	kvm_fd = open_kvm_dev_path_or_exit();
 	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
 	close(kvm_fd);
+
 	if (rc == -1 && (errno == ENXIO || errno == EINVAL))
 		exit(KSFT_SKIP);
 	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
-	if (!(bitmask & (1ULL << bit)))
-		exit(KSFT_SKIP);
 
-	if (!is_xfd_supported())
-		exit(KSFT_SKIP);
+	TEST_REQUIRE(bitmask & (1ULL << bit));
+
+	TEST_REQUIRE(is_xfd_supported());
 
 	rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit);
 

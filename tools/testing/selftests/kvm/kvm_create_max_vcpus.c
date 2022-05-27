@@ -64,11 +64,9 @@ int main(int argc, char *argv[])
 			rl.rlim_max = nr_fds_wanted;
 
 			int r = setrlimit(RLIMIT_NOFILE, &rl);
-			if (r < 0) {
-				printf("RLIMIT_NOFILE hard limit is too low (%d, wanted %d)\n",
+			__TEST_REQUIRE(r >= 0,
+				       "RLIMIT_NOFILE hard limit is too low (%d, wanted %d)\n",
 				       old_rlim_max, nr_fds_wanted);
-				exit(KSFT_SKIP);
-			}
 		} else {
 			TEST_ASSERT(!setrlimit(RLIMIT_NOFILE, &rl), "setrlimit() failed!");
 		}

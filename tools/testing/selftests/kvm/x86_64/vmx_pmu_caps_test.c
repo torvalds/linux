@@ -57,7 +57,6 @@ int main(int argc, char *argv[])
 	struct kvm_cpuid2 *cpuid;
 	struct kvm_cpuid_entry2 *entry_1_0;
 	struct kvm_cpuid_entry2 *entry_a_0;
-	bool pdcm_supported = false;
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
 	int ret;
@@ -71,20 +70,14 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	cpuid = kvm_get_supported_cpuid();
 
-	if (kvm_get_cpuid_max_basic() >= 0xa) {
-		entry_1_0 = kvm_get_supported_cpuid_index(1, 0);
-		entry_a_0 = kvm_get_supported_cpuid_index(0xa, 0);
-		pdcm_supported = entry_1_0 && !!(entry_1_0->ecx & X86_FEATURE_PDCM);
-		eax.full = entry_a_0->eax;
-	}
-	if (!pdcm_supported) {
-		print_skip("MSR_IA32_PERF_CAPABILITIES is not supported by the vCPU");
-		exit(KSFT_SKIP);
-	}
-	if (!eax.split.version_id) {
-		print_skip("PMU is not supported by the vCPU");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xa);
+
+	entry_1_0 = kvm_get_supported_cpuid_index(1, 0);
+	entry_a_0 = kvm_get_supported_cpuid_index(0xa, 0);
+	TEST_REQUIRE(entry_1_0->ecx & X86_FEATURE_PDCM);
+
+	eax.full = entry_a_0->eax;
+	__TEST_REQUIRE(eax.split.version_id, "PMU is not supported by the vCPU");
 
 	/* testcase 1, set capabilities when we have PDCM bit */
 	vcpu_set_cpuid(vcpu, cpuid);

@@ -181,11 +181,7 @@ int main(void)
 	int flags;
 
 	flags = kvm_check_cap(KVM_CAP_ADJUST_CLOCK);
-	if (!(flags & KVM_CLOCK_REALTIME)) {
-		print_skip("KVM_CLOCK_REALTIME not supported; flags: %x",
-			   flags);
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(flags & KVM_CLOCK_REALTIME);
 
 	check_clocksource();
 

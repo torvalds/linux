@@ -94,14 +94,8 @@ int main(int argc, char *argv[])
 	setbuf(stdout, NULL);
 
 	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
-	if ((cap & TEST_SYNC_FIELDS) != TEST_SYNC_FIELDS) {
-		print_skip("KVM_CAP_SYNC_REGS not supported");
-		exit(KSFT_SKIP);
-	}
-	if ((cap & INVALID_SYNC_FIELD) != 0) {
-		print_skip("The \"invalid\" field is not invalid");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE((cap & TEST_SYNC_FIELDS) == TEST_SYNC_FIELDS);
+	TEST_REQUIRE(!(cap & INVALID_SYNC_FIELD));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 

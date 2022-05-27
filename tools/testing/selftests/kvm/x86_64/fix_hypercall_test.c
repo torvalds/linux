@@ -156,10 +156,7 @@ static void test_fix_hypercall_disabled(void)
 
 int main(void)
 {
-	if (!(kvm_check_cap(KVM_CAP_DISABLE_QUIRKS2) & KVM_X86_QUIRK_FIX_HYPERCALL_INSN)) {
-		print_skip("KVM_X86_QUIRK_HYPERCALL_INSN not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_check_cap(KVM_CAP_DISABLE_QUIRKS2) & KVM_X86_QUIRK_FIX_HYPERCALL_INSN);
 
 	test_fix_hypercall();
 	test_fix_hypercall_disabled();

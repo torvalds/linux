@@ -229,13 +229,12 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	int idx;
 
+	TEST_REQUIRE(kvm_check_cap(KVM_CAP_SYNC_REGS));
+
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
 	ksft_print_header();
-
-	if (!kvm_check_cap(KVM_CAP_SYNC_REGS))
-		ksft_exit_skip("CAP_SYNC_REGS not supported");
 
 	ksft_set_plan(ARRAY_SIZE(testlist));
 

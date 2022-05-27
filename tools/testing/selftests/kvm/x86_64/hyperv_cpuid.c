@@ -137,10 +137,7 @@ int main(int argc, char *argv[])
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
-	if (!kvm_has_cap(KVM_CAP_HYPERV_CPUID)) {
-		print_skip("KVM_CAP_HYPERV_CPUID not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_HYPERV_CPUID));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 

@@ -317,7 +317,6 @@ int main(int argc, char *argv[])
 {
 	struct kvm_cpuid_entry2 *entry;
 	struct kvm_regs regs1, regs2;
-	bool amx_supported = false;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
@@ -334,21 +333,15 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	entry = kvm_get_supported_cpuid_entry(1);
-	if (!(entry->ecx & X86_FEATURE_XSAVE)) {
-		print_skip("XSAVE feature not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(entry->ecx & X86_FEATURE_XSAVE);
 
-	if (kvm_get_cpuid_max_basic() >= 0xd) {
-		entry = kvm_get_supported_cpuid_index(0xd, 0);
-		amx_supported = entry && !!(entry->eax & XFEATURE_MASK_XTILE);
-		if (!amx_supported) {
-			print_skip("AMX is not supported by the vCPU (eax=0x%x)", entry->eax);
-			exit(KSFT_SKIP);
-		}
-		/* Get xsave/restore max size */
-		xsave_restore_size = entry->ecx;
-	}
+	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xd);
+
+	entry = kvm_get_supported_cpuid_index(0xd, 0);
+	TEST_REQUIRE(entry->eax & XFEATURE_MASK_XTILE);
+
+	/* Get xsave/restore max size */
+	xsave_restore_size = entry->ecx;
 
 	run = vcpu->run;
 	vcpu_regs_get(vcpu, &regs1);

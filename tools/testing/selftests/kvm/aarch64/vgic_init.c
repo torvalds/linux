@@ -703,13 +703,9 @@ int main(int ac, char **av)
 	}
 
 	ret = test_kvm_device(KVM_DEV_TYPE_ARM_VGIC_V2);
-	if (!ret) {
-		pr_info("Running GIC_v2 tests.\n");
-		run_tests(KVM_DEV_TYPE_ARM_VGIC_V2);
-		return 0;
-	}
+	__TEST_REQUIRE(!ret, "No GICv2 nor GICv3 support");
 
-	print_skip("No GICv2 nor GICv3 support");
-	exit(KSFT_SKIP);
+	pr_info("Running GIC_v2 tests.\n");
+	run_tests(KVM_DEV_TYPE_ARM_VGIC_V2);
 	return 0;
 }

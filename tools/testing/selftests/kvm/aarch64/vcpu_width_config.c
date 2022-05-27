@@ -82,10 +82,7 @@ int main(void)
 	struct kvm_vm *vm;
 	int ret;
 
-	if (!kvm_has_cap(KVM_CAP_ARM_EL1_32BIT)) {
-		print_skip("KVM_CAP_ARM_EL1_32BIT is not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ARM_EL1_32BIT));
 
 	/* Get the preferred target type and copy that to init1 for later use */
 	vm = vm_create_barebones();

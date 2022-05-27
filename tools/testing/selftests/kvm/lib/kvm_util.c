@@ -26,10 +26,7 @@ int open_path_or_exit(const char *path, int flags)
 	int fd;
 
 	fd = open(path, flags);
-	if (fd < 0) {
-		print_skip("%s not available (errno: %d)", path, errno);
-		exit(KSFT_SKIP);
-	}
+	__TEST_REQUIRE(fd >= 0, "%s not available (errno: %d)", path, errno);
 
 	return fd;
 }
@@ -93,10 +90,7 @@ static void vm_open(struct kvm_vm *vm)
 {
 	vm->kvm_fd = _open_kvm_dev_path_or_exit(O_RDWR);
 
-	if (!kvm_has_cap(KVM_CAP_IMMEDIATE_EXIT)) {
-		print_skip("immediate_exit not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_IMMEDIATE_EXIT));
 
 	vm->fd = __kvm_ioctl(vm->kvm_fd, KVM_CREATE_VM, vm->type);
 	TEST_ASSERT(vm->fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, vm->fd));

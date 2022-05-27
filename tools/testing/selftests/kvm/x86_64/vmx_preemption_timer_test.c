@@ -169,10 +169,7 @@ int main(int argc, char *argv[])
 	 */
 	nested_vmx_check_supported();
 
-	if (!kvm_has_cap(KVM_CAP_NESTED_STATE)) {
-		print_skip("KVM_CAP_NESTED_STATE not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_NESTED_STATE));
 
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);

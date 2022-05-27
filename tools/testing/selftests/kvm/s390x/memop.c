@@ -756,20 +756,17 @@ struct testdef {
 
 int main(int argc, char *argv[])
 {
-	int memop_cap, extension_cap, idx;
+	int extension_cap, idx;
+
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_S390_MEM_OP));
 
 	setbuf(stdout, NULL);	/* Tell stdout not to buffer its content */
 
 	ksft_print_header();
 
-	memop_cap = kvm_check_cap(KVM_CAP_S390_MEM_OP);
-	extension_cap = kvm_check_cap(KVM_CAP_S390_MEM_OP_EXTENSION);
-	if (!memop_cap) {
-		ksft_exit_skip("CAP_S390_MEM_OP not supported.\n");
-	}
-
 	ksft_set_plan(ARRAY_SIZE(testlist));
 
+	extension_cap = kvm_check_cap(KVM_CAP_S390_MEM_OP_EXTENSION);
 	for (idx = 0; idx < ARRAY_SIZE(testlist); idx++) {
 		if (testlist[idx].extension >= extension_cap) {
 			testlist[idx].test();

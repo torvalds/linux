@@ -204,10 +204,7 @@ int main(void)
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	if (!kvm_has_cap(KVM_CAP_ENFORCE_PV_FEATURE_CPUID)) {
-		print_skip("KVM_CAP_ENFORCE_PV_FEATURE_CPUID not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_ENFORCE_PV_FEATURE_CPUID));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 

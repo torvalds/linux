@@ -400,22 +400,15 @@ int main(int argc, char *argv[])
 {
 	struct kvm_cpuid_entry2 *cpuid;
 
-	if (!kvm_has_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM) &&
-	    !kvm_has_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM)) {
-		print_skip("Capabilities not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM));
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM));
 
 	cpuid = kvm_get_supported_cpuid_entry(0x80000000);
-	if (cpuid->eax < 0x8000001f) {
-		print_skip("AMD memory encryption not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(cpuid->eax >= 0x8000001f);
+
 	cpuid = kvm_get_supported_cpuid_entry(0x8000001f);
-	if (!(cpuid->eax & X86_FEATURE_SEV)) {
-		print_skip("AMD SEV not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(cpuid->eax & X86_FEATURE_SEV);
+
 	have_sev_es = !!(cpuid->eax & X86_FEATURE_SEV_ES);
 
 	if (kvm_check_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM)) {

@@ -267,10 +267,7 @@ int main(int argc, char *argv[])
 
 	have_evmcs = kvm_check_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS);
 
-	if (!kvm_has_cap(KVM_CAP_NESTED_STATE)) {
-		print_skip("KVM_CAP_NESTED_STATE not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_NESTED_STATE));
 
 	/*
 	 * AMD currently does not implement set_nested_state, so for now we

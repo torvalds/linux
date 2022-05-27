@@ -443,39 +443,24 @@ static bool use_amd_pmu(void)
 
 int main(int argc, char *argv[])
 {
-	void (*guest_code)(void) = NULL;
+	void (*guest_code)(void);
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
-	int r;
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
-	r = kvm_check_cap(KVM_CAP_PMU_EVENT_FILTER);
-	if (!r) {
-		print_skip("KVM_CAP_PMU_EVENT_FILTER not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_check_cap(KVM_CAP_PMU_EVENT_FILTER));
 
-	if (use_intel_pmu())
-		guest_code = intel_guest_code;
-	else if (use_amd_pmu())
-		guest_code = amd_guest_code;
-
-	if (!guest_code) {
-		print_skip("Don't know how to test this guest PMU");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(use_intel_pmu() || use_amd_pmu());
+	guest_code = use_intel_pmu() ? intel_guest_code : amd_guest_code;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
 
-	if (!sanity_check_pmu(vcpu)) {
-		print_skip("Guest PMU is not functional");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(sanity_check_pmu(vcpu));
 
 	if (use_amd_pmu())
 		test_amd_deny_list(vcpu);

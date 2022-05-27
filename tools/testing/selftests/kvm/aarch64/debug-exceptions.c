@@ -259,11 +259,8 @@ int main(int argc, char *argv[])
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
 
-	if (debug_version(vcpu) < 6) {
-		print_skip("Armv8 debug architecture not supported.");
-		kvm_vm_free(vm);
-		exit(KSFT_SKIP);
-	}
+	__TEST_REQUIRE(debug_version(vcpu) >= 6,
+		       "Armv8 debug architecture not supported.");
 
 	vm_install_sync_handler(vm, VECTOR_SYNC_CURRENT,
 				ESR_EC_BRK_INS, guest_sw_bp_handler);

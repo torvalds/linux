@@ -46,15 +46,9 @@ int main(void)
 	vm_vaddr_t vmx_pages_gva;
 	struct ucall uc;
 
-	if (!nested_vmx_supported()) {
-		print_skip("Nested VMX not supported");
-		exit(KSFT_SKIP);
-	}
+	nested_vmx_check_supported();
 
-	if (!kvm_has_cap(KVM_CAP_X86_TRIPLE_FAULT_EVENT)) {
-		print_skip("KVM_CAP_X86_TRIPLE_FAULT_EVENT not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_X86_TRIPLE_FAULT_EVENT));
 
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 	vm_enable_cap(vm, KVM_CAP_X86_TRIPLE_FAULT_EVENT, 1);

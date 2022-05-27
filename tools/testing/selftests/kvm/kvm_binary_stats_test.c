@@ -213,10 +213,7 @@ int main(int argc, char *argv[])
 	}
 
 	/* Check the extension for binary stats */
-	if (!kvm_has_cap(KVM_CAP_BINARY_STATS_FD)) {
-		print_skip("Binary form statistics interface is not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_BINARY_STATS_FD));
 
 	/* Create VMs and VCPUs */
 	vms = malloc(sizeof(vms[0]) * max_vm);

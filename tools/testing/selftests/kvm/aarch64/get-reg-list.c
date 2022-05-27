@@ -395,10 +395,12 @@ static void check_supported(struct vcpu_config *c)
 	struct reg_sublist *s;
 
 	for_each_sublist(c, s) {
-		if (s->capability && !kvm_has_cap(s->capability)) {
-			fprintf(stderr, "%s: %s not available, skipping tests\n", config_name(c), s->name);
-			exit(KSFT_SKIP);
-		}
+		if (!s->capability)
+			continue;
+
+		__TEST_REQUIRE(kvm_has_cap(s->capability),
+			       "%s: %s not available, skipping tests\n",
+			       config_name(c), s->name);
 	}
 }
 

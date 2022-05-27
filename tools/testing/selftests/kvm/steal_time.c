@@ -271,10 +271,7 @@ int main(int ac, char **av)
 	virt_map(vm, ST_GPA_BASE, ST_GPA_BASE, gpages);
 	ucall_init(vm, NULL);
 
-	if (!is_steal_time_supported(vcpus[0])) {
-		print_skip("steal-time not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(is_steal_time_supported(vcpus[0]));
 
 	/* Run test on each VCPU */
 	for (i = 0; i < NR_VCPUS; ++i) {

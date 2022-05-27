@@ -171,12 +171,11 @@ static void *migration_worker(void *ign)
 	return NULL;
 }
 
-static int calc_min_max_cpu(void)
+static void calc_min_max_cpu(void)
 {
 	int i, cnt, nproc;
 
-	if (CPU_COUNT(&possible_mask) < 2)
-		return -EINVAL;
+	TEST_REQUIRE(CPU_COUNT(&possible_mask) >= 2);
 
 	/*
 	 * CPU_SET doesn't provide a FOR_EACH helper, get the min/max CPU that
@@ -198,7 +197,8 @@ static int calc_min_max_cpu(void)
 		cnt++;
 	}
 
-	return (cnt < 2) ? -EINVAL : 0;
+	__TEST_REQUIRE(cnt >= 2,
+		       "Only one usable CPU, task migration not possible");
 }
 
 int main(int argc, char *argv[])
@@ -215,10 +215,7 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(!r, "sched_getaffinity failed, errno = %d (%s)", errno,
 		    strerror(errno));
 
-	if (calc_min_max_cpu()) {
-		print_skip("Only one usable CPU, task migration not possible");
-		exit(KSFT_SKIP);
-	}
+	calc_min_max_cpu();
 
 	sys_rseq(0);
 

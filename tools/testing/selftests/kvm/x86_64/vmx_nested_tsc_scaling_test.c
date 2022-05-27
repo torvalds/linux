@@ -116,14 +116,6 @@ static void l1_guest_code(struct vmx_pages *vmx_pages)
 	GUEST_DONE();
 }
 
-static void tsc_scaling_check_supported(void)
-{
-	if (!kvm_has_cap(KVM_CAP_TSC_CONTROL)) {
-		print_skip("TSC scaling not supported by the HW");
-		exit(KSFT_SKIP);
-	}
-}
-
 static void stable_tsc_check_supported(void)
 {
 	FILE *fp;
@@ -159,7 +151,7 @@ int main(int argc, char *argv[])
 	uint64_t l2_tsc_freq = 0;
 
 	nested_vmx_check_supported();
-	tsc_scaling_check_supported();
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_TSC_CONTROL));
 	stable_tsc_check_supported();
 
 	/*

@@ -127,10 +127,8 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	int stage;
 
-	if (!nested_svm_supported()) {
-		print_skip("Nested SVM not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(nested_svm_supported());
+
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	vcpu_set_hv_cpuid(vcpu);

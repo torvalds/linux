@@ -95,10 +95,7 @@ int main(void)
 		1,		/* cli */
 	};
 
-	if (!kvm_has_cap(KVM_CAP_SET_GUEST_DEBUG)) {
-		print_skip("KVM_CAP_SET_GUEST_DEBUG not supported");
-		return 0;
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_SET_GUEST_DEBUG));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	run = vcpu->run;

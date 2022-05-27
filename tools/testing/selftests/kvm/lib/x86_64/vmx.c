@@ -391,10 +391,7 @@ bool nested_vmx_supported(void)
 
 void nested_vmx_check_supported(void)
 {
-	if (!nested_vmx_supported()) {
-		print_skip("nested VMX not enabled");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(nested_vmx_supported());
 }
 
 static void nested_create_pte(struct kvm_vm *vm,

@@ -25,10 +25,7 @@ int main(int argc, char *argv[])
 	 * will cover the "regular" list of MSRs, the coverage here is purely
 	 * opportunistic and not interesting on its own.
 	 */
-	if (!kvm_check_cap(KVM_CAP_GET_MSR_FEATURES)) {
-		print_skip("KVM_CAP_GET_MSR_FEATURES not supported");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_GET_MSR_FEATURES));
 
 	(void)kvm_get_msr_index_list();
 

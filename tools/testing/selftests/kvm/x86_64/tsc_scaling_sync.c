@@ -93,10 +93,7 @@ static void *run_vcpu(void *_cpu_nr)
 
 int main(int argc, char *argv[])
 {
-	if (!kvm_has_cap(KVM_CAP_VM_TSC_CONTROL)) {
-		print_skip("KVM_CAP_VM_TSC_CONTROL not available");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_TSC_CONTROL));
 
 	vm = vm_create(NR_TEST_VCPUS);
 	vm_ioctl(vm, KVM_SET_TSC_KHZ, (void *) TEST_TSC_KHZ);

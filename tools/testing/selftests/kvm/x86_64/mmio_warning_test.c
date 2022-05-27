@@ -93,15 +93,9 @@ int main(void)
 {
 	int warnings_before, warnings_after;
 
-	if (!is_intel_cpu()) {
-		print_skip("Must be run on an Intel CPU");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(is_intel_cpu());
 
-	if (vm_is_unrestricted_guest(NULL)) {
-		print_skip("Unrestricted guest must be disabled");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(!vm_is_unrestricted_guest(NULL));
 
 	warnings_before = get_warnings_count();
 

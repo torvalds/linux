@@ -111,10 +111,8 @@ int main(int argc, char *argv[])
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 
-	if (!is_intel_cpu() || vm_is_unrestricted_guest(NULL)) {
-		print_skip("Must be run with kvm_intel.unrestricted_guest=0");
-		exit(KSFT_SKIP);
-	}
+	TEST_REQUIRE(is_intel_cpu());
+	TEST_REQUIRE(!vm_is_unrestricted_guest(NULL));
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	get_set_sigalrm_vcpu(vcpu);

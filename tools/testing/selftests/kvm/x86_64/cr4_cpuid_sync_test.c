@@ -70,10 +70,7 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 
 	entry = kvm_get_supported_cpuid_entry(1);
-	if (!(entry->ecx & X86_FEATURE_XSAVE)) {
-		print_skip("XSAVE feature not supported");
-		return 0;
-	}
+	TEST_REQUIRE(entry->ecx & X86_FEATURE_XSAVE);
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
