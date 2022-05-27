@@ -210,6 +210,15 @@ config COMMON_CLK_CS2000_CP
 	help
 	  If you say yes here you get support for the CS2000 clock multiplier.
 
+config COMMON_CLK_EN7523
+	bool "Clock driver for Airoha EN7523 SoC system clocks"
+	depends on OF
+	depends on ARCH_AIROHA || COMPILE_TEST
+	default ARCH_AIROHA
+	help
+	  This driver provides the fixed clocks and gates present on Airoha
+	  ARM silicon.
+
 config COMMON_CLK_FSL_FLEXSPI
 	tristate "Clock driver for FlexSPI on Layerscape SoCs"
 	depends on ARCH_LAYERSCAPE || COMPILE_TEST
@@ -367,6 +376,11 @@ config COMMON_CLK_VC5
 	help
 	  This driver supports the IDT VersaClock 5 and VersaClock 6
 	  programmable clock generators.
+
+config COMMON_CLK_STM32MP135
+	def_bool COMMON_CLK && MACH_STM32MP13
+	help
+	  Support for stm32mp135 SoC family clocks
 
 config COMMON_CLK_STM32MP157
 	def_bool COMMON_CLK && MACH_STM32MP157
