@@ -43,7 +43,7 @@ static const struct software_node ssam_node_root = {
 
 /* Base device hub (devices attached to Surface Book 3 base). */
 static const struct software_node ssam_node_hub_base = {
-	.name = "ssam:00:00:02:00:00",
+	.name = "ssam:00:00:02:11:00",
 	.parent = &ssam_node_root,
 };
 
@@ -535,7 +535,7 @@ static int ssam_base_hub_probe(struct ssam_device *sdev)
 }
 
 static const struct ssam_device_id ssam_base_hub_match[] = {
-	{ SSAM_VDEV(HUB, 0x02, SSAM_ANY_IID, 0x00) },
+	{ SSAM_VDEV(HUB, 0x02, SSAM_SSH_TC_BAS, 0x00) },
 	{ },
 };
 
