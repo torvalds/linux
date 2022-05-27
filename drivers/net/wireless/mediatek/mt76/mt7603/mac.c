@@ -643,11 +643,6 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 		status->chain_signal[1] = FIELD_GET(MT_RXV4_IB_RSSI1, rxdg3) +
 					  dev->rssi_offset[1];
 
-		status->signal = status->chain_signal[0];
-		if (status->chains & BIT(1))
-			status->signal = max(status->signal,
-					     status->chain_signal[1]);
-
 		if (FIELD_GET(MT_RXV1_FRAME_MODE, rxdg0) == 1)
 			status->bw = RATE_INFO_BW_40;
 
@@ -1135,7 +1130,7 @@ mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	}
 
 	rate_set_tsf = READ_ONCE(sta->rate_set_tsf);
-	rs_idx = !((u32)(FIELD_GET(MT_TXS1_F0_TIMESTAMP, le32_to_cpu(txs_data[1])) -
+	rs_idx = !((u32)(le32_get_bits(txs_data[1], MT_TXS1_F0_TIMESTAMP) -
 			 rate_set_tsf) < 1000000);
 	rs_idx ^= rate_set_tsf & BIT(0);
 	rs = &sta->rateset[rs_idx];
@@ -1249,14 +1244,11 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	struct mt7603_sta *msta = NULL;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
-	u32 txs;
 	u8 wcidx;
 	u8 pid;
 
-	txs = le32_to_cpu(txs_data[4]);
-	pid = FIELD_GET(MT_TXS4_PID, txs);
-	txs = le32_to_cpu(txs_data[3]);
-	wcidx = FIELD_GET(MT_TXS3_WCID, txs);
+	pid = le32_get_bits(txs_data[4], MT_TXS4_PID);
+	wcidx = le32_get_bits(txs_data[3], MT_TXS3_WCID);
 
 	if (pid == MT_PACKET_ID_NO_ACK)
 		return;

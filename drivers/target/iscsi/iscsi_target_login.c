@@ -1129,8 +1129,15 @@ static struct iscsi_conn *iscsit_alloc_conn(struct iscsi_np *np)
 		goto free_conn_ops;
 	}
 
+	if (!zalloc_cpumask_var(&conn->allowed_cpumask, GFP_KERNEL)) {
+		pr_err("Unable to allocate conn->allowed_cpumask\n");
+		goto free_conn_cpumask;
+	}
+
 	return conn;
 
+free_conn_cpumask:
+	free_cpumask_var(conn->conn_cpumask);
 free_conn_ops:
 	kfree(conn->conn_ops);
 put_transport:
@@ -1142,6 +1149,7 @@ free_conn:
 
 void iscsit_free_conn(struct iscsi_conn *conn)
 {
+	free_cpumask_var(conn->allowed_cpumask);
 	free_cpumask_var(conn->conn_cpumask);
 	kfree(conn->conn_ops);
 	iscsit_put_transport(conn->conn_transport);

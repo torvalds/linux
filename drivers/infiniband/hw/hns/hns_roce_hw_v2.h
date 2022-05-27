@@ -139,6 +139,18 @@ enum {
 #define CMD_CSQ_DESC_NUM		1024
 #define CMD_CRQ_DESC_NUM		1024
 
+/* Free mr used parameters */
+#define HNS_ROCE_FREE_MR_USED_CQE_NUM		128
+#define HNS_ROCE_FREE_MR_USED_QP_NUM		0x8
+#define HNS_ROCE_FREE_MR_USED_PSN		0x0808
+#define HNS_ROCE_FREE_MR_USED_QP_RETRY_CNT	0x7
+#define HNS_ROCE_FREE_MR_USED_QP_TIMEOUT	0x12
+#define HNS_ROCE_FREE_MR_USED_SQWQE_NUM		128
+#define HNS_ROCE_FREE_MR_USED_SQSGE_NUM		0x2
+#define HNS_ROCE_FREE_MR_USED_RQWQE_NUM		128
+#define HNS_ROCE_FREE_MR_USED_RQSGE_NUM		0x2
+#define HNS_ROCE_V2_FREE_MR_TIMEOUT		4500
+
 enum {
 	NO_ARMED = 0x0,
 	REG_NXT_CEQE = 0x2,
@@ -1418,10 +1430,18 @@ struct hns_roce_link_table {
 #define HNS_ROCE_EXT_LLM_ENTRY(addr, id) (((id) << (64 - 12)) | ((addr) >> 12))
 #define HNS_ROCE_EXT_LLM_MIN_PAGES(que_num) ((que_num) * 4 + 2)
 
+struct hns_roce_v2_free_mr {
+	struct ib_qp *rsv_qp[HNS_ROCE_FREE_MR_USED_QP_NUM];
+	struct ib_cq *rsv_cq;
+	struct ib_pd *rsv_pd;
+	struct mutex mutex;
+};
+
 struct hns_roce_v2_priv {
 	struct hnae3_handle *handle;
 	struct hns_roce_v2_cmq cmq;
 	struct hns_roce_link_table ext_llm;
+	struct hns_roce_v2_free_mr free_mr;
 };
 
 struct hns_roce_dip {

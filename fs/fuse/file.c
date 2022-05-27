@@ -966,6 +966,14 @@ static void fuse_readahead(struct readahead_control *rac)
 		struct fuse_io_args *ia;
 		struct fuse_args_pages *ap;
 
+		if (fc->num_background >= fc->congestion_threshold &&
+		    rac->ra->async_size >= readahead_count(rac))
+			/*
+			 * Congested and only async pages left, so skip the
+			 * rest.
+			 */
+			break;
+
 		nr_pages = readahead_count(rac) - nr_pages;
 		if (nr_pages > max_pages)
 			nr_pages = max_pages;
@@ -1959,6 +1967,7 @@ err:
 
 static int fuse_writepage(struct page *page, struct writeback_control *wbc)
 {
+	struct fuse_conn *fc = get_fuse_conn(page->mapping->host);
 	int err;
 
 	if (fuse_page_is_writeback(page->mapping->host, page->index)) {
@@ -1973,6 +1982,10 @@ static int fuse_writepage(struct page *page, struct writeback_control *wbc)
 		unlock_page(page);
 		return 0;
 	}
+
+	if (wbc->sync_mode == WB_SYNC_NONE &&
+	    fc->num_background >= fc->congestion_threshold)
+		return AOP_WRITEPAGE_ACTIVATE;
 
 	err = fuse_writepage_locked(page);
 	unlock_page(page);
@@ -2227,6 +2240,10 @@ static int fuse_writepages(struct address_space *mapping,
 	if (fuse_is_bad(inode))
 		goto out;
 
+	if (wbc->sync_mode == WB_SYNC_NONE &&
+	    fc->num_background >= fc->congestion_threshold)
+		return 0;
+
 	data.inode = inode;
 	data.wpa = NULL;
 	data.ff = NULL;
@@ -2331,17 +2348,17 @@ unlock:
 	return copied;
 }
 
-static int fuse_launder_page(struct page *page)
+static int fuse_launder_folio(struct folio *folio)
 {
 	int err = 0;
-	if (clear_page_dirty_for_io(page)) {
-		struct inode *inode = page->mapping->host;
+	if (folio_clear_dirty_for_io(folio)) {
+		struct inode *inode = folio->mapping->host;
 
 		/* Serialize with pending writeback for the same page */
-		fuse_wait_on_page_writeback(inode, page->index);
-		err = fuse_writepage_locked(page);
+		fuse_wait_on_page_writeback(inode, folio->index);
+		err = fuse_writepage_locked(&folio->page);
 		if (!err)
-			fuse_wait_on_page_writeback(inode, page->index);
+			fuse_wait_on_page_writeback(inode, folio->index);
 	}
 	return err;
 }
@@ -3162,8 +3179,8 @@ static const struct address_space_operations fuse_file_aops  = {
 	.readahead	= fuse_readahead,
 	.writepage	= fuse_writepage,
 	.writepages	= fuse_writepages,
-	.launder_page	= fuse_launder_page,
-	.set_page_dirty	= __set_page_dirty_nobuffers,
+	.launder_folio	= fuse_launder_folio,
+	.dirty_folio	= filemap_dirty_folio,
 	.bmap		= fuse_bmap,
 	.direct_IO	= fuse_direct_IO,
 	.write_begin	= fuse_write_begin,

@@ -53,20 +53,18 @@ properties:
         - allwinner,sun8i-r40-gmac
         - allwinner,sun8i-v3s-emac
         - allwinner,sun50i-a64-emac
-        - loongson,ls2k-dwmac
-        - loongson,ls7a-dwmac
         - amlogic,meson6-dwmac
         - amlogic,meson8b-dwmac
         - amlogic,meson8m2-dwmac
         - amlogic,meson-gxbb-dwmac
         - amlogic,meson-axg-dwmac
-        - loongson,ls2k-dwmac
-        - loongson,ls7a-dwmac
         - ingenic,jz4775-mac
         - ingenic,x1000-mac
         - ingenic,x1600-mac
         - ingenic,x1830-mac
         - ingenic,x2000-mac
+        - loongson,ls2k-dwmac
+        - loongson,ls7a-dwmac
         - rockchip,px30-gmac
         - rockchip,rk3128-gmac
         - rockchip,rk3228-gmac
@@ -340,21 +338,21 @@ allOf:
           description:
             Programmable Burst Length (tx and rx)
           $ref: /schemas/types.yaml#/definitions/uint32
-          enum: [2, 4, 8]
+          enum: [1, 2, 4, 8, 16, 32]
 
         snps,txpbl:
           description:
             Tx Programmable Burst Length. If set, DMA tx will use this
             value rather than snps,pbl.
           $ref: /schemas/types.yaml#/definitions/uint32
-          enum: [2, 4, 8]
+          enum: [1, 2, 4, 8, 16, 32]
 
         snps,rxpbl:
           description:
             Rx Programmable Burst Length. If set, DMA rx will use this
             value rather than snps,pbl.
           $ref: /schemas/types.yaml#/definitions/uint32
-          enum: [2, 4, 8]
+          enum: [1, 2, 4, 8, 16, 32]
 
         snps,no-pbl-x8:
           $ref: /schemas/types.yaml#/definitions/flag

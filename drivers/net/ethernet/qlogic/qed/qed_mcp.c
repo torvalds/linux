@@ -140,7 +140,7 @@ static struct qed_mcp_cmd_elem *qed_mcp_cmd_get_elem(struct qed_hwfn *p_hwfn,
 int qed_mcp_free(struct qed_hwfn *p_hwfn)
 {
 	if (p_hwfn->mcp_info) {
-		struct qed_mcp_cmd_elem *p_cmd_elem, *p_tmp;
+		struct qed_mcp_cmd_elem *p_cmd_elem = NULL, *p_tmp;
 
 		kfree(p_hwfn->mcp_info->mfw_mb_cur);
 		kfree(p_hwfn->mcp_info->mfw_mb_shadow);
@@ -249,6 +249,7 @@ int qed_mcp_cmd_init(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	/* Initialize the MFW spinlock */
 	spin_lock_init(&p_info->cmd_lock);
 	spin_lock_init(&p_info->link_lock);
+	spin_lock_init(&p_info->unload_lock);
 
 	INIT_LIST_HEAD(&p_info->cmd_list);
 
@@ -614,12 +615,13 @@ static int qed_mcp_cmd_and_union(struct qed_hwfn *p_hwfn,
 				      usecs);
 }
 
-int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
-		struct qed_ptt *p_ptt,
-		u32 cmd,
-		u32 param,
-		u32 *o_mcp_resp,
-		u32 *o_mcp_param)
+static int _qed_mcp_cmd(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			u32 cmd,
+			u32 param,
+			u32 *o_mcp_resp,
+			u32 *o_mcp_param,
+			bool can_sleep)
 {
 	struct qed_mcp_mb_params mb_params;
 	int rc;
@@ -627,6 +629,7 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	memset(&mb_params, 0, sizeof(mb_params));
 	mb_params.cmd = cmd;
 	mb_params.param = param;
+	mb_params.flags = can_sleep ? QED_MB_FLAG_CAN_SLEEP : 0;
 
 	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
 	if (rc)
@@ -636,6 +639,28 @@ int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
 	*o_mcp_param = mb_params.mcp_param;
 
 	return 0;
+}
+
+int qed_mcp_cmd(struct qed_hwfn *p_hwfn,
+		struct qed_ptt *p_ptt,
+		u32 cmd,
+		u32 param,
+		u32 *o_mcp_resp,
+		u32 *o_mcp_param)
+{
+	return (_qed_mcp_cmd(p_hwfn, p_ptt, cmd, param,
+			     o_mcp_resp, o_mcp_param, true));
+}
+
+int qed_mcp_cmd_nosleep(struct qed_hwfn *p_hwfn,
+			struct qed_ptt *p_ptt,
+			u32 cmd,
+			u32 param,
+			u32 *o_mcp_resp,
+			u32 *o_mcp_param)
+{
+	return (_qed_mcp_cmd(p_hwfn, p_ptt, cmd, param,
+			     o_mcp_resp, o_mcp_param, false));
 }
 
 static int
@@ -1071,10 +1096,15 @@ int qed_mcp_load_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	return 0;
 }
 
+#define MFW_COMPLETION_MAX_ITER 5000
+#define MFW_COMPLETION_INTERVAL_MS 1
+
 int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 {
 	struct qed_mcp_mb_params mb_params;
+	u32 cnt = MFW_COMPLETION_MAX_ITER;
 	u32 wol_param;
+	int rc;
 
 	switch (p_hwfn->cdev->wol_config) {
 	case QED_OV_WOL_DISABLED:
@@ -1097,7 +1127,23 @@ int qed_mcp_unload_req(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	mb_params.param = wol_param;
 	mb_params.flags = QED_MB_FLAG_CAN_SLEEP | QED_MB_FLAG_AVOID_BLOCK;
 
-	return qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+	spin_lock_bh(&p_hwfn->mcp_info->unload_lock);
+	set_bit(QED_MCP_BYPASS_PROC_BIT,
+		&p_hwfn->mcp_info->mcp_handling_status);
+	spin_unlock_bh(&p_hwfn->mcp_info->unload_lock);
+
+	rc = qed_mcp_cmd_and_union(p_hwfn, p_ptt, &mb_params);
+
+	while (test_bit(QED_MCP_IN_PROCESSING_BIT,
+			&p_hwfn->mcp_info->mcp_handling_status) && --cnt)
+		msleep(MFW_COMPLETION_INTERVAL_MS);
+
+	if (!cnt)
+		DP_NOTICE(p_hwfn,
+			  "Failed to wait MFW event completion after %d msec\n",
+			  MFW_COMPLETION_MAX_ITER * MFW_COMPLETION_INTERVAL_MS);
+
+	return rc;
 }
 
 int qed_mcp_unload_done(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -1728,8 +1774,8 @@ static void qed_mcp_update_bw(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 	qed_configure_pf_max_bandwidth(p_hwfn->cdev, p_info->bandwidth_max);
 
 	/* Acknowledge the MFW */
-	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
-		    &param);
+	qed_mcp_cmd_nosleep(p_hwfn, p_ptt, DRV_MSG_CODE_BW_UPDATE_ACK, 0, &resp,
+			    &param);
 }
 
 static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
@@ -1766,8 +1812,8 @@ static void qed_mcp_update_stag(struct qed_hwfn *p_hwfn, struct qed_ptt *p_ptt)
 		   p_hwfn->mcp_info->func_info.ovlan, p_hwfn->hw_info.hw_mode);
 
 	/* Acknowledge the MFW */
-	qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
-		    &resp, &param);
+	qed_mcp_cmd_nosleep(p_hwfn, p_ptt, DRV_MSG_CODE_S_TAG_UPDATE_ACK, 0,
+			    &resp, &param);
 }
 
 static void qed_mcp_handle_fan_failure(struct qed_hwfn *p_hwfn,
@@ -1997,6 +2043,19 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			   "Msg [%d] - old CMD 0x%02x, new CMD 0x%02x\n",
 			   i, info->mfw_mb_shadow[i], info->mfw_mb_cur[i]);
 
+		spin_lock_bh(&p_hwfn->mcp_info->unload_lock);
+		if (test_bit(QED_MCP_BYPASS_PROC_BIT,
+			     &p_hwfn->mcp_info->mcp_handling_status)) {
+			spin_unlock_bh(&p_hwfn->mcp_info->unload_lock);
+			DP_INFO(p_hwfn,
+				"Msg [%d] is bypassed on unload flow\n", i);
+			continue;
+		}
+
+		set_bit(QED_MCP_IN_PROCESSING_BIT,
+			&p_hwfn->mcp_info->mcp_handling_status);
+		spin_unlock_bh(&p_hwfn->mcp_info->unload_lock);
+
 		switch (i) {
 		case MFW_DRV_MSG_LINK_CHANGE:
 			qed_mcp_handle_link_change(p_hwfn, p_ptt, false);
@@ -2050,6 +2109,9 @@ int qed_mcp_handle_events(struct qed_hwfn *p_hwfn,
 			DP_INFO(p_hwfn, "Unimplemented MFW message %d\n", i);
 			rc = -EINVAL;
 		}
+
+		clear_bit(QED_MCP_IN_PROCESSING_BIT,
+			  &p_hwfn->mcp_info->mcp_handling_status);
 	}
 
 	/* ACK everything */
@@ -3675,8 +3737,8 @@ static int qed_mcp_resource_cmd(struct qed_hwfn *p_hwfn,
 {
 	int rc;
 
-	rc = qed_mcp_cmd(p_hwfn, p_ptt, DRV_MSG_CODE_RESOURCE_CMD, param,
-			 p_mcp_resp, p_mcp_param);
+	rc = qed_mcp_cmd_nosleep(p_hwfn, p_ptt, DRV_MSG_CODE_RESOURCE_CMD,
+				 param, p_mcp_resp, p_mcp_param);
 	if (rc)
 		return rc;
 

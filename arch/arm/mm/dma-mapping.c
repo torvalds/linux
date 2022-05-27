@@ -381,6 +381,7 @@ out:
  */
 postcore_initcall(atomic_pool_init);
 
+#ifdef CONFIG_CMA_AREAS
 struct dma_contig_early_reserve {
 	phys_addr_t base;
 	unsigned long size;
@@ -435,6 +436,7 @@ void __init dma_contiguous_remap(void)
 		iotable_init(&map, 1);
 	}
 }
+#endif
 
 static int __dma_update_pte(pte_t *pte, unsigned long addr, void *data)
 {

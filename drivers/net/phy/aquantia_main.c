@@ -533,9 +533,7 @@ static int aqcs109_config_init(struct phy_device *phydev)
 	 * PMA speed ability bits are the same for all members of the family,
 	 * AQCS109 however supports speeds up to 2.5G only.
 	 */
-	ret = phy_set_max_speed(phydev, SPEED_2500);
-	if (ret)
-		return ret;
+	phy_set_max_speed(phydev, SPEED_2500);
 
 	return aqr107_set_downshift(phydev, MDIO_AN_VEND_PROV_DOWNSHIFT_DFLT);
 }

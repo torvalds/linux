@@ -136,7 +136,7 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 		if (!s) {
 			JFFS2_WARNING("Can't allocate memory for summary\n");
 			ret = -ENOMEM;
-			goto out;
+			goto out_buf;
 		}
 	}
 
@@ -275,13 +275,15 @@ int jffs2_scan_medium(struct jffs2_sb_info *c)
 	}
 	ret = 0;
  out:
+	jffs2_sum_reset_collected(s);
+	kfree(s);
+ out_buf:
 	if (buf_size)
 		kfree(flashbuf);
 #ifndef __ECOS
 	else
 		mtd_unpoint(c->mtd, 0, c->mtd->size);
 #endif
-	kfree(s);
 	return ret;
 }
 

@@ -222,23 +222,7 @@ static int adv748x_csi2_get_mbus_config(struct v4l2_subdev *sd, unsigned int pad
 		return -EINVAL;
 
 	config->type = V4L2_MBUS_CSI2_DPHY;
-	switch (tx->active_lanes) {
-	case 1:
-		config->flags = V4L2_MBUS_CSI2_1_LANE;
-		break;
-
-	case 2:
-		config->flags = V4L2_MBUS_CSI2_2_LANE;
-		break;
-
-	case 3:
-		config->flags = V4L2_MBUS_CSI2_3_LANE;
-		break;
-
-	case 4:
-		config->flags = V4L2_MBUS_CSI2_4_LANE;
-		break;
-	}
+	config->bus.mipi_csi2.num_data_lanes = tx->active_lanes;
 
 	return 0;
 }

@@ -20,7 +20,6 @@ static struct workqueue_struct *nf_flow_offload_stats_wq;
 struct flow_offload_work {
 	struct list_head	list;
 	enum flow_cls_command	cmd;
-	int			priority;
 	struct nf_flowtable	*flowtable;
 	struct flow_offload	*flow;
 	struct work_struct	work;
@@ -174,6 +173,7 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_TCP);
 		break;
 	case IPPROTO_UDP:
+	case IPPROTO_GRE:
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -182,15 +182,22 @@ static int nf_flow_rule_match(struct nf_flow_match *match,
 	key->basic.ip_proto = tuple->l4proto;
 	mask->basic.ip_proto = 0xff;
 
-	key->tp.src = tuple->src_port;
-	mask->tp.src = 0xffff;
-	key->tp.dst = tuple->dst_port;
-	mask->tp.dst = 0xffff;
-
 	match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_META) |
 				      BIT(FLOW_DISSECTOR_KEY_CONTROL) |
-				      BIT(FLOW_DISSECTOR_KEY_BASIC) |
-				      BIT(FLOW_DISSECTOR_KEY_PORTS);
+				      BIT(FLOW_DISSECTOR_KEY_BASIC);
+
+	switch (tuple->l4proto) {
+	case IPPROTO_TCP:
+	case IPPROTO_UDP:
+		key->tp.src = tuple->src_port;
+		mask->tp.src = 0xffff;
+		key->tp.dst = tuple->dst_port;
+		mask->tp.dst = 0xffff;
+
+		match->dissector.used_keys |= BIT(FLOW_DISSECTOR_KEY_PORTS);
+		break;
+	}
+
 	return 0;
 }
 
@@ -866,7 +873,8 @@ static int flow_offload_tuple_add(struct flow_offload_work *offload,
 				  enum flow_offload_tuple_dir dir)
 {
 	return nf_flow_offload_tuple(offload->flowtable, offload->flow,
-				     flow_rule, dir, offload->priority,
+				     flow_rule, dir,
+				     offload->flowtable->priority,
 				     FLOW_CLS_REPLACE, NULL,
 				     &offload->flowtable->flow_block.cb_list);
 }
@@ -875,7 +883,8 @@ static void flow_offload_tuple_del(struct flow_offload_work *offload,
 				   enum flow_offload_tuple_dir dir)
 {
 	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
-			      offload->priority, FLOW_CLS_DESTROY, NULL,
+			      offload->flowtable->priority,
+			      FLOW_CLS_DESTROY, NULL,
 			      &offload->flowtable->flow_block.cb_list);
 }
 
@@ -926,7 +935,8 @@ static void flow_offload_tuple_stats(struct flow_offload_work *offload,
 				     struct flow_stats *stats)
 {
 	nf_flow_offload_tuple(offload->flowtable, offload->flow, NULL, dir,
-			      offload->priority, FLOW_CLS_STATS, stats,
+			      offload->flowtable->priority,
+			      FLOW_CLS_STATS, stats,
 			      &offload->flowtable->flow_block.cb_list);
 }
 
@@ -1004,7 +1014,6 @@ nf_flow_offload_work_alloc(struct nf_flowtable *flowtable,
 
 	offload->cmd = cmd;
 	offload->flow = flow;
-	offload->priority = flowtable->priority;
 	offload->flowtable = flowtable;
 	INIT_WORK(&offload->work, flow_offload_work_handler);
 

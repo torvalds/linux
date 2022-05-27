@@ -546,13 +546,13 @@ static void ata_acpi_gtf_to_tf(struct ata_device *dev,
 
 	tf->flags |= ATA_TFLAG_ISADDR | ATA_TFLAG_DEVICE;
 	tf->protocol = ATA_PROT_NODATA;
-	tf->feature = gtf->tf[0];	/* 0x1f1 */
+	tf->error   = gtf->tf[0];	/* 0x1f1 */
 	tf->nsect   = gtf->tf[1];	/* 0x1f2 */
 	tf->lbal    = gtf->tf[2];	/* 0x1f3 */
 	tf->lbam    = gtf->tf[3];	/* 0x1f4 */
 	tf->lbah    = gtf->tf[4];	/* 0x1f5 */
 	tf->device  = gtf->tf[5];	/* 0x1f6 */
-	tf->command = gtf->tf[6];	/* 0x1f7 */
+	tf->status  = gtf->tf[6];	/* 0x1f7 */
 }
 
 static int ata_acpi_filter_tf(struct ata_device *dev,
@@ -679,7 +679,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 				"(%s) rejected by device (Stat=0x%02x Err=0x%02x)",
 				tf.command, tf.feature, tf.nsect, tf.lbal,
 				tf.lbam, tf.lbah, tf.device, descr,
-				rtf.command, rtf.feature);
+				rtf.status, rtf.error);
 			rc = 0;
 			break;
 
@@ -689,7 +689,7 @@ static int ata_acpi_run_tf(struct ata_device *dev,
 				"(%s) failed (Emask=0x%x Stat=0x%02x Err=0x%02x)",
 				tf.command, tf.feature, tf.nsect, tf.lbal,
 				tf.lbam, tf.lbah, tf.device, descr,
-				err_mask, rtf.command, rtf.feature);
+				err_mask, rtf.status, rtf.error);
 			rc = -EIO;
 			break;
 		}
@@ -796,27 +796,6 @@ static int ata_acpi_push_id(struct ata_device *dev)
 		return -EIO;
 	}
 
-	return 0;
-}
-
-/**
- * ata_acpi_on_suspend - ATA ACPI hook called on suspend
- * @ap: target ATA port
- *
- * This function is called when @ap is about to be suspended.  All
- * devices are already put to sleep but the port_suspend() callback
- * hasn't been executed yet.  Error return from this function aborts
- * suspend.
- *
- * LOCKING:
- * EH context.
- *
- * RETURNS:
- * 0 on success, -errno on failure.
- */
-int ata_acpi_on_suspend(struct ata_port *ap)
-{
-	/* nada */
 	return 0;
 }
 

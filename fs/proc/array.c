@@ -88,7 +88,6 @@
 #include <linux/pid_namespace.h>
 #include <linux/prctl.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/string_helpers.h>
 #include <linux/user_namespace.h>
 #include <linux/fs_struct.h>

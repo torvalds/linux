@@ -20,6 +20,9 @@
 		mmc1 = &usdhc2;
 		mmc2 = &usdhc3;
 		serial0 = &lpuart0;
+		serial1 = &lpuart1;
+		serial2 = &lpuart2;
+		serial3 = &lpuart3;
 	};
 
 	cpus {
@@ -54,7 +57,7 @@
 
 		A53_0: cpu@0 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x0>;
 			enable-method = "psci";
 			i-cache-size = <0x8000>;
@@ -68,7 +71,7 @@
 
 		A53_1: cpu@1 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x1>;
 			enable-method = "psci";
 			i-cache-size = <0x8000>;
@@ -82,7 +85,7 @@
 
 		A53_2: cpu@2 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x2>;
 			enable-method = "psci";
 			i-cache-size = <0x8000>;
@@ -96,7 +99,7 @@
 
 		A53_3: cpu@3 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a53", "arm,armv8";
+			compatible = "arm,cortex-a53";
 			reg = <0x0 0x3>;
 			enable-method = "psci";
 			i-cache-size = <0x8000>;
@@ -110,7 +113,7 @@
 
 		A72_0: cpu@100 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72", "arm,armv8";
+			compatible = "arm,cortex-a72";
 			reg = <0x0 0x100>;
 			enable-method = "psci";
 			i-cache-size = <0xC000>;
@@ -124,7 +127,7 @@
 
 		A72_1: cpu@101 {
 			device_type = "cpu";
-			compatible = "arm,cortex-a72", "arm,armv8";
+			compatible = "arm,cortex-a72";
 			reg = <0x0 0x101>;
 			enable-method = "psci";
 			next-level-cache = <&A72_L2>;
@@ -193,7 +196,7 @@
 		};
 
 		clk: clock-controller {
-			compatible = "fsl,imx8qxp-clk", "fsl,scu-clk";
+			compatible = "fsl,imx8qm-clk", "fsl,scu-clk";
 			#clock-cells = <2>;
 		};
 
@@ -201,6 +204,9 @@
 			compatible = "fsl,imx8qm-iomuxc";
 		};
 
+		rtc: rtc {
+			compatible = "fsl,imx8qxp-sc-rtc";
+		};
 	};
 
 	/* sorted in register address */

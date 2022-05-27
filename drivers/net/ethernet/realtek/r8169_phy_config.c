@@ -429,15 +429,6 @@ static const struct phy_reg rtl8168d_1_phy_reg_init_0[] = {
 	{ 0x0d, 0xf880 }
 };
 
-static const struct phy_reg rtl8168d_1_phy_reg_init_1[] = {
-	{ 0x1f, 0x0002 },
-	{ 0x05, 0x669a },
-	{ 0x1f, 0x0005 },
-	{ 0x05, 0x8330 },
-	{ 0x06, 0x669a },
-	{ 0x1f, 0x0002 }
-};
-
 static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp,
 					 struct phy_device *phydev,
 					 u16 val)
@@ -455,6 +446,29 @@ static void rtl8168d_apply_firmware_cond(struct rtl8169_private *tp,
 		r8169_apply_firmware(tp);
 }
 
+static void rtl8168d_1_common(struct phy_device *phydev)
+{
+	u16 val;
+
+	phy_write_paged(phydev, 0x0002, 0x05, 0x669a);
+	r8168d_phy_param(phydev, 0x8330, 0xffff, 0x669a);
+	phy_write(phydev, 0x1f, 0x0002);
+
+	val = phy_read(phydev, 0x0d);
+
+	if ((val & 0x00ff) != 0x006c) {
+		static const u16 set[] = {
+			0x0065, 0x0066, 0x0067, 0x0068,
+			0x0069, 0x006a, 0x006b, 0x006c
+		};
+		int i;
+
+		val &= 0xff00;
+		for (i = 0; i < ARRAY_SIZE(set); i++)
+			phy_write(phydev, 0x0d, val | set[i]);
+	}
+}
+
 static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 				     struct phy_device *phydev)
 {
@@ -469,25 +483,7 @@ static void rtl8168d_1_hw_phy_config(struct rtl8169_private *tp,
 	phy_modify(phydev, 0x0c, 0x5d00, 0xa200);
 
 	if (rtl8168d_efuse_read(tp, 0x01) == 0xb1) {
-		int val;
-
-		rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_1);
-
-		val = phy_read(phydev, 0x0d);
-
-		if ((val & 0x00ff) != 0x006c) {
-			static const u32 set[] = {
-				0x0065, 0x0066, 0x0067, 0x0068,
-				0x0069, 0x006a, 0x006b, 0x006c
-			};
-			int i;
-
-			phy_write(phydev, 0x1f, 0x0002);
-
-			val &= 0xff00;
-			for (i = 0; i < ARRAY_SIZE(set); i++)
-				phy_write(phydev, 0x0d, val | set[i]);
-		}
+		rtl8168d_1_common(phydev);
 	} else {
 		phy_write_paged(phydev, 0x0002, 0x05, 0x6662);
 		r8168d_phy_param(phydev, 0x8330, 0xffff, 0x6662);
@@ -513,24 +509,7 @@ static void rtl8168d_2_hw_phy_config(struct rtl8169_private *tp,
 	rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_0);
 
 	if (rtl8168d_efuse_read(tp, 0x01) == 0xb1) {
-		int val;
-
-		rtl_writephy_batch(phydev, rtl8168d_1_phy_reg_init_1);
-
-		val = phy_read(phydev, 0x0d);
-		if ((val & 0x00ff) != 0x006c) {
-			static const u32 set[] = {
-				0x0065, 0x0066, 0x0067, 0x0068,
-				0x0069, 0x006a, 0x006b, 0x006c
-			};
-			int i;
-
-			phy_write(phydev, 0x1f, 0x0002);
-
-			val &= 0xff00;
-			for (i = 0; i < ARRAY_SIZE(set); i++)
-				phy_write(phydev, 0x0d, val | set[i]);
-		}
+		rtl8168d_1_common(phydev);
 	} else {
 		phy_write_paged(phydev, 0x0002, 0x05, 0x2642);
 		r8168d_phy_param(phydev, 0x8330, 0xffff, 0x2642);

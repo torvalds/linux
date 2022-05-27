@@ -141,12 +141,6 @@ struct kthread_delayed_work {
 	struct timer_list timer;
 };
 
-#define KTHREAD_WORKER_INIT(worker)	{				\
-	.lock = __RAW_SPIN_LOCK_UNLOCKED((worker).lock),		\
-	.work_list = LIST_HEAD_INIT((worker).work_list),		\
-	.delayed_work_list = LIST_HEAD_INIT((worker).delayed_work_list),\
-	}
-
 #define KTHREAD_WORK_INIT(work, fn)	{				\
 	.node = LIST_HEAD_INIT((work).node),				\
 	.func = (fn),							\
@@ -158,28 +152,12 @@ struct kthread_delayed_work {
 				     TIMER_IRQSAFE),			\
 	}
 
-#define DEFINE_KTHREAD_WORKER(worker)					\
-	struct kthread_worker worker = KTHREAD_WORKER_INIT(worker)
-
 #define DEFINE_KTHREAD_WORK(work, fn)					\
 	struct kthread_work work = KTHREAD_WORK_INIT(work, fn)
 
 #define DEFINE_KTHREAD_DELAYED_WORK(dwork, fn)				\
 	struct kthread_delayed_work dwork =				\
 		KTHREAD_DELAYED_WORK_INIT(dwork, fn)
-
-/*
- * kthread_worker.lock needs its own lockdep class key when defined on
- * stack with lockdep enabled.  Use the following macros in such cases.
- */
-#ifdef CONFIG_LOCKDEP
-# define KTHREAD_WORKER_INIT_ONSTACK(worker)				\
-	({ kthread_init_worker(&worker); worker; })
-# define DEFINE_KTHREAD_WORKER_ONSTACK(worker)				\
-	struct kthread_worker worker = KTHREAD_WORKER_INIT_ONSTACK(worker)
-#else
-# define DEFINE_KTHREAD_WORKER_ONSTACK(worker) DEFINE_KTHREAD_WORKER(worker)
-#endif
 
 extern void __kthread_init_worker(struct kthread_worker *worker,
 			const char *name, struct lock_class_key *key);

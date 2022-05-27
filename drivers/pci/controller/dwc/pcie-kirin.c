@@ -332,9 +332,6 @@ static int hi3660_pcie_phy_init(struct platform_device *pdev,
 	pcie->phy_priv = phy;
 	phy->dev = dev;
 
-	/* registers */
-	pdev = container_of(dev, struct platform_device, dev);
-
 	ret = hi3660_pcie_phy_get_clk(phy);
 	if (ret)
 		return ret;

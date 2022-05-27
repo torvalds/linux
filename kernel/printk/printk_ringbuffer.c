@@ -474,8 +474,10 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	 * state has been re-checked. A memcpy() for all of @desc
 	 * cannot be used because of the atomic_t @state_var field.
 	 */
-	memcpy(&desc_out->text_blk_lpos, &desc->text_blk_lpos,
-	       sizeof(desc_out->text_blk_lpos)); /* LMM(desc_read:C) */
+	if (desc_out) {
+		memcpy(&desc_out->text_blk_lpos, &desc->text_blk_lpos,
+		       sizeof(desc_out->text_blk_lpos)); /* LMM(desc_read:C) */
+	}
 	if (seq_out)
 		*seq_out = info->seq; /* also part of desc_read:C */
 	if (caller_id_out)
@@ -528,7 +530,8 @@ static enum desc_state desc_read(struct prb_desc_ring *desc_ring,
 	state_val = atomic_long_read(state_var); /* LMM(desc_read:E) */
 	d_state = get_desc_state(id, state_val);
 out:
-	atomic_long_set(&desc_out->state_var, state_val);
+	if (desc_out)
+		atomic_long_set(&desc_out->state_var, state_val);
 	return d_state;
 }
 
@@ -1449,6 +1452,9 @@ static void desc_make_final(struct prb_desc_ring *desc_ring, unsigned long id)
 
 	atomic_long_cmpxchg_relaxed(&d->state_var, prev_state_val,
 			DESC_SV(id, desc_finalized)); /* LMM(desc_make_final:A) */
+
+	/* Best effort to remember the last finalized @id. */
+	atomic_long_set(&desc_ring->last_finalized_id, id);
 }
 
 /**
@@ -1657,7 +1663,12 @@ void prb_commit(struct prb_reserved_entry *e)
  */
 void prb_final_commit(struct prb_reserved_entry *e)
 {
+	struct prb_desc_ring *desc_ring = &e->rb->desc_ring;
+
 	_prb_commit(e, desc_finalized);
+
+	/* Best effort to remember the last finalized @id. */
+	atomic_long_set(&desc_ring->last_finalized_id, e->id);
 }
 
 /*
@@ -2005,9 +2016,39 @@ u64 prb_first_valid_seq(struct printk_ringbuffer *rb)
  */
 u64 prb_next_seq(struct printk_ringbuffer *rb)
 {
-	u64 seq = 0;
+	struct prb_desc_ring *desc_ring = &rb->desc_ring;
+	enum desc_state d_state;
+	unsigned long id;
+	u64 seq;
 
-	/* Search forward from the oldest descriptor. */
+	/* Check if the cached @id still points to a valid @seq. */
+	id = atomic_long_read(&desc_ring->last_finalized_id);
+	d_state = desc_read(desc_ring, id, NULL, &seq, NULL);
+
+	if (d_state == desc_finalized || d_state == desc_reusable) {
+		/*
+		 * Begin searching after the last finalized record.
+		 *
+		 * On 0, the search must begin at 0 because of hack#2
+		 * of the bootstrapping phase it is not known if a
+		 * record at index 0 exists.
+		 */
+		if (seq != 0)
+			seq++;
+	} else {
+		/*
+		 * The information about the last finalized sequence number
+		 * has gone. It should happen only when there is a flood of
+		 * new messages and the ringbuffer is rapidly recycled.
+		 * Give up and start from the beginning.
+		 */
+		seq = 0;
+	}
+
+	/*
+	 * The information about the last finalized @seq might be inaccurate.
+	 * Search forward to find the current one.
+	 */
 	while (_prb_read_valid(rb, &seq, NULL, NULL))
 		seq++;
 
@@ -2044,6 +2085,7 @@ void prb_init(struct printk_ringbuffer *rb,
 	rb->desc_ring.infos = infos;
 	atomic_long_set(&rb->desc_ring.head_id, DESC0_ID(descbits));
 	atomic_long_set(&rb->desc_ring.tail_id, DESC0_ID(descbits));
+	atomic_long_set(&rb->desc_ring.last_finalized_id, DESC0_ID(descbits));
 
 	rb->text_data_ring.size_bits = textbits;
 	rb->text_data_ring.data = text_buf;

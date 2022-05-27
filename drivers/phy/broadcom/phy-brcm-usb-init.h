@@ -64,6 +64,7 @@ struct  brcm_usb_init_params {
 	bool suspend_with_clocks;
 };
 
+void brcm_usb_dvr_init_4908(struct brcm_usb_init_params *params);
 void brcm_usb_dvr_init_7445(struct brcm_usb_init_params *params);
 void brcm_usb_dvr_init_7216(struct brcm_usb_init_params *params);
 void brcm_usb_dvr_init_7211b0(struct brcm_usb_init_params *params);

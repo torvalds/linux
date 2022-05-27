@@ -69,7 +69,7 @@ static int test_stat_cpu(void)
 	perf_evlist__set_maps(evlist, cpus, NULL);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__for_each_evsel(evlist, evsel) {
 		cpus = perf_evsel__cpus(evsel);
@@ -130,7 +130,7 @@ static int test_stat_thread(void)
 	perf_evlist__set_maps(evlist, NULL, threads);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__for_each_evsel(evlist, evsel) {
 		perf_evsel__read(evsel, 0, 0, &counts);
@@ -187,7 +187,7 @@ static int test_stat_thread_enable(void)
 	perf_evlist__set_maps(evlist, NULL, threads);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__for_each_evsel(evlist, evsel) {
 		perf_evsel__read(evsel, 0, 0, &counts);
@@ -507,7 +507,7 @@ static int test_stat_multiplexing(void)
 	perf_evlist__set_maps(evlist, NULL, threads);
 
 	err = perf_evlist__open(evlist);
-	__T("failed to open evsel", err == 0);
+	__T("failed to open evlist", err == 0);
 
 	perf_evlist__enable(evlist);
 

@@ -477,7 +477,8 @@ static void acpi_device_del(struct acpi_device *device)
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
 		if (!strcmp(acpi_device_bus_id->bus_id,
 			    acpi_device_hid(device))) {
-			ida_simple_remove(&acpi_device_bus_id->instance_ida, device->pnp.instance_no);
+			ida_free(&acpi_device_bus_id->instance_ida,
+				 device->pnp.instance_no);
 			if (ida_is_empty(&acpi_device_bus_id->instance_ida)) {
 				list_del(&acpi_device_bus_id->node);
 				kfree_const(acpi_device_bus_id->bus_id);
@@ -587,19 +588,6 @@ static struct acpi_device *handle_to_device(acpi_handle handle,
 	return adev;
 }
 
-int acpi_bus_get_device(acpi_handle handle, struct acpi_device **device)
-{
-	if (!device)
-		return -EINVAL;
-
-	*device = handle_to_device(handle, NULL);
-	if (!*device)
-		return -ENODEV;
-
-	return 0;
-}
-EXPORT_SYMBOL(acpi_bus_get_device);
-
 /**
  * acpi_fetch_acpi_dev - Retrieve ACPI device object.
  * @handle: ACPI handle associated with the requested ACPI device object.
@@ -642,7 +630,7 @@ static int acpi_device_set_name(struct acpi_device *device,
 	struct ida *instance_ida = &acpi_device_bus_id->instance_ida;
 	int result;
 
-	result = ida_simple_get(instance_ida, 0, ACPI_MAX_DEVICE_INSTANCES, GFP_KERNEL);
+	result = ida_alloc(instance_ida, GFP_KERNEL);
 	if (result < 0)
 		return result;
 
@@ -1734,17 +1722,26 @@ static bool acpi_device_enumeration_by_parent(struct acpi_device *device)
 	bool is_serial_bus_slave = false;
 	static const struct acpi_device_id ignore_serial_bus_ids[] = {
 	/*
-	 * These devices have multiple I2cSerialBus resources and an i2c-client
-	 * must be instantiated for each, each with its own i2c_device_id.
-	 * Normally we only instantiate an i2c-client for the first resource,
-	 * using the ACPI HID as id. These special cases are handled by the
-	 * drivers/platform/x86/i2c-multi-instantiate.c driver, which knows
-	 * which i2c_device_id to use for each resource.
+	 * These devices have multiple SerialBus resources and a client
+	 * device must be instantiated for each of them, each with
+	 * its own device id.
+	 * Normally we only instantiate one client device for the first
+	 * resource, using the ACPI HID as id. These special cases are handled
+	 * by the drivers/platform/x86/serial-multi-instantiate.c driver, which
+	 * knows which client device id to use for each resource.
 	 */
 		{"BSG1160", },
 		{"BSG2150", },
+		{"CSC3551", },
 		{"INT33FE", },
 		{"INT3515", },
+		/* Non-conforming _HID for Cirrus Logic already released */
+		{"CLSA0100", },
+	/*
+	 * Some ACPI devs contain SerialBus resources even though they are not
+	 * attached to a serial bus at all.
+	 */
+		{"MSHW0028", },
 	/*
 	 * HIDs of device with an UartSerialBusV2 resource for which userspace
 	 * expects a regular tty cdev to be created (instead of the in kernel

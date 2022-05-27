@@ -275,7 +275,7 @@ static int __init fmi_init(void)
 	struct v4l2_device *v4l2_dev = &fmi->v4l2_dev;
 	struct v4l2_ctrl_handler *hdl = &fmi->hdl;
 	int res, i;
-	int probe_ports[] = { 0, 0x284, 0x384 };
+	static const int probe_ports[] = { 0, 0x284, 0x384 };
 
 	if (io < 0) {
 		for (i = 0; i < ARRAY_SIZE(probe_ports); i++) {

@@ -451,63 +451,63 @@
 };
 
 &pinctrl_0 {
-	s5m8767_dvs: s5m8767-dvs {
+	s5m8767_dvs: s5m8767-dvs-pins {
 		samsung,pins = "gpd1-0", "gpd1-1", "gpd1-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	dp_hpd_gpio: dp-hpd {
+	dp_hpd_gpio: dp-hpd-pins {
 		samsung,pins = "gpc3-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	trackpad_irq: trackpad-irq {
+	trackpad_irq: trackpad-irq-pins {
 		samsung,pins = "gpx1-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	power_key_irq: power-key-irq {
+	power_key_irq: power-key-irq-pins {
 		samsung,pins = "gpx1-3";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	ec_irq: ec-irq {
+	ec_irq: ec-irq-pins {
 		samsung,pins = "gpx1-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	s5m8767_ds: s5m8767-ds {
+	s5m8767_ds: s5m8767-ds-pins {
 		samsung,pins = "gpx2-3", "gpx2-4", "gpx2-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	s5m8767_irq: s5m8767-irq {
+	s5m8767_irq: s5m8767-irq-pins {
 		samsung,pins = "gpx3-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	lid_irq: lid-irq {
+	lid_irq: lid-irq-pins {
 		samsung,pins = "gpx3-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	hdmi_hpd_irq: hdmi-hpd-irq {
+	hdmi_hpd_irq: hdmi-hpd-irq-pins {
 		samsung,pins = "gpx3-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_DOWN>;
@@ -516,7 +516,7 @@
 };
 
 &pinctrl_1 {
-	hsic_reset: hsic-reset {
+	hsic_reset: hsic-reset-pins {
 		samsung,pins = "gpe1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -551,6 +551,11 @@
 	status = "okay";
 	samsung,spi-src-clk = <0>;
 	num-cs = <1>;
+};
+
+&usbdrd {
+	vdd10-supply = <&ldo15_reg>;
+	vdd33-supply = <&ldo12_reg>;
 };
 
 #include "cros-ec-keyboard.dtsi"

@@ -8,6 +8,7 @@
 #include "test_sockmap_update.skel.h"
 #include "test_sockmap_invalid_update.skel.h"
 #include "test_sockmap_skb_verdict_attach.skel.h"
+#include "test_sockmap_progs_query.skel.h"
 #include "bpf_iter_sockmap.skel.h"
 
 #define TCP_REPAIR		19	/* TCP sock is under repair right now */
@@ -139,12 +140,16 @@ out:
 
 static void test_sockmap_update(enum bpf_map_type map_type)
 {
-	struct bpf_prog_test_run_attr tattr;
 	int err, prog, src, duration = 0;
 	struct test_sockmap_update *skel;
 	struct bpf_map *dst_map;
 	const __u32 zero = 0;
 	char dummy[14] = {0};
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = dummy,
+		.data_size_in = sizeof(dummy),
+		.repeat = 1,
+	);
 	__s64 sk;
 
 	sk = connected_socket_v4();
@@ -166,16 +171,10 @@ static void test_sockmap_update(enum bpf_map_type map_type)
 	if (CHECK(err, "update_elem(src)", "errno=%u\n", errno))
 		goto out;
 
-	tattr = (struct bpf_prog_test_run_attr){
-		.prog_fd = prog,
-		.repeat = 1,
-		.data_in = dummy,
-		.data_size_in = sizeof(dummy),
-	};
-
-	err = bpf_prog_test_run_xattr(&tattr);
-	if (CHECK_ATTR(err || !tattr.retval, "bpf_prog_test_run",
-		       "errno=%u retval=%u\n", errno, tattr.retval))
+	err = bpf_prog_test_run_opts(prog, &topts);
+	if (!ASSERT_OK(err, "test_run"))
+		goto out;
+	if (!ASSERT_NEQ(topts.retval, 0, "test_run retval"))
 		goto out;
 
 	compare_cookies(skel->maps.src, dst_map);
@@ -315,6 +314,63 @@ out:
 	test_sockmap_skb_verdict_attach__destroy(skel);
 }
 
+static __u32 query_prog_id(int prog_fd)
+{
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	int err;
+
+	err = bpf_obj_get_info_by_fd(prog_fd, &info, &info_len);
+	if (!ASSERT_OK(err, "bpf_obj_get_info_by_fd") ||
+	    !ASSERT_EQ(info_len, sizeof(info), "bpf_obj_get_info_by_fd"))
+		return 0;
+
+	return info.id;
+}
+
+static void test_sockmap_progs_query(enum bpf_attach_type attach_type)
+{
+	struct test_sockmap_progs_query *skel;
+	int err, map_fd, verdict_fd;
+	__u32 attach_flags = 0;
+	__u32 prog_ids[3] = {};
+	__u32 prog_cnt = 3;
+
+	skel = test_sockmap_progs_query__open_and_load();
+	if (!ASSERT_OK_PTR(skel, "test_sockmap_progs_query__open_and_load"))
+		return;
+
+	map_fd = bpf_map__fd(skel->maps.sock_map);
+
+	if (attach_type == BPF_SK_MSG_VERDICT)
+		verdict_fd = bpf_program__fd(skel->progs.prog_skmsg_verdict);
+	else
+		verdict_fd = bpf_program__fd(skel->progs.prog_skb_verdict);
+
+	err = bpf_prog_query(map_fd, attach_type, 0 /* query flags */,
+			     &attach_flags, prog_ids, &prog_cnt);
+	ASSERT_OK(err, "bpf_prog_query failed");
+	ASSERT_EQ(attach_flags,  0, "wrong attach_flags on query");
+	ASSERT_EQ(prog_cnt, 0, "wrong program count on query");
+
+	err = bpf_prog_attach(verdict_fd, map_fd, attach_type, 0);
+	if (!ASSERT_OK(err, "bpf_prog_attach failed"))
+		goto out;
+
+	prog_cnt = 1;
+	err = bpf_prog_query(map_fd, attach_type, 0 /* query flags */,
+			     &attach_flags, prog_ids, &prog_cnt);
+	ASSERT_OK(err, "bpf_prog_query failed");
+	ASSERT_EQ(attach_flags, 0, "wrong attach_flags on query");
+	ASSERT_EQ(prog_cnt, 1, "wrong program count on query");
+	ASSERT_EQ(prog_ids[0], query_prog_id(verdict_fd),
+		  "wrong prog_ids on query");
+
+	bpf_prog_detach2(verdict_fd, map_fd, attach_type);
+out:
+	test_sockmap_progs_query__destroy(skel);
+}
+
 void test_sockmap_basic(void)
 {
 	if (test__start_subtest("sockmap create_update_free"))
@@ -341,4 +397,12 @@ void test_sockmap_basic(void)
 		test_sockmap_skb_verdict_attach(BPF_SK_SKB_STREAM_VERDICT,
 						BPF_SK_SKB_VERDICT);
 	}
+	if (test__start_subtest("sockmap msg_verdict progs query"))
+		test_sockmap_progs_query(BPF_SK_MSG_VERDICT);
+	if (test__start_subtest("sockmap stream_parser progs query"))
+		test_sockmap_progs_query(BPF_SK_SKB_STREAM_PARSER);
+	if (test__start_subtest("sockmap stream_verdict progs query"))
+		test_sockmap_progs_query(BPF_SK_SKB_STREAM_VERDICT);
+	if (test__start_subtest("sockmap skb_verdict progs query"))
+		test_sockmap_progs_query(BPF_SK_SKB_VERDICT);
 }

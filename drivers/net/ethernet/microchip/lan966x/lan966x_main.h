@@ -8,6 +8,7 @@
 #include <linux/jiffies.h>
 #include <linux/phy.h>
 #include <linux/phylink.h>
+#include <linux/ptp_clock_kernel.h>
 #include <net/switchdev.h>
 
 #include "lan966x_regs.h"
@@ -50,6 +51,13 @@
 #define LAN966X_SPEED_100		2
 #define LAN966X_SPEED_10		3
 
+#define LAN966X_PHC_COUNT		3
+#define LAN966X_PHC_PORT		0
+
+#define IFH_REW_OP_NOOP			0x0
+#define IFH_REW_OP_ONE_STEP_PTP		0x3
+#define IFH_REW_OP_TWO_STEP_PTP		0x4
+
 /* MAC table entry types.
  * ENTRYTYPE_NORMAL is subject to aging.
  * ENTRYTYPE_LOCKED is not subject to aging.
@@ -70,6 +78,24 @@ struct lan966x_stat_layout {
 	char name[ETH_GSTRING_LEN];
 };
 
+struct lan966x_phc {
+	struct ptp_clock *clock;
+	struct ptp_clock_info info;
+	struct hwtstamp_config hwtstamp_config;
+	struct lan966x *lan966x;
+	u8 index;
+};
+
+struct lan966x_skb_cb {
+	u8 rew_op;
+	u16 ts_id;
+	unsigned long jiffies;
+};
+
+#define LAN966X_PTP_TIMEOUT		msecs_to_jiffies(10)
+#define LAN966X_SKB_CB(skb) \
+	((struct lan966x_skb_cb *)((skb)->cb))
+
 struct lan966x {
 	struct device *dev;
 
@@ -81,6 +107,8 @@ struct lan966x {
 	int shared_queue_sz;
 
 	u8 base_mac[ETH_ALEN];
+
+	spinlock_t tx_lock; /* lock for frame transmition */
 
 	struct net_device *bridge;
 	u16 bridge_mask;
@@ -105,6 +133,7 @@ struct lan966x {
 	/* interrupts */
 	int xtr_irq;
 	int ana_irq;
+	int ptp_irq;
 
 	/* worqueue for fdb */
 	struct workqueue_struct *fdb_work;
@@ -113,6 +142,14 @@ struct lan966x {
 	/* mdb */
 	struct list_head mdb_entries;
 	struct list_head pgid_entries;
+
+	/* ptp */
+	bool ptp;
+	struct lan966x_phc phc[LAN966X_PHC_COUNT];
+	spinlock_t ptp_clock_lock; /* lock for phc */
+	spinlock_t ptp_ts_id_lock; /* lock for ts_id */
+	struct mutex ptp_lock; /* lock for ptp interface state */
+	u16 ptp_skbs;
 };
 
 struct lan966x_port_config {
@@ -135,6 +172,7 @@ struct lan966x_port {
 	bool vlan_aware;
 
 	bool learn_ena;
+	bool mcast_ena;
 
 	struct phylink_config phylink_config;
 	struct phylink_pcs phylink_pcs;
@@ -142,6 +180,10 @@ struct lan966x_port {
 	struct phylink *phylink;
 	struct phy *serdes;
 	struct fwnode_handle *fwnode;
+
+	u8 ptp_cmd;
+	u16 ts_id;
+	struct sk_buff_head tx_skbs;
 };
 
 extern const struct phylink_mac_ops lan966x_phylink_mac_ops;
@@ -227,6 +269,20 @@ int lan966x_handle_port_mdb_del(struct lan966x_port *port,
 				const struct switchdev_obj *obj);
 void lan966x_mdb_erase_entries(struct lan966x *lan966x, u16 vid);
 void lan966x_mdb_write_entries(struct lan966x *lan966x, u16 vid);
+void lan966x_mdb_clear_entries(struct lan966x *lan966x);
+void lan966x_mdb_restore_entries(struct lan966x *lan966x);
+
+int lan966x_ptp_init(struct lan966x *lan966x);
+void lan966x_ptp_deinit(struct lan966x *lan966x);
+int lan966x_ptp_hwtstamp_set(struct lan966x_port *port, struct ifreq *ifr);
+int lan966x_ptp_hwtstamp_get(struct lan966x_port *port, struct ifreq *ifr);
+void lan966x_ptp_rxtstamp(struct lan966x *lan966x, struct sk_buff *skb,
+			  u64 timestamp);
+int lan966x_ptp_txtstamp_request(struct lan966x_port *port,
+				 struct sk_buff *skb);
+void lan966x_ptp_txtstamp_release(struct lan966x_port *port,
+				  struct sk_buff *skb);
+irqreturn_t lan966x_ptp_irq_handler(int irq, void *args);
 
 static inline void __iomem *lan_addr(void __iomem *base[],
 				     int id, int tinst, int tcnt,

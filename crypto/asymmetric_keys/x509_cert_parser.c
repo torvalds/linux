@@ -19,15 +19,13 @@
 struct x509_parse_context {
 	struct x509_certificate	*cert;		/* Certificate being constructed */
 	unsigned long	data;			/* Start of data */
-	const void	*cert_start;		/* Start of cert content */
 	const void	*key;			/* Key data */
 	size_t		key_size;		/* Size of key data */
 	const void	*params;		/* Key parameters */
 	size_t		params_size;		/* Size of key parameters */
-	enum OID	key_algo;		/* Public key algorithm */
+	enum OID	key_algo;		/* Algorithm used by the cert's key */
 	enum OID	last_oid;		/* Last OID encountered */
-	enum OID	algo_oid;		/* Algorithm OID */
-	unsigned char	nr_mpi;			/* Number of MPIs stored */
+	enum OID	sig_algo;		/* Algorithm used to sign the cert */
 	u8		o_size;			/* Size of organizationName (O) */
 	u8		cn_size;		/* Size of commonName (CN) */
 	u8		email_size;		/* Size of emailAddress */
@@ -187,11 +185,10 @@ int x509_note_tbs_certificate(void *context, size_t hdrlen,
 }
 
 /*
- * Record the public key algorithm
+ * Record the algorithm that was used to sign this certificate.
  */
-int x509_note_pkey_algo(void *context, size_t hdrlen,
-			unsigned char tag,
-			const void *value, size_t vlen)
+int x509_note_sig_algo(void *context, size_t hdrlen, unsigned char tag,
+		       const void *value, size_t vlen)
 {
 	struct x509_parse_context *ctx = context;
 
@@ -263,22 +260,22 @@ int x509_note_pkey_algo(void *context, size_t hdrlen,
 rsa_pkcs1:
 	ctx->cert->sig->pkey_algo = "rsa";
 	ctx->cert->sig->encoding = "pkcs1";
-	ctx->algo_oid = ctx->last_oid;
+	ctx->sig_algo = ctx->last_oid;
 	return 0;
 ecrdsa:
 	ctx->cert->sig->pkey_algo = "ecrdsa";
 	ctx->cert->sig->encoding = "raw";
-	ctx->algo_oid = ctx->last_oid;
+	ctx->sig_algo = ctx->last_oid;
 	return 0;
 sm2:
 	ctx->cert->sig->pkey_algo = "sm2";
 	ctx->cert->sig->encoding = "raw";
-	ctx->algo_oid = ctx->last_oid;
+	ctx->sig_algo = ctx->last_oid;
 	return 0;
 ecdsa:
 	ctx->cert->sig->pkey_algo = "ecdsa";
 	ctx->cert->sig->encoding = "x962";
-	ctx->algo_oid = ctx->last_oid;
+	ctx->sig_algo = ctx->last_oid;
 	return 0;
 }
 
@@ -291,11 +288,16 @@ int x509_note_signature(void *context, size_t hdrlen,
 {
 	struct x509_parse_context *ctx = context;
 
-	pr_debug("Signature type: %u size %zu\n", ctx->last_oid, vlen);
+	pr_debug("Signature: alg=%u, size=%zu\n", ctx->last_oid, vlen);
 
-	if (ctx->last_oid != ctx->algo_oid) {
-		pr_warn("Got cert with pkey (%u) and sig (%u) algorithm OIDs\n",
-			ctx->algo_oid, ctx->last_oid);
+	/*
+	 * In X.509 certificates, the signature's algorithm is stored in two
+	 * places: inside the TBSCertificate (the data that is signed), and
+	 * alongside the signature.  These *must* match.
+	 */
+	if (ctx->last_oid != ctx->sig_algo) {
+		pr_warn("signatureAlgorithm (%u) differs from tbsCertificate.signature (%u)\n",
+			ctx->last_oid, ctx->sig_algo);
 		return -EINVAL;
 	}
 

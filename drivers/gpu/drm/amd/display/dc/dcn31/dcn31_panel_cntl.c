@@ -83,7 +83,8 @@ static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	cmd.panel_cntl.data.bl_pwm_period_cntl = panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL;
 	cmd.panel_cntl.data.bl_pwm_ref_div1 =
 		panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-
+	cmd.panel_cntl.data.bl_pwm_ref_div2 =
+		panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2;
 	if (!dc_dmub_srv_cmd_with_reply_data(dc_dmub_srv, &cmd))
 		return 0;
 
@@ -92,6 +93,8 @@ static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL = cmd.panel_cntl.data.bl_pwm_period_cntl;
 	panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV =
 		cmd.panel_cntl.data.bl_pwm_ref_div1;
+	panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2 =
+		cmd.panel_cntl.data.bl_pwm_ref_div2;
 
 	return cmd.panel_cntl.data.current_backlight;
 }

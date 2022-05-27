@@ -463,7 +463,7 @@ static int td043mtea1_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int td043mtea1_remove(struct spi_device *spi)
+static void td043mtea1_remove(struct spi_device *spi)
 {
 	struct td043mtea1_panel *lcd = spi_get_drvdata(spi);
 
@@ -472,8 +472,6 @@ static int td043mtea1_remove(struct spi_device *spi)
 	drm_panel_unprepare(&lcd->panel);
 
 	sysfs_remove_group(&spi->dev.kobj, &td043mtea1_attr_group);
-
-	return 0;
 }
 
 static const struct of_device_id td043mtea1_of_match[] = {

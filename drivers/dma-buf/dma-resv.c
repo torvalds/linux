@@ -256,6 +256,11 @@ void dma_resv_add_shared_fence(struct dma_resv *obj, struct dma_fence *fence)
 
 	dma_resv_assert_held(obj);
 
+	/* Drivers should not add containers here, instead add each fence
+	 * individually.
+	 */
+	WARN_ON(dma_fence_is_container(fence));
+
 	fobj = dma_resv_shared_list(obj);
 	count = fobj->shared_count;
 
@@ -323,12 +328,8 @@ void dma_resv_add_excl_fence(struct dma_resv *obj, struct dma_fence *fence)
 }
 EXPORT_SYMBOL(dma_resv_add_excl_fence);
 
-/**
- * dma_resv_iter_restart_unlocked - restart the unlocked iterator
- * @cursor: The dma_resv_iter object to restart
- *
- * Restart the unlocked iteration by initializing the cursor object.
- */
+/* Restart the iterator by initializing all the necessary fields, but not the
+ * relation to the dma_resv object. */
 static void dma_resv_iter_restart_unlocked(struct dma_resv_iter *cursor)
 {
 	cursor->seq = read_seqcount_begin(&cursor->obj->seq);
@@ -344,14 +345,7 @@ static void dma_resv_iter_restart_unlocked(struct dma_resv_iter *cursor)
 	cursor->is_restarted = true;
 }
 
-/**
- * dma_resv_iter_walk_unlocked - walk over fences in a dma_resv obj
- * @cursor: cursor to record the current position
- *
- * Return all the fences in the dma_resv object which are not yet signaled.
- * The returned fence has an extra local reference so will stay alive.
- * If a concurrent modify is detected the whole iteration is started over again.
- */
+/* Walk to the next not signaled fence and grab a reference to it */
 static void dma_resv_iter_walk_unlocked(struct dma_resv_iter *cursor)
 {
 	struct dma_resv *obj = cursor->obj;
@@ -387,6 +381,12 @@ static void dma_resv_iter_walk_unlocked(struct dma_resv_iter *cursor)
  * dma_resv_iter_first_unlocked - first fence in an unlocked dma_resv obj.
  * @cursor: the cursor with the current position
  *
+ * Subsequent fences are iterated with dma_resv_iter_next_unlocked().
+ *
+ * Beware that the iterator can be restarted.  Code which accumulates statistics
+ * or similar needs to check for this with dma_resv_iter_is_restarted(). For
+ * this reason prefer the locked dma_resv_iter_first() whenver possible.
+ *
  * Returns the first fence from an unlocked dma_resv obj.
  */
 struct dma_fence *dma_resv_iter_first_unlocked(struct dma_resv_iter *cursor)
@@ -405,6 +405,10 @@ EXPORT_SYMBOL(dma_resv_iter_first_unlocked);
 /**
  * dma_resv_iter_next_unlocked - next fence in an unlocked dma_resv obj.
  * @cursor: the cursor with the current position
+ *
+ * Beware that the iterator can be restarted.  Code which accumulates statistics
+ * or similar needs to check for this with dma_resv_iter_is_restarted(). For
+ * this reason prefer the locked dma_resv_iter_next() whenver possible.
  *
  * Returns the next fence from an unlocked dma_resv obj.
  */
@@ -430,6 +434,8 @@ EXPORT_SYMBOL(dma_resv_iter_next_unlocked);
 /**
  * dma_resv_iter_first - first fence from a locked dma_resv object
  * @cursor: cursor to record the current position
+ *
+ * Subsequent fences are iterated with dma_resv_iter_next_unlocked().
  *
  * Return the first fence in the dma_resv object while holding the
  * &dma_resv.lock.
@@ -542,57 +548,45 @@ EXPORT_SYMBOL(dma_resv_copy_fences);
  * dma_resv_get_fences - Get an object's shared and exclusive
  * fences without update side lock held
  * @obj: the reservation object
- * @fence_excl: the returned exclusive fence (or NULL)
- * @shared_count: the number of shared fences returned
- * @shared: the array of shared fence ptrs returned (array is krealloc'd to
- * the required size, and must be freed by caller)
+ * @write: true if we should return all fences
+ * @num_fences: the number of fences returned
+ * @fences: the array of fence ptrs returned (array is krealloc'd to the
+ * required size, and must be freed by caller)
  *
- * Retrieve all fences from the reservation object. If the pointer for the
- * exclusive fence is not specified the fence is put into the array of the
- * shared fences as well. Returns either zero or -ENOMEM.
+ * Retrieve all fences from the reservation object.
+ * Returns either zero or -ENOMEM.
  */
-int dma_resv_get_fences(struct dma_resv *obj, struct dma_fence **fence_excl,
-			unsigned int *shared_count, struct dma_fence ***shared)
+int dma_resv_get_fences(struct dma_resv *obj, bool write,
+			unsigned int *num_fences, struct dma_fence ***fences)
 {
 	struct dma_resv_iter cursor;
 	struct dma_fence *fence;
 
-	*shared_count = 0;
-	*shared = NULL;
+	*num_fences = 0;
+	*fences = NULL;
 
-	if (fence_excl)
-		*fence_excl = NULL;
-
-	dma_resv_iter_begin(&cursor, obj, true);
+	dma_resv_iter_begin(&cursor, obj, write);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 
 		if (dma_resv_iter_is_restarted(&cursor)) {
 			unsigned int count;
 
-			while (*shared_count)
-				dma_fence_put((*shared)[--(*shared_count)]);
+			while (*num_fences)
+				dma_fence_put((*fences)[--(*num_fences)]);
 
-			if (fence_excl)
-				dma_fence_put(*fence_excl);
-
-			count = cursor.shared_count;
-			count += fence_excl ? 0 : 1;
+			count = cursor.shared_count + 1;
 
 			/* Eventually re-allocate the array */
-			*shared = krealloc_array(*shared, count,
+			*fences = krealloc_array(*fences, count,
 						 sizeof(void *),
 						 GFP_KERNEL);
-			if (count && !*shared) {
+			if (count && !*fences) {
 				dma_resv_iter_end(&cursor);
 				return -ENOMEM;
 			}
 		}
 
-		dma_fence_get(fence);
-		if (dma_resv_iter_is_exclusive(&cursor) && fence_excl)
-			*fence_excl = fence;
-		else
-			(*shared)[(*shared_count)++] = fence;
+		(*fences)[(*num_fences)++] = dma_fence_get(fence);
 	}
 	dma_resv_iter_end(&cursor);
 

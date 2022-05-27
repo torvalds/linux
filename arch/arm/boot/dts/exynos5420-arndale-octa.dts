@@ -808,7 +808,7 @@
 };
 
 &pinctrl_0 {
-	s2mps11_irq: s2mps11-irq {
+	s2mps11_irq: s2mps11-irq-pins {
 		samsung,pins = "gpx3-2";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_NONE>;
@@ -824,4 +824,14 @@
 
 &usbdrd_dwc3_1 {
 	dr_mode = "host";
+};
+
+&usbdrd3_0 {
+	vdd10-supply = <&ldo11_reg>;
+	vdd33-supply = <&ldo9_reg>;
+};
+
+&usbdrd3_1 {
+	vdd10-supply = <&ldo11_reg>;
+	vdd33-supply = <&ldo9_reg>;
 };

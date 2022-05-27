@@ -110,11 +110,3 @@ examples:
         interrupts = <31>, <53>;
         #clock-cells = <1>;
     };
-
-    serial@43f90000 {
-        compatible = "fsl,imx31-uart", "fsl,imx21-uart";
-        reg = <0x43f90000 0x4000>;
-        interrupts = <45>;
-        clocks = <&clks 10>, <&clks 30>;
-        clock-names = "ipg", "per";
-    };

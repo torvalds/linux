@@ -792,7 +792,7 @@ static int qcom_glink_rx_defer(struct qcom_glink *glink, size_t extra)
 		return -ENXIO;
 	}
 
-	dcmd = kzalloc(sizeof(*dcmd) + extra, GFP_ATOMIC);
+	dcmd = kzalloc(struct_size(dcmd, data, extra), GFP_ATOMIC);
 	if (!dcmd)
 		return -ENOMEM;
 
@@ -1715,7 +1715,7 @@ static int qcom_glink_create_chrdev(struct qcom_glink *glink)
 	rpdev->dev.parent = glink->dev;
 	rpdev->dev.release = qcom_glink_device_release;
 
-	return rpmsg_chrdev_register_device(rpdev);
+	return rpmsg_ctrldev_register_device(rpdev);
 }
 
 struct qcom_glink *qcom_glink_native_probe(struct device *dev,

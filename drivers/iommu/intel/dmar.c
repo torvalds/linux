@@ -66,8 +66,6 @@ static unsigned long dmar_seq_ids[BITS_TO_LONGS(DMAR_UNITS_SUPPORTED)];
 static int alloc_iommu(struct dmar_drhd_unit *drhd);
 static void free_iommu(struct intel_iommu *iommu);
 
-extern const struct iommu_ops intel_iommu_ops;
-
 static void dmar_register_drhd_unit(struct dmar_drhd_unit *drhd)
 {
 	/*
@@ -789,7 +787,8 @@ static int __init dmar_acpi_dev_scope_init(void)
 				       andd->device_name);
 				continue;
 			}
-			if (acpi_bus_get_device(h, &adev)) {
+			adev = acpi_fetch_acpi_dev(h);
+			if (!adev) {
 				pr_err("Failed to get device for ACPI object %s\n",
 				       andd->device_name);
 				continue;

@@ -271,7 +271,7 @@ static void atmel_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm,
 			      bool disable_clk)
 {
 	struct atmel_pwm_chip *atmel_pwm = to_atmel_pwm_chip(chip);
-	unsigned long timeout = jiffies + 2 * HZ;
+	unsigned long timeout;
 
 	atmel_pwm_wait_nonpending(atmel_pwm, pwm->hwpwm);
 

@@ -15,7 +15,7 @@
 #include <keys/user-type.h>
 #include "internal.h"
 
-static ssize_t dh_data_from_key(key_serial_t keyid, void **data)
+static ssize_t dh_data_from_key(key_serial_t keyid, const void **data)
 {
 	struct key *key;
 	key_ref_t key_ref;

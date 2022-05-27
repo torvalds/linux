@@ -191,11 +191,4 @@ examples:
         };
     };
 
-    /* Consumer referencing the 5P49V5923 pin OUT1 */
-    consumer {
-        /* ... */
-        clocks = <&vc5 1>;
-        /* ... */
-    };
-
 ...

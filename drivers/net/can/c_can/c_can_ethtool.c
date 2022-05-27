@@ -11,14 +11,6 @@
 
 #include "c_can.h"
 
-static void c_can_get_drvinfo(struct net_device *netdev,
-			      struct ethtool_drvinfo *info)
-{
-	struct c_can_priv *priv = netdev_priv(netdev);
-	strscpy(info->driver, "c_can", sizeof(info->driver));
-	strscpy(info->bus_info, dev_name(priv->device), sizeof(info->bus_info));
-}
-
 static void c_can_get_ringparam(struct net_device *netdev,
 				struct ethtool_ringparam *ring,
 				struct kernel_ethtool_ringparam *kernel_ring,
@@ -33,7 +25,6 @@ static void c_can_get_ringparam(struct net_device *netdev,
 }
 
 static const struct ethtool_ops c_can_ethtool_ops = {
-	.get_drvinfo = c_can_get_drvinfo,
 	.get_ringparam = c_can_get_ringparam,
 };
 

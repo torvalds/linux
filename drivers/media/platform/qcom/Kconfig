@@ -1,0 +1,6 @@
+# SPDX-License-Identifier: GPL-2.0-only
+
+comment "Qualcomm media platform drivers"
+
+source "drivers/media/platform/qcom/camss/Kconfig"
+source "drivers/media/platform/qcom/venus/Kconfig"

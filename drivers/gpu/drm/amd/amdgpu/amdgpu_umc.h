@@ -20,6 +20,7 @@
  */
 #ifndef __AMDGPU_UMC_H__
 #define __AMDGPU_UMC_H__
+#include "amdgpu_ras.h"
 
 /*
  * (addr / 256) * 4096, the higher 26 bits in ErrorAddr
@@ -40,14 +41,9 @@
 #define LOOP_UMC_CH_INST(ch_inst) for ((ch_inst) = 0; (ch_inst) < adev->umc.channel_inst_num; (ch_inst)++)
 #define LOOP_UMC_INST_AND_CH(umc_inst, ch_inst) LOOP_UMC_INST((umc_inst)) LOOP_UMC_CH_INST((ch_inst))
 
-struct amdgpu_umc_ras_funcs {
+struct amdgpu_umc_ras {
+	struct amdgpu_ras_block_object ras_block;
 	void (*err_cnt_init)(struct amdgpu_device *adev);
-	int (*ras_late_init)(struct amdgpu_device *adev);
-	void (*ras_fini)(struct amdgpu_device *adev);
-	void (*query_ras_error_count)(struct amdgpu_device *adev,
-				      void *ras_error_status);
-	void (*query_ras_error_address)(struct amdgpu_device *adev,
-					void *ras_error_status);
 	bool (*query_ras_poison_mode)(struct amdgpu_device *adev);
 	void (*ecc_info_query_ras_error_count)(struct amdgpu_device *adev,
 				      void *ras_error_status);
@@ -73,15 +69,23 @@ struct amdgpu_umc {
 	struct ras_common_if *ras_if;
 
 	const struct amdgpu_umc_funcs *funcs;
-	const struct amdgpu_umc_ras_funcs *ras_funcs;
+	struct amdgpu_umc_ras *ras;
 };
 
-int amdgpu_umc_ras_late_init(struct amdgpu_device *adev);
-void amdgpu_umc_ras_fini(struct amdgpu_device *adev);
+int amdgpu_umc_ras_late_init(struct amdgpu_device *adev, struct ras_common_if *ras_block);
 int amdgpu_umc_poison_handler(struct amdgpu_device *adev,
 		void *ras_error_status,
 		bool reset);
 int amdgpu_umc_process_ecc_irq(struct amdgpu_device *adev,
 		struct amdgpu_irq_src *source,
+		struct amdgpu_iv_entry *entry);
+void amdgpu_umc_fill_error_record(struct ras_err_data *err_data,
+		uint64_t err_addr,
+		uint64_t retired_page,
+		uint32_t channel_index,
+		uint32_t umc_inst);
+
+int amdgpu_umc_process_ras_data_cb(struct amdgpu_device *adev,
+		void *ras_error_status,
 		struct amdgpu_iv_entry *entry);
 #endif

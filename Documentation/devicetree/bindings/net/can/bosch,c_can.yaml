@@ -56,10 +56,10 @@ properties:
       offset).
     $ref: /schemas/types.yaml#/definitions/phandle-array
     items:
-      items:
-        - description: The phandle to the system control region.
-        - description: The register offset.
-        - description: The CAN instance number.
+      - items:
+          - description: The phandle to the system control region.
+          - description: The register offset.
+          - description: The CAN instance number.
 
   resets:
     maxItems: 1
@@ -80,8 +80,6 @@ if:
 then:
   properties:
     interrupts:
-      minItems: 4
-      maxItems: 4
       items:
         - description: Error and status IRQ
         - description: Message object IRQ
@@ -91,7 +89,6 @@ then:
 else:
   properties:
     interrupts:
-      maxItems: 1
       items:
         - description: Error and status IRQ
 

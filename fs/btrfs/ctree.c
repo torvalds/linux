@@ -846,9 +846,11 @@ struct extent_buffer *btrfs_read_node_slot(struct extent_buffer *parent,
 			     btrfs_header_owner(parent),
 			     btrfs_node_ptr_generation(parent, slot),
 			     level - 1, &first_key);
-	if (!IS_ERR(eb) && !extent_buffer_uptodate(eb)) {
+	if (IS_ERR(eb))
+		return eb;
+	if (!extent_buffer_uptodate(eb)) {
 		free_extent_buffer(eb);
-		eb = ERR_PTR(-EIO);
+		return ERR_PTR(-EIO);
 	}
 
 	return eb;
@@ -1436,13 +1438,13 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 
 		/* now we're allowed to do a blocking uptodate check */
 		ret = btrfs_read_buffer(tmp, gen, parent_level - 1, &first_key);
-		if (!ret) {
-			*eb_ret = tmp;
-			return 0;
+		if (ret) {
+			free_extent_buffer(tmp);
+			btrfs_release_path(p);
+			return -EIO;
 		}
-		free_extent_buffer(tmp);
-		btrfs_release_path(p);
-		return -EIO;
+		*eb_ret = tmp;
+		return 0;
 	}
 
 	/*
@@ -1460,19 +1462,19 @@ read_block_for_search(struct btrfs_root *root, struct btrfs_path *p,
 	ret = -EAGAIN;
 	tmp = read_tree_block(fs_info, blocknr, root->root_key.objectid,
 			      gen, parent_level - 1, &first_key);
-	if (!IS_ERR(tmp)) {
-		/*
-		 * If the read above didn't mark this buffer up to date,
-		 * it will never end up being up to date.  Set ret to EIO now
-		 * and give up so that our caller doesn't loop forever
-		 * on our EAGAINs.
-		 */
-		if (!extent_buffer_uptodate(tmp))
-			ret = -EIO;
-		free_extent_buffer(tmp);
-	} else {
-		ret = PTR_ERR(tmp);
+	if (IS_ERR(tmp)) {
+		btrfs_release_path(p);
+		return PTR_ERR(tmp);
 	}
+	/*
+	 * If the read above didn't mark this buffer up to date,
+	 * it will never end up being up to date.  Set ret to EIO now
+	 * and give up so that our caller doesn't loop forever
+	 * on our EAGAINs.
+	 */
+	if (!extent_buffer_uptodate(tmp))
+		ret = -EIO;
+	free_extent_buffer(tmp);
 
 	btrfs_release_path(p);
 	return ret;
@@ -2990,14 +2992,9 @@ static int push_leaf_right(struct btrfs_trans_handle *trans, struct btrfs_root
 	if (free_space < data_size)
 		goto out_unlock;
 
-	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, right, upper,
 			      slot + 1, &right, BTRFS_NESTING_RIGHT_COW);
 	if (ret)
-		goto out_unlock;
-
-	free_space = btrfs_leaf_free_space(right);
-	if (free_space < data_size)
 		goto out_unlock;
 
 	left_nritems = btrfs_header_nritems(left);
@@ -3224,7 +3221,6 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		goto out;
 	}
 
-	/* cow and double check */
 	ret = btrfs_cow_block(trans, root, left,
 			      path->nodes[1], slot - 1, &left,
 			      BTRFS_NESTING_LEFT_COW);
@@ -3232,12 +3228,6 @@ static int push_leaf_left(struct btrfs_trans_handle *trans, struct btrfs_root
 		/* we hit -ENOSPC, but it isn't fatal here */
 		if (ret == -ENOSPC)
 			ret = 1;
-		goto out;
-	}
-
-	free_space = btrfs_leaf_free_space(left);
-	if (free_space < data_size) {
-		ret = 1;
 		goto out;
 	}
 
@@ -4170,24 +4160,22 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 {
 	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct extent_buffer *leaf;
-	u32 last_off;
-	u32 dsize = 0;
 	int ret = 0;
 	int wret;
-	int i;
 	u32 nritems;
 
 	leaf = path->nodes[0];
-	last_off = btrfs_item_offset(leaf, slot + nr - 1);
-
-	for (i = 0; i < nr; i++)
-		dsize += btrfs_item_size(leaf, slot + i);
-
 	nritems = btrfs_header_nritems(leaf);
 
 	if (slot + nr != nritems) {
-		int data_end = leaf_data_end(leaf);
+		const u32 last_off = btrfs_item_offset(leaf, slot + nr - 1);
+		const int data_end = leaf_data_end(leaf);
 		struct btrfs_map_token token;
+		u32 dsize = 0;
+		int i;
+
+		for (i = 0; i < nr; i++)
+			dsize += btrfs_item_size(leaf, slot + i);
 
 		memmove_extent_buffer(leaf, BTRFS_LEAF_DATA_OFFSET +
 			      data_end + dsize,
@@ -4227,24 +4215,50 @@ int btrfs_del_items(struct btrfs_trans_handle *trans, struct btrfs_root *root,
 			fixup_low_keys(path, &disk_key, 1);
 		}
 
-		/* delete the leaf if it is mostly empty */
+		/*
+		 * Try to delete the leaf if it is mostly empty. We do this by
+		 * trying to move all its items into its left and right neighbours.
+		 * If we can't move all the items, then we don't delete it - it's
+		 * not ideal, but future insertions might fill the leaf with more
+		 * items, or items from other leaves might be moved later into our
+		 * leaf due to deletions on those leaves.
+		 */
 		if (used < BTRFS_LEAF_DATA_SIZE(fs_info) / 3) {
+			u32 min_push_space;
+
 			/* push_leaf_left fixes the path.
 			 * make sure the path still points to our leaf
 			 * for possible call to del_ptr below
 			 */
 			slot = path->slots[1];
 			atomic_inc(&leaf->refs);
-
-			wret = push_leaf_left(trans, root, path, 1, 1,
-					      1, (u32)-1);
+			/*
+			 * We want to be able to at least push one item to the
+			 * left neighbour leaf, and that's the first item.
+			 */
+			min_push_space = sizeof(struct btrfs_item) +
+				btrfs_item_size(leaf, 0);
+			wret = push_leaf_left(trans, root, path, 0,
+					      min_push_space, 1, (u32)-1);
 			if (wret < 0 && wret != -ENOSPC)
 				ret = wret;
 
 			if (path->nodes[0] == leaf &&
 			    btrfs_header_nritems(leaf)) {
-				wret = push_leaf_right(trans, root, path, 1,
-						       1, 1, 0);
+				/*
+				 * If we were not able to push all items from our
+				 * leaf to its left neighbour, then attempt to
+				 * either push all the remaining items to the
+				 * right neighbour or none. There's no advantage
+				 * in pushing only some items, instead of all, as
+				 * it's pointless to end up with a leaf having
+				 * too few items while the neighbours can be full
+				 * or nearly full.
+				 */
+				nritems = btrfs_header_nritems(leaf);
+				min_push_space = leaf_space_used(leaf, 0, nritems);
+				wret = push_leaf_right(trans, root, path, 0,
+						       min_push_space, 1, 0);
 				if (wret < 0 && wret != -ENOSPC)
 					ret = wret;
 			}

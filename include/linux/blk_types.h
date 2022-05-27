@@ -85,8 +85,10 @@ struct block_device {
  */
 #if defined(CONFIG_ALPHA) && !defined(__alpha_bwx__)
 typedef u32 __bitwise blk_status_t;
+typedef u32 blk_short_t;
 #else
 typedef u8 __bitwise blk_status_t;
+typedef u16 blk_short_t;
 #endif
 #define	BLK_STS_OK 0
 #define BLK_STS_NOTSUPP		((__force blk_status_t)1)
@@ -152,6 +154,13 @@ typedef u8 __bitwise blk_status_t;
  * is reported in the request_queue's max_active_zones.
  */
 #define BLK_STS_ZONE_ACTIVE_RESOURCE	((__force blk_status_t)16)
+
+/*
+ * BLK_STS_OFFLINE is returned from the driver when the target device is offline
+ * or is being taken offline. This could help differentiate the case where a
+ * device is intentionally being shut down from a real I/O error.
+ */
+#define BLK_STS_OFFLINE		((__force blk_status_t)17)
 
 /**
  * blk_path_error - returns true if error may be path related
@@ -243,7 +252,6 @@ struct bio {
 						 */
 	unsigned short		bi_flags;	/* BIO_* below */
 	unsigned short		bi_ioprio;
-	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
 	atomic_t		__bi_remaining;
 
@@ -317,7 +325,8 @@ enum {
 	BIO_TRACE_COMPLETION,	/* bio_endio() should trace the final completion
 				 * of this bio. */
 	BIO_CGROUP_ACCT,	/* has been accounted to a cgroup */
-	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
+	BIO_QOS_THROTTLED,	/* bio went through rq_qos throttle path */
+	BIO_QOS_MERGED,		/* but went through rq_qos merge path */
 	BIO_REMAPPED,
 	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
 	BIO_PERCPU_CACHE,	/* can participate in per-cpu alloc cache */
@@ -354,8 +363,6 @@ enum req_opf {
 	REQ_OP_DISCARD		= 3,
 	/* securely erase sectors */
 	REQ_OP_SECURE_ERASE	= 5,
-	/* write the same sector many times */
-	REQ_OP_WRITE_SAME	= 7,
 	/* write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= 9,
 	/* Open a zone */

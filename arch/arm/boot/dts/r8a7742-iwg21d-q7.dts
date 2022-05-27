@@ -226,7 +226,7 @@
 };
 
 &gpio0 {
-	touch-interrupt {
+	touch-interrupt-hog {
 		gpio-hog;
 		gpios = <24 GPIO_ACTIVE_LOW>;
 		input;
@@ -234,7 +234,7 @@
 };
 
 &gpio1 {
-	can-trx-en-gpio{
+	can-trx-en-hog {
 		gpio-hog;
 		gpios = <28 GPIO_ACTIVE_HIGH>;
 		output-low;

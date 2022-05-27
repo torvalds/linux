@@ -27,11 +27,11 @@
 /*
  * Authors: Thomas Hellström <thomas-at-tungstengraphics-dot-com>
  */
-
-#include <linux/dma-buf-map.h>
+#include <linux/cc_platform.h>
 #include <linux/export.h>
 #include <linux/highmem.h>
-#include <linux/cc_platform.h>
+#include <linux/ioport.h>
+#include <linux/iosys-map.h>
 #include <xen/xen.h>
 
 #include <drm/drm_cache.h>
@@ -112,8 +112,7 @@ drm_clflush_pages(struct page *pages[], unsigned long num_pages)
 		kunmap_atomic(page_virtual);
 	}
 #else
-	pr_err("Architecture has no drm_cache.c support\n");
-	WARN_ON_ONCE(1);
+	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_pages);
@@ -143,8 +142,7 @@ drm_clflush_sg(struct sg_table *st)
 	if (wbinvd_on_all_cpus())
 		pr_err("Timed out waiting for cache flush\n");
 #else
-	pr_err("Architecture has no drm_cache.c support\n");
-	WARN_ON_ONCE(1);
+	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_sg);
@@ -177,8 +175,7 @@ drm_clflush_virt_range(void *addr, unsigned long length)
 	if (wbinvd_on_all_cpus())
 		pr_err("Timed out waiting for cache flush\n");
 #else
-	pr_err("Architecture has no drm_cache.c support\n");
-	WARN_ON_ONCE(1);
+	WARN_ONCE(1, "Architecture has no drm_cache.c support\n");
 #endif
 }
 EXPORT_SYMBOL(drm_clflush_virt_range);
@@ -214,14 +211,14 @@ bool drm_need_swiotlb(int dma_bits)
 }
 EXPORT_SYMBOL(drm_need_swiotlb);
 
-static void memcpy_fallback(struct dma_buf_map *dst,
-			    const struct dma_buf_map *src,
+static void memcpy_fallback(struct iosys_map *dst,
+			    const struct iosys_map *src,
 			    unsigned long len)
 {
 	if (!dst->is_iomem && !src->is_iomem) {
 		memcpy(dst->vaddr, src->vaddr, len);
 	} else if (!src->is_iomem) {
-		dma_buf_map_memcpy_to(dst, src->vaddr, len);
+		iosys_map_memcpy_to(dst, 0, src->vaddr, len);
 	} else if (!dst->is_iomem) {
 		memcpy_fromio(dst->vaddr, src->vaddr_iomem, len);
 	} else {
@@ -305,8 +302,8 @@ static void __drm_memcpy_from_wc(void *dst, const void *src, unsigned long len)
  * Tries an arch optimized memcpy for prefetching reading out of a WC region,
  * and if no such beast is available, falls back to a normal memcpy.
  */
-void drm_memcpy_from_wc(struct dma_buf_map *dst,
-			const struct dma_buf_map *src,
+void drm_memcpy_from_wc(struct iosys_map *dst,
+			const struct iosys_map *src,
 			unsigned long len)
 {
 	if (WARN_ON(in_interrupt())) {
@@ -343,8 +340,8 @@ void drm_memcpy_init_early(void)
 		static_branch_enable(&has_movntdqa);
 }
 #else
-void drm_memcpy_from_wc(struct dma_buf_map *dst,
-			const struct dma_buf_map *src,
+void drm_memcpy_from_wc(struct iosys_map *dst,
+			const struct iosys_map *src,
 			unsigned long len)
 {
 	WARN_ON(in_interrupt());

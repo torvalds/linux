@@ -994,8 +994,18 @@ static int test__parsing(struct test_suite *test __maybe_unused,
 			}
 
 			if (expr__parse(&result, ctx, pe->metric_expr)) {
-				expr_failure("Parse failed", map, pe);
-				ret++;
+				/*
+				 * Parsing failed, make numbers go from large to
+				 * small which can resolve divide by zero
+				 * issues.
+				 */
+				k = 1024;
+				hashmap__for_each_entry(ctx->ids, cur, bkt)
+					expr__add_id_val(ctx, strdup(cur->key), k--);
+				if (expr__parse(&result, ctx, pe->metric_expr)) {
+					expr_failure("Parse failed", map, pe);
+					ret++;
+				}
 			}
 		}
 	}
@@ -1054,10 +1064,20 @@ static int metric_parse_fake(const char *str)
 		}
 	}
 
-	if (expr__parse(&result, ctx, str))
-		pr_err("expr__parse failed\n");
-	else
-		ret = 0;
+	ret = 0;
+	if (expr__parse(&result, ctx, str)) {
+		/*
+		 * Parsing failed, make numbers go from large to small which can
+		 * resolve divide by zero issues.
+		 */
+		i = 1024;
+		hashmap__for_each_entry(ctx->ids, cur, bkt)
+			expr__add_id_val(ctx, strdup(cur->key), i--);
+		if (expr__parse(&result, ctx, str)) {
+			pr_err("expr__parse failed\n");
+			ret = -1;
+		}
+	}
 
 out:
 	expr__ctx_free(ctx);

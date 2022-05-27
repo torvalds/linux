@@ -2082,7 +2082,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->tx_pool_region_id = temp[1];
 
 	if (netcp->tx_pool_size < MAX_SKB_FRAGS) {
-		dev_err(dev, "tx-pool size too small, must be atleast(%ld)\n",
+		dev_err(dev, "tx-pool size too small, must be at least %ld\n",
 			MAX_SKB_FRAGS);
 		ret = -ENODEV;
 		goto quit;

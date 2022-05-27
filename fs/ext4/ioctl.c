@@ -269,7 +269,7 @@ out:
 	return err ? err : 0;
 }
 
-/**
+/*
  * Swap memory between @a and @b for @len bytes.
  *
  * @a:          pointer to first memory area
@@ -290,7 +290,7 @@ static void memswap(void *a, void *b, size_t len)
 	}
 }
 
-/**
+/*
  * Swap i_data and associated attributes between @inode1 and @inode2.
  * This function is used for the primary swap between inode1 and inode2
  * and also to revert this primary swap in case of errors.
@@ -344,7 +344,7 @@ void ext4_reset_inode_seed(struct inode *inode)
 	ei->i_csum_seed = ext4_chksum(sbi, csum, (__u8 *)&gen, sizeof(gen));
 }
 
-/**
+/*
  * Swap the information from the given @inode and the inode
  * EXT4_BOOT_LOADER_INO. It will basically swap i_data and all other
  * important fields of the inodes.
@@ -1652,3 +1652,19 @@ long ext4_compat_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 	return ext4_ioctl(file, cmd, (unsigned long) compat_ptr(arg));
 }
 #endif
+
+static void set_overhead(struct ext4_super_block *es, const void *arg)
+{
+	es->s_overhead_clusters = cpu_to_le32(*((unsigned long *) arg));
+}
+
+int ext4_update_overhead(struct super_block *sb)
+{
+	struct ext4_sb_info *sbi = EXT4_SB(sb);
+
+	if (sb_rdonly(sb) || sbi->s_overhead == 0 ||
+	    sbi->s_overhead == le32_to_cpu(sbi->s_es->s_overhead_clusters))
+		return 0;
+
+	return ext4_update_superblocks_fn(sb, set_overhead, &sbi->s_overhead);
+}

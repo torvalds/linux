@@ -6,7 +6,6 @@
  * figure. Its a silly number but people think its important. We go through
  * great pains to make it work on big machines and tickless kernels.
  */
-#include "sched.h"
 
 /*
  * Global load-average calculations

@@ -615,6 +615,7 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	int drive;
 	int pull;
 	int val;
+	int egpio_enable;
 	u32 ctl_reg, io_reg;
 
 	static const char * const pulls_keeper[] = {
@@ -641,11 +642,19 @@ static void msm_gpio_dbg_show_one(struct seq_file *s,
 	func = (ctl_reg >> g->mux_bit) & 7;
 	drive = (ctl_reg >> g->drv_bit) & 7;
 	pull = (ctl_reg >> g->pull_bit) & 3;
+	egpio_enable = 0;
+	if (pctrl->soc->egpio_func && ctl_reg & BIT(g->egpio_present))
+		egpio_enable = !(ctl_reg & BIT(g->egpio_enable));
 
 	if (is_out)
 		val = !!(io_reg & BIT(g->out_bit));
 	else
 		val = !!(io_reg & BIT(g->in_bit));
+
+	if (egpio_enable) {
+		seq_printf(s, " %-8s: egpio\n", g->name);
+		return;
+	}
 
 	seq_printf(s, " %-8s: %-3s", g->name, is_out ? "out" : "in");
 	seq_printf(s, " %-4s func%d", val ? "high" : "low", func);
@@ -1168,7 +1177,7 @@ static int msm_gpio_irq_set_affinity(struct irq_data *d,
 	if (d->parent_data && test_bit(d->hwirq, pctrl->skip_wake_irqs))
 		return irq_chip_set_affinity_parent(d, dest, force);
 
-	return 0;
+	return -EINVAL;
 }
 
 static int msm_gpio_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
@@ -1179,7 +1188,7 @@ static int msm_gpio_irq_set_vcpu_affinity(struct irq_data *d, void *vcpu_info)
 	if (d->parent_data && test_bit(d->hwirq, pctrl->skip_wake_irqs))
 		return irq_chip_set_vcpu_affinity_parent(d, vcpu_info);
 
-	return 0;
+	return -EINVAL;
 }
 
 static void msm_gpio_irq_handler(struct irq_desc *desc)

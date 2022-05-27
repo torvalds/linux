@@ -37,7 +37,6 @@ static ssize_t __copy_oldmem_page(unsigned long pfn, char *buf, size_t csize,
 	} else
 		memcpy(buf, vaddr + offset, csize);
 
-	set_iounmap_nonlazy();
 	iounmap((void __iomem *)vaddr);
 	return csize;
 }

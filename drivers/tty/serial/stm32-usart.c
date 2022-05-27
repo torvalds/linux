@@ -1641,7 +1641,7 @@ static int stm32_usart_serial_remove(struct platform_device *pdev)
 }
 
 #ifdef CONFIG_SERIAL_STM32_CONSOLE
-static void stm32_usart_console_putchar(struct uart_port *port, int ch)
+static void stm32_usart_console_putchar(struct uart_port *port, unsigned char ch)
 {
 	struct stm32_port *stm32_port = to_stm32_port(port);
 	const struct stm32_usart_offsets *ofs = &stm32_port->info->ofs;
@@ -1756,6 +1756,7 @@ static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 	if (enable) {
 		stm32_usart_set_bits(port, ofs->cr1, USART_CR1_UESM);
 		stm32_usart_set_bits(port, ofs->cr3, USART_CR3_WUFIE);
+		mctrl_gpio_enable_irq_wake(stm32_port->gpios);
 
 		/*
 		 * When DMA is used for reception, it must be disabled before
@@ -1782,7 +1783,7 @@ static int __maybe_unused stm32_usart_serial_en_wakeup(struct uart_port *port,
 			if (ret)
 				return ret;
 		}
-
+		mctrl_gpio_disable_irq_wake(stm32_port->gpios);
 		stm32_usart_clr_bits(port, ofs->cr1, USART_CR1_UESM);
 		stm32_usart_clr_bits(port, ofs->cr3, USART_CR3_WUFIE);
 	}

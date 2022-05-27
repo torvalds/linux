@@ -26,8 +26,9 @@
 #include <drm/drm_atomic.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_bridge.h>
-#include <drm/drm_dp_aux_bus.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/drm_bridge_connector.h>
+#include <drm/dp/drm_dp_aux_bus.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_mipi_dsi.h>
 #include <drm/drm_of.h>
 #include <drm/drm_panel.h>
@@ -174,7 +175,7 @@ struct ti_sn65dsi86 {
 	struct regmap			*regmap;
 	struct drm_dp_aux		aux;
 	struct drm_bridge		bridge;
-	struct drm_connector		connector;
+	struct drm_connector		*connector;
 	struct device_node		*host_node;
 	struct mipi_dsi_device		*dsi;
 	struct clk			*refclk;
@@ -646,54 +647,6 @@ static struct auxiliary_driver ti_sn_aux_driver = {
 	.id_table = ti_sn_aux_id_table,
 };
 
-/* -----------------------------------------------------------------------------
- * DRM Connector Operations
- */
-
-static struct ti_sn65dsi86 *
-connector_to_ti_sn65dsi86(struct drm_connector *connector)
-{
-	return container_of(connector, struct ti_sn65dsi86, connector);
-}
-
-static int ti_sn_bridge_connector_get_modes(struct drm_connector *connector)
-{
-	struct ti_sn65dsi86 *pdata = connector_to_ti_sn65dsi86(connector);
-
-	return drm_bridge_get_modes(pdata->next_bridge, connector);
-}
-
-static struct drm_connector_helper_funcs ti_sn_bridge_connector_helper_funcs = {
-	.get_modes = ti_sn_bridge_connector_get_modes,
-};
-
-static const struct drm_connector_funcs ti_sn_bridge_connector_funcs = {
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.destroy = drm_connector_cleanup,
-	.reset = drm_atomic_helper_connector_reset,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
-
-static int ti_sn_bridge_connector_init(struct ti_sn65dsi86 *pdata)
-{
-	int ret;
-
-	ret = drm_connector_init(pdata->bridge.dev, &pdata->connector,
-				 &ti_sn_bridge_connector_funcs,
-				 DRM_MODE_CONNECTOR_eDP);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector with drm\n");
-		return ret;
-	}
-
-	drm_connector_helper_add(&pdata->connector,
-				 &ti_sn_bridge_connector_helper_funcs);
-	drm_connector_attach_encoder(&pdata->connector, pdata->bridge.encoder);
-
-	return 0;
-}
-
 /*------------------------------------------------------------------------------
  * DRM Bridge
  */
@@ -757,10 +710,6 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 		return ret;
 	}
 
-	ret = ti_sn_bridge_connector_init(pdata);
-	if (ret < 0)
-		goto err_conn_init;
-
 	/* We never want the next bridge to *also* create a connector: */
 	flags |= DRM_BRIDGE_ATTACH_NO_CONNECTOR;
 
@@ -768,13 +717,20 @@ static int ti_sn_bridge_attach(struct drm_bridge *bridge,
 	ret = drm_bridge_attach(bridge->encoder, pdata->next_bridge,
 				&pdata->bridge, flags);
 	if (ret < 0)
-		goto err_dsi_host;
+		goto err_initted_aux;
+
+	pdata->connector = drm_bridge_connector_init(pdata->bridge.dev,
+						     pdata->bridge.encoder);
+	if (IS_ERR(pdata->connector)) {
+		ret = PTR_ERR(pdata->connector);
+		goto err_initted_aux;
+	}
+
+	drm_connector_attach_encoder(pdata->connector, pdata->bridge.encoder);
 
 	return 0;
 
-err_dsi_host:
-	drm_connector_cleanup(&pdata->connector);
-err_conn_init:
+err_initted_aux:
 	drm_dp_aux_unregister(&pdata->aux);
 	return ret;
 }
@@ -824,7 +780,7 @@ static void ti_sn_bridge_set_dsi_rate(struct ti_sn65dsi86 *pdata)
 
 static unsigned int ti_sn_bridge_get_bpp(struct ti_sn65dsi86 *pdata)
 {
-	if (pdata->connector.display_info.bpc <= 6)
+	if (pdata->connector->display_info.bpc <= 6)
 		return 18;
 	else
 		return 24;

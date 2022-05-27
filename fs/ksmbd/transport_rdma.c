@@ -211,7 +211,7 @@ struct smb_direct_rdma_rw_msg {
 	struct completion	*completion;
 	struct rdma_rw_ctx	rw_ctx;
 	struct sg_table		sgt;
-	struct scatterlist	sg_list[0];
+	struct scatterlist	sg_list[];
 };
 
 static inline int get_buf_page_count(void *buf, int size)

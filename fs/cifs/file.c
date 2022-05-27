@@ -3740,6 +3740,11 @@ cifs_send_async_read(loff_t offset, size_t len, struct cifsFileInfo *open_file,
 				break;
 		}
 
+		if (cifs_sb->ctx->rsize == 0)
+			cifs_sb->ctx->rsize =
+				server->ops->negotiate_rsize(tlink_tcon(open_file->tlink),
+							     cifs_sb->ctx);
+
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize,
 						   &rsize, credits);
 		if (rc)
@@ -4205,13 +4210,19 @@ cifs_page_mkwrite(struct vm_fault *vmf)
 {
 	struct page *page = vmf->page;
 
+	/* Wait for the page to be written to the cache before we allow it to
+	 * be modified.  We then assume the entire page will need writing back.
+	 */
 #ifdef CONFIG_CIFS_FSCACHE
 	if (PageFsCache(page) &&
 	    wait_on_page_fscache_killable(page) < 0)
 		return VM_FAULT_RETRY;
 #endif
 
-	lock_page(page);
+	wait_on_page_writeback(page);
+
+	if (lock_page_killable(page) < 0)
+		return VM_FAULT_RETRY;
 	return VM_FAULT_LOCKED;
 }
 
@@ -4473,6 +4484,11 @@ static void cifs_readahead(struct readahead_control *ractl)
 				break;
 			}
 		}
+
+		if (cifs_sb->ctx->rsize == 0)
+			cifs_sb->ctx->rsize =
+				server->ops->negotiate_rsize(tlink_tcon(open_file->tlink),
+							     cifs_sb->ctx);
 
 		rc = server->ops->wait_mtu_credits(server, cifs_sb->ctx->rsize,
 						   &rsize, credits);
@@ -4754,17 +4770,17 @@ static int cifs_release_page(struct page *page, gfp_t gfp)
 	return true;
 }
 
-static void cifs_invalidate_page(struct page *page, unsigned int offset,
-				 unsigned int length)
+static void cifs_invalidate_folio(struct folio *folio, size_t offset,
+				 size_t length)
 {
-	wait_on_page_fscache(page);
+	folio_wait_fscache(folio);
 }
 
-static int cifs_launder_page(struct page *page)
+static int cifs_launder_folio(struct folio *folio)
 {
 	int rc = 0;
-	loff_t range_start = page_offset(page);
-	loff_t range_end = range_start + (loff_t)(PAGE_SIZE - 1);
+	loff_t range_start = folio_pos(folio);
+	loff_t range_end = range_start + folio_size(folio);
 	struct writeback_control wbc = {
 		.sync_mode = WB_SYNC_ALL,
 		.nr_to_write = 0,
@@ -4772,12 +4788,12 @@ static int cifs_launder_page(struct page *page)
 		.range_end = range_end,
 	};
 
-	cifs_dbg(FYI, "Launder page: %p\n", page);
+	cifs_dbg(FYI, "Launder page: %lu\n", folio->index);
 
-	if (clear_page_dirty_for_io(page))
-		rc = cifs_writepage_locked(page, &wbc);
+	if (folio_clear_dirty_for_io(folio))
+		rc = cifs_writepage_locked(&folio->page, &wbc);
 
-	wait_on_page_fscache(page);
+	folio_wait_fscache(folio);
 	return rc;
 }
 
@@ -4939,12 +4955,13 @@ static void cifs_swap_deactivate(struct file *file)
  * need to pin the cache object to write back to.
  */
 #ifdef CONFIG_CIFS_FSCACHE
-static int cifs_set_page_dirty(struct page *page)
+static bool cifs_dirty_folio(struct address_space *mapping, struct folio *folio)
 {
-	return fscache_set_page_dirty(page, cifs_inode_cookie(page->mapping->host));
+	return fscache_dirty_folio(mapping, folio,
+					cifs_inode_cookie(mapping->host));
 }
 #else
-#define cifs_set_page_dirty __set_page_dirty_nobuffers
+#define cifs_dirty_folio filemap_dirty_folio
 #endif
 
 const struct address_space_operations cifs_addr_ops = {
@@ -4954,11 +4971,11 @@ const struct address_space_operations cifs_addr_ops = {
 	.writepages = cifs_writepages,
 	.write_begin = cifs_write_begin,
 	.write_end = cifs_write_end,
-	.set_page_dirty = cifs_set_page_dirty,
+	.dirty_folio = cifs_dirty_folio,
 	.releasepage = cifs_release_page,
 	.direct_IO = cifs_direct_io,
-	.invalidatepage = cifs_invalidate_page,
-	.launder_page = cifs_launder_page,
+	.invalidate_folio = cifs_invalidate_folio,
+	.launder_folio = cifs_launder_folio,
 	/*
 	 * TODO: investigate and if useful we could add an cifs_migratePage
 	 * helper (under an CONFIG_MIGRATION) in the future, and also
@@ -4979,8 +4996,8 @@ const struct address_space_operations cifs_addr_ops_smallbuf = {
 	.writepages = cifs_writepages,
 	.write_begin = cifs_write_begin,
 	.write_end = cifs_write_end,
-	.set_page_dirty = cifs_set_page_dirty,
+	.dirty_folio = cifs_dirty_folio,
 	.releasepage = cifs_release_page,
-	.invalidatepage = cifs_invalidate_page,
-	.launder_page = cifs_launder_page,
+	.invalidate_folio = cifs_invalidate_folio,
+	.launder_folio = cifs_launder_folio,
 };

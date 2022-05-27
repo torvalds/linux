@@ -258,6 +258,7 @@ struct exynos_dsi {
 	struct list_head bridge_chain;
 	struct drm_bridge *out_bridge;
 	struct device *dev;
+	struct drm_display_mode mode;
 
 	void __iomem *reg_base;
 	struct phy *phy;
@@ -881,7 +882,7 @@ static int exynos_dsi_init_link(struct exynos_dsi *dsi)
 
 static void exynos_dsi_set_display_mode(struct exynos_dsi *dsi)
 {
-	struct drm_display_mode *m = &dsi->encoder.crtc->state->adjusted_mode;
+	struct drm_display_mode *m = &dsi->mode;
 	unsigned int num_bits_resol = dsi->driver_data->num_bits_resol;
 	u32 reg;
 
@@ -1448,6 +1449,15 @@ static void exynos_dsi_disable(struct drm_encoder *encoder)
 	pm_runtime_put_sync(dsi->dev);
 }
 
+static void exynos_dsi_mode_set(struct drm_encoder *encoder,
+				struct drm_display_mode *mode,
+				struct drm_display_mode *adjusted_mode)
+{
+	struct exynos_dsi *dsi = encoder_to_dsi(encoder);
+
+	drm_mode_copy(&dsi->mode, adjusted_mode);
+}
+
 static enum drm_connector_status
 exynos_dsi_detect(struct drm_connector *connector, bool force)
 {
@@ -1515,6 +1525,7 @@ static int exynos_dsi_create_connector(struct drm_encoder *encoder)
 static const struct drm_encoder_helper_funcs exynos_dsi_encoder_helper_funcs = {
 	.enable = exynos_dsi_enable,
 	.disable = exynos_dsi_disable,
+	.mode_set = exynos_dsi_mode_set,
 };
 
 MODULE_DEVICE_TABLE(of, exynos_dsi_of_match);

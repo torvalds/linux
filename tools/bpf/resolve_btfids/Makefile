@@ -24,6 +24,8 @@ LD       = $(HOSTLD)
 ARCH     = $(HOSTARCH)
 RM      ?= rm
 CROSS_COMPILE =
+CFLAGS  := $(KBUILD_HOSTCFLAGS)
+LDFLAGS := $(KBUILD_HOSTLDFLAGS)
 
 OUTPUT ?= $(srctree)/tools/bpf/resolve_btfids/
 
@@ -51,10 +53,10 @@ $(SUBCMDOBJ): fixdep FORCE | $(OUTPUT)/libsubcmd
 
 $(BPFOBJ): $(wildcard $(LIBBPF_SRC)/*.[ch] $(LIBBPF_SRC)/Makefile) | $(LIBBPF_OUT)
 	$(Q)$(MAKE) $(submake_extras) -C $(LIBBPF_SRC) OUTPUT=$(LIBBPF_OUT)    \
-		    DESTDIR=$(LIBBPF_DESTDIR) prefix=			       \
+		    DESTDIR=$(LIBBPF_DESTDIR) prefix= EXTRA_CFLAGS="$(CFLAGS)" \
 		    $(abspath $@) install_headers
 
-CFLAGS := -g \
+CFLAGS += -g \
           -I$(srctree)/tools/include \
           -I$(srctree)/tools/include/uapi \
           -I$(LIBBPF_INCLUDE) \

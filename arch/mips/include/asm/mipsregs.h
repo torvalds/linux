@@ -17,7 +17,6 @@
 #include <linux/types.h>
 #include <asm/hazards.h>
 #include <asm/isa-rev.h>
-#include <asm/war.h>
 
 /*
  * The following macros are especially useful for __asm__

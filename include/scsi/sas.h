@@ -95,6 +95,8 @@ enum sas_protocol {
 	SAS_PROTOCOL_SSP		= 0x08,
 	SAS_PROTOCOL_ALL		= 0x0E,
 	SAS_PROTOCOL_STP_ALL		= SAS_PROTOCOL_STP|SAS_PROTOCOL_SATA,
+	/* these are internal to libsas */
+	SAS_PROTOCOL_INTERNAL_ABORT	= 0x10,
 };
 
 /* From the spec; local phys only */
@@ -189,6 +191,13 @@ enum sas_gpio_reg_type {
 	SAS_GPIO_REG_RX_GP = 2,
 	SAS_GPIO_REG_TX    = 3,
 	SAS_GPIO_REG_TX_GP = 4,
+};
+
+/* Response frame DATAPRES field */
+enum {
+	SAS_DATAPRES_NO_DATA		= 0,
+	SAS_DATAPRES_RESPONSE_DATA	= 1,
+	SAS_DATAPRES_SENSE_DATA		= 2,
 };
 
 struct  dev_to_host_fis {

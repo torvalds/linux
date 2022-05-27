@@ -358,11 +358,10 @@ TRACE_EVENT(amdgpu_vm_update_ptes,
 			}
 	),
 	TP_printk("pid:%u vm_ctx:0x%llx start:0x%010llx end:0x%010llx,"
-		  " flags:0x%llx, incr:%llu, dst:\n%s%s", __entry->pid,
+		  " flags:0x%llx, incr:%llu, dst:\n%s", __entry->pid,
 		  __entry->vm_ctx, __entry->start, __entry->end,
 		  __entry->flags, __entry->incr,  __print_array(
-		  __get_dynamic_array(dst), min(__entry->nptes, 32u), 8),
-		  __entry->nptes > 32 ? "..." : "")
+		  __get_dynamic_array(dst), __entry->nptes, 8))
 );
 
 TRACE_EVENT(amdgpu_vm_set_ptes,
@@ -535,6 +534,22 @@ TRACE_EVENT(amdgpu_ib_pipe_sync,
 		      __get_str(ring), __entry->id,
 		      __entry->fence, __entry->ctx,
 		      __entry->seqno)
+);
+
+TRACE_EVENT(amdgpu_reset_reg_dumps,
+	    TP_PROTO(uint32_t address, uint32_t value),
+	    TP_ARGS(address, value),
+	    TP_STRUCT__entry(
+			     __field(uint32_t, address)
+			     __field(uint32_t, value)
+			     ),
+	    TP_fast_assign(
+			   __entry->address = address;
+			   __entry->value = value;
+			   ),
+	    TP_printk("amdgpu register dump 0x%x: 0x%x",
+		      __entry->address,
+		      __entry->value)
 );
 
 #undef AMDGPU_JOB_GET_TIMELINE_NAME

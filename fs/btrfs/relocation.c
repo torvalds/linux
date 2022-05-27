@@ -2599,9 +2599,9 @@ static int get_tree_block_key(struct btrfs_fs_info *fs_info,
 
 	eb = read_tree_block(fs_info, block->bytenr, block->owner,
 			     block->key.offset, block->level, NULL);
-	if (IS_ERR(eb)) {
+	if (IS_ERR(eb))
 		return PTR_ERR(eb);
-	} else if (!extent_buffer_uptodate(eb)) {
+	if (!extent_buffer_uptodate(eb)) {
 		free_extent_buffer(eb);
 		return -EIO;
 	}
@@ -2997,7 +2997,7 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 
 		/* Reserve metadata for this range */
 		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode),
-						      clamped_len);
+						      clamped_len, clamped_len);
 		if (ret)
 			goto release_page;
 
@@ -4123,9 +4123,8 @@ static noinline_for_stack int mark_garbage_root(struct btrfs_root *root)
  * this function resumes merging reloc trees with corresponding fs trees.
  * this is important for keeping the sharing of tree blocks
  */
-int btrfs_recover_relocation(struct btrfs_root *root)
+int btrfs_recover_relocation(struct btrfs_fs_info *fs_info)
 {
-	struct btrfs_fs_info *fs_info = root->fs_info;
 	LIST_HEAD(reloc_roots);
 	struct btrfs_key key;
 	struct btrfs_root *fs_root;
@@ -4166,7 +4165,7 @@ int btrfs_recover_relocation(struct btrfs_root *root)
 		    key.type != BTRFS_ROOT_ITEM_KEY)
 			break;
 
-		reloc_root = btrfs_read_tree_root(root, &key);
+		reloc_root = btrfs_read_tree_root(fs_info->tree_root, &key);
 		if (IS_ERR(reloc_root)) {
 			err = PTR_ERR(reloc_root);
 			goto out;

@@ -1,881 +1,881 @@
 [
     {
-        "EventCode": "0x14",
+        "BriefDescription": "Cycles the divider is busy",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x14",
         "EventName": "ARITH.CYCLES_DIV_BUSY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles the divider is busy"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x14",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "ARITH.DIV",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Divide Operations executed",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
-        "EdgeDetect": "1"
+        "EdgeDetect": "1",
+        "EventCode": "0x14",
+        "EventName": "ARITH.DIV",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x14",
+        "BriefDescription": "Multiply operations executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0x14",
         "EventName": "ARITH.MUL",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Multiply operations executed"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xE6",
+        "BriefDescription": "BACLEAR asserted with bad target address",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xE6",
         "EventName": "BACLEAR.BAD_TARGET",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "BACLEAR asserted with bad target address"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xE6",
+        "BriefDescription": "BACLEAR asserted, regardless of cause",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xE6",
         "EventName": "BACLEAR.CLEAR",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "BACLEAR asserted, regardless of cause "
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xA7",
+        "BriefDescription": "Instruction queue forced BACLEAR",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xA7",
         "EventName": "BACLEAR_FORCE_IQ",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Instruction queue forced BACLEAR"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xE0",
+        "BriefDescription": "Branch instructions decoded",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xE0",
         "EventName": "BR_INST_DECODED",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Branch instructions decoded"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Branch instructions executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x7f",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.ANY",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Branch instructions executed"
+        "UMask": "0x7f"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Conditional branch instructions executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.COND",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Conditional branch instructions executed"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Unconditional branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.DIRECT",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Unconditional branches executed"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Unconditional call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.DIRECT_NEAR_CALL",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Unconditional call branches executed"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Indirect call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.INDIRECT_NEAR_CALL",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Indirect call branches executed"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Indirect non call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.INDIRECT_NON_CALL",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Indirect non call branches executed"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x30",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.NEAR_CALLS",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Call branches executed"
+        "UMask": "0x30"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "All non call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x7",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.NON_CALLS",
         "SampleAfterValue": "200000",
-        "BriefDescription": "All non call branches executed"
+        "UMask": "0x7"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Indirect return branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.RETURN_NEAR",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Indirect return branches executed"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0x88",
+        "BriefDescription": "Taken branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x40",
+        "EventCode": "0x88",
         "EventName": "BR_INST_EXEC.TAKEN",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Taken branches executed"
+        "UMask": "0x40"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC4",
+        "BriefDescription": "Retired branch instructions (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.ALL_BRANCHES",
+        "PEBS": "1",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Retired branch instructions (Precise Event)"
+        "UMask": "0x4"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC4",
+        "BriefDescription": "Retired conditional branch instructions (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xC4",
         "EventName": "BR_INST_RETIRED.CONDITIONAL",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "Retired conditional branch instructions (Precise Event)"
-    },
-    {
         "PEBS": "1",
-        "EventCode": "0xC4",
-        "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "BR_INST_RETIRED.NEAR_CALL",
-        "SampleAfterValue": "20000",
-        "BriefDescription": "Retired near call instructions (Precise Event)"
+        "SampleAfterValue": "200000",
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Retired near call instructions (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x7f",
+        "EventCode": "0xC4",
+        "EventName": "BR_INST_RETIRED.NEAR_CALL",
+        "PEBS": "1",
+        "SampleAfterValue": "20000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Mispredicted branches executed",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.ANY",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Mispredicted branches executed"
+        "UMask": "0x7f"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted conditional branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.COND",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Mispredicted conditional branches executed"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted unconditional branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.DIRECT",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Mispredicted unconditional branches executed"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted non call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.DIRECT_NEAR_CALL",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted non call branches executed"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted indirect call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.INDIRECT_NEAR_CALL",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted indirect call branches executed"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted indirect non call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.INDIRECT_NON_CALL",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted indirect non call branches executed"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x30",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.NEAR_CALLS",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted call branches executed"
+        "UMask": "0x30"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted non call branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x7",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.NON_CALLS",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Mispredicted non call branches executed"
+        "UMask": "0x7"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted return branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.RETURN_NEAR",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted return branches executed"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0x89",
+        "BriefDescription": "Mispredicted taken branches executed",
         "Counter": "0,1,2,3",
-        "UMask": "0x40",
+        "EventCode": "0x89",
         "EventName": "BR_MISP_EXEC.TAKEN",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Mispredicted taken branches executed"
+        "UMask": "0x40"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC5",
+        "BriefDescription": "Mispredicted near retired calls (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xC5",
         "EventName": "BR_MISP_RETIRED.NEAR_CALL",
+        "PEBS": "1",
         "SampleAfterValue": "2000",
-        "BriefDescription": "Mispredicted near retired calls (Precise Event)"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x0",
+        "BriefDescription": "Reference cycles when thread is not halted (fixed counter)",
         "Counter": "Fixed counter 3",
-        "UMask": "0x0",
+        "EventCode": "0x0",
         "EventName": "CPU_CLK_UNHALTED.REF",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Reference cycles when thread is not halted (fixed counter)"
+        "UMask": "0x0"
     },
     {
-        "EventCode": "0x3C",
+        "BriefDescription": "Reference base clock (133 Mhz) cycles when thread is not halted (programmable counter)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.REF_P",
         "SampleAfterValue": "100000",
-        "BriefDescription": "Reference base clock (133 Mhz) cycles when thread is not halted (programmable counter)"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x0",
+        "BriefDescription": "Cycles when thread is not halted (fixed counter)",
         "Counter": "Fixed counter 2",
-        "UMask": "0x0",
+        "EventCode": "0x0",
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles when thread is not halted (fixed counter)"
+        "UMask": "0x0"
     },
     {
-        "EventCode": "0x3C",
+        "BriefDescription": "Cycles when thread is not halted (programmable counter)",
         "Counter": "0,1,2,3",
-        "UMask": "0x0",
+        "EventCode": "0x3C",
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles when thread is not halted (programmable counter)"
+        "UMask": "0x0"
     },
     {
-        "EventCode": "0x3C",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x0",
-        "EventName": "CPU_CLK_UNHALTED.TOTAL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Total CPU cycles",
-        "CounterMask": "2"
+        "Counter": "0,1,2,3",
+        "CounterMask": "2",
+        "EventCode": "0x3C",
+        "EventName": "CPU_CLK_UNHALTED.TOTAL_CYCLES",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x0"
     },
     {
-        "EventCode": "0x87",
+        "BriefDescription": "Any Instruction Length Decoder stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0xf",
+        "EventCode": "0x87",
         "EventName": "ILD_STALL.ANY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Any Instruction Length Decoder stall cycles"
+        "UMask": "0xf"
     },
     {
-        "EventCode": "0x87",
+        "BriefDescription": "Instruction Queue full stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0x87",
         "EventName": "ILD_STALL.IQ_FULL",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Instruction Queue full stall cycles"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0x87",
+        "BriefDescription": "Length Change Prefix stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x87",
         "EventName": "ILD_STALL.LCP",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Length Change Prefix stall cycles"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x87",
+        "BriefDescription": "Stall cycles due to BPU MRU bypass",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0x87",
         "EventName": "ILD_STALL.MRU",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Stall cycles due to BPU MRU bypass"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0x87",
+        "BriefDescription": "Regen stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0x87",
         "EventName": "ILD_STALL.REGEN",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Regen stall cycles"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0x18",
+        "BriefDescription": "Instructions that must be decoded by decoder 0",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x18",
         "EventName": "INST_DECODED.DEC0",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Instructions that must be decoded by decoder 0"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x1E",
+        "BriefDescription": "Instructions written to instruction queue.",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "INST_QUEUE_WRITE_CYCLES",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles instructions are written to the instruction queue"
-    },
-    {
         "EventCode": "0x17",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "EventName": "INST_QUEUE_WRITES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Instructions written to instruction queue."
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x0",
+        "BriefDescription": "Cycles instructions are written to the instruction queue",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "INST_QUEUE_WRITE_CYCLES",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Instructions retired (fixed counter)",
         "Counter": "Fixed counter 1",
-        "UMask": "0x0",
+        "EventCode": "0x0",
         "EventName": "INST_RETIRED.ANY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Instructions retired (fixed counter)"
+        "UMask": "0x0"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC0",
+        "BriefDescription": "Instructions retired (Programmable counter and Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xC0",
         "EventName": "INST_RETIRED.ANY_P",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Instructions retired (Programmable counter and Precise Event)"
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC0",
+        "BriefDescription": "Retired MMX instructions (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xC0",
         "EventName": "INST_RETIRED.MMX",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired MMX instructions (Precise Event)"
+        "UMask": "0x4"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC0",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "INST_RETIRED.TOTAL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Total cycles (Precise Event)",
-        "CounterMask": "16"
-    },
-    {
-        "PEBS": "1",
-        "EventCode": "0xC0",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
-        "EventName": "INST_RETIRED.X87",
+        "CounterMask": "16",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.TOTAL_CYCLES",
+        "Invert": "1",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Retired floating-point operations (Precise Event)"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x4C",
+        "BriefDescription": "Total cycles (Precise Event)",
+        "Counter": "0,1,2,3",
+        "CounterMask": "16",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.TOTAL_CYCLES_PS",
+        "Invert": "1",
+        "PEBS": "2",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Retired floating-point operations (Precise Event)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xC0",
+        "EventName": "INST_RETIRED.X87",
+        "PEBS": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x2"
+    },
+    {
+        "BriefDescription": "Load operations conflicting with software prefetches",
         "Counter": "0,1",
-        "UMask": "0x1",
+        "EventCode": "0x4C",
         "EventName": "LOAD_HIT_PRE",
         "SampleAfterValue": "200000",
-        "BriefDescription": "Load operations conflicting with software prefetches"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xA8",
+        "BriefDescription": "Cycles when uops were delivered by the LSD",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "CounterMask": "1",
+        "EventCode": "0xA8",
         "EventName": "LSD.ACTIVE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles when uops were delivered by the LSD",
-        "CounterMask": "1"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xA8",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "LSD.INACTIVE",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles no uops were delivered by the LSD",
-        "CounterMask": "1"
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xA8",
+        "EventName": "LSD.INACTIVE",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0x20",
+        "BriefDescription": "Loops that can't stream from the instruction queue",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0x20",
         "EventName": "LSD_OVERFLOW",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Loops that can't stream from the instruction queue"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xC3",
+        "BriefDescription": "Cycles machine clear asserted",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.CYCLES",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Cycles machine clear asserted"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xC3",
+        "BriefDescription": "Execution pipeline restart due to Memory ordering conflicts",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.MEM_ORDER",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Execution pipeline restart due to Memory ordering conflicts"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xC3",
+        "BriefDescription": "Self-Modifying Code detected",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xC3",
         "EventName": "MACHINE_CLEARS.SMC",
         "SampleAfterValue": "20000",
-        "BriefDescription": "Self-Modifying Code detected"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "Resource related stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.ANY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Resource related stall cycles"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "FPU control word write stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.FPCW",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "FPU control word write stall cycles"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "Load buffer stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.LOAD",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Load buffer stall cycles"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "MXCSR rename stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x40",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.MXCSR",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "MXCSR rename stall cycles"
+        "UMask": "0x40"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "Other Resource related stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x80",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.OTHER",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Other Resource related stall cycles"
+        "UMask": "0x80"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "ROB full stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x10",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.ROB_FULL",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "ROB full stall cycles"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "Reservation Station full stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.RS_FULL",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Reservation Station full stall cycles"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0xA2",
+        "BriefDescription": "Store buffer stall cycles",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0xA2",
         "EventName": "RESOURCE_STALLS.STORE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Store buffer stall cycles"
+        "UMask": "0x8"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC7",
+        "BriefDescription": "SIMD Packed-Double Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xC7",
         "EventName": "SSEX_UOPS_RETIRED.PACKED_DOUBLE",
+        "PEBS": "1",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD Packed-Double Uops retired (Precise Event)"
+        "UMask": "0x4"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC7",
+        "BriefDescription": "SIMD Packed-Single Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xC7",
         "EventName": "SSEX_UOPS_RETIRED.PACKED_SINGLE",
+        "PEBS": "1",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD Packed-Single Uops retired (Precise Event)"
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC7",
+        "BriefDescription": "SIMD Scalar-Double Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0xC7",
         "EventName": "SSEX_UOPS_RETIRED.SCALAR_DOUBLE",
+        "PEBS": "1",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD Scalar-Double Uops retired (Precise Event)"
+        "UMask": "0x8"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC7",
+        "BriefDescription": "SIMD Scalar-Single Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xC7",
         "EventName": "SSEX_UOPS_RETIRED.SCALAR_SINGLE",
-        "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD Scalar-Single Uops retired (Precise Event)"
-    },
-    {
         "PEBS": "1",
-        "EventCode": "0xC7",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
-        "EventName": "SSEX_UOPS_RETIRED.VECTOR_INTEGER",
         "SampleAfterValue": "200000",
-        "BriefDescription": "SIMD Vector Integer Uops retired (Precise Event)"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xDB",
+        "BriefDescription": "SIMD Vector Integer Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOP_UNFUSION",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Uop unfusions due to FP exceptions"
+        "EventCode": "0xC7",
+        "EventName": "SSEX_UOPS_RETIRED.VECTOR_INTEGER",
+        "PEBS": "1",
+        "SampleAfterValue": "200000",
+        "UMask": "0x10"
     },
     {
+        "BriefDescription": "Stack pointer instructions decoded",
+        "Counter": "0,1,2,3",
         "EventCode": "0xD1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
         "EventName": "UOPS_DECODED.ESP_FOLDING",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Stack pointer instructions decoded"
+        "UMask": "0x4"
     },
     {
-        "EventCode": "0xD1",
+        "BriefDescription": "Stack pointer sync operations",
         "Counter": "0,1,2,3",
-        "UMask": "0x8",
+        "EventCode": "0xD1",
         "EventName": "UOPS_DECODED.ESP_SYNC",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Stack pointer sync operations"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0xD1",
+        "BriefDescription": "Uops decoded by Microcode Sequencer",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "CounterMask": "1",
+        "EventCode": "0xD1",
         "EventName": "UOPS_DECODED.MS_CYCLES_ACTIVE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops decoded by Microcode Sequencer",
-        "CounterMask": "1"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xD1",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOPS_DECODED.STALL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles no Uops are decoded",
-        "CounterMask": "1"
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xD1",
+        "EventName": "UOPS_DECODED.STALL_CYCLES",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xB1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x3f",
         "AnyThread": "1",
+        "BriefDescription": "Cycles Uops executed on any port (core count)",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_ACTIVE_CYCLES",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles Uops executed on any port (core count)",
-        "CounterMask": "1"
+        "UMask": "0x3f"
     },
     {
-        "EventCode": "0xB1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1f",
         "AnyThread": "1",
+        "BriefDescription": "Cycles Uops executed on ports 0-4 (core count)",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.CORE_ACTIVE_CYCLES_NO_PORT5",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles Uops executed on ports 0-4 (core count)",
-        "CounterMask": "1"
+        "UMask": "0x1f"
     },
     {
-        "EventCode": "0xB1",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x3f",
         "AnyThread": "1",
-        "EventName": "UOPS_EXECUTED.CORE_STALL_COUNT",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Uops executed on any port (core count)",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
-        "EdgeDetect": "1"
+        "EdgeDetect": "1",
+        "EventCode": "0xB1",
+        "EventName": "UOPS_EXECUTED.CORE_STALL_COUNT",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x3f"
     },
     {
-        "EventCode": "0xB1",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1f",
         "AnyThread": "1",
-        "EventName": "UOPS_EXECUTED.CORE_STALL_COUNT_NO_PORT5",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Uops executed on ports 0-4 (core count)",
+        "Counter": "0,1,2,3",
         "CounterMask": "1",
-        "EdgeDetect": "1"
+        "EdgeDetect": "1",
+        "EventCode": "0xB1",
+        "EventName": "UOPS_EXECUTED.CORE_STALL_COUNT_NO_PORT5",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1f"
     },
     {
-        "EventCode": "0xB1",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x3f",
         "AnyThread": "1",
-        "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles no Uops issued on any port (core count)",
-        "CounterMask": "1"
-    },
-    {
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
         "EventCode": "0xB1",
+        "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES",
         "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1f",
-        "AnyThread": "1",
-        "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES_NO_PORT5",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles no Uops issued on ports 0-4 (core count)",
-        "CounterMask": "1"
+        "UMask": "0x3f"
     },
     {
-        "EventCode": "0xB1",
+        "AnyThread": "1",
+        "BriefDescription": "Cycles no Uops issued on ports 0-4 (core count)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "CounterMask": "1",
+        "EventCode": "0xB1",
+        "EventName": "UOPS_EXECUTED.CORE_STALL_CYCLES_NO_PORT5",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1f"
+    },
+    {
+        "BriefDescription": "Uops executed on port 0",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT0",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops executed on port 0"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xB1",
+        "BriefDescription": "Uops issued on ports 0, 1 or 5",
         "Counter": "0,1,2,3",
-        "UMask": "0x40",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT015",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops issued on ports 0, 1 or 5"
+        "UMask": "0x40"
     },
     {
-        "EventCode": "0xB1",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x40",
-        "EventName": "UOPS_EXECUTED.PORT015_STALL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles no Uops issued on ports 0, 1 or 5",
-        "CounterMask": "1"
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xB1",
+        "EventName": "UOPS_EXECUTED.PORT015_STALL_CYCLES",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x40"
     },
     {
-        "EventCode": "0xB1",
+        "BriefDescription": "Uops executed on port 1",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops executed on port 1"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xB1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x4",
         "AnyThread": "1",
-        "EventName": "UOPS_EXECUTED.PORT2_CORE",
-        "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops executed on port 2 (core count)"
-    },
-    {
-        "EventCode": "0xB1",
+        "BriefDescription": "Uops issued on ports 2, 3 or 4",
         "Counter": "0,1,2,3",
-        "UMask": "0x80",
-        "AnyThread": "1",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT234_CORE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops issued on ports 2, 3 or 4"
+        "UMask": "0x80"
     },
     {
-        "EventCode": "0xB1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x8",
         "AnyThread": "1",
+        "BriefDescription": "Uops executed on port 2 (core count)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
+        "EventName": "UOPS_EXECUTED.PORT2_CORE",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x4"
+    },
+    {
+        "AnyThread": "1",
+        "BriefDescription": "Uops executed on port 3 (core count)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT3_CORE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops executed on port 3 (core count)"
+        "UMask": "0x8"
     },
     {
-        "EventCode": "0xB1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x10",
         "AnyThread": "1",
+        "BriefDescription": "Uops executed on port 4 (core count)",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT4_CORE",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops executed on port 4 (core count)"
+        "UMask": "0x10"
     },
     {
-        "EventCode": "0xB1",
+        "BriefDescription": "Uops executed on port 5",
         "Counter": "0,1,2,3",
-        "UMask": "0x20",
+        "EventCode": "0xB1",
         "EventName": "UOPS_EXECUTED.PORT5",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops executed on port 5"
+        "UMask": "0x20"
     },
     {
-        "EventCode": "0xE",
+        "BriefDescription": "Uops issued",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xE",
         "EventName": "UOPS_ISSUED.ANY",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops issued"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xE",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "AnyThread": "1",
-        "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles no Uops were issued on any thread",
-        "CounterMask": "1"
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xE",
+        "EventName": "UOPS_ISSUED.CORE_STALL_CYCLES",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xE",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
         "AnyThread": "1",
+        "BriefDescription": "Cycles Uops were issued on either thread",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xE",
         "EventName": "UOPS_ISSUED.CYCLES_ALL_THREADS",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Cycles Uops were issued on either thread",
-        "CounterMask": "1"
+        "UMask": "0x1"
     },
     {
-        "EventCode": "0xE",
+        "BriefDescription": "Fused Uops issued",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xE",
         "EventName": "UOPS_ISSUED.FUSED",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Fused Uops issued"
+        "UMask": "0x2"
     },
     {
-        "EventCode": "0xE",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOPS_ISSUED.STALL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles no Uops were issued",
-        "CounterMask": "1"
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xE",
+        "EventName": "UOPS_ISSUED.STALL_CYCLES",
+        "Invert": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC2",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOPS_RETIRED.ACTIVE_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles Uops are being retired",
-        "CounterMask": "1"
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.ACTIVE_CYCLES",
+        "PEBS": "1",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC2",
+        "BriefDescription": "Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
+        "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.ANY",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Uops retired (Precise Event)"
+        "UMask": "0x1"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC2",
+        "BriefDescription": "Macro-fused Uops retired (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x4",
+        "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.MACRO_FUSED",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Macro-fused Uops retired (Precise Event)"
+        "UMask": "0x4"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC2",
+        "BriefDescription": "Retirement slots used (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x2",
+        "EventCode": "0xC2",
         "EventName": "UOPS_RETIRED.RETIRE_SLOTS",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Retirement slots used (Precise Event)"
+        "UMask": "0x2"
     },
     {
-        "PEBS": "1",
-        "EventCode": "0xC2",
-        "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOPS_RETIRED.STALL_CYCLES",
-        "SampleAfterValue": "2000000",
         "BriefDescription": "Cycles Uops are not retiring (Precise Event)",
-        "CounterMask": "1"
-    },
-    {
-        "PEBS": "1",
+        "Counter": "0,1,2,3",
+        "CounterMask": "1",
         "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.STALL_CYCLES",
         "Invert": "1",
-        "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Total cycles using precise uop retired event (Precise Event)",
-        "CounterMask": "16"
+        "UMask": "0x1"
     },
     {
-        "PEBS": "2",
-        "EventCode": "0xC0",
-        "Invert": "1",
+        "BriefDescription": "Total cycles using precise uop retired event (Precise Event)",
         "Counter": "0,1,2,3",
-        "UMask": "0x1",
-        "EventName": "INST_RETIRED.TOTAL_CYCLES_PS",
+        "CounterMask": "16",
+        "EventCode": "0xC2",
+        "EventName": "UOPS_RETIRED.TOTAL_CYCLES",
+        "Invert": "1",
+        "PEBS": "1",
         "SampleAfterValue": "2000000",
-        "BriefDescription": "Total cycles (Precise Event)",
-        "CounterMask": "16"
+        "UMask": "0x1"
+    },
+    {
+        "BriefDescription": "Uop unfusions due to FP exceptions",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xDB",
+        "EventName": "UOP_UNFUSION",
+        "SampleAfterValue": "2000000",
+        "UMask": "0x1"
     }
 ]

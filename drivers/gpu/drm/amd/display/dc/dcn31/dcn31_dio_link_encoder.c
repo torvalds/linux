@@ -240,17 +240,8 @@ static void enc31_hw_init(struct link_encoder *enc)
 	// 100MHz -> 0x32
 	// 48MHz -> 0x18
 
-#ifdef CLEANUP_FIXME
-	/*from display_init*/
-	REG_WRITE(RDPCSTX_DEBUG_CONFIG, 0);
-#endif
-
 	// Set TMDS_CTL0 to 1.  This is a legacy setting.
 	REG_UPDATE(TMDS_CTL_BITS, TMDS_CTL0, 1);
-
-	/*HW default is 5*/
-	REG_UPDATE(RDPCSTX_CNTL,
-			RDPCS_TX_FIFO_RD_START_DELAY, 4);
 
 	dcn10_aux_initialize(enc10);
 }

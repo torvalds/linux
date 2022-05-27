@@ -24,10 +24,9 @@
 #include <linux/libata.h>
 
 #define DRV_NAME	"pata_hpt3x2n"
-#define DRV_VERSION	"0.3.15"
+#define DRV_VERSION	"0.3.18"
 
 enum {
-	HPT_PCI_FAST	=	(1 << 31),
 	PCI66		=	(1 << 1),
 	USE_DPLL	=	(1 << 0)
 };
@@ -35,11 +34,6 @@ enum {
 struct hpt_clock {
 	u8	xfer_speed;
 	u32	timing;
-};
-
-struct hpt_chip {
-	const char *name;
-	struct hpt_clock *clocks[3];
 };
 
 /* key for bus clock timings
@@ -168,10 +162,23 @@ static int hpt3x2n_pre_reset(struct ata_link *link, unsigned long deadline)
 {
 	struct ata_port *ap = link->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
+	static const struct pci_bits hpt3x2n_enable_bits[] = {
+		{ 0x50, 1, 0x04, 0x04 },
+		{ 0x54, 1, 0x04, 0x04 }
+	};
+	u8 mcr2;
+
+	if (!pci_test_config_bits(pdev, &hpt3x2n_enable_bits[ap->port_no]))
+		return -ENOENT;
 
 	/* Reset the state machine */
 	pci_write_config_byte(pdev, 0x50 + 4 * ap->port_no, 0x37);
 	udelay(100);
+
+	/* Fast interrupt prediction disable, hold off interrupt disable */
+	pci_read_config_byte(pdev, 0x51 + 4 * ap->port_no, &mcr2);
+	mcr2 &= ~0x07;
+	pci_write_config_byte(pdev, 0x51 + 4 * ap->port_no, mcr2);
 
 	return ata_sff_prereset(link, deadline);
 }
@@ -180,17 +187,8 @@ static void hpt3x2n_set_mode(struct ata_port *ap, struct ata_device *adev,
 			     u8 mode)
 {
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	u32 addr1, addr2;
+	int addr = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
 	u32 reg, timing, mask;
-	u8 fast;
-
-	addr1 = 0x40 + 4 * (adev->devno + 2 * ap->port_no);
-	addr2 = 0x51 + 4 * ap->port_no;
-
-	/* Fast interrupt prediction disable, hold off interrupt disable */
-	pci_read_config_byte(pdev, addr2, &fast);
-	fast &= ~0x07;
-	pci_write_config_byte(pdev, addr2, fast);
 
 	/* Determine timing mask and find matching mode entry */
 	if (mode < XFER_MW_DMA_0)
@@ -202,9 +200,9 @@ static void hpt3x2n_set_mode(struct ata_port *ap, struct ata_device *adev,
 
 	timing = hpt3x2n_find_mode(ap, mode);
 
-	pci_read_config_dword(pdev, addr1, &reg);
+	pci_read_config_dword(pdev, addr, &reg);
 	reg = (reg & ~mask) | (timing & mask);
-	pci_write_config_dword(pdev, addr1, reg);
+	pci_write_config_dword(pdev, addr, reg);
 }
 
 /**
@@ -244,7 +242,7 @@ static void hpt3x2n_bmdma_stop(struct ata_queued_cmd *qc)
 {
 	struct ata_port *ap = qc->ap;
 	struct pci_dev *pdev = to_pci_dev(ap->host->dev);
-	int mscreg = 0x50 + 2 * ap->port_no;
+	int mscreg = 0x50 + 4 * ap->port_no;
 	u8 bwsr_stat, msc_stat;
 
 	pci_read_config_byte(pdev, 0x6A, &bwsr_stat);

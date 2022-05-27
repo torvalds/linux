@@ -9,6 +9,7 @@
 #include <drm/drm_file.h>
 
 #include "i915_drv.h"
+#include "i915_file_private.h"
 #include "i915_gem_context.h"
 #include "i915_gem_ioctls.h"
 #include "i915_gem_object.h"

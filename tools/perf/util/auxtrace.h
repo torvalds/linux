@@ -76,6 +76,7 @@ enum itrace_period_type {
  * @pwr_events: whether to synthesize power events
  * @other_events: whether to synthesize other events recorded due to the use of
  *                aux_output
+ * @intr_events: whether to synthesize interrupt events
  * @errors: whether to synthesize decoder error events
  * @dont_decode: whether to skip decoding entirely
  * @log: write a decoding log
@@ -120,6 +121,7 @@ struct itrace_synth_opts {
 	bool			ptwrites;
 	bool			pwr_events;
 	bool			other_events;
+	bool			intr_events;
 	bool			errors;
 	bool			dont_decode;
 	bool			log;
@@ -636,6 +638,8 @@ bool auxtrace__evsel_is_auxtrace(struct perf_session *session,
 "				p:	    		synthesize power events\n"			\
 "				o:			synthesize other events recorded due to the use\n" \
 "							of aux-output (refer to perf record)\n"	\
+"				I:			synthesize interrupt or similar (asynchronous) events\n" \
+"							(e.g. Intel PT Event Trace)\n" \
 "				e[flags]:		synthesize error events\n" \
 "							each flag must be preceded by + or -\n" \
 "							error flags are: o (overflow)\n" \

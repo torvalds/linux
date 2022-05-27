@@ -888,7 +888,7 @@ void clk_hw_unregister_divider(struct clk_hw *hw);
 struct clk_mux {
 	struct clk_hw	hw;
 	void __iomem	*reg;
-	u32		*table;
+	const u32	*table;
 	u32		mask;
 	u8		shift;
 	u8		flags;
@@ -913,18 +913,18 @@ struct clk_hw *__clk_hw_register_mux(struct device *dev, struct device_node *np,
 		const struct clk_hw **parent_hws,
 		const struct clk_parent_data *parent_data,
 		unsigned long flags, void __iomem *reg, u8 shift, u32 mask,
-		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
+		u8 clk_mux_flags, const u32 *table, spinlock_t *lock);
 struct clk_hw *__devm_clk_hw_register_mux(struct device *dev, struct device_node *np,
 		const char *name, u8 num_parents,
 		const char * const *parent_names,
 		const struct clk_hw **parent_hws,
 		const struct clk_parent_data *parent_data,
 		unsigned long flags, void __iomem *reg, u8 shift, u32 mask,
-		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
+		u8 clk_mux_flags, const u32 *table, spinlock_t *lock);
 struct clk *clk_register_mux_table(struct device *dev, const char *name,
 		const char * const *parent_names, u8 num_parents,
 		unsigned long flags, void __iomem *reg, u8 shift, u32 mask,
-		u8 clk_mux_flags, u32 *table, spinlock_t *lock);
+		u8 clk_mux_flags, const u32 *table, spinlock_t *lock);
 
 #define clk_register_mux(dev, name, parent_names, num_parents, flags, reg,    \
 			 shift, width, clk_mux_flags, lock)		      \
@@ -962,9 +962,9 @@ struct clk *clk_register_mux_table(struct device *dev, const char *name,
 			      (shift), BIT((width)) - 1, (clk_mux_flags),     \
 			      NULL, (lock))
 
-int clk_mux_val_to_index(struct clk_hw *hw, u32 *table, unsigned int flags,
+int clk_mux_val_to_index(struct clk_hw *hw, const u32 *table, unsigned int flags,
 			 unsigned int val);
-unsigned int clk_mux_index_to_val(u32 *table, unsigned int flags, u8 index);
+unsigned int clk_mux_index_to_val(const u32 *table, unsigned int flags, u8 index);
 
 void clk_unregister_mux(struct clk *clk);
 void clk_hw_unregister_mux(struct clk_hw *hw);
@@ -1002,6 +1002,9 @@ struct clk_hw *clk_hw_register_fixed_factor(struct device *dev,
 void clk_hw_unregister_fixed_factor(struct clk_hw *hw);
 struct clk_hw *devm_clk_hw_register_fixed_factor(struct device *dev,
 		const char *name, const char *parent_name, unsigned long flags,
+		unsigned int mult, unsigned int div);
+struct clk_hw *devm_clk_hw_register_fixed_factor_index(struct device *dev,
+		const char *name, unsigned int index, unsigned long flags,
 		unsigned int mult, unsigned int div);
 /**
  * struct clk_fractional_divider - adjustable fractional divider clock

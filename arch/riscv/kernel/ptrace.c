@@ -17,7 +17,6 @@
 #include <linux/regset.h>
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
-#include <linux/tracehook.h>
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/syscalls.h>
@@ -241,7 +240,7 @@ long arch_ptrace(struct task_struct *child, long request,
 __visible int do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		if (tracehook_report_syscall_entry(regs))
+		if (ptrace_report_syscall_entry(regs))
 			return -1;
 
 	/*
@@ -266,7 +265,7 @@ __visible void do_syscall_trace_exit(struct pt_regs *regs)
 	audit_syscall_exit(regs);
 
 	if (test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, 0);
+		ptrace_report_syscall_exit(regs, 0);
 
 #ifdef CONFIG_HAVE_SYSCALL_TRACEPOINTS
 	if (test_thread_flag(TIF_SYSCALL_TRACEPOINT))

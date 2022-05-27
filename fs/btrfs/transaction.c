@@ -1911,6 +1911,14 @@ static void update_super_roots(struct btrfs_fs_info *fs_info)
 		super->cache_generation = 0;
 	if (test_bit(BTRFS_FS_UPDATE_UUID_TREE_GEN, &fs_info->flags))
 		super->uuid_tree_generation = root_item->generation;
+
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		root_item = &fs_info->block_group_root->root_item;
+
+		super->block_group_root = root_item->bytenr;
+		super->block_group_root_generation = root_item->generation;
+		super->block_group_root_level = root_item->level;
+	}
 }
 
 int btrfs_transaction_in_commit(struct btrfs_fs_info *info)
@@ -2362,6 +2370,13 @@ int btrfs_commit_transaction(struct btrfs_trans_handle *trans)
 	list_add_tail(&fs_info->chunk_root->dirty_list,
 		      &cur_trans->switch_commits);
 
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		btrfs_set_root_node(&fs_info->block_group_root->root_item,
+				    fs_info->block_group_root->node);
+		list_add_tail(&fs_info->block_group_root->dirty_list,
+			      &cur_trans->switch_commits);
+	}
+
 	switch_commit_roots(trans);
 
 	ASSERT(list_empty(&cur_trans->dirty_bgs));
@@ -2490,10 +2505,10 @@ cleanup_transaction:
  * because btrfs_commit_super will poke cleaner thread and it will process it a
  * few seconds later.
  */
-int btrfs_clean_one_deleted_snapshot(struct btrfs_root *root)
+int btrfs_clean_one_deleted_snapshot(struct btrfs_fs_info *fs_info)
 {
+	struct btrfs_root *root;
 	int ret;
-	struct btrfs_fs_info *fs_info = root->fs_info;
 
 	spin_lock(&fs_info->trans_lock);
 	if (list_empty(&fs_info->dead_roots)) {

@@ -17,6 +17,7 @@
 #include <linux/pid_namespace.h>
 #include <linux/proc_ns.h>
 #include <linux/security.h>
+#include <linux/btf_ids.h>
 
 #include "../../lib/kstrtox.h"
 
@@ -224,13 +225,8 @@ BPF_CALL_2(bpf_get_current_comm, char *, buf, u32, size)
 	if (unlikely(!task))
 		goto err_clear;
 
-	strncpy(buf, task->comm, size);
-
-	/* Verifier guarantees that size > 0. For task->comm exceeding
-	 * size, guarantee that buf is %NUL-terminated. Unconditionally
-	 * done here to save the size test.
-	 */
-	buf[size - 1] = 0;
+	/* Verifier guarantees that size > 0 */
+	strscpy(buf, task->comm, size);
 	return 0;
 err_clear:
 	memset(buf, 0, size);
@@ -672,6 +668,39 @@ const struct bpf_func_proto bpf_copy_from_user_proto = {
 	.arg3_type	= ARG_ANYTHING,
 };
 
+BPF_CALL_5(bpf_copy_from_user_task, void *, dst, u32, size,
+	   const void __user *, user_ptr, struct task_struct *, tsk, u64, flags)
+{
+	int ret;
+
+	/* flags is not used yet */
+	if (unlikely(flags))
+		return -EINVAL;
+
+	if (unlikely(!size))
+		return 0;
+
+	ret = access_process_vm(tsk, (unsigned long)user_ptr, dst, size, 0);
+	if (ret == size)
+		return 0;
+
+	memset(dst, 0, size);
+	/* Return -EFAULT for partial read */
+	return ret < 0 ? ret : -EFAULT;
+}
+
+const struct bpf_func_proto bpf_copy_from_user_task_proto = {
+	.func		= bpf_copy_from_user_task,
+	.gpl_only	= true,
+	.ret_type	= RET_INTEGER,
+	.arg1_type	= ARG_PTR_TO_UNINIT_MEM,
+	.arg2_type	= ARG_CONST_SIZE_OR_ZERO,
+	.arg3_type	= ARG_ANYTHING,
+	.arg4_type	= ARG_PTR_TO_BTF_ID,
+	.arg4_btf_id	= &btf_tracing_ids[BTF_TRACING_TYPE_TASK],
+	.arg5_type	= ARG_ANYTHING
+};
+
 BPF_CALL_2(bpf_per_cpu_ptr, const void *, ptr, u32, cpu)
 {
 	if (cpu >= nr_cpu_ids)
@@ -1059,7 +1088,7 @@ struct bpf_hrtimer {
 struct bpf_timer_kern {
 	struct bpf_hrtimer *timer;
 	/* bpf_spin_lock is used here instead of spinlock_t to make
-	 * sure that it always fits into space resereved by struct bpf_timer
+	 * sure that it always fits into space reserved by struct bpf_timer
 	 * regardless of LOCKDEP and spinlock debug flags.
 	 */
 	struct bpf_spin_lock lock;

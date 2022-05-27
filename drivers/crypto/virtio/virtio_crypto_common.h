@@ -56,6 +56,7 @@ struct virtio_crypto {
 	u32 mac_algo_l;
 	u32 mac_algo_h;
 	u32 aead_algo;
+	u32 akcipher_algo;
 
 	/* Maximum length of cipher key */
 	u32 max_cipher_key_len;
@@ -129,7 +130,9 @@ static inline int virtio_crypto_get_current_node(void)
 	return node;
 }
 
-int virtio_crypto_algs_register(struct virtio_crypto *vcrypto);
-void virtio_crypto_algs_unregister(struct virtio_crypto *vcrypto);
+int virtio_crypto_skcipher_algs_register(struct virtio_crypto *vcrypto);
+void virtio_crypto_skcipher_algs_unregister(struct virtio_crypto *vcrypto);
+int virtio_crypto_akcipher_algs_register(struct virtio_crypto *vcrypto);
+void virtio_crypto_akcipher_algs_unregister(struct virtio_crypto *vcrypto);
 
 #endif /* _VIRTIO_CRYPTO_COMMON_H */

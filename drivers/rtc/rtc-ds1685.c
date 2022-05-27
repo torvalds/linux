@@ -1273,7 +1273,7 @@ ds1685_rtc_probe(struct platform_device *pdev)
 
 	/* See if the platform doesn't support UIE. */
 	if (pdata->uie_unsupported)
-		rtc_dev->uie_unsupported = 1;
+		clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc_dev->features);
 
 	rtc->dev = rtc_dev;
 
@@ -1285,13 +1285,10 @@ ds1685_rtc_probe(struct platform_device *pdev)
 	 * there won't be an automatic way of notifying the kernel about it,
 	 * unless ctrlc is explicitly polled.
 	 */
-	if (!pdata->no_irq) {
-		ret = platform_get_irq(pdev, 0);
-		if (ret <= 0)
-			return ret;
-
-		rtc->irq_num = ret;
-
+	rtc->irq_num = platform_get_irq(pdev, 0);
+	if (rtc->irq_num <= 0) {
+		clear_bit(RTC_FEATURE_ALARM, rtc_dev->features);
+	} else {
 		/* Request an IRQ. */
 		ret = devm_request_threaded_irq(&pdev->dev, rtc->irq_num,
 				       NULL, ds1685_rtc_irq_handler,
@@ -1305,7 +1302,6 @@ ds1685_rtc_probe(struct platform_device *pdev)
 			rtc->irq_num = 0;
 		}
 	}
-	rtc->no_irq = pdata->no_irq;
 
 	/* Setup complete. */
 	ds1685_rtc_switch_to_bank0(rtc);
@@ -1394,7 +1390,7 @@ ds1685_rtc_poweroff(struct platform_device *pdev)
 		 * have been taken care of by the shutdown scripts and this
 		 * is the final function call.
 		 */
-		if (!rtc->no_irq)
+		if (rtc->irq_num)
 			disable_irq_nosync(rtc->irq_num);
 
 		/* Oscillator must be on and the countdown chain enabled. */

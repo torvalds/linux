@@ -61,6 +61,8 @@ config EXTCON_INTEL_INT3496
 config EXTCON_INTEL_CHT_WC
 	tristate "Intel Cherrytrail Whiskey Cove PMIC extcon driver"
 	depends on INTEL_SOC_PMIC_CHTWC
+	depends on USB_SUPPORT
+	select USB_ROLE_SWITCH
 	help
 	  Say Y here to enable extcon support for charger detection / control
 	  on the Intel Cherrytrail Whiskey Cove PMIC.

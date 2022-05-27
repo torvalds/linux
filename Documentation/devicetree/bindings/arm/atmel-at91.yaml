@@ -175,6 +175,15 @@ properties:
           - const: microchip,lan9668
           - const: microchip,lan966
 
+      - description: Kontron KSwitch D10 MMT series
+        items:
+          - enum:
+              - kontron,kswitch-d10-mmt-8g
+              - kontron,kswitch-d10-mmt-6g-2gs
+          - const: kontron,s1921
+          - const: microchip,lan9668
+          - const: microchip,lan966
+
       - items:
           - enum:
               - atmel,sams70j19

@@ -4,6 +4,8 @@
  * Copyright © 2014-2016 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
 #include "i915_drv.h"
 #include "i915_gem_object.h"
 #include "i915_scatterlist.h"
@@ -167,16 +169,6 @@ int i915_gem_object_truncate(struct drm_i915_gem_object *obj)
 		return obj->ops->truncate(obj);
 
 	return 0;
-}
-
-/* Try to discard unwanted pages */
-void i915_gem_object_writeback(struct drm_i915_gem_object *obj)
-{
-	assert_object_held_shared(obj);
-	GEM_BUG_ON(i915_gem_object_has_pages(obj));
-
-	if (obj->ops->writeback)
-		obj->ops->writeback(obj);
 }
 
 static void __i915_gem_object_reset_page_iter(struct drm_i915_gem_object *obj)
@@ -365,6 +357,9 @@ void *i915_gem_object_pin_map(struct drm_i915_gem_object *obj,
 	if (!i915_gem_object_has_struct_page(obj) &&
 	    !i915_gem_object_has_iomem(obj))
 		return ERR_PTR(-ENXIO);
+
+	if (WARN_ON_ONCE(obj->flags & I915_BO_ALLOC_GPU_ONLY))
+		return ERR_PTR(-EINVAL);
 
 	assert_object_held(obj);
 

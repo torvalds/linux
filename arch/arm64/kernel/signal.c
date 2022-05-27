@@ -11,13 +11,12 @@
 #include <linux/errno.h>
 #include <linux/kernel.h>
 #include <linux/signal.h>
-#include <linux/personality.h>
 #include <linux/freezer.h>
 #include <linux/stddef.h>
 #include <linux/uaccess.h>
 #include <linux/sizes.h>
 #include <linux/string.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/ratelimit.h>
 #include <linux/syscalls.h>
 
@@ -577,10 +576,12 @@ static int setup_sigframe_layout(struct rt_sigframe_user_layout *user,
 {
 	int err;
 
-	err = sigframe_alloc(user, &user->fpsimd_offset,
-			     sizeof(struct fpsimd_context));
-	if (err)
-		return err;
+	if (system_supports_fpsimd()) {
+		err = sigframe_alloc(user, &user->fpsimd_offset,
+				     sizeof(struct fpsimd_context));
+		if (err)
+			return err;
+	}
 
 	/* fault information, if valid */
 	if (add_all || current->thread.fault_code) {
@@ -941,7 +942,7 @@ void do_notify_resume(struct pt_regs *regs, unsigned long thread_flags)
 				do_signal(regs);
 
 			if (thread_flags & _TIF_NOTIFY_RESUME)
-				tracehook_notify_resume(regs);
+				resume_user_mode_work(regs);
 
 			if (thread_flags & _TIF_FOREIGN_FPSTATE)
 				fpsimd_restore_current_state();

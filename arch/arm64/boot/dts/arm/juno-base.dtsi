@@ -671,7 +671,7 @@
 		dma-coherent;
 	};
 
-	dma@7ff00000 {
+	dma-controller@7ff00000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x0 0x7ff00000 0 0x1000>;
 		#dma-cells = <1>;

@@ -21,10 +21,12 @@
 #include <linux/sfp.h>
 
 #include "nfpcore/nfp.h"
+#include "nfpcore/nfp_dev.h"
 #include "nfpcore/nfp_nsp.h"
 #include "nfp_app.h"
 #include "nfp_main.h"
 #include "nfp_net_ctrl.h"
+#include "nfp_net_dp.h"
 #include "nfp_net.h"
 #include "nfp_port.h"
 
@@ -217,7 +219,7 @@ nfp_net_get_drvinfo(struct net_device *netdev, struct ethtool_drvinfo *drvinfo)
 	struct nfp_net *nn = netdev_priv(netdev);
 
 	snprintf(vnic_version, sizeof(vnic_version), "%d.%d.%d.%d",
-		 nn->fw_ver.resv, nn->fw_ver.class,
+		 nn->fw_ver.extend, nn->fw_ver.class,
 		 nn->fw_ver.major, nn->fw_ver.minor);
 	strlcpy(drvinfo->bus_info, pci_name(nn->pdev),
 		sizeof(drvinfo->bus_info));
@@ -386,9 +388,10 @@ static void nfp_net_get_ringparam(struct net_device *netdev,
 				  struct netlink_ext_ack *extack)
 {
 	struct nfp_net *nn = netdev_priv(netdev);
+	u32 qc_max = nn->dev_info->max_qc_size;
 
-	ring->rx_max_pending = NFP_NET_MAX_RX_DESCS;
-	ring->tx_max_pending = NFP_NET_MAX_TX_DESCS;
+	ring->rx_max_pending = qc_max;
+	ring->tx_max_pending = qc_max / nn->dp.ops->tx_min_desc_per_pkt;
 	ring->rx_pending = nn->dp.rxd_cnt;
 	ring->tx_pending = nn->dp.txd_cnt;
 }
@@ -412,19 +415,22 @@ static int nfp_net_set_ringparam(struct net_device *netdev,
 				 struct kernel_ethtool_ringparam *kernel_ring,
 				 struct netlink_ext_ack *extack)
 {
+	u32 tx_dpp, qc_min, qc_max, rxd_cnt, txd_cnt;
 	struct nfp_net *nn = netdev_priv(netdev);
-	u32 rxd_cnt, txd_cnt;
 
 	/* We don't have separate queues/rings for small/large frames. */
 	if (ring->rx_mini_pending || ring->rx_jumbo_pending)
 		return -EINVAL;
 
+	qc_min = nn->dev_info->min_qc_size;
+	qc_max = nn->dev_info->max_qc_size;
+	tx_dpp = nn->dp.ops->tx_min_desc_per_pkt;
 	/* Round up to supported values */
 	rxd_cnt = roundup_pow_of_two(ring->rx_pending);
 	txd_cnt = roundup_pow_of_two(ring->tx_pending);
 
-	if (rxd_cnt < NFP_NET_MIN_RX_DESCS || rxd_cnt > NFP_NET_MAX_RX_DESCS ||
-	    txd_cnt < NFP_NET_MIN_TX_DESCS || txd_cnt > NFP_NET_MAX_TX_DESCS)
+	if (rxd_cnt < qc_min || rxd_cnt > qc_max ||
+	    txd_cnt < qc_min / tx_dpp || txd_cnt > qc_max / tx_dpp)
 		return -EINVAL;
 
 	if (nn->dp.rxd_cnt == rxd_cnt && nn->dp.txd_cnt == txd_cnt)

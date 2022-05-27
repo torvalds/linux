@@ -28,7 +28,11 @@
 #include <asm/sgi/ip22.h>
 #include <asm/sgi/wd.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_tcq.h>
 #include "wd33c93.h"
 
 struct ip22_hostdata {
@@ -65,14 +69,15 @@ static irqreturn_t sgiwd93_intr(int irq, void *dev_id)
 static inline
 void fill_hpc_entries(struct ip22_hostdata *hd, struct scsi_cmnd *cmd, int din)
 {
-	unsigned long len = cmd->SCp.this_residual;
-	void *addr = cmd->SCp.ptr;
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
+	unsigned long len = scsi_pointer->this_residual;
+	void *addr = scsi_pointer->ptr;
 	dma_addr_t physaddr;
 	unsigned long count;
 	struct hpc_chunk *hcp;
 
 	physaddr = dma_map_single(hd->dev, addr, len, DMA_DIR(din));
-	cmd->SCp.dma_handle = physaddr;
+	scsi_pointer->dma_handle = physaddr;
 	hcp = hd->cpu;
 
 	while (len) {
@@ -102,6 +107,7 @@ void fill_hpc_entries(struct ip22_hostdata *hd, struct scsi_cmnd *cmd, int din)
 
 static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
 	struct ip22_hostdata *hdata = host_to_hostdata(cmd->device->host);
 	struct hpc3_scsiregs *hregs =
 		(struct hpc3_scsiregs *) cmd->device->host->base;
@@ -116,7 +122,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 	 * obvious).  IMHO a better fix would be, not to do these dma setups
 	 * in the first place.
 	 */
-	if (cmd->SCp.ptr == NULL || cmd->SCp.this_residual == 0)
+	if (scsi_pointer->ptr == NULL || scsi_pointer->this_residual == 0)
 		return 1;
 
 	fill_hpc_entries(hdata, cmd, datainp);
@@ -136,13 +142,14 @@ static int dma_setup(struct scsi_cmnd *cmd, int datainp)
 static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(SCpnt);
 	struct ip22_hostdata *hdata = host_to_hostdata(instance);
 	struct hpc3_scsiregs *hregs;
 
 	if (!SCpnt)
 		return;
 
-	if (SCpnt->SCp.ptr == NULL || SCpnt->SCp.this_residual == 0)
+	if (scsi_pointer->ptr == NULL || scsi_pointer->this_residual == 0)
 		return;
 
 	hregs = (struct hpc3_scsiregs *) SCpnt->device->host->base;
@@ -156,8 +163,8 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 			barrier();
 	}
 	hregs->ctrl = 0;
-	dma_unmap_single(hdata->dev, SCpnt->SCp.dma_handle,
-			 SCpnt->SCp.this_residual,
+	dma_unmap_single(hdata->dev, scsi_pointer->dma_handle,
+			 scsi_pointer->this_residual,
 			 DMA_DIR(hdata->wh.dma_dir));
 
 	pr_debug("\n");
@@ -209,6 +216,7 @@ static struct scsi_host_template sgiwd93_template = {
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= 8,
 	.dma_boundary		= PAGE_SIZE - 1,
+	.cmd_size		= sizeof(struct scsi_pointer),
 };
 
 static int sgiwd93_probe(struct platform_device *pdev)

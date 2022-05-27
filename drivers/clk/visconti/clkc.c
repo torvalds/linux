@@ -147,7 +147,7 @@ int visconti_clk_register_gates(struct visconti_clk_provider *ctx,
 		if (!dev_name)
 			return -ENOMEM;
 
-		if (clks[i].rs_id >= 0) {
+		if (clks[i].rs_id != NO_RESET) {
 			rson_offset = reset[clks[i].rs_id].rson_offset;
 			rsoff_offset = reset[clks[i].rs_id].rsoff_offset;
 			rs_idx = reset[clks[i].rs_id].rs_idx;

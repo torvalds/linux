@@ -6,6 +6,7 @@
 #include <adf_common_drv.h>
 #include <adf_gen4_hw_data.h>
 #include <adf_gen4_pfvf.h>
+#include <adf_gen4_pm.h>
 #include "adf_4xxx_hw_data.h"
 #include "icp_qat_hw.h"
 
@@ -52,7 +53,7 @@ static const char *const dev_cfg_services[] = {
 static int get_service_enabled(struct adf_accel_dev *accel_dev)
 {
 	char services[ADF_CFG_MAX_VAL_LEN_IN_BYTES] = {0};
-	u32 ret;
+	int ret;
 
 	ret = adf_cfg_get_param_value(accel_dev, ADF_GENERAL_SEC,
 				      ADF_SERVICES_ENABLED, services);
@@ -229,7 +230,7 @@ static void adf_enable_error_correction(struct adf_accel_dev *accel_dev)
 	void __iomem *csr = misc_bar->virt_addr;
 
 	/* Enable all in errsou3 except VFLR notification on host */
-	ADF_CSR_WR(csr, ADF_4XXX_ERRMSK3, ADF_4XXX_VFLNOTIFY);
+	ADF_CSR_WR(csr, ADF_GEN4_ERRMSK3, ADF_GEN4_VFLNOTIFY);
 }
 
 static void adf_enable_ints(struct adf_accel_dev *accel_dev)
@@ -256,19 +257,19 @@ static int adf_init_device(struct adf_accel_dev *accel_dev)
 	addr = (&GET_BARS(accel_dev)[ADF_4XXX_PMISC_BAR])->virt_addr;
 
 	/* Temporarily mask PM interrupt */
-	csr = ADF_CSR_RD(addr, ADF_4XXX_ERRMSK2);
-	csr |= ADF_4XXX_PM_SOU;
-	ADF_CSR_WR(addr, ADF_4XXX_ERRMSK2, csr);
+	csr = ADF_CSR_RD(addr, ADF_GEN4_ERRMSK2);
+	csr |= ADF_GEN4_PM_SOU;
+	ADF_CSR_WR(addr, ADF_GEN4_ERRMSK2, csr);
 
 	/* Set DRV_ACTIVE bit to power up the device */
-	ADF_CSR_WR(addr, ADF_4XXX_PM_INTERRUPT, ADF_4XXX_PM_DRV_ACTIVE);
+	ADF_CSR_WR(addr, ADF_GEN4_PM_INTERRUPT, ADF_GEN4_PM_DRV_ACTIVE);
 
 	/* Poll status register to make sure the device is powered up */
 	ret = read_poll_timeout(ADF_CSR_RD, status,
-				status & ADF_4XXX_PM_INIT_STATE,
-				ADF_4XXX_PM_POLL_DELAY_US,
-				ADF_4XXX_PM_POLL_TIMEOUT_US, true, addr,
-				ADF_4XXX_PM_STATUS);
+				status & ADF_GEN4_PM_INIT_STATE,
+				ADF_GEN4_PM_POLL_DELAY_US,
+				ADF_GEN4_PM_POLL_TIMEOUT_US, true, addr,
+				ADF_GEN4_PM_STATUS);
 	if (ret)
 		dev_err(&GET_DEV(accel_dev), "Failed to power up the device\n");
 
@@ -354,6 +355,8 @@ void adf_init_hw_data_4xxx(struct adf_hw_device_data *hw_data)
 	hw_data->set_ssm_wdtimer = adf_gen4_set_ssm_wdtimer;
 	hw_data->disable_iov = adf_disable_sriov;
 	hw_data->ring_pair_reset = adf_gen4_ring_pair_reset;
+	hw_data->enable_pm = adf_gen4_enable_pm;
+	hw_data->handle_pm_interrupt = adf_gen4_handle_pm_interrupt;
 
 	adf_gen4_init_hw_csr_ops(&hw_data->csr_ops);
 	adf_gen4_init_pf_pfvf_ops(&hw_data->pfvf_ops);

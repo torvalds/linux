@@ -52,6 +52,7 @@
 #include <asm/insn.h>
 #include <asm/debugreg.h>
 #include <asm/set_memory.h>
+#include <asm/ibt.h>
 
 #include "common.h"
 
@@ -193,17 +194,10 @@ static unsigned long
 __recover_probed_insn(kprobe_opcode_t *buf, unsigned long addr)
 {
 	struct kprobe *kp;
-	unsigned long faddr;
+	bool faddr;
 
 	kp = get_kprobe((void *)addr);
-	faddr = ftrace_location(addr);
-	/*
-	 * Addresses inside the ftrace location are refused by
-	 * arch_check_ftrace_location(). Something went terribly wrong
-	 * if such an address is checked here.
-	 */
-	if (WARN_ON(faddr && faddr != addr))
-		return 0UL;
+	faddr = ftrace_location(addr) == addr;
 	/*
 	 * Use the current code if it is not modified by Kprobe
 	 * and it cannot be modified by ftrace.
@@ -299,6 +293,22 @@ static int can_probe(unsigned long paddr)
 	}
 
 	return (addr == paddr);
+}
+
+/* If x86 supports IBT (ENDBR) it must be skipped. */
+kprobe_opcode_t *arch_adjust_kprobe_addr(unsigned long addr, unsigned long offset,
+					 bool *on_func_entry)
+{
+	if (is_endbr(*(u32 *)addr)) {
+		*on_func_entry = !offset || offset == 4;
+		if (*on_func_entry)
+			offset = 4;
+
+	} else {
+		*on_func_entry = !offset;
+	}
+
+	return (kprobe_opcode_t *)(addr + offset);
 }
 
 /*
@@ -801,18 +811,6 @@ set_current_kprobe(struct kprobe *p, struct pt_regs *regs,
 		= (regs->flags & X86_EFLAGS_IF);
 }
 
-void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
-{
-	unsigned long *sara = stack_addr(regs);
-
-	ri->ret_addr = (kprobe_opcode_t *) *sara;
-	ri->fp = sara;
-
-	/* Replace the return addr with trampoline addr */
-	*sara = (unsigned long) &__kretprobe_trampoline;
-}
-NOKPROBE_SYMBOL(arch_prepare_kretprobe);
-
 static void kprobe_post_process(struct kprobe *cur, struct pt_regs *regs,
 			       struct kprobe_ctlblk *kcb)
 {
@@ -1012,100 +1010,6 @@ int kprobe_int3_handler(struct pt_regs *regs)
 	return 0;
 }
 NOKPROBE_SYMBOL(kprobe_int3_handler);
-
-/*
- * When a retprobed function returns, this code saves registers and
- * calls trampoline_handler() runs, which calls the kretprobe's handler.
- */
-asm(
-	".text\n"
-	".global __kretprobe_trampoline\n"
-	".type __kretprobe_trampoline, @function\n"
-	"__kretprobe_trampoline:\n"
-#ifdef CONFIG_X86_64
-	/* Push a fake return address to tell the unwinder it's a kretprobe. */
-	"	pushq $__kretprobe_trampoline\n"
-	UNWIND_HINT_FUNC
-	/* Save the 'sp - 8', this will be fixed later. */
-	"	pushq %rsp\n"
-	"	pushfq\n"
-	SAVE_REGS_STRING
-	"	movq %rsp, %rdi\n"
-	"	call trampoline_handler\n"
-	RESTORE_REGS_STRING
-	/* In trampoline_handler(), 'regs->flags' is copied to 'regs->sp'. */
-	"	addq $8, %rsp\n"
-	"	popfq\n"
-#else
-	/* Push a fake return address to tell the unwinder it's a kretprobe. */
-	"	pushl $__kretprobe_trampoline\n"
-	UNWIND_HINT_FUNC
-	/* Save the 'sp - 4', this will be fixed later. */
-	"	pushl %esp\n"
-	"	pushfl\n"
-	SAVE_REGS_STRING
-	"	movl %esp, %eax\n"
-	"	call trampoline_handler\n"
-	RESTORE_REGS_STRING
-	/* In trampoline_handler(), 'regs->flags' is copied to 'regs->sp'. */
-	"	addl $4, %esp\n"
-	"	popfl\n"
-#endif
-	ASM_RET
-	".size __kretprobe_trampoline, .-__kretprobe_trampoline\n"
-);
-NOKPROBE_SYMBOL(__kretprobe_trampoline);
-/*
- * __kretprobe_trampoline() skips updating frame pointer. The frame pointer
- * saved in trampoline_handler() points to the real caller function's
- * frame pointer. Thus the __kretprobe_trampoline() doesn't have a
- * standard stack frame with CONFIG_FRAME_POINTER=y.
- * Let's mark it non-standard function. Anyway, FP unwinder can correctly
- * unwind without the hint.
- */
-STACK_FRAME_NON_STANDARD_FP(__kretprobe_trampoline);
-
-/* This is called from kretprobe_trampoline_handler(). */
-void arch_kretprobe_fixup_return(struct pt_regs *regs,
-				 kprobe_opcode_t *correct_ret_addr)
-{
-	unsigned long *frame_pointer = &regs->sp + 1;
-
-	/* Replace fake return address with real one. */
-	*frame_pointer = (unsigned long)correct_ret_addr;
-}
-
-/*
- * Called from __kretprobe_trampoline
- */
-__used __visible void trampoline_handler(struct pt_regs *regs)
-{
-	unsigned long *frame_pointer;
-
-	/* fixup registers */
-	regs->cs = __KERNEL_CS;
-#ifdef CONFIG_X86_32
-	regs->gs = 0;
-#endif
-	regs->ip = (unsigned long)&__kretprobe_trampoline;
-	regs->orig_ax = ~0UL;
-	regs->sp += sizeof(long);
-	frame_pointer = &regs->sp + 1;
-
-	/*
-	 * The return address at 'frame_pointer' is recovered by the
-	 * arch_kretprobe_fixup_return() which called from the
-	 * kretprobe_trampoline_handler().
-	 */
-	kretprobe_trampoline_handler(regs, frame_pointer);
-
-	/*
-	 * Copy FLAGS to 'pt_regs::sp' so that __kretprobe_trapmoline()
-	 * can do RET right after POPF.
-	 */
-	regs->sp = regs->flags;
-}
-NOKPROBE_SYMBOL(trampoline_handler);
 
 int kprobe_fault_handler(struct pt_regs *regs, int trapnr)
 {

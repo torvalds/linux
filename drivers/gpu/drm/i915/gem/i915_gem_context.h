@@ -174,7 +174,7 @@ i915_gem_context_get_eb_vm(struct i915_gem_context *ctx)
 
 	vm = ctx->vm;
 	if (!vm)
-		vm = &ctx->i915->ggtt.vm;
+		vm = &to_gt(ctx->i915)->ggtt->vm;
 	vm = i915_vm_get(vm);
 
 	return vm;

@@ -151,7 +151,7 @@ static int bench_evlist_open_close__run(char *evstr)
 
 	init_stats(&time_stats);
 
-	printf("  Number of cpus:\t%d\n", perf_cpu_map__nr(evlist->core.cpus));
+	printf("  Number of cpus:\t%d\n", perf_cpu_map__nr(evlist->core.user_requested_cpus));
 	printf("  Number of threads:\t%d\n", evlist->core.threads->nr);
 	printf("  Number of events:\t%d (%d fds)\n",
 		evlist->core.nr_entries, evlist__count_evsel_fds(evlist));

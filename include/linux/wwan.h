@@ -174,11 +174,13 @@ void wwan_unregister_ops(struct device *parent);
 
 #ifdef CONFIG_WWAN_DEBUGFS
 struct dentry *wwan_get_debugfs_dir(struct device *parent);
+void wwan_put_debugfs_dir(struct dentry *dir);
 #else
 static inline struct dentry *wwan_get_debugfs_dir(struct device *parent)
 {
 	return ERR_PTR(-ENODEV);
 }
+static inline void wwan_put_debugfs_dir(struct dentry *dir) {}
 #endif
 
 #endif /* __WWAN_H */

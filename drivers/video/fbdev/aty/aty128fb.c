@@ -68,7 +68,6 @@
 #ifdef CONFIG_PPC_PMAC
 #include <asm/machdep.h>
 #include <asm/pmac_feature.h>
-#include <asm/prom.h>
 #include "../macmodes.h"
 #endif
 
@@ -952,7 +951,7 @@ static void aty128_timings(struct aty128fb_par *par)
 	u32 x_mpll_ref_fb_div;
 	u32 xclk_cntl;
 	u32 Nx, M;
-	unsigned PostDivSet[] = { 0, 1, 2, 4, 8, 3, 6, 12 };
+	static const unsigned int PostDivSet[] = { 0, 1, 2, 4, 8, 3, 6, 12 };
 #endif
 
 	if (!par->constants.ref_clk)
@@ -1321,8 +1320,10 @@ static void aty128_set_pll(struct aty128_pll *pll,
 {
 	u32 div3;
 
-	unsigned char post_conv[] =	/* register values for post dividers */
-        { 2, 0, 1, 4, 2, 2, 6, 2, 3, 2, 2, 2, 7 };
+	/* register values for post dividers */
+	static const unsigned char post_conv[] = {
+		2, 0, 1, 4, 2, 2, 6, 2, 3, 2, 2, 2, 7
+	};
 
 	/* select PPLL_DIV_3 */
 	aty_st_le32(CLOCK_CNTL_INDEX, aty_ld_le32(CLOCK_CNTL_INDEX) | (3 << 8));
@@ -1360,7 +1361,7 @@ static int aty128_var_to_pll(u32 period_in_ps, struct aty128_pll *pll,
 			     const struct aty128fb_par *par)
 {
 	const struct aty128_constants c = par->constants;
-	unsigned char post_dividers[] = {1,2,4,8,3,6,12};
+	static const unsigned char post_dividers[] = { 1, 2, 4, 8, 3, 6, 12 };
 	u32 output_freq;
 	u32 vclk;        /* in .01 MHz */
 	int i = 0;

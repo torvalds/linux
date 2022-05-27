@@ -4,6 +4,7 @@
 #include "rx.h"
 #include "en/xdp.h"
 #include <net/xdp_sock_drv.h>
+#include <linux/filter.h>
 
 /* RX data path */
 
@@ -30,7 +31,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 						    u32 page_idx)
 {
 	struct xdp_buff *xdp = wi->umr.dma_info[page_idx].xsk;
-	u32 cqe_bcnt32 = cqe_bcnt;
+	struct bpf_prog *prog;
 
 	/* Check packet size. Note LRO doesn't use linear SKB */
 	if (unlikely(cqe_bcnt > rq->hw_mtu)) {
@@ -45,7 +46,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	 */
 	WARN_ON_ONCE(head_offset);
 
-	xdp->data_end = xdp->data + cqe_bcnt32;
+	xdp->data_end = xdp->data + cqe_bcnt;
 	xdp_set_data_meta_invalid(xdp);
 	xsk_buff_dma_sync_for_cpu(xdp, rq->xsk_pool);
 	net_prefetch(xdp->data);
@@ -65,7 +66,8 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	 * allocated first from the Reuse Ring, so it has enough space.
 	 */
 
-	if (likely(mlx5e_xdp_handle(rq, NULL, &cqe_bcnt32, xdp))) {
+	prog = rcu_dereference(rq->xdp_prog);
+	if (likely(prog && mlx5e_xdp_handle(rq, NULL, prog, xdp))) {
 		if (likely(__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)))
 			__set_bit(page_idx, wi->xdp_xmit_bitmap); /* non-atomic */
 		return NULL; /* page/packet was consumed by XDP */
@@ -74,7 +76,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_mpwrq_linear(struct mlx5e_rq *rq,
 	/* XDP_PASS: copy the data from the UMEM to a new SKB and reuse the
 	 * frame. On SKB allocation failure, NULL is returned.
 	 */
-	return mlx5e_xsk_construct_skb(rq, xdp->data, cqe_bcnt32);
+	return mlx5e_xsk_construct_skb(rq, xdp->data, xdp->data_end - xdp->data);
 }
 
 struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
@@ -83,6 +85,7 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 					      u32 cqe_bcnt)
 {
 	struct xdp_buff *xdp = wi->di->xsk;
+	struct bpf_prog *prog;
 
 	/* wi->offset is not used in this function, because xdp->data and the
 	 * DMA address point directly to the necessary place. Furthermore, the
@@ -101,12 +104,13 @@ struct sk_buff *mlx5e_xsk_skb_from_cqe_linear(struct mlx5e_rq *rq,
 		return NULL;
 	}
 
-	if (likely(mlx5e_xdp_handle(rq, NULL, &cqe_bcnt, xdp)))
+	prog = rcu_dereference(rq->xdp_prog);
+	if (likely(prog && mlx5e_xdp_handle(rq, NULL, prog, xdp)))
 		return NULL; /* page/packet was consumed by XDP */
 
 	/* XDP_PASS: copy the data from the UMEM to a new SKB. The frame reuse
 	 * will be handled by mlx5e_put_rx_frag.
 	 * On SKB allocation failure, NULL is returned.
 	 */
-	return mlx5e_xsk_construct_skb(rq, xdp->data, cqe_bcnt);
+	return mlx5e_xsk_construct_skb(rq, xdp->data, xdp->data_end - xdp->data);
 }

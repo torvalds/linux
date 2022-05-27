@@ -1,5 +1,6 @@
+// SPDX-License-Identifier: GPL-2.0 OR MIT
 /*
- * Copyright 2016-2018 Advanced Micro Devices, Inc.
+ * Copyright 2016-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -109,8 +110,7 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 
 	switch (source_id) {
 	case SOC15_INTSRC_SQ_INTERRUPT_MSG:
-		if (dev->dqm->ops.reset_queues)
-			ret = dev->dqm->ops.reset_queues(dev->dqm, pasid);
+		ret = kfd_dqm_evict_pasid(dev->dqm, pasid);
 		break;
 	case SOC15_INTSRC_SDMA_ECC:
 	default:
@@ -120,7 +120,8 @@ static void event_interrupt_poison_consumption(struct kfd_dev *dev,
 	kfd_signal_poison_consumed_event(dev, pasid);
 
 	/* resetting queue passes, do page retirement without gpu reset
-	   resetting queue fails, fallback to gpu reset solution */
+	 * resetting queue fails, fallback to gpu reset solution
+	 */
 	if (!ret)
 		amdgpu_amdkfd_ras_poison_consumption_handler(dev->adev, false);
 	else
@@ -308,7 +309,7 @@ static void event_interrupt_wq_v9(struct kfd_dev *dev,
 		info.prot_write = ring_id & 0x20;
 
 		kfd_smi_event_update_vmfault(dev, pasid);
-		kfd_process_vm_fault(dev->dqm, pasid);
+		kfd_dqm_evict_pasid(dev->dqm, pasid);
 		kfd_signal_vm_fault_event(dev, pasid, &info);
 	}
 }

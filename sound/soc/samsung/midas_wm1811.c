@@ -6,6 +6,7 @@
 // Copyright (C) 2020 Samsung Electronics Co., Ltd.
 
 #include <linux/clk.h>
+#include <linux/gpio/consumer.h>
 #include <linux/mfd/wm8994/registers.h>
 #include <linux/module.h>
 #include <linux/of.h>

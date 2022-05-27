@@ -47,6 +47,7 @@ properties:
           - const: fsl,imx7d-usdhc
       - items:
           - enum:
+              - fsl,imx93-usdhc
               - fsl,imx8ulp-usdhc
           - const: fsl,imx8mm-usdhc
 

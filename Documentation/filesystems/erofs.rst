@@ -40,7 +40,7 @@ Here is the main features of EROFS:
    Inode metadata size    32 bytes      64 bytes
    Max file size          4 GB          16 EB (also limited by max. vol size)
    Max uids/gids          65536         4294967296
-   File change time       no            yes (64 + 32-bit timestamp)
+   Per-inode timestamp    no            yes (64 + 32-bit timestamp)
    Max hardlinks          65536         4294967296
    Metadata reserved      4 bytes       14 bytes
    =====================  ============  =====================================

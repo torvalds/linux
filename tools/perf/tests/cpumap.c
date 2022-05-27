@@ -35,10 +35,10 @@ static int process_event_mask(struct perf_tool *tool __maybe_unused,
 	}
 
 	map = cpu_map__new_data(data);
-	TEST_ASSERT_VAL("wrong nr",  map->nr == 20);
+	TEST_ASSERT_VAL("wrong nr",  perf_cpu_map__nr(map) == 20);
 
 	for (i = 0; i < 20; i++) {
-		TEST_ASSERT_VAL("wrong cpu", map->map[i].cpu == i);
+		TEST_ASSERT_VAL("wrong cpu", perf_cpu_map__cpu(map, i).cpu == i);
 	}
 
 	perf_cpu_map__put(map);
@@ -66,9 +66,9 @@ static int process_event_cpus(struct perf_tool *tool __maybe_unused,
 	TEST_ASSERT_VAL("wrong cpu",  cpus->cpu[1] == 256);
 
 	map = cpu_map__new_data(data);
-	TEST_ASSERT_VAL("wrong nr",  map->nr == 2);
-	TEST_ASSERT_VAL("wrong cpu", map->map[0].cpu == 1);
-	TEST_ASSERT_VAL("wrong cpu", map->map[1].cpu == 256);
+	TEST_ASSERT_VAL("wrong nr",  perf_cpu_map__nr(map) == 2);
+	TEST_ASSERT_VAL("wrong cpu", perf_cpu_map__cpu(map, 0).cpu == 1);
+	TEST_ASSERT_VAL("wrong cpu", perf_cpu_map__cpu(map, 1).cpu == 256);
 	TEST_ASSERT_VAL("wrong refcnt", refcount_read(&map->refcnt) == 1);
 	perf_cpu_map__put(map);
 	return 0;
@@ -130,7 +130,7 @@ static int test__cpu_map_merge(struct test_suite *test __maybe_unused, int subte
 	struct perf_cpu_map *c = perf_cpu_map__merge(a, b);
 	char buf[100];
 
-	TEST_ASSERT_VAL("failed to merge map: bad nr", c->nr == 5);
+	TEST_ASSERT_VAL("failed to merge map: bad nr", perf_cpu_map__nr(c) == 5);
 	cpu_map__snprint(c, buf, sizeof(buf));
 	TEST_ASSERT_VAL("failed to merge map: bad result", !strcmp(buf, "1-2,4-5,7"));
 	perf_cpu_map__put(b);

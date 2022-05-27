@@ -577,7 +577,6 @@ static int rcar_gyroadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#if defined(CONFIG_PM)
 static int rcar_gyroadc_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
@@ -597,10 +596,9 @@ static int rcar_gyroadc_resume(struct device *dev)
 
 	return 0;
 }
-#endif
 
 static const struct dev_pm_ops rcar_gyroadc_pm_ops = {
-	SET_RUNTIME_PM_OPS(rcar_gyroadc_suspend, rcar_gyroadc_resume, NULL)
+	RUNTIME_PM_OPS(rcar_gyroadc_suspend, rcar_gyroadc_resume, NULL)
 };
 
 static struct platform_driver rcar_gyroadc_driver = {
@@ -609,7 +607,7 @@ static struct platform_driver rcar_gyroadc_driver = {
 	.driver         = {
 		.name		= DRIVER_NAME,
 		.of_match_table	= rcar_gyroadc_match,
-		.pm		= &rcar_gyroadc_pm_ops,
+		.pm		= pm_ptr(&rcar_gyroadc_pm_ops),
 	},
 };
 

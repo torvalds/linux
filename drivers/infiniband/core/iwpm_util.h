@@ -33,7 +33,6 @@
 #ifndef _IWPM_UTIL_H
 #define _IWPM_UTIL_H
 
-#include <linux/module.h>
 #include <linux/io.h>
 #include <linux/in.h>
 #include <linux/in6.h>

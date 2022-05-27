@@ -1383,9 +1383,9 @@ static ssize_t direction_show(struct device *dev,
 
 	switch (buffer->direction) {
 	case IIO_BUFFER_DIRECTION_IN:
-		return sprintf(buf, "in\n");
+		return sysfs_emit(buf, "in\n");
 	case IIO_BUFFER_DIRECTION_OUT:
-		return sprintf(buf, "out\n");
+		return sysfs_emit(buf, "out\n");
 	default:
 		return -EINVAL;
 	}

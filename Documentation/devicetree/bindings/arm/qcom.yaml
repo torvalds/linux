@@ -42,6 +42,7 @@ description: |
         sc7180
         sc7280
         sdm630
+        sdm632
         sdm660
         sdm845
         sdx55
@@ -172,7 +173,21 @@ properties:
           - const: qcom,apq8094
 
       - items:
-          - const: qcom,msm8996-mtp
+          - enum:
+              - arrow,apq8096-db820c
+              - inforce,ifc6640
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096
+
+      - items:
+          - enum:
+              - qcom,msm8996-mtp
+              - sony,dora-row
+              - sony,kagura-row
+              - sony,keyaki-row
+              - xiaomi,gemini
+              - xiaomi,scorpio
+          - const: qcom,msm8996
 
       - items:
           - enum:
@@ -209,6 +224,11 @@ properties:
               - google,piglin
               - google,senor
           - const: qcom,sc7280
+
+      - items:
+          - enum:
+              - fairphone,fp3
+          - const: qcom,sdm632
 
       - items:
           - enum:
@@ -262,6 +282,7 @@ properties:
 
       - items:
           - enum:
+              - qcom,sm8450-hdk
               - qcom,sm8450-qrd
           - const: qcom,sm8450
 

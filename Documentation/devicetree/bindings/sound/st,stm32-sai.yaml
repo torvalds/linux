@@ -102,9 +102,11 @@ patternProperties:
           By default SAI sub-block is in asynchronous mode.
           Must contain the phandle and index of the SAI sub-block providing
           the synchronization.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/phandle-array
-          - maxItems: 1
+        $ref: /schemas/types.yaml#/definitions/phandle-array
+        items:
+          - items:
+              - description: phandle of the SAI sub-block
+              - description: index of the SAI sub-block
 
       st,iec60958:
         description:
@@ -113,8 +115,7 @@ patternProperties:
           By default, custom protocol is assumed, meaning that protocol is
           configured according to protocol defined in related DAI link node,
           such as i2s, left justified, right justified, dsp and pdm protocols.
-        allOf:
-          - $ref: /schemas/types.yaml#/definitions/flag
+        $ref: /schemas/types.yaml#/definitions/flag
 
       "#clock-cells":
         description: Configure the SAI device as master clock provider.
@@ -135,8 +136,7 @@ allOf:
         compatible:
           contains:
             const: st,stm32f4-sai
-
-  - then:
+    then:
       properties:
         clocks:
           items:
@@ -147,8 +147,7 @@ allOf:
           items:
             - const: x8k
             - const: x11k
-
-  - else:
+    else:
       properties:
         clocks:
           items:

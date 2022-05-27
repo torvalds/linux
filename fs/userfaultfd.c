@@ -198,6 +198,9 @@ static inline struct uffd_msg userfault_msg(unsigned long address,
 	struct uffd_msg msg;
 	msg_init(&msg);
 	msg.event = UFFD_EVENT_PAGEFAULT;
+
+	if (!(features & UFFD_FEATURE_EXACT_ADDRESS))
+		address &= PAGE_MASK;
 	msg.arg.pagefault.address = address;
 	/*
 	 * These flags indicate why the userfault occurred:
@@ -482,7 +485,7 @@ vm_fault_t handle_userfault(struct vm_fault *vmf, unsigned long reason)
 
 	init_waitqueue_func_entry(&uwq.wq, userfaultfd_wake_function);
 	uwq.wq.private = current;
-	uwq.msg = userfault_msg(vmf->address, vmf->flags, reason,
+	uwq.msg = userfault_msg(vmf->real_address, vmf->flags, reason,
 			ctx->features);
 	uwq.ctx = ctx;
 	uwq.waken = false;

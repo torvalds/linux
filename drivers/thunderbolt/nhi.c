@@ -13,6 +13,7 @@
 #include <linux/slab.h>
 #include <linux/errno.h>
 #include <linux/pci.h>
+#include <linux/dma-mapping.h>
 #include <linux/interrupt.h>
 #include <linux/module.h>
 #include <linux/delay.h>
@@ -1229,8 +1230,6 @@ static int nhi_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	spin_lock_init(&nhi->lock);
 
 	res = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (res)
-		res = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
 	if (res) {
 		dev_err(&pdev->dev, "failed to set DMA mask\n");
 		return res;

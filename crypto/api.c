@@ -223,6 +223,8 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 	else if (crypto_is_test_larval(larval) &&
 		 !(alg->cra_flags & CRYPTO_ALG_TESTED))
 		alg = ERR_PTR(-EAGAIN);
+	else if (alg->cra_flags & CRYPTO_ALG_FIPS_INTERNAL)
+		alg = ERR_PTR(-EAGAIN);
 	else if (!crypto_mod_get(alg))
 		alg = ERR_PTR(-EAGAIN);
 	crypto_mod_put(&larval->alg);
@@ -233,6 +235,7 @@ static struct crypto_alg *crypto_larval_wait(struct crypto_alg *alg)
 static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 					    u32 mask)
 {
+	const u32 fips = CRYPTO_ALG_FIPS_INTERNAL;
 	struct crypto_alg *alg;
 	u32 test = 0;
 
@@ -240,8 +243,20 @@ static struct crypto_alg *crypto_alg_lookup(const char *name, u32 type,
 		test |= CRYPTO_ALG_TESTED;
 
 	down_read(&crypto_alg_sem);
-	alg = __crypto_alg_lookup(name, type | test, mask | test);
-	if (!alg && test) {
+	alg = __crypto_alg_lookup(name, (type | test) & ~fips,
+				  (mask | test) & ~fips);
+	if (alg) {
+		if (((type | mask) ^ fips) & fips)
+			mask |= fips;
+		mask &= fips;
+
+		if (!crypto_is_larval(alg) &&
+		    ((type ^ alg->cra_flags) & mask)) {
+			/* Algorithm is disallowed in FIPS mode. */
+			crypto_mod_put(alg);
+			alg = ERR_PTR(-ENOENT);
+		}
+	} else if (test) {
 		alg = __crypto_alg_lookup(name, type, mask);
 		if (alg && !crypto_is_larval(alg)) {
 			/* Test failed */

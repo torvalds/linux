@@ -6,7 +6,6 @@
 #include <linux/audit.h>
 #include <linux/ptrace.h>
 #include <linux/sched.h>
-#include <linux/tracehook.h>
 #include <linux/uaccess.h>
 #include <asm/ptrace-abi.h>
 
@@ -135,7 +134,7 @@ int syscall_trace_enter(struct pt_regs *regs)
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return 0;
 
-	return tracehook_report_syscall_entry(regs);
+	return ptrace_report_syscall_entry(regs);
 }
 
 void syscall_trace_leave(struct pt_regs *regs)
@@ -151,7 +150,7 @@ void syscall_trace_leave(struct pt_regs *regs)
 	if (!test_thread_flag(TIF_SYSCALL_TRACE))
 		return;
 
-	tracehook_report_syscall_exit(regs, 0);
+	ptrace_report_syscall_exit(regs, 0);
 	/* force do_signal() --> is_syscall() */
 	if (ptraced & PT_PTRACED)
 		set_thread_flag(TIF_SIGPENDING);

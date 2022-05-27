@@ -320,10 +320,12 @@ static struct clk *_register_divider(struct device_node *node,
 	struct clk *clk;
 	struct clk_init_data init;
 	const char *parent_name;
+	const char *name;
 
 	parent_name = of_clk_get_parent_name(node, 0);
 
-	init.name = node->name;
+	name = ti_dt_clk_name(node);
+	init.name = name;
 	init.ops = &ti_clk_divider_ops;
 	init.flags = flags;
 	init.parent_names = (parent_name ? &parent_name : NULL);
@@ -332,7 +334,7 @@ static struct clk *_register_divider(struct device_node *node,
 	div->hw.init = &init;
 
 	/* register the clock */
-	clk = ti_clk_register(NULL, &div->hw, node->name);
+	clk = ti_clk_register(NULL, &div->hw, name);
 
 	if (IS_ERR(clk))
 		kfree(div);

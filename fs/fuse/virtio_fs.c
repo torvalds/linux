@@ -8,6 +8,7 @@
 #include <linux/dax.h>
 #include <linux/pci.h>
 #include <linux/pfn_t.h>
+#include <linux/memremap.h>
 #include <linux/module.h>
 #include <linux/virtio.h>
 #include <linux/virtio_fs.h>

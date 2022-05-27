@@ -265,28 +265,28 @@ void *dma_direct_alloc(struct device *dev, size_t size,
 	page = __dma_direct_alloc_pages(dev, size, gfp & ~__GFP_ZERO);
 	if (!page)
 		return NULL;
+
+	/*
+	 * dma_alloc_contiguous can return highmem pages depending on a
+	 * combination the cma= arguments and per-arch setup.  These need to be
+	 * remapped to return a kernel virtual address.
+	 */
 	if (PageHighMem(page)) {
-		/*
-		 * Depending on the cma= arguments and per-arch setup,
-		 * dma_alloc_contiguous could return highmem pages.
-		 * Without remapping there is no way to return them here, so
-		 * log an error and fail.
-		 */
-		if (!IS_ENABLED(CONFIG_DMA_REMAP)) {
-			dev_info(dev, "Rejecting highmem page from CMA.\n");
-			goto out_free_pages;
-		}
 		remap = true;
 		set_uncached = false;
 	}
 
 	if (remap) {
+		pgprot_t prot = dma_pgprot(dev, PAGE_KERNEL, attrs);
+
+		if (force_dma_unencrypted(dev))
+			prot = pgprot_decrypted(prot);
+
 		/* remove any dirty cache lines on the kernel alias */
 		arch_dma_prep_coherent(page, size);
 
 		/* create a coherent mapping */
-		ret = dma_common_contiguous_remap(page, size,
-				dma_pgprot(dev, PAGE_KERNEL, attrs),
+		ret = dma_common_contiguous_remap(page, size, prot,
 				__builtin_return_address(0));
 		if (!ret)
 			goto out_free_pages;
@@ -349,7 +349,7 @@ void dma_direct_free(struct device *dev, size_t size,
 	    dma_free_from_pool(dev, cpu_addr, PAGE_ALIGN(size)))
 		return;
 
-	if (IS_ENABLED(CONFIG_DMA_REMAP) && is_vmalloc_addr(cpu_addr)) {
+	if (is_vmalloc_addr(cpu_addr)) {
 		vunmap(cpu_addr);
 	} else {
 		if (IS_ENABLED(CONFIG_ARCH_HAS_DMA_CLEAR_UNCACHED))
@@ -539,6 +539,8 @@ int dma_direct_mmap(struct device *dev, struct vm_area_struct *vma,
 	int ret = -ENXIO;
 
 	vma->vm_page_prot = dma_pgprot(dev, vma->vm_page_prot, attrs);
+	if (force_dma_unencrypted(dev))
+		vma->vm_page_prot = pgprot_decrypted(vma->vm_page_prot);
 
 	if (dma_mmap_from_dev_coherent(dev, vma, cpu_addr, size, &ret))
 		return ret;

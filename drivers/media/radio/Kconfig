@@ -5,69 +5,17 @@
 
 menuconfig RADIO_ADAPTERS
 	bool "Radio Adapters"
-	depends on VIDEO_V4L2
+	depends on VIDEO_DEV
 	depends on MEDIA_RADIO_SUPPORT
 	default y
 	help
 	  Say Y here to enable selecting AM/FM radio adapters.
 
-if RADIO_ADAPTERS && VIDEO_V4L2
-
-config RADIO_TEA575X
-	tristate
-
-source "drivers/media/radio/si470x/Kconfig"
-
-config RADIO_SI4713
-	tristate "Silicon Labs Si4713 FM Radio with RDS Transmitter support"
-	depends on VIDEO_V4L2
-
-source "drivers/media/radio/si4713/Kconfig"
-
-config RADIO_SI476X
-	tristate "Silicon Laboratories Si476x I2C FM Radio"
-	depends on I2C && VIDEO_V4L2
-	depends on MFD_SI476X_CORE
-	depends on SND_SOC
-	select SND_SOC_SI476X
-	help
-	  Choose Y here if you have this FM radio chip.
-
-	  In order to control your radio card, you will need to use programs
-	  that are compatible with the Video For Linux 2 API.  Information on
-	  this API and pointers to "v4l2" programs may be found at
-	  <file:Documentation/userspace-api/media/index.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-si476x.
-
-config USB_MR800
-	tristate "AverMedia MR 800 USB FM radio support"
-	depends on USB && VIDEO_V4L2
-	help
-	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
-	  you must connect the line out connector to a sound card or a
-	  set of speakers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-mr800.
-
-config USB_DSBR
-	tristate "D-Link/GemTek USB FM radio support"
-	depends on USB && VIDEO_V4L2
-	help
-	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
-	  you must connect the line out connector to a sound card or a
-	  set of speakers.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called dsbr100.
+if RADIO_ADAPTERS
 
 config RADIO_MAXIRADIO
 	tristate "Guillemot MAXI Radio FM 2000 radio"
-	depends on VIDEO_V4L2 && PCI
+	depends on PCI
 	select RADIO_TEA575X
 	help
 	  Choose Y here if you have this radio card.  This card may also be
@@ -80,6 +28,18 @@ config RADIO_MAXIRADIO
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-maxiradio.
+
+config RADIO_SAA7706H
+	tristate "SAA7706H Car Radio DSP"
+	depends on I2C
+	help
+	  Say Y here if you want to use the SAA7706H Car radio Digital
+	  Signal Processor, found for instance on the Russellville development
+	  board. On the russellville the device is connected to internal
+	  timberdale I2C bus.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called SAA7706H.
 
 config RADIO_SHARK
 	tristate "Griffin radioSHARK USB radio receiver"
@@ -116,45 +76,32 @@ config RADIO_SHARK2
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-shark2.
 
-config USB_KEENE
-	tristate "Keene FM Transmitter USB support"
-	depends on USB && VIDEO_V4L2
+config RADIO_SI4713
+	tristate "Silicon Labs Si4713 FM Radio with RDS Transmitter support"
+
+config RADIO_SI476X
+	tristate "Silicon Laboratories Si476x I2C FM Radio"
+	depends on I2C
+	depends on MFD_SI476X_CORE
+	depends on SND_SOC
+	select SND_SOC_SI476X
 	help
-	  Say Y here if you want to connect this type of FM transmitter
-	  to your computer's USB port.
+	  Choose Y here if you have this FM radio chip.
+
+	  In order to control your radio card, you will need to use programs
+	  that are compatible with the Video For Linux 2 API.  Information on
+	  this API and pointers to "v4l2" programs may be found at
+	  <file:Documentation/userspace-api/media/index.rst>.
 
 	  To compile this driver as a module, choose M here: the
-	  module will be called radio-keene.
+	  module will be called radio-si476x.
 
-config USB_RAREMONO
-	tristate "Thanko's Raremono AM/FM/SW radio support"
-	depends on USB && VIDEO_V4L2
-	help
-	  The 'Thanko's Raremono' device contains the Si4734 chip from Silicon Labs Inc.
-	  It is one of the very few or perhaps the only consumer USB radio device
-	  to receive the AM/FM/SW bands.
-
-	  Say Y here if you want to connect this type of AM/FM/SW receiver
-	  to your computer's USB port.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-raremono.
-
-config USB_MA901
-	tristate "Masterkit MA901 USB FM radio support"
-	depends on USB && VIDEO_V4L2
-	help
-	  Say Y here if you want to connect this type of radio to your
-	  computer's USB port. Note that the audio is not digital, and
-	  you must connect the line out connector to a sound card or a
-	  set of speakers or headphones.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-ma901.
+config RADIO_TEA575X
+	tristate
 
 config RADIO_TEA5764
 	tristate "TEA5764 I2C FM radio support"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C
 	help
 	  Say Y here if you want to use the TEA5764 FM chip found in
 	  EZX phones. This FM chip is present in EZX phones from Motorola,
@@ -171,21 +118,9 @@ config RADIO_TEA5764_XTAL
 	  Say Y here if TEA5764 have a 32768 Hz crystal in circuit, say N
 	  here if TEA5764 reference frequency is connected in FREQIN.
 
-config RADIO_SAA7706H
-	tristate "SAA7706H Car Radio DSP"
-	depends on I2C && VIDEO_V4L2
-	help
-	  Say Y here if you want to use the SAA7706H Car radio Digital
-	  Signal Processor, found for instance on the Russellville development
-	  board. On the russellville the device is connected to internal
-	  timberdale I2C bus.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called SAA7706H.
-
 config RADIO_TEF6862
 	tristate "TEF6862 Car Radio Enhanced Selectivity Tuner"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C
 	help
 	  Say Y here if you want to use the TEF6862 Car Radio Enhanced
 	  Selectivity Tuner, found for instance on the Russellville development
@@ -197,7 +132,7 @@ config RADIO_TEF6862
 
 config RADIO_TIMBERDALE
 	tristate "Enable the Timberdale radio driver"
-	depends on MFD_TIMBERDALE && VIDEO_V4L2
+	depends on MFD_TIMBERDALE
 	depends on I2C	# for RADIO_SAA7706H
 	select RADIO_TEF6862
 	select RADIO_SAA7706H
@@ -208,7 +143,7 @@ config RADIO_TIMBERDALE
 
 config RADIO_WL1273
 	tristate "Texas Instruments WL1273 I2C FM Radio"
-	depends on I2C && VIDEO_V4L2
+	depends on I2C
 	select MFD_CORE
 	select MFD_WL1273_CORE
 	select FW_LOADER
@@ -223,7 +158,71 @@ config RADIO_WL1273
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-wl1273.
 
+config USB_DSBR
+	tristate "D-Link/GemTek USB FM radio support"
+	depends on USB
+	help
+	  Say Y here if you want to connect this type of radio to your
+	  computer's USB port. Note that the audio is not digital, and
+	  you must connect the line out connector to a sound card or a
+	  set of speakers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called dsbr100.
+
+config USB_KEENE
+	tristate "Keene FM Transmitter USB support"
+	depends on USB
+	help
+	  Say Y here if you want to connect this type of FM transmitter
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-keene.
+
+config USB_MA901
+	tristate "Masterkit MA901 USB FM radio support"
+	depends on USB
+	help
+	  Say Y here if you want to connect this type of radio to your
+	  computer's USB port. Note that the audio is not digital, and
+	  you must connect the line out connector to a sound card or a
+	  set of speakers or headphones.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-ma901.
+
+config USB_MR800
+	tristate "AverMedia MR 800 USB FM radio support"
+	depends on USB
+	help
+	  Say Y here if you want to connect this type of radio to your
+	  computer's USB port. Note that the audio is not digital, and
+	  you must connect the line out connector to a sound card or a
+	  set of speakers.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-mr800.
+
+config USB_RAREMONO
+	tristate "Thanko's Raremono AM/FM/SW radio support"
+	depends on USB
+	help
+	  The 'Thanko's Raremono' device contains the Si4734 chip from Silicon Labs Inc.
+	  It is one of the very few or perhaps the only consumer USB radio device
+	  to receive the AM/FM/SW bands.
+
+	  Say Y here if you want to connect this type of AM/FM/SW receiver
+	  to your computer's USB port.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-raremono.
+
+source "drivers/media/radio/si470x/Kconfig"
+source "drivers/media/radio/si4713/Kconfig"
+
 # TI's ST based wl128x FM radio
+
 source "drivers/media/radio/wl128x/Kconfig"
 
 #
@@ -238,81 +237,9 @@ menuconfig V4L_RADIO_ISA_DRIVERS
 
 if V4L_RADIO_ISA_DRIVERS
 
-config RADIO_ISA
-	depends on ISA || COMPILE_TEST
-	tristate
-
-config RADIO_CADET
-	tristate "ADS Cadet AM/FM Tuner"
-	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
-	help
-	  Choose Y here if you have one of these AM/FM radio cards, and then
-	  fill in the port address below.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-cadet.
-
-config RADIO_RTRACK
-	tristate "AIMSlab RadioTrack (aka RadioReveal) support"
-	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
-	select RADIO_ISA
-	help
-	  Choose Y here if you have one of these FM radio cards, and then fill
-	  in the port address below.
-
-	  Note that newer AIMSlab RadioTrack cards have a different chipset
-	  and are not supported by this driver.  For these cards, use the
-	  RadioTrack II driver below.
-
-	  If you have a GemTeks combined (PnP) sound- and radio card you must
-	  use this driver as a module and setup the card with isapnptools.
-	  You must also pass the module a suitable io parameter, 0x248 has
-	  been reported to be used by these cards.
-
-	  More information is contained in the file
-	  <file:Documentation/driver-api/media/drivers/radiotrack.rst>.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-aimslab.
-
-config RADIO_RTRACK_PORT
-	hex "RadioTrack i/o port (0x20f or 0x30f)"
-	depends on RADIO_RTRACK=y
-	default "30f"
-	help
-	  Enter either 0x30f or 0x20f here.  The card default is 0x30f, if you
-	  haven't changed the jumper setting on the card.
-
-config RADIO_RTRACK2
-	tristate "AIMSlab RadioTrack II support"
-	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
-	select RADIO_ISA
-	help
-	  Choose Y here if you have this FM radio card, and then fill in the
-	  port address below.
-
-	  Note: this driver hasn't been tested since a long time due to lack
-	  of hardware. If you have this hardware, then please contact the
-	  linux-media mailinglist.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called radio-rtrack2.
-
-config RADIO_RTRACK2_PORT
-	hex "RadioTrack II i/o port (0x20c or 0x30c)"
-	depends on RADIO_RTRACK2=y
-	default "30c"
-	help
-	  Enter either 0x30c or 0x20c here.  The card default is 0x30c, if you
-	  haven't changed the jumper setting on the card.
-
 config RADIO_AZTECH
 	tristate "Aztech/Packard Bell Radio"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_ISA
 	help
 	  Choose Y here if you have one of these FM radio cards, and then fill
@@ -330,10 +257,19 @@ config RADIO_AZTECH_PORT
 	  haven't changed the setting of jumper JP3 on the card.  Removing the
 	  jumper sets the card to 0x358.
 
+config RADIO_CADET
+	tristate "ADS Cadet AM/FM Tuner"
+	depends on ISA || COMPILE_TEST
+	help
+	  Choose Y here if you have one of these AM/FM radio cards, and then
+	  fill in the port address below.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-cadet.
+
 config RADIO_GEMTEK
 	tristate "GemTek Radio card (or compatible) support"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_ISA
 	help
 	  Choose Y here if you have this FM radio card, and then fill in the
@@ -371,10 +307,14 @@ config RADIO_GEMTEK_PROBE
 	  following ports will be probed: 0x20c, 0x30c, 0x24c, 0x34c, 0x248 and
 	  0x28c.
 
+config RADIO_ISA
+	depends on ISA || COMPILE_TEST
+	tristate
+
 config RADIO_MIROPCM20
 	tristate "miroSOUND PCM20 radio"
 	depends on ISA || COMPILE_TEST
-	depends on ISA_DMA_API && VIDEO_V4L2 && SND
+	depends on ISA_DMA_API && SND
 	select SND_ISA
 	select SND_MIRO
 	help
@@ -386,10 +326,63 @@ config RADIO_MIROPCM20
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-miropcm20.
 
+config RADIO_RTRACK
+	tristate "AIMSlab RadioTrack (aka RadioReveal) support"
+	depends on ISA || COMPILE_TEST
+	select RADIO_ISA
+	help
+	  Choose Y here if you have one of these FM radio cards, and then fill
+	  in the port address below.
+
+	  Note that newer AIMSlab RadioTrack cards have a different chipset
+	  and are not supported by this driver.  For these cards, use the
+	  RadioTrack II driver below.
+
+	  If you have a GemTeks combined (PnP) sound- and radio card you must
+	  use this driver as a module and setup the card with isapnptools.
+	  You must also pass the module a suitable io parameter, 0x248 has
+	  been reported to be used by these cards.
+
+	  More information is contained in the file
+	  <file:Documentation/driver-api/media/drivers/radiotrack.rst>.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-aimslab.
+
+config RADIO_RTRACK2
+	tristate "AIMSlab RadioTrack II support"
+	depends on ISA || COMPILE_TEST
+	select RADIO_ISA
+	help
+	  Choose Y here if you have this FM radio card, and then fill in the
+	  port address below.
+
+	  Note: this driver hasn't been tested since a long time due to lack
+	  of hardware. If you have this hardware, then please contact the
+	  linux-media mailinglist.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called radio-rtrack2.
+
+config RADIO_RTRACK2_PORT
+	hex "RadioTrack II i/o port (0x20c or 0x30c)"
+	depends on RADIO_RTRACK2=y
+	default "30c"
+	help
+	  Enter either 0x30c or 0x20c here.  The card default is 0x30c, if you
+	  haven't changed the jumper setting on the card.
+
+config RADIO_RTRACK_PORT
+	hex "RadioTrack i/o port (0x20f or 0x30f)"
+	depends on RADIO_RTRACK=y
+	default "30f"
+	help
+	  Enter either 0x30f or 0x20f here.  The card default is 0x30f, if you
+	  haven't changed the jumper setting on the card.
+
 config RADIO_SF16FMI
 	tristate "SF16-FMI/SF16-FMP/SF16-FMD Radio"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	help
 	  Choose Y here if you have one of these FM radio cards.
 
@@ -399,7 +392,6 @@ config RADIO_SF16FMI
 config RADIO_SF16FMR2
 	tristate "SF16-FMR2/SF16-FMD2 Radio"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_TEA575X
 	help
 	  Choose Y here if you have one of these FM radio cards.
@@ -410,7 +402,6 @@ config RADIO_SF16FMR2
 config RADIO_TERRATEC
 	tristate "TerraTec ActiveRadio ISA Standalone"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_ISA
 	help
 	  Choose Y here if you have this FM radio card.
@@ -425,7 +416,6 @@ config RADIO_TERRATEC
 config RADIO_TRUST
 	tristate "Trust FM radio card"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_ISA
 	help
 	  This is a driver for the Trust FM radio cards. Say Y if you have
@@ -449,7 +439,6 @@ config RADIO_TRUST_PORT
 config RADIO_TYPHOON
 	tristate "Typhoon Radio (a.k.a. EcoRadio)"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_ISA
 	help
 	  Choose Y here if you have one of these FM radio cards, and then fill
@@ -461,13 +450,6 @@ config RADIO_TYPHOON
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called radio-typhoon.
-
-config RADIO_TYPHOON_PORT
-	hex "Typhoon I/O port (0x316 or 0x336)"
-	depends on RADIO_TYPHOON=y
-	default "316"
-	help
-	  Enter the I/O port of your Typhoon or EcoRadio radio card.
 
 config RADIO_TYPHOON_MUTEFREQ
 	int "Typhoon frequency set when muting the device (kHz)"
@@ -481,10 +463,16 @@ config RADIO_TYPHOON_MUTEFREQ
 	  the device is muted. There should be no local radio station at that
 	  frequency.
 
+config RADIO_TYPHOON_PORT
+	hex "Typhoon I/O port (0x316 or 0x336)"
+	depends on RADIO_TYPHOON=y
+	default "316"
+	help
+	  Enter the I/O port of your Typhoon or EcoRadio radio card.
+
 config RADIO_ZOLTRIX
 	tristate "Zoltrix Radio"
 	depends on ISA || COMPILE_TEST
-	depends on VIDEO_V4L2
 	select RADIO_ISA
 	help
 	  Choose Y here if you have one of these FM radio cards, and then fill

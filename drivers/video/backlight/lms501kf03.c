@@ -364,12 +364,11 @@ static int lms501kf03_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int lms501kf03_remove(struct spi_device *spi)
+static void lms501kf03_remove(struct spi_device *spi)
 {
 	struct lms501kf03 *lcd = spi_get_drvdata(spi);
 
 	lms501kf03_power(lcd, FB_BLANK_POWERDOWN);
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

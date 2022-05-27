@@ -76,14 +76,14 @@ pgd_alloc(struct mm_struct *mm)
 pmd_t *
 __bad_pagetable(void)
 {
-	memset((void *) EMPTY_PGT, 0, PAGE_SIZE);
+	memset(absolute_pointer(EMPTY_PGT), 0, PAGE_SIZE);
 	return (pmd_t *) EMPTY_PGT;
 }
 
 pte_t
 __bad_page(void)
 {
-	memset((void *) EMPTY_PGE, 0, PAGE_SIZE);
+	memset(absolute_pointer(EMPTY_PGE), 0, PAGE_SIZE);
 	return pte_mkdirty(mk_pte(virt_to_page(EMPTY_PGE), PAGE_SHARED));
 }
 
@@ -253,7 +253,7 @@ void __init paging_init(void)
 	free_area_init(max_zone_pfn);
 
 	/* Initialize the kernel's ZERO_PGE. */
-	memset((void *)ZERO_PGE, 0, PAGE_SIZE);
+	memset(absolute_pointer(ZERO_PGE), 0, PAGE_SIZE);
 }
 
 #if defined(CONFIG_ALPHA_GENERIC) || defined(CONFIG_ALPHA_SRM)

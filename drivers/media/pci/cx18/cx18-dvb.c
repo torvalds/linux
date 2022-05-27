@@ -22,7 +22,7 @@
 #include <linux/firmware.h>
 #include "mt352.h"
 #include "mt352_priv.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 
 DVB_DEFINE_MOD_OPT_ADAPTER_NR(adapter_nr);
 

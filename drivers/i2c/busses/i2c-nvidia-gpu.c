@@ -17,6 +17,8 @@
 
 #include <asm/unaligned.h>
 
+#include "i2c-ccgx-ucsi.h"
+
 /* I2C definitions */
 #define I2C_MST_CNTL				0x00
 #define I2C_MST_CNTL_GEN_START			BIT(0)
@@ -266,54 +268,32 @@ static const struct software_node ccgx_node = {
 	.properties = ccgx_props,
 };
 
-static int gpu_populate_client(struct gpu_i2c_dev *i2cd, int irq)
-{
-	i2cd->gpu_ccgx_ucsi = devm_kzalloc(i2cd->dev,
-					   sizeof(*i2cd->gpu_ccgx_ucsi),
-					   GFP_KERNEL);
-	if (!i2cd->gpu_ccgx_ucsi)
-		return -ENOMEM;
-
-	strlcpy(i2cd->gpu_ccgx_ucsi->type, "ccgx-ucsi",
-		sizeof(i2cd->gpu_ccgx_ucsi->type));
-	i2cd->gpu_ccgx_ucsi->addr = 0x8;
-	i2cd->gpu_ccgx_ucsi->irq = irq;
-	i2cd->gpu_ccgx_ucsi->swnode = &ccgx_node;
-	i2cd->ccgx_client = i2c_new_client_device(&i2cd->adapter, i2cd->gpu_ccgx_ucsi);
-	return PTR_ERR_OR_ZERO(i2cd->ccgx_client);
-}
-
 static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 {
+	struct device *dev = &pdev->dev;
 	struct gpu_i2c_dev *i2cd;
 	int status;
 
-	i2cd = devm_kzalloc(&pdev->dev, sizeof(*i2cd), GFP_KERNEL);
+	i2cd = devm_kzalloc(dev, sizeof(*i2cd), GFP_KERNEL);
 	if (!i2cd)
 		return -ENOMEM;
 
-	i2cd->dev = &pdev->dev;
-	dev_set_drvdata(&pdev->dev, i2cd);
+	i2cd->dev = dev;
+	dev_set_drvdata(dev, i2cd);
 
 	status = pcim_enable_device(pdev);
-	if (status < 0) {
-		dev_err(&pdev->dev, "pcim_enable_device failed %d\n", status);
-		return status;
-	}
+	if (status < 0)
+		return dev_err_probe(dev, status, "pcim_enable_device failed\n");
 
 	pci_set_master(pdev);
 
 	i2cd->regs = pcim_iomap(pdev, 0, 0);
-	if (!i2cd->regs) {
-		dev_err(&pdev->dev, "pcim_iomap failed\n");
-		return -ENOMEM;
-	}
+	if (!i2cd->regs)
+		return dev_err_probe(dev, -ENOMEM, "pcim_iomap failed\n");
 
 	status = pci_alloc_irq_vectors(pdev, 1, 1, PCI_IRQ_MSI);
-	if (status < 0) {
-		dev_err(&pdev->dev, "pci_alloc_irq_vectors err %d\n", status);
-		return status;
-	}
+	if (status < 0)
+		return dev_err_probe(dev, status, "pci_alloc_irq_vectors err\n");
 
 	gpu_enable_i2c_bus(i2cd);
 
@@ -323,21 +303,21 @@ static int gpu_i2c_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 		sizeof(i2cd->adapter.name));
 	i2cd->adapter.algo = &gpu_i2c_algorithm;
 	i2cd->adapter.quirks = &gpu_i2c_quirks;
-	i2cd->adapter.dev.parent = &pdev->dev;
+	i2cd->adapter.dev.parent = dev;
 	status = i2c_add_adapter(&i2cd->adapter);
 	if (status < 0)
 		goto free_irq_vectors;
 
-	status = gpu_populate_client(i2cd, pdev->irq);
-	if (status < 0) {
-		dev_err(&pdev->dev, "gpu_populate_client failed %d\n", status);
+	i2cd->ccgx_client = i2c_new_ccgx_ucsi(&i2cd->adapter, pdev->irq, &ccgx_node);
+	if (IS_ERR(i2cd->ccgx_client)) {
+		status = dev_err_probe(dev, PTR_ERR(i2cd->ccgx_client), "register UCSI failed\n");
 		goto del_adapter;
 	}
 
-	pm_runtime_set_autosuspend_delay(&pdev->dev, 3000);
-	pm_runtime_use_autosuspend(&pdev->dev);
-	pm_runtime_put_autosuspend(&pdev->dev);
-	pm_runtime_allow(&pdev->dev);
+	pm_runtime_set_autosuspend_delay(dev, 3000);
+	pm_runtime_use_autosuspend(dev);
+	pm_runtime_put_autosuspend(dev);
+	pm_runtime_allow(dev);
 
 	return 0;
 
@@ -350,7 +330,7 @@ free_irq_vectors:
 
 static void gpu_i2c_remove(struct pci_dev *pdev)
 {
-	struct gpu_i2c_dev *i2cd = dev_get_drvdata(&pdev->dev);
+	struct gpu_i2c_dev *i2cd = pci_get_drvdata(pdev);
 
 	pm_runtime_get_noresume(i2cd->dev);
 	i2c_del_adapter(&i2cd->adapter);

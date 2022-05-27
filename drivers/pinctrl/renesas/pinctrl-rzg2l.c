@@ -1090,12 +1090,12 @@ static int rzg2l_gpio_register(struct rzg2l_pinctrl *pctrl)
 	}
 
 	if (of_args.args[0] != 0 || of_args.args[1] != 0 ||
-	    of_args.args[2] != ARRAY_SIZE(rzg2l_gpio_names)) {
+	    of_args.args[2] != pctrl->data->n_port_pins) {
 		dev_err(pctrl->dev, "gpio-ranges does not match selected SOC\n");
 		return -EINVAL;
 	}
 
-	chip->names = rzg2l_gpio_names;
+	chip->names = pctrl->data->port_pins;
 	chip->request = rzg2l_gpio_request;
 	chip->free = rzg2l_gpio_free;
 	chip->get_direction = rzg2l_gpio_get_direction;

@@ -50,13 +50,20 @@
 #define	OV5675_ANAL_GAIN_STEP		1
 
 /* Digital gain controls from sensor */
+#define OV5675_REG_DIGITAL_GAIN		0x350a
 #define OV5675_REG_MWB_R_GAIN		0x5019
 #define OV5675_REG_MWB_G_GAIN		0x501b
 #define OV5675_REG_MWB_B_GAIN		0x501d
-#define OV5675_DGTL_GAIN_MIN		0
+#define OV5675_DGTL_GAIN_MIN		1024
 #define OV5675_DGTL_GAIN_MAX		4095
 #define OV5675_DGTL_GAIN_STEP		1
 #define OV5675_DGTL_GAIN_DEFAULT	1024
+
+/* Group Access */
+#define OV5675_REG_GROUP_ACCESS		0x3208
+#define OV5675_GROUP_HOLD_START		0x0
+#define OV5675_GROUP_HOLD_END		0x10
+#define OV5675_GROUP_HOLD_LAUNCH	0xa0
 
 /* Test Pattern Control */
 #define OV5675_REG_TEST_PATTERN		0x4503
@@ -587,6 +594,12 @@ static int ov5675_update_digital_gain(struct ov5675 *ov5675, u32 d_gain)
 {
 	int ret;
 
+	ret = ov5675_write_reg(ov5675, OV5675_REG_GROUP_ACCESS,
+			       OV5675_REG_VALUE_08BIT,
+			       OV5675_GROUP_HOLD_START);
+	if (ret)
+		return ret;
+
 	ret = ov5675_write_reg(ov5675, OV5675_REG_MWB_R_GAIN,
 			       OV5675_REG_VALUE_16BIT, d_gain);
 	if (ret)
@@ -597,8 +610,21 @@ static int ov5675_update_digital_gain(struct ov5675 *ov5675, u32 d_gain)
 	if (ret)
 		return ret;
 
-	return ov5675_write_reg(ov5675, OV5675_REG_MWB_B_GAIN,
-				OV5675_REG_VALUE_16BIT, d_gain);
+	ret = ov5675_write_reg(ov5675, OV5675_REG_MWB_B_GAIN,
+			       OV5675_REG_VALUE_16BIT, d_gain);
+	if (ret)
+		return ret;
+
+	ret = ov5675_write_reg(ov5675, OV5675_REG_GROUP_ACCESS,
+			       OV5675_REG_VALUE_08BIT,
+			       OV5675_GROUP_HOLD_END);
+	if (ret)
+		return ret;
+
+	ret = ov5675_write_reg(ov5675, OV5675_REG_GROUP_ACCESS,
+			       OV5675_REG_VALUE_08BIT,
+			       OV5675_GROUP_HOLD_LAUNCH);
+	return ret;
 }
 
 static int ov5675_test_pattern(struct ov5675 *ov5675, u32 pattern)

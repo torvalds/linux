@@ -53,8 +53,8 @@
 #define PAGE_SHIFT_8M		23
 
 	__HEAD
-_ENTRY(_stext);
-_ENTRY(_start);
+_GLOBAL(_stext);
+_GLOBAL(_start);
 
 /* MPC8xx
  * This port was done on an MBX board with an 860.  Right now I only

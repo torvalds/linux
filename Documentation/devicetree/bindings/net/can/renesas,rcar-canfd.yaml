@@ -33,7 +33,10 @@ properties:
       - items:
           - enum:
               - renesas,r9a07g044-canfd    # RZ/G2{L,LC}
+              - renesas,r9a07g054-canfd    # RZ/V2L
           - const: renesas,rzg2l-canfd     # RZ/G2L family
+
+      - const: renesas,r8a779a0-canfd      # R-Car V3U
 
   reg:
     maxItems: 1

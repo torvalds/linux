@@ -123,18 +123,6 @@
  */
 #define CIFS_SESS_KEY_SIZE (16)
 
-/*
- * Size of the smb3 signing key
- */
-#define SMB3_SIGN_KEY_SIZE (16)
-
-/*
- * Size of the smb3 encryption/decryption key storage.
- * This size is big enough to store any cipher key types.
- */
-#define SMB3_ENC_DEC_KEY_SIZE (32)
-
-#define CIFS_CLIENT_CHALLENGE_SIZE (8)
 #define CIFS_SERVER_CHALLENGE_SIZE (8)
 #define CIFS_HMAC_MD5_HASH_SIZE (16)
 #define CIFS_CPHTXT_SIZE (16)
@@ -1658,7 +1646,7 @@ struct smb_t2_rsp {
 #define SMB_FIND_FILE_ID_FULL_DIR_INFO    0x105
 #define SMB_FIND_FILE_ID_BOTH_DIR_INFO    0x106
 #define SMB_FIND_FILE_UNIX                0x202
-#define SMB_FIND_FILE_POSIX_INFO          0x064
+/* #define SMB_FIND_FILE_POSIX_INFO          0x064 */
 
 typedef struct smb_com_transaction2_qpi_req {
 	struct smb_hdr hdr;	/* wct = 14+ */

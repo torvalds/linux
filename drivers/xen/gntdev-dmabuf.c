@@ -533,7 +533,7 @@ static void dmabuf_imp_end_foreign_access(u32 *refs, int count)
 
 	for (i = 0; i < count; i++)
 		if (refs[i] != GRANT_INVALID_REF)
-			gnttab_end_foreign_access(refs[i], 0, 0UL);
+			gnttab_end_foreign_access(refs[i], 0UL);
 }
 
 static void dmabuf_imp_free_storage(struct gntdev_dmabuf *gntdev_dmabuf)

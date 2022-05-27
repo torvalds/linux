@@ -106,10 +106,3 @@ examples:
         #clock-cells = <1>;
         #reset-cells = <1>;
     };
-
-    usb-controller@c5004000 {
-        compatible = "nvidia,tegra20-ehci";
-        reg = <0xc5004000 0x4000>;
-        clocks = <&car TEGRA124_CLK_USB2>;
-        resets = <&car TEGRA124_CLK_USB2>;
-    };

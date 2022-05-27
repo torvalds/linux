@@ -9,15 +9,12 @@
 #include "adf_pfvf_pf_proto.h"
 #include "adf_pfvf_utils.h"
 
-#define ADF_4XXX_MAX_NUM_VFS		16
-
 #define ADF_4XXX_PF2VM_OFFSET(i)	(0x40B010 + ((i) * 0x20))
 #define ADF_4XXX_VM2PF_OFFSET(i)	(0x40B014 + ((i) * 0x20))
 
 /* VF2PF interrupt source registers */
-#define ADF_4XXX_VM2PF_SOU(i)		(0x41A180 + ((i) * 4))
-#define ADF_4XXX_VM2PF_MSK(i)		(0x41A1C0 + ((i) * 4))
-#define ADF_4XXX_VM2PF_INT_EN_MSK	BIT(0)
+#define ADF_4XXX_VM2PF_SOU		0x41A180
+#define ADF_4XXX_VM2PF_MSK		0x41A1C0
 
 #define ADF_PFVF_GEN4_MSGTYPE_SHIFT	2
 #define ADF_PFVF_GEN4_MSGTYPE_MASK	0x3F
@@ -41,51 +38,30 @@ static u32 adf_gen4_pf_get_vf2pf_offset(u32 i)
 
 static u32 adf_gen4_get_vf2pf_sources(void __iomem *pmisc_addr)
 {
-	int i;
 	u32 sou, mask;
-	int num_csrs = ADF_4XXX_MAX_NUM_VFS;
-	u32 vf_mask = 0;
 
-	for (i = 0; i < num_csrs; i++) {
-		sou = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_SOU(i));
-		mask = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK(i));
-		sou &= ~mask;
-		vf_mask |= sou << i;
-	}
+	sou = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_SOU);
+	mask = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK);
 
-	return vf_mask;
+	return sou & ~mask;
 }
 
 static void adf_gen4_enable_vf2pf_interrupts(void __iomem *pmisc_addr,
 					     u32 vf_mask)
 {
-	int num_csrs = ADF_4XXX_MAX_NUM_VFS;
-	unsigned long mask = vf_mask;
 	unsigned int val;
-	int i;
 
-	for_each_set_bit(i, &mask, num_csrs) {
-		unsigned int offset = ADF_4XXX_VM2PF_MSK(i);
-
-		val = ADF_CSR_RD(pmisc_addr, offset) & ~ADF_4XXX_VM2PF_INT_EN_MSK;
-		ADF_CSR_WR(pmisc_addr, offset, val);
-	}
+	val = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK) & ~vf_mask;
+	ADF_CSR_WR(pmisc_addr, ADF_4XXX_VM2PF_MSK, val);
 }
 
 static void adf_gen4_disable_vf2pf_interrupts(void __iomem *pmisc_addr,
 					      u32 vf_mask)
 {
-	int num_csrs = ADF_4XXX_MAX_NUM_VFS;
-	unsigned long mask = vf_mask;
 	unsigned int val;
-	int i;
 
-	for_each_set_bit(i, &mask, num_csrs) {
-		unsigned int offset = ADF_4XXX_VM2PF_MSK(i);
-
-		val = ADF_CSR_RD(pmisc_addr, offset) | ADF_4XXX_VM2PF_INT_EN_MSK;
-		ADF_CSR_WR(pmisc_addr, offset, val);
-	}
+	val = ADF_CSR_RD(pmisc_addr, ADF_4XXX_VM2PF_MSK) | vf_mask;
+	ADF_CSR_WR(pmisc_addr, ADF_4XXX_VM2PF_MSK, val);
 }
 
 static int adf_gen4_pfvf_send(struct adf_accel_dev *accel_dev,

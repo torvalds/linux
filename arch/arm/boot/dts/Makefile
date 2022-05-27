@@ -93,6 +93,7 @@ dtb-$(CONFIG_ARCH_BCM2835) += \
 	bcm2837-rpi-3-b.dtb \
 	bcm2837-rpi-3-b-plus.dtb \
 	bcm2837-rpi-cm3-io3.dtb \
+	bcm2837-rpi-zero-2-w.dtb \
 	bcm2711-rpi-400.dtb \
 	bcm2711-rpi-4-b.dtb \
 	bcm2711-rpi-cm4-io.dtb \
@@ -187,6 +188,8 @@ dtb-$(CONFIG_ARCH_DAVINCI) += \
 	da850-lego-ev3.dtb
 dtb-$(CONFIG_ARCH_DIGICOLOR) += \
 	cx92755_equinox.dtb
+dtb-$(CONFIG_ARCH_AIROHA) += \
+	en7523-evb.dtb
 dtb-$(CONFIG_ARCH_EXYNOS3) += \
 	exynos3250-artik5-eval.dtb \
 	exynos3250-monk.dtb \
@@ -221,6 +224,8 @@ dtb-$(CONFIG_ARCH_EXYNOS5) += \
 	exynos5420-arndale-octa.dtb \
 	exynos5420-peach-pit.dtb \
 	exynos5420-smdk5420.dtb \
+	exynos5420-chagall-wifi.dtb \
+	exynos5420-klimt-wifi.dtb \
 	exynos5422-odroidhc1.dtb \
 	exynos5422-odroidxu3.dtb \
 	exynos5422-odroidxu3-lite.dtb \
@@ -269,7 +274,7 @@ dtb-$(CONFIG_ARCH_IXP4XX) += \
 	intel-ixp42x-dlink-dsm-g600.dtb \
 	intel-ixp42x-gateworks-gw2348.dtb \
 	intel-ixp43x-gateworks-gw2358.dtb \
-	intel-ixp42x-netgear-wg302v2.dtb \
+	intel-ixp42x-netgear-wg302v1.dtb \
 	intel-ixp42x-arcom-vulcan.dtb \
 	intel-ixp42x-gateway-7001.dtb
 dtb-$(CONFIG_ARCH_KEYSTONE) += \
@@ -281,6 +286,7 @@ dtb-$(CONFIG_ARCH_KEYSTONE) += \
 dtb-$(CONFIG_MACH_KIRKWOOD) += \
 	kirkwood-b3.dtb \
 	kirkwood-blackarmor-nas220.dtb \
+	kirkwood-c200-v1.dtb \
 	kirkwood-cloudbox.dtb \
 	kirkwood-d2net.dtb \
 	kirkwood-db-88f6281.dtb \
@@ -735,6 +741,8 @@ dtb-$(CONFIG_SOC_IMX7D) += \
 dtb-$(CONFIG_SOC_IMX7ULP) += \
 	imx7ulp-com.dtb \
 	imx7ulp-evk.dtb
+dtb-$(CONFIG_SOC_LAN966) += \
+	lan966x-pcb8291.dtb
 dtb-$(CONFIG_SOC_LS1021A) += \
 	ls1021a-moxa-uc-8410a.dtb \
 	ls1021a-qds.dtb \
@@ -895,6 +903,7 @@ dtb-$(CONFIG_SOC_AM33XX) += \
 	am335x-regor-rdk.dtb \
 	am335x-sancloud-bbe.dtb \
 	am335x-sancloud-bbe-lite.dtb \
+	am335x-sancloud-bbe-extended-wifi.dtb \
 	am335x-shc.dtb \
 	am335x-sbc-t335.dtb \
 	am335x-sl50.dtb \
@@ -1162,6 +1171,7 @@ dtb-$(CONFIG_ARCH_STM32) += \
 	stm32mp157c-dhcom-picoitx.dtb \
 	stm32mp157c-dk2.dtb \
 	stm32mp157c-ed1.dtb \
+	stm32mp157c-emsbc-argon.dtb \
 	stm32mp157c-ev1.dtb \
 	stm32mp157c-lxa-mc1.dtb \
 	stm32mp157c-odyssey.dtb
@@ -1229,6 +1239,7 @@ dtb-$(CONFIG_MACH_SUN7I) += \
 	sun7i-a20-bananapro.dtb \
 	sun7i-a20-cubieboard2.dtb \
 	sun7i-a20-cubietruck.dtb \
+	sun7i-a20-haoyu-marsboard.dtb \
 	sun7i-a20-hummingbird.dtb \
 	sun7i-a20-itead-ibox.dtb \
 	sun7i-a20-i12-tvbox.dtb \
@@ -1416,6 +1427,7 @@ dtb-$(CONFIG_ARCH_ZYNQ) += \
 	zynq-zybo.dtb \
 	zynq-zybo-z7.dtb
 dtb-$(CONFIG_MACH_ARMADA_370) += \
+	armada-370-c200-v2.dtb \
 	armada-370-db.dtb \
 	armada-370-dlink-dns327l.dtb \
 	armada-370-mirabox.dtb \
@@ -1493,6 +1505,9 @@ dtb-$(CONFIG_ARCH_MEDIATEK) += \
 dtb-$(CONFIG_ARCH_MILBEAUT) += milbeaut-m10v-evb.dtb
 dtb-$(CONFIG_ARCH_MSTARV7) += \
 	mstar-infinity-msc313-breadbee_crust.dtb \
+	mstar-infinity2m-ssd202d-100ask-dongshanpione.dtb \
+	mstar-infinity2m-ssd202d-miyoo-mini.dtb \
+	mstar-infinity2m-ssd202d-wirelesstag-ido-sbc2d06-v1b-22w.dtb \
 	mstar-infinity2m-ssd202d-ssd201htv2.dtb \
 	mstar-infinity2m-ssd202d-unitv2.dtb \
 	mstar-infinity3-msc313e-breadbee.dtb \
@@ -1506,6 +1521,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-arm-centriq2400-rep.dtb \
 	aspeed-bmc-arm-stardragon4800-rep2.dtb \
 	aspeed-bmc-asrock-e3c246d4i.dtb \
+	aspeed-bmc-asrock-romed8hm3.dtb \
 	aspeed-bmc-bytedance-g220a.dtb \
 	aspeed-bmc-facebook-bletchley.dtb \
 	aspeed-bmc-facebook-cloudripper.dtb \
@@ -1543,6 +1559,7 @@ dtb-$(CONFIG_ARCH_ASPEED) += \
 	aspeed-bmc-opp-zaius.dtb \
 	aspeed-bmc-portwell-neptune.dtb \
 	aspeed-bmc-quanta-q71l.dtb \
+	aspeed-bmc-quanta-s6q.dtb \
 	aspeed-bmc-supermicro-x11spi.dtb \
 	aspeed-bmc-inventec-transformers.dtb \
 	aspeed-bmc-tyan-s7106.dtb \

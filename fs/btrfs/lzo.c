@@ -55,6 +55,9 @@
  * 0x1000   | SegHdr N+1| Data payload N+1 ...                |
  */
 
+#define WORKSPACE_BUF_LENGTH	(lzo1x_worst_compress(PAGE_SIZE))
+#define WORKSPACE_CBUF_LENGTH	(lzo1x_worst_compress(PAGE_SIZE))
+
 struct workspace {
 	void *mem;
 	void *buf;	/* where decompressed data goes */
@@ -83,8 +86,8 @@ struct list_head *lzo_alloc_workspace(unsigned int level)
 		return ERR_PTR(-ENOMEM);
 
 	workspace->mem = kvmalloc(LZO1X_MEM_COMPRESS, GFP_KERNEL);
-	workspace->buf = kvmalloc(lzo1x_worst_compress(PAGE_SIZE), GFP_KERNEL);
-	workspace->cbuf = kvmalloc(lzo1x_worst_compress(PAGE_SIZE), GFP_KERNEL);
+	workspace->buf = kvmalloc(WORKSPACE_BUF_LENGTH, GFP_KERNEL);
+	workspace->cbuf = kvmalloc(WORKSPACE_CBUF_LENGTH, GFP_KERNEL);
 	if (!workspace->mem || !workspace->buf || !workspace->cbuf)
 		goto fail;
 
@@ -380,7 +383,7 @@ int lzo_decompress_bio(struct list_head *ws, struct compressed_bio *cb)
 		kunmap(cur_page);
 		cur_in += LZO_LEN;
 
-		if (seg_len > lzo1x_worst_compress(PAGE_SIZE)) {
+		if (seg_len > WORKSPACE_CBUF_LENGTH) {
 			/*
 			 * seg_len shouldn't be larger than we have allocated
 			 * for workspace->cbuf
@@ -433,7 +436,7 @@ int lzo_decompress(struct list_head *ws, unsigned char *data_in,
 	struct workspace *workspace = list_entry(ws, struct workspace, list);
 	size_t in_len;
 	size_t out_len;
-	size_t max_segment_len = lzo1x_worst_compress(PAGE_SIZE);
+	size_t max_segment_len = WORKSPACE_BUF_LENGTH;
 	int ret = 0;
 	char *kaddr;
 	unsigned long bytes;

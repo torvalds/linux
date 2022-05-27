@@ -50,6 +50,23 @@
 #include "intel_fbdev.h"
 #include "intel_frontbuffer.h"
 
+struct intel_fbdev {
+	struct drm_fb_helper helper;
+	struct intel_framebuffer *fb;
+	struct i915_vma *vma;
+	unsigned long vma_flags;
+	async_cookie_t cookie;
+	int preferred_bpp;
+
+	/* Whether or not fbdev hpd processing is temporarily suspended */
+	bool hpd_suspended: 1;
+	/* Set when a hotplug was received while HPD processing was suspended */
+	bool hpd_waiting: 1;
+
+	/* Protects hpd_suspended */
+	struct mutex hpd_lock;
+};
+
 static struct intel_frontbuffer *to_frontbuffer(struct intel_fbdev *ifbdev)
 {
 	return ifbdev->fb->frontbuffer;
@@ -180,7 +197,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 	struct drm_device *dev = helper->dev;
 	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
-	struct i915_ggtt *ggtt = &dev_priv->ggtt;
+	struct i915_ggtt *ggtt = to_gt(dev_priv)->ggtt;
 	const struct i915_ggtt_view view = {
 		.type = I915_GGTT_VIEW_NORMAL,
 	};
@@ -248,7 +265,7 @@ static int intelfb_create(struct drm_fb_helper *helper,
 		struct intel_memory_region *mem = obj->mm.region;
 
 		info->apertures->ranges[0].base = mem->io_start;
-		info->apertures->ranges[0].size = mem->total;
+		info->apertures->ranges[0].size = mem->io_size;
 
 		/* Use fbdev's framebuffer from lmem for discrete */
 		info->fix.smem_start =
@@ -679,4 +696,12 @@ void intel_fbdev_restore_mode(struct drm_device *dev)
 
 	if (drm_fb_helper_restore_fbdev_mode_unlocked(&ifbdev->helper) == 0)
 		intel_fbdev_invalidate(ifbdev);
+}
+
+struct intel_framebuffer *intel_fbdev_framebuffer(struct intel_fbdev *fbdev)
+{
+	if (!fbdev || !fbdev->helper.fb)
+		return NULL;
+
+	return to_intel_framebuffer(fbdev->helper.fb);
 }

@@ -197,7 +197,7 @@ static int iwl_fill_paging_mem(struct iwl_fw_runtime *fwrt,
 		}
 
 		memcpy(page_address(block->fw_paging_block),
-		       image->sec[sec_idx].data + offset, len);
+		       (const u8 *)image->sec[sec_idx].data + offset, len);
 		block->fw_offs = image->sec[sec_idx].offset + offset;
 		dma_sync_single_for_device(fwrt->trans->dev,
 					   block->fw_paging_phys,
@@ -243,7 +243,7 @@ static int iwl_send_paging_cmd(struct iwl_fw_runtime *fwrt,
 		.block_num = cpu_to_le32(fwrt->num_of_paging_blk),
 	};
 	struct iwl_host_cmd hcmd = {
-		.id = iwl_cmd_id(FW_PAGING_BLOCK_CMD, IWL_ALWAYS_LONG_GROUP, 0),
+		.id = WIDE_ID(IWL_ALWAYS_LONG_GROUP, FW_PAGING_BLOCK_CMD),
 		.len = { sizeof(paging_cmd), },
 		.data = { &paging_cmd, },
 	};

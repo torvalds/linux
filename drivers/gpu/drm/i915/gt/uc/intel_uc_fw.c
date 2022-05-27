@@ -5,12 +5,15 @@
 
 #include <linux/bitfield.h>
 #include <linux/firmware.h>
+
+#include <drm/drm_cache.h>
 #include <drm/drm_print.h>
 
 #include "gem/i915_gem_lmem.h"
 #include "intel_uc_fw.h"
 #include "intel_uc_fw_abi.h"
 #include "i915_drv.h"
+#include "i915_reg.h"
 
 static inline struct intel_gt *
 ____uc_fw_to_gt(struct intel_uc_fw *uc_fw, enum intel_uc_fw_type type)
@@ -49,21 +52,21 @@ void intel_uc_fw_change_status(struct intel_uc_fw *uc_fw,
  * firmware as TGL.
  */
 #define INTEL_GUC_FIRMWARE_DEFS(fw_def, guc_def) \
-	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 62, 0, 3)) \
-	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  62, 0, 0)) \
-	fw_def(DG1,          0, guc_def(dg1,  62, 0, 0)) \
-	fw_def(ROCKETLAKE,   0, guc_def(tgl,  62, 0, 0)) \
-	fw_def(TIGERLAKE,    0, guc_def(tgl,  62, 0, 0)) \
-	fw_def(JASPERLAKE,   0, guc_def(ehl,  62, 0, 0)) \
-	fw_def(ELKHARTLAKE,  0, guc_def(ehl,  62, 0, 0)) \
-	fw_def(ICELAKE,      0, guc_def(icl,  62, 0, 0)) \
-	fw_def(COMETLAKE,    5, guc_def(cml,  62, 0, 0)) \
-	fw_def(COMETLAKE,    0, guc_def(kbl,  62, 0, 0)) \
-	fw_def(COFFEELAKE,   0, guc_def(kbl,  62, 0, 0)) \
-	fw_def(GEMINILAKE,   0, guc_def(glk,  62, 0, 0)) \
-	fw_def(KABYLAKE,     0, guc_def(kbl,  62, 0, 0)) \
-	fw_def(BROXTON,      0, guc_def(bxt,  62, 0, 0)) \
-	fw_def(SKYLAKE,      0, guc_def(skl,  62, 0, 0))
+	fw_def(ALDERLAKE_P,  0, guc_def(adlp, 69, 0, 3)) \
+	fw_def(ALDERLAKE_S,  0, guc_def(tgl,  69, 0, 3)) \
+	fw_def(DG1,          0, guc_def(dg1,  69, 0, 3)) \
+	fw_def(ROCKETLAKE,   0, guc_def(tgl,  69, 0, 3)) \
+	fw_def(TIGERLAKE,    0, guc_def(tgl,  69, 0, 3)) \
+	fw_def(JASPERLAKE,   0, guc_def(ehl,  69, 0, 3)) \
+	fw_def(ELKHARTLAKE,  0, guc_def(ehl,  69, 0, 3)) \
+	fw_def(ICELAKE,      0, guc_def(icl,  69, 0, 3)) \
+	fw_def(COMETLAKE,    5, guc_def(cml,  69, 0, 3)) \
+	fw_def(COMETLAKE,    0, guc_def(kbl,  69, 0, 3)) \
+	fw_def(COFFEELAKE,   0, guc_def(kbl,  69, 0, 3)) \
+	fw_def(GEMINILAKE,   0, guc_def(glk,  69, 0, 3)) \
+	fw_def(KABYLAKE,     0, guc_def(kbl,  69, 0, 3)) \
+	fw_def(BROXTON,      0, guc_def(bxt,  69, 0, 3)) \
+	fw_def(SKYLAKE,      0, guc_def(skl,  69, 0, 3))
 
 #define INTEL_HUC_FIRMWARE_DEFS(fw_def, huc_def) \
 	fw_def(ALDERLAKE_P,  0, huc_def(tgl,  7, 9, 3)) \
@@ -448,20 +451,19 @@ static void uc_fw_bind_ggtt(struct intel_uc_fw *uc_fw)
 {
 	struct drm_i915_gem_object *obj = uc_fw->obj;
 	struct i915_ggtt *ggtt = __uc_fw_to_gt(uc_fw)->ggtt;
-	struct i915_vma *dummy = &uc_fw->dummy;
+	struct i915_vma_resource *dummy = &uc_fw->dummy;
 	u32 pte_flags = 0;
 
-	dummy->node.start = uc_fw_ggtt_offset(uc_fw);
-	dummy->node.size = obj->base.size;
-	dummy->pages = obj->mm.pages;
-	dummy->vm = &ggtt->vm;
+	dummy->start = uc_fw_ggtt_offset(uc_fw);
+	dummy->node_size = obj->base.size;
+	dummy->bi.pages = obj->mm.pages;
 
 	GEM_BUG_ON(!i915_gem_object_has_pinned_pages(obj));
-	GEM_BUG_ON(dummy->node.size > ggtt->uc_fw.size);
+	GEM_BUG_ON(dummy->node_size > ggtt->uc_fw.size);
 
 	/* uc_fw->obj cache domains were not controlled across suspend */
 	if (i915_gem_object_has_struct_page(obj))
-		drm_clflush_sg(dummy->pages);
+		drm_clflush_sg(dummy->bi.pages);
 
 	if (i915_gem_object_is_lmem(obj))
 		pte_flags |= PTE_LM;

@@ -12,202 +12,46 @@ use strict;
 ## 								 ##
 ## #define enhancements by Armin Kuster <akuster@mvista.com>	 ##
 ## Copyright (c) 2000 MontaVista Software, Inc.			 ##
-## 								 ##
-## This software falls under the GNU General Public License.     ##
-## Please read the COPYING file for more information             ##
+#
+# Copyright (C) 2022 Tomasz Warniełło (POD)
 
-# 18/01/2001 - 	Cleanups
-# 		Functions prototyped as foo(void) same as foo()
-# 		Stop eval'ing where we don't need to.
-# -- huggie@earth.li
+use Pod::Usage qw/pod2usage/;
 
-# 27/06/2001 -  Allowed whitespace after initial "/**" and
-#               allowed comments before function declarations.
-# -- Christian Kreibich <ck@whoop.org>
+=head1 NAME
 
-# Still to do:
-# 	- add perldoc documentation
-# 	- Look more closely at some of the scarier bits :)
+kernel-doc - Print formatted kernel documentation to stdout
 
-# 26/05/2001 - 	Support for separate source and object trees.
-#		Return error code.
-# 		Keith Owens <kaos@ocs.com.au>
+=head1 SYNOPSIS
 
-# 23/09/2001 - Added support for typedefs, structs, enums and unions
-#              Support for Context section; can be terminated using empty line
-#              Small fixes (like spaces vs. \s in regex)
-# -- Tim Jansen <tim@tjansen.de>
+ kernel-doc [-h] [-v] [-Werror]
+   [ -man |
+     -rst [-sphinx-version VERSION] [-enable-lineno] |
+     -none
+   ]
+   [
+     -export |
+     -internal |
+     [-function NAME] ... |
+     [-nosymbol NAME] ...
+   ]
+   [-no-doc-sections]
+   [-export-file FILE] ...
+   FILE ...
 
-# 25/07/2012 - Added support for HTML5
-# -- Dan Luedtke <mail@danrl.de>
+Run `kernel-doc -h` for details.
 
-sub usage {
-    my $message = <<"EOF";
-Usage: $0 [OPTION ...] FILE ...
+=head1 DESCRIPTION
 
 Read C language source or header FILEs, extract embedded documentation comments,
 and print formatted documentation to standard output.
 
-The documentation comments are identified by "/**" opening comment mark. See
-Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
+The documentation comments are identified by the "/**" opening comment mark.
 
-Output format selection (mutually exclusive):
-  -man			Output troff manual page format. This is the default.
-  -rst			Output reStructuredText format.
-  -none			Do not output documentation, only warnings.
+See Documentation/doc-guide/kernel-doc.rst for the documentation comment syntax.
 
-Output format selection modifier (affects only ReST output):
+=cut
 
-  -sphinx-version	Use the ReST C domain dialect compatible with an
-			specific Sphinx Version.
-			If not specified, kernel-doc will auto-detect using
-			the sphinx-build version found on PATH.
-
-Output selection (mutually exclusive):
-  -export		Only output documentation for symbols that have been
-			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
-                        in any input FILE or -export-file FILE.
-  -internal		Only output documentation for symbols that have NOT been
-			exported using EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL()
-                        in any input FILE or -export-file FILE.
-  -function NAME	Only output documentation for the given function(s)
-			or DOC: section title(s). All other functions and DOC:
-			sections are ignored. May be specified multiple times.
-  -nosymbol NAME	Exclude the specified symbols from the output
-		        documentation. May be specified multiple times.
-
-Output selection modifiers:
-  -no-doc-sections	Do not output DOC: sections.
-  -enable-lineno        Enable output of #define LINENO lines. Only works with
-                        reStructuredText format.
-  -export-file FILE     Specify an additional FILE in which to look for
-                        EXPORT_SYMBOL() and EXPORT_SYMBOL_GPL(). To be used with
-                        -export or -internal. May be specified multiple times.
-
-Other parameters:
-  -v			Verbose output, more warnings and other information.
-  -h			Print this help.
-  -Werror		Treat warnings as errors.
-
-EOF
-    print $message;
-    exit 1;
-}
-
-#
-# format of comments.
-# In the following table, (...)? signifies optional structure.
-#                         (...)* signifies 0 or more structure elements
-# /**
-#  * function_name(:)? (- short description)?
-# (* @parameterx: (description of parameter x)?)*
-# (* a blank line)?
-#  * (Description:)? (Description of function)?
-#  * (section header: (section description)? )*
-#  (*)?*/
-#
-# So .. the trivial example would be:
-#
-# /**
-#  * my_function
-#  */
-#
-# If the Description: header tag is omitted, then there must be a blank line
-# after the last parameter specification.
-# e.g.
-# /**
-#  * my_function - does my stuff
-#  * @my_arg: its mine damnit
-#  *
-#  * Does my stuff explained.
-#  */
-#
-#  or, could also use:
-# /**
-#  * my_function - does my stuff
-#  * @my_arg: its mine damnit
-#  * Description: Does my stuff explained.
-#  */
-# etc.
-#
-# Besides functions you can also write documentation for structs, unions,
-# enums and typedefs. Instead of the function name you must write the name
-# of the declaration;  the struct/union/enum/typedef must always precede
-# the name. Nesting of declarations is not supported.
-# Use the argument mechanism to document members or constants.
-# e.g.
-# /**
-#  * struct my_struct - short description
-#  * @a: first member
-#  * @b: second member
-#  *
-#  * Longer description
-#  */
-# struct my_struct {
-#     int a;
-#     int b;
-# /* private: */
-#     int c;
-# };
-#
-# All descriptions can be multiline, except the short function description.
-#
-# For really longs structs, you can also describe arguments inside the
-# body of the struct.
-# eg.
-# /**
-#  * struct my_struct - short description
-#  * @a: first member
-#  * @b: second member
-#  *
-#  * Longer description
-#  */
-# struct my_struct {
-#     int a;
-#     int b;
-#     /**
-#      * @c: This is longer description of C
-#      *
-#      * You can use paragraphs to describe arguments
-#      * using this method.
-#      */
-#     int c;
-# };
-#
-# This should be use only for struct/enum members.
-#
-# You can also add additional sections. When documenting kernel functions you
-# should document the "Context:" of the function, e.g. whether the functions
-# can be called form interrupts. Unlike other sections you can end it with an
-# empty line.
-# A non-void function should have a "Return:" section describing the return
-# value(s).
-# Example-sections should contain the string EXAMPLE so that they are marked
-# appropriately in DocBook.
-#
-# Example:
-# /**
-#  * user_function - function that can only be called in user context
-#  * @a: some argument
-#  * Context: !in_interrupt()
-#  *
-#  * Some description
-#  * Example:
-#  *    user_function(22);
-#  */
-# ...
-#
-#
-# All descriptive text is further processed, scanning for the following special
-# patterns, which are highlighted appropriately.
-#
-# 'funcname()' - function
-# '$ENVVAR' - environmental variable
-# '&struct_name' - name of a structure (up to two words including 'struct')
-# '&struct_name.member' - name of a structure member
-# '@parameter' - name of a parameter
-# '%CONST' - name of a constant.
-# '``LITERAL``' - literal string without any spaces on it.
+# more perldoc at the end of the file
 
 ## init lots of data
 
@@ -273,7 +117,13 @@ my $blankline_rst = "\n";
 
 # read arguments
 if ($#ARGV == -1) {
-    usage();
+	pod2usage(
+		-message => "No arguments!\n",
+		-exitval => 1,
+		-verbose => 99,
+		-sections => 'SYNOPSIS',
+		-output => \*STDERR,
+	);
 }
 
 my $kernelversion;
@@ -468,7 +318,7 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
     } elsif ($cmd eq "Werror") {
 	$Werror = 1;
     } elsif (($cmd eq "h") || ($cmd eq "help")) {
-	usage();
+		pod2usage(-exitval => 0, -verbose => 2);
     } elsif ($cmd eq 'no-doc-sections') {
 	    $no_doc_sections = 1;
     } elsif ($cmd eq 'enable-lineno') {
@@ -494,7 +344,22 @@ while ($ARGV[0] =~ m/^--?(.*)/) {
 	}
     } else {
 	# Unknown argument
-        usage();
+	pod2usage(
+	    -message => "Argument unknown!\n",
+	    -exitval => 1,
+	    -verbose => 99,
+	    -sections => 'SYNOPSIS',
+	    -output => \*STDERR,
+	    );
+    }
+    if ($#ARGV < 0){
+	pod2usage(
+	    -message => "FILE argument missing\n",
+	    -exitval => 1,
+	    -verbose => 99,
+	    -sections => 'SYNOPSIS',
+	    -output => \*STDERR,
+	    );
     }
 }
 
@@ -559,7 +424,7 @@ sub get_kernel_version() {
 sub print_lineno {
     my $lineno = shift;
     if ($enable_lineno && defined($lineno)) {
-        print "#define LINENO " . $lineno . "\n";
+        print ".. LINENO " . $lineno . "\n";
     }
 }
 ##
@@ -2521,3 +2386,118 @@ if ($Werror && $warnings) {
 } else {
     exit($output_mode eq "none" ? 0 : $errors)
 }
+
+__END__
+
+=head1 OPTIONS
+
+=head2 Output format selection (mutually exclusive):
+
+=over 8
+
+=item -man
+
+Output troff manual page format.
+
+=item -rst
+
+Output reStructuredText format. This is the default.
+
+=item -none
+
+Do not output documentation, only warnings.
+
+=back
+
+=head2 Output format modifiers
+
+=head3 reStructuredText only
+
+=over 8
+
+=item -sphinx-version VERSION
+
+Use the ReST C domain dialect compatible with a specific Sphinx Version.
+
+If not specified, kernel-doc will auto-detect using the sphinx-build version
+found on PATH.
+
+=back
+
+=head2 Output selection (mutually exclusive):
+
+=over 8
+
+=item -export
+
+Only output documentation for the symbols that have been exported using
+EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL() in any input FILE or -export-file FILE.
+
+=item -internal
+
+Only output documentation for the symbols that have NOT been exported using
+EXPORT_SYMBOL() or EXPORT_SYMBOL_GPL() in any input FILE or -export-file FILE.
+
+=item -function NAME
+
+Only output documentation for the given function or DOC: section title.
+All other functions and DOC: sections are ignored.
+
+May be specified multiple times.
+
+=item -nosymbol NAME
+
+Exclude the specified symbol from the output documentation.
+
+May be specified multiple times.
+
+=back
+
+=head2 Output selection modifiers:
+
+=over 8
+
+=item -no-doc-sections
+
+Do not output DOC: sections.
+
+=item -export-file FILE
+
+Specify an additional FILE in which to look for EXPORT_SYMBOL() and
+EXPORT_SYMBOL_GPL().
+
+To be used with -export or -internal.
+
+May be specified multiple times.
+
+=back
+
+=head3 reStructuredText only
+
+=over 8
+
+=item -enable-lineno
+
+Enable output of .. LINENO lines.
+
+=back
+
+=head2 Other parameters:
+
+=over 8
+
+=item -h, -help
+
+Print this help.
+
+=item -v
+
+Verbose output, more warnings and other information.
+
+=item -Werror
+
+Treat warnings as errors.
+
+=back
+
+=cut

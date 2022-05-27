@@ -1028,4 +1028,15 @@ struct tc_fifo_qopt_offload {
 	};
 };
 
+#ifdef CONFIG_NET_CLS_ACT
+DECLARE_STATIC_KEY_FALSE(tc_skb_ext_tc);
+void tc_skb_ext_tc_enable(void);
+void tc_skb_ext_tc_disable(void);
+#define tc_skb_ext_tc_enabled() static_branch_unlikely(&tc_skb_ext_tc)
+#else /* CONFIG_NET_CLS_ACT */
+static inline void tc_skb_ext_tc_enable(void) { }
+static inline void tc_skb_ext_tc_disable(void) { }
+#define tc_skb_ext_tc_enabled() false
+#endif
+
 #endif

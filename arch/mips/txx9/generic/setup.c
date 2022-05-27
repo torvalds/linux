@@ -78,12 +78,7 @@ unsigned int txx9_master_clock;
 unsigned int txx9_cpu_clock;
 unsigned int txx9_gbus_clock;
 
-#ifdef CONFIG_CPU_TX39XX
-/* don't enable by default - see errata */
-int txx9_ccfg_toeon __initdata;
-#else
 int txx9_ccfg_toeon __initdata = 1;
-#endif
 
 #define BOARD_VEC(board)	extern struct txx9_board_vec board;
 #include <asm/txx9/boards.h>
@@ -194,53 +189,6 @@ static void __init txx9_cache_fixup(void)
 	if (conf & TX49_CONF_DC)
 		pr_info("TX49XX D-Cache disabled.\n");
 }
-#elif defined(CONFIG_CPU_TX39XX)
-/* flush all cache on very early stage (before tx39_cache_init) */
-static void __init early_flush_dcache(void)
-{
-	unsigned int conf = read_c0_config();
-	unsigned int dc_size = 1 << (10 + ((conf & TX39_CONF_DCS_MASK) >>
-					   TX39_CONF_DCS_SHIFT));
-	unsigned int linesz = 16;
-	unsigned long addr, end;
-
-	end = INDEX_BASE + dc_size / 2;
-	/* 2way, waybit=0 */
-	for (addr = INDEX_BASE; addr < end; addr += linesz) {
-		cache_op(Index_Writeback_Inv_D, addr | 0);
-		cache_op(Index_Writeback_Inv_D, addr | 1);
-	}
-}
-
-static void __init txx9_cache_fixup(void)
-{
-	unsigned int conf;
-
-	conf = read_c0_config();
-	/* flush and disable */
-	if (txx9_ic_disable) {
-		conf &= ~TX39_CONF_ICE;
-		write_c0_config(conf);
-	}
-	if (txx9_dc_disable) {
-		early_flush_dcache();
-		conf &= ~TX39_CONF_DCE;
-		write_c0_config(conf);
-	}
-
-	/* enable cache */
-	conf = read_c0_config();
-	if (!txx9_ic_disable)
-		conf |= TX39_CONF_ICE;
-	if (!txx9_dc_disable)
-		conf |= TX39_CONF_DCE;
-	write_c0_config(conf);
-
-	if (!(conf & TX39_CONF_ICE))
-		pr_info("TX39XX I-Cache disabled.\n");
-	if (!(conf & TX39_CONF_DCE))
-		pr_info("TX39XX D-Cache disabled.\n");
-}
 #else
 static inline void txx9_cache_fixup(void)
 {
@@ -302,9 +250,6 @@ static void __init select_board(void)
 	}
 
 	/* select "default" board */
-#ifdef CONFIG_TOSHIBA_JMR3927
-	txx9_board_vec = &jmr3927_vec;
-#endif
 #ifdef CONFIG_CPU_TX49XX
 	switch (TX4938_REV_PCODE()) {
 #ifdef CONFIG_TOSHIBA_RBTX4927

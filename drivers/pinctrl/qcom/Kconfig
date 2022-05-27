@@ -248,6 +248,15 @@ config PINCTRL_SC8180X
 	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
 	  Technologies Inc SC8180x platform.
 
+config PINCTRL_SC8280XP
+	tristate "Qualcomm Technologies Inc SC8280xp pin controller driver"
+	depends on OF
+	depends on PINCTRL_MSM
+	help
+	  This is the pinctrl, pinmux, pinconf and gpiolib driver for the
+	  Qualcomm Technologies Inc TLMM block found on the Qualcomm
+	  Technologies Inc SC8280xp platform.
+
 config PINCTRL_SDM660
 	tristate "Qualcomm Technologies Inc SDM660 pin controller driver"
 	depends on OF

@@ -18,7 +18,7 @@ description: |
   capability of this controller.
 
 allOf:
-  - $ref: /spi/spi-controller.yaml#
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:
@@ -30,6 +30,7 @@ properties:
               - mediatek,mt7622-nor
               - mediatek,mt7623-nor
               - mediatek,mt7629-nor
+              - mediatek,mt8186-nor
               - mediatek,mt8192-nor
               - mediatek,mt8195-nor
           - enum:
@@ -49,6 +50,8 @@ properties:
       - description: clock used for controller
       - description: clock used for nor dma bus. this depends on hardware
                      design, so this is optional.
+      - description: clock used for controller axi slave bus.
+                     this depends on hardware design, so it is optional.
 
   clock-names:
     minItems: 2
@@ -56,6 +59,7 @@ properties:
       - const: spi
       - const: sf
       - const: axi
+      - const: axi_s
 
 required:
   - compatible

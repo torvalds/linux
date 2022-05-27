@@ -78,7 +78,7 @@ static inline void arch_spin_unlock(arch_spinlock_t *lp)
 {
 	typecheck(int, lp->lock);
 	asm_inline volatile(
-		ALTERNATIVE("", ".long 0xb2fa0070", 49)	/* NIAI 7 */
+		ALTERNATIVE("", ".insn rre,0xb2fa0000,7,0", 49)	/* NIAI 7 */
 		"	sth	%1,%0\n"
 		: "=R" (((unsigned short *) &lp->lock)[1])
 		: "d" (0) : "cc", "memory");

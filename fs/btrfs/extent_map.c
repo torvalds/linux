@@ -492,6 +492,8 @@ struct extent_map *search_extent_mapping(struct extent_map_tree *tree,
  */
 void remove_extent_mapping(struct extent_map_tree *tree, struct extent_map *em)
 {
+	lockdep_assert_held_write(&tree->lock);
+
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &em->flags));
 	rb_erase_cached(&em->rb_node, &tree->map);
 	if (!test_bit(EXTENT_FLAG_LOGGING, &em->flags))
@@ -506,6 +508,8 @@ void replace_extent_mapping(struct extent_map_tree *tree,
 			    struct extent_map *new,
 			    int modified)
 {
+	lockdep_assert_held_write(&tree->lock);
+
 	WARN_ON(test_bit(EXTENT_FLAG_PINNED, &cur->flags));
 	ASSERT(extent_map_in_tree(cur));
 	if (!test_bit(EXTENT_FLAG_LOGGING, &cur->flags))

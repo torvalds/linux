@@ -62,6 +62,7 @@ enum rd_sect_type {
 	RD_FRAG_SHADER,
 	RD_BUFFER_CONTENTS,
 	RD_GPU_ID,
+	RD_CHIP_ID,
 };
 
 #define BUF_SZ 512  /* should be power of 2 */
@@ -196,11 +197,16 @@ static int rd_open(struct inode *inode, struct file *file)
 
 	/* the parsing tools need to know gpu-id to know which
 	 * register database to load.
+	 *
+	 * Note: These particular params do not require a context
 	 */
-	gpu->funcs->get_param(gpu, MSM_PARAM_GPU_ID, &val);
+	gpu->funcs->get_param(gpu, NULL, MSM_PARAM_GPU_ID, &val);
 	gpu_id = val;
 
 	rd_write_section(rd, RD_GPU_ID, &gpu_id, sizeof(gpu_id));
+
+	gpu->funcs->get_param(gpu, NULL, MSM_PARAM_CHIP_ID, &val);
+	rd_write_section(rd, RD_CHIP_ID, &val, sizeof(val));
 
 out:
 	mutex_unlock(&gpu->lock);

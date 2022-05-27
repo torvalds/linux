@@ -295,9 +295,6 @@ static inline const u8 *nsl_uuid_raw(struct nvdimm_drvdata *ndd,
 	return nd_label->efi.uuid;
 }
 
-bool nsl_validate_blk_isetcookie(struct nvdimm_drvdata *ndd,
-				 struct nd_namespace_label *nd_label,
-				 u64 isetcookie);
 bool nsl_validate_type_guid(struct nvdimm_drvdata *ndd,
 			    struct nd_namespace_label *nd_label, guid_t *guid);
 enum nvdimm_claim_class nsl_get_claim_class(struct nvdimm_drvdata *ndd,
@@ -436,14 +433,6 @@ static inline bool nsl_validate_nlabel(struct nd_region *nd_region,
 		return true;
 	return nsl_get_nlabel(ndd, nd_label) == nd_region->ndr_mappings;
 }
-
-struct nd_blk_region {
-	int (*enable)(struct nvdimm_bus *nvdimm_bus, struct device *dev);
-	int (*do_io)(struct nd_blk_region *ndbr, resource_size_t dpa,
-			void *iobuf, u64 len, int rw);
-	void *blk_provider_data;
-	struct nd_region nd_region;
-};
 
 /*
  * Lookup next in the repeating sequence of 01, 10, and 11.
@@ -672,7 +661,6 @@ static inline int nvdimm_setup_pfn(struct nd_pfn *nd_pfn,
 	return -ENXIO;
 }
 #endif
-int nd_blk_region_init(struct nd_region *nd_region);
 int nd_region_activate(struct nd_region *nd_region);
 static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 		unsigned int len)
@@ -687,7 +675,6 @@ static inline bool is_bad_pmem(struct badblocks *bb, sector_t sector,
 
 	return false;
 }
-resource_size_t nd_namespace_blk_validate(struct nd_namespace_blk *nsblk);
 const uuid_t *nd_dev_to_uuid(struct device *dev);
 bool pmem_should_map_pages(struct device *dev);
 #endif /* __ND_H__ */

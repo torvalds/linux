@@ -10,6 +10,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
+#include <linux/bitmap.h>
 
 #include "test_util.h"
 
@@ -32,6 +33,22 @@ static void guest_nmi_handler(struct ex_regs *regs)
 {
 }
 
+/* Exits to L1 destroy GRPs! */
+static inline void rdmsr_fs_base(void)
+{
+	__asm__ __volatile__ ("mov $0xc0000100, %%rcx; rdmsr" : : :
+			      "rax", "rbx", "rcx", "rdx",
+			      "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
+			      "r13", "r14", "r15");
+}
+static inline void rdmsr_gs_base(void)
+{
+	__asm__ __volatile__ ("mov $0xc0000101, %%rcx; rdmsr" : : :
+			      "rax", "rbx", "rcx", "rdx",
+			      "rsi", "rdi", "r8", "r9", "r10", "r11", "r12",
+			      "r13", "r14", "r15");
+}
+
 void l2_guest_code(void)
 {
 	GUEST_SYNC(7);
@@ -40,6 +57,15 @@ void l2_guest_code(void)
 
 	/* Forced exit to L1 upon restore */
 	GUEST_SYNC(9);
+
+	vmcall();
+
+	/* MSR-Bitmap tests */
+	rdmsr_fs_base(); /* intercepted */
+	rdmsr_fs_base(); /* intercepted */
+	rdmsr_gs_base(); /* not intercepted */
+	vmcall();
+	rdmsr_gs_base(); /* intercepted */
 
 	/* Done, exit to L1 and never come back.  */
 	vmcall();
@@ -76,8 +102,9 @@ void guest_code(struct vmx_pages *vmx_pages)
 	current_evmcs->revision_id = EVMCS_VERSION;
 	GUEST_SYNC(6);
 
-	current_evmcs->pin_based_vm_exec_control |=
-		PIN_BASED_NMI_EXITING;
+	vmwrite(PIN_BASED_VM_EXEC_CONTROL, vmreadz(PIN_BASED_VM_EXEC_CONTROL) |
+		PIN_BASED_NMI_EXITING);
+
 	GUEST_ASSERT(!vmlaunch());
 	GUEST_ASSERT(vmptrstz() == vmx_pages->enlightened_vmcs_gpa);
 
@@ -90,6 +117,39 @@ void guest_code(struct vmx_pages *vmx_pages)
 
 	GUEST_SYNC(10);
 
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+	current_evmcs->guest_rip += 3; /* vmcall */
+
+	/* Intercept RDMSR 0xc0000100 */
+	vmwrite(CPU_BASED_VM_EXEC_CONTROL, vmreadz(CPU_BASED_VM_EXEC_CONTROL) |
+		CPU_BASED_USE_MSR_BITMAPS);
+	set_bit(MSR_FS_BASE & 0x1fff, vmx_pages->msr + 0x400);
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
+	current_evmcs->guest_rip += 2; /* rdmsr */
+
+	/* Enable enlightened MSR bitmap */
+	current_evmcs->hv_enlightenments_control.msr_bitmap = 1;
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
+	current_evmcs->guest_rip += 2; /* rdmsr */
+
+	/* Intercept RDMSR 0xc0000101 without telling KVM about it */
+	set_bit(MSR_GS_BASE & 0x1fff, vmx_pages->msr + 0x400);
+	/* Make sure HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP is set */
+	current_evmcs->hv_clean_fields |= HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
+	GUEST_ASSERT(!vmresume());
+	/* Make sure we don't see EXIT_REASON_MSR_READ here so eMSR bitmap works */
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
+	current_evmcs->guest_rip += 3; /* vmcall */
+
+	/* Now tell KVM we've changed MSR-Bitmap */
+	current_evmcs->hv_clean_fields &= ~HV_VMX_ENLIGHTENED_CLEAN_FIELD_MSR_BITMAP;
+	GUEST_ASSERT(!vmresume());
+	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_MSR_READ);
+	current_evmcs->guest_rip += 2; /* rdmsr */
+
+	GUEST_ASSERT(!vmresume());
 	GUEST_ASSERT(vmreadz(VM_EXIT_REASON) == EXIT_REASON_VMCALL);
 	GUEST_SYNC(11);
 

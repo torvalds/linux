@@ -10,7 +10,6 @@
 #define pr_fmt(fmt) "blk-crypto-fallback: " fmt
 
 #include <crypto/skcipher.h>
-#include <linux/blk-cgroup.h>
 #include <linux/blk-crypto.h>
 #include <linux/blk-crypto-profile.h>
 #include <linux/blkdev.h>
@@ -20,6 +19,7 @@
 #include <linux/random.h>
 #include <linux/scatterlist.h>
 
+#include "blk-cgroup.h"
 #include "blk-crypto-internal.h"
 
 static unsigned int num_prealloc_bounce_pg = 32;
@@ -170,7 +170,6 @@ static struct bio *blk_crypto_fallback_clone_bio(struct bio *bio_src)
 		bio_set_flag(bio, BIO_REMAPPED);
 	bio->bi_opf		= bio_src->bi_opf;
 	bio->bi_ioprio		= bio_src->bi_ioprio;
-	bio->bi_write_hint	= bio_src->bi_write_hint;
 	bio->bi_iter.bi_sector	= bio_src->bi_iter.bi_sector;
 	bio->bi_iter.bi_size	= bio_src->bi_iter.bi_size;
 

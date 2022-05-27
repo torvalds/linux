@@ -139,6 +139,7 @@ config IWLMEI
 	tristate "Intel Management Engine communication over WLAN"
 	depends on INTEL_MEI
 	depends on PM
+	depends on CFG80211
 	help
 	  Enables the iwlmei kernel module.
 

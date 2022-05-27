@@ -113,6 +113,16 @@ to: return warning/error, stop working or panic.
 See Section 3. for an example of driver implementing this
 callback, or Section 2.4 for further documentation on this API
 
+Registration of EM using DT
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+The  EM can also be registered using OPP framework and information in DT
+"operating-points-v2". Each OPP entry in DT can be extended with a property
+"opp-microwatt" containing micro-Watts power value. This OPP DT property
+allows a platform to register EM power values which are reflecting total power
+(static + dynamic). These power values might be coming directly from
+experiments and measurements.
+
 Registration of 'simple' EM
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~
 

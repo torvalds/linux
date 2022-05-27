@@ -27,6 +27,8 @@ properties:
       - qcom,sm6350-llcc
       - qcom,sm8150-llcc
       - qcom,sm8250-llcc
+      - qcom,sm8350-llcc
+      - qcom,sm8450-llcc
 
   reg:
     items:

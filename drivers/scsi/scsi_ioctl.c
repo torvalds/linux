@@ -345,19 +345,15 @@ EXPORT_SYMBOL(scsi_cmd_allowed);
 static int scsi_fill_sghdr_rq(struct scsi_device *sdev, struct request *rq,
 		struct sg_io_hdr *hdr, fmode_t mode)
 {
-	struct scsi_request *req = scsi_req(rq);
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 
 	if (hdr->cmd_len < 6)
 		return -EMSGSIZE;
-	if (copy_from_user(req->cmd, hdr->cmdp, hdr->cmd_len))
+	if (copy_from_user(scmd->cmnd, hdr->cmdp, hdr->cmd_len))
 		return -EFAULT;
-	if (!scsi_cmd_allowed(req->cmd, mode))
+	if (!scsi_cmd_allowed(scmd->cmnd, mode))
 		return -EPERM;
-
-	/*
-	 * fill in request structure
-	 */
-	req->cmd_len = hdr->cmd_len;
+	scmd->cmd_len = hdr->cmd_len;
 
 	rq->timeout = msecs_to_jiffies(hdr->timeout);
 	if (!rq->timeout)
@@ -373,29 +369,29 @@ static int scsi_fill_sghdr_rq(struct scsi_device *sdev, struct request *rq,
 static int scsi_complete_sghdr_rq(struct request *rq, struct sg_io_hdr *hdr,
 		struct bio *bio)
 {
-	struct scsi_request *req = scsi_req(rq);
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(rq);
 	int r, ret = 0;
 
 	/*
 	 * fill in all the output members
 	 */
-	hdr->status = req->result & 0xff;
-	hdr->masked_status = status_byte(req->result);
+	hdr->status = scmd->result & 0xff;
+	hdr->masked_status = status_byte(scmd->result);
 	hdr->msg_status = COMMAND_COMPLETE;
-	hdr->host_status = host_byte(req->result);
+	hdr->host_status = host_byte(scmd->result);
 	hdr->driver_status = 0;
 	if (scsi_status_is_check_condition(hdr->status))
 		hdr->driver_status = DRIVER_SENSE;
 	hdr->info = 0;
 	if (hdr->masked_status || hdr->host_status || hdr->driver_status)
 		hdr->info |= SG_INFO_CHECK;
-	hdr->resid = req->resid_len;
+	hdr->resid = scmd->resid_len;
 	hdr->sb_len_wr = 0;
 
-	if (req->sense_len && hdr->sbp) {
-		int len = min((unsigned int) hdr->mx_sb_len, req->sense_len);
+	if (scmd->sense_len && hdr->sbp) {
+		int len = min((unsigned int) hdr->mx_sb_len, scmd->sense_len);
 
-		if (!copy_to_user(hdr->sbp, req->sense, len))
+		if (!copy_to_user(hdr->sbp, scmd->sense_buffer, len))
 			hdr->sb_len_wr = len;
 		else
 			ret = -EFAULT;
@@ -415,7 +411,7 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 	int writing = 0;
 	int at_head = 0;
 	struct request *rq;
-	struct scsi_request *req;
+	struct scsi_cmnd *scmd;
 	struct bio *bio;
 
 	if (hdr->interface_id != 'S')
@@ -438,22 +434,20 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 	if (hdr->flags & SG_FLAG_Q_AT_HEAD)
 		at_head = 1;
 
-	ret = -ENOMEM;
 	rq = scsi_alloc_request(sdev->request_queue, writing ?
 			     REQ_OP_DRV_OUT : REQ_OP_DRV_IN, 0);
 	if (IS_ERR(rq))
 		return PTR_ERR(rq);
-	req = scsi_req(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
-	if (hdr->cmd_len > BLK_MAX_CDB) {
-		req->cmd = kzalloc(hdr->cmd_len, GFP_KERNEL);
-		if (!req->cmd)
-			goto out_put_request;
+	if (hdr->cmd_len > sizeof(scmd->cmnd)) {
+		ret = -EINVAL;
+		goto out_put_request;
 	}
 
 	ret = scsi_fill_sghdr_rq(sdev, rq, hdr, mode);
 	if (ret < 0)
-		goto out_free_cdb;
+		goto out_put_request;
 
 	ret = 0;
 	if (hdr->iovec_count) {
@@ -463,7 +457,7 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 		ret = import_iovec(rq_data_dir(rq), hdr->dxferp,
 				   hdr->iovec_count, 0, &iov, &i);
 		if (ret < 0)
-			goto out_free_cdb;
+			goto out_put_request;
 
 		/* SG_IO howto says that the shorter of the two wins */
 		iov_iter_truncate(&i, hdr->dxfer_len);
@@ -475,10 +469,10 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 				      hdr->dxfer_len, GFP_KERNEL);
 
 	if (ret)
-		goto out_free_cdb;
+		goto out_put_request;
 
 	bio = rq->bio;
-	req->retries = 0;
+	scmd->allowed = 0;
 
 	start_time = jiffies;
 
@@ -488,8 +482,6 @@ static int sg_io(struct scsi_device *sdev, struct sg_io_hdr *hdr, fmode_t mode)
 
 	ret = scsi_complete_sghdr_rq(rq, hdr, bio);
 
-out_free_cdb:
-	scsi_req_free_cmd(req);
 out_put_request:
 	blk_mq_free_request(rq);
 	return ret;
@@ -525,11 +517,10 @@ out_put_request:
 static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		struct scsi_ioctl_command __user *sic)
 {
-	enum { OMAX_SB_LEN = 16 };	/* For backward compatibility */
 	struct request *rq;
-	struct scsi_request *req;
 	int err;
 	unsigned int in_len, out_len, bytes, opcode, cmdlen;
+	struct scsi_cmnd *scmd;
 	char *buffer = NULL;
 
 	if (!sic)
@@ -560,7 +551,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		err = PTR_ERR(rq);
 		goto error_free_buffer;
 	}
-	req = scsi_req(rq);
+	scmd = blk_mq_rq_to_pdu(rq);
 
 	cmdlen = COMMAND_SIZE(opcode);
 
@@ -568,25 +559,25 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 	 * get command and data to send to device, if any
 	 */
 	err = -EFAULT;
-	req->cmd_len = cmdlen;
-	if (copy_from_user(req->cmd, sic->data, cmdlen))
+	scmd->cmd_len = cmdlen;
+	if (copy_from_user(scmd->cmnd, sic->data, cmdlen))
 		goto error;
 
 	if (in_len && copy_from_user(buffer, sic->data + cmdlen, in_len))
 		goto error;
 
 	err = -EPERM;
-	if (!scsi_cmd_allowed(req->cmd, mode))
+	if (!scsi_cmd_allowed(scmd->cmnd, mode))
 		goto error;
 
 	/* default.  possible overridden later */
-	req->retries = 5;
+	scmd->allowed = 5;
 
 	switch (opcode) {
 	case SEND_DIAGNOSTIC:
 	case FORMAT_UNIT:
 		rq->timeout = FORMAT_UNIT_TIMEOUT;
-		req->retries = 1;
+		scmd->allowed = 1;
 		break;
 	case START_STOP:
 		rq->timeout = START_STOP_TIMEOUT;
@@ -599,7 +590,7 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 		break;
 	case READ_DEFECT_DATA:
 		rq->timeout = READ_DEFECT_DATA_TIMEOUT;
-		req->retries = 1;
+		scmd->allowed = 1;
 		break;
 	default:
 		rq->timeout = BLK_DEFAULT_SG_TIMEOUT;
@@ -614,12 +605,12 @@ static int sg_scsi_ioctl(struct request_queue *q, fmode_t mode,
 
 	blk_execute_rq(rq, false);
 
-	err = req->result & 0xff;	/* only 8 bit SCSI status */
+	err = scmd->result & 0xff;	/* only 8 bit SCSI status */
 	if (err) {
-		if (req->sense_len && req->sense) {
-			bytes = (OMAX_SB_LEN > req->sense_len) ?
-				req->sense_len : OMAX_SB_LEN;
-			if (copy_to_user(sic->data, req->sense, bytes))
+		if (scmd->sense_len && scmd->sense_buffer) {
+			/* limit sense len for backward compatibility */
+			if (copy_to_user(sic->data, scmd->sense_buffer,
+					 min(scmd->sense_len, 16U)))
 				err = -EFAULT;
 		}
 	} else {

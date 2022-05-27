@@ -13,6 +13,10 @@ properties:
   $nodename:
     pattern: "^ethernet(@.*)?$"
 
+  label:
+    $ref: /schemas/types.yaml#/definitions/string
+    description: Human readable label on a port of a box.
+
   local-mac-address:
     description:
       Specifies the MAC address that was assigned to the network device.
@@ -101,6 +105,12 @@ properties:
 
   phy-mode:
     $ref: "#/properties/phy-connection-type"
+
+  pcs-handle:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Specifies a reference to a node representing a PCS PHY device on a MDIO
+      bus to link with an external PHY (phy-handle) if exists.
 
   phy-handle:
     $ref: /schemas/types.yaml#/definitions/phandle

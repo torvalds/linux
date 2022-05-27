@@ -33,7 +33,7 @@ $(obj)/utf8data.c: $(obj)/mkutf8data $(filter %.txt, $(cmd_utf8data)) FORCE
 else
 
 $(obj)/utf8data.c: $(src)/utf8data.c_shipped FORCE
-	$(call if_changed,shipped)
+	$(call if_changed,copy)
 
 endif
 

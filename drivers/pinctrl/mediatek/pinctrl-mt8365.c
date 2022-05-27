@@ -259,7 +259,7 @@ static const struct mtk_pin_ies_smt_set mt8365_ies_set[] = {
 	MTK_PIN_IES_SMT_SPEC(104, 104, 0x420, 13),
 	MTK_PIN_IES_SMT_SPEC(105, 109, 0x420, 14),
 	MTK_PIN_IES_SMT_SPEC(110, 113, 0x420, 15),
-	MTK_PIN_IES_SMT_SPEC(114, 112, 0x420, 16),
+	MTK_PIN_IES_SMT_SPEC(114, 116, 0x420, 16),
 	MTK_PIN_IES_SMT_SPEC(117, 119, 0x420, 17),
 	MTK_PIN_IES_SMT_SPEC(120, 122, 0x420, 18),
 	MTK_PIN_IES_SMT_SPEC(123, 125, 0x420, 19),
@@ -416,25 +416,6 @@ static const struct mtk_pin_ies_smt_set mt8365_smt_set[] = {
 	MTK_PIN_IES_SMT_SPEC(144, 144, 0x480, 22),
 };
 
-static int mt8365_spec_pull_set(struct regmap *regmap, unsigned int pin,
-			unsigned char align, bool isup, unsigned int r1r0)
-{
-	return mtk_pctrl_spec_pull_set_samereg(regmap, mt8365_spec_pupd,
-		ARRAY_SIZE(mt8365_spec_pupd), pin, align, isup, r1r0);
-}
-
-static int mt8365_ies_smt_set(struct regmap *regmap, unsigned int pin,
-		unsigned char align, int value, enum pin_config_param arg)
-{
-	if (arg == PIN_CONFIG_INPUT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8365_ies_set,
-			ARRAY_SIZE(mt8365_ies_set), pin, align, value);
-	else if (arg == PIN_CONFIG_INPUT_SCHMITT_ENABLE)
-		return mtk_pconf_spec_set_ies_smt_range(regmap, mt8365_smt_set,
-			ARRAY_SIZE(mt8365_smt_set), pin, align, value);
-	return -EINVAL;
-}
-
 static const struct mtk_pinctrl_devdata mt8365_pinctrl_data = {
 	.pins = mtk_pins_mt8365,
 	.npins = ARRAY_SIZE(mtk_pins_mt8365),
@@ -442,8 +423,14 @@ static const struct mtk_pinctrl_devdata mt8365_pinctrl_data = {
 	.n_grp_cls = ARRAY_SIZE(mt8365_drv_grp),
 	.pin_drv_grp = mt8365_pin_drv,
 	.n_pin_drv_grps = ARRAY_SIZE(mt8365_pin_drv),
-	.spec_pull_set = mt8365_spec_pull_set,
-	.spec_ies_smt_set = mt8365_ies_smt_set,
+	.spec_ies = mt8365_ies_set,
+	.n_spec_ies = ARRAY_SIZE(mt8365_ies_set),
+	.spec_smt = mt8365_smt_set,
+	.n_spec_smt = ARRAY_SIZE(mt8365_smt_set),
+	.spec_pupd = mt8365_spec_pupd,
+	.n_spec_pupd = ARRAY_SIZE(mt8365_spec_pupd),
+	.spec_pull_set = mtk_pctrl_spec_pull_set_samereg,
+	.spec_ies_smt_set = mtk_pconf_spec_set_ies_smt_range,
 	.dir_offset = 0x0140,
 	.dout_offset = 0x00A0,
 	.din_offset = 0x0000,
@@ -469,20 +456,13 @@ static const struct mtk_pinctrl_devdata mt8365_pinctrl_data = {
 	},
 };
 
-static int mtk_pinctrl_probe(struct platform_device *pdev)
-{
-	return mtk_pctrl_init(pdev, &mt8365_pinctrl_data, NULL);
-}
-
 static const struct of_device_id mt8365_pctrl_match[] = {
-	{
-		.compatible = "mediatek,mt8365-pinctrl",
-	},
+	{ .compatible = "mediatek,mt8365-pinctrl", .data = &mt8365_pinctrl_data },
 	{}
 };
 
 static struct platform_driver mtk_pinctrl_driver = {
-	.probe = mtk_pinctrl_probe,
+	.probe = mtk_pctrl_common_probe,
 	.driver = {
 		.name = "mediatek-mt8365-pinctrl",
 		.of_match_table = mt8365_pctrl_match,

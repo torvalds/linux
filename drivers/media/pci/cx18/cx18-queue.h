@@ -15,15 +15,15 @@
 static inline void cx18_buf_sync_for_cpu(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
-	pci_dma_sync_single_for_cpu(s->cx->pci_dev, buf->dma_handle,
+	dma_sync_single_for_cpu(&s->cx->pci_dev->dev, buf->dma_handle,
 				s->buf_size, s->dma);
 }
 
 static inline void cx18_buf_sync_for_device(struct cx18_stream *s,
 	struct cx18_buffer *buf)
 {
-	pci_dma_sync_single_for_device(s->cx->pci_dev, buf->dma_handle,
-				s->buf_size, s->dma);
+	dma_sync_single_for_device(&s->cx->pci_dev->dev, buf->dma_handle,
+				   s->buf_size, s->dma);
 }
 
 void _cx18_mdl_sync_for_device(struct cx18_stream *s, struct cx18_mdl *mdl);

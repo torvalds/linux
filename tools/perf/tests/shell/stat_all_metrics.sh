@@ -4,6 +4,7 @@
 
 set -e
 
+err=0
 for m in $(perf list --raw-dump metrics); do
   echo "Testing $m"
   result=$(perf stat -M "$m" true 2>&1)
@@ -14,9 +15,14 @@ for m in $(perf list --raw-dump metrics); do
     if [[ ! "$result" =~ "$m" ]]; then
       echo "Metric '$m' not printed in:"
       echo "$result"
-      exit 1
+      if [[ "$result" =~ "FP_ARITH" && "$err" != "1" ]]; then
+        echo "Skip, not fail, for FP issues"
+        err=2
+      else
+        err=1
+      fi
     fi
   fi
 done
 
-exit 0
+exit "$err"

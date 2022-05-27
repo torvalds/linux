@@ -220,6 +220,7 @@ struct ehci_hcd {			/* one per controller */
 	unsigned		imx28_write_fix:1; /* For Freescale i.MX28 */
 	unsigned		spurious_oc:1;
 	unsigned		is_aspeed:1;
+	unsigned		zx_wakeup_clear_needed:1;
 
 	/* required for usb32 quirk */
 	#define OHCI_CTRL_HCFS          (3 << 6)

@@ -23,6 +23,18 @@
 	};
 };
 
+&apps_rsc {
+	pmg1110-regulators {
+		compatible = "qcom,pmg1110-rpmh-regulators";
+		qcom,pmic-id = "k";
+
+		vreg_s1k_1p0: smps1 {
+			regulator-min-microvolt = <1010000>;
+			regulator-max-microvolt = <1170000>;
+		};
+	};
+};
+
 ap_tp_i2c: &i2c0 {
 	status = "okay";
 	clock-frequency = <400000>;

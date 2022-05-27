@@ -279,9 +279,10 @@ struct iosm_mux *ipc_mux_init(struct ipc_mux_config *mux_cfg,
 			      struct iosm_imem *imem)
 {
 	struct iosm_mux *ipc_mux = kzalloc(sizeof(*ipc_mux), GFP_KERNEL);
-	int i, ul_tds, ul_td_size;
+	int i, j, ul_tds, ul_td_size;
 	struct sk_buff_head *free_list;
 	struct sk_buff *skb;
+	int qlt_size;
 
 	if (!ipc_mux)
 		return NULL;
@@ -320,6 +321,24 @@ struct iosm_mux *ipc_mux_init(struct ipc_mux_config *mux_cfg,
 	ipc_mux->event = MUX_E_INACTIVE;
 	ipc_mux->channel_id = -1;
 	ipc_mux->channel = NULL;
+
+	if (ipc_mux->protocol != MUX_LITE) {
+		qlt_size = offsetof(struct mux_qlth, ql) +
+				MUX_QUEUE_LEVEL * sizeof(struct mux_qlth_ql);
+
+		for (i = 0; i < IPC_MEM_MUX_IP_SESSION_ENTRIES; i++) {
+			ipc_mux->ul_adb.pp_qlt[i] = kzalloc(qlt_size,
+							    GFP_ATOMIC);
+			if (!ipc_mux->ul_adb.pp_qlt[i]) {
+				for (j = i - 1; j >= 0; j--)
+					kfree(ipc_mux->ul_adb.pp_qlt[j]);
+				return NULL;
+			}
+		}
+
+		ul_td_size = IPC_MEM_MAX_UL_ADB_BUF_SIZE;
+		ul_tds = IPC_MEM_MAX_TDS_MUX_AGGR_UL;
+	}
 
 	/* Allocate the list of UL ADB. */
 	for (i = 0; i < ul_tds; i++) {

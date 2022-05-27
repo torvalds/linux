@@ -43,9 +43,9 @@
 	__stringify(major) "_"		 \
 	__stringify(minor) ".bin"
 
-#define GEN12_DMC_MAX_FW_SIZE		ICL_DMC_MAX_FW_SIZE
+#define DISPLAY_VER13_DMC_MAX_FW_SIZE	0x20000
 
-#define GEN13_DMC_MAX_FW_SIZE		0x20000
+#define DISPLAY_VER12_DMC_MAX_FW_SIZE	ICL_DMC_MAX_FW_SIZE
 
 #define ADLP_DMC_PATH			DMC_PATH(adlp, 2, 14)
 #define ADLP_DMC_VERSION_REQUIRED	DMC_VERSION(2, 14)
@@ -367,6 +367,44 @@ static void dmc_set_fw_offset(struct intel_dmc *dmc,
 	}
 }
 
+static bool dmc_mmio_addr_sanity_check(struct intel_dmc *dmc,
+				       const u32 *mmioaddr, u32 mmio_count,
+				       int header_ver, u8 dmc_id)
+{
+	struct drm_i915_private *i915 = container_of(dmc, typeof(*i915), dmc);
+	u32 start_range, end_range;
+	int i;
+
+	if (dmc_id >= DMC_FW_MAX) {
+		drm_warn(&i915->drm, "Unsupported firmware id %u\n", dmc_id);
+		return false;
+	}
+
+	if (header_ver == 1) {
+		start_range = DMC_MMIO_START_RANGE;
+		end_range = DMC_MMIO_END_RANGE;
+	} else if (dmc_id == DMC_FW_MAIN) {
+		start_range = TGL_MAIN_MMIO_START;
+		end_range = TGL_MAIN_MMIO_END;
+	} else if (DISPLAY_VER(i915) >= 13) {
+		start_range = ADLP_PIPE_MMIO_START;
+		end_range = ADLP_PIPE_MMIO_END;
+	} else if (DISPLAY_VER(i915) >= 12) {
+		start_range = TGL_PIPE_MMIO_START(dmc_id);
+		end_range = TGL_PIPE_MMIO_END(dmc_id);
+	} else {
+		drm_warn(&i915->drm, "Unknown mmio range for sanity check");
+		return false;
+	}
+
+	for (i = 0; i < mmio_count; i++) {
+		if (mmioaddr[i] < start_range || mmioaddr[i] > end_range)
+			return false;
+	}
+
+	return true;
+}
+
 static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 			       const struct intel_dmc_header_base *dmc_header,
 			       size_t rem_size, u8 dmc_id)
@@ -433,6 +471,12 @@ static u32 parse_dmc_fw_header(struct intel_dmc *dmc,
 	/* Cache the dmc header info. */
 	if (mmio_count > mmio_count_max) {
 		drm_err(&i915->drm, "DMC firmware has wrong mmio count %u\n", mmio_count);
+		return 0;
+	}
+
+	if (!dmc_mmio_addr_sanity_check(dmc, mmioaddr, mmio_count,
+					dmc_header->header_ver, dmc_id)) {
+		drm_err(&i915->drm, "DMC firmware has Wrong MMIO Addresses\n");
 		return 0;
 	}
 
@@ -684,23 +728,23 @@ void intel_dmc_ucode_init(struct drm_i915_private *dev_priv)
 	if (IS_ALDERLAKE_P(dev_priv)) {
 		dmc->fw_path = ADLP_DMC_PATH;
 		dmc->required_version = ADLP_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN13_DMC_MAX_FW_SIZE;
+		dmc->max_fw_size = DISPLAY_VER13_DMC_MAX_FW_SIZE;
 	} else if (IS_ALDERLAKE_S(dev_priv)) {
 		dmc->fw_path = ADLS_DMC_PATH;
 		dmc->required_version = ADLS_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
+		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
 	} else if (IS_DG1(dev_priv)) {
 		dmc->fw_path = DG1_DMC_PATH;
 		dmc->required_version = DG1_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
+		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
 	} else if (IS_ROCKETLAKE(dev_priv)) {
 		dmc->fw_path = RKL_DMC_PATH;
 		dmc->required_version = RKL_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
+		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) >= 12) {
 		dmc->fw_path = TGL_DMC_PATH;
 		dmc->required_version = TGL_DMC_VERSION_REQUIRED;
-		dmc->max_fw_size = GEN12_DMC_MAX_FW_SIZE;
+		dmc->max_fw_size = DISPLAY_VER12_DMC_MAX_FW_SIZE;
 	} else if (DISPLAY_VER(dev_priv) == 11) {
 		dmc->fw_path = ICL_DMC_PATH;
 		dmc->required_version = ICL_DMC_VERSION_REQUIRED;

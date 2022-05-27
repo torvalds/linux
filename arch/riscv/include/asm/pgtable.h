@@ -63,7 +63,8 @@
  * position vmemmap directly below the VMALLOC region.
  */
 #ifdef CONFIG_64BIT
-#define VA_BITS		(pgtable_l4_enabled ? 48 : 39)
+#define VA_BITS		(pgtable_l5_enabled ? \
+				57 : (pgtable_l4_enabled ? 48 : 39))
 #else
 #define VA_BITS		32
 #endif
@@ -103,7 +104,6 @@
 
 #ifndef __ASSEMBLY__
 
-#include <asm-generic/pgtable-nop4d.h>
 #include <asm/page.h>
 #include <asm/tlbflush.h>
 #include <linux/mm_types.h>
@@ -134,6 +134,8 @@ struct pt_alloc_ops {
 	phys_addr_t (*alloc_pmd)(uintptr_t va);
 	pud_t *(*get_pud_virt)(phys_addr_t pa);
 	phys_addr_t (*alloc_pud)(uintptr_t va);
+	p4d_t *(*get_p4d_virt)(phys_addr_t pa);
+	phys_addr_t (*alloc_p4d)(uintptr_t va);
 #endif
 };
 

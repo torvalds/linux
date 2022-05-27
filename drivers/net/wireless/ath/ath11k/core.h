@@ -38,6 +38,8 @@
 
 extern unsigned int ath11k_frame_mode;
 
+#define ATH11K_SCAN_TIMEOUT_HZ (20 * HZ)
+
 #define ATH11K_MON_TIMER_INTERVAL  10
 
 enum ath11k_supported_bw {
@@ -189,6 +191,12 @@ enum ath11k_scan_state {
 	ATH11K_SCAN_ABORTING,
 };
 
+enum ath11k_11d_state {
+	ATH11K_11D_IDLE,
+	ATH11K_11D_PREPARING,
+	ATH11K_11D_RUNNING,
+};
+
 enum ath11k_dev_flags {
 	ATH11K_CAC_RUNNING,
 	ATH11K_FLAG_CORE_REGISTERED,
@@ -263,6 +271,9 @@ struct ath11k_vif {
 	bool bcca_zero_sent;
 	bool do_not_send_tmpl;
 	struct ieee80211_chanctx_conf chanctx;
+#ifdef CONFIG_ATH11K_DEBUGFS
+	struct dentry *debugfs_twt;
+#endif /* CONFIG_ATH11K_DEBUGFS */
 };
 
 struct ath11k_vif_iter {
@@ -441,6 +452,8 @@ struct ath11k_dbg_htt_stats {
 	spinlock_t lock;
 };
 
+#define MAX_MODULE_ID_BITMAP_WORDS	16
+
 struct ath11k_debug {
 	struct dentry *debugfs_pdev;
 	struct ath11k_dbg_htt_stats htt_stats;
@@ -454,6 +467,9 @@ struct ath11k_debug {
 	u32 pktlog_peer_valid;
 	u8 pktlog_peer_addr[ETH_ALEN];
 	u32 rx_filter;
+	u32 mem_offset;
+	u32 module_id_bitmap[MAX_MODULE_ID_BITMAP_WORDS];
+	struct ath11k_debug_dbr *dbr_debug[WMI_DIRECT_BUF_MAX];
 };
 
 struct ath11k_per_peer_tx_stats {
@@ -599,10 +615,11 @@ struct ath11k {
 	bool dfs_block_radar_events;
 	struct ath11k_thermal thermal;
 	u32 vdev_id_11d_scan;
-	struct completion finish_11d_scan;
-	struct completion finish_11d_ch_list;
-	bool pending_11d;
+	struct completion completed_11d_scan;
+	enum ath11k_11d_state state_11d;
 	bool regdom_set_by_user;
+	int hw_rate_code;
+	u8 twt_enabled;
 };
 
 struct ath11k_band_cap {
@@ -806,7 +823,7 @@ struct ath11k_base {
 	} id;
 
 	/* must be last */
-	u8 drv_priv[0] __aligned(sizeof(void *));
+	u8 drv_priv[] __aligned(sizeof(void *));
 };
 
 struct ath11k_fw_stats_pdev {

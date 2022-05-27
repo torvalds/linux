@@ -25,6 +25,11 @@ properties:
     $ref: /schemas/types.yaml#/definitions/phandle
     deprecated: true
 
+  line-impedance-micro-ohms:
+    description: The line impedance between the battery and the
+      AB8500 inputs, to compensate for this when determining internal
+      resistance.
+
   interrupts:
     maxItems: 5
 

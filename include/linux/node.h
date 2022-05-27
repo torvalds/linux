@@ -99,19 +99,20 @@ extern struct node *node_devices[];
 typedef  void (*node_registration_func_t)(struct node *);
 
 #if defined(CONFIG_MEMORY_HOTPLUG) && defined(CONFIG_NUMA)
-void link_mem_sections(int nid, unsigned long start_pfn,
-		       unsigned long end_pfn,
-		       enum meminit_context context);
+void register_memory_blocks_under_node(int nid, unsigned long start_pfn,
+				       unsigned long end_pfn,
+				       enum meminit_context context);
 #else
-static inline void link_mem_sections(int nid, unsigned long start_pfn,
-				     unsigned long end_pfn,
-				     enum meminit_context context)
+static inline void register_memory_blocks_under_node(int nid, unsigned long start_pfn,
+						     unsigned long end_pfn,
+						     enum meminit_context context)
 {
 }
 #endif
 
 extern void unregister_node(struct node *node);
 #ifdef CONFIG_NUMA
+extern void node_dev_init(void);
 /* Core of the node registration - only memory hotplug should use this */
 extern int __register_one_node(int nid);
 
@@ -128,8 +129,8 @@ static inline int register_one_node(int nid)
 		error = __register_one_node(nid);
 		if (error)
 			return error;
-		/* link memory sections under this node */
-		link_mem_sections(nid, start_pfn, end_pfn, MEMINIT_EARLY);
+		register_memory_blocks_under_node(nid, start_pfn, end_pfn,
+						  MEMINIT_EARLY);
 	}
 
 	return error;
@@ -149,6 +150,9 @@ extern void register_hugetlbfs_with_node(node_registration_func_t doregister,
 					 node_registration_func_t unregister);
 #endif
 #else
+static inline void node_dev_init(void)
+{
+}
 static inline int __register_one_node(int nid)
 {
 	return 0;
@@ -180,5 +184,10 @@ static inline void register_hugetlbfs_with_node(node_registration_func_t reg,
 #endif
 
 #define to_node(device) container_of(device, struct node, dev)
+
+static inline bool node_is_toptier(int node)
+{
+	return node_state(node, N_CPU);
+}
 
 #endif /* _LINUX_NODE_H_ */

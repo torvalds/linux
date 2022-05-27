@@ -72,7 +72,7 @@ struct mmio_offset {
  * @context_info_addr:	Physical base address of context info structure
  * @chip_info_version:	Version of chip info structure
  * @chip_info_size:	Size of chip info structure
- * @has_mux_lite:	It doesn't support mux aggergation
+ * @mux_protocol:	mux protocol
  * @has_ul_flow_credit:	Ul flow credit support
  * @has_slp_no_prot:	Device sleep no protocol support
  * @has_mcr_support:	Usage of mcr support
@@ -84,8 +84,8 @@ struct iosm_mmio {
 	phys_addr_t context_info_addr;
 	unsigned int chip_info_version;
 	unsigned int chip_info_size;
-	u8 has_mux_lite:1,
-	   has_ul_flow_credit:1,
+	u32 mux_protocol;
+	u8 has_ul_flow_credit:1,
 	   has_slp_no_prot:1,
 	   has_mcr_support:1;
 };

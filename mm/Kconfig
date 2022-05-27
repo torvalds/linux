@@ -249,6 +249,9 @@ config MIGRATION
 	  pages as migration can relocate pages to satisfy a huge page
 	  allocation instead of reclaiming.
 
+config DEVICE_MIGRATION
+	def_bool MIGRATION && ZONE_DEVICE
+
 config ARCH_ENABLE_HUGEPAGE_MIGRATION
 	bool
 
@@ -261,6 +264,9 @@ config HUGETLB_PAGE_SIZE_VARIABLE
 	  Allows the pageblock_order value to be dynamic instead of just standard
 	  HUGETLB_PAGE_ORDER when there are multiple HugeTLB page sizes available
 	  on a platform.
+
+	  Note that the pageblock_order cannot exceed MAX_ORDER - 1 and will be
+	  clamped down to MAX_ORDER - 1.
 
 config CONTIG_ALLOC
 	def_bool (MEMORY_ISOLATION && COMPACTION) || CMA
@@ -410,6 +416,9 @@ choice
 	  memory footprint of applications without a guaranteed
 	  benefit.
 endchoice
+
+config ARCH_WANT_GENERAL_HUGETLB
+	bool
 
 config ARCH_WANTS_THP_SWAP
 	def_bool n
@@ -744,6 +753,18 @@ config IDLE_PAGE_TRACKING
 config ARCH_HAS_CACHE_LINE_SIZE
 	bool
 
+config ARCH_HAS_CURRENT_STACK_POINTER
+	bool
+	help
+	  In support of HARDENED_USERCOPY performing stack variable lifetime
+	  checking, an architecture-agnostic way to find the stack pointer
+	  is needed. Once an architecture defines an unsigned long global
+	  register alias named "current_stack_pointer", this config can be
+	  selected.
+
+config ARCH_HAS_FILTER_PGPROT
+	bool
+
 config ARCH_HAS_PTE_DEVMAP
 	bool
 
@@ -776,9 +797,6 @@ config ZONE_DEVICE
 
 	  If FS_DAX is enabled, then say Y.
 
-config DEV_PAGEMAP_OPS
-	bool
-
 #
 # Helpers to mirror range of the CPU page tables of a process into device page
 # tables.
@@ -790,7 +808,6 @@ config HMM_MIRROR
 config DEVICE_PRIVATE
 	bool "Unaddressable device memory (GPU memory, ...)"
 	depends on ZONE_DEVICE
-	select DEV_PAGEMAP_OPS
 
 	help
 	  Allows creation of struct pages to represent unaddressable device

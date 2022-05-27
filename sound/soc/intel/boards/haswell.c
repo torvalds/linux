@@ -175,7 +175,7 @@ static int haswell_audio_probe(struct platform_device *pdev)
 
 	haswell_rt5640.dev = &pdev->dev;
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	mach = pdev->dev.platform_data;
 	ret = snd_soc_fixup_dai_links_platform_name(&haswell_rt5640,
 						    mach->mach_params.platform);

@@ -545,7 +545,7 @@ struct ConfigRid {
 #define MODE_CFG_MASK cpu_to_le16(0xff)
 #define MODE_ETHERNET_HOST cpu_to_le16(0<<8) /* rx payloads converted */
 #define MODE_LLC_HOST cpu_to_le16(1<<8) /* rx payloads left as is */
-#define MODE_AIRONET_EXTEND cpu_to_le16(1<<9) /* enable Aironet extenstions */
+#define MODE_AIRONET_EXTEND cpu_to_le16(1<<9) /* enable Aironet extensions */
 #define MODE_AP_INTERFACE cpu_to_le16(1<<10) /* enable ap interface extensions */
 #define MODE_ANTENNA_ALIGN cpu_to_le16(1<<11) /* enable antenna alignment */
 #define MODE_ETHER_LLC cpu_to_le16(1<<12) /* enable ethernet LLC */

@@ -105,27 +105,11 @@ int cpu_check_affinity(struct irq_data *d, const struct cpumask *dest)
 	if (irqd_is_per_cpu(d))
 		return -EINVAL;
 
-	/* whatever mask they set, we just allow one CPU */
-	cpu_dest = cpumask_next_and(d->irq & (num_online_cpus()-1),
-					dest, cpu_online_mask);
+	cpu_dest = cpumask_first_and(dest, cpu_online_mask);
 	if (cpu_dest >= nr_cpu_ids)
-		cpu_dest = cpumask_first_and(dest, cpu_online_mask);
+		cpu_dest = cpumask_first(cpu_online_mask);
 
 	return cpu_dest;
-}
-
-static int cpu_set_affinity_irq(struct irq_data *d, const struct cpumask *dest,
-				bool force)
-{
-	int cpu_dest;
-
-	cpu_dest = cpu_check_affinity(d, dest);
-	if (cpu_dest < 0)
-		return -1;
-
-	cpumask_copy(irq_data_get_affinity_mask(d), dest);
-
-	return 0;
 }
 #endif
 
@@ -135,9 +119,6 @@ static struct irq_chip cpu_interrupt_type = {
 	.irq_unmask		= cpu_unmask_irq,
 	.irq_ack		= cpu_ack_irq,
 	.irq_eoi		= cpu_eoi_irq,
-#ifdef CONFIG_SMP
-	.irq_set_affinity	= cpu_set_affinity_irq,
-#endif
 	/* XXX: Needs to be written.  We managed without it so far, but
 	 * we really ought to write it.
 	 */
@@ -582,7 +563,7 @@ static void claim_cpu_irqs(void)
 #endif
 }
 
-void __init init_IRQ(void)
+void init_IRQ(void)
 {
 	local_irq_disable();	/* PARANOID - should already be disabled */
 	mtctl(~0UL, 23);	/* EIRR : clear all pending external intr */

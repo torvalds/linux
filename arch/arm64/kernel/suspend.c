@@ -140,7 +140,7 @@ int cpu_suspend(unsigned long arg, int (*fn)(unsigned long))
 	/*
 	 * Restore pstate flags. OS lock and mdscr have been already
 	 * restored, so from this point onwards, debugging is fully
-	 * renabled if it was enabled when core started shutdown.
+	 * reenabled if it was enabled when core started shutdown.
 	 */
 	local_daif_restore(flags);
 

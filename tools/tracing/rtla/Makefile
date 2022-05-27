@@ -46,7 +46,7 @@ DATADIR	:=	/usr/share
 DOCDIR	:=	$(DATADIR)/doc
 MANDIR	:=	$(DATADIR)/man
 LICDIR	:=	$(DATADIR)/licenses
-SRCTREE	:=	$(if $(BUILD_SRC),$(BUILD_SRC),$(CURDIR))
+SRCTREE	:=	$(or $(BUILD_SRC),$(CURDIR))
 
 # If running from the tarball, man pages are stored in the Documentation
 # dir. If running from the kernel source, man pages are stored in

@@ -320,6 +320,7 @@ ret_fail:
 
 static const struct pci_device_id iosm_ipc_ids[] = {
 	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, INTEL_CP_DEVICE_7560_ID) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_INTEL, INTEL_CP_DEVICE_7360_ID) },
 	{}
 };
 MODULE_DEVICE_TABLE(pci, iosm_ipc_ids);

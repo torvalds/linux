@@ -331,8 +331,8 @@ static int max98926_dai_set_fmt(struct snd_soc_dai *codec_dai,
 
 	dev_dbg(component->dev, "%s: fmt 0x%08X\n", __func__, fmt);
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		max98926_set_sense_data(max98926);
 		break;
 	default:

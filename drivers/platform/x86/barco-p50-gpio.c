@@ -10,7 +10,6 @@
 
 #define pr_fmt(fmt)	KBUILD_MODNAME ": " fmt
 
-#include <linux/io.h>
 #include <linux/delay.h>
 #include <linux/dmi.h>
 #include <linux/err.h>

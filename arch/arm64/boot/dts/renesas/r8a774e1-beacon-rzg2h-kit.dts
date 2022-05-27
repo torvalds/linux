@@ -11,7 +11,7 @@
 
 / {
 	model = "Beacon Embedded Works RZ/G2H Development Kit";
-	compatible =	"beacon,beacon-rzg2h", "renesas,r8a774e1";
+	compatible = "beacon,beacon-rzg2h", "renesas,r8a774e1";
 
 	aliases {
 		serial0 = &scif2;

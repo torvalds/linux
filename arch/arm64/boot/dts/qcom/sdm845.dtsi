@@ -12,6 +12,7 @@
 #include <dt-bindings/clock/qcom,lpass-sdm845.h>
 #include <dt-bindings/clock/qcom,rpmh.h>
 #include <dt-bindings/clock/qcom,videocc-sdm845.h>
+#include <dt-bindings/dma/qcom-gpi.h>
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/interconnect/qcom,osm-l3.h>
 #include <dt-bindings/interconnect/qcom,sdm845.h>
@@ -79,22 +80,22 @@
 		#size-cells = <2>;
 		ranges;
 
-		hyp_mem: memory@85700000 {
+		hyp_mem: hyp-mem@85700000 {
 			reg = <0 0x85700000 0 0x600000>;
 			no-map;
 		};
 
-		xbl_mem: memory@85e00000 {
+		xbl_mem: xbl-mem@85e00000 {
 			reg = <0 0x85e00000 0 0x100000>;
 			no-map;
 		};
 
-		aop_mem: memory@85fc0000 {
+		aop_mem: aop-mem@85fc0000 {
 			reg = <0 0x85fc0000 0 0x20000>;
 			no-map;
 		};
 
-		aop_cmd_db_mem: memory@85fe0000 {
+		aop_cmd_db_mem: aop-cmd-db-mem@85fe0000 {
 			compatible = "qcom,cmd-db";
 			reg = <0x0 0x85fe0000 0 0x20000>;
 			no-map;
@@ -107,12 +108,12 @@
 			hwlocks = <&tcsr_mutex 3>;
 		};
 
-		tz_mem: memory@86200000 {
+		tz_mem: tz@86200000 {
 			reg = <0 0x86200000 0 0x2d00000>;
 			no-map;
 		};
 
-		rmtfs_mem: memory@88f00000 {
+		rmtfs_mem: rmtfs@88f00000 {
 			compatible = "qcom,rmtfs-mem";
 			reg = <0 0x88f00000 0 0x200000>;
 			no-map;
@@ -121,67 +122,67 @@
 			qcom,vmid = <15>;
 		};
 
-		qseecom_mem: memory@8ab00000 {
+		qseecom_mem: qseecom@8ab00000 {
 			reg = <0 0x8ab00000 0 0x1400000>;
 			no-map;
 		};
 
-		camera_mem: memory@8bf00000 {
+		camera_mem: camera-mem@8bf00000 {
 			reg = <0 0x8bf00000 0 0x500000>;
 			no-map;
 		};
 
-		ipa_fw_mem: memory@8c400000 {
+		ipa_fw_mem: ipa-fw@8c400000 {
 			reg = <0 0x8c400000 0 0x10000>;
 			no-map;
 		};
 
-		ipa_gsi_mem: memory@8c410000 {
+		ipa_gsi_mem: ipa-gsi@8c410000 {
 			reg = <0 0x8c410000 0 0x5000>;
 			no-map;
 		};
 
-		gpu_mem: memory@8c415000 {
+		gpu_mem: gpu@8c415000 {
 			reg = <0 0x8c415000 0 0x2000>;
 			no-map;
 		};
 
-		adsp_mem: memory@8c500000 {
+		adsp_mem: adsp@8c500000 {
 			reg = <0 0x8c500000 0 0x1a00000>;
 			no-map;
 		};
 
-		wlan_msa_mem: memory@8df00000 {
+		wlan_msa_mem: wlan-msa@8df00000 {
 			reg = <0 0x8df00000 0 0x100000>;
 			no-map;
 		};
 
-		mpss_region: memory@8e000000 {
+		mpss_region: mpss@8e000000 {
 			reg = <0 0x8e000000 0 0x7800000>;
 			no-map;
 		};
 
-		venus_mem: memory@95800000 {
+		venus_mem: venus@95800000 {
 			reg = <0 0x95800000 0 0x500000>;
 			no-map;
 		};
 
-		cdsp_mem: memory@95d00000 {
+		cdsp_mem: cdsp@95d00000 {
 			reg = <0 0x95d00000 0 0x800000>;
 			no-map;
 		};
 
-		mba_region: memory@96500000 {
+		mba_region: mba@96500000 {
 			reg = <0 0x96500000 0 0x200000>;
 			no-map;
 		};
 
-		slpi_mem: memory@96700000 {
+		slpi_mem: slpi@96700000 {
 			reg = <0 0x96700000 0 0x1400000>;
 			no-map;
 		};
 
-		spss_mem: memory@97b00000 {
+		spss_mem: spss@97b00000 {
 			reg = <0 0x97b00000 0 0x100000>;
 			no-map;
 		};
@@ -787,7 +788,7 @@
 			apr {
 				compatible = "qcom,apr-v2";
 				qcom,glink-channels = "apr_audio_svc";
-				qcom,apr-domain = <APR_DOMAIN_ADSP>;
+				qcom,domain = <APR_DOMAIN_ADSP>;
 				#address-cells = <1>;
 				#size-cells = <0>;
 				qcom,intents = <512 20>;
@@ -838,6 +839,7 @@
 				compatible = "qcom,fastrpc";
 				qcom,glink-channels = "fastrpcglink-apps-dsp";
 				label = "adsp";
+				qcom,non-secure-domain;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -888,6 +890,7 @@
 				compatible = "qcom,fastrpc";
 				qcom,glink-channels = "fastrpcglink-apps-dsp";
 				label = "cdsp";
+				qcom,non-secure-domain;
 				#address-cells = <1>;
 				#size-cells = <0>;
 
@@ -1125,6 +1128,29 @@
 			};
 		};
 
+		gpi_dma0: dma-controller@800000 {
+			#dma-cells = <3>;
+			compatible = "qcom,sdm845-gpi-dma";
+			reg = <0 0x00800000 0 0x60000>;
+			interrupts = <GIC_SPI 244 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 245 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 246 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 247 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 248 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 249 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 250 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 251 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 252 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 253 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 254 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 255 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 256 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <13>;
+			dma-channel-mask = <0xfa>;
+			iommus = <&apps_smmu 0x0016 0x0>;
+			status = "disabled";
+		};
+
 		qupv3_id_0: geniqup@8c0000 {
 			compatible = "qcom,geni-se-qup";
 			reg = <0 0x008c0000 0 0x6000>;
@@ -1171,6 +1197,9 @@
 				interconnects = <&aggre1_noc MASTER_QUP_1 0 &config_noc SLAVE_BLSP_1 0>,
 						<&gladiator_noc MASTER_APPSS_PROC 0 &config_noc SLAVE_BLSP_1 0>;
 				interconnect-names = "qup-core", "qup-config";
+				dmas = <&gpi_dma0 0 0 QCOM_GPI_SPI>,
+				       <&gpi_dma0 1 0 QCOM_GPI_SPI>;
+				dma-names = "tx", "rx";
 				status = "disabled";
 			};
 
@@ -1542,6 +1571,29 @@
 				interconnect-names = "qup-core", "qup-config";
 				status = "disabled";
 			};
+		};
+
+		gpi_dma1: dma-controller@0xa00000 {
+			#dma-cells = <3>;
+			compatible = "qcom,sdm845-gpi-dma";
+			reg = <0 0x00a00000 0 0x60000>;
+			interrupts = <GIC_SPI 279 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 280 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 281 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 282 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 283 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 284 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 293 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 294 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 295 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 296 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 297 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 298 IRQ_TYPE_LEVEL_HIGH>,
+				     <GIC_SPI 299 IRQ_TYPE_LEVEL_HIGH>;
+			dma-channels = <13>;
+			dma-channel-mask = <0xfa>;
+			iommus = <&apps_smmu 0x06d6 0x0>;
+			status = "disabled";
 		};
 
 		qupv3_id_1: geniqup@ac0000 {
@@ -1967,7 +2019,7 @@
 			};
 		};
 
-		system-cache-controller@1100000 {
+		llcc: system-cache-controller@1100000 {
 			compatible = "qcom,sdm845-llcc";
 			reg = <0 0x01100000 0 0x200000>, <0 0x01300000 0 0x50000>;
 			reg-names = "llcc_base", "llcc_broadcast_base";
@@ -2586,6 +2638,13 @@
 					pins = "gpio0", "gpio1",
 					       "gpio2", "gpio3";
 					function = "qup0";
+				};
+
+				config {
+					pins = "gpio0", "gpio1",
+					       "gpio2", "gpio3";
+					drive-strength = <6>;
+					bias-disable;
 				};
 			};
 
@@ -3613,10 +3672,10 @@
 					#clock-cells = <0>;
 					clock-frequency = <9600000>;
 					clock-output-names = "mclk";
-					qcom,micbias1-millivolt = <1800>;
-					qcom,micbias2-millivolt = <1800>;
-					qcom,micbias3-millivolt = <1800>;
-					qcom,micbias4-millivolt = <1800>;
+					qcom,micbias1-microvolt = <1800000>;
+					qcom,micbias2-microvolt = <1800000>;
+					qcom,micbias3-microvolt = <1800000>;
+					qcom,micbias4-microvolt = <1800000>;
 
 					#address-cells = <1>;
 					#size-cells = <1>;
@@ -4139,6 +4198,8 @@
 			#clock-cells = <1>;
 			#reset-cells = <1>;
 			#power-domain-cells = <1>;
+			clocks = <&rpmhcc RPMH_CXO_CLK>;
+			clock-names = "bi_tcxo";
 		};
 
 		dsi_opp_table: dsi-opp-table {
@@ -4619,7 +4680,7 @@
 		};
 
 		aoss_qmp: power-controller@c300000 {
-			compatible = "qcom,sdm845-aoss-qmp";
+			compatible = "qcom,sdm845-aoss-qmp", "qcom,aoss-qmp";
 			reg = <0 0x0c300000 0 0x100000>;
 			interrupts = <GIC_SPI 389 IRQ_TYPE_EDGE_RISING>;
 			mboxes = <&apss_shared 0>;
@@ -5258,7 +5319,7 @@
 			};
 		};
 
-		gpu-thermal-top {
+		gpu-top-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 
@@ -5273,7 +5334,7 @@
 			};
 		};
 
-		gpu-thermal-bottom {
+		gpu-bottom-thermal {
 			polling-delay-passive = <250>;
 			polling-delay = <1000>;
 

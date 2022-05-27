@@ -239,6 +239,20 @@ release_idr:
 	return err;
 }
 
+static bool tcf_police_mtu_check(struct sk_buff *skb, u32 limit)
+{
+	u32 len;
+
+	if (skb_is_gso(skb))
+		return skb_gso_validate_mac_len(skb, limit);
+
+	len = qdisc_pkt_len(skb);
+	if (skb_at_tc_ingress(skb))
+		len += skb->mac_len;
+
+	return len <= limit;
+}
+
 static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			  struct tcf_result *res)
 {
@@ -261,7 +275,7 @@ static int tcf_police_act(struct sk_buff *skb, const struct tc_action *a,
 			goto inc_overlimits;
 	}
 
-	if (qdisc_pkt_len(skb) <= p->tcfp_mtu) {
+	if (tcf_police_mtu_check(skb, p->tcfp_mtu)) {
 		if (!p->rate_present && !p->pps_present) {
 			ret = p->tcfp_result;
 			goto end;
@@ -405,20 +419,66 @@ static int tcf_police_search(struct net *net, struct tc_action **a, u32 index)
 	return tcf_idr_search(tn, a, index);
 }
 
+static int tcf_police_act_to_flow_act(int tc_act, u32 *extval)
+{
+	int act_id = -EOPNOTSUPP;
+
+	if (!TC_ACT_EXT_OPCODE(tc_act)) {
+		if (tc_act == TC_ACT_OK)
+			act_id = FLOW_ACTION_ACCEPT;
+		else if (tc_act ==  TC_ACT_SHOT)
+			act_id = FLOW_ACTION_DROP;
+		else if (tc_act == TC_ACT_PIPE)
+			act_id = FLOW_ACTION_PIPE;
+	} else if (TC_ACT_EXT_CMP(tc_act, TC_ACT_GOTO_CHAIN)) {
+		act_id = FLOW_ACTION_GOTO;
+		*extval = tc_act & TC_ACT_EXT_VAL_MASK;
+	} else if (TC_ACT_EXT_CMP(tc_act, TC_ACT_JUMP)) {
+		act_id = FLOW_ACTION_JUMP;
+		*extval = tc_act & TC_ACT_EXT_VAL_MASK;
+	}
+
+	return act_id;
+}
+
 static int tcf_police_offload_act_setup(struct tc_action *act, void *entry_data,
 					u32 *index_inc, bool bind)
 {
 	if (bind) {
 		struct flow_action_entry *entry = entry_data;
+		struct tcf_police *police = to_police(act);
+		struct tcf_police_params *p;
+		int act_id;
+
+		p = rcu_dereference_protected(police->params,
+					      lockdep_is_held(&police->tcf_lock));
 
 		entry->id = FLOW_ACTION_POLICE;
 		entry->police.burst = tcf_police_burst(act);
 		entry->police.rate_bytes_ps =
 			tcf_police_rate_bytes_ps(act);
+		entry->police.peakrate_bytes_ps = tcf_police_peakrate_bytes_ps(act);
+		entry->police.avrate = tcf_police_tcfp_ewma_rate(act);
+		entry->police.overhead = tcf_police_rate_overhead(act);
 		entry->police.burst_pkt = tcf_police_burst_pkt(act);
 		entry->police.rate_pkt_ps =
 			tcf_police_rate_pkt_ps(act);
 		entry->police.mtu = tcf_police_tcfp_mtu(act);
+
+		act_id = tcf_police_act_to_flow_act(police->tcf_action,
+						    &entry->police.exceed.extval);
+		if (act_id < 0)
+			return act_id;
+
+		entry->police.exceed.act_id = act_id;
+
+		act_id = tcf_police_act_to_flow_act(p->tcfp_result,
+						    &entry->police.notexceed.extval);
+		if (act_id < 0)
+			return act_id;
+
+		entry->police.notexceed.act_id = act_id;
+
 		*index_inc = 1;
 	} else {
 		struct flow_offload_action *fl_action = entry_data;

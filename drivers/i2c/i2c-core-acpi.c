@@ -236,7 +236,8 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 		struct acpi_device *adapter_adev;
 
 		/* The adapter must be present */
-		if (acpi_bus_get_device(lookup.adapter_handle, &adapter_adev))
+		adapter_adev = acpi_fetch_acpi_dev(lookup.adapter_handle);
+		if (!adapter_adev)
 			return -ENODEV;
 		if (acpi_bus_get_status(adapter_adev) ||
 		    !adapter_adev->status.present)
@@ -275,13 +276,10 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
 				       void *data, void **return_value)
 {
 	struct i2c_adapter *adapter = data;
-	struct acpi_device *adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct i2c_board_info info;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (i2c_acpi_get_info(adev, &info, adapter, NULL))
+	if (!adev || i2c_acpi_get_info(adev, &info, adapter, NULL))
 		return AE_OK;
 
 	i2c_acpi_register_device(adapter, adev, &info);
@@ -341,12 +339,9 @@ static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
 					   void *data, void **return_value)
 {
 	struct i2c_acpi_lookup *lookup = data;
-	struct acpi_device *adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (i2c_acpi_do_lookup(adev, lookup))
+	if (!adev || i2c_acpi_do_lookup(adev, lookup))
 		return AE_OK;
 
 	if (lookup->search_handle != lookup->adapter_handle)

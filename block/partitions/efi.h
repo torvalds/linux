@@ -13,7 +13,6 @@
 
 #include <linux/types.h>
 #include <linux/fs.h>
-#include <linux/genhd.h>
 #include <linux/kernel.h>
 #include <linux/major.h>
 #include <linux/string.h>

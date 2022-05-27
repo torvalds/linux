@@ -41,17 +41,16 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 	struct lirc_fh *fh;
 	int sample;
 
-	/* Packet start */
-	if (ev.reset) {
+	/* Receiver overflow, data missing */
+	if (ev.overflow) {
 		/*
-		 * Userspace expects a long space event before the start of
-		 * the signal to use as a sync.  This may be done with repeat
-		 * packets and normal samples.  But if a reset has been sent
-		 * then we assume that a long time has passed, so we send a
-		 * space with the maximum time value.
+		 * Send lirc overflow message. This message is unknown to
+		 * lircd, but it will interpret this as a long space as
+		 * long as the value is set to high value. This resets its
+		 * decoder state.
 		 */
-		sample = LIRC_SPACE(LIRC_VALUE_MASK);
-		dev_dbg(&dev->dev, "delivering reset sync space to lirc_dev\n");
+		sample = LIRC_OVERFLOW(LIRC_VALUE_MASK);
+		dev_dbg(&dev->dev, "delivering overflow to lirc_dev\n");
 
 	/* Carrier reports */
 	} else if (ev.carrier_report) {
@@ -60,32 +59,25 @@ void lirc_raw_event(struct rc_dev *dev, struct ir_raw_event ev)
 
 	/* Packet end */
 	} else if (ev.timeout) {
-		if (dev->gap)
-			return;
-
 		dev->gap_start = ktime_get();
-		dev->gap = true;
-		dev->gap_duration = ev.duration;
 
 		sample = LIRC_TIMEOUT(ev.duration);
 		dev_dbg(&dev->dev, "timeout report (duration: %d)\n", sample);
 
 	/* Normal sample */
 	} else {
-		if (dev->gap) {
-			dev->gap_duration += ktime_to_us(ktime_sub(ktime_get(),
-							 dev->gap_start));
+		if (dev->gap_start) {
+			u64 duration = ktime_us_delta(ktime_get(),
+						      dev->gap_start);
 
 			/* Cap by LIRC_VALUE_MASK */
-			dev->gap_duration = min_t(u64, dev->gap_duration,
-						  LIRC_VALUE_MASK);
+			duration = min_t(u64, duration, LIRC_VALUE_MASK);
 
 			spin_lock_irqsave(&dev->lirc_fh_lock, flags);
 			list_for_each_entry(fh, &dev->lirc_fh, list)
-				kfifo_put(&fh->rawir,
-					  LIRC_SPACE(dev->gap_duration));
+				kfifo_put(&fh->rawir, LIRC_SPACE(duration));
 			spin_unlock_irqrestore(&dev->lirc_fh_lock, flags);
-			dev->gap = false;
+			dev->gap_start = 0;
 		}
 
 		sample = ev.pulse ? LIRC_PULSE(ev.duration) :

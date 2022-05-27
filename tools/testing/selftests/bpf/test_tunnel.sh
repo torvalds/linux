@@ -39,7 +39,7 @@
 # from root namespace, the following operations happen:
 # 1) Route lookup shows 10.1.1.100/24 belongs to tnl dev, fwd to tnl dev.
 # 2) Tnl device's egress BPF program is triggered and set the tunnel metadata,
-#    with remote_ip=172.16.1.200 and others.
+#    with remote_ip=172.16.1.100 and others.
 # 3) Outer tunnel header is prepended and route the packet to veth1's egress
 # 4) veth0's ingress queue receive the tunneled packet at namespace at_ns0
 # 5) Tunnel protocol handler, ex: vxlan_rcv, decap the packet

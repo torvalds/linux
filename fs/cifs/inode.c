@@ -49,7 +49,7 @@ static void cifs_set_ops(struct inode *inode)
 			inode->i_fop = &cifs_file_ops;
 		}
 
-		/* check if server can support readpages */
+		/* check if server can support readahead */
 		if (cifs_sb_master_tcon(cifs_sb)->ses->server->max_read <
 				PAGE_SIZE + MAX_CIFS_HDR_SIZE)
 			inode->i_data.a_ops = &cifs_addr_ops_smallbuf;

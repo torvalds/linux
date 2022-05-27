@@ -126,7 +126,7 @@ static bool __head check_la57_support(unsigned long physaddr)
 }
 #endif
 
-static unsigned long sme_postprocess_startup(struct boot_params *bp, pmdval_t *pmd)
+static unsigned long __head sme_postprocess_startup(struct boot_params *bp, pmdval_t *pmd)
 {
 	unsigned long vaddr, vaddr_end;
 	int i;

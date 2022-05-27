@@ -870,7 +870,7 @@ static void dump_invalid_creds(const struct cred *cred, const char *label,
 /*
  * report use of invalid credentials
  */
-void __invalid_creds(const struct cred *cred, const char *file, unsigned line)
+void __noreturn __invalid_creds(const struct cred *cred, const char *file, unsigned line)
 {
 	printk(KERN_ERR "CRED: Invalid credentials\n");
 	printk(KERN_ERR "CRED: At %s:%u\n", file, line);

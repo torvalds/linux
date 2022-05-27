@@ -2324,16 +2324,17 @@ rtw89_debug_append_rx_rate(struct seq_file *m, struct rtw89_pkt_stat *pkt_stat,
 static const struct rtw89_rx_rate_cnt_info {
 	enum rtw89_hw_rate first_rate;
 	int len;
+	int ext;
 	const char *rate_mode;
 } rtw89_rx_rate_cnt_infos[] = {
-	{RTW89_HW_RATE_CCK1, 4, "Legacy:"},
-	{RTW89_HW_RATE_OFDM6, 8, "OFDM:"},
-	{RTW89_HW_RATE_MCS0, 8, "HT 0:"},
-	{RTW89_HW_RATE_MCS8, 8, "HT 1:"},
-	{RTW89_HW_RATE_VHT_NSS1_MCS0, 10, "VHT 1SS:"},
-	{RTW89_HW_RATE_VHT_NSS2_MCS0, 10, "VHT 2SS:"},
-	{RTW89_HW_RATE_HE_NSS1_MCS0, 12, "HE 1SS:"},
-	{RTW89_HW_RATE_HE_NSS2_MCS0, 12, "HE 2ss:"},
+	{RTW89_HW_RATE_CCK1, 4, 0, "Legacy:"},
+	{RTW89_HW_RATE_OFDM6, 8, 0, "OFDM:"},
+	{RTW89_HW_RATE_MCS0, 8, 0, "HT 0:"},
+	{RTW89_HW_RATE_MCS8, 8, 0, "HT 1:"},
+	{RTW89_HW_RATE_VHT_NSS1_MCS0, 10, 2, "VHT 1SS:"},
+	{RTW89_HW_RATE_VHT_NSS2_MCS0, 10, 2, "VHT 2SS:"},
+	{RTW89_HW_RATE_HE_NSS1_MCS0, 12, 0, "HE 1SS:"},
+	{RTW89_HW_RATE_HE_NSS2_MCS0, 12, 0, "HE 2ss:"},
 };
 
 static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
@@ -2358,10 +2359,81 @@ static int rtw89_debug_priv_phy_info_get(struct seq_file *m, void *v)
 		seq_printf(m, "%10s [", info->rate_mode);
 		rtw89_debug_append_rx_rate(m, pkt_stat,
 					   info->first_rate, info->len);
+		if (info->ext) {
+			seq_puts(m, "][");
+			rtw89_debug_append_rx_rate(m, pkt_stat,
+						   info->first_rate + info->len, info->ext);
+		}
 		seq_puts(m, "]\n");
 	}
 
 	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_info_get_iter, m);
+
+	return 0;
+}
+
+static void rtw89_dump_addr_cam(struct seq_file *m,
+				struct rtw89_addr_cam_entry *addr_cam)
+{
+	struct rtw89_sec_cam_entry *sec_entry;
+	int i;
+
+	seq_printf(m, "\taddr_cam_idx=%u\n", addr_cam->addr_cam_idx);
+	seq_printf(m, "\t-> bssid_cam_idx=%u\n", addr_cam->bssid_cam_idx);
+	seq_printf(m, "\tsec_cam_bitmap=%*ph\n", (int)sizeof(addr_cam->sec_cam_map),
+		   addr_cam->sec_cam_map);
+	for (i = 0; i < RTW89_SEC_CAM_IN_ADDR_CAM; i++) {
+		sec_entry = addr_cam->sec_entries[i];
+		if (!sec_entry)
+			continue;
+		seq_printf(m, "\tsec[%d]: sec_cam_idx %u", i, sec_entry->sec_cam_idx);
+		if (sec_entry->ext_key)
+			seq_printf(m, ", %u", sec_entry->sec_cam_idx + 1);
+		seq_puts(m, "\n");
+	}
+}
+
+static
+void rtw89_vif_ids_get_iter(void *data, u8 *mac, struct ieee80211_vif *vif)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct seq_file *m = (struct seq_file *)data;
+	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+
+	seq_printf(m, "VIF [%d] %pM\n", rtwvif->mac_id, rtwvif->mac_addr);
+	seq_printf(m, "\tbssid_cam_idx=%u\n", bssid_cam->bssid_cam_idx);
+	rtw89_dump_addr_cam(m, &rtwvif->addr_cam);
+}
+
+static void rtw89_sta_ids_get_iter(void *data, struct ieee80211_sta *sta)
+{
+	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct seq_file *m = (struct seq_file *)data;
+
+	seq_printf(m, "STA [%d] %pM\n", rtwsta->mac_id, sta->addr);
+	rtw89_dump_addr_cam(m, &rtwsta->addr_cam);
+}
+
+static int rtw89_debug_priv_stations_get(struct seq_file *m, void *v)
+{
+	struct rtw89_debugfs_priv *debugfs_priv = m->private;
+	struct rtw89_dev *rtwdev = debugfs_priv->rtwdev;
+	struct rtw89_cam_info *cam_info = &rtwdev->cam_info;
+
+	seq_puts(m, "map:\n");
+	seq_printf(m, "\tmac_id:    %*ph\n", (int)sizeof(rtwdev->mac_id_map),
+		   rtwdev->mac_id_map);
+	seq_printf(m, "\taddr_cam:  %*ph\n", (int)sizeof(cam_info->addr_cam_map),
+		   cam_info->addr_cam_map);
+	seq_printf(m, "\tbssid_cam: %*ph\n", (int)sizeof(cam_info->bssid_cam_map),
+		   cam_info->bssid_cam_map);
+	seq_printf(m, "\tsec_cam:   %*ph\n", (int)sizeof(cam_info->sec_cam_map),
+		   cam_info->sec_cam_map);
+
+	ieee80211_iterate_active_interfaces_atomic(rtwdev->hw,
+		IEEE80211_IFACE_ITER_NORMAL, rtw89_vif_ids_get_iter, m);
+
+	ieee80211_iterate_stations_atomic(rtwdev->hw, rtw89_sta_ids_get_iter, m);
 
 	return 0;
 }
@@ -2432,6 +2504,10 @@ static struct rtw89_debugfs_priv rtw89_debug_priv_phy_info = {
 	.cb_read = rtw89_debug_priv_phy_info_get,
 };
 
+static struct rtw89_debugfs_priv rtw89_debug_priv_stations = {
+	.cb_read = rtw89_debug_priv_stations_get,
+};
+
 #define rtw89_debugfs_add(name, mode, fopname, parent)				\
 	do {									\
 		rtw89_debug_priv_ ##name.rtwdev = rtwdev;			\
@@ -2470,6 +2546,7 @@ void rtw89_debugfs_init(struct rtw89_dev *rtwdev)
 	rtw89_debugfs_add_w(btc_manual);
 	rtw89_debugfs_add_w(fw_log_manual);
 	rtw89_debugfs_add_r(phy_info);
+	rtw89_debugfs_add_r(stations);
 }
 #endif
 

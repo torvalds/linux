@@ -10,6 +10,7 @@
 #include <linux/mm_types.h>
 #include <linux/err.h>
 #include <linux/pgtable.h>
+#include <linux/bitfield.h>
 
 #include <asm/gmap.h>
 #include "kvm-s390.h"
@@ -794,6 +795,108 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
 	return 1;
 }
 
+static int vm_check_access_key(struct kvm *kvm, u8 access_key,
+			       enum gacc_mode mode, gpa_t gpa)
+{
+	u8 storage_key, access_control;
+	bool fetch_protected;
+	unsigned long hva;
+	int r;
+
+	if (access_key == 0)
+		return 0;
+
+	hva = gfn_to_hva(kvm, gpa_to_gfn(gpa));
+	if (kvm_is_error_hva(hva))
+		return PGM_ADDRESSING;
+
+	mmap_read_lock(current->mm);
+	r = get_guest_storage_key(current->mm, hva, &storage_key);
+	mmap_read_unlock(current->mm);
+	if (r)
+		return r;
+	access_control = FIELD_GET(_PAGE_ACC_BITS, storage_key);
+	if (access_control == access_key)
+		return 0;
+	fetch_protected = storage_key & _PAGE_FP_BIT;
+	if ((mode == GACC_FETCH || mode == GACC_IFETCH) && !fetch_protected)
+		return 0;
+	return PGM_PROTECTION;
+}
+
+static bool fetch_prot_override_applicable(struct kvm_vcpu *vcpu, enum gacc_mode mode,
+					   union asce asce)
+{
+	psw_t *psw = &vcpu->arch.sie_block->gpsw;
+	unsigned long override;
+
+	if (mode == GACC_FETCH || mode == GACC_IFETCH) {
+		/* check if fetch protection override enabled */
+		override = vcpu->arch.sie_block->gcr[0];
+		override &= CR0_FETCH_PROTECTION_OVERRIDE;
+		/* not applicable if subject to DAT && private space */
+		override = override && !(psw_bits(*psw).dat && asce.p);
+		return override;
+	}
+	return false;
+}
+
+static bool fetch_prot_override_applies(unsigned long ga, unsigned int len)
+{
+	return ga < 2048 && ga + len <= 2048;
+}
+
+static bool storage_prot_override_applicable(struct kvm_vcpu *vcpu)
+{
+	/* check if storage protection override enabled */
+	return vcpu->arch.sie_block->gcr[0] & CR0_STORAGE_PROTECTION_OVERRIDE;
+}
+
+static bool storage_prot_override_applies(u8 access_control)
+{
+	/* matches special storage protection override key (9) -> allow */
+	return access_control == PAGE_SPO_ACC;
+}
+
+static int vcpu_check_access_key(struct kvm_vcpu *vcpu, u8 access_key,
+				 enum gacc_mode mode, union asce asce, gpa_t gpa,
+				 unsigned long ga, unsigned int len)
+{
+	u8 storage_key, access_control;
+	unsigned long hva;
+	int r;
+
+	/* access key 0 matches any storage key -> allow */
+	if (access_key == 0)
+		return 0;
+	/*
+	 * caller needs to ensure that gfn is accessible, so we can
+	 * assume that this cannot fail
+	 */
+	hva = gfn_to_hva(vcpu->kvm, gpa_to_gfn(gpa));
+	mmap_read_lock(current->mm);
+	r = get_guest_storage_key(current->mm, hva, &storage_key);
+	mmap_read_unlock(current->mm);
+	if (r)
+		return r;
+	access_control = FIELD_GET(_PAGE_ACC_BITS, storage_key);
+	/* access key matches storage key -> allow */
+	if (access_control == access_key)
+		return 0;
+	if (mode == GACC_FETCH || mode == GACC_IFETCH) {
+		/* it is a fetch and fetch protection is off -> allow */
+		if (!(storage_key & _PAGE_FP_BIT))
+			return 0;
+		if (fetch_prot_override_applicable(vcpu, mode, asce) &&
+		    fetch_prot_override_applies(ga, len))
+			return 0;
+	}
+	if (storage_prot_override_applicable(vcpu) &&
+	    storage_prot_override_applies(access_control))
+		return 0;
+	return PGM_PROTECTION;
+}
+
 /**
  * guest_range_to_gpas() - Calculate guest physical addresses of page fragments
  * covering a logical range
@@ -804,6 +907,7 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
  * @len: length of range in bytes
  * @asce: address-space-control element to use for translation
  * @mode: access mode
+ * @access_key: access key to mach the range's storage keys against
  *
  * Translate a logical range to a series of guest absolute addresses,
  * such that the concatenation of page fragments starting at each gpa make up
@@ -830,7 +934,8 @@ static int low_address_protection_enabled(struct kvm_vcpu *vcpu,
  */
 static int guest_range_to_gpas(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 			       unsigned long *gpas, unsigned long len,
-			       const union asce asce, enum gacc_mode mode)
+			       const union asce asce, enum gacc_mode mode,
+			       u8 access_key)
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	unsigned int offset = offset_in_page(ga);
@@ -857,6 +962,10 @@ static int guest_range_to_gpas(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
 		}
 		if (rc)
 			return trans_exc(vcpu, rc, ga, ar, mode, prot);
+		rc = vcpu_check_access_key(vcpu, access_key, mode, asce, gpa, ga,
+					   fragment_len);
+		if (rc)
+			return trans_exc(vcpu, rc, ga, ar, mode, PROT_TYPE_KEYC);
 		if (gpas)
 			*gpas++ = gpa;
 		offset = 0;
@@ -880,16 +989,74 @@ static int access_guest_page(struct kvm *kvm, enum gacc_mode mode, gpa_t gpa,
 	return rc;
 }
 
-int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
-		 unsigned long len, enum gacc_mode mode)
+static int
+access_guest_page_with_key(struct kvm *kvm, enum gacc_mode mode, gpa_t gpa,
+			   void *data, unsigned int len, u8 access_key)
+{
+	struct kvm_memory_slot *slot;
+	bool writable;
+	gfn_t gfn;
+	hva_t hva;
+	int rc;
+
+	gfn = gpa >> PAGE_SHIFT;
+	slot = gfn_to_memslot(kvm, gfn);
+	hva = gfn_to_hva_memslot_prot(slot, gfn, &writable);
+
+	if (kvm_is_error_hva(hva))
+		return PGM_ADDRESSING;
+	/*
+	 * Check if it's a ro memslot, even tho that can't occur (they're unsupported).
+	 * Don't try to actually handle that case.
+	 */
+	if (!writable && mode == GACC_STORE)
+		return -EOPNOTSUPP;
+	hva += offset_in_page(gpa);
+	if (mode == GACC_STORE)
+		rc = copy_to_user_key((void __user *)hva, data, len, access_key);
+	else
+		rc = copy_from_user_key(data, (void __user *)hva, len, access_key);
+	if (rc)
+		return PGM_PROTECTION;
+	if (mode == GACC_STORE)
+		mark_page_dirty_in_slot(kvm, slot, gfn);
+	return 0;
+}
+
+int access_guest_abs_with_key(struct kvm *kvm, gpa_t gpa, void *data,
+			      unsigned long len, enum gacc_mode mode, u8 access_key)
+{
+	int offset = offset_in_page(gpa);
+	int fragment_len;
+	int rc;
+
+	while (min(PAGE_SIZE - offset, len) > 0) {
+		fragment_len = min(PAGE_SIZE - offset, len);
+		rc = access_guest_page_with_key(kvm, mode, gpa, data, fragment_len, access_key);
+		if (rc)
+			return rc;
+		offset = 0;
+		len -= fragment_len;
+		data += fragment_len;
+		gpa += fragment_len;
+	}
+	return 0;
+}
+
+int access_guest_with_key(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar,
+			  void *data, unsigned long len, enum gacc_mode mode,
+			  u8 access_key)
 {
 	psw_t *psw = &vcpu->arch.sie_block->gpsw;
 	unsigned long nr_pages, idx;
 	unsigned long gpa_array[2];
 	unsigned int fragment_len;
 	unsigned long *gpas;
+	enum prot_type prot;
 	int need_ipte_lock;
 	union asce asce;
+	bool try_storage_prot_override;
+	bool try_fetch_prot_override;
 	int rc;
 
 	if (!len)
@@ -904,16 +1071,47 @@ int access_guest(struct kvm_vcpu *vcpu, unsigned long ga, u8 ar, void *data,
 		gpas = vmalloc(array_size(nr_pages, sizeof(unsigned long)));
 	if (!gpas)
 		return -ENOMEM;
+	try_fetch_prot_override = fetch_prot_override_applicable(vcpu, mode, asce);
+	try_storage_prot_override = storage_prot_override_applicable(vcpu);
 	need_ipte_lock = psw_bits(*psw).dat && !asce.r;
 	if (need_ipte_lock)
 		ipte_lock(vcpu);
-	rc = guest_range_to_gpas(vcpu, ga, ar, gpas, len, asce, mode);
-	for (idx = 0; idx < nr_pages && !rc; idx++) {
+	/*
+	 * Since we do the access further down ultimately via a move instruction
+	 * that does key checking and returns an error in case of a protection
+	 * violation, we don't need to do the check during address translation.
+	 * Skip it by passing access key 0, which matches any storage key,
+	 * obviating the need for any further checks. As a result the check is
+	 * handled entirely in hardware on access, we only need to take care to
+	 * forego key protection checking if fetch protection override applies or
+	 * retry with the special key 9 in case of storage protection override.
+	 */
+	rc = guest_range_to_gpas(vcpu, ga, ar, gpas, len, asce, mode, 0);
+	if (rc)
+		goto out_unlock;
+	for (idx = 0; idx < nr_pages; idx++) {
 		fragment_len = min(PAGE_SIZE - offset_in_page(gpas[idx]), len);
-		rc = access_guest_page(vcpu->kvm, mode, gpas[idx], data, fragment_len);
+		if (try_fetch_prot_override && fetch_prot_override_applies(ga, fragment_len)) {
+			rc = access_guest_page(vcpu->kvm, mode, gpas[idx],
+					       data, fragment_len);
+		} else {
+			rc = access_guest_page_with_key(vcpu->kvm, mode, gpas[idx],
+							data, fragment_len, access_key);
+		}
+		if (rc == PGM_PROTECTION && try_storage_prot_override)
+			rc = access_guest_page_with_key(vcpu->kvm, mode, gpas[idx],
+							data, fragment_len, PAGE_SPO_ACC);
+		if (rc == PGM_PROTECTION)
+			prot = PROT_TYPE_KEYC;
+		if (rc)
+			break;
 		len -= fragment_len;
 		data += fragment_len;
+		ga = kvm_s390_logical_to_effective(vcpu, ga + fragment_len);
 	}
+	if (rc > 0)
+		rc = trans_exc(vcpu, rc, ga, ar, mode, prot);
+out_unlock:
 	if (need_ipte_lock)
 		ipte_unlock(vcpu);
 	if (nr_pages > ARRAY_SIZE(gpa_array))
@@ -940,12 +1138,13 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
 }
 
 /**
- * guest_translate_address - translate guest logical into guest absolute address
+ * guest_translate_address_with_key - translate guest logical into guest absolute address
  * @vcpu: virtual cpu
  * @gva: Guest virtual address
  * @ar: Access register
  * @gpa: Guest physical address
  * @mode: Translation access mode
+ * @access_key: access key to mach the storage key with
  *
  * Parameter semantics are the same as the ones from guest_translate.
  * The memory contents at the guest address are not changed.
@@ -953,8 +1152,9 @@ int access_guest_real(struct kvm_vcpu *vcpu, unsigned long gra,
  * Note: The IPTE lock is not taken during this function, so the caller
  * has to take care of this.
  */
-int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
-			    unsigned long *gpa, enum gacc_mode mode)
+int guest_translate_address_with_key(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
+				     unsigned long *gpa, enum gacc_mode mode,
+				     u8 access_key)
 {
 	union asce asce;
 	int rc;
@@ -963,7 +1163,8 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 	rc = get_vcpu_asce(vcpu, &asce, gva, ar, mode);
 	if (rc)
 		return rc;
-	return guest_range_to_gpas(vcpu, gva, ar, gpa, 1, asce, mode);
+	return guest_range_to_gpas(vcpu, gva, ar, gpa, 1, asce, mode,
+				   access_key);
 }
 
 /**
@@ -973,9 +1174,10 @@ int guest_translate_address(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
  * @ar: Access register
  * @length: Length of test range
  * @mode: Translation access mode
+ * @access_key: access key to mach the storage keys with
  */
 int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
-		    unsigned long length, enum gacc_mode mode)
+		    unsigned long length, enum gacc_mode mode, u8 access_key)
 {
 	union asce asce;
 	int rc = 0;
@@ -984,9 +1186,33 @@ int check_gva_range(struct kvm_vcpu *vcpu, unsigned long gva, u8 ar,
 	if (rc)
 		return rc;
 	ipte_lock(vcpu);
-	rc = guest_range_to_gpas(vcpu, gva, ar, NULL, length, asce, mode);
+	rc = guest_range_to_gpas(vcpu, gva, ar, NULL, length, asce, mode,
+				 access_key);
 	ipte_unlock(vcpu);
 
+	return rc;
+}
+
+/**
+ * check_gpa_range - test a range of guest physical addresses for accessibility
+ * @kvm: virtual machine instance
+ * @gpa: guest physical address
+ * @length: length of test range
+ * @mode: access mode to test, relevant for storage keys
+ * @access_key: access key to mach the storage keys with
+ */
+int check_gpa_range(struct kvm *kvm, unsigned long gpa, unsigned long length,
+		    enum gacc_mode mode, u8 access_key)
+{
+	unsigned int fragment_len;
+	int rc = 0;
+
+	while (length && !rc) {
+		fragment_len = min(PAGE_SIZE - offset_in_page(gpa), length);
+		rc = vm_check_access_key(kvm, access_key, mode, gpa);
+		length -= fragment_len;
+		gpa += fragment_len;
+	}
 	return rc;
 }
 

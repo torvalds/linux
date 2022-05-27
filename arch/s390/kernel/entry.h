@@ -5,6 +5,7 @@
 #include <linux/percpu.h>
 #include <linux/types.h>
 #include <linux/signal.h>
+#include <asm/extable.h>
 #include <asm/ptrace.h>
 #include <asm/idle.h>
 

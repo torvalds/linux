@@ -25,7 +25,7 @@
 struct exception_table_entry
 {
 	int insn, fixup;
-	long handler;
+	short type, data;
 };
 
 extern struct exception_table_entry *__start_amode31_ex_table;
@@ -38,28 +38,6 @@ static inline unsigned long extable_fixup(const struct exception_table_entry *x)
 	return (unsigned long)&x->fixup + x->fixup;
 }
 
-typedef bool (*ex_handler_t)(const struct exception_table_entry *,
-			     struct pt_regs *);
-
-static inline ex_handler_t
-ex_fixup_handler(const struct exception_table_entry *x)
-{
-	if (likely(!x->handler))
-		return NULL;
-	return (ex_handler_t)((unsigned long)&x->handler + x->handler);
-}
-
-static inline bool ex_handle(const struct exception_table_entry *x,
-			     struct pt_regs *regs)
-{
-	ex_handler_t handler = ex_fixup_handler(x);
-
-	if (unlikely(handler))
-		return handler(x, regs);
-	regs->psw.addr = extable_fixup(x);
-	return true;
-}
-
 #define ARCH_HAS_RELATIVE_EXTABLE
 
 static inline void swap_ex_entry_fixup(struct exception_table_entry *a,
@@ -69,13 +47,26 @@ static inline void swap_ex_entry_fixup(struct exception_table_entry *a,
 {
 	a->fixup = b->fixup + delta;
 	b->fixup = tmp.fixup - delta;
-	a->handler = b->handler;
-	if (a->handler)
-		a->handler += delta;
-	b->handler = tmp.handler;
-	if (b->handler)
-		b->handler -= delta;
+	a->type = b->type;
+	b->type = tmp.type;
+	a->data = b->data;
+	b->data = tmp.data;
 }
 #define swap_ex_entry_fixup swap_ex_entry_fixup
+
+#ifdef CONFIG_BPF_JIT
+
+bool ex_handler_bpf(const struct exception_table_entry *ex, struct pt_regs *regs);
+
+#else /* !CONFIG_BPF_JIT */
+
+static inline bool ex_handler_bpf(const struct exception_table_entry *ex, struct pt_regs *regs)
+{
+	return false;
+}
+
+#endif /* CONFIG_BPF_JIT */
+
+bool fixup_exception(struct pt_regs *regs);
 
 #endif

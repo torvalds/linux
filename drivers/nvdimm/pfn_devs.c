@@ -5,7 +5,6 @@
 #include <linux/memremap.h>
 #include <linux/blkdev.h>
 #include <linux/device.h>
-#include <linux/genhd.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
 #include <linux/fs.h>

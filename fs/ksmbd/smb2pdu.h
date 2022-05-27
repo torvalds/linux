@@ -16,42 +16,13 @@
 #define FILE_CREATED           0x00000002
 #define FILE_OVERWRITTEN       0x00000003
 
-/*
- * Size of the session key (crypto key encrypted with the password
- */
-#define SMB2_NTLMV2_SESSKEY_SIZE	16
-#define SMB2_SIGNATURE_SIZE		16
-#define SMB2_HMACSHA256_SIZE		32
-#define SMB2_CMACAES_SIZE		16
-#define SMB3_GCM128_CRYPTKEY_SIZE	16
-#define SMB3_GCM256_CRYPTKEY_SIZE	32
-
-/*
- * Size of the smb3 encryption/decryption keys
- */
-#define SMB3_ENC_DEC_KEY_SIZE		32
-
-/*
- * Size of the smb3 signing key
- */
-#define SMB3_SIGN_KEY_SIZE		16
-
-#define CIFS_CLIENT_CHALLENGE_SIZE	8
-#define SMB_SERVER_CHALLENGE_SIZE	8
-
 /* SMB2 Max Credits */
 #define SMB2_MAX_CREDITS		8192
-
-/* Maximum buffer size value we can send with 1 credit */
-#define SMB2_MAX_BUFFER_SIZE 65536
-
-#define NUMBER_OF_SMB2_COMMANDS	0x0013
 
 /* BB FIXME - analyze following length BB */
 #define MAX_SMB2_HDR_SIZE 0x78 /* 4 len + 64 hdr + (2*24 wct) + 2 bct + 2 pad */
 
 #define SMB21_DEFAULT_IOSIZE	(1024 * 1024)
-#define SMB3_DEFAULT_IOSIZE	(4 * 1024 * 1024)
 #define SMB3_DEFAULT_TRANS_SIZE	(1024 * 1024)
 #define SMB3_MIN_IOSIZE	(64 * 1024)
 #define SMB3_MAX_IOSIZE	(8 * 1024 * 1024)
@@ -64,18 +35,6 @@
  *  command code name for the struct. Note that structures must be packed.
  *
  */
-
-#define SMB2_ERROR_STRUCTURE_SIZE2	9
-#define SMB2_ERROR_STRUCTURE_SIZE2_LE	cpu_to_le16(SMB2_ERROR_STRUCTURE_SIZE2)
-
-struct smb2_err_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;
-	__u8   ErrorContextCount;
-	__u8   Reserved;
-	__le32 ByteCount;  /* even if zero, at least one byte follows */
-	__u8   ErrorData[1];  /* variable length */
-} __packed;
 
 struct preauth_integrity_info {
 	/* PreAuth integrity Hash ID */
@@ -116,8 +75,8 @@ struct create_durable_reconn_req {
 	union {
 		__u8  Reserved[16];
 		struct {
-			__le64 PersistentFileId;
-			__le64 VolatileFileId;
+			__u64 PersistentFileId;
+			__u64 VolatileFileId;
 		} Fid;
 	} Data;
 } __packed;
@@ -126,8 +85,8 @@ struct create_durable_reconn_v2_req {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct {
-		__le64 PersistentFileId;
-		__le64 VolatileFileId;
+		__u64 PersistentFileId;
+		__u64 VolatileFileId;
 	} Fid;
 	__u8 CreateGuid[16];
 	__le32 Flags;
@@ -159,13 +118,6 @@ struct create_alloc_size_req {
 	struct create_context ccontext;
 	__u8   Name[8];
 	__le64 AllocationSize;
-} __packed;
-
-struct create_posix {
-	struct create_context ccontext;
-	__u8    Name[16];
-	__le32  Mode;
-	__u32   Reserved;
 } __packed;
 
 struct create_durable_rsp {
@@ -209,45 +161,6 @@ struct create_posix_rsp {
 	u8 SidBuffer[40];
 } __packed;
 
-#define SMB2_LEASE_NONE_LE			cpu_to_le32(0x00)
-#define SMB2_LEASE_READ_CACHING_LE		cpu_to_le32(0x01)
-#define SMB2_LEASE_HANDLE_CACHING_LE		cpu_to_le32(0x02)
-#define SMB2_LEASE_WRITE_CACHING_LE		cpu_to_le32(0x04)
-
-#define SMB2_LEASE_FLAG_BREAK_IN_PROGRESS_LE	cpu_to_le32(0x02)
-
-#define SMB2_LEASE_KEY_SIZE			16
-
-struct lease_context {
-	__u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
-	__le32 LeaseState;
-	__le32 LeaseFlags;
-	__le64 LeaseDuration;
-} __packed;
-
-struct lease_context_v2 {
-	__u8 LeaseKey[SMB2_LEASE_KEY_SIZE];
-	__le32 LeaseState;
-	__le32 LeaseFlags;
-	__le64 LeaseDuration;
-	__u8 ParentLeaseKey[SMB2_LEASE_KEY_SIZE];
-	__le16 Epoch;
-	__le16 Reserved;
-} __packed;
-
-struct create_lease {
-	struct create_context ccontext;
-	__u8   Name[8];
-	struct lease_context lcontext;
-} __packed;
-
-struct create_lease_v2 {
-	struct create_context ccontext;
-	__u8   Name[8];
-	struct lease_context_v2 lcontext;
-	__u8   Pad[4];
-} __packed;
-
 struct smb2_buffer_desc_v1 {
 	__le64 offset;
 	__le32 token;
@@ -255,63 +168,6 @@ struct smb2_buffer_desc_v1 {
 } __packed;
 
 #define SMB2_0_IOCTL_IS_FSCTL 0x00000001
-
-struct duplicate_extents_to_file {
-	__u64 PersistentFileHandle; /* source file handle, opaque endianness */
-	__u64 VolatileFileHandle;
-	__le64 SourceFileOffset;
-	__le64 TargetFileOffset;
-	__le64 ByteCount;  /* Bytes to be copied */
-} __packed;
-
-struct smb2_ioctl_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 57 */
-	__le16 Reserved; /* offset from start of SMB2 header to write data */
-	__le32 CntCode;
-	__le64  PersistentFileId;
-	__le64  VolatileFileId;
-	__le32 InputOffset; /* Reserved MBZ */
-	__le32 InputCount;
-	__le32 MaxInputResponse;
-	__le32 OutputOffset;
-	__le32 OutputCount;
-	__le32 MaxOutputResponse;
-	__le32 Flags;
-	__le32 Reserved2;
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_ioctl_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 49 */
-	__le16 Reserved; /* offset from start of SMB2 header to write data */
-	__le32 CntCode;
-	__le64  PersistentFileId;
-	__le64  VolatileFileId;
-	__le32 InputOffset; /* Reserved MBZ */
-	__le32 InputCount;
-	__le32 OutputOffset;
-	__le32 OutputCount;
-	__le32 Flags;
-	__le32 Reserved2;
-	__u8   Buffer[1];
-} __packed;
-
-struct validate_negotiate_info_req {
-	__le32 Capabilities;
-	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
-	__le16 SecurityMode;
-	__le16 DialectCount;
-	__le16 Dialects[1]; /* dialect (someday maybe list) client asked for */
-} __packed;
-
-struct validate_negotiate_info_rsp {
-	__le32 Capabilities;
-	__u8   Guid[SMB2_CLIENT_GUID_SIZE];
-	__le16 SecurityMode;
-	__le16 Dialect; /* Dialect in use for the connection */
-} __packed;
 
 struct smb_sockaddr_in {
 	__be16 Port;
@@ -357,7 +213,7 @@ struct file_object_buf_type1_ioctl_rsp {
 } __packed;
 
 struct resume_key_ioctl_rsp {
-	__le64 ResumeKey[3];
+	__u64 ResumeKey[3];
 	__le32 ContextLength;
 	__u8 Context[4]; /* ignored, Windows sets to 4 bytes of zero */
 } __packed;
@@ -384,167 +240,6 @@ struct copychunk_ioctl_rsp {
 
 struct file_sparse {
 	__u8	SetSparse;
-} __packed;
-
-struct file_zero_data_information {
-	__le64	FileOffset;
-	__le64	BeyondFinalZero;
-} __packed;
-
-struct file_allocated_range_buffer {
-	__le64	file_offset;
-	__le64	length;
-} __packed;
-
-struct reparse_data_buffer {
-	__le32	ReparseTag;
-	__le16	ReparseDataLength;
-	__u16	Reserved;
-	__u8	DataBuffer[]; /* Variable Length */
-} __packed;
-
-/* SMB2 Notify Action Flags */
-#define FILE_ACTION_ADDED		0x00000001
-#define FILE_ACTION_REMOVED		0x00000002
-#define FILE_ACTION_MODIFIED		0x00000003
-#define FILE_ACTION_RENAMED_OLD_NAME	0x00000004
-#define FILE_ACTION_RENAMED_NEW_NAME	0x00000005
-#define FILE_ACTION_ADDED_STREAM	0x00000006
-#define FILE_ACTION_REMOVED_STREAM	0x00000007
-#define FILE_ACTION_MODIFIED_STREAM	0x00000008
-#define FILE_ACTION_REMOVED_BY_DELETE	0x00000009
-
-#define SMB2_LOCKFLAG_SHARED		0x0001
-#define SMB2_LOCKFLAG_EXCLUSIVE		0x0002
-#define SMB2_LOCKFLAG_UNLOCK		0x0004
-#define SMB2_LOCKFLAG_FAIL_IMMEDIATELY	0x0010
-#define SMB2_LOCKFLAG_MASK		0x0007
-
-struct smb2_lock_element {
-	__le64 Offset;
-	__le64 Length;
-	__le32 Flags;
-	__le32 Reserved;
-} __packed;
-
-struct smb2_lock_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 48 */
-	__le16 LockCount;
-	__le32 Reserved;
-	__le64  PersistentFileId;
-	__le64  VolatileFileId;
-	/* Followed by at least one */
-	struct smb2_lock_element locks[1];
-} __packed;
-
-struct smb2_lock_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 4 */
-	__le16 Reserved;
-} __packed;
-
-struct smb2_echo_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 4 */
-	__u16  Reserved;
-} __packed;
-
-struct smb2_echo_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize;	/* Must be 4 */
-	__u16  Reserved;
-} __packed;
-
-/* search (query_directory) Flags field */
-#define SMB2_RESTART_SCANS		0x01
-#define SMB2_RETURN_SINGLE_ENTRY	0x02
-#define SMB2_INDEX_SPECIFIED		0x04
-#define SMB2_REOPEN			0x10
-
-struct smb2_query_directory_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 33 */
-	__u8   FileInformationClass;
-	__u8   Flags;
-	__le32 FileIndex;
-	__le64  PersistentFileId;
-	__le64  VolatileFileId;
-	__le16 FileNameOffset;
-	__le16 FileNameLength;
-	__le32 OutputBufferLength;
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_query_directory_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 9 */
-	__le16 OutputBufferOffset;
-	__le32 OutputBufferLength;
-	__u8   Buffer[1];
-} __packed;
-
-/* Possible InfoType values */
-#define SMB2_O_INFO_FILE	0x01
-#define SMB2_O_INFO_FILESYSTEM	0x02
-#define SMB2_O_INFO_SECURITY	0x03
-#define SMB2_O_INFO_QUOTA	0x04
-
-/* Security info type additionalinfo flags. See MS-SMB2 (2.2.37) or MS-DTYP */
-#define OWNER_SECINFO   0x00000001
-#define GROUP_SECINFO   0x00000002
-#define DACL_SECINFO   0x00000004
-#define SACL_SECINFO   0x00000008
-#define LABEL_SECINFO   0x00000010
-#define ATTRIBUTE_SECINFO   0x00000020
-#define SCOPE_SECINFO   0x00000040
-#define BACKUP_SECINFO   0x00010000
-#define UNPROTECTED_SACL_SECINFO   0x10000000
-#define UNPROTECTED_DACL_SECINFO   0x20000000
-#define PROTECTED_SACL_SECINFO   0x40000000
-#define PROTECTED_DACL_SECINFO   0x80000000
-
-struct smb2_query_info_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 41 */
-	__u8   InfoType;
-	__u8   FileInfoClass;
-	__le32 OutputBufferLength;
-	__le16 InputBufferOffset;
-	__u16  Reserved;
-	__le32 InputBufferLength;
-	__le32 AdditionalInformation;
-	__le32 Flags;
-	__le64  PersistentFileId;
-	__le64  VolatileFileId;
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_query_info_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 9 */
-	__le16 OutputBufferOffset;
-	__le32 OutputBufferLength;
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_set_info_req {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 33 */
-	__u8   InfoType;
-	__u8   FileInfoClass;
-	__le32 BufferLength;
-	__le16 BufferOffset;
-	__u16  Reserved;
-	__le32 AdditionalInformation;
-	__le64  PersistentFileId;
-	__le64  VolatileFileId;
-	__u8   Buffer[1];
-} __packed;
-
-struct smb2_set_info_rsp {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 2 */
 } __packed;
 
 /* FILE Info response size */
@@ -602,144 +297,10 @@ struct fs_type_info {
 	long		magic_number;
 } __packed;
 
-struct smb2_oplock_break {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 24 */
-	__u8   OplockLevel;
-	__u8   Reserved;
-	__le32 Reserved2;
-	__le64  PersistentFid;
-	__le64  VolatileFid;
-} __packed;
-
-#define SMB2_NOTIFY_BREAK_LEASE_FLAG_ACK_REQUIRED cpu_to_le32(0x01)
-
-struct smb2_lease_break {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 44 */
-	__le16 Epoch;
-	__le32 Flags;
-	__u8   LeaseKey[16];
-	__le32 CurrentLeaseState;
-	__le32 NewLeaseState;
-	__le32 BreakReason;
-	__le32 AccessMaskHint;
-	__le32 ShareMaskHint;
-} __packed;
-
-struct smb2_lease_ack {
-	struct smb2_hdr hdr;
-	__le16 StructureSize; /* Must be 36 */
-	__le16 Reserved;
-	__le32 Flags;
-	__u8   LeaseKey[16];
-	__le32 LeaseState;
-	__le64 LeaseDuration;
-} __packed;
-
 /*
- *	PDU infolevel structure definitions
+ *	PDU query infolevel structure definitions
  *	BB consider moving to a different header
  */
-
-/* File System Information Classes */
-#define FS_VOLUME_INFORMATION		1 /* Query */
-#define FS_LABEL_INFORMATION		2 /* Set */
-#define FS_SIZE_INFORMATION		3 /* Query */
-#define FS_DEVICE_INFORMATION		4 /* Query */
-#define FS_ATTRIBUTE_INFORMATION	5 /* Query */
-#define FS_CONTROL_INFORMATION		6 /* Query, Set */
-#define FS_FULL_SIZE_INFORMATION	7 /* Query */
-#define FS_OBJECT_ID_INFORMATION	8 /* Query, Set */
-#define FS_DRIVER_PATH_INFORMATION	9 /* Query */
-#define FS_SECTOR_SIZE_INFORMATION	11 /* SMB3 or later. Query */
-#define FS_POSIX_INFORMATION		100 /* SMB3.1.1 POSIX. Query */
-
-struct smb2_fs_full_size_info {
-	__le64 TotalAllocationUnits;
-	__le64 CallerAvailableAllocationUnits;
-	__le64 ActualAvailableAllocationUnits;
-	__le32 SectorsPerAllocationUnit;
-	__le32 BytesPerSector;
-} __packed;
-
-#define SSINFO_FLAGS_ALIGNED_DEVICE		0x00000001
-#define SSINFO_FLAGS_PARTITION_ALIGNED_ON_DEVICE 0x00000002
-#define SSINFO_FLAGS_NO_SEEK_PENALTY		0x00000004
-#define SSINFO_FLAGS_TRIM_ENABLED		0x00000008
-
-/* sector size info struct */
-struct smb3_fs_ss_info {
-	__le32 LogicalBytesPerSector;
-	__le32 PhysicalBytesPerSectorForAtomicity;
-	__le32 PhysicalBytesPerSectorForPerf;
-	__le32 FSEffPhysicalBytesPerSectorForAtomicity;
-	__le32 Flags;
-	__le32 ByteOffsetForSectorAlignment;
-	__le32 ByteOffsetForPartitionAlignment;
-} __packed;
-
-/* File System Control Information */
-struct smb2_fs_control_info {
-	__le64 FreeSpaceStartFiltering;
-	__le64 FreeSpaceThreshold;
-	__le64 FreeSpaceStopFiltering;
-	__le64 DefaultQuotaThreshold;
-	__le64 DefaultQuotaLimit;
-	__le32 FileSystemControlFlags;
-	__le32 Padding;
-} __packed;
-
-/* partial list of QUERY INFO levels */
-#define FILE_DIRECTORY_INFORMATION	1
-#define FILE_FULL_DIRECTORY_INFORMATION 2
-#define FILE_BOTH_DIRECTORY_INFORMATION 3
-#define FILE_BASIC_INFORMATION		4
-#define FILE_STANDARD_INFORMATION	5
-#define FILE_INTERNAL_INFORMATION	6
-#define FILE_EA_INFORMATION	        7
-#define FILE_ACCESS_INFORMATION		8
-#define FILE_NAME_INFORMATION		9
-#define FILE_RENAME_INFORMATION		10
-#define FILE_LINK_INFORMATION		11
-#define FILE_NAMES_INFORMATION		12
-#define FILE_DISPOSITION_INFORMATION	13
-#define FILE_POSITION_INFORMATION	14
-#define FILE_FULL_EA_INFORMATION	15
-#define FILE_MODE_INFORMATION		16
-#define FILE_ALIGNMENT_INFORMATION	17
-#define FILE_ALL_INFORMATION		18
-#define FILE_ALLOCATION_INFORMATION	19
-#define FILE_END_OF_FILE_INFORMATION	20
-#define FILE_ALTERNATE_NAME_INFORMATION 21
-#define FILE_STREAM_INFORMATION		22
-#define FILE_PIPE_INFORMATION		23
-#define FILE_PIPE_LOCAL_INFORMATION	24
-#define FILE_PIPE_REMOTE_INFORMATION	25
-#define FILE_MAILSLOT_QUERY_INFORMATION 26
-#define FILE_MAILSLOT_SET_INFORMATION	27
-#define FILE_COMPRESSION_INFORMATION	28
-#define FILE_OBJECT_ID_INFORMATION	29
-/* Number 30 not defined in documents */
-#define FILE_MOVE_CLUSTER_INFORMATION	31
-#define FILE_QUOTA_INFORMATION		32
-#define FILE_REPARSE_POINT_INFORMATION	33
-#define FILE_NETWORK_OPEN_INFORMATION	34
-#define FILE_ATTRIBUTE_TAG_INFORMATION	35
-#define FILE_TRACKING_INFORMATION	36
-#define FILEID_BOTH_DIRECTORY_INFORMATION 37
-#define FILEID_FULL_DIRECTORY_INFORMATION 38
-#define FILE_VALID_DATA_LENGTH_INFORMATION 39
-#define FILE_SHORT_NAME_INFORMATION	40
-#define FILE_SFIO_RESERVE_INFORMATION	44
-#define FILE_SFIO_VOLUME_INFORMATION	45
-#define FILE_HARD_LINK_INFORMATION	46
-#define FILE_NORMALIZED_NAME_INFORMATION 48
-#define FILEID_GLOBAL_TX_DIRECTORY_INFORMATION 50
-#define FILE_STANDARD_LINK_INFORMATION	54
-
-#define OP_BREAK_STRUCT_SIZE_20		24
-#define OP_BREAK_STRUCT_SIZE_21		36
 
 struct smb2_file_access_info {
 	__le32 AccessFlags;
@@ -748,56 +309,6 @@ struct smb2_file_access_info {
 struct smb2_file_alignment_info {
 	__le32 AlignmentRequirement;
 } __packed;
-
-struct smb2_file_internal_info {
-	__le64 IndexNumber;
-} __packed; /* level 6 Query */
-
-struct smb2_file_rename_info { /* encoding of request for level 10 */
-	__u8   ReplaceIfExists; /* 1 = replace existing target with new */
-				/* 0 = fail if target already exists */
-	__u8   Reserved[7];
-	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
-	__le32 FileNameLength;
-	char   FileName[0];     /* New name to be assigned */
-} __packed; /* level 10 Set */
-
-struct smb2_file_link_info { /* encoding of request for level 11 */
-	__u8   ReplaceIfExists; /* 1 = replace existing link with new */
-				/* 0 = fail if link already exists */
-	__u8   Reserved[7];
-	__u64  RootDirectory;  /* MBZ for network operations (why says spec?) */
-	__le32 FileNameLength;
-	char   FileName[0];     /* Name to be assigned to new link */
-} __packed; /* level 11 Set */
-
-/*
- * This level 18, although with struct with same name is different from cifs
- * level 0x107. Level 0x107 has an extra u64 between AccessFlags and
- * CurrentByteOffset.
- */
-struct smb2_file_all_info { /* data block encoding of response to level 18 */
-	__le64 CreationTime;	/* Beginning of FILE_BASIC_INFO equivalent */
-	__le64 LastAccessTime;
-	__le64 LastWriteTime;
-	__le64 ChangeTime;
-	__le32 Attributes;
-	__u32  Pad1;		/* End of FILE_BASIC_INFO_INFO equivalent */
-	__le64 AllocationSize;	/* Beginning of FILE_STANDARD_INFO equivalent */
-	__le64 EndOfFile;	/* size ie offset to first free byte in file */
-	__le32 NumberOfLinks;	/* hard links */
-	__u8   DeletePending;
-	__u8   Directory;
-	__u16  Pad2;		/* End of FILE_STANDARD_INFO equivalent */
-	__le64 IndexNumber;
-	__le32 EASize;
-	__le32 AccessFlags;
-	__le64 CurrentByteOffset;
-	__le32 Mode;
-	__le32 AlignmentRequirement;
-	__le32 FileNameLength;
-	char   FileName[1];
-} __packed; /* level 18 Query */
 
 struct smb2_file_basic_info { /* data block encoding of response to level 18 */
 	__le64 CreationTime;	/* Beginning of FILE_BASIC_INFO equivalent */
@@ -810,7 +321,7 @@ struct smb2_file_basic_info { /* data block encoding of response to level 18 */
 
 struct smb2_file_alt_name_info {
 	__le32 FileNameLength;
-	char FileName[0];
+	char FileName[];
 } __packed;
 
 struct smb2_file_stream_info {
@@ -818,12 +329,8 @@ struct smb2_file_stream_info {
 	__le32  StreamNameLength;
 	__le64 StreamSize;
 	__le64 StreamAllocationSize;
-	char   StreamName[0];
+	char   StreamName[];
 } __packed;
-
-struct smb2_file_eof_info { /* encoding of request for level 10 */
-	__le64 EndOfFile; /* new end of file value */
-} __packed; /* level 20 Set */
 
 struct smb2_file_ntwrk_info {
 	__le64 CreationTime;
@@ -913,34 +420,6 @@ struct create_sd_buf_req {
 	struct create_context ccontext;
 	__u8   Name[8];
 	struct smb_ntsd ntsd;
-} __packed;
-
-/* Find File infolevels */
-#define SMB_FIND_FILE_POSIX_INFO	0x064
-
-/* Level 100 query info */
-struct smb311_posix_qinfo {
-	__le64 CreationTime;
-	__le64 LastAccessTime;
-	__le64 LastWriteTime;
-	__le64 ChangeTime;
-	__le64 EndOfFile;
-	__le64 AllocationSize;
-	__le32 DosAttributes;
-	__le64 Inode;
-	__le32 DeviceId;
-	__le32 Zero;
-	/* beginning of POSIX Create Context Response */
-	__le32 HardLinks;
-	__le32 ReparseTag;
-	__le32 Mode;
-	u8     Sids[];
-	/*
-	 * var sized owner SID
-	 * var sized group SID
-	 * le32 filenamelength
-	 * u8  filename[]
-	 */
 } __packed;
 
 struct smb2_posix_info {

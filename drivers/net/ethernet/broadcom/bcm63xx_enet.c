@@ -1716,17 +1716,17 @@ static int bcm_enet_probe(struct platform_device *pdev)
 	struct bcm_enet_priv *priv;
 	struct net_device *dev;
 	struct bcm63xx_enet_platform_data *pd;
-	struct resource *res_irq, *res_irq_rx, *res_irq_tx;
+	int irq, irq_rx, irq_tx;
 	struct mii_bus *bus;
 	int i, ret;
 
 	if (!bcm_enet_shared_base[0])
 		return -EPROBE_DEFER;
 
-	res_irq = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	res_irq_rx = platform_get_resource(pdev, IORESOURCE_IRQ, 1);
-	res_irq_tx = platform_get_resource(pdev, IORESOURCE_IRQ, 2);
-	if (!res_irq || !res_irq_rx || !res_irq_tx)
+	irq = platform_get_irq(pdev, 0);
+	irq_rx = platform_get_irq(pdev, 1);
+	irq_tx = platform_get_irq(pdev, 2);
+	if (irq < 0 || irq_rx < 0 || irq_tx < 0)
 		return -ENODEV;
 
 	dev = alloc_etherdev(sizeof(*priv));
@@ -1748,9 +1748,9 @@ static int bcm_enet_probe(struct platform_device *pdev)
 		goto out;
 	}
 
-	dev->irq = priv->irq = res_irq->start;
-	priv->irq_rx = res_irq_rx->start;
-	priv->irq_tx = res_irq_tx->start;
+	dev->irq = priv->irq = irq;
+	priv->irq_rx = irq_rx;
+	priv->irq_tx = irq_tx;
 
 	priv->mac_clk = devm_clk_get(&pdev->dev, "enet");
 	if (IS_ERR(priv->mac_clk)) {

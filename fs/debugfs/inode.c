@@ -450,6 +450,11 @@ static struct dentry *__debugfs_create_file(const char *name, umode_t mode,
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.
+ *
+ * NOTE: it's expected that most callers should _ignore_ the errors returned
+ * by this function. Other debugfs functions handle the fact that the "dentry"
+ * passed to them could be an error and they don't crash in that case.
+ * Drivers should generally work fine even if debugfs fails to init anyway.
  */
 struct dentry *debugfs_create_file(const char *name, umode_t mode,
 				   struct dentry *parent, void *data,
@@ -551,6 +556,11 @@ EXPORT_SYMBOL_GPL(debugfs_create_file_size);
  *
  * If debugfs is not enabled in the kernel, the value -%ENODEV will be
  * returned.
+ *
+ * NOTE: it's expected that most callers should _ignore_ the errors returned
+ * by this function. Other debugfs functions handle the fact that the "dentry"
+ * passed to them could be an error and they don't crash in that case.
+ * Drivers should generally work fine even if debugfs fails to init anyway.
  */
 struct dentry *debugfs_create_dir(const char *name, struct dentry *parent)
 {

@@ -25,16 +25,9 @@ allOf:
 
         i2c-scl-falling-time-ns:
           default: 10
-
-        st,syscfg-fmp:
-          description: Use to set Fast Mode Plus bit within SYSCFG when
-                       Fast Mode Plus speed is selected by slave.
-                       Format is phandle to syscfg / register offset within
-                       syscfg / register bitmask for FMP bit.
-          $ref: "/schemas/types.yaml#/definitions/phandle-array"
-          items:
-            minItems: 3
-            maxItems: 3
+    else:
+      properties:
+        st,syscfg-fmp: false
 
   - if:
       properties:
@@ -86,6 +79,16 @@ properties:
     default: 100000
     minimum: 1
     maximum: 1000000
+
+  st,syscfg-fmp:
+    description: Use to set Fast Mode Plus bit within SYSCFG when Fast Mode
+      Plus speed is selected by slave.
+    $ref: "/schemas/types.yaml#/definitions/phandle-array"
+    items:
+      - items:
+          - description: phandle to syscfg
+          - description: register offset within syscfg
+          - description: register bitmask for FMP bit
 
 required:
   - compatible
@@ -147,4 +150,3 @@ examples:
           i2c-scl-falling-time-ns = <20>;
           st,syscfg-fmp = <&syscfg 0x4 0x2>;
       };
-...

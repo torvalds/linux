@@ -346,7 +346,7 @@ size_t ovs_key_attr_size(void)
 	/* Whenever adding new OVS_KEY_ FIELDS, we should consider
 	 * updating this function.
 	 */
-	BUILD_BUG_ON(OVS_KEY_ATTR_TUNNEL_INFO != 29);
+	BUILD_BUG_ON(OVS_KEY_ATTR_MAX != 32);
 
 	return    nla_total_size(4)   /* OVS_KEY_ATTR_PRIORITY */
 		+ nla_total_size(0)   /* OVS_KEY_ATTR_TUNNEL */
@@ -369,7 +369,8 @@ size_t ovs_key_attr_size(void)
 		+ nla_total_size(2)   /* OVS_KEY_ATTR_ETHERTYPE */
 		+ nla_total_size(40)  /* OVS_KEY_ATTR_IPV6 */
 		+ nla_total_size(2)   /* OVS_KEY_ATTR_ICMPV6 */
-		+ nla_total_size(28); /* OVS_KEY_ATTR_ND */
+		+ nla_total_size(28)  /* OVS_KEY_ATTR_ND */
+		+ nla_total_size(2);  /* OVS_KEY_ATTR_IPV6_EXTHDRS */
 }
 
 static const struct ovs_len_tbl ovs_vxlan_ext_key_lens[OVS_VXLAN_EXT_MAX + 1] = {
@@ -437,6 +438,8 @@ static const struct ovs_len_tbl ovs_key_lens[OVS_KEY_ATTR_MAX + 1] = {
 		.len = sizeof(struct ovs_key_ct_tuple_ipv6) },
 	[OVS_KEY_ATTR_NSH]       = { .len = OVS_ATTR_NESTED,
 				     .next = ovs_nsh_key_attr_lens, },
+	[OVS_KEY_ATTR_IPV6_EXTHDRS] = {
+		.len = sizeof(struct ovs_key_ipv6_exthdrs) },
 };
 
 static bool check_attr_len(unsigned int attr_len, unsigned int expected_len)
@@ -479,7 +482,14 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 			return -EINVAL;
 		}
 
-		if (attrs & (1 << type)) {
+		if (type == OVS_KEY_ATTR_PACKET_TYPE ||
+		    type == OVS_KEY_ATTR_ND_EXTENSIONS ||
+		    type == OVS_KEY_ATTR_TUNNEL_INFO) {
+			OVS_NLERR(log, "Key type %d is not supported", type);
+			return -EINVAL;
+		}
+
+		if (attrs & (1ULL << type)) {
 			OVS_NLERR(log, "Duplicate key (type %d).", type);
 			return -EINVAL;
 		}
@@ -492,7 +502,7 @@ static int __parse_flow_nlattrs(const struct nlattr *attr,
 		}
 
 		if (!nz || !is_all_zero(nla_data(nla), nla_len(nla))) {
-			attrs |= 1 << type;
+			attrs |= 1ULL << type;
 			a[type] = nla;
 		}
 	}
@@ -1597,6 +1607,17 @@ static int ovs_key_from_nlattrs(struct net *net, struct sw_flow_match *match,
 		attrs &= ~(1 << OVS_KEY_ATTR_IPV6);
 	}
 
+	if (attrs & (1ULL << OVS_KEY_ATTR_IPV6_EXTHDRS)) {
+		const struct ovs_key_ipv6_exthdrs *ipv6_exthdrs_key;
+
+		ipv6_exthdrs_key = nla_data(a[OVS_KEY_ATTR_IPV6_EXTHDRS]);
+
+		SW_FLOW_KEY_PUT(match, ipv6.exthdrs,
+				ipv6_exthdrs_key->hdrs, is_mask);
+
+		attrs &= ~(1ULL << OVS_KEY_ATTR_IPV6_EXTHDRS);
+	}
+
 	if (attrs & (1 << OVS_KEY_ATTR_ARP)) {
 		const struct ovs_key_arp *arp_key;
 
@@ -2099,6 +2120,7 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 		ipv4_key->ipv4_frag = output->ip.frag;
 	} else if (swkey->eth.type == htons(ETH_P_IPV6)) {
 		struct ovs_key_ipv6 *ipv6_key;
+		struct ovs_key_ipv6_exthdrs *ipv6_exthdrs_key;
 
 		nla = nla_reserve(skb, OVS_KEY_ATTR_IPV6, sizeof(*ipv6_key));
 		if (!nla)
@@ -2113,6 +2135,13 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 		ipv6_key->ipv6_tclass = output->ip.tos;
 		ipv6_key->ipv6_hlimit = output->ip.ttl;
 		ipv6_key->ipv6_frag = output->ip.frag;
+
+		nla = nla_reserve(skb, OVS_KEY_ATTR_IPV6_EXTHDRS,
+				  sizeof(*ipv6_exthdrs_key));
+		if (!nla)
+			goto nla_put_failure;
+		ipv6_exthdrs_key = nla_data(nla);
+		ipv6_exthdrs_key->hdrs = output->ipv6.exthdrs;
 	} else if (swkey->eth.type == htons(ETH_P_NSH)) {
 		if (nsh_key_to_nlattr(&output->nsh, is_mask, skb))
 			goto nla_put_failure;
@@ -2201,8 +2230,8 @@ static int __ovs_nla_put_key(const struct sw_flow_key *swkey,
 			icmpv6_key->icmpv6_type = ntohs(output->tp.src);
 			icmpv6_key->icmpv6_code = ntohs(output->tp.dst);
 
-			if (icmpv6_key->icmpv6_type == NDISC_NEIGHBOUR_SOLICITATION ||
-			    icmpv6_key->icmpv6_type == NDISC_NEIGHBOUR_ADVERTISEMENT) {
+			if (swkey->tp.src == htons(NDISC_NEIGHBOUR_SOLICITATION) ||
+			    swkey->tp.src == htons(NDISC_NEIGHBOUR_ADVERTISEMENT)) {
 				struct ovs_key_nd *nd_key;
 
 				nla = nla_reserve(skb, OVS_KEY_ATTR_ND, sizeof(*nd_key));
@@ -2288,6 +2317,62 @@ static struct sw_flow_actions *nla_alloc_flow_actions(int size)
 	return sfa;
 }
 
+static void ovs_nla_free_nested_actions(const struct nlattr *actions, int len);
+
+static void ovs_nla_free_check_pkt_len_action(const struct nlattr *action)
+{
+	const struct nlattr *a;
+	int rem;
+
+	nla_for_each_nested(a, action, rem) {
+		switch (nla_type(a)) {
+		case OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_LESS_EQUAL:
+		case OVS_CHECK_PKT_LEN_ATTR_ACTIONS_IF_GREATER:
+			ovs_nla_free_nested_actions(nla_data(a), nla_len(a));
+			break;
+		}
+	}
+}
+
+static void ovs_nla_free_clone_action(const struct nlattr *action)
+{
+	const struct nlattr *a = nla_data(action);
+	int rem = nla_len(action);
+
+	switch (nla_type(a)) {
+	case OVS_CLONE_ATTR_EXEC:
+		/* The real list of actions follows this attribute. */
+		a = nla_next(a, &rem);
+		ovs_nla_free_nested_actions(a, rem);
+		break;
+	}
+}
+
+static void ovs_nla_free_dec_ttl_action(const struct nlattr *action)
+{
+	const struct nlattr *a = nla_data(action);
+
+	switch (nla_type(a)) {
+	case OVS_DEC_TTL_ATTR_ACTION:
+		ovs_nla_free_nested_actions(nla_data(a), nla_len(a));
+		break;
+	}
+}
+
+static void ovs_nla_free_sample_action(const struct nlattr *action)
+{
+	const struct nlattr *a = nla_data(action);
+	int rem = nla_len(action);
+
+	switch (nla_type(a)) {
+	case OVS_SAMPLE_ATTR_ARG:
+		/* The real list of actions follows this attribute. */
+		a = nla_next(a, &rem);
+		ovs_nla_free_nested_actions(a, rem);
+		break;
+	}
+}
+
 static void ovs_nla_free_set_action(const struct nlattr *a)
 {
 	const struct nlattr *ovs_key = nla_data(a);
@@ -2301,25 +2386,54 @@ static void ovs_nla_free_set_action(const struct nlattr *a)
 	}
 }
 
-void ovs_nla_free_flow_actions(struct sw_flow_actions *sf_acts)
+static void ovs_nla_free_nested_actions(const struct nlattr *actions, int len)
 {
 	const struct nlattr *a;
 	int rem;
 
-	if (!sf_acts)
+	/* Whenever new actions are added, the need to update this
+	 * function should be considered.
+	 */
+	BUILD_BUG_ON(OVS_ACTION_ATTR_MAX != 23);
+
+	if (!actions)
 		return;
 
-	nla_for_each_attr(a, sf_acts->actions, sf_acts->actions_len, rem) {
+	nla_for_each_attr(a, actions, len, rem) {
 		switch (nla_type(a)) {
-		case OVS_ACTION_ATTR_SET:
-			ovs_nla_free_set_action(a);
+		case OVS_ACTION_ATTR_CHECK_PKT_LEN:
+			ovs_nla_free_check_pkt_len_action(a);
 			break;
+
+		case OVS_ACTION_ATTR_CLONE:
+			ovs_nla_free_clone_action(a);
+			break;
+
 		case OVS_ACTION_ATTR_CT:
 			ovs_ct_free_action(a);
 			break;
+
+		case OVS_ACTION_ATTR_DEC_TTL:
+			ovs_nla_free_dec_ttl_action(a);
+			break;
+
+		case OVS_ACTION_ATTR_SAMPLE:
+			ovs_nla_free_sample_action(a);
+			break;
+
+		case OVS_ACTION_ATTR_SET:
+			ovs_nla_free_set_action(a);
+			break;
 		}
 	}
+}
 
+void ovs_nla_free_flow_actions(struct sw_flow_actions *sf_acts)
+{
+	if (!sf_acts)
+		return;
+
+	ovs_nla_free_nested_actions(sf_acts->actions, sf_acts->actions_len);
 	kfree(sf_acts);
 }
 
@@ -2351,7 +2465,7 @@ static struct nlattr *reserve_sfa_size(struct sw_flow_actions **sfa,
 	new_acts_size = max(next_offset + req_size, ksize(*sfa) * 2);
 
 	if (new_acts_size > MAX_ACTIONS_BUFSIZE) {
-		if ((MAX_ACTIONS_BUFSIZE - next_offset) < req_size) {
+		if ((next_offset + req_size) > MAX_ACTIONS_BUFSIZE) {
 			OVS_NLERR(log, "Flow action size exceeds max %u",
 				  MAX_ACTIONS_BUFSIZE);
 			return ERR_PTR(-EMSGSIZE);
@@ -3429,7 +3543,9 @@ static int clone_action_to_attr(const struct nlattr *attr,
 	if (!start)
 		return -EMSGSIZE;
 
-	err = ovs_nla_put_actions(nla_data(attr), rem, skb);
+	/* Skipping the OVS_CLONE_ATTR_EXEC that is always the first attribute. */
+	attr = nla_next(nla_data(attr), &rem);
+	err = ovs_nla_put_actions(attr, rem, skb);
 
 	if (err)
 		nla_nest_cancel(skb, start);

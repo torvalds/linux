@@ -99,10 +99,13 @@ void rxe_av_fill_ip_info(struct rxe_av *av, struct rdma_ah_attr *attr)
 	av->network_type = type;
 }
 
-struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt)
+struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt, struct rxe_ah **ahp)
 {
 	struct rxe_ah *ah;
 	u32 ah_num;
+
+	if (ahp)
+		*ahp = NULL;
 
 	if (!pkt || !pkt->qp)
 		return NULL;
@@ -117,10 +120,22 @@ struct rxe_av *rxe_get_av(struct rxe_pkt_info *pkt)
 	if (ah_num) {
 		/* only new user provider or kernel client */
 		ah = rxe_pool_get_index(&pkt->rxe->ah_pool, ah_num);
-		if (!ah || ah->ah_num != ah_num || rxe_ah_pd(ah) != pkt->qp->pd) {
+		if (!ah) {
 			pr_warn("Unable to find AH matching ah_num\n");
 			return NULL;
 		}
+
+		if (rxe_ah_pd(ah) != pkt->qp->pd) {
+			pr_warn("PDs don't match for AH and QP\n");
+			rxe_put(ah);
+			return NULL;
+		}
+
+		if (ahp)
+			*ahp = ah;
+		else
+			rxe_put(ah);
+
 		return &ah->av;
 	}
 

@@ -385,17 +385,6 @@ static inline u8 *get_rxmem(union recv_frame *precvframe)
 	return precvframe->u.hdr.rx_head;
 }
 
-static inline u8 *get_recvframe_data(union recv_frame *precvframe)
-{
-
-	/* alwasy return rx_data */
-	if (precvframe == NULL)
-		return NULL;
-
-	return precvframe->u.hdr.rx_data;
-
-}
-
 static inline u8 *recvframe_pull(union recv_frame *precvframe, signed int sz)
 {
 	/*  rx_data += sz; move rx_data sz bytes  hereafter */

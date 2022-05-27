@@ -58,14 +58,29 @@ Virtually Contiguous Mappings
 File Mapping and Page Cache
 ===========================
 
-.. kernel-doc:: mm/readahead.c
-   :export:
+Filemap
+-------
 
 .. kernel-doc:: mm/filemap.c
    :export:
 
+Readahead
+---------
+
+.. kernel-doc:: mm/readahead.c
+   :doc: Readahead Overview
+
+.. kernel-doc:: mm/readahead.c
+   :export:
+
+Writeback
+---------
+
 .. kernel-doc:: mm/page-writeback.c
    :export:
+
+Truncate
+--------
 
 .. kernel-doc:: mm/truncate.c
    :export:

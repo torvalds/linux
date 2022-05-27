@@ -16,7 +16,7 @@
 #define UTS_TXFULL (1<<4) /* TxFIFO full */
 #define IMX21_UTS 0xb4 /* UART Test Register on all other i.mx*/
 
-static void imx_uart_console_early_putchar(struct uart_port *port, int ch)
+static void imx_uart_console_early_putchar(struct uart_port *port, unsigned char ch)
 {
 	while (readl_relaxed(port->membase + IMX21_UTS) & UTS_TXFULL)
 		cpu_relax();

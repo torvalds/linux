@@ -66,6 +66,18 @@ MODULE_PARM_DESC(shared_mem,
 static struct cpufreq_driver amd_pstate_driver;
 
 /**
+ * struct  amd_aperf_mperf
+ * @aperf: actual performance frequency clock count
+ * @mperf: maximum performance frequency clock count
+ * @tsc:   time stamp counter
+ */
+struct amd_aperf_mperf {
+	u64 aperf;
+	u64 mperf;
+	u64 tsc;
+};
+
+/**
  * struct amd_cpudata - private CPU data for AMD P-State
  * @cpu: CPU number
  * @req: constraint request to apply
@@ -81,6 +93,9 @@ static struct cpufreq_driver amd_pstate_driver;
  * @min_freq: the frequency that mapped to lowest_perf
  * @nominal_freq: the frequency that mapped to nominal_perf
  * @lowest_nonlinear_freq: the frequency that mapped to lowest_nonlinear_perf
+ * @cur: Difference of Aperf/Mperf/tsc count between last and current sample
+ * @prev: Last Aperf/Mperf/tsc count value read from register
+ * @freq: current cpu frequency value
  * @boost_supported: check whether the Processor or SBIOS supports boost mode
  *
  * The amd_cpudata is key private data for each CPU thread in AMD P-State, and
@@ -102,6 +117,10 @@ struct amd_cpudata {
 	u32	nominal_freq;
 	u32	lowest_nonlinear_freq;
 
+	struct amd_aperf_mperf cur;
+	struct amd_aperf_mperf prev;
+
+	u64 freq;
 	bool	boost_supported;
 };
 
@@ -211,6 +230,39 @@ static inline void amd_pstate_update_perf(struct amd_cpudata *cpudata,
 					    max_perf, fast_switch);
 }
 
+static inline bool amd_pstate_sample(struct amd_cpudata *cpudata)
+{
+	u64 aperf, mperf, tsc;
+	unsigned long flags;
+
+	local_irq_save(flags);
+	rdmsrl(MSR_IA32_APERF, aperf);
+	rdmsrl(MSR_IA32_MPERF, mperf);
+	tsc = rdtsc();
+
+	if (cpudata->prev.mperf == mperf || cpudata->prev.tsc == tsc) {
+		local_irq_restore(flags);
+		return false;
+	}
+
+	local_irq_restore(flags);
+
+	cpudata->cur.aperf = aperf;
+	cpudata->cur.mperf = mperf;
+	cpudata->cur.tsc =  tsc;
+	cpudata->cur.aperf -= cpudata->prev.aperf;
+	cpudata->cur.mperf -= cpudata->prev.mperf;
+	cpudata->cur.tsc -= cpudata->prev.tsc;
+
+	cpudata->prev.aperf = aperf;
+	cpudata->prev.mperf = mperf;
+	cpudata->prev.tsc = tsc;
+
+	cpudata->freq = div64_u64((cpudata->cur.aperf * cpu_khz), cpudata->cur.mperf);
+
+	return true;
+}
+
 static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
 			      u32 des_perf, u32 max_perf, bool fast_switch)
 {
@@ -226,8 +278,11 @@ static void amd_pstate_update(struct amd_cpudata *cpudata, u32 min_perf,
 	value &= ~AMD_CPPC_MAX_PERF(~0L);
 	value |= AMD_CPPC_MAX_PERF(max_perf);
 
-	trace_amd_pstate_perf(min_perf, des_perf, max_perf,
-			      cpudata->cpu, (value != prev), fast_switch);
+	if (trace_amd_pstate_perf_enabled() && amd_pstate_sample(cpudata)) {
+		trace_amd_pstate_perf(min_perf, des_perf, max_perf, cpudata->freq,
+			cpudata->cur.mperf, cpudata->cur.aperf, cpudata->cur.tsc,
+				cpudata->cpu, (value != prev), fast_switch);
+	}
 
 	if (value == prev)
 		return;

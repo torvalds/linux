@@ -26,50 +26,52 @@
 #ifndef __DC_LINK_HWSS_H__
 #define __DC_LINK_HWSS_H__
 
-struct gpio *get_hpd_gpio(struct dc_bios *dcb,
-		struct graphics_object_id link_id,
-		struct gpio_service *gpio_service);
+/* include basic type headers only */
+#include "dc_dp_types.h"
+#include "signal_types.h"
+#include "grph_object_id.h"
+#include "fixed31_32.h"
 
-void dp_enable_link_phy(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum signal_type signal,
-	enum clock_source_id clock_source,
-	const struct dc_link_settings *link_settings);
+/* forward declare dc core types */
+struct dc_link;
+struct link_resource;
+struct pipe_ctx;
+struct encoder_set_dp_phy_pattern_param;
 
-void dp_receiver_power_ctrl(struct dc_link *link, bool on);
-void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
-void edp_add_delay_for_T9(struct dc_link *link);
-bool edp_receiver_ready_T9(struct dc_link *link);
-bool edp_receiver_ready_T7(struct dc_link *link);
+struct link_hwss_ext {
+	/* function pointers below require check for NULL at all time
+	 * *********************************************************************
+	 */
+	void (*set_hblank_min_symbol_width)(struct pipe_ctx *pipe_ctx,
+			const struct dc_link_settings *link_settings,
+			struct fixed31_32 throttled_vcp_size);
+	void (*set_throttled_vcp_size)(struct pipe_ctx *pipe_ctx,
+			struct fixed31_32 throttled_vcp_size);
+	void (*enable_dp_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal,
+			enum clock_source_id clock_source,
+			const struct dc_link_settings *link_settings);
+	void (*disable_dp_link_output)(struct dc_link *link,
+			const struct link_resource *link_res,
+			enum signal_type signal);
+	void (*set_dp_link_test_pattern)(struct dc_link *link,
+			const struct link_resource *link_res,
+			struct encoder_set_dp_phy_pattern_param *tp_params);
+	void (*set_dp_lane_settings)(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct dc_link_settings *link_settings,
+		const struct dc_lane_settings lane_settings[LANE_COUNT_DP_MAX]);
+};
 
-void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_res,
-		enum signal_type signal);
+struct link_hwss {
+	struct link_hwss_ext ext;
 
-void dp_disable_link_phy_mst(struct dc_link *link, const struct link_resource *link_res,
-		enum signal_type signal);
-
-bool dp_set_hw_training_pattern(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum dc_dp_training_pattern pattern,
-	uint32_t offset);
-
-void dp_set_hw_lane_settings(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	const struct link_training_settings *link_settings,
-	uint32_t offset);
-
-void dp_set_hw_test_pattern(
-	struct dc_link *link,
-	const struct link_resource *link_res,
-	enum dp_test_pattern test_pattern,
-	uint8_t *custom_pattern,
-	uint32_t custom_pattern_size);
-
-void dp_retrain_link_dp_test(struct dc_link *link,
-		struct dc_link_settings *link_setting,
-		bool skip_video_pattern);
-
+	/* function pointers below MUST be assigned to all types of link_hwss
+	 * *********************************************************************
+	 */
+	void (*setup_stream_encoder)(struct pipe_ctx *pipe_ctx);
+	void (*reset_stream_encoder)(struct pipe_ctx *pipe_ctx);
+};
 #endif /* __DC_LINK_HWSS_H__ */
+

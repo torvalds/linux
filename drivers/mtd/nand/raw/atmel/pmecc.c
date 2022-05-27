@@ -920,7 +920,7 @@ static struct atmel_pmecc_caps sama5d2_caps = {
 	.correct_erased_chunks = true,
 };
 
-static const struct of_device_id atmel_pmecc_legacy_match[] = {
+static const struct of_device_id __maybe_unused atmel_pmecc_legacy_match[] = {
 	{ .compatible = "atmel,sama5d4-nand", &sama5d4_caps },
 	{ .compatible = "atmel,sama5d2-nand", &sama5d2_caps },
 	{ /* sentinel */ }
@@ -1003,7 +1003,7 @@ static int atmel_pmecc_probe(struct platform_device *pdev)
 static struct platform_driver atmel_pmecc_driver = {
 	.driver = {
 		.name = "atmel-pmecc",
-		.of_match_table = of_match_ptr(atmel_pmecc_match),
+		.of_match_table = atmel_pmecc_match,
 	},
 	.probe = atmel_pmecc_probe,
 };

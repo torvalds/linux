@@ -257,7 +257,7 @@ static const struct regmap_config max2175_regmap_config = {
 	.reg_defaults = max2175_reg_defaults,
 	.num_reg_defaults = ARRAY_SIZE(max2175_reg_defaults),
 	.volatile_table = &max2175_volatile_regs,
-	.cache_type = REGCACHE_FLAT,
+	.cache_type = REGCACHE_RBTREE,
 };
 
 struct max2175 {

@@ -568,7 +568,7 @@ int bt_sock_wait_state(struct sock *sk, int state, unsigned long timeo)
 EXPORT_SYMBOL(bt_sock_wait_state);
 
 /* This function expects the sk lock to be held when called */
-int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
+int bt_sock_wait_ready(struct sock *sk, unsigned int msg_flags)
 {
 	DECLARE_WAITQUEUE(wait, current);
 	unsigned long timeo;
@@ -576,7 +576,7 @@ int bt_sock_wait_ready(struct sock *sk, unsigned long flags)
 
 	BT_DBG("sk %p", sk);
 
-	timeo = sock_sndtimeo(sk, flags & O_NONBLOCK);
+	timeo = sock_sndtimeo(sk, !!(msg_flags & MSG_DONTWAIT));
 
 	add_wait_queue(sk_sleep(sk), &wait);
 	set_current_state(TASK_INTERRUPTIBLE);

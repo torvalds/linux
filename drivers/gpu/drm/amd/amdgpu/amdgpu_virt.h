@@ -32,6 +32,19 @@
 #define AMDGPU_PASSTHROUGH_MODE        (1 << 3) /* thw whole GPU is pass through for VM */
 #define AMDGPU_SRIOV_CAPS_RUNTIME      (1 << 4) /* is out of full access mode */
 
+/* flags for indirect register access path supported by rlcg for sriov */
+#define AMDGPU_RLCG_GC_WRITE_LEGACY    (0x8 << 28)
+#define AMDGPU_RLCG_GC_WRITE           (0x0 << 28)
+#define AMDGPU_RLCG_GC_READ            (0x1 << 28)
+#define AMDGPU_RLCG_MMHUB_WRITE        (0x2 << 28)
+
+/* error code for indirect register access path supported by rlcg for sriov */
+#define AMDGPU_RLCG_VFGATE_DISABLED		0x4000000
+#define AMDGPU_RLCG_WRONG_OPERATION_TYPE	0x2000000
+#define AMDGPU_RLCG_REG_NOT_IN_RANGE		0x1000000
+
+#define AMDGPU_RLCG_SCRATCH1_ADDRESS_MASK	0xFFFFF
+
 /* all asic after AI use this offset */
 #define mmRCC_IOV_FUNC_IDENTIFIER 0xDE5
 /* tonga/fiji use this offset */
@@ -275,13 +288,18 @@ struct amdgpu_video_codec_info;
 (amdgpu_sriov_vf((adev)) && \
 	((adev)->virt.reg_access & (AMDGIM_FEATURE_GC_REG_RLC_EN)))
 
+#define amdgpu_sriov_rlcg_error_report_enabled(adev) \
+        (amdgpu_sriov_reg_indirect_mmhub(adev) || amdgpu_sriov_reg_indirect_gc(adev))
+
 #define amdgpu_passthrough(adev) \
 ((adev)->virt.caps & AMDGPU_PASSTHROUGH_MODE)
 
 static inline bool is_virtual_machine(void)
 {
-#ifdef CONFIG_X86
+#if defined(CONFIG_X86)
 	return boot_cpu_has(X86_FEATURE_HYPERVISOR);
+#elif defined(CONFIG_ARM64)
+	return !is_kernel_in_hyp_mode();
 #else
 	return false;
 #endif
@@ -293,7 +311,6 @@ static inline bool is_virtual_machine(void)
 	((!amdgpu_in_reset(adev)) && adev->virt.tdr_debug)
 #define amdgpu_sriov_is_normal(adev) \
 	((!amdgpu_in_reset(adev)) && (!adev->virt.tdr_debug))
-
 bool amdgpu_virt_mmio_blocked(struct amdgpu_device *adev);
 void amdgpu_virt_init_setting(struct amdgpu_device *adev);
 void amdgpu_virt_kiq_reg_write_reg_wait(struct amdgpu_device *adev,
@@ -321,4 +338,9 @@ enum amdgpu_sriov_vf_mode amdgpu_virt_get_sriov_vf_mode(struct amdgpu_device *ad
 void amdgpu_virt_update_sriov_video_codec(struct amdgpu_device *adev,
 			struct amdgpu_video_codec_info *encode, uint32_t encode_array_size,
 			struct amdgpu_video_codec_info *decode, uint32_t decode_array_size);
+void amdgpu_sriov_wreg(struct amdgpu_device *adev,
+		       u32 offset, u32 value,
+		       u32 acc_flags, u32 hwip);
+u32 amdgpu_sriov_rreg(struct amdgpu_device *adev,
+		      u32 offset, u32 acc_flags, u32 hwip);
 #endif

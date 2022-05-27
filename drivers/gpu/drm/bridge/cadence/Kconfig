@@ -1,6 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_CDNS_MHDP8546
 	tristate "Cadence DPI/DP bridge"
+	select DRM_DP_HELPER
 	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
 	depends on OF

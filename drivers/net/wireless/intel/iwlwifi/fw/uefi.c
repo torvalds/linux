@@ -69,7 +69,7 @@ out:
 static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 					   const u8 *data, size_t len)
 {
-	struct iwl_ucode_tlv *tlv;
+	const struct iwl_ucode_tlv *tlv;
 	u8 *reduce_power_data = NULL, *tmp;
 	u32 size = 0;
 
@@ -79,7 +79,7 @@ static void *iwl_uefi_reduce_power_section(struct iwl_trans *trans,
 		u32 tlv_len, tlv_type;
 
 		len -= sizeof(*tlv);
-		tlv = (void *)data;
+		tlv = (const void *)data;
 
 		tlv_len = le32_to_cpu(tlv->length);
 		tlv_type = le32_to_cpu(tlv->type);
@@ -154,7 +154,7 @@ out:
 static void *iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 					 const u8 *data, size_t len)
 {
-	struct iwl_ucode_tlv *tlv;
+	const struct iwl_ucode_tlv *tlv;
 	void *sec_data;
 
 	IWL_DEBUG_FW(trans, "Parsing REDUCE_POWER data\n");
@@ -163,7 +163,7 @@ static void *iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 		u32 tlv_len, tlv_type;
 
 		len -= sizeof(*tlv);
-		tlv = (void *)data;
+		tlv = (const void *)data;
 
 		tlv_len = le32_to_cpu(tlv->length);
 		tlv_type = le32_to_cpu(tlv->type);
@@ -175,8 +175,8 @@ static void *iwl_uefi_reduce_power_parse(struct iwl_trans *trans,
 		}
 
 		if (tlv_type == IWL_UCODE_TLV_PNVM_SKU) {
-			struct iwl_sku_id *sku_id =
-				(void *)(data + sizeof(*tlv));
+			const struct iwl_sku_id *sku_id =
+				(const void *)(data + sizeof(*tlv));
 
 			IWL_DEBUG_FW(trans,
 				     "Got IWL_UCODE_TLV_PNVM_SKU len %d\n",

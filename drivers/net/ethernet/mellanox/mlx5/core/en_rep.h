@@ -64,11 +64,6 @@ struct mlx5e_tc_tun_encap;
 struct mlx5e_post_act;
 
 struct mlx5_rep_uplink_priv {
-	/* Filters DB - instantiated by the uplink representor and shared by
-	 * the uplink's VFs
-	 */
-	struct rhashtable  tc_ht;
-
 	/* indirect block callbacks are invoked on bind/unbind events
 	 * on registered higher level devices (e.g. tunnel devices)
 	 *
@@ -113,6 +108,7 @@ struct mlx5e_rep_priv {
 	struct list_head       vport_sqs_list;
 	struct mlx5_rep_uplink_priv uplink_priv; /* valid for uplink rep */
 	struct rtnl_link_stats64 prev_vf_vport_stats;
+	struct rhashtable tc_ht;
 };
 
 static inline

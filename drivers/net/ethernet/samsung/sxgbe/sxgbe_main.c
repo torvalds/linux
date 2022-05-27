@@ -127,7 +127,7 @@ bool sxgbe_eee_init(struct sxgbe_priv_data * const priv)
 	/* MAC core supports the EEE feature. */
 	if (priv->hw_cap.eee) {
 		/* Check if the PHY supports EEE */
-		if (phy_init_eee(ndev->phydev, 1))
+		if (phy_init_eee(ndev->phydev, true))
 			return false;
 
 		priv->eee_active = 1;

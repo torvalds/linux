@@ -265,6 +265,7 @@ static struct attribute *display_sysfs_attrs[] = {
 	&display_attr_wss.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(display_sysfs);
 
 static ssize_t display_attr_show(struct kobject *kobj, struct attribute *attr,
 		char *buf)
@@ -303,7 +304,7 @@ static const struct sysfs_ops display_sysfs_ops = {
 
 static struct kobj_type display_ktype = {
 	.sysfs_ops = &display_sysfs_ops,
-	.default_attrs = display_sysfs_attrs,
+	.default_groups = display_sysfs_groups,
 };
 
 int display_init_sysfs(struct platform_device *pdev)

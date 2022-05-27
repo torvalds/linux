@@ -14,7 +14,6 @@
 #include <linux/file.h>
 #include <linux/mount.h>
 #include <linux/syscalls.h>
-#include <linux/tracehook.h>
 #include <linux/personality.h>
 #include <linux/xattr.h>
 #include <linux/user_namespace.h>
