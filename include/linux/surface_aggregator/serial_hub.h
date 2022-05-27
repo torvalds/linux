@@ -306,7 +306,7 @@ enum ssam_ssh_tc {
 	SSAM_SSH_TC_LPC = 0x0b,
 	SSAM_SSH_TC_TCL = 0x0c,
 	SSAM_SSH_TC_SFL = 0x0d,
-	SSAM_SSH_TC_KIP = 0x0e,
+	SSAM_SSH_TC_KIP = 0x0e,	/* Manages detachable peripherals (Pro X/8 keyboard cover) */
 	SSAM_SSH_TC_EXT = 0x0f,
 	SSAM_SSH_TC_BLD = 0x10,
 	SSAM_SSH_TC_BAS = 0x11,	/* Detachment system (Surface Book 2/3). */
