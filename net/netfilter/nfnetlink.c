@@ -45,7 +45,6 @@ MODULE_DESCRIPTION("Netfilter messages via netlink socket");
 static unsigned int nfnetlink_pernet_id __read_mostly;
 
 struct nfnl_net {
-	unsigned int ctnetlink_listeners;
 	struct sock *nfnl;
 };
 
@@ -673,18 +672,8 @@ static int nfnetlink_bind(struct net *net, int group)
 
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
 	if (type == NFNL_SUBSYS_CTNETLINK) {
-		struct nfnl_net *nfnlnet = nfnl_pernet(net);
-
 		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
-
-		if (WARN_ON_ONCE(nfnlnet->ctnetlink_listeners == UINT_MAX)) {
-			nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
-			return -EOVERFLOW;
-		}
-
-		nfnlnet->ctnetlink_listeners++;
-		if (nfnlnet->ctnetlink_listeners == 1)
-			WRITE_ONCE(net->ct.ctnetlink_has_listener, true);
+		WRITE_ONCE(net->ct.ctnetlink_has_listener, true);
 		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
 	}
 #endif
@@ -694,15 +683,12 @@ static int nfnetlink_bind(struct net *net, int group)
 static void nfnetlink_unbind(struct net *net, int group)
 {
 #ifdef CONFIG_NF_CONNTRACK_EVENTS
-	int type = nfnl_group2type[group];
+	if (group <= NFNLGRP_NONE || group > NFNLGRP_MAX)
+		return;
 
-	if (type == NFNL_SUBSYS_CTNETLINK) {
-		struct nfnl_net *nfnlnet = nfnl_pernet(net);
-
+	if (nfnl_group2type[group] == NFNL_SUBSYS_CTNETLINK) {
 		nfnl_lock(NFNL_SUBSYS_CTNETLINK);
-		WARN_ON_ONCE(nfnlnet->ctnetlink_listeners == 0);
-		nfnlnet->ctnetlink_listeners--;
-		if (nfnlnet->ctnetlink_listeners == 0)
+		if (!nfnetlink_has_listeners(net, group))
 			WRITE_ONCE(net->ct.ctnetlink_has_listener, false);
 		nfnl_unlock(NFNL_SUBSYS_CTNETLINK);
 	}
