@@ -169,10 +169,10 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	fid = v9fs_fid_find(ds, uid, any);
 	if (fid) {
 		/* Found the parent fid do a lookup with that */
-		struct p9_fid *ofid = fid;
+		old_fid = fid;
 
-		fid = p9_client_walk(ofid, 1, &dentry->d_name.name, 1);
-		p9_client_clunk(ofid);
+		fid = p9_client_walk(old_fid, 1, &dentry->d_name.name, 1);
+		p9_client_clunk(old_fid);
 		goto fid_out;
 	}
 	up_read(&v9ses->rename_sem);
