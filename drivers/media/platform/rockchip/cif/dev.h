@@ -186,6 +186,7 @@ struct rkcif_buffer {
 		u32 buff_addr[VIDEO_MAX_PLANES];
 		void *vaddr[VIDEO_MAX_PLANES];
 	};
+	struct dma_buf *dbuf;
 };
 
 struct rkcif_dummy_buffer {
@@ -441,6 +442,8 @@ struct rkcif_rx_buffer {
 enum rkcif_dma_en_mode {
 	RKCIF_DMAEN_BY_VICAP = 0x1,
 	RKCIF_DMAEN_BY_ISP = 0x2,
+	RKCIF_DMAEN_BY_VICAP_TO_ISP = 0x4,
+	RKCIF_DMAEN_BY_ISP_TO_VICAP = 0x8,
 };
 
 struct rkcif_skip_info {
@@ -499,6 +502,9 @@ struct rkcif_stream {
 	int				dma_en;
 	int				to_en_dma;
 	int				to_stop_dma;
+	int				buf_owner;
+	int				buf_replace_cnt;
+	struct list_head		rx_buf_head_vicap;
 	unsigned int			cur_stream_mode;
 	struct rkcif_rx_buffer		rx_buf[RKCIF_RX_BUF_MAX];
 	struct list_head		rx_buf_head;
@@ -506,7 +512,6 @@ struct rkcif_stream {
 	u64				line_int_cnt;
 	int				lack_buf_cnt;
 	struct rkcif_skip_info		skip_info;
-	bool				is_stop_dma;
 	bool				stopping;
 	bool				crop_enable;
 	bool				crop_dyn_en;
