@@ -389,10 +389,6 @@ int dw_pcie_host_init(struct pcie_port *pp)
 							    dw_chained_msi_isr,
 							    pp);
 
-			ret = dma_set_mask(pci->dev, DMA_BIT_MASK(32));
-			if (ret)
-				dev_warn(pci->dev, "Failed to set DMA mask to 32-bit. Devices with only 32-bit MSI support may not work properly\n");
-
 			pp->msi_data = dma_map_single_attrs(pci->dev, &pp->msi_msg,
 						      sizeof(pp->msi_msg),
 						      DMA_FROM_DEVICE,
