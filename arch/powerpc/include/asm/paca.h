@@ -12,6 +12,7 @@
 
 #ifdef CONFIG_PPC64
 
+#include <linux/cache.h>
 #include <linux/string.h>
 #include <asm/types.h>
 #include <asm/lppaca.h>
