@@ -407,11 +407,12 @@ static int rockchip_dmcfreq_target(struct device *dev, unsigned long *freq,
 		 * set_rate needs to complete during vblank.
 		 */
 		cpu_cur = raw_smp_processor_id();
-		policy = cpufreq_cpu_acquire(cpu_cur);
+		policy = cpufreq_cpu_get(cpu_cur);
 		if (!policy) {
 			dev_err(dev, "cpu%d policy NULL\n", cpu_cur);
 			goto cpufreq;
 		}
+		down_write(&policy->rwsem);
 		cpufreq_cur = cpufreq_quick_get(cpu_cur);
 
 		/* If we're thermally throttled; don't change; */
@@ -510,7 +511,8 @@ out:
 		if (is_cpufreq_changed)
 			__cpufreq_driver_target(policy, cpufreq_cur,
 						CPUFREQ_RELATION_L);
-		cpufreq_cpu_release(policy);
+		up_write(&policy->rwsem);
+		cpufreq_cpu_put(policy);
 	}
 cpufreq:
 	cpus_read_unlock();
