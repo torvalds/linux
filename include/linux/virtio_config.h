@@ -255,7 +255,7 @@ void virtio_device_ready(struct virtio_device *dev)
 {
 	unsigned status = dev->config->get_status(dev);
 
-	BUG_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
+	WARN_ON(status & VIRTIO_CONFIG_S_DRIVER_OK);
 
 	/*
 	 * The virtio_synchronize_cbs() makes sure vring_interrupt()
