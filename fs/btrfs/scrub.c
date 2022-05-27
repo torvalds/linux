@@ -135,15 +135,13 @@ struct scrub_parity {
 	struct work_struct	work;
 
 	/* Mark the parity blocks which have data */
-	unsigned long		*dbitmap;
+	unsigned long		dbitmap;
 
 	/*
 	 * Mark the parity blocks which have data, but errors happen when
 	 * read data or check data
 	 */
-	unsigned long		*ebitmap;
-
-	unsigned long		bitmap[];
+	unsigned long		ebitmap;
 };
 
 struct scrub_ctx {
@@ -2406,13 +2404,13 @@ static inline void __scrub_mark_bitmap(struct scrub_parity *sparity,
 static inline void scrub_parity_mark_sectors_error(struct scrub_parity *sparity,
 						   u64 start, u32 len)
 {
-	__scrub_mark_bitmap(sparity, sparity->ebitmap, start, len);
+	__scrub_mark_bitmap(sparity, &sparity->ebitmap, start, len);
 }
 
 static inline void scrub_parity_mark_sectors_data(struct scrub_parity *sparity,
 						  u64 start, u32 len)
 {
-	__scrub_mark_bitmap(sparity, sparity->dbitmap, start, len);
+	__scrub_mark_bitmap(sparity, &sparity->dbitmap, start, len);
 }
 
 static void scrub_block_complete(struct scrub_block *sblock)
@@ -2763,7 +2761,7 @@ static void scrub_free_parity(struct scrub_parity *sparity)
 	struct scrub_sector *curr, *next;
 	int nbits;
 
-	nbits = bitmap_weight(sparity->ebitmap, sparity->nsectors);
+	nbits = bitmap_weight(&sparity->ebitmap, sparity->nsectors);
 	if (nbits) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.read_errors += nbits;
@@ -2795,8 +2793,8 @@ static void scrub_parity_bio_endio(struct bio *bio)
 	struct btrfs_fs_info *fs_info = sparity->sctx->fs_info;
 
 	if (bio->bi_status)
-		bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
-			  sparity->nsectors);
+		bitmap_or(&sparity->ebitmap, &sparity->ebitmap,
+			  &sparity->dbitmap, sparity->nsectors);
 
 	bio_put(bio);
 
@@ -2814,8 +2812,8 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 	u64 length;
 	int ret;
 
-	if (!bitmap_andnot(sparity->dbitmap, sparity->dbitmap, sparity->ebitmap,
-			   sparity->nsectors))
+	if (!bitmap_andnot(&sparity->dbitmap, &sparity->dbitmap,
+			   &sparity->ebitmap, sparity->nsectors))
 		goto out;
 
 	length = sparity->logic_end - sparity->logic_start;
@@ -2833,7 +2831,7 @@ static void scrub_parity_check_and_repair(struct scrub_parity *sparity)
 
 	rbio = raid56_parity_alloc_scrub_rbio(bio, bioc, length,
 					      sparity->scrub_dev,
-					      sparity->dbitmap,
+					      &sparity->dbitmap,
 					      sparity->nsectors);
 	if (!rbio)
 		goto rbio_out;
@@ -2847,18 +2845,13 @@ rbio_out:
 bioc_out:
 	btrfs_bio_counter_dec(fs_info);
 	btrfs_put_bioc(bioc);
-	bitmap_or(sparity->ebitmap, sparity->ebitmap, sparity->dbitmap,
+	bitmap_or(&sparity->ebitmap, &sparity->ebitmap, &sparity->dbitmap,
 		  sparity->nsectors);
 	spin_lock(&sctx->stat_lock);
 	sctx->stat.malloc_errors++;
 	spin_unlock(&sctx->stat_lock);
 out:
 	scrub_free_parity(sparity);
-}
-
-static inline int scrub_calc_parity_bitmap_len(int nsectors)
-{
-	return DIV_ROUND_UP(nsectors, BITS_PER_LONG) * sizeof(long);
 }
 
 static void scrub_parity_get(struct scrub_parity *sparity)
@@ -3131,7 +3124,6 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	int ret;
 	struct scrub_parity *sparity;
 	int nsectors;
-	int bitmap_len;
 
 	path = btrfs_alloc_path();
 	if (!path) {
@@ -3145,9 +3137,8 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 
 	ASSERT(map->stripe_len <= U32_MAX);
 	nsectors = map->stripe_len >> fs_info->sectorsize_bits;
-	bitmap_len = scrub_calc_parity_bitmap_len(nsectors);
-	sparity = kzalloc(sizeof(struct scrub_parity) + 2 * bitmap_len,
-			  GFP_NOFS);
+	ASSERT(nsectors <= BITS_PER_LONG);
+	sparity = kzalloc(sizeof(struct scrub_parity), GFP_NOFS);
 	if (!sparity) {
 		spin_lock(&sctx->stat_lock);
 		sctx->stat.malloc_errors++;
@@ -3165,8 +3156,6 @@ static noinline_for_stack int scrub_raid56_parity(struct scrub_ctx *sctx,
 	sparity->logic_end = logic_end;
 	refcount_set(&sparity->refs, 1);
 	INIT_LIST_HEAD(&sparity->sectors_list);
-	sparity->dbitmap = sparity->bitmap;
-	sparity->ebitmap = (void *)sparity->bitmap + bitmap_len;
 
 	ret = 0;
 	for (cur_logical = logic_start; cur_logical < logic_end;
