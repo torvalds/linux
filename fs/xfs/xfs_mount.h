@@ -391,6 +391,11 @@ __XFS_HAS_FEAT(nouuid, NOUUID)
  */
 #define XFS_OPSTATE_BLOCKGC_ENABLED	6
 
+/* Kernel has logged a warning about online fsck being used on this fs. */
+#define XFS_OPSTATE_WARNED_SCRUB	7
+/* Kernel has logged a warning about shrink being used on this fs. */
+#define XFS_OPSTATE_WARNED_SHRINK	8
+
 #define __XFS_IS_OPSTATE(name, NAME) \
 static inline bool xfs_is_ ## name (struct xfs_mount *mp) \
 { \
@@ -413,6 +418,12 @@ __XFS_IS_OPSTATE(readonly, READONLY)
 __XFS_IS_OPSTATE(inodegc_enabled, INODEGC_ENABLED)
 __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 
+static inline bool
+xfs_should_warn(struct xfs_mount *mp, long nr)
+{
+	return !test_and_set_bit(nr, &mp->m_opstate);
+}
+
 #define XFS_OPSTATE_STRINGS \
 	{ (1UL << XFS_OPSTATE_UNMOUNTING),		"unmounting" }, \
 	{ (1UL << XFS_OPSTATE_CLEAN),			"clean" }, \
@@ -420,7 +431,9 @@ __XFS_IS_OPSTATE(blockgc_enabled, BLOCKGC_ENABLED)
 	{ (1UL << XFS_OPSTATE_INODE32),			"inode32" }, \
 	{ (1UL << XFS_OPSTATE_READONLY),		"read_only" }, \
 	{ (1UL << XFS_OPSTATE_INODEGC_ENABLED),		"inodegc" }, \
-	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }
+	{ (1UL << XFS_OPSTATE_BLOCKGC_ENABLED),		"blockgc" }, \
+	{ (1UL << XFS_OPSTATE_WARNED_SCRUB),		"wscrub" }, \
+	{ (1UL << XFS_OPSTATE_WARNED_SHRINK),		"wshrink" }
 
 /*
  * Max and min values for mount-option defined I/O
