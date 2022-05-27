@@ -507,12 +507,15 @@ pte_t huge_ptep_clear_flush(struct vm_area_struct *vma,
 {
 	size_t pgsize;
 	int ncontig;
+	pte_t orig_pte;
 
 	if (!pte_cont(READ_ONCE(*ptep)))
 		return ptep_clear_flush(vma, addr, ptep);
 
 	ncontig = find_num_contig(vma->vm_mm, addr, ptep, &pgsize);
-	return get_clear_flush(vma->vm_mm, addr, ptep, pgsize, ncontig);
+	orig_pte = get_clear_contig(vma->vm_mm, addr, ptep, pgsize, ncontig);
+	flush_tlb_range(vma, addr, addr + pgsize * ncontig);
+	return orig_pte;
 }
 
 static int __init hugetlbpage_init(void)
