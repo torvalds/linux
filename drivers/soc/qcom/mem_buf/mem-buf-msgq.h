@@ -19,11 +19,13 @@
  * allocation request issued by the receiving VM
  * @MEM_BUF_ALLOC_RELINQUISH: The message is a notification from another VM
  * that the receiving VM can reclaim the memory.
+ * @MEM_BUF_ALLOC_RELINQUISH_RESP: Indicates completion of MEM_BUF_ALLOC_RELINQUISH.
  */
 enum mem_buf_msg_type {
 	MEM_BUF_ALLOC_REQ,
 	MEM_BUF_ALLOC_RESP,
 	MEM_BUF_ALLOC_RELINQUISH,
+	MEM_BUF_ALLOC_RELINQUISH_RESP,
 	MEM_BUF_ALLOC_REQ_MAX,
 };
 
@@ -73,11 +75,13 @@ struct mem_buf_alloc_req {
  * receiving VM. This field is only meaningful if the allocation on the remote
  * VM was carried out successfully, as denoted by @ret.
  * (i.e. memory donation, sharing, or lending).
+ * @obj_id: Unique identifier for the memory object associated with handle.
  */
 struct mem_buf_alloc_resp {
 	struct mem_buf_msg_hdr hdr;
 	s32 ret;
 	u32 hdl;
+	u32 obj_id;
 } __packed;
 
 /**
@@ -86,10 +90,12 @@ struct mem_buf_alloc_resp {
  * another VM.
  * @hdr: Message header
  * @hdl: The memparcel handle associated with the memory.
+ * @obj_id: Unique identifier for the memory object associated with handle.
  */
 struct mem_buf_alloc_relinquish {
 	struct mem_buf_msg_hdr hdr;
 	u32 hdl;
+	u32 obj_id;
 } __packed;
 
 /*
@@ -111,7 +117,7 @@ struct mem_buf_msgq_ops {
 	void (*alloc_req_hdlr)(void *hdlr_data, void *msg, size_t size);
 	int (*alloc_resp_hdlr)(void *hdlr_data, void *msg, size_t size, void *resp_buf);
 	void (*relinquish_hdlr)(void *hdlr_data, void *msg, size_t size);
-	void (*relinquish_memparcel_hdl)(void *hdlr_data, u32 txn_id,
+	void (*relinquish_memparcel_hdl)(void *hdlr_data, u32 obj_id,
 					 gh_memparcel_handle_t memparcel_hdl);
 };
 
@@ -176,9 +182,14 @@ static inline u32 get_alloc_resp_hdl(struct mem_buf_alloc_resp *resp)
 	return resp->hdl;
 }
 
-static inline u32 get_relinquish_req_txn_id(struct mem_buf_alloc_relinquish *relinquish_msg)
+static inline u32 get_alloc_resp_obj_id(struct mem_buf_alloc_resp *resp)
 {
-	return relinquish_msg->hdr.txn_id;
+	return resp->obj_id;
+}
+
+static inline u32 get_relinquish_req_obj_id(struct mem_buf_alloc_relinquish *relinquish_msg)
+{
+	return relinquish_msg->obj_id;
 }
 
 #if IS_ENABLED(CONFIG_QCOM_MEM_BUF_MSGQ)
@@ -198,8 +209,11 @@ void *mem_buf_construct_alloc_req(void *mem_buf_txn, size_t alloc_size,
 				  enum mem_buf_mem_type src_mem_type, void *src_data,
 				  u32 trans_type);
 void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
-				   gh_memparcel_handle_t memparcel_hdl);
-void *mem_buf_construct_relinquish_msg(u32 txn_id, gh_memparcel_handle_t memparcel_hdl);
+				   gh_memparcel_handle_t memparcel_hdl,
+				   u32 obj_id);
+void *mem_buf_construct_relinquish_msg(void *mem_buf_txn, u32 obj_id,
+				       gh_memparcel_handle_t memparcel_hdl);
+void *mem_buf_construct_relinquish_resp(void *_msg);
 #else
 static inline void *mem_buf_msgq_register(const char *msgq_name,
 					  struct mem_buf_msgq_hdlr_info *info)
@@ -240,13 +254,19 @@ static inline void *mem_buf_construct_alloc_req(void *mem_buf_txn, size_t alloc_
 }
 
 static inline void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
-				   gh_memparcel_handle_t memparcel_hdl)
+				   gh_memparcel_handle_t memparcel_hdl,
+				   u32 obj_id)
 {
 	return ERR_PTR(-ENODEV);
 }
 
-static inline void *mem_buf_construct_relinquish_msg(u32 txn_id,
-						     gh_memparcel_handle_t memparcel_hdl)
+static inline void *mem_buf_construct_relinquish_msg(void *mem_buf_txn, u32 obj_id,
+						gh_memparcel_handle_t memparcel_hdl)
+{
+	return ERR_PTR(-ENODEV);
+}
+
+static inline void *mem_buf_construct_relinquish_resp(void *_msg)
 {
 	return ERR_PTR(-ENODEV);
 }

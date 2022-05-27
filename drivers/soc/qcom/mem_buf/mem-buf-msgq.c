@@ -140,7 +140,8 @@ EXPORT_SYMBOL(mem_buf_construct_alloc_req);
  * sharing, or lending).
  */
 void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
-				   gh_memparcel_handle_t memparcel_hdl)
+				   gh_memparcel_handle_t memparcel_hdl,
+				   u32 obj_id)
 {
 	struct mem_buf_alloc_req *req = req_msg;
 	struct mem_buf_alloc_resp *resp_msg = kzalloc(sizeof(*resp_msg), GFP_KERNEL);
@@ -153,6 +154,7 @@ void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
 	resp_msg->hdr.msg_size = sizeof(*resp_msg);
 	resp_msg->ret = alloc_ret;
 	resp_msg->hdl = memparcel_hdl;
+	resp_msg->obj_id = obj_id;
 
 	return resp_msg;
 }
@@ -160,12 +162,15 @@ EXPORT_SYMBOL(mem_buf_construct_alloc_resp);
 
 /*
  * mem_buf_construct_relinquish_msg: Construct a relinquish message.
- * @txn_id: The transaction ID that corresponds to the memory that is being relinquished.
+ * @mem_buf_txn: The transaction object.
+ * @obj_id: Uniquely identifies an object.
  * @memparcel_hdl: The memparcel that corresponds to the memory that is being relinquished.
  */
-void *mem_buf_construct_relinquish_msg(u32 txn_id, gh_memparcel_handle_t memparcel_hdl)
+void *mem_buf_construct_relinquish_msg(void *mem_buf_txn, u32 obj_id,
+				       gh_memparcel_handle_t memparcel_hdl)
 {
 	struct mem_buf_alloc_relinquish *relinquish_msg;
+	struct mem_buf_txn *txn = mem_buf_txn;
 
 	relinquish_msg = kzalloc(sizeof(*relinquish_msg), GFP_KERNEL);
 	if (!relinquish_msg)
@@ -173,12 +178,34 @@ void *mem_buf_construct_relinquish_msg(u32 txn_id, gh_memparcel_handle_t memparc
 
 	relinquish_msg->hdr.msg_type = MEM_BUF_ALLOC_RELINQUISH;
 	relinquish_msg->hdr.msg_size = sizeof(*relinquish_msg);
-	relinquish_msg->hdr.txn_id = txn_id;
+	relinquish_msg->hdr.txn_id = txn->txn_id;
+	relinquish_msg->obj_id = obj_id;
 	relinquish_msg->hdl = memparcel_hdl;
 
 	return relinquish_msg;
 }
 EXPORT_SYMBOL(mem_buf_construct_relinquish_msg);
+
+/*
+ * mem_buf_construct_relinquish_resp: Construct a relinquish resp message.
+ * @msg: The msg to reply to.
+ */
+void *mem_buf_construct_relinquish_resp(void *_msg)
+{
+	struct mem_buf_alloc_relinquish *msg = _msg;
+	struct mem_buf_alloc_relinquish *resp;
+
+	resp = kzalloc(sizeof(*resp), GFP_KERNEL);
+	if (!resp)
+		return ERR_PTR(-ENOMEM);
+
+	resp->hdr.msg_type = MEM_BUF_ALLOC_RELINQUISH_RESP;
+	resp->hdr.msg_size = sizeof(*resp);
+	resp->hdr.txn_id = msg->hdr.txn_id;
+
+	return resp;
+}
+EXPORT_SYMBOL(mem_buf_construct_relinquish_resp);
 
 int mem_buf_retrieve_txn_id(void *mem_buf_txn)
 {
@@ -308,7 +335,8 @@ static void mem_buf_process_alloc_resp(struct mem_buf_msgq_desc *desc, void *buf
 		 * it can be reclaimed.
 		 */
 		if (!alloc_resp->ret) {
-			desc->msgq_ops->relinquish_memparcel_hdl(desc->hdlr_data, hdr->txn_id,
+			desc->msgq_ops->relinquish_memparcel_hdl(desc->hdlr_data,
+								 alloc_resp->obj_id,
 								 alloc_resp->hdl);
 		}
 	} else {
@@ -316,6 +344,29 @@ static void mem_buf_process_alloc_resp(struct mem_buf_msgq_desc *desc, void *buf
 							       txn->resp_buf);
 		complete(&txn->txn_done);
 	}
+	mutex_unlock(&desc->idr_mutex);
+}
+
+static void mem_buf_process_relinquish_resp(struct mem_buf_msgq_desc *desc,
+					    void *buf, size_t size)
+{
+	struct mem_buf_txn *txn;
+	struct mem_buf_alloc_relinquish *relinquish_resp_msg = buf;
+
+	if (size != sizeof(*relinquish_resp_msg)) {
+		pr_err("%s response received is not of correct size\n",
+		       __func__);
+		return;
+	}
+	trace_receive_relinquish_resp_msg(relinquish_resp_msg);
+
+	mutex_lock(&desc->idr_mutex);
+	txn = idr_find(&desc->txn_idr, relinquish_resp_msg->hdr.txn_id);
+	if (!txn)
+		pr_err("%s no txn associated with id: %d\n", __func__,
+		       relinquish_resp_msg->hdr.txn_id);
+	else
+		complete(&txn->txn_done);
 	mutex_unlock(&desc->idr_mutex);
 }
 
@@ -339,6 +390,9 @@ static void mem_buf_process_msg(struct mem_buf_msgq_desc *desc, void *buf, size_
 		break;
 	case MEM_BUF_ALLOC_RELINQUISH:
 		desc->msgq_ops->relinquish_hdlr(desc->hdlr_data, buf, size);
+		break;
+	case MEM_BUF_ALLOC_RELINQUISH_RESP:
+		mem_buf_process_relinquish_resp(desc, buf, size);
 		break;
 	default:
 		pr_err("%s: received message of unknown type: %d\n", __func__,

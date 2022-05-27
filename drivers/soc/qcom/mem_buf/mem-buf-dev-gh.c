@@ -22,6 +22,8 @@ EXPORT_TRACEPOINT_SYMBOL(receive_relinquish_msg);
 EXPORT_TRACEPOINT_SYMBOL(send_alloc_resp_msg);
 EXPORT_TRACEPOINT_SYMBOL(receive_alloc_resp_msg);
 EXPORT_TRACEPOINT_SYMBOL(mem_buf_alloc_info);
+EXPORT_TRACEPOINT_SYMBOL(send_relinquish_resp_msg);
+EXPORT_TRACEPOINT_SYMBOL(receive_relinquish_resp_msg);
 
 struct gh_acl_desc *mem_buf_vmid_perm_list_to_gh_acl(int *vmids, int *perms,
 						     unsigned int nr_acl_entries)
