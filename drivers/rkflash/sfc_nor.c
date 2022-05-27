@@ -355,6 +355,7 @@ int snor_erase(struct SFNOR_DEV *p_dev,
 				SFC_ADDR_24BITS : SFC_ADDR_0BITS;
 	if (p_dev->addr_mode == ADDR_MODE_4BYTE && erase_type != ERASE_CHIP)
 		op.sfcmd.b.addrbits = SFC_ADDR_32BITS;
+	op.sfcmd.b.rw = SFC_WRITE;
 
 	op.sfctrl.d32 = 0;
 
