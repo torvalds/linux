@@ -84,19 +84,12 @@ static sector_t linear_map_sector(struct dm_target *ti, sector_t bi_sector)
 	return lc->start + dm_target_offset(ti, bi_sector);
 }
 
-static void linear_map_bio(struct dm_target *ti, struct bio *bio)
+static int linear_map(struct dm_target *ti, struct bio *bio)
 {
 	struct linear_c *lc = ti->private;
 
 	bio_set_dev(bio, lc->dev->bdev);
-	if (bio_sectors(bio) || op_is_zone_mgmt(bio_op(bio)))
-		bio->bi_iter.bi_sector =
-			linear_map_sector(ti, bio->bi_iter.bi_sector);
-}
-
-static int linear_map(struct dm_target *ti, struct bio *bio)
-{
-	linear_map_bio(ti, bio);
+	bio->bi_iter.bi_sector = linear_map_sector(ti, bio->bi_iter.bi_sector);
 
 	return DM_MAPIO_REMAPPED;
 }
