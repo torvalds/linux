@@ -152,7 +152,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	const unsigned char **wnames, *uname;
 	int i, n, l, clone, access;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *fid, *old_fid;
+	struct p9_fid *fid, *root_fid, *old_fid;
 
 	v9ses = v9fs_dentry2v9ses(dentry);
 	access = v9ses->flags & V9FS_ACCESS_MASK;
@@ -178,8 +178,8 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 	up_read(&v9ses->rename_sem);
 
 	/* start from the root and try to do a lookup */
-	fid = v9fs_fid_find(dentry->d_sb->s_root, uid, any);
-	if (!fid) {
+	root_fid = v9fs_fid_find(dentry->d_sb->s_root, uid, any);
+	if (!root_fid) {
 		/* the user is not attached to the fs yet */
 		if (access == V9FS_ACCESS_SINGLE)
 			return ERR_PTR(-EPERM);
@@ -189,17 +189,18 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		else
 			uname = v9ses->uname;
 
-		fid = p9_client_attach(v9ses->clnt, NULL, uname, uid,
-				       v9ses->aname);
-		if (IS_ERR(fid))
-			return fid;
+		root_fid = p9_client_attach(v9ses->clnt, NULL, uname, uid,
+					    v9ses->aname);
+		if (IS_ERR(root_fid))
+			return root_fid;
 
-		refcount_inc(&fid->count);
-		v9fs_fid_add(dentry->d_sb->s_root, fid);
+		refcount_inc(&root_fid->count);
+		v9fs_fid_add(dentry->d_sb->s_root, root_fid);
 	}
 	/* If we are root ourself just return that */
 	if (dentry->d_sb->s_root == dentry)
-		return fid;
+		return root_fid;
+
 	/*
 	 * Do a multipath walk with attached root.
 	 * When walking parent we need to make sure we
@@ -211,7 +212,8 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		fid = ERR_PTR(n);
 		goto err_out;
 	}
-	old_fid = fid;
+	fid = root_fid;
+	old_fid = root_fid;
 	clone = 1;
 	i = 0;
 	while (i < n) {
@@ -220,7 +222,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		 * We need to hold rename lock when doing a multipath
 		 * walk to ensure none of the patch component change
 		 */
-		fid = p9_client_walk(fid, l, &wnames[i], clone);
+		fid = p9_client_walk(old_fid, l, &wnames[i], clone);
 		/* non-cloning walk will return the same fid */
 		if (fid != old_fid) {
 			p9_client_clunk(old_fid);
