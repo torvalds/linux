@@ -332,6 +332,7 @@ struct cxl_nvdimm {
  * @id: id for port device-name
  * @dports: cxl_dport instances referenced by decoders
  * @endpoints: cxl_ep instances, endpoints that are a descendant of this port
+ * @parent_dport: dport that points to this port in the parent
  * @decoder_ida: allocator for decoder ids
  * @hdm_end: track last allocated HDM decoder instance for allocation ordering
  * @component_reg_phys: component register capability base address (optional)
@@ -347,6 +348,7 @@ struct cxl_port {
 	int id;
 	struct list_head dports;
 	struct list_head endpoints;
+	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
 	int hdm_end;
 	resource_size_t component_reg_phys;
@@ -406,11 +408,12 @@ int devm_cxl_register_pci_bus(struct device *host, struct device *uport,
 struct pci_bus *cxl_port_to_pci_bus(struct cxl_port *port);
 struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
-				   struct cxl_port *parent_port);
+				   struct cxl_dport *parent_dport);
 struct cxl_port *find_cxl_root(struct device *dev);
 int devm_cxl_enumerate_ports(struct cxl_memdev *cxlmd);
 int cxl_bus_rescan(void);
-struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd);
+struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
+				   struct cxl_dport **dport);
 bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd);
 
 struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,

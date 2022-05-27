@@ -526,7 +526,7 @@ static struct lock_class_key cxl_port_key;
 
 static struct cxl_port *cxl_port_alloc(struct device *uport,
 				       resource_size_t component_reg_phys,
-				       struct cxl_port *parent_port)
+				       struct cxl_dport *parent_dport)
 {
 	struct cxl_port *port;
 	struct device *dev;
@@ -549,11 +549,13 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	 * description.
 	 */
 	dev = &port->dev;
-	if (parent_port) {
+	if (parent_dport) {
+		struct cxl_port *parent_port = parent_dport->port;
 		struct cxl_port *iter;
 
 		dev->parent = &parent_port->dev;
 		port->depth = parent_port->depth + 1;
+		port->parent_dport = parent_dport;
 
 		/*
 		 * walk to the host bridge, or the first ancestor that knows
@@ -595,24 +597,24 @@ err:
  * @host: host device for devm operations
  * @uport: "physical" device implementing this upstream port
  * @component_reg_phys: (optional) for configurable cxl_port instances
- * @parent_port: next hop up in the CXL memory decode hierarchy
+ * @parent_dport: next hop up in the CXL memory decode hierarchy
  */
 struct cxl_port *devm_cxl_add_port(struct device *host, struct device *uport,
 				   resource_size_t component_reg_phys,
-				   struct cxl_port *parent_port)
+				   struct cxl_dport *parent_dport)
 {
 	struct cxl_port *port;
 	struct device *dev;
 	int rc;
 
-	port = cxl_port_alloc(uport, component_reg_phys, parent_port);
+	port = cxl_port_alloc(uport, component_reg_phys, parent_dport);
 	if (IS_ERR(port))
 		return port;
 
 	dev = &port->dev;
 	if (is_cxl_memdev(uport))
 		rc = dev_set_name(dev, "endpoint%d", port->id);
-	else if (parent_port)
+	else if (parent_dport)
 		rc = dev_set_name(dev, "port%d", port->id);
 	else
 		rc = dev_set_name(dev, "root%d", port->id);
@@ -1014,7 +1016,7 @@ static void delete_endpoint(void *data)
 	struct cxl_port *parent_port;
 	struct device *parent;
 
-	parent_port = cxl_mem_find_port(cxlmd);
+	parent_port = cxl_mem_find_port(cxlmd, NULL);
 	if (!parent_port)
 		goto out;
 	parent = &parent_port->dev;
@@ -1149,8 +1151,8 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 {
 	struct device *dparent = grandparent(dport_dev);
 	struct cxl_port *port, *parent_port = NULL;
+	struct cxl_dport *dport, *parent_dport;
 	resource_size_t component_reg_phys;
-	struct cxl_dport *dport;
 	int rc;
 
 	if (!dparent) {
@@ -1164,7 +1166,7 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 		return -ENXIO;
 	}
 
-	parent_port = find_cxl_port(dparent, NULL);
+	parent_port = find_cxl_port(dparent, &parent_dport);
 	if (!parent_port) {
 		/* iterate to create this parent_port */
 		return -EAGAIN;
@@ -1183,7 +1185,7 @@ static int add_port_attach_ep(struct cxl_memdev *cxlmd,
 	if (!port) {
 		component_reg_phys = find_component_registers(uport_dev);
 		port = devm_cxl_add_port(&parent_port->dev, uport_dev,
-					 component_reg_phys, parent_port);
+					 component_reg_phys, parent_dport);
 		/* retry find to pick up the new dport information */
 		if (!IS_ERR(port))
 			port = find_cxl_port_at(parent_port, dport_dev, &dport);
@@ -1290,9 +1292,10 @@ retry:
 }
 EXPORT_SYMBOL_NS_GPL(devm_cxl_enumerate_ports, CXL);
 
-struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd)
+struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
+				   struct cxl_dport **dport)
 {
-	return find_cxl_port(grandparent(&cxlmd->dev), NULL);
+	return find_cxl_port(grandparent(&cxlmd->dev), dport);
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_find_port, CXL);
 
