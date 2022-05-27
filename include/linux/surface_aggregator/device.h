@@ -483,4 +483,70 @@ static inline void ssam_remove_clients(struct device *dev) {}
 				    sdev->uid.instance, ret);		\
 	}
 
+
+/* -- Helpers for client-device notifiers. ---------------------------------- */
+
+/**
+ * ssam_device_notifier_register() - Register an event notifier for the
+ * specified client device.
+ * @sdev: The device the notifier should be registered on.
+ * @n:    The event notifier to register.
+ *
+ * Register an event notifier. Increment the usage counter of the associated
+ * SAM event if the notifier is not marked as an observer. If the event is not
+ * marked as an observer and is currently not enabled, it will be enabled
+ * during this call. If the notifier is marked as an observer, no attempt will
+ * be made at enabling any event and no reference count will be modified.
+ *
+ * Notifiers marked as observers do not need to be associated with one specific
+ * event, i.e. as long as no event matching is performed, only the event target
+ * category needs to be set.
+ *
+ * Return: Returns zero on success, %-ENOSPC if there have already been
+ * %INT_MAX notifiers for the event ID/type associated with the notifier block
+ * registered, %-ENOMEM if the corresponding event entry could not be
+ * allocated, %-ENODEV if the device is marked as hot-removed. If this is the
+ * first time that a notifier block is registered for the specific associated
+ * event, returns the status of the event-enable EC-command.
+ */
+static inline int ssam_device_notifier_register(struct ssam_device *sdev,
+						struct ssam_event_notifier *n)
+{
+	/*
+	 * Note that this check does not provide any guarantees whatsoever as
+	 * hot-removal could happen at any point and we can't protect against
+	 * it. Nevertheless, if we can detect hot-removal, bail early to avoid
+	 * communication timeouts.
+	 */
+	if (ssam_device_is_hot_removed(sdev))
+		return -ENODEV;
+
+	return ssam_notifier_register(sdev->ctrl, n);
+}
+
+/**
+ * ssam_device_notifier_unregister() - Unregister an event notifier for the
+ * specified client device.
+ * @sdev: The device the notifier has been registered on.
+ * @n:    The event notifier to unregister.
+ *
+ * Unregister an event notifier. Decrement the usage counter of the associated
+ * SAM event if the notifier is not marked as an observer. If the usage counter
+ * reaches zero, the event will be disabled.
+ *
+ * In case the device has been marked as hot-removed, the event will not be
+ * disabled on the EC, as in those cases any attempt at doing so may time out.
+ *
+ * Return: Returns zero on success, %-ENOENT if the given notifier block has
+ * not been registered on the controller. If the given notifier block was the
+ * last one associated with its specific event, returns the status of the
+ * event-disable EC-command.
+ */
+static inline int ssam_device_notifier_unregister(struct ssam_device *sdev,
+						  struct ssam_event_notifier *n)
+{
+	return __ssam_notifier_unregister(sdev->ctrl, n,
+					  !ssam_device_is_hot_removed(sdev));
+}
+
 #endif /* _LINUX_SURFACE_AGGREGATOR_DEVICE_H */

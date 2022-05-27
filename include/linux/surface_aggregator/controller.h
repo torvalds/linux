@@ -835,8 +835,28 @@ struct ssam_event_notifier {
 int ssam_notifier_register(struct ssam_controller *ctrl,
 			   struct ssam_event_notifier *n);
 
-int ssam_notifier_unregister(struct ssam_controller *ctrl,
-			     struct ssam_event_notifier *n);
+int __ssam_notifier_unregister(struct ssam_controller *ctrl,
+			       struct ssam_event_notifier *n, bool disable);
+
+/**
+ * ssam_notifier_unregister() - Unregister an event notifier.
+ * @ctrl:    The controller the notifier has been registered on.
+ * @n:       The event notifier to unregister.
+ *
+ * Unregister an event notifier. Decrement the usage counter of the associated
+ * SAM event if the notifier is not marked as an observer. If the usage counter
+ * reaches zero, the event will be disabled.
+ *
+ * Return: Returns zero on success, %-ENOENT if the given notifier block has
+ * not been registered on the controller. If the given notifier block was the
+ * last one associated with its specific event, returns the status of the
+ * event-disable EC-command.
+ */
+static inline int ssam_notifier_unregister(struct ssam_controller *ctrl,
+					   struct ssam_event_notifier *n)
+{
+	return __ssam_notifier_unregister(ctrl, n, true);
+}
 
 int ssam_controller_event_enable(struct ssam_controller *ctrl,
 				 struct ssam_event_registry reg,
