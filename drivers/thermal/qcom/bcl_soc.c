@@ -34,6 +34,39 @@ struct bcl_device {
 
 static struct bcl_device *bcl_perph;
 
+static int bcl_soc_get_trend(void *data, int trip,
+				    enum thermal_trend *trend)
+{
+	struct bcl_device *bcl_perph = data;
+	struct thermal_zone_device *tz = bcl_perph->tz_dev;
+	int trip_temp = 0, trip_hyst = 0, temp, ret;
+
+	if (!tz)
+		return -EINVAL;
+
+	ret = tz->ops->get_trip_temp(tz, trip, &trip_temp);
+	if (ret)
+		return ret;
+
+	if (tz->ops->get_trip_hyst) {
+		ret = tz->ops->get_trip_hyst(tz, trip, &trip_hyst);
+		if (ret)
+			return ret;
+	}
+	temp = READ_ONCE(tz->temperature);
+
+	if (temp >= trip_temp)
+		*trend = THERMAL_TREND_RAISING;
+	else if (!trip_hyst && temp < trip_temp)
+		*trend = THERMAL_TREND_DROPPING;
+	else if (temp <= (trip_temp - trip_hyst))
+		*trend = THERMAL_TREND_DROPPING;
+	else
+		*trend = THERMAL_TREND_STABLE;
+
+	return 0;
+}
+
 static int bcl_set_soc(void *data, int low, int high)
 {
 	if (high == bcl_perph->trip_temp)
@@ -141,6 +174,7 @@ static int bcl_soc_probe(struct platform_device *pdev)
 	bcl_perph->dev = &pdev->dev;
 	bcl_perph->ops.get_temp = bcl_read_soc;
 	bcl_perph->ops.set_trips = bcl_set_soc;
+	bcl_perph->ops.get_trend = bcl_soc_get_trend;
 	INIT_WORK(&bcl_perph->soc_eval_work, bcl_evaluate_soc);
 	bcl_perph->psy_nb.notifier_call = battery_supply_callback;
 	ret = power_supply_reg_notifier(&bcl_perph->psy_nb);
