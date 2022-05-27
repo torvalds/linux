@@ -98,20 +98,17 @@ static inline bool cpu_has_vmx_posted_intr(void)
 
 static inline bool cpu_has_load_ia32_efer(void)
 {
-	return (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_EFER) &&
-	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_EFER);
+	return vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_EFER;
 }
 
 static inline bool cpu_has_load_perf_global_ctrl(void)
 {
-	return (vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL) &&
-	       (vmcs_config.vmexit_ctrl & VM_EXIT_LOAD_IA32_PERF_GLOBAL_CTRL);
+	return vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_PERF_GLOBAL_CTRL;
 }
 
 static inline bool cpu_has_vmx_mpx(void)
 {
-	return (vmcs_config.vmexit_ctrl & VM_EXIT_CLEAR_BNDCFGS) &&
-		(vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_BNDCFGS);
+	return vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_BNDCFGS;
 }
 
 static inline bool cpu_has_vmx_tpr_shadow(void)
@@ -378,7 +375,6 @@ static inline bool cpu_has_vmx_intel_pt(void)
 	rdmsrl(MSR_IA32_VMX_MISC, vmx_msr);
 	return (vmx_msr & MSR_IA32_VMX_MISC_INTEL_PT) &&
 		(vmcs_config.cpu_based_2nd_exec_ctrl & SECONDARY_EXEC_PT_USE_GPA) &&
-		(vmcs_config.vmexit_ctrl & VM_EXIT_CLEAR_IA32_RTIT_CTL) &&
 		(vmcs_config.vmentry_ctrl & VM_ENTRY_LOAD_IA32_RTIT_CTL);
 }
 
