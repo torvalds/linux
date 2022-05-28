@@ -42,8 +42,7 @@ properties:
   gpio-ranges:
     maxItems: 1
 
-  wakeup-parent:
-    maxItems: 1
+  wakeup-parent: true
 
 #PIN CONFIGURATION NODES
 patternProperties:

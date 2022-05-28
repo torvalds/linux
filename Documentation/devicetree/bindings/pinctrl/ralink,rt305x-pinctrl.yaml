@@ -1,0 +1,92 @@
+# SPDX-License-Identifier: GPL-2.0-only OR BSD-2-Clause
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/pinctrl/ralink,rt305x-pinctrl.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Ralink RT305X Pin Controller
+
+maintainers:
+  - Arınç ÜNAL <arinc.unal@arinc9.com>
+  - Sergio Paracuellos <sergio.paracuellos@gmail.com>
+
+description:
+  Ralink RT305X pin controller for RT3050, RT3052, RT3350, RT3352 and RT5350
+  SoCs.
+  The pin controller can only set the muxing of pin groups. Muxing individual
+  pins is not supported. There is no pinconf support.
+
+properties:
+  compatible:
+    const: ralink,rt305x-pinctrl
+
+patternProperties:
+  '-pins$':
+    type: object
+    patternProperties:
+      '^(.*-)?pinmux$':
+        type: object
+        description: node for pinctrl.
+        $ref: pinmux-node.yaml#
+
+        properties:
+          groups:
+            description: The pin group to select.
+            enum: [
+              # For RT3050, RT3052 and RT3350 SoCs
+              i2c, jtag, mdio, rgmii, sdram, spi, uartf, uartlite,
+
+              # For RT3352 SoC
+              i2c, jtag, led, lna, mdio, pa, rgmii, spi, spi_cs1, uartf,
+              uartlite,
+
+              # For RT5350 SoC
+              i2c, jtag, led, spi, spi_cs1, uartf, uartlite,
+            ]
+
+          function:
+            description: The mux function to select.
+            enum: [
+              # For RT3050, RT3052 and RT3350 SoCs
+              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, mdio, pcm gpio,
+              pcm i2s, pcm uartf, rgmii, sdram, spi, uartf, uartlite,
+
+              # For RT3352 SoC
+              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, led, lna, mdio,
+              pa, pcm gpio, pcm i2s, pcm uartf, rgmii, spi, spi_cs1, uartf,
+              uartlite, wdg_cs1,
+
+              # For RT5350 SoC
+              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, led, pcm gpio,
+              pcm i2s, pcm uartf, spi, spi_cs1, uartf, uartlite, wdg_cs1,
+            ]
+
+        required:
+          - groups
+          - function
+
+        additionalProperties: false
+
+    additionalProperties: false
+
+allOf:
+  - $ref: "pinctrl.yaml#"
+
+required:
+  - compatible
+
+additionalProperties: false
+
+examples:
+  # Pinmux controller node
+  - |
+    pinctrl {
+      compatible = "ralink,rt305x-pinctrl";
+
+      i2c_pins: i2c0-pins {
+        pinmux {
+          groups = "i2c";
+          function = "i2c";
+        };
+      };
+    };

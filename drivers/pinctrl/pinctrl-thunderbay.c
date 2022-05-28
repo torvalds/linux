@@ -1229,7 +1229,6 @@ static int thunderbay_pinctrl_probe(struct platform_device *pdev)
 	const struct of_device_id *of_id;
 	struct device *dev = &pdev->dev;
 	struct thunderbay_pinctrl *tpc;
-	struct resource *iomem;
 	int ret;
 
 	of_id = of_match_node(thunderbay_pinctrl_match, pdev->dev.of_node);
@@ -1243,11 +1242,7 @@ static int thunderbay_pinctrl_probe(struct platform_device *pdev)
 	tpc->dev = dev;
 	tpc->soc = of_id->data;
 
-	iomem = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!iomem)
-		return -ENXIO;
-
-	tpc->base0 =  devm_ioremap_resource(dev, iomem);
+	tpc->base0 = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(tpc->base0))
 		return PTR_ERR(tpc->base0);
 
