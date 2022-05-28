@@ -25,6 +25,5 @@ per_version_boot_params () {
 	echo $1 `scftorture_param_onoff "$1" "$2"` \
 		scftorture.stat_interval=15 \
 		scftorture.shutdown_secs=$3 \
-		scftorture.verbose=1 \
-		scf
+		scftorture.verbose=1
 }
