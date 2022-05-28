@@ -931,8 +931,7 @@ aiptek_query(struct aiptek *aiptek, unsigned char command, unsigned char data)
 	}
 	msleep(aiptek->curSetting.programmableDelay);
 
-	if ((ret =
-	     aiptek_get_report(aiptek, 3, 2, buf, sizeof_buf)) != sizeof_buf) {
+	if (aiptek_get_report(aiptek, 3, 2, buf, sizeof_buf) != sizeof_buf) {
 		dev_dbg(&aiptek->intf->dev,
 			"aiptek_query failed: returned 0x%02x 0x%02x 0x%02x\n",
 			buf[0], buf[1], buf[2]);
