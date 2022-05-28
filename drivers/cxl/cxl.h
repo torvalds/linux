@@ -346,7 +346,7 @@ struct cxl_port {
 	struct device *uport;
 	struct device *host_bridge;
 	int id;
-	struct list_head dports;
+	struct xarray dports;
 	struct xarray endpoints;
 	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
@@ -361,20 +361,24 @@ struct cxl_port {
 	bool cdat_available;
 };
 
+static inline struct cxl_dport *
+cxl_find_dport_by_dev(struct cxl_port *port, const struct device *dport_dev)
+{
+	return xa_load(&port->dports, (unsigned long)dport_dev);
+}
+
 /**
  * struct cxl_dport - CXL downstream port
  * @dport: PCI bridge or firmware device representing the downstream link
  * @port_id: unique hardware identifier for dport in decoder target list
  * @component_reg_phys: downstream port component registers
  * @port: reference to cxl_port that contains this downstream port
- * @list: node for a cxl_port's list of cxl_dport instances
  */
 struct cxl_dport {
 	struct device *dport;
 	int port_id;
 	resource_size_t component_reg_phys;
 	struct cxl_port *port;
-	struct list_head list;
 };
 
 /**
@@ -417,8 +421,6 @@ bool schedule_cxl_memdev_detach(struct cxl_memdev *cxlmd);
 struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 				     struct device *dport, int port_id,
 				     resource_size_t component_reg_phys);
-struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
-					const struct device *dev);
 
 struct cxl_decoder *to_cxl_decoder(struct device *dev);
 struct cxl_root_decoder *to_cxl_root_decoder(struct device *dev);

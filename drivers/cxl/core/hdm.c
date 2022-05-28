@@ -50,8 +50,9 @@ static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 {
 	struct cxl_switch_decoder *cxlsd;
-	struct cxl_dport *dport;
+	struct cxl_dport *dport = NULL;
 	int single_port_map[1];
+	unsigned long index;
 
 	cxlsd = cxl_switch_decoder_alloc(port, 1);
 	if (IS_ERR(cxlsd))
@@ -59,7 +60,8 @@ int devm_cxl_add_passthrough_decoder(struct cxl_port *port)
 
 	device_lock_assert(&port->dev);
 
-	dport = list_first_entry(&port->dports, typeof(*dport), list);
+	xa_for_each(&port->dports, index, dport)
+		break;
 	single_port_map[0] = dport->port_id;
 
 	return add_hdm_decoder(port, &cxlsd->cxld, single_port_map);

@@ -452,6 +452,7 @@ static void cxl_port_release(struct device *dev)
 	xa_for_each(&port->endpoints, index, ep)
 		cxl_ep_remove(port, ep);
 	xa_destroy(&port->endpoints);
+	xa_destroy(&port->dports);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -581,7 +582,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	port->component_reg_phys = component_reg_phys;
 	ida_init(&port->decoder_ida);
 	port->hdm_end = -1;
-	INIT_LIST_HEAD(&port->dports);
+	xa_init(&port->dports);
 	xa_init(&port->endpoints);
 
 	device_initialize(dev);
@@ -711,17 +712,13 @@ static int match_root_child(struct device *dev, const void *match)
 		return 0;
 
 	port = to_cxl_port(dev);
-	device_lock(dev);
-	list_for_each_entry(dport, &port->dports, list) {
-		iter = match;
-		while (iter) {
-			if (iter == dport->dport)
-				goto out;
-			iter = iter->parent;
-		}
+	iter = match;
+	while (iter) {
+		dport = cxl_find_dport_by_dev(port, iter);
+		if (dport)
+			break;
+		iter = iter->parent;
 	}
-out:
-	device_unlock(dev);
 
 	return !!iter;
 }
@@ -745,9 +742,10 @@ EXPORT_SYMBOL_NS_GPL(find_cxl_root, CXL);
 static struct cxl_dport *find_dport(struct cxl_port *port, int id)
 {
 	struct cxl_dport *dport;
+	unsigned long index;
 
 	device_lock_assert(&port->dev);
-	list_for_each_entry (dport, &port->dports, list)
+	xa_for_each(&port->dports, index, dport)
 		if (dport->port_id == id)
 			return dport;
 	return NULL;
@@ -759,15 +757,15 @@ static int add_dport(struct cxl_port *port, struct cxl_dport *new)
 
 	device_lock_assert(&port->dev);
 	dup = find_dport(port, new->port_id);
-	if (dup)
+	if (dup) {
 		dev_err(&port->dev,
 			"unable to add dport%d-%s non-unique port id (%s)\n",
 			new->port_id, dev_name(new->dport),
 			dev_name(dup->dport));
-	else
-		list_add_tail(&new->list, &port->dports);
-
-	return dup ? -EEXIST : 0;
+		return -EBUSY;
+	}
+	return xa_insert(&port->dports, (unsigned long)new->dport, new,
+			 GFP_KERNEL);
 }
 
 /*
@@ -794,10 +792,8 @@ static void cxl_dport_remove(void *data)
 	struct cxl_dport *dport = data;
 	struct cxl_port *port = dport->port;
 
+	xa_erase(&port->dports, (unsigned long) dport->dport);
 	put_device(dport->dport);
-	cond_cxl_root_lock(port);
-	list_del(&dport->list);
-	cond_cxl_root_unlock(port);
 }
 
 static void cxl_dport_unlink(void *data)
@@ -849,7 +845,6 @@ struct cxl_dport *devm_cxl_add_dport(struct cxl_port *port,
 	if (!dport)
 		return ERR_PTR(-ENOMEM);
 
-	INIT_LIST_HEAD(&dport->list);
 	dport->dport = dport_dev;
 	dport->port_id = port_id;
 	dport->component_reg_phys = component_reg_phys;
@@ -1040,19 +1035,27 @@ EXPORT_SYMBOL_NS_GPL(cxl_endpoint_autoremove, CXL);
  * for a port to be unregistered is when all memdevs beneath that port have gone
  * through ->remove(). This "bottom-up" removal selectively removes individual
  * child ports manually. This depends on devm_cxl_add_port() to not change is
- * devm action registration order.
+ * devm action registration order, and for dports to have already been
+ * destroyed by reap_dports().
  */
-static void delete_switch_port(struct cxl_port *port, struct list_head *dports)
+static void delete_switch_port(struct cxl_port *port)
 {
-	struct cxl_dport *dport, *_d;
+	devm_release_action(port->dev.parent, cxl_unlink_uport, port);
+	devm_release_action(port->dev.parent, unregister_port, port);
+}
 
-	list_for_each_entry_safe(dport, _d, dports, list) {
+static void reap_dports(struct cxl_port *port)
+{
+	struct cxl_dport *dport;
+	unsigned long index;
+
+	device_lock_assert(&port->dev);
+
+	xa_for_each(&port->dports, index, dport) {
 		devm_release_action(&port->dev, cxl_dport_unlink, dport);
 		devm_release_action(&port->dev, cxl_dport_remove, dport);
 		devm_kfree(&port->dev, dport);
 	}
-	devm_release_action(port->dev.parent, cxl_unlink_uport, port);
-	devm_release_action(port->dev.parent, unregister_port, port);
 }
 
 static struct cxl_ep *cxl_ep_load(struct cxl_port *port,
@@ -1069,8 +1072,8 @@ static void cxl_detach_ep(void *data)
 	for (iter = &cxlmd->dev; iter; iter = grandparent(iter)) {
 		struct device *dport_dev = grandparent(iter);
 		struct cxl_port *port, *parent_port;
-		LIST_HEAD(reap_dports);
 		struct cxl_ep *ep;
+		bool died = false;
 
 		if (!dport_dev)
 			break;
@@ -1110,15 +1113,16 @@ static void cxl_detach_ep(void *data)
 			 * enumerated port. Block new cxl_add_ep() and garbage
 			 * collect the port.
 			 */
+			died = true;
 			port->dead = true;
-			list_splice_init(&port->dports, &reap_dports);
+			reap_dports(port);
 		}
 		device_unlock(&port->dev);
 
-		if (!list_empty(&reap_dports)) {
+		if (died) {
 			dev_dbg(&cxlmd->dev, "delete %s\n",
 				dev_name(&port->dev));
-			delete_switch_port(port, &reap_dports);
+			delete_switch_port(port);
 		}
 		put_device(&port->dev);
 		device_unlock(&parent_port->dev);
@@ -1297,23 +1301,6 @@ struct cxl_port *cxl_mem_find_port(struct cxl_memdev *cxlmd,
 }
 EXPORT_SYMBOL_NS_GPL(cxl_mem_find_port, CXL);
 
-struct cxl_dport *cxl_find_dport_by_dev(struct cxl_port *port,
-					const struct device *dev)
-{
-	struct cxl_dport *dport;
-
-	device_lock(&port->dev);
-	list_for_each_entry(dport, &port->dports, list)
-		if (dport->dport == dev) {
-			device_unlock(&port->dev);
-			return dport;
-		}
-
-	device_unlock(&port->dev);
-	return NULL;
-}
-EXPORT_SYMBOL_NS_GPL(cxl_find_dport_by_dev, CXL);
-
 static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 				    struct cxl_port *port, int *target_map)
 {
@@ -1324,7 +1311,7 @@ static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 
 	device_lock_assert(&port->dev);
 
-	if (list_empty(&port->dports))
+	if (xa_empty(&port->dports))
 		return -EINVAL;
 
 	write_seqlock(&cxlsd->target_lock);
