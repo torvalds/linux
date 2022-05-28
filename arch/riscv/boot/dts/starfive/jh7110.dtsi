@@ -261,7 +261,7 @@
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>;
 			reset-names = "vout_src";
 			#clock-cells = <1>;
-			status = "okay";
+			status = "disabled";
 		};
 
 		clkisp: clock-controller@19810000 {
@@ -1546,6 +1546,7 @@
 		hdmi: hdmi@29590000 {
 			compatible = "rockchip,rk3036-inno-hdmi";
 			reg = <0x0 0x29590000 0x0 0x4000>;
+			interrupts = <99>;
 			/*interrupts = <GIC_SPI 45 IRQ_TYPE_LEVEL_HIGH>;*/
 			/*clocks = <&cru  PCLK_HDMI>;*/
 			/*clock-names = "pclk";*/
@@ -1554,8 +1555,9 @@
 			status = "disabled";
 			clocks = <&clkvout JH7110_U0_HDMI_TX_CLK_SYS>,
 				 <&clkvout JH7110_U0_HDMI_TX_CLK_MCLK>,
-				 <&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>;
-			clock-names = "sysclk", "mclk", "bclk";
+				 <&clkvout JH7110_U0_HDMI_TX_CLK_BCLK>,
+				 <&hdmitx0_pixelclk>;
+			clock-names = "sysclk", "mclk","bclk","pclk";
 			resets = <&rstgen RSTN_U0_HDMI_TX_HDMI>;
 			reset-names = "hdmi_tx";
 		};

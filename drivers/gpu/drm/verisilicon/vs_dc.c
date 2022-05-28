@@ -20,7 +20,13 @@
 #include "vs_dc.h"
 #include "vs_crtc.h"
 #include "vs_drv.h"
+#include "vs_clock.h"
+
 #include <soc/starfive/vic7100.h>
+#include <soc/starfive/jh7110_pmu.h>
+
+//#include "fmux_macro.h"//20220523
+//#include "sys_iomux_cfg_macro.h"//20220523
 
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_fourcc.h>
@@ -290,7 +296,7 @@ err_clk_init:
 exit:
 	return ret;
 }
-
+#if 0
 static void plda_clk_rst_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
@@ -298,36 +304,197 @@ static void plda_clk_rst_deinit(struct device *dev)
 	reset_control_assert(dc->resets);
 	clk_bulk_disable_unprepare(dc->num_clks, dc->clks);
 }
-
-static void power_set(struct device *dev, int on_off)
-{
-	struct vs_dc *dc = dev_get_drvdata(dev);
-	const u32 flag_off = 0x0c;
-	const u32 sw_off = 0x44;
-
-	writel(1 << 4, dc->pmu_base + flag_off);
-	writel(0xff, dc->pmu_base + sw_off);
-	if (on_off) {
-		writel(0x05, dc->pmu_base + sw_off);
-		writel(0x50, dc->pmu_base + sw_off);
-	} else {
-		writel(0x0a, dc->pmu_base + sw_off);
-		writel(0xa0, dc->pmu_base + sw_off);
-	}
-
-}
-
+#endif
 static void dc_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
 
 	dc_hw_enable_interrupt(&dc->hw, 0);
 	dc_hw_deinit(&dc->hw);
-	plda_clk_rst_deinit(dev);
-	power_set(dev, 0);
+	//plda_clk_rst_deinit(dev);
+	starfive_power_domain_set(POWER_DOMAIN_VOUT, 0);
+}
+
+void u0_sft7110_noc_bus_enable(void){
+	//clk_u0_sft7110_noc_bus_clk_cpu_axi:['clk_u0_sft7110_noc_bus_clk_cpu_axi', 'clk_u0_sft7110_noc_bus_clk_cpu_axi_icg', 'clk_cpu_bus', 'clk_cpu_bus_div', 'clk_cpu_core', 'clk_cpu_core_div', 'clk_cpu_root', 'clk_cpu_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk_cpu_axi']
+	//default:_SWITCH_CLOCK_CLK_CPU_ROOT_SOURCE_CLK_OSC_;
+	//default:_DIVIDE_CLOCK_CLK_CPU_CORE_(1);
+	//default:_DIVIDE_CLOCK_CLK_CPU_BUS_(2);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_CPU_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_cpu_axi:['clk_u0_sft7110_noc_bus_clk2_cpu_axi', 'clk_u0_sft7110_noc_bus_clk_cpu_axi', 'clk_u0_sft7110_noc_bus_clk_cpu_axi_icg', 'clk_cpu_bus', 'clk_cpu_bus_div', 'clk_cpu_core', 'clk_cpu_core_div', 'clk_cpu_root', 'clk_cpu_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk2_cpu_axi']
+	//clk_u0_sft7110_noc_bus_clk_axicfg0_axi:['clk_u0_sft7110_noc_bus_clk_axicfg0_axi', 'clk_u0_sft7110_noc_bus_clk_axicfg0_axi_icg', 'clk_axi_cfg0', 'clk_axi_cfg0_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk_axicfg0_axi']
+	//default:_SWITCH_CLOCK_CLK_BUS_ROOT_SOURCE_CLK_OSC_;
+	//default:_DIVIDE_CLOCK_CLK_AXI_CFG0_(3);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_AXICFG0_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_axicfg0_axi:['clk_u0_sft7110_noc_bus_clk2_axicfg0_axi', 'clk_u0_sft7110_noc_bus_clk_axicfg0_axi', 'clk_u0_sft7110_noc_bus_clk_axicfg0_axi_icg', 'clk_axi_cfg0', 'clk_axi_cfg0_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk2_axicfg0_axi']
+	//clk_u0_sft7110_noc_bus_clk_apb_bus:['clk_u0_sft7110_noc_bus_clk_apb_bus', 'clk_apb_bus', 'clk_u2_pclk_mux_pclk'],dst:['u0_sft7110_noc_bus.clk_apb_bus']
+	//clk_u0_sft7110_noc_bus_clk2_apb_bus:['clk_u0_sft7110_noc_bus_clk2_apb_bus', 'clk_u0_sft7110_noc_bus_clk_apb_bus', 'clk_apb_bus', 'clk_u2_pclk_mux_pclk'],dst:['u0_sft7110_noc_bus.clk2_apb_bus']
+	//clk_u0_sft7110_noc_bus_clk_gpu_axi:['clk_u0_sft7110_noc_bus_clk_gpu_axi', 'clk_u0_sft7110_noc_bus_clk_gpu_axi_icg', 'clk_gpu_core', 'clk_gpu_core_div', 'clk_gpu_root', 'clk_gpu_root_mux', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk_gpu_axi']
+	//default:_SWITCH_CLOCK_CLK_GPU_ROOT_SOURCE_CLK_PLL2_;
+	//default:_DIVIDE_CLOCK_CLK_GPU_CORE_(3);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_GPU_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_gpu_axi:['clk_u0_sft7110_noc_bus_clk2_gpu_axi', 'clk_u0_sft7110_noc_bus_clk_gpu_axi', 'clk_u0_sft7110_noc_bus_clk_gpu_axi_icg', 'clk_gpu_core', 'clk_gpu_core_div', 'clk_gpu_root', 'clk_gpu_root_mux', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk2_gpu_axi']
+	//clk_u0_sft7110_noc_bus_clk_vdec_axi:['clk_u0_sft7110_noc_bus_clk_vdec_axi', 'clk_u0_sft7110_noc_bus_clk_vdec_axi_icg', 'clk_vdec_axi', 'clk_vdec_axi_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk_vdec_axi']
+	//default:_DIVIDE_CLOCK_CLK_VDEC_AXI_(3);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_VDEC_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_vdec_axi:['clk_u0_sft7110_noc_bus_clk2_vdec_axi', 'clk_u0_sft7110_noc_bus_clk_vdec_axi', 'clk_u0_sft7110_noc_bus_clk_vdec_axi_icg', 'clk_vdec_axi', 'clk_vdec_axi_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk2_vdec_axi']
+	//clk_u0_sft7110_noc_bus_clk_venc_axi:['clk_u0_sft7110_noc_bus_clk_venc_axi', 'clk_u0_sft7110_noc_bus_clk_venc_axi_icg', 'clk_venc_axi', 'clk_venc_axi_div', 'clk_venc_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk_venc_axi']
+	//default:_DIVIDE_CLOCK_CLK_VENC_AXI_(5);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_VENC_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_venc_axi:['clk_u0_sft7110_noc_bus_clk2_venc_axi', 'clk_u0_sft7110_noc_bus_clk_venc_axi', 'clk_u0_sft7110_noc_bus_clk_venc_axi_icg', 'clk_venc_axi', 'clk_venc_axi_div', 'clk_venc_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk2_venc_axi']
+	//clk_u0_sft7110_noc_bus_clk_disp_axi:['clk_u0_sft7110_noc_bus_clk_disp_axi', 'clk_u0_sft7110_noc_bus_clk_disp_axi_icg', 'clk_vout_axi', 'clk_vout_axi_div', 'clk_vout_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk_disp_axi']
+	//default:_DIVIDE_CLOCK_CLK_VOUT_AXI_(2);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_DISP_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_disp_axi:['clk_u0_sft7110_noc_bus_clk2_disp_axi', 'clk_u0_sft7110_noc_bus_clk_disp_axi', 'clk_u0_sft7110_noc_bus_clk_disp_axi_icg', 'clk_vout_axi', 'clk_vout_axi_div', 'clk_vout_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk2_disp_axi']
+	//clk_u0_sft7110_noc_bus_clk_isp_axi:['clk_u0_sft7110_noc_bus_clk_isp_axi', 'clk_u0_sft7110_noc_bus_clk_isp_axi_icg', 'clk_isp_axi', 'clk_isp_axi_div', 'clk_isp_2x', 'clk_isp_2x_div', 'clk_isp_2x_mux', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk_isp_axi']
+	//default:_SWITCH_CLOCK_CLK_ISP_2X_SOURCE_CLK_PLL2_;
+	//default:_DIVIDE_CLOCK_CLK_ISP_2X_(2);
+	//default:_DIVIDE_CLOCK_CLK_ISP_AXI_(2);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_ISP_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_isp_axi:['clk_u0_sft7110_noc_bus_clk2_isp_axi', 'clk_u0_sft7110_noc_bus_clk_isp_axi', 'clk_u0_sft7110_noc_bus_clk_isp_axi_icg', 'clk_isp_axi', 'clk_isp_axi_div', 'clk_isp_2x', 'clk_isp_2x_div', 'clk_isp_2x_mux', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_sft7110_noc_bus.clk2_isp_axi']
+	//clk_u0_sft7110_noc_bus_clk_stg_axi:['clk_u0_sft7110_noc_bus_clk_stg_axi', 'clk_u0_sft7110_noc_bus_clk_stg_axi_icg', 'clk_nocstg_bus', 'clk_nocstg_bus_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk_stg_axi']
+	//default:_DIVIDE_CLOCK_CLK_NOCSTG_BUS_(3);
+	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_STG_AXI_;
+	//clk_u0_sft7110_noc_bus_clk2_stg_axi:['clk_u0_sft7110_noc_bus_clk2_stg_axi', 'clk_u0_sft7110_noc_bus_clk_stg_axi', 'clk_u0_sft7110_noc_bus_clk_stg_axi_icg', 'clk_nocstg_bus', 'clk_nocstg_bus_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk2_stg_axi']
+	//clk_u0_sft7110_noc_bus_clk_ddrc:['clk_u0_sft7110_noc_bus_clk_ddrc', 'clk_ddr_bus', 'clk_ddr_bus_mux', 'clk_osc_div2', 'clk_osc_div2_div', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk_ddrc']
+	//default:_SWITCH_CLOCK_CLK_DDR_BUS_SOURCE_CLK_OSC_DIV2_;
+	//default:_DIVIDE_CLOCK_CLK_OSC_DIV2_(2);
+	//clk_u0_sft7110_noc_bus_clk2_ddrc:['clk_u0_sft7110_noc_bus_clk2_ddrc', 'clk_u0_sft7110_noc_bus_clk_ddrc', 'clk_ddr_bus', 'clk_ddr_bus_mux', 'clk_osc_div2', 'clk_osc_div2_div', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_sft7110_noc_bus.clk2_ddrc']
+
+	//rstn_u0_sft7110_noc_bus_reset_cpu_axi_n:['rstn_u0_sft7110_noc_bus_reset_cpu_axi_n'],dst:['u0_sft7110_noc_bus.reset_cpu_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_CPU_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_axicfg0_axi_n:['rstn_u0_sft7110_noc_bus_reset_axicfg0_axi_n'],dst:['u0_sft7110_noc_bus.reset_axicfg0_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_AXICFG0_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_apb_bus_n:['rstn_u0_sft7110_noc_bus_reset_apb_bus_n'],dst:['u0_sft7110_noc_bus.reset_apb_bus_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_APB_BUS_N_;
+	//rstn_u0_sft7110_noc_bus_reset_gpu_axi_n:['rstn_u0_sft7110_noc_bus_reset_gpu_axi_n'],dst:['u0_sft7110_noc_bus.reset_gpu_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_GPU_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_vdec_axi_n:['rstn_u0_sft7110_noc_bus_reset_vdec_axi_n'],dst:['u0_sft7110_noc_bus.reset_vdec_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_VDEC_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_venc_axi_n:['rstn_u0_sft7110_noc_bus_reset_venc_axi_n'],dst:['u0_sft7110_noc_bus.reset_venc_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_VENC_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_disp_axi_n:['rstn_u0_sft7110_noc_bus_reset_disp_axi_n'],dst:['u0_sft7110_noc_bus.reset_disp_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_DISP_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_isp_axi_n:['rstn_u0_sft7110_noc_bus_reset_isp_axi_n'],dst:['u0_sft7110_noc_bus.reset_isp_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_ISP_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_stg_axi_n:['rstn_u0_sft7110_noc_bus_reset_stg_axi_n'],dst:['u0_sft7110_noc_bus.reset_stg_axi_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_STG_AXI_N_;
+	//rstn_u0_sft7110_noc_bus_reset_ddrc_n:['rstn_u0_sft7110_noc_bus_reset_ddrc_n'],dst:['u0_sft7110_noc_bus.reset_ddrc_n']
+	//_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_DDRC_N_;
 
 }
 
+void u0_dom_vout_top_enable(void){
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_src:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_src', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_src_icg', 'clk_vout_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_vout_src']
+	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_VOUT_SRC_;
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi_icg', 'clk_vout_axi', 'clk_vout_axi_div', 'clk_vout_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_vout_axi']
+	//default:_DIVIDE_CLOCK_CLK_VOUT_AXI_(2);
+	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_VOUT_AXI_;
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb_icg', 'clk_ahb1', 'clk_ahb1_icg', 'clk_stg_axiahb', 'clk_stg_axiahb_div', 'clk_axi_cfg0', 'clk_axi_cfg0_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_vout_ahb']
+	//default:_SWITCH_CLOCK_CLK_BUS_ROOT_SOURCE_CLK_OSC_;
+	//default:_DIVIDE_CLOCK_CLK_AXI_CFG0_(3);
+	//default:_DIVIDE_CLOCK_CLK_STG_AXIAHB_(2);
+	_ENABLE_CLOCK_CLK_AHB1_;
+	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_VOUT_AHB_;
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmiphy_ref:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmiphy_ref', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_hdmiphy_ref']
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk_icg', 'clk_mclk', 'clk_mclk_mux', 'clk_mclk_inner', 'clk_mclk_inner_div', 'clk_audio_root', 'clk_audio_root_div', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_hdmitx0_mclk']
+	//default:_SWITCH_CLOCK_CLK_MCLK_SOURCE_CLK_MCLK_INNER_;
+	//default:_DIVIDE_CLOCK_CLK_AUDIO_ROOT_(2);
+	//default:_DIVIDE_CLOCK_CLK_MCLK_INNER_(12);
+	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_HDMITX0_MCLK_;
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk', 'clk_u0_i2stx_4ch_bclk', 'clk_u0_i2stx_4ch_bclk_mux', 'clk_i2stx_4ch0_bclk_mst', 'clk_i2stx_4ch0_bclk_mst_icg', 'clk_i2stx_4ch0_bclk_mst_div', 'clk_mclk', 'clk_mclk_mux', 'clk_mclk_inner', 'clk_mclk_inner_div', 'clk_audio_root', 'clk_audio_root_div', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_hdmitx0_bclk']
+	//default:_SWITCH_CLOCK_CLK_U0_I2STX_4CH_BCLK_SOURCE_CLK_I2STX_4CH0_BCLK_MST_;
+	//default:_DIVIDE_CLOCK_CLK_I2STX_4CH0_BCLK_MST_(4);
+	_ENABLE_CLOCK_CLK_I2STX_4CH0_BCLK_MST_;
+	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref_div', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_mipiphy_ref']
+	//default:_DIVIDE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_MIPIPHY_REF_(2);
+	//clk_u0_dom_vout_top_clk_dom_vout_top_bist_pclk:['clk_u0_dom_vout_top_clk_dom_vout_top_bist_pclk', 'clk_bist_apb', 'clk_u0_clkrst_src_bypass_clk_bist_apb'],dst:['u0_dom_vout_top.clk_dom_vout_top_bist_pclk']
+
+	//rstn_u0_dom_vout_top_rstn_dom_vout_top_rstn_vout_src:['rstn_u0_dom_vout_top_rstn_dom_vout_top_rstn_vout_src'],dst:['u0_dom_vout_top.rstn_dom_vout_top_rstn_vout_src']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_DOM_VOUT_TOP_RSTN_DOM_VOUT_TOP_RSTN_VOUT_SRC_;
+
+}
+
+int sys_vout_common_init(void)
+{
+    int ret = 0;
+
+    //config common feature for all/multiple sub-modules
+    u0_sft7110_noc_bus_enable();
+    u0_dom_vout_top_enable();
+
+    return ret;
+}
+
+int sys_vout_mux_config(void)
+{
+    if(1){
+		SET_U0_HDMI_DATA_MAPPING_DPI_DP_SEL(0);
+		SET_U0_HDMI_DATA_MAPPING_DPI_BIT_DEPTH(0);
+		SET_U0_HDMI_DATA_MAPPING_DP_BIT_DEPTH(0);
+		SET_U0_HDMI_DATA_MAPPING_DP_YUV_MODE(0);
+		SET_U2_DISPLAY_PANEL_MUX_PANEL_SEL(0);
+
+		_SWITCH_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_SOURCE_CLK_U0_DC8200_CLK_PIX0_OUT_;
+		_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;
+		SET_U0_DISPLAY_PANEL_MUX_PANEL_SEL(0);
+		SET_U0_LCD_DATA_MAPPING_DPI_DP_SEL(0);
+
+    }
+    return 0;
+}
+
+int sys_dispctrl_clk(void)
+{
+	_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
+	//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
+
+    return 0;
+}
+
+void u0_dc8200_enable(void){
+  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_PIX0_;
+  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_PIX1_;
+  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_AXI_;
+  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_CORE_;
+  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_AHB_;
+
+  _CLEAR_RESET_RSTGEN_RSTN_U0_DC8200_RSTN_AXI_;
+  _CLEAR_RESET_RSTGEN_RSTN_U0_DC8200_RSTN_CORE_;
+  _CLEAR_RESET_RSTGEN_RSTN_U0_DC8200_RSTN_AHB_;
+
+}
+
+void u0_hdmi_tx_enable(void){
+
+	//clk_u0_hdmi_tx_clk_sys:['clk_u0_hdmi_tx_clk_sys', 'clk_u0_hdmi_tx_clk_sys_icg', 'clk_disp_apb', 'clk_u0_pclk_mux_pclk'],dst:['u0_hdmi_tx.pin_sys_clk']
+	_ENABLE_CLOCK_CLK_U0_HDMI_TX_CLK_SYS_;
+	//clk_u0_hdmi_tx_clk_ref:['clk_u0_hdmi_tx_clk_ref', 'clk_hdmi_phy_ref', 'clk_dom_vout_top_clk_hdmiphy_ref'],dst:['u0_hdmi_tx.pin_ref_clk']
+	//clk_u0_hdmi_tx_clk_mclk:['clk_u0_hdmi_tx_clk_mclk', 'clk_u0_hdmi_tx_clk_mclk_icg', 'clk_hdmitx0_mclk', 'clk_dom_vout_top_clk_hdmitx0_mclk'],dst:['u0_hdmi_tx.pin_mclk']
+	_ENABLE_CLOCK_CLK_U0_HDMI_TX_CLK_MCLK_;
+	//clk_u0_hdmi_tx_clk_bclk:['clk_u0_hdmi_tx_clk_bclk', 'clk_u0_hdmi_tx_clk_bclk_icg', 'clk_hdmitx0_sck', 'clk_dom_vout_top_clk_hdmitx0_bclk'],dst:['u0_hdmi_tx.pin_sck']
+	_ENABLE_CLOCK_CLK_U0_HDMI_TX_CLK_BCLK_;
+
+	//rstn_u0_hdmi_tx_rstn_hdmi:['rstn_u0_hdmi_tx_rstn_hdmi'],dst:['u0_hdmi_tx.pin_func_rst_n']
+	_CLEAR_RESET_RSTGEN_RSTN_U0_HDMI_TX_RSTN_HDMI_;
+
+}
+
+int sys_dispctrl_init(void)
+{
+    sys_vout_common_init();
+	u0_hdmi_tx_enable();
+	//inno_hdmi_set_pinmux();//20220523
+    sys_vout_mux_config();
+    sys_dispctrl_clk();
+
+    //SET_U0_DC8200_CSYSREQ(1);
+    u0_dc8200_enable();
+	mdelay(1);    
+    return 0;
+}
+
+///////////////////////////////////////////////////////////
 static int dc_init(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
@@ -335,9 +502,11 @@ static int dc_init(struct device *dev)
 
 	dc->first_frame = true;
 
-	power_set(dev, 1);
+	//power_set(dev, 1);
+	starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
 
-	ret = plda_clk_rst_init(dev);
+	//ret = plda_clk_rst_init(dev);
+	ret = sys_dispctrl_init();
 	if (ret < 0) {
 		dev_err(dev, "failed to init vout clk reset: %d\n", ret);
 		return ret;
@@ -408,7 +577,22 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 #else
 	//used for div clock
 	if (dc->pix_clk_rate != mode->clock) {
-		clk_set_rate(dc->pix_clk, mode->clock * 1000);
+		printk("====> %s, %d--pix_clk.mode->clock = %d\n", __func__, __LINE__,mode->clock);
+		u32 div = _GET_CLOCK_DIVIDE_STATUS_CLK_DC8200_PIX0_;
+	printk("====> %s, %d--pix_clk.div = %d\n", __func__, __LINE__,div);
+
+	//148500
+         div = 1228800/mode->clock;
+		//148500
+		printk("====> %s, %d--pix_clk.div = %d\n", __func__, __LINE__,div);
+
+		_DIVIDE_CLOCK_CLK_DC8200_PIX0_(div);
+		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
+		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX1_SOURCE_CLK_DC8200_PIX0_;
+
+		_SWITCH_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_SOURCE_CLK_U0_DC8200_CLK_PIX0_OUT_;
+
+		//clk_set_rate(dc->pix_clk, mode->clock * 1000);
 		dc->pix_clk_rate = mode->clock;
 	}
 #endif
@@ -443,12 +627,13 @@ static bool vs_dc_mode_fixup(struct device *dev,
 				  const struct drm_display_mode *mode,
 				  struct drm_display_mode *adjusted_mode)
 {
-	struct vs_dc *dc = dev_get_drvdata(dev);
-	long clk_rate;
 
 #if 1
 	;//printk("====> %s, %d--pix_clk.\n", __func__, __LINE__);
 #else
+	struct vs_dc *dc = dev_get_drvdata(dev);
+
+	long clk_rate;
 	if (dc->pix_clk) {
 		clk_rate = clk_round_rate(dc->pix_clk,
 					  adjusted_mode->clock * 1000);

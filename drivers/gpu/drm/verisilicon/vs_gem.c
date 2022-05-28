@@ -24,6 +24,7 @@ static void nonseq_free(struct page **pages, unsigned int nr_page)
 
 }
 
+#ifdef CONFIG_VERISILICON_MMU
 static int get_pages(unsigned int nr_page, struct vs_gem_object *vs_obj)
 {
 	struct page *pages;
@@ -73,6 +74,7 @@ static int get_pages(unsigned int nr_page, struct vs_gem_object *vs_obj)
 
 	return 0;
 }
+#endif
 
 static void put_pages(unsigned int nr_page, struct vs_gem_object *vs_obj)
 {
@@ -422,7 +424,7 @@ int vs_gem_dumb_create(struct drm_file *file,
 		/* for costum 10bit format with no bit gaps */
 		args->pitch = pitch;
 	args->size = PAGE_ALIGN(args->pitch * args->height);
-	printk("vs_gem_dumb_create size = %08x\n", args->size);
+	printk("vs_gem_dumb_create size = %llx\n", args->size);
 	vs_obj = vs_gem_create_with_handle(dev, file, args->size,
 						 &args->handle);
 	return PTR_ERR_OR_ZERO(vs_obj);
@@ -507,7 +509,6 @@ vs_gem_prime_import_sg_table(struct drm_device *dev,
 		ret = -ENOMEM;
 		goto err;
 	}
-	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	//ret = drm_prime_sg_to_dma_addr_array(sgt, vs_obj->dma_addr,npages);
 	ret = drm_prime_sg_to_page_array(sgt, vs_obj->pages, npages);

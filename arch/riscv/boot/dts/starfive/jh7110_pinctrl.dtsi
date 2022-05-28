@@ -882,17 +882,16 @@
 			sf,pinmux = <PAD_GPIO50_FUNC_SEL 1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		};
-		//rgb-15-pins {
-		//	sf,pins = <PAD_GPIO51>;
-		//	sf,pinmux = <PAD_GPIO51_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//	PAD_GPIO51_FUNC_SEL
-		//};
-		//rgb-16-pins {
-		//	sf,pins = <PAD_GPIO52>;
-		//	sf,pinmux = <PAD_GPIO52_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//};
+		rgb-15-pins {
+			sf,pins = <PAD_GPIO51>;
+			sf,pinmux = <PAD_GPIO51_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-16-pins {
+			sf,pins = <PAD_GPIO52>;
+			sf,pinmux = <PAD_GPIO52_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
 		rgb-17-pins {
 			sf,pins = <PAD_GPIO53>;
 			sf,pinmux = <PAD_GPIO53_FUNC_SEL 1>;
@@ -905,24 +904,24 @@
 		};
 		rgb-19-pins {
 			sf,pins = <PAD_GPIO55>;
-			sf,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
+			sf,pinmux = <PAD_GPIO55_FUNC_SEL 1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		};
 		rgb-20-pins {
-			sf,pins = <PAD_GPIO55>;
+			sf,pins = <PAD_GPIO56>;
 			sf,pinmux = <PAD_GPIO56_FUNC_SEL 1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		};
-		//rgb-21-pins {
-		//	sf,pins = <PAD_GPIO57>;
-		//	sf,pinmux = <PAD_GPIO57_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//};
-		//rgb-22-pins {
-		//	sf,pins = <PAD_GPIO58>;
-		//	sf,pinmux = <PAD_GPIO58_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//};
+		rgb-21-pins {
+			sf,pins = <PAD_GPIO57>;
+			sf,pinmux = <PAD_GPIO57_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-22-pins {
+			sf,pins = <PAD_GPIO58>;
+			sf,pinmux = <PAD_GPIO58_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
 		rgb-23-pins {
 			sf,pins = <PAD_GPIO59>;
 			sf,pinmux = <PAD_GPIO59_FUNC_SEL 1>;
@@ -938,16 +937,80 @@
 		//	sf,pinmux = <PAD_GPIO61_FUNC_SEL 1>;
 		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		//};
-		//rgb-26-pins {
-		//	sf,pins = <PAD_GPIO62>;
-		//	sf,pinmux = <PAD_GPIO62_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//};
-		//rgb-27-pins {
-		//	sf,pins = <PAD_GPIO63>;
-		//	sf,pinmux = <PAD_GPIO63_FUNC_SEL 1>;
-		//	sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		//};
+		rgb-26-pins {
+			sf,pins = <PAD_GPIO62>;
+			sf,pinmux = <PAD_GPIO62_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		rgb-27-pins {
+			sf,pins = <PAD_GPIO63>;
+			sf,pinmux = <PAD_GPIO63_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+	};
+	inno_hdmi_pins: inno_hdmi-pins {
+		inno_hdmi-scl {
+			sf,pins = <PAD_GPIO7>;
+			//sf,pinmux = <PAD_GPIO7_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_HDMI0_DDC_SCL_OUT>;
+			sf,pin-gpio-doen = <OEN_HDMI0_DDC_SCL_OEN>;
+			sf,pin-gpio-din =  <GPI_HDMI0_DDC_SCL_IN>;
+		};
+
+		inno_hdmi-sda {
+			sf,pins = <PAD_GPIO8>;
+			//sf,pinmux = <PAD_GPIO8_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-dout = <GPO_HDMI0_DDC_SDA_OUT>;
+			sf,pin-gpio-doen = <OEN_HDMI0_DDC_SDA_OEN>;
+			sf,pin-gpio-din =  <GPI_HDMI0_DDC_SDA_IN>;
+		};
+		inno_hdmi-cec-pins {
+			sf,pins = <PAD_GPIO14>;
+			//sf,pinmux = <PAD_GPIO14_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
+			sf,pin-gpio-doen = <OEN_HDMI0_CEC_SDA_OEN>;
+			sf,pin-gpio-dout = <GPO_HDMI0_CEC_SDA_OUT>;
+			sf,pin-gpio-din =  <GPI_HDMI0_CEC_SDA_IN>;
+		};
+		inno_hdmi-hpd-pins {
+			sf,pins = <PAD_GPIO15>;
+			//sf,pinmux = <PAD_GPIO15_FUNC_SEL 0>;
+			sf,pin-ioconfig = <IO(GPIO_IE(1))>;
+			sf,pin-gpio-doen = <OEN_HIGH>;
+			sf,pin-gpio-din =  <GPI_HDMI0_HPD>;
+		};
+		inno_hdmi-0-pins {
+			sf,pins = <PAD_GPIO36>;
+			sf,pinmux = <PAD_GPIO36_FUNC_SEL 1>;
+			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		inno_hdmi-1-pins {
+			sf,pins = <PAD_GPIO37>;
+			sf,pinmux = <PAD_GPIO37_FUNC_SEL 1>;
+			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		inno_hdmi-2-pins {
+			sf,pins = <PAD_GPIO38>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
+			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		inno_hdmi-3-pins {
+			sf,pins = <PAD_GPIO39>;
+			sf,pinmux = <PAD_GPIO39_FUNC_SEL 1>;
+			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		inno_hdmi-4-pins {
+			sf,pins = <PAD_GPIO40>;
+			sf,pinmux = <PAD_GPIO40_FUNC_SEL 1>;
+			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		inno_hdmi-5-pins {
+			sf,pins = <PAD_GPIO61>;
+			sf,pinmux = <PAD_GPIO61_FUNC_SEL 3>;
+			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
 	};
 
 	pcie0_perst_default: pcie0_perst_default {
