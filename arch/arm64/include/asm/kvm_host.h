@@ -333,13 +333,13 @@ struct kvm_vcpu_arch {
 	} fp_state;
 
 	/* Configuration flags, set once and for all before the vcpu can run */
-	u64 cflags;
+	u8 cflags;
 
 	/* Input flags to the hypervisor code, potentially cleared after use */
-	u64 iflags;
+	u8 iflags;
 
 	/* State flags for kernel bookkeeping, unused by the hypervisor code */
-	u64 sflags;
+	u8 sflags;
 
 	/*
 	 * We maintain more than a single set of debug registers to support
