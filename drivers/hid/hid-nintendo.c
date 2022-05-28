@@ -292,6 +292,7 @@ static const struct joycon_rumble_amp_data joycon_rumble_amplitudes[] = {
 };
 static const u16 JC_RUMBLE_DFLT_LOW_FREQ = 160;
 static const u16 JC_RUMBLE_DFLT_HIGH_FREQ = 320;
+static const unsigned short JC_RUMBLE_ZERO_AMP_PKT_CNT = 5;
 #endif /* IS_ENABLED(CONFIG_NINTENDO_FF) */
 static const u16 JC_RUMBLE_PERIOD_MS = 50;
 
@@ -401,8 +402,6 @@ struct joycon_input_report {
 #define JC_MAX_RESP_SIZE	(sizeof(struct joycon_input_report) + 35)
 #define JC_RUMBLE_DATA_SIZE	8
 #define JC_RUMBLE_QUEUE_SIZE	8
-
-static const unsigned short JC_RUMBLE_ZERO_AMP_PKT_CNT = 5;
 
 static const char * const joycon_player_led_names[] = {
 	LED_FUNCTION_PLAYER1,
