@@ -751,7 +751,7 @@ examples:
             #address-cells = <1>;
             #size-cells = <0>;
 
-            iqs626a@44 {
+            touch@44 {
                     #address-cells = <1>;
                     #size-cells = <0>;
 

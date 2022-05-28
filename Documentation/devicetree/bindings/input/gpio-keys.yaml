@@ -127,13 +127,13 @@ examples:
         compatible = "gpio-keys";
         autorepeat;
 
-        up {
+        key-up {
             label = "GPIO Key UP";
             linux,code = <103>;
             gpios = <&gpio1 0 1>;
         };
 
-        down {
+        key-down {
             label = "GPIO Key DOWN";
             linux,code = <108>;
             interrupts = <1 IRQ_TYPE_EDGE_FALLING>;
