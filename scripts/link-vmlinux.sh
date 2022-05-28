@@ -45,45 +45,6 @@ info()
 	printf "  %-7s %s\n" "${1}" "${2}"
 }
 
-# Generate a linker script to ensure correct ordering of initcalls.
-gen_initcalls()
-{
-	info GEN .tmp_initcalls.lds
-
-	${PYTHON3} ${srctree}/scripts/jobserver-exec		\
-	${PERL} ${srctree}/scripts/generate_initcall_order.pl	\
-		${KBUILD_VMLINUX_OBJS} ${KBUILD_VMLINUX_LIBS}	\
-		> .tmp_initcalls.lds
-}
-
-# Link of vmlinux.o used for section mismatch analysis
-# ${1} output file
-modpost_link()
-{
-	local objects
-	local lds=""
-
-	objects="--whole-archive				\
-		${KBUILD_VMLINUX_OBJS}				\
-		--no-whole-archive				\
-		--start-group					\
-		${KBUILD_VMLINUX_LIBS}				\
-		--end-group"
-
-	if is_enabled CONFIG_LTO_CLANG; then
-		gen_initcalls
-		lds="-T .tmp_initcalls.lds"
-
-		# This might take a while, so indicate that we're doing
-		# an LTO link
-		info LTO ${1}
-	else
-		info LD ${1}
-	fi
-
-	${LD} ${KBUILD_LDFLAGS} -r -o ${1} ${lds} ${objects}
-}
-
 objtool_link()
 {
 	local objtoolcmd;
@@ -336,7 +297,7 @@ fi;
 ${MAKE} -f "${srctree}/scripts/Makefile.build" obj=init need-builtin=1
 
 #link vmlinux.o
-modpost_link vmlinux.o
+${MAKE} -f "${srctree}/scripts/Makefile.vmlinux_o"
 objtool_link vmlinux.o
 
 # Generate the list of in-tree objects in vmlinux
