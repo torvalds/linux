@@ -518,6 +518,50 @@ static int cros_ec_keyb_register_bs(struct cros_ec_keyb *ckdev,
 	return 0;
 }
 
+static void cros_ec_keyb_parse_vivaldi_physmap(struct cros_ec_keyb *ckdev)
+{
+	u32 *physmap = ckdev->vdata.function_row_physmap;
+	unsigned int row, col, scancode;
+	int n_physmap;
+	int error;
+	int i;
+
+	n_physmap = device_property_count_u32(ckdev->dev,
+					      "function-row-physmap");
+	if (n_physmap <= 0)
+		return;
+
+	if (n_physmap >= VIVALDI_MAX_FUNCTION_ROW_KEYS) {
+		dev_warn(ckdev->dev,
+			 "only up to %d top row keys is supported (%d specified)\n",
+			 VIVALDI_MAX_FUNCTION_ROW_KEYS, n_physmap);
+		n_physmap = VIVALDI_MAX_FUNCTION_ROW_KEYS;
+	}
+
+	error = device_property_read_u32_array(ckdev->dev,
+					       "function-row-physmap",
+					       physmap, n_physmap);
+	if (error) {
+		dev_warn(ckdev->dev,
+			 "failed to parse function-row-physmap property: %d\n",
+			 error);
+		return;
+	}
+
+	/*
+	 * Convert (in place) from row/column encoding to matrix "scancode"
+	 * used by the driver.
+	 */
+	for (i = 0; i < n_physmap; i++) {
+		row = KEY_ROW(physmap[i]);
+		col = KEY_COL(physmap[i]);
+		scancode = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
+		physmap[i] = scancode;
+	}
+
+	ckdev->vdata.num_function_row_keys = n_physmap;
+}
+
 /**
  * cros_ec_keyb_register_matrix - Register matrix keys
  *
@@ -534,11 +578,6 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	struct input_dev *idev;
 	const char *phys;
 	int err;
-	struct property *prop;
-	const __be32 *p;
-	u32 *physmap;
-	u32 key_pos;
-	unsigned int row, col, scancode, n_physmap;
 
 	err = matrix_keypad_parse_properties(dev, &ckdev->rows, &ckdev->cols);
 	if (err)
@@ -573,7 +612,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	idev->id.product = 0;
 	idev->dev.parent = dev;
 
-	ckdev->ghost_filter = of_property_read_bool(dev->of_node,
+	ckdev->ghost_filter = device_property_read_bool(dev,
 					"google,needs-ghost-filter");
 
 	err = matrix_keypad_build_keymap(NULL, NULL, ckdev->rows, ckdev->cols,
@@ -589,22 +628,7 @@ static int cros_ec_keyb_register_matrix(struct cros_ec_keyb *ckdev)
 	input_set_drvdata(idev, ckdev);
 	ckdev->idev = idev;
 	cros_ec_keyb_compute_valid_keys(ckdev);
-
-	physmap = ckdev->vdata.function_row_physmap;
-	n_physmap = 0;
-	of_property_for_each_u32(dev->of_node, "function-row-physmap",
-				 prop, p, key_pos) {
-		if (n_physmap == VIVALDI_MAX_FUNCTION_ROW_KEYS) {
-			dev_warn(dev, "Only support up to %d top row keys\n",
-				 VIVALDI_MAX_FUNCTION_ROW_KEYS);
-			break;
-		}
-		row = KEY_ROW(key_pos);
-		col = KEY_COL(key_pos);
-		scancode = MATRIX_SCAN_CODE(row, col, ckdev->row_shift);
-		physmap[n_physmap++] = scancode;
-	}
-	ckdev->vdata.num_function_row_keys = n_physmap;
+	cros_ec_keyb_parse_vivaldi_physmap(ckdev);
 
 	err = input_register_device(ckdev->idev);
 	if (err) {
