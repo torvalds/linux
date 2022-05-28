@@ -68,8 +68,8 @@ static const struct {
  * struct cxl_command_info - Command information returned from a query.
  * @id: ID number for the command.
  * @flags: Flags that specify command behavior.
- * @size_in: Expected input size, or -1 if variable length.
- * @size_out: Expected output size, or -1 if variable length.
+ * @size_in: Expected input size, or ~0 if variable length.
+ * @size_out: Expected output size, or ~0 if variable length.
  *
  * Represents a single command that is supported by both the driver and the
  * hardware. This is returned as part of an array from the query ioctl. The
@@ -78,7 +78,7 @@ static const struct {
  *
  *  - @id = 10
  *  - @flags = 0
- *  - @size_in = -1
+ *  - @size_in = ~0
  *  - @size_out = 0
  *
  * See struct cxl_mem_query_commands.
@@ -89,8 +89,8 @@ struct cxl_command_info {
 	__u32 flags;
 #define CXL_MEM_COMMAND_FLAG_MASK GENMASK(0, 0)
 
-	__s32 size_in;
-	__s32 size_out;
+	__u32 size_in;
+	__u32 size_out;
 };
 
 /**
@@ -169,13 +169,13 @@ struct cxl_send_command {
 	__u32 retval;
 
 	struct {
-		__s32 size;
+		__u32 size;
 		__u32 rsvd;
 		__u64 payload;
 	} in;
 
 	struct {
-		__s32 size;
+		__u32 size;
 		__u32 rsvd;
 		__u64 payload;
 	} out;
