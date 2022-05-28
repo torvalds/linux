@@ -14,7 +14,6 @@
 
 #include <asm/machdep.h>
 #include <asm/ipic.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 
 #include <sysdev/fsl_pci.h>

@@ -40,10 +40,10 @@
 #include <linux/mutex.h>
 #include <linux/i2c.h>
 #include <linux/slab.h>
+#include <linux/of_irq.h>
 #include <asm/keylargo.h>
 #include <asm/uninorth.h>
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/smu.h>
 #include <asm/pmac_pfunc.h>
@@ -1472,7 +1472,7 @@ int __init pmac_i2c_init(void)
 	smu_i2c_probe();
 #endif
 
-	/* Now add plaform functions for some known devices */
+	/* Now add platform functions for some known devices */
 	pmac_i2c_devscan(pmac_i2c_dev_create);
 
 	return 0;

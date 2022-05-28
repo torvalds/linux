@@ -99,7 +99,7 @@ static unsigned long get_plt_size(const Elf32_Ehdr *hdr,
 
 			/* Sort the relocation information based on a symbol and
 			 * addend key. This is a stable O(n*log n) complexity
-			 * alogrithm but it will reduce the complexity of
+			 * algorithm but it will reduce the complexity of
 			 * count_relocs() to linear complexity O(n)
 			 */
 			sort((void *)hdr + sechdrs[i].sh_offset,
@@ -256,9 +256,8 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			       value, (uint32_t)location);
 			pr_debug("Location before: %08X.\n",
 			       *(uint32_t *)location);
-			value = (*(uint32_t *)location & ~0x03fffffc)
-				| ((value - (uint32_t)location)
-				   & 0x03fffffc);
+			value = (*(uint32_t *)location & ~PPC_LI_MASK) |
+				PPC_LI(value - (uint32_t)location);
 
 			if (patch_instruction(location, ppc_inst(value)))
 				return -EFAULT;
@@ -266,10 +265,8 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 			pr_debug("Location after: %08X.\n",
 			       *(uint32_t *)location);
 			pr_debug("ie. jump to %08X+%08X = %08X\n",
-			       *(uint32_t *)location & 0x03fffffc,
-			       (uint32_t)location,
-			       (*(uint32_t *)location & 0x03fffffc)
-			       + (uint32_t)location);
+				 *(uint32_t *)PPC_LI((uint32_t)location), (uint32_t)location,
+				 (*(uint32_t *)PPC_LI((uint32_t)location)) + (uint32_t)location);
 			break;
 
 		case R_PPC_REL32:
@@ -289,23 +286,32 @@ int apply_relocate_add(Elf32_Shdr *sechdrs,
 }
 
 #ifdef CONFIG_DYNAMIC_FTRACE
-int module_trampoline_target(struct module *mod, unsigned long addr,
-			     unsigned long *target)
+notrace int module_trampoline_target(struct module *mod, unsigned long addr,
+				     unsigned long *target)
 {
-	unsigned int jmp[4];
+	ppc_inst_t jmp[4];
 
 	/* Find where the trampoline jumps to */
-	if (copy_from_kernel_nofault(jmp, (void *)addr, sizeof(jmp)))
+	if (copy_inst_from_kernel_nofault(jmp, (void *)addr))
+		return -EFAULT;
+	if (__copy_inst_from_kernel_nofault(jmp + 1, (void *)addr + 4))
+		return -EFAULT;
+	if (__copy_inst_from_kernel_nofault(jmp + 2, (void *)addr + 8))
+		return -EFAULT;
+	if (__copy_inst_from_kernel_nofault(jmp + 3, (void *)addr + 12))
 		return -EFAULT;
 
 	/* verify that this is what we expect it to be */
-	if ((jmp[0] & 0xffff0000) != PPC_RAW_LIS(_R12, 0) ||
-	    (jmp[1] & 0xffff0000) != PPC_RAW_ADDI(_R12, _R12, 0) ||
-	    jmp[2] != PPC_RAW_MTCTR(_R12) ||
-	    jmp[3] != PPC_RAW_BCTR())
+	if ((ppc_inst_val(jmp[0]) & 0xffff0000) != PPC_RAW_LIS(_R12, 0))
+		return -EINVAL;
+	if ((ppc_inst_val(jmp[1]) & 0xffff0000) != PPC_RAW_ADDI(_R12, _R12, 0))
+		return -EINVAL;
+	if (ppc_inst_val(jmp[2]) != PPC_RAW_MTCTR(_R12))
+		return -EINVAL;
+	if (ppc_inst_val(jmp[3]) != PPC_RAW_BCTR())
 		return -EINVAL;
 
-	addr = (jmp[1] & 0xffff) | ((jmp[0] & 0xffff) << 16);
+	addr = (ppc_inst_val(jmp[1]) & 0xffff) | ((ppc_inst_val(jmp[0]) & 0xffff) << 16);
 	if (addr & 0x8000)
 		addr -= 0x10000;
 

@@ -31,7 +31,6 @@
 #include <linux/cpu.h>
 #include <linux/pgtable.h>
 
-#include <asm/prom.h>
 #include <asm/rtas.h>
 #include <asm/page.h>
 #include <asm/processor.h>

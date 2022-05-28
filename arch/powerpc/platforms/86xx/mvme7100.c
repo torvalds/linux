@@ -19,6 +19,7 @@
 
 #include <linux/pci.h>
 #include <linux/of.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/of_address.h>
 #include <asm/udbg.h>

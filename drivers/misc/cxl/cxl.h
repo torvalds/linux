@@ -25,6 +25,8 @@
 
 extern uint cxl_verbose;
 
+struct property;
+
 #define CXL_TIMEOUT 5
 
 /*

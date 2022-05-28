@@ -66,6 +66,11 @@ struct rt_sigframe {
 	char abigap[USER_REDZONE_SIZE];
 } __attribute__ ((aligned (16)));
 
+unsigned long get_min_sigframe_size_64(void)
+{
+	return sizeof(struct rt_sigframe) + __SIGNAL_FRAMESIZE;
+}
+
 /*
  * This computes a quad word aligned pointer inside the vmx_reserve array
  * element. For historical reasons sigcontext might not be quad word aligned,
@@ -123,7 +128,7 @@ static long notrace __unsafe_setup_sigcontext(struct sigcontext __user *sc,
 #endif
 	struct pt_regs *regs = tsk->thread.regs;
 	unsigned long msr = regs->msr;
-	/* Force usr to alway see softe as 1 (interrupts enabled) */
+	/* Force usr to always see softe as 1 (interrupts enabled) */
 	unsigned long softe = 0x1;
 
 	BUG_ON(tsk != current);

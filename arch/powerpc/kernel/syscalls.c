@@ -73,7 +73,7 @@ SYSCALL_DEFINE6(mmap, unsigned long, addr, size_t, len,
 int
 ppc_select(int n, fd_set __user *inp, fd_set __user *outp, fd_set __user *exp, struct __kernel_old_timeval __user *tvp)
 {
-	if ( (unsigned long)n >= 4096 )
+	if ((unsigned long)n >= 4096)
 		return sys_old_select((void __user *)n);
 
 	return sys_select(n, inp, outp, exp, tvp);

@@ -38,8 +38,6 @@ extern struct pci_dev *isa_bridge_pcidev;
 #define SIO_CONFIG_RA	0x398
 #define SIO_CONFIG_RD	0x399
 
-#define SLOW_DOWN_IO
-
 /* 32 bits uses slightly different variables for the various IO
  * bases. Most of this file only uses _IO_BASE though which we
  * define properly based on the platform

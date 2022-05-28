@@ -14,11 +14,11 @@
  */
 
 #include <linux/init.h>
+#include <linux/of_fdt.h>
 #include <linux/of_platform.h>
 #include <linux/rtc.h>
 
 #include <asm/machdep.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/time.h>
 #include <asm/uic.h>

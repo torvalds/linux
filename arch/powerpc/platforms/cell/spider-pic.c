@@ -10,9 +10,10 @@
 #include <linux/interrupt.h>
 #include <linux/irq.h>
 #include <linux/ioport.h>
+#include <linux/of_address.h>
+#include <linux/of_irq.h>
 #include <linux/pgtable.h>
 
-#include <asm/prom.h>
 #include <asm/io.h>
 
 #include "interrupt.h"

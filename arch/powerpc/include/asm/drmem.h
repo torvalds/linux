@@ -23,6 +23,9 @@ struct drmem_lmb_info {
 	u64                     lmb_size;
 };
 
+struct device_node;
+struct property;
+
 extern struct drmem_lmb_info *drmem_info;
 
 static inline struct drmem_lmb *drmem_lmb_next(struct drmem_lmb *lmb,

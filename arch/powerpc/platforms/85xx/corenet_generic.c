@@ -19,7 +19,6 @@
 #include <asm/pci-bridge.h>
 #include <asm/ppc-pci.h>
 #include <mm/mmu_decl.h>
-#include <asm/prom.h>
 #include <asm/udbg.h>
 #include <asm/mpic.h>
 #include <asm/ehv_pic.h>

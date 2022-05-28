@@ -74,26 +74,26 @@ struct vas_sysfs_entry {
 
 /*
  * Create sysfs interface:
- * /sys/devices/vas/vas0/gzip/default_capabilities
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities
  *	This directory contains the following VAS GZIP capabilities
- *	for the defaule credit type.
- * /sys/devices/vas/vas0/gzip/default_capabilities/nr_total_credits
+ *	for the default credit type.
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities/nr_total_credits
  *	Total number of default credits assigned to the LPAR which
  *	can be changed with DLPAR operation.
- * /sys/devices/vas/vas0/gzip/default_capabilities/nr_used_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities/nr_used_credits
  *	Number of credits used by the user space. One credit will
  *	be assigned for each window open.
  *
- * /sys/devices/vas/vas0/gzip/qos_capabilities
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities
  *	This directory contains the following VAS GZIP capabilities
  *	for the Quality of Service (QoS) credit type.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/nr_total_credits
  *	Total number of QoS credits assigned to the LPAR. The user
  *	has to define this value using HMC interface. It can be
  *	changed dynamically by the user.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_used_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/nr_used_credits
  *	Number of credits used by the user space.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/update_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/update_total_credits
  *	Update total QoS credits dynamically
  */
 
@@ -248,6 +248,7 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps)
 	pseries_vas_kobj = kobject_create_and_add("vas0",
 					&vas_miscdev.this_device->kobj);
 	if (!pseries_vas_kobj) {
+		misc_deregister(&vas_miscdev);
 		pr_err("Failed to create VAS sysfs entry\n");
 		return -ENOMEM;
 	}
@@ -259,6 +260,7 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps)
 		if (!gzip_caps_kobj) {
 			pr_err("Failed to create VAS GZIP capability entry\n");
 			kobject_put(pseries_vas_kobj);
+			misc_deregister(&vas_miscdev);
 			return -ENOMEM;
 		}
 	}

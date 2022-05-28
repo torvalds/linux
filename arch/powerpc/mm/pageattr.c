@@ -31,6 +31,7 @@ static int change_page_attr(pte_t *ptep, unsigned long addr, void *data)
 {
 	long action = (long)data;
 
+	addr &= PAGE_MASK;
 	/* modify the PTE bits as desired */
 	switch (action) {
 	case SET_MEMORY_RO:
