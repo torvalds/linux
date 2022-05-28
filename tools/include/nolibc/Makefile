@@ -31,6 +31,23 @@ all_files := ctype.h errno.h nolibc.h signal.h std.h stdio.h stdlib.h string.h \
 # install all headers needed to support a bare-metal compiler
 all: headers
 
+install: help
+
+help:
+	@echo "Supported targets under nolibc:"
+	@echo "  all                 call \"headers\""
+	@echo "  clean               clean the sysroot"
+	@echo "  headers             prepare a sysroot in tools/include/nolibc/sysroot"
+	@echo "  headers_standalone  like \"headers\", and also install kernel headers"
+	@echo "  help                this help"
+	@echo ""
+	@echo "These targets may also be called from tools as \"make nolibc_<target>\"."
+	@echo ""
+	@echo "Currently using the following variables:"
+	@echo "  ARCH    = $(ARCH)"
+	@echo "  OUTPUT  = $(OUTPUT)"
+	@echo ""
+
 # Note: when ARCH is "x86" we concatenate both x86_64 and i386
 headers:
 	$(Q)mkdir -p $(OUTPUT)sysroot
