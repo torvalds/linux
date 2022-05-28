@@ -4376,7 +4376,7 @@ void e1000_rar_set(struct e1000_hw *hw, u8 *addr, u32 index)
 /**
  * e1000_write_vfta - Writes a value to the specified offset in the VLAN filter table.
  * @hw: Struct containing variables accessed by shared code
- * @offset: Offset in VLAN filer table to write
+ * @offset: Offset in VLAN filter table to write
  * @value: Value to write into VLAN filter table
  */
 void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
@@ -4396,7 +4396,7 @@ void e1000_write_vfta(struct e1000_hw *hw, u32 offset, u32 value)
 }
 
 /**
- * e1000_clear_vfta - Clears the VLAN filer table
+ * e1000_clear_vfta - Clears the VLAN filter table
  * @hw: Struct containing variables accessed by shared code
  */
 static void e1000_clear_vfta(struct e1000_hw *hw)
