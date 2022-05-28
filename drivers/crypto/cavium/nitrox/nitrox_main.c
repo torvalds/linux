@@ -269,15 +269,17 @@ static void nitrox_remove_from_devlist(struct nitrox_device *ndev)
 
 struct nitrox_device *nitrox_get_first_device(void)
 {
-	struct nitrox_device *ndev;
+	struct nitrox_device *ndev = NULL, *iter;
 
 	mutex_lock(&devlist_lock);
-	list_for_each_entry(ndev, &ndevlist, list) {
-		if (nitrox_ready(ndev))
+	list_for_each_entry(iter, &ndevlist, list) {
+		if (nitrox_ready(iter)) {
+			ndev = iter;
 			break;
+		}
 	}
 	mutex_unlock(&devlist_lock);
-	if (&ndev->list == &ndevlist)
+	if (!ndev)
 		return NULL;
 
 	refcount_inc(&ndev->refcnt);
