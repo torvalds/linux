@@ -29,7 +29,7 @@ all_files := ctype.h errno.h nolibc.h signal.h std.h stdio.h stdlib.h string.h \
              sys.h time.h types.h unistd.h
 
 # install all headers needed to support a bare-metal compiler
-all:
+all: headers
 
 # Note: when ARCH is "x86" we concatenate both x86_64 and i386
 headers:
