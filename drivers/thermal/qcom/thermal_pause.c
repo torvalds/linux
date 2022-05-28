@@ -102,7 +102,7 @@ static int thermal_pause_work(struct thermal_pause_cdev *thermal_pause_cdev)
 	pr_debug("Pause:%*pbl\n", cpumask_pr_args(&thermal_pause_cdev->cpu_mask));
 
 	mutex_unlock(&cpus_pause_lock);
-	ret = walt_pause_cpus(&cpus_to_pause);
+	ret = walt_pause_cpus(&cpus_to_pause, PAUSE_THERMAL);
 	mutex_lock(&cpus_pause_lock);
 
 	if (ret == 0) {
@@ -149,7 +149,7 @@ static int thermal_resume_work(struct thermal_pause_cdev *thermal_pause_cdev)
 	pr_debug("Unpause:%*pbl\n", cpumask_pr_args(&cpus_to_unpause));
 
 	mutex_unlock(&cpus_pause_lock);
-	ret = walt_resume_cpus(&cpus_to_unpause);
+	ret = walt_resume_cpus(&cpus_to_unpause, PAUSE_THERMAL);
 	mutex_lock(&cpus_pause_lock);
 
 	if (ret == 0) {
