@@ -1013,8 +1013,8 @@ out:
 	 * the vcpu state. Note that this relies on __kvm_adjust_pc()
 	 * being preempt-safe on VHE.
 	 */
-	if (unlikely(vcpu->arch.flags & (KVM_ARM64_PENDING_EXCEPTION |
-					 KVM_ARM64_INCREMENT_PC)))
+	if (unlikely(vcpu_get_flag(vcpu, PENDING_EXCEPTION) ||
+		     vcpu_get_flag(vcpu, INCREMENT_PC)))
 		kvm_call_hyp(__kvm_adjust_pc, vcpu);
 
 	vcpu_put(vcpu);
