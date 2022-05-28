@@ -12,6 +12,7 @@
 // expensive.
 
 #include <linux/module.h>
+#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/i2c.h>
 #include <linux/input.h>
@@ -677,14 +678,19 @@ static const struct attribute_group cros_ec_keyb_attr_group = {
 
 static int cros_ec_keyb_probe(struct platform_device *pdev)
 {
-	struct cros_ec_device *ec = dev_get_drvdata(pdev->dev.parent);
+	struct cros_ec_device *ec;
 	struct device *dev = &pdev->dev;
 	struct cros_ec_keyb *ckdev;
 	bool buttons_switches_only = device_get_match_data(dev);
 	int err;
 
-	if (!dev->of_node)
-		return -ENODEV;
+	/*
+	 * If the parent ec device has not been probed yet, defer the probe of
+	 * this keyboard/button driver until later.
+	 */
+	ec = dev_get_drvdata(pdev->dev.parent);
+	if (!ec)
+		return -EPROBE_DEFER;
 
 	ckdev = devm_kzalloc(dev, sizeof(*ckdev), GFP_KERNEL);
 	if (!ckdev)
@@ -737,6 +743,14 @@ static int cros_ec_keyb_remove(struct platform_device *pdev)
 	return 0;
 }
 
+#ifdef CONFIG_ACPI
+static const struct acpi_device_id cros_ec_keyb_acpi_match[] = {
+	{ "GOOG0007", true },
+	{ }
+};
+MODULE_DEVICE_TABLE(acpi, cros_ec_keyb_acpi_match);
+#endif
+
 #ifdef CONFIG_OF
 static const struct of_device_id cros_ec_keyb_of_match[] = {
 	{ .compatible = "google,cros-ec-keyb" },
@@ -754,6 +768,7 @@ static struct platform_driver cros_ec_keyb_driver = {
 	.driver = {
 		.name = "cros-ec-keyb",
 		.of_match_table = of_match_ptr(cros_ec_keyb_of_match),
+		.acpi_match_table = ACPI_PTR(cros_ec_keyb_acpi_match),
 		.pm = &cros_ec_keyb_pm_ops,
 	},
 };
