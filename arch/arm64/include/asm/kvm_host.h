@@ -332,9 +332,6 @@ struct kvm_vcpu_arch {
 		FP_STATE_GUEST_OWNED,
 	} fp_state;
 
-	/* Miscellaneous vcpu state flags */
-	u64 flags;
-
 	/* Configuration flags, set once and for all before the vcpu can run */
 	u64 cflags;
 
