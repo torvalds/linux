@@ -6,6 +6,9 @@ __default: vmlinux.o
 include include/config/auto.conf
 include $(srctree)/scripts/Kbuild.include
 
+# for objtool
+include $(srctree)/scripts/Makefile.lib
+
 # Generate a linker script to ensure correct ordering of initcalls for Clang LTO
 # ---------------------------------------------------------------------------
 
@@ -24,6 +27,27 @@ ifdef CONFIG_LTO_CLANG
 initcalls-lds := .tmp_initcalls.lds
 endif
 
+# objtool for vmlinux.o
+# ---------------------------------------------------------------------------
+#
+# For LTO and IBT, objtool doesn't run on individual translation units.
+# Run everything on vmlinux instead.
+
+objtool-enabled := $(or $(delay-objtool),$(CONFIG_NOINSTR_VALIDATION))
+
+# Reuse objtool_args defined in scripts/Makefile.lib if LTO or IBT is enabled.
+#
+# Add some more flags as needed.
+# --no-unreachable and --link might be added twice, but it is fine.
+#
+# Expand objtool_args to a simple variable to avoid circular reference.
+
+objtool_args := \
+	$(if $(delay-objtool),$(objtool_args)) \
+	$(if $(CONFIG_NOINSTR_VALIDATION), --noinstr) \
+	$(if $(CONFIG_GCOV_KERNEL), --no-unreachable) \
+	--link
+
 # Link of vmlinux.o used for section mismatch analysis
 # ---------------------------------------------------------------------------
 
@@ -33,9 +57,11 @@ quiet_cmd_ld_vmlinux.o = LD      $@
 	$(addprefix -T , $(initcalls-lds)) \
 	--whole-archive $(KBUILD_VMLINUX_OBJS) --no-whole-archive \
 	--start-group $(KBUILD_VMLINUX_LIBS) --end-group \
+	$(cmd_objtool)
 
 define rule_ld_vmlinux.o
 	$(call cmd_and_savecmd,ld_vmlinux.o)
+	$(call cmd,gen_objtooldep)
 endef
 
 vmlinux.o: $(initcalls-lds) $(KBUILD_VMLINUX_OBJS) $(KBUILD_VMLINUX_LIBS) FORCE
