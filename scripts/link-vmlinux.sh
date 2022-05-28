@@ -309,8 +309,6 @@ cleanup()
 	rm -f System.map
 	rm -f vmlinux
 	rm -f vmlinux.map
-	rm -f vmlinux.o
-	rm -f .vmlinux.d
 	rm -f .vmlinux.objs
 	rm -f .vmlinux.export.c
 }
