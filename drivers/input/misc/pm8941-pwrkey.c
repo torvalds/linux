@@ -78,6 +78,7 @@ struct pm8941_pwrkey {
 	u32 code;
 	u32 sw_debounce_time_us;
 	ktime_t last_release_time;
+	bool last_status;
 	const struct pm8941_data *data;
 };
 
@@ -170,6 +171,16 @@ static irqreturn_t pm8941_pwrkey_irq(int irq, void *_data)
 	if (pwrkey->sw_debounce_time_us && !sts)
 		pwrkey->last_release_time = ktime_get();
 
+	/*
+	 * Simulate a press event in case a release event occurred without a
+	 * corresponding press event.
+	 */
+	if (!pwrkey->last_status && !sts) {
+		input_report_key(pwrkey->input, pwrkey->code, 1);
+		input_sync(pwrkey->input);
+	}
+	pwrkey->last_status = sts;
+
 	input_report_key(pwrkey->input, pwrkey->code, sts);
 	input_sync(pwrkey->input);
 
@@ -256,6 +267,10 @@ static int pm8941_pwrkey_probe(struct platform_device *pdev)
 
 	pwrkey->dev = &pdev->dev;
 	pwrkey->data = of_device_get_match_data(&pdev->dev);
+	if (!pwrkey->data) {
+		dev_err(&pdev->dev, "match data not found\n");
+		return -ENODEV;
+	}
 
 	parent = pdev->dev.parent;
 	regmap_node = pdev->dev.of_node;
