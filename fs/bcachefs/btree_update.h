@@ -140,4 +140,17 @@ static inline int bch2_trans_commit(struct btree_trans *trans,
 	     (_i) < (_trans)->updates + (_trans)->nr_updates;		\
 	     (_i)++)
 
+static inline void bch2_trans_reset_updates(struct btree_trans *trans)
+{
+	struct btree_insert_entry *i;
+
+	trans_for_each_update(trans, i)
+		bch2_path_put(trans, i->path, true);
+
+	trans->extra_journal_res	= 0;
+	trans->nr_updates		= 0;
+	trans->hooks			= NULL;
+	trans->extra_journal_entries.nr	= 0;
+}
+
 #endif /* _BCACHEFS_BTREE_UPDATE_H */

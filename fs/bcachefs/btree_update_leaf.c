@@ -1177,13 +1177,7 @@ out:
 	if (likely(!(trans->flags & BTREE_INSERT_NOCHECK_RW)))
 		percpu_ref_put(&c->writes);
 out_reset:
-	trans_for_each_update(trans, i)
-		bch2_path_put(trans, i->path, true);
-
-	trans->extra_journal_res	= 0;
-	trans->nr_updates		= 0;
-	trans->hooks			= NULL;
-	trans->extra_journal_entries.nr	= 0;
+	bch2_trans_reset_updates(trans);
 
 	if (trans->fs_usage_deltas) {
 		trans->fs_usage_deltas->used = 0;
