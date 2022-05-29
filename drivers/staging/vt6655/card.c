@@ -723,9 +723,9 @@ u64 CARDqGetTSFOffset(unsigned char byRxRate, u64 qwTSF1, u64 qwTSF2)
  *  In:
  *      priv         - The adapter to be read
  *  Out:
- *      qwCurrTSF       - Current TSF counter
+ *      none
  *
- * Return Value: true if success; otherwise false
+ * Return Value: Current TSF counter
  */
 u64 vt6655_get_current_tsf(struct vnt_private *priv)
 {
