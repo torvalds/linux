@@ -1353,4 +1353,40 @@ clean_exit:
 
 	return (ret == 0);
 }
+
 #endif
+
+enum dc_status dm_dp_mst_is_port_support_mode(
+	struct amdgpu_dm_connector *aconnector,
+	struct dc_stream_state *stream)
+{
+	int bpp, pbn, branch_max_throughput_mps = 0;
+
+	/* check if mode could be supported within fUll_pbn */
+	bpp = convert_dc_color_depth_into_bpc(stream->timing.display_color_depth) * 3;
+	pbn = drm_dp_calc_pbn_mode(stream->timing.pix_clk_100hz / 10, bpp, false);
+	if (pbn > aconnector->port->full_pbn)
+		return DC_FAIL_BANDWIDTH_VALIDATE;
+
+	/* check is mst dsc output bandwidth branch_overall_throughput_0_mps */
+	switch (stream->timing.pixel_encoding) {
+	case PIXEL_ENCODING_RGB:
+	case PIXEL_ENCODING_YCBCR444:
+		branch_max_throughput_mps =
+			aconnector->dc_sink->dsc_caps.dsc_dec_caps.branch_overall_throughput_0_mps;
+		break;
+	case PIXEL_ENCODING_YCBCR422:
+	case PIXEL_ENCODING_YCBCR420:
+		branch_max_throughput_mps =
+			aconnector->dc_sink->dsc_caps.dsc_dec_caps.branch_overall_throughput_1_mps;
+		break;
+	default:
+		break;
+	}
+
+	if (branch_max_throughput_mps != 0 &&
+		((stream->timing.pix_clk_100hz / 10) >  branch_max_throughput_mps * 1000))
+		return DC_FAIL_BANDWIDTH_VALIDATE;
+
+	return DC_OK;
+}
