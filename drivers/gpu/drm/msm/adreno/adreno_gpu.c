@@ -21,6 +21,10 @@
 #include "msm_gem.h"
 #include "msm_mmu.h"
 
+static u64 address_space_size = 0;
+MODULE_PARM_DESC(address_space_size, "Override for size of processes private GPU address space");
+module_param(address_space_size, ullong, 0600);
+
 static bool zap_available = true;
 
 static int zap_shader_load_mdt(struct msm_gpu *gpu, const char *fwname,
@@ -226,6 +230,19 @@ adreno_iommu_create_address_space(struct msm_gpu *gpu,
 		mmu->funcs->destroy(mmu);
 
 	return aspace;
+}
+
+u64 adreno_private_address_space_size(struct msm_gpu *gpu)
+{
+	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
+
+	if (address_space_size)
+		return address_space_size;
+
+	if (adreno_gpu->info->address_space_size)
+		return adreno_gpu->info->address_space_size;
+
+	return SZ_4G;
 }
 
 int adreno_get_param(struct msm_gpu *gpu, struct msm_file_private *ctx,
