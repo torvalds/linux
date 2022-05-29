@@ -239,6 +239,7 @@ enum idxd_device_flag {
 	IDXD_FLAG_CONFIGURABLE = 0,
 	IDXD_FLAG_CMD_RUNNING,
 	IDXD_FLAG_PASID_ENABLED,
+	IDXD_FLAG_USER_PASID_ENABLED,
 };
 
 struct idxd_dma_dev {
@@ -469,9 +470,20 @@ static inline bool device_pasid_enabled(struct idxd_device *idxd)
 	return test_bit(IDXD_FLAG_PASID_ENABLED, &idxd->flags);
 }
 
-static inline bool device_swq_supported(struct idxd_device *idxd)
+static inline bool device_user_pasid_enabled(struct idxd_device *idxd)
 {
-	return (support_enqcmd && device_pasid_enabled(idxd));
+	return test_bit(IDXD_FLAG_USER_PASID_ENABLED, &idxd->flags);
+}
+
+static inline bool wq_pasid_enabled(struct idxd_wq *wq)
+{
+	return (is_idxd_wq_kernel(wq) && device_pasid_enabled(wq->idxd)) ||
+	       (is_idxd_wq_user(wq) && device_user_pasid_enabled(wq->idxd));
+}
+
+static inline bool wq_shared_supported(struct idxd_wq *wq)
+{
+	return (support_enqcmd && wq_pasid_enabled(wq));
 }
 
 enum idxd_portal_prot {
@@ -559,9 +571,7 @@ void idxd_unregister_idxd_drv(void);
 int idxd_device_drv_probe(struct idxd_dev *idxd_dev);
 void idxd_device_drv_remove(struct idxd_dev *idxd_dev);
 int drv_enable_wq(struct idxd_wq *wq);
-int __drv_enable_wq(struct idxd_wq *wq);
 void drv_disable_wq(struct idxd_wq *wq);
-void __drv_disable_wq(struct idxd_wq *wq);
 int idxd_device_init_reset(struct idxd_device *idxd);
 int idxd_device_enable(struct idxd_device *idxd);
 int idxd_device_disable(struct idxd_device *idxd);
@@ -602,8 +612,6 @@ int idxd_enqcmds(struct idxd_wq *wq, void __iomem *portal, const void *desc);
 /* dmaengine */
 int idxd_register_dma_device(struct idxd_device *idxd);
 void idxd_unregister_dma_device(struct idxd_device *idxd);
-int idxd_register_dma_channel(struct idxd_wq *wq);
-void idxd_unregister_dma_channel(struct idxd_wq *wq);
 void idxd_parse_completion_status(u8 status, enum dmaengine_tx_result *res);
 void idxd_dma_complete_txd(struct idxd_desc *desc,
 			   enum idxd_complete_type comp_type, bool free_desc);

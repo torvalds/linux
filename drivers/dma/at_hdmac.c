@@ -942,6 +942,7 @@ atc_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 	struct at_desc		*desc;
 	void __iomem		*vaddr;
 	dma_addr_t		paddr;
+	char			fill_pattern;
 
 	dev_vdbg(chan2dev(chan), "%s: d%pad v0x%x l0x%zx f0x%lx\n", __func__,
 		&dest, value, len, flags);
@@ -963,7 +964,14 @@ atc_prep_dma_memset(struct dma_chan *chan, dma_addr_t dest, int value,
 			__func__);
 		return NULL;
 	}
-	*(u32*)vaddr = value;
+
+	/* Only the first byte of value is to be used according to dmaengine */
+	fill_pattern = (char)value;
+
+	*(u32*)vaddr = (fill_pattern << 24) |
+		       (fill_pattern << 16) |
+		       (fill_pattern << 8) |
+		       fill_pattern;
 
 	desc = atc_create_memset_desc(chan, paddr, dest, len);
 	if (!desc) {
