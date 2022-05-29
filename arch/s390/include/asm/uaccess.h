@@ -55,9 +55,6 @@ copy_to_user_key(void __user *to, const void *from, unsigned long n, unsigned lo
 	return n;
 }
 
-int __put_user_bad(void) __attribute__((noreturn));
-int __get_user_bad(void) __attribute__((noreturn));
-
 union oac {
 	unsigned int val;
 	struct {
@@ -79,6 +76,8 @@ union oac {
 		} oac2;
 	};
 };
+
+int __noreturn __put_user_bad(void);
 
 #define __put_user_asm(to, from, size)					\
 ({									\
@@ -133,6 +132,8 @@ static __always_inline int __put_user_fn(void *x, void __user *ptr, unsigned lon
 	}
 	return rc;
 }
+
+int __noreturn __get_user_bad(void);
 
 #define __get_user_asm(to, from, size)					\
 ({									\
