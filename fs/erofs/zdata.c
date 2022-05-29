@@ -1436,22 +1436,19 @@ static void z_erofs_pcluster_readmore(struct z_erofs_decompress_frontend *f,
 		struct page *page;
 
 		page = erofs_grab_cache_page_nowait(inode->i_mapping, index);
-		if (!page)
-			goto skip;
-
-		if (PageUptodate(page)) {
-			unlock_page(page);
+		if (page) {
+			if (PageUptodate(page)) {
+				unlock_page(page);
+			} else {
+				err = z_erofs_do_read_page(f, page, pagepool);
+				if (err)
+					erofs_err(inode->i_sb,
+						  "readmore error at page %lu @ nid %llu",
+						  index, EROFS_I(inode)->nid);
+			}
 			put_page(page);
-			goto skip;
 		}
 
-		err = z_erofs_do_read_page(f, page, pagepool);
-		if (err)
-			erofs_err(inode->i_sb,
-				  "readmore error at page %lu @ nid %llu",
-				  index, EROFS_I(inode)->nid);
-		put_page(page);
-skip:
 		if (cur < PAGE_SIZE)
 			break;
 		cur = (index << PAGE_SHIFT) - 1;
