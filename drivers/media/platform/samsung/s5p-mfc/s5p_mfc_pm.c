@@ -88,7 +88,6 @@ int s5p_mfc_power_on(void)
 		if (ret < 0) {
 			mfc_err("clock prepare failed for clock: %s\n",
 				pm->clk_names[i]);
-			i++;
 			goto err;
 		}
 	}
@@ -98,7 +97,7 @@ int s5p_mfc_power_on(void)
 
 	return 0;
 err:
-	while (--i > 0)
+	while (--i >= 0)
 		clk_disable_unprepare(pm->clocks[i]);
 	pm_runtime_put(pm->device);
 	return ret;
