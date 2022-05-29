@@ -17,4 +17,3 @@ vs_drm-$(CONFIG_STARFIVE_INNO_HDMI) += inno_hdmi.o
 vs_drm-$(CONFIG_STARFIVE_DSI) += starfive_drm_dsi.o starfive_drm_seeedpanel.o
 obj-$(CONFIG_DRM_VERISILICON) += vs_drm.o
 
-obj-y+= adv7511/

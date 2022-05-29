@@ -125,8 +125,8 @@ void encoder_atomic_enable(struct drm_encoder *encoder,
 	crtc_id = drm_of_encoder_active_endpoint_id(
 				simple->dev->of_node, encoder);
 
-	//regmap_update_bits(simple->dss_regmap, 0, data[crtc_id].mask,
-	//		  data[crtc_id].value);
+	regmap_update_bits(simple->dss_regmap, 0, data[crtc_id].mask,
+			  data[crtc_id].value);
 
 	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_8, U0_LCD_DATA_MAPPING_DPI_DP_SEL_MASK, 0);
 	regmap_update_bits(simple->dss_regmap, DOM_VOUT_SYSCON_4, U0_DISPLAY_PANEL_MUX_PANEL_SEL_MASK, 0);

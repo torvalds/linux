@@ -311,7 +311,7 @@ static struct platform_driver *drm_sub_drivers[] = {
 	&starfive_dsi_platform_driver,
 #endif
 	/* encoder */
-	&simple_encoder_driver,
+	//&simple_encoder_driver,
 	//&starfive_encoder_driver,
 
 #ifdef CONFIG_VERISILICON_VIRTUAL_DISPLAY
@@ -482,7 +482,7 @@ static void __exit vs_drm_fini(void)
 	platform_unregister_drivers(drm_sub_drivers, NUM_DRM_DRIVERS);
 }
 
-module_init(vs_drm_init);
+late_initcall_sync(vs_drm_init);
 module_exit(vs_drm_fini);
 
 MODULE_DESCRIPTION("VeriSilicon DRM Driver");

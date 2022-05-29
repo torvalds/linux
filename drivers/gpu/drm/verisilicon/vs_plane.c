@@ -303,12 +303,10 @@ struct vs_plane *vs_plane_create(struct drm_device *drm_dev,
 
 	if (!info)
 		return NULL;
-	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	plane = kzalloc(sizeof(struct vs_plane), GFP_KERNEL);
 	if (!plane)
 		return NULL;
-	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	ret = drm_universal_plane_init(drm_dev, &plane->base, possible_crtcs,
 				&vs_plane_funcs, info->formats,
@@ -316,10 +314,8 @@ struct vs_plane *vs_plane_create(struct drm_device *drm_dev,
 				info->name ? info->name : NULL);
 	if (ret)
 		goto err_free_plane;
-	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	drm_plane_helper_add(&plane->base, &vs_plane_helper_funcs);
-	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	/* Set up the plane properties */
 	if (info->degamma_size) {
@@ -404,7 +400,6 @@ struct vs_plane *vs_plane_create(struct drm_device *drm_dev,
 
 		drm_object_attach_property(&plane->base.base, plane->roi_prop, 0);
 	}
-	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	return plane;
 

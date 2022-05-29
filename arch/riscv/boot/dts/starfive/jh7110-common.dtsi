@@ -121,32 +121,6 @@
 	pinctrl-0 = <&i2c1_pins>;
 	status = "okay";
 
-	adv7513@39 {
-		compatible = "adi,adv7513";
-		reg = <0x39>, <0x49>, <0x29>, <0x59>;
-		reg-names = "main", "edid", "cec", "packet";
-
-		adi,input-depth = <8>;
-		adi,input-colorspace = "rgb";
-		adi,input-clock = "1x";
-		ports {
-			#address-cells = <1>;
-			#size-cells = <0>;
-
-			port@0 {
-				reg = <0>;
-				adv7513_0_in: endpoint {
-					remote-endpoint = <&hdmi_out>;
-				};
-			};
-
-			port@1 {
-				reg = <1>;
-				adv7513_1_out: endpoint {
-				};
-			};
-		};
-	};
 };
 
 &i2c2 {
@@ -169,6 +143,17 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c3_pins>;
 	status = "okay";
+
+	tda998x@70 {
+		compatible = "nxp,tda998x";
+		reg = <0x70>;
+
+		port {
+			tda998x_0_input: endpoint {
+				remote-endpoint = <&hdmi_out>;
+			};
+		};
+	};
 };
 
 &i2c4 {
@@ -626,6 +611,7 @@
 };
 
 &hdmi {
+	status = "okay";
 	hdmi_in: port {
 		#address-cells = <1>;
 		#size-cells = <0>;
@@ -637,8 +623,8 @@
 };
 
 &dc8200 {
-	pinctrl-names = "default";
-	pinctrl-0 = <&rgb_pad_pins>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&rgb_pad_pins>;
 	status = "okay";
 
 	dc_out: port {
@@ -673,7 +659,7 @@
 		port@1 {
 			reg = <1>;
 			hdmi_out:endpoint {
-				remote-endpoint = <&adv7513_0_in>;
+				remote-endpoint = <&tda998x_0_input>;
 			};
 		};
 	};
