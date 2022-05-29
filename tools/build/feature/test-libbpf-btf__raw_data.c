@@ -3,6 +3,6 @@
 
 int main(void)
 {
-	btf__load_from_kernel_by_id(20151128);
+	btf__raw_data(NULL /* btf_ro */, NULL /* size */);
 	return 0;
 }
