@@ -278,12 +278,12 @@ int __noreturn __put_kernel_bad(void);
 	int __rc;							\
 									\
 	asm volatile(							\
-		"0:   " insn "  %2,%1\n"				\
-		"1:	xr	%0,%0\n"				\
+		"0:   " insn "  %[_val],%[_to]\n"			\
+		"1:	xr	%[rc],%[rc]\n"				\
 		"2:\n"							\
 		EX_TABLE_UA(0b,2b,%0) EX_TABLE_UA(1b,2b,%0)		\
-		: "=d" (__rc), "+Q" (*(to))				\
-		: "d" (val)						\
+		: [rc] "=d" (__rc), [_to] "+Q" (*(to))			\
+		: [_val] "d" (val)					\
 		: "cc");						\
 	__rc;								\
 })
@@ -321,12 +321,12 @@ int __noreturn __get_kernel_bad(void);
 	int __rc;							\
 									\
 	asm volatile(							\
-		"0:   " insn "  %1,%2\n"				\
-		"1:	xr	%0,%0\n"				\
+		"0:   " insn "  %[_val],%[_from]\n"			\
+		"1:	xr	%[rc],%[rc]\n"				\
 		"2:\n"							\
 		EX_TABLE_UA(0b,2b,%0) EX_TABLE_UA(1b,2b,%0)		\
-		: "=d" (__rc), "+d" (val)				\
-		: "Q" (*(from))						\
+		: [rc] "=d" (__rc), [_val] "+d" (val)			\
+		: [_from] "Q" (*(from))					\
 		: "cc");						\
 	__rc;								\
 })
