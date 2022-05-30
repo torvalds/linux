@@ -1012,6 +1012,27 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 }
 
+static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
+				unsigned int link_id,
+				struct ieee80211_link_data *link,
+				struct ieee80211_bss_conf *link_conf)
+{
+	sdata->vif.link_conf[link_id] = link_conf;
+	sdata->link[link_id] = link;
+
+	link->sdata = sdata;
+	link->link_id = link_id;
+
+	INIT_WORK(&link->csa_finalize_work,
+		  ieee80211_csa_finalize_work);
+	INIT_WORK(&link->color_change_finalize_work,
+		  ieee80211_color_change_finalize_work);
+	INIT_LIST_HEAD(&link->assigned_chanctx_list);
+	INIT_LIST_HEAD(&link->reserved_chanctx_list);
+	INIT_DELAYED_WORK(&link->dfs_cac_timer_work,
+			  ieee80211_dfs_cac_timer_work);
+}
+
 static void ieee80211_sdata_init(struct ieee80211_local *local,
 				 struct ieee80211_sub_if_data *sdata)
 {
@@ -1025,9 +1046,7 @@ static void ieee80211_sdata_init(struct ieee80211_local *local,
 	 * Note that we never change this, so if link ID 0 isn't used in an
 	 * MLD connection, we get a separate allocation for it.
 	 */
-	sdata->vif.link_conf[0] = &sdata->vif.bss_conf;
-	sdata->link[0] = &sdata->deflink;
-	sdata->deflink.sdata = sdata;
+	ieee80211_link_init(sdata, 0, &sdata->deflink, &sdata->vif.bss_conf);
 }
 
 int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
@@ -1678,12 +1697,6 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 	skb_queue_head_init(&sdata->status_queue);
 	INIT_WORK(&sdata->work, ieee80211_iface_work);
 	INIT_WORK(&sdata->recalc_smps, ieee80211_recalc_smps_work);
-	INIT_WORK(&sdata->deflink.csa_finalize_work,
-		  ieee80211_csa_finalize_work);
-	INIT_WORK(&sdata->deflink.color_change_finalize_work,
-		  ieee80211_color_change_finalize_work);
-	INIT_LIST_HEAD(&sdata->deflink.assigned_chanctx_list);
-	INIT_LIST_HEAD(&sdata->deflink.reserved_chanctx_list);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:
@@ -2100,8 +2113,6 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	INIT_LIST_HEAD(&sdata->key_list);
 
-	INIT_DELAYED_WORK(&sdata->deflink.dfs_cac_timer_work,
-			  ieee80211_dfs_cac_timer_work);
 	INIT_DELAYED_WORK(&sdata->dec_tailroom_needed_wk,
 			  ieee80211_delayed_tailroom_dec);
 
