@@ -560,7 +560,7 @@ static int sditf_s_power(struct v4l2_subdev *sd, int on)
 		if (on)
 			ret = pm_runtime_resume_and_get(cif_dev->dev);
 		else
-			pm_runtime_put(cif_dev->dev);
+			pm_runtime_put_sync(cif_dev->dev);
 	}
 	return ret;
 }

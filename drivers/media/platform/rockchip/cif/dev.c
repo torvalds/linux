@@ -1116,6 +1116,25 @@ err_stream_off:
 	return ret;
 }
 
+static int rkcif_pipeline_set_power(struct rkcif_pipeline *p, bool on)
+{
+	int i, ret;
+
+	/* phy -> sensor */
+	for (i = 0; i < p->num_subdevs; i++) {
+		ret = v4l2_subdev_call(p->subdevs[i], core, s_power, on);
+		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
+			goto err_power_off;
+	}
+
+	return 0;
+
+err_power_off:
+	for (--i; i >= 0; --i)
+		v4l2_subdev_call(p->subdevs[i], core, s_power, false);
+	return ret;
+}
+
 static int rkcif_create_link(struct rkcif_device *dev,
 			     struct rkcif_sensor_info *sensor,
 			     u32 stream_num,
@@ -1569,25 +1588,6 @@ static irqreturn_t rkcif_irq_lite_handler(int irq, struct rkcif_device *cif_dev)
 	return IRQ_HANDLED;
 }
 
-void rkcif_soft_reset(struct rkcif_device *cif_dev, bool is_rst_iommu)
-{
-	struct rkcif_hw *hw_dev = cif_dev->hw_dev;
-	bool can_reset = true;
-	int i;
-
-	if (!cif_dev->hw_dev)
-		return;
-
-	for (i = 0; i < hw_dev->dev_num; i++)
-		if (atomic_read(&hw_dev->cif_dev[i]->pipe.stream_cnt) != 0) {
-			can_reset = false;
-			break;
-		}
-
-	if (can_reset)
-		rkcif_hw_soft_reset(cif_dev->hw_dev, is_rst_iommu);
-}
-
 int rkcif_attach_hw(struct rkcif_device *cif_dev)
 {
 	struct device_node *np;
@@ -1755,7 +1755,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	spin_lock_init(&cif_dev->reset_watchdog_timer.csi2_err_lock);
 	atomic_set(&cif_dev->pipe.power_cnt, 0);
 	atomic_set(&cif_dev->pipe.stream_cnt, 0);
-	atomic_set(&cif_dev->fh_cnt, 0);
+	atomic_set(&cif_dev->power_cnt, 0);
 	cif_dev->is_start_hdr = false;
 	cif_dev->pipe.open = rkcif_pipeline_open;
 	cif_dev->pipe.close = rkcif_pipeline_close;
@@ -1982,9 +1982,9 @@ static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (atomic_dec_return(&cif_dev->hw_dev->power_cnt))
+	if (atomic_dec_return(&cif_dev->power_cnt))
 		return 0;
-
+	rkcif_pipeline_set_power(&cif_dev->pipe, false);
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_put_sync(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
@@ -1996,11 +1996,15 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 	struct rkcif_device *cif_dev = dev_get_drvdata(dev);
 	int ret = 0;
 
-	if (atomic_inc_return(&cif_dev->hw_dev->power_cnt) > 1)
+	if (atomic_inc_return(&cif_dev->power_cnt) > 1)
 		return 0;
+	ret = rkcif_pipeline_set_power(&cif_dev->pipe, true);
+	if (ret)
+		return ret;
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_resume_and_get(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
+	rkcif_do_soft_reset(cif_dev);
 	return (ret > 0) ? 0 : ret;
 }
 

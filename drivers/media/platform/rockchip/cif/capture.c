@@ -3177,7 +3177,7 @@ static void rkcif_do_cru_reset(struct rkcif_device *dev)
 	}
 }
 
-static void rkcif_do_soft_reset(struct rkcif_device *dev)
+void rkcif_do_soft_reset(struct rkcif_device *dev)
 {
 	if (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
 	    dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY ||
@@ -4803,20 +4803,6 @@ static int rkcif_fh_open(struct file *filp)
 			 ret);
 		return ret;
 	}
-	/*
-	 * Soft reset via CRU.
-	 * Because CRU would reset iommu too, so there's not chance
-	 * to reset cif once we hold buffers after buf queued
-	 */
-	if (cifdev->chip_id >= CHIP_RK1808_CIF) {
-		mutex_lock(&cifdev->stream_lock);
-		if (!atomic_read(&cifdev->fh_cnt))
-			rkcif_soft_reset(cifdev, true);
-		atomic_inc(&cifdev->fh_cnt);
-		mutex_unlock(&cifdev->stream_lock);
-	} else {
-		rkcif_soft_reset(cifdev, true);
-	}
 
 	ret = v4l2_fh_open(filp);
 	if (!ret) {
@@ -4839,13 +4825,6 @@ static int rkcif_fh_release(struct file *filp)
 	ret = vb2_fop_release(filp);
 	if (!ret)
 		v4l2_pipeline_pm_put(&vnode->vdev.entity);
-
-	mutex_lock(&cifdev->stream_lock);
-	if (!atomic_dec_return(&cifdev->fh_cnt))
-		rkcif_soft_reset(cifdev, true);
-	else if (atomic_read(&cifdev->fh_cnt) < 0)
-		atomic_set(&cifdev->fh_cnt, 0);
-	mutex_unlock(&cifdev->stream_lock);
 
 	pm_runtime_put_sync(cifdev->dev);
 	return ret;
