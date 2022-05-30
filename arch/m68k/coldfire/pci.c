@@ -31,7 +31,7 @@ static struct pci_bus *rootbus;
 static unsigned long iospace;
 
 /*
- * We need to be carefull probing on bus 0 (directly connected to host
+ * We need to be careful probing on bus 0 (directly connected to host
  * bridge). We should only access the well defined possible devices in
  * use, ignore aliases and the like.
  */

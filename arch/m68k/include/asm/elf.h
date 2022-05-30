@@ -60,6 +60,13 @@ typedef struct user_m68kfp_struct elf_fpregset_t;
    is actually used on ASV.  */
 #define ELF_PLAT_INIT(_r, load_addr)	_r->a1 = 0
 
+#define ELF_FDPIC_PLAT_INIT(_r, _exec_map_addr, _interp_map_addr, dynamic_addr) \
+        do { \
+                (_r)->d3 = _exec_map_addr; \
+                (_r)->d4 = _interp_map_addr; \
+                (_r)->d5 = dynamic_addr; \
+        } while(0)
+
 #if defined(CONFIG_SUN3) || defined(CONFIG_COLDFIRE)
 #define ELF_EXEC_PAGESIZE	8192
 #else
@@ -113,5 +120,7 @@ typedef struct user_m68kfp_struct elf_fpregset_t;
    intent than poking at uname or /proc/cpuinfo.  */
 
 #define ELF_PLATFORM  (NULL)
+
+#define ELF_FDPIC_CORE_EFLAGS  0
 
 #endif
