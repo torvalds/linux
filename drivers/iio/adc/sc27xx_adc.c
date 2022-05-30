@@ -579,15 +579,14 @@ unlock_adc:
 	return ret;
 }
 
-static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data,
-				  int channel, int scale,
-				  u32 *div_numerator, u32 *div_denominator)
+static void sc27xx_adc_volt_ratio(struct sc27xx_adc_data *data, int channel, int scale,
+				  struct u32_fract *fract)
 {
 	u32 ratio;
 
 	ratio = data->var_data->get_ratio(channel, scale);
-	*div_numerator = ratio >> SC27XX_RATIO_NUMERATOR_OFFSET;
-	*div_denominator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
+	fract->numerator = ratio >> SC27XX_RATIO_NUMERATOR_OFFSET;
+	fract->denominator = ratio & SC27XX_RATIO_DENOMINATOR_MASK;
 }
 
 static int adc_to_volt(struct sc27xx_adc_linear_graph *graph,
@@ -615,7 +614,7 @@ static int sc27xx_adc_to_volt(struct sc27xx_adc_linear_graph *graph,
 static int sc27xx_adc_convert_volt(struct sc27xx_adc_data *data, int channel,
 				   int scale, int raw_adc)
 {
-	u32 numerator, denominator;
+	struct u32_fract fract;
 	u32 volt;
 
 	/*
@@ -637,9 +636,9 @@ static int sc27xx_adc_convert_volt(struct sc27xx_adc_data *data, int channel,
 		break;
 	}
 
-	sc27xx_adc_volt_ratio(data, channel, scale, &numerator, &denominator);
+	sc27xx_adc_volt_ratio(data, channel, scale, &fract);
 
-	return DIV_ROUND_CLOSEST(volt * denominator, numerator);
+	return DIV_ROUND_CLOSEST(volt * fract.denominator, fract.numerator);
 }
 
 static int sc27xx_adc_read_processed(struct sc27xx_adc_data *data,
