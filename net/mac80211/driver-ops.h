@@ -938,6 +938,7 @@ static inline void drv_change_chanctx(struct ieee80211_local *local,
 
 static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 					 struct ieee80211_sub_if_data *sdata,
+					 unsigned int link_id,
 					 struct ieee80211_chanctx *ctx)
 {
 	int ret = 0;
@@ -945,11 +946,12 @@ static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_assign_vif_chanctx(local, sdata, ctx);
+	trace_drv_assign_vif_chanctx(local, sdata, link_id, ctx);
 	if (local->ops->assign_vif_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
 		ret = local->ops->assign_vif_chanctx(&local->hw,
 						     &sdata->vif,
+						     link_id,
 						     &ctx->conf);
 	}
 	trace_drv_return_int(local, ret);
@@ -959,6 +961,7 @@ static inline int drv_assign_vif_chanctx(struct ieee80211_local *local,
 
 static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 					    struct ieee80211_sub_if_data *sdata,
+					    unsigned int link_id,
 					    struct ieee80211_chanctx *ctx)
 {
 	might_sleep();
@@ -966,11 +969,12 @@ static inline void drv_unassign_vif_chanctx(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_unassign_vif_chanctx(local, sdata, ctx);
+	trace_drv_unassign_vif_chanctx(local, sdata, link_id, ctx);
 	if (local->ops->unassign_vif_chanctx) {
 		WARN_ON_ONCE(!ctx->driver_present);
 		local->ops->unassign_vif_chanctx(&local->hw,
 						 &sdata->vif,
+						 link_id,
 						 &ctx->conf);
 	}
 	trace_drv_return_void(local);

@@ -313,7 +313,7 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 			sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 	}
 
-	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta, 0);
 
 	switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
 	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
@@ -330,19 +330,21 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 }
 
 /* FIXME: move this to some better location - parses HE/EHT now */
-enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
+enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta,
+							unsigned int link_id)
 {
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.deflink.vht_cap;
-	struct ieee80211_sta_he_cap *he_cap = &sta->sta.deflink.he_cap;
-	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.deflink.eht_cap;
+	struct ieee80211_bss_conf *link_conf = sta->sdata->vif.link_conf[link_id];
+	struct ieee80211_link_sta *link_sta = sta->sta.link[link_id];
+	struct ieee80211_sta_vht_cap *vht_cap = &link_sta->vht_cap;
+	struct ieee80211_sta_he_cap *he_cap = &link_sta->he_cap;
+	struct ieee80211_sta_eht_cap *eht_cap = &link_sta->eht_cap;
 	u32 cap_width;
 
 	if (he_cap->has_he) {
 		u8 info;
 
 		if (eht_cap->has_eht &&
-		    sta->sdata->vif.bss_conf.chandef.chan->band ==
-		    NL80211_BAND_6GHZ) {
+		    link_conf->chandef.chan->band == NL80211_BAND_6GHZ) {
 			info = eht_cap->eht_cap_elem.phy_cap_info[0];
 
 			if (info & IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ)
@@ -351,8 +353,7 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 
 		info = he_cap->he_cap_elem.phy_cap_info[0];
 
-		if (sta->sdata->vif.bss_conf.chandef.chan->band ==
-				NL80211_BAND_2GHZ) {
+		if (link_conf->chandef.chan->band == NL80211_BAND_2GHZ) {
 			if (info & IEEE80211_HE_PHY_CAP0_CHANNEL_WIDTH_SET_40MHZ_IN_2G)
 				return IEEE80211_STA_RX_BW_40;
 			else
@@ -369,7 +370,7 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta)
 	}
 
 	if (!vht_cap->vht_supported)
-		return sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+		return link_sta->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 :
 				IEEE80211_STA_RX_BW_20;
 
@@ -466,14 +467,15 @@ ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width)
 }
 
 /* FIXME: rename/move - this deals with everything not just VHT */
-enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta)
+enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta,
+							 unsigned int link_id)
 {
-	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct ieee80211_bss_conf *link_conf = sta->sdata->vif.link_conf[link_id];
+	enum nl80211_chan_width bss_width = link_conf->chandef.width;
 	enum ieee80211_sta_rx_bandwidth bw;
-	enum nl80211_chan_width bss_width = sdata->vif.bss_conf.chandef.width;
 
-	bw = ieee80211_sta_cap_rx_bw(sta);
-	bw = min(bw, sta->deflink.cur_max_bandwidth);
+	bw = ieee80211_sta_cap_rx_bw(sta, link_id);
+	bw = min(bw, sta->link[link_id]->cur_max_bandwidth);
 
 	/* Don't consider AP's bandwidth for TDLS peers, section 11.23.1 of
 	 * IEEE80211-2016 specification makes higher bandwidth operation
@@ -629,7 +631,7 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	new_bw = ieee80211_sta_cur_vht_bw(sta);
+	new_bw = ieee80211_sta_cur_vht_bw(sta, 0);
 	if (new_bw != sta->sta.deflink.bandwidth) {
 		sta->sta.deflink.bandwidth = new_bw;
 		sta_opmode.bw = ieee80211_sta_rx_bw_to_chan_width(sta);
@@ -692,7 +694,7 @@ void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 
 	if (changed > 0) {
 		ieee80211_recalc_min_chandef(sdata);
-		rate_control_rate_update(local, sband, sta, changed);
+		rate_control_rate_update(local, sband, sta, 0, changed);
 	}
 }
 

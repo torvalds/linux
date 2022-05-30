@@ -186,8 +186,8 @@ int ieee80211_ocb_join(struct ieee80211_sub_if_data *sdata,
 	sdata->deflink.needed_rx_chains = sdata->local->rx_chains;
 
 	mutex_lock(&sdata->local->mtx);
-	err = ieee80211_vif_use_channel(sdata, &setup->chandef,
-					IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_link_use_channel(sdata->link[0], &setup->chandef,
+					 IEEE80211_CHANCTX_SHARED);
 	mutex_unlock(&sdata->local->mtx);
 	if (err)
 		return err;
@@ -229,7 +229,7 @@ int ieee80211_ocb_leave(struct ieee80211_sub_if_data *sdata)
 	ieee80211_bss_info_change_notify(sdata, BSS_CHANGED_OCB);
 
 	mutex_lock(&sdata->local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(sdata->link[0]);
 	mutex_unlock(&sdata->local->mtx);
 
 	skb_queue_purge(&sdata->skb_queue);

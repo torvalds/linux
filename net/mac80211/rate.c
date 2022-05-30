@@ -90,13 +90,16 @@ void rate_control_tx_status(struct ieee80211_local *local,
 }
 
 void rate_control_rate_update(struct ieee80211_local *local,
-				    struct ieee80211_supported_band *sband,
-				    struct sta_info *sta, u32 changed)
+			      struct ieee80211_supported_band *sband,
+			      struct sta_info *sta, unsigned int link_id,
+			      u32 changed)
 {
 	struct rate_control_ref *ref = local->rate_ctrl;
 	struct ieee80211_sta *ista = &sta->sta;
 	void *priv_sta = sta->rate_ctrl_priv;
 	struct ieee80211_chanctx_conf *chanctx_conf;
+
+	WARN_ON(link_id != 0);
 
 	if (ref && ref->ops->rate_update) {
 		rcu_read_lock();
@@ -113,6 +116,7 @@ void rate_control_rate_update(struct ieee80211_local *local,
 		spin_unlock_bh(&sta->rate_ctrl_lock);
 		rcu_read_unlock();
 	}
+
 	drv_sta_rc_update(local, sta->sdata, &sta->sta, changed);
 }
 

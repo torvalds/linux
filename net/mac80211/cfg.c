@@ -840,9 +840,10 @@ static int ieee80211_set_monitor_channel(struct wiphy *wiphy,
 		sdata = wiphy_dereference(local->hw.wiphy,
 					  local->monitor_sdata);
 		if (sdata) {
-			ieee80211_vif_release_channel(sdata);
-			ret = ieee80211_vif_use_channel(sdata, chandef,
-					IEEE80211_CHANCTX_EXCLUSIVE);
+			ieee80211_link_release_channel(sdata->link[0]);
+			ret = ieee80211_link_use_channel(sdata->link[0],
+							 chandef,
+							 IEEE80211_CHANCTX_EXCLUSIVE);
 		}
 	} else if (local->open_count == local->monitors) {
 		local->_oper_chandef = *chandef;
@@ -1183,10 +1184,12 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	mutex_lock(&local->mtx);
-	err = ieee80211_vif_use_channel(sdata, &params->chandef,
-					IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_link_use_channel(sdata->link[params->beacon.link_id],
+					 &params->chandef,
+					 IEEE80211_CHANCTX_SHARED);
 	if (!err)
-		ieee80211_vif_copy_chanctx_to_vlans(sdata, false);
+		ieee80211_link_copy_chanctx_to_vlans(sdata->link[params->beacon.link_id],
+						     false);
 	mutex_unlock(&local->mtx);
 	if (err) {
 		sdata->vif.bss_conf.beacon_int = prev_beacon_int;
@@ -1296,7 +1299,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 error:
 	mutex_lock(&local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(sdata->link[params->beacon.link_id]);
 	mutex_unlock(&local->mtx);
 
 	return err;
@@ -1433,8 +1436,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	ieee80211_purge_tx_queue(&local->hw, &sdata->u.ap.ps.bc_buf);
 
 	mutex_lock(&local->mtx);
-	ieee80211_vif_copy_chanctx_to_vlans(sdata, true);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_copy_chanctx_to_vlans(sdata->link[link_id], true);
+	ieee80211_link_release_channel(sdata->link[link_id]);
 	mutex_unlock(&local->mtx);
 
 	return 0;
@@ -2401,8 +2404,8 @@ static int ieee80211_join_mesh(struct wiphy *wiphy, struct net_device *dev,
 	sdata->deflink.needed_rx_chains = sdata->local->rx_chains;
 
 	mutex_lock(&sdata->local->mtx);
-	err = ieee80211_vif_use_channel(sdata, &setup->chandef,
-					IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_link_use_channel(sdata->link[0], &setup->chandef,
+					 IEEE80211_CHANCTX_SHARED);
 	mutex_unlock(&sdata->local->mtx);
 	if (err)
 		return err;
@@ -2416,7 +2419,7 @@ static int ieee80211_leave_mesh(struct wiphy *wiphy, struct net_device *dev)
 
 	ieee80211_stop_mesh(sdata);
 	mutex_lock(&sdata->local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(sdata->link[0]);
 	kfree(sdata->u.mesh.ie);
 	mutex_unlock(&sdata->local->mtx);
 
@@ -3145,8 +3148,8 @@ static int ieee80211_start_radar_detection(struct wiphy *wiphy,
 	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
 	sdata->deflink.needed_rx_chains = local->rx_chains;
 
-	err = ieee80211_vif_use_channel(sdata, chandef,
-					IEEE80211_CHANCTX_SHARED);
+	err = ieee80211_link_use_channel(sdata->link[0], chandef,
+					 IEEE80211_CHANCTX_SHARED);
 	if (err)
 		goto out_unlock;
 
@@ -3174,7 +3177,7 @@ static void ieee80211_end_cac(struct wiphy *wiphy,
 		cancel_delayed_work(&sdata->deflink.dfs_cac_timer_work);
 
 		if (sdata->wdev.cac_started) {
-			ieee80211_vif_release_channel(sdata);
+			ieee80211_link_release_channel(sdata->link[0]);
 			sdata->wdev.cac_started = false;
 		}
 	}
@@ -3378,7 +3381,7 @@ static int __ieee80211_csa_finalize(struct ieee80211_sub_if_data *sdata)
 		if (sdata->deflink.reserved_ready)
 			return 0;
 
-		return ieee80211_vif_use_reserved_context(sdata);
+		return ieee80211_link_use_reserved_context(sdata->link[0]);
 	}
 
 	if (!cfg80211_chandef_identical(&sdata->vif.bss_conf.chandef,
@@ -3643,16 +3646,16 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 	if (err)
 		goto out;
 
-	err = ieee80211_vif_reserve_chanctx(sdata, &params->chandef,
-					    chanctx->mode,
-					    params->radar_required);
+	err = ieee80211_link_reserve_chanctx(sdata->link[0], &params->chandef,
+					     chanctx->mode,
+					     params->radar_required);
 	if (err)
 		goto out;
 
 	/* if reservation is invalid then this will fail */
 	err = ieee80211_check_combinations(sdata, NULL, chanctx->mode, 0);
 	if (err) {
-		ieee80211_vif_unreserve_chanctx(sdata);
+		ieee80211_link_unreserve_chanctx(sdata->link[0]);
 		goto out;
 	}
 
@@ -3662,7 +3665,7 @@ __ieee80211_channel_switch(struct wiphy *wiphy, struct net_device *dev,
 
 	err = ieee80211_set_csa_beacon(sdata, params, &changed);
 	if (err) {
-		ieee80211_vif_unreserve_chanctx(sdata);
+		ieee80211_link_unreserve_chanctx(sdata->link[0]);
 		goto out;
 	}
 
@@ -3921,9 +3924,9 @@ static int ieee80211_cfg_get_channel(struct wiphy *wiphy,
 	int ret = -ENODATA;
 
 	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+	chanctx_conf = rcu_dereference(sdata->vif.link_conf[link_id]->chanctx_conf);
 	if (chanctx_conf) {
-		*chandef = sdata->vif.bss_conf.chandef;
+		*chandef = sdata->vif.link_conf[link_id]->chandef;
 		ret = 0;
 	} else if (local->open_count > 0 &&
 		   local->open_count == local->monitors &&
@@ -3980,7 +3983,8 @@ static int ieee80211_set_ap_chanwidth(struct wiphy *wiphy,
 	int ret;
 	u32 changed = 0;
 
-	ret = ieee80211_vif_change_bandwidth(sdata, chandef, &changed);
+	ret = ieee80211_link_change_bandwidth(sdata->link[link_id], chandef,
+					      &changed);
 	if (ret == 0)
 		ieee80211_link_info_change_notify(sdata, link_id, changed);
 

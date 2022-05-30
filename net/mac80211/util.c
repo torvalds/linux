@@ -2255,7 +2255,8 @@ static void ieee80211_handle_reconfig_failure(struct ieee80211_local *local)
 }
 
 static void ieee80211_assign_chanctx(struct ieee80211_local *local,
-				     struct ieee80211_sub_if_data *sdata)
+				     struct ieee80211_sub_if_data *sdata,
+				     unsigned int link_id)
 {
 	struct ieee80211_chanctx_conf *conf;
 	struct ieee80211_chanctx *ctx;
@@ -2264,11 +2265,11 @@ static void ieee80211_assign_chanctx(struct ieee80211_local *local,
 		return;
 
 	mutex_lock(&local->chanctx_mtx);
-	conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
+	conf = rcu_dereference_protected(sdata->vif.link_conf[link_id]->chanctx_conf,
 					 lockdep_is_held(&local->chanctx_mtx));
 	if (conf) {
 		ctx = container_of(conf, struct ieee80211_chanctx, conf);
-		drv_assign_vif_chanctx(local, sdata, ctx);
+		drv_assign_vif_chanctx(local, sdata, link_id, ctx);
 	}
 	mutex_unlock(&local->chanctx_mtx);
 }
@@ -2474,7 +2475,7 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 		sdata = wiphy_dereference(local->hw.wiphy,
 					  local->monitor_sdata);
 		if (sdata && ieee80211_sdata_running(sdata))
-			ieee80211_assign_chanctx(local, sdata);
+			ieee80211_assign_chanctx(local, sdata, 0);
 	}
 
 	/* reconfigure hardware */
@@ -2484,12 +2485,16 @@ int ieee80211_reconfig(struct ieee80211_local *local)
 
 	/* Finally also reconfigure all the BSS information */
 	list_for_each_entry(sdata, &local->interfaces, list) {
+		unsigned int link;
 		u32 changed;
 
 		if (!ieee80211_sdata_running(sdata))
 			continue;
 
-		ieee80211_assign_chanctx(local, sdata);
+		for (link = 0; link < ARRAY_SIZE(sdata->vif.link_conf); link++) {
+			if (sdata->vif.link_conf[link])
+				ieee80211_assign_chanctx(local, sdata, link);
+		}
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_AP_VLAN:
@@ -3975,7 +3980,7 @@ void ieee80211_dfs_cac_cancel(struct ieee80211_local *local)
 
 		if (sdata->wdev.cac_started) {
 			chandef = sdata->vif.bss_conf.chandef;
-			ieee80211_vif_release_channel(sdata);
+			ieee80211_link_release_channel(sdata->link[0]);
 			cfg80211_cac_event(sdata->dev,
 					   &chandef,
 					   NL80211_RADAR_CAC_ABORTED,
@@ -4401,7 +4406,7 @@ void ieee80211_recalc_dtim(struct ieee80211_local *local,
 static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 					 struct ieee80211_chanctx *ctx)
 {
-	struct ieee80211_sub_if_data *sdata;
+	struct ieee80211_link_data *link;
 	u8 radar_detect = 0;
 
 	lockdep_assert_held(&local->chanctx_mtx);
@@ -4409,20 +4414,26 @@ static u8 ieee80211_chanctx_radar_detect(struct ieee80211_local *local,
 	if (WARN_ON(ctx->replace_state == IEEE80211_CHANCTX_WILL_BE_REPLACED))
 		return 0;
 
-	list_for_each_entry(sdata, &ctx->reserved_vifs, reserved_chanctx_list)
-		if (sdata->deflink.reserved_radar_required)
-			radar_detect |= BIT(sdata->deflink.reserved_chandef.width);
+	list_for_each_entry(link, &ctx->reserved_links, reserved_chanctx_list)
+		if (link->reserved_radar_required)
+			radar_detect |= BIT(link->reserved_chandef.width);
 
 	/*
 	 * An in-place reservation context should not have any assigned vifs
 	 * until it replaces the other context.
 	 */
 	WARN_ON(ctx->replace_state == IEEE80211_CHANCTX_REPLACES_OTHER &&
-		!list_empty(&ctx->assigned_vifs));
+		!list_empty(&ctx->assigned_links));
 
-	list_for_each_entry(sdata, &ctx->assigned_vifs, assigned_chanctx_list)
-		if (sdata->deflink.radar_required)
-			radar_detect |= BIT(sdata->vif.bss_conf.chandef.width);
+	list_for_each_entry(link, &ctx->assigned_links, assigned_chanctx_list) {
+		struct ieee80211_sub_if_data *sdata = link->sdata;
+
+		if (!link->radar_required)
+			continue;
+
+		radar_detect |=
+			BIT(sdata->vif.link_conf[link->link_id]->chandef.width);
+	}
 
 	return radar_detect;
 }

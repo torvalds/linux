@@ -301,8 +301,8 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 	radar_required = err;
 
 	mutex_lock(&local->mtx);
-	if (ieee80211_vif_use_channel(sdata, &chandef,
-				      ifibss->fixed_channel ?
+	if (ieee80211_link_use_channel(sdata->link[0], &chandef,
+				       ifibss->fixed_channel ?
 					IEEE80211_CHANCTX_SHARED :
 					IEEE80211_CHANCTX_EXCLUSIVE)) {
 		sdata_info(sdata, "Failed to join IBSS, no channel context\n");
@@ -371,7 +371,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		RCU_INIT_POINTER(ifibss->presp, NULL);
 		kfree_rcu(presp, rcu_head);
 		mutex_lock(&local->mtx);
-		ieee80211_vif_release_channel(sdata);
+		ieee80211_link_release_channel(sdata->link[0]);
 		mutex_unlock(&local->mtx);
 		sdata_info(sdata, "Failed to join IBSS, driver failure: %d\n",
 			   err);
@@ -725,7 +725,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 						BSS_CHANGED_IBSS);
 	drv_leave_ibss(local, sdata);
 	mutex_lock(&local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(sdata->link[0]);
 	mutex_unlock(&local->mtx);
 }
 

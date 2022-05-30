@@ -71,6 +71,6 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 
 	eht_cap->has_eht = true;
 
-	sta->deflink.cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta);
-	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta);
+	sta->deflink.cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta, 0);
+	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta, 0);
 }

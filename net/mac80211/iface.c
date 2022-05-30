@@ -471,7 +471,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		chandef = sdata->vif.bss_conf.chandef;
 		WARN_ON(local->suspended);
 		mutex_lock(&local->mtx);
-		ieee80211_vif_release_channel(sdata);
+		ieee80211_link_release_channel(sdata->link[0]);
 		mutex_unlock(&local->mtx);
 		cfg80211_cac_event(sdata->dev, &chandef,
 				   NL80211_RADAR_CAC_ABORTED,
@@ -1027,6 +1027,7 @@ static void ieee80211_sdata_init(struct ieee80211_local *local,
 	 */
 	sdata->vif.link_conf[0] = &sdata->vif.bss_conf;
 	sdata->link[0] = &sdata->deflink;
+	sdata->deflink.sdata = sdata;
 }
 
 int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
@@ -1077,8 +1078,8 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	mutex_unlock(&local->iflist_mtx);
 
 	mutex_lock(&local->mtx);
-	ret = ieee80211_vif_use_channel(sdata, &local->monitor_chandef,
-					IEEE80211_CHANCTX_EXCLUSIVE);
+	ret = ieee80211_link_use_channel(sdata->link[0], &local->monitor_chandef,
+					 IEEE80211_CHANCTX_EXCLUSIVE);
 	mutex_unlock(&local->mtx);
 	if (ret) {
 		mutex_lock(&local->iflist_mtx);
@@ -1122,7 +1123,7 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	synchronize_net();
 
 	mutex_lock(&local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(sdata->link[0]);
 	mutex_unlock(&local->mtx);
 
 	drv_remove_interface(local, sdata);
@@ -1228,7 +1229,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NL80211_IFTYPE_AP_VLAN:
 		/* no need to tell driver, but set carrier and chanctx */
 		if (sdata->bss->active) {
-			ieee80211_vif_vlan_copy_chanctx(sdata);
+			ieee80211_link_vlan_copy_chanctx(sdata->link[0]);
 			netif_carrier_on(dev);
 			ieee80211_set_vif_encap_ops(sdata);
 		} else {
@@ -1681,8 +1682,8 @@ static void ieee80211_setup_sdata(struct ieee80211_sub_if_data *sdata,
 		  ieee80211_csa_finalize_work);
 	INIT_WORK(&sdata->deflink.color_change_finalize_work,
 		  ieee80211_color_change_finalize_work);
-	INIT_LIST_HEAD(&sdata->assigned_chanctx_list);
-	INIT_LIST_HEAD(&sdata->reserved_chanctx_list);
+	INIT_LIST_HEAD(&sdata->deflink.assigned_chanctx_list);
+	INIT_LIST_HEAD(&sdata->deflink.reserved_chanctx_list);
 
 	switch (type) {
 	case NL80211_IFTYPE_P2P_GO:

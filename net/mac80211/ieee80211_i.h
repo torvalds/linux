@@ -787,8 +787,8 @@ struct ieee80211_chanctx {
 	struct list_head list;
 	struct rcu_head rcu_head;
 
-	struct list_head assigned_vifs;
-	struct list_head reserved_vifs;
+	struct list_head assigned_links;
+	struct list_head reserved_links;
 
 	enum ieee80211_chanctx_replace_state replace_state;
 	struct ieee80211_chanctx *replace_ctx;
@@ -909,6 +909,12 @@ struct ieee80211_link_data_ap {
 };
 
 struct ieee80211_link_data {
+	struct ieee80211_sub_if_data *sdata;
+	unsigned int link_id;
+
+	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
+	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
+
 	/* multicast keys only */
 	struct ieee80211_key __rcu *gtk[NUM_DEFAULT_KEYS +
 					NUM_DEFAULT_MGMT_KEYS +
@@ -988,9 +994,6 @@ struct ieee80211_sub_if_data {
 	atomic_t num_tx_queued;
 	struct ieee80211_tx_queue_params tx_conf[IEEE80211_NUM_ACS];
 	struct mac80211_qos_map __rcu *qos_map;
-
-	struct list_head assigned_chanctx_list; /* protected by chanctx_mtx */
-	struct list_head reserved_chanctx_list; /* protected by chanctx_mtx */
 
 	/* used to reconfigure hardware SM PS */
 	struct work_struct recalc_smps;
@@ -2119,8 +2122,10 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const struct ieee80211_vht_cap *vht_cap_ie,
 				    struct sta_info *sta);
-enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta);
-enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta);
+enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta,
+							unsigned int link_id);
+enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta,
+							 unsigned int link_id);
 void ieee80211_sta_set_rx_nss(struct sta_info *sta);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
@@ -2470,26 +2475,26 @@ bool ieee80211_chandef_s1g_oper(const struct ieee80211_s1g_oper_ie *oper,
 u32 ieee80211_chandef_downgrade(struct cfg80211_chan_def *c);
 
 int __must_check
-ieee80211_vif_use_channel(struct ieee80211_sub_if_data *sdata,
-			  const struct cfg80211_chan_def *chandef,
-			  enum ieee80211_chanctx_mode mode);
+ieee80211_link_use_channel(struct ieee80211_link_data *link,
+			   const struct cfg80211_chan_def *chandef,
+			   enum ieee80211_chanctx_mode mode);
 int __must_check
-ieee80211_vif_reserve_chanctx(struct ieee80211_sub_if_data *sdata,
-			      const struct cfg80211_chan_def *chandef,
-			      enum ieee80211_chanctx_mode mode,
-			      bool radar_required);
+ieee80211_link_reserve_chanctx(struct ieee80211_link_data *link,
+			       const struct cfg80211_chan_def *chandef,
+			       enum ieee80211_chanctx_mode mode,
+			       bool radar_required);
 int __must_check
-ieee80211_vif_use_reserved_context(struct ieee80211_sub_if_data *sdata);
-int ieee80211_vif_unreserve_chanctx(struct ieee80211_sub_if_data *sdata);
+ieee80211_link_use_reserved_context(struct ieee80211_link_data *link);
+int ieee80211_link_unreserve_chanctx(struct ieee80211_link_data *link);
 
 int __must_check
-ieee80211_vif_change_bandwidth(struct ieee80211_sub_if_data *sdata,
-			       const struct cfg80211_chan_def *chandef,
-			       u32 *changed);
-void ieee80211_vif_release_channel(struct ieee80211_sub_if_data *sdata);
-void ieee80211_vif_vlan_copy_chanctx(struct ieee80211_sub_if_data *sdata);
-void ieee80211_vif_copy_chanctx_to_vlans(struct ieee80211_sub_if_data *sdata,
-					 bool clear);
+ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
+				const struct cfg80211_chan_def *chandef,
+				u32 *changed);
+void ieee80211_link_release_channel(struct ieee80211_link_data *link);
+void ieee80211_link_vlan_copy_chanctx(struct ieee80211_link_data *link);
+void ieee80211_link_copy_chanctx_to_vlans(struct ieee80211_link_data *link,
+					  bool clear);
 int ieee80211_chanctx_refcount(struct ieee80211_local *local,
 			       struct ieee80211_chanctx *ctx);
 

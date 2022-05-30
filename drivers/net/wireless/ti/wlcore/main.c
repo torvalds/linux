@@ -4701,6 +4701,7 @@ out:
 
 static int wlcore_op_assign_vif_chanctx(struct ieee80211_hw *hw,
 					struct ieee80211_vif *vif,
+					unsigned int link_id,
 					struct ieee80211_chanctx_conf *ctx)
 {
 	struct wl1271 *wl = hw->priv;
@@ -4751,6 +4752,7 @@ out:
 
 static void wlcore_op_unassign_vif_chanctx(struct ieee80211_hw *hw,
 					   struct ieee80211_vif *vif,
+					   unsigned int link_id,
 					   struct ieee80211_chanctx_conf *ctx)
 {
 	struct wl1271 *wl = hw->priv;

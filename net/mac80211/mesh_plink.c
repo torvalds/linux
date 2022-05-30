@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2008, 2009 open80211s Ltd.
- * Copyright (C) 2019, 2021 Intel Corporation
+ * Copyright (C) 2019, 2021-2022 Intel Corporation
  * Author:     Luis Carlos Cobo <luisca@cozybit.com>
  */
 #include <linux/gfp.h>
@@ -464,7 +464,7 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	if (!test_sta_flag(sta, WLAN_STA_RATE_CONTROL))
 		rate_control_rate_init(sta);
 	else
-		rate_control_rate_update(local, sband, sta, changed);
+		rate_control_rate_update(local, sband, sta, 0, changed);
 out:
 	spin_unlock_bh(&sta->mesh->plink_lock);
 }

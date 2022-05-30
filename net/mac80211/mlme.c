@@ -479,7 +479,7 @@ static int ieee80211_config_bw(struct ieee80211_sub_if_data *sdata,
 		return -EINVAL;
 	}
 
-	ret = ieee80211_vif_change_bandwidth(sdata, &chandef, changed);
+	ret = ieee80211_link_change_bandwidth(&sdata->deflink, &chandef, changed);
 
 	if (ret) {
 		sdata_info(sdata,
@@ -1248,7 +1248,7 @@ static void ieee80211_chswitch_work(struct work_struct *work)
 		if (sdata->deflink.reserved_ready)
 			goto out;
 
-		ret = ieee80211_vif_use_reserved_context(sdata);
+		ret = ieee80211_link_use_reserved_context(&sdata->deflink);
 		if (ret) {
 			sdata_info(sdata,
 				   "failed to use reserved channel context, disconnecting (err=%d)\n",
@@ -1354,7 +1354,7 @@ ieee80211_sta_abort_chanswitch(struct ieee80211_sub_if_data *sdata)
 	mutex_lock(&local->mtx);
 
 	mutex_lock(&local->chanctx_mtx);
-	ieee80211_vif_unreserve_chanctx(sdata);
+	ieee80211_link_unreserve_chanctx(&sdata->deflink);
 	mutex_unlock(&local->chanctx_mtx);
 
 	if (sdata->deflink.csa_block_tx)
@@ -1496,8 +1496,8 @@ ieee80211_sta_process_chanswitch(struct ieee80211_sub_if_data *sdata,
 		goto drop_connection;
 	}
 
-	res = ieee80211_vif_reserve_chanctx(sdata, &csa_ie.chandef,
-					    chanctx->mode, false);
+	res = ieee80211_link_reserve_chanctx(&sdata->deflink, &csa_ie.chandef,
+					     chanctx->mode, false);
 	if (res) {
 		sdata_info(sdata,
 			   "failed to reserve channel context for channel switch, disconnecting (err=%d)\n",
@@ -1942,7 +1942,7 @@ void ieee80211_dfs_cac_timer_work(struct work_struct *work)
 
 	mutex_lock(&sdata->local->mtx);
 	if (sdata->wdev.cac_started) {
-		ieee80211_vif_release_channel(sdata);
+		ieee80211_link_release_channel(&sdata->deflink);
 		cfg80211_cac_event(sdata->dev, &chandef,
 				   NL80211_RADAR_CAC_FINISHED,
 				   GFP_KERNEL);
@@ -2483,7 +2483,7 @@ static void ieee80211_set_disassoc(struct ieee80211_sub_if_data *sdata,
 
 	ifmgd->flags = 0;
 	mutex_lock(&local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(&sdata->deflink);
 
 	sdata->vif.bss_conf.csa_active = false;
 	sdata->deflink.u.mgd.csa_waiting_bcn = false;
@@ -2923,7 +2923,7 @@ static void ieee80211_destroy_auth_data(struct ieee80211_sub_if_data *sdata,
 		ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_BSSID);
 		sdata->u.mgd.flags = 0;
 		mutex_lock(&sdata->local->mtx);
-		ieee80211_vif_release_channel(sdata);
+		ieee80211_link_release_channel(&sdata->deflink);
 		mutex_unlock(&sdata->local->mtx);
 	}
 
@@ -2954,7 +2954,7 @@ static void ieee80211_destroy_assoc_data(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.bss_conf.mu_mimo_owner = false;
 
 		mutex_lock(&sdata->local->mtx);
-		ieee80211_vif_release_channel(sdata);
+		ieee80211_link_release_channel(&sdata->deflink);
 		mutex_unlock(&sdata->local->mtx);
 
 		if (abandon)
@@ -5497,8 +5497,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 	 * on incompatible channels, e.g. 80+80 and 160 sharing the
 	 * same control channel) try to use a smaller bandwidth.
 	 */
-	ret = ieee80211_vif_use_channel(sdata, &chandef,
-					IEEE80211_CHANCTX_SHARED);
+	ret = ieee80211_link_use_channel(&sdata->deflink, &chandef,
+					 IEEE80211_CHANCTX_SHARED);
 
 	/* don't downgrade for 5 and 10 MHz channels, though. */
 	if (chandef.width == NL80211_CHAN_WIDTH_5 ||
@@ -5507,8 +5507,8 @@ static int ieee80211_prep_channel(struct ieee80211_sub_if_data *sdata,
 
 	while (ret && chandef.width != NL80211_CHAN_WIDTH_20_NOHT) {
 		ifmgd->flags |= ieee80211_chandef_downgrade(&chandef);
-		ret = ieee80211_vif_use_channel(sdata, &chandef,
-						IEEE80211_CHANCTX_SHARED);
+		ret = ieee80211_link_use_channel(&sdata->deflink, &chandef,
+						 IEEE80211_CHANCTX_SHARED);
 	}
  out:
 	mutex_unlock(&local->mtx);
@@ -5868,7 +5868,7 @@ int ieee80211_mgd_auth(struct ieee80211_sub_if_data *sdata,
 	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_BSSID);
 	ifmgd->auth_data = NULL;
 	mutex_lock(&sdata->local->mtx);
-	ieee80211_vif_release_channel(sdata);
+	ieee80211_link_release_channel(&sdata->deflink);
 	mutex_unlock(&sdata->local->mtx);
 	kfree(auth_data);
 	return err;

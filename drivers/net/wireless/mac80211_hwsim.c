@@ -2722,6 +2722,7 @@ static void mac80211_hwsim_change_chanctx(struct ieee80211_hw *hw,
 
 static int mac80211_hwsim_assign_vif_chanctx(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
+					     unsigned int link_id,
 					     struct ieee80211_chanctx_conf *ctx)
 {
 	hwsim_check_magic(vif);
@@ -2732,6 +2733,7 @@ static int mac80211_hwsim_assign_vif_chanctx(struct ieee80211_hw *hw,
 
 static void mac80211_hwsim_unassign_vif_chanctx(struct ieee80211_hw *hw,
 						struct ieee80211_vif *vif,
+						unsigned int link_id,
 						struct ieee80211_chanctx_conf *ctx)
 {
 	hwsim_check_magic(vif);

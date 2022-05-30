@@ -1625,6 +1625,7 @@ struct trace_chandef_entry {
 
 struct trace_switch_entry {
 	struct trace_vif_entry vif;
+	unsigned int link_id;
 	struct trace_chandef_entry old_chandef;
 	struct trace_chandef_entry new_chandef;
 } __packed;
@@ -1664,6 +1665,7 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 
 				SWITCH_ENTRY_ASSIGN(vif.vif_type, vif->type);
 				SWITCH_ENTRY_ASSIGN(vif.p2p, vif->p2p);
+				SWITCH_ENTRY_ASSIGN(link_id, link_id);
 				strncpy(local_vifs[i].vif.vif_name,
 					sdata->name,
 					sizeof(local_vifs[i].vif.vif_name));
@@ -1704,40 +1706,45 @@ TRACE_EVENT(drv_switch_vif_chanctx,
 DECLARE_EVENT_CLASS(local_sdata_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
+		 unsigned int link_id,
 		 struct ieee80211_chanctx *ctx),
 
-	TP_ARGS(local, sdata, ctx),
+	TP_ARGS(local, sdata, link_id, ctx),
 
 	TP_STRUCT__entry(
 		LOCAL_ENTRY
 		VIF_ENTRY
 		CHANCTX_ENTRY
+		__field(unsigned int, link_id)
 	),
 
 	TP_fast_assign(
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		CHANCTX_ASSIGN;
+		__entry->link_id = link_id;
 	),
 
 	TP_printk(
-		LOCAL_PR_FMT VIF_PR_FMT CHANCTX_PR_FMT,
-		LOCAL_PR_ARG, VIF_PR_ARG, CHANCTX_PR_ARG
+		LOCAL_PR_FMT VIF_PR_FMT " link_id:%d" CHANCTX_PR_FMT,
+		LOCAL_PR_ARG, VIF_PR_ARG, __entry->link_id, CHANCTX_PR_ARG
 	)
 );
 
 DEFINE_EVENT(local_sdata_chanctx, drv_assign_vif_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
+		 unsigned int link_id,
 		 struct ieee80211_chanctx *ctx),
-	TP_ARGS(local, sdata, ctx)
+	TP_ARGS(local, sdata, link_id, ctx)
 );
 
 DEFINE_EVENT(local_sdata_chanctx, drv_unassign_vif_chanctx,
 	TP_PROTO(struct ieee80211_local *local,
 		 struct ieee80211_sub_if_data *sdata,
+		 unsigned int link_id,
 		 struct ieee80211_chanctx *ctx),
-	TP_ARGS(local, sdata, ctx)
+	TP_ARGS(local, sdata, link_id, ctx)
 );
 
 TRACE_EVENT(drv_start_ap,
