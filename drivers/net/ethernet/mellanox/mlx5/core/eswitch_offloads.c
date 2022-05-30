@@ -2179,17 +2179,18 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 {
 	int err, err1;
 
-	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_OFFLOADS,
-					 esw->dev->priv.sriov.num_vfs);
+	esw->mode = MLX5_ESWITCH_OFFLOADS;
+	err = mlx5_eswitch_enable_locked(esw, esw->dev->priv.sriov.num_vfs);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack,
 				   "Failed setting eswitch to offloads");
-		err1 = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY,
-						  MLX5_ESWITCH_IGNORE_NUM_VFS);
+		esw->mode = MLX5_ESWITCH_LEGACY;
+		err1 = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_IGNORE_NUM_VFS);
 		if (err1) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed setting eswitch back to legacy");
 		}
+		mlx5_rescan_drivers(esw->dev);
 	}
 	if (esw->offloads.inline_mode == MLX5_INLINE_MODE_NONE) {
 		if (mlx5_eswitch_inline_mode_get(esw,
@@ -3237,12 +3238,12 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 {
 	int err, err1;
 
-	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY,
-					 MLX5_ESWITCH_IGNORE_NUM_VFS);
+	esw->mode = MLX5_ESWITCH_LEGACY;
+	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_IGNORE_NUM_VFS);
 	if (err) {
 		NL_SET_ERR_MSG_MOD(extack, "Failed setting eswitch to legacy");
-		err1 = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_OFFLOADS,
-						  MLX5_ESWITCH_IGNORE_NUM_VFS);
+		esw->mode = MLX5_ESWITCH_OFFLOADS;
+		err1 = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_IGNORE_NUM_VFS);
 		if (err1) {
 			NL_SET_ERR_MSG_MOD(extack,
 					   "Failed setting eswitch back to offloads");

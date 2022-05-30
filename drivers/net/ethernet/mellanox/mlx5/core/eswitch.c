@@ -1227,7 +1227,6 @@ static void mlx5_esw_acls_ns_cleanup(struct mlx5_eswitch *esw)
 /**
  * mlx5_eswitch_enable_locked - Enable eswitch
  * @esw:	Pointer to eswitch
- * @mode:	Eswitch mode to enable
  * @num_vfs:	Enable eswitch for given number of VFs. This is optional.
  *		Valid value are 0, > 0 and MLX5_ESWITCH_IGNORE_NUM_VFS.
  *		Caller should pass num_vfs > 0 when enabling eswitch for
@@ -1241,7 +1240,7 @@ static void mlx5_esw_acls_ns_cleanup(struct mlx5_eswitch *esw)
  * mode. If num_vfs >=0 is provided, it setup VF related eswitch vports.
  * It returns 0 on success or error code on failure.
  */
-int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
+int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int num_vfs)
 {
 	int err;
 
@@ -1260,9 +1259,7 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 
 	mlx5_eswitch_update_num_of_vfs(esw, num_vfs);
 
-	esw->mode = mode;
-
-	if (mode == MLX5_ESWITCH_LEGACY) {
+	if (esw->mode == MLX5_ESWITCH_LEGACY) {
 		err = esw_legacy_enable(esw);
 	} else {
 		mlx5_rescan_drivers(esw->dev);
@@ -1277,19 +1274,14 @@ int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs)
 	mlx5_eswitch_event_handlers_register(esw);
 
 	esw_info(esw->dev, "Enable: mode(%s), nvfs(%d), active vports(%d)\n",
-		 mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
+		 esw->mode == MLX5_ESWITCH_LEGACY ? "LEGACY" : "OFFLOADS",
 		 esw->esw_funcs.num_vfs, esw->enabled_vports);
 
-	mlx5_esw_mode_change_notify(esw, mode);
+	mlx5_esw_mode_change_notify(esw, esw->mode);
 
 	return 0;
 
 abort:
-	esw->mode = MLX5_ESWITCH_LEGACY;
-
-	if (mode == MLX5_ESWITCH_OFFLOADS)
-		mlx5_rescan_drivers(esw->dev);
-
 	mlx5_esw_acls_ns_cleanup(esw);
 	return err;
 }
@@ -1317,7 +1309,7 @@ int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs)
 
 	down_write(&esw->mode_lock);
 	if (!mlx5_esw_is_fdb_created(esw)) {
-		ret = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY, num_vfs);
+		ret = mlx5_eswitch_enable_locked(esw, num_vfs);
 	} else {
 		enum mlx5_eswitch_vport_event vport_events;
 

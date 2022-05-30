@@ -356,7 +356,7 @@ int mlx5_eswitch_init(struct mlx5_core_dev *dev);
 void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 
 #define MLX5_ESWITCH_IGNORE_NUM_VFS (-1)
-int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs);
+int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int num_vfs);
 int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs);
 void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf);
 void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw);
