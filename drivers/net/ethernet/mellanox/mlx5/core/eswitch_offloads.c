@@ -1040,6 +1040,15 @@ static void mlx5_eswitch_del_send_to_vport_meta_rules(struct mlx5_eswitch *esw)
 		mlx5_del_flow_rules(flows[i]);
 
 	kvfree(flows);
+	/* If changing eswitch mode from switchdev to legacy, but num_vfs is not 0,
+	 * meta rules could be freed again. So set it to NULL.
+	 */
+	esw->fdb_table.offloads.send_to_vport_meta_rules = NULL;
+}
+
+void esw_offloads_del_send_to_vport_meta_rules(struct mlx5_eswitch *esw)
+{
+	mlx5_eswitch_del_send_to_vport_meta_rules(esw);
 }
 
 static int
@@ -2034,7 +2043,7 @@ static int mlx5_eswitch_inline_mode_get(struct mlx5_eswitch *esw, u8 *mode)
 	if (!MLX5_CAP_GEN(dev, vport_group_manager))
 		return -EOPNOTSUPP;
 
-	if (esw->mode == MLX5_ESWITCH_NONE)
+	if (!mlx5_esw_is_fdb_created(esw))
 		return -EOPNOTSUPP;
 
 	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
@@ -2170,7 +2179,6 @@ static int esw_offloads_start(struct mlx5_eswitch *esw,
 {
 	int err, err1;
 
-	mlx5_eswitch_disable_locked(esw, false);
 	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_OFFLOADS,
 					 esw->dev->priv.sriov.num_vfs);
 	if (err) {
@@ -2894,7 +2902,7 @@ int mlx5_esw_offloads_vport_metadata_set(struct mlx5_eswitch *esw, bool enable)
 	int err = 0;
 
 	down_write(&esw->mode_lock);
-	if (esw->mode != MLX5_ESWITCH_NONE) {
+	if (mlx5_esw_is_fdb_created(esw)) {
 		err = -EBUSY;
 		goto done;
 	}
@@ -3229,7 +3237,6 @@ static int esw_offloads_stop(struct mlx5_eswitch *esw,
 {
 	int err, err1;
 
-	mlx5_eswitch_disable_locked(esw, false);
 	err = mlx5_eswitch_enable_locked(esw, MLX5_ESWITCH_LEGACY,
 					 MLX5_ESWITCH_IGNORE_NUM_VFS);
 	if (err) {
@@ -3334,15 +3341,6 @@ static int esw_inline_mode_to_devlink(u8 mlx5_mode, u8 *mode)
 	return 0;
 }
 
-static int eswitch_devlink_esw_mode_check(const struct mlx5_eswitch *esw)
-{
-	/* devlink commands in NONE eswitch mode are currently supported only
-	 * on ECPF.
-	 */
-	return (esw->mode == MLX5_ESWITCH_NONE &&
-		!mlx5_core_is_ecpf_esw_manager(esw->dev)) ? -EOPNOTSUPP : 0;
-}
-
 /* FIXME: devl_unlock() followed by devl_lock() inside driver callback
  * is never correct and prone to races. It's a transitional workaround,
  * never repeat this pattern.
@@ -3399,6 +3397,7 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 	if (cur_mlx5_mode == mlx5_mode)
 		goto unlock;
 
+	mlx5_eswitch_disable_locked(esw);
 	if (mode == DEVLINK_ESWITCH_MODE_SWITCHDEV) {
 		if (mlx5_devlink_trap_get_num_active(esw->dev)) {
 			NL_SET_ERR_MSG_MOD(extack,
@@ -3409,6 +3408,7 @@ int mlx5_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 		err = esw_offloads_start(esw, extack);
 	} else if (mode == DEVLINK_ESWITCH_MODE_LEGACY) {
 		err = esw_offloads_stop(esw, extack);
+		mlx5_rescan_drivers(esw->dev);
 	} else {
 		err = -EINVAL;
 	}
@@ -3431,12 +3431,7 @@ int mlx5_devlink_eswitch_mode_get(struct devlink *devlink, u16 *mode)
 		return PTR_ERR(esw);
 
 	mlx5_eswtich_mode_callback_enter(devlink, esw);
-	err = eswitch_devlink_esw_mode_check(esw);
-	if (err)
-		goto unlock;
-
 	err = esw_mode_to_devlink(esw->mode, mode);
-unlock:
 	mlx5_eswtich_mode_callback_exit(devlink, esw);
 	return err;
 }
@@ -3485,9 +3480,6 @@ int mlx5_devlink_eswitch_inline_mode_set(struct devlink *devlink, u8 mode,
 		return PTR_ERR(esw);
 
 	mlx5_eswtich_mode_callback_enter(devlink, esw);
-	err = eswitch_devlink_esw_mode_check(esw);
-	if (err)
-		goto out;
 
 	switch (MLX5_CAP_ETH(dev, wqe_inline_mode)) {
 	case MLX5_CAP_INLINE_MODE_NOT_REQUIRED:
@@ -3539,12 +3531,7 @@ int mlx5_devlink_eswitch_inline_mode_get(struct devlink *devlink, u8 *mode)
 		return PTR_ERR(esw);
 
 	mlx5_eswtich_mode_callback_enter(devlink, esw);
-	err = eswitch_devlink_esw_mode_check(esw);
-	if (err)
-		goto unlock;
-
 	err = esw_inline_mode_to_devlink(esw->offloads.inline_mode, mode);
-unlock:
 	mlx5_eswtich_mode_callback_exit(devlink, esw);
 	return err;
 }
@@ -3555,16 +3542,13 @@ int mlx5_devlink_eswitch_encap_mode_set(struct devlink *devlink,
 {
 	struct mlx5_core_dev *dev = devlink_priv(devlink);
 	struct mlx5_eswitch *esw;
-	int err;
+	int err = 0;
 
 	esw = mlx5_devlink_eswitch_get(devlink);
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
 	mlx5_eswtich_mode_callback_enter(devlink, esw);
-	err = eswitch_devlink_esw_mode_check(esw);
-	if (err)
-		goto unlock;
 
 	if (encap != DEVLINK_ESWITCH_ENCAP_MODE_NONE &&
 	    (!MLX5_CAP_ESW_FLOWTABLE_FDB(dev, reformat) ||
@@ -3615,21 +3599,15 @@ int mlx5_devlink_eswitch_encap_mode_get(struct devlink *devlink,
 					enum devlink_eswitch_encap_mode *encap)
 {
 	struct mlx5_eswitch *esw;
-	int err;
 
 	esw = mlx5_devlink_eswitch_get(devlink);
 	if (IS_ERR(esw))
 		return PTR_ERR(esw);
 
 	mlx5_eswtich_mode_callback_enter(devlink, esw);
-	err = eswitch_devlink_esw_mode_check(esw);
-	if (err)
-		goto unlock;
-
 	*encap = esw->offloads.encap;
-unlock:
 	mlx5_eswtich_mode_callback_exit(devlink, esw);
-	return err;
+	return 0;
 }
 
 static bool

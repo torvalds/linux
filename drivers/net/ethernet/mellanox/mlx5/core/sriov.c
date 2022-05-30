@@ -145,8 +145,7 @@ mlx5_device_disable_sriov(struct mlx5_core_dev *dev, int num_vfs, bool clear_vf)
 		sriov->vfs_ctx[vf].enabled = 0;
 	}
 
-	if (MLX5_ESWITCH_MANAGER(dev))
-		mlx5_eswitch_disable(dev->priv.eswitch, clear_vf);
+	mlx5_eswitch_disable_sriov(dev->priv.eswitch, clear_vf);
 
 	if (mlx5_wait_for_pages(dev, &dev->priv.vfs_pages))
 		mlx5_core_warn(dev, "timeout reclaiming VFs pages\n");

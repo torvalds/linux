@@ -342,6 +342,7 @@ void esw_offloads_disable(struct mlx5_eswitch *esw);
 int esw_offloads_enable(struct mlx5_eswitch *esw);
 void esw_offloads_cleanup_reps(struct mlx5_eswitch *esw);
 int esw_offloads_init_reps(struct mlx5_eswitch *esw);
+void esw_offloads_del_send_to_vport_meta_rules(struct mlx5_eswitch *esw);
 
 bool mlx5_esw_vport_match_metadata_supported(const struct mlx5_eswitch *esw);
 int mlx5_esw_offloads_vport_metadata_set(struct mlx5_eswitch *esw, bool enable);
@@ -357,8 +358,9 @@ void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw);
 #define MLX5_ESWITCH_IGNORE_NUM_VFS (-1)
 int mlx5_eswitch_enable_locked(struct mlx5_eswitch *esw, int mode, int num_vfs);
 int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs);
-void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw, bool clear_vf);
-void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf);
+void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf);
+void mlx5_eswitch_disable_locked(struct mlx5_eswitch *esw);
+void mlx5_eswitch_disable(struct mlx5_eswitch *esw);
 int mlx5_eswitch_set_vport_mac(struct mlx5_eswitch *esw,
 			       u16 vport, const u8 *mac);
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw,
@@ -729,7 +731,8 @@ int mlx5_eswitch_reload_reps(struct mlx5_eswitch *esw);
 static inline int  mlx5_eswitch_init(struct mlx5_core_dev *dev) { return 0; }
 static inline void mlx5_eswitch_cleanup(struct mlx5_eswitch *esw) {}
 static inline int mlx5_eswitch_enable(struct mlx5_eswitch *esw, int num_vfs) { return 0; }
-static inline void mlx5_eswitch_disable(struct mlx5_eswitch *esw, bool clear_vf) {}
+static inline void mlx5_eswitch_disable_sriov(struct mlx5_eswitch *esw, bool clear_vf) {}
+static inline void mlx5_eswitch_disable(struct mlx5_eswitch *esw) {}
 static inline bool mlx5_eswitch_is_funcs_handler(struct mlx5_core_dev *dev) { return false; }
 static inline
 int mlx5_eswitch_set_vport_state(struct mlx5_eswitch *esw, u16 vport, int link_state) { return 0; }
