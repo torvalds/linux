@@ -1758,7 +1758,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 
 	if (params->ht_capa)
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-						  params->ht_capa, sta);
+						  params->ht_capa, sta, 0);
 
 	/* VHT can override some HT caps such as the A-MSDU max length */
 	if (params->vht_capa)

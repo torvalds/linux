@@ -138,7 +138,7 @@ void ieee80211_apply_htcap_overrides(struct ieee80211_sub_if_data *sdata,
 bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 				       struct ieee80211_supported_band *sband,
 				       const struct ieee80211_ht_cap *ht_cap_ie,
-				       struct sta_info *sta)
+				       struct sta_info *sta, unsigned int link_id)
 {
 	struct ieee80211_sta_ht_cap ht_cap, own_cap;
 	u8 ampdu_info, tx_mcs_set_cap;
@@ -243,11 +243,12 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		sta->sta.max_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_3839;
 
  apply:
-	changed = memcmp(&sta->sta.deflink.ht_cap, &ht_cap, sizeof(ht_cap));
+	changed = memcmp(&sta->sta.link[link_id]->ht_cap,
+			 &ht_cap, sizeof(ht_cap));
 
-	memcpy(&sta->sta.deflink.ht_cap, &ht_cap, sizeof(ht_cap));
+	memcpy(&sta->sta.link[link_id]->ht_cap, &ht_cap, sizeof(ht_cap));
 
-	switch (sdata->vif.bss_conf.chandef.width) {
+	switch (sdata->vif.link_conf[link_id]->chandef.width) {
 	default:
 		WARN_ON_ONCE(1);
 		fallthrough;
@@ -264,9 +265,9 @@ bool ieee80211_ht_cap_ie_to_sta_ht_cap(struct ieee80211_sub_if_data *sdata,
 		break;
 	}
 
-	sta->sta.deflink.bandwidth = bw;
+	sta->sta.link[link_id]->bandwidth = bw;
 
-	sta->deflink.cur_max_bandwidth =
+	sta->link[link_id]->cur_max_bandwidth =
 		ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				IEEE80211_STA_RX_BW_40 : IEEE80211_STA_RX_BW_20;
 
