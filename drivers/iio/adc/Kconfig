@@ -417,7 +417,6 @@ config DLN2_ADC
 
 config ENVELOPE_DETECTOR
 	tristate "Envelope detector using a DAC and a comparator"
-	depends on OF
 	help
 	  Say yes here to build support for an envelope detector using a DAC
 	  and a comparator.
