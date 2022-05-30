@@ -13,6 +13,7 @@
 
 #define _GNU_SOURCE
 #include <elf.h>
+#include <fnmatch.h>
 #include <stdio.h>
 #include <ctype.h>
 #include <string.h>
@@ -710,29 +711,6 @@ static char *get_modinfo(struct elf_info *info, const char *tag)
 	return get_next_modinfo(info, tag, NULL);
 }
 
-/**
- * Test if string s ends in string sub
- * return 0 if match
- **/
-static int strrcmp(const char *s, const char *sub)
-{
-	int slen, sublen;
-
-	if (!s || !sub)
-		return 1;
-
-	slen = strlen(s);
-	sublen = strlen(sub);
-
-	if ((slen == 0) || (sublen == 0))
-		return 1;
-
-	if (sublen > slen)
-		return 1;
-
-	return memcmp(s + slen - sublen, sub, sublen);
-}
-
 static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 {
 	if (sym)
@@ -741,48 +719,22 @@ static const char *sym_name(struct elf_info *elf, Elf_Sym *sym)
 		return "(unknown)";
 }
 
-/* The pattern is an array of simple patterns.
- * "foo" will match an exact string equal to "foo"
- * "*foo" will match a string that ends with "foo"
- * "foo*" will match a string that begins with "foo"
- * "*foo*" will match a string that contains "foo"
+/*
+ * Check whether the 'string' argument matches one of the 'patterns',
+ * an array of shell wildcard patterns (glob).
+ *
+ * Return true is there is a match.
  */
-static int match(const char *sym, const char * const pat[])
+static bool match(const char *string, const char *const patterns[])
 {
-	const char *p;
-	while (*pat) {
-		const char *endp;
+	const char *pattern;
 
-		p = *pat++;
-		endp = p + strlen(p) - 1;
-
-		/* "*foo*" */
-		if (*p == '*' && *endp == '*') {
-			char *bare = NOFAIL(strndup(p + 1, strlen(p) - 2));
-			char *here = strstr(sym, bare);
-
-			free(bare);
-			if (here != NULL)
-				return 1;
-		}
-		/* "*foo" */
-		else if (*p == '*') {
-			if (strrcmp(sym, p + 1) == 0)
-				return 1;
-		}
-		/* "foo*" */
-		else if (*endp == '*') {
-			if (strncmp(sym, p, strlen(p) - 1) == 0)
-				return 1;
-		}
-		/* no wildcards */
-		else {
-			if (strcmp(p, sym) == 0)
-				return 1;
-		}
+	while ((pattern = *patterns++)) {
+		if (!fnmatch(pattern, string, 0))
+			return true;
 	}
-	/* no match */
-	return 0;
+
+	return false;
 }
 
 /* sections that we do not want to do full section mismatch check on */
