@@ -949,6 +949,7 @@ struct hl_cs_in {
 
 	/* Context ID - Currently not in use */
 	__u32 ctx_id;
+	__u8 pad[4];
 };
 
 struct hl_cs_out {
