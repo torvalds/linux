@@ -338,7 +338,6 @@ static int scmi_sensor_update_intervals(const struct scmi_protocol_handle *ph,
 					struct scmi_sensor_info *s)
 {
 	void *iter;
-	struct scmi_msg_sensor_list_update_intervals *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_intervals_prepare_message,
 		.update_state = iter_intervals_update_state,
@@ -351,7 +350,8 @@ static int scmi_sensor_update_intervals(const struct scmi_protocol_handle *ph,
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->intervals.count,
 					    SENSOR_LIST_UPDATE_INTERVALS,
-					    sizeof(*msg), &upriv);
+					    sizeof(struct scmi_msg_sensor_list_update_intervals),
+					    &upriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
@@ -459,7 +459,6 @@ scmi_sensor_axis_extended_names_get(const struct scmi_protocol_handle *ph,
 				    struct scmi_sensor_info *s)
 {
 	void *iter;
-	struct scmi_msg_sensor_axis_description_get *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_axes_desc_prepare_message,
 		.update_state = iter_axes_extended_name_update_state,
@@ -468,7 +467,8 @@ scmi_sensor_axis_extended_names_get(const struct scmi_protocol_handle *ph,
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
 					    SENSOR_AXIS_NAME_GET,
-					    sizeof(*msg), s);
+					    sizeof(struct scmi_msg_sensor_axis_description_get),
+					    s);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
@@ -481,7 +481,6 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 {
 	int ret;
 	void *iter;
-	struct scmi_msg_sensor_axis_description_get *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_axes_desc_prepare_message,
 		.update_state = iter_axes_desc_update_state,
@@ -495,7 +494,8 @@ static int scmi_sensor_axis_description(const struct scmi_protocol_handle *ph,
 
 	iter = ph->hops->iter_response_init(ph, &ops, s->num_axis,
 					    SENSOR_AXIS_DESCRIPTION_GET,
-					    sizeof(*msg), s);
+					    sizeof(struct scmi_msg_sensor_axis_description_get),
+					    s);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 

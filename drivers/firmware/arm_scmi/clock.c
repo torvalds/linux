@@ -266,9 +266,7 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 			      struct scmi_clock_info *clk)
 {
 	int ret;
-
 	void *iter;
-	struct scmi_msg_clock_describe_rates *msg;
 	struct scmi_iterator_ops ops = {
 		.prepare_message = iter_clk_describe_prepare_message,
 		.update_state = iter_clk_describe_update_state,
@@ -281,7 +279,8 @@ scmi_clock_describe_rates_get(const struct scmi_protocol_handle *ph, u32 clk_id,
 
 	iter = ph->hops->iter_response_init(ph, &ops, SCMI_MAX_NUM_RATES,
 					    CLOCK_DESCRIBE_RATES,
-					    sizeof(*msg), &cpriv);
+					    sizeof(struct scmi_msg_clock_describe_rates),
+					    &cpriv);
 	if (IS_ERR(iter))
 		return PTR_ERR(iter);
 
