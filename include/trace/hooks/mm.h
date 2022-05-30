@@ -179,6 +179,9 @@ DECLARE_HOOK(android_vh_count_swpout_vm_event,
 DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 	TP_PROTO(struct mm_struct *mm, struct page *page),
 	TP_ARGS(mm, page));
+DECLARE_HOOK(android_vh_account_swap_pages,
+	TP_PROTO(struct swap_info_struct *si, bool *skip),
+	TP_ARGS(si, skip));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */

@@ -419,3 +419,4 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_count_swpout_vm_event);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_page_isolated_for_reclaim);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_inactive_is_low);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_snapshot_refaults);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_account_swap_pages);
