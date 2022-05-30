@@ -54,6 +54,8 @@
 
 #define CREATE_TRACE_POINTS
 #include <trace/events/migrate.h>
+#undef CREATE_TRACE_POINTS
+#include <trace/hooks/mm.h>
 
 #include "internal.h"
 
@@ -311,6 +313,7 @@ void __migration_entry_wait(struct mm_struct *mm, pte_t *ptep,
 	if (!get_page_unless_zero(page))
 		goto out;
 	pte_unmap_unlock(ptep, ptl);
+	trace_android_vh_waiting_for_page_migration(page);
 	put_and_wait_on_page_locked(page);
 	return;
 out:
