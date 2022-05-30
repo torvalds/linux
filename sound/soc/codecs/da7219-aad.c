@@ -434,6 +434,10 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 			mask |= DA7219_AAD_REPORT_ALL_MASK;
 			da7219_aad->jack_inserted = false;
 
+			/* Cancel any pending work */
+			cancel_work_sync(&da7219_aad->btn_det_work);
+			cancel_work_sync(&da7219_aad->hptest_work);
+
 			/* Un-drive headphones/lineout */
 			snd_soc_component_update_bits(component, DA7219_HP_R_CTRL,
 					    DA7219_HP_R_AMP_OE_MASK, 0);
@@ -452,10 +456,6 @@ static irqreturn_t da7219_aad_irq_thread(int irq, void *data)
 
 			/* Enable ground switch */
 			snd_soc_component_update_bits(component, 0xFB, 0x01, 0x01);
-
-			/* Cancel any pending work */
-			cancel_work_sync(&da7219_aad->btn_det_work);
-			cancel_work_sync(&da7219_aad->hptest_work);
 		}
 	}
 
