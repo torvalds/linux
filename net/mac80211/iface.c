@@ -1012,6 +1012,23 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.cab_queue = IEEE80211_INVAL_HW_QUEUE;
 }
 
+static void ieee80211_sdata_init(struct ieee80211_local *local,
+				 struct ieee80211_sub_if_data *sdata)
+{
+	sdata->local = local;
+
+	/*
+	 * Initialize the default link, so we can use link_id 0 for non-MLD,
+	 * and that continues to work for non-MLD-aware drivers that use just
+	 * vif.bss_conf instead of vif.link_conf.
+	 *
+	 * Note that we never change this, so if link ID 0 isn't used in an
+	 * MLD connection, we get a separate allocation for it.
+	 */
+	sdata->vif.link_conf[0] = &sdata->vif.bss_conf;
+	sdata->link[0] = &sdata->deflink;
+}
+
 int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 {
 	struct ieee80211_sub_if_data *sdata;
@@ -1031,11 +1048,12 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 		return -ENOMEM;
 
 	/* set up data */
-	sdata->local = local;
 	sdata->vif.type = NL80211_IFTYPE_MONITOR;
 	snprintf(sdata->name, IFNAMSIZ, "%s-monitor",
 		 wiphy_name(local->hw.wiphy));
 	sdata->wdev.iftype = NL80211_IFTYPE_MONITOR;
+
+	ieee80211_sdata_init(local, sdata);
 
 	ieee80211_set_default_queues(sdata);
 
@@ -2074,7 +2092,8 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 
 	/* initialise type-independent data */
 	sdata->wdev.wiphy = local->hw.wiphy;
-	sdata->local = local;
+
+	ieee80211_sdata_init(local, sdata);
 
 	ieee80211_init_frag_cache(&sdata->frags);
 

@@ -1739,6 +1739,8 @@ struct ieee80211_vif_cfg {
  * @cfg: vif configuration, see &struct ieee80211_vif_cfg
  * @bss_conf: BSS configuration for this interface, either our own
  *	or the BSS we're associated to
+ * @link_conf: in case of MLD, the per-link BSS configuration,
+ *	indexed by link ID
  * @addr: address of this interface
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
@@ -1773,6 +1775,7 @@ struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_vif_cfg cfg;
 	struct ieee80211_bss_conf bss_conf;
+	struct ieee80211_bss_conf *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
 	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
 
