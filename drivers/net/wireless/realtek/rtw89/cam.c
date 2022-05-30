@@ -602,11 +602,18 @@ int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
 	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
 	u8 bss_color = vif->bss_conf.he_bss_color.color;
+	u8 bss_mask;
+
+	if (vif->bss_conf.nontransmitted)
+		bss_mask = RTW89_BSSID_MATCH_5_BYTES;
+	else
+		bss_mask = RTW89_BSSID_MATCH_ALL;
 
 	FWCMD_SET_ADDR_BSSID_IDX(cmd, bssid_cam->bssid_cam_idx);
 	FWCMD_SET_ADDR_BSSID_OFFSET(cmd, bssid_cam->offset);
 	FWCMD_SET_ADDR_BSSID_LEN(cmd, bssid_cam->len);
 	FWCMD_SET_ADDR_BSSID_VALID(cmd, bssid_cam->valid);
+	FWCMD_SET_ADDR_BSSID_MASK(cmd, bss_mask);
 	FWCMD_SET_ADDR_BSSID_BB_SEL(cmd, bssid_cam->phy_idx);
 	FWCMD_SET_ADDR_BSSID_BSS_COLOR(cmd, bss_color);
 
