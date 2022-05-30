@@ -38,6 +38,12 @@
  */
 #define AMDGPU_USERPTR_RESTORE_DELAY_MS 1
 
+/*
+ * Align VRAM allocations to 2MB to avoid fragmentation caused by 4K allocations in the tail 2MB
+ * BO chunk
+ */
+#define VRAM_ALLOCATION_ALIGN (1 << 21)
+
 /* Impose limit on how much memory KFD can use */
 static struct {
 	uint64_t max_system_mem_limit;
@@ -108,7 +114,7 @@ void amdgpu_amdkfd_reserve_system_mem(uint64_t size)
  * compromise that should work in most cases without reserving too
  * much memory for page tables unnecessarily (factor 16K, >> 14).
  */
-#define ESTIMATE_PT_SIZE(mem_size) ((mem_size) >> 14)
+#define ESTIMATE_PT_SIZE(mem_size) max(((mem_size) >> 14), AMDGPU_VM_RESERVED_VRAM)
 
 static size_t amdgpu_amdkfd_acc_size(uint64_t size)
 {
@@ -148,7 +154,13 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
 		system_mem_needed = acc_size;
 		ttm_mem_needed = acc_size;
-		vram_needed = size;
+
+		/*
+		 * Conservatively round up the allocation requirement to 2 MB
+		 * to avoid fragmentation caused by 4K allocations in the tail
+		 * 2M BO chunk.
+		 */
+		vram_needed = ALIGN(size, VRAM_ALLOCATION_ALIGN);
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
 		system_mem_needed = acc_size + size;
 		ttm_mem_needed = acc_size;
@@ -173,7 +185,9 @@ static int amdgpu_amdkfd_reserve_mem_limit(struct amdgpu_device *adev,
 	    (kfd_mem_limit.ttm_mem_used + ttm_mem_needed >
 	     kfd_mem_limit.max_ttm_mem_limit) ||
 	    (adev->kfd.vram_used + vram_needed >
-	     adev->gmc.real_vram_size - reserved_for_pt)) {
+	     adev->gmc.real_vram_size -
+	     atomic64_read(&adev->vram_pin_size) -
+	     reserved_for_pt)) {
 		ret = -ENOMEM;
 		goto release;
 	}
@@ -205,7 +219,7 @@ static void unreserve_mem_limit(struct amdgpu_device *adev,
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_VRAM) {
 		kfd_mem_limit.system_mem_used -= acc_size;
 		kfd_mem_limit.ttm_mem_used -= acc_size;
-		adev->kfd.vram_used -= size;
+		adev->kfd.vram_used -= ALIGN(size, VRAM_ALLOCATION_ALIGN);
 	} else if (alloc_flag & KFD_IOC_ALLOC_MEM_FLAGS_USERPTR) {
 		kfd_mem_limit.system_mem_used -= (acc_size + size);
 		kfd_mem_limit.ttm_mem_used -= acc_size;
@@ -1631,6 +1645,22 @@ int amdgpu_amdkfd_criu_resume(void *p)
 out_unlock:
 	mutex_unlock(&pinfo->lock);
 	return ret;
+}
+
+size_t amdgpu_amdkfd_get_available_memory(struct amdgpu_device *adev)
+{
+	uint64_t reserved_for_pt =
+		ESTIMATE_PT_SIZE(amdgpu_amdkfd_total_mem_size);
+	size_t available;
+
+	spin_lock(&kfd_mem_limit.mem_limit_lock);
+	available = adev->gmc.real_vram_size
+		- adev->kfd.vram_used
+		- atomic64_read(&adev->vram_pin_size)
+		- reserved_for_pt;
+	spin_unlock(&kfd_mem_limit.mem_limit_lock);
+
+	return ALIGN_DOWN(available, VRAM_ALLOCATION_ALIGN);
 }
 
 int amdgpu_amdkfd_gpuvm_alloc_memory_of_gpu(
