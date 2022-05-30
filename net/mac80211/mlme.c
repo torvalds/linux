@@ -3599,7 +3599,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 							    elems->he_cap_len,
 							    elems->eht_cap,
 							    elems->eht_cap_len,
-							    sta);
+							    sta, 0);
 
 			bss_conf->eht_support = sta->sta.deflink.eht_cap.has_eht;
 		} else {

@@ -2577,5 +2577,6 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const u8 *he_cap_ie, u8 he_cap_len,
 				    const struct ieee80211_eht_cap_elem *eht_cap_ie_elem,
-				    u8 eht_cap_len, struct sta_info *sta);
+				    u8 eht_cap_len, struct sta_info *sta,
+				    unsigned int link_id);
 #endif /* IEEE80211_I_H */

@@ -12,9 +12,11 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const u8 *he_cap_ie, u8 he_cap_len,
 				    const struct ieee80211_eht_cap_elem *eht_cap_ie_elem,
-				    u8 eht_cap_len, struct sta_info *sta)
+				    u8 eht_cap_len, struct sta_info *sta,
+				    unsigned int link_id)
 {
-	struct ieee80211_sta_eht_cap *eht_cap = &sta->sta.deflink.eht_cap;
+	struct ieee80211_sta_eht_cap *eht_cap =
+		&sta->sta.link[link_id]->eht_cap;
 	struct ieee80211_he_cap_elem *he_cap_ie_elem = (void *)he_cap_ie;
 	u8 eht_ppe_size = 0;
 	u8 mcs_nss_size;
@@ -71,6 +73,8 @@ ieee80211_eht_cap_ie_to_sta_eht_cap(struct ieee80211_sub_if_data *sdata,
 
 	eht_cap->has_eht = true;
 
-	sta->deflink.cur_max_bandwidth = ieee80211_sta_cap_rx_bw(sta, 0);
-	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta, 0);
+	sta->link[link_id]->cur_max_bandwidth =
+		ieee80211_sta_cap_rx_bw(sta, link_id);
+	sta->sta.link[link_id]->bandwidth =
+		ieee80211_sta_cur_vht_bw(sta, link_id);
 }

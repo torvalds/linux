@@ -1778,7 +1778,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 						    params->he_capa_len,
 						    params->eht_capa,
 						    params->eht_capa_len,
-						    sta);
+						    sta, 0);
 
 	if (params->opmode_notif_used) {
 		/* returned value is only needed for rc update, but the
