@@ -89,7 +89,6 @@ void (*mach_get_model) (char *model);
 void (*mach_get_hardware_list) (struct seq_file *m);
 void (*mach_reset)( void );
 void (*mach_halt)( void );
-void (*mach_power_off)( void );
 #ifdef CONFIG_HEARTBEAT
 void (*mach_heartbeat) (int);
 EXPORT_SYMBOL(mach_heartbeat);
