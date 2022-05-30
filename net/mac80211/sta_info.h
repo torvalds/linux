@@ -710,7 +710,7 @@ struct sta_info {
 
 	bool multi_link_sta;
 	struct link_sta_info deflink;
-	struct link_sta_info *link[MAX_STA_LINKS];
+	struct link_sta_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	/* keep last! */
 	struct ieee80211_sta sta;
