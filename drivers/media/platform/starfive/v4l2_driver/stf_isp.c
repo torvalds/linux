@@ -396,6 +396,8 @@ static int isp_set_power(struct v4l2_subdev *sd, int on)
 	mutex_lock(&isp_dev->power_lock);
 	if (on) {
 		if (isp_dev->power_count == 0) {
+			/* Needs to enable vin clock before access ISP. */
+			vin_dev->hw_ops->vin_top_clk_init(vin_dev);
 			vin_dev->hw_ops->vin_clk_enable(vin_dev);
 			isp_dev->hw_ops->isp_clk_enable(isp_dev);
 			if (!user_config_isp)
