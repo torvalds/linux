@@ -1955,6 +1955,7 @@ const struct address_space_operations ntfs_aops = {
 	.direct_IO	= ntfs_direct_IO,
 	.bmap		= ntfs_bmap,
 	.dirty_folio	= block_dirty_folio,
+	.invalidate_folio = block_invalidate_folio,
 };
 
 const struct address_space_operations ntfs_aops_cmpr = {
