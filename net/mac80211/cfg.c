@@ -1770,7 +1770,7 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 						  (void *)params->he_capa,
 						  params->he_capa_len,
 						  (void *)params->he_6ghz_capa,
-						  sta);
+						  sta, 0);
 
 	if (params->eht_capa)
 		ieee80211_eht_cap_ie_to_sta_eht_cap(sdata, sband,
