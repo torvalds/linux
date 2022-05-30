@@ -574,6 +574,7 @@ struct io_close {
 	struct file			*file;
 	int				fd;
 	u32				file_slot;
+	u32				flags;
 };
 
 struct io_timeout_data {
@@ -1366,7 +1367,9 @@ static int io_req_prep_async(struct io_kiocb *req);
 
 static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 				 unsigned int issue_flags, u32 slot_index);
-static int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags);
+static int __io_close_fixed(struct io_kiocb *req, unsigned int issue_flags,
+			    unsigned int offset);
+static inline int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags);
 
 static enum hrtimer_restart io_link_timeout_fn(struct hrtimer *timer);
 static void io_eventfd_signal(struct io_ring_ctx *ctx);
@@ -5947,14 +5950,18 @@ static int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	if (sqe->off || sqe->addr || sqe->len || sqe->rw_flags || sqe->buf_index)
+	if (sqe->off || sqe->addr || sqe->len || sqe->buf_index)
 		return -EINVAL;
 	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 
 	req->close.fd = READ_ONCE(sqe->fd);
 	req->close.file_slot = READ_ONCE(sqe->file_index);
-	if (req->close.file_slot && req->close.fd)
+	req->close.flags = READ_ONCE(sqe->close_flags);
+	if (req->close.flags & ~IORING_CLOSE_FD_AND_FILE_SLOT)
+		return -EINVAL;
+	if (!(req->close.flags & IORING_CLOSE_FD_AND_FILE_SLOT) &&
+	    req->close.file_slot && req->close.fd)
 		return -EINVAL;
 
 	return 0;
@@ -5970,7 +5977,8 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (req->close.file_slot) {
 		ret = io_close_fixed(req, issue_flags);
-		goto err;
+		if (ret || !(req->close.flags & IORING_CLOSE_FD_AND_FILE_SLOT))
+			goto err;
 	}
 
 	spin_lock(&files->file_lock);
@@ -8003,6 +8011,41 @@ static int io_files_update_prep(struct io_kiocb *req,
 	return 0;
 }
 
+static int io_files_update_with_index_alloc(struct io_kiocb *req,
+					    unsigned int issue_flags)
+{
+	__s32 __user *fds = u64_to_user_ptr(req->rsrc_update.arg);
+	unsigned int done;
+	struct file *file;
+	int ret, fd;
+
+	for (done = 0; done < req->rsrc_update.nr_args; done++) {
+		if (copy_from_user(&fd, &fds[done], sizeof(fd))) {
+			ret = -EFAULT;
+			break;
+		}
+
+		file = fget(fd);
+		if (!file) {
+			ret = -EBADF;
+			break;
+		}
+		ret = io_fixed_fd_install(req, issue_flags, file,
+					  IORING_FILE_INDEX_ALLOC);
+		if (ret < 0)
+			break;
+		if (copy_to_user(&fds[done], &ret, sizeof(ret))) {
+			ret = -EFAULT;
+			__io_close_fixed(req, issue_flags, ret);
+			break;
+		}
+	}
+
+	if (done)
+		return done;
+	return ret;
+}
+
 static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
@@ -8016,10 +8059,14 @@ static int io_files_update(struct io_kiocb *req, unsigned int issue_flags)
 	up.resv = 0;
 	up.resv2 = 0;
 
-	io_ring_submit_lock(ctx, issue_flags);
-	ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
-					&up, req->rsrc_update.nr_args);
-	io_ring_submit_unlock(ctx, issue_flags);
+	if (req->rsrc_update.offset == IORING_FILE_INDEX_ALLOC) {
+		ret = io_files_update_with_index_alloc(req, issue_flags);
+	} else {
+		io_ring_submit_lock(ctx, issue_flags);
+		ret = __io_register_rsrc_update(ctx, IORING_RSRC_FILE,
+				&up, req->rsrc_update.nr_args);
+		io_ring_submit_unlock(ctx, issue_flags);
+	}
 
 	if (ret < 0)
 		req_set_fail(req);
@@ -10183,9 +10230,9 @@ err:
 	return ret;
 }
 
-static int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
+static int __io_close_fixed(struct io_kiocb *req, unsigned int issue_flags,
+			    unsigned int offset)
 {
-	unsigned int offset = req->close.file_slot - 1;
 	struct io_ring_ctx *ctx = req->ctx;
 	struct io_fixed_file *file_slot;
 	struct file *file;
@@ -10220,6 +10267,11 @@ static int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
 out:
 	io_ring_submit_unlock(ctx, issue_flags);
 	return ret;
+}
+
+static inline int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
+{
+	return __io_close_fixed(req, issue_flags, req->close.file_slot - 1);
 }
 
 static int __io_sqe_files_update(struct io_ring_ctx *ctx,
