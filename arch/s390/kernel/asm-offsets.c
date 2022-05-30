@@ -57,11 +57,11 @@ int main(void)
 	/* stack_frame offsets */
 	OFFSET(__SF_BACKCHAIN, stack_frame, back_chain);
 	OFFSET(__SF_GPRS, stack_frame, gprs);
-	OFFSET(__SF_EMPTY, stack_frame, empty1[0]);
-	OFFSET(__SF_SIE_CONTROL, stack_frame, empty1[1]);
-	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty1[2]);
-	OFFSET(__SF_SIE_REASON, stack_frame, empty1[3]);
-	OFFSET(__SF_SIE_FLAGS, stack_frame, empty1[4]);
+	OFFSET(__SF_EMPTY, stack_frame, empty[0]);
+	OFFSET(__SF_SIE_CONTROL, stack_frame, empty[1]);
+	OFFSET(__SF_SIE_SAVEAREA, stack_frame, empty[2]);
+	OFFSET(__SF_SIE_REASON, stack_frame, empty[3]);
+	OFFSET(__SF_SIE_FLAGS, stack_frame, empty[4]);
 	DEFINE(STACK_FRAME_OVERHEAD, sizeof(struct stack_frame));
 	BLANK();
 	/* idle data offsets */
