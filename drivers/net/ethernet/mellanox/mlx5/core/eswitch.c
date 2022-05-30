@@ -1995,8 +1995,6 @@ int mlx5_esw_try_lock(struct mlx5_eswitch *esw)
  */
 void mlx5_esw_unlock(struct mlx5_eswitch *esw)
 {
-	if (!mlx5_esw_allowed(esw))
-		return;
 	up_write(&esw->mode_lock);
 }
 
