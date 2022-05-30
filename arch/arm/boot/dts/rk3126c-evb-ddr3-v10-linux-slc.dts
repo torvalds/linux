@@ -1,0 +1,32 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd
+ */
+/dts-v1/;
+#include "rk3126c-evb-ddr3-v10-linux.dts"
+/ {
+	chosen {
+		bootargs = "ubi.mtd=7 root=ubi0:rootfs rootfstype=ubifs";
+	};
+};
+
+&emmc {
+	status = "disabled";
+};
+
+&nandc {
+	status = "okay";
+	#address-cells = <1>;
+	#size-cells = <0>;
+
+	assigned-clocks = <&cru SCLK_NANDC>;
+	assigned-clock-rates = <120000000>;
+
+	nand@0 {
+		reg = <0>;
+		nand-bus-width = <8>;
+		nand-ecc-mode = "hw";
+		nand-ecc-strength = <16>;
+		nand-ecc-step-size = <1024>;
+	};
+};
