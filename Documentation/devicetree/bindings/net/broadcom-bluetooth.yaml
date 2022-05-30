@@ -92,6 +92,13 @@ properties:
        pcm-sync-mode: slave, master
        pcm-clock-mode: slave, master
 
+  brcm,requires-autobaud-mode:
+    type: boolean
+    description:
+      Set this property if autobaud mode is required. Autobaud mode is required
+      if the device's initial baud rate in normal mode is not supported by the
+      host or if the device requires autobaud mode startup before loading FW.
+
   interrupts:
     items:
       - description: Handle to the line HOST_WAKE used to wake
