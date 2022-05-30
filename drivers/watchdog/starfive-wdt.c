@@ -141,6 +141,9 @@ struct stf_si5_wdt {
 	u32 reload;	/*restore the count*/
 	void __iomem *base;
 	spinlock_t lock;
+
+	unsigned int interrupt_flag;
+	struct resource *wdt_irq;
 };
 
 #ifdef CONFIG_OF
@@ -443,10 +446,17 @@ static unsigned int si5wdt_get_timeleft(struct watchdog_device *wdd)
 	u32 count;
 
 	si5wdt_unlock(wdt);
-	count = si5wdt_get_count(wdt);
+	count = si5wdt_get_count(wdt) + (1 - wdt->interrupt_flag) * wdt->count;
 	si5wdt_lock(wdt);
 
 	return si5wdt_ticks_to_sec(wdt, count);
+}
+
+static void si5wdt_irq_flag_clr(struct stf_si5_wdt *wdt)
+{
+	if (wdt->interrupt_flag)
+		enable_irq(wdt->wdt_irq->start);
+	wdt->interrupt_flag = 0;
 }
 
 static int si5wdt_keepalive(struct watchdog_device *wdd)
@@ -456,6 +466,8 @@ static int si5wdt_keepalive(struct watchdog_device *wdd)
 	spin_lock(&wdt->lock);
 
 	si5wdt_unlock(wdt);
+	si5wdt_int_clr(wdt);
+	si5wdt_irq_flag_clr(wdt);
 	si5wdt_set_relod_count(wdt, wdt->count);
 	si5wdt_lock(wdt);
 
@@ -470,6 +482,12 @@ static irqreturn_t si5wdt_interrupt_handler(int irq, void *data)
 	 * We don't clear the IRQ status. It's supposed to be done by the
 	 * following ping operations.
 	 */
+	struct platform_device *pdev = data;
+	struct stf_si5_wdt *wdt = platform_get_drvdata(pdev);
+
+	/* Clear the IRQ status and set flag. */
+	disable_irq_nosync(wdt->wdt_irq->start);
+	wdt->interrupt_flag = 1;
 
 	return IRQ_HANDLED;
 }
@@ -504,6 +522,7 @@ static int si5wdt_start(struct watchdog_device *wdd)
 	else
 		si5wdt_enable_reset(wdt);
 
+	si5wdt_irq_flag_clr(wdt);
 	si5wdt_set_count(wdt, wdt->count);
 	si5wdt_int_enable(wdt);
 	si5wdt_enable(wdt);
@@ -529,6 +548,7 @@ static int si5wdt_restart(struct watchdog_device *wdd, unsigned long action,
 	else
 		si5wdt_enable_reset(wdt);
 
+	si5wdt_irq_flag_clr(wdt);
 	/* put initial values into count and data */
 	si5wdt_set_count(wdt, wdt->count);
 
@@ -556,7 +576,7 @@ static int si5wdt_set_timeout(struct watchdog_device *wdd,
 	if (timeout < 1)
 		return -EINVAL;
 
-	count = timeout * freq;
+	count = timeout * freq / 2;
 
 	if (count > SI5_WATCHDOG_MAXCNT) {
 		dev_warn(wdt->dev, "timeout %d too big,use the MAX-timeout set.\n",
@@ -565,11 +585,12 @@ static int si5wdt_set_timeout(struct watchdog_device *wdd,
 		count = timeout * freq;
 	}
 
-	dev_info(wdt->dev, "Heartbeat: timeout=%d, count=%d (%08x)\n",
+	dev_info(wdt->dev, "Heartbeat: timeout=%d, count/2=%d (%08x)\n",
 		timeout, count, count);
 
 	si5wdt_unlock(wdt);
 	si5wdt_disable(wdt);
+	si5wdt_irq_flag_clr(wdt);
 	si5wdt_set_relod_count(wdt, count);
 	si5wdt_enable(wdt);
 	si5wdt_lock(wdt);
@@ -643,6 +664,8 @@ static int si5wdt_probe(struct platform_device *pdev)
 		ret = -ENOENT;
 		goto err;
 	}
+	wdt->wdt_irq = wdt_irq;
+	si5wdt_irq_flag_clr(wdt);
 
 	/* get the memory region for the watchdog timer */
 	wdt->base = devm_platform_ioremap_resource(pdev, 0);
@@ -782,6 +805,7 @@ static int si5wdt_resume(struct device *dev)
 
 	si5wdt_unlock(wdt);
 
+	si5wdt_irq_flag_clr(wdt);
 	/* Restore watchdog state. */
 	si5wdt_set_relod_count(wdt, wdt->reload);
 
