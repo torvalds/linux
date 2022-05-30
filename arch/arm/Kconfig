@@ -396,19 +396,6 @@ config ARCH_SA1100
 	help
 	  Support for StrongARM 11x0 based boards.
 
-config ARCH_OMAP1
-	bool "TI OMAP1"
-	depends on CPU_LITTLE_ENDIAN
-	select CLKSRC_MMIO
-	select FORCE_PCI if PCCARD
-	select GENERIC_IRQ_CHIP
-	select GPIOLIB
-	select HAVE_LEGACY_CLK
-	select IRQ_DOMAIN
-	select SPARSE_IRQ
-	help
-	  Support for older TI OMAP1 (omap7xx, omap15xx or omap16xx)
-
 endchoice
 
 menu "Multiple platform selection"
