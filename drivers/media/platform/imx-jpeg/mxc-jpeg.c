@@ -545,6 +545,18 @@ static void mxc_jpeg_free_slot_data(struct mxc_jpeg_dev *jpeg,
 	jpeg->slot_data[slot].used = false;
 }
 
+static void mxc_jpeg_check_and_set_last_buffer(struct mxc_jpeg_ctx *ctx,
+					       struct vb2_v4l2_buffer *src_buf,
+					       struct vb2_v4l2_buffer *dst_buf)
+{
+	if (v4l2_m2m_is_last_draining_src_buf(ctx->fh.m2m_ctx, src_buf)) {
+		dst_buf->flags |= V4L2_BUF_FLAG_LAST;
+		v4l2_m2m_mark_stopped(ctx->fh.m2m_ctx);
+		notify_eos(ctx);
+		ctx->header_parsed = false;
+	}
+}
+
 static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 {
 	struct mxc_jpeg_dev *jpeg = priv;
@@ -619,6 +631,7 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 		dev_dbg(dev, "Decoder DHT cfg finished. Start decoding...\n");
 		goto job_unlock;
 	}
+
 	if (jpeg->mode == MXC_JPEG_ENCODE) {
 		payload = readl(reg + MXC_SLOT_OFFSET(slot, SLOT_BUF_PTR));
 		vb2_set_plane_payload(&dst_buf->vb2_buf, 0, payload);
@@ -647,6 +660,7 @@ static irqreturn_t mxc_jpeg_dec_irq(int irq, void *priv)
 
 buffers_done:
 	jpeg->slot_data[slot].used = false; /* unused, but don't free */
+	mxc_jpeg_check_and_set_last_buffer(ctx, src_buf, dst_buf);
 	v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 	v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 	v4l2_m2m_buf_done(src_buf, buf_state);
@@ -1013,6 +1027,7 @@ static void mxc_jpeg_device_run(void *priv)
 		jpeg_src_buf->jpeg_parse_error = true;
 	}
 	if (jpeg_src_buf->jpeg_parse_error) {
+		mxc_jpeg_check_and_set_last_buffer(ctx, src_buf, dst_buf);
 		v4l2_m2m_src_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_dst_buf_remove(ctx->fh.m2m_ctx);
 		v4l2_m2m_buf_done(src_buf, VB2_BUF_STATE_ERROR);
@@ -1068,45 +1083,33 @@ end:
 	spin_unlock_irqrestore(&ctx->mxc_jpeg->hw_lock, flags);
 }
 
-static void mxc_jpeg_set_last_buffer_dequeued(struct mxc_jpeg_ctx *ctx)
-{
-	struct vb2_queue *q;
-
-	ctx->stopped = 1;
-	q = v4l2_m2m_get_dst_vq(ctx->fh.m2m_ctx);
-	if (!list_empty(&q->done_list))
-		return;
-
-	q->last_buffer_dequeued = true;
-	wake_up(&q->done_wq);
-	ctx->stopped = 0;
-	ctx->header_parsed = false;
-}
-
 static int mxc_jpeg_decoder_cmd(struct file *file, void *priv,
 				struct v4l2_decoder_cmd *cmd)
 {
 	struct v4l2_fh *fh = file->private_data;
 	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(fh);
-	struct device *dev = ctx->mxc_jpeg->dev;
 	int ret;
 
 	ret = v4l2_m2m_ioctl_try_decoder_cmd(file, fh, cmd);
 	if (ret < 0)
 		return ret;
 
-	if (cmd->cmd == V4L2_DEC_CMD_STOP) {
-		dev_dbg(dev, "Received V4L2_DEC_CMD_STOP");
-		if (v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx) == 0) {
-			/* No more src bufs, notify app EOS */
-			notify_eos(ctx);
-			mxc_jpeg_set_last_buffer_dequeued(ctx);
-		} else {
-			/* will send EOS later*/
-			ctx->stopping = 1;
-		}
+	if (!vb2_is_streaming(v4l2_m2m_get_src_vq(fh->m2m_ctx)))
+		return 0;
+
+	ret = v4l2_m2m_ioctl_decoder_cmd(file, priv, cmd);
+	if (ret < 0)
+		return ret;
+
+	if (cmd->cmd == V4L2_DEC_CMD_STOP &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx)) {
+		notify_eos(ctx);
+		ctx->header_parsed = false;
 	}
 
+	if (cmd->cmd == V4L2_DEC_CMD_START &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx))
+		vb2_clear_last_buffer_dequeued(&fh->m2m_ctx->cap_q_ctx.q);
 	return 0;
 }
 
@@ -1115,24 +1118,27 @@ static int mxc_jpeg_encoder_cmd(struct file *file, void *priv,
 {
 	struct v4l2_fh *fh = file->private_data;
 	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(fh);
-	struct device *dev = ctx->mxc_jpeg->dev;
 	int ret;
 
 	ret = v4l2_m2m_ioctl_try_encoder_cmd(file, fh, cmd);
 	if (ret < 0)
 		return ret;
 
-	if (cmd->cmd == V4L2_ENC_CMD_STOP) {
-		dev_dbg(dev, "Received V4L2_ENC_CMD_STOP");
-		if (v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx) == 0) {
-			/* No more src bufs, notify app EOS */
-			notify_eos(ctx);
-			mxc_jpeg_set_last_buffer_dequeued(ctx);
-		} else {
-			/* will send EOS later*/
-			ctx->stopping = 1;
-		}
-	}
+	if (!vb2_is_streaming(v4l2_m2m_get_src_vq(fh->m2m_ctx)) ||
+	    !vb2_is_streaming(v4l2_m2m_get_dst_vq(fh->m2m_ctx)))
+		return 0;
+
+	ret = v4l2_m2m_ioctl_encoder_cmd(file, fh, cmd);
+	if (ret < 0)
+		return 0;
+
+	if (cmd->cmd == V4L2_ENC_CMD_STOP &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx))
+		notify_eos(ctx);
+
+	if (cmd->cmd == V4L2_ENC_CMD_START &&
+	    v4l2_m2m_has_stopped(fh->m2m_ctx))
+		vb2_clear_last_buffer_dequeued(&fh->m2m_ctx->cap_q_ctx.q);
 
 	return 0;
 }
@@ -1186,6 +1192,8 @@ static int mxc_jpeg_start_streaming(struct vb2_queue *q, unsigned int count)
 	struct mxc_jpeg_q_data *q_data = mxc_jpeg_get_q_data(ctx, q->type);
 	int ret;
 
+	v4l2_m2m_update_start_streaming_state(ctx->fh.m2m_ctx, q);
+
 	if (ctx->mxc_jpeg->mode == MXC_JPEG_DECODE && V4L2_TYPE_IS_CAPTURE(q->type))
 		ctx->source_change = 0;
 	dev_dbg(ctx->mxc_jpeg->dev, "Start streaming ctx=%p", ctx);
@@ -1217,11 +1225,15 @@ static void mxc_jpeg_stop_streaming(struct vb2_queue *q)
 			break;
 		v4l2_m2m_buf_done(vbuf, VB2_BUF_STATE_ERROR);
 	}
-	pm_runtime_put_sync(&ctx->mxc_jpeg->pdev->dev);
-	if (V4L2_TYPE_IS_OUTPUT(q->type)) {
-		ctx->stopping = 0;
-		ctx->stopped = 0;
+
+	v4l2_m2m_update_stop_streaming_state(ctx->fh.m2m_ctx, q);
+	if (V4L2_TYPE_IS_OUTPUT(q->type) &&
+	    v4l2_m2m_has_stopped(ctx->fh.m2m_ctx)) {
+		notify_eos(ctx);
+		ctx->header_parsed = false;
 	}
+
+	pm_runtime_put_sync(&ctx->mxc_jpeg->pdev->dev);
 }
 
 static int mxc_jpeg_valid_comp_id(struct device *dev,
@@ -1420,6 +1432,20 @@ static void mxc_jpeg_buf_queue(struct vb2_buffer *vb)
 	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
 	struct mxc_jpeg_src_buf *jpeg_src_buf;
 
+	if (V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type) &&
+	    vb2_is_streaming(vb->vb2_queue) &&
+	    v4l2_m2m_dst_buf_is_last(ctx->fh.m2m_ctx)) {
+		struct mxc_jpeg_q_data *q_data;
+
+		q_data = mxc_jpeg_get_q_data(ctx, vb->vb2_queue->type);
+		vbuf->field = V4L2_FIELD_NONE;
+		vbuf->sequence = q_data->sequence++;
+		v4l2_m2m_last_buffer_done(ctx->fh.m2m_ctx, vbuf);
+		notify_eos(ctx);
+		ctx->header_parsed = false;
+		return;
+	}
+
 	if (vb->vb2_queue->type == V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE)
 		goto end;
 
@@ -1469,24 +1495,11 @@ static int mxc_jpeg_buf_prepare(struct vb2_buffer *vb)
 		}
 		vb2_set_plane_payload(vb, i, sizeimage);
 	}
-	return 0;
-}
-
-static void mxc_jpeg_buf_finish(struct vb2_buffer *vb)
-{
-	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
-	struct mxc_jpeg_ctx *ctx = vb2_get_drv_priv(vb->vb2_queue);
-	struct vb2_queue *q = vb->vb2_queue;
-
-	if (V4L2_TYPE_IS_OUTPUT(vb->type))
-		return;
-	if (!ctx->stopped)
-		return;
-	if (list_empty(&q->done_list)) {
-		vbuf->flags |= V4L2_BUF_FLAG_LAST;
-		ctx->stopped = 0;
-		ctx->header_parsed = false;
+	if (V4L2_TYPE_IS_CAPTURE(vb->vb2_queue->type)) {
+		vb2_set_plane_payload(vb, 0, 0);
+		vb2_set_plane_payload(vb, 1, 0);
 	}
+	return 0;
 }
 
 static const struct vb2_ops mxc_jpeg_qops = {
@@ -1495,7 +1508,6 @@ static const struct vb2_ops mxc_jpeg_qops = {
 	.wait_finish		= vb2_ops_wait_finish,
 	.buf_out_validate	= mxc_jpeg_buf_out_validate,
 	.buf_prepare		= mxc_jpeg_buf_prepare,
-	.buf_finish             = mxc_jpeg_buf_finish,
 	.start_streaming	= mxc_jpeg_start_streaming,
 	.stop_streaming		= mxc_jpeg_stop_streaming,
 	.buf_queue		= mxc_jpeg_buf_queue,
@@ -1916,27 +1928,6 @@ static int mxc_jpeg_subscribe_event(struct v4l2_fh *fh,
 	}
 }
 
-static int mxc_jpeg_dqbuf(struct file *file, void *priv,
-			  struct v4l2_buffer *buf)
-{
-	struct v4l2_fh *fh = file->private_data;
-	struct mxc_jpeg_ctx *ctx = mxc_jpeg_fh_to_ctx(priv);
-	struct device *dev = ctx->mxc_jpeg->dev;
-	int num_src_ready = v4l2_m2m_num_src_bufs_ready(fh->m2m_ctx);
-	int ret;
-
-	dev_dbg(dev, "DQBUF type=%d, index=%d", buf->type, buf->index);
-	if (ctx->stopping == 1 && num_src_ready == 0) {
-		/* No more src bufs, notify app EOS */
-		notify_eos(ctx);
-		ctx->stopping = 0;
-		mxc_jpeg_set_last_buffer_dequeued(ctx);
-	}
-
-	ret = v4l2_m2m_dqbuf(file, fh->m2m_ctx, buf);
-	return ret;
-}
-
 static const struct v4l2_ioctl_ops mxc_jpeg_ioctl_ops = {
 	.vidioc_querycap		= mxc_jpeg_querycap,
 	.vidioc_enum_fmt_vid_cap	= mxc_jpeg_enum_fmt_vid_cap,
@@ -1960,7 +1951,7 @@ static const struct v4l2_ioctl_ops mxc_jpeg_ioctl_ops = {
 	.vidioc_encoder_cmd		= mxc_jpeg_encoder_cmd,
 
 	.vidioc_qbuf			= v4l2_m2m_ioctl_qbuf,
-	.vidioc_dqbuf			= mxc_jpeg_dqbuf,
+	.vidioc_dqbuf			= v4l2_m2m_ioctl_dqbuf,
 
 	.vidioc_create_bufs		= v4l2_m2m_ioctl_create_bufs,
 	.vidioc_prepare_buf		= v4l2_m2m_ioctl_prepare_buf,
