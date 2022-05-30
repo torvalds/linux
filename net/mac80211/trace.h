@@ -481,34 +481,36 @@ TRACE_EVENT(drv_link_info_changed,
 	),
 
 	TP_fast_assign(
+		struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
+
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		__entry->changed = changed;
 		__entry->link_id = link_id;
-		__entry->shortpre = sdata->vif.bss_conf.use_short_preamble;
-		__entry->cts = sdata->vif.bss_conf.use_cts_prot;
-		__entry->shortslot = sdata->vif.bss_conf.use_short_slot;
-		__entry->enable_beacon = sdata->vif.bss_conf.enable_beacon;
-		__entry->dtimper = sdata->vif.bss_conf.dtim_period;
-		__entry->bcnint = sdata->vif.bss_conf.beacon_int;
-		__entry->assoc_cap = sdata->vif.bss_conf.assoc_capability;
-		__entry->sync_tsf = sdata->vif.bss_conf.sync_tsf;
-		__entry->sync_device_ts = sdata->vif.bss_conf.sync_device_ts;
-		__entry->sync_dtim_count = sdata->vif.bss_conf.sync_dtim_count;
-		__entry->basic_rates = sdata->vif.bss_conf.basic_rates;
-		memcpy(__entry->mcast_rate, sdata->vif.bss_conf.mcast_rate,
+		__entry->shortpre = link_conf->use_short_preamble;
+		__entry->cts = link_conf->use_cts_prot;
+		__entry->shortslot = link_conf->use_short_slot;
+		__entry->enable_beacon = link_conf->enable_beacon;
+		__entry->dtimper = link_conf->dtim_period;
+		__entry->bcnint = link_conf->beacon_int;
+		__entry->assoc_cap = link_conf->assoc_capability;
+		__entry->sync_tsf = link_conf->sync_tsf;
+		__entry->sync_device_ts = link_conf->sync_device_ts;
+		__entry->sync_dtim_count = link_conf->sync_dtim_count;
+		__entry->basic_rates = link_conf->basic_rates;
+		memcpy(__entry->mcast_rate, link_conf->mcast_rate,
 		       sizeof(__entry->mcast_rate));
-		__entry->ht_operation_mode = sdata->vif.bss_conf.ht_operation_mode;
-		__entry->cqm_rssi_thold = sdata->vif.bss_conf.cqm_rssi_thold;
-		__entry->cqm_rssi_hyst = sdata->vif.bss_conf.cqm_rssi_hyst;
-		__entry->channel_width = sdata->vif.bss_conf.chandef.width;
-		__entry->channel_cfreq1 = sdata->vif.bss_conf.chandef.center_freq1;
-		__entry->channel_cfreq1_offset = sdata->vif.bss_conf.chandef.freq1_offset;
-		__entry->qos = sdata->vif.bss_conf.qos;
-		__entry->ps = sdata->vif.bss_conf.ps;
-		__entry->hidden_ssid = sdata->vif.bss_conf.hidden_ssid;
-		__entry->txpower = sdata->vif.bss_conf.txpower;
-		__entry->p2p_oppps_ctwindow = sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow;
+		__entry->ht_operation_mode = link_conf->ht_operation_mode;
+		__entry->cqm_rssi_thold = link_conf->cqm_rssi_thold;
+		__entry->cqm_rssi_hyst = link_conf->cqm_rssi_hyst;
+		__entry->channel_width = link_conf->chandef.width;
+		__entry->channel_cfreq1 = link_conf->chandef.center_freq1;
+		__entry->channel_cfreq1_offset = link_conf->chandef.freq1_offset;
+		__entry->qos = link_conf->qos;
+		__entry->ps = link_conf->ps;
+		__entry->hidden_ssid = link_conf->hidden_ssid;
+		__entry->txpower = link_conf->txpower;
+		__entry->p2p_oppps_ctwindow = link_conf->p2p_noa_attr.oppps_ctwindow;
 	),
 
 	TP_printk(
