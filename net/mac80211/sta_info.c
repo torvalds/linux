@@ -245,6 +245,20 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
 	return NULL;
 }
 
+static void sta_info_free_links(struct sta_info *sta)
+{
+	unsigned int link_id;
+
+	for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
+		if (!sta->link[link_id])
+			continue;
+		free_percpu(sta->link[link_id]->pcpu_rx_stats);
+
+		if (sta->link[link_id] != &sta->deflink)
+			kfree(sta->link[link_id]);
+	}
+}
+
 /**
  * sta_info_free - free STA
  *
@@ -287,7 +301,8 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 #ifdef CONFIG_MAC80211_MESH
 	kfree(sta->mesh);
 #endif
-	free_percpu(sta->deflink.pcpu_rx_stats);
+
+	sta_info_free_links(sta);
 	kfree(sta);
 }
 
@@ -333,6 +348,40 @@ static int sta_prepare_rate_control(struct ieee80211_local *local,
 	return 0;
 }
 
+static int sta_info_init_link(struct sta_info *sta,
+			      unsigned int link_id,
+			      struct link_sta_info *link_info,
+			      struct ieee80211_link_sta *link_sta,
+			      gfp_t gfp)
+{
+	struct ieee80211_local *local = sta->local;
+	struct ieee80211_hw *hw = &local->hw;
+	int i;
+
+	link_info->sta = sta;
+	link_info->link_id = link_id;
+
+	if (ieee80211_hw_check(hw, USES_RSS)) {
+		link_info->pcpu_rx_stats =
+			alloc_percpu_gfp(struct ieee80211_sta_rx_stats, gfp);
+		if (!link_info->pcpu_rx_stats)
+			return -ENOMEM;
+	}
+
+	sta->link[link_id] = link_info;
+	sta->sta.link[link_id] = link_sta;
+
+	link_info->rx_stats.last_rx = jiffies;
+	u64_stats_init(&link_info->rx_stats.syncp);
+
+	ewma_signal_init(&link_info->rx_stats_avg.signal);
+	ewma_avg_signal_init(&link_info->status_stats.avg_ack_signal);
+	for (i = 0; i < ARRAY_SIZE(link_info->rx_stats_avg.chain_signal); i++)
+		ewma_signal_init(&link_info->rx_stats_avg.chain_signal[i]);
+
+	return 0;
+}
+
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 				const u8 *addr, gfp_t gfp)
 {
@@ -345,12 +394,11 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	if (!sta)
 		return NULL;
 
-	if (ieee80211_hw_check(hw, USES_RSS)) {
-		sta->deflink.pcpu_rx_stats =
-			alloc_percpu_gfp(struct ieee80211_sta_rx_stats, gfp);
-		if (!sta->deflink.pcpu_rx_stats)
-			goto free;
-	}
+	sta->local = local;
+	sta->sdata = sdata;
+
+	if (sta_info_init_link(sta, 0, &sta->deflink, &sta->sta.deflink, gfp))
+		return NULL;
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
@@ -378,12 +426,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 
 	/* TODO link specific alloc and assignments for MLO Link STA */
 
-	/* For non MLO STA, link info can be accessed either via deflink
-	 * or link[0]
-	 */
-	sta->link[0] = &sta->deflink;
-	sta->sta.link[0] = &sta->sta.deflink;
-
 	/* Extended Key ID needs to install keys for keyid 0 and 1 Rx-only.
 	 * The Tx path starts to use a key as soon as the key slot ptk_idx
 	 * references to is not NULL. To not use the initial Rx-only key
@@ -393,11 +435,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	BUILD_BUG_ON(ARRAY_SIZE(sta->ptk) <= INVALID_PTK_KEYIDX);
 	sta->ptk_idx = INVALID_PTK_KEYIDX;
 
-	sta->local = local;
-	sta->sdata = sdata;
-	sta->deflink.rx_stats.last_rx = jiffies;
-
-	u64_stats_init(&sta->deflink.rx_stats.syncp);
 
 	ieee80211_init_frag_cache(&sta->frags);
 
@@ -407,10 +444,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->reserved_tid = IEEE80211_TID_UNRESERVED;
 
 	sta->last_connected = ktime_get_seconds();
-	ewma_signal_init(&sta->deflink.rx_stats_avg.signal);
-	ewma_avg_signal_init(&sta->deflink.status_stats.avg_ack_signal);
-	for (i = 0; i < ARRAY_SIZE(sta->deflink.rx_stats_avg.chain_signal); i++)
-		ewma_signal_init(&sta->deflink.rx_stats_avg.chain_signal[i]);
 
 	if (local->ops->wake_tx_queue) {
 		void *txq_data;
@@ -532,7 +565,7 @@ free_txq:
 	if (sta->sta.txq[0])
 		kfree(to_txq_info(sta->sta.txq[0]));
 free:
-	free_percpu(sta->deflink.pcpu_rx_stats);
+	sta_info_free_links(sta);
 #ifdef CONFIG_MAC80211_MESH
 	kfree(sta->mesh);
 #endif
