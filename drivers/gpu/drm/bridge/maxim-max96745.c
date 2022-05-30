@@ -24,6 +24,8 @@
 struct max96745_bridge {
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
+	struct drm_connector connector;
+	struct drm_panel *panel;
 
 	struct device *dev;
 	struct regmap *regmap;
@@ -31,22 +33,82 @@ struct max96745_bridge {
 
 #define to_max96745_bridge(x)	container_of(x, struct max96745_bridge, x)
 
+static int max96745_bridge_connector_get_modes(struct drm_connector *connector)
+{
+	struct max96745_bridge *ser = to_max96745_bridge(connector);
+
+	if (ser->next_bridge)
+		return drm_bridge_get_modes(ser->next_bridge, connector);
+
+	return drm_panel_get_modes(ser->panel, connector);
+}
+
+static const struct drm_connector_helper_funcs
+max96745_bridge_connector_helper_funcs = {
+	.get_modes = max96745_bridge_connector_get_modes,
+};
+
+static enum drm_connector_status
+max96745_bridge_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct max96745_bridge *ser = to_max96745_bridge(connector);
+
+	return drm_bridge_detect(&ser->bridge);
+}
+
+static const struct drm_connector_funcs max96745_bridge_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = max96745_bridge_connector_detect,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
 static int max96745_bridge_attach(struct drm_bridge *bridge,
 				  enum drm_bridge_attach_flags flags)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+	struct drm_connector *connector = &ser->connector;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, NULL,
+	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, &ser->panel,
 					  &ser->next_bridge);
 	if (ret)
 		return ret;
 
-	return drm_bridge_attach(bridge->encoder, ser->next_bridge, bridge, 0);
+	if (ser->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, ser->next_bridge,
+					bridge, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+		if (ret)
+			return ret;
+	}
+
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			    DRM_CONNECTOR_POLL_DISCONNECT;
+
+	drm_connector_helper_add(connector,
+				 &max96745_bridge_connector_helper_funcs);
+
+	ret = drm_connector_init(bridge->dev, connector,
+				 &max96745_bridge_connector_funcs,
+				 ser->next_bridge ? ser->next_bridge->type : bridge->type);
+	if (ret) {
+		DRM_ERROR("Failed to initialize connector\n");
+		return ret;
+	}
+
+	drm_connector_attach_encoder(connector, bridge->encoder);
+
+	return 0;
 }
 
 static void max96745_bridge_pre_enable(struct drm_bridge *bridge)
 {
+	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+
+	if (ser->panel)
+		drm_panel_prepare(ser->panel);
 }
 
 static void max96745_bridge_enable(struct drm_bridge *bridge)
@@ -55,11 +117,17 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 
 	regmap_update_bits(ser->regmap, 0x0100, VID_TX_EN,
 			   FIELD_PREP(VID_TX_EN, 1));
+
+	if (ser->panel)
+		drm_panel_enable(ser->panel);
 }
 
 static void max96745_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+
+	if (ser->panel)
+		drm_panel_disable(ser->panel);
 
 	regmap_update_bits(ser->regmap, 0x0100, VID_TX_EN,
 			   FIELD_PREP(VID_TX_EN, 0));
@@ -67,29 +135,25 @@ static void max96745_bridge_disable(struct drm_bridge *bridge)
 
 static void max96745_bridge_post_disable(struct drm_bridge *bridge)
 {
+	struct max96745_bridge *ser = to_max96745_bridge(bridge);
+
+	if (ser->panel)
+		drm_panel_unprepare(ser->panel);
 }
 
 static enum drm_connector_status
 max96745_bridge_detect(struct drm_bridge *bridge)
 {
-	struct drm_bridge *prev_bridge = drm_bridge_get_prev_bridge(bridge);
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
 	u32 val;
-
-	if (prev_bridge) {
-		if (prev_bridge->ops & DRM_BRIDGE_OP_DETECT) {
-			if (drm_bridge_detect(prev_bridge) != connector_status_connected)
-				return connector_status_disconnected;
-		}
-	}
 
 	if (regmap_read(ser->regmap, 0x002a, &val))
 		return connector_status_disconnected;
 
-	if (FIELD_GET(LINK_LOCKED, val))
-		return connector_status_connected;
-	else
+	if (!FIELD_GET(LINK_LOCKED, val))
 		return connector_status_disconnected;
+
+	return connector_status_connected;
 }
 
 static const struct drm_bridge_funcs max96745_bridge_funcs = {
