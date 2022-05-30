@@ -257,6 +257,14 @@ config RESET_TI_SYSCON
 	  you wish to use the reset framework for such memory-mapped devices,
 	  say Y here. Otherwise, say N.
 
+config RESET_TI_TPS380X
+	tristate "TI TPS380x Reset Driver"
+	select GPIOLIB
+	help
+	  This enables the reset driver support for TI TPS380x devices. If
+	  you wish to use the reset framework for such devices, say Y here.
+	  Otherwise, say N.
+
 config RESET_TN48M_CPLD
 	tristate "Delta Networks TN48M switch CPLD reset controller"
 	depends on MFD_TN48M_CPLD || COMPILE_TEST
