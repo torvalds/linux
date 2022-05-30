@@ -54,6 +54,7 @@ void parisc_setup_cache_timing(void);
 #define asm_io_sync()	asm volatile("sync" \
 			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \
 			ALTERNATIVE(ALT_COND_NO_IOC_FDC, INSN_NOP) :::"memory")
+#define asm_syncdma()	asm volatile("syncdma" :::"memory")
 
 #endif /* ! __ASSEMBLY__ */
 
