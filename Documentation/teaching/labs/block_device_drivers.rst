@@ -513,8 +513,8 @@ An example of using these functions is as follows:
    static void delete_block_device(struct block_dev *dev)
    {
        //...
-       blk_mq_free_tag_set(&dev->tag_set);
        blk_cleanup_queue(dev->queue);
+       blk_mq_free_tag_set(&dev->tag_set);
    }
 
    static void my_block_exit(void)
