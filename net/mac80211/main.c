@@ -955,6 +955,48 @@ int ieee80211_register_hw(struct ieee80211_hw *hw)
 		    (!local->ops->start_nan || !local->ops->stop_nan)))
 		return -EINVAL;
 
+	if (hw->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO) {
+		/*
+		 * For drivers capable of doing MLO, assume modern driver
+		 * or firmware facilities, so software doesn't have to do
+		 * as much, e.g. monitoring beacons would be hard if we
+		 * might not even know which link is active at which time.
+		 */
+		if (WARN_ON(!local->use_chanctx))
+			return -EINVAL;
+
+		if (WARN_ON(!local->ops->link_info_changed))
+			return -EINVAL;
+
+		if (WARN_ON(!ieee80211_hw_check(hw, HAS_RATE_CONTROL)))
+			return -EINVAL;
+
+		if (WARN_ON(!ieee80211_hw_check(hw, AMPDU_AGGREGATION)))
+			return -EINVAL;
+
+		if (WARN_ON(ieee80211_hw_check(hw, HOST_BROADCAST_PS_BUFFERING)))
+			return -EINVAL;
+
+		if (WARN_ON(ieee80211_hw_check(hw, SUPPORTS_PS) &&
+			    !ieee80211_hw_check(hw, SUPPORTS_DYNAMIC_PS)))
+			return -EINVAL;
+
+		if (WARN_ON(!ieee80211_hw_check(hw, MFP_CAPABLE)))
+			return -EINVAL;
+
+		if (WARN_ON(!ieee80211_hw_check(hw, CONNECTION_MONITOR)))
+			return -EINVAL;
+
+		if (WARN_ON(ieee80211_hw_check(hw, NEED_DTIM_BEFORE_ASSOC)))
+			return -EINVAL;
+
+		if (WARN_ON(ieee80211_hw_check(hw, TIMING_BEACON_ONLY)))
+			return -EINVAL;
+
+		if (WARN_ON(!ieee80211_hw_check(hw, AP_LINK_PS)))
+			return -EINVAL;
+	}
+
 #ifdef CONFIG_PM
 	if (hw->wiphy->wowlan && (!local->ops->suspend || !local->ops->resume))
 		return -EINVAL;
