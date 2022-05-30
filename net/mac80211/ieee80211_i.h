@@ -2121,29 +2121,31 @@ void
 ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const struct ieee80211_vht_cap *vht_cap_ie,
-				    struct sta_info *sta);
+				    struct sta_info *sta, unsigned int link_id);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta,
 							unsigned int link_id);
 enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta,
 							 unsigned int link_id);
-void ieee80211_sta_set_rx_nss(struct sta_info *sta);
+void ieee80211_sta_set_rx_nss(struct sta_info *sta, unsigned int link_id);
 enum ieee80211_sta_rx_bandwidth
 ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
-enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta);
+enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta,
+						  unsigned int link_id);
 void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
+				 unsigned int link_id,
 				 struct ieee80211_mgmt *mgmt);
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
-                                  struct sta_info *sta, u8 opmode,
-				  enum nl80211_band band);
+				  struct sta_info *sta, unsigned int link_id,
+				  u8 opmode, enum nl80211_band band);
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
-				 struct sta_info *sta, u8 opmode,
-				 enum nl80211_band band);
+				 struct sta_info *sta, unsigned int link_id,
+				 u8 opmode, enum nl80211_band band);
 void ieee80211_apply_vhtcap_overrides(struct ieee80211_sub_if_data *sdata,
 				      struct ieee80211_sta_vht_cap *vht_cap);
 void ieee80211_get_vht_mask_from_cap(__le16 vht_cap,
 				     u16 vht_mask[NL80211_VHT_NSS_MAX]);
 enum nl80211_chan_width
-ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta);
+ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta, unsigned int link_id);
 
 /* HE */
 void

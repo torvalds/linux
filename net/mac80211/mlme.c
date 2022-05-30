@@ -3570,7 +3570,8 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 
 	if (elems->vht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-						    elems->vht_cap_elem, sta);
+						    elems->vht_cap_elem,
+						    sta, 0);
 
 	if (elems->he_operation && !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
 	    elems->he_cap) {
@@ -4377,7 +4378,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sta && elems->opmode_notif)
-		ieee80211_vht_handle_opmode(sdata, sta, *elems->opmode_notif,
+		ieee80211_vht_handle_opmode(sdata, sta, 0,
+					    *elems->opmode_notif,
 					    rx_status->band);
 	mutex_unlock(&local->sta_mtx);
 

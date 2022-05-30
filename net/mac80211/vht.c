@@ -116,16 +116,16 @@ void
 ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 				    struct ieee80211_supported_band *sband,
 				    const struct ieee80211_vht_cap *vht_cap_ie,
-				    struct sta_info *sta)
+				    struct sta_info *sta, unsigned int link_id)
 {
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.deflink.vht_cap;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.link[link_id]->vht_cap;
 	struct ieee80211_sta_vht_cap own_cap;
 	u32 cap_info, i;
 	bool have_80mhz;
 
 	memset(vht_cap, 0, sizeof(*vht_cap));
 
-	if (!sta->sta.deflink.ht_cap.ht_supported)
+	if (!sta->sta.link[link_id]->ht_cap.ht_supported)
 		return;
 
 	if (!vht_cap_ie || !sband->vht_cap.vht_supported)
@@ -295,10 +295,10 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 	switch (vht_cap->cap & IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_MASK) {
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160MHZ:
 	case IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ:
-		sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+		sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 		break;
 	default:
-		sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
+		sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
 
 		if (!(vht_cap->vht_mcs.tx_highest &
 				cpu_to_le16(IEEE80211_VHT_EXT_NSS_BW_CAPABLE)))
@@ -310,10 +310,11 @@ ieee80211_vht_cap_ie_to_sta_vht_cap(struct ieee80211_sub_if_data *sdata,
 		 * above) between 160 and 80+80 yet.
 		 */
 		if (cap_info & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK)
-			sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+			sta->link[link_id]->cur_max_bandwidth =
+				IEEE80211_STA_RX_BW_160;
 	}
 
-	sta->sta.deflink.bandwidth = ieee80211_sta_cur_vht_bw(sta, 0);
+	sta->sta.link[link_id]->bandwidth = ieee80211_sta_cur_vht_bw(sta, link_id);
 
 	switch (vht_cap->cap & IEEE80211_VHT_CAP_MAX_MPDU_MASK) {
 	case IEEE80211_VHT_CAP_MAX_MPDU_LENGTH_11454:
@@ -391,16 +392,17 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cap_rx_bw(struct sta_info *sta,
 	return IEEE80211_STA_RX_BW_80;
 }
 
-enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta)
+enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta,
+						  unsigned int link_id)
 {
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.deflink.vht_cap;
+	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.link[link_id]->vht_cap;
 	u32 cap_width;
 
 	if (!vht_cap->vht_supported) {
-		if (!sta->sta.deflink.ht_cap.ht_supported)
+		if (!sta->sta.link[link_id]->ht_cap.ht_supported)
 			return NL80211_CHAN_WIDTH_20_NOHT;
 
-		return sta->sta.deflink.ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
+		return sta->sta.link[link_id]->ht_cap.cap & IEEE80211_HT_CAP_SUP_WIDTH_20_40 ?
 				NL80211_CHAN_WIDTH_40 : NL80211_CHAN_WIDTH_20;
 	}
 
@@ -415,15 +417,17 @@ enum nl80211_chan_width ieee80211_sta_cap_chan_bw(struct sta_info *sta)
 }
 
 enum nl80211_chan_width
-ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta)
+ieee80211_sta_rx_bw_to_chan_width(struct sta_info *sta, unsigned int link_id)
 {
-	enum ieee80211_sta_rx_bandwidth cur_bw = sta->sta.deflink.bandwidth;
-	struct ieee80211_sta_vht_cap *vht_cap = &sta->sta.deflink.vht_cap;
+	enum ieee80211_sta_rx_bandwidth cur_bw =
+		sta->sta.link[link_id]->bandwidth;
+	struct ieee80211_sta_vht_cap *vht_cap =
+		&sta->sta.link[link_id]->vht_cap;
 	u32 cap_width;
 
 	switch (cur_bw) {
 	case IEEE80211_STA_RX_BW_20:
-		if (!sta->sta.deflink.ht_cap.ht_supported)
+		if (!sta->sta.link[link_id]->ht_cap.ht_supported)
 			return NL80211_CHAN_WIDTH_20_NOHT;
 		else
 			return NL80211_CHAN_WIDTH_20;
@@ -497,18 +501,18 @@ enum ieee80211_sta_rx_bandwidth ieee80211_sta_cur_vht_bw(struct sta_info *sta,
 	return bw;
 }
 
-void ieee80211_sta_set_rx_nss(struct sta_info *sta)
+void ieee80211_sta_set_rx_nss(struct sta_info *sta, unsigned int link_id)
 {
 	u8 ht_rx_nss = 0, vht_rx_nss = 0, he_rx_nss = 0, eht_rx_nss = 0, rx_nss;
 	bool support_160;
 
 	/* if we received a notification already don't overwrite it */
-	if (sta->sta.deflink.rx_nss)
+	if (sta->sta.link[link_id]->rx_nss)
 		return;
 
-	if (sta->sta.deflink.eht_cap.has_eht) {
+	if (sta->sta.link[link_id]->eht_cap.has_eht) {
 		int i;
-		const u8 *rx_nss_mcs = (void *)&sta->sta.deflink.eht_cap.eht_mcs_nss_supp;
+		const u8 *rx_nss_mcs = (void *)&sta->sta.link[link_id]->eht_cap.eht_mcs_nss_supp;
 
 		/* get the max nss for EHT over all possible bandwidths and mcs */
 		for (i = 0; i < sizeof(struct ieee80211_eht_mcs_nss_supp); i++)
@@ -517,10 +521,10 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 						       IEEE80211_EHT_MCS_NSS_RX));
 	}
 
-	if (sta->sta.deflink.he_cap.has_he) {
+	if (sta->sta.link[link_id]->he_cap.has_he) {
 		int i;
 		u8 rx_mcs_80 = 0, rx_mcs_160 = 0;
-		const struct ieee80211_sta_he_cap *he_cap = &sta->sta.deflink.he_cap;
+		const struct ieee80211_sta_he_cap *he_cap = &sta->sta.link[link_id]->he_cap;
 		u16 mcs_160_map =
 			le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_160);
 		u16 mcs_80_map = le16_to_cpu(he_cap->he_mcs_nss_supp.rx_mcs_80);
@@ -551,23 +555,23 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 			he_rx_nss = rx_mcs_80;
 	}
 
-	if (sta->sta.deflink.ht_cap.ht_supported) {
-		if (sta->sta.deflink.ht_cap.mcs.rx_mask[0])
+	if (sta->sta.link[link_id]->ht_cap.ht_supported) {
+		if (sta->sta.link[link_id]->ht_cap.mcs.rx_mask[0])
 			ht_rx_nss++;
-		if (sta->sta.deflink.ht_cap.mcs.rx_mask[1])
+		if (sta->sta.link[link_id]->ht_cap.mcs.rx_mask[1])
 			ht_rx_nss++;
-		if (sta->sta.deflink.ht_cap.mcs.rx_mask[2])
+		if (sta->sta.link[link_id]->ht_cap.mcs.rx_mask[2])
 			ht_rx_nss++;
-		if (sta->sta.deflink.ht_cap.mcs.rx_mask[3])
+		if (sta->sta.link[link_id]->ht_cap.mcs.rx_mask[3])
 			ht_rx_nss++;
 		/* FIXME: consider rx_highest? */
 	}
 
-	if (sta->sta.deflink.vht_cap.vht_supported) {
+	if (sta->sta.link[link_id]->vht_cap.vht_supported) {
 		int i;
 		u16 rx_mcs_map;
 
-		rx_mcs_map = le16_to_cpu(sta->sta.deflink.vht_cap.vht_mcs.rx_mcs_map);
+		rx_mcs_map = le16_to_cpu(sta->sta.link[link_id]->vht_cap.vht_mcs.rx_mcs_map);
 
 		for (i = 7; i >= 0; i--) {
 			u8 mcs = (rx_mcs_map >> (2 * i)) & 3;
@@ -583,12 +587,12 @@ void ieee80211_sta_set_rx_nss(struct sta_info *sta)
 	rx_nss = max(vht_rx_nss, ht_rx_nss);
 	rx_nss = max(he_rx_nss, rx_nss);
 	rx_nss = max(eht_rx_nss, rx_nss);
-	sta->sta.deflink.rx_nss = max_t(u8, 1, rx_nss);
+	sta->sta.link[link_id]->rx_nss = max_t(u8, 1, rx_nss);
 }
 
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
-				  struct sta_info *sta, u8 opmode,
-				  enum nl80211_band band)
+				  struct sta_info *sta, unsigned int link_id,
+				  u8 opmode, enum nl80211_band band)
 {
 	enum ieee80211_sta_rx_bandwidth new_bw;
 	struct sta_opmode_info sta_opmode = {};
@@ -603,8 +607,8 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	nss >>= IEEE80211_OPMODE_NOTIF_RX_NSS_SHIFT;
 	nss += 1;
 
-	if (sta->sta.deflink.rx_nss != nss) {
-		sta->sta.deflink.rx_nss = nss;
+	if (sta->sta.link[link_id]->rx_nss != nss) {
+		sta->sta.link[link_id]->rx_nss = nss;
 		sta_opmode.rx_nss = nss;
 		changed |= IEEE80211_RC_NSS_CHANGED;
 		sta_opmode.changed |= STA_OPMODE_N_SS_CHANGED;
@@ -613,28 +617,28 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 	switch (opmode & IEEE80211_OPMODE_NOTIF_CHANWIDTH_MASK) {
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_20MHZ:
 		/* ignore IEEE80211_OPMODE_NOTIF_BW_160_80P80 must not be set */
-		sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_20;
+		sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_20;
 		break;
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_40MHZ:
 		/* ignore IEEE80211_OPMODE_NOTIF_BW_160_80P80 must not be set */
-		sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_40;
+		sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_40;
 		break;
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_80MHZ:
 		if (opmode & IEEE80211_OPMODE_NOTIF_BW_160_80P80)
-			sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+			sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 		else
-			sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
+			sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_80;
 		break;
 	case IEEE80211_OPMODE_NOTIF_CHANWIDTH_160MHZ:
 		/* legacy only, no longer used by newer spec */
-		sta->deflink.cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
+		sta->link[link_id]->cur_max_bandwidth = IEEE80211_STA_RX_BW_160;
 		break;
 	}
 
-	new_bw = ieee80211_sta_cur_vht_bw(sta, 0);
-	if (new_bw != sta->sta.deflink.bandwidth) {
-		sta->sta.deflink.bandwidth = new_bw;
-		sta_opmode.bw = ieee80211_sta_rx_bw_to_chan_width(sta);
+	new_bw = ieee80211_sta_cur_vht_bw(sta, link_id);
+	if (new_bw != sta->sta.link[link_id]->bandwidth) {
+		sta->sta.link[link_id]->bandwidth = new_bw;
+		sta_opmode.bw = ieee80211_sta_rx_bw_to_chan_width(sta, link_id);
 		changed |= IEEE80211_RC_BW_CHANGED;
 		sta_opmode.changed |= STA_OPMODE_MAX_BW_CHANGED;
 	}
@@ -647,54 +651,56 @@ u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 }
 
 void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
+				 unsigned int link_id,
 				 struct ieee80211_mgmt *mgmt)
 {
-	struct ieee80211_bss_conf *bss_conf = &sdata->vif.bss_conf;
+	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
 
-	if (!sdata->vif.bss_conf.mu_mimo_owner)
+	if (!link_conf->mu_mimo_owner)
 		return;
 
 	if (!memcmp(mgmt->u.action.u.vht_group_notif.position,
-		    bss_conf->mu_group.position, WLAN_USER_POSITION_LEN) &&
+		    link_conf->mu_group.position, WLAN_USER_POSITION_LEN) &&
 	    !memcmp(mgmt->u.action.u.vht_group_notif.membership,
-		    bss_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
+		    link_conf->mu_group.membership, WLAN_MEMBERSHIP_LEN))
 		return;
 
-	memcpy(bss_conf->mu_group.membership,
+	memcpy(link_conf->mu_group.membership,
 	       mgmt->u.action.u.vht_group_notif.membership,
 	       WLAN_MEMBERSHIP_LEN);
-	memcpy(bss_conf->mu_group.position,
+	memcpy(link_conf->mu_group.position,
 	       mgmt->u.action.u.vht_group_notif.position,
 	       WLAN_USER_POSITION_LEN);
 
-	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_MU_GROUPS);
+	ieee80211_link_info_change_notify(sdata, link_id, BSS_CHANGED_MU_GROUPS);
 }
 
-void ieee80211_update_mu_groups(struct ieee80211_vif *vif,
+void ieee80211_update_mu_groups(struct ieee80211_vif *vif, unsigned int link_id,
 				const u8 *membership, const u8 *position)
 {
-	struct ieee80211_bss_conf *bss_conf = &vif->bss_conf;
+	struct ieee80211_bss_conf *link_conf = vif->link_conf[link_id];
 
-	if (WARN_ON_ONCE(!vif->bss_conf.mu_mimo_owner))
+	if (WARN_ON_ONCE(!link_conf->mu_mimo_owner))
 		return;
 
-	memcpy(bss_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);
-	memcpy(bss_conf->mu_group.position, position, WLAN_USER_POSITION_LEN);
+	memcpy(link_conf->mu_group.membership, membership, WLAN_MEMBERSHIP_LEN);
+	memcpy(link_conf->mu_group.position, position, WLAN_USER_POSITION_LEN);
 }
 EXPORT_SYMBOL_GPL(ieee80211_update_mu_groups);
 
 void ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
-				 struct sta_info *sta, u8 opmode,
-				 enum nl80211_band band)
+				 struct sta_info *sta, unsigned int link_id,
+				 u8 opmode, enum nl80211_band band)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_supported_band *sband = local->hw.wiphy->bands[band];
 
-	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, opmode, band);
+	u32 changed = __ieee80211_vht_handle_opmode(sdata, sta, link_id,
+						    opmode, band);
 
 	if (changed > 0) {
 		ieee80211_recalc_min_chandef(sdata);
-		rate_control_rate_update(local, sband, sta, 0, changed);
+		rate_control_rate_update(local, sband, sta, link_id, changed);
 	}
 }
 

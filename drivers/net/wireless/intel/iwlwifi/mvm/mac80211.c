@@ -1776,7 +1776,7 @@ static void iwl_mvm_mu_mimo_iface_iterator(void *_data, u8 *mac,
 		 * the data received from firmware as if it came from the
 		 * action frame, so no conversion is needed.
 		 */
-		ieee80211_update_mu_groups(vif,
+		ieee80211_update_mu_groups(vif, 0,
 					   (u8 *)&notif->membership_status,
 					   (u8 *)&notif->user_position);
 	}
