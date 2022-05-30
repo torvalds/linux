@@ -19288,7 +19288,7 @@ R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
 R:	Mika Westerberg <mika.westerberg@linux.intel.com>
 R:	Jan Dabros <jsd@semihalf.com>
 L:	linux-i2c@vger.kernel.org
-S:	Maintained
+S:	Supported
 F:	drivers/i2c/busses/i2c-designware-*
 
 SYNOPSYS DESIGNWARE MMC/SD/SDIO DRIVER
