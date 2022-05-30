@@ -1090,15 +1090,10 @@ static int unmap_and_move(new_page_t get_new_page,
 		return -ENOSYS;
 
 	if (page_count(page) == 1) {
-		/* page was freed from under us. So we are done. */
+		/* Page was freed from under us. So we are done. */
 		ClearPageActive(page);
 		ClearPageUnevictable(page);
-		if (unlikely(__PageMovable(page))) {
-			lock_page(page);
-			if (!PageMovable(page))
-				ClearPageIsolated(page);
-			unlock_page(page);
-		}
+		/* free_pages_prepare() will clear PG_isolated. */
 		goto out;
 	}
 
