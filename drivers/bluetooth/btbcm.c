@@ -403,6 +403,13 @@ static int btbcm_read_info(struct hci_dev *hdev)
 	bt_dev_info(hdev, "BCM: chip id %u", skb->data[1]);
 	kfree_skb(skb);
 
+	return 0;
+}
+
+static int btbcm_print_controller_features(struct hci_dev *hdev)
+{
+	struct sk_buff *skb;
+
 	/* Read Controller Features */
 	skb = btbcm_read_controller_features(hdev);
 	if (IS_ERR(skb))
@@ -514,7 +521,7 @@ static const char *btbcm_get_board_name(struct device *dev)
 #endif
 }
 
-int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
+int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud_mode)
 {
 	u16 subver, rev, pid, vid;
 	struct sk_buff *skb;
@@ -551,9 +558,16 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 		if (err)
 			return err;
 	}
-	err = btbcm_print_local_name(hdev);
-	if (err)
-		return err;
+
+	if (!use_autobaud_mode) {
+		err = btbcm_print_controller_features(hdev);
+		if (err)
+			return err;
+
+		err = btbcm_print_local_name(hdev);
+		if (err)
+			return err;
+	}
 
 	bcm_subver_table = (hdev->bus == HCI_USB) ? bcm_usb_subver_table :
 						    bcm_uart_subver_table;
@@ -636,13 +650,13 @@ int btbcm_initialize(struct hci_dev *hdev, bool *fw_load_done)
 }
 EXPORT_SYMBOL_GPL(btbcm_initialize);
 
-int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done)
+int btbcm_finalize(struct hci_dev *hdev, bool *fw_load_done, bool use_autobaud_mode)
 {
 	int err;
 
 	/* Re-initialize if necessary */
 	if (*fw_load_done) {
-		err = btbcm_initialize(hdev, fw_load_done);
+		err = btbcm_initialize(hdev, fw_load_done, use_autobaud_mode);
 		if (err)
 			return err;
 	}
@@ -658,15 +672,16 @@ EXPORT_SYMBOL_GPL(btbcm_finalize);
 int btbcm_setup_patchram(struct hci_dev *hdev)
 {
 	bool fw_load_done = false;
+	bool use_autobaud_mode = false;
 	int err;
 
 	/* Initialize */
-	err = btbcm_initialize(hdev, &fw_load_done);
+	err = btbcm_initialize(hdev, &fw_load_done, use_autobaud_mode);
 	if (err)
 		return err;
 
 	/* Re-initialize after loading Patch */
-	return btbcm_finalize(hdev, &fw_load_done);
+	return btbcm_finalize(hdev, &fw_load_done, use_autobaud_mode);
 }
 EXPORT_SYMBOL_GPL(btbcm_setup_patchram);
 

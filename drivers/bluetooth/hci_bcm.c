@@ -99,6 +99,7 @@ struct bcm_device_data {
  * @no_early_set_baudrate: don't set_baudrate before setup()
  * @drive_rts_on_open: drive RTS signal on ->open() when platform requires it
  * @pcm_int_params: keep the initial PCM configuration
+ * @use_autobaud_mode: start Bluetooth device in autobaud mode
  */
 struct bcm_device {
 	/* Must be the first member, hci_serdev.c expects this. */
@@ -136,6 +137,7 @@ struct bcm_device {
 #endif
 	bool			no_early_set_baudrate;
 	bool			drive_rts_on_open;
+	bool			use_autobaud_mode;
 	u8			pcm_int_params[5];
 };
 
@@ -472,7 +474,9 @@ static int bcm_open(struct hci_uart *hu)
 
 out:
 	if (bcm->dev) {
-		if (bcm->dev->drive_rts_on_open)
+		if (bcm->dev->use_autobaud_mode)
+			hci_uart_set_flow_control(hu, false);	/* Assert BT_UART_CTS_N */
+		else if (bcm->dev->drive_rts_on_open)
 			hci_uart_set_flow_control(hu, true);
 
 		hu->init_speed = bcm->dev->init_speed;
@@ -564,6 +568,7 @@ static int bcm_setup(struct hci_uart *hu)
 {
 	struct bcm_data *bcm = hu->priv;
 	bool fw_load_done = false;
+	bool use_autobaud_mode = (bcm->dev ? bcm->dev->use_autobaud_mode : 0);
 	unsigned int speed;
 	int err;
 
@@ -572,7 +577,7 @@ static int bcm_setup(struct hci_uart *hu)
 	hu->hdev->set_diag = bcm_set_diag;
 	hu->hdev->set_bdaddr = btbcm_set_bdaddr;
 
-	err = btbcm_initialize(hu->hdev, &fw_load_done);
+	err = btbcm_initialize(hu->hdev, &fw_load_done, use_autobaud_mode);
 	if (err)
 		return err;
 
@@ -616,7 +621,7 @@ static int bcm_setup(struct hci_uart *hu)
 		btbcm_write_pcm_int_params(hu->hdev, &params);
 	}
 
-	err = btbcm_finalize(hu->hdev, &fw_load_done);
+	err = btbcm_finalize(hu->hdev, &fw_load_done, use_autobaud_mode);
 	if (err)
 		return err;
 
@@ -1197,6 +1202,11 @@ static int bcm_acpi_probe(struct bcm_device *dev)
 
 static int bcm_of_probe(struct bcm_device *bdev)
 {
+	bdev->use_autobaud_mode = device_property_read_bool(bdev->dev,
+							    "brcm,requires-autobaud-mode");
+	if (bdev->use_autobaud_mode)
+		bdev->no_early_set_baudrate = true;
+
 	device_property_read_u32(bdev->dev, "max-speed", &bdev->oper_speed);
 	device_property_read_u8_array(bdev->dev, "brcm,bt-pcm-int-params",
 				      bdev->pcm_int_params, 5);
