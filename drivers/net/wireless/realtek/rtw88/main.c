@@ -1600,9 +1600,9 @@ static void rtw_vif_smps_iter(void *data, u8 *mac,
 		return;
 
 	if (rtwdev->hal.txrx_1ss)
-		ieee80211_request_smps(vif, IEEE80211_SMPS_STATIC);
+		ieee80211_request_smps(vif, 0, IEEE80211_SMPS_STATIC);
 	else
-		ieee80211_request_smps(vif, IEEE80211_SMPS_OFF);
+		ieee80211_request_smps(vif, 0, IEEE80211_SMPS_OFF);
 }
 
 void rtw_set_txrx_1ss(struct rtw_dev *rtwdev, bool txrx_1ss)

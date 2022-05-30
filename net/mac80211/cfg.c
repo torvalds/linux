@@ -2913,6 +2913,7 @@ static int ieee80211_testmode_dump(struct wiphy *wiphy,
 #endif
 
 int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
+				 unsigned int link_id,
 				 enum ieee80211_smps_mode smps_mode)
 {
 	const u8 *ap;
@@ -2926,8 +2927,8 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	if (WARN_ON_ONCE(sdata->vif.type != NL80211_IFTYPE_STATION))
 		return -EINVAL;
 
-	old_req = sdata->deflink.u.mgd.req_smps;
-	sdata->deflink.u.mgd.req_smps = smps_mode;
+	old_req = sdata->link[link_id]->u.mgd.req_smps;
+	sdata->link[link_id]->u.mgd.req_smps = smps_mode;
 
 	if (old_req == smps_mode &&
 	    smps_mode != IEEE80211_SMPS_AUTOMATIC)
@@ -2939,10 +2940,10 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	 * the new value until we associate.
 	 */
 	if (!sdata->u.mgd.associated ||
-	    sdata->vif.bss_conf.chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
+	    sdata->vif.link_conf[link_id]->chandef.width == NL80211_CHAN_WIDTH_20_NOHT)
 		return 0;
 
-	ap = sdata->deflink.u.mgd.bssid;
+	ap = sdata->link[link_id]->u.mgd.bssid;
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(sta, &sdata->local->sta_list, list) {
@@ -2966,7 +2967,7 @@ int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
 	err = ieee80211_send_smps_action(sdata, smps_mode,
 					 ap, ap);
 	if (err)
-		sdata->deflink.u.mgd.req_smps = old_req;
+		sdata->link[link_id]->u.mgd.req_smps = old_req;
 	else if (smps_mode != IEEE80211_SMPS_OFF && tdls_peer_found)
 		ieee80211_teardown_tdls_peers(sdata);
 
@@ -2978,6 +2979,7 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 {
 	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct ieee80211_local *local = wdev_priv(dev->ieee80211_ptr);
+	unsigned int link_id;
 
 	if (sdata->vif.type != NL80211_IFTYPE_STATION)
 		return -EOPNOTSUPP;
@@ -2994,7 +2996,12 @@ static int ieee80211_set_power_mgmt(struct wiphy *wiphy, struct net_device *dev,
 
 	/* no change, but if automatic follow powersave */
 	sdata_lock(sdata);
-	__ieee80211_request_smps_mgd(sdata, sdata->deflink.u.mgd.req_smps);
+	for (link_id = 0; link_id < ARRAY_SIZE(sdata->link); link_id++) {
+		if (!sdata->link[link_id])
+			continue;
+		__ieee80211_request_smps_mgd(sdata, link_id,
+					     sdata->link[link_id]->u.mgd.req_smps);
+	}
 	sdata_unlock(sdata);
 
 	if (ieee80211_hw_check(&local->hw, SUPPORTS_DYNAMIC_PS))

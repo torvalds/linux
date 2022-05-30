@@ -6210,13 +6210,14 @@ void ieee80211_channel_switch_disconnect(struct ieee80211_vif *vif,
 /**
  * ieee80211_request_smps - request SM PS transition
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: link ID for MLO, or 0
  * @smps_mode: new SM PS mode
  *
  * This allows the driver to request an SM PS transition in managed
  * mode. This is useful when the driver has more information than
  * the stack about possible interference, for example by bluetooth.
  */
-void ieee80211_request_smps(struct ieee80211_vif *vif,
+void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 			    enum ieee80211_smps_mode smps_mode);
 
 /**

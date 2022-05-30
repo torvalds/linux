@@ -1657,7 +1657,7 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data, recalc_smps);
 
-	ieee80211_recalc_smps(sdata);
+	ieee80211_recalc_smps(sdata, 0);
 }
 
 /*

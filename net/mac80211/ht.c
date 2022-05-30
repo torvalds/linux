@@ -542,30 +542,33 @@ int ieee80211_send_smps_action(struct ieee80211_sub_if_data *sdata,
 
 void ieee80211_request_smps_mgd_work(struct work_struct *work)
 {
-	struct ieee80211_sub_if_data *sdata =
-		container_of(work, struct ieee80211_sub_if_data,
-			     deflink.u.mgd.request_smps_work);
+	struct ieee80211_link_data *link =
+		container_of(work, struct ieee80211_link_data,
+			     u.mgd.request_smps_work);
 
-	sdata_lock(sdata);
-	__ieee80211_request_smps_mgd(sdata,
-				     sdata->deflink.u.mgd.driver_smps_mode);
-	sdata_unlock(sdata);
+	sdata_lock(link->sdata);
+	__ieee80211_request_smps_mgd(link->sdata, link->link_id,
+				     link->u.mgd.driver_smps_mode);
+	sdata_unlock(link->sdata);
 }
 
-void ieee80211_request_smps(struct ieee80211_vif *vif,
+void ieee80211_request_smps(struct ieee80211_vif *vif, unsigned int link_id,
 			    enum ieee80211_smps_mode smps_mode)
 {
 	struct ieee80211_sub_if_data *sdata = vif_to_sdata(vif);
+	struct ieee80211_link_data *link = sdata->link[link_id];
 
 	if (WARN_ON_ONCE(vif->type != NL80211_IFTYPE_STATION))
 		return;
 
-	if (sdata->deflink.u.mgd.driver_smps_mode == smps_mode)
+	if (WARN_ON(!link))
 		return;
 
-	sdata->deflink.u.mgd.driver_smps_mode = smps_mode;
-	ieee80211_queue_work(&sdata->local->hw,
-			     &sdata->deflink.u.mgd.request_smps_work);
+	if (link->u.mgd.driver_smps_mode == smps_mode)
+		return;
+
+	link->u.mgd.driver_smps_mode = smps_mode;
+	ieee80211_queue_work(&sdata->local->hw, &link->u.mgd.request_smps_work);
 }
 /* this might change ... don't want non-open drivers using it */
 EXPORT_SYMBOL_GPL(ieee80211_request_smps);

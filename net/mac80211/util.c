@@ -2803,7 +2803,8 @@ void ieee80211_resume_disconnect(struct ieee80211_vif *vif)
 }
 EXPORT_SYMBOL_GPL(ieee80211_resume_disconnect);
 
-void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
+void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata,
+			   unsigned int link_id)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
@@ -2811,7 +2812,7 @@ void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata)
 
 	mutex_lock(&local->chanctx_mtx);
 
-	chanctx_conf = rcu_dereference_protected(sdata->vif.bss_conf.chanctx_conf,
+	chanctx_conf = rcu_dereference_protected(sdata->vif.link_conf[link_id]->chanctx_conf,
 						 lockdep_is_held(&local->chanctx_mtx));
 
 	/*

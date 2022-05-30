@@ -2337,7 +2337,7 @@ static void ieee80211_set_associated(struct ieee80211_sub_if_data *sdata,
 	ieee80211_recalc_ps(local);
 	mutex_unlock(&local->iflist_mtx);
 
-	ieee80211_recalc_smps(sdata);
+	ieee80211_recalc_smps(sdata, 0);
 	ieee80211_recalc_ps_vif(sdata);
 
 	netif_carrier_on(sdata->dev);
