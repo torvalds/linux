@@ -92,8 +92,6 @@ struct mxc_jpeg_ctx {
 	struct mxc_jpeg_q_data		cap_q;
 	struct v4l2_fh			fh;
 	enum mxc_jpeg_enc_state		enc_state;
-	unsigned int			stopping;
-	unsigned int			stopped;
 	unsigned int			slot;
 	unsigned int			source_change;
 	bool				header_parsed;
