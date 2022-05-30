@@ -342,7 +342,7 @@
 			phy-mode = "rgmii-rxid";
 		};
 
-		mdio-bus {
+		mdio: mdio-bus {
 			#address-cells = <1>;
 			#size-cells = <0>;
 

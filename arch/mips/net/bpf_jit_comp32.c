@@ -722,7 +722,7 @@ static void emit_atomic_r32(struct jit_context *ctx,
 		  0, JIT_RESERVED_STACK);
 	/*
 	 * Argument 1: dst+off if xchg, otherwise src, passed in register a0
-	 * Argument 2: src if xchg, othersize dst+off, passed in register a1
+	 * Argument 2: src if xchg, otherwise dst+off, passed in register a1
 	 */
 	emit(ctx, move, MIPS_R_T9, dst);
 	if (code == BPF_XCHG) {

@@ -61,6 +61,12 @@ int cvmx_helper_get_number_of_interfaces(void)
 {
 	if (OCTEON_IS_MODEL(OCTEON_CN68XX))
 		return 9;
+	if (OCTEON_IS_MODEL(OCTEON_CN66XX)) {
+		if (OCTEON_IS_MODEL(OCTEON_CN66XX_PASS1_0))
+			return 7;
+		else
+			return 8;
+	}
 	if (OCTEON_IS_MODEL(OCTEON_CN56XX) || OCTEON_IS_MODEL(OCTEON_CN52XX))
 		return 4;
 	if (OCTEON_IS_MODEL(OCTEON_CN7XXX))

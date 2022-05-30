@@ -1405,7 +1405,7 @@ static void octeon_irq_init_ciu2_percpu(void)
 	 * completed.
 	 *
 	 * There are 9 registers and 3 IPX levels with strides 0x1000
-	 * and 0x200 respectivly.  Use loops to clear them.
+	 * and 0x200 respectively.  Use loops to clear them.
 	 */
 	for (regx = 0; regx <= 0x8000; regx += 0x1000) {
 		for (ipx = 0; ipx <= 0x400; ipx += 0x200)

@@ -37,6 +37,7 @@
 #include <asm/cdmm.h>
 #include <asm/cpu.h>
 #include <asm/debug.h>
+#include <asm/mmzone.h>
 #include <asm/sections.h>
 #include <asm/setup.h>
 #include <asm/smp-ops.h>
@@ -344,6 +345,11 @@ static int __init early_parse_mem(char *p)
 {
 	phys_addr_t start, size;
 
+	if (!p) {
+		pr_err("mem parameter is empty, do nothing\n");
+		return -EINVAL;
+	}
+
 	/*
 	 * If a user specifies memory size, we
 	 * blow away any automatically generated
@@ -359,7 +365,10 @@ static int __init early_parse_mem(char *p)
 	if (*p == '@')
 		start = memparse(p + 1, &p);
 
-	memblock_add(start, size);
+	if (IS_ENABLED(CONFIG_NUMA))
+		memblock_add_node(start, size, pa_to_nid(start), MEMBLOCK_NONE);
+	else
+		memblock_add(start, size);
 
 	return 0;
 }
@@ -554,7 +563,7 @@ static void __init bootcmdline_init(void)
 	 * unmodified.
 	 */
 	if (IS_ENABLED(CONFIG_CMDLINE_OVERRIDE)) {
-		strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 		return;
 	}
 
@@ -566,7 +575,7 @@ static void __init bootcmdline_init(void)
 	 * boot_command_line to undo anything early_init_dt_scan_chosen() did.
 	 */
 	if (IS_ENABLED(CONFIG_MIPS_CMDLINE_BUILTIN_EXTEND))
-		strlcpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
+		strscpy(boot_command_line, builtin_cmdline, COMMAND_LINE_SIZE);
 	else
 		boot_command_line[0] = 0;
 
@@ -628,7 +637,7 @@ static void __init arch_mem_init(char **cmdline_p)
 	memblock_set_bottom_up(true);
 
 	bootcmdline_init();
-	strlcpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
+	strscpy(command_line, boot_command_line, COMMAND_LINE_SIZE);
 	*cmdline_p = command_line;
 
 	parse_early_param();

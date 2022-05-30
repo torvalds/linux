@@ -25,6 +25,8 @@ if [ $L -ne 256 ]; then
   exit_fail
 fi
 
+cat kprobe_events >> $testlog
+
 echo 1 > events/kprobes/enable
 echo 0 > events/kprobes/enable
 echo > kprobe_events
