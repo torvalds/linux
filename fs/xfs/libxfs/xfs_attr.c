@@ -25,7 +25,7 @@
 #include "xfs_trans_space.h"
 #include "xfs_trace.h"
 #include "xfs_attr_item.h"
-#include "xfs_log.h"
+#include "xfs_xattr.h"
 
 struct kmem_cache		*xfs_attr_intent_cache;
 
@@ -982,7 +982,6 @@ xfs_attr_set(
 	int			error, local;
 	int			rmt_blks = 0;
 	unsigned int		total;
-	bool			use_logging = xfs_has_larp(mp);
 
 	if (xfs_is_shutdown(dp->i_mount))
 		return -EIO;
@@ -1027,12 +1026,6 @@ xfs_attr_set(
 		rmt_blks = xfs_attr3_rmt_blocks(mp, XFS_XATTR_SIZE_MAX);
 	}
 
-	if (use_logging) {
-		error = xfs_attr_use_log_assist(mp);
-		if (error)
-			return error;
-	}
-
 	/*
 	 * Root fork attributes can use reserved data blocks for this
 	 * operation if necessary
@@ -1040,7 +1033,7 @@ xfs_attr_set(
 	xfs_init_attr_trans(args, &tres, &total);
 	error = xfs_trans_alloc_inode(dp, &tres, total, 0, rsvd, &args->trans);
 	if (error)
-		goto drop_incompat;
+		return error;
 
 	if (args->value || xfs_inode_hasattr(dp)) {
 		error = xfs_iext_count_may_overflow(dp, XFS_ATTR_FORK,
@@ -1100,9 +1093,6 @@ xfs_attr_set(
 	error = xfs_trans_commit(args->trans);
 out_unlock:
 	xfs_iunlock(dp, XFS_ILOCK_EXCL);
-drop_incompat:
-	if (use_logging)
-		xlog_drop_incompat_feat(mp->m_log);
 	return error;
 
 out_trans_cancel:
