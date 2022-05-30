@@ -1316,7 +1316,7 @@ static void gfx_v11_0_rlc_backdoor_autoload_copy_ucode(struct amdgpu_device *ade
 		memset(ptr + toc_offset + fw_size, 0, toc_fw_size - fw_size);
 
 	if ((id != SOC21_FIRMWARE_ID_RS64_PFP) && (id != SOC21_FIRMWARE_ID_RS64_ME))
-		*(uint64_t *)fw_autoload_mask |= 1 << id;
+		*(uint64_t *)fw_autoload_mask |= 1ULL << id;
 }
 
 static void gfx_v11_0_rlc_backdoor_autoload_copy_toc_ucode(struct amdgpu_device *adev,
