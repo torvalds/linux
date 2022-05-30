@@ -82,6 +82,10 @@ MODULE_FIRMWARE("amdgpu/gc_11_0_4_pfp.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_me.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_mec.bin");
 MODULE_FIRMWARE("amdgpu/gc_11_0_4_rlc.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_pfp.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_me.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_mec.bin");
+MODULE_FIRMWARE("amdgpu/gc_11_5_0_rlc.bin");
 
 static const struct soc15_reg_golden golden_settings_gc_11_0_1[] =
 {
@@ -876,6 +880,7 @@ static int gfx_v11_0_gpu_early_init(struct amdgpu_device *adev)
 		break;
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 5, 0):
 		adev->gfx.config.max_hw_contexts = 8;
 		adev->gfx.config.sc_prim_fifo_size_frontend = 0x20;
 		adev->gfx.config.sc_prim_fifo_size_backend = 0x100;
@@ -1316,6 +1321,7 @@ static int gfx_v11_0_sw_init(void *handle)
 		break;
 	case IP_VERSION(11, 0, 1):
 	case IP_VERSION(11, 0, 4):
+	case IP_VERSION(11, 5, 0):
 		adev->gfx.me.num_me = 1;
 		adev->gfx.me.num_pipe_per_me = 1;
 		adev->gfx.me.num_queue_per_pipe = 1;
@@ -2563,7 +2569,8 @@ static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev)
 		cp_status = RREG32_SOC15(GC, 0, regCP_STAT);
 
 		if (adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 1) ||
-				adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 4))
+				adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 0, 4) ||
+				adev->ip_versions[GC_HWIP][0] == IP_VERSION(11, 5, 0))
 			bootload_status = RREG32_SOC15(GC, 0,
 					regRLC_RLCS_BOOTLOAD_STATUS_gc_11_0_1);
 		else
