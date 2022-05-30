@@ -33,6 +33,7 @@ struct readahead_control;
 #include <linux/pagemap.h>
 #endif /* __GENKSYMS__ */
 struct cma;
+struct swap_slots_cache;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_set_skip_swapcache_flags,
 			TP_PROTO(gfp_t *flags),
@@ -176,9 +177,20 @@ DECLARE_HOOK(android_vh_count_pswpout,
 DECLARE_HOOK(android_vh_count_swpout_vm_event,
 	TP_PROTO(struct swap_info_struct *sis, struct page *page, bool *skip),
 	TP_ARGS(sis, page, skip));
+DECLARE_HOOK(android_vh_drain_slots_cache_cpu,
+	TP_PROTO(struct swap_slots_cache *cache, unsigned int type,
+		bool free_slots, bool *skip),
+	TP_ARGS(cache, type, free_slots, skip));
+DECLARE_HOOK(android_vh_alloc_swap_slot_cache,
+	TP_PROTO(struct swap_slots_cache *cache, int *ret, bool *skip),
+	TP_ARGS(cache, ret, skip));
 DECLARE_HOOK(android_vh_free_swap_slot,
 	TP_PROTO(swp_entry_t entry, struct swap_slots_cache *cache, bool *skip),
 	TP_ARGS(entry, cache, skip));
+DECLARE_HOOK(android_vh_get_swap_page,
+	TP_PROTO(struct page *page, swp_entry_t *entry,
+		struct swap_slots_cache *cache, bool *found),
+	TP_ARGS(page, entry, cache, found));
 DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 	TP_PROTO(struct mm_struct *mm, struct page *page),
 	TP_ARGS(mm, page));

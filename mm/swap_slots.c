@@ -33,6 +33,7 @@
 #include <linux/vmalloc.h>
 #include <linux/mutex.h>
 #include <linux/mm.h>
+#include <trace/hooks/mm.h>
 
 static DEFINE_PER_CPU(struct swap_slots_cache, swp_slots);
 static bool	swap_slot_cache_active;
@@ -115,12 +116,18 @@ static int alloc_swap_slot_cache(unsigned int cpu)
 {
 	struct swap_slots_cache *cache;
 	swp_entry_t *slots, *slots_ret;
+	bool skip = false;
+	int ret = 0;
 
 	/*
 	 * Do allocation outside swap_slots_cache_mutex
 	 * as kvzalloc could trigger reclaim and get_swap_page,
 	 * which can lock swap_slots_cache_mutex.
 	 */
+	trace_android_vh_alloc_swap_slot_cache(&per_cpu(swp_slots, cpu),
+		&ret, &skip);
+	if (skip)
+		return ret;
 	slots = kvcalloc(SWAP_SLOTS_CACHE_SIZE, sizeof(swp_entry_t),
 			 GFP_KERNEL);
 	if (!slots)
@@ -171,8 +178,13 @@ static void drain_slots_cache_cpu(unsigned int cpu, unsigned int type,
 {
 	struct swap_slots_cache *cache;
 	swp_entry_t *slots = NULL;
+	bool skip = false;
 
 	cache = &per_cpu(swp_slots, cpu);
+	trace_android_vh_drain_slots_cache_cpu(cache, type,
+		free_slots, &skip);
+	if (skip)
+		return;
 	if ((type & SLOTS_CACHE) && cache->slots) {
 		mutex_lock(&cache->alloc_lock);
 		swapcache_free_entries(cache->slots + cache->cur, cache->nr);
@@ -311,8 +323,12 @@ swp_entry_t get_swap_page(struct page *page)
 {
 	swp_entry_t entry;
 	struct swap_slots_cache *cache;
-
+	bool found = false;
 	entry.val = 0;
+
+	trace_android_vh_get_swap_page(page, &entry, raw_cpu_ptr(&swp_slots), &found);
+	if (found)
+		goto out;
 
 	if (PageTransHuge(page)) {
 		if (IS_ENABLED(CONFIG_THP_SWAP))
