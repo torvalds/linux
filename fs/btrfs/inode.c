@@ -10760,15 +10760,15 @@ ssize_t btrfs_do_encoded_write(struct kiocb *iocb, struct iov_iter *from,
 			ret = -ENOMEM;
 			goto out_pages;
 		}
-		kaddr = kmap(pages[i]);
+		kaddr = kmap_local_page(pages[i]);
 		if (copy_from_iter(kaddr, bytes, from) != bytes) {
-			kunmap(pages[i]);
+			kunmap_local(kaddr);
 			ret = -EFAULT;
 			goto out_pages;
 		}
 		if (bytes < PAGE_SIZE)
 			memset(kaddr + bytes, 0, PAGE_SIZE - bytes);
-		kunmap(pages[i]);
+		kunmap_local(kaddr);
 	}
 
 	for (;;) {
