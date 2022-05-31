@@ -81,6 +81,7 @@ mlx5dr_icm_next_higher_chunk(enum mlx5dr_icm_chunk_size chunk)
 enum {
 	DR_STE_SIZE = 64,
 	DR_STE_SIZE_CTRL = 32,
+	DR_STE_SIZE_MATCH_TAG = 32,
 	DR_STE_SIZE_TAG = 16,
 	DR_STE_SIZE_MASK = 16,
 	DR_STE_SIZE_REDUCED = DR_STE_SIZE - DR_STE_SIZE_MASK,
@@ -1295,6 +1296,14 @@ int mlx5dr_cmd_create_reformat_ctx(struct mlx5_core_dev *mdev,
 				   u32 *reformat_id);
 void mlx5dr_cmd_destroy_reformat_ctx(struct mlx5_core_dev *mdev,
 				     u32 reformat_id);
+int mlx5dr_cmd_create_definer(struct mlx5_core_dev *mdev,
+			      u16 format_id,
+			      u8 *dw_selectors,
+			      u8 *byte_selectors,
+			      u8 *match_mask,
+			      u32 *definer_id);
+void mlx5dr_cmd_destroy_definer(struct mlx5_core_dev *mdev,
+				u32 definer_id);
 
 struct mlx5dr_cmd_gid_attr {
 	u8 gid[16];
