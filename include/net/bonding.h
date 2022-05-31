@@ -149,7 +149,9 @@ struct bond_params {
 	struct reciprocal_value reciprocal_packets_per_slave;
 	u16 ad_actor_sys_prio;
 	u16 ad_user_port_key;
+#if IS_ENABLED(CONFIG_IPV6)
 	struct in6_addr ns_targets[BOND_MAX_NS_TARGETS];
+#endif
 
 	/* 2 bytes of padding : see ether_addr_equal_64bits() */
 	u8 ad_actor_system[ETH_ALEN + 2];
@@ -503,12 +505,14 @@ static inline int bond_is_ip_target_ok(__be32 addr)
 	return !ipv4_is_lbcast(addr) && !ipv4_is_zeronet(addr);
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static inline int bond_is_ip6_target_ok(struct in6_addr *addr)
 {
 	return !ipv6_addr_any(addr) &&
 	       !ipv6_addr_loopback(addr) &&
 	       !ipv6_addr_is_multicast(addr);
 }
+#endif
 
 /* Get the oldest arp which we've received on this slave for bond's
  * arp_targets.
@@ -746,6 +750,7 @@ static inline int bond_get_targets_ip(__be32 *targets, __be32 ip)
 	return -1;
 }
 
+#if IS_ENABLED(CONFIG_IPV6)
 static inline int bond_get_targets_ip6(struct in6_addr *targets, struct in6_addr *ip)
 {
 	int i;
@@ -758,6 +763,7 @@ static inline int bond_get_targets_ip6(struct in6_addr *targets, struct in6_addr
 
 	return -1;
 }
+#endif
 
 /* exported from bond_main.c */
 extern unsigned int bond_net_id;
