@@ -64,11 +64,13 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 	 * user space.
 	 */
 	switch (cyc) {
-	case ESPI_FLASH_READ:
 	case ESPI_FLASH_WRITE:
-	case ESPI_FLASH_ERASE:
 		pkt_len = ((len) ? len : ESPI_PLD_LEN_MAX) +
 			  sizeof(struct espi_flash_rwe);
+		break;
+	case ESPI_FLASH_READ:
+	case ESPI_FLASH_ERASE:
+		pkt_len = sizeof(struct espi_flash_rwe);
 		break;
 	case ESPI_FLASH_SUC_CMPLT_D_MIDDLE:
 	case ESPI_FLASH_SUC_CMPLT_D_FIRST:
@@ -79,7 +81,7 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 		break;
 	case ESPI_FLASH_SUC_CMPLT:
 	case ESPI_FLASH_UNSUC_CMPLT:
-		pkt_len = len + sizeof(struct espi_flash_cmplt);
+		pkt_len = sizeof(struct espi_flash_cmplt);
 		break;
 	default:
 		rc = -EFAULT;
