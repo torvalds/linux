@@ -372,9 +372,6 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       const u8 *auth_data, int auth_data_len);
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
-			struct ieee80211_channel *chan,
-			const u8 *bssid,
-			const u8 *ssid, int ssid_len,
 			struct cfg80211_assoc_request *req);
 int cfg80211_mlme_deauth(struct cfg80211_registered_device *rdev,
 			 struct net_device *dev, const u8 *bssid,

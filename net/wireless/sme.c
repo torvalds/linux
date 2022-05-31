@@ -193,9 +193,18 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		req.vht_capa = params->vht_capa;
 		req.vht_capa_mask = params->vht_capa_mask;
 
-		err = cfg80211_mlme_assoc(rdev, wdev->netdev, params->channel,
-					  params->bssid, params->ssid,
-					  params->ssid_len, &req);
+		req.bss = cfg80211_get_bss(&rdev->wiphy, params->channel,
+					   params->bssid,
+					   params->ssid, params->ssid_len,
+					   IEEE80211_BSS_TYPE_ESS,
+					   IEEE80211_PRIVACY_ANY);
+		if (!req.bss) {
+			err = -ENOENT;
+		} else {
+			err = cfg80211_mlme_assoc(rdev, wdev->netdev, &req);
+			cfg80211_put_bss(&rdev->wiphy, req.bss);
+		}
+
 		if (err)
 			cfg80211_mlme_deauth(rdev, wdev->netdev, params->bssid,
 					     NULL, 0,

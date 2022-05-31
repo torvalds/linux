@@ -309,11 +309,9 @@ void cfg80211_oper_and_vht_capa(struct ieee80211_vht_cap *vht_capa,
 		p1[i] &= p2[i];
 }
 
+/* Note: caller must cfg80211_put_bss() regardless of result */
 int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct net_device *dev,
-			struct ieee80211_channel *chan,
-			const u8 *bssid,
-			const u8 *ssid, int ssid_len,
 			struct cfg80211_assoc_request *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -331,18 +329,11 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 	cfg80211_oper_and_vht_capa(&req->vht_capa_mask,
 				   rdev->wiphy.vht_capa_mod_mask);
 
-	req->bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
-				    IEEE80211_BSS_TYPE_ESS,
-				    IEEE80211_PRIVACY_ANY);
-	if (!req->bss)
-		return -ENOENT;
-
 	err = rdev_assoc(rdev, dev, req);
-	if (!err)
+	if (!err) {
+		cfg80211_ref_bss(&rdev->wiphy, req->bss);
 		cfg80211_hold_bss(bss_from_pub(req->bss));
-	else
-		cfg80211_put_bss(&rdev->wiphy, req->bss);
-
+	}
 	return err;
 }
 

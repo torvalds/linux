@@ -10431,7 +10431,7 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	struct ieee80211_channel *chan;
 	struct cfg80211_assoc_request req = {};
 	const u8 *bssid, *ssid;
-	int err, ssid_len = 0;
+	int err, ssid_len;
 	u32 freq;
 
 	if (dev->ieee80211_ptr->conn_owner_nlportid &&
@@ -10553,12 +10553,18 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		       sizeof(req.s1g_capa));
 	}
 
+	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid,
+				   ssid, ssid_len,
+				   IEEE80211_BSS_TYPE_ESS,
+				   IEEE80211_PRIVACY_ANY);
+	if (!req.bss)
+		return -ENOENT;
+
 	err = nl80211_crypto_settings(rdev, info, &req.crypto, 1);
 	if (!err) {
 		wdev_lock(dev->ieee80211_ptr);
 
-		err = cfg80211_mlme_assoc(rdev, dev, chan, bssid,
-					  ssid, ssid_len, &req);
+		err = cfg80211_mlme_assoc(rdev, dev, &req);
 
 		if (!err && info->attrs[NL80211_ATTR_SOCKET_OWNER]) {
 			dev->ieee80211_ptr->conn_owner_nlportid =
@@ -10569,6 +10575,8 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 
 		wdev_unlock(dev->ieee80211_ptr);
 	}
+
+	cfg80211_put_bss(&rdev->wiphy, req.bss);
 
 	return err;
 }
