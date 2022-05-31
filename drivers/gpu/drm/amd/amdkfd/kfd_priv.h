@@ -201,6 +201,8 @@ extern int amdgpu_no_queue_eviction_on_vm_fault;
 /* Enable eviction debug messages */
 extern bool debug_evictions;
 
+extern struct mutex kfd_processes_mutex;
+
 enum cache_policy {
 	cache_policy_coherent,
 	cache_policy_noncoherent

@@ -50,7 +50,7 @@ struct mm_struct;
  * Unique/indexed by mm_struct*
  */
 DEFINE_HASHTABLE(kfd_processes_table, KFD_PROCESS_TABLE_SIZE);
-static DEFINE_MUTEX(kfd_processes_mutex);
+DEFINE_MUTEX(kfd_processes_mutex);
 
 DEFINE_SRCU(kfd_processes_srcu);
 
@@ -817,6 +817,12 @@ struct kfd_process *kfd_create_process(struct file *filep)
 	 * create two kfd_process structures
 	 */
 	mutex_lock(&kfd_processes_mutex);
+
+	if (kfd_is_locked()) {
+		mutex_unlock(&kfd_processes_mutex);
+		pr_debug("KFD is locked! Cannot create process");
+		return ERR_PTR(-EINVAL);
+	}
 
 	/* A prior open of /dev/kfd could have already created the process. */
 	process = find_process(thread, false);

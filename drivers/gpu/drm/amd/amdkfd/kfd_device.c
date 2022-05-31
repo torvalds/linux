@@ -42,7 +42,7 @@
  * once locked, kfd driver will stop any further GPU execution.
  * create process (open) will return -EAGAIN.
  */
-static atomic_t kfd_locked = ATOMIC_INIT(0);
+static int kfd_locked;
 
 #ifdef CONFIG_DRM_AMDGPU_CIK
 extern const struct kfd2kgd_calls gfx_v7_kfd2kgd;
@@ -880,7 +880,9 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 			return ret;
 	}
 
-	atomic_dec(&kfd_locked);
+	mutex_lock(&kfd_processes_mutex);
+	--kfd_locked;
+	mutex_unlock(&kfd_processes_mutex);
 
 	for (i = 0; i < kfd->num_nodes; i++) {
 		node = kfd->nodes[i];
@@ -893,21 +895,27 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd)
 
 bool kfd_is_locked(void)
 {
-	return  (atomic_read(&kfd_locked) > 0);
+	lockdep_assert_held(&kfd_processes_mutex);
+	return  (kfd_locked > 0);
 }
 
 void kgd2kfd_suspend(struct kfd_dev *kfd, bool run_pm)
 {
 	struct kfd_node *node;
 	int i;
+	int count;
 
 	if (!kfd->init_complete)
 		return;
 
 	/* for runtime suspend, skip locking kfd */
 	if (!run_pm) {
+		mutex_lock(&kfd_processes_mutex);
+		count = ++kfd_locked;
+		mutex_unlock(&kfd_processes_mutex);
+
 		/* For first KFD device suspend all the KFD processes */
-		if (atomic_inc_return(&kfd_locked) == 1)
+		if (count == 1)
 			kfd_suspend_all_processes();
 	}
 
@@ -933,7 +941,10 @@ int kgd2kfd_resume(struct kfd_dev *kfd, bool run_pm)
 
 	/* for runtime resume, skip unlocking kfd */
 	if (!run_pm) {
-		count = atomic_dec_return(&kfd_locked);
+		mutex_lock(&kfd_processes_mutex);
+		count = --kfd_locked;
+		mutex_unlock(&kfd_processes_mutex);
+
 		WARN_ONCE(count < 0, "KFD suspend / resume ref. error");
 		if (count == 0)
 			ret = kfd_resume_all_processes();
