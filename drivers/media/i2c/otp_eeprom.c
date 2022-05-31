@@ -7,6 +7,8 @@
  * 1. fix table_size.
  * 2. fix ioctl return value.
  * 3. add version control.
+ * V0.0X01.0X02
+ * 1. fix otp info null issue.
  */
 
 #include <linux/delay.h>
@@ -22,7 +24,7 @@
 #include <linux/version.h>
 #include "otp_eeprom.h"
 
-#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x01)
+#define DRIVER_VERSION		KERNEL_VERSION(0, 0x01, 0x02)
 #define DEVICE_NAME			"otp_eeprom"
 
 static inline struct eeprom_device
@@ -776,7 +778,7 @@ static int otp_eeprom_show(struct seq_file *p, void *v)
 	u32 gainmap_w, gainmap_h;
 	u32 dccmap_w, dccmap_h;
 
-	if (dev) {
+	if (dev && dev->otp) {
 		seq_puts(p, "[Header]\n");
 		seq_puts(p, "version=1.0;\n\n");
 
@@ -902,6 +904,8 @@ static int otp_eeprom_show(struct seq_file *p, void *v)
 			seq_printf(p, "af_inf=%d;\n", dev->otp->af_data.af_inf);
 			seq_printf(p, "af_macro=%d;\n", dev->otp->af_data.af_macro);
 		}
+	} else {
+		seq_puts(p, "otp is null!\n");
 	}
 	return 0;
 }
