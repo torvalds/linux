@@ -214,7 +214,7 @@ static int pagemap_range(struct dev_pagemap *pgmap, struct mhp_params *params,
 
 	if (!mhp_range_allowed(range->start, range_len(range), !is_private)) {
 		error = -EINVAL;
-		goto err_pfn_remap;
+		goto err_kasan;
 	}
 
 	mem_hotplug_begin();
