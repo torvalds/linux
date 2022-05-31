@@ -1278,8 +1278,16 @@ parse_panel_driver_features(struct drm_i915_private *i915,
 		 * static DRRS is 0 and DRRS not supported is represented by
 		 * driver->drrs_enabled=false
 		 */
-		if (!driver->drrs_enabled)
-			panel->vbt.drrs_type = DRRS_TYPE_NONE;
+		if (!driver->drrs_enabled && panel->vbt.drrs_type != DRRS_TYPE_NONE) {
+			/*
+			 * FIXME Should DMRRS perhaps be treated as seamless
+			 * but without the automatic downclocking?
+			 */
+			if (driver->dmrrs_enabled)
+				panel->vbt.drrs_type = DRRS_TYPE_STATIC;
+			else
+				panel->vbt.drrs_type = DRRS_TYPE_NONE;
+		}
 
 		panel->vbt.psr.enable = driver->psr_enabled;
 	}
@@ -1309,8 +1317,16 @@ parse_power_conservation_features(struct drm_i915_private *i915,
 	 * static DRRS is 0 and DRRS not supported is represented by
 	 * power->drrs & BIT(panel_type)=false
 	 */
-	if (!(power->drrs & BIT(panel_type)))
-		panel->vbt.drrs_type = DRRS_TYPE_NONE;
+	if (!(power->drrs & BIT(panel_type)) && panel->vbt.drrs_type != DRRS_TYPE_NONE) {
+		/*
+		 * FIXME Should DMRRS perhaps be treated as seamless
+		 * but without the automatic downclocking?
+		 */
+		if (power->dmrrs & BIT(panel_type))
+			panel->vbt.drrs_type = DRRS_TYPE_STATIC;
+		else
+			panel->vbt.drrs_type = DRRS_TYPE_NONE;
+	}
 
 	if (i915->vbt.version >= 232)
 		panel->vbt.edp.hobl = power->hobl & BIT(panel_type);
