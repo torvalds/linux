@@ -896,7 +896,9 @@ do_again:
 			goto delete_fail;
 	}
 
-	btrfs_batch_delete_items(trans, root, path, curr);
+	ret = btrfs_batch_delete_items(trans, root, path, curr);
+	if (ret)
+		goto delete_fail;
 	btrfs_release_path(path);
 	mutex_unlock(&node->mutex);
 	goto do_again;
