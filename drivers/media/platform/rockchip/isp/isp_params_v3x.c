@@ -1019,6 +1019,15 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	size_t num_of_win = min_t(size_t, ARRAY_SIZE(arg->win),
 				  arg->num_afm_win);
 
+	/* To config must be off, store the current status firstly */
+	ctrl = isp3_param_read(params_vdev, ISP3X_RAWAF_CTRL, id);
+	if (ctrl & ISP3X_RAWAF_EN) {
+		var = ctrl;
+		var &= ~ISP3X_REG_WR_MASK;
+		var &= ~ISP3X_RAWAF_EN;
+		isp3_param_write(params_vdev, var, ISP3X_RAWAF_CTRL, id);
+	}
+
 	for (i = 0; i < num_of_win; i++) {
 		h_size = arg->win[i].h_size;
 		v_size = arg->win[i].v_size;
@@ -1093,7 +1102,6 @@ isp_rawaf_config(struct rkisp_isp_params_vdev *params_vdev,
 	if (viir_en == 0)
 		v1_fir_sel = 0;
 
-	ctrl = isp3_param_read(params_vdev, ISP3X_RAWAF_CTRL, id);
 	ctrl &= ISP3X_RAWAF_EN;
 	if (arg->hiir_en) {
 		ctrl |= ISP3X_RAWAF_HIIR_EN;
