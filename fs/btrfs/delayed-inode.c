@@ -438,10 +438,12 @@ static int __btrfs_add_delayed_item(struct btrfs_delayed_node *delayed_node,
 	ins->delayed_node = delayed_node;
 	ins->ins_or_del = action;
 
-	if (ins->key.type == BTRFS_DIR_INDEX_KEY &&
-	    action == BTRFS_DELAYED_INSERTION_ITEM &&
+	/* Delayed items are always for dir index items. */
+	ASSERT(ins->key.type == BTRFS_DIR_INDEX_KEY);
+
+	if (action == BTRFS_DELAYED_INSERTION_ITEM &&
 	    ins->key.offset >= delayed_node->index_cnt)
-			delayed_node->index_cnt = ins->key.offset + 1;
+		delayed_node->index_cnt = ins->key.offset + 1;
 
 	delayed_node->count++;
 	atomic_inc(&delayed_node->root->fs_info->delayed_root->items);
