@@ -64,6 +64,11 @@
  * freed before they are done using it.
  */
 
+struct sta_link_alloc {
+	struct link_sta_info info;
+	struct ieee80211_link_sta sta;
+};
+
 static const struct rhashtable_params sta_rht_params = {
 	.nelem_hint = 3, /* start small */
 	.automatic_shrinking = true,
@@ -245,17 +250,27 @@ struct sta_info *sta_info_get_by_idx(struct ieee80211_sub_if_data *sdata,
 	return NULL;
 }
 
-static void sta_info_free_links(struct sta_info *sta)
+static void sta_info_free_link(struct link_sta_info *link_sta)
 {
-	unsigned int link_id;
+	free_percpu(link_sta->pcpu_rx_stats);
+}
 
-	for (link_id = 0; link_id < ARRAY_SIZE(sta->link); link_id++) {
-		if (!sta->link[link_id])
-			continue;
-		free_percpu(sta->link[link_id]->pcpu_rx_stats);
+static void sta_remove_link(struct sta_info *sta, unsigned int link_id)
+{
+	struct sta_link_alloc *alloc = NULL;
 
-		if (sta->link[link_id] != &sta->deflink)
-			kfree(sta->link[link_id]);
+	if (WARN_ON(!sta->link[link_id]))
+		return;
+
+	if (sta->link[link_id] != &sta->deflink)
+		alloc = container_of(sta->link[link_id], typeof(*alloc), info);
+
+	sta->sta.valid_links &= ~BIT(link_id);
+	sta->link[link_id] = NULL;
+	sta->sta.link[link_id] = NULL;
+	if (alloc) {
+		sta_info_free_link(&alloc->info);
+		kfree(alloc);
 	}
 }
 
@@ -272,6 +287,15 @@ static void sta_info_free_links(struct sta_info *sta)
  */
 void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 {
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(sta->link); i++) {
+		if (!(sta->sta.valid_links & BIT(i)))
+			continue;
+
+		sta_remove_link(sta, i);
+	}
+
 	/*
 	 * If we had used sta_info_pre_move_state() then we might not
 	 * have gone through the state transitions down again, so do
@@ -302,7 +326,7 @@ void sta_info_free(struct ieee80211_local *local, struct sta_info *sta)
 	kfree(sta->mesh);
 #endif
 
-	sta_info_free_links(sta);
+	sta_info_free_link(&sta->deflink);
 	kfree(sta);
 }
 
@@ -348,18 +372,12 @@ static int sta_prepare_rate_control(struct ieee80211_local *local,
 	return 0;
 }
 
-static int sta_info_init_link(struct sta_info *sta,
-			      unsigned int link_id,
-			      struct link_sta_info *link_info,
-			      struct ieee80211_link_sta *link_sta,
-			      gfp_t gfp)
+static int sta_info_alloc_link(struct ieee80211_local *local,
+			       struct link_sta_info *link_info,
+			       gfp_t gfp)
 {
-	struct ieee80211_local *local = sta->local;
 	struct ieee80211_hw *hw = &local->hw;
 	int i;
-
-	link_info->sta = sta;
-	link_info->link_id = link_id;
 
 	if (ieee80211_hw_check(hw, USES_RSS)) {
 		link_info->pcpu_rx_stats =
@@ -367,9 +385,6 @@ static int sta_info_init_link(struct sta_info *sta,
 		if (!link_info->pcpu_rx_stats)
 			return -ENOMEM;
 	}
-
-	sta->link[link_id] = link_info;
-	sta->sta.link[link_id] = link_sta;
 
 	link_info->rx_stats.last_rx = jiffies;
 	u64_stats_init(&link_info->rx_stats.syncp);
@@ -382,8 +397,19 @@ static int sta_info_init_link(struct sta_info *sta,
 	return 0;
 }
 
+static void sta_info_add_link(struct sta_info *sta,
+			      unsigned int link_id,
+			      struct link_sta_info *link_info,
+			      struct ieee80211_link_sta *link_sta)
+{
+	link_info->sta = sta;
+	link_info->link_id = link_id;
+	sta->link[link_id] = link_info;
+	sta->sta.link[link_id] = link_sta;
+}
+
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
-				const u8 *addr, gfp_t gfp)
+				const u8 *addr, int link_id, gfp_t gfp)
 {
 	struct ieee80211_local *local = sdata->local;
 	struct ieee80211_hw *hw = &local->hw;
@@ -397,8 +423,16 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	sta->local = local;
 	sta->sdata = sdata;
 
-	if (sta_info_init_link(sta, 0, &sta->deflink, &sta->sta.deflink, gfp))
+	if (sta_info_alloc_link(local, &sta->deflink, gfp))
 		return NULL;
+
+	if (link_id >= 0) {
+		sta_info_add_link(sta, link_id, &sta->deflink,
+				  &sta->sta.deflink);
+		sta->sta.valid_links = BIT(link_id);
+	} else {
+		sta_info_add_link(sta, 0, &sta->deflink, &sta->sta.deflink);
+	}
 
 	spin_lock_init(&sta->lock);
 	spin_lock_init(&sta->ps_lock);
@@ -565,7 +599,7 @@ free_txq:
 	if (sta->sta.txq[0])
 		kfree(to_txq_info(sta->sta.txq[0]));
 free:
-	sta_info_free_links(sta);
+	sta_info_free_link(&sta->deflink);
 #ifdef CONFIG_MAC80211_MESH
 	kfree(sta->mesh);
 #endif
@@ -2612,4 +2646,78 @@ void ieee80211_sta_set_expected_throughput(struct ieee80211_sta *pubsta,
 	struct sta_info *sta = container_of(pubsta, struct sta_info, sta);
 
 	sta_update_codel_params(sta, thr);
+}
+
+int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct sta_link_alloc *alloc;
+	int ret;
+
+	lockdep_assert_held(&sdata->local->sta_mtx);
+
+	/* must represent an MLD from the start */
+	if (WARN_ON(!sta->sta.valid_links))
+		return -EINVAL;
+
+	if (WARN_ON(sta->sta.valid_links & BIT(link_id) ||
+		    sta->link[link_id]))
+		return -EBUSY;
+
+	alloc = kzalloc(sizeof(*alloc), GFP_KERNEL);
+	if (!alloc)
+		return -ENOMEM;
+
+	ret = sta_info_alloc_link(sdata->local, &alloc->info, GFP_KERNEL);
+	if (ret) {
+		kfree(alloc);
+		return ret;
+	}
+
+	sta_info_add_link(sta, link_id, &alloc->info, &alloc->sta);
+
+	return 0;
+}
+
+int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u16 old_links = sta->sta.valid_links;
+	u16 new_links = old_links | BIT(link_id);
+	int ret;
+
+	lockdep_assert_held(&sdata->local->sta_mtx);
+
+	if (WARN_ON(old_links == new_links || !sta->link[link_id]))
+		return -EINVAL;
+
+	sta->sta.valid_links = new_links;
+
+	if (!test_sta_flag(sta, WLAN_STA_INSERTED))
+		return 0;
+
+	ret = drv_change_sta_links(sdata->local, sdata, &sta->sta,
+				   old_links, new_links);
+	if (ret) {
+		sta->sta.valid_links = old_links;
+		sta_remove_link(sta, link_id);
+	}
+
+	return ret;
+}
+
+void ieee80211_sta_remove_link(struct sta_info *sta, unsigned int link_id)
+{
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+
+	lockdep_assert_held(&sdata->local->sta_mtx);
+
+	sta->sta.valid_links &= ~BIT(link_id);
+
+	if (test_sta_flag(sta, WLAN_STA_INSERTED))
+		drv_change_sta_links(sdata->local, sdata, &sta->sta,
+				     sta->sta.valid_links,
+				     sta->sta.valid_links & ~BIT(link_id));
+
+	sta_remove_link(sta, link_id);
 }

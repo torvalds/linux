@@ -1554,4 +1554,25 @@ static inline int drv_change_vif_links(struct ieee80211_local *local,
 	return ret;
 }
 
+static inline int drv_change_sta_links(struct ieee80211_local *local,
+				       struct ieee80211_sub_if_data *sdata,
+				       struct ieee80211_sta *sta,
+				       u16 old_links, u16 new_links)
+{
+	int ret = -EOPNOTSUPP;
+
+	might_sleep();
+
+	if (!check_sdata_in_driver(sdata))
+		return -EIO;
+
+	trace_drv_change_sta_links(local, sdata, sta, old_links, new_links);
+	if (local->ops->change_sta_links)
+		ret = local->ops->change_sta_links(&local->hw, &sdata->vif, sta,
+						   old_links, new_links);
+	trace_drv_return_int(local, ret);
+
+	return ret;
+}
+
 #endif /* __MAC80211_DRIVER_OPS */

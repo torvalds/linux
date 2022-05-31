@@ -510,7 +510,7 @@ __mesh_sta_info_alloc(struct ieee80211_sub_if_data *sdata, u8 *hw_addr)
 	if (aid < 0)
 		return NULL;
 
-	sta = sta_info_alloc(sdata, hw_addr, GFP_KERNEL);
+	sta = sta_info_alloc(sdata, hw_addr, -1, GFP_KERNEL);
 	if (!sta)
 		return NULL;
 

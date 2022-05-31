@@ -2482,6 +2482,37 @@ TRACE_EVENT(drv_change_vif_links,
 	)
 );
 
+TRACE_EVENT(drv_change_sta_links,
+	TP_PROTO(struct ieee80211_local *local,
+		 struct ieee80211_sub_if_data *sdata,
+		 struct ieee80211_sta *sta,
+		 u16 old_links, u16 new_links),
+
+	TP_ARGS(local, sdata, sta, old_links, new_links),
+
+	TP_STRUCT__entry(
+		LOCAL_ENTRY
+		VIF_ENTRY
+		STA_ENTRY
+		__field(u16, old_links)
+		__field(u16, new_links)
+	),
+
+	TP_fast_assign(
+		LOCAL_ASSIGN;
+		VIF_ASSIGN;
+		STA_ASSIGN;
+		__entry->old_links = old_links;
+		__entry->new_links = new_links;
+	),
+
+	TP_printk(
+		LOCAL_PR_FMT VIF_PR_FMT STA_PR_FMT " old_links:0x%04x, new_links:0x%04x\n",
+		LOCAL_PR_ARG, VIF_PR_ARG, STA_PR_ARG,
+		__entry->old_links, __entry->new_links
+	)
+);
+
 /*
  * Tracing for API calls that drivers call.
  */

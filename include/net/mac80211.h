@@ -2150,7 +2150,6 @@ struct ieee80211_link_sta {
  * @max_tid_amsdu_len: Maximum A-MSDU size in bytes for this TID
  * @txq: per-TID data TX queues (if driver uses the TXQ abstraction); note that
  *	the last entry (%IEEE80211_NUM_TIDS) is used for non-data frames
- * @multi_link_sta: Identifies if this sta is a MLD STA
  * @deflink: This holds the default link STA information, for non MLO STA all link
  *	specific STA information is accessed through @deflink or through
  *	link[0] which points to address of @deflink. For MLO Link STA
@@ -2162,6 +2161,7 @@ struct ieee80211_link_sta {
  *	@deflink address and remaining would be allocated and the address
  *	would be assigned to link[link_id] where link_id is the id assigned
  *	by the AP.
+ * @valid_links: bitmap of valid links, or 0 for non-MLO
  */
 struct ieee80211_sta {
 	u8 addr[ETH_ALEN];
@@ -2199,7 +2199,7 @@ struct ieee80211_sta {
 
 	struct ieee80211_txq *txq[IEEE80211_NUM_TIDS + 1];
 
-	bool multi_link_sta;
+	u16 valid_links;
 	struct ieee80211_link_sta deflink;
 	struct ieee80211_link_sta *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
@@ -4048,6 +4048,11 @@ struct ieee80211_prep_tx_info {
  *	The @old[] array contains pointers to the old bss_conf structures
  *	that were already removed, in case they're needed.
  *	This callback can sleep.
+ * @change_sta_links: Change the valid links of a station, similar to
+ *	@change_vif_links. This callback can sleep.
+ *	Note that a sta can also be inserted or removed with valid links,
+ *	i.e. passed to @sta_add/@sta_state with sta->valid_links not zero.
+ *	In fact, cannot change from having valid_links and not having them.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -4395,6 +4400,10 @@ struct ieee80211_ops {
 				struct ieee80211_vif *vif,
 				u16 old_links, u16 new_links,
 				struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS]);
+	int (*change_sta_links)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				struct ieee80211_sta *sta,
+				u16 old_links, u16 new_links);
 };
 
 /**
