@@ -3105,8 +3105,7 @@ void exit_mmap(struct mm_struct *mm)
 
 	/*
 	 * Set MMF_OOM_SKIP to hide this task from the oom killer/reaper
-	 * because the memory has been already freed. Do not bother checking
-	 * mm_is_oom_victim because setting a bit unconditionally is cheaper.
+	 * because the memory has been already freed.
 	 */
 	set_bit(MMF_OOM_SKIP, &mm->flags);
 	mmap_write_lock(mm);
