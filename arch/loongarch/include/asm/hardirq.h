@@ -21,4 +21,6 @@ typedef struct {
 
 DECLARE_PER_CPU_ALIGNED(irq_cpustat_t, irq_stat);
 
+#define __ARCH_IRQ_STAT
+
 #endif /* _ASM_HARDIRQ_H */

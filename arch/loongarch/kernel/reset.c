@@ -65,16 +65,28 @@ EXPORT_SYMBOL(pm_power_off);
 
 void machine_halt(void)
 {
+#ifdef CONFIG_SMP
+	preempt_disable();
+	smp_send_stop();
+#endif
 	default_halt();
 }
 
 void machine_power_off(void)
 {
+#ifdef CONFIG_SMP
+	preempt_disable();
+	smp_send_stop();
+#endif
 	pm_power_off();
 }
 
 void machine_restart(char *command)
 {
+#ifdef CONFIG_SMP
+	preempt_disable();
+	smp_send_stop();
+#endif
 	do_kernel_restart(command);
 	pm_restart();
 }

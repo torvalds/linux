@@ -86,6 +86,7 @@ futex_atomic_cmpxchg_inatomic(u32 *uval, u32 __user *uaddr, u32 oldval, u32 newv
 	"2:	sc.w	$t0, %2					\n"
 	"	beq	$zero, $t0, 1b				\n"
 	"3:							\n"
+	__WEAK_LLSC_MB
 	"	.section .fixup,\"ax\"				\n"
 	"4:	li.d	%0, %6					\n"
 	"	b	3b					\n"

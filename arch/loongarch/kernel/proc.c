@@ -35,6 +35,11 @@ static int show_cpuinfo(struct seq_file *m, void *v)
 	unsigned int fp_version = cpu_data[n].fpu_vers;
 	struct proc_cpuinfo_notifier_args proc_cpuinfo_notifier_args;
 
+#ifdef CONFIG_SMP
+	if (!cpu_online(n))
+		return 0;
+#endif
+
 	/*
 	 * For the first processor also print the system type
 	 */

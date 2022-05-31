@@ -77,17 +77,24 @@
  * new value in sp.
  */
 	.macro	get_saved_sp docfi=0
-	la.abs	t1, kernelsp
-	move	t0, sp
+	la.abs	  t1, kernelsp
+#ifdef CONFIG_SMP
+	csrrd	  t0, PERCPU_BASE_KS
+	LONG_ADD  t1, t1, t0
+#endif
+	move	  t0, sp
 	.if \docfi
 	.cfi_register sp, t0
 	.endif
-	LONG_L	sp, t1, 0
+	LONG_L	  sp, t1, 0
 	.endm
 
 	.macro	set_saved_sp stackp temp temp2
-	la.abs	\temp, kernelsp
-	LONG_S	\stackp, \temp, 0
+	la.abs	  \temp, kernelsp
+#ifdef CONFIG_SMP
+	LONG_ADD  \temp, \temp, u0
+#endif
+	LONG_S	  \stackp, \temp, 0
 	.endm
 
 	.macro	SAVE_SOME docfi=0

@@ -18,6 +18,19 @@
 #define mb()		fast_mb()
 #define iob()		fast_iob()
 
+#define __smp_mb()	__asm__ __volatile__("dbar 0" : : : "memory")
+#define __smp_rmb()	__asm__ __volatile__("dbar 0" : : : "memory")
+#define __smp_wmb()	__asm__ __volatile__("dbar 0" : : : "memory")
+
+#ifdef CONFIG_SMP
+#define __WEAK_LLSC_MB		"	dbar 0  \n"
+#else
+#define __WEAK_LLSC_MB		"		\n"
+#endif
+
+#define __smp_mb__before_atomic()	barrier()
+#define __smp_mb__after_atomic()	barrier()
+
 /**
  * array_index_mask_nospec() - generate a ~0 mask when index < size, 0 otherwise
  * @index: array element index
@@ -45,6 +58,101 @@ static inline unsigned long array_index_mask_nospec(unsigned long index,
 
 	return mask;
 }
+
+#define __smp_load_acquire(p)							\
+({										\
+	union { typeof(*p) __val; char __c[1]; } __u;				\
+	unsigned long __tmp = 0;							\
+	compiletime_assert_atomic_type(*p);					\
+	switch (sizeof(*p)) {							\
+	case 1:									\
+		*(__u8 *)__u.__c = *(volatile __u8 *)p;				\
+		__smp_mb();							\
+		break;								\
+	case 2:									\
+		*(__u16 *)__u.__c = *(volatile __u16 *)p;			\
+		__smp_mb();							\
+		break;								\
+	case 4:									\
+		__asm__ __volatile__(						\
+		"amor_db.w %[val], %[tmp], %[mem]	\n"				\
+		: [val] "=&r" (*(__u32 *)__u.__c)				\
+		: [mem] "ZB" (*(u32 *) p), [tmp] "r" (__tmp)			\
+		: "memory");							\
+		break;								\
+	case 8:									\
+		__asm__ __volatile__(						\
+		"amor_db.d %[val], %[tmp], %[mem]	\n"				\
+		: [val] "=&r" (*(__u64 *)__u.__c)				\
+		: [mem] "ZB" (*(u64 *) p), [tmp] "r" (__tmp)			\
+		: "memory");							\
+		break;								\
+	}									\
+	(typeof(*p))__u.__val;								\
+})
+
+#define __smp_store_release(p, v)						\
+do {										\
+	union { typeof(*p) __val; char __c[1]; } __u =				\
+		{ .__val = (__force typeof(*p)) (v) };				\
+	unsigned long __tmp;							\
+	compiletime_assert_atomic_type(*p);					\
+	switch (sizeof(*p)) {							\
+	case 1:									\
+		__smp_mb();							\
+		*(volatile __u8 *)p = *(__u8 *)__u.__c;				\
+		break;								\
+	case 2:									\
+		__smp_mb();							\
+		*(volatile __u16 *)p = *(__u16 *)__u.__c;			\
+		break;								\
+	case 4:									\
+		__asm__ __volatile__(						\
+		"amswap_db.w %[tmp], %[val], %[mem]	\n"			\
+		: [mem] "+ZB" (*(u32 *)p), [tmp] "=&r" (__tmp)			\
+		: [val] "r" (*(__u32 *)__u.__c)					\
+		: );								\
+		break;								\
+	case 8:									\
+		__asm__ __volatile__(						\
+		"amswap_db.d %[tmp], %[val], %[mem]	\n"			\
+		: [mem] "+ZB" (*(u64 *)p), [tmp] "=&r" (__tmp)			\
+		: [val] "r" (*(__u64 *)__u.__c)					\
+		: );								\
+		break;								\
+	}									\
+} while (0)
+
+#define __smp_store_mb(p, v)							\
+do {										\
+	union { typeof(p) __val; char __c[1]; } __u =				\
+		{ .__val = (__force typeof(p)) (v) };				\
+	unsigned long __tmp;							\
+	switch (sizeof(p)) {							\
+	case 1:									\
+		*(volatile __u8 *)&p = *(__u8 *)__u.__c;			\
+		__smp_mb();							\
+		break;								\
+	case 2:									\
+		*(volatile __u16 *)&p = *(__u16 *)__u.__c;			\
+		__smp_mb();							\
+		break;								\
+	case 4:									\
+		__asm__ __volatile__(						\
+		"amswap_db.w %[tmp], %[val], %[mem]	\n"			\
+		: [mem] "+ZB" (*(u32 *)&p), [tmp] "=&r" (__tmp)			\
+		: [val] "r" (*(__u32 *)__u.__c)					\
+		: );								\
+		break;								\
+	case 8:									\
+		__asm__ __volatile__(						\
+		"amswap_db.d %[tmp], %[val], %[mem]	\n"			\
+		: [mem] "+ZB" (*(u64 *)&p), [tmp] "=&r" (__tmp)			\
+		: [val] "r" (*(__u64 *)__u.__c)					\
+		: );								\
+		break;								\
+	}									\
+} while (0)
 
 #include <asm-generic/barrier.h>
 

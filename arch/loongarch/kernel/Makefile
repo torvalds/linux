@@ -18,4 +18,6 @@ obj-$(CONFIG_MODULES)		+= module.o module-sections.o
 
 obj-$(CONFIG_PROC_FS)		+= proc.o
 
+obj-$(CONFIG_SMP)		+= smp.o
+
 CPPFLAGS_vmlinux.lds		:= $(KBUILD_CFLAGS)

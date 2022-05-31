@@ -47,13 +47,17 @@ asmlinkage void spurious_interrupt(void)
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
+#ifdef CONFIG_SMP
+	show_ipi_list(p, prec);
+#endif
 	seq_printf(p, "%*s: %10u\n", prec, "ERR", atomic_read(&irq_err_count));
 	return 0;
 }
 
 void __init init_IRQ(void)
 {
-	int i;
+	int i, r, ipi_irq;
+	static int ipi_dummy_dev;
 	unsigned int order = get_order(IRQ_STACK_SIZE);
 	struct page *page;
 
@@ -61,6 +65,13 @@ void __init init_IRQ(void)
 	clear_csr_estat(ESTATF_IP);
 
 	irqchip_init();
+#ifdef CONFIG_SMP
+	ipi_irq = EXCCODE_IPI - EXCCODE_INT_START;
+	irq_set_percpu_devid(ipi_irq);
+	r = request_percpu_irq(ipi_irq, loongson3_ipi_interrupt, "IPI", &ipi_dummy_dev);
+	if (r < 0)
+		panic("IPI IRQ request failed\n");
+#endif
 
 	for (i = 0; i < NR_IRQS; i++)
 		irq_set_noprobe(i);
