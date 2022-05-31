@@ -603,7 +603,7 @@ int ad5592r_probe(struct device *dev, const char *name,
 
 	st->reg = devm_regulator_get_optional(dev, "vref");
 	if (IS_ERR(st->reg)) {
-		if ((PTR_ERR(st->reg) != -ENODEV) && dev->of_node)
+		if ((PTR_ERR(st->reg) != -ENODEV) && dev_fwnode(dev))
 			return PTR_ERR(st->reg);
 
 		st->reg = NULL;
