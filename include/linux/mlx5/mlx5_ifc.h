@@ -6108,6 +6108,38 @@ struct mlx5_ifc_match_definer_format_32_bits {
 	u8         inner_dmac_15_0[0x10];
 };
 
+enum {
+	MLX5_IFC_DEFINER_FORMAT_ID_SELECT = 61,
+};
+
+#define MLX5_IFC_DEFINER_FORMAT_OFFSET_UNUSED 0x0
+#define MLX5_IFC_DEFINER_FORMAT_OFFSET_OUTER_ETH_PKT_LEN 0x48
+#define MLX5_IFC_DEFINER_DW_SELECTORS_NUM 9
+#define MLX5_IFC_DEFINER_BYTE_SELECTORS_NUM 8
+
+struct mlx5_ifc_match_definer_match_mask_bits {
+	u8         reserved_at_1c0[5][0x20];
+	u8         match_dw_8[0x20];
+	u8         match_dw_7[0x20];
+	u8         match_dw_6[0x20];
+	u8         match_dw_5[0x20];
+	u8         match_dw_4[0x20];
+	u8         match_dw_3[0x20];
+	u8         match_dw_2[0x20];
+	u8         match_dw_1[0x20];
+	u8         match_dw_0[0x20];
+
+	u8         match_byte_7[0x8];
+	u8         match_byte_6[0x8];
+	u8         match_byte_5[0x8];
+	u8         match_byte_4[0x8];
+
+	u8         match_byte_3[0x8];
+	u8         match_byte_2[0x8];
+	u8         match_byte_1[0x8];
+	u8         match_byte_0[0x8];
+};
+
 struct mlx5_ifc_match_definer_bits {
 	u8         modify_field_select[0x40];
 
@@ -6116,9 +6148,41 @@ struct mlx5_ifc_match_definer_bits {
 	u8         reserved_at_80[0x10];
 	u8         format_id[0x10];
 
-	u8         reserved_at_a0[0x160];
+	u8         reserved_at_a0[0x60];
 
-	u8         match_mask[16][0x20];
+	u8         format_select_dw3[0x8];
+	u8         format_select_dw2[0x8];
+	u8         format_select_dw1[0x8];
+	u8         format_select_dw0[0x8];
+
+	u8         format_select_dw7[0x8];
+	u8         format_select_dw6[0x8];
+	u8         format_select_dw5[0x8];
+	u8         format_select_dw4[0x8];
+
+	u8         reserved_at_100[0x18];
+	u8         format_select_dw8[0x8];
+
+	u8         reserved_at_120[0x20];
+
+	u8         format_select_byte3[0x8];
+	u8         format_select_byte2[0x8];
+	u8         format_select_byte1[0x8];
+	u8         format_select_byte0[0x8];
+
+	u8         format_select_byte7[0x8];
+	u8         format_select_byte6[0x8];
+	u8         format_select_byte5[0x8];
+	u8         format_select_byte4[0x8];
+
+	u8         reserved_at_180[0x40];
+
+	union {
+		struct {
+			u8         match_mask[16][0x20];
+		};
+		struct mlx5_ifc_match_definer_match_mask_bits match_mask_format;
+	};
 };
 
 struct mlx5_ifc_general_obj_in_cmd_hdr_bits {
