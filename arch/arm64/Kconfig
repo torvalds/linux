@@ -2157,10 +2157,6 @@ config DMI
 
 endmenu # "Boot options"
 
-config SYSVIPC_COMPAT
-	def_bool y
-	depends on COMPAT && SYSVIPC
-
 menu "Power management options"
 
 source "kernel/power/Kconfig"

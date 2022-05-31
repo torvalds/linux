@@ -14,6 +14,7 @@
 #include <asm/cpu_ops_sbi.h>
 #include <asm/hwcap.h>
 #include <asm/image.h>
+#include <asm/xip_fixup.h>
 #include "efi-header.S"
 
 __HEAD
