@@ -3047,7 +3047,7 @@ generic_inst_dump(unsigned long adr, long count, int praddr,
 		dotted = 0;
 		last_inst = inst;
 		if (praddr)
-			printf(REG"  %s", adr, ppc_inst_as_str(inst));
+			printf(REG"  %08lx", adr, ppc_inst_as_ulong(inst));
 		printf("\t");
 		if (!ppc_inst_prefixed(inst))
 			dump_func(ppc_inst_val(inst), adr);
