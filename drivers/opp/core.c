@@ -896,62 +896,34 @@ static inline int _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
 	return ret;
 }
 
-static int _generic_set_opp_regulator(struct opp_table *opp_table,
-				      struct device *dev,
-				      struct dev_pm_opp *opp,
-				      unsigned long freq,
-				      int scaling_down)
+static int _opp_config_regulator_single(struct device *dev,
+			struct dev_pm_opp *old_opp, struct dev_pm_opp *new_opp,
+			struct regulator **regulators, unsigned int count)
 {
-	struct regulator *reg = opp_table->regulators[0];
-	struct dev_pm_opp *old_opp = opp_table->current_opp;
+	struct regulator *reg = regulators[0];
 	int ret;
 
 	/* This function only supports single regulator per device */
-	if (WARN_ON(opp_table->regulator_count > 1)) {
+	if (WARN_ON(count > 1)) {
 		dev_err(dev, "multiple regulators are not supported\n");
 		return -EINVAL;
 	}
 
-	/* Scaling up? Scale voltage before frequency */
-	if (!scaling_down) {
-		ret = _set_opp_voltage(dev, reg, opp->supplies);
-		if (ret)
-			goto restore_voltage;
-	}
-
-	/* Change frequency */
-	ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
+	ret = _set_opp_voltage(dev, reg, new_opp->supplies);
 	if (ret)
-		goto restore_voltage;
-
-	/* Scaling down? Scale voltage after frequency */
-	if (scaling_down) {
-		ret = _set_opp_voltage(dev, reg, opp->supplies);
-		if (ret)
-			goto restore_freq;
-	}
+		return ret;
 
 	/*
 	 * Enable the regulator after setting its voltages, otherwise it breaks
 	 * some boot-enabled regulators.
 	 */
-	if (unlikely(!opp_table->enabled)) {
+	if (unlikely(!new_opp->opp_table->enabled)) {
 		ret = regulator_enable(reg);
 		if (ret < 0)
 			dev_warn(dev, "Failed to enable regulator: %d", ret);
 	}
 
 	return 0;
-
-restore_freq:
-	if (_generic_set_opp_clk_only(dev, opp_table->clk, old_opp->rate))
-		dev_err(dev, "%s: failed to restore old-freq (%lu Hz)\n",
-			__func__, old_opp->rate);
-restore_voltage:
-	/* This shouldn't harm even if the voltages weren't updated earlier */
-	_set_opp_voltage(dev, reg, old_opp->supplies);
-
-	return ret;
 }
 
 static int _set_opp_bw(const struct opp_table *opp_table,
@@ -1200,9 +1172,6 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 
 	if (opp_table->set_opp) {
 		ret = _set_opp_custom(opp_table, dev, opp, freq);
-	} else if (opp_table->regulators) {
-		ret = _generic_set_opp_regulator(opp_table, dev, opp, freq,
-						 scaling_down);
 	} else {
 		/* Only frequency scaling */
 		ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
@@ -2120,6 +2089,10 @@ static int _opp_set_regulators(struct opp_table *opp_table, struct device *dev,
 		opp_table->set_opp_data->new_opp.supplies = supplies + count;
 	}
 	mutex_unlock(&opp_table->lock);
+
+	/* Set generic config_regulators() for single regulators here */
+	if (count == 1)
+		opp_table->config_regulators = _opp_config_regulator_single;
 
 	return 0;
 
