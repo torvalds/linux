@@ -1386,10 +1386,13 @@ int btrfs_insert_delayed_dir_index(struct btrfs_trans_handle *trans,
 
 	ret = btrfs_delayed_item_reserve_metadata(trans, dir->root, delayed_item);
 	/*
-	 * we have reserved enough space when we start a new transaction,
-	 * so reserving metadata failure is impossible
+	 * Space was reserved for a dir index item insertion when we started the
+	 * transaction, so getting a failure here should be impossible.
 	 */
-	BUG_ON(ret);
+	if (WARN_ON(ret)) {
+		btrfs_release_delayed_item(delayed_item);
+		goto release_node;
+	}
 
 	mutex_lock(&delayed_node->mutex);
 	ret = __btrfs_add_delayed_insertion_item(delayed_node, delayed_item);
