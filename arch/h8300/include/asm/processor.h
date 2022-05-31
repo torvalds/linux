@@ -13,7 +13,6 @@
 #define __ASM_H8300_PROCESSOR_H
 
 #include <linux/compiler.h>
-#include <asm/segment.h>
 #include <asm/ptrace.h>
 #include <asm/current.h>
 
@@ -105,7 +104,7 @@ static inline void release_thread(struct task_struct *dead_task)
 {
 }
 
-unsigned long get_wchan(struct task_struct *p);
+unsigned long __get_wchan(struct task_struct *p);
 
 #define	KSTK_EIP(tsk)	\
 	({			 \

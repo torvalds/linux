@@ -126,13 +126,17 @@
 
 #include <asm/ecard.h>
 
-#include "../scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include <scsi/scsi_transport_spi.h>
 #include "acornscsi.h"
 #include "msgqueue.h"
-#include "scsi.h"
+#include "arm_scsi.h"
 
 #include <scsi/scsicam.h>
 
@@ -725,7 +729,7 @@ intr_ret_t acornscsi_kick(AS_Host *host)
      */
     host->scsi.phase = PHASE_CONNECTING;
     host->SCpnt = SCpnt;
-    host->scsi.SCp = SCpnt->SCp;
+    host->scsi.SCp = *arm_scsi_pointer(SCpnt);
     host->dma.xfer_setup = 0;
     host->dma.xfer_required = 0;
     host->dma.xfer_done = 0;
@@ -841,13 +845,10 @@ static void acornscsi_done(AS_Host *host, struct scsi_cmnd **SCpntp,
 		}
 	}
 
-	if (!SCpnt->scsi_done)
-	    panic("scsi%d.H: null scsi_done function in acornscsi_done", host->host->host_no);
-
 	clear_bit(SCpnt->device->id * 8 +
 		  (u8)(SCpnt->device->lun & 0x7), host->busyluns);
 
-	SCpnt->scsi_done(SCpnt);
+	scsi_done(SCpnt);
     } else
 	printk("scsi%d: null command in acornscsi_done", host->host->host_no);
 
@@ -1423,6 +1424,7 @@ unsigned char acornscsi_readmessagebyte(AS_Host *host)
 static
 void acornscsi_message(AS_Host *host)
 {
+    struct scsi_pointer *scsi_pointer;
     unsigned char message[16];
     unsigned int msgidx = 0, msglen = 1;
 
@@ -1492,8 +1494,9 @@ void acornscsi_message(AS_Host *host)
 	 *  the saved data pointer for the current I/O process.
 	 */
 	acornscsi_dma_cleanup(host);
-	host->SCpnt->SCp = host->scsi.SCp;
-	host->SCpnt->SCp.sent_command = 0;
+	scsi_pointer = arm_scsi_pointer(host->SCpnt);
+	*scsi_pointer = host->scsi.SCp;
+	scsi_pointer->sent_command = 0;
 	host->scsi.phase = PHASE_MSGIN;
 	break;
 
@@ -1508,7 +1511,7 @@ void acornscsi_message(AS_Host *host)
 	 *  the present command and status areas.'
 	 */
 	acornscsi_dma_cleanup(host);
-	host->scsi.SCp = host->SCpnt->SCp;
+	host->scsi.SCp = *arm_scsi_pointer(host->SCpnt);
 	host->scsi.phase = PHASE_MSGIN;
 	break;
 
@@ -1808,7 +1811,7 @@ int acornscsi_reconnect_finish(AS_Host *host)
 	/*
 	 * Restore data pointer from SAVED pointers.
 	 */
-	host->scsi.SCp = host->SCpnt->SCp;
+	host->scsi.SCp = *arm_scsi_pointer(host->SCpnt);
 #if (DEBUG & (DEBUG_QUEUES|DEBUG_DISCON))
 	printk(", data pointers: [%p, %X]",
 		host->scsi.SCp.ptr, host->scsi.SCp.this_residual);
@@ -2400,23 +2403,16 @@ acornscsi_intr(int irq, void *dev_id)
  */
 
 /*
- * Function : acornscsi_queuecmd(struct scsi_cmnd *cmd, void (*done)(struct scsi_cmnd *))
+ * Function : acornscsi_queuecmd(struct scsi_cmnd *cmd)
  * Purpose  : queues a SCSI command
  * Params   : cmd  - SCSI command
- *	      done - function called on completion, with pointer to command descriptor
  * Returns  : 0, or < 0 on error.
  */
-static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
-		       void (*done)(struct scsi_cmnd *))
+static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt)
 {
+    struct scsi_pointer *scsi_pointer = arm_scsi_pointer(SCpnt);
+    void (*done)(struct scsi_cmnd *) = scsi_done;
     AS_Host *host = (AS_Host *)SCpnt->device->host->hostdata;
-
-    if (!done) {
-	/* there should be some way of rejecting errors like this without panicing... */
-	panic("scsi%d: queuecommand called with NULL done function [cmd=%p]",
-		host->host->host_no, SCpnt);
-	return -EINVAL;
-    }
 
 #if (DEBUG & DEBUG_NO_WRITE)
     if (acornscsi_cmdtype(SCpnt->cmnd[0]) == CMD_WRITE && (NO_WRITE & (1 << SCpnt->device->id))) {
@@ -2428,12 +2424,11 @@ static int acornscsi_queuecmd_lck(struct scsi_cmnd *SCpnt,
     }
 #endif
 
-    SCpnt->scsi_done = done;
     SCpnt->host_scribble = NULL;
     SCpnt->result = 0;
-    SCpnt->SCp.phase = (int)acornscsi_datadirection(SCpnt->cmnd[0]);
-    SCpnt->SCp.sent_command = 0;
-    SCpnt->SCp.scsi_xferred = 0;
+    scsi_pointer->phase = (int)acornscsi_datadirection(SCpnt->cmnd[0]);
+    scsi_pointer->sent_command = 0;
+    scsi_pointer->scsi_xferred = 0;
 
     init_SCp(SCpnt);
 
@@ -2799,6 +2794,7 @@ static struct scsi_host_template acornscsi_template = {
 	.cmd_per_lun		= 2,
 	.dma_boundary		= PAGE_SIZE - 1,
 	.proc_name		= "acornscsi",
+	.cmd_size		= sizeof(struct arm_cmd_priv),
 };
 
 static int acornscsi_probe(struct expansion_card *ec, const struct ecard_id *id)

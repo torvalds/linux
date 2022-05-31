@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: (BSD-3-Clause OR GPL-2.0-only)
 /* Copyright(c) 2020 Intel Corporation */
+#include <linux/iopoll.h>
 #include "adf_accel_devices.h"
+#include "adf_common_drv.h"
 #include "adf_gen4_hw_data.h"
 
 static u64 build_csr_ring_base_addr(dma_addr_t addr, u32 size)
@@ -109,20 +111,13 @@ static inline void adf_gen4_unpack_ssm_wdtimer(u64 value, u32 *upper,
 
 void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 {
-	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	u64 timer_val_pke = ADF_SSM_WDT_PKE_DEFAULT_VALUE;
 	u64 timer_val = ADF_SSM_WDT_DEFAULT_VALUE;
 	u32 ssm_wdt_pke_high = 0;
 	u32 ssm_wdt_pke_low = 0;
 	u32 ssm_wdt_high = 0;
 	u32 ssm_wdt_low = 0;
-	void __iomem *pmisc_addr;
-	struct adf_bar *pmisc;
-	int pmisc_id;
-
-	pmisc_id = hw_data->get_misc_bar_id(hw_data);
-	pmisc = &GET_BARS(accel_dev)[pmisc_id];
-	pmisc_addr = pmisc->virt_addr;
 
 	/* Convert 64bit WDT timer value into 32bit values for
 	 * mmio write to 32bit CSRs.
@@ -139,3 +134,61 @@ void adf_gen4_set_ssm_wdtimer(struct adf_accel_dev *accel_dev)
 	ADF_CSR_WR(pmisc_addr, ADF_SSMWDTPKEH_OFFSET, ssm_wdt_pke_high);
 }
 EXPORT_SYMBOL_GPL(adf_gen4_set_ssm_wdtimer);
+
+int adf_pfvf_comms_disabled(struct adf_accel_dev *accel_dev)
+{
+	return 0;
+}
+EXPORT_SYMBOL_GPL(adf_pfvf_comms_disabled);
+
+static int reset_ring_pair(void __iomem *csr, u32 bank_number)
+{
+	u32 status;
+	int ret;
+
+	/* Write rpresetctl register BIT(0) as 1
+	 * Since rpresetctl registers have no RW fields, no need to preserve
+	 * values for other bits. Just write directly.
+	 */
+	ADF_CSR_WR(csr, ADF_WQM_CSR_RPRESETCTL(bank_number),
+		   ADF_WQM_CSR_RPRESETCTL_RESET);
+
+	/* Read rpresetsts register and wait for rp reset to complete */
+	ret = read_poll_timeout(ADF_CSR_RD, status,
+				status & ADF_WQM_CSR_RPRESETSTS_STATUS,
+				ADF_RPRESET_POLL_DELAY_US,
+				ADF_RPRESET_POLL_TIMEOUT_US, true,
+				csr, ADF_WQM_CSR_RPRESETSTS(bank_number));
+	if (!ret) {
+		/* When rp reset is done, clear rpresetsts */
+		ADF_CSR_WR(csr, ADF_WQM_CSR_RPRESETSTS(bank_number),
+			   ADF_WQM_CSR_RPRESETSTS_STATUS);
+	}
+
+	return ret;
+}
+
+int adf_gen4_ring_pair_reset(struct adf_accel_dev *accel_dev, u32 bank_number)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	u32 etr_bar_id = hw_data->get_etr_bar_id(hw_data);
+	void __iomem *csr;
+	int ret;
+
+	if (bank_number >= hw_data->num_banks)
+		return -EINVAL;
+
+	dev_dbg(&GET_DEV(accel_dev),
+		"ring pair reset for bank:%d\n", bank_number);
+
+	csr = (&GET_BARS(accel_dev)[etr_bar_id])->virt_addr;
+	ret = reset_ring_pair(csr, bank_number);
+	if (ret)
+		dev_err(&GET_DEV(accel_dev),
+			"ring pair reset failed (timeout)\n");
+	else
+		dev_dbg(&GET_DEV(accel_dev), "ring pair reset successful\n");
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(adf_gen4_ring_pair_reset);

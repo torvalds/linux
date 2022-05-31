@@ -17,6 +17,7 @@ Date:		October 2018
 KernelVersion:	4.20
 Contact:	"Matan Ziv-Av <matan@svgalib.org>
 Description:
+        Deprecated use /sys/class/power_supply/CMB0/charge_control_end_threshold
         Maximal battery charge level. Accepted values are 80 or 100.
 
 What:		/sys/devices/platform/lg-laptop/fan_mode

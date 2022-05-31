@@ -31,6 +31,10 @@ properties:
         - amlogic,meson-gxbb-sram
         - arm,juno-sram-ns
         - atmel,sama5d2-securam
+        - nvidia,tegra186-sysram
+        - nvidia,tegra194-sysram
+        - nvidia,tegra234-sysram
+        - qcom,rpm-msg-ram
         - rockchip,rk3288-pmu-sram
 
   reg:
@@ -60,7 +64,7 @@ properties:
     type: boolean
 
 patternProperties:
-  "^([a-z]*-)?sram(-section)?@[a-f0-9]+$":
+  "^([a-z0-9]*-)?sram(-section)?@[a-f0-9]+$":
     type: object
     description:
       Each child of the sram node specifies a region of reserved memory.
@@ -132,12 +136,14 @@ required:
   - reg
 
 if:
-  properties:
-    compatible:
-      contains:
-        const: rockchip,rk3288-pmu-sram
-
-else:
+  not:
+    properties:
+      compatible:
+        contains:
+          enum:
+            - qcom,rpm-msg-ram
+            - rockchip,rk3288-pmu-sram
+then:
   required:
     - "#address-cells"
     - "#size-cells"

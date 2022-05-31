@@ -10,6 +10,7 @@
 
 #include <linux/module.h>
 #include <linux/kthread.h>
+#include <linux/pagemap.h>
 #include <xen/events.h>
 #include <xen/grant_table.h>
 #include "common.h"
@@ -98,7 +99,7 @@ static void xen_update_blkif_status(struct xen_blkif *blkif)
 		return;
 	}
 
-	err = filemap_write_and_wait(blkif->vbd.bdev->bd_inode->i_mapping);
+	err = sync_blockdev(blkif->vbd.bdev);
 	if (err) {
 		xenbus_dev_error(blkif->be->dev, err, "block flush");
 		return;
@@ -510,7 +511,7 @@ static int xen_vbd_create(struct xen_blkif *blkif, blkif_vdev_t handle,
 	}
 	vbd->size = vbd_sz(vbd);
 
-	if (vbd->bdev->bd_disk->flags & GENHD_FL_CD || cdrom)
+	if (cdrom || disk_to_cdi(vbd->bdev->bd_disk))
 		vbd->type |= VDISK_CDROM;
 	if (vbd->bdev->bd_disk->flags & GENHD_FL_REMOVABLE)
 		vbd->type |= VDISK_REMOVABLE;

@@ -4,7 +4,7 @@ Writing Devicetree Bindings in json-schema
 ==========================================
 
 Devicetree bindings are written using json-schema vocabulary. Schema files are
-written in a JSON compatible subset of YAML. YAML is used instead of JSON as it
+written in a JSON-compatible subset of YAML. YAML is used instead of JSON as it
 is considered more human readable and has some advantages such as allowing
 comments (Prefixed with '#').
 
@@ -22,16 +22,16 @@ $id
   URI typically containing the binding's filename and path. For DT schema, it must
   begin with "http://devicetree.org/schemas/". The URL is used in constructing
   references to other files specified in schema "$ref" properties. A $ref value
-  with a leading '/' will have the hostname prepended. A $ref value a relative
-  path or filename only will be prepended with the hostname and path components
-  of the current schema file's '$id' value. A URL is used even for local files,
-  but there may not actually be files present at those locations.
+  with a leading '/' will have the hostname prepended. A $ref value with only a
+  relative path or filename will be prepended with the hostname and path
+  components of the current schema file's '$id' value. A URL is used even for
+  local files, but there may not actually be files present at those locations.
 
 $schema
   Indicates the meta-schema the schema file adheres to.
 
 title
-  A one line description on the contents of the binding schema.
+  A one-line description on the contents of the binding schema.
 
 maintainers
   A DT specific property. Contains a list of email address(es)
@@ -45,8 +45,8 @@ description
 
 select
   Optional. A json-schema used to match nodes for applying the
-  schema. By default without 'select', nodes are matched against their possible
-  compatible string values or node name. Most bindings should not need select.
+  schema. By default, without 'select', nodes are matched against their possible
+  compatible-string values or node name. Most bindings should not need select.
 
 allOf
   Optional. A list of other schemas to include. This is used to
@@ -56,7 +56,8 @@ allOf
 properties
   A set of sub-schema defining all the DT properties for the
   binding. The exact schema syntax depends on whether properties are known,
-  common properties (e.g. 'interrupts') or are binding/vendor specific properties.
+  common properties (e.g. 'interrupts') or are binding/vendor-specific
+  properties.
 
 A property can also define a child DT node with child properties defined
 under it.
@@ -81,23 +82,23 @@ Property Schema
 
 The 'properties' section of the schema contains all the DT properties for a
 binding. Each property contains a set of constraints using json-schema
-vocabulary for that property. The properties schemas are what is used for
+vocabulary for that property. The properties schemas are what are used for
 validation of DT files.
 
-For common properties, only additional constraints not covered by the common
+For common properties, only additional constraints not covered by the common,
 binding schema need to be defined such as how many values are valid or what
 possible values are valid.
 
-Vendor specific properties will typically need more detailed schema. With the
+Vendor-specific properties will typically need more detailed schema. With the
 exception of boolean properties, they should have a reference to a type in
 schemas/types.yaml. A "description" property is always required.
 
-The Devicetree schemas don't exactly match the YAML encoded DT data produced by
+The Devicetree schemas don't exactly match the YAML-encoded DT data produced by
 dtc. They are simplified to make them more compact and avoid a bunch of
 boilerplate. The tools process the schema files to produce the final schema for
 validation. There are currently 2 transformations the tools perform.
 
-The default for arrays in json-schema is they are variable sized and allow more
+The default for arrays in json-schema is they are variable-sized and allow more
 entries than explicitly defined. This can be restricted by defining 'minItems',
 'maxItems', and 'additionalItems'. However, for DeviceTree Schemas, a fixed
 size is desired in most cases, so these properties are added based on the
@@ -117,22 +118,15 @@ The DT schema project must be installed in order to validate the DT schema
 binding documents and validate DTS files using the DT schema. The DT schema
 project can be installed with pip::
 
-    pip3 install git+https://github.com/devicetree-org/dt-schema.git@master
+    pip3 install dtschema
+
+Note that 'dtschema' installation requires 'swig' and Python development files
+installed first. On Debian/Ubuntu systems::
+
+    apt install swig python3-dev
 
 Several executables (dt-doc-validate, dt-mk-schema, dt-validate) will be
 installed. Ensure they are in your PATH (~/.local/bin by default).
-
-dtc must also be built with YAML output support enabled. This requires that
-libyaml and its headers be installed on the host system. For some distributions
-that involves installing the development package, such as:
-
-Debian::
-
-  apt-get install libyaml-dev
-
-Fedora::
-
-  dnf -y install libyaml-devel
 
 Running checks
 ~~~~~~~~~~~~~~
@@ -156,13 +150,14 @@ It is possible to run both in a single command::
 
     make dt_binding_check dtbs_check
 
-It is also possible to run checks with a single schema file by setting the
-``DT_SCHEMA_FILES`` variable to a specific schema file.
+It is also possible to run checks with a subset of matching schema files by
+setting the ``DT_SCHEMA_FILES`` variable to a specific schema file or pattern.
 
 ::
 
-    make dt_binding_check DT_SCHEMA_FILES=Documentation/devicetree/bindings/trivial-devices.yaml
-    make dtbs_check DT_SCHEMA_FILES=Documentation/devicetree/bindings/trivial-devices.yaml
+    make dt_binding_check DT_SCHEMA_FILES=trivial-devices.yaml
+    make dt_binding_check DT_SCHEMA_FILES=/gpio/
+    make dtbs_check DT_SCHEMA_FILES=trivial-devices.yaml
 
 
 json-schema Resources

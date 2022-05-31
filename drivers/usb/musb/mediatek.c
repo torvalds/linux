@@ -185,6 +185,7 @@ static int mtk_otg_switch_init(struct mtk_glue *glue)
 
 	role_sx_desc.set = musb_usb_role_sx_set;
 	role_sx_desc.get = musb_usb_role_sx_get;
+	role_sx_desc.allow_userspace_control = true;
 	role_sx_desc.fwnode = dev_fwnode(glue->dev);
 	role_sx_desc.driver_data = glue;
 	glue->role_sw = usb_role_switch_register(glue->dev, &role_sx_desc);
@@ -537,6 +538,8 @@ static int mtk_musb_probe(struct platform_device *pdev)
 	pinfo.num_res = pdev->num_resources;
 	pinfo.data = pdata;
 	pinfo.size_data = sizeof(*pdata);
+	pinfo.fwnode = of_fwnode_handle(np);
+	pinfo.of_node_reused = true;
 
 	glue->musb_pdev = platform_device_register_full(&pinfo);
 	if (IS_ERR(glue->musb_pdev)) {

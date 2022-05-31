@@ -82,7 +82,7 @@ void power4_idle(void)
 		return;
 
 	if (cpu_has_feature(CPU_FTR_ALTIVEC))
-		asm volatile("DSSALL ; sync" ::: "memory");
+		asm volatile(PPC_DSSALL " ; sync" ::: "memory");
 
 	power4_idle_nap();
 

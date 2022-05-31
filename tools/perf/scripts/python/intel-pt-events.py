@@ -32,8 +32,7 @@ try:
 except:
 	broken_pipe_exception = IOError
 
-glb_switch_str		= None
-glb_switch_printed	= True
+glb_switch_str		= {}
 glb_insn		= False
 glb_disassembler	= None
 glb_src			= False
@@ -70,22 +69,23 @@ def trace_begin():
 	ap = argparse.ArgumentParser(usage = "", add_help = False)
 	ap.add_argument("--insn-trace", action='store_true')
 	ap.add_argument("--src-trace", action='store_true')
+	ap.add_argument("--all-switch-events", action='store_true')
 	global glb_args
 	global glb_insn
 	global glb_src
 	glb_args = ap.parse_args()
 	if glb_args.insn_trace:
 		print("Intel PT Instruction Trace")
-		itrace = "i0nsepwx"
+		itrace = "i0nsepwxI"
 		glb_insn = True
 	elif glb_args.src_trace:
 		print("Intel PT Source Trace")
-		itrace = "i0nsepwx"
+		itrace = "i0nsepwxI"
 		glb_insn = True
 		glb_src = True
 	else:
-		print("Intel PT Branch Trace, Power Events and PTWRITE")
-		itrace = "bepwx"
+		print("Intel PT Branch Trace, Power Events, Event Trace and PTWRITE")
+		itrace = "bepwxI"
 	global glb_disassembler
 	try:
 		glb_disassembler = LibXED()
@@ -149,6 +149,43 @@ def print_psb(raw_buf):
 	offset = data[1]
 	print("offset: %#x" % (offset), end=' ')
 
+glb_cfe = ["", "INTR", "IRET", "SMI", "RSM", "SIPI", "INIT", "VMENTRY", "VMEXIT",
+		"VMEXIT_INTR", "SHUTDOWN", "", "UINT", "UIRET"] + [""] * 18
+glb_evd = ["", "PFA", "VMXQ", "VMXR"] + [""] * 60
+
+def print_evt(raw_buf):
+	data = struct.unpack_from("<BBH", raw_buf)
+	typ = data[0] & 0x1f
+	ip_flag = (data[0] & 0x80) >> 7
+	vector = data[1]
+	evd_cnt = data[2]
+	s = glb_cfe[typ]
+	if s:
+		print(" cfe: %s IP: %u vector: %u" % (s, ip_flag, vector), end=' ')
+	else:
+		print(" cfe: %u IP: %u vector: %u" % (typ, ip_flag, vector), end=' ')
+	pos = 4
+	for i in range(evd_cnt):
+		data = struct.unpack_from("<QQ", raw_buf)
+		et = data[0] & 0x3f
+		s = glb_evd[et]
+		if s:
+			print("%s: %#x" % (s, data[1]), end=' ')
+		else:
+			print("EVD_%u: %#x" % (et, data[1]), end=' ')
+
+def print_iflag(raw_buf):
+	data = struct.unpack_from("<IQ", raw_buf)
+	iflag = data[0] & 1
+	old_iflag = iflag ^ 1
+	via_branch = data[0] & 2
+	branch_ip = data[1]
+	if via_branch:
+		s = "via"
+	else:
+		s = "non"
+	print("IFLAG: %u->%u %s branch" % (old_iflag, iflag, s), end=' ')
+
 def common_start_str(comm, sample):
 	ts = sample["time"]
 	cpu = sample["cpu"]
@@ -164,7 +201,7 @@ def print_common_start(comm, sample, name):
 	# weight      = sample["weight"]
 	# transaction = sample["transaction"]
 	# cpumode     = get_optional_zero(sample, "cpumode")
-	print(common_start_str(comm, sample) + "%7s  %19s" % (name, flags_disp), end=' ')
+	print(common_start_str(comm, sample) + "%8s  %21s" % (name, flags_disp), end=' ')
 
 def print_instructions_start(comm, sample):
 	if "x" in get_optional_null(sample, "flags"):
@@ -256,10 +293,6 @@ def print_srccode(comm, param_dict, sample, symbol, dso, with_insn):
 	print(start_str, src_str)
 
 def do_process_event(param_dict):
-	global glb_switch_printed
-	if not glb_switch_printed:
-		print(glb_switch_str)
-		glb_switch_printed = True
 	event_attr = param_dict["attr"]
 	sample	   = param_dict["sample"]
 	raw_buf	   = param_dict["raw_buf"]
@@ -273,6 +306,11 @@ def do_process_event(param_dict):
 	# Symbol and dso info are not always resolved
 	dso    = get_optional(param_dict, "dso")
 	symbol = get_optional(param_dict, "symbol")
+
+	cpu = sample["cpu"]
+	if cpu in glb_switch_str:
+		print(glb_switch_str[cpu])
+		del glb_switch_str[cpu]
 
 	if name[0:12] == "instructions":
 		if glb_src:
@@ -314,6 +352,14 @@ def do_process_event(param_dict):
 		print_common_start(comm, sample, name)
 		print_psb(raw_buf)
 		print_common_ip(param_dict, sample, symbol, dso)
+	elif name == "evt":
+		print_common_start(comm, sample, name)
+		print_evt(raw_buf)
+		print_common_ip(param_dict, sample, symbol, dso)
+	elif name == "iflag":
+		print_common_start(comm, sample, name)
+		print_iflag(raw_buf)
+		print_common_ip(param_dict, sample, symbol, dso)
 	else:
 		print_common_start(comm, sample, name)
 		print_common_ip(param_dict, sample, symbol, dso)
@@ -336,8 +382,6 @@ def auxtrace_error(typ, code, cpu, pid, tid, ip, ts, msg, cpumode, *x):
 		sys.exit(1)
 
 def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_preempt, *x):
-	global glb_switch_printed
-	global glb_switch_str
 	if out:
 		out_str = "Switch out "
 	else:
@@ -350,6 +394,10 @@ def context_switch(ts, cpu, pid, tid, np_pid, np_tid, machine_pid, out, out_pree
 		machine_str = ""
 	else:
 		machine_str = "machine PID %d" % machine_pid
-	glb_switch_str = "%16s %5d/%-5d [%03u] %9u.%09u %5d/%-5d %s %s" % \
+	switch_str = "%16s %5d/%-5d [%03u] %9u.%09u %5d/%-5d %s %s" % \
 		(out_str, pid, tid, cpu, ts / 1000000000, ts %1000000000, np_pid, np_tid, machine_str, preempt_str)
-	glb_switch_printed = False
+	if glb_args.all_switch_events:
+		print(switch_str);
+	else:
+		global glb_switch_str
+		glb_switch_str[cpu] = switch_str

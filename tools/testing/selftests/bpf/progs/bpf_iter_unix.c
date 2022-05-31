@@ -49,7 +49,7 @@ int dump_unix(struct bpf_iter__unix *ctx)
 		       sock_i_ino(sk));
 
 	if (unix_sk->addr) {
-		if (!UNIX_ABSTRACT(unix_sk)) {
+		if (unix_sk->addr->name->sun_path[0]) {
 			BPF_SEQ_PRINTF(seq, " %s", unix_sk->addr->name->sun_path);
 		} else {
 			/* The name of the abstract UNIX domain socket starts
@@ -63,7 +63,7 @@ int dump_unix(struct bpf_iter__unix *ctx)
 			BPF_SEQ_PRINTF(seq, " @");
 
 			for (i = 1; i < len; i++) {
-				/* unix_mkname() tests this upper bound. */
+				/* unix_validate_addr() tests this upper bound. */
 				if (i >= sizeof(struct sockaddr_un))
 					break;
 

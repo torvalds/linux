@@ -180,15 +180,6 @@ allOf:
         compatible:
           enum:
             - ti,am654-mailbox
-    then:
-      required:
-        - interrupt-parent
-
-  - if:
-      properties:
-        compatible:
-          enum:
-            - ti,am654-mailbox
             - ti,am64-mailbox
     then:
       properties:

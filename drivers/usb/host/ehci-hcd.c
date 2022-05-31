@@ -588,7 +588,7 @@ static int ehci_run (struct usb_hcd *hcd)
 	 * hcc_params controls whether ehci->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
 	 * dma_pool consistent memory always uses segment zero.
-	 * streaming mappings for I/O buffers, like pci_map_single(),
+	 * streaming mappings for I/O buffers, like dma_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
 	 * NOTE:  the dma mask is visible through dev->dma_mask, so
@@ -635,7 +635,16 @@ static int ehci_run (struct usb_hcd *hcd)
 	/* Wait until HC become operational */
 	ehci_readl(ehci, &ehci->regs->command);	/* unblock posted writes */
 	msleep(5);
-	rc = ehci_handshake(ehci, &ehci->regs->status, STS_HALT, 0, 100 * 1000);
+
+	/* For Aspeed, STS_HALT also depends on ASS/PSS status.
+	 * Check CMD_RUN instead.
+	 */
+	if (ehci->is_aspeed)
+		rc = ehci_handshake(ehci, &ehci->regs->command, CMD_RUN,
+				    1, 100 * 1000);
+	else
+		rc = ehci_handshake(ehci, &ehci->regs->status, STS_HALT,
+				    0, 100 * 1000);
 
 	up_write(&ehci_cf_port_reset_rwsem);
 
@@ -1094,6 +1103,26 @@ static void ehci_remove_device(struct usb_hcd *hcd, struct usb_device *udev)
 
 #ifdef	CONFIG_PM
 
+/* Clear wakeup signal locked in zhaoxin platform when device plug in. */
+static void ehci_zx_wakeup_clear(struct ehci_hcd *ehci)
+{
+	u32 __iomem	*reg = &ehci->regs->port_status[4];
+	u32 		t1 = ehci_readl(ehci, reg);
+
+	t1 &= (u32)~0xf0000;
+	t1 |= PORT_TEST_FORCE;
+	ehci_writel(ehci, t1, reg);
+	t1 = ehci_readl(ehci, reg);
+	msleep(1);
+	t1 &= (u32)~0xf0000;
+	ehci_writel(ehci, t1, reg);
+	ehci_readl(ehci, reg);
+	msleep(1);
+	t1 = ehci_readl(ehci, reg);
+	ehci_writel(ehci, t1 | PORT_CSC, reg);
+	ehci_readl(ehci, reg);
+}
+
 /* suspend/resume, section 4.3 */
 
 /* These routines handle the generic parts of controller suspend/resume */
@@ -1144,6 +1173,9 @@ int ehci_resume(struct usb_hcd *hcd, bool force_reset)
 
 	if (ehci->shutdown)
 		return 0;		/* Controller is dead */
+
+	if (ehci->zx_wakeup_clear_needed)
+		ehci_zx_wakeup_clear(ehci);
 
 	/*
 	 * If CF is still set and reset isn't forced

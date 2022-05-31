@@ -40,7 +40,6 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/fips.h>
 #include <linux/time.h>
 #include <crypto/internal/rng.h>
 
@@ -58,11 +57,6 @@ void *jent_zalloc(unsigned int len)
 void jent_zfree(void *ptr)
 {
 	kfree_sensitive(ptr);
-}
-
-int jent_fips_enabled(void)
-{
-	return fips_enabled;
 }
 
 void jent_panic(char *s)

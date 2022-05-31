@@ -36,7 +36,6 @@ struct {
 	.pinning = PIN_GLOBAL_NS,
 };
 
-int _version SEC("version") = 1;
 char _license[] SEC("license") = "GPL";
 
 /* Fill 'tuple' with L3 info, and attempt to find L4. On fail, return NULL. */
@@ -159,7 +158,7 @@ assign:
 	return ret;
 }
 
-SEC("classifier/sk_assign_test")
+SEC("tc")
 int bpf_sk_assign_test(struct __sk_buff *skb)
 {
 	struct bpf_sock_tuple *tuple, ln = {0};

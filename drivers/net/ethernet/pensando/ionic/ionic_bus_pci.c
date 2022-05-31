@@ -109,8 +109,8 @@ void ionic_bus_unmap_dbpage(struct ionic *ionic, void __iomem *page)
 
 static void ionic_vf_dealloc_locked(struct ionic *ionic)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_STATSADDR };
 	struct ionic_vf *v;
-	dma_addr_t dma = 0;
 	int i;
 
 	if (!ionic->vfs)
@@ -120,9 +120,8 @@ static void ionic_vf_dealloc_locked(struct ionic *ionic)
 		v = &ionic->vfs[i];
 
 		if (v->stats_pa) {
-			(void)ionic_set_vf_config(ionic, i,
-						  IONIC_VF_ATTR_STATSADDR,
-						  (u8 *)&dma);
+			vfc.stats_pa = 0;
+			(void)ionic_set_vf_config(ionic, i, &vfc);
 			dma_unmap_single(ionic->dev, v->stats_pa,
 					 sizeof(v->stats), DMA_FROM_DEVICE);
 			v->stats_pa = 0;
@@ -143,6 +142,7 @@ static void ionic_vf_dealloc(struct ionic *ionic)
 
 static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 {
+	struct ionic_vf_setattr_cmd vfc = { .attr = IONIC_VF_ATTR_STATSADDR };
 	struct ionic_vf *v;
 	int err = 0;
 	int i;
@@ -166,9 +166,10 @@ static int ionic_vf_alloc(struct ionic *ionic, int num_vfs)
 		}
 
 		ionic->num_vfs++;
+
 		/* ignore failures from older FW, we just won't get stats */
-		(void)ionic_set_vf_config(ionic, i, IONIC_VF_ATTR_STATSADDR,
-					  (u8 *)&v->stats_pa);
+		vfc.stats_pa = cpu_to_le64(v->stats_pa);
+		(void)ionic_set_vf_config(ionic, i, &vfc);
 	}
 
 out:
@@ -255,7 +256,7 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = ionic_map_bars(ionic);
 	if (err)
-		goto err_out_pci_disable_device;
+		goto err_out_pci_release_regions;
 
 	/* Configure the device */
 	err = ionic_setup(ionic);
@@ -331,6 +332,9 @@ static int ionic_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto err_out_deregister_lifs;
 	}
 
+	mod_timer(&ionic->watchdog_timer,
+		  round_jiffies(jiffies + ionic->watchdog_period));
+
 	return 0;
 
 err_out_deregister_lifs:
@@ -348,7 +352,6 @@ err_out_port_reset:
 err_out_reset:
 	ionic_reset(ionic);
 err_out_teardown:
-	del_timer_sync(&ionic->watchdog_timer);
 	pci_clear_master(pdev);
 	/* Don't fail the probe for these errors, keep
 	 * the hw interface around for inspection
@@ -357,6 +360,7 @@ err_out_teardown:
 
 err_out_unmap_bars:
 	ionic_unmap_bars(ionic);
+err_out_pci_release_regions:
 	pci_release_regions(pdev);
 err_out_pci_disable_device:
 	pci_disable_device(pdev);

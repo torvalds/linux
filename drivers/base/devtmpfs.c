@@ -17,7 +17,7 @@
 #include <linux/syscalls.h>
 #include <linux/mount.h>
 #include <linux/device.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/namei.h>
 #include <linux/fs.h>
 #include <linux/shmem_fs.h>
@@ -28,6 +28,12 @@
 #include <linux/init_syscalls.h>
 #include <uapi/linux/mount.h>
 #include "base.h"
+
+#ifdef CONFIG_DEVTMPFS_SAFE
+#define DEVTMPFS_MFLAGS       (MS_SILENT | MS_NOEXEC | MS_NOSUID)
+#else
+#define DEVTMPFS_MFLAGS       (MS_SILENT)
+#endif
 
 static struct task_struct *thread;
 
@@ -59,8 +65,15 @@ static struct dentry *public_dev_mount(struct file_system_type *fs_type, int fla
 		      const char *dev_name, void *data)
 {
 	struct super_block *s = mnt->mnt_sb;
+	int err;
+
 	atomic_inc(&s->s_active);
 	down_write(&s->s_umount);
+	err = reconfigure_single(s, flags, data);
+	if (err < 0) {
+		deactivate_locked_super(s);
+		return ERR_PTR(err);
+	}
 	return dget(s->s_root);
 }
 
@@ -68,10 +81,8 @@ static struct file_system_type internal_fs_type = {
 	.name = "devtmpfs",
 #ifdef CONFIG_TMPFS
 	.init_fs_context = shmem_init_fs_context,
-	.parameters	= shmem_fs_parameters,
 #else
 	.init_fs_context = ramfs_init_fs_context,
-	.parameters	= ramfs_fs_parameters,
 #endif
 	.kill_sb = kill_litter_super,
 };
@@ -363,7 +374,7 @@ int __init devtmpfs_mount(void)
 	if (!thread)
 		return 0;
 
-	err = init_mount("devtmpfs", "dev", "devtmpfs", MS_SILENT, NULL);
+	err = init_mount("devtmpfs", "dev", "devtmpfs", DEVTMPFS_MFLAGS, NULL);
 	if (err)
 		printk(KERN_INFO "devtmpfs: error mounting %i\n", err);
 	else
@@ -412,7 +423,7 @@ static noinline int __init devtmpfs_setup(void *p)
 	err = ksys_unshare(CLONE_NEWNS);
 	if (err)
 		goto out;
-	err = init_mount("devtmpfs", "/", "devtmpfs", MS_SILENT, NULL);
+	err = init_mount("devtmpfs", "/", "devtmpfs", DEVTMPFS_MFLAGS, NULL);
 	if (err)
 		goto out;
 	init_chdir("/.."); /* will traverse into overmounted root */

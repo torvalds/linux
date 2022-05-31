@@ -15,7 +15,6 @@
 #include <linux/slab.h>
 #include <linux/dma-mapping.h>
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
 #include <linux/bio.h>
 #include <linux/blk-mq.h>
 #include <linux/interrupt.h>
@@ -719,6 +718,7 @@ static void probe_gdrom_setupdisk(void)
 	gd.disk->major = gdrom_major;
 	gd.disk->first_minor = 1;
 	gd.disk->minors = 1;
+	gd.disk->flags |= GENHD_FL_NO_PART;
 	strcpy(gd.disk->disk_name, GDROM_DEV_NAME);
 }
 
@@ -805,9 +805,14 @@ static int probe_gdrom(struct platform_device *devptr)
 		err = -ENOMEM;
 		goto probe_fail_free_irqs;
 	}
-	add_disk(gd.disk);
+	err = add_disk(gd.disk);
+	if (err)
+		goto probe_fail_add_disk;
+
 	return 0;
 
+probe_fail_add_disk:
+	kfree(gd.toc);
 probe_fail_free_irqs:
 	free_irq(HW_EVENT_GDROM_DMA, &gd);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);

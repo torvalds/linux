@@ -20,7 +20,7 @@ struct virtio_pcm_msg {
 	struct virtio_snd_pcm_xfer xfer;
 	struct virtio_snd_pcm_status status;
 	size_t length;
-	struct scatterlist sgs[0];
+	struct scatterlist sgs[];
 };
 
 /**
@@ -146,8 +146,7 @@ int virtsnd_pcm_msg_alloc(struct virtio_pcm_substream *vss,
 		int sg_num = virtsnd_pcm_sg_num(data, period_bytes);
 		struct virtio_pcm_msg *msg;
 
-		msg = kzalloc(sizeof(*msg) + sizeof(*msg->sgs) * (sg_num + 2),
-			      GFP_KERNEL);
+		msg = kzalloc(struct_size(msg, sgs, sg_num + 2), GFP_KERNEL);
 		if (!msg)
 			return -ENOMEM;
 

@@ -246,7 +246,7 @@ static const struct iio_enum hmc5843_meas_conf_enum = {
 
 static const struct iio_chan_spec_ext_info hmc5843_ext_info[] = {
 	IIO_ENUM("meas_conf", IIO_SHARED_BY_TYPE, &hmc5843_meas_conf_enum),
-	IIO_ENUM_AVAILABLE("meas_conf", &hmc5843_meas_conf_enum),
+	IIO_ENUM_AVAILABLE("meas_conf", IIO_SHARED_BY_TYPE, &hmc5843_meas_conf_enum),
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, hmc5843_get_mount_matrix),
 	{ }
 };
@@ -260,7 +260,7 @@ static const struct iio_enum hmc5983_meas_conf_enum = {
 
 static const struct iio_chan_spec_ext_info hmc5983_ext_info[] = {
 	IIO_ENUM("meas_conf", IIO_SHARED_BY_TYPE, &hmc5983_meas_conf_enum),
-	IIO_ENUM_AVAILABLE("meas_conf", &hmc5983_meas_conf_enum),
+	IIO_ENUM_AVAILABLE("meas_conf", IIO_SHARED_BY_TYPE, &hmc5983_meas_conf_enum),
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, hmc5843_get_mount_matrix),
 	{ }
 };
@@ -608,14 +608,14 @@ int hmc5843_common_suspend(struct device *dev)
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
 				HMC5843_MODE_SLEEP);
 }
-EXPORT_SYMBOL(hmc5843_common_suspend);
+EXPORT_SYMBOL_NS(hmc5843_common_suspend, IIO_HMC5843);
 
 int hmc5843_common_resume(struct device *dev)
 {
 	return hmc5843_set_mode(iio_priv(dev_get_drvdata(dev)),
 		HMC5843_MODE_CONVERSION_CONTINUOUS);
 }
-EXPORT_SYMBOL(hmc5843_common_resume);
+EXPORT_SYMBOL_NS(hmc5843_common_resume, IIO_HMC5843);
 
 int hmc5843_common_probe(struct device *dev, struct regmap *regmap,
 			 enum hmc5843_ids id, const char *name)
@@ -669,9 +669,9 @@ buffer_setup_err:
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
 	return ret;
 }
-EXPORT_SYMBOL(hmc5843_common_probe);
+EXPORT_SYMBOL_NS(hmc5843_common_probe, IIO_HMC5843);
 
-int hmc5843_common_remove(struct device *dev)
+void hmc5843_common_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 
@@ -680,10 +680,8 @@ int hmc5843_common_remove(struct device *dev)
 
 	/*  sleep mode to save power */
 	hmc5843_set_mode(iio_priv(indio_dev), HMC5843_MODE_SLEEP);
-
-	return 0;
 }
-EXPORT_SYMBOL(hmc5843_common_remove);
+EXPORT_SYMBOL_NS(hmc5843_common_remove, IIO_HMC5843);
 
 MODULE_AUTHOR("Shubhrajyoti Datta <shubhrajyoti@ti.com>");
 MODULE_DESCRIPTION("HMC5843/5883/5883L/5983 core driver");

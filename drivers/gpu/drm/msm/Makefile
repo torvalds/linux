@@ -19,24 +19,21 @@ msm-y := \
 	hdmi/hdmi.o \
 	hdmi/hdmi_audio.o \
 	hdmi/hdmi_bridge.o \
-	hdmi/hdmi_connector.o \
+	hdmi/hdmi_hpd.o \
 	hdmi/hdmi_i2c.o \
 	hdmi/hdmi_phy.o \
 	hdmi/hdmi_phy_8960.o \
+	hdmi/hdmi_phy_8996.o \
 	hdmi/hdmi_phy_8x60.o \
 	hdmi/hdmi_phy_8x74.o \
-	edp/edp.o \
-	edp/edp_aux.o \
-	edp/edp_bridge.o \
-	edp/edp_connector.o \
-	edp/edp_ctrl.o \
-	edp/edp_phy.o \
+	hdmi/hdmi_pll_8960.o \
 	disp/mdp_format.o \
 	disp/mdp_kms.o \
 	disp/mdp4/mdp4_crtc.o \
 	disp/mdp4/mdp4_dtv_encoder.o \
 	disp/mdp4/mdp4_lcdc_encoder.o \
 	disp/mdp4/mdp4_lvds_connector.o \
+	disp/mdp4/mdp4_lvds_pll.o \
 	disp/mdp4/mdp4_irq.o \
 	disp/mdp4/mdp4_kms.o \
 	disp/mdp4/mdp4_plane.o \
@@ -51,7 +48,6 @@ msm-y := \
 	disp/mdp5/mdp5_mixer.o \
 	disp/mdp5/mdp5_plane.o \
 	disp/mdp5/mdp5_smp.o \
-	disp/dpu1/dpu_core_irq.o \
 	disp/dpu1/dpu_core_perf.o \
 	disp/dpu1/dpu_crtc.o \
 	disp/dpu1/dpu_encoder.o \
@@ -70,7 +66,6 @@ msm-y := \
 	disp/dpu1/dpu_hw_top.o \
 	disp/dpu1/dpu_hw_util.o \
 	disp/dpu1/dpu_hw_vbif.o \
-	disp/dpu1/dpu_io_util.o \
 	disp/dpu1/dpu_kms.o \
 	disp/dpu1/dpu_mdss.o \
 	disp/dpu1/dpu_plane.o \
@@ -91,6 +86,7 @@ msm-y := \
 	msm_gem_vma.o \
 	msm_gpu.o \
 	msm_gpu_devfreq.o \
+	msm_io_utils.o \
 	msm_iommu.o \
 	msm_perf.o \
 	msm_rd.o \
@@ -106,6 +102,7 @@ msm-$(CONFIG_DRM_MSM_GPU_STATE)	+= adreno/a6xx_gpu_state.o
 
 msm-$(CONFIG_DRM_MSM_DP)+= dp/dp_aux.o \
 	dp/dp_catalog.o \
+	dp/dp_clk_util.o \
 	dp/dp_ctrl.o \
 	dp/dp_display.o \
 	dp/dp_drm.o \
@@ -117,9 +114,6 @@ msm-$(CONFIG_DRM_MSM_DP)+= dp/dp_aux.o \
 	dp/dp_audio.o
 
 msm-$(CONFIG_DRM_FBDEV_EMULATION) += msm_fbdev.o
-msm-$(CONFIG_COMMON_CLK) += disp/mdp4/mdp4_lvds_pll.o
-msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_pll_8960.o
-msm-$(CONFIG_COMMON_CLK) += hdmi/hdmi_phy_8996.o
 
 msm-$(CONFIG_DRM_MSM_HDMI_HDCP) += hdmi/hdmi_hdcp.o
 

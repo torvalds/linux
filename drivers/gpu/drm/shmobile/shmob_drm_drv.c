@@ -18,6 +18,7 @@
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
 #include <drm/drm_gem_cma_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -192,7 +193,6 @@ static int shmob_drm_probe(struct platform_device *pdev)
 	struct shmob_drm_platform_data *pdata = pdev->dev.platform_data;
 	struct shmob_drm_device *sdev;
 	struct drm_device *ddev;
-	struct resource *res;
 	unsigned int i;
 	int ret;
 
@@ -215,8 +215,7 @@ static int shmob_drm_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, sdev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	sdev->mmio = devm_ioremap_resource(&pdev->dev, res);
+	sdev->mmio = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(sdev->mmio))
 		return PTR_ERR(sdev->mmio);
 
@@ -297,7 +296,7 @@ static struct platform_driver shmob_drm_platform_driver = {
 	},
 };
 
-module_platform_driver(shmob_drm_platform_driver);
+drm_module_platform_driver(shmob_drm_platform_driver);
 
 MODULE_AUTHOR("Laurent Pinchart <laurent.pinchart@ideasonboard.com>");
 MODULE_DESCRIPTION("Renesas SH Mobile DRM Driver");

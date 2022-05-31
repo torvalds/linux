@@ -1028,7 +1028,7 @@ struct crash_record {
 
 	uint8_t out_RISC_reg_dump[256]; /* 80 -17F */
 	uint8_t in_RISC_reg_dump[256];	/*180 -27F */
-	uint8_t in_out_RISC_stack_dump[0];	/*280 - ??? */
+	uint8_t in_out_RISC_stack_dump[];	/*280 - ??? */
 };
 
 struct conn_event_log_entry {

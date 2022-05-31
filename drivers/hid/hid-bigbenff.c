@@ -191,7 +191,7 @@ static void bigben_worker(struct work_struct *work)
 		struct bigben_device, worker);
 	struct hid_field *report_field = bigben->report->field[0];
 
-	if (bigben->removed)
+	if (bigben->removed || !report_field)
 		return;
 
 	if (bigben->work_led) {

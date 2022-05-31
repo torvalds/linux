@@ -1110,7 +1110,7 @@ int sdw_bus_exit_clk_stop(struct sdw_bus *bus)
 	if (!simple_clk_stop) {
 		ret = sdw_bus_wait_for_clk_prep_deprep(bus, SDW_BROADCAST_DEV_NUM);
 		if (ret < 0)
-			dev_warn(&slave->dev, "clock stop deprepare wait failed:%d\n", ret);
+			dev_warn(bus->dev, "clock stop deprepare wait failed:%d\n", ret);
 	}
 
 	list_for_each_entry(slave, &bus->slaves, node) {
@@ -1749,8 +1749,11 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 			continue;
 
 		if (status[i] == SDW_SLAVE_UNATTACHED &&
-		    slave->status != SDW_SLAVE_UNATTACHED)
+		    slave->status != SDW_SLAVE_UNATTACHED) {
+			dev_warn(&slave->dev, "Slave %d state check1: UNATTACHED, status was %d\n",
+				 i, slave->status);
 			sdw_modify_slave_status(slave, SDW_SLAVE_UNATTACHED);
+		}
 	}
 
 	if (status[0] == SDW_SLAVE_ATTACHED) {
@@ -1784,6 +1787,9 @@ int sdw_handle_slave_status(struct sdw_bus *bus,
 		case SDW_SLAVE_UNATTACHED:
 			if (slave->status == SDW_SLAVE_UNATTACHED)
 				break;
+
+			dev_warn(&slave->dev, "Slave %d state check2: UNATTACHED, status was %d\n",
+				 i, slave->status);
 
 			sdw_modify_slave_status(slave, SDW_SLAVE_UNATTACHED);
 			break;

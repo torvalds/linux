@@ -206,12 +206,6 @@ int dp_panel_read_sink_caps(struct dp_panel *dp_panel,
 			rc = -ETIMEDOUT;
 			goto end;
 		}
-
-		/* fail safe edid */
-		mutex_lock(&connector->dev->mode_config.mutex);
-		if (drm_add_modes_noedid(connector, 640, 480))
-			drm_set_preferred_mode(connector, 640, 480);
-		mutex_unlock(&connector->dev->mode_config.mutex);
 	}
 
 	if (panel->aux_cfg_update_done) {
@@ -234,7 +228,7 @@ u32 dp_panel_get_mode_bpp(struct dp_panel *dp_panel,
 		u32 mode_edid_bpp, u32 mode_pclk_khz)
 {
 	struct dp_panel_private *panel;
-	u32 bpp = mode_edid_bpp;
+	u32 bpp;
 
 	if (!dp_panel || !mode_edid_bpp || !mode_pclk_khz) {
 		DRM_ERROR("invalid input\n");

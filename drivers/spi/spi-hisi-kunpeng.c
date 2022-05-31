@@ -127,7 +127,6 @@ struct hisi_spi {
 	void __iomem		*regs;
 	int			irq;
 	u32			fifo_len; /* depth of the FIFO buffer */
-	u16			bus_num;
 
 	/* Current message transfer state info */
 	const void		*tx;
@@ -165,7 +164,10 @@ static int hisi_spi_debugfs_init(struct hisi_spi *hs)
 {
 	char name[32];
 
-	snprintf(name, 32, "hisi_spi%d", hs->bus_num);
+	struct spi_controller *master;
+
+	master = container_of(hs->dev, struct spi_controller, dev);
+	snprintf(name, 32, "hisi_spi%d", master->bus_num);
 	hs->debugfs = debugfs_create_dir(name, NULL);
 	if (!hs->debugfs)
 		return -ENOMEM;
@@ -467,7 +469,6 @@ static int hisi_spi_probe(struct platform_device *pdev)
 	hs = spi_controller_get_devdata(master);
 	hs->dev = dev;
 	hs->irq = irq;
-	hs->bus_num = pdev->id;
 
 	hs->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hs->regs))
@@ -490,7 +491,7 @@ static int hisi_spi_probe(struct platform_device *pdev)
 	master->use_gpio_descriptors = true;
 	master->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;
 	master->bits_per_word_mask = SPI_BPW_RANGE_MASK(4, 32);
-	master->bus_num = hs->bus_num;
+	master->bus_num = pdev->id;
 	master->setup = hisi_spi_setup;
 	master->cleanup = hisi_spi_cleanup;
 	master->transfer_one = hisi_spi_transfer_one;
@@ -506,14 +507,14 @@ static int hisi_spi_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	if (hisi_spi_debugfs_init(hs))
-		dev_info(dev, "failed to create debugfs dir\n");
-
 	ret = spi_register_controller(master);
 	if (ret) {
 		dev_err(dev, "failed to register spi master, ret=%d\n", ret);
 		return ret;
 	}
+
+	if (hisi_spi_debugfs_init(hs))
+		dev_info(dev, "failed to create debugfs dir\n");
 
 	dev_info(dev, "hw version:0x%x max-freq:%u kHz\n",
 		readl(hs->regs + HISI_SPI_VERSION),

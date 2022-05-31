@@ -646,7 +646,8 @@ int __zerocopy_sg_from_iter(struct sock *sk, struct sk_buff *skb,
 		skb->truesize += truesize;
 		if (sk && sk->sk_type == SOCK_STREAM) {
 			sk_wmem_queued_add(sk, truesize);
-			sk_mem_charge(sk, truesize);
+			if (!skb_zcopy_pure(skb))
+				sk_mem_charge(sk, truesize);
 		} else {
 			refcount_add(truesize, &skb->sk->sk_wmem_alloc);
 		}

@@ -54,14 +54,14 @@ static int rtq6752_set_vdd_enable(struct regulator_dev *rdev)
 	int rid = rdev_get_id(rdev), ret;
 
 	mutex_lock(&priv->lock);
-	if (priv->enable_gpio) {
-		gpiod_set_value(priv->enable_gpio, 1);
-
-		usleep_range(RTQ6752_I2CRDY_TIMEUS,
-			     RTQ6752_I2CRDY_TIMEUS + 100);
-	}
-
 	if (!priv->enable_flag) {
+		if (priv->enable_gpio) {
+			gpiod_set_value(priv->enable_gpio, 1);
+
+			usleep_range(RTQ6752_I2CRDY_TIMEUS,
+				     RTQ6752_I2CRDY_TIMEUS + 100);
+		}
+
 		regcache_cache_only(priv->regmap, false);
 		ret = regcache_sync(priv->regmap);
 		if (ret) {
@@ -91,11 +91,11 @@ static int rtq6752_set_vdd_disable(struct regulator_dev *rdev)
 	if (!priv->enable_flag) {
 		regcache_cache_only(priv->regmap, true);
 		regcache_mark_dirty(priv->regmap);
+
+		if (priv->enable_gpio)
+			gpiod_set_value(priv->enable_gpio, 0);
+
 	}
-
-	if (priv->enable_gpio)
-		gpiod_set_value(priv->enable_gpio, 0);
-
 	mutex_unlock(&priv->lock);
 
 	return 0;

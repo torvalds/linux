@@ -39,8 +39,10 @@
 #define DPU_HW_VER_410	DPU_HW_VER(4, 1, 0) /* sdm670 v1.0 */
 #define DPU_HW_VER_500	DPU_HW_VER(5, 0, 0) /* sm8150 v1.0 */
 #define DPU_HW_VER_501	DPU_HW_VER(5, 0, 1) /* sm8150 v2.0 */
+#define DPU_HW_VER_510	DPU_HW_VER(5, 1, 1) /* sc8180 */
 #define DPU_HW_VER_600	DPU_HW_VER(6, 0, 0) /* sm8250 */
 #define DPU_HW_VER_620	DPU_HW_VER(6, 2, 0) /* sc7180 v1.0 */
+#define DPU_HW_VER_650	DPU_HW_VER(6, 5, 0) /* qcm2290|sm4125 */
 #define DPU_HW_VER_720	DPU_HW_VER(7, 2, 0) /* sc7280 */
 
 #define IS_MSM8996_TARGET(rev) IS_DPU_MAJOR_MINOR_SAME((rev), DPU_HW_VER_170)
@@ -87,6 +89,7 @@ enum {
 	DPU_MDP_BWC,
 	DPU_MDP_UBWC_1_0,
 	DPU_MDP_UBWC_1_5,
+	DPU_MDP_AUDIO_SELECT,
 	DPU_MDP_MAX
 };
 
@@ -179,13 +182,16 @@ enum {
 
 /**
  * CTL sub-blocks
- * @DPU_CTL_SPLIT_DISPLAY       CTL supports video mode split display
+ * @DPU_CTL_SPLIT_DISPLAY:	CTL supports video mode split display
+ * @DPU_CTL_FETCH_ACTIVE:	Active CTL for fetch HW (SSPPs)
+ * @DPU_CTL_VM_CFG:		CTL config to support multiple VMs
  * @DPU_CTL_MAX
  */
 enum {
 	DPU_CTL_SPLIT_DISPLAY = 0x1,
 	DPU_CTL_ACTIVE_CFG,
 	DPU_CTL_FETCH_ACTIVE,
+	DPU_CTL_VM_CFG,
 	DPU_CTL_MAX
 };
 
@@ -432,6 +438,8 @@ enum dpu_clk_ctrl_type {
 	DPU_CLK_CTRL_RGB3,
 	DPU_CLK_CTRL_DMA0,
 	DPU_CLK_CTRL_DMA1,
+	DPU_CLK_CTRL_DMA2,
+	DPU_CLK_CTRL_DMA3,
 	DPU_CLK_CTRL_CURSOR0,
 	DPU_CLK_CTRL_CURSOR1,
 	DPU_CLK_CTRL_INLINE_ROT0_SSPP,
@@ -676,10 +684,6 @@ struct dpu_perf_cdp_cfg {
  * @min_core_ib        minimum mnoc ib vote in kbps
  * @min_llcc_ib        minimum llcc ib vote in kbps
  * @min_dram_ib        minimum dram ib vote in kbps
- * @core_ib_ff         core instantaneous bandwidth fudge factor
- * @core_clk_ff        core clock fudge factor
- * @comp_ratio_rt      string of 0 or more of <fourcc>/<ven>/<mod>/<comp ratio>
- * @comp_ratio_nrt     string of 0 or more of <fourcc>/<ven>/<mod>/<comp ratio>
  * @undersized_prefill_lines   undersized prefill in lines
  * @xtra_prefill_lines         extra prefill latency in lines
  * @dest_scale_prefill_lines   destination scaler latency in lines
@@ -702,10 +706,6 @@ struct dpu_perf_cfg {
 	u32 min_core_ib;
 	u32 min_llcc_ib;
 	u32 min_dram_ib;
-	const char *core_ib_ff;
-	const char *core_clk_ff;
-	const char *comp_ratio_rt;
-	const char *comp_ratio_nrt;
 	u32 undersized_prefill_lines;
 	u32 xtra_prefill_lines;
 	u32 dest_scale_prefill_lines;
@@ -785,22 +785,6 @@ struct dpu_mdss_hw_cfg_handler {
 	u32 hw_rev;
 	void (*cfg_init)(struct dpu_mdss_cfg *dpu_cfg);
 };
-
-/*
- * Access Macros
- */
-#define BLK_MDP(s) ((s)->mdp)
-#define BLK_CTL(s) ((s)->ctl)
-#define BLK_VIG(s) ((s)->vig)
-#define BLK_RGB(s) ((s)->rgb)
-#define BLK_DMA(s) ((s)->dma)
-#define BLK_CURSOR(s) ((s)->cursor)
-#define BLK_MIXER(s) ((s)->mixer)
-#define BLK_PINGPONG(s) ((s)->pingpong)
-#define BLK_INTF(s) ((s)->intf)
-#define BLK_AD(s) ((s)->ad)
-#define BLK_DSPP(s) ((s)->dspp)
-#define BLK_MERGE3d(s) ((s)->merge_3d)
 
 /**
  * dpu_hw_catalog_init - dpu hardware catalog init API retrieves

@@ -5,6 +5,8 @@
 #include <linux/pci.h>
 #include <linux/irq.h>
 
+#include <asm/pmac_feature.h>
+
 /*
  * Declaration for the various functions exported by the
  * pmac_* files. Mostly for use by pmac_setup
@@ -27,7 +29,6 @@ extern void pmac_nvram_update(void);
 extern unsigned char pmac_nvram_read_byte(int addr);
 extern void pmac_nvram_write_byte(int addr, unsigned char val);
 extern void pmac_pcibios_after_init(void);
-extern int of_show_percpuinfo(struct seq_file *m, int i);
 
 extern void pmac_setup_pci_dma(void);
 extern void pmac_check_ht_link(void);

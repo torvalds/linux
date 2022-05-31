@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0-only
 hugepage-mmap
+hugepage-mremap
 hugepage-shm
+hugepage-vmemmap
+hugetlb-madvise
 khugepaged
 map_hugetlb
 map_populate

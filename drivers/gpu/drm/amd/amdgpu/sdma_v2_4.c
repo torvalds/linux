@@ -1142,6 +1142,7 @@ static const struct amdgpu_ring_funcs sdma_v2_4_ring_funcs = {
 	.align_mask = 0xf,
 	.nop = SDMA_PKT_NOP_HEADER_OP(SDMA_OP_NOP),
 	.support_64bit_ptrs = false,
+	.secure_submission_supported = true,
 	.get_rptr = sdma_v2_4_ring_get_rptr,
 	.get_wptr = sdma_v2_4_ring_get_wptr,
 	.set_wptr = sdma_v2_4_ring_set_wptr,

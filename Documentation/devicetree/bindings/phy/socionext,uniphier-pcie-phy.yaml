@@ -19,6 +19,7 @@ properties:
       - socionext,uniphier-pro5-pcie-phy
       - socionext,uniphier-ld20-pcie-phy
       - socionext,uniphier-pxs3-pcie-phy
+      - socionext,uniphier-nx1-pcie-phy
 
   reg:
     maxItems: 1

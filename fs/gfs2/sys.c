@@ -15,7 +15,7 @@
 #include <linux/kobject.h>
 #include <linux/uaccess.h>
 #include <linux/gfs2_ondisk.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 
 #include "gfs2.h"
 #include "incore.h"
@@ -767,8 +767,7 @@ void gfs2_sys_fs_del(struct gfs2_sbd *sdp)
 	wait_for_completion(&sdp->sd_kobj_unregister);
 }
 
-static int gfs2_uevent(struct kset *kset, struct kobject *kobj,
-		       struct kobj_uevent_env *env)
+static int gfs2_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	struct gfs2_sbd *sdp = container_of(kobj, struct gfs2_sbd, sd_kobj);
 	struct super_block *s = sdp->sd_vfs;

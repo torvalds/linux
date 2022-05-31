@@ -487,6 +487,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	if (hdl->error) {
 		err = hdl->error;
 		v4l2_ctrl_handler_free(hdl);
+		v4l2_device_unregister(&dev->v4l2_dev);
 		return err;
 	}
 	dev->v4l2_dev.ctrl_handler = hdl;
@@ -495,6 +496,7 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 	if (vv == NULL) {
 		ERR("out of memory. aborting.\n");
 		v4l2_ctrl_handler_free(hdl);
+		v4l2_device_unregister(&dev->v4l2_dev);
 		return -ENOMEM;
 	}
 	ext_vv->vid_ops = saa7146_video_ioctl_ops;
@@ -521,7 +523,8 @@ int saa7146_vv_init(struct saa7146_dev* dev, struct saa7146_ext_vv *ext_vv)
 		ERR("out of memory. aborting.\n");
 		kfree(vv);
 		v4l2_ctrl_handler_free(hdl);
-		return -1;
+		v4l2_device_unregister(&dev->v4l2_dev);
+		return -ENOMEM;
 	}
 
 	saa7146_video_uops.init(dev,vv);

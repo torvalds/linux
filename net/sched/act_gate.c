@@ -357,7 +357,7 @@ static int tcf_gate_init(struct net *net, struct nlattr *nla,
 
 	if (!err) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_gate_ops, bind, false, 0);
+				     &act_gate_ops, bind, false, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;
@@ -597,6 +597,54 @@ static size_t tcf_gate_get_fill_size(const struct tc_action *act)
 	return nla_total_size(sizeof(struct tc_gate));
 }
 
+static void tcf_gate_entry_destructor(void *priv)
+{
+	struct action_gate_entry *oe = priv;
+
+	kfree(oe);
+}
+
+static int tcf_gate_get_entries(struct flow_action_entry *entry,
+				const struct tc_action *act)
+{
+	entry->gate.entries = tcf_gate_get_list(act);
+
+	if (!entry->gate.entries)
+		return -EINVAL;
+
+	entry->destructor = tcf_gate_entry_destructor;
+	entry->destructor_priv = entry->gate.entries;
+
+	return 0;
+}
+
+static int tcf_gate_offload_act_setup(struct tc_action *act, void *entry_data,
+				      u32 *index_inc, bool bind)
+{
+	int err;
+
+	if (bind) {
+		struct flow_action_entry *entry = entry_data;
+
+		entry->id = FLOW_ACTION_GATE;
+		entry->gate.prio = tcf_gate_prio(act);
+		entry->gate.basetime = tcf_gate_basetime(act);
+		entry->gate.cycletime = tcf_gate_cycletime(act);
+		entry->gate.cycletimeext = tcf_gate_cycletimeext(act);
+		entry->gate.num_entries = tcf_gate_num_entries(act);
+		err = tcf_gate_get_entries(entry, act);
+		if (err)
+			return err;
+		*index_inc = 1;
+	} else {
+		struct flow_offload_action *fl_action = entry_data;
+
+		fl_action->id = FLOW_ACTION_GATE;
+	}
+
+	return 0;
+}
+
 static struct tc_action_ops act_gate_ops = {
 	.kind		=	"gate",
 	.id		=	TCA_ID_GATE,
@@ -609,6 +657,7 @@ static struct tc_action_ops act_gate_ops = {
 	.stats_update	=	tcf_gate_stats_update,
 	.get_fill_size	=	tcf_gate_get_fill_size,
 	.lookup		=	tcf_gate_search,
+	.offload_act_setup =	tcf_gate_offload_act_setup,
 	.size		=	sizeof(struct tcf_gate),
 };
 

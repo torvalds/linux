@@ -335,7 +335,6 @@ static int ebs_ctr(struct dm_target *ti, unsigned int argc, char **argv)
 	ti->num_flush_bios = 1;
 	ti->num_discard_bios = 1;
 	ti->num_secure_erase_bios = 0;
-	ti->num_write_same_bios = 0;
 	ti->num_write_zeroes_bios = 0;
 	return 0;
 bad:
@@ -416,7 +415,7 @@ static int ebs_prepare_ioctl(struct dm_target *ti, struct block_device **bdev)
 	 * Only pass ioctls through if the device sizes match exactly.
 	 */
 	*bdev = dev->bdev;
-	return !!(ec->start || ti->len != i_size_read(dev->bdev->bd_inode) >> SECTOR_SHIFT);
+	return !!(ec->start || ti->len != bdev_nr_sectors(dev->bdev));
 }
 
 static void ebs_io_hints(struct dm_target *ti, struct queue_limits *limits)

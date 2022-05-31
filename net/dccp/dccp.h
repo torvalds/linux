@@ -48,7 +48,7 @@ extern bool dccp_debug;
 
 extern struct inet_hashinfo dccp_hashinfo;
 
-extern struct percpu_counter dccp_orphan_count;
+DECLARE_PER_CPU(unsigned int, dccp_orphan_count);
 
 void dccp_time_wait(struct sock *sk, int state, int timeo);
 
@@ -134,11 +134,6 @@ static inline int before48(const u64 seq1, const u64 seq2)
 static inline int between48(const u64 seq1, const u64 seq2, const u64 seq3)
 {
 	return (seq3 << 16) - (seq2 << 16) >= (seq1 << 16) - (seq2 << 16);
-}
-
-static inline u64 max48(const u64 seq1, const u64 seq2)
-{
-	return after48(seq1, seq2) ? seq1 : seq2;
 }
 
 /**

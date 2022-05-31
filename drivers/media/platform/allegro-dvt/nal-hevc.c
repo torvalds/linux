@@ -35,76 +35,6 @@ enum nal_unit_type {
 	FD_NUT = 38,
 };
 
-int nal_hevc_profile_from_v4l2(enum v4l2_mpeg_video_hevc_profile profile)
-{
-	switch (profile) {
-	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN:
-		return 1;
-	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_10:
-		return 2;
-	case V4L2_MPEG_VIDEO_HEVC_PROFILE_MAIN_STILL_PICTURE:
-		return 3;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL_GPL(nal_hevc_profile_from_v4l2);
-
-int nal_hevc_tier_from_v4l2(enum v4l2_mpeg_video_hevc_tier tier)
-{
-	switch (tier) {
-	case V4L2_MPEG_VIDEO_HEVC_TIER_MAIN:
-		return 0;
-	case V4L2_MPEG_VIDEO_HEVC_TIER_HIGH:
-		return 1;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL_GPL(nal_hevc_tier_from_v4l2);
-
-int nal_hevc_level_from_v4l2(enum v4l2_mpeg_video_hevc_level level)
-{
-	/*
-	 * T-Rec-H.265 p. 280: general_level_idc and sub_layer_level_idc[ i ]
-	 * shall be set equal to a value of 30 times the level number
-	 * specified in Table A.6.
-	 */
-	int factor = 30 / 10;
-
-	switch (level) {
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_1:
-		return factor * 10;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_2:
-		return factor * 20;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_2_1:
-		return factor * 21;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_3:
-		return factor * 30;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_3_1:
-		return factor * 31;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_4:
-		return factor * 40;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_4_1:
-		return factor * 41;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_5:
-		return factor * 50;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_5_1:
-		return factor * 51;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_5_2:
-		return factor * 52;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_6:
-		return factor * 60;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_6_1:
-		return factor * 61;
-	case V4L2_MPEG_VIDEO_HEVC_LEVEL_6_2:
-		return factor * 62;
-	default:
-		return -EINVAL;
-	}
-}
-EXPORT_SYMBOL_GPL(nal_hevc_level_from_v4l2);
-
 static void nal_hevc_write_start_code_prefix(struct rbsp *rbsp)
 {
 	u8 *p = rbsp->data + DIV_ROUND_UP(rbsp->pos, 8);
@@ -277,6 +207,136 @@ static void nal_hevc_rbsp_vps(struct rbsp *rbsp, struct nal_hevc_vps *vps)
 		rbsp_unsupported(rbsp);
 }
 
+static void nal_hevc_rbsp_sub_layer_hrd_parameters(struct rbsp *rbsp,
+						   struct nal_hevc_sub_layer_hrd_parameters *hrd)
+{
+	unsigned int i;
+	unsigned int cpb_cnt = 1;
+
+	for (i = 0; i < cpb_cnt; i++) {
+		rbsp_uev(rbsp, &hrd->bit_rate_value_minus1[i]);
+		rbsp_uev(rbsp, &hrd->cpb_size_value_minus1[i]);
+		rbsp_bit(rbsp, &hrd->cbr_flag[i]);
+	}
+}
+
+static void nal_hevc_rbsp_hrd_parameters(struct rbsp *rbsp,
+					 struct nal_hevc_hrd_parameters *hrd)
+{
+	unsigned int i;
+	unsigned int max_num_sub_layers_minus_1 = 0;
+
+	rbsp_bit(rbsp, &hrd->nal_hrd_parameters_present_flag);
+	rbsp_bit(rbsp, &hrd->vcl_hrd_parameters_present_flag);
+	if (hrd->nal_hrd_parameters_present_flag || hrd->vcl_hrd_parameters_present_flag) {
+		rbsp_bit(rbsp, &hrd->sub_pic_hrd_params_present_flag);
+		if (hrd->sub_pic_hrd_params_present_flag) {
+			rbsp_bits(rbsp, 8, &hrd->tick_divisor_minus2);
+			rbsp_bits(rbsp, 5, &hrd->du_cpb_removal_delay_increment_length_minus1);
+			rbsp_bit(rbsp, &hrd->sub_pic_cpb_params_in_pic_timing_sei_flag);
+			rbsp_bits(rbsp, 5, &hrd->dpb_output_delay_du_length_minus1);
+		}
+		rbsp_bits(rbsp, 4, &hrd->bit_rate_scale);
+		rbsp_bits(rbsp, 4, &hrd->cpb_size_scale);
+		if (hrd->sub_pic_hrd_params_present_flag)
+			rbsp_bits(rbsp, 4, &hrd->cpb_size_du_scale);
+		rbsp_bits(rbsp, 5, &hrd->initial_cpb_removal_delay_length_minus1);
+		rbsp_bits(rbsp, 5, &hrd->au_cpb_removal_delay_length_minus1);
+		rbsp_bits(rbsp, 5, &hrd->dpb_output_delay_length_minus1);
+	}
+	for (i = 0; i <= max_num_sub_layers_minus_1; i++) {
+		rbsp_bit(rbsp, &hrd->fixed_pic_rate_general_flag[i]);
+		if (!hrd->fixed_pic_rate_general_flag[i])
+			rbsp_bit(rbsp, &hrd->fixed_pic_rate_within_cvs_flag[i]);
+		if (hrd->fixed_pic_rate_within_cvs_flag[i])
+			rbsp_uev(rbsp, &hrd->elemental_duration_in_tc_minus1[i]);
+		else
+			rbsp_bit(rbsp, &hrd->low_delay_hrd_flag[i]);
+		if (!hrd->low_delay_hrd_flag[i])
+			rbsp_uev(rbsp, &hrd->cpb_cnt_minus1[i]);
+		if (hrd->nal_hrd_parameters_present_flag)
+			nal_hevc_rbsp_sub_layer_hrd_parameters(rbsp, &hrd->vcl_hrd[i]);
+		if (hrd->vcl_hrd_parameters_present_flag)
+			nal_hevc_rbsp_sub_layer_hrd_parameters(rbsp, &hrd->vcl_hrd[i]);
+	}
+}
+
+static void nal_hevc_rbsp_vui_parameters(struct rbsp *rbsp,
+					 struct nal_hevc_vui_parameters *vui)
+{
+	if (!vui) {
+		rbsp->error = -EINVAL;
+		return;
+	}
+
+	rbsp_bit(rbsp, &vui->aspect_ratio_info_present_flag);
+	if (vui->aspect_ratio_info_present_flag) {
+		rbsp_bits(rbsp, 8, &vui->aspect_ratio_idc);
+		if (vui->aspect_ratio_idc == 255) {
+			rbsp_bits(rbsp, 16, &vui->sar_width);
+			rbsp_bits(rbsp, 16, &vui->sar_height);
+		}
+	}
+
+	rbsp_bit(rbsp, &vui->overscan_info_present_flag);
+	if (vui->overscan_info_present_flag)
+		rbsp_bit(rbsp, &vui->overscan_appropriate_flag);
+
+	rbsp_bit(rbsp, &vui->video_signal_type_present_flag);
+	if (vui->video_signal_type_present_flag) {
+		rbsp_bits(rbsp, 3, &vui->video_format);
+		rbsp_bit(rbsp, &vui->video_full_range_flag);
+
+		rbsp_bit(rbsp, &vui->colour_description_present_flag);
+		if (vui->colour_description_present_flag) {
+			rbsp_bits(rbsp, 8, &vui->colour_primaries);
+			rbsp_bits(rbsp, 8, &vui->transfer_characteristics);
+			rbsp_bits(rbsp, 8, &vui->matrix_coeffs);
+		}
+	}
+
+	rbsp_bit(rbsp, &vui->chroma_loc_info_present_flag);
+	if (vui->chroma_loc_info_present_flag) {
+		rbsp_uev(rbsp, &vui->chroma_sample_loc_type_top_field);
+		rbsp_uev(rbsp, &vui->chroma_sample_loc_type_bottom_field);
+	}
+
+	rbsp_bit(rbsp, &vui->neutral_chroma_indication_flag);
+	rbsp_bit(rbsp, &vui->field_seq_flag);
+	rbsp_bit(rbsp, &vui->frame_field_info_present_flag);
+	rbsp_bit(rbsp, &vui->default_display_window_flag);
+	if (vui->default_display_window_flag) {
+		rbsp_uev(rbsp, &vui->def_disp_win_left_offset);
+		rbsp_uev(rbsp, &vui->def_disp_win_right_offset);
+		rbsp_uev(rbsp, &vui->def_disp_win_top_offset);
+		rbsp_uev(rbsp, &vui->def_disp_win_bottom_offset);
+	}
+
+	rbsp_bit(rbsp, &vui->vui_timing_info_present_flag);
+	if (vui->vui_timing_info_present_flag) {
+		rbsp_bits(rbsp, 32, &vui->vui_num_units_in_tick);
+		rbsp_bits(rbsp, 32, &vui->vui_time_scale);
+		rbsp_bit(rbsp, &vui->vui_poc_proportional_to_timing_flag);
+		if (vui->vui_poc_proportional_to_timing_flag)
+			rbsp_uev(rbsp, &vui->vui_num_ticks_poc_diff_one_minus1);
+		rbsp_bit(rbsp, &vui->vui_hrd_parameters_present_flag);
+		if (vui->vui_hrd_parameters_present_flag)
+			nal_hevc_rbsp_hrd_parameters(rbsp, &vui->nal_hrd_parameters);
+	}
+
+	rbsp_bit(rbsp, &vui->bitstream_restriction_flag);
+	if (vui->bitstream_restriction_flag) {
+		rbsp_bit(rbsp, &vui->tiles_fixed_structure_flag);
+		rbsp_bit(rbsp, &vui->motion_vectors_over_pic_boundaries_flag);
+		rbsp_bit(rbsp, &vui->restricted_ref_pic_lists_flag);
+		rbsp_uev(rbsp, &vui->min_spatial_segmentation_idc);
+		rbsp_uev(rbsp, &vui->max_bytes_per_pic_denom);
+		rbsp_uev(rbsp, &vui->max_bits_per_min_cu_denom);
+		rbsp_uev(rbsp, &vui->log2_max_mv_length_horizontal);
+		rbsp_uev(rbsp, &vui->log2_max_mv_length_vertical);
+	}
+}
+
 static void nal_hevc_rbsp_sps(struct rbsp *rbsp, struct nal_hevc_sps *sps)
 {
 	unsigned int i;
@@ -345,7 +405,7 @@ static void nal_hevc_rbsp_sps(struct rbsp *rbsp, struct nal_hevc_sps *sps)
 	rbsp_bit(rbsp, &sps->strong_intra_smoothing_enabled_flag);
 	rbsp_bit(rbsp, &sps->vui_parameters_present_flag);
 	if (sps->vui_parameters_present_flag)
-		rbsp_unsupported(rbsp);
+		nal_hevc_rbsp_vui_parameters(rbsp, &sps->vui);
 
 	rbsp_bit(rbsp, &sps->extension_present_flag);
 	if (sps->extension_present_flag) {

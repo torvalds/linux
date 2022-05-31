@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2018, 2020-2021 Intel Corporation
+ * Copyright (C) 2018, 2020-2022 Intel Corporation
  */
 #ifndef __iwl_context_info_file_gen3_h__
 #define __iwl_context_info_file_gen3_h__
@@ -34,6 +34,7 @@ enum iwl_prph_scratch_mtr_format {
 
 /**
  * enum iwl_prph_scratch_flags - PRPH scratch control flags
+ * @IWL_PRPH_SCRATCH_IMR_DEBUG_EN: IMR support for debug
  * @IWL_PRPH_SCRATCH_EARLY_DEBUG_EN: enable early debug conf
  * @IWL_PRPH_SCRATCH_EDBG_DEST_DRAM: use DRAM, with size allocated
  *	in hwm config.
@@ -55,6 +56,7 @@ enum iwl_prph_scratch_mtr_format {
  * @IWL_PRPH_SCRATCH_RB_SIZE_EXT_16K: 16kB RB size
  */
 enum iwl_prph_scratch_flags {
+	IWL_PRPH_SCRATCH_IMR_DEBUG_EN		= BIT(1),
 	IWL_PRPH_SCRATCH_EARLY_DEBUG_EN		= BIT(4),
 	IWL_PRPH_SCRATCH_EDBG_DEST_DRAM		= BIT(8),
 	IWL_PRPH_SCRATCH_EDBG_DEST_INTERNAL	= BIT(9),
@@ -109,12 +111,12 @@ struct iwl_prph_scratch_pnvm_cfg {
  * struct iwl_prph_scratch_hwm_cfg - hwm config
  * @hwm_base_addr: hwm start address
  * @hwm_size: hwm size in DWs
- * @reserved: reserved
+ * @debug_token_config: debug preset
  */
 struct iwl_prph_scratch_hwm_cfg {
 	__le64 hwm_base_addr;
 	__le32 hwm_size;
-	__le32 reserved;
+	__le32 debug_token_config;
 } __packed; /* PERIPH_SCRATCH_HWM_CFG_S */
 
 /*

@@ -25,6 +25,7 @@ bool mlx5dr_ste_supp_ttl_cs_recalc(struct mlx5dr_cmd_caps *caps)
 
 u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 {
+	u32 num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(htbl->chunk);
 	struct dr_hw_ste_format *hw_ste = (struct dr_hw_ste_format *)hw_ste_p;
 	u8 masked[DR_STE_SIZE_TAG] = {};
 	u32 crc32, index;
@@ -32,7 +33,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 	int i;
 
 	/* Don't calculate CRC if the result is predicted */
-	if (htbl->chunk->num_of_entries == 1 || htbl->byte_mask == 0)
+	if (num_entries == 1 || htbl->byte_mask == 0)
 		return 0;
 
 	/* Mask tag using byte mask, bit per byte */
@@ -45,7 +46,7 @@ u32 mlx5dr_ste_calc_hash_index(u8 *hw_ste_p, struct mlx5dr_ste_htbl *htbl)
 	}
 
 	crc32 = dr_ste_crc32_calc(masked, DR_STE_SIZE_TAG);
-	index = crc32 & (htbl->chunk->num_of_entries - 1);
+	index = crc32 & (num_entries - 1);
 
 	return index;
 }
@@ -96,13 +97,11 @@ void mlx5dr_ste_set_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
 }
 
 static void dr_ste_always_miss_addr(struct mlx5dr_ste_ctx *ste_ctx,
-				    struct mlx5dr_ste *ste, u64 miss_addr)
+				    u8 *hw_ste, u64 miss_addr)
 {
-	u8 *hw_ste_p = ste->hw_ste;
-
-	ste_ctx->set_next_lu_type(hw_ste_p, MLX5DR_STE_LU_TYPE_DONT_CARE);
-	ste_ctx->set_miss_addr(hw_ste_p, miss_addr);
-	dr_ste_set_always_miss((struct dr_hw_ste_format *)ste->hw_ste);
+	ste_ctx->set_next_lu_type(hw_ste, MLX5DR_STE_LU_TYPE_DONT_CARE);
+	ste_ctx->set_miss_addr(hw_ste, miss_addr);
+	dr_ste_set_always_miss((struct dr_hw_ste_format *)hw_ste);
 }
 
 void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
@@ -113,37 +112,45 @@ void mlx5dr_ste_set_hit_addr(struct mlx5dr_ste_ctx *ste_ctx,
 
 u64 mlx5dr_ste_get_icm_addr(struct mlx5dr_ste *ste)
 {
-	u32 index = ste - ste->htbl->ste_arr;
+	u64 base_icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(ste->htbl->chunk);
+	u32 index = ste - ste->htbl->chunk->ste_arr;
 
-	return ste->htbl->chunk->icm_addr + DR_STE_SIZE * index;
+	return base_icm_addr + DR_STE_SIZE * index;
 }
 
 u64 mlx5dr_ste_get_mr_addr(struct mlx5dr_ste *ste)
 {
-	u32 index = ste - ste->htbl->ste_arr;
+	u32 index = ste - ste->htbl->chunk->ste_arr;
 
-	return ste->htbl->chunk->mr_addr + DR_STE_SIZE * index;
+	return mlx5dr_icm_pool_get_chunk_mr_addr(ste->htbl->chunk) + DR_STE_SIZE * index;
+}
+
+u8 *mlx5dr_ste_get_hw_ste(struct mlx5dr_ste *ste)
+{
+	u64 index = ste - ste->htbl->chunk->ste_arr;
+
+	return ste->htbl->chunk->hw_ste_arr + DR_STE_SIZE_REDUCED * index;
 }
 
 struct list_head *mlx5dr_ste_get_miss_list(struct mlx5dr_ste *ste)
 {
-	u32 index = ste - ste->htbl->ste_arr;
+	u32 index = ste - ste->htbl->chunk->ste_arr;
 
-	return &ste->htbl->miss_list[index];
+	return &ste->htbl->chunk->miss_list[index];
 }
 
 static void dr_ste_always_hit_htbl(struct mlx5dr_ste_ctx *ste_ctx,
-				   struct mlx5dr_ste *ste,
+				   u8 *hw_ste,
 				   struct mlx5dr_ste_htbl *next_htbl)
 {
 	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
-	u8 *hw_ste = ste->hw_ste;
 
 	ste_ctx->set_byte_mask(hw_ste, next_htbl->byte_mask);
 	ste_ctx->set_next_lu_type(hw_ste, next_htbl->lu_type);
-	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
+	ste_ctx->set_hit_addr(hw_ste, mlx5dr_icm_pool_get_chunk_icm_addr(chunk),
+			      mlx5dr_icm_pool_get_chunk_num_of_entries(chunk));
 
-	dr_ste_set_always_hit((struct dr_hw_ste_format *)ste->hw_ste);
+	dr_ste_set_always_hit((struct dr_hw_ste_format *)hw_ste);
 }
 
 bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
@@ -166,7 +173,8 @@ bool mlx5dr_ste_is_last_in_rule(struct mlx5dr_matcher_rx_tx *nic_matcher,
  */
 static void dr_ste_replace(struct mlx5dr_ste *dst, struct mlx5dr_ste *src)
 {
-	memcpy(dst->hw_ste, src->hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(mlx5dr_ste_get_hw_ste(dst), mlx5dr_ste_get_hw_ste(src),
+	       DR_STE_SIZE_REDUCED);
 	dst->next_htbl = src->next_htbl;
 	if (dst->next_htbl)
 		dst->next_htbl->pointing_ste = dst;
@@ -184,18 +192,17 @@ dr_ste_remove_head_ste(struct mlx5dr_ste_ctx *ste_ctx,
 		       struct mlx5dr_ste_htbl *stats_tbl)
 {
 	u8 tmp_data_ste[DR_STE_SIZE] = {};
-	struct mlx5dr_ste tmp_ste = {};
 	u64 miss_addr;
 
-	tmp_ste.hw_ste = tmp_data_ste;
+	miss_addr = mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 
 	/* Use temp ste because dr_ste_always_miss_addr
 	 * touches bit_mask area which doesn't exist at ste->hw_ste.
+	 * Need to use a full-sized (DR_STE_SIZE) hw_ste.
 	 */
-	memcpy(tmp_ste.hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
-	miss_addr = nic_matcher->e_anchor->chunk->icm_addr;
-	dr_ste_always_miss_addr(ste_ctx, &tmp_ste, miss_addr);
-	memcpy(ste->hw_ste, tmp_ste.hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(tmp_data_ste, mlx5dr_ste_get_hw_ste(ste), DR_STE_SIZE_REDUCED);
+	dr_ste_always_miss_addr(ste_ctx, tmp_data_ste, miss_addr);
+	memcpy(mlx5dr_ste_get_hw_ste(ste), tmp_data_ste, DR_STE_SIZE_REDUCED);
 
 	list_del_init(&ste->miss_list_node);
 
@@ -237,7 +244,7 @@ dr_ste_replace_head_ste(struct mlx5dr_matcher_rx_tx *nic_matcher,
 	mlx5dr_rule_set_last_member(next_ste->rule_rx_tx, ste, false);
 
 	/* Copy all 64 hw_ste bytes */
-	memcpy(hw_ste, ste->hw_ste, DR_STE_SIZE_REDUCED);
+	memcpy(hw_ste, mlx5dr_ste_get_hw_ste(ste), DR_STE_SIZE_REDUCED);
 	sb_idx = ste->ste_chain_location - 1;
 	mlx5dr_ste_set_bit_mask(hw_ste,
 				nic_matcher->ste_builder[sb_idx].bit_mask);
@@ -273,12 +280,13 @@ static void dr_ste_remove_middle_ste(struct mlx5dr_ste_ctx *ste_ctx,
 	if (WARN_ON(!prev_ste))
 		return;
 
-	miss_addr = ste_ctx->get_miss_addr(ste->hw_ste);
-	ste_ctx->set_miss_addr(prev_ste->hw_ste, miss_addr);
+	miss_addr = ste_ctx->get_miss_addr(mlx5dr_ste_get_hw_ste(ste));
+	ste_ctx->set_miss_addr(mlx5dr_ste_get_hw_ste(prev_ste), miss_addr);
 
 	mlx5dr_send_fill_and_append_ste_send_info(prev_ste, DR_STE_SIZE_CTRL, 0,
-						  prev_ste->hw_ste, ste_info,
-						  send_ste_list, true /* Copy data*/);
+						  mlx5dr_ste_get_hw_ste(prev_ste),
+						  ste_info, send_ste_list,
+						  true /* Copy data*/);
 
 	list_del_init(&ste->miss_list_node);
 
@@ -364,9 +372,11 @@ void mlx5dr_ste_set_hit_addr_by_next_htbl(struct mlx5dr_ste_ctx *ste_ctx,
 					  u8 *hw_ste,
 					  struct mlx5dr_ste_htbl *next_htbl)
 {
-	struct mlx5dr_icm_chunk *chunk = next_htbl->chunk;
+	u64 icm_addr = mlx5dr_icm_pool_get_chunk_icm_addr(next_htbl->chunk);
+	u32 num_entries =
+		mlx5dr_icm_pool_get_chunk_num_of_entries(next_htbl->chunk);
 
-	ste_ctx->set_hit_addr(hw_ste, chunk->icm_addr, chunk->num_of_entries);
+	ste_ctx->set_hit_addr(hw_ste, icm_addr, num_entries);
 }
 
 void mlx5dr_ste_prepare_for_postsend(struct mlx5dr_ste_ctx *ste_ctx,
@@ -385,15 +395,22 @@ void mlx5dr_ste_set_formatted_ste(struct mlx5dr_ste_ctx *ste_ctx,
 				  struct mlx5dr_htbl_connect_info *connect_info)
 {
 	bool is_rx = nic_type == DR_DOMAIN_NIC_TYPE_RX;
-	struct mlx5dr_ste ste = {};
+	u8 tmp_hw_ste[DR_STE_SIZE] = {0};
 
 	ste_ctx->ste_init(formatted_ste, htbl->lu_type, is_rx, gvmi);
-	ste.hw_ste = formatted_ste;
 
+	/* Use temp ste because dr_ste_always_miss_addr/hit_htbl
+	 * touches bit_mask area which doesn't exist at ste->hw_ste.
+	 * Need to use a full-sized (DR_STE_SIZE) hw_ste.
+	 */
+	memcpy(tmp_hw_ste, formatted_ste, DR_STE_SIZE_REDUCED);
 	if (connect_info->type == CONNECT_HIT)
-		dr_ste_always_hit_htbl(ste_ctx, &ste, connect_info->hit_next_htbl);
+		dr_ste_always_hit_htbl(ste_ctx, tmp_hw_ste,
+				       connect_info->hit_next_htbl);
 	else
-		dr_ste_always_miss_addr(ste_ctx, &ste, connect_info->miss_icm_addr);
+		dr_ste_always_miss_addr(ste_ctx, tmp_hw_ste,
+					connect_info->miss_icm_addr);
+	memcpy(formatted_ste, tmp_hw_ste, DR_STE_SIZE_REDUCED);
 }
 
 int mlx5dr_ste_htbl_init_and_postsend(struct mlx5dr_domain *dmn,
@@ -444,7 +461,8 @@ int mlx5dr_ste_create_next_htbl(struct mlx5dr_matcher *matcher,
 
 		/* Write new table to HW */
 		info.type = CONNECT_MISS;
-		info.miss_icm_addr = nic_matcher->e_anchor->chunk->icm_addr;
+		info.miss_icm_addr =
+			mlx5dr_icm_pool_get_chunk_icm_addr(nic_matcher->e_anchor->chunk);
 		if (mlx5dr_ste_htbl_init_and_postsend(dmn, nic_dmn, next_htbl,
 						      &info, false)) {
 			mlx5dr_info(dmn, "Failed writing table to HW\n");
@@ -470,6 +488,7 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 {
 	struct mlx5dr_icm_chunk *chunk;
 	struct mlx5dr_ste_htbl *htbl;
+	u32 num_entries;
 	int i;
 
 	htbl = kzalloc(sizeof(*htbl), GFP_KERNEL);
@@ -483,22 +502,18 @@ struct mlx5dr_ste_htbl *mlx5dr_ste_htbl_alloc(struct mlx5dr_icm_pool *pool,
 	htbl->chunk = chunk;
 	htbl->lu_type = lu_type;
 	htbl->byte_mask = byte_mask;
-	htbl->ste_arr = chunk->ste_arr;
-	htbl->hw_ste_arr = chunk->hw_ste_arr;
-	htbl->miss_list = chunk->miss_list;
 	htbl->refcount = 0;
+	num_entries = mlx5dr_icm_pool_get_chunk_num_of_entries(chunk);
 
-	for (i = 0; i < chunk->num_of_entries; i++) {
-		struct mlx5dr_ste *ste = &htbl->ste_arr[i];
+	for (i = 0; i < num_entries; i++) {
+		struct mlx5dr_ste *ste = &chunk->ste_arr[i];
 
-		ste->hw_ste = htbl->hw_ste_arr + i * DR_STE_SIZE_REDUCED;
 		ste->htbl = htbl;
 		ste->refcount = 0;
 		INIT_LIST_HEAD(&ste->miss_list_node);
-		INIT_LIST_HEAD(&htbl->miss_list[i]);
+		INIT_LIST_HEAD(&chunk->miss_list[i]);
 	}
 
-	htbl->chunk_size = chunk_size;
 	return htbl;
 
 out_free_htbl:
@@ -523,8 +538,8 @@ void mlx5dr_ste_set_actions_tx(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes)
 {
-	ste_ctx->set_actions_tx(dmn, action_type_set, hw_ste_arr,
-				attr, added_stes);
+	ste_ctx->set_actions_tx(dmn, action_type_set, ste_ctx->actions_caps,
+				hw_ste_arr, attr, added_stes);
 }
 
 void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
@@ -534,8 +549,8 @@ void mlx5dr_ste_set_actions_rx(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes)
 {
-	ste_ctx->set_actions_rx(dmn, action_type_set, hw_ste_arr,
-				attr, added_stes);
+	ste_ctx->set_actions_rx(dmn, action_type_set, ste_ctx->actions_caps,
+				hw_ste_arr, attr, added_stes);
 }
 
 const struct mlx5dr_ste_action_modify_field *
@@ -602,12 +617,34 @@ int mlx5dr_ste_set_action_decap_l3_list(struct mlx5dr_ste_ctx *ste_ctx,
 						 used_hw_action_num);
 }
 
+static int dr_ste_build_pre_check_spec(struct mlx5dr_domain *dmn,
+				       struct mlx5dr_match_spec *spec)
+{
+	if (spec->ip_version) {
+		if (spec->ip_version != 0xf) {
+			mlx5dr_err(dmn,
+				   "Partial ip_version mask with src/dst IP is not supported\n");
+			return -EINVAL;
+		}
+	} else if (spec->ethertype != 0xffff &&
+		   (DR_MASK_IS_SRC_IP_SET(spec) || DR_MASK_IS_DST_IP_SET(spec))) {
+		mlx5dr_err(dmn,
+			   "Partial/no ethertype mask with src/dst IP is not supported\n");
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 			       u8 match_criteria,
 			       struct mlx5dr_match_param *mask,
 			       struct mlx5dr_match_param *value)
 {
-	if (!value && (match_criteria & DR_MATCHER_CRITERIA_MISC)) {
+	if (value)
+		return 0;
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC) {
 		if (mask->misc.source_port && mask->misc.source_port != 0xffff) {
 			mlx5dr_err(dmn,
 				   "Partial mask source_port is not supported\n");
@@ -620,6 +657,14 @@ int mlx5dr_ste_build_pre_check(struct mlx5dr_domain *dmn,
 			return -EINVAL;
 		}
 	}
+
+	if ((match_criteria & DR_MATCHER_CRITERIA_OUTER) &&
+	    dr_ste_build_pre_check_spec(dmn, &mask->outer))
+		return -EINVAL;
+
+	if ((match_criteria & DR_MATCHER_CRITERIA_INNER) &&
+	    dr_ste_build_pre_check_spec(dmn, &mask->inner))
+		return -EINVAL;
 
 	return 0;
 }
@@ -668,101 +713,119 @@ int mlx5dr_ste_build_ste_arr(struct mlx5dr_matcher *matcher,
 	return 0;
 }
 
-static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec)
+#define IFC_GET_CLR(typ, p, fld, clear) ({ \
+	void *__p = (p); \
+	u32 __t = MLX5_GET(typ, __p, fld); \
+	if (clear) \
+		MLX5_SET(typ, __p, fld, 0); \
+	__t; \
+})
+
+#define memcpy_and_clear(to, from, len, clear) ({ \
+	void *__to = (to), *__from = (from); \
+	size_t __len = (len); \
+	memcpy(__to, __from, __len); \
+	if (clear) \
+		memset(__from, 0, __len); \
+})
+
+static void dr_ste_copy_mask_misc(char *mask, struct mlx5dr_match_misc *spec, bool clr)
 {
-	spec->gre_c_present = MLX5_GET(fte_match_set_misc, mask, gre_c_present);
-	spec->gre_k_present = MLX5_GET(fte_match_set_misc, mask, gre_k_present);
-	spec->gre_s_present = MLX5_GET(fte_match_set_misc, mask, gre_s_present);
-	spec->source_vhca_port = MLX5_GET(fte_match_set_misc, mask, source_vhca_port);
-	spec->source_sqn = MLX5_GET(fte_match_set_misc, mask, source_sqn);
+	spec->gre_c_present = IFC_GET_CLR(fte_match_set_misc, mask, gre_c_present, clr);
+	spec->gre_k_present = IFC_GET_CLR(fte_match_set_misc, mask, gre_k_present, clr);
+	spec->gre_s_present = IFC_GET_CLR(fte_match_set_misc, mask, gre_s_present, clr);
+	spec->source_vhca_port = IFC_GET_CLR(fte_match_set_misc, mask, source_vhca_port, clr);
+	spec->source_sqn = IFC_GET_CLR(fte_match_set_misc, mask, source_sqn, clr);
 
-	spec->source_port = MLX5_GET(fte_match_set_misc, mask, source_port);
-	spec->source_eswitch_owner_vhca_id = MLX5_GET(fte_match_set_misc, mask,
-						      source_eswitch_owner_vhca_id);
+	spec->source_port = IFC_GET_CLR(fte_match_set_misc, mask, source_port, clr);
+	spec->source_eswitch_owner_vhca_id =
+		IFC_GET_CLR(fte_match_set_misc, mask, source_eswitch_owner_vhca_id, clr);
 
-	spec->outer_second_prio = MLX5_GET(fte_match_set_misc, mask, outer_second_prio);
-	spec->outer_second_cfi = MLX5_GET(fte_match_set_misc, mask, outer_second_cfi);
-	spec->outer_second_vid = MLX5_GET(fte_match_set_misc, mask, outer_second_vid);
-	spec->inner_second_prio = MLX5_GET(fte_match_set_misc, mask, inner_second_prio);
-	spec->inner_second_cfi = MLX5_GET(fte_match_set_misc, mask, inner_second_cfi);
-	spec->inner_second_vid = MLX5_GET(fte_match_set_misc, mask, inner_second_vid);
+	spec->outer_second_prio = IFC_GET_CLR(fte_match_set_misc, mask, outer_second_prio, clr);
+	spec->outer_second_cfi = IFC_GET_CLR(fte_match_set_misc, mask, outer_second_cfi, clr);
+	spec->outer_second_vid = IFC_GET_CLR(fte_match_set_misc, mask, outer_second_vid, clr);
+	spec->inner_second_prio = IFC_GET_CLR(fte_match_set_misc, mask, inner_second_prio, clr);
+	spec->inner_second_cfi = IFC_GET_CLR(fte_match_set_misc, mask, inner_second_cfi, clr);
+	spec->inner_second_vid = IFC_GET_CLR(fte_match_set_misc, mask, inner_second_vid, clr);
 
 	spec->outer_second_cvlan_tag =
-		MLX5_GET(fte_match_set_misc, mask, outer_second_cvlan_tag);
+		IFC_GET_CLR(fte_match_set_misc, mask, outer_second_cvlan_tag, clr);
 	spec->inner_second_cvlan_tag =
-		MLX5_GET(fte_match_set_misc, mask, inner_second_cvlan_tag);
+		IFC_GET_CLR(fte_match_set_misc, mask, inner_second_cvlan_tag, clr);
 	spec->outer_second_svlan_tag =
-		MLX5_GET(fte_match_set_misc, mask, outer_second_svlan_tag);
+		IFC_GET_CLR(fte_match_set_misc, mask, outer_second_svlan_tag, clr);
 	spec->inner_second_svlan_tag =
-		MLX5_GET(fte_match_set_misc, mask, inner_second_svlan_tag);
+		IFC_GET_CLR(fte_match_set_misc, mask, inner_second_svlan_tag, clr);
+	spec->gre_protocol = IFC_GET_CLR(fte_match_set_misc, mask, gre_protocol, clr);
 
-	spec->gre_protocol = MLX5_GET(fte_match_set_misc, mask, gre_protocol);
+	spec->gre_key_h = IFC_GET_CLR(fte_match_set_misc, mask, gre_key.nvgre.hi, clr);
+	spec->gre_key_l = IFC_GET_CLR(fte_match_set_misc, mask, gre_key.nvgre.lo, clr);
 
-	spec->gre_key_h = MLX5_GET(fte_match_set_misc, mask, gre_key.nvgre.hi);
-	spec->gre_key_l = MLX5_GET(fte_match_set_misc, mask, gre_key.nvgre.lo);
+	spec->vxlan_vni = IFC_GET_CLR(fte_match_set_misc, mask, vxlan_vni, clr);
 
-	spec->vxlan_vni = MLX5_GET(fte_match_set_misc, mask, vxlan_vni);
-
-	spec->geneve_vni = MLX5_GET(fte_match_set_misc, mask, geneve_vni);
-	spec->geneve_oam = MLX5_GET(fte_match_set_misc, mask, geneve_oam);
+	spec->geneve_vni = IFC_GET_CLR(fte_match_set_misc, mask, geneve_vni, clr);
+	spec->geneve_tlv_option_0_exist =
+		IFC_GET_CLR(fte_match_set_misc, mask, geneve_tlv_option_0_exist, clr);
+	spec->geneve_oam = IFC_GET_CLR(fte_match_set_misc, mask, geneve_oam, clr);
 
 	spec->outer_ipv6_flow_label =
-		MLX5_GET(fte_match_set_misc, mask, outer_ipv6_flow_label);
+		IFC_GET_CLR(fte_match_set_misc, mask, outer_ipv6_flow_label, clr);
 
 	spec->inner_ipv6_flow_label =
-		MLX5_GET(fte_match_set_misc, mask, inner_ipv6_flow_label);
+		IFC_GET_CLR(fte_match_set_misc, mask, inner_ipv6_flow_label, clr);
 
-	spec->geneve_opt_len = MLX5_GET(fte_match_set_misc, mask, geneve_opt_len);
+	spec->geneve_opt_len = IFC_GET_CLR(fte_match_set_misc, mask, geneve_opt_len, clr);
 	spec->geneve_protocol_type =
-		MLX5_GET(fte_match_set_misc, mask, geneve_protocol_type);
+		IFC_GET_CLR(fte_match_set_misc, mask, geneve_protocol_type, clr);
 
-	spec->bth_dst_qp = MLX5_GET(fte_match_set_misc, mask, bth_dst_qp);
+	spec->bth_dst_qp = IFC_GET_CLR(fte_match_set_misc, mask, bth_dst_qp, clr);
 }
 
-static void dr_ste_copy_mask_spec(char *mask, struct mlx5dr_match_spec *spec)
+static void dr_ste_copy_mask_spec(char *mask, struct mlx5dr_match_spec *spec, bool clr)
 {
 	__be32 raw_ip[4];
 
-	spec->smac_47_16 = MLX5_GET(fte_match_set_lyr_2_4, mask, smac_47_16);
+	spec->smac_47_16 = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, smac_47_16, clr);
 
-	spec->smac_15_0 = MLX5_GET(fte_match_set_lyr_2_4, mask, smac_15_0);
-	spec->ethertype = MLX5_GET(fte_match_set_lyr_2_4, mask, ethertype);
+	spec->smac_15_0 = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, smac_15_0, clr);
+	spec->ethertype = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ethertype, clr);
 
-	spec->dmac_47_16 = MLX5_GET(fte_match_set_lyr_2_4, mask, dmac_47_16);
+	spec->dmac_47_16 = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, dmac_47_16, clr);
 
-	spec->dmac_15_0 = MLX5_GET(fte_match_set_lyr_2_4, mask, dmac_15_0);
-	spec->first_prio = MLX5_GET(fte_match_set_lyr_2_4, mask, first_prio);
-	spec->first_cfi = MLX5_GET(fte_match_set_lyr_2_4, mask, first_cfi);
-	spec->first_vid = MLX5_GET(fte_match_set_lyr_2_4, mask, first_vid);
+	spec->dmac_15_0 = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, dmac_15_0, clr);
+	spec->first_prio = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, first_prio, clr);
+	spec->first_cfi = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, first_cfi, clr);
+	spec->first_vid = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, first_vid, clr);
 
-	spec->ip_protocol = MLX5_GET(fte_match_set_lyr_2_4, mask, ip_protocol);
-	spec->ip_dscp = MLX5_GET(fte_match_set_lyr_2_4, mask, ip_dscp);
-	spec->ip_ecn = MLX5_GET(fte_match_set_lyr_2_4, mask, ip_ecn);
-	spec->cvlan_tag = MLX5_GET(fte_match_set_lyr_2_4, mask, cvlan_tag);
-	spec->svlan_tag = MLX5_GET(fte_match_set_lyr_2_4, mask, svlan_tag);
-	spec->frag = MLX5_GET(fte_match_set_lyr_2_4, mask, frag);
-	spec->ip_version = MLX5_GET(fte_match_set_lyr_2_4, mask, ip_version);
-	spec->tcp_flags = MLX5_GET(fte_match_set_lyr_2_4, mask, tcp_flags);
-	spec->tcp_sport = MLX5_GET(fte_match_set_lyr_2_4, mask, tcp_sport);
-	spec->tcp_dport = MLX5_GET(fte_match_set_lyr_2_4, mask, tcp_dport);
+	spec->ip_protocol = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ip_protocol, clr);
+	spec->ip_dscp = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ip_dscp, clr);
+	spec->ip_ecn = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ip_ecn, clr);
+	spec->cvlan_tag = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, cvlan_tag, clr);
+	spec->svlan_tag = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, svlan_tag, clr);
+	spec->frag = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, frag, clr);
+	spec->ip_version = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ip_version, clr);
+	spec->tcp_flags = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_flags, clr);
+	spec->tcp_sport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_sport, clr);
+	spec->tcp_dport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, tcp_dport, clr);
 
-	spec->ttl_hoplimit = MLX5_GET(fte_match_set_lyr_2_4, mask, ttl_hoplimit);
+	spec->ipv4_ihl = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ipv4_ihl, clr);
+	spec->ttl_hoplimit = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, ttl_hoplimit, clr);
 
-	spec->udp_sport = MLX5_GET(fte_match_set_lyr_2_4, mask, udp_sport);
-	spec->udp_dport = MLX5_GET(fte_match_set_lyr_2_4, mask, udp_dport);
+	spec->udp_sport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, udp_sport, clr);
+	spec->udp_dport = IFC_GET_CLR(fte_match_set_lyr_2_4, mask, udp_dport, clr);
 
-	memcpy(raw_ip, MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
-				    src_ipv4_src_ipv6.ipv6_layout.ipv6),
-				    sizeof(raw_ip));
+	memcpy_and_clear(raw_ip, MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
+					      src_ipv4_src_ipv6.ipv6_layout.ipv6),
+			 sizeof(raw_ip), clr);
 
 	spec->src_ip_127_96 = be32_to_cpu(raw_ip[0]);
 	spec->src_ip_95_64 = be32_to_cpu(raw_ip[1]);
 	spec->src_ip_63_32 = be32_to_cpu(raw_ip[2]);
 	spec->src_ip_31_0 = be32_to_cpu(raw_ip[3]);
 
-	memcpy(raw_ip, MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
-				    dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
-				    sizeof(raw_ip));
+	memcpy_and_clear(raw_ip, MLX5_ADDR_OF(fte_match_set_lyr_2_4, mask,
+					      dst_ipv4_dst_ipv6.ipv6_layout.ipv6),
+			 sizeof(raw_ip), clr);
 
 	spec->dst_ip_127_96 = be32_to_cpu(raw_ip[0]);
 	spec->dst_ip_95_64 = be32_to_cpu(raw_ip[1]);
@@ -770,104 +833,125 @@ static void dr_ste_copy_mask_spec(char *mask, struct mlx5dr_match_spec *spec)
 	spec->dst_ip_31_0 = be32_to_cpu(raw_ip[3]);
 }
 
-static void dr_ste_copy_mask_misc2(char *mask, struct mlx5dr_match_misc2 *spec)
+static void dr_ste_copy_mask_misc2(char *mask, struct mlx5dr_match_misc2 *spec, bool clr)
 {
 	spec->outer_first_mpls_label =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls.mpls_label);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls.mpls_label, clr);
 	spec->outer_first_mpls_exp =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls.mpls_exp);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls.mpls_exp, clr);
 	spec->outer_first_mpls_s_bos =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls.mpls_s_bos);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls.mpls_s_bos, clr);
 	spec->outer_first_mpls_ttl =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls.mpls_ttl);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls.mpls_ttl, clr);
 	spec->inner_first_mpls_label =
-		MLX5_GET(fte_match_set_misc2, mask, inner_first_mpls.mpls_label);
+		IFC_GET_CLR(fte_match_set_misc2, mask, inner_first_mpls.mpls_label, clr);
 	spec->inner_first_mpls_exp =
-		MLX5_GET(fte_match_set_misc2, mask, inner_first_mpls.mpls_exp);
+		IFC_GET_CLR(fte_match_set_misc2, mask, inner_first_mpls.mpls_exp, clr);
 	spec->inner_first_mpls_s_bos =
-		MLX5_GET(fte_match_set_misc2, mask, inner_first_mpls.mpls_s_bos);
+		IFC_GET_CLR(fte_match_set_misc2, mask, inner_first_mpls.mpls_s_bos, clr);
 	spec->inner_first_mpls_ttl =
-		MLX5_GET(fte_match_set_misc2, mask, inner_first_mpls.mpls_ttl);
+		IFC_GET_CLR(fte_match_set_misc2, mask, inner_first_mpls.mpls_ttl, clr);
 	spec->outer_first_mpls_over_gre_label =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_label);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_label, clr);
 	spec->outer_first_mpls_over_gre_exp =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_exp);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_exp, clr);
 	spec->outer_first_mpls_over_gre_s_bos =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_s_bos);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_s_bos, clr);
 	spec->outer_first_mpls_over_gre_ttl =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_ttl);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_gre.mpls_ttl, clr);
 	spec->outer_first_mpls_over_udp_label =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_label);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_label, clr);
 	spec->outer_first_mpls_over_udp_exp =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_exp);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_exp, clr);
 	spec->outer_first_mpls_over_udp_s_bos =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_s_bos);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_s_bos, clr);
 	spec->outer_first_mpls_over_udp_ttl =
-		MLX5_GET(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_ttl);
-	spec->metadata_reg_c_7 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_7);
-	spec->metadata_reg_c_6 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_6);
-	spec->metadata_reg_c_5 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_5);
-	spec->metadata_reg_c_4 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_4);
-	spec->metadata_reg_c_3 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_3);
-	spec->metadata_reg_c_2 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_2);
-	spec->metadata_reg_c_1 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_1);
-	spec->metadata_reg_c_0 = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_c_0);
-	spec->metadata_reg_a = MLX5_GET(fte_match_set_misc2, mask, metadata_reg_a);
+		IFC_GET_CLR(fte_match_set_misc2, mask, outer_first_mpls_over_udp.mpls_ttl, clr);
+	spec->metadata_reg_c_7 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_7, clr);
+	spec->metadata_reg_c_6 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_6, clr);
+	spec->metadata_reg_c_5 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_5, clr);
+	spec->metadata_reg_c_4 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_4, clr);
+	spec->metadata_reg_c_3 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_3, clr);
+	spec->metadata_reg_c_2 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_2, clr);
+	spec->metadata_reg_c_1 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_1, clr);
+	spec->metadata_reg_c_0 = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_c_0, clr);
+	spec->metadata_reg_a = IFC_GET_CLR(fte_match_set_misc2, mask, metadata_reg_a, clr);
 }
 
-static void dr_ste_copy_mask_misc3(char *mask, struct mlx5dr_match_misc3 *spec)
+static void dr_ste_copy_mask_misc3(char *mask, struct mlx5dr_match_misc3 *spec, bool clr)
 {
-	spec->inner_tcp_seq_num = MLX5_GET(fte_match_set_misc3, mask, inner_tcp_seq_num);
-	spec->outer_tcp_seq_num = MLX5_GET(fte_match_set_misc3, mask, outer_tcp_seq_num);
-	spec->inner_tcp_ack_num = MLX5_GET(fte_match_set_misc3, mask, inner_tcp_ack_num);
-	spec->outer_tcp_ack_num = MLX5_GET(fte_match_set_misc3, mask, outer_tcp_ack_num);
+	spec->inner_tcp_seq_num = IFC_GET_CLR(fte_match_set_misc3, mask, inner_tcp_seq_num, clr);
+	spec->outer_tcp_seq_num = IFC_GET_CLR(fte_match_set_misc3, mask, outer_tcp_seq_num, clr);
+	spec->inner_tcp_ack_num = IFC_GET_CLR(fte_match_set_misc3, mask, inner_tcp_ack_num, clr);
+	spec->outer_tcp_ack_num = IFC_GET_CLR(fte_match_set_misc3, mask, outer_tcp_ack_num, clr);
 	spec->outer_vxlan_gpe_vni =
-		MLX5_GET(fte_match_set_misc3, mask, outer_vxlan_gpe_vni);
+		IFC_GET_CLR(fte_match_set_misc3, mask, outer_vxlan_gpe_vni, clr);
 	spec->outer_vxlan_gpe_next_protocol =
-		MLX5_GET(fte_match_set_misc3, mask, outer_vxlan_gpe_next_protocol);
+		IFC_GET_CLR(fte_match_set_misc3, mask, outer_vxlan_gpe_next_protocol, clr);
 	spec->outer_vxlan_gpe_flags =
-		MLX5_GET(fte_match_set_misc3, mask, outer_vxlan_gpe_flags);
-	spec->icmpv4_header_data = MLX5_GET(fte_match_set_misc3, mask, icmp_header_data);
+		IFC_GET_CLR(fte_match_set_misc3, mask, outer_vxlan_gpe_flags, clr);
+	spec->icmpv4_header_data = IFC_GET_CLR(fte_match_set_misc3, mask, icmp_header_data, clr);
 	spec->icmpv6_header_data =
-		MLX5_GET(fte_match_set_misc3, mask, icmpv6_header_data);
-	spec->icmpv4_type = MLX5_GET(fte_match_set_misc3, mask, icmp_type);
-	spec->icmpv4_code = MLX5_GET(fte_match_set_misc3, mask, icmp_code);
-	spec->icmpv6_type = MLX5_GET(fte_match_set_misc3, mask, icmpv6_type);
-	spec->icmpv6_code = MLX5_GET(fte_match_set_misc3, mask, icmpv6_code);
+		IFC_GET_CLR(fte_match_set_misc3, mask, icmpv6_header_data, clr);
+	spec->icmpv4_type = IFC_GET_CLR(fte_match_set_misc3, mask, icmp_type, clr);
+	spec->icmpv4_code = IFC_GET_CLR(fte_match_set_misc3, mask, icmp_code, clr);
+	spec->icmpv6_type = IFC_GET_CLR(fte_match_set_misc3, mask, icmpv6_type, clr);
+	spec->icmpv6_code = IFC_GET_CLR(fte_match_set_misc3, mask, icmpv6_code, clr);
 	spec->geneve_tlv_option_0_data =
-		MLX5_GET(fte_match_set_misc3, mask, geneve_tlv_option_0_data);
-	spec->gtpu_msg_flags = MLX5_GET(fte_match_set_misc3, mask, gtpu_msg_flags);
-	spec->gtpu_msg_type = MLX5_GET(fte_match_set_misc3, mask, gtpu_msg_type);
-	spec->gtpu_teid = MLX5_GET(fte_match_set_misc3, mask, gtpu_teid);
-	spec->gtpu_dw_0 = MLX5_GET(fte_match_set_misc3, mask, gtpu_dw_0);
-	spec->gtpu_dw_2 = MLX5_GET(fte_match_set_misc3, mask, gtpu_dw_2);
+		IFC_GET_CLR(fte_match_set_misc3, mask, geneve_tlv_option_0_data, clr);
+	spec->gtpu_teid = IFC_GET_CLR(fte_match_set_misc3, mask, gtpu_teid, clr);
+	spec->gtpu_msg_flags = IFC_GET_CLR(fte_match_set_misc3, mask, gtpu_msg_flags, clr);
+	spec->gtpu_msg_type = IFC_GET_CLR(fte_match_set_misc3, mask, gtpu_msg_type, clr);
+	spec->gtpu_dw_0 = IFC_GET_CLR(fte_match_set_misc3, mask, gtpu_dw_0, clr);
+	spec->gtpu_dw_2 = IFC_GET_CLR(fte_match_set_misc3, mask, gtpu_dw_2, clr);
 	spec->gtpu_first_ext_dw_0 =
-		MLX5_GET(fte_match_set_misc3, mask, gtpu_first_ext_dw_0);
+		IFC_GET_CLR(fte_match_set_misc3, mask, gtpu_first_ext_dw_0, clr);
 }
 
-static void dr_ste_copy_mask_misc4(char *mask, struct mlx5dr_match_misc4 *spec)
+static void dr_ste_copy_mask_misc4(char *mask, struct mlx5dr_match_misc4 *spec, bool clr)
 {
 	spec->prog_sample_field_id_0 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_0);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_id_0, clr);
 	spec->prog_sample_field_value_0 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_0);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_value_0, clr);
 	spec->prog_sample_field_id_1 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_1);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_id_1, clr);
 	spec->prog_sample_field_value_1 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_1);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_value_1, clr);
 	spec->prog_sample_field_id_2 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_2);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_id_2, clr);
 	spec->prog_sample_field_value_2 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_2);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_value_2, clr);
 	spec->prog_sample_field_id_3 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_id_3);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_id_3, clr);
 	spec->prog_sample_field_value_3 =
-		MLX5_GET(fte_match_set_misc4, mask, prog_sample_field_value_3);
+		IFC_GET_CLR(fte_match_set_misc4, mask, prog_sample_field_value_3, clr);
+}
+
+static void dr_ste_copy_mask_misc5(char *mask, struct mlx5dr_match_misc5 *spec, bool clr)
+{
+	spec->macsec_tag_0 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_0, clr);
+	spec->macsec_tag_1 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_1, clr);
+	spec->macsec_tag_2 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_2, clr);
+	spec->macsec_tag_3 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, macsec_tag_3, clr);
+	spec->tunnel_header_0 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_0, clr);
+	spec->tunnel_header_1 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_1, clr);
+	spec->tunnel_header_2 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_2, clr);
+	spec->tunnel_header_3 =
+		IFC_GET_CLR(fte_match_set_misc5, mask, tunnel_header_3, clr);
 }
 
 void mlx5dr_ste_copy_param(u8 match_criteria,
 			   struct mlx5dr_match_param *set_param,
-			   struct mlx5dr_match_parameters *mask)
+			   struct mlx5dr_match_parameters *mask,
+			   bool clr)
 {
 	u8 tail_param[MLX5_ST_SZ_BYTES(fte_match_set_lyr_2_4)] = {};
 	u8 *data = (u8 *)mask->match_buf;
@@ -881,7 +965,7 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 		} else {
 			buff = mask->match_buf;
 		}
-		dr_ste_copy_mask_spec(buff, &set_param->outer);
+		dr_ste_copy_mask_spec(buff, &set_param->outer, clr);
 	}
 	param_location = sizeof(struct mlx5dr_match_spec);
 
@@ -894,7 +978,7 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 		} else {
 			buff = data + param_location;
 		}
-		dr_ste_copy_mask_misc(buff, &set_param->misc);
+		dr_ste_copy_mask_misc(buff, &set_param->misc, clr);
 	}
 	param_location += sizeof(struct mlx5dr_match_misc);
 
@@ -907,7 +991,7 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 		} else {
 			buff = data + param_location;
 		}
-		dr_ste_copy_mask_spec(buff, &set_param->inner);
+		dr_ste_copy_mask_spec(buff, &set_param->inner, clr);
 	}
 	param_location += sizeof(struct mlx5dr_match_spec);
 
@@ -920,7 +1004,7 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 		} else {
 			buff = data + param_location;
 		}
-		dr_ste_copy_mask_misc2(buff, &set_param->misc2);
+		dr_ste_copy_mask_misc2(buff, &set_param->misc2, clr);
 	}
 
 	param_location += sizeof(struct mlx5dr_match_misc2);
@@ -934,7 +1018,7 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 		} else {
 			buff = data + param_location;
 		}
-		dr_ste_copy_mask_misc3(buff, &set_param->misc3);
+		dr_ste_copy_mask_misc3(buff, &set_param->misc3, clr);
 	}
 
 	param_location += sizeof(struct mlx5dr_match_misc3);
@@ -948,7 +1032,21 @@ void mlx5dr_ste_copy_param(u8 match_criteria,
 		} else {
 			buff = data + param_location;
 		}
-		dr_ste_copy_mask_misc4(buff, &set_param->misc4);
+		dr_ste_copy_mask_misc4(buff, &set_param->misc4, clr);
+	}
+
+	param_location += sizeof(struct mlx5dr_match_misc4);
+
+	if (match_criteria & DR_MATCHER_CRITERIA_MISC5) {
+		if (mask->match_sz < param_location +
+		    sizeof(struct mlx5dr_match_misc5)) {
+			memcpy(tail_param, data + param_location,
+			       mask->match_sz - param_location);
+			buff = tail_param;
+		} else {
+			buff = data + param_location;
+		}
+		dr_ste_copy_mask_misc5(buff, &set_param->misc5, clr);
 	}
 }
 
@@ -1164,6 +1262,21 @@ void mlx5dr_ste_build_tnl_geneve_tlv_opt(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_tnl_geneve_tlv_opt_init(sb, mask);
 }
 
+void mlx5dr_ste_build_tnl_geneve_tlv_opt_exist(struct mlx5dr_ste_ctx *ste_ctx,
+					       struct mlx5dr_ste_build *sb,
+					       struct mlx5dr_match_param *mask,
+					       struct mlx5dr_cmd_caps *caps,
+					       bool inner, bool rx)
+{
+	if (!ste_ctx->build_tnl_geneve_tlv_opt_exist_init)
+		return;
+
+	sb->rx = rx;
+	sb->caps = caps;
+	sb->inner = inner;
+	ste_ctx->build_tnl_geneve_tlv_opt_exist_init(sb, mask);
+}
+
 void mlx5dr_ste_build_tnl_gtpu(struct mlx5dr_ste_ctx *ste_ctx,
 			       struct mlx5dr_ste_build *sb,
 			       struct mlx5dr_match_param *mask,
@@ -1253,15 +1366,24 @@ void mlx5dr_ste_build_flex_parser_1(struct mlx5dr_ste_ctx *ste_ctx,
 	ste_ctx->build_flex_parser_1_init(sb, mask);
 }
 
-static struct mlx5dr_ste_ctx *mlx5dr_ste_ctx_arr[] = {
-	[MLX5_STEERING_FORMAT_CONNECTX_5] = &ste_ctx_v0,
-	[MLX5_STEERING_FORMAT_CONNECTX_6DX] = &ste_ctx_v1,
-};
+void mlx5dr_ste_build_tnl_header_0_1(struct mlx5dr_ste_ctx *ste_ctx,
+				     struct mlx5dr_ste_build *sb,
+				     struct mlx5dr_match_param *mask,
+				     bool inner, bool rx)
+{
+	sb->rx = rx;
+	sb->inner = inner;
+	ste_ctx->build_tnl_header_0_1_init(sb, mask);
+}
 
 struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx(u8 version)
 {
-	if (version > MLX5_STEERING_FORMAT_CONNECTX_6DX)
-		return NULL;
+	if (version == MLX5_STEERING_FORMAT_CONNECTX_5)
+		return mlx5dr_ste_get_ctx_v0();
+	else if (version == MLX5_STEERING_FORMAT_CONNECTX_6DX)
+		return mlx5dr_ste_get_ctx_v1();
+	else if (version == MLX5_STEERING_FORMAT_CONNECTX_7)
+		return mlx5dr_ste_get_ctx_v2();
 
-	return mlx5dr_ste_ctx_arr[version];
+	return NULL;
 }

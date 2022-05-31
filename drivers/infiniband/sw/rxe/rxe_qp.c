@@ -135,12 +135,8 @@ static void free_rd_atomic_resources(struct rxe_qp *qp)
 
 void free_rd_atomic_resource(struct rxe_qp *qp, struct resp_res *res)
 {
-	if (res->type == RXE_ATOMIC_MASK) {
+	if (res->type == RXE_ATOMIC_MASK)
 		kfree_skb(res->atomic.skb);
-	} else if (res->type == RXE_READ_MASK) {
-		if (res->read.mr)
-			rxe_drop_ref(res->read.mr);
-	}
 	res->type = 0;
 }
 
@@ -167,7 +163,7 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 	qp->attr.path_mtu	= 1;
 	qp->mtu			= ib_mtu_enum_to_int(qp->attr.path_mtu);
 
-	qpn			= qp->pelem.index;
+	qpn			= qp->elem.index;
 	port			= &rxe->port;
 
 	switch (init->qp_type) {
@@ -188,11 +184,6 @@ static void rxe_qp_init_misc(struct rxe_dev *rxe, struct rxe_qp *qp,
 		break;
 	}
 
-	INIT_LIST_HEAD(&qp->grp_list);
-
-	skb_queue_head_init(&qp->send_pkts);
-
-	spin_lock_init(&qp->grp_lock);
 	spin_lock_init(&qp->state_lock);
 
 	atomic_set(&qp->ssn, 0);
@@ -219,8 +210,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	 * the port number must be in the Dynamic Ports range
 	 * (0xc000 - 0xffff).
 	 */
-	qp->src_port = RXE_ROCE_V2_SPORT +
-		(hash_32_generic(qp_num(qp), 14) & 0x3fff);
+	qp->src_port = RXE_ROCE_V2_SPORT + (hash_32(qp_num(qp), 14) & 0x3fff);
 	qp->sq.max_wr		= init->cap.max_send_wr;
 
 	/* These caps are limited by rxe_qp_chk_cap() done by the caller */
@@ -231,7 +221,7 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 	qp->sq.max_inline = init->cap.max_inline_data = wqe_size;
 	wqe_size += sizeof(struct rxe_send_wqe);
 
-	type = uresp ? QUEUE_TYPE_FROM_USER : QUEUE_TYPE_KERNEL;
+	type = QUEUE_TYPE_FROM_CLIENT;
 	qp->sq.queue = rxe_queue_init(rxe, &qp->sq.max_wr,
 				wqe_size, type);
 	if (!qp->sq.queue)
@@ -248,12 +238,8 @@ static int rxe_qp_init_req(struct rxe_dev *rxe, struct rxe_qp *qp,
 		return err;
 	}
 
-	if (qp->is_user)
-		qp->req.wqe_index = producer_index(qp->sq.queue,
-						QUEUE_TYPE_FROM_USER);
-	else
-		qp->req.wqe_index = producer_index(qp->sq.queue,
-						QUEUE_TYPE_KERNEL);
+	qp->req.wqe_index = queue_get_producer(qp->sq.queue,
+					       QUEUE_TYPE_FROM_CLIENT);
 
 	qp->req.state		= QP_STATE_RESET;
 	qp->req.opcode		= -1;
@@ -293,7 +279,7 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 		pr_debug("qp#%d max_wr = %d, max_sge = %d, wqe_size = %d\n",
 			 qp_num(qp), qp->rq.max_wr, qp->rq.max_sge, wqe_size);
 
-		type = uresp ? QUEUE_TYPE_FROM_USER : QUEUE_TYPE_KERNEL;
+		type = QUEUE_TYPE_FROM_CLIENT;
 		qp->rq.queue = rxe_queue_init(rxe, &qp->rq.max_wr,
 					wqe_size, type);
 		if (!qp->rq.queue)
@@ -312,8 +298,6 @@ static int rxe_qp_init_resp(struct rxe_dev *rxe, struct rxe_qp *qp,
 
 	spin_lock_init(&qp->rq.producer_lock);
 	spin_lock_init(&qp->rq.consumer_lock);
-
-	qp->rq.is_user = qp->is_user;
 
 	skb_queue_head_init(&qp->resp_pkts);
 
@@ -339,11 +323,11 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 	struct rxe_cq *scq = to_rcq(init->send_cq);
 	struct rxe_srq *srq = init->srq ? to_rsrq(init->srq) : NULL;
 
-	rxe_add_ref(pd);
-	rxe_add_ref(rcq);
-	rxe_add_ref(scq);
+	rxe_get(pd);
+	rxe_get(rcq);
+	rxe_get(scq);
 	if (srq)
-		rxe_add_ref(srq);
+		rxe_get(srq);
 
 	qp->pd			= pd;
 	qp->rcq			= rcq;
@@ -367,6 +351,7 @@ int rxe_qp_from_init(struct rxe_dev *rxe, struct rxe_qp *qp, struct rxe_pd *pd,
 
 err2:
 	rxe_queue_cleanup(qp->sq.queue);
+	qp->sq.queue = NULL;
 err1:
 	qp->pd = NULL;
 	qp->rcq = NULL;
@@ -374,10 +359,10 @@ err1:
 	qp->srq = NULL;
 
 	if (srq)
-		rxe_drop_ref(srq);
-	rxe_drop_ref(scq);
-	rxe_drop_ref(rcq);
-	rxe_drop_ref(pd);
+		rxe_put(srq);
+	rxe_put(scq);
+	rxe_put(rcq);
+	rxe_put(pd);
 
 	return err;
 }
@@ -536,7 +521,7 @@ static void rxe_qp_reset(struct rxe_qp *qp)
 	qp->resp.sent_psn_nak = 0;
 
 	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
+		rxe_put(qp->resp.mr);
 		qp->resp.mr = NULL;
 	}
 
@@ -778,6 +763,20 @@ int rxe_qp_to_attr(struct rxe_qp *qp, struct ib_qp_attr *attr, int mask)
 	return 0;
 }
 
+int rxe_qp_chk_destroy(struct rxe_qp *qp)
+{
+	/* See IBA o10-2.2.3
+	 * An attempt to destroy a QP while attached to a mcast group
+	 * will fail immediately.
+	 */
+	if (atomic_read(&qp->mcg_num)) {
+		pr_debug("Attempt to destroy QP while attached to multicast group\n");
+		return -EBUSY;
+	}
+
+	return 0;
+}
+
 /* called by the destroy qp verb */
 void rxe_qp_destroy(struct rxe_qp *qp)
 {
@@ -806,28 +805,24 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 {
 	struct rxe_qp *qp = container_of(work, typeof(*qp), cleanup_work.work);
 
-	rxe_drop_all_mcast_groups(qp);
-
 	if (qp->sq.queue)
 		rxe_queue_cleanup(qp->sq.queue);
 
 	if (qp->srq)
-		rxe_drop_ref(qp->srq);
+		rxe_put(qp->srq);
 
 	if (qp->rq.queue)
 		rxe_queue_cleanup(qp->rq.queue);
 
 	if (qp->scq)
-		rxe_drop_ref(qp->scq);
+		rxe_put(qp->scq);
 	if (qp->rcq)
-		rxe_drop_ref(qp->rcq);
+		rxe_put(qp->rcq);
 	if (qp->pd)
-		rxe_drop_ref(qp->pd);
+		rxe_put(qp->pd);
 
-	if (qp->resp.mr) {
-		rxe_drop_ref(qp->resp.mr);
-		qp->resp.mr = NULL;
-	}
+	if (qp->resp.mr)
+		rxe_put(qp->resp.mr);
 
 	if (qp_type(qp) == IB_QPT_RC)
 		sk_dst_reset(qp->sk->sk);
@@ -839,9 +834,9 @@ static void rxe_qp_do_cleanup(struct work_struct *work)
 }
 
 /* called when the last reference to the qp is dropped */
-void rxe_qp_cleanup(struct rxe_pool_entry *arg)
+void rxe_qp_cleanup(struct rxe_pool_elem *elem)
 {
-	struct rxe_qp *qp = container_of(arg, typeof(*qp), pelem);
+	struct rxe_qp *qp = container_of(elem, typeof(*qp), elem);
 
 	execute_in_process_context(rxe_qp_do_cleanup, &qp->cleanup_work);
 }

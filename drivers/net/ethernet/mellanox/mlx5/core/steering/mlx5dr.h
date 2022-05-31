@@ -53,6 +53,9 @@ void mlx5dr_domain_set_peer(struct mlx5dr_domain *dmn,
 struct mlx5dr_table *
 mlx5dr_table_create(struct mlx5dr_domain *domain, u32 level, u32 flags);
 
+struct mlx5dr_table *
+mlx5dr_table_get_from_fs_ft(struct mlx5_flow_table *ft);
+
 int mlx5dr_table_destroy(struct mlx5dr_table *table);
 
 u32 mlx5dr_table_get_id(struct mlx5dr_table *table);
@@ -89,14 +92,15 @@ mlx5dr_action_create_dest_flow_fw_table(struct mlx5dr_domain *domain,
 
 struct mlx5dr_action *
 mlx5dr_action_create_dest_vport(struct mlx5dr_domain *domain,
-				u32 vport, u8 vhca_id_valid,
+				u16 vport, u8 vhca_id_valid,
 				u16 vhca_id);
 
 struct mlx5dr_action *
 mlx5dr_action_create_mult_dest_tbl(struct mlx5dr_domain *dmn,
 				   struct mlx5dr_action_dest *dests,
 				   u32 num_of_dests,
-				   bool ignore_flow_level);
+				   bool ignore_flow_level,
+				   u32 flow_source);
 
 struct mlx5dr_action *mlx5dr_action_create_drop(void);
 
@@ -136,7 +140,7 @@ mlx5dr_is_supported(struct mlx5_core_dev *dev)
 	       (MLX5_CAP_ESW_FLOWTABLE_FDB(dev, sw_owner) ||
 		(MLX5_CAP_ESW_FLOWTABLE_FDB(dev, sw_owner_v2) &&
 		 (MLX5_CAP_GEN(dev, steering_format_version) <=
-		  MLX5_STEERING_FORMAT_CONNECTX_6DX)));
+		  MLX5_STEERING_FORMAT_CONNECTX_7)));
 }
 
 /* buddy functions & structure */
@@ -160,6 +164,11 @@ struct mlx5dr_icm_buddy_mem {
 	 * sync_ste command sets them free.
 	 */
 	struct list_head	hot_list;
+
+	/* Memory optimisation */
+	struct mlx5dr_ste	*ste_arr;
+	struct list_head	*miss_list;
+	u8			*hw_ste_arr;
 };
 
 int mlx5dr_buddy_init(struct mlx5dr_icm_buddy_mem *buddy,

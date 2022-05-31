@@ -18,8 +18,6 @@
 #define DST_PORT		4040
 #define DST_REWRITE_PORT4	4444
 
-int _version SEC("version") = 1;
-
 SEC("cgroup/sendmsg4")
 int sendmsg_v4_prog(struct bpf_sock_addr *ctx)
 {

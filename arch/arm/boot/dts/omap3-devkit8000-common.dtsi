@@ -158,6 +158,24 @@
 	status = "disabled";
 };
 
+/* Unusable as clockevent because if unreliable oscillator, allow to idle */
+&timer1_target {
+	/delete-property/ti,no-reset-on-init;
+	/delete-property/ti,no-idle;
+	timer@0 {
+		/delete-property/ti,timer-alwon;
+	};
+};
+
+/* Preferred timer for clockevent */
+&timer12_target {
+	ti,no-reset-on-init;
+	ti,no-idle;
+	timer@0 {
+		/* Always clocked by secure_32k_fck */
+	};
+};
+
 &twl_gpio {
 	ti,use-leds;
 	/*
@@ -267,8 +285,8 @@
 		gpmc,mux-add-data = <0>;
 		gpmc,device-width = <1>;
 		gpmc,wait-pin = <0>;
-		gpmc,cycle2cycle-samecsen = <1>;
-		gpmc,cycle2cycle-diffcsen = <1>;
+		gpmc,cycle2cycle-samecsen;
+		gpmc,cycle2cycle-diffcsen;
 
 		gpmc,cs-on-ns = <6>;
 		gpmc,cs-rd-off-ns = <180>;

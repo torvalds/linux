@@ -440,7 +440,7 @@ struct aqmq_command_s {
 /**
  * struct ctx_hdr - Book keeping data about the crypto context
  * @pool: Pool used to allocate crypto context
- * @dma: Base DMA address of the cypto context
+ * @dma: Base DMA address of the crypto context
  * @ctx_dma: Actual usable crypto context for NITROX
  */
 struct ctx_hdr {

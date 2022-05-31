@@ -48,7 +48,15 @@ enum TRI_STATE {
 
 #define MAX_PORTS_IN_MANA_DEV 256
 
-struct mana_stats {
+struct mana_stats_rx {
+	u64 packets;
+	u64 bytes;
+	u64 xdp_drop;
+	u64 xdp_tx;
+	struct u64_stats_sync syncp;
+};
+
+struct mana_stats_tx {
 	u64 packets;
 	u64 bytes;
 	struct u64_stats_sync syncp;
@@ -76,7 +84,7 @@ struct mana_txq {
 
 	atomic_t pending_sends;
 
-	struct mana_stats stats;
+	struct mana_stats_tx stats;
 };
 
 /* skb data and frags dma mappings */
@@ -289,6 +297,8 @@ struct mana_rxq {
 
 	struct mana_cq rx_cq;
 
+	struct completion fence_event;
+
 	struct net_device *ndev;
 
 	/* Total number of receive buffers to be allocated */
@@ -296,7 +306,11 @@ struct mana_rxq {
 
 	u32 buf_index;
 
-	struct mana_stats stats;
+	struct mana_stats_rx stats;
+
+	struct bpf_prog __rcu *bpf_prog;
+	struct xdp_rxq_info xdp_rxq;
+	struct page *xdp_save_page;
 
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
@@ -353,6 +367,8 @@ struct mana_port_context {
 	/* This points to an array of num_queues of RQ pointers. */
 	struct mana_rxq **rxqs;
 
+	struct bpf_prog *bpf_prog;
+
 	/* Create num_queues EQs, SQs, SQ-CQs, RQs and RQ-CQs, respectively. */
 	unsigned int max_queues;
 	unsigned int num_queues;
@@ -367,6 +383,7 @@ struct mana_port_context {
 	struct mana_ethtool_stats eth_stats;
 };
 
+int mana_start_xmit(struct sk_buff *skb, struct net_device *ndev);
 int mana_config_rss(struct mana_port_context *ac, enum TRI_STATE rx,
 		    bool update_hash, bool update_tab);
 
@@ -374,8 +391,15 @@ int mana_alloc_queues(struct net_device *ndev);
 int mana_attach(struct net_device *ndev);
 int mana_detach(struct net_device *ndev, bool from_close);
 
-int mana_probe(struct gdma_dev *gd);
-void mana_remove(struct gdma_dev *gd);
+int mana_probe(struct gdma_dev *gd, bool resuming);
+void mana_remove(struct gdma_dev *gd, bool suspending);
+
+void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev);
+u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
+		 struct xdp_buff *xdp, void *buf_va, uint pkt_len);
+struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
+void mana_chn_setxdp(struct mana_port_context *apc, struct bpf_prog *prog);
+int mana_bpf(struct net_device *ndev, struct netdev_bpf *bpf);
 
 extern const struct ethtool_ops mana_ethtool_ops;
 

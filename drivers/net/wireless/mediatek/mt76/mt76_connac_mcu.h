@@ -6,10 +6,100 @@
 
 #include "mt76_connac.h"
 
+#define FW_FEATURE_SET_ENCRYPT		BIT(0)
+#define FW_FEATURE_SET_KEY_IDX		GENMASK(2, 1)
+#define FW_FEATURE_ENCRY_MODE		BIT(4)
+#define FW_FEATURE_OVERRIDE_ADDR	BIT(5)
+
+#define DL_MODE_ENCRYPT			BIT(0)
+#define DL_MODE_KEY_IDX			GENMASK(2, 1)
+#define DL_MODE_RESET_SEC_IV		BIT(3)
+#define DL_MODE_WORKING_PDA_CR4		BIT(4)
+#define DL_MODE_VALID_RAM_ENTRY         BIT(5)
+#define DL_CONFIG_ENCRY_MODE_SEL	BIT(6)
+#define DL_MODE_NEED_RSP		BIT(31)
+
+#define FW_START_OVERRIDE		BIT(0)
+#define FW_START_WORKING_PDA_CR4	BIT(2)
+
+#define PATCH_SEC_NOT_SUPPORT		GENMASK(31, 0)
+#define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
+#define PATCH_SEC_TYPE_INFO		0x2
+
 struct tlv {
 	__le16 tag;
 	__le16 len;
 } __packed;
+
+struct bss_info_omac {
+	__le16 tag;
+	__le16 len;
+	u8 hw_bss_idx;
+	u8 omac_idx;
+	u8 band_idx;
+	u8 rsv0;
+	__le32 conn_type;
+	u32 rsv1;
+} __packed;
+
+struct bss_info_basic {
+	__le16 tag;
+	__le16 len;
+	__le32 network_type;
+	u8 active;
+	u8 rsv0;
+	__le16 bcn_interval;
+	u8 bssid[ETH_ALEN];
+	u8 wmm_idx;
+	u8 dtim_period;
+	u8 bmc_wcid_lo;
+	u8 cipher;
+	u8 phy_mode;
+	u8 max_bssid;	/* max BSSID. range: 1 ~ 8, 0: MBSSID disabled */
+	u8 non_tx_bssid;/* non-transmitted BSSID, 0: transmitted BSSID */
+	u8 bmc_wcid_hi;	/* high Byte and version */
+	u8 rsv[2];
+} __packed;
+
+struct bss_info_rf_ch {
+	__le16 tag;
+	__le16 len;
+	u8 pri_ch;
+	u8 center_ch0;
+	u8 center_ch1;
+	u8 bw;
+	u8 he_ru26_block;	/* 1: don't send HETB in RU26, 0: allow */
+	u8 he_all_disable;	/* 1: disallow all HETB, 0: allow */
+	u8 rsv[2];
+} __packed;
+
+struct bss_info_ext_bss {
+	__le16 tag;
+	__le16 len;
+	__le32 mbss_tsf_offset; /* in unit of us */
+	u8 rsv[8];
+} __packed;
+
+enum {
+	BSS_INFO_OMAC,
+	BSS_INFO_BASIC,
+	BSS_INFO_RF_CH,		/* optional, for BT/LTE coex */
+	BSS_INFO_PM,		/* sta only */
+	BSS_INFO_UAPSD,		/* sta only */
+	BSS_INFO_ROAM_DETECT,	/* obsoleted */
+	BSS_INFO_LQ_RM,		/* obsoleted */
+	BSS_INFO_EXT_BSS,
+	BSS_INFO_BMC_RATE,	/* for bmc rate control in CR4 */
+	BSS_INFO_SYNC_MODE,	/* obsoleted */
+	BSS_INFO_RA,
+	BSS_INFO_HW_AMSDU,
+	BSS_INFO_BSS_COLOR,
+	BSS_INFO_HE_BASIC,
+	BSS_INFO_PROTECT_INFO,
+	BSS_INFO_OFFLOAD,
+	BSS_INFO_11V_MBSSID,
+	BSS_INFO_MAX_NUM
+};
 
 /* sta_rec */
 
@@ -54,7 +144,7 @@ struct sta_rec_vht {
 	__le32 vht_cap;
 	__le16 vht_rx_mcs_map;
 	__le16 vht_tx_mcs_map;
-	/* mt7921 */
+	/* mt7915 - mt7921 */
 	u8 rts_bw_sig;
 	u8 rsv[3];
 } __packed;
@@ -124,6 +214,8 @@ struct sta_rec_state {
 	u8 rsv[1];
 } __packed;
 
+#define RA_LEGACY_OFDM GENMASK(13, 6)
+#define RA_LEGACY_CCK  GENMASK(3, 0)
 #define HT_MCS_MASK_NUM 10
 struct sta_rec_ra_info {
 	__le16 tag;
@@ -141,6 +233,198 @@ struct sta_rec_phy {
 	u8 rts_policy;
 	u8 rcpi;
 	u8 rsv[2];
+} __packed;
+
+struct sta_rec_he_6g_capa {
+	__le16 tag;
+	__le16 len;
+	__le16 capa;
+	u8 rsv[2];
+} __packed;
+
+struct sec_key {
+	u8 cipher_id;
+	u8 cipher_len;
+	u8 key_id;
+	u8 key_len;
+	u8 key[32];
+} __packed;
+
+struct sta_rec_sec {
+	__le16 tag;
+	__le16 len;
+	u8 add;
+	u8 n_cipher;
+	u8 rsv[2];
+
+	struct sec_key key[2];
+} __packed;
+
+struct sta_rec_bf {
+	__le16 tag;
+	__le16 len;
+
+	__le16 pfmu;		/* 0xffff: no access right for PFMU */
+	bool su_mu;		/* 0: SU, 1: MU */
+	u8 bf_cap;		/* 0: iBF, 1: eBF */
+	u8 sounding_phy;	/* 0: legacy, 1: OFDM, 2: HT, 4: VHT */
+	u8 ndpa_rate;
+	u8 ndp_rate;
+	u8 rept_poll_rate;
+	u8 tx_mode;		/* 0: legacy, 1: OFDM, 2: HT, 4: VHT ... */
+	u8 ncol;
+	u8 nrow;
+	u8 bw;			/* 0: 20M, 1: 40M, 2: 80M, 3: 160M */
+
+	u8 mem_total;
+	u8 mem_20m;
+	struct {
+		u8 row;
+		u8 col: 6, row_msb: 2;
+	} mem[4];
+
+	__le16 smart_ant;
+	u8 se_idx;
+	u8 auto_sounding;	/* b7: low traffic indicator
+				 * b6: Stop sounding for this entry
+				 * b5 ~ b0: postpone sounding
+				 */
+	u8 ibf_timeout;
+	u8 ibf_dbw;
+	u8 ibf_ncol;
+	u8 ibf_nrow;
+	u8 nrow_bw160;
+	u8 ncol_bw160;
+	u8 ru_start_idx;
+	u8 ru_end_idx;
+
+	bool trigger_su;
+	bool trigger_mu;
+	bool ng16_su;
+	bool ng16_mu;
+	bool codebook42_su;
+	bool codebook75_mu;
+
+	u8 he_ltf;
+	u8 rsv[3];
+} __packed;
+
+struct sta_rec_bfee {
+	__le16 tag;
+	__le16 len;
+	bool fb_identity_matrix;	/* 1: feedback identity matrix */
+	bool ignore_feedback;		/* 1: ignore */
+	u8 rsv[2];
+} __packed;
+
+struct sta_rec_muru {
+	__le16 tag;
+	__le16 len;
+
+	struct {
+		bool ofdma_dl_en;
+		bool ofdma_ul_en;
+		bool mimo_dl_en;
+		bool mimo_ul_en;
+		u8 rsv[4];
+	} cfg;
+
+	struct {
+		u8 punc_pream_rx;
+		bool he_20m_in_40m_2g;
+		bool he_20m_in_160m;
+		bool he_80m_in_160m;
+		bool lt16_sigb;
+		bool rx_su_comp_sigb;
+		bool rx_su_non_comp_sigb;
+		u8 rsv;
+	} ofdma_dl;
+
+	struct {
+		u8 t_frame_dur;
+		u8 mu_cascading;
+		u8 uo_ra;
+		u8 he_2x996_tone;
+		u8 rx_t_frame_11ac;
+		u8 rsv[3];
+	} ofdma_ul;
+
+	struct {
+		bool vht_mu_bfee;
+		bool partial_bw_dl_mimo;
+		u8 rsv[2];
+	} mimo_dl;
+
+	struct {
+		bool full_ul_mimo;
+		bool partial_ul_mimo;
+		u8 rsv[2];
+	} mimo_ul;
+} __packed;
+
+struct sta_phy {
+	u8 type;
+	u8 flag;
+	u8 stbc;
+	u8 sgi;
+	u8 bw;
+	u8 ldpc;
+	u8 mcs;
+	u8 nss;
+	u8 he_ltf;
+};
+
+struct sta_rec_ra {
+	__le16 tag;
+	__le16 len;
+
+	u8 valid;
+	u8 auto_rate;
+	u8 phy_mode;
+	u8 channel;
+	u8 bw;
+	u8 disable_cck;
+	u8 ht_mcs32;
+	u8 ht_gf;
+	u8 ht_mcs[4];
+	u8 mmps_mode;
+	u8 gband_256;
+	u8 af;
+	u8 auth_wapi_mode;
+	u8 rate_len;
+
+	u8 supp_mode;
+	u8 supp_cck_rate;
+	u8 supp_ofdm_rate;
+	__le32 supp_ht_mcs;
+	__le16 supp_vht_mcs[4];
+
+	u8 op_mode;
+	u8 op_vht_chan_width;
+	u8 op_vht_rx_nss;
+	u8 op_vht_rx_nss_type;
+
+	__le32 sta_cap;
+
+	struct sta_phy phy;
+} __packed;
+
+struct sta_rec_ra_fixed {
+	__le16 tag;
+	__le16 len;
+
+	__le32 field;
+	u8 op_mode;
+	u8 op_vht_chan_width;
+	u8 op_vht_rx_nss;
+	u8 op_vht_rx_nss_type;
+
+	struct sta_phy phy;
+
+	u8 spe_en;
+	u8 short_preamble;
+	u8 is_5g;
+	u8 mmps_mode;
 } __packed;
 
 /* wtbl_rec */
@@ -225,6 +509,7 @@ struct wtbl_ba {
 	__le16 sn;
 	u8 ba_en;
 	u8 ba_winsize_idx;
+	/* originator & recipient */
 	__le16 ba_winsize;
 	/* recipient only */
 	u8 peer_addr[ETH_ALEN];
@@ -295,12 +580,19 @@ struct wtbl_raw {
 
 #define MT76_CONNAC_STA_UPDATE_MAX_SIZE	(sizeof(struct sta_req_hdr) +	\
 					 sizeof(struct sta_rec_basic) +	\
+					 sizeof(struct sta_rec_bf) +	\
 					 sizeof(struct sta_rec_ht) +	\
 					 sizeof(struct sta_rec_he) +	\
 					 sizeof(struct sta_rec_ba) +	\
 					 sizeof(struct sta_rec_vht) +	\
 					 sizeof(struct sta_rec_uapsd) + \
 					 sizeof(struct sta_rec_amsdu) +	\
+					 sizeof(struct sta_rec_muru) +	\
+					 sizeof(struct sta_rec_bfee) +	\
+					 sizeof(struct sta_rec_ra) +	\
+					 sizeof(struct sta_rec_sec) +	\
+					 sizeof(struct sta_rec_ra_fixed) + \
+					 sizeof(struct sta_rec_he_6g_capa) + \
 					 sizeof(struct tlv) +		\
 					 MT76_CONNAC_WTBL_UPDATE_MAX_SIZE)
 
@@ -327,6 +619,7 @@ enum {
 	STA_REC_MUEDCA,
 	STA_REC_BFEE,
 	STA_REC_PHY = 0x15,
+	STA_REC_HE_6G = 0x17,
 	STA_REC_MAX_NUM
 };
 
@@ -412,13 +705,29 @@ enum {
 #define PHY_MODE_AC				BIT(5)
 #define PHY_MODE_AX_24G				BIT(6)
 #define PHY_MODE_AX_5G				BIT(7)
-#define PHY_MODE_AX_6G				BIT(8)
+
+#define PHY_MODE_AX_6G				BIT(0) /* phymode_ext */
 
 #define MODE_CCK				BIT(0)
 #define MODE_OFDM				BIT(1)
 #define MODE_HT					BIT(2)
 #define MODE_VHT				BIT(3)
 #define MODE_HE					BIT(4)
+
+#define STA_CAP_WMM				BIT(0)
+#define STA_CAP_SGI_20				BIT(4)
+#define STA_CAP_SGI_40				BIT(5)
+#define STA_CAP_TX_STBC				BIT(6)
+#define STA_CAP_RX_STBC				BIT(7)
+#define STA_CAP_VHT_SGI_80			BIT(16)
+#define STA_CAP_VHT_SGI_160			BIT(17)
+#define STA_CAP_VHT_TX_STBC			BIT(18)
+#define STA_CAP_VHT_RX_STBC			BIT(19)
+#define STA_CAP_VHT_LDPC			BIT(23)
+#define STA_CAP_LDPC				BIT(24)
+#define STA_CAP_HT				BIT(26)
+#define STA_CAP_VHT				BIT(27)
+#define STA_CAP_HE				BIT(28)
 
 enum {
 	PHY_TYPE_HR_DSSS_INDEX = 0,
@@ -478,6 +787,121 @@ enum {
 	DEV_INFO_MAX_NUM
 };
 
+/* event table */
+enum {
+	MCU_EVENT_TARGET_ADDRESS_LEN = 0x01,
+	MCU_EVENT_FW_START = 0x01,
+	MCU_EVENT_GENERIC = 0x01,
+	MCU_EVENT_ACCESS_REG = 0x02,
+	MCU_EVENT_MT_PATCH_SEM = 0x04,
+	MCU_EVENT_REG_ACCESS = 0x05,
+	MCU_EVENT_LP_INFO = 0x07,
+	MCU_EVENT_SCAN_DONE = 0x0d,
+	MCU_EVENT_TX_DONE = 0x0f,
+	MCU_EVENT_ROC = 0x10,
+	MCU_EVENT_BSS_ABSENCE  = 0x11,
+	MCU_EVENT_BSS_BEACON_LOSS = 0x13,
+	MCU_EVENT_CH_PRIVILEGE = 0x18,
+	MCU_EVENT_SCHED_SCAN_DONE = 0x23,
+	MCU_EVENT_DBG_MSG = 0x27,
+	MCU_EVENT_TXPWR = 0xd0,
+	MCU_EVENT_EXT = 0xed,
+	MCU_EVENT_RESTART_DL = 0xef,
+	MCU_EVENT_COREDUMP = 0xf0,
+};
+
+/* ext event table */
+enum {
+	MCU_EXT_EVENT_PS_SYNC = 0x5,
+	MCU_EXT_EVENT_FW_LOG_2_HOST = 0x13,
+	MCU_EXT_EVENT_THERMAL_PROTECT = 0x22,
+	MCU_EXT_EVENT_ASSERT_DUMP = 0x23,
+	MCU_EXT_EVENT_RDD_REPORT = 0x3a,
+	MCU_EXT_EVENT_CSA_NOTIFY = 0x4f,
+	MCU_EXT_EVENT_BCC_NOTIFY = 0x75,
+	MCU_EXT_EVENT_MURU_CTRL = 0x9f,
+};
+
+enum {
+	MCU_Q_QUERY,
+	MCU_Q_SET,
+	MCU_Q_RESERVED,
+	MCU_Q_NA
+};
+
+enum {
+	MCU_S2D_H2N,
+	MCU_S2D_C2N,
+	MCU_S2D_H2C,
+	MCU_S2D_H2CN
+};
+
+enum {
+	PATCH_NOT_DL_SEM_FAIL,
+	PATCH_IS_DL,
+	PATCH_NOT_DL_SEM_SUCCESS,
+	PATCH_REL_SEM_SUCCESS
+};
+
+enum {
+	FW_STATE_INITIAL,
+	FW_STATE_FW_DOWNLOAD,
+	FW_STATE_NORMAL_OPERATION,
+	FW_STATE_NORMAL_TRX,
+	FW_STATE_RDY = 7
+};
+
+enum {
+	CH_SWITCH_NORMAL = 0,
+	CH_SWITCH_SCAN = 3,
+	CH_SWITCH_MCC = 4,
+	CH_SWITCH_DFS = 5,
+	CH_SWITCH_BACKGROUND_SCAN_START = 6,
+	CH_SWITCH_BACKGROUND_SCAN_RUNNING = 7,
+	CH_SWITCH_BACKGROUND_SCAN_STOP = 8,
+	CH_SWITCH_SCAN_BYPASS_DPD = 9
+};
+
+enum {
+	THERMAL_SENSOR_TEMP_QUERY,
+	THERMAL_SENSOR_MANUAL_CTRL,
+	THERMAL_SENSOR_INFO_QUERY,
+	THERMAL_SENSOR_TASK_CTRL,
+};
+
+enum mcu_cipher_type {
+	MCU_CIPHER_NONE = 0,
+	MCU_CIPHER_WEP40,
+	MCU_CIPHER_WEP104,
+	MCU_CIPHER_WEP128,
+	MCU_CIPHER_TKIP,
+	MCU_CIPHER_AES_CCMP,
+	MCU_CIPHER_CCMP_256,
+	MCU_CIPHER_GCMP,
+	MCU_CIPHER_GCMP_256,
+	MCU_CIPHER_WAPI,
+	MCU_CIPHER_BIP_CMAC_128,
+};
+
+enum {
+	EE_MODE_EFUSE,
+	EE_MODE_BUFFER,
+};
+
+enum {
+	EE_FORMAT_BIN,
+	EE_FORMAT_WHOLE,
+	EE_FORMAT_MULTIPLE,
+};
+
+enum {
+	MCU_PHY_STATE_TX_RATE,
+	MCU_PHY_STATE_RX_RATE,
+	MCU_PHY_STATE_RSSI,
+	MCU_PHY_STATE_CONTENTION_RX_RATE,
+	MCU_PHY_STATE_OFDMLQ_CNINFO,
+};
+
 #define MCU_CMD_ACK				BIT(0)
 #define MCU_CMD_UNI				BIT(1)
 #define MCU_CMD_QUERY				BIT(2)
@@ -485,29 +909,51 @@ enum {
 #define MCU_CMD_UNI_EXT_ACK			(MCU_CMD_ACK | MCU_CMD_UNI | \
 						 MCU_CMD_QUERY)
 
-#define MCU_FW_PREFIX				BIT(31)
-#define MCU_UNI_PREFIX				BIT(30)
-#define MCU_CE_PREFIX				BIT(29)
-#define MCU_QUERY_PREFIX			BIT(28)
-#define MCU_CMD_MASK				~(MCU_FW_PREFIX | MCU_UNI_PREFIX |	\
-						  MCU_CE_PREFIX | MCU_QUERY_PREFIX)
+#define __MCU_CMD_FIELD_ID			GENMASK(7, 0)
+#define __MCU_CMD_FIELD_EXT_ID			GENMASK(15, 8)
+#define __MCU_CMD_FIELD_QUERY			BIT(16)
+#define __MCU_CMD_FIELD_UNI			BIT(17)
+#define __MCU_CMD_FIELD_CE			BIT(18)
+#define __MCU_CMD_FIELD_WA			BIT(19)
 
-#define MCU_QUERY_MASK				BIT(16)
+#define MCU_CMD(_t)				FIELD_PREP(__MCU_CMD_FIELD_ID,		\
+							   MCU_CMD_##_t)
+#define MCU_EXT_CMD(_t)				(MCU_CMD(EXT_CID) | \
+						 FIELD_PREP(__MCU_CMD_FIELD_EXT_ID,	\
+							    MCU_EXT_CMD_##_t))
+#define MCU_EXT_QUERY(_t)			(MCU_EXT_CMD(_t) | __MCU_CMD_FIELD_QUERY)
+#define MCU_UNI_CMD(_t)				(__MCU_CMD_FIELD_UNI |			\
+						 FIELD_PREP(__MCU_CMD_FIELD_ID,		\
+							    MCU_UNI_CMD_##_t))
+#define MCU_CE_CMD(_t)				(__MCU_CMD_FIELD_CE |			\
+						 FIELD_PREP(__MCU_CMD_FIELD_ID,		\
+							   MCU_CE_CMD_##_t))
+#define MCU_CE_QUERY(_t)			(MCU_CE_CMD(_t) | __MCU_CMD_FIELD_QUERY)
+
+#define MCU_WA_CMD(_t)				(MCU_CMD(_t) | __MCU_CMD_FIELD_WA)
+#define MCU_WA_EXT_CMD(_t)			(MCU_EXT_CMD(_t) | __MCU_CMD_FIELD_WA)
+#define MCU_WA_PARAM_CMD(_t)			(MCU_WA_CMD(WA_PARAM) | \
+						 FIELD_PREP(__MCU_CMD_FIELD_EXT_ID, \
+							    MCU_WA_PARAM_CMD_##_t))
 
 enum {
 	MCU_EXT_CMD_EFUSE_ACCESS = 0x01,
 	MCU_EXT_CMD_RF_REG_ACCESS = 0x02,
+	MCU_EXT_CMD_RF_TEST = 0x04,
 	MCU_EXT_CMD_PM_STATE_CTRL = 0x07,
 	MCU_EXT_CMD_CHANNEL_SWITCH = 0x08,
 	MCU_EXT_CMD_SET_TX_POWER_CTRL = 0x11,
 	MCU_EXT_CMD_FW_LOG_2_HOST = 0x13,
+	MCU_EXT_CMD_TXBF_ACTION = 0x1e,
 	MCU_EXT_CMD_EFUSE_BUFFER_MODE = 0x21,
+	MCU_EXT_CMD_THERMAL_PROT = 0x23,
 	MCU_EXT_CMD_STA_REC_UPDATE = 0x25,
 	MCU_EXT_CMD_BSS_INFO_UPDATE = 0x26,
 	MCU_EXT_CMD_EDCA_UPDATE = 0x27,
 	MCU_EXT_CMD_DEV_INFO_UPDATE = 0x2A,
-	MCU_EXT_CMD_GET_TEMP = 0x2c,
+	MCU_EXT_CMD_THERMAL_CTRL = 0x2c,
 	MCU_EXT_CMD_WTBL_UPDATE = 0x32,
+	MCU_EXT_CMD_SET_DRR_CTRL = 0x36,
 	MCU_EXT_CMD_SET_RDD_CTRL = 0x3a,
 	MCU_EXT_CMD_ATE_CTRL = 0x3d,
 	MCU_EXT_CMD_PROTECT_CTRL = 0x3e,
@@ -516,56 +962,77 @@ enum {
 	MCU_EXT_CMD_RX_HDR_TRANS = 0x47,
 	MCU_EXT_CMD_MUAR_UPDATE = 0x48,
 	MCU_EXT_CMD_BCN_OFFLOAD = 0x49,
+	MCU_EXT_CMD_RX_AIRTIME_CTRL = 0x4a,
 	MCU_EXT_CMD_SET_RX_PATH = 0x4e,
+	MCU_EXT_CMD_EFUSE_FREE_BLOCK = 0x4f,
 	MCU_EXT_CMD_TX_POWER_FEATURE_CTRL = 0x58,
 	MCU_EXT_CMD_RXDCOC_CAL = 0x59,
+	MCU_EXT_CMD_GET_MIB_INFO = 0x5a,
 	MCU_EXT_CMD_TXDPD_CAL = 0x60,
-	MCU_EXT_CMD_SET_RDD_TH = 0x7c,
+	MCU_EXT_CMD_CAL_CACHE = 0x67,
+	MCU_EXT_CMD_SET_RADAR_TH = 0x7c,
 	MCU_EXT_CMD_SET_RDD_PATTERN = 0x7d,
+	MCU_EXT_CMD_MWDS_SUPPORT = 0x80,
+	MCU_EXT_CMD_SET_SER_TRIGGER = 0x81,
+	MCU_EXT_CMD_SCS_CTRL = 0x82,
+	MCU_EXT_CMD_TWT_AGRT_UPDATE = 0x94,
+	MCU_EXT_CMD_FW_DBG_CTRL = 0x95,
+	MCU_EXT_CMD_OFFCH_SCAN_CTRL = 0x9a,
+	MCU_EXT_CMD_SET_RDD_TH = 0x9d,
+	MCU_EXT_CMD_MURU_CTRL = 0x9f,
+	MCU_EXT_CMD_SET_SPR = 0xa8,
+	MCU_EXT_CMD_GROUP_PRE_CAL_INFO = 0xab,
+	MCU_EXT_CMD_DPD_PRE_CAL_INFO = 0xac,
+	MCU_EXT_CMD_PHY_STAT_INFO = 0xad,
 };
 
 enum {
-	MCU_UNI_CMD_DEV_INFO_UPDATE = MCU_UNI_PREFIX | 0x01,
-	MCU_UNI_CMD_BSS_INFO_UPDATE = MCU_UNI_PREFIX | 0x02,
-	MCU_UNI_CMD_STA_REC_UPDATE = MCU_UNI_PREFIX | 0x03,
-	MCU_UNI_CMD_SUSPEND = MCU_UNI_PREFIX | 0x05,
-	MCU_UNI_CMD_OFFLOAD = MCU_UNI_PREFIX | 0x06,
-	MCU_UNI_CMD_HIF_CTRL = MCU_UNI_PREFIX | 0x07,
+	MCU_UNI_CMD_DEV_INFO_UPDATE = 0x01,
+	MCU_UNI_CMD_BSS_INFO_UPDATE = 0x02,
+	MCU_UNI_CMD_STA_REC_UPDATE = 0x03,
+	MCU_UNI_CMD_SUSPEND = 0x05,
+	MCU_UNI_CMD_OFFLOAD = 0x06,
+	MCU_UNI_CMD_HIF_CTRL = 0x07,
+	MCU_UNI_CMD_SNIFFER = 0x24,
 };
 
 enum {
-	MCU_CMD_TARGET_ADDRESS_LEN_REQ = MCU_FW_PREFIX | 0x01,
-	MCU_CMD_FW_START_REQ = MCU_FW_PREFIX | 0x02,
+	MCU_CMD_TARGET_ADDRESS_LEN_REQ = 0x01,
+	MCU_CMD_FW_START_REQ = 0x02,
 	MCU_CMD_INIT_ACCESS_REG = 0x3,
-	MCU_CMD_NIC_POWER_CTRL = MCU_FW_PREFIX | 0x4,
-	MCU_CMD_PATCH_START_REQ = MCU_FW_PREFIX | 0x05,
-	MCU_CMD_PATCH_FINISH_REQ = MCU_FW_PREFIX | 0x07,
-	MCU_CMD_PATCH_SEM_CONTROL = MCU_FW_PREFIX | 0x10,
+	MCU_CMD_NIC_POWER_CTRL = 0x4,
+	MCU_CMD_PATCH_START_REQ = 0x05,
+	MCU_CMD_PATCH_FINISH_REQ = 0x07,
+	MCU_CMD_PATCH_SEM_CONTROL = 0x10,
+	MCU_CMD_WA_PARAM = 0xc4,
 	MCU_CMD_EXT_CID = 0xed,
-	MCU_CMD_FW_SCATTER = MCU_FW_PREFIX | 0xee,
-	MCU_CMD_RESTART_DL_REQ = MCU_FW_PREFIX | 0xef,
+	MCU_CMD_FW_SCATTER = 0xee,
+	MCU_CMD_RESTART_DL_REQ = 0xef,
 };
 
 /* offload mcu commands */
 enum {
-	MCU_CMD_START_HW_SCAN = MCU_CE_PREFIX | 0x03,
-	MCU_CMD_SET_PS_PROFILE = MCU_CE_PREFIX | 0x05,
-	MCU_CMD_SET_CHAN_DOMAIN = MCU_CE_PREFIX | 0x0f,
-	MCU_CMD_SET_BSS_CONNECTED = MCU_CE_PREFIX | 0x16,
-	MCU_CMD_SET_BSS_ABORT = MCU_CE_PREFIX | 0x17,
-	MCU_CMD_CANCEL_HW_SCAN = MCU_CE_PREFIX | 0x1b,
-	MCU_CMD_SET_ROC = MCU_CE_PREFIX | 0x1d,
-	MCU_CMD_SET_P2P_OPPPS = MCU_CE_PREFIX | 0x33,
-	MCU_CMD_SET_RATE_TX_POWER = MCU_CE_PREFIX | 0x5d,
-	MCU_CMD_SCHED_SCAN_ENABLE = MCU_CE_PREFIX | 0x61,
-	MCU_CMD_SCHED_SCAN_REQ = MCU_CE_PREFIX | 0x62,
-	MCU_CMD_GET_NIC_CAPAB = MCU_CE_PREFIX | 0x8a,
-	MCU_CMD_REG_WRITE = MCU_CE_PREFIX | 0xc0,
-	MCU_CMD_REG_READ = MCU_CE_PREFIX | MCU_QUERY_MASK | 0xc0,
-	MCU_CMD_CHIP_CONFIG = MCU_CE_PREFIX | 0xca,
-	MCU_CMD_FWLOG_2_HOST = MCU_CE_PREFIX | 0xc5,
-	MCU_CMD_GET_WTBL = MCU_CE_PREFIX | 0xcd,
-	MCU_CMD_GET_TXPWR = MCU_CE_PREFIX | 0xd0,
+	MCU_CE_CMD_TEST_CTRL = 0x01,
+	MCU_CE_CMD_START_HW_SCAN = 0x03,
+	MCU_CE_CMD_SET_PS_PROFILE = 0x05,
+	MCU_CE_CMD_SET_CHAN_DOMAIN = 0x0f,
+	MCU_CE_CMD_SET_BSS_CONNECTED = 0x16,
+	MCU_CE_CMD_SET_BSS_ABORT = 0x17,
+	MCU_CE_CMD_CANCEL_HW_SCAN = 0x1b,
+	MCU_CE_CMD_SET_ROC = 0x1c,
+	MCU_CE_CMD_SET_EDCA_PARMS = 0x1d,
+	MCU_CE_CMD_SET_P2P_OPPPS = 0x33,
+	MCU_CE_CMD_SET_RATE_TX_POWER = 0x5d,
+	MCU_CE_CMD_SCHED_SCAN_ENABLE = 0x61,
+	MCU_CE_CMD_SCHED_SCAN_REQ = 0x62,
+	MCU_CE_CMD_GET_NIC_CAPAB = 0x8a,
+	MCU_CE_CMD_SET_MU_EDCA_PARMS = 0xb0,
+	MCU_CE_CMD_REG_WRITE = 0xc0,
+	MCU_CE_CMD_REG_READ = 0xc0,
+	MCU_CE_CMD_CHIP_CONFIG = 0xca,
+	MCU_CE_CMD_FWLOG_2_HOST = 0xc5,
+	MCU_CE_CMD_GET_WTBL = 0xcd,
+	MCU_CE_CMD_GET_TXPWR = 0xd0,
 };
 
 enum {
@@ -656,10 +1123,14 @@ struct mt76_connac_bss_basic_tlv {
 		     * bit(3): GN
 		     * bit(4): AN
 		     * bit(5): AC
+		     * bit(6): AX2
+		     * bit(7): AX5
+		     * bit(8): AX6
 		     */
 	__le16 sta_idx;
-	u8 nonht_basic_phy;
-	u8 pad[3];
+	__le16 nonht_basic_phy;
+	u8 phymode_ext; /* bit(0) AX_6G */
+	u8 pad[1];
 } __packed;
 
 struct mt76_connac_bss_qos_tlv {
@@ -802,7 +1273,9 @@ struct mt76_connac_sched_scan_req {
 		} mt7663;
 		struct {
 			u8 bss_idx;
-			u8 pad2[19];
+			u8 pad1[3];
+			__le32 delay;
+			u8 pad2[12];
 			u8 random_mac[ETH_ALEN];
 			u8 pad3[38];
 		} mt7921;
@@ -844,14 +1317,14 @@ struct mt76_connac_gtk_rekey_tlv {
 			* 2: rekey update
 			*/
 	u8 keyid;
-	u8 pad[2];
+	u8 option; /* 1: rekey data update without enabling offload */
+	u8 pad[1];
 	__le32 proto; /* WPA-RSN-WAPI-OPSN */
 	__le32 pairwise_cipher;
 	__le32 group_cipher;
 	__le32 key_mgmt; /* NONE-PSK-IEEE802.1X */
 	__le32 mgmt_group_cipher;
-	u8 option; /* 1: rekey data update without enabling offload */
-	u8 reserverd[3];
+	u8 reserverd[4];
 } __packed;
 
 #define MT76_CONNAC_WOW_MASK_MAX_LEN			16
@@ -961,7 +1434,7 @@ struct mt76_connac_tx_power_limit_tlv {
 	__le16 len;
 	/* DW1 - cmd hint */
 	u8 n_chan; /* # channel */
-	u8 band; /* 2.4GHz - 5GHz */
+	u8 band; /* 2.4GHz - 5GHz - 6GHz */
 	u8 last_msg;
 	u8 pad1;
 	/* DW3 */
@@ -978,6 +1451,51 @@ struct mt76_connac_config {
 	u8 data[320];
 } __packed;
 
+static inline enum mcu_cipher_type
+mt76_connac_mcu_get_cipher(int cipher)
+{
+	switch (cipher) {
+	case WLAN_CIPHER_SUITE_WEP40:
+		return MCU_CIPHER_WEP40;
+	case WLAN_CIPHER_SUITE_WEP104:
+		return MCU_CIPHER_WEP104;
+	case WLAN_CIPHER_SUITE_TKIP:
+		return MCU_CIPHER_TKIP;
+	case WLAN_CIPHER_SUITE_AES_CMAC:
+		return MCU_CIPHER_BIP_CMAC_128;
+	case WLAN_CIPHER_SUITE_CCMP:
+		return MCU_CIPHER_AES_CCMP;
+	case WLAN_CIPHER_SUITE_CCMP_256:
+		return MCU_CIPHER_CCMP_256;
+	case WLAN_CIPHER_SUITE_GCMP:
+		return MCU_CIPHER_GCMP;
+	case WLAN_CIPHER_SUITE_GCMP_256:
+		return MCU_CIPHER_GCMP_256;
+	case WLAN_CIPHER_SUITE_SMS4:
+		return MCU_CIPHER_WAPI;
+	default:
+		return MCU_CIPHER_NONE;
+	}
+}
+
+static inline u32
+mt76_connac_mcu_gen_dl_mode(struct mt76_dev *dev, u8 feature_set, bool is_wa)
+{
+	u32 ret = 0;
+
+	ret |= feature_set & FW_FEATURE_SET_ENCRYPT ?
+	       DL_MODE_ENCRYPT | DL_MODE_RESET_SEC_IV : 0;
+	if (is_mt7921(dev))
+		ret |= feature_set & FW_FEATURE_ENCRY_MODE ?
+		       DL_CONFIG_ENCRY_MODE_SEL : 0;
+	ret |= FIELD_PREP(DL_MODE_KEY_IDX,
+			  FIELD_GET(FW_FEATURE_SET_KEY_IDX, feature_set));
+	ret |= DL_MODE_NEED_RSP;
+	ret |= is_wa ? DL_MODE_WORKING_PDA_CR4 : 0;
+
+	return ret;
+}
+
 #define to_wcid_lo(id)		FIELD_GET(GENMASK(7, 0), (u16)id)
 #define to_wcid_hi(id)		FIELD_GET(GENMASK(9, 8), (u16)id)
 
@@ -987,7 +1505,7 @@ mt76_connac_mcu_get_wlan_idx(struct mt76_dev *dev, struct mt76_wcid *wcid,
 {
 	*wlan_idx_hi = 0;
 
-	if (is_mt7921(dev)) {
+	if (!is_connac_v1(dev)) {
 		*wlan_idx_lo = wcid ? to_wcid_lo(wcid->idx) : 0;
 		*wlan_idx_hi = wcid ? to_wcid_hi(wcid->idx) : 0;
 	} else {
@@ -996,8 +1514,16 @@ mt76_connac_mcu_get_wlan_idx(struct mt76_dev *dev, struct mt76_wcid *wcid,
 }
 
 struct sk_buff *
+__mt76_connac_mcu_alloc_sta_req(struct mt76_dev *dev, struct mt76_vif *mvif,
+				struct mt76_wcid *wcid, int len);
+static inline struct sk_buff *
 mt76_connac_mcu_alloc_sta_req(struct mt76_dev *dev, struct mt76_vif *mvif,
-			      struct mt76_wcid *wcid);
+			      struct mt76_wcid *wcid)
+{
+	return __mt76_connac_mcu_alloc_sta_req(dev, mvif, wcid,
+					       MT76_CONNAC_STA_UPDATE_MAX_SIZE);
+}
+
 struct wtbl_req_hdr *
 mt76_connac_mcu_alloc_wtbl_req(struct mt76_dev *dev, struct mt76_wcid *wcid,
 			       int cmd, void *sta_wtbl, struct sk_buff **skb);
@@ -1027,13 +1553,16 @@ void mt76_connac_mcu_wtbl_hdr_trans_tlv(struct sk_buff *skb,
 int mt76_connac_mcu_sta_update_hdr_trans(struct mt76_dev *dev,
 					 struct ieee80211_vif *vif,
 					 struct mt76_wcid *wcid, int cmd);
+int mt76_connac_mcu_wtbl_update_hdr_trans(struct mt76_dev *dev,
+					  struct ieee80211_vif *vif,
+					  struct ieee80211_sta *sta);
 void mt76_connac_mcu_sta_tlv(struct mt76_phy *mphy, struct sk_buff *skb,
 			     struct ieee80211_sta *sta,
 			     struct ieee80211_vif *vif,
 			     u8 rcpi, u8 state);
 void mt76_connac_mcu_wtbl_ht_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				 struct ieee80211_sta *sta, void *sta_wtbl,
-				 void *wtbl_tlv);
+				 void *wtbl_tlv, bool ht_ldpc, bool vht_ldpc);
 void mt76_connac_mcu_wtbl_ba_tlv(struct mt76_dev *dev, struct sk_buff *skb,
 				 struct ieee80211_ampdu_params *params,
 				 bool enable, bool tx, void *sta_wtbl,
@@ -1047,7 +1576,7 @@ int mt76_connac_mcu_uni_add_dev(struct mt76_phy *phy,
 				bool enable);
 int mt76_connac_mcu_sta_ba(struct mt76_dev *dev, struct mt76_vif *mvif,
 			   struct ieee80211_ampdu_params *params,
-			   bool enable, bool tx);
+			   int cmd, bool enable, bool tx);
 int mt76_connac_mcu_uni_add_bss(struct mt76_phy *phy,
 				struct ieee80211_vif *vif,
 				struct mt76_wcid *wcid,
@@ -1093,4 +1622,36 @@ int mt76_connac_mcu_set_deep_sleep(struct mt76_dev *dev, bool enable);
 void mt76_connac_mcu_coredump_event(struct mt76_dev *dev, struct sk_buff *skb,
 				    struct mt76_connac_coredump *coredump);
 int mt76_connac_mcu_set_rate_txpower(struct mt76_phy *phy);
+int mt76_connac_mcu_set_p2p_oppps(struct ieee80211_hw *hw,
+				  struct ieee80211_vif *vif);
+u32 mt76_connac_mcu_reg_rr(struct mt76_dev *dev, u32 offset);
+void mt76_connac_mcu_reg_wr(struct mt76_dev *dev, u32 offset, u32 val);
+
+const struct ieee80211_sta_he_cap *
+mt76_connac_get_he_phy_cap(struct mt76_phy *phy, struct ieee80211_vif *vif);
+u8 mt76_connac_get_phy_mode(struct mt76_phy *phy, struct ieee80211_vif *vif,
+			    enum nl80211_band band, struct ieee80211_sta *sta);
+
+int mt76_connac_mcu_add_key(struct mt76_dev *dev, struct ieee80211_vif *vif,
+			    struct mt76_connac_sta_key_conf *sta_key_conf,
+			    struct ieee80211_key_conf *key, int mcu_cmd,
+			    struct mt76_wcid *wcid, enum set_key_cmd cmd);
+
+void mt76_connac_mcu_bss_ext_tlv(struct sk_buff *skb, struct mt76_vif *mvif);
+void mt76_connac_mcu_bss_omac_tlv(struct sk_buff *skb,
+				  struct ieee80211_vif *vif);
+int mt76_connac_mcu_bss_basic_tlv(struct sk_buff *skb,
+				  struct ieee80211_vif *vif,
+				  struct ieee80211_sta *sta,
+				  struct mt76_phy *phy, u16 wlan_idx,
+				  bool enable);
+void mt76_connac_mcu_sta_uapsd(struct sk_buff *skb, struct ieee80211_vif *vif,
+			       struct ieee80211_sta *sta);
+void mt76_connac_mcu_wtbl_smps_tlv(struct sk_buff *skb,
+				   struct ieee80211_sta *sta,
+				   void *sta_wtbl, void *wtbl_tlv);
+int mt76_connac_mcu_set_pm(struct mt76_dev *dev, int band, int enter);
+int mt76_connac_mcu_restart(struct mt76_dev *dev);
+int mt76_connac_mcu_rdd_cmd(struct mt76_dev *dev, int cmd, u8 index,
+			    u8 rx_sel, u8 val);
 #endif /* __MT76_CONNAC_MCU_H */

@@ -28,7 +28,7 @@
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/slab.h>
-#include <linux/mem_encrypt.h>
+#include <linux/cc_platform.h>
 
 #include <asm/hypervisor.h>
 #include <drm/drm_ioctl.h>
@@ -160,7 +160,7 @@ static unsigned long vmw_port_hb_out(struct rpc_channel *channel,
 	unsigned long msg_len = strlen(msg);
 
 	/* HB port can't access encrypted memory. */
-	if (hb && !mem_encrypt_active()) {
+	if (hb && !cc_platform_has(CC_ATTR_MEM_ENCRYPT)) {
 		unsigned long bp = channel->cookie_high;
 		u32 channel_id = (channel->channel_id << 16);
 
@@ -216,7 +216,7 @@ static unsigned long vmw_port_hb_in(struct rpc_channel *channel, char *reply,
 	unsigned long si, di, eax, ebx, ecx, edx;
 
 	/* HB port can't access encrypted memory */
-	if (hb && !mem_encrypt_active()) {
+	if (hb && !cc_platform_has(CC_ATTR_MEM_ENCRYPT)) {
 		unsigned long bp = channel->cookie_low;
 		u32 channel_id = (channel->channel_id << 16);
 

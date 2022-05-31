@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2012-2014, 2018-2019 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2019, 2021 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -27,6 +27,10 @@ enum iwl_mac_conf_subcmd_ids {
 	 * @SESSION_PROTECTION_CMD: &struct iwl_mvm_session_prot_cmd
 	 */
 	SESSION_PROTECTION_CMD = 0x5,
+	/**
+	 * @CANCEL_CHANNEL_SWITCH_CMD: &struct iwl_cancel_channel_switch_cmd
+	 */
+	CANCEL_CHANNEL_SWITCH_CMD = 0x6,
 
 	/**
 	 * @SESSION_PROTECTION_NOTIF: &struct iwl_mvm_session_prot_notif
@@ -39,9 +43,14 @@ enum iwl_mac_conf_subcmd_ids {
 	PROBE_RESPONSE_DATA_NOTIF = 0xFC,
 
 	/**
-	 * @CHANNEL_SWITCH_NOA_NOTIF: &struct iwl_channel_switch_noa_notif
+	 * @CHANNEL_SWITCH_START_NOTIF: &struct iwl_channel_switch_start_notif
 	 */
-	CHANNEL_SWITCH_NOA_NOTIF = 0xFF,
+	CHANNEL_SWITCH_START_NOTIF = 0xFF,
+
+	/**
+	 *@CHANNEL_SWITCH_ERROR_NOTIF: &struct iwl_channel_switch_error_notif
+	 */
+	CHANNEL_SWITCH_ERROR_NOTIF = 0xF9,
 };
 
 #define IWL_P2P_NOA_DESC_COUNT	(2)
@@ -102,13 +111,38 @@ struct iwl_missed_vap_notif {
 } __packed; /* MISSED_VAP_NTFY_API_S_VER_1 */
 
 /**
- * struct iwl_channel_switch_noa_notif - Channel switch NOA notification
+ * struct iwl_channel_switch_start_notif - Channel switch start notification
  *
  * @id_and_color: ID and color of the MAC
  */
-struct iwl_channel_switch_noa_notif {
+struct iwl_channel_switch_start_notif {
 	__le32 id_and_color;
 } __packed; /* CHANNEL_SWITCH_START_NTFY_API_S_VER_1 */
+
+#define CS_ERR_COUNT_ERROR BIT(0)
+#define CS_ERR_LONG_DELAY_AFTER_CS BIT(1)
+#define CS_ERR_LONG_TX_BLOCK BIT(2)
+#define CS_ERR_TX_BLOCK_TIMER_EXPIRED BIT(3)
+
+/**
+ * struct iwl_channel_switch_error_notif - Channel switch error notification
+ *
+ * @mac_id: the mac for which the ucode sends the notification for
+ * @csa_err_mask: mask of channel switch error that can occur
+ */
+struct iwl_channel_switch_error_notif {
+	__le32 mac_id;
+	__le32 csa_err_mask;
+} __packed; /* CHANNEL_SWITCH_ERROR_NTFY_API_S_VER_1 */
+
+/**
+ * struct iwl_cancel_channel_switch_cmd - Cancel Channel Switch command
+ *
+ * @mac_id: the mac that should cancel the channel switch
+ */
+struct iwl_cancel_channel_switch_cmd {
+	__le32 mac_id;
+} __packed; /* MAC_CANCEL_CHANNEL_SWITCH_S_VER_1 */
 
 /**
  * struct iwl_chan_switch_te_cmd - Channel Switch Time Event command

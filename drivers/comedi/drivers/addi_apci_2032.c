@@ -16,8 +16,8 @@
 #include <linux/module.h>
 #include <linux/interrupt.h>
 #include <linux/slab.h>
+#include <linux/comedi/comedi_pci.h>
 
-#include "../comedi_pci.h"
 #include "addi_watchdog.h"
 
 /*

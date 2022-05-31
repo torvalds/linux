@@ -56,8 +56,6 @@ struct rcu_node {
 				/*  Initialized from ->qsmaskinitnext at the */
 				/*  beginning of each grace period. */
 	unsigned long qsmaskinitnext;
-	unsigned long ofl_seq;	/* CPU-hotplug operation sequence count. */
-				/* Online CPUs for next grace period. */
 	unsigned long expmask;	/* CPUs or groups that need to check in */
 				/*  to allow the current expedited GP */
 				/*  to complete. */
@@ -110,6 +108,9 @@ struct rcu_node {
 				/*  side effect, not as a lock. */
 	unsigned long boost_time;
 				/* When to start boosting (jiffies). */
+	struct mutex boost_kthread_mutex;
+				/* Exclusion for thread spawning and affinity */
+				/*  manipulation. */
 	struct task_struct *boost_kthread_task;
 				/* kthread that takes care of priority */
 				/*  boosting for this rcu_node structure. */
@@ -157,7 +158,6 @@ struct rcu_data {
 	bool		core_needs_qs;	/* Core waits for quiescent state. */
 	bool		beenonline;	/* CPU online at least once. */
 	bool		gpwrap;		/* Possible ->gp_seq wrap. */
-	bool		exp_deferred_qs; /* This CPU awaiting a deferred QS? */
 	bool		cpu_started;	/* RCU watching this onlining CPU. */
 	struct rcu_node *mynode;	/* This CPU's leaf of hierarchy */
 	unsigned long grpmask;		/* Mask to apply to leaf qsmask. */
@@ -189,13 +189,9 @@ struct rcu_data {
 	bool rcu_urgent_qs;		/* GP old need light quiescent state. */
 	bool rcu_forced_tick;		/* Forced tick to provide QS. */
 	bool rcu_forced_tick_exp;	/*   ... provide QS to expedited GP. */
-#ifdef CONFIG_RCU_FAST_NO_HZ
-	unsigned long last_accelerate;	/* Last jiffy CBs were accelerated. */
-	unsigned long last_advance_all;	/* Last jiffy CBs were all advanced. */
-	int tick_nohz_enabled_snap;	/* Previously seen value from sysfs. */
-#endif /* #ifdef CONFIG_RCU_FAST_NO_HZ */
 
 	/* 4) rcu_barrier(), OOM callbacks, and expediting. */
+	unsigned long barrier_seq_snap;	/* Snap of rcu_state.barrier_sequence. */
 	struct rcu_head barrier_head;
 	int exp_dynticks_snap;		/* Double-check need for IPI. */
 
@@ -209,6 +205,8 @@ struct rcu_data {
 	int nocb_defer_wakeup;		/* Defer wakeup of nocb_kthread. */
 	struct timer_list nocb_timer;	/* Enforce finite deferral. */
 	unsigned long nocb_gp_adv_time;	/* Last call_rcu() CB adv (jiffies). */
+	struct mutex nocb_gp_kthread_mutex; /* Exclusion for nocb gp kthread */
+					    /* spawning */
 
 	/* The following fields are used by call_rcu, hence own cacheline. */
 	raw_spinlock_t nocb_bypass_lock ____cacheline_internodealigned_in_smp;
@@ -227,8 +225,11 @@ struct rcu_data {
 	struct swait_queue_head nocb_gp_wq; /* For nocb kthreads to sleep on. */
 	bool nocb_cb_sleep;		/* Is the nocb CB thread asleep? */
 	struct task_struct *nocb_cb_kthread;
-	struct rcu_data *nocb_next_cb_rdp;
-					/* Next rcu_data in wakeup chain. */
+	struct list_head nocb_head_rdp; /*
+					 * Head of rcu_data list in wakeup chain,
+					 * if rdp_gp.
+					 */
+	struct list_head nocb_entry_rdp; /* rcu_data node in wakeup chain. */
 
 	/* The following fields are used by CB kthread, hence new cacheline. */
 	struct rcu_data *nocb_gp_rdp ____cacheline_internodealigned_in_smp;
@@ -240,6 +241,7 @@ struct rcu_data {
 					/* rcuc per-CPU kthread or NULL. */
 	unsigned int rcu_cpu_kthread_status;
 	char rcu_cpu_has_work;
+	unsigned long rcuc_activity;
 
 	/* 7) Diagnostic data, including RCU CPU stall warnings. */
 	unsigned int softirq_snap;	/* Snapshot of softirq activity. */
@@ -305,9 +307,8 @@ struct rcu_state {
 
 	/* The following fields are guarded by the root rcu_node's lock. */
 
-	u8	boost ____cacheline_internodealigned_in_smp;
-						/* Subject to priority boost. */
-	unsigned long gp_seq;			/* Grace-period sequence #. */
+	unsigned long gp_seq ____cacheline_internodealigned_in_smp;
+						/* Grace-period sequence #. */
 	unsigned long gp_max;			/* Maximum GP duration in */
 						/*  jiffies. */
 	struct task_struct *gp_kthread;		/* Task for grace periods. */
@@ -325,6 +326,8 @@ struct rcu_state {
 	unsigned long barrier_sequence;		/* ++ at start and end of */
 						/*  rcu_barrier(). */
 	/* End of fields guarded by barrier_mutex. */
+
+	raw_spinlock_t barrier_lock;		/* Protects ->barrier_seq_snap. */
 
 	struct mutex exp_mutex;			/* Serialize expedited GP. */
 	struct mutex exp_wake_mutex;		/* Serialize wakeup. */
@@ -358,7 +361,7 @@ struct rcu_state {
 	const char *name;			/* Name of structure. */
 	char abbr;				/* Abbreviated name. */
 
-	raw_spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
+	arch_spinlock_t ofl_lock ____cacheline_internodealigned_in_smp;
 						/* Synchronize offline with */
 						/*  GP pre-initialization. */
 };
@@ -419,8 +422,6 @@ static bool rcu_is_callbacks_kthread(void);
 static void rcu_cpu_kthread_setup(unsigned int cpu);
 static void rcu_spawn_one_boost_kthread(struct rcu_node *rnp);
 static void __init rcu_spawn_boost_kthreads(void);
-static void rcu_cleanup_after_idle(void);
-static void rcu_prepare_for_idle(void);
 static bool rcu_preempt_has_tasks(struct rcu_node *rnp);
 static bool rcu_preempt_need_deferred_qs(struct task_struct *t);
 static void rcu_preempt_deferred_qs(struct task_struct *t);
@@ -447,12 +448,16 @@ static void rcu_nocb_unlock_irqrestore(struct rcu_data *rdp,
 static void rcu_lockdep_assert_cblist_protected(struct rcu_data *rdp);
 #ifdef CONFIG_RCU_NOCB_CPU
 static void __init rcu_organize_nocb_kthreads(void);
-#define rcu_nocb_lock_irqsave(rdp, flags)				\
-do {									\
-	if (!rcu_segcblist_is_offloaded(&(rdp)->cblist))		\
-		local_irq_save(flags);					\
-	else								\
-		raw_spin_lock_irqsave(&(rdp)->nocb_lock, (flags));	\
+
+/*
+ * Disable IRQs before checking offloaded state so that local
+ * locking is safe against concurrent de-offloading.
+ */
+#define rcu_nocb_lock_irqsave(rdp, flags)			\
+do {								\
+	local_irq_save(flags);					\
+	if (rcu_segcblist_is_offloaded(&(rdp)->cblist))	\
+		raw_spin_lock(&(rdp)->nocb_lock);		\
 } while (0)
 #else /* #ifdef CONFIG_RCU_NOCB_CPU */
 #define rcu_nocb_lock_irqsave(rdp, flags) local_irq_save(flags)

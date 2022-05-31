@@ -600,8 +600,8 @@ static int ti_ads7950_probe(struct spi_device *spi)
 
 	st->reg = devm_regulator_get(&spi->dev, "vref");
 	if (IS_ERR(st->reg)) {
-		dev_err(&spi->dev, "Failed to get regulator \"vref\"\n");
-		ret = PTR_ERR(st->reg);
+		ret = dev_err_probe(&spi->dev, PTR_ERR(st->reg),
+				     "Failed to get regulator \"vref\"\n");
 		goto error_destroy_mutex;
 	}
 
@@ -662,7 +662,7 @@ error_destroy_mutex:
 	return ret;
 }
 
-static int ti_ads7950_remove(struct spi_device *spi)
+static void ti_ads7950_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ti_ads7950_state *st = iio_priv(indio_dev);
@@ -672,8 +672,6 @@ static int ti_ads7950_remove(struct spi_device *spi)
 	iio_triggered_buffer_cleanup(indio_dev);
 	regulator_disable(st->reg);
 	mutex_destroy(&st->slock);
-
-	return 0;
 }
 
 static const struct spi_device_id ti_ads7950_id[] = {

@@ -76,23 +76,23 @@ ip netns exec $ns2 ip route add 10.96.0.1 via 192.168.1.1
 sleep 1
 
 # add a persistent connection from the other namespace
-ip netns exec $ns2 nc -q 10 -w 10 192.168.1.1 5201 > /dev/null &
+ip netns exec $ns2 socat -t 10 - TCP:192.168.1.1:5201 > /dev/null &
 
 sleep 1
 
 # ip daddr:dport will be rewritten to 192.168.1.1 5201
 # NAT must reallocate source port 10000 because
 # 192.168.1.2:10000 -> 192.168.1.1:5201 is already in use
-echo test | ip netns exec $ns2 nc -w 3 -q 3 10.96.0.1 443 >/dev/null
+echo test | ip netns exec $ns2 socat -t 3 -u STDIN TCP:10.96.0.1:443 >/dev/null
 ret=$?
 
 kill $iperfs
 
-# Check nc can connect to 10.96.0.1:443 (aka 192.168.1.1:5201).
+# Check socat can connect to 10.96.0.1:443 (aka 192.168.1.1:5201).
 if [ $ret -eq 0 ]; then
-	echo "PASS: nc can connect via NAT'd address"
+	echo "PASS: socat can connect via NAT'd address"
 else
-	echo "FAIL: nc cannot connect via NAT'd address"
+	echo "FAIL: socat cannot connect via NAT'd address"
 	exit 1
 fi
 

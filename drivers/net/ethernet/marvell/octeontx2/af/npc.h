@@ -8,6 +8,8 @@
 #ifndef NPC_H
 #define NPC_H
 
+#define NPC_KEX_CHAN_MASK	0xFFFULL
+
 enum NPC_LID_E {
 	NPC_LID_LA = 0,
 	NPC_LID_LB,
@@ -25,15 +27,12 @@ enum npc_kpu_la_ltype {
 	NPC_LT_LA_8023 = 1,
 	NPC_LT_LA_ETHER,
 	NPC_LT_LA_IH_NIX_ETHER,
-	NPC_LT_LA_IH_8_ETHER,
-	NPC_LT_LA_IH_4_ETHER,
-	NPC_LT_LA_IH_2_ETHER,
-	NPC_LT_LA_HIGIG2_ETHER,
+	NPC_LT_LA_HIGIG2_ETHER = 7,
 	NPC_LT_LA_IH_NIX_HIGIG2_ETHER,
 	NPC_LT_LA_CUSTOM_L2_90B_ETHER,
-	NPC_LT_LA_CH_LEN_90B_ETHER,
 	NPC_LT_LA_CPT_HDR,
 	NPC_LT_LA_CUSTOM_L2_24B_ETHER,
+	NPC_LT_LA_CUSTOM_PRE_L2_ETHER,
 	NPC_LT_LA_CUSTOM0 = 0xE,
 	NPC_LT_LA_CUSTOM1 = 0xF,
 };
@@ -148,10 +147,11 @@ enum npc_kpu_lh_ltype {
  * Software assigns pkind for each incoming port such as CGX
  * Ethernet interfaces, LBK interfaces, etc.
  */
-#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_VLAN_EXDSA_PKIND
+#define NPC_UNRESERVED_PKIND_COUNT NPC_RX_CUSTOM_PRE_L2_PKIND
 
 enum npc_pkind_type {
 	NPC_RX_LBK_PKIND = 0ULL,
+	NPC_RX_CUSTOM_PRE_L2_PKIND = 55ULL,
 	NPC_RX_VLAN_EXDSA_PKIND = 56ULL,
 	NPC_RX_CHLEN24B_PKIND = 57ULL,
 	NPC_RX_CPT_HDR_PKIND,
@@ -160,6 +160,10 @@ enum npc_pkind_type {
 	NPC_RX_HIGIG_PKIND,
 	NPC_RX_EDSA_PKIND,
 	NPC_TX_DEF_PKIND,	/* NIX-TX PKIND */
+};
+
+enum npc_interface_type {
+	NPC_INTF_MODE_DEF,
 };
 
 /* list of known and supported fields in packet header and
@@ -451,7 +455,7 @@ struct npc_coalesced_kpu_prfl {
 	u8 name[NPC_NAME_LEN]; /* KPU Profile name */
 	u64 version; /* KPU firmware/profile version */
 	u8 num_prfl; /* No of NPC profiles. */
-	u16 prfl_sz[0];
+	u16 prfl_sz[];
 };
 
 struct npc_mcam_kex {
@@ -478,7 +482,7 @@ struct npc_kpu_fwdata {
 	 * struct npc_kpu_profile_cam[entries];
 	 * struct npc_kpu_profile_action[entries];
 	 */
-	u8	data[0];
+	u8	data[];
 } __packed;
 
 struct npc_lt_def {
@@ -549,7 +553,7 @@ struct npc_kpu_profile_fwdata {
 #define KPU_SIGN	0x00666f727075706b
 #define KPU_NAME_LEN	32
 /** Maximum number of custom KPU entries supported by the built-in profile. */
-#define KPU_MAX_CST_ENT	2
+#define KPU_MAX_CST_ENT	6
 	/* KPU Profle Header */
 	__le64	signature; /* "kpuprof\0" (8 bytes/ASCII characters) */
 	u8	name[KPU_NAME_LEN]; /* KPU Profile name */
@@ -568,7 +572,7 @@ struct npc_kpu_profile_fwdata {
 	 *  Custom KPU CAM and ACTION configuration entries.
 	 * struct npc_kpu_fwdata kpu[kpus];
 	 */
-	u8	data[0];
+	u8	data[];
 } __packed;
 
 struct rvu_npc_mcam_rule {
@@ -589,6 +593,8 @@ struct rvu_npc_mcam_rule {
 	u8 default_rule;
 	bool enable;
 	bool vfvlan_cfg;
+	u16 chan;
+	u16 chan_mask;
 };
 
 #endif /* NPC_H */

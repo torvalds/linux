@@ -7,6 +7,12 @@
 #define ocelot_to_felix(o)		container_of((o), struct felix, ocelot)
 #define FELIX_MAC_QUIRKS		OCELOT_QUIRK_PCS_PERFORMS_RATE_ADAPTATION
 
+#define OCELOT_PORT_MODE_INTERNAL	BIT(0)
+#define OCELOT_PORT_MODE_SGMII		BIT(1)
+#define OCELOT_PORT_MODE_QSGMII		BIT(2)
+#define OCELOT_PORT_MODE_2500BASEX	BIT(3)
+#define OCELOT_PORT_MODE_USXGMII	BIT(4)
+
 /* Platform-specific information */
 struct felix_info {
 	const struct resource		*target_io_res;
@@ -15,14 +21,17 @@ struct felix_info {
 	const struct reg_field		*regfields;
 	const u32 *const		*map;
 	const struct ocelot_ops		*ops;
+	const u32			*port_modes;
 	int				num_mact_rows;
 	const struct ocelot_stat_layout	*stats_layout;
 	unsigned int			num_stats;
 	int				num_ports;
 	int				num_tx_queues;
 	struct vcap_props		*vcap;
-	int				switch_pci_bar;
-	int				imdio_pci_bar;
+	u16				vcap_pol_base;
+	u16				vcap_pol_max;
+	u16				vcap_pol_base2;
+	u16				vcap_pol_max2;
 	const struct ptp_clock_info	*ptp_caps;
 
 	/* Some Ocelot switches are integrated into the SoC without the
@@ -42,12 +51,12 @@ struct felix_info {
 	void	(*phylink_validate)(struct ocelot *ocelot, int port,
 				    unsigned long *supported,
 				    struct phylink_link_state *state);
-	int	(*prevalidate_phy_mode)(struct ocelot *ocelot, int port,
-					phy_interface_t phy_mode);
 	int	(*port_setup_tc)(struct dsa_switch *ds, int port,
 				 enum tc_setup_type type, void *type_data);
 	void	(*port_sched_speed_set)(struct ocelot *ocelot, int port,
 					u32 speed);
+	struct regmap *(*init_regmap)(struct ocelot *ocelot,
+				      struct resource *res);
 };
 
 extern const struct dsa_switch_ops felix_switch_ops;
@@ -58,7 +67,7 @@ struct felix {
 	const struct felix_info		*info;
 	struct ocelot			ocelot;
 	struct mii_bus			*imdio;
-	struct lynx_pcs			**pcs;
+	struct phylink_pcs		**pcs;
 	resource_size_t			switch_base;
 	resource_size_t			imdio_base;
 	enum dsa_tag_protocol		tag_proto;

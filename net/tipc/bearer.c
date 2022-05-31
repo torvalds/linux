@@ -352,15 +352,17 @@ static int tipc_enable_bearer(struct net *net, const char *name,
 		goto rejected;
 	}
 
+	/* Create monitoring data before accepting activate messages */
+	if (tipc_mon_create(net, bearer_id)) {
+		bearer_disable(net, b);
+		kfree_skb(skb);
+		return -ENOMEM;
+	}
+
 	test_and_set_bit_lock(0, &b->up);
 	rcu_assign_pointer(tn->bearer_list[bearer_id], b);
 	if (skb)
 		tipc_bearer_xmit_skb(net, bearer_id, skb, &b->bcast_addr);
-
-	if (tipc_mon_create(net, bearer_id)) {
-		bearer_disable(net, b);
-		return -ENOMEM;
-	}
 
 	pr_info("Enabled bearer <%s>, priority %u\n", name, prio);
 
@@ -462,7 +464,7 @@ int tipc_enable_l2_media(struct net *net, struct tipc_bearer *b,
 	b->bcast_addr.media_id = b->media->type_id;
 	b->bcast_addr.broadcast = TIPC_BROADCAST_SUPPORT;
 	b->mtu = dev->mtu;
-	b->media->raw2addr(b, &b->addr, (char *)dev->dev_addr);
+	b->media->raw2addr(b, &b->addr, (const char *)dev->dev_addr);
 	rcu_assign_pointer(dev->tipc_ptr, b);
 	return 0;
 }
@@ -703,7 +705,7 @@ static int tipc_l2_device_event(struct notifier_block *nb, unsigned long evt,
 		break;
 	case NETDEV_CHANGEADDR:
 		b->media->raw2addr(b, &b->addr,
-				   (char *)dev->dev_addr);
+				   (const char *)dev->dev_addr);
 		tipc_reset_bearer(net, b);
 		break;
 	case NETDEV_UNREGISTER:
@@ -768,7 +770,7 @@ void tipc_clone_to_loopback(struct net *net, struct sk_buff_head *pkts)
 		skb->pkt_type = PACKET_HOST;
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
 		skb->protocol = eth_type_trans(skb, dev);
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 
@@ -787,7 +789,7 @@ int tipc_attach_loopback(struct net *net)
 	if (!dev)
 		return -ENODEV;
 
-	dev_hold(dev);
+	dev_hold_track(dev, &tn->loopback_pt.dev_tracker, GFP_KERNEL);
 	tn->loopback_pt.dev = dev;
 	tn->loopback_pt.type = htons(ETH_P_TIPC);
 	tn->loopback_pt.func = tipc_loopback_rcv_pkt;
@@ -800,7 +802,7 @@ void tipc_detach_loopback(struct net *net)
 	struct tipc_net *tn = tipc_net(net);
 
 	dev_remove_pack(&tn->loopback_pt);
-	dev_put(net->loopback_dev);
+	dev_put_track(net->loopback_dev, &tn->loopback_pt.dev_tracker);
 }
 
 /* Caller should hold rtnl_lock to protect the bearer */

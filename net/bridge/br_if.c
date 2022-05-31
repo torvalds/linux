@@ -274,7 +274,7 @@ static void destroy_nbp(struct net_bridge_port *p)
 
 	p->br = NULL;
 	p->dev = NULL;
-	dev_put(dev);
+	dev_put_track(dev, &p->dev_tracker);
 
 	kobject_put(&p->kobj);
 }
@@ -397,10 +397,10 @@ static int find_portno(struct net_bridge *br)
 	if (!inuse)
 		return -ENOMEM;
 
-	set_bit(0, inuse);	/* zero is reserved */
-	list_for_each_entry(p, &br->port_list, list) {
-		set_bit(p->port_no, inuse);
-	}
+	__set_bit(0, inuse);	/* zero is reserved */
+	list_for_each_entry(p, &br->port_list, list)
+		__set_bit(p->port_no, inuse);
+
 	index = find_first_zero_bit(inuse, BR_MAX_PORTS);
 	bitmap_free(inuse);
 
@@ -423,7 +423,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 		return ERR_PTR(-ENOMEM);
 
 	p->br = br;
-	dev_hold(dev);
+	dev_hold_track(dev, &p->dev_tracker, GFP_KERNEL);
 	p->dev = dev;
 	p->path_cost = port_cost(dev);
 	p->priority = 0x8000 >> BR_PORT_BITS;
@@ -434,7 +434,7 @@ static struct net_bridge_port *new_nbp(struct net_bridge *br,
 	br_stp_port_timer_init(p);
 	err = br_multicast_add_port(p);
 	if (err) {
-		dev_put(dev);
+		dev_put_track(dev, &p->dev_tracker);
 		kfree(p);
 		p = ERR_PTR(err);
 	}
@@ -471,7 +471,7 @@ int br_del_bridge(struct net *net, const char *name)
 	if (dev == NULL)
 		ret =  -ENXIO; 	/* Could not find device */
 
-	else if (!(dev->priv_flags & IFF_EBRIDGE)) {
+	else if (!netif_is_bridge_master(dev)) {
 		/* Attempt to delete non bridge device! */
 		ret = -EPERM;
 	}
@@ -525,8 +525,8 @@ static void br_set_gso_limits(struct net_bridge *br)
 		gso_max_size = min(gso_max_size, p->dev->gso_max_size);
 		gso_max_segs = min(gso_max_segs, p->dev->gso_max_segs);
 	}
-	br->dev->gso_max_size = gso_max_size;
-	br->dev->gso_max_segs = gso_max_segs;
+	netif_set_gso_max_size(br->dev, gso_max_size);
+	netif_set_gso_max_segs(br->dev, gso_max_segs);
 }
 
 /*
@@ -615,6 +615,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	err = dev_set_allmulti(dev, 1);
 	if (err) {
 		br_multicast_del_port(p);
+		dev_put_track(dev, &p->dev_tracker);
 		kfree(p);	/* kobject not yet init'd, manually free */
 		goto err1;
 	}
@@ -670,7 +671,7 @@ int br_add_if(struct net_bridge *br, struct net_device *dev,
 	else
 		netdev_set_rx_headroom(dev, br_hr);
 
-	if (br_fdb_insert(br, p, dev->dev_addr, 0))
+	if (br_fdb_add_local(br, p, dev->dev_addr, 0))
 		netdev_err(dev, "failed insert local address bridge forwarding table\n");
 
 	if (br->dev->addr_assign_type != NET_ADDR_SET) {
@@ -724,10 +725,10 @@ err3:
 	sysfs_remove_link(br->ifobj, p->dev->name);
 err2:
 	br_multicast_del_port(p);
+	dev_put_track(dev, &p->dev_tracker);
 	kobject_put(&p->kobj);
 	dev_set_allmulti(dev, -1);
 err1:
-	dev_put(dev);
 	return err;
 }
 

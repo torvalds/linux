@@ -33,7 +33,8 @@
 #define VIDEO_ENHANCEMENT_CLASS	2
 #define COPY_ENGINE_CLASS	3
 #define OTHER_CLASS		4
-#define MAX_ENGINE_CLASS	4
+#define COMPUTE_CLASS		5
+#define MAX_ENGINE_CLASS	5
 #define MAX_ENGINE_INSTANCE	7
 
 #define I915_MAX_SLICES	3
@@ -67,8 +68,11 @@ struct intel_instdone {
 	/* The following exist only in the RCS engine */
 	u32 slice_common;
 	u32 slice_common_extra[2];
-	u32 sampler[I915_MAX_SLICES][I915_MAX_SUBSLICES];
-	u32 row[I915_MAX_SLICES][I915_MAX_SUBSLICES];
+	u32 sampler[GEN_MAX_GSLICES][I915_MAX_SUBSLICES];
+	u32 row[GEN_MAX_GSLICES][I915_MAX_SUBSLICES];
+
+	/* Added in XeHPG */
+	u32 geom_svg[GEN_MAX_GSLICES][I915_MAX_SUBSLICES];
 };
 
 /*
@@ -92,6 +96,7 @@ struct i915_ctx_workarounds {
 
 #define I915_MAX_VCS	8
 #define I915_MAX_VECS	4
+#define I915_MAX_CCS	4
 
 /*
  * Engine IDs definitions.
@@ -114,6 +119,11 @@ enum intel_engine_id {
 	VECS2,
 	VECS3,
 #define _VECS(n) (VECS0 + (n))
+	CCS0,
+	CCS1,
+	CCS2,
+	CCS3,
+#define _CCS(n) (CCS0 + (n))
 	I915_NUM_ENGINES
 #define INVALID_ENGINE ((enum intel_engine_id)-1)
 };
@@ -254,6 +264,55 @@ struct intel_engine_execlists {
 
 #define INTEL_ENGINE_CS_MAX_NAME 8
 
+struct intel_engine_execlists_stats {
+	/**
+	 * @active: Number of contexts currently scheduled in.
+	 */
+	unsigned int active;
+
+	/**
+	 * @lock: Lock protecting the below fields.
+	 */
+	seqcount_t lock;
+
+	/**
+	 * @total: Total time this engine was busy.
+	 *
+	 * Accumulated time not counting the most recent block in cases where
+	 * engine is currently busy (active > 0).
+	 */
+	ktime_t total;
+
+	/**
+	 * @start: Timestamp of the last idle to active transition.
+	 *
+	 * Idle is defined as active == 0, active is active > 0.
+	 */
+	ktime_t start;
+};
+
+struct intel_engine_guc_stats {
+	/**
+	 * @running: Active state of the engine when busyness was last sampled.
+	 */
+	bool running;
+
+	/**
+	 * @prev_total: Previous value of total runtime clock cycles.
+	 */
+	u32 prev_total;
+
+	/**
+	 * @total_gt_clks: Total gt clock cycles this engine was busy.
+	 */
+	u64 total_gt_clks;
+
+	/**
+	 * @start_gt_clk: GT clock time of last idle to active transition.
+	 */
+	u64 start_gt_clk;
+};
+
 struct intel_engine_cs {
 	struct drm_i915_private *i915;
 	struct intel_gt *gt;
@@ -266,6 +325,14 @@ struct intel_engine_cs {
 	unsigned int guc_id;
 
 	intel_engine_mask_t mask;
+	u32 reset_domain;
+	/**
+	 * @logical_mask: logical mask of engine, reported to user space via
+	 * query IOCTL and used to communicate with the GuC in logical space.
+	 * The logical instance of a physical engine can change based on product
+	 * and fusing.
+	 */
+	intel_engine_mask_t logical_mask;
 
 	u8 class;
 	u8 instance;
@@ -303,6 +370,13 @@ struct intel_engine_cs {
 	struct llist_head barrier_tasks;
 
 	struct intel_context *kernel_context; /* pinned */
+
+	/**
+	 * pinned_contexts_list: List of pinned contexts. This list is only
+	 * assumed to be manipulated during driver load- or unload time and
+	 * does therefore not have any additional protection.
+	 */
+	struct list_head pinned_contexts_list;
 
 	intel_engine_mask_t saturated; /* submitting semaphores too late? */
 
@@ -422,6 +496,12 @@ struct intel_engine_cs {
 	void		(*add_active_request)(struct i915_request *rq);
 	void		(*remove_active_request)(struct i915_request *rq);
 
+	/*
+	 * Get engine busyness and the time at which the busyness was sampled.
+	 */
+	ktime_t		(*busyness)(struct intel_engine_cs *engine,
+				    ktime_t *now);
+
 	struct intel_engine_execlists execlists;
 
 	/*
@@ -444,6 +524,8 @@ struct intel_engine_cs {
 #define I915_ENGINE_HAS_RELATIVE_MMIO BIT(6)
 #define I915_ENGINE_REQUIRES_CMD_PARSER BIT(7)
 #define I915_ENGINE_WANT_FORCED_PREEMPTION BIT(8)
+#define I915_ENGINE_HAS_RCS_REG_STATE  BIT(9)
+#define I915_ENGINE_HAS_EU_PRIORITY    BIT(10)
 	unsigned int flags;
 
 	/*
@@ -471,30 +553,10 @@ struct intel_engine_cs {
 	u32 (*get_cmd_length_mask)(u32 cmd_header);
 
 	struct {
-		/**
-		 * @active: Number of contexts currently scheduled in.
-		 */
-		unsigned int active;
-
-		/**
-		 * @lock: Lock protecting the below fields.
-		 */
-		seqcount_t lock;
-
-		/**
-		 * @total: Total time this engine was busy.
-		 *
-		 * Accumulated time not counting the most recent block in cases
-		 * where engine is currently busy (active > 0).
-		 */
-		ktime_t total;
-
-		/**
-		 * @start: Timestamp of the last idle to active transition.
-		 *
-		 * Idle is defined as active == 0, active is active > 0.
-		 */
-		ktime_t start;
+		union {
+			struct intel_engine_execlists_stats execlists;
+			struct intel_engine_guc_stats guc;
+		};
 
 		/**
 		 * @rps: Utilisation at last RPS sampling.
@@ -546,7 +608,7 @@ intel_engine_has_semaphores(const struct intel_engine_cs *engine)
 static inline bool
 intel_engine_has_timeslices(const struct intel_engine_cs *engine)
 {
-	if (!IS_ACTIVE(CONFIG_DRM_I915_TIMESLICE_DURATION))
+	if (!CONFIG_DRM_I915_TIMESLICE_DURATION)
 		return false;
 
 	return engine->flags & I915_ENGINE_HAS_TIMESLICES;
@@ -578,4 +640,12 @@ intel_engine_has_relative_mmio(const struct intel_engine_cs * const engine)
 		for_each_if((instdone_has_slice(dev_priv_, sseu_, slice_)) && \
 			    (instdone_has_subslice(dev_priv_, sseu_, slice_, \
 						    subslice_)))
+
+#define for_each_instdone_gslice_dss_xehp(dev_priv_, sseu_, iter_, gslice_, dss_) \
+	for ((iter_) = 0, (gslice_) = 0, (dss_) = 0; \
+	     (iter_) < GEN_MAX_SUBSLICES; \
+	     (iter_)++, (gslice_) = (iter_) / GEN_DSS_PER_GSLICE, \
+	     (dss_) = (iter_) % GEN_DSS_PER_GSLICE) \
+		for_each_if(intel_sseu_has_subslice((sseu_), 0, (iter_)))
+
 #endif /* __INTEL_ENGINE_TYPES_H__ */

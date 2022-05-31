@@ -1,4 +1,6 @@
 # SPDX-License-Identifier: GPL-2.0-only
 mptcp_connect
+mptcp_inq
+mptcp_sockopt
 pm_nl_ctl
 *.pcap

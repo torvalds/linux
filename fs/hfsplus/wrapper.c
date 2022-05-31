@@ -12,7 +12,6 @@
 #include <linux/fs.h>
 #include <linux/blkdev.h>
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
 #include <asm/unaligned.h>
 
 #include "hfsplus_fs.h"
@@ -64,10 +63,8 @@ int hfsplus_submit_bio(struct super_block *sb, sector_t sector,
 	offset = start & (io_size - 1);
 	sector &= ~((io_size >> HFSPLUS_SECTOR_SHIFT) - 1);
 
-	bio = bio_alloc(GFP_NOIO, 1);
+	bio = bio_alloc(sb->s_bdev, 1, op | op_flags, GFP_NOIO);
 	bio->bi_iter.bi_sector = sector;
-	bio_set_dev(bio, sb->s_bdev);
-	bio_set_op_attrs(bio, op, op_flags);
 
 	if (op != WRITE && data)
 		*data = (u8 *)buf + offset;
@@ -131,7 +128,7 @@ static int hfsplus_get_last_session(struct super_block *sb,
 
 	/* default values */
 	*start = 0;
-	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
+	*size = bdev_nr_sectors(sb->s_bdev);
 
 	if (HFSPLUS_SB(sb)->session >= 0) {
 		struct cdrom_tocentry te;

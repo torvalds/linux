@@ -68,6 +68,7 @@ struct amdgpu_uvd {
 	/* store image width to adjust nb memory state */
 	unsigned		decode_image_width;
 	uint32_t                keyselect;
+	struct amdgpu_bo	*ib_bo;
 };
 
 int amdgpu_uvd_sw_init(struct amdgpu_device *adev);
@@ -81,7 +82,9 @@ int amdgpu_uvd_get_destroy_msg(struct amdgpu_ring *ring, uint32_t handle,
 			       bool direct, struct dma_fence **fence);
 void amdgpu_uvd_free_handles(struct amdgpu_device *adev,
 			     struct drm_file *filp);
-int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser, uint32_t ib_idx);
+int amdgpu_uvd_ring_parse_cs(struct amdgpu_cs_parser *parser,
+			     struct amdgpu_job *job,
+			     struct amdgpu_ib *ib);
 void amdgpu_uvd_ring_begin_use(struct amdgpu_ring *ring);
 void amdgpu_uvd_ring_end_use(struct amdgpu_ring *ring);
 int amdgpu_uvd_ring_test_ib(struct amdgpu_ring *ring, long timeout);

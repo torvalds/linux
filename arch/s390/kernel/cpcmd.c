@@ -29,7 +29,7 @@ static int diag8_noresponse(int cmdlen)
 	asm volatile(
 		"	diag	%[rx],%[ry],0x8\n"
 		: [ry] "+&d" (cmdlen)
-		: [rx] "d" ((addr_t) cpcmd_buf)
+		: [rx] "d" (__pa(cpcmd_buf))
 		: "cc");
 	return cmdlen;
 }
@@ -39,8 +39,8 @@ static int diag8_response(int cmdlen, char *response, int *rlen)
 	union register_pair rx, ry;
 	int cc;
 
-	rx.even = (addr_t) cpcmd_buf;
-	rx.odd	= (addr_t) response;
+	rx.even = __pa(cpcmd_buf);
+	rx.odd	= __pa(response);
 	ry.even = cmdlen | 0x40000000L;
 	ry.odd	= *rlen;
 	asm volatile(

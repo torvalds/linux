@@ -20,7 +20,6 @@
 #include <linux/binfmts.h>
 #include <linux/compat.h>
 #include <linux/bitops.h>
-#include <linux/tracehook.h>
 
 #include <linux/uaccess.h>
 #include <asm/ptrace.h>

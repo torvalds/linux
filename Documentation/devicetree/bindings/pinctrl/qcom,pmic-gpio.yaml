@@ -17,21 +17,26 @@ properties:
   compatible:
     items:
       - enum:
+          - qcom,pm2250-gpio
           - qcom,pm660-gpio
           - qcom,pm660l-gpio
           - qcom,pm6150-gpio
           - qcom,pm6150l-gpio
+          - qcom,pm6350-gpio
           - qcom,pm7325-gpio
           - qcom,pm8005-gpio
           - qcom,pm8008-gpio
           - qcom,pm8018-gpio
+          - qcom,pm8019-gpio
           - qcom,pm8038-gpio
           - qcom,pm8058-gpio
           - qcom,pm8150-gpio
           - qcom,pm8150b-gpio
+          - qcom,pm8226-gpio
           - qcom,pm8350-gpio
           - qcom,pm8350b-gpio
           - qcom,pm8350c-gpio
+          - qcom,pm8450-gpio
           - qcom,pm8916-gpio
           - qcom,pm8917-gpio
           - qcom,pm8921-gpio
@@ -103,6 +108,7 @@ $defs:
           this subnode.  Valid pins are
                  - gpio1-gpio10 for pm6150
                  - gpio1-gpio12 for pm6150l
+                 - gpio1-gpio9 for pm6350
                  - gpio1-gpio10 for pm7325
                  - gpio1-gpio4 for pm8005
                  - gpio1-gpio2 for pm8008
@@ -170,6 +176,8 @@ $defs:
       input-enable: true
       output-high: true
       output-low: true
+      output-enable: true
+      output-disable: true
       power-source: true
 
       qcom,drive-strength:

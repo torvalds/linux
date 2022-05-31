@@ -49,7 +49,6 @@ struct prm_context_buffer {
 };
 #pragma pack()
 
-
 static LIST_HEAD(prm_module_list);
 
 struct prm_handler_info {
@@ -73,7 +72,6 @@ struct prm_module_info {
 	struct prm_handler_info handlers[];
 };
 
-
 static u64 efi_pa_va_lookup(u64 pa)
 {
 	efi_memory_desc_t *md;
@@ -88,7 +86,6 @@ static u64 efi_pa_va_lookup(u64 pa)
 	return 0;
 }
 
-
 #define get_first_handler(a) ((struct acpi_prmt_handler_info *) ((char *) (a) + a->handler_info_offset))
 #define get_next_handler(a) ((struct acpi_prmt_handler_info *) (sizeof(struct acpi_prmt_handler_info) + (char *) a))
 
@@ -99,7 +96,7 @@ acpi_parse_prmt(union acpi_subtable_headers *header, const unsigned long end)
 	struct acpi_prmt_handler_info *handler_info;
 	struct prm_handler_info *th;
 	struct prm_module_info *tm;
-	u64 mmio_count = 0;
+	u64 *mmio_count;
 	u64 cur_handler = 0;
 	u32 module_info_size = 0;
 	u64 mmio_range_size = 0;
@@ -108,6 +105,8 @@ acpi_parse_prmt(union acpi_subtable_headers *header, const unsigned long end)
 	module_info = (struct acpi_prmt_module_info *) header;
 	module_info_size = struct_size(tm, handlers, module_info->handler_info_count);
 	tm = kmalloc(module_info_size, GFP_KERNEL);
+	if (!tm)
+		goto parse_prmt_out1;
 
 	guid_copy(&tm->guid, (guid_t *) module_info->module_guid);
 	tm->major_rev = module_info->major_rev;
@@ -120,14 +119,24 @@ acpi_parse_prmt(union acpi_subtable_headers *header, const unsigned long end)
 		 * Each module is associated with a list of addr
 		 * ranges that it can use during the service
 		 */
-		mmio_count = *(u64 *) memremap(module_info->mmio_list_pointer, 8, MEMREMAP_WB);
-		mmio_range_size = struct_size(tm->mmio_info, addr_ranges, mmio_count);
+		mmio_count = (u64 *) memremap(module_info->mmio_list_pointer, 8, MEMREMAP_WB);
+		if (!mmio_count)
+			goto parse_prmt_out2;
+
+		mmio_range_size = struct_size(tm->mmio_info, addr_ranges, *mmio_count);
 		tm->mmio_info = kmalloc(mmio_range_size, GFP_KERNEL);
+		if (!tm->mmio_info)
+			goto parse_prmt_out3;
+
 		temp_mmio = memremap(module_info->mmio_list_pointer, mmio_range_size, MEMREMAP_WB);
+		if (!temp_mmio)
+			goto parse_prmt_out4;
 		memmove(tm->mmio_info, temp_mmio, mmio_range_size);
 	} else {
-		mmio_range_size = struct_size(tm->mmio_info, addr_ranges, mmio_count);
-		tm->mmio_info = kmalloc(mmio_range_size, GFP_KERNEL);
+		tm->mmio_info = kmalloc(sizeof(*tm->mmio_info), GFP_KERNEL);
+		if (!tm->mmio_info)
+			goto parse_prmt_out2;
+
 		tm->mmio_info->mmio_count = 0;
 	}
 
@@ -145,6 +154,15 @@ acpi_parse_prmt(union acpi_subtable_headers *header, const unsigned long end)
 	} while (++cur_handler < tm->handler_count && (handler_info = get_next_handler(handler_info)));
 
 	return 0;
+
+parse_prmt_out4:
+	kfree(tm->mmio_info);
+parse_prmt_out3:
+	memunmap(mmio_count);
+parse_prmt_out2:
+	kfree(tm);
+parse_prmt_out1:
+	return -ENOMEM;
 }
 
 #define GET_MODULE	0
@@ -170,7 +188,6 @@ static void *find_guid_info(const guid_t *guid, u8 mode)
 
 	return NULL;
 }
-
 
 static struct prm_module_info *find_prm_module(const guid_t *guid)
 {

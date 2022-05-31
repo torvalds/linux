@@ -209,7 +209,7 @@ int	ahc_dmamap_unload(struct ahc_softc *, bus_dma_tag_t, bus_dmamap_t);
 /*
  * XXX
  * ahc_dmamap_sync is only used on buffers allocated with
- * the pci_alloc_consistent() API.  Although I'm not sure how
+ * the dma_alloc_coherent() API.  Although I'm not sure how
  * this works on architectures with a write buffer, Linux does
  * not have an API to sync "coherent" memory.  Perhaps we need
  * to do an mb()?
@@ -433,8 +433,6 @@ ahc_unlock(struct ahc_softc *ahc, unsigned long *flags)
 
 /* config registers for header type 0 devices */
 #define PCIR_MAPS	0x10
-#define PCIR_SUBVEND_0	0x2c
-#define PCIR_SUBDEV_0	0x2e
 
 typedef enum
 {

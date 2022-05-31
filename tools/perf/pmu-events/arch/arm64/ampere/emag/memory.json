@@ -15,10 +15,10 @@
         "ArchStdEvent": "UNALIGNED_LDST_SPEC"
     },
     {
-        "ArchStdEvent": "MEM_ACCESS",
+        "ArchStdEvent": "MEM_ACCESS"
     },
     {
         "PublicDescription": "This event counts any correctable or uncorrectable memory error (ECC or parity) in the protected core RAMs",
-        "ArchStdEvent": "MEMORY_ERROR",
+        "ArchStdEvent": "MEMORY_ERROR"
     }
 ]

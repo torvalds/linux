@@ -55,13 +55,13 @@ struct ext4_fc_del_range {
 struct ext4_fc_dentry_info {
 	__le32 fc_parent_ino;
 	__le32 fc_ino;
-	__u8 fc_dname[0];
+	__u8 fc_dname[];
 };
 
 /* Value structure for EXT4_FC_TAG_INODE and EXT4_FC_TAG_INODE_PARTIAL. */
 struct ext4_fc_inode {
 	__le32 fc_ino;
-	__u8 fc_raw_inode[0];
+	__u8 fc_raw_inode[];
 };
 
 /* Value structure for tag EXT4_FC_TAG_TAIL. */
@@ -71,21 +71,19 @@ struct ext4_fc_tail {
 };
 
 /*
- * Fast commit reason codes
+ * Fast commit status codes
  */
 enum {
-	/*
-	 * Commit status codes:
-	 */
-	EXT4_FC_REASON_OK = 0,
-	EXT4_FC_REASON_INELIGIBLE,
-	EXT4_FC_REASON_ALREADY_COMMITTED,
-	EXT4_FC_REASON_FC_START_FAILED,
-	EXT4_FC_REASON_FC_FAILED,
+	EXT4_FC_STATUS_OK = 0,
+	EXT4_FC_STATUS_INELIGIBLE,
+	EXT4_FC_STATUS_SKIPPED,
+	EXT4_FC_STATUS_FAILED,
+};
 
-	/*
-	 * Fast commit ineligiblity reasons:
-	 */
+/*
+ * Fast commit ineligiblity reasons:
+ */
+enum {
 	EXT4_FC_REASON_XATTR = 0,
 	EXT4_FC_REASON_CROSS_RENAME,
 	EXT4_FC_REASON_JOURNAL_FLAG_CHANGE,
@@ -95,7 +93,6 @@ enum {
 	EXT4_FC_REASON_RENAME_DIR,
 	EXT4_FC_REASON_FALLOC_RANGE,
 	EXT4_FC_REASON_INODE_JOURNAL_DATA,
-	EXT4_FC_COMMIT_FAILED,
 	EXT4_FC_REASON_MAX
 };
 
@@ -111,13 +108,17 @@ struct ext4_fc_dentry_update {
 	struct qstr fcd_name;	/* Dirent name */
 	unsigned char fcd_iname[DNAME_INLINE_LEN];	/* Dirent name string */
 	struct list_head fcd_list;
+	struct list_head fcd_dilist;
 };
 
 struct ext4_fc_stats {
 	unsigned int fc_ineligible_reason_count[EXT4_FC_REASON_MAX];
 	unsigned long fc_num_commits;
 	unsigned long fc_ineligible_commits;
+	unsigned long fc_failed_commits;
+	unsigned long fc_skipped_commits;
 	unsigned long fc_numblks;
+	u64 s_fc_avg_commit_time;
 };
 
 #define EXT4_FC_REPLAY_REALLOC_INCREMENT	4

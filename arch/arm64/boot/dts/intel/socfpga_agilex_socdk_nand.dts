@@ -6,6 +6,7 @@
 
 / {
 	model = "SoCFPGA Agilex SoCDK";
+	compatible = "intel,socfpga-agilex-socdk", "intel,socfpga-agilex";
 
 	aliases {
 		serial0 = &uart0;
@@ -91,24 +92,8 @@
 			reg = <0 0x200000>;
 		};
 		partition@200000 {
-			label = "env";
-			reg = <0x200000 0x40000>;
-		};
-		partition@240000 {
-			label = "dtb";
-			reg = <0x240000 0x40000>;
-		};
-		partition@280000 {
-			label = "kernel";
-			reg = <0x280000 0x2000000>;
-		};
-		partition@2280000 {
-			label = "misc";
-			reg = <0x2280000 0x2000000>;
-		};
-		partition@4280000 {
-			label = "rootfs";
-			reg = <0x4280000 0x3bd80000>;
+			label = "root";
+			reg = <0x200000 0x3fe00000>;
 		};
 	};
 };

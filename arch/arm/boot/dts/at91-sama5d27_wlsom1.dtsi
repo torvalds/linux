@@ -30,6 +30,14 @@
 			clock-frequency = <24000000>;
 		};
 	};
+
+	wifi_pwrseq: wifi_pwrseq {
+		compatible = "mmc-pwrseq-wilc1000";
+		reset-gpios = <&pioA PIN_PA27 GPIO_ACTIVE_HIGH>;
+		powerdown-gpios = <&pioA PIN_PA29 GPIO_ACTIVE_HIGH>;
+		pinctrl-0 = <&pinctrl_wilc_pwrseq>;
+		pinctrl-names = "default";
+	};
 };
 
 &flx1 {
@@ -206,7 +214,7 @@
 	pinctrl-0 = <&pinctrl_qspi1_default>;
 	status = "disabled";
 
-	qspi1_flash: spi_flash@0 {
+	qspi1_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";
@@ -309,6 +317,68 @@
 			 <PIN_PB9__QSPI1_IO2>,
 			 <PIN_PB10__QSPI1_IO3>;
 		bias-pull-up;
+	};
+
+	pinctrl_sdmmc1_default: sdmmc1_default {
+		cmd-data {
+			pinmux = <PIN_PA28__SDMMC1_CMD>,
+				 <PIN_PA18__SDMMC1_DAT0>,
+				 <PIN_PA19__SDMMC1_DAT1>,
+				 <PIN_PA20__SDMMC1_DAT2>,
+				 <PIN_PA21__SDMMC1_DAT3>;
+			bias-disable;
+		};
+
+		conf-ck {
+			pinmux = <PIN_PA22__SDMMC1_CK>;
+			bias-disable;
+		};
+	};
+
+	pinctrl_wilc_default: wilc_default {
+		conf-irq {
+			pinmux = <PIN_PB25__GPIO>;
+			bias-disable;
+		};
+	};
+
+	pinctrl_wilc_pwrseq: wilc_pwrseq {
+		conf-ce-nrst {
+			pinmux = <PIN_PA27__GPIO>,
+				 <PIN_PA29__GPIO>;
+			bias-disable;
+		};
+
+		conf-rtcclk {
+			pinmux = <PIN_PB13__PCK1>;
+			bias-disable;
+		};
+	};
+};
+
+&sdmmc1 {
+	#address-cells = <1>;
+	#size-cells = <0>;
+	bus-width = <4>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_sdmmc1_default>;
+	mmc-pwrseq = <&wifi_pwrseq>;
+	no-1-8-v;
+	non-removable;
+	bus-width = <4>;
+	status = "okay";
+
+	wilc: wifi@0 {
+		reg = <0>;
+		compatible = "microchip,wilc1000";
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_wilc_default>;
+		clocks = <&pmc PMC_TYPE_SYSTEM 9>;
+		clock-names = "rtc";
+		interrupts = <PIN_PB25 IRQ_TYPE_NONE>;
+		interrupt-parent = <&pioA>;
+		assigned-clocks = <&pmc PMC_TYPE_SYSTEM 9>;
+		assigned-clock-rates = <32768>;
 	};
 };
 

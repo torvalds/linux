@@ -39,6 +39,10 @@ properties:
 
   canaan,k210-sysctl-power:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle of the K210 system controller node
+          - description: offset of its power domain control register
     description: |
       phandle of the K210 system controller node and offset of its
       power domain control register.
@@ -137,6 +141,9 @@ patternProperties:
 
     additionalProperties: false
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg
@@ -151,9 +158,9 @@ examples:
     #include <dt-bindings/clock/k210-clk.h>
     #include <dt-bindings/reset/k210-rst.h>
 
-    fpioa: pinmux@502B0000 {
+    fpioa: pinmux@502b0000 {
       compatible = "canaan,k210-fpioa";
-      reg = <0x502B0000 0x100>;
+      reg = <0x502b0000 0x100>;
       clocks = <&sysclk K210_CLK_FPIOA>,
                <&sysclk K210_CLK_APB0>;
       clock-names = "ref", "pclk";

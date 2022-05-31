@@ -240,16 +240,16 @@ struct rcu_stall_chk_rdr {
  * Report out the state of a not-running task that is stalling the
  * current RCU grace period.
  */
-static bool check_slow_task(struct task_struct *t, void *arg)
+static int check_slow_task(struct task_struct *t, void *arg)
 {
 	struct rcu_stall_chk_rdr *rscrp = arg;
 
 	if (task_curr(t))
-		return false; // It is running, so decline to inspect it.
+		return -EBUSY; // It is running, so decline to inspect it.
 	rscrp->nesting = t->rcu_read_lock_nesting;
 	rscrp->rs = t->rcu_read_unlock_special;
 	rscrp->on_blkd_list = !list_empty(&t->rcu_node_entry);
-	return true;
+	return 0;
 }
 
 /*
@@ -283,7 +283,7 @@ static int rcu_print_task_stall(struct rcu_node *rnp, unsigned long flags)
 	raw_spin_unlock_irqrestore_rcu_node(rnp, flags);
 	while (i) {
 		t = ts[--i];
-		if (!try_invoke_on_locked_down_task(t, check_slow_task, &rscr))
+		if (task_call_func(t, check_slow_task, &rscr))
 			pr_cont(" P%d", t->pid);
 		else
 			pr_cont(" P%d/%d:%c%c%c%c",
@@ -347,26 +347,6 @@ static void rcu_dump_cpu_stacks(void)
 	}
 }
 
-#ifdef CONFIG_RCU_FAST_NO_HZ
-
-static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
-{
-	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
-
-	sprintf(cp, "last_accelerate: %04lx/%04lx dyntick_enabled: %d",
-		rdp->last_accelerate & 0xffff, jiffies & 0xffff,
-		!!rdp->tick_nohz_enabled_snap);
-}
-
-#else /* #ifdef CONFIG_RCU_FAST_NO_HZ */
-
-static void print_cpu_stall_fast_no_hz(char *cp, int cpu)
-{
-	*cp = '\0';
-}
-
-#endif /* #else #ifdef CONFIG_RCU_FAST_NO_HZ */
-
 static const char * const gp_state_names[] = {
 	[RCU_GP_IDLE] = "RCU_GP_IDLE",
 	[RCU_GP_WAIT_GPS] = "RCU_GP_WAIT_GPS",
@@ -399,6 +379,15 @@ static bool rcu_is_gp_kthread_starving(unsigned long *jp)
 	return j > 2 * HZ;
 }
 
+static bool rcu_is_rcuc_kthread_starving(struct rcu_data *rdp, unsigned long *jp)
+{
+	unsigned long j = jiffies - READ_ONCE(rdp->rcuc_activity);
+
+	if (jp)
+		*jp = j;
+	return j > 2 * HZ;
+}
+
 /*
  * Print out diagnostic information for the specified stalled CPU.
  *
@@ -408,13 +397,12 @@ static bool rcu_is_gp_kthread_starving(unsigned long *jp)
  * of RCU grace periods that this CPU is ignorant of, for example, "1"
  * if the CPU was aware of the previous grace period.
  *
- * Also print out idle and (if CONFIG_RCU_FAST_NO_HZ) idle-entry info.
+ * Also print out idle info.
  */
 static void print_cpu_stall_info(int cpu)
 {
 	unsigned long delta;
 	bool falsepositive;
-	char fast_no_hz[72];
 	struct rcu_data *rdp = per_cpu_ptr(&rcu_data, cpu);
 	char *ticks_title;
 	unsigned long ticks_value;
@@ -432,11 +420,10 @@ static void print_cpu_stall_info(int cpu)
 		ticks_title = "ticks this GP";
 		ticks_value = rdp->ticks_this_gp;
 	}
-	print_cpu_stall_fast_no_hz(fast_no_hz, cpu);
 	delta = rcu_seq_ctr(rdp->mynode->gp_seq - rdp->rcu_iw_gp_seq);
 	falsepositive = rcu_is_gp_kthread_starving(NULL) &&
 			rcu_dynticks_in_eqs(rcu_dynticks_snap(rdp));
-	pr_err("\t%d-%c%c%c%c: (%lu %s) idle=%03x/%ld/%#lx softirq=%u/%u fqs=%ld %s%s\n",
+	pr_err("\t%d-%c%c%c%c: (%lu %s) idle=%03x/%ld/%#lx softirq=%u/%u fqs=%ld %s\n",
 	       cpu,
 	       "O."[!!cpu_online(cpu)],
 	       "o."[!!(rdp->grpmask & rdp->mynode->qsmaskinit)],
@@ -449,8 +436,30 @@ static void print_cpu_stall_info(int cpu)
 	       rdp->dynticks_nesting, rdp->dynticks_nmi_nesting,
 	       rdp->softirq_snap, kstat_softirqs_cpu(RCU_SOFTIRQ, cpu),
 	       data_race(rcu_state.n_force_qs) - rcu_state.n_force_qs_gpstart,
-	       fast_no_hz,
 	       falsepositive ? " (false positive?)" : "");
+}
+
+static void rcuc_kthread_dump(struct rcu_data *rdp)
+{
+	int cpu;
+	unsigned long j;
+	struct task_struct *rcuc;
+
+	rcuc = rdp->rcu_cpu_kthread_task;
+	if (!rcuc)
+		return;
+
+	cpu = task_cpu(rcuc);
+	if (cpu_is_offline(cpu) || idle_cpu(cpu))
+		return;
+
+	if (!rcu_is_rcuc_kthread_starving(rdp, &j))
+		return;
+
+	pr_err("%s kthread starved for %ld jiffies\n", rcuc->comm, j);
+	sched_show_task(rcuc);
+	if (!trigger_single_cpu_backtrace(cpu))
+		dump_cpu_task(cpu);
 }
 
 /* Complain about starvation of grace-period kthread.  */
@@ -623,6 +632,9 @@ static void print_cpu_stall(unsigned long gps)
 
 	rcu_check_gp_kthread_expired_fqs_timer();
 	rcu_check_gp_kthread_starvation();
+
+	if (!use_softirq)
+		rcuc_kthread_dump(rdp);
 
 	rcu_dump_cpu_stacks();
 

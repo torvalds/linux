@@ -1,7 +1,7 @@
 /*******************************************************************
  * This file is part of the Emulex Linux Device Driver for         *
  * Fibre Channel Host Bus Adapters.                                *
- * Copyright (C) 2017-2021 Broadcom. All Rights Reserved. The term *
+ * Copyright (C) 2017-2022 Broadcom. All Rights Reserved. The term *
  * “Broadcom” refers to Broadcom Inc. and/or its subsidiaries.     *
  * Copyright (C) 2004-2016 Emulex.  All rights reserved.           *
  * EMULEX and SLI are trademarks of Emulex.                        *
@@ -664,6 +664,7 @@ struct fc_vft_header {
 
 struct ls_rjt {	/* Structure is in Big Endian format */
 	union {
+		__be32 ls_rjt_error_be;
 		uint32_t lsRjtError;
 		struct {
 			uint8_t lsRjtRsvd0;	/* FC Word 0, bit 24:31 */
@@ -3675,19 +3676,26 @@ union sli_var {
 };
 
 typedef struct {
+	struct_group_tagged(MAILBOX_word0, bits,
+		union {
+			struct {
 #ifdef __BIG_ENDIAN_BITFIELD
-	uint16_t mbxStatus;
-	uint8_t mbxCommand;
-	uint8_t mbxReserved:6;
-	uint8_t mbxHc:1;
-	uint8_t mbxOwner:1;	/* Low order bit first word */
+				uint16_t mbxStatus;
+				uint8_t mbxCommand;
+				uint8_t mbxReserved:6;
+				uint8_t mbxHc:1;
+				uint8_t mbxOwner:1;	/* Low order bit first word */
 #else	/*  __LITTLE_ENDIAN_BITFIELD */
-	uint8_t mbxOwner:1;	/* Low order bit first word */
-	uint8_t mbxHc:1;
-	uint8_t mbxReserved:6;
-	uint8_t mbxCommand;
-	uint16_t mbxStatus;
+				uint8_t mbxOwner:1;	/* Low order bit first word */
+				uint8_t mbxHc:1;
+				uint8_t mbxReserved:6;
+				uint8_t mbxCommand;
+				uint16_t mbxStatus;
 #endif
+			};
+			u32 word0;
+		};
+	);
 
 	MAILVARIANTS un;
 	union sli_var us;
@@ -3746,7 +3754,7 @@ typedef struct {
 #define IOERR_ILLEGAL_COMMAND         0x06
 #define IOERR_XCHG_DROPPED            0x07
 #define IOERR_ILLEGAL_FIELD           0x08
-#define IOERR_BAD_CONTINUE            0x09
+#define IOERR_RPI_SUSPENDED           0x09
 #define IOERR_TOO_MANY_BUFFERS        0x0A
 #define IOERR_RCV_BUFFER_WAITING      0x0B
 #define IOERR_NO_CONNECTION           0x0C
@@ -4369,16 +4377,15 @@ lpfc_is_LC_HBA(unsigned short device)
 }
 
 /*
- * Determine if an IOCB failed because of a link event or firmware reset.
+ * Determine if failed because of a link event or firmware reset.
  */
-
 static inline int
-lpfc_error_lost_link(IOCB_t *iocbp)
+lpfc_error_lost_link(u32 ulp_status, u32 ulp_word4)
 {
-	return (iocbp->ulpStatus == IOSTAT_LOCAL_REJECT &&
-		(iocbp->un.ulpWord[4] == IOERR_SLI_ABORTED ||
-		 iocbp->un.ulpWord[4] == IOERR_LINK_DOWN ||
-		 iocbp->un.ulpWord[4] == IOERR_SLI_DOWN));
+	return (ulp_status == IOSTAT_LOCAL_REJECT &&
+		(ulp_word4 == IOERR_SLI_ABORTED ||
+		 ulp_word4 == IOERR_LINK_DOWN ||
+		 ulp_word4 == IOERR_SLI_DOWN));
 }
 
 #define MENLO_TRANSPORT_TYPE 0xfe

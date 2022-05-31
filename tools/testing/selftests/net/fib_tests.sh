@@ -9,7 +9,7 @@ ret=0
 ksft_skip=4
 
 # all tests in this script. Can be overridden with -t option
-TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle"
+TESTS="unregister down carrier nexthop suppress ipv6_rt ipv4_rt ipv6_addr_metric ipv4_addr_metric ipv6_route_metrics ipv4_route_metrics ipv4_route_v6_gw rp_filter ipv4_del_addr ipv4_mangle ipv6_mangle ipv4_bcast_neigh"
 
 VERBOSE=0
 PAUSE_ON_FAIL=no
@@ -444,24 +444,63 @@ fib_rp_filter_test()
 	setup
 
 	set -e
+	ip netns add ns2
+	ip netns set ns2 auto
+
+	ip -netns ns2 link set dev lo up
+
+	$IP link add name veth1 type veth peer name veth2
+	$IP link set dev veth2 netns ns2
+	$IP address add 192.0.2.1/24 dev veth1
+	ip -netns ns2 address add 192.0.2.1/24 dev veth2
+	$IP link set dev veth1 up
+	ip -netns ns2 link set dev veth2 up
+
 	$IP link set dev lo address 52:54:00:6a:c7:5e
-	$IP link set dummy0 address 52:54:00:6a:c7:5e
-	$IP link add dummy1 type dummy
-	$IP link set dummy1 address 52:54:00:6a:c7:5e
-	$IP link set dev dummy1 up
+	$IP link set dev veth1 address 52:54:00:6a:c7:5e
+	ip -netns ns2 link set dev lo address 52:54:00:6a:c7:5e
+	ip -netns ns2 link set dev veth2 address 52:54:00:6a:c7:5e
+
+	# 1. (ns2) redirect lo's egress to veth2's egress
+	ip netns exec ns2 tc qdisc add dev lo parent root handle 1: fq_codel
+	ip netns exec ns2 tc filter add dev lo parent 1: protocol arp basic \
+		action mirred egress redirect dev veth2
+	ip netns exec ns2 tc filter add dev lo parent 1: protocol ip basic \
+		action mirred egress redirect dev veth2
+
+	# 2. (ns1) redirect veth1's ingress to lo's ingress
+	$NS_EXEC tc qdisc add dev veth1 ingress
+	$NS_EXEC tc filter add dev veth1 ingress protocol arp basic \
+		action mirred ingress redirect dev lo
+	$NS_EXEC tc filter add dev veth1 ingress protocol ip basic \
+		action mirred ingress redirect dev lo
+
+	# 3. (ns1) redirect lo's egress to veth1's egress
+	$NS_EXEC tc qdisc add dev lo parent root handle 1: fq_codel
+	$NS_EXEC tc filter add dev lo parent 1: protocol arp basic \
+		action mirred egress redirect dev veth1
+	$NS_EXEC tc filter add dev lo parent 1: protocol ip basic \
+		action mirred egress redirect dev veth1
+
+	# 4. (ns2) redirect veth2's ingress to lo's ingress
+	ip netns exec ns2 tc qdisc add dev veth2 ingress
+	ip netns exec ns2 tc filter add dev veth2 ingress protocol arp basic \
+		action mirred ingress redirect dev lo
+	ip netns exec ns2 tc filter add dev veth2 ingress protocol ip basic \
+		action mirred ingress redirect dev lo
+
 	$NS_EXEC sysctl -qw net.ipv4.conf.all.rp_filter=1
 	$NS_EXEC sysctl -qw net.ipv4.conf.all.accept_local=1
 	$NS_EXEC sysctl -qw net.ipv4.conf.all.route_localnet=1
-
-	$NS_EXEC tc qd add dev dummy1 parent root handle 1: fq_codel
-	$NS_EXEC tc filter add dev dummy1 parent 1: protocol arp basic action mirred egress redirect dev lo
-	$NS_EXEC tc filter add dev dummy1 parent 1: protocol ip basic action mirred egress redirect dev lo
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.rp_filter=1
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.accept_local=1
+	ip netns exec ns2 sysctl -qw net.ipv4.conf.all.route_localnet=1
 	set +e
 
-	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 198.51.100.1"
+	run_cmd "ip netns exec ns2 ping -w1 -c1 192.0.2.1"
 	log_test $? 0 "rp_filter passes local packets"
 
-	run_cmd "ip netns exec ns1 ping -I dummy1 -w1 -c1 127.0.0.1"
+	run_cmd "ip netns exec ns2 ping -w1 -c1 127.0.0.1"
 	log_test $? 0 "rp_filter passes loopback packets"
 
 	cleanup
@@ -949,12 +988,25 @@ ipv6_rt_replace()
 	ipv6_rt_replace_mpath
 }
 
+ipv6_rt_dsfield()
+{
+	echo
+	echo "IPv6 route with dsfield tests"
+
+	run_cmd "$IP -6 route flush 2001:db8:102::/64"
+
+	# IPv6 doesn't support routing based on dsfield
+	run_cmd "$IP -6 route add 2001:db8:102::/64 dsfield 0x04 via 2001:db8:101::2"
+	log_test $? 2 "Reject route with dsfield"
+}
+
 ipv6_route_test()
 {
 	route_setup
 
 	ipv6_rt_add
 	ipv6_rt_replace
+	ipv6_rt_dsfield
 
 	route_cleanup
 }
@@ -1408,6 +1460,81 @@ ipv4_local_rt_cache()
 	log_test $? 0 "Cached route removed from VRF port device"
 }
 
+ipv4_rt_dsfield()
+{
+	echo
+	echo "IPv4 route with dsfield tests"
+
+	run_cmd "$IP route flush 172.16.102.0/24"
+
+	# New routes should reject dsfield options that interfere with ECN
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x01 via 172.16.101.2"
+	log_test $? 2 "Reject route with dsfield 0x01"
+
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x02 via 172.16.101.2"
+	log_test $? 2 "Reject route with dsfield 0x02"
+
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x03 via 172.16.101.2"
+	log_test $? 2 "Reject route with dsfield 0x03"
+
+	# A generic route that doesn't take DSCP into account
+	run_cmd "$IP route add 172.16.102.0/24 via 172.16.101.2"
+
+	# A more specific route for DSCP 0x10
+	run_cmd "$IP route add 172.16.102.0/24 dsfield 0x10 via 172.16.103.2"
+
+	# DSCP 0x10 should match the specific route, no matter the ECN bits
+	$IP route get fibmatch 172.16.102.1 dsfield 0x10 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:Not-ECT"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x11 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:ECT(1)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x12 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:ECT(0)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x13 | \
+		grep -q "via 172.16.103.2"
+	log_test $? 0 "IPv4 route with DSCP and ECN:CE"
+
+	# Unknown DSCP should match the generic route, no matter the ECN bits
+	$IP route get fibmatch 172.16.102.1 dsfield 0x14 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:Not-ECT"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x15 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(1)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x16 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:ECT(0)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x17 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with unknown DSCP and ECN:CE"
+
+	# Null DSCP should match the generic route, no matter the ECN bits
+	$IP route get fibmatch 172.16.102.1 dsfield 0x00 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:Not-ECT"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x01 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(1)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x02 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:ECT(0)"
+
+	$IP route get fibmatch 172.16.102.1 dsfield 0x03 | \
+		grep -q "via 172.16.101.2"
+	log_test $? 0 "IPv4 route with no DSCP and ECN:CE"
+}
+
 ipv4_route_test()
 {
 	route_setup
@@ -1415,6 +1542,7 @@ ipv4_route_test()
 	ipv4_rt_add
 	ipv4_rt_replace
 	ipv4_local_rt_cache
+	ipv4_rt_dsfield
 
 	route_cleanup
 }
@@ -1826,6 +1954,61 @@ ipv6_mangle_test()
 	route_cleanup
 }
 
+ip_neigh_get_check()
+{
+	ip neigh help 2>&1 | grep -q 'ip neigh get'
+	if [ $? -ne 0 ]; then
+		echo "iproute2 command does not support neigh get. Skipping test"
+		return 1
+	fi
+
+	return 0
+}
+
+ipv4_bcast_neigh_test()
+{
+	local rc
+
+	echo
+	echo "IPv4 broadcast neighbour tests"
+
+	ip_neigh_get_check || return 1
+
+	setup
+
+	set -e
+	run_cmd "$IP neigh add 192.0.2.111 lladdr 00:11:22:33:44:55 nud perm dev dummy0"
+	run_cmd "$IP neigh add 192.0.2.255 lladdr 00:11:22:33:44:55 nud perm dev dummy0"
+
+	run_cmd "$IP neigh get 192.0.2.111 dev dummy0"
+	run_cmd "$IP neigh get 192.0.2.255 dev dummy0"
+
+	run_cmd "$IP address add 192.0.2.1/24 broadcast 192.0.2.111 dev dummy0"
+
+	run_cmd "$IP neigh add 203.0.113.111 nud failed dev dummy0"
+	run_cmd "$IP neigh add 203.0.113.255 nud failed dev dummy0"
+
+	run_cmd "$IP neigh get 203.0.113.111 dev dummy0"
+	run_cmd "$IP neigh get 203.0.113.255 dev dummy0"
+
+	run_cmd "$IP address add 203.0.113.1/24 broadcast 203.0.113.111 dev dummy0"
+	set +e
+
+	run_cmd "$IP neigh get 192.0.2.111 dev dummy0"
+	log_test $? 0 "Resolved neighbour for broadcast address"
+
+	run_cmd "$IP neigh get 192.0.2.255 dev dummy0"
+	log_test $? 0 "Resolved neighbour for network broadcast address"
+
+	run_cmd "$IP neigh get 203.0.113.111 dev dummy0"
+	log_test $? 2 "Unresolved neighbour for broadcast address"
+
+	run_cmd "$IP neigh get 203.0.113.255 dev dummy0"
+	log_test $? 2 "Unresolved neighbour for network broadcast address"
+
+	cleanup
+}
+
 ################################################################################
 # usage
 
@@ -1900,6 +2083,7 @@ do
 	ipv4_route_v6_gw)		ipv4_route_v6_gw_test;;
 	ipv4_mangle)			ipv4_mangle_test;;
 	ipv6_mangle)			ipv6_mangle_test;;
+	ipv4_bcast_neigh)		ipv4_bcast_neigh_test;;
 
 	help) echo "Test names: $TESTS"; exit 0;;
 	esac

@@ -295,7 +295,7 @@ Pete Zaitcev gives the following summary:
 
 -  If you are in a process context (any syscall) and want to lock other
    process out, use a mutex. You can take a mutex and sleep
-   (``copy_from_user*(`` or ``kmalloc(x,GFP_KERNEL)``).
+   (``copy_from_user()`` or ``kmalloc(x,GFP_KERNEL)``).
 
 -  Otherwise (== data can be touched in an interrupt), use
    spin_lock_irqsave() and
@@ -1352,7 +1352,19 @@ Mutex API reference
 Futex API reference
 ===================
 
-.. kernel-doc:: kernel/futex.c
+.. kernel-doc:: kernel/futex/core.c
+   :internal:
+
+.. kernel-doc:: kernel/futex/futex.h
+   :internal:
+
+.. kernel-doc:: kernel/futex/pi.c
+   :internal:
+
+.. kernel-doc:: kernel/futex/requeue.c
+   :internal:
+
+.. kernel-doc:: kernel/futex/waitwake.c
    :internal:
 
 Further reading

@@ -63,7 +63,7 @@ void default_machine_kexec(struct kimage *image)
 	(*rnk)(page_list, reboot_code_buffer_phys, image->start);
 }
 
-int default_machine_kexec_prepare(struct kimage *image)
+int machine_kexec_prepare(struct kimage *image)
 {
 	return 0;
 }

@@ -8,8 +8,6 @@
 
 #include <linux/types.h>
 
-#include "display/intel_display.h"
-
 #include "intel_wakeref.h"
 
 #include "i915_utils.h"
@@ -53,6 +51,7 @@ struct intel_runtime_pm {
 	bool available;
 	bool suspended;
 	bool irqs_enabled;
+	bool no_wakeref_tracking;
 
 #if IS_ENABLED(CONFIG_DRM_I915_DEBUG_RUNTIME_PM)
 	/*

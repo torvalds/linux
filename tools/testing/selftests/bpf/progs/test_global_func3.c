@@ -54,7 +54,7 @@ int f8(struct __sk_buff *skb)
 }
 #endif
 
-SEC("classifier/test")
+SEC("tc")
 int test_cls(struct __sk_buff *skb)
 {
 #ifndef NO_FN8

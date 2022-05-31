@@ -130,7 +130,7 @@ void hantro_start_prepare_run(struct hantro_ctx *ctx)
 	v4l2_ctrl_request_setup(src_buf->vb2_buf.req_obj.req,
 				&ctx->ctrl_handler);
 
-	if (!ctx->is_encoder) {
+	if (!ctx->is_encoder && !ctx->dev->variant->late_postproc) {
 		if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
 			hantro_postproc_enable(ctx);
 		else
@@ -141,6 +141,13 @@ void hantro_start_prepare_run(struct hantro_ctx *ctx)
 void hantro_end_prepare_run(struct hantro_ctx *ctx)
 {
 	struct vb2_v4l2_buffer *src_buf;
+
+	if (!ctx->is_encoder && ctx->dev->variant->late_postproc) {
+		if (hantro_needs_postproc(ctx, ctx->vpu_dst_fmt))
+			hantro_postproc_enable(ctx);
+		else
+			hantro_postproc_disable(ctx);
+	}
 
 	src_buf = hantro_get_src_buf(ctx);
 	v4l2_ctrl_request_complete(src_buf->vb2_buf.req_obj.req,
@@ -179,7 +186,7 @@ err_cancel_job:
 	hantro_job_finish_no_pm(ctx->dev, ctx, VB2_BUF_STATE_ERROR);
 }
 
-static struct v4l2_m2m_ops vpu_m2m_ops = {
+static const struct v4l2_m2m_ops vpu_m2m_ops = {
 	.device_run = device_run,
 };
 
@@ -212,27 +219,21 @@ queue_init(void *priv, struct vb2_queue *src_vq, struct vb2_queue *dst_vq)
 	if (ret)
 		return ret;
 
+	dst_vq->bidirectional = true;
+	dst_vq->mem_ops = &vb2_dma_contig_memops;
+	dst_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES;
 	/*
-	 * When encoding, the CAPTURE queue doesn't need dma memory,
-	 * as the CPU needs to create the JPEG frames, from the
-	 * hardware-produced JPEG payload.
-	 *
-	 * For the DMA destination buffer, we use a bounce buffer.
+	 * The Kernel needs access to the JPEG destination buffer for the
+	 * JPEG encoder to fill in the JPEG headers.
 	 */
-	if (ctx->is_encoder) {
-		dst_vq->mem_ops = &vb2_vmalloc_memops;
-	} else {
-		dst_vq->bidirectional = true;
-		dst_vq->mem_ops = &vb2_dma_contig_memops;
-		dst_vq->dma_attrs = DMA_ATTR_ALLOC_SINGLE_PAGES |
-				    DMA_ATTR_NO_KERNEL_MAPPING;
-	}
+	if (!ctx->is_encoder)
+		dst_vq->dma_attrs |= DMA_ATTR_NO_KERNEL_MAPPING;
 
 	dst_vq->type = V4L2_BUF_TYPE_VIDEO_CAPTURE_MPLANE;
 	dst_vq->io_modes = VB2_MMAP | VB2_DMABUF;
 	dst_vq->drv_priv = ctx;
 	dst_vq->ops = &hantro_queue_ops;
-	dst_vq->buf_struct_size = sizeof(struct v4l2_m2m_buffer);
+	dst_vq->buf_struct_size = sizeof(struct hantro_decoded_buffer);
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock = &ctx->dev->vpu_mutex;
 	dst_vq->dev = ctx->dev->v4l2_dev.dev;
@@ -263,8 +264,11 @@ static int hantro_try_ctrl(struct v4l2_ctrl *ctrl)
 		if (sps->bit_depth_luma_minus8 != 0)
 			/* Only 8-bit is supported */
 			return -EINVAL;
-		if (sps->flags & V4L2_HEVC_SPS_FLAG_SCALING_LIST_ENABLED)
-			/* No scaling support */
+	} else if (ctrl->id == V4L2_CID_STATELESS_VP9_FRAME) {
+		const struct v4l2_ctrl_vp9_frame *dec_params = ctrl->p_new.p_vp9_frame;
+
+		/* We only support profile 0 */
+		if (dec_params->profile != 0)
 			return -EINVAL;
 	}
 	return 0;
@@ -322,6 +326,11 @@ static const struct v4l2_ctrl_ops hantro_hevc_ctrl_ops = {
 	.s_ctrl = hantro_hevc_s_ctrl,
 };
 
+#define HANTRO_JPEG_ACTIVE_MARKERS	(V4L2_JPEG_ACTIVE_MARKER_APP0 | \
+					 V4L2_JPEG_ACTIVE_MARKER_COM | \
+					 V4L2_JPEG_ACTIVE_MARKER_DQT | \
+					 V4L2_JPEG_ACTIVE_MARKER_DHT)
+
 static const struct hantro_ctrl controls[] = {
 	{
 		.codec = HANTRO_JPEG_ENCODER,
@@ -332,6 +341,22 @@ static const struct hantro_ctrl controls[] = {
 			.step = 1,
 			.def = 50,
 			.ops = &hantro_jpeg_ctrl_ops,
+		},
+	}, {
+		.codec = HANTRO_JPEG_ENCODER,
+		.cfg = {
+			.id = V4L2_CID_JPEG_ACTIVE_MARKER,
+			.max = HANTRO_JPEG_ACTIVE_MARKERS,
+			.def = HANTRO_JPEG_ACTIVE_MARKERS,
+			/*
+			 * Changing the set of active markers/segments also
+			 * messes up the alignment of the JPEG header, which
+			 * is needed to allow the hardware to write directly
+			 * to the output buffer. Implementing this introduces
+			 * a lot of complexity for little gain, as the markers
+			 * enabled is already the minimum required set.
+			 */
+			.flags = V4L2_CTRL_FLAG_READ_ONLY,
 		},
 	}, {
 		.codec = HANTRO_MPEG2_DECODER,
@@ -450,6 +475,11 @@ static const struct hantro_ctrl controls[] = {
 	}, {
 		.codec = HANTRO_HEVC_DECODER,
 		.cfg = {
+			.id = V4L2_CID_MPEG_VIDEO_HEVC_SCALING_MATRIX,
+		},
+	}, {
+		.codec = HANTRO_HEVC_DECODER,
+		.cfg = {
 			.id = V4L2_CID_HANTRO_HEVC_SLICE_HEADER_SKIP,
 			.name = "Hantro HEVC slice header skip bytes",
 			.type = V4L2_CTRL_TYPE_INTEGER,
@@ -458,6 +488,16 @@ static const struct hantro_ctrl controls[] = {
 			.max = 0x100,
 			.step = 1,
 			.ops = &hantro_hevc_ctrl_ops,
+		},
+	}, {
+		.codec = HANTRO_VP9_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_VP9_FRAME,
+		},
+	}, {
+		.codec = HANTRO_VP9_DECODER,
+		.cfg = {
+			.id = V4L2_CID_STATELESS_VP9_COMPRESSED_HDR,
 		},
 	},
 };
@@ -590,11 +630,16 @@ static const struct of_device_id of_hantro_match[] = {
 	{ .compatible = "rockchip,rk3399-vpu", .data = &rk3399_vpu_variant, },
 #endif
 #ifdef CONFIG_VIDEO_HANTRO_IMX8M
+	{ .compatible = "nxp,imx8mm-vpu-g1", .data = &imx8mm_vpu_g1_variant, },
 	{ .compatible = "nxp,imx8mq-vpu", .data = &imx8mq_vpu_variant, },
+	{ .compatible = "nxp,imx8mq-vpu-g1", .data = &imx8mq_vpu_g1_variant },
 	{ .compatible = "nxp,imx8mq-vpu-g2", .data = &imx8mq_vpu_g2_variant },
 #endif
 #ifdef CONFIG_VIDEO_HANTRO_SAMA5D4
 	{ .compatible = "microchip,sama5d4-vdec", .data = &sama5d4_vdec_variant, },
+#endif
+#ifdef CONFIG_VIDEO_HANTRO_SUNXI
+	{ .compatible = "allwinner,sun50i-h6-vpu-g2", .data = &sunxi_vpu_variant, },
 #endif
 	{ /* sentinel */ }
 };
@@ -862,6 +907,15 @@ static int hantro_probe(struct platform_device *pdev)
 	match = of_match_node(of_hantro_match, pdev->dev.of_node);
 	vpu->variant = match->data;
 
+	/*
+	 * Support for nxp,imx8mq-vpu is kept for backwards compatibility
+	 * but it's deprecated. Please update your DTS file to use
+	 * nxp,imx8mq-vpu-g1 or nxp,imx8mq-vpu-g2 instead.
+	 */
+	if (of_device_is_compatible(pdev->dev.of_node, "nxp,imx8mq-vpu"))
+		dev_warn(&pdev->dev, "%s compatible is deprecated\n",
+			 match->compatible);
+
 	INIT_DELAYED_WORK(&vpu->watchdog_work, hantro_watchdog);
 
 	vpu->clocks = devm_kcalloc(&pdev->dev, vpu->variant->num_clocks,
@@ -887,6 +941,10 @@ static int hantro_probe(struct platform_device *pdev)
 			return PTR_ERR(vpu->clocks[0].clk);
 	}
 
+	vpu->resets = devm_reset_control_array_get(&pdev->dev, false, true);
+	if (IS_ERR(vpu->resets))
+		return PTR_ERR(vpu->resets);
+
 	num_bases = vpu->variant->num_regs ?: 1;
 	vpu->reg_bases = devm_kcalloc(&pdev->dev, num_bases,
 				      sizeof(*vpu->reg_bases), GFP_KERNEL);
@@ -905,6 +963,11 @@ static int hantro_probe(struct platform_device *pdev)
 	vpu->enc_base = vpu->reg_bases[0] + vpu->variant->enc_offset;
 	vpu->dec_base = vpu->reg_bases[0] + vpu->variant->dec_offset;
 
+	/**
+	 * TODO: Eventually allow taking advantage of full 64-bit address space.
+	 * Until then we assume the MSB portion of buffers' base addresses is
+	 * always 0 due to this masking operation.
+	 */
 	ret = dma_set_coherent_mask(vpu->dev, DMA_BIT_MASK(32));
 	if (ret) {
 		dev_err(vpu->dev, "Could not set DMA coherent mask.\n");
@@ -955,10 +1018,16 @@ static int hantro_probe(struct platform_device *pdev)
 	pm_runtime_use_autosuspend(vpu->dev);
 	pm_runtime_enable(vpu->dev);
 
+	ret = reset_control_deassert(vpu->resets);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to deassert resets\n");
+		goto err_pm_disable;
+	}
+
 	ret = clk_bulk_prepare(vpu->variant->num_clocks, vpu->clocks);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to prepare clocks\n");
-		return ret;
+		goto err_rst_assert;
 	}
 
 	ret = v4l2_device_register(&pdev->dev, &vpu->v4l2_dev);
@@ -978,7 +1047,7 @@ static int hantro_probe(struct platform_device *pdev)
 	vpu->mdev.dev = vpu->dev;
 	strscpy(vpu->mdev.model, DRIVER_NAME, sizeof(vpu->mdev.model));
 	strscpy(vpu->mdev.bus_info, "platform: " DRIVER_NAME,
-		sizeof(vpu->mdev.model));
+		sizeof(vpu->mdev.bus_info));
 	media_device_init(&vpu->mdev);
 	vpu->mdev.ops = &hantro_m2m_media_ops;
 	vpu->v4l2_dev.mdev = &vpu->mdev;
@@ -1014,6 +1083,9 @@ err_v4l2_unreg:
 	v4l2_device_unregister(&vpu->v4l2_dev);
 err_clk_unprepare:
 	clk_bulk_unprepare(vpu->variant->num_clocks, vpu->clocks);
+err_rst_assert:
+	reset_control_assert(vpu->resets);
+err_pm_disable:
 	pm_runtime_dont_use_autosuspend(vpu->dev);
 	pm_runtime_disable(vpu->dev);
 	return ret;
@@ -1032,6 +1104,7 @@ static int hantro_remove(struct platform_device *pdev)
 	v4l2_m2m_release(vpu->m2m_dev);
 	v4l2_device_unregister(&vpu->v4l2_dev);
 	clk_bulk_unprepare(vpu->variant->num_clocks, vpu->clocks);
+	reset_control_assert(vpu->resets);
 	pm_runtime_dont_use_autosuspend(vpu->dev);
 	pm_runtime_disable(vpu->dev);
 	return 0;

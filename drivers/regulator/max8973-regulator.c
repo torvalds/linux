@@ -1,7 +1,7 @@
 /*
- * max8973-regulator.c -- Maxim max8973
+ * max8973-regulator.c -- Maxim max8973A
  *
- * Regulator driver for MAXIM 8973 DC-DC step-down switching regulator.
+ * Regulator driver for MAXIM 8973A DC-DC step-down switching regulator.
  *
  * Copyright (c) 2012, NVIDIA Corporation.
  *
@@ -459,7 +459,7 @@ static int max8973_thermal_read_temp(void *data, int *temp)
 		return ret;
 	}
 
-	/* +1 degC to trigger cool devive */
+	/* +1 degC to trigger cool device */
 	if (val & MAX77621_CHIPID_TJINT_S)
 		*temp = mchip->junction_temp_warning + 1000;
 	else

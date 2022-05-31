@@ -5,10 +5,13 @@
 #define __MLX5_EN_TC_PRIV_H__
 
 #include "en_tc.h"
+#include "en/tc/act/act.h"
 
 #define MLX5E_TC_FLOW_BASE (MLX5E_TC_FLAG_LAST_EXPORTED_BIT + 1)
 
 #define MLX5E_TC_MAX_SPLITS 1
+
+#define mlx5e_nic_chains(priv) ((priv)->fs.tc.chains)
 
 enum {
 	MLX5E_TC_FLOW_FLAG_INGRESS               = MLX5E_TC_FLAG_INGRESS_BIT,
@@ -32,11 +35,13 @@ enum {
 
 struct mlx5e_tc_flow_parse_attr {
 	const struct ip_tunnel_info *tun_info[MLX5_MAX_FLOW_FWD_VPORTS];
+	struct mlx5e_mpls_info mpls_info[MLX5_MAX_FLOW_FWD_VPORTS];
 	struct net_device *filter_dev;
 	struct mlx5_flow_spec spec;
+	struct pedit_headers_action hdrs[__PEDIT_CMD_MAX];
 	struct mlx5e_tc_mod_hdr_acts mod_hdr_acts;
 	int mirred_ifindex[MLX5_MAX_FLOW_FWD_VPORTS];
-	struct ethhdr eth;
+	struct mlx5e_tc_act_parse_state parse_state;
 };
 
 /* Helper struct for accessing a struct containing list_head array.
@@ -102,9 +107,20 @@ struct mlx5e_tc_flow {
 	refcount_t refcnt;
 	struct rcu_head rcu_head;
 	struct completion init_done;
-	int tunnel_id; /* the mapped tunnel id of this flow */
+	struct completion del_hw_done;
 	struct mlx5_flow_attr *attr;
+	struct list_head attrs;
 };
+
+struct mlx5_flow_handle *
+mlx5e_tc_rule_offload(struct mlx5e_priv *priv,
+		      struct mlx5_flow_spec *spec,
+		      struct mlx5_flow_attr *attr);
+
+void
+mlx5e_tc_rule_unoffload(struct mlx5e_priv *priv,
+			struct mlx5_flow_handle *rule,
+			struct mlx5_flow_attr *attr);
 
 u8 mlx5e_tc_get_ip_version(struct mlx5_flow_spec *spec, bool outer);
 
@@ -114,7 +130,17 @@ mlx5e_tc_offload_fdb_rules(struct mlx5_eswitch *esw,
 			   struct mlx5_flow_spec *spec,
 			   struct mlx5_flow_attr *attr);
 
+struct mlx5_flow_attr *
+mlx5e_tc_get_encap_attr(struct mlx5e_tc_flow *flow);
+
+void mlx5e_tc_unoffload_flow_post_acts(struct mlx5e_tc_flow *flow);
+int mlx5e_tc_offload_flow_post_acts(struct mlx5e_tc_flow *flow);
+
+bool mlx5e_is_eswitch_flow(struct mlx5e_tc_flow *flow);
+bool mlx5e_is_ft_flow(struct mlx5e_tc_flow *flow);
 bool mlx5e_is_offloaded_flow(struct mlx5e_tc_flow *flow);
+int mlx5e_get_flow_namespace(struct mlx5e_tc_flow *flow);
+bool mlx5e_same_hw_devs(struct mlx5e_priv *priv, struct mlx5e_priv *peer_priv);
 
 static inline void __flow_flag_set(struct mlx5e_tc_flow *flow, unsigned long flag)
 {
@@ -164,6 +190,7 @@ struct mlx5_flow_handle *
 mlx5e_tc_offload_to_slow_path(struct mlx5_eswitch *esw,
 			      struct mlx5e_tc_flow *flow,
 			      struct mlx5_flow_spec *spec);
+
 void mlx5e_tc_unoffload_fdb_rules(struct mlx5_eswitch *esw,
 				  struct mlx5e_tc_flow *flow,
 				  struct mlx5_flow_attr *attr);
@@ -172,5 +199,11 @@ struct mlx5e_tc_flow *mlx5e_flow_get(struct mlx5e_tc_flow *flow);
 void mlx5e_flow_put(struct mlx5e_priv *priv, struct mlx5e_tc_flow *flow);
 
 struct mlx5_fc *mlx5e_tc_get_counter(struct mlx5e_tc_flow *flow);
+
+struct mlx5e_tc_int_port_priv *
+mlx5e_get_int_port_priv(struct mlx5e_priv *priv);
+
+void *mlx5e_get_match_headers_value(u32 flags, struct mlx5_flow_spec *spec);
+void *mlx5e_get_match_headers_criteria(u32 flags, struct mlx5_flow_spec *spec);
 
 #endif /* __MLX5_EN_TC_PRIV_H__ */

@@ -82,18 +82,14 @@ wndwc37e_ilut_set(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw)
 	return 0;
 }
 
-static bool
+static void
 wndwc37e_ilut(struct nv50_wndw *wndw, struct nv50_wndw_atom *asyw, int size)
 {
-	if (size != 256 && size != 1024)
-		return false;
-
 	asyw->xlut.i.size = size == 1024 ? NVC37E_SET_CONTROL_INPUT_LUT_SIZE_SIZE_1025 :
 					   NVC37E_SET_CONTROL_INPUT_LUT_SIZE_SIZE_257;
 	asyw->xlut.i.range = NVC37E_SET_CONTROL_INPUT_LUT_RANGE_UNITY;
 	asyw->xlut.i.output_mode = NVC37E_SET_CONTROL_INPUT_LUT_OUTPUT_MODE_INTERPOLATE;
 	asyw->xlut.i.load = head907d_olut_load;
-	return true;
 }
 
 int

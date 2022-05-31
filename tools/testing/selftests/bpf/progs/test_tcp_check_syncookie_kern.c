@@ -16,12 +16,12 @@
 #include <bpf/bpf_helpers.h>
 #include <bpf/bpf_endian.h>
 
-struct bpf_map_def SEC("maps") results = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u32),
-	.max_entries = 3,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, __u32);
+	__uint(max_entries, 3);
+} results SEC(".maps");
 
 static __always_inline __s64 gen_syncookie(void *data_end, struct bpf_sock *sk,
 					   void *iph, __u32 ip_size,
@@ -148,7 +148,7 @@ release:
 	bpf_sk_release(sk);
 }
 
-SEC("clsact/check_syncookie")
+SEC("tc")
 int check_syncookie_clsact(struct __sk_buff *skb)
 {
 	check_syncookie(skb, (void *)(long)skb->data,
@@ -156,7 +156,7 @@ int check_syncookie_clsact(struct __sk_buff *skb)
 	return TC_ACT_OK;
 }
 
-SEC("xdp/check_syncookie")
+SEC("xdp")
 int check_syncookie_xdp(struct xdp_md *ctx)
 {
 	check_syncookie(ctx, (void *)(long)ctx->data,

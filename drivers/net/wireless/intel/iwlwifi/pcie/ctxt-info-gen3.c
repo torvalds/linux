@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #include "iwl-trans.h"
 #include "iwl-fh.h"
@@ -57,6 +57,10 @@ iwl_pcie_ctxt_info_dbg_enable(struct iwl_trans *trans,
 			dbg_flags |= IWL_PRPH_SCRATCH_EDBG_DEST_DRAM;
 			dbg_cfg->hwm_base_addr = cpu_to_le64(frag->physical);
 			dbg_cfg->hwm_size = cpu_to_le32(frag->size);
+			dbg_cfg->debug_token_config = cpu_to_le32(trans->dbg.ucode_preset);
+			IWL_DEBUG_FW(trans,
+				     "WRT: Applying DRAM destination (debug_token_config=%u)\n",
+				     dbg_cfg->debug_token_config);
 			IWL_DEBUG_FW(trans,
 				     "WRT: Applying DRAM destination (alloc_id=%u, num_frags=%u)\n",
 				     alloc_id,
@@ -120,6 +124,9 @@ int iwl_pcie_ctxt_info_gen3_init(struct iwl_trans *trans,
 
 	control_flags |= IWL_PRPH_SCRATCH_MTR_MODE;
 	control_flags |= IWL_PRPH_MTR_FORMAT_256B & IWL_PRPH_SCRATCH_MTR_FORMAT;
+
+	if (trans->trans_cfg->imr_enabled)
+		control_flags |= IWL_PRPH_SCRATCH_IMR_DEBUG_EN;
 
 	/* initialize RX default queue */
 	prph_sc_ctrl->rbd_cfg.free_rbd_addr =

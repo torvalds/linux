@@ -12,7 +12,6 @@
 #endif
 #define pr_fmt(fmt) KBUILD_MODNAME ": " fmt
 
-#include <linux/module.h>
 #include <linux/skbuff.h>
 
 #include <rdma/ib_verbs.h>
@@ -38,8 +37,6 @@
 #define RXE_UVERBS_ABI_VERSION		2
 
 #define RXE_ROCE_V2_SPORT		(0xc000)
-
-extern bool rxe_initialized;
 
 void rxe_set_mtu(struct rxe_dev *rxe, unsigned int dev_mtu);
 

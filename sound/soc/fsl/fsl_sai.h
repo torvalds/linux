@@ -201,9 +201,6 @@
 #define FSL_SAI_REC_SYN		BIT(4)
 #define FSL_SAI_USE_I2S_SLAVE	BIT(5)
 
-#define FSL_FMT_TRANSMITTER	0
-#define FSL_FMT_RECEIVER	1
-
 /* SAI clock sources */
 #define FSL_SAI_CLK_BUS		0
 #define FSL_SAI_CLK_MAST1	1
@@ -223,21 +220,20 @@ struct fsl_sai_soc_data {
 	bool use_edma;
 	bool mclk0_is_mclk1;
 	unsigned int fifo_depth;
+	unsigned int pins;
 	unsigned int reg_offset;
 	unsigned int flags;
 };
 
 /**
  * struct fsl_sai_verid - version id data
- * @major: major version number
- * @minor: minor version number
+ * @version: version number
  * @feature: feature specification number
  *           0000000000000000b - Standard feature set
  *           0000000000000000b - Standard feature set
  */
 struct fsl_sai_verid {
-	u32 major;
-	u32 minor;
+	u32 version;
 	u32 feature;
 };
 
@@ -259,7 +255,7 @@ struct fsl_sai {
 	struct clk *bus_clk;
 	struct clk *mclk_clk[FSL_SAI_MCLK_MAX];
 
-	bool is_slave_mode;
+	bool is_consumer_mode;
 	bool is_lsb_first;
 	bool is_dsp_mode;
 	bool synchronous[2];

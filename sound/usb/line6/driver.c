@@ -113,12 +113,12 @@ int line6_send_raw_message(struct usb_line6 *line6, const char *buffer,
 			retval = usb_interrupt_msg(line6->usbdev,
 						usb_sndintpipe(line6->usbdev, properties->ep_ctrl_w),
 						(char *)frag_buf, frag_size,
-						&partial, LINE6_TIMEOUT * HZ);
+						&partial, LINE6_TIMEOUT);
 		} else {
 			retval = usb_bulk_msg(line6->usbdev,
 						usb_sndbulkpipe(line6->usbdev, properties->ep_ctrl_w),
 						(char *)frag_buf, frag_size,
-						&partial, LINE6_TIMEOUT * HZ);
+						&partial, LINE6_TIMEOUT);
 		}
 
 		if (retval) {
@@ -347,7 +347,7 @@ int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
 	ret = usb_control_msg_send(usbdev, 0, 0x67,
 				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
 				   (datalen << 8) | 0x21, address, NULL, 0,
-				   LINE6_TIMEOUT * HZ, GFP_KERNEL);
+				   LINE6_TIMEOUT, GFP_KERNEL);
 	if (ret) {
 		dev_err(line6->ifcdev, "read request failed (error %d)\n", ret);
 		goto exit;
@@ -360,7 +360,7 @@ int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
 		ret = usb_control_msg_recv(usbdev, 0, 0x67,
 					   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
 					   0x0012, 0x0000, &len, 1,
-					   LINE6_TIMEOUT * HZ, GFP_KERNEL);
+					   LINE6_TIMEOUT, GFP_KERNEL);
 		if (ret) {
 			dev_err(line6->ifcdev,
 				"receive length failed (error %d)\n", ret);
@@ -387,7 +387,7 @@ int line6_read_data(struct usb_line6 *line6, unsigned address, void *data,
 	/* receive the result: */
 	ret = usb_control_msg_recv(usbdev, 0, 0x67,
 				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-				   0x0013, 0x0000, data, datalen, LINE6_TIMEOUT * HZ,
+				   0x0013, 0x0000, data, datalen, LINE6_TIMEOUT,
 				   GFP_KERNEL);
 	if (ret)
 		dev_err(line6->ifcdev, "read failed (error %d)\n", ret);
@@ -417,7 +417,7 @@ int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
 
 	ret = usb_control_msg_send(usbdev, 0, 0x67,
 				   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_OUT,
-				   0x0022, address, data, datalen, LINE6_TIMEOUT * HZ,
+				   0x0022, address, data, datalen, LINE6_TIMEOUT,
 				   GFP_KERNEL);
 	if (ret) {
 		dev_err(line6->ifcdev,
@@ -430,7 +430,7 @@ int line6_write_data(struct usb_line6 *line6, unsigned address, void *data,
 
 		ret = usb_control_msg_recv(usbdev, 0, 0x67,
 					   USB_TYPE_VENDOR | USB_RECIP_DEVICE | USB_DIR_IN,
-					   0x0012, 0x0000, status, 1, LINE6_TIMEOUT * HZ,
+					   0x0012, 0x0000, status, 1, LINE6_TIMEOUT,
 					   GFP_KERNEL);
 		if (ret) {
 			dev_err(line6->ifcdev,

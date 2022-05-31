@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Reset Clock Controller Binding
 
 maintainers:
-  - Gabriel Fernandez <gabriel.fernandez@st.com>
+  - Gabriel Fernandez <gabriel.fernandez@foss.st.com>
 
 description: |
   The RCC IP is both a reset and a clock controller.

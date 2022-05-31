@@ -1,6 +1,6 @@
-/**********************************************************
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
+/*
  * Copyright 2012-2021 VMware, Inc.
- * SPDX-License-Identifier: GPL-2.0 OR MIT
  *
  * Permission is hereby granted, free of charge, to any person
  * obtaining a copy of this software and associated documentation
@@ -22,7 +22,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  *
- **********************************************************/
+ */
 
 /*
  * svga3d_limits.h --
@@ -82,4 +82,6 @@
 #define SVGA3D_MIN_SBX_DATA_SIZE (GBYTES_2_BYTES(1))
 #define SVGA3D_MAX_SBX_DATA_SIZE (GBYTES_2_BYTES(4))
 
+#define SVGA3D_MIN_SBX_DATA_SIZE_DVM (MBYTES_2_BYTES(900))
+#define SVGA3D_MAX_SBX_DATA_SIZE_DVM (MBYTES_2_BYTES(910))
 #endif

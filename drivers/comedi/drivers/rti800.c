@@ -42,7 +42,7 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/interrupt.h>
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 /*
  * Register map

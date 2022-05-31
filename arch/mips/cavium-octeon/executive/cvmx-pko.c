@@ -230,20 +230,6 @@ void cvmx_pko_initialize_global(void)
 }
 
 /*
- * This function does per-core initialization required by the PKO routines.
- * This must be called on all cores that will do packet output, and must
- * be called after the FPA has been initialized and filled with pages.
- *
- * Returns 0 on success
- *	   !0 on failure
- */
-int cvmx_pko_initialize_local(void)
-{
-	/* Nothing to do */
-	return 0;
-}
-
-/*
  * Enables the packet output hardware. It must already be
  * configured.
  */

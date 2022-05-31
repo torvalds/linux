@@ -115,8 +115,7 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	stw	r10,8(r1)
 	li	r10, \trapno
 	stw	r10,_TRAP(r1)
-	SAVE_4GPRS(3, r1)
-	SAVE_2GPRS(7, r1)
+	SAVE_GPRS(3, 8, r1)
 	SAVE_NVGPRS(r1)
 	stw	r2,GPR2(r1)
 	stw	r12,_NIP(r1)
@@ -136,6 +135,12 @@ _ASM_NOKPROBE_SYMBOL(\name\()_virt)
 	andi.	r12,r9,MSR_PR
 	bne	777f
 	bl	prepare_transfer_to_handler
+#ifdef CONFIG_PPC_KUEP
+	b	778f
+777:
+	bl	__kuep_lock
+778:
+#endif
 777:
 #endif
 .endm
@@ -202,11 +207,11 @@ vmap_stack_overflow:
 	mfspr	r1, SPRN_SPRG_THREAD
 	lwz	r1, TASK_CPU - THREAD(r1)
 	slwi	r1, r1, 3
-	addis	r1, r1, emergency_ctx@ha
+	addis	r1, r1, emergency_ctx-PAGE_OFFSET@ha
 #else
-	lis	r1, emergency_ctx@ha
+	lis	r1, emergency_ctx-PAGE_OFFSET@ha
 #endif
-	lwz	r1, emergency_ctx@l(r1)
+	lwz	r1, emergency_ctx-PAGE_OFFSET@l(r1)
 	addi	r1, r1, THREAD_SIZE - INT_FRAME_SIZE
 	EXCEPTION_PROLOG_2 0 vmap_stack_overflow
 	prepare_transfer_to_handler

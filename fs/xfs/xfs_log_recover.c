@@ -27,7 +27,7 @@
 #include "xfs_buf_item.h"
 #include "xfs_ag.h"
 #include "xfs_quota.h"
-
+#include "xfs_reflink.h"
 
 #define BLK_AVG(blk1, blk2)	((blk1+blk2) >> 1)
 
@@ -2466,11 +2466,11 @@ xlog_finish_defer_ops(
 {
 	struct xfs_defer_capture *dfc, *next;
 	struct xfs_trans	*tp;
-	struct xfs_inode	*ip;
 	int			error = 0;
 
 	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
 		struct xfs_trans_res	resv;
+		struct xfs_defer_resources dres;
 
 		/*
 		 * Create a new transaction reservation from the captured
@@ -2485,7 +2485,7 @@ xlog_finish_defer_ops(
 		error = xfs_trans_alloc(mp, &resv, dfc->dfc_blkres,
 				dfc->dfc_rtxres, XFS_TRANS_RESERVE, &tp);
 		if (error) {
-			xfs_force_shutdown(mp, SHUTDOWN_LOG_IO_ERROR);
+			xlog_force_shutdown(mp->m_log, SHUTDOWN_LOG_IO_ERROR);
 			return error;
 		}
 
@@ -2494,13 +2494,9 @@ xlog_finish_defer_ops(
 		 * from recovering a single intent item.
 		 */
 		list_del_init(&dfc->dfc_list);
-		xfs_defer_ops_continue(dfc, tp, &ip);
-
+		xfs_defer_ops_continue(dfc, tp, &dres);
 		error = xfs_trans_commit(tp);
-		if (ip) {
-			xfs_iunlock(ip, XFS_ILOCK_EXCL);
-			xfs_irele(ip);
-		}
+		xfs_defer_resources_rele(&dres);
 		if (error)
 			return error;
 	}
@@ -2520,24 +2516,25 @@ xlog_abort_defer_ops(
 
 	list_for_each_entry_safe(dfc, next, capture_list, dfc_list) {
 		list_del_init(&dfc->dfc_list);
-		xfs_defer_ops_release(mp, dfc);
+		xfs_defer_ops_capture_free(mp, dfc);
 	}
 }
+
 /*
  * When this is called, all of the log intent items which did not have
- * corresponding log done items should be in the AIL.  What we do now
- * is update the data structures associated with each one.
+ * corresponding log done items should be in the AIL.  What we do now is update
+ * the data structures associated with each one.
  *
- * Since we process the log intent items in normal transactions, they
- * will be removed at some point after the commit.  This prevents us
- * from just walking down the list processing each one.  We'll use a
- * flag in the intent item to skip those that we've already processed
- * and use the AIL iteration mechanism's generation count to try to
- * speed this up at least a bit.
+ * Since we process the log intent items in normal transactions, they will be
+ * removed at some point after the commit.  This prevents us from just walking
+ * down the list processing each one.  We'll use a flag in the intent item to
+ * skip those that we've already processed and use the AIL iteration mechanism's
+ * generation count to try to speed this up at least a bit.
  *
- * When we start, we know that the intents are the only things in the
- * AIL.  As we process them, however, other items are added to the
- * AIL.
+ * When we start, we know that the intents are the only things in the AIL. As we
+ * process them, however, other items are added to the AIL. Hence we know we
+ * have started recovery on all the pending intents when we find an non-intent
+ * item in the AIL.
  */
 STATIC int
 xlog_recover_process_intents(
@@ -2560,17 +2557,8 @@ xlog_recover_process_intents(
 	for (lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	     lip != NULL;
 	     lip = xfs_trans_ail_cursor_next(ailp, &cur)) {
-		/*
-		 * We're done when we see something other than an intent.
-		 * There should be no intents left in the AIL now.
-		 */
-		if (!xlog_item_is_intent(lip)) {
-#ifdef DEBUG
-			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
-				ASSERT(!xlog_item_is_intent(lip));
-#endif
+		if (!xlog_item_is_intent(lip))
 			break;
-		}
 
 		/*
 		 * We should never see a redo item with a LSN higher than
@@ -2611,8 +2599,9 @@ err:
 }
 
 /*
- * A cancel occurs when the mount has failed and we're bailing out.
- * Release all pending log intent items so they don't pin the AIL.
+ * A cancel occurs when the mount has failed and we're bailing out.  Release all
+ * pending log intent items that we haven't started recovery on so they don't
+ * pin the AIL.
  */
 STATIC void
 xlog_recover_cancel_intents(
@@ -2626,17 +2615,8 @@ xlog_recover_cancel_intents(
 	spin_lock(&ailp->ail_lock);
 	lip = xfs_trans_ail_cursor_first(ailp, &cur, 0);
 	while (lip != NULL) {
-		/*
-		 * We're done when we see something other than an intent.
-		 * There should be no intents left in the AIL now.
-		 */
-		if (!xlog_item_is_intent(lip)) {
-#ifdef DEBUG
-			for (; lip; lip = xfs_trans_ail_cursor_next(ailp, &cur))
-				ASSERT(!xlog_item_is_intent(lip));
-#endif
+		if (!xlog_item_is_intent(lip))
 			break;
-		}
 
 		spin_unlock(&ailp->ail_lock);
 		lip->li_ops->iop_release(lip);
@@ -3474,7 +3454,7 @@ xlog_recover_finish(
 		 */
 		xlog_recover_cancel_intents(log);
 		xfs_alert(log->l_mp, "Failed to recover intents");
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 		return error;
 	}
 
@@ -3502,6 +3482,28 @@ xlog_recover_finish(
 
 	xlog_recover_process_iunlinks(log);
 	xlog_recover_check_summary(log);
+
+	/*
+	 * Recover any CoW staging blocks that are still referenced by the
+	 * ondisk refcount metadata.  During mount there cannot be any live
+	 * staging extents as we have not permitted any user modifications.
+	 * Therefore, it is safe to free them all right now, even on a
+	 * read-only mount.
+	 */
+	error = xfs_reflink_recover_cow(log->l_mp);
+	if (error) {
+		xfs_alert(log->l_mp,
+	"Failed to recover leftover CoW staging extents, err %d.",
+				error);
+		/*
+		 * If we get an error here, make sure the log is shut down
+		 * but return zero so that any log items committed since the
+		 * end of intents processing can be pushed through the CIL
+		 * and AIL.
+		 */
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
+	}
+
 	return 0;
 }
 
@@ -3531,8 +3533,6 @@ xlog_recover_check_summary(
 	uint64_t		itotal;
 	uint64_t		ifree;
 	int			error;
-
-	mp = log->l_mp;
 
 	freeblks = 0LL;
 	itotal = 0LL;

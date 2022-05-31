@@ -14,7 +14,7 @@ struct {
 
 char _license[] SEC("license") = "GPL";
 
-SEC("classifier/test_skb_helpers")
+SEC("tc")
 int test_skb_helpers(struct __sk_buff *skb)
 {
 	struct task_struct *task;

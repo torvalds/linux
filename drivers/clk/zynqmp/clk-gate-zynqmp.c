@@ -41,8 +41,8 @@ static int zynqmp_clk_gate_enable(struct clk_hw *hw)
 	ret = zynqmp_pm_clock_enable(clk_id);
 
 	if (ret)
-		pr_warn_once("%s() clock enabled failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() clock enable failed for %s (id %d), ret = %d\n",
+			 __func__, clk_name, clk_id, ret);
 
 	return ret;
 }
@@ -61,8 +61,8 @@ static void zynqmp_clk_gate_disable(struct clk_hw *hw)
 	ret = zynqmp_pm_clock_disable(clk_id);
 
 	if (ret)
-		pr_warn_once("%s() clock disable failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() clock disable failed for %s (id %d), ret = %d\n",
+			 __func__, clk_name, clk_id, ret);
 }
 
 /**
@@ -80,8 +80,8 @@ static int zynqmp_clk_gate_is_enabled(struct clk_hw *hw)
 
 	ret = zynqmp_pm_clock_getstate(clk_id, &state);
 	if (ret) {
-		pr_warn_once("%s() clock get state failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() clock get state failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 		return -EIO;
 	}
 

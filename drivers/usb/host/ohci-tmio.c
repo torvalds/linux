@@ -21,11 +21,6 @@
  *	usb-ohci-tc6393.c(C) Copyright 2004 Lineo Solutions, Inc.
  */
 
-/*#include <linux/fs.h>
-#include <linux/mount.h>
-#include <linux/pagemap.h>
-#include <linux/namei.h>
-#include <linux/sched.h>*/
 #include <linux/platform_device.h>
 #include <linux/mfd/core.h>
 #include <linux/mfd/tmio.h>
@@ -199,7 +194,7 @@ static int ohci_hcd_tmio_drv_probe(struct platform_device *dev)
 	if (usb_disabled())
 		return -ENODEV;
 
-	if (!cell)
+	if (!cell || !regs || !config || !sram)
 		return -EINVAL;
 
 	if (irq < 0)

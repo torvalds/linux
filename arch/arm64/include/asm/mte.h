@@ -11,7 +11,9 @@
 #ifndef __ASSEMBLY__
 
 #include <linux/bitfield.h>
+#include <linux/kasan-enabled.h>
 #include <linux/page-flags.h>
+#include <linux/sched.h>
 #include <linux/types.h>
 
 #include <asm/pgtable-types.h>
@@ -86,13 +88,33 @@ static inline int mte_ptrace_copy_tags(struct task_struct *child,
 
 #endif /* CONFIG_ARM64_MTE */
 
+static inline void mte_disable_tco_entry(struct task_struct *task)
+{
+	if (!system_supports_mte())
+		return;
+
+	/*
+	 * Re-enable tag checking (TCO set on exception entry). This is only
+	 * necessary if MTE is enabled in either the kernel or the userspace
+	 * task in synchronous or asymmetric mode (SCTLR_EL1.TCF0 bit 0 is set
+	 * for both). With MTE disabled in the kernel and disabled or
+	 * asynchronous in userspace, tag check faults (including in uaccesses)
+	 * are not reported, therefore there is no need to re-enable checking.
+	 * This is beneficial on microarchitectures where re-enabling TCO is
+	 * expensive.
+	 */
+	if (kasan_hw_tags_enabled() ||
+	    (task->thread.sctlr_user & (1UL << SCTLR_EL1_TCF0_SHIFT)))
+		asm volatile(SET_PSTATE_TCO(0));
+}
+
 #ifdef CONFIG_KASAN_HW_TAGS
 /* Whether the MTE asynchronous mode is enabled. */
-DECLARE_STATIC_KEY_FALSE(mte_async_mode);
+DECLARE_STATIC_KEY_FALSE(mte_async_or_asymm_mode);
 
-static inline bool system_uses_mte_async_mode(void)
+static inline bool system_uses_mte_async_or_asymm_mode(void)
 {
-	return static_branch_unlikely(&mte_async_mode);
+	return static_branch_unlikely(&mte_async_or_asymm_mode);
 }
 
 void mte_check_tfsr_el1(void);
@@ -121,7 +143,7 @@ static inline void mte_check_tfsr_exit(void)
 	mte_check_tfsr_el1();
 }
 #else
-static inline bool system_uses_mte_async_mode(void)
+static inline bool system_uses_mte_async_or_asymm_mode(void)
 {
 	return false;
 }

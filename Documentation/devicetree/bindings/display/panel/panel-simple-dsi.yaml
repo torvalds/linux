@@ -35,6 +35,8 @@ properties:
       - boe,tv080wum-nl0
         # Innolux P079ZCA 7.85" 768x1024 TFT LCD panel
       - innolux,p079zca
+        # JDI FHD_R63452 1080x1920 5.2" IPS LCD Panel
+      - jdi,fhd-r63452
         # Khadas TS050 5" 1080x1920 LCD panel
       - khadas,ts050
         # Kingdisplay KD097D04 9.7" 1536x2048 TFT LCD panel

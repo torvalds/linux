@@ -133,7 +133,7 @@ void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
 {
 	struct drm_device *dev = encoder->dev;
 	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_i2c_chan *chan;
 
 	chan = kzalloc(sizeof(struct psb_intel_i2c_chan), GFP_KERNEL);

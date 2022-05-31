@@ -38,11 +38,13 @@
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_context.h"
 #include "gt/intel_execlists_submission.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_lrc.h"
 #include "gt/intel_ring.h"
 
 #include "i915_drv.h"
 #include "i915_gem_gtt.h"
+#include "i915_perf_oa_regs.h"
 #include "gvt.h"
 
 #define RING_CTX_OFF(x) \
@@ -1386,7 +1388,7 @@ int intel_vgpu_setup_submission(struct intel_vgpu *vgpu)
 	enum intel_engine_id i;
 	int ret;
 
-	ppgtt = i915_ppgtt_create(&i915->gt);
+	ppgtt = i915_ppgtt_create(to_gt(i915), I915_BO_ALLOC_PM_EARLY);
 	if (IS_ERR(ppgtt))
 		return PTR_ERR(ppgtt);
 

@@ -923,7 +923,8 @@ struct event_constraint intel_skl_pebs_event_constraints[] = {
 };
 
 struct event_constraint intel_icl_pebs_event_constraints[] = {
-	INTEL_FLAGS_UEVENT_CONSTRAINT(0x1c0, 0x100000000ULL),	/* INST_RETIRED.PREC_DIST */
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x01c0, 0x100000000ULL),	/* old INST_RETIRED.PREC_DIST */
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x0100, 0x100000000ULL),	/* INST_RETIRED.PREC_DIST */
 	INTEL_FLAGS_UEVENT_CONSTRAINT(0x0400, 0x800000000ULL),	/* SLOTS */
 
 	INTEL_PLD_CONSTRAINT(0x1cd, 0xff),			/* MEM_TRANS_RETIRED.LOAD_LATENCY */
@@ -943,7 +944,7 @@ struct event_constraint intel_icl_pebs_event_constraints[] = {
 };
 
 struct event_constraint intel_spr_pebs_event_constraints[] = {
-	INTEL_FLAGS_UEVENT_CONSTRAINT(0x1c0, 0x100000000ULL),
+	INTEL_FLAGS_UEVENT_CONSTRAINT(0x100, 0x100000000ULL),	/* INST_RETIRED.PREC_DIST */
 	INTEL_FLAGS_UEVENT_CONSTRAINT(0x0400, 0x800000000ULL),
 
 	INTEL_FLAGS_EVENT_CONSTRAINT(0xc0, 0xfe),
@@ -1202,7 +1203,10 @@ static void intel_pmu_pebs_via_pt_enable(struct perf_event *event)
 	if (hwc->idx >= INTEL_PMC_IDX_FIXED) {
 		base = MSR_RELOAD_FIXED_CTR0;
 		idx = hwc->idx - INTEL_PMC_IDX_FIXED;
-		value = ds->pebs_event_reset[MAX_PEBS_EVENTS + idx];
+		if (x86_pmu.intel_cap.pebs_format < 5)
+			value = ds->pebs_event_reset[MAX_PEBS_EVENTS_FMT4 + idx];
+		else
+			value = ds->pebs_event_reset[MAX_PEBS_EVENTS + idx];
 	}
 	wrmsrl(base + idx, value);
 }
@@ -1231,8 +1235,12 @@ void intel_pmu_pebs_enable(struct perf_event *event)
 		}
 	}
 
-	if (idx >= INTEL_PMC_IDX_FIXED)
-		idx = MAX_PEBS_EVENTS + (idx - INTEL_PMC_IDX_FIXED);
+	if (idx >= INTEL_PMC_IDX_FIXED) {
+		if (x86_pmu.intel_cap.pebs_format < 5)
+			idx = MAX_PEBS_EVENTS_FMT4 + (idx - INTEL_PMC_IDX_FIXED);
+		else
+			idx = MAX_PEBS_EVENTS + (idx - INTEL_PMC_IDX_FIXED);
+	}
 
 	/*
 	 * Use auto-reload if possible to save a MSR write in the PMI.
@@ -1301,7 +1309,7 @@ void intel_pmu_pebs_disable_all(void)
 	struct cpu_hw_events *cpuc = this_cpu_ptr(&cpu_hw_events);
 
 	if (cpuc->pebs_enabled)
-		wrmsrl(MSR_IA32_PEBS_ENABLE, 0);
+		__intel_pmu_pebs_disable_all();
 }
 
 static int intel_pmu_pebs_fixup_ip(struct pt_regs *regs)
@@ -2203,6 +2211,7 @@ void __init intel_ds_init(void)
 			break;
 
 		case 4:
+		case 5:
 			x86_pmu.drain_pebs = intel_pmu_drain_pebs_icl;
 			x86_pmu.pebs_record_size = sizeof(struct pebs_basic);
 			if (x86_pmu.intel_cap.pebs_baseline) {

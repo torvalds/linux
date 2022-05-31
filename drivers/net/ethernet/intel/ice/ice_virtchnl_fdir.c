@@ -5,6 +5,7 @@
 #include "ice_base.h"
 #include "ice_lib.h"
 #include "ice_flow.h"
+#include "ice_vf_lib_private.h"
 
 #define to_fltr_conf_from_desc(p) \
 	container_of(p, struct virtchnl_fdir_fltr_conf, input)
@@ -45,197 +46,6 @@ struct virtchnl_fdir_fltr_conf {
 	enum ice_fdir_tunnel_type ttype;
 	u64 inset_flag;
 	u32 flow_id;
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ether[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_tcp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_TCP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_udp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_sctp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_SCTP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_tcp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_TCP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_udp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_sctp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_SCTP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_gtpu[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_GTPU_IP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_gtpu_eh[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_GTPU_IP,
-	VIRTCHNL_PROTO_HDR_GTPU_EH,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_l2tpv3[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_L2TPV3,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_l2tpv3[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_L2TPV3,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_esp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_ESP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_esp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_ESP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_ah[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_AH,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_ah[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_AH,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_nat_t_esp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_ESP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_nat_t_esp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_ESP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv4_pfcp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV4,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_PFCP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-static enum virtchnl_proto_hdr_type vc_pattern_ipv6_pfcp[] = {
-	VIRTCHNL_PROTO_HDR_ETH,
-	VIRTCHNL_PROTO_HDR_IPV6,
-	VIRTCHNL_PROTO_HDR_UDP,
-	VIRTCHNL_PROTO_HDR_PFCP,
-	VIRTCHNL_PROTO_HDR_NONE,
-};
-
-struct virtchnl_fdir_pattern_match_item {
-	enum virtchnl_proto_hdr_type *list;
-	u64 input_set;
-	u64 *meta;
-};
-
-static const struct virtchnl_fdir_pattern_match_item vc_fdir_pattern_os[] = {
-	{vc_pattern_ipv4,                     0,         NULL},
-	{vc_pattern_ipv4_tcp,                 0,         NULL},
-	{vc_pattern_ipv4_udp,                 0,         NULL},
-	{vc_pattern_ipv4_sctp,                0,         NULL},
-	{vc_pattern_ipv6,                     0,         NULL},
-	{vc_pattern_ipv6_tcp,                 0,         NULL},
-	{vc_pattern_ipv6_udp,                 0,         NULL},
-	{vc_pattern_ipv6_sctp,                0,         NULL},
-};
-
-static const struct virtchnl_fdir_pattern_match_item vc_fdir_pattern_comms[] = {
-	{vc_pattern_ipv4,                     0,         NULL},
-	{vc_pattern_ipv4_tcp,                 0,         NULL},
-	{vc_pattern_ipv4_udp,                 0,         NULL},
-	{vc_pattern_ipv4_sctp,                0,         NULL},
-	{vc_pattern_ipv6,                     0,         NULL},
-	{vc_pattern_ipv6_tcp,                 0,         NULL},
-	{vc_pattern_ipv6_udp,                 0,         NULL},
-	{vc_pattern_ipv6_sctp,                0,         NULL},
-	{vc_pattern_ether,                    0,         NULL},
-	{vc_pattern_ipv4_gtpu,                0,         NULL},
-	{vc_pattern_ipv4_gtpu_eh,             0,         NULL},
-	{vc_pattern_ipv4_l2tpv3,              0,         NULL},
-	{vc_pattern_ipv6_l2tpv3,              0,         NULL},
-	{vc_pattern_ipv4_esp,                 0,         NULL},
-	{vc_pattern_ipv6_esp,                 0,         NULL},
-	{vc_pattern_ipv4_ah,                  0,         NULL},
-	{vc_pattern_ipv6_ah,                  0,         NULL},
-	{vc_pattern_ipv4_nat_t_esp,           0,         NULL},
-	{vc_pattern_ipv6_nat_t_esp,           0,         NULL},
-	{vc_pattern_ipv4_pfcp,                0,         NULL},
-	{vc_pattern_ipv6_pfcp,                0,         NULL},
 };
 
 struct virtchnl_fdir_inset_map {
@@ -751,7 +561,6 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	struct ice_flow_seg_info *old_seg;
 	struct ice_flow_prof *prof = NULL;
 	struct ice_fd_hw_prof *vf_prof;
-	enum ice_status status;
 	struct device *dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
@@ -794,29 +603,26 @@ ice_vc_fdir_write_flow_prof(struct ice_vf *vf, enum ice_fltr_ptype flow,
 	prof_id = ICE_FLOW_PROF_FD(vf_vsi->vsi_num, flow,
 				   tun ? ICE_FLTR_PTYPE_MAX : 0);
 
-	status = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
-				   tun + 1, &prof);
-	ret = ice_status_to_errno(status);
+	ret = ice_flow_add_prof(hw, ICE_BLK_FD, ICE_FLOW_RX, prof_id, seg,
+				tun + 1, &prof);
 	if (ret) {
 		dev_dbg(dev, "Could not add VSI flow 0x%x for VF %d\n",
 			flow, vf->vf_id);
 		goto err_exit;
 	}
 
-	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
-				    vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
-				    seg, &entry1_h);
-	ret = ice_status_to_errno(status);
+	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+				 vf_vsi->idx, ICE_FLOW_PRIO_NORMAL,
+				 seg, &entry1_h);
 	if (ret) {
 		dev_dbg(dev, "Could not add flow 0x%x VSI entry for VF %d\n",
 			flow, vf->vf_id);
 		goto err_prof;
 	}
 
-	status = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
-				    ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
-				    seg, &entry2_h);
-	ret = ice_status_to_errno(status);
+	ret = ice_flow_add_entry(hw, ICE_BLK_FD, prof_id, vf_vsi->idx,
+				 ctrl_vsi->idx, ICE_FLOW_PRIO_NORMAL,
+				 seg, &entry2_h);
 	if (ret) {
 		dev_dbg(dev,
 			"Could not add flow 0x%x Ctrl VSI entry for VF %d\n",
@@ -908,83 +714,6 @@ ice_vc_fdir_config_input_set(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 err_exit:
 	devm_kfree(dev, seg);
 	return ret;
-}
-
-/**
- * ice_vc_fdir_match_pattern
- * @fltr: virtual channel add cmd buffer
- * @type: virtual channel protocol filter header type
- *
- * Matching the header type by comparing fltr and type's value.
- *
- * Return: true on success, and false on error.
- */
-static bool
-ice_vc_fdir_match_pattern(struct virtchnl_fdir_add *fltr,
-			  enum virtchnl_proto_hdr_type *type)
-{
-	struct virtchnl_proto_hdrs *proto = &fltr->rule_cfg.proto_hdrs;
-	int i = 0;
-
-	while ((i < proto->count) &&
-	       (*type == proto->proto_hdr[i].type) &&
-	       (*type != VIRTCHNL_PROTO_HDR_NONE)) {
-		type++;
-		i++;
-	}
-
-	return ((i == proto->count) && (*type == VIRTCHNL_PROTO_HDR_NONE));
-}
-
-/**
- * ice_vc_fdir_get_pattern - get while list pattern
- * @vf: pointer to the VF info
- * @len: filter list length
- *
- * Return: pointer to allowed filter list
- */
-static const struct virtchnl_fdir_pattern_match_item *
-ice_vc_fdir_get_pattern(struct ice_vf *vf, int *len)
-{
-	const struct virtchnl_fdir_pattern_match_item *item;
-	struct ice_pf *pf = vf->pf;
-	struct ice_hw *hw;
-
-	hw = &pf->hw;
-	if (!strncmp(hw->active_pkg_name, "ICE COMMS Package",
-		     sizeof(hw->active_pkg_name))) {
-		item = vc_fdir_pattern_comms;
-		*len = ARRAY_SIZE(vc_fdir_pattern_comms);
-	} else {
-		item = vc_fdir_pattern_os;
-		*len = ARRAY_SIZE(vc_fdir_pattern_os);
-	}
-
-	return item;
-}
-
-/**
- * ice_vc_fdir_search_pattern
- * @vf: pointer to the VF info
- * @fltr: virtual channel add cmd buffer
- *
- * Search for matched pattern from supported pattern list
- *
- * Return: 0 on success, and other on error.
- */
-static int
-ice_vc_fdir_search_pattern(struct ice_vf *vf, struct virtchnl_fdir_add *fltr)
-{
-	const struct virtchnl_fdir_pattern_match_item *pattern;
-	int len, i;
-
-	pattern = ice_vc_fdir_get_pattern(vf, &len);
-
-	for (i = 0; i < len; i++)
-		if (ice_vc_fdir_match_pattern(fltr, pattern[i].list))
-			return 0;
-
-	return -EINVAL;
 }
 
 /**
@@ -1299,11 +1028,11 @@ static int
 ice_vc_validate_fdir_fltr(struct ice_vf *vf, struct virtchnl_fdir_add *fltr,
 			  struct virtchnl_fdir_fltr_conf *conf)
 {
+	struct virtchnl_proto_hdrs *proto = &fltr->rule_cfg.proto_hdrs;
 	int ret;
 
-	ret = ice_vc_fdir_search_pattern(vf, fltr);
-	if (ret)
-		return ret;
+	if (!ice_vc_validate_pattern(vf, proto))
+		return -EINVAL;
 
 	ret = ice_vc_fdir_parse_pattern(vf, fltr, conf);
 	if (ret)
@@ -1467,7 +1196,6 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 	struct ice_fdir_fltr *input = &conf->input;
 	struct ice_vsi *vsi, *ctrl_vsi;
 	struct ice_fltr_desc desc;
-	enum ice_status status;
 	struct device *dev;
 	struct ice_pf *pf;
 	struct ice_hw *hw;
@@ -1497,8 +1225,7 @@ static int ice_vc_fdir_write_fltr(struct ice_vf *vf,
 		return -ENOMEM;
 
 	ice_fdir_get_prgm_desc(hw, input, &desc, add);
-	status = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
-	ret = ice_status_to_errno(status);
+	ret = ice_fdir_get_gen_prgm_pkt(hw, input, pkt, false, is_tun);
 	if (ret) {
 		dev_dbg(dev, "Gen training pkt for VF %d ptype %d failed\n",
 			vf->vf_id, input->flow_type);
@@ -1562,15 +1289,16 @@ ice_vc_fdir_irq_handler(struct ice_vsi *ctrl_vsi,
 			union ice_32b_rx_flex_desc *rx_desc)
 {
 	struct ice_pf *pf = ctrl_vsi->back;
+	struct ice_vf *vf = ctrl_vsi->vf;
 	struct ice_vf_fdir_ctx *ctx_done;
 	struct ice_vf_fdir_ctx *ctx_irq;
 	struct ice_vf_fdir *fdir;
 	unsigned long flags;
 	struct device *dev;
-	struct ice_vf *vf;
 	int ret;
 
-	vf = &pf->vf[ctrl_vsi->vf_id];
+	if (WARN_ON(!vf))
+		return;
 
 	fdir = &vf->fdir;
 	ctx_done = &fdir->ctx_done;
@@ -1845,15 +1573,16 @@ err_exit:
  */
 void ice_flush_fdir_ctx(struct ice_pf *pf)
 {
-	int i;
+	struct ice_vf *vf;
+	unsigned int bkt;
 
 	if (!test_and_clear_bit(ICE_FD_VF_FLUSH_CTX, pf->state))
 		return;
 
-	ice_for_each_vf(pf, i) {
+	mutex_lock(&pf->vfs.table_lock);
+	ice_for_each_vf(pf, bkt, vf) {
 		struct device *dev = ice_pf_to_dev(pf);
 		enum virtchnl_fdir_prgm_status status;
-		struct ice_vf *vf = &pf->vf[i];
 		struct ice_vf_fdir_ctx *ctx;
 		unsigned long flags;
 		int ret;
@@ -1907,6 +1636,7 @@ err_exit:
 		ctx->flags &= ~ICE_VF_FDIR_CTX_VALID;
 		spin_unlock_irqrestore(&vf->fdir.ctx_lock, flags);
 	}
+	mutex_unlock(&pf->vfs.table_lock);
 }
 
 /**

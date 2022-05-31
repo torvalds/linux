@@ -3,14 +3,14 @@
 #ifndef DRM_GEM_TTM_HELPER_H
 #define DRM_GEM_TTM_HELPER_H
 
-#include <linux/kernel.h>
+#include <linux/container_of.h>
 
 #include <drm/drm_device.h>
 #include <drm/drm_gem.h>
 #include <drm/ttm/ttm_bo_api.h>
 #include <drm/ttm/ttm_bo_driver.h>
 
-struct dma_buf_map;
+struct iosys_map;
 
 #define drm_gem_ttm_of_gem(gem_obj) \
 	container_of(gem_obj, struct ttm_buffer_object, base)
@@ -18,9 +18,9 @@ struct dma_buf_map;
 void drm_gem_ttm_print_info(struct drm_printer *p, unsigned int indent,
 			    const struct drm_gem_object *gem);
 int drm_gem_ttm_vmap(struct drm_gem_object *gem,
-		     struct dma_buf_map *map);
+		     struct iosys_map *map);
 void drm_gem_ttm_vunmap(struct drm_gem_object *gem,
-			struct dma_buf_map *map);
+			struct iosys_map *map);
 int drm_gem_ttm_mmap(struct drm_gem_object *gem,
 		     struct vm_area_struct *vma);
 

@@ -34,12 +34,22 @@ struct lowcore {
 		__u32 ext_int_code_addr;
 	};
 	__u32	svc_int_code;			/* 0x0088 */
-	__u16	pgm_ilc;			/* 0x008c */
-	__u16	pgm_code;			/* 0x008e */
+	union {
+		struct {
+			__u16	pgm_ilc;	/* 0x008c */
+			__u16	pgm_code;	/* 0x008e */
+		};
+		__u32 pgm_int_code;
+	};
 	__u32	data_exc_code;			/* 0x0090 */
 	__u16	mon_class_num;			/* 0x0094 */
-	__u8	per_code;			/* 0x0096 */
-	__u8	per_atmid;			/* 0x0097 */
+	union {
+		struct {
+			__u8	per_code;	/* 0x0096 */
+			__u8	per_atmid;	/* 0x0097 */
+		};
+		__u16 per_code_combined;
+	};
 	__u64	per_address;			/* 0x0098 */
 	__u8	exc_access_id;			/* 0x00a0 */
 	__u8	per_access_id;			/* 0x00a1 */
@@ -65,7 +75,7 @@ struct lowcore {
 	__u32	external_damage_code;		/* 0x00f4 */
 	__u64	failing_storage_address;	/* 0x00f8 */
 	__u8	pad_0x0100[0x0110-0x0100];	/* 0x0100 */
-	__u64	breaking_event_addr;		/* 0x0110 */
+	__u64	pgm_last_break;			/* 0x0110 */
 	__u8	pad_0x0118[0x0120-0x0118];	/* 0x0118 */
 	psw_t	restart_old_psw;		/* 0x0120 */
 	psw_t	external_old_psw;		/* 0x0130 */
@@ -93,9 +103,10 @@ struct lowcore {
 	psw_t	return_psw;			/* 0x0290 */
 	psw_t	return_mcck_psw;		/* 0x02a0 */
 
+	__u64	last_break;			/* 0x02b0 */
+
 	/* CPU accounting and timing values. */
-	__u64	sys_enter_timer;		/* 0x02b0 */
-	__u8	pad_0x02b8[0x02c0-0x02b8];	/* 0x02b8 */
+	__u64	sys_enter_timer;		/* 0x02b8 */
 	__u64	mcck_enter_timer;		/* 0x02c0 */
 	__u64	exit_timer;			/* 0x02c8 */
 	__u64	user_timer;			/* 0x02d0 */
@@ -152,11 +163,9 @@ struct lowcore {
 	__u64	gmap;				/* 0x03d0 */
 	__u8	pad_0x03d8[0x0400-0x03d8];	/* 0x03d8 */
 
-	/* br %r1 trampoline */
-	__u16	br_r1_trampoline;		/* 0x0400 */
-	__u32	return_lpswe;			/* 0x0402 */
-	__u32	return_mcck_lpswe;		/* 0x0406 */
-	__u8	pad_0x040a[0x0e00-0x040a];	/* 0x040a */
+	__u32	return_lpswe;			/* 0x0400 */
+	__u32	return_mcck_lpswe;		/* 0x0404 */
+	__u8	pad_0x040a[0x0e00-0x0408];	/* 0x0408 */
 
 	/*
 	 * 0xe00 contains the address of the IPL Parameter Information
@@ -188,7 +197,7 @@ struct lowcore {
 	__u32	tod_progreg_save_area;		/* 0x1324 */
 	__u32	cpu_timer_save_area[2];		/* 0x1328 */
 	__u32	clock_comp_save_area[2];	/* 0x1330 */
-	__u8	pad_0x1338[0x1340-0x1338];	/* 0x1338 */
+	__u64	last_break_save_area;		/* 0x1338 */
 	__u32	access_regs_save_area[16];	/* 0x1340 */
 	__u64	cregs_save_area[16];		/* 0x1380 */
 	__u8	pad_0x1400[0x1800-0x1400];	/* 0x1400 */

@@ -53,6 +53,7 @@ struct btrfs_space_info;
 		{ BTRFS_TREE_RELOC_OBJECTID,	"TREE_RELOC"	},	\
 		{ BTRFS_UUID_TREE_OBJECTID,	"UUID_TREE"	},	\
 		{ BTRFS_FREE_SPACE_TREE_OBJECTID, "FREE_SPACE_TREE" },	\
+		{ BTRFS_BLOCK_GROUP_TREE_OBJECTID, "BLOCK_GROUP_TREE" },\
 		{ BTRFS_DATA_RELOC_TREE_OBJECTID, "DATA_RELOC_TREE" })
 
 #define show_root_type(obj)						\
@@ -182,18 +183,18 @@ FLUSH_STATES
 
 TRACE_EVENT(btrfs_transaction_commit,
 
-	TP_PROTO(const struct btrfs_root *root),
+	TP_PROTO(const struct btrfs_fs_info *fs_info),
 
-	TP_ARGS(root),
+	TP_ARGS(fs_info),
 
 	TP_STRUCT__entry_btrfs(
 		__field(	u64,  generation		)
 		__field(	u64,  root_objectid		)
 	),
 
-	TP_fast_assign_btrfs(root->fs_info,
-		__entry->generation	= root->fs_info->generation;
-		__entry->root_objectid	= root->root_key.objectid;
+	TP_fast_assign_btrfs(fs_info,
+		__entry->generation	= fs_info->generation;
+		__entry->root_objectid	= BTRFS_ROOT_TREE_OBJECTID;
 	),
 
 	TP_printk_btrfs("root=%llu(%s) gen=%llu",

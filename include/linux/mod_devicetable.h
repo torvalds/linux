@@ -211,7 +211,7 @@ struct css_device_id {
 	kernel_ulong_t driver_data;
 };
 
-#define ACPI_ID_LEN	9
+#define ACPI_ID_LEN	16
 
 struct acpi_device_id {
 	__u8 id[ACPI_ID_LEN];
@@ -892,6 +892,20 @@ struct ssam_device_id {
 struct dfl_device_id {
 	__u16 type;
 	__u16 feature_id;
+	kernel_ulong_t driver_data;
+};
+
+/* ISHTP (Integrated Sensor Hub Transport Protocol) */
+
+#define ISHTP_MODULE_PREFIX	"ishtp:"
+
+/**
+ * struct ishtp_device_id - ISHTP device identifier
+ * @guid: GUID of the device.
+ * @driver_data: pointer to driver specific data
+ */
+struct ishtp_device_id {
+	guid_t guid;
 	kernel_ulong_t driver_data;
 };
 

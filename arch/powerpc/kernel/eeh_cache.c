@@ -280,7 +280,7 @@ static int eeh_addr_cache_show(struct seq_file *s, void *v)
 }
 DEFINE_SHOW_ATTRIBUTE(eeh_addr_cache);
 
-void eeh_cache_debugfs_init(void)
+void __init eeh_cache_debugfs_init(void)
 {
 	debugfs_create_file_unsafe("eeh_address_cache", 0400,
 			arch_debugfs_dir, NULL,

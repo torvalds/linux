@@ -3,7 +3,7 @@
 #define __LINUX_ENTRYKVM_H
 
 #include <linux/static_call_types.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/syscalls.h>
 #include <linux/seccomp.h>
 #include <linux/sched.h>
@@ -75,7 +75,7 @@ static inline void xfer_to_guest_mode_prepare(void)
  */
 static inline bool __xfer_to_guest_mode_work_pending(void)
 {
-	unsigned long ti_work = READ_ONCE(current_thread_info()->flags);
+	unsigned long ti_work = read_thread_flags();
 
 	return !!(ti_work & XFER_TO_GUEST_MODE_WORK);
 }

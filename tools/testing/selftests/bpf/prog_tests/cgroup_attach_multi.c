@@ -15,22 +15,22 @@ static int prog_load_cnt(int verdict, int val)
 	int cgroup_storage_fd, percpu_cgroup_storage_fd;
 
 	if (map_fd < 0)
-		map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, 4, 8, 1, 0);
+		map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, 4, 8, 1, NULL);
 	if (map_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		return -1;
 	}
 
-	cgroup_storage_fd = bpf_create_map(BPF_MAP_TYPE_CGROUP_STORAGE,
-				sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
+	cgroup_storage_fd = bpf_map_create(BPF_MAP_TYPE_CGROUP_STORAGE, NULL,
+				sizeof(struct bpf_cgroup_storage_key), 8, 0, NULL);
 	if (cgroup_storage_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		return -1;
 	}
 
-	percpu_cgroup_storage_fd = bpf_create_map(
-		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE,
-		sizeof(struct bpf_cgroup_storage_key), 8, 0, 0);
+	percpu_cgroup_storage_fd = bpf_map_create(
+		BPF_MAP_TYPE_PERCPU_CGROUP_STORAGE, NULL,
+		sizeof(struct bpf_cgroup_storage_key), 8, 0, NULL);
 	if (percpu_cgroup_storage_fd < 0) {
 		printf("failed to create map '%s'\n", strerror(errno));
 		return -1;
@@ -63,10 +63,10 @@ static int prog_load_cnt(int verdict, int val)
 		BPF_MOV64_IMM(BPF_REG_0, verdict), /* r0 = verdict */
 		BPF_EXIT_INSN(),
 	};
-	size_t insns_cnt = sizeof(prog) / sizeof(struct bpf_insn);
+	size_t insns_cnt = ARRAY_SIZE(prog);
 	int ret;
 
-	ret = bpf_load_program(BPF_PROG_TYPE_CGROUP_SKB,
+	ret = bpf_test_load_program(BPF_PROG_TYPE_CGROUP_SKB,
 			       prog, insns_cnt, "GPL", 0,
 			       bpf_log_buf, BPF_LOG_BUF_SIZE);
 
@@ -74,7 +74,7 @@ static int prog_load_cnt(int verdict, int val)
 	return ret;
 }
 
-void test_cgroup_attach_multi(void)
+void serial_test_cgroup_attach_multi(void)
 {
 	__u32 prog_ids[4], prog_cnt = 0, attach_flags, saved_prog_id;
 	int cg1 = 0, cg2 = 0, cg3 = 0, cg4 = 0, cg5 = 0, key = 0;
@@ -194,14 +194,14 @@ void test_cgroup_attach_multi(void)
 
 	attach_opts.flags = BPF_F_ALLOW_OVERRIDE | BPF_F_REPLACE;
 	attach_opts.replace_prog_fd = allow_prog[0];
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_override", "unexpected success\n"))
 		goto err;
 	CHECK_FAIL(errno != EINVAL);
 
 	attach_opts.flags = BPF_F_REPLACE;
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_no_multi", "unexpected success\n"))
 		goto err;
@@ -209,7 +209,7 @@ void test_cgroup_attach_multi(void)
 
 	attach_opts.flags = BPF_F_ALLOW_MULTI | BPF_F_REPLACE;
 	attach_opts.replace_prog_fd = -1;
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_bad_fd", "unexpected success\n"))
 		goto err;
@@ -217,7 +217,7 @@ void test_cgroup_attach_multi(void)
 
 	/* replacing a program that is not attached to cgroup should fail  */
 	attach_opts.replace_prog_fd = allow_prog[3];
-	if (CHECK(!bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(!bpf_prog_attach_opts(allow_prog[6], cg1,
 					 BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "fail_prog_replace_no_ent", "unexpected success\n"))
 		goto err;
@@ -225,14 +225,14 @@ void test_cgroup_attach_multi(void)
 
 	/* replace 1st from the top program */
 	attach_opts.replace_prog_fd = allow_prog[0];
-	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(bpf_prog_attach_opts(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "prog_replace", "errno=%d\n", errno))
 		goto err;
 
 	/* replace program with itself */
 	attach_opts.replace_prog_fd = allow_prog[6];
-	if (CHECK(bpf_prog_attach_xattr(allow_prog[6], cg1,
+	if (CHECK(bpf_prog_attach_opts(allow_prog[6], cg1,
 					BPF_CGROUP_INET_EGRESS, &attach_opts),
 		  "prog_replace", "errno=%d\n", errno))
 		goto err;

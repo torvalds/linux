@@ -1083,6 +1083,7 @@ int amdgpu_atombios_get_clock_dividers(struct amdgpu_device *adev,
 	return 0;
 }
 
+#ifdef CONFIG_DRM_AMDGPU_SI
 int amdgpu_atombios_get_memory_pll_dividers(struct amdgpu_device *adev,
 					    u32 clock,
 					    bool strobe_mode,
@@ -1503,6 +1504,7 @@ int amdgpu_atombios_init_mc_reg_table(struct amdgpu_device *adev,
 	}
 	return -EINVAL;
 }
+#endif
 
 bool amdgpu_atombios_has_gpu_virtualization_table(struct amdgpu_device *adev)
 {
@@ -1567,6 +1569,18 @@ void amdgpu_atombios_scratch_regs_engine_hung(struct amdgpu_device *adev,
 		tmp &= ~ATOM_S3_ASIC_GUI_ENGINE_HUNG;
 
 	WREG32(adev->bios_scratch_reg_offset + 3, tmp);
+}
+
+void amdgpu_atombios_scratch_regs_set_backlight_level(struct amdgpu_device *adev,
+						      u32 backlight_level)
+{
+	u32 tmp = RREG32(adev->bios_scratch_reg_offset + 2);
+
+	tmp &= ~ATOM_S2_CURRENT_BL_LEVEL_MASK;
+	tmp |= (backlight_level << ATOM_S2_CURRENT_BL_LEVEL_SHIFT) &
+		ATOM_S2_CURRENT_BL_LEVEL_MASK;
+
+	WREG32(adev->bios_scratch_reg_offset + 2, tmp);
 }
 
 bool amdgpu_atombios_scratch_need_asic_init(struct amdgpu_device *adev)

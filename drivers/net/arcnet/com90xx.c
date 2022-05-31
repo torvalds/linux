@@ -531,7 +531,8 @@ static int __init com90xx_found(int ioaddr, int airq, u_long shmem,
 	}
 
 	/* get and check the station ID from offset 1 in shmem */
-	dev->dev_addr[0] = arcnet_readb(lp->mem_start, COM9026_REG_R_STATION);
+	arcnet_set_addr(dev, arcnet_readb(lp->mem_start,
+					  COM9026_REG_R_STATION));
 
 	dev->base_addr = ioaddr;
 

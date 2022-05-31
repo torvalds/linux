@@ -58,6 +58,12 @@
 
 MODULE_LICENSE("GPL");
 
+struct ctnetlink_list_dump_ctx {
+	struct nf_conn *last;
+	unsigned int cpu;
+	bool done;
+};
+
 static int ctnetlink_dump_tuples_proto(struct sk_buff *skb,
 				const struct nf_conntrack_tuple *tuple,
 				const struct nf_conntrack_l4proto *l4proto)
@@ -508,7 +514,7 @@ nla_put_failure:
 
 static int ctnetlink_dump_use(struct sk_buff *skb, const struct nf_conn *ct)
 {
-	if (nla_put_be32(skb, CTA_USE, htonl(atomic_read(&ct->ct_general.use))))
+	if (nla_put_be32(skb, CTA_USE, htonl(refcount_read(&ct->ct_general.use))))
 		goto nla_put_failure;
 	return 0;
 
@@ -1011,11 +1017,9 @@ ctnetlink_alloc_filter(const struct nlattr * const cda[], u8 family)
 						   CTA_TUPLE_REPLY,
 						   filter->family,
 						   &filter->zone,
-						   filter->orig_flags);
-		if (err < 0) {
-			err = -EINVAL;
+						   filter->reply_flags);
+		if (err < 0)
 			goto err_filter;
-		}
 	}
 
 	return filter;
@@ -1197,17 +1201,18 @@ restart:
 		}
 		hlist_nulls_for_each_entry(h, n, &nf_conntrack_hash[cb->args[0]],
 					   hnnode) {
-			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
-				continue;
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (nf_ct_is_expired(ct)) {
 				if (i < ARRAY_SIZE(nf_ct_evict) &&
-				    atomic_inc_not_zero(&ct->ct_general.use))
+				    refcount_inc_not_zero(&ct->ct_general.use))
 					nf_ct_evict[i++] = ct;
 				continue;
 			}
 
 			if (!net_eq(net, nf_ct_net(ct)))
+				continue;
+
+			if (NF_CT_DIRECTION(h) != IP_CT_DIR_ORIGINAL)
 				continue;
 
 			if (cb->args[1]) {
@@ -1695,14 +1700,18 @@ static int ctnetlink_get_conntrack(struct sk_buff *skb,
 
 static int ctnetlink_done_list(struct netlink_callback *cb)
 {
-	if (cb->args[1])
-		nf_ct_put((struct nf_conn *)cb->args[1]);
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
+
+	if (ctx->last)
+		nf_ct_put(ctx->last);
+
 	return 0;
 }
 
 static int
 ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying)
 {
+	struct ctnetlink_list_dump_ctx *ctx = (void *)cb->ctx;
 	struct nf_conn *ct, *last;
 	struct nf_conntrack_tuple_hash *h;
 	struct hlist_nulls_node *n;
@@ -1713,12 +1722,12 @@ ctnetlink_dump_list(struct sk_buff *skb, struct netlink_callback *cb, bool dying
 	struct hlist_nulls_head *list;
 	struct net *net = sock_net(skb->sk);
 
-	if (cb->args[2])
+	if (ctx->done)
 		return 0;
 
-	last = (struct nf_conn *)cb->args[1];
+	last = ctx->last;
 
-	for (cpu = cb->args[0]; cpu < nr_cpu_ids; cpu++) {
+	for (cpu = ctx->cpu; cpu < nr_cpu_ids; cpu++) {
 		struct ct_pcpu *pcpu;
 
 		if (!cpu_possible(cpu))
@@ -1732,10 +1741,10 @@ restart:
 			ct = nf_ct_tuplehash_to_ctrack(h);
 			if (l3proto && nf_ct_l3num(ct) != l3proto)
 				continue;
-			if (cb->args[1]) {
+			if (ctx->last) {
 				if (ct != last)
 					continue;
-				cb->args[1] = 0;
+				ctx->last = NULL;
 			}
 
 			/* We can't dump extension info for the unconfirmed
@@ -1748,23 +1757,23 @@ restart:
 			res = ctnetlink_fill_info(skb, NETLINK_CB(cb->skb).portid,
 						  cb->nlh->nlmsg_seq,
 						  NFNL_MSG_TYPE(cb->nlh->nlmsg_type),
-						  ct, dying ? true : false, 0);
+						  ct, dying, 0);
 			if (res < 0) {
-				if (!atomic_inc_not_zero(&ct->ct_general.use))
+				if (!refcount_inc_not_zero(&ct->ct_general.use))
 					continue;
-				cb->args[0] = cpu;
-				cb->args[1] = (unsigned long)ct;
+				ctx->cpu = cpu;
+				ctx->last = ct;
 				spin_unlock_bh(&pcpu->lock);
 				goto out;
 			}
 		}
-		if (cb->args[1]) {
-			cb->args[1] = 0;
+		if (ctx->last) {
+			ctx->last = NULL;
 			goto restart;
 		}
 		spin_unlock_bh(&pcpu->lock);
 	}
-	cb->args[2] = 1;
+	ctx->done = true;
 out:
 	if (last)
 		nf_ct_put(last);
@@ -1821,7 +1830,7 @@ ctnetlink_parse_nat_setup(struct nf_conn *ct,
 			  const struct nlattr *attr)
 	__must_hold(RCU)
 {
-	struct nf_nat_hook *nat_hook;
+	const struct nf_nat_hook *nat_hook;
 	int err;
 
 	nat_hook = rcu_dereference(nf_nat_hook);
@@ -2000,7 +2009,7 @@ static int ctnetlink_change_timeout(struct nf_conn *ct,
 
 	if (timeout > INT_MAX)
 		timeout = INT_MAX;
-	ct->timeout = nfct_time_stamp + (u32)timeout;
+	WRITE_ONCE(ct->timeout, nfct_time_stamp + (u32)timeout);
 
 	if (test_bit(IPS_DYING_BIT, &ct->status))
 		return -ETIME;
@@ -2312,7 +2321,8 @@ ctnetlink_create_conntrack(struct net *net,
 			if (helper->from_nlattr)
 				helper->from_nlattr(helpinfo, ct);
 
-			/* not in hash table yet so not strictly necessary */
+			/* disable helper auto-assignment for this entry */
+			ct->status |= IPS_HELPER;
 			RCU_INIT_POINTER(help->helper, helper);
 		}
 	} else {
@@ -2923,7 +2933,7 @@ static void ctnetlink_glue_seqadj(struct sk_buff *skb, struct nf_conn *ct,
 	nf_ct_tcp_seqadj_set(skb, ct, ctinfo, diff);
 }
 
-static struct nfnl_ct_hook ctnetlink_glue_hook = {
+static const struct nfnl_ct_hook ctnetlink_glue_hook = {
 	.build_size	= ctnetlink_glue_build_size,
 	.build		= ctnetlink_glue_build,
 	.parse		= ctnetlink_glue_parse,
@@ -2997,7 +3007,7 @@ static const union nf_inet_addr any_addr;
 
 static __be32 nf_expect_get_id(const struct nf_conntrack_expect *exp)
 {
-	static __read_mostly siphash_key_t exp_id_seed;
+	static siphash_aligned_key_t exp_id_seed;
 	unsigned long a, b, c, d;
 
 	net_get_random_once(&exp_id_seed, sizeof(exp_id_seed));
@@ -3877,6 +3887,8 @@ static struct pernet_operations ctnetlink_net_ops = {
 static int __init ctnetlink_init(void)
 {
 	int ret;
+
+	BUILD_BUG_ON(sizeof(struct ctnetlink_list_dump_ctx) > sizeof_field(struct netlink_callback, ctx));
 
 	ret = nfnetlink_subsys_register(&ctnl_subsys);
 	if (ret < 0) {

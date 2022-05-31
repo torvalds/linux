@@ -4,6 +4,7 @@
  * Copyright (C) 2008-2009 Wolfgang Grandegger <wg@grandegger.com>
  */
 
+#include <linux/units.h>
 #include <linux/can/dev.h>
 
 #ifdef CONFIG_CAN_CALC_BITTIMING
@@ -23,7 +24,7 @@
  */
 static int
 can_update_sample_point(const struct can_bittiming_const *btc,
-			unsigned int sample_point_nominal, unsigned int tseg,
+			const unsigned int sample_point_nominal, const unsigned int tseg,
 			unsigned int *tseg1_ptr, unsigned int *tseg2_ptr,
 			unsigned int *sample_point_error_ptr)
 {
@@ -62,7 +63,7 @@ can_update_sample_point(const struct can_bittiming_const *btc,
 	return best_sample_point;
 }
 
-int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
+int can_calc_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		       const struct can_bittiming_const *btc)
 {
 	struct can_priv *priv = netdev_priv(dev);
@@ -81,9 +82,9 @@ int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	if (bt->sample_point) {
 		sample_point_nominal = bt->sample_point;
 	} else {
-		if (bt->bitrate > 800 * CAN_KBPS)
+		if (bt->bitrate > 800 * KILO /* BPS */)
 			sample_point_nominal = 750;
-		else if (bt->bitrate > 500 * CAN_KBPS)
+		else if (bt->bitrate > 500 * KILO /* BPS */)
 			sample_point_nominal = 800;
 		else
 			sample_point_nominal = 875;
@@ -175,27 +176,29 @@ int can_calc_bittiming(struct net_device *dev, struct can_bittiming *bt,
 	return 0;
 }
 
-void can_calc_tdco(struct net_device *dev)
-{
-	struct can_priv *priv = netdev_priv(dev);
-	const struct can_bittiming *dbt = &priv->data_bittiming;
-	struct can_tdc *tdc = &priv->tdc;
-	const struct can_tdc_const *tdc_const = priv->tdc_const;
+void can_calc_tdco(struct can_tdc *tdc, const struct can_tdc_const *tdc_const,
+		   const struct can_bittiming *dbt,
+		   u32 *ctrlmode, u32 ctrlmode_supported)
 
-	if (!tdc_const)
+{
+	if (!tdc_const || !(ctrlmode_supported & CAN_CTRLMODE_TDC_AUTO))
 		return;
+
+	*ctrlmode &= ~CAN_CTRLMODE_TDC_MASK;
 
 	/* As specified in ISO 11898-1 section 11.3.3 "Transmitter
 	 * delay compensation" (TDC) is only applicable if data BRP is
 	 * one or two.
 	 */
 	if (dbt->brp == 1 || dbt->brp == 2) {
-		/* Reuse "normal" sample point and convert it to time quanta */
-		u32 sample_point_in_tq = can_bit_time(dbt) * dbt->sample_point / 1000;
+		/* Sample point in clock periods */
+		u32 sample_point_in_tc = (CAN_SYNC_SEG + dbt->prop_seg +
+					  dbt->phase_seg1) * dbt->brp;
 
-		tdc->tdco = min(sample_point_in_tq, tdc_const->tdco_max);
-	} else {
-		tdc->tdco = 0;
+		if (sample_point_in_tc < tdc_const->tdco_min)
+			return;
+		tdc->tdco = min(sample_point_in_tc, tdc_const->tdco_max);
+		*ctrlmode |= CAN_CTRLMODE_TDC_AUTO;
 	}
 }
 #endif /* CONFIG_CAN_CALC_BITTIMING */
@@ -205,11 +208,11 @@ void can_calc_tdco(struct net_device *dev)
  * prescaler value brp. You can find more information in the header
  * file linux/can/netlink.h.
  */
-static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
+static int can_fixup_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 			       const struct can_bittiming_const *btc)
 {
-	struct can_priv *priv = netdev_priv(dev);
-	int tseg1, alltseg;
+	const struct can_priv *priv = netdev_priv(dev);
+	unsigned int tseg1, alltseg;
 	u64 brp64;
 
 	tseg1 = bt->prop_seg + bt->phase_seg1;
@@ -241,25 +244,21 @@ static int can_fixup_bittiming(struct net_device *dev, struct can_bittiming *bt,
 
 /* Checks the validity of predefined bitrate settings */
 static int
-can_validate_bitrate(struct net_device *dev, struct can_bittiming *bt,
+can_validate_bitrate(const struct net_device *dev, const struct can_bittiming *bt,
 		     const u32 *bitrate_const,
 		     const unsigned int bitrate_const_cnt)
 {
-	struct can_priv *priv = netdev_priv(dev);
 	unsigned int i;
 
 	for (i = 0; i < bitrate_const_cnt; i++) {
 		if (bt->bitrate == bitrate_const[i])
-			break;
+			return 0;
 	}
 
-	if (i >= priv->bitrate_const_cnt)
-		return -EINVAL;
-
-	return 0;
+	return -EINVAL;
 }
 
-int can_get_bittiming(struct net_device *dev, struct can_bittiming *bt,
+int can_get_bittiming(const struct net_device *dev, struct can_bittiming *bt,
 		      const struct can_bittiming_const *btc,
 		      const u32 *bitrate_const,
 		      const unsigned int bitrate_const_cnt)

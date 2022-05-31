@@ -10,6 +10,7 @@
 #include <linux/delay.h>
 #include <linux/export.h>
 #include <linux/gpio.h>
+#include <linux/if_vlan.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
 #include <linux/platform_data/microchip-ksz.h>
@@ -32,6 +33,7 @@ static const u8 ksz8795_regs[] = {
 	[REG_IND_DATA_HI]		= 0x71,
 	[REG_IND_DATA_LO]		= 0x75,
 	[REG_IND_MIB_CHECK]		= 0x74,
+	[REG_IND_BYTE]			= 0xA0,
 	[P_FORCE_CTRL]			= 0x0C,
 	[P_LINK_STATUS]			= 0x0E,
 	[P_LOCAL_CTRL]			= 0x07,
@@ -219,6 +221,25 @@ static void ksz_port_cfg(struct ksz_device *dev, int port, int offset, u8 bits,
 {
 	regmap_update_bits(dev->regmap[0], PORT_CTRL_ADDR(port, offset),
 			   bits, set ? bits : 0);
+}
+
+static int ksz8_ind_write8(struct ksz_device *dev, u8 table, u16 addr, u8 data)
+{
+	struct ksz8 *ksz8 = dev->priv;
+	const u8 *regs = ksz8->regs;
+	u16 ctrl_addr;
+	int ret = 0;
+
+	mutex_lock(&dev->alu_mutex);
+
+	ctrl_addr = IND_ACC_TABLE(table) | addr;
+	ret = ksz_write8(dev, regs[REG_IND_BYTE], data);
+	if (!ret)
+		ret = ksz_write16(dev, regs[REG_IND_CTRL_0], ctrl_addr);
+
+	mutex_unlock(&dev->alu_mutex);
+
+	return ret;
 }
 
 static int ksz8_reset_switch(struct ksz_device *dev)
@@ -1002,18 +1023,13 @@ static void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 	data &= ~PORT_VLAN_MEMBERSHIP;
 	data |= (member & dev->port_mask);
 	ksz_pwrite8(dev, port, P_MIRROR_CTRL, data);
-	dev->ports[port].member = member;
 }
 
 static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 {
 	struct ksz_device *dev = ds->priv;
-	int forward = dev->member;
 	struct ksz_port *p;
-	int member = -1;
 	u8 data;
-
-	p = &dev->ports[port];
 
 	ksz_pread8(dev, port, P_STP_CTRL, &data);
 	data &= ~(PORT_TX_ENABLE | PORT_RX_ENABLE | PORT_LEARN_DISABLE);
@@ -1021,38 +1037,18 @@ static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	switch (state) {
 	case BR_STATE_DISABLED:
 		data |= PORT_LEARN_DISABLE;
-		if (port < dev->phy_port_cnt)
-			member = 0;
 		break;
 	case BR_STATE_LISTENING:
 		data |= (PORT_RX_ENABLE | PORT_LEARN_DISABLE);
-		if (port < dev->phy_port_cnt &&
-		    p->stp_state == BR_STATE_DISABLED)
-			member = dev->host_mask | p->vid_member;
 		break;
 	case BR_STATE_LEARNING:
 		data |= PORT_RX_ENABLE;
 		break;
 	case BR_STATE_FORWARDING:
 		data |= (PORT_TX_ENABLE | PORT_RX_ENABLE);
-
-		/* This function is also used internally. */
-		if (port == dev->cpu_port)
-			break;
-
-		/* Port is a member of a bridge. */
-		if (dev->br_member & BIT(port)) {
-			dev->member |= BIT(port);
-			member = dev->member;
-		} else {
-			member = dev->host_mask | p->vid_member;
-		}
 		break;
 	case BR_STATE_BLOCKING:
 		data |= PORT_LEARN_DISABLE;
-		if (port < dev->phy_port_cnt &&
-		    p->stp_state == BR_STATE_DISABLED)
-			member = dev->host_mask | p->vid_member;
 		break;
 	default:
 		dev_err(ds->dev, "invalid STP state: %d\n", state);
@@ -1060,22 +1056,11 @@ static void ksz8_port_stp_state_set(struct dsa_switch *ds, int port, u8 state)
 	}
 
 	ksz_pwrite8(dev, port, P_STP_CTRL, data);
+
+	p = &dev->ports[port];
 	p->stp_state = state;
-	/* Port membership may share register with STP state. */
-	if (member >= 0 && member != p->member)
-		ksz8_cfg_port_member(dev, port, (u8)member);
 
-	/* Check if forwarding needs to be updated. */
-	if (state != BR_STATE_FORWARDING) {
-		if (dev->br_member & BIT(port))
-			dev->member &= ~BIT(port);
-	}
-
-	/* When topology has changed the function ksz_update_port_member
-	 * should be called to modify port forwarding behavior.
-	 */
-	if (forward != dev->member)
-		ksz_update_port_member(dev, port);
+	ksz_update_port_member(dev, port);
 }
 
 static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
@@ -1248,7 +1233,7 @@ static int ksz8_port_vlan_del(struct dsa_switch *ds, int port,
 
 static int ksz8_port_mirror_add(struct dsa_switch *ds, int port,
 				struct dsa_mall_mirror_tc_entry *mirror,
-				bool ingress)
+				bool ingress, struct netlink_ext_ack *extack)
 {
 	struct ksz_device *dev = ds->priv;
 
@@ -1341,7 +1326,7 @@ static void ksz8795_cpu_interface_select(struct ksz_device *dev, int port)
 
 static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 {
-	struct ksz_port *p = &dev->ports[port];
+	struct dsa_switch *ds = dev->ds;
 	struct ksz8 *ksz8 = dev->priv;
 	const u32 *masks;
 	u8 member;
@@ -1368,10 +1353,11 @@ static void ksz8_port_setup(struct ksz_device *dev, int port, bool cpu_port)
 		if (!ksz_is_ksz88x3(dev))
 			ksz8795_cpu_interface_select(dev, port);
 
-		member = dev->port_mask;
+		member = dsa_user_ports(ds);
 	} else {
-		member = dev->host_mask | p->vid_member;
+		member = BIT(dsa_upstream_port(ds, port));
 	}
+
 	ksz8_cfg_port_member(dev, port, member);
 }
 
@@ -1392,20 +1378,13 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 	ksz_cfg(dev, regs[S_TAIL_TAG_CTRL], masks[SW_TAIL_TAG_ENABLE], true);
 
 	p = &dev->ports[dev->cpu_port];
-	p->vid_member = dev->port_mask;
 	p->on = 1;
 
 	ksz8_port_setup(dev, dev->cpu_port, true);
-	dev->member = dev->host_mask;
 
 	for (i = 0; i < dev->phy_port_cnt; i++) {
 		p = &dev->ports[i];
 
-		/* Initialize to non-zero so that ksz_cfg_port_member() will
-		 * be called.
-		 */
-		p->vid_member = BIT(i);
-		p->member = dev->port_mask;
 		ksz8_port_stp_state_set(ds, i, BR_STATE_DISABLED);
 
 		/* Last port may be disabled. */
@@ -1430,6 +1409,23 @@ static void ksz8_config_cpu_port(struct dsa_switch *ds)
 			ksz_port_cfg(dev, i, P_STP_CTRL, PORT_FORCE_FLOW_CTRL,
 				     false);
 	}
+}
+
+static int ksz8_handle_global_errata(struct dsa_switch *ds)
+{
+	struct ksz_device *dev = ds->priv;
+	int ret = 0;
+
+	/* KSZ87xx Errata DS80000687C.
+	 * Module 2: Link drops with some EEE link partners.
+	 *   An issue with the EEE next page exchange between the
+	 *   KSZ879x/KSZ877x/KSZ876x and some EEE link partners may result in
+	 *   the link dropping.
+	 */
+	if (dev->ksz87xx_eee_link_erratum)
+		ret = ksz8_ind_write8(dev, TABLE_EEE, REG_IND_EEE_GLOB2_HI, 0);
+
+	return ret;
 }
 
 static int ksz8_setup(struct dsa_switch *ds)
@@ -1499,30 +1495,25 @@ static int ksz8_setup(struct dsa_switch *ds)
 
 	ds->configure_vlan_while_not_filtering = false;
 
-	return 0;
+	return ksz8_handle_global_errata(ds);
 }
 
-static void ksz8_validate(struct dsa_switch *ds, int port,
-			  unsigned long *supported,
-			  struct phylink_link_state *state)
+static void ksz8_get_caps(struct dsa_switch *ds, int port,
+			  struct phylink_config *config)
 {
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
 	struct ksz_device *dev = ds->priv;
 
 	if (port == dev->cpu_port) {
-		if (state->interface != PHY_INTERFACE_MODE_RMII &&
-		    state->interface != PHY_INTERFACE_MODE_MII &&
-		    state->interface != PHY_INTERFACE_MODE_NA)
-			goto unsupported;
+		__set_bit(PHY_INTERFACE_MODE_RMII,
+			  config->supported_interfaces);
+		__set_bit(PHY_INTERFACE_MODE_MII,
+			  config->supported_interfaces);
 	} else {
-		if (state->interface != PHY_INTERFACE_MODE_INTERNAL &&
-		    state->interface != PHY_INTERFACE_MODE_NA)
-			goto unsupported;
+		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
+			  config->supported_interfaces);
 	}
 
-	/* Allow all the expected bits */
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
+	config->mac_capabilities = MAC_10 | MAC_100;
 
 	/* Silicon Errata Sheet (DS80000830A):
 	 * "Port 1 does not respond to received flow control PAUSE frames"
@@ -1530,29 +1521,11 @@ static void ksz8_validate(struct dsa_switch *ds, int port,
 	 * switches.
 	 */
 	if (!ksz_is_ksz88x3(dev) || port)
-		phylink_set(mask, Pause);
+		config->mac_capabilities |= MAC_SYM_PAUSE;
 
 	/* Asym pause is not supported on KSZ8863 and KSZ8873 */
 	if (!ksz_is_ksz88x3(dev))
-		phylink_set(mask, Asym_Pause);
-
-	/* 10M and 100M are only supported */
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-
-	bitmap_and(supported, supported, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-
-	return;
-
-unsupported:
-	bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	dev_err(ds->dev, "Unsupported interface: %s, port: %d\n",
-		phy_modes(state->interface), port);
+		config->mac_capabilities |= MAC_ASYM_PAUSE;
 }
 
 static const struct dsa_switch_ops ksz8_switch_ops = {
@@ -1561,7 +1534,7 @@ static const struct dsa_switch_ops ksz8_switch_ops = {
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,
-	.phylink_validate	= ksz8_validate,
+	.phylink_get_caps	= ksz8_get_caps,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.port_enable		= ksz_enable_port,
 	.get_strings		= ksz8_get_strings,
@@ -1639,6 +1612,7 @@ struct ksz_chip_data {
 	int num_statics;
 	int cpu_ports;
 	int port_cnt;
+	bool ksz87xx_eee_link_erratum;
 };
 
 static const struct ksz_chip_data ksz8_switch_chips[] = {
@@ -1650,6 +1624,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
 	},
 	{
 		/*
@@ -1673,6 +1648,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 4,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
 	},
 	{
 		.chip_id = 0x8765,
@@ -1682,6 +1658,7 @@ static const struct ksz_chip_data ksz8_switch_chips[] = {
 		.num_statics = 8,
 		.cpu_ports = 0x10,	/* can be configured as cpu port */
 		.port_cnt = 5,		/* total cpu and user ports */
+		.ksz87xx_eee_link_erratum = true,
 	},
 	{
 		.chip_id = 0x8830,
@@ -1716,6 +1693,8 @@ static int ksz8_switch_init(struct ksz_device *dev)
 			dev->host_mask = chip->cpu_ports;
 			dev->port_mask = (BIT(dev->phy_port_cnt) - 1) |
 					 chip->cpu_ports;
+			dev->ksz87xx_eee_link_erratum =
+				chip->ksz87xx_eee_link_erratum;
 			break;
 		}
 	}

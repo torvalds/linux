@@ -18,8 +18,6 @@
 #define IBMVNIC_NAME		"ibmvnic"
 #define IBMVNIC_DRIVER_VERSION	"1.0.1"
 #define IBMVNIC_INVALID_MAP	-1
-#define IBMVNIC_STATS_TIMEOUT	1
-#define IBMVNIC_INIT_FAILED	2
 #define IBMVNIC_OPEN_FAILED	3
 
 /* basic structures plus 100 2k buffers */
@@ -42,11 +40,6 @@
 #define IBMVNIC_BUFFER_HLEN 500
 
 #define IBMVNIC_RESET_DELAY 100
-
-static const char ibmvnic_priv_flags[][ETH_GSTRING_LEN] = {
-#define IBMVNIC_USE_SERVER_MAXES 0x1
-	"use-server-maxes"
-};
 
 struct ibmvnic_login_buffer {
 	__be32 len;
@@ -827,7 +820,7 @@ struct ibmvnic_rx_buff {
 
 struct ibmvnic_rx_pool {
 	struct ibmvnic_rx_buff *rx_buff;
-	int size;
+	int size;			/* # of buffers in the pool */
 	int index;
 	int buff_size;
 	atomic_t available;
@@ -885,7 +878,6 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
-	u32 priv_flags;
 
 	/* Vital Product Data (VPD) */
 	struct ibmvnic_vpd *vpd;
@@ -921,7 +913,6 @@ struct ibmvnic_adapter {
 	int login_rsp_buf_sz;
 
 	atomic_t running_cap_crqs;
-	bool wait_capability;
 
 	struct ibmvnic_sub_crq_queue **tx_scrq ____cacheline_aligned;
 	struct ibmvnic_sub_crq_queue **rx_scrq ____cacheline_aligned;
@@ -933,6 +924,7 @@ struct ibmvnic_adapter {
 
 	struct ibmvnic_tx_pool *tx_pool;
 	struct ibmvnic_tx_pool *tso_pool;
+	struct completion probe_done;
 	struct completion init_done;
 	int init_done_rc;
 
@@ -967,6 +959,7 @@ struct ibmvnic_adapter {
 	u64 min_mtu;
 	u64 max_mtu;
 	u64 req_mtu;
+	u64 prev_mtu;
 	u64 max_multicast_filters;
 	u64 vlan_header_insertion;
 	u64 rx_vlan_header_insertion;
@@ -979,13 +972,18 @@ struct ibmvnic_adapter {
 	u64 opt_tx_entries_per_subcrq;
 	u64 opt_rxba_entries_per_subcrq;
 	__be64 tx_rx_desc_req;
-	u8 map_id;
+#define MAX_MAP_ID	255
+	DECLARE_BITMAP(map_ids, MAX_MAP_ID);
 	u32 num_active_rx_scrqs;
 	u32 num_active_rx_pools;
 	u32 num_active_rx_napi;
 	u32 num_active_tx_scrqs;
 	u32 num_active_tx_pools;
+
+	u32 prev_rx_pool_size;
+	u32 prev_tx_pool_size;
 	u32 cur_rx_buf_sz;
+	u32 prev_rx_buf_sz;
 
 	struct tasklet_struct tasklet;
 	enum vnic_state state;
@@ -1002,11 +1000,14 @@ struct ibmvnic_adapter {
 	struct work_struct ibmvnic_reset;
 	struct delayed_work ibmvnic_delayed_reset;
 	unsigned long resetting;
-	bool napi_enabled, from_passive_init;
-	bool login_pending;
 	/* last device reset time */
 	unsigned long last_reset_time;
 
+	bool napi_enabled;
+	bool from_passive_init;
+	bool login_pending;
+	/* protected by rcu */
+	bool tx_queues_active;
 	bool failover_pending;
 	bool force_reset_recovery;
 

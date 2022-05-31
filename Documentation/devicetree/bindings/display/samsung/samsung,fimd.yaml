@@ -1,0 +1,198 @@
+# SPDX-License-Identifier: GPL-2.0-only
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/display/samsung/samsung,fimd.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Samsung S3C/S5P/Exynos SoC Fully Interactive Mobile Display (FIMD)
+
+maintainers:
+  - Inki Dae <inki.dae@samsung.com>
+  - Joonyoung Shim <jy0922.shim@samsung.com>
+  - Seung-Woo Kim <sw0312.kim@samsung.com>
+  - Kyungmin Park <kyungmin.park@samsung.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
+
+properties:
+  compatible:
+    enum:
+      - samsung,s3c2443-fimd
+      - samsung,s3c6400-fimd
+      - samsung,s5pv210-fimd
+      - samsung,exynos3250-fimd
+      - samsung,exynos4210-fimd
+      - samsung,exynos5250-fimd
+      - samsung,exynos5420-fimd
+
+  '#address-cells':
+    const: 1
+
+  clocks:
+    minItems: 2
+    maxItems: 2
+
+  clock-names:
+    items:
+      - const: sclk_fimd
+      - const: fimd
+
+  display-timings:
+    $ref: ../panel/display-timings.yaml#
+
+  i80-if-timings:
+    type: object
+    description: |
+      Timing configuration for lcd i80 interface support.
+      The parameters are defined as::
+      VCLK(internal)  __|??????|_____|??????|_____|??????|_____|??????|_____|??
+                        :            :            :            :            :
+      Address Output  --:<XXXXXXXXXXX:XXXXXXXXXXXX:XXXXXXXXXXXX:XXXXXXXXXXXX:XX
+                        | cs-setup+1 |            :            :            :
+                        |<---------->|            :            :            :
+      Chip Select     ???????????????|____________:____________:____________|??
+                                     | wr-setup+1 |            | wr-hold+1  |
+                                     |<---------->|            |<---------->|
+      Write Enable    ????????????????????????????|____________|???????????????
+                                                  | wr-active+1|
+                                                  |<---------->|
+      Video Data      ----------------------------<XXXXXXXXXXXXXXXXXXXXXXXXX>--
+
+    properties:
+      cs-setup:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Clock cycles for the active period of address signal is enabled until
+          chip select is enabled.
+        default: 0
+
+      wr-active:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Clock cycles for the active period of CS is enabled.
+        default: 1
+
+      wr-hold:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Clock cycles for the active period of CS is disabled until write
+          signal is disabled.
+        default: 0
+
+      wr-setup:
+        $ref: /schemas/types.yaml#/definitions/uint32
+        description:
+          Clock cycles for the active period of CS signal is enabled until
+          write signal is enabled.
+        default: 0
+
+  iommus:
+    minItems: 1
+    maxItems: 2
+
+  iommu-names:
+    items:
+      - const: m0
+      - const: m1
+
+  interrupts:
+    items:
+      - description: FIFO level
+      - description: VSYNC
+      - description: LCD system
+
+  interrupt-names:
+    items:
+      - const: fifo
+      - const: vsync
+      - const: lcd_sys
+
+  power-domains:
+    maxItems: 1
+
+  reg:
+    maxItems: 1
+
+  samsung,invert-vden:
+    type: boolean
+    description:
+      Video enable signal is inverted.
+
+  samsung,invert-vclk:
+    type: boolean
+    description:
+      Video clock signal is inverted.
+
+  samsung,sysreg:
+    $ref: /schemas/types.yaml#/definitions/phandle
+    description:
+      Phandle to System Register syscon.
+
+  '#size-cells':
+    const: 0
+
+patternProperties:
+  "^port@[0-4]+$":
+    $ref: /schemas/graph.yaml#/properties/port
+    description: |
+      Contains ports with port with index::
+       0 - for CAMIF0 input,
+       1 - for CAMIF1 input,
+       2 - for CAMIF2 input,
+       3 - for parallel output,
+       4 - for write-back interface
+
+required:
+  - compatible
+  - clocks
+  - clock-names
+  - interrupts
+  - interrupt-names
+  - reg
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            const: samsung,exynos5420-fimd
+    then:
+      properties:
+        iommus:
+          minItems: 2
+          maxItems: 2
+
+additionalProperties: false
+
+examples:
+  - |
+    #include <dt-bindings/clock/exynos4.h>
+
+    fimd@11c00000 {
+        compatible = "samsung,exynos4210-fimd";
+        interrupt-parent = <&combiner>;
+        reg = <0x11c00000 0x20000>;
+        interrupt-names = "fifo", "vsync", "lcd_sys";
+        interrupts = <11 0>, <11 1>, <11 2>;
+        clocks = <&clock CLK_SCLK_FIMD0>, <&clock CLK_FIMD0>;
+        clock-names = "sclk_fimd", "fimd";
+        power-domains = <&pd_lcd0>;
+        iommus = <&sysmmu_fimd0>;
+        samsung,sysreg = <&sys_reg>;
+
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        samsung,invert-vden;
+        samsung,invert-vclk;
+
+        pinctrl-0 = <&lcd_clk>, <&lcd_data24>;
+        pinctrl-names = "default";
+
+        port@3 {
+            reg = <3>;
+
+            fimd_dpi_ep: endpoint {
+                remote-endpoint = <&lcd_ep>;
+            };
+        };
+    };

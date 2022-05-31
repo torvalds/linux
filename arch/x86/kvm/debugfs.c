@@ -95,6 +95,9 @@ static int kvm_mmu_rmaps_stat_show(struct seq_file *m, void *v)
 	unsigned int *log[KVM_NR_PAGE_SIZES], *cur;
 	int i, j, k, l, ret;
 
+	if (!kvm_memslots_have_rmaps(kvm))
+		return 0;
+
 	ret = -ENOMEM;
 	memset(log, 0, sizeof(log));
 	for (i = 0; i < KVM_NR_PAGE_SIZES; i++) {
@@ -107,9 +110,10 @@ static int kvm_mmu_rmaps_stat_show(struct seq_file *m, void *v)
 	write_lock(&kvm->mmu_lock);
 
 	for (i = 0; i < KVM_ADDRESS_SPACE_NUM; i++) {
+		int bkt;
+
 		slots = __kvm_memslots(kvm, i);
-		for (j = 0; j < slots->used_slots; j++) {
-			slot = &slots->memslots[j];
+		kvm_for_each_memslot(slot, bkt, slots)
 			for (k = 0; k < KVM_NR_PAGE_SIZES; k++) {
 				rmap = slot->arch.rmap[k];
 				lpage_size = kvm_mmu_slot_lpages(slot, k + 1);
@@ -121,7 +125,6 @@ static int kvm_mmu_rmaps_stat_show(struct seq_file *m, void *v)
 					cur[index]++;
 				}
 			}
-		}
 	}
 
 	write_unlock(&kvm->mmu_lock);

@@ -160,7 +160,7 @@ static const struct iio_chan_spec_ext_info ti_dac_ext_info[] = {
 		.shared	   = IIO_SHARED_BY_TYPE,
 	},
 	IIO_ENUM("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
-	IIO_ENUM_AVAILABLE("powerdown_mode", &ti_dac_powerdown_mode),
+	IIO_ENUM_AVAILABLE("powerdown_mode", IIO_SHARED_BY_TYPE, &ti_dac_powerdown_mode),
 	{ },
 };
 
@@ -313,7 +313,7 @@ err:
 	return ret;
 }
 
-static int ti_dac_remove(struct spi_device *spi)
+static void ti_dac_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ti_dac_chip *ti_dac = iio_priv(indio_dev);
@@ -321,8 +321,6 @@ static int ti_dac_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	mutex_destroy(&ti_dac->lock);
 	regulator_disable(ti_dac->vref);
-
-	return 0;
 }
 
 static const struct of_device_id ti_dac_of_id[] = {

@@ -1426,7 +1426,7 @@ out_clk:
 	return ret;
 }
 
-static int max310x_remove(struct device *dev)
+static void max310x_remove(struct device *dev)
 {
 	struct max310x_port *s = dev_get_drvdata(dev);
 	int i;
@@ -1441,8 +1441,6 @@ static int max310x_remove(struct device *dev)
 	}
 
 	clk_disable_unprepare(s->clk);
-
-	return 0;
 }
 
 static const struct of_device_id __maybe_unused max310x_dt_ids[] = {
@@ -1489,9 +1487,9 @@ static int max310x_spi_probe(struct spi_device *spi)
 	return max310x_probe(&spi->dev, devtype, regmap, spi->irq);
 }
 
-static int max310x_spi_remove(struct spi_device *spi)
+static void max310x_spi_remove(struct spi_device *spi)
 {
-	return max310x_remove(&spi->dev);
+	max310x_remove(&spi->dev);
 }
 
 static const struct spi_device_id max310x_id_table[] = {

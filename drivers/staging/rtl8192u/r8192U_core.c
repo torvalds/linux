@@ -96,15 +96,12 @@ MODULE_DESCRIPTION("Linux driver for Realtek RTL8192 USB WiFi cards");
 
 static char *ifname = "wlan%d";
 static int hwwep = 1;  /* default use hw. set 0 to use software security */
-static int channels = 0x3fff;
 
 module_param(ifname, charp, 0644);
 module_param(hwwep, int, 0644);
-module_param(channels, int, 0644);
 
 MODULE_PARM_DESC(ifname, " Net interface name, wlan%d=default");
 MODULE_PARM_DESC(hwwep, " Try to use hardware security support. ");
-MODULE_PARM_DESC(channels, " Channel bitmask for specific locales. NYI");
 
 static int rtl8192_usb_probe(struct usb_interface *intf,
 			     const struct usb_device_id *id);
@@ -229,7 +226,7 @@ int write_nic_byte_E(struct net_device *dev, int indx, u8 data)
 
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 RTL8187_REQ_SET_REGS, RTL8187_REQT_WRITE,
-				 indx | 0xfe00, 0, usbdata, 1, HZ / 2);
+				 indx | 0xfe00, 0, usbdata, 1, 500);
 	kfree(usbdata);
 
 	if (status < 0) {
@@ -251,7 +248,7 @@ int read_nic_byte_E(struct net_device *dev, int indx, u8 *data)
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-				 indx | 0xfe00, 0, usbdata, 1, HZ / 2);
+				 indx | 0xfe00, 0, usbdata, 1, 500);
 	*data = *usbdata;
 	kfree(usbdata);
 
@@ -279,7 +276,7 @@ int write_nic_byte(struct net_device *dev, int indx, u8 data)
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 RTL8187_REQ_SET_REGS, RTL8187_REQT_WRITE,
 				 (indx & 0xff) | 0xff00, (indx >> 8) & 0x0f,
-				 usbdata, 1, HZ / 2);
+				 usbdata, 1, 500);
 	kfree(usbdata);
 
 	if (status < 0) {
@@ -305,7 +302,7 @@ int write_nic_word(struct net_device *dev, int indx, u16 data)
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 RTL8187_REQ_SET_REGS, RTL8187_REQT_WRITE,
 				 (indx & 0xff) | 0xff00, (indx >> 8) & 0x0f,
-				 usbdata, 2, HZ / 2);
+				 usbdata, 2, 500);
 	kfree(usbdata);
 
 	if (status < 0) {
@@ -331,7 +328,7 @@ int write_nic_dword(struct net_device *dev, int indx, u32 data)
 	status = usb_control_msg(udev, usb_sndctrlpipe(udev, 0),
 				 RTL8187_REQ_SET_REGS, RTL8187_REQT_WRITE,
 				 (indx & 0xff) | 0xff00, (indx >> 8) & 0x0f,
-				 usbdata, 4, HZ / 2);
+				 usbdata, 4, 500);
 	kfree(usbdata);
 
 	if (status < 0) {
@@ -355,7 +352,7 @@ int read_nic_byte(struct net_device *dev, int indx, u8 *data)
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
 				 (indx & 0xff) | 0xff00, (indx >> 8) & 0x0f,
-				 usbdata, 1, HZ / 2);
+				 usbdata, 1, 500);
 	*data = *usbdata;
 	kfree(usbdata);
 
@@ -380,7 +377,7 @@ int read_nic_word(struct net_device *dev, int indx, u16 *data)
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
 				 (indx & 0xff) | 0xff00, (indx >> 8) & 0x0f,
-				 usbdata, 2, HZ / 2);
+				 usbdata, 2, 500);
 	*data = *usbdata;
 	kfree(usbdata);
 
@@ -404,7 +401,7 @@ static int read_nic_word_E(struct net_device *dev, int indx, u16 *data)
 
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
-				 indx | 0xfe00, 0, usbdata, 2, HZ / 2);
+				 indx | 0xfe00, 0, usbdata, 2, 500);
 	*data = *usbdata;
 	kfree(usbdata);
 
@@ -430,7 +427,7 @@ int read_nic_dword(struct net_device *dev, int indx, u32 *data)
 	status = usb_control_msg(udev, usb_rcvctrlpipe(udev, 0),
 				 RTL8187_REQ_GET_REGS, RTL8187_REQT_READ,
 				 (indx & 0xff) | 0xff00, (indx >> 8) & 0x0f,
-				 usbdata, 4, HZ / 2);
+				 usbdata, 4, 500);
 	*data = *usbdata;
 	kfree(usbdata);
 
@@ -2303,14 +2300,17 @@ static int rtl8192_read_eeprom_info(struct net_device *dev)
 	/* set channelplan from eeprom */
 	priv->ChannelPlan = priv->eeprom_ChannelPlan;
 	if (bLoad_From_EEPOM) {
+		u8 addr[ETH_ALEN];
+
 		for (i = 0; i < 6; i += 2) {
 			ret = eprom_read(dev, (u16)((EEPROM_NODE_ADDRESS_BYTE_0 + i) >> 1));
 			if (ret < 0)
 				return ret;
-			*(u16 *)(&dev->dev_addr[i]) = (u16)ret;
+			*(u16 *)(&addr[i]) = (u16)ret;
 		}
+		eth_hw_addr_set(dev, addr);
 	} else {
-		memcpy(dev->dev_addr, bMac_Tmp_Addr, 6);
+		eth_hw_addr_set(dev, bMac_Tmp_Addr);
 		/* should I set IDR0 here? */
 	}
 	RT_TRACE(COMP_EPROM, "MAC addr:%pM\n", dev->dev_addr);
@@ -2531,13 +2531,13 @@ static short rtl8192_init(struct net_device *dev)
 #ifdef PIPE12
 	{
 		int i = 0;
-		u8 queuetopipe[] = {3, 2, 1, 0, 4, 8, 7, 6, 5};
+		static const u8 queuetopipe[] = {3, 2, 1, 0, 4, 8, 7, 6, 5};
 
 		memcpy(priv->txqueue_to_outpipemap, queuetopipe, 9);
 	}
 #else
 	{
-		u8 queuetopipe[] = {3, 2, 1, 0, 4, 4, 0, 4, 4};
+		const u8 queuetopipe[] = {3, 2, 1, 0, 4, 4, 0, 4, 4};
 
 		memcpy(priv->txqueue_to_outpipemap, queuetopipe, 9);
 	}
@@ -2666,14 +2666,7 @@ static bool rtl8192_adapter_start(struct net_device *dev)
 	/* config CPUReset Register */
 	/* Firmware Reset or not? */
 	read_nic_dword(dev, CPU_GEN, &dwRegRead);
-	if (priv->pFirmware->firmware_status == FW_STATUS_0_INIT)
-		dwRegRead |= CPU_GEN_SYSTEM_RESET; /* do nothing here? */
-	else if (priv->pFirmware->firmware_status == FW_STATUS_5_READY)
-		dwRegRead |= CPU_GEN_FIRMWARE_RESET;
-	else
-		RT_TRACE(COMP_ERR,
-			 "ERROR in %s(): undefined firmware state(%d)\n",
-			 __func__,   priv->pFirmware->firmware_status);
+	dwRegRead |= CPU_GEN_SYSTEM_RESET; /* do nothing here? */
 
 	write_nic_dword(dev, CPU_GEN, dwRegRead);
 	/* config BB. */
@@ -3048,14 +3041,14 @@ static void CamRestoreAllEntry(struct net_device *dev)
 	} else if (priv->ieee80211->pairwise_key_type == KEY_TYPE_TKIP) {
 		if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
-			       (u8 *)dev->dev_addr, 0, NULL);
+			       (const u8 *)dev->dev_addr, 0, NULL);
 		else
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       MacAddr, 0, NULL);
 	} else if (priv->ieee80211->pairwise_key_type == KEY_TYPE_CCMP) {
 		if (priv->ieee80211->iw_mode == IW_MODE_ADHOC)
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
-			       (u8 *)dev->dev_addr, 0, NULL);
+			       (const u8 *)dev->dev_addr, 0, NULL);
 		else
 			setKey(dev, 4, 0, priv->ieee80211->pairwise_key_type,
 			       MacAddr, 0, NULL);
@@ -3457,7 +3450,7 @@ static int r8192_set_mac_adr(struct net_device *dev, void *mac)
 
 	mutex_lock(&priv->wx_mutex);
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	schedule_work(&priv->reset_wq);
 	mutex_unlock(&priv->wx_mutex);
@@ -4790,49 +4783,70 @@ static int __init rtl8192_usb_module_init(void)
 {
 	int ret;
 
-#ifdef CONFIG_IEEE80211_DEBUG
+	pr_info("\nLinux kernel driver for RTL8192 based WLAN cards\n");
+	pr_info("Copyright (c) 2007-2008, Realsil Wlan\n");
+	RT_TRACE(COMP_INIT, "Initializing module");
+	RT_TRACE(COMP_INIT, "Wireless extensions version %d", WIRELESS_EXT);
+
 	ret = ieee80211_debug_init();
 	if (ret) {
 		pr_err("ieee80211_debug_init() failed %d\n", ret);
 		return ret;
 	}
-#endif
+
 	ret = ieee80211_crypto_init();
 	if (ret) {
 		pr_err("ieee80211_crypto_init() failed %d\n", ret);
-		return ret;
+		goto debug_exit;
 	}
 
 	ret = ieee80211_crypto_tkip_init();
 	if (ret) {
 		pr_err("ieee80211_crypto_tkip_init() failed %d\n", ret);
-		return ret;
+		goto crypto_exit;
 	}
 
 	ret = ieee80211_crypto_ccmp_init();
 	if (ret) {
 		pr_err("ieee80211_crypto_ccmp_init() failed %d\n", ret);
-		return ret;
+		goto crypto_tkip_exit;
 	}
 
 	ret = ieee80211_crypto_wep_init();
 	if (ret) {
 		pr_err("ieee80211_crypto_wep_init() failed %d\n", ret);
-		return ret;
+		goto crypto_ccmp_exit;
 	}
 
-	pr_info("\nLinux kernel driver for RTL8192 based WLAN cards\n");
-	pr_info("Copyright (c) 2007-2008, Realsil Wlan\n");
-	RT_TRACE(COMP_INIT, "Initializing module");
-	RT_TRACE(COMP_INIT, "Wireless extensions version %d", WIRELESS_EXT);
 	rtl8192_proc_module_init();
-	return usb_register(&rtl8192_usb_driver);
+	ret = usb_register(&rtl8192_usb_driver);
+	if (ret)
+		goto rtl8192_proc_module_exit;
+	return ret;
+
+rtl8192_proc_module_exit:
+	remove_proc_entry(RTL819XU_MODULE_NAME, init_net.proc_net);
+	ieee80211_crypto_wep_exit();
+crypto_ccmp_exit:
+	ieee80211_crypto_ccmp_exit();
+crypto_tkip_exit:
+	ieee80211_crypto_tkip_exit();
+crypto_exit:
+	ieee80211_crypto_deinit();
+debug_exit:
+	ieee80211_debug_exit();
+	return ret;
 }
 
 static void __exit rtl8192_usb_module_exit(void)
 {
 	usb_deregister(&rtl8192_usb_driver);
-
+	remove_proc_entry(RTL819XU_MODULE_NAME, init_net.proc_net);
+	ieee80211_crypto_wep_exit();
+	ieee80211_crypto_ccmp_exit();
+	ieee80211_crypto_tkip_exit();
+	ieee80211_crypto_deinit();
+	ieee80211_debug_exit();
 	RT_TRACE(COMP_DOWN, "Exiting");
 }
 
@@ -4871,7 +4885,7 @@ void EnableHWSecurityConfig8192(struct net_device *dev)
 }
 
 void setKey(struct net_device *dev, u8 entryno, u8 keyindex, u16 keytype,
-	    u8 *macaddr, u8 defaultkey, u32 *keycontent)
+	    const u8 *macaddr, u8 defaultkey, u32 *keycontent)
 {
 	u32 target_command = 0;
 	u32 target_content = 0;

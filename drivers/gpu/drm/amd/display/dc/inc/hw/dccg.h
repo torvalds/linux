@@ -80,6 +80,29 @@ struct dccg_funcs {
 			uint32_t otg_inst);
 	void (*dccg_init)(struct dccg *dccg);
 
+	void (*set_dpstreamclk)(
+			struct dccg *dccg,
+			enum hdmistreamclk_source src,
+			int otg_inst);
+
+	void (*enable_symclk32_se)(
+			struct dccg *dccg,
+			int hpo_se_inst,
+			enum phyd32clk_clock_source phyd32clk);
+
+	void (*disable_symclk32_se)(
+			struct dccg *dccg,
+			int hpo_se_inst);
+
+	void (*enable_symclk32_le)(
+			struct dccg *dccg,
+			int hpo_le_inst,
+			enum phyd32clk_clock_source phyd32clk);
+
+	void (*disable_symclk32_le)(
+			struct dccg *dccg,
+			int hpo_le_inst);
+
 	void (*set_physymclk)(
 			struct dccg *dccg,
 			int phy_inst,
@@ -100,6 +123,15 @@ struct dccg_funcs {
 	void (*set_dispclk_change_mode)(
 			struct dccg *dccg,
 			enum dentist_dispclk_change_mode change_mode);
+
+	void (*disable_dsc)(
+		struct dccg *dccg,
+		int inst);
+
+	void (*enable_dsc)(
+		struct dccg *dccg,
+		int inst);
+
 };
 
 #endif //__DAL_DCCG_H__

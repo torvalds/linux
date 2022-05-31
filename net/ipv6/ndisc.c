@@ -142,7 +142,7 @@ struct neigh_table nd_tbl = {
 };
 EXPORT_SYMBOL_GPL(nd_tbl);
 
-void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
+void __ndisc_fill_addr_option(struct sk_buff *skb, int type, const void *data,
 			      int data_len, int pad)
 {
 	int space = __ndisc_opt_addr_space(data_len, pad);
@@ -165,7 +165,7 @@ void __ndisc_fill_addr_option(struct sk_buff *skb, int type, void *data,
 EXPORT_SYMBOL_GPL(__ndisc_fill_addr_option);
 
 static inline void ndisc_fill_addr_option(struct sk_buff *skb, int type,
-					  void *data, u8 icmp6_type)
+					  const void *data, u8 icmp6_type)
 {
 	__ndisc_fill_addr_option(skb, type, data, skb->dev->addr_len,
 				 ndisc_addr_option_pad(skb->dev->type));
@@ -466,9 +466,8 @@ static void ip6_nd_hdr(struct sk_buff *skb,
 	hdr->daddr = *daddr;
 }
 
-static void ndisc_send_skb(struct sk_buff *skb,
-			   const struct in6_addr *daddr,
-			   const struct in6_addr *saddr)
+void ndisc_send_skb(struct sk_buff *skb, const struct in6_addr *daddr,
+		    const struct in6_addr *saddr)
 {
 	struct dst_entry *dst = skb_dst(skb);
 	struct net *net = dev_net(skb->dev);
@@ -515,6 +514,7 @@ static void ndisc_send_skb(struct sk_buff *skb,
 
 	rcu_read_unlock();
 }
+EXPORT_SYMBOL(ndisc_send_skb);
 
 void ndisc_send_na(struct net_device *dev, const struct in6_addr *daddr,
 		   const struct in6_addr *solicited_addr,
@@ -598,22 +598,16 @@ static void ndisc_send_unsol_na(struct net_device *dev)
 	in6_dev_put(idev);
 }
 
-void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
-		   const struct in6_addr *daddr, const struct in6_addr *saddr,
-		   u64 nonce)
+struct sk_buff *ndisc_ns_create(struct net_device *dev, const struct in6_addr *solicit,
+				const struct in6_addr *saddr, u64 nonce)
 {
-	struct sk_buff *skb;
-	struct in6_addr addr_buf;
 	int inc_opt = dev->addr_len;
-	int optlen = 0;
+	struct sk_buff *skb;
 	struct nd_msg *msg;
+	int optlen = 0;
 
-	if (!saddr) {
-		if (ipv6_get_lladdr(dev, &addr_buf,
-				   (IFA_F_TENTATIVE|IFA_F_OPTIMISTIC)))
-			return;
-		saddr = &addr_buf;
-	}
+	if (!saddr)
+		return NULL;
 
 	if (ipv6_addr_any(saddr))
 		inc_opt = false;
@@ -625,7 +619,7 @@ void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 
 	skb = ndisc_alloc_skb(dev, sizeof(*msg) + optlen);
 	if (!skb)
-		return;
+		return NULL;
 
 	msg = skb_put(skb, sizeof(*msg));
 	*msg = (struct nd_msg) {
@@ -647,7 +641,28 @@ void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
 		memcpy(opt + 2, &nonce, 6);
 	}
 
-	ndisc_send_skb(skb, daddr, saddr);
+	return skb;
+}
+EXPORT_SYMBOL(ndisc_ns_create);
+
+void ndisc_send_ns(struct net_device *dev, const struct in6_addr *solicit,
+		   const struct in6_addr *daddr, const struct in6_addr *saddr,
+		   u64 nonce)
+{
+	struct in6_addr addr_buf;
+	struct sk_buff *skb;
+
+	if (!saddr) {
+		if (ipv6_get_lladdr(dev, &addr_buf,
+				    (IFA_F_TENTATIVE | IFA_F_OPTIMISTIC)))
+			return;
+		saddr = &addr_buf;
+	}
+
+	skb = ndisc_ns_create(dev, solicit, saddr, nonce);
+
+	if (skb)
+		ndisc_send_skb(skb, daddr, saddr);
 }
 
 void ndisc_send_rs(struct net_device *dev, const struct in6_addr *saddr,
@@ -1337,8 +1352,12 @@ static void ndisc_router_discovery(struct sk_buff *skb)
 			return;
 		}
 		neigh->flags |= NTF_ROUTER;
-	} else if (rt) {
+	} else if (rt && IPV6_EXTRACT_PREF(rt->fib6_flags) != pref) {
+		struct nl_info nlinfo = {
+			.nl_net = net,
+		};
 		rt->fib6_flags = (rt->fib6_flags & ~RTF_PREF_MASK) | RTF_PREF(pref);
+		inet6_rt_notify(RTM_NEWROUTE, rt, &nlinfo, NLM_F_REPLACE);
 	}
 
 	if (rt)
@@ -1794,6 +1813,7 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 	struct netdev_notifier_change_info *change_info;
 	struct net *net = dev_net(dev);
 	struct inet6_dev *idev;
+	bool evict_nocarrier;
 
 	switch (event) {
 	case NETDEV_CHANGEADDR:
@@ -1810,10 +1830,19 @@ static int ndisc_netdev_event(struct notifier_block *this, unsigned long event, 
 		in6_dev_put(idev);
 		break;
 	case NETDEV_CHANGE:
+		idev = in6_dev_get(dev);
+		if (!idev)
+			evict_nocarrier = true;
+		else {
+			evict_nocarrier = idev->cnf.ndisc_evict_nocarrier &&
+					  net->ipv6.devconf_all->ndisc_evict_nocarrier;
+			in6_dev_put(idev);
+		}
+
 		change_info = ptr;
 		if (change_info->flags_changed & IFF_NOARP)
 			neigh_changeaddr(&nd_tbl, dev);
-		if (!netif_carrier_ok(dev))
+		if (evict_nocarrier && !netif_carrier_ok(dev))
 			neigh_carrier_down(&nd_tbl, dev);
 		break;
 	case NETDEV_DOWN:

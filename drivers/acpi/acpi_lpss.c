@@ -21,6 +21,7 @@
 #include <linux/pm_domain.h>
 #include <linux/pm_runtime.h>
 #include <linux/pwm.h>
+#include <linux/pxa2xx_ssp.h>
 #include <linux/suspend.h>
 #include <linux/delay.h>
 
@@ -82,7 +83,7 @@ struct lpss_device_desc {
 	const char *clk_con_id;
 	unsigned int prv_offset;
 	size_t prv_size_override;
-	struct property_entry *properties;
+	const struct property_entry *properties;
 	void (*setup)(struct lpss_private_data *pdata);
 	bool resume_from_noirq;
 };
@@ -219,10 +220,16 @@ static void bsw_pwm_setup(struct lpss_private_data *pdata)
 	pwm_add_table(bsw_pwm_lookup, ARRAY_SIZE(bsw_pwm_lookup));
 }
 
-static const struct lpss_device_desc lpt_dev_desc = {
+static const struct property_entry lpt_spi_properties[] = {
+	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_LPT_SSP),
+	{ }
+};
+
+static const struct lpss_device_desc lpt_spi_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_LTR
 			| LPSS_SAVE_CTX,
 	.prv_offset = 0x800,
+	.properties = lpt_spi_properties,
 };
 
 static const struct lpss_device_desc lpt_i2c_dev_desc = {
@@ -282,9 +289,15 @@ static const struct lpss_device_desc bsw_uart_dev_desc = {
 	.properties = uart_properties,
 };
 
+static const struct property_entry byt_spi_properties[] = {
+	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_BYT_SSP),
+	{ }
+};
+
 static const struct lpss_device_desc byt_spi_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX,
 	.prv_offset = 0x400,
+	.properties = byt_spi_properties,
 };
 
 static const struct lpss_device_desc byt_sdio_dev_desc = {
@@ -305,11 +318,17 @@ static const struct lpss_device_desc bsw_i2c_dev_desc = {
 	.resume_from_noirq = true,
 };
 
+static const struct property_entry bsw_spi_properties[] = {
+	PROPERTY_ENTRY_U32("intel,spi-pxa2xx-type", LPSS_BSW_SSP),
+	{ }
+};
+
 static const struct lpss_device_desc bsw_spi_dev_desc = {
 	.flags = LPSS_CLK | LPSS_CLK_GATE | LPSS_CLK_DIVIDER | LPSS_SAVE_CTX
 			| LPSS_NO_D3_DELAY,
 	.prv_offset = 0x400,
 	.setup = lpss_deassert_reset,
+	.properties = bsw_spi_properties,
 };
 
 static const struct x86_cpu_id lpss_cpu_ids[] = {
@@ -329,8 +348,8 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INTL9C60", LPSS_ADDR(lpss_dma_desc) },
 
 	/* Lynxpoint LPSS devices */
-	{ "INT33C0", LPSS_ADDR(lpt_dev_desc) },
-	{ "INT33C1", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT33C0", LPSS_ADDR(lpt_spi_dev_desc) },
+	{ "INT33C1", LPSS_ADDR(lpt_spi_dev_desc) },
 	{ "INT33C2", LPSS_ADDR(lpt_i2c_dev_desc) },
 	{ "INT33C3", LPSS_ADDR(lpt_i2c_dev_desc) },
 	{ "INT33C4", LPSS_ADDR(lpt_uart_dev_desc) },
@@ -356,8 +375,8 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "808622C1", LPSS_ADDR(bsw_i2c_dev_desc) },
 
 	/* Broadwell LPSS devices */
-	{ "INT3430", LPSS_ADDR(lpt_dev_desc) },
-	{ "INT3431", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT3430", LPSS_ADDR(lpt_spi_dev_desc) },
+	{ "INT3431", LPSS_ADDR(lpt_spi_dev_desc) },
 	{ "INT3432", LPSS_ADDR(lpt_i2c_dev_desc) },
 	{ "INT3433", LPSS_ADDR(lpt_i2c_dev_desc) },
 	{ "INT3434", LPSS_ADDR(lpt_uart_dev_desc) },
@@ -366,7 +385,7 @@ static const struct acpi_device_id acpi_lpss_device_ids[] = {
 	{ "INT3437", },
 
 	/* Wildcat Point LPSS devices */
-	{ "INT3438", LPSS_ADDR(lpt_dev_desc) },
+	{ "INT3438", LPSS_ADDR(lpt_spi_dev_desc) },
 
 	{ }
 };
@@ -712,14 +731,13 @@ static void __lpss_reg_write(u32 val, struct lpss_private_data *pdata,
 
 static int lpss_reg_read(struct device *dev, unsigned int reg, u32 *val)
 {
-	struct acpi_device *adev;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct lpss_private_data *pdata;
 	unsigned long flags;
 	int ret;
 
-	ret = acpi_bus_get_device(ACPI_HANDLE(dev), &adev);
-	if (WARN_ON(ret))
-		return ret;
+	if (WARN_ON(!adev))
+		return -ENODEV;
 
 	spin_lock_irqsave(&dev->power.lock, flags);
 	if (pm_runtime_suspended(dev)) {
@@ -732,6 +750,7 @@ static int lpss_reg_read(struct device *dev, unsigned int reg, u32 *val)
 		goto out;
 	}
 	*val = __lpss_reg_read(pdata, reg);
+	ret = 0;
 
  out:
 	spin_unlock_irqrestore(&dev->power.lock, flags);
@@ -750,7 +769,7 @@ static ssize_t lpss_ltr_show(struct device *dev, struct device_attribute *attr,
 	if (ret)
 		return ret;
 
-	return snprintf(buf, PAGE_SIZE, "%08x\n", ltr_value);
+	return sysfs_emit(buf, "%08x\n", ltr_value);
 }
 
 static ssize_t lpss_ltr_mode_show(struct device *dev,
@@ -1266,7 +1285,8 @@ static int acpi_lpss_platform_notify(struct notifier_block *nb,
 	if (!id || !id->driver_data)
 		return 0;
 
-	if (acpi_bus_get_device(ACPI_HANDLE(&pdev->dev), &adev))
+	adev = ACPI_COMPANION(&pdev->dev);
+	if (!adev)
 		return 0;
 
 	pdata = acpi_driver_data(adev);

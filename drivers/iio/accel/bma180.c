@@ -658,7 +658,7 @@ static const struct iio_chan_spec_ext_info bma023_ext_info[] = {
 
 static const struct iio_chan_spec_ext_info bma180_ext_info[] = {
 	IIO_ENUM("power_mode", IIO_SHARED_BY_TYPE, &bma180_power_mode_enum),
-	IIO_ENUM_AVAILABLE("power_mode", &bma180_power_mode_enum),
+	IIO_ENUM_AVAILABLE("power_mode", IIO_SHARED_BY_TYPE, &bma180_power_mode_enum),
 	IIO_MOUNT_MATRIX(IIO_SHARED_BY_DIR, bma180_accel_get_mount_matrix),
 	{ }
 };
@@ -938,7 +938,7 @@ static int bma180_probe(struct i2c_client *client,
 	i2c_set_clientdata(client, indio_dev);
 	data->client = client;
 	if (client->dev.of_node)
-		chip = (enum chip_ids)of_device_get_match_data(dev);
+		chip = (uintptr_t)of_device_get_match_data(dev);
 	else
 		chip = id->driver_data;
 	data->part_info = &bma180_part_info[chip];
@@ -1065,7 +1065,6 @@ static int bma180_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int bma180_suspend(struct device *dev)
 {
 	struct iio_dev *indio_dev = i2c_get_clientdata(to_i2c_client(dev));
@@ -1092,11 +1091,7 @@ static int bma180_resume(struct device *dev)
 	return ret;
 }
 
-static SIMPLE_DEV_PM_OPS(bma180_pm_ops, bma180_suspend, bma180_resume);
-#define BMA180_PM_OPS (&bma180_pm_ops)
-#else
-#define BMA180_PM_OPS NULL
-#endif
+static DEFINE_SIMPLE_DEV_PM_OPS(bma180_pm_ops, bma180_suspend, bma180_resume);
 
 static const struct i2c_device_id bma180_ids[] = {
 	{ "bma023", BMA023 },
@@ -1137,7 +1132,7 @@ MODULE_DEVICE_TABLE(of, bma180_of_match);
 static struct i2c_driver bma180_driver = {
 	.driver = {
 		.name	= "bma180",
-		.pm	= BMA180_PM_OPS,
+		.pm	= pm_sleep_ptr(&bma180_pm_ops),
 		.of_match_table = bma180_of_match,
 	},
 	.probe		= bma180_probe,

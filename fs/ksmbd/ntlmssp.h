@@ -95,7 +95,7 @@ struct security_buffer {
 struct target_info {
 	__le16 Type;
 	__le16 Length;
-	__u8 Content[0];
+	__u8 Content[];
 } __packed;
 
 struct negotiate_message {
@@ -108,7 +108,7 @@ struct negotiate_message {
 	 * struct security_buffer for version info not present since we
 	 * do not set the version is present flag
 	 */
-	char DomainString[0];
+	char DomainString[];
 	/* followed by WorkstationString */
 } __packed;
 
@@ -140,7 +140,7 @@ struct authenticate_message {
 	 * struct security_buffer for version info not present since we
 	 * do not set the version is present flag
 	 */
-	char UserString[0];
+	char UserString[];
 } __packed;
 
 struct ntlmv2_resp {

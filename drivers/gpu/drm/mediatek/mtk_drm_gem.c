@@ -220,7 +220,7 @@ struct drm_gem_object *mtk_gem_prime_import_sg_table(struct drm_device *dev,
 	return &mtk_gem->base;
 }
 
-int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
 	struct sg_table *sgt = NULL;
@@ -247,12 +247,13 @@ int mtk_drm_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 
 out:
 	kfree(sgt);
-	dma_buf_map_set_vaddr(map, mtk_gem->kvaddr);
+	iosys_map_set_vaddr(map, mtk_gem->kvaddr);
 
 	return 0;
 }
 
-void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+void mtk_drm_gem_prime_vunmap(struct drm_gem_object *obj,
+			      struct iosys_map *map)
 {
 	struct mtk_drm_gem_obj *mtk_gem = to_mtk_gem_obj(obj);
 	void *vaddr = map->vaddr;

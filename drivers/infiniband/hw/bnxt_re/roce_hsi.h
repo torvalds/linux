@@ -1102,6 +1102,7 @@ struct cmdq_base {
 	#define CMDQ_BASE_OPCODE_MODIFY_CC			   0x8cUL
 	#define CMDQ_BASE_OPCODE_QUERY_CC			   0x8dUL
 	#define CMDQ_BASE_OPCODE_QUERY_ROCE_STATS	   0x8eUL
+	#define CMDQ_BASE_OPCODE_QUERY_ROCE_STATS_EXT      0x92UL
 	u8 cmd_size;
 	__le16 flags;
 	__le16 cookie;
@@ -1127,6 +1128,10 @@ struct cmdq_create_qp {
 	#define CMDQ_CREATE_QP_QP_FLAGS_RESERVED_LKEY_ENABLE      0x4UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_FR_PMR_ENABLED		   0x8UL
 	#define CMDQ_CREATE_QP_QP_FLAGS_VARIABLE_SIZED_WQE_ENABLED 0x10UL
+	#define CMDQ_CREATE_QP_QP_FLAGS_EXT_STATS_ENABLED          0x80UL
+	#define CMDQ_CREATE_QP_QP_FLAGS_LAST	\
+		CMDQ_CREATE_QP_QP_FLAGS_EXT_STATS_ENABLED
+
 	u8 type;
 	#define CMDQ_CREATE_QP_TYPE_RC				   0x2UL
 	#define CMDQ_CREATE_QP_TYPE_UD				   0x4UL
@@ -2848,6 +2853,7 @@ struct creq_query_func_resp_sb {
 	__le16 max_qp_wr;
 	__le16 dev_cap_flags;
 	#define CREQ_QUERY_FUNC_RESP_SB_DEV_CAP_FLAGS_RESIZE_QP   0x1UL
+	#define CREQ_QUERY_FUNC_RESP_SB_EXT_STATS                 0x10UL
 	__le32 max_cq;
 	__le32 max_cqe;
 	__le32 max_pd;
@@ -3085,6 +3091,85 @@ struct creq_query_roce_stats_resp_sb {
 	__le64  active_qp_count_p1;
 	__le64  active_qp_count_p2;
 	__le64  active_qp_count_p3;
+};
+
+/* cmdq_query_roce_stats_ext (size:192b/24B) */
+struct cmdq_query_roce_stats_ext {
+	u8      opcode;
+	#define CMDQ_QUERY_ROCE_STATS_EXT_OPCODE_QUERY_ROCE_STATS 0x92UL
+	#define CMDQ_QUERY_ROCE_STATS_EXT_OPCODE_LAST            \
+		CMDQ_QUERY_ROCE_STATS_EXT_OPCODE_QUERY_ROCE_STATS
+	u8      cmd_size;
+	__le16  flags;
+	#define CMDQ_QUERY_ROCE_STATS_EXT_FLAGS_COLLECTION_ID     0x1UL
+	#define CMDQ_QUERY_ROCE_STATS_EXT_FLAGS_FUNCTION_ID       0x2UL
+	__le16  cookie;
+	u8      resp_size;
+	u8      collection_id;
+	__le64  resp_addr;
+	__le32  function_id;
+	#define CMDQ_QUERY_ROCE_STATS_EXT_PF_NUM_MASK  0xffUL
+	#define CMDQ_QUERY_ROCE_STATS_EXT_PF_NUM_SFT   0
+	#define CMDQ_QUERY_ROCE_STATS_EXT_VF_NUM_MASK  0xffff00UL
+	#define CMDQ_QUERY_ROCE_STATS_EXT_VF_NUM_SFT   8
+	#define CMDQ_QUERY_ROCE_STATS_EXT_VF_VALID     0x1000000UL
+	__le32  reserved32;
+};
+
+/* creq_query_roce_stats_ext_resp (size:128b/16B) */
+struct creq_query_roce_stats_ext_resp {
+	u8      type;
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_TYPE_MASK    0x3fUL
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_TYPE_SFT     0
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_TYPE_QP_EVENT  0x38UL
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_TYPE_LAST     \
+		CREQ_QUERY_ROCE_STATS_EXT_RESP_TYPE_QP_EVENT
+	u8      status;
+	__le16  cookie;
+	__le32  size;
+	u8      v;
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_V     0x1UL
+	u8      event;
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_EVENT_QUERY_ROCE_STATS_EXT 0x92UL
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_EVENT_LAST \
+		CREQ_QUERY_ROCE_STATS_EXT_RESP_EVENT_QUERY_ROCE_STATS_EXT
+	u8      reserved48[6];
+};
+
+/* creq_query_roce_stats_ext_resp_sb (size:1536b/192B) */
+struct creq_query_roce_stats_ext_resp_sb {
+	u8      opcode;
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_SB_OPCODE_QUERY_ROCE_STATS_EXT 0x92UL
+	#define CREQ_QUERY_ROCE_STATS_EXT_RESP_SB_OPCODE_LAST \
+		CREQ_QUERY_ROCE_STATS_EXT_RESP_SB_OPCODE_QUERY_ROCE_STATS_EXT
+	u8      status;
+	__le16  cookie;
+	__le16  flags;
+	u8      resp_size;
+	u8      rsvd;
+	__le64  tx_atomic_req_pkts;
+	__le64  tx_read_req_pkts;
+	__le64  tx_read_res_pkts;
+	__le64  tx_write_req_pkts;
+	__le64  tx_send_req_pkts;
+	__le64  tx_roce_pkts;
+	__le64  tx_roce_bytes;
+	__le64  rx_atomic_req_pkts;
+	__le64  rx_read_req_pkts;
+	__le64  rx_read_res_pkts;
+	__le64  rx_write_req_pkts;
+	__le64  rx_send_req_pkts;
+	__le64  rx_roce_pkts;
+	__le64  rx_roce_bytes;
+	__le64  rx_roce_good_pkts;
+	__le64  rx_roce_good_bytes;
+	__le64  rx_out_of_buffer_pkts;
+	__le64  rx_out_of_sequence_pkts;
+	__le64  tx_cnp_pkts;
+	__le64  rx_cnp_pkts;
+	__le64  rx_ecn_marked_pkts;
+	__le64  tx_cnp_bytes;
+	__le64  rx_cnp_bytes;
 };
 
 /* QP error notification event (16 bytes) */

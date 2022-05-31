@@ -66,7 +66,7 @@ struct ibmpex_bmc_data {
 	struct device		*hwmon_dev;
 	struct device		*bmc_device;
 	struct mutex		lock;
-	char			valid;
+	bool			valid;
 	unsigned long		last_updated;	/* In jiffies */
 
 	struct ipmi_addr	address;
@@ -239,7 +239,7 @@ static void ibmpex_update_device(struct ibmpex_bmc_data *data)
 	}
 
 	data->last_updated = jiffies;
-	data->valid = 1;
+	data->valid = true;
 
 out:
 	mutex_unlock(&data->lock);

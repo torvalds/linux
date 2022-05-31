@@ -33,7 +33,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_encoder.h>
-#include <drm/drm_dp_helper.h>
+#include <drm/dp/drm_dp_helper.h>
 #include <drm/drm_fixed.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -44,7 +44,7 @@
 #include <linux/hrtimer.h>
 #include "amdgpu_irq.h"
 
-#include <drm/drm_dp_mst_helper.h>
+#include <drm/dp/drm_dp_mst_helper.h>
 #include "modules/inc/mod_freesync.h"
 #include "amdgpu_dm_irq_params.h"
 
@@ -232,8 +232,6 @@ struct amdgpu_i2c_chan {
 	struct mutex mutex;
 };
 
-struct amdgpu_fbdev;
-
 struct amdgpu_afmt {
 	bool enabled;
 	int offset;
@@ -309,13 +307,6 @@ struct amdgpu_framebuffer {
 	uint64_t address;
 };
 
-struct amdgpu_fbdev {
-	struct drm_fb_helper helper;
-	struct amdgpu_framebuffer rfb;
-	struct list_head fbdev_list;
-	struct amdgpu_device *adev;
-};
-
 struct amdgpu_mode_info {
 	struct atom_context *atom_context;
 	struct card_info *atom_card_info;
@@ -341,8 +332,6 @@ struct amdgpu_mode_info {
 	struct edid *bios_hardcoded_edid;
 	int bios_hardcoded_edid_size;
 
-	/* pointer to fbdev info structure */
-	struct amdgpu_fbdev *rfbdev;
 	/* firmware flags */
 	u32 firmware_flags;
 	/* pointer to backlight encoder */
@@ -352,6 +341,7 @@ struct amdgpu_mode_info {
 	int			num_crtc; /* number of crtcs */
 	int			num_hpd; /* number of hpd pins */
 	int			num_dig; /* number of dig blocks */
+	bool			gpu_vm_support; /* supports display from GTT */
 	int			disp_priority;
 	const struct amdgpu_display_funcs *funcs;
 	const enum drm_plane_type *plane_type;
@@ -630,15 +620,6 @@ bool amdgpu_crtc_get_scanout_position(struct drm_crtc *crtc,
 			bool in_vblank_irq, int *vpos,
 			int *hpos, ktime_t *stime, ktime_t *etime,
 			const struct drm_display_mode *mode);
-
-/* fbdev layer */
-int amdgpu_fbdev_init(struct amdgpu_device *adev);
-void amdgpu_fbdev_fini(struct amdgpu_device *adev);
-void amdgpu_fbdev_set_suspend(struct amdgpu_device *adev, int state);
-int amdgpu_fbdev_total_size(struct amdgpu_device *adev);
-bool amdgpu_fbdev_robj_is_fb(struct amdgpu_device *adev, struct amdgpu_bo *robj);
-
-int amdgpu_align_pitch(struct amdgpu_device *adev, int width, int bpp, bool tiled);
 
 /* amdgpu_display.c */
 void amdgpu_display_print_display_setup(struct drm_device *dev);

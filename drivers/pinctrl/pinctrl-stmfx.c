@@ -675,7 +675,6 @@ static int stmfx_pinctrl_probe(struct platform_device *pdev)
 	pctl->gpio_chip.base = -1;
 	pctl->gpio_chip.ngpio = pctl->pctl_desc.npins;
 	pctl->gpio_chip.can_sleep = true;
-	pctl->gpio_chip.of_node = np;
 
 	pctl->irq_chip.name = dev_name(pctl->dev);
 	pctl->irq_chip.irq_mask = stmfx_pinctrl_irq_mask;

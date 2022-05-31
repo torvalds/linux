@@ -61,10 +61,35 @@ EXPORT_SYMBOL(memstart_addr);
  * unless restricted on specific platforms (e.g. 30-bit on Raspberry Pi 4).
  * In such case, ZONE_DMA32 covers the rest of the 32-bit addressable memory,
  * otherwise it is empty.
+ *
+ * Memory reservation for crash kernel either done early or deferred
+ * depending on DMA memory zones configs (ZONE_DMA) --
+ *
+ * In absence of ZONE_DMA configs arm64_dma_phys_limit initialized
+ * here instead of max_zone_phys().  This lets early reservation of
+ * crash kernel memory which has a dependency on arm64_dma_phys_limit.
+ * Reserving memory early for crash kernel allows linear creation of block
+ * mappings (greater than page-granularity) for all the memory bank rangs.
+ * In this scheme a comparatively quicker boot is observed.
+ *
+ * If ZONE_DMA configs are defined, crash kernel memory reservation
+ * is delayed until DMA zone memory range size initialization performed in
+ * zone_sizes_init().  The defer is necessary to steer clear of DMA zone
+ * memory range to avoid overlap allocation.  So crash kernel memory boundaries
+ * are not known when mapping all bank memory ranges, which otherwise means
+ * not possible to exclude crash kernel range from creating block mappings
+ * so page-granularity mappings are created for the entire memory range.
+ * Hence a slightly slower boot is observed.
+ *
+ * Note: Page-granularity mappings are necessary for crash kernel memory
+ * range for shrinking its size via /sys/kernel/kexec_crash_size interface.
  */
-phys_addr_t arm64_dma_phys_limit __ro_after_init;
+#if IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32)
+phys_addr_t __ro_after_init arm64_dma_phys_limit;
+#else
+phys_addr_t __ro_after_init arm64_dma_phys_limit = PHYS_MASK + 1;
+#endif
 
-#ifdef CONFIG_KEXEC_CORE
 /*
  * reserve_crashkernel() - reserves memory for crash kernel
  *
@@ -77,6 +102,9 @@ static void __init reserve_crashkernel(void)
 	unsigned long long crash_base, crash_size;
 	unsigned long long crash_max = arm64_dma_phys_limit;
 	int ret;
+
+	if (!IS_ENABLED(CONFIG_KEXEC_CORE))
+		return;
 
 	ret = parse_crashkernel(boot_command_line, memblock_phys_mem_size(),
 				&crash_size, &crash_base);
@@ -110,11 +138,6 @@ static void __init reserve_crashkernel(void)
 	crashk_res.start = crash_base;
 	crashk_res.end = crash_base + crash_size - 1;
 }
-#else
-static void __init reserve_crashkernel(void)
-{
-}
-#endif /* CONFIG_KEXEC_CORE */
 
 /*
  * Return the maximum physical address for a zone accessible by the given bits
@@ -153,49 +176,10 @@ static void __init zone_sizes_init(unsigned long min, unsigned long max)
 	if (!arm64_dma_phys_limit)
 		arm64_dma_phys_limit = dma32_phys_limit;
 #endif
-	if (!arm64_dma_phys_limit)
-		arm64_dma_phys_limit = PHYS_MASK + 1;
 	max_zone_pfns[ZONE_NORMAL] = max;
 
 	free_area_init(max_zone_pfns);
 }
-
-int pfn_valid(unsigned long pfn)
-{
-	phys_addr_t addr = PFN_PHYS(pfn);
-	struct mem_section *ms;
-
-	/*
-	 * Ensure the upper PAGE_SHIFT bits are clear in the
-	 * pfn. Else it might lead to false positives when
-	 * some of the upper bits are set, but the lower bits
-	 * match a valid pfn.
-	 */
-	if (PHYS_PFN(addr) != pfn)
-		return 0;
-
-	if (pfn_to_section_nr(pfn) >= NR_MEM_SECTIONS)
-		return 0;
-
-	ms = __pfn_to_section(pfn);
-	if (!valid_section(ms))
-		return 0;
-
-	/*
-	 * ZONE_DEVICE memory does not have the memblock entries.
-	 * memblock_is_map_memory() check for ZONE_DEVICE based
-	 * addresses will always fail. Even the normal hotplugged
-	 * memory will never have MEMBLOCK_NOMAP flag set in their
-	 * memblock entries. Skip memblock search for all non early
-	 * memory sections covering all of hotplug memory including
-	 * both normal and ZONE_DEVICE based.
-	 */
-	if (!early_section(ms))
-		return pfn_section_valid(ms, pfn);
-
-	return memblock_is_memory(addr);
-}
-EXPORT_SYMBOL(pfn_valid);
 
 int pfn_is_map_memory(unsigned long pfn)
 {
@@ -209,7 +193,7 @@ int pfn_is_map_memory(unsigned long pfn)
 }
 EXPORT_SYMBOL(pfn_is_map_memory);
 
-static phys_addr_t memory_limit = PHYS_ADDR_MAX;
+static phys_addr_t memory_limit __ro_after_init = PHYS_ADDR_MAX;
 
 /*
  * Limit the memory size that was specified via FDT.
@@ -352,6 +336,9 @@ void __init arm64_memblock_init(void)
 
 	early_init_fdt_scan_reserved_mem();
 
+	if (!IS_ENABLED(CONFIG_ZONE_DMA) && !IS_ENABLED(CONFIG_ZONE_DMA32))
+		reserve_crashkernel();
+
 	high_memory = __va(memblock_end_of_DRAM() - 1) + 1;
 }
 
@@ -398,7 +385,8 @@ void __init bootmem_init(void)
 	 * request_standard_resources() depends on crashkernel's memory being
 	 * reserved, so do it here.
 	 */
-	reserve_crashkernel();
+	if (IS_ENABLED(CONFIG_ZONE_DMA) || IS_ENABLED(CONFIG_ZONE_DMA32))
+		reserve_crashkernel();
 
 	memblock_dump_all();
 }
@@ -415,8 +403,6 @@ void __init mem_init(void)
 		swiotlb_init(1);
 	else if (!xen_swiotlb_detect())
 		swiotlb_force = SWIOTLB_NO_FORCE;
-
-	set_max_mapnr(max_pfn - PHYS_PFN_OFFSET);
 
 	/* this will put all unused low memory onto the freelists */
 	memblock_free_all();

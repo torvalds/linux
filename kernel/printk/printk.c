@@ -93,6 +93,12 @@ EXPORT_SYMBOL_GPL(console_drivers);
  */
 int __read_mostly suppress_printk;
 
+/*
+ * During panic, heavy printk by other CPUs can delay the
+ * panic and risk deadlock on console resources.
+ */
+static int __read_mostly suppress_panic_printk;
+
 #ifdef CONFIG_LOCKDEP
 static struct lockdep_map console_lock_dep_map = {
 	.name = "console_lock"
@@ -146,8 +152,10 @@ static int __control_devkmsg(char *str)
 
 static int __init control_devkmsg(char *str)
 {
-	if (__control_devkmsg(str) < 0)
+	if (__control_devkmsg(str) < 0) {
+		pr_warn("printk.devkmsg: bad option string '%s'\n", str);
 		return 1;
+	}
 
 	/*
 	 * Set sysctl string accordingly:
@@ -166,12 +174,12 @@ static int __init control_devkmsg(char *str)
 	 */
 	devkmsg_log |= DEVKMSG_LOG_MASK_LOCK;
 
-	return 0;
+	return 1;
 }
 __setup("printk.devkmsg=", control_devkmsg);
 
 char devkmsg_log_str[DEVKMSG_STR_MAX_SIZE] = "ratelimit";
-
+#if defined(CONFIG_PRINTK) && defined(CONFIG_SYSCTL)
 int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 			      void *buffer, size_t *lenp, loff_t *ppos)
 {
@@ -210,6 +218,7 @@ int devkmsg_sysctl_set_loglvl(struct ctl_table *table, int write,
 
 	return 0;
 }
+#endif /* CONFIG_PRINTK && CONFIG_SYSCTL */
 
 /* Number of registered extended console drivers. */
 static int nr_ext_console_drivers;
@@ -256,6 +265,11 @@ static void __up_console_sem(unsigned long ip)
 }
 #define up_console_sem() __up_console_sem(_RET_IP_)
 
+static bool panic_in_progress(void)
+{
+	return unlikely(atomic_read(&panic_cpu) != PANIC_CPU_INVALID);
+}
+
 /*
  * This is used for debugging the mess that is the VT code by
  * keeping track if we have the console semaphore held. It's
@@ -280,7 +294,6 @@ static struct console *exclusive_console;
 static struct console_cmdline console_cmdline[MAX_CMDLINECONSOLES];
 
 static int preferred_console = -1;
-static bool has_preferred_console;
 int console_set_on_cmdline;
 EXPORT_SYMBOL(console_set_on_cmdline);
 
@@ -847,7 +860,7 @@ static int devkmsg_open(struct inode *inode, struct file *file)
 			return err;
 	}
 
-	user = kmalloc(sizeof(struct devkmsg_user), GFP_KERNEL);
+	user = kvmalloc(sizeof(struct devkmsg_user), GFP_KERNEL);
 	if (!user)
 		return -ENOMEM;
 
@@ -875,7 +888,7 @@ static int devkmsg_release(struct inode *inode, struct file *file)
 	ratelimit_state_exit(&user->rs);
 
 	mutex_destroy(&user->lock);
-	kfree(user);
+	kvfree(user);
 	return 0;
 }
 
@@ -1166,9 +1179,9 @@ void __init setup_log_buf(int early)
 	return;
 
 err_free_descs:
-	memblock_free_ptr(new_descs, new_descs_size);
+	memblock_free(new_descs, new_descs_size);
 err_free_log_buf:
-	memblock_free_ptr(new_log_buf, new_log_buf_len);
+	memblock_free(new_log_buf, new_log_buf_len);
 }
 
 static bool __read_mostly ignore_loglevel;
@@ -1843,6 +1856,16 @@ static int console_trylock_spinning(void)
 	if (console_trylock())
 		return 1;
 
+	/*
+	 * It's unsafe to spin once a panic has begun. If we are the
+	 * panic CPU, we may have already halted the owner of the
+	 * console_sem. If we are not the panic CPU, then we should
+	 * avoid taking console_sem, so the panic CPU has a better
+	 * chance of cleanly acquiring it later.
+	 */
+	if (panic_in_progress())
+		return 0;
+
 	printk_safe_enter_irqsave(flags);
 
 	raw_spin_lock(&console_owner_lock);
@@ -2066,6 +2089,7 @@ u16 printk_parse_prefix(const char *text, int *level,
 	return prefix_len;
 }
 
+__printf(5, 0)
 static u16 printk_sprint(char *text, u16 size, int facility,
 			 enum printk_info_flags *flags, const char *fmt,
 			 va_list args)
@@ -2217,6 +2241,10 @@ asmlinkage int vprintk_emit(int facility, int level,
 	if (unlikely(suppress_printk))
 		return 0;
 
+	if (unlikely(suppress_panic_printk) &&
+	    atomic_read(&panic_cpu) != raw_smp_processor_id())
+		return 0;
+
 	if (level == LOGLEVEL_SCHED) {
 		level = LOGLEVEL_DEFAULT;
 		in_sched = true;
@@ -2323,6 +2351,20 @@ asmlinkage __visible void early_printk(const char *fmt, ...)
 }
 #endif
 
+static void set_user_specified(struct console_cmdline *c, bool user_specified)
+{
+	if (!user_specified)
+		return;
+
+	/*
+	 * @c console was defined by the user on the command line.
+	 * Do not clear when added twice also by SPCR or the device tree.
+	 */
+	c->user_specified = true;
+	/* At least one console defined by the user on the command line. */
+	console_set_on_cmdline = 1;
+}
+
 static int __add_preferred_console(char *name, int idx, char *options,
 				   char *brl_options, bool user_specified)
 {
@@ -2339,8 +2381,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		if (strcmp(c->name, name) == 0 && c->index == idx) {
 			if (!brl_options)
 				preferred_console = i;
-			if (user_specified)
-				c->user_specified = true;
+			set_user_specified(c, user_specified);
 			return 0;
 		}
 	}
@@ -2350,7 +2391,7 @@ static int __add_preferred_console(char *name, int idx, char *options,
 		preferred_console = i;
 	strlcpy(c->name, name, sizeof(c->name));
 	c->options = options;
-	c->user_specified = user_specified;
+	set_user_specified(c, user_specified);
 	braille_set_options(c, brl_options);
 
 	c->index = idx;
@@ -2416,7 +2457,6 @@ static int __init console_setup(char *str)
 	*s = 0;
 
 	__add_preferred_console(buf, idx, options, brl_options, true);
-	console_set_on_cmdline = 1;
 	return 1;
 }
 __setup("console=", console_setup);
@@ -2573,6 +2613,25 @@ static int have_callable_console(void)
 }
 
 /*
+ * Return true when this CPU should unlock console_sem without pushing all
+ * messages to the console. This reduces the chance that the console is
+ * locked when the panic CPU tries to use it.
+ */
+static bool abandon_console_lock_in_panic(void)
+{
+	if (!panic_in_progress())
+		return false;
+
+	/*
+	 * We can use raw_smp_processor_id() here because it is impossible for
+	 * the task to be migrated to the panic_cpu, or away from it. If
+	 * panic_cpu has already been set, and we're not currently executing on
+	 * that CPU, then we never will be.
+	 */
+	return atomic_read(&panic_cpu) != raw_smp_processor_id();
+}
+
+/*
  * Can we actually use the console at this time on this cpu?
  *
  * Console drivers may assume that per-cpu resources have been allocated. So
@@ -2602,6 +2661,7 @@ void console_unlock(void)
 {
 	static char ext_text[CONSOLE_EXT_LOG_MAX];
 	static char text[CONSOLE_LOG_MAX];
+	static int panic_console_dropped;
 	unsigned long flags;
 	bool do_cond_resched, retry;
 	struct printk_info info;
@@ -2656,6 +2716,10 @@ skip:
 		if (console_seq != r.info->seq) {
 			console_dropped += r.info->seq - console_seq;
 			console_seq = r.info->seq;
+			if (panic_in_progress() && panic_console_dropped++ > 10) {
+				suppress_panic_printk = 1;
+				pr_warn_once("Too many dropped messages. Suppress messages on non-panic CPUs to prevent livelock.\n");
+			}
 		}
 
 		if (suppress_message_printing(r.info->level)) {
@@ -2715,6 +2779,10 @@ skip:
 		if (handover)
 			return;
 
+		/* Allow panic_cpu to take over the consoles safely */
+		if (abandon_console_lock_in_panic())
+			break;
+
 		if (do_cond_resched)
 			cond_resched();
 	}
@@ -2732,7 +2800,7 @@ skip:
 	 * flush, no worries.
 	 */
 	retry = prb_read_valid(prb, next_seq, NULL);
-	if (retry && console_trylock())
+	if (retry && !abandon_console_lock_in_panic() && console_trylock())
 		goto again;
 }
 EXPORT_SYMBOL(console_unlock);
@@ -2860,7 +2928,8 @@ early_param("keep_bootcon", keep_bootcon_setup);
  * Care need to be taken with consoles that are statically
  * enabled such as netconsole
  */
-static int try_enable_new_console(struct console *newcon, bool user_specified)
+static int try_enable_preferred_console(struct console *newcon,
+					bool user_specified)
 {
 	struct console_cmdline *c;
 	int i, err;
@@ -2890,10 +2959,8 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
 				return err;
 		}
 		newcon->flags |= CON_ENABLED;
-		if (i == preferred_console) {
+		if (i == preferred_console)
 			newcon->flags |= CON_CONSDEV;
-			has_preferred_console = true;
-		}
 		return 0;
 	}
 
@@ -2906,6 +2973,21 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
 		return 0;
 
 	return -ENOENT;
+}
+
+/* Try to enable the console unconditionally */
+static void try_enable_default_console(struct console *newcon)
+{
+	if (newcon->index < 0)
+		newcon->index = 0;
+
+	if (newcon->setup && newcon->setup(newcon, NULL) != 0)
+		return;
+
+	newcon->flags |= CON_ENABLED;
+
+	if (newcon->device)
+		newcon->flags |= CON_CONSDEV;
 }
 
 /*
@@ -2929,59 +3011,56 @@ static int try_enable_new_console(struct console *newcon, bool user_specified)
  */
 void register_console(struct console *newcon)
 {
-	struct console *bcon = NULL;
+	struct console *con;
+	bool bootcon_enabled = false;
+	bool realcon_enabled = false;
 	int err;
 
-	for_each_console(bcon) {
-		if (WARN(bcon == newcon, "console '%s%d' already registered\n",
-					 bcon->name, bcon->index))
+	for_each_console(con) {
+		if (WARN(con == newcon, "console '%s%d' already registered\n",
+					 con->name, con->index))
 			return;
 	}
 
-	/*
-	 * before we register a new CON_BOOT console, make sure we don't
-	 * already have a valid console
-	 */
-	if (newcon->flags & CON_BOOT) {
-		for_each_console(bcon) {
-			if (!(bcon->flags & CON_BOOT)) {
-				pr_info("Too late to register bootconsole %s%d\n",
-					newcon->name, newcon->index);
-				return;
-			}
-		}
+	for_each_console(con) {
+		if (con->flags & CON_BOOT)
+			bootcon_enabled = true;
+		else
+			realcon_enabled = true;
 	}
 
-	if (console_drivers && console_drivers->flags & CON_BOOT)
-		bcon = console_drivers;
-
-	if (!has_preferred_console || bcon || !console_drivers)
-		has_preferred_console = preferred_console >= 0;
+	/* Do not register boot consoles when there already is a real one. */
+	if (newcon->flags & CON_BOOT && realcon_enabled) {
+		pr_info("Too late to register bootconsole %s%d\n",
+			newcon->name, newcon->index);
+		return;
+	}
 
 	/*
-	 *	See if we want to use this console driver. If we
-	 *	didn't select a console we take the first one
-	 *	that registers here.
+	 * See if we want to enable this console driver by default.
+	 *
+	 * Nope when a console is preferred by the command line, device
+	 * tree, or SPCR.
+	 *
+	 * The first real console with tty binding (driver) wins. More
+	 * consoles might get enabled before the right one is found.
+	 *
+	 * Note that a console with tty binding will have CON_CONSDEV
+	 * flag set and will be first in the list.
 	 */
-	if (!has_preferred_console) {
-		if (newcon->index < 0)
-			newcon->index = 0;
-		if (newcon->setup == NULL ||
-		    newcon->setup(newcon, NULL) == 0) {
-			newcon->flags |= CON_ENABLED;
-			if (newcon->device) {
-				newcon->flags |= CON_CONSDEV;
-				has_preferred_console = true;
-			}
+	if (preferred_console < 0) {
+		if (!console_drivers || !console_drivers->device ||
+		    console_drivers->flags & CON_BOOT) {
+			try_enable_default_console(newcon);
 		}
 	}
 
 	/* See if this console matches one we selected on the command line */
-	err = try_enable_new_console(newcon, true);
+	err = try_enable_preferred_console(newcon, true);
 
 	/* If not, try to match against the platform default(s) */
 	if (err == -ENOENT)
-		err = try_enable_new_console(newcon, false);
+		err = try_enable_preferred_console(newcon, false);
 
 	/* printk() messages are not printed to the Braille console. */
 	if (err || newcon->flags & CON_BRL)
@@ -2993,8 +3072,10 @@ void register_console(struct console *newcon)
 	 * the real console are the same physical device, it's annoying to
 	 * see the beginning boot messages twice
 	 */
-	if (bcon && ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV))
+	if (bootcon_enabled &&
+	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV)) {
 		newcon->flags &= ~CON_PRINTBUFFER;
+	}
 
 	/*
 	 *	Put this console in the list - keep the
@@ -3050,15 +3131,15 @@ void register_console(struct console *newcon)
 	pr_info("%sconsole [%s%d] enabled\n",
 		(newcon->flags & CON_BOOT) ? "boot" : "" ,
 		newcon->name, newcon->index);
-	if (bcon &&
+	if (bootcon_enabled &&
 	    ((newcon->flags & (CON_CONSDEV | CON_BOOT)) == CON_CONSDEV) &&
 	    !keep_bootcon) {
 		/* We need to iterate through all boot consoles, to make
 		 * sure we print everything out, before we unregister them.
 		 */
-		for_each_console(bcon)
-			if (bcon->flags & CON_BOOT)
-				unregister_console(bcon);
+		for_each_console(con)
+			if (con->flags & CON_BOOT)
+				unregister_console(con);
 	}
 }
 EXPORT_SYMBOL(register_console);
@@ -3198,6 +3279,7 @@ static int __init printk_late_init(void)
 	ret = cpuhp_setup_state_nocalls(CPUHP_AP_ONLINE_DYN, "printk:online",
 					console_cpu_notify, NULL);
 	WARN_ON(ret < 0);
+	printk_sysctl_init();
 	return 0;
 }
 late_initcall(printk_late_init);
@@ -3213,7 +3295,7 @@ static DEFINE_PER_CPU(int, printk_pending);
 
 static void wake_up_klogd_work_func(struct irq_work *irq_work)
 {
-	int pending = __this_cpu_xchg(printk_pending, 0);
+	int pending = this_cpu_xchg(printk_pending, 0);
 
 	if (pending & PRINTK_PENDING_OUTPUT) {
 		/* If trylock fails, someone else is doing the printing */
@@ -3247,9 +3329,14 @@ void defer_console_output(void)
 		return;
 
 	preempt_disable();
-	__this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
+	this_cpu_or(printk_pending, PRINTK_PENDING_OUTPUT);
 	irq_work_queue(this_cpu_ptr(&wake_up_klogd_work));
 	preempt_enable();
+}
+
+void printk_trigger_flush(void)
+{
+	defer_console_output();
 }
 
 int vprintk_deferred(const char *fmt, va_list args)

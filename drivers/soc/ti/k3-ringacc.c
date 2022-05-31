@@ -358,8 +358,8 @@ struct k3_ring *k3_ringacc_request_ring(struct k3_ringacc *ringacc,
 		goto out;
 
 	if (flags & K3_RINGACC_RING_USE_PROXY) {
-		proxy_id = find_next_zero_bit(ringacc->proxy_inuse,
-					      ringacc->num_proxies, 0);
+		proxy_id = find_first_zero_bit(ringacc->proxy_inuse,
+					      ringacc->num_proxies);
 		if (proxy_id == ringacc->num_proxies)
 			goto error;
 	}
@@ -647,7 +647,7 @@ int k3_ringacc_get_ring_irq_num(struct k3_ring *ring)
 	if (!ring)
 		return -EINVAL;
 
-	irq_num = ti_sci_inta_msi_get_virq(ring->parent->dev, ring->ring_id);
+	irq_num = msi_get_virq(ring->parent->dev, ring->ring_id);
 	if (irq_num <= 0)
 		irq_num = -EINVAL;
 	return irq_num;
@@ -1356,9 +1356,9 @@ static int k3_ringacc_init(struct platform_device *pdev,
 	struct resource *res;
 	int ret, i;
 
-	dev->msi_domain = of_msi_get_domain(dev, dev->of_node,
+	dev->msi.domain = of_msi_get_domain(dev, dev->of_node,
 					    DOMAIN_BUS_TI_SCI_INTA_MSI);
-	if (!dev->msi_domain) {
+	if (!dev->msi.domain) {
 		dev_err(dev, "Failed to get MSI domain\n");
 		return -EPROBE_DEFER;
 	}
@@ -1402,12 +1402,10 @@ static int k3_ringacc_init(struct platform_device *pdev,
 				      sizeof(*ringacc->rings) *
 				      ringacc->num_rings,
 				      GFP_KERNEL);
-	ringacc->rings_inuse = devm_kcalloc(dev,
-					    BITS_TO_LONGS(ringacc->num_rings),
-					    sizeof(unsigned long), GFP_KERNEL);
-	ringacc->proxy_inuse = devm_kcalloc(dev,
-					    BITS_TO_LONGS(ringacc->num_proxies),
-					    sizeof(unsigned long), GFP_KERNEL);
+	ringacc->rings_inuse = devm_bitmap_zalloc(dev, ringacc->num_rings,
+						  GFP_KERNEL);
+	ringacc->proxy_inuse = devm_bitmap_zalloc(dev, ringacc->num_proxies,
+						  GFP_KERNEL);
 
 	if (!ringacc->rings || !ringacc->rings_inuse || !ringacc->proxy_inuse)
 		return -ENOMEM;
@@ -1483,9 +1481,8 @@ struct k3_ringacc *k3_ringacc_dmarings_init(struct platform_device *pdev,
 				      sizeof(*ringacc->rings) *
 				      ringacc->num_rings * 2,
 				      GFP_KERNEL);
-	ringacc->rings_inuse = devm_kcalloc(dev,
-					    BITS_TO_LONGS(ringacc->num_rings),
-					    sizeof(unsigned long), GFP_KERNEL);
+	ringacc->rings_inuse = devm_bitmap_zalloc(dev, ringacc->num_rings,
+						  GFP_KERNEL);
 
 	if (!ringacc->rings || !ringacc->rings_inuse)
 		return ERR_PTR(-ENOMEM);

@@ -115,13 +115,12 @@
 			reg = <0x0>;
 			clocks = <&ccu CLK_CPU>;
 			clock-latency = <244144>; /* 8 32k periods */
-			operating-points = <
+			operating-points =
 				/* kHz	  uV */
-				1008000 1400000
-				912000	1350000
-				864000	1300000
-				624000	1250000
-				>;
+				<1008000 1400000>,
+				<912000	1350000>,
+				<864000	1300000>,
+				<624000	1250000>;
 			#cooling-cells = <2>;
 		};
 	};

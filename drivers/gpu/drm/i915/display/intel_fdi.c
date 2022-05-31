@@ -2,11 +2,117 @@
 /*
  * Copyright © 2020 Intel Corporation
  */
+
 #include "intel_atomic.h"
+#include "intel_crtc.h"
 #include "intel_ddi.h"
 #include "intel_de.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
+
+struct intel_fdi_funcs {
+	void (*fdi_link_train)(struct intel_crtc *crtc,
+			       const struct intel_crtc_state *crtc_state);
+};
+
+static void assert_fdi_tx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	if (HAS_DDI(dev_priv)) {
+		/*
+		 * DDI does not have a specific FDI_TX register.
+		 *
+		 * FDI is never fed from EDP transcoder
+		 * so pipe->transcoder cast is fine here.
+		 */
+		enum transcoder cpu_transcoder = (enum transcoder)pipe;
+		cur_state = intel_de_read(dev_priv, TRANS_DDI_FUNC_CTL(cpu_transcoder)) & TRANS_DDI_FUNC_ENABLE;
+	} else {
+		cur_state = intel_de_read(dev_priv, FDI_TX_CTL(pipe)) & FDI_TX_ENABLE;
+	}
+	I915_STATE_WARN(cur_state != state,
+			"FDI TX state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_tx_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_tx(i915, pipe, true);
+}
+
+void assert_fdi_tx_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_tx(i915, pipe, false);
+}
+
+static void assert_fdi_rx(struct drm_i915_private *dev_priv,
+			  enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(dev_priv, FDI_RX_CTL(pipe)) & FDI_RX_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"FDI RX state assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_rx_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx(i915, pipe, true);
+}
+
+void assert_fdi_rx_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx(i915, pipe, false);
+}
+
+void assert_fdi_tx_pll_enabled(struct drm_i915_private *i915,
+			       enum pipe pipe)
+{
+	bool cur_state;
+
+	/* ILK FDI PLL is always enabled */
+	if (IS_IRONLAKE(i915))
+		return;
+
+	/* On Haswell, DDI ports are responsible for the FDI PLL setup */
+	if (HAS_DDI(i915))
+		return;
+
+	cur_state = intel_de_read(i915, FDI_TX_CTL(pipe)) & FDI_TX_PLL_ENABLE;
+	I915_STATE_WARN(!cur_state, "FDI TX PLL assertion failure, should be active but is disabled\n");
+}
+
+static void assert_fdi_rx_pll(struct drm_i915_private *i915,
+			      enum pipe pipe, bool state)
+{
+	bool cur_state;
+
+	cur_state = intel_de_read(i915, FDI_RX_CTL(pipe)) & FDI_RX_PLL_ENABLE;
+	I915_STATE_WARN(cur_state != state,
+			"FDI RX PLL assertion failure (expected %s, current %s)\n",
+			onoff(state), onoff(cur_state));
+}
+
+void assert_fdi_rx_pll_enabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx_pll(i915, pipe, true);
+}
+
+void assert_fdi_rx_pll_disabled(struct drm_i915_private *i915, enum pipe pipe)
+{
+	assert_fdi_rx_pll(i915, pipe, false);
+}
+
+void intel_fdi_link_train(struct intel_crtc *crtc,
+			  const struct intel_crtc_state *crtc_state)
+{
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	dev_priv->fdi_funcs->fdi_link_train(crtc, crtc_state);
+}
 
 /* units of 100MHz */
 static int pipe_required_fdi_lanes(struct intel_crtc_state *crtc_state)
@@ -57,7 +163,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		if (pipe_config->fdi_lanes <= 2)
 			return 0;
 
-		other_crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_C);
+		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_C);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -78,7 +184,7 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 			return -EINVAL;
 		}
 
-		other_crtc = intel_get_crtc_for_pipe(dev_priv, PIPE_B);
+		other_crtc = intel_crtc_for_pipe(dev_priv, PIPE_B);
 		other_crtc_state =
 			intel_atomic_get_crtc_state(state, other_crtc);
 		if (IS_ERR(other_crtc_state))
@@ -91,8 +197,34 @@ static int ilk_check_fdi_lanes(struct drm_device *dev, enum pipe pipe,
 		}
 		return 0;
 	default:
-		BUG();
+		MISSING_CASE(pipe);
+		return 0;
 	}
+}
+
+void intel_fdi_pll_freq_update(struct drm_i915_private *i915)
+{
+	if (IS_IRONLAKE(i915)) {
+		u32 fdi_pll_clk =
+			intel_de_read(i915, FDI_PLL_BIOS_0) & FDI_PLL_FB_CLOCK_MASK;
+
+		i915->fdi_pll_freq = (fdi_pll_clk + 2) * 10000;
+	} else if (IS_SANDYBRIDGE(i915) || IS_IVYBRIDGE(i915)) {
+		i915->fdi_pll_freq = 270000;
+	} else {
+		return;
+	}
+
+	drm_dbg(&i915->drm, "FDI PLL freq=%d\n", i915->fdi_pll_freq);
+}
+
+int intel_fdi_link_freq(struct drm_i915_private *i915,
+			const struct intel_crtc_state *pipe_config)
+{
+	if (HAS_DDI(i915))
+		return pipe_config->port_clock; /* SPLL */
+	else
+		return i915->fdi_pll_freq;
 }
 
 int ilk_fdi_compute_config(struct intel_crtc *crtc,
@@ -140,9 +272,58 @@ retry:
 	}
 
 	if (needs_recompute)
-		return I915_DISPLAY_CONFIG_RETRY;
+		return -EAGAIN;
 
 	return ret;
+}
+
+static void cpt_set_fdi_bc_bifurcation(struct drm_i915_private *dev_priv, bool enable)
+{
+	u32 temp;
+
+	temp = intel_de_read(dev_priv, SOUTH_CHICKEN1);
+	if (!!(temp & FDI_BC_BIFURCATION_SELECT) == enable)
+		return;
+
+	drm_WARN_ON(&dev_priv->drm,
+		    intel_de_read(dev_priv, FDI_RX_CTL(PIPE_B)) &
+		    FDI_RX_ENABLE);
+	drm_WARN_ON(&dev_priv->drm,
+		    intel_de_read(dev_priv, FDI_RX_CTL(PIPE_C)) &
+		    FDI_RX_ENABLE);
+
+	temp &= ~FDI_BC_BIFURCATION_SELECT;
+	if (enable)
+		temp |= FDI_BC_BIFURCATION_SELECT;
+
+	drm_dbg_kms(&dev_priv->drm, "%sabling fdi C rx\n",
+		    enable ? "en" : "dis");
+	intel_de_write(dev_priv, SOUTH_CHICKEN1, temp);
+	intel_de_posting_read(dev_priv, SOUTH_CHICKEN1);
+}
+
+static void ivb_update_fdi_bc_bifurcation(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
+
+	switch (crtc->pipe) {
+	case PIPE_A:
+		break;
+	case PIPE_B:
+		if (crtc_state->fdi_lanes > 2)
+			cpt_set_fdi_bc_bifurcation(dev_priv, false);
+		else
+			cpt_set_fdi_bc_bifurcation(dev_priv, true);
+
+		break;
+	case PIPE_C:
+		cpt_set_fdi_bc_bifurcation(dev_priv, true);
+
+		break;
+	default:
+		MISSING_CASE(crtc->pipe);
+	}
 }
 
 void intel_fdi_normal_train(struct intel_crtc *crtc)
@@ -196,8 +377,15 @@ static void ilk_fdi_link_train(struct intel_crtc *crtc,
 	i915_reg_t reg;
 	u32 temp, tries;
 
+	/*
+	 * Write the TU size bits before fdi link training, so that error
+	 * detection works.
+	 */
+	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
+		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
+
 	/* FDI needs bits from pipe first */
-	assert_pipe_enabled(dev_priv, crtc_state->cpu_transcoder);
+	assert_transcoder_enabled(dev_priv, crtc_state->cpu_transcoder);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -298,6 +486,13 @@ static void gen6_fdi_link_train(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, i, retry;
+
+	/*
+	 * Write the TU size bits before fdi link training, so that error
+	 * detection works.
+	 */
+	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
+		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -435,6 +630,15 @@ static void ivb_manual_fdi_link_train(struct intel_crtc *crtc,
 	enum pipe pipe = crtc->pipe;
 	i915_reg_t reg;
 	u32 temp, i, j;
+
+	ivb_update_fdi_bc_bifurcation(crtc_state);
+
+	/*
+	 * Write the TU size bits before fdi link training, so that error
+	 * detection works.
+	 */
+	intel_de_write(dev_priv, FDI_RX_TUSIZE1(pipe),
+		       intel_de_read(dev_priv, PIPE_DATA_M1(pipe)) & TU_SIZE_MASK);
 
 	/* Train 1: umask FDI RX Interrupt symbol_lock and bit_lock bit
 	   for train result */
@@ -688,6 +892,43 @@ void hsw_fdi_link_train(struct intel_encoder *encoder,
 		       DP_TP_CTL_ENABLE);
 }
 
+void hsw_fdi_disable(struct intel_encoder *encoder)
+{
+	struct drm_i915_private *dev_priv = to_i915(encoder->base.dev);
+	u32 val;
+
+	/*
+	 * Bspec lists this as both step 13 (before DDI_BUF_CTL disable)
+	 * and step 18 (after clearing PORT_CLK_SEL). Based on a BUN,
+	 * step 13 is the correct place for it. Step 18 is where it was
+	 * originally before the BUN.
+	 */
+	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_RX_ENABLE;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+
+	val = intel_de_read(dev_priv, DDI_BUF_CTL(PORT_E));
+	val &= ~DDI_BUF_CTL_ENABLE;
+	intel_de_write(dev_priv, DDI_BUF_CTL(PORT_E), val);
+
+	intel_wait_ddi_buf_idle(dev_priv, PORT_E);
+
+	intel_ddi_disable_clock(encoder);
+
+	val = intel_de_read(dev_priv, FDI_RX_MISC(PIPE_A));
+	val &= ~(FDI_RX_PWRDN_LANE1_MASK | FDI_RX_PWRDN_LANE0_MASK);
+	val |= FDI_RX_PWRDN_LANE1_VAL(2) | FDI_RX_PWRDN_LANE0_VAL(2);
+	intel_de_write(dev_priv, FDI_RX_MISC(PIPE_A), val);
+
+	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_PCDCLK;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+
+	val = intel_de_read(dev_priv, FDI_RX_CTL(PIPE_A));
+	val &= ~FDI_RX_PLL_ENABLE;
+	intel_de_write(dev_priv, FDI_RX_CTL(PIPE_A), val);
+}
+
 void ilk_fdi_pll_enable(const struct intel_crtc_state *crtc_state)
 {
 	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
@@ -807,15 +1048,27 @@ void ilk_fdi_disable(struct intel_crtc *crtc)
 	udelay(100);
 }
 
+static const struct intel_fdi_funcs ilk_funcs = {
+	.fdi_link_train = ilk_fdi_link_train,
+};
+
+static const struct intel_fdi_funcs gen6_funcs = {
+	.fdi_link_train = gen6_fdi_link_train,
+};
+
+static const struct intel_fdi_funcs ivb_funcs = {
+	.fdi_link_train = ivb_manual_fdi_link_train,
+};
+
 void
 intel_fdi_init_hook(struct drm_i915_private *dev_priv)
 {
 	if (IS_IRONLAKE(dev_priv)) {
-		dev_priv->display.fdi_link_train = ilk_fdi_link_train;
+		dev_priv->fdi_funcs = &ilk_funcs;
 	} else if (IS_SANDYBRIDGE(dev_priv)) {
-		dev_priv->display.fdi_link_train = gen6_fdi_link_train;
+		dev_priv->fdi_funcs = &gen6_funcs;
 	} else if (IS_IVYBRIDGE(dev_priv)) {
 		/* FIXME: detect B0+ stepping and use auto training */
-		dev_priv->display.fdi_link_train = ivb_manual_fdi_link_train;
+		dev_priv->fdi_funcs = &ivb_funcs;
 	}
 }

@@ -14,7 +14,9 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 #include <linux/of_platform.h>
+#include <linux/of_reserved_mem.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include "mt8195-afe-common.h"
 #include "mt8195-afe-clk.h"
 #include "mt8195-reg.h"
@@ -2232,7 +2234,7 @@ static const struct mtk_base_memif_data memif_data[MT8195_AFE_MEMIF_NUM] = {
 	},
 };
 
-static const struct mtk_base_irq_data irq_data[MT8195_AFE_IRQ_NUM] = {
+static const struct mtk_base_irq_data irq_data_array[MT8195_AFE_IRQ_NUM] = {
 	[MT8195_AFE_IRQ_1] = {
 		.id = MT8195_AFE_IRQ_1,
 		.irq_cnt_reg = -1,
@@ -2582,8 +2584,6 @@ static bool mt8195_is_volatile_reg(struct device *dev, unsigned int reg)
 	case AFE_IRQ3_CON_MON:
 	case AFE_IRQ_MCU_MON2:
 	case ADSP_IRQ_STATUS:
-	case AFE_APLL_TUNER_CFG:
-	case AFE_APLL_TUNER_CFG1:
 	case AUDIO_TOP_STA0:
 	case AUDIO_TOP_STA1:
 	case AFE_GAIN1_CUR:
@@ -2622,7 +2622,6 @@ static bool mt8195_is_volatile_reg(struct device *dev, unsigned int reg)
 	case SPDIFIN_USERCODE10:
 	case SPDIFIN_USERCODE11:
 	case SPDIFIN_USERCODE12:
-	case AFE_SPDIFIN_APLL_TUNER_CFG:
 	case AFE_LINEIN_APLL_TUNER_MON:
 	case AFE_EARC_APLL_TUNER_MON:
 	case AFE_CM0_MON:
@@ -3028,7 +3027,7 @@ static const struct reg_sequence mt8195_afe_reg_defaults[] = {
 
 static const struct reg_sequence mt8195_cg_patch[] = {
 	{ AUDIO_TOP_CON0, 0xfffffffb },
-	{ AUDIO_TOP_CON1, 0xfffffffa },
+	{ AUDIO_TOP_CON1, 0xfffffff8 },
 };
 
 static int mt8195_afe_init_registers(struct mtk_base_afe *afe)
@@ -3057,10 +3056,16 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 {
 	struct mtk_base_afe *afe;
 	struct mt8195_afe_private *afe_priv;
-	struct resource *res;
 	struct device *dev = &pdev->dev;
+	struct reset_control *rstc;
 	int i, irq_id, ret;
 	struct snd_soc_component *component;
+
+	ret = of_reserved_mem_device_init(dev);
+	if (ret) {
+		dev_err(dev, "failed to assign memory region: %d\n", ret);
+		return ret;
+	}
 
 	ret = dma_set_mask_and_coherent(dev, DMA_BIT_MASK(33));
 	if (ret)
@@ -3078,8 +3083,7 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 	afe_priv = afe->platform_priv;
 	afe->dev = &pdev->dev;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	afe->base_addr = devm_ioremap_resource(&pdev->dev, res);
+	afe->base_addr = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(afe->base_addr))
 		return PTR_ERR(afe->base_addr);
 
@@ -3087,6 +3091,20 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 	ret = mt8195_afe_init_clock(afe);
 	if (ret) {
 		dev_err(dev, "init clock error\n");
+		return ret;
+	}
+
+	/* reset controller to reset audio regs before regmap cache */
+	rstc = devm_reset_control_get_exclusive(dev, "audiosys");
+	if (IS_ERR(rstc)) {
+		ret = PTR_ERR(rstc);
+		dev_err(dev, "could not get audiosys reset:%d\n", ret);
+		return ret;
+	}
+
+	ret = reset_control_reset(rstc);
+	if (ret) {
+		dev_err(dev, "failed to trigger audio reset:%d\n", ret);
 		return ret;
 	}
 
@@ -3102,7 +3120,7 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 		return -ENOMEM;
 
 	for (i = 0; i < afe->irqs_size; i++)
-		afe->irqs[i].irq_data = &irq_data[i];
+		afe->irqs[i].irq_data = &irq_data_array[i];
 
 	/* init memif */
 	afe->memif_size = MT8195_AFE_MEMIF_NUM;
@@ -3120,10 +3138,8 @@ static int mt8195_afe_pcm_dev_probe(struct platform_device *pdev)
 
 	/* request irq */
 	irq_id = platform_get_irq(pdev, 0);
-	if (irq_id < 0) {
-		dev_err(dev, "%s no irq found\n", dev->of_node->name);
+	if (irq_id < 0)
 		return -ENXIO;
-	}
 
 	ret = devm_request_irq(dev, irq_id, mt8195_afe_irq_handler,
 			       IRQF_TRIGGER_NONE, "asys-isr", (void *)afe);
@@ -3266,9 +3282,7 @@ static struct platform_driver mt8195_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt8195-audio",
 		   .of_match_table = mt8195_afe_pcm_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &mt8195_afe_pm_ops,
-#endif
 	},
 	.probe = mt8195_afe_pcm_dev_probe,
 	.remove = mt8195_afe_pcm_dev_remove,

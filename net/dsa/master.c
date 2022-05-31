@@ -260,16 +260,21 @@ static void dsa_netdev_ops_set(struct net_device *dev,
 	dev->dsa_ptr->netdev_ops = ops;
 }
 
+/* Keep the master always promiscuous if the tagging protocol requires that
+ * (garbles MAC DA) or if it doesn't support unicast filtering, case in which
+ * it would revert to promiscuous mode as soon as we call dev_uc_add() on it
+ * anyway.
+ */
 static void dsa_master_set_promiscuity(struct net_device *dev, int inc)
 {
 	const struct dsa_device_ops *ops = dev->dsa_ptr->tag_ops;
 
-	if (!ops->promisc_on_master)
+	if ((dev->priv_flags & IFF_UNICAST_FLT) && !ops->promisc_on_master)
 		return;
 
-	rtnl_lock();
+	ASSERT_RTNL();
+
 	dev_set_promiscuity(dev, inc);
-	rtnl_unlock();
 }
 
 static ssize_t tagging_show(struct device *d, struct device_attribute *attr,
@@ -334,15 +339,11 @@ static void dsa_master_reset_mtu(struct net_device *dev)
 {
 	int err;
 
-	rtnl_lock();
 	err = dev_set_mtu(dev, ETH_DATA_LEN);
 	if (err)
 		netdev_dbg(dev,
 			   "Unable to reset MTU to exclude DSA overheads\n");
-	rtnl_unlock();
 }
-
-static struct lock_class_key dsa_master_addr_list_lock_key;
 
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
@@ -361,9 +362,11 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 			   "Failed to create a device link to DSA switch %s\n",
 			   dev_name(ds->dev));
 
-	rtnl_lock();
+	/* The switch driver may not implement ->port_change_mtu(), case in
+	 * which dsa_slave_change_mtu() will not update the master MTU either,
+	 * so we need to do that here.
+	 */
 	ret = dev_set_mtu(dev, mtu);
-	rtnl_unlock();
 	if (ret)
 		netdev_warn(dev, "error %d setting MTU to %d to include DSA overhead\n",
 			    ret, mtu);
@@ -375,8 +378,6 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 	wmb();
 
 	dev->dsa_ptr = cpu_dp;
-	lockdep_set_class(&dev->addr_list_lock,
-			  &dsa_master_addr_list_lock_key);
 
 	dsa_master_set_promiscuity(dev, 1);
 

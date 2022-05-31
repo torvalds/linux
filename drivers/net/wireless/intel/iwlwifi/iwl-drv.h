@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2020 Intel Corporation
+ * Copyright (C) 2005-2014, 2020-2021 Intel Corporation
  * Copyright (C) 2013-2014 Intel Mobile Communications GmbH
  */
 #ifndef __iwl_drv_h__
@@ -9,7 +9,6 @@
 
 /* for all modules */
 #define DRV_NAME        "iwlwifi"
-#define DRV_AUTHOR	"Intel Corporation <linuxwifi@intel.com>"
 
 /* radio config bits (actual values from NVM definition) */
 #define NVM_RF_CFG_DASH_MSK(x)   (x & 0x3)         /* bits 0-1   */
@@ -85,9 +84,12 @@ void iwl_drv_stop(struct iwl_drv *drv);
  * everything is built-in, then we can avoid that.
  */
 #ifdef CONFIG_IWLWIFI_OPMODE_MODULAR
-#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_GPL(sym)
+#define IWL_EXPORT_SYMBOL(sym)	EXPORT_SYMBOL_NS_GPL(sym, IWLWIFI)
 #else
 #define IWL_EXPORT_SYMBOL(sym)
 #endif
+
+/* max retry for init flow */
+#define IWL_MAX_INIT_RETRY 2
 
 #endif /* __iwl_drv_h__ */

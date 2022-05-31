@@ -168,25 +168,23 @@ int ia_css_frame_map(struct ia_css_frame **frame,
 	if (err)
 		return err;
 
-	if (!err) {
-		if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-			dev_err(atomisp_dev,
-				"user space memory size is less than the expected size..\n");
-			err = -ENOMEM;
-			goto error;
-		} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
-			dev_err(atomisp_dev,
-				"user space memory size is large than the expected size..\n");
-			err = -ENOMEM;
-			goto error;
-		}
-
-		me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
-				     attribute & ATOMISP_MAP_FLAG_CACHED);
-
-		if (me->data == mmgr_NULL)
-			err = -EINVAL;
+	if (pgnr < ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
+		dev_err(atomisp_dev,
+			"user space memory size is less than the expected size..\n");
+		err = -ENOMEM;
+		goto error;
+	} else if (pgnr > ((PAGE_ALIGN(me->data_bytes)) >> PAGE_SHIFT)) {
+		dev_err(atomisp_dev,
+			"user space memory size is large than the expected size..\n");
+		err = -ENOMEM;
+		goto error;
 	}
+
+	me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
+			     attribute & ATOMISP_MAP_FLAG_CACHED);
+
+	if (me->data == mmgr_NULL)
+		err = -EINVAL;
 
 error:
 	if (err) {
@@ -594,10 +592,8 @@ bool ia_css_frame_is_same_type(const struct ia_css_frame *frame_a,
 	return is_equal;
 }
 
-void
-ia_css_dma_configure_from_info(
-    struct dma_port_config *config,
-    const struct ia_css_frame_info *info)
+int ia_css_dma_configure_from_info(struct dma_port_config *config,
+				   const struct ia_css_frame_info *info)
 {
 	unsigned int is_raw_packed = info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED;
 	unsigned int bits_per_pixel = is_raw_packed ? info->raw_bit_depth :
@@ -610,7 +606,13 @@ ia_css_dma_configure_from_info(
 	config->elems  = (uint8_t)elems_b;
 	config->width  = (uint16_t)info->res.width;
 	config->crop   = 0;
-	assert(config->width <= info->padded_width);
+
+	if (config->width > info->padded_width) {
+		dev_err(atomisp_dev, "internal error: padded_width is too small!\n");
+		return -EINVAL;
+	}
+
+	return 0;
 }
 
 /**************************************************************************
@@ -930,74 +932,4 @@ void ia_css_resolution_to_sp_resolution(
 {
 	to->width  = (uint16_t)from->width;
 	to->height = (uint16_t)from->height;
-}
-
-/* ISP2401 */
-int
-ia_css_frame_find_crop_resolution(const struct ia_css_resolution *in_res,
-				  const struct ia_css_resolution *out_res,
-				  struct ia_css_resolution *crop_res) {
-	u32 wd_even_ceil, ht_even_ceil;
-	u32 in_ratio, out_ratio;
-
-	if ((!in_res) || (!out_res) || (!crop_res))
-		return -EINVAL;
-
-	IA_CSS_ENTER_PRIVATE("in(%ux%u) -> out(%ux%u)", in_res->width,
-			     in_res->height, out_res->width, out_res->height);
-
-	if ((in_res->width == 0)
-	    || (in_res->height == 0)
-	    || (out_res->width == 0)
-	    || (out_res->height == 0))
-		return -EINVAL;
-
-	if ((out_res->width > in_res->width) ||
-	    (out_res->height > in_res->height))
-		return -EINVAL;
-
-	/* If aspect ratio (width/height) of out_res is higher than the aspect
-	 * ratio of the in_res, then we crop vertically, otherwise we crop
-	 * horizontally.
-	 */
-	in_ratio = in_res->width * out_res->height;
-	out_ratio = out_res->width * in_res->height;
-
-	if (in_ratio == out_ratio)
-	{
-		crop_res->width = in_res->width;
-		crop_res->height = in_res->height;
-	} else if (out_ratio > in_ratio)
-	{
-		crop_res->width = in_res->width;
-		crop_res->height = ROUND_DIV(out_res->height * crop_res->width,
-					     out_res->width);
-	} else
-	{
-		crop_res->height = in_res->height;
-		crop_res->width = ROUND_DIV(out_res->width * crop_res->height,
-					    out_res->height);
-	}
-
-	/* Round new (cropped) width and height to an even number.
-	 * binarydesc_calculate_bds_factor is such that we should consider as
-	 * much of the input as possible. This is different only when we end up
-	 * with an odd number in the last step. So, we take the next even number
-	 * if it falls within the input, otherwise take the previous even no.
-	 */
-	wd_even_ceil = EVEN_CEIL(crop_res->width);
-	ht_even_ceil = EVEN_CEIL(crop_res->height);
-	if ((wd_even_ceil > in_res->width) || (ht_even_ceil > in_res->height))
-	{
-		crop_res->width = EVEN_FLOOR(crop_res->width);
-		crop_res->height = EVEN_FLOOR(crop_res->height);
-	} else
-	{
-		crop_res->width = wd_even_ceil;
-		crop_res->height = ht_even_ceil;
-	}
-
-	IA_CSS_LEAVE_PRIVATE("in(%ux%u) -> out(%ux%u)", crop_res->width,
-			     crop_res->height, out_res->width, out_res->height);
-	return 0;
 }

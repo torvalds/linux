@@ -15,6 +15,7 @@
 static bool group0_trap;
 static bool group1_trap;
 static bool common_trap;
+static bool dir_trap;
 static bool gicv4_enable;
 
 void vgic_v3_set_underflow(struct kvm_vcpu *vcpu)
@@ -296,6 +297,8 @@ void vgic_v3_enable(struct kvm_vcpu *vcpu)
 		vgic_v3->vgic_hcr |= ICH_HCR_TALL1;
 	if (common_trap)
 		vgic_v3->vgic_hcr |= ICH_HCR_TC;
+	if (dir_trap)
+		vgic_v3->vgic_hcr |= ICH_HCR_TDIR;
 }
 
 int vgic_v3_lpi_sync_pending_status(struct kvm *kvm, struct vgic_irq *irq)
@@ -483,8 +486,10 @@ bool vgic_v3_check_base(struct kvm *kvm)
 		return false;
 
 	list_for_each_entry(rdreg, &d->rd_regions, list) {
-		if (rdreg->base + vgic_v3_rd_region_size(kvm, rdreg) <
-			rdreg->base)
+		size_t sz = vgic_v3_rd_region_size(kvm, rdreg);
+
+		if (vgic_check_iorange(kvm, VGIC_ADDR_UNDEF,
+				       rdreg->base, SZ_64K, sz))
 			return false;
 	}
 
@@ -537,24 +542,24 @@ int vgic_v3_map_resources(struct kvm *kvm)
 	struct vgic_dist *dist = &kvm->arch.vgic;
 	struct kvm_vcpu *vcpu;
 	int ret = 0;
-	int c;
+	unsigned long c;
 
 	kvm_for_each_vcpu(c, vcpu, kvm) {
 		struct vgic_cpu *vgic_cpu = &vcpu->arch.vgic_cpu;
 
 		if (IS_VGIC_ADDR_UNDEF(vgic_cpu->rd_iodev.base_addr)) {
-			kvm_debug("vcpu %d redistributor base not set\n", c);
+			kvm_debug("vcpu %ld redistributor base not set\n", c);
 			return -ENXIO;
 		}
 	}
 
 	if (IS_VGIC_ADDR_UNDEF(dist->vgic_dist_base)) {
-		kvm_err("Need to set vgic distributor addresses first\n");
+		kvm_debug("Need to set vgic distributor addresses first\n");
 		return -ENXIO;
 	}
 
 	if (!vgic_v3_check_base(kvm)) {
-		kvm_err("VGIC redist and dist frames overlap\n");
+		kvm_debug("VGIC redist and dist frames overlap\n");
 		return -EINVAL;
 	}
 
@@ -604,6 +609,18 @@ static int __init early_gicv4_enable(char *buf)
 }
 early_param("kvm-arm.vgic_v4_enable", early_gicv4_enable);
 
+static const struct midr_range broken_seis[] = {
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_ICESTORM),
+	MIDR_ALL_VERSIONS(MIDR_APPLE_M1_FIRESTORM),
+	{},
+};
+
+static bool vgic_v3_broken_seis(void)
+{
+	return ((kvm_vgic_global_state.ich_vtr_el2 & ICH_VTR_SEIS_MASK) &&
+		is_midr_in_range_list(read_cpuid_id(), broken_seis));
+}
+
 /**
  * vgic_v3_probe - probe for a VGICv3 compatible interrupt controller
  * @info:	pointer to the GIC description
@@ -646,7 +663,7 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 	} else if (!PAGE_ALIGNED(info->vcpu.start)) {
 		pr_warn("GICV physical address 0x%llx not page aligned\n",
 			(unsigned long long)info->vcpu.start);
-	} else {
+	} else if (kvm_get_mode() != KVM_MODE_PROTECTED) {
 		kvm_vgic_global_state.vcpu_base = info->vcpu.start;
 		kvm_vgic_global_state.can_emulate_gicv2 = true;
 		ret = kvm_register_vgic_device(KVM_DEV_TYPE_ARM_VGIC_V2);
@@ -671,11 +688,24 @@ int vgic_v3_probe(const struct gic_kvm_info *info)
 		group1_trap = true;
 	}
 
-	if (group0_trap || group1_trap || common_trap) {
-		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s], reduced performance)\n",
+	if (vgic_v3_broken_seis()) {
+		kvm_info("GICv3 with broken locally generated SEI\n");
+
+		kvm_vgic_global_state.ich_vtr_el2 &= ~ICH_VTR_SEIS_MASK;
+		group0_trap = true;
+		group1_trap = true;
+		if (ich_vtr_el2 & ICH_VTR_TDS_MASK)
+			dir_trap = true;
+		else
+			common_trap = true;
+	}
+
+	if (group0_trap || group1_trap || common_trap | dir_trap) {
+		kvm_info("GICv3 sysreg trapping enabled ([%s%s%s%s], reduced performance)\n",
 			 group0_trap ? "G0" : "",
 			 group1_trap ? "G1" : "",
-			 common_trap ? "C"  : "");
+			 common_trap ? "C"  : "",
+			 dir_trap    ? "D"  : "");
 		static_branch_enable(&vgic_v3_cpuif_trap);
 	}
 

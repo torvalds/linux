@@ -32,6 +32,8 @@
 #include "dmub_dcn302.h"
 #include "dmub_dcn303.h"
 #include "dmub_dcn31.h"
+#include "dmub_dcn315.h"
+#include "dmub_dcn316.h"
 #include "os_types.h"
 /*
  * Note: the DMUB service is standalone. No additional headers should be
@@ -100,24 +102,9 @@ void dmub_flush_buffer_mem(const struct dmub_fb *fb)
 }
 
 static const struct dmub_fw_meta_info *
-dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
+dmub_get_fw_meta_info_from_blob(const uint8_t *blob, uint32_t blob_size, uint32_t meta_offset)
 {
 	const union dmub_fw_meta *meta;
-	const uint8_t *blob = NULL;
-	uint32_t blob_size = 0;
-	uint32_t meta_offset = 0;
-
-	if (params->fw_bss_data && params->bss_data_size) {
-		/* Legacy metadata region. */
-		blob = params->fw_bss_data;
-		blob_size = params->bss_data_size;
-		meta_offset = DMUB_FW_META_OFFSET;
-	} else if (params->fw_inst_const && params->inst_const_size) {
-		/* Combined metadata region. */
-		blob = params->fw_inst_const;
-		blob_size = params->inst_const_size;
-		meta_offset = 0;
-	}
 
 	if (!blob || !blob_size)
 		return NULL;
@@ -132,6 +119,32 @@ dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
 		return NULL;
 
 	return &meta->info;
+}
+
+static const struct dmub_fw_meta_info *
+dmub_get_fw_meta_info(const struct dmub_srv_region_params *params)
+{
+	const struct dmub_fw_meta_info *info = NULL;
+
+	if (params->fw_bss_data && params->bss_data_size) {
+		/* Legacy metadata region. */
+		info = dmub_get_fw_meta_info_from_blob(params->fw_bss_data,
+						       params->bss_data_size,
+						       DMUB_FW_META_OFFSET);
+	} else if (params->fw_inst_const && params->inst_const_size) {
+		/* Combined metadata region - can be aligned to 16-bytes. */
+		uint32_t i;
+
+		for (i = 0; i < 16; ++i) {
+			info = dmub_get_fw_meta_info_from_blob(
+				params->fw_inst_const, params->inst_const_size, i);
+
+			if (info)
+				break;
+		}
+	}
+
+	return info;
 }
 
 static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
@@ -208,7 +221,15 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		break;
 
 	case DMUB_ASIC_DCN31:
-		dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
+	case DMUB_ASIC_DCN31B:
+	case DMUB_ASIC_DCN315:
+	case DMUB_ASIC_DCN316:
+		if (asic == DMUB_ASIC_DCN315)
+			dmub->regs_dcn31 = &dmub_srv_dcn315_regs;
+		else if (asic == DMUB_ASIC_DCN316)
+			dmub->regs_dcn31 = &dmub_srv_dcn316_regs;
+		else
+			dmub->regs_dcn31 = &dmub_srv_dcn31_regs;
 		funcs->reset = dmub_dcn31_reset;
 		funcs->reset_release = dmub_dcn31_reset_release;
 		funcs->backdoor_load = dmub_dcn31_backdoor_load;
@@ -234,7 +255,7 @@ static bool dmub_srv_hw_setup(struct dmub_srv *dmub, enum dmub_asic asic)
 		funcs->set_outbox0_rptr = dmub_dcn31_set_outbox0_rptr;
 
 		funcs->get_diagnostic_data = dmub_dcn31_get_diagnostic_data;
-
+		funcs->should_detect = dmub_dcn31_should_detect;
 		funcs->get_current_time = dmub_dcn31_get_current_time;
 
 		break;
@@ -597,6 +618,8 @@ enum dmub_status dmub_srv_cmd_queue(struct dmub_srv *dmub,
 
 enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 {
+	struct dmub_rb flush_rb;
+
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
@@ -605,9 +628,14 @@ enum dmub_status dmub_srv_cmd_execute(struct dmub_srv *dmub)
 	 * been flushed to framebuffer memory. Otherwise DMCUB might
 	 * read back stale, fully invalid or partially invalid data.
 	 */
-	dmub_rb_flush_pending(&dmub->inbox1_rb);
+	flush_rb = dmub->inbox1_rb;
+	flush_rb.rptr = dmub->inbox1_last_wptr;
+	dmub_rb_flush_pending(&flush_rb);
 
-		dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
+	dmub->hw_funcs.set_inbox1_wptr(dmub, dmub->inbox1_rb.wrpt);
+
+	dmub->inbox1_last_wptr = dmub->inbox1_rb.wrpt;
+
 	return DMUB_STATUS_OK;
 }
 
@@ -655,13 +683,19 @@ enum dmub_status dmub_srv_wait_for_phy_init(struct dmub_srv *dmub,
 enum dmub_status dmub_srv_wait_for_idle(struct dmub_srv *dmub,
 					uint32_t timeout_us)
 {
-	uint32_t i;
+	uint32_t i, rptr;
 
 	if (!dmub->hw_init)
 		return DMUB_STATUS_INVALID;
 
 	for (i = 0; i <= timeout_us; ++i) {
-			dmub->inbox1_rb.rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+		rptr = dmub->hw_funcs.get_inbox1_rptr(dmub);
+
+		if (rptr > dmub->inbox1_rb.capacity)
+			return DMUB_STATUS_HW_FAILURE;
+
+		dmub->inbox1_rb.rptr = rptr;
+
 		if (dmub_rb_empty(&dmub->inbox1_rb))
 			return DMUB_STATUS_OK;
 
@@ -815,4 +849,47 @@ bool dmub_srv_get_diagnostic_data(struct dmub_srv *dmub, struct dmub_diagnostic_
 		return false;
 	dmub->hw_funcs.get_diagnostic_data(dmub, diag_data);
 	return true;
+}
+
+bool dmub_srv_should_detect(struct dmub_srv *dmub)
+{
+	if (!dmub->hw_init || !dmub->hw_funcs.should_detect)
+		return false;
+
+	return dmub->hw_funcs.should_detect(dmub);
+}
+
+enum dmub_status dmub_srv_clear_inbox0_ack(struct dmub_srv *dmub)
+{
+	if (!dmub->hw_init || !dmub->hw_funcs.clear_inbox0_ack_register)
+		return DMUB_STATUS_INVALID;
+
+	dmub->hw_funcs.clear_inbox0_ack_register(dmub);
+	return DMUB_STATUS_OK;
+}
+
+enum dmub_status dmub_srv_wait_for_inbox0_ack(struct dmub_srv *dmub, uint32_t timeout_us)
+{
+	uint32_t i = 0;
+	uint32_t ack = 0;
+
+	if (!dmub->hw_init || !dmub->hw_funcs.read_inbox0_ack_register)
+		return DMUB_STATUS_INVALID;
+
+	for (i = 0; i <= timeout_us; i++) {
+		ack = dmub->hw_funcs.read_inbox0_ack_register(dmub);
+		if (ack)
+			return DMUB_STATUS_OK;
+	}
+	return DMUB_STATUS_TIMEOUT;
+}
+
+enum dmub_status dmub_srv_send_inbox0_cmd(struct dmub_srv *dmub,
+		union dmub_inbox0_data_register data)
+{
+	if (!dmub->hw_init || !dmub->hw_funcs.send_inbox0_cmd)
+		return DMUB_STATUS_INVALID;
+
+	dmub->hw_funcs.send_inbox0_cmd(dmub, data);
+	return DMUB_STATUS_OK;
 }

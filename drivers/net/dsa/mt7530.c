@@ -1186,29 +1186,34 @@ mt7530_port_bridge_flags(struct dsa_switch *ds, int port,
 
 static int
 mt7530_port_bridge_join(struct dsa_switch *ds, int port,
-			struct net_device *bridge)
+			struct dsa_bridge bridge, bool *tx_fwd_offload,
+			struct netlink_ext_ack *extack)
 {
-	struct mt7530_priv *priv = ds->priv;
+	struct dsa_port *dp = dsa_to_port(ds, port), *other_dp;
 	u32 port_bitmap = BIT(MT7530_CPU_PORT);
-	int i;
+	struct mt7530_priv *priv = ds->priv;
 
 	mutex_lock(&priv->reg_mutex);
 
-	for (i = 0; i < MT7530_NUM_PORTS; i++) {
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		int other_port = other_dp->index;
+
+		if (dp == other_dp)
+			continue;
+
 		/* Add this port to the port matrix of the other ports in the
 		 * same bridge. If the port is disabled, port matrix is kept
 		 * and not being setup until the port becomes enabled.
 		 */
-		if (dsa_is_user_port(ds, i) && i != port) {
-			if (dsa_to_port(ds, i)->bridge_dev != bridge)
-				continue;
-			if (priv->ports[i].enable)
-				mt7530_set(priv, MT7530_PCR_P(i),
-					   PCR_MATRIX(BIT(port)));
-			priv->ports[i].pm |= PCR_MATRIX(BIT(port));
+		if (!dsa_port_offloads_bridge(other_dp, &bridge))
+			continue;
 
-			port_bitmap |= BIT(i);
-		}
+		if (priv->ports[other_port].enable)
+			mt7530_set(priv, MT7530_PCR_P(other_port),
+				   PCR_MATRIX(BIT(port)));
+		priv->ports[other_port].pm |= PCR_MATRIX(BIT(port));
+
+		port_bitmap |= BIT(other_port);
 	}
 
 	/* Add the all other ports to this port matrix. */
@@ -1236,7 +1241,7 @@ mt7530_port_set_vlan_unaware(struct dsa_switch *ds, int port)
 	/* This is called after .port_bridge_leave when leaving a VLAN-aware
 	 * bridge. Don't set standalone ports to fallback mode.
 	 */
-	if (dsa_to_port(ds, port)->bridge_dev)
+	if (dsa_port_bridge_dev_get(dsa_to_port(ds, port)))
 		mt7530_rmw(priv, MT7530_PCR_P(port), PCR_PORT_VLAN_MASK,
 			   MT7530_PORT_FALLBACK_MODE);
 
@@ -1299,26 +1304,30 @@ mt7530_port_set_vlan_aware(struct dsa_switch *ds, int port)
 
 static void
 mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
-			 struct net_device *bridge)
+			 struct dsa_bridge bridge)
 {
+	struct dsa_port *dp = dsa_to_port(ds, port), *other_dp;
 	struct mt7530_priv *priv = ds->priv;
-	int i;
 
 	mutex_lock(&priv->reg_mutex);
 
-	for (i = 0; i < MT7530_NUM_PORTS; i++) {
+	dsa_switch_for_each_user_port(other_dp, ds) {
+		int other_port = other_dp->index;
+
+		if (dp == other_dp)
+			continue;
+
 		/* Remove this port from the port matrix of the other ports
 		 * in the same bridge. If the port is disabled, port matrix
 		 * is kept and not being setup until the port becomes enabled.
 		 */
-		if (dsa_is_user_port(ds, i) && i != port) {
-			if (dsa_to_port(ds, i)->bridge_dev != bridge)
-				continue;
-			if (priv->ports[i].enable)
-				mt7530_clear(priv, MT7530_PCR_P(i),
-					     PCR_MATRIX(BIT(port)));
-			priv->ports[i].pm &= ~PCR_MATRIX(BIT(port));
-		}
+		if (!dsa_port_offloads_bridge(other_dp, &bridge))
+			continue;
+
+		if (priv->ports[other_port].enable)
+			mt7530_clear(priv, MT7530_PCR_P(other_port),
+				     PCR_MATRIX(BIT(port)));
+		priv->ports[other_port].pm &= ~PCR_MATRIX(BIT(port));
 	}
 
 	/* Set the cpu port to be the only one in the port matrix of
@@ -1341,7 +1350,8 @@ mt7530_port_bridge_leave(struct dsa_switch *ds, int port,
 
 static int
 mt7530_port_fdb_add(struct dsa_switch *ds, int port,
-		    const unsigned char *addr, u16 vid)
+		    const unsigned char *addr, u16 vid,
+		    struct dsa_db db)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int ret;
@@ -1357,7 +1367,8 @@ mt7530_port_fdb_add(struct dsa_switch *ds, int port,
 
 static int
 mt7530_port_fdb_del(struct dsa_switch *ds, int port,
-		    const unsigned char *addr, u16 vid)
+		    const unsigned char *addr, u16 vid,
+		    struct dsa_db db)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int ret;
@@ -1408,7 +1419,8 @@ err:
 
 static int
 mt7530_port_mdb_add(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_mdb *mdb)
+		    const struct switchdev_obj_port_mdb *mdb,
+		    struct dsa_db db)
 {
 	struct mt7530_priv *priv = ds->priv;
 	const u8 *addr = mdb->addr;
@@ -1434,7 +1446,8 @@ mt7530_port_mdb_add(struct dsa_switch *ds, int port,
 
 static int
 mt7530_port_mdb_del(struct dsa_switch *ds, int port,
-		    const struct switchdev_obj_port_mdb *mdb)
+		    const struct switchdev_obj_port_mdb *mdb,
+		    struct dsa_db db)
 {
 	struct mt7530_priv *priv = ds->priv;
 	const u8 *addr = mdb->addr;
@@ -1701,7 +1714,7 @@ static int mt753x_mirror_port_set(unsigned int id, u32 val)
 
 static int mt753x_port_mirror_add(struct dsa_switch *ds, int port,
 				  struct dsa_mall_mirror_tc_entry *mirror,
-				  bool ingress)
+				  bool ingress, struct netlink_ext_ack *extack)
 {
 	struct mt7530_priv *priv = ds->priv;
 	int monitor_port;
@@ -2066,7 +2079,7 @@ mt7530_setup_mdio(struct mt7530_priv *priv)
 	if (priv->irq)
 		mt7530_setup_mdio_irq(priv);
 
-	ret = mdiobus_register(bus);
+	ret = devm_mdiobus_register(dev, bus);
 	if (ret) {
 		dev_err(dev, "failed to register MDIO bus: %d\n", ret);
 		if (priv->irq)
@@ -2216,6 +2229,7 @@ mt7530_setup(struct dsa_switch *ds)
 				ret = of_get_phy_mode(mac_np, &interface);
 				if (ret && ret != -ENODEV) {
 					of_node_put(mac_np);
+					of_node_put(phy_node);
 					return ret;
 				}
 				id = of_mdio_parse_addr(ds->dev, phy_node);
@@ -2838,7 +2852,7 @@ static void mt753x_phylink_mac_link_up(struct dsa_switch *ds, int port,
 			mcr |= PMCR_RX_FC_EN;
 	}
 
-	if (mode == MLO_AN_PHY && phydev && phy_init_eee(phydev, 0) >= 0) {
+	if (mode == MLO_AN_PHY && phydev && phy_init_eee(phydev, false) >= 0) {
 		switch (speed) {
 		case SPEED_1000:
 			mcr |= PMCR_FORCE_EEE1G;
@@ -2928,7 +2942,7 @@ mt753x_phylink_validate(struct dsa_switch *ds, int port,
 
 	phylink_set_port_modes(mask);
 
-	if (state->interface != PHY_INTERFACE_MODE_TRGMII ||
+	if (state->interface != PHY_INTERFACE_MODE_TRGMII &&
 	    !phy_interface_mode_is_8023z(state->interface)) {
 		phylink_set(mask, 10baseT_Half);
 		phylink_set(mask, 10baseT_Full);

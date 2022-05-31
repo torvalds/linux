@@ -17,11 +17,6 @@ struct iio_dma_buffer_queue;
 struct iio_dma_buffer_ops;
 struct device;
 
-struct iio_buffer_block {
-	u32 size;
-	u32 bytes_used;
-};
-
 /**
  * enum iio_block_state - State of a struct iio_dma_buffer_block
  * @IIO_BLOCK_STATE_DEQUEUED: Block is not queued

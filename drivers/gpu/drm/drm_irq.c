@@ -66,7 +66,6 @@
 
 #include "drm_internal.h"
 
-#if IS_ENABLED(CONFIG_DRM_LEGACY)
 static int drm_legacy_irq_install(struct drm_device *dev, int irq)
 {
 	int ret;
@@ -203,4 +202,3 @@ int drm_legacy_irq_control(struct drm_device *dev, void *data,
 		return -EINVAL;
 	}
 }
-#endif

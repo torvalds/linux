@@ -46,6 +46,7 @@
 #include <linux/delay.h>
 #include <linux/prefetch.h>
 #include <linux/if_ether.h>
+#include <rdma/ib_mad.h>
 
 #include "roce_hsi.h"
 
@@ -707,12 +708,13 @@ int bnxt_qplib_query_srq(struct bnxt_qplib_res *res,
 	int rc = 0;
 
 	RCFW_CMD_PREP(req, QUERY_SRQ, cmd_flags);
-	req.srq_cid = cpu_to_le32(srq->id);
 
 	/* Configure the request */
 	sbuf = bnxt_qplib_rcfw_alloc_sbuf(rcfw, sizeof(*sb));
 	if (!sbuf)
 		return -ENOMEM;
+	req.resp_size = sizeof(*sb) / BNXT_QPLIB_CMDQE_UNITS;
+	req.srq_cid = cpu_to_le32(srq->id);
 	sb = sbuf->sb;
 	rc = bnxt_qplib_rcfw_send_message(rcfw, (void *)&req, (void *)&resp,
 					  (void *)sbuf, 0);
@@ -1049,6 +1051,9 @@ int bnxt_qplib_create_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 		qp_flags |= CMDQ_CREATE_QP_QP_FLAGS_FORCE_COMPLETION;
 	if (qp->wqe_mode == BNXT_QPLIB_WQE_MODE_VARIABLE)
 		qp_flags |= CMDQ_CREATE_QP_QP_FLAGS_VARIABLE_SIZED_WQE_ENABLED;
+	if (_is_ext_stats_supported(res->dattr->dev_cap_flags) && !res->is_vf)
+		qp_flags |= CMDQ_CREATE_QP_QP_FLAGS_EXT_STATS_ENABLED;
+
 	req.qp_flags = cpu_to_le32(qp_flags);
 
 	/* ORRQ and IRRQ */
@@ -1228,7 +1233,7 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	struct bnxt_qplib_rcfw *rcfw = res->rcfw;
 	struct cmdq_modify_qp req;
 	struct creq_modify_qp_resp resp;
-	u16 cmd_flags = 0, pkey;
+	u16 cmd_flags = 0;
 	u32 temp32[4];
 	u32 bmask;
 	int rc;
@@ -1251,11 +1256,9 @@ int bnxt_qplib_modify_qp(struct bnxt_qplib_res *res, struct bnxt_qplib_qp *qp)
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_ACCESS)
 		req.access = qp->access;
 
-	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_PKEY) {
-		if (!bnxt_qplib_get_pkey(res, &res->pkey_tbl,
-					 qp->pkey_index, &pkey))
-			req.pkey = cpu_to_le16(pkey);
-	}
+	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_PKEY)
+		req.pkey = cpu_to_le16(IB_DEFAULT_PKEY_FULL);
+
 	if (bmask & CMDQ_MODIFY_QP_MODIFY_MASK_QKEY)
 		req.qkey = cpu_to_le32(qp->qkey);
 
@@ -2851,6 +2854,7 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 	struct cq_base *hw_cqe;
 	u32 sw_cons, raw_cons;
 	int budget, rc = 0;
+	u8 type;
 
 	raw_cons = cq->hwq.cons;
 	budget = num_cqes;
@@ -2869,7 +2873,8 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 		 */
 		dma_rmb();
 		/* From the device's respective CQE format to qplib_wc*/
-		switch (hw_cqe->cqe_type_toggle & CQ_BASE_CQE_TYPE_MASK) {
+		type = hw_cqe->cqe_type_toggle & CQ_BASE_CQE_TYPE_MASK;
+		switch (type) {
 		case CQ_BASE_CQE_TYPE_REQ:
 			rc = bnxt_qplib_cq_process_req(cq,
 						       (struct cq_req *)hw_cqe,
@@ -2916,8 +2921,9 @@ int bnxt_qplib_poll_cq(struct bnxt_qplib_cq *cq, struct bnxt_qplib_cqe *cqe,
 			/* Error while processing the CQE, just skip to the
 			 * next one
 			 */
-			dev_err(&cq->hwq.pdev->dev,
-				"process_cqe error rc = 0x%x\n", rc);
+			if (type != CQ_BASE_CQE_TYPE_TERMINAL)
+				dev_err(&cq->hwq.pdev->dev,
+					"process_cqe error rc = 0x%x\n", rc);
 		}
 		raw_cons++;
 	}

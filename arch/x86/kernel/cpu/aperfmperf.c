@@ -91,7 +91,7 @@ unsigned int aperfmperf_get_khz(int cpu)
 	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
 		return 0;
 
-	if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
+	if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
 		return 0;
 
 	if (rcu_is_idle_cpu(cpu))
@@ -114,7 +114,7 @@ void arch_freq_prepare_all(void)
 		return;
 
 	for_each_online_cpu(cpu) {
-		if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
+		if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
 			continue;
 		if (rcu_is_idle_cpu(cpu))
 			continue; /* Idle CPUs are completely uninteresting. */
@@ -136,7 +136,7 @@ unsigned int arch_freq_get_on_cpu(int cpu)
 	if (!boot_cpu_has(X86_FEATURE_APERFMPERF))
 		return 0;
 
-	if (!housekeeping_cpu(cpu, HK_FLAG_MISC))
+	if (!housekeeping_cpu(cpu, HK_TYPE_MISC))
 		return 0;
 
 	if (aperfmperf_snapshot_cpu(cpu, ktime_get(), true))

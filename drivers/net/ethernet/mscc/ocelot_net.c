@@ -14,9 +14,13 @@
 #include <linux/phy/phy.h>
 #include <net/pkt_cls.h>
 #include "ocelot.h"
+#include "ocelot_police.h"
 #include "ocelot_vcap.h"
+#include "ocelot_fdma.h"
 
 #define OCELOT_MAC_QUIRKS	OCELOT_QUIRK_QSGMII_PORTS_MUST_BE_UP
+
+static bool ocelot_netdevice_dev_check(const struct net_device *dev);
 
 static struct ocelot *devlink_port_to_ocelot(struct devlink_port *dlp)
 {
@@ -214,14 +218,14 @@ int ocelot_setup_tc_cls_flower(struct ocelot_port_private *priv,
 	}
 }
 
-static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
-					struct tc_cls_matchall_offload *f,
-					bool ingress)
+static int ocelot_setup_tc_cls_matchall_police(struct ocelot_port_private *priv,
+					       struct tc_cls_matchall_offload *f,
+					       bool ingress,
+					       struct netlink_ext_ack *extack)
 {
-	struct netlink_ext_ack *extack = f->common.extack;
+	struct flow_action_entry *action = &f->rule->action.entries[0];
 	struct ocelot *ocelot = priv->port.ocelot;
 	struct ocelot_policer pol = { 0 };
-	struct flow_action_entry *action;
 	int port = priv->chip_port;
 	int err;
 
@@ -229,6 +233,119 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 		NL_SET_ERR_MSG_MOD(extack, "Only ingress is supported");
 		return -EOPNOTSUPP;
 	}
+
+	if (priv->tc.police_id && priv->tc.police_id != f->cookie) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Only one policer per port is supported");
+		return -EEXIST;
+	}
+
+	err = ocelot_policer_validate(&f->rule->action, action, extack);
+	if (err)
+		return err;
+
+	pol.rate = (u32)div_u64(action->police.rate_bytes_ps, 1000) * 8;
+	pol.burst = action->police.burst;
+
+	err = ocelot_port_policer_add(ocelot, port, &pol);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack, "Could not add policer");
+		return err;
+	}
+
+	priv->tc.police_id = f->cookie;
+	priv->tc.offload_cnt++;
+
+	return 0;
+}
+
+static int ocelot_setup_tc_cls_matchall_mirred(struct ocelot_port_private *priv,
+					       struct tc_cls_matchall_offload *f,
+					       bool ingress,
+					       struct netlink_ext_ack *extack)
+{
+	struct flow_action *action = &f->rule->action;
+	struct ocelot *ocelot = priv->port.ocelot;
+	struct ocelot_port_private *other_priv;
+	const struct flow_action_entry *a;
+	int err;
+
+	if (f->common.protocol != htons(ETH_P_ALL))
+		return -EOPNOTSUPP;
+
+	if (!flow_action_basic_hw_stats_check(action, extack))
+		return -EOPNOTSUPP;
+
+	a = &action->entries[0];
+	if (!a->dev)
+		return -EINVAL;
+
+	if (!ocelot_netdevice_dev_check(a->dev)) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Destination not an ocelot port");
+		return -EOPNOTSUPP;
+	}
+
+	other_priv = netdev_priv(a->dev);
+
+	err = ocelot_port_mirror_add(ocelot, priv->chip_port,
+				     other_priv->chip_port, ingress, extack);
+	if (err)
+		return err;
+
+	if (ingress)
+		priv->tc.ingress_mirred_id = f->cookie;
+	else
+		priv->tc.egress_mirred_id = f->cookie;
+	priv->tc.offload_cnt++;
+
+	return 0;
+}
+
+static int ocelot_del_tc_cls_matchall_police(struct ocelot_port_private *priv,
+					     struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+	int err;
+
+	err = ocelot_port_policer_del(ocelot, port);
+	if (err) {
+		NL_SET_ERR_MSG_MOD(extack,
+				   "Could not delete policer");
+		return err;
+	}
+
+	priv->tc.police_id = 0;
+	priv->tc.offload_cnt--;
+
+	return 0;
+}
+
+static int ocelot_del_tc_cls_matchall_mirred(struct ocelot_port_private *priv,
+					     bool ingress,
+					     struct netlink_ext_ack *extack)
+{
+	struct ocelot *ocelot = priv->port.ocelot;
+	int port = priv->chip_port;
+
+	ocelot_port_mirror_del(ocelot, port, ingress);
+
+	if (ingress)
+		priv->tc.ingress_mirred_id = 0;
+	else
+		priv->tc.egress_mirred_id = 0;
+	priv->tc.offload_cnt--;
+
+	return 0;
+}
+
+static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
+					struct tc_cls_matchall_offload *f,
+					bool ingress)
+{
+	struct netlink_ext_ack *extack = f->common.extack;
+	struct flow_action_entry *action;
 
 	switch (f->command) {
 	case TC_CLSMATCHALL_REPLACE:
@@ -240,54 +357,41 @@ static int ocelot_setup_tc_cls_matchall(struct ocelot_port_private *priv,
 
 		if (priv->tc.block_shared) {
 			NL_SET_ERR_MSG_MOD(extack,
-					   "Rate limit is not supported on shared blocks");
+					   "Matchall offloads not supported on shared blocks");
 			return -EOPNOTSUPP;
 		}
 
 		action = &f->rule->action.entries[0];
 
-		if (action->id != FLOW_ACTION_POLICE) {
+		switch (action->id) {
+		case FLOW_ACTION_POLICE:
+			return ocelot_setup_tc_cls_matchall_police(priv, f,
+								   ingress,
+								   extack);
+			break;
+		case FLOW_ACTION_MIRRED:
+			return ocelot_setup_tc_cls_matchall_mirred(priv, f,
+								   ingress,
+								   extack);
+		default:
 			NL_SET_ERR_MSG_MOD(extack, "Unsupported action");
 			return -EOPNOTSUPP;
 		}
 
-		if (priv->tc.police_id && priv->tc.police_id != f->cookie) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Only one policer per port is supported");
-			return -EEXIST;
-		}
-
-		if (action->police.rate_pkt_ps) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "QoS offload not support packets per second");
-			return -EOPNOTSUPP;
-		}
-
-		pol.rate = (u32)div_u64(action->police.rate_bytes_ps, 1000) * 8;
-		pol.burst = action->police.burst;
-
-		err = ocelot_port_policer_add(ocelot, port, &pol);
-		if (err) {
-			NL_SET_ERR_MSG_MOD(extack, "Could not add policer");
-			return err;
-		}
-
-		priv->tc.police_id = f->cookie;
-		priv->tc.offload_cnt++;
-		return 0;
+		break;
 	case TC_CLSMATCHALL_DESTROY:
-		if (priv->tc.police_id != f->cookie)
+		action = &f->rule->action.entries[0];
+
+		if (f->cookie == priv->tc.police_id)
+			return ocelot_del_tc_cls_matchall_police(priv, extack);
+		else if (f->cookie == priv->tc.ingress_mirred_id ||
+			 f->cookie == priv->tc.egress_mirred_id)
+			return ocelot_del_tc_cls_matchall_mirred(priv, ingress,
+								 extack);
+		else
 			return -ENOENT;
 
-		err = ocelot_port_policer_del(ocelot, port);
-		if (err) {
-			NL_SET_ERR_MSG_MOD(extack,
-					   "Could not delete policer");
-			return err;
-		}
-		priv->tc.police_id = 0;
-		priv->tc.offload_cnt--;
-		return 0;
+		break;
 	case TC_CLSMATCHALL_STATS:
 	default:
 		return -EOPNOTSUPP;
@@ -418,7 +522,7 @@ static int ocelot_vlan_vid_del(struct net_device *dev, u16 vid)
 	 * with VLAN filtering feature. We need to keep it to receive
 	 * untagged traffic.
 	 */
-	if (vid == 0)
+	if (vid == OCELOT_STANDALONE_PVID)
 		return 0;
 
 	ret = ocelot_vlan_del(ocelot, port, vid);
@@ -457,7 +561,8 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 	int port = priv->chip_port;
 	u32 rew_op = 0;
 
-	if (!ocelot_can_inject(ocelot, 0))
+	if (!static_branch_unlikely(&ocelot_fdma_enabled) &&
+	    !ocelot_can_inject(ocelot, 0))
 		return NETDEV_TX_BUSY;
 
 	/* Check if timestamping is needed */
@@ -475,9 +580,13 @@ static netdev_tx_t ocelot_port_xmit(struct sk_buff *skb, struct net_device *dev)
 		rew_op = ocelot_ptp_rew_op(skb);
 	}
 
-	ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
+	if (static_branch_unlikely(&ocelot_fdma_enabled)) {
+		ocelot_fdma_inject_frame(ocelot, port, rew_op, skb, dev);
+	} else {
+		ocelot_port_inject_frame(ocelot, port, 0, rew_op, skb);
 
-	kfree_skb(skb);
+		consume_skb(skb);
+	}
 
 	return NETDEV_TX_OK;
 }
@@ -553,7 +662,7 @@ static int ocelot_mc_unsync(struct net_device *dev, const unsigned char *addr)
 	struct ocelot_mact_work_ctx w;
 
 	ether_addr_copy(w.forget.addr, addr);
-	w.forget.vid = ocelot_port->pvid_vlan.vid;
+	w.forget.vid = OCELOT_STANDALONE_PVID;
 	w.type = OCELOT_MACT_FORGET;
 
 	return ocelot_enqueue_mact_action(ocelot, &w);
@@ -567,7 +676,7 @@ static int ocelot_mc_sync(struct net_device *dev, const unsigned char *addr)
 	struct ocelot_mact_work_ctx w;
 
 	ether_addr_copy(w.learn.addr, addr);
-	w.learn.vid = ocelot_port->pvid_vlan.vid;
+	w.learn.vid = OCELOT_STANDALONE_PVID;
 	w.learn.pgid = PGID_CPU;
 	w.learn.entry_type = ENTRYTYPE_LOCKED;
 	w.type = OCELOT_MACT_LEARN;
@@ -602,11 +711,11 @@ static int ocelot_port_set_mac_address(struct net_device *dev, void *p)
 
 	/* Learn the new net device MAC address in the mac table. */
 	ocelot_mact_learn(ocelot, PGID_CPU, addr->sa_data,
-			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
+			  OCELOT_STANDALONE_PVID, ENTRYTYPE_LOCKED);
 	/* Then forget the previous one. */
-	ocelot_mact_forget(ocelot, dev->dev_addr, ocelot_port->pvid_vlan.vid);
+	ocelot_mact_forget(ocelot, dev->dev_addr, OCELOT_STANDALONE_PVID);
 
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 	return 0;
 }
 
@@ -656,10 +765,11 @@ static int ocelot_port_fdb_add(struct ndmsg *ndm, struct nlattr *tb[],
 			       struct netlink_ext_ack *extack)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot *ocelot = priv->port.ocelot;
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
 	int port = priv->chip_port;
 
-	return ocelot_fdb_add(ocelot, port, addr, vid);
+	return ocelot_fdb_add(ocelot, port, addr, vid, ocelot_port->bridge);
 }
 
 static int ocelot_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
@@ -667,10 +777,11 @@ static int ocelot_port_fdb_del(struct ndmsg *ndm, struct nlattr *tb[],
 			       const unsigned char *addr, u16 vid)
 {
 	struct ocelot_port_private *priv = netdev_priv(dev);
-	struct ocelot *ocelot = priv->port.ocelot;
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
 	int port = priv->chip_port;
 
-	return ocelot_fdb_del(ocelot, port, addr, vid);
+	return ocelot_fdb_del(ocelot, port, addr, vid, ocelot_port->bridge);
 }
 
 static int ocelot_port_fdb_dump(struct sk_buff *skb,
@@ -764,10 +875,23 @@ static int ocelot_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return phy_mii_ioctl(dev->phydev, ifr, cmd);
 }
 
+static int ocelot_change_mtu(struct net_device *dev, int new_mtu)
+{
+	struct ocelot_port_private *priv = netdev_priv(dev);
+	struct ocelot_port *ocelot_port = &priv->port;
+	struct ocelot *ocelot = ocelot_port->ocelot;
+
+	ocelot_port_set_maxlen(ocelot, priv->chip_port, new_mtu);
+	WRITE_ONCE(dev->mtu, new_mtu);
+
+	return 0;
+}
+
 static const struct net_device_ops ocelot_port_netdev_ops = {
 	.ndo_open			= ocelot_port_open,
 	.ndo_stop			= ocelot_port_stop,
 	.ndo_start_xmit			= ocelot_port_xmit,
+	.ndo_change_mtu			= ocelot_change_mtu,
 	.ndo_set_rx_mode		= ocelot_set_rx_mode,
 	.ndo_set_mac_address		= ocelot_port_set_mac_address,
 	.ndo_get_stats64		= ocelot_get_stats64,
@@ -969,7 +1093,7 @@ static int ocelot_port_obj_add_mdb(struct net_device *dev,
 	struct ocelot *ocelot = ocelot_port->ocelot;
 	int port = priv->chip_port;
 
-	return ocelot_port_mdb_add(ocelot, port, mdb);
+	return ocelot_port_mdb_add(ocelot, port, mdb, ocelot_port->bridge);
 }
 
 static int ocelot_port_obj_del_mdb(struct net_device *dev,
@@ -980,7 +1104,7 @@ static int ocelot_port_obj_del_mdb(struct net_device *dev,
 	struct ocelot *ocelot = ocelot_port->ocelot;
 	int port = priv->chip_port;
 
-	return ocelot_port_mdb_del(ocelot, port, mdb);
+	return ocelot_port_mdb_del(ocelot, port, mdb, ocelot_port->bridge);
 }
 
 static int ocelot_port_obj_mrp_add(struct net_device *dev,
@@ -1154,6 +1278,33 @@ static int ocelot_switchdev_unsync(struct ocelot *ocelot, int port)
 	return 0;
 }
 
+static int ocelot_bridge_num_get(struct ocelot *ocelot,
+				 const struct net_device *bridge_dev)
+{
+	int bridge_num = ocelot_bridge_num_find(ocelot, bridge_dev);
+
+	if (bridge_num < 0) {
+		/* First port that offloads this bridge */
+		bridge_num = find_first_zero_bit(&ocelot->bridges,
+						 ocelot->num_phys_ports);
+
+		set_bit(bridge_num, &ocelot->bridges);
+	}
+
+	return bridge_num;
+}
+
+static void ocelot_bridge_num_put(struct ocelot *ocelot,
+				  const struct net_device *bridge_dev,
+				  int bridge_num)
+{
+	/* Check if the bridge is still in use, otherwise it is time
+	 * to clean it up so we can reuse this bridge_num later.
+	 */
+	if (!ocelot_bridge_num_find(ocelot, bridge_dev))
+		clear_bit(bridge_num, &ocelot->bridges);
+}
+
 static int ocelot_netdevice_bridge_join(struct net_device *dev,
 					struct net_device *brport_dev,
 					struct net_device *bridge,
@@ -1163,12 +1314,17 @@ static int ocelot_netdevice_bridge_join(struct net_device *dev,
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
 	int port = priv->chip_port;
-	int err;
+	int bridge_num, err;
 
-	ocelot_port_bridge_join(ocelot, port, bridge);
+	bridge_num = ocelot_bridge_num_get(ocelot, bridge);
+
+	err = ocelot_port_bridge_join(ocelot, port, bridge, bridge_num,
+				      extack);
+	if (err)
+		goto err_join;
 
 	err = switchdev_bridge_port_offload(brport_dev, dev, priv,
-					    &ocelot_netdevice_nb,
+					    &ocelot_switchdev_nb,
 					    &ocelot_switchdev_blocking_nb,
 					    false, extack);
 	if (err)
@@ -1182,10 +1338,12 @@ static int ocelot_netdevice_bridge_join(struct net_device *dev,
 
 err_switchdev_sync:
 	switchdev_bridge_port_unoffload(brport_dev, priv,
-					&ocelot_netdevice_nb,
+					&ocelot_switchdev_nb,
 					&ocelot_switchdev_blocking_nb);
 err_switchdev_offload:
 	ocelot_port_bridge_leave(ocelot, port, bridge);
+err_join:
+	ocelot_bridge_num_put(ocelot, bridge, bridge_num);
 	return err;
 }
 
@@ -1195,7 +1353,7 @@ static void ocelot_netdevice_pre_bridge_leave(struct net_device *dev,
 	struct ocelot_port_private *priv = netdev_priv(dev);
 
 	switchdev_bridge_port_unoffload(brport_dev, priv,
-					&ocelot_netdevice_nb,
+					&ocelot_switchdev_nb,
 					&ocelot_switchdev_blocking_nb);
 }
 
@@ -1206,6 +1364,7 @@ static int ocelot_netdevice_bridge_leave(struct net_device *dev,
 	struct ocelot_port_private *priv = netdev_priv(dev);
 	struct ocelot_port *ocelot_port = &priv->port;
 	struct ocelot *ocelot = ocelot_port->ocelot;
+	int bridge_num = ocelot_port->bridge_num;
 	int port = priv->chip_port;
 	int err;
 
@@ -1214,6 +1373,7 @@ static int ocelot_netdevice_bridge_leave(struct net_device *dev,
 		return err;
 
 	ocelot_port_bridge_leave(ocelot, port, bridge);
+	ocelot_bridge_num_put(ocelot, bridge, bridge_num);
 
 	return 0;
 }
@@ -1498,41 +1658,6 @@ struct notifier_block ocelot_switchdev_blocking_nb __read_mostly = {
 	.notifier_call = ocelot_switchdev_blocking_event,
 };
 
-static void vsc7514_phylink_validate(struct phylink_config *config,
-				     unsigned long *supported,
-				     struct phylink_link_state *state)
-{
-	struct net_device *ndev = to_net_dev(config->dev);
-	struct ocelot_port_private *priv = netdev_priv(ndev);
-	struct ocelot_port *ocelot_port = &priv->port;
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = {};
-
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != ocelot_port->phy_mode) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		return;
-	}
-
-	phylink_set_port_modes(mask);
-
-	phylink_set(mask, Pause);
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, Asym_Pause);
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-	phylink_set(mask, 1000baseT_Half);
-	phylink_set(mask, 1000baseT_Full);
-	phylink_set(mask, 1000baseX_Full);
-	phylink_set(mask, 2500baseT_Full);
-	phylink_set(mask, 2500baseX_Full);
-
-	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
 static void vsc7514_phylink_mac_config(struct phylink_config *config,
 				       unsigned int link_an_mode,
 				       const struct phylink_link_state *state)
@@ -1591,7 +1716,7 @@ static void vsc7514_phylink_mac_link_up(struct phylink_config *config,
 }
 
 static const struct phylink_mac_ops ocelot_phylink_ops = {
-	.validate		= vsc7514_phylink_validate,
+	.validate		= phylink_generic_validate,
 	.mac_config		= vsc7514_phylink_mac_config,
 	.mac_link_down		= vsc7514_phylink_mac_link_down,
 	.mac_link_up		= vsc7514_phylink_mac_link_up,
@@ -1655,6 +1780,11 @@ static int ocelot_port_phylink_create(struct ocelot *ocelot, int port,
 
 	priv->phylink_config.dev = &priv->dev->dev;
 	priv->phylink_config.type = PHYLINK_NETDEV;
+	priv->phylink_config.mac_capabilities = MAC_ASYM_PAUSE | MAC_SYM_PAUSE |
+		MAC_10 | MAC_100 | MAC_1000FD | MAC_2500FD;
+
+	__set_bit(ocelot_port->phy_mode,
+		  priv->phylink_config.supported_interfaces);
 
 	phylink = phylink_create(&priv->phylink_config,
 				 of_fwnode_handle(portnp),
@@ -1700,15 +1830,18 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 
 	dev->netdev_ops = &ocelot_port_netdev_ops;
 	dev->ethtool_ops = &ocelot_ethtool_ops;
+	dev->max_mtu = OCELOT_JUMBO_MTU;
 
 	dev->hw_features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_RXFCS |
 		NETIF_F_HW_TC;
 	dev->features |= NETIF_F_HW_VLAN_CTAG_FILTER | NETIF_F_HW_TC;
 
-	memcpy(dev->dev_addr, ocelot->base_mac, ETH_ALEN);
-	dev->dev_addr[ETH_ALEN - 1] += port;
+	err = of_get_ethdev_address(portnp, dev);
+	if (err)
+		eth_hw_addr_gen(dev, ocelot->base_mac, port);
+
 	ocelot_mact_learn(ocelot, PGID_CPU, dev->dev_addr,
-			  ocelot_port->pvid_vlan.vid, ENTRYTYPE_LOCKED);
+			  OCELOT_STANDALONE_PVID, ENTRYTYPE_LOCKED);
 
 	ocelot_init_port(ocelot, port);
 
@@ -1716,14 +1849,20 @@ int ocelot_probe_port(struct ocelot *ocelot, int port, struct regmap *target,
 	if (err)
 		goto out;
 
+	if (ocelot->fdma)
+		ocelot_fdma_netdev_init(ocelot, dev);
+
 	err = register_netdev(dev);
 	if (err) {
 		dev_err(ocelot->dev, "register_netdev failed\n");
-		goto out;
+		goto out_fdma_deinit;
 	}
 
 	return 0;
 
+out_fdma_deinit:
+	if (ocelot->fdma)
+		ocelot_fdma_netdev_deinit(ocelot, dev);
 out:
 	ocelot->ports[port] = NULL;
 	free_netdev(dev);
@@ -1736,8 +1875,13 @@ void ocelot_release_port(struct ocelot_port *ocelot_port)
 	struct ocelot_port_private *priv = container_of(ocelot_port,
 						struct ocelot_port_private,
 						port);
+	struct ocelot *ocelot = ocelot_port->ocelot;
+	struct ocelot_fdma *fdma = ocelot->fdma;
 
 	unregister_netdev(priv->dev);
+
+	if (fdma)
+		ocelot_fdma_netdev_deinit(ocelot, priv->dev);
 
 	if (priv->phylink) {
 		rtnl_lock();

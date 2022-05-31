@@ -158,14 +158,17 @@ properties:
 
   fsl,stop-mode:
     $ref: /schemas/types.yaml#/definitions/phandle-array
+    items:
+      - items:
+          - description: phandle to general purpose register node
+          - description: the gpr register offset for ENET stop request
+          - description: the gpr bit offset for ENET stop request
     description:
       Register bits of stop mode control, the format is <&gpr req_gpr req_bit>.
-      gpr is the phandle to general purpose register node.
-      req_gpr is the gpr register offset for ENET stop request.
-      req_bit is the gpr bit offset for ENET stop request.
 
   mdio:
-    type: object
+    $ref: mdio.yaml#
+    unevaluatedProperties: false
     description:
       Specifies the mdio bus in the FEC, used as a container for phy nodes.
 

@@ -21,9 +21,11 @@ x86-specific Documentation
    tlb
    mtrr
    pat
+   intel-hfi
    intel-iommu
    intel_txt
    amd-memory-encryption
+   amd_hsmp
    pti
    mds
    microcode
@@ -37,3 +39,4 @@ x86-specific Documentation
    sgx
    features
    elf_auxvec
+   xstate

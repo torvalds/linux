@@ -9,9 +9,6 @@
 
 #include "pci.h"
 
-/* for pci_dev_is_added() */
-#include "../../../../drivers/pci/pci.h"
-
 /*
  * The majority of the complexity in supporting SR-IOV on PowerNV comes from
  * the need to put the MMIO space for each VF into a separate PE. Internally
@@ -54,7 +51,7 @@
  * to "new_size", calculated above. Implementing this is a convoluted process
  * which requires several hooks in the PCI core:
  *
- * 1. In pcibios_add_device() we call pnv_pci_ioda_fixup_iov().
+ * 1. In pcibios_device_add() we call pnv_pci_ioda_fixup_iov().
  *
  *    At this point the device has been probed and the device's BARs are sized,
  *    but no resource allocations have been done. The SR-IOV BARs are sized
@@ -228,9 +225,6 @@ disable_iov:
 
 void pnv_pci_ioda_fixup_iov(struct pci_dev *pdev)
 {
-	if (WARN_ON(pci_dev_is_added(pdev)))
-		return;
-
 	if (pdev->is_virtfn) {
 		struct pnv_ioda_pe *pe = pnv_ioda_get_pe(pdev);
 

@@ -1633,7 +1633,7 @@ EXPORT_SYMBOL_GPL(xdr_buf_subsegment);
  * Sets up @subbuf to represent a portion of @xdr. The portion
  * starts at the current offset in @xdr, and extends for a length
  * of @nbytes. If this is successful, @xdr is advanced to the next
- * position following that portion.
+ * XDR data item following that portion.
  *
  * Return values:
  *   %true: @subbuf has been initialized, and @xdr has been advanced.
@@ -1642,29 +1642,31 @@ EXPORT_SYMBOL_GPL(xdr_buf_subsegment);
 bool xdr_stream_subsegment(struct xdr_stream *xdr, struct xdr_buf *subbuf,
 			   unsigned int nbytes)
 {
-	unsigned int remaining, offset, len;
+	unsigned int start = xdr_stream_pos(xdr);
+	unsigned int remaining, len;
 
-	if (xdr_buf_subsegment(xdr->buf, subbuf, xdr_stream_pos(xdr), nbytes))
+	/* Extract @subbuf and bounds-check the fn arguments */
+	if (xdr_buf_subsegment(xdr->buf, subbuf, start, nbytes))
 		return false;
 
-	if (subbuf->head[0].iov_len)
-		if (!__xdr_inline_decode(xdr, subbuf->head[0].iov_len))
-			return false;
-
-	remaining = subbuf->page_len;
-	offset = subbuf->page_base;
-	while (remaining) {
-		len = min_t(unsigned int, remaining, PAGE_SIZE) - offset;
-
+	/* Advance @xdr by @nbytes */
+	for (remaining = nbytes; remaining;) {
 		if (xdr->p == xdr->end && !xdr_set_next_buffer(xdr))
 			return false;
-		if (!__xdr_inline_decode(xdr, len))
-			return false;
 
+		len = (char *)xdr->end - (char *)xdr->p;
+		if (remaining <= len) {
+			xdr->p = (__be32 *)((char *)xdr->p +
+					(remaining + xdr_pad_size(nbytes)));
+			break;
+		}
+
+		xdr->p = (__be32 *)((char *)xdr->p + len);
+		xdr->end = xdr->p;
 		remaining -= len;
-		offset = 0;
 	}
 
+	xdr_stream_set_pos(xdr, start + nbytes);
 	return true;
 }
 EXPORT_SYMBOL_GPL(xdr_stream_subsegment);

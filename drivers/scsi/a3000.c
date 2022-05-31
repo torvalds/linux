@@ -13,7 +13,11 @@
 #include <asm/amigaints.h>
 #include <asm/amigahw.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
+#include <scsi/scsi_tcq.h>
 #include "wd33c93.h"
 #include "a3000.h"
 
@@ -44,12 +48,13 @@ static irqreturn_t a3000_intr(int irq, void *data)
 
 static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(cmd);
 	struct Scsi_Host *instance = cmd->device->host;
 	struct a3000_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct a3000_scsiregs *regs = hdata->regs;
 	unsigned short cntr = CNTR_PDMD | CNTR_INTEN;
-	unsigned long addr = virt_to_bus(cmd->SCp.ptr);
+	unsigned long addr = virt_to_bus(scsi_pointer->ptr);
 
 	/*
 	 * if the physical address has the wrong alignment, or if
@@ -58,7 +63,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 	 * buffer
 	 */
 	if (addr & A3000_XFER_MASK) {
-		wh->dma_bounce_len = (cmd->SCp.this_residual + 511) & ~0x1ff;
+		wh->dma_bounce_len = (scsi_pointer->this_residual + 511) & ~0x1ff;
 		wh->dma_bounce_buffer = kmalloc(wh->dma_bounce_len,
 						GFP_KERNEL);
 
@@ -70,8 +75,8 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 
 		if (!dir_in) {
 			/* copy to bounce buffer for a write */
-			memcpy(wh->dma_bounce_buffer, cmd->SCp.ptr,
-			       cmd->SCp.this_residual);
+			memcpy(wh->dma_bounce_buffer, scsi_pointer->ptr,
+			       scsi_pointer->this_residual);
 		}
 
 		addr = virt_to_bus(wh->dma_bounce_buffer);
@@ -91,10 +96,10 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 
 	if (dir_in) {
 		/* invalidate any cache */
-		cache_clear(addr, cmd->SCp.this_residual);
+		cache_clear(addr, scsi_pointer->this_residual);
 	} else {
 		/* push any dirty cache */
-		cache_push(addr, cmd->SCp.this_residual);
+		cache_push(addr, scsi_pointer->this_residual);
 	}
 
 	/* start DMA */
@@ -109,6 +114,7 @@ static int dma_setup(struct scsi_cmnd *cmd, int dir_in)
 static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 		     int status)
 {
+	struct scsi_pointer *scsi_pointer = WD33C93_scsi_pointer(SCpnt);
 	struct a3000_hostdata *hdata = shost_priv(instance);
 	struct WD33C93_hostdata *wh = &hdata->wh;
 	struct a3000_scsiregs *regs = hdata->regs;
@@ -149,8 +155,8 @@ static void dma_stop(struct Scsi_Host *instance, struct scsi_cmnd *SCpnt,
 	if (status && wh->dma_bounce_buffer) {
 		if (SCpnt) {
 			if (wh->dma_dir && SCpnt)
-				memcpy(SCpnt->SCp.ptr, wh->dma_bounce_buffer,
-				       SCpnt->SCp.this_residual);
+				memcpy(scsi_pointer->ptr, wh->dma_bounce_buffer,
+				       scsi_pointer->this_residual);
 			kfree(wh->dma_bounce_buffer);
 			wh->dma_bounce_buffer = NULL;
 			wh->dma_bounce_len = 0;
@@ -175,6 +181,7 @@ static struct scsi_host_template amiga_a3000_scsi_template = {
 	.this_id		= 7,
 	.sg_tablesize		= SG_ALL,
 	.cmd_per_lun		= CMD_PER_LUN,
+	.cmd_size		= sizeof(struct scsi_pointer),
 };
 
 static int __init amiga_a3000_scsi_probe(struct platform_device *pdev)

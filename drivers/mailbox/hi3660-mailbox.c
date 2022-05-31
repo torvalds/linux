@@ -44,14 +44,13 @@
 #define MBOX_MSG_LEN			8
 
 /**
- * Hi3660 mailbox channel information
+ * struct hi3660_chan_info - Hi3660 mailbox channel information
+ * @dst_irq:	Interrupt vector for remote processor
+ * @ack_irq:	Interrupt vector for local processor
  *
  * A channel can be used for TX or RX, it can trigger remote
  * processor interrupt to notify remote processor and can receive
- * interrupt if has incoming message.
- *
- * @dst_irq:	Interrupt vector for remote processor
- * @ack_irq:	Interrupt vector for local processor
+ * interrupt if it has an incoming message.
  */
 struct hi3660_chan_info {
 	unsigned int dst_irq;
@@ -59,16 +58,15 @@ struct hi3660_chan_info {
 };
 
 /**
- * Hi3660 mailbox controller data
- *
- * Mailbox controller includes 32 channels and can allocate
- * channel for message transferring.
- *
+ * struct hi3660_mbox - Hi3660 mailbox controller data
  * @dev:	Device to which it is attached
  * @base:	Base address of the register mapping region
  * @chan:	Representation of channels in mailbox controller
  * @mchan:	Representation of channel info
  * @controller:	Representation of a communication channel controller
+ *
+ * Mailbox controller includes 32 channels and can allocate
+ * channel for message transferring.
  */
 struct hi3660_mbox {
 	struct device *dev;
@@ -240,7 +238,6 @@ static int hi3660_mbox_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct hi3660_mbox *mbox;
 	struct mbox_chan *chan;
-	struct resource *res;
 	unsigned long ch;
 	int err;
 
@@ -248,8 +245,7 @@ static int hi3660_mbox_probe(struct platform_device *pdev)
 	if (!mbox)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	mbox->base = devm_ioremap_resource(dev, res);
+	mbox->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(mbox->base))
 		return PTR_ERR(mbox->base);
 

@@ -47,7 +47,6 @@
 #include <linux/module.h>
 #include <linux/wait.h>
 #include <linux/blkdev.h>
-#include <linux/genhd.h>
 #include <linux/hdreg.h>
 #include <linux/interrupt.h>
 #include <linux/log2.h>
@@ -188,6 +187,7 @@ struct dasd_ccw_req {
 	void (*callback)(struct dasd_ccw_req *, void *data);
 	void *callback_data;
 	unsigned int proc_bytes;	/* bytes for partial completion */
+	unsigned int trkcount;		/* count formatted tracks */
 };
 
 /*
@@ -611,6 +611,7 @@ struct dasd_block {
 
 	struct list_head format_list;
 	spinlock_t format_lock;
+	atomic_t trkcount;
 };
 
 struct dasd_attention_data {
@@ -757,6 +758,18 @@ dasd_check_blocksize(int bsize)
 	return 0;
 }
 
+/*
+ * return the callback data of the original request in case there are
+ * ERP requests build on top of it
+ */
+static inline void *dasd_get_callback_data(struct dasd_ccw_req *cqr)
+{
+	while (cqr->refers)
+		cqr = cqr->refers;
+
+	return cqr->callback_data;
+}
+
 /* externals in dasd.c */
 #define DASD_PROFILE_OFF	 0
 #define DASD_PROFILE_ON 	 1
@@ -887,7 +900,7 @@ void dasd_proc_exit(void);
 /* externals in dasd_erp.c */
 struct dasd_ccw_req *dasd_default_erp_action(struct dasd_ccw_req *);
 struct dasd_ccw_req *dasd_default_erp_postaction(struct dasd_ccw_req *);
-struct dasd_ccw_req *dasd_alloc_erp_request(char *, int, int,
+struct dasd_ccw_req *dasd_alloc_erp_request(unsigned int, int, int,
 					    struct dasd_device *);
 void dasd_free_erp_request(struct dasd_ccw_req *, struct dasd_device *);
 void dasd_log_sense(struct dasd_ccw_req *, struct irb *);
@@ -1303,6 +1316,15 @@ static inline void dasd_path_add_ppm(struct dasd_device *device, __u8 pm)
 	for (chp = 0; chp < 8; chp++)
 		if (pm & (0x80 >> chp))
 			dasd_path_preferred(device, chp);
+}
+
+static inline void dasd_path_add_fcsecpm(struct dasd_device *device, __u8 pm)
+{
+	int chp;
+
+	for (chp = 0; chp < 8; chp++)
+		if (pm & (0x80 >> chp))
+			dasd_path_fcsec(device, chp);
 }
 
 /*

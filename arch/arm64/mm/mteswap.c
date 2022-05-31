@@ -12,7 +12,7 @@ static DEFINE_XARRAY(mte_pages);
 void *mte_allocate_tag_storage(void)
 {
 	/* tags granule is 16 bytes, 2 tags stored per byte */
-	return kmalloc(PAGE_SIZE / 16 / 2, GFP_KERNEL);
+	return kmalloc(MTE_PAGE_TAG_STORAGE, GFP_KERNEL);
 }
 
 void mte_free_tag_storage(char *storage)

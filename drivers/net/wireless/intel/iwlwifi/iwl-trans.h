@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
- * Copyright (C) 2005-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2005-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -193,7 +193,10 @@ enum iwl_error_event_table_status {
 	IWL_ERROR_EVENT_TABLE_LMAC1 = BIT(0),
 	IWL_ERROR_EVENT_TABLE_LMAC2 = BIT(1),
 	IWL_ERROR_EVENT_TABLE_UMAC = BIT(2),
-	IWL_ERROR_EVENT_TABLE_TCM = BIT(3),
+	IWL_ERROR_EVENT_TABLE_TCM1 = BIT(3),
+	IWL_ERROR_EVENT_TABLE_TCM2 = BIT(4),
+	IWL_ERROR_EVENT_TABLE_RCM1 = BIT(5),
+	IWL_ERROR_EVENT_TABLE_RCM2 = BIT(6),
 };
 
 /**
@@ -296,6 +299,8 @@ enum iwl_d3_status {
  *	are sent
  * @STATUS_TRANS_IDLE: the trans is idle - general commands are not to be sent
  * @STATUS_TRANS_DEAD: trans is dead - avoid any read/write operation
+ * @STATUS_SUPPRESS_CMD_ERROR_ONCE: suppress "FW error in SYNC CMD" once,
+ *	e.g. for testing
  */
 enum iwl_trans_status {
 	STATUS_SYNC_HCMD_ACTIVE,
@@ -308,6 +313,7 @@ enum iwl_trans_status {
 	STATUS_TRANS_GOING_IDLE,
 	STATUS_TRANS_IDLE,
 	STATUS_TRANS_DEAD,
+	STATUS_SUPPRESS_CMD_ERROR_ONCE,
 };
 
 static inline int
@@ -363,6 +369,20 @@ struct iwl_hcmd_arr {
 	{ .arr = x, .size = ARRAY_SIZE(x) }
 
 /**
+ * struct iwl_dump_sanitize_ops - dump sanitization operations
+ * @frob_txf: Scrub the TX FIFO data
+ * @frob_hcmd: Scrub a host command, the %hcmd pointer is to the header
+ *	but that might be short or long (&struct iwl_cmd_header or
+ *	&struct iwl_cmd_header_wide)
+ * @frob_mem: Scrub memory data
+ */
+struct iwl_dump_sanitize_ops {
+	void (*frob_txf)(void *ctx, void *buf, size_t buflen);
+	void (*frob_hcmd)(void *ctx, void *hcmd, size_t buflen);
+	void (*frob_mem)(void *ctx, u32 mem_addr, void *mem, size_t buflen);
+};
+
+/**
  * struct iwl_trans_config - transport configuration
  *
  * @op_mode: pointer to the upper layer.
@@ -386,6 +406,9 @@ struct iwl_hcmd_arr {
  * @cb_data_offs: offset inside skb->cb to store transport data at, must have
  *	space for at least two pointers
  * @fw_reset_handshake: firmware supports reset flow handshake
+ * @queue_alloc_cmd_ver: queue allocation command version, set to 0
+ *	for using the older SCD_QUEUE_CFG, set to the version of
+ *	SCD_QUEUE_CONFIG_CMD otherwise.
  */
 struct iwl_trans_config {
 	struct iwl_op_mode *op_mode;
@@ -404,6 +427,7 @@ struct iwl_trans_config {
 
 	u8 cb_data_offs;
 	bool fw_reset_handshake;
+	u8 queue_alloc_cmd_ver;
 };
 
 struct iwl_trans_dump_data {
@@ -549,10 +573,9 @@ struct iwl_trans_ops {
 	void (*txq_disable)(struct iwl_trans *trans, int queue,
 			    bool configure_scd);
 	/* 22000 functions */
-	int (*txq_alloc)(struct iwl_trans *trans,
-			 __le16 flags, u8 sta_id, u8 tid,
-			 int cmd_id, int size,
-			 unsigned int queue_wdg_timeout);
+	int (*txq_alloc)(struct iwl_trans *trans, u32 flags,
+			 u32 sta_mask, u8 tid,
+			 int size, unsigned int queue_wdg_timeout);
 	void (*txq_free)(struct iwl_trans *trans, int queue);
 	int (*rxq_dma_data)(struct iwl_trans *trans, int queue,
 			    struct iwl_trans_rxq_dma_data *data);
@@ -579,20 +602,26 @@ struct iwl_trans_ops {
 	void (*configure)(struct iwl_trans *trans,
 			  const struct iwl_trans_config *trans_cfg);
 	void (*set_pmi)(struct iwl_trans *trans, bool state);
-	void (*sw_reset)(struct iwl_trans *trans);
+	int (*sw_reset)(struct iwl_trans *trans, bool retake_ownership);
 	bool (*grab_nic_access)(struct iwl_trans *trans);
 	void (*release_nic_access)(struct iwl_trans *trans);
 	void (*set_bits_mask)(struct iwl_trans *trans, u32 reg, u32 mask,
 			      u32 value);
 
 	struct iwl_trans_dump_data *(*dump_data)(struct iwl_trans *trans,
-						 u32 dump_mask);
+						 u32 dump_mask,
+						 const struct iwl_dump_sanitize_ops *sanitize_ops,
+						 void *sanitize_ctx);
 	void (*debugfs_cleanup)(struct iwl_trans *trans);
 	void (*sync_nmi)(struct iwl_trans *trans);
 	int (*set_pnvm)(struct iwl_trans *trans, const void *data, u32 len);
 	int (*set_reduce_power)(struct iwl_trans *trans,
 				const void *data, u32 len);
 	void (*interrupts)(struct iwl_trans *trans, bool enable);
+	int (*imr_dma_data)(struct iwl_trans *trans,
+			    u32 dst_addr, u64 src_addr,
+			    u32 byte_cnt);
+
 };
 
 /**
@@ -700,6 +729,26 @@ struct iwl_self_init_dram {
 };
 
 /**
+ * struct iwl_imr_data - imr dram data used during debug process
+ * @imr_enable: imr enable status received from fw
+ * @imr_size: imr dram size received from fw
+ * @sram_addr: sram address from debug tlv
+ * @sram_size: sram size from debug tlv
+ * @imr2sram_remainbyte`: size remained after each dma transfer
+ * @imr_curr_addr: current dst address used during dma transfer
+ * @imr_base_addr: imr address received from fw
+ */
+struct iwl_imr_data {
+	u32 imr_enable;
+	u32 imr_size;
+	u32 sram_addr;
+	u32 sram_size;
+	u32 imr2sram_remainbyte;
+	u64 imr_curr_addr;
+	__le64 imr_base_addr;
+};
+
+/**
  * struct iwl_trans_debug - transport debug related data
  *
  * @n_dest_reg: num of reg_ops in %dbg_dest_tlv
@@ -709,7 +758,8 @@ struct iwl_self_init_dram {
  * @trigger_tlv: array of pointers to triggers TLVs for debug
  * @lmac_error_event_table: addrs of lmacs error tables
  * @umac_error_event_table: addr of umac error table
- * @tcm_error_event_table: address of TCM error table
+ * @tcm_error_event_table: address(es) of TCM error table(s)
+ * @rcm_error_event_table: address(es) of RCM error table(s)
  * @error_event_table_tlv_status: bitmap that indicates what error table
  *	pointers was recevied via TLV. uses enum &iwl_error_event_table_status
  * @internal_ini_cfg: internal debug cfg state. Uses &enum iwl_ini_cfg_state
@@ -723,8 +773,8 @@ struct iwl_self_init_dram {
  * @debug_info_tlv_list: list of debug info TLVs
  * @time_point: array of debug time points
  * @periodic_trig_list: periodic triggers list
- * @domains_bitmap: bitmap of active domains other than
- *	&IWL_FW_INI_DOMAIN_ALWAYS_ON
+ * @domains_bitmap: bitmap of active domains other than &IWL_FW_INI_DOMAIN_ALWAYS_ON
+ * @ucode_preset: preset based on ucode
  */
 struct iwl_trans_debug {
 	u8 n_dest_reg;
@@ -736,7 +786,8 @@ struct iwl_trans_debug {
 
 	u32 lmac_error_event_table[2];
 	u32 umac_error_event_table;
-	u32 tcm_error_event_table;
+	u32 tcm_error_event_table[2];
+	u32 rcm_error_event_table[2];
 	unsigned int error_event_table_tlv_status;
 
 	enum iwl_ini_cfg_state internal_ini_cfg;
@@ -758,6 +809,10 @@ struct iwl_trans_debug {
 	struct list_head periodic_trig_list;
 
 	u32 domains_bitmap;
+	u32 ucode_preset;
+	bool restart_required;
+	u32 last_tp_resetfw;
+	struct iwl_imr_data imr_data;
 };
 
 struct iwl_dma_ptr {
@@ -877,6 +932,7 @@ struct iwl_txq {
  * @queue_used - bit mask of used queues
  * @queue_stopped - bit mask of stopped queues
  * @scd_bc_tbls: gen1 pointer to the byte count table of the scheduler
+ * @queue_alloc_cmd_ver: queue allocation command version
  */
 struct iwl_trans_txqs {
 	unsigned long queue_used[BITS_TO_LONGS(IWL_MAX_TVQM_QUEUES)];
@@ -902,11 +958,14 @@ struct iwl_trans_txqs {
 	} tfd;
 
 	struct iwl_dma_ptr scd_bc_tbls;
+
+	u8 queue_alloc_cmd_ver;
 };
 
 /**
  * struct iwl_trans - transport common data
  *
+ * @csme_own - true if we couldn't get ownership on the device
  * @ops - pointer to iwl_trans_ops
  * @op_mode - pointer to the op_mode
  * @trans_cfg: the trans-specific configuration part
@@ -920,6 +979,7 @@ struct iwl_trans_txqs {
  * @hw_id: a u32 with the ID of the device / sub-device.
  *	Set during transport allocation.
  * @hw_id_str: a string with info about HW ID. Set during transport allocation.
+ * @hw_rev_step: The mac step of the HW
  * @pm_support: set to true in start_hw if link pm is supported
  * @ltr_enabled: set to true if the LTR is enabled
  * @wide_cmd_header: true when ucode supports wide command header format
@@ -941,6 +1001,7 @@ struct iwl_trans_txqs {
  * @iwl_trans_txqs: transport tx queues data.
  */
 struct iwl_trans {
+	bool csme_own;
 	const struct iwl_trans_ops *ops;
 	struct iwl_op_mode *op_mode;
 	const struct iwl_cfg_trans_params *trans_cfg;
@@ -952,6 +1013,7 @@ struct iwl_trans {
 	struct device *dev;
 	u32 max_skb_frags;
 	u32 hw_rev;
+	u32 hw_rev_step;
 	u32 hw_rf_id;
 	u32 hw_id;
 	char hw_id_str[52];
@@ -1086,11 +1148,14 @@ static inline int iwl_trans_d3_resume(struct iwl_trans *trans,
 }
 
 static inline struct iwl_trans_dump_data *
-iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask)
+iwl_trans_dump_data(struct iwl_trans *trans, u32 dump_mask,
+		    const struct iwl_dump_sanitize_ops *sanitize_ops,
+		    void *sanitize_ctx)
 {
 	if (!trans->ops->dump_data)
 		return NULL;
-	return trans->ops->dump_data(trans, dump_mask);
+	return trans->ops->dump_data(trans, dump_mask,
+				     sanitize_ops, sanitize_ctx);
 }
 
 static inline struct iwl_device_tx_cmd *
@@ -1186,9 +1251,8 @@ iwl_trans_txq_free(struct iwl_trans *trans, int queue)
 
 static inline int
 iwl_trans_txq_alloc(struct iwl_trans *trans,
-		    __le16 flags, u8 sta_id, u8 tid,
-		    int cmd_id, int size,
-		    unsigned int wdg_timeout)
+		    u32 flags, u32 sta_mask, u8 tid,
+		    int size, unsigned int wdg_timeout)
 {
 	might_sleep();
 
@@ -1200,8 +1264,8 @@ iwl_trans_txq_alloc(struct iwl_trans *trans,
 		return -EIO;
 	}
 
-	return trans->ops->txq_alloc(trans, flags, sta_id, tid,
-				     cmd_id, size, wdg_timeout);
+	return trans->ops->txq_alloc(trans, flags, sta_mask, tid,
+				     size, wdg_timeout);
 }
 
 static inline void iwl_trans_txq_set_shared_mode(struct iwl_trans *trans,
@@ -1334,6 +1398,15 @@ static inline int iwl_trans_read_mem(struct iwl_trans *trans, u32 addr,
 		iwl_trans_read_mem(trans, addr, buf, (bufsize) / sizeof(u32));\
 	} while (0)
 
+static inline int iwl_trans_write_imr_mem(struct iwl_trans *trans,
+					  u32 dst_addr, u64 src_addr,
+					  u32 byte_cnt)
+{
+	if (trans->ops->imr_dma_data)
+		return trans->ops->imr_dma_data(trans, dst_addr, src_addr, byte_cnt);
+	return 0;
+}
+
 static inline u32 iwl_trans_read_mem32(struct iwl_trans *trans, u32 addr)
 {
 	u32 value;
@@ -1362,10 +1435,12 @@ static inline void iwl_trans_set_pmi(struct iwl_trans *trans, bool state)
 		trans->ops->set_pmi(trans, state);
 }
 
-static inline void iwl_trans_sw_reset(struct iwl_trans *trans)
+static inline int iwl_trans_sw_reset(struct iwl_trans *trans,
+				     bool retake_ownership)
 {
 	if (trans->ops->sw_reset)
-		trans->ops->sw_reset(trans);
+		return trans->ops->sw_reset(trans, retake_ownership);
+	return 0;
 }
 
 static inline void

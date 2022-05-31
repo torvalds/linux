@@ -143,8 +143,7 @@ void xen_front_pgdir_shbuf_free(struct xen_front_pgdir_shbuf *buf)
 
 		for (i = 0; i < buf->num_grefs; i++)
 			if (buf->grefs[i] != GRANT_INVALID_REF)
-				gnttab_end_foreign_access(buf->grefs[i],
-							  0, 0UL);
+				gnttab_end_foreign_access(buf->grefs[i], 0UL);
 	}
 	kfree(buf->grefs);
 	kfree(buf->directory);

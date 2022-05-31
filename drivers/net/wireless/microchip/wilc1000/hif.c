@@ -23,6 +23,10 @@ struct wilc_set_multicast {
 	u8 *mc_list;
 };
 
+struct host_if_wowlan_trigger {
+	u8 wowlan_trigger;
+};
+
 struct wilc_del_all_sta {
 	u8 assoc_sta;
 	u8 mac[WILC_MAX_NUM_STA][ETH_ALEN];
@@ -34,6 +38,7 @@ union wilc_message_body {
 	struct wilc_set_multicast mc_info;
 	struct wilc_remain_ch remain_on_ch;
 	char *data;
+	struct host_if_wowlan_trigger wow_trigger;
 };
 
 struct host_if_msg {
@@ -962,6 +967,25 @@ error:
 	kfree(msg);
 }
 
+void wilc_set_wowlan_trigger(struct wilc_vif *vif, bool enabled)
+{
+	int ret;
+	struct wid wid;
+	u8 wowlan_trigger = 0;
+
+	if (enabled)
+		wowlan_trigger = 1;
+
+	wid.id = WID_WOWLAN_TRIGGER;
+	wid.type = WID_CHAR;
+	wid.val = &wowlan_trigger;
+	wid.size = sizeof(char);
+
+	ret = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
+	if (ret)
+		pr_err("Failed to send wowlan trigger config packet\n");
+}
+
 static void handle_scan_timer(struct work_struct *work)
 {
 	struct host_if_msg *msg = container_of(work, struct host_if_msg, work);
@@ -1288,7 +1312,7 @@ int wilc_set_mac_address(struct wilc_vif *vif, u8 *mac_addr)
 
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
-		netdev_err(vif->ndev, "Failed to get mac address\n");
+		netdev_err(vif->ndev, "Failed to set mac address\n");
 
 	return result;
 }
@@ -1494,7 +1518,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 {
 	struct host_if_drv *hif_drv;
 	struct wilc_vif *vif = netdev_priv(dev);
-	struct wilc *wilc = vif->wilc;
 
 	hif_drv  = kzalloc(sizeof(*hif_drv), GFP_KERNEL);
 	if (!hif_drv)
@@ -1503,9 +1526,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	*hif_drv_handler = hif_drv;
 
 	vif->hif_drv = hif_drv;
-
-	if (wilc->clients_count == 0)
-		mutex_init(&wilc->deinit_lock);
 
 	timer_setup(&vif->periodic_rssi, get_periodic_rssi, 0);
 	mod_timer(&vif->periodic_rssi, jiffies + msecs_to_jiffies(5000));
@@ -1517,8 +1537,6 @@ int wilc_init(struct net_device *dev, struct host_if_drv **hif_drv_handler)
 	hif_drv->hif_state = HOST_IF_IDLE;
 
 	hif_drv->p2p_timeout = 0;
-
-	wilc->clients_count++;
 
 	return 0;
 }
@@ -1550,7 +1568,6 @@ int wilc_deinit(struct wilc_vif *vif)
 
 	kfree(hif_drv);
 	vif->hif_drv = NULL;
-	vif->wilc->clients_count--;
 	mutex_unlock(&vif->wilc->deinit_lock);
 	return result;
 }
@@ -1912,6 +1929,7 @@ int wilc_edit_station(struct wilc_vif *vif, const u8 *mac,
 
 int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 {
+	struct wilc *wilc = vif->wilc;
 	struct wid wid;
 	int result;
 	s8 power_mode;
@@ -1927,6 +1945,8 @@ int wilc_set_power_mgmt(struct wilc_vif *vif, bool enabled, u32 timeout)
 	result = wilc_send_config_pkt(vif, WILC_SET_CFG, &wid, 1);
 	if (result)
 		netdev_err(vif->ndev, "Failed to send power management\n");
+	else
+		wilc->power_save_mode = enabled;
 
 	return result;
 }

@@ -163,6 +163,7 @@ static int wkup_m3_rproc_probe(struct platform_device *pdev)
 	}
 
 	rproc->auto_boot = false;
+	rproc->sysfs_read_only = true;
 
 	wkupm3 = rproc->priv;
 	wkupm3->rproc = rproc;

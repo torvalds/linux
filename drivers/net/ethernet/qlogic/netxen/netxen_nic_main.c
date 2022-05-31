@@ -463,6 +463,7 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 	u64 mac_addr;
 	struct net_device *netdev = adapter->netdev;
 	struct pci_dev *pdev = adapter->pdev;
+	u8 addr[ETH_ALEN];
 
 	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		if (netxen_p3_get_mac_addr(adapter, &mac_addr) != 0)
@@ -474,7 +475,8 @@ netxen_read_mac_addr(struct netxen_adapter *adapter)
 
 	p = (unsigned char *)&mac_addr;
 	for (i = 0; i < 6; i++)
-		netdev->dev_addr[i] = *(p + 5 - i);
+		addr[i] = *(p + 5 - i);
+	eth_hw_addr_set(netdev, addr);
 
 	memcpy(adapter->mac_addr, netdev->dev_addr, netdev->addr_len);
 
@@ -500,7 +502,7 @@ static int netxen_nic_set_mac(struct net_device *netdev, void *p)
 	}
 
 	memcpy(adapter->mac_addr, addr->sa_data, netdev->addr_len);
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	adapter->macaddr_set(adapter, addr->sa_data);
 
 	if (netif_running(netdev)) {
@@ -842,7 +844,7 @@ netxen_check_options(struct netxen_adapter *adapter)
 	adapter->fw_version = NETXEN_VERSION_CODE(fw_major, fw_minor, fw_build);
 
 	/* Get FW Mini Coredump template and store it */
-	 if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
+	if (NX_IS_REVISION_P3(adapter->ahw.revision_id)) {
 		if (adapter->mdump.md_template == NULL ||
 				adapter->fw_version > prev_fw_version) {
 			kfree(adapter->mdump.md_template);

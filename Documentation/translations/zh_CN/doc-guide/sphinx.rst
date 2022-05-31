@@ -26,7 +26,7 @@ reStructuredText文件可能包含包含来自源文件的结构化文档注释�
 安装Sphinx
 ==========
 
-Documentation/ 下的ReST文件现在使用sphinx1.3或更高版本构建。
+Documentation/ 下的ReST文件现在使用sphinx1.7或更高版本构建。
 
 这有一个脚本可以检查Sphinx的依赖项。更多详细信息见
 :ref:`sphinx-pre-install_zh` 。
@@ -40,22 +40,19 @@ Documentation/ 下的ReST文件现在使用sphinx1.3或更高版本构建。
 
 .. note::
 
-   #) 低于1.5版本的Sphinx无法与Python的0.13.1或更高版本docutils一起正常工作。
-      如果您想使用这些版本，那么应该运行 ``pip install 'docutils==0.12'`` 。
-
    #) html输出建议使用RTD主题。根据Sphinx版本的不同，它应该用
       ``pip install sphinx_rtd_theme`` 单独安装。
 
    #) 一些ReST页面包含数学表达式。由于Sphinx的工作方式，这些表达式是使用 LaTeX
       编写的。它需要安装amsfonts和amsmath宏包，以便显示。
 
-总之，如您要安装Sphinx 1.7.9版本，应执行::
+总之，如您要安装Sphinx 2.4.4版本，应执行::
 
-       $ virtualenv sphinx_1.7.9
-       $ . sphinx_1.7.9/bin/activate
-       (sphinx_1.7.9) $ pip install -r Documentation/sphinx/requirements.txt
+       $ virtualenv sphinx_2.4.4
+       $ . sphinx_2.4.4/bin/activate
+       (sphinx_2.4.4) $ pip install -r Documentation/sphinx/requirements.txt
 
-在运行 ``. sphinx_1.7.9/bin/activate`` 之后，提示符将变化，以指示您正在使用新
+在运行 ``. sphinx_2.4.4/bin/activate`` 之后，提示符将变化，以指示您正在使用新
 环境。如果您打开了一个新的shell，那么在构建文档之前，您需要重新运行此命令以再
 次进入虚拟环境中。
 
@@ -71,7 +68,7 @@ Documentation/ 下的ReST文件现在使用sphinx1.3或更高版本构建。
 PDF和LaTeX构建
 --------------
 
-目前只有Sphinx 1.4及更高版本才支持这种构建。
+目前只有Sphinx 2.4及更高版本才支持这种构建。
 
 对于PDF和LaTeX输出，还需要 ``XeLaTeX`` 3.14159265版本。（译注：此版本号真实
 存在）
@@ -93,8 +90,8 @@ PDF和LaTeX构建
 	You should run:
 
 		sudo dnf install -y texlive-luatex85
-		/usr/bin/virtualenv sphinx_1.7.9
-		. sphinx_1.7.9/bin/activate
+		/usr/bin/virtualenv sphinx_2.4.4
+		. sphinx_2.4.4/bin/activate
 		pip install -r Documentation/sphinx/requirements.txt
 
 	Can't build as 1 mandatory dependency is missing at ./scripts/sphinx-pre-install line 468.

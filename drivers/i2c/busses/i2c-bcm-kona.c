@@ -763,7 +763,7 @@ static int bcm_kona_i2c_probe(struct platform_device *pdev)
 	/* Map hardware registers */
 	dev->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(dev->base))
-		return -ENOMEM;
+		return PTR_ERR(dev->base);
 
 	/* Get and enable external clock */
 	dev->external_clk = devm_clk_get(dev->device, NULL);

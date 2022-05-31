@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * direct.c - NILFS direct block pointer.
+ * NILFS direct block pointer.
  *
  * Copyright (C) 2006-2008 Nippon Telegraph and Telephone Corporation.
  *

@@ -88,6 +88,7 @@
 #include <asm/io.h>
 #include <asm/byteorder.h>
 #include <linux/uaccess.h>
+#include <linux/jiffies.h>
 
 #define cas_page_map(x)      kmap_atomic((x))
 #define cas_page_unmap(x)    kunmap_atomic((x))
@@ -1234,19 +1235,6 @@ static void cas_init_rx_dma(struct cas *cp)
 	 */
 	readl(cp->regs + REG_INTR_STATUS_ALIAS);
 	writel(INTR_RX_DONE | INTR_RX_BUF_UNAVAIL, cp->regs + REG_ALIAS_CLEAR);
-	if (cp->cas_flags & CAS_FLAG_REG_PLUS) {
-		for (i = 1; i < N_RX_COMP_RINGS; i++)
-			readl(cp->regs + REG_PLUS_INTRN_STATUS_ALIAS(i));
-
-		/* 2 is different from 3 and 4 */
-		if (N_RX_COMP_RINGS > 1)
-			writel(INTR_RX_DONE_ALT | INTR_RX_BUF_UNAVAIL_1,
-			       cp->regs + REG_PLUS_ALIASN_CLEAR(1));
-
-		for (i = 2; i < N_RX_COMP_RINGS; i++)
-			writel(INTR_RX_DONE_ALT,
-			       cp->regs + REG_PLUS_ALIASN_CLEAR(i));
-	}
 
 	/* set up pause thresholds */
 	val  = CAS_BASE(RX_PAUSE_THRESH_OFF,
@@ -3027,7 +3015,7 @@ static void cas_mac_reset(struct cas *cp)
 /* Must be invoked under cp->lock. */
 static void cas_init_mac(struct cas *cp)
 {
-	unsigned char *e = &cp->dev->dev_addr[0];
+	const unsigned char *e = &cp->dev->dev_addr[0];
 	int i;
 	cas_mac_reset(cp);
 
@@ -3379,6 +3367,7 @@ static void cas_check_pci_invariants(struct cas *cp)
 static int cas_check_invariants(struct cas *cp)
 {
 	struct pci_dev *pdev = cp->pdev;
+	u8 addr[ETH_ALEN];
 	u32 cfg;
 	int i;
 
@@ -3407,8 +3396,8 @@ static int cas_check_invariants(struct cas *cp)
 	/* finish phy determination. MDIO1 takes precedence over MDIO0 if
 	 * they're both connected.
 	 */
-	cp->phy_type = cas_get_vpd_info(cp, cp->dev->dev_addr,
-					PCI_SLOT(pdev->devfn));
+	cp->phy_type = cas_get_vpd_info(cp, addr, PCI_SLOT(pdev->devfn));
+	eth_hw_addr_set(cp->dev, addr);
 	if (cp->phy_type & CAS_PHY_SERDES) {
 		cp->cas_flags |= CAS_FLAG_1000MB_CAP;
 		return 0; /* no more checking needed */
@@ -3507,9 +3496,6 @@ enable_rx_done:
 		if (N_RX_DESC_RINGS > 1)
 			writel(RX_DESC_RINGN_SIZE(1) - 4,
 			       cp->regs + REG_PLUS_RX_KICK1);
-
-		for (i = 1; i < N_RX_COMP_RINGS; i++)
-			writel(0, cp->regs + REG_PLUS_RX_COMPN_TAIL(i));
 	}
 }
 
@@ -4062,8 +4048,8 @@ static void cas_link_timer(struct timer_list *t)
 
 	if (link_transition_timeout != 0 &&
 	    cp->link_transition_jiffies_valid &&
-	    ((jiffies - cp->link_transition_jiffies) >
-	      (link_transition_timeout))) {
+	    time_is_before_jiffies(cp->link_transition_jiffies +
+	      link_transition_timeout)) {
 		/* One-second counter so link-down workaround doesn't
 		 * cause resets to occur so fast as to fool the switch
 		 * into thinking the link is down.
@@ -4678,7 +4664,7 @@ static void cas_set_msglevel(struct net_device *dev, u32 value)
 static int cas_get_regs_len(struct net_device *dev)
 {
 	struct cas *cp = netdev_priv(dev);
-	return cp->casreg_len < CAS_MAX_REGS ? cp->casreg_len: CAS_MAX_REGS;
+	return min_t(int, cp->casreg_len, CAS_MAX_REGS);
 }
 
 static void cas_get_regs(struct net_device *dev, struct ethtool_regs *regs,
@@ -4892,8 +4878,8 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	unsigned long casreg_len;
 	struct net_device *dev;
 	struct cas *cp;
-	int i, err, pci_using_dac;
 	u16 pci_cmd;
+	int i, err;
 	u8 orig_cacheline_size = 0, cas_cacheline_size = 0;
 
 	if (cas_version_printed++ == 0)
@@ -4964,23 +4950,10 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 
 	/* Configure DMA attributes. */
-	if (!dma_set_mask(&pdev->dev, DMA_BIT_MASK(64))) {
-		pci_using_dac = 1;
-		err = dma_set_coherent_mask(&pdev->dev, DMA_BIT_MASK(64));
-		if (err < 0) {
-			dev_err(&pdev->dev, "Unable to obtain 64-bit DMA "
-			       "for consistent allocations\n");
-			goto err_out_free_res;
-		}
-
-	} else {
-		err = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev, "No usable DMA configuration, "
-			       "aborting\n");
-			goto err_out_free_res;
-		}
-		pci_using_dac = 0;
+	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (err) {
+		dev_err(&pdev->dev, "No usable DMA configuration, aborting\n");
+		goto err_out_free_res;
 	}
 
 	casreg_len = pci_resource_len(pdev, 0);
@@ -5086,8 +5059,7 @@ static int cas_init_one(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if ((cp->cas_flags & CAS_FLAG_NO_HW_CSUM) == 0)
 		dev->features |= NETIF_F_HW_CSUM | NETIF_F_SG;
 
-	if (pci_using_dac)
-		dev->features |= NETIF_F_HIGHDMA;
+	dev->features |= NETIF_F_HIGHDMA;
 
 	/* MTU range: 60 - varies or 9000 */
 	dev->min_mtu = CAS_MIN_MTU;

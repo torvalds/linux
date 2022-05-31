@@ -64,6 +64,10 @@ struct xfs_perag {
 	/* Blocks reserved for the reverse mapping btree. */
 	struct xfs_ag_resv	pag_rmapbt_resv;
 
+	/* for rcu-safe freeing */
+	struct rcu_head	rcu_head;
+
+#ifdef __KERNEL__
 	/* -- kernel only structures below this line -- */
 
 	/*
@@ -90,9 +94,6 @@ struct xfs_perag {
 	spinlock_t	pag_buf_lock;	/* lock for pag_buf_hash */
 	struct rhashtable pag_buf_hash;
 
-	/* for rcu-safe freeing */
-	struct rcu_head	rcu_head;
-
 	/* background prealloc block trimming */
 	struct delayed_work	pag_blockgc_work;
 
@@ -102,6 +103,7 @@ struct xfs_perag {
 	 * or have some other means to control concurrency.
 	 */
 	struct rhashtable	pagi_unlinked_hash;
+#endif /* __KERNEL__ */
 };
 
 int xfs_initialize_perag(struct xfs_mount *mp, xfs_agnumber_t agcount,
@@ -116,23 +118,29 @@ void xfs_perag_put(struct xfs_perag *pag);
 
 /*
  * Perag iteration APIs
- *
- * XXX: for_each_perag_range() usage really needs an iterator to clean up when
- * we terminate at end_agno because we may have taken a reference to the perag
- * beyond end_agno. Right now callers have to be careful to catch and clean that
- * up themselves. This is not necessary for the callers of for_each_perag() and
- * for_each_perag_from() because they terminate at sb_agcount where there are
- * no perag structures in tree beyond end_agno.
  */
-#define for_each_perag_range(mp, next_agno, end_agno, pag) \
-	for ((pag) = xfs_perag_get((mp), (next_agno)); \
-		(pag) != NULL && (next_agno) <= (end_agno); \
-		(next_agno) = (pag)->pag_agno + 1, \
-		xfs_perag_put(pag), \
-		(pag) = xfs_perag_get((mp), (next_agno)))
+static inline struct xfs_perag *
+xfs_perag_next(
+	struct xfs_perag	*pag,
+	xfs_agnumber_t		*agno,
+	xfs_agnumber_t		end_agno)
+{
+	struct xfs_mount	*mp = pag->pag_mount;
 
-#define for_each_perag_from(mp, next_agno, pag) \
-	for_each_perag_range((mp), (next_agno), (mp)->m_sb.sb_agcount, (pag))
+	*agno = pag->pag_agno + 1;
+	xfs_perag_put(pag);
+	if (*agno > end_agno)
+		return NULL;
+	return xfs_perag_get(mp, *agno);
+}
+
+#define for_each_perag_range(mp, agno, end_agno, pag) \
+	for ((pag) = xfs_perag_get((mp), (agno)); \
+		(pag) != NULL; \
+		(pag) = xfs_perag_next((pag), &(agno), (end_agno)))
+
+#define for_each_perag_from(mp, agno, pag) \
+	for_each_perag_range((mp), (agno), (mp)->m_sb.sb_agcount - 1, (pag))
 
 
 #define for_each_perag(mp, agno, pag) \

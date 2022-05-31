@@ -107,10 +107,11 @@ SYM_FUNC_END(icache_inval_pou)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-SYM_FUNC_START_PI(dcache_clean_inval_poc)
+SYM_FUNC_START(__pi_dcache_clean_inval_poc)
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(dcache_clean_inval_poc)
+SYM_FUNC_END(__pi_dcache_clean_inval_poc)
+SYM_FUNC_ALIAS(dcache_clean_inval_poc, __pi_dcache_clean_inval_poc)
 
 /*
  *	dcache_clean_pou(start, end)
@@ -140,15 +141,7 @@ SYM_FUNC_END(dcache_clean_pou)
  *	- start   - kernel start address of region
  *	- end     - kernel end address of region
  */
-SYM_FUNC_START_LOCAL(__dma_inv_area)
-SYM_FUNC_START_PI(dcache_inval_poc)
-	/* FALLTHROUGH */
-
-/*
- *	__dma_inv_area(start, end)
- *	- start   - virtual start address of region
- *	- end     - virtual end address of region
- */
+SYM_FUNC_START(__pi_dcache_inval_poc)
 	dcache_line_size x2, x3
 	sub	x3, x2, #1
 	tst	x1, x3				// end cache line aligned?
@@ -166,8 +159,8 @@ SYM_FUNC_START_PI(dcache_inval_poc)
 	b.lo	2b
 	dsb	sy
 	ret
-SYM_FUNC_END_PI(dcache_inval_poc)
-SYM_FUNC_END(__dma_inv_area)
+SYM_FUNC_END(__pi_dcache_inval_poc)
+SYM_FUNC_ALIAS(dcache_inval_poc, __pi_dcache_inval_poc)
 
 /*
  *	dcache_clean_poc(start, end)
@@ -178,19 +171,11 @@ SYM_FUNC_END(__dma_inv_area)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-SYM_FUNC_START_LOCAL(__dma_clean_area)
-SYM_FUNC_START_PI(dcache_clean_poc)
-	/* FALLTHROUGH */
-
-/*
- *	__dma_clean_area(start, end)
- *	- start   - virtual start address of region
- *	- end     - virtual end address of region
- */
+SYM_FUNC_START(__pi_dcache_clean_poc)
 	dcache_by_line_op cvac, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(dcache_clean_poc)
-SYM_FUNC_END(__dma_clean_area)
+SYM_FUNC_END(__pi_dcache_clean_poc)
+SYM_FUNC_ALIAS(dcache_clean_poc, __pi_dcache_clean_poc)
 
 /*
  *	dcache_clean_pop(start, end)
@@ -201,13 +186,14 @@ SYM_FUNC_END(__dma_clean_area)
  *	- start   - virtual start address of region
  *	- end     - virtual end address of region
  */
-SYM_FUNC_START_PI(dcache_clean_pop)
+SYM_FUNC_START(__pi_dcache_clean_pop)
 	alternative_if_not ARM64_HAS_DCPOP
 	b	dcache_clean_poc
 	alternative_else_nop_endif
 	dcache_by_line_op cvap, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(dcache_clean_pop)
+SYM_FUNC_END(__pi_dcache_clean_pop)
+SYM_FUNC_ALIAS(dcache_clean_pop, __pi_dcache_clean_pop)
 
 /*
  *	__dma_flush_area(start, size)
@@ -217,11 +203,12 @@ SYM_FUNC_END_PI(dcache_clean_pop)
  *	- start   - virtual start address of region
  *	- size    - size in question
  */
-SYM_FUNC_START_PI(__dma_flush_area)
+SYM_FUNC_START(__pi___dma_flush_area)
 	add	x1, x0, x1
 	dcache_by_line_op civac, sy, x0, x1, x2, x3
 	ret
-SYM_FUNC_END_PI(__dma_flush_area)
+SYM_FUNC_END(__pi___dma_flush_area)
+SYM_FUNC_ALIAS(__dma_flush_area, __pi___dma_flush_area)
 
 /*
  *	__dma_map_area(start, size, dir)
@@ -229,12 +216,13 @@ SYM_FUNC_END_PI(__dma_flush_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-SYM_FUNC_START_PI(__dma_map_area)
+SYM_FUNC_START(__pi___dma_map_area)
 	add	x1, x0, x1
 	cmp	w2, #DMA_FROM_DEVICE
-	b.eq	__dma_inv_area
-	b	__dma_clean_area
-SYM_FUNC_END_PI(__dma_map_area)
+	b.eq	__pi_dcache_inval_poc
+	b	__pi_dcache_clean_poc
+SYM_FUNC_END(__pi___dma_map_area)
+SYM_FUNC_ALIAS(__dma_map_area, __pi___dma_map_area)
 
 /*
  *	__dma_unmap_area(start, size, dir)
@@ -242,9 +230,10 @@ SYM_FUNC_END_PI(__dma_map_area)
  *	- size	- size of region
  *	- dir	- DMA direction
  */
-SYM_FUNC_START_PI(__dma_unmap_area)
+SYM_FUNC_START(__pi___dma_unmap_area)
 	add	x1, x0, x1
 	cmp	w2, #DMA_TO_DEVICE
-	b.ne	__dma_inv_area
+	b.ne	__pi_dcache_inval_poc
 	ret
-SYM_FUNC_END_PI(__dma_unmap_area)
+SYM_FUNC_END(__pi___dma_unmap_area)
+SYM_FUNC_ALIAS(__dma_unmap_area, __pi___dma_unmap_area)

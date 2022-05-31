@@ -30,9 +30,9 @@
 #include <linux/fb.h>
 #include <linux/init.h>
 #include <linux/nvram.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/of_platform.h>
-#include <asm/prom.h>
 
 #include "macmodes.h"
 #include "platinumfb.h"

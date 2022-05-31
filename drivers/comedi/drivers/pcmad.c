@@ -29,7 +29,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #define PCMAD_STATUS		0
 #define PCMAD_LSB		1

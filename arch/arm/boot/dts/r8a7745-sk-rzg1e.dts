@@ -7,6 +7,7 @@
 
 /dts-v1/;
 #include "r8a7745.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "SK-RZG1E";
@@ -64,9 +65,12 @@
 	status = "okay";
 
 	phy1: ethernet-phy@1 {
+		compatible = "ethernet-phy-id0022.1537",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <1>;
 		interrupt-parent = <&irqc>;
 		interrupts = <8 IRQ_TYPE_LEVEL_LOW>;
 		micrel,led-mode = <1>;
+		reset-gpios = <&gpio1 24 GPIO_ACTIVE_LOW>;
 	};
 };

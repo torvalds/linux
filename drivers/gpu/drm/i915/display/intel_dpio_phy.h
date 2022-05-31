@@ -17,9 +17,8 @@ struct intel_encoder;
 
 void bxt_port_to_phy_channel(struct drm_i915_private *dev_priv, enum port port,
 			     enum dpio_phy *phy, enum dpio_channel *ch);
-void bxt_ddi_phy_set_signal_level(struct drm_i915_private *dev_priv,
-				  enum port port, u32 margin, u32 scale,
-				  u32 enable, u32 deemphasis);
+void bxt_ddi_phy_set_signal_levels(struct intel_encoder *encoder,
+				   const struct intel_crtc_state *crtc_state);
 void bxt_ddi_phy_init(struct drm_i915_private *dev_priv, enum dpio_phy phy);
 void bxt_ddi_phy_uninit(struct drm_i915_private *dev_priv, enum dpio_phy phy);
 bool bxt_ddi_phy_is_enabled(struct drm_i915_private *dev_priv,

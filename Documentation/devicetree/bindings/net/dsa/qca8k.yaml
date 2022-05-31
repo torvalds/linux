@@ -1,0 +1,309 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/net/dsa/qca8k.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Qualcomm Atheros QCA83xx switch family
+
+maintainers:
+  - John Crispin <john@phrozen.org>
+
+description:
+  If the QCA8K switch is connect to an SoC's external mdio-bus, each subnode
+  describing a port needs to have a valid phandle referencing the internal PHY
+  it is connected to. This is because there is no N:N mapping of port and PHY
+  ID. To declare the internal mdio-bus configuration, declare an MDIO node in
+  the switch node and declare the phandle for the port, referencing the internal
+  PHY it is connected to. In this config, an internal mdio-bus is registered and
+  the MDIO master is used for communication. Mixed external and internal
+  mdio-bus configurations are not supported by the hardware.
+
+properties:
+  compatible:
+    oneOf:
+      - enum:
+          - qca,qca8327
+          - qca,qca8328
+          - qca,qca8334
+          - qca,qca8337
+    description: |
+      qca,qca8328: referenced as AR8328(N)-AK1(A/B) QFN 176 pin package
+      qca,qca8327: referenced as AR8327(N)-AL1A DR-QFN 148 pin package
+      qca,qca8334: referenced as QCA8334-AL3C QFN 88 pin package
+      qca,qca8337: referenced as QCA8337N-AL3(B/C) DR-QFN 148 pin package
+
+  reg:
+    maxItems: 1
+
+  reset-gpios:
+    description:
+      GPIO to be used to reset the whole device
+    maxItems: 1
+
+  qca,ignore-power-on-sel:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Ignore power-on pin strapping to configure LED open-drain or EEPROM
+      presence. This is needed for devices with incorrect configuration or when
+      the OEM has decided not to use pin strapping and falls back to SW regs.
+
+  qca,led-open-drain:
+    $ref: /schemas/types.yaml#/definitions/flag
+    description:
+      Set LEDs to open-drain mode. This requires the qca,ignore-power-on-sel to
+      be set, otherwise the driver will fail at probe. This is required if the
+      OEM does not use pin strapping to set this mode and prefers to set it
+      using SW regs. The pin strappings related to LED open-drain mode are
+      B68 on the QCA832x and B49 on the QCA833x.
+
+  mdio:
+    $ref: /schemas/net/mdio.yaml#
+    unevaluatedProperties: false
+    description: Qca8k switch have an internal mdio to access switch port.
+                 If this is not present, the legacy mapping is used and the
+                 internal mdio access is used.
+                 With the legacy mapping the reg corresponding to the internal
+                 mdio is the switch reg with an offset of -1.
+
+patternProperties:
+  "^(ethernet-)?ports$":
+    type: object
+    properties:
+      '#address-cells':
+        const: 1
+      '#size-cells':
+        const: 0
+
+    patternProperties:
+      "^(ethernet-)?port@[0-6]$":
+        type: object
+        description: Ethernet switch ports
+
+        $ref: dsa-port.yaml#
+
+        properties:
+          qca,sgmii-rxclk-falling-edge:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description:
+              Set the receive clock phase to falling edge. Mostly commonly used on
+              the QCA8327 with CPU port 0 set to SGMII.
+
+          qca,sgmii-txclk-falling-edge:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description:
+              Set the transmit clock phase to falling edge.
+
+          qca,sgmii-enable-pll:
+            $ref: /schemas/types.yaml#/definitions/flag
+            description:
+              For SGMII CPU port, explicitly enable PLL, TX and RX chain along with
+              Signal Detection. On the QCA8327 this should not be enabled, otherwise
+              the SGMII port will not initialize. When used on the QCA8337, revision 3
+              or greater, a warning will be displayed. When the CPU port is set to
+              SGMII on the QCA8337, it is advised to set this unless a communication
+              issue is observed.
+
+        unevaluatedProperties: false
+
+oneOf:
+  - required:
+      - ports
+  - required:
+      - ethernet-ports
+
+required:
+  - compatible
+  - reg
+
+additionalProperties: true
+
+examples:
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        external_phy_port1: ethernet-phy@0 {
+            reg = <0>;
+        };
+
+        external_phy_port2: ethernet-phy@1 {
+            reg = <1>;
+        };
+
+        external_phy_port3: ethernet-phy@2 {
+            reg = <2>;
+        };
+
+        external_phy_port4: ethernet-phy@3 {
+            reg = <3>;
+        };
+
+        external_phy_port5: ethernet-phy@4 {
+            reg = <4>;
+        };
+
+        switch@10 {
+            compatible = "qca,qca8337";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reset-gpios = <&gpio 42 GPIO_ACTIVE_LOW>;
+            reg = <0x10>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    label = "cpu";
+                    ethernet = <&gmac1>;
+                    phy-mode = "rgmii";
+
+                    fixed-link {
+                        speed = <1000>;
+                        full-duplex;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    label = "lan1";
+                    phy-handle = <&external_phy_port1>;
+                };
+
+                port@2 {
+                    reg = <2>;
+                    label = "lan2";
+                    phy-handle = <&external_phy_port2>;
+                };
+
+                port@3 {
+                    reg = <3>;
+                    label = "lan3";
+                    phy-handle = <&external_phy_port3>;
+                };
+
+                port@4 {
+                    reg = <4>;
+                    label = "lan4";
+                    phy-handle = <&external_phy_port4>;
+                };
+
+                port@5 {
+                    reg = <5>;
+                    label = "wan";
+                    phy-handle = <&external_phy_port5>;
+                };
+            };
+        };
+    };
+  - |
+    #include <dt-bindings/gpio/gpio.h>
+
+    mdio {
+        #address-cells = <1>;
+        #size-cells = <0>;
+
+        switch@10 {
+            compatible = "qca,qca8337";
+            #address-cells = <1>;
+            #size-cells = <0>;
+            reset-gpios = <&gpio 42 GPIO_ACTIVE_LOW>;
+            reg = <0x10>;
+
+            ports {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                port@0 {
+                    reg = <0>;
+                    label = "cpu";
+                    ethernet = <&gmac1>;
+                    phy-mode = "rgmii";
+
+                    fixed-link {
+                        speed = <1000>;
+                        full-duplex;
+                    };
+                };
+
+                port@1 {
+                    reg = <1>;
+                    label = "lan1";
+                    phy-mode = "internal";
+                    phy-handle = <&internal_phy_port1>;
+                };
+
+                port@2 {
+                    reg = <2>;
+                    label = "lan2";
+                    phy-mode = "internal";
+                    phy-handle = <&internal_phy_port2>;
+                };
+
+                port@3 {
+                    reg = <3>;
+                    label = "lan3";
+                    phy-mode = "internal";
+                    phy-handle = <&internal_phy_port3>;
+                };
+
+                port@4 {
+                    reg = <4>;
+                    label = "lan4";
+                    phy-mode = "internal";
+                    phy-handle = <&internal_phy_port4>;
+                };
+
+                port@5 {
+                    reg = <5>;
+                    label = "wan";
+                    phy-mode = "internal";
+                    phy-handle = <&internal_phy_port5>;
+                };
+
+                port@6 {
+                    reg = <0>;
+                    label = "cpu";
+                    ethernet = <&gmac1>;
+                    phy-mode = "sgmii";
+
+                    qca,sgmii-rxclk-falling-edge;
+
+                    fixed-link {
+                        speed = <1000>;
+                        full-duplex;
+                    };
+                };
+            };
+
+            mdio {
+                #address-cells = <1>;
+                #size-cells = <0>;
+
+                internal_phy_port1: ethernet-phy@0 {
+                    reg = <0>;
+                };
+
+                internal_phy_port2: ethernet-phy@1 {
+                    reg = <1>;
+                };
+
+                internal_phy_port3: ethernet-phy@2 {
+                    reg = <2>;
+                };
+
+                internal_phy_port4: ethernet-phy@3 {
+                    reg = <3>;
+                };
+
+                internal_phy_port5: ethernet-phy@4 {
+                    reg = <4>;
+                };
+            };
+        };
+    };

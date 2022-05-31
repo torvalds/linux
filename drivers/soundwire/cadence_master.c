@@ -1178,9 +1178,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	cdns->pcm.num_bd = config.pcm_bd;
 	cdns->pcm.num_in = config.pcm_in;
 	cdns->pcm.num_out = config.pcm_out;
-	cdns->pdm.num_bd = config.pdm_bd;
-	cdns->pdm.num_in = config.pdm_in;
-	cdns->pdm.num_out = config.pdm_out;
 
 	/* Allocate PDIs for PCMs */
 	stream = &cdns->pcm;
@@ -1210,32 +1207,6 @@ int sdw_cdns_pdi_init(struct sdw_cdns *cdns,
 	/* Update total number of PCM PDIs */
 	stream->num_pdi = stream->num_bd + stream->num_in + stream->num_out;
 	cdns->num_ports = stream->num_pdi;
-
-	/* Allocate PDIs for PDMs */
-	stream = &cdns->pdm;
-	ret = cdns_allocate_pdi(cdns, &stream->bd,
-				stream->num_bd, offset);
-	if (ret)
-		return ret;
-
-	offset += stream->num_bd;
-
-	ret = cdns_allocate_pdi(cdns, &stream->in,
-				stream->num_in, offset);
-	if (ret)
-		return ret;
-
-	offset += stream->num_in;
-
-	ret = cdns_allocate_pdi(cdns, &stream->out,
-				stream->num_out, offset);
-
-	if (ret)
-		return ret;
-
-	/* Update total number of PDM PDIs */
-	stream->num_pdi = stream->num_bd + stream->num_in + stream->num_out;
-	cdns->num_ports += stream->num_pdi;
 
 	return 0;
 }
@@ -1681,7 +1652,7 @@ int sdw_cdns_probe(struct sdw_cdns *cdns)
 EXPORT_SYMBOL(sdw_cdns_probe);
 
 int cdns_set_sdw_stream(struct snd_soc_dai *dai,
-			void *stream, bool pcm, int direction)
+			void *stream, int direction)
 {
 	struct sdw_cdns *cdns = snd_soc_dai_get_drvdata(dai);
 	struct sdw_cdns_dma_data *dma;
@@ -1705,10 +1676,7 @@ int cdns_set_sdw_stream(struct snd_soc_dai *dai,
 		if (!dma)
 			return -ENOMEM;
 
-		if (pcm)
-			dma->stream_type = SDW_STREAM_PCM;
-		else
-			dma->stream_type = SDW_STREAM_PDM;
+		dma->stream_type = SDW_STREAM_PCM;
 
 		dma->bus = &cdns->bus;
 		dma->link_id = cdns->instance;

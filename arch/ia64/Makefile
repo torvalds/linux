@@ -67,8 +67,6 @@ vmlinux.bin: vmlinux FORCE
 unwcheck: vmlinux
 	-$(Q)READELF=$(READELF) $(PYTHON3) $(srctree)/arch/ia64/scripts/unwcheck.py $<
 
-archclean:
-
 archheaders:
 	$(Q)$(MAKE) $(build)=arch/ia64/kernel/syscalls all
 

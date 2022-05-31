@@ -166,7 +166,7 @@ static struct max16065_data *max16065_update_device(struct device *dev)
 			  = i2c_smbus_read_byte_data(client, MAX16065_FAULT(i));
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 	}
 	mutex_unlock(&data->update_lock);
 	return data;

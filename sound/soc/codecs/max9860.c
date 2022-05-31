@@ -268,11 +268,11 @@ static int max9860_hw_params(struct snd_pcm_substream *substream,
 	if (params_channels(params) == 2)
 		ifc1b |= MAX9860_ST;
 
-	switch (max9860->fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (max9860->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		master = 0;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM:
+	case SND_SOC_DAIFMT_CBP_CFP:
 		master = MAX9860_MASTER;
 		break;
 	default:
@@ -606,12 +606,9 @@ static int max9860_probe(struct i2c_client *i2c)
 		return -ENOMEM;
 
 	max9860->dvddio = devm_regulator_get(dev, "DVDDIO");
-	if (IS_ERR(max9860->dvddio)) {
-		ret = PTR_ERR(max9860->dvddio);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get DVDDIO supply: %d\n", ret);
-		return ret;
-	}
+	if (IS_ERR(max9860->dvddio))
+		return dev_err_probe(dev, PTR_ERR(max9860->dvddio),
+				     "Failed to get DVDDIO supply\n");
 
 	max9860->dvddio_nb.notifier_call = max9860_dvddio_event;
 
@@ -643,8 +640,7 @@ static int max9860_probe(struct i2c_client *i2c)
 
 	if (IS_ERR(mclk)) {
 		ret = PTR_ERR(mclk);
-		if (ret != -EPROBE_DEFER)
-			dev_err(dev, "Failed to get MCLK: %d\n", ret);
+		dev_err_probe(dev, ret, "Failed to get MCLK\n");
 		goto err_regulator;
 	}
 

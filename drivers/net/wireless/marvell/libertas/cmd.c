@@ -150,10 +150,9 @@ int lbs_update_hw_spec(struct lbs_private *priv)
 		memmove(priv->current_addr, cmd.permanentaddr, ETH_ALEN);
 
 	if (!priv->copied_hwaddr) {
-		memcpy(priv->dev->dev_addr, priv->current_addr, ETH_ALEN);
+		eth_hw_addr_set(priv->dev, priv->current_addr);
 		if (priv->mesh_dev)
-			memcpy(priv->mesh_dev->dev_addr,
-				priv->current_addr, ETH_ALEN);
+			eth_hw_addr_set(priv->mesh_dev, priv->current_addr);
 		priv->copied_hwaddr = 1;
 	}
 

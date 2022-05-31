@@ -15,6 +15,7 @@
 #include <linux/workqueue.h>
 #include <linux/compat.h>
 #include <linux/sched/deadline.h>
+#include <linux/task_work.h>
 
 #include "posix-timers.h"
 
@@ -34,14 +35,20 @@ void posix_cputimers_group_init(struct posix_cputimers *pct, u64 cpu_limit)
  * tsk->signal->posix_cputimers.bases[clock].nextevt expiration cache if
  * necessary. Needs siglock protection since other code may update the
  * expiration cache as well.
+ *
+ * Returns 0 on success, -ESRCH on failure.  Can fail if the task is exiting and
+ * we cannot lock_task_sighand.  Cannot fail if task is current.
  */
-void update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
+int update_rlimit_cpu(struct task_struct *task, unsigned long rlim_new)
 {
 	u64 nsecs = rlim_new * NSEC_PER_SEC;
+	unsigned long irq_fl;
 
-	spin_lock_irq(&task->sighand->siglock);
+	if (!lock_task_sighand(task, &irq_fl))
+		return -ESRCH;
 	set_process_cpu_timer(task, CPUCLOCK_PROF, &nsecs, NULL);
-	spin_unlock_irq(&task->sighand->siglock);
+	unlock_task_sighand(task, &irq_fl);
+	return 0;
 }
 
 /*
@@ -1159,13 +1166,28 @@ static void posix_cpu_timers_work(struct callback_head *work)
 }
 
 /*
+ * Clear existing posix CPU timers task work.
+ */
+void clear_posix_cputimers_work(struct task_struct *p)
+{
+	/*
+	 * A copied work entry from the old task is not meaningful, clear it.
+	 * N.B. init_task_work will not do this.
+	 */
+	memset(&p->posix_cputimers_work.work, 0,
+	       sizeof(p->posix_cputimers_work.work));
+	init_task_work(&p->posix_cputimers_work.work,
+		       posix_cpu_timers_work);
+	p->posix_cputimers_work.scheduled = false;
+}
+
+/*
  * Initialize posix CPU timers task work in init task. Out of line to
  * keep the callback static and to avoid header recursion hell.
  */
 void __init posix_cputimers_init_work(void)
 {
-	init_task_work(&current->posix_cputimers_work.work,
-		       posix_cpu_timers_work);
+	clear_posix_cputimers_work(current);
 }
 
 /*

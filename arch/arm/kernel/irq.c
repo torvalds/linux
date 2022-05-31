@@ -36,12 +36,52 @@
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/hardware/cache-uniphier.h>
 #include <asm/outercache.h>
+#include <asm/softirq_stack.h>
 #include <asm/exception.h>
 #include <asm/mach/arch.h>
 #include <asm/mach/irq.h>
 #include <asm/mach/time.h>
 
+#include "reboot.h"
+
 unsigned long irq_err_count;
+
+#ifdef CONFIG_IRQSTACKS
+
+asmlinkage DEFINE_PER_CPU_READ_MOSTLY(u8 *, irq_stack_ptr);
+
+static void __init init_irq_stacks(void)
+{
+	u8 *stack;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		if (!IS_ENABLED(CONFIG_VMAP_STACK))
+			stack = (u8 *)__get_free_pages(GFP_KERNEL,
+						       THREAD_SIZE_ORDER);
+		else
+			stack = __vmalloc_node(THREAD_SIZE, THREAD_ALIGN,
+					       THREADINFO_GFP, NUMA_NO_NODE,
+					       __builtin_return_address(0));
+
+		if (WARN_ON(!stack))
+			break;
+		per_cpu(irq_stack_ptr, cpu) = &stack[THREAD_SIZE];
+	}
+}
+
+static void ____do_softirq(void *arg)
+{
+	__do_softirq();
+}
+
+void do_softirq_own_stack(void)
+{
+	call_with_stack(____do_softirq, NULL,
+			__this_cpu_read(irq_stack_ptr));
+}
+
+#endif
 
 int arch_show_interrupts(struct seq_file *p, int prec)
 {
@@ -63,10 +103,7 @@ int arch_show_interrupts(struct seq_file *p, int prec)
  */
 void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 {
-	struct pt_regs *old_regs = set_irq_regs(regs);
 	struct irq_desc *desc;
-
-	irq_enter();
 
 	/*
 	 * Some hardware gives randomly wrong interrupts.  Rather
@@ -81,23 +118,15 @@ void handle_IRQ(unsigned int irq, struct pt_regs *regs)
 		handle_irq_desc(desc);
 	else
 		ack_bad_irq(irq);
-
-	irq_exit();
-	set_irq_regs(old_regs);
-}
-
-/*
- * asm_do_IRQ is the interface to be used from assembly code.
- */
-asmlinkage void __exception_irq_entry
-asm_do_IRQ(unsigned int irq, struct pt_regs *regs)
-{
-	handle_IRQ(irq, regs);
 }
 
 void __init init_IRQ(void)
 {
 	int ret;
+
+#ifdef CONFIG_IRQSTACKS
+	init_irq_stacks();
+#endif
 
 	if (IS_ENABLED(CONFIG_OF) && !machine_desc->init_irq)
 		irqchip_init();

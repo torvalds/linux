@@ -81,8 +81,8 @@ static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 	vfnum_per_port = hns_ae_get_vf_num_per_port(dsaf_dev, port_id);
 	qnum_per_vf = hns_ae_get_q_num_per_vf(dsaf_dev, port_id);
 
-	vf_cb = kzalloc(sizeof(*vf_cb) +
-			qnum_per_vf * sizeof(struct hnae_queue *), GFP_KERNEL);
+	vf_cb = kzalloc(struct_size(vf_cb, ae_handle.qs, qnum_per_vf),
+			GFP_KERNEL);
 	if (unlikely(!vf_cb)) {
 		dev_err(dsaf_dev->dev, "malloc vf_cb fail!\n");
 		ae_handle = ERR_PTR(-ENOMEM);
@@ -108,7 +108,6 @@ static struct hnae_handle *hns_ae_get_handle(struct hnae_ae_dev *dev,
 		goto vf_id_err;
 	}
 
-	ae_handle->qs = (struct hnae_queue **)(&ae_handle->qs + 1);
 	for (i = 0; i < qnum_per_vf; i++) {
 		ae_handle->qs[i] = &ring_pair_cb->q;
 		ae_handle->qs[i]->rx_ring.q = ae_handle->qs[i];
@@ -207,7 +206,7 @@ static void hns_ae_fini_queue(struct hnae_queue *q)
 		hns_rcb_reset_ring_hw(q);
 }
 
-static int hns_ae_set_mac_address(struct hnae_handle *handle, void *p)
+static int hns_ae_set_mac_address(struct hnae_handle *handle, const void *p)
 {
 	int ret;
 	struct hns_mac_cb *mac_cb = hns_get_mac_cb(handle);

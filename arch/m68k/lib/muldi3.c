@@ -84,7 +84,7 @@ __muldi3 (DItype u, DItype v)
   DIunion w;
   DIunion uu, vv;
 
-  uu.ll = u,
+  uu.ll = u;
   vv.ll = v;
 
   w.ll = __umulsidi3 (uu.s.low, vv.s.low);

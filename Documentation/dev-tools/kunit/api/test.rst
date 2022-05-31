@@ -4,8 +4,7 @@
 Test API
 ========
 
-This file documents all of the standard testing API excluding mocking or mocking
-related features.
+This file documents all of the standard testing API.
 
 .. kernel-doc:: include/kunit/test.h
    :internal:

@@ -13,6 +13,7 @@ description: |
   in the SM6125 platform.
 
 allOf:
+  - $ref: "pinctrl.yaml#"
   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
 
 properties:

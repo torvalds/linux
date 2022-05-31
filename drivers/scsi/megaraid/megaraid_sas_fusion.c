@@ -2915,7 +2915,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				get_updated_dev_handle(instance,
 					&fusion->load_balance_info[device_id],
 					&io_info, local_map_ptr);
-			scp->SCp.Status |= MEGASAS_LOAD_BALANCE_FLAG;
+			megasas_priv(scp)->status |= MEGASAS_LOAD_BALANCE_FLAG;
 			cmd->pd_r1_lb = io_info.pd_after_lb;
 			if (instance->adapter_type >= VENTURA_SERIES)
 				rctx_g35->span_arm = io_info.span_arm;
@@ -2923,7 +2923,7 @@ megasas_build_ldio_fusion(struct megasas_instance *instance,
 				rctx->span_arm = io_info.span_arm;
 
 		} else
-			scp->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
+			megasas_priv(scp)->status &= ~MEGASAS_LOAD_BALANCE_FLAG;
 
 		if (instance->adapter_type >= VENTURA_SERIES)
 			cmd->r1_alt_dev_handle = io_info.r1_alt_dev_handle;
@@ -3293,7 +3293,7 @@ megasas_build_io_fusion(struct megasas_instance *instance,
 	io_request->SenseBufferLength = SCSI_SENSE_BUFFERSIZE;
 
 	cmd->scmd = scp;
-	scp->SCp.ptr = (char *)cmd;
+	megasas_priv(scp)->cmd_priv = cmd;
 
 	return 0;
 }
@@ -3489,12 +3489,47 @@ megasas_complete_r1_command(struct megasas_instance *instance,
 		if (instance->ldio_threshold &&
 		    megasas_cmd_type(scmd_local) == READ_WRITE_LDIO)
 			atomic_dec(&instance->ldio_outstanding);
-		scmd_local->SCp.ptr = NULL;
+		megasas_priv(scmd_local)->cmd_priv = NULL;
 		megasas_return_cmd_fusion(instance, cmd);
 		scsi_dma_unmap(scmd_local);
 		megasas_sdev_busy_dec(instance, scmd_local);
-		scmd_local->scsi_done(scmd_local);
+		scsi_done(scmd_local);
 	}
+}
+
+/**
+ * access_irq_context:		Access to reply processing
+ * @irq_context:		IRQ context
+ *
+ * Synchronize access to reply processing.
+ *
+ * Return:  true on success, false on failure.
+ */
+static inline
+bool access_irq_context(struct megasas_irq_context  *irq_context)
+{
+	if (!irq_context)
+		return true;
+
+	if (atomic_add_unless(&irq_context->in_used, 1, 1))
+		return true;
+
+	return false;
+}
+
+/**
+ * release_irq_context:		Release reply processing
+ * @irq_context:		IRQ context
+ *
+ * Release access of reply processing.
+ *
+ * Return: Nothing.
+ */
+static inline
+void release_irq_context(struct megasas_irq_context  *irq_context)
+{
+	if (irq_context)
+		atomic_dec(&irq_context->in_used);
 }
 
 /**
@@ -3530,6 +3565,9 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 	if (atomic_read(&instance->adprecovery) == MEGASAS_HW_CRITICAL_ERROR)
 		return IRQ_HANDLED;
 
+	if (!access_irq_context(irq_context))
+		return 0;
+
 	desc = fusion->reply_frames_desc[MSIxIndex] +
 				fusion->last_reply_idx[MSIxIndex];
 
@@ -3540,11 +3578,10 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 	reply_descript_type = reply_desc->ReplyFlags &
 		MPI2_RPY_DESCRIPT_FLAGS_TYPE_MASK;
 
-	if (reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED)
+	if (reply_descript_type == MPI2_RPY_DESCRIPT_FLAGS_UNUSED) {
+		release_irq_context(irq_context);
 		return IRQ_NONE;
-
-	if (irq_context && !atomic_add_unless(&irq_context->in_used, 1, 1))
-		return 0;
+	}
 
 	num_completed = 0;
 
@@ -3576,12 +3613,13 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 		case MPI2_FUNCTION_SCSI_IO_REQUEST:  /*Fast Path IO.*/
 			/* Update load balancing info */
 			if (fusion->load_balance_info &&
-			    (cmd_fusion->scmd->SCp.Status &
+			    (megasas_priv(cmd_fusion->scmd)->status &
 			    MEGASAS_LOAD_BALANCE_FLAG)) {
 				device_id = MEGASAS_DEV_INDEX(scmd_local);
 				lbinfo = &fusion->load_balance_info[device_id];
 				atomic_dec(&lbinfo->scsi_pending_cmds[cmd_fusion->pd_r1_lb]);
-				cmd_fusion->scmd->SCp.Status &= ~MEGASAS_LOAD_BALANCE_FLAG;
+				megasas_priv(cmd_fusion->scmd)->status &=
+					~MEGASAS_LOAD_BALANCE_FLAG;
 			}
 			fallthrough;	/* and complete IO */
 		case MEGASAS_MPI2_FUNCTION_LD_IO_REQUEST: /* LD-IO Path */
@@ -3593,11 +3631,11 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 				if (instance->ldio_threshold &&
 				    (megasas_cmd_type(scmd_local) == READ_WRITE_LDIO))
 					atomic_dec(&instance->ldio_outstanding);
-				scmd_local->SCp.ptr = NULL;
+				megasas_priv(scmd_local)->cmd_priv = NULL;
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
 				megasas_sdev_busy_dec(instance, scmd_local);
-				scmd_local->scsi_done(scmd_local);
+				scsi_done(scmd_local);
 			} else	/* Optimal VD - R1 FP command completion. */
 				megasas_complete_r1_command(instance, cmd_fusion);
 			break;
@@ -3660,7 +3698,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 					irq_context->irq_line_enable = true;
 					irq_poll_sched(&irq_context->irqpoll);
 				}
-				atomic_dec(&irq_context->in_used);
+				release_irq_context(irq_context);
 				return num_completed;
 			}
 		}
@@ -3679,8 +3717,7 @@ complete_cmd_fusion(struct megasas_instance *instance, u32 MSIxIndex,
 		megasas_check_and_restore_queue_depth(instance);
 	}
 
-	if (irq_context)
-		atomic_dec(&irq_context->in_used);
+	release_irq_context(irq_context);
 
 	return num_completed;
 }
@@ -4977,7 +5014,7 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 					atomic_dec(&instance->ldio_outstanding);
 				megasas_return_cmd_fusion(instance, cmd_fusion);
 				scsi_dma_unmap(scmd_local);
-				scmd_local->scsi_done(scmd_local);
+				scsi_done(scmd_local);
 			}
 		}
 
@@ -5063,8 +5100,8 @@ int megasas_reset_fusion(struct Scsi_Host *shost, int reason)
 			if (instance->adapter_type >= VENTURA_SERIES) {
 				for (j = 0; j < MAX_LOGICAL_DRIVES_EXT; ++j) {
 					memset(fusion->stream_detect_by_ld[j],
-					0, sizeof(struct LD_STREAM_DETECT));
-				 fusion->stream_detect_by_ld[j]->mru_bit_map
+					       0, sizeof(struct LD_STREAM_DETECT));
+					fusion->stream_detect_by_ld[j]->mru_bit_map
 						= MR_STREAM_BITMAP;
 				}
 			}

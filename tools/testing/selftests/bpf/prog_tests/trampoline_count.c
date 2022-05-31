@@ -35,16 +35,17 @@ static struct bpf_link *load(struct bpf_object *obj, const char *name)
 	struct bpf_program *prog;
 	int duration = 0;
 
-	prog = bpf_object__find_program_by_title(obj, name);
+	prog = bpf_object__find_program_by_name(obj, name);
 	if (CHECK(!prog, "find_probe", "prog '%s' not found\n", name))
 		return ERR_PTR(-EINVAL);
 	return bpf_program__attach_trace(prog);
 }
 
-void test_trampoline_count(void)
+/* TODO: use different target function to run in concurrent mode */
+void serial_test_trampoline_count(void)
 {
-	const char *fentry_name = "fentry/__set_task_comm";
-	const char *fexit_name = "fexit/__set_task_comm";
+	const char *fentry_name = "prog1";
+	const char *fexit_name = "prog2";
 	const char *object = "test_trampoline_count.o";
 	struct inst inst[MAX_TRAMP_PROGS] = {};
 	int err, i = 0, duration = 0;

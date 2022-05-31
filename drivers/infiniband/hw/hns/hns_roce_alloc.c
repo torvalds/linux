@@ -31,10 +31,9 @@
  * SOFTWARE.
  */
 
-#include <linux/platform_device.h>
 #include <linux/vmalloc.h>
-#include "hns_roce_device.h"
 #include <rdma/ib_umem.h>
+#include "hns_roce_device.h"
 
 void hns_roce_buf_free(struct hns_roce_dev *hr_dev, struct hns_roce_buf *buf)
 {

@@ -99,7 +99,7 @@ void cedrus_dst_format_set(struct cedrus_dev *dev,
 		cedrus_write(dev, VE_PRIMARY_FB_LINE_STRIDE, reg);
 
 		break;
-	case V4L2_PIX_FMT_SUNXI_TILED_NV12:
+	case V4L2_PIX_FMT_NV12_32L32:
 	default:
 		reg = VE_PRIMARY_OUT_FMT_TILED_32_NV12;
 		cedrus_write(dev, VE_PRIMARY_OUT_FMT, reg);
@@ -117,6 +117,13 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 	struct cedrus_ctx *ctx;
 	enum vb2_buffer_state state;
 	enum cedrus_irq_status status;
+
+	/*
+	 * If cancel_delayed_work returns false it means watchdog already
+	 * executed and finished the job.
+	 */
+	if (!cancel_delayed_work(&dev->watchdog_work))
+		return IRQ_HANDLED;
 
 	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
 	if (!ctx) {
@@ -141,6 +148,24 @@ static irqreturn_t cedrus_irq(int irq, void *data)
 					 state);
 
 	return IRQ_HANDLED;
+}
+
+void cedrus_watchdog(struct work_struct *work)
+{
+	struct cedrus_dev *dev;
+	struct cedrus_ctx *ctx;
+
+	dev = container_of(to_delayed_work(work),
+			   struct cedrus_dev, watchdog_work);
+
+	ctx = v4l2_m2m_get_curr_priv(dev->m2m_dev);
+	if (!ctx)
+		return;
+
+	v4l2_err(&dev->v4l2_dev, "frame processing timed out!\n");
+	reset_control_reset(dev->rstc);
+	v4l2_m2m_buf_done_and_job_finish(ctx->dev->m2m_dev, ctx->fh.m2m_ctx,
+					 VB2_BUF_STATE_ERROR);
 }
 
 int cedrus_hw_suspend(struct device *device)

@@ -32,12 +32,12 @@ static void int_exit(int sig)
 	int i;
 
 	for (i = 0; ifaces[i] > 0; i++) {
-		if (bpf_get_link_xdp_id(ifaces[i], &prog_id, xdp_flags)) {
-			printf("bpf_get_link_xdp_id failed\n");
+		if (bpf_xdp_query_id(ifaces[i], xdp_flags, &prog_id)) {
+			printf("bpf_xdp_query_id failed\n");
 			exit(1);
 		}
 		if (prog_id)
-			bpf_set_link_xdp_fd(ifaces[i], -1, xdp_flags);
+			bpf_xdp_detach(ifaces[i], xdp_flags, NULL);
 	}
 
 	exit(0);
@@ -85,10 +85,7 @@ int main(int argc, char **argv)
 {
 	int prog_fd, group_all, mac_map;
 	struct bpf_program *ingress_prog, *egress_prog;
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type = BPF_PROG_TYPE_UNSPEC,
-	};
-	int i, ret, opt, egress_prog_fd = 0;
+	int i, err, ret, opt, egress_prog_fd = 0;
 	struct bpf_devmap_val devmap_val;
 	bool attach_egress_prog = false;
 	unsigned char mac_addr[6];
@@ -129,7 +126,7 @@ int main(int argc, char **argv)
 		goto err_out;
 	}
 
-	printf("Get interfaces");
+	printf("Get interfaces:");
 	for (i = 0; i < MAX_IFACE_NUM && argv[optind + i]; i++) {
 		ifaces[i] = if_nametoindex(argv[optind + i]);
 		if (!ifaces[i])
@@ -139,7 +136,7 @@ int main(int argc, char **argv)
 			goto err_out;
 		}
 		if (ifaces[i] > MAX_INDEX_NUM) {
-			printf("Interface index to large\n");
+			printf(" interface index too large\n");
 			goto err_out;
 		}
 		printf(" %d", ifaces[i]);
@@ -147,10 +144,14 @@ int main(int argc, char **argv)
 	printf("\n");
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
-
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	err = libbpf_get_error(obj);
+	if (err)
 		goto err_out;
+	err = bpf_object__load(obj);
+	if (err)
+		goto err_out;
+	prog_fd = bpf_program__fd(bpf_object__next_program(obj, NULL));
 
 	if (attach_egress_prog)
 		group_all = bpf_object__find_map_fd_by_name(obj, "map_egress");
@@ -209,7 +210,7 @@ int main(int argc, char **argv)
 		}
 
 		/* bind prog_fd to each interface */
-		ret = bpf_set_link_xdp_fd(ifindex, prog_fd, xdp_flags);
+		ret = bpf_xdp_attach(ifindex, prog_fd, xdp_flags, NULL);
 		if (ret) {
 			printf("Set xdp fd failed on %d\n", ifindex);
 			goto err_out;

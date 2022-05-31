@@ -635,10 +635,14 @@ struct enetc_cmd_rfse {
 #define ENETC_RFSE_EN	BIT(15)
 #define ENETC_RFSE_MODE_BD	2
 
-static inline void enetc_get_primary_mac_addr(struct enetc_hw *hw, u8 *addr)
+static inline void enetc_load_primary_mac_addr(struct enetc_hw *hw,
+					       struct net_device *ndev)
 {
+	u8 addr[ETH_ALEN] __aligned(4);
+
 	*(u32 *)addr = __raw_readl(hw->reg + ENETC_SIPMAR0);
 	*(u16 *)(addr + 4) = __raw_readw(hw->reg + ENETC_SIPMAR1);
+	eth_hw_addr_set(ndev, addr);
 }
 
 #define ENETC_SI_INT_IDX	0
@@ -877,7 +881,7 @@ struct sgcl_data {
 	u32		bth;
 	u32		ct;
 	u32		cte;
-	struct sgce	sgcl[0];
+	struct sgce	sgcl[];
 };
 
 #define ENETC_CBDR_FMI_MR	BIT(0)

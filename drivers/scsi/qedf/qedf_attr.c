@@ -60,10 +60,19 @@ static ssize_t fka_period_show(struct device *dev,
 static DEVICE_ATTR_RO(fcoe_mac);
 static DEVICE_ATTR_RO(fka_period);
 
-struct device_attribute *qedf_host_attrs[] = {
-	&dev_attr_fcoe_mac,
-	&dev_attr_fka_period,
+static struct attribute *qedf_host_attrs[] = {
+	&dev_attr_fcoe_mac.attr,
+	&dev_attr_fka_period.attr,
 	NULL,
+};
+
+static const struct attribute_group qedf_host_attr_group = {
+	.attrs = qedf_host_attrs
+};
+
+const struct attribute_group *qedf_host_groups[] = {
+	&qedf_host_attr_group,
+	NULL
 };
 
 extern const struct qed_fcoe_ops *qed_ops;

@@ -8,7 +8,6 @@
  *
  */
 #include <linux/ctype.h>
-#include "smb2pdu.h"
 #include "cifsglob.h"
 #include "cifsproto.h"
 #include "smb2proto.h"
@@ -19,7 +18,7 @@
 #include "nterr.h"
 
 static int
-check_smb2_hdr(struct smb2_sync_hdr *shdr, __u64 mid)
+check_smb2_hdr(struct smb2_hdr *shdr, __u64 mid)
 {
 	__u64 wire_mid = le64_to_cpu(shdr->MessageId);
 
@@ -81,9 +80,9 @@ static const __le16 smb2_rsp_struct_sizes[NUMBER_OF_SMB2_COMMANDS] = {
 	/* SMB2_OPLOCK_BREAK */ cpu_to_le16(24)
 };
 
-#define SMB311_NEGPROT_BASE_SIZE (sizeof(struct smb2_sync_hdr) + sizeof(struct smb2_negotiate_rsp))
+#define SMB311_NEGPROT_BASE_SIZE (sizeof(struct smb2_hdr) + sizeof(struct smb2_negotiate_rsp))
 
-static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
+static __u32 get_neg_ctxt_len(struct smb2_hdr *hdr, __u32 len,
 			      __u32 non_ctxlen)
 {
 	__u16 neg_count;
@@ -135,13 +134,13 @@ static __u32 get_neg_ctxt_len(struct smb2_sync_hdr *hdr, __u32 len,
 int
 smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 {
-	struct smb2_sync_hdr *shdr = (struct smb2_sync_hdr *)buf;
-	struct smb2_sync_pdu *pdu = (struct smb2_sync_pdu *)shdr;
+	struct smb2_hdr *shdr = (struct smb2_hdr *)buf;
+	struct smb2_pdu *pdu = (struct smb2_pdu *)shdr;
 	__u64 mid;
 	__u32 clc_len;  /* calculated length */
 	int command;
-	int pdu_size = sizeof(struct smb2_sync_pdu);
-	int hdr_size = sizeof(struct smb2_sync_hdr);
+	int pdu_size = sizeof(struct smb2_pdu);
+	int hdr_size = sizeof(struct smb2_hdr);
 
 	/*
 	 * Add function to do table lookup of StructureSize by command
@@ -151,16 +150,18 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 		struct smb2_transform_hdr *thdr =
 			(struct smb2_transform_hdr *)buf;
 		struct cifs_ses *ses = NULL;
+		struct cifs_ses *iter;
 
 		/* decrypt frame now that it is completely read in */
 		spin_lock(&cifs_tcp_ses_lock);
-		list_for_each_entry(ses, &srvr->smb_ses_list, smb_ses_list) {
-			if (ses->Suid == thdr->SessionId)
+		list_for_each_entry(iter, &srvr->smb_ses_list, smb_ses_list) {
+			if (iter->Suid == le64_to_cpu(thdr->SessionId)) {
+				ses = iter;
 				break;
+			}
 		}
 		spin_unlock(&cifs_tcp_ses_lock);
-		if (list_entry_is_head(ses, &srvr->smb_ses_list,
-				       smb_ses_list)) {
+		if (!ses) {
 			cifs_dbg(VFS, "no decryption - session id not found\n");
 			return 1;
 		}
@@ -204,7 +205,7 @@ smb2_check_message(char *buf, unsigned int len, struct TCP_Server_Info *srvr)
 
 	if (smb2_rsp_struct_sizes[command] != pdu->StructureSize2) {
 		if (command != SMB2_OPLOCK_BREAK_HE && (shdr->Status == 0 ||
-		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2)) {
+		    pdu->StructureSize2 != SMB2_ERROR_STRUCTURE_SIZE2_LE)) {
 			/* error packets have 9 byte structure size */
 			cifs_dbg(VFS, "Invalid response size %u for command %d\n",
 				 le16_to_cpu(pdu->StructureSize2), command);
@@ -296,7 +297,7 @@ static const bool has_smb2_data_area[NUMBER_OF_SMB2_COMMANDS] = {
  * area and the offset to it (from the beginning of the smb are also returned.
  */
 char *
-smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
+smb2_get_data_area_len(int *off, int *len, struct smb2_hdr *shdr)
 {
 	*off = 0;
 	*len = 0;
@@ -304,7 +305,7 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
 	/* error responses do not have data area */
 	if (shdr->Status && shdr->Status != STATUS_MORE_PROCESSING_REQUIRED &&
 	    (((struct smb2_err_rsp *)shdr)->StructureSize) ==
-						SMB2_ERROR_STRUCTURE_SIZE2)
+						SMB2_ERROR_STRUCTURE_SIZE2_LE)
 		return NULL;
 
 	/*
@@ -401,8 +402,8 @@ smb2_get_data_area_len(int *off, int *len, struct smb2_sync_hdr *shdr)
 unsigned int
 smb2_calc_size(void *buf, struct TCP_Server_Info *srvr)
 {
-	struct smb2_sync_pdu *pdu = (struct smb2_sync_pdu *)buf;
-	struct smb2_sync_hdr *shdr = &pdu->sync_hdr;
+	struct smb2_pdu *pdu = (struct smb2_pdu *)buf;
+	struct smb2_hdr *shdr = &pdu->hdr;
 	int offset; /* the offset from the beginning of SMB to data area */
 	int data_length; /* the length of the variable length data area */
 	/* Structure Size has already been checked to make sure it is 64 */
@@ -479,11 +480,11 @@ smb2_get_lease_state(struct cifsInodeInfo *cinode)
 	__le32 lease = 0;
 
 	if (CIFS_CACHE_WRITE(cinode))
-		lease |= SMB2_LEASE_WRITE_CACHING;
+		lease |= SMB2_LEASE_WRITE_CACHING_LE;
 	if (CIFS_CACHE_HANDLE(cinode))
-		lease |= SMB2_LEASE_HANDLE_CACHING;
+		lease |= SMB2_LEASE_HANDLE_CACHING_LE;
 	if (CIFS_CACHE_READ(cinode))
-		lease |= SMB2_LEASE_READ_CACHING;
+		lease |= SMB2_LEASE_READ_CACHING_LE;
 	return lease;
 }
 
@@ -669,7 +670,7 @@ smb2_is_valid_oplock_break(char *buffer, struct TCP_Server_Info *server)
 
 	cifs_dbg(FYI, "Checking for oplock break\n");
 
-	if (rsp->sync_hdr.Command != SMB2_OPLOCK_BREAK)
+	if (rsp->hdr.Command != SMB2_OPLOCK_BREAK)
 		return false;
 
 	if (rsp->StructureSize !=
@@ -816,23 +817,23 @@ smb2_handle_cancelled_close(struct cifs_tcon *tcon, __u64 persistent_fid,
 int
 smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *server)
 {
-	struct smb2_sync_hdr *sync_hdr = mid->resp_buf;
+	struct smb2_hdr *hdr = mid->resp_buf;
 	struct smb2_create_rsp *rsp = mid->resp_buf;
 	struct cifs_tcon *tcon;
 	int rc;
 
-	if ((mid->optype & CIFS_CP_CREATE_CLOSE_OP) || sync_hdr->Command != SMB2_CREATE ||
-	    sync_hdr->Status != STATUS_SUCCESS)
+	if ((mid->optype & CIFS_CP_CREATE_CLOSE_OP) || hdr->Command != SMB2_CREATE ||
+	    hdr->Status != STATUS_SUCCESS)
 		return 0;
 
-	tcon = smb2_find_smb_tcon(server, sync_hdr->SessionId,
-				  sync_hdr->TreeId);
+	tcon = smb2_find_smb_tcon(server, le64_to_cpu(hdr->SessionId),
+				  le32_to_cpu(hdr->Id.SyncId.TreeId));
 	if (!tcon)
 		return -ENOENT;
 
 	rc = __smb2_handle_cancelled_cmd(tcon,
-					 le16_to_cpu(sync_hdr->Command),
-					 le64_to_cpu(sync_hdr->MessageId),
+					 le16_to_cpu(hdr->Command),
+					 le64_to_cpu(hdr->MessageId),
 					 rsp->PersistentFileId,
 					 rsp->VolatileFileId);
 	if (rc)
@@ -848,18 +849,19 @@ smb2_handle_cancelled_mid(struct mid_q_entry *mid, struct TCP_Server_Info *serve
  * SMB2 header.
  *
  * @ses:	server session structure
+ * @server:	pointer to server info
  * @iov:	array containing the SMB request we will send to the server
  * @nvec:	number of array entries for the iov
  */
 int
-smb311_update_preauth_hash(struct cifs_ses *ses, struct kvec *iov, int nvec)
+smb311_update_preauth_hash(struct cifs_ses *ses, struct TCP_Server_Info *server,
+			   struct kvec *iov, int nvec)
 {
 	int i, rc;
 	struct sdesc *d;
-	struct smb2_sync_hdr *hdr;
-	struct TCP_Server_Info *server = cifs_ses_server(ses);
+	struct smb2_hdr *hdr;
 
-	hdr = (struct smb2_sync_hdr *)iov[0].iov_base;
+	hdr = (struct smb2_hdr *)iov[0].iov_base;
 	/* neg prot are always taken */
 	if (hdr->Command == SMB2_NEGOTIATE)
 		goto ok;

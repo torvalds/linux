@@ -1,4 +1,2 @@
-/FEATURE-DUMP.libbpf
-/bpf_helper_defs.h
-/feature
+/libbpf
 /bpf_preload_umd

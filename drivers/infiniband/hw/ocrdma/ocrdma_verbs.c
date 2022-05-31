@@ -41,6 +41,7 @@
  */
 
 #include <linux/dma-mapping.h>
+#include <net/addrconf.h>
 #include <rdma/ib_verbs.h>
 #include <rdma/ib_user_verbs.h>
 #include <rdma/iw_cm.h>
@@ -74,7 +75,8 @@ int ocrdma_query_device(struct ib_device *ibdev, struct ib_device_attr *attr,
 	memset(attr, 0, sizeof *attr);
 	memcpy(&attr->fw_ver, &dev->attr.fw_ver[0],
 	       min(sizeof(dev->attr.fw_ver), sizeof(attr->fw_ver)));
-	ocrdma_get_guid(dev, (u8 *)&attr->sys_image_guid);
+	addrconf_addr_eui48((u8 *)&attr->sys_image_guid,
+			    dev->nic_info.mac_addr);
 	attr->max_mr_size = dev->attr.max_mr_size;
 	attr->page_size_cap = 0xffff000;
 	attr->vendor_id = dev->nic_info.pdev->vendor;
@@ -245,13 +247,13 @@ static bool ocrdma_search_mmap(struct ocrdma_ucontext *uctx, u64 phy_addr,
 static u16 _ocrdma_pd_mgr_get_bitmap(struct ocrdma_dev *dev, bool dpp_pool)
 {
 	u16 pd_bitmap_idx = 0;
-	const unsigned long *pd_bitmap;
+	unsigned long *pd_bitmap;
 
 	if (dpp_pool) {
 		pd_bitmap = dev->pd_mgr->pd_dpp_bitmap;
 		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
 						    dev->pd_mgr->max_dpp_pd);
-		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_dpp_bitmap);
+		__set_bit(pd_bitmap_idx, pd_bitmap);
 		dev->pd_mgr->pd_dpp_count++;
 		if (dev->pd_mgr->pd_dpp_count > dev->pd_mgr->pd_dpp_thrsh)
 			dev->pd_mgr->pd_dpp_thrsh = dev->pd_mgr->pd_dpp_count;
@@ -259,7 +261,7 @@ static u16 _ocrdma_pd_mgr_get_bitmap(struct ocrdma_dev *dev, bool dpp_pool)
 		pd_bitmap = dev->pd_mgr->pd_norm_bitmap;
 		pd_bitmap_idx = find_first_zero_bit(pd_bitmap,
 						    dev->pd_mgr->max_normal_pd);
-		__set_bit(pd_bitmap_idx, dev->pd_mgr->pd_norm_bitmap);
+		__set_bit(pd_bitmap_idx, pd_bitmap);
 		dev->pd_mgr->pd_norm_count++;
 		if (dev->pd_mgr->pd_norm_count > dev->pd_mgr->pd_norm_thrsh)
 			dev->pd_mgr->pd_norm_thrsh = dev->pd_mgr->pd_norm_count;
@@ -1844,12 +1846,10 @@ int ocrdma_modify_srq(struct ib_srq *ibsrq,
 
 int ocrdma_query_srq(struct ib_srq *ibsrq, struct ib_srq_attr *srq_attr)
 {
-	int status;
 	struct ocrdma_srq *srq;
 
 	srq = get_ocrdma_srq(ibsrq);
-	status = ocrdma_mbx_query_srq(srq, srq_attr);
-	return status;
+	return ocrdma_mbx_query_srq(srq, srq_attr);
 }
 
 int ocrdma_destroy_srq(struct ib_srq *ibsrq, struct ib_udata *udata)
@@ -1960,7 +1960,6 @@ static int ocrdma_build_inline_sges(struct ocrdma_qp *qp,
 static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 			     const struct ib_send_wr *wr)
 {
-	int status;
 	struct ocrdma_sge *sge;
 	u32 wqe_size = sizeof(*hdr);
 
@@ -1972,8 +1971,7 @@ static int ocrdma_build_send(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,
 		sge = (struct ocrdma_sge *)(hdr + 1);
 	}
 
-	status = ocrdma_build_inline_sges(qp, hdr, sge, wr, wqe_size);
-	return status;
+	return ocrdma_build_inline_sges(qp, hdr, sge, wr, wqe_size);
 }
 
 static int ocrdma_build_write(struct ocrdma_qp *qp, struct ocrdma_hdr_wqe *hdr,

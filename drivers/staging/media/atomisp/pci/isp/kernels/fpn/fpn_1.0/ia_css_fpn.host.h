@@ -31,15 +31,11 @@ ia_css_fpn_dump(
     const struct sh_css_isp_fpn_params *fpn,
     unsigned int level);
 
-void
-ia_css_fpn_config(
-    struct sh_css_isp_fpn_isp_config      *to,
-    const struct ia_css_fpn_configuration *from,
-    unsigned int size);
+int ia_css_fpn_config(struct sh_css_isp_fpn_isp_config      *to,
+		      const struct ia_css_fpn_configuration *from,
+		      unsigned int size);
 
-void
-ia_css_fpn_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *from);
+int ia_css_fpn_configure(const struct ia_css_binary     *binary,
+			 const struct ia_css_frame_info *from);
 
 #endif /* __IA_CSS_FPN_HOST_H */

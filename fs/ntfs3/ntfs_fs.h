@@ -11,7 +11,6 @@
 
 #include <linux/blkdev.h>
 #include <linux/buffer_head.h>
-#include <linux/cleancache.h>
 #include <linux/fs.h>
 #include <linux/highmem.h>
 #include <linux/kernel.h>

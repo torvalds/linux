@@ -1,7 +1,5 @@
 # This file is included by the global makefile so that you can add your own
-# architecture-specific flags and dependencies. Remember to do have actions
-# for "archclean" and "archdep" for cleaning up and making dependencies for
-# this architecture.
+# architecture-specific flags and dependencies.
 #
 # This file is subject to the terms and conditions of the GNU General Public
 # License.  See the file "COPYING" in the main directory of this archive
@@ -173,7 +171,7 @@ else
 CFLAGS-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mtune=power7,$(call cc-option,-mtune=power5))
 CFLAGS-$(CONFIG_GENERIC_CPU) += $(call cc-option,-mcpu=power5,-mcpu=power4)
 endif
-else
+else ifdef CONFIG_PPC_BOOK3E_64
 CFLAGS-$(CONFIG_GENERIC_CPU) += -mcpu=powerpc64
 endif
 
@@ -215,7 +213,7 @@ CHECKFLAGS	+= -m$(BITS) -D__powerpc__ -D__powerpc$(BITS)__
 ifdef CONFIG_CPU_BIG_ENDIAN
 CHECKFLAGS	+= -D__BIG_ENDIAN__
 else
-CHECKFLAGS	+= -D__LITTLE_ENDIAN__
+CHECKFLAGS	+= -D__LITTLE_ENDIAN__ -D_CALL_ELF=2
 endif
 
 ifdef CONFIG_476FPE_ERR46
@@ -247,7 +245,9 @@ cpu-as-$(CONFIG_E500)		+= -Wa,-me500
 # When using '-many -mpower4' gas will first try and find a matching power4
 # mnemonic and failing that it will allow any valid mnemonic that GAS knows
 # about. GCC will pass -many to GAS when assembling, clang does not.
-cpu-as-$(CONFIG_PPC_BOOK3S_64)	+= -Wa,-mpower4 -Wa,-many
+# LLVM IAS doesn't understand either flag: https://github.com/ClangBuiltLinux/linux/issues/675
+# but LLVM IAS only supports ISA >= 2.06 for Book3S 64 anyway...
+cpu-as-$(CONFIG_PPC_BOOK3S_64)	+= $(call as-option,-Wa$(comma)-mpower4) $(call as-option,-Wa$(comma)-many)
 cpu-as-$(CONFIG_PPC_E500MC)	+= $(call as-option,-Wa$(comma)-me500mc)
 
 KBUILD_AFLAGS += $(cpu-as-y)
@@ -411,9 +411,6 @@ install:
 	sh -x $(srctree)/$(boot)/install.sh "$(KERNELRELEASE)" vmlinux \
 	System.map "$(INSTALL_PATH)"
 
-archclean:
-	$(Q)$(MAKE) $(clean)=$(boot)
-
 ifeq ($(KBUILD_EXTMOD),)
 # We need to generate vdso-offsets.h before compiling certain files in kernel/.
 # In order to do that, we should use the archprepare target, but we can't since
@@ -424,9 +421,9 @@ ifeq ($(KBUILD_EXTMOD),)
 prepare: vdso_prepare
 vdso_prepare: prepare0
 	$(if $(CONFIG_VDSO32),$(Q)$(MAKE) \
-		$(build)=arch/powerpc/kernel/vdso32 include/generated/vdso32-offsets.h)
+		$(build)=arch/powerpc/kernel/vdso include/generated/vdso32-offsets.h)
 	$(if $(CONFIG_PPC64),$(Q)$(MAKE) \
-		$(build)=arch/powerpc/kernel/vdso64 include/generated/vdso64-offsets.h)
+		$(build)=arch/powerpc/kernel/vdso include/generated/vdso64-offsets.h)
 endif
 
 archprepare: checkbin
@@ -446,25 +443,15 @@ else
 endif
 endif
 
-ifdef CONFIG_SMP
-ifdef CONFIG_PPC32
-prepare: task_cpu_prepare
-
-PHONY += task_cpu_prepare
-task_cpu_prepare: prepare0
-	$(eval KBUILD_CFLAGS += -D_TASK_CPU=$(shell awk '{if ($$2 == "TASK_CPU") print $$3;}' include/generated/asm-offsets.h))
-
-endif # CONFIG_PPC32
-endif # CONFIG_SMP
-
 PHONY += checkbin
 # Check toolchain versions:
 # - gcc-4.6 is the minimum kernel-wide version so nothing required.
 checkbin:
-	@if test "x${CONFIG_CPU_LITTLE_ENDIAN}" = "xy" \
-	    && $(LD) --version | head -1 | grep ' 2\.24$$' >/dev/null ; then \
+	@if test "x${CONFIG_LD_IS_LLD}" != "xy" -a \
+		"x$(call ld-ifversion, -le, 22400, y)" = "xy" ; then \
 		echo -n '*** binutils 2.24 miscompiles weak symbols ' ; \
 		echo 'in some circumstances.' ; \
+		echo    '*** binutils 2.23 do not define the TOC symbol ' ; \
 		echo -n '*** Please use a different binutils version.' ; \
 		false ; \
 	fi

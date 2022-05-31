@@ -4,10 +4,11 @@
 
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+#include "testing_helpers.h"
 
 static inline int bpf_flow_load(struct bpf_object **obj,
 				const char *path,
-				const char *section_name,
+				const char *prog_name,
 				const char *map_name,
 				const char *keys_map_name,
 				int *prog_fd,
@@ -18,18 +19,12 @@ static inline int bpf_flow_load(struct bpf_object **obj,
 	int prog_array_fd;
 	int ret, fd, i;
 
-	ret = bpf_prog_load(path, BPF_PROG_TYPE_FLOW_DISSECTOR, obj,
+	ret = bpf_prog_test_load(path, BPF_PROG_TYPE_FLOW_DISSECTOR, obj,
 			    prog_fd);
 	if (ret)
 		return ret;
 
-	main_prog = NULL;
-	bpf_object__for_each_program(prog, *obj) {
-		if (strcmp(section_name, bpf_program__section_name(prog)) == 0) {
-			main_prog = prog;
-			break;
-		}
-	}
+	main_prog = bpf_object__find_program_by_name(*obj, prog_name);
 	if (!main_prog)
 		return -1;
 

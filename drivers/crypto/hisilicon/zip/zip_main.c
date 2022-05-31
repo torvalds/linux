@@ -15,8 +15,7 @@
 #include <linux/uacce.h>
 #include "zip.h"
 
-#define PCI_DEVICE_ID_ZIP_PF		0xa250
-#define PCI_DEVICE_ID_ZIP_VF		0xa251
+#define PCI_DEVICE_ID_HUAWEI_ZIP_PF	0xa250
 
 #define HZIP_QUEUE_NUM_V1		4096
 
@@ -103,8 +102,8 @@
 #define HZIP_PREFETCH_ENABLE		(~(BIT(26) | BIT(17) | BIT(0)))
 #define HZIP_SVA_PREFETCH_DISABLE	BIT(26)
 #define HZIP_SVA_DISABLE_READY		(BIT(26) | BIT(30))
-#define HZIP_SHAPER_RATE_COMPRESS	252
-#define HZIP_SHAPER_RATE_DECOMPRESS	229
+#define HZIP_SHAPER_RATE_COMPRESS	750
+#define HZIP_SHAPER_RATE_DECOMPRESS	140
 #define HZIP_DELAY_1_US		1
 #define HZIP_POLL_TIMEOUT_US	1000
 
@@ -218,7 +217,7 @@ static const struct debugfs_reg32 hzip_dfx_regs[] = {
 	{"HZIP_AVG_DELAY                 ",  0x28ull},
 	{"HZIP_MEM_VISIBLE_DATA          ",  0x30ull},
 	{"HZIP_MEM_VISIBLE_ADDR          ",  0x34ull},
-	{"HZIP_COMSUMED_BYTE             ",  0x38ull},
+	{"HZIP_CONSUMED_BYTE             ",  0x38ull},
 	{"HZIP_PRODUCED_BYTE             ",  0x40ull},
 	{"HZIP_COMP_INF                  ",  0x70ull},
 	{"HZIP_PRE_OUT                   ",  0x78ull},
@@ -246,7 +245,7 @@ MODULE_PARM_DESC(uacce_mode, UACCE_MODE_DESC);
 
 static int pf_q_num_set(const char *val, const struct kernel_param *kp)
 {
-	return q_num_set(val, kp, PCI_DEVICE_ID_ZIP_PF);
+	return q_num_set(val, kp, PCI_DEVICE_ID_HUAWEI_ZIP_PF);
 }
 
 static const struct kernel_param_ops pf_q_num_ops = {
@@ -268,8 +267,8 @@ module_param_cb(vfs_num, &vfs_num_ops, &vfs_num, 0444);
 MODULE_PARM_DESC(vfs_num, "Number of VFs to enable(1-63), 0(default)");
 
 static const struct pci_device_id hisi_zip_dev_ids[] = {
-	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_PF) },
-	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_ZIP_VF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_HUAWEI_ZIP_PF) },
+	{ PCI_DEVICE(PCI_VENDOR_ID_HUAWEI, PCI_DEVICE_ID_HUAWEI_ZIP_VF) },
 	{ 0, }
 };
 MODULE_DEVICE_TABLE(pci, hisi_zip_dev_ids);
@@ -364,15 +363,16 @@ static int hisi_zip_set_user_domain_and_cache(struct hisi_qm *qm)
 
 	/* user domain configurations */
 	writel(AXUSER_BASE, base + HZIP_BD_RUSER_32_63);
-	writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	writel(AXUSER_BASE, base + HZIP_BD_WUSER_32_63);
 
 	if (qm->use_sva && qm->ver == QM_HW_V2) {
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_DATA_WUSER_32_63);
+		writel(AXUSER_BASE | AXUSER_SSV, base + HZIP_SGL_RUSER_32_63);
 	} else {
 		writel(AXUSER_BASE, base + HZIP_DATA_RUSER_32_63);
 		writel(AXUSER_BASE, base + HZIP_DATA_WUSER_32_63);
+		writel(AXUSER_BASE, base + HZIP_SGL_RUSER_32_63);
 	}
 
 	/* let's open all compression/decompression cores */
@@ -829,12 +829,15 @@ static int hisi_zip_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
-	qm->algs = "zlib\ngzip";
+	if (pdev->revision >= QM_HW_V3)
+		qm->algs = "zlib\ngzip\ndeflate\nlz77_zstd";
+	else
+		qm->algs = "zlib\ngzip";
 	qm->mode = uacce_mode;
 	qm->sqe_size = HZIP_SQE_SIZE;
 	qm->dev_name = hisi_zip_name;
 
-	qm->fun_type = (pdev->device == PCI_DEVICE_ID_ZIP_PF) ?
+	qm->fun_type = (pdev->device == PCI_DEVICE_ID_HUAWEI_ZIP_PF) ?
 			QM_HW_PF : QM_HW_VF;
 	if (qm->fun_type == QM_HW_PF) {
 		qm->qp_base = HZIP_PF_DEF_Q_BASE;
@@ -1008,6 +1011,12 @@ static struct pci_driver hisi_zip_pci_driver = {
 	.shutdown		= hisi_qm_dev_shutdown,
 	.driver.pm		= &hisi_zip_pm_ops,
 };
+
+struct pci_driver *hisi_zip_get_pf_driver(void)
+{
+	return &hisi_zip_pci_driver;
+}
+EXPORT_SYMBOL_GPL(hisi_zip_get_pf_driver);
 
 static void hisi_zip_register_debugfs(void)
 {

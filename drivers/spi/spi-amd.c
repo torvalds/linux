@@ -12,11 +12,16 @@
 #include <linux/platform_device.h>
 #include <linux/delay.h>
 #include <linux/spi/spi.h>
+#include <linux/iopoll.h>
 
 #define AMD_SPI_CTRL0_REG	0x00
 #define AMD_SPI_EXEC_CMD	BIT(16)
 #define AMD_SPI_FIFO_CLEAR	BIT(20)
 #define AMD_SPI_BUSY		BIT(31)
+
+#define AMD_SPI_OPCODE_REG	0x45
+#define AMD_SPI_CMD_TRIGGER_REG	0x47
+#define AMD_SPI_TRIGGER_CMD	BIT(7)
 
 #define AMD_SPI_OPCODE_MASK	0xFF
 
@@ -34,130 +39,142 @@
 #define AMD_SPI_XFER_TX		1
 #define AMD_SPI_XFER_RX		2
 
+enum amd_spi_versions {
+	AMD_SPI_V1 = 1,	/* AMDI0061 */
+	AMD_SPI_V2,	/* AMDI0062 */
+};
+
 struct amd_spi {
 	void __iomem *io_remap_addr;
 	unsigned long io_base_addr;
-	u32 rom_addr;
-	u8 chip_select;
+	enum amd_spi_versions version;
 };
 
-static inline u8 amd_spi_readreg8(struct spi_master *master, int idx)
+static inline u8 amd_spi_readreg8(struct amd_spi *amd_spi, int idx)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
-
 	return ioread8((u8 __iomem *)amd_spi->io_remap_addr + idx);
 }
 
-static inline void amd_spi_writereg8(struct spi_master *master, int idx,
-				     u8 val)
+static inline void amd_spi_writereg8(struct amd_spi *amd_spi, int idx, u8 val)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
-
 	iowrite8(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
 }
 
-static inline void amd_spi_setclear_reg8(struct spi_master *master, int idx,
-					 u8 set, u8 clear)
+static void amd_spi_setclear_reg8(struct amd_spi *amd_spi, int idx, u8 set, u8 clear)
 {
-	u8 tmp = amd_spi_readreg8(master, idx);
+	u8 tmp = amd_spi_readreg8(amd_spi, idx);
 
 	tmp = (tmp & ~clear) | set;
-	amd_spi_writereg8(master, idx, tmp);
+	amd_spi_writereg8(amd_spi, idx, tmp);
 }
 
-static inline u32 amd_spi_readreg32(struct spi_master *master, int idx)
+static inline u32 amd_spi_readreg32(struct amd_spi *amd_spi, int idx)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
-
 	return ioread32((u8 __iomem *)amd_spi->io_remap_addr + idx);
 }
 
-static inline void amd_spi_writereg32(struct spi_master *master, int idx,
-				      u32 val)
+static inline void amd_spi_writereg32(struct amd_spi *amd_spi, int idx, u32 val)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
-
 	iowrite32(val, ((u8 __iomem *)amd_spi->io_remap_addr + idx));
 }
 
-static inline void amd_spi_setclear_reg32(struct spi_master *master, int idx,
-					  u32 set, u32 clear)
+static inline void amd_spi_setclear_reg32(struct amd_spi *amd_spi, int idx, u32 set, u32 clear)
 {
-	u32 tmp = amd_spi_readreg32(master, idx);
+	u32 tmp = amd_spi_readreg32(amd_spi, idx);
 
 	tmp = (tmp & ~clear) | set;
-	amd_spi_writereg32(master, idx, tmp);
+	amd_spi_writereg32(amd_spi, idx, tmp);
 }
 
-static void amd_spi_select_chip(struct spi_master *master)
+static void amd_spi_select_chip(struct amd_spi *amd_spi, u8 cs)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
-	u8 chip_select = amd_spi->chip_select;
-
-	amd_spi_setclear_reg8(master, AMD_SPI_ALT_CS_REG, chip_select,
-			      AMD_SPI_ALT_CS_MASK);
+	amd_spi_setclear_reg8(amd_spi, AMD_SPI_ALT_CS_REG, cs, AMD_SPI_ALT_CS_MASK);
 }
 
-static void amd_spi_clear_fifo_ptr(struct spi_master *master)
+static inline void amd_spi_clear_chip(struct amd_spi *amd_spi, u8 chip_select)
 {
-	amd_spi_setclear_reg32(master, AMD_SPI_CTRL0_REG, AMD_SPI_FIFO_CLEAR,
-			       AMD_SPI_FIFO_CLEAR);
+	amd_spi_writereg8(amd_spi, AMD_SPI_ALT_CS_REG, chip_select & ~AMD_SPI_ALT_CS_MASK);
 }
 
-static void amd_spi_set_opcode(struct spi_master *master, u8 cmd_opcode)
+static void amd_spi_clear_fifo_ptr(struct amd_spi *amd_spi)
 {
-	amd_spi_setclear_reg32(master, AMD_SPI_CTRL0_REG, cmd_opcode,
-			       AMD_SPI_OPCODE_MASK);
+	amd_spi_setclear_reg32(amd_spi, AMD_SPI_CTRL0_REG, AMD_SPI_FIFO_CLEAR, AMD_SPI_FIFO_CLEAR);
 }
 
-static inline void amd_spi_set_rx_count(struct spi_master *master,
-					u8 rx_count)
+static int amd_spi_set_opcode(struct amd_spi *amd_spi, u8 cmd_opcode)
 {
-	amd_spi_setclear_reg8(master, AMD_SPI_RX_COUNT_REG, rx_count, 0xff);
+	switch (amd_spi->version) {
+	case AMD_SPI_V1:
+		amd_spi_setclear_reg32(amd_spi, AMD_SPI_CTRL0_REG, cmd_opcode,
+				       AMD_SPI_OPCODE_MASK);
+		return 0;
+	case AMD_SPI_V2:
+		amd_spi_writereg8(amd_spi, AMD_SPI_OPCODE_REG, cmd_opcode);
+		return 0;
+	default:
+		return -ENODEV;
+	}
 }
 
-static inline void amd_spi_set_tx_count(struct spi_master *master,
-					u8 tx_count)
+static inline void amd_spi_set_rx_count(struct amd_spi *amd_spi, u8 rx_count)
 {
-	amd_spi_setclear_reg8(master, AMD_SPI_TX_COUNT_REG, tx_count, 0xff);
+	amd_spi_setclear_reg8(amd_spi, AMD_SPI_RX_COUNT_REG, rx_count, 0xff);
 }
 
-static inline int amd_spi_busy_wait(struct amd_spi *amd_spi)
+static inline void amd_spi_set_tx_count(struct amd_spi *amd_spi, u8 tx_count)
 {
-	bool spi_busy;
-	int timeout = 100000;
+	amd_spi_setclear_reg8(amd_spi, AMD_SPI_TX_COUNT_REG, tx_count, 0xff);
+}
 
-	/* poll for SPI bus to become idle */
-	spi_busy = (ioread32((u8 __iomem *)amd_spi->io_remap_addr +
-		    AMD_SPI_CTRL0_REG) & AMD_SPI_BUSY) == AMD_SPI_BUSY;
-	while (spi_busy) {
-		usleep_range(10, 20);
-		if (timeout-- < 0)
-			return -ETIMEDOUT;
+static int amd_spi_busy_wait(struct amd_spi *amd_spi)
+{
+	u32 val;
+	int reg;
 
-		spi_busy = (ioread32((u8 __iomem *)amd_spi->io_remap_addr +
-			    AMD_SPI_CTRL0_REG) & AMD_SPI_BUSY) == AMD_SPI_BUSY;
+	switch (amd_spi->version) {
+	case AMD_SPI_V1:
+		reg = AMD_SPI_CTRL0_REG;
+		break;
+	case AMD_SPI_V2:
+		reg = AMD_SPI_STATUS_REG;
+		break;
+	default:
+		return -ENODEV;
 	}
 
-	return 0;
+	return readl_poll_timeout(amd_spi->io_remap_addr + reg, val,
+				  !(val & AMD_SPI_BUSY), 20, 2000000);
 }
 
-static void amd_spi_execute_opcode(struct spi_master *master)
+static int amd_spi_execute_opcode(struct amd_spi *amd_spi)
 {
-	struct amd_spi *amd_spi = spi_master_get_devdata(master);
+	int ret;
 
-	/* Set ExecuteOpCode bit in the CTRL0 register */
-	amd_spi_setclear_reg32(master, AMD_SPI_CTRL0_REG, AMD_SPI_EXEC_CMD,
-			       AMD_SPI_EXEC_CMD);
+	ret = amd_spi_busy_wait(amd_spi);
+	if (ret)
+		return ret;
 
-	amd_spi_busy_wait(amd_spi);
+	switch (amd_spi->version) {
+	case AMD_SPI_V1:
+		/* Set ExecuteOpCode bit in the CTRL0 register */
+		amd_spi_setclear_reg32(amd_spi, AMD_SPI_CTRL0_REG, AMD_SPI_EXEC_CMD,
+				       AMD_SPI_EXEC_CMD);
+		return 0;
+	case AMD_SPI_V2:
+		/* Trigger the command execution */
+		amd_spi_setclear_reg8(amd_spi, AMD_SPI_CMD_TRIGGER_REG,
+				      AMD_SPI_TRIGGER_CMD, AMD_SPI_TRIGGER_CMD);
+		return 0;
+	default:
+		return -ENODEV;
+	}
 }
 
 static int amd_spi_master_setup(struct spi_device *spi)
 {
-	struct spi_master *master = spi->master;
+	struct amd_spi *amd_spi = spi_master_get_devdata(spi->master);
 
-	amd_spi_clear_fifo_ptr(master);
+	amd_spi_clear_fifo_ptr(amd_spi);
 
 	return 0;
 }
@@ -185,19 +202,18 @@ static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
 			tx_len = xfer->len - 1;
 			cmd_opcode = *(u8 *)xfer->tx_buf;
 			buf++;
-			amd_spi_set_opcode(master, cmd_opcode);
+			amd_spi_set_opcode(amd_spi, cmd_opcode);
 
 			/* Write data into the FIFO. */
 			for (i = 0; i < tx_len; i++) {
-				iowrite8(buf[i],
-					 ((u8 __iomem *)amd_spi->io_remap_addr +
+				iowrite8(buf[i], ((u8 __iomem *)amd_spi->io_remap_addr +
 					 AMD_SPI_FIFO_BASE + i));
 			}
 
-			amd_spi_set_tx_count(master, tx_len);
-			amd_spi_clear_fifo_ptr(master);
+			amd_spi_set_tx_count(amd_spi, tx_len);
+			amd_spi_clear_fifo_ptr(amd_spi);
 			/* Execute command */
-			amd_spi_execute_opcode(master);
+			amd_spi_execute_opcode(amd_spi);
 		}
 		if (m_cmd & AMD_SPI_XFER_RX) {
 			/*
@@ -206,15 +222,14 @@ static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
 			 */
 			rx_len = xfer->len;
 			buf = (u8 *)xfer->rx_buf;
-			amd_spi_set_rx_count(master, rx_len);
-			amd_spi_clear_fifo_ptr(master);
+			amd_spi_set_rx_count(amd_spi, rx_len);
+			amd_spi_clear_fifo_ptr(amd_spi);
 			/* Execute command */
-			amd_spi_execute_opcode(master);
+			amd_spi_execute_opcode(amd_spi);
+			amd_spi_busy_wait(amd_spi);
 			/* Read data from FIFO to receive buffer  */
 			for (i = 0; i < rx_len; i++)
-				buf[i] = amd_spi_readreg8(master,
-							  AMD_SPI_FIFO_BASE +
-							  tx_len + i);
+				buf[i] = amd_spi_readreg8(amd_spi, AMD_SPI_FIFO_BASE + tx_len + i);
 		}
 	}
 
@@ -222,6 +237,17 @@ static inline int amd_spi_fifo_xfer(struct amd_spi *amd_spi,
 	message->actual_length = tx_len + rx_len + 1;
 	/* complete the transaction */
 	message->status = 0;
+
+	switch (amd_spi->version) {
+	case AMD_SPI_V1:
+		break;
+	case AMD_SPI_V2:
+		amd_spi_clear_chip(amd_spi, message->spi->chip_select);
+		break;
+	default:
+		return -ENODEV;
+	}
+
 	spi_finalize_current_message(master);
 
 	return 0;
@@ -233,8 +259,7 @@ static int amd_spi_master_transfer(struct spi_master *master,
 	struct amd_spi *amd_spi = spi_master_get_devdata(master);
 	struct spi_device *spi = msg->spi;
 
-	amd_spi->chip_select = spi->chip_select;
-	amd_spi_select_chip(master);
+	amd_spi_select_chip(amd_spi, spi->chip_select);
 
 	/*
 	 * Extract spi_transfers from the spi message and
@@ -268,6 +293,8 @@ static int amd_spi_probe(struct platform_device *pdev)
 	}
 	dev_dbg(dev, "io_remap_address: %p\n", amd_spi->io_remap_addr);
 
+	amd_spi->version = (enum amd_spi_versions) device_get_match_data(dev);
+
 	/* Initialize the spi_master fields */
 	master->bus_num = 0;
 	master->num_chipselect = 4;
@@ -293,7 +320,8 @@ err_free_master:
 
 #ifdef CONFIG_ACPI
 static const struct acpi_device_id spi_acpi_match[] = {
-	{ "AMDI0061", 0 },
+	{ "AMDI0061", AMD_SPI_V1 },
+	{ "AMDI0062", AMD_SPI_V2 },
 	{},
 };
 MODULE_DEVICE_TABLE(acpi, spi_acpi_match);

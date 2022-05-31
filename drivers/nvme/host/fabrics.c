@@ -144,11 +144,10 @@ EXPORT_SYMBOL_GPL(nvmf_get_address);
  */
 int nvmf_reg_read32(struct nvme_ctrl *ctrl, u32 off, u32 *val)
 {
-	struct nvme_command cmd;
+	struct nvme_command cmd = { };
 	union nvme_result res;
 	int ret;
 
-	memset(&cmd, 0, sizeof(cmd));
 	cmd.prop_get.opcode = nvme_fabrics_command;
 	cmd.prop_get.fctype = nvme_fabrics_type_property_get;
 	cmd.prop_get.offset = cpu_to_le32(off);
@@ -272,7 +271,7 @@ static void nvmf_log_connect_error(struct nvme_ctrl *ctrl,
 	int err_sctype = errval & ~NVME_SC_DNR;
 
 	switch (err_sctype) {
-	case (NVME_SC_CONNECT_INVALID_PARAM):
+	case NVME_SC_CONNECT_INVALID_PARAM:
 		if (offset >> 16) {
 			char *inv_data = "Connect Invalid Data Parameter";
 
@@ -548,6 +547,7 @@ static const match_table_t opt_tokens = {
 	{ NVMF_OPT_NR_POLL_QUEUES,	"nr_poll_queues=%d"	},
 	{ NVMF_OPT_TOS,			"tos=%d"		},
 	{ NVMF_OPT_FAIL_FAST_TMO,	"fast_io_fail_tmo=%d"	},
+	{ NVMF_OPT_DISCOVERY,		"discovery"		},
 	{ NVMF_OPT_ERR,			NULL			}
 };
 
@@ -697,6 +697,9 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			if (token >= 0)
 				pr_warn("I/O fail on reconnect controller after %d sec\n",
 					token);
+			else
+				token = -1;
+
 			opts->fast_io_fail_tmo = token;
 			break;
 		case NVMF_OPT_HOSTNQN:
@@ -823,6 +826,9 @@ static int nvmf_parse_options(struct nvmf_ctrl_options *opts,
 			}
 			opts->tos = token;
 			break;
+		case NVMF_OPT_DISCOVERY:
+			opts->discovery_nqn = true;
+			break;
 		default:
 			pr_warn("unknown parameter or missing value '%s' in ctrl creation request\n",
 				p);
@@ -866,7 +872,7 @@ static int nvmf_check_required_opts(struct nvmf_ctrl_options *opts,
 		unsigned int required_opts)
 {
 	if ((opts->mask & required_opts) != required_opts) {
-		int i;
+		unsigned int i;
 
 		for (i = 0; i < ARRAY_SIZE(opt_tokens); i++) {
 			if ((opt_tokens[i].token & required_opts) &&
@@ -916,7 +922,7 @@ static int nvmf_check_allowed_opts(struct nvmf_ctrl_options *opts,
 		unsigned int allowed_opts)
 {
 	if (opts->mask & ~allowed_opts) {
-		int i;
+		unsigned int i;
 
 		for (i = 0; i < ARRAY_SIZE(opt_tokens); i++) {
 			if ((opt_tokens[i].token & opts->mask) &&
@@ -949,7 +955,7 @@ EXPORT_SYMBOL_GPL(nvmf_free_options);
 #define NVMF_ALLOWED_OPTS	(NVMF_OPT_QUEUE_SIZE | NVMF_OPT_NR_IO_QUEUES | \
 				 NVMF_OPT_KATO | NVMF_OPT_HOSTNQN | \
 				 NVMF_OPT_HOST_ID | NVMF_OPT_DUP_CONNECT |\
-				 NVMF_OPT_DISABLE_SQFLOW |\
+				 NVMF_OPT_DISABLE_SQFLOW | NVMF_OPT_DISCOVERY |\
 				 NVMF_OPT_FAIL_FAST_TMO)
 
 static struct nvme_ctrl *
@@ -1062,15 +1068,34 @@ out_unlock:
 	return ret ? ret : count;
 }
 
+static void __nvmf_concat_opt_tokens(struct seq_file *seq_file)
+{
+	const struct match_token *tok;
+	int idx;
+
+	/*
+	 * Add dummy entries for instance and cntlid to
+	 * signal an invalid/non-existing controller
+	 */
+	seq_puts(seq_file, "instance=-1,cntlid=-1");
+	for (idx = 0; idx < ARRAY_SIZE(opt_tokens); idx++) {
+		tok = &opt_tokens[idx];
+		if (tok->token == NVMF_OPT_ERR)
+			continue;
+		seq_puts(seq_file, ",");
+		seq_puts(seq_file, tok->pattern);
+	}
+	seq_puts(seq_file, "\n");
+}
+
 static int nvmf_dev_show(struct seq_file *seq_file, void *private)
 {
 	struct nvme_ctrl *ctrl;
-	int ret = 0;
 
 	mutex_lock(&nvmf_dev_mutex);
 	ctrl = seq_file->private;
 	if (!ctrl) {
-		ret = -EINVAL;
+		__nvmf_concat_opt_tokens(seq_file);
 		goto out_unlock;
 	}
 
@@ -1079,7 +1104,7 @@ static int nvmf_dev_show(struct seq_file *seq_file, void *private)
 
 out_unlock:
 	mutex_unlock(&nvmf_dev_mutex);
-	return ret;
+	return 0;
 }
 
 static int nvmf_dev_open(struct inode *inode, struct file *file)

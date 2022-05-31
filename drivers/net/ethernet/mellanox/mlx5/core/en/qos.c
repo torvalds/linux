@@ -1,11 +1,27 @@
 // SPDX-License-Identifier: GPL-2.0 OR Linux-OpenIB
 /* Copyright (c) 2020, Mellanox Technologies inc. All rights reserved. */
+#include <net/sch_generic.h>
 
 #include "en.h"
 #include "params.h"
 #include "../qos.h"
 
 #define BYTES_IN_MBIT 125000
+
+int mlx5e_qos_bytes_rate_check(struct mlx5_core_dev *mdev, u64 nbytes)
+{
+	if (nbytes < BYTES_IN_MBIT) {
+		qos_warn(mdev, "Input rate (%llu Bytes/sec) below minimum supported (%u Bytes/sec)\n",
+			 nbytes, BYTES_IN_MBIT);
+		return -EINVAL;
+	}
+	return 0;
+}
+
+static u32 mlx5e_qos_bytes2mbits(struct mlx5_core_dev *mdev, u64 nbytes)
+{
+	return div_u64(nbytes, BYTES_IN_MBIT);
+}
 
 int mlx5e_qos_max_leaf_nodes(struct mlx5_core_dev *mdev)
 {
@@ -34,7 +50,6 @@ static int mlx5e_find_unused_qos_qid(struct mlx5e_priv *priv)
 
 struct mlx5e_qos_node {
 	struct hlist_node hnode;
-	struct rcu_head rcu;
 	struct mlx5e_qos_node *parent;
 	u64 rate;
 	u32 bw_share;
@@ -116,7 +131,11 @@ static void mlx5e_sw_node_delete(struct mlx5e_priv *priv, struct mlx5e_qos_node 
 		__clear_bit(node->qid, priv->htb.qos_used_qids);
 		mlx5e_update_tx_netdev_queues(priv);
 	}
-	kfree_rcu(node, rcu);
+	/* Make sure this qid is no longer selected by mlx5e_select_queue, so
+	 * that mlx5e_reactivate_qos_sq can safely restart the netdev TX queue.
+	 */
+	synchronize_net();
+	kfree(node);
 }
 
 /* TX datapath API */
@@ -238,7 +257,8 @@ static int mlx5e_open_qos_sq(struct mlx5e_priv *priv, struct mlx5e_channels *chs
 	if (err)
 		goto err_free_sq;
 	err = mlx5e_open_txqsq(c, priv->tisn[c->lag_port][0], txq_ix, params,
-			       &param_sq, sq, 0, node->hw_id, node->qid);
+			       &param_sq, sq, 0, node->hw_id,
+			       priv->htb.qos_sq_stats[node->qid]);
 	if (err)
 		goto err_close_cq;
 
@@ -256,10 +276,18 @@ err_free_sq:
 static void mlx5e_activate_qos_sq(struct mlx5e_priv *priv, struct mlx5e_qos_node *node)
 {
 	struct mlx5e_txqsq *sq;
+	u16 qid;
 
 	sq = mlx5e_get_qos_sq(priv, node->qid);
 
-	WRITE_ONCE(priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, node->qid)], sq);
+	qid = mlx5e_qid_from_qos(&priv->channels, node->qid);
+
+	/* If it's a new queue, it will be marked as started at this point.
+	 * Stop it before updating txq2sq.
+	 */
+	mlx5e_tx_disable_queue(netdev_get_tx_queue(priv->netdev, qid));
+
+	priv->txq2sq[qid] = sq;
 
 	/* Make the change to txq2sq visible before the queue is started.
 	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
@@ -282,8 +310,13 @@ static void mlx5e_deactivate_qos_sq(struct mlx5e_priv *priv, u16 qid)
 	qos_dbg(priv->mdev, "Deactivate QoS SQ qid %u\n", qid);
 	mlx5e_deactivate_txqsq(sq);
 
-	/* The queue is disabled, no synchronization with datapath is needed. */
 	priv->txq2sq[mlx5e_qid_from_qos(&priv->channels, qid)] = NULL;
+
+	/* Make the change to txq2sq visible before the queue is started again.
+	 * As mlx5e_xmit runs under a spinlock, there is an implicit ACQUIRE,
+	 * which pairs with this barrier.
+	 */
+	smp_wmb();
 }
 
 static void mlx5e_close_qos_sq(struct mlx5e_priv *priv, u16 qid)
@@ -468,9 +501,11 @@ int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 
 	opened = test_bit(MLX5E_STATE_OPENED, &priv->state);
 	if (opened) {
+		mlx5e_selq_prepare(&priv->selq, &priv->channels.params, true);
+
 		err = mlx5e_qos_alloc_queues(priv, &priv->channels);
 		if (err)
-			return err;
+			goto err_cancel_selq;
 	}
 
 	root = mlx5e_sw_node_create_root(priv);
@@ -491,6 +526,9 @@ int mlx5e_htb_root_add(struct mlx5e_priv *priv, u16 htb_maj_id, u16 htb_defcls,
 	 */
 	smp_store_release(&priv->htb.maj_id, htb_maj_id);
 
+	if (opened)
+		mlx5e_selq_apply(&priv->selq);
+
 	return 0;
 
 err_sw_node_delete:
@@ -499,6 +537,8 @@ err_sw_node_delete:
 err_free_queues:
 	if (opened)
 		mlx5e_qos_close_all_queues(&priv->channels);
+err_cancel_selq:
+	mlx5e_selq_cancel(&priv->selq);
 	return err;
 }
 
@@ -509,8 +549,15 @@ int mlx5e_htb_root_del(struct mlx5e_priv *priv)
 
 	qos_dbg(priv->mdev, "TC_HTB_DESTROY\n");
 
+	/* Wait until real_num_tx_queues is updated for mlx5e_select_queue,
+	 * so that we can safely switch to its non-HTB non-PTP fastpath.
+	 */
+	synchronize_net();
+
+	mlx5e_selq_prepare(&priv->selq, &priv->channels.params, false);
+	mlx5e_selq_apply(&priv->selq);
+
 	WRITE_ONCE(priv->htb.maj_id, 0);
-	synchronize_rcu(); /* Sync with mlx5e_select_htb_queue and TX data path. */
 
 	root = mlx5e_sw_node_find(priv, MLX5E_HTB_CLASSID_ROOT);
 	if (!root) {
@@ -553,7 +600,8 @@ static int mlx5e_htb_convert_rate(struct mlx5e_priv *priv, u64 rate,
 
 static void mlx5e_htb_convert_ceil(struct mlx5e_priv *priv, u64 ceil, u32 *max_average_bw)
 {
-	*max_average_bw = div_u64(ceil, BYTES_IN_MBIT);
+	/* Hardware treats 0 as "unlimited", set at least 1. */
+	*max_average_bw = max_t(u32, div_u64(ceil, BYTES_IN_MBIT), 1);
 
 	qos_dbg(priv->mdev, "Convert: ceil %llu -> max_average_bw %u\n",
 		ceil, *max_average_bw);
@@ -978,4 +1026,88 @@ int mlx5e_htb_node_modify(struct mlx5e_priv *priv, u16 classid, u64 rate, u64 ce
 		err = mlx5e_qos_update_children(priv, node, extack);
 
 	return err;
+}
+
+struct mlx5e_mqprio_rl {
+	struct mlx5_core_dev *mdev;
+	u32 root_id;
+	u32 *leaves_id;
+	u8 num_tc;
+};
+
+struct mlx5e_mqprio_rl *mlx5e_mqprio_rl_alloc(void)
+{
+	return kvzalloc(sizeof(struct mlx5e_mqprio_rl), GFP_KERNEL);
+}
+
+void mlx5e_mqprio_rl_free(struct mlx5e_mqprio_rl *rl)
+{
+	kvfree(rl);
+}
+
+int mlx5e_mqprio_rl_init(struct mlx5e_mqprio_rl *rl, struct mlx5_core_dev *mdev, u8 num_tc,
+			 u64 max_rate[])
+{
+	int err;
+	int tc;
+
+	if (!mlx5_qos_is_supported(mdev)) {
+		qos_warn(mdev, "Missing QoS capabilities. Try disabling SRIOV or use a supported device.");
+		return -EOPNOTSUPP;
+	}
+	if (num_tc > mlx5e_qos_max_leaf_nodes(mdev))
+		return -EINVAL;
+
+	rl->mdev = mdev;
+	rl->num_tc = num_tc;
+	rl->leaves_id = kvcalloc(num_tc, sizeof(*rl->leaves_id), GFP_KERNEL);
+	if (!rl->leaves_id)
+		return -ENOMEM;
+
+	err = mlx5_qos_create_root_node(mdev, &rl->root_id);
+	if (err)
+		goto err_free_leaves;
+
+	qos_dbg(mdev, "Root created, id %#x\n", rl->root_id);
+
+	for (tc = 0; tc < num_tc; tc++) {
+		u32 max_average_bw;
+
+		max_average_bw = mlx5e_qos_bytes2mbits(mdev, max_rate[tc]);
+		err = mlx5_qos_create_leaf_node(mdev, rl->root_id, 0, max_average_bw,
+						&rl->leaves_id[tc]);
+		if (err)
+			goto err_destroy_leaves;
+
+		qos_dbg(mdev, "Leaf[%d] created, id %#x, max average bw %u Mbits/sec\n",
+			tc, rl->leaves_id[tc], max_average_bw);
+	}
+	return 0;
+
+err_destroy_leaves:
+	while (--tc >= 0)
+		mlx5_qos_destroy_node(mdev, rl->leaves_id[tc]);
+	mlx5_qos_destroy_node(mdev, rl->root_id);
+err_free_leaves:
+	kvfree(rl->leaves_id);
+	return err;
+}
+
+void mlx5e_mqprio_rl_cleanup(struct mlx5e_mqprio_rl *rl)
+{
+	int tc;
+
+	for (tc = 0; tc < rl->num_tc; tc++)
+		mlx5_qos_destroy_node(rl->mdev, rl->leaves_id[tc]);
+	mlx5_qos_destroy_node(rl->mdev, rl->root_id);
+	kvfree(rl->leaves_id);
+}
+
+int mlx5e_mqprio_rl_get_node_hw_id(struct mlx5e_mqprio_rl *rl, int tc, u32 *hw_id)
+{
+	if (tc >= rl->num_tc)
+		return -EINVAL;
+
+	*hw_id = rl->leaves_id[tc];
+	return 0;
 }

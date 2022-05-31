@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (C) 2010-2013 Felix Fietkau <nbd@openwrt.org>
- * Copyright (C) 2019-2020 Intel Corporation
+ * Copyright (C) 2019-2021 Intel Corporation
  */
 #include <linux/netdevice.h>
 #include <linux/types.h>
@@ -17,8 +17,6 @@
 
 #define AVG_AMPDU_SIZE	16
 #define AVG_PKT_SIZE	1200
-
-#define SAMPLE_SWITCH_THR	100
 
 /* Number of bits for an average sized packet */
 #define MCS_NBITS ((AVG_PKT_SIZE * AVG_AMPDU_SIZE) << 3)

@@ -20,7 +20,7 @@ struct pci_root_info {
 };
 
 static bool pci_use_crs = true;
-static bool pci_ignore_seg = false;
+static bool pci_ignore_seg;
 
 static int __init set_use_crs(const struct dmi_system_id *id)
 {

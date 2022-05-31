@@ -15,6 +15,9 @@
 #include <bpf/xsk.h>
 #include "xdpsock.h"
 
+/* libbpf APIs for AF_XDP are deprecated starting from v0.7 */
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+
 static const char *opt_if = "";
 
 static struct option long_options[] = {
@@ -170,7 +173,7 @@ main(int argc, char **argv)
 	unlink(SOCKET_NAME);
 
 	/* Unset fd for given ifindex */
-	err = bpf_set_link_xdp_fd(ifindex, -1, 0);
+	err = bpf_xdp_detach(ifindex, 0, NULL);
 	if (err) {
 		fprintf(stderr, "Error when unsetting bpf prog_fd for ifindex(%d)\n", ifindex);
 		return err;

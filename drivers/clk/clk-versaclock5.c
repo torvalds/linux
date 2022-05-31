@@ -905,7 +905,7 @@ output_error:
 
 static const struct of_device_id clk_vc5_of_match[];
 
-static int vc5_probe(struct i2c_client *client, const struct i2c_device_id *id)
+static int vc5_probe(struct i2c_client *client)
 {
 	unsigned int oe, sd, src_mask = 0, src_val = 0;
 	struct vc5_driver_data *vc5;
@@ -1244,7 +1244,7 @@ static struct i2c_driver vc5_driver = {
 		.pm	= &vc5_pm_ops,
 		.of_match_table = clk_vc5_of_match,
 	},
-	.probe		= vc5_probe,
+	.probe_new	= vc5_probe,
 	.remove		= vc5_remove,
 	.id_table	= vc5_id,
 };

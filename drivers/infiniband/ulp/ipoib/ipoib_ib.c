@@ -1057,13 +1057,11 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 {
 	union ib_gid search_gid;
 	union ib_gid gid0;
-	union ib_gid *netdev_gid;
 	int err;
 	u16 index;
 	u32 port;
 	bool ret = false;
 
-	netdev_gid = (union ib_gid *)(priv->dev->dev_addr + 4);
 	if (rdma_query_gid(priv->ca, priv->port, 0, &gid0))
 		return false;
 
@@ -1073,7 +1071,8 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 	 * to do it later
 	 */
 	priv->local_gid.global.subnet_prefix = gid0.global.subnet_prefix;
-	netdev_gid->global.subnet_prefix = gid0.global.subnet_prefix;
+	dev_addr_mod(priv->dev, 4, (u8 *)&gid0.global.subnet_prefix,
+		     sizeof(gid0.global.subnet_prefix));
 	search_gid.global.subnet_prefix = gid0.global.subnet_prefix;
 
 	search_gid.global.interface_id = priv->local_gid.global.interface_id;
@@ -1135,8 +1134,8 @@ static bool ipoib_dev_addr_changed_valid(struct ipoib_dev_priv *priv)
 			if (!test_bit(IPOIB_FLAG_DEV_ADDR_CTRL, &priv->flags)) {
 				memcpy(&priv->local_gid, &gid0,
 				       sizeof(priv->local_gid));
-				memcpy(priv->dev->dev_addr + 4, &gid0,
-				       sizeof(priv->local_gid));
+				dev_addr_mod(priv->dev, 4, (u8 *)&gid0,
+					     sizeof(priv->local_gid));
 				ret = true;
 			}
 		}

@@ -8,6 +8,7 @@
 #include "adf_transport_access_macros.h"
 #include "adf_cfg.h"
 #include "adf_cfg_strings.h"
+#include "adf_gen2_hw_data.h"
 #include "qat_crypto.h"
 #include "icp_qat_fw.h"
 
@@ -105,6 +106,30 @@ struct qat_crypto_instance *qat_crypto_get_instance_node(int node)
 }
 
 /**
+ * qat_crypto_vf_dev_config()
+ *     create dev config required to create crypto inst.
+ *
+ * @accel_dev: Pointer to acceleration device.
+ *
+ * Function creates device configuration required to create
+ * asym, sym or, crypto instances
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int qat_crypto_vf_dev_config(struct adf_accel_dev *accel_dev)
+{
+	u16 ring_to_svc_map = GET_HW_DATA(accel_dev)->ring_to_svc_map;
+
+	if (ring_to_svc_map != ADF_GEN2_DEFAULT_RING_TO_SRV_MAP) {
+		dev_err(&GET_DEV(accel_dev),
+			"Unsupported ring/service mapping present on PF");
+		return -EFAULT;
+	}
+
+	return qat_crypto_dev_config(accel_dev);
+}
+
+/**
  * qat_crypto_dev_config() - create dev config required to create crypto inst.
  *
  * @accel_dev: Pointer to acceleration device.
@@ -135,6 +160,13 @@ int qat_crypto_dev_config(struct adf_accel_dev *accel_dev)
 	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
 	if (ret)
 		goto err;
+
+	/* Temporarily set the number of crypto instances to zero to avoid
+	 * registering the crypto algorithms.
+	 * This will be removed when the algorithms will support the
+	 * CRYPTO_TFM_REQ_MAY_BACKLOG flag
+	 */
+	instances = 0;
 
 	for (i = 0; i < instances; i++) {
 		val = i;

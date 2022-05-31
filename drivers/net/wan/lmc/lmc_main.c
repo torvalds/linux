@@ -57,6 +57,7 @@
 #include <asm/io.h>
 #include <asm/dma.h>
 #include <linux/uaccess.h>
+#include <linux/jiffies.h>
 //#include <asm/spinlock.h>
 
 #define DRIVER_MAJOR_VERSION     1
@@ -550,7 +551,7 @@ static int lmc_siocdevprivate(struct net_device *dev, struct ifreq *ifr,
                            (timeout-- > 0))
                         cpu_relax();
 
-                    printk(KERN_DEBUG "%s: Waited %d for the Xilinx to clear it's memory\n", dev->name, 500000-timeout);
+                    printk(KERN_DEBUG "%s: Waited %d for the Xilinx to clear its memory\n", dev->name, 500000-timeout);
 
                     for(pos = 0; pos < xc.len; pos++){
                         switch(data[pos]){
@@ -1968,7 +1969,7 @@ static void lmc_driver_timeout(struct net_device *dev, unsigned int txqueue)
     printk("%s: Xmitter busy|\n", dev->name);
 
     sc->extra_stats.tx_tbusy_calls++;
-    if (jiffies - dev_trans_start(dev) < TX_TIMEOUT)
+    if (time_is_before_jiffies(dev_trans_start(dev) + TX_TIMEOUT))
 	    goto bug_out;
 
     /*

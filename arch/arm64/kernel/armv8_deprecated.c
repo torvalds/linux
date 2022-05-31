@@ -279,7 +279,7 @@ static void __init register_insn_emulation_sysctl(void)
 do {								\
 	uaccess_enable_privileged();				\
 	__asm__ __volatile__(					\
-	"	mov		%w3, %w7\n"			\
+	"	mov		%w3, %w6\n"			\
 	"0:	ldxr"B"		%w2, [%4]\n"			\
 	"1:	stxr"B"		%w0, %w1, [%4]\n"		\
 	"	cbz		%w0, 2f\n"			\
@@ -290,16 +290,10 @@ do {								\
 	"2:\n"							\
 	"	mov		%w1, %w2\n"			\
 	"3:\n"							\
-	"	.pushsection	 .fixup,\"ax\"\n"		\
-	"	.align		2\n"				\
-	"4:	mov		%w0, %w6\n"			\
-	"	b		3b\n"				\
-	"	.popsection"					\
-	_ASM_EXTABLE(0b, 4b)					\
-	_ASM_EXTABLE(1b, 4b)					\
+	_ASM_EXTABLE_UACCESS_ERR(0b, 3b, %w0)			\
+	_ASM_EXTABLE_UACCESS_ERR(1b, 3b, %w0)			\
 	: "=&r" (res), "+r" (data), "=&r" (temp), "=&r" (temp2)	\
 	: "r" ((unsigned long)addr), "i" (-EAGAIN),		\
-	  "i" (-EFAULT),					\
 	  "i" (__SWP_LL_SC_LOOPS)				\
 	: "memory");						\
 	uaccess_disable_privileged();				\

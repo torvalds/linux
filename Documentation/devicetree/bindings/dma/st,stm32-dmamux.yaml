@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics STM32 DMA MUX (DMA request router) bindings
 
 maintainers:
-  - Amelie Delaunay <amelie.delaunay@st.com>
+  - Amelie Delaunay <amelie.delaunay@foss.st.com>
 
 allOf:
   - $ref: "dma-router.yaml#"
@@ -46,7 +46,7 @@ examples:
       #dma-cells = <3>;
       dma-requests = <128>;
       dma-channels = <16>;
-      dma-masters = <&dma1 &dma2>;
+      dma-masters = <&dma1>, <&dma2>;
       clocks = <&timer_clk>;
     };
 

@@ -91,7 +91,6 @@ enum qedf_ioreq_event {
 #define FC_GOOD		0
 #define FCOE_FCP_RSP_FLAGS_FCP_RESID_OVER	(0x1<<2)
 #define FCOE_FCP_RSP_FLAGS_FCP_RESID_UNDER	(0x1<<3)
-#define CMD_SCSI_STATUS(Cmnd)			((Cmnd)->SCp.Status)
 #define FCOE_FCP_RSP_FLAGS_FCP_RSP_LEN_VALID	(0x1<<0)
 #define FCOE_FCP_RSP_FLAGS_FCP_SNS_LEN_VALID	(0x1<<1)
 struct qedf_ioreq {
@@ -141,7 +140,7 @@ struct qedf_ioreq {
 	struct completion tm_done;
 	struct completion abts_done;
 	struct completion cleanup_done;
-	struct e4_fcoe_task_context *task;
+	struct fcoe_task_context *task;
 	struct fcoe_task_params *task_params;
 	struct scsi_sgl_task_params *sgl_task_params;
 	int idx;
@@ -188,6 +187,15 @@ struct qedf_ioreq {
 
 	unsigned int alloc;
 };
+
+struct qedf_cmd_priv {
+	struct qedf_ioreq *io_req;
+};
+
+static inline struct qedf_cmd_priv *qedf_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 extern struct workqueue_struct *qedf_io_wq;
 
@@ -498,12 +506,12 @@ extern void qedf_process_abts_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,
 extern struct qedf_ioreq *qedf_alloc_cmd(struct qedf_rport *fcport,
 	u8 cmd_type);
 
-extern struct device_attribute *qedf_host_attrs[];
+extern const struct attribute_group *qedf_host_groups[];
 extern void qedf_cmd_timer_set(struct qedf_ctx *qedf, struct qedf_ioreq *io_req,
 	unsigned int timer_msec);
 extern int qedf_init_mp_req(struct qedf_ioreq *io_req);
 extern void qedf_init_mp_task(struct qedf_ioreq *io_req,
-	struct e4_fcoe_task_context *task_ctx, struct fcoe_wqe *sqe);
+	struct fcoe_task_context *task_ctx, struct fcoe_wqe *sqe);
 extern u16 qedf_get_sqe_idx(struct qedf_rport *fcport);
 extern void qedf_ring_doorbell(struct qedf_rport *fcport);
 extern void qedf_process_els_compl(struct qedf_ctx *qedf, struct fcoe_cqe *cqe,

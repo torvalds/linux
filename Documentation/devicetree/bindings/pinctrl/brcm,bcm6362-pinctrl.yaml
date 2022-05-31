@@ -41,6 +41,9 @@ patternProperties:
                 gpio15, gpio16, gpio17, gpio18, gpio19, gpio20, gpio21,
                 gpio22, gpio23, gpio24, gpio25, gpio26, gpio27, nand_grp ]
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

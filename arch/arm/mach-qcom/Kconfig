@@ -21,6 +21,16 @@ config ARCH_MSM8X60
 	bool "Enable support for MSM8X60"
 	select CLKSRC_QCOM
 
+config ARCH_MSM8916
+	bool "Enable support for MSM8916"
+	select HAVE_ARM_ARCH_TIMER
+	help
+	  Enable support for the Qualcomm Snapdragon 410 (MSM8916/APQ8016).
+
+	  Note that ARM64 is the main supported architecture for MSM8916.
+	  The ARM32 option is intended for a few devices with signed firmware
+	  that does not allow booting ARM64 kernels.
+
 config ARCH_MSM8960
 	bool "Enable support for MSM8960"
 	select CLKSRC_QCOM

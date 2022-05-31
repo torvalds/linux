@@ -1467,9 +1467,6 @@ static const struct iio_buffer_setup_ops gp2ap020a00f_buffer_setup_ops = {
 	.predisable = &gp2ap020a00f_buffer_predisable,
 };
 
-static const struct iio_trigger_ops gp2ap020a00f_trigger_ops = {
-};
-
 static int gp2ap020a00f_probe(struct i2c_client *client,
 				const struct i2c_device_id *id)
 {
@@ -1549,8 +1546,6 @@ static int gp2ap020a00f_probe(struct i2c_client *client,
 		dev_err(&client->dev, "Irq request failed.\n");
 		goto error_uninit_buffer;
 	}
-
-	data->trig->ops = &gp2ap020a00f_trigger_ops;
 
 	init_irq_work(&data->work, gp2ap020a00f_iio_trigger_work);
 

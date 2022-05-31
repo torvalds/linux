@@ -25,68 +25,19 @@ struct fwnode_handle;
 struct v4l2_async_notifier;
 struct v4l2_async_subdev;
 
-#define V4L2_FWNODE_CSI2_MAX_DATA_LANES	8
-
-/**
- * struct v4l2_fwnode_bus_mipi_csi2 - MIPI CSI-2 bus data structure
- * @flags: media bus (V4L2_MBUS_*) flags
- * @data_lanes: an array of physical data lane indexes
- * @clock_lane: physical lane index of the clock lane
- * @num_data_lanes: number of data lanes
- * @lane_polarities: polarity of the lanes. The order is the same of
- *		   the physical lanes.
- */
-struct v4l2_fwnode_bus_mipi_csi2 {
-	unsigned int flags;
-	unsigned char data_lanes[V4L2_FWNODE_CSI2_MAX_DATA_LANES];
-	unsigned char clock_lane;
-	unsigned char num_data_lanes;
-	bool lane_polarities[1 + V4L2_FWNODE_CSI2_MAX_DATA_LANES];
-};
-
-/**
- * struct v4l2_fwnode_bus_parallel - parallel data bus data structure
- * @flags: media bus (V4L2_MBUS_*) flags
- * @bus_width: bus width in bits
- * @data_shift: data shift in bits
- */
-struct v4l2_fwnode_bus_parallel {
-	unsigned int flags;
-	unsigned char bus_width;
-	unsigned char data_shift;
-};
-
-/**
- * struct v4l2_fwnode_bus_mipi_csi1 - CSI-1/CCP2 data bus structure
- * @clock_inv: polarity of clock/strobe signal
- *	       false - not inverted, true - inverted
- * @strobe: false - data/clock, true - data/strobe
- * @lane_polarity: the polarities of the clock (index 0) and data lanes
- *		   index (1)
- * @data_lane: the number of the data lane
- * @clock_lane: the number of the clock lane
- */
-struct v4l2_fwnode_bus_mipi_csi1 {
-	unsigned char clock_inv:1;
-	unsigned char strobe:1;
-	bool lane_polarity[2];
-	unsigned char data_lane;
-	unsigned char clock_lane;
-};
-
 /**
  * struct v4l2_fwnode_endpoint - the endpoint data structure
  * @base: fwnode endpoint of the v4l2_fwnode
  * @bus_type: bus type
  * @bus: bus configuration data structure
- * @bus.parallel: embedded &struct v4l2_fwnode_bus_parallel.
+ * @bus.parallel: embedded &struct v4l2_mbus_config_parallel.
  *		  Used if the bus is parallel.
- * @bus.mipi_csi1: embedded &struct v4l2_fwnode_bus_mipi_csi1.
+ * @bus.mipi_csi1: embedded &struct v4l2_mbus_config_mipi_csi1.
  *		   Used if the bus is MIPI Alliance's Camera Serial
  *		   Interface version 1 (MIPI CSI1) or Standard
  *		   Mobile Imaging Architecture's Compact Camera Port 2
  *		   (SMIA CCP2).
- * @bus.mipi_csi2: embedded &struct v4l2_fwnode_bus_mipi_csi2.
+ * @bus.mipi_csi2: embedded &struct v4l2_mbus_config_mipi_csi2.
  *		   Used if the bus is MIPI Alliance's Camera Serial
  *		   Interface version 2 (MIPI CSI2).
  * @link_frequencies: array of supported link frequencies
@@ -100,9 +51,9 @@ struct v4l2_fwnode_endpoint {
 	 */
 	enum v4l2_mbus_type bus_type;
 	struct {
-		struct v4l2_fwnode_bus_parallel parallel;
-		struct v4l2_fwnode_bus_mipi_csi1 mipi_csi1;
-		struct v4l2_fwnode_bus_mipi_csi2 mipi_csi2;
+		struct v4l2_mbus_config_parallel parallel;
+		struct v4l2_mbus_config_mipi_csi1 mipi_csi1;
+		struct v4l2_mbus_config_mipi_csi2 mipi_csi2;
 	} bus;
 	u64 *link_frequencies;
 	unsigned int nr_of_link_frequencies;
@@ -463,7 +414,7 @@ typedef int (*parse_endpoint_func)(struct device *dev,
 				  struct v4l2_async_subdev *asd);
 
 /**
- * v4l2_async_notifier_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
+ * v4l2_async_nf_parse_fwnode_endpoints - Parse V4L2 fwnode endpoints in a
  *						device node
  * @dev: the device the endpoints of which are to be parsed
  * @notifier: notifier for @dev
@@ -496,7 +447,7 @@ typedef int (*parse_endpoint_func)(struct device *dev,
  * to retain that configuration, the user needs to allocate memory for it.
  *
  * Any notifier populated using this function must be released with a call to
- * v4l2_async_notifier_cleanup() after it has been unregistered and the async
+ * v4l2_async_nf_cleanup() after it has been unregistered and the async
  * sub-devices are no longer in use, even if the function returned an error.
  *
  * Return: %0 on success, including when no async sub-devices are found
@@ -505,10 +456,10 @@ typedef int (*parse_endpoint_func)(struct device *dev,
  *	   Other error codes as returned by @parse_endpoint
  */
 int
-v4l2_async_notifier_parse_fwnode_endpoints(struct device *dev,
-					   struct v4l2_async_notifier *notifier,
-					   size_t asd_struct_size,
-					   parse_endpoint_func parse_endpoint);
+v4l2_async_nf_parse_fwnode_endpoints(struct device *dev,
+				     struct v4l2_async_notifier *notifier,
+				     size_t asd_struct_size,
+				     parse_endpoint_func parse_endpoint);
 
 /* Helper macros to access the connector links. */
 

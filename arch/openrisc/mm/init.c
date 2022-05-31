@@ -25,7 +25,6 @@
 #include <linux/memblock.h>
 #include <linux/init.h>
 #include <linux/delay.h>
-#include <linux/blkdev.h>	/* for initrd_* */
 #include <linux/pagemap.h>
 
 #include <asm/pgalloc.h>
@@ -38,8 +37,6 @@
 #include <asm/sections.h>
 
 int mem_init_done;
-
-DEFINE_PER_CPU(struct mmu_gather, mmu_gathers);
 
 static void __init zone_sizes_init(void)
 {

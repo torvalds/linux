@@ -67,6 +67,28 @@ enum {
 	ETH_RSS_HASH_FUNCS_COUNT
 };
 
+/**
+ * struct kernel_ethtool_ringparam - RX/TX ring configuration
+ * @rx_buf_len: Current length of buffers on the rx ring.
+ * @tcp_data_split: Scatter packet headers and data to separate buffers
+ * @cqe_size: Size of TX/RX completion queue event
+ */
+struct kernel_ethtool_ringparam {
+	u32	rx_buf_len;
+	u8	tcp_data_split;
+	u32	cqe_size;
+};
+
+/**
+ * enum ethtool_supported_ring_param - indicator caps for setting ring params
+ * @ETHTOOL_RING_USE_RX_BUF_LEN: capture for setting rx_buf_len
+ * @ETHTOOL_RING_USE_CQE_SIZE: capture for setting cqe_size
+ */
+enum ethtool_supported_ring_param {
+	ETHTOOL_RING_USE_RX_BUF_LEN = BIT(0),
+	ETHTOOL_RING_USE_CQE_SIZE   = BIT(1),
+};
+
 #define __ETH_RSS_HASH_BIT(bit)	((u32)1 << (bit))
 #define __ETH_RSS_HASH(name)	__ETH_RSS_HASH_BIT(ETH_RSS_HASH_##name##_BIT)
 
@@ -94,7 +116,8 @@ struct ethtool_link_ext_state_info {
 		enum ethtool_link_ext_substate_link_logical_mismatch link_logical_mismatch;
 		enum ethtool_link_ext_substate_bad_signal_integrity bad_signal_integrity;
 		enum ethtool_link_ext_substate_cable_issue cable_issue;
-		u8 __link_ext_substate;
+		enum ethtool_link_ext_substate_module module;
+		u32 __link_ext_substate;
 	};
 };
 
@@ -416,10 +439,22 @@ struct ethtool_module_eeprom {
 };
 
 /**
+ * struct ethtool_module_power_mode_params - module power mode parameters
+ * @policy: The power mode policy enforced by the host for the plug-in module.
+ * @mode: The operational power mode of the plug-in module. Should be filled by
+ *	device drivers on get operations.
+ */
+struct ethtool_module_power_mode_params {
+	enum ethtool_module_power_mode_policy policy;
+	enum ethtool_module_power_mode mode;
+};
+
+/**
  * struct ethtool_ops - optional netdev operations
  * @cap_link_lanes_supported: indicates if the driver supports lanes
  *	parameter.
  * @supported_coalesce_params: supported types of interrupt coalescing.
+ * @supported_ring_params: supported ring params.
  * @get_drvinfo: Report driver/device information.  Should only set the
  *	@driver, @version, @fw_version and @bus_info fields.  If not
  *	implemented, the @driver and @bus_info fields will be filled in
@@ -580,6 +615,11 @@ struct ethtool_module_eeprom {
  * @get_eth_ctrl_stats: Query some of the IEEE 802.3 MAC Ctrl statistics.
  * @get_rmon_stats: Query some of the RMON (RFC 2819) statistics.
  *	Set %ranges to a pointer to zero-terminated array of byte ranges.
+ * @get_module_power_mode: Get the power mode policy for the plug-in module
+ *	used by the network device and its operational power mode, if
+ *	plugged-in.
+ * @set_module_power_mode: Set the power mode policy for the plug-in module
+ *	used by the network device.
  *
  * All operations are optional (i.e. the function pointer may be set
  * to %NULL) and callers must take this into account.  Callers must
@@ -596,6 +636,7 @@ struct ethtool_module_eeprom {
 struct ethtool_ops {
 	u32     cap_link_lanes_supported:1;
 	u32	supported_coalesce_params;
+	u32	supported_ring_params;
 	void	(*get_drvinfo)(struct net_device *, struct ethtool_drvinfo *);
 	int	(*get_regs_len)(struct net_device *);
 	void	(*get_regs)(struct net_device *, struct ethtool_regs *, void *);
@@ -621,9 +662,13 @@ struct ethtool_ops {
 				struct kernel_ethtool_coalesce *,
 				struct netlink_ext_ack *);
 	void	(*get_ringparam)(struct net_device *,
-				 struct ethtool_ringparam *);
+				 struct ethtool_ringparam *,
+				 struct kernel_ethtool_ringparam *,
+				 struct netlink_ext_ack *);
 	int	(*set_ringparam)(struct net_device *,
-				 struct ethtool_ringparam *);
+				 struct ethtool_ringparam *,
+				 struct kernel_ethtool_ringparam *,
+				 struct netlink_ext_ack *);
 	void	(*get_pause_stats)(struct net_device *dev,
 				   struct ethtool_pause_stats *pause_stats);
 	void	(*get_pauseparam)(struct net_device *,
@@ -705,6 +750,12 @@ struct ethtool_ops {
 	void	(*get_rmon_stats)(struct net_device *dev,
 				  struct ethtool_rmon_stats *rmon_stats,
 				  const struct ethtool_rmon_hist_range **ranges);
+	int	(*get_module_power_mode)(struct net_device *dev,
+					 struct ethtool_module_power_mode_params *params,
+					 struct netlink_ext_ack *extack);
+	int	(*set_module_power_mode)(struct net_device *dev,
+					 const struct ethtool_module_power_mode_params *params,
+					 struct netlink_ext_ack *extack);
 };
 
 int ethtool_check_ops(const struct ethtool_ops *ops);

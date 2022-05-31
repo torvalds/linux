@@ -58,6 +58,10 @@ int dlm_user_purge(struct dlm_ls *ls, struct dlm_user_proc *proc,
 	int nodeid, int pid);
 int dlm_user_deadlock(struct dlm_ls *ls, uint32_t flags, uint32_t lkid);
 void dlm_clear_proc_locks(struct dlm_ls *ls, struct dlm_user_proc *proc);
+int dlm_debug_add_lkb(struct dlm_ls *ls, uint32_t lkb_id, char *name, int len,
+		      int lkb_nodeid, unsigned int lkb_flags, int lkb_status);
+int dlm_debug_add_lkb_to_waiters(struct dlm_ls *ls, uint32_t lkb_id,
+				 int mstype, int to_nodeid);
 
 static inline int is_master(struct dlm_rsb *r)
 {

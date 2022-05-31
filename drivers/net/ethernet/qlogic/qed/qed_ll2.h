@@ -32,7 +32,6 @@
 #define QED_LL2_LEGACY_CONN_BASE_PF     0
 #define QED_LL2_CTX_CONN_BASE_PF        QED_MAX_NUM_OF_LEGACY_LL2_CONNS_PF
 
-
 struct qed_ll2_rx_packet {
 	struct list_head list_entry;
 	struct core_rx_bd_with_buff_len *rxq_bd;
@@ -119,41 +118,41 @@ struct qed_ll2_info {
 extern const struct qed_ll2_ops qed_ll2_ops_pass;
 
 /**
- * @brief qed_ll2_acquire_connection - allocate resources,
- *        starts rx & tx (if relevant) queues pair. Provides
- *        connecion handler as output parameter.
+ * qed_ll2_acquire_connection(): Allocate resources,
+ *                               starts rx & tx (if relevant) queues pair.
+ *                               Provides connecion handler as output
+ *                               parameter.
  *
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @data: Describes connection parameters.
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param data - describes connection parameters
- * @return int
+ * Return: Int.
  */
 int qed_ll2_acquire_connection(void *cxt, struct qed_ll2_acquire_data *data);
 
 /**
- * @brief qed_ll2_establish_connection - start previously
- *        allocated LL2 queues pair
+ * qed_ll2_establish_connection(): start previously allocated LL2 queues pair
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param p_ptt
- * @param connection_handle	LL2 connection's handle obtained from
- *                              qed_ll2_require_connection
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: LL2 connection's handle obtained from
+ *                     qed_ll2_require_connection.
  *
- * @return 0 on success, failure otherwise
+ * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_establish_connection(void *cxt, u8 connection_handle);
 
 /**
- * @brief qed_ll2_post_rx_buffers - submit buffers to LL2 Rx queue.
+ * qed_ll2_post_rx_buffer(): Submit buffers to LL2 Rx queue.
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param connection_handle	LL2 connection's handle obtained from
- *				qed_ll2_require_connection
- * @param addr			rx (physical address) buffers to submit
- * @param cookie
- * @param notify_fw		produce corresponding Rx BD immediately
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: LL2 connection's handle obtained from
+ *                     qed_ll2_require_connection.
+ * @addr: RX (physical address) buffers to submit.
+ * @buf_len: Buffer Len.
+ * @cookie: Cookie.
+ * @notify_fw: Produce corresponding Rx BD immediately.
  *
- * @return 0 on success, failure otherwise
+ * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_post_rx_buffer(void *cxt,
 			   u8 connection_handle,
@@ -161,15 +160,15 @@ int qed_ll2_post_rx_buffer(void *cxt,
 			   u16 buf_len, void *cookie, u8 notify_fw);
 
 /**
- * @brief qed_ll2_prepare_tx_packet - request for start Tx BD
- *				      to prepare Tx packet submission to FW.
+ * qed_ll2_prepare_tx_packet(): Request for start Tx BD
+ *				to prepare Tx packet submission to FW.
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param connection_handle
- * @param pkt - info regarding the tx packet
- * @param notify_fw - issue doorbell to fw for this packet
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: Connection handle.
+ * @pkt: Info regarding the tx packet.
+ * @notify_fw: Issue doorbell to fw for this packet.
  *
- * @return 0 on success, failure otherwise
+ * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_prepare_tx_packet(void *cxt,
 			      u8 connection_handle,
@@ -177,81 +176,83 @@ int qed_ll2_prepare_tx_packet(void *cxt,
 			      bool notify_fw);
 
 /**
- * @brief qed_ll2_release_connection -	releases resources
- *					allocated for LL2 connection
+ * qed_ll2_release_connection(): Releases resources allocated for LL2
+ *                               connection.
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param connection_handle		LL2 connection's handle obtained from
- *					qed_ll2_require_connection
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: LL2 connection's handle obtained from
+ *                     qed_ll2_require_connection.
+ *
+ * Return: Void.
  */
 void qed_ll2_release_connection(void *cxt, u8 connection_handle);
 
 /**
- * @brief qed_ll2_set_fragment_of_tx_packet -	provides fragments to fill
- *						Tx BD of BDs requested by
- *						qed_ll2_prepare_tx_packet
+ * qed_ll2_set_fragment_of_tx_packet(): Provides fragments to fill
+ *                                      Tx BD of BDs requested by
+ *                                      qed_ll2_prepare_tx_packet
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param connection_handle			LL2 connection's handle
- *						obtained from
- *						qed_ll2_require_connection
- * @param addr
- * @param nbytes
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: LL2 connection's handle obtained from
+ *                     qed_ll2_require_connection.
+ * @addr: Address.
+ * @nbytes: Number of bytes.
  *
- * @return 0 on success, failure otherwise
+ * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_set_fragment_of_tx_packet(void *cxt,
 				      u8 connection_handle,
 				      dma_addr_t addr, u16 nbytes);
 
 /**
- * @brief qed_ll2_terminate_connection -	stops Tx/Rx queues
+ * qed_ll2_terminate_connection(): Stops Tx/Rx queues
  *
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: LL2 connection's handle obtained from
+ *                    qed_ll2_require_connection.
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param connection_handle			LL2 connection's handle
- *						obtained from
- *						qed_ll2_require_connection
- *
- * @return 0 on success, failure otherwise
+ * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_terminate_connection(void *cxt, u8 connection_handle);
 
 /**
- * @brief qed_ll2_get_stats -	get LL2 queue's statistics
+ * qed_ll2_get_stats(): Get LL2 queue's statistics
  *
+ * @cxt: Pointer to the hw-function [opaque to some].
+ * @connection_handle: LL2 connection's handle obtained from
+ *                    qed_ll2_require_connection.
+ * @p_stats: Pointer Status.
  *
- * @param cxt - pointer to the hw-function [opaque to some]
- * @param connection_handle	LL2 connection's handle obtained from
- *				qed_ll2_require_connection
- * @param p_stats
- *
- * @return 0 on success, failure otherwise
+ * Return: 0 on success, failure otherwise.
  */
 int qed_ll2_get_stats(void *cxt,
 		      u8 connection_handle, struct qed_ll2_stats *p_stats);
 
 /**
- * @brief qed_ll2_alloc - Allocates LL2 connections set
+ * qed_ll2_alloc(): Allocates LL2 connections set.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
  *
- * @return int
+ * Return: Int.
  */
 int qed_ll2_alloc(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_ll2_setup - Inits LL2 connections set
+ * qed_ll2_setup(): Inits LL2 connections set.
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  *
  */
 void qed_ll2_setup(struct qed_hwfn *p_hwfn);
 
 /**
- * @brief qed_ll2_free - Releases LL2 connections set
+ * qed_ll2_free(): Releases LL2 connections set
  *
- * @param p_hwfn
+ * @p_hwfn: HW device data.
+ *
+ * Return: Void.
  *
  */
 void qed_ll2_free(struct qed_hwfn *p_hwfn);

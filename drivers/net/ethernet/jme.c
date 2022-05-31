@@ -28,6 +28,7 @@
 #include <linux/udp.h>
 #include <linux/if_vlan.h>
 #include <linux/slab.h>
+#include <linux/jiffies.h>
 #include <net/ip6_checksum.h>
 #include "jme.h"
 
@@ -313,7 +314,7 @@ jme_load_macaddr(struct net_device *netdev)
 	val = jread32(jme, JME_RXUMA_HI);
 	macaddr[4] = (val >>  0) & 0xFF;
 	macaddr[5] = (val >>  8) & 0xFF;
-	memcpy(netdev->dev_addr, macaddr, ETH_ALEN);
+	eth_hw_addr_set(netdev, macaddr);
 	spin_unlock_bh(&jme->macaddr_lock);
 }
 
@@ -2179,7 +2180,7 @@ jme_stop_queue_if_full(struct jme_adapter *jme)
 	}
 
 	if (unlikely(txbi->start_xmit &&
-			(jiffies - txbi->start_xmit) >= TX_TIMEOUT &&
+			time_is_before_eq_jiffies(txbi->start_xmit + TX_TIMEOUT) &&
 			txbi->skb)) {
 		netif_stop_queue(jme->dev);
 		netif_info(jme, tx_queued, jme->dev,
@@ -2254,7 +2255,7 @@ jme_set_macaddr(struct net_device *netdev, void *p)
 		return -EBUSY;
 
 	spin_lock_bh(&jme->macaddr_lock);
-	memcpy(netdev->dev_addr, addr->sa_data, netdev->addr_len);
+	eth_hw_addr_set(netdev, addr->sa_data);
 	jme_set_unicastaddr(netdev);
 	spin_unlock_bh(&jme->macaddr_lock);
 

@@ -3,11 +3,12 @@
 #define _BPF_CGROUP_H
 
 #include <linux/bpf.h>
+#include <linux/bpf-cgroup-defs.h>
 #include <linux/errno.h>
 #include <linux/jump_label.h>
 #include <linux/percpu.h>
-#include <linux/percpu-refcount.h>
 #include <linux/rbtree.h>
+#include <net/sock.h>
 #include <uapi/linux/bpf.h>
 
 struct sock;
@@ -23,33 +24,6 @@ struct ctl_table_header;
 struct task_struct;
 
 #ifdef CONFIG_CGROUP_BPF
-enum cgroup_bpf_attach_type {
-	CGROUP_BPF_ATTACH_TYPE_INVALID = -1,
-	CGROUP_INET_INGRESS = 0,
-	CGROUP_INET_EGRESS,
-	CGROUP_INET_SOCK_CREATE,
-	CGROUP_SOCK_OPS,
-	CGROUP_DEVICE,
-	CGROUP_INET4_BIND,
-	CGROUP_INET6_BIND,
-	CGROUP_INET4_CONNECT,
-	CGROUP_INET6_CONNECT,
-	CGROUP_INET4_POST_BIND,
-	CGROUP_INET6_POST_BIND,
-	CGROUP_UDP4_SENDMSG,
-	CGROUP_UDP6_SENDMSG,
-	CGROUP_SYSCTL,
-	CGROUP_UDP4_RECVMSG,
-	CGROUP_UDP6_RECVMSG,
-	CGROUP_GETSOCKOPT,
-	CGROUP_SETSOCKOPT,
-	CGROUP_INET4_GETPEERNAME,
-	CGROUP_INET6_GETPEERNAME,
-	CGROUP_INET4_GETSOCKNAME,
-	CGROUP_INET6_GETSOCKNAME,
-	CGROUP_INET_SOCK_RELEASE,
-	MAX_CGROUP_BPF_ATTACH_TYPE
-};
 
 #define CGROUP_ATYPE(type) \
 	case BPF_##type: return type
@@ -127,55 +101,8 @@ struct bpf_prog_list {
 	struct bpf_cgroup_storage *storage[MAX_BPF_CGROUP_STORAGE_TYPE];
 };
 
-struct bpf_prog_array;
-
-struct cgroup_bpf {
-	/* array of effective progs in this cgroup */
-	struct bpf_prog_array __rcu *effective[MAX_CGROUP_BPF_ATTACH_TYPE];
-
-	/* attached progs to this cgroup and attach flags
-	 * when flags == 0 or BPF_F_ALLOW_OVERRIDE the progs list will
-	 * have either zero or one element
-	 * when BPF_F_ALLOW_MULTI the list can have up to BPF_CGROUP_MAX_PROGS
-	 */
-	struct list_head progs[MAX_CGROUP_BPF_ATTACH_TYPE];
-	u32 flags[MAX_CGROUP_BPF_ATTACH_TYPE];
-
-	/* list of cgroup shared storages */
-	struct list_head storages;
-
-	/* temp storage for effective prog array used by prog_attach/detach */
-	struct bpf_prog_array *inactive;
-
-	/* reference counter used to detach bpf programs after cgroup removal */
-	struct percpu_ref refcnt;
-
-	/* cgroup_bpf is released using a work queue */
-	struct work_struct release_work;
-};
-
 int cgroup_bpf_inherit(struct cgroup *cgrp);
 void cgroup_bpf_offline(struct cgroup *cgrp);
-
-int __cgroup_bpf_attach(struct cgroup *cgrp,
-			struct bpf_prog *prog, struct bpf_prog *replace_prog,
-			struct bpf_cgroup_link *link,
-			enum bpf_attach_type type, u32 flags);
-int __cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-			struct bpf_cgroup_link *link,
-			enum bpf_attach_type type);
-int __cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
-		       union bpf_attr __user *uattr);
-
-/* Wrapper for __cgroup_bpf_*() protected by cgroup_mutex */
-int cgroup_bpf_attach(struct cgroup *cgrp,
-		      struct bpf_prog *prog, struct bpf_prog *replace_prog,
-		      struct bpf_cgroup_link *link, enum bpf_attach_type type,
-		      u32 flags);
-int cgroup_bpf_detach(struct cgroup *cgrp, struct bpf_prog *prog,
-		      enum bpf_attach_type type);
-int cgroup_bpf_query(struct cgroup *cgrp, const union bpf_attr *attr,
-		     union bpf_attr __user *uattr);
 
 int __cgroup_bpf_run_filter_skb(struct sock *sk,
 				struct sk_buff *skb,
@@ -239,11 +166,23 @@ int bpf_percpu_cgroup_storage_copy(struct bpf_map *map, void *key, void *value);
 int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 				     void *value, u64 flags);
 
+/* Opportunistic check to see whether we have any BPF program attached*/
+static inline bool cgroup_bpf_sock_enabled(struct sock *sk,
+					   enum cgroup_bpf_attach_type type)
+{
+	struct cgroup *cgrp = sock_cgroup_ptr(&sk->sk_cgrp_data);
+	struct bpf_prog_array *array;
+
+	array = rcu_access_pointer(cgrp->bpf.effective[type]);
+	return array != &bpf_empty_prog_array.hdr;
+}
+
 /* Wrappers for __cgroup_bpf_run_filter_skb() guarded by cgroup_bpf_enabled. */
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk, skb)			      \
 ({									      \
 	int __ret = 0;							      \
-	if (cgroup_bpf_enabled(CGROUP_INET_INGRESS))		      \
+	if (cgroup_bpf_enabled(CGROUP_INET_INGRESS) &&			      \
+	    cgroup_bpf_sock_enabled(sk, CGROUP_INET_INGRESS))		      \
 		__ret = __cgroup_bpf_run_filter_skb(sk, skb,		      \
 						    CGROUP_INET_INGRESS); \
 									      \
@@ -255,7 +194,8 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 	int __ret = 0;							       \
 	if (cgroup_bpf_enabled(CGROUP_INET_EGRESS) && sk && sk == skb->sk) { \
 		typeof(sk) __sk = sk_to_full_sk(sk);			       \
-		if (sk_fullsock(__sk))					       \
+		if (sk_fullsock(__sk) &&				       \
+		    cgroup_bpf_sock_enabled(__sk, CGROUP_INET_EGRESS))	       \
 			__ret = __cgroup_bpf_run_filter_skb(__sk, skb,	       \
 						      CGROUP_INET_EGRESS); \
 	}								       \
@@ -421,7 +361,8 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 				       kernel_optval)			       \
 ({									       \
 	int __ret = 0;							       \
-	if (cgroup_bpf_enabled(CGROUP_SETSOCKOPT))			       \
+	if (cgroup_bpf_enabled(CGROUP_SETSOCKOPT) &&			       \
+	    cgroup_bpf_sock_enabled(sock, CGROUP_SETSOCKOPT))		       \
 		__ret = __cgroup_bpf_run_filter_setsockopt(sock, level,	       \
 							   optname, optval,    \
 							   optlen,	       \
@@ -441,7 +382,8 @@ int bpf_percpu_cgroup_storage_update(struct bpf_map *map, void *key,
 				       max_optlen, retval)		       \
 ({									       \
 	int __ret = retval;						       \
-	if (cgroup_bpf_enabled(CGROUP_GETSOCKOPT))			       \
+	if (cgroup_bpf_enabled(CGROUP_GETSOCKOPT) &&			       \
+	    cgroup_bpf_sock_enabled(sock, CGROUP_GETSOCKOPT))		       \
 		if (!(sock)->sk_prot->bpf_bypass_getsockopt ||		       \
 		    !INDIRECT_CALL_INET_1((sock)->sk_prot->bpf_bypass_getsockopt, \
 					tcp_bpf_bypass_getsockopt,	       \
@@ -471,7 +413,6 @@ int cgroup_bpf_prog_query(const union bpf_attr *attr,
 			  union bpf_attr __user *uattr);
 #else
 
-struct cgroup_bpf {};
 static inline int cgroup_bpf_inherit(struct cgroup *cgrp) { return 0; }
 static inline void cgroup_bpf_offline(struct cgroup *cgrp) {}
 
@@ -517,6 +458,7 @@ static inline int bpf_percpu_cgroup_storage_update(struct bpf_map *map,
 
 #define cgroup_bpf_enabled(atype) (0)
 #define BPF_CGROUP_RUN_SA_PROG_LOCK(sk, uaddr, atype, t_ctx) ({ 0; })
+#define BPF_CGROUP_RUN_SA_PROG(sk, uaddr, atype) ({ 0; })
 #define BPF_CGROUP_PRE_CONNECT_ENABLED(sk) (0)
 #define BPF_CGROUP_RUN_PROG_INET_INGRESS(sk,skb) ({ 0; })
 #define BPF_CGROUP_RUN_PROG_INET_EGRESS(sk,skb) ({ 0; })

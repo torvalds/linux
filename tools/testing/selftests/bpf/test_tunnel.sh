@@ -39,7 +39,7 @@
 # from root namespace, the following operations happen:
 # 1) Route lookup shows 10.1.1.100/24 belongs to tnl dev, fwd to tnl dev.
 # 2) Tnl device's egress BPF program is triggered and set the tunnel metadata,
-#    with remote_ip=172.16.1.200 and others.
+#    with remote_ip=172.16.1.100 and others.
 # 3) Outer tunnel header is prepended and route the packet to veth1's egress
 # 4) veth0's ingress queue receive the tunneled packet at namespace at_ns0
 # 5) Tunnel protocol handler, ex: vxlan_rcv, decap the packet
@@ -168,14 +168,15 @@ add_vxlan_tunnel()
 	ip netns exec at_ns0 \
 		ip link set dev $DEV_NS address 52:54:00:d9:01:00 up
 	ip netns exec at_ns0 ip addr add dev $DEV_NS 10.1.1.100/24
-	ip netns exec at_ns0 arp -s 10.1.1.200 52:54:00:d9:02:00
+	ip netns exec at_ns0 \
+		ip neigh add 10.1.1.200 lladdr 52:54:00:d9:02:00 dev $DEV_NS
 	ip netns exec at_ns0 iptables -A OUTPUT -j MARK --set-mark 0x800FF
 
 	# root namespace
 	ip link add dev $DEV type $TYPE external gbp dstport 4789
 	ip link set dev $DEV address 52:54:00:d9:02:00 up
 	ip addr add dev $DEV 10.1.1.200/24
-	arp -s 10.1.1.100 52:54:00:d9:01:00
+	ip neigh add 10.1.1.100 lladdr 52:54:00:d9:01:00 dev $DEV
 }
 
 add_ip6vxlan_tunnel()

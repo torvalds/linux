@@ -204,7 +204,7 @@ static struct attribute *format_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group format_group = {
+static const struct attribute_group format_group = {
 	.name = "format",
 	.attrs = format_attrs,
 };
@@ -756,7 +756,7 @@ static ssize_t catalog_event_len_validate(struct hv_24x7_event_data *event,
 	}
 
 	if (calc_ev_end > ev_end) {
-		pr_warn("event %zu exceeds it's own length: event=%pK, end=%pK, offset=%zu, calc_ev_end=%pK\n",
+		pr_warn("event %zu exceeds its own length: event=%pK, end=%pK, offset=%zu, calc_ev_end=%pK\n",
 			event_idx, event, ev_end, offset, calc_ev_end);
 		return -1;
 	}
@@ -1148,7 +1148,7 @@ static struct attribute *cpumask_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group cpumask_attr_group = {
+static const struct attribute_group cpumask_attr_group = {
 	.attrs = cpumask_attrs,
 };
 
@@ -1162,7 +1162,7 @@ static struct attribute *if_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group if_group = {
+static const struct attribute_group if_group = {
 	.name = "interface",
 	.bin_attrs = if_bin_attrs,
 	.attrs = if_attrs,

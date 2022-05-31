@@ -33,6 +33,10 @@ static const struct renesas_family fam_rcar_gen3 __initconst __maybe_unused = {
 	.reg	= 0xfff00044,		/* PRR (Product Register) */
 };
 
+static const struct renesas_family fam_rcar_gen4 __initconst __maybe_unused = {
+	.name	= "R-Car Gen4",
+};
+
 static const struct renesas_family fam_rmobile __initconst __maybe_unused = {
 	.name	= "R-Mobile",
 	.reg	= 0xe600101c,		/* CCCR (Common Chip Code Register) */
@@ -58,6 +62,10 @@ static const struct renesas_family fam_rzg2 __initconst __maybe_unused = {
 
 static const struct renesas_family fam_rzg2l __initconst __maybe_unused = {
 	.name	= "RZ/G2L",
+};
+
+static const struct renesas_family fam_rzv2l __initconst __maybe_unused = {
+	.name	= "RZ/V2L",
 };
 
 static const struct renesas_family fam_shmobile __initconst __maybe_unused = {
@@ -140,6 +148,11 @@ static const struct renesas_soc soc_rz_g2l __initconst __maybe_unused = {
 	.id     = 0x841c447,
 };
 
+static const struct renesas_soc soc_rz_v2l __initconst __maybe_unused = {
+	.family = &fam_rzv2l,
+	.id     = 0x8447447,
+};
+
 static const struct renesas_soc soc_rcar_m1a __initconst __maybe_unused = {
 	.family	= &fam_rcar_gen1,
 };
@@ -214,6 +227,11 @@ static const struct renesas_soc soc_rcar_v3u __initconst __maybe_unused = {
 	.id	= 0x59,
 };
 
+static const struct renesas_soc soc_rcar_s4 __initconst __maybe_unused = {
+	.family	= &fam_rcar_gen4,
+	.id	= 0x5a,
+};
+
 static const struct renesas_soc soc_shmobile_ag5 __initconst __maybe_unused = {
 	.family	= &fam_shmobile,
 	.id	= 0x37,
@@ -285,17 +303,22 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ .compatible = "renesas,r8a7795",	.data = &soc_rcar_h3 },
 #endif
 #ifdef CONFIG_ARCH_R8A77951
+	{ .compatible = "renesas,r8a779m0",	.data = &soc_rcar_h3 },
 	{ .compatible = "renesas,r8a779m1",	.data = &soc_rcar_h3 },
+	{ .compatible = "renesas,r8a779m8",	.data = &soc_rcar_h3 },
 #endif
 #ifdef CONFIG_ARCH_R8A77960
 	{ .compatible = "renesas,r8a7796",	.data = &soc_rcar_m3_w },
 #endif
 #ifdef CONFIG_ARCH_R8A77961
 	{ .compatible = "renesas,r8a77961",	.data = &soc_rcar_m3_w },
+	{ .compatible = "renesas,r8a779m2",	.data = &soc_rcar_m3_w },
 	{ .compatible = "renesas,r8a779m3",	.data = &soc_rcar_m3_w },
 #endif
 #ifdef CONFIG_ARCH_R8A77965
 	{ .compatible = "renesas,r8a77965",	.data = &soc_rcar_m3_n },
+	{ .compatible = "renesas,r8a779m4",	.data = &soc_rcar_m3_n },
+	{ .compatible = "renesas,r8a779m5",	.data = &soc_rcar_m3_n },
 #endif
 #ifdef CONFIG_ARCH_R8A77970
 	{ .compatible = "renesas,r8a77970",	.data = &soc_rcar_v3m },
@@ -305,15 +328,23 @@ static const struct of_device_id renesas_socs[] __initconst = {
 #endif
 #ifdef CONFIG_ARCH_R8A77990
 	{ .compatible = "renesas,r8a77990",	.data = &soc_rcar_e3 },
+	{ .compatible = "renesas,r8a779m6",	.data = &soc_rcar_e3 },
 #endif
 #ifdef CONFIG_ARCH_R8A77995
 	{ .compatible = "renesas,r8a77995",	.data = &soc_rcar_d3 },
+	{ .compatible = "renesas,r8a779m7",	.data = &soc_rcar_d3 },
 #endif
 #ifdef CONFIG_ARCH_R8A779A0
 	{ .compatible = "renesas,r8a779a0",	.data = &soc_rcar_v3u },
 #endif
+#ifdef CONFIG_ARCH_R8A779F0
+	{ .compatible = "renesas,r8a779f0",	.data = &soc_rcar_s4 },
+#endif
 #if defined(CONFIG_ARCH_R9A07G044)
 	{ .compatible = "renesas,r9a07g044",	.data = &soc_rz_g2l },
+#endif
+#if defined(CONFIG_ARCH_R9A07G054)
+	{ .compatible = "renesas,r9a07g054",	.data = &soc_rz_v2l },
 #endif
 #ifdef CONFIG_ARCH_SH73A0
 	{ .compatible = "renesas,sh73a0",	.data = &soc_shmobile_ag5 },
@@ -321,94 +352,72 @@ static const struct of_device_id renesas_socs[] __initconst = {
 	{ /* sentinel */ }
 };
 
+struct renesas_id {
+	unsigned int offset;
+	u32 mask;
+};
+
+static const struct renesas_id id_bsid __initconst = {
+	.offset = 0,
+	.mask = 0xff0000,
+	/*
+	 * TODO: Upper 4 bits of BSID are for chip version, but the format is
+	 * not known at this time so we don't know how to specify eshi and eslo
+	 */
+};
+
+static const struct renesas_id id_rzg2l __initconst = {
+	.offset = 0xa04,
+	.mask = 0xfffffff,
+};
+
+static const struct renesas_id id_prr __initconst = {
+	.offset = 0,
+	.mask = 0xff00,
+};
+
+static const struct of_device_id renesas_ids[] __initconst = {
+	{ .compatible = "renesas,bsid",			.data = &id_bsid },
+	{ .compatible = "renesas,r9a07g044-sysc",	.data = &id_rzg2l },
+	{ .compatible = "renesas,r9a07g054-sysc",	.data = &id_rzg2l },
+	{ .compatible = "renesas,prr",			.data = &id_prr },
+	{ /* sentinel */ }
+};
+
 static int __init renesas_soc_init(void)
 {
 	struct soc_device_attribute *soc_dev_attr;
+	unsigned int product, eshi = 0, eslo;
 	const struct renesas_family *family;
 	const struct of_device_id *match;
 	const struct renesas_soc *soc;
+	const struct renesas_id *id;
 	void __iomem *chipid = NULL;
+	const char *rev_prefix = "";
 	struct soc_device *soc_dev;
 	struct device_node *np;
-	unsigned int product, eshi = 0, eslo;
+	const char *soc_id;
+	int ret;
 
 	match = of_match_node(renesas_socs, of_root);
 	if (!match)
 		return -ENODEV;
 
+	soc_id = strchr(match->compatible, ',') + 1;
 	soc = match->data;
 	family = soc->family;
 
-	np = of_find_compatible_node(NULL, NULL, "renesas,bsid");
+	np = of_find_matching_node_and_match(NULL, renesas_ids, &match);
 	if (np) {
-		chipid = of_iomap(np, 0);
-		of_node_put(np);
-
-		if (chipid) {
-			product = readl(chipid);
-			iounmap(chipid);
-
-			if (soc->id && ((product >> 16) & 0xff) != soc->id) {
-				pr_warn("SoC mismatch (product = 0x%x)\n",
-					product);
-				return -ENODEV;
-			}
-		}
-
-		/*
-		 * TODO: Upper 4 bits of BSID are for chip version, but the
-		 * format is not known at this time so we don't know how to
-		 * specify eshi and eslo
-		 */
-
-		goto done;
-	}
-
-	np = of_find_compatible_node(NULL, NULL, "renesas,r9a07g044-sysc");
-	if (np) {
-		chipid = of_iomap(np, 0);
-		of_node_put(np);
-
-		if (chipid) {
-			product = readl(chipid + 0x0a04);
-			iounmap(chipid);
-
-			if (soc->id && (product & 0xfffffff) != soc->id) {
-				pr_warn("SoC mismatch (product = 0x%x)\n",
-					product);
-				return -ENODEV;
-			}
-		}
-
-		goto done;
-	}
-
-	/* Try PRR first, then hardcoded fallback */
-	np = of_find_compatible_node(NULL, NULL, "renesas,prr");
-	if (np) {
+		id = match->data;
 		chipid = of_iomap(np, 0);
 		of_node_put(np);
 	} else if (soc->id && family->reg) {
+		/* Try hardcoded CCCR/PRR fallback */
+		id = &id_prr;
 		chipid = ioremap(family->reg, 4);
 	}
-	if (chipid) {
-		product = readl(chipid);
-		iounmap(chipid);
-		/* R-Car M3-W ES1.1 incorrectly identifies as ES2.0 */
-		if ((product & 0x7fff) == 0x5210)
-			product ^= 0x11;
-		/* R-Car M3-W ES1.3 incorrectly identifies as ES2.1 */
-		if ((product & 0x7fff) == 0x5211)
-			product ^= 0x12;
-		if (soc->id && ((product >> 8) & 0xff) != soc->id) {
-			pr_warn("SoC mismatch (product = 0x%x)\n", product);
-			return -ENODEV;
-		}
-		eshi = ((product >> 4) & 0x0f) + 1;
-		eslo = product & 0xf;
-	}
 
-done:
 	soc_dev_attr = kzalloc(sizeof(*soc_dev_attr), GFP_KERNEL);
 	if (!soc_dev_attr)
 		return -ENOMEM;
@@ -418,24 +427,55 @@ done:
 	of_node_put(np);
 
 	soc_dev_attr->family = kstrdup_const(family->name, GFP_KERNEL);
-	soc_dev_attr->soc_id = kstrdup_const(strchr(match->compatible, ',') + 1,
-					     GFP_KERNEL);
-	if (eshi)
-		soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u", eshi,
-						   eslo);
+	soc_dev_attr->soc_id = kstrdup_const(soc_id, GFP_KERNEL);
 
-	pr_info("Detected Renesas %s %s %s\n", soc_dev_attr->family,
-		soc_dev_attr->soc_id, soc_dev_attr->revision ?: "");
+	if (chipid) {
+		product = readl(chipid + id->offset);
+		iounmap(chipid);
+
+		if (id == &id_prr) {
+			/* R-Car M3-W ES1.1 incorrectly identifies as ES2.0 */
+			if ((product & 0x7fff) == 0x5210)
+				product ^= 0x11;
+			/* R-Car M3-W ES1.3 incorrectly identifies as ES2.1 */
+			if ((product & 0x7fff) == 0x5211)
+				product ^= 0x12;
+
+			eshi = ((product >> 4) & 0x0f) + 1;
+			eslo = product & 0xf;
+			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "ES%u.%u",
+							   eshi, eslo);
+		}  else if (id == &id_rzg2l) {
+			eshi =  ((product >> 28) & 0x0f);
+			soc_dev_attr->revision = kasprintf(GFP_KERNEL, "%u",
+							   eshi);
+			rev_prefix = "Rev ";
+		}
+
+		if (soc->id &&
+		    ((product & id->mask) >> __ffs(id->mask)) != soc->id) {
+			pr_warn("SoC mismatch (product = 0x%x)\n", product);
+			ret = -ENODEV;
+			goto free_soc_dev_attr;
+		}
+	}
+
+	pr_info("Detected Renesas %s %s %s%s\n", soc_dev_attr->family,
+		soc_dev_attr->soc_id, rev_prefix, soc_dev_attr->revision ?: "");
 
 	soc_dev = soc_device_register(soc_dev_attr);
 	if (IS_ERR(soc_dev)) {
-		kfree(soc_dev_attr->revision);
-		kfree_const(soc_dev_attr->soc_id);
-		kfree_const(soc_dev_attr->family);
-		kfree(soc_dev_attr);
-		return PTR_ERR(soc_dev);
+		ret = PTR_ERR(soc_dev);
+		goto free_soc_dev_attr;
 	}
 
 	return 0;
+
+free_soc_dev_attr:
+	kfree(soc_dev_attr->revision);
+	kfree_const(soc_dev_attr->soc_id);
+	kfree_const(soc_dev_attr->family);
+	kfree(soc_dev_attr);
+	return ret;
 }
 early_initcall(renesas_soc_init);

@@ -156,15 +156,13 @@ static int ep93xx_adc_probe(struct platform_device *pdev)
 	struct iio_dev *iiodev;
 	struct ep93xx_adc_priv *priv;
 	struct clk *pclk;
-	struct resource *res;
 
 	iiodev = devm_iio_device_alloc(&pdev->dev, sizeof(*priv));
 	if (!iiodev)
 		return -ENOMEM;
 	priv = iio_priv(iiodev);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	priv->base = devm_ioremap_resource(&pdev->dev, res);
+	priv->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(priv->base))
 		return PTR_ERR(priv->base);
 

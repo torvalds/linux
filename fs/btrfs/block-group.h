@@ -35,11 +35,15 @@ enum btrfs_discard_state {
  * the FS with empty chunks
  *
  * CHUNK_ALLOC_FORCE means it must try to allocate one
+ *
+ * CHUNK_ALLOC_FORCE_FOR_EXTENT like CHUNK_ALLOC_FORCE but called from
+ * find_free_extent() that also activaes the zone
  */
 enum btrfs_chunk_alloc_enum {
 	CHUNK_ALLOC_NO_FORCE,
 	CHUNK_ALLOC_LIMITED,
 	CHUNK_ALLOC_FORCE,
+	CHUNK_ALLOC_FORCE_FOR_EXTENT,
 };
 
 struct btrfs_caching_control {
@@ -68,6 +72,7 @@ struct btrfs_block_group {
 	u64 bytes_super;
 	u64 flags;
 	u64 cache_generation;
+	u64 global_root_id;
 
 	/*
 	 * If the free space extent count exceeds this number, convert the block
@@ -98,6 +103,7 @@ struct btrfs_block_group {
 	unsigned int to_copy:1;
 	unsigned int relocating_repair:1;
 	unsigned int chunk_item_inserted:1;
+	unsigned int zone_is_active:1;
 
 	int disk_cache_state;
 
@@ -202,7 +208,10 @@ struct btrfs_block_group {
 	 */
 	u64 alloc_offset;
 	u64 zone_unusable;
+	u64 zone_capacity;
 	u64 meta_write_pointer;
+	struct map_lookup *physical_map;
+	struct list_head active_bg_list;
 };
 
 static inline u64 btrfs_block_group_end(struct btrfs_block_group *block_group)
@@ -280,7 +289,7 @@ int btrfs_start_dirty_block_groups(struct btrfs_trans_handle *trans);
 int btrfs_write_dirty_block_groups(struct btrfs_trans_handle *trans);
 int btrfs_setup_space_cache(struct btrfs_trans_handle *trans);
 int btrfs_update_block_group(struct btrfs_trans_handle *trans,
-			     u64 bytenr, u64 num_bytes, int alloc);
+			     u64 bytenr, u64 num_bytes, bool alloc);
 int btrfs_add_reserved_bytes(struct btrfs_block_group *cache,
 			     u64 ram_bytes, u64 num_bytes, int delalloc);
 void btrfs_free_reserved_bytes(struct btrfs_block_group *cache,
@@ -289,6 +298,8 @@ int btrfs_chunk_alloc(struct btrfs_trans_handle *trans, u64 flags,
 		      enum btrfs_chunk_alloc_enum force);
 int btrfs_force_chunk_alloc(struct btrfs_trans_handle *trans, u64 type);
 void check_system_chunk(struct btrfs_trans_handle *trans, const u64 type);
+void btrfs_reserve_chunk_metadata(struct btrfs_trans_handle *trans,
+				  bool is_item_insertion);
 u64 btrfs_get_alloc_profile(struct btrfs_fs_info *fs_info, u64 orig_flags);
 void btrfs_put_block_group_cache(struct btrfs_fs_info *info);
 int btrfs_free_block_groups(struct btrfs_fs_info *info);

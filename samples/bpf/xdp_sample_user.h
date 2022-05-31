@@ -45,7 +45,9 @@ const char *get_driver_name(int ifindex);
 int get_mac_addr(int ifindex, void *mac_addr);
 
 #pragma GCC diagnostic push
+#ifndef __clang__
 #pragma GCC diagnostic ignored "-Wstringop-truncation"
+#endif
 __attribute__((unused))
 static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 {
@@ -59,7 +61,7 @@ static inline char *safe_strncpy(char *dst, const char *src, size_t size)
 
 #define __attach_tp(name)                                                      \
 	({                                                                     \
-		if (!bpf_program__is_tracing(skel->progs.name))                \
+		if (bpf_program__type(skel->progs.name) != BPF_PROG_TYPE_TRACING)\
 			return -EINVAL;                                        \
 		skel->links.name = bpf_program__attach(skel->progs.name);      \
 		if (!skel->links.name)                                         \

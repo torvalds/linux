@@ -9,8 +9,17 @@
 #ifndef __LINUX_SCALE_BITMAP_H
 #define __LINUX_SCALE_BITMAP_H
 
-#include <linux/kernel.h>
+#include <linux/atomic.h>
+#include <linux/bitops.h>
+#include <linux/cache.h>
+#include <linux/list.h>
+#include <linux/log2.h>
+#include <linux/minmax.h>
+#include <linux/percpu.h>
 #include <linux/slab.h>
+#include <linux/smp.h>
+#include <linux/types.h>
+#include <linux/wait.h>
 
 struct seq_file;
 
@@ -19,14 +28,9 @@ struct seq_file;
  */
 struct sbitmap_word {
 	/**
-	 * @depth: Number of bits being used in @word/@cleared
-	 */
-	unsigned long depth;
-
-	/**
 	 * @word: word holding free bits
 	 */
-	unsigned long word ____cacheline_aligned_in_smp;
+	unsigned long word;
 
 	/**
 	 * @cleared: word holding cleared bits
@@ -131,7 +135,7 @@ struct sbitmap_queue {
 
 	/**
 	 * @min_shallow_depth: The minimum shallow depth which may be passed to
-	 * sbitmap_queue_get_shallow() or __sbitmap_queue_get_shallow().
+	 * sbitmap_queue_get_shallow()
 	 */
 	unsigned int min_shallow_depth;
 };
@@ -155,6 +159,14 @@ struct sbitmap_queue {
 int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 		      gfp_t flags, int node, bool round_robin, bool alloc_hint);
 
+/* sbitmap internal helper */
+static inline unsigned int __map_depth(const struct sbitmap *sb, int index)
+{
+	if (index == sb->map_nr - 1)
+		return sb->depth - (index << sb->shift);
+	return 1U << sb->shift;
+}
+
 /**
  * sbitmap_free() - Free memory used by a &struct sbitmap.
  * @sb: Bitmap to free.
@@ -162,7 +174,7 @@ int sbitmap_init_node(struct sbitmap *sb, unsigned int depth, int shift,
 static inline void sbitmap_free(struct sbitmap *sb)
 {
 	free_percpu(sb->alloc_hint);
-	kfree(sb->map);
+	kvfree(sb->map);
 	sb->map = NULL;
 }
 
@@ -242,7 +254,7 @@ static inline void __sbitmap_for_each_set(struct sbitmap *sb,
 	while (scanned < sb->depth) {
 		unsigned long word;
 		unsigned int depth = min_t(unsigned int,
-					   sb->map[index].depth - nr,
+					   __map_depth(sb, index) - nr,
 					   sb->depth - scanned);
 
 		scanned += depth;
@@ -407,6 +419,17 @@ static inline void sbitmap_queue_free(struct sbitmap_queue *sbq)
 }
 
 /**
+ * sbitmap_queue_recalculate_wake_batch() - Recalculate wake batch
+ * @sbq: Bitmap queue to recalculate wake batch.
+ * @users: Number of shares.
+ *
+ * Like sbitmap_queue_update_wake_batch(), this will calculate wake batch
+ * by depth. This interface is for HCTX shared tags or queue shared tags.
+ */
+void sbitmap_queue_recalculate_wake_batch(struct sbitmap_queue *sbq,
+					    unsigned int users);
+
+/**
  * sbitmap_queue_resize() - Resize a &struct sbitmap_queue.
  * @sbq: Bitmap queue to resize.
  * @depth: New number of bits to resize to.
@@ -427,7 +450,20 @@ void sbitmap_queue_resize(struct sbitmap_queue *sbq, unsigned int depth);
 int __sbitmap_queue_get(struct sbitmap_queue *sbq);
 
 /**
- * __sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
+ * __sbitmap_queue_get_batch() - Try to allocate a batch of free bits
+ * @sbq: Bitmap queue to allocate from.
+ * @nr_tags: number of tags requested
+ * @offset: offset to add to returned bits
+ *
+ * Return: Mask of allocated tags, 0 if none are found. Each tag allocated is
+ * a bit in the mask returned, and the caller must add @offset to the value to
+ * get the absolute tag value.
+ */
+unsigned long __sbitmap_queue_get_batch(struct sbitmap_queue *sbq, int nr_tags,
+					unsigned int *offset);
+
+/**
+ * sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
  * sbitmap_queue, limiting the depth used from each word, with preemption
  * already disabled.
  * @sbq: Bitmap queue to allocate from.
@@ -439,8 +475,8 @@ int __sbitmap_queue_get(struct sbitmap_queue *sbq);
  *
  * Return: Non-negative allocated bit number if successful, -1 otherwise.
  */
-int __sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
-				unsigned int shallow_depth);
+int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
+			      unsigned int shallow_depth);
 
 /**
  * sbitmap_queue_get() - Try to allocate a free bit from a &struct
@@ -458,32 +494,6 @@ static inline int sbitmap_queue_get(struct sbitmap_queue *sbq,
 
 	*cpu = get_cpu();
 	nr = __sbitmap_queue_get(sbq);
-	put_cpu();
-	return nr;
-}
-
-/**
- * sbitmap_queue_get_shallow() - Try to allocate a free bit from a &struct
- * sbitmap_queue, limiting the depth used from each word.
- * @sbq: Bitmap queue to allocate from.
- * @cpu: Output parameter; will contain the CPU we ran on (e.g., to be passed to
- *       sbitmap_queue_clear()).
- * @shallow_depth: The maximum number of bits to allocate from a single word.
- * See sbitmap_get_shallow().
- *
- * If you call this, make sure to call sbitmap_queue_min_shallow_depth() after
- * initializing @sbq.
- *
- * Return: Non-negative allocated bit number if successful, -1 otherwise.
- */
-static inline int sbitmap_queue_get_shallow(struct sbitmap_queue *sbq,
-					    unsigned int *cpu,
-					    unsigned int shallow_depth)
-{
-	int nr;
-
-	*cpu = get_cpu();
-	nr = __sbitmap_queue_get_shallow(sbq, shallow_depth);
 	put_cpu();
 	return nr;
 }
@@ -514,6 +524,17 @@ void sbitmap_queue_min_shallow_depth(struct sbitmap_queue *sbq,
  */
 void sbitmap_queue_clear(struct sbitmap_queue *sbq, unsigned int nr,
 			 unsigned int cpu);
+
+/**
+ * sbitmap_queue_clear_batch() - Free a batch of allocated bits
+ * &struct sbitmap_queue.
+ * @sbq: Bitmap to free from.
+ * @offset: offset for each tag in array
+ * @tags: array of tags
+ * @nr_tags: number of tags in array
+ */
+void sbitmap_queue_clear_batch(struct sbitmap_queue *sbq, int offset,
+				int *tags, int nr_tags);
 
 static inline int sbq_index_inc(int index)
 {

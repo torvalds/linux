@@ -139,6 +139,7 @@
 		gcc: clock-controller@900000 {
 			compatible = "qcom,gcc-mdm9615";
 			#clock-cells = <1>;
+			#power-domain-cells = <1>;
 			#reset-cells = <1>;
 			reg = <0x900000 0x4000>;
 		};
@@ -151,7 +152,7 @@
 		};
 
 		l2cc: clock-controller@2011000 {
-			compatible = "syscon";
+			compatible = "qcom,kpss-gcc", "syscon";
 			reg = <0x02011000 0x1000>;
 		};
 
@@ -300,18 +301,14 @@
 					pull-up;
 				};
 
-				pmicmpp: mpp@50 {
+				pmicmpp: mpps@50 {
 					compatible = "qcom,pm8018-mpp", "qcom,ssbi-mpp";
-					interrupt-parent = <&pmicintc>;
-					interrupts = <24 IRQ_TYPE_NONE>,
-						     <25 IRQ_TYPE_NONE>,
-						     <26 IRQ_TYPE_NONE>,
-						     <27 IRQ_TYPE_NONE>,
-						     <28 IRQ_TYPE_NONE>,
-						     <29 IRQ_TYPE_NONE>;
+					interrupt-controller;
+					#interrupt-cells = <2>;
 					reg = <0x50>;
 					gpio-controller;
 					#gpio-cells = <2>;
+					gpio-ranges = <&pmicmpp 0 0 6>;
 				};
 
 				rtc@11d {
@@ -358,7 +355,7 @@
 			#address-cells = <1>;
 			#size-cells = <1>;
 			ranges;
-			sdcc1: sdcc@12180000 {
+			sdcc1: mmc@12180000 {
 				status = "disabled";
 				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
@@ -378,7 +375,7 @@
 				assigned-clock-rates = <400000>;
 			};
 
-			sdcc2: sdcc@12140000 {
+			sdcc2: mmc@12140000 {
 				compatible = "arm,pl18x", "arm,primecell";
 				arm,primecell-periphid = <0x00051180>;
 				status = "disabled";

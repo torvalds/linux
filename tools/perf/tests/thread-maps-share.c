@@ -4,7 +4,7 @@
 #include "thread.h"
 #include "debug.h"
 
-int test__thread_maps_share(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__thread_maps_share(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct machines machines;
 	struct machine *machine;
@@ -96,3 +96,5 @@ int test__thread_maps_share(struct test *test __maybe_unused, int subtest __mayb
 	machines__exit(&machines);
 	return 0;
 }
+
+DEFINE_SUITE("Share thread maps", thread_maps_share);

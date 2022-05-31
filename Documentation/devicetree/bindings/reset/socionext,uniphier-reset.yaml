@@ -23,6 +23,7 @@ properties:
           - socionext,uniphier-ld11-reset
           - socionext,uniphier-ld20-reset
           - socionext,uniphier-pxs3-reset
+          - socionext,uniphier-nx1-reset
       - description: Media I/O (MIO) reset, SD reset
         enum:
           - socionext,uniphier-ld4-mio-reset
@@ -34,6 +35,7 @@ properties:
           - socionext,uniphier-ld11-sd-reset
           - socionext,uniphier-ld20-sd-reset
           - socionext,uniphier-pxs3-sd-reset
+          - socionext,uniphier-nx1-sd-reset
       - description: Peripheral reset
         enum:
           - socionext,uniphier-ld4-peri-reset
@@ -44,6 +46,7 @@ properties:
           - socionext,uniphier-ld11-peri-reset
           - socionext,uniphier-ld20-peri-reset
           - socionext,uniphier-pxs3-peri-reset
+          - socionext,uniphier-nx1-peri-reset
       - description: Analog signal amplifier reset
         enum:
           - socionext,uniphier-ld11-adamv-reset
@@ -51,6 +54,9 @@ properties:
 
   "#reset-cells":
     const: 1
+
+  resets:
+    maxItems: 1
 
 additionalProperties: false
 

@@ -900,7 +900,7 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 
 	ret = pdata->calibrate(gpadc);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to read calibration registers\n");
+		dev_err(dev, "failed to read calibration registers\n");
 		return ret;
 	}
 
@@ -911,17 +911,19 @@ static int twl6030_gpadc_probe(struct platform_device *pdev)
 	ret = devm_request_threaded_irq(dev, irq, NULL,
 				twl6030_gpadc_irq_handler,
 				IRQF_ONESHOT, "twl6030_gpadc", indio_dev);
+	if (ret)
+		return ret;
 
 	ret = twl6030_gpadc_enable_irq(TWL6030_GPADC_RT_SW1_EOC_MASK);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable GPADC interrupt\n");
+		dev_err(dev, "failed to enable GPADC interrupt\n");
 		return ret;
 	}
 
 	ret = twl_i2c_write_u8(TWL6030_MODULE_ID1, TWL6030_GPADCS,
 					TWL6030_REG_TOGGLE1);
 	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to enable GPADC module\n");
+		dev_err(dev, "failed to enable GPADC module\n");
 		return ret;
 	}
 
@@ -944,7 +946,6 @@ static int twl6030_gpadc_remove(struct platform_device *pdev)
 	return 0;
 }
 
-#ifdef CONFIG_PM_SLEEP
 static int twl6030_gpadc_suspend(struct device *pdev)
 {
 	int ret;
@@ -968,17 +969,16 @@ static int twl6030_gpadc_resume(struct device *pdev)
 
 	return 0;
 };
-#endif
 
-static SIMPLE_DEV_PM_OPS(twl6030_gpadc_pm_ops, twl6030_gpadc_suspend,
-					twl6030_gpadc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(twl6030_gpadc_pm_ops, twl6030_gpadc_suspend,
+				twl6030_gpadc_resume);
 
 static struct platform_driver twl6030_gpadc_driver = {
 	.probe		= twl6030_gpadc_probe,
 	.remove		= twl6030_gpadc_remove,
 	.driver		= {
 		.name	= DRIVER_NAME,
-		.pm	= &twl6030_gpadc_pm_ops,
+		.pm	= pm_sleep_ptr(&twl6030_gpadc_pm_ops),
 		.of_match_table = of_twl6030_match_tbl,
 	},
 };

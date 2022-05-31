@@ -282,7 +282,7 @@ static int set_core_reg(struct kvm_vcpu *vcpu, const struct kvm_one_reg *reg)
 			break;
 
 		/*
-		 * Otherwide, this is a priviledged mode, and *all* the
+		 * Otherwise, this is a privileged mode, and *all* the
 		 * registers must be narrowed to 32bit.
 		 */
 		default:
@@ -869,12 +869,9 @@ u32 __attribute_const__ kvm_target_cpu(void)
 	return KVM_ARM_TARGET_GENERIC_V8;
 }
 
-int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
+void kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
 {
 	u32 target = kvm_target_cpu();
-
-	if (target < 0)
-		return -ENODEV;
 
 	memset(init, 0, sizeof(*init));
 
@@ -885,8 +882,6 @@ int kvm_vcpu_preferred_target(struct kvm_vcpu_init *init)
 	 * target type.
 	 */
 	init->target = (__u32)target;
-
-	return 0;
 }
 
 int kvm_arch_vcpu_ioctl_get_fpu(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)

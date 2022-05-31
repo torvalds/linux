@@ -349,7 +349,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	struct cpsw_common	*cpsw = ndev_to_cpsw(xmeta->ndev);
 	int			pkt_size = cpsw->rx_packet_max;
 	int			ret = 0, port, ch = xmeta->ch;
-	int			headroom = CPSW_HEADROOM;
+	int			headroom = CPSW_HEADROOM_NA;
 	struct net_device	*ndev = xmeta->ndev;
 	struct cpsw_priv	*priv;
 	struct page_pool	*pool;
@@ -392,7 +392,7 @@ static void cpsw_rx_handler(void *token, int len, int status)
 	}
 
 	if (priv->xdp_prog) {
-		int headroom = CPSW_HEADROOM, size = len;
+		int size = len;
 
 		xdp_init_buff(&xdp, PAGE_SIZE, &priv->xdp_rxq[ch]);
 		if (status & CPDMA_RX_VLAN_ENCAP) {
@@ -442,7 +442,7 @@ requeue:
 	xmeta->ndev = ndev;
 	xmeta->ch = ch;
 
-	dma = page_pool_get_dma_addr(new_page) + CPSW_HEADROOM;
+	dma = page_pool_get_dma_addr(new_page) + CPSW_HEADROOM_NA;
 	ret = cpdma_chan_submit_mapped(cpsw->rxv[ch].ch, new_page, dma,
 				       pkt_size, 0);
 	if (ret < 0) {
@@ -985,7 +985,7 @@ static int cpsw_ndo_set_mac_address(struct net_device *ndev, void *p)
 			   flags, vid);
 
 	memcpy(priv->mac_addr, addr->sa_data, ETH_ALEN);
-	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, priv->mac_addr);
 	for_each_slave(priv, cpsw_set_slave_mac, priv);
 
 	pm_runtime_put(cpsw->dev);
@@ -1460,7 +1460,7 @@ static int cpsw_probe_dual_emac(struct cpsw_priv *priv)
 		dev_info(cpsw->dev, "cpsw: Random MACID = %pM\n",
 			 priv_sl2->mac_addr);
 	}
-	memcpy(ndev->dev_addr, priv_sl2->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, priv_sl2->mac_addr);
 
 	priv_sl2->emac_port = 1;
 	cpsw->slaves[1].ndev = ndev;
@@ -1639,7 +1639,7 @@ static int cpsw_probe(struct platform_device *pdev)
 		dev_info(dev, "Random MACID = %pM\n", priv->mac_addr);
 	}
 
-	memcpy(ndev->dev_addr, priv->mac_addr, ETH_ALEN);
+	eth_hw_addr_set(ndev, priv->mac_addr);
 
 	cpsw->slaves[0].ndev = ndev;
 

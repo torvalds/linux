@@ -4,7 +4,6 @@
 #include <linux/if_vlan.h>
 #include <linux/dsa/sja1105.h>
 #include <linux/dsa/8021q.h>
-#include <linux/skbuff.h>
 #include <linux/packing.h>
 #include "dsa_priv.h"
 
@@ -54,10 +53,24 @@
 #define SJA1110_TX_TRAILER_LEN			4
 #define SJA1110_MAX_PADDING_LEN			15
 
-enum sja1110_meta_tstamp {
-	SJA1110_META_TSTAMP_TX = 0,
-	SJA1110_META_TSTAMP_RX = 1,
+#define SJA1105_HWTS_RX_EN			0
+
+struct sja1105_tagger_private {
+	struct sja1105_tagger_data data; /* Must be first */
+	unsigned long state;
+	/* Protects concurrent access to the meta state machine
+	 * from taggers running on multiple ports on SMP systems
+	 */
+	spinlock_t meta_lock;
+	struct sk_buff *stampable_skb;
+	struct kthread_worker *xmit_worker;
 };
+
+static struct sja1105_tagger_private *
+sja1105_tagger_private(struct dsa_switch *ds)
+{
+	return ds->tagger_data;
+}
 
 /* Similar to is_link_local_ether_addr(hdr->h_dest) but also covers PTP */
 static inline bool sja1105_is_link_local(const struct sk_buff *skb)
@@ -125,16 +138,30 @@ static inline bool sja1105_is_meta_frame(const struct sk_buff *skb)
 static struct sk_buff *sja1105_defer_xmit(struct dsa_port *dp,
 					  struct sk_buff *skb)
 {
-	struct sja1105_port *sp = dp->priv;
+	struct sja1105_tagger_data *tagger_data = sja1105_tagger_data(dp->ds);
+	struct sja1105_tagger_private *priv = sja1105_tagger_private(dp->ds);
+	void (*xmit_work_fn)(struct kthread_work *work);
+	struct sja1105_deferred_xmit_work *xmit_work;
+	struct kthread_worker *xmit_worker;
 
-	if (!dsa_port_is_sja1105(dp))
-		return skb;
+	xmit_work_fn = tagger_data->xmit_work_fn;
+	xmit_worker = priv->xmit_worker;
 
+	if (!xmit_work_fn || !xmit_worker)
+		return NULL;
+
+	xmit_work = kzalloc(sizeof(*xmit_work), GFP_ATOMIC);
+	if (!xmit_work)
+		return NULL;
+
+	kthread_init_work(&xmit_work->work, xmit_work_fn);
 	/* Increase refcount so the kfree_skb in dsa_slave_xmit
 	 * won't really free the packet.
 	 */
-	skb_queue_tail(&sp->xmit_queue, skb_get(skb));
-	kthread_queue_work(sp->xmit_worker, &sp->xmit_work);
+	xmit_work->dp = dp;
+	xmit_work->skb = skb_get(skb);
+
+	kthread_queue_work(xmit_worker, &xmit_work->work);
 
 	return NULL;
 }
@@ -158,18 +185,17 @@ static u16 sja1105_xmit_tpid(struct dsa_port *dp)
 	 * we're sure about that). It may not be on this port though, so we
 	 * need to find it.
 	 */
-	list_for_each_entry(other_dp, &ds->dst->ports, list) {
-		if (other_dp->ds != ds)
-			continue;
+	dsa_switch_for_each_port(other_dp, ds) {
+		struct net_device *br = dsa_port_bridge_dev_get(other_dp);
 
-		if (!other_dp->bridge_dev)
+		if (!br)
 			continue;
 
 		/* Error is returned only if CONFIG_BRIDGE_VLAN_FILTERING,
 		 * which seems pointless to handle, as our port cannot become
 		 * VLAN-aware in that case.
 		 */
-		br_vlan_get_proto(other_dp->bridge_dev, &proto);
+		br_vlan_get_proto(br, &proto);
 
 		return proto;
 	}
@@ -183,7 +209,8 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 					      struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	struct net_device *br = dp->bridge_dev;
+	unsigned int bridge_num = dsa_port_bridge_num_get(dp);
+	struct net_device *br = dsa_port_bridge_dev_get(dp);
 	u16 tx_vid;
 
 	/* If the port is under a VLAN-aware bridge, just slide the
@@ -199,7 +226,7 @@ static struct sk_buff *sja1105_imprecise_xmit(struct sk_buff *skb,
 	 * TX VLAN that targets the bridge's entire broadcast domain,
 	 * instead of just the specific port.
 	 */
-	tx_vid = dsa_8021q_bridge_tx_fwd_offload_vid(dp->bridge_num);
+	tx_vid = dsa_tag_8021q_bridge_vid(bridge_num);
 
 	return dsa_8021q_xmit(skb, netdev, sja1105_xmit_tpid(dp), tx_vid);
 }
@@ -238,9 +265,9 @@ static struct sk_buff *sja1105_xmit(struct sk_buff *skb,
 				    struct net_device *netdev)
 {
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
+	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 
 	if (skb->offload_fwd_mark)
 		return sja1105_imprecise_xmit(skb, netdev);
@@ -266,9 +293,9 @@ static struct sk_buff *sja1110_xmit(struct sk_buff *skb,
 {
 	struct sk_buff *clone = SJA1105_SKB_CB(skb)->clone;
 	struct dsa_port *dp = dsa_slave_to_port(netdev);
-	u16 tx_vid = dsa_8021q_tx_vid(dp->ds, dp->index);
 	u16 queue_mapping = skb_get_queue_mapping(skb);
 	u8 pcp = netdev_txq_to_tc(netdev, queue_mapping);
+	u16 tx_vid = dsa_tag_8021q_standalone_vid(dp);
 	__be32 *tx_trailer;
 	__be16 *tx_header;
 	int trailer_pos;
@@ -355,32 +382,32 @@ static struct sk_buff
 	 */
 	if (is_link_local) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_port *sp = dp->priv;
+		struct sja1105_tagger_private *priv;
+		struct dsa_switch *ds = dp->ds;
 
-		if (unlikely(!dsa_port_is_sja1105(dp)))
-			return skb;
+		priv = sja1105_tagger_private(ds);
 
-		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
+		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
 			/* Do normal processing. */
 			return skb;
 
-		spin_lock(&sp->data->meta_lock);
+		spin_lock(&priv->meta_lock);
 		/* Was this a link-local frame instead of the meta
 		 * that we were expecting?
 		 */
-		if (sp->data->stampable_skb) {
-			dev_err_ratelimited(dp->ds->dev,
+		if (priv->stampable_skb) {
+			dev_err_ratelimited(ds->dev,
 					    "Expected meta frame, is %12llx "
 					    "in the DSA master multicast filter?\n",
 					    SJA1105_META_DMAC);
-			kfree_skb(sp->data->stampable_skb);
+			kfree_skb(priv->stampable_skb);
 		}
 
 		/* Hold a reference to avoid dsa_switch_rcv
 		 * from freeing the skb.
 		 */
-		sp->data->stampable_skb = skb_get(skb);
-		spin_unlock(&sp->data->meta_lock);
+		priv->stampable_skb = skb_get(skb);
+		spin_unlock(&priv->meta_lock);
 
 		/* Tell DSA we got nothing */
 		return NULL;
@@ -393,37 +420,37 @@ static struct sk_buff
 	 */
 	} else if (is_meta) {
 		struct dsa_port *dp = dsa_slave_to_port(skb->dev);
-		struct sja1105_port *sp = dp->priv;
+		struct sja1105_tagger_private *priv;
+		struct dsa_switch *ds = dp->ds;
 		struct sk_buff *stampable_skb;
 
-		if (unlikely(!dsa_port_is_sja1105(dp)))
-			return skb;
+		priv = sja1105_tagger_private(ds);
 
 		/* Drop the meta frame if we're not in the right state
 		 * to process it.
 		 */
-		if (!test_bit(SJA1105_HWTS_RX_EN, &sp->data->state))
+		if (!test_bit(SJA1105_HWTS_RX_EN, &priv->state))
 			return NULL;
 
-		spin_lock(&sp->data->meta_lock);
+		spin_lock(&priv->meta_lock);
 
-		stampable_skb = sp->data->stampable_skb;
-		sp->data->stampable_skb = NULL;
+		stampable_skb = priv->stampable_skb;
+		priv->stampable_skb = NULL;
 
 		/* Was this a meta frame instead of the link-local
 		 * that we were expecting?
 		 */
 		if (!stampable_skb) {
-			dev_err_ratelimited(dp->ds->dev,
+			dev_err_ratelimited(ds->dev,
 					    "Unexpected meta frame\n");
-			spin_unlock(&sp->data->meta_lock);
+			spin_unlock(&priv->meta_lock);
 			return NULL;
 		}
 
 		if (stampable_skb->dev != skb->dev) {
-			dev_err_ratelimited(dp->ds->dev,
+			dev_err_ratelimited(ds->dev,
 					    "Meta frame on wrong port\n");
-			spin_unlock(&sp->data->meta_lock);
+			spin_unlock(&priv->meta_lock);
 			return NULL;
 		}
 
@@ -434,10 +461,34 @@ static struct sk_buff
 		skb = stampable_skb;
 		sja1105_transfer_meta(skb, meta);
 
-		spin_unlock(&sp->data->meta_lock);
+		spin_unlock(&priv->meta_lock);
 	}
 
 	return skb;
+}
+
+static bool sja1105_rxtstamp_get_state(struct dsa_switch *ds)
+{
+	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
+
+	return test_bit(SJA1105_HWTS_RX_EN, &priv->state);
+}
+
+static void sja1105_rxtstamp_set_state(struct dsa_switch *ds, bool on)
+{
+	struct sja1105_tagger_private *priv = sja1105_tagger_private(ds);
+
+	if (on)
+		set_bit(SJA1105_HWTS_RX_EN, &priv->state);
+	else
+		clear_bit(SJA1105_HWTS_RX_EN, &priv->state);
+
+	/* Initialize the meta state machine to a known state */
+	if (!priv->stampable_skb)
+		return;
+
+	kfree_skb(priv->stampable_skb);
+	priv->stampable_skb = NULL;
 }
 
 static bool sja1105_skb_has_tag_8021q(const struct sk_buff *skb)
@@ -458,7 +509,7 @@ static bool sja1110_skb_has_inband_control_extension(const struct sk_buff *skb)
  * packet.
  */
 static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
-			     int *switch_id, u16 *vid)
+			     int *switch_id, int *vbid, u16 *vid)
 {
 	struct vlan_ethhdr *hdr = (struct vlan_ethhdr *)skb_mac_header(skb);
 	u16 vlan_tci;
@@ -468,8 +519,8 @@ static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 	else
 		vlan_tci = ntohs(hdr->h_vlan_TCI);
 
-	if (vid_is_dsa_8021q_rxvlan(vlan_tci & VLAN_VID_MASK))
-		return dsa_8021q_rcv(skb, source_port, switch_id);
+	if (vid_is_dsa_8021q(vlan_tci & VLAN_VID_MASK))
+		return dsa_8021q_rcv(skb, source_port, switch_id, vbid);
 
 	/* Try our best with imprecise RX */
 	*vid = vlan_tci & VLAN_VID_MASK;
@@ -478,7 +529,7 @@ static void sja1105_vlan_rcv(struct sk_buff *skb, int *source_port,
 static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
-	int source_port = -1, switch_id = -1;
+	int source_port = -1, switch_id = -1, vbid = -1;
 	struct sja1105_meta meta = {0};
 	struct ethhdr *hdr;
 	bool is_link_local;
@@ -491,7 +542,7 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 
 	if (sja1105_skb_has_tag_8021q(skb)) {
 		/* Normal traffic path. */
-		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vid);
+		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vbid, &vid);
 	} else if (is_link_local) {
 		/* Management traffic path. Switch embeds the switch ID and
 		 * port ID into bytes of the destination MAC, courtesy of
@@ -510,7 +561,9 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 		return NULL;
 	}
 
-	if (source_port == -1 || switch_id == -1)
+	if (vbid >= 1)
+		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
+	else if (source_port == -1 || switch_id == -1)
 		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	else
 		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
@@ -526,48 +579,12 @@ static struct sk_buff *sja1105_rcv(struct sk_buff *skb,
 					      is_meta);
 }
 
-static void sja1110_process_meta_tstamp(struct dsa_switch *ds, int port,
-					u8 ts_id, enum sja1110_meta_tstamp dir,
-					u64 tstamp)
-{
-	struct sk_buff *skb, *skb_tmp, *skb_match = NULL;
-	struct dsa_port *dp = dsa_to_port(ds, port);
-	struct skb_shared_hwtstamps shwt = {0};
-	struct sja1105_port *sp = dp->priv;
-
-	if (!dsa_port_is_sja1105(dp))
-		return;
-
-	/* We don't care about RX timestamps on the CPU port */
-	if (dir == SJA1110_META_TSTAMP_RX)
-		return;
-
-	spin_lock(&sp->data->skb_txtstamp_queue.lock);
-
-	skb_queue_walk_safe(&sp->data->skb_txtstamp_queue, skb, skb_tmp) {
-		if (SJA1105_SKB_CB(skb)->ts_id != ts_id)
-			continue;
-
-		__skb_unlink(skb, &sp->data->skb_txtstamp_queue);
-		skb_match = skb;
-
-		break;
-	}
-
-	spin_unlock(&sp->data->skb_txtstamp_queue.lock);
-
-	if (WARN_ON(!skb_match))
-		return;
-
-	shwt.hwtstamp = ns_to_ktime(sja1105_ticks_to_ns(tstamp));
-	skb_complete_tx_timestamp(skb_match, &shwt);
-}
-
 static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 {
 	u8 *buf = dsa_etype_header_pos_rx(skb) + SJA1110_HEADER_LEN;
 	int switch_id = SJA1110_RX_HEADER_SWITCH_ID(rx_header);
 	int n_ts = SJA1110_RX_HEADER_N_TS(rx_header);
+	struct sja1105_tagger_data *tagger_data;
 	struct net_device *master = skb->dev;
 	struct dsa_port *cpu_dp;
 	struct dsa_switch *ds;
@@ -581,6 +598,10 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 		return NULL;
 	}
 
+	tagger_data = sja1105_tagger_data(ds);
+	if (!tagger_data->meta_tstamp_handler)
+		return NULL;
+
 	for (i = 0; i <= n_ts; i++) {
 		u8 ts_id, source_port, dir;
 		u64 tstamp;
@@ -590,8 +611,8 @@ static struct sk_buff *sja1110_rcv_meta(struct sk_buff *skb, u16 rx_header)
 		dir = (buf[1] & BIT(3)) >> 3;
 		tstamp = be64_to_cpu(*(__be64 *)(buf + 2));
 
-		sja1110_process_meta_tstamp(ds, source_port, ts_id, dir,
-					    tstamp);
+		tagger_data->meta_tstamp_handler(ds, source_port, ts_id, dir,
+						 tstamp);
 
 		buf += SJA1110_META_TSTAMP_SIZE;
 	}
@@ -667,7 +688,7 @@ static struct sk_buff *sja1110_rcv_inband_control_extension(struct sk_buff *skb,
 static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 				   struct net_device *netdev)
 {
-	int source_port = -1, switch_id = -1;
+	int source_port = -1, switch_id = -1, vbid = -1;
 	bool host_only = false;
 	u16 vid = 0;
 
@@ -681,9 +702,11 @@ static struct sk_buff *sja1110_rcv(struct sk_buff *skb,
 
 	/* Packets with in-band control extensions might still have RX VLANs */
 	if (likely(sja1105_skb_has_tag_8021q(skb)))
-		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vid);
+		sja1105_vlan_rcv(skb, &source_port, &switch_id, &vbid, &vid);
 
-	if (source_port == -1 || switch_id == -1)
+	if (vbid >= 1)
+		skb->dev = dsa_tag_8021q_find_port_by_vbid(netdev, vbid);
+	else if (source_port == -1 || switch_id == -1)
 		skb->dev = dsa_find_designated_bridge_port_by_vid(netdev, vid);
 	else
 		skb->dev = dsa_master_find_slave(netdev, switch_id, source_port);
@@ -722,11 +745,53 @@ static void sja1110_flow_dissect(const struct sk_buff *skb, __be16 *proto,
 	*proto = ((__be16 *)skb->data)[(VLAN_HLEN / 2) - 1];
 }
 
+static void sja1105_disconnect(struct dsa_switch *ds)
+{
+	struct sja1105_tagger_private *priv = ds->tagger_data;
+
+	kthread_destroy_worker(priv->xmit_worker);
+	kfree(priv);
+	ds->tagger_data = NULL;
+}
+
+static int sja1105_connect(struct dsa_switch *ds)
+{
+	struct sja1105_tagger_data *tagger_data;
+	struct sja1105_tagger_private *priv;
+	struct kthread_worker *xmit_worker;
+	int err;
+
+	priv = kzalloc(sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
+
+	spin_lock_init(&priv->meta_lock);
+
+	xmit_worker = kthread_create_worker(0, "dsa%d:%d_xmit",
+					    ds->dst->index, ds->index);
+	if (IS_ERR(xmit_worker)) {
+		err = PTR_ERR(xmit_worker);
+		kfree(priv);
+		return err;
+	}
+
+	priv->xmit_worker = xmit_worker;
+	/* Export functions for switch driver use */
+	tagger_data = &priv->data;
+	tagger_data->rxtstamp_get_state = sja1105_rxtstamp_get_state;
+	tagger_data->rxtstamp_set_state = sja1105_rxtstamp_set_state;
+	ds->tagger_data = priv;
+
+	return 0;
+}
+
 static const struct dsa_device_ops sja1105_netdev_ops = {
 	.name = "sja1105",
 	.proto = DSA_TAG_PROTO_SJA1105,
 	.xmit = sja1105_xmit,
 	.rcv = sja1105_rcv,
+	.connect = sja1105_connect,
+	.disconnect = sja1105_disconnect,
 	.needed_headroom = VLAN_HLEN,
 	.flow_dissect = sja1105_flow_dissect,
 	.promisc_on_master = true,
@@ -740,6 +805,8 @@ static const struct dsa_device_ops sja1110_netdev_ops = {
 	.proto = DSA_TAG_PROTO_SJA1110,
 	.xmit = sja1110_xmit,
 	.rcv = sja1110_rcv,
+	.connect = sja1105_connect,
+	.disconnect = sja1105_disconnect,
 	.flow_dissect = sja1110_flow_dissect,
 	.needed_headroom = SJA1110_HEADER_LEN + VLAN_HLEN,
 	.needed_tailroom = SJA1110_RX_TRAILER_LEN + SJA1110_MAX_PADDING_LEN,

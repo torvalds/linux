@@ -31,7 +31,7 @@ properties:
       - enum:
             # SMBus/I2C Digital Temperature Sensor in 6-Pin SOT with SMBus Alert and Over Temperature Pin
           - ad,ad7414
-            # ADM9240:  Complete System Hardware Monitor for uProcessor-Based Systems
+            # ADM9240: Complete System Hardware Monitor for uProcessor-Based Systems
           - ad,adm9240
             # AD5110 - Nonvolatile Digital Potentiometer
           - adi,ad5110
@@ -41,13 +41,9 @@ properties:
           - adi,adp5585-02
             # Analog Devices ADP5589 Keypad Decoder and I/O Expansion
           - adi,adp5589
-            # +/-1C TDM Extended Temp Range I.C
-          - adi,adt7461
-            # +/-1C TDM Extended Temp Range I.C
-          - adt7461
             # AMS iAQ-Core VOC Sensor
           - ams,iaq-core
-            # i2c serial eeprom  (24cxx)
+            # i2c serial eeprom (24cxx)
           - at,24c08
             # i2c trusted platform module (TPM)
           - atmel,at97sc3204t
@@ -77,7 +73,11 @@ properties:
           - dallas,ds4510
             # Digital Thermometer and Thermostat
           - dallas,ds75
-          # Delta Electronics DPS920AB 920W 54V Power Supply
+            # Delta AHE-50DC Open19 power shelf fan control module
+          - delta,ahe50dc-fan
+            # Delta Electronics DPS-650-AB power supply
+          - delta,dps650ab
+            # Delta Electronics DPS920AB 920W 54V Power Supply
           - delta,dps920ab
             # 1/4 Brick DC/DC Regulated Power Module
           - delta,q54sj108a2
@@ -113,22 +113,44 @@ properties:
           - mps,mp2888
             # Monolithic Power Systems Inc. multi-phase controller mp2975
           - mps,mp2975
-            # G751: Digital Temperature Sensor and Thermal Watchdog with Two-Wire Interface
-          - gmt,g751
+            # Honeywell Humidicon HIH-6130 humidity/temperature sensor
+          - honeywell,hi6130
+            # IBM Common Form Factor Power Supply Versions (all versions)
+          - ibm,cffps
+            # IBM Common Form Factor Power Supply Versions 1
+          - ibm,cffps1
+            # IBM Common Form Factor Power Supply Versions 2
+          - ibm,cffps2
             # Infineon IR36021 digital POL buck controller
           - infineon,ir36021
+            # Infineon IR38060 Voltage Regulator
+          - infineon,ir38060
             # Infineon IR38064 Voltage Regulator
           - infineon,ir38064
+            # Infineon IR38164 Voltage Regulator
+          - infineon,ir38164
+            # Infineon IR38263 Voltage Regulator
+          - infineon,ir38263
             # Infineon SLB9635 (Soft-) I2C TPM (old protocol, max 100khz)
           - infineon,slb9635tt
             # Infineon SLB9645 I2C TPM (new protocol, max 400khz)
           - infineon,slb9645tt
             # Infineon TLV493D-A1B6 I2C 3D Magnetic Sensor
           - infineon,tlv493d-a1b6
+            # Infineon Multi-phase Digital VR Controller xdpe11280
+          - infineon,xdpe11280
             # Infineon Multi-phase Digital VR Controller xdpe12254
           - infineon,xdpe12254
             # Infineon Multi-phase Digital VR Controller xdpe12284
           - infineon,xdpe12284
+            # Injoinic IP5108 2.0A Power Bank IC with I2C
+          - injoinic,ip5108
+            # Injoinic IP5109 2.1A Power Bank IC with I2C
+          - injoinic,ip5109
+            # Injoinic IP5207 1.2A Power Bank IC with I2C
+          - injoinic,ip5207
+            # Injoinic IP5209 2.4A Power Bank IC with I2C
+          - injoinic,ip5209
             # Inspur Power System power supply unit version 1
           - inspur,ipsps1
             # Intersil ISL29028 Ambient Light and Proximity Sensor
@@ -145,6 +167,8 @@ properties:
           - maxim,ds1803-050
             # 100 kOhm digital potentiometer with I2C interface
           - maxim,ds1803-100
+            # 10 kOhm digital potentiometer with I2C interface
+          - maxim,ds3502
             # Low-Power, 4-/12-Channel, 2-Wire Serial, 12-Bit ADCs
           - maxim,max1237
             # Temperature Sensor, I2C interface
@@ -271,12 +295,16 @@ properties:
           - renesas,isl29501
             # S524AD0XF1 (128K/256K-bit Serial EEPROM for Low Power)
           - samsung,24ad0xd1
+            # Samsung Exynos SoC SATA PHY I2C device
+          - samsung,exynos-sataphy-i2c
             # Sensirion low power multi-pixel gas sensor with I2C interface
           - sensirion,sgpc3
             # Sensirion multi-pixel gas sensor with I2C interface
           - sensirion,sgp30
             # Sensirion gas sensor with I2C interface
           - sensirion,sgp40
+            # Sensirion temperature & humidity sensor with I2C interface
+          - sensirion,sht4x
             # Sensortek 3 axis accelerometer
           - sensortek,stk8312
             # Sensortek 3 axis accelerometer
@@ -289,9 +317,9 @@ properties:
           - skyworks,sky81452
             # Socionext SynQuacer TPM MMIO module
           - socionext,synquacer-tpm-mmio
-            # i2c serial eeprom  (24cxx)
-          - sparkfun,qwiic-joystick
             # SparkFun Qwiic Joystick (COM-15168) with i2c interface
+          - sparkfun,qwiic-joystick
+            # i2c serial eeprom (24cxx)
           - st,24c256
             # Ambient Light Sensor with SMBUS/Two Wire Serial Interface
           - taos,tsl2550
@@ -307,26 +335,42 @@ properties:
           - ti,hdc1050
             # Temperature and humidity sensor with i2c interface
           - ti,hdc1080
+            # Thermometer with SPI interface
+          - ti,lm70
+          - ti,lm71
             # Temperature sensor with 2-wire interface
           - ti,lm73
+            # Thermometer with SPI interface
+          - ti,lm74
             # Temperature sensor with integrated fan control
           - ti,lm96000
             # I2C Touch-Screen Controller
           - ti,tsc2003
             # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
-          - ti,tmp102
-            # Low Power Digital Temperature Sensor with SMBUS/Two Wire Serial Interface
           - ti,tmp103
+            # Thermometer with SPI interface
+          - ti,tmp121
+          - ti,tmp122
+          - ti,tmp125
             # Digital Temperature Sensor
           - ti,tmp275
+            # TI DC-DC converter on PMBus
+          - ti,tps40400
             # TI Dual channel DCAP+ multiphase controller TPS53676 with AVSBus
           - ti,tps53676
             # TI Dual channel DCAP+ multiphase controller TPS53679
           - ti,tps53679
             # TI Dual channel DCAP+ multiphase controller TPS53688
           - ti,tps53688
+            # TI DC-DC converters on PMBus
+          - ti,tps544b20
+          - ti,tps544b25
+          - ti,tps544c20
+          - ti,tps544c25
             # Winbond/Nuvoton H/W Monitor
           - winbond,w83793
+            # Vicor Corporation Digital Supervisor
+          - vicor,pli1209bc
             # i2c trusted platform module (TPM)
           - winbond,wpct301
 

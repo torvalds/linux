@@ -254,9 +254,8 @@ acpi_numa_memory_affinity_init(struct acpi_srat_mem_affinity *ma)
 	}
 	if ((ma->flags & ACPI_SRAT_MEM_ENABLED) == 0)
 		goto out_err;
-	hotpluggable = ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE;
-	if (hotpluggable && !IS_ENABLED(CONFIG_MEMORY_HOTPLUG))
-		goto out_err;
+	hotpluggable = IS_ENABLED(CONFIG_MEMORY_HOTPLUG) &&
+		(ma->flags & ACPI_SRAT_MEM_HOT_PLUGGABLE);
 
 	start = ma->base_address;
 	end = start + ma->length;
@@ -297,6 +296,47 @@ out_err_bad_srat:
 	bad_srat();
 out_err:
 	return -EINVAL;
+}
+
+static int __init acpi_parse_cfmws(union acpi_subtable_headers *header,
+				   void *arg, const unsigned long table_end)
+{
+	struct acpi_cedt_cfmws *cfmws;
+	int *fake_pxm = arg;
+	u64 start, end;
+	int node;
+
+	cfmws = (struct acpi_cedt_cfmws *)header;
+	start = cfmws->base_hpa;
+	end = cfmws->base_hpa + cfmws->window_size;
+
+	/* Skip if the SRAT already described the NUMA details for this HPA */
+	node = phys_to_target_node(start);
+	if (node != NUMA_NO_NODE)
+		return 0;
+
+	node = acpi_map_pxm_to_node(*fake_pxm);
+
+	if (node == NUMA_NO_NODE) {
+		pr_err("ACPI NUMA: Too many proximity domains while processing CFMWS.\n");
+		return -EINVAL;
+	}
+
+	if (numa_add_memblk(node, start, end) < 0) {
+		/* CXL driver must handle the NUMA_NO_NODE case */
+		pr_warn("ACPI NUMA: Failed to add memblk for CFMWS node %d [mem %#llx-%#llx]\n",
+			node, start, end);
+	}
+
+	/* Set the next available fake_pxm value */
+	(*fake_pxm)++;
+	return 0;
+}
+#else
+static int __init acpi_parse_cfmws(union acpi_subtable_headers *header,
+				   void *arg, const unsigned long table_end)
+{
+	return 0;
 }
 #endif /* defined(CONFIG_X86) || defined (CONFIG_ARM64) */
 
@@ -442,7 +482,7 @@ acpi_table_parse_srat(enum acpi_srat_type id,
 
 int __init acpi_numa_init(void)
 {
-	int cnt = 0;
+	int i, fake_pxm, cnt = 0;
 
 	if (acpi_disabled)
 		return -EINVAL;
@@ -477,6 +517,22 @@ int __init acpi_numa_init(void)
 
 	/* SLIT: System Locality Information Table */
 	acpi_table_parse(ACPI_SIG_SLIT, acpi_parse_slit);
+
+	/*
+	 * CXL Fixed Memory Window Structures (CFMWS) must be parsed
+	 * after the SRAT. Create NUMA Nodes for CXL memory ranges that
+	 * are defined in the CFMWS and not already defined in the SRAT.
+	 * Initialize a fake_pxm as the first available PXM to emulate.
+	 */
+
+	/* fake_pxm is the next unused PXM value after SRAT parsing */
+	for (i = 0, fake_pxm = -1; i < MAX_NUMNODES - 1; i++) {
+		if (node_to_pxm_map[i] > fake_pxm)
+			fake_pxm = node_to_pxm_map[i];
+	}
+	fake_pxm++;
+	acpi_table_parse_cedt(ACPI_CEDT_TYPE_CFMWS, acpi_parse_cfmws,
+			      &fake_pxm);
 
 	if (cnt < 0)
 		return cnt;

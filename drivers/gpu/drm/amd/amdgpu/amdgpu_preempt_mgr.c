@@ -25,12 +25,6 @@
 
 #include "amdgpu.h"
 
-static inline struct amdgpu_preempt_mgr *
-to_preempt_mgr(struct ttm_resource_manager *man)
-{
-	return container_of(man, struct amdgpu_preempt_mgr, manager);
-}
-
 /**
  * DOC: mem_info_preempt_used
  *
@@ -45,10 +39,9 @@ static ssize_t mem_info_preempt_used_show(struct device *dev,
 {
 	struct drm_device *ddev = dev_get_drvdata(dev);
 	struct amdgpu_device *adev = drm_to_adev(ddev);
-	struct ttm_resource_manager *man;
+	struct ttm_resource_manager *man = &adev->mman.preempt_mgr;
 
-	man = ttm_manager_type(&adev->mman.bdev, AMDGPU_PL_PREEMPT);
-	return sysfs_emit(buf, "%llu\n", amdgpu_preempt_mgr_usage(man));
+	return sysfs_emit(buf, "%llu\n", ttm_resource_manager_usage(man));
 }
 
 static DEVICE_ATTR_RO(mem_info_preempt_used);
@@ -59,7 +52,7 @@ static DEVICE_ATTR_RO(mem_info_preempt_used);
  * @man: TTM memory type manager
  * @tbo: TTM BO we need this range for
  * @place: placement flags and restrictions
- * @mem: the resulting mem object
+ * @res: TTM memory object
  *
  * Dummy, just count the space used without allocating resources or any limit.
  */
@@ -68,16 +61,12 @@ static int amdgpu_preempt_mgr_new(struct ttm_resource_manager *man,
 				  const struct ttm_place *place,
 				  struct ttm_resource **res)
 {
-	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
-
 	*res = kzalloc(sizeof(**res), GFP_KERNEL);
 	if (!*res)
 		return -ENOMEM;
 
 	ttm_resource_init(tbo, place, *res);
 	(*res)->start = AMDGPU_BO_INVALID_OFFSET;
-
-	atomic64_add((*res)->num_pages, &mgr->used);
 	return 0;
 }
 
@@ -85,55 +74,20 @@ static int amdgpu_preempt_mgr_new(struct ttm_resource_manager *man,
  * amdgpu_preempt_mgr_del - free ranges
  *
  * @man: TTM memory type manager
- * @mem: TTM memory object
+ * @res: TTM memory object
  *
  * Free the allocated GTT again.
  */
 static void amdgpu_preempt_mgr_del(struct ttm_resource_manager *man,
 				   struct ttm_resource *res)
 {
-	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
-
-	atomic64_sub(res->num_pages, &mgr->used);
+	ttm_resource_fini(man, res);
 	kfree(res);
-}
-
-/**
- * amdgpu_preempt_mgr_usage - return usage of PREEMPT domain
- *
- * @man: TTM memory type manager
- *
- * Return how many bytes are used in the GTT domain
- */
-uint64_t amdgpu_preempt_mgr_usage(struct ttm_resource_manager *man)
-{
-	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
-	s64 result = atomic64_read(&mgr->used);
-
-	return (result > 0 ? result : 0) * PAGE_SIZE;
-}
-
-/**
- * amdgpu_preempt_mgr_debug - dump VRAM table
- *
- * @man: TTM memory type manager
- * @printer: DRM printer to use
- *
- * Dump the table content using printk.
- */
-static void amdgpu_preempt_mgr_debug(struct ttm_resource_manager *man,
-				     struct drm_printer *printer)
-{
-	struct amdgpu_preempt_mgr *mgr = to_preempt_mgr(man);
-
-	drm_printf(printer, "man size:%llu pages, preempt used:%lld pages\n",
-		   man->size, (u64)atomic64_read(&mgr->used));
 }
 
 static const struct ttm_resource_manager_func amdgpu_preempt_mgr_func = {
 	.alloc = amdgpu_preempt_mgr_new,
 	.free = amdgpu_preempt_mgr_del,
-	.debug = amdgpu_preempt_mgr_debug
 };
 
 /**
@@ -145,16 +99,13 @@ static const struct ttm_resource_manager_func amdgpu_preempt_mgr_func = {
  */
 int amdgpu_preempt_mgr_init(struct amdgpu_device *adev)
 {
-	struct amdgpu_preempt_mgr *mgr = &adev->mman.preempt_mgr;
-	struct ttm_resource_manager *man = &mgr->manager;
+	struct ttm_resource_manager *man = &adev->mman.preempt_mgr;
 	int ret;
 
 	man->use_tt = true;
 	man->func = &amdgpu_preempt_mgr_func;
 
-	ttm_resource_manager_init(man, (1 << 30));
-
-	atomic64_set(&mgr->used, 0);
+	ttm_resource_manager_init(man, &adev->mman.bdev, (1 << 30));
 
 	ret = device_create_file(adev->dev, &dev_attr_mem_info_preempt_used);
 	if (ret) {
@@ -162,8 +113,7 @@ int amdgpu_preempt_mgr_init(struct amdgpu_device *adev)
 		return ret;
 	}
 
-	ttm_set_driver_manager(&adev->mman.bdev, AMDGPU_PL_PREEMPT,
-			       &mgr->manager);
+	ttm_set_driver_manager(&adev->mman.bdev, AMDGPU_PL_PREEMPT, man);
 	ttm_resource_manager_set_used(man, true);
 	return 0;
 }
@@ -178,8 +128,7 @@ int amdgpu_preempt_mgr_init(struct amdgpu_device *adev)
  */
 void amdgpu_preempt_mgr_fini(struct amdgpu_device *adev)
 {
-	struct amdgpu_preempt_mgr *mgr = &adev->mman.preempt_mgr;
-	struct ttm_resource_manager *man = &mgr->manager;
+	struct ttm_resource_manager *man = &adev->mman.preempt_mgr;
 	int ret;
 
 	ttm_resource_manager_set_used(man, false);

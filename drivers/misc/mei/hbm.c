@@ -672,10 +672,14 @@ static void mei_hbm_cl_dma_map_res(struct mei_device *dev,
 	if (!cl)
 		return;
 
-	dev_dbg(dev->dev, "cl dma map result = %d\n", res->status);
-	cl->status = res->status;
-	if (!cl->status)
+	if (res->status) {
+		dev_err(dev->dev, "cl dma map failed %d\n", res->status);
+		cl->status = -EFAULT;
+	} else {
+		dev_dbg(dev->dev, "cl dma map succeeded\n");
 		cl->dma_mapped = 1;
+		cl->status = 0;
+	}
 	wake_up(&cl->wait);
 }
 
@@ -698,10 +702,14 @@ static void mei_hbm_cl_dma_unmap_res(struct mei_device *dev,
 	if (!cl)
 		return;
 
-	dev_dbg(dev->dev, "cl dma unmap result = %d\n", res->status);
-	cl->status = res->status;
-	if (!cl->status)
+	if (res->status) {
+		dev_err(dev->dev, "cl dma unmap failed %d\n", res->status);
+		cl->status = -EFAULT;
+	} else {
+		dev_dbg(dev->dev, "cl dma unmap succeeded\n");
 		cl->dma_mapped = 0;
+		cl->status = 0;
+	}
 	wake_up(&cl->wait);
 }
 

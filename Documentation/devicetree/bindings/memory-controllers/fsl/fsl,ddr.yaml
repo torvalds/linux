@@ -1,0 +1,83 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/memory-controllers/fsl/fsl,ddr.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: Freescale DDR memory controller
+
+maintainers:
+  - Borislav Petkov <bp@alien8.de>
+  - York Sun <york.sun@nxp.com>
+
+properties:
+  $nodename:
+    pattern: "^memory-controller@[0-9a-f]+$"
+
+  compatible:
+    oneOf:
+      - items:
+          - enum:
+              - fsl,qoriq-memory-controller-v4.4
+              - fsl,qoriq-memory-controller-v4.5
+              - fsl,qoriq-memory-controller-v4.7
+              - fsl,qoriq-memory-controller-v5.0
+          - const: fsl,qoriq-memory-controller
+      - enum:
+          - fsl,bsc9132-memory-controller
+          - fsl,8540-memory-controller
+          - fsl,8541-memory-controller
+          - fsl,8544-memory-controller
+          - fsl,8548-memory-controller
+          - fsl,8555-memory-controller
+          - fsl,8568-memory-controller
+          - fsl,mpc8536-memory-controller
+          - fsl,mpc8540-memory-controller
+          - fsl,mpc8541-memory-controller
+          - fsl,mpc8544-memory-controller
+          - fsl,mpc8548-memory-controller
+          - fsl,mpc8555-memory-controller
+          - fsl,mpc8560-memory-controller
+          - fsl,mpc8568-memory-controller
+          - fsl,mpc8569-memory-controller
+          - fsl,mpc8572-memory-controller
+          - fsl,mpc8349-memory-controller
+          - fsl,p1020-memory-controller
+          - fsl,p1021-memory-controller
+          - fsl,p2020-memory-controller
+          - fsl,qoriq-memory-controller
+
+  interrupts:
+    maxItems: 1
+
+  little-endian:
+    description:
+      Specifies little-endian access to registers. If omitted, big-endian will
+      be used.
+    type: boolean
+
+  reg:
+    maxItems: 1
+
+required:
+  - compatible
+  - interrupts
+  - reg
+
+additionalProperties: false
+
+examples:
+  - |
+    memory-controller@2000 {
+        compatible = "fsl,bsc9132-memory-controller";
+        reg = <0x2000 0x1000>;
+        interrupts = <16 2 1 8>;
+    };
+
+  - |
+    memory-controller@8000 {
+        compatible = "fsl,qoriq-memory-controller-v4.7",
+                     "fsl,qoriq-memory-controller";
+        reg = <0x8000 0x1000>;
+        interrupts = <16 2 1 23>;
+    };

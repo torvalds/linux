@@ -307,12 +307,9 @@ static int amd_mp2_pci_init(struct amd_mp2_dev *privdata,
 
 	pci_set_master(pci_dev);
 
-	rc = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(64));
-	if (rc) {
-		rc = pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32));
-		if (rc)
-			goto err_dma_mask;
-	}
+	rc = dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(64));
+	if (rc)
+		goto err_dma_mask;
 
 	/* Set up intx irq */
 	writel(0, privdata->mmio + AMD_P2C_MSG_INTEN);

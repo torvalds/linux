@@ -126,8 +126,10 @@ struct rsp_desc {		/* response queue descriptor */
 	struct rss_header rss_hdr;
 	__be32 flags;
 	__be32 len_cq;
-	u8 imm_data[47];
-	u8 intr_gen;
+	struct_group(immediate,
+		u8 imm_data[47];
+		u8 intr_gen;
+	);
 };
 
 /*
@@ -925,7 +927,8 @@ static inline struct sk_buff *get_imm_packet(const struct rsp_desc *resp)
 
 	if (skb) {
 		__skb_put(skb, IMMED_PKT_SIZE);
-		skb_copy_to_linear_data(skb, resp->imm_data, IMMED_PKT_SIZE);
+		BUILD_BUG_ON(IMMED_PKT_SIZE != sizeof(resp->immediate));
+		skb_copy_to_linear_data(skb, &resp->immediate, IMMED_PKT_SIZE);
 	}
 	return skb;
 }
@@ -1953,7 +1956,7 @@ static int ofld_poll(struct napi_struct *napi, int budget)
  *	@rx_gather: a gather list of packets if we are building a bundle
  *	@gather_idx: index of the next available slot in the bundle
  *
- *	Process an ingress offload pakcet and add it to the offload ingress
+ *	Process an ingress offload packet and add it to the offload ingress
  *	queue. 	Returns the index of the next available slot in the bundle.
  */
 static inline int rx_offload(struct t3cdev *tdev, struct sge_rspq *rq,
@@ -2079,7 +2082,7 @@ static void cxgb3_process_iscsi_prov_pack(struct port_info *pi,
  *	@pad: padding
  *	@lro: large receive offload
  *
- *	Process an ingress ethernet pakcet and deliver it to the stack.
+ *	Process an ingress ethernet packet and deliver it to the stack.
  *	The padding is 2 if the packet was delivered in an Rx buffer and 0
  *	if it was immediate data in a response.
  */

@@ -15,15 +15,4 @@ config AD7816
 	  To compile this driver as a module, choose M here: the
 	  module will be called ad7816.
 
-config AD7280
-	tristate "Analog Devices AD7280A Lithium Ion Battery Monitoring System"
-	depends on SPI
-	select CRC8
-	help
-	  Say yes here to build support for Analog Devices AD7280A
-	  Lithium Ion Battery Monitoring System.
-
-	  To compile this driver as a module, choose M here: the
-	  module will be called ad7280a
-
 endmenu

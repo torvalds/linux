@@ -6,7 +6,7 @@
 #ifndef __INTEL_DMC_H__
 #define __INTEL_DMC_H__
 
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 #include "intel_wakeref.h"
 #include <linux/workqueue.h>
 
@@ -20,6 +20,8 @@ enum {
 	DMC_FW_MAIN = 0,
 	DMC_FW_PIPEA,
 	DMC_FW_PIPEB,
+	DMC_FW_PIPEC,
+	DMC_FW_PIPED,
 	DMC_FW_MAX
 };
 

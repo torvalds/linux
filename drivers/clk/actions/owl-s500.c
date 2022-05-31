@@ -95,7 +95,7 @@
 
 static const struct clk_pll_table clk_audio_pll_table[] = {
 	{ 0, 45158400 }, { 1, 49152000 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 /* pll clocks */
@@ -138,46 +138,46 @@ static struct clk_factor_table sd_factor_table[] = {
 	{ 272, 1, 17 * 128 }, { 273, 1, 18 * 128 }, { 274, 1, 19 * 128 }, { 275, 1, 20 * 128 },
 	{ 276, 1, 21 * 128 }, { 277, 1, 22 * 128 }, { 278, 1, 23 * 128 }, { 279, 1, 24 * 128 },
 	{ 280, 1, 25 * 128 },
-	{ 0, 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_factor_table de_factor_table[] = {
 	{ 0, 1, 1 }, { 1, 2, 3 }, { 2, 1, 2 }, { 3, 2, 5 },
 	{ 4, 1, 3 }, { 5, 1, 4 }, { 6, 1, 6 }, { 7, 1, 8 },
 	{ 8, 1, 12 },
-	{ 0, 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_factor_table hde_factor_table[] = {
 	{ 0, 1, 1 }, { 1, 2, 3 }, { 2, 1, 2 }, { 3, 2, 5 },
 	{ 4, 1, 3 }, { 5, 1, 4 }, { 6, 1, 6 }, { 7, 1, 8 },
-	{ 0, 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table rmii_ref_div_table[] = {
 	{ 0, 4 }, { 1, 10 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table std12rate_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
 	{ 4, 5 }, { 5, 6 }, { 6, 7 }, { 7, 8 },
 	{ 8, 9 }, { 9, 10 }, { 10, 11 }, { 11, 12 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table i2s_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { 2, 3 }, { 3, 4 },
 	{ 4, 6 }, { 5, 8 }, { 6, 12 }, { 7, 16 },
 	{ 8, 24 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 static struct clk_div_table nand_div_table[] = {
 	{ 0, 1 }, { 1, 2 }, { 2, 4 }, { 3, 6 },
 	{ 4, 8 }, { 5, 10 }, { 6, 12 }, { 7, 14 },
 	{ 8, 16 }, { 9, 18 }, { 10, 20 }, { 11, 22 },
-	{ 0, 0 },
+	{ /* sentinel */ }
 };
 
 /* mux clock */

@@ -2413,11 +2413,13 @@ static void et131x_tx_dma_memory_free(struct et131x_adapter *adapter)
 	kfree(tx_ring->tcb_ring);
 }
 
+#define MAX_TX_DESC_PER_PKT 24
+
 /* nic_send_packet - NIC specific send handler for version B silicon. */
 static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 {
 	u32 i;
-	struct tx_desc desc[24];
+	struct tx_desc desc[MAX_TX_DESC_PER_PKT];
 	u32 frag = 0;
 	u32 thiscopy, remainder;
 	struct sk_buff *skb = tcb->skb;
@@ -2431,9 +2433,6 @@ static int nic_send_packet(struct et131x_adapter *adapter, struct tcb *tcb)
 	 * sending 24 fragments at a pass.  In practice we should never see
 	 * more than 5 fragments.
 	 */
-
-	/* nr_frags should be no more than 18. */
-	BUILD_BUG_ON(MAX_SKB_FRAGS + 1 > 23);
 
 	memset(desc, 0, sizeof(struct tx_desc) * (nr_frags + 1));
 
@@ -3762,6 +3761,13 @@ static netdev_tx_t et131x_tx(struct sk_buff *skb, struct net_device *netdev)
 	struct et131x_adapter *adapter = netdev_priv(netdev);
 	struct tx_ring *tx_ring = &adapter->tx_ring;
 
+	/* This driver does not support TSO, it is very unlikely
+	 * this condition is true.
+	 */
+	if (unlikely(skb_shinfo(skb)->nr_frags > MAX_TX_DESC_PER_PKT - 2)) {
+		if (skb_linearize(skb))
+			goto drop_err;
+	}
 	/* stop the queue if it's getting full */
 	if (tx_ring->used >= NUM_TCB - 1 && !netif_queue_stopped(netdev))
 		netif_stop_queue(netdev);
@@ -3863,7 +3869,7 @@ static int et131x_change_mtu(struct net_device *netdev, int new_mtu)
 
 	et131x_init_send(adapter);
 	et131x_hwaddr_init(adapter);
-	ether_addr_copy(netdev->dev_addr, adapter->addr);
+	eth_hw_addr_set(netdev, adapter->addr);
 
 	/* Init the device with the new settings */
 	et131x_adapter_setup(adapter);
@@ -3914,10 +3920,9 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 	pci_set_master(pdev);
 
 	/* Check the DMA addressing support of this device */
-	if (dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64)) &&
-	    dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32))) {
+	rc = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
+	if (rc) {
 		dev_err(&pdev->dev, "No usable DMA addressing method\n");
-		rc = -EIO;
 		goto err_release_res;
 	}
 
@@ -3966,7 +3971,7 @@ static int et131x_pci_setup(struct pci_dev *pdev,
 
 	netif_napi_add(netdev, &adapter->napi, et131x_poll, 64);
 
-	ether_addr_copy(netdev->dev_addr, adapter->addr);
+	eth_hw_addr_set(netdev, adapter->addr);
 
 	rc = -ENOMEM;
 

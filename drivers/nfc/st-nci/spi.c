@@ -169,7 +169,6 @@ static int st_nci_spi_read(struct st_nci_spi_phy *phy,
 static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 {
 	struct st_nci_spi_phy *phy = phy_id;
-	struct spi_device *dev;
 	struct sk_buff *skb = NULL;
 	int r;
 
@@ -177,9 +176,6 @@ static irqreturn_t st_nci_irq_thread_fn(int irq, void *phy_id)
 		WARN_ON_ONCE(1);
 		return IRQ_NONE;
 	}
-
-	dev = phy->spi_dev;
-	dev_dbg(&dev->dev, "IRQ\n");
 
 	if (phy->ndlc->hard_fault)
 		return IRQ_HANDLED;
@@ -267,13 +263,11 @@ static int st_nci_spi_probe(struct spi_device *dev)
 	return r;
 }
 
-static int st_nci_spi_remove(struct spi_device *dev)
+static void st_nci_spi_remove(struct spi_device *dev)
 {
 	struct st_nci_spi_phy *phy = spi_get_drvdata(dev);
 
 	ndlc_remove(phy->ndlc);
-
-	return 0;
 }
 
 static struct spi_device_id st_nci_spi_id_table[] = {

@@ -32,12 +32,17 @@ enum iwl_data_path_subcmd_ids {
 	STA_HE_CTXT_CMD = 0x7,
 
 	/**
+	 * @RLC_CONFIG_CMD: &struct iwl_rlc_config_cmd
+	 */
+	RLC_CONFIG_CMD = 0x8,
+
+	/**
 	 * @RFH_QUEUE_CONFIG_CMD: &struct iwl_rfh_queue_config
 	 */
 	RFH_QUEUE_CONFIG_CMD = 0xD,
 
 	/**
-	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd
+	 * @TLC_MNG_CONFIG_CMD: &struct iwl_tlc_config_cmd_v4
 	 */
 	TLC_MNG_CONFIG_CMD = 0xF,
 
@@ -51,6 +56,20 @@ enum iwl_data_path_subcmd_ids {
 	 *	matrix collection, uses &struct iwl_channel_estimation_cfg
 	 */
 	CHEST_COLLECTOR_FILTER_CONFIG_CMD = 0x14,
+
+	/**
+	 * @RX_BAID_ALLOCATION_CONFIG_CMD: Allocate/deallocate a BAID for an RX
+	 *	blockack session, uses &struct iwl_rx_baid_cfg_cmd for the
+	 *	command, and &struct iwl_rx_baid_cfg_resp as a response.
+	 */
+	RX_BAID_ALLOCATION_CONFIG_CMD = 0x16,
+
+	/**
+	 * @SCD_QUEUE_CONFIG_CMD: new scheduler queue allocation/config/removal
+	 *	command, uses &struct iwl_scd_queue_cfg_cmd and the response
+	 *	is (same as before) &struct iwl_tx_queue_cfg_rsp.
+	 */
+	SCD_QUEUE_CONFIG_CMD = 0x17,
 
 	/**
 	 * @MONITOR_NOTIF: Datapath monitoring notification, using
@@ -194,5 +213,194 @@ enum iwl_thermal_dual_chain_req_events {
 struct iwl_thermal_dual_chain_request {
 	__le32 event;
 } __packed; /* THERMAL_DUAL_CHAIN_DISABLE_REQ_NTFY_API_S_VER_1 */
+
+enum iwl_rlc_chain_info {
+	IWL_RLC_CHAIN_INFO_DRIVER_FORCE		= BIT(0),
+	IWL_RLC_CHAIN_INFO_VALID		= 0x000e,
+	IWL_RLC_CHAIN_INFO_FORCE		= 0x0070,
+	IWL_RLC_CHAIN_INFO_FORCE_MIMO		= 0x0380,
+	IWL_RLC_CHAIN_INFO_COUNT		= 0x0c00,
+	IWL_RLC_CHAIN_INFO_MIMO_COUNT		= 0x3000,
+};
+
+/**
+ * struct iwl_rlc_properties - RLC properties
+ * @rx_chain_info: RX chain info, &enum iwl_rlc_chain_info
+ * @reserved: reserved
+ */
+struct iwl_rlc_properties {
+	__le32 rx_chain_info;
+	__le32 reserved;
+} __packed; /* RLC_PROPERTIES_S_VER_1 */
+
+enum iwl_sad_mode {
+	IWL_SAD_MODE_ENABLED		= BIT(0),
+	IWL_SAD_MODE_DEFAULT_ANT_MSK	= 0x6,
+	IWL_SAD_MODE_DEFAULT_ANT_FW	= 0x0,
+	IWL_SAD_MODE_DEFAULT_ANT_A	= 0x2,
+	IWL_SAD_MODE_DEFAULT_ANT_B	= 0x4,
+};
+
+/**
+ * struct iwl_sad_properties - SAD properties
+ * @chain_a_sad_mode: chain A SAD mode, &enum iwl_sad_mode
+ * @chain_b_sad_mode: chain B SAD mode, &enum iwl_sad_mode
+ * @mac_id: MAC index
+ * @reserved: reserved
+ */
+struct iwl_sad_properties {
+	__le32 chain_a_sad_mode;
+	__le32 chain_b_sad_mode;
+	__le32 mac_id;
+	__le32 reserved;
+} __packed;
+
+/**
+ * struct iwl_rlc_config_cmd - RLC configuration
+ * @phy_id: PHY index
+ * @rlc: RLC properties, &struct iwl_rlc_properties
+ * @sad: SAD (single antenna diversity) options, &struct iwl_sad_properties
+ * @flags: flags, &enum iwl_rlc_flags
+ * @reserved: reserved
+ */
+struct iwl_rlc_config_cmd {
+	__le32 phy_id;
+	struct iwl_rlc_properties rlc;
+	struct iwl_sad_properties sad;
+	u8 flags;
+	u8 reserved[3];
+} __packed; /* RLC_CONFIG_CMD_API_S_VER_2 */
+
+#define IWL_MAX_BAID_OLD	16 /* MAX_IMMEDIATE_BA_API_D_VER_2 */
+#define IWL_MAX_BAID		32 /* MAX_IMMEDIATE_BA_API_D_VER_3 */
+
+/**
+ * enum iwl_rx_baid_action - BAID allocation/config action
+ * @IWL_RX_BAID_ACTION_ADD: add a new BAID session
+ * @IWL_RX_BAID_ACTION_MODIFY: modify the BAID session
+ * @IWL_RX_BAID_ACTION_REMOVE: remove the BAID session
+ */
+enum iwl_rx_baid_action {
+	IWL_RX_BAID_ACTION_ADD,
+	IWL_RX_BAID_ACTION_MODIFY,
+	IWL_RX_BAID_ACTION_REMOVE,
+}; /*  RX_BAID_ALLOCATION_ACTION_E_VER_1 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_alloc - BAID allocation data
+ * @sta_id_mask: station ID mask
+ * @tid: the TID for this session
+ * @reserved: reserved
+ * @ssn: the starting sequence number
+ * @win_size: RX BA session window size
+ */
+struct iwl_rx_baid_cfg_cmd_alloc {
+	__le32 sta_id_mask;
+	u8 tid;
+	u8 reserved[3];
+	__le16 ssn;
+	__le16 win_size;
+} __packed; /* RX_BAID_ALLOCATION_ADD_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_modify - BAID modification data
+ * @old_sta_id_mask: old station ID mask
+ * @new_sta_id_mask: new station ID mask
+ * @tid: TID of the BAID
+ */
+struct iwl_rx_baid_cfg_cmd_modify {
+	__le32 old_sta_id_mask;
+	__le32 new_sta_id_mask;
+	__le32 tid;
+} __packed; /* RX_BAID_ALLOCATION_MODIFY_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_remove_v1 - BAID removal data
+ * @baid: the BAID to remove
+ */
+struct iwl_rx_baid_cfg_cmd_remove_v1 {
+	__le32 baid;
+} __packed; /* RX_BAID_ALLOCATION_REMOVE_CMD_API_S_VER_1 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd_remove - BAID removal data
+ * @sta_id_mask: the station mask of the BAID to remove
+ * @tid: the TID of the BAID to remove
+ */
+struct iwl_rx_baid_cfg_cmd_remove {
+	__le32 sta_id_mask;
+	__le32 tid;
+} __packed; /* RX_BAID_ALLOCATION_REMOVE_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_baid_cfg_cmd - BAID allocation/config command
+ * @action: the action, from &enum iwl_rx_baid_action
+ */
+struct iwl_rx_baid_cfg_cmd {
+	__le32 action;
+	union {
+		struct iwl_rx_baid_cfg_cmd_alloc alloc;
+		struct iwl_rx_baid_cfg_cmd_modify modify;
+		struct iwl_rx_baid_cfg_cmd_remove_v1 remove_v1;
+		struct iwl_rx_baid_cfg_cmd_remove remove;
+	}; /* RX_BAID_ALLOCATION_OPERATION_API_U_VER_2 */
+} __packed; /* RX_BAID_ALLOCATION_CONFIG_CMD_API_S_VER_2 */
+
+/**
+ * struct iwl_rx_baid_cfg_resp - BAID allocation response
+ * @baid: the allocated BAID
+ */
+struct iwl_rx_baid_cfg_resp {
+	__le32 baid;
+}; /* RX_BAID_ALLOCATION_RESPONSE_API_S_VER_1 */
+
+/**
+ * enum iwl_scd_queue_cfg_operation - scheduler queue operation
+ * @IWL_SCD_QUEUE_ADD: allocate a new queue
+ * @IWL_SCD_QUEUE_REMOVE: remove a queue
+ * @IWL_SCD_QUEUE_MODIFY: modify a queue
+ */
+enum iwl_scd_queue_cfg_operation {
+	IWL_SCD_QUEUE_ADD = 0,
+	IWL_SCD_QUEUE_REMOVE = 1,
+	IWL_SCD_QUEUE_MODIFY = 2,
+};
+
+/**
+ * struct iwl_scd_queue_cfg_cmd - scheduler queue allocation command
+ * @operation: the operation, see &enum iwl_scd_queue_cfg_operation
+ * @u.add.sta_mask: station mask
+ * @u.add.tid: TID
+ * @u.add.reserved: reserved
+ * @u.add.flags: flags from &enum iwl_tx_queue_cfg_actions, except
+ *	%TX_QUEUE_CFG_ENABLE_QUEUE is not valid
+ * @u.add.cb_size: size code
+ * @u.add.bc_dram_addr: byte-count table IOVA
+ * @u.add.tfdq_dram_addr: TFD queue IOVA
+ * @u.remove.queue: queue ID for removal
+ * @u.modify.sta_mask: new station mask for modify
+ * @u.modify.queue: queue ID to modify
+ */
+struct iwl_scd_queue_cfg_cmd {
+	__le32 operation;
+	union {
+		struct {
+			__le32 sta_mask;
+			u8 tid;
+			u8 reserved[3];
+			__le32 flags;
+			__le32 cb_size;
+			__le64 bc_dram_addr;
+			__le64 tfdq_dram_addr;
+		} __packed add; /* TX_QUEUE_CFG_CMD_ADD_API_S_VER_1 */
+		struct {
+			__le32 queue;
+		} __packed remove; /* TX_QUEUE_CFG_CMD_REMOVE_API_S_VER_1 */
+		struct {
+			__le32 sta_mask;
+			__le32 queue;
+		} __packed modify; /* TX_QUEUE_CFG_CMD_MODIFY_API_S_VER_1 */
+	} __packed u; /* TX_QUEUE_CFG_CMD_OPERATION_API_U_VER_1 */
+} __packed; /* TX_QUEUE_CFG_CMD_API_S_VER_3 */
 
 #endif /* __iwl_fw_api_datapath_h__ */

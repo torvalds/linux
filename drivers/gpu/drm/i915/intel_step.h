@@ -11,8 +11,9 @@
 struct drm_i915_private;
 
 struct intel_step_info {
-	u8 gt_step;
+	u8 graphics_step;
 	u8 display_step;
+	u8 media_step;
 };
 
 #define STEP_ENUM_VAL(name)  STEP_##name,

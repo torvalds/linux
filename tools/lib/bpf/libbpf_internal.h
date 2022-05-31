@@ -13,6 +13,8 @@
 #include <limits.h>
 #include <errno.h>
 #include <linux/err.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include "libbpf_legacy.h"
 #include "relo_core.h"
 
@@ -52,8 +54,8 @@
 #endif
 
 /* Older libelf all end up in this expression, for both 32 and 64 bit */
-#ifndef GELF_ST_VISIBILITY
-#define GELF_ST_VISIBILITY(o) ((o) & 0x03)
+#ifndef ELF64_ST_VISIBILITY
+#define ELF64_ST_VISIBILITY(o) ((o) & 0x03)
 #endif
 
 #define BTF_INFO_ENC(kind, kind_flag, vlen) \
@@ -69,6 +71,10 @@
 #define BTF_VAR_SECINFO_ENC(type, offset, size) (type), (offset), (size)
 #define BTF_TYPE_FLOAT_ENC(name, sz) \
 	BTF_TYPE_ENC(name, BTF_INFO_ENC(BTF_KIND_FLOAT, 0, 0), sz)
+#define BTF_TYPE_DECL_TAG_ENC(value, type, component_idx) \
+	BTF_TYPE_ENC(value, BTF_INFO_ENC(BTF_KIND_DECL_TAG, 0, 0), type), (component_idx)
+#define BTF_TYPE_TYPE_TAG_ENC(value, type) \
+	BTF_TYPE_ENC(value, BTF_INFO_ENC(BTF_KIND_TYPE_TAG, 0, 0), type)
 
 #ifndef likely
 #define likely(x) __builtin_expect(!!(x), 1)
@@ -86,21 +92,44 @@
 # define offsetofend(TYPE, FIELD) \
 	(offsetof(TYPE, FIELD) + sizeof(((TYPE *)0)->FIELD))
 #endif
+#ifndef __alias
+#define __alias(symbol) __attribute__((alias(#symbol)))
+#endif
+
+/* Check whether a string `str` has prefix `pfx`, regardless if `pfx` is
+ * a string literal known at compilation time or char * pointer known only at
+ * runtime.
+ */
+#define str_has_pfx(str, pfx) \
+	(strncmp(str, pfx, __builtin_constant_p(pfx) ? sizeof(pfx) - 1 : strlen(pfx)) == 0)
 
 /* Symbol versioning is different between static and shared library.
  * Properly versioned symbols are needed for shared library, but
  * only the symbol of the new version is needed for static library.
+ * Starting with GNU C 10, use symver attribute instead of .symver assembler
+ * directive, which works better with GCC LTO builds.
  */
-#ifdef SHARED
-# define COMPAT_VERSION(internal_name, api_name, version) \
+#if defined(SHARED) && defined(__GNUC__) && __GNUC__ >= 10
+
+#define DEFAULT_VERSION(internal_name, api_name, version) \
+	__attribute__((symver(#api_name "@@" #version)))
+#define COMPAT_VERSION(internal_name, api_name, version) \
+	__attribute__((symver(#api_name "@" #version)))
+
+#elif defined(SHARED)
+
+#define COMPAT_VERSION(internal_name, api_name, version) \
 	asm(".symver " #internal_name "," #api_name "@" #version);
-# define DEFAULT_VERSION(internal_name, api_name, version) \
+#define DEFAULT_VERSION(internal_name, api_name, version) \
 	asm(".symver " #internal_name "," #api_name "@@" #version);
-#else
-# define COMPAT_VERSION(internal_name, api_name, version)
-# define DEFAULT_VERSION(internal_name, api_name, version) \
+
+#else /* !SHARED */
+
+#define COMPAT_VERSION(internal_name, api_name, version)
+#define DEFAULT_VERSION(internal_name, api_name, version) \
 	extern typeof(internal_name) api_name \
 	__attribute__((alias(#internal_name)));
+
 #endif
 
 extern void libbpf_print(enum libbpf_print_level level,
@@ -143,10 +172,31 @@ static inline void *libbpf_reallocarray(void *ptr, size_t nmemb, size_t size)
 	return realloc(ptr, total);
 }
 
+/* Copy up to sz - 1 bytes from zero-terminated src string and ensure that dst
+ * is zero-terminated string no matter what (unless sz == 0, in which case
+ * it's a no-op). It's conceptually close to FreeBSD's strlcpy(), but differs
+ * in what is returned. Given this is internal helper, it's trivial to extend
+ * this, when necessary. Use this instead of strncpy inside libbpf source code.
+ */
+static inline void libbpf_strlcpy(char *dst, const char *src, size_t sz)
+{
+	size_t i;
+
+	if (sz == 0)
+		return;
+
+	sz--;
+	for (i = 0; i < sz && src[i]; i++)
+		dst[i] = src[i];
+	dst[i] = '\0';
+}
+
+__u32 get_kernel_version(void);
+
 struct btf;
 struct btf_type;
 
-struct btf_type *btf_type_by_id(struct btf *btf, __u32 type_id);
+struct btf_type *btf_type_by_id(const struct btf *btf, __u32 type_id);
 const char *btf_kind_str(const struct btf_type *t);
 const struct btf_type *skip_mods_and_typedefs(const struct btf *btf, __u32 id, __u32 *res_id);
 
@@ -171,8 +221,9 @@ enum map_def_parts {
 	MAP_DEF_NUMA_NODE	= 0x080,
 	MAP_DEF_PINNING		= 0x100,
 	MAP_DEF_INNER_MAP	= 0x200,
+	MAP_DEF_MAP_EXTRA	= 0x400,
 
-	MAP_DEF_ALL		= 0x3ff, /* combination of all above */
+	MAP_DEF_ALL		= 0x7ff, /* combination of all above */
 };
 
 struct btf_map_def {
@@ -186,6 +237,7 @@ struct btf_map_def {
 	__u32 map_flags;
 	__u32 numa_node;
 	__u32 pinning;
+	__u64 map_extra;
 };
 
 int parse_btf_map_def(const char *map_name, struct btf *btf,
@@ -244,46 +296,52 @@ static inline bool libbpf_validate_opts(const char *opts,
 					(opts)->sz - __off);		      \
 })
 
+enum kern_feature_id {
+	/* v4.14: kernel support for program & map names. */
+	FEAT_PROG_NAME,
+	/* v5.2: kernel support for global data sections. */
+	FEAT_GLOBAL_DATA,
+	/* BTF support */
+	FEAT_BTF,
+	/* BTF_KIND_FUNC and BTF_KIND_FUNC_PROTO support */
+	FEAT_BTF_FUNC,
+	/* BTF_KIND_VAR and BTF_KIND_DATASEC support */
+	FEAT_BTF_DATASEC,
+	/* BTF_FUNC_GLOBAL is supported */
+	FEAT_BTF_GLOBAL_FUNC,
+	/* BPF_F_MMAPABLE is supported for arrays */
+	FEAT_ARRAY_MMAP,
+	/* kernel support for expected_attach_type in BPF_PROG_LOAD */
+	FEAT_EXP_ATTACH_TYPE,
+	/* bpf_probe_read_{kernel,user}[_str] helpers */
+	FEAT_PROBE_READ_KERN,
+	/* BPF_PROG_BIND_MAP is supported */
+	FEAT_PROG_BIND_MAP,
+	/* Kernel support for module BTFs */
+	FEAT_MODULE_BTF,
+	/* BTF_KIND_FLOAT support */
+	FEAT_BTF_FLOAT,
+	/* BPF perf link support */
+	FEAT_PERF_LINK,
+	/* BTF_KIND_DECL_TAG support */
+	FEAT_BTF_DECL_TAG,
+	/* BTF_KIND_TYPE_TAG support */
+	FEAT_BTF_TYPE_TAG,
+	/* memcg-based accounting for BPF maps and progs */
+	FEAT_MEMCG_ACCOUNT,
+	__FEAT_CNT,
+};
+
+int probe_memcg_account(void);
+bool kernel_supports(const struct bpf_object *obj, enum kern_feature_id feat_id);
+int bump_rlimit_memlock(void);
 
 int parse_cpu_mask_str(const char *s, bool **mask, int *mask_sz);
 int parse_cpu_mask_file(const char *fcpu, bool **mask, int *mask_sz);
 int libbpf__load_raw_btf(const char *raw_types, size_t types_len,
 			 const char *str_sec, size_t str_len);
+int btf_load_into_kernel(struct btf *btf, char *log_buf, size_t log_sz, __u32 log_level);
 
-struct bpf_prog_load_params {
-	enum bpf_prog_type prog_type;
-	enum bpf_attach_type expected_attach_type;
-	const char *name;
-	const struct bpf_insn *insns;
-	size_t insn_cnt;
-	const char *license;
-	__u32 kern_version;
-	__u32 attach_prog_fd;
-	__u32 attach_btf_obj_fd;
-	__u32 attach_btf_id;
-	__u32 prog_ifindex;
-	__u32 prog_btf_fd;
-	__u32 prog_flags;
-
-	__u32 func_info_rec_size;
-	const void *func_info;
-	__u32 func_info_cnt;
-
-	__u32 line_info_rec_size;
-	const void *line_info;
-	__u32 line_info_cnt;
-
-	__u32 log_level;
-	char *log_buf;
-	size_t log_buf_sz;
-};
-
-int libbpf__bpf_prog_load(const struct bpf_prog_load_params *load_attr);
-
-int bpf_object__section_size(const struct bpf_object *obj, const char *name,
-			     __u32 *size);
-int bpf_object__variable_offset(const struct bpf_object *obj, const char *name,
-				__u32 *off);
 struct btf *btf_get_from_fd(int btf_fd, struct btf *base_btf);
 void btf_get_kernel_prefix_kind(enum bpf_attach_type attach_type,
 				const char **prefix, int *kind);
@@ -386,8 +444,15 @@ int btf_type_visit_type_ids(struct btf_type *t, type_id_visit_fn visit, void *ct
 int btf_type_visit_str_offs(struct btf_type *t, str_off_visit_fn visit, void *ctx);
 int btf_ext_visit_type_ids(struct btf_ext *btf_ext, type_id_visit_fn visit, void *ctx);
 int btf_ext_visit_str_offs(struct btf_ext *btf_ext, str_off_visit_fn visit, void *ctx);
+__s32 btf__find_by_name_kind_own(const struct btf *btf, const char *type_name,
+				 __u32 kind);
 
 extern enum libbpf_strict_mode libbpf_mode;
+
+typedef int (*kallsyms_cb_t)(unsigned long long sym_addr, char sym_type,
+			     const char *sym_name, void *ctx);
+
+int libbpf_kallsyms_parse(kallsyms_cb_t cb, void *arg);
 
 /* handle direct returned errors */
 static inline int libbpf_err(int ret)
@@ -446,5 +511,36 @@ static inline bool is_ldimm64_insn(struct bpf_insn *insn)
 {
 	return insn->code == (BPF_LD | BPF_IMM | BPF_DW);
 }
+
+/* if fd is stdin, stdout, or stderr, dup to a fd greater than 2
+ * Takes ownership of the fd passed in, and closes it if calling
+ * fcntl(fd, F_DUPFD_CLOEXEC, 3).
+ */
+static inline int ensure_good_fd(int fd)
+{
+	int old_fd = fd, saved_errno;
+
+	if (fd < 0)
+		return fd;
+	if (fd < 3) {
+		fd = fcntl(fd, F_DUPFD_CLOEXEC, 3);
+		saved_errno = errno;
+		close(old_fd);
+		if (fd < 0) {
+			pr_warn("failed to dup FD %d to FD > 2: %d\n", old_fd, -saved_errno);
+			errno = saved_errno;
+		}
+	}
+	return fd;
+}
+
+/* The following two functions are exposed to bpftool */
+int bpf_core_add_cands(struct bpf_core_cand *local_cand,
+		       size_t local_essent_len,
+		       const struct btf *targ_btf,
+		       const char *targ_btf_name,
+		       int targ_start_id,
+		       struct bpf_core_cand_list *cands);
+void bpf_core_free_cands(struct bpf_core_cand_list *cands);
 
 #endif /* __LIBBPF_LIBBPF_INTERNAL_H */

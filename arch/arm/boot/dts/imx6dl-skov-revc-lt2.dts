@@ -6,6 +6,7 @@
 #include "imx6dl.dtsi"
 #include "imx6qdl-skov-cpu.dtsi"
 #include "imx6qdl-skov-cpu-revc.dtsi"
+#include "imx6qdl-skov-revc-lt2.dtsi"
 
 / {
 	model = "SKOV IMX6 CPU SoloCore";

@@ -32,7 +32,7 @@
 #include <linux/delay.h>
 #include <linux/kdebug.h>
 #include <linux/utsname.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/rcupdate.h>
 
 #include <asm/cpu.h>
@@ -179,7 +179,7 @@ do_notify_resume_user(sigset_t *unused, struct sigscratch *scr, long in_syscall)
 
 	if (test_thread_flag(TIF_NOTIFY_RESUME)) {
 		local_irq_enable();	/* force interrupt enable */
-		tracehook_notify_resume(&scr->pt);
+		resume_user_mode_work(&scr->pt);
 	}
 
 	/* copy user rbs to kernel rbs */
@@ -523,14 +523,11 @@ exit_thread (struct task_struct *tsk)
 }
 
 unsigned long
-get_wchan (struct task_struct *p)
+__get_wchan (struct task_struct *p)
 {
 	struct unw_frame_info info;
 	unsigned long ip;
 	int count = 0;
-
-	if (!p || p == current || task_is_running(p))
-		return 0;
 
 	/*
 	 * Note: p may not be a blocked task (it could be current or

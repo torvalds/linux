@@ -36,6 +36,9 @@ properties:
         - const: synopsys,dwc3
           deprecated: true
 
+  reg:
+    maxItems: 1
+
   interrupts:
     description:
       It's either a single common DWC3 interrupt (dwc_usb3) or individual
@@ -65,6 +68,9 @@ properties:
         - enum: [bus_early, ref, suspend]
         - true
 
+  iommus:
+    maxItems: 1
+
   usb-phy:
     minItems: 1
     items:
@@ -73,15 +79,15 @@ properties:
 
   phys:
     minItems: 1
-    items:
-      - description: USB2/HS PHY
-      - description: USB3/SS PHY
+    maxItems: 2
 
   phy-names:
     minItems: 1
+    maxItems: 2
     items:
-      - const: usb2-phy
-      - const: usb3-phy
+      enum:
+        - usb2-phy
+        - usb3-phy
 
   resets:
     minItems: 1
@@ -252,6 +258,17 @@ properties:
     minimum: 0
     maximum: 0x3f
 
+  snps,ref-clock-period-ns:
+    description:
+      Value for REFCLKPER field of GUCTL register for reference clock period in
+      nanoseconds, when the hardware set default does not match the actual
+      clock.
+
+      This binding is deprecated. Instead, provide an appropriate reference clock.
+    minimum: 8
+    maximum: 62
+    deprecated: true
+
   snps,rx-thr-num-pkt-prd:
     description:
       Periodic ESS RX packet threshold count (host mode only). Set this and
@@ -317,6 +334,12 @@ properties:
     uniqueItems: true
     items:
       enum: [1, 4, 8, 16, 32, 64, 128, 256]
+
+  port:
+    $ref: /schemas/graph.yaml#/properties/port
+    description:
+      This port is used with the 'usb-role-switch' property  to connect the
+      dwc3 to type C connector.
 
 unevaluatedProperties: false
 

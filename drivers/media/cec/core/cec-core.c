@@ -106,7 +106,7 @@ static int __must_check cec_devnode_register(struct cec_devnode *devnode,
 
 	/* Part 1: Find a free minor number */
 	mutex_lock(&cec_devnode_lock);
-	minor = find_next_zero_bit(cec_devnode_nums, CEC_NUM_DEVICES, 0);
+	minor = find_first_zero_bit(cec_devnode_nums, CEC_NUM_DEVICES);
 	if (minor == CEC_NUM_DEVICES) {
 		mutex_unlock(&cec_devnode_lock);
 		pr_err("could not get a free minor\n");
@@ -169,8 +169,10 @@ static void cec_devnode_unregister(struct cec_adapter *adap)
 	devnode->registered = false;
 	devnode->unregistered = true;
 
+	mutex_lock(&devnode->lock_fhs);
 	list_for_each_entry(fh, &devnode->fhs, list)
 		wake_up_interruptible(&fh->wait);
+	mutex_unlock(&devnode->lock_fhs);
 
 	mutex_unlock(&devnode->lock);
 
@@ -272,6 +274,7 @@ struct cec_adapter *cec_allocate_adapter(const struct cec_adap_ops *ops,
 
 	/* adap->devnode initialization */
 	INIT_LIST_HEAD(&adap->devnode.fhs);
+	mutex_init(&adap->devnode.lock_fhs);
 	mutex_init(&adap->devnode.lock);
 
 	adap->kthread = kthread_run(cec_thread_func, adap, "cec-%s", name);

@@ -196,11 +196,12 @@ ad_actor_sys_prio
 ad_actor_system
 
 	In an AD system, this specifies the mac-address for the actor in
-	protocol packet exchanges (LACPDUs). The value cannot be NULL or
-	multicast. It is preferred to have the local-admin bit set for this
-	mac but driver does not enforce it. If the value is not given then
-	system defaults to using the masters' mac address as actors' system
-	address.
+	protocol packet exchanges (LACPDUs). The value cannot be a multicast
+	address. If the all-zeroes MAC is specified, bonding will internally
+	use the MAC of the bond itself. It is preferred to have the
+	local-admin bit set for this mac but driver does not enforce it. If
+	the value is not given then system defaults to using the masters'
+	mac address as actors' system address.
 
 	This parameter has effect only in 802.3ad mode and is available through
 	SysFs interface.
@@ -312,6 +313,17 @@ arp_ip_target
 	maximum number of targets that can be specified is 16.  The
 	default value is no IP addresses.
 
+ns_ip6_target
+
+	Specifies the IPv6 addresses to use as IPv6 monitoring peers when
+	arp_interval is > 0.  These are the targets of the NS request
+	sent to determine the health of the link to the targets.
+	Specify these values in ffff:ffff::ffff:ffff format.  Multiple IPv6
+	addresses must be separated by a comma.  At least one IPv6
+	address must be given for NS/NA monitoring to function.  The
+	maximum number of targets that can be specified is 16.  The
+	default value is no IPv6 addresses.
+
 arp_validate
 
 	Specifies whether or not ARP probes and replies should be
@@ -420,6 +432,17 @@ arp_all_targets
 
 		consider the slave up only when all of the arp_ip_targets
 		are reachable
+
+arp_missed_max
+
+	Specifies the number of arp_interval monitor checks that must
+	fail in order for an interface to be marked down by the ARP monitor.
+
+	In order to provide orderly failover semantics, backup interfaces
+	are permitted an extra monitor check (i.e., they must fail
+	arp_missed_max + 1 times before being marked down).
+
+	The default value is 2, and the allowable range is 1 - 255.
 
 downdelay
 
@@ -871,7 +894,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and packet type ID
 		field to generate the hash. The formula is
 
-		hash = source MAC XOR destination MAC XOR packet type ID
+		hash = source MAC[5] XOR destination MAC[5] XOR packet type ID
 		slave number = hash modulo slave count
 
 		This algorithm will place all traffic to a particular
@@ -887,7 +910,7 @@ xmit_hash_policy
 		Uses XOR of hardware MAC addresses and IP addresses to
 		generate the hash.  The formula is
 
-		hash = source MAC XOR destination MAC XOR packet type ID
+		hash = source MAC[5] XOR destination MAC[5] XOR packet type ID
 		hash = hash XOR source IP XOR destination IP
 		hash = hash XOR (hash RSHIFT 16)
 		hash = hash XOR (hash RSHIFT 8)

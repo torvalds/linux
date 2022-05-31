@@ -137,7 +137,7 @@ static inline int irq_select_affinity_usr(unsigned int irq)
 static ssize_t write_irq_affinity(int type, struct file *file,
 		const char __user *buffer, size_t count, loff_t *pos)
 {
-	unsigned int irq = (int)(long)PDE_DATA(file_inode(file));
+	unsigned int irq = (int)(long)pde_data(file_inode(file));
 	cpumask_var_t new_value;
 	int err;
 
@@ -190,12 +190,12 @@ static ssize_t irq_affinity_list_proc_write(struct file *file,
 
 static int irq_affinity_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, irq_affinity_proc_show, PDE_DATA(inode));
+	return single_open(file, irq_affinity_proc_show, pde_data(inode));
 }
 
 static int irq_affinity_list_proc_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, irq_affinity_list_proc_show, PDE_DATA(inode));
+	return single_open(file, irq_affinity_list_proc_show, pde_data(inode));
 }
 
 static const struct proc_ops irq_affinity_proc_ops = {
@@ -265,7 +265,7 @@ out:
 
 static int default_affinity_open(struct inode *inode, struct file *file)
 {
-	return single_open(file, default_affinity_show, PDE_DATA(inode));
+	return single_open(file, default_affinity_show, pde_data(inode));
 }
 
 static const struct proc_ops default_affinity_proc_ops = {

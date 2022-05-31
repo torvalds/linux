@@ -20,8 +20,26 @@ struct cgroup_subsys_state;
 typedef void (bio_end_io_t) (struct bio *);
 struct bio_crypt_ctx;
 
+/*
+ * The basic unit of block I/O is a sector. It is used in a number of contexts
+ * in Linux (blk, bio, genhd). The size of one sector is 512 = 2**9
+ * bytes. Variables of type sector_t represent an offset or size that is a
+ * multiple of 512 bytes. Hence these two constants.
+ */
+#ifndef SECTOR_SHIFT
+#define SECTOR_SHIFT 9
+#endif
+#ifndef SECTOR_SIZE
+#define SECTOR_SIZE (1 << SECTOR_SHIFT)
+#endif
+
+#define PAGE_SECTORS_SHIFT	(PAGE_SHIFT - SECTOR_SHIFT)
+#define PAGE_SECTORS		(1 << PAGE_SECTORS_SHIFT)
+#define SECTOR_MASK		(PAGE_SECTORS - 1)
+
 struct block_device {
 	sector_t		bd_start_sect;
+	sector_t		bd_nr_sectors;
 	struct disk_stats __percpu *bd_stats;
 	unsigned long		bd_stamp;
 	bool			bd_read_only;	/* read-only policy */
@@ -38,6 +56,7 @@ struct block_device {
 	u8			bd_partno;
 	spinlock_t		bd_size_lock; /* for bd_inode->i_size updates */
 	struct gendisk *	bd_disk;
+	struct request_queue *	bd_queue;
 
 	/* The counter of freeze processes */
 	int			bd_fsfreeze_count;
@@ -66,8 +85,10 @@ struct block_device {
  */
 #if defined(CONFIG_ALPHA) && !defined(__alpha_bwx__)
 typedef u32 __bitwise blk_status_t;
+typedef u32 blk_short_t;
 #else
 typedef u8 __bitwise blk_status_t;
+typedef u16 blk_short_t;
 #endif
 #define	BLK_STS_OK 0
 #define BLK_STS_NOTSUPP		((__force blk_status_t)1)
@@ -133,6 +154,13 @@ typedef u8 __bitwise blk_status_t;
  * is reported in the request_queue's max_active_zones.
  */
 #define BLK_STS_ZONE_ACTIVE_RESOURCE	((__force blk_status_t)16)
+
+/*
+ * BLK_STS_OFFLINE is returned from the driver when the target device is offline
+ * or is being taken offline. This could help differentiate the case where a
+ * device is intentionally being shut down from a real I/O error.
+ */
+#define BLK_STS_OFFLINE		((__force blk_status_t)17)
 
 /**
  * blk_path_error - returns true if error may be path related
@@ -208,6 +236,9 @@ static inline void bio_issue_init(struct bio_issue *issue,
 			((u64)size << BIO_ISSUE_SIZE_SHIFT));
 }
 
+typedef unsigned int blk_qc_t;
+#define BLK_QC_T_NONE		-1U
+
 /*
  * main unit of I/O for the block layer and lower layers (ie drivers and
  * stacking drivers)
@@ -221,14 +252,13 @@ struct bio {
 						 */
 	unsigned short		bi_flags;	/* BIO_* below */
 	unsigned short		bi_ioprio;
-	unsigned short		bi_write_hint;
 	blk_status_t		bi_status;
 	atomic_t		__bi_remaining;
 
 	struct bvec_iter	bi_iter;
 
+	blk_qc_t		bi_cookie;
 	bio_end_io_t		*bi_end_io;
-
 	void			*bi_private;
 #ifdef CONFIG_BLK_CGROUP
 	/*
@@ -295,7 +325,8 @@ enum {
 	BIO_TRACE_COMPLETION,	/* bio_endio() should trace the final completion
 				 * of this bio. */
 	BIO_CGROUP_ACCT,	/* has been accounted to a cgroup */
-	BIO_TRACKED,		/* set if bio goes through the rq_qos path */
+	BIO_QOS_THROTTLED,	/* bio went through rq_qos throttle path */
+	BIO_QOS_MERGED,		/* but went through rq_qos merge path */
 	BIO_REMAPPED,
 	BIO_ZONE_WRITE_LOCKED,	/* Owns a zoned device zone write lock */
 	BIO_PERCPU_CACHE,	/* can participate in per-cpu alloc cache */
@@ -332,8 +363,6 @@ enum req_opf {
 	REQ_OP_DISCARD		= 3,
 	/* securely erase sectors */
 	REQ_OP_SECURE_ERASE	= 5,
-	/* write the same sector many times */
-	REQ_OP_WRITE_SAME	= 7,
 	/* write the zero filled sector many times */
 	REQ_OP_WRITE_ZEROES	= 9,
 	/* Open a zone */
@@ -384,7 +413,7 @@ enum req_flag_bits {
 	/* command specific flags for REQ_OP_WRITE_ZEROES: */
 	__REQ_NOUNMAP,		/* do not free blocks when zeroing */
 
-	__REQ_HIPRI,
+	__REQ_POLLED,		/* caller polls for completion using bio_poll */
 
 	/* for driver use */
 	__REQ_DRV,
@@ -409,7 +438,7 @@ enum req_flag_bits {
 #define REQ_CGROUP_PUNT		(1ULL << __REQ_CGROUP_PUNT)
 
 #define REQ_NOUNMAP		(1ULL << __REQ_NOUNMAP)
-#define REQ_HIPRI		(1ULL << __REQ_HIPRI)
+#define REQ_POLLED		(1ULL << __REQ_POLLED)
 
 #define REQ_DRV			(1ULL << __REQ_DRV)
 #define REQ_SWAP		(1ULL << __REQ_SWAP)
@@ -431,8 +460,6 @@ enum stat_group {
 
 #define bio_op(bio) \
 	((bio)->bi_opf & REQ_OP_MASK)
-#define req_op(req) \
-	((req)->cmd_flags & REQ_OP_MASK)
 
 /* obsolete, don't use in new code */
 static inline void bio_set_op_attrs(struct bio *bio, unsigned op,
@@ -495,31 +522,6 @@ static inline int op_stat_group(unsigned int op)
 	if (op_is_discard(op))
 		return STAT_DISCARD;
 	return op_is_write(op);
-}
-
-typedef unsigned int blk_qc_t;
-#define BLK_QC_T_NONE		-1U
-#define BLK_QC_T_SHIFT		16
-#define BLK_QC_T_INTERNAL	(1U << 31)
-
-static inline bool blk_qc_t_valid(blk_qc_t cookie)
-{
-	return cookie != BLK_QC_T_NONE;
-}
-
-static inline unsigned int blk_qc_t_to_queue_num(blk_qc_t cookie)
-{
-	return (cookie & ~BLK_QC_T_INTERNAL) >> BLK_QC_T_SHIFT;
-}
-
-static inline unsigned int blk_qc_t_to_tag(blk_qc_t cookie)
-{
-	return cookie & ((1u << BLK_QC_T_SHIFT) - 1);
-}
-
-static inline bool blk_qc_t_is_internal(blk_qc_t cookie)
-{
-	return (cookie & BLK_QC_T_INTERNAL) != 0;
 }
 
 struct blk_rq_stat {

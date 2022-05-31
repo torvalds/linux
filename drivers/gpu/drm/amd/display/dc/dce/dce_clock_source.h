@@ -76,6 +76,15 @@
 		SRII(PIXEL_RATE_CNTL, OTG, 4),\
 		SRII(PIXEL_RATE_CNTL, OTG, 5)
 
+#define CS_COMMON_REG_LIST_DCN201(index, pllid) \
+		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
+		SRII(PHASE, DP_DTO, 0),\
+		SRII(PHASE, DP_DTO, 1),\
+		SRII(MODULO, DP_DTO, 0),\
+		SRII(MODULO, DP_DTO, 1),\
+		SRII(PIXEL_RATE_CNTL, OTG, 0),\
+		SRII(PIXEL_RATE_CNTL, OTG, 1)
+
 #define CS_COMMON_REG_LIST_DCN2_1(index, pllid) \
 		SRI(PIXCLK_RESYNC_CNTL, PHYPLL, pllid),\
 		SRII(PHASE, DP_DTO, 0),\
@@ -276,6 +285,15 @@ bool dcn3_clk_src_construct(
 	const struct dce110_clk_src_mask *cs_mask);
 
 bool dcn301_clk_src_construct(
+	struct dce110_clk_src *clk_src,
+	struct dc_context *ctx,
+	struct dc_bios *bios,
+	enum clock_source_id id,
+	const struct dce110_clk_src_regs *regs,
+	const struct dce110_clk_src_shift *cs_shift,
+	const struct dce110_clk_src_mask *cs_mask);
+
+bool dcn31_clk_src_construct(
 	struct dce110_clk_src *clk_src,
 	struct dc_context *ctx,
 	struct dc_bios *bios,

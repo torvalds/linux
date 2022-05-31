@@ -76,9 +76,12 @@ enum ish_loader_commands {
 #define LOADER_XFER_MODE_ISHTP			BIT(1)
 
 /* ISH Transport Loader client unique GUID */
-static const guid_t loader_ishtp_guid =
-	GUID_INIT(0xc804d06a, 0x55bd, 0x4ea7,
-		  0xad, 0xed, 0x1e, 0x31, 0x22, 0x8c, 0x76, 0xdc);
+static const struct ishtp_device_id loader_ishtp_id_table[] = {
+	{ .guid = GUID_INIT(0xc804d06a, 0x55bd, 0x4ea7,
+		  0xad, 0xed, 0x1e, 0x31, 0x22, 0x8c, 0x76, 0xdc) },
+	{ }
+};
+MODULE_DEVICE_TABLE(ishtp, loader_ishtp_id_table);
 
 #define FILENAME_SIZE				256
 
@@ -265,7 +268,8 @@ static int get_firmware_variant(struct ishtp_cl_data *client_data,
 }
 
 /**
- * loader_cl_send()	Send message from host to firmware
+ * loader_cl_send() - Send message from host to firmware
+ *
  * @client_data:	Client data instance
  * @out_msg:		Message buffer to be sent to firmware
  * @out_size:		Size of out going message
@@ -657,19 +661,10 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 	 */
 	payload_max_size &= ~(L1_CACHE_BYTES - 1);
 
-	dma_buf = kmalloc(payload_max_size, GFP_KERNEL | GFP_DMA32);
+	dma_buf = dma_alloc_coherent(devc, payload_max_size, &dma_buf_phy, GFP_KERNEL);
 	if (!dma_buf) {
 		client_data->flag_retry = true;
 		return -ENOMEM;
-	}
-
-	dma_buf_phy = dma_map_single(devc, dma_buf, payload_max_size,
-				     DMA_TO_DEVICE);
-	if (dma_mapping_error(devc, dma_buf_phy)) {
-		dev_err(cl_data_to_dev(client_data), "DMA map failed\n");
-		client_data->flag_retry = true;
-		rv = -ENOMEM;
-		goto end_err_dma_buf_release;
 	}
 
 	ldr_xfer_dma_frag.fragment.hdr.command = LOADER_CMD_XFER_FRAGMENT;
@@ -691,14 +686,7 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 		ldr_xfer_dma_frag.fragment.size = fragment_size;
 		memcpy(dma_buf, &fw->data[fragment_offset], fragment_size);
 
-		dma_sync_single_for_device(devc, dma_buf_phy,
-					   payload_max_size,
-					   DMA_TO_DEVICE);
-
-		/*
-		 * Flush cache here because the dma_sync_single_for_device()
-		 * does not do for x86.
-		 */
+		/* Flush cache to be sure the data is in main memory. */
 		clflush_cache_range(dma_buf, payload_max_size);
 
 		dev_dbg(cl_data_to_dev(client_data),
@@ -721,15 +709,8 @@ static int ish_fw_xfer_direct_dma(struct ishtp_cl_data *client_data,
 		fragment_offset += fragment_size;
 	}
 
-	dma_unmap_single(devc, dma_buf_phy, payload_max_size, DMA_TO_DEVICE);
-	kfree(dma_buf);
-	return 0;
-
 end_err_resp_buf_release:
-	/* Free ISH buffer if not done already, in error case */
-	dma_unmap_single(devc, dma_buf_phy, payload_max_size, DMA_TO_DEVICE);
-end_err_dma_buf_release:
-	kfree(dma_buf);
+	dma_free_coherent(devc, payload_max_size, dma_buf, dma_buf_phy);
 	return rv;
 }
 
@@ -880,7 +861,7 @@ static int loader_init(struct ishtp_cl *loader_ishtp_cl, int reset)
 
 	fw_client =
 		ishtp_fw_cl_get_client(ishtp_get_ishtp_device(loader_ishtp_cl),
-				       &loader_ishtp_guid);
+				       &loader_ishtp_id_table[0].guid);
 	if (!fw_client) {
 		dev_err(cl_data_to_dev(client_data),
 			"ISH client uuid not found\n");
@@ -1057,7 +1038,7 @@ static int loader_ishtp_cl_reset(struct ishtp_cl_device *cl_device)
 
 static struct ishtp_cl_driver	loader_ishtp_cl_driver = {
 	.name = "ish-loader",
-	.guid = &loader_ishtp_guid,
+	.id = loader_ishtp_id_table,
 	.probe = loader_ishtp_cl_probe,
 	.remove = loader_ishtp_cl_remove,
 	.reset = loader_ishtp_cl_reset,
@@ -1083,4 +1064,3 @@ MODULE_DESCRIPTION("ISH ISH-TP Host firmware Loader Client Driver");
 MODULE_AUTHOR("Rushikesh S Kadam <rushikesh.s.kadam@intel.com>");
 
 MODULE_LICENSE("GPL v2");
-MODULE_ALIAS("ishtp:*");

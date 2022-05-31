@@ -14,7 +14,6 @@
 #include <linux/pci_ids.h>
 #include <linux/memblock.h>
 #include <linux/io.h>
-#include <linux/iopoll.h>
 #include <asm/pci-direct.h>
 #include <asm/fixmap.h>
 #include <linux/bcd.h>
@@ -136,9 +135,17 @@ static int handshake(void __iomem *ptr, u32 mask, u32 done, int wait, int delay)
 {
 	u32 result;
 
-	return readl_poll_timeout_atomic(ptr, result,
-					 ((result & mask) == done),
-					 delay, wait);
+	/* Can not use readl_poll_timeout_atomic() for early boot things */
+	do {
+		result = readl(ptr);
+		result &= mask;
+		if (result == done)
+			return 0;
+		udelay(delay);
+		wait -= delay;
+	} while (wait > 0);
+
+	return -ETIMEDOUT;
 }
 
 static void __init xdbc_bios_handoff(void)
@@ -185,7 +192,7 @@ static void __init xdbc_free_ring(struct xdbc_ring *ring)
 	if (!seg)
 		return;
 
-	memblock_free(seg->dma, PAGE_SIZE);
+	memblock_phys_free(seg->dma, PAGE_SIZE);
 	ring->segment = NULL;
 }
 
@@ -592,23 +599,26 @@ static int __init xdbc_early_setup(void)
 	return 0;
 }
 
-int __init early_xdbc_parse_parameter(char *s)
+int __init early_xdbc_parse_parameter(char *s, int keep_early)
 {
 	unsigned long dbgp_num = 0;
 	u32 bus, dev, func, offset;
+	char *e;
 	int ret;
 
 	if (!early_pci_allowed())
 		return -EPERM;
 
-	if (strstr(s, "keep"))
-		early_console_keep = true;
+	early_console_keep = keep_early;
 
 	if (xdbc.xdbc_reg)
 		return 0;
 
-	if (*s && kstrtoul(s, 0, &dbgp_num))
-		dbgp_num = 0;
+	if (*s) {
+	       dbgp_num = simple_strtoul(s, &e, 10);
+	       if (s == e)
+		       dbgp_num = 0;
+	}
 
 	pr_notice("dbgp_num: %lu\n", dbgp_num);
 
@@ -665,10 +675,10 @@ int __init early_xdbc_setup_hardware(void)
 		xdbc_free_ring(&xdbc.in_ring);
 
 		if (xdbc.table_dma)
-			memblock_free(xdbc.table_dma, PAGE_SIZE);
+			memblock_phys_free(xdbc.table_dma, PAGE_SIZE);
 
 		if (xdbc.out_dma)
-			memblock_free(xdbc.out_dma, PAGE_SIZE);
+			memblock_phys_free(xdbc.out_dma, PAGE_SIZE);
 
 		xdbc.table_base = NULL;
 		xdbc.out_buf = NULL;
@@ -987,8 +997,8 @@ free_and_quit:
 	xdbc_free_ring(&xdbc.evt_ring);
 	xdbc_free_ring(&xdbc.out_ring);
 	xdbc_free_ring(&xdbc.in_ring);
-	memblock_free(xdbc.table_dma, PAGE_SIZE);
-	memblock_free(xdbc.out_dma, PAGE_SIZE);
+	memblock_phys_free(xdbc.table_dma, PAGE_SIZE);
+	memblock_phys_free(xdbc.out_dma, PAGE_SIZE);
 	writel(0, &xdbc.xdbc_reg->control);
 	early_iounmap(xdbc.xhci_base, xdbc.xhci_length);
 

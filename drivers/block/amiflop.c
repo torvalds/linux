@@ -61,10 +61,10 @@
 #include <linux/hdreg.h>
 #include <linux/delay.h>
 #include <linux/init.h>
+#include <linux/major.h>
 #include <linux/mutex.h>
 #include <linux/fs.h>
 #include <linux/blk-mq.h>
-#include <linux/elevator.h>
 #include <linux/interrupt.h>
 #include <linux/platform_device.h>
 
@@ -1505,7 +1505,7 @@ static blk_status_t amiflop_queue_rq(struct blk_mq_hw_ctx *hctx,
 				     const struct blk_mq_queue_data *bd)
 {
 	struct request *rq = bd->rq;
-	struct amiga_floppy_struct *floppy = rq->rq_disk->private_data;
+	struct amiga_floppy_struct *floppy = rq->q->disk->private_data;
 	blk_status_t err;
 
 	if (!spin_trylock_irq(&amiflop_lock))
@@ -1780,6 +1780,7 @@ static const struct blk_mq_ops amiflop_mq_ops = {
 static int fd_alloc_disk(int drive, int system)
 {
 	struct gendisk *disk;
+	int err;
 
 	disk = blk_mq_alloc_disk(&unit[drive].tag_set, NULL);
 	if (IS_ERR(disk))
@@ -1789,6 +1790,7 @@ static int fd_alloc_disk(int drive, int system)
 	disk->first_minor = drive + system;
 	disk->minors = 1;
 	disk->fops = &floppy_fops;
+	disk->flags |= GENHD_FL_NO_PART;
 	disk->events = DISK_EVENT_MEDIA_CHANGE;
 	if (system)
 		sprintf(disk->disk_name, "fd%d_msdos", drive);
@@ -1798,8 +1800,10 @@ static int fd_alloc_disk(int drive, int system)
 	set_capacity(disk, 880 * 2);
 
 	unit[drive].gendisk[system] = disk;
-	add_disk(disk);
-	return 0;
+	err = add_disk(disk);
+	if (err)
+		blk_cleanup_disk(disk);
+	return err;
 }
 
 static int fd_alloc_drive(int drive)

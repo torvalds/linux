@@ -16,6 +16,7 @@
 #include <brcmu_utils.h>
 #include <defs.h>
 #include <brcmu_wifi.h>
+#include <brcm_hw_ids.h>
 #include "core.h"
 #include "debug.h"
 #include "tracepoint.h"
@@ -1783,8 +1784,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			val = WPA_AUTH_PSK;
 			break;
 		default:
-			bphy_err(drvr, "invalid cipher group (%d)\n",
-				 sme->crypto.cipher_group);
+			bphy_err(drvr, "invalid akm suite (%d)\n",
+				 sme->crypto.akm_suites[0]);
 			return -EINVAL;
 		}
 	} else if (val & (WPA2_AUTH_PSK | WPA2_AUTH_UNSPECIFIED)) {
@@ -1816,8 +1817,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			profile->is_ft = true;
 			break;
 		default:
-			bphy_err(drvr, "invalid cipher group (%d)\n",
-				 sme->crypto.cipher_group);
+			bphy_err(drvr, "invalid akm suite (%d)\n",
+				 sme->crypto.akm_suites[0]);
 			return -EINVAL;
 		}
 	} else if (val & WPA3_AUTH_SAE_PSK) {
@@ -1838,8 +1839,8 @@ brcmf_set_key_mgmt(struct net_device *ndev, struct cfg80211_connect_params *sme)
 			}
 			break;
 		default:
-			bphy_err(drvr, "invalid cipher group (%d)\n",
-				 sme->crypto.cipher_group);
+			bphy_err(drvr, "invalid akm suite (%d)\n",
+				 sme->crypto.akm_suites[0]);
 			return -EINVAL;
 		}
 	}
@@ -3901,6 +3902,24 @@ static void brcmf_configure_wowl(struct brcmf_cfg80211_info *cfg,
 	cfg->wowl.active = true;
 }
 
+static int brcmf_keepalive_start(struct brcmf_if *ifp, unsigned int interval)
+{
+	struct brcmf_mkeep_alive_pkt_le kalive = {0};
+	int ret = 0;
+
+	/* Configure Null function/data keepalive */
+	kalive.version = cpu_to_le16(1);
+	kalive.period_msec = cpu_to_le32(interval * MSEC_PER_SEC);
+	kalive.len_bytes = cpu_to_le16(0);
+	kalive.keep_alive_id = 0;
+
+	ret = brcmf_fil_iovar_data_set(ifp, "mkeep_alive", &kalive, sizeof(kalive));
+	if (ret)
+		brcmf_err("keep-alive packet config failed, ret=%d\n", ret);
+
+	return ret;
+}
+
 static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 				  struct cfg80211_wowlan *wowl)
 {
@@ -3947,6 +3966,9 @@ static s32 brcmf_cfg80211_suspend(struct wiphy *wiphy,
 	} else {
 		/* Configure WOWL paramaters */
 		brcmf_configure_wowl(cfg, ifp, wowl);
+
+		/* Prevent disassociation due to inactivity with keep-alive */
+		brcmf_keepalive_start(ifp, 30);
 	}
 
 exit:
@@ -4601,7 +4623,7 @@ exit:
 
 s32 brcmf_vif_clear_mgmt_ies(struct brcmf_cfg80211_vif *vif)
 {
-	s32 pktflags[] = {
+	static const s32 pktflags[] = {
 		BRCMF_VNDR_IE_PRBREQ_FLAG,
 		BRCMF_VNDR_IE_PRBRSP_FLAG,
 		BRCMF_VNDR_IE_BEACON_FLAG
@@ -7455,6 +7477,16 @@ int brcmf_cfg80211_wait_vif_event(struct brcmf_cfg80211_info *cfg,
 				  vif_event_equals(event, action), timeout);
 }
 
+static bool brmcf_use_iso3166_ccode_fallback(struct brcmf_pub *drvr)
+{
+	switch (drvr->bus_if->chip) {
+	case BRCM_CC_4345_CHIP_ID:
+		return true;
+	default:
+		return false;
+	}
+}
+
 static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
 					struct brcmf_fil_country_le *ccreq)
 {
@@ -7463,16 +7495,26 @@ static s32 brcmf_translate_country_code(struct brcmf_pub *drvr, char alpha2[2],
 	s32 found_index;
 	int i;
 
-	country_codes = drvr->settings->country_codes;
-	if (!country_codes) {
-		brcmf_dbg(TRACE, "No country codes configured for device\n");
-		return -EINVAL;
-	}
-
 	if ((alpha2[0] == ccreq->country_abbrev[0]) &&
 	    (alpha2[1] == ccreq->country_abbrev[1])) {
 		brcmf_dbg(TRACE, "Country code already set\n");
 		return -EAGAIN;
+	}
+
+	country_codes = drvr->settings->country_codes;
+	if (!country_codes) {
+		if (brmcf_use_iso3166_ccode_fallback(drvr)) {
+			brcmf_dbg(TRACE, "No country codes configured for device, using ISO3166 code and 0 rev\n");
+			memset(ccreq, 0, sizeof(*ccreq));
+			ccreq->country_abbrev[0] = alpha2[0];
+			ccreq->country_abbrev[1] = alpha2[1];
+			ccreq->ccode[0] = alpha2[0];
+			ccreq->ccode[1] = alpha2[1];
+			return 0;
+		}
+
+		brcmf_dbg(TRACE, "No country codes configured for device\n");
+		return -EINVAL;
 	}
 
 	found_index = -1;

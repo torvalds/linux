@@ -21,8 +21,8 @@ struct inner_map_sz2 {
 struct outer_arr {
 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
 	__uint(max_entries, 3);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 	/* it's possible to use anonymous struct as inner map definition here */
 	__array(values, struct {
 		__uint(type, BPF_MAP_TYPE_ARRAY);
@@ -61,8 +61,8 @@ struct inner_map_sz4 {
 struct outer_arr_dyn {
 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
 	__uint(max_entries, 3);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 	__array(values, struct {
 		__uint(type, BPF_MAP_TYPE_ARRAY);
 		__uint(map_flags, BPF_F_INNER_MAP);
@@ -81,7 +81,7 @@ struct outer_arr_dyn {
 struct outer_hash {
 	__uint(type, BPF_MAP_TYPE_HASH_OF_MAPS);
 	__uint(max_entries, 5);
-	__uint(key_size, sizeof(int));
+	__type(key, int);
 	/* Here everything works flawlessly due to reuse of struct inner_map
 	 * and compiler will complain at the attempt to use non-inner_map
 	 * references below. This is great experience.
@@ -111,8 +111,8 @@ struct sockarr_sz2 {
 struct outer_sockarr_sz1 {
 	__uint(type, BPF_MAP_TYPE_ARRAY_OF_MAPS);
 	__uint(max_entries, 1);
-	__uint(key_size, sizeof(int));
-	__uint(value_size, sizeof(int));
+	__type(key, int);
+	__type(value, int);
 	__array(values, struct sockarr_sz1);
 } outer_sockarr SEC(".maps") = {
 	.values = { (void *)&sockarr_sz1 },

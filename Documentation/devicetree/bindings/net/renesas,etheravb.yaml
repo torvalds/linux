@@ -45,8 +45,10 @@ properties:
 
       - items:
           - enum:
+              - renesas,r9a07g043-gbeth # RZ/G2UL
               - renesas,r9a07g044-gbeth # RZ/G2{L,LC}
-          - const: renesas,rzg2l-gbeth  # RZ/G2L
+              - renesas,r9a07g054-gbeth # RZ/V2L
+          - const: renesas,rzg2l-gbeth  # RZ/{G2L,G2UL,V2L} family
 
   reg: true
 
@@ -287,6 +289,7 @@ examples:
                               "ch13", "ch14", "ch15", "ch16", "ch17", "ch18",
                               "ch19", "ch20", "ch21", "ch22", "ch23", "ch24";
             clocks = <&cpg CPG_MOD 812>;
+            clock-names = "fck";
             iommus = <&ipmmu_ds0 16>;
             power-domains = <&sysc R8A7795_PD_ALWAYS_ON>;
             resets = <&cpg 812>;
@@ -298,6 +301,8 @@ examples:
             #size-cells = <0>;
 
             phy0: ethernet-phy@0 {
+                    compatible = "ethernet-phy-id0022.1622",
+                                 "ethernet-phy-ieee802.3-c22";
                     rxc-skew-ps = <1500>;
                     reg = <0>;
                     interrupt-parent = <&gpio2>;

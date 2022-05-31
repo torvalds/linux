@@ -81,8 +81,7 @@ of the kernel, gaining the protection of the kernel's strict memory
 permissions as described above.
 
 For variables that are initialized once at ``__init`` time, these can
-be marked with the (new and under development) ``__ro_after_init``
-attribute.
+be marked with the ``__ro_after_init`` attribute.
 
 What remains are variables that are updated rarely (e.g. GDT). These
 will need another infrastructure (similar to the temporary exceptions

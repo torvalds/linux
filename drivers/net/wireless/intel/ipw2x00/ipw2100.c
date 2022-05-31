@@ -4685,7 +4685,7 @@ static int ipw2100_read_mac_address(struct ipw2100_priv *priv)
 		return -EIO;
 	}
 
-	memcpy(priv->net_dev->dev_addr, addr, ETH_ALEN);
+	eth_hw_addr_set(priv->net_dev, addr);
 	IPW_DEBUG_INFO("card MAC is %pM\n", priv->net_dev->dev_addr);
 
 	return 0;
@@ -4712,7 +4712,7 @@ static int ipw2100_set_mac_address(struct ipw2100_priv *priv, int batch_mode)
 
 	if (priv->config & CFG_CUSTOM_MAC) {
 		memcpy(cmd.host_command_parameters, priv->mac_addr, ETH_ALEN);
-		memcpy(priv->net_dev->dev_addr, priv->mac_addr, ETH_ALEN);
+		eth_hw_addr_set(priv->net_dev, priv->mac_addr);
 	} else
 		memcpy(cmd.host_command_parameters, priv->net_dev->dev_addr,
 		       ETH_ALEN);

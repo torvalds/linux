@@ -202,9 +202,10 @@ void mt7603_filter_tx(struct mt7603_dev *dev, int idx, bool abort)
 			FIELD_PREP(MT_DMA_FQCR0_DEST_PORT_ID, port) |
 			FIELD_PREP(MT_DMA_FQCR0_DEST_QUEUE_ID, queue));
 
-		WARN_ON_ONCE(!mt76_poll(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY,
-					0, 5000));
+		mt76_poll(dev, MT_DMA_FQCR0, MT_DMA_FQCR0_BUSY, 0, 15000);
 	}
+
+	WARN_ON_ONCE(mt76_rr(dev, MT_DMA_FQCR0) & MT_DMA_FQCR0_BUSY);
 
 	mt76_wr(dev, MT_TX_ABORT, 0);
 
@@ -525,6 +526,10 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 	if (rxd2 & MT_RXD2_NORMAL_TKIP_MIC_ERR)
 		status->flag |= RX_FLAG_MMIC_ERROR;
 
+	/* ICV error or CCMP/BIP/WPI MIC error */
+	if (rxd2 & MT_RXD2_NORMAL_ICV_ERR)
+		status->flag |= RX_FLAG_ONLY_MONITOR;
+
 	if (FIELD_GET(MT_RXD2_NORMAL_SEC_MODE, rxd2) != 0 &&
 	    !(rxd2 & (MT_RXD2_NORMAL_CLM | MT_RXD2_NORMAL_CM))) {
 		status->flag |= RX_FLAG_DECRYPTED;
@@ -637,11 +642,6 @@ mt7603_mac_fill_rx(struct mt7603_dev *dev, struct sk_buff *skb)
 					  dev->rssi_offset[0];
 		status->chain_signal[1] = FIELD_GET(MT_RXV4_IB_RSSI1, rxdg3) +
 					  dev->rssi_offset[1];
-
-		status->signal = status->chain_signal[0];
-		if (status->chains & BIT(1))
-			status->signal = max(status->signal,
-					     status->chain_signal[1]);
 
 		if (FIELD_GET(MT_RXV1_FRAME_MODE, rxdg0) == 1)
 			status->bw = RATE_INFO_BW_40;
@@ -1130,7 +1130,7 @@ mt7603_fill_txs(struct mt7603_dev *dev, struct mt7603_sta *sta,
 	}
 
 	rate_set_tsf = READ_ONCE(sta->rate_set_tsf);
-	rs_idx = !((u32)(FIELD_GET(MT_TXS1_F0_TIMESTAMP, le32_to_cpu(txs_data[1])) -
+	rs_idx = !((u32)(le32_get_bits(txs_data[1], MT_TXS1_F0_TIMESTAMP) -
 			 rate_set_tsf) < 1000000);
 	rs_idx ^= rate_set_tsf & BIT(0);
 	rs = &sta->rateset[rs_idx];
@@ -1244,14 +1244,11 @@ void mt7603_mac_add_txs(struct mt7603_dev *dev, void *data)
 	struct mt7603_sta *msta = NULL;
 	struct mt76_wcid *wcid;
 	__le32 *txs_data = data;
-	u32 txs;
 	u8 wcidx;
 	u8 pid;
 
-	txs = le32_to_cpu(txs_data[4]);
-	pid = FIELD_GET(MT_TXS4_PID, txs);
-	txs = le32_to_cpu(txs_data[3]);
-	wcidx = FIELD_GET(MT_TXS3_WCID, txs);
+	pid = le32_get_bits(txs_data[4], MT_TXS4_PID);
+	wcidx = le32_get_bits(txs_data[3], MT_TXS3_WCID);
 
 	if (pid == MT_PACKET_ID_NO_ACK)
 		return;
@@ -1458,7 +1455,7 @@ static void mt7603_mac_watchdog_reset(struct mt7603_dev *dev)
 		mt76_queue_rx_reset(dev, i);
 	}
 
-	mt76_tx_status_check(&dev->mt76, NULL, true);
+	mt76_tx_status_check(&dev->mt76, true);
 
 	mt7603_dma_sched_reset(dev);
 
@@ -1471,17 +1468,20 @@ skip_dma_reset:
 	mutex_unlock(&dev->mt76.mutex);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
-	napi_enable(&dev->mt76.tx_napi);
-	napi_schedule(&dev->mt76.tx_napi);
 
 	tasklet_enable(&dev->mt76.pre_tbtt_tasklet);
 	mt7603_beacon_set_timer(dev, -1, beacon_int);
+
+	local_bh_disable();
+	napi_enable(&dev->mt76.tx_napi);
+	napi_schedule(&dev->mt76.tx_napi);
 
 	napi_enable(&dev->mt76.napi[0]);
 	napi_schedule(&dev->mt76.napi[0]);
 
 	napi_enable(&dev->mt76.napi[1]);
 	napi_schedule(&dev->mt76.napi[1]);
+	local_bh_enable();
 
 	ieee80211_wake_queues(dev->mt76.hw);
 	mt76_txq_schedule_all(&dev->mphy);
@@ -1814,7 +1814,7 @@ void mt7603_mac_work(struct work_struct *work)
 	bool reset = false;
 	int i, idx;
 
-	mt76_tx_status_check(&dev->mt76, NULL, false);
+	mt76_tx_status_check(&dev->mt76, false);
 
 	mutex_lock(&dev->mt76.mutex);
 

@@ -190,8 +190,6 @@ static void mmhub_v9_4_init_tlb_regs(struct amdgpu_device *adev, int hubid)
 	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
 			    SYSTEM_APERTURE_UNMAPPED_ACCESS, 0);
 	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
-			    ECO_BITS, 0);
-	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
 			    MTYPE, MTYPE_UC);/* XXX for emulation. */
 	tmp = REG_SET_FIELD(tmp, VMSHAREDVC0_MC_VM_MX_L1_TLB_CNTL,
 			    ATC_EN, 1);
@@ -1657,12 +1655,16 @@ static void mmhub_v9_4_query_ras_error_status(struct amdgpu_device *adev)
 	}
 }
 
-const struct amdgpu_mmhub_ras_funcs mmhub_v9_4_ras_funcs = {
-	.ras_late_init = amdgpu_mmhub_ras_late_init,
-	.ras_fini = amdgpu_mmhub_ras_fini,
+const struct amdgpu_ras_block_hw_ops mmhub_v9_4_ras_hw_ops = {
 	.query_ras_error_count = mmhub_v9_4_query_ras_error_count,
 	.reset_ras_error_count = mmhub_v9_4_reset_ras_error_count,
 	.query_ras_error_status = mmhub_v9_4_query_ras_error_status,
+};
+
+struct amdgpu_mmhub_ras mmhub_v9_4_ras = {
+	.ras_block = {
+		.hw_ops = &mmhub_v9_4_ras_hw_ops,
+	},
 };
 
 const struct amdgpu_mmhub_funcs mmhub_v9_4_funcs = {

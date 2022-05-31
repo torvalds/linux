@@ -702,6 +702,9 @@ static ssize_t __iio_format_value(char *buf, size_t offset, unsigned int type,
 	}
 	case IIO_VAL_CHAR:
 		return sysfs_emit_at(buf, offset, "%c", (char)vals[0]);
+	case IIO_VAL_INT_64:
+		tmp2 = (s64)((((u64)vals[1]) << 32) | (u32)vals[0]);
+		return sysfs_emit_at(buf, offset, "%lld", tmp2);
 	default:
 		return 0;
 	}
@@ -744,7 +747,7 @@ static ssize_t iio_read_channel_label(struct device *dev,
 		return indio_dev->info->read_label(indio_dev, this_attr->c, buf);
 
 	if (this_attr->c->extend_name)
-		return sprintf(buf, "%s\n", this_attr->c->extend_name);
+		return sysfs_emit(buf, "%s\n", this_attr->c->extend_name);
 
 	return -EINVAL;
 }
@@ -1600,6 +1603,7 @@ static void iio_device_unregister_sysfs(struct iio_dev *indio_dev)
 	kfree(iio_dev_opaque->chan_attr_group.attrs);
 	iio_dev_opaque->chan_attr_group.attrs = NULL;
 	kfree(iio_dev_opaque->groups);
+	iio_dev_opaque->groups = NULL;
 }
 
 static void iio_dev_release(struct device *device)
@@ -1618,7 +1622,7 @@ static void iio_dev_release(struct device *device)
 	kfree(iio_dev_opaque);
 }
 
-struct device_type iio_device_type = {
+const struct device_type iio_device_type = {
 	.name = "iio_device",
 	.release = iio_dev_release,
 };
@@ -1652,7 +1656,6 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 	indio_dev->dev.type = &iio_device_type;
 	indio_dev->dev.bus = &iio_bus_type;
 	device_initialize(&indio_dev->dev);
-	iio_device_set_drvdata(indio_dev, (void *)indio_dev);
 	mutex_init(&indio_dev->mlock);
 	mutex_init(&iio_dev_opaque->info_exist_lock);
 	INIT_LIST_HEAD(&iio_dev_opaque->channel_attr_list);
@@ -1664,7 +1667,13 @@ struct iio_dev *iio_device_alloc(struct device *parent, int sizeof_priv)
 		kfree(iio_dev_opaque);
 		return NULL;
 	}
-	dev_set_name(&indio_dev->dev, "iio:device%d", iio_dev_opaque->id);
+
+	if (dev_set_name(&indio_dev->dev, "iio:device%d", iio_dev_opaque->id)) {
+		ida_simple_remove(&iio_ida, iio_dev_opaque->id);
+		kfree(iio_dev_opaque);
+		return NULL;
+	}
+
 	INIT_LIST_HEAD(&iio_dev_opaque->buffer_list);
 	INIT_LIST_HEAD(&iio_dev_opaque->ioctl_handlers);
 
@@ -1822,6 +1831,7 @@ static const struct file_operations iio_buffer_fileops = {
 	.owner = THIS_MODULE,
 	.llseek = noop_llseek,
 	.read = iio_buffer_read_outer_addr,
+	.write = iio_buffer_write_outer_addr,
 	.poll = iio_buffer_poll_addr,
 	.unlocked_ioctl = iio_ioctl,
 	.compat_ioctl = compat_ptr_ioctl,

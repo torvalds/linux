@@ -40,14 +40,20 @@ const char *arch_perf_header_entry(const char *se_header)
 {
 	if (!strcmp(se_header, "Local INSTR Latency"))
 		return "Finish Cyc";
-	else if (!strcmp(se_header, "Pipeline Stage Cycle"))
+	else if (!strcmp(se_header, "INSTR Latency"))
+		return "Global Finish_cyc";
+	else if (!strcmp(se_header, "Local Pipeline Stage Cycle"))
 		return "Dispatch Cyc";
+	else if (!strcmp(se_header, "Pipeline Stage Cycle"))
+		return "Global Dispatch_cyc";
 	return se_header;
 }
 
 int arch_support_sort_key(const char *sort_key)
 {
 	if (!strcmp(sort_key, "p_stage_cyc"))
+		return 1;
+	if (!strcmp(sort_key, "local_p_stage_cyc"))
 		return 1;
 	return 0;
 }

@@ -18,11 +18,11 @@
 #include <linux/mutex.h>
 
 struct jffs2_inode_info {
-	/* We need an internal mutex similar to inode->i_mutex.
+	/* We need an internal mutex similar to inode->i_rwsem.
 	   Unfortunately, we can't used the existing one, because
 	   either the GC would deadlock, or we'd have to release it
 	   before letting GC proceed. Or we'd have to put ugliness
-	   into the GC code so it didn't attempt to obtain the i_mutex
+	   into the GC code so it didn't attempt to obtain the i_rwsem
 	   for the inode(s) which are already locked */
 	struct mutex sem;
 

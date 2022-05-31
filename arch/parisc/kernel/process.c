@@ -38,6 +38,7 @@
 #include <linux/rcupdate.h>
 #include <linux/random.h>
 #include <linux/nmi.h>
+#include <linux/sched/hotplug.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
@@ -46,6 +47,7 @@
 #include <asm/pdc_chassis.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
+#include <asm/cacheflush.h>
 
 #define COMMAND_GLOBAL  F_EXTEND(0xfffe0030)
 #define CMD_RESET       5       /* reset any module */
@@ -158,10 +160,29 @@ void release_thread(struct task_struct *dead_task)
 int running_on_qemu __ro_after_init;
 EXPORT_SYMBOL(running_on_qemu);
 
-void __cpuidle arch_cpu_idle_dead(void)
+/*
+ * Called from the idle thread for the CPU which has been shutdown.
+ */
+void arch_cpu_idle_dead(void)
 {
-	/* nop on real hardware, qemu will offline CPU. */
-	asm volatile("or %%r31,%%r31,%%r31\n":::);
+#ifdef CONFIG_HOTPLUG_CPU
+	idle_task_exit();
+
+	local_irq_disable();
+
+	/* Tell __cpu_die() that this CPU is now safe to dispose of. */
+	(void)cpu_report_death();
+
+	/* Ensure that the cache lines are written out. */
+	flush_cache_all_local();
+	flush_tlb_all_local(NULL);
+
+	/* Let PDC firmware put CPU into firmware idle loop. */
+	__pdc_cpu_rendezvous();
+
+	pr_warn("PDC does not provide rendezvous function.\n");
+#endif
+	while (1);
 }
 
 void __cpuidle arch_cpu_idle(void)
@@ -205,7 +226,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 		/* Must exit via ret_from_kernel_thread in order
 		 * to call schedule_tail()
 		 */
-		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
+		cregs->ksp = (unsigned long) stack + FRAME_SIZE + PT_SZ_ALGN;
 		cregs->kpc = (unsigned long) &ret_from_kernel_thread;
 		/*
 		 * Copy function and argument to be called from
@@ -228,7 +249,7 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 			if (likely(usp))
 				cregs->gr[30] = usp;
 		}
-		cregs->ksp = (unsigned long)stack + THREAD_SZ_ALGN + FRAME_SIZE;
+		cregs->ksp = (unsigned long) stack + FRAME_SIZE;
 		cregs->kpc = (unsigned long) &child_return;
 
 		/* Setup thread TLS area */
@@ -240,14 +261,11 @@ copy_thread(unsigned long clone_flags, unsigned long usp,
 }
 
 unsigned long
-get_wchan(struct task_struct *p)
+__get_wchan(struct task_struct *p)
 {
 	struct unwind_frame_info info;
 	unsigned long ip;
 	int count = 0;
-
-	if (!p || p == current || task_is_running(p))
-		return 0;
 
 	/*
 	 * These bracket the sleeping functions..
@@ -265,27 +283,6 @@ get_wchan(struct task_struct *p)
 	} while (count++ < MAX_UNWIND_ENTRIES);
 	return 0;
 }
-
-#ifdef CONFIG_64BIT
-void *dereference_function_descriptor(void *ptr)
-{
-	Elf64_Fdesc *desc = ptr;
-	void *p;
-
-	if (!get_kernel_nofault(p, (void *)&desc->addr))
-		ptr = p;
-	return ptr;
-}
-
-void *dereference_kernel_function_descriptor(void *ptr)
-{
-	if (ptr < (void *)__start_opd ||
-			ptr >= (void *)__end_opd)
-		return ptr;
-
-	return dereference_function_descriptor(ptr);
-}
-#endif
 
 static inline unsigned long brk_rnd(void)
 {

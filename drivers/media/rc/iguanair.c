@@ -109,7 +109,7 @@ static void process_ir_data(struct iguanair *ir, unsigned len)
 			break;
 		case CMD_RX_OVERFLOW:
 			dev_warn(ir->dev, "receive overflow\n");
-			ir_raw_event_reset(ir->rc);
+			ir_raw_event_overflow(ir->rc);
 			break;
 		default:
 			dev_warn(ir->dev, "control code %02x received\n",
@@ -261,9 +261,6 @@ static int iguanair_receiver(struct iguanair *ir, bool enable)
 	ir->packet->header.start = 0;
 	ir->packet->header.direction = DIR_OUT;
 	ir->packet->header.cmd = enable ? CMD_RECEIVER_ON : CMD_RECEIVER_OFF;
-
-	if (enable)
-		ir_raw_event_reset(ir->rc);
 
 	return iguanair_send(ir, sizeof(ir->packet->header));
 }

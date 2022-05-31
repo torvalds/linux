@@ -408,7 +408,7 @@ follows:
 Memory Policy APIs
 ==================
 
-Linux supports 3 system calls for controlling memory policy.  These APIS
+Linux supports 4 system calls for controlling memory policy.  These APIS
 always affect only the calling task, the calling task's address space, or
 some shared object mapped into the calling task's address space.
 
@@ -459,6 +459,20 @@ by the 'start' and 'len' arguments.  Additional actions may be
 requested via the 'flags' argument.
 
 See the mbind(2) man page for more details.
+
+Set home node for a Range of Task's Address Spacec::
+
+	long sys_set_mempolicy_home_node(unsigned long start, unsigned long len,
+					 unsigned long home_node,
+					 unsigned long flags);
+
+sys_set_mempolicy_home_node set the home node for a VMA policy present in the
+task's address range. The system call updates the home node only for the existing
+mempolicy range. Other address ranges are ignored. A home node is the NUMA node
+closest to which page allocation will come from. Specifying the home node override
+the default allocation policy to allocate memory close to the local node for an
+executing CPU.
+
 
 Memory Policy Command Line Interface
 ====================================

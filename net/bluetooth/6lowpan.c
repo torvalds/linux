@@ -240,7 +240,7 @@ static int give_skb_to_upper(struct sk_buff *skb, struct net_device *dev)
 	if (!skb_cp)
 		return NET_RX_DROP;
 
-	return netif_rx_ni(skb_cp);
+	return netif_rx(skb_cp);
 }
 
 static int iphc_decompress(struct sk_buff *skb, struct net_device *netdev,
@@ -641,7 +641,6 @@ static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 		return NULL;
 
 	peer->chan = chan;
-	memset(&peer->peer_addr, 0, sizeof(struct in6_addr));
 
 	baswap((void *)peer->lladdr, &chan->dst);
 
@@ -663,6 +662,7 @@ static struct l2cap_chan *add_peer_chan(struct l2cap_chan *chan,
 static int setup_netdev(struct l2cap_chan *chan, struct lowpan_btle_dev **dev)
 {
 	struct net_device *netdev;
+	bdaddr_t addr;
 	int err;
 
 	netdev = alloc_netdev(LOWPAN_PRIV_SIZE(sizeof(struct lowpan_btle_dev)),
@@ -672,7 +672,8 @@ static int setup_netdev(struct l2cap_chan *chan, struct lowpan_btle_dev **dev)
 		return -ENOMEM;
 
 	netdev->addr_assign_type = NET_ADDR_PERM;
-	baswap((void *)netdev->dev_addr, &chan->src);
+	baswap(&addr, &chan->src);
+	__dev_addr_set(netdev, &addr, sizeof(addr));
 
 	netdev->netdev_ops = &netdev_ops;
 	SET_NETDEV_DEV(netdev, &chan->conn->hcon->hdev->dev);

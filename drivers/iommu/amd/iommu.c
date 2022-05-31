@@ -31,6 +31,7 @@
 #include <linux/irqdomain.h>
 #include <linux/percpu.h>
 #include <linux/io-pgtable.h>
+#include <linux/cc_platform.h>
 #include <asm/irq_remapping.h>
 #include <asm/io_apic.h>
 #include <asm/apic.h>
@@ -473,6 +474,12 @@ static void amd_iommu_report_rmp_fault(volatile u32 *event)
 		pci_dev_put(pdev);
 }
 
+#define IS_IOMMU_MEM_TRANSACTION(flags)		\
+	(((flags) & EVENT_FLAG_I) == 0)
+
+#define IS_WRITE_REQUEST(flags)			\
+	((flags) & EVENT_FLAG_RW)
+
 static void amd_iommu_report_page_fault(u16 devid, u16 domain_id,
 					u64 address, int flags)
 {
@@ -485,6 +492,20 @@ static void amd_iommu_report_page_fault(u16 devid, u16 domain_id,
 		dev_data = dev_iommu_priv_get(&pdev->dev);
 
 	if (dev_data) {
+		/*
+		 * If this is a DMA fault (for which the I(nterrupt)
+		 * bit will be unset), allow report_iommu_fault() to
+		 * prevent logging it.
+		 */
+		if (IS_IOMMU_MEM_TRANSACTION(flags)) {
+			if (!report_iommu_fault(&dev_data->domain->domain,
+						&pdev->dev, address,
+						IS_WRITE_REQUEST(flags) ?
+							IOMMU_FAULT_WRITE :
+							IOMMU_FAULT_READ))
+				goto out;
+		}
+
 		if (__ratelimit(&dev_data->rs)) {
 			pci_err(pdev, "Event logged [IO_PAGE_FAULT domain=0x%04x address=0x%llx flags=0x%04x]\n",
 				domain_id, address, flags);
@@ -495,6 +516,7 @@ static void amd_iommu_report_page_fault(u16 devid, u16 domain_id,
 			domain_id, address, flags);
 	}
 
+out:
 	if (pdev)
 		pci_dev_put(pdev);
 }
@@ -742,7 +764,8 @@ amd_iommu_set_pci_msi_domain(struct device *dev, struct amd_iommu *iommu) { }
 #endif /* !CONFIG_IRQ_REMAP */
 
 #define AMD_IOMMU_INT_MASK	\
-	(MMIO_STATUS_EVT_INT_MASK | \
+	(MMIO_STATUS_EVT_OVERFLOW_INT_MASK | \
+	 MMIO_STATUS_EVT_INT_MASK | \
 	 MMIO_STATUS_PPR_INT_MASK | \
 	 MMIO_STATUS_GALOG_INT_MASK)
 
@@ -752,7 +775,7 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 	u32 status = readl(iommu->mmio_base + MMIO_STATUS_OFFSET);
 
 	while (status & AMD_IOMMU_INT_MASK) {
-		/* Enable EVT and PPR and GA interrupts again */
+		/* Enable interrupt sources again */
 		writel(AMD_IOMMU_INT_MASK,
 			iommu->mmio_base + MMIO_STATUS_OFFSET);
 
@@ -772,6 +795,11 @@ irqreturn_t amd_iommu_int_thread(int irq, void *data)
 			iommu_poll_ga_log(iommu);
 		}
 #endif
+
+		if (status & MMIO_STATUS_EVT_OVERFLOW_INT_MASK) {
+			pr_info_ratelimited("IOMMU event log overflow\n");
+			amd_iommu_restart_event_logging(iommu);
+		}
 
 		/*
 		 * Hardware bug: ERBT1312
@@ -2193,8 +2221,7 @@ static void amd_iommu_get_resv_regions(struct device *dev,
 	list_add_tail(&region->list, head);
 }
 
-bool amd_iommu_is_attach_deferred(struct iommu_domain *domain,
-				  struct device *dev)
+bool amd_iommu_is_attach_deferred(struct device *dev)
 {
 	struct iommu_dev_data *dev_data = dev_iommu_priv_get(dev);
 
@@ -2238,7 +2265,7 @@ static int amd_iommu_def_domain_type(struct device *dev)
 	 * active, because some of those devices (AMD GPUs) don't have the
 	 * encryption bit in their DMA-mask and require remapping.
 	 */
-	if (!mem_encrypt_active() && dev_data->iommu_v2)
+	if (!cc_platform_has(CC_ATTR_MEM_ENCRYPT) && dev_data->iommu_v2)
 		return IOMMU_DOMAIN_IDENTITY;
 
 	return 0;
@@ -2247,13 +2274,6 @@ static int amd_iommu_def_domain_type(struct device *dev)
 const struct iommu_ops amd_iommu_ops = {
 	.capable = amd_iommu_capable,
 	.domain_alloc = amd_iommu_domain_alloc,
-	.domain_free  = amd_iommu_domain_free,
-	.attach_dev = amd_iommu_attach_device,
-	.detach_dev = amd_iommu_detach_device,
-	.map = amd_iommu_map,
-	.iotlb_sync_map	= amd_iommu_iotlb_sync_map,
-	.unmap = amd_iommu_unmap,
-	.iova_to_phys = amd_iommu_iova_to_phys,
 	.probe_device = amd_iommu_probe_device,
 	.release_device = amd_iommu_release_device,
 	.probe_finalize = amd_iommu_probe_finalize,
@@ -2262,9 +2282,18 @@ const struct iommu_ops amd_iommu_ops = {
 	.put_resv_regions = generic_iommu_put_resv_regions,
 	.is_attach_deferred = amd_iommu_is_attach_deferred,
 	.pgsize_bitmap	= AMD_IOMMU_PGSIZES,
-	.flush_iotlb_all = amd_iommu_flush_iotlb_all,
-	.iotlb_sync = amd_iommu_iotlb_sync,
 	.def_domain_type = amd_iommu_def_domain_type,
+	.default_domain_ops = &(const struct iommu_domain_ops) {
+		.attach_dev	= amd_iommu_attach_device,
+		.detach_dev	= amd_iommu_detach_device,
+		.map		= amd_iommu_map,
+		.unmap		= amd_iommu_unmap,
+		.iotlb_sync_map	= amd_iommu_iotlb_sync_map,
+		.iova_to_phys	= amd_iommu_iova_to_phys,
+		.flush_iotlb_all = amd_iommu_flush_iotlb_all,
+		.iotlb_sync	= amd_iommu_iotlb_sync,
+		.free		= amd_iommu_domain_free,
+	}
 };
 
 /*****************************************************************************

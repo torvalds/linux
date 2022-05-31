@@ -29,49 +29,6 @@
 #include "../include/drv_types.h"
 #include "../include/rtl8188e_hal.h"
 
-/*---------------------------Define Local Constant---------------------------*/
-/*  Define local structure for debug!!!!! */
-struct rf_shadow {
-	/*  Shadow register value */
-	u32 Value;
-	/*  Compare or not flag */
-	u8 Compare;
-	/*  Record If it had ever modified unpredicted */
-	u8 ErrorOrNot;
-	/*  Recorver Flag */
-	u8 Recorver;
-	/*  */
-	u8 Driver_Write;
-};
-
-/*---------------------------Define Local Constant---------------------------*/
-
-/*------------------------Define global variable-----------------------------*/
-
-/*------------------------Define local variable------------------------------*/
-
-/*-----------------------------------------------------------------------------
- * Function:	RF_ChangeTxPath
- *
- * Overview:	For RL6052, we must change some RF settign for 1T or 2T.
- *
- * Input:		u16 DataRate		0x80-8f, 0x90-9f
- *
- * Output:      NONE
- *
- * Return:      NONE
- *
- * Revised History:
- * When			Who		Remark
- * 09/25/2008	MHC		Create Version 0.
- *						Firmwaer support the utility later.
- *
- *---------------------------------------------------------------------------*/
-void rtl8188e_RF_ChangeTxPath(struct adapter *Adapter, u16 DataRate)
-{
-/*  We do not support gain table change inACUT now !!!! Delete later !!! */
-}	/* RF_ChangeTxPath */
-
 /*-----------------------------------------------------------------------------
  * Function:    PHY_RF6052SetBandwidth()
  *
@@ -89,16 +46,16 @@ void rtl8188e_RF_ChangeTxPath(struct adapter *Adapter, u16 DataRate)
 void rtl8188e_PHY_RF6052SetBandwidth(struct adapter *Adapter,
 				     enum ht_channel_width Bandwidth)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 
 	switch (Bandwidth) {
 	case HT_CHANNEL_WIDTH_20:
-		pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff3ff) | BIT(10) | BIT(11));
-		PHY_SetRFReg(Adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal[0]);
+		pHalData->RfRegChnlVal = ((pHalData->RfRegChnlVal & 0xfffff3ff) | BIT(10) | BIT(11));
+		rtl8188e_PHY_SetRFReg(Adapter, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal);
 		break;
 	case HT_CHANNEL_WIDTH_40:
-		pHalData->RfRegChnlVal[0] = ((pHalData->RfRegChnlVal[0] & 0xfffff3ff) | BIT(10));
-		PHY_SetRFReg(Adapter, RF_PATH_A, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal[0]);
+		pHalData->RfRegChnlVal = ((pHalData->RfRegChnlVal & 0xfffff3ff) | BIT(10));
+		rtl8188e_PHY_SetRFReg(Adapter, RF_CHNLBW, bRFRegOffsetMask, pHalData->RfRegChnlVal);
 		break;
 	default:
 		break;
@@ -127,62 +84,36 @@ rtl8188e_PHY_RF6052SetCckTxPower(
 		struct adapter *Adapter,
 		u8 *pPowerlevel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv *pdmpriv = &pHalData->dmpriv;
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	struct mlme_ext_priv *pmlmeext = &Adapter->mlmeextpriv;
 	u32 TxAGC[2] = {0, 0}, tmpval = 0, pwrtrac_value;
-	bool TurboScanOff = false;
 	u8 idx1, idx2;
 	u8 *ptr;
 	u8 direction;
-	/* FOR CE ,must disable turbo scan */
-	TurboScanOff = true;
 
 	if (pmlmeext->sitesurvey_res.state == SCAN_PROCESS) {
 		TxAGC[RF_PATH_A] = 0x3f3f3f3f;
 		TxAGC[RF_PATH_B] = 0x3f3f3f3f;
 
-		TurboScanOff = true;/* disable turbo scan */
-
-		if (TurboScanOff) {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
-					(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
-				/*  2010/10/18 MH For external PA module. We need to limit power index to be less than 0x20. */
-				if (TxAGC[idx1] > 0x20 && pHalData->ExternalPA)
-					TxAGC[idx1] = 0x20;
-			}
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			TxAGC[idx1] =
+				pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
+				(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
 		}
 	} else {
-		/* Driver dynamic Tx power shall not affect Tx power.
-		 * It shall be determined by power training mechanism.
-i		 *  Currently, we cannot fully disable driver dynamic
-		 * tx power mechanism because it is referenced by BT
-		 * coexist mechanism.
-		 * In the future, two mechanism shall be separated from
-		 * each other and maintained independently. */
-		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1) {
-			TxAGC[RF_PATH_A] = 0x10101010;
-			TxAGC[RF_PATH_B] = 0x10101010;
-		} else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2) {
-			TxAGC[RF_PATH_A] = 0x00000000;
-			TxAGC[RF_PATH_B] = 0x00000000;
-		} else {
-			for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
-				TxAGC[idx1] =
-					pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
-					(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
-			}
-			if (pHalData->EEPROMRegulatory == 0) {
-				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][6]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][7] << 8);
-				TxAGC[RF_PATH_A] += tmpval;
+		for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
+			TxAGC[idx1] =
+				pPowerlevel[idx1] | (pPowerlevel[idx1] << 8) |
+				(pPowerlevel[idx1] << 16) | (pPowerlevel[idx1] << 24);
+		}
+		if (pHalData->EEPROMRegulatory == 0) {
+			tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][6]) +
+					(pHalData->MCSTxPowerLevelOriginalOffset[0][7] << 8);
+			TxAGC[RF_PATH_A] += tmpval;
 
-				tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][14]) +
-						(pHalData->MCSTxPowerLevelOriginalOffset[0][15] << 24);
-				TxAGC[RF_PATH_B] += tmpval;
-			}
+			tmpval = (pHalData->MCSTxPowerLevelOriginalOffset[0][14]) +
+					(pHalData->MCSTxPowerLevelOriginalOffset[0][15] << 24);
+			TxAGC[RF_PATH_B] += tmpval;
 		}
 	}
 	for (idx1 = RF_PATH_A; idx1 <= RF_PATH_B; idx1++) {
@@ -207,15 +138,15 @@ i		 *  Currently, we cannot fully disable driver dynamic
 
 	/*  rf-A cck tx power */
 	tmpval = TxAGC[RF_PATH_A] & 0xff;
-	PHY_SetBBReg(Adapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, tmpval);
+	rtl8188e_PHY_SetBBReg(Adapter, rTxAGC_A_CCK1_Mcs32, bMaskByte1, tmpval);
 	tmpval = TxAGC[RF_PATH_A] >> 8;
-	PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
+	rtl8188e_PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, 0xffffff00, tmpval);
 
 	/*  rf-B cck tx power */
 	tmpval = TxAGC[RF_PATH_B] >> 24;
-	PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, tmpval);
+	rtl8188e_PHY_SetBBReg(Adapter, rTxAGC_B_CCK11_A_CCK2_11, bMaskByte0, tmpval);
 	tmpval = TxAGC[RF_PATH_B] & 0x00ffffff;
-	PHY_SetBBReg(Adapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
+	rtl8188e_PHY_SetBBReg(Adapter, rTxAGC_B_CCK1_55_Mcs32, 0xffffff00, tmpval);
 }	/* PHY_RF6052SetCckTxPower */
 
 /*  */
@@ -225,9 +156,9 @@ i		 *  Currently, we cannot fully disable driver dynamic
 static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 			    u8 *pPowerLevelBW20, u8 *pPowerLevelBW40, u8 Channel, u32 *OfdmBase, u32 *MCSBase)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 powerBase0, powerBase1;
-	u8 i, powerlevel[2];
+	u8 i;
 
 	for (i = 0; i < 2; i++) {
 		powerBase0 = pPowerLevelOFDM[i];
@@ -235,23 +166,21 @@ static void getpowerbase88e(struct adapter *Adapter, u8 *pPowerLevelOFDM,
 		powerBase0 = (powerBase0 << 24) | (powerBase0 << 16) | (powerBase0 << 8) | powerBase0;
 		*(OfdmBase + i) = powerBase0;
 	}
-	for (i = 0; i < pHalData->NumTotalRFPath; i++) {
-		/* Check HT20 to HT40 diff */
-		if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
-			powerlevel[i] = pPowerLevelBW20[i];
-		else
-			powerlevel[i] = pPowerLevelBW40[i];
-		powerBase1 = powerlevel[i];
-		powerBase1 = (powerBase1 << 24) | (powerBase1 << 16) | (powerBase1 << 8) | powerBase1;
-		*(MCSBase + i) = powerBase1;
-	}
+
+	/* Check HT20 to HT40 diff */
+	if (pHalData->CurrentChannelBW == HT_CHANNEL_WIDTH_20)
+		powerBase1 = pPowerLevelBW20[0];
+	else
+		powerBase1 = pPowerLevelBW40[0];
+	powerBase1 = (powerBase1 << 24) | (powerBase1 << 16) | (powerBase1 << 8) | powerBase1;
+	*MCSBase = powerBase1;
 }
+
 static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 				    u8 index, u32 *powerBase0, u32 *powerBase1,
 				    u32 *pOutWriteVal)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
-	struct dm_priv	*pdmpriv = &pHalData->dmpriv;
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u8	i, chnlGroup = 0, pwr_diff_limit[4], customer_pwr_limit;
 	s8	pwr_diff = 0;
 	u32	writeVal, customer_limit, rf;
@@ -271,7 +200,7 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 			/*  increase power diff defined by Realtek for regulatory */
 			if (pHalData->pwrGroupCnt == 1)
 				chnlGroup = 0;
-			if (pHalData->pwrGroupCnt >= pHalData->PGMaxGroup) {
+			if (pHalData->pwrGroupCnt >= MAX_PG_GROUP) {
 				if (Channel < 3)			/*  Channel 1-2 */
 					chnlGroup = 0;
 				else if (Channel < 6)		/*  Channel 3-5 */
@@ -327,25 +256,12 @@ static void get_rx_power_val_by_reg(struct adapter *Adapter, u8 Channel,
 					((index < 2) ? powerBase0[rf] : powerBase1[rf]);
 			break;
 		}
-/*  20100427 Joseph: Driver dynamic Tx power shall not affect Tx power. It shall be determined by power training mechanism. */
-/*  Currently, we cannot fully disable driver dynamic tx power mechanism because it is referenced by BT coexist mechanism. */
-/*  In the future, two mechanism shall be separated from each other and maintained independently. Thanks for Lanhsin's reminder. */
-		/* 92d do not need this */
-		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level1)
-			writeVal = 0x14141414;
-		else if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_Level2)
-			writeVal = 0x00000000;
 
-		/*  20100628 Joseph: High power mode for BT-Coexist mechanism. */
-		/*  This mechanism is only applied when Driver-Highpower-Mechanism is OFF. */
-		if (pdmpriv->DynamicTxHighPowerLvl == TxHighPwrLevel_BT1)
-			writeVal = writeVal - 0x06060606;
 		*(pOutWriteVal + rf) = writeVal;
 	}
 }
 static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
 	u16 regoffset_a[6] = {
 		rTxAGC_A_Rate18_06, rTxAGC_A_Rate54_24,
 		rTxAGC_A_Mcs03_Mcs00, rTxAGC_A_Mcs07_Mcs04,
@@ -372,13 +288,10 @@ static void writeOFDMPowerReg88E(struct adapter *Adapter, u8 index, u32 *pValue)
 		else
 			regoffset = regoffset_b[index];
 
-		PHY_SetBBReg(Adapter, regoffset, bMaskDWord, writeVal);
+		rtl8188e_PHY_SetBBReg(Adapter, regoffset, bMaskDWord, writeVal);
 
 		/*  201005115 Joseph: Set Tx Power diff for Tx power training mechanism. */
-		if (((pHalData->rf_type == RF_2T2R) &&
-		     (regoffset == rTxAGC_A_Mcs15_Mcs12 || regoffset == rTxAGC_B_Mcs15_Mcs12)) ||
-		    ((pHalData->rf_type != RF_2T2R) &&
-		     (regoffset == rTxAGC_A_Mcs07_Mcs04 || regoffset == rTxAGC_B_Mcs07_Mcs04))) {
+		if (regoffset == rTxAGC_A_Mcs07_Mcs04 || regoffset == rTxAGC_B_Mcs07_Mcs04) {
 			writeVal = pwr_val[3];
 			if (regoffset == rTxAGC_A_Mcs15_Mcs12 || regoffset == rTxAGC_A_Mcs07_Mcs04)
 				regoffset = 0xc90;
@@ -426,7 +339,7 @@ rtl8188e_PHY_RF6052SetOFDMTxPower(
 		u8 *pPowerLevelBW40,
 		u8 Channel)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 writeVal[2], powerBase0[2], powerBase1[2], pwrtrac_value;
 	u8 direction;
 	u8 index = 0;
@@ -456,91 +369,45 @@ rtl8188e_PHY_RF6052SetOFDMTxPower(
 static int phy_RF6052_Config_ParaFile(struct adapter *Adapter)
 {
 	struct bb_reg_def *pPhyReg;
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
+	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u32 u4RegValue = 0;
-	u8 eRFPath;
 	int rtStatus = _SUCCESS;
 
-	/* 3----------------------------------------------------------------- */
-	/* 3 <2> Initialize RF */
-	/* 3----------------------------------------------------------------- */
-	for (eRFPath = 0; eRFPath < pHalData->NumTotalRFPath; eRFPath++) {
-		pPhyReg = &pHalData->PHYRegDef[eRFPath];
+	/* Initialize RF */
 
-		/*----Store original RFENV control type----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-		case RF_PATH_C:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
-			break;
-		case RF_PATH_B:
-		case RF_PATH_D:
-			u4RegValue = PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16);
-			break;
-		}
-		/*----Set RF_ENV enable----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
-		udelay(1);/* PlatformStallExecution(1); */
+	pPhyReg = &pHalData->PHYRegDef;
 
-		/*----Set RF_ENV output high----*/
-		PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
-		udelay(1);/* PlatformStallExecution(1); */
+	/*----Store original RFENV control type----*/
+	u4RegValue = rtl8188e_PHY_QueryBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV);
 
-		/* Set bit number of Address and Data for RF register */
-		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
-		udelay(1);/* PlatformStallExecution(1); */
+	/*----Set RF_ENV enable----*/
+	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfintfe, bRFSI_RFENV << 16, 0x1);
+	udelay(1);/* PlatformStallExecution(1); */
 
-		PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
-		udelay(1);/* PlatformStallExecution(1); */
+	/*----Set RF_ENV output high----*/
+	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfintfo, bRFSI_RFENV, 0x1);
+	udelay(1);/* PlatformStallExecution(1); */
 
-		/*----Initialize RF fom connfiguration file----*/
-		switch (eRFPath) {
-		case RF_PATH_A:
-			if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
-				rtStatus = _FAIL;
-			break;
-		case RF_PATH_B:
-		if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv, (enum rf_radio_path)eRFPath, (enum rf_radio_path)eRFPath))
-				rtStatus = _FAIL;
-			break;
-		case RF_PATH_C:
-			break;
-		case RF_PATH_D:
-			break;
-		}
-		/*----Restore RFENV control type----*/;
-		switch (eRFPath) {
-		case RF_PATH_A:
-		case RF_PATH_C:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
-			break;
-		case RF_PATH_B:
-		case RF_PATH_D:
-			PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV << 16, u4RegValue);
-			break;
-		}
-		if (rtStatus != _SUCCESS)
-			goto phy_RF6052_Config_ParaFile_Fail;
-	}
-	return rtStatus;
+	/* Set bit number of Address and Data for RF register */
+	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireAddressLength, 0x0);	/*  Set 1 to 4 bits for 8255 */
+	udelay(1);/* PlatformStallExecution(1); */
 
-phy_RF6052_Config_ParaFile_Fail:
+	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfHSSIPara2, b3WireDataLength, 0x0);	/*  Set 0 to 12  bits for 8255 */
+	udelay(1);/* PlatformStallExecution(1); */
+
+	/*----Initialize RF fom connfiguration file----*/
+	if (HAL_STATUS_FAILURE == ODM_ConfigRFWithHeaderFile(&pHalData->odmpriv))
+		rtStatus = _FAIL;
+
+	/*----Restore RFENV control type----*/;
+	rtl8188e_PHY_SetBBReg(Adapter, pPhyReg->rfintfs, bRFSI_RFENV, u4RegValue);
+
 	return rtStatus;
 }
 
 int PHY_RF6052_Config8188E(struct adapter *Adapter)
 {
-	struct hal_data_8188e *pHalData = GET_HAL_DATA(Adapter);
 	int rtStatus = _SUCCESS;
-
-	/*  */
-	/*  Initialize general global value */
-	/*  */
-	/*  TODO: Extend RF_PATH_C and RF_PATH_D in the future */
-	if (pHalData->rf_type == RF_1T1R)
-		pHalData->NumTotalRFPath = 1;
-	else
-		pHalData->NumTotalRFPath = 2;
 
 	/*  */
 	/*  Config BB and RF */

@@ -11,6 +11,7 @@
 #include <linux/qed/qed_iov_if.h>
 #include "qed_cxt.h"
 #include "qed_hsi.h"
+#include "qed_iro_hsi.h"
 #include "qed_hw.h"
 #include "qed_init_ops.h"
 #include "qed_int.h"
@@ -19,11 +20,12 @@
 #include "qed_sp.h"
 #include "qed_sriov.h"
 #include "qed_vf.h"
-static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn,
-			       u8 opcode,
-			       __le16 echo,
-			       union event_ring_data *data, u8 fw_return_code);
 static int qed_iov_bulletin_set_mac(struct qed_hwfn *p_hwfn, u8 *mac, int vfid);
+
+static u16 qed_vf_from_entity_id(__le16 entity_id)
+{
+	return le16_to_cpu(entity_id) - MAX_NUM_PFS;
+}
 
 static u8 qed_vf_calculate_legacy(struct qed_vf_info *p_vf)
 {
@@ -169,8 +171,8 @@ static struct qed_vf_info *qed_iov_get_vf_info(struct qed_hwfn *p_hwfn,
 				  b_enabled_only, false))
 		vf = &p_hwfn->pf_iov_info->vfs_array[relative_vf_id];
 	else
-		DP_ERR(p_hwfn, "qed_iov_get_vf_info: VF[%d] is not enabled\n",
-		       relative_vf_id);
+		DP_ERR(p_hwfn, "%s: VF[%d] is not enabled\n",
+		       __func__, relative_vf_id);
 
 	return vf;
 }
@@ -308,7 +310,7 @@ static int qed_iov_post_vf_bulletin(struct qed_hwfn *p_hwfn,
 	struct qed_dmae_params params;
 	struct qed_vf_info *p_vf;
 
-	p_vf = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	p_vf = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!p_vf)
 		return -EINVAL;
 
@@ -420,7 +422,7 @@ static void qed_iov_setup_vfdb(struct qed_hwfn *p_hwfn)
 	bulletin_p = p_iov_info->bulletins_phys;
 	if (!p_req_virt_addr || !p_reply_virt_addr || !p_bulletin_virt) {
 		DP_ERR(p_hwfn,
-		       "qed_iov_setup_vfdb called without allocating mem first\n");
+		       "%s called without allocating mem first\n", __func__);
 		return;
 	}
 
@@ -464,7 +466,7 @@ static int qed_iov_allocate_vfdb(struct qed_hwfn *p_hwfn)
 	num_vfs = p_hwfn->cdev->p_iov_info->total_vfs;
 
 	DP_VERBOSE(p_hwfn, QED_MSG_IOV,
-		   "qed_iov_allocate_vfdb for %d VFs\n", num_vfs);
+		   "%s for %d VFs\n", __func__, num_vfs);
 
 	/* Allocate PF Mailbox buffer (per-VF) */
 	p_iov_info->mbx_msg_size = sizeof(union vfpf_tlvs) * num_vfs;
@@ -500,10 +502,10 @@ static int qed_iov_allocate_vfdb(struct qed_hwfn *p_hwfn)
 		   QED_MSG_IOV,
 		   "PF's Requests mailbox [%p virt 0x%llx phys],  Response mailbox [%p virt 0x%llx phys] Bulletins [%p virt 0x%llx phys]\n",
 		   p_iov_info->mbx_msg_virt_addr,
-		   (u64) p_iov_info->mbx_msg_phys_addr,
+		   (u64)p_iov_info->mbx_msg_phys_addr,
 		   p_iov_info->mbx_reply_virt_addr,
-		   (u64) p_iov_info->mbx_reply_phys_addr,
-		   p_iov_info->p_bulletins, (u64) p_iov_info->bulletins_phys);
+		   (u64)p_iov_info->mbx_reply_phys_addr,
+		   p_iov_info->p_bulletins, (u64)p_iov_info->bulletins_phys);
 
 	return 0;
 }
@@ -608,7 +610,7 @@ int qed_iov_hw_info(struct qed_hwfn *p_hwfn)
 	if (rc)
 		return rc;
 
-	/* We want PF IOV to be synonemous with the existance of p_iov_info;
+	/* We want PF IOV to be synonemous with the existence of p_iov_info;
 	 * In case the capability is published but there are no VFs, simply
 	 * de-allocate the struct.
 	 */
@@ -714,12 +716,12 @@ static void qed_iov_vf_igu_reset(struct qed_hwfn *p_hwfn,
 	int i;
 
 	/* Set VF masks and configuration - pretend */
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) vf->concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)vf->concrete_fid);
 
 	qed_wr(p_hwfn, p_ptt, IGU_REG_STATISTIC_NUM_VF_MSG_SENT, 0);
 
 	/* unpretend */
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)p_hwfn->hw_info.concrete_fid);
 
 	/* iterate over all queues, clear sb consumer */
 	for (i = 0; i < vf->num_sbs; i++)
@@ -734,7 +736,7 @@ static void qed_iov_vf_igu_set_int(struct qed_hwfn *p_hwfn,
 {
 	u32 igu_vf_conf;
 
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) vf->concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)vf->concrete_fid);
 
 	igu_vf_conf = qed_rd(p_hwfn, p_ptt, IGU_REG_VF_CONFIGURATION);
 
@@ -746,7 +748,7 @@ static void qed_iov_vf_igu_set_int(struct qed_hwfn *p_hwfn,
 	qed_wr(p_hwfn, p_ptt, IGU_REG_VF_CONFIGURATION, igu_vf_conf);
 
 	/* unpretend */
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)p_hwfn->hw_info.concrete_fid);
 }
 
 static int
@@ -807,7 +809,7 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 	if (rc)
 		return rc;
 
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) vf->concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)vf->concrete_fid);
 
 	SET_FIELD(igu_vf_conf, IGU_VF_CONF_PARENT, p_hwfn->rel_pf_id);
 	STORE_RT_REG(p_hwfn, IGU_REG_VF_CONFIGURATION_RT_OFFSET, igu_vf_conf);
@@ -816,7 +818,7 @@ static int qed_iov_enable_vf_access(struct qed_hwfn *p_hwfn,
 		     p_hwfn->hw_info.hw_mode);
 
 	/* unpretend */
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)p_hwfn->hw_info.concrete_fid);
 
 	vf->state = VF_FREE;
 
@@ -904,7 +906,7 @@ static u8 qed_iov_alloc_vf_igu_sbs(struct qed_hwfn *p_hwfn,
 				  p_block->igu_sb_id * sizeof(u64), 2, NULL);
 	}
 
-	vf->num_sbs = (u8) num_rx_queues;
+	vf->num_sbs = (u8)num_rx_queues;
 
 	return vf->num_sbs;
 }
@@ -988,7 +990,7 @@ static int qed_iov_init_hw_for_vf(struct qed_hwfn *p_hwfn,
 
 	vf = qed_iov_get_vf_info(p_hwfn, p_params->rel_vf_id, false);
 	if (!vf) {
-		DP_ERR(p_hwfn, "qed_iov_init_hw_for_vf : vf is NULL\n");
+		DP_ERR(p_hwfn, "%s : vf is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1092,7 +1094,7 @@ static int qed_iov_release_hw_for_vf(struct qed_hwfn *p_hwfn,
 
 	vf = qed_iov_get_vf_info(p_hwfn, rel_vf_id, true);
 	if (!vf) {
-		DP_ERR(p_hwfn, "qed_iov_release_hw_for_vf : vf is NULL\n");
+		DP_ERR(p_hwfn, "%s : vf is NULL\n", __func__);
 		return -EINVAL;
 	}
 
@@ -1220,8 +1222,8 @@ static void qed_iov_send_response(struct qed_hwfn *p_hwfn,
 	 * channel would be re-set to ready prior to that.
 	 */
 	REG_WR(p_hwfn,
-	       GTT_BAR0_MAP_REG_USDM_RAM +
-	       USTORM_VF_PF_CHANNEL_READY_OFFSET(eng_vf_id), 1);
+	       GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+				USTORM_VF_PF_CHANNEL_READY, eng_vf_id), 1);
 
 	qed_dmae_host2host(p_hwfn, p_ptt, mbx->reply_phys,
 			   mbx->req_virt->first_tlv.reply_address,
@@ -1545,7 +1547,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	memset(resp, 0, sizeof(*resp));
 
 	/* Write the PF version so that VF would know which version
-	 * is supported - might be later overriden. This guarantees that
+	 * is supported - might be later overridden. This guarantees that
 	 * VF could recognize legacy PF based on lack of versions in reply.
 	 */
 	pfdev_info->major_fp_hsi = ETH_HSI_VER_MAJOR;
@@ -1603,7 +1605,7 @@ static void qed_iov_vf_mbx_acquire(struct qed_hwfn *p_hwfn,
 	/* fill in pfdev info */
 	pfdev_info->chip_num = p_hwfn->cdev->chip_num;
 	pfdev_info->db_size = 0;
-	pfdev_info->indices_per_sb = PIS_PER_SB_E4;
+	pfdev_info->indices_per_sb = PIS_PER_SB;
 
 	pfdev_info->capabilities = PFVF_ACQUIRE_CAP_DEFAULT_UNTAGGED |
 				   PFVF_ACQUIRE_CAP_POST_FW_OVERRIDE;
@@ -1897,7 +1899,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	int sb_id;
 	int rc;
 
-	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vf->relative_vf_id, true);
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vf->relative_vf_id, true);
 	if (!vf_info) {
 		DP_NOTICE(p_hwfn->cdev,
 			  "Failed to get VF info, invalid vfid [%d]\n",
@@ -1957,7 +1959,7 @@ static void qed_iov_vf_mbx_start_vport(struct qed_hwfn *p_hwfn,
 	rc = qed_sp_eth_vport_start(p_hwfn, &params);
 	if (rc) {
 		DP_ERR(p_hwfn,
-		       "qed_iov_vf_mbx_start_vport returned error %d\n", rc);
+		       "%s returned error %d\n", __func__, rc);
 		status = PFVF_STATUS_FAILURE;
 	} else {
 		vf->vport_instance++;
@@ -1993,8 +1995,8 @@ static void qed_iov_vf_mbx_stop_vport(struct qed_hwfn *p_hwfn,
 
 	rc = qed_sp_vport_stop(p_hwfn, vf->opaque_fid, vf->vport_id);
 	if (rc) {
-		DP_ERR(p_hwfn, "qed_iov_vf_mbx_stop_vport returned error %d\n",
-		       rc);
+		DP_ERR(p_hwfn, "%s returned error %d\n",
+		       __func__, rc);
 		status = PFVF_STATUS_FAILURE;
 	}
 
@@ -2138,10 +2140,10 @@ static void qed_iov_vf_mbx_start_rxq(struct qed_hwfn *p_hwfn,
 	 * calculate on their own and clean the producer prior to this.
 	 */
 	if (!(vf_legacy & QED_QCID_LEGACY_VF_RX_PROD))
-		REG_WR(p_hwfn,
-		       GTT_BAR0_MAP_REG_MSDM_RAM +
-		       MSTORM_ETH_VF_PRODS_OFFSET(vf->abs_vf_id, req->rx_qid),
-		       0);
+		qed_wr(p_hwfn, p_ptt, MSEM_REG_FAST_MEMORY +
+		       SEM_FAST_REG_INT_RAM +
+		       MSTORM_ETH_VF_PRODS_OFFSET(vf->abs_vf_id,
+						  req->rx_qid), 0);
 
 	rc = qed_eth_rxq_start_ramrod(p_hwfn, p_cid,
 				      req->bd_max_bytes,
@@ -2982,12 +2984,16 @@ static int qed_iov_pre_update_vport(struct qed_hwfn *hwfn,
 	u8 mask = QED_ACCEPT_UCAST_UNMATCHED | QED_ACCEPT_MCAST_UNMATCHED;
 	struct qed_filter_accept_flags *flags = &params->accept_flags;
 	struct qed_public_vf_info *vf_info;
+	u16 tlv_mask;
+
+	tlv_mask = BIT(QED_IOV_VP_UPDATE_ACCEPT_PARAM) |
+		   BIT(QED_IOV_VP_UPDATE_ACCEPT_ANY_VLAN);
 
 	/* Untrusted VFs can't even be trusted to know that fact.
 	 * Simply indicate everything is configured fine, and trace
 	 * configuration 'behind their back'.
 	 */
-	if (!(*tlvs & BIT(QED_IOV_VP_UPDATE_ACCEPT_PARAM)))
+	if (!(*tlvs & tlv_mask))
 		return 0;
 
 	vf_info = qed_iov_get_public_vf_info(hwfn, vfid, true);
@@ -3002,6 +3008,13 @@ static int qed_iov_pre_update_vport(struct qed_hwfn *hwfn,
 		vf_info->tx_accept_mode = flags->tx_accept_filter;
 		if (!vf_info->is_trusted_configured)
 			flags->tx_accept_filter &= ~mask;
+	}
+
+	if (params->update_accept_any_vlan_flg) {
+		vf_info->accept_any_vlan = params->accept_any_vlan;
+
+		if (vf_info->forced_vlan && !vf_info->is_trusted_configured)
+			params->accept_any_vlan = false;
 	}
 
 	return 0;
@@ -3030,7 +3043,7 @@ static void qed_iov_vf_mbx_vport_update(struct qed_hwfn *p_hwfn,
 		goto out;
 	}
 	p_rss_params = vzalloc(sizeof(*p_rss_params));
-	if (p_rss_params == NULL) {
+	if (!p_rss_params) {
 		status = PFVF_STATUS_FAILURE;
 		goto out;
 	}
@@ -3550,6 +3563,7 @@ out:
 	qed_iov_prepare_resp(p_hwfn, p_ptt, vf, CHANNEL_TLV_COALESCE_UPDATE,
 			     sizeof(struct pfvf_def_resp_tlv), status);
 }
+
 static int
 qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
 			 struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
@@ -3557,7 +3571,7 @@ qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
 	int cnt;
 	u32 val;
 
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_vf->concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)p_vf->concrete_fid);
 
 	for (cnt = 0; cnt < 50; cnt++) {
 		val = qed_rd(p_hwfn, p_ptt, DORQ_REG_VF_USAGE_CNT);
@@ -3565,7 +3579,7 @@ qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
 			break;
 		msleep(20);
 	}
-	qed_fid_pretend(p_hwfn, p_ptt, (u16) p_hwfn->hw_info.concrete_fid);
+	qed_fid_pretend(p_hwfn, p_ptt, (u16)p_hwfn->hw_info.concrete_fid);
 
 	if (cnt == 50) {
 		DP_ERR(p_hwfn,
@@ -3577,48 +3591,73 @@ qed_iov_vf_flr_poll_dorq(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
+#define MAX_NUM_EXT_VOQS        (MAX_NUM_PORTS * NUM_OF_TCS)
+
 static int
 qed_iov_vf_flr_poll_pbf(struct qed_hwfn *p_hwfn,
 			struct qed_vf_info *p_vf, struct qed_ptt *p_ptt)
 {
-	u32 cons[MAX_NUM_VOQS_E4], distance[MAX_NUM_VOQS_E4];
-	int i, cnt;
+	u32 prod, cons[MAX_NUM_EXT_VOQS], distance[MAX_NUM_EXT_VOQS], tmp;
+	u8 max_phys_tcs_per_port = p_hwfn->qm_info.max_phys_tcs_per_port;
+	u8 max_ports_per_engine = p_hwfn->cdev->num_ports_in_engine;
+	u32 prod_voq0_addr = PBF_REG_NUM_BLOCKS_ALLOCATED_PROD_VOQ0;
+	u32 cons_voq0_addr = PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0;
+	u8 port_id, tc, tc_id = 0, voq = 0;
+	int cnt;
+
+	memset(cons, 0, MAX_NUM_EXT_VOQS * sizeof(u32));
+	memset(distance, 0, MAX_NUM_EXT_VOQS * sizeof(u32));
 
 	/* Read initial consumers & producers */
-	for (i = 0; i < MAX_NUM_VOQS_E4; i++) {
-		u32 prod;
-
-		cons[i] = qed_rd(p_hwfn, p_ptt,
-				 PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0 +
-				 i * 0x40);
-		prod = qed_rd(p_hwfn, p_ptt,
-			      PBF_REG_NUM_BLOCKS_ALLOCATED_PROD_VOQ0 +
-			      i * 0x40);
-		distance[i] = prod - cons[i];
+	for (port_id = 0; port_id < max_ports_per_engine; port_id++) {
+		/* "max_phys_tcs_per_port" active TCs + 1 pure LB TC */
+		for (tc = 0; tc < max_phys_tcs_per_port + 1; tc++) {
+			tc_id = (tc < max_phys_tcs_per_port) ? tc : PURE_LB_TC;
+			voq = VOQ(port_id, tc_id, max_phys_tcs_per_port);
+			cons[voq] = qed_rd(p_hwfn, p_ptt,
+					   cons_voq0_addr + voq * 0x40);
+			prod = qed_rd(p_hwfn, p_ptt,
+				      prod_voq0_addr + voq * 0x40);
+			distance[voq] = prod - cons[voq];
+		}
 	}
 
 	/* Wait for consumers to pass the producers */
-	i = 0;
+	port_id = 0;
+	tc = 0;
 	for (cnt = 0; cnt < 50; cnt++) {
-		for (; i < MAX_NUM_VOQS_E4; i++) {
-			u32 tmp;
+		for (; port_id < max_ports_per_engine; port_id++) {
+			/* "max_phys_tcs_per_port" active TCs + 1 pure LB TC */
+			for (; tc < max_phys_tcs_per_port + 1; tc++) {
+				tc_id = (tc < max_phys_tcs_per_port) ?
+				    tc : PURE_LB_TC;
+				voq = VOQ(port_id,
+					  tc_id, max_phys_tcs_per_port);
+				tmp = qed_rd(p_hwfn, p_ptt,
+					     cons_voq0_addr + voq * 0x40);
+				if (distance[voq] > tmp - cons[voq])
+					break;
+			}
 
-			tmp = qed_rd(p_hwfn, p_ptt,
-				     PBF_REG_NUM_BLOCKS_ALLOCATED_CONS_VOQ0 +
-				     i * 0x40);
-			if (distance[i] > tmp - cons[i])
+			if (tc == max_phys_tcs_per_port + 1)
+				tc = 0;
+			else
 				break;
 		}
 
-		if (i == MAX_NUM_VOQS_E4)
+		if (port_id == max_ports_per_engine)
 			break;
 
 		msleep(20);
 	}
 
 	if (cnt == 50) {
-		DP_ERR(p_hwfn, "VF[%d] - pbf polling failed on VOQ %d\n",
-		       p_vf->abs_vf_id, i);
+		DP_ERR(p_hwfn, "VF[%d]: pbf poll failed on VOQ%d\n",
+		       p_vf->abs_vf_id, (int)voq);
+
+		DP_ERR(p_hwfn, "VOQ %d has port_id as %d and tc_id as %d]\n",
+		       (int)voq, (int)port_id, (int)tc_id);
+
 		return -EBUSY;
 	}
 
@@ -3680,8 +3719,8 @@ qed_iov_execute_vf_flr_cleanup(struct qed_hwfn *p_hwfn,
 		 * doesn't do that as a part of FLR.
 		 */
 		REG_WR(p_hwfn,
-		       GTT_BAR0_MAP_REG_USDM_RAM +
-		       USTORM_VF_PF_CHANNEL_READY_OFFSET(vfid), 1);
+		       GET_GTT_REG_ADDR(GTT_BAR0_MAP_REG_USDM_RAM,
+					USTORM_VF_PF_CHANNEL_READY, vfid), 1);
 
 		/* VF_STOPPED has to be set only after final cleanup
 		 * but prior to re-enabling the VF.
@@ -3778,11 +3817,11 @@ bool qed_iov_mark_vf_flr(struct qed_hwfn *p_hwfn, u32 *p_disabled_vfs)
 	return found;
 }
 
-static void qed_iov_get_link(struct qed_hwfn *p_hwfn,
-			     u16 vfid,
-			     struct qed_mcp_link_params *p_params,
-			     struct qed_mcp_link_state *p_link,
-			     struct qed_mcp_link_capabilities *p_caps)
+static int qed_iov_get_link(struct qed_hwfn *p_hwfn,
+			    u16 vfid,
+			    struct qed_mcp_link_params *p_params,
+			    struct qed_mcp_link_state *p_link,
+			    struct qed_mcp_link_capabilities *p_caps)
 {
 	struct qed_vf_info *p_vf = qed_iov_get_vf_info(p_hwfn,
 						       vfid,
@@ -3790,7 +3829,7 @@ static void qed_iov_get_link(struct qed_hwfn *p_hwfn,
 	struct qed_bulletin_content *p_bulletin;
 
 	if (!p_vf)
-		return;
+		return -EINVAL;
 
 	p_bulletin = p_vf->bulletin.p_virt;
 
@@ -3800,6 +3839,7 @@ static void qed_iov_get_link(struct qed_hwfn *p_hwfn,
 		__qed_vf_get_link_state(p_hwfn, p_link, p_bulletin);
 	if (p_caps)
 		__qed_vf_get_link_caps(p_hwfn, p_caps, p_bulletin);
+	return 0;
 }
 
 static int
@@ -3842,7 +3882,7 @@ static void qed_iov_process_mbx_req(struct qed_hwfn *p_hwfn,
 	struct qed_iov_vf_mbx *mbx;
 	struct qed_vf_info *p_vf;
 
-	p_vf = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	p_vf = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!p_vf)
 		return;
 
@@ -3979,7 +4019,7 @@ static void qed_iov_pf_get_pending_events(struct qed_hwfn *p_hwfn, u64 *events)
 static struct qed_vf_info *qed_sriov_get_vf_from_absid(struct qed_hwfn *p_hwfn,
 						       u16 abs_vfid)
 {
-	u8 min = (u8) p_hwfn->cdev->p_iov_info->first_vf_in_pf;
+	u8 min = (u8)p_hwfn->cdev->p_iov_info->first_vf_in_pf;
 
 	if (!_qed_iov_pf_sanity_check(p_hwfn, (int)abs_vfid - min, false)) {
 		DP_VERBOSE(p_hwfn,
@@ -3989,7 +4029,7 @@ static struct qed_vf_info *qed_sriov_get_vf_from_absid(struct qed_hwfn *p_hwfn,
 		return NULL;
 	}
 
-	return &p_hwfn->pf_iov_info->vfs_array[(u8) abs_vfid - min];
+	return &p_hwfn->pf_iov_info->vfs_array[(u8)abs_vfid - min];
 }
 
 static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
@@ -4013,13 +4053,13 @@ static int qed_sriov_vfpf_msg(struct qed_hwfn *p_hwfn,
 	return 0;
 }
 
-static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
-				     struct malicious_vf_eqe_data *p_data)
+void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
+			      struct fw_err_data *p_data)
 {
 	struct qed_vf_info *p_vf;
 
-	p_vf = qed_sriov_get_vf_from_absid(p_hwfn, p_data->vf_id);
-
+	p_vf = qed_sriov_get_vf_from_absid(p_hwfn, qed_vf_from_entity_id
+					   (p_data->entity_id));
 	if (!p_vf)
 		return;
 
@@ -4036,16 +4076,13 @@ static void qed_sriov_vfpf_malicious(struct qed_hwfn *p_hwfn,
 	}
 }
 
-static int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, __le16 echo,
-			       union event_ring_data *data, u8 fw_return_code)
+int qed_sriov_eqe_event(struct qed_hwfn *p_hwfn, u8 opcode, __le16 echo,
+			union event_ring_data *data, u8 fw_return_code)
 {
 	switch (opcode) {
 	case COMMON_EVENT_VF_PF_CHANNEL:
 		return qed_sriov_vfpf_msg(p_hwfn, le16_to_cpu(echo),
 					  &data->vf_pf_channel.msg_addr);
-	case COMMON_EVENT_MALICIOUS_VF:
-		qed_sriov_vfpf_malicious(p_hwfn, &data->malicious_vf);
-		return 0;
 	default:
 		DP_INFO(p_hwfn->cdev, "Unknown sriov eqe event 0x%02x\n",
 			opcode);
@@ -4075,7 +4112,7 @@ static int qed_iov_copy_vf_msg(struct qed_hwfn *p_hwfn, struct qed_ptt *ptt,
 	struct qed_dmae_params params;
 	struct qed_vf_info *vf_info;
 
-	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info)
 		return -EINVAL;
 
@@ -4176,7 +4213,7 @@ static void qed_iov_bulletin_set_forced_vlan(struct qed_hwfn *p_hwfn,
 	struct qed_vf_info *vf_info;
 	u64 feature;
 
-	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info) {
 		DP_NOTICE(p_hwfn->cdev,
 			  "Can not set forced MAC, invalid vfid [%d]\n", vfid);
@@ -4226,7 +4263,7 @@ static bool qed_iov_vf_has_vport_instance(struct qed_hwfn *p_hwfn, int vfid)
 {
 	struct qed_vf_info *p_vf_info;
 
-	p_vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	p_vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!p_vf_info)
 		return false;
 
@@ -4237,7 +4274,7 @@ static bool qed_iov_is_vf_stopped(struct qed_hwfn *p_hwfn, int vfid)
 {
 	struct qed_vf_info *p_vf_info;
 
-	p_vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	p_vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!p_vf_info)
 		return true;
 
@@ -4248,7 +4285,7 @@ static bool qed_iov_spoofchk_get(struct qed_hwfn *p_hwfn, int vfid)
 {
 	struct qed_vf_info *vf_info;
 
-	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info)
 		return false;
 
@@ -4266,7 +4303,7 @@ static int qed_iov_spoofchk_set(struct qed_hwfn *p_hwfn, int vfid, bool val)
 		goto out;
 	}
 
-	vf = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	vf = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf)
 		goto out;
 
@@ -4345,7 +4382,8 @@ static int qed_iov_configure_tx_rate(struct qed_hwfn *p_hwfn,
 		return rc;
 
 	rl_id = abs_vp_id;	/* The "rl_id" is set as the "vport_id" */
-	return qed_init_global_rl(p_hwfn, p_ptt, rl_id, (u32)val);
+	return qed_init_global_rl(p_hwfn, p_ptt, rl_id, (u32)val,
+				  QM_RL_TYPE_NORMAL);
 }
 
 static int
@@ -4376,7 +4414,7 @@ static int qed_iov_get_vf_min_rate(struct qed_hwfn *p_hwfn, int vfid)
 	struct qed_wfq_data *vf_vp_wfq;
 	struct qed_vf_info *vf_info;
 
-	vf_info = qed_iov_get_vf_info(p_hwfn, (u16) vfid, true);
+	vf_info = qed_iov_get_vf_info(p_hwfn, (u16)vfid, true);
 	if (!vf_info)
 		return 0;
 
@@ -4395,8 +4433,10 @@ static int qed_iov_get_vf_min_rate(struct qed_hwfn *p_hwfn, int vfid)
  */
 void qed_schedule_iov(struct qed_hwfn *hwfn, enum qed_iov_wq_flag flag)
 {
+	/* Memory barrier for setting atomic bit */
 	smp_mb__before_atomic();
 	set_bit(flag, &hwfn->iov_task_flags);
+	/* Memory barrier after setting atomic bit */
 	smp_mb__after_atomic();
 	DP_VERBOSE(hwfn, QED_MSG_IOV, "Scheduling iov task [Flag: %d]\n", flag);
 	queue_delayed_work(hwfn->iov_wq, &hwfn->iov_task, 0);
@@ -4407,8 +4447,8 @@ void qed_vf_start_iov_wq(struct qed_dev *cdev)
 	int i;
 
 	for_each_hwfn(cdev, i)
-	    queue_delayed_work(cdev->hwfns[i].iov_wq,
-			       &cdev->hwfns[i].iov_task, 0);
+		queue_delayed_work(cdev->hwfns[i].iov_wq,
+				   &cdev->hwfns[i].iov_task, 0);
 }
 
 int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
@@ -4416,8 +4456,8 @@ int qed_sriov_disable(struct qed_dev *cdev, bool pci_enabled)
 	int i, j;
 
 	for_each_hwfn(cdev, i)
-	    if (cdev->hwfns[i].iov_wq)
-		flush_workqueue(cdev->hwfns[i].iov_wq);
+		if (cdev->hwfns[i].iov_wq)
+			flush_workqueue(cdev->hwfns[i].iov_wq);
 
 	/* Mark VFs for disablement */
 	qed_iov_set_vfs_to_disable(cdev, true);
@@ -4658,6 +4698,7 @@ static int qed_get_vf_config(struct qed_dev *cdev,
 	struct qed_public_vf_info *vf_info;
 	struct qed_mcp_link_state link;
 	u32 tx_rate;
+	int ret;
 
 	/* Sanitize request */
 	if (IS_VF(cdev))
@@ -4671,7 +4712,9 @@ static int qed_get_vf_config(struct qed_dev *cdev,
 
 	vf_info = qed_iov_get_public_vf_info(hwfn, vf_id, true);
 
-	qed_iov_get_link(hwfn, vf_id, NULL, &link, NULL);
+	ret = qed_iov_get_link(hwfn, vf_id, NULL, &link, NULL);
+	if (ret)
+		return ret;
 
 	/* Fill information about VF */
 	ivi->vf = vf_id;
@@ -4687,6 +4730,7 @@ static int qed_get_vf_config(struct qed_dev *cdev,
 	tx_rate = vf_info->tx_rate;
 	ivi->max_tx_rate = tx_rate ? tx_rate : link.speed;
 	ivi->min_tx_rate = qed_iov_get_vf_min_rate(hwfn, vf_id);
+	ivi->trusted = vf_info->is_trusted_request;
 
 	return 0;
 }
@@ -5010,7 +5054,7 @@ static void qed_handle_bulletin_post(struct qed_hwfn *hwfn)
 	}
 
 	qed_for_each_vf(hwfn, i)
-	    qed_iov_post_vf_bulletin(hwfn, i, ptt);
+		qed_iov_post_vf_bulletin(hwfn, i, ptt);
 
 	qed_ptt_release(hwfn, ptt);
 }
@@ -5117,6 +5161,12 @@ static void qed_iov_handle_trust_change(struct qed_hwfn *hwfn)
 
 		params.update_ctl_frame_check = 1;
 		params.mac_chk_en = !vf_info->is_trusted_configured;
+		params.update_accept_any_vlan_flg = 0;
+
+		if (vf_info->accept_any_vlan && vf_info->forced_vlan) {
+			params.update_accept_any_vlan_flg = 1;
+			params.accept_any_vlan = vf_info->accept_any_vlan;
+		}
 
 		if (vf_info->rx_accept_mode & mask) {
 			flags->update_rx_mode_config = 1;
@@ -5132,13 +5182,20 @@ static void qed_iov_handle_trust_change(struct qed_hwfn *hwfn)
 		if (!vf_info->is_trusted_configured) {
 			flags->rx_accept_filter &= ~mask;
 			flags->tx_accept_filter &= ~mask;
+			params.accept_any_vlan = false;
 		}
 
 		if (flags->update_rx_mode_config ||
 		    flags->update_tx_mode_config ||
-		    params.update_ctl_frame_check)
+		    params.update_ctl_frame_check ||
+		    params.update_accept_any_vlan_flg) {
+			DP_VERBOSE(hwfn, QED_MSG_IOV,
+				   "vport update config for %s VF[abs 0x%x rel 0x%x]\n",
+				   vf_info->is_trusted_configured ? "trusted" : "untrusted",
+				   vf->abs_vf_id, vf->relative_vf_id);
 			qed_sp_vport_update(hwfn, &params,
 					    QED_SPQ_MODE_EBLOCK, NULL);
+		}
 	}
 }
 
@@ -5196,7 +5253,6 @@ void qed_iov_wq_stop(struct qed_dev *cdev, bool schedule_first)
 			cancel_delayed_work_sync(&cdev->hwfns[i].iov_task);
 		}
 
-		flush_workqueue(cdev->hwfns[i].iov_wq);
 		destroy_workqueue(cdev->hwfns[i].iov_wq);
 	}
 }

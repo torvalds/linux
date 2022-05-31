@@ -27,6 +27,9 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	if (!local->open_count)
 		goto suspend;
 
+	local->suspending = true;
+	mb(); /* make suspending visible before any cancellation */
+
 	ieee80211_scan_cancel(local);
 
 	ieee80211_dfs_cac_cancel(local);
@@ -176,6 +179,7 @@ int __ieee80211_suspend(struct ieee80211_hw *hw, struct cfg80211_wowlan *wowlan)
 	/* need suspended to be visible before quiescing is false */
 	barrier();
 	local->quiescing = false;
+	local->suspending = false;
 
 	return 0;
 }

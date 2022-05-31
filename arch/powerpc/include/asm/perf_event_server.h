@@ -98,7 +98,7 @@ struct power_pmu {
 #define PPMU_LIMITED_PMC_REQD	2	/* have to put this on a limited PMC */
 #define PPMU_ONLY_COUNT_RUN	4	/* only counting in run state */
 
-extern int register_power_pmu(struct power_pmu *);
+int __init register_power_pmu(struct power_pmu *pmu);
 
 struct pt_regs;
 extern unsigned long perf_misc_flags(struct pt_regs *regs);

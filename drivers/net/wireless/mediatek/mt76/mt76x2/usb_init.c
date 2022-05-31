@@ -194,7 +194,9 @@ int mt76x2u_register_device(struct mt76x02_dev *dev)
 	int err;
 
 	INIT_DELAYED_WORK(&dev->cal_work, mt76x2u_phy_calibrate);
-	mt76x02_init_device(dev);
+	err = mt76x02_init_device(dev);
+	if (err)
+		return err;
 
 	err = mt76x2u_init_eeprom(dev);
 	if (err < 0)

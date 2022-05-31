@@ -30,7 +30,7 @@ static int do_attach(int idx, int fd, const char *name)
 	__u32 info_len = sizeof(info);
 	int err;
 
-	err = bpf_set_link_xdp_fd(idx, fd, xdp_flags);
+	err = bpf_xdp_attach(idx, fd, xdp_flags, NULL);
 	if (err < 0) {
 		printf("ERROR: failed to attach program to %s\n", name);
 		return err;
@@ -51,13 +51,13 @@ static int do_detach(int idx, const char *name)
 	__u32 curr_prog_id = 0;
 	int err = 0;
 
-	err = bpf_get_link_xdp_id(idx, &curr_prog_id, xdp_flags);
+	err = bpf_xdp_query_id(idx, xdp_flags, &curr_prog_id);
 	if (err) {
-		printf("bpf_get_link_xdp_id failed\n");
+		printf("bpf_xdp_query_id failed\n");
 		return err;
 	}
 	if (prog_id == curr_prog_id) {
-		err = bpf_set_link_xdp_fd(idx, -1, xdp_flags);
+		err = bpf_xdp_detach(idx, xdp_flags, NULL);
 		if (err < 0)
 			printf("ERROR: failed to detach prog from %s\n", name);
 	} else if (!curr_prog_id) {
@@ -110,12 +110,9 @@ static void usage(const char *prog)
 
 int main(int argc, char **argv)
 {
-	struct bpf_prog_load_attr prog_load_attr = {
-		.prog_type	= BPF_PROG_TYPE_XDP,
-	};
-	struct perf_buffer_opts pb_opts = {};
 	const char *optstr = "FS";
 	int prog_fd, map_fd, opt;
+	struct bpf_program *prog;
 	struct bpf_object *obj;
 	struct bpf_map *map;
 	char filename[256];
@@ -144,17 +141,21 @@ int main(int argc, char **argv)
 	}
 
 	snprintf(filename, sizeof(filename), "%s_kern.o", argv[0]);
-	prog_load_attr.file = filename;
 
-	if (bpf_prog_load_xattr(&prog_load_attr, &obj, &prog_fd))
+	obj = bpf_object__open_file(filename, NULL);
+	if (libbpf_get_error(obj))
 		return 1;
 
-	if (!prog_fd) {
-		printf("bpf_prog_load_xattr: %s\n", strerror(errno));
-		return 1;
-	}
+	prog = bpf_object__next_program(obj, NULL);
+	bpf_program__set_type(prog, BPF_PROG_TYPE_XDP);
 
-	map = bpf_map__next(NULL, obj);
+	err = bpf_object__load(obj);
+	if (err)
+		return 1;
+
+	prog_fd = bpf_program__fd(prog);
+
+	map = bpf_object__next_map(obj, NULL);
 	if (!map) {
 		printf("finding a map in obj file failed\n");
 		return 1;
@@ -181,8 +182,7 @@ int main(int argc, char **argv)
 		return 1;
 	}
 
-	pb_opts.sample_cb = print_bpf_output;
-	pb = perf_buffer__new(map_fd, 8, &pb_opts);
+	pb = perf_buffer__new(map_fd, 8, print_bpf_output, NULL, NULL, NULL);
 	err = libbpf_get_error(pb);
 	if (err) {
 		perror("perf_buffer setup failed");

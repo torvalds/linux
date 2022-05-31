@@ -24,9 +24,8 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
-
-#include "8255.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>
 
 /*
  * Register I/O Map
@@ -94,7 +93,6 @@ static void do_3724_config(struct comedi_device *dev,
 	unsigned long port_8255_cfg;
 
 	config = I8255_CTRL_CW;
-	buffer_config = 0;
 
 	/* 1 in io_bits indicates output, 1 in config indicates input */
 	if (!(s->io_bits & 0x0000ff))

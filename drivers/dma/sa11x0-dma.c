@@ -1001,7 +1001,7 @@ static int sa11x0_dma_remove(struct platform_device *pdev)
 	return 0;
 }
 
-static int sa11x0_dma_suspend(struct device *dev)
+static __maybe_unused int sa11x0_dma_suspend(struct device *dev)
 {
 	struct sa11x0_dma_dev *d = dev_get_drvdata(dev);
 	unsigned pch;
@@ -1039,7 +1039,7 @@ static int sa11x0_dma_suspend(struct device *dev)
 	return 0;
 }
 
-static int sa11x0_dma_resume(struct device *dev)
+static __maybe_unused int sa11x0_dma_resume(struct device *dev)
 {
 	struct sa11x0_dma_dev *d = dev_get_drvdata(dev);
 	unsigned pch;
@@ -1072,12 +1072,7 @@ static int sa11x0_dma_resume(struct device *dev)
 }
 
 static const struct dev_pm_ops sa11x0_dma_pm_ops = {
-	.suspend_noirq = sa11x0_dma_suspend,
-	.resume_noirq = sa11x0_dma_resume,
-	.freeze_noirq = sa11x0_dma_suspend,
-	.thaw_noirq = sa11x0_dma_resume,
-	.poweroff_noirq = sa11x0_dma_suspend,
-	.restore_noirq = sa11x0_dma_resume,
+	SET_NOIRQ_SYSTEM_SLEEP_PM_OPS(sa11x0_dma_suspend, sa11x0_dma_resume)
 };
 
 static struct platform_driver sa11x0_dma_driver = {

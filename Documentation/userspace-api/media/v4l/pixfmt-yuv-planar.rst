@@ -76,7 +76,7 @@ All components are stored with the same number of bits per component.
       - 'NV21'
       - 8
       - 4:2:0
-      - Cr, Cr
+      - Cr, Cb
       - Yes
       - Linear
     * - V4L2_PIX_FMT_NV12M
@@ -90,7 +90,7 @@ All components are stored with the same number of bits per component.
       - 'NM21'
       - 8
       - 4:2:0
-      - Cr, Cr
+      - Cr, Cb
       - No
       - Linear
     * - V4L2_PIX_FMT_NV12MT
@@ -99,7 +99,7 @@ All components are stored with the same number of bits per component.
       - 4:2:0
       - Cb, Cr
       - No
-      - 64x32 macroblocks
+      - 64x32 tiles
 
         Horizontal Z order
     * - V4L2_PIX_FMT_NV12MT_16X16
@@ -108,7 +108,7 @@ All components are stored with the same number of bits per component.
       - 4:2:2
       - Cb, Cr
       - No
-      - 16x16 macroblocks
+      - 16x16 tiles
     * - V4L2_PIX_FMT_NV16
       - 'NV16'
       - 8
@@ -120,7 +120,7 @@ All components are stored with the same number of bits per component.
       - 'NV61'
       - 8
       - 4:2:2
-      - Cr, Cr
+      - Cr, Cb
       - Yes
       - Linear
     * - V4L2_PIX_FMT_NV16M
@@ -134,7 +134,7 @@ All components are stored with the same number of bits per component.
       - 'NM61'
       - 8
       - 4:2:2
-      - Cr, Cr
+      - Cr, Cb
       - No
       - Linear
     * - V4L2_PIX_FMT_NV24
@@ -148,7 +148,7 @@ All components are stored with the same number of bits per component.
       - 'NV42'
       - 8
       - 4:4:4
-      - Cr, Cr
+      - Cr, Cb
       - Yes
       - Linear
 
@@ -254,27 +254,76 @@ of the luma plane.
 
 .. _V4L2-PIX-FMT-NV12MT:
 .. _V4L2-PIX-FMT-NV12MT-16X16:
+.. _V4L2-PIX-FMT-NV12-4L4:
+.. _V4L2-PIX-FMT-NV12-16L16:
+.. _V4L2-PIX-FMT-NV12-32L32:
+.. _V4L2-PIX-FMT-NV12M-8L128:
+.. _V4L2-PIX-FMT-NV12M-10BE-8L128:
+.. _V4L2-PIX-FMT-MM21:
 
-NV12MT and MV12MT_16X16
------------------------
+Tiled NV12
+----------
 
 Semi-planar YUV 4:2:0 formats, using macroblock tiling. The chroma plane is
 subsampled by 2 in each direction. Chroma lines contain half the number of
 pixels and the same number of bytes as luma lines, and the chroma plane
-contains half the number of lines of the luma plane.
+contains half the number of lines of the luma plane. Each tile follows the
+previous one linearly in memory (from left to right, top to bottom).
 
-``V4L2_PIX_FMT_NV12MT_16X16`` stores pixel in 2D 16x16 macroblocks, and stores
-macroblocks linearly in memory. The line stride and image height must be
+``V4L2_PIX_FMT_NV12MT_16X16`` is similar to ``V4L2_PIX_FMT_NV12M`` but stores
+pixels in 2D 16x16 tiles, and stores tiles linearly in memory.
+The line stride and image height must be aligned to a multiple of 16.
+The layouts of the luma and chroma planes are identical.
+
+``V4L2_PIX_FMT_NV12MT`` is similar to ``V4L2_PIX_FMT_NV12M`` but stores
+pixels in 2D 64x32 tiles, and stores 2x2 groups of tiles in
+Z-order in memory, alternating Z and mirrored Z shapes horizontally.
+The line stride must be a multiple of 128 pixels to ensure an
+integer number of Z shapes. The image height must be a multiple of 32 pixels.
+If the vertical resolution is an odd number of tiles, the last row of
+tiles is stored in linear order. The layouts of the luma and chroma
+planes are identical.
+
+``V4L2_PIX_FMT_NV12_4L4`` stores pixels in 4x4 tiles, and stores
+tiles linearly in memory. The line stride and image height must be
+aligned to a multiple of 4. The layouts of the luma and chroma planes are
+identical.
+
+``V4L2_PIX_FMT_NV12_16L16`` stores pixels in 16x16 tiles, and stores
+tiles linearly in memory. The line stride and image height must be
 aligned to a multiple of 16. The layouts of the luma and chroma planes are
 identical.
 
-``V4L2_PIX_FMT_NV12MT`` stores pixels in 2D 64x32 macroblocks, and stores 2x2
-groups of macroblocks in Z-order in memory, alternating Z and mirrored Z shapes
-horizontally.  The line stride must be a multiple of 128 pixels to ensure an
-integer number of Z shapes. The image height must be a multiple of 32 pixels.
-If the vertical resolution is an odd number of macroblocks, the last row of
-macroblocks is stored in linear order. The layouts of the luma and chroma
-planes are identical.
+``V4L2_PIX_FMT_NV12_32L32`` stores pixels in 32x32 tiles, and stores
+tiles linearly in memory. The line stride and image height must be
+aligned to a multiple of 32. The layouts of the luma and chroma planes are
+identical.
+
+``V4L2_PIX_FMT_NV12M_8L128`` is similar to ``V4L2_PIX_FMT_NV12M`` but stores
+pixels in 2D 8x128 tiles, and stores tiles linearly in memory.
+The image height must be aligned to a multiple of 128.
+The layouts of the luma and chroma planes are identical.
+
+``V4L2_PIX_FMT_NV12M_10BE_8L128`` is similar to ``V4L2_PIX_FMT_NV12M`` but stores
+10 bits pixels in 2D 8x128 tiles, and stores tiles linearly in memory.
+the data is arranged in big endian order.
+The image height must be aligned to a multiple of 128.
+The layouts of the luma and chroma planes are identical.
+Note the tile size is 8bytes multiplied by 128 bytes,
+it means that the low bits and high bits of one pixel may be in different tiles.
+The 10 bit pixels are packed, so 5 bytes contain 4 10-bit pixels layout like
+this (for luma):
+byte 0: Y0(bits 9-2)
+byte 1: Y0(bits 1-0) Y1(bits 9-4)
+byte 2: Y1(bits 3-0) Y2(bits 9-6)
+byte 3: Y2(bits 5-0) Y3(bits 9-8)
+byte 4: Y3(bits 7-0)
+
+``V4L2_PIX_FMT_MM21`` store luma pixel in 16x32 tiles, and chroma pixels
+in 16x16 tiles. The line stride must be aligned to a multiple of 16 and the
+image height must be aligned to a multiple of 32. The number of luma and chroma
+tiles are identical, even though the tile size differ. The image is formed of
+two non-contiguous planes.
 
 .. _nv12mt:
 
@@ -290,7 +339,7 @@ planes are identical.
     :alt:    nv12mt_example.svg
     :align:  center
 
-    Example V4L2_PIX_FMT_NV12MT memory layout of macroblocks
+    Example V4L2_PIX_FMT_NV12MT memory layout of tiles
 
 
 .. _V4L2-PIX-FMT-NV16:

@@ -322,17 +322,11 @@ static unsigned long codec_lp_freq(u32 session_type, u32 codec)
 	return 0;
 }
 
-static u8 num_vpp_pipes(void)
-{
-	return 4;
-}
-
 const struct hfi_platform hfi_plat_v6 = {
 	.codec_vpp_freq = codec_vpp_freq,
 	.codec_vsp_freq = codec_vsp_freq,
 	.codec_lp_freq = codec_lp_freq,
 	.codecs = get_codecs,
 	.capabilities = get_capabilities,
-	.num_vpp_pipes = num_vpp_pipes,
 	.bufreq = hfi_plat_bufreq_v6,
 };

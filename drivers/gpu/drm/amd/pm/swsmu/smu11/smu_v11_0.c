@@ -90,37 +90,38 @@ int smu_v11_0_init_microcode(struct smu_context *smu)
 	struct amdgpu_firmware_info *ucode = NULL;
 
 	if (amdgpu_sriov_vf(adev) &&
-			((adev->asic_type == CHIP_NAVI12) ||
-			 (adev->asic_type == CHIP_SIENNA_CICHLID)))
+	    ((adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 9)) ||
+	     (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 7))))
 		return 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ARCTURUS:
-		chip_name = "arcturus";
-		break;
-	case CHIP_NAVI10:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
 		chip_name = "navi10";
 		break;
-	case CHIP_NAVI14:
+	case IP_VERSION(11, 0, 5):
 		chip_name = "navi14";
 		break;
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 9):
 		chip_name = "navi12";
 		break;
-	case CHIP_SIENNA_CICHLID:
+	case IP_VERSION(11, 0, 7):
 		chip_name = "sienna_cichlid";
 		break;
-	case CHIP_NAVY_FLOUNDER:
+	case IP_VERSION(11, 0, 11):
 		chip_name = "navy_flounder";
 		break;
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(11, 0, 12):
 		chip_name = "dimgrey_cavefish";
 		break;
-	case CHIP_BEIGE_GOBY:
+	case IP_VERSION(11, 0, 13):
 		chip_name = "beige_goby";
 		break;
+	case IP_VERSION(11, 0, 2):
+		chip_name = "arcturus";
+		break;
 	default:
-		dev_err(adev->dev, "Unsupported ASIC type %d\n", adev->asic_type);
+		dev_err(adev->dev, "Unsupported IP version 0x%x\n",
+			adev->ip_versions[MP1_HWIP][0]);
 		return -EINVAL;
 	}
 
@@ -224,53 +225,54 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 {
 	struct amdgpu_device *adev = smu->adev;
 	uint32_t if_version = 0xff, smu_version = 0xff;
-	uint16_t smu_major;
-	uint8_t smu_minor, smu_debug;
+	uint8_t smu_program, smu_major, smu_minor, smu_debug;
 	int ret = 0;
 
 	ret = smu_cmn_get_smc_version(smu, &if_version, &smu_version);
 	if (ret)
 		return ret;
 
-	smu_major = (smu_version >> 16) & 0xffff;
+	smu_program = (smu_version >> 24) & 0xff;
+	smu_major = (smu_version >> 16) & 0xff;
 	smu_minor = (smu_version >> 8) & 0xff;
 	smu_debug = (smu_version >> 0) & 0xff;
 	if (smu->is_apu)
 		adev->pm.fw_version = smu_version;
 
-	switch (smu->adev->asic_type) {
-	case CHIP_ARCTURUS:
-		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
-		break;
-	case CHIP_NAVI10:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV10;
 		break;
-	case CHIP_NAVI12:
+	case IP_VERSION(11, 0, 9):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV12;
 		break;
-	case CHIP_NAVI14:
+	case IP_VERSION(11, 0, 5):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_NV14;
 		break;
-	case CHIP_SIENNA_CICHLID:
+	case IP_VERSION(11, 0, 7):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Sienna_Cichlid;
 		break;
-	case CHIP_NAVY_FLOUNDER:
+	case IP_VERSION(11, 0, 11):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Navy_Flounder;
 		break;
-	case CHIP_VANGOGH:
+	case IP_VERSION(11, 5, 0):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_VANGOGH;
 		break;
-	case CHIP_DIMGREY_CAVEFISH:
+	case IP_VERSION(11, 0, 12):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Dimgrey_Cavefish;
 		break;
-	case CHIP_BEIGE_GOBY:
+	case IP_VERSION(11, 0, 13):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Beige_Goby;
 		break;
-	case CHIP_CYAN_SKILLFISH:
+	case IP_VERSION(11, 0, 8):
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_Cyan_Skillfish;
 		break;
+	case IP_VERSION(11, 0, 2):
+		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_ARCT;
+		break;
 	default:
-		dev_err(smu->adev->dev, "smu unsupported asic type:%d.\n", smu->adev->asic_type);
+		dev_err(smu->adev->dev, "smu unsupported IP version: 0x%x.\n",
+			adev->ip_versions[MP1_HWIP][0]);
 		smu->smc_driver_if_version = SMU11_DRIVER_IF_VERSION_INV;
 		break;
 	}
@@ -285,9 +287,9 @@ int smu_v11_0_check_fw_version(struct smu_context *smu)
 	 */
 	if (if_version != smu->smc_driver_if_version) {
 		dev_info(smu->adev->dev, "smu driver if version = 0x%08x, smu fw if version = 0x%08x, "
-			"smu fw version = 0x%08x (%d.%d.%d)\n",
+			"smu fw program = %d, version = 0x%08x (%d.%d.%d)\n",
 			smu->smc_driver_if_version, if_version,
-			smu_version, smu_major, smu_minor, smu_debug);
+			smu_program, smu_version, smu_major, smu_minor, smu_debug);
 		dev_warn(smu->adev->dev, "SMU driver if version not matched\n");
 	}
 
@@ -471,8 +473,12 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 	kfree(smu_table->hardcode_pptable);
 	smu_table->hardcode_pptable = NULL;
 
+	kfree(smu_table->driver_smu_config_table);
+	kfree(smu_table->ecc_table);
 	kfree(smu_table->metrics_table);
 	kfree(smu_table->watermarks_table);
+	smu_table->driver_smu_config_table = NULL;
+	smu_table->ecc_table = NULL;
 	smu_table->metrics_table = NULL;
 	smu_table->watermarks_table = NULL;
 	smu_table->metrics_time = 0;
@@ -492,8 +498,9 @@ int smu_v11_0_fini_smc_tables(struct smu_context *smu)
 
 int smu_v11_0_init_power(struct smu_context *smu)
 {
+	struct amdgpu_device *adev = smu->adev;
 	struct smu_power_context *smu_power = &smu->smu_power;
-	size_t size = smu->adev->asic_type == CHIP_VANGOGH ?
+	size_t size = adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 5, 0) ?
 			sizeof(struct smu_11_5_power_context) :
 			sizeof(struct smu_11_0_power_context);
 
@@ -750,8 +757,10 @@ int smu_v11_0_init_display_count(struct smu_context *smu, uint32_t count)
 	/* Navy_Flounder/Dimgrey_Cavefish do not support to change
 	 * display num currently
 	 */
-	if (adev->asic_type >= CHIP_NAVY_FLOUNDER &&
-	    adev->asic_type <= CHIP_BEIGE_GOBY)
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 11) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 5, 0) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 12) ||
+	    adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 13))
 		return 0;
 
 	return smu_cmn_send_smc_msg_with_param(smu,
@@ -791,30 +800,8 @@ failed:
 int smu_v11_0_system_features_control(struct smu_context *smu,
 					     bool en)
 {
-	struct smu_feature *feature = &smu->smu_feature;
-	uint32_t feature_mask[2];
-	int ret = 0;
-
-	ret = smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
-				     SMU_MSG_DisableAllSmuFeatures), NULL);
-	if (ret)
-		return ret;
-
-	bitmap_zero(feature->enabled, feature->feature_num);
-	bitmap_zero(feature->supported, feature->feature_num);
-
-	if (en) {
-		ret = smu_cmn_get_enabled_mask(smu, feature_mask, 2);
-		if (ret)
-			return ret;
-
-		bitmap_copy(feature->enabled, (unsigned long *)&feature_mask,
-			    feature->feature_num);
-		bitmap_copy(feature->supported, (unsigned long *)&feature_mask,
-			    feature->feature_num);
-	}
-
-	return ret;
+	return smu_cmn_send_smc_msg(smu, (en ? SMU_MSG_EnableAllSmuFeatures :
+					  SMU_MSG_DisableAllSmuFeatures), NULL);
 }
 
 int smu_v11_0_notify_display_change(struct smu_context *smu)
@@ -974,10 +961,16 @@ int smu_v11_0_get_current_power_limit(struct smu_context *smu,
 	return ret;
 }
 
-int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
+int smu_v11_0_set_power_limit(struct smu_context *smu,
+			      enum smu_ppt_limit_type limit_type,
+			      uint32_t limit)
 {
 	int power_src;
 	int ret = 0;
+	uint32_t limit_param;
+
+	if (limit_type != SMU_DEFAULT_PPT_LIMIT)
+		return -EINVAL;
 
 	if (!smu_cmn_feature_is_enabled(smu, SMU_FEATURE_PPT_BIT)) {
 		dev_err(smu->adev->dev, "Setting new power limit is not supported!\n");
@@ -997,16 +990,16 @@ int smu_v11_0_set_power_limit(struct smu_context *smu, uint32_t n)
 	 * BIT 16-23: PowerSource
 	 * BIT 0-15: PowerLimit
 	 */
-	n &= 0xFFFF;
-	n |= 0 << 24;
-	n |= (power_src) << 16;
-	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, n, NULL);
+	limit_param  = (limit & 0xFFFF);
+	limit_param |= 0 << 24;
+	limit_param |= (power_src) << 16;
+	ret = smu_cmn_send_smc_msg_with_param(smu, SMU_MSG_SetPptLimit, limit_param, NULL);
 	if (ret) {
 		dev_err(smu->adev->dev, "[%s] Set power limit Failed!\n", __func__);
 		return ret;
 	}
 
-	smu->current_power_limit = n;
+	smu->current_power_limit = limit;
 
 	return 0;
 }
@@ -1136,15 +1129,15 @@ int smu_v11_0_gfx_off_control(struct smu_context *smu, bool enable)
 	int ret = 0;
 	struct amdgpu_device *adev = smu->adev;
 
-	switch (adev->asic_type) {
-	case CHIP_NAVI10:
-	case CHIP_NAVI14:
-	case CHIP_NAVI12:
-	case CHIP_SIENNA_CICHLID:
-	case CHIP_NAVY_FLOUNDER:
-	case CHIP_DIMGREY_CAVEFISH:
-	case CHIP_BEIGE_GOBY:
-	case CHIP_VANGOGH:
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(11, 0, 0):
+	case IP_VERSION(11, 0, 5):
+	case IP_VERSION(11, 0, 9):
+	case IP_VERSION(11, 0, 7):
+	case IP_VERSION(11, 0, 11):
+	case IP_VERSION(11, 0, 12):
+	case IP_VERSION(11, 0, 13):
+	case IP_VERSION(11, 5, 0):
 		if (!(adev->pm.pp_feature & PP_GFXOFF_MASK))
 			return 0;
 		if (enable)
@@ -1361,7 +1354,7 @@ static int smu_v11_0_set_irq_state(struct amdgpu_device *adev,
 				   unsigned tyep,
 				   enum amdgpu_interrupt_state state)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 	uint32_t low, high;
 	uint32_t val = 0;
 
@@ -1430,7 +1423,7 @@ static int smu_v11_0_irq_process(struct amdgpu_device *adev,
 				 struct amdgpu_irq_src *source,
 				 struct amdgpu_iv_entry *entry)
 {
-	struct smu_context *smu = &adev->smu;
+	struct smu_context *smu = adev->powerplay.pp_handle;
 	uint32_t client_id = entry->client_id;
 	uint32_t src_id = entry->src_id;
 	/*
@@ -1604,13 +1597,8 @@ bool smu_v11_0_baco_is_support(struct smu_context *smu)
 enum smu_baco_state smu_v11_0_baco_get_state(struct smu_context *smu)
 {
 	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	enum smu_baco_state baco_state;
 
-	mutex_lock(&smu_baco->mutex);
-	baco_state = smu_baco->state;
-	mutex_unlock(&smu_baco->mutex);
-
-	return baco_state;
+	return smu_baco->state;
 }
 
 #define D3HOT_BACO_SEQUENCE 0
@@ -1627,14 +1615,12 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 	if (smu_v11_0_baco_get_state(smu) == state)
 		return 0;
 
-	mutex_lock(&smu_baco->mutex);
-
 	if (state == SMU_BACO_STATE_ENTER) {
-		switch (adev->asic_type) {
-		case CHIP_SIENNA_CICHLID:
-		case CHIP_NAVY_FLOUNDER:
-		case CHIP_DIMGREY_CAVEFISH:
-		case CHIP_BEIGE_GOBY:
+		switch (adev->ip_versions[MP1_HWIP][0]) {
+		case IP_VERSION(11, 0, 7):
+		case IP_VERSION(11, 0, 11):
+		case IP_VERSION(11, 0, 12):
+		case IP_VERSION(11, 0, 13):
 			if (amdgpu_runtime_pm == 2)
 				ret = smu_cmn_send_smc_msg_with_param(smu,
 								      SMU_MSG_EnterBaco,
@@ -1649,7 +1635,7 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 		default:
 			if (!ras || !adev->ras_enabled ||
 			    adev->gmc.xgmi.pending_reset) {
-				if (adev->asic_type == CHIP_ARCTURUS) {
+				if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 2)) {
 					data = RREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT);
 					data |= 0x80000000;
 					WREG32_SOC15(THM, 0, mmTHM_BACO_CNTL_ARCT, data);
@@ -1669,18 +1655,16 @@ int smu_v11_0_baco_set_state(struct smu_context *smu, enum smu_baco_state state)
 	} else {
 		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_ExitBaco, NULL);
 		if (ret)
-			goto out;
+			return ret;
 
 		/* clear vbios scratch 6 and 7 for coming asic reinit */
 		WREG32(adev->bios_scratch_reg_offset + 6, 0);
 		WREG32(adev->bios_scratch_reg_offset + 7, 0);
 	}
-	if (ret)
-		goto out;
 
-	smu_baco->state = state;
-out:
-	mutex_unlock(&smu_baco->mutex);
+	if (!ret)
+		smu_baco->state = state;
+
 	return ret;
 }
 
@@ -1713,7 +1697,7 @@ int smu_v11_0_mode1_reset(struct smu_context *smu)
 	return ret;
 }
 
-int smu_v11_0_set_light_sbr(struct smu_context *smu, bool enable)
+int smu_v11_0_handle_passthrough_sbr(struct smu_context *smu, bool enable)
 {
 	int ret = 0;
 
@@ -1787,7 +1771,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 					  uint32_t min,
 					  uint32_t max)
 {
-	struct amdgpu_device *adev = smu->adev;
 	int ret = 0, clk_id = 0;
 	uint32_t param;
 
@@ -1799,9 +1782,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 						clk_type);
 	if (clk_id < 0)
 		return clk_id;
-
-	if (clk_type == SMU_GFXCLK)
-		amdgpu_gfx_off_ctrl(adev, false);
 
 	if (max > 0) {
 		param = (uint32_t)((clk_id << 16) | (max & 0xffff));
@@ -1820,9 +1800,6 @@ int smu_v11_0_set_soft_freq_limited_range(struct smu_context *smu,
 	}
 
 out:
-	if (clk_type == SMU_GFXCLK)
-		amdgpu_gfx_off_ctrl(adev, true);
-
 	return ret;
 }
 
@@ -1931,7 +1908,7 @@ int smu_v11_0_set_performance_level(struct smu_context *smu,
 	 * Separate MCLK and SOCCLK soft min/max settings are not allowed
 	 * on Arcturus.
 	 */
-	if (adev->asic_type == CHIP_ARCTURUS) {
+	if (adev->ip_versions[MP1_HWIP][0] == IP_VERSION(11, 0, 2)) {
 		mclk_min = mclk_max = 0;
 		socclk_min = socclk_max = 0;
 	}

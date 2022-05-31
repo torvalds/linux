@@ -39,16 +39,13 @@ extern int icache_stride;
 extern struct pdc_cache_info cache_info;
 void parisc_setup_cache_timing(void);
 
-#define pdtlb(addr)	asm volatile("pdtlb 0(%%sr1,%0)" \
+#define pdtlb(sr, addr)	asm volatile("pdtlb 0(%%sr%0,%1)" \
 			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			: : "r" (addr) : "memory")
-#define pitlb(addr)	asm volatile("pitlb 0(%%sr1,%0)" \
+			: : "i"(sr), "r" (addr) : "memory")
+#define pitlb(sr, addr)	asm volatile("pitlb 0(%%sr%0,%1)" \
 			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
 			ALTERNATIVE(ALT_COND_NO_SPLIT_TLB, INSN_NOP) \
-			: : "r" (addr) : "memory")
-#define pdtlb_kernel(addr)  asm volatile("pdtlb 0(%0)"   \
-			ALTERNATIVE(ALT_COND_NO_SMP, INSN_PxTLB) \
-			: : "r" (addr) : "memory")
+			: : "i"(sr), "r" (addr) : "memory")
 
 #define asm_io_fdc(addr) asm volatile("fdc %%r0(%0)" \
 			ALTERNATIVE(ALT_COND_NO_DCACHE, INSN_NOP) \

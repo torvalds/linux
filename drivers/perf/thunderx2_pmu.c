@@ -487,7 +487,7 @@ static void tx2_uncore_event_update(struct perf_event *event)
 		new = reg_readl(hwc->event_base);
 		prev = local64_xchg(&hwc->prev_count, new);
 		/* handles rollover of 32 bit counter */
-		delta = (u32)(((1UL << 32) - prev) + new);
+		delta = (u32)(((1ULL << 32) - prev) + new);
 	}
 
 	/* DMC event data_transfers granularity is 16 Bytes, convert it to 64 */
@@ -887,13 +887,11 @@ static struct tx2_uncore_pmu *tx2_uncore_pmu_init_dev(struct device *dev,
 static acpi_status tx2_uncore_pmu_add(acpi_handle handle, u32 level,
 				    void *data, void **return_value)
 {
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct tx2_uncore_pmu *tx2_pmu;
-	struct acpi_device *adev;
 	enum tx2_uncore_type type;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-	if (acpi_bus_get_status(adev) || !adev->status.present)
+	if (!adev || acpi_bus_get_status(adev) || !adev->status.present)
 		return AE_OK;
 
 	type = get_tx2_pmu_type(adev);

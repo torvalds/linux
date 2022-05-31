@@ -29,12 +29,6 @@ static const struct ia_css_raw_configuration default_config = {
 	.pipe = (struct sh_css_sp_pipeline *)NULL,
 };
 
-static inline unsigned
-sh_css_elems_bytes_from_info(unsigned int raw_bit_depth)
-{
-	return CEIL_DIV(raw_bit_depth, 8);
-}
-
 /* MW: These areMIPI / ISYS properties, not camera function properties */
 static enum sh_stream_format
 css2isp_stream_format(enum atomisp_input_format from) {
@@ -70,17 +64,15 @@ css2isp_stream_format(enum atomisp_input_format from) {
 	}
 }
 
-void
-ia_css_raw_config(
-    struct sh_css_isp_raw_isp_config *to,
-    const struct ia_css_raw_configuration  *from,
-    unsigned int size)
+int ia_css_raw_config(struct sh_css_isp_raw_isp_config *to,
+		      const struct ia_css_raw_configuration  *from,
+		      unsigned int size)
 {
 	unsigned int elems_a = ISP_VEC_NELEMS;
 	const struct ia_css_frame_info *in_info = from->in_info;
 	const struct ia_css_frame_info *internal_info = from->internal_info;
+	int ret;
 
-	(void)size;
 #if !defined(ISP2401)
 	/* 2401 input system uses input width width */
 	in_info = internal_info;
@@ -92,7 +84,9 @@ ia_css_raw_config(
 		in_info = internal_info;
 
 #endif
-	ia_css_dma_configure_from_info(&to->port_b, in_info);
+	ret = ia_css_dma_configure_from_info(&to->port_b, in_info);
+	if (ret)
+		return ret;
 
 	/* Assume divisiblity here, may need to generalize to fixed point. */
 	assert((in_info->format == IA_CSS_FRAME_FORMAT_RAW_PACKED) ||
@@ -110,16 +104,16 @@ ia_css_raw_config(
 	to->start_line          = in_info->crop_info.start_line;
 	to->enable_left_padding = from->enable_left_padding;
 #endif
+
+	return 0;
 }
 
-void
-ia_css_raw_configure(
-    const struct sh_css_sp_pipeline *pipe,
-    const struct ia_css_binary      *binary,
-    const struct ia_css_frame_info  *in_info,
-    const struct ia_css_frame_info  *internal_info,
-    bool two_ppc,
-    bool deinterleaved)
+int ia_css_raw_configure(const struct sh_css_sp_pipeline *pipe,
+			 const struct ia_css_binary      *binary,
+			 const struct ia_css_frame_info  *in_info,
+			 const struct ia_css_frame_info  *internal_info,
+			 bool two_ppc,
+			 bool deinterleaved)
 {
 	u8 enable_left_padding = (uint8_t)((binary->left_padding) ? 1 : 0);
 	struct ia_css_raw_configuration config = default_config;
@@ -132,5 +126,5 @@ ia_css_raw_configure(
 	config.deinterleaved       = deinterleaved;
 	config.enable_left_padding = enable_left_padding;
 
-	ia_css_configure_raw(binary, &config);
+	return ia_css_configure_raw(binary, &config);
 }

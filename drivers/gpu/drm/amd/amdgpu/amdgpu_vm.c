@@ -53,7 +53,7 @@
  * can be mapped as snooped (cached system pages) or unsnooped
  * (uncached system pages).
  * Each VM has an ID associated with it and there is a page table
- * associated with each VMID.  When execting a command buffer,
+ * associated with each VMID.  When executing a command buffer,
  * the kernel tells the the ring what VMID to use for that command
  * buffer.  VMIDs are allocated dynamically as commands are submitted.
  * The userspace drivers maintain their own address space and the kernel
@@ -374,6 +374,8 @@ static void amdgpu_vm_bo_base_init(struct amdgpu_vm_bo_base *base,
 
 	if (bo->tbo.base.resv != vm->root.bo->tbo.base.resv)
 		return;
+
+	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
 
 	vm->bulk_moveable = false;
 	if (bo->tbo.type == ttm_bo_type_kernel && bo->parent)
@@ -768,11 +770,17 @@ int amdgpu_vm_validate_pt_bos(struct amdgpu_device *adev, struct amdgpu_vm *vm,
  * Check if all VM PDs/PTs are ready for updates
  *
  * Returns:
- * True if eviction list is empty.
+ * True if VM is not evicting.
  */
 bool amdgpu_vm_ready(struct amdgpu_vm *vm)
 {
-	return list_empty(&vm->evicted);
+	bool ret;
+
+	amdgpu_vm_eviction_lock(vm);
+	ret = !vm->evicting;
+	amdgpu_vm_eviction_unlock(vm);
+
+	return ret && list_empty(&vm->evicted);
 }
 
 /**
@@ -800,7 +808,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 	struct amdgpu_bo *bo = &vmbo->bo;
 	unsigned entries, ats_entries;
 	uint64_t addr;
-	int r;
+	int r, idx;
 
 	/* Figure out our place in the hierarchy */
 	if (ancestor->parent) {
@@ -845,9 +853,12 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 			return r;
 	}
 
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return -ENODEV;
+
 	r = vm->update_funcs->map_table(vmbo);
 	if (r)
-		return r;
+		goto exit;
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -856,7 +867,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 
 	r = vm->update_funcs->prepare(&params, NULL, AMDGPU_SYNC_EXPLICIT);
 	if (r)
-		return r;
+		goto exit;
 
 	addr = 0;
 	if (ats_entries) {
@@ -872,7 +883,7 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		r = vm->update_funcs->update(&params, vmbo, addr, 0, ats_entries,
 					     value, flags);
 		if (r)
-			return r;
+			goto exit;
 
 		addr += ats_entries * 8;
 	}
@@ -895,10 +906,13 @@ static int amdgpu_vm_clear_bo(struct amdgpu_device *adev,
 		r = vm->update_funcs->update(&params, vmbo, addr, 0, entries,
 					     value, flags);
 		if (r)
-			return r;
+			goto exit;
 	}
 
-	return vm->update_funcs->commit(&params, NULL);
+	r = vm->update_funcs->commit(&params, NULL);
+exit:
+	drm_dev_exit(idx);
+	return r;
 }
 
 /**
@@ -1384,10 +1398,13 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 			  struct amdgpu_vm *vm, bool immediate)
 {
 	struct amdgpu_vm_update_params params;
-	int r;
+	int r, idx;
 
 	if (list_empty(&vm->relocated))
 		return 0;
+
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
+		return -ENODEV;
 
 	memset(&params, 0, sizeof(params));
 	params.adev = adev;
@@ -1396,7 +1413,7 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 
 	r = vm->update_funcs->prepare(&params, NULL, AMDGPU_SYNC_EXPLICIT);
 	if (r)
-		return r;
+		goto exit;
 
 	while (!list_empty(&vm->relocated)) {
 		struct amdgpu_vm_bo_base *entry;
@@ -1414,10 +1431,13 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	r = vm->update_funcs->commit(&params, &vm->last_update);
 	if (r)
 		goto error;
+	drm_dev_exit(idx);
 	return 0;
 
 error:
 	amdgpu_vm_invalidate_pds(adev, vm);
+exit:
+	drm_dev_exit(idx);
 	return r;
 }
 
@@ -1622,7 +1642,7 @@ static int amdgpu_vm_update_ptes(struct amdgpu_vm_update_params *params,
 			nptes = max(nptes, 1u);
 
 			trace_amdgpu_vm_update_ptes(params, frag_start, upd_end,
-						    nptes, dst, incr, upd_flags,
+						    min(nptes, 32u), dst, incr, upd_flags,
 						    vm->task_info.pid,
 						    vm->immediate.fence_context);
 			amdgpu_vm_update_flags(params, to_amdgpu_bo_vm(pt),
@@ -1706,7 +1726,7 @@ int amdgpu_vm_bo_update_mapping(struct amdgpu_device *adev,
 	enum amdgpu_sync_mode sync_mode;
 	int r, idx;
 
-	if (!drm_dev_enter(&adev->ddev, &idx))
+	if (!drm_dev_enter(adev_to_drm(adev), &idx))
 		return -ENODEV;
 
 	memset(&params, 0, sizeof(params));
@@ -2090,30 +2110,14 @@ static void amdgpu_vm_free_mapping(struct amdgpu_device *adev,
 static void amdgpu_vm_prt_fini(struct amdgpu_device *adev, struct amdgpu_vm *vm)
 {
 	struct dma_resv *resv = vm->root.bo->tbo.base.resv;
-	struct dma_fence *excl, **shared;
-	unsigned i, shared_count;
-	int r;
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
 
-	r = dma_resv_get_fences(resv, &excl, &shared_count, &shared);
-	if (r) {
-		/* Not enough memory to grab the fence list, as last resort
-		 * block for all the fences to complete.
-		 */
-		dma_resv_wait_timeout(resv, true, false,
-						    MAX_SCHEDULE_TIMEOUT);
-		return;
-	}
-
-	/* Add a callback for each fence in the reservation object */
-	amdgpu_vm_prt_get(adev);
-	amdgpu_vm_add_prt_cb(adev, excl);
-
-	for (i = 0; i < shared_count; ++i) {
+	dma_resv_for_each_fence(&cursor, resv, true, fence) {
+		/* Add a callback for each fence in the reservation object */
 		amdgpu_vm_prt_get(adev);
-		amdgpu_vm_add_prt_cb(adev, shared[i]);
+		amdgpu_vm_add_prt_cb(adev, fence);
 	}
-
-	kfree(shared);
 }
 
 /**
@@ -2261,6 +2265,7 @@ struct amdgpu_bo_va *amdgpu_vm_bo_add(struct amdgpu_device *adev,
 	if (!bo)
 		return bo_va;
 
+	dma_resv_assert_held(bo->tbo.base.resv);
 	if (amdgpu_dmabuf_is_xgmi_accessible(adev, bo)) {
 		bo_va->is_xgmi = true;
 		/* Power up XGMI if it can be potentially used */
@@ -2638,7 +2643,7 @@ void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket)
 }
 
 /**
- * amdgpu_vm_bo_rmv - remove a bo to a specific vm
+ * amdgpu_vm_bo_del - remove a bo from a specific vm
  *
  * @adev: amdgpu_device pointer
  * @bo_va: requested bo_va
@@ -2647,7 +2652,7 @@ void amdgpu_vm_bo_trace_cs(struct amdgpu_vm *vm, struct ww_acquire_ctx *ticket)
  *
  * Object have to be reserved!
  */
-void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
+void amdgpu_vm_bo_del(struct amdgpu_device *adev,
 		      struct amdgpu_bo_va *bo_va)
 {
 	struct amdgpu_bo_va_mapping *mapping, *next;
@@ -2655,7 +2660,10 @@ void amdgpu_vm_bo_rmv(struct amdgpu_device *adev,
 	struct amdgpu_vm *vm = bo_va->base.vm;
 	struct amdgpu_vm_bo_base **base;
 
+	dma_resv_assert_held(vm->root.bo->tbo.base.resv);
+
 	if (bo) {
+		dma_resv_assert_held(bo->tbo.base.resv);
 		if (bo->tbo.base.resv == vm->root.bo->tbo.base.resv)
 			vm->bulk_moveable = false;
 

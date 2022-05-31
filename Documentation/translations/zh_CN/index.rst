@@ -5,7 +5,7 @@
 	\renewcommand\thesection*
 	\renewcommand\thesubsection*
 	\kerneldocCJKon
-	\kerneldocBeginSC
+	\kerneldocBeginSC{
 
 .. _linux_doc_zh:
 
@@ -22,6 +22,11 @@
 项正在进行的工作；当我们努力将许多分散的文件整合成一个连贯的整体时尤其如此。
 另外，随时欢迎您对内核文档进行改进；如果您想提供帮助，请加入vger.kernel.org
 上的linux-doc邮件列表。
+
+顺便说下，中文文档也需要遵守内核编码风格，风格中中文和英文的主要不同就是中文
+的字符标点占用两个英文字符宽度， 所以，当英文要求不要超过每行100个字符时，
+中文就不要超过50个字符。另外，也要注意'-'，'=' 等符号与相关标题的对齐。在将
+补丁提交到社区之前，一定要进行必要的checkpatch.pl检查和编译测试。
 
 许可证文档
 ----------
@@ -51,10 +56,14 @@ TODOList:
 
 下列文档描述了内核需要的平台固件相关信息。
 
+.. toctree::
+   :maxdepth: 2
+
+   devicetree/index
+
 TODOList:
 
 * firmware-guide/index
-* devicetree/index
 
 应用程序开发人员文档
 --------------------
@@ -99,13 +108,17 @@ TODOList:
    :maxdepth: 2
 
    core-api/index
+   accounting/index
    cpu-freq/index
    iio/index
+   infiniband/index
+   power/index
+   virt/index
    sound/index
    filesystems/index
-   virt/index
-   infiniband/index
-   accounting/index
+   scheduler/index
+   vm/index
+   peci/index
 
 TODOList:
 
@@ -123,7 +136,6 @@ TODOList:
 * netlabel/index
 * networking/index
 * pcmcia/index
-* power/index
 * target/index
 * timers/index
 * spi/index
@@ -134,13 +146,11 @@ TODOList:
 * gpu/index
 * security/index
 * crypto/index
-* vm/index
 * bpf/index
 * usb/index
 * PCI/index
 * scsi/index
 * misc-devices/index
-* scheduler/index
 * mhi/index
 
 体系结构无关文档
@@ -193,4 +203,4 @@ TODOList:
 
 .. raw:: latex
 
-	\kerneldocEndSC
+	}\kerneldocEndSC

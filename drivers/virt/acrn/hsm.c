@@ -114,9 +114,11 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 	struct acrn_ptdev_irq *irq_info;
 	struct acrn_ioeventfd ioeventfd;
 	struct acrn_vm_memmap memmap;
+	struct acrn_mmiodev *mmiodev;
 	struct acrn_msi_entry *msi;
 	struct acrn_pcidev *pcidev;
 	struct acrn_irqfd irqfd;
+	struct acrn_vdev *vdev;
 	struct page *page;
 	u64 cstate_cmd;
 	int i, ret = 0;
@@ -134,8 +136,10 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 		if (IS_ERR(vm_param))
 			return PTR_ERR(vm_param);
 
-		if ((vm_param->reserved0 | vm_param->reserved1) != 0)
+		if ((vm_param->reserved0 | vm_param->reserved1) != 0) {
+			kfree(vm_param);
 			return -EINVAL;
+		}
 
 		vm = acrn_vm_create(vm, vm_param);
 		if (!vm) {
@@ -180,21 +184,29 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 			return PTR_ERR(cpu_regs);
 
 		for (i = 0; i < ARRAY_SIZE(cpu_regs->reserved); i++)
-			if (cpu_regs->reserved[i])
+			if (cpu_regs->reserved[i]) {
+				kfree(cpu_regs);
 				return -EINVAL;
+			}
 
 		for (i = 0; i < ARRAY_SIZE(cpu_regs->vcpu_regs.reserved_32); i++)
-			if (cpu_regs->vcpu_regs.reserved_32[i])
+			if (cpu_regs->vcpu_regs.reserved_32[i]) {
+				kfree(cpu_regs);
 				return -EINVAL;
+			}
 
 		for (i = 0; i < ARRAY_SIZE(cpu_regs->vcpu_regs.reserved_64); i++)
-			if (cpu_regs->vcpu_regs.reserved_64[i])
+			if (cpu_regs->vcpu_regs.reserved_64[i]) {
+				kfree(cpu_regs);
 				return -EINVAL;
+			}
 
 		for (i = 0; i < ARRAY_SIZE(cpu_regs->vcpu_regs.gdt.reserved); i++)
 			if (cpu_regs->vcpu_regs.gdt.reserved[i] |
-			    cpu_regs->vcpu_regs.idt.reserved[i])
+			    cpu_regs->vcpu_regs.idt.reserved[i]) {
+				kfree(cpu_regs);
 				return -EINVAL;
+			}
 
 		ret = hcall_set_vcpu_regs(vm->vmid, virt_to_phys(cpu_regs));
 		if (ret < 0)
@@ -216,6 +228,30 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 			return -EFAULT;
 
 		ret = acrn_vm_memseg_unmap(vm, &memmap);
+		break;
+	case ACRN_IOCTL_ASSIGN_MMIODEV:
+		mmiodev = memdup_user((void __user *)ioctl_param,
+				      sizeof(struct acrn_mmiodev));
+		if (IS_ERR(mmiodev))
+			return PTR_ERR(mmiodev);
+
+		ret = hcall_assign_mmiodev(vm->vmid, virt_to_phys(mmiodev));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to assign MMIO device!\n");
+		kfree(mmiodev);
+		break;
+	case ACRN_IOCTL_DEASSIGN_MMIODEV:
+		mmiodev = memdup_user((void __user *)ioctl_param,
+				      sizeof(struct acrn_mmiodev));
+		if (IS_ERR(mmiodev))
+			return PTR_ERR(mmiodev);
+
+		ret = hcall_deassign_mmiodev(vm->vmid, virt_to_phys(mmiodev));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to deassign MMIO device!\n");
+		kfree(mmiodev);
 		break;
 	case ACRN_IOCTL_ASSIGN_PCIDEV:
 		pcidev = memdup_user((void __user *)ioctl_param,
@@ -240,6 +276,29 @@ static long acrn_dev_ioctl(struct file *filp, unsigned int cmd,
 			dev_dbg(acrn_dev.this_device,
 				"Failed to deassign pci device!\n");
 		kfree(pcidev);
+		break;
+	case ACRN_IOCTL_CREATE_VDEV:
+		vdev = memdup_user((void __user *)ioctl_param,
+				   sizeof(struct acrn_vdev));
+		if (IS_ERR(vdev))
+			return PTR_ERR(vdev);
+
+		ret = hcall_create_vdev(vm->vmid, virt_to_phys(vdev));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to create virtual device!\n");
+		kfree(vdev);
+		break;
+	case ACRN_IOCTL_DESTROY_VDEV:
+		vdev = memdup_user((void __user *)ioctl_param,
+				   sizeof(struct acrn_vdev));
+		if (IS_ERR(vdev))
+			return PTR_ERR(vdev);
+		ret = hcall_destroy_vdev(vm->vmid, virt_to_phys(vdev));
+		if (ret < 0)
+			dev_dbg(acrn_dev.this_device,
+				"Failed to destroy virtual device!\n");
+		kfree(vdev);
 		break;
 	case ACRN_IOCTL_SET_PTDEV_INTR:
 		irq_info = memdup_user((void __user *)ioctl_param,

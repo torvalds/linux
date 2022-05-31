@@ -30,12 +30,7 @@ void PHY_DigitalPredistortion_8188E(struct adapter *pAdapter);
 void _PHY_SaveADDARegisters(struct adapter *pAdapter, u32 *ADDAReg,
 			    u32 *ADDABackup, u32 RegisterNum);
 
-void _PHY_PathADDAOn(struct adapter *pAdapter, u32 *ADDAReg,
-		     bool isPathAOn, bool is2T);
-
 void _PHY_MACSettingCalibration(struct adapter *pAdapter, u32 *MACReg,
 				u32 *MACBackup);
-
-void _PHY_PathAStandBy(struct adapter *pAdapter);
 
 #endif	/*  #ifndef __HAL_PHY_RF_8188E_H__ */

@@ -302,6 +302,56 @@
 				compatible = "qcom,rpmcc-sm6125", "qcom,rpmcc";
 				#clock-cells = <1>;
 			};
+
+			rpmpd: power-controller {
+				compatible = "qcom,sm6125-rpmpd";
+				#power-domain-cells = <1>;
+				operating-points-v2 = <&rpmpd_opp_table>;
+
+				rpmpd_opp_table: opp-table {
+					compatible = "operating-points-v2";
+
+					rpmpd_opp_ret: opp1 {
+						opp-level = <RPM_SMD_LEVEL_RETENTION>;
+					};
+
+					rpmpd_opp_ret_plus: opp2 {
+						opp-level = <RPM_SMD_LEVEL_RETENTION_PLUS>;
+					};
+
+					rpmpd_opp_min_svs: opp3 {
+						opp-level = <RPM_SMD_LEVEL_MIN_SVS>;
+					};
+
+					rpmpd_opp_low_svs: opp4 {
+						opp-level = <RPM_SMD_LEVEL_LOW_SVS>;
+					};
+
+					rpmpd_opp_svs: opp5 {
+						opp-level = <RPM_SMD_LEVEL_SVS>;
+					};
+
+					rpmpd_opp_svs_plus: opp6 {
+						opp-level = <RPM_SMD_LEVEL_SVS_PLUS>;
+					};
+
+					rpmpd_opp_nom: opp7 {
+						opp-level = <RPM_SMD_LEVEL_NOM>;
+					};
+
+					rpmpd_opp_nom_plus: opp8 {
+						opp-level = <RPM_SMD_LEVEL_NOM_PLUS>;
+					};
+
+					rpmpd_opp_turbo: opp9 {
+						opp-level = <RPM_SMD_LEVEL_TURBO>;
+					};
+
+					rpmpd_opp_turbo_no_cpr: opp10 {
+						opp-level = <RPM_SMD_LEVEL_TURBO_NO_CPR>;
+					};
+				};
+			};
 		};
 	};
 
@@ -326,8 +376,8 @@
 		tlmm: pinctrl@500000 {
 			compatible = "qcom,sm6125-tlmm";
 			reg = <0x00500000 0x400000>,
-				<0x00900000 0x400000>,
-				<0x00d00000 0x400000>;
+			      <0x00900000 0x400000>,
+			      <0x00d00000 0x400000>;
 			reg-names = "west", "south", "east";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			gpio-controller;
@@ -380,7 +430,7 @@
 			status = "disabled";
 		};
 
-		rpm_msg_ram: memory@45f0000 {
+		rpm_msg_ram: sram@45f0000 {
 			compatible = "qcom,rpm-msg-ram";
 			reg = <0x045f0000 0x7000>;
 		};
@@ -391,13 +441,16 @@
 			reg-names = "hc", "core";
 
 			interrupts = <GIC_SPI 348 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 352 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
 			clocks = <&gcc GCC_SDCC1_AHB_CLK>,
-				<&gcc GCC_SDCC1_APPS_CLK>,
-				<&xo_board>;
+				 <&gcc GCC_SDCC1_APPS_CLK>,
+				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
+
+			power-domains = <&rpmpd SM6125_VDDCX>;
+
 			bus-width = <8>;
 			non-removable;
 			status = "disabled";
@@ -409,17 +462,19 @@
 			reg-names = "hc";
 
 			interrupts = <GIC_SPI 350 IRQ_TYPE_LEVEL_HIGH>,
-				<GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
+				     <GIC_SPI 353 IRQ_TYPE_LEVEL_HIGH>;
 			interrupt-names = "hc_irq", "pwr_irq";
 
 			clocks = <&gcc GCC_SDCC2_AHB_CLK>,
-				<&gcc GCC_SDCC2_APPS_CLK>,
-				<&xo_board>;
+				 <&gcc GCC_SDCC2_APPS_CLK>,
+				 <&xo_board>;
 			clock-names = "iface", "core", "xo";
 
 			pinctrl-0 = <&sdc2_state_on>;
 			pinctrl-1 = <&sdc2_state_off>;
 			pinctrl-names = "default", "sleep";
+
+			power-domains = <&rpmpd SM6125_VDDCX>;
 
 			bus-width = <4>;
 			status = "disabled";
@@ -433,11 +488,11 @@
 			ranges;
 
 			clocks = <&gcc GCC_USB30_PRIM_MASTER_CLK>,
-				<&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
-				<&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
-				<&gcc GCC_USB3_PRIM_CLKREF_CLK>,
-				<&gcc GCC_USB30_PRIM_SLEEP_CLK>,
-				<&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
+				 <&gcc GCC_SYS_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_CFG_NOC_USB3_PRIM_AXI_CLK>,
+				 <&gcc GCC_USB3_PRIM_CLKREF_CLK>,
+				 <&gcc GCC_USB30_PRIM_SLEEP_CLK>,
+				 <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>;
 
 			assigned-clocks = <&gcc GCC_USB30_PRIM_MOCK_UTMI_CLK>,
 					  <&gcc GCC_USB30_PRIM_MASTER_CLK>;
@@ -460,13 +515,18 @@
 			};
 		};
 
+		sram@4690000 {
+			compatible = "qcom,rpm-stats";
+			reg = <0x04690000 0x10000>;
+		};
+
 		spmi_bus: spmi@1c40000 {
 			compatible = "qcom,spmi-pmic-arb";
-			reg =	<0x01c40000 0x1100>,
-				<0x01e00000 0x2000000>,
-				<0x03e00000 0x100000>,
-				<0x03f00000 0xa0000>,
-				<0x01c0a000 0x26000>;
+			reg = <0x01c40000 0x1100>,
+			      <0x01e00000 0x2000000>,
+			      <0x03e00000 0x100000>,
+			      <0x03f00000 0xa0000>,
+			      <0x01c0a000 0x26000>;
 			reg-names = "core", "chnls", "obsrvr", "intr", "cnfg";
 			interrupt-names = "periph_irq";
 			interrupts = <GIC_SPI 183 IRQ_TYPE_LEVEL_HIGH>;
@@ -494,22 +554,22 @@
 			reg = <0x0f120000 0x1000>;
 			clock-frequency = <19200000>;
 
-			frame@0f121000 {
+			frame@f121000 {
 				frame-number = <0>;
 				interrupts = <GIC_SPI 8 IRQ_TYPE_LEVEL_HIGH>,
-						<GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
+					     <GIC_SPI 7 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x0f121000 0x1000>,
 				      <0x0f122000 0x1000>;
 			};
 
-			frame@0f123000 {
+			frame@f123000 {
 				frame-number = <1>;
 				interrupts = <GIC_SPI 9 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x0f123000 0x1000>;
 				status = "disabled";
 			};
 
-			frame@0f124000 {
+			frame@f124000 {
 				frame-number = <2>;
 				interrupts = <GIC_SPI 10 IRQ_TYPE_LEVEL_HIGH>;
 				reg = <0x0f124000 0x1000>;
@@ -548,7 +608,7 @@
 		intc: interrupt-controller@f200000 {
 			compatible = "arm,gic-v3";
 			reg = <0x0f200000 0x20000>,
-				<0x0f300000 0x100000>;
+			      <0x0f300000 0x100000>;
 			#interrupt-cells = <3>;
 			interrupt-controller;
 			interrupts = <GIC_PPI 9 IRQ_TYPE_LEVEL_HIGH>;
@@ -558,9 +618,9 @@
 	timer {
 		compatible = "arm,armv8-timer";
 		interrupts = <GIC_PPI 1 0xf08
-				GIC_PPI 2 0xf08
-				GIC_PPI 3 0xf08
-				GIC_PPI 0 0xf08>;
+			      GIC_PPI 2 0xf08
+			      GIC_PPI 3 0xf08
+			      GIC_PPI 0 0xf08>;
 		clock-frequency = <19200000>;
 	};
 };

@@ -36,8 +36,8 @@
 #define ST_MIN_BUFFER ST_MAX_BUFFER
 
 #define DRV_NAME "acp_audio_dma"
-bool bt_uart_enable = true;
-EXPORT_SYMBOL(bt_uart_enable);
+bool acp_bt_uart_enable = true;
+EXPORT_SYMBOL(acp_bt_uart_enable);
 
 static const struct snd_pcm_hardware acp_pcm_hardware_playback = {
 	.info = SNDRV_PCM_INFO_INTERLEAVED |
@@ -596,7 +596,7 @@ static int acp_init(void __iomem *acp_mmio, u32 asic_type)
 	acp_reg_write(val, acp_mmio, mmACP_SOFT_RESET);
 
 	/* For BT instance change pins from UART to BT */
-	if (!bt_uart_enable) {
+	if (!acp_bt_uart_enable) {
 		val = acp_reg_read(acp_mmio, mmACP_BT_UART_PAD_SEL);
 		val |= ACP_BT_UART_PAD_SELECT_MASK;
 		acp_reg_write(val, acp_mmio, mmACP_BT_UART_PAD_SEL);
@@ -1003,6 +1003,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 
 	struct snd_pcm_runtime *runtime = substream->runtime;
 	struct audio_substream_data *rtd = runtime->private_data;
+	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
 
 	if (!rtd)
 		return -EINVAL;
@@ -1023,7 +1024,7 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 		}
 		if (bytescount > 0) {
 			delay = do_div(bytescount, period_bytes);
-			runtime->delay = bytes_to_frames(runtime, delay);
+			adata->delay += bytes_to_frames(runtime, delay);
 		}
 	} else {
 		buffersize = frames_to_bytes(runtime, runtime->buffer_size);
@@ -1033,6 +1034,17 @@ static snd_pcm_uframes_t acp_dma_pointer(struct snd_soc_component *component,
 		pos = do_div(bytescount, buffersize);
 	}
 	return bytes_to_frames(runtime, pos);
+}
+
+static snd_pcm_sframes_t acp_dma_delay(struct snd_soc_component *component,
+				       struct snd_pcm_substream *substream)
+{
+	struct audio_drv_data *adata = dev_get_drvdata(component->dev);
+	snd_pcm_sframes_t delay = adata->delay;
+
+	adata->delay = 0;
+
+	return delay;
 }
 
 static int acp_dma_prepare(struct snd_soc_component *component,
@@ -1198,15 +1210,15 @@ static const struct snd_soc_component_driver acp_asoc_platform = {
 	.hw_params	= acp_dma_hw_params,
 	.trigger	= acp_dma_trigger,
 	.pointer	= acp_dma_pointer,
+	.delay		= acp_dma_delay,
 	.prepare	= acp_dma_prepare,
 	.pcm_construct	= acp_dma_new,
 };
 
 static int acp_audio_probe(struct platform_device *pdev)
 {
-	int status;
+	int status, irq;
 	struct audio_drv_data *audio_drv_data;
-	struct resource *res;
 	const u32 *pdata = pdev->dev.platform_data;
 
 	if (!pdata) {
@@ -1236,13 +1248,11 @@ static int acp_audio_probe(struct platform_device *pdev)
 
 	audio_drv_data->asic_type =  *pdata;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(&pdev->dev, "IORESOURCE_IRQ FAILED\n");
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
 		return -ENODEV;
-	}
 
-	status = devm_request_irq(&pdev->dev, res->start, dma_irq_handler,
+	status = devm_request_irq(&pdev->dev, irq, dma_irq_handler,
 				  0, "ACP_IRQ", &pdev->dev);
 	if (status) {
 		dev_err(&pdev->dev, "ACP IRQ request failed\n");

@@ -1093,7 +1093,7 @@ static struct attribute *omap_aes_attrs[] = {
 	NULL,
 };
 
-static struct attribute_group omap_aes_attr_group = {
+static const struct attribute_group omap_aes_attr_group = {
 	.attrs = omap_aes_attrs,
 };
 
@@ -1302,7 +1302,7 @@ static int omap_aes_suspend(struct device *dev)
 
 static int omap_aes_resume(struct device *dev)
 {
-	pm_runtime_resume_and_get(dev);
+	pm_runtime_get_sync(dev);
 	return 0;
 }
 #endif

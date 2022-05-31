@@ -669,6 +669,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	struct bpf_prog *xdp_prog;
 	int cq_ring = cq->ring;
 	bool doorbell_pending;
+	bool xdp_redir_flush;
 	struct mlx4_cqe *cqe;
 	struct xdp_buff xdp;
 	int polled = 0;
@@ -682,6 +683,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 	xdp_prog = rcu_dereference_bh(ring->xdp_prog);
 	xdp_init_buff(&xdp, priv->frag_info[0].frag_stride, &ring->xdp_rxq);
 	doorbell_pending = false;
+	xdp_redir_flush = false;
 
 	/* We assume a 1:1 mapping between CQEs and Rx descriptors, so Rx
 	 * descriptor offset can be deduced from the CQE index instead of
@@ -790,6 +792,16 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 			switch (act) {
 			case XDP_PASS:
 				break;
+			case XDP_REDIRECT:
+				if (likely(!xdp_do_redirect(dev, &xdp, xdp_prog))) {
+					ring->xdp_redirect++;
+					xdp_redir_flush = true;
+					frags[0].page = NULL;
+					goto next;
+				}
+				ring->xdp_redirect_fail++;
+				trace_xdp_exception(dev, xdp_prog, act);
+				goto xdp_drop_no_cnt;
 			case XDP_TX:
 				if (likely(!mlx4_en_xmit_frame(ring, frags, priv,
 							length, cq_ring,
@@ -800,7 +812,7 @@ int mlx4_en_process_rx_cq(struct net_device *dev, struct mlx4_en_cq *cq, int bud
 				trace_xdp_exception(dev, xdp_prog, act);
 				goto xdp_drop_no_cnt; /* Drop on xmit failure */
 			default:
-				bpf_warn_invalid_xdp_action(act);
+				bpf_warn_invalid_xdp_action(dev, xdp_prog, act);
 				fallthrough;
 			case XDP_ABORTED:
 				trace_xdp_exception(dev, xdp_prog, act);
@@ -896,6 +908,9 @@ next:
 		if (unlikely(++polled == budget))
 			break;
 	}
+
+	if (xdp_redir_flush)
+		xdp_do_flush();
 
 	if (likely(polled)) {
 		if (doorbell_pending) {
@@ -1052,7 +1067,7 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	struct mlx4_qp_context *context;
 	int err = 0;
 
-	context = kmalloc(sizeof(*context), GFP_KERNEL);
+	context = kzalloc(sizeof(*context), GFP_KERNEL);
 	if (!context)
 		return -ENOMEM;
 
@@ -1063,7 +1078,6 @@ static int mlx4_en_config_rss_qp(struct mlx4_en_priv *priv, int qpn,
 	}
 	qp->event = mlx4_en_sqp_event;
 
-	memset(context, 0, sizeof(*context));
 	mlx4_en_fill_qp_context(priv, ring->actual_size, ring->stride, 0, 0,
 				qpn, ring->cqn, -1, context);
 	context->db_rec_addr = cpu_to_be64(ring->wqres.db.dma);

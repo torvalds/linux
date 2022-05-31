@@ -10,7 +10,6 @@
  */
 
 #include <asm/unaligned.h>
-#include <linux/async.h>
 
 #include "ufshcd.h"
 #include "ufshpb.h"
@@ -331,7 +330,7 @@ ufshpb_set_hpb_read_to_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp,
 	cdb[0] = UFSHPB_READ;
 
 	if (hba->dev_quirks & UFS_DEVICE_QUIRK_SWAP_L2P_ENTRY_FOR_HPB_READ)
-		ppn_tmp = swab64(ppn);
+		ppn_tmp = (__force __be64)swab64((__force u64)ppn);
 
 	/* ppn value is stored as big-endian in the host memory */
 	memcpy(&cdb[6], &ppn_tmp, sizeof(__be64));
@@ -394,8 +393,6 @@ int ufshpb_prep(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	if (!ufshpb_is_supported_chunk(hpb, transfer_len))
 		return 0;
 
-	WARN_ON_ONCE(transfer_len > HPB_MULTI_CHUNK_HIGH);
-
 	if (hpb->is_hcm) {
 		/*
 		 * in host control mode, reads are the main source for
@@ -449,7 +446,7 @@ static struct ufshpb_req *ufshpb_get_req(struct ufshpb_lu *hpb,
 		return NULL;
 
 retry:
-	req = blk_get_request(hpb->sdev_ufs_lu->request_queue, dir,
+	req = blk_mq_alloc_request(hpb->sdev_ufs_lu->request_queue, dir,
 			      BLK_MQ_REQ_NOWAIT);
 
 	if (!atomic && (PTR_ERR(req) == -EWOULDBLOCK) && (--retries > 0)) {
@@ -473,7 +470,7 @@ free_rq:
 
 static void ufshpb_put_req(struct ufshpb_lu *hpb, struct ufshpb_req *rq)
 {
-	blk_put_request(rq->req);
+	blk_mq_free_request(rq->req);
 	kmem_cache_free(hpb->map_req_cache, rq);
 }
 
@@ -497,7 +494,7 @@ static struct ufshpb_req *ufshpb_get_map_req(struct ufshpb_lu *hpb,
 	if (!map_req)
 		return NULL;
 
-	bio = bio_alloc(GFP_KERNEL, hpb->pages_per_srgn);
+	bio = bio_alloc(NULL, hpb->pages_per_srgn, 0, GFP_KERNEL);
 	if (!bio) {
 		ufshpb_put_req(hpb, map_req);
 		return NULL;
@@ -669,17 +666,16 @@ static void ufshpb_execute_umap_req(struct ufshpb_lu *hpb,
 				   struct ufshpb_req *umap_req,
 				   struct ufshpb_region *rgn)
 {
-	struct request *req;
-	struct scsi_request *rq;
+	struct request *req = umap_req->req;
+	struct scsi_cmnd *scmd = blk_mq_rq_to_pdu(req);
 
-	req = umap_req->req;
 	req->timeout = 0;
-	req->end_io_data = (void *)umap_req;
-	rq = scsi_req(req);
-	ufshpb_set_unmap_cmd(rq->cmd, rgn);
-	rq->cmd_len = HPB_WRITE_BUFFER_CMD_LENGTH;
+	req->end_io_data = umap_req;
 
-	blk_execute_rq_nowait(NULL, req, 1, ufshpb_umap_req_compl_fn);
+	ufshpb_set_unmap_cmd(scmd->cmnd, rgn);
+	scmd->cmd_len = HPB_WRITE_BUFFER_CMD_LENGTH;
+
+	blk_execute_rq_nowait(req, true, ufshpb_umap_req_compl_fn);
 
 	hpb->stats.umap_req_cnt++;
 }
@@ -689,7 +685,7 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 {
 	struct request_queue *q;
 	struct request *req;
-	struct scsi_request *rq;
+	struct scsi_cmnd *scmd;
 	int mem_size = hpb->srgn_mem_size;
 	int ret = 0;
 	int i;
@@ -712,16 +708,15 @@ static int ufshpb_execute_map_req(struct ufshpb_lu *hpb,
 
 	req->end_io_data = map_req;
 
-	rq = scsi_req(req);
-
 	if (unlikely(last))
 		mem_size = hpb->last_srgn_entries * HPB_ENTRY_SIZE;
 
-	ufshpb_set_read_buf_cmd(rq->cmd, map_req->rb.rgn_idx,
+	scmd = blk_mq_rq_to_pdu(req);
+	ufshpb_set_read_buf_cmd(scmd->cmnd, map_req->rb.rgn_idx,
 				map_req->rb.srgn_idx, mem_size);
-	rq->cmd_len = HPB_READ_BUFFER_CMD_LENGTH;
+	scmd->cmd_len = HPB_READ_BUFFER_CMD_LENGTH;
 
-	blk_execute_rq_nowait(NULL, req, 1, ufshpb_map_req_compl_fn);
+	blk_execute_rq_nowait(req, true, ufshpb_map_req_compl_fn);
 
 	hpb->stats.map_req_cnt++;
 	return 0;
@@ -872,12 +867,6 @@ static struct ufshpb_region *ufshpb_victim_lru_info(struct ufshpb_lu *hpb)
 	struct ufshpb_region *rgn, *victim_rgn = NULL;
 
 	list_for_each_entry(rgn, &lru_info->lh_lru_rgn, list_lru_rgn) {
-		if (!rgn) {
-			dev_err(&hpb->sdev_ufs_lu->sdev_dev,
-				"%s: no region allocated\n",
-				__func__);
-			return NULL;
-		}
 		if (ufshpb_check_srgns_issue_state(hpb, rgn))
 			continue;
 
@@ -892,6 +881,11 @@ static struct ufshpb_region *ufshpb_victim_lru_info(struct ufshpb_lu *hpb)
 		victim_rgn = rgn;
 		break;
 	}
+
+	if (!victim_rgn)
+		dev_err(&hpb->sdev_ufs_lu->sdev_dev,
+			"%s: no region allocated\n",
+			__func__);
 
 	return victim_rgn;
 }
@@ -1260,6 +1254,13 @@ void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 	struct utp_hpb_rsp *rsp_field = &lrbp->ucd_rsp_ptr->hr;
 	int data_seg_len;
 
+	data_seg_len = be32_to_cpu(lrbp->ucd_rsp_ptr->header.dword_2)
+		& MASK_RSP_UPIU_DATA_SEG_LEN;
+
+	/* If data segment length is zero, rsp_field is not valid */
+	if (!data_seg_len)
+		return;
+
 	if (unlikely(lrbp->lun != rsp_field->lun)) {
 		struct scsi_device *sdev;
 		bool found = false;
@@ -1291,18 +1292,6 @@ void ufshpb_rsp_upiu(struct ufs_hba *hba, struct ufshcd_lrb *lrbp)
 		dev_notice(&hpb->sdev_ufs_lu->sdev_dev,
 			   "%s: ufshpb state is not PRESENT/SUSPEND\n",
 			   __func__);
-		return;
-	}
-
-	data_seg_len = be32_to_cpu(lrbp->ucd_rsp_ptr->header.dword_2)
-		& MASK_RSP_UPIU_DATA_SEG_LEN;
-
-	/* To flush remained rsp_list, we queue the map_work task */
-	if (!data_seg_len) {
-		if (!ufshpb_is_general_lun(hpb->lun))
-			return;
-
-		ufshpb_kick_map_work(hpb);
 		return;
 	}
 
@@ -1572,7 +1561,7 @@ static void ufshpb_lu_parameter_init(struct ufs_hba *hba,
 	if (ufshpb_is_legacy(hba))
 		hpb->pre_req_max_tr_len = HPB_LEGACY_CHUNK_HIGH;
 	else
-		hpb->pre_req_max_tr_len = HPB_MULTI_CHUNK_HIGH;
+		hpb->pre_req_max_tr_len = hpb_dev_info->max_hpb_single_cmd;
 
 	hpb->lu_pinned_start = hpb_lu_info->pinned_start;
 	hpb->lu_pinned_end = hpb_lu_info->num_pinned ?
@@ -2053,7 +2042,7 @@ static int ufshpb_pre_req_mempool_init(struct ufshpb_lu *hpb)
 		INIT_LIST_HEAD(&pre_req->list_req);
 		pre_req->req = NULL;
 
-		pre_req->bio = bio_alloc(GFP_KERNEL, 1);
+		pre_req->bio = bio_alloc(NULL, 1, 0, GFP_KERNEL);
 		if (!pre_req->bio)
 			goto release_mem;
 
@@ -2371,11 +2360,11 @@ static int ufshpb_get_lu_info(struct ufs_hba *hba, int lun,
 
 	ufshcd_map_desc_id_to_length(hba, QUERY_DESC_IDN_UNIT, &size);
 
-	pm_runtime_get_sync(hba->dev);
+	ufshcd_rpm_get_sync(hba);
 	ret = ufshcd_query_descriptor_retry(hba, UPIU_QUERY_OPCODE_READ_DESC,
 					    QUERY_DESC_IDN_UNIT, lun, 0,
 					    desc_buf, &size);
-	pm_runtime_put_sync(hba->dev);
+	ufshcd_rpm_put_sync(hba);
 
 	if (ret) {
 		dev_err(hba->dev,
@@ -2582,7 +2571,7 @@ void ufshpb_get_dev_info(struct ufs_hba *hba, u8 *desc_buf)
 {
 	struct ufshpb_dev_info *hpb_dev_info = &hba->ufshpb_dev;
 	int version, ret;
-	u32 max_hpb_single_cmd = HPB_MULTI_CHUNK_LOW;
+	int max_single_cmd;
 
 	hpb_dev_info->control_mode = desc_buf[DEVICE_DESC_PARAM_HPB_CONTROL];
 
@@ -2598,21 +2587,22 @@ void ufshpb_get_dev_info(struct ufs_hba *hba, u8 *desc_buf)
 	if (version == HPB_SUPPORT_LEGACY_VERSION)
 		hpb_dev_info->is_legacy = true;
 
-	pm_runtime_get_sync(hba->dev);
-	ret = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
-		QUERY_ATTR_IDN_MAX_HPB_SINGLE_CMD, 0, 0, &max_hpb_single_cmd);
-	pm_runtime_put_sync(hba->dev);
-
-	if (ret)
-		dev_err(hba->dev, "%s: idn: read max size of single hpb cmd query request failed",
-			__func__);
-	hpb_dev_info->max_hpb_single_cmd = max_hpb_single_cmd;
-
 	/*
 	 * Get the number of user logical unit to check whether all
 	 * scsi_device finish initialization
 	 */
 	hpb_dev_info->num_lu = desc_buf[DEVICE_DESC_PARAM_NUM_LU];
+
+	if (hpb_dev_info->is_legacy)
+		return;
+
+	ret = ufshcd_query_attr_retry(hba, UPIU_QUERY_OPCODE_READ_ATTR,
+		QUERY_ATTR_IDN_MAX_HPB_SINGLE_CMD, 0, 0, &max_single_cmd);
+
+	if (ret)
+		hpb_dev_info->max_hpb_single_cmd = HPB_LEGACY_CHUNK_HIGH;
+	else
+		hpb_dev_info->max_hpb_single_cmd = min(max_single_cmd + 1, HPB_MULTI_CHUNK_HIGH);
 }
 
 void ufshpb_init(struct ufs_hba *hba)

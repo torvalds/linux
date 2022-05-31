@@ -15,6 +15,7 @@
 #include <drm/drm_crtc.h>
 #include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
+#include <drm/drm_prime.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/exynos_drm.h>
 
@@ -39,25 +40,8 @@ static int exynos_drm_fb_mmap(struct fb_info *info,
 	struct drm_fb_helper *helper = info->par;
 	struct exynos_drm_fbdev *exynos_fbd = to_exynos_fbdev(helper);
 	struct exynos_drm_gem *exynos_gem = exynos_fbd->exynos_gem;
-	unsigned long vm_size;
-	int ret;
 
-	vma->vm_flags |= VM_IO | VM_DONTEXPAND | VM_DONTDUMP;
-
-	vm_size = vma->vm_end - vma->vm_start;
-
-	if (vm_size > exynos_gem->size)
-		return -EINVAL;
-
-	ret = dma_mmap_attrs(to_dma_dev(helper->dev), vma, exynos_gem->cookie,
-			     exynos_gem->dma_addr, exynos_gem->size,
-			     exynos_gem->dma_attrs);
-	if (ret < 0) {
-		DRM_DEV_ERROR(to_dma_dev(helper->dev), "failed to mmap.\n");
-		return ret;
-	}
-
-	return 0;
+	return drm_gem_prime_mmap(&exynos_gem->base, vma);
 }
 
 static const struct fb_ops exynos_drm_fb_ops = {

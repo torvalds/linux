@@ -29,6 +29,7 @@
  * CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
  * SOFTWARE.
  */
+#include <linux/etherdevice.h>
 #include "common.h"
 #include "regs.h"
 #include "sge_defs.h"
@@ -595,79 +596,8 @@ struct t3_vpd {
 	u32 pad;		/* for multiple-of-4 sizing and alignment */
 };
 
-#define EEPROM_MAX_POLL   40
 #define EEPROM_STAT_ADDR  0x4000
 #define VPD_BASE          0xc00
-
-/**
- *	t3_seeprom_read - read a VPD EEPROM location
- *	@adapter: adapter to read
- *	@addr: EEPROM address
- *	@data: where to store the read data
- *
- *	Read a 32-bit word from a location in VPD EEPROM using the card's PCI
- *	VPD ROM capability.  A zero is written to the flag bit when the
- *	address is written to the control register.  The hardware device will
- *	set the flag to 1 when 4 bytes have been read into the data register.
- */
-int t3_seeprom_read(struct adapter *adapter, u32 addr, __le32 *data)
-{
-	u16 val;
-	int attempts = EEPROM_MAX_POLL;
-	u32 v;
-	unsigned int base = adapter->params.pci.vpd_cap_addr;
-
-	if ((addr >= EEPROMSIZE && addr != EEPROM_STAT_ADDR) || (addr & 3))
-		return -EINVAL;
-
-	pci_write_config_word(adapter->pdev, base + PCI_VPD_ADDR, addr);
-	do {
-		udelay(10);
-		pci_read_config_word(adapter->pdev, base + PCI_VPD_ADDR, &val);
-	} while (!(val & PCI_VPD_ADDR_F) && --attempts);
-
-	if (!(val & PCI_VPD_ADDR_F)) {
-		CH_ERR(adapter, "reading EEPROM address 0x%x failed\n", addr);
-		return -EIO;
-	}
-	pci_read_config_dword(adapter->pdev, base + PCI_VPD_DATA, &v);
-	*data = cpu_to_le32(v);
-	return 0;
-}
-
-/**
- *	t3_seeprom_write - write a VPD EEPROM location
- *	@adapter: adapter to write
- *	@addr: EEPROM address
- *	@data: value to write
- *
- *	Write a 32-bit word to a location in VPD EEPROM using the card's PCI
- *	VPD ROM capability.
- */
-int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data)
-{
-	u16 val;
-	int attempts = EEPROM_MAX_POLL;
-	unsigned int base = adapter->params.pci.vpd_cap_addr;
-
-	if ((addr >= EEPROMSIZE && addr != EEPROM_STAT_ADDR) || (addr & 3))
-		return -EINVAL;
-
-	pci_write_config_dword(adapter->pdev, base + PCI_VPD_DATA,
-			       le32_to_cpu(data));
-	pci_write_config_word(adapter->pdev,base + PCI_VPD_ADDR,
-			      addr | PCI_VPD_ADDR_F);
-	do {
-		msleep(1);
-		pci_read_config_word(adapter->pdev, base + PCI_VPD_ADDR, &val);
-	} while ((val & PCI_VPD_ADDR_F) && --attempts);
-
-	if (val & PCI_VPD_ADDR_F) {
-		CH_ERR(adapter, "write to EEPROM address 0x%x failed\n", addr);
-		return -EIO;
-	}
-	return 0;
-}
 
 /**
  *	t3_seeprom_wp - enable/disable EEPROM write protection
@@ -678,7 +608,14 @@ int t3_seeprom_write(struct adapter *adapter, u32 addr, __le32 data)
  */
 int t3_seeprom_wp(struct adapter *adapter, int enable)
 {
-	return t3_seeprom_write(adapter, EEPROM_STAT_ADDR, enable ? 0xc : 0);
+	u32 data = enable ? 0xc : 0;
+	int ret;
+
+	/* EEPROM_STAT_ADDR is outside VPD area, use pci_write_vpd_any() */
+	ret = pci_write_vpd_any(adapter->pdev, EEPROM_STAT_ADDR, sizeof(u32),
+				&data);
+
+	return ret < 0 ? ret : 0;
 }
 
 static int vpdstrtouint(char *s, u8 len, unsigned int base, unsigned int *val)
@@ -708,24 +645,22 @@ static int vpdstrtou16(char *s, u8 len, unsigned int base, u16 *val)
  */
 static int get_vpd_params(struct adapter *adapter, struct vpd_params *p)
 {
-	int i, addr, ret;
 	struct t3_vpd vpd;
+	u8 base_val = 0;
+	int addr, ret;
 
 	/*
 	 * Card information is normally at VPD_BASE but some early cards had
 	 * it at 0.
 	 */
-	ret = t3_seeprom_read(adapter, VPD_BASE, (__le32 *)&vpd);
-	if (ret)
+	ret = pci_read_vpd(adapter->pdev, VPD_BASE, 1, &base_val);
+	if (ret < 0)
 		return ret;
-	addr = vpd.id_tag == 0x82 ? VPD_BASE : 0;
+	addr = base_val == PCI_VPD_LRDT_ID_STRING ? VPD_BASE : 0;
 
-	for (i = 0; i < sizeof(vpd); i += 4) {
-		ret = t3_seeprom_read(adapter, addr + i,
-				      (__le32 *)((u8 *)&vpd + i));
-		if (ret)
-			return ret;
-	}
+	ret = pci_read_vpd(adapter->pdev, addr, sizeof(vpd), &vpd);
+	if (ret < 0)
+		return ret;
 
 	ret = vpdstrtouint(vpd.cclk_data, vpd.cclk_len, 10, &p->cclk);
 	if (ret)
@@ -3678,6 +3613,8 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 	    MAC_STATS_ACCUM_SECS : (MAC_STATS_ACCUM_SECS * 10);
 	adapter->params.pci.vpd_cap_addr =
 	    pci_find_capability(adapter->pdev, PCI_CAP_ID_VPD);
+	if (!adapter->params.pci.vpd_cap_addr)
+		return -ENODEV;
 	ret = get_vpd_params(adapter, &adapter->params.vpd);
 	if (ret < 0)
 		return ret;
@@ -3758,8 +3695,7 @@ int t3_prep_adapter(struct adapter *adapter, const struct adapter_info *ai,
 		memcpy(hw_addr, adapter->params.vpd.eth_base, 5);
 		hw_addr[5] = adapter->params.vpd.eth_base[5] + i;
 
-		memcpy(adapter->port[i]->dev_addr, hw_addr,
-		       ETH_ALEN);
+		eth_hw_addr_set(adapter->port[i], hw_addr);
 		init_link_config(&p->link_config, p->phy.caps);
 		p->phy.ops->power_down(&p->phy, 1);
 

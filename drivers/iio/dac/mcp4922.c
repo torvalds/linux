@@ -130,10 +130,9 @@ static int mcp4922_probe(struct spi_device *spi)
 	state = iio_priv(indio_dev);
 	state->spi = spi;
 	state->vref_reg = devm_regulator_get(&spi->dev, "vref");
-	if (IS_ERR(state->vref_reg)) {
-		dev_err(&spi->dev, "Vref regulator not specified\n");
-		return PTR_ERR(state->vref_reg);
-	}
+	if (IS_ERR(state->vref_reg))
+		return dev_err_probe(&spi->dev, PTR_ERR(state->vref_reg),
+				     "Vref regulator not specified\n");
 
 	ret = regulator_enable(state->vref_reg);
 	if (ret) {
@@ -173,7 +172,7 @@ error_disable_reg:
 	return ret;
 }
 
-static int mcp4922_remove(struct spi_device *spi)
+static void mcp4922_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct mcp4922_state *state;
@@ -181,8 +180,6 @@ static int mcp4922_remove(struct spi_device *spi)
 	iio_device_unregister(indio_dev);
 	state = iio_priv(indio_dev);
 	regulator_disable(state->vref_reg);
-
-	return 0;
 }
 
 static const struct spi_device_id mcp4922_id[] = {

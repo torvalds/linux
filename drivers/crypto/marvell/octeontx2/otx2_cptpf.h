@@ -46,6 +46,7 @@ struct otx2_cptpf_dev {
 
 	struct workqueue_struct	*flr_wq;
 	struct cptpf_flr_work   *flr_work;
+	struct mutex            lock;   /* serialize mailbox access */
 
 	unsigned long cap_flag;
 	u8 pf_id;               /* RVU PF number */
@@ -53,6 +54,9 @@ struct otx2_cptpf_dev {
 	u8 enabled_vfs;		/* Number of enabled VFs */
 	u8 kvf_limits;		/* Kernel crypto limits */
 	bool has_cpt1;
+
+	/* Devlink */
+	struct devlink *dl;
 };
 
 irqreturn_t otx2_cptpf_afpf_mbox_intr(int irq, void *arg);

@@ -40,18 +40,26 @@
 #include "i915_scheduler.h"
 #include "i915_selftest.h"
 #include "i915_sw_fence.h"
+#include "i915_vma_resource.h"
 
 #include <uapi/drm/i915_drm.h>
 
 struct drm_file;
 struct drm_i915_gem_object;
 struct drm_printer;
+struct i915_deps;
 struct i915_request;
 
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 struct i915_capture_list {
+	struct i915_vma_resource *vma_res;
 	struct i915_capture_list *next;
-	struct i915_vma *vma;
 };
+
+void i915_request_free_capture_list(struct i915_capture_list *capture);
+#else
+#define i915_request_free_capture_list(_a) do {} while (0)
+#endif
 
 #define RQ_TRACE(rq, fmt, ...) do {					\
 	const struct i915_request *rq__ = (rq);				\
@@ -139,6 +147,29 @@ enum {
 	 * the GPU. Here we track such boost requests on a per-request basis.
 	 */
 	I915_FENCE_FLAG_BOOST,
+
+	/*
+	 * I915_FENCE_FLAG_SUBMIT_PARALLEL - request with a context in a
+	 * parent-child relationship (parallel submission, multi-lrc) should
+	 * trigger a submission to the GuC rather than just moving the context
+	 * tail.
+	 */
+	I915_FENCE_FLAG_SUBMIT_PARALLEL,
+
+	/*
+	 * I915_FENCE_FLAG_SKIP_PARALLEL - request with a context in a
+	 * parent-child relationship (parallel submission, multi-lrc) that
+	 * hit an error while generating requests in the execbuf IOCTL.
+	 * Indicates this request should be skipped as another request in
+	 * submission / relationship encoutered an error.
+	 */
+	I915_FENCE_FLAG_SKIP_PARALLEL,
+
+	/*
+	 * I915_FENCE_FLAG_COMPOSITE - Indicates fence is part of a composite
+	 * fence (dma_fence_array) and i915 generated for parallel submission.
+	 */
+	I915_FENCE_FLAG_COMPOSITE,
 };
 
 /**
@@ -218,6 +249,11 @@ struct i915_request {
 	};
 	struct llist_head execute_cb;
 	struct i915_sw_fence semaphore;
+	/**
+	 * @submit_work: complete submit fence from an IRQ if needed for
+	 * locking hierarchy reasons.
+	 */
+	struct irq_work submit_work;
 
 	/*
 	 * A list of everyone we wait upon, and everyone who waits upon us.
@@ -261,10 +297,12 @@ struct i915_request {
 	/** Preallocate space in the ring for the emitting the request */
 	u32 reserved_space;
 
-	/** Batch buffer related to this request if any (used for
-	 * error state dump only).
-	 */
-	struct i915_vma *batch;
+	/** Batch buffer pointer for selftest internal use. */
+	I915_SELFTEST_DECLARE(struct i915_vma *batch);
+
+	struct i915_vma_resource *batch_res;
+
+#if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 	/**
 	 * Additional buffers requested by userspace to be captured upon
 	 * a GPU hang. The vma/obj on this list are protected by their
@@ -272,6 +310,7 @@ struct i915_request {
 	 * on the active_list (of their final request).
 	 */
 	struct i915_capture_list *capture_list;
+#endif
 
 	/** Time at which this request was emitted, in jiffies. */
 	unsigned long emitted_jiffies;
@@ -285,18 +324,23 @@ struct i915_request {
 		struct hrtimer timer;
 	} watchdog;
 
-	/*
-	 * Requests may need to be stalled when using GuC submission waiting for
-	 * certain GuC operations to complete. If that is the case, stalled
-	 * requests are added to a per context list of stalled requests. The
-	 * below list_head is the link in that list.
+	/**
+	 * @guc_fence_link: Requests may need to be stalled when using GuC
+	 * submission waiting for certain GuC operations to complete. If that is
+	 * the case, stalled requests are added to a per context list of stalled
+	 * requests. The below list_head is the link in that list. Protected by
+	 * ce->guc_state.lock.
 	 */
 	struct list_head guc_fence_link;
 
 	/**
-	 * Priority level while the request is inflight. Differs from i915
-	 * scheduler priority. See comment above
-	 * I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP for details.
+	 * @guc_prio: Priority level while the request is in flight. Differs
+	 * from i915 scheduler priority. See comment above
+	 * I915_SCHEDULER_CAP_STATIC_PRIORITY_MAP for details. Protected by
+	 * ce->guc_active.lock. Two special values (GUC_PRIO_INIT and
+	 * GUC_PRIO_FINI) outside the GuC priority range are used to indicate
+	 * if the priority has not been initialized yet or if no more updates
+	 * are possible because the request has completed.
 	 */
 #define	GUC_PRIO_INIT	0xff
 #define	GUC_PRIO_FINI	0xfe
@@ -368,6 +412,7 @@ int i915_request_await_object(struct i915_request *to,
 			      bool write);
 int i915_request_await_dma_fence(struct i915_request *rq,
 				 struct dma_fence *fence);
+int i915_request_await_deps(struct i915_request *rq, const struct i915_deps *deps);
 int i915_request_await_execution(struct i915_request *rq,
 				 struct dma_fence *fence);
 
@@ -380,6 +425,11 @@ void __i915_request_unsubmit(struct i915_request *request);
 void i915_request_unsubmit(struct i915_request *request);
 
 void i915_request_cancel(struct i915_request *rq, int error);
+
+long i915_request_wait_timeout(struct i915_request *rq,
+			       unsigned int flags,
+			       long timeout)
+	__attribute__((nonnull(1)));
 
 long i915_request_wait(struct i915_request *rq,
 		       unsigned int flags,
@@ -609,7 +659,8 @@ i915_request_timeline(const struct i915_request *rq)
 {
 	/* Valid only while the request is being constructed (or retired). */
 	return rcu_dereference_protected(rq->timeline,
-					 lockdep_is_held(&rcu_access_pointer(rq->timeline)->mutex));
+					 lockdep_is_held(&rcu_access_pointer(rq->timeline)->mutex) ||
+					 test_bit(CONTEXT_IS_PARKING, &rq->context->flags));
 }
 
 static inline struct i915_gem_context *

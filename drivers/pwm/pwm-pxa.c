@@ -58,7 +58,7 @@ static inline struct pxa_pwm_chip *to_pxa_pwm_chip(struct pwm_chip *chip)
  * duty_ns   = 10^9 * (PRESCALE + 1) * DC / PWM_CLK_RATE
  */
 static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
-			  int duty_ns, int period_ns)
+			  u64 duty_ns, u64 period_ns)
 {
 	struct pxa_pwm_chip *pc = to_pxa_pwm_chip(chip);
 	unsigned long long c;
@@ -84,7 +84,7 @@ static int pxa_pwm_config(struct pwm_chip *chip, struct pwm_device *pwm,
 	if (duty_ns == period_ns)
 		dc = PWMDCR_FD;
 	else
-		dc = (pv + 1) * duty_ns / period_ns;
+		dc = mul_u64_u64_div_u64(pv + 1, duty_ns, period_ns);
 
 	/* NOTE: the clock to PWM has to be enabled first
 	 * before writing to the registers
@@ -115,10 +115,33 @@ static void pxa_pwm_disable(struct pwm_chip *chip, struct pwm_device *pwm)
 	clk_disable_unprepare(pc->clk);
 }
 
+static int pxa_pwm_apply(struct pwm_chip *chip, struct pwm_device *pwm,
+			 const struct pwm_state *state)
+{
+	int err;
+
+	if (state->polarity != PWM_POLARITY_NORMAL)
+		return -EINVAL;
+
+	if (!state->enabled) {
+		if (pwm->state.enabled)
+			pxa_pwm_disable(chip, pwm);
+
+		return 0;
+	}
+
+	err = pxa_pwm_config(chip, pwm, state->duty_cycle, state->period);
+	if (err)
+		return err;
+
+	if (!pwm->state.enabled)
+		return pxa_pwm_enable(chip, pwm);
+
+	return 0;
+}
+
 static const struct pwm_ops pxa_pwm_ops = {
-	.config = pxa_pwm_config,
-	.enable = pxa_pwm_enable,
-	.disable = pxa_pwm_disable,
+	.apply = pxa_pwm_apply,
 	.owner = THIS_MODULE,
 };
 
@@ -148,20 +171,6 @@ static const struct platform_device_id *pxa_pwm_get_id_dt(struct device *dev)
 	return id ? id->data : NULL;
 }
 
-static struct pwm_device *
-pxa_pwm_of_xlate(struct pwm_chip *pc, const struct of_phandle_args *args)
-{
-	struct pwm_device *pwm;
-
-	pwm = pwm_request_from_chip(pc, 0, NULL);
-	if (IS_ERR(pwm))
-		return pwm;
-
-	pwm->args.period = args->args[0];
-
-	return pwm;
-}
-
 static int pwm_probe(struct platform_device *pdev)
 {
 	const struct platform_device_id *id = platform_get_device_id(pdev);
@@ -187,7 +196,7 @@ static int pwm_probe(struct platform_device *pdev)
 	pc->chip.npwm = (id->driver_data & HAS_SECONDARY_PWM) ? 2 : 1;
 
 	if (IS_ENABLED(CONFIG_OF)) {
-		pc->chip.of_xlate = pxa_pwm_of_xlate;
+		pc->chip.of_xlate = of_pwm_single_xlate;
 		pc->chip.of_pwm_n_cells = 1;
 	}
 

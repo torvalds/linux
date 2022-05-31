@@ -147,7 +147,7 @@ static struct psb_intel_opregion *system_opregion;
 
 static u32 asle_set_backlight(struct drm_device *dev, u32 bclp)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 	struct backlight_device *bd = dev_priv->backlight_device;
 
@@ -190,7 +190,7 @@ static void psb_intel_opregion_asle_work(struct work_struct *work)
 	}
 
 	if (asle_req & ASLE_SET_BACKLIGHT)
-		asle_stat |= asle_set_backlight(dev_priv->dev, asle->bclp);
+		asle_stat |= asle_set_backlight(&dev_priv->dev, asle->bclp);
 
 	asle->aslc = asle_stat;
 
@@ -198,7 +198,7 @@ static void psb_intel_opregion_asle_work(struct work_struct *work)
 
 void psb_intel_opregion_asle_intr(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
 	if (dev_priv->opregion.asle)
 		schedule_work(&dev_priv->opregion.asle_work);
@@ -211,7 +211,7 @@ void psb_intel_opregion_asle_intr(struct drm_device *dev)
 
 void psb_intel_opregion_enable_asle(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct opregion_asle *asle = dev_priv->opregion.asle;
 
 	if (asle && system_opregion ) {
@@ -258,7 +258,7 @@ static struct notifier_block psb_intel_opregion_notifier = {
 
 void psb_intel_opregion_init(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_opregion *opregion = &dev_priv->opregion;
 
 	if (!opregion->header)
@@ -278,7 +278,7 @@ void psb_intel_opregion_init(struct drm_device *dev)
 
 void psb_intel_opregion_fini(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_opregion *opregion = &dev_priv->opregion;
 
 	if (!opregion->header)
@@ -304,7 +304,7 @@ void psb_intel_opregion_fini(struct drm_device *dev)
 
 int psb_intel_opregion_setup(struct drm_device *dev)
 {
-	struct drm_psb_private *dev_priv = dev->dev_private;
+	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	struct psb_intel_opregion *opregion = &dev_priv->opregion;
 	u32 opregion_phy, mboxes;

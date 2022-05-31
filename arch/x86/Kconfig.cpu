@@ -342,10 +342,6 @@ config X86_USE_PPRO_CHECKSUM
 	def_bool y
 	depends on MWINCHIP3D || MWINCHIPC6 || MCYRIXIII || MK7 || MK6 || MPENTIUM4 || MPENTIUMM || MPENTIUMIII || MPENTIUMII || M686 || MK8 || MVIAC3_2 || MVIAC7 || MEFFICEON || MGEODE_LX || MCORE2 || MATOM
 
-config X86_USE_3DNOW
-	def_bool y
-	depends on (MCYRIXIII || MK7 || MGEODE_LX) && !UML
-
 #
 # P6_NOPs are a relatively minor optimization that require a family >=
 # 6 processor, except that it is broken on certain VIA chips.
@@ -506,5 +502,18 @@ config CPU_SUP_ZHAOXIN
 	  Zhaoxin CPU. Disabling this option on other types of CPUs
 	  makes the kernel a tiny bit smaller. Disabling it on a Zhaoxin
 	  CPU might render the kernel unbootable.
+
+	  If unsure, say N.
+
+config CPU_SUP_VORTEX_32
+	default y
+	bool "Support Vortex processors" if PROCESSOR_SELECT
+	depends on X86_32
+	help
+	  This enables detection, tunings and quirks for Vortex processors
+
+	  You need this enabled if you want your kernel to run on a
+	  Vortex CPU. Disabling this option on other types of CPUs
+	  makes the kernel a tiny bit smaller.
 
 	  If unsure, say N.

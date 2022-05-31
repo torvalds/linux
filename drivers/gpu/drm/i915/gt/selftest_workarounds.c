@@ -3,6 +3,7 @@
  * Copyright © 2018 Intel Corporation
  */
 
+#include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_pm.h"
 #include "gt/intel_engine_user.h"
 #include "gt/intel_gt.h"
@@ -66,7 +67,7 @@ reference_lists_init(struct intel_gt *gt, struct wa_lists *lists)
 	memset(lists, 0, sizeof(*lists));
 
 	wa_init_start(&lists->gt_wa_list, "GT_REF", "global");
-	gt_init_workarounds(gt->i915, &lists->gt_wa_list);
+	gt_init_workarounds(gt, &lists->gt_wa_list);
 	wa_init_finish(&lists->gt_wa_list);
 
 	for_each_engine(engine, gt, id) {
@@ -1387,8 +1388,8 @@ int intel_workarounds_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(live_engine_reset_workarounds),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
-	return intel_gt_live_subtests(tests, &i915->gt);
+	return intel_gt_live_subtests(tests, to_gt(i915));
 }

@@ -52,10 +52,6 @@ static int hellcreek_set_hwtstamp_config(struct hellcreek *hellcreek, int port,
 	 */
 	clear_bit_unlock(HELLCREEK_HWTSTAMP_ENABLED, &ps->state);
 
-	/* Reserved for future extensions */
-	if (config->flags)
-		return -EINVAL;
-
 	switch (config->tx_type) {
 	case HWTSTAMP_TX_ON:
 		tx_tstamp_enable = true;
@@ -335,7 +331,7 @@ static void hellcreek_get_rxts(struct hellcreek *hellcreek,
 		shwt = skb_hwtstamps(skb);
 		memset(shwt, 0, sizeof(*shwt));
 		shwt->hwtstamp = ns_to_ktime(ns);
-		netif_rx_ni(skb);
+		netif_rx(skb);
 	}
 }
 

@@ -117,7 +117,7 @@ struct lm80_data {
 	struct i2c_client *client;
 	struct mutex update_lock;
 	char error;		/* !=0 if error occurred during last update */
-	char valid;		/* !=0 if following fields are valid */
+	bool valid;		/* true if following fields are valid */
 	unsigned long last_updated;	/* In jiffies */
 
 	u8 in[i_num_in][7];	/* Register value, 1st index is enum in_index */
@@ -236,14 +236,14 @@ static struct lm80_data *lm80_update_device(struct device *dev)
 		data->alarms = prev_rv + (rv << 8);
 
 		data->last_updated = jiffies;
-		data->valid = 1;
+		data->valid = true;
 		data->error = 0;
 	}
 	goto done;
 
 abort:
 	ret = ERR_PTR(rv);
-	data->valid = 0;
+	data->valid = false;
 	data->error = 1;
 
 done:

@@ -139,7 +139,7 @@ struct dpaa2_qdma_priv_per_prio {
 
 static struct soc_device_attribute soc_fixup_tuning[] = {
 	{ .family = "QorIQ LX2160A"},
-	{ },
+	{ /* sentinel */ }
 };
 
 /* FD pool size: one FD + 3 Frame list + 2 source/destination descriptor */

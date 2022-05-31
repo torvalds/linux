@@ -858,8 +858,8 @@ loop_next:
 			ret = -EIO;
 		}
 		/*
-		 * ugly interaction with invalidatepage here.
-		 * reiserfs_invalidate_page will pin any buffer that has a
+		 * ugly interaction with invalidate_folio here.
+		 * reiserfs_invalidate_folio will pin any buffer that has a
 		 * valid journal head from an older transaction.  If someone
 		 * else sets our buffer dirty after we write it in the first
 		 * loop, and then someone truncates the page away, nobody
@@ -951,7 +951,9 @@ static int reiserfs_async_progress_wait(struct super_block *s)
 		int depth;
 
 		depth = reiserfs_write_unlock_nested(s);
-		congestion_wait(BLK_RW_ASYNC, HZ / 10);
+		wait_var_event_timeout(&j->j_async_throttle,
+				       atomic_read(&j->j_async_throttle) == 0,
+				       HZ / 10);
 		reiserfs_write_lock_nested(s, depth);
 	}
 
@@ -1058,7 +1060,8 @@ static int flush_commit_list(struct super_block *s,
 			put_bh(tbh) ;
 		}
 	}
-	atomic_dec(&journal->j_async_throttle);
+	if (atomic_dec_and_test(&journal->j_async_throttle))
+		wake_up_var(&journal->j_async_throttle);
 
 	for (i = 0; i < (jl->j_len + 1); i++) {
 		bn = SB_ONDISK_JOURNAL_1st_BLOCK(s) +

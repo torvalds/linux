@@ -95,6 +95,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 				.aggregation	= true,
 				.status_enable	= true,
 				.rx = {
+					.buffer_size	= 8192,
 					.pad_align	= ilog2(sizeof(u32)),
 				},
 			},
@@ -142,6 +143,7 @@ static const struct ipa_gsi_endpoint_data ipa_gsi_endpoint_data[] = {
 				.qmap		= true,
 				.aggregation	= true,
 				.rx = {
+					.buffer_size	= 8192,
 					.aggr_close_eof	= true,
 				},
 			},
@@ -420,13 +422,8 @@ static const struct ipa_mem_data ipa_mem_data = {
 /* Interconnect rates are in 1000 byte/second units */
 static const struct ipa_interconnect_data ipa_interconnect_data[] = {
 	{
-		.name			= "memory-a",
+		.name			= "memory",
 		.peak_bandwidth		= 600000,	/* 600 MBps */
-		.average_bandwidth	= 150000,	/* 150 MBps */
-	},
-	{
-		.name			= "memory-b",
-		.peak_bandwidth		= 1804000,	/* 1.804 GBps */
 		.average_bandwidth	= 150000,	/* 150 MBps */
 	},
 	/* Average rate is unused for the next two interconnects */

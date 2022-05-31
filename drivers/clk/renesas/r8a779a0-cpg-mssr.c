@@ -10,42 +10,19 @@
  * Copyright (C) 2015 Renesas Electronics Corp.
  */
 
-#include <linux/bug.h>
 #include <linux/bitfield.h>
 #include <linux/clk.h>
 #include <linux/clk-provider.h>
 #include <linux/device.h>
 #include <linux/err.h>
 #include <linux/init.h>
-#include <linux/io.h>
 #include <linux/kernel.h>
-#include <linux/pm.h>
-#include <linux/slab.h>
 #include <linux/soc/renesas/rcar-rst.h>
 
 #include <dt-bindings/clock/r8a779a0-cpg-mssr.h>
 
-#include "rcar-cpg-lib.h"
 #include "renesas-cpg-mssr.h"
-
-enum rcar_r8a779a0_clk_types {
-	CLK_TYPE_R8A779A0_MAIN = CLK_TYPE_CUSTOM,
-	CLK_TYPE_R8A779A0_PLL1,
-	CLK_TYPE_R8A779A0_PLL2X_3X,	/* PLL[23][01] */
-	CLK_TYPE_R8A779A0_PLL5,
-	CLK_TYPE_R8A779A0_SD,
-	CLK_TYPE_R8A779A0_MDSEL,	/* Select parent/divider using mode pin */
-	CLK_TYPE_R8A779A0_OSC,	/* OSC EXTAL predivider and fixed divider */
-};
-
-struct rcar_r8a779a0_cpg_pll_config {
-	u8 extal_div;
-	u8 pll1_mult;
-	u8 pll1_div;
-	u8 pll5_mult;
-	u8 pll5_div;
-	u8 osc_prediv;
-};
+#include "rcar-gen4-cpg.h"
 
 enum clk_ids {
 	/* Core Clock Outputs exported to DT */
@@ -81,19 +58,8 @@ enum clk_ids {
 };
 
 #define DEF_PLL(_name, _id, _offset)	\
-	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_PLL2X_3X, CLK_MAIN, \
+	DEF_BASE(_name, _id, CLK_TYPE_GEN4_PLL2X_3X, CLK_MAIN, \
 		 .offset = _offset)
-
-#define DEF_SD(_name, _id, _parent, _offset)   \
-	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_SD, _parent, .offset = _offset)
-
-#define DEF_MDSEL(_name, _id, _md, _parent0, _div0, _parent1, _div1) \
-	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_MDSEL,	\
-		 (_parent0) << 16 | (_parent1),		\
-		 .div = (_div0) << 16 | (_div1), .offset = _md)
-
-#define DEF_OSC(_name, _id, _parent, _div)		\
-	DEF_BASE(_name, _id, CLK_TYPE_R8A779A0_OSC, _parent, .div = _div)
 
 static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	/* External Clock Inputs */
@@ -101,9 +67,9 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_INPUT("extalr", CLK_EXTALR),
 
 	/* Internal Core Clocks */
-	DEF_BASE(".main", CLK_MAIN,	CLK_TYPE_R8A779A0_MAIN, CLK_EXTAL),
-	DEF_BASE(".pll1", CLK_PLL1,	CLK_TYPE_R8A779A0_PLL1, CLK_MAIN),
-	DEF_BASE(".pll5", CLK_PLL5,	CLK_TYPE_R8A779A0_PLL5, CLK_MAIN),
+	DEF_BASE(".main", CLK_MAIN,	CLK_TYPE_GEN4_MAIN, CLK_EXTAL),
+	DEF_BASE(".pll1", CLK_PLL1,	CLK_TYPE_GEN4_PLL1, CLK_MAIN),
+	DEF_BASE(".pll5", CLK_PLL5,	CLK_TYPE_GEN4_PLL5, CLK_MAIN),
 	DEF_PLL(".pll20", CLK_PLL20,	0x0834),
 	DEF_PLL(".pll21", CLK_PLL21,	0x0838),
 	DEF_PLL(".pll30", CLK_PLL30,	0x083c),
@@ -120,8 +86,14 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_FIXED(".s3",		CLK_S3,		CLK_PLL1_DIV2,	4, 1),
 	DEF_FIXED(".sdsrc",		CLK_SDSRC,	CLK_PLL5_DIV4,	1, 1),
 	DEF_RATE(".oco",		CLK_OCO,	32768),
+	DEF_BASE(".rpcsrc",	 CLK_RPCSRC,	   CLK_TYPE_GEN4_RPCSRC, CLK_PLL5),
+	DEF_BASE("rpc",		 R8A779A0_CLK_RPC, CLK_TYPE_GEN4_RPC, CLK_RPCSRC),
+	DEF_BASE("rpcd2",	 R8A779A0_CLK_RPCD2, CLK_TYPE_GEN4_RPCD2,
+		 R8A779A0_CLK_RPC),
 
 	/* Core Clock Outputs */
+	DEF_GEN4_Z("z0",	R8A779A0_CLK_Z0,	CLK_TYPE_GEN4_Z,	CLK_PLL20,	2, 0),
+	DEF_GEN4_Z("z1",	R8A779A0_CLK_Z1,	CLK_TYPE_GEN4_Z,	CLK_PLL21,	2, 8),
 	DEF_FIXED("zx",		R8A779A0_CLK_ZX,	CLK_PLL20_DIV2,	2, 1),
 	DEF_FIXED("s1d1",	R8A779A0_CLK_S1D1,	CLK_S1,		1, 1),
 	DEF_FIXED("s1d2",	R8A779A0_CLK_S1D2,	CLK_S1,		2, 1),
@@ -145,15 +117,16 @@ static const struct cpg_core_clk r8a779a0_core_clks[] __initconst = {
 	DEF_FIXED("cp",		R8A779A0_CLK_CP,	CLK_EXTAL,	2, 1),
 	DEF_FIXED("cl16mck",	R8A779A0_CLK_CL16MCK,	CLK_PLL1_DIV2,	64, 1),
 
-	DEF_SD("sd0",		R8A779A0_CLK_SD0,	CLK_SDSRC,	0x870),
+	DEF_GEN4_SDH("sdh0",	R8A779A0_CLK_SD0H,	CLK_SDSRC,	   0x870),
+	DEF_GEN4_SD("sd0",	R8A779A0_CLK_SD0,	R8A779A0_CLK_SD0H, 0x870),
 
 	DEF_DIV6P1("mso",	R8A779A0_CLK_MSO,	CLK_PLL5_DIV4,	0x87c),
 	DEF_DIV6P1("canfd",	R8A779A0_CLK_CANFD,	CLK_PLL5_DIV4,	0x878),
 	DEF_DIV6P1("csi0",	R8A779A0_CLK_CSI0,	CLK_PLL5_DIV4,	0x880),
 	DEF_DIV6P1("dsi",	R8A779A0_CLK_DSI,	CLK_PLL5_DIV4,	0x884),
 
-	DEF_OSC("osc",		R8A779A0_CLK_OSC,	CLK_EXTAL,	8),
-	DEF_MDSEL("r",		R8A779A0_CLK_R, 29, CLK_EXTALR, 1, CLK_OCO, 1),
+	DEF_GEN4_OSC("osc",	R8A779A0_CLK_OSC,	CLK_EXTAL,	8),
+	DEF_GEN4_MDSEL("r",	R8A779A0_CLK_R, 29, CLK_EXTALR, 1, CLK_OCO, 1),
 };
 
 static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
@@ -163,6 +136,7 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("avb3",		214,	R8A779A0_CLK_S3D2),
 	DEF_MOD("avb4",		215,	R8A779A0_CLK_S3D2),
 	DEF_MOD("avb5",		216,	R8A779A0_CLK_S3D2),
+	DEF_MOD("canfd0",	328,	R8A779A0_CLK_CANFD),
 	DEF_MOD("csi40",	331,	R8A779A0_CLK_CSI0),
 	DEF_MOD("csi41",	400,	R8A779A0_CLK_CSI0),
 	DEF_MOD("csi42",	401,	R8A779A0_CLK_CSI0),
@@ -193,6 +167,7 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("msi3",		621,	R8A779A0_CLK_MSO),
 	DEF_MOD("msi4",		622,	R8A779A0_CLK_MSO),
 	DEF_MOD("msi5",		623,	R8A779A0_CLK_MSO),
+	DEF_MOD("rpc-if",	629,	R8A779A0_CLK_RPCD2),
 	DEF_MOD("scif0",	702,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif1",	703,	R8A779A0_CLK_S1D8),
 	DEF_MOD("scif3",	704,	R8A779A0_CLK_S1D8),
@@ -205,6 +180,7 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("tmu2",		715,	R8A779A0_CLK_S1D4),
 	DEF_MOD("tmu3",		716,	R8A779A0_CLK_S1D4),
 	DEF_MOD("tmu4",		717,	R8A779A0_CLK_S1D4),
+	DEF_MOD("tpu0",		718,	R8A779A0_CLK_S1D8),
 	DEF_MOD("vin00",	730,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin01",	731,	R8A779A0_CLK_S1D1),
 	DEF_MOD("vin02",	800,	R8A779A0_CLK_S1D1),
@@ -255,81 +231,6 @@ static const struct mssr_mod_clk r8a779a0_mod_clks[] __initconst = {
 	DEF_MOD("vspx3",	1031,	R8A779A0_CLK_S1D1),
 };
 
-static const struct rcar_r8a779a0_cpg_pll_config *cpg_pll_config __initdata;
-static unsigned int cpg_clk_extalr __initdata;
-static u32 cpg_mode __initdata;
-
-static struct clk * __init rcar_r8a779a0_cpg_clk_register(struct device *dev,
-	const struct cpg_core_clk *core, const struct cpg_mssr_info *info,
-	struct clk **clks, void __iomem *base,
-	struct raw_notifier_head *notifiers)
-{
-	const struct clk *parent;
-	unsigned int mult = 1;
-	unsigned int div = 1;
-	u32 value;
-
-	parent = clks[core->parent & 0xffff];	/* some types use high bits */
-	if (IS_ERR(parent))
-		return ERR_CAST(parent);
-
-	switch (core->type) {
-	case CLK_TYPE_R8A779A0_MAIN:
-		div = cpg_pll_config->extal_div;
-		break;
-
-	case CLK_TYPE_R8A779A0_PLL1:
-		mult = cpg_pll_config->pll1_mult;
-		div = cpg_pll_config->pll1_div;
-		break;
-
-	case CLK_TYPE_R8A779A0_PLL2X_3X:
-		value = readl(base + core->offset);
-		mult = (((value >> 24) & 0x7f) + 1) * 2;
-		break;
-
-	case CLK_TYPE_R8A779A0_PLL5:
-		mult = cpg_pll_config->pll5_mult;
-		div = cpg_pll_config->pll5_div;
-		break;
-
-	case CLK_TYPE_R8A779A0_SD:
-		return cpg_sd_clk_register(core->name, base, core->offset,
-					   __clk_get_name(parent), notifiers,
-					   false);
-		break;
-
-	case CLK_TYPE_R8A779A0_MDSEL:
-		/*
-		 * Clock selectable between two parents and two fixed dividers
-		 * using a mode pin
-		 */
-		if (cpg_mode & BIT(core->offset)) {
-			div = core->div & 0xffff;
-		} else {
-			parent = clks[core->parent >> 16];
-			if (IS_ERR(parent))
-				return ERR_CAST(parent);
-			div = core->div >> 16;
-		}
-		mult = 1;
-		break;
-
-	case CLK_TYPE_R8A779A0_OSC:
-		/*
-		 * Clock combining OSC EXTAL predivider and a fixed divider
-		 */
-		div = cpg_pll_config->osc_prediv * core->div;
-		break;
-
-	default:
-		return ERR_PTR(-EINVAL);
-	}
-
-	return clk_register_fixed_factor(NULL, core->name,
-					 __clk_get_name(parent), 0, mult, div);
-}
-
 static const unsigned int r8a779a0_crit_mod_clks[] __initconst = {
 	MOD_CLK_ID(907),	/* RWDT */
 };
@@ -348,17 +249,19 @@ static const unsigned int r8a779a0_crit_mod_clks[] __initconst = {
  */
 #define CPG_PLL_CONFIG_INDEX(md)	((((md) & BIT(14)) >> 13) | \
 					 (((md) & BIT(13)) >> 13))
-
-static const struct rcar_r8a779a0_cpg_pll_config cpg_pll_configs[4] = {
-	/* EXTAL div	PLL1 mult/div	PLL5 mult/div	OSC prediv */
-	{ 1,		128,	1,	192,	1,	16,	},
-	{ 1,		106,	1,	160,	1,	19,	},
-	{ 0,		0,	0,	0,	0,	0,	},
-	{ 2,		128,	1,	192,	1,	32,	},
+static const struct rcar_gen4_cpg_pll_config cpg_pll_configs[4] = {
+	/* EXTAL div	PLL1 mult/div	PLL2 mult/div	PLL3 mult/div	PLL5 mult/div	PLL6 mult/div	OSC prediv */
+	{ 1,		128,	1,	0,	0,	0,	0,	192,	1,	0,	0,	16,	},
+	{ 1,		106,	1,	0,	0,	0,	0,	160,	1,	0,	0,	19,	},
+	{ 0,		0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	0,	},
+	{ 2,		128,	1,	0,	0,	0,	0,	192,	1,	0,	0,	32,	},
 };
+
 
 static int __init r8a779a0_cpg_mssr_init(struct device *dev)
 {
+	const struct rcar_gen4_cpg_pll_config *cpg_pll_config;
+	u32 cpg_mode;
 	int error;
 
 	error = rcar_rst_read_mode_pins(&cpg_mode);
@@ -366,10 +269,8 @@ static int __init r8a779a0_cpg_mssr_init(struct device *dev)
 		return error;
 
 	cpg_pll_config = &cpg_pll_configs[CPG_PLL_CONFIG_INDEX(cpg_mode)];
-	cpg_clk_extalr = CLK_EXTALR;
-	spin_lock_init(&cpg_lock);
 
-	return 0;
+	return rcar_gen4_cpg_init(cpg_pll_config, CLK_EXTALR, cpg_mode);
 }
 
 const struct cpg_mssr_info r8a779a0_cpg_mssr_info __initconst = {
@@ -390,7 +291,7 @@ const struct cpg_mssr_info r8a779a0_cpg_mssr_info __initconst = {
 
 	/* Callbacks */
 	.init = r8a779a0_cpg_mssr_init,
-	.cpg_clk_register = rcar_r8a779a0_cpg_clk_register,
+	.cpg_clk_register = rcar_gen4_cpg_clk_register,
 
-	.reg_layout = CLK_REG_LAYOUT_RCAR_V3U,
+	.reg_layout = CLK_REG_LAYOUT_RCAR_GEN4,
 };

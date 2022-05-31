@@ -156,8 +156,6 @@ static const struct acpi_device_id acpi_pnp_device_ids[] = {
 	{"BRI0A49"},		/* Boca Complete Ofc Communicator 14.4 Data-FAX */
 	{"BRI1400"},		/* Boca Research 33,600 ACF Modem */
 	{"BRI3400"},		/* Boca 33.6 Kbps Internal FD34FSVD */
-	{"BRI0A49"},		/* Boca 33.6 Kbps Internal FD34FSVD */
-	{"BDP3336"},		/* Best Data Products Inc. Smart One 336F PnP Modem */
 	{"CPI4050"},		/* Computer Peripherals Inc. EuroViVa CommCenter-33.6 SP PnP */
 	{"CTL3001"},		/* Creative Labs Phone Blaster 28.8 DSVD PnP Voice */
 	{"CTL3011"},		/* Creative Labs Modem Blaster 28.8 DSVD PnP Voice */

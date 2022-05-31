@@ -224,7 +224,7 @@ static void dump_common_audit_data(struct audit_buffer *ab,
 	case LSM_AUDIT_DATA_NONE:
 		return;
 	case LSM_AUDIT_DATA_IPC:
-		audit_log_format(ab, " key=%d ", a->u.ipc_id);
+		audit_log_format(ab, " ipc_key=%d ", a->u.ipc_id);
 		break;
 	case LSM_AUDIT_DATA_CAP:
 		audit_log_format(ab, " capability=%d ", a->u.cap);

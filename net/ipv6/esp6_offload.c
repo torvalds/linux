@@ -16,6 +16,7 @@
 #include <crypto/authenc.h>
 #include <linux/err.h>
 #include <linux/module.h>
+#include <net/gro.h>
 #include <net/ip.h>
 #include <net/xfrm.h>
 #include <net/esp.h>
@@ -144,8 +145,7 @@ static struct sk_buff *xfrm6_tunnel_gso_segment(struct xfrm_state *x,
 						struct sk_buff *skb,
 						netdev_features_t features)
 {
-	__skb_push(skb, skb->mac_len);
-	return skb_mac_gso_segment(skb, features);
+	return skb_eth_gso_segment(skb, features, htons(ETH_P_IPV6));
 }
 
 static struct sk_buff *xfrm6_transport_gso_segment(struct xfrm_state *x,
@@ -197,6 +197,9 @@ static struct sk_buff *xfrm6_beet_gso_segment(struct xfrm_state *x,
 		skb->transport_header +=
 			ipv6_skip_exthdr(skb, 0, &proto, &frag);
 	}
+
+	if (proto == IPPROTO_IPIP)
+		skb_shinfo(skb)->gso_type |= SKB_GSO_IPXIP6;
 
 	__skb_pull(skb, skb_transport_offset(skb));
 	ops = rcu_dereference(inet6_offloads[proto]);

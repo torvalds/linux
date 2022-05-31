@@ -35,6 +35,9 @@ struct msm_gem_address_space {
 	 * will be non-NULL:
 	 */
 	struct pid *pid;
+
+	/* @faults: the number of GPU hangs associated with this address space */
+	int faults;
 };
 
 struct msm_gem_vma {
@@ -308,11 +311,6 @@ struct msm_gem_submit {
 	struct list_head node;   /* node in ring submit list */
 	struct ww_acquire_ctx ticket;
 	uint32_t seqno;		/* Sequence number of the submit on the ring */
-
-	/* Array of struct dma_fence * to block on before submitting this job.
-	 */
-	struct xarray deps;
-	unsigned long last_dep;
 
 	/* Hw fence, which is created when the scheduler executes the job, and
 	 * is signaled when the hw finishes (via seqno write from cmdstream)

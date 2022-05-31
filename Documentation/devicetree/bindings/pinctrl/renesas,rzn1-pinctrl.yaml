@@ -31,6 +31,9 @@ properties:
     description:
       The bus clock, sometimes described as pclk, for register accesses.
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - compatible
   - reg

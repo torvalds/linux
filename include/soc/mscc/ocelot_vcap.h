@@ -8,6 +8,20 @@
 
 #include <soc/mscc/ocelot.h>
 
+/* Cookie definitions for private VCAP filters installed by the driver.
+ * Must be unique per VCAP block.
+ */
+#define OCELOT_VCAP_ES0_TAG_8021Q_RXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_IS1_TAG_8021Q_TXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_IS2_TAG_8021Q_TXVLAN(ocelot, port)		(port)
+#define OCELOT_VCAP_IS2_MRP_REDIRECT(ocelot, port)		((ocelot)->num_phys_ports + (port))
+#define OCELOT_VCAP_IS2_MRP_TRAP(ocelot)			((ocelot)->num_phys_ports * 2)
+#define OCELOT_VCAP_IS2_L2_PTP_TRAP(ocelot)			((ocelot)->num_phys_ports * 2 + 1)
+#define OCELOT_VCAP_IS2_IPV4_GEN_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 2)
+#define OCELOT_VCAP_IS2_IPV4_EV_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 3)
+#define OCELOT_VCAP_IS2_IPV6_GEN_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 4)
+#define OCELOT_VCAP_IS2_IPV6_EV_PTP_TRAP(ocelot)		((ocelot)->num_phys_ports * 2 + 5)
+
 /* =================================================================
  *  VCAP Common
  * =================================================================
@@ -576,6 +590,16 @@ enum ocelot_mask_mode {
 	OCELOT_MASK_MODE_REDIRECT,
 };
 
+enum ocelot_es0_vid_sel {
+	OCELOT_ES0_VID_PLUS_CLASSIFIED_VID = 0,
+	OCELOT_ES0_VID = 1,
+};
+
+enum ocelot_es0_pcp_sel {
+	OCELOT_CLASSIFIED_PCP = 0,
+	OCELOT_ES0_PCP = 1,
+};
+
 enum ocelot_es0_tag {
 	OCELOT_NO_ES0_TAG,
 	OCELOT_ES0_TAG,
@@ -630,6 +654,7 @@ struct ocelot_vcap_action {
 			enum ocelot_mask_mode mask_mode;
 			unsigned long port_mask;
 			bool police_ena;
+			bool mirror_ena;
 			struct ocelot_policer pol;
 			u32 pol_ix;
 		};
@@ -646,6 +671,7 @@ enum ocelot_vcap_filter_type {
 	OCELOT_VCAP_FILTER_DUMMY,
 	OCELOT_VCAP_FILTER_PAG,
 	OCELOT_VCAP_FILTER_OFFLOAD,
+	OCELOT_PSFP_FILTER_OFFLOAD,
 };
 
 struct ocelot_vcap_id {
@@ -667,9 +693,12 @@ struct ocelot_vcap_filter {
 	struct ocelot_vcap_action action;
 	struct ocelot_vcap_stats stats;
 	/* For VCAP IS1 and IS2 */
+	bool take_ts;
+	bool is_trap;
 	unsigned long ingress_port_mask;
 	/* For VCAP ES0 */
 	struct ocelot_vcap_port ingress_port;
+	/* For VCAP IS2 mirrors and ES0 */
 	struct ocelot_vcap_port egress_port;
 
 	enum ocelot_vcap_bit dmac_mc;
@@ -693,6 +722,8 @@ int ocelot_vcap_filter_add(struct ocelot *ocelot,
 			   struct netlink_ext_ack *extack);
 int ocelot_vcap_filter_del(struct ocelot *ocelot,
 			   struct ocelot_vcap_filter *rule);
+int ocelot_vcap_filter_replace(struct ocelot *ocelot,
+			       struct ocelot_vcap_filter *filter);
 struct ocelot_vcap_filter *
 ocelot_vcap_block_find_filter_by_id(struct ocelot_vcap_block *block,
 				    unsigned long cookie, bool tc_offload);

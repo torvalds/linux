@@ -195,7 +195,6 @@ static void cmdq_task_exec_done(struct cmdq_task *task, int sta)
 	struct cmdq_task_cb *cb = &task->pkt->async_cb;
 	struct cmdq_cb_data data;
 
-	WARN_ON(cb->cb == (cmdq_async_flush_cb)NULL);
 	data.sta = sta;
 	data.data = cb->data;
 	data.pkt = task->pkt;
@@ -525,21 +524,20 @@ static struct mbox_chan *cmdq_xlate(struct mbox_controller *mbox,
 static int cmdq_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct resource *res;
 	struct cmdq *cmdq;
 	int err, i;
 	struct gce_plat *plat_data;
 	struct device_node *phandle = dev->of_node;
 	struct device_node *node;
 	int alias_id = 0;
-	char clk_name[4] = "gce";
+	static const char * const clk_name = "gce";
+	static const char * const clk_names[] = { "gce0", "gce1" };
 
 	cmdq = devm_kzalloc(dev, sizeof(*cmdq), GFP_KERNEL);
 	if (!cmdq)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	cmdq->base = devm_ioremap_resource(dev, res);
+	cmdq->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(cmdq->base))
 		return PTR_ERR(cmdq->base);
 
@@ -570,16 +568,16 @@ static int cmdq_probe(struct platform_device *pdev)
 
 	if (cmdq->gce_num > 1) {
 		for_each_child_of_node(phandle->parent, node) {
-			char clk_id[8];
-
 			alias_id = of_alias_get_id(node, clk_name);
-			if (alias_id < cmdq->gce_num) {
-				snprintf(clk_id, sizeof(clk_id), "%s%d", clk_name, alias_id);
-				cmdq->clocks[alias_id].id = clk_id;
+			if (alias_id >= 0 && alias_id < cmdq->gce_num) {
+				cmdq->clocks[alias_id].id = clk_names[alias_id];
 				cmdq->clocks[alias_id].clk = of_clk_get(node, 0);
 				if (IS_ERR(cmdq->clocks[alias_id].clk)) {
-					dev_err(dev, "failed to get gce clk: %d\n", alias_id);
-					return PTR_ERR(cmdq->clocks[alias_id].clk);
+					of_node_put(node);
+					return dev_err_probe(dev,
+							     PTR_ERR(cmdq->clocks[alias_id].clk),
+							     "failed to get gce clk: %d\n",
+							     alias_id);
 				}
 			}
 		}
@@ -587,8 +585,8 @@ static int cmdq_probe(struct platform_device *pdev)
 		cmdq->clocks[alias_id].id = clk_name;
 		cmdq->clocks[alias_id].clk = devm_clk_get(&pdev->dev, clk_name);
 		if (IS_ERR(cmdq->clocks[alias_id].clk)) {
-			dev_err(dev, "failed to get gce clk\n");
-			return PTR_ERR(cmdq->clocks[alias_id].clk);
+			return dev_err_probe(dev, PTR_ERR(cmdq->clocks[alias_id].clk),
+					     "failed to get gce clk\n");
 		}
 	}
 
@@ -663,13 +661,13 @@ static const struct gce_plat gce_plat_v5 = {
 	.thread_nr = 24,
 	.shift = 3,
 	.control_by_sw = true,
-	.gce_num = 2
+	.gce_num = 1
 };
 
 static const struct gce_plat gce_plat_v6 = {
 	.thread_nr = 24,
 	.shift = 3,
-	.control_by_sw = false,
+	.control_by_sw = true,
 	.gce_num = 2
 };
 

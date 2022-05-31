@@ -20,6 +20,12 @@ struct thread;
 struct auxtrace;
 struct itrace_synth_opts;
 
+struct decomp_data {
+	struct decomp	 *decomp;
+	struct decomp	 *decomp_last;
+	struct zstd_data *zstd_decomp;
+};
+
 struct perf_session {
 	struct perf_header	header;
 	struct machines		machines;
@@ -39,13 +45,14 @@ struct perf_session {
 	u64			bytes_transferred;
 	u64			bytes_compressed;
 	struct zstd_data	zstd_data;
-	struct decomp		*decomp;
-	struct decomp		*decomp_last;
+	struct decomp_data	decomp_data;
+	struct decomp_data	*active_decomp;
 };
 
 struct decomp {
 	struct decomp *next;
 	u64 file_pos;
+	const char *file_path;
 	size_t mmap_len;
 	u64 head;
 	size_t size;
@@ -81,7 +88,7 @@ int perf_session__peek_events(struct perf_session *session, u64 offset,
 int perf_session__process_events(struct perf_session *session);
 
 int perf_session__queue_event(struct perf_session *s, union perf_event *event,
-			      u64 timestamp, u64 file_offset);
+			      u64 timestamp, u64 file_offset, const char *file_path);
 
 void perf_tool__fill_defaults(struct perf_tool *tool);
 

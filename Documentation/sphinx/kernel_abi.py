@@ -104,7 +104,7 @@ class KernelCmd(Directive):
         return nodeList
 
     def runCmd(self, cmd, **kwargs):
-        u"""Run command ``cmd`` and return it's stdout as unicode."""
+        u"""Run command ``cmd`` and return its stdout as unicode."""
 
         try:
             proc = subprocess.Popen(
@@ -128,6 +128,7 @@ class KernelCmd(Directive):
         return out
 
     def nestedParse(self, lines, fname):
+        env = self.state.document.settings.env
         content = ViewList()
         node = nodes.section()
 
@@ -137,7 +138,7 @@ class KernelCmd(Directive):
                 code_block += "\n    " + l
             lines = code_block + "\n\n"
 
-        line_regex = re.compile("^#define LINENO (\S+)\#([0-9]+)$")
+        line_regex = re.compile("^\.\. LINENO (\S+)\#([0-9]+)$")
         ln = 0
         n = 0
         f = fname
@@ -153,6 +154,9 @@ class KernelCmd(Directive):
                 if new_f != f and content:
                     self.do_parse(content, node)
                     content = ViewList()
+
+                    # Add the file to Sphinx build dependencies
+                    env.note_dependency(os.path.abspath(f))
 
                 f = new_f
 

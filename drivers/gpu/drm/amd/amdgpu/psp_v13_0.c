@@ -31,9 +31,16 @@
 
 MODULE_FIRMWARE("amdgpu/aldebaran_sos.bin");
 MODULE_FIRMWARE("amdgpu/aldebaran_ta.bin");
+MODULE_FIRMWARE("amdgpu/aldebaran_cap.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_asd.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_toc.bin");
 MODULE_FIRMWARE("amdgpu/yellow_carp_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_5_asd.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_5_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_5_ta.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_8_asd.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_8_toc.bin");
+MODULE_FIRMWARE("amdgpu/psp_13_0_8_ta.bin");
 
 /* For large FW files the time to complete can be very long */
 #define USBC_PD_POLLING_LIMIT_S 240
@@ -47,18 +54,25 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 	const char *chip_name;
 	int err = 0;
 
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		chip_name = "aldebaran";
 		break;
-	case CHIP_YELLOW_CARP:
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 3):
 		chip_name = "yellow_carp";
+		break;
+	case IP_VERSION(13, 0, 5):
+		chip_name = "psp_13_0_5";
+		break;
+	case IP_VERSION(13, 0, 8):
+		chip_name = "psp_13_0_8";
 		break;
 	default:
 		BUG();
 	}
-	switch (adev->asic_type) {
-	case CHIP_ALDEBARAN:
+	switch (adev->ip_versions[MP0_HWIP][0]) {
+	case IP_VERSION(13, 0, 2):
 		err = psp_init_sos_microcode(psp, chip_name);
 		if (err)
 			return err;
@@ -66,7 +80,10 @@ static int psp_v13_0_init_microcode(struct psp_context *psp)
 		if (err)
 			return err;
 		break;
-	case CHIP_YELLOW_CARP:
+	case IP_VERSION(13, 0, 1):
+	case IP_VERSION(13, 0, 3):
+	case IP_VERSION(13, 0, 5):
+	case IP_VERSION(13, 0, 8):
 		err = psp_init_asd_microcode(psp, chip_name);
 		if (err)
 			return err;

@@ -73,8 +73,8 @@
 
 #include "nbio/nbio_7_2_0_offset.h"
 
-#include "dcn/dpcs_3_0_0_offset.h"
-#include "dcn/dpcs_3_0_0_sh_mask.h"
+#include "dpcs/dpcs_3_0_0_offset.h"
+#include "dpcs/dpcs_3_0_0_sh_mask.h"
 
 #include "reg_helper.h"
 #include "dce/dmub_abm.h"
@@ -82,6 +82,7 @@
 #include "dce/dce_i2c.h"
 
 #include "dml/dcn30/display_mode_vba_30.h"
+#include "dml/dcn301/dcn301_fpu.h"
 #include "vm_helper.h"
 #include "dcn20/dcn20_vmid.h"
 #include "amdgpu_socbb.h"
@@ -90,184 +91,6 @@
 	container_of(pool, struct dcn301_resource_pool, base)
 
 #define DC_LOGGER_INIT(logger)
-
-struct _vcs_dpi_ip_params_st dcn3_01_ip = {
-	.odm_capable = 1,
-	.gpuvm_enable = 1,
-	.hostvm_enable = 1,
-	.gpuvm_max_page_table_levels = 1,
-	.hostvm_max_page_table_levels = 2,
-	.hostvm_cached_page_table_levels = 0,
-	.pte_group_size_bytes = 2048,
-	.num_dsc = 3,
-	.rob_buffer_size_kbytes = 184,
-	.det_buffer_size_kbytes = 184,
-	.dpte_buffer_size_in_pte_reqs_luma = 64,
-	.dpte_buffer_size_in_pte_reqs_chroma = 32,
-	.pde_proc_buffer_size_64k_reqs = 48,
-	.dpp_output_buffer_pixels = 2560,
-	.opp_output_buffer_lines = 1,
-	.pixel_chunk_size_kbytes = 8,
-	.meta_chunk_size_kbytes = 2,
-	.writeback_chunk_size_kbytes = 8,
-	.line_buffer_size_bits = 789504,
-	.is_line_buffer_bpp_fixed = 0,  // ?
-	.line_buffer_fixed_bpp = 48,     // ?
-	.dcc_supported = true,
-	.writeback_interface_buffer_size_kbytes = 90,
-	.writeback_line_buffer_buffer_size = 656640,
-	.max_line_buffer_lines = 12,
-	.writeback_luma_buffer_size_kbytes = 12,  // writeback_line_buffer_buffer_size = 656640
-	.writeback_chroma_buffer_size_kbytes = 8,
-	.writeback_chroma_line_buffer_width_pixels = 4,
-	.writeback_max_hscl_ratio = 1,
-	.writeback_max_vscl_ratio = 1,
-	.writeback_min_hscl_ratio = 1,
-	.writeback_min_vscl_ratio = 1,
-	.writeback_max_hscl_taps = 1,
-	.writeback_max_vscl_taps = 1,
-	.writeback_line_buffer_luma_buffer_size = 0,
-	.writeback_line_buffer_chroma_buffer_size = 14643,
-	.cursor_buffer_size = 8,
-	.cursor_chunk_size = 2,
-	.max_num_otg = 4,
-	.max_num_dpp = 4,
-	.max_num_wb = 1,
-	.max_dchub_pscl_bw_pix_per_clk = 4,
-	.max_pscl_lb_bw_pix_per_clk = 2,
-	.max_lb_vscl_bw_pix_per_clk = 4,
-	.max_vscl_hscl_bw_pix_per_clk = 4,
-	.max_hscl_ratio = 6,
-	.max_vscl_ratio = 6,
-	.hscl_mults = 4,
-	.vscl_mults = 4,
-	.max_hscl_taps = 8,
-	.max_vscl_taps = 8,
-	.dispclk_ramp_margin_percent = 1,
-	.underscan_factor = 1.11,
-	.min_vblank_lines = 32,
-	.dppclk_delay_subtotal = 46,
-	.dynamic_metadata_vm_enabled = true,
-	.dppclk_delay_scl_lb_only = 16,
-	.dppclk_delay_scl = 50,
-	.dppclk_delay_cnvc_formatter = 27,
-	.dppclk_delay_cnvc_cursor = 6,
-	.dispclk_delay_subtotal = 119,
-	.dcfclk_cstate_latency = 5.2, // SRExitTime
-	.max_inter_dcn_tile_repeaters = 8,
-	.max_num_hdmi_frl_outputs = 0,
-	.odm_combine_4to1_supported = true,
-
-	.xfc_supported = false,
-	.xfc_fill_bw_overhead_percent = 10.0,
-	.xfc_fill_constant_bytes = 0,
-	.gfx7_compat_tiling_supported = 0,
-	.number_of_cursors = 1,
-};
-
-struct _vcs_dpi_soc_bounding_box_st dcn3_01_soc = {
-	.clock_limits = {
-			{
-				.state = 0,
-				.dram_speed_mts = 2400.0,
-				.fabricclk_mhz = 600,
-				.socclk_mhz = 278.0,
-				.dcfclk_mhz = 400.0,
-				.dscclk_mhz = 206.0,
-				.dppclk_mhz = 1015.0,
-				.dispclk_mhz = 1015.0,
-				.phyclk_mhz = 600.0,
-			},
-			{
-				.state = 1,
-				.dram_speed_mts = 2400.0,
-				.fabricclk_mhz = 688,
-				.socclk_mhz = 278.0,
-				.dcfclk_mhz = 400.0,
-				.dscclk_mhz = 206.0,
-				.dppclk_mhz = 1015.0,
-				.dispclk_mhz = 1015.0,
-				.phyclk_mhz = 600.0,
-			},
-			{
-				.state = 2,
-				.dram_speed_mts = 4267.0,
-				.fabricclk_mhz = 1067,
-				.socclk_mhz = 278.0,
-				.dcfclk_mhz = 608.0,
-				.dscclk_mhz = 296.0,
-				.dppclk_mhz = 1015.0,
-				.dispclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
-			},
-
-			{
-				.state = 3,
-				.dram_speed_mts = 4267.0,
-				.fabricclk_mhz = 1067,
-				.socclk_mhz = 715.0,
-				.dcfclk_mhz = 676.0,
-				.dscclk_mhz = 338.0,
-				.dppclk_mhz = 1015.0,
-				.dispclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
-			},
-
-			{
-				.state = 4,
-				.dram_speed_mts = 4267.0,
-				.fabricclk_mhz = 1067,
-				.socclk_mhz = 953.0,
-				.dcfclk_mhz = 810.0,
-				.dscclk_mhz = 338.0,
-				.dppclk_mhz = 1015.0,
-				.dispclk_mhz = 1015.0,
-				.phyclk_mhz = 810.0,
-			},
-		},
-
-	.sr_exit_time_us = 9.0,
-	.sr_enter_plus_exit_time_us = 11.0,
-	.urgent_latency_us = 4.0,
-	.urgent_latency_pixel_data_only_us = 4.0,
-	.urgent_latency_pixel_mixed_with_vm_data_us = 4.0,
-	.urgent_latency_vm_data_only_us = 4.0,
-	.urgent_out_of_order_return_per_channel_pixel_only_bytes = 4096,
-	.urgent_out_of_order_return_per_channel_pixel_and_vm_bytes = 4096,
-	.urgent_out_of_order_return_per_channel_vm_only_bytes = 4096,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_only = 80.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_pixel_and_vm = 75.0,
-	.pct_ideal_dram_sdp_bw_after_urgent_vm_only = 40.0,
-	.max_avg_sdp_bw_use_normal_percent = 60.0,
-	.max_avg_dram_bw_use_normal_percent = 60.0,
-	.writeback_latency_us = 12.0,
-	.max_request_size_bytes = 256,
-	.dram_channel_width_bytes = 4,
-	.fabric_datapath_to_dcn_data_return_bytes = 32,
-	.dcn_downspread_percent = 0.5,
-	.downspread_percent = 0.38,
-	.dram_page_open_time_ns = 50.0,
-	.dram_rw_turnaround_time_ns = 17.5,
-	.dram_return_buffer_per_channel_bytes = 8192,
-	.round_trip_ping_latency_dcfclk_cycles = 191,
-	.urgent_out_of_order_return_per_channel_bytes = 4096,
-	.channel_interleave_bytes = 256,
-	.num_banks = 8,
-	.num_chans = 4,
-	.gpuvm_min_page_size_bytes = 4096,
-	.hostvm_min_page_size_bytes = 4096,
-	.dram_clock_change_latency_us = 23.84,
-	.writeback_dram_clock_change_latency_us = 23.0,
-	.return_bus_width_bytes = 64,
-	.dispclk_dppclk_vco_speed_mhz = 3550,
-	.xfc_bus_transport_time_us = 20,      // ?
-	.xfc_xbuf_latency_tolerance_us = 4,  // ?
-	.use_urgent_burst_bw = 1,            // ?
-	.num_states = 5,
-	.do_urgent_latency_adjustment = false,
-	.urgent_latency_adjustment_fabric_clock_component_us = 0,
-	.urgent_latency_adjustment_fabric_clock_reference_mhz = 0,
-};
 
 enum dcn301_clk_src_array_id {
 	DCN301_CLK_SRC_PLL0,
@@ -833,7 +656,7 @@ static const struct dc_plane_cap plane_cap = {
 			.argb8888 = true,
 			.nv12 = true,
 			.fp16 = true,
-			.p010 = false,
+			.p010 = true,
 			.ayuv = false,
 	},
 
@@ -863,7 +686,7 @@ static const struct dc_debug_options debug_defaults_drv = {
 	.disable_clock_gate = true,
 	.disable_pplib_clock_request = true,
 	.disable_pplib_wm_range = true,
-	.pipe_split_policy = MPC_SPLIT_AVOID_MULT_DISP,
+	.pipe_split_policy = MPC_SPLIT_AVOID,
 	.force_single_disp_pipe_split = false,
 	.disable_dcc = DCC_ENABLE,
 	.vsr_support = true,
@@ -894,15 +717,13 @@ static const struct dc_debug_options debug_defaults_diags = {
 	.use_max_lb = false,
 };
 
-void dcn301_dpp_destroy(struct dpp **dpp)
+static void dcn301_dpp_destroy(struct dpp **dpp)
 {
 	kfree(TO_DCN20_DPP(*dpp));
 	*dpp = NULL;
 }
 
-struct dpp *dcn301_dpp_create(
-	struct dc_context *ctx,
-	uint32_t inst)
+static struct dpp *dcn301_dpp_create(struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn3_dpp *dpp =
 		kzalloc(sizeof(struct dcn3_dpp), GFP_KERNEL);
@@ -918,8 +739,8 @@ struct dpp *dcn301_dpp_create(
 	kfree(dpp);
 	return NULL;
 }
-struct output_pixel_processor *dcn301_opp_create(
-	struct dc_context *ctx, uint32_t inst)
+static struct output_pixel_processor *dcn301_opp_create(struct dc_context *ctx,
+							uint32_t inst)
 {
 	struct dcn20_opp *opp =
 		kzalloc(sizeof(struct dcn20_opp), GFP_KERNEL);
@@ -934,9 +755,7 @@ struct output_pixel_processor *dcn301_opp_create(
 	return &opp->base;
 }
 
-struct dce_aux *dcn301_aux_engine_create(
-	struct dc_context *ctx,
-	uint32_t inst)
+static struct dce_aux *dcn301_aux_engine_create(struct dc_context *ctx, uint32_t inst)
 {
 	struct aux_engine_dce110 *aux_engine =
 		kzalloc(sizeof(struct aux_engine_dce110), GFP_KERNEL);
@@ -970,9 +789,7 @@ static const struct dce_i2c_mask i2c_masks = {
 		I2C_COMMON_MASK_SH_LIST_DCN2(_MASK)
 };
 
-struct dce_i2c_hw *dcn301_i2c_hw_create(
-	struct dc_context *ctx,
-	uint32_t inst)
+static struct dce_i2c_hw *dcn301_i2c_hw_create(struct dc_context *ctx, uint32_t inst)
 {
 	struct dce_i2c_hw *dce_i2c_hw =
 		kzalloc(sizeof(struct dce_i2c_hw), GFP_KERNEL);
@@ -1006,7 +823,7 @@ static struct mpc *dcn301_mpc_create(
 	return &mpc30->base;
 }
 
-struct hubbub *dcn301_hubbub_create(struct dc_context *ctx)
+static struct hubbub *dcn301_hubbub_create(struct dc_context *ctx)
 {
 	int i;
 
@@ -1037,9 +854,8 @@ struct hubbub *dcn301_hubbub_create(struct dc_context *ctx)
 	return &hubbub3->base;
 }
 
-struct timing_generator *dcn301_timing_generator_create(
-		struct dc_context *ctx,
-		uint32_t instance)
+static struct timing_generator *dcn301_timing_generator_create(
+	struct dc_context *ctx, uint32_t instance)
 {
 	struct optc *tgn10 =
 		kzalloc(sizeof(struct optc), GFP_KERNEL);
@@ -1071,7 +887,7 @@ static const struct encoder_feature_support link_enc_feature = {
 		.flags.bits.IS_TPS4_CAPABLE = true
 };
 
-struct link_encoder *dcn301_link_encoder_create(
+static struct link_encoder *dcn301_link_encoder_create(
 	const struct encoder_init_data *enc_init_data)
 {
 	struct dcn20_link_encoder *enc20 =
@@ -1092,7 +908,7 @@ struct link_encoder *dcn301_link_encoder_create(
 	return &enc20->enc10.base;
 }
 
-struct panel_cntl *dcn301_panel_cntl_create(const struct panel_cntl_init_data *init_data)
+static struct panel_cntl *dcn301_panel_cntl_create(const struct panel_cntl_init_data *init_data)
 {
 	struct dcn301_panel_cntl *panel_cntl =
 		kzalloc(sizeof(struct dcn301_panel_cntl), GFP_KERNEL);
@@ -1174,9 +990,8 @@ static struct afmt *dcn301_afmt_create(
 	return &afmt3->base;
 }
 
-struct stream_encoder *dcn301_stream_encoder_create(
-	enum engine_id eng_id,
-	struct dc_context *ctx)
+static struct stream_encoder *dcn301_stream_encoder_create(enum engine_id eng_id,
+							   struct dc_context *ctx)
 {
 	struct dcn10_stream_encoder *enc1;
 	struct vpg *vpg;
@@ -1195,8 +1010,12 @@ struct stream_encoder *dcn301_stream_encoder_create(
 	vpg = dcn301_vpg_create(ctx, vpg_inst);
 	afmt = dcn301_afmt_create(ctx, afmt_inst);
 
-	if (!enc1 || !vpg || !afmt)
+	if (!enc1 || !vpg || !afmt) {
+		kfree(enc1);
+		kfree(vpg);
+		kfree(afmt);
 		return NULL;
+	}
 
 	dcn30_dio_stream_encoder_construct(enc1, ctx, ctx->dc_bios,
 					eng_id, vpg, afmt,
@@ -1206,8 +1025,7 @@ struct stream_encoder *dcn301_stream_encoder_create(
 	return &enc1->base;
 }
 
-struct dce_hwseq *dcn301_hwseq_create(
-	struct dc_context *ctx)
+static struct dce_hwseq *dcn301_hwseq_create(struct dc_context *ctx)
 {
 	struct dce_hwseq *hws = kzalloc(sizeof(struct dce_hwseq), GFP_KERNEL);
 
@@ -1355,9 +1173,7 @@ static void dcn301_destruct(struct dcn301_resource_pool *pool)
 		dcn_dccg_destroy(&pool->base.dccg);
 }
 
-struct hubp *dcn301_hubp_create(
-	struct dc_context *ctx,
-	uint32_t inst)
+static struct hubp *dcn301_hubp_create(struct dc_context *ctx, uint32_t inst)
 {
 	struct dcn20_hubp *hubp2 =
 		kzalloc(sizeof(struct dcn20_hubp), GFP_KERNEL);
@@ -1374,7 +1190,7 @@ struct hubp *dcn301_hubp_create(
 	return NULL;
 }
 
-bool dcn301_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
+static bool dcn301_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 {
 	int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
@@ -1399,7 +1215,7 @@ bool dcn301_dwbc_create(struct dc_context *ctx, struct resource_pool *pool)
 	return true;
 }
 
-bool dcn301_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
+static bool dcn301_mmhubbub_create(struct dc_context *ctx, struct resource_pool *pool)
 {
 	int i;
 	uint32_t pipe_count = pool->res_cap->num_dwb;
@@ -1476,8 +1292,6 @@ static struct dc_cap_funcs cap_funcs = {
 	.get_dcc_compression_cap = dcn20_get_dcc_compression_cap
 };
 
-#define fixed16_to_double(x) (((double) x) / ((double) (1 << 16)))
-#define fixed16_to_double_to_cpu(x) fixed16_to_double(le32_to_cpu(x))
 
 static bool is_soc_bounding_box_valid(struct dc *dc)
 {
@@ -1504,25 +1318,23 @@ static bool init_soc_bounding_box(struct dc *dc,
 
 	loaded_ip->max_num_otg = pool->base.res_cap->num_timing_generator;
 	loaded_ip->max_num_dpp = pool->base.pipe_count;
+	DC_FP_START();
 	dcn20_patch_bounding_box(dc, loaded_bb);
+	DC_FP_END();
 
 	if (dc->ctx->dc_bios->funcs->get_soc_bb_info) {
 		struct bp_soc_bb_info bb_info = {0};
 
 		if (dc->ctx->dc_bios->funcs->get_soc_bb_info(dc->ctx->dc_bios, &bb_info) == BP_RESULT_OK) {
-			if (bb_info.dram_clock_change_latency_100ns > 0)
-				dcn3_01_soc.dram_clock_change_latency_us = bb_info.dram_clock_change_latency_100ns * 10;
-
-			if (bb_info.dram_sr_enter_exit_latency_100ns > 0)
-				dcn3_01_soc.sr_enter_plus_exit_time_us = bb_info.dram_sr_enter_exit_latency_100ns * 10;
-
-			if (bb_info.dram_sr_exit_latency_100ns > 0)
-				dcn3_01_soc.sr_exit_time_us = bb_info.dram_sr_exit_latency_100ns * 10;
+			DC_FP_START();
+			dcn301_fpu_init_soc_bounding_box(bb_info);
+			DC_FP_END();
 		}
 	}
 
 	return true;
 }
+
 
 static void set_wm_ranges(
 		struct pp_smu_funcs *pp_smu,
@@ -1546,9 +1358,9 @@ static void set_wm_ranges(
 			ranges.reader_wm_sets[i].wm_inst = i;
 			ranges.reader_wm_sets[i].min_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MIN;
 			ranges.reader_wm_sets[i].max_drain_clk_mhz = PP_SMU_WM_SET_RANGE_CLK_UNCONSTRAINED_MAX;
-			ranges.reader_wm_sets[i].min_fill_clk_mhz = (i > 0) ? (loaded_bb->clock_limits[i - 1].dram_speed_mts / 16) + 1 : 0;
-			ranges.reader_wm_sets[i].max_fill_clk_mhz = loaded_bb->clock_limits[i].dram_speed_mts / 16;
-
+			DC_FP_START();
+			dcn301_fpu_set_wm_ranges(i, &ranges, loaded_bb);
+			DC_FP_END();
 			ranges.num_reader_wm_sets = i + 1;
 		}
 
@@ -1568,58 +1380,15 @@ static void set_wm_ranges(
 	pp_smu->nv_funcs.set_wm_ranges(&pp_smu->nv_funcs.pp_smu, &ranges);
 }
 
-static void dcn301_update_bw_bounding_box(struct dc *dc, struct clk_bw_params *bw_params)
+static void dcn301_calculate_wm_and_dlg(
+		struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes,
+		int pipe_cnt,
+		int vlevel)
 {
-	struct dcn301_resource_pool *pool = TO_DCN301_RES_POOL(dc->res_pool);
-	struct clk_limit_table *clk_table = &bw_params->clk_table;
-	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
-	unsigned int i, closest_clk_lvl;
-	int j;
-
-	// Default clock levels are used for diags, which may lead to overclocking.
-	if (!IS_DIAG_DC(dc->ctx->dce_environment)) {
-		dcn3_01_ip.max_num_otg = pool->base.res_cap->num_timing_generator;
-		dcn3_01_ip.max_num_dpp = pool->base.pipe_count;
-		dcn3_01_soc.num_chans = bw_params->num_channels;
-
-		ASSERT(clk_table->num_entries);
-		for (i = 0; i < clk_table->num_entries; i++) {
-			/* loop backwards*/
-			for (closest_clk_lvl = 0, j = dcn3_01_soc.num_states - 1; j >= 0; j--) {
-				if ((unsigned int) dcn3_01_soc.clock_limits[j].dcfclk_mhz <= clk_table->entries[i].dcfclk_mhz) {
-					closest_clk_lvl = j;
-					break;
-				}
-			}
-
-			clock_limits[i].state = i;
-			clock_limits[i].dcfclk_mhz = clk_table->entries[i].dcfclk_mhz;
-			clock_limits[i].fabricclk_mhz = clk_table->entries[i].fclk_mhz;
-			clock_limits[i].socclk_mhz = clk_table->entries[i].socclk_mhz;
-			clock_limits[i].dram_speed_mts = clk_table->entries[i].memclk_mhz * 2;
-
-			clock_limits[i].dispclk_mhz = dcn3_01_soc.clock_limits[closest_clk_lvl].dispclk_mhz;
-			clock_limits[i].dppclk_mhz = dcn3_01_soc.clock_limits[closest_clk_lvl].dppclk_mhz;
-			clock_limits[i].dram_bw_per_chan_gbps = dcn3_01_soc.clock_limits[closest_clk_lvl].dram_bw_per_chan_gbps;
-			clock_limits[i].dscclk_mhz = dcn3_01_soc.clock_limits[closest_clk_lvl].dscclk_mhz;
-			clock_limits[i].dtbclk_mhz = dcn3_01_soc.clock_limits[closest_clk_lvl].dtbclk_mhz;
-			clock_limits[i].phyclk_d18_mhz = dcn3_01_soc.clock_limits[closest_clk_lvl].phyclk_d18_mhz;
-			clock_limits[i].phyclk_mhz = dcn3_01_soc.clock_limits[closest_clk_lvl].phyclk_mhz;
-		}
-		for (i = 0; i < clk_table->num_entries; i++)
-			dcn3_01_soc.clock_limits[i] = clock_limits[i];
-		if (clk_table->num_entries) {
-			dcn3_01_soc.num_states = clk_table->num_entries;
-			/* duplicate last level */
-			dcn3_01_soc.clock_limits[dcn3_01_soc.num_states] = dcn3_01_soc.clock_limits[dcn3_01_soc.num_states - 1];
-			dcn3_01_soc.clock_limits[dcn3_01_soc.num_states].state = dcn3_01_soc.num_states;
-		}
-	}
-
-	dcn3_01_soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
-	dc->dml.soc.dispclk_dppclk_vco_speed_mhz = dc->clk_mgr->dentist_vco_freq_khz / 1000.0;
-
-	dml_init_instance(&dc->dml, &dcn3_01_soc, &dcn3_01_ip, DML_PROJECT_DCN30);
+	DC_FP_START();
+	dcn301_calculate_wm_and_dlg_fp(dc, context, pipes, pipe_cnt, vlevel);
+	DC_FP_END();
 }
 
 static struct resource_funcs dcn301_res_pool_funcs = {
@@ -1627,7 +1396,7 @@ static struct resource_funcs dcn301_res_pool_funcs = {
 	.link_enc_create = dcn301_link_encoder_create,
 	.panel_cntl_create = dcn301_panel_cntl_create,
 	.validate_bandwidth = dcn30_validate_bandwidth,
-	.calculate_wm_and_dlg = dcn30_calculate_wm_and_dlg,
+	.calculate_wm_and_dlg = dcn301_calculate_wm_and_dlg,
 	.update_soc_for_wm_a = dcn30_update_soc_for_wm_a,
 	.populate_dml_pipes = dcn30_populate_dml_pipes_from_context,
 	.acquire_idle_pipe_for_layer = dcn20_acquire_idle_pipe_for_layer,
@@ -1680,9 +1449,7 @@ static bool dcn301_resource_construct(
 	dc->caps.post_blend_color_processing = true;
 	dc->caps.force_dp_tps4_for_cp2520 = true;
 	dc->caps.extended_aux_timeout_support = true;
-#ifdef CONFIG_DRM_AMD_DC_DMUB
 	dc->caps.dmcub_support = true;
-#endif
 
 	/* Color pipeline capabilities */
 	dc->caps.color.dpp.dcn_arch = 1;
@@ -1717,6 +1484,23 @@ static bool dcn301_resource_construct(
 	dc->caps.color.mpc.ogam_rom_caps.pq = 0;
 	dc->caps.color.mpc.ogam_rom_caps.hlg = 0;
 	dc->caps.color.mpc.ocsc = 1;
+
+	/* read VBIOS LTTPR caps */
+	if (ctx->dc_bios->funcs->get_lttpr_caps) {
+		enum bp_result bp_query_result;
+		uint8_t is_vbios_lttpr_enable = 0;
+
+		bp_query_result = ctx->dc_bios->funcs->get_lttpr_caps(ctx->dc_bios, &is_vbios_lttpr_enable);
+		dc->caps.vbios_lttpr_enable = (bp_query_result == BP_RESULT_OK) && !!is_vbios_lttpr_enable;
+	}
+
+	if (ctx->dc_bios->funcs->get_lttpr_interop) {
+		enum bp_result bp_query_result;
+		uint8_t is_vbios_interop_enabled = 0;
+
+		bp_query_result = ctx->dc_bios->funcs->get_lttpr_interop(ctx->dc_bios, &is_vbios_interop_enabled);
+		dc->caps.vbios_lttpr_aware = (bp_query_result == BP_RESULT_OK) && !!is_vbios_interop_enabled;
+	}
 
 	if (dc->ctx->dce_environment == DCE_ENV_PRODUCTION_DRV)
 		dc->debug = debug_defaults_drv;

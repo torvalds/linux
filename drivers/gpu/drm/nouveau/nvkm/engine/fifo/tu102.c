@@ -49,7 +49,7 @@ tu102_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 	/*XXX: how to wait? can you even wait? */
 }
 
-const struct gk104_fifo_runlist_func
+static const struct gk104_fifo_runlist_func
 tu102_fifo_runlist = {
 	.size = 16,
 	.cgrp = gv100_fifo_runlist_cgrp,

@@ -64,37 +64,37 @@ Description:	SoundWire Slave Data Port-0 DisCo properties.
 		Data port 0 are used by the bus to configure the Data Port 0.
 
 
-What:		/sys/bus/soundwire/devices/sdw:.../dpN_src/max_word
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/min_word
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/words
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/type
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/max_grouping
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/simple_ch_prep_sm
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/ch_prep_timeout
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/imp_def_interrupts
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/min_ch
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/max_ch
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/channels
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/ch_combinations
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/max_async_buffer
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/block_pack_mode
-		/sys/bus/soundwire/devices/sdw:.../dpN_src/port_encoding
+What:		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/min_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/words
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/type
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_grouping
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/simple_ch_prep_sm
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/ch_prep_timeout
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/imp_def_interrupts
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/min_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/channels
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/ch_combinations
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/max_async_buffer
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/block_pack_mode
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_src/port_encoding
 
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/max_word
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/min_word
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/words
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/type
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/max_grouping
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/simple_ch_prep_sm
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/ch_prep_timeout
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/imp_def_interrupts
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/min_ch
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/max_ch
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/channels
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/ch_combinations
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/max_async_buffer
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/block_pack_mode
-		/sys/bus/soundwire/devices/sdw:.../dpN_sink/port_encoding
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/min_word
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/words
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/type
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_grouping
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/simple_ch_prep_sm
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/ch_prep_timeout
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/imp_def_interrupts
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/min_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_ch
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/channels
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/ch_combinations
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/max_async_buffer
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/block_pack_mode
+		/sys/bus/soundwire/devices/sdw:.../dp<N>_sink/port_encoding
 
 Date:		May 2020
 

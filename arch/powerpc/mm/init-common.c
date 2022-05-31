@@ -20,6 +20,7 @@
 #include <linux/pgtable.h>
 #include <asm/pgalloc.h>
 #include <asm/kup.h>
+#include <asm/smp.h>
 
 phys_addr_t memstart_addr __ro_after_init = (phys_addr_t)~0ull;
 EXPORT_SYMBOL_GPL(memstart_addr);
@@ -33,6 +34,9 @@ bool disable_kuap = !IS_ENABLED(CONFIG_PPC_KUAP);
 
 static int __init parse_nosmep(char *p)
 {
+	if (!IS_ENABLED(CONFIG_PPC_BOOK3S_64))
+		return 0;
+
 	disable_kuep = true;
 	pr_warn("Disabling Kernel Userspace Execution Prevention\n");
 	return 0;
@@ -46,6 +50,23 @@ static int __init parse_nosmap(char *p)
 	return 0;
 }
 early_param("nosmap", parse_nosmap);
+
+void __weak setup_kuep(bool disabled)
+{
+	if (!IS_ENABLED(CONFIG_PPC_KUEP) || disabled)
+		return;
+
+	if (smp_processor_id() != boot_cpuid)
+		return;
+
+	pr_info("Activating Kernel Userspace Execution Prevention\n");
+}
+
+void setup_kup(void)
+{
+	setup_kuap(disable_kuap);
+	setup_kuep(disable_kuep);
+}
 
 #define CTOR(shift) static void ctor_##shift(void *addr) \
 {							\

@@ -44,6 +44,7 @@ properties:
       - renesas,pfc-r8a77990    # R-Car E3
       - renesas,pfc-r8a77995    # R-Car D3
       - renesas,pfc-r8a779a0    # R-Car V3U
+      - renesas,pfc-r8a779f0    # R-Car S4-8
       - renesas,pfc-sh73a0      # SH-Mobile AG5
 
   reg:
@@ -69,6 +70,9 @@ properties:
 
   power-domains:
     maxItems: 1
+
+allOf:
+  - $ref: "pinctrl.yaml#"
 
 required:
   - compatible

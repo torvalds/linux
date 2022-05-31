@@ -8,177 +8,179 @@
 #include "../include/recv_osdep.h"
 #include "../include/rtl8188e_hal.h"
 
-static int usbctrl_vendorreq(struct intf_hdl *pintfhdl, u16 value, void *pdata, u16 len, u8 requesttype)
+static int usb_read(struct intf_hdl *intf, u16 value, void *data, u8 size)
 {
-	struct adapter	*adapt = pintfhdl->padapter;
-	struct dvobj_priv  *dvobjpriv = adapter_to_dvobj(adapt);
+	struct adapter *adapt = intf->padapter;
+	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
 	struct usb_device *udev = dvobjpriv->pusbdev;
-	unsigned int pipe;
-	int status = 0;
-	u8 *pIo_buf;
-	int vendorreq_times = 0;
+	int status;
+	u8 io_buf[4];
 
-	if ((adapt->bSurpriseRemoved) || (adapt->pwrctrlpriv.pnp_bstop_trx)) {
-		status = -EPERM;
-		goto exit;
+	if (adapt->bSurpriseRemoved || adapt->pwrctrlpriv.pnp_bstop_trx)
+		return -EPERM;
+
+	status = usb_control_msg_recv(udev, 0, REALTEK_USB_VENQT_CMD_REQ,
+				      REALTEK_USB_VENQT_READ, value,
+				      REALTEK_USB_VENQT_CMD_IDX, io_buf,
+				      size, RTW_USB_CONTROL_MSG_TIMEOUT,
+				      GFP_KERNEL);
+
+	if (status == -ESHUTDOWN ||
+	    status == -ENODEV ||
+	    status == -ENOENT) {
+		/*
+		 * device or controller has been disabled due to
+		 * some problem that could not be worked around,
+		 * device or bus doesn’t exist, endpoint does not
+		 * exist or is not enabled.
+		 */
+		adapt->bSurpriseRemoved = true;
+		return status;
 	}
 
-	if (len > MAX_VENDOR_REQ_CMD_SIZE) {
-		DBG_88E("[%s] Buffer len error ,vendor request failed\n", __func__);
-		status = -EINVAL;
-		goto exit;
+	if (status < 0) {
+		if (rtw_inc_and_chk_continual_urb_error(dvobjpriv))
+			adapt->bSurpriseRemoved = true;
+
+		return status;
 	}
 
-	_enter_critical_mutex(&dvobjpriv->usb_vendor_req_mutex, NULL);
+	rtw_reset_continual_urb_error(dvobjpriv);
+	memcpy(data, io_buf, size);
 
-	/*  Acquire IO memory for vendorreq */
-	pIo_buf = dvobjpriv->usb_vendor_req_buf;
-
-	if (!pIo_buf) {
-		DBG_88E("[%s] pIo_buf == NULL\n", __func__);
-		status = -ENOMEM;
-		goto release_mutex;
-	}
-
-	if (requesttype == REALTEK_USB_VENQT_READ)
-		pipe = usb_rcvctrlpipe(udev, 0);/* read_in */
-	else
-		pipe = usb_sndctrlpipe(udev, 0);/* write_out */
-
-	while (++vendorreq_times <= MAX_USBCTRL_VENDORREQ_TIMES) {
-		if (requesttype == REALTEK_USB_VENQT_READ)
-			memset(pIo_buf, 0, len);
-		else
-			memcpy(pIo_buf, pdata, len);
-
-		status = usb_control_msg(udev, pipe, REALTEK_USB_VENQT_CMD_REQ,
-					 requesttype, value, REALTEK_USB_VENQT_CMD_IDX,
-					 pIo_buf, len, RTW_USB_CONTROL_MSG_TIMEOUT);
-
-		if (status == len) {   /*  Success this control transfer. */
-			rtw_reset_continual_urb_error(dvobjpriv);
-			if (requesttype == REALTEK_USB_VENQT_READ)
-				memcpy(pdata, pIo_buf,  len);
-		} else { /*  error cases */
-			DBG_88E("reg 0x%x, usb %s %u fail, status:%d value=0x%x, vendorreq_times:%d\n",
-				value, (requesttype == REALTEK_USB_VENQT_READ) ? "read" : "write",
-				len, status, *(u32 *)pdata, vendorreq_times);
-
-			if (status < 0) {
-				if (status == (-ESHUTDOWN) || status == -ENODEV) {
-					adapt->bSurpriseRemoved = true;
-				} else {
-					struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-					haldata->srestpriv.wifi_error_status = USB_VEN_REQ_CMD_FAIL;
-				}
-			} else { /*  status != len && status >= 0 */
-				if (status > 0) {
-					if (requesttype == REALTEK_USB_VENQT_READ) {
-						/*  For Control read transfer, we have to copy the read data from pIo_buf to pdata. */
-						memcpy(pdata, pIo_buf,  len);
-					}
-				}
-			}
-
-			if (rtw_inc_and_chk_continual_urb_error(dvobjpriv)) {
-				adapt->bSurpriseRemoved = true;
-				break;
-			}
-
-		}
-
-		/*  firmware download is checksumed, don't retry */
-		if ((value >= FW_8188E_START_ADDRESS && value <= FW_8188E_END_ADDRESS) || status == len)
-			break;
-	}
-release_mutex:
-	_exit_critical_mutex(&dvobjpriv->usb_vendor_req_mutex, NULL);
-exit:
 	return status;
 }
 
-static u8 usb_read8(struct intf_hdl *pintfhdl, u32 addr)
+static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
+	struct adapter *adapt = intf->padapter;
+	struct dvobj_priv *dvobjpriv = adapter_to_dvobj(adapt);
+	struct usb_device *udev = dvobjpriv->pusbdev;
+	int status;
+	u8 io_buf[VENDOR_CMD_MAX_DATA_LEN];
+
+	if (adapt->bSurpriseRemoved || adapt->pwrctrlpriv.pnp_bstop_trx)
+		return -EPERM;
+
+	memcpy(io_buf, data, size);
+	status = usb_control_msg_send(udev, 0, REALTEK_USB_VENQT_CMD_REQ,
+				      REALTEK_USB_VENQT_WRITE, value,
+				      REALTEK_USB_VENQT_CMD_IDX, io_buf,
+				      size, RTW_USB_CONTROL_MSG_TIMEOUT,
+				      GFP_KERNEL);
+
+	if (status == -ESHUTDOWN ||
+	    status == -ENODEV ||
+	    status == -ENOENT) {
+		/*
+		 * device or controller has been disabled due to
+		 * some problem that could not be worked around,
+		 * device or bus doesn’t exist, endpoint does not
+		 * exist or is not enabled.
+		 */
+		adapt->bSurpriseRemoved = true;
+		return status;
+	}
+
+	if (status < 0) {
+		if (rtw_inc_and_chk_continual_urb_error(dvobjpriv))
+			adapt->bSurpriseRemoved = true;
+
+		return status;
+	}
+
+	rtw_reset_continual_urb_error(dvobjpriv);
+
+	return status;
+}
+
+u8 rtw_read8(struct adapter *adapter, u32 addr)
+{
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
 	u8 data;
 
-	usbctrl_vendorreq(pintfhdl, wvalue, &data, 1, REALTEK_USB_VENQT_READ);
+	usb_read(intf, value, &data, 1);
 
 	return data;
 }
 
-static u16 usb_read16(struct intf_hdl *pintfhdl, u32 addr)
+u16 rtw_read16(struct adapter *adapter, u32 addr)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
-	__le32 data;
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
+	__le16 data;
 
-	usbctrl_vendorreq(pintfhdl, wvalue, &data, 2, REALTEK_USB_VENQT_READ);
+	usb_read(intf, value, &data, 2);
 
-	return (u16)(le32_to_cpu(data) & 0xffff);
+	return le16_to_cpu(data);
 }
 
-static u32 usb_read32(struct intf_hdl *pintfhdl, u32 addr)
+u32 rtw_read32(struct adapter *adapter, u32 addr)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
 	__le32 data;
 
-	usbctrl_vendorreq(pintfhdl, wvalue, &data, 4, REALTEK_USB_VENQT_READ);
+	usb_read(intf, value, &data, 4);
 
 	return le32_to_cpu(data);
 }
 
-static int usb_write8(struct intf_hdl *pintfhdl, u32 addr, u8 val)
+int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
+	int ret;
 
-	return usbctrl_vendorreq(pintfhdl, wvalue, &val, 1, REALTEK_USB_VENQT_WRITE);
+	ret = usb_write(intf, value, &val, 1);
+
+	return RTW_STATUS_CODE(ret);
 }
 
-static int usb_write16(struct intf_hdl *pintfhdl, u32 addr, u16 val)
+int rtw_write16(struct adapter *adapter, u32 addr, u16 val)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
-	__le32 data = cpu_to_le32(val & 0x0000ffff);
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
+	__le16 data = cpu_to_le16(val);
+	int ret;
 
-	return usbctrl_vendorreq(pintfhdl, wvalue, &data, 2, REALTEK_USB_VENQT_WRITE);
+	ret = usb_write(intf, value, &data, 2);
+
+	return RTW_STATUS_CODE(ret);
 }
 
-static int usb_write32(struct intf_hdl *pintfhdl, u32 addr, u32 val)
+int rtw_write32(struct adapter *adapter, u32 addr, u32 val)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
 	__le32 data = cpu_to_le32(val);
+	int ret;
 
-	return usbctrl_vendorreq(pintfhdl, wvalue, &data, 4, REALTEK_USB_VENQT_WRITE);
+	ret = usb_write(intf, value, &data, 4);
+
+	return RTW_STATUS_CODE(ret);
 }
 
-static int usb_writeN(struct intf_hdl *pintfhdl, u32 addr, u32 length, u8 *pdata)
+int rtw_writeN(struct adapter *adapter, u32 addr, u32 length, u8 *data)
 {
-	u16 wvalue = (u16)(addr & 0x0000ffff);
-	u8 buf[VENDOR_CMD_MAX_DATA_LEN] = {0};
+	struct io_priv *io_priv = &adapter->iopriv;
+	struct intf_hdl *intf = &io_priv->intf;
+	u16 value = addr & 0xffff;
+	int ret;
 
 	if (length > VENDOR_CMD_MAX_DATA_LEN)
-		return -EINVAL;
+		return _FAIL;
 
-	memcpy(buf, pdata, length);
+	ret = usb_write(intf, value, data, length);
 
-	return usbctrl_vendorreq(pintfhdl, wvalue, buf, (length & 0xffff), REALTEK_USB_VENQT_WRITE);
-}
-
-static void interrupt_handler_8188eu(struct adapter *adapt, u16 pkt_len, u8 *pbuf)
-{
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-
-	if (pkt_len != INTERRUPT_MSG_FORMAT_LEN) {
-		DBG_88E("%s Invalid interrupt content length (%d)!\n", __func__, pkt_len);
-		return;
-	}
-
-	/*  HISR */
-	memcpy(&haldata->IntArray[0], &pbuf[USB_INTR_CONTENT_HISR_OFFSET], 4);
-	memcpy(&haldata->IntArray[1], &pbuf[USB_INTR_CONTENT_HISRE_OFFSET], 4);
-
-	/*  C2H Event */
-	if (pbuf[0] != 0)
-		memcpy(&haldata->C2hArray[0], &pbuf[USB_INTR_CONTENT_C2H_OFFSET], 16);
+	return RTW_STATUS_CODE(ret);
 }
 
 static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
@@ -193,7 +195,7 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 	struct sk_buff *pkt_copy = NULL;
 	struct recv_frame	*precvframe = NULL;
 	struct rx_pkt_attrib	*pattrib = NULL;
-	struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
+	struct hal_data_8188e *haldata = &adapt->haldata;
 	struct recv_priv	*precvpriv = &adapt->recvpriv;
 	struct __queue *pfree_recv_queue = &precvpriv->free_recv_queue;
 
@@ -207,10 +209,8 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		prxstat = (struct recv_stat *)pbuf;
 
 		precvframe = rtw_alloc_recvframe(pfree_recv_queue);
-		if (!precvframe) {
-			DBG_88E("%s()-%d: rtw_alloc_recvframe() failed! RX Drop!\n", __func__, __LINE__);
+		if (!precvframe)
 			goto _exit_recvbuf2recvframe;
-		}
 
 		INIT_LIST_HEAD(&precvframe->list);
 		precvframe->precvbuf = NULL;	/* can't access the precvbuf for new arch. */
@@ -221,8 +221,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		pattrib = &precvframe->attrib;
 
 		if ((pattrib->crc_err) || (pattrib->icv_err)) {
-			DBG_88E("%s: RX Warning! crc_err=%d icv_err=%d, skip!\n", __func__, pattrib->crc_err, pattrib->icv_err);
-
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 			goto _exit_recvbuf2recvframe;
 		}
@@ -233,7 +231,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 		pkt_offset = RXDESC_SIZE + pattrib->drvinfo_sz + pattrib->shift_sz + pattrib->pkt_len;
 
 		if ((pattrib->pkt_len <= 0) || (pkt_offset > transfer_len)) {
-			DBG_88E("%s()-%d: RX Warning!,pkt_len<=0 or pkt_offset> transfoer_len\n", __func__, __LINE__);
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 			goto _exit_recvbuf2recvframe;
 		}
@@ -274,7 +271,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 			precvframe->rx_data = pkt_copy->data;
 		} else {
 			if ((pattrib->mfrag == 1) && (pattrib->frag_num == 0)) {
-				DBG_88E("recvbuf2recvframe: alloc_skb fail , drop frag frame\n");
 				rtw_free_recvframe(precvframe, pfree_recv_queue);
 				goto _exit_recvbuf2recvframe;
 			}
@@ -285,7 +281,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 				precvframe->rx_data = precvframe->rx_tail;
 				precvframe->rx_end =  pbuf + pattrib->drvinfo_sz + RXDESC_SIZE + alloc_sz;
 			} else {
-				DBG_88E("recvbuf2recvframe: skb_clone fail\n");
 				rtw_free_recvframe(precvframe, pfree_recv_queue);
 				goto _exit_recvbuf2recvframe;
 			}
@@ -293,18 +288,8 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 
 		recvframe_put(precvframe, skb_len);
 
-		switch (haldata->UsbRxAggMode) {
-		case USB_RX_AGG_DMA:
-		case USB_RX_AGG_MIX:
-			pkt_offset = (u16)_RND128(pkt_offset);
-			break;
-		case USB_RX_AGG_USB:
-			pkt_offset = (u16)_RND4(pkt_offset);
-			break;
-		case USB_RX_AGG_DISABLE:
-		default:
-			break;
-		}
+		pkt_offset = (u16)_RND128(pkt_offset);
+
 		if (pattrib->pkt_rpt_type == NORMAL_RX) { /* Normal rx packet */
 			if (pattrib->physt)
 				update_recvframe_phyinfo_88e(precvframe, (struct phy_stat *)pphy_status);
@@ -322,8 +307,6 @@ static int recvbuf2recvframe(struct adapter *adapt, struct sk_buff *pskb)
 							pattrib->MacIDValidEntry[0],
 							pattrib->MacIDValidEntry[1]
 							);
-			} else if (pattrib->pkt_rpt_type == HIS_REPORT) {
-				interrupt_handler_8188eu(adapt, pattrib->pkt_len, precvframe->rx_data);
 			}
 			rtw_free_recvframe(precvframe, pfree_recv_queue);
 		}
@@ -351,7 +334,6 @@ void rtl8188eu_recv_tasklet(unsigned long priv)
 
 	while (NULL != (pskb = skb_dequeue(&precvpriv->rx_skb_queue))) {
 		if ((adapt->bDriverStopped) || (adapt->bSurpriseRemoved)) {
-			DBG_88E("recv_tasklet => bDriverStopped or bSurpriseRemoved\n");
 			dev_kfree_skb_any(pskb);
 			break;
 		}
@@ -372,21 +354,16 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 
 	if (adapt->bSurpriseRemoved || adapt->bDriverStopped || adapt->bReadPortCancel) {
 		precvbuf->reuse = true;
-		DBG_88E("%s() RX Warning! bDriverStopped(%d) OR bSurpriseRemoved(%d) bReadPortCancel(%d)\n",
-			__func__, adapt->bDriverStopped,
-			adapt->bSurpriseRemoved, adapt->bReadPortCancel);
 		return;
 	}
 
 	if (purb->status == 0) { /* SUCCESS */
 		if ((purb->actual_length > MAX_RECVBUF_SZ) || (purb->actual_length < RXDESC_SIZE)) {
 			precvbuf->reuse = true;
-			rtw_read_port(adapt, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
-			DBG_88E("%s()-%d: RX Warning!\n", __func__, __LINE__);
+			rtw_read_port(adapt, (unsigned char *)precvbuf);
 		} else {
 			rtw_reset_continual_urb_error(adapter_to_dvobj(adapt));
 
-			precvbuf->transfer_len = purb->actual_length;
 			skb_put(precvbuf->pskb, purb->actual_length);
 			skb_queue_tail(&precvpriv->rx_skb_queue, precvbuf->pskb);
 
@@ -395,10 +372,9 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 
 			precvbuf->pskb = NULL;
 			precvbuf->reuse = false;
-			rtw_read_port(adapt, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, (unsigned char *)precvbuf);
 		}
 	} else {
-		DBG_88E("###=> usb_read_port_complete => urb status(%d)\n", purb->status);
 		skb_put(precvbuf->pskb, purb->actual_length);
 		precvbuf->pskb = NULL;
 
@@ -415,15 +391,10 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 			break;
 		case -EPROTO:
 		case -EOVERFLOW:
-			{
-				struct hal_data_8188e	*haldata = GET_HAL_DATA(adapt);
-				haldata->srestpriv.wifi_error_status = USB_READ_PORT_FAIL;
-			}
 			precvbuf->reuse = true;
-			rtw_read_port(adapt, precvpriv->ff_hwaddr, 0, (unsigned char *)precvbuf);
+			rtw_read_port(adapt, (unsigned char *)precvbuf);
 			break;
 		case -EINPROGRESS:
-			DBG_88E("ERROR: URB IS IN PROGRESS!/n");
 			break;
 		default:
 			break;
@@ -431,11 +402,10 @@ static void usb_read_port_complete(struct urb *purb, struct pt_regs *regs)
 	}
 }
 
-static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
+u32 rtw_read_port(struct adapter *adapter, u8 *rmem)
 {
 	struct urb *purb = NULL;
 	struct recv_buf	*precvbuf = (struct recv_buf *)rmem;
-	struct adapter		*adapter = pintfhdl->padapter;
 	struct dvobj_priv	*pdvobj = adapter_to_dvobj(adapter);
 	struct recv_priv	*precvpriv = &adapter->recvpriv;
 	struct usb_device	*pusbd = pdvobj->pusbdev;
@@ -458,32 +428,16 @@ static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 			precvbuf->reuse = true;
 	}
 
-	rtl8188eu_init_recvbuf(adapter, precvbuf);
-
 	/* re-assign for linux based on skb */
 	if (!precvbuf->reuse || !precvbuf->pskb) {
 		precvbuf->pskb = netdev_alloc_skb(adapter->pnetdev, MAX_RECVBUF_SZ + RECVBUFF_ALIGN_SZ);
-		if (!precvbuf->pskb) {
-			DBG_88E("#### usb_read_port() alloc_skb fail!#####\n");
+		if (!precvbuf->pskb)
 			return _FAIL;
-		}
 
 		tmpaddr = (size_t)precvbuf->pskb->data;
 		alignment = tmpaddr & (RECVBUFF_ALIGN_SZ - 1);
 		skb_reserve(precvbuf->pskb, (RECVBUFF_ALIGN_SZ - alignment));
-
-		precvbuf->phead = precvbuf->pskb->head;
-		precvbuf->pdata = precvbuf->pskb->data;
-		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
-		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
-		precvbuf->pbuf = precvbuf->pskb->data;
 	} else { /* reuse skb */
-		precvbuf->phead = precvbuf->pskb->head;
-		precvbuf->pdata = precvbuf->pskb->data;
-		precvbuf->ptail = skb_tail_pointer(precvbuf->pskb);
-		precvbuf->pend = skb_end_pointer(precvbuf->pskb);
-		precvbuf->pbuf = precvbuf->pskb->data;
-
 		precvbuf->reuse = false;
 	}
 
@@ -492,20 +446,17 @@ static u32 usb_read_port(struct intf_hdl *pintfhdl, u32 addr, u32 cnt, u8 *rmem)
 	purb = precvbuf->purb;
 
 	/* translate DMA FIFO addr to pipehandle */
-	pipe = ffaddr2pipehdl(pdvobj, addr);
+	pipe = usb_rcvbulkpipe(pusbd, pdvobj->RtInPipe);
 
 	usb_fill_bulk_urb(purb, pusbd, pipe,
-			  precvbuf->pbuf,
+			  precvbuf->pskb->data,
 			  MAX_RECVBUF_SZ,
 			  usb_read_port_complete,
 			  precvbuf);/* context is precvbuf */
 
 	err = usb_submit_urb(purb, GFP_ATOMIC);
-	if ((err) && (err != (-EPERM))) {
-		DBG_88E("cannot submit rx in-token(err = 0x%08x),urb_status = %d\n",
-			err, purb->status);
+	if ((err) && (err != (-EPERM)))
 		ret = _FAIL;
-	}
 
 	return ret;
 }
@@ -522,41 +473,12 @@ void rtl8188eu_xmit_tasklet(unsigned long priv)
 	while (1) {
 		if ((adapt->bDriverStopped) ||
 		    (adapt->bSurpriseRemoved) ||
-		    (adapt->bWritePortCancel)) {
-			DBG_88E("xmit_tasklet => bDriverStopped or bSurpriseRemoved or bWritePortCancel\n");
+		    (adapt->bWritePortCancel))
 			break;
-		}
 
 		ret = rtl8188eu_xmitframe_complete(adapt, pxmitpriv, NULL);
 
 		if (!ret)
 			break;
 	}
-}
-
-void rtl8188eu_set_intf_ops(struct _io_ops	*pops)
-{
-
-	memset((u8 *)pops, 0, sizeof(struct _io_ops));
-	pops->_read8 = &usb_read8;
-	pops->_read16 = &usb_read16;
-	pops->_read32 = &usb_read32;
-	pops->_read_mem = &usb_read_mem;
-	pops->_read_port = &usb_read_port;
-	pops->_write8 = &usb_write8;
-	pops->_write16 = &usb_write16;
-	pops->_write32 = &usb_write32;
-	pops->_writeN = &usb_writeN;
-	pops->_write_mem = &usb_write_mem;
-	pops->_write_port = &usb_write_port;
-	pops->_read_port_cancel = &usb_read_port_cancel;
-	pops->_write_port_cancel = &usb_write_port_cancel;
-
-}
-
-void rtl8188eu_set_hw_type(struct adapter *adapt)
-{
-	adapt->chip_type = RTL8188E;
-	adapt->HardwareType = HARDWARE_TYPE_RTL8188EU;
-	DBG_88E("CHIP TYPE: RTL8188E\n");
 }

@@ -42,7 +42,7 @@ void intel_uc_driver_late_release(struct intel_uc *uc);
 void intel_uc_driver_remove(struct intel_uc *uc);
 void intel_uc_init_mmio(struct intel_uc *uc);
 void intel_uc_reset_prepare(struct intel_uc *uc);
-void intel_uc_reset(struct intel_uc *uc, bool stalled);
+void intel_uc_reset(struct intel_uc *uc, intel_engine_mask_t stalled);
 void intel_uc_reset_finish(struct intel_uc *uc);
 void intel_uc_cancel_requests(struct intel_uc *uc);
 void intel_uc_suspend(struct intel_uc *uc);

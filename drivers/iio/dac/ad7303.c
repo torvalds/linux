@@ -198,6 +198,11 @@ static const struct iio_chan_spec ad7303_channels[] = {
 	AD7303_CHANNEL(1),
 };
 
+static void ad7303_reg_disable(void *reg)
+{
+	regulator_disable(reg);
+}
+
 static int ad7303_probe(struct spi_device *spi)
 {
 	const struct spi_device_id *id = spi_get_device_id(spi);
@@ -210,7 +215,6 @@ static int ad7303_probe(struct spi_device *spi)
 		return -ENOMEM;
 
 	st = iio_priv(indio_dev);
-	spi_set_drvdata(spi, indio_dev);
 
 	st->spi = spi;
 
@@ -224,18 +228,27 @@ static int ad7303_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
+	ret = devm_add_action_or_reset(&spi->dev, ad7303_reg_disable, st->vdd_reg);
+	if (ret)
+		return ret;
+
 	st->vref_reg = devm_regulator_get_optional(&spi->dev, "REF");
 	if (IS_ERR(st->vref_reg)) {
 		ret = PTR_ERR(st->vref_reg);
 		if (ret != -ENODEV)
-			goto err_disable_vdd_reg;
+			return ret;
 		st->vref_reg = NULL;
 	}
 
 	if (st->vref_reg) {
 		ret = regulator_enable(st->vref_reg);
 		if (ret)
-			goto err_disable_vdd_reg;
+			return ret;
+
+		ret = devm_add_action_or_reset(&spi->dev, ad7303_reg_disable,
+					       st->vref_reg);
+		if (ret)
+			return ret;
 
 		st->config |= AD7303_CFG_EXTERNAL_VREF;
 	}
@@ -246,32 +259,7 @@ static int ad7303_probe(struct spi_device *spi)
 	indio_dev->channels = ad7303_channels;
 	indio_dev->num_channels = ARRAY_SIZE(ad7303_channels);
 
-	ret = iio_device_register(indio_dev);
-	if (ret)
-		goto err_disable_vref_reg;
-
-	return 0;
-
-err_disable_vref_reg:
-	if (st->vref_reg)
-		regulator_disable(st->vref_reg);
-err_disable_vdd_reg:
-	regulator_disable(st->vdd_reg);
-	return ret;
-}
-
-static int ad7303_remove(struct spi_device *spi)
-{
-	struct iio_dev *indio_dev = spi_get_drvdata(spi);
-	struct ad7303_state *st = iio_priv(indio_dev);
-
-	iio_device_unregister(indio_dev);
-
-	if (st->vref_reg)
-		regulator_disable(st->vref_reg);
-	regulator_disable(st->vdd_reg);
-
-	return 0;
+	return devm_iio_device_register(&spi->dev, indio_dev);
 }
 
 static const struct of_device_id ad7303_spi_of_match[] = {
@@ -292,7 +280,6 @@ static struct spi_driver ad7303_driver = {
 		.of_match_table = ad7303_spi_of_match,
 	},
 	.probe = ad7303_probe,
-	.remove = ad7303_remove,
 	.id_table = ad7303_spi_ids,
 };
 module_spi_driver(ad7303_driver);

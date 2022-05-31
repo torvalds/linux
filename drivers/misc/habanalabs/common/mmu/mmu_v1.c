@@ -217,18 +217,10 @@ static inline u64 get_hop4_pte_addr(struct hl_ctx *ctx,
 					mmu_prop->hop4_shift);
 }
 
-static inline u64 get_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte)
-{
-	if (curr_pte & PAGE_PRESENT_MASK)
-		return curr_pte & HOP_PHYS_ADDR_MASK;
-	else
-		return ULLONG_MAX;
-}
-
 static inline u64 get_alloc_next_hop_addr(struct hl_ctx *ctx, u64 curr_pte,
 						bool *is_new_hop)
 {
-	u64 hop_addr = get_next_hop_addr(ctx, curr_pte);
+	u64 hop_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
 
 	if (hop_addr == ULLONG_MAX) {
 		hop_addr = alloc_hop(ctx);
@@ -269,7 +261,7 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
 	do_div(num_of_hop3, prop->dram_page_size);
-	do_div(num_of_hop3, PTE_ENTRIES_IN_HOP);
+	do_div(num_of_hop3, HOP_PTE_ENTRIES_512);
 
 	/* add hop1 and hop2 */
 	total_hops = num_of_hop3 + 2;
@@ -330,7 +322,7 @@ static int dram_default_mapping_init(struct hl_ctx *ctx)
 
 	for (i = 0 ; i < num_of_hop3 ; i++) {
 		hop3_pte_addr = ctx->dram_default_hops[i];
-		for (j = 0 ; j < PTE_ENTRIES_IN_HOP ; j++) {
+		for (j = 0 ; j < HOP_PTE_ENTRIES_512 ; j++) {
 			write_final_pte(ctx, hop3_pte_addr, pte_val);
 			get_pte(ctx, ctx->dram_default_hops[i]);
 			hop3_pte_addr += HL_PTE_SIZE;
@@ -369,7 +361,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 
 	num_of_hop3 = prop->dram_size_for_default_page_mapping;
 	do_div(num_of_hop3, prop->dram_page_size);
-	do_div(num_of_hop3, PTE_ENTRIES_IN_HOP);
+	do_div(num_of_hop3, HOP_PTE_ENTRIES_512);
 
 	hop0_addr = get_hop0_addr(ctx);
 	/* add hop1 and hop2 */
@@ -379,7 +371,7 @@ static void dram_default_mapping_fini(struct hl_ctx *ctx)
 
 	for (i = 0 ; i < num_of_hop3 ; i++) {
 		hop3_pte_addr = ctx->dram_default_hops[i];
-		for (j = 0 ; j < PTE_ENTRIES_IN_HOP ; j++) {
+		for (j = 0 ; j < HOP_PTE_ENTRIES_512 ; j++) {
 			clear_pte(ctx, hop3_pte_addr);
 			put_pte(ctx, ctx->dram_default_hops[i]);
 			hop3_pte_addr += HL_PTE_SIZE;
@@ -467,7 +459,7 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
 {
 	/* MMU H/W fini was already done in device hw_fini() */
 
-	if (!ZERO_OR_NULL_PTR(hdev->mmu_priv.hr.mmu_shadow_hop0)) {
+	if (!ZERO_OR_NULL_PTR(hdev->mmu_priv.dr.mmu_shadow_hop0)) {
 		kvfree(hdev->mmu_priv.dr.mmu_shadow_hop0);
 		gen_pool_destroy(hdev->mmu_priv.dr.mmu_pgt_pool);
 
@@ -546,7 +538,7 @@ static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
 
 	curr_pte = *(u64 *) (uintptr_t) hop0_pte_addr;
 
-	hop1_addr = get_next_hop_addr(ctx, curr_pte);
+	hop1_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
 
 	if (hop1_addr == ULLONG_MAX)
 		goto not_mapped;
@@ -555,7 +547,7 @@ static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
 
 	curr_pte = *(u64 *) (uintptr_t) hop1_pte_addr;
 
-	hop2_addr = get_next_hop_addr(ctx, curr_pte);
+	hop2_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
 
 	if (hop2_addr == ULLONG_MAX)
 		goto not_mapped;
@@ -564,7 +556,7 @@ static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
 
 	curr_pte = *(u64 *) (uintptr_t) hop2_pte_addr;
 
-	hop3_addr = get_next_hop_addr(ctx, curr_pte);
+	hop3_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
 
 	if (hop3_addr == ULLONG_MAX)
 		goto not_mapped;
@@ -573,7 +565,7 @@ static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
 
 	curr_pte = *(u64 *) (uintptr_t) hop3_pte_addr;
 
-	is_huge = curr_pte & LAST_MASK;
+	is_huge = curr_pte & mmu_prop->last_mask;
 
 	if (is_dram_addr && !is_huge) {
 		dev_err(hdev->dev,
@@ -582,7 +574,7 @@ static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
 	}
 
 	if (!is_huge) {
-		hop4_addr = get_next_hop_addr(ctx, curr_pte);
+		hop4_addr = hl_mmu_get_next_hop_addr(ctx, curr_pte);
 
 		if (hop4_addr == ULLONG_MAX)
 			goto not_mapped;
@@ -597,7 +589,7 @@ static int _hl_mmu_v1_unmap(struct hl_ctx *ctx,
 
 	if (hdev->dram_default_page_mapping && is_dram_addr) {
 		u64 default_pte = (prop->mmu_dram_default_page_addr &
-				HOP_PHYS_ADDR_MASK) | LAST_MASK |
+				HOP_PHYS_ADDR_MASK) | mmu_prop->last_mask |
 					PAGE_PRESENT_MASK;
 		if (curr_pte == default_pte) {
 			dev_err(hdev->dev,
@@ -729,7 +721,7 @@ static int _hl_mmu_v1_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 
 	if (hdev->dram_default_page_mapping && is_dram_addr) {
 		u64 default_pte = (prop->mmu_dram_default_page_addr &
-					HOP_PHYS_ADDR_MASK) | LAST_MASK |
+					HOP_PHYS_ADDR_MASK) | mmu_prop->last_mask |
 						PAGE_PRESENT_MASK;
 
 		if (curr_pte != default_pte) {
@@ -769,7 +761,7 @@ static int _hl_mmu_v1_map(struct hl_ctx *ctx, u64 virt_addr, u64 phys_addr,
 		goto err;
 	}
 
-	curr_pte = (phys_addr & HOP_PHYS_ADDR_MASK) | LAST_MASK
+	curr_pte = (phys_addr & HOP_PHYS_ADDR_MASK) | mmu_prop->last_mask
 			| PAGE_PRESENT_MASK;
 
 	if (is_huge)
@@ -845,27 +837,6 @@ static void hl_mmu_v1_swap_in(struct hl_ctx *ctx)
 
 }
 
-static inline u64 get_hop_pte_addr(struct hl_ctx *ctx,
-				struct hl_mmu_properties *mmu_prop,
-				int hop_num, u64 hop_addr, u64 virt_addr)
-{
-	switch (hop_num) {
-	case 0:
-		return get_hop0_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	case 1:
-		return get_hop1_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	case 2:
-		return get_hop2_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	case 3:
-		return get_hop3_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	case 4:
-		return get_hop4_pte_addr(ctx, mmu_prop, hop_addr, virt_addr);
-	default:
-		break;
-	}
-	return U64_MAX;
-}
-
 static int hl_mmu_v1_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 				struct hl_mmu_hop_info *hops)
 {
@@ -906,7 +877,7 @@ static int hl_mmu_v1_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 
 	hops->hop_info[0].hop_addr = get_phys_hop0_addr(ctx);
 	hops->hop_info[0].hop_pte_addr =
-			get_hop_pte_addr(ctx, mmu_prop, 0,
+			hl_mmu_get_hop_pte_phys_addr(ctx, mmu_prop, 0,
 					hops->hop_info[0].hop_addr, virt_addr);
 	hops->hop_info[0].hop_pte_val =
 			hdev->asic_funcs->read_pte(hdev,
@@ -914,13 +885,13 @@ static int hl_mmu_v1_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 
 	for (i = 1 ; i < used_hops ; i++) {
 		hops->hop_info[i].hop_addr =
-			get_next_hop_addr(ctx,
+			hl_mmu_get_next_hop_addr(ctx,
 					hops->hop_info[i - 1].hop_pte_val);
 		if (hops->hop_info[i].hop_addr == ULLONG_MAX)
 			return -EFAULT;
 
 		hops->hop_info[i].hop_pte_addr =
-				get_hop_pte_addr(ctx, mmu_prop, i,
+				hl_mmu_get_hop_pte_phys_addr(ctx, mmu_prop, i,
 						hops->hop_info[i].hop_addr,
 						virt_addr);
 		hops->hop_info[i].hop_pte_val =
@@ -930,7 +901,7 @@ static int hl_mmu_v1_get_tlb_info(struct hl_ctx *ctx, u64 virt_addr,
 		if (!(hops->hop_info[i].hop_pte_val & PAGE_PRESENT_MASK))
 			return -EFAULT;
 
-		if (hops->hop_info[i].hop_pte_val & LAST_MASK)
+		if (hops->hop_info[i].hop_pte_val & mmu_prop->last_mask)
 			break;
 	}
 

@@ -170,7 +170,7 @@ static const struct {
 				     {1000, 0, 0x0E},
 				     {2000, 0, 0x0F} };
 
-static const struct {
+static __maybe_unused const struct {
 	int bw_bits;
 	int msec;
 } bmc150_accel_sample_upd_time[] = { {0x08, 64},
@@ -203,7 +203,7 @@ const struct regmap_config bmc150_regmap_conf = {
 	.val_bits = 8,
 	.max_register = 0x3f,
 };
-EXPORT_SYMBOL_GPL(bmc150_regmap_conf);
+EXPORT_SYMBOL_NS_GPL(bmc150_regmap_conf, IIO_BMC150);
 
 static int bmc150_accel_set_mode(struct bmc150_accel_data *data,
 				 enum bmc150_power_modes mode,
@@ -1734,6 +1734,7 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	ret = iio_triggered_buffer_setup_ext(indio_dev,
 					     &iio_pollfunc_store_time,
 					     bmc150_accel_trigger_handler,
+					     IIO_BUFFER_DIRECTION_IN,
 					     &bmc150_accel_buffer_ops,
 					     fifo_attrs);
 	if (ret < 0) {
@@ -1782,11 +1783,14 @@ int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 	ret = iio_device_register(indio_dev);
 	if (ret < 0) {
 		dev_err(dev, "Unable to register iio device\n");
-		goto err_trigger_unregister;
+		goto err_pm_cleanup;
 	}
 
 	return 0;
 
+err_pm_cleanup:
+	pm_runtime_dont_use_autosuspend(dev);
+	pm_runtime_disable(dev);
 err_trigger_unregister:
 	bmc150_accel_unregister_triggers(data, BMC150_ACCEL_TRIGGERS - 1);
 err_buffer_cleanup:
@@ -1797,9 +1801,9 @@ err_disable_regulators:
 
 	return ret;
 }
-EXPORT_SYMBOL_GPL(bmc150_accel_core_probe);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_probe, IIO_BMC150);
 
-int bmc150_accel_core_remove(struct device *dev)
+void bmc150_accel_core_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct bmc150_accel_data *data = iio_priv(indio_dev);
@@ -1819,10 +1823,8 @@ int bmc150_accel_core_remove(struct device *dev)
 
 	regulator_bulk_disable(ARRAY_SIZE(data->regulators),
 			       data->regulators);
-
-	return 0;
 }
-EXPORT_SYMBOL_GPL(bmc150_accel_core_remove);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_core_remove, IIO_BMC150);
 
 #ifdef CONFIG_PM_SLEEP
 static int bmc150_accel_suspend(struct device *dev)
@@ -1897,7 +1899,7 @@ const struct dev_pm_ops bmc150_accel_pm_ops = {
 	SET_RUNTIME_PM_OPS(bmc150_accel_runtime_suspend,
 			   bmc150_accel_runtime_resume, NULL)
 };
-EXPORT_SYMBOL_GPL(bmc150_accel_pm_ops);
+EXPORT_SYMBOL_NS_GPL(bmc150_accel_pm_ops, IIO_BMC150);
 
 MODULE_AUTHOR("Srinivas Pandruvada <srinivas.pandruvada@linux.intel.com>");
 MODULE_LICENSE("GPL v2");

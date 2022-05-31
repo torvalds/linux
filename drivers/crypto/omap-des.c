@@ -735,7 +735,7 @@ static struct skcipher_alg algs_ecb_cbc[] = {
 {
 	.base.cra_name		= "ecb(des)",
 	.base.cra_driver_name	= "ecb-des-omap",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 300,
 	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
@@ -752,7 +752,7 @@ static struct skcipher_alg algs_ecb_cbc[] = {
 {
 	.base.cra_name		= "cbc(des)",
 	.base.cra_driver_name	= "cbc-des-omap",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 300,
 	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES_BLOCK_SIZE,
@@ -770,7 +770,7 @@ static struct skcipher_alg algs_ecb_cbc[] = {
 {
 	.base.cra_name		= "ecb(des3_ede)",
 	.base.cra_driver_name	= "ecb-des3-omap",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 300,
 	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,
@@ -787,7 +787,7 @@ static struct skcipher_alg algs_ecb_cbc[] = {
 {
 	.base.cra_name		= "cbc(des3_ede)",
 	.base.cra_driver_name	= "cbc-des3-omap",
-	.base.cra_priority	= 100,
+	.base.cra_priority	= 300,
 	.base.cra_flags		= CRYPTO_ALG_KERN_DRIVER_ONLY |
 				  CRYPTO_ALG_ASYNC,
 	.base.cra_blocksize	= DES3_EDE_BLOCK_SIZE,

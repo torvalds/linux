@@ -152,6 +152,7 @@ patternProperties:
           - enum:
               - ingenic,jz4740-pwm
               - ingenic,jz4725b-pwm
+              - ingenic,x1000-pwm
           - items:
               - enum:
                   - ingenic,jz4760-pwm
@@ -237,7 +238,7 @@ additionalProperties: false
 
 examples:
   - |
-    #include <dt-bindings/clock/jz4770-cgu.h>
+    #include <dt-bindings/clock/ingenic,jz4770-cgu.h>
     #include <dt-bindings/clock/ingenic,tcu.h>
     tcu: timer@10002000 {
       compatible = "ingenic,jz4770-tcu", "ingenic,jz4760-tcu", "simple-mfd";

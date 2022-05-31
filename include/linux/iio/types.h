@@ -24,6 +24,7 @@ enum iio_event_info {
 #define IIO_VAL_INT_PLUS_NANO 3
 #define IIO_VAL_INT_PLUS_MICRO_DB 4
 #define IIO_VAL_INT_MULTIPLE 5
+#define IIO_VAL_INT_64 6 /* 64-bit data, val is lower 32 bits */
 #define IIO_VAL_FRACTIONAL 10
 #define IIO_VAL_FRACTIONAL_LOG2 11
 #define IIO_VAL_CHAR 12

@@ -410,7 +410,7 @@ struct e5_ystorm_nvmetcp_task_ag_ctx {
 	u8 byte2;
 	u8 byte3;
 	u8 byte4;
-	u8 e4_reserved7;
+	u8 reserved7;
 };
 
 struct e5_mstorm_nvmetcp_task_ag_ctx {
@@ -445,7 +445,7 @@ struct e5_mstorm_nvmetcp_task_ag_ctx {
 	u8 byte2;
 	u8 byte3;
 	u8 byte4;
-	u8 e4_reserved7;
+	u8 reserved7;
 };
 
 struct e5_ustorm_nvmetcp_task_ag_ctx {
@@ -489,17 +489,17 @@ struct e5_ustorm_nvmetcp_task_ag_ctx {
 #define E5_USTORM_NVMETCP_TASK_AG_CTX_CMP_CONT_RCV_EXP_EN_SHIFT 7
 	u8 flags3;
 	u8 flags4;
-#define E5_USTORM_NVMETCP_TASK_AG_CTX_E4_RESERVED5_MASK 0x3
-#define E5_USTORM_NVMETCP_TASK_AG_CTX_E4_RESERVED5_SHIFT 0
-#define E5_USTORM_NVMETCP_TASK_AG_CTX_E4_RESERVED6_MASK 0x1
-#define E5_USTORM_NVMETCP_TASK_AG_CTX_E4_RESERVED6_SHIFT 2
-#define E5_USTORM_NVMETCP_TASK_AG_CTX_E4_RESERVED7_MASK 0x1
-#define E5_USTORM_NVMETCP_TASK_AG_CTX_E4_RESERVED7_SHIFT 3
+#define E5_USTORM_NVMETCP_TASK_AG_CTX_RESERVED5_MASK 0x3
+#define E5_USTORM_NVMETCP_TASK_AG_CTX_RESERVED5_SHIFT 0
+#define E5_USTORM_NVMETCP_TASK_AG_CTX_RESERVED6_MASK 0x1
+#define E5_USTORM_NVMETCP_TASK_AG_CTX_RESERVED6_SHIFT 2
+#define E5_USTORM_NVMETCP_TASK_AG_CTX_RESERVED7_MASK 0x1
+#define E5_USTORM_NVMETCP_TASK_AG_CTX_RESERVED7_SHIFT 3
 #define E5_USTORM_NVMETCP_TASK_AG_CTX_DIF_ERROR_TYPE_MASK 0xF
 #define E5_USTORM_NVMETCP_TASK_AG_CTX_DIF_ERROR_TYPE_SHIFT 4
 	u8 byte2;
 	u8 byte3;
-	u8 e4_reserved8;
+	u8 reserved8;
 	__le32 dif_err_intervals;
 	__le32 dif_error_1st_interval;
 	__le32 rcv_cont_len;

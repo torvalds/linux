@@ -13,6 +13,7 @@
 #include "evsel.h"
 #include "debug.h"
 #include "util/synthetic-events.h"
+#include "util/trace-event.h"
 
 #include "tests.h"
 
@@ -30,9 +31,18 @@
 	}						\
 } while (0)
 
+/*
+ * Hardcode the expected values for branch_entry flags.
+ * These are based on the input value (213) specified
+ * in branch_stack variable.
+ */
+#define BS_EXPECTED_BE	0xa000d00000000000
+#define BS_EXPECTED_LE	0xd5000000
+#define FLAG(s)	s->branch_stack->entries[i].flags
+
 static bool samples_same(const struct perf_sample *s1,
 			 const struct perf_sample *s2,
-			 u64 type, u64 read_format)
+			 u64 type, u64 read_format, bool needs_swap)
 {
 	size_t i;
 
@@ -100,8 +110,14 @@ static bool samples_same(const struct perf_sample *s1,
 	if (type & PERF_SAMPLE_BRANCH_STACK) {
 		COMP(branch_stack->nr);
 		COMP(branch_stack->hw_idx);
-		for (i = 0; i < s1->branch_stack->nr; i++)
-			MCOMP(branch_stack->entries[i]);
+		for (i = 0; i < s1->branch_stack->nr; i++) {
+			if (needs_swap)
+				return ((tep_is_bigendian()) ?
+					(FLAG(s2).value == BS_EXPECTED_BE) :
+					(FLAG(s2).value == BS_EXPECTED_LE));
+			else
+				MCOMP(branch_stack->entries[i]);
+		}
 	}
 
 	if (type & PERF_SAMPLE_REGS_USER) {
@@ -248,7 +264,7 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		},
 	};
 	struct sample_read_value values[] = {{1, 5}, {9, 3}, {2, 7}, {6, 4},};
-	struct perf_sample sample_out;
+	struct perf_sample sample_out, sample_out_endian;
 	size_t i, sz, bufsz;
 	int err, ret = -1;
 
@@ -313,10 +329,27 @@ static int do_test(u64 sample_type, u64 sample_regs, u64 read_format)
 		goto out_free;
 	}
 
-	if (!samples_same(&sample, &sample_out, sample_type, read_format)) {
+	if (!samples_same(&sample, &sample_out, sample_type, read_format, evsel.needs_swap)) {
 		pr_debug("parsing failed for sample_type %#"PRIx64"\n",
 			 sample_type);
 		goto out_free;
+	}
+
+	if (sample_type == PERF_SAMPLE_BRANCH_STACK) {
+		evsel.needs_swap = true;
+		evsel.sample_size = __evsel__sample_size(sample_type);
+		err = evsel__parse_sample(&evsel, event, &sample_out_endian);
+		if (err) {
+			pr_debug("%s failed for sample_type %#"PRIx64", error %d\n",
+				 "evsel__parse_sample", sample_type, err);
+			goto out_free;
+		}
+
+		if (!samples_same(&sample, &sample_out_endian, sample_type, read_format, evsel.needs_swap)) {
+			pr_debug("parsing failed for sample_type %#"PRIx64"\n",
+				 sample_type);
+			goto out_free;
+		}
 	}
 
 	ret = 0;
@@ -335,7 +368,7 @@ out_free:
  * checks sample format bits separately and together.  If the test passes %0 is
  * returned, otherwise %-1 is returned.
  */
-int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__sample_parsing(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	const u64 rf[] = {4, 5, 6, 7, 12, 13, 14, 15};
 	u64 sample_type;
@@ -393,3 +426,5 @@ int test__sample_parsing(struct test *test __maybe_unused, int subtest __maybe_u
 
 	return 0;
 }
+
+DEFINE_SUITE("Sample parsing", sample_parsing);

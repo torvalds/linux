@@ -22,7 +22,6 @@
  *  worst case complexity of O(min(101, nr_domcpus)), though the scenario that
  *  yields the worst case search is fairly contrived.
  */
-#include "sched.h"
 
 /*
  * p->rt_priority   p->prio   newpri   cpupri

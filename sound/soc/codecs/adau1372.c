@@ -30,7 +30,7 @@ struct adau1372 {
 	void (*switch_mode)(struct device *dev);
 	bool use_pll;
 	bool enabled;
-	bool master;
+	bool clock_provider;
 
 	struct snd_pcm_hw_constraint_list rate_constraints;
 	unsigned int slot_width;
@@ -578,13 +578,13 @@ static int adau1372_set_dai_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int sai0 = 0, sai1 = 0;
 	bool invert_lrclk = false;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		adau1372->master = true;
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
+		adau1372->clock_provider = true;
 		sai1 |= ADAU1372_SAI1_MS;
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		adau1372->master = false;
+	case SND_SOC_DAIFMT_CBC_CFC:
+		adau1372->clock_provider = false;
 		break;
 	default:
 		return -EINVAL;
@@ -714,7 +714,7 @@ static int adau1372_set_tdm_slot(struct snd_soc_dai *dai, unsigned int tx_mask,
 		break;
 	case 4:
 		sai0 = ADAU1372_SAI0_SAI_TDM4;
-		if (adau1372->master)
+		if (adau1372->clock_provider)
 			adau1372->rate_constraints.mask = ADAU1372_RATE_MASK_TDM4_MASTER;
 		else
 			adau1372->rate_constraints.mask = ADAU1372_RATE_MASK_TDM4;

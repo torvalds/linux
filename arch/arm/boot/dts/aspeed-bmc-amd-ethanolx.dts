@@ -159,6 +159,11 @@
 //24LC128 EEPROM
 &i2c3 {
 	status = "okay";
+	eeprom@50 {
+		compatible = "atmel,24c256";
+		reg = <0x50>;
+		pagesize = <64>;
+	};
 };
 
 //P0 Power regulators

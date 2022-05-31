@@ -29,7 +29,6 @@ algorithms work.
    fiemap
    files
    locks
-   mandatory-locking
    mount_api
    quota
    seq_file

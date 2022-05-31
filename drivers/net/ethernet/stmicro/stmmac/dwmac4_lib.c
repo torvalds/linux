@@ -187,7 +187,7 @@ int dwmac4_dma_interrupt(void __iomem *ioaddr,
 	return ret;
 }
 
-void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, u8 addr[6],
+void stmmac_dwmac4_set_mac_addr(void __iomem *ioaddr, const u8 addr[6],
 				unsigned int high, unsigned int low)
 {
 	unsigned long data;

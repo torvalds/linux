@@ -141,7 +141,7 @@ static ssize_t tle62x0_gpio_show(struct device *dev,
 	value = (st->gpio_state >> gpio_num) & 1;
 	mutex_unlock(&st->lock);
 
-	return snprintf(buf, PAGE_SIZE, "%d", value);
+	return sysfs_emit(buf, "%d", value);
 }
 
 static ssize_t tle62x0_gpio_store(struct device *dev,
@@ -288,7 +288,7 @@ static int tle62x0_probe(struct spi_device *spi)
 	return ret;
 }
 
-static int tle62x0_remove(struct spi_device *spi)
+static void tle62x0_remove(struct spi_device *spi)
 {
 	struct tle62x0_state *st = spi_get_drvdata(spi);
 	int ptr;
@@ -298,7 +298,6 @@ static int tle62x0_remove(struct spi_device *spi)
 
 	device_remove_file(&spi->dev, &dev_attr_status_show);
 	kfree(st);
-	return 0;
 }
 
 static struct spi_driver tle62x0_driver = {

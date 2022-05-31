@@ -8,9 +8,7 @@
 
 #include <linux/skbuff.h>
 #include <linux/module.h>
-#include <linux/mutex.h>
 #include <net/xfrm.h>
-#include <net/ip.h>
 #include <net/protocol.h>
 
 static int ipip_output(struct xfrm_state *x, struct sk_buff *skb)

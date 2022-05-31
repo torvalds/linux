@@ -242,7 +242,7 @@ static int vz89x_get_resistance_reading(struct vz89x_data *data,
 					struct iio_chan_spec const *chan,
 					int *val)
 {
-	u8 *tmp = (u8 *) &data->buffer[chan->address];
+	u8 *tmp = &data->buffer[chan->address];
 
 	switch (chan->scan_type.endianness) {
 	case IIO_LE:

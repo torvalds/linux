@@ -10,7 +10,7 @@
 
 struct fcoe_task_params {
 	/* Output parameter [set/filled by the HSI function] */
-	struct e4_fcoe_task_context *context;
+	struct fcoe_task_context *context;
 
 	/* Output parameter [set/filled by the HSI function] */
 	struct fcoe_wqe *sqe;

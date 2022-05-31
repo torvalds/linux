@@ -37,6 +37,19 @@ properties:
     minItems: 3
     maxItems: 4
 
+  clocks: true
+
+  clock-names:
+    items:
+      - const: pcie_phy_ref
+      - const: pcie_aux
+      - const: pcie_apb_phy
+      - const: pcie_apb_sys
+      - const: pcie_aclk
+
+  phys:
+    maxItems: 1
+
   hisilicon,clken-gpios:
     description: |
       Clock input enablement GPIOs from PCI devices like Ethernet, M.2 and

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2007-2015, 2018-2020 Intel Corporation
+ * Copyright (C) 2007-2015, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -24,6 +24,7 @@
 #include "fw/error-dump.h"
 #include "fw/dbg.h"
 #include "fw/api/tx.h"
+#include "mei/iwl-mei.h"
 #include "internal.h"
 #include "iwl-fh.h"
 #include "iwl-context-info-gen3.h"
@@ -126,11 +127,22 @@ out:
 	kfree(buf);
 }
 
-static void iwl_trans_pcie_sw_reset(struct iwl_trans *trans)
+static int iwl_trans_pcie_sw_reset(struct iwl_trans *trans,
+				   bool retake_ownership)
 {
 	/* Reset entire device - do controller reset (results in SHRD_HW_RST) */
-	iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_SW_RESET);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		iwl_set_bit(trans, CSR_GP_CNTRL,
+			    CSR_GP_CNTRL_REG_FLAG_SW_RESET);
+	else
+		iwl_set_bit(trans, CSR_RESET,
+			    CSR_RESET_REG_FLAG_SW_RESET);
 	usleep_range(5000, 6000);
+
+	if (retake_ownership)
+		return iwl_pcie_prepare_card_hw(trans);
+
+	return 0;
 }
 
 static void iwl_pcie_free_fw_monitor(struct iwl_trans *trans)
@@ -306,7 +318,7 @@ static int iwl_pcie_apm_init(struct iwl_trans *trans)
 	if (trans->trans_cfg->base_params->pll_cfg)
 		iwl_set_bit(trans, CSR_ANA_PLL_CFG, CSR50_ANA_PLL_CFG_VAL);
 
-	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
+	ret = iwl_finish_nic_init(trans);
 	if (ret)
 		return ret;
 
@@ -376,9 +388,11 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 	__iwl_trans_pcie_set_bit(trans, CSR_GP_CNTRL,
 				 CSR_GP_CNTRL_REG_FLAG_XTAL_ON);
 
-	iwl_trans_pcie_sw_reset(trans);
+	ret = iwl_trans_pcie_sw_reset(trans, true);
 
-	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
+	if (!ret)
+		ret = iwl_finish_nic_init(trans);
+
 	if (WARN_ON(ret)) {
 		/* Release XTAL ON request */
 		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
@@ -403,7 +417,10 @@ static void iwl_pcie_apm_lp_xtal_enable(struct iwl_trans *trans)
 				 apmg_xtal_cfg_reg |
 				 SHR_APMG_XTAL_CFG_XTAL_ON_REQ);
 
-	iwl_trans_pcie_sw_reset(trans);
+	ret = iwl_trans_pcie_sw_reset(trans, true);
+	if (ret)
+		IWL_ERR(trans,
+			"iwl_pcie_apm_lp_xtal_enable: failed to retake NIC ownership\n");
 
 	/* Enable LP XTAL by indirect access through CSR */
 	apmg_gp1_reg = iwl_trans_pcie_read_shr(trans, SHR_APMG_GP1_REG);
@@ -458,6 +475,7 @@ void iwl_pcie_apm_stop_master(struct iwl_trans *trans)
 				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
 				   CSR_GP_CNTRL_REG_FLAG_BUS_MASTER_DISABLE_STATUS,
 				   100);
+		msleep(100);
 	} else {
 		iwl_set_bit(trans, CSR_RESET, CSR_RESET_REG_FLAG_STOP_MASTER);
 
@@ -508,7 +526,7 @@ static void iwl_pcie_apm_stop(struct iwl_trans *trans, bool op_mode_leave)
 		return;
 	}
 
-	iwl_trans_pcie_sw_reset(trans);
+	iwl_trans_pcie_sw_reset(trans, false);
 
 	/*
 	 * Clear "initialization complete" bit to move adapter from
@@ -588,8 +606,10 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 	ret = iwl_pcie_set_hw_ready(trans);
 	/* If the card is ready, exit 0 */
-	if (ret >= 0)
+	if (ret >= 0) {
+		trans->csme_own = false;
 		return 0;
+	}
 
 	iwl_set_bit(trans, CSR_DBG_LINK_PWR_MGMT_REG,
 		    CSR_RESET_LINK_PWR_MGMT_DISABLED);
@@ -602,8 +622,22 @@ int iwl_pcie_prepare_card_hw(struct iwl_trans *trans)
 
 		do {
 			ret = iwl_pcie_set_hw_ready(trans);
-			if (ret >= 0)
+			if (ret >= 0) {
+				trans->csme_own = false;
 				return 0;
+			}
+
+			if (iwl_mei_is_connected()) {
+				IWL_DEBUG_INFO(trans,
+					       "Couldn't prepare the card but SAP is connected\n");
+				trans->csme_own = true;
+				if (trans->trans_cfg->device_family !=
+				    IWL_DEVICE_FAMILY_9000)
+					IWL_ERR(trans,
+						"SAP not supported for this NIC family\n");
+
+				return -EBUSY;
+			}
 
 			usleep_range(200, 1000);
 			t += 200;
@@ -711,7 +745,7 @@ static int iwl_pcie_load_section(struct iwl_trans *trans, u8 section_num,
 			iwl_set_bits_prph(trans, LMPM_CHICK,
 					  LMPM_CHICK_EXTENDED_ADDR_SPACE);
 
-		memcpy(v_addr, (u8 *)section->data + offset, copy_size);
+		memcpy(v_addr, (const u8 *)section->data + offset, copy_size);
 		ret = iwl_pcie_load_firmware_chunk(trans, dst_addr, p_addr,
 						   copy_size);
 
@@ -1056,7 +1090,7 @@ struct iwl_causes_list {
 	u8 addr;
 };
 
-static struct iwl_causes_list causes_list[] = {
+static const struct iwl_causes_list causes_list_common[] = {
 	{MSIX_FH_INT_CAUSES_D2S_CH0_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0},
 	{MSIX_FH_INT_CAUSES_D2S_CH1_NUM,	CSR_MSIX_FH_INT_MASK_AD, 0x1},
 	{MSIX_FH_INT_CAUSES_S2D,		CSR_MSIX_FH_INT_MASK_AD, 0x3},
@@ -1067,30 +1101,50 @@ static struct iwl_causes_list causes_list[] = {
 	{MSIX_HW_INT_CAUSES_REG_CT_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x16},
 	{MSIX_HW_INT_CAUSES_REG_RF_KILL,	CSR_MSIX_HW_INT_MASK_AD, 0x17},
 	{MSIX_HW_INT_CAUSES_REG_PERIODIC,	CSR_MSIX_HW_INT_MASK_AD, 0x18},
-	{MSIX_HW_INT_CAUSES_REG_SW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x29},
 	{MSIX_HW_INT_CAUSES_REG_SCD,		CSR_MSIX_HW_INT_MASK_AD, 0x2A},
 	{MSIX_HW_INT_CAUSES_REG_FH_TX,		CSR_MSIX_HW_INT_MASK_AD, 0x2B},
 	{MSIX_HW_INT_CAUSES_REG_HW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x2D},
 	{MSIX_HW_INT_CAUSES_REG_HAP,		CSR_MSIX_HW_INT_MASK_AD, 0x2E},
 };
 
-static void iwl_pcie_map_non_rx_causes(struct iwl_trans *trans)
-{
-	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
-	int val = trans_pcie->def_irq | MSIX_NON_AUTO_CLEAR_CAUSE;
-	int i, arr_size = ARRAY_SIZE(causes_list);
-	struct iwl_causes_list *causes = causes_list;
+static const struct iwl_causes_list causes_list_pre_bz[] = {
+	{MSIX_HW_INT_CAUSES_REG_SW_ERR,		CSR_MSIX_HW_INT_MASK_AD, 0x29},
+};
 
-	/*
-	 * Access all non RX causes and map them to the default irq.
-	 * In case we are missing at least one interrupt vector,
-	 * the first interrupt vector will serve non-RX and FBQ causes.
-	 */
+static const struct iwl_causes_list causes_list_bz[] = {
+	{MSIX_HW_INT_CAUSES_REG_SW_ERR_BZ,	CSR_MSIX_HW_INT_MASK_AD, 0x15},
+};
+
+static void iwl_pcie_map_list(struct iwl_trans *trans,
+			      const struct iwl_causes_list *causes,
+			      int arr_size, int val)
+{
+	int i;
+
 	for (i = 0; i < arr_size; i++) {
 		iwl_write8(trans, CSR_MSIX_IVAR(causes[i].addr), val);
 		iwl_clear_bit(trans, causes[i].mask_reg,
 			      causes[i].cause_num);
 	}
+}
+
+static void iwl_pcie_map_non_rx_causes(struct iwl_trans *trans)
+{
+	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
+	int val = trans_pcie->def_irq | MSIX_NON_AUTO_CLEAR_CAUSE;
+	/*
+	 * Access all non RX causes and map them to the default irq.
+	 * In case we are missing at least one interrupt vector,
+	 * the first interrupt vector will serve non-RX and FBQ causes.
+	 */
+	iwl_pcie_map_list(trans, causes_list_common,
+			  ARRAY_SIZE(causes_list_common), val);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		iwl_pcie_map_list(trans, causes_list_bz,
+				  ARRAY_SIZE(causes_list_bz), val);
+	else
+		iwl_pcie_map_list(trans, causes_list_pre_bz,
+				  ARRAY_SIZE(causes_list_pre_bz), val);
 }
 
 static void iwl_pcie_map_rx_causes(struct iwl_trans *trans)
@@ -1208,13 +1262,18 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	}
 
 	/* Make sure (redundant) we've released our request to stay awake */
-	iwl_clear_bit(trans, CSR_GP_CNTRL,
-		      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+	else
+		iwl_clear_bit(trans, CSR_GP_CNTRL,
+			      CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
 	/* Stop the device, and put it in low power state */
 	iwl_pcie_apm_stop(trans, false);
 
-	iwl_trans_pcie_sw_reset(trans);
+	/* re-take ownership to prevent other users from stealing the device */
+	iwl_trans_pcie_sw_reset(trans, true);
 
 	/*
 	 * Upon stop, the IVAR table gets erased, so msi-x won't
@@ -1244,9 +1303,6 @@ static void _iwl_trans_pcie_stop_device(struct iwl_trans *trans)
 	 * interrupt
 	 */
 	iwl_enable_rfkill_int(trans);
-
-	/* re-take ownership to prevent other users from stealing the device */
-	iwl_pcie_prepare_card_hw(trans);
 }
 
 void iwl_pcie_synchronize_irqs(struct iwl_trans *trans)
@@ -1273,8 +1329,7 @@ static int iwl_trans_pcie_start_fw(struct iwl_trans *trans,
 	/* This may fail if AMT took ownership of the device */
 	if (iwl_pcie_prepare_card_hw(trans)) {
 		IWL_WARN(trans, "Exit HW not ready\n");
-		ret = -EIO;
-		goto out;
+		return -EIO;
 	}
 
 	iwl_enable_rfkill_int(trans);
@@ -1452,33 +1507,54 @@ void iwl_pcie_d3_complete_suspend(struct iwl_trans *trans,
 	iwl_pcie_set_pwr(trans, true);
 }
 
+static int iwl_pcie_d3_handshake(struct iwl_trans *trans, bool suspend)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int ret;
+
+	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_AX210) {
+		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+				    suspend ? UREG_DOORBELL_TO_ISR6_SUSPEND :
+					      UREG_DOORBELL_TO_ISR6_RESUME);
+	} else if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ) {
+		iwl_write32(trans, CSR_IPC_SLEEP_CONTROL,
+			    suspend ? CSR_IPC_SLEEP_CONTROL_SUSPEND :
+				      CSR_IPC_SLEEP_CONTROL_RESUME);
+		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
+				    UREG_DOORBELL_TO_ISR6_SLEEP_CTRL);
+	} else {
+		return 0;
+	}
+
+	ret = wait_event_timeout(trans_pcie->sx_waitq,
+				 trans_pcie->sx_complete, 2 * HZ);
+
+	/* Invalidate it toward next suspend or resume */
+	trans_pcie->sx_complete = false;
+
+	if (!ret) {
+		IWL_ERR(trans, "Timeout %s D3\n",
+			suspend ? "entering" : "exiting");
+		return -ETIMEDOUT;
+	}
+
+	return 0;
+}
+
 static int iwl_trans_pcie_d3_suspend(struct iwl_trans *trans, bool test,
 				     bool reset)
 {
 	int ret;
-	struct iwl_trans_pcie *trans_pcie =  IWL_TRANS_GET_PCIE_TRANS(trans);
 
 	if (!reset)
 		/* Enable persistence mode to avoid reset */
 		iwl_set_bit(trans, CSR_HW_IF_CONFIG_REG,
 			    CSR_HW_IF_CONFIG_REG_PERSIST_MODE);
 
-	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-				    UREG_DOORBELL_TO_ISR6_SUSPEND);
+	ret = iwl_pcie_d3_handshake(trans, true);
+	if (ret)
+		return ret;
 
-		ret = wait_event_timeout(trans_pcie->sx_waitq,
-					 trans_pcie->sx_complete, 2 * HZ);
-		/*
-		 * Invalidate it toward resume.
-		 */
-		trans_pcie->sx_complete = false;
-
-		if (!ret) {
-			IWL_ERR(trans, "Timeout entering D3\n");
-			return -ETIMEDOUT;
-		}
-	}
 	iwl_pcie_d3_complete_suspend(trans, test, reset);
 
 	return 0;
@@ -1495,13 +1571,14 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 	if (test) {
 		iwl_enable_interrupts(trans);
 		*status = IWL_D3_STATUS_ALIVE;
+		ret = 0;
 		goto out;
 	}
 
 	iwl_set_bit(trans, CSR_GP_CNTRL,
 		    CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 
-	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
+	ret = iwl_finish_nic_init(trans);
 	if (ret)
 		return ret;
 
@@ -1543,25 +1620,10 @@ static int iwl_trans_pcie_d3_resume(struct iwl_trans *trans,
 		*status = IWL_D3_STATUS_ALIVE;
 
 out:
-	if (*status == IWL_D3_STATUS_ALIVE &&
-	    trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_AX210) {
-		trans_pcie->sx_complete = false;
-		iwl_write_umac_prph(trans, UREG_DOORBELL_TO_ISR6,
-				    UREG_DOORBELL_TO_ISR6_RESUME);
+	if (*status == IWL_D3_STATUS_ALIVE)
+		ret = iwl_pcie_d3_handshake(trans, false);
 
-		ret = wait_event_timeout(trans_pcie->sx_waitq,
-					 trans_pcie->sx_complete, 2 * HZ);
-		/*
-		 * Invalidate it toward next suspend.
-		 */
-		trans_pcie->sx_complete = false;
-
-		if (!ret) {
-			IWL_ERR(trans, "Timeout exiting D3\n");
-			return -ETIMEDOUT;
-		}
-	}
-	return 0;
+	return ret;
 }
 
 static void
@@ -1734,7 +1796,7 @@ static int iwl_pcie_gen2_force_power_gating(struct iwl_trans *trans)
 {
 	int ret;
 
-	ret = iwl_finish_nic_init(trans, trans->trans_cfg);
+	ret = iwl_finish_nic_init(trans);
 	if (ret < 0)
 		return ret;
 
@@ -1748,9 +1810,7 @@ static int iwl_pcie_gen2_force_power_gating(struct iwl_trans *trans)
 	iwl_clear_bits_prph(trans, HPM_HIPM_GEN_CFG,
 			    HPM_HIPM_GEN_CFG_CR_FORCE_ACTIVE);
 
-	iwl_trans_pcie_sw_reset(trans);
-
-	return 0;
+	return iwl_trans_pcie_sw_reset(trans, true);
 }
 
 static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans)
@@ -1770,7 +1830,9 @@ static int _iwl_trans_pcie_start_hw(struct iwl_trans *trans)
 	if (err)
 		return err;
 
-	iwl_trans_pcie_sw_reset(trans);
+	err = iwl_trans_pcie_sw_reset(trans, true);
+	if (err)
+		return err;
 
 	if (trans->trans_cfg->device_family == IWL_DEVICE_FAMILY_22000 &&
 	    trans->trans_cfg->integrated) {
@@ -1886,6 +1948,7 @@ static void iwl_trans_pcie_configure(struct iwl_trans *trans,
 	trans->txqs.cmd.wdg_timeout = trans_cfg->cmd_q_wdg_timeout;
 	trans->txqs.page_offs = trans_cfg->cb_data_offs;
 	trans->txqs.dev_cmd_offs = trans_cfg->cb_data_offs + sizeof(void *);
+	trans->txqs.queue_alloc_cmd_ver = trans_cfg->queue_alloc_cmd_ver;
 
 	if (WARN_ON(trans_cfg->n_no_reclaim_cmds > MAX_NO_RECLAIM_CMDS))
 		trans_pcie->n_no_reclaim_cmds = 0;
@@ -2140,9 +2203,12 @@ static void iwl_trans_pcie_release_nic_access(struct iwl_trans *trans)
 
 	if (trans_pcie->cmd_hold_nic_awake)
 		goto out;
-
-	__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
-				   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
+	if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+					   CSR_GP_CNTRL_REG_FLAG_BZ_MAC_ACCESS_REQ);
+	else
+		__iwl_trans_pcie_clear_bit(trans, CSR_GP_CNTRL,
+					   CSR_GP_CNTRL_REG_FLAG_MAC_ACCESS_REQ);
 	/*
 	 * Above we read the CSR_GP_CNTRL register, which will flush
 	 * any previous writes, but we need the write that clears the
@@ -2798,7 +2864,7 @@ static ssize_t iwl_dbgfs_monitor_data_read(struct file *file,
 {
 	struct iwl_trans *trans = file->private_data;
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
-	void *cpu_addr = (void *)trans->dbg.fw_mon.block, *curr_buf;
+	u8 *cpu_addr = (void *)trans->dbg.fw_mon.block, *curr_buf;
 	struct cont_rec *data = &trans_pcie->fw_mon_data;
 	u32 write_ptr_addr, wrap_cnt_addr, write_ptr, wrap_cnt;
 	ssize_t size, bytes_copied = 0;
@@ -3203,9 +3269,11 @@ static int iwl_trans_get_fw_monitor_len(struct iwl_trans *trans, u32 *len)
 	return 0;
 }
 
-static struct iwl_trans_dump_data
-*iwl_trans_pcie_dump_data(struct iwl_trans *trans,
-			  u32 dump_mask)
+static struct iwl_trans_dump_data *
+iwl_trans_pcie_dump_data(struct iwl_trans *trans,
+			 u32 dump_mask,
+			 const struct iwl_dump_sanitize_ops *sanitize_ops,
+			 void *sanitize_ctx)
 {
 	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
 	struct iwl_fw_error_dump_data *data;
@@ -3305,6 +3373,10 @@ static struct iwl_trans_dump_data
 				txcmd->caplen = cpu_to_le32(caplen);
 				memcpy(txcmd->data, cmdq->entries[idx].cmd,
 				       caplen);
+				if (sanitize_ops && sanitize_ops->frob_hcmd)
+					sanitize_ops->frob_hcmd(sanitize_ctx,
+								txcmd->data,
+								caplen);
 				txcmd = (void *)((u8 *)txcmd->data + caplen);
 			}
 
@@ -3365,7 +3437,10 @@ static void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 
 	if (trans_pcie->msix_enabled) {
 		inta_addr = CSR_MSIX_HW_INT_CAUSES_AD;
-		sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
+		if (trans->trans_cfg->device_family >= IWL_DEVICE_FAMILY_BZ)
+			sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR_BZ;
+		else
+			sw_err_bit = MSIX_HW_INT_CAUSES_REG_SW_ERR;
 	} else {
 		inta_addr = CSR_INT;
 		sw_err_bit = CSR_INT_BIT_SW_ERR;
@@ -3394,7 +3469,8 @@ static void iwl_trans_pcie_sync_nmi(struct iwl_trans *trans)
 	.d3_suspend = iwl_trans_pcie_d3_suspend,			\
 	.d3_resume = iwl_trans_pcie_d3_resume,				\
 	.interrupts = iwl_trans_pci_interrupts,				\
-	.sync_nmi = iwl_trans_pcie_sync_nmi				\
+	.sync_nmi = iwl_trans_pcie_sync_nmi,				\
+	.imr_dma_data = iwl_trans_pcie_copy_imr				\
 
 static const struct iwl_trans_ops trans_ops_pcie = {
 	IWL_TRANS_COMMON_OPS,
@@ -3479,6 +3555,7 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	mutex_init(&trans_pcie->mutex);
 	init_waitqueue_head(&trans_pcie->ucode_write_waitq);
 	init_waitqueue_head(&trans_pcie->fw_reset_waitq);
+	init_waitqueue_head(&trans_pcie->imr_waitq);
 
 	trans_pcie->rba.alloc_wq = alloc_workqueue("rb_allocator",
 						   WQ_HIGHPRI | WQ_UNBOUND, 1);
@@ -3557,8 +3634,9 @@ struct iwl_trans *iwl_trans_pcie_alloc(struct pci_dev *pdev,
 	 * in the old format.
 	 */
 	if (cfg_trans->device_family >= IWL_DEVICE_FAMILY_8000)
-		trans->hw_rev = (trans->hw_rev & 0xfff0) |
-				(CSR_HW_REV_STEP(trans->hw_rev << 2) << 2);
+		trans->hw_rev_step = trans->hw_rev & 0xF;
+	else
+		trans->hw_rev_step = (trans->hw_rev & 0xC) >> 2;
 
 	IWL_DEBUG_INFO(trans, "HW REV: 0x%0x\n", trans->hw_rev);
 
@@ -3605,4 +3683,42 @@ out_no_pci:
 out_free_trans:
 	iwl_trans_free(trans);
 	return ERR_PTR(ret);
+}
+
+void iwl_trans_pcie_copy_imr_fh(struct iwl_trans *trans,
+				u32 dst_addr, u64 src_addr, u32 byte_cnt)
+{
+	iwl_write_prph(trans, IMR_UREG_CHICK,
+		       iwl_read_prph(trans, IMR_UREG_CHICK) |
+		       IMR_UREG_CHICK_HALT_UMAC_PERMANENTLY_MSK);
+	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_SRAM_ADDR, dst_addr);
+	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_LSB,
+		       (u32)(src_addr & 0xFFFFFFFF));
+	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_DRAM_ADDR_MSB,
+		       iwl_get_dma_hi_addr(src_addr));
+	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_BC, byte_cnt);
+	iwl_write_prph(trans, IMR_TFH_SRV_DMA_CHNL0_CTRL,
+		       IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_IRQ_TARGET_POS |
+		       IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_DMA_EN_POS |
+		       IMR_TFH_SRV_DMA_CHNL0_CTRL_D2S_RS_MSK);
+}
+
+int iwl_trans_pcie_copy_imr(struct iwl_trans *trans,
+			    u32 dst_addr, u64 src_addr, u32 byte_cnt)
+{
+	struct iwl_trans_pcie *trans_pcie = IWL_TRANS_GET_PCIE_TRANS(trans);
+	int ret = -1;
+
+	trans_pcie->imr_status = IMR_D2S_REQUESTED;
+	iwl_trans_pcie_copy_imr_fh(trans, dst_addr, src_addr, byte_cnt);
+	ret = wait_event_timeout(trans_pcie->imr_waitq,
+				 trans_pcie->imr_status !=
+				 IMR_D2S_REQUESTED, 5 * HZ);
+	if (!ret || trans_pcie->imr_status == IMR_D2S_ERROR) {
+		IWL_ERR(trans, "Failed to copy IMR Memory chunk!\n");
+		iwl_trans_pcie_dump_regs(trans);
+		return -ETIMEDOUT;
+	}
+	trans_pcie->imr_status = IMR_D2S_IDLE;
+	return 0;
 }

@@ -39,6 +39,7 @@ properties:
           - const: lvds-encoder # Generic LVDS encoder compatible fallback
       - items:
           - enum:
+              - ti,ds90cf364a # For the DS90CF364A FPD-Link LVDS Receiver
               - ti,ds90cf384a # For the DS90CF384A FPD-Link LVDS Receiver
           - const: lvds-decoder # Generic LVDS decoders compatible fallback
       - enum:
@@ -49,10 +50,25 @@ properties:
 
     properties:
       port@0:
-        $ref: /schemas/graph.yaml#/properties/port
+        $ref: /schemas/graph.yaml#/$defs/port-base
         description: |
           For LVDS encoders, port 0 is the parallel input
           For LVDS decoders, port 0 is the LVDS input
+
+        properties:
+          endpoint:
+            $ref: /schemas/media/video-interfaces.yaml#
+            unevaluatedProperties: false
+
+            properties:
+              data-mapping:
+                enum:
+                  - jeida-18
+                  - jeida-24
+                  - vesa-24
+                description: |
+                  The color signals mapping order. See details in
+                  Documentation/devicetree/bindings/display/lvds.yaml
 
       port@1:
         $ref: /schemas/graph.yaml#/properties/port
@@ -64,12 +80,47 @@ properties:
       - port@0
       - port@1
 
+  pclk-sample:
+    description:
+      Data sampling on rising or falling edge.
+    enum:
+      - 0  # Falling edge
+      - 1  # Rising edge
+    default: 0
+
   powerdown-gpios:
     description:
       The GPIO used to control the power down line of this device.
     maxItems: 1
 
   power-supply: true
+
+allOf:
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: lvds-decoder
+    then:
+      properties:
+        ports:
+          properties:
+            port@0:
+              properties:
+                endpoint:
+                  properties:
+                    data-mapping: false
+
+  - if:
+      not:
+        properties:
+          compatible:
+            contains:
+              const: lvds-encoder
+    then:
+      properties:
+        pclk-sample: false
 
 required:
   - compatible

@@ -291,8 +291,7 @@ void ipvlan_process_multicast(struct work_struct *work)
 			else
 				kfree_skb(skb);
 		}
-		if (dev)
-			dev_put(dev);
+		dev_put(dev);
 		cond_resched();
 	}
 }
@@ -556,7 +555,7 @@ static void ipvlan_multicast_enqueue(struct ipvl_port *port,
 		schedule_work(&port->wq);
 	} else {
 		spin_unlock(&port->backlog.lock);
-		atomic_long_inc(&skb->dev->rx_dropped);
+		dev_core_stats_rx_dropped_inc(skb->dev);
 		kfree_skb(skb);
 	}
 }

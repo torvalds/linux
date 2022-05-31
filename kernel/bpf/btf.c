@@ -1,4 +1,4 @@
-/* SPDX-License-Identifier: GPL-2.0 */
+// SPDX-License-Identifier: GPL-2.0
 /* Copyright (c) 2018 Facebook */
 
 #include <uapi/linux/btf.h>
@@ -25,6 +25,7 @@
 #include <linux/kobject.h>
 #include <linux/sysfs.h>
 #include <net/sock.h>
+#include "../tools/lib/bpf/relo_core.h"
 
 /* BTF (BPF Type Format) is the meta data format which describes
  * the data types of BPF program/map.  Hence, it basically focus
@@ -197,6 +198,21 @@
 DEFINE_IDR(btf_idr);
 DEFINE_SPINLOCK(btf_idr_lock);
 
+enum btf_kfunc_hook {
+	BTF_KFUNC_HOOK_XDP,
+	BTF_KFUNC_HOOK_TC,
+	BTF_KFUNC_HOOK_STRUCT_OPS,
+	BTF_KFUNC_HOOK_MAX,
+};
+
+enum {
+	BTF_KFUNC_SET_MAX_CNT = 32,
+};
+
+struct btf_kfunc_set_tab {
+	struct btf_id_set *sets[BTF_KFUNC_HOOK_MAX][BTF_KFUNC_TYPE_MAX];
+};
+
 struct btf {
 	void *data;
 	struct btf_type **types;
@@ -211,6 +227,7 @@ struct btf {
 	refcount_t refcnt;
 	u32 id;
 	struct rcu_head rcu;
+	struct btf_kfunc_set_tab *kfunc_set_tab;
 
 	/* split BTF support */
 	struct btf *base_btf;
@@ -281,6 +298,8 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_VAR]		= "VAR",
 	[BTF_KIND_DATASEC]	= "DATASEC",
 	[BTF_KIND_FLOAT]	= "FLOAT",
+	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
+	[BTF_KIND_TYPE_TAG]	= "TYPE_TAG",
 };
 
 const char *btf_type_str(const struct btf_type *t)
@@ -400,6 +419,9 @@ static struct btf_type btf_void;
 static int btf_resolve(struct btf_verifier_env *env,
 		       const struct btf_type *t, u32 type_id);
 
+static int btf_func_check(struct btf_verifier_env *env,
+			  const struct btf_type *t);
+
 static bool btf_type_is_modifier(const struct btf_type *t)
 {
 	/* Some of them is not strictly a C modifier
@@ -417,6 +439,7 @@ static bool btf_type_is_modifier(const struct btf_type *t)
 	case BTF_KIND_VOLATILE:
 	case BTF_KIND_CONST:
 	case BTF_KIND_RESTRICT:
+	case BTF_KIND_TYPE_TAG:
 		return true;
 	}
 
@@ -459,6 +482,17 @@ static bool btf_type_is_datasec(const struct btf_type *t)
 	return BTF_INFO_KIND(t->info) == BTF_KIND_DATASEC;
 }
 
+static bool btf_type_is_decl_tag(const struct btf_type *t)
+{
+	return BTF_INFO_KIND(t->info) == BTF_KIND_DECL_TAG;
+}
+
+static bool btf_type_is_decl_tag_target(const struct btf_type *t)
+{
+	return btf_type_is_func(t) || btf_type_is_struct(t) ||
+	       btf_type_is_var(t) || btf_type_is_typedef(t);
+}
+
 u32 btf_nr_types(const struct btf *btf)
 {
 	u32 total = 0;
@@ -489,6 +523,50 @@ s32 btf_find_by_name_kind(const struct btf *btf, const char *name, u8 kind)
 	}
 
 	return -ENOENT;
+}
+
+static s32 bpf_find_btf_id(const char *name, u32 kind, struct btf **btf_p)
+{
+	struct btf *btf;
+	s32 ret;
+	int id;
+
+	btf = bpf_get_btf_vmlinux();
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
+	if (!btf)
+		return -EINVAL;
+
+	ret = btf_find_by_name_kind(btf, name, kind);
+	/* ret is never zero, since btf_find_by_name_kind returns
+	 * positive btf_id or negative error.
+	 */
+	if (ret > 0) {
+		btf_get(btf);
+		*btf_p = btf;
+		return ret;
+	}
+
+	/* If name is not found in vmlinux's BTF then search in module's BTFs */
+	spin_lock_bh(&btf_idr_lock);
+	idr_for_each_entry(&btf_idr, btf, id) {
+		if (!btf_is_module(btf))
+			continue;
+		/* linear search could be slow hence unlock/lock
+		 * the IDR to avoiding holding it for too long
+		 */
+		btf_get(btf);
+		spin_unlock_bh(&btf_idr_lock);
+		ret = btf_find_by_name_kind(btf, name, kind);
+		if (ret > 0) {
+			*btf_p = btf;
+			return ret;
+		}
+		spin_lock_bh(&btf_idr_lock);
+		btf_put(btf);
+	}
+	spin_unlock_bh(&btf_idr_lock);
+	return ret;
 }
 
 const struct btf_type *btf_type_skip_modifiers(const struct btf *btf,
@@ -537,6 +615,7 @@ const struct btf_type *btf_type_resolve_func_ptr(const struct btf *btf,
 static bool btf_type_is_resolve_source_only(const struct btf_type *t)
 {
 	return btf_type_is_var(t) ||
+	       btf_type_is_decl_tag(t) ||
 	       btf_type_is_datasec(t);
 }
 
@@ -563,6 +642,8 @@ static bool btf_type_needs_resolve(const struct btf_type *t)
 	       btf_type_is_struct(t) ||
 	       btf_type_is_array(t) ||
 	       btf_type_is_var(t) ||
+	       btf_type_is_func(t) ||
+	       btf_type_is_decl_tag(t) ||
 	       btf_type_is_datasec(t);
 }
 
@@ -614,6 +695,11 @@ static const struct btf_enum *btf_type_enum(const struct btf_type *t)
 static const struct btf_var *btf_type_var(const struct btf_type *t)
 {
 	return (const struct btf_var *)(t + 1);
+}
+
+static const struct btf_decl_tag *btf_type_decl_tag(const struct btf_type *t)
+{
+	return (const struct btf_decl_tag *)(t + 1);
 }
 
 static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
@@ -815,7 +901,7 @@ static const char *btf_show_name(struct btf_show *show)
 	const char *ptr_suffix = &ptr_suffixes[strlen(ptr_suffixes)];
 	const char *name = NULL, *prefix = "", *parens = "";
 	const struct btf_member *m = show->state.member;
-	const struct btf_type *t = show->state.type;
+	const struct btf_type *t;
 	const struct btf_array *array;
 	u32 id = show->state.type_id;
 	const char *member = NULL;
@@ -1509,8 +1595,30 @@ static void btf_free_id(struct btf *btf)
 	spin_unlock_irqrestore(&btf_idr_lock, flags);
 }
 
+static void btf_free_kfunc_set_tab(struct btf *btf)
+{
+	struct btf_kfunc_set_tab *tab = btf->kfunc_set_tab;
+	int hook, type;
+
+	if (!tab)
+		return;
+	/* For module BTF, we directly assign the sets being registered, so
+	 * there is nothing to free except kfunc_set_tab.
+	 */
+	if (btf_is_module(btf))
+		goto free_tab;
+	for (hook = 0; hook < ARRAY_SIZE(tab->sets); hook++) {
+		for (type = 0; type < ARRAY_SIZE(tab->sets[0]); type++)
+			kfree(tab->sets[hook][type]);
+	}
+free_tab:
+	kfree(tab);
+	btf->kfunc_set_tab = NULL;
+}
+
 static void btf_free(struct btf *btf)
 {
+	btf_free_kfunc_set_tab(btf);
 	kvfree(btf->types);
 	kvfree(btf->resolved_sizes);
 	kvfree(btf->resolved_ids);
@@ -1718,6 +1826,7 @@ __btf_resolve_size(const struct btf *btf, const struct btf_type *type,
 		case BTF_KIND_VOLATILE:
 		case BTF_KIND_CONST:
 		case BTF_KIND_RESTRICT:
+		case BTF_KIND_TYPE_TAG:
 			id = type->type;
 			type = btf_type_by_id(btf, type->type);
 			break;
@@ -2326,6 +2435,8 @@ static int btf_ref_type_check_meta(struct btf_verifier_env *env,
 				   const struct btf_type *t,
 				   u32 meta_left)
 {
+	const char *value;
+
 	if (btf_type_vlen(t)) {
 		btf_verifier_log_type(env, t, "vlen != 0");
 		return -EINVAL;
@@ -2341,12 +2452,18 @@ static int btf_ref_type_check_meta(struct btf_verifier_env *env,
 		return -EINVAL;
 	}
 
-	/* typedef type must have a valid name, and other ref types,
+	/* typedef/type_tag type must have a valid name, and other ref types,
 	 * volatile, const, restrict, should have a null name.
 	 */
 	if (BTF_INFO_KIND(t->info) == BTF_KIND_TYPEDEF) {
 		if (!t->name_off ||
 		    !btf_name_valid_identifier(env->btf, t->name_off)) {
+			btf_verifier_log_type(env, t, "Invalid name");
+			return -EINVAL;
+		}
+	} else if (BTF_INFO_KIND(t->info) == BTF_KIND_TYPE_TAG) {
+		value = btf_name_by_offset(env->btf, t->name_off);
+		if (!value || !value[0]) {
 			btf_verifier_log_type(env, t, "Invalid name");
 			return -EINVAL;
 		}
@@ -2474,7 +2591,7 @@ static int btf_ptr_resolve(struct btf_verifier_env *env,
 	 *
 	 * We now need to continue from the last-resolved-ptr to
 	 * ensure the last-resolved-ptr will not referring back to
-	 * the currenct ptr (t).
+	 * the current ptr (t).
 	 */
 	if (btf_type_is_modifier(next_type)) {
 		const struct btf_type *resolved_type;
@@ -2939,7 +3056,7 @@ static s32 btf_struct_check_meta(struct btf_verifier_env *env,
 			return -EINVAL;
 		}
 
-		offset = btf_member_bit_offset(t, member);
+		offset = __btf_member_bit_offset(t, member);
 		if (is_union && offset) {
 			btf_verifier_log_member(env, t, member,
 						"Invalid member bits_offset");
@@ -3064,7 +3181,7 @@ static int btf_find_struct_field(const struct btf *btf, const struct btf_type *t
 		if (off != -ENOENT)
 			/* only one such field is allowed */
 			return -E2BIG;
-		off = btf_member_bit_offset(t, member);
+		off = __btf_member_bit_offset(t, member);
 		if (off % 8)
 			/* valid C code cannot generate such BTF */
 			return -EINVAL;
@@ -3154,8 +3271,8 @@ static void __btf_struct_show(const struct btf *btf, const struct btf_type *t,
 
 		btf_show_start_member(show, member);
 
-		member_offset = btf_member_bit_offset(t, member);
-		bitfield_size = btf_member_bitfield_size(t, member);
+		member_offset = __btf_member_bit_offset(t, member);
+		bitfield_size = __btf_member_bitfield_size(t, member);
 		bytes_offset = BITS_ROUNDDOWN_BYTES(member_offset);
 		bits8_offset = BITS_PER_BYTE_MASKED(member_offset);
 		if (bitfield_size) {
@@ -3502,9 +3619,24 @@ static s32 btf_func_check_meta(struct btf_verifier_env *env,
 	return 0;
 }
 
+static int btf_func_resolve(struct btf_verifier_env *env,
+			    const struct resolve_vertex *v)
+{
+	const struct btf_type *t = v->t;
+	u32 next_type_id = t->type;
+	int err;
+
+	err = btf_func_check(env, t);
+	if (err)
+		return err;
+
+	env_stack_pop_resolved(env, next_type_id, 0);
+	return 0;
+}
+
 static struct btf_kind_operations func_ops = {
 	.check_meta = btf_func_check_meta,
-	.resolve = btf_df_resolve,
+	.resolve = btf_func_resolve,
 	.check_member = btf_df_check_member,
 	.check_kflag_member = btf_df_check_kflag_member,
 	.log_details = btf_ref_type_log,
@@ -3801,6 +3933,110 @@ static const struct btf_kind_operations float_ops = {
 	.show = btf_df_show,
 };
 
+static s32 btf_decl_tag_check_meta(struct btf_verifier_env *env,
+			      const struct btf_type *t,
+			      u32 meta_left)
+{
+	const struct btf_decl_tag *tag;
+	u32 meta_needed = sizeof(*tag);
+	s32 component_idx;
+	const char *value;
+
+	if (meta_left < meta_needed) {
+		btf_verifier_log_basic(env, t,
+				       "meta_left:%u meta_needed:%u",
+				       meta_left, meta_needed);
+		return -EINVAL;
+	}
+
+	value = btf_name_by_offset(env->btf, t->name_off);
+	if (!value || !value[0]) {
+		btf_verifier_log_type(env, t, "Invalid value");
+		return -EINVAL;
+	}
+
+	if (btf_type_vlen(t)) {
+		btf_verifier_log_type(env, t, "vlen != 0");
+		return -EINVAL;
+	}
+
+	if (btf_type_kflag(t)) {
+		btf_verifier_log_type(env, t, "Invalid btf_info kind_flag");
+		return -EINVAL;
+	}
+
+	component_idx = btf_type_decl_tag(t)->component_idx;
+	if (component_idx < -1) {
+		btf_verifier_log_type(env, t, "Invalid component_idx");
+		return -EINVAL;
+	}
+
+	btf_verifier_log_type(env, t, NULL);
+
+	return meta_needed;
+}
+
+static int btf_decl_tag_resolve(struct btf_verifier_env *env,
+			   const struct resolve_vertex *v)
+{
+	const struct btf_type *next_type;
+	const struct btf_type *t = v->t;
+	u32 next_type_id = t->type;
+	struct btf *btf = env->btf;
+	s32 component_idx;
+	u32 vlen;
+
+	next_type = btf_type_by_id(btf, next_type_id);
+	if (!next_type || !btf_type_is_decl_tag_target(next_type)) {
+		btf_verifier_log_type(env, v->t, "Invalid type_id");
+		return -EINVAL;
+	}
+
+	if (!env_type_is_resolve_sink(env, next_type) &&
+	    !env_type_is_resolved(env, next_type_id))
+		return env_stack_push(env, next_type, next_type_id);
+
+	component_idx = btf_type_decl_tag(t)->component_idx;
+	if (component_idx != -1) {
+		if (btf_type_is_var(next_type) || btf_type_is_typedef(next_type)) {
+			btf_verifier_log_type(env, v->t, "Invalid component_idx");
+			return -EINVAL;
+		}
+
+		if (btf_type_is_struct(next_type)) {
+			vlen = btf_type_vlen(next_type);
+		} else {
+			/* next_type should be a function */
+			next_type = btf_type_by_id(btf, next_type->type);
+			vlen = btf_type_vlen(next_type);
+		}
+
+		if ((u32)component_idx >= vlen) {
+			btf_verifier_log_type(env, v->t, "Invalid component_idx");
+			return -EINVAL;
+		}
+	}
+
+	env_stack_pop_resolved(env, next_type_id, 0);
+
+	return 0;
+}
+
+static void btf_decl_tag_log(struct btf_verifier_env *env, const struct btf_type *t)
+{
+	btf_verifier_log(env, "type=%u component_idx=%d", t->type,
+			 btf_type_decl_tag(t)->component_idx);
+}
+
+static const struct btf_kind_operations decl_tag_ops = {
+	.check_meta = btf_decl_tag_check_meta,
+	.resolve = btf_decl_tag_resolve,
+	.check_member = btf_df_check_member,
+	.check_kflag_member = btf_df_check_kflag_member,
+	.log_details = btf_decl_tag_log,
+	.show = btf_df_show,
+};
+
 static int btf_func_proto_check(struct btf_verifier_env *env,
 				const struct btf_type *t)
 {
@@ -3935,6 +4171,8 @@ static const struct btf_kind_operations * const kind_ops[NR_BTF_KINDS] = {
 	[BTF_KIND_VAR] = &var_ops,
 	[BTF_KIND_DATASEC] = &datasec_ops,
 	[BTF_KIND_FLOAT] = &float_ops,
+	[BTF_KIND_DECL_TAG] = &decl_tag_ops,
+	[BTF_KIND_TYPE_TAG] = &modifier_ops,
 };
 
 static s32 btf_check_meta(struct btf_verifier_env *env,
@@ -4017,6 +4255,10 @@ static bool btf_resolve_valid(struct btf_verifier_env *env,
 
 	if (btf_type_is_struct(t) || btf_type_is_datasec(t))
 		return !btf_resolved_type_id(btf, type_id) &&
+		       !btf_resolved_type_size(btf, type_id);
+
+	if (btf_type_is_decl_tag(t) || btf_type_is_func(t))
+		return btf_resolved_type_id(btf, type_id) &&
 		       !btf_resolved_type_size(btf, type_id);
 
 	if (btf_type_is_modifier(t) || btf_type_is_ptr(t) ||
@@ -4102,12 +4344,6 @@ static int btf_check_all_types(struct btf_verifier_env *env)
 
 		if (btf_type_is_func_proto(t)) {
 			err = btf_func_proto_check(env, t);
-			if (err)
-				return err;
-		}
-
-		if (btf_type_is_func(t)) {
-			err = btf_func_check(env, t);
 			if (err)
 				return err;
 		}
@@ -4246,8 +4482,7 @@ static int btf_parse_hdr(struct btf_verifier_env *env)
 	btf = env->btf;
 	btf_data_size = btf->data_size;
 
-	if (btf_data_size <
-	    offsetof(struct btf_header, hdr_len) + sizeof(hdr->hdr_len)) {
+	if (btf_data_size < offsetofend(struct btf_header, hdr_len)) {
 		btf_verifier_log(env, "hdr_len not found");
 		return -EINVAL;
 	}
@@ -4332,8 +4567,7 @@ static struct btf *btf_parse(bpfptr_t btf_data, u32 btf_data_size,
 		log->len_total = log_size;
 
 		/* log attributes have to be sane */
-		if (log->len_total < 128 || log->len_total > UINT_MAX >> 8 ||
-		    !log->level || !log->ubuf) {
+		if (!bpf_verifier_log_attr_valid(log)) {
 			err = -EINVAL;
 			goto errout;
 		}
@@ -4686,7 +4920,7 @@ struct btf *bpf_prog_get_target_btf(const struct bpf_prog *prog)
 		return prog->aux->attach_btf;
 }
 
-static bool is_string_ptr(struct btf *btf, const struct btf_type *t)
+static bool is_int_ptr(struct btf *btf, const struct btf_type *t)
 {
 	/* t comes in already as a pointer */
 	t = btf_type_by_id(btf, t->type);
@@ -4695,8 +4929,7 @@ static bool is_string_ptr(struct btf *btf, const struct btf_type *t)
 	if (BTF_INFO_KIND(t->info) == BTF_KIND_CONST)
 		t = btf_type_by_id(btf, t->type);
 
-	/* char, signed char, unsigned char */
-	return btf_type_is_int(t) && t->size == 1;
+	return btf_type_is_int(t);
 }
 
 bool btf_ctx_access(int off, int size, enum bpf_access_type type,
@@ -4709,6 +4942,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	const char *tname = prog->aux->attach_func_name;
 	struct bpf_verifier_log *log = info->log;
 	const struct btf_param *args;
+	const char *tag_value;
 	u32 nr_args, arg;
 	int i, ret;
 
@@ -4801,10 +5035,12 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	/* check for PTR_TO_RDONLY_BUF_OR_NULL or PTR_TO_RDWR_BUF_OR_NULL */
 	for (i = 0; i < prog->aux->ctx_arg_info_size; i++) {
 		const struct bpf_ctx_arg_aux *ctx_arg_info = &prog->aux->ctx_arg_info[i];
+		u32 type, flag;
 
-		if (ctx_arg_info->offset == off &&
-		    (ctx_arg_info->reg_type == PTR_TO_RDONLY_BUF_OR_NULL ||
-		     ctx_arg_info->reg_type == PTR_TO_RDWR_BUF_OR_NULL)) {
+		type = base_type(ctx_arg_info->reg_type);
+		flag = type_flag(ctx_arg_info->reg_type);
+		if (ctx_arg_info->offset == off && type == PTR_TO_BUF &&
+		    (flag & PTR_MAYBE_NULL)) {
 			info->reg_type = ctx_arg_info->reg_type;
 			return true;
 		}
@@ -4817,7 +5053,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 		 */
 		return true;
 
-	if (is_string_ptr(btf, t))
+	if (is_int_ptr(btf, t))
 		return true;
 
 	/* this is a pointer to another type */
@@ -4859,6 +5095,15 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	info->btf = btf;
 	info->btf_id = t->type;
 	t = btf_type_by_id(btf, t->type);
+
+	if (btf_type_is_type_tag(t)) {
+		tag_value = __btf_name_by_offset(btf, t->name_off);
+		if (strcmp(tag_value, "user") == 0)
+			info->reg_type |= MEM_USER;
+		if (strcmp(tag_value, "percpu") == 0)
+			info->reg_type |= MEM_PERCPU;
+	}
+
 	/* skip modifiers */
 	while (btf_type_is_modifier(t)) {
 		info->btf_id = t->type;
@@ -4885,12 +5130,12 @@ enum bpf_struct_walk_result {
 
 static int btf_struct_walk(struct bpf_verifier_log *log, const struct btf *btf,
 			   const struct btf_type *t, int off, int size,
-			   u32 *next_btf_id)
+			   u32 *next_btf_id, enum bpf_type_flag *flag)
 {
 	u32 i, moff, mtrue_end, msize = 0, total_nelems = 0;
 	const struct btf_type *mtype, *elem_type = NULL;
 	const struct btf_member *member;
-	const char *tname, *mname;
+	const char *tname, *mname, *tag_value;
 	u32 vlen, elem_id, mid;
 
 again:
@@ -4920,7 +5165,7 @@ again:
 		if (array_elem->nelems != 0)
 			goto error;
 
-		moff = btf_member_bit_offset(t, member) / 8;
+		moff = __btf_member_bit_offset(t, member) / 8;
 		if (off < moff)
 			goto error;
 
@@ -4943,14 +5188,14 @@ error:
 
 	for_each_member(i, t, member) {
 		/* offset of the field in bytes */
-		moff = btf_member_bit_offset(t, member) / 8;
+		moff = __btf_member_bit_offset(t, member) / 8;
 		if (off + size <= moff)
 			/* won't find anything, field is already too far */
 			break;
 
-		if (btf_member_bitfield_size(t, member)) {
-			u32 end_bit = btf_member_bit_offset(t, member) +
-				btf_member_bitfield_size(t, member);
+		if (__btf_member_bitfield_size(t, member)) {
+			u32 end_bit = __btf_member_bit_offset(t, member) +
+				__btf_member_bitfield_size(t, member);
 
 			/* off <= moff instead of off == moff because clang
 			 * does not generate a BTF member for anonymous
@@ -5074,7 +5319,8 @@ error:
 		}
 
 		if (btf_type_is_ptr(mtype)) {
-			const struct btf_type *stype;
+			const struct btf_type *stype, *t;
+			enum bpf_type_flag tmp_flag = 0;
 			u32 id;
 
 			if (msize != size || off != moff) {
@@ -5083,9 +5329,23 @@ error:
 					mname, moff, tname, off, size);
 				return -EACCES;
 			}
+
+			/* check type tag */
+			t = btf_type_by_id(btf, mtype->type);
+			if (btf_type_is_type_tag(t)) {
+				tag_value = __btf_name_by_offset(btf, t->name_off);
+				/* check __user tag */
+				if (strcmp(tag_value, "user") == 0)
+					tmp_flag = MEM_USER;
+				/* check __percpu tag */
+				if (strcmp(tag_value, "percpu") == 0)
+					tmp_flag = MEM_PERCPU;
+			}
+
 			stype = btf_type_skip_modifiers(btf, mtype->type, &id);
 			if (btf_type_is_struct(stype)) {
 				*next_btf_id = id;
+				*flag = tmp_flag;
 				return WALK_PTR;
 			}
 		}
@@ -5112,13 +5372,14 @@ error:
 int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 		      const struct btf_type *t, int off, int size,
 		      enum bpf_access_type atype __maybe_unused,
-		      u32 *next_btf_id)
+		      u32 *next_btf_id, enum bpf_type_flag *flag)
 {
+	enum bpf_type_flag tmp_flag = 0;
 	int err;
 	u32 id;
 
 	do {
-		err = btf_struct_walk(log, btf, t, off, size, &id);
+		err = btf_struct_walk(log, btf, t, off, size, &id, &tmp_flag);
 
 		switch (err) {
 		case WALK_PTR:
@@ -5126,6 +5387,7 @@ int btf_struct_access(struct bpf_verifier_log *log, const struct btf *btf,
 			 * we're done.
 			 */
 			*next_btf_id = id;
+			*flag = tmp_flag;
 			return PTR_TO_BTF_ID;
 		case WALK_SCALAR:
 			return SCALAR_VALUE;
@@ -5170,6 +5432,7 @@ bool btf_struct_ids_match(struct bpf_verifier_log *log,
 			  const struct btf *need_btf, u32 need_type_id)
 {
 	const struct btf_type *type;
+	enum bpf_type_flag flag;
 	int err;
 
 	/* Are we already done? */
@@ -5180,7 +5443,7 @@ again:
 	type = btf_type_by_id(btf, id);
 	if (!type)
 		return false;
-	err = btf_struct_walk(log, btf, type, off, 1, &id);
+	err = btf_struct_walk(log, btf, type, off, 1, &id, &flag);
 	if (err != WALK_STRUCT)
 		return false;
 
@@ -5244,7 +5507,7 @@ int btf_distill_func_proto(struct bpf_verifier_log *log,
 	}
 	args = (const struct btf_param *)(func + 1);
 	nargs = btf_type_vlen(func);
-	if (nargs >= MAX_BPF_FUNC_ARGS) {
+	if (nargs > MAX_BPF_FUNC_ARGS) {
 		bpf_log(log,
 			"The function %s has %d arguments. Too many.\n",
 			tname, nargs);
@@ -5435,16 +5698,85 @@ static u32 *reg2btf_ids[__BPF_REG_TYPE_MAX] = {
 #endif
 };
 
+/* Returns true if struct is composed of scalars, 4 levels of nesting allowed */
+static bool __btf_type_is_scalar_struct(struct bpf_verifier_log *log,
+					const struct btf *btf,
+					const struct btf_type *t, int rec)
+{
+	const struct btf_type *member_type;
+	const struct btf_member *member;
+	u32 i;
+
+	if (!btf_type_is_struct(t))
+		return false;
+
+	for_each_member(i, t, member) {
+		const struct btf_array *array;
+
+		member_type = btf_type_skip_modifiers(btf, member->type, NULL);
+		if (btf_type_is_struct(member_type)) {
+			if (rec >= 3) {
+				bpf_log(log, "max struct nesting depth exceeded\n");
+				return false;
+			}
+			if (!__btf_type_is_scalar_struct(log, btf, member_type, rec + 1))
+				return false;
+			continue;
+		}
+		if (btf_type_is_array(member_type)) {
+			array = btf_type_array(member_type);
+			if (!array->nelems)
+				return false;
+			member_type = btf_type_skip_modifiers(btf, array->type, NULL);
+			if (!btf_type_is_scalar(member_type))
+				return false;
+			continue;
+		}
+		if (!btf_type_is_scalar(member_type))
+			return false;
+	}
+	return true;
+}
+
+static bool is_kfunc_arg_mem_size(const struct btf *btf,
+				  const struct btf_param *arg,
+				  const struct bpf_reg_state *reg)
+{
+	int len, sfx_len = sizeof("__sz") - 1;
+	const struct btf_type *t;
+	const char *param_name;
+
+	t = btf_type_skip_modifiers(btf, arg->type, NULL);
+	if (!btf_type_is_scalar(t) || reg->type != SCALAR_VALUE)
+		return false;
+
+	/* In the future, this can be ported to use BTF tagging */
+	param_name = btf_name_by_offset(btf, arg->name_off);
+	if (str_is_empty(param_name))
+		return false;
+	len = strlen(param_name);
+	if (len < sfx_len)
+		return false;
+	param_name += len - sfx_len;
+	if (strncmp(param_name, "__sz", sfx_len))
+		return false;
+
+	return true;
+}
+
 static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 				    const struct btf *btf, u32 func_id,
 				    struct bpf_reg_state *regs,
 				    bool ptr_to_mem_ok)
 {
 	struct bpf_verifier_log *log = &env->log;
+	u32 i, nargs, ref_id, ref_obj_id = 0;
+	bool is_kfunc = btf_is_kernel(btf);
 	const char *func_name, *ref_tname;
 	const struct btf_type *t, *ref_t;
 	const struct btf_param *args;
-	u32 i, nargs, ref_id;
+	int ref_regno = 0, ret;
+	bool rel = false;
 
 	t = btf_type_by_id(btf, func_id);
 	if (!t || !btf_type_is_func(t)) {
@@ -5470,6 +5802,10 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 		return -EINVAL;
 	}
 
+	/* Only kfunc can be release func */
+	if (is_kfunc)
+		rel = btf_kfunc_id_set_contains(btf, resolve_prog_type(env->prog),
+						BTF_KFUNC_TYPE_RELEASE, func_id);
 	/* check that BTF function arguments match actual types that the
 	 * verifier sees.
 	 */
@@ -5493,7 +5829,24 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 
 		ref_t = btf_type_skip_modifiers(btf, t->type, &ref_id);
 		ref_tname = btf_name_by_offset(btf, ref_t->name_off);
-		if (btf_is_kernel(btf)) {
+
+		ret = check_func_arg_reg_off(env, reg, regno, ARG_DONTCARE, rel);
+		if (ret < 0)
+			return ret;
+
+		if (btf_get_prog_ctx_type(log, btf, t,
+					  env->prog->type, i)) {
+			/* If function expects ctx type in BTF check that caller
+			 * is passing PTR_TO_CTX.
+			 */
+			if (reg->type != PTR_TO_CTX) {
+				bpf_log(log,
+					"arg#%d expected pointer to ctx, but got %s\n",
+					i, btf_type_str(t));
+				return -EINVAL;
+			}
+		} else if (is_kfunc && (reg->type == PTR_TO_BTF_ID ||
+			   (reg2btf_ids[base_type(reg->type)] && !type_flag(reg->type)))) {
 			const struct btf_type *reg_ref_t;
 			const struct btf *reg_btf;
 			const char *reg_ref_tname;
@@ -5509,14 +5862,23 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			if (reg->type == PTR_TO_BTF_ID) {
 				reg_btf = reg->btf;
 				reg_ref_id = reg->btf_id;
-			} else if (reg2btf_ids[reg->type]) {
-				reg_btf = btf_vmlinux;
-				reg_ref_id = *reg2btf_ids[reg->type];
+				/* Ensure only one argument is referenced
+				 * PTR_TO_BTF_ID, check_func_arg_reg_off relies
+				 * on only one referenced register being allowed
+				 * for kfuncs.
+				 */
+				if (reg->ref_obj_id) {
+					if (ref_obj_id) {
+						bpf_log(log, "verifier internal error: more than one arg with ref_obj_id R%d %u %u\n",
+							regno, reg->ref_obj_id, ref_obj_id);
+						return -EFAULT;
+					}
+					ref_regno = regno;
+					ref_obj_id = reg->ref_obj_id;
+				}
 			} else {
-				bpf_log(log, "kernel function %s args#%d expected pointer to %s %s but R%d is not a pointer to btf_id\n",
-					func_name, i,
-					btf_type_str(ref_t), ref_tname, regno);
-				return -EINVAL;
+				reg_btf = btf_vmlinux;
+				reg_ref_id = *reg2btf_ids[base_type(reg->type)];
 			}
 
 			reg_ref_t = btf_type_skip_modifiers(reg_btf, reg_ref_id,
@@ -5532,22 +5894,39 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 					reg_ref_tname);
 				return -EINVAL;
 			}
-		} else if (btf_get_prog_ctx_type(log, btf, t,
-						 env->prog->type, i)) {
-			/* If function expects ctx type in BTF check that caller
-			 * is passing PTR_TO_CTX.
-			 */
-			if (reg->type != PTR_TO_CTX) {
-				bpf_log(log,
-					"arg#%d expected pointer to ctx, but got %s\n",
-					i, btf_type_str(t));
-				return -EINVAL;
-			}
-			if (check_ctx_reg(env, reg, regno))
-				return -EINVAL;
 		} else if (ptr_to_mem_ok) {
 			const struct btf_type *resolve_ret;
 			u32 type_size;
+
+			if (is_kfunc) {
+				bool arg_mem_size = i + 1 < nargs && is_kfunc_arg_mem_size(btf, &args[i + 1], &regs[regno + 1]);
+
+				/* Permit pointer to mem, but only when argument
+				 * type is pointer to scalar, or struct composed
+				 * (recursively) of scalars.
+				 * When arg_mem_size is true, the pointer can be
+				 * void *.
+				 */
+				if (!btf_type_is_scalar(ref_t) &&
+				    !__btf_type_is_scalar_struct(log, btf, ref_t, 0) &&
+				    (arg_mem_size ? !btf_type_is_void(ref_t) : 1)) {
+					bpf_log(log,
+						"arg#%d pointer type %s %s must point to %sscalar, or struct with scalar\n",
+						i, btf_type_str(ref_t), ref_tname, arg_mem_size ? "void, " : "");
+					return -EINVAL;
+				}
+
+				/* Check for mem, len pair */
+				if (arg_mem_size) {
+					if (check_kfunc_mem_size_reg(env, &regs[regno + 1], regno + 1)) {
+						bpf_log(log, "arg#%d arg#%d memory, len pair leads to invalid memory access\n",
+							i, i + 1);
+						return -EINVAL;
+					}
+					i++;
+					continue;
+				}
+			}
 
 			resolve_ret = btf_resolve_size(btf, ref_t, &type_size);
 			if (IS_ERR(resolve_ret)) {
@@ -5561,11 +5940,26 @@ static int btf_check_func_arg_match(struct bpf_verifier_env *env,
 			if (check_mem_reg(env, reg, regno, type_size))
 				return -EINVAL;
 		} else {
+			bpf_log(log, "reg type unsupported for arg#%d %sfunction %s#%d\n", i,
+				is_kfunc ? "kernel " : "", func_name, func_id);
 			return -EINVAL;
 		}
 	}
 
-	return 0;
+	/* Either both are set, or neither */
+	WARN_ON_ONCE((ref_obj_id && !ref_regno) || (!ref_obj_id && ref_regno));
+	/* We already made sure ref_obj_id is set only for one argument. We do
+	 * allow (!rel && ref_obj_id), so that passing such referenced
+	 * PTR_TO_BTF_ID to other kfuncs works. Note that rel is only true when
+	 * is_kfunc is true.
+	 */
+	if (rel && !ref_obj_id) {
+		bpf_log(log, "release kernel function %s expects refcounted PTR_TO_BTF_ID\n",
+			func_name);
+		return -EINVAL;
+	}
+	/* returns argument register number > 0 in case of reference release kfunc */
+	return rel ? ref_regno : 0;
 }
 
 /* Compare BTF of a function with given bpf_reg_state.
@@ -5610,7 +6004,7 @@ int btf_check_kfunc_arg_match(struct bpf_verifier_env *env,
 			      const struct btf *btf, u32 func_id,
 			      struct bpf_reg_state *regs)
 {
-	return btf_check_func_arg_match(env, btf, func_id, regs, false);
+	return btf_check_func_arg_match(env, btf, func_id, regs, true);
 }
 
 /* Convert BTF of a function into bpf_reg_state if possible
@@ -5718,7 +6112,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 				return -EINVAL;
 			}
 
-			reg->type = PTR_TO_MEM_OR_NULL;
+			reg->type = PTR_TO_MEM | PTR_MAYBE_NULL;
 			reg->id = ++env->id_gen;
 
 			continue;
@@ -5811,7 +6205,7 @@ int btf_type_snprintf_show(const struct btf *btf, u32 type_id, void *obj,
 
 	btf_type_show(btf, type_id, obj, (struct btf_show *)&ssnprintf);
 
-	/* If we encontered an error, return it. */
+	/* If we encountered an error, return it. */
 	if (ssnprintf.show.state.status)
 		return ssnprintf.show.state.status;
 
@@ -6007,12 +6401,17 @@ bool btf_id_set_contains(const struct btf_id_set *set, u32 id)
 	return bsearch(&id, set->ids, set->cnt, sizeof(u32), btf_id_cmp_func) != NULL;
 }
 
+enum {
+	BTF_MODULE_F_LIVE = (1 << 0),
+};
+
 #ifdef CONFIG_DEBUG_INFO_BTF_MODULES
 struct btf_module {
 	struct list_head list;
 	struct module *module;
 	struct btf *btf;
 	struct bin_attribute *sysfs_attr;
+	int flags;
 };
 
 static LIST_HEAD(btf_modules);
@@ -6029,6 +6428,8 @@ btf_module_read(struct file *file, struct kobject *kobj,
 	return len;
 }
 
+static void purge_cand_cache(struct btf *btf);
+
 static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			     void *module)
 {
@@ -6038,7 +6439,8 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 	int err = 0;
 
 	if (mod->btf_data_size == 0 ||
-	    (op != MODULE_STATE_COMING && op != MODULE_STATE_GOING))
+	    (op != MODULE_STATE_COMING && op != MODULE_STATE_LIVE &&
+	     op != MODULE_STATE_GOING))
 		goto out;
 
 	switch (op) {
@@ -6053,7 +6455,8 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			pr_warn("failed to validate module [%s] BTF: %ld\n",
 				mod->name, PTR_ERR(btf));
 			kfree(btf_mod);
-			err = PTR_ERR(btf);
+			if (!IS_ENABLED(CONFIG_MODULE_ALLOW_BTF_MISMATCH))
+				err = PTR_ERR(btf);
 			goto out;
 		}
 		err = btf_alloc_id(btf);
@@ -6063,6 +6466,7 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			goto out;
 		}
 
+		purge_cand_cache(NULL);
 		mutex_lock(&btf_module_mutex);
 		btf_mod->module = module;
 		btf_mod->btf = btf;
@@ -6096,6 +6500,17 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 		}
 
 		break;
+	case MODULE_STATE_LIVE:
+		mutex_lock(&btf_module_mutex);
+		list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
+			if (btf_mod->module != module)
+				continue;
+
+			btf_mod->flags |= BTF_MODULE_F_LIVE;
+			break;
+		}
+		mutex_unlock(&btf_module_mutex);
+		break;
 	case MODULE_STATE_GOING:
 		mutex_lock(&btf_module_mutex);
 		list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
@@ -6105,6 +6520,7 @@ static int btf_module_notify(struct notifier_block *nb, unsigned long op,
 			list_del(&btf_mod->list);
 			if (btf_mod->sysfs_attr)
 				sysfs_remove_bin_file(btf_kobj, btf_mod->sysfs_attr);
+			purge_cand_cache(btf_mod->btf);
 			btf_put(btf_mod->btf);
 			kfree(btf_mod->sysfs_attr);
 			kfree(btf_mod);
@@ -6141,7 +6557,12 @@ struct module *btf_try_get_module(const struct btf *btf)
 		if (btf_mod->btf != btf)
 			continue;
 
-		if (try_module_get(btf_mod->module))
+		/* We must only consider module whose __init routine has
+		 * finished, hence we must check for BTF_MODULE_F_LIVE flag,
+		 * which is set from the notifier callback for
+		 * MODULE_STATE_LIVE.
+		 */
+		if ((btf_mod->flags & BTF_MODULE_F_LIVE) && try_module_get(btf_mod->module))
 			res = btf_mod->module;
 
 		break;
@@ -6152,9 +6573,43 @@ struct module *btf_try_get_module(const struct btf *btf)
 	return res;
 }
 
+/* Returns struct btf corresponding to the struct module.
+ * This function can return NULL or ERR_PTR.
+ */
+static struct btf *btf_get_module_btf(const struct module *module)
+{
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	struct btf_module *btf_mod, *tmp;
+#endif
+	struct btf *btf = NULL;
+
+	if (!module) {
+		btf = bpf_get_btf_vmlinux();
+		if (!IS_ERR_OR_NULL(btf))
+			btf_get(btf);
+		return btf;
+	}
+
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+	mutex_lock(&btf_module_mutex);
+	list_for_each_entry_safe(btf_mod, tmp, &btf_modules, list) {
+		if (btf_mod->module != module)
+			continue;
+
+		btf_get(btf_mod->btf);
+		btf = btf_mod->btf;
+		break;
+	}
+	mutex_unlock(&btf_module_mutex);
+#endif
+
+	return btf;
+}
+
 BPF_CALL_4(bpf_btf_find_by_name_kind, char *, name, int, name_sz, u32, kind, int, flags)
 {
-	struct btf *btf;
+	struct btf *btf = NULL;
+	int btf_obj_fd = 0;
 	long ret;
 
 	if (flags)
@@ -6163,44 +6618,17 @@ BPF_CALL_4(bpf_btf_find_by_name_kind, char *, name, int, name_sz, u32, kind, int
 	if (name_sz <= 1 || name[name_sz - 1])
 		return -EINVAL;
 
-	btf = bpf_get_btf_vmlinux();
-	if (IS_ERR(btf))
-		return PTR_ERR(btf);
-
-	ret = btf_find_by_name_kind(btf, name, kind);
-	/* ret is never zero, since btf_find_by_name_kind returns
-	 * positive btf_id or negative error.
-	 */
-	if (ret < 0) {
-		struct btf *mod_btf;
-		int id;
-
-		/* If name is not found in vmlinux's BTF then search in module's BTFs */
-		spin_lock_bh(&btf_idr_lock);
-		idr_for_each_entry(&btf_idr, mod_btf, id) {
-			if (!btf_is_module(mod_btf))
-				continue;
-			/* linear search could be slow hence unlock/lock
-			 * the IDR to avoiding holding it for too long
-			 */
-			btf_get(mod_btf);
-			spin_unlock_bh(&btf_idr_lock);
-			ret = btf_find_by_name_kind(mod_btf, name, kind);
-			if (ret > 0) {
-				int btf_obj_fd;
-
-				btf_obj_fd = __btf_new_fd(mod_btf);
-				if (btf_obj_fd < 0) {
-					btf_put(mod_btf);
-					return btf_obj_fd;
-				}
-				return ret | (((u64)btf_obj_fd) << 32);
-			}
-			spin_lock_bh(&btf_idr_lock);
-			btf_put(mod_btf);
+	ret = bpf_find_btf_id(name, kind, &btf);
+	if (ret > 0 && btf_is_module(btf)) {
+		btf_obj_fd = __btf_new_fd(btf);
+		if (btf_obj_fd < 0) {
+			btf_put(btf);
+			return btf_obj_fd;
 		}
-		spin_unlock_bh(&btf_idr_lock);
+		return ret | (((u64)btf_obj_fd) << 32);
 	}
+	if (ret > 0)
+		btf_put(btf);
 	return ret;
 }
 
@@ -6208,10 +6636,691 @@ const struct bpf_func_proto bpf_btf_find_by_name_kind_proto = {
 	.func		= bpf_btf_find_by_name_kind,
 	.gpl_only	= false,
 	.ret_type	= RET_INTEGER,
-	.arg1_type	= ARG_PTR_TO_MEM,
+	.arg1_type	= ARG_PTR_TO_MEM | MEM_RDONLY,
 	.arg2_type	= ARG_CONST_SIZE,
 	.arg3_type	= ARG_ANYTHING,
 	.arg4_type	= ARG_ANYTHING,
 };
 
-BTF_ID_LIST_GLOBAL_SINGLE(btf_task_struct_ids, struct, task_struct)
+BTF_ID_LIST_GLOBAL(btf_tracing_ids, MAX_BTF_TRACING_TYPE)
+#define BTF_TRACING_TYPE(name, type) BTF_ID(struct, type)
+BTF_TRACING_TYPE_xxx
+#undef BTF_TRACING_TYPE
+
+/* Kernel Function (kfunc) BTF ID set registration API */
+
+static int __btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
+				    enum btf_kfunc_type type,
+				    struct btf_id_set *add_set, bool vmlinux_set)
+{
+	struct btf_kfunc_set_tab *tab;
+	struct btf_id_set *set;
+	u32 set_cnt;
+	int ret;
+
+	if (hook >= BTF_KFUNC_HOOK_MAX || type >= BTF_KFUNC_TYPE_MAX) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	if (!add_set->cnt)
+		return 0;
+
+	tab = btf->kfunc_set_tab;
+	if (!tab) {
+		tab = kzalloc(sizeof(*tab), GFP_KERNEL | __GFP_NOWARN);
+		if (!tab)
+			return -ENOMEM;
+		btf->kfunc_set_tab = tab;
+	}
+
+	set = tab->sets[hook][type];
+	/* Warn when register_btf_kfunc_id_set is called twice for the same hook
+	 * for module sets.
+	 */
+	if (WARN_ON_ONCE(set && !vmlinux_set)) {
+		ret = -EINVAL;
+		goto end;
+	}
+
+	/* We don't need to allocate, concatenate, and sort module sets, because
+	 * only one is allowed per hook. Hence, we can directly assign the
+	 * pointer and return.
+	 */
+	if (!vmlinux_set) {
+		tab->sets[hook][type] = add_set;
+		return 0;
+	}
+
+	/* In case of vmlinux sets, there may be more than one set being
+	 * registered per hook. To create a unified set, we allocate a new set
+	 * and concatenate all individual sets being registered. While each set
+	 * is individually sorted, they may become unsorted when concatenated,
+	 * hence re-sorting the final set again is required to make binary
+	 * searching the set using btf_id_set_contains function work.
+	 */
+	set_cnt = set ? set->cnt : 0;
+
+	if (set_cnt > U32_MAX - add_set->cnt) {
+		ret = -EOVERFLOW;
+		goto end;
+	}
+
+	if (set_cnt + add_set->cnt > BTF_KFUNC_SET_MAX_CNT) {
+		ret = -E2BIG;
+		goto end;
+	}
+
+	/* Grow set */
+	set = krealloc(tab->sets[hook][type],
+		       offsetof(struct btf_id_set, ids[set_cnt + add_set->cnt]),
+		       GFP_KERNEL | __GFP_NOWARN);
+	if (!set) {
+		ret = -ENOMEM;
+		goto end;
+	}
+
+	/* For newly allocated set, initialize set->cnt to 0 */
+	if (!tab->sets[hook][type])
+		set->cnt = 0;
+	tab->sets[hook][type] = set;
+
+	/* Concatenate the two sets */
+	memcpy(set->ids + set->cnt, add_set->ids, add_set->cnt * sizeof(set->ids[0]));
+	set->cnt += add_set->cnt;
+
+	sort(set->ids, set->cnt, sizeof(set->ids[0]), btf_id_cmp_func, NULL);
+
+	return 0;
+end:
+	btf_free_kfunc_set_tab(btf);
+	return ret;
+}
+
+static int btf_populate_kfunc_set(struct btf *btf, enum btf_kfunc_hook hook,
+				  const struct btf_kfunc_id_set *kset)
+{
+	bool vmlinux_set = !btf_is_module(btf);
+	int type, ret = 0;
+
+	for (type = 0; type < ARRAY_SIZE(kset->sets); type++) {
+		if (!kset->sets[type])
+			continue;
+
+		ret = __btf_populate_kfunc_set(btf, hook, type, kset->sets[type], vmlinux_set);
+		if (ret)
+			break;
+	}
+	return ret;
+}
+
+static bool __btf_kfunc_id_set_contains(const struct btf *btf,
+					enum btf_kfunc_hook hook,
+					enum btf_kfunc_type type,
+					u32 kfunc_btf_id)
+{
+	struct btf_id_set *set;
+
+	if (hook >= BTF_KFUNC_HOOK_MAX || type >= BTF_KFUNC_TYPE_MAX)
+		return false;
+	if (!btf->kfunc_set_tab)
+		return false;
+	set = btf->kfunc_set_tab->sets[hook][type];
+	if (!set)
+		return false;
+	return btf_id_set_contains(set, kfunc_btf_id);
+}
+
+static int bpf_prog_type_to_kfunc_hook(enum bpf_prog_type prog_type)
+{
+	switch (prog_type) {
+	case BPF_PROG_TYPE_XDP:
+		return BTF_KFUNC_HOOK_XDP;
+	case BPF_PROG_TYPE_SCHED_CLS:
+		return BTF_KFUNC_HOOK_TC;
+	case BPF_PROG_TYPE_STRUCT_OPS:
+		return BTF_KFUNC_HOOK_STRUCT_OPS;
+	default:
+		return BTF_KFUNC_HOOK_MAX;
+	}
+}
+
+/* Caution:
+ * Reference to the module (obtained using btf_try_get_module) corresponding to
+ * the struct btf *MUST* be held when calling this function from verifier
+ * context. This is usually true as we stash references in prog's kfunc_btf_tab;
+ * keeping the reference for the duration of the call provides the necessary
+ * protection for looking up a well-formed btf->kfunc_set_tab.
+ */
+bool btf_kfunc_id_set_contains(const struct btf *btf,
+			       enum bpf_prog_type prog_type,
+			       enum btf_kfunc_type type, u32 kfunc_btf_id)
+{
+	enum btf_kfunc_hook hook;
+
+	hook = bpf_prog_type_to_kfunc_hook(prog_type);
+	return __btf_kfunc_id_set_contains(btf, hook, type, kfunc_btf_id);
+}
+
+/* This function must be invoked only from initcalls/module init functions */
+int register_btf_kfunc_id_set(enum bpf_prog_type prog_type,
+			      const struct btf_kfunc_id_set *kset)
+{
+	enum btf_kfunc_hook hook;
+	struct btf *btf;
+	int ret;
+
+	btf = btf_get_module_btf(kset->owner);
+	if (!btf) {
+		if (!kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF)) {
+			pr_err("missing vmlinux BTF, cannot register kfuncs\n");
+			return -ENOENT;
+		}
+		if (kset->owner && IS_ENABLED(CONFIG_DEBUG_INFO_BTF_MODULES)) {
+			pr_err("missing module BTF, cannot register kfuncs\n");
+			return -ENOENT;
+		}
+		return 0;
+	}
+	if (IS_ERR(btf))
+		return PTR_ERR(btf);
+
+	hook = bpf_prog_type_to_kfunc_hook(prog_type);
+	ret = btf_populate_kfunc_set(btf, hook, kset);
+	btf_put(btf);
+	return ret;
+}
+EXPORT_SYMBOL_GPL(register_btf_kfunc_id_set);
+
+#define MAX_TYPES_ARE_COMPAT_DEPTH 2
+
+static
+int __bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
+				const struct btf *targ_btf, __u32 targ_id,
+				int level)
+{
+	const struct btf_type *local_type, *targ_type;
+	int depth = 32; /* max recursion depth */
+
+	/* caller made sure that names match (ignoring flavor suffix) */
+	local_type = btf_type_by_id(local_btf, local_id);
+	targ_type = btf_type_by_id(targ_btf, targ_id);
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+recur:
+	depth--;
+	if (depth < 0)
+		return -EINVAL;
+
+	local_type = btf_type_skip_modifiers(local_btf, local_id, &local_id);
+	targ_type = btf_type_skip_modifiers(targ_btf, targ_id, &targ_id);
+	if (!local_type || !targ_type)
+		return -EINVAL;
+
+	if (btf_kind(local_type) != btf_kind(targ_type))
+		return 0;
+
+	switch (btf_kind(local_type)) {
+	case BTF_KIND_UNKN:
+	case BTF_KIND_STRUCT:
+	case BTF_KIND_UNION:
+	case BTF_KIND_ENUM:
+	case BTF_KIND_FWD:
+		return 1;
+	case BTF_KIND_INT:
+		/* just reject deprecated bitfield-like integers; all other
+		 * integers are by default compatible between each other
+		 */
+		return btf_int_offset(local_type) == 0 && btf_int_offset(targ_type) == 0;
+	case BTF_KIND_PTR:
+		local_id = local_type->type;
+		targ_id = targ_type->type;
+		goto recur;
+	case BTF_KIND_ARRAY:
+		local_id = btf_array(local_type)->type;
+		targ_id = btf_array(targ_type)->type;
+		goto recur;
+	case BTF_KIND_FUNC_PROTO: {
+		struct btf_param *local_p = btf_params(local_type);
+		struct btf_param *targ_p = btf_params(targ_type);
+		__u16 local_vlen = btf_vlen(local_type);
+		__u16 targ_vlen = btf_vlen(targ_type);
+		int i, err;
+
+		if (local_vlen != targ_vlen)
+			return 0;
+
+		for (i = 0; i < local_vlen; i++, local_p++, targ_p++) {
+			if (level <= 0)
+				return -EINVAL;
+
+			btf_type_skip_modifiers(local_btf, local_p->type, &local_id);
+			btf_type_skip_modifiers(targ_btf, targ_p->type, &targ_id);
+			err = __bpf_core_types_are_compat(local_btf, local_id,
+							  targ_btf, targ_id,
+							  level - 1);
+			if (err <= 0)
+				return err;
+		}
+
+		/* tail recurse for return type check */
+		btf_type_skip_modifiers(local_btf, local_type->type, &local_id);
+		btf_type_skip_modifiers(targ_btf, targ_type->type, &targ_id);
+		goto recur;
+	}
+	default:
+		return 0;
+	}
+}
+
+/* Check local and target types for compatibility. This check is used for
+ * type-based CO-RE relocations and follow slightly different rules than
+ * field-based relocations. This function assumes that root types were already
+ * checked for name match. Beyond that initial root-level name check, names
+ * are completely ignored. Compatibility rules are as follows:
+ *   - any two STRUCTs/UNIONs/FWDs/ENUMs/INTs are considered compatible, but
+ *     kind should match for local and target types (i.e., STRUCT is not
+ *     compatible with UNION);
+ *   - for ENUMs, the size is ignored;
+ *   - for INT, size and signedness are ignored;
+ *   - for ARRAY, dimensionality is ignored, element types are checked for
+ *     compatibility recursively;
+ *   - CONST/VOLATILE/RESTRICT modifiers are ignored;
+ *   - TYPEDEFs/PTRs are compatible if types they pointing to are compatible;
+ *   - FUNC_PROTOs are compatible if they have compatible signature: same
+ *     number of input args and compatible return and argument types.
+ * These rules are not set in stone and probably will be adjusted as we get
+ * more experience with using BPF CO-RE relocations.
+ */
+int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
+			      const struct btf *targ_btf, __u32 targ_id)
+{
+	return __bpf_core_types_are_compat(local_btf, local_id,
+					   targ_btf, targ_id,
+					   MAX_TYPES_ARE_COMPAT_DEPTH);
+}
+
+static bool bpf_core_is_flavor_sep(const char *s)
+{
+	/* check X___Y name pattern, where X and Y are not underscores */
+	return s[0] != '_' &&				      /* X */
+	       s[1] == '_' && s[2] == '_' && s[3] == '_' &&   /* ___ */
+	       s[4] != '_';				      /* Y */
+}
+
+size_t bpf_core_essential_name_len(const char *name)
+{
+	size_t n = strlen(name);
+	int i;
+
+	for (i = n - 5; i >= 0; i--) {
+		if (bpf_core_is_flavor_sep(name + i))
+			return i + 1;
+	}
+	return n;
+}
+
+struct bpf_cand_cache {
+	const char *name;
+	u32 name_len;
+	u16 kind;
+	u16 cnt;
+	struct {
+		const struct btf *btf;
+		u32 id;
+	} cands[];
+};
+
+static void bpf_free_cands(struct bpf_cand_cache *cands)
+{
+	if (!cands->cnt)
+		/* empty candidate array was allocated on stack */
+		return;
+	kfree(cands);
+}
+
+static void bpf_free_cands_from_cache(struct bpf_cand_cache *cands)
+{
+	kfree(cands->name);
+	kfree(cands);
+}
+
+#define VMLINUX_CAND_CACHE_SIZE 31
+static struct bpf_cand_cache *vmlinux_cand_cache[VMLINUX_CAND_CACHE_SIZE];
+
+#define MODULE_CAND_CACHE_SIZE 31
+static struct bpf_cand_cache *module_cand_cache[MODULE_CAND_CACHE_SIZE];
+
+static DEFINE_MUTEX(cand_cache_mutex);
+
+static void __print_cand_cache(struct bpf_verifier_log *log,
+			       struct bpf_cand_cache **cache,
+			       int cache_size)
+{
+	struct bpf_cand_cache *cc;
+	int i, j;
+
+	for (i = 0; i < cache_size; i++) {
+		cc = cache[i];
+		if (!cc)
+			continue;
+		bpf_log(log, "[%d]%s(", i, cc->name);
+		for (j = 0; j < cc->cnt; j++) {
+			bpf_log(log, "%d", cc->cands[j].id);
+			if (j < cc->cnt - 1)
+				bpf_log(log, " ");
+		}
+		bpf_log(log, "), ");
+	}
+}
+
+static void print_cand_cache(struct bpf_verifier_log *log)
+{
+	mutex_lock(&cand_cache_mutex);
+	bpf_log(log, "vmlinux_cand_cache:");
+	__print_cand_cache(log, vmlinux_cand_cache, VMLINUX_CAND_CACHE_SIZE);
+	bpf_log(log, "\nmodule_cand_cache:");
+	__print_cand_cache(log, module_cand_cache, MODULE_CAND_CACHE_SIZE);
+	bpf_log(log, "\n");
+	mutex_unlock(&cand_cache_mutex);
+}
+
+static u32 hash_cands(struct bpf_cand_cache *cands)
+{
+	return jhash(cands->name, cands->name_len, 0);
+}
+
+static struct bpf_cand_cache *check_cand_cache(struct bpf_cand_cache *cands,
+					       struct bpf_cand_cache **cache,
+					       int cache_size)
+{
+	struct bpf_cand_cache *cc = cache[hash_cands(cands) % cache_size];
+
+	if (cc && cc->name_len == cands->name_len &&
+	    !strncmp(cc->name, cands->name, cands->name_len))
+		return cc;
+	return NULL;
+}
+
+static size_t sizeof_cands(int cnt)
+{
+	return offsetof(struct bpf_cand_cache, cands[cnt]);
+}
+
+static struct bpf_cand_cache *populate_cand_cache(struct bpf_cand_cache *cands,
+						  struct bpf_cand_cache **cache,
+						  int cache_size)
+{
+	struct bpf_cand_cache **cc = &cache[hash_cands(cands) % cache_size], *new_cands;
+
+	if (*cc) {
+		bpf_free_cands_from_cache(*cc);
+		*cc = NULL;
+	}
+	new_cands = kmemdup(cands, sizeof_cands(cands->cnt), GFP_KERNEL);
+	if (!new_cands) {
+		bpf_free_cands(cands);
+		return ERR_PTR(-ENOMEM);
+	}
+	/* strdup the name, since it will stay in cache.
+	 * the cands->name points to strings in prog's BTF and the prog can be unloaded.
+	 */
+	new_cands->name = kmemdup_nul(cands->name, cands->name_len, GFP_KERNEL);
+	bpf_free_cands(cands);
+	if (!new_cands->name) {
+		kfree(new_cands);
+		return ERR_PTR(-ENOMEM);
+	}
+	*cc = new_cands;
+	return new_cands;
+}
+
+#ifdef CONFIG_DEBUG_INFO_BTF_MODULES
+static void __purge_cand_cache(struct btf *btf, struct bpf_cand_cache **cache,
+			       int cache_size)
+{
+	struct bpf_cand_cache *cc;
+	int i, j;
+
+	for (i = 0; i < cache_size; i++) {
+		cc = cache[i];
+		if (!cc)
+			continue;
+		if (!btf) {
+			/* when new module is loaded purge all of module_cand_cache,
+			 * since new module might have candidates with the name
+			 * that matches cached cands.
+			 */
+			bpf_free_cands_from_cache(cc);
+			cache[i] = NULL;
+			continue;
+		}
+		/* when module is unloaded purge cache entries
+		 * that match module's btf
+		 */
+		for (j = 0; j < cc->cnt; j++)
+			if (cc->cands[j].btf == btf) {
+				bpf_free_cands_from_cache(cc);
+				cache[i] = NULL;
+				break;
+			}
+	}
+
+}
+
+static void purge_cand_cache(struct btf *btf)
+{
+	mutex_lock(&cand_cache_mutex);
+	__purge_cand_cache(btf, module_cand_cache, MODULE_CAND_CACHE_SIZE);
+	mutex_unlock(&cand_cache_mutex);
+}
+#endif
+
+static struct bpf_cand_cache *
+bpf_core_add_cands(struct bpf_cand_cache *cands, const struct btf *targ_btf,
+		   int targ_start_id)
+{
+	struct bpf_cand_cache *new_cands;
+	const struct btf_type *t;
+	const char *targ_name;
+	size_t targ_essent_len;
+	int n, i;
+
+	n = btf_nr_types(targ_btf);
+	for (i = targ_start_id; i < n; i++) {
+		t = btf_type_by_id(targ_btf, i);
+		if (btf_kind(t) != cands->kind)
+			continue;
+
+		targ_name = btf_name_by_offset(targ_btf, t->name_off);
+		if (!targ_name)
+			continue;
+
+		/* the resched point is before strncmp to make sure that search
+		 * for non-existing name will have a chance to schedule().
+		 */
+		cond_resched();
+
+		if (strncmp(cands->name, targ_name, cands->name_len) != 0)
+			continue;
+
+		targ_essent_len = bpf_core_essential_name_len(targ_name);
+		if (targ_essent_len != cands->name_len)
+			continue;
+
+		/* most of the time there is only one candidate for a given kind+name pair */
+		new_cands = kmalloc(sizeof_cands(cands->cnt + 1), GFP_KERNEL);
+		if (!new_cands) {
+			bpf_free_cands(cands);
+			return ERR_PTR(-ENOMEM);
+		}
+
+		memcpy(new_cands, cands, sizeof_cands(cands->cnt));
+		bpf_free_cands(cands);
+		cands = new_cands;
+		cands->cands[cands->cnt].btf = targ_btf;
+		cands->cands[cands->cnt].id = i;
+		cands->cnt++;
+	}
+	return cands;
+}
+
+static struct bpf_cand_cache *
+bpf_core_find_cands(struct bpf_core_ctx *ctx, u32 local_type_id)
+{
+	struct bpf_cand_cache *cands, *cc, local_cand = {};
+	const struct btf *local_btf = ctx->btf;
+	const struct btf_type *local_type;
+	const struct btf *main_btf;
+	size_t local_essent_len;
+	struct btf *mod_btf;
+	const char *name;
+	int id;
+
+	main_btf = bpf_get_btf_vmlinux();
+	if (IS_ERR(main_btf))
+		return ERR_CAST(main_btf);
+	if (!main_btf)
+		return ERR_PTR(-EINVAL);
+
+	local_type = btf_type_by_id(local_btf, local_type_id);
+	if (!local_type)
+		return ERR_PTR(-EINVAL);
+
+	name = btf_name_by_offset(local_btf, local_type->name_off);
+	if (str_is_empty(name))
+		return ERR_PTR(-EINVAL);
+	local_essent_len = bpf_core_essential_name_len(name);
+
+	cands = &local_cand;
+	cands->name = name;
+	cands->kind = btf_kind(local_type);
+	cands->name_len = local_essent_len;
+
+	cc = check_cand_cache(cands, vmlinux_cand_cache, VMLINUX_CAND_CACHE_SIZE);
+	/* cands is a pointer to stack here */
+	if (cc) {
+		if (cc->cnt)
+			return cc;
+		goto check_modules;
+	}
+
+	/* Attempt to find target candidates in vmlinux BTF first */
+	cands = bpf_core_add_cands(cands, main_btf, 1);
+	if (IS_ERR(cands))
+		return ERR_CAST(cands);
+
+	/* cands is a pointer to kmalloced memory here if cands->cnt > 0 */
+
+	/* populate cache even when cands->cnt == 0 */
+	cc = populate_cand_cache(cands, vmlinux_cand_cache, VMLINUX_CAND_CACHE_SIZE);
+	if (IS_ERR(cc))
+		return ERR_CAST(cc);
+
+	/* if vmlinux BTF has any candidate, don't go for module BTFs */
+	if (cc->cnt)
+		return cc;
+
+check_modules:
+	/* cands is a pointer to stack here and cands->cnt == 0 */
+	cc = check_cand_cache(cands, module_cand_cache, MODULE_CAND_CACHE_SIZE);
+	if (cc)
+		/* if cache has it return it even if cc->cnt == 0 */
+		return cc;
+
+	/* If candidate is not found in vmlinux's BTF then search in module's BTFs */
+	spin_lock_bh(&btf_idr_lock);
+	idr_for_each_entry(&btf_idr, mod_btf, id) {
+		if (!btf_is_module(mod_btf))
+			continue;
+		/* linear search could be slow hence unlock/lock
+		 * the IDR to avoiding holding it for too long
+		 */
+		btf_get(mod_btf);
+		spin_unlock_bh(&btf_idr_lock);
+		cands = bpf_core_add_cands(cands, mod_btf, btf_nr_types(main_btf));
+		if (IS_ERR(cands)) {
+			btf_put(mod_btf);
+			return ERR_CAST(cands);
+		}
+		spin_lock_bh(&btf_idr_lock);
+		btf_put(mod_btf);
+	}
+	spin_unlock_bh(&btf_idr_lock);
+	/* cands is a pointer to kmalloced memory here if cands->cnt > 0
+	 * or pointer to stack if cands->cnd == 0.
+	 * Copy it into the cache even when cands->cnt == 0 and
+	 * return the result.
+	 */
+	return populate_cand_cache(cands, module_cand_cache, MODULE_CAND_CACHE_SIZE);
+}
+
+int bpf_core_apply(struct bpf_core_ctx *ctx, const struct bpf_core_relo *relo,
+		   int relo_idx, void *insn)
+{
+	bool need_cands = relo->kind != BPF_CORE_TYPE_ID_LOCAL;
+	struct bpf_core_cand_list cands = {};
+	struct bpf_core_relo_res targ_res;
+	struct bpf_core_spec *specs;
+	int err;
+
+	/* ~4k of temp memory necessary to convert LLVM spec like "0:1:0:5"
+	 * into arrays of btf_ids of struct fields and array indices.
+	 */
+	specs = kcalloc(3, sizeof(*specs), GFP_KERNEL);
+	if (!specs)
+		return -ENOMEM;
+
+	if (need_cands) {
+		struct bpf_cand_cache *cc;
+		int i;
+
+		mutex_lock(&cand_cache_mutex);
+		cc = bpf_core_find_cands(ctx, relo->type_id);
+		if (IS_ERR(cc)) {
+			bpf_log(ctx->log, "target candidate search failed for %d\n",
+				relo->type_id);
+			err = PTR_ERR(cc);
+			goto out;
+		}
+		if (cc->cnt) {
+			cands.cands = kcalloc(cc->cnt, sizeof(*cands.cands), GFP_KERNEL);
+			if (!cands.cands) {
+				err = -ENOMEM;
+				goto out;
+			}
+		}
+		for (i = 0; i < cc->cnt; i++) {
+			bpf_log(ctx->log,
+				"CO-RE relocating %s %s: found target candidate [%d]\n",
+				btf_kind_str[cc->kind], cc->name, cc->cands[i].id);
+			cands.cands[i].btf = cc->cands[i].btf;
+			cands.cands[i].id = cc->cands[i].id;
+		}
+		cands.len = cc->cnt;
+		/* cand_cache_mutex needs to span the cache lookup and
+		 * copy of btf pointer into bpf_core_cand_list,
+		 * since module can be unloaded while bpf_core_calc_relo_insn
+		 * is working with module's btf.
+		 */
+	}
+
+	err = bpf_core_calc_relo_insn((void *)ctx->log, relo, relo_idx, ctx->btf, &cands, specs,
+				      &targ_res);
+	if (err)
+		goto out;
+
+	err = bpf_core_patch_insn((void *)ctx->log, insn, relo->insn_off / 8, relo, relo_idx,
+				  &targ_res);
+
+out:
+	kfree(specs);
+	if (need_cands) {
+		kfree(cands.cands);
+		mutex_unlock(&cand_cache_mutex);
+		if (ctx->log->level & BPF_LOG_LEVEL2)
+			print_cand_cache(ctx->log);
+	}
+	return err;
+}

@@ -156,6 +156,8 @@ static irqreturn_t tm2_touchkey_irq_handler(int irq, void *devid)
 		goto out;
 	}
 
+	input_event(touchkey->input_dev, EV_MSC, MSC_SCAN, index);
+
 	if (data & TM2_TOUCHKEY_BIT_PRESS_EV) {
 		for (i = 0; i < touchkey->num_keycodes; i++)
 			input_report_key(touchkey->input_dev,
@@ -250,6 +252,11 @@ static int tm2_touchkey_probe(struct i2c_client *client,
 	touchkey->input_dev->name = TM2_TOUCHKEY_DEV_NAME;
 	touchkey->input_dev->id.bustype = BUS_I2C;
 
+	touchkey->input_dev->keycode = touchkey->keycodes;
+	touchkey->input_dev->keycodemax = touchkey->num_keycodes;
+	touchkey->input_dev->keycodesize = sizeof(touchkey->keycodes[0]);
+
+	input_set_capability(touchkey->input_dev, EV_MSC, MSC_SCAN);
 	for (i = 0; i < touchkey->num_keycodes; i++)
 		input_set_capability(touchkey->input_dev, EV_KEY,
 				     touchkey->keycodes[i]);

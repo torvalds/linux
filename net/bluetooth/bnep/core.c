@@ -400,7 +400,7 @@ static int bnep_rx_frame(struct bnep_session *s, struct sk_buff *skb)
 	dev->stats.rx_packets++;
 	nskb->ip_summed = CHECKSUM_NONE;
 	nskb->protocol  = eth_type_trans(nskb, dev);
-	netif_rx_ni(nskb);
+	netif_rx(nskb);
 	return 0;
 
 badframe:
@@ -535,7 +535,7 @@ static int bnep_session(void *arg)
 
 	up_write(&bnep_session_sem);
 	free_netdev(dev);
-	module_put_and_exit(0);
+	module_put_and_kthread_exit(0);
 	return 0;
 }
 
@@ -594,7 +594,7 @@ int bnep_add_connection(struct bnep_connadd_req *req, struct socket *sock)
 	 * ie. eh.h_dest is our local address. */
 	memcpy(s->eh.h_dest,   &src, ETH_ALEN);
 	memcpy(s->eh.h_source, &dst, ETH_ALEN);
-	memcpy(dev->dev_addr, s->eh.h_dest, ETH_ALEN);
+	eth_hw_addr_set(dev, s->eh.h_dest);
 
 	s->dev   = dev;
 	s->sock  = sock;

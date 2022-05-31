@@ -26,6 +26,7 @@
 typedef struct slave {
 	struct list_head	list;
 	struct net_device	*dev;
+	netdevice_tracker	dev_tracker;
 	long			priority;
 	long			priority_bps;
 	long			priority_Bps;

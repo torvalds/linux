@@ -181,6 +181,9 @@ static int nl80211_chan_width_to_mhz(enum nl80211_chan_width chan_width)
 	case NL80211_CHAN_WIDTH_160:
 		mhz = 160;
 		break;
+	case NL80211_CHAN_WIDTH_320:
+		mhz = 320;
+		break;
 	default:
 		WARN_ON_ONCE(1);
 		return -1;
@@ -245,19 +248,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 		    oper_freq - MHZ_TO_KHZ(oper_width) / 2)
 			return false;
 		break;
-	case NL80211_CHAN_WIDTH_40:
-		if (chandef->center_freq1 != control_freq + 10 &&
-		    chandef->center_freq1 != control_freq - 10)
-			return false;
-		if (chandef->center_freq2)
-			return false;
-		break;
 	case NL80211_CHAN_WIDTH_80P80:
-		if (chandef->center_freq1 != control_freq + 30 &&
-		    chandef->center_freq1 != control_freq + 10 &&
-		    chandef->center_freq1 != control_freq - 10 &&
-		    chandef->center_freq1 != control_freq - 30)
-			return false;
 		if (!chandef->center_freq2)
 			return false;
 		/* adjacent is not allowed -- that's a 160 MHz channel */
@@ -265,28 +256,53 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 		    chandef->center_freq2 - chandef->center_freq1 == 80)
 			return false;
 		break;
-	case NL80211_CHAN_WIDTH_80:
-		if (chandef->center_freq1 != control_freq + 30 &&
-		    chandef->center_freq1 != control_freq + 10 &&
-		    chandef->center_freq1 != control_freq - 10 &&
-		    chandef->center_freq1 != control_freq - 30)
-			return false;
+	default:
 		if (chandef->center_freq2)
 			return false;
 		break;
+	}
+
+	switch (chandef->width) {
+	case NL80211_CHAN_WIDTH_5:
+	case NL80211_CHAN_WIDTH_10:
+	case NL80211_CHAN_WIDTH_20:
+	case NL80211_CHAN_WIDTH_20_NOHT:
+	case NL80211_CHAN_WIDTH_1:
+	case NL80211_CHAN_WIDTH_2:
+	case NL80211_CHAN_WIDTH_4:
+	case NL80211_CHAN_WIDTH_8:
+	case NL80211_CHAN_WIDTH_16:
+		/* all checked above */
+		break;
+	case NL80211_CHAN_WIDTH_320:
+		if (chandef->center_freq1 == control_freq + 150 ||
+		    chandef->center_freq1 == control_freq + 130 ||
+		    chandef->center_freq1 == control_freq + 110 ||
+		    chandef->center_freq1 == control_freq + 90 ||
+		    chandef->center_freq1 == control_freq - 90 ||
+		    chandef->center_freq1 == control_freq - 110 ||
+		    chandef->center_freq1 == control_freq - 130 ||
+		    chandef->center_freq1 == control_freq - 150)
+			break;
+		fallthrough;
 	case NL80211_CHAN_WIDTH_160:
-		if (chandef->center_freq1 != control_freq + 70 &&
-		    chandef->center_freq1 != control_freq + 50 &&
-		    chandef->center_freq1 != control_freq + 30 &&
-		    chandef->center_freq1 != control_freq + 10 &&
-		    chandef->center_freq1 != control_freq - 10 &&
-		    chandef->center_freq1 != control_freq - 30 &&
-		    chandef->center_freq1 != control_freq - 50 &&
-		    chandef->center_freq1 != control_freq - 70)
-			return false;
-		if (chandef->center_freq2)
-			return false;
-		break;
+		if (chandef->center_freq1 == control_freq + 70 ||
+		    chandef->center_freq1 == control_freq + 50 ||
+		    chandef->center_freq1 == control_freq - 50 ||
+		    chandef->center_freq1 == control_freq - 70)
+			break;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_80P80:
+	case NL80211_CHAN_WIDTH_80:
+		if (chandef->center_freq1 == control_freq + 30 ||
+		    chandef->center_freq1 == control_freq - 30)
+			break;
+		fallthrough;
+	case NL80211_CHAN_WIDTH_40:
+		if (chandef->center_freq1 == control_freq + 10 ||
+		    chandef->center_freq1 == control_freq - 10)
+			break;
+		fallthrough;
 	default:
 		return false;
 	}
@@ -305,7 +321,7 @@ bool cfg80211_chandef_valid(const struct cfg80211_chan_def *chandef)
 EXPORT_SYMBOL(cfg80211_chandef_valid);
 
 static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
-				  u32 *pri40, u32 *pri80)
+				  u32 *pri40, u32 *pri80, u32 *pri160)
 {
 	int tmp;
 
@@ -313,9 +329,11 @@ static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
 	case NL80211_CHAN_WIDTH_40:
 		*pri40 = c->center_freq1;
 		*pri80 = 0;
+		*pri160 = 0;
 		break;
 	case NL80211_CHAN_WIDTH_80:
 	case NL80211_CHAN_WIDTH_80P80:
+		*pri160 = 0;
 		*pri80 = c->center_freq1;
 		/* n_P20 */
 		tmp = (30 + c->chan->center_freq - c->center_freq1)/20;
@@ -325,6 +343,7 @@ static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
 		*pri40 = c->center_freq1 - 20 + 40 * tmp;
 		break;
 	case NL80211_CHAN_WIDTH_160:
+		*pri160 = c->center_freq1;
 		/* n_P20 */
 		tmp = (70 + c->chan->center_freq - c->center_freq1)/20;
 		/* n_P40 */
@@ -335,6 +354,20 @@ static void chandef_primary_freqs(const struct cfg80211_chan_def *c,
 		tmp /= 2;
 		*pri80 = c->center_freq1 - 40 + 80 * tmp;
 		break;
+	case NL80211_CHAN_WIDTH_320:
+		/* n_P20 */
+		tmp = (150 + c->chan->center_freq - c->center_freq1) / 20;
+		/* n_P40 */
+		tmp /= 2;
+		/* freq_P40 */
+		*pri40 = c->center_freq1 - 140 + 40 * tmp;
+		/* n_P80 */
+		tmp /= 2;
+		*pri80 = c->center_freq1 - 120 + 80 * tmp;
+		/* n_P160 */
+		tmp /= 2;
+		*pri160 = c->center_freq1 - 80 + 160 * tmp;
+		break;
 	default:
 		WARN_ON_ONCE(1);
 	}
@@ -344,7 +377,7 @@ const struct cfg80211_chan_def *
 cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
 			    const struct cfg80211_chan_def *c2)
 {
-	u32 c1_pri40, c1_pri80, c2_pri40, c2_pri80;
+	u32 c1_pri40, c1_pri80, c2_pri40, c2_pri80, c1_pri160, c2_pri160;
 
 	/* If they are identical, return */
 	if (cfg80211_chandef_identical(c1, c2))
@@ -379,14 +412,31 @@ cfg80211_chandef_compatible(const struct cfg80211_chan_def *c1,
 	    c2->width == NL80211_CHAN_WIDTH_20)
 		return c1;
 
-	chandef_primary_freqs(c1, &c1_pri40, &c1_pri80);
-	chandef_primary_freqs(c2, &c2_pri40, &c2_pri80);
+	chandef_primary_freqs(c1, &c1_pri40, &c1_pri80, &c1_pri160);
+	chandef_primary_freqs(c2, &c2_pri40, &c2_pri80, &c2_pri160);
 
 	if (c1_pri40 != c2_pri40)
 		return NULL;
 
-	WARN_ON(!c1_pri80 && !c2_pri80);
-	if (c1_pri80 && c2_pri80 && c1_pri80 != c2_pri80)
+	if (c1->width == NL80211_CHAN_WIDTH_40)
+		return c2;
+
+	if (c2->width == NL80211_CHAN_WIDTH_40)
+		return c1;
+
+	if (c1_pri80 != c2_pri80)
+		return NULL;
+
+	if (c1->width == NL80211_CHAN_WIDTH_80 &&
+	    c2->width > NL80211_CHAN_WIDTH_80)
+		return c2;
+
+	if (c2->width == NL80211_CHAN_WIDTH_80 &&
+	    c1->width > NL80211_CHAN_WIDTH_80)
+		return c1;
+
+	WARN_ON(!c1_pri160 && !c2_pri160);
+	if (c1_pri160 && c2_pri160 && c1_pri160 != c2_pri160)
 		return NULL;
 
 	if (c1->width > c2->width)
@@ -712,6 +762,19 @@ static bool cfg80211_is_wiphy_oper_chan(struct wiphy *wiphy,
 	return false;
 }
 
+static bool
+cfg80211_offchan_chain_is_active(struct cfg80211_registered_device *rdev,
+				 struct ieee80211_channel *channel)
+{
+	if (!rdev->background_radar_wdev)
+		return false;
+
+	if (!cfg80211_chandef_valid(&rdev->background_radar_chandef))
+		return false;
+
+	return cfg80211_is_sub_chan(&rdev->background_radar_chandef, channel);
+}
+
 bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 				  struct ieee80211_channel *chan)
 {
@@ -727,6 +790,9 @@ bool cfg80211_any_wiphy_oper_chan(struct wiphy *wiphy,
 			continue;
 
 		if (cfg80211_is_wiphy_oper_chan(&rdev->wiphy, chan))
+			return true;
+
+		if (cfg80211_offchan_chain_is_active(rdev, chan))
 			return true;
 	}
 
@@ -942,7 +1008,10 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 	struct ieee80211_sta_vht_cap *vht_cap;
 	struct ieee80211_edmg *edmg_cap;
 	u32 width, control_freq, cap;
-	bool ext_nss_cap, support_80_80 = false;
+	bool ext_nss_cap, support_80_80 = false, support_320 = false;
+	const struct ieee80211_sband_iftype_data *iftd;
+	struct ieee80211_supported_band *sband;
+	int i;
 
 	if (WARN_ON(!cfg80211_chandef_valid(chandef)))
 		return false;
@@ -1042,6 +1111,32 @@ bool cfg80211_chandef_usable(struct wiphy *wiphy,
 		    cap != IEEE80211_VHT_CAP_SUPP_CHAN_WIDTH_160_80PLUS80MHZ &&
 		    !(ext_nss_cap &&
 		      (vht_cap->cap & IEEE80211_VHT_CAP_EXT_NSS_BW_MASK)))
+			return false;
+		break;
+	case NL80211_CHAN_WIDTH_320:
+		prohibited_flags |= IEEE80211_CHAN_NO_320MHZ;
+		width = 320;
+
+		if (chandef->chan->band != NL80211_BAND_6GHZ)
+			return false;
+
+		sband = wiphy->bands[NL80211_BAND_6GHZ];
+		if (!sband)
+			return false;
+
+		for (i = 0; i < sband->n_iftype_data; i++) {
+			iftd = &sband->iftype_data[i];
+			if (!iftd->eht_cap.has_eht)
+				continue;
+
+			if (iftd->eht_cap.eht_cap_elem.phy_cap_info[0] &
+			    IEEE80211_EHT_PHY_CAP0_320MHZ_IN_6GHZ) {
+				support_320 = true;
+				break;
+			}
+		}
+
+		if (!support_320)
 			return false;
 		break;
 	default:

@@ -15,7 +15,6 @@
 #include <linux/of_graph.h>
 #include <linux/of_irq.h>
 #include <linux/property.h>
-#include <linux/etherdevice.h>
 #include <linux/phy.h>
 
 struct fwnode_handle *dev_fwnode(struct device *dev)
@@ -479,8 +478,17 @@ int fwnode_property_get_reference_args(const struct fwnode_handle *fwnode,
 				       unsigned int nargs, unsigned int index,
 				       struct fwnode_reference_args *args)
 {
-	return fwnode_call_int_op(fwnode, get_reference_args, prop, nargs_prop,
-				  nargs, index, args);
+	int ret;
+
+	ret = fwnode_call_int_op(fwnode, get_reference_args, prop, nargs_prop,
+				 nargs, index, args);
+
+	if (ret < 0 && !IS_ERR_OR_NULL(fwnode) &&
+	    !IS_ERR_OR_NULL(fwnode->secondary))
+		ret = fwnode_call_int_op(fwnode->secondary, get_reference_args,
+					 prop, nargs_prop, nargs, index, args);
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(fwnode_property_get_reference_args);
 
@@ -507,54 +515,6 @@ struct fwnode_handle *fwnode_find_reference(const struct fwnode_handle *fwnode,
 	return ret ? ERR_PTR(ret) : args.fwnode;
 }
 EXPORT_SYMBOL_GPL(fwnode_find_reference);
-
-/**
- * device_remove_properties - Remove properties from a device object.
- * @dev: Device whose properties to remove.
- *
- * The function removes properties previously associated to the device
- * firmware node with device_add_properties(). Memory allocated to the
- * properties will also be released.
- */
-void device_remove_properties(struct device *dev)
-{
-	struct fwnode_handle *fwnode = dev_fwnode(dev);
-
-	if (!fwnode)
-		return;
-
-	if (is_software_node(fwnode->secondary)) {
-		fwnode_remove_software_node(fwnode->secondary);
-		set_secondary_fwnode(dev, NULL);
-	}
-}
-EXPORT_SYMBOL_GPL(device_remove_properties);
-
-/**
- * device_add_properties - Add a collection of properties to a device object.
- * @dev: Device to add properties to.
- * @properties: Collection of properties to add.
- *
- * Associate a collection of device properties represented by @properties with
- * @dev. The function takes a copy of @properties.
- *
- * WARNING: The callers should not use this function if it is known that there
- * is no real firmware node associated with @dev! In that case the callers
- * should create a software node and assign it to @dev directly.
- */
-int device_add_properties(struct device *dev,
-			  const struct property_entry *properties)
-{
-	struct fwnode_handle *fwnode;
-
-	fwnode = fwnode_create_software_node(properties, NULL);
-	if (IS_ERR(fwnode))
-		return PTR_ERR(fwnode);
-
-	set_secondary_fwnode(dev, fwnode);
-	return 0;
-}
-EXPORT_SYMBOL_GPL(device_add_properties);
 
 /**
  * fwnode_get_name - Return the name of a node
@@ -935,67 +895,21 @@ int device_get_phy_mode(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(device_get_phy_mode);
 
-static void *fwnode_get_mac_addr(struct fwnode_handle *fwnode,
-				 const char *name, char *addr,
-				 int alen)
+/**
+ * fwnode_iomap - Maps the memory mapped IO for a given fwnode
+ * @fwnode:	Pointer to the firmware node
+ * @index:	Index of the IO range
+ *
+ * Returns a pointer to the mapped memory.
+ */
+void __iomem *fwnode_iomap(struct fwnode_handle *fwnode, int index)
 {
-	int ret = fwnode_property_read_u8_array(fwnode, name, addr, alen);
+	if (IS_ENABLED(CONFIG_OF_ADDRESS) && is_of_node(fwnode))
+		return of_iomap(to_of_node(fwnode), index);
 
-	if (ret == 0 && alen == ETH_ALEN && is_valid_ether_addr(addr))
-		return addr;
 	return NULL;
 }
-
-/**
- * fwnode_get_mac_address - Get the MAC from the firmware node
- * @fwnode:	Pointer to the firmware node
- * @addr:	Address of buffer to store the MAC in
- * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
- *
- * Search the firmware node for the best MAC address to use.  'mac-address' is
- * checked first, because that is supposed to contain to "most recent" MAC
- * address. If that isn't set, then 'local-mac-address' is checked next,
- * because that is the default address.  If that isn't set, then the obsolete
- * 'address' is checked, just in case we're using an old device tree.
- *
- * Note that the 'address' property is supposed to contain a virtual address of
- * the register set, but some DTS files have redefined that property to be the
- * MAC address.
- *
- * All-zero MAC addresses are rejected, because those could be properties that
- * exist in the firmware tables, but were not updated by the firmware.  For
- * example, the DTS could define 'mac-address' and 'local-mac-address', with
- * zero MAC addresses.  Some older U-Boots only initialized 'local-mac-address'.
- * In this case, the real MAC is in 'local-mac-address', and 'mac-address'
- * exists but is all zeros.
-*/
-void *fwnode_get_mac_address(struct fwnode_handle *fwnode, char *addr, int alen)
-{
-	char *res;
-
-	res = fwnode_get_mac_addr(fwnode, "mac-address", addr, alen);
-	if (res)
-		return res;
-
-	res = fwnode_get_mac_addr(fwnode, "local-mac-address", addr, alen);
-	if (res)
-		return res;
-
-	return fwnode_get_mac_addr(fwnode, "address", addr, alen);
-}
-EXPORT_SYMBOL(fwnode_get_mac_address);
-
-/**
- * device_get_mac_address - Get the MAC for a given device
- * @dev:	Pointer to the device
- * @addr:	Address of buffer to store the MAC in
- * @alen:	Length of the buffer pointed to by addr, should be ETH_ALEN
- */
-void *device_get_mac_address(struct device *dev, char *addr, int alen)
-{
-	return fwnode_get_mac_address(dev_fwnode(dev), addr, alen);
-}
-EXPORT_SYMBOL(device_get_mac_address);
+EXPORT_SYMBOL(fwnode_iomap);
 
 /**
  * fwnode_irq_get - Get IRQ directly from a fwnode
@@ -1020,6 +934,35 @@ int fwnode_irq_get(const struct fwnode_handle *fwnode, unsigned int index)
 	return res.start;
 }
 EXPORT_SYMBOL(fwnode_irq_get);
+
+/**
+ * fwnode_irq_get_byname - Get IRQ from a fwnode using its name
+ * @fwnode:	Pointer to the firmware node
+ * @name:	IRQ name
+ *
+ * Description:
+ * Find a match to the string @name in the 'interrupt-names' string array
+ * in _DSD for ACPI, or of_node for Device Tree. Then get the Linux IRQ
+ * number of the IRQ resource corresponding to the index of the matched
+ * string.
+ *
+ * Return:
+ * Linux IRQ number on success, or negative errno otherwise.
+ */
+int fwnode_irq_get_byname(const struct fwnode_handle *fwnode, const char *name)
+{
+	int index;
+
+	if (!name)
+		return -EINVAL;
+
+	index = fwnode_property_match_string(fwnode, "interrupt-names",  name);
+	if (index < 0)
+		return index;
+
+	return fwnode_irq_get(fwnode, index);
+}
+EXPORT_SYMBOL(fwnode_irq_get_byname);
 
 /**
  * fwnode_graph_get_next_endpoint - Get next endpoint firmware node
@@ -1122,43 +1065,17 @@ fwnode_graph_get_remote_endpoint(const struct fwnode_handle *fwnode)
 }
 EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_endpoint);
 
-/**
- * fwnode_graph_get_remote_node - get remote parent node for given port/endpoint
- * @fwnode: pointer to parent fwnode_handle containing graph port/endpoint
- * @port_id: identifier of the parent port node
- * @endpoint_id: identifier of the endpoint node
- *
- * Return: Remote fwnode handle associated with remote endpoint node linked
- *	   to @node. Use fwnode_node_put() on it when done.
- */
-struct fwnode_handle *
-fwnode_graph_get_remote_node(const struct fwnode_handle *fwnode, u32 port_id,
-			     u32 endpoint_id)
+static bool fwnode_graph_remote_available(struct fwnode_handle *ep)
 {
-	struct fwnode_handle *endpoint = NULL;
+	struct fwnode_handle *dev_node;
+	bool available;
 
-	while ((endpoint = fwnode_graph_get_next_endpoint(fwnode, endpoint))) {
-		struct fwnode_endpoint fwnode_ep;
-		struct fwnode_handle *remote;
-		int ret;
+	dev_node = fwnode_graph_get_remote_port_parent(ep);
+	available = fwnode_device_is_available(dev_node);
+	fwnode_handle_put(dev_node);
 
-		ret = fwnode_graph_parse_endpoint(endpoint, &fwnode_ep);
-		if (ret < 0)
-			continue;
-
-		if (fwnode_ep.port != port_id || fwnode_ep.id != endpoint_id)
-			continue;
-
-		remote = fwnode_graph_get_remote_port_parent(endpoint);
-		if (!remote)
-			return NULL;
-
-		return fwnode_device_is_available(remote) ? remote : NULL;
-	}
-
-	return NULL;
+	return available;
 }
-EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_node);
 
 /**
  * fwnode_graph_get_endpoint_by_id - get endpoint by port and endpoint numbers
@@ -1174,8 +1091,8 @@ EXPORT_SYMBOL_GPL(fwnode_graph_get_remote_node);
  * has not been found, look for the closest endpoint ID greater than the
  * specified one and return the endpoint that corresponds to it, if present.
  *
- * Do not return endpoints that belong to disabled devices, unless
- * FWNODE_GRAPH_DEVICE_DISABLED is passed in @flags.
+ * Does not return endpoints that belong to disabled devices or endpoints that
+ * are unconnected, unless FWNODE_GRAPH_DEVICE_DISABLED is passed in @flags.
  *
  * The returned endpoint needs to be released by calling fwnode_handle_put() on
  * it when it is not needed any more.
@@ -1184,25 +1101,17 @@ struct fwnode_handle *
 fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 				u32 port, u32 endpoint, unsigned long flags)
 {
-	struct fwnode_handle *ep = NULL, *best_ep = NULL;
+	struct fwnode_handle *ep, *best_ep = NULL;
 	unsigned int best_ep_id = 0;
 	bool endpoint_next = flags & FWNODE_GRAPH_ENDPOINT_NEXT;
 	bool enabled_only = !(flags & FWNODE_GRAPH_DEVICE_DISABLED);
 
-	while ((ep = fwnode_graph_get_next_endpoint(fwnode, ep))) {
+	fwnode_graph_for_each_endpoint(fwnode, ep) {
 		struct fwnode_endpoint fwnode_ep = { 0 };
 		int ret;
 
-		if (enabled_only) {
-			struct fwnode_handle *dev_node;
-			bool available;
-
-			dev_node = fwnode_graph_get_remote_port_parent(ep);
-			available = fwnode_device_is_available(dev_node);
-			fwnode_handle_put(dev_node);
-			if (!available)
-				continue;
-		}
+		if (enabled_only && !fwnode_graph_remote_available(ep))
+			continue;
 
 		ret = fwnode_graph_parse_endpoint(ep, &fwnode_ep);
 		if (ret < 0)
@@ -1234,6 +1143,31 @@ fwnode_graph_get_endpoint_by_id(const struct fwnode_handle *fwnode,
 	return best_ep;
 }
 EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_by_id);
+
+/**
+ * fwnode_graph_get_endpoint_count - Count endpoints on a device node
+ * @fwnode: The node related to a device
+ * @flags: fwnode lookup flags
+ * Count endpoints in a device node.
+ *
+ * If FWNODE_GRAPH_DEVICE_DISABLED flag is specified, also unconnected endpoints
+ * and endpoints connected to disabled devices are counted.
+ */
+unsigned int fwnode_graph_get_endpoint_count(struct fwnode_handle *fwnode,
+					     unsigned long flags)
+{
+	struct fwnode_handle *ep;
+	unsigned int count = 0;
+
+	fwnode_graph_for_each_endpoint(fwnode, ep) {
+		if (flags & FWNODE_GRAPH_DEVICE_DISABLED ||
+		    fwnode_graph_remote_available(ep))
+			count++;
+	}
+
+	return count;
+}
+EXPORT_SYMBOL_GPL(fwnode_graph_get_endpoint_count);
 
 /**
  * fwnode_graph_parse_endpoint - parse common endpoint node properties
@@ -1269,8 +1203,10 @@ fwnode_graph_devcon_match(struct fwnode_handle *fwnode, const char *con_id,
 
 	fwnode_graph_for_each_endpoint(fwnode, ep) {
 		node = fwnode_graph_get_remote_port_parent(ep);
-		if (!fwnode_device_is_available(node))
+		if (!fwnode_device_is_available(node)) {
+			fwnode_handle_put(node);
 			continue;
+		}
 
 		ret = match(node, con_id, data);
 		fwnode_handle_put(node);

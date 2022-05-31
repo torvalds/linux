@@ -314,7 +314,7 @@ static int b53_spi_probe(struct spi_device *spi)
 	return 0;
 }
 
-static int b53_spi_remove(struct spi_device *spi)
+static void b53_spi_remove(struct spi_device *spi)
 {
 	struct b53_device *dev = spi_get_drvdata(spi);
 
@@ -322,8 +322,6 @@ static int b53_spi_remove(struct spi_device *spi)
 		b53_switch_remove(dev);
 
 	spi_set_drvdata(spi, NULL);
-
-	return 0;
 }
 
 static void b53_spi_shutdown(struct spi_device *spi)
@@ -349,6 +347,19 @@ static const struct of_device_id b53_spi_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, b53_spi_of_match);
 
+static const struct spi_device_id b53_spi_ids[] = {
+	{ .name = "bcm5325" },
+	{ .name = "bcm5365" },
+	{ .name = "bcm5395" },
+	{ .name = "bcm5397" },
+	{ .name = "bcm5398" },
+	{ .name = "bcm53115" },
+	{ .name = "bcm53125" },
+	{ .name = "bcm53128" },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, b53_spi_ids);
+
 static struct spi_driver b53_spi_driver = {
 	.driver = {
 		.name	= "b53-switch",
@@ -357,6 +368,7 @@ static struct spi_driver b53_spi_driver = {
 	.probe	= b53_spi_probe,
 	.remove	= b53_spi_remove,
 	.shutdown = b53_spi_shutdown,
+	.id_table = b53_spi_ids,
 };
 
 module_spi_driver(b53_spi_driver);

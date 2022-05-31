@@ -686,7 +686,6 @@ static int ipv6_rthdr_rcv(struct sk_buff *skb)
 	struct net *net = dev_net(skb->dev);
 	int accept_source_route = net->ipv6.devconf_all->accept_source_route;
 
-	idev = __in6_dev_get(skb->dev);
 	if (idev && accept_source_route > idev->cnf.accept_source_route)
 		accept_source_route = idev->cnf.accept_source_route;
 
@@ -979,7 +978,7 @@ static bool ipv6_hop_ioam(struct sk_buff *skb, int optoff)
 		if (!skb_valid_dst(skb))
 			ip6_route_input(skb);
 
-		ioam6_fill_trace_data(skb, ns, trace);
+		ioam6_fill_trace_data(skb, ns, trace, true);
 		break;
 	default:
 		break;
@@ -1345,14 +1344,14 @@ ipv6_renew_options(struct sock *sk, struct ipv6_txoptions *opt,
 	return opt2;
 }
 
-struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
-					  struct ipv6_txoptions *opt)
+struct ipv6_txoptions *__ipv6_fixup_options(struct ipv6_txoptions *opt_space,
+					    struct ipv6_txoptions *opt)
 {
 	/*
 	 * ignore the dest before srcrt unless srcrt is being included.
 	 * --yoshfuji
 	 */
-	if (opt && opt->dst0opt && !opt->srcrt) {
+	if (opt->dst0opt && !opt->srcrt) {
 		if (opt_space != opt) {
 			memcpy(opt_space, opt, sizeof(*opt_space));
 			opt = opt_space;
@@ -1363,7 +1362,7 @@ struct ipv6_txoptions *ipv6_fixup_options(struct ipv6_txoptions *opt_space,
 
 	return opt;
 }
-EXPORT_SYMBOL_GPL(ipv6_fixup_options);
+EXPORT_SYMBOL_GPL(__ipv6_fixup_options);
 
 /**
  * fl6_update_dst - update flowi destination address with info given

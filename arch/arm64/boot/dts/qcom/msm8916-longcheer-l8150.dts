@@ -11,6 +11,7 @@
 / {
 	model = "Longcheer L8150";
 	compatible = "longcheer,l8150", "qcom,msm8916-v1-qrd/9-v1", "qcom,msm8916";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &blsp1_uart2;
@@ -28,14 +29,6 @@
 			reg = <0x0 0x8b600000 0x0 0x600000>;
 			no-map;
 		};
-	};
-
-	// FIXME: Use extcon device provided by charger driver when available
-	usb_vbus: usb-vbus {
-		compatible = "linux,extcon-usb-gpio";
-		vbus-gpio = <&msmgpio 62 GPIO_ACTIVE_HIGH>;
-		pinctrl-names = "default";
-		pinctrl-0 = <&usb_vbus_default>;
 	};
 
 	gpio-keys {
@@ -121,8 +114,20 @@
 	status = "okay";
 
 	accelerometer@10 {
-		compatible = "bosch,bmc150_accel";
+		compatible = "bosch,bmc156_accel";
 		reg = <0x10>;
+
+		/*
+		 * For some reason the interrupt line is usually not connected
+		 * to the BMC156. However, there are two pads next to the chip
+		 * that can be shorted to make it work if needed.
+		 *
+		 * interrupt-parent = <&msmgpio>;
+		 * interrupts = <116 IRQ_TYPE_EDGE_RISING>;
+		 */
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&accel_int_default>;
 
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l6>;
@@ -133,11 +138,32 @@
 	};
 
 	magnetometer@12 {
-		compatible = "bosch,bmc150_magn";
+		compatible = "bosch,bmc156_magn";
 		reg = <0x12>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <113 IRQ_TYPE_EDGE_RISING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&magn_int_default>;
 
 		vdd-supply = <&pm8916_l17>;
 		vddio-supply = <&pm8916_l6>;
+	};
+
+	light-sensor@23 {
+		compatible = "liteon,ltr559";
+		reg = <0x23>;
+		proximity-near-level = <75>;
+
+		interrupt-parent = <&msmgpio>;
+		interrupts = <115 IRQ_TYPE_EDGE_FALLING>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&light_int_default>;
+
+		vdd-supply = <&pm8916_l17>;
+		vio-supply = <&pm8916_l6>;
 	};
 
 	gyroscope@68 {
@@ -145,7 +171,8 @@
 		reg = <0x68>;
 
 		interrupt-parent = <&msmgpio>;
-		interrupts = <23 IRQ_TYPE_EDGE_RISING>;
+		interrupts = <23 IRQ_TYPE_EDGE_RISING>,
+			     <22 IRQ_TYPE_EDGE_RISING>;
 
 		pinctrl-names = "default";
 		pinctrl-0 = <&gyro_int_default>;
@@ -196,6 +223,10 @@
 	linux,code = <KEY_VOLUMEDOWN>;
 };
 
+&pm8916_usbin {
+	status = "okay";
+};
+
 &pm8916_vib {
 	status = "okay";
 };
@@ -225,11 +256,11 @@
 &usb {
 	status = "okay";
 	dr_mode = "peripheral";
-	extcon = <&usb_vbus>;
+	extcon = <&pm8916_usbin>;
 };
 
 &usb_hs_phy {
-	extcon = <&usb_vbus>;
+	extcon = <&pm8916_usbin>;
 };
 
 &smd_rpm_regulators {
@@ -336,6 +367,14 @@
 };
 
 &msmgpio {
+	accel_int_default: accel-int-default {
+		pins = "gpio116";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
 	camera_flash_default: camera-flash-default {
 		pins = "gpio31", "gpio32";
 		function = "gpio";
@@ -361,7 +400,23 @@
 	};
 
 	gyro_int_default: gyro-int-default {
-		pins = "gpio23";
+		pins = "gpio22", "gpio23";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	light_int_default: light-int-default {
+		pins = "gpio115";
+		function = "gpio";
+
+		drive-strength = <2>;
+		bias-disable;
+	};
+
+	magn_int_default: magn-int-default {
+		pins = "gpio113";
 		function = "gpio";
 
 		drive-strength = <2>;
@@ -374,12 +429,5 @@
 
 		drive-strength = <2>;
 		bias-disable;
-	};
-
-	usb_vbus_default: usb-vbus-default {
-		pins = "gpio62";
-		function = "gpio";
-
-		bias-pull-up;
 	};
 };

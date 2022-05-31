@@ -24,6 +24,7 @@
 #include <type_support.h>
 #include <platform_support.h>
 #include <debug_global.h>
+#include <linux/bits.h>
 
 #include "ia_css_types.h"
 #include "ia_css_frame_format.h"
@@ -222,11 +223,6 @@ struct ia_css_binary_info {
 	struct ia_css_isp_param_isp_segments	mem_initializers;
 	/* MW: Packing (related) bools in an integer ?? */
 	struct {
-		/* ISP2401 */
-		u8	luma_only;
-		u8	input_yuv;
-		u8	input_raw;
-
 		u8	reduced_pipe;
 		u8	vf_veceven;
 		u8	dis;
@@ -471,7 +467,7 @@ struct ia_css_acc_fw {
 
 enum ia_css_sp_sleep_mode {
 	SP_DISABLE_SLEEP_MODE = 0,
-	SP_SLEEP_AFTER_FRAME = 1 << 0,
-	SP_SLEEP_AFTER_IRQ = 1 << 1
+	SP_SLEEP_AFTER_FRAME  = BIT(0),
+	SP_SLEEP_AFTER_IRQ    = BIT(1),
 };
 #endif /* _IA_CSS_ACC_TYPES_H */

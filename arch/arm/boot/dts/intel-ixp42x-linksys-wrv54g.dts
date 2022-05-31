@@ -123,6 +123,8 @@
 			 * We have up to 2 slots (IDSEL) with 2 swizzled IRQs.
 			 * Derived from the GTWX5715 PCI boardfile.
 			 */
+			#interrupt-cells = <1>;
+			interrupt-map-mask = <0xf800 0 0 7>;
 			interrupt-map =
 			/* IDSEL 0 */
 			<0x0000 0 0 1 &gpio0 10 IRQ_TYPE_LEVEL_LOW>, /* INT A on slot 0 is irq 10 */

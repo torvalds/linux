@@ -22,3 +22,11 @@
 &charger_thermal {
 	status = "disabled";
 };
+
+&pm6150_adc {
+	/delete-node/ charger-thermistor@4f;
+};
+
+&pm6150_adc_tm {
+	/delete-node/ charger-thermistor@0;
+};

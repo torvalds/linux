@@ -1,0 +1,76 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-wm9712.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra audio complex with WM9712 CODEC
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: nvidia,tegra-audio-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - pattern: '^[a-z0-9]+,tegra-audio-wm9712([-_][a-z0-9]+)+$'
+      - const: nvidia,tegra-audio-wm9712
+
+  nvidia,audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: |
+      A list of the connections between audio components.
+      Each entry is a pair of strings, the first being the connection's sink,
+      the second being the connection's source. Valid names for sources and
+      sinks are the pins (documented in the binding document),
+      and the jacks on the board.
+    minItems: 2
+    items:
+      enum:
+        # Board Connectors
+        - "Headphone"
+        - "LineIn"
+        - "Mic"
+
+        # CODEC Pins
+        - MONOOUT
+        - HPOUTL
+        - HPOUTR
+        - LOUT2
+        - ROUT2
+        - OUT3
+        - LINEINL
+        - LINEINR
+        - PHONE
+        - PCBEEP
+        - MIC1
+        - MIC2
+        - "Mic Bias"
+
+required:
+  - nvidia,ac97-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "nvidia,tegra-audio-wm9712-colibri_t20",
+                     "nvidia,tegra-audio-wm9712";
+        nvidia,model = "Toradex Colibri T20";
+
+        nvidia,audio-routing =
+                "Headphone", "HPOUTL",
+                "Headphone", "HPOUTR",
+                "LineIn", "LINEINL",
+                "LineIn", "LINEINR",
+                "Mic", "MIC1";
+
+        nvidia,ac97-controller = <&ac97>;
+
+        clocks = <&clk 112>, <&clk 113>, <&clk 93>;
+        clock-names = "pll_a", "pll_a_out0", "mclk";
+    };

@@ -71,7 +71,7 @@
 #define PM8001_IOERR_LOGGING	0x200 /* development io err message logging */
 
 #define pm8001_info(HBA, fmt, ...)					\
-	pr_info("%s:: %s  %d:" fmt,					\
+	pr_info("%s:: %s %d: " fmt,					\
 		(HBA)->name, __func__, __LINE__, ##__VA_ARGS__)
 
 #define pm8001_dbg(HBA, level, fmt, ...)				\
@@ -99,11 +99,7 @@ extern const struct pm8001_dispatch pm8001_80xx_dispatch;
 struct pm8001_hba_info;
 struct pm8001_ccb_info;
 struct pm8001_device;
-/* define task management IU */
-struct pm8001_tmf_task {
-	u8	tmf;
-	u32	tag_of_task_to_be_managed;
-};
+
 struct pm8001_ioctl_payload {
 	u32	signature;
 	u16	major_function;
@@ -200,10 +196,9 @@ struct pm8001_dispatch {
 	int (*phy_ctl_req)(struct pm8001_hba_info *pm8001_ha,
 		u32 phy_id, u32 phy_op);
 	int (*task_abort)(struct pm8001_hba_info *pm8001_ha,
-		struct pm8001_device *pm8001_dev, u8 flag, u32 task_tag,
-		u32 cmd_tag);
+		struct pm8001_ccb_info *ccb);
 	int (*ssp_tm_req)(struct pm8001_hba_info *pm8001_ha,
-		struct pm8001_ccb_info *ccb, struct pm8001_tmf_task *tmf);
+		struct pm8001_ccb_info *ccb, struct sas_tmf_task *tmf);
 	int (*get_nvmd_req)(struct pm8001_hba_info *pm8001_ha, void *payload);
 	int (*set_nvmd_req)(struct pm8001_hba_info *pm8001_ha, void *payload);
 	int (*fw_flash_update_req)(struct pm8001_hba_info *pm8001_ha,
@@ -216,6 +211,9 @@ struct pm8001_dispatch {
 		u32 state);
 	int (*sas_re_init_req)(struct pm8001_hba_info *pm8001_ha);
 	int (*fatal_errors)(struct pm8001_hba_info *pm8001_ha);
+	void (*hw_event_ack_req)(struct pm8001_hba_info *pm8001_ha,
+		u32 Qnum, u32 SEA, u32 port_id, u32 phyId, u32 param0,
+		u32 param1);
 };
 
 struct pm8001_chip_info {
@@ -230,6 +228,7 @@ struct pm8001_port {
 	u8			port_attached;
 	u16			wide_port_phymap;
 	u8			port_state;
+	u8			port_id;
 	struct list_head	list;
 };
 
@@ -457,6 +456,7 @@ struct outbound_queue_table {
 	__le32			producer_index;
 	u32			consumer_idx;
 	spinlock_t		oq_lock;
+	unsigned long		lock_flags;
 };
 struct pm8001_hba_memspace {
 	void __iomem  		*memvirtaddr;
@@ -516,6 +516,7 @@ struct pm8001_hba_info {
 	u32			iomb_size; /* SPC and SPCV IOMB size */
 	struct pm8001_device	*devices;
 	struct pm8001_ccb_info	*ccb_info;
+	u32			ccb_count;
 #ifdef PM8001_USE_MSIX
 	int			number_of_intr;/*will be used in remove()*/
 	char			intr_drvname[PM8001_MAX_MSIX_VEC]
@@ -635,15 +636,13 @@ int pm8001_tag_alloc(struct pm8001_hba_info *pm8001_ha, u32 *tag_out);
 void pm8001_tag_init(struct pm8001_hba_info *pm8001_ha);
 u32 pm8001_get_ncq_tag(struct sas_task *task, u32 *tag);
 void pm8001_ccb_task_free(struct pm8001_hba_info *pm8001_ha,
-	struct sas_task *task, struct pm8001_ccb_info *ccb, u32 ccb_idx);
+			  struct pm8001_ccb_info *ccb);
 int pm8001_phy_control(struct asd_sas_phy *sas_phy, enum phy_func func,
 	void *funcdata);
 void pm8001_scan_start(struct Scsi_Host *shost);
 int pm8001_scan_finished(struct Scsi_Host *shost, unsigned long time);
 int pm8001_queue_command(struct sas_task *task, gfp_t gfp_flags);
 int pm8001_abort_task(struct sas_task *task);
-int pm8001_abort_task_set(struct domain_device *dev, u8 *lun);
-int pm8001_clear_aca(struct domain_device *dev, u8 *lun);
 int pm8001_clear_task_set(struct domain_device *dev, u8 *lun);
 int pm8001_dev_found(struct domain_device *dev);
 void pm8001_dev_gone(struct domain_device *dev);
@@ -651,6 +650,7 @@ int pm8001_lu_reset(struct domain_device *dev, u8 *lun);
 int pm8001_I_T_nexus_reset(struct domain_device *dev);
 int pm8001_I_T_nexus_event_handler(struct domain_device *dev);
 int pm8001_query_task(struct sas_task *task);
+void pm8001_port_formed(struct asd_sas_phy *sas_phy);
 void pm8001_open_reject_retry(
 	struct pm8001_hba_info *pm8001_ha,
 	struct sas_task *task_to_close,
@@ -661,8 +661,7 @@ int pm8001_mem_alloc(struct pci_dev *pdev, void **virt_addr,
 
 void pm8001_chip_iounmap(struct pm8001_hba_info *pm8001_ha);
 int pm8001_mpi_build_cmd(struct pm8001_hba_info *pm8001_ha,
-			struct inbound_queue_table *circularQ,
-			u32 opCode, void *payload, size_t nb,
+			u32 q_index, u32 opCode, void *payload, size_t nb,
 			u32 responseQueue);
 int pm8001_mpi_msg_free_get(struct inbound_queue_table *circularQ,
 				u16 messageSize, void **messagePtr);
@@ -681,10 +680,9 @@ int pm8001_chip_set_nvmd_req(struct pm8001_hba_info *pm8001_ha, void *payload);
 int pm8001_chip_get_nvmd_req(struct pm8001_hba_info *pm8001_ha, void *payload);
 int pm8001_chip_ssp_tm_req(struct pm8001_hba_info *pm8001_ha,
 				struct pm8001_ccb_info *ccb,
-				struct pm8001_tmf_task *tmf);
+				struct sas_tmf_task *tmf);
 int pm8001_chip_abort_task(struct pm8001_hba_info *pm8001_ha,
-				struct pm8001_device *pm8001_dev,
-				u8 flag, u32 task_tag, u32 cmd_tag);
+				struct pm8001_ccb_info *ccb);
 int pm8001_chip_dereg_dev_req(struct pm8001_hba_info *pm8001_ha, u32 device_id);
 void pm8001_chip_make_sg(struct scatterlist *scatter, int nr, void *prd);
 void pm8001_work_fn(struct work_struct *work);
@@ -729,19 +727,68 @@ ssize_t pm8001_get_gsm_dump(struct device *cdev, u32, char *buf);
 int pm80xx_fatal_errors(struct pm8001_hba_info *pm8001_ha);
 void pm8001_free_dev(struct pm8001_device *pm8001_dev);
 /* ctl shared API */
-extern struct device_attribute *pm8001_host_attrs[];
+extern const struct attribute_group *pm8001_host_groups[];
 
-static inline void
-pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
-			struct sas_task *task, struct pm8001_ccb_info *ccb,
-			u32 ccb_idx)
+#define PM8001_INVALID_TAG	((u32)-1)
+
+/*
+ * Allocate a new tag and return the corresponding ccb after initializing it.
+ */
+static inline struct pm8001_ccb_info *
+pm8001_ccb_alloc(struct pm8001_hba_info *pm8001_ha,
+		 struct pm8001_device *dev, struct sas_task *task)
 {
-	pm8001_ccb_task_free(pm8001_ha, task, ccb, ccb_idx);
-	smp_mb(); /*in order to force CPU ordering*/
-	spin_unlock(&pm8001_ha->lock);
-	task->task_done(task);
-	spin_lock(&pm8001_ha->lock);
+	struct pm8001_ccb_info *ccb;
+	u32 tag;
+
+	if (pm8001_tag_alloc(pm8001_ha, &tag)) {
+		pm8001_dbg(pm8001_ha, FAIL, "Failed to allocate a tag\n");
+		return NULL;
+	}
+
+	ccb = &pm8001_ha->ccb_info[tag];
+	ccb->task = task;
+	ccb->n_elem = 0;
+	ccb->ccb_tag = tag;
+	ccb->device = dev;
+	ccb->fw_control_context = NULL;
+	ccb->open_retry = 0;
+
+	return ccb;
 }
+
+/*
+ * Free the tag of an initialized ccb.
+ */
+static inline void pm8001_ccb_free(struct pm8001_hba_info *pm8001_ha,
+				   struct pm8001_ccb_info *ccb)
+{
+	u32 tag = ccb->ccb_tag;
+
+	/*
+	 * Cleanup the ccb to make sure that a manual scan of the adapter
+	 * ccb_info array can detect ccb's that are in use.
+	 * C.f. pm8001_open_reject_retry()
+	 */
+	ccb->task = NULL;
+	ccb->ccb_tag = PM8001_INVALID_TAG;
+	ccb->device = NULL;
+	ccb->fw_control_context = NULL;
+
+	pm8001_tag_free(pm8001_ha, tag);
+}
+
+static inline void pm8001_ccb_task_free_done(struct pm8001_hba_info *pm8001_ha,
+					     struct pm8001_ccb_info *ccb)
+{
+	struct sas_task *task = ccb->task;
+
+	pm8001_ccb_task_free(pm8001_ha, ccb);
+	smp_mb(); /*in order to force CPU ordering*/
+	task->task_done(task);
+}
+void pm8001_setds_completion(struct domain_device *dev);
+void pm8001_tmf_aborted(struct sas_task *task);
 
 #endif
 

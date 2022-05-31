@@ -27,7 +27,7 @@
 #include <dc_link.h>
 #include <inc/link_hwss.h>
 #include <inc/link_dpcd.h>
-#include "drm/drm_dp_helper.h"
+#include <drm/dp/drm_dp_helper.h>
 #include <dc_dp_types.h>
 #include "dm_helpers.h"
 
@@ -176,12 +176,15 @@ static void dpcd_reduce_address_range(
 		uint8_t * const reduced_data,
 		const uint32_t reduced_size)
 {
-	const uint32_t reduced_end_address = END_ADDRESS(reduced_address, reduced_size);
-	const uint32_t extended_end_address = END_ADDRESS(extended_address, extended_size);
 	const uint32_t offset = reduced_address - extended_address;
 
-	if (extended_end_address == reduced_end_address && extended_address == reduced_address)
-		return; /* extended and reduced address ranges point to the same data */
+	/*
+	 * If the address is same, address was not extended.
+	 * So we do not need to free any memory.
+	 * The data is in original buffer(reduced_data).
+	 */
+	if (extended_data == reduced_data)
+		return;
 
 	memcpy(&extended_data[offset], reduced_data, reduced_size);
 	kfree(extended_data);

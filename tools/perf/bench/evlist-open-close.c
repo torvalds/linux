@@ -25,6 +25,11 @@ static int iterations = 100;
 static int nr_events = 1;
 static const char *event_string = "dummy";
 
+static inline u64 timeval2usec(struct timeval *tv)
+{
+	return tv->tv_sec * USEC_PER_SEC + tv->tv_usec;
+}
+
 static struct record_opts opts = {
 	.sample_time	     = true,
 	.mmap_pages	     = UINT_MAX,
@@ -66,14 +71,14 @@ static int evlist__count_evsel_fds(struct evlist *evlist)
 	int cnt = 0;
 
 	evlist__for_each_entry(evlist, evsel)
-		cnt += evsel->core.threads->nr * evsel->core.cpus->nr;
+		cnt += evsel->core.threads->nr * perf_cpu_map__nr(evsel->core.cpus);
 
 	return cnt;
 }
 
 static struct evlist *bench__create_evlist(char *evstr)
 {
-	struct parse_events_error err = { .idx = 0, };
+	struct parse_events_error err;
 	struct evlist *evlist = evlist__new();
 	int ret;
 
@@ -82,14 +87,16 @@ static struct evlist *bench__create_evlist(char *evstr)
 		return NULL;
 	}
 
+	parse_events_error__init(&err);
 	ret = parse_events(evlist, evstr, &err);
 	if (ret) {
-		parse_events_print_error(&err, evstr);
+		parse_events_error__print(&err, evstr);
+		parse_events_error__exit(&err);
 		pr_err("Run 'perf list' for a list of valid events\n");
 		ret = 1;
 		goto out_delete_evlist;
 	}
-
+	parse_events_error__exit(&err);
 	ret = evlist__create_maps(evlist, &opts.target);
 	if (ret < 0) {
 		pr_err("Not enough memory to create thread/cpu maps\n");
@@ -144,7 +151,7 @@ static int bench_evlist_open_close__run(char *evstr)
 
 	init_stats(&time_stats);
 
-	printf("  Number of cpus:\t%d\n", evlist->core.cpus->nr);
+	printf("  Number of cpus:\t%d\n", perf_cpu_map__nr(evlist->core.user_requested_cpus));
 	printf("  Number of threads:\t%d\n", evlist->core.threads->nr);
 	printf("  Number of events:\t%d (%d fds)\n",
 		evlist->core.nr_entries, evlist__count_evsel_fds(evlist));
@@ -167,7 +174,7 @@ static int bench_evlist_open_close__run(char *evstr)
 
 		gettimeofday(&end, NULL);
 		timersub(&end, &start, &diff);
-		runtime_us = diff.tv_sec * USEC_PER_SEC + diff.tv_usec;
+		runtime_us = timeval2usec(&diff);
 		update_stats(&time_stats, runtime_us);
 
 		evlist__delete(evlist);

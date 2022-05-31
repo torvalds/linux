@@ -22,9 +22,9 @@ static int mma7455_spi_probe(struct spi_device *spi)
 	return mma7455_core_probe(&spi->dev, regmap, id->name);
 }
 
-static int mma7455_spi_remove(struct spi_device *spi)
+static void mma7455_spi_remove(struct spi_device *spi)
 {
-	return mma7455_core_remove(&spi->dev);
+	mma7455_core_remove(&spi->dev);
 }
 
 static const struct spi_device_id mma7455_spi_ids[] = {
@@ -47,3 +47,4 @@ module_spi_driver(mma7455_spi_driver);
 MODULE_AUTHOR("Joachim Eastwood <manabian@gmail.com>");
 MODULE_DESCRIPTION("Freescale MMA7455L SPI accelerometer driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_MMA7455);

@@ -25,7 +25,8 @@ void _rtw_init_sta_recv_priv(struct sta_recv_priv *psta_recvpriv)
 	/* for (i = 0; i<MAX_RX_NUMBLKS; i++) */
 	/* _rtw_init_queue(&psta_recvpriv->blk_strms[i]); */
 
-	_rtw_init_queue(&psta_recvpriv->defrag_q);
+	INIT_LIST_HEAD(&psta_recvpriv->defrag_q.queue);
+	spin_lock_init(&psta_recvpriv->defrag_q.lock);
 }
 
 signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *padapter)
@@ -36,9 +37,12 @@ signed int _rtw_init_recv_priv(struct recv_priv *precvpriv, struct adapter *pada
 
 	spin_lock_init(&precvpriv->lock);
 
-	_rtw_init_queue(&precvpriv->free_recv_queue);
-	_rtw_init_queue(&precvpriv->recv_pending_queue);
-	_rtw_init_queue(&precvpriv->uc_swdec_pending_queue);
+	INIT_LIST_HEAD(&precvpriv->free_recv_queue.queue);
+	spin_lock_init(&precvpriv->free_recv_queue.lock);
+	INIT_LIST_HEAD(&precvpriv->recv_pending_queue.queue);
+	spin_lock_init(&precvpriv->recv_pending_queue.lock);
+	INIT_LIST_HEAD(&precvpriv->uc_swdec_pending_queue.queue);
+	spin_lock_init(&precvpriv->uc_swdec_pending_queue.lock);
 
 	precvpriv->adapter = padapter;
 
@@ -461,7 +465,7 @@ static union recv_frame *portctrl(struct adapter *adapter, union recv_frame *pre
 
 	auth_alg = adapter->securitypriv.dot11AuthAlgrthm;
 
-	ptr = get_recvframe_data(precv_frame);
+	ptr = precv_frame->u.hdr.rx_data;
 	pfhdr = &precv_frame->u.hdr;
 	pattrib = &pfhdr->attrib;
 	psta_addr = pattrib->ta;
@@ -1510,7 +1514,7 @@ static signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 	__be16 be_tmp;
 	struct adapter			*adapter = precvframe->u.hdr.adapter;
 	struct mlme_priv *pmlmepriv = &adapter->mlmepriv;
-	u8 *ptr = get_recvframe_data(precvframe) ; /*  point to frame_ctrl field */
+	u8 *ptr = precvframe->u.hdr.rx_data; /*  point to frame_ctrl field */
 	struct rx_pkt_attrib *pattrib = &precvframe->u.hdr.attrib;
 
 	if (pattrib->encrypt)
@@ -1546,10 +1550,15 @@ static signed int wlanhdr_to_ethhdr(union recv_frame *precvframe)
 		eth_type = 0x8712;
 		/*  append rx status for mp test packets */
 		ptr = recvframe_pull(precvframe, (rmv_len-sizeof(struct ethhdr)+2)-24);
+		if (!ptr)
+			return _FAIL;
 		memcpy(ptr, get_rxmem(precvframe), 24);
 		ptr += 24;
-	} else
+	} else {
 		ptr = recvframe_pull(precvframe, (rmv_len-sizeof(struct ethhdr) + (bsnaphdr?2:0)));
+		if (!ptr)
+			return _FAIL;
+	}
 
 	memcpy(ptr, pattrib->dst, ETH_ALEN);
 	memcpy(ptr+ETH_ALEN, pattrib->src, ETH_ALEN);

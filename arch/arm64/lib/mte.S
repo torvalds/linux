@@ -43,16 +43,22 @@ SYM_FUNC_END(mte_clear_page_tags)
  *	x0 - address to the beginning of the page
  */
 SYM_FUNC_START(mte_zero_clear_page_tags)
+	and	x0, x0, #(1 << MTE_TAG_SHIFT) - 1	// clear the tag
 	mrs	x1, dczid_el0
+	tbnz	x1, #4, 2f	// Branch if DC GZVA is prohibited
 	and	w1, w1, #0xf
 	mov	x2, #4
 	lsl	x1, x2, x1
-	and	x0, x0, #(1 << MTE_TAG_SHIFT) - 1	// clear the tag
 
 1:	dc	gzva, x0
 	add	x0, x0, x1
 	tst	x0, #(PAGE_SIZE - 1)
 	b.ne	1b
+	ret
+
+2:	stz2g	x0, [x0], #(MTE_GRANULE_SIZE * 2)
+	tst	x0, #(PAGE_SIZE - 1)
+	b.ne	2b
 	ret
 SYM_FUNC_END(mte_zero_clear_page_tags)
 
@@ -128,7 +134,7 @@ SYM_FUNC_END(mte_copy_tags_to_user)
 /*
  * Save the tags in a page
  *   x0 - page address
- *   x1 - tag storage
+ *   x1 - tag storage, MTE_PAGE_TAG_STORAGE bytes
  */
 SYM_FUNC_START(mte_save_page_tags)
 	multitag_transfer_size x7, x5
@@ -152,7 +158,7 @@ SYM_FUNC_END(mte_save_page_tags)
 /*
  * Restore the tags in a page
  *   x0 - page address
- *   x1 - tag storage
+ *   x1 - tag storage, MTE_PAGE_TAG_STORAGE bytes
  */
 SYM_FUNC_START(mte_restore_page_tags)
 	multitag_transfer_size x7, x5

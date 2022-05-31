@@ -100,7 +100,7 @@ static int cht_codec_init(struct snd_soc_pcm_runtime *runtime)
 	struct snd_soc_component *component = codec_dai->component;
 	int ret, jack_type;
 
-	/* NAU88L24 supports 4 butons headset detection
+	/* NAU88L24 supports 4 buttons headset detection
 	 * KEY_PLAYPAUSE
 	 * KEY_VOICECOMMAND
 	 * KEY_VOLUMEUP
@@ -214,7 +214,7 @@ static struct snd_soc_dai_link cht_dailink[] = {
 		.id = 0,
 		.no_pcm = 1,
 		.dai_fmt = SND_SOC_DAIFMT_DSP_B | SND_SOC_DAIFMT_IB_NF
-			| SND_SOC_DAIFMT_CBS_CFS,
+			| SND_SOC_DAIFMT_CBC_CFC,
 		.init = cht_codec_init,
 		.be_hw_params_fixup = cht_codec_fixup,
 		.dpcm_playback = 1,
@@ -257,7 +257,7 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		return -ENOMEM;
 	snd_soc_card_set_drvdata(&snd_soc_card_cht, drv);
 
-	/* override plaform name, if required */
+	/* override platform name, if required */
 	snd_soc_card_cht.dev = &pdev->dev;
 	mach = pdev->dev.platform_data;
 	platform_name = mach->mach_params.platform;
@@ -277,6 +277,8 @@ static int snd_cht_mc_probe(struct platform_device *pdev)
 		snd_soc_card_cht.name = CARD_NAME;
 		snd_soc_card_cht.driver_name = DRIVER_NAME;
 	}
+
+	snd_soc_card_cht.components = nau8824_components();
 
 	/* set pm ops */
 	if (sof_parent)

@@ -99,6 +99,7 @@ struct rpc_auth_create_args {
 
 /* Flags for rpcauth_lookupcred() */
 #define RPCAUTH_LOOKUP_NEW		0x01	/* Accept an uninitialised cred */
+#define RPCAUTH_LOOKUP_ASYNC		0x02	/* Don't block waiting for memory */
 
 /*
  * Client authentication ops

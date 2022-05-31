@@ -3,7 +3,7 @@
 #define __UM_IRQFLAGS_H
 
 extern int signals_enabled;
-int set_signals(int enable);
+int um_set_signals(int enable);
 void block_signals(void);
 void unblock_signals(void);
 
@@ -16,7 +16,7 @@ static inline unsigned long arch_local_save_flags(void)
 #define arch_local_irq_restore arch_local_irq_restore
 static inline void arch_local_irq_restore(unsigned long flags)
 {
-	set_signals(flags);
+	um_set_signals(flags);
 }
 
 #define arch_local_irq_enable arch_local_irq_enable

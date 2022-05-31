@@ -224,8 +224,6 @@ struct mga_device {
 
 	enum mga_type			type;
 
-	int fb_mtrr;
-
 	union {
 		struct {
 			long ref_clk;

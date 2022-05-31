@@ -61,7 +61,7 @@ nfsd4_ff_proc_layoutget(struct inode *inode, const struct svc_fh *fhp,
 		goto out_error;
 
 	fl->fh.size = fhp->fh_handle.fh_size;
-	memcpy(fl->fh.data, &fhp->fh_handle.fh_base, fl->fh.size);
+	memcpy(fl->fh.data, &fhp->fh_handle.fh_raw, fl->fh.size);
 
 	/* Give whole file layout segments */
 	seg->offset = 0;
@@ -117,7 +117,7 @@ nfsd4_ff_proc_getdeviceinfo(struct super_block *sb, struct svc_rqst *rqstp,
 
 	da->netaddr.addr_len =
 		snprintf(da->netaddr.addr, FF_ADDR_LEN + 1,
-			 "%s.%hhu.%hhu", addr, port >> 8, port & 0xff);
+			 "%s.%d.%d", addr, port >> 8, port & 0xff);
 
 	da->tightly_coupled = false;
 

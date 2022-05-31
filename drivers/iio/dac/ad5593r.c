@@ -99,7 +99,9 @@ static int ad5593r_i2c_probe(struct i2c_client *i2c,
 
 static int ad5593r_i2c_remove(struct i2c_client *i2c)
 {
-	return ad5592r_remove(&i2c->dev);
+	ad5592r_remove(&i2c->dev);
+
+	return 0;
 }
 
 static const struct i2c_device_id ad5593r_i2c_ids[] = {
@@ -135,3 +137,4 @@ module_i2c_driver(ad5593r_driver);
 MODULE_AUTHOR("Paul Cercueil <paul.cercueil@analog.com>");
 MODULE_DESCRIPTION("Analog Devices AD5593R multi-channel converters");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_AD5592R);

@@ -12,6 +12,7 @@
 #include <linux/ptp_clock_kernel.h>
 #include <linux/net_tstamp.h>
 #include <linux/interrupt.h>
+#include <linux/phy/phy.h>
 
 #if defined(CONFIG_ARCH_DMA_ADDR_T_64BIT) || defined(CONFIG_MACB_USE_HWSTAMP)
 #define MACB_EXT_DESC
@@ -243,9 +244,11 @@
 #define MACB_NCR_TPF_SIZE	1
 #define MACB_TZQ_OFFSET		12 /* Transmit zero quantum pause frame */
 #define MACB_TZQ_SIZE		1
-#define MACB_SRTSM_OFFSET	15
-#define MACB_OSSMODE_OFFSET 24 /* Enable One Step Synchro Mode */
+#define MACB_SRTSM_OFFSET	15 /* Store Receive Timestamp to Memory */
+#define MACB_OSSMODE_OFFSET	24 /* Enable One Step Synchro Mode */
 #define MACB_OSSMODE_SIZE	1
+#define MACB_MIIONRGMII_OFFSET	28 /* MII Usage on RGMII Interface */
+#define MACB_MIIONRGMII_SIZE	1
 
 /* Bitfields in NCFGR */
 #define MACB_SPD_OFFSET		0 /* Speed */
@@ -713,6 +716,7 @@
 #define MACB_CAPS_GEM_HAS_PTP			0x00000040
 #define MACB_CAPS_BD_RD_PREFETCH		0x00000080
 #define MACB_CAPS_NEEDS_RSTONUBR		0x00000100
+#define MACB_CAPS_MIIONRGMII			0x00000200
 #define MACB_CAPS_CLK_HW_CHG			0x04000000
 #define MACB_CAPS_MACB_IS_EMAC			0x08000000
 #define MACB_CAPS_FIFO_MODE			0x10000000
@@ -1268,7 +1272,8 @@ struct macb {
 	struct mii_bus		*mii_bus;
 	struct phylink		*phylink;
 	struct phylink_config	phylink_config;
-	struct phylink_pcs	phylink_pcs;
+	struct phylink_pcs	phylink_usx_pcs;
+	struct phylink_pcs	phylink_sgmii_pcs;
 
 	u32			caps;
 	unsigned int		dma_burst_length;
@@ -1287,6 +1292,9 @@ struct macb {
 	u32			wol;
 
 	struct macb_ptp_info	*ptp_info;	/* macb-ptp interface */
+
+	struct phy		*sgmii_phy;	/* for ZynqMP SGMII mode */
+
 #ifdef MACB_EXT_DESC
 	uint8_t hw_dma_cap;
 #endif

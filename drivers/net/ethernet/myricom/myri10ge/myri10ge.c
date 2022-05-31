@@ -796,7 +796,8 @@ static int myri10ge_load_firmware(struct myri10ge_priv *mgp, int adopt)
 	return status;
 }
 
-static int myri10ge_update_mac_address(struct myri10ge_priv *mgp, u8 * addr)
+static int myri10ge_update_mac_address(struct myri10ge_priv *mgp,
+				       const u8 * addr)
 {
 	struct myri10ge_cmd cmd;
 	int status;
@@ -1703,7 +1704,9 @@ myri10ge_set_pauseparam(struct net_device *netdev,
 
 static void
 myri10ge_get_ringparam(struct net_device *netdev,
-		       struct ethtool_ringparam *ring)
+		       struct ethtool_ringparam *ring,
+		       struct kernel_ethtool_ringparam *kernel_ring,
+		       struct netlink_ext_ack *extack)
 {
 	struct myri10ge_priv *mgp = netdev_priv(netdev);
 
@@ -2900,11 +2903,9 @@ static netdev_tx_t myri10ge_sw_tso(struct sk_buff *skb,
 		status = myri10ge_xmit(curr, dev);
 		if (status != 0) {
 			dev_kfree_skb_any(curr);
-			if (segs != NULL) {
-				curr = segs;
-				segs = next;
+			skb_list_walk_safe(next, curr, next) {
 				curr->next = NULL;
-				dev_kfree_skb_any(segs);
+				dev_kfree_skb_any(curr);
 			}
 			goto drop;
 		}
@@ -3022,7 +3023,7 @@ static int myri10ge_set_mac_address(struct net_device *dev, void *addr)
 	}
 
 	/* change the dev structure */
-	memcpy(dev->dev_addr, sa->sa_data, ETH_ALEN);
+	eth_hw_addr_set(dev, sa->sa_data);
 	return 0;
 }
 
@@ -3738,9 +3739,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	struct net_device *netdev;
 	struct myri10ge_priv *mgp;
 	struct device *dev = &pdev->dev;
-	int i;
 	int status = -ENXIO;
-	int dac_enabled;
 	unsigned hdr_offset, ss_offset;
 	static int board_number;
 
@@ -3780,14 +3779,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	myri10ge_mask_surprise_down(pdev);
 	pci_set_master(pdev);
-	dac_enabled = 1;
 	status = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
-	if (status != 0) {
-		dac_enabled = 0;
-		dev_err(&pdev->dev,
-			"64-bit pci address mask was refused, trying 32-bit\n");
-		status = dma_set_mask(&pdev->dev, DMA_BIT_MASK(32));
-	}
 	if (status != 0) {
 		dev_err(&pdev->dev, "Error %d setting DMA mask\n", status);
 		goto abort_with_enabled;
@@ -3828,8 +3820,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	if (status)
 		goto abort_with_ioremap;
 
-	for (i = 0; i < ETH_ALEN; i++)
-		netdev->dev_addr[i] = mgp->mac_addr[i];
+	eth_hw_addr_set(netdev, mgp->mac_addr);
 
 	myri10ge_select_firmware(mgp);
 
@@ -3873,10 +3864,7 @@ static int myri10ge_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	/* fake NETIF_F_HW_VLAN_CTAG_RX for good GRO performance */
 	netdev->hw_features |= NETIF_F_HW_VLAN_CTAG_RX;
 
-	netdev->features = netdev->hw_features;
-
-	if (dac_enabled)
-		netdev->features |= NETIF_F_HIGHDMA;
+	netdev->features = netdev->hw_features | NETIF_F_HIGHDMA;
 
 	netdev->vlan_features |= mgp->features;
 	if (mgp->fw_ver_tiny < 37)

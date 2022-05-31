@@ -57,7 +57,9 @@ properties:
               - renesas,sdhi-r8a77990  # R-Car E3
               - renesas,sdhi-r8a77995  # R-Car D3
               - renesas,sdhi-r8a779a0  # R-Car V3U
+              - renesas,sdhi-r9a07g043 # RZ/G2UL
               - renesas,sdhi-r9a07g044 # RZ/G2{L,LC}
+              - renesas,sdhi-r9a07g054 # RZ/V2L
           - const: renesas,rcar-gen3-sdhi # R-Car Gen3 or RZ/G2
 
   reg:
@@ -107,37 +109,60 @@ allOf:
       properties:
         compatible:
           contains:
-            const: renesas,sdhi-r9a07g044
+            enum:
+              - renesas,sdhi-r9a07g043
+              - renesas,sdhi-r9a07g044
+              - renesas,sdhi-r9a07g054
     then:
       properties:
         clocks:
           items:
             - description: IMCLK, SDHI channel main clock1.
+            - description: CLK_HS, SDHI channel High speed clock which operates
+                           4 times that of SDHI channel main clock1.
             - description: IMCLK2, SDHI channel main clock2. When this clock is
                            turned off, external SD card detection cannot be
                            detected.
-            - description: CLK_HS, SDHI channel High speed clock which operates
-                           4 times that of SDHI channel main clock1.
             - description: ACLK, SDHI channel bus clock.
         clock-names:
           items:
-            - const: imclk
-            - const: imclk2
-            - const: clk_hs
+            - const: core
+            - const: clkh
+            - const: cd
             - const: aclk
       required:
         - clock-names
         - resets
     else:
-      properties:
-        clocks:
-          minItems: 1
-          maxItems: 2
-        clock-names:
-          minItems: 1
-          items:
-            - const: core
-            - const: cd
+      if:
+        properties:
+          compatible:
+            contains:
+              enum:
+                - renesas,rcar-gen2-sdhi
+                - renesas,rcar-gen3-sdhi
+      then:
+        properties:
+          clocks:
+            minItems: 1
+            maxItems: 3
+          clock-names:
+            minItems: 1
+            uniqueItems: true
+            items:
+              - const: core
+              - enum: [ clkh, cd ]
+              - const: cd
+      else:
+        properties:
+          clocks:
+            minItems: 1
+            maxItems: 2
+          clock-names:
+            minItems: 1
+            items:
+              - const: core
+              - const: cd
 
   - if:
       properties:

@@ -44,10 +44,10 @@ static void bio_csum(struct bio *bio, struct bkey *k)
 	uint64_t csum = 0;
 
 	bio_for_each_segment(bv, bio, iter) {
-		void *d = kmap(bv.bv_page) + bv.bv_offset;
+		void *d = bvec_kmap_local(&bv);
 
-		csum = bch_crc64_update(csum, d, bv.bv_len);
-		kunmap(bv.bv_page);
+		csum = crc64_be(csum, d, bv.bv_len);
+		kunmap_local(d);
 	}
 
 	k->ptr[KEY_PTRS(k)] = csum & (~0ULL >> 1);
@@ -651,8 +651,8 @@ static void backing_request_endio(struct bio *bio)
 		 */
 		if (unlikely(s->iop.writeback &&
 			     bio->bi_opf & REQ_PREFLUSH)) {
-			pr_err("Can't flush %s: returned bi_status %i\n",
-				dc->backing_dev_name, bio->bi_status);
+			pr_err("Can't flush %pg: returned bi_status %i\n",
+				dc->bdev, bio->bi_status);
 		} else {
 			/* set to orig_bio->bi_status in bio_complete() */
 			s->iop.status = bio->bi_status;
@@ -685,8 +685,7 @@ static void do_bio_hook(struct search *s,
 {
 	struct bio *bio = &s->bio.bio;
 
-	bio_init(bio, NULL, 0);
-	__bio_clone_fast(bio, orig_bio);
+	bio_init_clone(orig_bio->bi_bdev, bio, orig_bio, GFP_NOIO);
 	/*
 	 * bi_end_io can be set separately somewhere else, e.g. the
 	 * variants in,
@@ -831,11 +830,11 @@ static void cached_dev_read_done(struct closure *cl)
 	 */
 
 	if (s->iop.bio) {
-		bio_reset(s->iop.bio);
+		bio_reset(s->iop.bio, s->cache_miss->bi_bdev, REQ_OP_READ);
 		s->iop.bio->bi_iter.bi_sector =
 			s->cache_miss->bi_iter.bi_sector;
-		bio_copy_dev(s->iop.bio, s->cache_miss);
 		s->iop.bio->bi_iter.bi_size = s->insert_bio_sectors << 9;
+		bio_clone_blkg_association(s->iop.bio, s->cache_miss);
 		bch_bio_map(s->iop.bio, NULL);
 
 		bio_copy_data(s->cache_miss, s->iop.bio);
@@ -913,14 +912,13 @@ static int cached_dev_cache_miss(struct btree *b, struct search *s,
 	/* btree_search_recurse()'s btree iterator is no good anymore */
 	ret = miss == bio ? MAP_DONE : -EINTR;
 
-	cache_bio = bio_alloc_bioset(GFP_NOWAIT,
+	cache_bio = bio_alloc_bioset(miss->bi_bdev,
 			DIV_ROUND_UP(s->insert_bio_sectors, PAGE_SECTORS),
-			&dc->disk.bio_split);
+			0, GFP_NOWAIT, &dc->disk.bio_split);
 	if (!cache_bio)
 		goto out_submit;
 
 	cache_bio->bi_iter.bi_sector	= miss->bi_iter.bi_sector;
-	bio_copy_dev(cache_bio, miss);
 	cache_bio->bi_iter.bi_size	= s->insert_bio_sectors << 9;
 
 	cache_bio->bi_end_io	= backing_request_endio;
@@ -1025,21 +1023,21 @@ static void cached_dev_write(struct cached_dev *dc, struct search *s)
 			 */
 			struct bio *flush;
 
-			flush = bio_alloc_bioset(GFP_NOIO, 0,
-						 &dc->disk.bio_split);
+			flush = bio_alloc_bioset(bio->bi_bdev, 0,
+						 REQ_OP_WRITE | REQ_PREFLUSH,
+						 GFP_NOIO, &dc->disk.bio_split);
 			if (!flush) {
 				s->iop.status = BLK_STS_RESOURCE;
 				goto insert_data;
 			}
-			bio_copy_dev(flush, bio);
 			flush->bi_end_io = backing_request_endio;
 			flush->bi_private = cl;
-			flush->bi_opf = REQ_OP_WRITE | REQ_PREFLUSH;
 			/* I/O request sent to backing device */
 			closure_bio_submit(s->iop.c, flush, cl);
 		}
 	} else {
-		s->iop.bio = bio_clone_fast(bio, GFP_NOIO, &dc->disk.bio_split);
+		s->iop.bio = bio_alloc_clone(bio->bi_bdev, bio, GFP_NOIO,
+					     &dc->disk.bio_split);
 		/* I/O request sent to backing device */
 		bio->bi_end_io = backing_request_endio;
 		closure_bio_submit(s->iop.c, bio, cl);
@@ -1163,7 +1161,7 @@ static void quit_max_writeback_rate(struct cache_set *c,
 
 /* Cached devices - read & write stuff */
 
-blk_qc_t cached_dev_submit_bio(struct bio *bio)
+void cached_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct block_device *orig_bdev = bio->bi_bdev;
@@ -1176,7 +1174,7 @@ blk_qc_t cached_dev_submit_bio(struct bio *bio)
 		     dc->io_disable)) {
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
-		return BLK_QC_T_NONE;
+		return;
 	}
 
 	if (likely(d->c)) {
@@ -1222,8 +1220,6 @@ blk_qc_t cached_dev_submit_bio(struct bio *bio)
 	} else
 		/* I/O request sent to backing device */
 		detached_dev_do_request(d, bio, orig_bdev, start_time);
-
-	return BLK_QC_T_NONE;
 }
 
 static int cached_dev_ioctl(struct bcache_device *d, fmode_t mode,
@@ -1273,7 +1269,7 @@ static void flash_dev_nodata(struct closure *cl)
 	continue_at(cl, search_free, NULL);
 }
 
-blk_qc_t flash_dev_submit_bio(struct bio *bio)
+void flash_dev_submit_bio(struct bio *bio)
 {
 	struct search *s;
 	struct closure *cl;
@@ -1282,7 +1278,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 	if (unlikely(d->c && test_bit(CACHE_SET_IO_DISABLE, &d->c->flags))) {
 		bio->bi_status = BLK_STS_IOERR;
 		bio_endio(bio);
-		return BLK_QC_T_NONE;
+		return;
 	}
 
 	s = search_alloc(bio, d, bio->bi_bdev, bio_start_io_acct(bio));
@@ -1298,7 +1294,7 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 		continue_at_nobarrier(&s->cl,
 				      flash_dev_nodata,
 				      bcache_wq);
-		return BLK_QC_T_NONE;
+		return;
 	} else if (bio_data_dir(bio)) {
 		bch_keybuf_check_overlapping(&s->iop.c->moving_gc_keys,
 					&KEY(d->id, bio->bi_iter.bi_sector, 0),
@@ -1314,7 +1310,6 @@ blk_qc_t flash_dev_submit_bio(struct bio *bio)
 	}
 
 	continue_at(cl, search_free, NULL);
-	return BLK_QC_T_NONE;
 }
 
 static int flash_dev_ioctl(struct bcache_device *d, fmode_t mode,

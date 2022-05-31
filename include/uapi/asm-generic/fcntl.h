@@ -181,6 +181,10 @@ struct f_owner_ex {
 				   blocking */
 #define LOCK_UN		8	/* remove lock */
 
+/*
+ * LOCK_MAND support has been removed from the kernel. We leave the symbols
+ * here to not break legacy builds, but these should not be used in new code.
+ */
 #define LOCK_MAND	32	/* This is a mandatory flock ... */
 #define LOCK_READ	64	/* which allows concurrent read operations */
 #define LOCK_WRITE	128	/* which allows concurrent write operations */

@@ -19,7 +19,7 @@
 #include <linux/sched.h>
 #include <linux/slab.h>
 #include <linux/vmalloc.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/swap.h>
 #include <linux/debugfs.h>
 #include <linux/seq_file.h>
@@ -716,7 +716,6 @@ retry:
 		return ret;
 	}
 
-	eb = d->eb_data + *newblock / d->pages_per_eblk;
 	d->page_data[page] = *newblock;
 	d->revmap[oldblock] = PAGE_UNDEF;
 	eb = d->eb_data + oldblock / d->pages_per_eblk;

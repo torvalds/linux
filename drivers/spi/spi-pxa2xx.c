@@ -13,7 +13,6 @@
 #include <linux/err.h>
 #include <linux/errno.h>
 #include <linux/gpio/consumer.h>
-#include <linux/gpio.h>
 #include <linux/init.h>
 #include <linux/interrupt.h>
 #include <linux/ioport.h>
@@ -427,17 +426,11 @@ static void lpss_ssp_cs_control(struct spi_device *spi, bool enable)
 
 static void cs_assert(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 
 	if (drv_data->ssp_type == CE4100_SSP) {
 		pxa2xx_spi_write(drv_data, SSSR, spi->chip_select);
-		return;
-	}
-
-	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_ASSERT);
 		return;
 	}
 
@@ -447,7 +440,6 @@ static void cs_assert(struct spi_device *spi)
 
 static void cs_deassert(struct spi_device *spi)
 {
-	struct chip_data *chip = spi_get_ctldata(spi);
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 	unsigned long timeout;
@@ -460,11 +452,6 @@ static void cs_deassert(struct spi_device *spi)
 	while (pxa2xx_spi_read(drv_data, SSSR) & SSSR_BSY &&
 	       !time_after(jiffies, timeout))
 		cpu_relax();
-
-	if (chip->cs_control) {
-		chip->cs_control(PXA2XX_CS_DEASSERT);
-		return;
-	}
 
 	if (is_lpss_ssp(drv_data))
 		lpss_ssp_cs_control(spi, false);
@@ -994,13 +981,10 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 		dev_err(&spi->dev, "Flush failed\n");
 		return -EIO;
 	}
-	drv_data->n_bytes = chip->n_bytes;
 	drv_data->tx = (void *)transfer->tx_buf;
 	drv_data->tx_end = drv_data->tx + transfer->len;
 	drv_data->rx = transfer->rx_buf;
 	drv_data->rx_end = drv_data->rx + transfer->len;
-	drv_data->write = drv_data->tx ? chip->write : null_writer;
-	drv_data->read = drv_data->rx ? chip->read : null_reader;
 
 	/* Change speed and bit per word on a per transfer */
 	bits = transfer->bits_per_word;
@@ -1010,22 +994,16 @@ static int pxa2xx_spi_transfer_one(struct spi_controller *controller,
 
 	if (bits <= 8) {
 		drv_data->n_bytes = 1;
-		drv_data->read = drv_data->read != null_reader ?
-					u8_reader : null_reader;
-		drv_data->write = drv_data->write != null_writer ?
-					u8_writer : null_writer;
+		drv_data->read = drv_data->rx ? u8_reader : null_reader;
+		drv_data->write = drv_data->tx ? u8_writer : null_writer;
 	} else if (bits <= 16) {
 		drv_data->n_bytes = 2;
-		drv_data->read = drv_data->read != null_reader ?
-					u16_reader : null_reader;
-		drv_data->write = drv_data->write != null_writer ?
-					u16_writer : null_writer;
+		drv_data->read = drv_data->rx ? u16_reader : null_reader;
+		drv_data->write = drv_data->tx ? u16_writer : null_writer;
 	} else if (bits <= 32) {
 		drv_data->n_bytes = 4;
-		drv_data->read = drv_data->read != null_reader ?
-					u32_reader : null_reader;
-		drv_data->write = drv_data->write != null_writer ?
-					u32_writer : null_writer;
+		drv_data->read = drv_data->rx ? u32_reader : null_reader;
+		drv_data->write = drv_data->tx ? u32_writer : null_writer;
 	}
 	/*
 	 * If bits per word is changed in DMA mode, then must check
@@ -1184,63 +1162,6 @@ static int pxa2xx_spi_unprepare_transfer(struct spi_controller *controller)
 	return 0;
 }
 
-static void cleanup_cs(struct spi_device *spi)
-{
-	if (!gpio_is_valid(spi->cs_gpio))
-		return;
-
-	gpio_free(spi->cs_gpio);
-	spi->cs_gpio = -ENOENT;
-}
-
-static int setup_cs(struct spi_device *spi, struct chip_data *chip,
-		    struct pxa2xx_spi_chip *chip_info)
-{
-	struct driver_data *drv_data = spi_controller_get_devdata(spi->controller);
-
-	if (chip == NULL)
-		return 0;
-
-	if (chip_info == NULL)
-		return 0;
-
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 0;
-
-	/*
-	 * NOTE: setup() can be called multiple times, possibly with
-	 * different chip_info, release previously requested GPIO.
-	 */
-	cleanup_cs(spi);
-
-	/* If ->cs_control() is provided, ignore GPIO chip select */
-	if (chip_info->cs_control) {
-		chip->cs_control = chip_info->cs_control;
-		return 0;
-	}
-
-	if (gpio_is_valid(chip_info->gpio_cs)) {
-		int gpio = chip_info->gpio_cs;
-		int err;
-
-		err = gpio_request(gpio, "SPI_CS");
-		if (err) {
-			dev_err(&spi->dev, "failed to request chip select GPIO%d\n", gpio);
-			return err;
-		}
-
-		err = gpio_direction_output(gpio, !(spi->mode & SPI_CS_HIGH));
-		if (err) {
-			gpio_free(gpio);
-			return err;
-		}
-
-		spi->cs_gpio = gpio;
-	}
-
-	return 0;
-}
-
 static int setup(struct spi_device *spi)
 {
 	struct pxa2xx_spi_chip *chip_info;
@@ -1249,7 +1170,6 @@ static int setup(struct spi_device *spi)
 	struct driver_data *drv_data =
 		spi_controller_get_devdata(spi->controller);
 	uint tx_thres, tx_hi_thres, rx_thres;
-	int err;
 
 	switch (drv_data->ssp_type) {
 	case QUARK_X1000_SSP:
@@ -1316,7 +1236,6 @@ static int setup(struct spi_device *spi)
 	chip_info = spi->controller_data;
 
 	/* chip_info isn't always needed */
-	chip->cr1 = 0;
 	if (chip_info) {
 		if (chip_info->timeout)
 			chip->timeout = chip_info->timeout;
@@ -1327,9 +1246,9 @@ static int setup(struct spi_device *spi)
 		if (chip_info->rx_threshold)
 			rx_thres = chip_info->rx_threshold;
 		chip->dma_threshold = 0;
-		if (chip_info->enable_loopback)
-			chip->cr1 = SSCR1_LBM;
 	}
+
+	chip->cr1 = 0;
 	if (spi_controller_is_slave(drv_data->controller)) {
 		chip->cr1 |= SSCR1_SCFR;
 		chip->cr1 |= SSCR1_SCLKDIR;
@@ -1391,37 +1310,15 @@ static int setup(struct spi_device *spi)
 	if (spi->mode & SPI_LOOP)
 		chip->cr1 |= SSCR1_LBM;
 
-	if (spi->bits_per_word <= 8) {
-		chip->n_bytes = 1;
-		chip->read = u8_reader;
-		chip->write = u8_writer;
-	} else if (spi->bits_per_word <= 16) {
-		chip->n_bytes = 2;
-		chip->read = u16_reader;
-		chip->write = u16_writer;
-	} else if (spi->bits_per_word <= 32) {
-		chip->n_bytes = 4;
-		chip->read = u32_reader;
-		chip->write = u32_writer;
-	}
-
 	spi_set_ctldata(spi, chip);
 
-	if (drv_data->ssp_type == CE4100_SSP)
-		return 0;
-
-	err = setup_cs(spi, chip, chip_info);
-	if (err)
-		kfree(chip);
-
-	return err;
+	return 0;
 }
 
 static void cleanup(struct spi_device *spi)
 {
 	struct chip_data *chip = spi_get_ctldata(spi);
 
-	cleanup_cs(spi);
 	kfree(chip);
 }
 
@@ -1497,6 +1394,11 @@ static const struct pci_device_id pxa2xx_spi_pci_compound_match[] = {
 	{ PCI_VDEVICE(INTEL, 0x5ac2), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac4), LPSS_BXT_SSP },
 	{ PCI_VDEVICE(INTEL, 0x5ac6), LPSS_BXT_SSP },
+	/* RPL-S */
+	{ PCI_VDEVICE(INTEL, 0x7a2a), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7a2b), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7a79), LPSS_CNL_SSP },
+	{ PCI_VDEVICE(INTEL, 0x7a7b), LPSS_CNL_SSP },
 	/* ADL-S */
 	{ PCI_VDEVICE(INTEL, 0x7aaa), LPSS_CNL_SSP },
 	{ PCI_VDEVICE(INTEL, 0x7aab), LPSS_CNL_SSP },
@@ -1706,8 +1608,7 @@ static int pxa2xx_spi_probe(struct platform_device *pdev)
 	drv_data->controller_info = platform_info;
 	drv_data->ssp = ssp;
 
-	controller->dev.of_node = dev->of_node;
-	controller->dev.fwnode = dev->fwnode;
+	device_set_node(&controller->dev, dev_fwnode(dev));
 
 	/* The spi->mode bits understood by this driver: */
 	controller->mode_bits = SPI_CPOL | SPI_CPHA | SPI_CS_HIGH | SPI_LOOP;

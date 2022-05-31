@@ -12,6 +12,7 @@
 	model = "Google Snow";
 	compatible = "google,snow-rev4", "google,snow", "samsung,exynos5250",
 		"samsung,exynos5";
+	chassis-type = "laptop";
 
 	sound {
 		compatible = "google,snow-audio-max98095";
@@ -42,7 +43,7 @@
 };
 
 &pinctrl_0 {
-	max98095_en: max98095-en {
+	max98095_en: max98095-en-pins {
 		samsung,pins = "gpx1-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <EXYNOS_PIN_PULL_UP>;

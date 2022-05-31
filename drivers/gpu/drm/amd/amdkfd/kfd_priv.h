@@ -1,5 +1,6 @@
+/* SPDX-License-Identifier: GPL-2.0 OR MIT */
 /*
- * Copyright 2014 Advanced Micro Devices, Inc.
+ * Copyright 2014-2022 Advanced Micro Devices, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -25,6 +26,7 @@
 
 #include <linux/hashtable.h>
 #include <linux/mmu_notifier.h>
+#include <linux/memremap.h>
 #include <linux/mutex.h>
 #include <linux/types.h>
 #include <linux/atomic.h>
@@ -121,7 +123,26 @@
  */
 #define KFD_QUEUE_DOORBELL_MIRROR_OFFSET 512
 
-
+/**
+ * enum kfd_ioctl_flags - KFD ioctl flags
+ * Various flags that can be set in &amdkfd_ioctl_desc.flags to control how
+ * userspace can use a given ioctl.
+ */
+enum kfd_ioctl_flags {
+	/*
+	 * @KFD_IOC_FLAG_CHECKPOINT_RESTORE:
+	 * Certain KFD ioctls such as AMDKFD_IOC_CRIU_OP can potentially
+	 * perform privileged operations and load arbitrary data into MQDs and
+	 * eventually HQD registers when the queue is mapped by HWS. In order to
+	 * prevent this we should perform additional security checks.
+	 *
+	 * This is equivalent to callers with the CHECKPOINT_RESTORE capability.
+	 *
+	 * Note: Since earlier versions of docker do not support CHECKPOINT_RESTORE,
+	 * we also allow ioctls with SYS_ADMIN capability.
+	 */
+	KFD_IOC_FLAG_CHECKPOINT_RESTORE = BIT(0),
+};
 /*
  * Kernel module parameter to specify maximum number of supported queues per
  * device
@@ -183,7 +204,8 @@ enum cache_policy {
 	cache_policy_noncoherent
 };
 
-#define KFD_IS_SOC15(chip) ((chip) >= CHIP_VEGA10)
+#define KFD_GC_VERSION(dev) ((dev)->adev->ip_versions[GC_HWIP][0])
+#define KFD_IS_SOC15(dev)   ((KFD_GC_VERSION(dev)) >= (IP_VERSION(9, 0, 1)))
 
 struct kfd_event_interrupt_class {
 	bool (*interrupt_isr)(struct kfd_dev *dev,
@@ -194,8 +216,6 @@ struct kfd_event_interrupt_class {
 };
 
 struct kfd_device_info {
-	enum amd_asic_type asic_family;
-	const char *asic_name;
 	uint32_t gfx_target_version;
 	const struct kfd_event_interrupt_class *event_interrupt_class;
 	unsigned int max_pasid_bits;
@@ -208,10 +228,11 @@ struct kfd_device_info {
 	bool needs_iommu_device;
 	bool needs_pci_atomics;
 	uint32_t no_atomic_fw_version;
-	unsigned int num_sdma_engines;
-	unsigned int num_xgmi_sdma_engines;
 	unsigned int num_sdma_queues_per_engine;
 };
+
+unsigned int kfd_get_num_sdma_engines(struct kfd_dev *kdev);
+unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_dev *kdev);
 
 struct kfd_mem_obj {
 	uint32_t range_start;
@@ -228,9 +249,9 @@ struct kfd_vmid_info {
 };
 
 struct kfd_dev {
-	struct kgd_dev *kgd;
+	struct amdgpu_device *adev;
 
-	const struct kfd_device_info *device_info;
+	struct kfd_device_info device_info;
 	struct pci_dev *pdev;
 	struct drm_device *ddev;
 
@@ -280,9 +301,6 @@ struct kfd_dev {
 	 * from the HW ring into a SW ring.
 	 */
 	bool interrupts_active;
-
-	/* Debug manager */
-	struct kfd_dbgmgr *dbgmgr;
 
 	/* Firmware versions */
 	uint16_t mec_fw_version;
@@ -338,25 +356,24 @@ enum kfd_mempool {
 /* Character device interface */
 int kfd_chardev_init(void);
 void kfd_chardev_exit(void);
-struct device *kfd_chardev(void);
 
 /**
  * enum kfd_unmap_queues_filter - Enum for queue filters.
  *
- * @KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE: Preempts single queue.
- *
  * @KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES: Preempts all queues in the
  *						running queues list.
+ *
+ * @KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES: Preempts all non-static queues
+ *						in the run list.
  *
  * @KFD_UNMAP_QUEUES_FILTER_BY_PASID: Preempts queues that belongs to
  *						specific process.
  *
  */
 enum kfd_unmap_queues_filter {
-	KFD_UNMAP_QUEUES_FILTER_SINGLE_QUEUE,
-	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES,
-	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES,
-	KFD_UNMAP_QUEUES_FILTER_BY_PASID
+	KFD_UNMAP_QUEUES_FILTER_ALL_QUEUES = 1,
+	KFD_UNMAP_QUEUES_FILTER_DYNAMIC_QUEUES = 2,
+	KFD_UNMAP_QUEUES_FILTER_BY_PASID = 3
 };
 
 /**
@@ -442,6 +459,7 @@ enum KFD_QUEUE_PRIORITY {
  * it's user mode or kernel mode queue.
  *
  */
+
 struct queue_properties {
 	enum kfd_queue_type type;
 	enum kfd_queue_format format;
@@ -472,15 +490,26 @@ struct queue_properties {
 	uint32_t ctl_stack_size;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
-	/* Relevant for CU */
-	uint32_t cu_mask_count; /* Must be a multiple of 32 */
-	uint32_t *cu_mask;
 };
 
 #define QUEUE_IS_ACTIVE(q) ((q).queue_size > 0 &&	\
 			    (q).queue_address != 0 &&	\
 			    (q).queue_percent > 0 &&	\
 			    !(q).is_evicted)
+
+enum mqd_update_flag {
+	UPDATE_FLAG_CU_MASK = 0,
+};
+
+struct mqd_update_info {
+	union {
+		struct {
+			uint32_t count; /* Must be a multiple of 32 */
+			uint32_t *ptr;
+		} cu_mask;
+	};
+	enum mqd_update_flag update_flag;
+};
 
 /**
  * struct queue
@@ -608,12 +637,14 @@ struct qcm_process_device {
 	uint32_t sh_hidden_private_base;
 
 	/* CWSR memory */
+	struct kgd_mem *cwsr_mem;
 	void *cwsr_kaddr;
 	uint64_t cwsr_base;
 	uint64_t tba_addr;
 	uint64_t tma_addr;
 
 	/* IB memory */
+	struct kgd_mem *ib_mem;
 	uint64_t ib_base;
 	void *ib_kaddr;
 
@@ -741,6 +772,12 @@ struct kfd_process_device {
 	uint64_t faults;
 	uint64_t page_in;
 	uint64_t page_out;
+	/*
+	 * If this process has been checkpointed before, then the user
+	 * application will use the original gpu_id on the
+	 * checkpointed node to refer to this device.
+	 */
+	uint32_t user_gpu_id;
 };
 
 #define qpd_to_pdd(x) container_of(x, struct kfd_process_device, qpd)
@@ -751,10 +788,13 @@ struct svm_range_list {
 	struct list_head		list;
 	struct work_struct		deferred_list_work;
 	struct list_head		deferred_range_list;
+	struct list_head                criu_svm_metadata_list;
 	spinlock_t			deferred_list_lock;
 	atomic_t			evicted_ranges;
+	atomic_t			drain_pagefaults;
 	struct delayed_work		restore_work;
 	DECLARE_BITMAP(bitmap_supported, MAX_GPU_INSTANCE);
+	struct task_struct		*faulting_task;
 };
 
 /* Process data */
@@ -808,6 +848,7 @@ struct kfd_process {
 	/* Event ID allocator and lookup */
 	struct idr event_idr;
 	/* Event page */
+	u64 signal_handle;
 	struct kfd_signal_page *signal_page;
 	size_t signal_mapped_size;
 	size_t signal_event_count;
@@ -840,6 +881,10 @@ struct kfd_process {
 	struct svm_range_list svms;
 
 	bool xnack_enabled;
+
+	atomic_t poison;
+	/* Queues are in paused stated because we are in the process of doing a CRIU checkpoint */
+	bool queues_paused;
 };
 
 #define KFD_PROCESS_TABLE_SIZE 5 /* bits: 32 entries */
@@ -870,12 +915,12 @@ bool kfd_dev_is_large_bar(struct kfd_dev *dev);
 int kfd_process_create_wq(void);
 void kfd_process_destroy_wq(void);
 struct kfd_process *kfd_create_process(struct file *filep);
-struct kfd_process *kfd_get_process(const struct task_struct *);
+struct kfd_process *kfd_get_process(const struct task_struct *task);
 struct kfd_process *kfd_lookup_process_by_pasid(u32 pasid);
 struct kfd_process *kfd_lookup_process_by_mm(const struct mm_struct *mm);
 
 int kfd_process_gpuidx_from_gpuid(struct kfd_process *p, uint32_t gpu_id);
-int kfd_process_gpuid_from_kgd(struct kfd_process *p,
+int kfd_process_gpuid_from_adev(struct kfd_process *p,
 			       struct amdgpu_device *adev, uint32_t *gpuid,
 			       uint32_t *gpuidx);
 static inline int kfd_process_gpuid_from_gpuidx(struct kfd_process *p,
@@ -892,6 +937,11 @@ int kfd_process_evict_queues(struct kfd_process *p);
 int kfd_process_restore_queues(struct kfd_process *p);
 void kfd_suspend_all_processes(void);
 int kfd_resume_all_processes(void);
+
+struct kfd_process_device *kfd_process_device_data_by_id(struct kfd_process *process,
+							 uint32_t gpu_id);
+
+int kfd_process_get_user_gpu_id(struct kfd_process *p, uint32_t actual_gpu_id);
 
 int kfd_process_device_init_vm(struct kfd_process_device *pdd,
 			       struct file *drm_file);
@@ -914,6 +964,7 @@ void *kfd_process_device_translate_handle(struct kfd_process_device *p,
 					int handle);
 void kfd_process_device_remove_obj_handle(struct kfd_process_device *pdd,
 					int handle);
+struct kfd_process *kfd_lookup_process_by_pid(struct pid *pid);
 
 /* PASIDs */
 int kfd_pasid_init(void);
@@ -968,7 +1019,7 @@ struct kfd_topology_device *kfd_topology_device_by_proximity_domain(
 struct kfd_topology_device *kfd_topology_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_id(uint32_t gpu_id);
 struct kfd_dev *kfd_device_by_pci_dev(const struct pci_dev *pdev);
-struct kfd_dev *kfd_device_by_kgd(const struct kgd_dev *kgd);
+struct kfd_dev *kfd_device_by_adev(const struct amdgpu_device *adev);
 int kfd_topology_enum_kfd_devices(uint8_t idx, struct kfd_dev **kdev);
 int kfd_numa_node_to_apic_id(int numa_node_id);
 void kfd_double_confirm_iommu_support(struct kfd_dev *gpu);
@@ -987,6 +1038,116 @@ int kfd_init_apertures(struct kfd_process *process);
 void kfd_process_set_trap_handler(struct qcm_process_device *qpd,
 				  uint64_t tba_addr,
 				  uint64_t tma_addr);
+
+/* CRIU */
+/*
+ * Need to increment KFD_CRIU_PRIV_VERSION each time a change is made to any of the CRIU private
+ * structures:
+ * kfd_criu_process_priv_data
+ * kfd_criu_device_priv_data
+ * kfd_criu_bo_priv_data
+ * kfd_criu_queue_priv_data
+ * kfd_criu_event_priv_data
+ * kfd_criu_svm_range_priv_data
+ */
+
+#define KFD_CRIU_PRIV_VERSION 1
+
+struct kfd_criu_process_priv_data {
+	uint32_t version;
+	uint32_t xnack_mode;
+};
+
+struct kfd_criu_device_priv_data {
+	/* For future use */
+	uint64_t reserved;
+};
+
+struct kfd_criu_bo_priv_data {
+	uint64_t user_addr;
+	uint32_t idr_handle;
+	uint32_t mapped_gpuids[MAX_GPU_INSTANCE];
+};
+
+/*
+ * The first 4 bytes of kfd_criu_queue_priv_data, kfd_criu_event_priv_data,
+ * kfd_criu_svm_range_priv_data is the object type
+ */
+enum kfd_criu_object_type {
+	KFD_CRIU_OBJECT_TYPE_QUEUE,
+	KFD_CRIU_OBJECT_TYPE_EVENT,
+	KFD_CRIU_OBJECT_TYPE_SVM_RANGE,
+};
+
+struct kfd_criu_svm_range_priv_data {
+	uint32_t object_type;
+	uint64_t start_addr;
+	uint64_t size;
+	/* Variable length array of attributes */
+	struct kfd_ioctl_svm_attribute attrs[];
+};
+
+struct kfd_criu_queue_priv_data {
+	uint32_t object_type;
+	uint64_t q_address;
+	uint64_t q_size;
+	uint64_t read_ptr_addr;
+	uint64_t write_ptr_addr;
+	uint64_t doorbell_off;
+	uint64_t eop_ring_buffer_address;
+	uint64_t ctx_save_restore_area_address;
+	uint32_t gpu_id;
+	uint32_t type;
+	uint32_t format;
+	uint32_t q_id;
+	uint32_t priority;
+	uint32_t q_percent;
+	uint32_t doorbell_id;
+	uint32_t gws;
+	uint32_t sdma_id;
+	uint32_t eop_ring_buffer_size;
+	uint32_t ctx_save_restore_area_size;
+	uint32_t ctl_stack_size;
+	uint32_t mqd_size;
+};
+
+struct kfd_criu_event_priv_data {
+	uint32_t object_type;
+	uint64_t user_handle;
+	uint32_t event_id;
+	uint32_t auto_reset;
+	uint32_t type;
+	uint32_t signaled;
+
+	union {
+		struct kfd_hsa_memory_exception_data memory_exception_data;
+		struct kfd_hsa_hw_exception_data hw_exception_data;
+	};
+};
+
+int kfd_process_get_queue_info(struct kfd_process *p,
+			       uint32_t *num_queues,
+			       uint64_t *priv_data_sizes);
+
+int kfd_criu_checkpoint_queues(struct kfd_process *p,
+			 uint8_t __user *user_priv_data,
+			 uint64_t *priv_data_offset);
+
+int kfd_criu_restore_queue(struct kfd_process *p,
+			   uint8_t __user *user_priv_data,
+			   uint64_t *priv_data_offset,
+			   uint64_t max_priv_data_size);
+
+int kfd_criu_checkpoint_events(struct kfd_process *p,
+			 uint8_t __user *user_priv_data,
+			 uint64_t *priv_data_offset);
+
+int kfd_criu_restore_event(struct file *devkfd,
+			   struct kfd_process *p,
+			   uint8_t __user *user_priv_data,
+			   uint64_t *priv_data_offset,
+			   uint64_t max_priv_data_size);
+/* CRIU - End */
 
 /* Queue Context Management */
 int init_queue(struct queue **q, const struct queue_properties *properties);
@@ -1011,7 +1172,7 @@ void device_queue_manager_uninit(struct device_queue_manager *dqm);
 struct kernel_queue *kernel_queue_init(struct kfd_dev *dev,
 					enum kfd_queue_type type);
 void kernel_queue_uninit(struct kernel_queue *kq, bool hanging);
-int kfd_process_vm_fault(struct device_queue_manager *dqm, u32 pasid);
+int kfd_dqm_evict_pasid(struct device_queue_manager *dqm, u32 pasid);
 
 /* Process Queue Manager */
 struct process_queue_node {
@@ -1029,12 +1190,15 @@ int pqm_create_queue(struct process_queue_manager *pqm,
 			    struct file *f,
 			    struct queue_properties *properties,
 			    unsigned int *qid,
+			    const struct kfd_criu_queue_priv_data *q_data,
+			    const void *restore_mqd,
+			    const void *restore_ctl_stack,
 			    uint32_t *p_doorbell_offset_in_process);
 int pqm_destroy_queue(struct process_queue_manager *pqm, unsigned int qid);
-int pqm_update_queue(struct process_queue_manager *pqm, unsigned int qid,
+int pqm_update_queue_properties(struct process_queue_manager *pqm, unsigned int qid,
 			struct queue_properties *p);
-int pqm_set_cu_mask(struct process_queue_manager *pqm, unsigned int qid,
-			struct queue_properties *p);
+int pqm_update_mqd(struct process_queue_manager *pqm, unsigned int qid,
+			struct mqd_update_info *minfo);
 int pqm_set_gws(struct process_queue_manager *pqm, unsigned int qid,
 			void *gws);
 struct kernel_queue *pqm_get_kernel_queue(struct process_queue_manager *pqm,
@@ -1051,6 +1215,10 @@ int amdkfd_fence_wait_timeout(uint64_t *fence_addr,
 			      uint64_t fence_value,
 			      unsigned int timeout_ms);
 
+int pqm_get_queue_checkpoint_info(struct process_queue_manager *pqm,
+				  unsigned int qid,
+				  u32 *mqd_size,
+				  u32 *ctl_stack_size);
 /* Packet Manager */
 
 #define KFD_FENCE_COMPLETED (100)
@@ -1079,10 +1247,8 @@ struct packet_manager_funcs {
 	int (*map_queues)(struct packet_manager *pm, uint32_t *buffer,
 			struct queue *q, bool is_static);
 	int (*unmap_queues)(struct packet_manager *pm, uint32_t *buffer,
-			enum kfd_queue_type type,
 			enum kfd_unmap_queues_filter mode,
-			uint32_t filter_param, bool reset,
-			unsigned int sdma_engine);
+			uint32_t filter_param, bool reset);
 	int (*query_status)(struct packet_manager *pm, uint32_t *buffer,
 			uint64_t fence_address,	uint64_t fence_value);
 	int (*release_mem)(uint64_t gpu_addr, uint32_t *buffer);
@@ -1109,10 +1275,9 @@ int pm_send_runlist(struct packet_manager *pm, struct list_head *dqm_queues);
 int pm_send_query_status(struct packet_manager *pm, uint64_t fence_address,
 				uint64_t fence_value);
 
-int pm_send_unmap_queue(struct packet_manager *pm, enum kfd_queue_type type,
+int pm_send_unmap_queue(struct packet_manager *pm,
 			enum kfd_unmap_queues_filter mode,
-			uint32_t filter_param, bool reset,
-			unsigned int sdma_engine);
+			uint32_t filter_param, bool reset);
 
 void pm_release_ib(struct packet_manager *pm);
 
@@ -1142,12 +1307,14 @@ void kfd_signal_iommu_event(struct kfd_dev *dev,
 void kfd_signal_hw_exception_event(u32 pasid);
 int kfd_set_event(struct kfd_process *p, uint32_t event_id);
 int kfd_reset_event(struct kfd_process *p, uint32_t event_id);
-int kfd_event_page_set(struct kfd_process *p, void *kernel_address,
-		       uint64_t size);
+int kfd_kmap_event_page(struct kfd_process *p, uint64_t event_page_offset);
+
 int kfd_event_create(struct file *devkfd, struct kfd_process *p,
 		     uint32_t event_type, bool auto_reset, uint32_t node_id,
 		     uint32_t *event_id, uint32_t *event_trigger_data,
 		     uint64_t *event_page_offset, uint32_t *event_slot_index);
+
+int kfd_get_num_events(struct kfd_process *p);
 int kfd_event_destroy(struct kfd_process *p, uint32_t event_id);
 
 void kfd_signal_vm_fault_event(struct kfd_dev *dev, u32 pasid,
@@ -1158,8 +1325,6 @@ void kfd_signal_reset_event(struct kfd_dev *dev);
 void kfd_signal_poison_consumed_event(struct kfd_dev *dev, u32 pasid);
 
 void kfd_flush_tlb(struct kfd_process_device *pdd, enum TLB_FLUSH_TYPE type);
-
-int dbgdev_wave_reset_wavefronts(struct kfd_dev *dev, struct kfd_process *p);
 
 bool kfd_is_locked(void);
 

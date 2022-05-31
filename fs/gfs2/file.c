@@ -213,11 +213,9 @@ void gfs2_set_inode_flags(struct inode *inode)
  * @inode: The inode
  * @reqflags: The flags to set
  * @mask: Indicates which flags are valid
- * @fsflags: The FS_* inode flags passed in
  *
  */
-static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask,
-			     const u32 fsflags)
+static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask)
 {
 	struct gfs2_inode *ip = GFS2_I(inode);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
@@ -236,11 +234,6 @@ static int do_gfs2_set_flags(struct inode *inode, u32 reqflags, u32 mask,
 	if ((new_flags ^ flags) == 0)
 		goto out;
 
-	error = -EPERM;
-	if (IS_IMMUTABLE(inode) && (new_flags & GFS2_DIF_IMMUTABLE))
-		goto out;
-	if (IS_APPEND(inode) && (new_flags & GFS2_DIF_APPENDONLY))
-		goto out;
 	if (!IS_IMMUTABLE(inode)) {
 		error = gfs2_permission(&init_user_ns, inode, MAY_WRITE);
 		if (error)
@@ -313,7 +306,7 @@ int gfs2_fileattr_set(struct user_namespace *mnt_userns,
 		mask &= ~(GFS2_DIF_TOPDIR | GFS2_DIF_INHERIT_JDATA);
 	}
 
-	return do_gfs2_set_flags(inode, gfsflags, mask, fsflags);
+	return do_gfs2_set_flags(inode, gfsflags, mask);
 }
 
 static int gfs2_getlabel(struct file *filp, char __user *label)
@@ -711,10 +704,11 @@ static int gfs2_release(struct inode *inode, struct file *file)
 	kfree(file->private_data);
 	file->private_data = NULL;
 
-	if (gfs2_rs_active(&ip->i_res))
-		gfs2_rs_delete(ip, &inode->i_writecount);
-	if (file->f_mode & FMODE_WRITE)
+	if (file->f_mode & FMODE_WRITE) {
+		if (gfs2_rs_active(&ip->i_res))
+			gfs2_rs_delete(ip);
 		gfs2_qa_put(ip);
+	}
 	return 0;
 }
 
@@ -776,27 +770,93 @@ static int gfs2_fsync(struct file *file, loff_t start, loff_t end,
 	return ret ? ret : ret1;
 }
 
+static inline bool should_fault_in_pages(struct iov_iter *i,
+					 struct kiocb *iocb,
+					 size_t *prev_count,
+					 size_t *window_size)
+{
+	size_t count = iov_iter_count(i);
+	size_t size, offs;
+
+	if (!count)
+		return false;
+	if (!iter_is_iovec(i))
+		return false;
+
+	size = PAGE_SIZE;
+	offs = offset_in_page(iocb->ki_pos);
+	if (*prev_count != count || !*window_size) {
+		size_t nr_dirtied;
+
+		nr_dirtied = max(current->nr_dirtied_pause -
+				 current->nr_dirtied, 8);
+		size = min_t(size_t, SZ_1M, nr_dirtied << PAGE_SHIFT);
+	}
+
+	*prev_count = count;
+	*window_size = size - offs;
+	return true;
+}
+
 static ssize_t gfs2_file_direct_read(struct kiocb *iocb, struct iov_iter *to,
 				     struct gfs2_holder *gh)
 {
 	struct file *file = iocb->ki_filp;
 	struct gfs2_inode *ip = GFS2_I(file->f_mapping->host);
-	size_t count = iov_iter_count(to);
+	size_t prev_count = 0, window_size = 0;
+	size_t read = 0;
 	ssize_t ret;
 
-	if (!count)
+	/*
+	 * In this function, we disable page faults when we're holding the
+	 * inode glock while doing I/O.  If a page fault occurs, we indicate
+	 * that the inode glock may be dropped, fault in the pages manually,
+	 * and retry.
+	 *
+	 * Unlike generic_file_read_iter, for reads, iomap_dio_rw can trigger
+	 * physical as well as manual page faults, and we need to disable both
+	 * kinds.
+	 *
+	 * For direct I/O, gfs2 takes the inode glock in deferred mode.  This
+	 * locking mode is compatible with other deferred holders, so multiple
+	 * processes and nodes can do direct I/O to a file at the same time.
+	 * There's no guarantee that reads or writes will be atomic.  Any
+	 * coordination among readers and writers needs to happen externally.
+	 */
+
+	if (!iov_iter_count(to))
 		return 0; /* skip atime */
 
 	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, 0, gh);
+retry:
 	ret = gfs2_glock_nq(gh);
 	if (ret)
 		goto out_uninit;
+	pagefault_disable();
+	to->nofault = true;
+	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL,
+			   IOMAP_DIO_PARTIAL, read);
+	to->nofault = false;
+	pagefault_enable();
+	if (ret <= 0 && ret != -EFAULT)
+		goto out_unlock;
+	if (ret > 0)
+		read = ret;
 
-	ret = iomap_dio_rw(iocb, to, &gfs2_iomap_ops, NULL, 0);
-	gfs2_glock_dq(gh);
+	if (should_fault_in_pages(to, iocb, &prev_count, &window_size)) {
+		gfs2_glock_dq(gh);
+		window_size -= fault_in_iov_iter_writeable(to, window_size);
+		if (window_size)
+			goto retry;
+	}
+out_unlock:
+	if (gfs2_holder_queued(gh))
+		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
-	return ret;
+	if (ret < 0)
+		return ret;
+	return read;
 }
 
 static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
@@ -805,9 +865,19 @@ static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
 	struct file *file = iocb->ki_filp;
 	struct inode *inode = file->f_mapping->host;
 	struct gfs2_inode *ip = GFS2_I(inode);
-	size_t len = iov_iter_count(from);
-	loff_t offset = iocb->ki_pos;
+	size_t prev_count = 0, window_size = 0;
+	size_t written = 0;
 	ssize_t ret;
+
+	/*
+	 * In this function, we disable page faults when we're holding the
+	 * inode glock while doing I/O.  If a page fault occurs, we indicate
+	 * that the inode glock may be dropped, fault in the pages manually,
+	 * and retry.
+	 *
+	 * For writes, iomap_dio_rw only triggers manual page faults, so we
+	 * don't need to disable physical ones.
+	 */
 
 	/*
 	 * Deferred lock, even if its a write, since we do no allocation on
@@ -818,45 +888,71 @@ static ssize_t gfs2_file_direct_write(struct kiocb *iocb, struct iov_iter *from,
 	 * VFS does.
 	 */
 	gfs2_holder_init(ip->i_gl, LM_ST_DEFERRED, 0, gh);
+retry:
 	ret = gfs2_glock_nq(gh);
 	if (ret)
 		goto out_uninit;
-
 	/* Silently fall back to buffered I/O when writing beyond EOF */
-	if (offset + len > i_size_read(&ip->i_inode))
-		goto out;
+	if (iocb->ki_pos + iov_iter_count(from) > i_size_read(&ip->i_inode))
+		goto out_unlock;
 
-	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL, 0);
-	if (ret == -ENOTBLK)
-		ret = 0;
-out:
-	gfs2_glock_dq(gh);
+	from->nofault = true;
+	ret = iomap_dio_rw(iocb, from, &gfs2_iomap_ops, NULL,
+			   IOMAP_DIO_PARTIAL, written);
+	from->nofault = false;
+	if (ret <= 0) {
+		if (ret == -ENOTBLK)
+			ret = 0;
+		if (ret != -EFAULT)
+			goto out_unlock;
+	}
+	if (ret > 0)
+		written = ret;
+
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
+		gfs2_glock_dq(gh);
+		window_size -= fault_in_iov_iter_readable(from, window_size);
+		if (window_size)
+			goto retry;
+	}
+out_unlock:
+	if (gfs2_holder_queued(gh))
+		gfs2_glock_dq(gh);
 out_uninit:
 	gfs2_holder_uninit(gh);
-	return ret;
+	if (ret < 0)
+		return ret;
+	return written;
 }
 
 static ssize_t gfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 {
 	struct gfs2_inode *ip;
 	struct gfs2_holder gh;
-	size_t written = 0;
+	size_t prev_count = 0, window_size = 0;
+	size_t read = 0;
 	ssize_t ret;
 
-	if (iocb->ki_flags & IOCB_DIRECT) {
-		ret = gfs2_file_direct_read(iocb, to, &gh);
-		if (likely(ret != -ENOTBLK))
-			return ret;
-		iocb->ki_flags &= ~IOCB_DIRECT;
-	}
+	/*
+	 * In this function, we disable page faults when we're holding the
+	 * inode glock while doing I/O.  If a page fault occurs, we indicate
+	 * that the inode glock may be dropped, fault in the pages manually,
+	 * and retry.
+	 */
+
+	if (iocb->ki_flags & IOCB_DIRECT)
+		return gfs2_file_direct_read(iocb, to, &gh);
+
+	pagefault_disable();
 	iocb->ki_flags |= IOCB_NOIO;
 	ret = generic_file_read_iter(iocb, to);
 	iocb->ki_flags &= ~IOCB_NOIO;
+	pagefault_enable();
 	if (ret >= 0) {
 		if (!iov_iter_count(to))
 			return ret;
-		written = ret;
-	} else {
+		read = ret;
+	} else if (ret != -EFAULT) {
 		if (ret != -EAGAIN)
 			return ret;
 		if (iocb->ki_flags & IOCB_NOWAIT)
@@ -864,15 +960,111 @@ static ssize_t gfs2_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 	}
 	ip = GFS2_I(iocb->ki_filp->f_mapping->host);
 	gfs2_holder_init(ip->i_gl, LM_ST_SHARED, 0, &gh);
+retry:
 	ret = gfs2_glock_nq(&gh);
 	if (ret)
 		goto out_uninit;
+	pagefault_disable();
 	ret = generic_file_read_iter(iocb, to);
+	pagefault_enable();
+	if (ret <= 0 && ret != -EFAULT)
+		goto out_unlock;
 	if (ret > 0)
-		written += ret;
-	gfs2_glock_dq(&gh);
+		read += ret;
+
+	if (should_fault_in_pages(to, iocb, &prev_count, &window_size)) {
+		gfs2_glock_dq(&gh);
+		window_size -= fault_in_iov_iter_writeable(to, window_size);
+		if (window_size)
+			goto retry;
+	}
+out_unlock:
+	if (gfs2_holder_queued(&gh))
+		gfs2_glock_dq(&gh);
 out_uninit:
 	gfs2_holder_uninit(&gh);
+	return read ? read : ret;
+}
+
+static ssize_t gfs2_file_buffered_write(struct kiocb *iocb,
+					struct iov_iter *from,
+					struct gfs2_holder *gh)
+{
+	struct file *file = iocb->ki_filp;
+	struct inode *inode = file_inode(file);
+	struct gfs2_inode *ip = GFS2_I(inode);
+	struct gfs2_sbd *sdp = GFS2_SB(inode);
+	struct gfs2_holder *statfs_gh = NULL;
+	size_t prev_count = 0, window_size = 0;
+	size_t orig_count = iov_iter_count(from);
+	size_t written = 0;
+	ssize_t ret;
+
+	/*
+	 * In this function, we disable page faults when we're holding the
+	 * inode glock while doing I/O.  If a page fault occurs, we indicate
+	 * that the inode glock may be dropped, fault in the pages manually,
+	 * and retry.
+	 */
+
+	if (inode == sdp->sd_rindex) {
+		statfs_gh = kmalloc(sizeof(*statfs_gh), GFP_NOFS);
+		if (!statfs_gh)
+			return -ENOMEM;
+	}
+
+	gfs2_holder_init(ip->i_gl, LM_ST_EXCLUSIVE, 0, gh);
+retry:
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
+		window_size -= fault_in_iov_iter_readable(from, window_size);
+		if (!window_size) {
+			ret = -EFAULT;
+			goto out_uninit;
+		}
+		from->count = min(from->count, window_size);
+	}
+	ret = gfs2_glock_nq(gh);
+	if (ret)
+		goto out_uninit;
+
+	if (inode == sdp->sd_rindex) {
+		struct gfs2_inode *m_ip = GFS2_I(sdp->sd_statfs_inode);
+
+		ret = gfs2_glock_nq_init(m_ip->i_gl, LM_ST_EXCLUSIVE,
+					 GL_NOCACHE, statfs_gh);
+		if (ret)
+			goto out_unlock;
+	}
+
+	current->backing_dev_info = inode_to_bdi(inode);
+	pagefault_disable();
+	ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
+	pagefault_enable();
+	current->backing_dev_info = NULL;
+	if (ret > 0) {
+		iocb->ki_pos += ret;
+		written += ret;
+	}
+
+	if (inode == sdp->sd_rindex)
+		gfs2_glock_dq_uninit(statfs_gh);
+
+	if (ret <= 0 && ret != -EFAULT)
+		goto out_unlock;
+
+	from->count = orig_count - written;
+	if (should_fault_in_pages(from, iocb, &prev_count, &window_size)) {
+		gfs2_glock_dq(gh);
+		goto retry;
+	}
+out_unlock:
+	if (gfs2_holder_queued(gh))
+		gfs2_glock_dq(gh);
+out_uninit:
+	gfs2_holder_uninit(gh);
+	if (statfs_gh)
+		kfree(statfs_gh);
+	from->count = orig_count - written;
 	return written ? written : ret;
 }
 
@@ -927,9 +1119,7 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 			goto out_unlock;
 
 		iocb->ki_flags |= IOCB_DSYNC;
-		current->backing_dev_info = inode_to_bdi(inode);
-		buffered = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
-		current->backing_dev_info = NULL;
+		buffered = gfs2_file_buffered_write(iocb, from, &gh);
 		if (unlikely(buffered <= 0)) {
 			if (!ret)
 				ret = buffered;
@@ -943,7 +1133,6 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		 * the direct I/O range as we don't know if the buffered pages
 		 * made it to disk.
 		 */
-		iocb->ki_pos += buffered;
 		ret2 = generic_write_sync(iocb, buffered);
 		invalidate_mapping_pages(mapping,
 				(iocb->ki_pos - buffered) >> PAGE_SHIFT,
@@ -951,13 +1140,9 @@ static ssize_t gfs2_file_write_iter(struct kiocb *iocb, struct iov_iter *from)
 		if (!ret || ret2 > 0)
 			ret += ret2;
 	} else {
-		current->backing_dev_info = inode_to_bdi(inode);
-		ret = iomap_file_buffered_write(iocb, from, &gfs2_iomap_ops);
-		current->backing_dev_info = NULL;
-		if (likely(ret > 0)) {
-			iocb->ki_pos += ret;
+		ret = gfs2_file_buffered_write(iocb, from, &gh);
+		if (likely(ret > 0))
 			ret = generic_write_sync(iocb, ret);
-		}
 	}
 
 out_unlock:
@@ -1294,7 +1479,6 @@ static int do_flock(struct file *file, int cmd, struct file_lock *fl)
 		if (error != GLR_TRYFAILED)
 			break;
 		fl_gh->gh_flags = LM_FLAG_TRY | GL_EXACT;
-		fl_gh->gh_error = 0;
 		msleep(sleeptime);
 	}
 	if (error) {
@@ -1338,8 +1522,6 @@ static int gfs2_flock(struct file *file, int cmd, struct file_lock *fl)
 {
 	if (!(fl->fl_flags & FL_FLOCK))
 		return -ENOLCK;
-	if (fl->fl_type & LOCK_MAND)
-		return -EOPNOTSUPP;
 
 	if (fl->fl_type == F_UNLCK) {
 		do_unflock(file, fl);
@@ -1353,7 +1535,7 @@ const struct file_operations gfs2_file_fops = {
 	.llseek		= gfs2_llseek,
 	.read_iter	= gfs2_file_read_iter,
 	.write_iter	= gfs2_file_write_iter,
-	.iopoll		= iomap_dio_iopoll,
+	.iopoll		= iocb_bio_iopoll,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.compat_ioctl	= gfs2_compat_ioctl,
 	.mmap		= gfs2_mmap,
@@ -1386,7 +1568,7 @@ const struct file_operations gfs2_file_fops_nolock = {
 	.llseek		= gfs2_llseek,
 	.read_iter	= gfs2_file_read_iter,
 	.write_iter	= gfs2_file_write_iter,
-	.iopoll		= iomap_dio_iopoll,
+	.iopoll		= iocb_bio_iopoll,
 	.unlocked_ioctl	= gfs2_ioctl,
 	.compat_ioctl	= gfs2_compat_ioctl,
 	.mmap		= gfs2_mmap,

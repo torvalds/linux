@@ -1,6 +1,9 @@
 # SPDX-License-Identifier: GPL-2.0
 # Objects to go into the VDSO.
 
+# Sanitizer runtimes are unavailable and cannot be linked here.
+ KCSAN_SANITIZE			:= n
+
 # Absolute relocation type $(ARCH_REL_TYPE_ABS) needs to be defined before
 # the inclusion of generic Makefile.
 ARCH_REL_TYPE_ABS := R_MIPS_JUMP_SLOT|R_MIPS_GLOB_DAT
@@ -57,7 +60,7 @@ endif
 
 # VDSO linker flags.
 ldflags-y := -Bsymbolic --no-undefined -soname=linux-vdso.so.1 \
-	$(filter -E%,$(KBUILD_CFLAGS)) -nostdlib -shared \
+	$(filter -E%,$(KBUILD_CFLAGS)) -shared \
 	-G 0 --eh-frame-hdr --hash-style=sysv --build-id=sha1 -T
 
 CFLAGS_REMOVE_vdso.o = $(CC_FLAGS_FTRACE)

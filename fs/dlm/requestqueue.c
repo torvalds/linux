@@ -44,6 +44,7 @@ void dlm_add_requestqueue(struct dlm_ls *ls, int nodeid, struct dlm_message *ms)
 	e->nodeid = nodeid;
 	memcpy(&e->request, ms, ms->m_header.h_length);
 
+	atomic_inc(&ls->ls_requestqueue_cnt);
 	mutex_lock(&ls->ls_requestqueue_mutex);
 	list_add_tail(&e->list, &ls->ls_requestqueue);
 	mutex_unlock(&ls->ls_requestqueue_mutex);
@@ -89,6 +90,8 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 
 		mutex_lock(&ls->ls_requestqueue_mutex);
 		list_del(&e->list);
+		if (atomic_dec_and_test(&ls->ls_requestqueue_cnt))
+			wake_up(&ls->ls_requestqueue_wait);
 		kfree(e);
 
 		if (dlm_locking_stopped(ls)) {
@@ -115,14 +118,8 @@ int dlm_process_requestqueue(struct dlm_ls *ls)
 
 void dlm_wait_requestqueue(struct dlm_ls *ls)
 {
-	for (;;) {
-		mutex_lock(&ls->ls_requestqueue_mutex);
-		if (list_empty(&ls->ls_requestqueue))
-			break;
-		mutex_unlock(&ls->ls_requestqueue_mutex);
-		schedule();
-	}
-	mutex_unlock(&ls->ls_requestqueue_mutex);
+	wait_event(ls->ls_requestqueue_wait,
+		   atomic_read(&ls->ls_requestqueue_cnt) == 0);
 }
 
 static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
@@ -130,7 +127,7 @@ static int purge_request(struct dlm_ls *ls, struct dlm_message *ms, int nodeid)
 	uint32_t type = ms->m_type;
 
 	/* the ls is being cleaned up and freed by release_lockspace */
-	if (!ls->ls_count)
+	if (!atomic_read(&ls->ls_count))
 		return 1;
 
 	if (dlm_is_removed(ls, nodeid))
@@ -161,6 +158,8 @@ void dlm_purge_requestqueue(struct dlm_ls *ls)
 
 		if (purge_request(ls, ms, e->nodeid)) {
 			list_del(&e->list);
+			if (atomic_dec_and_test(&ls->ls_requestqueue_cnt))
+				wake_up(&ls->ls_requestqueue_wait);
 			kfree(e);
 		}
 	}

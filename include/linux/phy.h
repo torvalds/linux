@@ -87,8 +87,8 @@ extern const int phy_10gbit_features_array[1];
  *
  * @PHY_INTERFACE_MODE_NA: Not Applicable - don't touch
  * @PHY_INTERFACE_MODE_INTERNAL: No interface, MAC and PHY combined
- * @PHY_INTERFACE_MODE_MII: Median-independent interface
- * @PHY_INTERFACE_MODE_GMII: Gigabit median-independent interface
+ * @PHY_INTERFACE_MODE_MII: Media-independent interface
+ * @PHY_INTERFACE_MODE_GMII: Gigabit media-independent interface
  * @PHY_INTERFACE_MODE_SGMII: Serial gigabit media-independent interface
  * @PHY_INTERFACE_MODE_TBI: Ten Bit Interface
  * @PHY_INTERFACE_MODE_REVMII: Reverse Media Independent Interface
@@ -99,7 +99,7 @@ extern const int phy_10gbit_features_array[1];
  * @PHY_INTERFACE_MODE_RGMII_RXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RGMII_TXID: RGMII with Internal RX delay
  * @PHY_INTERFACE_MODE_RTBI: Reduced TBI
- * @PHY_INTERFACE_MODE_SMII: ??? MII
+ * @PHY_INTERFACE_MODE_SMII: Serial MII
  * @PHY_INTERFACE_MODE_XGMII: 10 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_XLGMII:40 gigabit media-independent interface
  * @PHY_INTERFACE_MODE_MOCA: Multimedia over Coax
@@ -154,6 +154,40 @@ typedef enum {
 	PHY_INTERFACE_MODE_10GKR,
 	PHY_INTERFACE_MODE_MAX,
 } phy_interface_t;
+
+/* PHY interface mode bitmap handling */
+#define DECLARE_PHY_INTERFACE_MASK(name) \
+	DECLARE_BITMAP(name, PHY_INTERFACE_MODE_MAX)
+
+static inline void phy_interface_zero(unsigned long *intf)
+{
+	bitmap_zero(intf, PHY_INTERFACE_MODE_MAX);
+}
+
+static inline bool phy_interface_empty(const unsigned long *intf)
+{
+	return bitmap_empty(intf, PHY_INTERFACE_MODE_MAX);
+}
+
+static inline void phy_interface_and(unsigned long *dst, const unsigned long *a,
+				     const unsigned long *b)
+{
+	bitmap_and(dst, a, b, PHY_INTERFACE_MODE_MAX);
+}
+
+static inline void phy_interface_or(unsigned long *dst, const unsigned long *a,
+				    const unsigned long *b)
+{
+	bitmap_or(dst, a, b, PHY_INTERFACE_MODE_MAX);
+}
+
+static inline void phy_interface_set_rgmii(unsigned long *intf)
+{
+	__set_bit(PHY_INTERFACE_MODE_RGMII, intf);
+	__set_bit(PHY_INTERFACE_MODE_RGMII_ID, intf);
+	__set_bit(PHY_INTERFACE_MODE_RGMII_RXID, intf);
+	__set_bit(PHY_INTERFACE_MODE_RGMII_TXID, intf);
+}
 
 /*
  * phy_supported_speeds - return all speeds currently supported by a PHY device
@@ -504,11 +538,12 @@ struct macsec_ops;
  * @mac_managed_pm: Set true if MAC driver takes of suspending/resuming PHY
  * @state: State of the PHY for management purposes
  * @dev_flags: Device-specific flags used by the PHY driver.
- *		Bits [15:0] are free to use by the PHY driver to communicate
- *			    driver specific behavior.
- *		Bits [23:16] are currently reserved for future use.
- *		Bits [31:24] are reserved for defining generic
- *			     PHY driver behavior.
+ *
+ *      - Bits [15:0] are free to use by the PHY driver to communicate
+ *        driver specific behavior.
+ *      - Bits [23:16] are currently reserved for future use.
+ *      - Bits [31:24] are reserved for defining generic
+ *        PHY driver behavior.
  * @irq: IRQ number of the PHY's interrupt (-1 if none)
  * @phy_timer: The timer for handling the state machine
  * @phylink: Pointer to phylink instance for this PHY
@@ -1543,6 +1578,7 @@ int genphy_update_link(struct phy_device *phydev);
 int genphy_read_lpa(struct phy_device *phydev);
 int genphy_read_status_fixed(struct phy_device *phydev);
 int genphy_read_status(struct phy_device *phydev);
+int genphy_read_master_slave(struct phy_device *phydev);
 int genphy_suspend(struct phy_device *phydev);
 int genphy_resume(struct phy_device *phydev);
 int genphy_loopback(struct phy_device *phydev, bool enable);
@@ -1584,6 +1620,7 @@ int genphy_c45_config_aneg(struct phy_device *phydev);
 int genphy_c45_loopback(struct phy_device *phydev, bool enable);
 int genphy_c45_pma_resume(struct phy_device *phydev);
 int genphy_c45_pma_suspend(struct phy_device *phydev);
+int genphy_c45_fast_retrain(struct phy_device *phydev, bool enable);
 
 /* Generic C45 PHY driver */
 extern struct phy_driver genphy_c45_driver;
@@ -1625,7 +1662,7 @@ int phy_disable_interrupts(struct phy_device *phydev);
 void phy_request_interrupt(struct phy_device *phydev);
 void phy_free_interrupt(struct phy_device *phydev);
 void phy_print_status(struct phy_device *phydev);
-int phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
+void phy_set_max_speed(struct phy_device *phydev, u32 max_speed);
 void phy_remove_link_mode(struct phy_device *phydev, u32 link_mode);
 void phy_advertise_supported(struct phy_device *phydev);
 void phy_support_sym_pause(struct phy_device *phydev);

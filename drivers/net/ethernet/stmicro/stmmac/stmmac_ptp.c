@@ -39,9 +39,9 @@ static int stmmac_adjust_freq(struct ptp_clock_info *ptp, s32 ppb)
 	diff = div_u64(adj, 1000000000ULL);
 	addend = neg_adj ? (addend - diff) : (addend + diff);
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	write_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_config_addend(priv, priv->ptpaddr, addend);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
 }
@@ -86,9 +86,9 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 		mutex_unlock(&priv->plat->est->lock);
 	}
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	write_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_adjust_systime(priv, priv->ptpaddr, sec, nsec, neg_adj, xmac);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	/* Caculate new basetime and re-configured EST after PTP time adjust. */
 	if (est_rst) {
@@ -102,7 +102,7 @@ static int stmmac_adjust_time(struct ptp_clock_info *ptp, s64 delta)
 		time.tv_nsec = priv->plat->est->btr_reserve[0];
 		time.tv_sec = priv->plat->est->btr_reserve[1];
 		basetime = timespec64_to_ktime(time);
-		cycle_time = priv->plat->est->ctr[1] * NSEC_PER_SEC +
+		cycle_time = (u64)priv->plat->est->ctr[1] * NSEC_PER_SEC +
 			     priv->plat->est->ctr[0];
 		time = stmmac_calc_tas_basetime(basetime,
 						current_time_ns,
@@ -137,9 +137,9 @@ static int stmmac_get_time(struct ptp_clock_info *ptp, struct timespec64 *ts)
 	unsigned long flags;
 	u64 ns = 0;
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	read_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_get_systime(priv, priv->ptpaddr, &ns);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	read_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	*ts = ns_to_timespec64(ns);
 
@@ -162,9 +162,9 @@ static int stmmac_set_time(struct ptp_clock_info *ptp,
 	    container_of(ptp, struct stmmac_priv, ptp_clock_ops);
 	unsigned long flags;
 
-	spin_lock_irqsave(&priv->ptp_lock, flags);
+	write_lock_irqsave(&priv->ptp_lock, flags);
 	stmmac_init_systime(priv, priv->ptpaddr, ts->tv_sec, ts->tv_nsec);
-	spin_unlock_irqrestore(&priv->ptp_lock, flags);
+	write_unlock_irqrestore(&priv->ptp_lock, flags);
 
 	return 0;
 }
@@ -194,12 +194,12 @@ static int stmmac_enable(struct ptp_clock_info *ptp,
 		cfg->period.tv_sec = rq->perout.period.sec;
 		cfg->period.tv_nsec = rq->perout.period.nsec;
 
-		spin_lock_irqsave(&priv->ptp_lock, flags);
+		write_lock_irqsave(&priv->ptp_lock, flags);
 		ret = stmmac_flex_pps_config(priv, priv->ioaddr,
 					     rq->perout.index, cfg, on,
 					     priv->sub_second_inc,
 					     priv->systime_flags);
-		spin_unlock_irqrestore(&priv->ptp_lock, flags);
+		write_unlock_irqrestore(&priv->ptp_lock, flags);
 		break;
 	case PTP_CLK_REQ_EXTTS:
 		priv->plat->ext_snapshot_en = on;
@@ -297,9 +297,6 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 {
 	int i;
 
-	if (priv->plat->ptp_clk_freq_config)
-		priv->plat->ptp_clk_freq_config(priv);
-
 	for (i = 0; i < priv->dma_cap.pps_out_num; i++) {
 		if (i >= STMMAC_PPS_MAX)
 			break;
@@ -309,10 +306,15 @@ void stmmac_ptp_register(struct stmmac_priv *priv)
 	if (priv->plat->ptp_max_adj)
 		stmmac_ptp_clock_ops.max_adj = priv->plat->ptp_max_adj;
 
+	/* Calculate the clock domain crossing (CDC) error if necessary */
+	priv->plat->cdc_error_adj = 0;
+	if (priv->plat->has_gmac4 && priv->plat->clk_ptp_rate)
+		priv->plat->cdc_error_adj = (2 * NSEC_PER_SEC) / priv->plat->clk_ptp_rate;
+
 	stmmac_ptp_clock_ops.n_per_out = priv->dma_cap.pps_out_num;
 	stmmac_ptp_clock_ops.n_ext_ts = priv->dma_cap.aux_snapshot_n;
 
-	spin_lock_init(&priv->ptp_lock);
+	rwlock_init(&priv->ptp_lock);
 	mutex_init(&priv->aux_ts_lock);
 	priv->ptp_clock_ops = stmmac_ptp_clock_ops;
 

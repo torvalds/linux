@@ -671,7 +671,7 @@ static void binder_free_buf_locked(struct binder_alloc *alloc,
 	BUG_ON(buffer->user_data > alloc->buffer + alloc->buffer_size);
 
 	if (buffer->async_transaction) {
-		alloc->free_async_space += size + sizeof(struct binder_buffer);
+		alloc->free_async_space += buffer_size + sizeof(struct binder_buffer);
 
 		binder_alloc_debug(BINDER_DEBUG_BUFFER_ALLOC_ASYNC,
 			     "%d: binder_free_buf size %zd async free %zd\n",
@@ -1049,18 +1049,14 @@ err_get_alloc_mutex_failed:
 static unsigned long
 binder_shrink_count(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned long ret = list_lru_count(&binder_alloc_lru);
-	return ret;
+	return list_lru_count(&binder_alloc_lru);
 }
 
 static unsigned long
 binder_shrink_scan(struct shrinker *shrink, struct shrink_control *sc)
 {
-	unsigned long ret;
-
-	ret = list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
+	return list_lru_walk(&binder_alloc_lru, binder_alloc_free_page,
 			    NULL, sc->nr_to_scan);
-	return ret;
 }
 
 static struct shrinker binder_shrinker = {

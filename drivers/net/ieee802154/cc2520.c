@@ -1213,7 +1213,7 @@ err_hw_init:
 	return ret;
 }
 
-static int cc2520_remove(struct spi_device *spi)
+static void cc2520_remove(struct spi_device *spi)
 {
 	struct cc2520_private *priv = spi_get_drvdata(spi);
 
@@ -1222,8 +1222,6 @@ static int cc2520_remove(struct spi_device *spi)
 
 	ieee802154_unregister_hw(priv->hw);
 	ieee802154_free_hw(priv->hw);
-
-	return 0;
 }
 
 static const struct spi_device_id cc2520_ids[] = {

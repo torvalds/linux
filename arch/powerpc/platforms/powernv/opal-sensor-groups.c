@@ -126,7 +126,7 @@ static void add_attr(int handle, struct sg_attr *attr, int index)
 	attr->attr.store = ops_info[index].store;
 }
 
-static int add_attr_group(const __be32 *ops, int len, struct sensor_group *sg,
+static int __init add_attr_group(const __be32 *ops, int len, struct sensor_group *sg,
 			   u32 handle)
 {
 	int i, j;
@@ -144,7 +144,7 @@ static int add_attr_group(const __be32 *ops, int len, struct sensor_group *sg,
 	return sysfs_create_group(sg_kobj, &sg->sg);
 }
 
-static int get_nr_attrs(const __be32 *ops, int len)
+static int __init get_nr_attrs(const __be32 *ops, int len)
 {
 	int i, j;
 	int nr_attrs = 0;

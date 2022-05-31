@@ -740,7 +740,7 @@ bool ixgb_adapter_start(struct ixgb_hw *hw);
 void ixgb_check_for_link(struct ixgb_hw *hw);
 bool ixgb_check_for_bad_link(struct ixgb_hw *hw);
 
-void ixgb_rar_set(struct ixgb_hw *hw, u8 *addr, u32 index);
+void ixgb_rar_set(struct ixgb_hw *hw, const u8 *addr, u32 index);
 
 /* Filters (multicast, vlan, receive) */
 void ixgb_mc_addr_list_update(struct ixgb_hw *hw, u8 *mc_addr_list,

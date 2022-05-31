@@ -79,13 +79,12 @@ extern int crash_wake_offline;
 struct kimage;
 struct pt_regs;
 extern void default_machine_kexec(struct kimage *image);
-extern int default_machine_kexec_prepare(struct kimage *image);
 extern void default_machine_crash_shutdown(struct pt_regs *regs);
 extern int crash_shutdown_register(crash_shutdown_t handler);
 extern int crash_shutdown_unregister(crash_shutdown_t handler);
 
 extern void crash_kexec_secondary(struct pt_regs *regs);
-extern int overlaps_crashkernel(unsigned long start, unsigned long size);
+int __init overlaps_crashkernel(unsigned long start, unsigned long size);
 extern void reserve_crashkernel(void);
 extern void machine_kexec_mask_interrupts(void);
 
@@ -96,6 +95,8 @@ static inline bool kdump_in_progress(void)
 
 void relocate_new_kernel(unsigned long indirection_page, unsigned long reboot_code_buffer,
 			 unsigned long start_address) __noreturn;
+
+void kexec_copy_flush(struct kimage *image);
 
 #ifdef CONFIG_KEXEC_FILE
 extern const struct kexec_file_ops kexec_elf64_ops;

@@ -1050,7 +1050,7 @@ int ntfs_flush_inodes(struct super_block *sb, struct inode *i1,
 	if (!ret && i2)
 		ret = writeback_inode(i2);
 	if (!ret)
-		ret = filemap_flush(sb->s_bdev->bd_inode->i_mapping);
+		ret = sync_blockdev_nowait(sb->s_bdev);
 	return ret;
 }
 
@@ -1954,7 +1954,7 @@ const struct address_space_operations ntfs_aops = {
 	.write_end	= ntfs_write_end,
 	.direct_IO	= ntfs_direct_IO,
 	.bmap		= ntfs_bmap,
-	.set_page_dirty = __set_page_dirty_buffers,
+	.dirty_folio	= block_dirty_folio,
 };
 
 const struct address_space_operations ntfs_aops_cmpr = {

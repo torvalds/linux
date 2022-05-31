@@ -40,6 +40,8 @@ static const char *aud_clks[MT8195_CLK_NUM] = {
 	[MT8195_CLK_SCP_ADSP_AUDIODSP] = "scp_adsp_audiodsp",
 	/* afe clock gate */
 	[MT8195_CLK_AUD_AFE] = "aud_afe",
+	[MT8195_CLK_AUD_APLL1_TUNER] = "aud_apll1_tuner",
+	[MT8195_CLK_AUD_APLL2_TUNER] = "aud_apll2_tuner",
 	[MT8195_CLK_AUD_APLL] = "aud_apll",
 	[MT8195_CLK_AUD_APLL2] = "aud_apll2",
 	[MT8195_CLK_AUD_DAC] = "aud_dac",
@@ -77,6 +79,268 @@ static const char *aud_clks[MT8195_CLK_NUM] = {
 	[MT8195_CLK_AUD_MEMIF_DL11] = "aud_memif_dl11",
 };
 
+struct mt8195_afe_tuner_cfg {
+	unsigned int id;
+	int apll_div_reg;
+	unsigned int apll_div_shift;
+	unsigned int apll_div_maskbit;
+	unsigned int apll_div_default;
+	int ref_ck_sel_reg;
+	unsigned int ref_ck_sel_shift;
+	unsigned int ref_ck_sel_maskbit;
+	unsigned int ref_ck_sel_default;
+	int tuner_en_reg;
+	unsigned int tuner_en_shift;
+	unsigned int tuner_en_maskbit;
+	int upper_bound_reg;
+	unsigned int upper_bound_shift;
+	unsigned int upper_bound_maskbit;
+	unsigned int upper_bound_default;
+	spinlock_t ctrl_lock; /* lock for apll tuner ctrl*/
+	int ref_cnt;
+};
+
+static struct mt8195_afe_tuner_cfg mt8195_afe_tuner_cfgs[MT8195_AUD_PLL_NUM] = {
+	[MT8195_AUD_PLL1] = {
+		.id = MT8195_AUD_PLL1,
+		.apll_div_reg = AFE_APLL_TUNER_CFG,
+		.apll_div_shift = 4,
+		.apll_div_maskbit = 0xf,
+		.apll_div_default = 0x7,
+		.ref_ck_sel_reg = AFE_APLL_TUNER_CFG,
+		.ref_ck_sel_shift = 1,
+		.ref_ck_sel_maskbit = 0x3,
+		.ref_ck_sel_default = 0x2,
+		.tuner_en_reg = AFE_APLL_TUNER_CFG,
+		.tuner_en_shift = 0,
+		.tuner_en_maskbit = 0x1,
+		.upper_bound_reg = AFE_APLL_TUNER_CFG,
+		.upper_bound_shift = 8,
+		.upper_bound_maskbit = 0xff,
+		.upper_bound_default = 0x2,
+	},
+	[MT8195_AUD_PLL2] = {
+		.id = MT8195_AUD_PLL2,
+		.apll_div_reg = AFE_APLL_TUNER_CFG1,
+		.apll_div_shift = 4,
+		.apll_div_maskbit = 0xf,
+		.apll_div_default = 0x7,
+		.ref_ck_sel_reg = AFE_APLL_TUNER_CFG1,
+		.ref_ck_sel_shift = 1,
+		.ref_ck_sel_maskbit = 0x3,
+		.ref_ck_sel_default = 0x1,
+		.tuner_en_reg = AFE_APLL_TUNER_CFG1,
+		.tuner_en_shift = 0,
+		.tuner_en_maskbit = 0x1,
+		.upper_bound_reg = AFE_APLL_TUNER_CFG1,
+		.upper_bound_shift = 8,
+		.upper_bound_maskbit = 0xff,
+		.upper_bound_default = 0x2,
+	},
+	[MT8195_AUD_PLL3] = {
+		.id = MT8195_AUD_PLL3,
+		.apll_div_reg = AFE_EARC_APLL_TUNER_CFG,
+		.apll_div_shift = 4,
+		.apll_div_maskbit = 0x3f,
+		.apll_div_default = 0x3,
+		.ref_ck_sel_reg = AFE_EARC_APLL_TUNER_CFG,
+		.ref_ck_sel_shift = 24,
+		.ref_ck_sel_maskbit = 0x3,
+		.ref_ck_sel_default = 0x0,
+		.tuner_en_reg = AFE_EARC_APLL_TUNER_CFG,
+		.tuner_en_shift = 0,
+		.tuner_en_maskbit = 0x1,
+		.upper_bound_reg = AFE_EARC_APLL_TUNER_CFG,
+		.upper_bound_shift = 12,
+		.upper_bound_maskbit = 0xff,
+		.upper_bound_default = 0x4,
+	},
+	[MT8195_AUD_PLL4] = {
+		.id = MT8195_AUD_PLL4,
+		.apll_div_reg = AFE_SPDIFIN_APLL_TUNER_CFG,
+		.apll_div_shift = 4,
+		.apll_div_maskbit = 0x3f,
+		.apll_div_default = 0x7,
+		.ref_ck_sel_reg = AFE_SPDIFIN_APLL_TUNER_CFG1,
+		.ref_ck_sel_shift = 8,
+		.ref_ck_sel_maskbit = 0x1,
+		.ref_ck_sel_default = 0,
+		.tuner_en_reg = AFE_SPDIFIN_APLL_TUNER_CFG,
+		.tuner_en_shift = 0,
+		.tuner_en_maskbit = 0x1,
+		.upper_bound_reg = AFE_SPDIFIN_APLL_TUNER_CFG,
+		.upper_bound_shift = 12,
+		.upper_bound_maskbit = 0xff,
+		.upper_bound_default = 0x4,
+	},
+	[MT8195_AUD_PLL5] = {
+		.id = MT8195_AUD_PLL5,
+		.apll_div_reg = AFE_LINEIN_APLL_TUNER_CFG,
+		.apll_div_shift = 4,
+		.apll_div_maskbit = 0x3f,
+		.apll_div_default = 0x3,
+		.ref_ck_sel_reg = AFE_LINEIN_APLL_TUNER_CFG,
+		.ref_ck_sel_shift = 24,
+		.ref_ck_sel_maskbit = 0x1,
+		.ref_ck_sel_default = 0,
+		.tuner_en_reg = AFE_LINEIN_APLL_TUNER_CFG,
+		.tuner_en_shift = 0,
+		.tuner_en_maskbit = 0x1,
+		.upper_bound_reg = AFE_LINEIN_APLL_TUNER_CFG,
+		.upper_bound_shift = 12,
+		.upper_bound_maskbit = 0xff,
+		.upper_bound_default = 0x4,
+	},
+};
+
+static struct mt8195_afe_tuner_cfg *mt8195_afe_found_apll_tuner(unsigned int id)
+{
+	if (id >= MT8195_AUD_PLL_NUM)
+		return NULL;
+
+	return &mt8195_afe_tuner_cfgs[id];
+}
+
+static int mt8195_afe_init_apll_tuner(unsigned int id)
+{
+	struct mt8195_afe_tuner_cfg *cfg = mt8195_afe_found_apll_tuner(id);
+
+	if (!cfg)
+		return -EINVAL;
+
+	cfg->ref_cnt = 0;
+	spin_lock_init(&cfg->ctrl_lock);
+
+	return 0;
+}
+
+static int mt8195_afe_setup_apll_tuner(struct mtk_base_afe *afe,
+				       unsigned int id)
+{
+	const struct mt8195_afe_tuner_cfg *cfg = mt8195_afe_found_apll_tuner(id);
+
+	if (!cfg)
+		return -EINVAL;
+
+	regmap_update_bits(afe->regmap, cfg->apll_div_reg,
+			   cfg->apll_div_maskbit << cfg->apll_div_shift,
+			   cfg->apll_div_default << cfg->apll_div_shift);
+
+	regmap_update_bits(afe->regmap, cfg->ref_ck_sel_reg,
+			   cfg->ref_ck_sel_maskbit << cfg->ref_ck_sel_shift,
+			   cfg->ref_ck_sel_default << cfg->ref_ck_sel_shift);
+
+	regmap_update_bits(afe->regmap, cfg->upper_bound_reg,
+			   cfg->upper_bound_maskbit << cfg->upper_bound_shift,
+			   cfg->upper_bound_default << cfg->upper_bound_shift);
+
+	return 0;
+}
+
+static int mt8195_afe_enable_tuner_clk(struct mtk_base_afe *afe,
+				       unsigned int id)
+{
+	struct mt8195_afe_private *afe_priv = afe->platform_priv;
+
+	switch (id) {
+	case MT8195_AUD_PLL1:
+		mt8195_afe_enable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL]);
+		mt8195_afe_enable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL1_TUNER]);
+		break;
+	case MT8195_AUD_PLL2:
+		mt8195_afe_enable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL2]);
+		mt8195_afe_enable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL2_TUNER]);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int mt8195_afe_disable_tuner_clk(struct mtk_base_afe *afe,
+					unsigned int id)
+{
+	struct mt8195_afe_private *afe_priv = afe->platform_priv;
+
+	switch (id) {
+	case MT8195_AUD_PLL1:
+		mt8195_afe_disable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL1_TUNER]);
+		mt8195_afe_disable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL]);
+		break;
+	case MT8195_AUD_PLL2:
+		mt8195_afe_disable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL2_TUNER]);
+		mt8195_afe_disable_clk(afe, afe_priv->clk[MT8195_CLK_AUD_APLL2]);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
+static int mt8195_afe_enable_apll_tuner(struct mtk_base_afe *afe,
+					unsigned int id)
+{
+	struct mt8195_afe_tuner_cfg *cfg = mt8195_afe_found_apll_tuner(id);
+	unsigned long flags;
+	int ret = 0;
+
+	if (!cfg)
+		return -EINVAL;
+
+	ret = mt8195_afe_setup_apll_tuner(afe, id);
+	if (ret)
+		return ret;
+
+	ret = mt8195_afe_enable_tuner_clk(afe, id);
+	if (ret)
+		return ret;
+
+	spin_lock_irqsave(&cfg->ctrl_lock, flags);
+
+	cfg->ref_cnt++;
+	if (cfg->ref_cnt == 1)
+		regmap_update_bits(afe->regmap,
+				   cfg->tuner_en_reg,
+				   cfg->tuner_en_maskbit << cfg->tuner_en_shift,
+				   1 << cfg->tuner_en_shift);
+
+	spin_unlock_irqrestore(&cfg->ctrl_lock, flags);
+
+	return ret;
+}
+
+static int mt8195_afe_disable_apll_tuner(struct mtk_base_afe *afe,
+					 unsigned int id)
+{
+	struct mt8195_afe_tuner_cfg *cfg = mt8195_afe_found_apll_tuner(id);
+	unsigned long flags;
+	int ret = 0;
+
+	if (!cfg)
+		return -EINVAL;
+
+	spin_lock_irqsave(&cfg->ctrl_lock, flags);
+
+	cfg->ref_cnt--;
+	if (cfg->ref_cnt == 0)
+		regmap_update_bits(afe->regmap,
+				   cfg->tuner_en_reg,
+				   cfg->tuner_en_maskbit << cfg->tuner_en_shift,
+				   0 << cfg->tuner_en_shift);
+	else if (cfg->ref_cnt < 0)
+		cfg->ref_cnt = 0;
+
+	spin_unlock_irqrestore(&cfg->ctrl_lock, flags);
+
+	ret = mt8195_afe_disable_tuner_clk(afe, id);
+	if (ret)
+		return ret;
+
+	return ret;
+}
+
 int mt8195_afe_get_mclk_source_clk_id(int sel)
 {
 	switch (sel) {
@@ -113,7 +377,7 @@ int mt8195_afe_get_default_mclk_source_by_rate(int rate)
 int mt8195_afe_init_clock(struct mtk_base_afe *afe)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
-	int i;
+	int i, ret;
 
 	mt8195_audsys_clk_register(afe);
 
@@ -130,6 +394,16 @@ int mt8195_afe_init_clock(struct mtk_base_afe *afe)
 				__func__, aud_clks[i],
 				PTR_ERR(afe_priv->clk[i]));
 			return PTR_ERR(afe_priv->clk[i]);
+		}
+	}
+
+	/* initial tuner */
+	for (i = 0; i < MT8195_AUD_PLL_NUM; i++) {
+		ret = mt8195_afe_init_apll_tuner(i);
+		if (ret) {
+			dev_dbg(afe->dev, "%s(), init apll_tuner%d failed",
+				__func__, (i + 1));
+			return -EINVAL;
 		}
 	}
 
@@ -326,7 +600,7 @@ int mt8195_afe_enable_reg_rw_clk(struct mtk_base_afe *afe)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	int i;
-	unsigned int clk_array[] = {
+	static const unsigned int clk_array[] = {
 		MT8195_CLK_SCP_ADSP_AUDIODSP, /* bus clock for infra */
 		MT8195_CLK_TOP_AUDIO_H_SEL, /* clock for ADSP bus */
 		MT8195_CLK_TOP_AUDIO_LOCAL_BUS_SEL, /* bus clock for DRAM access */
@@ -347,7 +621,7 @@ int mt8195_afe_disable_reg_rw_clk(struct mtk_base_afe *afe)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	int i;
-	unsigned int clk_array[] = {
+	static const unsigned int clk_array[] = {
 		MT8195_CLK_AUD_A1SYS,
 		MT8195_CLK_AUD_A1SYS_HP,
 		MT8195_CLK_AUD_AFE,
@@ -380,11 +654,11 @@ static int mt8195_afe_enable_timing_sys(struct mtk_base_afe *afe)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	int i;
-	unsigned int clk_array[] = {
+	static const unsigned int clk_array[] = {
 		MT8195_CLK_AUD_A1SYS,
 		MT8195_CLK_AUD_A2SYS,
 	};
-	unsigned int cg_array[] = {
+	static const unsigned int cg_array[] = {
 		MT8195_TOP_CG_A1SYS_TIMING,
 		MT8195_TOP_CG_A2SYS_TIMING,
 		MT8195_TOP_CG_26M_TIMING,
@@ -403,11 +677,11 @@ static int mt8195_afe_disable_timing_sys(struct mtk_base_afe *afe)
 {
 	struct mt8195_afe_private *afe_priv = afe->platform_priv;
 	int i;
-	unsigned int clk_array[] = {
+	static const unsigned int clk_array[] = {
 		MT8195_CLK_AUD_A2SYS,
 		MT8195_CLK_AUD_A1SYS,
 	};
-	unsigned int cg_array[] = {
+	static const unsigned int cg_array[] = {
 		MT8195_TOP_CG_26M_TIMING,
 		MT8195_TOP_CG_A2SYS_TIMING,
 		MT8195_TOP_CG_A1SYS_TIMING,
@@ -428,11 +702,17 @@ int mt8195_afe_enable_main_clock(struct mtk_base_afe *afe)
 
 	mt8195_afe_enable_afe_on(afe);
 
+	mt8195_afe_enable_apll_tuner(afe, MT8195_AUD_PLL1);
+	mt8195_afe_enable_apll_tuner(afe, MT8195_AUD_PLL2);
+
 	return 0;
 }
 
 int mt8195_afe_disable_main_clock(struct mtk_base_afe *afe)
 {
+	mt8195_afe_disable_apll_tuner(afe, MT8195_AUD_PLL2);
+	mt8195_afe_disable_apll_tuner(afe, MT8195_AUD_PLL1);
+
 	mt8195_afe_disable_afe_on(afe);
 
 	mt8195_afe_disable_timing_sys(afe);

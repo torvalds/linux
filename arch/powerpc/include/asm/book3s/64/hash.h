@@ -99,10 +99,6 @@
  * Defines the address of the vmemap area, in its own region on
  * hash table CPUs.
  */
-#ifdef CONFIG_PPC_MM_SLICES
-#define HAVE_ARCH_UNMAPPED_AREA
-#define HAVE_ARCH_UNMAPPED_AREA_TOPDOWN
-#endif /* CONFIG_PPC_MM_SLICES */
 
 /* PTEIDX nibble */
 #define _PTEIDX_SECONDARY	0x8
@@ -254,6 +250,8 @@ extern void hash__vmemmap_remove_mapping(unsigned long start,
 int hash__create_section_mapping(unsigned long start, unsigned long end,
 				 int nid, pgprot_t prot);
 int hash__remove_section_mapping(unsigned long start, unsigned long end);
+
+void hash__kernel_map_pages(struct page *page, int numpages, int enable);
 
 #endif /* !__ASSEMBLY__ */
 #endif /* __KERNEL__ */

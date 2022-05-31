@@ -101,7 +101,7 @@ out:
 	return TEST_FAIL;
 }
 
-int test__hists_filter(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__hists_filter(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	int err = TEST_FAIL;
 	struct machines machines;
@@ -325,3 +325,5 @@ out:
 
 	return err;
 }
+
+DEFINE_SUITE("Filter hist entries", hists_filter);

@@ -25,6 +25,7 @@ description: |
   The 'SoC' element must be one of the following strings:
 
         apq8016
+        apq8026
         apq8074
         apq8084
         apq8096
@@ -41,12 +42,16 @@ description: |
         sc7180
         sc7280
         sdm630
+        sdm632
         sdm660
         sdm845
         sdx55
+        sdx65
+        sm7225
         sm8150
         sm8250
         sm8350
+        sm8450
 
   The 'board' element must be one of the following strings:
 
@@ -94,6 +99,14 @@ properties:
 
       - items:
           - enum:
+              - lg,lenok
+          - const: qcom,apq8026
+
+      - items:
+          - enum:
+              - asus,nexus7-flo
+              - lg,nexus4-mako
+              - sony,xperia-yuga
               - qcom,apq8064-cm-qs600
               - qcom,apq8064-ifc6410
           - const: qcom,apq8064
@@ -129,6 +142,7 @@ properties:
           - enum:
               - fairphone,fp2
               - lge,hammerhead
+              - samsung,klte
               - sony,xperia-amami
               - sony,xperia-castor
               - sony,xperia-honami
@@ -159,10 +173,25 @@ properties:
           - const: qcom,apq8094
 
       - items:
-          - const: qcom,msm8996-mtp
+          - enum:
+              - arrow,apq8096-db820c
+              - inforce,ifc6640
+          - const: qcom,apq8096-sbc
+          - const: qcom,apq8096
 
       - items:
           - enum:
+              - qcom,msm8996-mtp
+              - sony,dora-row
+              - sony,kagura-row
+              - sony,keyaki-row
+              - xiaomi,gemini
+              - xiaomi,scorpio
+          - const: qcom,msm8996
+
+      - items:
+          - enum:
+              - qcom,ipq4019-ap-dk01.1-c1
               - qcom,ipq4019-ap-dk04.1-c3
               - qcom,ipq4019-ap-dk07.1-c1
               - qcom,ipq4019-ap-dk07.1-c2
@@ -188,11 +217,18 @@ properties:
 
       - items:
           - enum:
+              - qcom,sc7280-crd
               - qcom,sc7280-idp
               - qcom,sc7280-idp2
+              - google,hoglin
               - google,piglin
               - google,senor
           - const: qcom,sc7280
+
+      - items:
+          - enum:
+              - fairphone,fp3
+          - const: qcom,sdm632
 
       - items:
           - enum:
@@ -208,6 +244,11 @@ properties:
 
       - items:
           - enum:
+              - qcom,sdx65-mtp
+          - const: qcom,sdx65
+
+      - items:
+          - enum:
               - qcom,ipq6018-cp01
               - qcom,ipq6018-cp01-c1
           - const: qcom,ipq6018
@@ -216,6 +257,11 @@ properties:
           - enum:
               - qcom,sa8155p-adp
           - const: qcom,sa8155p
+
+      - items:
+          - enum:
+              - fairphone,fp4
+          - const: qcom,sm7225
 
       - items:
           - enum:
@@ -233,6 +279,12 @@ properties:
               - qcom,sm8350-hdk
               - qcom,sm8350-mtp
           - const: qcom,sm8350
+
+      - items:
+          - enum:
+              - qcom,sm8450-hdk
+              - qcom,sm8450-qrd
+          - const: qcom,sm8450
 
 additionalProperties: true
 

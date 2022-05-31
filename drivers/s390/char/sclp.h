@@ -11,6 +11,7 @@
 
 #include <linux/types.h>
 #include <linux/list.h>
+#include <asm/asm-extable.h>
 #include <asm/sclp.h>
 #include <asm/ebcdic.h>
 
@@ -333,7 +334,7 @@ static inline int sclp_service_call(sclp_cmdw_t command, void *sccb)
 		"2:\n"
 		EX_TABLE(0b, 2b)
 		EX_TABLE(1b, 2b)
-		: "+&d" (cc) : "d" (command), "a" ((unsigned long)sccb)
+		: "+&d" (cc) : "d" (command), "a" (__pa(sccb))
 		: "cc", "memory");
 	if (cc == 4)
 		return -EINVAL;

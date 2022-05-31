@@ -237,8 +237,6 @@ static int microread_i2c_probe(struct i2c_client *client,
 	struct microread_i2c_phy *phy;
 	int r;
 
-	dev_dbg(&client->dev, "client %p\n", client);
-
 	phy = devm_kzalloc(&client->dev, sizeof(struct microread_i2c_phy),
 			   GFP_KERNEL);
 	if (!phy)
@@ -261,8 +259,6 @@ static int microread_i2c_probe(struct i2c_client *client,
 			    MICROREAD_I2C_LLC_MAX_PAYLOAD, &phy->hdev);
 	if (r < 0)
 		goto err_irq;
-
-	nfc_info(&client->dev, "Probed\n");
 
 	return 0;
 

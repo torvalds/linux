@@ -194,6 +194,35 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
 	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
 }
 
+static int adf_get_dc_capabilities(struct adf_accel_dev *accel_dev,
+				   u32 *capabilities)
+{
+	struct adf_hw_device_data *hw_device = accel_dev->hw_device;
+	struct icp_qat_fw_init_admin_resp resp;
+	struct icp_qat_fw_init_admin_req req;
+	unsigned long ae_mask;
+	unsigned long ae;
+	int ret;
+
+	/* Target only service accelerator engines */
+	ae_mask = hw_device->ae_mask & ~hw_device->admin_ae_mask;
+
+	memset(&req, 0, sizeof(req));
+	memset(&resp, 0, sizeof(resp));
+	req.cmd_id = ICP_QAT_FW_COMP_CAPABILITY_GET;
+
+	*capabilities = 0;
+	for_each_set_bit(ae, &ae_mask, GET_MAX_ACCELENGINES(accel_dev)) {
+		ret = adf_send_admin(accel_dev, &req, &resp, 1ULL << ae);
+		if (ret)
+			return ret;
+
+		*capabilities |= resp.extended_features;
+	}
+
+	return 0;
+}
+
 /**
  * adf_send_admin_init() - Function sends init message to FW
  * @accel_dev: Pointer to acceleration device.
@@ -204,7 +233,15 @@ static int adf_set_fw_constants(struct adf_accel_dev *accel_dev)
  */
 int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 {
+	u32 dc_capabilities = 0;
 	int ret;
+
+	ret = adf_get_dc_capabilities(accel_dev, &dc_capabilities);
+	if (ret) {
+		dev_err(&GET_DEV(accel_dev), "Cannot get dc capabilities\n");
+		return ret;
+	}
+	accel_dev->hw_device->extended_dc_capabilities = dc_capabilities;
 
 	ret = adf_set_fw_constants(accel_dev);
 	if (ret)
@@ -214,13 +251,48 @@ int adf_send_admin_init(struct adf_accel_dev *accel_dev)
 }
 EXPORT_SYMBOL_GPL(adf_send_admin_init);
 
+/**
+ * adf_init_admin_pm() - Function sends PM init message to FW
+ * @accel_dev: Pointer to acceleration device.
+ * @idle_delay: QAT HW idle time before power gating is initiated.
+ *		000 - 64us
+ *		001 - 128us
+ *		010 - 256us
+ *		011 - 512us
+ *		100 - 1ms
+ *		101 - 2ms
+ *		110 - 4ms
+ *		111 - 8ms
+ *
+ * Function sends to the FW the admin init message for the PM state
+ * configuration.
+ *
+ * Return: 0 on success, error code otherwise.
+ */
+int adf_init_admin_pm(struct adf_accel_dev *accel_dev, u32 idle_delay)
+{
+	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
+	struct icp_qat_fw_init_admin_resp resp = {0};
+	struct icp_qat_fw_init_admin_req req = {0};
+	u32 ae_mask = hw_data->admin_ae_mask;
+
+	if (!accel_dev->admin) {
+		dev_err(&GET_DEV(accel_dev), "adf_admin is not available\n");
+		return -EFAULT;
+	}
+
+	req.cmd_id = ICP_QAT_FW_PM_STATE_CONFIG;
+	req.idle_filter = idle_delay;
+
+	return adf_send_admin(accel_dev, &req, &resp, ae_mask);
+}
+EXPORT_SYMBOL_GPL(adf_init_admin_pm);
+
 int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 {
 	struct adf_admin_comms *admin;
 	struct adf_hw_device_data *hw_data = accel_dev->hw_device;
-	struct adf_bar *pmisc =
-		&GET_BARS(accel_dev)[hw_data->get_misc_bar_id(hw_data)];
-	void __iomem *csr = pmisc->virt_addr;
+	void __iomem *pmisc_addr = adf_get_pmisc_base(accel_dev);
 	struct admin_info admin_csrs_info;
 	u32 mailbox_offset, adminmsg_u, adminmsg_l;
 	void __iomem *mailbox;
@@ -254,13 +326,13 @@ int adf_init_admin_comms(struct adf_accel_dev *accel_dev)
 	hw_data->get_admin_info(&admin_csrs_info);
 
 	mailbox_offset = admin_csrs_info.mailbox_offset;
-	mailbox = csr + mailbox_offset;
+	mailbox = pmisc_addr + mailbox_offset;
 	adminmsg_u = admin_csrs_info.admin_msg_ur;
 	adminmsg_l = admin_csrs_info.admin_msg_lr;
 
 	reg_val = (u64)admin->phy_addr;
-	ADF_CSR_WR(csr, adminmsg_u, upper_32_bits(reg_val));
-	ADF_CSR_WR(csr, adminmsg_l, lower_32_bits(reg_val));
+	ADF_CSR_WR(pmisc_addr, adminmsg_u, upper_32_bits(reg_val));
+	ADF_CSR_WR(pmisc_addr, adminmsg_l, lower_32_bits(reg_val));
 
 	mutex_init(&admin->lock);
 	admin->mailbox_addr = mailbox;

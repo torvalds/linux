@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
-/* src/prism2/driver/prism2sta.c
+/*
  *
  * Implements the station functionality for prism2
  *
@@ -585,6 +585,7 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 	struct hfa384x *hw = wlandev->priv;
 	u16 temp;
 	u8 snum[HFA384x_RID_NICSERIALNUMBER_LEN];
+	u8 addr[ETH_ALEN];
 
 	/* Collect version and compatibility info */
 	/*  Some are critical, some are not */
@@ -855,11 +856,12 @@ static int prism2sta_getcardinfo(struct wlandevice *wlandev)
 
 	/* Collect the MAC address */
 	result = hfa384x_drvr_getconfig(hw, HFA384x_RID_CNFOWNMACADDR,
-					wlandev->netdev->dev_addr, ETH_ALEN);
+					addr, ETH_ALEN);
 	if (result != 0) {
 		netdev_err(wlandev->netdev, "Failed to retrieve mac address\n");
 		goto failed;
 	}
+	eth_hw_addr_set(wlandev->netdev, addr);
 
 	/* short preamble is always implemented */
 	wlandev->nsdcaps |= P80211_NSDCAP_SHORT_PREAMBLE;

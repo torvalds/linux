@@ -24,5 +24,6 @@
 #define __YELLOW_CARP_PPT_H__
 
 extern void yellow_carp_set_ppt_funcs(struct smu_context *smu);
+#define YELLOW_CARP_UMD_PSTATE_GFXCLK       1100
 
 #endif

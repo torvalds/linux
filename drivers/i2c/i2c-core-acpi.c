@@ -144,8 +144,11 @@ static int i2c_acpi_do_lookup(struct acpi_device *adev,
 	struct list_head resource_list;
 	int ret;
 
-	if (acpi_bus_get_status(adev) || !adev->status.present)
+	if (acpi_bus_get_status(adev))
 		return -EINVAL;
+
+	if (!acpi_dev_ready_for_enumeration(adev))
+		return -ENODEV;
 
 	if (acpi_match_device_ids(adev, i2c_acpi_ignored_device_ids) == 0)
 		return -ENODEV;
@@ -233,7 +236,8 @@ static int i2c_acpi_get_info(struct acpi_device *adev,
 		struct acpi_device *adapter_adev;
 
 		/* The adapter must be present */
-		if (acpi_bus_get_device(lookup.adapter_handle, &adapter_adev))
+		adapter_adev = acpi_fetch_acpi_dev(lookup.adapter_handle);
+		if (!adapter_adev)
 			return -ENODEV;
 		if (acpi_bus_get_status(adapter_adev) ||
 		    !adapter_adev->status.present)
@@ -254,6 +258,13 @@ static void i2c_acpi_register_device(struct i2c_adapter *adapter,
 				     struct acpi_device *adev,
 				     struct i2c_board_info *info)
 {
+	/*
+	 * Skip registration on boards where the ACPI tables are
+	 * known to contain bogus I2C devices.
+	 */
+	if (acpi_quirk_skip_i2c_client_enumeration(adev))
+		return;
+
 	adev->power.flags.ignore_parent = true;
 	acpi_device_set_enumerated(adev);
 
@@ -265,13 +276,10 @@ static acpi_status i2c_acpi_add_device(acpi_handle handle, u32 level,
 				       void *data, void **return_value)
 {
 	struct i2c_adapter *adapter = data;
-	struct acpi_device *adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 	struct i2c_board_info info;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (i2c_acpi_get_info(adev, &info, adapter, NULL))
+	if (!adev || i2c_acpi_get_info(adev, &info, adapter, NULL))
 		return AE_OK;
 
 	i2c_acpi_register_device(adapter, adev, &info);
@@ -331,12 +339,9 @@ static acpi_status i2c_acpi_lookup_speed(acpi_handle handle, u32 level,
 					   void *data, void **return_value)
 {
 	struct i2c_acpi_lookup *lookup = data;
-	struct acpi_device *adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	if (i2c_acpi_do_lookup(adev, lookup))
+	if (!adev || i2c_acpi_do_lookup(adev, lookup))
 		return AE_OK;
 
 	if (lookup->search_handle != lookup->adapter_handle)
@@ -398,24 +403,20 @@ u32 i2c_acpi_find_bus_speed(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_find_bus_speed);
 
-static int i2c_acpi_find_match_adapter(struct device *dev, const void *data)
-{
-	struct i2c_adapter *adapter = i2c_verify_adapter(dev);
-
-	if (!adapter)
-		return 0;
-
-	return ACPI_HANDLE(dev) == (acpi_handle)data;
-}
-
 struct i2c_adapter *i2c_acpi_find_adapter_by_handle(acpi_handle handle)
 {
+	struct i2c_adapter *adapter;
 	struct device *dev;
 
-	dev = bus_find_device(&i2c_bus_type, NULL, handle,
-			      i2c_acpi_find_match_adapter);
+	dev = bus_find_device(&i2c_bus_type, NULL, handle, device_match_acpi_handle);
+	if (!dev)
+		return NULL;
 
-	return dev ? i2c_verify_adapter(dev) : NULL;
+	adapter = i2c_verify_adapter(dev);
+	if (!adapter)
+		put_device(dev);
+
+	return adapter;
 }
 EXPORT_SYMBOL_GPL(i2c_acpi_find_adapter_by_handle);
 
@@ -477,8 +478,8 @@ struct notifier_block i2c_acpi_notifier = {
 };
 
 /**
- * i2c_acpi_new_device - Create i2c-client for the Nth I2cSerialBus resource
- * @dev:     Device owning the ACPI resources to get the client from
+ * i2c_acpi_new_device_by_fwnode - Create i2c-client for the Nth I2cSerialBus resource
+ * @fwnode:  fwnode with the ACPI resources to get the client from
  * @index:   Index of ACPI resource to get
  * @info:    describes the I2C device; note this is modified (addr gets set)
  * Context: can sleep
@@ -494,14 +495,19 @@ struct notifier_block i2c_acpi_notifier = {
  * Returns a pointer to the new i2c-client, or error pointer in case of failure.
  * Specifically, -EPROBE_DEFER is returned if the adapter is not found.
  */
-struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
-				       struct i2c_board_info *info)
+struct i2c_client *i2c_acpi_new_device_by_fwnode(struct fwnode_handle *fwnode,
+						 int index,
+						 struct i2c_board_info *info)
 {
-	struct acpi_device *adev = ACPI_COMPANION(dev);
 	struct i2c_acpi_lookup lookup;
 	struct i2c_adapter *adapter;
+	struct acpi_device *adev;
 	LIST_HEAD(resource_list);
 	int ret;
+
+	adev = to_acpi_device_node(fwnode);
+	if (!adev)
+		return ERR_PTR(-ENODEV);
 
 	memset(&lookup, 0, sizeof(lookup));
 	lookup.info = info;
@@ -524,7 +530,17 @@ struct i2c_client *i2c_acpi_new_device(struct device *dev, int index,
 
 	return i2c_new_client_device(adapter, info);
 }
-EXPORT_SYMBOL_GPL(i2c_acpi_new_device);
+EXPORT_SYMBOL_GPL(i2c_acpi_new_device_by_fwnode);
+
+bool i2c_acpi_waive_d0_probe(struct device *dev)
+{
+	struct i2c_driver *driver = to_i2c_driver(dev->driver);
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+
+	return driver->flags & I2C_DRV_ACPI_WAIVE_D0_PROBE &&
+		adev && adev->power.state_for_enumeration >= adev->power.state;
+}
+EXPORT_SYMBOL_GPL(i2c_acpi_waive_d0_probe);
 
 #ifdef CONFIG_ACPI_I2C_OPREGION
 static int acpi_gsb_i2c_read_bytes(struct i2c_client *client,

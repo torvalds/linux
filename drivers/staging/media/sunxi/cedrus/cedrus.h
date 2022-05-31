@@ -24,6 +24,7 @@
 
 #include <linux/iopoll.h>
 #include <linux/platform_device.h>
+#include <linux/workqueue.h>
 
 #define CEDRUS_NAME			"cedrus"
 
@@ -32,6 +33,7 @@
 #define CEDRUS_CAPABILITY_H264_DEC	BIT(2)
 #define CEDRUS_CAPABILITY_MPEG2_DEC	BIT(3)
 #define CEDRUS_CAPABILITY_VP8_DEC	BIT(4)
+#define CEDRUS_CAPABILITY_H265_10_DEC	BIT(5)
 
 enum cedrus_codec {
 	CEDRUS_CODEC_MPEG2,
@@ -78,6 +80,7 @@ struct cedrus_h265_run {
 	const struct v4l2_ctrl_hevc_pps			*pps;
 	const struct v4l2_ctrl_hevc_slice_params	*slice_params;
 	const struct v4l2_ctrl_hevc_decode_params	*decode_params;
+	const struct v4l2_ctrl_hevc_scaling_matrix	*scaling_matrix;
 };
 
 struct cedrus_vp8_run {
@@ -192,6 +195,8 @@ struct cedrus_dev {
 	struct reset_control	*rstc;
 
 	unsigned int		capabilities;
+
+	struct delayed_work	watchdog_work;
 };
 
 extern struct cedrus_dec_ops cedrus_dec_ops_mpeg2;

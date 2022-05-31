@@ -127,11 +127,13 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 				   u8 extra)
 {
 	struct dsa_port *dp = dsa_slave_to_port(dev);
+	struct net_device *br_dev;
 	u8 tag_dev, tag_port;
 	enum dsa_cmd cmd;
 	u8 *dsa_header;
 
 	if (skb->offload_fwd_mark) {
+		unsigned int bridge_num = dsa_port_bridge_num_get(dp);
 		struct dsa_switch_tree *dst = dp->ds->dst;
 
 		cmd = DSA_CMD_FORWARD;
@@ -140,7 +142,7 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		 * packets on behalf of a virtual switch device with an index
 		 * past the physical switches.
 		 */
-		tag_dev = dst->last_switch + 1 + dp->bridge_num;
+		tag_dev = dst->last_switch + bridge_num;
 		tag_port = 0;
 	} else {
 		cmd = DSA_CMD_FROM_CPU;
@@ -148,7 +150,16 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 		tag_port = dp->index;
 	}
 
-	if (skb->protocol == htons(ETH_P_8021Q)) {
+	br_dev = dsa_port_bridge_dev_get(dp);
+
+	/* If frame is already 802.1Q tagged, we can convert it to a DSA
+	 * tag (avoiding a memmove), but only if the port is standalone
+	 * (in which case we always send FROM_CPU) or if the port's
+	 * bridge has VLAN filtering enabled (in which case the CPU port
+	 * will be a member of the VLAN).
+	 */
+	if (skb->protocol == htons(ETH_P_8021Q) &&
+	    (!br_dev || br_vlan_enabled(br_dev))) {
 		if (extra) {
 			skb_push(skb, extra);
 			dsa_alloc_etype_header(skb, extra);
@@ -165,10 +176,9 @@ static struct sk_buff *dsa_xmit_ll(struct sk_buff *skb, struct net_device *dev,
 			dsa_header[2] &= ~0x10;
 		}
 	} else {
-		struct net_device *br = dp->bridge_dev;
 		u16 vid;
 
-		vid = br ? MV88E6XXX_VID_BRIDGED : MV88E6XXX_VID_STANDALONE;
+		vid = br_dev ? MV88E6XXX_VID_BRIDGED : MV88E6XXX_VID_STANDALONE;
 
 		skb_push(skb, DSA_HLEN + extra);
 		dsa_alloc_etype_header(skb, DSA_HLEN + extra);
@@ -245,12 +255,14 @@ static struct sk_buff *dsa_rcv_ll(struct sk_buff *skb, struct net_device *dev,
 
 	if (trunk) {
 		struct dsa_port *cpu_dp = dev->dsa_ptr;
+		struct dsa_lag *lag;
 
 		/* The exact source port is not available in the tag,
 		 * so we inject the frame directly on the upper
 		 * team/bond.
 		 */
-		skb->dev = dsa_lag_dev(cpu_dp->dst, source_port);
+		lag = dsa_lag_by_id(cpu_dp->dst, source_port + 1);
+		skb->dev = lag ? lag->dev : NULL;
 	} else {
 		skb->dev = dsa_master_find_slave(dev, source_device,
 						 source_port);

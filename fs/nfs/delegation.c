@@ -439,7 +439,7 @@ int nfs_inode_set_delegation(struct inode *inode, const struct cred *cred,
 	struct nfs_delegation *freeme = NULL;
 	int status = 0;
 
-	delegation = kmalloc(sizeof(*delegation), GFP_NOFS);
+	delegation = kmalloc(sizeof(*delegation), GFP_KERNEL_ACCOUNT);
 	if (delegation == NULL)
 		return -ENOMEM;
 	nfs4_stateid_copy(&delegation->stateid, stateid);
@@ -755,11 +755,13 @@ int nfs4_inode_return_delegation(struct inode *inode)
 	struct nfs_delegation *delegation;
 
 	delegation = nfs_start_delegation_return(nfsi);
-	/* Synchronous recall of any application leases */
-	break_lease(inode, O_WRONLY | O_RDWR);
-	nfs_wb_all(inode);
-	if (delegation != NULL)
+	if (delegation != NULL) {
+		/* Synchronous recall of any application leases */
+		break_lease(inode, O_WRONLY | O_RDWR);
+		if (S_ISREG(inode->i_mode))
+			nfs_wb_all(inode);
 		return nfs_end_delegation_return(inode, delegation, 1);
+	}
 	return 0;
 }
 

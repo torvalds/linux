@@ -26,6 +26,7 @@
  *          Jerome Glisse
  */
 
+#include <linux/iosys-map.h>
 #include <linux/pci.h>
 
 #include <drm/drm_device.h>
@@ -61,7 +62,7 @@ static vm_fault_t radeon_gem_fault(struct vm_fault *vmf)
 		goto unlock_resv;
 
 	ret = ttm_bo_vm_fault_reserved(vmf, vmf->vma->vm_page_prot,
-				       TTM_BO_VM_NUM_PREFAULT, 1);
+				       TTM_BO_VM_NUM_PREFAULT);
 	if (ret == VM_FAULT_RETRY && !(vmf->flags & FAULT_FLAG_RETRY_NOWAIT))
 		goto unlock_mclk;
 

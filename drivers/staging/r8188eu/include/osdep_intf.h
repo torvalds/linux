@@ -34,7 +34,6 @@ The protection mechanism is through the pending queue.
 	struct urb *piorw_urb;
 	u8 io_irp_cnt;
 	u8 bio_irp_pending;
-	struct semaphore  io_retevt;
 	struct timer_list io_timer;
 	u8 bio_irp_timeout;
 	u8 bio_timer_cancel;
@@ -51,14 +50,10 @@ void rtw_cancel_all_timer(struct adapter *padapter);
 int rtw_init_netdev_name(struct net_device *pnetdev, const char *ifname);
 struct net_device *rtw_init_netdev(struct adapter *padapter);
 u16 rtw_recv_select_queue(struct sk_buff *skb);
-void rtw_proc_init_one(struct net_device *dev);
-void rtw_proc_remove_one(struct net_device *dev);
 
 void rtw_ips_dev_unload(struct adapter *padapter);
 
 int rtw_ips_pwr_up(struct adapter *padapter);
 void rtw_ips_pwr_down(struct adapter *padapter);
-int rtw_hw_suspend(struct adapter *padapter);
-int rtw_hw_resume(struct adapter *padapter);
 
 #endif	/* _OSDEP_INTF_H_ */

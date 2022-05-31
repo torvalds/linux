@@ -60,7 +60,6 @@
 #include <linux/sched/cputime.h>
 
 #include <asm/div64.h>
-#include <linux/blkdev.h> /* sector_div */
 #include <linux/pid_namespace.h>
 #include <linux/fs_pin.h>
 

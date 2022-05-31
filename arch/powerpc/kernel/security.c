@@ -44,7 +44,7 @@ static void enable_barrier_nospec(bool enable)
 	do_barrier_nospec_fixups(enable);
 }
 
-void setup_barrier_nospec(void)
+void __init setup_barrier_nospec(void)
 {
 	bool enable;
 
@@ -132,7 +132,7 @@ early_param("nospectre_v2", handle_nospectre_v2);
 #endif /* CONFIG_PPC_FSL_BOOK3E || CONFIG_PPC_BOOK3S_64 */
 
 #ifdef CONFIG_PPC_FSL_BOOK3E
-void setup_spectre_v2(void)
+void __init setup_spectre_v2(void)
 {
 	if (no_spectrev2 || cpu_mitigations_off())
 		do_btb_flush_fixups();
@@ -747,7 +747,19 @@ static int count_cache_flush_get(void *data, u64 *val)
 	return 0;
 }
 
+static int link_stack_flush_get(void *data, u64 *val)
+{
+	if (link_stack_flush_type == BRANCH_CACHE_FLUSH_NONE)
+		*val = 0;
+	else
+		*val = 1;
+
+	return 0;
+}
+
 DEFINE_DEBUGFS_ATTRIBUTE(fops_count_cache_flush, count_cache_flush_get,
+			 count_cache_flush_set, "%llu\n");
+DEFINE_DEBUGFS_ATTRIBUTE(fops_link_stack_flush, link_stack_flush_get,
 			 count_cache_flush_set, "%llu\n");
 
 static __init int count_cache_flush_debugfs_init(void)
@@ -755,6 +767,9 @@ static __init int count_cache_flush_debugfs_init(void)
 	debugfs_create_file_unsafe("count_cache_flush", 0600,
 				   arch_debugfs_dir, NULL,
 				   &fops_count_cache_flush);
+	debugfs_create_file_unsafe("link_stack_flush", 0600,
+				   arch_debugfs_dir, NULL,
+				   &fops_link_stack_flush);
 	return 0;
 }
 device_initcall(count_cache_flush_debugfs_init);

@@ -26,14 +26,6 @@ static const struct xt_table packet_filter = {
 	.priority	= NF_IP_PRI_FILTER,
 };
 
-/* The work comes in here from netfilter.c */
-static unsigned int
-arptable_filter_hook(void *priv, struct sk_buff *skb,
-		     const struct nf_hook_state *state)
-{
-	return arpt_do_table(skb, state, priv);
-}
-
 static struct nf_hook_ops *arpfilter_ops __read_mostly;
 
 static int arptable_filter_table_init(struct net *net)
@@ -72,7 +64,7 @@ static int __init arptable_filter_init(void)
 	if (ret < 0)
 		return ret;
 
-	arpfilter_ops = xt_hook_ops_alloc(&packet_filter, arptable_filter_hook);
+	arpfilter_ops = xt_hook_ops_alloc(&packet_filter, arpt_do_table);
 	if (IS_ERR(arpfilter_ops)) {
 		xt_unregister_template(&packet_filter);
 		return PTR_ERR(arpfilter_ops);

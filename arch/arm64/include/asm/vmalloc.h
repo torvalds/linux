@@ -2,6 +2,7 @@
 #define _ASM_ARM64_VMALLOC_H
 
 #include <asm/page.h>
+#include <asm/pgtable.h>
 
 #ifdef CONFIG_HAVE_ARCH_HUGE_VMAP
 
@@ -9,10 +10,9 @@
 static inline bool arch_vmap_pud_supported(pgprot_t prot)
 {
 	/*
-	 * Only 4k granule supports level 1 block mappings.
 	 * SW table walks can't handle removal of intermediate entries.
 	 */
-	return IS_ENABLED(CONFIG_ARM64_4K_PAGES) &&
+	return pud_sect_supported() &&
 	       !IS_ENABLED(CONFIG_PTDUMP_DEBUGFS);
 }
 
@@ -24,5 +24,11 @@ static inline bool arch_vmap_pmd_supported(pgprot_t prot)
 }
 
 #endif
+
+#define arch_vmap_pgprot_tagged arch_vmap_pgprot_tagged
+static inline pgprot_t arch_vmap_pgprot_tagged(pgprot_t prot)
+{
+	return pgprot_tagged(prot);
+}
 
 #endif /* _ASM_ARM64_VMALLOC_H */

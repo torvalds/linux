@@ -46,16 +46,14 @@ ia_css_dvs_config(
 	    DVS_NUM_BLOCKS_Y(from->info->res.height);
 }
 
-void
-ia_css_dvs_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame_info *info)
+int ia_css_dvs_configure(const struct ia_css_binary     *binary,
+			 const struct ia_css_frame_info *info)
 {
 	struct ia_css_dvs_configuration config = default_config;
 
 	config.info = info;
 
-	ia_css_configure_dvs(binary, &config);
+	return ia_css_configure_dvs(binary, &config);
 }
 
 static void

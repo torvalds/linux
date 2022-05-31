@@ -18,11 +18,13 @@
 #ifndef LSI_MEGARAID_SAS_H
 #define LSI_MEGARAID_SAS_H
 
+#include <scsi/scsi_cmnd.h>
+
 /*
  * MegaRAID SAS Driver meta data
  */
-#define MEGASAS_VERSION				"07.717.02.00-rc1"
-#define MEGASAS_RELDATE				"May 19, 2021"
+#define MEGASAS_VERSION				"07.719.03.00-rc1"
+#define MEGASAS_RELDATE				"Sep 29, 2021"
 
 #define MEGASAS_MSIX_NAME_LEN			32
 
@@ -2558,6 +2560,9 @@ struct megasas_instance_template {
 #define MEGASAS_IS_LOGICAL(sdev)					\
 	((sdev->channel < MEGASAS_MAX_PD_CHANNELS) ? 0 : 1)
 
+#define MEGASAS_IS_LUN_VALID(sdev)					\
+	(((sdev)->lun == 0) ? 1 : 0)
+
 #define MEGASAS_DEV_INDEX(scp)						\
 	(((scp->device->channel % 2) * MEGASAS_MAX_DEV_PER_CHANNEL) +	\
 	scp->device->id)
@@ -2593,6 +2598,16 @@ struct megasas_cmd {
 		u32 frame_count;
 	};
 };
+
+struct megasas_cmd_priv {
+	void	*cmd_priv;
+	u8	status;
+};
+
+static inline struct megasas_cmd_priv *megasas_priv(struct scsi_cmnd *cmd)
+{
+	return scsi_cmd_priv(cmd);
+}
 
 #define MAX_MGMT_ADAPTERS		1024
 #define MAX_IOCTL_SGE			16

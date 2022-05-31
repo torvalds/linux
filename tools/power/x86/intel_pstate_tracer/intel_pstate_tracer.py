@@ -63,7 +63,7 @@ C_USEC = 3
 C_SEC = 2
 C_CPU = 1
 
-global sample_num, last_sec_cpu, last_usec_cpu, start_time, testname
+global sample_num, last_sec_cpu, last_usec_cpu, start_time, testname, trace_file
 
 # 11 digits covers uptime to 115 days
 getcontext().prec = 11
@@ -72,17 +72,17 @@ sample_num =0
 last_sec_cpu = [0] * MAX_CPUS
 last_usec_cpu = [0] * MAX_CPUS
 
-def print_help():
-    print('intel_pstate_tracer.py:')
+def print_help(driver_name):
+    print('%s_tracer.py:'%driver_name)
     print('  Usage:')
     print('    If the trace file is available, then to simply parse and plot, use (sudo not required):')
-    print('      ./intel_pstate_tracer.py [-c cpus] -t <trace_file> -n <test_name>')
+    print('      ./%s_tracer.py [-c cpus] -t <trace_file> -n <test_name>'%driver_name)
     print('    Or')
-    print('      ./intel_pstate_tracer.py [--cpu cpus] ---trace_file <trace_file> --name <test_name>')
+    print('      ./%s_tracer.py [--cpu cpus] ---trace_file <trace_file> --name <test_name>'%driver_name)
     print('    To generate trace file, parse and plot, use (sudo required):')
-    print('      sudo ./intel_pstate_tracer.py [-c cpus] -i <interval> -n <test_name> -m <kbytes>')
+    print('      sudo ./%s_tracer.py [-c cpus] -i <interval> -n <test_name> -m <kbytes>'%driver_name)
     print('    Or')
-    print('      sudo ./intel_pstate_tracer.py [--cpu cpus] --interval <interval> --name <test_name> --memory <kbytes>')
+    print('      sudo ./%s_tracer.py [--cpu cpus] --interval <interval> --name <test_name> --memory <kbytes>'%driver_name)
     print('    Optional argument:')
     print('      cpus:   comma separated list of CPUs')
     print('      kbytes: Kilo bytes of memory per CPU to allocate to the trace buffer. Default: 10240')
@@ -323,7 +323,7 @@ def set_4_plot_linestyles(g_plot):
     g_plot('set style line 3 linetype 1 linecolor rgb "purple" pointtype -1')
     g_plot('set style line 4 linetype 1 linecolor rgb "blue" pointtype -1')
 
-def store_csv(cpu_int, time_pre_dec, time_post_dec, core_busy, scaled, _from, _to, mperf, aperf, tsc, freq_ghz, io_boost, common_comm, load, duration_ms, sample_num, elapsed_time, tsc_ghz):
+def store_csv(cpu_int, time_pre_dec, time_post_dec, core_busy, scaled, _from, _to, mperf, aperf, tsc, freq_ghz, io_boost, common_comm, load, duration_ms, sample_num, elapsed_time, tsc_ghz, cpu_mask):
     """ Store master csv file information """
 
     global graph_data_present
@@ -342,10 +342,8 @@ def store_csv(cpu_int, time_pre_dec, time_post_dec, core_busy, scaled, _from, _t
 
     graph_data_present = True;
 
-def split_csv():
+def split_csv(current_max_cpu, cpu_mask):
     """ seperate the all csv file into per CPU csv files. """
-
-    global current_max_cpu
 
     if os.path.exists('cpu.csv'):
         for index in range(0, current_max_cpu + 1):
@@ -381,27 +379,25 @@ def clear_trace_file():
         print('IO error clearing trace file ')
         sys.exit(2)
 
-def enable_trace():
+def enable_trace(trace_file):
     """ Enable trace """
 
     try:
-       open('/sys/kernel/debug/tracing/events/power/pstate_sample/enable'
-                 , 'w').write("1")
+        open(trace_file,'w').write("1")
     except:
         print('IO error enabling trace ')
         sys.exit(2)
 
-def disable_trace():
+def disable_trace(trace_file):
     """ Disable trace """
 
     try:
-       open('/sys/kernel/debug/tracing/events/power/pstate_sample/enable'
-                 , 'w').write("0")
+       open(trace_file, 'w').write("0")
     except:
         print('IO error disabling trace ')
         sys.exit(2)
 
-def set_trace_buffer_size():
+def set_trace_buffer_size(memory):
     """ Set trace buffer size """
 
     try:
@@ -421,7 +417,7 @@ def free_trace_buffer():
         print('IO error freeing trace buffer ')
         sys.exit(2)
 
-def read_trace_data(filename):
+def read_trace_data(filename, cpu_mask):
     """ Read and parse trace data """
 
     global current_max_cpu
@@ -481,135 +477,137 @@ def read_trace_data(filename):
                 tsc_ghz = Decimal(0)
                 if duration_ms != Decimal(0) :
                     tsc_ghz = Decimal(tsc)/duration_ms/Decimal(1000000)
-                store_csv(cpu_int, time_pre_dec, time_post_dec, core_busy, scaled, _from, _to, mperf, aperf, tsc, freq_ghz, io_boost, common_comm, load, duration_ms, sample_num, elapsed_time, tsc_ghz)
+                store_csv(cpu_int, time_pre_dec, time_post_dec, core_busy, scaled, _from, _to, mperf, aperf, tsc, freq_ghz, io_boost, common_comm, load, duration_ms, sample_num, elapsed_time, tsc_ghz, cpu_mask)
 
             if cpu_int > current_max_cpu:
                 current_max_cpu = cpu_int
 # End of for each trace line loop
 # Now seperate the main overall csv file into per CPU csv files.
-    split_csv()
+    split_csv(current_max_cpu, cpu_mask)
 
 def signal_handler(signal, frame):
     print(' SIGINT: Forcing cleanup before exit.')
     if interval:
-        disable_trace()
+        disable_trace(trace_file)
         clear_trace_file()
         # Free the memory
         free_trace_buffer()
         sys.exit(0)
 
-signal.signal(signal.SIGINT, signal_handler)
+if __name__ == "__main__":
+    trace_file = "/sys/kernel/debug/tracing/events/power/pstate_sample/enable"
+    signal.signal(signal.SIGINT, signal_handler)
 
-interval = ""
-filename = ""
-cpu_list = ""
-testname = ""
-memory = "10240"
-graph_data_present = False;
+    interval = ""
+    filename = ""
+    cpu_list = ""
+    testname = ""
+    memory = "10240"
+    graph_data_present = False;
 
-valid1 = False
-valid2 = False
+    valid1 = False
+    valid2 = False
 
-cpu_mask = zeros((MAX_CPUS,), dtype=int)
+    cpu_mask = zeros((MAX_CPUS,), dtype=int)
 
-try:
-    opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:m:",["help","trace_file=","interval=","cpu=","name=","memory="])
-except getopt.GetoptError:
-    print_help()
-    sys.exit(2)
-for opt, arg in opts:
-    if opt == '-h':
-        print()
+    try:
+        opts, args = getopt.getopt(sys.argv[1:],"ht:i:c:n:m:",["help","trace_file=","interval=","cpu=","name=","memory="])
+    except getopt.GetoptError:
+        print_help('intel_pstate')
+        sys.exit(2)
+    for opt, arg in opts:
+        if opt == '-h':
+            print_help('intel_pstate')
+            sys.exit()
+        elif opt in ("-t", "--trace_file"):
+            valid1 = True
+            location = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
+            filename = os.path.join(location, arg)
+        elif opt in ("-i", "--interval"):
+            valid1 = True
+            interval = arg
+        elif opt in ("-c", "--cpu"):
+            cpu_list = arg
+        elif opt in ("-n", "--name"):
+            valid2 = True
+            testname = arg
+        elif opt in ("-m", "--memory"):
+            memory = arg
+
+    if not (valid1 and valid2):
+        print_help('intel_pstate')
         sys.exit()
-    elif opt in ("-t", "--trace_file"):
-        valid1 = True
-        location = os.path.realpath(os.path.join(os.getcwd(), os.path.dirname(__file__)))
-        filename = os.path.join(location, arg)
-    elif opt in ("-i", "--interval"):
-        valid1 = True
-        interval = arg
-    elif opt in ("-c", "--cpu"):
-        cpu_list = arg
-    elif opt in ("-n", "--name"):
-        valid2 = True
-        testname = arg
-    elif opt in ("-m", "--memory"):
-        memory = arg
 
-if not (valid1 and valid2):
-    print_help()
-    sys.exit()
+    if cpu_list:
+        for p in re.split("[,]", cpu_list):
+            if int(p) < MAX_CPUS :
+                cpu_mask[int(p)] = 1
+    else:
+        for i in range (0, MAX_CPUS):
+            cpu_mask[i] = 1
 
-if cpu_list:
-    for p in re.split("[,]", cpu_list):
-        if int(p) < MAX_CPUS :
-            cpu_mask[int(p)] = 1
-else:
-    for i in range (0, MAX_CPUS):
-        cpu_mask[i] = 1
+    if not os.path.exists('results'):
+        os.mkdir('results')
+        # The regular user needs to own the directory, not root.
+        fix_ownership('results')
 
-if not os.path.exists('results'):
-    os.mkdir('results')
+    os.chdir('results')
+    if os.path.exists(testname):
+        print('The test name directory already exists. Please provide a unique test name. Test re-run not supported, yet.')
+        sys.exit()
+    os.mkdir(testname)
     # The regular user needs to own the directory, not root.
-    fix_ownership('results')
+    fix_ownership(testname)
+    os.chdir(testname)
 
-os.chdir('results')
-if os.path.exists(testname):
-    print('The test name directory already exists. Please provide a unique test name. Test re-run not supported, yet.')
-    sys.exit()
-os.mkdir(testname)
-# The regular user needs to own the directory, not root.
-fix_ownership(testname)
-os.chdir(testname)
+    # Temporary (or perhaps not)
+    cur_version = sys.version_info
+    print('python version (should be >= 2.7):')
+    print(cur_version)
 
-# Temporary (or perhaps not)
-cur_version = sys.version_info
-print('python version (should be >= 2.7):')
-print(cur_version)
+    # Left as "cleanup" for potential future re-run ability.
+    cleanup_data_files()
 
-# Left as "cleanup" for potential future re-run ability.
-cleanup_data_files()
+    if interval:
+        filename = "/sys/kernel/debug/tracing/trace"
+        clear_trace_file()
+        set_trace_buffer_size(memory)
+        enable_trace(trace_file)
+        print('Sleeping for ', interval, 'seconds')
+        time.sleep(int(interval))
+        disable_trace(trace_file)
 
-if interval:
-    filename = "/sys/kernel/debug/tracing/trace"
-    clear_trace_file()
-    set_trace_buffer_size()
-    enable_trace()
-    print('Sleeping for ', interval, 'seconds')
-    time.sleep(int(interval))
-    disable_trace()
+    current_max_cpu = 0
 
-current_max_cpu = 0
+    read_trace_data(filename, cpu_mask)
 
-read_trace_data(filename)
+    if interval:
+        clear_trace_file()
+        # Free the memory
+        free_trace_buffer()
 
-if interval:
-    clear_trace_file()
-    # Free the memory
-    free_trace_buffer()
+    if graph_data_present == False:
+        print('No valid data to plot')
+        sys.exit(2)
 
-if graph_data_present == False:
-    print('No valid data to plot')
-    sys.exit(2)
+    for cpu_no in range(0, current_max_cpu + 1):
+        plot_perf_busy_with_sample(cpu_no)
+        plot_perf_busy(cpu_no)
+        plot_durations(cpu_no)
+        plot_loads(cpu_no)
 
-for cpu_no in range(0, current_max_cpu + 1):
-    plot_perf_busy_with_sample(cpu_no)
-    plot_perf_busy(cpu_no)
-    plot_durations(cpu_no)
-    plot_loads(cpu_no)
+    plot_pstate_cpu_with_sample()
+    plot_pstate_cpu()
+    plot_load_cpu()
+    plot_frequency_cpu()
+    plot_duration_cpu()
+    plot_scaled_cpu()
+    plot_boost_cpu()
+    plot_ghz_cpu()
 
-plot_pstate_cpu_with_sample()
-plot_pstate_cpu()
-plot_load_cpu()
-plot_frequency_cpu()
-plot_duration_cpu()
-plot_scaled_cpu()
-plot_boost_cpu()
-plot_ghz_cpu()
+    # It is preferrable, but not necessary, that the regular user owns the files, not root.
+    for root, dirs, files in os.walk('.'):
+        for f in files:
+            fix_ownership(f)
 
-# It is preferrable, but not necessary, that the regular user owns the files, not root.
-for root, dirs, files in os.walk('.'):
-    for f in files:
-        fix_ownership(f)
-
-os.chdir('../../')
+    os.chdir('../../')

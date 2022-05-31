@@ -162,6 +162,8 @@ int __ext4_journal_ensure_credits(handle_t *handle, int check_cred,
 {
 	if (!ext4_handle_valid(handle))
 		return 0;
+	if (is_handle_aborted(handle))
+		return -EROFS;
 	if (jbd2_handle_buffer_credits(handle) >= check_cred &&
 	    handle->h_revoke_credits >= revoke_cred)
 		return 0;

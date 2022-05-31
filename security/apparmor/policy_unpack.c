@@ -39,7 +39,7 @@
 
 /*
  * The AppArmor interface treats data as a type byte followed by the
- * actual data.  The interface has the notion of a a named entry
+ * actual data.  The interface has the notion of a named entry
  * which has a name (AA_NAME typecode followed by name string) followed by
  * the entries typecode and data.  Named types allow for optional
  * elements and extensions to be added and tested for without breaking

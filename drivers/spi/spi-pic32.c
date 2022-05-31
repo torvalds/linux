@@ -370,7 +370,6 @@ static int pic32_spi_dma_config(struct pic32_spi *pic32s, u32 dma_width)
 	cfg.src_addr_width = dma_width;
 	cfg.dst_addr_width = dma_width;
 	/* tx channel */
-	cfg.slave_id = pic32s->tx_irq;
 	cfg.direction = DMA_MEM_TO_DEV;
 	ret = dmaengine_slave_config(master->dma_tx, &cfg);
 	if (ret) {
@@ -378,7 +377,6 @@ static int pic32_spi_dma_config(struct pic32_spi *pic32s, u32 dma_width)
 		return ret;
 	}
 	/* rx channel */
-	cfg.slave_id = pic32s->rx_irq;
 	cfg.direction = DMA_DEV_TO_MEM;
 	ret = dmaengine_slave_config(master->dma_rx, &cfg);
 	if (ret)
@@ -593,18 +591,16 @@ static int pic32_spi_setup(struct spi_device *spi)
 	 * unreliable/erroneous SPI transactions.
 	 * To avoid that we will always handle /CS by toggling GPIO.
 	 */
-	if (!gpio_is_valid(spi->cs_gpio))
+	if (!spi->cs_gpiod)
 		return -EINVAL;
-
-	gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
 
 	return 0;
 }
 
 static void pic32_spi_cleanup(struct spi_device *spi)
 {
-	/* de-activate cs-gpio */
-	gpio_direction_output(spi->cs_gpio, !(spi->mode & SPI_CS_HIGH));
+	/* de-activate cs-gpio, gpiolib will handle inversion */
+	gpiod_direction_output(spi->cs_gpiod, 0);
 }
 
 static int pic32_spi_dma_prep(struct pic32_spi *pic32s, struct device *dev)
@@ -786,6 +782,7 @@ static int pic32_spi_probe(struct platform_device *pdev)
 	master->unprepare_message	= pic32_spi_unprepare_message;
 	master->prepare_transfer_hardware	= pic32_spi_prepare_hardware;
 	master->unprepare_transfer_hardware	= pic32_spi_unprepare_hardware;
+	master->use_gpio_descriptors = true;
 
 	/* optional DMA support */
 	ret = pic32_spi_dma_prep(pic32s, &pdev->dev);

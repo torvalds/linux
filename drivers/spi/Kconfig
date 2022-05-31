@@ -228,6 +228,18 @@ config SPI_CADENCE_QUADSPI
 	  device with a Cadence QSPI controller and want to access the
 	  Flash as an MTD device.
 
+config SPI_CADENCE_XSPI
+	tristate "Cadence XSPI controller"
+	depends on (OF || COMPILE_TEST) && HAS_IOMEM
+	depends on SPI_MEM
+	help
+	  Enable support for the Cadence XSPI Flash controller.
+
+	  Cadence XSPI is a specialized controller for connecting an SPI
+	  Flash over upto 8bit wide bus. Enable this option if you have a
+	  device with a Cadence XSPI controller and want to access the
+	  Flash as an MTD device.
+
 config SPI_CLPS711X
 	tristate "CLPS711X host SPI controller"
 	depends on ARCH_CLPS711X || COMPILE_TEST
@@ -405,6 +417,54 @@ config SPI_IMX
 	select SPI_BITBANG
 	help
 	  This enables support for the Freescale i.MX SPI controllers.
+
+config SPI_INGENIC
+	tristate "Ingenic JZ47xx SoCs SPI controller"
+	depends on MACH_INGENIC || COMPILE_TEST
+	help
+	  This enables support for the Ingenic JZ47xx SoCs SPI controller.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called spi-ingenic.
+
+config SPI_INTEL
+	tristate
+
+config SPI_INTEL_PCI
+	tristate "Intel PCH/PCU SPI flash PCI driver (DANGEROUS)"
+	depends on PCI
+	depends on X86 || COMPILE_TEST
+	depends on SPI_MEM
+	select SPI_INTEL
+	help
+	  This enables PCI support for the Intel PCH/PCU SPI controller in
+	  master mode. This controller is present in modern Intel hardware
+	  and is used to hold BIOS and other persistent settings. Using
+	  this driver it is possible to upgrade BIOS directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called spi-intel-pci.
+
+config SPI_INTEL_PLATFORM
+	tristate "Intel PCH/PCU SPI flash platform driver (DANGEROUS)"
+	depends on X86 || COMPILE_TEST
+	depends on SPI_MEM
+	select SPI_INTEL
+	help
+	  This enables platform support for the Intel PCH/PCU SPI
+	  controller in master mode. This controller is present in modern
+	  Intel hardware and is used to hold BIOS and other persistent
+	  settings. Using this driver it is possible to upgrade BIOS
+	  directly from Linux.
+
+	  Say N here unless you know what you are doing. Overwriting the
+	  SPI flash may render the system unbootable.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called spi-intel-platform.
 
 config SPI_JCORE
 	tristate "J-Core SPI Master"
@@ -738,10 +798,11 @@ config SPI_S3C24XX_FIQ
 	  TX and RX data paths.
 
 config SPI_S3C64XX
-	tristate "Samsung S3C64XX series type SPI"
+	tristate "Samsung S3C64XX/Exynos SoC series type SPI"
 	depends on (PLAT_SAMSUNG || ARCH_S5PV210 || ARCH_EXYNOS || COMPILE_TEST)
 	help
-	  SPI driver for Samsung S3C64XX and newer SoCs.
+	  SPI driver for Samsung S3C64XX, S5Pv210 and Exynos SoCs.
+	  Choose Y/M here only if you build for such Samsung SoC.
 
 config SPI_SC18IS602
 	tristate "NXP SC18IS602/602B/603 I2C to SPI bridge"
@@ -844,6 +905,17 @@ config SPI_SUN6I
 	help
 	  This enables using the SPI controller on the Allwinner A31 SoCs.
 
+config SPI_SUNPLUS_SP7021
+	tristate "Sunplus SP7021 SPI controller"
+	depends on SOC_SP7021 || COMPILE_TEST
+	help
+	  This enables Sunplus SP7021 SPI controller driver on the SP7021 SoCs.
+	  This driver can also be built as a module. If so, the module will be
+	  called as spi-sunplus-sp7021.
+
+	  If you have a  Sunplus SP7021 platform say Y here.
+	  If unsure, say N.
+
 config SPI_SYNQUACER
 	tristate "Socionext's SynQuacer HighSpeed SPI controller"
 	depends on ARCH_SYNQUACER || COMPILE_TEST
@@ -857,6 +929,7 @@ config SPI_SYNQUACER
 config SPI_MXIC
 	tristate "Macronix MX25F0A SPI controller"
 	depends on SPI_MASTER
+	imply MTD_NAND_ECC_MXIC
 	help
 	  This selects the Macronix MX25F0A SPI controller driver.
 
@@ -952,14 +1025,13 @@ config SPI_XILINX
 	  Or for the DS570, see "XPS Serial Peripheral Interface (SPI) (v2.00b)"
 
 config SPI_XLP
-	tristate "Netlogic XLP SPI controller driver"
-	depends on CPU_XLP || ARCH_THUNDER2 || COMPILE_TEST
+	tristate "Cavium ThunderX2 SPI controller driver"
+	depends on ARCH_THUNDER2 || COMPILE_TEST
 	help
-	  Enable support for the SPI controller on the Netlogic XLP SoCs.
-	  Currently supported XLP variants are XLP8XX, XLP3XX, XLP2XX, XLP9XX
-	  and XLP5XX.
+	  Enable support for the SPI controller on the Cavium ThunderX2.
+	  (Originally on Netlogic XLP SoCs.)
 
-	  If you have a Netlogic XLP platform say Y here.
+	  If you have a Cavium ThunderX2 platform say Y here.
 	  If unsure, say N.
 
 config SPI_XTENSA_XTFPGA

@@ -1,4 +1,5 @@
-What:		/sys/fs/pstore/... (or /dev/pstore/...)
+What:		/sys/fs/pstore/...
+What:		/dev/pstore/...
 Date:		March 2011
 KernelVersion: 2.6.39
 Contact:	tony.luck@intel.com

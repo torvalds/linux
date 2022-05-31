@@ -13,6 +13,7 @@
 #include <linux/regulator/consumer.h>
 #include <linux/slab.h>
 #include <linux/module.h>
+#include <linux/of.h>
 
 struct virtual_consumer_data {
 	struct mutex lock;
@@ -281,26 +282,53 @@ static const struct attribute_group regulator_virtual_attr_group = {
 	.attrs	= regulator_virtual_attributes,
 };
 
+#ifdef CONFIG_OF
+static const struct of_device_id regulator_virtual_consumer_of_match[] = {
+	{ .compatible = "regulator-virtual-consumer" },
+	{},
+};
+MODULE_DEVICE_TABLE(of, regulator_virtual_consumer_of_match);
+#endif
+
 static int regulator_virtual_probe(struct platform_device *pdev)
 {
 	char *reg_id = dev_get_platdata(&pdev->dev);
 	struct virtual_consumer_data *drvdata;
+	static bool warned;
 	int ret;
+
+	if (!warned) {
+		warned = true;
+		pr_warn("**********************************************************\n");
+		pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+		pr_warn("**                                                      **\n");
+		pr_warn("** regulator-virtual-consumer is only for testing and   **\n");
+		pr_warn("** debugging.  Do not use it in a production kernel.    **\n");
+		pr_warn("**                                                      **\n");
+		pr_warn("**   NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE NOTICE   **\n");
+		pr_warn("**********************************************************\n");
+	}
 
 	drvdata = devm_kzalloc(&pdev->dev, sizeof(struct virtual_consumer_data),
 			       GFP_KERNEL);
 	if (drvdata == NULL)
 		return -ENOMEM;
 
+	/*
+	 * This virtual consumer does not have any hardware-defined supply
+	 * name, so just allow the regulator to be specified in a property
+	 * named "default-supply" when we're being probed from devicetree.
+	 */
+	if (!reg_id && pdev->dev.of_node)
+		reg_id = "default";
+
 	mutex_init(&drvdata->lock);
 
 	drvdata->regulator = devm_regulator_get(&pdev->dev, reg_id);
-	if (IS_ERR(drvdata->regulator)) {
-		ret = PTR_ERR(drvdata->regulator);
-		dev_err(&pdev->dev, "Failed to obtain supply '%s': %d\n",
-			reg_id, ret);
-		return ret;
-	}
+	if (IS_ERR(drvdata->regulator))
+		return dev_err_probe(&pdev->dev, PTR_ERR(drvdata->regulator),
+				     "Failed to obtain supply '%s'\n",
+				     reg_id);
 
 	ret = sysfs_create_group(&pdev->dev.kobj,
 				 &regulator_virtual_attr_group);
@@ -334,6 +362,7 @@ static struct platform_driver regulator_virtual_consumer_driver = {
 	.remove		= regulator_virtual_remove,
 	.driver		= {
 		.name		= "reg-virt-consumer",
+		.of_match_table = of_match_ptr(regulator_virtual_consumer_of_match),
 	},
 };
 

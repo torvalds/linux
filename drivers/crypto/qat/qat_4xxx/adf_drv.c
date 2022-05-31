@@ -29,6 +29,29 @@ static void adf_cleanup_accel(struct adf_accel_dev *accel_dev)
 	adf_devmgr_rm_dev(accel_dev, NULL);
 }
 
+static int adf_cfg_dev_init(struct adf_accel_dev *accel_dev)
+{
+	const char *config;
+	int ret;
+
+	config = accel_dev->accel_id % 2 ? ADF_CFG_DC : ADF_CFG_CY;
+
+	ret = adf_cfg_section_add(accel_dev, ADF_GENERAL_SEC);
+	if (ret)
+		return ret;
+
+	/* Default configuration is crypto only for even devices
+	 * and compression for odd devices
+	 */
+	ret = adf_cfg_add_key_value_param(accel_dev, ADF_GENERAL_SEC,
+					  ADF_SERVICES_ENABLED, config,
+					  ADF_STR);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
 static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 {
 	char key[ADF_CFG_MAX_KEY_LEN_IN_BYTES];
@@ -51,6 +74,13 @@ static int adf_crypto_dev_config(struct adf_accel_dev *accel_dev)
 	ret = adf_cfg_section_add(accel_dev, "Accelerator0");
 	if (ret)
 		goto err;
+
+	/* Temporarily set the number of crypto instances to zero to avoid
+	 * registering the crypto algorithms.
+	 * This will be removed when the algorithms will support the
+	 * CRYPTO_TFM_REQ_MAY_BACKLOG flag
+	 */
+	instances = 0;
 
 	for (i = 0; i < instances; i++) {
 		val = i;
@@ -227,8 +257,18 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_err;
 	}
 
+	ret = adf_cfg_dev_init(accel_dev);
+	if (ret) {
+		dev_err(&pdev->dev, "Failed to initialize configuration.\n");
+		goto out_err;
+	}
+
 	/* Get accelerator capabilities mask */
 	hw_data->accel_capabilities_mask = hw_data->get_accel_cap(accel_dev);
+	if (!hw_data->accel_capabilities_mask) {
+		dev_err(&pdev->dev, "Failed to get capabilities mask.\n");
+		goto out_err;
+	}
 
 	/* Find and map all the device's BARS */
 	bar_mask = pci_select_bars(pdev, IORESOURCE_MEM) & ADF_4XXX_BAR_MASK;
@@ -247,11 +287,7 @@ static int adf_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	pci_set_master(pdev);
 
-	if (adf_enable_aer(accel_dev)) {
-		dev_err(&pdev->dev, "Failed to enable aer.\n");
-		ret = -EFAULT;
-		goto out_err;
-	}
+	adf_enable_aer(accel_dev);
 
 	if (pci_save_state(pdev)) {
 		dev_err(&pdev->dev, "Failed to save pci state.\n");
@@ -304,6 +340,7 @@ static struct pci_driver adf_driver = {
 	.probe = adf_probe,
 	.remove = adf_remove,
 	.sriov_configure = adf_sriov_configure,
+	.err_handler = &adf_err_handler,
 };
 
 module_pci_driver(adf_driver);

@@ -32,13 +32,16 @@
 #include <drm/drm_debugfs.h>
 
 #include "gem/i915_gem_context.h"
+#include "gt/intel_gt.h"
 #include "gt/intel_gt_buffer_pool.h"
 #include "gt/intel_gt_clock_utils.h"
-#include "gt/intel_gt.h"
+#include "gt/intel_gt_debugfs.h"
 #include "gt/intel_gt_pm.h"
+#include "gt/intel_gt_pm_debugfs.h"
+#include "gt/intel_gt_regs.h"
 #include "gt/intel_gt_requests.h"
-#include "gt/intel_reset.h"
 #include "gt/intel_rc6.h"
+#include "gt/intel_reset.h"
 #include "gt/intel_rps.h"
 #include "gt/intel_sseu_debugfs.h"
 
@@ -46,9 +49,8 @@
 #include "i915_debugfs_params.h"
 #include "i915_irq.h"
 #include "i915_scheduler.h"
-#include "i915_trace.h"
+#include "intel_mchbar_regs.h"
 #include "intel_pm.h"
-#include "intel_sideband.h"
 
 static inline struct drm_i915_private *node_to_i915(struct drm_info_node *node)
 {
@@ -64,7 +66,8 @@ static int i915_capabilities(struct seq_file *m, void *data)
 
 	intel_device_info_print_static(INTEL_INFO(i915), &p);
 	intel_device_info_print_runtime(RUNTIME_INFO(i915), &p);
-	intel_gt_info_print(&i915->gt.info, &p);
+	i915_print_iommu_status(i915, &p);
+	intel_gt_info_print(&to_gt(i915)->info, &p);
 	intel_driver_caps_print(&i915->caps, &p);
 
 	kernel_param_lock(THIS_MODULE);
@@ -135,11 +138,21 @@ static const char *stringify_vma_type(const struct i915_vma *vma)
 	return "ppgtt";
 }
 
+static const char *i915_cache_level_str(struct drm_i915_private *i915, int type)
+{
+	switch (type) {
+	case I915_CACHE_NONE: return " uncached";
+	case I915_CACHE_LLC: return HAS_LLC(i915) ? " LLC" : " snooped";
+	case I915_CACHE_L3_LLC: return " L3+LLC";
+	case I915_CACHE_WT: return " WT";
+	default: return "";
+	}
+}
+
 void
 i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 {
 	struct drm_i915_private *dev_priv = to_i915(obj->base.dev);
-	struct intel_engine_cs *engine;
 	struct i915_vma *vma;
 	int pin_count = 0;
 
@@ -170,7 +183,8 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (%s offset: %08llx, size: %08llx, pages: %s",
 			   stringify_vma_type(vma),
 			   vma->node.start, vma->node.size,
-			   stringify_page_sizes(vma->page_sizes.gtt, NULL, 0));
+			   stringify_page_sizes(vma->resource->page_sizes_gtt,
+						NULL, 0));
 		if (i915_vma_is_ggtt(vma) || i915_vma_is_dpt(vma)) {
 			switch (vma->ggtt_view.type) {
 			case I915_GGTT_VIEW_NORMAL:
@@ -229,15 +243,12 @@ i915_debugfs_describe_obj(struct seq_file *m, struct drm_i915_gem_object *obj)
 		seq_printf(m, " (stolen: %08llx)", obj->stolen->start);
 	if (i915_gem_object_is_framebuffer(obj))
 		seq_printf(m, " (fb)");
-
-	engine = i915_gem_object_last_write_engine(obj);
-	if (engine)
-		seq_printf(m, " (%s)", engine->name);
 }
 
 static int i915_gem_object_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct drm_printer p = drm_seq_file_printer(m);
 	struct intel_memory_region *mr;
 	enum intel_region_id id;
 
@@ -246,8 +257,7 @@ static int i915_gem_object_info(struct seq_file *m, void *data)
 		   atomic_read(&i915->mm.free_count),
 		   i915->mm.shrink_memory);
 	for_each_memory_region(mr, i915, id)
-		seq_printf(m, "%s: total:%pa, available:%pa bytes\n",
-			   mr->name, &mr->total, &mr->avail);
+		intel_memory_region_debug(mr, &p);
 
 	return 0;
 }
@@ -297,7 +307,7 @@ static int i915_gpu_info_open(struct inode *inode, struct file *file)
 
 	gpu = NULL;
 	with_intel_runtime_pm(&i915->runtime_pm, wakeref)
-		gpu = i915_gpu_coredump(&i915->gt, ALL_ENGINES);
+		gpu = i915_gpu_coredump(to_gt(i915), ALL_ENGINES);
 	if (IS_ERR(gpu))
 		return PTR_ERR(gpu);
 
@@ -354,232 +364,12 @@ static const struct file_operations i915_error_state_fops = {
 
 static int i915_frequency_info(struct seq_file *m, void *unused)
 {
-	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_uncore *uncore = &dev_priv->uncore;
-	struct intel_rps *rps = &dev_priv->gt.rps;
-	intel_wakeref_t wakeref;
+	struct drm_i915_private *i915 = node_to_i915(m->private);
+	struct intel_gt *gt = to_gt(i915);
+	struct drm_printer p = drm_seq_file_printer(m);
 
-	wakeref = intel_runtime_pm_get(&dev_priv->runtime_pm);
+	intel_gt_pm_frequency_dump(gt, &p);
 
-	if (GRAPHICS_VER(dev_priv) == 5) {
-		u16 rgvswctl = intel_uncore_read16(uncore, MEMSWCTL);
-		u16 rgvstat = intel_uncore_read16(uncore, MEMSTAT_ILK);
-
-		seq_printf(m, "Requested P-state: %d\n", (rgvswctl >> 8) & 0xf);
-		seq_printf(m, "Requested VID: %d\n", rgvswctl & 0x3f);
-		seq_printf(m, "Current VID: %d\n", (rgvstat & MEMSTAT_VID_MASK) >>
-			   MEMSTAT_VID_SHIFT);
-		seq_printf(m, "Current P-state: %d\n",
-			   (rgvstat & MEMSTAT_PSTATE_MASK) >> MEMSTAT_PSTATE_SHIFT);
-	} else if (IS_VALLEYVIEW(dev_priv) || IS_CHERRYVIEW(dev_priv)) {
-		u32 rpmodectl, freq_sts;
-
-		rpmodectl = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CONTROL);
-		seq_printf(m, "Video Turbo Mode: %s\n",
-			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
-		seq_printf(m, "HW control enabled: %s\n",
-			   yesno(rpmodectl & GEN6_RP_ENABLE));
-		seq_printf(m, "SW control enabled: %s\n",
-			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
-				  GEN6_RP_MEDIA_SW_MODE));
-
-		vlv_punit_get(dev_priv);
-		freq_sts = vlv_punit_read(dev_priv, PUNIT_REG_GPU_FREQ_STS);
-		vlv_punit_put(dev_priv);
-
-		seq_printf(m, "PUNIT_REG_GPU_FREQ_STS: 0x%08x\n", freq_sts);
-		seq_printf(m, "DDR freq: %d MHz\n", dev_priv->mem_freq);
-
-		seq_printf(m, "actual GPU freq: %d MHz\n",
-			   intel_gpu_freq(rps, (freq_sts >> 8) & 0xff));
-
-		seq_printf(m, "current GPU freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->cur_freq));
-
-		seq_printf(m, "max GPU freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->max_freq));
-
-		seq_printf(m, "min GPU freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->min_freq));
-
-		seq_printf(m, "idle GPU freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->idle_freq));
-
-		seq_printf(m,
-			   "efficient (RPe) frequency: %d MHz\n",
-			   intel_gpu_freq(rps, rps->efficient_freq));
-	} else if (GRAPHICS_VER(dev_priv) >= 6) {
-		u32 rp_state_limits;
-		u32 gt_perf_status;
-		u32 rp_state_cap;
-		u32 rpmodectl, rpinclimit, rpdeclimit;
-		u32 rpstat, cagf, reqf;
-		u32 rpupei, rpcurup, rpprevup;
-		u32 rpdownei, rpcurdown, rpprevdown;
-		u32 pm_ier, pm_imr, pm_isr, pm_iir, pm_mask;
-		int max_freq;
-
-		rp_state_limits = intel_uncore_read(&dev_priv->uncore, GEN6_RP_STATE_LIMITS);
-		if (IS_GEN9_LP(dev_priv)) {
-			rp_state_cap = intel_uncore_read(&dev_priv->uncore, BXT_RP_STATE_CAP);
-			gt_perf_status = intel_uncore_read(&dev_priv->uncore, BXT_GT_PERF_STATUS);
-		} else {
-			rp_state_cap = intel_uncore_read(&dev_priv->uncore, GEN6_RP_STATE_CAP);
-			gt_perf_status = intel_uncore_read(&dev_priv->uncore, GEN6_GT_PERF_STATUS);
-		}
-
-		/* RPSTAT1 is in the GT power well */
-		intel_uncore_forcewake_get(&dev_priv->uncore, FORCEWAKE_ALL);
-
-		reqf = intel_uncore_read(&dev_priv->uncore, GEN6_RPNSWREQ);
-		if (GRAPHICS_VER(dev_priv) >= 9)
-			reqf >>= 23;
-		else {
-			reqf &= ~GEN6_TURBO_DISABLE;
-			if (IS_HASWELL(dev_priv) || IS_BROADWELL(dev_priv))
-				reqf >>= 24;
-			else
-				reqf >>= 25;
-		}
-		reqf = intel_gpu_freq(rps, reqf);
-
-		rpmodectl = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CONTROL);
-		rpinclimit = intel_uncore_read(&dev_priv->uncore, GEN6_RP_UP_THRESHOLD);
-		rpdeclimit = intel_uncore_read(&dev_priv->uncore, GEN6_RP_DOWN_THRESHOLD);
-
-		rpstat = intel_uncore_read(&dev_priv->uncore, GEN6_RPSTAT1);
-		rpupei = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_UP_EI) & GEN6_CURICONT_MASK;
-		rpcurup = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_UP) & GEN6_CURBSYTAVG_MASK;
-		rpprevup = intel_uncore_read(&dev_priv->uncore, GEN6_RP_PREV_UP) & GEN6_CURBSYTAVG_MASK;
-		rpdownei = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_DOWN_EI) & GEN6_CURIAVG_MASK;
-		rpcurdown = intel_uncore_read(&dev_priv->uncore, GEN6_RP_CUR_DOWN) & GEN6_CURBSYTAVG_MASK;
-		rpprevdown = intel_uncore_read(&dev_priv->uncore, GEN6_RP_PREV_DOWN) & GEN6_CURBSYTAVG_MASK;
-		cagf = intel_rps_read_actual_frequency(rps);
-
-		intel_uncore_forcewake_put(&dev_priv->uncore, FORCEWAKE_ALL);
-
-		if (GRAPHICS_VER(dev_priv) >= 11) {
-			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN11_GPM_WGBOXPERF_INTR_ENABLE);
-			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN11_GPM_WGBOXPERF_INTR_MASK);
-			/*
-			 * The equivalent to the PM ISR & IIR cannot be read
-			 * without affecting the current state of the system
-			 */
-			pm_isr = 0;
-			pm_iir = 0;
-		} else if (GRAPHICS_VER(dev_priv) >= 8) {
-			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IER(2));
-			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IMR(2));
-			pm_isr = intel_uncore_read(&dev_priv->uncore, GEN8_GT_ISR(2));
-			pm_iir = intel_uncore_read(&dev_priv->uncore, GEN8_GT_IIR(2));
-		} else {
-			pm_ier = intel_uncore_read(&dev_priv->uncore, GEN6_PMIER);
-			pm_imr = intel_uncore_read(&dev_priv->uncore, GEN6_PMIMR);
-			pm_isr = intel_uncore_read(&dev_priv->uncore, GEN6_PMISR);
-			pm_iir = intel_uncore_read(&dev_priv->uncore, GEN6_PMIIR);
-		}
-		pm_mask = intel_uncore_read(&dev_priv->uncore, GEN6_PMINTRMSK);
-
-		seq_printf(m, "Video Turbo Mode: %s\n",
-			   yesno(rpmodectl & GEN6_RP_MEDIA_TURBO));
-		seq_printf(m, "HW control enabled: %s\n",
-			   yesno(rpmodectl & GEN6_RP_ENABLE));
-		seq_printf(m, "SW control enabled: %s\n",
-			   yesno((rpmodectl & GEN6_RP_MEDIA_MODE_MASK) ==
-				  GEN6_RP_MEDIA_SW_MODE));
-
-		seq_printf(m, "PM IER=0x%08x IMR=0x%08x, MASK=0x%08x\n",
-			   pm_ier, pm_imr, pm_mask);
-		if (GRAPHICS_VER(dev_priv) <= 10)
-			seq_printf(m, "PM ISR=0x%08x IIR=0x%08x\n",
-				   pm_isr, pm_iir);
-		seq_printf(m, "pm_intrmsk_mbz: 0x%08x\n",
-			   rps->pm_intrmsk_mbz);
-		seq_printf(m, "GT_PERF_STATUS: 0x%08x\n", gt_perf_status);
-		seq_printf(m, "Render p-state ratio: %d\n",
-			   (gt_perf_status & (GRAPHICS_VER(dev_priv) >= 9 ? 0x1ff00 : 0xff00)) >> 8);
-		seq_printf(m, "Render p-state VID: %d\n",
-			   gt_perf_status & 0xff);
-		seq_printf(m, "Render p-state limit: %d\n",
-			   rp_state_limits & 0xff);
-		seq_printf(m, "RPSTAT1: 0x%08x\n", rpstat);
-		seq_printf(m, "RPMODECTL: 0x%08x\n", rpmodectl);
-		seq_printf(m, "RPINCLIMIT: 0x%08x\n", rpinclimit);
-		seq_printf(m, "RPDECLIMIT: 0x%08x\n", rpdeclimit);
-		seq_printf(m, "RPNSWREQ: %dMHz\n", reqf);
-		seq_printf(m, "CAGF: %dMHz\n", cagf);
-		seq_printf(m, "RP CUR UP EI: %d (%lldns)\n",
-			   rpupei,
-			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpupei));
-		seq_printf(m, "RP CUR UP: %d (%lldun)\n",
-			   rpcurup,
-			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpcurup));
-		seq_printf(m, "RP PREV UP: %d (%lldns)\n",
-			   rpprevup,
-			   intel_gt_pm_interval_to_ns(&dev_priv->gt, rpprevup));
-		seq_printf(m, "Up threshold: %d%%\n",
-			   rps->power.up_threshold);
-
-		seq_printf(m, "RP CUR DOWN EI: %d (%lldns)\n",
-			   rpdownei,
-			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
-						      rpdownei));
-		seq_printf(m, "RP CUR DOWN: %d (%lldns)\n",
-			   rpcurdown,
-			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
-						      rpcurdown));
-		seq_printf(m, "RP PREV DOWN: %d (%lldns)\n",
-			   rpprevdown,
-			   intel_gt_pm_interval_to_ns(&dev_priv->gt,
-						      rpprevdown));
-		seq_printf(m, "Down threshold: %d%%\n",
-			   rps->power.down_threshold);
-
-		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 0 :
-			    rp_state_cap >> 16) & 0xff;
-		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     GRAPHICS_VER(dev_priv) >= 11 ? GEN9_FREQ_SCALER : 1);
-		seq_printf(m, "Lowest (RPN) frequency: %dMHz\n",
-			   intel_gpu_freq(rps, max_freq));
-
-		max_freq = (rp_state_cap & 0xff00) >> 8;
-		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     GRAPHICS_VER(dev_priv) >= 11 ? GEN9_FREQ_SCALER : 1);
-		seq_printf(m, "Nominal (RP1) frequency: %dMHz\n",
-			   intel_gpu_freq(rps, max_freq));
-
-		max_freq = (IS_GEN9_LP(dev_priv) ? rp_state_cap >> 16 :
-			    rp_state_cap >> 0) & 0xff;
-		max_freq *= (IS_GEN9_BC(dev_priv) ||
-			     GRAPHICS_VER(dev_priv) >= 11 ? GEN9_FREQ_SCALER : 1);
-		seq_printf(m, "Max non-overclocked (RP0) frequency: %dMHz\n",
-			   intel_gpu_freq(rps, max_freq));
-		seq_printf(m, "Max overclocked frequency: %dMHz\n",
-			   intel_gpu_freq(rps, rps->max_freq));
-
-		seq_printf(m, "Current freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->cur_freq));
-		seq_printf(m, "Actual freq: %d MHz\n", cagf);
-		seq_printf(m, "Idle freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->idle_freq));
-		seq_printf(m, "Min freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->min_freq));
-		seq_printf(m, "Boost freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->boost_freq));
-		seq_printf(m, "Max freq: %d MHz\n",
-			   intel_gpu_freq(rps, rps->max_freq));
-		seq_printf(m,
-			   "efficient (RPe) frequency: %d MHz\n",
-			   intel_gpu_freq(rps, rps->efficient_freq));
-	} else {
-		seq_puts(m, "no P-state info available\n");
-	}
-
-	seq_printf(m, "Current CD clock frequency: %d kHz\n", dev_priv->cdclk.hw.cdclk);
-	seq_printf(m, "Max CD clock frequency: %d kHz\n", dev_priv->max_cdclk_freq);
-	seq_printf(m, "Max pixel clock frequency: %d kHz\n", dev_priv->max_dotclk_freq);
-
-	intel_runtime_pm_put(&dev_priv->runtime_pm, wakeref);
 	return 0;
 }
 
@@ -614,9 +404,9 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 	intel_wakeref_t wakeref;
 
 	seq_printf(m, "bit6 swizzle for X-tiling = %s\n",
-		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_x));
+		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_x));
 	seq_printf(m, "bit6 swizzle for Y-tiling = %s\n",
-		   swizzle_string(dev_priv->ggtt.bit_6_swizzle_y));
+		   swizzle_string(to_gt(dev_priv)->ggtt->bit_6_swizzle_y));
 
 	if (dev_priv->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		seq_puts(m, "L-shaped memory detected\n");
@@ -663,11 +453,11 @@ static int i915_swizzle_info(struct seq_file *m, void *data)
 static int i915_rps_boost_info(struct seq_file *m, void *data)
 {
 	struct drm_i915_private *dev_priv = node_to_i915(m->private);
-	struct intel_rps *rps = &dev_priv->gt.rps;
+	struct intel_rps *rps = &to_gt(dev_priv)->rps;
 
 	seq_printf(m, "RPS enabled? %s\n", yesno(intel_rps_is_enabled(rps)));
 	seq_printf(m, "RPS active? %s\n", yesno(intel_rps_is_active(rps)));
-	seq_printf(m, "GPU busy? %s\n", yesno(dev_priv->gt.awake));
+	seq_printf(m, "GPU busy? %s\n", yesno(to_gt(dev_priv)->awake));
 	seq_printf(m, "Boosts outstanding? %d\n",
 		   atomic_read(&rps->num_waiters));
 	seq_printf(m, "Interactive? %d\n", READ_ONCE(rps->power.interactive));
@@ -700,7 +490,7 @@ static int i915_runtime_pm_status(struct seq_file *m, void *unused)
 	seq_printf(m, "Runtime power status: %s\n",
 		   enableddisabled(!dev_priv->power_domains.init_wakeref));
 
-	seq_printf(m, "GPU idle: %s\n", yesno(!dev_priv->gt.awake));
+	seq_printf(m, "GPU idle: %s\n", yesno(!to_gt(dev_priv)->awake));
 	seq_printf(m, "IRQs disabled: %s\n",
 		   yesno(!intel_irqs_enabled(dev_priv)));
 #ifdef CONFIG_PM
@@ -732,18 +522,18 @@ static int i915_engine_info(struct seq_file *m, void *unused)
 	wakeref = intel_runtime_pm_get(&i915->runtime_pm);
 
 	seq_printf(m, "GT awake? %s [%d], %llums\n",
-		   yesno(i915->gt.awake),
-		   atomic_read(&i915->gt.wakeref.count),
-		   ktime_to_ms(intel_gt_get_awake_time(&i915->gt)));
+		   yesno(to_gt(i915)->awake),
+		   atomic_read(&to_gt(i915)->wakeref.count),
+		   ktime_to_ms(intel_gt_get_awake_time(to_gt(i915))));
 	seq_printf(m, "CS timestamp frequency: %u Hz, %d ns\n",
-		   i915->gt.clock_frequency,
-		   i915->gt.clock_period_ns);
+		   to_gt(i915)->clock_frequency,
+		   to_gt(i915)->clock_period_ns);
 
 	p = drm_seq_file_printer(m);
 	for_each_uabi_engine(engine, i915)
 		intel_engine_dump(engine, &p, "%s\n", engine->name);
 
-	intel_gt_show_timelines(&i915->gt, &p, i915_request_show_with_schedule);
+	intel_gt_show_timelines(to_gt(i915), &p, i915_request_show_with_schedule);
 
 	intel_runtime_pm_put(&i915->runtime_pm, wakeref);
 
@@ -778,36 +568,18 @@ static int i915_wa_registers(struct seq_file *m, void *unused)
 	return 0;
 }
 
-static int
-i915_wedged_get(void *data, u64 *val)
+static int i915_wedged_get(void *data, u64 *val)
 {
 	struct drm_i915_private *i915 = data;
-	int ret = intel_gt_terminally_wedged(&i915->gt);
 
-	switch (ret) {
-	case -EIO:
-		*val = 1;
-		return 0;
-	case 0:
-		*val = 0;
-		return 0;
-	default:
-		return ret;
-	}
+	return intel_gt_debugfs_reset_show(to_gt(i915), val);
 }
 
-static int
-i915_wedged_set(void *data, u64 val)
+static int i915_wedged_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
 
-	/* Flush any previous reset before applying for a new one */
-	wait_event(i915->gt.reset.queue,
-		   !test_bit(I915_RESET_BACKOFF, &i915->gt.reset.flags));
-
-	intel_gt_handle_error(&i915->gt, val, I915_ERROR_CAPTURE,
-			      "Manually set wedged engine mask = %llx", val);
-	return 0;
+	return intel_gt_debugfs_reset_store(to_gt(i915), val);
 }
 
 DEFINE_SIMPLE_ATTRIBUTE(i915_wedged_fops,
@@ -823,7 +595,7 @@ i915_perf_noa_delay_set(void *data, u64 val)
 	 * This would lead to infinite waits as we're doing timestamp
 	 * difference on the CS with only 32bits.
 	 */
-	if (intel_gt_ns_to_clock_interval(&i915->gt, val) > U32_MAX)
+	if (intel_gt_ns_to_clock_interval(to_gt(i915), val) > U32_MAX)
 		return -EINVAL;
 
 	atomic64_set(&i915->perf.noa_programming_delay, val);
@@ -908,16 +680,18 @@ static int
 i915_drop_caches_set(void *data, u64 val)
 {
 	struct drm_i915_private *i915 = data;
+	unsigned int flags;
 	int ret;
 
 	DRM_DEBUG("Dropping caches: 0x%08llx [0x%08llx]\n",
 		  val, val & DROP_ALL);
 
-	ret = gt_drop_caches(&i915->gt, val);
+	ret = gt_drop_caches(to_gt(i915), val);
 	if (ret)
 		return ret;
 
 	fs_reclaim_acquire(GFP_KERNEL);
+	flags = memalloc_noreclaim_save();
 	if (val & DROP_BOUND)
 		i915_gem_shrink(NULL, i915, LONG_MAX, NULL, I915_SHRINK_BOUND);
 
@@ -926,6 +700,7 @@ i915_drop_caches_set(void *data, u64 val)
 
 	if (val & DROP_SHRINK_ALL)
 		i915_gem_shrink_all(i915);
+	memalloc_noreclaim_restore(flags);
 	fs_reclaim_release(GFP_KERNEL);
 
 	if (val & DROP_RCU)
@@ -944,7 +719,7 @@ DEFINE_SIMPLE_ATTRIBUTE(i915_drop_caches_fops,
 static int i915_sseu_status(struct seq_file *m, void *unused)
 {
 	struct drm_i915_private *i915 = node_to_i915(m->private);
-	struct intel_gt *gt = &i915->gt;
+	struct intel_gt *gt = to_gt(i915);
 
 	return intel_sseu_status(m, gt);
 }
@@ -952,27 +727,15 @@ static int i915_sseu_status(struct seq_file *m, void *unused)
 static int i915_forcewake_open(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	struct intel_gt *gt = &i915->gt;
 
-	atomic_inc(&gt->user_wakeref);
-	intel_gt_pm_get(gt);
-	if (GRAPHICS_VER(i915) >= 6)
-		intel_uncore_forcewake_user_get(gt->uncore);
-
-	return 0;
+	return intel_gt_pm_debugfs_forcewake_user_open(to_gt(i915));
 }
 
 static int i915_forcewake_release(struct inode *inode, struct file *file)
 {
 	struct drm_i915_private *i915 = inode->i_private;
-	struct intel_gt *gt = &i915->gt;
 
-	if (GRAPHICS_VER(i915) >= 6)
-		intel_uncore_forcewake_user_put(&i915->uncore);
-	intel_gt_pm_put(gt);
-	atomic_dec(&gt->user_wakeref);
-
-	return 0;
+	return intel_gt_pm_debugfs_forcewake_user_release(to_gt(i915));
 }
 
 static const struct file_operations i915_forcewake_fops = {

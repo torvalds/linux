@@ -63,12 +63,6 @@ static inline psched_time_t psched_get_time(void)
 	return PSCHED_NS2TICKS(ktime_get_ns());
 }
 
-static inline psched_tdiff_t
-psched_tdiff_bounded(psched_time_t tv1, psched_time_t tv2, psched_time_t bound)
-{
-	return min(tv1 - tv2, bound);
-}
-
 struct qdisc_watchdog {
 	u64		last_expires;
 	struct hrtimer	timer;
@@ -191,6 +185,24 @@ void taprio_offload_free(struct tc_taprio_qopt_offload *offload);
 static inline void skb_txtime_consumed(struct sk_buff *skb)
 {
 	skb->tstamp = ktime_set(0, 0);
+}
+
+struct tc_skb_cb {
+	struct qdisc_skb_cb qdisc_cb;
+
+	u16 mru;
+	u8 post_ct:1;
+	u8 post_ct_snat:1;
+	u8 post_ct_dnat:1;
+	u16 zone; /* Only valid if post_ct = true */
+};
+
+static inline struct tc_skb_cb *tc_skb_cb(const struct sk_buff *skb)
+{
+	struct tc_skb_cb *cb = (struct tc_skb_cb *)skb->cb;
+
+	BUILD_BUG_ON(sizeof(*cb) > sizeof_field(struct sk_buff, cb));
+	return cb;
 }
 
 #endif

@@ -561,9 +561,6 @@ static void pch_can_error(struct net_device *ndev, u32 status)
 
 	priv->can.state = state;
 	netif_receive_skb(skb);
-
-	stats->rx_packets++;
-	stats->rx_bytes += cf->len;
 }
 
 static irqreturn_t pch_can_interrupt(int irq, void *dev_id)
@@ -680,23 +677,24 @@ static int pch_can_rx_normal(struct net_device *ndev, u32 obj_num, int quota)
 			cf->can_id = id;
 		}
 
-		if (id2 & PCH_ID2_DIR)
-			cf->can_id |= CAN_RTR_FLAG;
-
 		cf->len = can_cc_dlc2len((ioread32(&priv->regs->
 						    ifregs[0].mcont)) & 0xF);
 
-		for (i = 0; i < cf->len; i += 2) {
-			data_reg = ioread16(&priv->regs->ifregs[0].data[i / 2]);
-			cf->data[i] = data_reg;
-			cf->data[i + 1] = data_reg >> 8;
-		}
+		if (id2 & PCH_ID2_DIR) {
+			cf->can_id |= CAN_RTR_FLAG;
+		} else {
+			for (i = 0; i < cf->len; i += 2) {
+				data_reg = ioread16(&priv->regs->ifregs[0].data[i / 2]);
+				cf->data[i] = data_reg;
+				cf->data[i + 1] = data_reg >> 8;
+			}
 
-		netif_receive_skb(skb);
-		rcv_pkts++;
+			stats->rx_bytes += cf->len;
+		}
 		stats->rx_packets++;
+		rcv_pkts++;
 		quota--;
-		stats->rx_bytes += cf->len;
+		netif_receive_skb(skb);
 
 		pch_fifo_thresh(priv, obj_num);
 		obj_num++;
@@ -709,16 +707,13 @@ static void pch_can_tx_complete(struct net_device *ndev, u32 int_stat)
 {
 	struct pch_can_priv *priv = netdev_priv(ndev);
 	struct net_device_stats *stats = &(priv->ndev->stats);
-	u32 dlc;
 
-	can_get_echo_skb(ndev, int_stat - PCH_RX_OBJ_END - 1, NULL);
+	stats->tx_bytes += can_get_echo_skb(ndev, int_stat - PCH_RX_OBJ_END - 1,
+					    NULL);
+	stats->tx_packets++;
 	iowrite32(PCH_CMASK_RX_TX_GET | PCH_CMASK_CLRINTPND,
 		  &priv->regs->ifregs[1].cmask);
 	pch_can_rw_msg_obj(&priv->regs->ifregs[1].creq, int_stat);
-	dlc = can_cc_dlc2len(ioread32(&priv->regs->ifregs[1].mcont) &
-			  PCH_IF_MCONT_DLC);
-	stats->tx_bytes += dlc;
-	stats->tx_packets++;
 	if (int_stat == PCH_TX_OBJ_END)
 		netif_wake_queue(ndev);
 }

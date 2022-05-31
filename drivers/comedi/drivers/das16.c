@@ -63,12 +63,10 @@
 #include <linux/module.h>
 #include <linux/slab.h>
 #include <linux/interrupt.h>
-
-#include "../comedidev.h"
-
-#include "comedi_isadma.h"
-#include "comedi_8254.h"
-#include "8255.h"
+#include <linux/comedi/comedidev.h>
+#include <linux/comedi/comedi_8255.h>
+#include <linux/comedi/comedi_8254.h>
+#include <linux/comedi/comedi_isadma.h>
 
 #define DAS16_DMA_SIZE 0xff00	/*  size in bytes of allocated dma buffer */
 
@@ -963,7 +961,7 @@ static const struct comedi_lrange *das16_ai_range(struct comedi_device *dev,
 
 		/* allocate single-range range table */
 		lrange = comedi_alloc_spriv(s,
-					    sizeof(*lrange) + sizeof(*krange));
+					    struct_size(lrange, range, 1));
 		if (!lrange)
 			return &range_unknown;
 
@@ -997,7 +995,7 @@ static const struct comedi_lrange *das16_ao_range(struct comedi_device *dev,
 
 		/* allocate single-range range table */
 		lrange = comedi_alloc_spriv(s,
-					    sizeof(*lrange) + sizeof(*krange));
+					    struct_size(lrange, range, 1));
 		if (!lrange)
 			return &range_unknown;
 

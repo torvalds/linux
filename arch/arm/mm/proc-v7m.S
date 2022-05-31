@@ -194,6 +194,26 @@ ENDPROC(__v7m_setup)
 .endm
 
 	/*
+	 * Match ARM Cortex-M55 processor.
+	 */
+	.type	__v7m_cm55_proc_info, #object
+__v7m_cm55_proc_info:
+	.long	0x410fd220		/* ARM Cortex-M55 0xD22 */
+	.long	0xff0ffff0		/* Mask off revision, patch release */
+	__v7m_proc __v7m_cm55_proc_info, __v7m_cm7_setup, hwcaps = HWCAP_EDSP, cache_fns = v7m_cache_fns, proc_fns = cm7_processor_functions
+	.size	__v7m_cm55_proc_info, . - __v7m_cm55_proc_info
+
+	/*
+	 * Match ARM Cortex-M33 processor.
+	 */
+	.type	__v7m_cm33_proc_info, #object
+__v7m_cm33_proc_info:
+	.long	0x410fd210		/* ARM Cortex-M33 0xD21 */
+	.long	0xff0ffff0		/* Mask off revision, patch release */
+	__v7m_proc __v7m_cm33_proc_info, __v7m_setup, hwcaps = HWCAP_EDSP
+	.size	__v7m_cm33_proc_info, . - __v7m_cm33_proc_info
+
+	/*
 	 * Match ARM Cortex-M7 processor.
 	 */
 	.type	__v7m_cm7_proc_info, #object

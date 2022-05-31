@@ -284,11 +284,11 @@ struct ptp_clock *ptp_clock_register(struct ptp_clock_info *info,
 	/* Create a posix clock and link it to the device. */
 	err = posix_clock_register(&ptp->clock, &ptp->dev);
 	if (err) {
-	        if (ptp->pps_source)
-	                pps_unregister_source(ptp->pps_source);
+		if (ptp->pps_source)
+			pps_unregister_source(ptp->pps_source);
 
 		if (ptp->kworker)
-	                kthread_destroy_worker(ptp->kworker);
+			kthread_destroy_worker(ptp->kworker);
 
 		put_device(&ptp->dev);
 
@@ -317,11 +317,18 @@ no_memory:
 }
 EXPORT_SYMBOL(ptp_clock_register);
 
+static int unregister_vclock(struct device *dev, void *data)
+{
+	struct ptp_clock *ptp = dev_get_drvdata(dev);
+
+	ptp_vclock_unregister(info_to_vclock(ptp->info));
+	return 0;
+}
+
 int ptp_clock_unregister(struct ptp_clock *ptp)
 {
 	if (ptp_vclock_in_use(ptp)) {
-		pr_err("ptp: virtual clock in use\n");
-		return -EBUSY;
+		device_for_each_child(&ptp->dev, NULL, unregister_vclock);
 	}
 
 	ptp->defunct = 1;

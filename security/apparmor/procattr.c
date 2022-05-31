@@ -21,8 +21,6 @@
  * @profile: the profile to print profile info about  (NOT NULL)
  * @string: Returns - string containing the profile info (NOT NULL)
  *
- * Returns: length of @string on success else error on failure
- *
  * Requires: profile != NULL
  *
  * Creates a string containing the namespace_name://profile_name for

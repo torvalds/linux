@@ -177,7 +177,7 @@ static void vc4_bo_destroy(struct vc4_bo *bo)
 		bo->validated_shader = NULL;
 	}
 
-	drm_gem_cma_free_object(obj);
+	drm_gem_cma_free(&bo->base);
 }
 
 static void vc4_bo_remove_from_cache(struct vc4_bo *bo)
@@ -354,8 +354,6 @@ static struct vc4_bo *vc4_bo_get_from_cache(struct drm_device *dev,
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	uint32_t page_index = bo_page_index(size);
 	struct vc4_bo *bo = NULL;
-
-	size = roundup(size, PAGE_SIZE);
 
 	mutex_lock(&vc4->bo_lock);
 	if (page_index >= vc4->bo_cache.size_list_size)
@@ -720,7 +718,7 @@ static int vc4_gem_object_mmap(struct drm_gem_object *obj, struct vm_area_struct
 		return -EINVAL;
 	}
 
-	return drm_gem_cma_mmap(obj, vma);
+	return drm_gem_cma_mmap(&bo->base, vma);
 }
 
 static const struct vm_operations_struct vc4_vm_ops = {
@@ -732,8 +730,8 @@ static const struct vm_operations_struct vc4_vm_ops = {
 static const struct drm_gem_object_funcs vc4_gem_object_funcs = {
 	.free = vc4_free_object,
 	.export = vc4_prime_export,
-	.get_sg_table = drm_gem_cma_get_sg_table,
-	.vmap = drm_gem_cma_vmap,
+	.get_sg_table = drm_gem_cma_object_get_sg_table,
+	.vmap = drm_gem_cma_object_vmap,
 	.mmap = vc4_gem_object_mmap,
 	.vm_ops = &vc4_vm_ops,
 };

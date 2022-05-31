@@ -632,7 +632,9 @@ qlcnic_get_eeprom(struct net_device *dev, struct ethtool_eeprom *eeprom,
 
 static void
 qlcnic_get_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+		     struct ethtool_ringparam *ring,
+		     struct kernel_ethtool_ringparam *kernel_ring,
+		     struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 
@@ -663,7 +665,9 @@ qlcnic_validate_ringparam(u32 val, u32 min, u32 max, char *r_name)
 
 static int
 qlcnic_set_ringparam(struct net_device *dev,
-		struct ethtool_ringparam *ring)
+		     struct ethtool_ringparam *ring,
+		     struct kernel_ethtool_ringparam *kernel_ring,
+		     struct netlink_ext_ack *extack)
 {
 	struct qlcnic_adapter *adapter = netdev_priv(dev);
 	u16 num_rxd, num_jumbo_rxd, num_txd;
@@ -1351,7 +1355,7 @@ static void qlcnic_get_ethtool_stats(struct net_device *dev,
 
 	memset(data, 0, stats->n_stats * sizeof(u64));
 
-	for (ring = 0, index = 0; ring < adapter->drv_tx_rings; ring++) {
+	for (ring = 0; ring < adapter->drv_tx_rings; ring++) {
 		if (adapter->is_up == QLCNIC_ADAPTER_UP_MAGIC) {
 			tx_ring = &adapter->tx_ring[ring];
 			data = qlcnic_fill_tx_queue_stats(data, tx_ring);

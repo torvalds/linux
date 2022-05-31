@@ -6,8 +6,51 @@
 #include <linux/kvm_host.h>
 
 #include "mmu.h"
+#include "spte.h"
 
-typedef u64 __rcu *tdp_ptep_t;
+/*
+ * TDP MMU SPTEs are RCU protected to allow paging structures (non-leaf SPTEs)
+ * to be zapped while holding mmu_lock for read, and to allow TLB flushes to be
+ * batched without having to collect the list of zapped SPs.  Flows that can
+ * remove SPs must service pending TLB flushes prior to dropping RCU protection.
+ */
+static inline u64 kvm_tdp_mmu_read_spte(tdp_ptep_t sptep)
+{
+	return READ_ONCE(*rcu_dereference(sptep));
+}
+
+static inline u64 kvm_tdp_mmu_write_spte_atomic(tdp_ptep_t sptep, u64 new_spte)
+{
+	return xchg(rcu_dereference(sptep), new_spte);
+}
+
+static inline void __kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 new_spte)
+{
+	WRITE_ONCE(*rcu_dereference(sptep), new_spte);
+}
+
+static inline u64 kvm_tdp_mmu_write_spte(tdp_ptep_t sptep, u64 old_spte,
+					 u64 new_spte, int level)
+{
+	/*
+	 * Atomically write the SPTE if it is a shadow-present, leaf SPTE with
+	 * volatile bits, i.e. has bits that can be set outside of mmu_lock.
+	 * The Writable bit can be set by KVM's fast page fault handler, and
+	 * Accessed and Dirty bits can be set by the CPU.
+	 *
+	 * Note, non-leaf SPTEs do have Accessed bits and those bits are
+	 * technically volatile, but KVM doesn't consume the Accessed bit of
+	 * non-leaf SPTEs, i.e. KVM doesn't care if it clobbers the bit.  This
+	 * logic needs to be reassessed if KVM were to use non-leaf Accessed
+	 * bits, e.g. to skip stepping down into child SPTEs when aging SPTEs.
+	 */
+	if (is_shadow_present_pte(old_spte) && is_last_spte(old_spte, level) &&
+	    spte_has_volatile_bits(old_spte))
+		return kvm_tdp_mmu_write_spte_atomic(sptep, new_spte);
+
+	__kvm_tdp_mmu_write_spte(sptep, new_spte);
+	return old_spte;
+}
 
 /*
  * A TDP iterator performs a pre-order walk over a TDP paging structure.
@@ -45,23 +88,29 @@ struct tdp_iter {
 	 * iterator walks off the end of the paging structure.
 	 */
 	bool valid;
+	/*
+	 * True if KVM dropped mmu_lock and yielded in the middle of a walk, in
+	 * which case tdp_iter_next() needs to restart the walk at the root
+	 * level instead of advancing to the next entry.
+	 */
+	bool yielded;
 };
 
 /*
  * Iterates over every SPTE mapping the GFN range [start, end) in a
  * preorder traversal.
  */
-#define for_each_tdp_pte_min_level(iter, root, root_level, min_level, start, end) \
-	for (tdp_iter_start(&iter, root, root_level, min_level, start); \
+#define for_each_tdp_pte_min_level(iter, root, min_level, start, end) \
+	for (tdp_iter_start(&iter, root, min_level, start); \
 	     iter.valid && iter.gfn < end;		     \
 	     tdp_iter_next(&iter))
 
-#define for_each_tdp_pte(iter, root, root_level, start, end) \
-	for_each_tdp_pte_min_level(iter, root, root_level, PG_LEVEL_4K, start, end)
+#define for_each_tdp_pte(iter, root, start, end) \
+	for_each_tdp_pte_min_level(iter, root, PG_LEVEL_4K, start, end)
 
 tdp_ptep_t spte_to_child_pt(u64 pte, int level);
 
-void tdp_iter_start(struct tdp_iter *iter, u64 *root_pt, int root_level,
+void tdp_iter_start(struct tdp_iter *iter, struct kvm_mmu_page *root,
 		    int min_level, gfn_t next_last_level_gfn);
 void tdp_iter_next(struct tdp_iter *iter);
 void tdp_iter_restart(struct tdp_iter *iter);

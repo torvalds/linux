@@ -198,12 +198,12 @@ struct sdma_script_start_addrs {
 	s32 per_2_firi_addr;
 	s32 mcu_2_firi_addr;
 	s32 uart_2_per_addr;
-	s32 uart_2_mcu_ram_addr;
+	s32 uart_2_mcu_addr;
 	s32 per_2_app_addr;
 	s32 mcu_2_app_addr;
 	s32 per_2_per_addr;
 	s32 uartsh_2_per_addr;
-	s32 uartsh_2_mcu_ram_addr;
+	s32 uartsh_2_mcu_addr;
 	s32 per_2_shp_addr;
 	s32 mcu_2_shp_addr;
 	s32 ata_2_mcu_addr;
@@ -232,8 +232,8 @@ struct sdma_script_start_addrs {
 	s32 mcu_2_ecspi_addr;
 	s32 mcu_2_sai_addr;
 	s32 sai_2_mcu_addr;
-	s32 uart_2_mcu_addr;
-	s32 uartsh_2_mcu_addr;
+	s32 uart_2_mcu_rom_addr;
+	s32 uartsh_2_mcu_rom_addr;
 	/* End of v3 array */
 	s32 mcu_2_zqspi_addr;
 	/* End of v4 array */
@@ -701,6 +701,11 @@ static int sdma_config_ownership(struct sdma_channel *sdmac,
 	return 0;
 }
 
+static int is_sdma_channel_enabled(struct sdma_engine *sdma, int channel)
+{
+	return !!(readl(sdma->regs + SDMA_H_STATSTOP) & BIT(channel));
+}
+
 static void sdma_enable_channel(struct sdma_engine *sdma, int channel)
 {
 	writel(BIT(channel), sdma->regs + SDMA_H_START);
@@ -741,9 +746,8 @@ static int sdma_load_script(struct sdma_engine *sdma, void *buf, int size,
 	unsigned long flags;
 
 	buf_virt = dma_alloc_coherent(sdma->dev, size, &buf_phys, GFP_KERNEL);
-	if (!buf_virt) {
+	if (!buf_virt)
 		return -ENOMEM;
-	}
 
 	spin_lock_irqsave(&sdma->channel_0_lock, flags);
 
@@ -843,7 +847,6 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 		*/
 
 		desc->chn_real_count = bd->mode.count;
-		bd->mode.status |= BD_DONE;
 		bd->mode.count = desc->period_len;
 		desc->buf_ptail = desc->buf_tail;
 		desc->buf_tail = (desc->buf_tail + 1) % desc->num_bd;
@@ -858,8 +861,20 @@ static void sdma_update_channel_loop(struct sdma_channel *sdmac)
 		dmaengine_desc_get_callback_invoke(&desc->vd.tx, NULL);
 		spin_lock(&sdmac->vc.lock);
 
+		/* Assign buffer ownership to SDMA */
+		bd->mode.status |= BD_DONE;
+
 		if (error)
 			sdmac->status = old_status;
+	}
+
+	/*
+	 * SDMA stops cyclic channel when DMA request triggers a channel and no SDMA
+	 * owned buffer is available (i.e. BD_DONE was set too late).
+	 */
+	if (!is_sdma_channel_enabled(sdmac->sdma, sdmac->channel)) {
+		dev_warn(sdmac->sdma->dev, "restart cyclic channel %d\n", sdmac->channel);
+		sdma_enable_channel(sdmac->sdma, sdmac->channel);
 	}
 }
 
@@ -877,9 +892,9 @@ static void mxc_sdma_handle_channel_normal(struct sdma_channel *data)
 	for (i = 0; i < sdmac->desc->num_bd; i++) {
 		bd = &sdmac->desc->bd[i];
 
-		 if (bd->mode.status & (BD_DONE | BD_RROR))
+		if (bd->mode.status & (BD_DONE | BD_RROR))
 			error = -EIO;
-		 sdmac->desc->chn_real_count += bd->mode.count;
+		sdmac->desc->chn_real_count += bd->mode.count;
 	}
 
 	if (error)
@@ -1227,8 +1242,9 @@ static int sdma_config_channel(struct dma_chan *chan)
 			if (sdmac->peripheral_type == IMX_DMATYPE_ASRC_SP ||
 			    sdmac->peripheral_type == IMX_DMATYPE_ASRC)
 				sdma_set_watermarklevel_for_p2p(sdmac);
-		} else
+		} else {
 			__set_bit(sdmac->event_id0, sdmac->event_mask);
+		}
 
 		/* Address */
 		sdmac->shp_addr = sdmac->per_address;
@@ -1241,7 +1257,7 @@ static int sdma_config_channel(struct dma_chan *chan)
 }
 
 static int sdma_set_channel_priority(struct sdma_channel *sdmac,
-		unsigned int priority)
+				     unsigned int priority)
 {
 	struct sdma_engine *sdma = sdmac->sdma;
 	int channel = sdmac->channel;
@@ -1261,7 +1277,7 @@ static int sdma_request_channel0(struct sdma_engine *sdma)
 	int ret = -EBUSY;
 
 	sdma->bd0 = dma_alloc_coherent(sdma->dev, PAGE_SIZE, &sdma->bd0_phys,
-					GFP_NOWAIT);
+				       GFP_NOWAIT);
 	if (!sdma->bd0) {
 		ret = -ENOMEM;
 		goto out;
@@ -1284,7 +1300,7 @@ static int sdma_alloc_bd(struct sdma_desc *desc)
 	int ret = 0;
 
 	desc->bd = dma_alloc_coherent(desc->sdmac->sdma->dev, bd_size,
-				       &desc->bd_phys, GFP_NOWAIT);
+				      &desc->bd_phys, GFP_NOWAIT);
 	if (!desc->bd) {
 		ret = -ENOMEM;
 		goto out;
@@ -1757,7 +1773,7 @@ static void sdma_issue_pending(struct dma_chan *chan)
 #define SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V4	46
 
 static void sdma_add_scripts(struct sdma_engine *sdma,
-		const struct sdma_script_start_addrs *addr)
+			     const struct sdma_script_start_addrs *addr)
 {
 	s32 *addr_arr = (u32 *)addr;
 	s32 *saddr_arr = (u32 *)sdma->script_addrs;
@@ -1780,17 +1796,17 @@ static void sdma_add_scripts(struct sdma_engine *sdma,
 			saddr_arr[i] = addr_arr[i];
 
 	/*
-	 * get uart_2_mcu_addr/uartsh_2_mcu_addr rom script specially because
-	 * they are now replaced by uart_2_mcu_ram_addr/uartsh_2_mcu_ram_addr
-	 * to be compatible with legacy freescale/nxp sdma firmware, and they
-	 * are located in the bottom part of sdma_script_start_addrs which are
-	 * beyond the SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V1.
+	 * For compatibility with NXP internal legacy kernel before 4.19 which
+	 * is based on uart ram script and mainline kernel based on uart rom
+	 * script, both uart ram/rom scripts are present in newer sdma
+	 * firmware. Use the rom versions if they are present (V3 or newer).
 	 */
-	if (addr->uart_2_mcu_addr)
-		sdma->script_addrs->uart_2_mcu_addr = addr->uart_2_mcu_addr;
-	if (addr->uartsh_2_mcu_addr)
-		sdma->script_addrs->uartsh_2_mcu_addr = addr->uartsh_2_mcu_addr;
-
+	if (sdma->script_number >= SDMA_SCRIPT_ADDRS_ARRAY_SIZE_V3) {
+		if (addr->uart_2_mcu_rom_addr)
+			sdma->script_addrs->uart_2_mcu_addr = addr->uart_2_mcu_rom_addr;
+		if (addr->uartsh_2_mcu_rom_addr)
+			sdma->script_addrs->uartsh_2_mcu_addr = addr->uartsh_2_mcu_rom_addr;
+	}
 }
 
 static void sdma_load_firmware(const struct firmware *fw, void *context)
@@ -1840,8 +1856,8 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 	clk_enable(sdma->clk_ahb);
 	/* download the RAM image for SDMA */
 	sdma_load_script(sdma, ram_code,
-			header->ram_code_size,
-			addr->ram_code_start_addr);
+			 header->ram_code_size,
+			 addr->ram_code_start_addr);
 	clk_disable(sdma->clk_ipg);
 	clk_disable(sdma->clk_ahb);
 
@@ -1850,8 +1866,8 @@ static void sdma_load_firmware(const struct firmware *fw, void *context)
 	sdma->fw_loaded = true;
 
 	dev_info(sdma->dev, "loaded firmware %d.%d\n",
-			header->version_major,
-			header->version_minor);
+		 header->version_major,
+		 header->version_minor);
 
 err_firmware:
 	release_firmware(fw);
@@ -1869,7 +1885,7 @@ static int sdma_event_remap(struct sdma_engine *sdma)
 	u32 reg, val, shift, num_map, i;
 	int ret = 0;
 
-	if (IS_ERR(np) || IS_ERR(gpr_np))
+	if (IS_ERR(np) || !gpr_np)
 		goto out;
 
 	event_remap = of_find_property(np, propname, NULL);
@@ -1917,7 +1933,7 @@ static int sdma_event_remap(struct sdma_engine *sdma)
 	}
 
 out:
-	if (!IS_ERR(gpr_np))
+	if (gpr_np)
 		of_node_put(gpr_np);
 
 	return ret;
@@ -1955,7 +1971,7 @@ static int sdma_init(struct sdma_engine *sdma)
 	writel_relaxed(0, sdma->regs + SDMA_H_C0PTR);
 
 	sdma->channel_control = dma_alloc_coherent(sdma->dev,
-			MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control) +
+			MAX_DMA_CHANNELS * sizeof(struct sdma_channel_control) +
 			sizeof(struct sdma_context_data),
 			&ccb_phys, GFP_KERNEL);
 
@@ -1965,9 +1981,9 @@ static int sdma_init(struct sdma_engine *sdma)
 	}
 
 	sdma->context = (void *)sdma->channel_control +
-		MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control);
+		MAX_DMA_CHANNELS * sizeof(struct sdma_channel_control);
 	sdma->context_phys = ccb_phys +
-		MAX_DMA_CHANNELS * sizeof (struct sdma_channel_control);
+		MAX_DMA_CHANNELS * sizeof(struct sdma_channel_control);
 
 	/* disable all channels */
 	for (i = 0; i < sdma->drvdata->num_events; i++)

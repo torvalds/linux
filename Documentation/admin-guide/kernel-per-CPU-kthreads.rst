@@ -208,7 +208,7 @@ Do at least one of the following:
 2.	Enable RCU to do its processing remotely via dyntick-idle by
 	doing all of the following:
 
-	a.	Build with CONFIG_NO_HZ=y and CONFIG_RCU_FAST_NO_HZ=y.
+	a.	Build with CONFIG_NO_HZ=y.
 	b.	Ensure that the CPU goes idle frequently, allowing other
 		CPUs to detect that it has passed through an RCU quiescent
 		state.	If the kernel is built with CONFIG_NO_HZ_FULL=y,

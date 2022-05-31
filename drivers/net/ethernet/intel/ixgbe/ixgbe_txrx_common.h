@@ -12,7 +12,7 @@
 #define IXGBE_TXD_CMD (IXGBE_TXD_CMD_EOP | \
 		       IXGBE_TXD_CMD_RS)
 
-int ixgbe_xmit_xdp_ring(struct ixgbe_adapter *adapter,
+int ixgbe_xmit_xdp_ring(struct ixgbe_ring *ring,
 			struct xdp_frame *xdpf);
 bool ixgbe_cleanup_headers(struct ixgbe_ring *rx_ring,
 			   union ixgbe_adv_rx_desc *rx_desc,
@@ -23,6 +23,7 @@ void ixgbe_process_skb_fields(struct ixgbe_ring *rx_ring,
 void ixgbe_rx_skb(struct ixgbe_q_vector *q_vector,
 		  struct sk_buff *skb);
 void ixgbe_xdp_ring_update_tail(struct ixgbe_ring *ring);
+void ixgbe_xdp_ring_update_tail_locked(struct ixgbe_ring *ring);
 void ixgbe_irq_rearm_queues(struct ixgbe_adapter *adapter, u64 qmask);
 
 void ixgbe_txrx_ring_disable(struct ixgbe_adapter *adapter, int ring);
@@ -33,8 +34,6 @@ struct xsk_buff_pool *ixgbe_xsk_pool(struct ixgbe_adapter *adapter,
 int ixgbe_xsk_pool_setup(struct ixgbe_adapter *adapter,
 			 struct xsk_buff_pool *pool,
 			 u16 qid);
-
-void ixgbe_zca_free(struct zero_copy_allocator *alloc, unsigned long handle);
 
 bool ixgbe_alloc_rx_buffers_zc(struct ixgbe_ring *rx_ring, u16 cleaned_count);
 int ixgbe_clean_rx_irq_zc(struct ixgbe_q_vector *q_vector,

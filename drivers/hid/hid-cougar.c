@@ -179,10 +179,9 @@ static int cougar_bind_shared_data(struct hid_device *hdev,
 
 	cougar->shared = shared;
 
-	error = devm_add_action(&hdev->dev, cougar_remove_shared_data, cougar);
+	error = devm_add_action_or_reset(&hdev->dev, cougar_remove_shared_data, cougar);
 	if (error) {
 		mutex_unlock(&cougar_udev_list_lock);
-		cougar_remove_shared_data(cougar);
 		return error;
 	}
 

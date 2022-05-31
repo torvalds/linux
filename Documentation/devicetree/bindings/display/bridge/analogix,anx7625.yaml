@@ -43,12 +43,56 @@ properties:
   vdd33-supply:
     description: Regulator that provides the supply 3.3V power.
 
+  analogix,lane0-swing:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 1
+    maxItems: 20
+    description:
+      an array of swing register setting for DP tx lane0 PHY.
+      Registers 0~9 are Swing0_Pre0, Swing1_Pre0, Swing2_Pre0,
+      Swing3_Pre0, Swing0_Pre1, Swing1_Pre1, Swing2_Pre1, Swing0_Pre2,
+      Swing1_Pre2, Swing0_Pre3, they are for [Boost control] and
+      [Swing control] setting.
+      Registers 0~9, bit 3:0 is [Boost control], these bits control
+      post cursor manual, increase the [Boost control] to increase
+      Pre-emphasis value.
+      Registers 0~9, bit 6:4 is [Swing control], these bits control
+      swing manual, increase [Swing control] setting to add Vp-p value
+      for each Swing, Pre.
+      Registers 10~19 are Swing0_Pre0, Swing1_Pre0, Swing2_Pre0,
+      Swing3_Pre0, Swing0_Pre1, Swing1_Pre1, Swing2_Pre1, Swing0_Pre2,
+      Swing1_Pre2, Swing0_Pre3, they are for [R select control] and
+      [R Termination control] setting.
+      Registers 10~19, bit 4:0 is [R select control], these bits are
+      compensation manual, increase it can enhance IO driven strength
+      and Vp-p.
+      Registers 10~19, bit 5:6 is [R termination control], these bits
+      adjust 50ohm impedance of DP tx termination. 00:55 ohm,
+      01:50 ohm(default), 10:45 ohm, 11:40 ohm.
+
+  analogix,lane1-swing:
+    $ref: /schemas/types.yaml#/definitions/uint8-array
+    minItems: 1
+    maxItems: 20
+    description:
+      an array of swing register setting for DP tx lane1 PHY.
+      DP TX lane1 swing register setting same with lane0
+      swing, please refer lane0-swing property description.
+
+  analogix,audio-enable:
+    type: boolean
+    description: let the driver enable audio HDMI codec function or not.
+
+  aux-bus:
+    $ref: /schemas/display/dp-aux-bus.yaml#
+
   ports:
     $ref: /schemas/graph.yaml#/properties/ports
 
     properties:
       port@0:
-        $ref: /schemas/graph.yaml#/properties/port
+        $ref: /schemas/graph.yaml#/$defs/port-base
+        unevaluatedProperties: false
         description:
           Video port for MIPI DSI input.
 
@@ -87,6 +131,9 @@ examples:
             vdd10-supply = <&pp1000_mipibrdg>;
             vdd18-supply = <&pp1800_mipibrdg>;
             vdd33-supply = <&pp3300_mipibrdg>;
+            analogix,audio-enable;
+            analogix,lane0-swing = /bits/ 8 <0x14 0x54 0x64 0x74>;
+            analogix,lane1-swing = /bits/ 8 <0x14 0x54 0x64 0x74>;
 
             ports {
                 #address-cells = <1>;
@@ -103,6 +150,20 @@ examples:
                     reg = <1>;
                     anx7625_out: endpoint {
                         remote-endpoint = <&panel_in>;
+                    };
+                };
+            };
+
+            aux-bus {
+                panel {
+                    compatible = "innolux,n125hce-gn1";
+                    power-supply = <&pp3300_disp_x>;
+                    backlight = <&backlight_lcd0>;
+
+                    port {
+                        panel_in: endpoint {
+                            remote-endpoint = <&anx7625_out>;
+                        };
                     };
                 };
             };

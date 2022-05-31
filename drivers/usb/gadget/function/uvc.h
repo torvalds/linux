@@ -14,6 +14,7 @@
 #include <linux/spinlock.h>
 #include <linux/usb/composite.h>
 #include <linux/videodev2.h>
+#include <linux/wait.h>
 
 #include <media/v4l2-device.h>
 #include <media/v4l2-dev.h>
@@ -68,6 +69,8 @@ extern unsigned int uvc_gadget_trace_param;
 #define UVC_MAX_REQUEST_SIZE			64
 #define UVC_MAX_EVENTS				4
 
+#define UVCG_REQUEST_HEADER_LEN			12
+
 /* ------------------------------------------------------------------------
  * Structures
  */
@@ -76,7 +79,7 @@ struct uvc_request {
 	u8 *req_buffer;
 	struct uvc_video *video;
 	struct sg_table sgt;
-	u8 header[2];
+	u8 header[UVCG_REQUEST_HEADER_LEN];
 };
 
 struct uvc_video {
@@ -126,6 +129,8 @@ struct uvc_device {
 	enum uvc_state state;
 	struct usb_function func;
 	struct uvc_video video;
+	bool func_connected;
+	wait_queue_head_t func_connected_queue;
 
 	/* Descriptors */
 	struct {
@@ -156,6 +161,7 @@ static inline struct uvc_device *to_uvc(struct usb_function *f)
 struct uvc_file_handle {
 	struct v4l2_fh vfh;
 	struct uvc_video *device;
+	bool is_uvc_app_handle;
 };
 
 #define to_uvc_file_handle(handle) \

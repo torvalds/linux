@@ -361,8 +361,9 @@ static int temac_dma_bd_init(struct net_device *ndev)
 		lp->rx_bd_v[i].next = cpu_to_be32(lp->rx_bd_p
 			+ sizeof(*lp->rx_bd_v) * ((i + 1) % lp->rx_bd_num));
 
-		skb = netdev_alloc_skb_ip_align(ndev,
-						XTE_MAX_JUMBO_FRAME_SIZE);
+		skb = __netdev_alloc_skb_ip_align(ndev,
+						  XTE_MAX_JUMBO_FRAME_SIZE,
+						  GFP_KERNEL);
 		if (!skb)
 			goto out;
 
@@ -438,7 +439,7 @@ static void temac_do_set_mac_address(struct net_device *ndev)
 
 static int temac_init_mac_address(struct net_device *ndev, const void *address)
 {
-	memcpy(ndev->dev_addr, address, ETH_ALEN);
+	eth_hw_addr_set(ndev, address);
 	if (!is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 	temac_do_set_mac_address(ndev);
@@ -451,7 +452,7 @@ static int temac_set_mac_address(struct net_device *ndev, void *p)
 
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(ndev->dev_addr, addr->sa_data, ETH_ALEN);
+	eth_hw_addr_set(ndev, addr->sa_data);
 	temac_do_set_mac_address(ndev);
 	return 0;
 }
@@ -1008,7 +1009,7 @@ static void ll_temac_recv(struct net_device *ndev)
 		    (skb->len > 64)) {
 
 			/* Convert from device endianness (be32) to cpu
-			 * endiannes, and if necessary swap the bytes
+			 * endianness, and if necessary swap the bytes
 			 * (back) for proper IP checksum byte order
 			 * (be16).
 			 */
@@ -1276,8 +1277,11 @@ static const struct attribute_group temac_attr_group = {
  * ethtool support
  */
 
-static void ll_temac_ethtools_get_ringparam(struct net_device *ndev,
-					    struct ethtool_ringparam *ering)
+static void
+ll_temac_ethtools_get_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *ering,
+				struct kernel_ethtool_ringparam *kernel_ering,
+				struct netlink_ext_ack *extack)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 
@@ -1291,8 +1295,11 @@ static void ll_temac_ethtools_get_ringparam(struct net_device *ndev,
 	ering->tx_pending = lp->tx_bd_num;
 }
 
-static int ll_temac_ethtools_set_ringparam(struct net_device *ndev,
-					   struct ethtool_ringparam *ering)
+static int
+ll_temac_ethtools_set_ringparam(struct net_device *ndev,
+				struct ethtool_ringparam *ering,
+				struct kernel_ethtool_ringparam *kernel_ering,
+				struct netlink_ext_ack *extack)
 {
 	struct temac_local *lp = netdev_priv(ndev);
 
@@ -1427,6 +1434,8 @@ static int temac_probe(struct platform_device *pdev)
 		lp->indirect_lock = devm_kmalloc(&pdev->dev,
 						 sizeof(*lp->indirect_lock),
 						 GFP_KERNEL);
+		if (!lp->indirect_lock)
+			return -ENOMEM;
 		spin_lock_init(lp->indirect_lock);
 	}
 

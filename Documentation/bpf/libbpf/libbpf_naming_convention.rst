@@ -150,6 +150,46 @@ mirror of the mainline's version of libbpf for a stand-alone build.
 However, all changes to libbpf's code base must be upstreamed through
 the mainline kernel tree.
 
+
+API documentation convention
+============================
+
+The libbpf API is documented via comments above definitions in
+header files. These comments can be rendered by doxygen and sphinx
+for well organized html output. This section describes the
+convention in which these comments should be formated.
+
+Here is an example from btf.h:
+
+.. code-block:: c
+
+        /**
+         * @brief **btf__new()** creates a new instance of a BTF object from the raw
+         * bytes of an ELF's BTF section
+         * @param data raw bytes
+         * @param size number of bytes passed in `data`
+         * @return new BTF object instance which has to be eventually freed with
+         * **btf__free()**
+         *
+         * On error, error-code-encoded-as-pointer is returned, not a NULL. To extract
+         * error code from such a pointer `libbpf_get_error()` should be used. If
+         * `libbpf_set_strict_mode(LIBBPF_STRICT_CLEAN_PTRS)` is enabled, NULL is
+         * returned on error instead. In both cases thread-local `errno` variable is
+         * always set to error code as well.
+         */
+
+The comment must start with a block comment of the form '/\*\*'.
+
+The documentation always starts with a @brief directive. This line is a short
+description about this API. It starts with the name of the API, denoted in bold
+like so: **api_name**. Please include an open and close parenthesis if this is a
+function. Follow with the short description of the API. A longer form description
+can be added below the last directive, at the bottom of the comment.
+
+Parameters are denoted with the @param directive, there should be one for each
+parameter. If this is a function with a non-void return, use the @return directive
+to document it.
+
 License
 -------------------
 

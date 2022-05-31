@@ -17,24 +17,24 @@ struct mlxsw_afa_ops {
 	void (*kvdl_set_del)(void *priv, u32 kvdl_index, bool is_first);
 	int (*kvdl_set_activity_get)(void *priv, u32 kvdl_index,
 				     bool *activity);
-	int (*kvdl_fwd_entry_add)(void *priv, u32 *p_kvdl_index, u8 local_port);
+	int (*kvdl_fwd_entry_add)(void *priv, u32 *p_kvdl_index, u16 local_port);
 	void (*kvdl_fwd_entry_del)(void *priv, u32 kvdl_index);
 	int (*counter_index_get)(void *priv, unsigned int *p_counter_index);
 	void (*counter_index_put)(void *priv, unsigned int counter_index);
-	int (*mirror_add)(void *priv, u8 local_in_port,
+	int (*mirror_add)(void *priv, u16 local_in_port,
 			  const struct net_device *out_dev,
 			  bool ingress, int *p_span_id);
-	void (*mirror_del)(void *priv, u8 local_in_port, int span_id,
+	void (*mirror_del)(void *priv, u16 local_in_port, int span_id,
 			   bool ingress);
 	int (*policer_add)(void *priv, u64 rate_bytes_ps, u32 burst,
 			   u16 *p_policer_index,
 			   struct netlink_ext_ack *extack);
 	void (*policer_del)(void *priv, u16 policer_index);
-	int (*sampler_add)(void *priv, u8 local_port,
+	int (*sampler_add)(void *priv, u16 local_port,
 			   struct psample_group *psample_group, u32 rate,
 			   u32 trunc_size, bool truncate, bool ingress,
 			   int *p_span_id, struct netlink_ext_ack *extack);
-	void (*sampler_del)(void *priv, u8 local_port, int span_id,
+	void (*sampler_del)(void *priv, u16 local_port, int span_id,
 			    bool ingress);
 	bool dummy_first_set;
 };
@@ -62,12 +62,12 @@ int mlxsw_afa_block_append_trap(struct mlxsw_afa_block *block, u16 trap_id);
 int mlxsw_afa_block_append_trap_and_forward(struct mlxsw_afa_block *block,
 					    u16 trap_id);
 int mlxsw_afa_block_append_mirror(struct mlxsw_afa_block *block,
-				  u8 local_in_port,
+				  u16 local_in_port,
 				  const struct net_device *out_dev,
 				  bool ingress,
 				  struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_fwd(struct mlxsw_afa_block *block,
-			       u8 local_port, bool in_port,
+			       u16 local_port, bool in_port,
 			       struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_vlan_modify(struct mlxsw_afa_block *block,
 				       u16 vid, u8 pcp, u8 et,
@@ -92,13 +92,16 @@ int mlxsw_afa_block_append_fid_set(struct mlxsw_afa_block *block, u16 fid,
 int mlxsw_afa_block_append_mcrouter(struct mlxsw_afa_block *block,
 				    u16 expected_irif, u16 min_mtu,
 				    bool rmid_valid, u32 kvdl_index);
+int mlxsw_afa_block_append_ip(struct mlxsw_afa_block *block, bool is_dip,
+			      bool is_lsb, u32 val_31_0, u32 val_63_32,
+			      struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_l4port(struct mlxsw_afa_block *block, bool is_dport, u16 l4_port,
 				  struct netlink_ext_ack *extack);
 int mlxsw_afa_block_append_police(struct mlxsw_afa_block *block,
 				  u32 fa_index, u64 rate_bytes_ps, u32 burst,
 				  u16 *p_policer_index,
 				  struct netlink_ext_ack *extack);
-int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u8 local_port,
+int mlxsw_afa_block_append_sampler(struct mlxsw_afa_block *block, u16 local_port,
 				   struct psample_group *psample_group,
 				   u32 rate, u32 trunc_size, bool truncate,
 				   bool ingress,

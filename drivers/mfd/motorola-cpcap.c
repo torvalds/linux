@@ -202,6 +202,13 @@ static const struct of_device_id cpcap_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, cpcap_of_match);
 
+static const struct spi_device_id cpcap_spi_ids[] = {
+	{ .name = "cpcap", },
+	{ .name = "6556002", },
+	{},
+};
+MODULE_DEVICE_TABLE(spi, cpcap_spi_ids);
+
 static const struct regmap_config cpcap_regmap_config = {
 	.reg_bits = 16,
 	.reg_stride = 4,
@@ -342,6 +349,7 @@ static struct spi_driver cpcap_driver = {
 		.pm = &cpcap_pm,
 	},
 	.probe = cpcap_probe,
+	.id_table = cpcap_spi_ids,
 };
 module_spi_driver(cpcap_driver);
 

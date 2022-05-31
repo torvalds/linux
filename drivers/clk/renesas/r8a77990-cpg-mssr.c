@@ -100,9 +100,12 @@ static const struct cpg_core_clk r8a77990_core_clks[] __initconst = {
 	DEF_FIXED("s3d2",      R8A77990_CLK_S3D2,  CLK_S3,         2, 1),
 	DEF_FIXED("s3d4",      R8A77990_CLK_S3D4,  CLK_S3,         4, 1),
 
-	DEF_GEN3_SD("sd0",     R8A77990_CLK_SD0,   CLK_SDSRC,	  0x0074),
-	DEF_GEN3_SD("sd1",     R8A77990_CLK_SD1,   CLK_SDSRC,	  0x0078),
-	DEF_GEN3_SD("sd3",     R8A77990_CLK_SD3,   CLK_SDSRC,	  0x026c),
+	DEF_GEN3_SDH("sd0h",   R8A77990_CLK_SD0H,  CLK_SDSRC,         0x0074),
+	DEF_GEN3_SDH("sd1h",   R8A77990_CLK_SD1H,  CLK_SDSRC,         0x0078),
+	DEF_GEN3_SDH("sd3h",   R8A77990_CLK_SD3H,  CLK_SDSRC,         0x026c),
+	DEF_GEN3_SD("sd0",     R8A77990_CLK_SD0,   R8A77990_CLK_SD0H, 0x0074),
+	DEF_GEN3_SD("sd1",     R8A77990_CLK_SD1,   R8A77990_CLK_SD1H, 0x0078),
+	DEF_GEN3_SD("sd3",     R8A77990_CLK_SD3,   R8A77990_CLK_SD3H, 0x026c),
 
 	DEF_FIXED("cl",        R8A77990_CLK_CL,    CLK_PLL1,      48, 1),
 	DEF_FIXED("cr",        R8A77990_CLK_CR,    CLK_PLL1D2,     2, 1),
@@ -197,6 +200,7 @@ static const struct mssr_mod_clk r8a77990_mod_clks[] __initconst = {
 	DEF_MOD("du0",			 724,	R8A77990_CLK_S1D1),
 	DEF_MOD("lvds",			 727,	R8A77990_CLK_S2D1),
 
+	DEF_MOD("mlp",			 802,	R8A77990_CLK_S2D1),
 	DEF_MOD("vin5",			 806,	R8A77990_CLK_S1D2),
 	DEF_MOD("vin4",			 807,	R8A77990_CLK_S1D2),
 	DEF_MOD("etheravb",		 812,	R8A77990_CLK_S3D2),

@@ -343,7 +343,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 	}
 
 	if (found_device->devtype == TYPE_ENCLOSURE) {
-		*identifier = get_unaligned_be64(&found_device->wwid);
+		*identifier = get_unaligned_be64(&found_device->wwid[8]);
 		rc = 0;
 		goto out;
 	}
@@ -364,7 +364,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 			memcmp(device->phys_connector,
 				found_device->phys_connector, 2) == 0) {
 			*identifier =
-				get_unaligned_be64(&device->wwid);
+				get_unaligned_be64(&device->wwid[8]);
 			rc = 0;
 			goto out;
 		}
@@ -380,7 +380,7 @@ static int pqi_sas_get_enclosure_identifier(struct sas_rphy *rphy,
 		if (device->devtype == TYPE_ENCLOSURE &&
 			CISS_GET_DRIVE_NUMBER(device->scsi3addr) ==
 				PQI_VSEP_CISS_BTL) {
-			*identifier = get_unaligned_be64(&device->wwid);
+			*identifier = get_unaligned_be64(&device->wwid[8]);
 			rc = 0;
 			goto out;
 		}

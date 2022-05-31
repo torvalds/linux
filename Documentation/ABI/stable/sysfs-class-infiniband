@@ -232,10 +232,10 @@ Description: 	The RoCE type of the associated GID resides at index <gid-index>.
 		or "RoCE v2" for RoCE v2 based GIDs.
 
 
-What:		/sys/class/infiniband_mad/umadN/ibdev
-What:		/sys/class/infiniband_mad/umadN/port
-What:		/sys/class/infiniband_mad/issmN/ibdev
-What:		/sys/class/infiniband_mad/issmN/port
+What:		/sys/class/infiniband_mad/umad<N>/ibdev
+What:		/sys/class/infiniband_mad/umad<N>/port
+What:		/sys/class/infiniband_mad/issm<N>/ibdev
+What:		/sys/class/infiniband_mad/issm<N>/port
 Date:		Apr, 2005
 KernelVersion:	v2.6.12
 Contact:	linux-rdma@vger.kernel.org
@@ -261,8 +261,8 @@ Description:
 		userspace ABI compatibility of umad & issm devices.
 
 
-What:		/sys/class/infiniband_verbs/uverbsN/ibdev
-What:		/sys/class/infiniband_verbs/uverbsN/abi_version
+What:		/sys/class/infiniband_verbs/uverbs<N>/ibdev
+What:		/sys/class/infiniband_verbs/uverbs<N>/abi_version
 Date:		Sept, 2005
 KernelVersion:	v2.6.14
 Contact:	linux-rdma@vger.kernel.org
@@ -471,7 +471,7 @@ Description:
 		=============== ======================================================
 
 
-What:		/sys/class/infiniband/qibX/ports/N/sl2vl/[0-15]
+What:		/sys/class/infiniband/qibX/ports/<N>/sl2vl/[0-15]
 Date:		May, 2010
 KernelVersion:	v2.6.35
 Contact:	linux-rdma@vger.kernel.org
@@ -480,8 +480,8 @@ Description:
 		the Service Level (SL). Listing the SL files returns the Virtual
 		Lane (VL) as programmed by the SL.
 
-What:		/sys/class/infiniband/qibX/ports/N/CCMgtA/cc_settings_bin
-What:		/sys/class/infiniband/qibX/ports/N/CCMgtA/cc_table_bin
+What:		/sys/class/infiniband/qibX/ports/<N>/CCMgtA/cc_settings_bin
+What:		/sys/class/infiniband/qibX/ports/<N>/CCMgtA/cc_table_bin
 Date:		May, 2010
 KernelVersion:	v2.6.35
 Contact:	linux-rdma@vger.kernel.org
@@ -499,11 +499,11 @@ Description:
 				delay.
 		=============== ================================================
 
-What:		/sys/class/infiniband/qibX/ports/N/linkstate/loopback
-What:		/sys/class/infiniband/qibX/ports/N/linkstate/led_override
-What:		/sys/class/infiniband/qibX/ports/N/linkstate/hrtbt_enable
-What:		/sys/class/infiniband/qibX/ports/N/linkstate/status
-What:		/sys/class/infiniband/qibX/ports/N/linkstate/status_str
+What:		/sys/class/infiniband/qibX/ports/<N>/linkstate/loopback
+What:		/sys/class/infiniband/qibX/ports/<N>/linkstate/led_override
+What:		/sys/class/infiniband/qibX/ports/<N>/linkstate/hrtbt_enable
+What:		/sys/class/infiniband/qibX/ports/<N>/linkstate/status
+What:		/sys/class/infiniband/qibX/ports/<N>/linkstate/status_str
 Date:		May, 2010
 KernelVersion:	v2.6.35
 Contact:	linux-rdma@vger.kernel.org
@@ -523,16 +523,16 @@ Description:
 				"Fatal_Hardware_Error".
 		=============== ===============================================
 
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/rc_resends
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/seq_naks
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/rdma_seq
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/rnr_naks
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/other_naks
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/rc_timeouts
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/look_pkts
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/pkt_drops
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/dma_wait
-What:		/sys/class/infiniband/qibX/ports/N/diag_counters/unaligned
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/rc_resends
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/seq_naks
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/rdma_seq
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/rnr_naks
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/other_naks
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/rc_timeouts
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/look_pkts
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/pkt_drops
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/dma_wait
+What:		/sys/class/infiniband/qibX/ports/<N>/diag_counters/unaligned
 Date:		May, 2010
 KernelVersion:	v2.6.35
 Contact:	linux-rdma@vger.kernel.org
@@ -650,9 +650,9 @@ Description:
 		=============== =============================================
 
 
-What:		/sys/class/infiniband/hfi1_X/ports/N/CCMgtA/cc_settings_bin
-What:		/sys/class/infiniband/hfi1_X/ports/N/CCMgtA/cc_table_bin
-What:		/sys/class/infiniband/hfi1_X/ports/N/CCMgtA/cc_prescan
+What:		/sys/class/infiniband/hfi1_X/ports/<N>/CCMgtA/cc_settings_bin
+What:		/sys/class/infiniband/hfi1_X/ports/<N>/CCMgtA/cc_table_bin
+What:		/sys/class/infiniband/hfi1_X/ports/<N>/CCMgtA/cc_prescan
 Date:		May, 2016
 KernelVersion:	v4.6
 Contact:	linux-rdma@vger.kernel.org
@@ -675,9 +675,9 @@ Description:
 				disable.
 		=============== ================================================
 
-What:		/sys/class/infiniband/hfi1_X/ports/N/sc2vl/[0-31]
-What:		/sys/class/infiniband/hfi1_X/ports/N/sl2sc/[0-31]
-What:		/sys/class/infiniband/hfi1_X/ports/N/vl2mtu/[0-15]
+What:		/sys/class/infiniband/hfi1_X/ports/<N>/sc2vl/[0-31]
+What:		/sys/class/infiniband/hfi1_X/ports/<N>/sl2sc/[0-31]
+What:		/sys/class/infiniband/hfi1_X/ports/<N>/vl2mtu/[0-15]
 Date:		May, 2016
 KernelVersion:	v4.6
 Contact:	linux-rdma@vger.kernel.org
@@ -691,8 +691,8 @@ Description:
 		=============== ===================================================
 
 
-What:		/sys/class/infiniband/hfi1_X/sdma_N/cpu_list
-What:		/sys/class/infiniband/hfi1_X/sdma_N/vl
+What:		/sys/class/infiniband/hfi1_X/sdma_<N>/cpu_list
+What:		/sys/class/infiniband/hfi1_X/sdma_<N>/vl
 Date:		Sept, 2016
 KernelVersion:	v4.8
 Contact:	linux-rdma@vger.kernel.org

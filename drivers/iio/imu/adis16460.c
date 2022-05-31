@@ -319,20 +319,6 @@ static const struct iio_info adis16460_info = {
 	.debugfs_reg_access = adis_debugfs_reg_access,
 };
 
-static int adis16460_enable_irq(struct adis *adis, bool enable)
-{
-	/*
-	 * There is no way to gate the data-ready signal internally inside the
-	 * ADIS16460 :(
-	 */
-	if (enable)
-		enable_irq(adis->spi->irq);
-	else
-		disable_irq(adis->spi->irq);
-
-	return 0;
-}
-
 #define ADIS16460_DIAG_STAT_IN_CLK_OOS	7
 #define ADIS16460_DIAG_STAT_FLASH_MEM	6
 #define ADIS16460_DIAG_STAT_SELF_TEST	5
@@ -373,7 +359,7 @@ static const struct adis_data adis16460_data = {
 		BIT(ADIS16460_DIAG_STAT_OVERRANGE) |
 		BIT(ADIS16460_DIAG_STAT_SPI_COMM) |
 		BIT(ADIS16460_DIAG_STAT_FLASH_UPT),
-	.enable_irq = adis16460_enable_irq,
+	.unmasked_drdy = true,
 	.timeouts = &adis16460_timeouts,
 };
 
@@ -400,8 +386,6 @@ static int adis16460_probe(struct spi_device *spi)
 	if (ret)
 		return ret;
 
-	/* We cannot mask the interrupt, so ensure it isn't auto enabled */
-	st->adis.irq_flag |= IRQF_NO_AUTOEN;
 	ret = devm_adis_setup_buffer_and_trigger(&st->adis, indio_dev, NULL);
 	if (ret)
 		return ret;
@@ -444,3 +428,4 @@ module_spi_driver(adis16460_driver);
 MODULE_AUTHOR("Dragos Bogdan <dragos.bogdan@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADIS16460 IMU driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_ADISLIB);

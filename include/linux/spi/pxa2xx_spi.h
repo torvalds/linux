@@ -9,9 +9,6 @@
 
 #include <linux/pxa2xx_ssp.h>
 
-#define PXA2XX_CS_ASSERT (0x01)
-#define PXA2XX_CS_DEASSERT (0x02)
-
 struct dma_chan;
 
 /*
@@ -45,9 +42,6 @@ struct pxa2xx_spi_chip {
 	u8 rx_threshold;
 	u8 dma_burst_size;
 	u32 timeout;
-	u8 enable_loopback;
-	int gpio_cs;
-	void (*cs_control)(u32 command);
 };
 
 #if defined(CONFIG_ARCH_PXA) || defined(CONFIG_ARCH_MMP)

@@ -35,7 +35,10 @@
 		#interrupt-cells = <3>;
 		interrupt-controller;
 		reg = <0x00 0x01800000 0x00 0x10000>,	/* GICD */
-		      <0x00 0x01880000 0x00 0x90000>;	/* GICR */
+		      <0x00 0x01880000 0x00 0x90000>,	/* GICR */
+		      <0x00 0x6f000000 0x00 0x2000>,	/* GICC */
+		      <0x00 0x6f010000 0x00 0x1000>,	/* GICH */
+		      <0x00 0x6f020000 0x00 0x2000>;	/* GICV */
 		/*
 		 * vcpumntirq:
 		 * virtual CPU interface maintenance interrupt
@@ -692,8 +695,8 @@
 		power-domains = <&k3_pds 120 TI_SCI_PD_EXCLUSIVE>;
 		#address-cells = <3>;
 		#size-cells = <2>;
-		ranges = <0x81000000 0 0          0x0 0x10020000 0 0x00010000
-			  0x82000000 0 0x10030000 0x0 0x10030000 0 0x07FD0000>;
+		ranges = <0x81000000 0 0          0x0 0x10020000 0 0x00010000>,
+			 <0x82000000 0 0x10030000 0x0 0x10030000 0 0x07FD0000>;
 		ti,syscon-pcie-id = <&pcie_devid>;
 		ti,syscon-pcie-mode = <&pcie0_mode>;
 		bus-range = <0x0 0xff>;
@@ -725,8 +728,8 @@
 		power-domains = <&k3_pds 121 TI_SCI_PD_EXCLUSIVE>;
 		#address-cells = <3>;
 		#size-cells = <2>;
-		ranges = <0x81000000 0 0          0x0   0x18020000 0 0x00010000
-			  0x82000000 0 0x18030000 0x0   0x18030000 0 0x07FD0000>;
+		ranges = <0x81000000 0 0          0x0   0x18020000 0 0x00010000>,
+			 <0x82000000 0 0x18030000 0x0   0x18030000 0 0x07FD0000>;
 		ti,syscon-pcie-id = <&pcie_devid>;
 		ti,syscon-pcie-mode = <&pcie1_mode>;
 		bus-range = <0x0 0xff>;

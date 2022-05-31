@@ -40,6 +40,7 @@ struct clk_pll {
 	u16 mul;
 	const struct clk_pll_layout *layout;
 	const struct clk_pll_characteristics *characteristics;
+	struct at91_clk_pms pms;
 };
 
 static inline bool clk_pll_ready(struct regmap *regmap, int id)
@@ -260,6 +261,42 @@ static int clk_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	return 0;
 }
 
+static int clk_pll_save_context(struct clk_hw *hw)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	struct clk_hw *parent_hw = clk_hw_get_parent(hw);
+
+	pll->pms.parent_rate = clk_hw_get_rate(parent_hw);
+	pll->pms.rate = clk_pll_recalc_rate(&pll->hw, pll->pms.parent_rate);
+	pll->pms.status = clk_pll_ready(pll->regmap, PLL_REG(pll->id));
+
+	return 0;
+}
+
+static void clk_pll_restore_context(struct clk_hw *hw)
+{
+	struct clk_pll *pll = to_clk_pll(hw);
+	unsigned long calc_rate;
+	unsigned int pllr, pllr_out, pllr_count;
+	u8 out = 0;
+
+	if (pll->characteristics->out)
+		out = pll->characteristics->out[pll->range];
+
+	regmap_read(pll->regmap, PLL_REG(pll->id), &pllr);
+
+	calc_rate = (pll->pms.parent_rate / PLL_DIV(pllr)) *
+		     (PLL_MUL(pllr, pll->layout) + 1);
+	pllr_count = (pllr >> PLL_COUNT_SHIFT) & PLL_MAX_COUNT;
+	pllr_out = (pllr >> PLL_OUT_SHIFT) & out;
+
+	if (pll->pms.rate != calc_rate ||
+	    pll->pms.status != clk_pll_ready(pll->regmap, PLL_REG(pll->id)) ||
+	    pllr_count != PLL_MAX_COUNT ||
+	    (out && pllr_out != out))
+		pr_warn("PLLAR was not configured properly by firmware\n");
+}
+
 static const struct clk_ops pll_ops = {
 	.prepare = clk_pll_prepare,
 	.unprepare = clk_pll_unprepare,
@@ -267,6 +304,8 @@ static const struct clk_ops pll_ops = {
 	.recalc_rate = clk_pll_recalc_rate,
 	.round_rate = clk_pll_round_rate,
 	.set_rate = clk_pll_set_rate,
+	.save_context = clk_pll_save_context,
+	.restore_context = clk_pll_restore_context,
 };
 
 struct clk_hw * __init

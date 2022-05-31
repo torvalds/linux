@@ -10,25 +10,25 @@ Overview
 This facility is a general purpose cache for network filesystems, though it
 could be used for caching other things such as ISO9660 filesystems too.
 
-FS-Cache mediates between cache backends (such as CacheFS) and network
+FS-Cache mediates between cache backends (such as CacheFiles) and network
 filesystems::
 
 	+---------+
-	|         |                        +--------------+
-	|   NFS   |--+                     |              |
-	|         |  |                 +-->|   CacheFS    |
-	+---------+  |   +----------+  |   |  /dev/hda5   |
-	             |   |          |  |   +--------------+
-	+---------+  +-->|          |  |
-	|         |      |          |--+
-	|   AFS   |----->| FS-Cache |
-	|         |      |          |--+
-	+---------+  +-->|          |  |
-	             |   |          |  |   +--------------+
-	+---------+  |   +----------+  |   |              |
-	|         |  |                 +-->|  CacheFiles  |
-	|  ISOFS  |--+                     |  /var/cache  |
-	|         |                        +--------------+
+	|         |                                    +--------------+
+	|   NFS   |--+                                 |              |
+	|         |  |                             +-->|   CacheFS    |
+	+---------+  |               +----------+  |   |  /dev/hda5   |
+	             |               |          |  |   +--------------+
+	+---------+  +-------------->|          |  |
+	|         |      +-------+   |          |--+
+	|   AFS   |----->|       |   | FS-Cache |
+	|         |      | netfs |-->|          |--+
+	+---------+  +-->|  lib  |   |          |  |
+	             |   |       |   |          |  |   +--------------+
+	+---------+  |   +-------+   +----------+  |   |              |
+	|         |  |                             +-->|  CacheFiles  |
+	|   9P    |--+                                 |  /var/cache  |
+	|         |                                    +--------------+
 	+---------+
 
 Or to look at it another way, FS-Cache is a module that provides a caching
@@ -84,101 +84,62 @@ then serving the pages out of that cache rather than the netfs inode because:
      one-off access of a small portion of it (such as might be done with the
      "file" program).
 
-It instead serves the cache out in PAGE_SIZE chunks as and when requested by
-the netfs('s) using it.
+It instead serves the cache out in chunks as and when requested by the netfs
+using it.
 
 
 FS-Cache provides the following facilities:
 
- (1) More than one cache can be used at once.  Caches can be selected
+   * More than one cache can be used at once.  Caches can be selected
      explicitly by use of tags.
 
- (2) Caches can be added / removed at any time.
+   * Caches can be added / removed at any time, even whilst being accessed.
 
- (3) The netfs is provided with an interface that allows either party to
+   * The netfs is provided with an interface that allows either party to
      withdraw caching facilities from a file (required for (2)).
 
- (4) The interface to the netfs returns as few errors as possible, preferring
+   * The interface to the netfs returns as few errors as possible, preferring
      rather to let the netfs remain oblivious.
 
- (5) Cookies are used to represent indices, files and other objects to the
-     netfs.  The simplest cookie is just a NULL pointer - indicating nothing
-     cached there.
+   * There are three types of cookie: cache, volume and data file cookies.
+     Cache cookies represent the cache as a whole and are not normally visible
+     to the netfs; the netfs gets a volume cookie to represent a collection of
+     files (typically something that a netfs would get for a superblock); and
+     data file cookies are used to cache data (something that would be got for
+     an inode).
 
- (6) The netfs is allowed to propose - dynamically - any index hierarchy it
-     desires, though it must be aware that the index search function is
-     recursive, stack space is limited, and indices can only be children of
-     indices.
+   * Volumes are matched using a key.  This is a printable string that is used
+     to encode all the information that might be needed to distinguish one
+     superblock, say, from another.  This would be a compound of things like
+     cell name or server address, volume name or share path.  It must be a
+     valid pathname.
 
- (7) Data I/O is done direct to and from the netfs's pages.  The netfs
-     indicates that page A is at index B of the data-file represented by cookie
-     C, and that it should be read or written.  The cache backend may or may
-     not start I/O on that page, but if it does, a netfs callback will be
-     invoked to indicate completion.  The I/O may be either synchronous or
-     asynchronous.
+   * Cookies are matched using a key.  This is a binary blob and is used to
+     represent the object within a volume (so the volume key need not form
+     part of the blob).  This might include things like an inode number and
+     uniquifier or a file handle.
 
- (8) Cookies can be "retired" upon release.  At this point FS-Cache will mark
-     them as obsolete and the index hierarchy rooted at that point will get
-     recycled.
+   * Cookie resources are set up and pinned by marking the cookie in-use.
+     This prevents the backing resources from being culled.  Timed garbage
+     collection is employed to eliminate cookies that haven't been used for a
+     short while, thereby reducing resource overload.  This is intended to be
+     used when a file is opened or closed.
 
- (9) The netfs provides a "match" function for index searches.  In addition to
-     saying whether a match was made or not, this can also specify that an
-     entry should be updated or deleted.
+     A cookie can be marked in-use multiple times simultaneously; each mark
+     must be unused.
 
-(10) As much as possible is done asynchronously.
+   * Begin/end access functions are provided to delay cache withdrawal for the
+     duration of an operation and prevent structs from being freed whilst
+     we're looking at them.
 
+   * Data I/O is done by asynchronous DIO to/from a buffer described by the
+     netfs using an iov_iter.
 
-FS-Cache maintains a virtual indexing tree in which all indices, files, objects
-and pages are kept.  Bits of this tree may actually reside in one or more
-caches::
+   * An invalidation facility is available to discard data from the cache and
+     to deal with I/O that's in progress that is accessing old data.
 
-                                            FSDEF
-                                              |
-                         +------------------------------------+
-                         |                                    |
-                        NFS                                  AFS
-                         |                                    |
-            +--------------------------+                +-----------+
-            |                          |                |           |
-         homedir                     mirror          afs.org   redhat.com
-            |                          |                            |
-      +------------+           +---------------+              +----------+
-      |            |           |               |              |          |
-    00001        00002       00007           00125        vol00001   vol00002
-      |            |           |               |                         |
-  +---+---+     +-----+      +---+      +------+------+            +-----+----+
-  |   |   |     |     |      |   |      |      |      |            |     |    |
- PG0 PG1 PG2   PG0  XATTR   PG0 PG1   DIRENT DIRENT DIRENT        R/W   R/O  Bak
-                      |                                            |
-                     PG0                                       +-------+
-                                                               |       |
-                                                             00001   00003
-                                                               |
-                                                           +---+---+
-                                                           |   |   |
-                                                          PG0 PG1 PG2
-
-In the example above, you can see two netfs's being backed: NFS and AFS.  These
-have different index hierarchies:
-
-   * The NFS primary index contains per-server indices.  Each server index is
-     indexed by NFS file handles to get data file objects.  Each data file
-     objects can have an array of pages, but may also have further child
-     objects, such as extended attributes and directory entries.  Extended
-     attribute objects themselves have page-array contents.
-
-   * The AFS primary index contains per-cell indices.  Each cell index contains
-     per-logical-volume indices.  Each of volume index contains up to three
-     indices for the read-write, read-only and backup mirrors of those volumes.
-     Each of these contains vnode data file objects, each of which contains an
-     array of pages.
-
-The very top index is the FS-Cache master index in which individual netfs's
-have entries.
-
-Any index object may reside in more than one cache, provided it only has index
-children.  Any index with non-index object children will be assumed to only
-reside in one cache.
+   * Cookies can be "retired" upon release, thereby causing the object to be
+     removed from the cache.
 
 
 The netfs API to FS-Cache can be found in:
@@ -189,11 +150,6 @@ The cache backend API to FS-Cache can be found in:
 
 	Documentation/filesystems/caching/backend-api.rst
 
-A description of the internal representations and object state machine can be
-found in:
-
-	Documentation/filesystems/caching/object.rst
-
 
 Statistical Information
 =======================
@@ -201,333 +157,162 @@ Statistical Information
 If FS-Cache is compiled with the following options enabled::
 
 	CONFIG_FSCACHE_STATS=y
-	CONFIG_FSCACHE_HISTOGRAM=y
 
-then it will gather certain statistics and display them through a number of
-proc files.
+then it will gather certain statistics and display them through:
 
-/proc/fs/fscache/stats
-----------------------
+	/proc/fs/fscache/stats
 
-     This shows counts of a number of events that can happen in FS-Cache:
+This shows counts of a number of events that can happen in FS-Cache:
 
 +--------------+-------+-------------------------------------------------------+
 |CLASS         |EVENT  |MEANING                                                |
 +==============+=======+=======================================================+
-|Cookies       |idx=N  |Number of index cookies allocated                      |
+|Cookies       |n=N    |Number of data storage cookies allocated               |
 +              +-------+-------------------------------------------------------+
-|              |dat=N  |Number of data storage cookies allocated               |
+|              |v=N    |Number of volume index cookies allocated               |
 +              +-------+-------------------------------------------------------+
-|              |spc=N  |Number of special cookies allocated                    |
-+--------------+-------+-------------------------------------------------------+
-|Objects       |alc=N  |Number of objects allocated                            |
+|              |vcol=N |Number of volume index key collisions                  |
 +              +-------+-------------------------------------------------------+
-|              |nal=N  |Number of object allocation failures                   |
-+              +-------+-------------------------------------------------------+
-|              |avl=N  |Number of objects that reached the available state     |
-+              +-------+-------------------------------------------------------+
-|              |ded=N  |Number of objects that reached the dead state          |
-+--------------+-------+-------------------------------------------------------+
-|ChkAux        |non=N  |Number of objects that didn't have a coherency check   |
-+              +-------+-------------------------------------------------------+
-|              |ok=N   |Number of objects that passed a coherency check        |
-+              +-------+-------------------------------------------------------+
-|              |upd=N  |Number of objects that needed a coherency data update  |
-+              +-------+-------------------------------------------------------+
-|              |obs=N  |Number of objects that were declared obsolete          |
-+--------------+-------+-------------------------------------------------------+
-|Pages         |mrk=N  |Number of pages marked as being cached                 |
-|              |unc=N  |Number of uncache page requests seen                   |
+|              |voom=N |Number of OOM events when allocating volume cookies    |
 +--------------+-------+-------------------------------------------------------+
 |Acquire       |n=N    |Number of acquire cookie requests seen                 |
 +              +-------+-------------------------------------------------------+
-|              |nul=N  |Number of acq reqs given a NULL parent                 |
-+              +-------+-------------------------------------------------------+
-|              |noc=N  |Number of acq reqs rejected due to no cache available  |
-+              +-------+-------------------------------------------------------+
 |              |ok=N   |Number of acq reqs succeeded                           |
-+              +-------+-------------------------------------------------------+
-|              |nbf=N  |Number of acq reqs rejected due to error               |
 +              +-------+-------------------------------------------------------+
 |              |oom=N  |Number of acq reqs failed on ENOMEM                    |
 +--------------+-------+-------------------------------------------------------+
-|Lookups       |n=N    |Number of lookup calls made on cache backends          |
+|LRU           |n=N    |Number of cookies currently on the LRU                 |
 +              +-------+-------------------------------------------------------+
-|              |neg=N  |Number of negative lookups made                        |
+|              |exp=N  |Number of cookies expired off of the LRU               |
 +              +-------+-------------------------------------------------------+
-|              |pos=N  |Number of positive lookups made                        |
+|              |rmv=N  |Number of cookies removed from the LRU                 |
 +              +-------+-------------------------------------------------------+
-|              |crt=N  |Number of objects created by lookup                    |
+|              |drp=N  |Number of LRU'd cookies relinquished/withdrawn         |
 +              +-------+-------------------------------------------------------+
-|              |tmo=N  |Number of lookups timed out and requeued               |
+|              |at=N   |Time till next LRU cull (jiffies)                      |
++--------------+-------+-------------------------------------------------------+
+|Invals        |n=N    |Number of invalidations                                |
 +--------------+-------+-------------------------------------------------------+
 |Updates       |n=N    |Number of update cookie requests seen                  |
 +              +-------+-------------------------------------------------------+
-|              |nul=N  |Number of upd reqs given a NULL parent                 |
+|              |rsz=N  |Number of resize requests                              |
 +              +-------+-------------------------------------------------------+
-|              |run=N  |Number of upd reqs granted CPU time                    |
+|              |rsn=N  |Number of skipped resize requests                      |
 +--------------+-------+-------------------------------------------------------+
 |Relinqs       |n=N    |Number of relinquish cookie requests seen              |
 +              +-------+-------------------------------------------------------+
-|              |nul=N  |Number of rlq reqs given a NULL parent                 |
+|              |rtr=N  |Number of rlq reqs with retire=true                    |
 +              +-------+-------------------------------------------------------+
-|              |wcr=N  |Number of rlq reqs waited on completion of creation    |
+|              |drop=N |Number of cookies no longer blocking re-acquisition    |
 +--------------+-------+-------------------------------------------------------+
-|AttrChg       |n=N    |Number of attribute changed requests seen              |
+|NoSpace       |nwr=N  |Number of write requests refused due to lack of space  |
 +              +-------+-------------------------------------------------------+
-|              |ok=N   |Number of attr changed requests queued                 |
+|              |ncr=N  |Number of create requests refused due to lack of space |
 +              +-------+-------------------------------------------------------+
-|              |nbf=N  |Number of attr changed rejected -ENOBUFS               |
-+              +-------+-------------------------------------------------------+
-|              |oom=N  |Number of attr changed failed -ENOMEM                  |
-+              +-------+-------------------------------------------------------+
-|              |run=N  |Number of attr changed ops given CPU time              |
+|              |cull=N |Number of objects culled to make space                 |
 +--------------+-------+-------------------------------------------------------+
-|Allocs        |n=N    |Number of allocation requests seen                     |
+|IO            |rd=N   |Number of read operations in the cache                 |
 +              +-------+-------------------------------------------------------+
-|              |ok=N   |Number of successful alloc reqs                        |
-+              +-------+-------------------------------------------------------+
-|              |wt=N   |Number of alloc reqs that waited on lookup completion  |
-+              +-------+-------------------------------------------------------+
-|              |nbf=N  |Number of alloc reqs rejected -ENOBUFS                 |
-+              +-------+-------------------------------------------------------+
-|              |int=N  |Number of alloc reqs aborted -ERESTARTSYS              |
-+              +-------+-------------------------------------------------------+
-|              |ops=N  |Number of alloc reqs submitted                         |
-+              +-------+-------------------------------------------------------+
-|              |owt=N  |Number of alloc reqs waited for CPU time               |
-+              +-------+-------------------------------------------------------+
-|              |abt=N  |Number of alloc reqs aborted due to object death       |
-+--------------+-------+-------------------------------------------------------+
-|Retrvls       |n=N    |Number of retrieval (read) requests seen               |
-+              +-------+-------------------------------------------------------+
-|              |ok=N   |Number of successful retr reqs                         |
-+              +-------+-------------------------------------------------------+
-|              |wt=N   |Number of retr reqs that waited on lookup completion   |
-+              +-------+-------------------------------------------------------+
-|              |nod=N  |Number of retr reqs returned -ENODATA                  |
-+              +-------+-------------------------------------------------------+
-|              |nbf=N  |Number of retr reqs rejected -ENOBUFS                  |
-+              +-------+-------------------------------------------------------+
-|              |int=N  |Number of retr reqs aborted -ERESTARTSYS               |
-+              +-------+-------------------------------------------------------+
-|              |oom=N  |Number of retr reqs failed -ENOMEM                     |
-+              +-------+-------------------------------------------------------+
-|              |ops=N  |Number of retr reqs submitted                          |
-+              +-------+-------------------------------------------------------+
-|              |owt=N  |Number of retr reqs waited for CPU time                |
-+              +-------+-------------------------------------------------------+
-|              |abt=N  |Number of retr reqs aborted due to object death        |
-+--------------+-------+-------------------------------------------------------+
-|Stores        |n=N    |Number of storage (write) requests seen                |
-+              +-------+-------------------------------------------------------+
-|              |ok=N   |Number of successful store reqs                        |
-+              +-------+-------------------------------------------------------+
-|              |agn=N  |Number of store reqs on a page already pending storage |
-+              +-------+-------------------------------------------------------+
-|              |nbf=N  |Number of store reqs rejected -ENOBUFS                 |
-+              +-------+-------------------------------------------------------+
-|              |oom=N  |Number of store reqs failed -ENOMEM                    |
-+              +-------+-------------------------------------------------------+
-|              |ops=N  |Number of store reqs submitted                         |
-+              +-------+-------------------------------------------------------+
-|              |run=N  |Number of store reqs granted CPU time                  |
-+              +-------+-------------------------------------------------------+
-|              |pgs=N  |Number of pages given store req processing time        |
-+              +-------+-------------------------------------------------------+
-|              |rxd=N  |Number of store reqs deleted from tracking tree        |
-+              +-------+-------------------------------------------------------+
-|              |olm=N  |Number of store reqs over store limit                  |
-+--------------+-------+-------------------------------------------------------+
-|VmScan        |nos=N  |Number of release reqs against pages with no           |
-|              |       |pending store                                          |
-+              +-------+-------------------------------------------------------+
-|              |gon=N  |Number of release reqs against pages stored by         |
-|              |       |time lock granted                                      |
-+              +-------+-------------------------------------------------------+
-|              |bsy=N  |Number of release reqs ignored due to in-progress store|
-+              +-------+-------------------------------------------------------+
-|              |can=N  |Number of page stores cancelled due to release req     |
-+--------------+-------+-------------------------------------------------------+
-|Ops           |pend=N |Number of times async ops added to pending queues      |
-+              +-------+-------------------------------------------------------+
-|              |run=N  |Number of times async ops given CPU time               |
-+              +-------+-------------------------------------------------------+
-|              |enq=N  |Number of times async ops queued for processing        |
-+              +-------+-------------------------------------------------------+
-|              |can=N  |Number of async ops cancelled                          |
-+              +-------+-------------------------------------------------------+
-|              |rej=N  |Number of async ops rejected due to object             |
-|              |       |lookup/create failure                                  |
-+              +-------+-------------------------------------------------------+
-|              |ini=N  |Number of async ops initialised                        |
-+              +-------+-------------------------------------------------------+
-|              |dfr=N  |Number of async ops queued for deferred release        |
-+              +-------+-------------------------------------------------------+
-|              |rel=N  |Number of async ops released                           |
-|              |       |(should equal ini=N when idle)                         |
-+              +-------+-------------------------------------------------------+
-|              |gc=N   |Number of deferred-release async ops garbage collected |
-+--------------+-------+-------------------------------------------------------+
-|CacheOp       |alo=N  |Number of in-progress alloc_object() cache ops         |
-+              +-------+-------------------------------------------------------+
-|              |luo=N  |Number of in-progress lookup_object() cache ops        |
-+              +-------+-------------------------------------------------------+
-|              |luc=N  |Number of in-progress lookup_complete() cache ops      |
-+              +-------+-------------------------------------------------------+
-|              |gro=N  |Number of in-progress grab_object() cache ops          |
-+              +-------+-------------------------------------------------------+
-|              |upo=N  |Number of in-progress update_object() cache ops        |
-+              +-------+-------------------------------------------------------+
-|              |dro=N  |Number of in-progress drop_object() cache ops          |
-+              +-------+-------------------------------------------------------+
-|              |pto=N  |Number of in-progress put_object() cache ops           |
-+              +-------+-------------------------------------------------------+
-|              |syn=N  |Number of in-progress sync_cache() cache ops           |
-+              +-------+-------------------------------------------------------+
-|              |atc=N  |Number of in-progress attr_changed() cache ops         |
-+              +-------+-------------------------------------------------------+
-|              |rap=N  |Number of in-progress read_or_alloc_page() cache ops   |
-+              +-------+-------------------------------------------------------+
-|              |ras=N  |Number of in-progress read_or_alloc_pages() cache ops  |
-+              +-------+-------------------------------------------------------+
-|              |alp=N  |Number of in-progress allocate_page() cache ops        |
-+              +-------+-------------------------------------------------------+
-|              |als=N  |Number of in-progress allocate_pages() cache ops       |
-+              +-------+-------------------------------------------------------+
-|              |wrp=N  |Number of in-progress write_page() cache ops           |
-+              +-------+-------------------------------------------------------+
-|              |ucp=N  |Number of in-progress uncache_page() cache ops         |
-+              +-------+-------------------------------------------------------+
-|              |dsp=N  |Number of in-progress dissociate_pages() cache ops     |
-+--------------+-------+-------------------------------------------------------+
-|CacheEv       |nsp=N  |Number of object lookups/creations rejected due to     |
-|              |       |lack of space                                          |
-+              +-------+-------------------------------------------------------+
-|              |stl=N  |Number of stale objects deleted                        |
-+              +-------+-------------------------------------------------------+
-|              |rtr=N  |Number of objects retired when relinquished            |
-+              +-------+-------------------------------------------------------+
-|              |cul=N  |Number of objects culled                               |
+|              |wr=N   |Number of write operations in the cache                |
 +--------------+-------+-------------------------------------------------------+
 
+Netfslib will also add some stats counters of its own.
 
 
-/proc/fs/fscache/histogram
---------------------------
+Cache List
+==========
 
-     ::
+FS-Cache provides a list of cache cookies:
 
-	cat /proc/fs/fscache/histogram
-	JIFS  SECS  OBJ INST  OP RUNS   OBJ RUNS  RETRV DLY RETRIEVLS
-	===== ===== ========= ========= ========= ========= =========
-
-     This shows the breakdown of the number of times each amount of time
-     between 0 jiffies and HZ-1 jiffies a variety of tasks took to run.  The
-     columns are as follows:
-
-	=========	=======================================================
-	COLUMN		TIME MEASUREMENT
-	=========	=======================================================
-	OBJ INST	Length of time to instantiate an object
-	OP RUNS		Length of time a call to process an operation took
-	OBJ RUNS	Length of time a call to process an object event took
-	RETRV DLY	Time between an requesting a read and lookup completing
-	RETRIEVLS	Time between beginning and end of a retrieval
-	=========	=======================================================
-
-     Each row shows the number of events that took a particular range of times.
-     Each step is 1 jiffy in size.  The JIFS column indicates the particular
-     jiffy range covered, and the SECS field the equivalent number of seconds.
-
-
-
-Object List
-===========
-
-If CONFIG_FSCACHE_OBJECT_LIST is enabled, the FS-Cache facility will maintain a
-list of all the objects currently allocated and allow them to be viewed
-through::
-
-	/proc/fs/fscache/objects
+	/proc/fs/fscache/cookies
 
 This will look something like::
 
-	[root@andromeda ~]# head /proc/fs/fscache/objects
-	OBJECT   PARENT   STAT CHLDN OPS OOP IPR EX READS EM EV F S | NETFS_COOKIE_DEF TY FL NETFS_DATA       OBJECT_KEY, AUX_DATA
-	======== ======== ==== ===== === === === == ===== == == = = | ================ == == ================ ================
-	   17e4b        2 ACTV     0   0   0   0  0     0 7b  4 0 0 | NFS.fh           DT  0 ffff88001dd82820 010006017edcf8bbc93b43298fdfbe71e50b57b13a172c0117f38472, e567634700000000000000000000000063f2404a000000000000000000000000c9030000000000000000000063f2404a
-	   1693a        2 ACTV     0   0   0   0  0     0 7b  4 0 0 | NFS.fh           DT  0 ffff88002db23380 010006017edcf8bbc93b43298fdfbe71e50b57b1e0162c01a2df0ea6, 420ebc4a000000000000000000000000420ebc4a0000000000000000000000000e1801000000000000000000420ebc4a
+	# cat /proc/fs/fscache/caches
+	CACHE    REF   VOLS  OBJS  ACCES S NAME
+	======== ===== ===== ===== ===== = ===============
+	00000001     2     1  2123     1 A default
 
-where the first set of columns before the '|' describe the object:
+where the columns are:
 
 	=======	===============================================================
 	COLUMN	DESCRIPTION
 	=======	===============================================================
-	OBJECT	Object debugging ID (appears as OBJ%x in some debug messages)
-	PARENT	Debugging ID of parent object
-	STAT	Object state
-	CHLDN	Number of child objects of this object
-	OPS	Number of outstanding operations on this object
-	OOP	Number of outstanding child object management operations
-	IPR
-	EX	Number of outstanding exclusive operations
-	READS	Number of outstanding read operations
-	EM	Object's event mask
-	EV	Events raised on this object
-	F	Object flags
-	S	Object work item busy state mask (1:pending 2:running)
+	CACHE	Cache cookie debug ID (also appears in traces)
+	REF	Number of references on the cache cookie
+	VOLS	Number of volumes cookies in this cache
+	OBJS	Number of cache objects in use
+	ACCES	Number of accesses pinning the cache
+	S	State
+	NAME	Name of the cache.
 	=======	===============================================================
 
-and the second set of columns describe the object's cookie, if present:
+The state can be (-) Inactive, (P)reparing, (A)ctive, (E)rror or (W)ithdrawing.
 
-	================ ======================================================
-	COLUMN		 DESCRIPTION
-	================ ======================================================
-	NETFS_COOKIE_DEF Name of netfs cookie definition
-	TY		 Cookie type (IX - index, DT - data, hex - special)
-	FL		 Cookie flags
-	NETFS_DATA	 Netfs private data stored in the cookie
-	OBJECT_KEY	 Object key } 1 column, with separating comma
-	AUX_DATA	 Object aux data } presence may be configured
-	================ ======================================================
 
-The data shown may be filtered by attaching the a key to an appropriate keyring
-before viewing the file.  Something like::
+Volume List
+===========
 
-		keyctl add user fscache:objlist <restrictions> @s
+FS-Cache provides a list of volume cookies:
 
-where <restrictions> are a selection of the following letters:
+	/proc/fs/fscache/volumes
 
-	==	=========================================================
-	K	Show hexdump of object key (don't show if not given)
-	A	Show hexdump of object aux data (don't show if not given)
-	==	=========================================================
+This will look something like::
 
-and the following paired letters:
+	VOLUME   REF   nCOOK ACC FL CACHE           KEY
+	======== ===== ===== === == =============== ================
+	00000001    55    54   1 00 default         afs,example.com,100058
 
-	==	=========================================================
-	C	Show objects that have a cookie
-	c	Show objects that don't have a cookie
-	B	Show objects that are busy
-	b	Show objects that aren't busy
-	W	Show objects that have pending writes
-	w	Show objects that don't have pending writes
-	R	Show objects that have outstanding reads
-	r	Show objects that don't have outstanding reads
-	S	Show objects that have work queued
-	s	Show objects that don't have work queued
-	==	=========================================================
+where the columns are:
 
-If neither side of a letter pair is given, then both are implied.  For example:
+	=======	===============================================================
+	COLUMN	DESCRIPTION
+	=======	===============================================================
+	VOLUME	The volume cookie debug ID (also appears in traces)
+	REF	Number of references on the volume cookie
+	nCOOK	Number of cookies in the volume
+	ACC	Number of accesses pinning the cache
+	FL	Flags on the volume cookie
+	CACHE	Name of the cache or "-"
+	KEY	The indexing key for the volume
+	=======	===============================================================
 
-	keyctl add user fscache:objlist KB @s
 
-shows objects that are busy, and lists their object keys, but does not dump
-their auxiliary data.  It also implies "CcWwRrSs", but as 'B' is given, 'b' is
-not implied.
+Cookie List
+===========
 
-By default all objects and all fields will be shown.
+FS-Cache provides a list of cookies:
+
+	/proc/fs/fscache/cookies
+
+This will look something like::
+
+	# head /proc/fs/fscache/cookies
+	COOKIE   VOLUME   REF ACT ACC S FL DEF
+	======== ======== === === === = == ================
+	00000435 00000001   1   0  -1 - 08 0000000201d080070000000000000000, 0000000000000000
+	00000436 00000001   1   0  -1 - 00 0000005601d080080000000000000000, 0000000000000051
+	00000437 00000001   1   0  -1 - 08 00023b3001d0823f0000000000000000, 0000000000000000
+	00000438 00000001   1   0  -1 - 08 0000005801d0807b0000000000000000, 0000000000000000
+	00000439 00000001   1   0  -1 - 08 00023b3201d080a10000000000000000, 0000000000000000
+	0000043a 00000001   1   0  -1 - 08 00023b3401d080a30000000000000000, 0000000000000000
+	0000043b 00000001   1   0  -1 - 08 00023b3601d080b30000000000000000, 0000000000000000
+	0000043c 00000001   1   0  -1 - 08 00023b3801d080b40000000000000000, 0000000000000000
+
+where the columns are:
+
+	=======	===============================================================
+	COLUMN	DESCRIPTION
+	=======	===============================================================
+	COOKIE	The cookie debug ID (also appears in traces)
+	VOLUME	The parent volume cookie debug ID
+	REF	Number of references on the volume cookie
+	ACT	Number of times the cookie is marked for in use
+	ACC	Number of access pins in the cookie
+	S	State of the cookie
+	FL	Flags on the cookie
+	DEF	Key, auxiliary data
+	=======	===============================================================
 
 
 Debugging
@@ -549,10 +334,8 @@ This is a bitmask of debugging streams to enable:
 	3	8	Cookie management		Function entry trace
 	4	16					Function exit trace
 	5	32					General
-	6	64	Page handling			Function entry trace
-	7	128					Function exit trace
-	8	256					General
-	9	512	Operation management		Function entry trace
+	6-8						(Not used)
+	9	512	I/O operation management	Function entry trace
 	10	1024					Function exit trace
 	11	2048					General
 	=======	=======	===============================	=======================
@@ -560,6 +343,6 @@ This is a bitmask of debugging streams to enable:
 The appropriate set of values should be OR'd together and the result written to
 the control file.  For example::
 
-	echo $((1|8|64)) >/sys/module/fscache/parameters/debug
+	echo $((1|8|512)) >/sys/module/fscache/parameters/debug
 
 will turn on all function entry debugging.

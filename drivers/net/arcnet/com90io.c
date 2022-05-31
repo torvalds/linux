@@ -252,7 +252,7 @@ static int __init com90io_found(struct net_device *dev)
 
 	/* get and check the station ID from offset 1 in shmem */
 
-	dev->dev_addr[0] = get_buffer_byte(dev, 1);
+	arcnet_set_addr(dev, get_buffer_byte(dev, 1));
 
 	err = register_netdev(dev);
 	if (err) {

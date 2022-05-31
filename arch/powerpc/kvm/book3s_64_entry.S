@@ -374,11 +374,16 @@ END_MMU_FTR_SECTION_IFCLR(MMU_FTR_TYPE_RADIX)
 BEGIN_FTR_SECTION
 	mtspr	SPRN_DAWRX1,r10
 END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
-	mtspr	SPRN_PID,r10
 
 	/*
-	 * Switch to host MMU mode
+	 * Switch to host MMU mode (don't have the real host PID but we aren't
+	 * going back to userspace).
 	 */
+	hwsync
+	isync
+
+	mtspr	SPRN_PID,r10
+
 	ld	r10, HSTATE_KVM_VCPU(r13)
 	ld	r10, VCPU_KVM(r10)
 	lwz	r10, KVM_HOST_LPID(r10)
@@ -388,6 +393,8 @@ END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 	ld	r10, VCPU_KVM(r10)
 	ld	r10, KVM_HOST_LPCR(r10)
 	mtspr	SPRN_LPCR,r10
+
+	isync
 
 	/*
 	 * Set GUEST_MODE_NONE so the handler won't branch to KVM, and clear
@@ -407,10 +414,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 	 */
 	ld	r10,HSTATE_SCRATCH0(r13)
 	cmpwi	r10,BOOK3S_INTERRUPT_MACHINE_CHECK
-	beq	machine_check_common
+	beq	.Lcall_machine_check_common
 
 	cmpwi	r10,BOOK3S_INTERRUPT_SYSTEM_RESET
-	beq	system_reset_common
+	beq	.Lcall_system_reset_common
 
 	b	.
+
+.Lcall_machine_check_common:
+	b	machine_check_common
+
+.Lcall_system_reset_common:
+	b	system_reset_common
 #endif

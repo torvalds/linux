@@ -88,7 +88,7 @@ struct bmc150_accel_data {
 int bmc150_accel_core_probe(struct device *dev, struct regmap *regmap, int irq,
 			    enum bmc150_type type, const char *name,
 			    bool block_supported);
-int bmc150_accel_core_remove(struct device *dev);
+void bmc150_accel_core_remove(struct device *dev);
 extern const struct dev_pm_ops bmc150_accel_pm_ops;
 extern const struct regmap_config bmc150_regmap_conf;
 

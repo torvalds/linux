@@ -703,7 +703,7 @@ static const struct mb_ops keylargo_mb_ops = {
  * Therefore we do it all by polling the media bay once each tick.
  */
 
-static struct of_device_id media_bay_match[] =
+static const struct of_device_id media_bay_match[] =
 {
 	{
 	.name		= "media-bay",

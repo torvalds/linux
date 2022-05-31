@@ -32,6 +32,7 @@
 
 #define PHY_ID_BCM72113			0x35905310
 #define PHY_ID_BCM72116			0x35905350
+#define PHY_ID_BCM72165			0x35905340
 #define PHY_ID_BCM7250			0xae025280
 #define PHY_ID_BCM7255			0xae025120
 #define PHY_ID_BCM7260			0xae025190
@@ -49,6 +50,7 @@
 #define PHY_ID_BCM7439			0x600d8480
 #define PHY_ID_BCM7439_2		0xae025080
 #define PHY_ID_BCM7445			0x600d8510
+#define PHY_ID_BCM7712			0x35905330
 
 #define PHY_ID_BCM_CYGNUS		0xae025200
 #define PHY_ID_BCM_OMEGA		0xae025100
@@ -66,6 +68,7 @@
 #define PHY_BRCM_CLEAR_RGMII_MODE	0x00000004
 #define PHY_BRCM_DIS_TXCRXC_NOENRGY	0x00000008
 #define PHY_BRCM_EN_MASTER_MODE		0x00000010
+#define PHY_BRCM_IDDQ_SUSPEND		0x00000020
 
 /* Broadcom BCM7xxx specific workarounds */
 #define PHY_BRCM_7XXX_REV(x)		(((x) >> 8) & 0xff)
@@ -83,6 +86,7 @@
 
 #define MII_BCM54XX_EXP_DATA	0x15	/* Expansion register data */
 #define MII_BCM54XX_EXP_SEL	0x17	/* Expansion register select */
+#define MII_BCM54XX_EXP_SEL_TOP	0x0d00	/* TOP_MISC expansion register select */
 #define MII_BCM54XX_EXP_SEL_SSD	0x0e00	/* Secondary SerDes select */
 #define MII_BCM54XX_EXP_SEL_ER	0x0f00	/* Expansion register select */
 #define MII_BCM54XX_EXP_SEL_ETC	0x0d00	/* Expansion register spare + 2k mem */
@@ -233,6 +237,7 @@
 #define MII_BCM54XX_EXP_EXP08			0x0F08
 #define  MII_BCM54XX_EXP_EXP08_RJCT_2MHZ	0x0001
 #define  MII_BCM54XX_EXP_EXP08_EARLY_DAC_WAKE	0x0200
+#define  MII_BCM54XX_EXP_EXP08_FORCE_DAC_WAKE	0x0100
 #define MII_BCM54XX_EXP_EXP75			0x0f75
 #define  MII_BCM54XX_EXP_EXP75_VDACCTRL		0x003c
 #define  MII_BCM54XX_EXP_EXP75_CM_OSC		0x0001
@@ -240,6 +245,12 @@
 #define  MII_BCM54XX_EXP_EXP96_MYST		0x0010
 #define MII_BCM54XX_EXP_EXP97			0x0f97
 #define  MII_BCM54XX_EXP_EXP97_MYST		0x0c0c
+
+/* Top-MISC expansion registers */
+#define BCM54XX_TOP_MISC_IDDQ_CTRL		(MII_BCM54XX_EXP_SEL_TOP + 0x06)
+#define BCM54XX_TOP_MISC_IDDQ_LP		(1 << 0)
+#define BCM54XX_TOP_MISC_IDDQ_SD		(1 << 2)
+#define BCM54XX_TOP_MISC_IDDQ_SR		(1 << 3)
 
 /*
  * BCM5482: Secondary SerDes registers

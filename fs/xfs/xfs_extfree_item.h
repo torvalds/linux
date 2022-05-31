@@ -9,7 +9,7 @@
 /* kernel only EFI/EFD definitions */
 
 struct xfs_mount;
-struct kmem_zone;
+struct kmem_cache;
 
 /*
  * Max number of extents in fast allocation path.
@@ -69,7 +69,7 @@ struct xfs_efd_log_item {
  */
 #define	XFS_EFD_MAX_FAST_EXTENTS	16
 
-extern struct kmem_zone	*xfs_efi_zone;
-extern struct kmem_zone	*xfs_efd_zone;
+extern struct kmem_cache	*xfs_efi_cache;
+extern struct kmem_cache	*xfs_efd_cache;
 
 #endif	/* __XFS_EXTFREE_ITEM_H__ */

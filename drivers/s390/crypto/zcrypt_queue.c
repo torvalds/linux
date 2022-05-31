@@ -65,10 +65,9 @@ static ssize_t online_store(struct device *dev,
 		return -EINVAL;
 	zq->online = online;
 
-	ZCRYPT_DBF(DBF_INFO, "queue=%02x.%04x online=%d\n",
-		   AP_QID_CARD(zq->queue->qid),
-		   AP_QID_QUEUE(zq->queue->qid),
-		   online);
+	ZCRYPT_DBF_INFO("%s queue=%02x.%04x online=%d\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid), online);
 
 	ap_send_online_uevent(&aq->ap_dev, online);
 
@@ -175,8 +174,9 @@ int zcrypt_queue_register(struct zcrypt_queue *zq)
 	zq->zcard = zc;
 	zq->online = 1;	/* New devices are online by default. */
 
-	ZCRYPT_DBF(DBF_INFO, "queue=%02x.%04x register online=1\n",
-		   AP_QID_CARD(zq->queue->qid), AP_QID_QUEUE(zq->queue->qid));
+	ZCRYPT_DBF_INFO("%s queue=%02x.%04x register online=1\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid));
 
 	list_add_tail(&zq->list, &zc->zqueues);
 	spin_unlock(&zcrypt_list_lock);
@@ -215,8 +215,9 @@ void zcrypt_queue_unregister(struct zcrypt_queue *zq)
 {
 	struct zcrypt_card *zc;
 
-	ZCRYPT_DBF(DBF_INFO, "queue=%02x.%04x unregister\n",
-		   AP_QID_CARD(zq->queue->qid), AP_QID_QUEUE(zq->queue->qid));
+	ZCRYPT_DBF_INFO("%s queue=%02x.%04x unregister\n",
+			__func__, AP_QID_CARD(zq->queue->qid),
+			AP_QID_QUEUE(zq->queue->qid));
 
 	zc = zq->zcard;
 	spin_lock(&zcrypt_list_lock);

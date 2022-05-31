@@ -538,13 +538,11 @@ static bool myrs_enable_mmio_mbox(struct myrs_hba *cs,
 		cs->fwstat_buf = NULL;
 		goto out_free;
 	}
-	cs->ctlr_info = kzalloc(sizeof(struct myrs_ctlr_info),
-				GFP_KERNEL | GFP_DMA);
+	cs->ctlr_info = kzalloc(sizeof(struct myrs_ctlr_info), GFP_KERNEL);
 	if (!cs->ctlr_info)
 		goto out_free;
 
-	cs->event_buf = kzalloc(sizeof(struct myrs_event),
-				GFP_KERNEL | GFP_DMA);
+	cs->event_buf = kzalloc(sizeof(struct myrs_event), GFP_KERNEL);
 	if (!cs->event_buf)
 		goto out_free;
 
@@ -1286,13 +1284,15 @@ static ssize_t consistency_check_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(consistency_check);
 
-static struct device_attribute *myrs_sdev_attrs[] = {
-	&dev_attr_consistency_check,
-	&dev_attr_rebuild,
-	&dev_attr_raid_state,
-	&dev_attr_raid_level,
+static struct attribute *myrs_sdev_attrs[] = {
+	&dev_attr_consistency_check.attr,
+	&dev_attr_rebuild.attr,
+	&dev_attr_raid_state.attr,
+	&dev_attr_raid_level.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(myrs_sdev);
 
 static ssize_t serial_show(struct device *dev,
 		struct device_attribute *attr, char *buf)
@@ -1510,19 +1510,21 @@ static ssize_t disable_enclosure_messages_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(disable_enclosure_messages);
 
-static struct device_attribute *myrs_shost_attrs[] = {
-	&dev_attr_serial,
-	&dev_attr_ctlr_num,
-	&dev_attr_processor,
-	&dev_attr_model,
-	&dev_attr_ctlr_type,
-	&dev_attr_cache_size,
-	&dev_attr_firmware,
-	&dev_attr_discovery,
-	&dev_attr_flush_cache,
-	&dev_attr_disable_enclosure_messages,
+static struct attribute *myrs_shost_attrs[] = {
+	&dev_attr_serial.attr,
+	&dev_attr_ctlr_num.attr,
+	&dev_attr_processor.attr,
+	&dev_attr_model.attr,
+	&dev_attr_ctlr_type.attr,
+	&dev_attr_cache_size.attr,
+	&dev_attr_firmware.attr,
+	&dev_attr_discovery.attr,
+	&dev_attr_flush_cache.attr,
+	&dev_attr_disable_enclosure_messages.attr,
 	NULL,
 };
+
+ATTRIBUTE_GROUPS(myrs_shost);
 
 /*
  * SCSI midlayer interface
@@ -1595,14 +1597,14 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 
 	if (!scmd->device->hostdata) {
 		scmd->result = (DID_NO_CONNECT << 16);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	}
 
 	switch (scmd->cmnd[0]) {
 	case REPORT_LUNS:
 		scsi_build_sense(scmd, 0, ILLEGAL_REQUEST, 0x20, 0x0);
-		scmd->scsi_done(scmd);
+		scsi_done(scmd);
 		return 0;
 	case MODE_SENSE:
 		if (scmd->device->channel >= cs->ctlr_info->physchan_present) {
@@ -1616,7 +1618,7 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 				myrs_mode_sense(cs, scmd, ldev_info);
 				scmd->result = (DID_OK << 16);
 			}
-			scmd->scsi_done(scmd);
+			scsi_done(scmd);
 			return 0;
 		}
 		break;
@@ -1756,7 +1758,7 @@ static int myrs_queuecommand(struct Scsi_Host *shost,
 			if (WARN_ON(!hw_sgl)) {
 				scsi_dma_unmap(scmd);
 				scmd->result = (DID_ERROR << 16);
-				scmd->scsi_done(scmd);
+				scsi_done(scmd);
 				return 0;
 			}
 			hw_sgl->sge_addr = (u64)sg_dma_address(sgl);
@@ -1801,7 +1803,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 
 		ldev_num = myrs_translate_ldev(cs, sdev);
 
-		ldev_info = kzalloc(sizeof(*ldev_info), GFP_KERNEL|GFP_DMA);
+		ldev_info = kzalloc(sizeof(*ldev_info), GFP_KERNEL);
 		if (!ldev_info)
 			return -ENOMEM;
 
@@ -1863,7 +1865,7 @@ static int myrs_slave_alloc(struct scsi_device *sdev)
 	} else {
 		struct myrs_pdev_info *pdev_info;
 
-		pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL|GFP_DMA);
+		pdev_info = kzalloc(sizeof(*pdev_info), GFP_KERNEL);
 		if (!pdev_info)
 			return -ENOMEM;
 
@@ -1923,8 +1925,8 @@ static struct scsi_host_template myrs_template = {
 	.slave_configure	= myrs_slave_configure,
 	.slave_destroy		= myrs_slave_destroy,
 	.cmd_size		= sizeof(struct myrs_cmdblk),
-	.shost_attrs		= myrs_shost_attrs,
-	.sdev_attrs		= myrs_sdev_attrs,
+	.shost_groups		= myrs_shost_groups,
+	.sdev_groups		= myrs_sdev_groups,
 	.this_id		= -1,
 };
 
@@ -2083,7 +2085,7 @@ static void myrs_handle_scsi(struct myrs_hba *cs, struct myrs_cmdblk *cmd_blk,
 		scmd->result = (DID_BAD_TARGET << 16);
 	else
 		scmd->result = (DID_OK << 16) | status;
-	scmd->scsi_done(scmd);
+	scsi_done(scmd);
 }
 
 static void myrs_handle_cmdblk(struct myrs_hba *cs, struct myrs_cmdblk *cmd_blk)
@@ -2265,7 +2267,8 @@ static void myrs_cleanup(struct myrs_hba *cs)
 	myrs_unmap(cs);
 
 	if (cs->mmio_base) {
-		cs->disable_intr(cs);
+		if (cs->disable_intr)
+			cs->disable_intr(cs);
 		iounmap(cs->mmio_base);
 		cs->mmio_base = NULL;
 	}

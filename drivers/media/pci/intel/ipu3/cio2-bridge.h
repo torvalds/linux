@@ -8,9 +8,15 @@
 
 #include "ipu3-cio2.h"
 
+struct i2c_client;
+
 #define CIO2_HID				"INT343E"
 #define CIO2_MAX_LANES				4
 #define MAX_NUM_LINK_FREQS			3
+
+/* Values are educated guesses as we don't have a spec */
+#define CIO2_SENSOR_ROTATION_NORMAL		0
+#define CIO2_SENSOR_ROTATION_INVERTED		1
 
 #define CIO2_SENSOR_CONFIG(_HID, _NR, ...)	\
 	(const struct cio2_sensor_config) {	\
@@ -38,12 +44,19 @@
 		.properties = _PROPS,		\
 	}
 
+#define NODE_VCM(_TYPE)				\
+	(const struct software_node) {		\
+		.name = _TYPE,			\
+	}
+
 enum cio2_sensor_swnodes {
 	SWNODE_SENSOR_HID,
 	SWNODE_SENSOR_PORT,
 	SWNODE_SENSOR_ENDPOINT,
 	SWNODE_CIO2_PORT,
 	SWNODE_CIO2_ENDPOINT,
+	/* Must be last because it is optional / maybe empty */
+	SWNODE_VCM,
 	SWNODE_COUNT
 };
 
@@ -80,6 +93,7 @@ struct cio2_sensor_ssdb {
 struct cio2_property_names {
 	char clock_frequency[16];
 	char rotation[9];
+	char orientation[12];
 	char bus_type[9];
 	char data_lanes[11];
 	char remote_endpoint[16];
@@ -101,17 +115,22 @@ struct cio2_sensor_config {
 struct cio2_sensor {
 	char name[ACPI_ID_LEN];
 	struct acpi_device *adev;
+	struct i2c_client *vcm_i2c_client;
 
-	struct software_node swnodes[6];
+	/* SWNODE_COUNT + 1 for terminating empty node */
+	struct software_node swnodes[SWNODE_COUNT + 1];
 	struct cio2_node_names node_names;
 
 	struct cio2_sensor_ssdb ssdb;
+	struct acpi_pld_info *pld;
+
 	struct cio2_property_names prop_names;
 	struct property_entry ep_properties[5];
-	struct property_entry dev_properties[3];
+	struct property_entry dev_properties[5];
 	struct property_entry cio2_properties[3];
 	struct software_node_ref_args local_ref[1];
 	struct software_node_ref_args remote_ref[1];
+	struct software_node_ref_args vcm_ref[1];
 };
 
 struct cio2_bridge {

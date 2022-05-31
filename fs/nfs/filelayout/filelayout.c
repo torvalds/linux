@@ -293,8 +293,6 @@ static void filelayout_read_call_done(struct rpc_task *task, void *data)
 {
 	struct nfs_pgio_header *hdr = data;
 
-	dprintk("--> %s task->tk_status %d\n", __func__, task->tk_status);
-
 	if (test_bit(NFS_IOHDR_REDO, &hdr->flags) &&
 	    task->tk_status == 0) {
 		nfs41_sequence_done(task, &hdr->res.seq_res);
@@ -1077,7 +1075,7 @@ filelayout_setup_ds_info(struct pnfs_ds_commit_info *fl_cinfo,
 	unsigned int size = (fl->stripe_type == STRIPE_SPARSE) ?
 		fl->dsaddr->ds_num : fl->dsaddr->stripe_count;
 
-	new = pnfs_alloc_commit_array(size, GFP_NOIO);
+	new = pnfs_alloc_commit_array(size, nfs_io_gfp_mask());
 	if (new) {
 		spin_lock(&inode->i_lock);
 		array = pnfs_add_commit_array(fl_cinfo, new, lseg);

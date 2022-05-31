@@ -18,14 +18,14 @@ Description:
                 and it will be removed.  The default is 3 superframes
                 (~197 ms) as required by the specification.
 
-What:           /sys/class/uwb_rc/uwbN/
+What:           /sys/class/uwb_rc/uwb<N>/
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
 Description:
                 An individual UWB radio controller.
 
-What:           /sys/class/uwb_rc/uwbN/beacon
+What:           /sys/class/uwb_rc/uwb<N>/beacon
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -43,7 +43,7 @@ Description:
                 Reading returns the currently active channel, or -1 if
                 the radio controller is not beaconing.
 
-What:           /sys/class/uwb_rc/uwbN/ASIE
+What:           /sys/class/uwb_rc/uwb<N>/ASIE
 Date:           August 2014
 KernelVersion:  3.18
 Contact:        linux-usb@vger.kernel.org
@@ -56,7 +56,7 @@ Description:
                 Reading returns the current ASIE.  Writing replaces
                 the current ASIE with the one written.
 
-What:           /sys/class/uwb_rc/uwbN/scan
+What:           /sys/class/uwb_rc/uwb<N>/scan
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -75,7 +75,7 @@ Description:
                     4   scan (with start time of <bpst offset>)
 		   ==   =======================================
 
-What:           /sys/class/uwb_rc/uwbN/mac_address
+What:           /sys/class/uwb_rc/uwb<N>/mac_address
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -85,7 +85,7 @@ Description:
                 controller's EUI-48 but only do so while the device is
                 not beaconing or scanning.
 
-What:           /sys/class/uwb_rc/uwbN/wusbhc
+What:           /sys/class/uwb_rc/uwb<N>/wusbhc
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -93,7 +93,7 @@ Description:
                 A symlink to the device (if any) of the WUSB Host
                 Controller PAL using this radio controller.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -102,7 +102,7 @@ Description:
                 as part of a scan or is a member of the radio
                 controllers beacon group.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/BPST
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/BPST
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -111,7 +111,7 @@ Description:
                 interval superframe timer) of the last beacon from
                 this device was received.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/DevAddr
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/DevAddr
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -119,7 +119,7 @@ Description:
                 The current DevAddr of this device in colon separated
                 hex octets.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/EUI_48
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/EUI_48
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -128,7 +128,7 @@ Description:
                 The EUI-48 of this device in colon separated hex
                 octets.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/IEs
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/IEs
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -136,7 +136,7 @@ Description:
                 The latest IEs included in this device's beacon, in
                 space separated hex octets with one IE per line.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/LQE
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/LQE
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org
@@ -146,7 +146,7 @@ Description:
                 This gives an estimate on a suitable PHY rate. Refer
                 to [ECMA-368] section 13.3 for more details.
 
-What:           /sys/class/uwb_rc/uwbN/<EUI-48>/RSSI
+What:           /sys/class/uwb_rc/uwb<N>/<EUI-48>/RSSI
 Date:           July 2008
 KernelVersion:  2.6.27
 Contact:        linux-usb@vger.kernel.org

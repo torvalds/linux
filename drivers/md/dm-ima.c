@@ -12,6 +12,7 @@
 #include "dm-ima.h"
 
 #include <linux/ima.h>
+#include <linux/sched/mm.h>
 #include <crypto/hash.h>
 #include <linux/crypto.h>
 #include <crypto/hash_info.h>
@@ -454,7 +455,7 @@ void dm_ima_measure_on_device_resume(struct mapped_device *md, bool swap)
 		scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
 			  "%sname=%s,uuid=%s;device_resume=no_data;",
 			  DM_IMA_VERSION_STR, dev_name, dev_uuid);
-		l += strlen(device_table_data);
+		l = strlen(device_table_data);
 
 	}
 
@@ -567,7 +568,7 @@ void dm_ima_measure_on_device_remove(struct mapped_device *md, bool remove_all)
 		scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
 			  "%sname=%s,uuid=%s;device_remove=no_data;",
 			  DM_IMA_VERSION_STR, dev_name, dev_uuid);
-		l += strlen(device_table_data);
+		l = strlen(device_table_data);
 	}
 
 	memcpy(device_table_data + l, remove_all_str, remove_all_len);
@@ -653,7 +654,7 @@ void dm_ima_measure_on_table_clear(struct mapped_device *md, bool new_map)
 		scnprintf(device_table_data, DM_IMA_DEVICE_BUF_LEN,
 			  "%sname=%s,uuid=%s;table_clear=no_data;",
 			   DM_IMA_VERSION_STR, dev_name, dev_uuid);
-		l += strlen(device_table_data);
+		l = strlen(device_table_data);
 	}
 
 	capacity_len = strlen(capacity_str);

@@ -4,6 +4,7 @@
 #include <linux/firmware.h>
 #include "otx2_cpt_hw_types.h"
 #include "otx2_cpt_common.h"
+#include "otx2_cpt_devlink.h"
 #include "otx2_cptpf_ucode.h"
 #include "otx2_cptpf.h"
 #include "cn10k_cpt.h"
@@ -139,10 +140,13 @@ static void cptpf_flr_wq_handler(struct work_struct *work)
 
 	vf = flr_work - pf->flr_work;
 
+	mutex_lock(&pf->lock);
 	req = otx2_mbox_alloc_msg_rsp(mbox, 0, sizeof(*req),
 				      sizeof(struct msg_rsp));
-	if (!req)
+	if (!req) {
+		mutex_unlock(&pf->lock);
 		return;
+	}
 
 	req->sig = OTX2_MBOX_REQ_SIG;
 	req->id = MBOX_MSG_VF_FLR;
@@ -150,16 +154,19 @@ static void cptpf_flr_wq_handler(struct work_struct *work)
 	req->pcifunc |= (vf + 1) & RVU_PFVF_FUNC_MASK;
 
 	otx2_cpt_send_mbox_msg(mbox, pf->pdev);
+	if (!otx2_cpt_sync_mbox_msg(&pf->afpf_mbox)) {
 
-	if (vf >= 64) {
-		reg = 1;
-		vf = vf - 64;
+		if (vf >= 64) {
+			reg = 1;
+			vf = vf - 64;
+		}
+		/* Clear transaction pending register */
+		otx2_cpt_write64(pf->reg_base, BLKADDR_RVUM, 0,
+				 RVU_PF_VFTRPENDX(reg), BIT_ULL(vf));
+		otx2_cpt_write64(pf->reg_base, BLKADDR_RVUM, 0,
+				 RVU_PF_VFFLR_INT_ENA_W1SX(reg), BIT_ULL(vf));
 	}
-	/* Clear transaction pending register */
-	otx2_cpt_write64(pf->reg_base, BLKADDR_RVUM, 0,
-			 RVU_PF_VFTRPENDX(reg), BIT_ULL(vf));
-	otx2_cpt_write64(pf->reg_base, BLKADDR_RVUM, 0,
-			 RVU_PF_VFFLR_INT_ENA_W1SX(reg), BIT_ULL(vf));
+	mutex_unlock(&pf->lock);
 }
 
 static irqreturn_t cptpf_vf_flr_intr(int __always_unused irq, void *arg)
@@ -467,6 +474,7 @@ static int cptpf_afpf_mbox_init(struct otx2_cptpf_dev *cptpf)
 		goto error;
 
 	INIT_WORK(&cptpf->afpf_mbox_work, otx2_cptpf_afpf_mbox_handler);
+	mutex_init(&cptpf->lock);
 	return 0;
 
 error:
@@ -494,12 +502,11 @@ static ssize_t kvf_limits_store(struct device *dev,
 {
 	struct otx2_cptpf_dev *cptpf = dev_get_drvdata(dev);
 	int lfs_num;
+	int ret;
 
-	if (kstrtoint(buf, 0, &lfs_num)) {
-		dev_err(dev, "lfs count %d must be in range [1 - %d]\n",
-			lfs_num, num_online_cpus());
-		return -EINVAL;
-	}
+	ret = kstrtoint(buf, 0, &lfs_num);
+	if (ret)
+		return ret;
 	if (lfs_num < 1 || lfs_num > num_online_cpus()) {
 		dev_err(dev, "lfs count %d must be in range [1 - %d]\n",
 			lfs_num, num_online_cpus());
@@ -767,8 +774,15 @@ static int otx2_cptpf_probe(struct pci_dev *pdev,
 	err = sysfs_create_group(&dev->kobj, &cptpf_sysfs_group);
 	if (err)
 		goto cleanup_eng_grps;
+
+	err = otx2_cpt_register_dl(cptpf);
+	if (err)
+		goto sysfs_grp_del;
+
 	return 0;
 
+sysfs_grp_del:
+	sysfs_remove_group(&dev->kobj, &cptpf_sysfs_group);
 cleanup_eng_grps:
 	otx2_cpt_cleanup_eng_grps(pdev, &cptpf->eng_grps);
 unregister_intr:
@@ -788,6 +802,7 @@ static void otx2_cptpf_remove(struct pci_dev *pdev)
 		return;
 
 	cptpf_sriov_disable(pdev);
+	otx2_cpt_unregister_dl(cptpf);
 	/* Delete sysfs entry created for kernel VF limits */
 	sysfs_remove_group(&pdev->dev.kobj, &cptpf_sysfs_group);
 	/* Cleanup engine groups */

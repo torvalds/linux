@@ -43,10 +43,11 @@
 	vpg3->base.ctx
 
 
-static void vpg3_update_generic_info_packet(
+void vpg3_update_generic_info_packet(
 	struct vpg *vpg,
 	uint32_t packet_index,
-	const struct dc_info_packet *info_packet)
+	const struct dc_info_packet *info_packet,
+	bool immediate_update)
 {
 	struct dcn30_vpg *vpg3 = DCN30_VPG_FROM_VPG(vpg);
 	uint32_t i;
@@ -106,69 +107,138 @@ static void vpg3_update_generic_info_packet(
 	/* atomically update double-buffered GENERIC0 registers in immediate mode
 	 * (update at next block_update when block_update_lock == 0).
 	 */
-	switch (packet_index) {
-	case 0:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC0_IMMEDIATE_UPDATE, 1);
-		break;
-	case 1:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC1_IMMEDIATE_UPDATE, 1);
-		break;
-	case 2:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC2_IMMEDIATE_UPDATE, 1);
-		break;
-	case 3:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC3_IMMEDIATE_UPDATE, 1);
-		break;
-	case 4:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC4_IMMEDIATE_UPDATE, 1);
-		break;
-	case 5:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC5_IMMEDIATE_UPDATE, 1);
-		break;
-	case 6:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC6_IMMEDIATE_UPDATE, 1);
-		break;
-	case 7:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC7_IMMEDIATE_UPDATE, 1);
-		break;
-	case 8:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC8_IMMEDIATE_UPDATE, 1);
-		break;
-	case 9:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC9_IMMEDIATE_UPDATE, 1);
-		break;
-	case 10:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC10_IMMEDIATE_UPDATE, 1);
-		break;
-	case 11:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC11_IMMEDIATE_UPDATE, 1);
-		break;
-	case 12:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC12_IMMEDIATE_UPDATE, 1);
-		break;
-	case 13:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC13_IMMEDIATE_UPDATE, 1);
-		break;
-	case 14:
-		REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
-				VPG_GENERIC14_IMMEDIATE_UPDATE, 1);
-		break;
-	default:
-		break;
+	if (immediate_update) {
+		switch (packet_index) {
+		case 0:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC0_IMMEDIATE_UPDATE, 1);
+			break;
+		case 1:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC1_IMMEDIATE_UPDATE, 1);
+			break;
+		case 2:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC2_IMMEDIATE_UPDATE, 1);
+			break;
+		case 3:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC3_IMMEDIATE_UPDATE, 1);
+			break;
+		case 4:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC4_IMMEDIATE_UPDATE, 1);
+			break;
+		case 5:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC5_IMMEDIATE_UPDATE, 1);
+			break;
+		case 6:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC6_IMMEDIATE_UPDATE, 1);
+			break;
+		case 7:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC7_IMMEDIATE_UPDATE, 1);
+			break;
+		case 8:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC8_IMMEDIATE_UPDATE, 1);
+			break;
+		case 9:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC9_IMMEDIATE_UPDATE, 1);
+			break;
+		case 10:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC10_IMMEDIATE_UPDATE, 1);
+			break;
+		case 11:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC11_IMMEDIATE_UPDATE, 1);
+			break;
+		case 12:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC12_IMMEDIATE_UPDATE, 1);
+			break;
+		case 13:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC13_IMMEDIATE_UPDATE, 1);
+			break;
+		case 14:
+			REG_UPDATE(VPG_GSP_IMMEDIATE_UPDATE_CTRL,
+					VPG_GENERIC14_IMMEDIATE_UPDATE, 1);
+			break;
+		default:
+			break;
+		}
+	} else {
+		switch (packet_index) {
+		case 0:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC0_FRAME_UPDATE, 1);
+			break;
+		case 1:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC1_FRAME_UPDATE, 1);
+			break;
+		case 2:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC2_FRAME_UPDATE, 1);
+			break;
+		case 3:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC3_FRAME_UPDATE, 1);
+			break;
+		case 4:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC4_FRAME_UPDATE, 1);
+			break;
+		case 5:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC5_FRAME_UPDATE, 1);
+			break;
+		case 6:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC6_FRAME_UPDATE, 1);
+			break;
+		case 7:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC7_FRAME_UPDATE, 1);
+			break;
+		case 8:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC8_FRAME_UPDATE, 1);
+			break;
+		case 9:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC9_FRAME_UPDATE, 1);
+			break;
+		case 10:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC10_FRAME_UPDATE, 1);
+			break;
+		case 11:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC11_FRAME_UPDATE, 1);
+			break;
+		case 12:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC12_FRAME_UPDATE, 1);
+			break;
+		case 13:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC13_FRAME_UPDATE, 1);
+			break;
+		case 14:
+			REG_UPDATE(VPG_GSP_FRAME_UPDATE_CTRL,
+					VPG_GENERIC14_FRAME_UPDATE, 1);
+			break;
+
+		default:
+			break;
+		}
+
 	}
 }
 

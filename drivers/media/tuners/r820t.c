@@ -326,6 +326,26 @@ static int r820t_xtal_capacitor[][2] = {
 	{ 0x10, XTAL_HIGH_CAP_0P },
 };
 
+static const char *r820t_chip_enum_to_str(enum r820t_chip chip)
+{
+	switch (chip) {
+	case CHIP_R820T:
+		return "R820T";
+	case CHIP_R620D:
+		return "R620D";
+	case CHIP_R828D:
+		return "R828D";
+	case CHIP_R828:
+		return "R828";
+	case CHIP_R828S:
+		return "R828S";
+	case CHIP_R820C:
+		return "R820C";
+	default:
+		return "<unknown>";
+	}
+}
+
 /*
  * I2C read/write code and shadow registers logic
  */
@@ -2355,7 +2375,9 @@ struct dvb_frontend *r820t_attach(struct dvb_frontend *fe,
 	if (rc < 0)
 		goto err;
 
-	tuner_info("Rafael Micro r820t successfully identified\n");
+	tuner_info(
+		"Rafael Micro r820t successfully identified, chip type: %s\n",
+		r820t_chip_enum_to_str(cfg->rafael_chip));
 
 	if (fe->ops.i2c_gate_ctrl)
 		fe->ops.i2c_gate_ctrl(fe, 0);

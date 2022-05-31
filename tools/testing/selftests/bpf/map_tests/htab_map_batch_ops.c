@@ -83,22 +83,15 @@ void __test_map_lookup_and_delete_batch(bool is_pcpu)
 	int err, step, value_size;
 	bool nospace_err;
 	void *values;
-	struct bpf_create_map_attr xattr = {
-		.name = "hash_map",
-		.map_type = is_pcpu ? BPF_MAP_TYPE_PERCPU_HASH :
-			    BPF_MAP_TYPE_HASH,
-		.key_size = sizeof(int),
-		.value_size = sizeof(int),
-	};
 	DECLARE_LIBBPF_OPTS(bpf_map_batch_opts, opts,
 		.elem_flags = 0,
 		.flags = 0,
 	);
 
-	xattr.max_entries = max_entries;
-	map_fd = bpf_create_map_xattr(&xattr);
+	map_fd = bpf_map_create(is_pcpu ? BPF_MAP_TYPE_PERCPU_HASH : BPF_MAP_TYPE_HASH,
+				"hash_map", sizeof(int), sizeof(int), max_entries, NULL);
 	CHECK(map_fd == -1,
-	      "bpf_create_map_xattr()", "error:%s\n", strerror(errno));
+	      "bpf_map_create()", "error:%s\n", strerror(errno));
 
 	value_size = is_pcpu ? sizeof(value) : sizeof(int);
 	keys = malloc(max_entries * sizeof(int));

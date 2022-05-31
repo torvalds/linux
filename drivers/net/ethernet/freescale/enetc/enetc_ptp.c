@@ -39,20 +39,13 @@ static int enetc_ptp_probe(struct pci_dev *pdev,
 	}
 
 	err = pci_enable_device_mem(pdev);
-	if (err) {
-		dev_err(&pdev->dev, "device enable failed\n");
-		return err;
-	}
+	if (err)
+		return dev_err_probe(&pdev->dev, err, "device enable failed\n");
 
-	/* set up for high or low dma */
 	err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(64));
 	if (err) {
-		err = dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(32));
-		if (err) {
-			dev_err(&pdev->dev,
-				"DMA configuration failed: 0x%x\n", err);
-			goto err_dma;
-		}
+		dev_err(&pdev->dev, "DMA configuration failed: 0x%x\n", err);
+		goto err_dma;
 	}
 
 	err = pci_request_mem_regions(pdev, KBUILD_MODNAME);

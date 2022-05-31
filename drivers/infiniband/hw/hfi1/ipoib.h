@@ -44,22 +44,52 @@ union hfi1_ipoib_flow {
 };
 
 /**
- * struct hfi1_ipoib_circ_buf - List of items to be processed
- * @items: ring of items
- * @head: ring head
- * @tail: ring tail
- * @max_items: max items + 1 that the ring can contain
- * @producer_lock: producer sync lock
- * @consumer_lock: consumer sync lock
+ * struct ipoib_txreq - IPOIB transmit descriptor
+ * @txreq: sdma transmit request
+ * @sdma_hdr: 9b ib headers
+ * @sdma_status: status returned by sdma engine
+ * @complete: non-zero implies complete
+ * @priv: ipoib netdev private data
+ * @txq: txq on which skb was output
+ * @skb: skb to send
  */
-struct ipoib_txreq;
+struct ipoib_txreq {
+	struct sdma_txreq           txreq;
+	struct hfi1_sdma_header     *sdma_hdr;
+	int                         sdma_status;
+	int                         complete;
+	struct hfi1_ipoib_dev_priv *priv;
+	struct hfi1_ipoib_txq      *txq;
+	struct sk_buff             *skb;
+};
+
+/**
+ * struct hfi1_ipoib_circ_buf - List of items to be processed
+ * @items: ring of items each a power of two size
+ * @max_items: max items + 1 that the ring can contain
+ * @shift: log2 of size for getting txreq
+ * @sent_txreqs: count of txreqs posted to sdma
+ * @tail: ring tail
+ * @stops: count of stops of queue
+ * @ring_full: ring has been filled
+ * @no_desc: descriptor shortage seen
+ * @complete_txreqs: count of txreqs completed by sdma
+ * @head: ring head
+ */
 struct hfi1_ipoib_circ_buf {
-	struct ipoib_txreq **items;
-	unsigned long head;
-	unsigned long tail;
-	unsigned long max_items;
-	spinlock_t producer_lock; /* head sync lock */
-	spinlock_t consumer_lock; /* tail sync lock */
+	void *items;
+	u32 max_items;
+	u32 shift;
+	/* consumer cache line */
+	u64 ____cacheline_aligned_in_smp sent_txreqs;
+	u32 avail;
+	u32 tail;
+	atomic_t stops;
+	atomic_t ring_full;
+	atomic_t no_desc;
+	/* producer cache line */
+	u64 ____cacheline_aligned_in_smp complete_txreqs;
+	u32 head;
 };
 
 /**
@@ -68,33 +98,24 @@ struct hfi1_ipoib_circ_buf {
  * @sde: sdma engine
  * @tx_list: tx request list
  * @sent_txreqs: count of txreqs posted to sdma
- * @stops: count of stops of queue
- * @ring_full: ring has been filled
- * @no_desc: descriptor shortage seen
  * @flow: tracks when list needs to be flushed for a flow change
  * @q_idx: ipoib Tx queue index
  * @pkts_sent: indicator packets have been sent from this queue
  * @wait: iowait structure
- * @complete_txreqs: count of txreqs completed by sdma
  * @napi: pointer to tx napi interface
  * @tx_ring: ring of ipoib txreqs to be reaped by napi callback
  */
 struct hfi1_ipoib_txq {
+	struct napi_struct napi;
 	struct hfi1_ipoib_dev_priv *priv;
 	struct sdma_engine *sde;
 	struct list_head tx_list;
-	u64 sent_txreqs;
-	atomic_t stops;
-	atomic_t ring_full;
-	atomic_t no_desc;
 	union hfi1_ipoib_flow flow;
 	u8 q_idx;
 	bool pkts_sent;
 	struct iowait wait;
 
-	atomic64_t ____cacheline_aligned_in_smp complete_txreqs;
-	struct napi_struct *napi;
-	struct hfi1_ipoib_circ_buf tx_ring;
+	struct hfi1_ipoib_circ_buf ____cacheline_aligned_in_smp tx_ring;
 };
 
 struct hfi1_ipoib_dev_priv {
@@ -102,15 +123,12 @@ struct hfi1_ipoib_dev_priv {
 	struct net_device   *netdev;
 	struct ib_device    *device;
 	struct hfi1_ipoib_txq *txqs;
-	struct kmem_cache *txreq_cache;
-	struct napi_struct *tx_napis;
-	u16 pkey;
-	u16 pkey_index;
-	u32 qkey;
-	u8 port_num;
-
 	const struct net_device_ops *netdev_ops;
 	struct rvt_qp *qp;
+	u32 qkey;
+	u16 pkey;
+	u16 pkey_index;
+	u8 port_num;
 };
 
 /* hfi1 ipoib rdma netdev's private data structure */

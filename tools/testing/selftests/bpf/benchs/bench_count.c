@@ -36,7 +36,7 @@ static struct count_local_ctx {
 	struct counter *hits;
 } count_local_ctx;
 
-static void count_local_setup()
+static void count_local_setup(void)
 {
 	struct count_local_ctx *ctx = &count_local_ctx;
 

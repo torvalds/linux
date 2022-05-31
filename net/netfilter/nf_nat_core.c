@@ -34,7 +34,7 @@ static unsigned int nat_net_id __read_mostly;
 
 static struct hlist_head *nf_nat_bysource __read_mostly;
 static unsigned int nf_nat_htable_size __read_mostly;
-static siphash_key_t nf_nat_hash_rnd __read_mostly;
+static siphash_aligned_key_t nf_nat_hash_rnd;
 
 struct nf_nat_lookup_hook_priv {
 	struct nf_hook_entries __rcu *entries;
@@ -699,6 +699,16 @@ unsigned int nf_nat_packet(struct nf_conn *ct,
 }
 EXPORT_SYMBOL_GPL(nf_nat_packet);
 
+static bool in_vrf_postrouting(const struct nf_hook_state *state)
+{
+#if IS_ENABLED(CONFIG_NET_L3_MASTER_DEV)
+	if (state->hook == NF_INET_POST_ROUTING &&
+	    netif_is_l3_master(state->out))
+		return true;
+#endif
+	return false;
+}
+
 unsigned int
 nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	       const struct nf_hook_state *state)
@@ -715,7 +725,7 @@ nf_nat_inet_fn(void *priv, struct sk_buff *skb,
 	 * packet filter it out, or implement conntrack/NAT for that
 	 * protocol. 8) --RR
 	 */
-	if (!ct)
+	if (!ct || in_vrf_postrouting(state))
 		return NF_ACCEPT;
 
 	nat = nfct_nat(ct);
@@ -791,7 +801,7 @@ static int nf_nat_proto_remove(struct nf_conn *i, void *data)
 	return i->status & IPS_NAT_MASK ? 1 : 0;
 }
 
-static void __nf_nat_cleanup_conntrack(struct nf_conn *ct)
+static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
 {
 	unsigned int h;
 
@@ -813,27 +823,13 @@ static int nf_nat_proto_clean(struct nf_conn *ct, void *data)
 	 * will delete entry from already-freed table.
 	 */
 	if (test_and_clear_bit(IPS_SRC_NAT_DONE_BIT, &ct->status))
-		__nf_nat_cleanup_conntrack(ct);
+		nf_nat_cleanup_conntrack(ct);
 
 	/* don't delete conntrack.  Although that would make things a lot
 	 * simpler, we'd end up flushing all conntracks on nat rmmod.
 	 */
 	return 0;
 }
-
-/* No one using conntrack by the time this called. */
-static void nf_nat_cleanup_conntrack(struct nf_conn *ct)
-{
-	if (ct->status & IPS_SRC_NAT_DONE)
-		__nf_nat_cleanup_conntrack(ct);
-}
-
-static struct nf_ct_ext_type nat_extend __read_mostly = {
-	.len		= sizeof(struct nf_conn_nat),
-	.align		= __alignof__(struct nf_conn_nat),
-	.destroy	= nf_nat_cleanup_conntrack,
-	.id		= NF_CT_EXT_NAT,
-};
 
 #if IS_ENABLED(CONFIG_NF_CT_NETLINK)
 
@@ -1120,12 +1116,13 @@ static struct pernet_operations nat_net_ops = {
 	.size = sizeof(struct nat_net),
 };
 
-static struct nf_nat_hook nat_hook = {
+static const struct nf_nat_hook nat_hook = {
 	.parse_nat_setup	= nfnetlink_parse_nat_setup,
 #ifdef CONFIG_XFRM
 	.decode_session		= __nf_nat_decode_session,
 #endif
 	.manip_pkt		= nf_nat_manip_pkt,
+	.remove_nat_bysrc	= nf_nat_cleanup_conntrack,
 };
 
 static int __init nf_nat_init(void)
@@ -1141,19 +1138,11 @@ static int __init nf_nat_init(void)
 	if (!nf_nat_bysource)
 		return -ENOMEM;
 
-	ret = nf_ct_extend_register(&nat_extend);
-	if (ret < 0) {
-		kvfree(nf_nat_bysource);
-		pr_err("Unable to register extension\n");
-		return ret;
-	}
-
 	for (i = 0; i < CONNTRACK_LOCKS; i++)
 		spin_lock_init(&nf_nat_locks[i]);
 
 	ret = register_pernet_subsys(&nat_net_ops);
 	if (ret < 0) {
-		nf_ct_extend_unregister(&nat_extend);
 		kvfree(nf_nat_bysource);
 		return ret;
 	}
@@ -1172,7 +1161,6 @@ static void __exit nf_nat_cleanup(void)
 
 	nf_ct_iterate_destroy(nf_nat_proto_clean, &clean);
 
-	nf_ct_extend_unregister(&nat_extend);
 	nf_ct_helper_expectfn_unregister(&follow_master_nat);
 	RCU_INIT_POINTER(nf_nat_hook, NULL);
 

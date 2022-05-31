@@ -26,12 +26,12 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 	return (regs->tstate &= ~TSTATE_SYSCALL);
 }
 
-#define arch_ptrace_stop_needed(exit_code, info) \
+#define arch_ptrace_stop_needed() \
 ({	flush_user_windows(); \
 	get_thread_wsaved() != 0; \
 })
 
-#define arch_ptrace_stop(exit_code, info) \
+#define arch_ptrace_stop() \
 	synchronize_user_stack()
 
 #define current_pt_regs() \
@@ -129,12 +129,12 @@ static inline bool pt_regs_clear_syscall(struct pt_regs *regs)
 	return (regs->psr &= ~PSR_SYSCALL);
 }
 
-#define arch_ptrace_stop_needed(exit_code, info) \
+#define arch_ptrace_stop_needed() \
 ({	flush_user_windows(); \
 	current_thread_info()->w_saved != 0;	\
 })
 
-#define arch_ptrace_stop(exit_code, info) \
+#define arch_ptrace_stop() \
 	synchronize_user_stack()
 
 #define current_pt_regs() \

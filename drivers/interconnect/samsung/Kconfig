@@ -6,8 +6,10 @@ config INTERCONNECT_SAMSUNG
 	  Interconnect drivers for Samsung SoCs.
 
 config INTERCONNECT_EXYNOS
-	tristate "Exynos generic interconnect driver"
+	tristate "Exynos SoC generic interconnect driver"
 	depends on INTERCONNECT_SAMSUNG
 	default y if ARCH_EXYNOS
 	help
-	  Generic interconnect driver for Exynos SoCs.
+	  Generic interconnect driver for Samsung Exynos SoCs (e.g. Exynos3250,
+	  Exynos4210, Exynos4412, Exynos542x, Exynos5433).
+	  Choose Y here only if you build for such Samsung SoC.

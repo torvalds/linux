@@ -509,34 +509,95 @@ static int qede_ioctl(struct net_device *dev, struct ifreq *ifr, int cmd)
 	return 0;
 }
 
-static void qede_tx_log_print(struct qede_dev *edev, struct qede_tx_queue *txq)
+static void qede_fp_sb_dump(struct qede_dev *edev, struct qede_fastpath *fp)
 {
+	char *p_sb = (char *)fp->sb_info->sb_virt;
+	u32 sb_size, i;
+
+	sb_size = sizeof(struct status_block);
+
+	for (i = 0; i < sb_size; i += 8)
+		DP_NOTICE(edev,
+			  "%02hhX %02hhX %02hhX %02hhX  %02hhX %02hhX %02hhX %02hhX\n",
+			  p_sb[i], p_sb[i + 1], p_sb[i + 2], p_sb[i + 3],
+			  p_sb[i + 4], p_sb[i + 5], p_sb[i + 6], p_sb[i + 7]);
+}
+
+static void
+qede_txq_fp_log_metadata(struct qede_dev *edev,
+			 struct qede_fastpath *fp, struct qede_tx_queue *txq)
+{
+	struct qed_chain *p_chain = &txq->tx_pbl;
+
+	/* Dump txq/fp/sb ids etc. other metadata */
 	DP_NOTICE(edev,
-		  "Txq[%d]: FW cons [host] %04x, SW cons %04x, SW prod %04x [Jiffies %lu]\n",
-		  txq->index, le16_to_cpu(*txq->hw_cons_ptr),
-		  qed_chain_get_cons_idx(&txq->tx_pbl),
-		  qed_chain_get_prod_idx(&txq->tx_pbl),
-		  jiffies);
+		  "fpid 0x%x sbid 0x%x txqid [0x%x] ndev_qid [0x%x] cos [0x%x] p_chain %p cap %d size %d jiffies %lu HZ 0x%x\n",
+		  fp->id, fp->sb_info->igu_sb_id, txq->index, txq->ndev_txq_id, txq->cos,
+		  p_chain, p_chain->capacity, p_chain->size, jiffies, HZ);
+
+	/* Dump all the relevant prod/cons indexes */
+	DP_NOTICE(edev,
+		  "hw cons %04x sw_tx_prod=0x%x, sw_tx_cons=0x%x, bd_prod 0x%x bd_cons 0x%x\n",
+		  le16_to_cpu(*txq->hw_cons_ptr), txq->sw_tx_prod, txq->sw_tx_cons,
+		  qed_chain_get_prod_idx(p_chain), qed_chain_get_cons_idx(p_chain));
+}
+
+static void
+qede_tx_log_print(struct qede_dev *edev, struct qede_fastpath *fp, struct qede_tx_queue *txq)
+{
+	struct qed_sb_info_dbg sb_dbg;
+	int rc;
+
+	/* sb info */
+	qede_fp_sb_dump(edev, fp);
+
+	memset(&sb_dbg, 0, sizeof(sb_dbg));
+	rc = edev->ops->common->get_sb_info(edev->cdev, fp->sb_info, (u16)fp->id, &sb_dbg);
+
+	DP_NOTICE(edev, "IGU: prod %08x cons %08x CAU Tx %04x\n",
+		  sb_dbg.igu_prod, sb_dbg.igu_cons, sb_dbg.pi[TX_PI(txq->cos)]);
+
+	/* report to mfw */
+	edev->ops->common->mfw_report(edev->cdev,
+				      "Txq[%d]: FW cons [host] %04x, SW cons %04x, SW prod %04x [Jiffies %lu]\n",
+				      txq->index, le16_to_cpu(*txq->hw_cons_ptr),
+				      qed_chain_get_cons_idx(&txq->tx_pbl),
+				      qed_chain_get_prod_idx(&txq->tx_pbl), jiffies);
+	if (!rc)
+		edev->ops->common->mfw_report(edev->cdev,
+					      "Txq[%d]: SB[0x%04x] - IGU: prod %08x cons %08x CAU Tx %04x\n",
+					      txq->index, fp->sb_info->igu_sb_id,
+					      sb_dbg.igu_prod, sb_dbg.igu_cons,
+					      sb_dbg.pi[TX_PI(txq->cos)]);
 }
 
 static void qede_tx_timeout(struct net_device *dev, unsigned int txqueue)
 {
 	struct qede_dev *edev = netdev_priv(dev);
-	struct qede_tx_queue *txq;
-	int cos;
+	int i;
 
 	netif_carrier_off(dev);
 	DP_NOTICE(edev, "TX timeout on queue %u!\n", txqueue);
 
-	if (!(edev->fp_array[txqueue].type & QEDE_FASTPATH_TX))
-		return;
+	for_each_queue(i) {
+		struct qede_tx_queue *txq;
+		struct qede_fastpath *fp;
+		int cos;
 
-	for_each_cos_in_txq(edev, cos) {
-		txq = &edev->fp_array[txqueue].txq[cos];
+		fp = &edev->fp_array[i];
+		if (!(fp->type & QEDE_FASTPATH_TX))
+			continue;
 
-		if (qed_chain_get_cons_idx(&txq->tx_pbl) !=
-		    qed_chain_get_prod_idx(&txq->tx_pbl))
-			qede_tx_log_print(edev, txq);
+		for_each_cos_in_txq(edev, cos) {
+			txq = &fp->txq[cos];
+
+			/* Dump basic metadata for all queues */
+			qede_txq_fp_log_metadata(edev, fp, txq);
+
+			if (qed_chain_get_cons_idx(&txq->tx_pbl) !=
+			    qed_chain_get_prod_idx(&txq->tx_pbl))
+				qede_tx_log_print(edev, fp, txq);
+		}
 	}
 
 	if (IS_VF(edev))
@@ -836,7 +897,7 @@ static void qede_init_ndev(struct qede_dev *edev)
 	ndev->max_mtu = QEDE_MAX_JUMBO_PACKET_SIZE;
 
 	/* Set network device HW mac */
-	ether_addr_copy(edev->ndev->dev_addr, edev->dev_info.common.hw_mac);
+	eth_hw_addr_set(edev->ndev, edev->dev_info.common.hw_mac);
 
 	ndev->mtu = edev->dev_info.common.mtu;
 }
@@ -1176,19 +1237,17 @@ static int __qede_probe(struct pci_dev *pdev, u32 dp_module, u8 dp_level,
 		edev->devlink = qed_ops->common->devlink_register(cdev);
 		if (IS_ERR(edev->devlink)) {
 			DP_NOTICE(edev, "Cannot register devlink\n");
+			rc = PTR_ERR(edev->devlink);
 			edev->devlink = NULL;
-			/* Go on, we can live without devlink */
+			goto err3;
 		}
 	} else {
 		struct net_device *ndev = pci_get_drvdata(pdev);
+		struct qed_devlink *qdl;
 
 		edev = netdev_priv(ndev);
-
-		if (edev->devlink) {
-			struct qed_devlink *qdl = devlink_priv(edev->devlink);
-
-			qdl->cdev = cdev;
-		}
+		qdl = devlink_priv(edev->devlink);
+		qdl->cdev = cdev;
 		edev->cdev = cdev;
 		memset(&edev->stats, 0, sizeof(edev->stats));
 		memcpy(&edev->dev_info, &dev_info, sizeof(dev_info));
@@ -1397,7 +1456,7 @@ static void qede_free_mem_sb(struct qede_dev *edev, struct qed_sb_info *sb_info,
 static int qede_alloc_mem_sb(struct qede_dev *edev,
 			     struct qed_sb_info *sb_info, u16 sb_id)
 {
-	struct status_block_e4 *sb_virt;
+	struct status_block *sb_virt;
 	dma_addr_t sb_phys;
 	int rc;
 
@@ -2802,9 +2861,12 @@ static void qede_get_eth_tlv_data(void *dev, void *data)
 }
 
 /**
- * qede_io_error_detected - called when PCI error is detected
+ * qede_io_error_detected(): Called when PCI error is detected
+ *
  * @pdev: Pointer to PCI device
  * @state: The current pci connection state
+ *
+ *Return: pci_ers_result_t.
  *
  * This function is called after a PCI bus error affecting
  * this device has been detected.

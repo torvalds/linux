@@ -1057,9 +1057,6 @@ static int vsc85xx_hwtstamp(struct mii_timestamper *mii_ts, struct ifreq *ifr)
 	if (copy_from_user(&cfg, ifr->ifr_data, sizeof(cfg)))
 		return -EFAULT;
 
-	if (cfg.flags)
-		return -EINVAL;
-
 	switch (cfg.tx_type) {
 	case HWTSTAMP_TX_ONESTEP_SYNC:
 		one_step = true;
@@ -1215,7 +1212,7 @@ static bool vsc85xx_rxtstamp(struct mii_timestamper *mii_ts,
 		ts.tv_sec--;
 
 	shhwtstamps->hwtstamp = ktime_set(ts.tv_sec, ns);
-	netif_rx_ni(skb);
+	netif_rx(skb);
 
 	return true;
 }

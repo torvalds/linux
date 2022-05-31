@@ -372,6 +372,16 @@
 	MRXBOPC	\hint, 0x36, v1, v3
 .endm
 
+/* VECTOR STORE */
+.macro	VST	vr1, disp, index="%r0", base
+	VX_NUM	v1, \vr1
+	GR_NUM	x2, \index
+	GR_NUM	b2, \base	    /* Base register */
+	.word	0xE700 | ((v1&15) << 4) | (x2&15)
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC	0, 0x0E, v1
+.endm
+
 /* VECTOR STORE MULTIPLE */
 .macro	VSTM	vfrom, vto, disp, base, hint=3
 	VX_NUM	v1, \vfrom
@@ -409,6 +419,81 @@
 .endm
 .macro	VUPLLF	vr1, vr2
 	VUPLL	\vr1, \vr2, 2
+.endm
+
+/* VECTOR PERMUTE DOUBLEWORD IMMEDIATE */
+.macro	VPDI	vr1, vr2, vr3, m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC	\m4, 0x84, v1, v2, v3
+.endm
+
+/* VECTOR REPLICATE */
+.macro	VREP	vr1, vr3, imm2, m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v3&15)
+	.word	\imm2
+	MRXBOPC	\m4, 0x4D, v1, v3
+.endm
+.macro	VREPB	vr1, vr3, imm2
+	VREP	\vr1, \vr3, \imm2, 0
+.endm
+.macro	VREPH	vr1, vr3, imm2
+	VREP	\vr1, \vr3, \imm2, 1
+.endm
+.macro	VREPF	vr1, vr3, imm2
+	VREP	\vr1, \vr3, \imm2, 2
+.endm
+.macro	VREPG	vr1, vr3, imm2
+	VREP	\vr1, \vr3, \imm2, 3
+.endm
+
+/* VECTOR MERGE HIGH */
+.macro	VMRH	vr1, vr2, vr3, m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC	\m4, 0x61, v1, v2, v3
+.endm
+.macro	VMRHB	vr1, vr2, vr3
+	VMRH	\vr1, \vr2, \vr3, 0
+.endm
+.macro	VMRHH	vr1, vr2, vr3
+	VMRH	\vr1, \vr2, \vr3, 1
+.endm
+.macro	VMRHF	vr1, vr2, vr3
+	VMRH	\vr1, \vr2, \vr3, 2
+.endm
+.macro	VMRHG	vr1, vr2, vr3
+	VMRH	\vr1, \vr2, \vr3, 3
+.endm
+
+/* VECTOR MERGE LOW */
+.macro	VMRL	vr1, vr2, vr3, m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12)
+	MRXBOPC	\m4, 0x60, v1, v2, v3
+.endm
+.macro	VMRLB	vr1, vr2, vr3
+	VMRL	\vr1, \vr2, \vr3, 0
+.endm
+.macro	VMRLH	vr1, vr2, vr3
+	VMRL	\vr1, \vr2, \vr3, 1
+.endm
+.macro	VMRLF	vr1, vr2, vr3
+	VMRL	\vr1, \vr2, \vr3, 2
+.endm
+.macro	VMRLG	vr1, vr2, vr3
+	VMRL	\vr1, \vr2, \vr3, 3
 .endm
 
 
@@ -555,6 +640,38 @@
 .endm
 .macro	VESRAVG	vr1, vr2, vr3
 	VESRAV	\vr1, \vr2, \vr3, 3
+.endm
+
+/* VECTOR ELEMENT ROTATE LEFT LOGICAL */
+.macro	VERLL	vr1, vr3, disp, base="%r0", m4
+	VX_NUM	v1, \vr1
+	VX_NUM	v3, \vr3
+	GR_NUM	b2, \base
+	.word	0xE700 | ((v1&15) << 4) | (v3&15)
+	.word	(b2 << 12) | (\disp)
+	MRXBOPC	\m4, 0x33, v1, v3
+.endm
+.macro	VERLLB	vr1, vr3, disp, base="%r0"
+	VERLL	\vr1, \vr3, \disp, \base, 0
+.endm
+.macro	VERLLH	vr1, vr3, disp, base="%r0"
+	VERLL	\vr1, \vr3, \disp, \base, 1
+.endm
+.macro	VERLLF	vr1, vr3, disp, base="%r0"
+	VERLL	\vr1, \vr3, \disp, \base, 2
+.endm
+.macro	VERLLG	vr1, vr3, disp, base="%r0"
+	VERLL	\vr1, \vr3, \disp, \base, 3
+.endm
+
+/* VECTOR SHIFT LEFT DOUBLE BY BYTE */
+.macro	VSLDB	vr1, vr2, vr3, imm4
+	VX_NUM	v1, \vr1
+	VX_NUM	v2, \vr2
+	VX_NUM	v3, \vr3
+	.word	0xE700 | ((v1&15) << 4) | (v2&15)
+	.word	((v3&15) << 12) | (\imm4)
+	MRXBOPC	0, 0x77, v1, v2, v3
 .endm
 
 #endif	/* __ASSEMBLY__ */

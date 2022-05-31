@@ -26,6 +26,16 @@ menuconfig BLOCK
 
 if BLOCK
 
+config BLOCK_LEGACY_AUTOLOAD
+	bool "Legacy autoloading support"
+	default y
+	help
+	  Enable loading modules and creating block device instances based on
+	  accesses through their device special file.  This is a historic Linux
+	  feature and makes no sense in a udev world where device files are
+	  created on demand, but scripts that manually create device nodes and
+	  then call losetup might rely on this behavior.
+
 config BLK_RQ_ALLOC_TIME
 	bool
 
@@ -34,6 +44,9 @@ config BLK_CGROUP_RWSTAT
 
 config BLK_DEV_BSG_COMMON
 	tristate
+
+config BLK_ICQ
+	bool
 
 config BLK_DEV_BSGLIB
 	bool "Block layer SG support v4 helper lib"
@@ -60,6 +73,7 @@ config BLK_DEV_INTEGRITY_T10
 	tristate
 	depends on BLK_DEV_INTEGRITY
 	select CRC_T10DIF
+	select CRC64_ROCKSOFT
 
 config BLK_DEV_ZONED
 	bool "Zoned block device support"
@@ -73,7 +87,7 @@ config BLK_DEV_ZONED
 
 config BLK_DEV_THROTTLING
 	bool "Block layer bio throttling support"
-	depends on BLK_CGROUP=y
+	depends on BLK_CGROUP
 	select BLK_CGROUP_RWSTAT
 	help
 	Block layer bio throttling support. It can be used to limit
@@ -112,7 +126,7 @@ config BLK_WBT_MQ
 
 config BLK_CGROUP_IOLATENCY
 	bool "Enable support for latency based cgroup IO protection"
-	depends on BLK_CGROUP=y
+	depends on BLK_CGROUP
 	help
 	Enabling this option enables the .latency interface for IO throttling.
 	The IO controller will attempt to maintain average IO latencies below
@@ -132,7 +146,7 @@ config BLK_CGROUP_FC_APPID
 
 config BLK_CGROUP_IOCOST
 	bool "Enable support for cost model based cgroup IO controller"
-	depends on BLK_CGROUP=y
+	depends on BLK_CGROUP
 	select BLK_RQ_IO_DATA_LEN
 	select BLK_RQ_ALLOC_TIME
 	help
@@ -190,39 +204,34 @@ config BLK_INLINE_ENCRYPTION_FALLBACK
 	  by falling back to the kernel crypto API when inline
 	  encryption hardware is not present.
 
-menu "Partition Types"
-
 source "block/partitions/Kconfig"
 
-endmenu
-
-endif # BLOCK
-
 config BLOCK_COMPAT
-	bool
-	depends on BLOCK && COMPAT
-	default y
+	def_bool COMPAT
 
 config BLK_MQ_PCI
-	bool
-	depends on BLOCK && PCI
-	default y
+	def_bool PCI
 
 config BLK_MQ_VIRTIO
 	bool
-	depends on BLOCK && VIRTIO
+	depends on VIRTIO
 	default y
 
 config BLK_MQ_RDMA
 	bool
-	depends on BLOCK && INFINIBAND
+	depends on INFINIBAND
 	default y
 
 config BLK_PM
-	def_bool BLOCK && PM
+	def_bool PM
 
 # do not use in new code
 config BLOCK_HOLDER_DEPRECATED
 	bool
 
+config BLK_MQ_STACKING
+	bool
+
 source "block/Kconfig.iosched"
+
+endif # BLOCK

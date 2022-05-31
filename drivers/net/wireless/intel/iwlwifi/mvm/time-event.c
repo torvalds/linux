@@ -49,14 +49,13 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 	struct iwl_mvm *mvm = container_of(wk, struct iwl_mvm, roc_done_wk);
 
 	/*
-	 * Clear the ROC_RUNNING /ROC_AUX_RUNNING status bit.
+	 * Clear the ROC_RUNNING status bit.
 	 * This will cause the TX path to drop offchannel transmissions.
 	 * That would also be done by mac80211, but it is racy, in particular
 	 * in the case that the time event actually completed in the firmware
 	 * (which is handled in iwl_mvm_te_handle_notif).
 	 */
 	clear_bit(IWL_MVM_STATUS_ROC_RUNNING, &mvm->status);
-	clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status);
 
 	synchronize_net();
 
@@ -82,14 +81,23 @@ void iwl_mvm_roc_done_wk(struct work_struct *wk)
 			mvmvif = iwl_mvm_vif_from_mac80211(mvm->p2p_device_vif);
 			iwl_mvm_flush_sta(mvm, &mvmvif->bcast_sta, true);
 		}
-	} else {
+	}
+
+	/*
+	 * Clear the ROC_AUX_RUNNING status bit.
+	 * This will cause the TX path to drop offchannel transmissions.
+	 * That would also be done by mac80211, but it is racy, in particular
+	 * in the case that the time event actually completed in the firmware
+	 * (which is handled in iwl_mvm_te_handle_notif).
+	 */
+	if (test_and_clear_bit(IWL_MVM_STATUS_ROC_AUX_RUNNING, &mvm->status)) {
 		/* do the same in case of hot spot 2.0 */
 		iwl_mvm_flush_sta(mvm, &mvm->aux_sta, true);
+
 		/* In newer version of this command an aux station is added only
 		 * in cases of dedicated tx queue and need to be removed in end
 		 * of use */
-		if (iwl_fw_lookup_cmd_ver(mvm->fw, LONG_GROUP,
-					  ADD_STA, 0) >= 12)
+		if (iwl_fw_lookup_cmd_ver(mvm->fw, ADD_STA, 0) >= 12)
 			iwl_mvm_rm_aux_sta(mvm);
 	}
 
@@ -649,8 +657,8 @@ static void iwl_mvm_cancel_session_protection(struct iwl_mvm *mvm,
 	};
 	int ret;
 
-	ret = iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SESSION_PROTECTION_CMD,
-						   MAC_CONF_GROUP, 0),
+	ret = iwl_mvm_send_cmd_pdu(mvm,
+				   WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				   0, sizeof(cmd), &cmd);
 	if (ret)
 		IWL_ERR(mvm,
@@ -687,11 +695,14 @@ static bool __iwl_mvm_remove_time_event(struct iwl_mvm *mvm,
 	iwl_mvm_te_clear_data(mvm, te_data);
 	spin_unlock_bh(&mvm->time_event_lock);
 
-	/* When session protection is supported, the te_data->id field
+	/* When session protection is used, the te_data->id field
 	 * is reused to save session protection's configuration.
+	 * For AUX ROC, HOT_SPOT_CMD is used and the te_data->id field is set
+	 * to HOT_SPOT_CMD.
 	 */
 	if (fw_has_capa(&mvm->fw->ucode_capa,
-			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD)) {
+			IWL_UCODE_TLV_CAPA_SESSION_PROT_CMD) &&
+	    id != HOT_SPOT_CMD) {
 		if (mvmvif && id < SESSION_PROTECT_CONF_MAX_ID) {
 			/* Session protection is still ongoing. Cancel it */
 			iwl_mvm_cancel_session_protection(mvm, mvmvif, id);
@@ -911,8 +922,8 @@ iwl_mvm_start_p2p_roc_session_protection(struct iwl_mvm *mvm,
 	}
 
 	cmd.conf_id = cpu_to_le32(mvmvif->time_event_data.id);
-	return iwl_mvm_send_cmd_pdu(mvm, iwl_cmd_id(SESSION_PROTECTION_CMD,
-						    MAC_CONF_GROUP, 0),
+	return iwl_mvm_send_cmd_pdu(mvm,
+				    WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				    0, sizeof(cmd), &cmd);
 }
 
@@ -1027,7 +1038,7 @@ void iwl_mvm_stop_roc(struct iwl_mvm *mvm, struct ieee80211_vif *vif)
 			iwl_mvm_p2p_roc_finished(mvm);
 		} else {
 			iwl_mvm_remove_aux_roc_te(mvm, mvmvif,
-						  &mvmvif->time_event_data);
+						  &mvmvif->hs_time_event_data);
 			iwl_mvm_roc_finished(mvm);
 		}
 
@@ -1150,22 +1161,16 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 {
 	struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
 	struct iwl_mvm_time_event_data *te_data = &mvmvif->time_event_data;
-	const u16 notif[] = { iwl_cmd_id(SESSION_PROTECTION_NOTIF,
-					 MAC_CONF_GROUP, 0) };
+	const u16 notif[] = { WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_NOTIF) };
 	struct iwl_notification_wait wait_notif;
 	struct iwl_mvm_session_prot_cmd cmd = {
 		.id_and_color =
 			cpu_to_le32(FW_CMD_ID_AND_COLOR(mvmvif->id,
 							mvmvif->color)),
 		.action = cpu_to_le32(FW_CTXT_ACTION_ADD),
+		.conf_id = cpu_to_le32(SESSION_PROTECT_CONF_ASSOC),
 		.duration_tu = cpu_to_le32(MSEC_TO_TU(duration)),
 	};
-
-	/* The time_event_data.id field is reused to save session
-	 * protection's configuration.
-	 */
-	mvmvif->time_event_data.id = SESSION_PROTECT_CONF_ASSOC;
-	cmd.conf_id = cpu_to_le32(mvmvif->time_event_data.id);
 
 	lockdep_assert_held(&mvm->mutex);
 
@@ -1180,6 +1185,11 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 	}
 
 	iwl_mvm_te_clear_data(mvm, te_data);
+	/*
+	 * The time_event_data.id field is reused to save session
+	 * protection's configuration.
+	 */
+	te_data->id = le32_to_cpu(cmd.conf_id);
 	te_data->duration = le32_to_cpu(cmd.duration_tu);
 	te_data->vif = vif;
 	spin_unlock_bh(&mvm->time_event_lock);
@@ -1189,8 +1199,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 
 	if (!wait_for_notif) {
 		if (iwl_mvm_send_cmd_pdu(mvm,
-					 iwl_cmd_id(SESSION_PROTECTION_CMD,
-						    MAC_CONF_GROUP, 0),
+					 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 					 0, sizeof(cmd), &cmd)) {
 			IWL_ERR(mvm,
 				"Couldn't send the SESSION_PROTECTION_CMD\n");
@@ -1207,8 +1216,7 @@ void iwl_mvm_schedule_session_protection(struct iwl_mvm *mvm,
 				   iwl_mvm_session_prot_notif, NULL);
 
 	if (iwl_mvm_send_cmd_pdu(mvm,
-				 iwl_cmd_id(SESSION_PROTECTION_CMD,
-					    MAC_CONF_GROUP, 0),
+				 WIDE_ID(MAC_CONF_GROUP, SESSION_PROTECTION_CMD),
 				 0, sizeof(cmd), &cmd)) {
 		IWL_ERR(mvm,
 			"Couldn't send the SESSION_PROTECTION_CMD\n");

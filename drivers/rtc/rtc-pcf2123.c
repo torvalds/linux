@@ -427,7 +427,8 @@ static int pcf2123_probe(struct spi_device *spi)
 	 * support to this driver to generate interrupts more than once
 	 * per minute.
 	 */
-	rtc->uie_unsupported = 1;
+	set_bit(RTC_FEATURE_ALARM_RES_MINUTE, rtc->features);
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 	rtc->ops = &pcf2123_rtc_ops;
 	rtc->range_min = RTC_TIMESTAMP_BEGIN_2000;
 	rtc->range_max = RTC_TIMESTAMP_END_2099;
@@ -451,12 +452,21 @@ static const struct of_device_id pcf2123_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, pcf2123_dt_ids);
 #endif
 
+static const struct spi_device_id pcf2123_spi_ids[] = {
+	{ .name = "pcf2123", },
+	{ .name = "rv2123", },
+	{ .name = "rtc-pcf2123", },
+	{ /* sentinel */ }
+};
+MODULE_DEVICE_TABLE(spi, pcf2123_spi_ids);
+
 static struct spi_driver pcf2123_driver = {
 	.driver	= {
 			.name	= "rtc-pcf2123",
 			.of_match_table = of_match_ptr(pcf2123_dt_ids),
 	},
 	.probe	= pcf2123_probe,
+	.id_table = pcf2123_spi_ids,
 };
 
 module_spi_driver(pcf2123_driver);

@@ -401,7 +401,7 @@ void rose_add_loopback_neigh(void)
 /*
  *	Add a loopback node.
  */
-int rose_add_loopback_node(rose_address *address)
+int rose_add_loopback_node(const rose_address *address)
 {
 	struct rose_node *rose_node;
 	int err = 0;
@@ -446,7 +446,7 @@ out:
 /*
  *	Delete a loopback node.
  */
-void rose_del_loopback_node(rose_address *address)
+void rose_del_loopback_node(const rose_address *address)
 {
 	struct rose_node *rose_node;
 
@@ -629,7 +629,8 @@ struct net_device *rose_dev_get(rose_address *addr)
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
-		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE && rosecmp(addr, (rose_address *)dev->dev_addr) == 0) {
+		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE &&
+		    rosecmp(addr, (const rose_address *)dev->dev_addr) == 0) {
 			dev_hold(dev);
 			goto out;
 		}
@@ -646,7 +647,8 @@ static int rose_dev_exists(rose_address *addr)
 
 	rcu_read_lock();
 	for_each_netdev_rcu(&init_net, dev) {
-		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE && rosecmp(addr, (rose_address *)dev->dev_addr) == 0)
+		if ((dev->flags & IFF_UP) && dev->type == ARPHRD_ROSE &&
+		    rosecmp(addr, (const rose_address *)dev->dev_addr) == 0)
 			goto out;
 	}
 	dev = NULL;

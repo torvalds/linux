@@ -48,6 +48,7 @@
 #include "util/util.h" // perf_exe()
 #include "cputopo.h"
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #include "clockid.h"
 #include "pmu-hybrid.h"
 
@@ -471,7 +472,7 @@ static int write_nrcpus(struct feat_fd *ff,
 	u32 nrc, nra;
 	int ret;
 
-	nrc = cpu__max_present_cpu();
+	nrc = cpu__max_present_cpu().cpu;
 
 	nr = sysconf(_SC_NPROCESSORS_ONLN);
 	if (nr < 0)
@@ -582,21 +583,21 @@ static int write_cpu_topology(struct feat_fd *ff,
 	if (!tp)
 		return -1;
 
-	ret = do_write(ff, &tp->core_sib, sizeof(tp->core_sib));
+	ret = do_write(ff, &tp->package_cpus_lists, sizeof(tp->package_cpus_lists));
 	if (ret < 0)
 		goto done;
 
-	for (i = 0; i < tp->core_sib; i++) {
-		ret = do_write_string(ff, tp->core_siblings[i]);
+	for (i = 0; i < tp->package_cpus_lists; i++) {
+		ret = do_write_string(ff, tp->package_cpus_list[i]);
 		if (ret < 0)
 			goto done;
 	}
-	ret = do_write(ff, &tp->thread_sib, sizeof(tp->thread_sib));
+	ret = do_write(ff, &tp->core_cpus_lists, sizeof(tp->core_cpus_lists));
 	if (ret < 0)
 		goto done;
 
-	for (i = 0; i < tp->thread_sib; i++) {
-		ret = do_write_string(ff, tp->thread_siblings[i]);
+	for (i = 0; i < tp->core_cpus_lists; i++) {
+		ret = do_write_string(ff, tp->core_cpus_list[i]);
 		if (ret < 0)
 			break;
 	}
@@ -616,15 +617,15 @@ static int write_cpu_topology(struct feat_fd *ff,
 			return ret;
 	}
 
-	if (!tp->die_sib)
+	if (!tp->die_cpus_lists)
 		goto done;
 
-	ret = do_write(ff, &tp->die_sib, sizeof(tp->die_sib));
+	ret = do_write(ff, &tp->die_cpus_lists, sizeof(tp->die_cpus_lists));
 	if (ret < 0)
 		goto done;
 
-	for (i = 0; i < tp->die_sib; i++) {
-		ret = do_write_string(ff, tp->die_siblings[i]);
+	for (i = 0; i < tp->die_cpus_lists; i++) {
+		ret = do_write_string(ff, tp->die_cpus_list[i]);
 		if (ret < 0)
 			goto done;
 	}
@@ -982,6 +983,57 @@ static int write_dir_format(struct feat_fd *ff,
 	return do_write(ff, &data->dir.version, sizeof(data->dir.version));
 }
 
+/*
+ * Check whether a CPU is online
+ *
+ * Returns:
+ *     1 -> if CPU is online
+ *     0 -> if CPU is offline
+ *    -1 -> error case
+ */
+int is_cpu_online(unsigned int cpu)
+{
+	char *str;
+	size_t strlen;
+	char buf[256];
+	int status = -1;
+	struct stat statbuf;
+
+	snprintf(buf, sizeof(buf),
+		"/sys/devices/system/cpu/cpu%d", cpu);
+	if (stat(buf, &statbuf) != 0)
+		return 0;
+
+	/*
+	 * Check if /sys/devices/system/cpu/cpux/online file
+	 * exists. Some cases cpu0 won't have online file since
+	 * it is not expected to be turned off generally.
+	 * In kernels without CONFIG_HOTPLUG_CPU, this
+	 * file won't exist
+	 */
+	snprintf(buf, sizeof(buf),
+		"/sys/devices/system/cpu/cpu%d/online", cpu);
+	if (stat(buf, &statbuf) != 0)
+		return 1;
+
+	/*
+	 * Read online file using sysfs__read_str.
+	 * If read or open fails, return -1.
+	 * If read succeeds, return value from file
+	 * which gets stored in "str"
+	 */
+	snprintf(buf, sizeof(buf),
+		"devices/system/cpu/cpu%d/online", cpu);
+
+	if (sysfs__read_str(buf, &str, &strlen) < 0)
+		return status;
+
+	status = atoi(str);
+
+	free(str);
+	return status;
+}
+
 #ifdef HAVE_LIBBPF_SUPPORT
 static int write_bpf_prog_info(struct feat_fd *ff,
 			       struct evlist *evlist __maybe_unused)
@@ -1006,17 +1058,17 @@ static int write_bpf_prog_info(struct feat_fd *ff,
 
 		node = rb_entry(next, struct bpf_prog_info_node, rb_node);
 		next = rb_next(&node->rb_node);
-		len = sizeof(struct bpf_prog_info_linear) +
+		len = sizeof(struct perf_bpil) +
 			node->info_linear->data_len;
 
 		/* before writing to file, translate address to offset */
-		bpf_program__bpil_addr_to_offs(node->info_linear);
+		bpil_addr_to_offs(node->info_linear);
 		ret = do_write(ff, node->info_linear, len);
 		/*
 		 * translate back to address even when do_write() fails,
 		 * so that this function never changes the data.
 		 */
-		bpf_program__bpil_offs_to_addr(node->info_linear);
+		bpil_offs_to_addr(node->info_linear);
 		if (ret < 0)
 			goto out;
 	}
@@ -1162,7 +1214,7 @@ static int build_caches(struct cpu_cache_level caches[], u32 *cntp)
 	u32 nr, cpu;
 	u16 level;
 
-	nr = cpu__max_cpu();
+	nr = cpu__max_cpu().cpu;
 
 	for (cpu = 0; cpu < nr; cpu++) {
 		for (level = 0; level < MAX_CACHE_LVL; level++) {
@@ -1194,7 +1246,7 @@ static int build_caches(struct cpu_cache_level caches[], u32 *cntp)
 static int write_cache(struct feat_fd *ff,
 		       struct evlist *evlist __maybe_unused)
 {
-	u32 max_caches = cpu__max_cpu() * MAX_CACHE_LVL;
+	u32 max_caches = cpu__max_cpu().cpu * MAX_CACHE_LVL;
 	struct cpu_cache_level caches[max_caches];
 	u32 cnt = 0, i, version = 1;
 	int ret;
@@ -1334,7 +1386,7 @@ static int build_mem_topology(struct memory_node *nodes, u64 size, u64 *cntp)
 
 	dir = opendir(path);
 	if (!dir) {
-		pr_debug2("%s: could't read %s, does this arch have topology information?\n",
+		pr_debug2("%s: couldn't read %s, does this arch have topology information?\n",
 			  __func__, path);
 		return -1;
 	}
@@ -2199,6 +2251,7 @@ static int __event_process_build_id(struct perf_record_header_build_id *bev,
 
 		build_id__init(&bid, bev->data, size);
 		dso__set_build_id(dso, &bid);
+		dso->header_build_id = 1;
 
 		if (dso_space != DSO_SPACE__USER) {
 			struct kmod_path m = { .name = NULL, };
@@ -2320,6 +2373,7 @@ out:
 #define FEAT_PROCESS_STR_FUN(__feat, __feat_env) \
 static int process_##__feat(struct feat_fd *ff, void *data __maybe_unused) \
 {\
+	free(ff->ph->env.__feat_env);		     \
 	ff->ph->env.__feat_env = do_read_string(ff); \
 	return ff->ph->env.__feat_env ? 0 : -ENOMEM; \
 }
@@ -3018,9 +3072,9 @@ static int process_dir_format(struct feat_fd *ff,
 #ifdef HAVE_LIBBPF_SUPPORT
 static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 {
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_info_node *info_node;
 	struct perf_env *env = &ff->ph->env;
+	struct perf_bpil *info_linear;
 	u32 count, i;
 	int err = -1;
 
@@ -3049,7 +3103,7 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 			goto out;
 		}
 
-		info_linear = malloc(sizeof(struct bpf_prog_info_linear) +
+		info_linear = malloc(sizeof(struct perf_bpil) +
 				     data_len);
 		if (!info_linear)
 			goto out;
@@ -3071,7 +3125,7 @@ static int process_bpf_prog_info(struct feat_fd *ff, void *data __maybe_unused)
 			goto out;
 
 		/* after reading from file, translate offset to address */
-		bpf_program__bpil_offs_to_addr(info_linear);
+		bpil_offs_to_addr(info_linear);
 		info_node->info_linear = info_linear;
 		perf_env__insert_bpf_prog_info(env, info_node);
 	}
@@ -4123,6 +4177,7 @@ int perf_event__process_feature(struct perf_session *session,
 	struct perf_record_header_feature *fe = (struct perf_record_header_feature *)event;
 	int type = fe->header.type;
 	u64 feat = fe->feat_id;
+	int ret = 0;
 
 	if (type < 0 || type >= PERF_RECORD_HEADER_MAX) {
 		pr_warning("invalid record type %d in pipe-mode\n", type);
@@ -4140,11 +4195,13 @@ int perf_event__process_feature(struct perf_session *session,
 	ff.size = event->header.size - sizeof(*fe);
 	ff.ph = &session->header;
 
-	if (feat_ops[feat].process(&ff, NULL))
-		return -1;
+	if (feat_ops[feat].process(&ff, NULL)) {
+		ret = -1;
+		goto out;
+	}
 
 	if (!feat_ops[feat].print || !tool->show_feat_hdr)
-		return 0;
+		goto out;
 
 	if (!feat_ops[feat].full_only ||
 	    tool->show_feat_hdr >= SHOW_FEAT_HEADER_FULL_INFO) {
@@ -4153,8 +4210,9 @@ int perf_event__process_feature(struct perf_session *session,
 		fprintf(stdout, "# %s info available, use -I to display\n",
 			feat_ops[feat].name);
 	}
-
-	return 0;
+out:
+	free_event_desc(ff.events);
+	return ret;
 }
 
 size_t perf_event__fprintf_event_update(union perf_event *event, FILE *fp)
@@ -4256,9 +4314,11 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 
 	switch (ev->type) {
 	case PERF_EVENT_UPDATE__UNIT:
+		free((char *)evsel->unit);
 		evsel->unit = strdup(ev->data);
 		break;
 	case PERF_EVENT_UPDATE__NAME:
+		free(evsel->name);
 		evsel->name = strdup(ev->data);
 		break;
 	case PERF_EVENT_UPDATE__SCALE:
@@ -4267,11 +4327,11 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 		break;
 	case PERF_EVENT_UPDATE__CPUS:
 		ev_cpus = (struct perf_record_event_update_cpus *)ev->data;
-
 		map = cpu_map__new_data(&ev_cpus->cpus);
-		if (map)
+		if (map) {
+			perf_cpu_map__put(evsel->core.own_cpus);
 			evsel->core.own_cpus = map;
-		else
+		} else
 			pr_err("failed to get event_update cpus\n");
 	default:
 		break;

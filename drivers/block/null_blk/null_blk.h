@@ -32,6 +32,9 @@ struct nullb_queue {
 	struct nullb_device *dev;
 	unsigned int requeue_selection;
 
+	struct list_head poll_list;
+	spinlock_t poll_lock;
+
 	struct nullb_cmd *cmds;
 };
 
@@ -83,6 +86,9 @@ struct nullb_device {
 	unsigned int zone_max_open; /* max number of open zones */
 	unsigned int zone_max_active; /* max number of active zones */
 	unsigned int submit_queues; /* number of submission queues */
+	unsigned int prev_submit_queues; /* number of submission queues before change */
+	unsigned int poll_queues; /* number of IOPOLL submission queues */
+	unsigned int prev_poll_queues; /* number of IOPOLL submission queues before change */
 	unsigned int home_node; /* home node for the device */
 	unsigned int queue_mode; /* block interface */
 	unsigned int blocksize; /* block size */

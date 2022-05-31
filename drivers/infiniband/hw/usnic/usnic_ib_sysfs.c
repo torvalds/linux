@@ -31,7 +31,6 @@
  *
  */
 
-#include <linux/module.h>
 #include <linux/init.h>
 #include <linux/errno.h>
 
@@ -243,10 +242,11 @@ static struct attribute *usnic_ib_qpn_default_attrs[] = {
 	&qpn_attr_summary.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(usnic_ib_qpn_default);
 
 static struct kobj_type usnic_ib_qpn_type = {
 	.sysfs_ops = &usnic_ib_qpn_sysfs_ops,
-	.default_attrs = usnic_ib_qpn_default_attrs
+	.default_groups = usnic_ib_qpn_default_groups,
 };
 
 int usnic_ib_sysfs_register_usdev(struct usnic_ib_dev *us_ibdev)

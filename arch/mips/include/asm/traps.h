@@ -15,7 +15,7 @@
 #define MIPS_BE_FATAL	2		/* treat as an unrecoverable error */
 
 extern void (*board_be_init)(void);
-extern int (*board_be_handler)(struct pt_regs *regs, int is_fixup);
+void mips_set_be_handler(int (*handler)(struct pt_regs *reg, int is_fixup));
 
 extern void (*board_nmi_handler_setup)(void);
 extern void (*board_ejtag_handler_setup)(void);

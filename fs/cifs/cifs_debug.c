@@ -94,7 +94,7 @@ static void cifs_debug_tcon(struct seq_file *m, struct cifs_tcon *tcon)
 		   le32_to_cpu(tcon->fsDevInfo.DeviceCharacteristics),
 		   le32_to_cpu(tcon->fsAttrInfo.Attributes),
 		   le32_to_cpu(tcon->fsAttrInfo.MaxPathNameComponentLength),
-		   tcon->tidStatus);
+		   tcon->status);
 	if (dev_type == FILE_DEVICE_DISK)
 		seq_puts(m, " type: DISK ");
 	else if (dev_type == FILE_DEVICE_CD_ROM)
@@ -271,7 +271,8 @@ static int cifs_debug_data_proc_show(struct seq_file *m, void *v)
 	c = 0;
 	spin_lock(&cifs_tcp_ses_lock);
 	list_for_each_entry(server, &cifs_tcp_ses_list, tcp_ses_list) {
-		if (server->is_channel)
+		/* channel info will be printed as a part of sessions below */
+		if (CIFS_SERVER_IS_CHAN(server))
 			continue;
 
 		c++;
@@ -358,6 +359,8 @@ skip_rdma:
 			seq_printf(m, " signed");
 		if (server->posix_ext_supported)
 			seq_printf(m, " posix");
+		if (server->nosharesock)
+			seq_printf(m, " nosharesock");
 
 		if (server->rdma)
 			seq_printf(m, "\nRDMA ");
@@ -412,12 +415,20 @@ skip_rdma:
 				   from_kuid(&init_user_ns, ses->linux_uid),
 				   from_kuid(&init_user_ns, ses->cred_uid));
 
+			spin_lock(&ses->chan_lock);
+			if (CIFS_CHAN_NEEDS_RECONNECT(ses, 0))
+				seq_puts(m, "\tPrimary channel: DISCONNECTED ");
+
 			if (ses->chan_count > 1) {
 				seq_printf(m, "\n\n\tExtra Channels: %zu ",
 					   ses->chan_count-1);
-				for (j = 1; j < ses->chan_count; j++)
+				for (j = 1; j < ses->chan_count; j++) {
 					cifs_dump_channel(m, j, &ses->chans[j]);
+					if (CIFS_CHAN_NEEDS_RECONNECT(ses, j))
+						seq_puts(m, "\tDISCONNECTED ");
+				}
 			}
+			spin_unlock(&ses->chan_lock);
 
 			seq_puts(m, "\n\n\tShares: ");
 			j = 0;

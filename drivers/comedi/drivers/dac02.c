@@ -25,8 +25,7 @@
  */
 
 #include <linux/module.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 /*
  * The output range is selected by jumpering pins on the I/O connector.

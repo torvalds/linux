@@ -29,6 +29,7 @@
 /**
  * selinux_netlbl_sidlookup_cached - Cache a SID lookup
  * @skb: the packet
+ * @family: the packet's address family
  * @secattr: the NetLabel security attributes
  * @sid: the SID
  *
@@ -128,6 +129,7 @@ void selinux_netlbl_cache_invalidate(void)
 /**
  * selinux_netlbl_err - Handle a NetLabel packet error
  * @skb: the packet
+ * @family: the packet's address family
  * @error: the error code
  * @gateway: true if host is acting as a gateway, false otherwise
  *
@@ -160,7 +162,6 @@ void selinux_netlbl_sk_security_free(struct sk_security_struct *sksec)
 /**
  * selinux_netlbl_sk_security_reset - Reset the NetLabel fields
  * @sksec: the sk_security_struct
- * @family: the socket family
  *
  * Description:
  * Called when the NetLabel state of a sk_security_struct needs to be reset.
@@ -260,30 +261,30 @@ skbuff_setsid_return:
 
 /**
  * selinux_netlbl_sctp_assoc_request - Label an incoming sctp association.
- * @ep: incoming association endpoint.
+ * @asoc: incoming association.
  * @skb: the packet.
  *
  * Description:
- * A new incoming connection is represented by @ep, ......
+ * A new incoming connection is represented by @asoc, ......
  * Returns zero on success, negative values on failure.
  *
  */
-int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
+int selinux_netlbl_sctp_assoc_request(struct sctp_association *asoc,
 				     struct sk_buff *skb)
 {
 	int rc;
 	struct netlbl_lsm_secattr secattr;
-	struct sk_security_struct *sksec = ep->base.sk->sk_security;
+	struct sk_security_struct *sksec = asoc->base.sk->sk_security;
 	struct sockaddr_in addr4;
 	struct sockaddr_in6 addr6;
 
-	if (ep->base.sk->sk_family != PF_INET &&
-				ep->base.sk->sk_family != PF_INET6)
+	if (asoc->base.sk->sk_family != PF_INET &&
+	    asoc->base.sk->sk_family != PF_INET6)
 		return 0;
 
 	netlbl_secattr_init(&secattr);
 	rc = security_netlbl_sid_to_secattr(&selinux_state,
-					    ep->secid, &secattr);
+					    asoc->secid, &secattr);
 	if (rc != 0)
 		goto assoc_request_return;
 
@@ -293,11 +294,11 @@ int selinux_netlbl_sctp_assoc_request(struct sctp_endpoint *ep,
 	if (ip_hdr(skb)->version == 4) {
 		addr4.sin_family = AF_INET;
 		addr4.sin_addr.s_addr = ip_hdr(skb)->saddr;
-		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr4, &secattr);
+		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr4, &secattr);
 	} else if (IS_ENABLED(CONFIG_IPV6) && ip_hdr(skb)->version == 6) {
 		addr6.sin6_family = AF_INET6;
 		addr6.sin6_addr = ipv6_hdr(skb)->saddr;
-		rc = netlbl_conn_setattr(ep->base.sk, (void *)&addr6, &secattr);
+		rc = netlbl_conn_setattr(asoc->base.sk, (void *)&addr6, &secattr);
 	} else {
 		rc = -EAFNOSUPPORT;
 	}
@@ -313,6 +314,7 @@ assoc_request_return:
 /**
  * selinux_netlbl_inet_conn_request - Label an incoming stream connection
  * @req: incoming connection request socket
+ * @family: the request socket's address family
  *
  * Description:
  * A new incoming connection request is represented by @req, we need to label
@@ -343,6 +345,7 @@ inet_conn_request_return:
 /**
  * selinux_netlbl_inet_csk_clone - Initialize the newly created sock
  * @sk: the new sock
+ * @family: the sock's address family
  *
  * Description:
  * A new connection has been established using @sk, we've already labeled the
@@ -378,7 +381,7 @@ void selinux_netlbl_sctp_sk_clone(struct sock *sk, struct sock *newsk)
 
 /**
  * selinux_netlbl_socket_post_create - Label a socket using NetLabel
- * @sock: the socket to label
+ * @sk: the sock to label
  * @family: protocol family
  *
  * Description:

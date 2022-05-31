@@ -604,6 +604,12 @@ static int iwl_mvm_mac_ctxt_cmd_sta(struct iwl_mvm *mvm,
 
 		ctxt_sta->is_assoc = cpu_to_le32(1);
 
+		if (!mvmvif->authorized &&
+		    fw_has_capa(&mvm->fw->ucode_capa,
+				IWL_UCODE_TLV_CAPA_COEX_HIGH_PRIO))
+			ctxt_sta->data_policy |=
+				cpu_to_le32(COEX_HIGH_PRIORITY_ENABLE);
+
 		/*
 		 * allow multicast data frames only as long as the station is
 		 * authorized, i.e., GTK keys are already installed (if needed)
@@ -812,6 +818,18 @@ u8 iwl_mvm_mac_ctxt_get_lowest_rate(struct ieee80211_tx_info *info,
 	return rate;
 }
 
+u16 iwl_mvm_mac_ctxt_get_beacon_flags(const struct iwl_fw *fw, u8 rate_idx)
+{
+	u16 flags = iwl_mvm_mac80211_idx_to_hwrate(fw, rate_idx);
+	bool is_new_rate = iwl_fw_lookup_cmd_ver(fw, BEACON_TEMPLATE_CMD, 0) > 10;
+
+	if (rate_idx <= IWL_FIRST_CCK_RATE)
+		flags |= is_new_rate ? IWL_MAC_BEACON_CCK
+			  : IWL_MAC_BEACON_CCK_V1;
+
+	return flags;
+}
+
 static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 				    struct ieee80211_vif *vif,
 				    struct sk_buff *beacon,
@@ -844,9 +862,10 @@ static void iwl_mvm_mac_ctxt_set_tx(struct iwl_mvm *mvm,
 
 	rate = iwl_mvm_mac_ctxt_get_lowest_rate(info, vif);
 
-	tx->rate_n_flags |= cpu_to_le32(iwl_mvm_mac80211_idx_to_hwrate(rate));
+	tx->rate_n_flags |=
+		cpu_to_le32(iwl_mvm_mac80211_idx_to_hwrate(mvm->fw, rate));
 	if (rate == IWL_FIRST_CCK_RATE)
-		tx->rate_n_flags |= cpu_to_le32(RATE_MCS_CCK_MSK);
+		tx->rate_n_flags |= cpu_to_le32(RATE_MCS_CCK_MSK_V1);
 
 }
 
@@ -929,11 +948,7 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 	u16 flags;
 	struct ieee80211_chanctx_conf *ctx;
 	int channel;
-
-	flags = iwl_mvm_mac80211_idx_to_hwrate(rate);
-
-	if (rate == IWL_FIRST_CCK_RATE)
-		flags |= IWL_MAC_BEACON_CCK;
+	flags = iwl_mvm_mac_ctxt_get_beacon_flags(mvm->fw, rate);
 
 	/* Enable FILS on PSC channels only */
 	rcu_read_lock();
@@ -942,7 +957,10 @@ static int iwl_mvm_mac_ctxt_send_beacon_v9(struct iwl_mvm *mvm,
 	WARN_ON(channel == 0);
 	if (cfg80211_channel_is_psc(ctx->def.chan) &&
 	    !IWL_MVM_DISABLE_AP_FILS) {
-		flags |= IWL_MAC_BEACON_FILS;
+		flags |= iwl_fw_lookup_cmd_ver(mvm->fw, BEACON_TEMPLATE_CMD,
+					       0) > 10 ?
+			IWL_MAC_BEACON_FILS :
+			IWL_MAC_BEACON_FILS_V1;
 		beacon_cmd.short_ssid =
 			cpu_to_le32(~crc32_le(~0, vif->bss_conf.ssid,
 					      vif->bss_conf.ssid_len));
@@ -1436,8 +1454,9 @@ void iwl_mvm_rx_stored_beacon_notif(struct iwl_mvm *mvm,
 	struct sk_buff *skb;
 	u8 *data;
 	u32 size = le32_to_cpu(sb->byte_count);
-	int ver = iwl_fw_lookup_cmd_ver(mvm->fw, PROT_OFFLOAD_GROUP,
-					STORED_BEACON_NTF, 0);
+	int ver = iwl_fw_lookup_cmd_ver(mvm->fw,
+					WIDE_ID(PROT_OFFLOAD_GROUP, STORED_BEACON_NTF),
+					0);
 
 	if (size == 0)
 		return;
@@ -1535,11 +1554,11 @@ void iwl_mvm_probe_resp_data_notif(struct iwl_mvm *mvm,
 		ieee80211_beacon_set_cntdwn(vif, notif->csa_counter);
 }
 
-void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
-				      struct iwl_rx_cmd_buffer *rxb)
+void iwl_mvm_channel_switch_start_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb)
 {
 	struct iwl_rx_packet *pkt = rxb_addr(rxb);
-	struct iwl_channel_switch_noa_notif *notif = (void *)pkt->data;
+	struct iwl_channel_switch_start_notif *notif = (void *)pkt->data;
 	struct ieee80211_vif *csa_vif, *vif;
 	struct iwl_mvm_vif *mvmvif;
 	u32 id_n_color, csa_id, mac_id;
@@ -1580,6 +1599,18 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		RCU_INIT_POINTER(mvm->csa_vif, NULL);
 		return;
 	case NL80211_IFTYPE_STATION:
+		/*
+		 * if we don't know about an ongoing channel switch,
+		 * make sure FW cancels it
+		 */
+		if (iwl_fw_lookup_notif_ver(mvm->fw, MAC_CONF_GROUP,
+					    CHANNEL_SWITCH_ERROR_NOTIF,
+					    0) && !vif->csa_active) {
+			IWL_DEBUG_INFO(mvm, "Channel Switch was canceled\n");
+			iwl_mvm_cancel_channel_switch(mvm, vif, mac_id);
+			break;
+		}
+
 		iwl_mvm_csa_client_absent(mvm, vif);
 		cancel_delayed_work(&mvmvif->csa_work);
 		ieee80211_chswitch_done(vif, true);
@@ -1590,6 +1621,31 @@ void iwl_mvm_channel_switch_noa_notif(struct iwl_mvm *mvm,
 		break;
 	}
 out_unlock:
+	rcu_read_unlock();
+}
+
+void iwl_mvm_channel_switch_error_notif(struct iwl_mvm *mvm,
+					struct iwl_rx_cmd_buffer *rxb)
+{
+	struct iwl_rx_packet *pkt = rxb_addr(rxb);
+	struct iwl_channel_switch_error_notif *notif = (void *)pkt->data;
+	struct ieee80211_vif *vif;
+	u32 id = le32_to_cpu(notif->mac_id);
+	u32 csa_err_mask = le32_to_cpu(notif->csa_err_mask);
+
+	rcu_read_lock();
+	vif = iwl_mvm_rcu_dereference_vif_id(mvm, id, true);
+	if (!vif) {
+		rcu_read_unlock();
+		return;
+	}
+
+	IWL_DEBUG_INFO(mvm, "FW reports CSA error: mac_id=%u, csa_err_mask=%u\n",
+		       id, csa_err_mask);
+	if (csa_err_mask & (CS_ERR_COUNT_ERROR |
+			    CS_ERR_LONG_DELAY_AFTER_CS |
+			    CS_ERR_TX_BLOCK_TIMER_EXPIRED))
+		ieee80211_channel_switch_disconnect(vif, true);
 	rcu_read_unlock();
 }
 

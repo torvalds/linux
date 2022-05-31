@@ -10,6 +10,8 @@
 #include <linux/io.h>
 #include <sound/hdaudio.h>
 #include <sound/hda_i915.h>
+#include <sound/hda_codec.h>
+#include <sound/hda_register.h>
 #include "../sof-priv.h"
 #include "hda.h"
 
@@ -21,6 +23,18 @@
 #endif
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
+static void update_codec_wake_enable(struct hdac_bus *bus, unsigned int addr, bool link_power)
+{
+	unsigned int mask = snd_hdac_chip_readw(bus, WAKEEN);
+
+	if (link_power)
+		mask &= ~BIT(addr);
+	else
+		mask |= BIT(addr);
+
+	snd_hdac_chip_updatew(bus, WAKEEN, STATESTS_INT_MASK, mask);
+}
+
 static void sof_hda_bus_link_power(struct hdac_device *codec, bool enable)
 {
 	struct hdac_bus *bus = codec->bus;
@@ -41,6 +55,9 @@ static void sof_hda_bus_link_power(struct hdac_device *codec, bool enable)
 	 */
 	if (codec->addr == HDA_IDISP_ADDR && !enable)
 		snd_hdac_display_power(bus, HDA_CODEC_IDX_CONTROLLER, false);
+
+	/* WAKEEN needs to be set for disabled links */
+	update_codec_wake_enable(bus, codec->addr, enable);
 }
 
 static const struct hdac_bus_ops bus_core_ops = {

@@ -8,9 +8,10 @@
 #include <linux/of.h>
 #include <linux/of_address.h>
 
-#include "clk-mtk.h"
-#include "clk-gate.h"
 #include "clk-cpumux.h"
+#include "clk-gate.h"
+#include "clk-mtk.h"
+#include "clk-pll.h"
 
 #include <dt-bindings/clock/mt8173-clk.h>
 

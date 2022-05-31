@@ -19,11 +19,6 @@
 
 #define memblock_num_regions(memblock_type)	(memblock.memblock_type.cnt)
 
-/* Alignment per CMA requirement. */
-#define FADUMP_CMA_ALIGNMENT	(PAGE_SIZE <<				\
-				 max_t(unsigned long, MAX_ORDER - 1,	\
-				 pageblock_order))
-
 /* FAD commands */
 #define FADUMP_REGISTER			1
 #define FADUMP_UNREGISTER		2
@@ -137,10 +132,10 @@ struct fadump_ops {
 };
 
 /* Helper functions */
-s32 fadump_setup_cpu_notes_buf(u32 num_cpus);
+s32 __init fadump_setup_cpu_notes_buf(u32 num_cpus);
 void fadump_free_cpu_notes_buf(void);
-u32 *fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
-void fadump_update_elfcore_header(char *bufp);
+u32 *__init fadump_regs_to_elf_notes(u32 *buf, struct pt_regs *regs);
+void __init fadump_update_elfcore_header(char *bufp);
 bool is_fadump_boot_mem_contiguous(void);
 bool is_fadump_reserved_mem_contiguous(void);
 

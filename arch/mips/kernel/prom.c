@@ -64,4 +64,9 @@ int __init __dt_register_buses(const char *bus0, const char *bus1)
 	return 0;
 }
 
+void __weak __init device_tree_init(void)
+{
+	unflatten_and_copy_device_tree();
+}
+
 #endif

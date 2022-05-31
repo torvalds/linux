@@ -117,7 +117,7 @@ struct csi_state {
 	struct v4l2_async_notifier notifier;
 	struct v4l2_subdev *src_sd;
 
-	struct v4l2_fwnode_bus_mipi_csi2 bus;
+	struct v4l2_mbus_config_mipi_csi2 bus;
 
 	struct mutex lock; /* Protect csi2_fmt, format_mbus, state, hs_settle */
 	const struct csi2_pix_format *csi2_fmt;
@@ -200,12 +200,13 @@ static const struct csi2_pix_format imx8mq_mipi_csi_formats[] = {
 	}, {
 		.code = MEDIA_BUS_FMT_SRGGB14_1X14,
 		.width = 14,
-	}, {
+	},
 	/* YUV formats */
-		.code = MEDIA_BUS_FMT_YUYV8_2X8,
+	{
+		.code = MEDIA_BUS_FMT_YUYV8_1X16,
 		.width = 16,
 	}, {
-		.code = MEDIA_BUS_FMT_YUYV8_1X16,
+		.code = MEDIA_BUS_FMT_UYVY8_1X16,
 		.width = 16,
 	}
 };
@@ -397,9 +398,6 @@ static int imx8mq_mipi_csi_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
 	int ret = 0;
-
-	imx8mq_mipi_csi_write(state, CSI2RX_IRQ_MASK,
-			      CSI2RX_IRQ_MASK_ULPS_STATUS_CHANGE);
 
 	if (enable) {
 		ret = pm_runtime_resume_and_get(state->dev);
@@ -643,7 +641,7 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 	unsigned int i;
 	int ret;
 
-	v4l2_async_notifier_init(&state->notifier);
+	v4l2_async_nf_init(&state->notifier);
 
 	ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(state->dev), 0, 0,
 					     FWNODE_GRAPH_ENDPOINT_NEXT);
@@ -669,8 +667,8 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 		state->bus.num_data_lanes,
 		state->bus.flags);
 
-	asd = v4l2_async_notifier_add_fwnode_remote_subdev(&state->notifier,
-							   ep, struct v4l2_async_subdev);
+	asd = v4l2_async_nf_add_fwnode_remote(&state->notifier, ep,
+					      struct v4l2_async_subdev);
 	if (IS_ERR(asd)) {
 		ret = PTR_ERR(asd);
 		goto err_parse;
@@ -680,7 +678,7 @@ static int imx8mq_mipi_csi_async_register(struct csi_state *state)
 
 	state->notifier.ops = &imx8mq_mipi_csi_notify_ops;
 
-	ret = v4l2_async_subdev_notifier_register(&state->sd, &state->notifier);
+	ret = v4l2_async_subdev_nf_register(&state->sd, &state->notifier);
 	if (ret)
 		return ret;
 
@@ -696,11 +694,10 @@ err_parse:
  * Suspend/resume
  */
 
-static int imx8mq_mipi_csi_pm_suspend(struct device *dev, bool runtime)
+static void imx8mq_mipi_csi_pm_suspend(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
-	int ret = 0;
 
 	mutex_lock(&state->lock);
 
@@ -708,35 +705,18 @@ static int imx8mq_mipi_csi_pm_suspend(struct device *dev, bool runtime)
 		imx8mq_mipi_csi_stop_stream(state);
 		imx8mq_mipi_csi_clk_disable(state);
 		state->state &= ~ST_POWERED;
-		if (!runtime)
-			state->state |= ST_SUSPENDED;
 	}
 
 	mutex_unlock(&state->lock);
-
-	ret = icc_set_bw(state->icc_path, 0, 0);
-	if (ret)
-		dev_err(dev, "icc_set_bw failed with %d\n", ret);
-
-	return ret ? -EAGAIN : 0;
 }
 
-static int imx8mq_mipi_csi_pm_resume(struct device *dev, bool runtime)
+static int imx8mq_mipi_csi_pm_resume(struct device *dev)
 {
 	struct v4l2_subdev *sd = dev_get_drvdata(dev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
 	int ret = 0;
 
-	ret = icc_set_bw(state->icc_path, 0, state->icc_path_bw);
-	if (ret) {
-		dev_err(dev, "icc_set_bw failed with %d\n", ret);
-		return ret;
-	}
-
 	mutex_lock(&state->lock);
-
-	if (!runtime && !(state->state & ST_SUSPENDED))
-		goto unlock;
 
 	if (!(state->state & ST_POWERED)) {
 		state->state |= ST_POWERED;
@@ -758,22 +738,55 @@ unlock:
 
 static int __maybe_unused imx8mq_mipi_csi_suspend(struct device *dev)
 {
-	return imx8mq_mipi_csi_pm_suspend(dev, false);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct csi_state *state = mipi_sd_to_csi2_state(sd);
+
+	imx8mq_mipi_csi_pm_suspend(dev);
+
+	state->state |= ST_SUSPENDED;
+
+	return 0;
 }
 
 static int __maybe_unused imx8mq_mipi_csi_resume(struct device *dev)
 {
-	return imx8mq_mipi_csi_pm_resume(dev, false);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct csi_state *state = mipi_sd_to_csi2_state(sd);
+
+	if (!(state->state & ST_SUSPENDED))
+		return 0;
+
+	return imx8mq_mipi_csi_pm_resume(dev);
 }
 
 static int __maybe_unused imx8mq_mipi_csi_runtime_suspend(struct device *dev)
 {
-	return imx8mq_mipi_csi_pm_suspend(dev, true);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct csi_state *state = mipi_sd_to_csi2_state(sd);
+	int ret;
+
+	imx8mq_mipi_csi_pm_suspend(dev);
+
+	ret = icc_set_bw(state->icc_path, 0, 0);
+	if (ret)
+		dev_err(dev, "icc_set_bw failed with %d\n", ret);
+
+	return ret;
 }
 
 static int __maybe_unused imx8mq_mipi_csi_runtime_resume(struct device *dev)
 {
-	return imx8mq_mipi_csi_pm_resume(dev, true);
+	struct v4l2_subdev *sd = dev_get_drvdata(dev);
+	struct csi_state *state = mipi_sd_to_csi2_state(sd);
+	int ret;
+
+	ret = icc_set_bw(state->icc_path, 0, state->icc_path_bw);
+	if (ret) {
+		dev_err(dev, "icc_set_bw failed with %d\n", ret);
+		return ret;
+	}
+
+	return imx8mq_mipi_csi_pm_resume(dev);
 }
 
 static const struct dev_pm_ops imx8mq_mipi_csi_pm_ops = {
@@ -921,7 +934,7 @@ static int imx8mq_mipi_csi_probe(struct platform_device *pdev)
 	/* Enable runtime PM. */
 	pm_runtime_enable(dev);
 	if (!pm_runtime_enabled(dev)) {
-		ret = imx8mq_mipi_csi_pm_resume(dev, true);
+		ret = imx8mq_mipi_csi_runtime_resume(dev);
 		if (ret < 0)
 			goto icc;
 	}
@@ -934,11 +947,11 @@ static int imx8mq_mipi_csi_probe(struct platform_device *pdev)
 
 cleanup:
 	pm_runtime_disable(&pdev->dev);
-	imx8mq_mipi_csi_pm_suspend(&pdev->dev, true);
+	imx8mq_mipi_csi_runtime_suspend(&pdev->dev);
 
 	media_entity_cleanup(&state->sd.entity);
-	v4l2_async_notifier_unregister(&state->notifier);
-	v4l2_async_notifier_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->notifier);
+	v4l2_async_nf_cleanup(&state->notifier);
 	v4l2_async_unregister_subdev(&state->sd);
 icc:
 	imx8mq_mipi_csi_release_icc(pdev);
@@ -953,12 +966,12 @@ static int imx8mq_mipi_csi_remove(struct platform_device *pdev)
 	struct v4l2_subdev *sd = platform_get_drvdata(pdev);
 	struct csi_state *state = mipi_sd_to_csi2_state(sd);
 
-	v4l2_async_notifier_unregister(&state->notifier);
-	v4l2_async_notifier_cleanup(&state->notifier);
+	v4l2_async_nf_unregister(&state->notifier);
+	v4l2_async_nf_cleanup(&state->notifier);
 	v4l2_async_unregister_subdev(&state->sd);
 
 	pm_runtime_disable(&pdev->dev);
-	imx8mq_mipi_csi_pm_suspend(&pdev->dev, true);
+	imx8mq_mipi_csi_runtime_suspend(&pdev->dev);
 	media_entity_cleanup(&state->sd.entity);
 	mutex_destroy(&state->lock);
 	pm_runtime_set_suspended(&pdev->dev);

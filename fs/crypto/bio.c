@@ -1,23 +1,10 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * This contains encryption functions for per-file encryption.
+ * Utility functions for file contents encryption/decryption on
+ * block device-based filesystems.
  *
  * Copyright (C) 2015, Google, Inc.
  * Copyright (C) 2015, Motorola Mobility
- *
- * Written by Michael Halcrow, 2014.
- *
- * Filename encryption additions
- *	Uday Savagaonkar, 2014
- * Encryption policy handling additions
- *	Ildar Muslukhov, 2014
- * Add fscrypt_pullback_bio_page()
- *	Jaegeuk Kim, 2015.
- *
- * This has not yet undergone a rigorous security audit.
- *
- * The usage of AES-XTS should conform to recommendations in NIST
- * Special Publication 800-38E and IEEE P1619/D16.
  */
 
 #include <linux/pagemap.h>
@@ -26,6 +13,21 @@
 #include <linux/namei.h>
 #include "fscrypt_private.h"
 
+/**
+ * fscrypt_decrypt_bio() - decrypt the contents of a bio
+ * @bio: the bio to decrypt
+ *
+ * Decrypt the contents of a "read" bio following successful completion of the
+ * underlying disk read.  The bio must be reading a whole number of blocks of an
+ * encrypted file directly into the page cache.  If the bio is reading the
+ * ciphertext into bounce pages instead of the page cache (for example, because
+ * the file is also compressed, so decompression is required after decryption),
+ * then this function isn't applicable.  This function may sleep, so it must be
+ * called from a workqueue rather than from the bio's bi_end_io callback.
+ *
+ * This function sets PG_error on any pages that contain any blocks that failed
+ * to be decrypted.  The filesystem must not mark such pages uptodate.
+ */
 void fscrypt_decrypt_bio(struct bio *bio)
 {
 	struct bio_vec *bv;
@@ -52,7 +54,8 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 	int num_pages = 0;
 
 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
-	bio = bio_alloc(GFP_NOFS, BIO_MAX_VECS);
+	bio = bio_alloc(inode->i_sb->s_bdev, BIO_MAX_VECS, REQ_OP_WRITE,
+			GFP_NOFS);
 
 	while (len) {
 		unsigned int blocks_this_page = min(len, blocks_per_page);
@@ -60,10 +63,8 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 
 		if (num_pages == 0) {
 			fscrypt_set_bio_crypt_ctx(bio, inode, lblk, GFP_NOFS);
-			bio_set_dev(bio, inode->i_sb->s_bdev);
 			bio->bi_iter.bi_sector =
 					pblk << (blockbits - SECTOR_SHIFT);
-			bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 		}
 		ret = bio_add_page(bio, ZERO_PAGE(0), bytes_this_page, 0);
 		if (WARN_ON(ret != bytes_this_page)) {
@@ -79,7 +80,7 @@ static int fscrypt_zeroout_range_inline_crypt(const struct inode *inode,
 			err = submit_bio_wait(bio);
 			if (err)
 				goto out;
-			bio_reset(bio);
+			bio_reset(bio, inode->i_sb->s_bdev, REQ_OP_WRITE);
 			num_pages = 0;
 		}
 	}
@@ -148,12 +149,10 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		return -EINVAL;
 
 	/* This always succeeds since __GFP_DIRECT_RECLAIM is set. */
-	bio = bio_alloc(GFP_NOFS, nr_pages);
+	bio = bio_alloc(inode->i_sb->s_bdev, nr_pages, REQ_OP_WRITE, GFP_NOFS);
 
 	do {
-		bio_set_dev(bio, inode->i_sb->s_bdev);
 		bio->bi_iter.bi_sector = pblk << (blockbits - 9);
-		bio_set_op_attrs(bio, REQ_OP_WRITE, 0);
 
 		i = 0;
 		offset = 0;
@@ -180,7 +179,7 @@ int fscrypt_zeroout_range(const struct inode *inode, pgoff_t lblk,
 		err = submit_bio_wait(bio);
 		if (err)
 			goto out;
-		bio_reset(bio);
+		bio_reset(bio, inode->i_sb->s_bdev, REQ_OP_WRITE);
 	} while (len != 0);
 	err = 0;
 out:

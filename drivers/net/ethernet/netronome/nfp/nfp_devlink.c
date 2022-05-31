@@ -26,12 +26,11 @@ nfp_devlink_fill_eth_port(struct nfp_port *port,
 }
 
 static int
-nfp_devlink_fill_eth_port_from_id(struct nfp_pf *pf, unsigned int port_index,
+nfp_devlink_fill_eth_port_from_id(struct nfp_pf *pf,
+				  struct devlink_port *dl_port,
 				  struct nfp_eth_table_port *copy)
 {
-	struct nfp_port *port;
-
-	port = nfp_port_from_id(pf, NFP_PORT_PHYS_PORT, port_index);
+	struct nfp_port *port = container_of(dl_port, struct nfp_port, dl_port);
 
 	return nfp_devlink_fill_eth_port(port, copy);
 }
@@ -62,7 +61,7 @@ nfp_devlink_set_lanes(struct nfp_pf *pf, unsigned int idx, unsigned int lanes)
 }
 
 static int
-nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
+nfp_devlink_port_split(struct devlink *devlink, struct devlink_port *port,
 		       unsigned int count, struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
@@ -70,33 +69,25 @@ nfp_devlink_port_split(struct devlink *devlink, unsigned int port_index,
 	unsigned int lanes;
 	int ret;
 
-	mutex_lock(&pf->lock);
-
 	rtnl_lock();
-	ret = nfp_devlink_fill_eth_port_from_id(pf, port_index, &eth_port);
+	ret = nfp_devlink_fill_eth_port_from_id(pf, port, &eth_port);
 	rtnl_unlock();
 	if (ret)
-		goto out;
+		return ret;
 
-	if (eth_port.port_lanes % count) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (eth_port.port_lanes % count)
+		return -EINVAL;
 
 	/* Special case the 100G CXP -> 2x40G split */
 	lanes = eth_port.port_lanes / count;
 	if (eth_port.lanes == 10 && count == 2)
 		lanes = 8 / count;
 
-	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
-out:
-	mutex_unlock(&pf->lock);
-
-	return ret;
+	return nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 }
 
 static int
-nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
+nfp_devlink_port_unsplit(struct devlink *devlink, struct devlink_port *port,
 			 struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
@@ -104,29 +95,21 @@ nfp_devlink_port_unsplit(struct devlink *devlink, unsigned int port_index,
 	unsigned int lanes;
 	int ret;
 
-	mutex_lock(&pf->lock);
-
 	rtnl_lock();
-	ret = nfp_devlink_fill_eth_port_from_id(pf, port_index, &eth_port);
+	ret = nfp_devlink_fill_eth_port_from_id(pf, port, &eth_port);
 	rtnl_unlock();
 	if (ret)
-		goto out;
+		return ret;
 
-	if (!eth_port.is_split) {
-		ret = -EINVAL;
-		goto out;
-	}
+	if (!eth_port.is_split)
+		return -EINVAL;
 
 	/* Special case the 100G CXP -> 2x40G unsplit */
 	lanes = eth_port.port_lanes;
 	if (eth_port.port_lanes == 8)
 		lanes = 10;
 
-	ret = nfp_devlink_set_lanes(pf, eth_port.index, lanes);
-out:
-	mutex_unlock(&pf->lock);
-
-	return ret;
+	return nfp_devlink_set_lanes(pf, eth_port.index, lanes);
 }
 
 static int
@@ -161,13 +144,8 @@ static int nfp_devlink_eswitch_mode_set(struct devlink *devlink, u16 mode,
 					struct netlink_ext_ack *extack)
 {
 	struct nfp_pf *pf = devlink_priv(devlink);
-	int ret;
 
-	mutex_lock(&pf->lock);
-	ret = nfp_app_eswitch_mode_set(pf->app, mode);
-	mutex_unlock(&pf->lock);
-
-	return ret;
+	return nfp_app_eswitch_mode_set(pf->app, mode);
 }
 
 static const struct nfp_devlink_versions_simple {
@@ -375,12 +353,12 @@ int nfp_devlink_port_register(struct nfp_app *app, struct nfp_port *port)
 
 	devlink = priv_to_devlink(app->pf);
 
-	return devlink_port_register(devlink, &port->dl_port, port->eth_id);
+	return devl_port_register(devlink, &port->dl_port, port->eth_id);
 }
 
 void nfp_devlink_port_unregister(struct nfp_port *port)
 {
-	devlink_port_unregister(&port->dl_port);
+	devl_port_unregister(&port->dl_port);
 }
 
 void nfp_devlink_port_type_eth_set(struct nfp_port *port)

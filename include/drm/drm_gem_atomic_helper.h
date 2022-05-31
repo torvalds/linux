@@ -3,7 +3,7 @@
 #ifndef __DRM_GEM_ATOMIC_HELPER_H__
 #define __DRM_GEM_ATOMIC_HELPER_H__
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane.h>
@@ -21,6 +21,24 @@ int drm_gem_simple_display_pipe_prepare_fb(struct drm_simple_display_pipe *pipe,
 /*
  * Helpers for planes with shadow buffers
  */
+
+/**
+ * DRM_SHADOW_PLANE_MAX_WIDTH - Maximum width of a plane's shadow buffer in pixels
+ *
+ * For drivers with shadow planes, the maximum width of the framebuffer is
+ * usually independent from hardware limitations. Drivers can initialize struct
+ * drm_mode_config.max_width from DRM_SHADOW_PLANE_MAX_WIDTH.
+ */
+#define DRM_SHADOW_PLANE_MAX_WIDTH	(4096u)
+
+/**
+ * DRM_SHADOW_PLANE_MAX_HEIGHT - Maximum height of a plane's shadow buffer in scanlines
+ *
+ * For drivers with shadow planes, the maximum height of the framebuffer is
+ * usually independent from hardware limitations. Drivers can initialize struct
+ * drm_mode_config.max_height from DRM_SHADOW_PLANE_MAX_HEIGHT.
+ */
+#define DRM_SHADOW_PLANE_MAX_HEIGHT	(4096u)
 
 /**
  * struct drm_shadow_plane_state - plane state for planes with shadow buffers
@@ -41,7 +59,7 @@ struct drm_shadow_plane_state {
 	 * The memory mappings stored in map should be established in the plane's
 	 * prepare_fb callback and removed in the cleanup_fb callback.
 	 */
-	struct dma_buf_map map[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map map[DRM_FORMAT_MAX_PLANES];
 
 	/**
 	 * @data: Address of each framebuffer BO's data
@@ -49,7 +67,7 @@ struct drm_shadow_plane_state {
 	 * The address of the data stored in each mapping. This is different
 	 * for framebuffers with non-zero offset fields.
 	 */
-	struct dma_buf_map data[DRM_FORMAT_MAX_PLANES];
+	struct iosys_map data[DRM_FORMAT_MAX_PLANES];
 };
 
 /**

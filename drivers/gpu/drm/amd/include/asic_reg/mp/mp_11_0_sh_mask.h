@@ -959,5 +959,17 @@
 #define MP1_SMN_EXT_SCRATCH7__DATA__SHIFT                                                                     0x0
 #define MP1_SMN_EXT_SCRATCH7__DATA_MASK                                                                       0xFFFFFFFFL
 
+// MP1_PMI_3_START
+#define MP1_PMI_3_START__ENABLE_MASK                       0x80000000L
+// MP1_PMI_3_FIFO
+#define MP1_PMI_3_FIFO__DEPTH_MASK                         0x00000fffL
+
+// MP1_PMI_3_START
+#define MP1_PMI_3_START__ENABLE__SHIFT                     0x0000001f
+// MP1_PMI_3_FIFO
+#define MP1_PMI_3_FIFO__DEPTH__SHIFT                       0x00000000
+
+
+
 
 #endif

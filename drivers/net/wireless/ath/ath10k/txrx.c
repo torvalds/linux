@@ -82,8 +82,6 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	flags = skb_cb->flags;
 	ath10k_htt_tx_free_msdu_id(htt, tx_done->msdu_id);
 	ath10k_htt_tx_dec_pending(htt);
-	if (htt->num_pending_tx == 0)
-		wake_up(&htt->empty_tx_wq);
 	spin_unlock_bh(&htt->tx_lock);
 
 	rcu_read_lock();
@@ -127,7 +125,7 @@ int ath10k_txrx_tx_unref(struct ath10k_htt *htt,
 	    tx_done->ack_rssi != ATH10K_INVALID_RSSI) {
 		info->status.ack_signal = ATH10K_DEFAULT_NOISE_FLOOR +
 						tx_done->ack_rssi;
-		info->status.is_valid_ack_signal = true;
+		info->status.flags |= IEEE80211_TX_STATUS_ACK_SIGNAL_VALID;
 	}
 
 	ieee80211_tx_status(htt->ar->hw, msdu);

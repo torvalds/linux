@@ -1,12 +1,23 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <test_progs.h>
-#include "bind_perm.skel.h"
-
+#define _GNU_SOURCE
+#include <sched.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <sys/socket.h>
-#include <sys/capability.h>
+
+#include "test_progs.h"
+#include "cap_helpers.h"
+#include "bind_perm.skel.h"
 
 static int duration;
+
+static int create_netns(void)
+{
+	if (!ASSERT_OK(unshare(CLONE_NEWNET), "create netns"))
+		return -1;
+
+	return 0;
+}
 
 void try_bind(int family, int port, int expected_errno)
 {
@@ -38,42 +49,15 @@ close_socket:
 		close(fd);
 }
 
-bool cap_net_bind_service(cap_flag_value_t flag)
-{
-	const cap_value_t cap_net_bind_service = CAP_NET_BIND_SERVICE;
-	cap_flag_value_t original_value;
-	bool was_effective = false;
-	cap_t caps;
-
-	caps = cap_get_proc();
-	if (CHECK(!caps, "cap_get_proc", "errno %d", errno))
-		goto free_caps;
-
-	if (CHECK(cap_get_flag(caps, CAP_NET_BIND_SERVICE, CAP_EFFECTIVE,
-			       &original_value),
-		  "cap_get_flag", "errno %d", errno))
-		goto free_caps;
-
-	was_effective = (original_value == CAP_SET);
-
-	if (CHECK(cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_net_bind_service,
-			       flag),
-		  "cap_set_flag", "errno %d", errno))
-		goto free_caps;
-
-	if (CHECK(cap_set_proc(caps), "cap_set_proc", "errno %d", errno))
-		goto free_caps;
-
-free_caps:
-	CHECK(cap_free(caps), "cap_free", "errno %d", errno);
-	return was_effective;
-}
-
 void test_bind_perm(void)
 {
-	bool cap_was_effective;
+	const __u64 net_bind_svc_cap = 1ULL << CAP_NET_BIND_SERVICE;
 	struct bind_perm *skel;
+	__u64 old_caps = 0;
 	int cgroup_fd;
+
+	if (create_netns())
+		return;
 
 	cgroup_fd = test__join_cgroup("/bind_perm");
 	if (CHECK(cgroup_fd < 0, "cg-join", "errno %d", errno))
@@ -91,7 +75,8 @@ void test_bind_perm(void)
 	if (!ASSERT_OK_PTR(skel, "bind_v6_prog"))
 		goto close_skeleton;
 
-	cap_was_effective = cap_net_bind_service(CAP_CLEAR);
+	ASSERT_OK(cap_disable_effective(net_bind_svc_cap, &old_caps),
+		  "cap_disable_effective");
 
 	try_bind(AF_INET, 110, EACCES);
 	try_bind(AF_INET6, 110, EACCES);
@@ -99,8 +84,9 @@ void test_bind_perm(void)
 	try_bind(AF_INET, 111, 0);
 	try_bind(AF_INET6, 111, 0);
 
-	if (cap_was_effective)
-		cap_net_bind_service(CAP_SET);
+	if (old_caps & net_bind_svc_cap)
+		ASSERT_OK(cap_enable_effective(net_bind_svc_cap, NULL),
+			  "cap_enable_effective");
 
 close_skeleton:
 	bind_perm__destroy(skel);

@@ -56,8 +56,8 @@ static inline enum pll_mode zynqmp_pll_get_mode(struct clk_hw *hw)
 
 	ret = zynqmp_pm_get_pll_frac_mode(clk_id, ret_payload);
 	if (ret) {
-		pr_warn_once("%s() PLL get frac mode failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() PLL get frac mode failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 		return PLL_MODE_ERROR;
 	}
 
@@ -84,8 +84,8 @@ static inline void zynqmp_pll_set_mode(struct clk_hw *hw, bool on)
 
 	ret = zynqmp_pm_set_pll_frac_mode(clk_id, mode);
 	if (ret)
-		pr_warn_once("%s() PLL set frac mode failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() PLL set frac mode failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 	else
 		clk->set_pll_mode = true;
 }
@@ -145,8 +145,8 @@ static unsigned long zynqmp_pll_recalc_rate(struct clk_hw *hw,
 
 	ret = zynqmp_pm_clock_getdivider(clk_id, &fbdiv);
 	if (ret) {
-		pr_warn_once("%s() get divider failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() get divider failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 		return 0ul;
 	}
 
@@ -200,8 +200,8 @@ static int zynqmp_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 			WARN(1, "More than allowed devices are using the %s, which is forbidden\n",
 			     clk_name);
 		else if (ret)
-			pr_warn_once("%s() set divider failed for %s, ret = %d\n",
-				     __func__, clk_name, ret);
+			pr_debug("%s() set divider failed for %s, ret = %d\n",
+				 __func__, clk_name, ret);
 		zynqmp_pm_set_pll_frac_data(clk_id, f);
 
 		return rate + frac;
@@ -211,8 +211,8 @@ static int zynqmp_pll_set_rate(struct clk_hw *hw, unsigned long rate,
 	fbdiv = clamp_t(u32, fbdiv, PLL_FBDIV_MIN, PLL_FBDIV_MAX);
 	ret = zynqmp_pm_clock_setdivider(clk_id, fbdiv);
 	if (ret)
-		pr_warn_once("%s() set divider failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() set divider failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 
 	return parent_rate * fbdiv;
 }
@@ -233,8 +233,8 @@ static int zynqmp_pll_is_enabled(struct clk_hw *hw)
 
 	ret = zynqmp_pm_clock_getstate(clk_id, &state);
 	if (ret) {
-		pr_warn_once("%s() clock get state failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() clock get state failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 		return -EIO;
 	}
 
@@ -265,8 +265,8 @@ static int zynqmp_pll_enable(struct clk_hw *hw)
 
 	ret = zynqmp_pm_clock_enable(clk_id);
 	if (ret)
-		pr_warn_once("%s() clock enable failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() clock enable failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 
 	return ret;
 }
@@ -287,8 +287,8 @@ static void zynqmp_pll_disable(struct clk_hw *hw)
 
 	ret = zynqmp_pm_clock_disable(clk_id);
 	if (ret)
-		pr_warn_once("%s() clock disable failed for %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() clock disable failed for %s, ret = %d\n",
+			 __func__, clk_name, ret);
 }
 
 static const struct clk_ops zynqmp_pll_ops = {

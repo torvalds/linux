@@ -33,7 +33,6 @@
 #include <asm/r4kcache.h>
 #include <asm/sections.h>
 #include <asm/mmu_context.h>
-#include <asm/war.h>
 #include <asm/cacheflush.h> /* for run_uncached() */
 #include <asm/traps.h>
 #include <asm/mips-cps.h>
@@ -1410,7 +1409,6 @@ static void probe_pcache(void)
 	case CPU_I6500:
 	case CPU_SB1:
 	case CPU_SB1A:
-	case CPU_XLR:
 		c->dcache.flags |= MIPS_CACHE_PINDEX;
 		break;
 
@@ -1699,7 +1697,6 @@ static void setup_scache(void)
 		return;
 
 	case CPU_CAVIUM_OCTEON3:
-	case CPU_XLP:
 		/* don't need to worry about L2, fully coherent */
 		return;
 

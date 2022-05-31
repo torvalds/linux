@@ -9,7 +9,7 @@
 #include <linux/signal.h>
 #include <linux/personality.h>
 #include <linux/uaccess.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <linux/uprobes.h>
 #include <linux/syscalls.h>
 
@@ -627,11 +627,11 @@ do_work_pending(struct pt_regs *regs, unsigned int thread_flags, int syscall)
 			} else if (thread_flags & _TIF_UPROBE) {
 				uprobe_notify_resume(regs);
 			} else {
-				tracehook_notify_resume(regs);
+				resume_user_mode_work(regs);
 			}
 		}
 		local_irq_disable();
-		thread_flags = current_thread_info()->flags;
+		thread_flags = read_thread_flags();
 	} while (thread_flags & _TIF_WORK_MASK);
 	return 0;
 }

@@ -108,7 +108,7 @@ qca_tty_receive(struct serdev_device *serdev, const unsigned char *data,
 			qca->rx_skb->protocol = eth_type_trans(
 						qca->rx_skb, qca->rx_skb->dev);
 			skb_checksum_none_assert(qca->rx_skb);
-			netif_rx_ni(qca->rx_skb);
+			netif_rx(qca->rx_skb);
 			qca->rx_skb = netdev_alloc_skb_ip_align(netdev,
 								netdev->mtu +
 								VLAN_ETH_HLEN);
@@ -347,7 +347,7 @@ static int qca_uart_probe(struct serdev_device *serdev)
 
 	of_property_read_u32(serdev->dev.of_node, "current-speed", &speed);
 
-	ret = of_get_mac_address(serdev->dev.of_node, qca->net_dev->dev_addr);
+	ret = of_get_ethdev_address(serdev->dev.of_node, qca->net_dev);
 	if (ret) {
 		eth_hw_addr_random(qca->net_dev);
 		dev_info(&serdev->dev, "Using random MAC address: %pM\n",

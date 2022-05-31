@@ -191,23 +191,26 @@ struct reset_control;
  * @cmd_complete: tx completion indicator
  * @clk: input reference clock
  * @pclk: clock required to access the registers
+ * @rst: optional reset for the controller
  * @slave: represent an I2C slave device
+ * @get_clk_rate_khz: callback to retrieve IP specific bus speed
  * @cmd_err: run time hadware error code
  * @msgs: points to an array of messages currently being transferred
  * @msgs_num: the number of elements in msgs
- * @msg_write_idx: the element index of the current tx message in the msgs
- *	array
+ * @msg_write_idx: the element index of the current tx message in the msgs array
  * @tx_buf_len: the length of the current tx buffer
  * @tx_buf: the current tx buffer
- * @msg_read_idx: the element index of the current rx message in the msgs
- *	array
+ * @msg_read_idx: the element index of the current rx message in the msgs array
  * @rx_buf_len: the length of the current rx buffer
  * @rx_buf: the current rx buffer
  * @msg_err: error status of the current transfer
  * @status: i2c master status, one of STATUS_*
  * @abort_source: copy of the TX_ABRT_SOURCE register
  * @irq: interrupt number for the i2c master
+ * @flags: platform specific flags like type of IO accessors or model
  * @adapter: i2c subsystem adapter node
+ * @functionality: I2C_FUNC_* ORed bits to reflect what controller does support
+ * @master_cfg: configuration for the master device
  * @slave_cfg: configuration for the slave device
  * @tx_fifo_depth: depth of the hardware tx fifo
  * @rx_fifo_depth: depth of the hardware rx fifo
@@ -224,12 +227,15 @@ struct reset_control;
  * @hs_lcnt: high speed LCNT value
  * @acquire_lock: function to acquire a hardware lock on the bus
  * @release_lock: function to release a hardware lock on the bus
+ * @semaphore_idx: Index of table with semaphore type attached to the bus. It's
+ *	-1 if there is no semaphore.
  * @shared_with_punit: true if this bus is shared with the SoCs PUNIT
  * @disable: function to disable the controller
  * @disable_int: function to disable all interrupts
  * @init: function to initialize the I2C hardware
+ * @set_sda_hold_time: callback to retrieve IP specific SDA hold timing
  * @mode: operation mode - DW_IC_MASTER or DW_IC_SLAVE
- * @suspended: set to true if the controller is suspended
+ * @rinfo: I²C GPIO recovery information
  *
  * HCNT and LCNT parameters can be used if the platform knows more accurate
  * values than the one computed based only on the input clock frequency.
@@ -280,6 +286,7 @@ struct dw_i2c_dev {
 	u16			hs_lcnt;
 	int			(*acquire_lock)(void);
 	void			(*release_lock)(void);
+	int			semaphore_idx;
 	bool			shared_with_punit;
 	void			(*disable)(struct dw_i2c_dev *dev);
 	void			(*disable_int)(struct dw_i2c_dev *dev);
@@ -287,11 +294,11 @@ struct dw_i2c_dev {
 	int			(*set_sda_hold_time)(struct dw_i2c_dev *dev);
 	int			mode;
 	struct i2c_bus_recovery_info rinfo;
-	bool			suspended;
 };
 
 #define ACCESS_INTR_MASK	BIT(0)
 #define ACCESS_NO_IRQ_SUSPEND	BIT(1)
+#define ARBITRATION_SEMAPHORE	BIT(2)
 
 #define MODEL_MSCC_OCELOT	BIT(8)
 #define MODEL_BAIKAL_BT1	BIT(9)
@@ -304,6 +311,11 @@ struct dw_i2c_dev {
  */
 #define AMD_UCSI_INTR_REG	0x474
 #define AMD_UCSI_INTR_EN	0xd
+
+struct i2c_dw_semaphore_callbacks {
+	int	(*probe)(struct dw_i2c_dev *dev);
+	void	(*remove)(struct dw_i2c_dev *dev);
+};
 
 int i2c_dw_init_regmap(struct dw_i2c_dev *dev);
 u32 i2c_dw_scl_hcnt(u32 ic_clk, u32 tSYMBOL, u32 tf, int cond, int offset);
@@ -365,9 +377,12 @@ static inline void i2c_dw_configure(struct dw_i2c_dev *dev)
 }
 
 #if IS_ENABLED(CONFIG_I2C_DESIGNWARE_BAYTRAIL)
-extern int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev);
-#else
-static inline int i2c_dw_probe_lock_support(struct dw_i2c_dev *dev) { return 0; }
+int i2c_dw_baytrail_probe_lock_support(struct dw_i2c_dev *dev);
+#endif
+
+#if IS_ENABLED(CONFIG_I2C_DESIGNWARE_AMDPSP)
+int i2c_dw_amdpsp_probe_lock_support(struct dw_i2c_dev *dev);
+void i2c_dw_amdpsp_remove_lock_support(struct dw_i2c_dev *dev);
 #endif
 
 int i2c_dw_validate_speed(struct dw_i2c_dev *dev);

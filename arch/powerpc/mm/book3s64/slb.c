@@ -9,7 +9,6 @@
  * Copyright (C) 2002 Anton Blanchard <anton@au.ibm.com>, IBM
  */
 
-#include <asm/asm-prototypes.h>
 #include <asm/interrupt.h>
 #include <asm/mmu.h>
 #include <asm/mmu_context.h>
@@ -866,21 +865,5 @@ DEFINE_INTERRUPT_HANDLER_RAW(do_slb_fault)
 			preload_add(current_thread_info(), ea);
 
 		return err;
-	}
-}
-
-DEFINE_INTERRUPT_HANDLER(do_bad_slb_fault)
-{
-	int err = regs->result;
-
-	if (err == -EFAULT) {
-		if (user_mode(regs))
-			_exception(SIGSEGV, regs, SEGV_BNDERR, regs->dar);
-		else
-			bad_page_fault(regs, SIGSEGV);
-	} else if (err == -EINVAL) {
-		unrecoverable_exception(regs);
-	} else {
-		BUG();
 	}
 }

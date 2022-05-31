@@ -1,7 +1,7 @@
 [
     {
         "PublicDescription": "The number of core clock cycles",
-        "ArchStdEvent": "CPU_CYCLES",
+        "ArchStdEvent": "CPU_CYCLES"
     },
     {
         "PublicDescription": "FSU clocking gated off cycle",

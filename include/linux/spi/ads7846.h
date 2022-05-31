@@ -1,17 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /* linux/spi/ads7846.h */
 
-/* Touchscreen characteristics vary between boards and models.  The
- * platform_data for the device's "struct device" holds this information.
- *
- * It's OK if the min/max values are zero.
- */
-enum ads7846_filter {
-	ADS7846_FILTER_OK,
-	ADS7846_FILTER_REPEAT,
-	ADS7846_FILTER_IGNORE,
-};
-
 struct ads7846_platform_data {
 	u16	model;			/* 7843, 7845, 7846, 7873. */
 	u16	vref_delay_usecs;	/* 0 for external vref; etc */
@@ -51,10 +40,6 @@ struct ads7846_platform_data {
 	int	gpio_pendown_debounce;	/* platform specific debounce time for
 					 * the gpio_pendown */
 	int	(*get_pendown_state)(void);
-	int	(*filter_init)	(const struct ads7846_platform_data *pdata,
-				 void **filter_data);
-	int	(*filter)	(void *filter_data, int data_idx, int *val);
-	void	(*filter_cleanup)(void *filter_data);
 	void	(*wait_for_sync)(void);
 	bool	wakeup;
 	unsigned long irq_flags;

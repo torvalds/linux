@@ -1198,7 +1198,7 @@ err_disable_regulator:
 	return ret;
 }
 
-static int st95hf_remove(struct spi_device *nfc_spi_dev)
+static void st95hf_remove(struct spi_device *nfc_spi_dev)
 {
 	int result = 0;
 	unsigned char reset_cmd = ST95HF_COMMAND_RESET;
@@ -1236,8 +1236,6 @@ static int st95hf_remove(struct spi_device *nfc_spi_dev)
 	/* disable regulator */
 	if (stcontext->st95hf_supply)
 		regulator_disable(stcontext->st95hf_supply);
-
-	return 0;
 }
 
 /* Register as SPI protocol driver */

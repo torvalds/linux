@@ -15,9 +15,10 @@ struct ath11k_dp_htt_wbm_tx_status {
 	int ack_rssi;
 };
 
+void ath11k_dp_tx_update_txcompl(struct ath11k *ar, struct hal_tx_status *ts);
 int ath11k_dp_tx_htt_h2t_ver_req_msg(struct ath11k_base *ab);
 int ath11k_dp_tx(struct ath11k *ar, struct ath11k_vif *arvif,
-		 struct sk_buff *skb);
+		 struct ath11k_sta *arsta, struct sk_buff *skb);
 void ath11k_dp_tx_completion_handler(struct ath11k_base *ab, int ring_id);
 int ath11k_dp_tx_send_reo_cmd(struct ath11k_base *ab, struct dp_rx_tid *rx_tid,
 			      enum hal_reo_cmd_type type,
@@ -37,4 +38,6 @@ int ath11k_dp_tx_htt_rx_filter_setup(struct ath11k_base *ab, u32 ring_id,
 				     int rx_buf_size,
 				     struct htt_rx_ring_tlv_filter *tlv_filter);
 
+int ath11k_dp_tx_htt_rx_full_mon_setup(struct ath11k_base *ab, int mac_id,
+				       bool config);
 #endif

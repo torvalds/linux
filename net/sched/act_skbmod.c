@@ -31,7 +31,7 @@ static int tcf_skbmod_act(struct sk_buff *skb, const struct tc_action *a,
 	u64 flags;
 
 	tcf_lastuse_update(&d->tcf_tm);
-	bstats_cpu_update(this_cpu_ptr(d->common.cpu_bstats), skb);
+	bstats_update(this_cpu_ptr(d->common.cpu_bstats), skb);
 
 	action = READ_ONCE(d->tcf_action);
 	if (unlikely(action == TC_ACT_SHOT))
@@ -168,7 +168,7 @@ static int tcf_skbmod_init(struct net *net, struct nlattr *nla,
 
 	if (!exists) {
 		ret = tcf_idr_create(tn, index, est, a,
-				     &act_skbmod_ops, bind, true, 0);
+				     &act_skbmod_ops, bind, true, flags);
 		if (ret) {
 			tcf_idr_cleanup(tn, index);
 			return ret;

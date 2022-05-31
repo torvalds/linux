@@ -1008,7 +1008,7 @@ static void slic_set_link_autoneg(struct slic_device *sdev)
 
 static void slic_set_mac_address(struct slic_device *sdev)
 {
-	u8 *addr = sdev->netdev->dev_addr;
+	const u8 *addr = sdev->netdev->dev_addr;
 	u32 val;
 
 	val = addr[5] | addr[4] << 8 | addr[3] << 16 | addr[2] << 24;
@@ -1660,7 +1660,7 @@ static int slic_read_eeprom(struct slic_device *sdev)
 		goto free_eeprom;
 	}
 	/* set mac address */
-	ether_addr_copy(sdev->netdev->dev_addr, mac[devfn]);
+	eth_hw_addr_set(sdev->netdev, mac[devfn]);
 free_eeprom:
 	dma_free_coherent(&sdev->pdev->dev, SLIC_EEPROM_SIZE, eeprom, paddr);
 

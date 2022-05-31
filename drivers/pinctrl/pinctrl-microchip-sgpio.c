@@ -17,6 +17,9 @@
 #include <linux/pinctrl/pinmux.h>
 #include <linux/platform_device.h>
 #include <linux/property.h>
+#include <linux/regmap.h>
+#include <linux/reset.h>
+#include <linux/spinlock.h>
 
 #include "core.h"
 #include "pinconf.h"
@@ -61,11 +64,13 @@ struct sgpio_properties {
 #define SGPIO_LUTON_BIT_SOURCE   GENMASK(11, 0)
 
 #define SGPIO_OCELOT_AUTO_REPEAT BIT(10)
+#define SGPIO_OCELOT_SINGLE_SHOT BIT(11)
 #define SGPIO_OCELOT_PORT_WIDTH  GENMASK(8, 7)
 #define SGPIO_OCELOT_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_OCELOT_BIT_SOURCE  GENMASK(23, 12)
 
 #define SGPIO_SPARX5_AUTO_REPEAT BIT(6)
+#define SGPIO_SPARX5_SINGLE_SHOT BIT(7)
 #define SGPIO_SPARX5_PORT_WIDTH  GENMASK(4, 3)
 #define SGPIO_SPARX5_CLK_FREQ    GENMASK(19, 8)
 #define SGPIO_SPARX5_BIT_SOURCE  GENMASK(23, 12)
@@ -112,8 +117,11 @@ struct sgpio_priv {
 	u32 bitcount;
 	u32 ports;
 	u32 clock;
-	u32 __iomem *regs;
+	struct regmap *regs;
 	const struct sgpio_properties *properties;
+	spinlock_t lock;
+	/* protects the config register and single shot mode */
+	struct mutex poll_lock;
 };
 
 struct sgpio_port_addr {
@@ -133,31 +141,42 @@ static inline int sgpio_addr_to_pin(struct sgpio_priv *priv, int port, int bit)
 	return bit + port * priv->bitcount;
 }
 
-static inline u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)
+static inline u32 sgpio_get_addr(struct sgpio_priv *priv, u32 rno, u32 off)
 {
-	u32 __iomem *reg = &priv->regs[priv->properties->regoff[rno] + off];
-
-	return readl(reg);
+	return (priv->properties->regoff[rno] + off) *
+		regmap_get_reg_stride(priv->regs);
 }
 
-static inline void sgpio_writel(struct sgpio_priv *priv,
+static u32 sgpio_readl(struct sgpio_priv *priv, u32 rno, u32 off)
+{
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	u32 val = 0;
+	int ret;
+
+	ret = regmap_read(priv->regs, addr, &val);
+	WARN_ONCE(ret, "error reading sgpio reg %d\n", ret);
+
+	return val;
+}
+
+static void sgpio_writel(struct sgpio_priv *priv,
 				u32 val, u32 rno, u32 off)
 {
-	u32 __iomem *reg = &priv->regs[priv->properties->regoff[rno] + off];
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	int ret;
 
-	writel(val, reg);
+	ret = regmap_write(priv->regs, addr, val);
+	WARN_ONCE(ret, "error writing sgpio reg %d\n", ret);
 }
 
 static inline void sgpio_clrsetbits(struct sgpio_priv *priv,
 				    u32 rno, u32 off, u32 clear, u32 set)
 {
-	u32 __iomem *reg = &priv->regs[priv->properties->regoff[rno] + off];
-	u32 val = readl(reg);
+	u32 addr = sgpio_get_addr(priv, rno, off);
+	int ret;
 
-	val &= ~clear;
-	val |= set;
-
-	writel(val, reg);
+	ret = regmap_update_bits(priv->regs, addr, clear | set, set);
+	WARN_ONCE(ret, "error updating sgpio reg %d\n", ret);
 }
 
 static inline void sgpio_configure_bitstream(struct sgpio_priv *priv)
@@ -210,12 +229,64 @@ static inline void sgpio_configure_clock(struct sgpio_priv *priv, u32 clkfrq)
 	sgpio_clrsetbits(priv, REG_SIO_CLOCK, 0, clr, set);
 }
 
-static void sgpio_output_set(struct sgpio_priv *priv,
-			     struct sgpio_port_addr *addr,
-			     int value)
+static int sgpio_single_shot(struct sgpio_priv *priv)
+{
+	u32 addr = sgpio_get_addr(priv, REG_SIO_CONFIG, 0);
+	int ret, ret2;
+	u32 ctrl;
+	unsigned int single_shot;
+	unsigned int auto_repeat;
+
+	switch (priv->properties->arch) {
+	case SGPIO_ARCH_LUTON:
+		/* not supported for now */
+		return 0;
+	case SGPIO_ARCH_OCELOT:
+		single_shot = SGPIO_OCELOT_SINGLE_SHOT;
+		auto_repeat = SGPIO_OCELOT_AUTO_REPEAT;
+		break;
+	case SGPIO_ARCH_SPARX5:
+		single_shot = SGPIO_SPARX5_SINGLE_SHOT;
+		auto_repeat = SGPIO_SPARX5_AUTO_REPEAT;
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	/*
+	 * Trigger immediate burst. This only works when auto repeat is turned
+	 * off. Otherwise, the single shot bit will never be cleared by the
+	 * hardware. Measurements showed that an update might take as long as
+	 * the burst gap. On a LAN9668 this is about 50ms for the largest
+	 * setting.
+	 * After the manual burst, reenable the auto repeat mode again.
+	 */
+	mutex_lock(&priv->poll_lock);
+	ret = regmap_update_bits(priv->regs, addr, single_shot | auto_repeat,
+				 single_shot);
+	if (ret)
+		goto out;
+
+	ret = regmap_read_poll_timeout(priv->regs, addr, ctrl,
+				       !(ctrl & single_shot), 100, 60000);
+
+	/* reenable auto repeat mode even if there was an error */
+	ret2 = regmap_update_bits(priv->regs, addr, auto_repeat, auto_repeat);
+out:
+	mutex_unlock(&priv->poll_lock);
+
+	return ret ?: ret2;
+}
+
+static int sgpio_output_set(struct sgpio_priv *priv,
+			    struct sgpio_port_addr *addr,
+			    int value)
 {
 	unsigned int bit = SGPIO_SRC_BITS * addr->bit;
+	u32 reg = sgpio_get_addr(priv, REG_PORT_CONFIG, addr->port);
+	bool changed;
 	u32 clr, set;
+	int ret;
 
 	switch (priv->properties->arch) {
 	case SGPIO_ARCH_LUTON:
@@ -231,9 +302,21 @@ static void sgpio_output_set(struct sgpio_priv *priv,
 		set = FIELD_PREP(SGPIO_SPARX5_BIT_SOURCE, value << bit);
 		break;
 	default:
-		return;
+		return -EINVAL;
 	}
-	sgpio_clrsetbits(priv, REG_PORT_CONFIG, addr->port, clr, set);
+
+	ret = regmap_update_bits_check(priv->regs, reg, clr | set, set,
+				       &changed);
+	if (ret)
+		return ret;
+
+	if (changed) {
+		ret = sgpio_single_shot(priv);
+		if (ret)
+			return ret;
+	}
+
+	return 0;
 }
 
 static int sgpio_output_get(struct sgpio_priv *priv,
@@ -319,7 +402,7 @@ static int sgpio_pinconf_set(struct pinctrl_dev *pctldev, unsigned int pin,
 		case PIN_CONFIG_OUTPUT:
 			if (bank->is_input)
 				return -EINVAL;
-			sgpio_output_set(priv, &addr, arg);
+			err = sgpio_output_set(priv, &addr, arg);
 			break;
 
 		default:
@@ -459,9 +542,7 @@ static int microchip_sgpio_direction_output(struct gpio_chip *gc,
 
 	sgpio_pin_to_addr(priv, gpio, &addr);
 
-	sgpio_output_set(priv, &addr, value);
-
-	return 0;
+	return sgpio_output_set(priv, &addr, value);
 }
 
 static int microchip_sgpio_get_direction(struct gpio_chip *gc, unsigned int gpio)
@@ -561,9 +642,12 @@ static void microchip_sgpio_irq_settype(struct irq_data *data,
 	struct sgpio_bank *bank = gpiochip_get_data(chip);
 	unsigned int gpio = irqd_to_hwirq(data);
 	struct sgpio_port_addr addr;
+	unsigned long flags;
 	u32 ena;
 
 	sgpio_pin_to_addr(bank->priv, gpio, &addr);
+
+	spin_lock_irqsave(&bank->priv->lock, flags);
 
 	/* Disable interrupt while changing type */
 	ena = sgpio_readl(bank->priv, REG_INT_ENABLE, addr.bit);
@@ -581,6 +665,8 @@ static void microchip_sgpio_irq_settype(struct irq_data *data,
 
 	/* Possibly re-enable interrupts */
 	sgpio_writel(bank->priv, ena, REG_INT_ENABLE, addr.bit);
+
+	spin_unlock_irqrestore(&bank->priv->lock, flags);
 }
 
 static void microchip_sgpio_irq_setreg(struct irq_data *data,
@@ -612,7 +698,14 @@ static void microchip_sgpio_irq_unmask(struct irq_data *data)
 
 static void microchip_sgpio_irq_ack(struct irq_data *data)
 {
-	microchip_sgpio_irq_setreg(data, REG_INT_ACK, false);
+	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
+	struct sgpio_bank *bank = gpiochip_get_data(chip);
+	unsigned int gpio = irqd_to_hwirq(data);
+	struct sgpio_port_addr addr;
+
+	sgpio_pin_to_addr(bank->priv, gpio, &addr);
+
+	sgpio_writel(bank->priv, BIT(addr.port), REG_INT_ACK, addr.bit);
 }
 
 static int microchip_sgpio_irq_set_type(struct irq_data *data, unsigned int type)
@@ -760,6 +853,7 @@ static int microchip_sgpio_register_bank(struct device *dev,
 	gc->of_gpio_n_cells     = 3;
 	gc->base		= -1;
 	gc->ngpio		= ngpios;
+	gc->can_sleep		= !bank->is_input;
 
 	if (bank->is_input && priv->properties->flags & SGPIO_FLAGS_HAS_IRQ) {
 		int irq = fwnode_irq_get(fwnode, 0);
@@ -803,15 +897,29 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 	int div_clock = 0, ret, port, i, nbanks;
 	struct device *dev = &pdev->dev;
 	struct fwnode_handle *fwnode;
+	struct reset_control *reset;
 	struct sgpio_priv *priv;
 	struct clk *clk;
+	u32 __iomem *regs;
 	u32 val;
+	struct regmap_config regmap_config = {
+		.reg_bits = 32,
+		.val_bits = 32,
+		.reg_stride = 4,
+	};
 
 	priv = devm_kzalloc(dev, sizeof(*priv), GFP_KERNEL);
 	if (!priv)
 		return -ENOMEM;
 
 	priv->dev = dev;
+	spin_lock_init(&priv->lock);
+	mutex_init(&priv->poll_lock);
+
+	reset = devm_reset_control_get_optional_shared(&pdev->dev, "switch");
+	if (IS_ERR(reset))
+		return dev_err_probe(dev, PTR_ERR(reset), "Failed to get reset\n");
+	reset_control_reset(reset);
 
 	clk = devm_clk_get(dev, NULL);
 	if (IS_ERR(clk))
@@ -825,9 +933,14 @@ static int microchip_sgpio_probe(struct platform_device *pdev)
 		return -EINVAL;
 	}
 
-	priv->regs = devm_platform_ioremap_resource(pdev, 0);
+	regs = devm_platform_ioremap_resource(pdev, 0);
+	if (IS_ERR(regs))
+		return PTR_ERR(regs);
+
+	priv->regs = devm_regmap_init_mmio(dev, regs, &regmap_config);
 	if (IS_ERR(priv->regs))
 		return PTR_ERR(priv->regs);
+
 	priv->properties = device_get_match_data(dev);
 	priv->in.is_input = true;
 

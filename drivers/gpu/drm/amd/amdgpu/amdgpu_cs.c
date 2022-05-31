@@ -32,6 +32,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_syncobj.h>
+#include "amdgpu_cs.h"
 #include "amdgpu.h"
 #include "amdgpu_trace.h"
 #include "amdgpu_gmc.h"
@@ -298,7 +299,6 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 {
 	s64 time_us, increment_us;
 	u64 free_vram, total_vram, used_vram;
-	struct ttm_resource_manager *vram_man = ttm_manager_type(&adev->mman.bdev, TTM_PL_VRAM);
 	/* Allow a maximum of 200 accumulated ms. This is basically per-IB
 	 * throttling.
 	 *
@@ -315,7 +315,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	}
 
 	total_vram = adev->gmc.real_vram_size - atomic64_read(&adev->vram_pin_size);
-	used_vram = amdgpu_vram_mgr_usage(vram_man);
+	used_vram = ttm_resource_manager_usage(&adev->mman.vram_mgr.manager);
 	free_vram = used_vram >= total_vram ? 0 : total_vram - used_vram;
 
 	spin_lock(&adev->mm_stats.lock);
@@ -342,7 +342,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	if (free_vram >= 128 * 1024 * 1024 || free_vram >= total_vram / 8) {
 		s64 min_us;
 
-		/* Be more aggresive on dGPUs. Try to fill a portion of free
+		/* Be more aggressive on dGPUs. Try to fill a portion of free
 		 * VRAM now.
 		 */
 		if (!(adev->flags & AMD_IS_APU))
@@ -362,7 +362,7 @@ static void amdgpu_cs_get_threshold_for_moves(struct amdgpu_device *adev,
 	if (!amdgpu_gmc_vram_full_visible(&adev->gmc)) {
 		u64 total_vis_vram = adev->gmc.visible_vram_size;
 		u64 used_vis_vram =
-		  amdgpu_vram_mgr_vis_usage(vram_man);
+		  amdgpu_vram_mgr_vis_usage(&adev->mman.vram_mgr);
 
 		if (used_vis_vram < total_vis_vram) {
 			u64 free_vis_vram = total_vis_vram - used_vis_vram;
@@ -586,6 +586,16 @@ static int amdgpu_cs_parser_bos(struct amdgpu_cs_parser *p,
 		}
 	}
 
+	/* Move fence waiting after getting reservation lock of
+	 * PD root. Then there is no need on a ctx mutex lock.
+	 */
+	r = amdgpu_ctx_wait_prev_fence(p->ctx, p->entity);
+	if (unlikely(r != 0)) {
+		if (r != -ERESTARTSYS)
+			DRM_ERROR("amdgpu_ctx_wait_prev_fence failed.\n");
+		goto error_validate;
+	}
+
 	amdgpu_cs_get_threshold_for_moves(p->adev, &p->bytes_moved_threshold,
 					  &p->bytes_moved_vis_threshold);
 	p->bytes_moved = 0;
@@ -776,12 +786,12 @@ static int amdgpu_cs_vm_handling(struct amdgpu_cs_parser *p)
 				memcpy(ib->ptr, kptr, chunk_ib->ib_bytes);
 				amdgpu_bo_kunmap(aobj);
 
-				r = amdgpu_ring_parse_cs(ring, p, j);
+				r = amdgpu_ring_parse_cs(ring, p, p->job, ib);
 				if (r)
 					return r;
 			} else {
 				ib->ptr = (uint32_t *)kptr;
-				r = amdgpu_ring_patch_cs_in_place(ring, p, j);
+				r = amdgpu_ring_patch_cs_in_place(ring, p, p->job, ib);
 				amdgpu_bo_kunmap(aobj);
 				if (r)
 					return r;
@@ -945,7 +955,7 @@ static int amdgpu_cs_ib_fill(struct amdgpu_device *adev,
 	if (parser->job->uf_addr && ring->funcs->no_user_fence)
 		return -EINVAL;
 
-	return amdgpu_ctx_wait_prev_fence(parser->ctx, parser->entity);
+	return 0;
 }
 
 static int amdgpu_cs_process_fence_dep(struct amdgpu_cs_parser *p,
@@ -1150,6 +1160,9 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 {
 	int i, r;
 
+	/* TODO: Investigate why we still need the context lock */
+	mutex_unlock(&p->ctx->lock);
+
 	for (i = 0; i < p->nchunks; ++i) {
 		struct amdgpu_cs_chunk *chunk;
 
@@ -1160,32 +1173,34 @@ static int amdgpu_cs_dependencies(struct amdgpu_device *adev,
 		case AMDGPU_CHUNK_ID_SCHEDULED_DEPENDENCIES:
 			r = amdgpu_cs_process_fence_dep(p, chunk);
 			if (r)
-				return r;
+				goto out;
 			break;
 		case AMDGPU_CHUNK_ID_SYNCOBJ_IN:
 			r = amdgpu_cs_process_syncobj_in_dep(p, chunk);
 			if (r)
-				return r;
+				goto out;
 			break;
 		case AMDGPU_CHUNK_ID_SYNCOBJ_OUT:
 			r = amdgpu_cs_process_syncobj_out_dep(p, chunk);
 			if (r)
-				return r;
+				goto out;
 			break;
 		case AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_WAIT:
 			r = amdgpu_cs_process_syncobj_timeline_in_dep(p, chunk);
 			if (r)
-				return r;
+				goto out;
 			break;
 		case AMDGPU_CHUNK_ID_SYNCOBJ_TIMELINE_SIGNAL:
 			r = amdgpu_cs_process_syncobj_timeline_out_dep(p, chunk);
 			if (r)
-				return r;
+				goto out;
 			break;
 		}
 	}
 
-	return 0;
+out:
+	mutex_lock(&p->ctx->lock);
+	return r;
 }
 
 static void amdgpu_cs_post_dependencies(struct amdgpu_cs_parser *p)
@@ -1221,6 +1236,8 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 	r = drm_sched_job_init(&job->base, entity, &fpriv->vm);
 	if (r)
 		goto error_unlock;
+
+	drm_sched_job_arm(&job->base);
 
 	/* No memory allocation is allowed while holding the notifier lock.
 	 * The lock is held until amdgpu_cs_submit is finished and fence is
@@ -1259,7 +1276,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	trace_amdgpu_cs_ioctl(job);
 	amdgpu_vm_bo_trace_cs(&fpriv->vm, &p->ticket);
-	drm_sched_entity_push_job(&job->base, entity);
+	drm_sched_entity_push_job(&job->base);
 
 	amdgpu_vm_move_to_lru_tail(p->adev, &fpriv->vm);
 
@@ -1271,16 +1288,13 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 			continue;
 
 		/*
-		 * Work around dma_resv shortcommings by wrapping up the
+		 * Work around dma_resv shortcomings by wrapping up the
 		 * submission in a dma_fence_chain and add it as exclusive
-		 * fence, but first add the submission as shared fence to make
-		 * sure that shared fences never signal before the exclusive
-		 * one.
+		 * fence.
 		 */
 		dma_fence_chain_init(chain, dma_resv_excl_fence(resv),
 				     dma_fence_get(p->fence), 1);
 
-		dma_resv_add_shared_fence(resv, p->fence);
 		rcu_assign_pointer(resv->fence_excl, &chain->base);
 		e->chain = NULL;
 	}
@@ -1508,6 +1522,7 @@ int amdgpu_cs_fence_to_handle_ioctl(struct drm_device *dev, void *data,
 		return 0;
 
 	default:
+		dma_fence_put(fence);
 		return -EINVAL;
 	}
 }

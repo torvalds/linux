@@ -120,7 +120,10 @@ struct sample_output {
 		__u64 xmit;
 	} totals;
 	struct {
-		__u64 pps;
+		union {
+			__u64 pps;
+			__u64 num;
+		};
 		__u64 drop;
 		__u64 err;
 	} rx_cnt;
@@ -1215,7 +1218,7 @@ int sample_setup_maps(struct bpf_map **maps)
 		default:
 			return -EINVAL;
 		}
-		if (bpf_map__resize(sample_map[i], sample_map_count[i]) < 0)
+		if (bpf_map__set_max_entries(sample_map[i], sample_map_count[i]) < 0)
 			return -errno;
 	}
 	sample_map[MAP_DEVMAP_XMIT_MULTI] = maps[MAP_DEVMAP_XMIT_MULTI];
@@ -1262,7 +1265,7 @@ static int __sample_remove_xdp(int ifindex, __u32 prog_id, int xdp_flags)
 	int ret;
 
 	if (prog_id) {
-		ret = bpf_get_link_xdp_id(ifindex, &cur_prog_id, xdp_flags);
+		ret = bpf_xdp_query_id(ifindex, xdp_flags, &cur_prog_id);
 		if (ret < 0)
 			return -errno;
 
@@ -1275,7 +1278,7 @@ static int __sample_remove_xdp(int ifindex, __u32 prog_id, int xdp_flags)
 		}
 	}
 
-	return bpf_set_link_xdp_fd(ifindex, -1, xdp_flags);
+	return bpf_xdp_detach(ifindex, xdp_flags, NULL);
 }
 
 int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
@@ -1292,8 +1295,7 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 
 	xdp_flags |= !force ? XDP_FLAGS_UPDATE_IF_NOEXIST : 0;
 	xdp_flags |= generic ? XDP_FLAGS_SKB_MODE : XDP_FLAGS_DRV_MODE;
-	ret = bpf_set_link_xdp_fd(ifindex, bpf_program__fd(xdp_prog),
-				  xdp_flags);
+	ret = bpf_xdp_attach(ifindex, bpf_program__fd(xdp_prog), xdp_flags, NULL);
 	if (ret < 0) {
 		ret = -errno;
 		fprintf(stderr,
@@ -1305,7 +1307,7 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 		return ret;
 	}
 
-	ret = bpf_get_link_xdp_id(ifindex, &prog_id, xdp_flags);
+	ret = bpf_xdp_query_id(ifindex, xdp_flags, &prog_id);
 	if (ret < 0) {
 		ret = -errno;
 		fprintf(stderr,
@@ -1322,7 +1324,7 @@ int sample_install_xdp(struct bpf_program *xdp_prog, int ifindex, bool generic,
 
 static void sample_summary_print(void)
 {
-	double period = sample_out.rx_cnt.pps;
+	double num = sample_out.rx_cnt.num;
 
 	if (sample_out.totals.rx) {
 		double pkts = sample_out.totals.rx;
@@ -1330,7 +1332,7 @@ static void sample_summary_print(void)
 		print_always("  Packets received    : %'-10llu\n",
 			     sample_out.totals.rx);
 		print_always("  Average packets/s   : %'-10.0f\n",
-			     sample_round(pkts / period));
+			     sample_round(pkts / num));
 	}
 	if (sample_out.totals.redir) {
 		double pkts = sample_out.totals.redir;
@@ -1338,7 +1340,7 @@ static void sample_summary_print(void)
 		print_always("  Packets redirected  : %'-10llu\n",
 			     sample_out.totals.redir);
 		print_always("  Average redir/s     : %'-10.0f\n",
-			     sample_round(pkts / period));
+			     sample_round(pkts / num));
 	}
 	if (sample_out.totals.drop)
 		print_always("  Rx dropped          : %'-10llu\n",
@@ -1355,7 +1357,7 @@ static void sample_summary_print(void)
 		print_always("  Packets transmitted : %'-10llu\n",
 			     sample_out.totals.xmit);
 		print_always("  Average transmit/s  : %'-10.0f\n",
-			     sample_round(pkts / period));
+			     sample_round(pkts / num));
 	}
 }
 
@@ -1422,7 +1424,7 @@ static int sample_stats_collect(struct stats_record *rec)
 	return 0;
 }
 
-static void sample_summary_update(struct sample_output *out, int interval)
+static void sample_summary_update(struct sample_output *out)
 {
 	sample_out.totals.rx += out->totals.rx;
 	sample_out.totals.redir += out->totals.redir;
@@ -1430,12 +1432,11 @@ static void sample_summary_update(struct sample_output *out, int interval)
 	sample_out.totals.drop_xmit += out->totals.drop_xmit;
 	sample_out.totals.err += out->totals.err;
 	sample_out.totals.xmit += out->totals.xmit;
-	sample_out.rx_cnt.pps += interval;
+	sample_out.rx_cnt.num++;
 }
 
 static void sample_stats_print(int mask, struct stats_record *cur,
-			       struct stats_record *prev, char *prog_name,
-			       int interval)
+			       struct stats_record *prev, char *prog_name)
 {
 	struct sample_output out = {};
 
@@ -1452,7 +1453,7 @@ static void sample_stats_print(int mask, struct stats_record *cur,
 	else if (mask & SAMPLE_DEVMAP_XMIT_CNT_MULTI)
 		stats_get_devmap_xmit_multi(cur, prev, 0, &out,
 					    mask & SAMPLE_DEVMAP_XMIT_CNT);
-	sample_summary_update(&out, interval);
+	sample_summary_update(&out);
 
 	stats_print(prog_name, mask, cur, prev, &out);
 }
@@ -1495,7 +1496,7 @@ static void swap(struct stats_record **a, struct stats_record **b)
 }
 
 static int sample_timer_cb(int timerfd, struct stats_record **rec,
-			   struct stats_record **prev, int interval)
+			   struct stats_record **prev)
 {
 	char line[64] = "Summary";
 	int ret;
@@ -1524,7 +1525,7 @@ static int sample_timer_cb(int timerfd, struct stats_record **rec,
 		snprintf(line, sizeof(line), "%s->%s", f ?: "?", t ?: "?");
 	}
 
-	sample_stats_print(sample_mask, *rec, *prev, line, interval);
+	sample_stats_print(sample_mask, *rec, *prev, line);
 	return 0;
 }
 
@@ -1579,7 +1580,7 @@ int sample_run(int interval, void (*post_cb)(void *), void *ctx)
 		if (pfd[0].revents & POLLIN)
 			ret = sample_signal_cb();
 		else if (pfd[1].revents & POLLIN)
-			ret = sample_timer_cb(timerfd, &rec, &prev, interval);
+			ret = sample_timer_cb(timerfd, &rec, &prev);
 
 		if (ret)
 			break;

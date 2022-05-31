@@ -25,11 +25,6 @@ struct seq_file;
 extern void show_ipi_list(struct seq_file *, int);
 
 /*
- * Called from assembly code, this handles an IPI.
- */
-asmlinkage void do_IPI(int ipinr, struct pt_regs *regs);
-
-/*
  * Called from C code, this handles an IPI.
  */
 void handle_IPI(int ipinr, struct pt_regs *regs);
@@ -48,7 +43,7 @@ extern void set_smp_ipi_range(int ipi_base, int nr_ipi);
  * Called from platform specific assembly code, this is the
  * secondary CPU entry point.
  */
-asmlinkage void secondary_start_kernel(void);
+asmlinkage void secondary_start_kernel(struct task_struct *task);
 
 
 /*
@@ -61,6 +56,7 @@ struct secondary_data {
 	};
 	unsigned long swapper_pg_dir;
 	void *stack;
+	struct task_struct *task;
 };
 extern struct secondary_data secondary_data;
 extern void secondary_startup(void);

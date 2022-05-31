@@ -34,6 +34,8 @@ properties:
       - allwinner,sun8i-v3-ccu
       - allwinner,sun8i-v3s-ccu
       - allwinner,sun9i-a80-ccu
+      - allwinner,sun20i-d1-ccu
+      - allwinner,sun20i-d1-r-ccu
       - allwinner,sun50i-a64-ccu
       - allwinner,sun50i-a64-r-ccu
       - allwinner,sun50i-a100-ccu
@@ -79,6 +81,7 @@ if:
       enum:
         - allwinner,sun8i-a83t-r-ccu
         - allwinner,sun8i-h3-r-ccu
+        - allwinner,sun20i-d1-r-ccu
         - allwinner,sun50i-a64-r-ccu
         - allwinner,sun50i-a100-r-ccu
         - allwinner,sun50i-h6-r-ccu
@@ -99,6 +102,7 @@ else:
     properties:
       compatible:
         enum:
+          - allwinner,sun20i-d1-ccu
           - allwinner,sun50i-a100-ccu
           - allwinner,sun50i-h6-ccu
           - allwinner,sun50i-h616-ccu

@@ -50,8 +50,7 @@
 
 #include <linux/module.h>
 #include <linux/interrupt.h>
-
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 #define PCL726_AO_MSB_REG(x)	(0x00 + ((x) * 2))
 #define PCL726_AO_LSB_REG(x)	(0x01 + ((x) * 2))

@@ -65,7 +65,7 @@ static uint32_t dcn31_get_16_bit_backlight_from_pwm(struct panel_cntl *panel_cnt
 	return cmd.panel_cntl.data.current_backlight;
 }
 
-uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
+static uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 {
 	struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(panel_cntl);
 	struct dc_dmub_srv *dc_dmub_srv = panel_cntl->ctx->dmub_srv;
@@ -83,7 +83,8 @@ uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	cmd.panel_cntl.data.bl_pwm_period_cntl = panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL;
 	cmd.panel_cntl.data.bl_pwm_ref_div1 =
 		panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV;
-
+	cmd.panel_cntl.data.bl_pwm_ref_div2 =
+		panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2;
 	if (!dc_dmub_srv_cmd_with_reply_data(dc_dmub_srv, &cmd))
 		return 0;
 
@@ -92,11 +93,13 @@ uint32_t dcn31_panel_cntl_hw_init(struct panel_cntl *panel_cntl)
 	panel_cntl->stored_backlight_registers.BL_PWM_PERIOD_CNTL = cmd.panel_cntl.data.bl_pwm_period_cntl;
 	panel_cntl->stored_backlight_registers.LVTMA_PWRSEQ_REF_DIV_BL_PWM_REF_DIV =
 		cmd.panel_cntl.data.bl_pwm_ref_div1;
+	panel_cntl->stored_backlight_registers.PANEL_PWRSEQ_REF_DIV2 =
+		cmd.panel_cntl.data.bl_pwm_ref_div2;
 
 	return cmd.panel_cntl.data.current_backlight;
 }
 
-void dcn31_panel_cntl_destroy(struct panel_cntl **panel_cntl)
+static void dcn31_panel_cntl_destroy(struct panel_cntl **panel_cntl)
 {
 	struct dcn31_panel_cntl *dcn31_panel_cntl = TO_DCN31_PANEL_CNTL(*panel_cntl);
 
@@ -104,7 +107,7 @@ void dcn31_panel_cntl_destroy(struct panel_cntl **panel_cntl)
 	*panel_cntl = NULL;
 }
 
-bool dcn31_is_panel_backlight_on(struct panel_cntl *panel_cntl)
+static bool dcn31_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 {
 	union dmub_rb_cmd cmd;
 
@@ -114,7 +117,7 @@ bool dcn31_is_panel_backlight_on(struct panel_cntl *panel_cntl)
 	return cmd.panel_cntl.data.is_backlight_on;
 }
 
-bool dcn31_is_panel_powered_on(struct panel_cntl *panel_cntl)
+static bool dcn31_is_panel_powered_on(struct panel_cntl *panel_cntl)
 {
 	union dmub_rb_cmd cmd;
 
@@ -124,7 +127,7 @@ bool dcn31_is_panel_powered_on(struct panel_cntl *panel_cntl)
 	return cmd.panel_cntl.data.is_powered_on;
 }
 
-void dcn31_store_backlight_level(struct panel_cntl *panel_cntl)
+static void dcn31_store_backlight_level(struct panel_cntl *panel_cntl)
 {
 	union dmub_rb_cmd cmd;
 

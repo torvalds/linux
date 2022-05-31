@@ -933,7 +933,7 @@ DEFINE_IREF_EVENT(xfs_inode_unpin);
 DEFINE_IREF_EVENT(xfs_inode_unpin_nowait);
 
 DECLARE_EVENT_CLASS(xfs_namespace_class,
-	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name),
+	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name),
 	TP_ARGS(dp, name),
 	TP_STRUCT__entry(
 		__field(dev_t, dev)
@@ -956,7 +956,7 @@ DECLARE_EVENT_CLASS(xfs_namespace_class,
 
 #define DEFINE_NAMESPACE_EVENT(name) \
 DEFINE_EVENT(xfs_namespace_class, name, \
-	TP_PROTO(struct xfs_inode *dp, struct xfs_name *name), \
+	TP_PROTO(struct xfs_inode *dp, const struct xfs_name *name), \
 	TP_ARGS(dp, name))
 DEFINE_NAMESPACE_EVENT(xfs_remove);
 DEFINE_NAMESPACE_EVENT(xfs_link);
@@ -1308,7 +1308,7 @@ DECLARE_EVENT_CLASS(xfs_log_item_class,
 		__field(xfs_lsn_t, lsn)
 	),
 	TP_fast_assign(
-		__entry->dev = lip->li_mountp->m_super->s_dev;
+		__entry->dev = lip->li_log->l_mp->m_super->s_dev;
 		__entry->lip = lip;
 		__entry->type = lip->li_type;
 		__entry->flags = lip->li_flags;
@@ -1361,7 +1361,7 @@ DECLARE_EVENT_CLASS(xfs_ail_class,
 		__field(xfs_lsn_t, new_lsn)
 	),
 	TP_fast_assign(
-		__entry->dev = lip->li_mountp->m_super->s_dev;
+		__entry->dev = lip->li_log->l_mp->m_super->s_dev;
 		__entry->lip = lip;
 		__entry->type = lip->li_type;
 		__entry->flags = lip->li_flags;
@@ -2476,7 +2476,7 @@ DECLARE_EVENT_CLASS(xfs_btree_cur_class,
 		__entry->btnum = cur->bc_btnum;
 		__entry->level = level;
 		__entry->nlevels = cur->bc_nlevels;
-		__entry->ptr = cur->bc_ptrs[level];
+		__entry->ptr = cur->bc_levels[level].ptr;
 		__entry->daddr = bp ? xfs_buf_daddr(bp) : -1;
 	),
 	TP_printk("dev %d:%d btree %s level %d/%d ptr %d daddr 0x%llx",

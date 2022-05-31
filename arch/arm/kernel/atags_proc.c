@@ -13,7 +13,7 @@ struct buffer {
 static ssize_t atags_read(struct file *file, char __user *buf,
 			  size_t count, loff_t *ppos)
 {
-	struct buffer *b = PDE_DATA(file_inode(file));
+	struct buffer *b = pde_data(file_inode(file));
 	return simple_read_from_buffer(buf, count, ppos, b->data, b->size);
 }
 

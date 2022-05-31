@@ -84,8 +84,7 @@ int dlm_recover_directory(struct dlm_ls *ls)
 
 		for (;;) {
 			int left;
-			error = dlm_recovery_stopped(ls);
-			if (error) {
+			if (dlm_recovery_stopped(ls)) {
 				error = -EINTR;
 				goto out_free;
 			}

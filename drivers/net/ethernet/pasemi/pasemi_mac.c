@@ -221,7 +221,7 @@ static int pasemi_mac_set_mac_addr(struct net_device *dev, void *p)
 	if (!is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
 
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	adr0 = dev->dev_addr[2] << 24 |
 	       dev->dev_addr[3] << 16 |
@@ -1722,7 +1722,7 @@ pasemi_mac_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		err = -ENODEV;
 		goto out;
 	}
-	memcpy(dev->dev_addr, mac->mac_addr, sizeof(mac->mac_addr));
+	eth_hw_addr_set(dev, mac->mac_addr);
 
 	ret = mac_to_intf(mac);
 	if (ret < 0) {

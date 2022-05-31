@@ -285,8 +285,12 @@ static int __set_input_tf(struct dc_transfer_func *func,
 }
 
 /**
+ * amdgpu_dm_verify_lut_sizes
+ * @crtc_state: the DRM CRTC state
+ *
  * Verifies that the Degamma and Gamma LUTs attached to the |crtc_state| are of
  * the expected size.
+ *
  * Returns 0 on success.
  */
 int amdgpu_dm_verify_lut_sizes(const struct drm_crtc_state *crtc_state)

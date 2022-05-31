@@ -35,7 +35,7 @@
 
 #include <linux/scatterlist.h>
 
-struct dma_buf_map;
+struct iosys_map;
 
 void drm_clflush_pages(struct page *pages[], unsigned long num_pages);
 void drm_clflush_sg(struct sg_table *st);
@@ -74,7 +74,7 @@ static inline bool drm_arch_can_wc_memory(void)
 
 void drm_memcpy_init_early(void);
 
-void drm_memcpy_from_wc(struct dma_buf_map *dst,
-			const struct dma_buf_map *src,
+void drm_memcpy_from_wc(struct iosys_map *dst,
+			const struct iosys_map *src,
 			unsigned long len);
 #endif

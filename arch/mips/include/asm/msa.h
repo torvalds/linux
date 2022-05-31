@@ -162,16 +162,26 @@ static inline void init_msa_upper(void)
  * to allow compilation with toolchains that do not support MSA. Once all
  * toolchains in use support MSA these can be removed.
  */
-_ASM_MACRO_2R(cfcmsa, rd, cs,
-	_ASM_INSN_IF_MIPS(0x787e0019 | __cs << 11 | __rd << 6)
-	_ASM_INSN32_IF_MM(0x587e0016 | __cs << 11 | __rd << 6));
-_ASM_MACRO_2R(ctcmsa, cd, rs,
-	_ASM_INSN_IF_MIPS(0x783e0019 | __rs << 11 | __cd << 6)
-	_ASM_INSN32_IF_MM(0x583e0016 | __rs << 11 | __cd << 6));
-#define _ASM_SET_MSA ""
+
+#define _ASM_SET_CFCMSA							\
+	_ASM_MACRO_2R(cfcmsa, rd, cs,					\
+		      _ASM_INSN_IF_MIPS(0x787e0019 | __cs << 11 | __rd << 6)	\
+		      _ASM_INSN32_IF_MM(0x587e0016 | __cs << 11 | __rd << 6))
+#define _ASM_UNSET_CFCMSA ".purgem cfcmsa\n\t"
+#define _ASM_SET_CTCMSA							\
+	_ASM_MACRO_2R(ctcmsa, cd, rs,					\
+		      _ASM_INSN_IF_MIPS(0x783e0019 | __rs << 11 | __cd << 6)	\
+		      _ASM_INSN32_IF_MM(0x583e0016 | __rs << 11 | __cd << 6))
+#define _ASM_UNSET_CTCMSA ".purgem ctcmsa\n\t"
 #else /* TOOLCHAIN_SUPPORTS_MSA */
-#define _ASM_SET_MSA ".set\tfp=64\n\t"				\
-		     ".set\tmsa\n\t"
+#define _ASM_SET_CFCMSA						\
+		".set\tfp=64\n\t"				\
+		".set\tmsa\n\t"
+#define _ASM_UNSET_CFCMSA
+#define _ASM_SET_CTCMSA						\
+		".set\tfp=64\n\t"				\
+		".set\tmsa\n\t"
+#define _ASM_UNSET_CTCMSA
 #endif
 
 #define __BUILD_MSA_CTL_REG(name, cs)				\
@@ -180,8 +190,9 @@ static inline unsigned int read_msa_##name(void)		\
 	unsigned int reg;					\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
-	_ASM_SET_MSA						\
+	_ASM_SET_CFCMSA						\
 	"	cfcmsa	%0, $" #cs "\n"				\
+	_ASM_UNSET_CFCMSA					\
 	"	.set	pop\n"					\
 	: "=r"(reg));						\
 	return reg;						\
@@ -191,8 +202,9 @@ static inline void write_msa_##name(unsigned int val)		\
 {								\
 	__asm__ __volatile__(					\
 	"	.set	push\n"					\
-	_ASM_SET_MSA						\
+	_ASM_SET_CTCMSA						\
 	"	ctcmsa	$" #cs ", %0\n"				\
+	_ASM_UNSET_CTCMSA					\
 	"	.set	pop\n"					\
 	: : "r"(val));						\
 }

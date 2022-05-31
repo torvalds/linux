@@ -75,6 +75,12 @@ static const struct sfp_quirk sfp_quirks[] = {
 		.part = "MA5671A",
 		.modes = sfp_quirk_2500basex,
 	}, {
+		// Lantech 8330-262D-E can operate at 2500base-X, but
+		// incorrectly report 2500MBd NRZ in their EEPROM
+		.vendor = "Lantech",
+		.part = "8330-262D-E",
+		.modes = sfp_quirk_2500basex,
+	}, {
 		.vendor = "UBNT",
 		.part = "UF-INSTANT",
 		.modes = sfp_quirk_ubnt_uf_instant,
@@ -373,7 +379,7 @@ void sfp_parse_support(struct sfp_bus *bus, const struct sfp_eeprom_id *id,
 	if (bus->sfp_quirk)
 		bus->sfp_quirk->modes(id, modes);
 
-	bitmap_or(support, support, modes, __ETHTOOL_LINK_MODE_MASK_NBITS);
+	linkmode_or(support, support, modes);
 
 	phylink_set(support, Autoneg);
 	phylink_set(support, Pause);
@@ -650,6 +656,11 @@ struct sfp_bus *sfp_bus_find_fwnode(struct fwnode_handle *fwnode)
 		return NULL;
 	else if (ret < 0)
 		return ERR_PTR(ret);
+
+	if (!fwnode_device_is_available(ref.fwnode)) {
+		fwnode_handle_put(ref.fwnode);
+		return NULL;
+	}
 
 	bus = sfp_bus_get(ref.fwnode);
 	fwnode_handle_put(ref.fwnode);

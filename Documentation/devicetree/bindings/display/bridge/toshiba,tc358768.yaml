@@ -77,7 +77,10 @@ required:
   - vddio-supply
   - ports
 
-additionalProperties: false
+allOf:
+  - $ref: ../dsi-controller.yaml#
+
+unevaluatedProperties: false
 
 examples:
   - |
@@ -87,7 +90,7 @@ examples:
       #address-cells = <1>;
       #size-cells = <0>;
 
-      dsi_bridge: dsi-bridge@e {
+      dsi_bridge: dsi@e {
         compatible = "toshiba,tc358768";
         reg = <0xe>;
 

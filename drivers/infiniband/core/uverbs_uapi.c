@@ -447,6 +447,9 @@ static int uapi_finalize(struct uverbs_api *uapi)
 	uapi->num_write_ex = max_write_ex + 1;
 	data = kmalloc_array(uapi->num_write + uapi->num_write_ex,
 			     sizeof(*uapi->write_methods), GFP_KERNEL);
+	if (!data)
+		return -ENOMEM;
+
 	for (i = 0; i != uapi->num_write + uapi->num_write_ex; i++)
 		data[i] = &uapi->notsupp_method;
 	uapi->write_methods = data;

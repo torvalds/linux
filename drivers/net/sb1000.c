@@ -149,6 +149,7 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	unsigned short ioaddr[2], irq;
 	unsigned int serial_number;
 	int error = -ENODEV;
+	u8 addr[ETH_ALEN];
 
 	if (pnp_device_attach(pdev) < 0)
 		return -ENODEV;
@@ -203,10 +204,13 @@ sb1000_probe_one(struct pnp_dev *pdev, const struct pnp_device_id *id)
 	dev->netdev_ops	= &sb1000_netdev_ops;
 
 	/* hardware address is 0:0:serial_number */
-	dev->dev_addr[2]	= serial_number >> 24 & 0xff;
-	dev->dev_addr[3]	= serial_number >> 16 & 0xff;
-	dev->dev_addr[4]	= serial_number >>  8 & 0xff;
-	dev->dev_addr[5]	= serial_number >>  0 & 0xff;
+	addr[0] = 0;
+	addr[1] = 0;
+	addr[2]	= serial_number >> 24 & 0xff;
+	addr[3]	= serial_number >> 16 & 0xff;
+	addr[4]	= serial_number >>  8 & 0xff;
+	addr[5]	= serial_number >>  0 & 0xff;
+	eth_hw_addr_set(dev, addr);
 
 	pnp_set_drvdata(pdev, dev);
 
@@ -868,7 +872,7 @@ printk("cm0: IP identification: %02x%02x  fragment offset: %02x%02x\n", buffer[3
 
 	/* datagram completed: send to upper level */
 	skb_trim(skb, dlen);
-	netif_rx(skb);
+	__netif_rx(skb);
 	stats->rx_bytes+=dlen;
 	stats->rx_packets++;
 	lp->rx_skb[ns] = NULL;

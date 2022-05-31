@@ -31,11 +31,6 @@ char __initdata cmd_line[COMMAND_LINE_SIZE];
 
 int __initdata of_ioapic;
 
-void __init early_init_dt_scan_chosen_arch(unsigned long node)
-{
-	BUG();
-}
-
 void __init early_init_dt_add_memory_arch(u64 base, u64 size)
 {
 	BUG();
@@ -139,12 +134,11 @@ static void __init dtb_cpu_setup(void)
 {
 	struct device_node *dn;
 	u32 apic_id, version;
-	int ret;
 
 	version = GET_APIC_VERSION(apic_read(APIC_LVR));
 	for_each_of_cpu_node(dn) {
-		ret = of_property_read_u32(dn, "reg", &apic_id);
-		if (ret < 0) {
+		apic_id = of_get_cpu_hwid(dn, 0);
+		if (apic_id == ~0U) {
 			pr_warn("%pOF: missing local APIC ID\n", dn);
 			continue;
 		}

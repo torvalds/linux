@@ -142,10 +142,7 @@ static inline enum comp_state get_wqe(struct rxe_qp *qp,
 	/* we come here whether or not we found a response packet to see if
 	 * there are any posted WQEs
 	 */
-	if (qp->is_user)
-		wqe = queue_head(qp->sq.queue, QUEUE_TYPE_FROM_USER);
-	else
-		wqe = queue_head(qp->sq.queue, QUEUE_TYPE_KERNEL);
+	wqe = queue_head(qp->sq.queue, QUEUE_TYPE_FROM_CLIENT);
 	*wqe_p = wqe;
 
 	/* no WQE or requester has not started it yet */
@@ -383,30 +380,35 @@ static inline enum comp_state do_atomic(struct rxe_qp *qp,
 static void make_send_cqe(struct rxe_qp *qp, struct rxe_send_wqe *wqe,
 			  struct rxe_cqe *cqe)
 {
+	struct ib_wc *wc = &cqe->ibwc;
+	struct ib_uverbs_wc *uwc = &cqe->uibwc;
+
 	memset(cqe, 0, sizeof(*cqe));
 
 	if (!qp->is_user) {
-		struct ib_wc		*wc	= &cqe->ibwc;
-
-		wc->wr_id		= wqe->wr.wr_id;
-		wc->status		= wqe->status;
-		wc->opcode		= wr_to_wc_opcode(wqe->wr.opcode);
-		if (wqe->wr.opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
-		    wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-			wc->wc_flags = IB_WC_WITH_IMM;
-		wc->byte_len		= wqe->dma.length;
-		wc->qp			= &qp->ibqp;
+		wc->wr_id = wqe->wr.wr_id;
+		wc->status = wqe->status;
+		wc->qp = &qp->ibqp;
 	} else {
-		struct ib_uverbs_wc	*uwc	= &cqe->uibwc;
+		uwc->wr_id = wqe->wr.wr_id;
+		uwc->status = wqe->status;
+		uwc->qp_num = qp->ibqp.qp_num;
+	}
 
-		uwc->wr_id		= wqe->wr.wr_id;
-		uwc->status		= wqe->status;
-		uwc->opcode		= wr_to_wc_opcode(wqe->wr.opcode);
-		if (wqe->wr.opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
-		    wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
-			uwc->wc_flags = IB_WC_WITH_IMM;
-		uwc->byte_len		= wqe->dma.length;
-		uwc->qp_num		= qp->ibqp.qp_num;
+	if (wqe->status == IB_WC_SUCCESS) {
+		if (!qp->is_user) {
+			wc->opcode = wr_to_wc_opcode(wqe->wr.opcode);
+			if (wqe->wr.opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+			    wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
+				wc->wc_flags = IB_WC_WITH_IMM;
+			wc->byte_len = wqe->dma.length;
+		} else {
+			uwc->opcode = wr_to_wc_opcode(wqe->wr.opcode);
+			if (wqe->wr.opcode == IB_WR_RDMA_WRITE_WITH_IMM ||
+			    wqe->wr.opcode == IB_WR_SEND_WITH_IMM)
+				uwc->wc_flags = IB_WC_WITH_IMM;
+			uwc->byte_len = wqe->dma.length;
+		}
 	}
 }
 
@@ -432,10 +434,7 @@ static void do_complete(struct rxe_qp *qp, struct rxe_send_wqe *wqe)
 	if (post)
 		make_send_cqe(qp, wqe, &cqe);
 
-	if (qp->is_user)
-		advance_consumer(qp->sq.queue, QUEUE_TYPE_FROM_USER);
-	else
-		advance_consumer(qp->sq.queue, QUEUE_TYPE_KERNEL);
+	queue_advance_consumer(qp->sq.queue, QUEUE_TYPE_FROM_CLIENT);
 
 	if (post)
 		rxe_cq_post(qp->scq, &cqe, 0);
@@ -459,8 +458,6 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 					   struct rxe_pkt_info *pkt,
 					   struct rxe_send_wqe *wqe)
 {
-	unsigned long flags;
-
 	if (wqe->has_rd_atomic) {
 		wqe->has_rd_atomic = 0;
 		atomic_inc(&qp->req.rd_atomic);
@@ -473,11 +470,11 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 
 	if (unlikely(qp->req.state == QP_STATE_DRAIN)) {
 		/* state_lock used by requester & completer */
-		spin_lock_irqsave(&qp->state_lock, flags);
+		spin_lock_bh(&qp->state_lock);
 		if ((qp->req.state == QP_STATE_DRAIN) &&
 		    (qp->comp.psn == qp->req.psn)) {
 			qp->req.state = QP_STATE_DRAINED;
-			spin_unlock_irqrestore(&qp->state_lock, flags);
+			spin_unlock_bh(&qp->state_lock);
 
 			if (qp->ibqp.event_handler) {
 				struct ib_event ev;
@@ -489,7 +486,7 @@ static inline enum comp_state complete_ack(struct rxe_qp *qp,
 					qp->ibqp.qp_context);
 			}
 		} else {
-			spin_unlock_irqrestore(&qp->state_lock, flags);
+			spin_unlock_bh(&qp->state_lock);
 		}
 	}
 
@@ -529,7 +526,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 	struct rxe_queue *q = qp->sq.queue;
 
 	while ((skb = skb_dequeue(&qp->resp_pkts))) {
-		rxe_drop_ref(qp);
+		rxe_put(qp);
 		kfree_skb(skb);
 		ib_device_put(qp->ibqp.device);
 	}
@@ -539,7 +536,7 @@ static void rxe_drain_resp_pkts(struct rxe_qp *qp, bool notify)
 			wqe->status = IB_WC_WR_FLUSH_ERR;
 			do_complete(qp, wqe);
 		} else {
-			advance_consumer(q, q->type);
+			queue_advance_consumer(q, q->type);
 		}
 	}
 }
@@ -551,7 +548,7 @@ static void free_pkt(struct rxe_pkt_info *pkt)
 	struct ib_device *dev = qp->ibqp.device;
 
 	kfree_skb(skb);
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 	ib_device_put(dev);
 }
 
@@ -565,7 +562,7 @@ int rxe_completer(void *arg)
 	enum comp_state state;
 	int ret = 0;
 
-	rxe_add_ref(qp);
+	rxe_get(qp);
 
 	if (!qp->valid || qp->req.state == QP_STATE_ERROR ||
 	    qp->req.state == QP_STATE_RESET) {
@@ -764,7 +761,7 @@ int rxe_completer(void *arg)
 done:
 	if (pkt)
 		free_pkt(pkt);
-	rxe_drop_ref(qp);
+	rxe_put(qp);
 
 	return ret;
 }

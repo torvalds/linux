@@ -42,10 +42,15 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/flag
       frame-master:
         description: Indicates dai-link frame master.
-        $ref: /schemas/types.yaml#/definitions/phandle
+        oneOf:
+          - $ref: /schemas/types.yaml#/definitions/flag
+          - $ref: /schemas/types.yaml#/definitions/phandle
       bitclock-master:
         description: Indicates dai-link bit clock master
-        $ref: /schemas/types.yaml#/definitions/phandle
+        oneOf:
+          - $ref: /schemas/types.yaml#/definitions/flag
+          - $ref: /schemas/types.yaml#/definitions/phandle
+
       dai-format:
         description: audio format.
         items:
@@ -65,5 +70,25 @@ patternProperties:
       convert-channels:
         description: CPU to Codec rate channels.
         $ref: /schemas/types.yaml#/definitions/uint32
+
+      dai-tdm-slot-width-map:
+        description: Mapping of sample widths to slot widths. For hardware
+          that cannot support a fixed slot width or a slot width always
+          equal to sample width. A matrix of one or more 3-tuples.
+        $ref: /schemas/types.yaml#/definitions/uint32-matrix
+        items:
+          items:
+            -
+              description: Sample width in bits
+              minimum: 8
+              maximum: 64
+            -
+              description: Slot width in bits
+              minimum: 8
+              maximum: 256
+            -
+              description: Slot count
+              minimum: 1
+              maximum: 64
 
 additionalProperties: true

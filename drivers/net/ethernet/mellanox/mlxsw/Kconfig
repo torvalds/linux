@@ -66,7 +66,7 @@ config MLXSW_SPECTRUM
 	default m
 	help
 	  This driver supports Mellanox Technologies
-	  Spectrum/Spectrum-2/Spectrum-3 Ethernet Switch ASICs.
+	  Spectrum/Spectrum-2/Spectrum-3/Spectrum-4 Ethernet Switch ASICs.
 
 	  To compile this driver as a module, choose M here: the
 	  module will be called mlxsw_spectrum.

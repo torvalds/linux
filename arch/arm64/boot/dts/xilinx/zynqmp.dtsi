@@ -2,7 +2,7 @@
 /*
  * dts file for Xilinx ZynqMP
  *
- * (C) Copyright 2014 - 2019, Xilinx, Inc.
+ * (C) Copyright 2014 - 2021, Xilinx, Inc.
  *
  * Michal Simek <michal.simek@xilinx.com>
  *
@@ -156,21 +156,6 @@
 				mbox-names = "tx", "rx";
 			};
 
-			zynqmp_clk: clock-controller {
-				#clock-cells = <1>;
-				compatible = "xlnx,zynqmp-clk";
-				clocks = <&pss_ref_clk>,
-					 <&video_clk>,
-					 <&pss_alt_ref_clk>,
-					 <&aux_ref_clk>,
-					 <&gt_crx_ref_clk>;
-				clock-names = "pss_ref_clk",
-					      "video_clk",
-					      "pss_alt_ref_clk",
-					      "aux_ref_clk",
-					      "gt_crx_ref_clk";
-			};
-
 			nvmem_firmware {
 				compatible = "xlnx,zynqmp-nvmem-fw";
 				#address-cells = <1>;
@@ -192,6 +177,11 @@
 			zynqmp_reset: reset-controller {
 				compatible = "xlnx,zynqmp-reset";
 				#reset-cells = <1>;
+			};
+
+			pinctrl0: pinctrl {
+				compatible = "xlnx,zynqmp-pinctrl";
+				status = "disabled";
 			};
 		};
 	};
@@ -245,6 +235,7 @@
 
 		cci: cci@fd6e0000 {
 			compatible = "arm,cci-400";
+			status = "disabled";
 			reg = <0x0 0xfd6e0000 0x0 0x9000>;
 			ranges = <0x0 0x0 0xfd6e0000 0x10000>;
 			#address-cells = <1>;
@@ -263,106 +254,106 @@
 		};
 
 		/* GDMA */
-		fpd_dma_chan1: dma@fd500000 {
+		fpd_dma_chan1: dma-controller@fd500000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd500000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 124 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14e8>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan2: dma@fd510000 {
+		fpd_dma_chan2: dma-controller@fd510000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd510000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 125 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14e9>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan3: dma@fd520000 {
+		fpd_dma_chan3: dma-controller@fd520000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd520000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 126 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14ea>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan4: dma@fd530000 {
+		fpd_dma_chan4: dma-controller@fd530000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd530000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 127 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14eb>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan5: dma@fd540000 {
+		fpd_dma_chan5: dma-controller@fd540000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd540000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 128 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14ec>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan6: dma@fd550000 {
+		fpd_dma_chan6: dma-controller@fd550000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd550000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 129 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14ed>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan7: dma@fd560000 {
+		fpd_dma_chan7: dma-controller@fd560000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd560000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 130 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14ee>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
 
-		fpd_dma_chan8: dma@fd570000 {
+		fpd_dma_chan8: dma-controller@fd570000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xfd570000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 131 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <128>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x14ef>;
 			power-domains = <&zynqmp_firmware PD_GDMA>;
 		};
@@ -384,106 +375,106 @@
 		 * These dma channels, Users should ensure that these dma
 		 * Channels are allowed for non secure access.
 		 */
-		lpd_dma_chan1: dma@ffa80000 {
+		lpd_dma_chan1: dma-controller@ffa80000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffa80000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 77 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x868>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan2: dma@ffa90000 {
+		lpd_dma_chan2: dma-controller@ffa90000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffa90000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 78 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x869>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan3: dma@ffaa0000 {
+		lpd_dma_chan3: dma-controller@ffaa0000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffaa0000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 79 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x86a>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan4: dma@ffab0000 {
+		lpd_dma_chan4: dma-controller@ffab0000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffab0000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 80 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x86b>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan5: dma@ffac0000 {
+		lpd_dma_chan5: dma-controller@ffac0000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffac0000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 81 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x86c>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan6: dma@ffad0000 {
+		lpd_dma_chan6: dma-controller@ffad0000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffad0000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 82 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x86d>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan7: dma@ffae0000 {
+		lpd_dma_chan7: dma-controller@ffae0000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffae0000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 83 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x86e>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
 
-		lpd_dma_chan8: dma@ffaf0000 {
+		lpd_dma_chan8: dma-controller@ffaf0000 {
 			status = "disabled";
 			compatible = "xlnx,zynqmp-dma-1.0";
 			reg = <0x0 0xffaf0000 0x0 0x1000>;
 			interrupt-parent = <&gic>;
 			interrupts = <0 84 4>;
 			clock-names = "clk_main", "clk_apb";
+			#dma-cells = <1>;
 			xlnx,bus-width = <64>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x86f>;
 			power-domains = <&zynqmp_firmware PD_ADMA>;
 		};
@@ -504,7 +495,6 @@
 			interrupts = <0 14 4>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x872>;
 			power-domains = <&zynqmp_firmware PD_NAND>;
 		};
@@ -518,9 +508,10 @@
 			clock-names = "pclk", "hclk", "tx_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x874>;
 			power-domains = <&zynqmp_firmware PD_ETH_0>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_GEM0>;
+			reset-names = "gem0_rst";
 		};
 
 		gem1: ethernet@ff0c0000 {
@@ -532,9 +523,10 @@
 			clock-names = "pclk", "hclk", "tx_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x875>;
 			power-domains = <&zynqmp_firmware PD_ETH_1>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_GEM1>;
+			reset-names = "gem1_rst";
 		};
 
 		gem2: ethernet@ff0d0000 {
@@ -546,9 +538,10 @@
 			clock-names = "pclk", "hclk", "tx_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x876>;
 			power-domains = <&zynqmp_firmware PD_ETH_2>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_GEM2>;
+			reset-names = "gem2_rst";
 		};
 
 		gem3: ethernet@ff0e0000 {
@@ -560,9 +553,10 @@
 			clock-names = "pclk", "hclk", "tx_clk";
 			#address-cells = <1>;
 			#size-cells = <0>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x877>;
 			power-domains = <&zynqmp_firmware PD_ETH_3>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_GEM3>;
+			reset-names = "gem3_rst";
 		};
 
 		gpio: gpio@ff0a0000 {
@@ -630,6 +624,7 @@
 					<0x0 0x0 0x0 0x2 &pcie_intc 0x2>,
 					<0x0 0x0 0x0 0x3 &pcie_intc 0x3>,
 					<0x0 0x0 0x0 0x4 &pcie_intc 0x4>;
+			iommus = <&smmu 0x4d0>;
 			power-domains = <&zynqmp_firmware PD_PCIE>;
 			pcie_intc: legacy-interrupt-controller {
 				interrupt-controller;
@@ -649,7 +644,6 @@
 			      <0x0 0xc0000000 0x0 0x8000000>;
 			#address-cells = <1>;
 			#size-cells = <0>;
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x873>;
 			power-domains = <&zynqmp_firmware PD_QSPI>;
 		};
@@ -670,7 +664,7 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 26 4>, <0 27 4>;
 			interrupt-names = "alarm", "sec";
-			calibration = <0x8000>;
+			calibration = <0x7FFF>;
 		};
 
 		sata: ahci@fd0c0000 {
@@ -680,7 +674,7 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 133 4>;
 			power-domains = <&zynqmp_firmware PD_SATA>;
-			#stream-id-cells = <4>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_SATA>;
 			iommus = <&smmu 0x4c0>, <&smmu 0x4c1>,
 				 <&smmu 0x4c2>, <&smmu 0x4c3>;
 		};
@@ -692,7 +686,6 @@
 			interrupts = <0 48 4>;
 			reg = <0x0 0xff160000 0x0 0x1000>;
 			clock-names = "clk_xin", "clk_ahb";
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x870>;
 			#clock-cells = <1>;
 			clock-output-names = "clk_out_sd0", "clk_in_sd0";
@@ -706,7 +699,6 @@
 			interrupts = <0 49 4>;
 			reg = <0x0 0xff170000 0x0 0x1000>;
 			clock-names = "clk_xin", "clk_ahb";
-			#stream-id-cells = <1>;
 			iommus = <&smmu 0x871>;
 			#clock-cells = <1>;
 			clock-output-names = "clk_out_sd1", "clk_in_sd1";
@@ -792,7 +784,7 @@
 		};
 
 		uart0: serial@ff000000 {
-			compatible = "cdns,uart-r1p12", "xlnx,xuartps";
+			compatible = "xlnx,zynqmp-uart", "cdns,uart-r1p12";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 21 4>;
@@ -802,7 +794,7 @@
 		};
 
 		uart1: serial@ff010000 {
-			compatible = "cdns,uart-r1p12", "xlnx,xuartps";
+			compatible = "xlnx,zynqmp-uart", "cdns,uart-r1p12";
 			status = "disabled";
 			interrupt-parent = <&gic>;
 			interrupts = <0 22 4>;
@@ -811,24 +803,56 @@
 			power-domains = <&zynqmp_firmware PD_UART_1>;
 		};
 
-		usb0: usb@fe200000 {
-			compatible = "snps,dwc3";
+		usb0: usb@ff9d0000 {
+			#address-cells = <2>;
+			#size-cells = <2>;
 			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 65 4>;
-			reg = <0x0 0xfe200000 0x0 0x40000>;
-			clock-names = "clk_xin", "clk_ahb";
+			compatible = "xlnx,zynqmp-dwc3";
+			reg = <0x0 0xff9d0000 0x0 0x100>;
 			power-domains = <&zynqmp_firmware PD_USB_0>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_USB0_CORERESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB0_HIBERRESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB0_APB>;
+			reset-names = "usb_crst", "usb_hibrst", "usb_apbrst";
+			ranges;
+
+			dwc3_0: usb@fe200000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xfe200000 0x0 0x40000>;
+				interrupt-parent = <&gic>;
+				interrupt-names = "dwc_usb3", "otg";
+				interrupts = <0 65 4>, <0 69 4>;
+				clock-names = "bus_early", "ref";
+				iommus = <&smmu 0x860>;
+				snps,quirk-frame-length-adjustment = <0x20>;
+				/* dma-coherent; */
+			};
 		};
 
-		usb1: usb@fe300000 {
-			compatible = "snps,dwc3";
+		usb1: usb@ff9e0000 {
+			#address-cells = <2>;
+			#size-cells = <2>;
 			status = "disabled";
-			interrupt-parent = <&gic>;
-			interrupts = <0 70 4>;
-			reg = <0x0 0xfe300000 0x0 0x40000>;
-			clock-names = "clk_xin", "clk_ahb";
+			compatible = "xlnx,zynqmp-dwc3";
+			reg = <0x0 0xff9e0000 0x0 0x100>;
 			power-domains = <&zynqmp_firmware PD_USB_1>;
+			resets = <&zynqmp_reset ZYNQMP_RESET_USB1_CORERESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB1_HIBERRESET>,
+				 <&zynqmp_reset ZYNQMP_RESET_USB1_APB>;
+			reset-names = "usb_crst", "usb_hibrst", "usb_apbrst";
+			ranges;
+
+			dwc3_1: usb@fe300000 {
+				compatible = "snps,dwc3";
+				reg = <0x0 0xfe300000 0x0 0x40000>;
+				interrupt-parent = <&gic>;
+				interrupt-names = "dwc_usb3", "otg";
+				interrupts = <0 70 4>, <0 74 4>;
+				clock-names = "bus_early", "ref";
+				iommus = <&smmu 0x861>;
+				snps,quirk-frame-length-adjustment = <0x20>;
+				/* dma-coherent; */
+			};
 		};
 
 		watchdog0: watchdog@fd4d0000 {
@@ -837,7 +861,8 @@
 			interrupt-parent = <&gic>;
 			interrupts = <0 113 1>;
 			reg = <0x0 0xfd4d0000 0x0 0x1000>;
-			timeout-sec = <10>;
+			timeout-sec = <60>;
+			reset-on-timeout;
 		};
 
 		lpd_watchdog: watchdog@ff150000 {

@@ -57,9 +57,11 @@ static const u16 mstpsr[] = {
 	0x9A0, 0x9A4, 0x9A8, 0x9AC,
 };
 
-static const u16 mstpsr_for_v3u[] = {
+static const u16 mstpsr_for_gen4[] = {
 	0x2E00, 0x2E04, 0x2E08, 0x2E0C, 0x2E10, 0x2E14, 0x2E18, 0x2E1C,
-	0x2E20, 0x2E24, 0x2E28, 0x2E2C, 0x2E30, 0x2E34, 0x2E38,
+	0x2E20, 0x2E24, 0x2E28, 0x2E2C, 0x2E30, 0x2E34, 0x2E38, 0x2E3C,
+	0x2E40, 0x2E44, 0x2E48, 0x2E4C, 0x2E50, 0x2E54, 0x2E58, 0x2E5C,
+	0x2E60, 0x2E64, 0x2E68, 0x2E6C,
 };
 
 /*
@@ -71,9 +73,11 @@ static const u16 smstpcr[] = {
 	0x990, 0x994, 0x998, 0x99C,
 };
 
-static const u16 mstpcr_for_v3u[] = {
+static const u16 mstpcr_for_gen4[] = {
 	0x2D00, 0x2D04, 0x2D08, 0x2D0C, 0x2D10, 0x2D14, 0x2D18, 0x2D1C,
-	0x2D20, 0x2D24, 0x2D28, 0x2D2C, 0x2D30, 0x2D34, 0x2D38,
+	0x2D20, 0x2D24, 0x2D28, 0x2D2C, 0x2D30, 0x2D34, 0x2D38, 0x2D3C,
+	0x2D40, 0x2D44, 0x2D48, 0x2D4C, 0x2D50, 0x2D54, 0x2D58, 0x2D5C,
+	0x2D60, 0x2D64, 0x2D68, 0x2D6C,
 };
 
 /*
@@ -95,9 +99,11 @@ static const u16 srcr[] = {
 	0x920, 0x924, 0x928, 0x92C,
 };
 
-static const u16 srcr_for_v3u[] = {
+static const u16 srcr_for_gen4[] = {
 	0x2C00, 0x2C04, 0x2C08, 0x2C0C, 0x2C10, 0x2C14, 0x2C18, 0x2C1C,
-	0x2C20, 0x2C24, 0x2C28, 0x2C2C, 0x2C30, 0x2C34, 0x2C38,
+	0x2C20, 0x2C24, 0x2C28, 0x2C2C, 0x2C30, 0x2C34, 0x2C38, 0x2C3C,
+	0x2C40, 0x2C44, 0x2C48, 0x2C4C, 0x2C50, 0x2C54, 0x2C58, 0x2C5C,
+	0x2C60, 0x2C64, 0x2C68, 0x2C6C,
 };
 
 /*
@@ -109,9 +115,11 @@ static const u16 srstclr[] = {
 	0x960, 0x964, 0x968, 0x96C,
 };
 
-static const u16 srstclr_for_v3u[] = {
+static const u16 srstclr_for_gen4[] = {
 	0x2C80, 0x2C84, 0x2C88, 0x2C8C, 0x2C90, 0x2C94, 0x2C98, 0x2C9C,
-	0x2CA0, 0x2CA4, 0x2CA8, 0x2CAC, 0x2CB0, 0x2CB4, 0x2CB8,
+	0x2CA0, 0x2CA4, 0x2CA8, 0x2CAC, 0x2CB0, 0x2CB4, 0x2CB8, 0x2CBC,
+	0x2CC0, 0x2CC4, 0x2CC8, 0x2CCC, 0x2CD0, 0x2CD4, 0x2CD8, 0x2CDC,
+	0x2CE0, 0x2CE4, 0x2CE8, 0x2CEC,
 };
 
 /**
@@ -158,7 +166,7 @@ struct cpg_mssr_priv {
 	struct {
 		u32 mask;
 		u32 val;
-	} smstpcr_saved[ARRAY_SIZE(mstpsr_for_v3u)];
+	} smstpcr_saved[ARRAY_SIZE(mstpsr_for_gen4)];
 
 	struct clk *clks[];
 };
@@ -552,6 +560,11 @@ void cpg_mssr_detach_dev(struct generic_pm_domain *unused, struct device *dev)
 		pm_clk_destroy(dev);
 }
 
+static void cpg_mssr_genpd_remove(void *data)
+{
+	pm_genpd_remove(data);
+}
+
 static int __init cpg_mssr_add_clk_domain(struct device *dev,
 					  const unsigned int *core_pm_clks,
 					  unsigned int num_core_pm_clks)
@@ -560,6 +573,7 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 	struct generic_pm_domain *genpd;
 	struct cpg_mssr_clk_domain *pd;
 	size_t pm_size = num_core_pm_clks * sizeof(core_pm_clks[0]);
+	int ret;
 
 	pd = devm_kzalloc(dev, sizeof(*pd) + pm_size, GFP_KERNEL);
 	if (!pd)
@@ -574,11 +588,17 @@ static int __init cpg_mssr_add_clk_domain(struct device *dev,
 		       GENPD_FLAG_ACTIVE_WAKEUP;
 	genpd->attach_dev = cpg_mssr_attach_dev;
 	genpd->detach_dev = cpg_mssr_detach_dev;
-	pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	ret = pm_genpd_init(genpd, &pm_domain_always_on_gov, false);
+	if (ret)
+		return ret;
+
+	ret = devm_add_action_or_reset(dev, cpg_mssr_genpd_remove, genpd);
+	if (ret)
+		return ret;
+
 	cpg_mssr_clk_domain = pd;
 
-	of_genpd_add_provider_simple(np, genpd);
-	return 0;
+	return of_genpd_add_provider_simple(np, genpd);
 }
 
 #ifdef CONFIG_RESET_CONTROLLER
@@ -828,6 +848,12 @@ static const struct of_device_id cpg_mssr_match[] = {
 		.data = &r8a779a0_cpg_mssr_info,
 	},
 #endif
+#ifdef CONFIG_CLK_R8A779F0
+	{
+		.compatible = "renesas,r8a779f0-cpg-mssr",
+		.data = &r8a779f0_cpg_mssr_info,
+	},
+#endif
 	{ /* sentinel */ }
 };
 
@@ -970,11 +996,11 @@ static int __init cpg_mssr_common_init(struct device *dev,
 		priv->reset_clear_regs = srstclr;
 	} else if (priv->reg_layout == CLK_REG_LAYOUT_RZ_A) {
 		priv->control_regs = stbcr;
-	} else if (priv->reg_layout == CLK_REG_LAYOUT_RCAR_V3U) {
-		priv->status_regs = mstpsr_for_v3u;
-		priv->control_regs = mstpcr_for_v3u;
-		priv->reset_regs = srcr_for_v3u;
-		priv->reset_clear_regs = srstclr_for_v3u;
+	} else if (priv->reg_layout == CLK_REG_LAYOUT_RCAR_GEN4) {
+		priv->status_regs = mstpsr_for_gen4;
+		priv->control_regs = mstpcr_for_gen4;
+		priv->reset_regs = srcr_for_gen4;
+		priv->reset_clear_regs = srstclr_for_gen4;
 	} else {
 		error = -EINVAL;
 		goto out_err;

@@ -92,6 +92,10 @@ static int g_submit_queues = 1;
 module_param_named(submit_queues, g_submit_queues, int, 0444);
 MODULE_PARM_DESC(submit_queues, "Number of submission queues");
 
+static int g_poll_queues = 1;
+module_param_named(poll_queues, g_poll_queues, int, 0444);
+MODULE_PARM_DESC(poll_queues, "Number of IOPOLL submission queues");
+
 static int g_home_node = NUMA_NO_NODE;
 module_param_named(home_node, g_home_node, int, 0444);
 MODULE_PARM_DESC(home_node, "Home node for the device");
@@ -324,29 +328,69 @@ nullb_device_##NAME##_store(struct config_item *item, const char *page,	\
 }									\
 CONFIGFS_ATTR(nullb_device_, NAME);
 
-static int nullb_apply_submit_queues(struct nullb_device *dev,
-				     unsigned int submit_queues)
-{
-	struct nullb *nullb = dev->nullb;
-	struct blk_mq_tag_set *set;
+static int nullb_update_nr_hw_queues(struct nullb_device *dev,
+				     unsigned int submit_queues,
+				     unsigned int poll_queues)
 
-	if (!nullb)
+{
+	struct blk_mq_tag_set *set;
+	int ret, nr_hw_queues;
+
+	if (!dev->nullb)
 		return 0;
+
+	/*
+	 * Make sure at least one submit queue exists.
+	 */
+	if (!submit_queues)
+		return -EINVAL;
 
 	/*
 	 * Make sure that null_init_hctx() does not access nullb->queues[] past
 	 * the end of that array.
 	 */
-	if (submit_queues > nr_cpu_ids)
+	if (submit_queues > nr_cpu_ids || poll_queues > g_poll_queues)
 		return -EINVAL;
-	set = nullb->tag_set;
-	blk_mq_update_nr_hw_queues(set, submit_queues);
-	return set->nr_hw_queues == submit_queues ? 0 : -ENOMEM;
+
+	/*
+	 * Keep previous and new queue numbers in nullb_device for reference in
+	 * the call back function null_map_queues().
+	 */
+	dev->prev_submit_queues = dev->submit_queues;
+	dev->prev_poll_queues = dev->poll_queues;
+	dev->submit_queues = submit_queues;
+	dev->poll_queues = poll_queues;
+
+	set = dev->nullb->tag_set;
+	nr_hw_queues = submit_queues + poll_queues;
+	blk_mq_update_nr_hw_queues(set, nr_hw_queues);
+	ret = set->nr_hw_queues == nr_hw_queues ? 0 : -ENOMEM;
+
+	if (ret) {
+		/* on error, revert the queue numbers */
+		dev->submit_queues = dev->prev_submit_queues;
+		dev->poll_queues = dev->prev_poll_queues;
+	}
+
+	return ret;
+}
+
+static int nullb_apply_submit_queues(struct nullb_device *dev,
+				     unsigned int submit_queues)
+{
+	return nullb_update_nr_hw_queues(dev, submit_queues, dev->poll_queues);
+}
+
+static int nullb_apply_poll_queues(struct nullb_device *dev,
+				   unsigned int poll_queues)
+{
+	return nullb_update_nr_hw_queues(dev, dev->submit_queues, poll_queues);
 }
 
 NULLB_DEVICE_ATTR(size, ulong, NULL);
 NULLB_DEVICE_ATTR(completion_nsec, ulong, NULL);
 NULLB_DEVICE_ATTR(submit_queues, uint, nullb_apply_submit_queues);
+NULLB_DEVICE_ATTR(poll_queues, uint, nullb_apply_poll_queues);
 NULLB_DEVICE_ATTR(home_node, uint, NULL);
 NULLB_DEVICE_ATTR(queue_mode, uint, NULL);
 NULLB_DEVICE_ATTR(blocksize, uint, NULL);
@@ -387,9 +431,10 @@ static ssize_t nullb_device_power_store(struct config_item *item,
 	if (!dev->power && newp) {
 		if (test_and_set_bit(NULLB_DEV_FL_UP, &dev->flags))
 			return count;
-		if (null_add_dev(dev)) {
+		ret = null_add_dev(dev);
+		if (ret) {
 			clear_bit(NULLB_DEV_FL_UP, &dev->flags);
-			return -ENOMEM;
+			return ret;
 		}
 
 		set_bit(NULLB_DEV_FL_CONFIGURED, &dev->flags);
@@ -466,6 +511,7 @@ static struct configfs_attribute *nullb_device_attrs[] = {
 	&nullb_device_attr_size,
 	&nullb_device_attr_completion_nsec,
 	&nullb_device_attr_submit_queues,
+	&nullb_device_attr_poll_queues,
 	&nullb_device_attr_home_node,
 	&nullb_device_attr_queue_mode,
 	&nullb_device_attr_blocksize,
@@ -593,6 +639,9 @@ static struct nullb_device *null_alloc_dev(void)
 	dev->size = g_gb * 1024;
 	dev->completion_nsec = g_completion_nsec;
 	dev->submit_queues = g_submit_queues;
+	dev->prev_submit_queues = g_submit_queues;
+	dev->poll_queues = g_poll_queues;
+	dev->prev_poll_queues = g_poll_queues;
 	dev->home_node = g_home_node;
 	dev->queue_mode = g_queue_mode;
 	dev->blocksize = g_bs;
@@ -671,26 +720,25 @@ static struct nullb_cmd *__alloc_cmd(struct nullb_queue *nq)
 	return NULL;
 }
 
-static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, int can_wait)
+static struct nullb_cmd *alloc_cmd(struct nullb_queue *nq, struct bio *bio)
 {
 	struct nullb_cmd *cmd;
 	DEFINE_WAIT(wait);
 
-	cmd = __alloc_cmd(nq);
-	if (cmd || !can_wait)
-		return cmd;
-
 	do {
-		prepare_to_wait(&nq->wait, &wait, TASK_UNINTERRUPTIBLE);
+		/*
+		 * This avoids multiple return statements, multiple calls to
+		 * __alloc_cmd() and a fast path call to prepare_to_wait().
+		 */
 		cmd = __alloc_cmd(nq);
-		if (cmd)
-			break;
-
+		if (cmd) {
+			cmd->bio = bio;
+			return cmd;
+		}
+		prepare_to_wait(&nq->wait, &wait, TASK_UNINTERRUPTIBLE);
 		io_schedule();
+		finish_wait(&nq->wait, &wait);
 	} while (1);
-
-	finish_wait(&nq->wait, &wait);
-	return cmd;
 }
 
 static void end_cmd(struct nullb_cmd *cmd)
@@ -729,24 +777,22 @@ static void null_complete_rq(struct request *rq)
 	end_cmd(blk_mq_rq_to_pdu(rq));
 }
 
-static struct nullb_page *null_alloc_page(gfp_t gfp_flags)
+static struct nullb_page *null_alloc_page(void)
 {
 	struct nullb_page *t_page;
 
-	t_page = kmalloc(sizeof(struct nullb_page), gfp_flags);
+	t_page = kmalloc(sizeof(struct nullb_page), GFP_NOIO);
 	if (!t_page)
-		goto out;
+		return NULL;
 
-	t_page->page = alloc_pages(gfp_flags, 0);
-	if (!t_page->page)
-		goto out_freepage;
+	t_page->page = alloc_pages(GFP_NOIO, 0);
+	if (!t_page->page) {
+		kfree(t_page);
+		return NULL;
+	}
 
 	memset(t_page->bitmap, 0, sizeof(t_page->bitmap));
 	return t_page;
-out_freepage:
-	kfree(t_page);
-out:
-	return NULL;
 }
 
 static void null_free_page(struct nullb_page *t_page)
@@ -884,7 +930,7 @@ static struct nullb_page *null_insert_page(struct nullb *nullb,
 
 	spin_unlock_irq(&nullb->lock);
 
-	t_page = null_alloc_page(GFP_NOIO);
+	t_page = null_alloc_page();
 	if (!t_page)
 		goto out_lock;
 
@@ -1422,19 +1468,14 @@ static struct nullb_queue *nullb_to_queue(struct nullb *nullb)
 	return &nullb->queues[index];
 }
 
-static blk_qc_t null_submit_bio(struct bio *bio)
+static void null_submit_bio(struct bio *bio)
 {
 	sector_t sector = bio->bi_iter.bi_sector;
 	sector_t nr_sectors = bio_sectors(bio);
 	struct nullb *nullb = bio->bi_bdev->bd_disk->private_data;
 	struct nullb_queue *nq = nullb_to_queue(nullb);
-	struct nullb_cmd *cmd;
 
-	cmd = alloc_cmd(nq, 1);
-	cmd->bio = bio;
-
-	null_handle_cmd(cmd, sector, nr_sectors, bio_op(bio));
-	return BLK_QC_T_NONE;
+	null_handle_cmd(alloc_cmd(nq, bio), sector, nr_sectors, bio_op(bio));
 }
 
 static bool should_timeout_request(struct request *rq)
@@ -1455,11 +1496,101 @@ static bool should_requeue_request(struct request *rq)
 	return false;
 }
 
+static int null_map_queues(struct blk_mq_tag_set *set)
+{
+	struct nullb *nullb = set->driver_data;
+	int i, qoff;
+	unsigned int submit_queues = g_submit_queues;
+	unsigned int poll_queues = g_poll_queues;
+
+	if (nullb) {
+		struct nullb_device *dev = nullb->dev;
+
+		/*
+		 * Refer nr_hw_queues of the tag set to check if the expected
+		 * number of hardware queues are prepared. If block layer failed
+		 * to prepare them, use previous numbers of submit queues and
+		 * poll queues to map queues.
+		 */
+		if (set->nr_hw_queues ==
+		    dev->submit_queues + dev->poll_queues) {
+			submit_queues = dev->submit_queues;
+			poll_queues = dev->poll_queues;
+		} else if (set->nr_hw_queues ==
+			   dev->prev_submit_queues + dev->prev_poll_queues) {
+			submit_queues = dev->prev_submit_queues;
+			poll_queues = dev->prev_poll_queues;
+		} else {
+			pr_warn("tag set has unexpected nr_hw_queues: %d\n",
+				set->nr_hw_queues);
+			return -EINVAL;
+		}
+	}
+
+	for (i = 0, qoff = 0; i < set->nr_maps; i++) {
+		struct blk_mq_queue_map *map = &set->map[i];
+
+		switch (i) {
+		case HCTX_TYPE_DEFAULT:
+			map->nr_queues = submit_queues;
+			break;
+		case HCTX_TYPE_READ:
+			map->nr_queues = 0;
+			continue;
+		case HCTX_TYPE_POLL:
+			map->nr_queues = poll_queues;
+			break;
+		}
+		map->queue_offset = qoff;
+		qoff += map->nr_queues;
+		blk_mq_map_queues(map);
+	}
+
+	return 0;
+}
+
+static int null_poll(struct blk_mq_hw_ctx *hctx, struct io_comp_batch *iob)
+{
+	struct nullb_queue *nq = hctx->driver_data;
+	LIST_HEAD(list);
+	int nr = 0;
+
+	spin_lock(&nq->poll_lock);
+	list_splice_init(&nq->poll_list, &list);
+	spin_unlock(&nq->poll_lock);
+
+	while (!list_empty(&list)) {
+		struct nullb_cmd *cmd;
+		struct request *req;
+
+		req = list_first_entry(&list, struct request, queuelist);
+		list_del_init(&req->queuelist);
+		cmd = blk_mq_rq_to_pdu(req);
+		cmd->error = null_process_cmd(cmd, req_op(req), blk_rq_pos(req),
+						blk_rq_sectors(req));
+		if (!blk_mq_add_to_batch(req, iob, (__force int) cmd->error,
+					blk_mq_end_request_batch))
+			end_cmd(cmd);
+		nr++;
+	}
+
+	return nr;
+}
+
 static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 {
+	struct blk_mq_hw_ctx *hctx = rq->mq_hctx;
 	struct nullb_cmd *cmd = blk_mq_rq_to_pdu(rq);
 
 	pr_info("rq %p timed out\n", rq);
+
+	if (hctx->type == HCTX_TYPE_POLL) {
+		struct nullb_queue *nq = hctx->driver_data;
+
+		spin_lock(&nq->poll_lock);
+		list_del_init(&rq->queuelist);
+		spin_unlock(&nq->poll_lock);
+	}
 
 	/*
 	 * If the device is marked as blocking (i.e. memory backed or zoned
@@ -1469,7 +1600,7 @@ static enum blk_eh_timer_return null_timeout_rq(struct request *rq, bool res)
 	 * Only fake timeouts need to execute blk_mq_complete_request() here.
 	 */
 	cmd->error = BLK_STS_TIMEOUT;
-	if (cmd->fake_timeout)
+	if (cmd->fake_timeout || hctx->type == HCTX_TYPE_POLL)
 		blk_mq_complete_request(rq);
 	return BLK_EH_DONE;
 }
@@ -1481,10 +1612,11 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 	struct nullb_queue *nq = hctx->driver_data;
 	sector_t nr_sectors = blk_rq_sectors(bd->rq);
 	sector_t sector = blk_rq_pos(bd->rq);
+	const bool is_poll = hctx->type == HCTX_TYPE_POLL;
 
 	might_sleep_if(hctx->flags & BLK_MQ_F_BLOCKING);
 
-	if (nq->dev->irqmode == NULL_IRQ_TIMER) {
+	if (!is_poll && nq->dev->irqmode == NULL_IRQ_TIMER) {
 		hrtimer_init(&cmd->timer, CLOCK_MONOTONIC, HRTIMER_MODE_REL);
 		cmd->timer.function = null_cmd_timer_expired;
 	}
@@ -1507,6 +1639,13 @@ static blk_status_t null_queue_rq(struct blk_mq_hw_ctx *hctx,
 			blk_mq_requeue_request(bd->rq, true);
 			return BLK_STS_OK;
 		}
+	}
+
+	if (is_poll) {
+		spin_lock(&nq->poll_lock);
+		list_add_tail(&bd->rq->queuelist, &nq->poll_list);
+		spin_unlock(&nq->poll_lock);
+		return BLK_STS_OK;
 	}
 	if (cmd->fake_timeout)
 		return BLK_STS_OK;
@@ -1543,6 +1682,8 @@ static void null_init_queue(struct nullb *nullb, struct nullb_queue *nq)
 	init_waitqueue_head(&nq->wait);
 	nq->queue_depth = nullb->queue_depth;
 	nq->dev = nullb->dev;
+	INIT_LIST_HEAD(&nq->poll_list);
+	spin_lock_init(&nq->poll_lock);
 }
 
 static int null_init_hctx(struct blk_mq_hw_ctx *hctx, void *driver_data,
@@ -1568,6 +1709,8 @@ static const struct blk_mq_ops null_mq_ops = {
 	.queue_rq       = null_queue_rq,
 	.complete	= null_complete_rq,
 	.timeout	= null_timeout_rq,
+	.poll		= null_poll,
+	.map_queues	= null_map_queues,
 	.init_hctx	= null_init_hctx,
 	.exit_hctx	= null_exit_hctx,
 };
@@ -1664,13 +1807,17 @@ static int setup_commands(struct nullb_queue *nq)
 
 static int setup_queues(struct nullb *nullb)
 {
-	nullb->queues = kcalloc(nr_cpu_ids, sizeof(struct nullb_queue),
+	int nqueues = nr_cpu_ids;
+
+	if (g_poll_queues)
+		nqueues += g_poll_queues;
+
+	nullb->queues = kcalloc(nqueues, sizeof(struct nullb_queue),
 				GFP_KERNEL);
 	if (!nullb->queues)
 		return -ENOMEM;
 
 	nullb->queue_depth = nullb->dev->hw_queue_depth;
-
 	return 0;
 }
 
@@ -1699,7 +1846,6 @@ static int null_gendisk_register(struct nullb *nullb)
 
 	set_capacity(disk, size);
 
-	disk->flags |= GENHD_FL_EXT_DEVT | GENHD_FL_SUPPRESS_PARTITION_INFO;
 	disk->major		= null_major;
 	disk->first_minor	= nullb->index;
 	disk->minors		= 1;
@@ -1722,9 +1868,14 @@ static int null_gendisk_register(struct nullb *nullb)
 
 static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 {
+	int poll_queues;
+
 	set->ops = &null_mq_ops;
 	set->nr_hw_queues = nullb ? nullb->dev->submit_queues :
 						g_submit_queues;
+	poll_queues = nullb ? nullb->dev->poll_queues : g_poll_queues;
+	if (poll_queues)
+		set->nr_hw_queues += poll_queues;
 	set->queue_depth = nullb ? nullb->dev->hw_queue_depth :
 						g_hw_queue_depth;
 	set->numa_node = nullb ? nullb->dev->home_node : g_home_node;
@@ -1734,7 +1885,11 @@ static int null_init_tag_set(struct nullb *nullb, struct blk_mq_tag_set *set)
 		set->flags |= BLK_MQ_F_NO_SCHED;
 	if (g_shared_tag_bitmap)
 		set->flags |= BLK_MQ_F_TAG_HCTX_SHARED;
-	set->driver_data = NULL;
+	set->driver_data = nullb;
+	if (poll_queues)
+		set->nr_maps = 3;
+	else
+		set->nr_maps = 1;
 
 	if ((nullb && nullb->dev->blocking) || g_blocking)
 		set->flags |= BLK_MQ_F_BLOCKING;
@@ -1754,6 +1909,11 @@ static int null_validate_conf(struct nullb_device *dev)
 		dev->submit_queues = nr_cpu_ids;
 	else if (dev->submit_queues == 0)
 		dev->submit_queues = 1;
+	dev->prev_submit_queues = dev->submit_queues;
+
+	if (dev->poll_queues > g_poll_queues)
+		dev->poll_queues = g_poll_queues;
+	dev->prev_poll_queues = dev->poll_queues;
 
 	dev->queue_mode = min_t(unsigned int, dev->queue_mode, NULL_Q_MQ);
 	dev->irqmode = min_t(unsigned int, dev->irqmode, NULL_IRQ_TIMER);

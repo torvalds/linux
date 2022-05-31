@@ -1,4 +1,4 @@
-What:		/sys/bus/rapidio/devices/nn:d:iiii
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>
 Description:
 		For each RapidIO device, the RapidIO subsystem creates files in
 		an individual subdirectory with the following name format of
@@ -29,7 +29,7 @@ Description:
 Attributes Common for All RapidIO Devices
 -----------------------------------------
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/did
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/did
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -37,7 +37,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) returns the device identifier
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/vid
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/vid
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -45,7 +45,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) returns the device vendor identifier
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/device_rev
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/device_rev
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -53,7 +53,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) returns the device revision level
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/asm_did
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/asm_did
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -61,7 +61,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) returns identifier for the assembly containing the device
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/asm_rev
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/asm_rev
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -70,7 +70,7 @@ Description:
 		(RO) returns revision level of the assembly containing the
 		device
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/asm_vid
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/asm_vid
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -79,7 +79,7 @@ Description:
 		(RO) returns vendor identifier of the assembly containing the
 		device
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/destid
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/destid
 Date:		Mar, 2011
 KernelVersion:	v2.6.3
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -88,7 +88,7 @@ Description:
 		(RO) returns device destination ID assigned by the enumeration
 		routine
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/lprev
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/lprev
 Date:		Mar, 2011
 KernelVersion:	v2.6.39
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -97,7 +97,7 @@ Description:
 		(RO) returns name of previous device (switch) on the path to the
 		device that that owns this attribute
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/modalias
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/modalias
 Date:		Jul, 2013
 KernelVersion:	v3.11
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -105,7 +105,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) returns the device modalias
 
-What:		/sys/bus/rapidio/devices/nn:d:iiii/config
+What:		/sys/bus/rapidio/devices/<nn>:<d>:<iiii>/config
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -128,7 +128,7 @@ device-specific sysfs attributes by specifying a callback function that may be
 set by the switch initialization routine during enumeration or discovery
 process.
 
-What:		/sys/bus/rapidio/devices/nn:s:iiii/routes
+What:		/sys/bus/rapidio/devices/<nn>:<s>:<iiii>/routes
 Date:		Nov, 2005
 KernelVersion:	v2.6.15
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -138,7 +138,7 @@ Description:
 		This attribute reports only valid routing table entries, one
 		line for each entry.
 
-What:		/sys/bus/rapidio/devices/nn:s:iiii/destid
+What:		/sys/bus/rapidio/devices/<nn>:<s>:<iiii>/destid
 Date:		Mar, 2011
 KernelVersion:	v2.6.3
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -147,7 +147,7 @@ Description:
 		(RO) device destination ID of the associated device that defines
 		a route to the switch
 
-What:		/sys/bus/rapidio/devices/nn:s:iiii/hopcount
+What:		/sys/bus/rapidio/devices/<nn>:<s>:<iiii>/hopcount
 Date:		Mar, 2011
 KernelVersion:	v2.6.39
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -155,7 +155,7 @@ Contact:	Matt Porter <mporter@kernel.crashing.org>,
 Description:
 		(RO) number of hops on the path to the switch
 
-What:		/sys/bus/rapidio/devices/nn:s:iiii/lnext
+What:		/sys/bus/rapidio/devices/<nn>:<s>:<iiii>/lnext
 Date:		Mar, 2011
 KernelVersion:	v2.6.39
 Contact:	Matt Porter <mporter@kernel.crashing.org>,
@@ -172,7 +172,7 @@ Device-specific Switch Attributes
 
 IDT_GEN2-
 
-What:		/sys/bus/rapidio/devices/nn:s:iiii/errlog
+What:		/sys/bus/rapidio/devices/<nn>:<s>:<iiii>/errlog
 Date:		Oct, 2010
 KernelVersion:	v2.6.37
 Contact:	Matt Porter <mporter@kernel.crashing.org>,

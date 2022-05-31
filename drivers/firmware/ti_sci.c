@@ -1759,7 +1759,7 @@ static int ti_sci_get_resource_range(const struct ti_sci_handle *handle,
 		desc->num = resp->range_num;
 		desc->start_sec = resp->range_start_sec;
 		desc->num_sec = resp->range_num_sec;
-	};
+	}
 
 fail:
 	ti_sci_put_one_xfer(&info->minfo, xfer);
@@ -3412,7 +3412,7 @@ static int ti_sci_probe(struct platform_device *pdev)
 		ret = register_restart_handler(&info->nb);
 		if (ret) {
 			dev_err(dev, "reboot registration fail(%d)\n", ret);
-			return ret;
+			goto out;
 		}
 	}
 

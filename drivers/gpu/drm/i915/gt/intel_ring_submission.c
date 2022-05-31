@@ -3,6 +3,10 @@
  * Copyright © 2008-2021 Intel Corporation
  */
 
+#include <drm/drm_cache.h>
+
+#include "gem/i915_gem_internal.h"
+
 #include "gen2_engine_cs.h"
 #include "gen6_engine_cs.h"
 #include "gen6_ppgtt.h"
@@ -11,12 +15,15 @@
 #include "i915_mitigations.h"
 #include "intel_breadcrumbs.h"
 #include "intel_context.h"
+#include "intel_engine_regs.h"
 #include "intel_gt.h"
 #include "intel_gt_irq.h"
+#include "intel_gt_regs.h"
 #include "intel_reset.h"
 #include "intel_ring.h"
 #include "shmem_utils.h"
 #include "intel_engine_heartbeat.h"
+#include "intel_engine_pm.h"
 
 /* Rough estimate of the typical request size, performing a flush,
  * set-context and then emitting the batch.
@@ -291,7 +298,9 @@ static void xcs_sanitize(struct intel_engine_cs *engine)
 	sanitize_hwsp(engine);
 
 	/* And scrub the dirty cachelines for the HWSP */
-	clflush_cache_range(engine->status_page.addr, PAGE_SIZE);
+	drm_clflush_virt_range(engine->status_page.addr, PAGE_SIZE);
+
+	intel_engine_reset_pinned_contexts(engine);
 }
 
 static void reset_prepare(struct intel_engine_cs *engine)
@@ -999,15 +1008,15 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Disable notification that the ring is IDLE. The GT
 	 * will then assume that it is busy and bring it out of rc6.
 	 */
-	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
-			      _MASKED_BIT_ENABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, RING_PSMI_CTL(GEN6_BSD_RING_BASE),
+			      _MASKED_BIT_ENABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 
 	/* Clear the context id. Here be magic! */
 	intel_uncore_write64_fw(uncore, GEN6_BSD_RNCID, 0x0);
 
 	/* Wait for the ring not to be idle, i.e. for it to wake up. */
 	if (__intel_wait_for_register_fw(uncore,
-					 GEN6_BSD_SLEEP_PSMI_CONTROL,
+					 RING_PSMI_CTL(GEN6_BSD_RING_BASE),
 					 GEN6_BSD_SLEEP_INDICATOR,
 					 0,
 					 1000, 0, NULL))
@@ -1020,8 +1029,8 @@ static void gen6_bsd_submit_request(struct i915_request *request)
 	/* Let the ring send IDLE messages to the GT again,
 	 * and so let it sleep to conserve power when idle.
 	 */
-	intel_uncore_write_fw(uncore, GEN6_BSD_SLEEP_PSMI_CONTROL,
-			      _MASKED_BIT_DISABLE(GEN6_BSD_SLEEP_MSG_DISABLE));
+	intel_uncore_write_fw(uncore, RING_PSMI_CTL(GEN6_BSD_RING_BASE),
+			      _MASKED_BIT_DISABLE(GEN6_PSMI_SLEEP_MSG_DISABLE));
 
 	intel_uncore_forcewake_put(uncore, FORCEWAKE_ALL);
 }
@@ -1265,7 +1274,7 @@ static struct i915_vma *gen7_ctx_vma(struct intel_engine_cs *engine)
 	int size, err;
 
 	if (GRAPHICS_VER(engine->i915) != 7 || engine->class != RENDER_CLASS)
-		return 0;
+		return NULL;
 
 	err = gen7_ctx_switch_bb_setup(engine, NULL /* probe size */);
 	if (err < 0)
@@ -1354,7 +1363,7 @@ retry:
 	err = i915_gem_object_lock(timeline->hwsp_ggtt->obj, &ww);
 	if (!err && gen7_wa_vma)
 		err = i915_gem_object_lock(gen7_wa_vma->obj, &ww);
-	if (!err && engine->legacy.ring->vma->obj)
+	if (!err)
 		err = i915_gem_object_lock(engine->legacy.ring->vma->obj, &ww);
 	if (!err)
 		err = intel_timeline_pin(timeline, &ww);

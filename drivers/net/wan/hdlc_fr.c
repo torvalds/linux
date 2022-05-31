@@ -1093,7 +1093,9 @@ static int fr_add_pvc(struct net_device *frad, unsigned int dlci, int type)
 		dev->priv_flags &= ~IFF_TX_SKB_SHARING;
 		eth_hw_addr_random(dev);
 	} else {
-		*(__be16 *)dev->dev_addr = htons(dlci);
+		__be16 addr = htons(dlci);
+
+		dev_addr_set(dev, (u8 *)&addr);
 		dlci_to_q922(dev->broadcast, dlci);
 	}
 	dev->netdev_ops = &pvc_ops;

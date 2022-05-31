@@ -83,7 +83,7 @@
 
 	soc {
 		pinctrl@800000 {
-			/* eMMMC pins, all 8 data lines connected */
+			/* eMMC pins, all 8 data lines connected */
 			dragon_sdcc1_pins: sdcc1 {
 				mux {
 					pins = "gpio159", "gpio160", "gpio161",
@@ -357,8 +357,8 @@
 				};
 
 				mpps@50 {
-					dragon_cm3605_mpps: cm3605-mpps {
-						pinconf {
+					dragon_cm3605_mpps: cm3605-mpps-state {
+						mpp5 {
 							pins = "mpp5";
 							function = "analog";
 							input-enable;
@@ -674,14 +674,14 @@
 					bias-pull-down;
 				};
 
-				/* LVS0 thru 3 and mvs0 are just switches */
+				/* LVS0 thru 3 and mvs are just switches */
 				lvs0 {
 					regulator-always-on;
 				};
 				lvs1 { };
 				lvs2 { };
 				lvs3 { };
-				mvs0 {};
+				mvs { };
 
 			};
 
@@ -899,7 +899,7 @@
 		};
 		amba {
 			/* Internal 3.69 GiB eMMC */
-			sdcc@12400000 {
+			mmc@12400000 {
 				status = "okay";
 				pinctrl-names = "default";
 				pinctrl-0 = <&dragon_sdcc1_pins>;
@@ -908,7 +908,7 @@
 			};
 
 			/* External micro SD card, directly connected, pulled up to 2.85 V */
-			sdcc@12180000 {
+			mmc@12180000 {
 				status = "okay";
 				/* Enable SSBI GPIO 22 as input, use for card detect */
 				pinctrl-names = "default";
@@ -922,7 +922,7 @@
 			 * Second external micro SD card, using two TXB104RGYR levelshifters
 			 * to lift from 1.8 V to 2.85 V
 			 */
-			sdcc@12200000 {
+			mmc@12200000 {
 				status = "okay";
 				/* Enable SSBI GPIO 26 as input, use for card detect */
 				pinctrl-names = "default";

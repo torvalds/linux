@@ -216,8 +216,7 @@ static int do_uevent(struct dlm_ls *ls, int in)
 	return ls->ls_uevent_result;
 }
 
-static int dlm_uevent(struct kset *kset, struct kobject *kobj,
-		      struct kobj_uevent_env *env)
+static int dlm_uevent(struct kobject *kobj, struct kobj_uevent_env *env)
 {
 	struct dlm_ls *ls = container_of(kobj, struct dlm_ls, ls_kobj);
 
@@ -314,7 +313,7 @@ struct dlm_ls *dlm_find_lockspace_global(uint32_t id)
 
 	list_for_each_entry(ls, &lslist, ls_list) {
 		if (ls->ls_global_id == id) {
-			ls->ls_count++;
+			atomic_inc(&ls->ls_count);
 			goto out;
 		}
 	}
@@ -331,7 +330,7 @@ struct dlm_ls *dlm_find_lockspace_local(dlm_lockspace_t *lockspace)
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
 		if (ls->ls_local_handle == lockspace) {
-			ls->ls_count++;
+			atomic_inc(&ls->ls_count);
 			goto out;
 		}
 	}
@@ -348,7 +347,7 @@ struct dlm_ls *dlm_find_lockspace_device(int minor)
 	spin_lock(&lslist_lock);
 	list_for_each_entry(ls, &lslist, ls_list) {
 		if (ls->ls_device.minor == minor) {
-			ls->ls_count++;
+			atomic_inc(&ls->ls_count);
 			goto out;
 		}
 	}
@@ -360,24 +359,24 @@ struct dlm_ls *dlm_find_lockspace_device(int minor)
 
 void dlm_put_lockspace(struct dlm_ls *ls)
 {
-	spin_lock(&lslist_lock);
-	ls->ls_count--;
-	spin_unlock(&lslist_lock);
+	if (atomic_dec_and_test(&ls->ls_count))
+		wake_up(&ls->ls_count_wait);
 }
 
 static void remove_lockspace(struct dlm_ls *ls)
 {
-	for (;;) {
-		spin_lock(&lslist_lock);
-		if (ls->ls_count == 0) {
-			WARN_ON(ls->ls_create_count != 0);
-			list_del(&ls->ls_list);
-			spin_unlock(&lslist_lock);
-			return;
-		}
+retry:
+	wait_event(ls->ls_count_wait, atomic_read(&ls->ls_count) == 0);
+
+	spin_lock(&lslist_lock);
+	if (atomic_read(&ls->ls_count) != 0) {
 		spin_unlock(&lslist_lock);
-		ssleep(1);
+		goto retry;
 	}
+
+	WARN_ON(ls->ls_create_count != 0);
+	list_del(&ls->ls_list);
+	spin_unlock(&lslist_lock);
 }
 
 static int threads_start(void)
@@ -481,7 +480,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	memcpy(ls->ls_name, name, namelen);
 	ls->ls_namelen = namelen;
 	ls->ls_lvblen = lvblen;
-	ls->ls_count = 0;
+	atomic_set(&ls->ls_count, 0);
+	init_waitqueue_head(&ls->ls_count_wait);
 	ls->ls_flags = 0;
 	ls->ls_scan_time = jiffies;
 
@@ -511,6 +511,7 @@ static int new_lockspace(const char *name, const char *cluster,
 	}
 
 	spin_lock_init(&ls->ls_remove_spin);
+	init_waitqueue_head(&ls->ls_remove_wait);
 
 	for (i = 0; i < DLM_REMOVE_NAMES_MAX; i++) {
 		ls->ls_remove_names[i] = kzalloc(DLM_RESNAME_MAXLEN+1,
@@ -564,6 +565,8 @@ static int new_lockspace(const char *name, const char *cluster,
 	init_rwsem(&ls->ls_in_recovery);
 	init_rwsem(&ls->ls_recv_active);
 	INIT_LIST_HEAD(&ls->ls_requestqueue);
+	atomic_set(&ls->ls_requestqueue_cnt, 0);
+	init_waitqueue_head(&ls->ls_requestqueue_wait);
 	mutex_init(&ls->ls_requestqueue_mutex);
 	mutex_init(&ls->ls_clear_proc_locks);
 
@@ -868,7 +871,7 @@ static int release_lockspace(struct dlm_ls *ls, int force)
  * until this returns.
  *
  * Force has 4 possible values:
- * 0 - don't destroy locksapce if it has any LKBs
+ * 0 - don't destroy lockspace if it has any LKBs
  * 1 - destroy lockspace if it has remote LKBs but not if it has local LKBs
  * 2 - destroy lockspace regardless of LKBs
  * 3 - destroy lockspace as part of a forced shutdown

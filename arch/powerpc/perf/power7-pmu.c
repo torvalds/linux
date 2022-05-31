@@ -405,7 +405,7 @@ static struct attribute *power7_events_attr[] = {
 	NULL
 };
 
-static struct attribute_group power7_pmu_events_group = {
+static const struct attribute_group power7_pmu_events_group = {
 	.name = "events",
 	.attrs = power7_events_attr,
 };
@@ -417,7 +417,7 @@ static struct attribute *power7_pmu_format_attr[] = {
 	NULL,
 };
 
-static struct attribute_group power7_pmu_format_group = {
+static const struct attribute_group power7_pmu_format_group = {
 	.name = "format",
 	.attrs = power7_pmu_format_attr,
 };
@@ -445,7 +445,7 @@ static struct power_pmu power7_pmu = {
 	.cache_events		= &power7_cache_events,
 };
 
-int init_power7_pmu(void)
+int __init init_power7_pmu(void)
 {
 	if (!cur_cpu_spec->oprofile_cpu_type ||
 	    strcmp(cur_cpu_spec->oprofile_cpu_type, "ppc64/power7"))

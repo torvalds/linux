@@ -656,7 +656,7 @@
 struct max98390_priv {
 	struct regmap *regmap;
 	unsigned int sysclk;
-	unsigned int master;
+	unsigned int provider;
 	unsigned int tdm_mode;
 	unsigned int v_l_slot;
 	unsigned int i_l_slot;

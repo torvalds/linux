@@ -232,15 +232,13 @@ err_register:
 	return ret;
 }
 
-static int tosa_lcd_remove(struct spi_device *spi)
+static void tosa_lcd_remove(struct spi_device *spi)
 {
 	struct tosa_lcd_data *data = spi_get_drvdata(spi);
 
 	i2c_unregister_device(data->i2c);
 
 	tosa_lcd_tg_off(data);
-
-	return 0;
 }
 
 #ifdef CONFIG_PM_SLEEP

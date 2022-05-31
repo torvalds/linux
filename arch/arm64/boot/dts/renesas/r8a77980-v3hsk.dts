@@ -8,6 +8,7 @@
 
 /dts-v1/;
 #include "r8a77980.dtsi"
+#include <dt-bindings/gpio/gpio.h>
 
 / {
 	model = "Renesas V3H Starter Kit board";
@@ -113,9 +114,12 @@
 	status = "okay";
 
 	phy0: ethernet-phy@0 {
+		compatible = "ethernet-phy-id0022.1622",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <0>;
 		interrupt-parent = <&gpio4>;
 		interrupts = <23 IRQ_TYPE_LEVEL_LOW>;
+		reset-gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
 	};
 };
 

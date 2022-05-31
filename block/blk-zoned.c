@@ -65,7 +65,6 @@ bool blk_req_needs_zone_write_lock(struct request *rq)
 
 	switch (req_op(rq)) {
 	case REQ_OP_WRITE_ZEROES:
-	case REQ_OP_WRITE_SAME:
 	case REQ_OP_WRITE:
 		return blk_rq_zone_is_seq(rq);
 	default:
@@ -215,9 +214,8 @@ static int blkdev_zone_reset_all_emulated(struct block_device *bdev,
 			continue;
 		}
 
-		bio = blk_next_bio(bio, 0, gfp_mask);
-		bio_set_dev(bio, bdev);
-		bio->bi_opf = REQ_OP_ZONE_RESET | REQ_SYNC;
+		bio = blk_next_bio(bio, bdev, 0, REQ_OP_ZONE_RESET | REQ_SYNC,
+				   gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
 
@@ -239,10 +237,7 @@ static int blkdev_zone_reset_all(struct block_device *bdev, gfp_t gfp_mask)
 {
 	struct bio bio;
 
-	bio_init(&bio, NULL, 0);
-	bio_set_dev(&bio, bdev);
-	bio.bi_opf = REQ_OP_ZONE_RESET_ALL | REQ_SYNC;
-
+	bio_init(&bio, bdev, NULL, 0, REQ_OP_ZONE_RESET_ALL | REQ_SYNC);
 	return submit_bio_wait(&bio);
 }
 
@@ -306,9 +301,7 @@ int blkdev_zone_mgmt(struct block_device *bdev, enum req_opf op,
 	}
 
 	while (sector < end_sector) {
-		bio = blk_next_bio(bio, 0, gfp_mask);
-		bio_set_dev(bio, bdev);
-		bio->bi_opf = op | REQ_SYNC;
+		bio = blk_next_bio(bio, bdev, 0, op | REQ_SYNC, gfp_mask);
 		bio->bi_iter.bi_sector = sector;
 		sector += zone_sectors;
 
@@ -429,9 +422,10 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 		op = REQ_OP_ZONE_RESET;
 
 		/* Invalidate the page cache, including dirty pages. */
+		filemap_invalidate_lock(bdev->bd_inode->i_mapping);
 		ret = blkdev_truncate_zone_range(bdev, mode, &zrange);
 		if (ret)
-			return ret;
+			goto fail;
 		break;
 	case BLKOPENZONE:
 		op = REQ_OP_ZONE_OPEN;
@@ -449,15 +443,9 @@ int blkdev_zone_mgmt_ioctl(struct block_device *bdev, fmode_t mode,
 	ret = blkdev_zone_mgmt(bdev, op, zrange.sector, zrange.nr_sectors,
 			       GFP_KERNEL);
 
-	/*
-	 * Invalidate the page cache again for zone reset: writes can only be
-	 * direct for zoned devices so concurrent writes would not add any page
-	 * to the page cache after/during reset. The page cache may be filled
-	 * again due to concurrent reads though and dropping the pages for
-	 * these is fine.
-	 */
-	if (!ret && cmd == BLKRESETZONE)
-		ret = blkdev_truncate_zone_range(bdev, mode, &zrange);
+fail:
+	if (cmd == BLKRESETZONE)
+		filemap_invalidate_unlock(bdev->bd_inode->i_mapping);
 
 	return ret;
 }

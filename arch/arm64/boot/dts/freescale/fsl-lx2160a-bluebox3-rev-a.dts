@@ -1,0 +1,34 @@
+// SPDX-License-Identifier: (GPL-2.0 OR MIT)
+//
+// Device Tree file for LX2160A BLUEBOX3
+//
+// Copyright 2020-2021 NXP
+
+/dts-v1/;
+
+#include "fsl-lx2160a-bluebox3.dts"
+
+/ {
+	compatible = "fsl,lx2160a-bluebox3-rev-a", "fsl,lx2160a";
+};
+
+/* The RGMII PHYs have a different MDIO address */
+&emdio1 {
+	/delete-node/ ethernet-phy@5;
+
+	sw1_mii3_phy: ethernet-phy@1 {
+		/* AR8035 */
+		compatible = "ethernet-phy-id004d.d072";
+		reg = <0x1>;
+		interrupts-extended = <&extirq 6 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	/delete-node/ ethernet-phy@6;
+
+	sw2_mii3_phy: ethernet-phy@2 {
+		/* AR8035 */
+		compatible = "ethernet-phy-id004d.d072";
+		reg = <0x2>;
+		interrupts-extended = <&extirq 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+};

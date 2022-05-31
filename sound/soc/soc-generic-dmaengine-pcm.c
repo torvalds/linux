@@ -15,6 +15,10 @@
 
 #include <sound/dmaengine_pcm.h>
 
+static unsigned int prealloc_buffer_size_kbytes = 512;
+module_param(prealloc_buffer_size_kbytes, uint, 0444);
+MODULE_PARM_DESC(prealloc_buffer_size_kbytes, "Preallocate DMA buffer size (KB).");
+
 /*
  * The platforms dmaengine driver does not support reporting the amount of
  * bytes that are still left to transfer.
@@ -128,7 +132,9 @@ dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 			SNDRV_PCM_INFO_INTERLEAVED;
 	hw.periods_min = 2;
 	hw.periods_max = UINT_MAX;
-	hw.period_bytes_min = 256;
+	hw.period_bytes_min = dma_data->maxburst * DMA_SLAVE_BUSWIDTH_8_BYTES;
+	if (!hw.period_bytes_min)
+		hw.period_bytes_min = 256;
 	hw.period_bytes_max = dma_get_max_seg_size(dma_dev);
 	hw.buffer_bytes_max = SIZE_MAX;
 	hw.fifo_size = dma_data->fifo_size;
@@ -233,13 +239,15 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 	size_t max_buffer_size;
 	unsigned int i;
 
-	if (config && config->prealloc_buffer_size) {
+	if (config && config->prealloc_buffer_size)
 		prealloc_buffer_size = config->prealloc_buffer_size;
+	else
+		prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
+
+	if (config && config->pcm_hardware && config->pcm_hardware->buffer_bytes_max)
 		max_buffer_size = config->pcm_hardware->buffer_bytes_max;
-	} else {
-		prealloc_buffer_size = 512 * 1024;
+	else
 		max_buffer_size = SIZE_MAX;
-	}
 
 	for_each_pcm_streams(i) {
 		struct snd_pcm_substream *substream = rtd->pcm->streams[i].substream;

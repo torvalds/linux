@@ -535,7 +535,6 @@ SYM_CODE_END(startup_64)
 #ifdef CONFIG_EFI_STUB
 	.org 0x390
 SYM_FUNC_START(efi64_stub_entry)
-SYM_FUNC_START_ALIAS(efi_stub_entry)
 	and	$~0xf, %rsp			/* realign the stack */
 	movq	%rdx, %rbx			/* save boot_params pointer */
 	call	efi_main
@@ -543,7 +542,7 @@ SYM_FUNC_START_ALIAS(efi_stub_entry)
 	leaq	rva(startup_64)(%rax), %rax
 	jmp	*%rax
 SYM_FUNC_END(efi64_stub_entry)
-SYM_FUNC_END_ALIAS(efi_stub_entry)
+SYM_FUNC_ALIAS(efi_stub_entry, efi64_stub_entry)
 #endif
 
 	.text
@@ -813,7 +812,7 @@ SYM_FUNC_START(efi32_pe_entry)
 2:	popl	%edi				// restore callee-save registers
 	popl	%ebx
 	leave
-	ret
+	RET
 SYM_FUNC_END(efi32_pe_entry)
 
 	.section ".rodata"
@@ -868,7 +867,7 @@ SYM_FUNC_START(startup32_set_idt_entry)
 
 	pop     %ecx
 	pop     %ebx
-	ret
+	RET
 SYM_FUNC_END(startup32_set_idt_entry)
 #endif
 
@@ -884,7 +883,7 @@ SYM_FUNC_START(startup32_load_idt)
 	movl	%eax, rva(boot32_idt_desc+2)(%ebp)
 	lidt    rva(boot32_idt_desc)(%ebp)
 #endif
-	ret
+	RET
 SYM_FUNC_END(startup32_load_idt)
 
 /*
@@ -954,7 +953,7 @@ SYM_FUNC_START(startup32_check_sev_cbit)
 	popl	%ebx
 	popl	%eax
 #endif
-	ret
+	RET
 SYM_FUNC_END(startup32_check_sev_cbit)
 
 /*

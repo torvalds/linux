@@ -1005,74 +1005,15 @@ static struct configfs_attribute *lio_target_tpg_param_attrs[] = {
 
 /* Start items for lio_target_tpg_cit */
 
-static ssize_t lio_target_tpg_enable_show(struct config_item *item, char *page)
-{
-	struct se_portal_group *se_tpg = to_tpg(item);
-	struct iscsi_portal_group *tpg = container_of(se_tpg,
-			struct iscsi_portal_group, tpg_se_tpg);
-	ssize_t len;
-
-	spin_lock(&tpg->tpg_state_lock);
-	len = sprintf(page, "%d\n",
-			(tpg->tpg_state == TPG_STATE_ACTIVE) ? 1 : 0);
-	spin_unlock(&tpg->tpg_state_lock);
-
-	return len;
-}
-
-static ssize_t lio_target_tpg_enable_store(struct config_item *item,
-		const char *page, size_t count)
-{
-	struct se_portal_group *se_tpg = to_tpg(item);
-	struct iscsi_portal_group *tpg = container_of(se_tpg,
-			struct iscsi_portal_group, tpg_se_tpg);
-	u32 op;
-	int ret;
-
-	ret = kstrtou32(page, 0, &op);
-	if (ret)
-		return ret;
-	if ((op != 1) && (op != 0)) {
-		pr_err("Illegal value for tpg_enable: %u\n", op);
-		return -EINVAL;
-	}
-
-	ret = iscsit_get_tpg(tpg);
-	if (ret < 0)
-		return -EINVAL;
-
-	if (op) {
-		ret = iscsit_tpg_enable_portal_group(tpg);
-		if (ret < 0)
-			goto out;
-	} else {
-		/*
-		 * iscsit_tpg_disable_portal_group() assumes force=1
-		 */
-		ret = iscsit_tpg_disable_portal_group(tpg, 1);
-		if (ret < 0)
-			goto out;
-	}
-
-	iscsit_put_tpg(tpg);
-	return count;
-out:
-	iscsit_put_tpg(tpg);
-	return -EINVAL;
-}
-
-
 static ssize_t lio_target_tpg_dynamic_sessions_show(struct config_item *item,
 		char *page)
 {
 	return target_show_dynamic_sessions(to_tpg(item), page);
 }
 
-CONFIGFS_ATTR(lio_target_tpg_, enable);
 CONFIGFS_ATTR_RO(lio_target_tpg_, dynamic_sessions);
 
 static struct configfs_attribute *lio_target_tpg_attrs[] = {
-	&lio_target_tpg_attr_enable,
 	&lio_target_tpg_attr_dynamic_sessions,
 	NULL,
 };
@@ -1129,6 +1070,37 @@ free_out:
 	return NULL;
 }
 
+static int lio_target_tiqn_enabletpg(struct se_portal_group *se_tpg,
+				     bool enable)
+{
+	struct iscsi_portal_group *tpg = container_of(se_tpg,
+			struct iscsi_portal_group, tpg_se_tpg);
+	int ret;
+
+	ret = iscsit_get_tpg(tpg);
+	if (ret < 0)
+		return -EINVAL;
+
+	if (enable) {
+		ret = iscsit_tpg_enable_portal_group(tpg);
+		if (ret < 0)
+			goto out;
+	} else {
+		/*
+		 * iscsit_tpg_disable_portal_group() assumes force=1
+		 */
+		ret = iscsit_tpg_disable_portal_group(tpg, 1);
+		if (ret < 0)
+			goto out;
+	}
+
+	iscsit_put_tpg(tpg);
+	return 0;
+out:
+	iscsit_put_tpg(tpg);
+	return -EINVAL;
+}
+
 static void lio_target_tiqn_deltpg(struct se_portal_group *se_tpg)
 {
 	struct iscsi_portal_group *tpg;
@@ -1155,8 +1127,44 @@ static ssize_t lio_target_wwn_lio_version_show(struct config_item *item,
 
 CONFIGFS_ATTR_RO(lio_target_wwn_, lio_version);
 
+static ssize_t lio_target_wwn_cpus_allowed_list_show(
+		struct config_item *item, char *page)
+{
+	return sprintf(page, "%*pbl\n",
+		       cpumask_pr_args(iscsit_global->allowed_cpumask));
+}
+
+static ssize_t lio_target_wwn_cpus_allowed_list_store(
+		struct config_item *item, const char *page, size_t count)
+{
+	int ret = -ENOMEM;
+	char *orig;
+	cpumask_var_t new_allowed_cpumask;
+
+	if (!zalloc_cpumask_var(&new_allowed_cpumask, GFP_KERNEL))
+		goto out;
+
+	orig = kstrdup(page, GFP_KERNEL);
+	if (!orig)
+		goto out_free_cpumask;
+
+	ret = cpulist_parse(orig, new_allowed_cpumask);
+	if (!ret)
+		cpumask_copy(iscsit_global->allowed_cpumask,
+			     new_allowed_cpumask);
+
+	kfree(orig);
+out_free_cpumask:
+	free_cpumask_var(new_allowed_cpumask);
+out:
+	return ret ? ret : count;
+}
+
+CONFIGFS_ATTR(lio_target_wwn_, cpus_allowed_list);
+
 static struct configfs_attribute *lio_target_wwn_attrs[] = {
 	&lio_target_wwn_attr_lio_version,
+	&lio_target_wwn_attr_cpus_allowed_list,
 	NULL,
 };
 
@@ -1556,6 +1564,7 @@ const struct target_core_fabric_ops iscsi_ops = {
 	.fabric_drop_wwn		= lio_target_call_coredeltiqn,
 	.add_wwn_groups			= lio_target_add_wwn_groups,
 	.fabric_make_tpg		= lio_target_tiqn_addtpg,
+	.fabric_enable_tpg		= lio_target_tiqn_enabletpg,
 	.fabric_drop_tpg		= lio_target_tiqn_deltpg,
 	.fabric_make_np			= lio_target_call_addnptotpg,
 	.fabric_drop_np			= lio_target_call_delnpfromtpg,

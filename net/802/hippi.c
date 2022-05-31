@@ -65,7 +65,7 @@ static int hippi_header(struct sk_buff *skb, struct net_device *dev,
 	hip->le.src_addr_type	= 2;	/* 12 bit SC address */
 
 	memcpy(hip->le.src_switch_addr, dev->dev_addr + 3, 3);
-	memset(&hip->le.reserved, 0, 16);
+	memset_startat(&hip->le, 0, reserved);
 
 	hip->snap.dsap		= HIPPI_EXTENDED_SAP;
 	hip->snap.ssap		= HIPPI_EXTENDED_SAP;
@@ -121,7 +121,7 @@ int hippi_mac_addr(struct net_device *dev, void *p)
 	struct sockaddr *addr = p;
 	if (netif_running(dev))
 		return -EBUSY;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(dev, addr->sa_data);
 	return 0;
 }
 EXPORT_SYMBOL(hippi_mac_addr);

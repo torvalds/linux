@@ -47,9 +47,9 @@ static int load_prog(enum bpf_prog_type type)
 	};
 	int fd;
 
-	fd = bpf_load_program(type, prog, ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	fd = bpf_test_load_program(type, prog, ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
 	if (CHECK_FAIL(fd < 0))
-		perror("bpf_load_program");
+		perror("bpf_test_load_program");
 
 	return fd;
 }
@@ -628,7 +628,7 @@ out_close:
 	}
 }
 
-void test_flow_dissector_reattach(void)
+void serial_test_flow_dissector_reattach(void)
 {
 	int err, new_net, saved_net;
 

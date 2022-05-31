@@ -1,0 +1,51 @@
+# SPDX-License-Identifier: GPL-2.0
+ldflags-y += --wrap=acpi_table_parse_cedt
+ldflags-y += --wrap=is_acpi_device_node
+ldflags-y += --wrap=acpi_evaluate_integer
+ldflags-y += --wrap=acpi_pci_find_root
+ldflags-y += --wrap=nvdimm_bus_register
+ldflags-y += --wrap=devm_cxl_port_enumerate_dports
+ldflags-y += --wrap=devm_cxl_setup_hdm
+ldflags-y += --wrap=devm_cxl_add_passthrough_decoder
+ldflags-y += --wrap=devm_cxl_enumerate_decoders
+
+DRIVERS := ../../../drivers
+CXL_SRC := $(DRIVERS)/cxl
+CXL_CORE_SRC := $(DRIVERS)/cxl/core
+ccflags-y := -I$(srctree)/drivers/cxl/
+ccflags-y += -D__mock=__weak
+
+obj-m += cxl_acpi.o
+
+cxl_acpi-y := $(CXL_SRC)/acpi.o
+cxl_acpi-y += mock_acpi.o
+cxl_acpi-y += config_check.o
+
+obj-m += cxl_pmem.o
+
+cxl_pmem-y := $(CXL_SRC)/pmem.o
+cxl_pmem-y += config_check.o
+
+obj-m += cxl_port.o
+
+cxl_port-y := $(CXL_SRC)/port.o
+cxl_port-y += config_check.o
+
+obj-m += cxl_mem.o
+
+cxl_mem-y := $(CXL_SRC)/mem.o
+cxl_mem-y += mock_mem.o
+cxl_mem-y += config_check.o
+
+obj-m += cxl_core.o
+
+cxl_core-y := $(CXL_CORE_SRC)/port.o
+cxl_core-y += $(CXL_CORE_SRC)/pmem.o
+cxl_core-y += $(CXL_CORE_SRC)/regs.o
+cxl_core-y += $(CXL_CORE_SRC)/memdev.o
+cxl_core-y += $(CXL_CORE_SRC)/mbox.o
+cxl_core-y += $(CXL_CORE_SRC)/pci.o
+cxl_core-y += $(CXL_CORE_SRC)/hdm.o
+cxl_core-y += config_check.o
+
+obj-m += test/

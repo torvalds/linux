@@ -307,8 +307,7 @@ static void carl9170_zap_queues(struct ar9170 *ar)
 	for (i = 0; i < ar->hw->queues; i++)
 		ar->tx_stats[i].limit = CARL9170_NUM_TX_LIMIT_HARD;
 
-	for (i = 0; i < DIV_ROUND_UP(ar->fw.mem_blocks, BITS_PER_LONG); i++)
-		ar->mem_bitmap[i] = 0;
+	bitmap_zero(ar->mem_bitmap, ar->fw.mem_blocks);
 
 	rcu_read_lock();
 	list_for_each_entry_rcu(cvif, &ar->vif_list, list) {
@@ -1413,7 +1412,7 @@ static int carl9170_op_ampdu_action(struct ieee80211_hw *hw,
 			return -EOPNOTSUPP;
 
 		tid_info = kzalloc(sizeof(struct carl9170_sta_tid),
-				   GFP_ATOMIC);
+				   GFP_KERNEL);
 		if (!tid_info)
 			return -ENOMEM;
 
@@ -1495,7 +1494,7 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 	if (!(ar->features & CARL9170_WPS_BUTTON))
 		return 0;
 
-	input = input_allocate_device();
+	input = devm_input_allocate_device(&ar->udev->dev);
 	if (!input)
 		return -ENOMEM;
 
@@ -1513,10 +1512,8 @@ static int carl9170_register_wps_button(struct ar9170 *ar)
 	input_set_capability(input, EV_KEY, KEY_WPS_BUTTON);
 
 	err = input_register_device(input);
-	if (err) {
-		input_free_device(input);
+	if (err)
 		return err;
-	}
 
 	ar->wps.pbc = input;
 	return 0;
@@ -1540,7 +1537,7 @@ static int carl9170_rng_get(struct ar9170 *ar)
 
 	BUILD_BUG_ON(RB > CARL9170_MAX_CMD_PAYLOAD_LEN);
 
-	if (!IS_ACCEPTING_CMD(ar) || !ar->rng.initialized)
+	if (!IS_ACCEPTING_CMD(ar))
 		return -EAGAIN;
 
 	count = ARRAY_SIZE(ar->rng.cache);
@@ -1586,14 +1583,6 @@ static int carl9170_rng_read(struct hwrng *rng, u32 *data)
 	return sizeof(u16);
 }
 
-static void carl9170_unregister_hwrng(struct ar9170 *ar)
-{
-	if (ar->rng.initialized) {
-		hwrng_unregister(&ar->rng.rng);
-		ar->rng.initialized = false;
-	}
-}
-
 static int carl9170_register_hwrng(struct ar9170 *ar)
 {
 	int err;
@@ -1604,25 +1593,14 @@ static int carl9170_register_hwrng(struct ar9170 *ar)
 	ar->rng.rng.data_read = carl9170_rng_read;
 	ar->rng.rng.priv = (unsigned long)ar;
 
-	if (WARN_ON(ar->rng.initialized))
-		return -EALREADY;
-
-	err = hwrng_register(&ar->rng.rng);
+	err = devm_hwrng_register(&ar->udev->dev, &ar->rng.rng);
 	if (err) {
 		dev_err(&ar->udev->dev, "Failed to register the random "
 			"number generator (%d)\n", err);
 		return err;
 	}
 
-	ar->rng.initialized = true;
-
-	err = carl9170_rng_get(ar);
-	if (err) {
-		carl9170_unregister_hwrng(ar);
-		return err;
-	}
-
-	return 0;
+	return carl9170_rng_get(ar);
 }
 #endif /* CONFIG_CARL9170_HWRNG */
 
@@ -1915,7 +1893,7 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 		WARN_ON(!(tx_streams >= 1 && tx_streams <=
 			IEEE80211_HT_MCS_TX_MAX_STREAMS));
 
-		tx_params = (tx_streams - 1) <<
+		tx_params |= (tx_streams - 1) <<
 			    IEEE80211_HT_MCS_TX_MAX_STREAMS_SHIFT;
 
 		carl9170_band_2GHz.ht_cap.mcs.tx_params |= tx_params;
@@ -1938,7 +1916,8 @@ static int carl9170_parse_eeprom(struct ar9170 *ar)
 	if (!bands)
 		return -EINVAL;
 
-	ar->survey = kcalloc(chans, sizeof(struct survey_info), GFP_KERNEL);
+	ar->survey = devm_kcalloc(&ar->udev->dev, chans,
+				  sizeof(struct survey_info), GFP_KERNEL);
 	if (!ar->survey)
 		return -ENOMEM;
 	ar->num_channels = chans;
@@ -1965,13 +1944,7 @@ int carl9170_register(struct ar9170 *ar)
 	struct ath_regulatory *regulatory = &ar->common.regulatory;
 	int err = 0, i;
 
-	if (WARN_ON(ar->mem_bitmap))
-		return -EINVAL;
-
-	ar->mem_bitmap = kcalloc(roundup(ar->fw.mem_blocks, BITS_PER_LONG),
-				 sizeof(unsigned long),
-				 GFP_KERNEL);
-
+	ar->mem_bitmap = devm_bitmap_zalloc(&ar->udev->dev, ar->fw.mem_blocks, GFP_KERNEL);
 	if (!ar->mem_bitmap)
 		return -ENOMEM;
 
@@ -2060,17 +2033,6 @@ void carl9170_unregister(struct ar9170 *ar)
 	carl9170_debugfs_unregister(ar);
 #endif /* CONFIG_CARL9170_DEBUGFS */
 
-#ifdef CONFIG_CARL9170_WPC
-	if (ar->wps.pbc) {
-		input_unregister_device(ar->wps.pbc);
-		ar->wps.pbc = NULL;
-	}
-#endif /* CONFIG_CARL9170_WPC */
-
-#ifdef CONFIG_CARL9170_HWRNG
-	carl9170_unregister_hwrng(ar);
-#endif /* CONFIG_CARL9170_HWRNG */
-
 	carl9170_cancel_worker(ar);
 	cancel_work_sync(&ar->restart_work);
 
@@ -2084,12 +2046,6 @@ void carl9170_free(struct ar9170 *ar)
 
 	kfree_skb(ar->rx_failover);
 	ar->rx_failover = NULL;
-
-	kfree(ar->mem_bitmap);
-	ar->mem_bitmap = NULL;
-
-	kfree(ar->survey);
-	ar->survey = NULL;
 
 	mutex_destroy(&ar->mutex);
 

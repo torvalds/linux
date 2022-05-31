@@ -22,7 +22,9 @@
 #include <sys/vfs.h>
 
 #include <bpf/bpf.h>
+#include <bpf/hashmap.h>
 #include <bpf/libbpf.h> /* libbpf_num_possible_cpus */
+#include <bpf/btf.h>
 
 #include "main.h"
 
@@ -54,7 +56,6 @@ const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
 	[BPF_CGROUP_UDP6_RECVMSG]	= "recvmsg6",
 	[BPF_CGROUP_GETSOCKOPT]		= "getsockopt",
 	[BPF_CGROUP_SETSOCKOPT]		= "setsockopt",
-
 	[BPF_SK_SKB_STREAM_PARSER]	= "sk_skb_stream_parser",
 	[BPF_SK_SKB_STREAM_VERDICT]	= "sk_skb_stream_verdict",
 	[BPF_SK_SKB_VERDICT]		= "sk_skb_verdict",
@@ -73,6 +74,8 @@ const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
 	[BPF_XDP]			= "xdp",
 	[BPF_SK_REUSEPORT_SELECT]	= "sk_skb_reuseport_select",
 	[BPF_SK_REUSEPORT_SELECT_OR_MIGRATE]	= "sk_skb_reuseport_select_or_migrate",
+	[BPF_PERF_EVENT]		= "perf_event",
+	[BPF_TRACE_KPROBE_MULTI]	= "trace_kprobe_multi",
 };
 
 void p_err(const char *fmt, ...)
@@ -302,6 +305,49 @@ const char *get_fd_type_name(enum bpf_obj_type type)
 	return names[type];
 }
 
+void get_prog_full_name(const struct bpf_prog_info *prog_info, int prog_fd,
+			char *name_buff, size_t buff_len)
+{
+	const char *prog_name = prog_info->name;
+	const struct btf_type *func_type;
+	const struct bpf_func_info finfo = {};
+	struct bpf_prog_info info = {};
+	__u32 info_len = sizeof(info);
+	struct btf *prog_btf = NULL;
+
+	if (buff_len <= BPF_OBJ_NAME_LEN ||
+	    strlen(prog_info->name) < BPF_OBJ_NAME_LEN - 1)
+		goto copy_name;
+
+	if (!prog_info->btf_id || prog_info->nr_func_info == 0)
+		goto copy_name;
+
+	info.nr_func_info = 1;
+	info.func_info_rec_size = prog_info->func_info_rec_size;
+	if (info.func_info_rec_size > sizeof(finfo))
+		info.func_info_rec_size = sizeof(finfo);
+	info.func_info = ptr_to_u64(&finfo);
+
+	if (bpf_obj_get_info_by_fd(prog_fd, &info, &info_len))
+		goto copy_name;
+
+	prog_btf = btf__load_from_kernel_by_id(info.btf_id);
+	if (!prog_btf)
+		goto copy_name;
+
+	func_type = btf__type_by_id(prog_btf, finfo.type_id);
+	if (!func_type || !btf_is_func(func_type))
+		goto copy_name;
+
+	prog_name = btf__name_by_offset(prog_btf, func_type->name_off);
+
+copy_name:
+	snprintf(name_buff, buff_len, "%s", prog_name);
+
+	if (prog_btf)
+		btf__free(prog_btf);
+}
+
 int get_fd_type(int fd)
 {
 	char path[PATH_MAX];
@@ -393,7 +439,7 @@ void print_hex_data_json(uint8_t *data, size_t len)
 }
 
 /* extra params for nftw cb */
-static struct pinned_obj_table *build_fn_table;
+static struct hashmap *build_fn_table;
 static enum bpf_obj_type build_fn_type;
 
 static int do_build_table_cb(const char *fpath, const struct stat *sb,
@@ -401,9 +447,9 @@ static int do_build_table_cb(const char *fpath, const struct stat *sb,
 {
 	struct bpf_prog_info pinned_info;
 	__u32 len = sizeof(pinned_info);
-	struct pinned_obj *obj_node;
 	enum bpf_obj_type objtype;
 	int fd, err = 0;
+	char *path;
 
 	if (typeflag != FTW_F)
 		goto out_ret;
@@ -420,28 +466,26 @@ static int do_build_table_cb(const char *fpath, const struct stat *sb,
 	if (bpf_obj_get_info_by_fd(fd, &pinned_info, &len))
 		goto out_close;
 
-	obj_node = calloc(1, sizeof(*obj_node));
-	if (!obj_node) {
+	path = strdup(fpath);
+	if (!path) {
 		err = -1;
 		goto out_close;
 	}
 
-	obj_node->id = pinned_info.id;
-	obj_node->path = strdup(fpath);
-	if (!obj_node->path) {
-		err = -1;
-		free(obj_node);
+	err = hashmap__append(build_fn_table, u32_as_hash_field(pinned_info.id), path);
+	if (err) {
+		p_err("failed to append entry to hashmap for ID %u, path '%s': %s",
+		      pinned_info.id, path, strerror(errno));
 		goto out_close;
 	}
 
-	hash_add(build_fn_table->table, &obj_node->hash, obj_node->id);
 out_close:
 	close(fd);
 out_ret:
 	return err;
 }
 
-int build_pinned_obj_table(struct pinned_obj_table *tab,
+int build_pinned_obj_table(struct hashmap *tab,
 			   enum bpf_obj_type type)
 {
 	struct mntent *mntent = NULL;
@@ -470,17 +514,18 @@ int build_pinned_obj_table(struct pinned_obj_table *tab,
 	return err;
 }
 
-void delete_pinned_obj_table(struct pinned_obj_table *tab)
+void delete_pinned_obj_table(struct hashmap *map)
 {
-	struct pinned_obj *obj;
-	struct hlist_node *tmp;
-	unsigned int bkt;
+	struct hashmap_entry *entry;
+	size_t bkt;
 
-	hash_for_each_safe(tab->table, bkt, tmp, obj, hash) {
-		hash_del(&obj->hash);
-		free(obj->path);
-		free(obj);
-	}
+	if (!map)
+		return;
+
+	hashmap__for_each_entry(map, entry, bkt)
+		free(entry->value);
+
+	hashmap__free(map);
 }
 
 unsigned int get_page_size(void)
@@ -961,4 +1006,14 @@ int map_parse_fd_and_info(int *argc, char ***argv, void *info, __u32 *info_len)
 	}
 
 	return fd;
+}
+
+size_t hash_fn_for_key_as_id(const void *key, void *ctx)
+{
+	return (size_t)key;
+}
+
+bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx)
+{
+	return k1 == k2;
 }

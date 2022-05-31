@@ -423,11 +423,11 @@ Connector Functions Reference
 Writeback Connectors
 --------------------
 
-.. kernel-doc:: include/drm/drm_writeback.h
-  :internal:
-
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :doc: overview
+
+.. kernel-doc:: include/drm/drm_writeback.h
+  :internal:
 
 .. kernel-doc:: drivers/gpu/drm/drm_writeback.c
   :export:
@@ -505,6 +505,8 @@ Property Types and Blob Property Support
 
 .. kernel-doc:: drivers/gpu/drm/drm_property.c
    :export:
+
+.. _standard_connector_properties:
 
 Standard Connector Properties
 -----------------------------

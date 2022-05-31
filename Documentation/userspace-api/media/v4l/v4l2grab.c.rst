@@ -46,7 +46,7 @@ file: media/v4l/v4l2grab.c
 	    } while (r == -1 && ((errno == EINTR) || (errno == EAGAIN)));
 
 	    if (r == -1) {
-		    fprintf(stderr, "error %d, %s\\n", errno, strerror(errno));
+		    fprintf(stderr, "error %d, %s\n", errno, strerror(errno));
 		    exit(EXIT_FAILURE);
 	    }
     }
@@ -80,11 +80,11 @@ file: media/v4l/v4l2grab.c
 	    fmt.fmt.pix.field       = V4L2_FIELD_INTERLACED;
 	    xioctl(fd, VIDIOC_S_FMT, &fmt);
 	    if (fmt.fmt.pix.pixelformat != V4L2_PIX_FMT_RGB24) {
-		    printf("Libv4l didn't accept RGB24 format. Can't proceed.\\n");
+		    printf("Libv4l didn't accept RGB24 format. Can't proceed.\n");
 		    exit(EXIT_FAILURE);
 	    }
 	    if ((fmt.fmt.pix.width != 640) || (fmt.fmt.pix.height != 480))
-		    printf("Warning: driver is sending image at %dx%d\\n",
+		    printf("Warning: driver is sending image at %dx%d\n",
 			    fmt.fmt.pix.width, fmt.fmt.pix.height);
 
 	    CLEAR(req);
@@ -134,7 +134,7 @@ file: media/v4l/v4l2grab.c
 			    tv.tv_usec = 0;
 
 			    r = select(fd + 1, &fds, NULL, NULL, &tv);
-		    } while ((r == -1 && (errno = EINTR)));
+		    } while ((r == -1 && (errno == EINTR)));
 		    if (r == -1) {
 			    perror("select");
 			    return errno;
@@ -151,7 +151,7 @@ file: media/v4l/v4l2grab.c
 			    perror("Cannot open image");
 			    exit(EXIT_FAILURE);
 		    }
-		    fprintf(fout, "P6\\n%d %d 255\\n",
+		    fprintf(fout, "P6\n%d %d 255\n",
 			    fmt.fmt.pix.width, fmt.fmt.pix.height);
 		    fwrite(buffers[buf.index].start, buf.bytesused, 1, fout);
 		    fclose(fout);

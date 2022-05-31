@@ -46,7 +46,7 @@ struct thread_info {
 	struct pt_regs		*kregs;
 	int			preempt_count;	/* 0 => preemptable, <0 => BUG */
 	__u8			new_child;
-	__u8			current_ds;
+	__u8			__pad;
 	__u16			cpu;
 
 	unsigned long		*utraps;
@@ -81,7 +81,6 @@ struct thread_info {
 #define TI_KREGS	0x00000028
 #define TI_PRE_COUNT	0x00000030
 #define TI_NEW_CHILD	0x00000034
-#define TI_CURRENT_DS	0x00000035
 #define TI_CPU		0x00000036
 #define TI_UTRAPS	0x00000038
 #define TI_REG_WINDOW	0x00000040
@@ -116,7 +115,6 @@ struct thread_info {
 #define INIT_THREAD_INFO(tsk)				\
 {							\
 	.task		=	&tsk,			\
-	.current_ds	=	ASI_P,			\
 	.preempt_count	=	INIT_PREEMPT_COUNT,	\
 	.kregs		=	(struct pt_regs *)(init_stack+THREAD_SIZE)-1 \
 }

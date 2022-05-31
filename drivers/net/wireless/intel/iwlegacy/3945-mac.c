@@ -3819,7 +3819,6 @@ il3945_pci_remove(struct pci_dev *pdev)
 	il3945_unset_hw_params(il);
 
 	/*netif_stop_queue(dev); */
-	flush_workqueue(il->workqueue);
 
 	/* ieee80211_unregister_hw calls il3945_mac_stop, which flushes
 	 * il->workqueue... so we can't take down the workqueue

@@ -13,7 +13,7 @@ PCI Support Library
 .. kernel-doc:: drivers/pci/search.c
    :export:
 
-.. kernel-doc:: drivers/pci/msi.c
+.. kernel-doc:: drivers/pci/msi/msi.c
    :export:
 
 .. kernel-doc:: drivers/pci/bus.c

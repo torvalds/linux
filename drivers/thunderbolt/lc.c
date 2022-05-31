@@ -193,6 +193,140 @@ int tb_lc_start_lane_initialization(struct tb_port *port)
 	return tb_sw_write(sw, &ctrl, TB_CFG_SWITCH, cap + TB_LC_SX_CTRL, 1);
 }
 
+/**
+ * tb_lc_is_clx_supported() - Check whether CLx is supported by the lane adapter
+ * @port: Lane adapter
+ *
+ * TB_LC_LINK_ATTR_CPS bit reflects if the link supports CLx including
+ * active cables (if connected on the link).
+ */
+bool tb_lc_is_clx_supported(struct tb_port *port)
+{
+	struct tb_switch *sw = port->sw;
+	int cap, ret;
+	u32 val;
+
+	cap = find_port_lc_cap(port);
+	if (cap < 0)
+		return false;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, cap + TB_LC_LINK_ATTR, 1);
+	if (ret)
+		return false;
+
+	return !!(val & TB_LC_LINK_ATTR_CPS);
+}
+
+/**
+ * tb_lc_is_usb_plugged() - Is there USB device connected to port
+ * @port: Device router lane 0 adapter
+ *
+ * Returns true if the @port has USB type-C device connected.
+ */
+bool tb_lc_is_usb_plugged(struct tb_port *port)
+{
+	struct tb_switch *sw = port->sw;
+	int cap, ret;
+	u32 val;
+
+	if (sw->generation != 3)
+		return false;
+
+	cap = find_port_lc_cap(port);
+	if (cap < 0)
+		return false;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, cap + TB_LC_CS_42, 1);
+	if (ret)
+		return false;
+
+	return !!(val & TB_LC_CS_42_USB_PLUGGED);
+}
+
+/**
+ * tb_lc_is_xhci_connected() - Is the internal xHCI connected
+ * @port: Device router lane 0 adapter
+ *
+ * Returns true if the internal xHCI has been connected to @port.
+ */
+bool tb_lc_is_xhci_connected(struct tb_port *port)
+{
+	struct tb_switch *sw = port->sw;
+	int cap, ret;
+	u32 val;
+
+	if (sw->generation != 3)
+		return false;
+
+	cap = find_port_lc_cap(port);
+	if (cap < 0)
+		return false;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, cap + TB_LC_LINK_REQ, 1);
+	if (ret)
+		return false;
+
+	return !!(val & TB_LC_LINK_REQ_XHCI_CONNECT);
+}
+
+static int __tb_lc_xhci_connect(struct tb_port *port, bool connect)
+{
+	struct tb_switch *sw = port->sw;
+	int cap, ret;
+	u32 val;
+
+	if (sw->generation != 3)
+		return -EINVAL;
+
+	cap = find_port_lc_cap(port);
+	if (cap < 0)
+		return cap;
+
+	ret = tb_sw_read(sw, &val, TB_CFG_SWITCH, cap + TB_LC_LINK_REQ, 1);
+	if (ret)
+		return ret;
+
+	if (connect)
+		val |= TB_LC_LINK_REQ_XHCI_CONNECT;
+	else
+		val &= ~TB_LC_LINK_REQ_XHCI_CONNECT;
+
+	return tb_sw_write(sw, &val, TB_CFG_SWITCH, cap + TB_LC_LINK_REQ, 1);
+}
+
+/**
+ * tb_lc_xhci_connect() - Connect internal xHCI
+ * @port: Device router lane 0 adapter
+ *
+ * Tells LC to connect the internal xHCI to @port. Returns %0 on success
+ * and negative errno in case of failure. Can be called for Thunderbolt 3
+ * routers only.
+ */
+int tb_lc_xhci_connect(struct tb_port *port)
+{
+	int ret;
+
+	ret = __tb_lc_xhci_connect(port, true);
+	if (ret)
+		return ret;
+
+	tb_port_dbg(port, "xHCI connected\n");
+	return 0;
+}
+
+/**
+ * tb_lc_xhci_disconnect() - Disconnect internal xHCI
+ * @port: Device router lane 0 adapter
+ *
+ * Tells LC to disconnect the internal xHCI from @port. Can be called
+ * for Thunderbolt 3 routers only.
+ */
+void tb_lc_xhci_disconnect(struct tb_port *port)
+{
+	__tb_lc_xhci_connect(port, false);
+	tb_port_dbg(port, "xHCI disconnected\n");
+}
+
 static int tb_lc_set_wake_one(struct tb_switch *sw, unsigned int offset,
 			      unsigned int flags)
 {

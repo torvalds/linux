@@ -212,13 +212,12 @@
 			};
 		};
 
-		dsi0: mdss_dsi@4700000 {
+		dsi0: dsi@4700000 {
 			status = "okay";
 			vdda-supply = <&pm8921_l2>;/*VDD_MIPI1 to 4*/
 			vdd-supply = <&pm8921_l8>;
 			vddio-supply = <&pm8921_lvs7>;
 			avdd-supply = <&pm8921_l11>;
-			vcss-supply = <&ext_3p3v>;
 
 			panel@0 {
 				reg = <0>;
@@ -335,7 +334,7 @@
 
 		amba {
 			/* eMMC */
-			sdcc@12400000 {
+			mmc@12400000 {
 				status = "okay";
 				vmmc-supply = <&pm8921_l5>;
 				vqmmc-supply = <&pm8921_s4>;

@@ -10,7 +10,7 @@
 #include "intel_pps.h"
 #include "intel_tc.h"
 
-u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
+static u32 intel_dp_aux_pack(const u8 *src, int src_bytes)
 {
 	int i;
 	u32 v = 0;
@@ -22,7 +22,7 @@ u32 intel_dp_pack_aux(const u8 *src, int src_bytes)
 	return v;
 }
 
-static void intel_dp_unpack_aux(u32 src, u8 *dst, int dst_bytes)
+static void intel_dp_aux_unpack(u32 src, u8 *dst, int dst_bytes)
 {
 	int i;
 
@@ -150,9 +150,6 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 				u32 unused)
 {
 	struct intel_digital_port *dig_port = dp_to_dig_port(intel_dp);
-	struct drm_i915_private *i915 =
-			to_i915(dig_port->base.base.dev);
-	enum phy phy = intel_port_to_phy(i915, dig_port->base.port);
 	u32 ret;
 
 	/*
@@ -170,8 +167,7 @@ static u32 skl_get_aux_send_ctl(struct intel_dp *intel_dp,
 	      DP_AUX_CH_CTL_FW_SYNC_PULSE_SKL(32) |
 	      DP_AUX_CH_CTL_SYNC_PULSE_SKL(32);
 
-	if (intel_phy_is_tc(i915, phy) &&
-	    dig_port->tc_mode == TC_PORT_TBT_ALT)
+	if (intel_tc_port_in_tbt_alt_mode(dig_port))
 		ret |= DP_AUX_CH_CTL_TBT_IO;
 
 	return ret;
@@ -271,7 +267,7 @@ intel_dp_aux_xfer(struct intel_dp *intel_dp,
 			for (i = 0; i < send_bytes; i += 4)
 				intel_uncore_write(uncore,
 						   ch_data[i >> 2],
-						   intel_dp_pack_aux(send + i,
+						   intel_dp_aux_pack(send + i,
 								     send_bytes - i));
 
 			/* Send the command and wait for it to complete */
@@ -356,7 +352,7 @@ done:
 		recv_bytes = recv_size;
 
 	for (i = 0; i < recv_bytes; i += 4)
-		intel_dp_unpack_aux(intel_uncore_read(uncore, ch_data[i >> 2]),
+		intel_dp_aux_unpack(intel_uncore_read(uncore, ch_data[i >> 2]),
 				    recv + i, recv_bytes - i);
 
 	ret = recv_bytes;

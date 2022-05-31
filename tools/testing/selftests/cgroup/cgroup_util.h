@@ -2,9 +2,9 @@
 #include <stdbool.h>
 #include <stdlib.h>
 
-#define PAGE_SIZE 4096
+#include "../kselftest.h"
 
-#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#define PAGE_SIZE 4096
 
 #define MB(x) (x << 20)
 
@@ -55,4 +55,5 @@ extern int clone_reap(pid_t pid, int options);
 extern int clone_into_cgroup_run_wait(const char *cgroup);
 extern int dirfd_open_opath(const char *dir);
 extern int cg_prepare_for_wait(const char *cgroup);
+extern int memcg_prepare_for_wait(const char *cgroup);
 extern int cg_wait_for(int fd);

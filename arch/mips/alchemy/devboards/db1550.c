@@ -66,6 +66,7 @@ int __init db1550_board_setup(void)
 	case BCSR_WHOAMI_PB1550_DDR:
 		bcsr_init(PB1550_BCSR_PHYS_ADDR,
 			  PB1550_BCSR_PHYS_ADDR + PB1550_BCSR_HEXLED_OFS);
+		break;
 	case BCSR_WHOAMI_DB1550:
 		break;
 	default:

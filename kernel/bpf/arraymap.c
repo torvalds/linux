@@ -645,7 +645,7 @@ static const struct bpf_iter_seq_info iter_seq_info = {
 	.seq_priv_size		= sizeof(struct bpf_iter_seq_array_map_info),
 };
 
-static int bpf_for_each_array_elem(struct bpf_map *map, void *callback_fn,
+static int bpf_for_each_array_elem(struct bpf_map *map, bpf_callback_t callback_fn,
 				   void *callback_ctx, u64 flags)
 {
 	u32 i, key, num_elems = 0;
@@ -668,9 +668,8 @@ static int bpf_for_each_array_elem(struct bpf_map *map, void *callback_fn,
 			val = array->value + array->elem_size * i;
 		num_elems++;
 		key = i;
-		ret = BPF_CAST_CALL(callback_fn)((u64)(long)map,
-					(u64)(long)&key, (u64)(long)val,
-					(u64)(long)callback_ctx, 0);
+		ret = callback_fn((u64)(long)map, (u64)(long)&key,
+				  (u64)(long)val, (u64)(long)callback_ctx, 0);
 		/* return value: 0 - continue, 1 - stop and return */
 		if (ret)
 			break;
@@ -838,13 +837,12 @@ static int fd_array_map_delete_elem(struct bpf_map *map, void *key)
 static void *prog_fd_array_get_ptr(struct bpf_map *map,
 				   struct file *map_file, int fd)
 {
-	struct bpf_array *array = container_of(map, struct bpf_array, map);
 	struct bpf_prog *prog = bpf_prog_get(fd);
 
 	if (IS_ERR(prog))
 		return prog;
 
-	if (!bpf_prog_array_compatible(array, prog)) {
+	if (!bpf_prog_map_compatible(map, prog)) {
 		bpf_prog_put(prog);
 		return ERR_PTR(-EINVAL);
 	}
@@ -1072,7 +1070,6 @@ static struct bpf_map *prog_array_map_alloc(union bpf_attr *attr)
 	INIT_WORK(&aux->work, prog_array_map_clear_deferred);
 	INIT_LIST_HEAD(&aux->poke_progs);
 	mutex_init(&aux->poke_mutex);
-	spin_lock_init(&aux->owner.lock);
 
 	map = array_map_alloc(attr);
 	if (IS_ERR(map)) {

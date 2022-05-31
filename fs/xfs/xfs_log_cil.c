@@ -103,6 +103,39 @@ xlog_cil_iovec_space(
 }
 
 /*
+ * shadow buffers can be large, so we need to use kvmalloc() here to ensure
+ * success. Unfortunately, kvmalloc() only allows GFP_KERNEL contexts to fall
+ * back to vmalloc, so we can't actually do anything useful with gfp flags to
+ * control the kmalloc() behaviour within kvmalloc(). Hence kmalloc() will do
+ * direct reclaim and compaction in the slow path, both of which are
+ * horrendously expensive. We just want kmalloc to fail fast and fall back to
+ * vmalloc if it can't get somethign straight away from the free lists or buddy
+ * allocator. Hence we have to open code kvmalloc outselves here.
+ *
+ * Also, we are in memalloc_nofs_save task context here, so despite the use of
+ * GFP_KERNEL here, we are actually going to be doing GFP_NOFS allocations. This
+ * is actually the only way to make vmalloc() do GFP_NOFS allocations, so lets
+ * just all pretend this is a GFP_KERNEL context operation....
+ */
+static inline void *
+xlog_cil_kvmalloc(
+	size_t		buf_size)
+{
+	gfp_t		flags = GFP_KERNEL;
+	void		*p;
+
+	flags &= ~__GFP_DIRECT_RECLAIM;
+	flags |= __GFP_NOWARN | __GFP_NORETRY;
+	do {
+		p = kmalloc(buf_size, flags);
+		if (!p)
+			p = vmalloc(buf_size);
+	} while (!p);
+
+	return p;
+}
+
+/*
  * Allocate or pin log vector buffers for CIL insertion.
  *
  * The CIL currently uses disposable buffers for copying a snapshot of the
@@ -203,25 +236,16 @@ xlog_cil_alloc_shadow_bufs(
 		 */
 		if (!lip->li_lv_shadow ||
 		    buf_size > lip->li_lv_shadow->lv_size) {
-
 			/*
 			 * We free and allocate here as a realloc would copy
-			 * unnecessary data. We don't use kmem_zalloc() for the
+			 * unnecessary data. We don't use kvzalloc() for the
 			 * same reason - we don't need to zero the data area in
 			 * the buffer, only the log vector header and the iovec
 			 * storage.
 			 */
 			kmem_free(lip->li_lv_shadow);
+			lv = xlog_cil_kvmalloc(buf_size);
 
-			/*
-			 * We are in transaction context, which means this
-			 * allocation will pick up GFP_NOFS from the
-			 * memalloc_nofs_save/restore context the transaction
-			 * holds. This means we can use GFP_KERNEL here so the
-			 * generic kvmalloc() code will run vmalloc on
-			 * contiguous page allocation failure as we require.
-			 */
-			lv = kvmalloc(buf_size, GFP_KERNEL);
 			memset(lv, 0, xlog_cil_iovec_space(niovecs));
 
 			lv->lv_item = lip;
@@ -516,7 +540,7 @@ xlog_cil_insert_items(
 	spin_unlock(&cil->xc_cil_lock);
 
 	if (tp->t_ticket->t_curr_res < 0)
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 }
 
 static void
@@ -681,11 +705,21 @@ xlog_cil_set_ctx_write_state(
 		 * The LSN we need to pass to the log items on transaction
 		 * commit is the LSN reported by the first log vector write, not
 		 * the commit lsn. If we use the commit record lsn then we can
-		 * move the tail beyond the grant write head.
+		 * move the grant write head beyond the tail LSN and overwrite
+		 * it.
 		 */
 		ctx->start_lsn = lsn;
 		wake_up_all(&cil->xc_start_wait);
 		spin_unlock(&cil->xc_push_lock);
+
+		/*
+		 * Make sure the metadata we are about to overwrite in the log
+		 * has been flushed to stable storage before this iclog is
+		 * issued.
+		 */
+		spin_lock(&cil->xc_log->l_icloglock);
+		iclog->ic_flags |= XLOG_ICL_NEED_FLUSH;
+		spin_unlock(&cil->xc_log->l_icloglock);
 		return;
 	}
 
@@ -830,7 +864,7 @@ xlog_cil_write_commit_record(
 
 	error = xlog_write(log, ctx, &vec, ctx->ticket, XLOG_COMMIT_TRANS);
 	if (error)
-		xfs_force_shutdown(log->l_mp, SHUTDOWN_LOG_IO_ERROR);
+		xlog_force_shutdown(log, SHUTDOWN_LOG_IO_ERROR);
 	return error;
 }
 
@@ -864,10 +898,7 @@ xlog_cil_push_work(
 	struct xfs_trans_header thdr;
 	struct xfs_log_iovec	lhdr;
 	struct xfs_log_vec	lvhdr = { NULL };
-	xfs_lsn_t		preflush_tail_lsn;
 	xfs_csn_t		push_seq;
-	struct bio		bio;
-	DECLARE_COMPLETION_ONSTACK(bdev_flush);
 	bool			push_commit_stable;
 
 	new_ctx = xlog_cil_ctx_alloc();
@@ -936,23 +967,6 @@ xlog_cil_push_work(
 	 */
 	list_add(&ctx->committing, &cil->xc_committing);
 	spin_unlock(&cil->xc_push_lock);
-
-	/*
-	 * The CIL is stable at this point - nothing new will be added to it
-	 * because we hold the flush lock exclusively. Hence we can now issue
-	 * a cache flush to ensure all the completed metadata in the journal we
-	 * are about to overwrite is on stable storage.
-	 *
-	 * Because we are issuing this cache flush before we've written the
-	 * tail lsn to the iclog, we can have metadata IO completions move the
-	 * tail forwards between the completion of this flush and the iclog
-	 * being written. In this case, we need to re-issue the cache flush
-	 * before the iclog write. To detect whether the log tail moves, sample
-	 * the tail LSN *before* we issue the flush.
-	 */
-	preflush_tail_lsn = atomic64_read(&log->l_tail_lsn);
-	xfs_flush_bdev_async(&bio, log->l_mp->m_ddev_targp->bt_bdev,
-				&bdev_flush);
 
 	/*
 	 * Pull all the log vectors off the items in the CIL, and remove the
@@ -1030,12 +1044,6 @@ xlog_cil_push_work(
 	lvhdr.lv_iovecp = &lhdr;
 	lvhdr.lv_next = ctx->lv_chain;
 
-	/*
-	 * Before we format and submit the first iclog, we have to ensure that
-	 * the metadata writeback ordering cache flush is complete.
-	 */
-	wait_for_completion(&bdev_flush);
-
 	error = xlog_cil_write_chain(ctx, &lvhdr);
 	if (error)
 		goto out_abort_free_ticket;
@@ -1094,7 +1102,7 @@ xlog_cil_push_work(
 	if (push_commit_stable &&
 	    ctx->commit_iclog->ic_state == XLOG_STATE_ACTIVE)
 		xlog_state_switch_iclogs(log, ctx->commit_iclog, 0);
-	xlog_state_release_iclog(log, ctx->commit_iclog, preflush_tail_lsn);
+	xlog_state_release_iclog(log, ctx->commit_iclog);
 
 	/* Not safe to reference ctx now! */
 
@@ -1115,7 +1123,7 @@ out_abort_free_ticket:
 		return;
 	}
 	spin_lock(&log->l_icloglock);
-	xlog_state_release_iclog(log, ctx->commit_iclog, 0);
+	xlog_state_release_iclog(log, ctx->commit_iclog);
 	/* Not safe to reference ctx now! */
 	spin_unlock(&log->l_icloglock);
 }
@@ -1219,18 +1227,27 @@ xlog_cil_push_now(
 	if (!async)
 		flush_workqueue(cil->xc_push_wq);
 
+	spin_lock(&cil->xc_push_lock);
+
+	/*
+	 * If this is an async flush request, we always need to set the
+	 * xc_push_commit_stable flag even if something else has already queued
+	 * a push. The flush caller is asking for the CIL to be on stable
+	 * storage when the next push completes, so regardless of who has queued
+	 * the push, the flush requires stable semantics from it.
+	 */
+	cil->xc_push_commit_stable = async;
+
 	/*
 	 * If the CIL is empty or we've already pushed the sequence then
-	 * there's no work we need to do.
+	 * there's no more work that we need to do.
 	 */
-	spin_lock(&cil->xc_push_lock);
 	if (list_empty(&cil->xc_cil) || push_seq <= cil->xc_push_seq) {
 		spin_unlock(&cil->xc_push_lock);
 		return;
 	}
 
 	cil->xc_push_seq = push_seq;
-	cil->xc_push_commit_stable = async;
 	queue_work(cil->xc_push_wq, &cil->xc_ctx->push_work);
 	spin_unlock(&cil->xc_push_lock);
 }
@@ -1328,6 +1345,13 @@ xlog_cil_flush(
 
 	trace_xfs_log_force(log->l_mp, seq, _RET_IP_);
 	xlog_cil_push_now(log, seq, true);
+
+	/*
+	 * If the CIL is empty, make sure that any previous checkpoint that may
+	 * still be in an active iclog is pushed to stable storage.
+	 */
+	if (list_empty(&log->l_cilp->xc_cil))
+		xfs_log_force(log->l_mp, 0);
 }
 
 /*
@@ -1442,9 +1466,9 @@ out_shutdown:
  */
 bool
 xfs_log_item_in_current_chkpt(
-	struct xfs_log_item *lip)
+	struct xfs_log_item	*lip)
 {
-	struct xfs_cil_ctx *ctx = lip->li_mountp->m_log->l_cilp->xc_ctx;
+	struct xfs_cil		*cil = lip->li_log->l_cilp;
 
 	if (list_empty(&lip->li_cil))
 		return false;
@@ -1454,7 +1478,7 @@ xfs_log_item_in_current_chkpt(
 	 * first checkpoint it is written to. Hence if it is different to the
 	 * current sequence, we're in a new checkpoint.
 	 */
-	return lip->li_seq == ctx->sequence;
+	return lip->li_seq == READ_ONCE(cil->xc_current_sequence);
 }
 
 /*

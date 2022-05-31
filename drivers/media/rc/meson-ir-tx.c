@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/**
+/*
  * meson-ir-tx.c - Amlogic Meson IR TX driver
  *
  * Copyright (c) 2021, SberDevices. All Rights Reserved.
@@ -395,7 +395,6 @@ static struct platform_driver meson_irtx_pd = {
 	.remove = meson_irtx_remove,
 	.driver = {
 		.name = DRIVER_NAME,
-		.owner  = THIS_MODULE,
 		.of_match_table = meson_irtx_dt_match,
 	},
 };

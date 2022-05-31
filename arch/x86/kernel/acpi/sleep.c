@@ -15,6 +15,7 @@
 #include <asm/desc.h>
 #include <asm/cacheflush.h>
 #include <asm/realmode.h>
+#include <asm/hypervisor.h>
 
 #include <linux/ftrace.h>
 #include "../../realmode/rm/wakeup.h"
@@ -139,8 +140,10 @@ static int __init acpi_sleep_setup(char *str)
 		if (strncmp(str, "s3_beep", 7) == 0)
 			acpi_realmode_flags |= 4;
 #ifdef CONFIG_HIBERNATION
+		if (strncmp(str, "s4_hwsig", 8) == 0)
+			acpi_check_s4_hw_signature = 1;
 		if (strncmp(str, "s4_nohwsig", 10) == 0)
-			acpi_no_s4_hw_signature();
+			acpi_check_s4_hw_signature = 0;
 #endif
 		if (strncmp(str, "nonvs", 5) == 0)
 			acpi_nvs_nosave();
@@ -158,3 +161,21 @@ static int __init acpi_sleep_setup(char *str)
 }
 
 __setup("acpi_sleep=", acpi_sleep_setup);
+
+#if defined(CONFIG_HIBERNATION) && defined(CONFIG_HYPERVISOR_GUEST)
+static int __init init_s4_sigcheck(void)
+{
+	/*
+	 * If running on a hypervisor, honour the ACPI specification
+	 * by default and trigger a clean reboot when the hardware
+	 * signature in FACS is changed after hibernation.
+	 */
+	if (acpi_check_s4_hw_signature == -1 &&
+	    !hypervisor_is_type(X86_HYPER_NATIVE))
+		acpi_check_s4_hw_signature = 1;
+
+	return 0;
+}
+/* This must happen before acpi_init() which is a subsys initcall */
+arch_initcall(init_s4_sigcheck);
+#endif

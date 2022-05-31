@@ -151,13 +151,13 @@
 };
 
 &pinctrl_0 {
-	camera_flash_host: camera-flash-host {
+	camera_flash_host: camera-flash-host-pins {
 		samsung,pins = "gpj1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-val = <0>;
 	};
 
-	camera_flash_isp: camera-flash-isp {
+	camera_flash_isp: camera-flash-isp-pins {
 		samsung,pins = "gpj1-0";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-val = <1>;

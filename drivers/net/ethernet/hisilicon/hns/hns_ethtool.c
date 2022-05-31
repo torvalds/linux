@@ -663,9 +663,13 @@ static void hns_nic_get_drvinfo(struct net_device *net_dev,
  * hns_get_ringparam - get ring parameter
  * @net_dev: net device
  * @param: ethtool parameter
+ * @kernel_param: ethtool external parameter
+ * @extack: netlink extended ACK report struct
  */
 static void hns_get_ringparam(struct net_device *net_dev,
-			      struct ethtool_ringparam *param)
+			      struct ethtool_ringparam *param,
+			      struct kernel_ethtool_ringparam *kernel_param,
+			      struct netlink_ext_ack *extack)
 {
 	struct hns_nic_priv *priv = netdev_priv(net_dev);
 	struct hnae_ae_ops *ops;
@@ -883,8 +887,8 @@ static void hns_get_ethtool_stats(struct net_device *netdev,
 	p[21] = net_stats->rx_compressed;
 	p[22] = net_stats->tx_compressed;
 
-	p[23] = netdev->rx_dropped.counter;
-	p[24] = netdev->tx_dropped.counter;
+	p[23] = 0; /* was netdev->rx_dropped.counter */
+	p[24] = 0; /* was netdev->tx_dropped.counter */
 
 	p[25] = priv->tx_timeout_count;
 

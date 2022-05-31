@@ -143,7 +143,7 @@ static void reuseport_array_free(struct bpf_map *map)
 
 	/*
 	 * Once reaching here, all sk->sk_user_data is not
-	 * referenceing this "array".  "array" can be freed now.
+	 * referencing this "array". "array" can be freed now.
 	 */
 	bpf_map_area_free(array);
 }
@@ -152,16 +152,12 @@ static struct bpf_map *reuseport_array_alloc(union bpf_attr *attr)
 {
 	int numa_node = bpf_map_attr_numa_node(attr);
 	struct reuseport_array *array;
-	u64 array_size;
 
 	if (!bpf_capable())
 		return ERR_PTR(-EPERM);
 
-	array_size = sizeof(*array);
-	array_size += (u64)attr->max_entries * sizeof(struct sock *);
-
 	/* allocate all map elements and zero-initialize them */
-	array = bpf_map_area_alloc(array_size, numa_node);
+	array = bpf_map_area_alloc(struct_size(array, ptrs, attr->max_entries), numa_node);
 	if (!array)
 		return ERR_PTR(-ENOMEM);
 

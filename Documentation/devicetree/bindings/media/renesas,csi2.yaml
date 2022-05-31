@@ -30,6 +30,7 @@ properties:
           - renesas,r8a77970-csi2 # R-Car V3M
           - renesas,r8a77980-csi2 # R-Car V3H
           - renesas,r8a77990-csi2 # R-Car E3
+          - renesas,r8a779a0-csi2 # R-Car V3U
 
   reg:
     maxItems: 1
@@ -66,7 +67,10 @@ properties:
                 maxItems: 1
 
               data-lanes:
-                maxItems: 1
+                minItems: 1
+                maxItems: 4
+                items:
+                  maximum: 4
 
             required:
               - clock-lanes

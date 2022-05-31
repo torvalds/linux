@@ -48,14 +48,6 @@ please make a proposal on the linux-media mailing list.
       - ``V4L2_PIX_FMT_HI240``
       - 'HI24'
       - 8 bit RGB format used by the BTTV driver.
-    * .. _V4L2-PIX-FMT-HM12:
-
-      - ``V4L2_PIX_FMT_HM12``
-      - 'HM12'
-      - YUV 4:2:0 format used by the IVTV driver.
-
-	The format is documented in the kernel sources in the file
-	``Documentation/userspace-api/media/drivers/cx2341x-uapi.rst``
     * .. _V4L2-PIX-FMT-CPIA1:
 
       - ``V4L2_PIX_FMT_CPIA1``
@@ -241,26 +233,12 @@ please make a proposal on the linux-media mailing list.
 
       - ``V4L2_PIX_FMT_MT21C``
       - 'MT21'
-      - Compressed two-planar YVU420 format used by Mediatek MT8173.
-	The compression is lossless.
-	It is an opaque intermediate format and the MDP hardware must be
+      - Compressed two-planar YVU420 format used by Mediatek MT8173, MT8192,
+        MT8195 and more. The compression is lossless. This format have
+	similitude with ``V4L2_PIX_FMT_MM21`` in term of alignment and tiling.
+	It remains an opaque intermediate format and the MDP hardware must be
 	used to convert ``V4L2_PIX_FMT_MT21C`` to ``V4L2_PIX_FMT_NV12M``,
 	``V4L2_PIX_FMT_YUV420M`` or ``V4L2_PIX_FMT_YVU420``.
-    * .. _V4L2-PIX-FMT-SUNXI-TILED-NV12:
-
-      - ``V4L2_PIX_FMT_SUNXI_TILED_NV12``
-      - 'ST12'
-      - Two-planar NV12-based format used by the video engine found on Allwinner
-	(codenamed sunxi) platforms, with 32x32 tiles for the luminance plane
-	and 32x64 tiles for the chrominance plane. The data in each tile is
-	stored in linear order, within the tile bounds. Each tile follows the
-	previous one linearly in memory (from left to right, top to bottom).
-
-	The associated buffer dimensions are aligned to match an integer number
-	of tiles, resulting in 32-aligned resolutions for the luminance plane
-	and 16-aligned resolutions for the chrominance plane (with 2x2
-	subsampling).
-
 .. raw:: latex
 
     \normalsize

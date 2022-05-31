@@ -62,6 +62,7 @@ int acpi_fix_pin2_polarity __initdata;
 
 #ifdef CONFIG_X86_LOCAL_APIC
 static u64 acpi_lapic_addr __initdata = APIC_DEFAULT_PHYS_BASE;
+static bool acpi_support_online_capable;
 #endif
 
 #ifdef CONFIG_X86_IO_APIC
@@ -138,6 +139,8 @@ static int __init acpi_parse_madt(struct acpi_table_header *table)
 
 		pr_debug("Local APIC address 0x%08x\n", madt->address);
 	}
+	if (madt->header.revision >= 5)
+		acpi_support_online_capable = true;
 
 	default_acpi_madt_oem_check(madt->header.oem_id,
 				    madt->header.oem_table_id);
@@ -237,6 +240,12 @@ acpi_parse_lapic(union acpi_subtable_headers * header, const unsigned long end)
 
 	/* Ignore invalid ID */
 	if (processor->id == 0xff)
+		return 0;
+
+	/* don't register processors that can not be onlined */
+	if (acpi_support_online_capable &&
+	    !(processor->lapic_flags & ACPI_MADT_ENABLED) &&
+	    !(processor->lapic_flags & ACPI_MADT_ONLINE_CAPABLE))
 		return 0;
 
 	/*
@@ -1319,6 +1328,17 @@ static int __init disable_acpi_pci(const struct dmi_system_id *d)
 	return 0;
 }
 
+static int __init disable_acpi_xsdt(const struct dmi_system_id *d)
+{
+	if (!acpi_force) {
+		pr_notice("%s detected: force use of acpi=rsdt\n", d->ident);
+		acpi_gbl_do_not_use_xsdt = TRUE;
+	} else {
+		pr_notice("Warning: DMI blacklist says broken, but acpi XSDT forced\n");
+	}
+	return 0;
+}
+
 static int __init dmi_disable_acpi(const struct dmi_system_id *d)
 {
 	if (!acpi_force) {
@@ -1440,6 +1460,19 @@ static const struct dmi_system_id acpi_dmi_table[] __initconst = {
 	 .matches = {
 		     DMI_MATCH(DMI_SYS_VENDOR, "Acer"),
 		     DMI_MATCH(DMI_PRODUCT_NAME, "TravelMate 360"),
+		     },
+	 },
+	/*
+	 * Boxes that need ACPI XSDT use disabled due to corrupted tables
+	 */
+	{
+	 .callback = disable_acpi_xsdt,
+	 .ident = "Advantech DAC-BJ01",
+	 .matches = {
+		     DMI_MATCH(DMI_SYS_VENDOR, "NEC"),
+		     DMI_MATCH(DMI_PRODUCT_NAME, "Bearlake CRB Board"),
+		     DMI_MATCH(DMI_BIOS_VERSION, "V1.12"),
+		     DMI_MATCH(DMI_BIOS_DATE, "02/01/2011"),
 		     },
 	 },
 	{}

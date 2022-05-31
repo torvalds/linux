@@ -251,6 +251,182 @@
 	};
 };
 
+&gpio0 {
+	gpio-line-names = /* GPIO0 A 0-7 */
+			  "AP_RTC_CLK_IN",
+			  "EC_AP_INT_L",
+			  "PP1800_AUDIO_EN",
+			  "BT_HOST_WAKE_L",
+			  "WLAN_MODULE_PD_L",
+			  "H1_INT_OD_L",
+			  "CENTERLOGIC_DVS_PWM",
+			  "",
+
+			  /* GPIO0 B 0-4 */
+			  "WIFI_HOST_WAKE_L",
+			  "PMUIO2_33_18_L",
+			  "PP1500_EN",
+			  "AP_EC_WARM_RESET_REQ",
+			  "PP3000_EN";
+};
+
+&gpio1 {
+	gpio-line-names = /* GPIO1 A 0-7 */
+			  "",
+			  "",
+			  "SPK_PA_EN",
+			  "",
+			  "TRACKPAD_INT_L",
+			  "AP_EC_S3_S0_L",
+			  "AP_EC_OVERTEMP",
+			  "AP_SPI_FLASH_MISO",
+
+			  /* GPIO1 B 0-7 */
+			  "AP_SPI_FLASH_MOSI_R",
+			  "AP_SPI_FLASH_CLK_R",
+			  "AP_SPI_FLASH_CS_L_R",
+			  "WLAN_MODULE_RESET_L",
+			  "WIFI_DISABLE_L",
+			  "MIC_INT",
+			  "",
+			  "AP_I2C_DVS_SDA",
+
+			  /* GPIO1 C 0-7 */
+			  "AP_I2C_DVS_SCL",
+			  "AP_BL_EN",
+			  /*
+			   * AP_FLASH_WP is crossystem ABI. Schematics call it
+			   * AP_FW_WP or CPU1_FW_WP, depending on the variant.
+			   */
+			  "AP_FLASH_WP",
+			  "LITCPU_DVS_PWM",
+			  "AP_I2C_AUDIO_SDA",
+			  "AP_I2C_AUDIO_SCL",
+			  "",
+			  "HEADSET_INT_L";
+};
+
+&gpio2 {
+	gpio-line-names = /* GPIO2 A 0-7 */
+			  "",
+			  "",
+			  "SD_IO_PWR_EN",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO2 B 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO2 C 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "AP_SPI_EC_MISO",
+			  "AP_SPI_EC_MOSI",
+			  "AP_SPI_EC_CLK",
+			  "AP_SPI_EC_CS_L",
+
+			  /* GPIO2 D 0-4 */
+			  "BT_DEV_WAKE_L",
+			  "",
+			  "WIFI_PCIE_CLKREQ_L",
+			  "WIFI_PERST_L",
+			  "SD_PWR_3000_1800_L";
+};
+
+&gpio3 {
+	gpio-line-names = /* GPIO3 A 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "AP_SPI_TPM_MISO",
+			  "AP_SPI_TPM_MOSI_R",
+			  "AP_SPI_TPM_CLK_R",
+			  "AP_SPI_TPM_CS_L_R",
+
+			  /* GPIO3 B 0-7 */
+			  "EC_IN_RW",
+			  "",
+			  "AP_I2C_TP_SDA",
+			  "AP_I2C_TP_SCL",
+			  "AP_I2C_TP_PU_EN",
+			  "TOUCH_INT_L",
+			  "",
+			  "",
+
+			  /* GPIO3 C 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO3 D 0-7 */
+			  "I2S0_SCLK",
+			  "I2S0_LRCK_RX",
+			  "I2S0_LRCK_TX",
+			  "I2S0_SDI_0",
+			  "I2S0_SDI_1",
+			  "",
+			  "I2S0_SDO_1",
+			  "I2S0_SDO_0";
+};
+
+&gpio4 {
+	gpio-line-names = /* GPIO4 A 0-7 */
+			  "I2S_MCLK",
+			  "AP_I2C_MIC_SDA",
+			  "AP_I2C_MIC_SCL",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO4 B 0-7 */
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+			  "",
+
+			  /* GPIO4 C 0-7 */
+			  "AP_I2C_TS_SDA",
+			  "AP_I2C_TS_SCL",
+			  "GPU_DVS_PWM",
+			  "UART_DBG_TX_AP_RX",
+			  "UART_AP_TX_DBG_RX",
+			  "",
+			  "BIGCPU_DVS_PWM",
+			  "EDP_HPD_3V0",
+
+			  /* GPIO4 D 0-5 */
+			  "SD_CARD_DET_L",
+			  "USB_DP_HPD",
+			  "TOUCH_RESET_L",
+			  "PP3300_DISP_EN",
+			  "",
+			  "SD_SLOT_PWR_EN";
+};
+
 ap_i2c_mic: &i2c1 {
 	status = "okay";
 
@@ -286,7 +462,7 @@ ap_i2c_tp: &i2c5 {
 };
 
 &cros_ec {
-	cros_ec_pwm: ec-pwm {
+	cros_ec_pwm: pwm {
 		compatible = "google,cros-ec-pwm";
 		#pwm-cells = <1>;
 	};

@@ -102,6 +102,14 @@ enum htt_tlv_tag_t {
 	HTT_STATS_PDEV_OBSS_PD_TAG                          = 88,
 	HTT_STATS_HW_WAR_TAG				    = 89,
 	HTT_STATS_RING_BACKPRESSURE_STATS_TAG		    = 90,
+	HTT_STATS_PEER_CTRL_PATH_TXRX_STATS_TAG		    = 101,
+	HTT_STATS_PDEV_TX_RATE_TXBF_STATS_TAG		    = 108,
+	HTT_STATS_TXBF_OFDMA_NDPA_STATS_TAG		    = 113,
+	HTT_STATS_TXBF_OFDMA_NDP_STATS_TAG		    = 114,
+	HTT_STATS_TXBF_OFDMA_BRP_STATS_TAG		    = 115,
+	HTT_STATS_TXBF_OFDMA_STEER_STATS_TAG		    = 116,
+	HTT_STATS_PHY_COUNTERS_TAG			    = 121,
+	HTT_STATS_PHY_STATS_TAG				    = 122,
 
 	HTT_STATS_MAX_TAG,
 };
@@ -136,6 +144,8 @@ enum htt_tx_pdev_underrun_enum {
 struct htt_stats_string_tlv {
 	u32 data[0]; /* Can be variable length */
 } __packed;
+
+#define HTT_STATS_MAC_ID	GENMASK(7, 0)
 
 /* == TX PDEV STATS == */
 struct htt_tx_pdev_stats_cmn_tlv {
@@ -290,6 +300,10 @@ struct htt_hw_stats_whal_tx_tlv {
 };
 
 /* ============ PEER STATS ============ */
+#define	HTT_MSDU_FLOW_STATS_TX_FLOW_NO	GENMASK(15, 0)
+#define	HTT_MSDU_FLOW_STATS_TID_NUM	GENMASK(19, 16)
+#define	HTT_MSDU_FLOW_STATS_DROP_RULE	BIT(20)
+
 struct htt_msdu_flow_stats_tlv {
 	u32 last_update_timestamp;
 	u32 last_add_timestamp;
@@ -305,6 +319,11 @@ struct htt_msdu_flow_stats_tlv {
 };
 
 #define MAX_HTT_TID_NAME 8
+
+#define	HTT_TX_TID_STATS_SW_PEER_ID		GENMASK(15, 0)
+#define	HTT_TX_TID_STATS_TID_NUM		GENMASK(31, 16)
+#define	HTT_TX_TID_STATS_NUM_SCHED_PENDING	GENMASK(7, 0)
+#define	HTT_TX_TID_STATS_NUM_PPDU_IN_HWQ	GENMASK(15, 8)
 
 /* Tidq stats */
 struct htt_tx_tid_stats_tlv {
@@ -325,6 +344,11 @@ struct htt_tx_tid_stats_tlv {
 	u32 block_module_id;
 	u32 tid_tx_airtime;
 };
+
+#define	HTT_TX_TID_STATS_V1_SW_PEER_ID		GENMASK(15, 0)
+#define	HTT_TX_TID_STATS_V1_TID_NUM		GENMASK(31, 16)
+#define	HTT_TX_TID_STATS_V1_NUM_SCHED_PENDING	GENMASK(7, 0)
+#define	HTT_TX_TID_STATS_V1_NUM_PPDU_IN_HWQ	GENMASK(15, 8)
 
 /* Tidq stats */
 struct htt_tx_tid_stats_v1_tlv {
@@ -347,6 +371,9 @@ struct htt_tx_tid_stats_v1_tlv {
 	u32 allow_n_flags;
 	u32 sendn_frms_allowed;
 };
+
+#define	HTT_RX_TID_STATS_SW_PEER_ID	GENMASK(15, 0)
+#define	HTT_RX_TID_STATS_TID_NUM	GENMASK(31, 16)
 
 struct htt_rx_tid_stats_tlv {
 	u32 sw_peer_id__tid_num;
@@ -385,6 +412,10 @@ struct htt_peer_stats_cmn_tlv {
 	u32 peer_ttl_removed_count;
 	u32 inactive_time;
 };
+
+#define HTT_PEER_DETAILS_VDEV_ID	GENMASK(7, 0)
+#define HTT_PEER_DETAILS_PDEV_ID	GENMASK(15, 8)
+#define HTT_PEER_DETAILS_AST_IDX	GENMASK(31, 16)
 
 struct htt_peer_details_tlv {
 	u32 peer_type;
@@ -509,6 +540,9 @@ struct htt_tx_hwq_mu_mimo_mpdu_stats_tlv {
 	u32 mu_mimo_mpdu_underrun_usr;
 	u32 mu_mimo_ampdu_underrun_usr;
 };
+
+#define	HTT_TX_HWQ_STATS_MAC_ID	GENMASK(7, 0)
+#define	HTT_TX_HWQ_STATS_HWQ_ID	GENMASK(15, 8)
 
 struct htt_tx_hwq_mu_mimo_cmn_stats_tlv {
 	u32 mac_id__hwq_id__word;
@@ -789,6 +823,9 @@ struct htt_sched_txq_sched_ineligibility_tlv_v {
 	u32 sched_ineligibility[0];
 };
 
+#define	HTT_TX_PDEV_STATS_SCHED_PER_TXQ_MAC_ID	GENMASK(7, 0)
+#define	HTT_TX_PDEV_STATS_SCHED_PER_TXQ_ID	GENMASK(15, 8)
+
 struct htt_tx_pdev_stats_sched_per_txq_tlv {
 	u32 mac_id__txq_id__word;
 	u32 sched_policy;
@@ -910,6 +947,9 @@ struct htt_tx_tqm_error_stats_tlv {
 };
 
 /* == TQM CMDQ stats == */
+#define	HTT_TX_TQM_CMDQ_STATUS_MAC_ID	GENMASK(7, 0)
+#define	HTT_TX_TQM_CMDQ_STATUS_CMDQ_ID	GENMASK(15, 8)
+
 struct htt_tx_tqm_cmdq_status_tlv {
 	u32 mac_id__cmdq_id__word;
 	u32 sync_cmd;
@@ -1055,6 +1095,15 @@ struct htt_tx_de_cmn_stats_tlv {
 #define HTT_STATS_LOW_WM_BINS      5
 #define HTT_STATS_HIGH_WM_BINS     5
 
+#define HTT_RING_IF_STATS_NUM_ELEMS		GENMASK(15, 0)
+#define	HTT_RING_IF_STATS_PREFETCH_TAIL_INDEX	GENMASK(31, 16)
+#define HTT_RING_IF_STATS_HEAD_IDX		GENMASK(15, 0)
+#define HTT_RING_IF_STATS_TAIL_IDX		GENMASK(31, 16)
+#define HTT_RING_IF_STATS_SHADOW_HEAD_IDX	GENMASK(15, 0)
+#define HTT_RING_IF_STATS_SHADOW_TAIL_IDX	GENMASK(31, 16)
+#define HTT_RING_IF_STATS_LWM_THRESH		GENMASK(15, 0)
+#define HTT_RING_IF_STATS_HWM_THRESH		GENMASK(31, 16)
+
 struct htt_ring_if_stats_tlv {
 	u32 base_addr; /* DWORD aligned base memory address of the ring */
 	u32 elem_size;
@@ -1117,6 +1166,19 @@ struct htt_sfm_cmn_tlv {
 };
 
 /* == SRNG STATS == */
+#define	HTT_SRING_STATS_MAC_ID			GENMASK(7, 0)
+#define HTT_SRING_STATS_RING_ID			GENMASK(15, 8)
+#define HTT_SRING_STATS_ARENA			GENMASK(23, 16)
+#define HTT_SRING_STATS_EP			BIT(24)
+#define HTT_SRING_STATS_NUM_AVAIL_WORDS		GENMASK(15, 0)
+#define HTT_SRING_STATS_NUM_VALID_WORDS		GENMASK(31, 16)
+#define HTT_SRING_STATS_HEAD_PTR		GENMASK(15, 0)
+#define HTT_SRING_STATS_TAIL_PTR		GENMASK(31, 16)
+#define HTT_SRING_STATS_CONSUMER_EMPTY		GENMASK(15, 0)
+#define HTT_SRING_STATS_PRODUCER_FULL		GENMASK(31, 16)
+#define HTT_SRING_STATS_PREFETCH_COUNT		GENMASK(15, 0)
+#define HTT_SRING_STATS_INTERNAL_TAIL_PTR	GENMASK(31, 16)
+
 struct htt_sring_stats_tlv {
 	u32 mac_id__ring_id__arena__ep;
 	u32 base_addr_lsb; /* DWORD aligned base memory address of the ring */
@@ -1694,6 +1756,170 @@ struct htt_ring_backpressure_stats_tlv {
 	 * continuously in backpressure state beyond 500ms.
 	 */
 	u32 backpressure_hist[5];
+};
+
+#define HTT_TX_TXBF_RATE_STATS_NUM_MCS_COUNTERS 14
+#define HTT_TX_TXBF_RATE_STATS_NUM_BW_COUNTERS 5
+#define HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS 8
+
+struct htt_pdev_txrate_txbf_stats_tlv {
+	/* SU TxBF TX MCS stats */
+	u32 tx_su_txbf_mcs[HTT_TX_TXBF_RATE_STATS_NUM_MCS_COUNTERS];
+	/* Implicit BF TX MCS stats */
+	u32 tx_su_ibf_mcs[HTT_TX_TXBF_RATE_STATS_NUM_MCS_COUNTERS];
+	/* Open loop TX MCS stats */
+	u32 tx_su_ol_mcs[HTT_TX_TXBF_RATE_STATS_NUM_MCS_COUNTERS];
+	/* SU TxBF TX NSS stats */
+	u32 tx_su_txbf_nss[HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	/* Implicit BF TX NSS stats */
+	u32 tx_su_ibf_nss[HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	/* Open loop TX NSS stats */
+	u32 tx_su_ol_nss[HTT_TX_PDEV_STATS_NUM_SPATIAL_STREAMS];
+	/* SU TxBF TX BW stats */
+	u32 tx_su_txbf_bw[HTT_TX_TXBF_RATE_STATS_NUM_BW_COUNTERS];
+	/* Implicit BF TX BW stats */
+	u32 tx_su_ibf_bw[HTT_TX_TXBF_RATE_STATS_NUM_BW_COUNTERS];
+	/* Open loop TX BW stats */
+	u32 tx_su_ol_bw[HTT_TX_TXBF_RATE_STATS_NUM_BW_COUNTERS];
+};
+
+struct htt_txbf_ofdma_ndpa_stats_tlv {
+	/* 11AX HE OFDMA NDPA frame queued to the HW */
+	u32 ax_ofdma_ndpa_queued[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA NDPA frame sent over the air */
+	u32 ax_ofdma_ndpa_tried[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA NDPA frame flushed by HW */
+	u32 ax_ofdma_ndpa_flushed[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA NDPA frame completed with error(s) */
+	u32 ax_ofdma_ndpa_err[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+};
+
+struct htt_txbf_ofdma_ndp_stats_tlv {
+	/* 11AX HE OFDMA NDP frame queued to the HW */
+	u32 ax_ofdma_ndp_queued[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA NDPA frame sent over the air */
+	u32 ax_ofdma_ndp_tried[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA NDPA frame flushed by HW */
+	u32 ax_ofdma_ndp_flushed[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA NDPA frame completed with error(s) */
+	u32 ax_ofdma_ndp_err[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+};
+
+struct htt_txbf_ofdma_brp_stats_tlv {
+	/* 11AX HE OFDMA MU BRPOLL frame queued to the HW */
+	u32 ax_ofdma_brpoll_queued[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA MU BRPOLL frame sent over the air */
+	u32 ax_ofdma_brpoll_tried[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA MU BRPOLL frame flushed by HW */
+	u32 ax_ofdma_brpoll_flushed[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA MU BRPOLL frame completed with error(s) */
+	u32 ax_ofdma_brp_err[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* Number of CBF(s) received when 11AX HE OFDMA MU BRPOLL frame
+	 * completed with error(s).
+	 */
+	u32 ax_ofdma_brp_err_num_cbf_rcvd[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS + 1];
+};
+
+struct htt_txbf_ofdma_steer_stats_tlv {
+	/* 11AX HE OFDMA PPDUs that were sent over the air with steering (TXBF + OFDMA) */
+	u32 ax_ofdma_num_ppdu_steer[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA PPDUs that were sent over the air in open loop */
+	u32 ax_ofdma_num_ppdu_ol[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA number of users for which CBF prefetch was
+	 * initiated to PHY HW during TX.
+	 */
+	u32 ax_ofdma_num_usrs_prefetch[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA number of users for which sounding was initiated during TX */
+	u32 ax_ofdma_num_usrs_sound[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+	/* 11AX HE OFDMA number of users for which sounding was forced during TX */
+	u32 ax_ofdma_num_usrs_force_sound[HTT_TX_PDEV_STATS_NUM_OFDMA_USER_STATS];
+};
+
+#define HTT_MAX_RX_PKT_CNT 8
+#define HTT_MAX_RX_PKT_CRC_PASS_CNT 8
+#define HTT_MAX_PER_BLK_ERR_CNT 20
+#define HTT_MAX_RX_OTA_ERR_CNT 14
+#define HTT_STATS_MAX_CHAINS 8
+#define ATH11K_STATS_MGMT_FRM_TYPE_MAX 16
+
+struct htt_phy_counters_tlv {
+	/* number of RXTD OFDMA OTA error counts except power surge and drop */
+	u32 rx_ofdma_timing_err_cnt;
+	/* rx_cck_fail_cnt:
+	 * number of cck error counts due to rx reception failure because of
+	 * timing error in cck
+	 */
+	u32 rx_cck_fail_cnt;
+	/* number of times tx abort initiated by mac */
+	u32 mactx_abort_cnt;
+	/* number of times rx abort initiated by mac */
+	u32 macrx_abort_cnt;
+	/* number of times tx abort initiated by phy */
+	u32 phytx_abort_cnt;
+	/* number of times rx abort initiated by phy */
+	u32 phyrx_abort_cnt;
+	/* number of rx defered count initiated by phy */
+	u32 phyrx_defer_abort_cnt;
+	/* number of sizing events generated at LSTF */
+	u32 rx_gain_adj_lstf_event_cnt;
+	/* number of sizing events generated at non-legacy LTF */
+	u32 rx_gain_adj_non_legacy_cnt;
+	/* rx_pkt_cnt -
+	 * Received EOP (end-of-packet) count per packet type;
+	 * [0] = 11a; [1] = 11b; [2] = 11n; [3] = 11ac; [4] = 11ax; [5] = GF
+	 * [6-7]=RSVD
+	 */
+	u32 rx_pkt_cnt[HTT_MAX_RX_PKT_CNT];
+	/* rx_pkt_crc_pass_cnt -
+	 * Received EOP (end-of-packet) count per packet type;
+	 * [0] = 11a; [1] = 11b; [2] = 11n; [3] = 11ac; [4] = 11ax; [5] = GF
+	 * [6-7]=RSVD
+	 */
+	u32 rx_pkt_crc_pass_cnt[HTT_MAX_RX_PKT_CRC_PASS_CNT];
+	/* per_blk_err_cnt -
+	 * Error count per error source;
+	 * [0] = unknown; [1] = LSIG; [2] = HTSIG; [3] = VHTSIG; [4] = HESIG;
+	 * [5] = RXTD_OTA; [6] = RXTD_FATAL; [7] = DEMF; [8] = ROBE;
+	 * [9] = PMI; [10] = TXFD; [11] = TXTD; [12] = PHYRF
+	 * [13-19]=RSVD
+	 */
+	u32 per_blk_err_cnt[HTT_MAX_PER_BLK_ERR_CNT];
+	/* rx_ota_err_cnt -
+	 * RXTD OTA (over-the-air) error count per error reason;
+	 * [0] = voting fail; [1] = weak det fail; [2] = strong sig fail;
+	 * [3] = cck fail; [4] = power surge; [5] = power drop;
+	 * [6] = btcf timing timeout error; [7] = btcf packet detect error;
+	 * [8] = coarse timing timeout error
+	 * [9-13]=RSVD
+	 */
+	u32 rx_ota_err_cnt[HTT_MAX_RX_OTA_ERR_CNT];
+};
+
+struct htt_phy_stats_tlv {
+	/* per chain hw noise floor values in dBm */
+	s32 nf_chain[HTT_STATS_MAX_CHAINS];
+	/* number of false radars detected */
+	u32 false_radar_cnt;
+	/* number of channel switches happened due to radar detection */
+	u32 radar_cs_cnt;
+	/* ani_level -
+	 * ANI level (noise interference) corresponds to the channel
+	 * the desense levels range from -5 to 15 in dB units,
+	 * higher values indicating more noise interference.
+	 */
+	s32 ani_level;
+	/* running time in minutes since FW boot */
+	u32 fw_run_time;
+};
+
+struct htt_peer_ctrl_path_txrx_stats_tlv {
+	/* peer mac address */
+	u8 peer_mac_addr[ETH_ALEN];
+	u8 rsvd[2];
+	/* Num of tx mgmt frames with subtype on peer level */
+	u32 peer_tx_mgmt_subtype[ATH11K_STATS_MGMT_FRM_TYPE_MAX];
+	/* Num of rx mgmt frames with subtype on peer level */
+	u32 peer_rx_mgmt_subtype[ATH11K_STATS_MGMT_FRM_TYPE_MAX];
 };
 
 #ifdef CONFIG_ATH11K_DEBUGFS

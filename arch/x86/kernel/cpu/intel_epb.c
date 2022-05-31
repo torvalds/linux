@@ -16,6 +16,7 @@
 #include <linux/syscore_ops.h>
 #include <linux/pm.h>
 
+#include <asm/cpu_device_id.h>
 #include <asm/cpufeature.h>
 #include <asm/msr.h>
 
@@ -58,6 +59,22 @@ static DEFINE_PER_CPU(u8, saved_epb);
 #define EPB_SAVED	0x10ULL
 #define MAX_EPB		EPB_MASK
 
+enum energy_perf_value_index {
+	EPB_INDEX_PERFORMANCE,
+	EPB_INDEX_BALANCE_PERFORMANCE,
+	EPB_INDEX_NORMAL,
+	EPB_INDEX_BALANCE_POWERSAVE,
+	EPB_INDEX_POWERSAVE,
+};
+
+static u8 energ_perf_values[] = {
+	[EPB_INDEX_PERFORMANCE] = ENERGY_PERF_BIAS_PERFORMANCE,
+	[EPB_INDEX_BALANCE_PERFORMANCE] = ENERGY_PERF_BIAS_BALANCE_PERFORMANCE,
+	[EPB_INDEX_NORMAL] = ENERGY_PERF_BIAS_NORMAL,
+	[EPB_INDEX_BALANCE_POWERSAVE] = ENERGY_PERF_BIAS_BALANCE_POWERSAVE,
+	[EPB_INDEX_POWERSAVE] = ENERGY_PERF_BIAS_POWERSAVE,
+};
+
 static int intel_epb_save(void)
 {
 	u64 epb;
@@ -90,7 +107,7 @@ static void intel_epb_restore(void)
 		 */
 		val = epb & EPB_MASK;
 		if (val == ENERGY_PERF_BIAS_PERFORMANCE) {
-			val = ENERGY_PERF_BIAS_NORMAL;
+			val = energ_perf_values[EPB_INDEX_NORMAL];
 			pr_warn_once("ENERGY_PERF_BIAS: Set to 'normal', was 'performance'\n");
 		}
 	}
@@ -103,18 +120,11 @@ static struct syscore_ops intel_epb_syscore_ops = {
 };
 
 static const char * const energy_perf_strings[] = {
-	"performance",
-	"balance-performance",
-	"normal",
-	"balance-power",
-	"power"
-};
-static const u8 energ_perf_values[] = {
-	ENERGY_PERF_BIAS_PERFORMANCE,
-	ENERGY_PERF_BIAS_BALANCE_PERFORMANCE,
-	ENERGY_PERF_BIAS_NORMAL,
-	ENERGY_PERF_BIAS_BALANCE_POWERSAVE,
-	ENERGY_PERF_BIAS_POWERSAVE
+	[EPB_INDEX_PERFORMANCE] = "performance",
+	[EPB_INDEX_BALANCE_PERFORMANCE] = "balance-performance",
+	[EPB_INDEX_NORMAL] = "normal",
+	[EPB_INDEX_BALANCE_POWERSAVE] = "balance-power",
+	[EPB_INDEX_POWERSAVE] = "power",
 };
 
 static ssize_t energy_perf_bias_show(struct device *dev,
@@ -193,12 +203,21 @@ static int intel_epb_offline(unsigned int cpu)
 	return 0;
 }
 
+static const struct x86_cpu_id intel_epb_normal[] = {
+	X86_MATCH_INTEL_FAM6_MODEL(ALDERLAKE_L, 7),
+	{}
+};
+
 static __init int intel_epb_init(void)
 {
+	const struct x86_cpu_id *id = x86_match_cpu(intel_epb_normal);
 	int ret;
 
 	if (!boot_cpu_has(X86_FEATURE_EPB))
 		return -ENODEV;
+
+	if (id)
+		energ_perf_values[EPB_INDEX_NORMAL] = id->driver_data;
 
 	ret = cpuhp_setup_state(CPUHP_AP_X86_INTEL_EPB_ONLINE,
 				"x86/intel/epb:online", intel_epb_online,

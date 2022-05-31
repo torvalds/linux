@@ -728,7 +728,14 @@ static void apparmor_bprm_committed_creds(struct linux_binprm *bprm)
 	return;
 }
 
-static void apparmor_task_getsecid(struct task_struct *p, u32 *secid)
+static void apparmor_current_getsecid_subj(u32 *secid)
+{
+	struct aa_label *label = aa_get_current_label();
+	*secid = label->secid;
+	aa_put_label(label);
+}
+
+static void apparmor_task_getsecid_obj(struct task_struct *p, u32 *secid)
 {
 	struct aa_label *label = aa_get_task_label(p);
 	*secid = label->secid;
@@ -1252,8 +1259,8 @@ static struct security_hook_list apparmor_hooks[] __lsm_ro_after_init = {
 
 	LSM_HOOK_INIT(task_free, apparmor_task_free),
 	LSM_HOOK_INIT(task_alloc, apparmor_task_alloc),
-	LSM_HOOK_INIT(task_getsecid_subj, apparmor_task_getsecid),
-	LSM_HOOK_INIT(task_getsecid_obj, apparmor_task_getsecid),
+	LSM_HOOK_INIT(current_getsecid_subj, apparmor_current_getsecid_subj),
+	LSM_HOOK_INIT(task_getsecid_obj, apparmor_task_getsecid_obj),
 	LSM_HOOK_INIT(task_setrlimit, apparmor_task_setrlimit),
 	LSM_HOOK_INIT(task_kill, apparmor_task_kill),
 
@@ -1402,7 +1409,7 @@ static int param_set_aalockpolicy(const char *val, const struct kernel_param *kp
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_admin_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_admin_capable(NULL))
 		return -EPERM;
 	return param_set_bool(val, kp);
 }
@@ -1411,7 +1418,7 @@ static int param_get_aalockpolicy(char *buffer, const struct kernel_param *kp)
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_view_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 	return param_get_bool(buffer, kp);
 }
@@ -1420,7 +1427,7 @@ static int param_set_aabool(const char *val, const struct kernel_param *kp)
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_admin_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_admin_capable(NULL))
 		return -EPERM;
 	return param_set_bool(val, kp);
 }
@@ -1429,7 +1436,7 @@ static int param_get_aabool(char *buffer, const struct kernel_param *kp)
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_view_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 	return param_get_bool(buffer, kp);
 }
@@ -1455,7 +1462,7 @@ static int param_get_aauint(char *buffer, const struct kernel_param *kp)
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_view_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 	return param_get_uint(buffer, kp);
 }
@@ -1526,7 +1533,7 @@ static int param_get_aacompressionlevel(char *buffer,
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_view_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 	return param_get_int(buffer, kp);
 }
@@ -1535,7 +1542,7 @@ static int param_get_audit(char *buffer, const struct kernel_param *kp)
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_view_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 	return sprintf(buffer, "%s", audit_mode_names[aa_g_audit]);
 }
@@ -1548,7 +1555,7 @@ static int param_set_audit(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 	if (!val)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_admin_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_admin_capable(NULL))
 		return -EPERM;
 
 	i = match_string(audit_mode_names, AUDIT_MAX_INDEX, val);
@@ -1563,7 +1570,7 @@ static int param_get_mode(char *buffer, const struct kernel_param *kp)
 {
 	if (!apparmor_enabled)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_view_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_view_capable(NULL))
 		return -EPERM;
 
 	return sprintf(buffer, "%s", aa_profile_mode_names[aa_g_profile_mode]);
@@ -1577,7 +1584,7 @@ static int param_set_mode(const char *val, const struct kernel_param *kp)
 		return -EINVAL;
 	if (!val)
 		return -EINVAL;
-	if (apparmor_initialized && !policy_admin_capable(NULL))
+	if (apparmor_initialized && !aa_current_policy_admin_capable(NULL))
 		return -EPERM;
 
 	i = match_string(aa_profile_mode_names, APPARMOR_MODE_NAMES_MAX_INDEX,
@@ -1713,7 +1720,7 @@ static int __init alloc_buffers(void)
 static int apparmor_dointvec(struct ctl_table *table, int write,
 			     void *buffer, size_t *lenp, loff_t *ppos)
 {
-	if (!policy_admin_capable(NULL))
+	if (!aa_current_policy_admin_capable(NULL))
 		return -EPERM;
 	if (!apparmor_enabled)
 		return -EINVAL;
@@ -1773,32 +1780,16 @@ static unsigned int apparmor_ip_postroute(void *priv,
 
 }
 
-static unsigned int apparmor_ipv4_postroute(void *priv,
-					    struct sk_buff *skb,
-					    const struct nf_hook_state *state)
-{
-	return apparmor_ip_postroute(priv, skb, state);
-}
-
-#if IS_ENABLED(CONFIG_IPV6)
-static unsigned int apparmor_ipv6_postroute(void *priv,
-					    struct sk_buff *skb,
-					    const struct nf_hook_state *state)
-{
-	return apparmor_ip_postroute(priv, skb, state);
-}
-#endif
-
 static const struct nf_hook_ops apparmor_nf_ops[] = {
 	{
-		.hook =         apparmor_ipv4_postroute,
+		.hook =         apparmor_ip_postroute,
 		.pf =           NFPROTO_IPV4,
 		.hooknum =      NF_INET_POST_ROUTING,
 		.priority =     NF_IP_PRI_SELINUX_FIRST,
 	},
 #if IS_ENABLED(CONFIG_IPV6)
 	{
-		.hook =         apparmor_ipv6_postroute,
+		.hook =         apparmor_ip_postroute,
 		.pf =           NFPROTO_IPV6,
 		.hooknum =      NF_INET_POST_ROUTING,
 		.priority =     NF_IP6_PRI_SELINUX_FIRST,

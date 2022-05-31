@@ -147,8 +147,6 @@ typedef int (*dm_busy_fn) (struct dm_target *ti);
  */
 typedef long (*dm_dax_direct_access_fn) (struct dm_target *ti, pgoff_t pgoff,
 		long nr_pages, void **kaddr, pfn_t *pfn);
-typedef size_t (*dm_dax_copy_iter_fn)(struct dm_target *ti, pgoff_t pgoff,
-		void *addr, size_t bytes, struct iov_iter *i);
 typedef int (*dm_dax_zero_page_range_fn)(struct dm_target *ti, pgoff_t pgoff,
 		size_t nr_pages);
 
@@ -200,8 +198,6 @@ struct target_type {
 	dm_iterate_devices_fn iterate_devices;
 	dm_io_hints_fn io_hints;
 	dm_dax_direct_access_fn direct_access;
-	dm_dax_copy_iter_fn dax_copy_from_iter;
-	dm_dax_copy_iter_fn dax_copy_to_iter;
 	dm_dax_zero_page_range_fn dax_zero_page_range;
 
 	/* For internal device-mapper use. */
@@ -321,12 +317,6 @@ struct dm_target {
 	unsigned num_secure_erase_bios;
 
 	/*
-	 * The number of WRITE SAME bios that will be submitted to the target.
-	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
-	 */
-	unsigned num_write_same_bios;
-
-	/*
 	 * The number of WRITE ZEROES bios that will be submitted to the target.
 	 * The bio number can be accessed with dm_bio_get_target_bio_nr.
 	 */
@@ -362,10 +352,16 @@ struct dm_target {
 	bool limit_swap_bios:1;
 
 	/*
-	 * Set if this target implements a a zoned device and needs emulation of
+	 * Set if this target implements a zoned device and needs emulation of
 	 * zone append operations using regular writes.
 	 */
 	bool emulate_zone_append:1;
+
+	/*
+	 * Set if the target will submit IO using dm_submit_bio_remap()
+	 * after returning DM_MAPIO_SUBMITTED from its map function.
+	 */
+	bool accounts_remapped_io:1;
 };
 
 void *dm_per_bio_data(struct bio *bio, size_t data_size);
@@ -469,6 +465,7 @@ int dm_suspended(struct dm_target *ti);
 int dm_post_suspending(struct dm_target *ti);
 int dm_noflush_suspending(struct dm_target *ti);
 void dm_accept_partial_bio(struct bio *bio, unsigned n_sectors);
+void dm_submit_bio_remap(struct bio *clone, struct bio *tgt_clone);
 union map_info *dm_get_rq_mapinfo(struct request *rq);
 
 #ifdef CONFIG_BLK_DEV_ZONED
@@ -576,9 +573,9 @@ struct dm_table *dm_swap_table(struct mapped_device *md,
 			       struct dm_table *t);
 
 /*
- * Table keyslot manager functions
+ * Table blk_crypto_profile functions
  */
-void dm_destroy_keyslot_manager(struct blk_keyslot_manager *ksm);
+void dm_destroy_crypto_profile(struct blk_crypto_profile *profile);
 
 /*-----------------------------------------------------------------
  * Macros.

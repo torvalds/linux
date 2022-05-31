@@ -114,8 +114,6 @@ static __always_inline unsigned long arch_local_irq_save(void)
 #define SAVE_FLAGS		pushfq; popq %rax
 #endif
 
-#define INTERRUPT_RETURN	jmp native_iret
-
 #endif
 
 #endif /* __ASSEMBLY__ */

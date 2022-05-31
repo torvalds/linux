@@ -57,6 +57,7 @@ static const char *perf_event__names[] = {
 	[PERF_RECORD_BPF_EVENT]			= "BPF_EVENT",
 	[PERF_RECORD_CGROUP]			= "CGROUP",
 	[PERF_RECORD_TEXT_POKE]			= "TEXT_POKE",
+	[PERF_RECORD_AUX_OUTPUT_HW_ID]		= "AUX_OUTPUT_HW_ID",
 	[PERF_RECORD_HEADER_ATTR]		= "ATTR",
 	[PERF_RECORD_HEADER_EVENT_TYPE]		= "EVENT_TYPE",
 	[PERF_RECORD_HEADER_TRACING_DATA]	= "TRACING_DATA",
@@ -237,6 +238,14 @@ int perf_event__process_itrace_start(struct perf_tool *tool __maybe_unused,
 	return machine__process_itrace_start_event(machine, event);
 }
 
+int perf_event__process_aux_output_hw_id(struct perf_tool *tool __maybe_unused,
+					 union perf_event *event,
+					 struct perf_sample *sample __maybe_unused,
+					 struct machine *machine)
+{
+	return machine__process_aux_output_hw_id_event(machine, event);
+}
+
 int perf_event__process_lost_samples(struct perf_tool *tool __maybe_unused,
 				     union perf_event *event,
 				     struct perf_sample *sample,
@@ -407,6 +416,12 @@ size_t perf_event__fprintf_itrace_start(union perf_event *event, FILE *fp)
 		       event->itrace_start.pid, event->itrace_start.tid);
 }
 
+size_t perf_event__fprintf_aux_output_hw_id(union perf_event *event, FILE *fp)
+{
+	return fprintf(fp, " hw_id: %#"PRI_lx64"\n",
+		       event->aux_output_hw_id.hw_id);
+}
+
 size_t perf_event__fprintf_switch(union perf_event *event, FILE *fp)
 {
 	bool out = event->header.misc & PERF_RECORD_MISC_SWITCH_OUT;
@@ -469,7 +484,7 @@ size_t perf_event__fprintf_text_poke(union perf_event *event, struct machine *ma
 	if (machine) {
 		struct addr_location al;
 
-		al.map = maps__find(&machine->kmaps, tp->addr);
+		al.map = maps__find(machine__kernel_maps(machine), tp->addr);
 		if (al.map && map__load(al.map) >= 0) {
 			al.addr = al.map->map_ip(al.map, tp->addr);
 			al.sym = map__find_symbol(al.map, al.addr);
@@ -534,6 +549,9 @@ size_t perf_event__fprintf(union perf_event *event, struct machine *machine, FIL
 	case PERF_RECORD_TEXT_POKE:
 		ret += perf_event__fprintf_text_poke(event, machine, fp);
 		break;
+	case PERF_RECORD_AUX_OUTPUT_HW_ID:
+		ret += perf_event__fprintf_aux_output_hw_id(event, fp);
+		break;
 	default:
 		ret += fprintf(fp, "\n");
 	}
@@ -569,13 +587,13 @@ struct map *thread__find_map(struct thread *thread, u8 cpumode, u64 addr,
 
 	if (cpumode == PERF_RECORD_MISC_KERNEL && perf_host) {
 		al->level = 'k';
-		al->maps = maps = &machine->kmaps;
+		al->maps = maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_USER && perf_host) {
 		al->level = '.';
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_KERNEL && perf_guest) {
 		al->level = 'g';
-		al->maps = maps = &machine->kmaps;
+		al->maps = maps = machine__kernel_maps(machine);
 		load_map = true;
 	} else if (cpumode == PERF_RECORD_MISC_GUEST_USER && perf_guest) {
 		al->level = 'u';

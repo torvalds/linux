@@ -5,27 +5,12 @@
  */
 
 #include <drm/drm_atomic_uapi.h>
-#include <drm/drm_gem_atomic_helper.h>
 #include <drm/drm_vblank.h>
 
 #include "msm_atomic_trace.h"
 #include "msm_drv.h"
 #include "msm_gem.h"
 #include "msm_kms.h"
-
-int msm_atomic_prepare_fb(struct drm_plane *plane,
-			  struct drm_plane_state *new_state)
-{
-	struct msm_drm_private *priv = plane->dev->dev_private;
-	struct msm_kms *kms = priv->kms;
-
-	if (!new_state->fb)
-		return 0;
-
-	drm_gem_plane_helper_prepare_fb(plane, new_state);
-
-	return msm_framebuffer_prepare(new_state->fb, kms->aspace);
-}
 
 /*
  * Helpers to control vblanks while we flush.. basically just to ensure
@@ -116,20 +101,10 @@ out:
 	trace_msm_atomic_async_commit_finish(crtc_mask);
 }
 
-static enum hrtimer_restart msm_atomic_pending_timer(struct hrtimer *t)
-{
-	struct msm_pending_timer *timer = container_of(t,
-			struct msm_pending_timer, timer);
-
-	kthread_queue_work(timer->worker, &timer->work);
-
-	return HRTIMER_NORESTART;
-}
-
 static void msm_atomic_pending_work(struct kthread_work *work)
 {
 	struct msm_pending_timer *timer = container_of(work,
-			struct msm_pending_timer, work);
+			struct msm_pending_timer, work.work);
 
 	msm_atomic_async_commit(timer->kms, timer->crtc_idx);
 }
@@ -139,8 +114,6 @@ int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 {
 	timer->kms = kms;
 	timer->crtc_idx = crtc_idx;
-	hrtimer_init(&timer->timer, CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
-	timer->timer.function = msm_atomic_pending_timer;
 
 	timer->worker = kthread_create_worker(0, "atomic-worker-%d", crtc_idx);
 	if (IS_ERR(timer->worker)) {
@@ -149,7 +122,10 @@ int msm_atomic_init_pending_timer(struct msm_pending_timer *timer,
 		return ret;
 	}
 	sched_set_fifo(timer->worker->task);
-	kthread_init_work(&timer->work, msm_atomic_pending_work);
+
+	msm_hrtimer_work_init(&timer->work, timer->worker,
+			      msm_atomic_pending_work,
+			      CLOCK_MONOTONIC, HRTIMER_MODE_ABS);
 
 	return 0;
 }
@@ -258,7 +234,7 @@ void msm_atomic_commit_tail(struct drm_atomic_state *state)
 			vsync_time = kms->funcs->vsync_time(kms, async_crtc);
 			wakeup_time = ktime_sub(vsync_time, ms_to_ktime(1));
 
-			hrtimer_start(&timer->timer, wakeup_time,
+			msm_hrtimer_queue_work(&timer->work, wakeup_time,
 					HRTIMER_MODE_ABS);
 		}
 

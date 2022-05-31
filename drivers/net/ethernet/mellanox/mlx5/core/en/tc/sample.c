@@ -5,6 +5,8 @@
 #include <net/psample.h>
 #include "en/mapping.h"
 #include "en/tc/post_act.h"
+#include "en/tc/act/sample.h"
+#include "en/mod_hdr.h"
 #include "sample.h"
 #include "eswitch.h"
 #include "en_tc.h"
@@ -45,14 +47,12 @@ struct mlx5e_sample_flow {
 	struct mlx5_flow_handle *pre_rule;
 	struct mlx5_flow_attr *post_attr;
 	struct mlx5_flow_handle *post_rule;
-	struct mlx5e_post_act_handle *post_act_handle;
 };
 
 struct mlx5e_sample_restore {
 	struct hlist_node hlist;
 	struct mlx5_modify_hdr *modify_hdr;
 	struct mlx5_flow_handle *rule;
-	struct mlx5e_post_act_handle *post_act_handle;
 	u32 obj_id;
 	int count;
 };
@@ -230,69 +230,46 @@ sampler_put(struct mlx5e_tc_psample *tc_psample, struct mlx5e_sampler *sampler)
  */
 static struct mlx5_modify_hdr *
 sample_modify_hdr_get(struct mlx5_core_dev *mdev, u32 obj_id,
-		      struct mlx5e_post_act_handle *handle)
+		      struct mlx5e_tc_mod_hdr_acts *mod_acts)
 {
-	struct mlx5e_tc_mod_hdr_acts mod_acts = {};
 	struct mlx5_modify_hdr *modify_hdr;
 	int err;
 
-	err = mlx5e_tc_match_to_reg_set(mdev, &mod_acts, MLX5_FLOW_NAMESPACE_FDB,
+	err = mlx5e_tc_match_to_reg_set(mdev, mod_acts, MLX5_FLOW_NAMESPACE_FDB,
 					CHAIN_TO_REG, obj_id);
 	if (err)
 		goto err_set_regc0;
 
-	if (handle) {
-		err = mlx5e_tc_post_act_set_handle(mdev, handle, &mod_acts);
-		if (err)
-			goto err_post_act;
-	}
-
 	modify_hdr = mlx5_modify_header_alloc(mdev, MLX5_FLOW_NAMESPACE_FDB,
-					      mod_acts.num_actions,
-					      mod_acts.actions);
+					      mod_acts->num_actions,
+					      mod_acts->actions);
 	if (IS_ERR(modify_hdr)) {
 		err = PTR_ERR(modify_hdr);
 		goto err_modify_hdr;
 	}
 
-	dealloc_mod_hdr_actions(&mod_acts);
+	mlx5e_mod_hdr_dealloc(mod_acts);
 	return modify_hdr;
 
 err_modify_hdr:
-err_post_act:
-	dealloc_mod_hdr_actions(&mod_acts);
+	mlx5e_mod_hdr_dealloc(mod_acts);
 err_set_regc0:
 	return ERR_PTR(err);
 }
 
-static u32
-restore_hash(u32 obj_id, struct mlx5e_post_act_handle *post_act_handle)
-{
-	return jhash_2words(obj_id, hash32_ptr(post_act_handle), 0);
-}
-
-static bool
-restore_equal(struct mlx5e_sample_restore *restore, u32 obj_id,
-	      struct mlx5e_post_act_handle *post_act_handle)
-{
-	return restore->obj_id == obj_id && restore->post_act_handle == post_act_handle;
-}
-
 static struct mlx5e_sample_restore *
 sample_restore_get(struct mlx5e_tc_psample *tc_psample, u32 obj_id,
-		   struct mlx5e_post_act_handle *post_act_handle)
+		   struct mlx5e_tc_mod_hdr_acts *mod_acts)
 {
 	struct mlx5_eswitch *esw = tc_psample->esw;
 	struct mlx5_core_dev *mdev = esw->dev;
 	struct mlx5e_sample_restore *restore;
 	struct mlx5_modify_hdr *modify_hdr;
-	u32 hash_key;
 	int err;
 
 	mutex_lock(&tc_psample->restore_lock);
-	hash_key = restore_hash(obj_id, post_act_handle);
-	hash_for_each_possible(tc_psample->restore_hashtbl, restore, hlist, hash_key)
-		if (restore_equal(restore, obj_id, post_act_handle))
+	hash_for_each_possible(tc_psample->restore_hashtbl, restore, hlist, obj_id)
+		if (restore->obj_id == obj_id)
 			goto add_ref;
 
 	restore = kzalloc(sizeof(*restore), GFP_KERNEL);
@@ -301,9 +278,8 @@ sample_restore_get(struct mlx5e_tc_psample *tc_psample, u32 obj_id,
 		goto err_alloc;
 	}
 	restore->obj_id = obj_id;
-	restore->post_act_handle = post_act_handle;
 
-	modify_hdr = sample_modify_hdr_get(mdev, obj_id, post_act_handle);
+	modify_hdr = sample_modify_hdr_get(mdev, obj_id, mod_acts);
 	if (IS_ERR(modify_hdr)) {
 		err = PTR_ERR(modify_hdr);
 		goto err_modify_hdr;
@@ -316,7 +292,7 @@ sample_restore_get(struct mlx5e_tc_psample *tc_psample, u32 obj_id,
 		goto err_restore;
 	}
 
-	hash_add(tc_psample->restore_hashtbl, &restore->hlist, hash_key);
+	hash_add(tc_psample->restore_hashtbl, &restore->hlist, obj_id);
 add_ref:
 	restore->count++;
 	mutex_unlock(&tc_psample->restore_lock);
@@ -402,7 +378,7 @@ add_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 	post_attr->chain = 0;
 	post_attr->prio = 0;
 	post_attr->ft = default_tbl;
-	post_attr->flags = MLX5_ESW_ATTR_FLAG_NO_IN_PORT;
+	post_attr->flags = MLX5_ATTR_FLAG_NO_IN_PORT;
 
 	/* When offloading sample and encap action, if there is no valid
 	 * neigh data struct, a slow path rule is offloaded first. Source
@@ -491,16 +467,16 @@ del_post_rule(struct mlx5_eswitch *esw, struct mlx5e_sample_flow *sample_flow,
 struct mlx5_flow_handle *
 mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 			struct mlx5_flow_spec *spec,
-			struct mlx5_flow_attr *attr,
-			u32 tunnel_id)
+			struct mlx5_flow_attr *attr)
 {
-	struct mlx5e_post_act_handle *post_act_handle = NULL;
 	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	struct mlx5_esw_flow_attr *pre_esw_attr;
 	struct mlx5_mapped_obj restore_obj = {};
+	struct mlx5e_tc_mod_hdr_acts *mod_acts;
 	struct mlx5e_sample_flow *sample_flow;
 	struct mlx5e_sample_attr *sample_attr;
 	struct mlx5_flow_attr *pre_attr;
+	u32 tunnel_id = attr->tunnel_id;
 	struct mlx5_eswitch *esw;
 	u32 default_tbl_id;
 	u32 obj_id;
@@ -509,17 +485,10 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	if (IS_ERR_OR_NULL(tc_psample))
 		return ERR_PTR(-EOPNOTSUPP);
 
-	/* If slow path flag is set, eg. when the neigh is invalid for encap,
-	 * don't offload sample action.
-	 */
-	esw = tc_psample->esw;
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH)
-		return mlx5_eswitch_add_offloaded_rule(esw, spec, attr);
-
 	sample_flow = kzalloc(sizeof(*sample_flow), GFP_KERNEL);
 	if (!sample_flow)
 		return ERR_PTR(-ENOMEM);
-	sample_attr = attr->sample_attr;
+	sample_attr = &attr->sample_attr;
 	sample_attr->sample_flow = sample_flow;
 
 	/* For NICs with reg_c_preserve support or decap action, use
@@ -527,18 +496,12 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	 * Only match the fte id instead of the same match in the
 	 * original flow table.
 	 */
-	if (MLX5_CAP_GEN(esw->dev, reg_c_preserve) ||
-	    attr->action & MLX5_FLOW_CONTEXT_ACTION_DECAP) {
+	esw = tc_psample->esw;
+	if (mlx5e_tc_act_sample_is_multi_table(esw->dev, attr)) {
 		struct mlx5_flow_table *ft;
 
 		ft = mlx5e_tc_post_act_get_ft(tc_psample->post_act);
 		default_tbl_id = ft->id;
-		post_act_handle = mlx5e_tc_post_act_add(tc_psample->post_act, attr);
-		if (IS_ERR(post_act_handle)) {
-			err = PTR_ERR(post_act_handle);
-			goto err_post_act;
-		}
-		sample_flow->post_act_handle = post_act_handle;
 	} else {
 		err = add_post_rule(esw, sample_flow, spec, attr, &default_tbl_id);
 		if (err)
@@ -551,6 +514,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 		err = PTR_ERR(sample_flow->sampler);
 		goto err_sampler;
 	}
+	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
 
 	/* Create an id mapping reg_c0 value to sample object. */
 	restore_obj.type = MLX5_MAPPED_OBJ_SAMPLE;
@@ -564,7 +528,8 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	sample_attr->restore_obj_id = obj_id;
 
 	/* Create sample restore context. */
-	sample_flow->restore = sample_restore_get(tc_psample, obj_id, post_act_handle);
+	mod_acts = &attr->parse_attr->mod_hdr_acts;
+	sample_flow->restore = sample_restore_get(tc_psample, obj_id, mod_acts);
 	if (IS_ERR(sample_flow->restore)) {
 		err = PTR_ERR(sample_flow->restore);
 		goto err_sample_restore;
@@ -585,13 +550,13 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	if (tunnel_id)
 		pre_attr->action |= MLX5_FLOW_CONTEXT_ACTION_DECAP;
 	pre_attr->modify_hdr = sample_flow->restore->modify_hdr;
-	pre_attr->flags = MLX5_ESW_ATTR_FLAG_SAMPLE;
+	pre_attr->flags = MLX5_ATTR_FLAG_SAMPLE;
 	pre_attr->inner_match_level = attr->inner_match_level;
 	pre_attr->outer_match_level = attr->outer_match_level;
 	pre_attr->chain = attr->chain;
 	pre_attr->prio = attr->prio;
-	pre_attr->sample_attr = attr->sample_attr;
-	sample_attr->sampler_id = sample_flow->sampler->sampler_id;
+	pre_attr->ft = attr->ft;
+	pre_attr->sample_attr = *sample_attr;
 	pre_esw_attr = pre_attr->esw_attr;
 	pre_esw_attr->in_mdev = esw_attr->in_mdev;
 	pre_esw_attr->in_rep = esw_attr->in_rep;
@@ -602,7 +567,7 @@ mlx5e_tc_sample_offload(struct mlx5e_tc_psample *tc_psample,
 	}
 	sample_flow->pre_attr = pre_attr;
 
-	return sample_flow->post_rule;
+	return sample_flow->pre_rule;
 
 err_pre_offload_rule:
 	kfree(pre_attr);
@@ -613,12 +578,9 @@ err_sample_restore:
 err_obj_id:
 	sampler_put(tc_psample, sample_flow->sampler);
 err_sampler:
-	if (!post_act_handle)
+	if (sample_flow->post_rule)
 		del_post_rule(esw, sample_flow, attr);
 err_post_rule:
-	if (post_act_handle)
-		mlx5e_tc_post_act_del(tc_psample->post_act, post_act_handle);
-err_post_act:
 	kfree(sample_flow);
 	return ERR_PTR(err);
 }
@@ -628,45 +590,24 @@ mlx5e_tc_sample_unoffload(struct mlx5e_tc_psample *tc_psample,
 			  struct mlx5_flow_handle *rule,
 			  struct mlx5_flow_attr *attr)
 {
-	struct mlx5_esw_flow_attr *esw_attr = attr->esw_attr;
 	struct mlx5e_sample_flow *sample_flow;
-	struct mlx5_vport_tbl_attr tbl_attr;
 	struct mlx5_eswitch *esw;
 
 	if (IS_ERR_OR_NULL(tc_psample))
 		return;
 
-	/* If slow path flag is set, sample action is not offloaded.
-	 * No need to delete sample rule.
-	 */
-	esw = tc_psample->esw;
-	if (attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH) {
-		mlx5_eswitch_del_offloaded_rule(esw, rule, attr);
-		return;
-	}
-
 	/* The following delete order can't be changed, otherwise,
 	 * will hit fw syndromes.
 	 */
-	sample_flow = attr->sample_attr->sample_flow;
+	esw = tc_psample->esw;
+	sample_flow = attr->sample_attr.sample_flow;
 	mlx5_eswitch_del_offloaded_rule(esw, sample_flow->pre_rule, sample_flow->pre_attr);
-	if (!sample_flow->post_act_handle)
-		mlx5_eswitch_del_offloaded_rule(esw, sample_flow->post_rule,
-						sample_flow->post_attr);
 
 	sample_restore_put(tc_psample, sample_flow->restore);
-	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr->restore_obj_id);
+	mapping_remove(esw->offloads.reg_c0_obj_pool, attr->sample_attr.restore_obj_id);
 	sampler_put(tc_psample, sample_flow->sampler);
-	if (sample_flow->post_act_handle) {
-		mlx5e_tc_post_act_del(tc_psample->post_act, sample_flow->post_act_handle);
-	} else {
-		tbl_attr.chain = attr->chain;
-		tbl_attr.prio = attr->prio;
-		tbl_attr.vport = esw_attr->in_rep->vport;
-		tbl_attr.vport_ns = &mlx5_esw_vport_tbl_sample_ns;
-		mlx5_esw_vporttbl_put(esw, &tbl_attr);
-		kfree(sample_flow->post_attr);
-	}
+	if (sample_flow->post_rule)
+		del_post_rule(esw, sample_flow, attr);
 
 	kfree(sample_flow->pre_attr);
 	kfree(sample_flow);

@@ -3,50 +3,159 @@
 
 #ifndef _ICE_SRIOV_H_
 #define _ICE_SRIOV_H_
+#include "ice_virtchnl_fdir.h"
+#include "ice_vf_lib.h"
+#include "ice_virtchnl.h"
 
-#include "ice_type.h"
-#include "ice_controlq.h"
+/* Static VF transaction/status register def */
+#define VF_DEVICE_STATUS		0xAA
+#define VF_TRANS_PENDING_M		0x20
 
-/* Defining the mailbox message threshold as 63 asynchronous
- * pending messages. Normal VF functionality does not require
- * sending more than 63 asynchronous pending message.
- */
-#define ICE_ASYNC_VF_MSG_THRESHOLD	63
+/* wait defines for polling PF_PCI_CIAD register status */
+#define ICE_PCI_CIAD_WAIT_COUNT		100
+#define ICE_PCI_CIAD_WAIT_DELAY_US	1
+
+/* VF resource constraints */
+#define ICE_MIN_QS_PER_VF		1
+#define ICE_NONQ_VECS_VF		1
+#define ICE_NUM_VF_MSIX_MED		17
+#define ICE_NUM_VF_MSIX_SMALL		5
+#define ICE_NUM_VF_MSIX_MULTIQ_MIN	3
+#define ICE_MIN_INTR_PER_VF		(ICE_MIN_QS_PER_VF + 1)
+#define ICE_MAX_VF_RESET_TRIES		40
+#define ICE_MAX_VF_RESET_SLEEP_MS	20
 
 #ifdef CONFIG_PCI_IOV
-enum ice_status
-ice_aq_send_msg_to_vf(struct ice_hw *hw, u16 vfid, u32 v_opcode, u32 v_retval,
-		      u8 *msg, u16 msglen, struct ice_sq_cd *cd);
+void ice_process_vflr_event(struct ice_pf *pf);
+int ice_sriov_configure(struct pci_dev *pdev, int num_vfs);
+int ice_set_vf_mac(struct net_device *netdev, int vf_id, u8 *mac);
+int
+ice_get_vf_cfg(struct net_device *netdev, int vf_id, struct ifla_vf_info *ivi);
 
-u32 ice_conv_link_speed_to_virtchnl(bool adv_link_support, u16 link_speed);
-enum ice_status
-ice_mbx_vf_state_handler(struct ice_hw *hw, struct ice_mbx_data *mbx_data,
-			 u16 vf_id, bool *is_mal_vf);
-enum ice_status
-ice_mbx_clear_malvf(struct ice_mbx_snapshot *snap, unsigned long *all_malvfs,
-		    u16 bitmap_len, u16 vf_id);
-enum ice_status ice_mbx_init_snapshot(struct ice_hw *hw, u16 vf_count);
-void ice_mbx_deinit_snapshot(struct ice_hw *hw);
-enum ice_status
-ice_mbx_report_malvf(struct ice_hw *hw, unsigned long *all_malvfs,
-		     u16 bitmap_len, u16 vf_id, bool *report_malvf);
+void ice_free_vfs(struct ice_pf *pf);
+void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event);
+void ice_restore_all_vfs_msi_state(struct pci_dev *pdev);
+bool
+ice_is_malicious_vf(struct ice_pf *pf, struct ice_rq_event_info *event,
+		    u16 num_msg_proc, u16 num_msg_pending);
+
+int
+ice_set_vf_port_vlan(struct net_device *netdev, int vf_id, u16 vlan_id, u8 qos,
+		     __be16 vlan_proto);
+
+int
+ice_set_vf_bw(struct net_device *netdev, int vf_id, int min_tx_rate,
+	      int max_tx_rate);
+
+int ice_set_vf_trust(struct net_device *netdev, int vf_id, bool trusted);
+
+int ice_set_vf_link_state(struct net_device *netdev, int vf_id, int link_state);
+
+int ice_set_vf_spoofchk(struct net_device *netdev, int vf_id, bool ena);
+
+int ice_calc_vf_reg_idx(struct ice_vf *vf, struct ice_q_vector *q_vector);
+
+int
+ice_get_vf_stats(struct net_device *netdev, int vf_id,
+		 struct ifla_vf_stats *vf_stats);
+void
+ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event);
+void ice_print_vfs_mdd_events(struct ice_pf *pf);
+void ice_print_vf_rx_mdd_event(struct ice_vf *vf);
+bool
+ice_vc_validate_pattern(struct ice_vf *vf, struct virtchnl_proto_hdrs *proto);
 #else /* CONFIG_PCI_IOV */
-static inline enum ice_status
-ice_aq_send_msg_to_vf(struct ice_hw __always_unused *hw,
-		      u16 __always_unused vfid, u32 __always_unused v_opcode,
-		      u32 __always_unused v_retval, u8 __always_unused *msg,
-		      u16 __always_unused msglen,
-		      struct ice_sq_cd __always_unused *cd)
+static inline void ice_process_vflr_event(struct ice_pf *pf) { }
+static inline void ice_free_vfs(struct ice_pf *pf) { }
+static inline
+void ice_vc_process_vf_msg(struct ice_pf *pf, struct ice_rq_event_info *event) { }
+static inline
+void ice_vf_lan_overflow_event(struct ice_pf *pf, struct ice_rq_event_info *event) { }
+static inline void ice_print_vfs_mdd_events(struct ice_pf *pf) { }
+static inline void ice_print_vf_rx_mdd_event(struct ice_vf *vf) { }
+static inline void ice_restore_all_vfs_msi_state(struct pci_dev *pdev) { }
+
+static inline bool
+ice_is_malicious_vf(struct ice_pf __always_unused *pf,
+		    struct ice_rq_event_info __always_unused *event,
+		    u16 __always_unused num_msg_proc,
+		    u16 __always_unused num_msg_pending)
+{
+	return false;
+}
+
+static inline int
+ice_sriov_configure(struct pci_dev __always_unused *pdev,
+		    int __always_unused num_vfs)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_mac(struct net_device __always_unused *netdev,
+	       int __always_unused vf_id, u8 __always_unused *mac)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_get_vf_cfg(struct net_device __always_unused *netdev,
+	       int __always_unused vf_id,
+	       struct ifla_vf_info __always_unused *ivi)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_trust(struct net_device __always_unused *netdev,
+		 int __always_unused vf_id, bool __always_unused trusted)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_port_vlan(struct net_device __always_unused *netdev,
+		     int __always_unused vf_id, u16 __always_unused vid,
+		     u8 __always_unused qos, __be16 __always_unused v_proto)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_spoofchk(struct net_device __always_unused *netdev,
+		    int __always_unused vf_id, bool __always_unused ena)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_link_state(struct net_device __always_unused *netdev,
+		      int __always_unused vf_id, int __always_unused link_state)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_set_vf_bw(struct net_device __always_unused *netdev,
+	      int __always_unused vf_id, int __always_unused min_tx_rate,
+	      int __always_unused max_tx_rate)
+{
+	return -EOPNOTSUPP;
+}
+
+static inline int
+ice_calc_vf_reg_idx(struct ice_vf __always_unused *vf,
+		    struct ice_q_vector __always_unused *q_vector)
 {
 	return 0;
 }
 
-static inline u32
-ice_conv_link_speed_to_virtchnl(bool __always_unused adv_link_support,
-				u16 __always_unused link_speed)
+static inline int
+ice_get_vf_stats(struct net_device __always_unused *netdev,
+		 int __always_unused vf_id,
+		 struct ifla_vf_stats __always_unused *vf_stats)
 {
-	return 0;
+	return -EOPNOTSUPP;
 }
-
 #endif /* CONFIG_PCI_IOV */
 #endif /* _ICE_SRIOV_H_ */

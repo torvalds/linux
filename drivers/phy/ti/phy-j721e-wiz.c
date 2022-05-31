@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-/**
+/*
  * Wrapper driver for SERDES used in J721E
  *
  * Copyright (C) 2019 Texas Instruments Incorporated - http://www.ti.com/
@@ -233,6 +233,7 @@ static const struct clk_div_table clk_div_table[] = {
 	{ .val = 1, .div = 2, },
 	{ .val = 2, .div = 4, },
 	{ .val = 3, .div = 8, },
+	{ /* sentinel */ },
 };
 
 static const struct wiz_clk_div_sel clk_div_sel[] = {

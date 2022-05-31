@@ -18,7 +18,7 @@ static inline void ufshcd_prepare_lrbp_crypto(struct request *rq,
 		return;
 	}
 
-	lrbp->crypto_key_slot = blk_ksm_get_slot_idx(rq->crypt_keyslot);
+	lrbp->crypto_key_slot = blk_crypto_keyslot_index(rq->crypt_keyslot);
 	lrbp->data_unit_num = rq->crypt_ctx->bc_dun[0];
 }
 
@@ -40,8 +40,7 @@ int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba);
 
 void ufshcd_init_crypto(struct ufs_hba *hba);
 
-void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
-					    struct request_queue *q);
+void ufshcd_crypto_register(struct ufs_hba *hba, struct request_queue *q);
 
 #else /* CONFIG_SCSI_UFS_CRYPTO */
 
@@ -64,8 +63,8 @@ static inline int ufshcd_hba_init_crypto_capabilities(struct ufs_hba *hba)
 
 static inline void ufshcd_init_crypto(struct ufs_hba *hba) { }
 
-static inline void ufshcd_crypto_setup_rq_keyslot_manager(struct ufs_hba *hba,
-						struct request_queue *q) { }
+static inline void ufshcd_crypto_register(struct ufs_hba *hba,
+					  struct request_queue *q) { }
 
 #endif /* CONFIG_SCSI_UFS_CRYPTO */
 

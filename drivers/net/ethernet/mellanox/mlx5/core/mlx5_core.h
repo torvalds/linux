@@ -97,6 +97,30 @@ do {								\
 			     __func__, __LINE__, current->pid,	\
 			     ##__VA_ARGS__)
 
+static inline void mlx5_printk(struct mlx5_core_dev *dev, int level, const char *format, ...)
+{
+	struct device *device = dev->device;
+	struct va_format vaf;
+	va_list args;
+
+	if (WARN_ONCE(level < LOGLEVEL_EMERG || level > LOGLEVEL_DEBUG,
+		      "Level %d is out of range, set to default level\n", level))
+		level = LOGLEVEL_DEFAULT;
+
+	va_start(args, format);
+	vaf.fmt = format;
+	vaf.va = &args;
+
+	dev_printk_emit(level, device, "%s %s: %pV", dev_driver_string(device), dev_name(device),
+			&vaf);
+	va_end(args);
+}
+
+#define mlx5_log(__dev, level, format, ...)			\
+	mlx5_printk(__dev, level, "%s:%d:(pid %d): " format,	\
+		    __func__, __LINE__, current->pid,		\
+		    ##__VA_ARGS__)
+
 static inline struct device *mlx5_core_dma_dev(struct mlx5_core_dev *dev)
 {
 	return &dev->pdev->dev;
@@ -140,6 +164,7 @@ void mlx5_sriov_cleanup(struct mlx5_core_dev *dev);
 int mlx5_sriov_attach(struct mlx5_core_dev *dev);
 void mlx5_sriov_detach(struct mlx5_core_dev *dev);
 int mlx5_core_sriov_configure(struct pci_dev *dev, int num_vfs);
+void mlx5_sriov_disable(struct pci_dev *pdev);
 int mlx5_core_sriov_set_msix_vec_count(struct pci_dev *vf, int msix_vec_count);
 int mlx5_core_enable_hca(struct mlx5_core_dev *dev, u16 func_id);
 int mlx5_core_disable_hca(struct mlx5_core_dev *dev, u16 func_id);
@@ -152,7 +177,6 @@ int mlx5_destroy_scheduling_element_cmd(struct mlx5_core_dev *dev, u8 hierarchy,
 					u32 element_id);
 int mlx5_wait_for_pages(struct mlx5_core_dev *dev, int *pages);
 
-void mlx5_cmd_trigger_completions(struct mlx5_core_dev *dev);
 void mlx5_cmd_flush(struct mlx5_core_dev *dev);
 void mlx5_cq_debugfs_init(struct mlx5_core_dev *dev);
 void mlx5_cq_debugfs_cleanup(struct mlx5_core_dev *dev);
@@ -281,5 +305,6 @@ static inline u32 mlx5_sriov_get_vf_total_msix(struct pci_dev *pdev)
 bool mlx5_eth_supported(struct mlx5_core_dev *dev);
 bool mlx5_rdma_supported(struct mlx5_core_dev *dev);
 bool mlx5_vnet_supported(struct mlx5_core_dev *dev);
+bool mlx5_same_hw_devs(struct mlx5_core_dev *dev, struct mlx5_core_dev *peer_dev);
 
 #endif /* __MLX5_CORE_H__ */

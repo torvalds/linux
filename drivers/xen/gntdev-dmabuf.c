@@ -14,12 +14,15 @@
 #include <linux/slab.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
+#include <linux/module.h>
 
 #include <xen/xen.h>
 #include <xen/grant_table.h>
 
 #include "gntdev-common.h"
 #include "gntdev-dmabuf.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 #ifndef GRANT_INVALID_REF
 /*
@@ -530,7 +533,7 @@ static void dmabuf_imp_end_foreign_access(u32 *refs, int count)
 
 	for (i = 0; i < count; i++)
 		if (refs[i] != GRANT_INVALID_REF)
-			gnttab_end_foreign_access(refs[i], 0, 0UL);
+			gnttab_end_foreign_access(refs[i], 0UL);
 }
 
 static void dmabuf_imp_free_storage(struct gntdev_dmabuf *gntdev_dmabuf)

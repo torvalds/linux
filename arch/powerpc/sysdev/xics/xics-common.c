@@ -121,7 +121,7 @@ void xics_mask_unknown_vec(unsigned int vec)
 
 #ifdef CONFIG_SMP
 
-static void xics_request_ipi(void)
+static void __init xics_request_ipi(void)
 {
 	unsigned int ipi;
 

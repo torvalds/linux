@@ -61,8 +61,9 @@ arg3:
     ``pid`` of the task for which the operation applies.
 
 arg4:
-    ``pid_type`` for which the operation applies. It is of type ``enum pid_type``.
-    For example, if arg4 is ``PIDTYPE_TGID``, then the operation of this command
+    ``pid_type`` for which the operation applies. It is one of
+    ``PR_SCHED_CORE_SCOPE_``-prefixed macro constants.  For example, if arg4
+    is ``PR_SCHED_CORE_SCOPE_THREAD_GROUP``, then the operation of this command
     will be performed for all tasks in the task group of ``pid``.
 
 arg5:

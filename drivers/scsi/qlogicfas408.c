@@ -55,8 +55,12 @@
 #include <asm/irq.h>
 #include <asm/dma.h>
 
-#include "scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include "qlogicfas408.h"
 
 /*----------------------------------------------------------------*/
@@ -442,7 +446,7 @@ static void ql_ihandl(void *dev_id)
 	 *	If result is CHECK CONDITION done calls qcommand to request
 	 *	sense
 	 */
-	(icmd->scsi_done) (icmd);
+	scsi_done(icmd);
 }
 
 irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
@@ -460,9 +464,9 @@ irqreturn_t qlogicfas408_ihandl(int irq, void *dev_id)
  *	Queued command
  */
 
-static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd,
-			      void (*done) (struct scsi_cmnd *))
+static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd)
 {
+	void (*done)(struct scsi_cmnd *) = scsi_done;
 	struct qlogicfas408_priv *priv = get_priv_by_cmd(cmd);
 
 	set_host_byte(cmd, DID_OK);
@@ -473,7 +477,6 @@ static int qlogicfas408_queuecommand_lck(struct scsi_cmnd *cmd,
 		return 0;
 	}
 
-	cmd->scsi_done = done;
 	/* wait for the last command's interrupt to finish */
 	while (priv->qlcmd != NULL) {
 		barrier();

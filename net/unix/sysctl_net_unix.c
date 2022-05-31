@@ -30,10 +30,6 @@ int __net_init unix_sysctl_register(struct net *net)
 	if (table == NULL)
 		goto err_alloc;
 
-	/* Don't export sysctls to unprivileged users */
-	if (net->user_ns != &init_user_ns)
-		table[0].procname = NULL;
-
 	table[0].data = &net->unx.sysctl_max_dgram_qlen;
 	net->unx.ctl = register_net_sysctl(net, "net/unix", table);
 	if (net->unx.ctl == NULL)

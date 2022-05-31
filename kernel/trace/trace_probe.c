@@ -356,6 +356,8 @@ static int __parse_imm_string(char *str, char **pbuf, int offs)
 		return -EINVAL;
 	}
 	*pbuf = kstrndup(str, len - 1, GFP_KERNEL);
+	if (!*pbuf)
+		return -ENOMEM;
 	return 0;
 }
 
@@ -869,15 +871,15 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 	switch (ptype) {
 	case PROBE_PRINT_NORMAL:
 		fmt = "(%lx)";
-		arg = "REC->" FIELD_STRING_IP;
+		arg = ", REC->" FIELD_STRING_IP;
 		break;
 	case PROBE_PRINT_RETURN:
 		fmt = "(%lx <- %lx)";
-		arg = "REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
+		arg = ", REC->" FIELD_STRING_FUNC ", REC->" FIELD_STRING_RETIP;
 		break;
 	case PROBE_PRINT_EVENT:
-		fmt = "(%u)";
-		arg = "REC->" FIELD_STRING_TYPE;
+		fmt = "";
+		arg = "";
 		break;
 	default:
 		WARN_ON_ONCE(1);
@@ -901,7 +903,7 @@ static int __set_print_fmt(struct trace_probe *tp, char *buf, int len,
 					parg->type->fmt);
 	}
 
-	pos += snprintf(buf + pos, LEN_OR_ZERO, "\", %s", arg);
+	pos += snprintf(buf + pos, LEN_OR_ZERO, "\"%s", arg);
 
 	for (i = 0; i < tp->nr_args; i++) {
 		parg = tp->args + i;
@@ -1138,8 +1140,7 @@ int trace_probe_remove_file(struct trace_probe *tp,
 		return -ENOENT;
 
 	list_del_rcu(&link->list);
-	synchronize_rcu();
-	kfree(link);
+	kvfree_rcu(link);
 
 	if (list_empty(&tp->event->files))
 		trace_probe_clear_flag(tp, TP_FLAG_TRACE);

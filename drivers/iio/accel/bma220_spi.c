@@ -27,7 +27,6 @@
 #define BMA220_CHIP_ID				0xDD
 #define BMA220_READ_MASK			BIT(7)
 #define BMA220_RANGE_MASK			GENMASK(1, 0)
-#define BMA220_DATA_SHIFT			2
 #define BMA220_SUSPEND_SLEEP			0xFF
 #define BMA220_SUSPEND_WAKE			0x00
 
@@ -45,7 +44,7 @@
 		.sign = 's',						\
 		.realbits = 6,						\
 		.storagebits = 8,					\
-		.shift = BMA220_DATA_SHIFT,				\
+		.shift = 2,						\
 		.endianness = IIO_CPU,					\
 	},								\
 }
@@ -125,7 +124,8 @@ static int bma220_read_raw(struct iio_dev *indio_dev,
 		ret = bma220_read_reg(data->spi_device, chan->address);
 		if (ret < 0)
 			return -EINVAL;
-		*val = sign_extend32(ret >> BMA220_DATA_SHIFT, 5);
+		*val = sign_extend32(ret >> chan->scan_type.shift,
+				     chan->scan_type.realbits - 1);
 		return IIO_VAL_INT;
 	case IIO_CHAN_INFO_SCALE:
 		ret = bma220_read_reg(data->spi_device, BMA220_REG_RANGE);

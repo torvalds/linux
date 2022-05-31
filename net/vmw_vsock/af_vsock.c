@@ -85,6 +85,7 @@
  *   TCP_LISTEN - listening
  */
 
+#include <linux/compat.h>
 #include <linux/types.h>
 #include <linux/bitops.h>
 #include <linux/cred.h>
@@ -333,7 +334,8 @@ void vsock_remove_sock(struct vsock_sock *vsk)
 }
 EXPORT_SYMBOL_GPL(vsock_remove_sock);
 
-void vsock_for_each_connected_socket(void (*fn)(struct sock *sk))
+void vsock_for_each_connected_socket(struct vsock_transport *transport,
+				     void (*fn)(struct sock *sk))
 {
 	int i;
 
@@ -342,8 +344,12 @@ void vsock_for_each_connected_socket(void (*fn)(struct sock *sk))
 	for (i = 0; i < ARRAY_SIZE(vsock_connected_table); i++) {
 		struct vsock_sock *vsk;
 		list_for_each_entry(vsk, &vsock_connected_table[i],
-				    connected_table)
+				    connected_table) {
+			if (vsk->transport != transport)
+				continue;
+
 			fn(sk_vsock(vsk));
+		}
 	}
 
 	spin_unlock_bh(&vsock_table_lock);
@@ -1322,6 +1328,8 @@ static int vsock_connect(struct socket *sock, struct sockaddr *addr,
 		 * non-blocking call.
 		 */
 		err = -EALREADY;
+		if (flags & O_NONBLOCK)
+			goto out;
 		break;
 	default:
 		if ((sk->sk_state == TCP_LISTEN) ||
@@ -1398,6 +1406,7 @@ static int vsock_connect(struct socket *sock, struct sockaddr *addr,
 			sk->sk_state = sk->sk_state == TCP_ESTABLISHED ? TCP_CLOSING : TCP_CLOSE;
 			sock->state = SS_UNCONNECTED;
 			vsock_transport_cancel_pkt(vsk);
+			vsock_remove_connected(vsk);
 			goto out_wait;
 		} else if (timeout == 0) {
 			err = -ETIMEDOUT;
@@ -1614,13 +1623,18 @@ static int vsock_connectible_setsockopt(struct socket *sock,
 		vsock_update_buffer_size(vsk, transport, vsk->buffer_size);
 		break;
 
-	case SO_VM_SOCKETS_CONNECT_TIMEOUT: {
-		struct __kernel_old_timeval tv;
-		COPY_IN(tv);
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW:
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD: {
+		struct __kernel_sock_timeval tv;
+
+		err = sock_copy_user_timeval(&tv, optval, optlen,
+					     optname == SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD);
+		if (err)
+			break;
 		if (tv.tv_sec >= 0 && tv.tv_usec < USEC_PER_SEC &&
 		    tv.tv_sec < (MAX_SCHEDULE_TIMEOUT / HZ - 1)) {
 			vsk->connect_timeout = tv.tv_sec * HZ +
-			    DIV_ROUND_UP(tv.tv_usec, (1000000 / HZ));
+				DIV_ROUND_UP((unsigned long)tv.tv_usec, (USEC_PER_SEC / HZ));
 			if (vsk->connect_timeout == 0)
 				vsk->connect_timeout =
 				    VSOCK_DEFAULT_CONNECT_TIMEOUT;
@@ -1648,68 +1662,59 @@ static int vsock_connectible_getsockopt(struct socket *sock,
 					char __user *optval,
 					int __user *optlen)
 {
-	int err;
+	struct sock *sk = sock->sk;
+	struct vsock_sock *vsk = vsock_sk(sk);
+
+	union {
+		u64 val64;
+		struct old_timeval32 tm32;
+		struct __kernel_old_timeval tm;
+		struct  __kernel_sock_timeval stm;
+	} v;
+
+	int lv = sizeof(v.val64);
 	int len;
-	struct sock *sk;
-	struct vsock_sock *vsk;
-	u64 val;
 
 	if (level != AF_VSOCK)
 		return -ENOPROTOOPT;
 
-	err = get_user(len, optlen);
-	if (err != 0)
-		return err;
+	if (get_user(len, optlen))
+		return -EFAULT;
 
-#define COPY_OUT(_v)                            \
-	do {					\
-		if (len < sizeof(_v))		\
-			return -EINVAL;		\
-						\
-		len = sizeof(_v);		\
-		if (copy_to_user(optval, &_v, len) != 0)	\
-			return -EFAULT;				\
-								\
-	} while (0)
-
-	err = 0;
-	sk = sock->sk;
-	vsk = vsock_sk(sk);
+	memset(&v, 0, sizeof(v));
 
 	switch (optname) {
 	case SO_VM_SOCKETS_BUFFER_SIZE:
-		val = vsk->buffer_size;
-		COPY_OUT(val);
+		v.val64 = vsk->buffer_size;
 		break;
 
 	case SO_VM_SOCKETS_BUFFER_MAX_SIZE:
-		val = vsk->buffer_max_size;
-		COPY_OUT(val);
+		v.val64 = vsk->buffer_max_size;
 		break;
 
 	case SO_VM_SOCKETS_BUFFER_MIN_SIZE:
-		val = vsk->buffer_min_size;
-		COPY_OUT(val);
+		v.val64 = vsk->buffer_min_size;
 		break;
 
-	case SO_VM_SOCKETS_CONNECT_TIMEOUT: {
-		struct __kernel_old_timeval tv;
-		tv.tv_sec = vsk->connect_timeout / HZ;
-		tv.tv_usec =
-		    (vsk->connect_timeout -
-		     tv.tv_sec * HZ) * (1000000 / HZ);
-		COPY_OUT(tv);
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_NEW:
+	case SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD:
+		lv = sock_get_timeout(vsk->connect_timeout, &v,
+				      optname == SO_VM_SOCKETS_CONNECT_TIMEOUT_OLD);
 		break;
-	}
+
 	default:
 		return -ENOPROTOOPT;
 	}
 
-	err = put_user(len, optlen);
-	if (err != 0)
+	if (len < lv)
+		return -EINVAL;
+	if (len > lv)
+		len = lv;
+	if (copy_to_user(optval, &v, len))
 		return -EFAULT;
 
-#undef COPY_OUT
+	if (put_user(len, optlen))
+		return -EFAULT;
 
 	return 0;
 }

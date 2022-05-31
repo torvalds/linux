@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: STMicroelectronics Flexible Memory Controller 2 (FMC2) Bindings
 
 maintainers:
-  - Christophe Kerello <christophe.kerello@st.com>
+  - Christophe Kerello <christophe.kerello@foss.st.com>
 
 properties:
   compatible:

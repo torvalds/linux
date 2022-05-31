@@ -4,8 +4,10 @@
  */
 
 #include "i915_drv.h"
+#include "i915_reg.h"
 #include "intel_dram.h"
-#include "intel_sideband.h"
+#include "intel_mchbar_regs.h"
+#include "intel_pcode.h"
 
 struct dram_dimm_info {
 	u16 size;
@@ -389,10 +391,8 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 	u32 val = 0;
 	int ret;
 
-	ret = sandybridge_pcode_read(dev_priv,
-				     ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
-				     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO,
-				     &val, NULL);
+	ret = snb_pcode_read(dev_priv, ICL_PCODE_MEM_SUBSYSYSTEM_INFO |
+			     ICL_PCODE_MEM_SS_READ_GLOBAL_INFO, &val, NULL);
 	if (ret)
 		return ret;
 
@@ -418,7 +418,7 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 			break;
 		default:
 			MISSING_CASE(val & 0xf);
-			return -1;
+			return -EINVAL;
 		}
 	} else {
 		switch (val & 0xf) {
@@ -436,7 +436,7 @@ static int icl_pcode_read_mem_global_info(struct drm_i915_private *dev_priv)
 			break;
 		default:
 			MISSING_CASE(val & 0xf);
-			return -1;
+			return -EINVAL;
 		}
 	}
 

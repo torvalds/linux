@@ -10,12 +10,6 @@ struct xfs_bstat;
 struct xfs_ibulk;
 struct xfs_inogrp;
 
-
-extern int
-xfs_ioc_space(
-	struct file		*filp,
-	xfs_flock64_t		*bf);
-
 int
 xfs_ioc_swapext(
 	xfs_swapext_t	*sxp);
@@ -38,8 +32,9 @@ xfs_readlink_by_handle(
 int xfs_ioc_attrmulti_one(struct file *parfilp, struct inode *inode,
 		uint32_t opcode, void __user *uname, void __user *value,
 		uint32_t *len, uint32_t flags);
-int xfs_ioc_attr_list(struct xfs_inode *dp, void __user *ubuf, int bufsize,
-	int flags, struct xfs_attrlist_cursor __user *ucursor);
+int xfs_ioc_attr_list(struct xfs_inode *dp, void __user *ubuf,
+		      size_t bufsize, int flags,
+		      struct xfs_attrlist_cursor __user *ucursor);
 
 extern struct dentry *
 xfs_handle_to_dentry(

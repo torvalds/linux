@@ -469,16 +469,14 @@ static void gmc_v6_0_set_prt(struct amdgpu_device *adev, bool enable)
 static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 {
 	uint64_t table_addr;
-	int r, i;
 	u32 field;
+	int i;
 
 	if (adev->gart.bo == NULL) {
 		dev_err(adev->dev, "No VRAM object for PCIE GART.\n");
 		return -EINVAL;
 	}
-	r = amdgpu_gart_table_vram_pin(adev);
-	if (r)
-		return r;
+	amdgpu_gtt_mgr_recover(&adev->mman.gtt_mgr);
 
 	table_addr = amdgpu_bo_gpu_offset(adev->gart.bo);
 
@@ -558,7 +556,6 @@ static int gmc_v6_0_gart_enable(struct amdgpu_device *adev)
 	dev_info(adev->dev, "PCIE GART of %uM enabled (table at 0x%016llX).\n",
 		 (unsigned)(adev->gmc.gart_size >> 20),
 		 (unsigned long long)table_addr);
-	adev->gart.ready = true;
 	return 0;
 }
 
@@ -608,7 +605,6 @@ static void gmc_v6_0_gart_disable(struct amdgpu_device *adev)
 	WREG32(mmVM_L2_CNTL3,
 	       VM_L2_CNTL3__L2_CACHE_BIGK_ASSOCIATIVITY_MASK |
 	       (0UL << VM_L2_CNTL3__L2_CACHE_BIGK_FRAGMENT_SIZE__SHIFT));
-	amdgpu_gart_table_vram_unpin(adev);
 }
 
 static void gmc_v6_0_vm_decode_fault(struct amdgpu_device *adev,
@@ -841,12 +837,12 @@ static int gmc_v6_0_sw_init(void *handle)
 
 	adev->gmc.mc_mask = 0xffffffffffULL;
 
-	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(44));
+	r = dma_set_mask_and_coherent(adev->dev, DMA_BIT_MASK(40));
 	if (r) {
 		dev_warn(adev->dev, "No suitable DMA available.\n");
 		return r;
 	}
-	adev->need_swiotlb = drm_need_swiotlb(44);
+	adev->need_swiotlb = drm_need_swiotlb(40);
 
 	r = gmc_v6_0_init_microcode(adev);
 	if (r) {
@@ -923,7 +919,10 @@ static int gmc_v6_0_hw_init(void *handle)
 	if (r)
 		return r;
 
-	return r;
+	if (amdgpu_emu_mode == 1)
+		return amdgpu_gmc_vram_checking(adev);
+	else
+		return r;
 }
 
 static int gmc_v6_0_hw_fini(void *handle)

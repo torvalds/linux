@@ -29,26 +29,39 @@ static int libbpf_print_fn(enum libbpf_print_level level,
 	return vfprintf(stderr, format, args);
 }
 
-static int bump_memlock_rlimit(void)
+void setup_libbpf(void)
 {
-	struct rlimit rlim_new = {
-		.rlim_cur	= RLIM_INFINITY,
-		.rlim_max	= RLIM_INFINITY,
-	};
-
-	return setrlimit(RLIMIT_MEMLOCK, &rlim_new);
-}
-
-void setup_libbpf()
-{
-	int err;
-
 	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 	libbpf_set_print(libbpf_print_fn);
+}
 
-	err = bump_memlock_rlimit();
-	if (err)
-		fprintf(stderr, "failed to increase RLIMIT_MEMLOCK: %d", err);
+void false_hits_report_progress(int iter, struct bench_res *res, long delta_ns)
+{
+	long total = res->false_hits  + res->hits + res->drops;
+
+	printf("Iter %3d (%7.3lfus): ",
+	       iter, (delta_ns - 1000000000) / 1000.0);
+
+	printf("%ld false hits of %ld total operations. Percentage = %2.2f %%\n",
+	       res->false_hits, total, ((float)res->false_hits / total) * 100);
+}
+
+void false_hits_report_final(struct bench_res res[], int res_cnt)
+{
+	long total_hits = 0, total_drops = 0, total_false_hits = 0, total_ops = 0;
+	int i;
+
+	for (i = 0; i < res_cnt; i++) {
+		total_hits += res[i].hits;
+		total_false_hits += res[i].false_hits;
+		total_drops += res[i].drops;
+	}
+	total_ops = total_hits + total_false_hits + total_drops;
+
+	printf("Summary: %ld false hits of %ld total operations. ",
+	       total_false_hits, total_ops);
+	printf("Percentage =  %2.2f %%\n",
+	       ((float)total_false_hits / total_ops) * 100);
 }
 
 void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns)
@@ -63,20 +76,22 @@ void hits_drops_report_progress(int iter, struct bench_res *res, long delta_ns)
 	printf("Iter %3d (%7.3lfus): ",
 	       iter, (delta_ns - 1000000000) / 1000.0);
 
-	printf("hits %8.3lfM/s (%7.3lfM/prod), drops %8.3lfM/s\n",
-	       hits_per_sec, hits_per_prod, drops_per_sec);
+	printf("hits %8.3lfM/s (%7.3lfM/prod), drops %8.3lfM/s, total operations %8.3lfM/s\n",
+	       hits_per_sec, hits_per_prod, drops_per_sec, hits_per_sec + drops_per_sec);
 }
 
 void hits_drops_report_final(struct bench_res res[], int res_cnt)
 {
 	int i;
-	double hits_mean = 0.0, drops_mean = 0.0;
-	double hits_stddev = 0.0, drops_stddev = 0.0;
+	double hits_mean = 0.0, drops_mean = 0.0, total_ops_mean = 0.0;
+	double hits_stddev = 0.0, drops_stddev = 0.0, total_ops_stddev = 0.0;
+	double total_ops;
 
 	for (i = 0; i < res_cnt; i++) {
 		hits_mean += res[i].hits / 1000000.0 / (0.0 + res_cnt);
 		drops_mean += res[i].drops / 1000000.0 / (0.0 + res_cnt);
 	}
+	total_ops_mean = hits_mean + drops_mean;
 
 	if (res_cnt > 1)  {
 		for (i = 0; i < res_cnt; i++) {
@@ -86,14 +101,54 @@ void hits_drops_report_final(struct bench_res res[], int res_cnt)
 			drops_stddev += (drops_mean - res[i].drops / 1000000.0) *
 					(drops_mean - res[i].drops / 1000000.0) /
 					(res_cnt - 1.0);
+			total_ops = res[i].hits + res[i].drops;
+			total_ops_stddev += (total_ops_mean - total_ops / 1000000.0) *
+					(total_ops_mean - total_ops / 1000000.0) /
+					(res_cnt - 1.0);
 		}
 		hits_stddev = sqrt(hits_stddev);
 		drops_stddev = sqrt(drops_stddev);
+		total_ops_stddev = sqrt(total_ops_stddev);
 	}
 	printf("Summary: hits %8.3lf \u00B1 %5.3lfM/s (%7.3lfM/prod), ",
 	       hits_mean, hits_stddev, hits_mean / env.producer_cnt);
-	printf("drops %8.3lf \u00B1 %5.3lfM/s\n",
+	printf("drops %8.3lf \u00B1 %5.3lfM/s, ",
 	       drops_mean, drops_stddev);
+	printf("total operations %8.3lf \u00B1 %5.3lfM/s\n",
+	       total_ops_mean, total_ops_stddev);
+}
+
+void ops_report_progress(int iter, struct bench_res *res, long delta_ns)
+{
+	double hits_per_sec, hits_per_prod;
+
+	hits_per_sec = res->hits / 1000000.0 / (delta_ns / 1000000000.0);
+	hits_per_prod = hits_per_sec / env.producer_cnt;
+
+	printf("Iter %3d (%7.3lfus): ", iter, (delta_ns - 1000000000) / 1000.0);
+
+	printf("hits %8.3lfM/s (%7.3lfM/prod)\n", hits_per_sec, hits_per_prod);
+}
+
+void ops_report_final(struct bench_res res[], int res_cnt)
+{
+	double hits_mean = 0.0, hits_stddev = 0.0;
+	int i;
+
+	for (i = 0; i < res_cnt; i++)
+		hits_mean += res[i].hits / 1000000.0 / (0.0 + res_cnt);
+
+	if (res_cnt > 1)  {
+		for (i = 0; i < res_cnt; i++)
+			hits_stddev += (hits_mean - res[i].hits / 1000000.0) *
+				       (hits_mean - res[i].hits / 1000000.0) /
+				       (res_cnt - 1.0);
+
+		hits_stddev = sqrt(hits_stddev);
+	}
+	printf("Summary: throughput %8.3lf \u00B1 %5.3lf M ops/s (%7.3lfM ops/prod), ",
+	       hits_mean, hits_stddev, hits_mean / env.producer_cnt);
+	printf("latency %8.3lf ns/op\n", 1000.0 / hits_mean * env.producer_cnt);
 }
 
 const char *argp_program_version = "benchmark";
@@ -132,9 +187,15 @@ static const struct argp_option opts[] = {
 };
 
 extern struct argp bench_ringbufs_argp;
+extern struct argp bench_bloom_map_argp;
+extern struct argp bench_bpf_loop_argp;
+extern struct argp bench_strncmp_argp;
 
 static const struct argp_child bench_parsers[] = {
 	{ &bench_ringbufs_argp, 0, "Ring buffers benchmark", 0 },
+	{ &bench_bloom_map_argp, 0, "Bloom filter map benchmark", 0 },
+	{ &bench_bpf_loop_argp, 0, "bpf_loop helper benchmark", 0 },
+	{ &bench_strncmp_argp, 0, "bpf_strncmp helper benchmark", 0 },
 	{},
 };
 
@@ -319,10 +380,23 @@ extern const struct bench bench_trig_kprobe;
 extern const struct bench bench_trig_fentry;
 extern const struct bench bench_trig_fentry_sleep;
 extern const struct bench bench_trig_fmodret;
+extern const struct bench bench_trig_uprobe_base;
+extern const struct bench bench_trig_uprobe_with_nop;
+extern const struct bench bench_trig_uretprobe_with_nop;
+extern const struct bench bench_trig_uprobe_without_nop;
+extern const struct bench bench_trig_uretprobe_without_nop;
 extern const struct bench bench_rb_libbpf;
 extern const struct bench bench_rb_custom;
 extern const struct bench bench_pb_libbpf;
 extern const struct bench bench_pb_custom;
+extern const struct bench bench_bloom_lookup;
+extern const struct bench bench_bloom_update;
+extern const struct bench bench_bloom_false_positive;
+extern const struct bench bench_hashmap_without_bloom;
+extern const struct bench bench_hashmap_with_bloom;
+extern const struct bench bench_bpf_loop;
+extern const struct bench bench_strncmp_no_helper;
+extern const struct bench bench_strncmp_helper;
 
 static const struct bench *benchs[] = {
 	&bench_count_global,
@@ -340,10 +414,23 @@ static const struct bench *benchs[] = {
 	&bench_trig_fentry,
 	&bench_trig_fentry_sleep,
 	&bench_trig_fmodret,
+	&bench_trig_uprobe_base,
+	&bench_trig_uprobe_with_nop,
+	&bench_trig_uretprobe_with_nop,
+	&bench_trig_uprobe_without_nop,
+	&bench_trig_uretprobe_without_nop,
 	&bench_rb_libbpf,
 	&bench_rb_custom,
 	&bench_pb_libbpf,
 	&bench_pb_custom,
+	&bench_bloom_lookup,
+	&bench_bloom_update,
+	&bench_bloom_false_positive,
+	&bench_hashmap_without_bloom,
+	&bench_hashmap_with_bloom,
+	&bench_bpf_loop,
+	&bench_strncmp_no_helper,
+	&bench_strncmp_helper,
 };
 
 static void setup_benchmark()

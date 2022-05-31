@@ -37,6 +37,7 @@
 #include "xfs_reflink.h"
 #include "xfs_pwork.h"
 #include "xfs_ag.h"
+#include "xfs_defer.h"
 
 #include <linux/magic.h>
 #include <linux/fs_context.h>
@@ -330,13 +331,34 @@ xfs_set_inode_alloc(
 	return xfs_is_inode32(mp) ? maxagi : agcount;
 }
 
-static bool
-xfs_buftarg_is_dax(
-	struct super_block	*sb,
-	struct xfs_buftarg	*bt)
+static int
+xfs_setup_dax_always(
+	struct xfs_mount	*mp)
 {
-	return dax_supported(bt->bt_daxdev, bt->bt_bdev, sb->s_blocksize, 0,
-			bdev_nr_sectors(bt->bt_bdev));
+	if (!mp->m_ddev_targp->bt_daxdev &&
+	    (!mp->m_rtdev_targp || !mp->m_rtdev_targp->bt_daxdev)) {
+		xfs_alert(mp,
+			"DAX unsupported by block device. Turning off DAX.");
+		goto disable_dax;
+	}
+
+	if (mp->m_super->s_blocksize != PAGE_SIZE) {
+		xfs_alert(mp,
+			"DAX not supported for blocksize. Turning off DAX.");
+		goto disable_dax;
+	}
+
+	if (xfs_has_reflink(mp)) {
+		xfs_alert(mp, "DAX and reflink cannot be used together!");
+		return -EINVAL;
+	}
+
+	xfs_warn(mp, "DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
+	return 0;
+
+disable_dax:
+	xfs_mount_set_dax_mode(mp, XFS_DAX_NEVER);
+	return 0;
 }
 
 STATIC int
@@ -369,26 +391,19 @@ STATIC void
 xfs_close_devices(
 	struct xfs_mount	*mp)
 {
-	struct dax_device *dax_ddev = mp->m_ddev_targp->bt_daxdev;
-
 	if (mp->m_logdev_targp && mp->m_logdev_targp != mp->m_ddev_targp) {
 		struct block_device *logdev = mp->m_logdev_targp->bt_bdev;
-		struct dax_device *dax_logdev = mp->m_logdev_targp->bt_daxdev;
 
 		xfs_free_buftarg(mp->m_logdev_targp);
 		xfs_blkdev_put(logdev);
-		fs_put_dax(dax_logdev);
 	}
 	if (mp->m_rtdev_targp) {
 		struct block_device *rtdev = mp->m_rtdev_targp->bt_bdev;
-		struct dax_device *dax_rtdev = mp->m_rtdev_targp->bt_daxdev;
 
 		xfs_free_buftarg(mp->m_rtdev_targp);
 		xfs_blkdev_put(rtdev);
-		fs_put_dax(dax_rtdev);
 	}
 	xfs_free_buftarg(mp->m_ddev_targp);
-	fs_put_dax(dax_ddev);
 }
 
 /*
@@ -406,8 +421,6 @@ xfs_open_devices(
 	struct xfs_mount	*mp)
 {
 	struct block_device	*ddev = mp->m_super->s_bdev;
-	struct dax_device	*dax_ddev = fs_dax_get_by_bdev(ddev);
-	struct dax_device	*dax_logdev = NULL, *dax_rtdev = NULL;
 	struct block_device	*logdev = NULL, *rtdev = NULL;
 	int			error;
 
@@ -417,8 +430,7 @@ xfs_open_devices(
 	if (mp->m_logname) {
 		error = xfs_blkdev_get(mp, mp->m_logname, &logdev);
 		if (error)
-			goto out;
-		dax_logdev = fs_dax_get_by_bdev(logdev);
+			return error;
 	}
 
 	if (mp->m_rtname) {
@@ -432,25 +444,24 @@ xfs_open_devices(
 			error = -EINVAL;
 			goto out_close_rtdev;
 		}
-		dax_rtdev = fs_dax_get_by_bdev(rtdev);
 	}
 
 	/*
 	 * Setup xfs_mount buffer target pointers
 	 */
 	error = -ENOMEM;
-	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev, dax_ddev);
+	mp->m_ddev_targp = xfs_alloc_buftarg(mp, ddev);
 	if (!mp->m_ddev_targp)
 		goto out_close_rtdev;
 
 	if (rtdev) {
-		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev, dax_rtdev);
+		mp->m_rtdev_targp = xfs_alloc_buftarg(mp, rtdev);
 		if (!mp->m_rtdev_targp)
 			goto out_free_ddev_targ;
 	}
 
 	if (logdev && logdev != ddev) {
-		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev, dax_logdev);
+		mp->m_logdev_targp = xfs_alloc_buftarg(mp, logdev);
 		if (!mp->m_logdev_targp)
 			goto out_free_rtdev_targ;
 	} else {
@@ -466,14 +477,9 @@ xfs_open_devices(
 	xfs_free_buftarg(mp->m_ddev_targp);
  out_close_rtdev:
 	xfs_blkdev_put(rtdev);
-	fs_put_dax(dax_rtdev);
  out_close_logdev:
-	if (logdev && logdev != ddev) {
+	if (logdev && logdev != ddev)
 		xfs_blkdev_put(logdev);
-		fs_put_dax(dax_logdev);
-	}
- out:
-	fs_put_dax(dax_ddev);
 	return error;
 }
 
@@ -729,6 +735,7 @@ xfs_fs_sync_fs(
 	int			wait)
 {
 	struct xfs_mount	*mp = XFS_M(sb);
+	int			error;
 
 	trace_xfs_fs_sync_fs(mp, __return_address);
 
@@ -738,7 +745,10 @@ xfs_fs_sync_fs(
 	if (!wait)
 		return 0;
 
-	xfs_log_force(mp, XFS_LOG_SYNC);
+	error = xfs_log_force(mp, XFS_LOG_SYNC);
+	if (error)
+		return error;
+
 	if (laptop_mode) {
 		/*
 		 * The disk must be active because we're syncing.
@@ -805,7 +815,8 @@ xfs_fs_statfs(
 	spin_unlock(&mp->m_sb_lock);
 
 	/* make sure statp->f_bfree does not underflow */
-	statp->f_bfree = max_t(int64_t, fdblocks - mp->m_alloc_set_aside, 0);
+	statp->f_bfree = max_t(int64_t, 0,
+				fdblocks - xfs_fdblocks_unavailable(mp));
 	statp->f_bavail = statp->f_bfree;
 
 	fakeinos = XFS_FSB_TO_INO(mp, statp->f_bfree);
@@ -1592,26 +1603,9 @@ xfs_fs_fill_super(
 		sb->s_flags |= SB_I_VERSION;
 
 	if (xfs_has_dax_always(mp)) {
-		bool rtdev_is_dax = false, datadev_is_dax;
-
-		xfs_warn(mp,
-		"DAX enabled. Warning: EXPERIMENTAL, use at your own risk");
-
-		datadev_is_dax = xfs_buftarg_is_dax(sb, mp->m_ddev_targp);
-		if (mp->m_rtdev_targp)
-			rtdev_is_dax = xfs_buftarg_is_dax(sb,
-						mp->m_rtdev_targp);
-		if (!rtdev_is_dax && !datadev_is_dax) {
-			xfs_alert(mp,
-			"DAX unsupported by block device. Turning off DAX.");
-			xfs_mount_set_dax_mode(mp, XFS_DAX_NEVER);
-		}
-		if (xfs_has_reflink(mp)) {
-			xfs_alert(mp,
-		"DAX and reflink cannot be used together!");
-			error = -EINVAL;
+		error = xfs_setup_dax_always(mp);
+		if (error)
 			goto out_filestream_unmount;
-		}
 	}
 
 	if (xfs_has_discard(mp)) {
@@ -1738,15 +1732,6 @@ xfs_remount_rw(
 	 */
 	xfs_restore_resvblks(mp);
 	xfs_log_work_queue(mp);
-
-	/* Recover any CoW blocks that never got remapped. */
-	error = xfs_reflink_recover_cow(mp);
-	if (error) {
-		xfs_err(mp,
-			"Error %d recovering leftover CoW allocations.", error);
-		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
-		return error;
-	}
 	xfs_blockgc_start(mp);
 
 	/* Create the per-AG metadata reservation pool .*/
@@ -1764,7 +1749,15 @@ static int
 xfs_remount_ro(
 	struct xfs_mount	*mp)
 {
-	int error;
+	struct xfs_icwalk	icw = {
+		.icw_flags	= XFS_ICWALK_FLAG_SYNC,
+	};
+	int			error;
+
+	/* Flush all the dirty data to disk. */
+	error = sync_filesystem(mp->m_super);
+	if (error)
+		return error;
 
 	/*
 	 * Cancel background eofb scanning so it cannot race with the final
@@ -1772,8 +1765,13 @@ xfs_remount_ro(
 	 */
 	xfs_blockgc_stop(mp);
 
-	/* Get rid of any leftover CoW reservations... */
-	error = xfs_blockgc_free_space(mp, NULL);
+	/*
+	 * Clear out all remaining COW staging extents and speculative post-EOF
+	 * preallocations so that we don't leave inodes requiring inactivation
+	 * cleanups during reclaim on a read-only mount.  We must process every
+	 * cached inode, so this requires a synchronous cache scan.
+	 */
+	error = xfs_blockgc_free_space(mp, &icw);
 	if (error) {
 		xfs_force_shutdown(mp, SHUTDOWN_CORRUPT_INCORE);
 		return error;
@@ -1838,8 +1836,6 @@ xfs_fs_reconfigure(
 	error = xfs_fs_validate_params(new_mp);
 	if (error)
 		return error;
-
-	sync_filesystem(mp->m_super);
 
 	/* inode32 -> inode64 */
 	if (xfs_has_small_inums(mp) && !xfs_has_small_inums(new_mp)) {
@@ -1951,196 +1947,194 @@ static struct file_system_type xfs_fs_type = {
 MODULE_ALIAS_FS("xfs");
 
 STATIC int __init
-xfs_init_zones(void)
+xfs_init_caches(void)
 {
-	xfs_log_ticket_zone = kmem_cache_create("xfs_log_ticket",
+	int		error;
+
+	xfs_log_ticket_cache = kmem_cache_create("xfs_log_ticket",
 						sizeof(struct xlog_ticket),
 						0, 0, NULL);
-	if (!xfs_log_ticket_zone)
+	if (!xfs_log_ticket_cache)
 		goto out;
 
-	xfs_bmap_free_item_zone = kmem_cache_create("xfs_bmap_free_item",
-					sizeof(struct xfs_extent_free_item),
-					0, 0, NULL);
-	if (!xfs_bmap_free_item_zone)
-		goto out_destroy_log_ticket_zone;
+	error = xfs_btree_init_cur_caches();
+	if (error)
+		goto out_destroy_log_ticket_cache;
 
-	xfs_btree_cur_zone = kmem_cache_create("xfs_btree_cur",
-					       sizeof(struct xfs_btree_cur),
-					       0, 0, NULL);
-	if (!xfs_btree_cur_zone)
-		goto out_destroy_bmap_free_item_zone;
+	error = xfs_defer_init_item_caches();
+	if (error)
+		goto out_destroy_btree_cur_cache;
 
-	xfs_da_state_zone = kmem_cache_create("xfs_da_state",
+	xfs_da_state_cache = kmem_cache_create("xfs_da_state",
 					      sizeof(struct xfs_da_state),
 					      0, 0, NULL);
-	if (!xfs_da_state_zone)
-		goto out_destroy_btree_cur_zone;
+	if (!xfs_da_state_cache)
+		goto out_destroy_defer_item_cache;
 
-	xfs_ifork_zone = kmem_cache_create("xfs_ifork",
+	xfs_ifork_cache = kmem_cache_create("xfs_ifork",
 					   sizeof(struct xfs_ifork),
 					   0, 0, NULL);
-	if (!xfs_ifork_zone)
-		goto out_destroy_da_state_zone;
+	if (!xfs_ifork_cache)
+		goto out_destroy_da_state_cache;
 
-	xfs_trans_zone = kmem_cache_create("xfs_trans",
+	xfs_trans_cache = kmem_cache_create("xfs_trans",
 					   sizeof(struct xfs_trans),
 					   0, 0, NULL);
-	if (!xfs_trans_zone)
-		goto out_destroy_ifork_zone;
+	if (!xfs_trans_cache)
+		goto out_destroy_ifork_cache;
 
 
 	/*
-	 * The size of the zone allocated buf log item is the maximum
+	 * The size of the cache-allocated buf log item is the maximum
 	 * size possible under XFS.  This wastes a little bit of memory,
 	 * but it is much faster.
 	 */
-	xfs_buf_item_zone = kmem_cache_create("xfs_buf_item",
+	xfs_buf_item_cache = kmem_cache_create("xfs_buf_item",
 					      sizeof(struct xfs_buf_log_item),
 					      0, 0, NULL);
-	if (!xfs_buf_item_zone)
-		goto out_destroy_trans_zone;
+	if (!xfs_buf_item_cache)
+		goto out_destroy_trans_cache;
 
-	xfs_efd_zone = kmem_cache_create("xfs_efd_item",
+	xfs_efd_cache = kmem_cache_create("xfs_efd_item",
 					(sizeof(struct xfs_efd_log_item) +
 					(XFS_EFD_MAX_FAST_EXTENTS - 1) *
 					sizeof(struct xfs_extent)),
 					0, 0, NULL);
-	if (!xfs_efd_zone)
-		goto out_destroy_buf_item_zone;
+	if (!xfs_efd_cache)
+		goto out_destroy_buf_item_cache;
 
-	xfs_efi_zone = kmem_cache_create("xfs_efi_item",
+	xfs_efi_cache = kmem_cache_create("xfs_efi_item",
 					 (sizeof(struct xfs_efi_log_item) +
 					 (XFS_EFI_MAX_FAST_EXTENTS - 1) *
 					 sizeof(struct xfs_extent)),
 					 0, 0, NULL);
-	if (!xfs_efi_zone)
-		goto out_destroy_efd_zone;
+	if (!xfs_efi_cache)
+		goto out_destroy_efd_cache;
 
-	xfs_inode_zone = kmem_cache_create("xfs_inode",
+	xfs_inode_cache = kmem_cache_create("xfs_inode",
 					   sizeof(struct xfs_inode), 0,
 					   (SLAB_HWCACHE_ALIGN |
 					    SLAB_RECLAIM_ACCOUNT |
 					    SLAB_MEM_SPREAD | SLAB_ACCOUNT),
 					   xfs_fs_inode_init_once);
-	if (!xfs_inode_zone)
-		goto out_destroy_efi_zone;
+	if (!xfs_inode_cache)
+		goto out_destroy_efi_cache;
 
-	xfs_ili_zone = kmem_cache_create("xfs_ili",
+	xfs_ili_cache = kmem_cache_create("xfs_ili",
 					 sizeof(struct xfs_inode_log_item), 0,
 					 SLAB_RECLAIM_ACCOUNT | SLAB_MEM_SPREAD,
 					 NULL);
-	if (!xfs_ili_zone)
-		goto out_destroy_inode_zone;
+	if (!xfs_ili_cache)
+		goto out_destroy_inode_cache;
 
-	xfs_icreate_zone = kmem_cache_create("xfs_icr",
+	xfs_icreate_cache = kmem_cache_create("xfs_icr",
 					     sizeof(struct xfs_icreate_item),
 					     0, 0, NULL);
-	if (!xfs_icreate_zone)
-		goto out_destroy_ili_zone;
+	if (!xfs_icreate_cache)
+		goto out_destroy_ili_cache;
 
-	xfs_rud_zone = kmem_cache_create("xfs_rud_item",
+	xfs_rud_cache = kmem_cache_create("xfs_rud_item",
 					 sizeof(struct xfs_rud_log_item),
 					 0, 0, NULL);
-	if (!xfs_rud_zone)
-		goto out_destroy_icreate_zone;
+	if (!xfs_rud_cache)
+		goto out_destroy_icreate_cache;
 
-	xfs_rui_zone = kmem_cache_create("xfs_rui_item",
+	xfs_rui_cache = kmem_cache_create("xfs_rui_item",
 			xfs_rui_log_item_sizeof(XFS_RUI_MAX_FAST_EXTENTS),
 			0, 0, NULL);
-	if (!xfs_rui_zone)
-		goto out_destroy_rud_zone;
+	if (!xfs_rui_cache)
+		goto out_destroy_rud_cache;
 
-	xfs_cud_zone = kmem_cache_create("xfs_cud_item",
+	xfs_cud_cache = kmem_cache_create("xfs_cud_item",
 					 sizeof(struct xfs_cud_log_item),
 					 0, 0, NULL);
-	if (!xfs_cud_zone)
-		goto out_destroy_rui_zone;
+	if (!xfs_cud_cache)
+		goto out_destroy_rui_cache;
 
-	xfs_cui_zone = kmem_cache_create("xfs_cui_item",
+	xfs_cui_cache = kmem_cache_create("xfs_cui_item",
 			xfs_cui_log_item_sizeof(XFS_CUI_MAX_FAST_EXTENTS),
 			0, 0, NULL);
-	if (!xfs_cui_zone)
-		goto out_destroy_cud_zone;
+	if (!xfs_cui_cache)
+		goto out_destroy_cud_cache;
 
-	xfs_bud_zone = kmem_cache_create("xfs_bud_item",
+	xfs_bud_cache = kmem_cache_create("xfs_bud_item",
 					 sizeof(struct xfs_bud_log_item),
 					 0, 0, NULL);
-	if (!xfs_bud_zone)
-		goto out_destroy_cui_zone;
+	if (!xfs_bud_cache)
+		goto out_destroy_cui_cache;
 
-	xfs_bui_zone = kmem_cache_create("xfs_bui_item",
+	xfs_bui_cache = kmem_cache_create("xfs_bui_item",
 			xfs_bui_log_item_sizeof(XFS_BUI_MAX_FAST_EXTENTS),
 			0, 0, NULL);
-	if (!xfs_bui_zone)
-		goto out_destroy_bud_zone;
+	if (!xfs_bui_cache)
+		goto out_destroy_bud_cache;
 
 	return 0;
 
- out_destroy_bud_zone:
-	kmem_cache_destroy(xfs_bud_zone);
- out_destroy_cui_zone:
-	kmem_cache_destroy(xfs_cui_zone);
- out_destroy_cud_zone:
-	kmem_cache_destroy(xfs_cud_zone);
- out_destroy_rui_zone:
-	kmem_cache_destroy(xfs_rui_zone);
- out_destroy_rud_zone:
-	kmem_cache_destroy(xfs_rud_zone);
- out_destroy_icreate_zone:
-	kmem_cache_destroy(xfs_icreate_zone);
- out_destroy_ili_zone:
-	kmem_cache_destroy(xfs_ili_zone);
- out_destroy_inode_zone:
-	kmem_cache_destroy(xfs_inode_zone);
- out_destroy_efi_zone:
-	kmem_cache_destroy(xfs_efi_zone);
- out_destroy_efd_zone:
-	kmem_cache_destroy(xfs_efd_zone);
- out_destroy_buf_item_zone:
-	kmem_cache_destroy(xfs_buf_item_zone);
- out_destroy_trans_zone:
-	kmem_cache_destroy(xfs_trans_zone);
- out_destroy_ifork_zone:
-	kmem_cache_destroy(xfs_ifork_zone);
- out_destroy_da_state_zone:
-	kmem_cache_destroy(xfs_da_state_zone);
- out_destroy_btree_cur_zone:
-	kmem_cache_destroy(xfs_btree_cur_zone);
- out_destroy_bmap_free_item_zone:
-	kmem_cache_destroy(xfs_bmap_free_item_zone);
- out_destroy_log_ticket_zone:
-	kmem_cache_destroy(xfs_log_ticket_zone);
+ out_destroy_bud_cache:
+	kmem_cache_destroy(xfs_bud_cache);
+ out_destroy_cui_cache:
+	kmem_cache_destroy(xfs_cui_cache);
+ out_destroy_cud_cache:
+	kmem_cache_destroy(xfs_cud_cache);
+ out_destroy_rui_cache:
+	kmem_cache_destroy(xfs_rui_cache);
+ out_destroy_rud_cache:
+	kmem_cache_destroy(xfs_rud_cache);
+ out_destroy_icreate_cache:
+	kmem_cache_destroy(xfs_icreate_cache);
+ out_destroy_ili_cache:
+	kmem_cache_destroy(xfs_ili_cache);
+ out_destroy_inode_cache:
+	kmem_cache_destroy(xfs_inode_cache);
+ out_destroy_efi_cache:
+	kmem_cache_destroy(xfs_efi_cache);
+ out_destroy_efd_cache:
+	kmem_cache_destroy(xfs_efd_cache);
+ out_destroy_buf_item_cache:
+	kmem_cache_destroy(xfs_buf_item_cache);
+ out_destroy_trans_cache:
+	kmem_cache_destroy(xfs_trans_cache);
+ out_destroy_ifork_cache:
+	kmem_cache_destroy(xfs_ifork_cache);
+ out_destroy_da_state_cache:
+	kmem_cache_destroy(xfs_da_state_cache);
+ out_destroy_defer_item_cache:
+	xfs_defer_destroy_item_caches();
+ out_destroy_btree_cur_cache:
+	xfs_btree_destroy_cur_caches();
+ out_destroy_log_ticket_cache:
+	kmem_cache_destroy(xfs_log_ticket_cache);
  out:
 	return -ENOMEM;
 }
 
 STATIC void
-xfs_destroy_zones(void)
+xfs_destroy_caches(void)
 {
 	/*
 	 * Make sure all delayed rcu free are flushed before we
 	 * destroy caches.
 	 */
 	rcu_barrier();
-	kmem_cache_destroy(xfs_bui_zone);
-	kmem_cache_destroy(xfs_bud_zone);
-	kmem_cache_destroy(xfs_cui_zone);
-	kmem_cache_destroy(xfs_cud_zone);
-	kmem_cache_destroy(xfs_rui_zone);
-	kmem_cache_destroy(xfs_rud_zone);
-	kmem_cache_destroy(xfs_icreate_zone);
-	kmem_cache_destroy(xfs_ili_zone);
-	kmem_cache_destroy(xfs_inode_zone);
-	kmem_cache_destroy(xfs_efi_zone);
-	kmem_cache_destroy(xfs_efd_zone);
-	kmem_cache_destroy(xfs_buf_item_zone);
-	kmem_cache_destroy(xfs_trans_zone);
-	kmem_cache_destroy(xfs_ifork_zone);
-	kmem_cache_destroy(xfs_da_state_zone);
-	kmem_cache_destroy(xfs_btree_cur_zone);
-	kmem_cache_destroy(xfs_bmap_free_item_zone);
-	kmem_cache_destroy(xfs_log_ticket_zone);
+	kmem_cache_destroy(xfs_bui_cache);
+	kmem_cache_destroy(xfs_bud_cache);
+	kmem_cache_destroy(xfs_cui_cache);
+	kmem_cache_destroy(xfs_cud_cache);
+	kmem_cache_destroy(xfs_rui_cache);
+	kmem_cache_destroy(xfs_rud_cache);
+	kmem_cache_destroy(xfs_icreate_cache);
+	kmem_cache_destroy(xfs_ili_cache);
+	kmem_cache_destroy(xfs_inode_cache);
+	kmem_cache_destroy(xfs_efi_cache);
+	kmem_cache_destroy(xfs_efd_cache);
+	kmem_cache_destroy(xfs_buf_item_cache);
+	kmem_cache_destroy(xfs_trans_cache);
+	kmem_cache_destroy(xfs_ifork_cache);
+	kmem_cache_destroy(xfs_da_state_cache);
+	xfs_defer_destroy_item_caches();
+	xfs_btree_destroy_cur_caches();
+	kmem_cache_destroy(xfs_log_ticket_cache);
 }
 
 STATIC int __init
@@ -2233,13 +2227,13 @@ init_xfs_fs(void)
 	if (error)
 		goto out;
 
-	error = xfs_init_zones();
+	error = xfs_init_caches();
 	if (error)
 		goto out_destroy_hp;
 
 	error = xfs_init_workqueues();
 	if (error)
-		goto out_destroy_zones;
+		goto out_destroy_caches;
 
 	error = xfs_mru_cache_init();
 	if (error)
@@ -2314,8 +2308,8 @@ init_xfs_fs(void)
 	xfs_mru_cache_uninit();
  out_destroy_wq:
 	xfs_destroy_workqueues();
- out_destroy_zones:
-	xfs_destroy_zones();
+ out_destroy_caches:
+	xfs_destroy_caches();
  out_destroy_hp:
 	xfs_cpu_hotplug_destroy();
  out:
@@ -2338,7 +2332,7 @@ exit_xfs_fs(void)
 	xfs_buf_terminate();
 	xfs_mru_cache_uninit();
 	xfs_destroy_workqueues();
-	xfs_destroy_zones();
+	xfs_destroy_caches();
 	xfs_uuid_table_free();
 	xfs_cpu_hotplug_destroy();
 }

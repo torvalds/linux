@@ -134,7 +134,8 @@ static int mma7455_read_raw(struct iio_dev *indio_dev,
 		if (ret)
 			return ret;
 
-		*val = sign_extend32(le16_to_cpu(data), 9);
+		*val = sign_extend32(le16_to_cpu(data),
+				     chan->scan_type.realbits - 1);
 
 		return IIO_VAL_INT;
 
@@ -237,7 +238,7 @@ const struct regmap_config mma7455_core_regmap = {
 	.val_bits = 8,
 	.max_register = MMA7455_REG_TW,
 };
-EXPORT_SYMBOL_GPL(mma7455_core_regmap);
+EXPORT_SYMBOL_NS_GPL(mma7455_core_regmap, IIO_MMA7455);
 
 int mma7455_core_probe(struct device *dev, struct regmap *regmap,
 		       const char *name)
@@ -292,9 +293,9 @@ int mma7455_core_probe(struct device *dev, struct regmap *regmap,
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(mma7455_core_probe);
+EXPORT_SYMBOL_NS_GPL(mma7455_core_probe, IIO_MMA7455);
 
-int mma7455_core_remove(struct device *dev)
+void mma7455_core_remove(struct device *dev)
 {
 	struct iio_dev *indio_dev = dev_get_drvdata(dev);
 	struct mma7455_data *mma7455 = iio_priv(indio_dev);
@@ -304,10 +305,8 @@ int mma7455_core_remove(struct device *dev)
 
 	regmap_write(mma7455->regmap, MMA7455_REG_MCTL,
 		     MMA7455_MCTL_MODE_STANDBY);
-
-	return 0;
 }
-EXPORT_SYMBOL_GPL(mma7455_core_remove);
+EXPORT_SYMBOL_NS_GPL(mma7455_core_remove, IIO_MMA7455);
 
 MODULE_AUTHOR("Joachim Eastwood <manabian@gmail.com>");
 MODULE_DESCRIPTION("Freescale MMA7455L core accelerometer driver");

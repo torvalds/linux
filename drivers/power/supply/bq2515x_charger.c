@@ -945,7 +945,7 @@ static int bq2515x_power_supply_register(struct bq2515x_device *bq2515x,
 static int bq2515x_hw_init(struct bq2515x_device *bq2515x)
 {
 	int ret;
-	struct power_supply_battery_info bat_info = { };
+	struct power_supply_battery_info *bat_info;
 
 	ret = bq2515x_disable_watchdog_timers(bq2515x);
 	if (ret)
@@ -969,13 +969,13 @@ static int bq2515x_hw_init(struct bq2515x_device *bq2515x)
 
 	} else {
 		bq2515x->init_data.ichg =
-				bat_info.constant_charge_current_max_ua;
+				bat_info->constant_charge_current_max_ua;
 
 		bq2515x->init_data.vbatreg =
-				bat_info.constant_charge_voltage_max_uv;
+				bat_info->constant_charge_voltage_max_uv;
 
 		bq2515x->init_data.iprechg =
-				bat_info.precharge_current_ua;
+				bat_info->precharge_current_ua;
 	}
 
 	ret = bq2515x_set_const_charge_current(bq2515x,

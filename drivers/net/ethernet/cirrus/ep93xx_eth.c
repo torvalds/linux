@@ -746,7 +746,7 @@ static struct net_device *ep93xx_dev_alloc(struct ep93xx_eth_data *data)
 	if (dev == NULL)
 		return NULL;
 
-	memcpy(dev->dev_addr, data->dev_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, data->dev_addr);
 
 	dev->ethtool_ops = &ep93xx_ethtool_ops;
 	dev->netdev_ops = &ep93xx_netdev_ops;

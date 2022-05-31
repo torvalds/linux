@@ -3,7 +3,7 @@
 #include "../../../util/cpumap.h"
 #include "../../../util/pmu.h"
 
-struct pmu_events_map *pmu_events_map__find(void)
+const struct pmu_events_map *pmu_events_map__find(void)
 {
 	struct perf_pmu *pmu = NULL;
 
@@ -15,7 +15,7 @@ struct pmu_events_map *pmu_events_map__find(void)
 		 * The cpumap should cover all CPUs. Otherwise, some CPUs may
 		 * not support some events or have different event IDs.
 		 */
-		if (pmu->cpus->nr != cpu__max_cpu())
+		if (pmu->cpus->nr != cpu__max_cpu().cpu)
 			return NULL;
 
 		return perf_pmu__find_map(pmu);

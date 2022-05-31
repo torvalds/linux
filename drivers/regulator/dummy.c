@@ -45,7 +45,8 @@ static int dummy_regulator_probe(struct platform_device *pdev)
 	config.dev = &pdev->dev;
 	config.init_data = &dummy_initdata;
 
-	dummy_regulator_rdev = regulator_register(&dummy_desc, &config);
+	dummy_regulator_rdev = devm_regulator_register(&pdev->dev, &dummy_desc,
+						       &config);
 	if (IS_ERR(dummy_regulator_rdev)) {
 		ret = PTR_ERR(dummy_regulator_rdev);
 		pr_err("Failed to register regulator: %d\n", ret);

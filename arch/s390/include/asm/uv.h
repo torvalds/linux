@@ -18,6 +18,11 @@
 #include <asm/page.h>
 #include <asm/gmap.h>
 
+#define UVC_CC_OK	0
+#define UVC_CC_ERROR	1
+#define UVC_CC_BUSY	2
+#define UVC_CC_PARTIAL	3
+
 #define UVC_RC_EXECUTED		0x0001
 #define UVC_RC_INV_CMD		0x0002
 #define UVC_RC_INV_STATE	0x0003
@@ -75,6 +80,7 @@ enum uv_cmds_inst {
 
 enum uv_feat_ind {
 	BIT_UV_FEAT_MISC = 0,
+	BIT_UV_FEAT_AIV = 1,
 };
 
 struct uv_cb_header {
@@ -86,23 +92,23 @@ struct uv_cb_header {
 
 /* Query Ultravisor Information */
 struct uv_cb_qui {
-	struct uv_cb_header header;
-	u64 reserved08;
-	u64 inst_calls_list[4];
-	u64 reserved30[2];
-	u64 uv_base_stor_len;
-	u64 reserved48;
-	u64 conf_base_phys_stor_len;
-	u64 conf_base_virt_stor_len;
-	u64 conf_virt_var_stor_len;
-	u64 cpu_stor_len;
-	u32 reserved70[3];
-	u32 max_num_sec_conf;
-	u64 max_guest_stor_addr;
-	u8  reserved88[158 - 136];
-	u16 max_guest_cpu_id;
-	u64 uv_feature_indications;
-	u8  reserveda0[200 - 168];
+	struct uv_cb_header header;		/* 0x0000 */
+	u64 reserved08;				/* 0x0008 */
+	u64 inst_calls_list[4];			/* 0x0010 */
+	u64 reserved30[2];			/* 0x0030 */
+	u64 uv_base_stor_len;			/* 0x0040 */
+	u64 reserved48;				/* 0x0048 */
+	u64 conf_base_phys_stor_len;		/* 0x0050 */
+	u64 conf_base_virt_stor_len;		/* 0x0058 */
+	u64 conf_virt_var_stor_len;		/* 0x0060 */
+	u64 cpu_stor_len;			/* 0x0068 */
+	u32 reserved70[3];			/* 0x0070 */
+	u32 max_num_sec_conf;			/* 0x007c */
+	u64 max_guest_stor_addr;		/* 0x0080 */
+	u8  reserved88[158 - 136];		/* 0x0088 */
+	u16 max_guest_cpu_id;			/* 0x009e */
+	u64 uv_feature_indications;		/* 0x00a0 */
+	u8  reserveda8[200 - 168];		/* 0x00a8 */
 } __packed __aligned(8);
 
 /* Initialize Ultravisor */
@@ -351,8 +357,9 @@ static inline int is_prot_virt_host(void)
 }
 
 int gmap_make_secure(struct gmap *gmap, unsigned long gaddr, void *uvcb);
-int uv_destroy_page(unsigned long paddr);
+int uv_destroy_owned_page(unsigned long paddr);
 int uv_convert_from_secure(unsigned long paddr);
+int uv_convert_owned_from_secure(unsigned long paddr);
 int gmap_convert_to_secure(struct gmap *gmap, unsigned long gaddr);
 
 void setup_uv(void);
@@ -360,12 +367,17 @@ void setup_uv(void);
 #define is_prot_virt_host() 0
 static inline void setup_uv(void) {}
 
-static inline int uv_destroy_page(unsigned long paddr)
+static inline int uv_destroy_owned_page(unsigned long paddr)
 {
 	return 0;
 }
 
 static inline int uv_convert_from_secure(unsigned long paddr)
+{
+	return 0;
+}
+
+static inline int uv_convert_owned_from_secure(unsigned long paddr)
 {
 	return 0;
 }

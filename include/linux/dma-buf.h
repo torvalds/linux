@@ -13,7 +13,7 @@
 #ifndef __DMA_BUF_H__
 #define __DMA_BUF_H__
 
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 #include <linux/file.h>
 #include <linux/err.h>
 #include <linux/scatterlist.h>
@@ -86,8 +86,8 @@ struct dma_buf_ops {
 	 * @pin:
 	 *
 	 * This is called by dma_buf_pin() and lets the exporter know that the
-	 * DMA-buf can't be moved any more. The exporter should pin the buffer
-	 * into system memory to make sure it is generally accessible by other
+	 * DMA-buf can't be moved any more. Ideally, the exporter should
+	 * pin the buffer so that it is generally accessible by all
 	 * devices.
 	 *
 	 * This is called with the &dmabuf.resv object locked and is mutual
@@ -283,8 +283,8 @@ struct dma_buf_ops {
 	 */
 	int (*mmap)(struct dma_buf *, struct vm_area_struct *vma);
 
-	int (*vmap)(struct dma_buf *dmabuf, struct dma_buf_map *map);
-	void (*vunmap)(struct dma_buf *dmabuf, struct dma_buf_map *map);
+	int (*vmap)(struct dma_buf *dmabuf, struct iosys_map *map);
+	void (*vunmap)(struct dma_buf *dmabuf, struct iosys_map *map);
 };
 
 /**
@@ -347,7 +347,7 @@ struct dma_buf {
 	 * @vmap_ptr:
 	 * The current vmap ptr if @vmapping_counter > 0. Protected by @lock.
 	 */
-	struct dma_buf_map vmap_ptr;
+	struct iosys_map vmap_ptr;
 
 	/**
 	 * @exp_name:
@@ -420,20 +420,27 @@ struct dma_buf {
 	 * - Dynamic importers should set fences for any access that they can't
 	 *   disable immediately from their &dma_buf_attach_ops.move_notify
 	 *   callback.
+	 *
+	 * IMPORTANT:
+	 *
+	 * All drivers must obey the struct dma_resv rules, specifically the
+	 * rules for updating fences, see &dma_resv.fence_excl and
+	 * &dma_resv.fence. If these dependency rules are broken access tracking
+	 * can be lost resulting in use after free issues.
 	 */
 	struct dma_resv *resv;
 
 	/** @poll: for userspace poll support */
 	wait_queue_head_t poll;
 
-	/** @cb_excl: for userspace poll support */
-	/** @cb_shared: for userspace poll support */
+	/** @cb_in: for userspace poll support */
+	/** @cb_out: for userspace poll support */
 	struct dma_buf_poll_cb_t {
 		struct dma_fence_cb cb;
 		wait_queue_head_t *poll;
 
 		__poll_t active;
-	} cb_excl, cb_shared;
+	} cb_in, cb_out;
 #ifdef CONFIG_DMABUF_SYSFS_STATS
 	/**
 	 * @sysfs_entry:
@@ -621,6 +628,6 @@ int dma_buf_end_cpu_access(struct dma_buf *dma_buf,
 
 int dma_buf_mmap(struct dma_buf *, struct vm_area_struct *,
 		 unsigned long);
-int dma_buf_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map);
-void dma_buf_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map);
+int dma_buf_vmap(struct dma_buf *dmabuf, struct iosys_map *map);
+void dma_buf_vunmap(struct dma_buf *dmabuf, struct iosys_map *map);
 #endif /* __DMA_BUF_H__ */

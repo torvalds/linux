@@ -55,10 +55,20 @@ extern u64 xen_saved_max_mem_size;
 #ifdef CONFIG_XEN_UNPOPULATED_ALLOC
 int xen_alloc_unpopulated_pages(unsigned int nr_pages, struct page **pages);
 void xen_free_unpopulated_pages(unsigned int nr_pages, struct page **pages);
+#include <linux/ioport.h>
+int arch_xen_unpopulated_init(struct resource **res);
 #else
-#define xen_alloc_unpopulated_pages alloc_xenballooned_pages
-#define xen_free_unpopulated_pages free_xenballooned_pages
 #include <xen/balloon.h>
+static inline int xen_alloc_unpopulated_pages(unsigned int nr_pages,
+		struct page **pages)
+{
+	return xen_alloc_ballooned_pages(nr_pages, pages);
+}
+static inline void xen_free_unpopulated_pages(unsigned int nr_pages,
+		struct page **pages)
+{
+	xen_free_ballooned_pages(nr_pages, pages);
+}
 #endif
 
 #endif	/* _XEN_XEN_H */

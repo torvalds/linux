@@ -99,8 +99,6 @@
  */
 
 static unsigned long _SDR1;
-struct mmu_psize_def mmu_psize_defs[MMU_PAGE_COUNT];
-EXPORT_SYMBOL_GPL(mmu_psize_defs);
 
 u8 hpte_page_sizes[1 << LP_BITS];
 EXPORT_SYMBOL_GPL(hpte_page_sizes);
@@ -114,9 +112,6 @@ EXPORT_SYMBOL_GPL(mmu_linear_psize);
 int mmu_virtual_psize = MMU_PAGE_4K;
 int mmu_vmalloc_psize = MMU_PAGE_4K;
 EXPORT_SYMBOL_GPL(mmu_vmalloc_psize);
-#ifdef CONFIG_SPARSEMEM_VMEMMAP
-int mmu_vmemmap_psize = MMU_PAGE_4K;
-#endif
 int mmu_io_psize = MMU_PAGE_4K;
 int mmu_kernel_ssize = MMU_SEGSIZE_256M;
 EXPORT_SYMBOL_GPL(mmu_kernel_ssize);
@@ -174,6 +169,110 @@ static struct mmu_psize_def mmu_psize_defaults_gp[] = {
 		.tlbiel = 0,
 	},
 };
+
+static inline void tlbiel_hash_set_isa206(unsigned int set, unsigned int is)
+{
+	unsigned long rb;
+
+	rb = (set << PPC_BITLSHIFT(51)) | (is << PPC_BITLSHIFT(53));
+
+	asm volatile("tlbiel %0" : : "r" (rb));
+}
+
+/*
+ * tlbiel instruction for hash, set invalidation
+ * i.e., r=1 and is=01 or is=10 or is=11
+ */
+static __always_inline void tlbiel_hash_set_isa300(unsigned int set, unsigned int is,
+					unsigned int pid,
+					unsigned int ric, unsigned int prs)
+{
+	unsigned long rb;
+	unsigned long rs;
+	unsigned int r = 0; /* hash format */
+
+	rb = (set << PPC_BITLSHIFT(51)) | (is << PPC_BITLSHIFT(53));
+	rs = ((unsigned long)pid << PPC_BITLSHIFT(31));
+
+	asm volatile(PPC_TLBIEL(%0, %1, %2, %3, %4)
+		     : : "r"(rb), "r"(rs), "i"(ric), "i"(prs), "i"(r)
+		     : "memory");
+}
+
+
+static void tlbiel_all_isa206(unsigned int num_sets, unsigned int is)
+{
+	unsigned int set;
+
+	asm volatile("ptesync": : :"memory");
+
+	for (set = 0; set < num_sets; set++)
+		tlbiel_hash_set_isa206(set, is);
+
+	ppc_after_tlbiel_barrier();
+}
+
+static void tlbiel_all_isa300(unsigned int num_sets, unsigned int is)
+{
+	unsigned int set;
+
+	asm volatile("ptesync": : :"memory");
+
+	/*
+	 * Flush the partition table cache if this is HV mode.
+	 */
+	if (early_cpu_has_feature(CPU_FTR_HVMODE))
+		tlbiel_hash_set_isa300(0, is, 0, 2, 0);
+
+	/*
+	 * Now invalidate the process table cache. UPRT=0 HPT modes (what
+	 * current hardware implements) do not use the process table, but
+	 * add the flushes anyway.
+	 *
+	 * From ISA v3.0B p. 1078:
+	 *     The following forms are invalid.
+	 *      * PRS=1, R=0, and RIC!=2 (The only process-scoped
+	 *        HPT caching is of the Process Table.)
+	 */
+	tlbiel_hash_set_isa300(0, is, 0, 2, 1);
+
+	/*
+	 * Then flush the sets of the TLB proper. Hash mode uses
+	 * partition scoped TLB translations, which may be flushed
+	 * in !HV mode.
+	 */
+	for (set = 0; set < num_sets; set++)
+		tlbiel_hash_set_isa300(set, is, 0, 0, 0);
+
+	ppc_after_tlbiel_barrier();
+
+	asm volatile(PPC_ISA_3_0_INVALIDATE_ERAT "; isync" : : :"memory");
+}
+
+void hash__tlbiel_all(unsigned int action)
+{
+	unsigned int is;
+
+	switch (action) {
+	case TLB_INVAL_SCOPE_GLOBAL:
+		is = 3;
+		break;
+	case TLB_INVAL_SCOPE_LPID:
+		is = 2;
+		break;
+	default:
+		BUG();
+	}
+
+	if (early_cpu_has_feature(CPU_FTR_ARCH_300))
+		tlbiel_all_isa300(POWER9_TLB_SETS_HASH, is);
+	else if (early_cpu_has_feature(CPU_FTR_ARCH_207S))
+		tlbiel_all_isa206(POWER8_TLB_SETS, is);
+	else if (early_cpu_has_feature(CPU_FTR_ARCH_206))
+		tlbiel_all_isa206(POWER7_TLB_SETS, is);
+	else
+		WARN(1, "%s called on pre-POWER7 CPU\n", __func__);
+}
 
 /*
  * 'R' and 'C' update notes:
@@ -563,7 +662,7 @@ static int __init htab_dt_scan_hugepage_blocks(unsigned long node,
 }
 #endif /* CONFIG_HUGETLB_PAGE */
 
-static void mmu_psize_set_default_penc(void)
+static void __init mmu_psize_set_default_penc(void)
 {
 	int bpsize, apsize;
 	for (bpsize = 0; bpsize < MMU_PAGE_COUNT; bpsize++)
@@ -573,7 +672,7 @@ static void mmu_psize_set_default_penc(void)
 
 #ifdef CONFIG_PPC_64K_PAGES
 
-static bool might_have_hea(void)
+static bool __init might_have_hea(void)
 {
 	/*
 	 * The HEA ethernet adapter requires awareness of the
@@ -644,7 +743,7 @@ static void __init htab_scan_page_sizes(void)
  * low-order N bits as the encoding for the 2^(12+N) byte page size
  * (if it exists).
  */
-static void init_hpte_page_sizes(void)
+static void __init init_hpte_page_sizes(void)
 {
 	long int ap, bp;
 	long int shift, penc;
@@ -1091,7 +1190,7 @@ void __init hash__early_init_mmu(void)
 		ps3_early_mm_init();
 	else if (firmware_has_feature(FW_FEATURE_LPAR))
 		hpte_init_pseries();
-	else if (IS_ENABLED(CONFIG_PPC_NATIVE))
+	else if (IS_ENABLED(CONFIG_PPC_HASH_MMU_NATIVE))
 		hpte_init_native();
 
 	if (!mmu_hash_ops.hpte_insert)
@@ -1522,8 +1621,7 @@ int hash_page(unsigned long ea, unsigned long access, unsigned long trap,
 }
 EXPORT_SYMBOL_GPL(hash_page);
 
-DECLARE_INTERRUPT_HANDLER(__do_hash_fault);
-DEFINE_INTERRUPT_HANDLER(__do_hash_fault)
+DEFINE_INTERRUPT_HANDLER(do_hash_fault)
 {
 	unsigned long ea = regs->dar;
 	unsigned long dsisr = regs->dsisr;
@@ -1580,35 +1678,6 @@ DEFINE_INTERRUPT_HANDLER(__do_hash_fault)
 	} else if (err) {
 		hash__do_page_fault(regs);
 	}
-}
-
-/*
- * The _RAW interrupt entry checks for the in_nmi() case before
- * running the full handler.
- */
-DEFINE_INTERRUPT_HANDLER_RAW(do_hash_fault)
-{
-	/*
-	 * If we are in an "NMI" (e.g., an interrupt when soft-disabled), then
-	 * don't call hash_page, just fail the fault. This is required to
-	 * prevent re-entrancy problems in the hash code, namely perf
-	 * interrupts hitting while something holds H_PAGE_BUSY, and taking a
-	 * hash fault. See the comment in hash_preload().
-	 *
-	 * We come here as a result of a DSI at a point where we don't want
-	 * to call hash_page, such as when we are accessing memory (possibly
-	 * user memory) inside a PMU interrupt that occurred while interrupts
-	 * were soft-disabled.  We want to invoke the exception handler for
-	 * the access, or panic if there isn't a handler.
-	 */
-	if (unlikely(in_nmi())) {
-		do_bad_page_fault_segv(regs);
-		return 0;
-	}
-
-	__do_hash_fault(regs);
-
-	return 0;
 }
 
 #ifdef CONFIG_PPC_MM_SLICES
@@ -1677,26 +1746,18 @@ static void hash_preload(struct mm_struct *mm, pte_t *ptep, unsigned long ea,
 #endif /* CONFIG_PPC_64K_PAGES */
 
 	/*
-	 * __hash_page_* must run with interrupts off, as it sets the
-	 * H_PAGE_BUSY bit. It's possible for perf interrupts to hit at any
-	 * time and may take a hash fault reading the user stack, see
-	 * read_user_stack_slow() in the powerpc/perf code.
+	 * __hash_page_* must run with interrupts off, including PMI interrupts
+	 * off, as it sets the H_PAGE_BUSY bit.
 	 *
-	 * If that takes a hash fault on the same page as we lock here, it
-	 * will bail out when seeing H_PAGE_BUSY set, and retry the access
-	 * leading to an infinite loop.
-	 *
-	 * Disabling interrupts here does not prevent perf interrupts, but it
-	 * will prevent them taking hash faults (see the NMI test in
-	 * do_hash_page), then read_user_stack's copy_from_user_nofault will
-	 * fail and perf will fall back to read_user_stack_slow(), which
-	 * walks the Linux page tables.
+	 * It's otherwise possible for perf interrupts to hit at any time and
+	 * may take a hash fault reading the user stack, which could take a
+	 * hash miss and deadlock on the same H_PAGE_BUSY bit.
 	 *
 	 * Interrupts must also be off for the duration of the
 	 * mm_is_thread_local test and update, to prevent preempt running the
 	 * mm on another CPU (XXX: this may be racy vs kthread_use_mm).
 	 */
-	local_irq_save(flags);
+	powerpc_local_irq_pmu_save(flags);
 
 	/* Is that local to this CPU ? */
 	if (mm_is_thread_local(mm))
@@ -1721,7 +1782,7 @@ static void hash_preload(struct mm_struct *mm, pte_t *ptep, unsigned long ea,
 				   mm_ctx_user_psize(&mm->context),
 				   pte_val(*ptep));
 
-	local_irq_restore(flags);
+	powerpc_local_irq_pmu_restore(flags);
 }
 
 /*
@@ -1988,7 +2049,7 @@ static void kernel_unmap_linear_page(unsigned long vaddr, unsigned long lmi)
 				     mmu_kernel_ssize, 0);
 }
 
-void __kernel_map_pages(struct page *page, int numpages, int enable)
+void hash__kernel_map_pages(struct page *page, int numpages, int enable)
 {
 	unsigned long flags, vaddr, lmi;
 	int i;

@@ -36,7 +36,7 @@ struct mlxsw_sp_ptp_state {
 };
 
 struct mlxsw_sp1_ptp_key {
-	u8 local_port;
+	u16 local_port;
 	u8 message_type;
 	u16 sequence_id;
 	u8 domain_number;
@@ -406,7 +406,7 @@ mlxsw_sp1_ptp_unmatched_remove(struct mlxsw_sp *mlxsw_sp,
  *    This case is similar to 2) above.
  */
 static void mlxsw_sp1_ptp_packet_finish(struct mlxsw_sp *mlxsw_sp,
-					struct sk_buff *skb, u8 local_port,
+					struct sk_buff *skb, u16 local_port,
 					bool ingress,
 					struct skb_shared_hwtstamps *hwtstamps)
 {
@@ -524,7 +524,7 @@ static void mlxsw_sp1_ptp_got_piece(struct mlxsw_sp *mlxsw_sp,
 }
 
 static void mlxsw_sp1_ptp_got_packet(struct mlxsw_sp *mlxsw_sp,
-				     struct sk_buff *skb, u8 local_port,
+				     struct sk_buff *skb, u16 local_port,
 				     bool ingress)
 {
 	struct mlxsw_sp_port *mlxsw_sp_port;
@@ -564,16 +564,15 @@ immediate:
 }
 
 void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
-				 u8 local_port, u8 message_type,
+				 u16 local_port, u8 message_type,
 				 u8 domain_number, u16 sequence_id,
 				 u64 timestamp)
 {
-	unsigned int max_ports = mlxsw_core_max_ports(mlxsw_sp->core);
 	struct mlxsw_sp_port *mlxsw_sp_port;
 	struct mlxsw_sp1_ptp_key key;
 	u8 types;
 
-	if (WARN_ON_ONCE(local_port >= max_ports))
+	if (WARN_ON_ONCE(!mlxsw_sp_local_port_is_valid(mlxsw_sp, local_port)))
 		return;
 	mlxsw_sp_port = mlxsw_sp->ports[local_port];
 	if (!mlxsw_sp_port)
@@ -599,14 +598,14 @@ void mlxsw_sp1_ptp_got_timestamp(struct mlxsw_sp *mlxsw_sp, bool ingress,
 }
 
 void mlxsw_sp1_ptp_receive(struct mlxsw_sp *mlxsw_sp, struct sk_buff *skb,
-			   u8 local_port)
+			   u16 local_port)
 {
 	skb_reset_mac_header(skb);
 	mlxsw_sp1_ptp_got_packet(mlxsw_sp, skb, local_port, true);
 }
 
 void mlxsw_sp1_ptp_transmitted(struct mlxsw_sp *mlxsw_sp,
-			       struct sk_buff *skb, u8 local_port)
+			       struct sk_buff *skb, u16 local_port)
 {
 	mlxsw_sp1_ptp_got_packet(mlxsw_sp, skb, local_port, false);
 }

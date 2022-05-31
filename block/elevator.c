@@ -26,7 +26,6 @@
 #include <linux/kernel.h>
 #include <linux/fs.h>
 #include <linux/blkdev.h>
-#include <linux/elevator.h>
 #include <linux/bio.h>
 #include <linux/module.h>
 #include <linux/slab.h>
@@ -36,14 +35,15 @@
 #include <linux/hash.h>
 #include <linux/uaccess.h>
 #include <linux/pm_runtime.h>
-#include <linux/blk-cgroup.h>
 
 #include <trace/events/block.h>
 
+#include "elevator.h"
 #include "blk.h"
 #include "blk-mq-sched.h"
 #include "blk-pm.h"
 #include "blk-wbt.h"
+#include "blk-cgroup.h"
 
 static DEFINE_SPINLOCK(elv_list_lock);
 static LIST_HEAD(elv_list);
@@ -188,8 +188,13 @@ static void elevator_release(struct kobject *kobj)
 	kfree(e);
 }
 
-void __elevator_exit(struct request_queue *q, struct elevator_queue *e)
+void elevator_exit(struct request_queue *q)
 {
+	struct elevator_queue *e = q->elevator;
+
+	ioc_clear_queue(q);
+	blk_mq_sched_free_rqs(q);
+
 	mutex_lock(&e->sysfs_lock);
 	blk_mq_exit_sched(q, e);
 	mutex_unlock(&e->sysfs_lock);
@@ -514,17 +519,17 @@ int elv_register_queue(struct request_queue *q, bool uevent)
 
 void elv_unregister_queue(struct request_queue *q)
 {
+	struct elevator_queue *e = q->elevator;
+
 	lockdep_assert_held(&q->sysfs_lock);
 
-	if (q) {
+	if (e && e->registered) {
 		struct elevator_queue *e = q->elevator;
 
 		kobject_uevent(&e->kobj, KOBJ_REMOVE);
 		kobject_del(&e->kobj);
 
 		e->registered = 0;
-		/* Re-enable throttling in case elevator disabled it */
-		wbt_enable_default(q);
 	}
 }
 
@@ -591,11 +596,8 @@ int elevator_switch_mq(struct request_queue *q,
 	lockdep_assert_held(&q->sysfs_lock);
 
 	if (q->elevator) {
-		if (q->elevator->registered)
-			elv_unregister_queue(q);
-
-		ioc_clear_queue(q);
-		elevator_exit(q, q->elevator);
+		elv_unregister_queue(q);
+		elevator_exit(q);
 	}
 
 	ret = blk_mq_init_sched(q, new_e);
@@ -605,7 +607,7 @@ int elevator_switch_mq(struct request_queue *q,
 	if (new_e) {
 		ret = elv_register_queue(q, true);
 		if (ret) {
-			elevator_exit(q, q->elevator);
+			elevator_exit(q);
 			goto out;
 		}
 	}
@@ -637,7 +639,7 @@ static struct elevator_type *elevator_get_default(struct request_queue *q)
 		return NULL;
 
 	if (q->nr_hw_queues != 1 &&
-			!blk_mq_is_sbitmap_shared(q->tag_set->flags))
+	    !blk_mq_is_shared_tags(q->tag_set->flags))
 		return NULL;
 
 	return elevator_get(q, "mq-deadline", false);
@@ -694,12 +696,18 @@ void elevator_init_mq(struct request_queue *q)
 	if (!e)
 		return;
 
+	/*
+	 * We are called before adding disk, when there isn't any FS I/O,
+	 * so freezing queue plus canceling dispatch work is enough to
+	 * drain any dispatch activities originated from passthrough
+	 * requests, then no need to quiesce queue which may add long boot
+	 * latency, especially when lots of disks are involved.
+	 */
 	blk_mq_freeze_queue(q);
-	blk_mq_quiesce_queue(q);
+	blk_mq_cancel_work_sync(q);
 
 	err = blk_mq_init_sched(q, e);
 
-	blk_mq_unquiesce_queue(q);
 	blk_mq_unfreeze_queue(q);
 
 	if (err) {

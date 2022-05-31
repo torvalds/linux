@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * linux/fs/9p/error.c
- *
  * Error string handling
  *
  * Plan 9 uses error strings, Unix uses error numbers.  These functions
@@ -185,7 +183,7 @@ int p9_error_init(void)
 		INIT_HLIST_HEAD(&hash_errmap[bucket]);
 
 	/* load initial error map into hash table */
-	for (c = errmap; c->name != NULL; c++) {
+	for (c = errmap; c->name; c++) {
 		c->namelen = strlen(c->name);
 		bucket = jhash(c->name, c->namelen, 0) % ERRHASHSZ;
 		INIT_HLIST_NODE(&c->list);

@@ -231,8 +231,7 @@ static inline bool xfs_inode_has_bigtime(struct xfs_inode *ip)
 #define XFS_IRECLAIM		(1 << 0) /* started reclaiming this inode */
 #define XFS_ISTALE		(1 << 1) /* inode has been staled */
 #define XFS_IRECLAIMABLE	(1 << 2) /* inode can be reclaimed */
-#define __XFS_INEW_BIT		3	 /* inode has just been allocated */
-#define XFS_INEW		(1 << __XFS_INEW_BIT)
+#define XFS_INEW		(1 << 3) /* inode has just been allocated */
 #define XFS_IPRESERVE_DM_FIELDS	(1 << 4) /* has legacy DMAPI fields set */
 #define XFS_ITRUNCATED		(1 << 5) /* truncated down so flush-on-close */
 #define XFS_IDIRTY_RELEASE	(1 << 6) /* dirty release already seen */
@@ -403,7 +402,7 @@ enum layout_break_reason {
 
 int		xfs_release(struct xfs_inode *ip);
 void		xfs_inactive(struct xfs_inode *ip);
-int		xfs_lookup(struct xfs_inode *dp, struct xfs_name *name,
+int		xfs_lookup(struct xfs_inode *dp, const struct xfs_name *name,
 			   struct xfs_inode **ipp, struct xfs_name *ci_name);
 int		xfs_create(struct user_namespace *mnt_userns,
 			   struct xfs_inode *dp, struct xfs_name *name,
@@ -463,15 +462,6 @@ xfs_itruncate_extents(
 }
 
 /* from xfs_file.c */
-enum xfs_prealloc_flags {
-	XFS_PREALLOC_SET	= (1 << 1),
-	XFS_PREALLOC_CLEAR	= (1 << 2),
-	XFS_PREALLOC_SYNC	= (1 << 3),
-	XFS_PREALLOC_INVISIBLE	= (1 << 4),
-};
-
-int	xfs_update_prealloc_flags(struct xfs_inode *ip,
-				  enum xfs_prealloc_flags flags);
 int	xfs_break_layouts(struct inode *inode, uint *iolock,
 		enum layout_break_reason reason);
 
@@ -492,7 +482,6 @@ static inline void xfs_finish_inode_setup(struct xfs_inode *ip)
 	xfs_iflags_clear(ip, XFS_INEW);
 	barrier();
 	unlock_new_inode(VFS_I(ip));
-	wake_up_bit(&ip->i_flags, __XFS_INEW_BIT);
 }
 
 static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
@@ -504,7 +493,7 @@ static inline void xfs_setup_existing_inode(struct xfs_inode *ip)
 
 void xfs_irele(struct xfs_inode *ip);
 
-extern struct kmem_zone	*xfs_inode_zone;
+extern struct kmem_cache	*xfs_inode_cache;
 
 /* The default CoW extent size hint. */
 #define XFS_DEFAULT_COWEXTSZ_HINT 32

@@ -51,6 +51,9 @@ properties:
       should not be accessed by the OS. Please see the ../gpio/gpio.txt for more
       information.
 
+allOf:
+  - $ref: "pinctrl.yaml#"
+
 required:
   - interrupts
   - interrupt-controller
@@ -70,7 +73,6 @@ $defs:
     properties:
       drive-strength:
         enum: [2, 4, 6, 8, 10, 12, 14, 16]
-        default: 2
         description:
           Selects the drive strength for the specified pins, in mA.
 

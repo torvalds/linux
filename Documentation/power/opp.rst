@@ -48,9 +48,9 @@ We can represent these as three OPPs as the following {Hz, uV} tuples:
 OPP library provides a set of helper functions to organize and query the OPP
 information. The library is located in drivers/opp/ directory and the header
 is located in include/linux/pm_opp.h. OPP library can be enabled by enabling
-CONFIG_PM_OPP from power management menuconfig menu. OPP library depends on
-CONFIG_PM as certain SoCs such as Texas Instrument's OMAP framework allows to
-optionally boot at a certain OPP without needing cpufreq.
+CONFIG_PM_OPP from power management menuconfig menu. Certain SoCs such as Texas
+Instrument's OMAP framework allows to optionally boot at a certain OPP without
+needing cpufreq.
 
 Typical usage of the OPP library is as follows::
 
@@ -75,8 +75,8 @@ operations until that OPP could be re-enabled if possible.
 
 OPP library facilitates this concept in its implementation. The following
 operational functions operate only on available opps:
-opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq,
-dev_pm_opp_get_opp_count
+dev_pm_opp_find_freq_{ceil, floor}, dev_pm_opp_get_voltage, dev_pm_opp_get_freq,
+dev_pm_opp_get_opp_count.
 
 dev_pm_opp_find_freq_exact is meant to be used to find the opp pointer
 which can then be used for dev_pm_opp_enable/disable functions to make an
@@ -103,7 +103,7 @@ dev_pm_opp_add
 	The OPP is defined using the frequency and voltage. Once added, the OPP
 	is assumed to be available and control of its availability can be done
 	with the dev_pm_opp_enable/disable functions. OPP library
-	internally stores and manages this information in the opp struct.
+	internally stores and manages this information in the dev_pm_opp struct.
 	This function may be used by SoC framework to define a optimal list
 	as per the demands of SoC usage environment.
 
@@ -247,7 +247,7 @@ dev_pm_opp_disable
 5. OPP Data Retrieval Functions
 ===============================
 Since OPP library abstracts away the OPP information, a set of functions to pull
-information from the OPP structure is necessary. Once an OPP pointer is
+information from the dev_pm_opp structure is necessary. Once an OPP pointer is
 retrieved using the search functions, the following functions can be used by SoC
 framework to retrieve the information represented inside the OPP layer.
 

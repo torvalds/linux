@@ -5,9 +5,9 @@
 #define AF_INET			2
 #define AF_INET6		10
 
+#define SOL_SOCKET		1
+#define SO_SNDBUF		7
 #define __SO_ACCEPTCON		(1 << 16)
-#define UNIX_HASH_SIZE		256
-#define UNIX_ABSTRACT(unix_sk)	(unix_sk->addr->hash < UNIX_HASH_SIZE)
 
 #define SOL_TCP			6
 #define TCP_CONGESTION		13

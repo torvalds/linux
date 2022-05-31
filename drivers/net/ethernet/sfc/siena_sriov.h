@@ -46,7 +46,7 @@ bool efx_siena_sriov_wanted(struct efx_nic *efx);
 void efx_siena_sriov_reset(struct efx_nic *efx);
 void efx_siena_sriov_flr(struct efx_nic *efx, unsigned flr);
 
-int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf, u8 *mac);
+int efx_siena_sriov_set_vf_mac(struct efx_nic *efx, int vf, const u8 *mac);
 int efx_siena_sriov_set_vf_vlan(struct efx_nic *efx, int vf,
 				u16 vlan, u8 qos);
 int efx_siena_sriov_set_vf_spoofchk(struct efx_nic *efx, int vf,

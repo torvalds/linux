@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /*
- * segbuf.c - NILFS segment buffer
+ * NILFS segment buffer
  *
  * Copyright (C) 2005-2008 Nippon Telegraph and Telephone Corporation.
  *
@@ -337,26 +337,12 @@ static void nilfs_end_bio_write(struct bio *bio)
 }
 
 static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
-				   struct nilfs_write_info *wi, int mode,
-				   int mode_flags)
+				   struct nilfs_write_info *wi)
 {
 	struct bio *bio = wi->bio;
-	int err;
-
-	if (segbuf->sb_nbio > 0 &&
-	    bdi_write_congested(segbuf->sb_super->s_bdi)) {
-		wait_for_completion(&segbuf->sb_bio_event);
-		segbuf->sb_nbio--;
-		if (unlikely(atomic_read(&segbuf->sb_err))) {
-			bio_put(bio);
-			err = -EIO;
-			goto failed;
-		}
-	}
 
 	bio->bi_end_io = nilfs_end_bio_write;
 	bio->bi_private = segbuf;
-	bio_set_op_attrs(bio, mode, mode_flags);
 	submit_bio(bio);
 	segbuf->sb_nbio++;
 
@@ -365,33 +351,6 @@ static int nilfs_segbuf_submit_bio(struct nilfs_segment_buffer *segbuf,
 	wi->nr_vecs = min(wi->max_pages, wi->rest_blocks);
 	wi->start = wi->end;
 	return 0;
-
- failed:
-	wi->bio = NULL;
-	return err;
-}
-
-/**
- * nilfs_alloc_seg_bio - allocate a new bio for writing log
- * @nilfs: nilfs object
- * @start: start block number of the bio
- * @nr_vecs: request size of page vector.
- *
- * Return Value: On success, pointer to the struct bio is returned.
- * On error, NULL is returned.
- */
-static struct bio *nilfs_alloc_seg_bio(struct the_nilfs *nilfs, sector_t start,
-				       int nr_vecs)
-{
-	struct bio *bio;
-
-	bio = bio_alloc(GFP_NOIO, nr_vecs);
-	if (likely(bio)) {
-		bio_set_dev(bio, nilfs->ns_bdev);
-		bio->bi_iter.bi_sector =
-			start << (nilfs->ns_blocksize_bits - 9);
-	}
-	return bio;
 }
 
 static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
@@ -407,17 +366,17 @@ static void nilfs_segbuf_prepare_write(struct nilfs_segment_buffer *segbuf,
 
 static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
 				  struct nilfs_write_info *wi,
-				  struct buffer_head *bh, int mode)
+				  struct buffer_head *bh)
 {
 	int len, err;
 
 	BUG_ON(wi->nr_vecs <= 0);
  repeat:
 	if (!wi->bio) {
-		wi->bio = nilfs_alloc_seg_bio(wi->nilfs, wi->blocknr + wi->end,
-					      wi->nr_vecs);
-		if (unlikely(!wi->bio))
-			return -ENOMEM;
+		wi->bio = bio_alloc(wi->nilfs->ns_bdev, wi->nr_vecs,
+				    REQ_OP_WRITE, GFP_NOIO);
+		wi->bio->bi_iter.bi_sector = (wi->blocknr + wi->end) <<
+			(wi->nilfs->ns_blocksize_bits - 9);
 	}
 
 	len = bio_add_page(wi->bio, bh->b_page, bh->b_size, bh_offset(bh));
@@ -426,7 +385,7 @@ static int nilfs_segbuf_submit_bh(struct nilfs_segment_buffer *segbuf,
 		return 0;
 	}
 	/* bio is FULL */
-	err = nilfs_segbuf_submit_bio(segbuf, wi, mode, 0);
+	err = nilfs_segbuf_submit_bio(segbuf, wi);
 	/* never submit current bh */
 	if (likely(!err))
 		goto repeat;
@@ -456,13 +415,13 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 	nilfs_segbuf_prepare_write(segbuf, &wi);
 
 	list_for_each_entry(bh, &segbuf->sb_segsum_buffers, b_assoc_buffers) {
-		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh);
 		if (unlikely(res))
 			goto failed_bio;
 	}
 
 	list_for_each_entry(bh, &segbuf->sb_payload_buffers, b_assoc_buffers) {
-		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh, REQ_OP_WRITE);
+		res = nilfs_segbuf_submit_bh(segbuf, &wi, bh);
 		if (unlikely(res))
 			goto failed_bio;
 	}
@@ -472,8 +431,8 @@ static int nilfs_segbuf_write(struct nilfs_segment_buffer *segbuf,
 		 * Last BIO is always sent through the following
 		 * submission.
 		 */
-		res = nilfs_segbuf_submit_bio(segbuf, &wi, REQ_OP_WRITE,
-					      REQ_SYNC);
+		wi.bio->bi_opf |= REQ_SYNC;
+		res = nilfs_segbuf_submit_bio(segbuf, &wi);
 	}
 
  failed_bio:

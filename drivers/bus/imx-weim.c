@@ -21,6 +21,7 @@ struct imx_weim_devtype {
 	unsigned int	cs_stride;
 	unsigned int	wcr_offset;
 	unsigned int	wcr_bcm;
+	unsigned int	wcr_cont_bclk;
 };
 
 static const struct imx_weim_devtype imx1_weim_devtype = {
@@ -41,6 +42,7 @@ static const struct imx_weim_devtype imx50_weim_devtype = {
 	.cs_stride	= 0x18,
 	.wcr_offset	= 0x90,
 	.wcr_bcm	= BIT(0),
+	.wcr_cont_bclk	= BIT(3),
 };
 
 static const struct imx_weim_devtype imx51_weim_devtype = {
@@ -60,6 +62,11 @@ struct cs_timing {
 
 struct cs_timing_state {
 	struct cs_timing cs[MAX_CS_COUNT];
+};
+
+struct weim_priv {
+	void __iomem *base;
+	struct cs_timing_state timing_state;
 };
 
 static const struct of_device_id weim_id_table[] = {
@@ -126,20 +133,25 @@ err:
 }
 
 /* Parse and set the timing for this device. */
-static int weim_timing_setup(struct device *dev,
-			     struct device_node *np, void __iomem *base,
-			     const struct imx_weim_devtype *devtype,
-			     struct cs_timing_state *ts)
+static int weim_timing_setup(struct device *dev, struct device_node *np,
+			     const struct imx_weim_devtype *devtype)
 {
 	u32 cs_idx, value[MAX_CS_REGS_COUNT];
 	int i, ret;
 	int reg_idx, num_regs;
 	struct cs_timing *cst;
+	struct weim_priv *priv;
+	struct cs_timing_state *ts;
+	void __iomem *base;
 
 	if (WARN_ON(devtype->cs_regs_count > MAX_CS_REGS_COUNT))
 		return -EINVAL;
 	if (WARN_ON(devtype->cs_count > MAX_CS_COUNT))
 		return -EINVAL;
+
+	priv = dev_get_drvdata(dev);
+	base = priv->base;
+	ts = &priv->timing_state;
 
 	ret = of_property_read_u32_array(np, "fsl,weim-cs-timing",
 					 value, devtype->cs_regs_count);
@@ -187,14 +199,15 @@ static int weim_timing_setup(struct device *dev,
 	return 0;
 }
 
-static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
+static int weim_parse_dt(struct platform_device *pdev)
 {
 	const struct of_device_id *of_id = of_match_device(weim_id_table,
 							   &pdev->dev);
 	const struct imx_weim_devtype *devtype = of_id->data;
 	struct device_node *child;
 	int ret, have_child = 0;
-	struct cs_timing_state ts = {};
+	struct weim_priv *priv;
+	void __iomem *base;
 	u32 reg;
 
 	if (devtype == &imx50_weim_devtype) {
@@ -203,11 +216,26 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 			return ret;
 	}
 
+	priv = dev_get_drvdata(&pdev->dev);
+	base = priv->base;
+
 	if (of_property_read_bool(pdev->dev.of_node, "fsl,burst-clk-enable")) {
 		if (devtype->wcr_bcm) {
 			reg = readl(base + devtype->wcr_offset);
-			writel(reg | devtype->wcr_bcm,
-				base + devtype->wcr_offset);
+			reg |= devtype->wcr_bcm;
+
+			if (of_property_read_bool(pdev->dev.of_node,
+						"fsl,continuous-burst-clk")) {
+				if (devtype->wcr_cont_bclk) {
+					reg |= devtype->wcr_cont_bclk;
+				} else {
+					dev_err(&pdev->dev,
+						"continuous burst clk not supported.\n");
+					return -EINVAL;
+				}
+			}
+
+			writel(reg, base + devtype->wcr_offset);
 		} else {
 			dev_err(&pdev->dev, "burst clk mode not supported.\n");
 			return -EINVAL;
@@ -215,7 +243,7 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 	}
 
 	for_each_available_child_of_node(pdev->dev.of_node, child) {
-		ret = weim_timing_setup(&pdev->dev, child, base, devtype, &ts);
+		ret = weim_timing_setup(&pdev->dev, child, devtype);
 		if (ret)
 			dev_warn(&pdev->dev, "%pOF set timing failed.\n",
 				child);
@@ -234,16 +262,24 @@ static int weim_parse_dt(struct platform_device *pdev, void __iomem *base)
 
 static int weim_probe(struct platform_device *pdev)
 {
+	struct weim_priv *priv;
 	struct resource *res;
 	struct clk *clk;
 	void __iomem *base;
 	int ret;
+
+	priv = devm_kzalloc(&pdev->dev, sizeof(*priv), GFP_KERNEL);
+	if (!priv)
+		return -ENOMEM;
 
 	/* get the resource */
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	base = devm_ioremap_resource(&pdev->dev, res);
 	if (IS_ERR(base))
 		return PTR_ERR(base);
+
+	priv->base = base;
+	dev_set_drvdata(&pdev->dev, priv);
 
 	/* get the clock */
 	clk = devm_clk_get(&pdev->dev, NULL);
@@ -255,7 +291,7 @@ static int weim_probe(struct platform_device *pdev)
 		return ret;
 
 	/* parse the device node */
-	ret = weim_parse_dt(pdev, base);
+	ret = weim_parse_dt(pdev);
 	if (ret)
 		clk_disable_unprepare(clk);
 	else
@@ -264,6 +300,80 @@ static int weim_probe(struct platform_device *pdev)
 	return ret;
 }
 
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+static int of_weim_notify(struct notifier_block *nb, unsigned long action,
+			  void *arg)
+{
+	const struct imx_weim_devtype *devtype;
+	struct of_reconfig_data *rd = arg;
+	const struct of_device_id *of_id;
+	struct platform_device *pdev;
+	int ret = NOTIFY_OK;
+
+	switch (of_reconfig_get_state_change(action, rd)) {
+	case OF_RECONFIG_CHANGE_ADD:
+		of_id = of_match_node(weim_id_table, rd->dn->parent);
+		if (!of_id)
+			return NOTIFY_OK; /* not for us */
+
+		devtype = of_id->data;
+
+		pdev = of_find_device_by_node(rd->dn->parent);
+		if (!pdev) {
+			pr_err("%s: could not find platform device for '%pOF'\n",
+				__func__, rd->dn->parent);
+
+			return notifier_from_errno(-EINVAL);
+		}
+
+		if (weim_timing_setup(&pdev->dev, rd->dn, devtype))
+			dev_warn(&pdev->dev,
+				 "Failed to setup timing for '%pOF'\n", rd->dn);
+
+		if (!of_node_check_flag(rd->dn, OF_POPULATED)) {
+			if (!of_platform_device_create(rd->dn, NULL, &pdev->dev)) {
+				dev_err(&pdev->dev,
+					"Failed to create child device '%pOF'\n",
+					rd->dn);
+				ret = notifier_from_errno(-EINVAL);
+			}
+		}
+
+		platform_device_put(pdev);
+
+		break;
+	case OF_RECONFIG_CHANGE_REMOVE:
+		if (!of_node_check_flag(rd->dn, OF_POPULATED))
+			return NOTIFY_OK; /* device already destroyed */
+
+		of_id = of_match_node(weim_id_table, rd->dn->parent);
+		if (!of_id)
+			return NOTIFY_OK; /* not for us */
+
+		pdev = of_find_device_by_node(rd->dn);
+		if (!pdev) {
+			pr_err("Could not find platform device for '%pOF'\n",
+				rd->dn);
+
+			ret = notifier_from_errno(-EINVAL);
+		} else {
+			of_platform_device_destroy(&pdev->dev, NULL);
+			platform_device_put(pdev);
+		}
+
+		break;
+	default:
+		break;
+	}
+
+	return ret;
+}
+
+static struct notifier_block weim_of_notifier = {
+	.notifier_call = of_weim_notify,
+};
+#endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
+
 static struct platform_driver weim_driver = {
 	.driver = {
 		.name		= "imx-weim",
@@ -271,7 +381,27 @@ static struct platform_driver weim_driver = {
 	},
 	.probe = weim_probe,
 };
-module_platform_driver(weim_driver);
+
+static int __init weim_init(void)
+{
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+	WARN_ON(of_reconfig_notifier_register(&weim_of_notifier));
+#endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
+
+	return platform_driver_register(&weim_driver);
+}
+module_init(weim_init);
+
+static void __exit weim_exit(void)
+{
+#if IS_ENABLED(CONFIG_OF_DYNAMIC)
+	of_reconfig_notifier_unregister(&weim_of_notifier);
+#endif /* IS_ENABLED(CONFIG_OF_DYNAMIC) */
+
+	return platform_driver_unregister(&weim_driver);
+
+}
+module_exit(weim_exit);
 
 MODULE_AUTHOR("Freescale Semiconductor Inc.");
 MODULE_DESCRIPTION("i.MX EIM Controller Driver");

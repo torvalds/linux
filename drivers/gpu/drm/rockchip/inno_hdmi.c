@@ -810,7 +810,6 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	struct platform_device *pdev = to_platform_device(dev);
 	struct drm_device *drm = data;
 	struct inno_hdmi *hdmi;
-	struct resource *iores;
 	int irq;
 	int ret;
 
@@ -821,8 +820,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	hdmi->dev = dev;
 	hdmi->drm_dev = drm;
 
-	iores = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	hdmi->regs = devm_ioremap_resource(dev, iores);
+	hdmi->regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 

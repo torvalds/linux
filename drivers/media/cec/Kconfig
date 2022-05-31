@@ -8,6 +8,8 @@ config CEC_NOTIFIER
 config CEC_PIN
 	bool
 
+menu "CEC support"
+
 config MEDIA_CEC_RC
 	bool "HDMI CEC RC integration"
 	depends on CEC_CORE && RC_CORE
@@ -37,3 +39,5 @@ source "drivers/media/cec/i2c/Kconfig"
 source "drivers/media/cec/platform/Kconfig"
 source "drivers/media/cec/usb/Kconfig"
 endif
+
+endmenu

@@ -88,6 +88,8 @@
 			clock-frequency = <125000000>;
 			compatible = "xlnx,xps-uartlite-1.00.a";
 			current-speed = <19200>;
+			xlnx,use-parity = <0>;
+			xlnx,data-bits = <8>;
 			device_type = "serial";
 			interrupts = <0x12>;
 			port-number = <0>;

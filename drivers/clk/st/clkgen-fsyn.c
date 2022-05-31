@@ -988,9 +988,18 @@ static void __init st_of_quadfs_setup(struct device_node *np,
 	void __iomem *reg;
 	spinlock_t *lock;
 
+	/*
+	 * First check for reg property within the node to keep backward
+	 * compatibility, then if reg doesn't exist look at the parent node
+	 */
 	reg = of_iomap(np, 0);
-	if (!reg)
-		return;
+	if (!reg) {
+		reg = of_iomap(of_get_parent(np), 0);
+		if (!reg) {
+			pr_err("%s: Failed to get base address\n", __func__);
+			return;
+		}
+	}
 
 	clk_parent_name = of_clk_get_parent_name(np, 0);
 	if (!clk_parent_name)

@@ -241,6 +241,7 @@ struct hid_item {
 #define HID_DG_TOUCH		0x000d0033
 #define HID_DG_UNTOUCH		0x000d0034
 #define HID_DG_TAP		0x000d0035
+#define HID_DG_TRANSDUCER_INDEX	0x000d0038
 #define HID_DG_TABLETFUNCTIONKEY	0x000d0039
 #define HID_DG_PROGRAMCHANGEKEY	0x000d003a
 #define HID_DG_BATTERYSTRENGTH	0x000d003b
@@ -253,6 +254,15 @@ struct hid_item {
 #define HID_DG_BARRELSWITCH	0x000d0044
 #define HID_DG_ERASER		0x000d0045
 #define HID_DG_TABLETPICK	0x000d0046
+#define HID_DG_PEN_COLOR			0x000d005c
+#define HID_DG_PEN_LINE_WIDTH			0x000d005e
+#define HID_DG_PEN_LINE_STYLE			0x000d0070
+#define HID_DG_PEN_LINE_STYLE_INK		0x000d0072
+#define HID_DG_PEN_LINE_STYLE_PENCIL		0x000d0073
+#define HID_DG_PEN_LINE_STYLE_HIGHLIGHTER	0x000d0074
+#define HID_DG_PEN_LINE_STYLE_CHISEL_MARKER	0x000d0075
+#define HID_DG_PEN_LINE_STYLE_BRUSH		0x000d0076
+#define HID_DG_PEN_LINE_STYLE_NO_PREFERENCE	0x000d0077
 
 #define HID_CP_CONSUMERCONTROL	0x000c0001
 #define HID_CP_NUMERICKEYPAD	0x000c0002
@@ -332,12 +342,12 @@ struct hid_item {
  * HID device quirks.
  */
 
-/* 
+/*
  * Increase this if you need to configure more HID quirks at module load time
  */
 #define MAX_USBHID_BOOT_QUIRKS 4
 
-#define HID_QUIRK_INVERT			BIT(0)
+/* BIT(0) reserved for backward compatibility, was HID_QUIRK_INVERT */
 #define HID_QUIRK_NOTOUCH			BIT(1)
 #define HID_QUIRK_IGNORE			BIT(2)
 #define HID_QUIRK_NOGET				BIT(3)
@@ -349,6 +359,8 @@ struct hid_item {
 /* BIT(9) reserved for backward compatibility, was NO_INIT_INPUT_REPORTS */
 #define HID_QUIRK_ALWAYS_POLL			BIT(10)
 #define HID_QUIRK_INPUT_PER_APP			BIT(11)
+#define HID_QUIRK_X_INVERT			BIT(12)
+#define HID_QUIRK_Y_INVERT			BIT(13)
 #define HID_QUIRK_SKIP_OUTPUT_REPORTS		BIT(16)
 #define HID_QUIRK_SKIP_OUTPUT_REPORT_ID		BIT(17)
 #define HID_QUIRK_NO_OUTPUT_REPORTS_ON_INTR_EP	BIT(18)
@@ -464,31 +476,50 @@ struct hid_field {
 	unsigned  report_count;		/* number of this field in the report */
 	unsigned  report_type;		/* (input,output,feature) */
 	__s32    *value;		/* last known value(s) */
+	__s32    *new_value;		/* newly read value(s) */
+	__s32    *usages_priorities;	/* priority of each usage when reading the report
+					 * bits 8-16 are reserved for hid-input usage
+					 */
 	__s32     logical_minimum;
 	__s32     logical_maximum;
 	__s32     physical_minimum;
 	__s32     physical_maximum;
 	__s32     unit_exponent;
 	unsigned  unit;
+	bool      ignored;		/* this field is ignored in this event */
 	struct hid_report *report;	/* associated report */
 	unsigned index;			/* index into report->field[] */
 	/* hidinput data */
 	struct hid_input *hidinput;	/* associated input structure */
 	__u16 dpad;			/* dpad input code */
+	unsigned int slot_idx;		/* slot index in a report */
 };
 
 #define HID_MAX_FIELDS 256
 
+struct hid_field_entry {
+	struct list_head list;
+	struct hid_field *field;
+	unsigned int index;
+	__s32 priority;
+};
+
 struct hid_report {
 	struct list_head list;
 	struct list_head hidinput_list;
+	struct list_head field_entry_list;		/* ordered list of input fields */
 	unsigned int id;				/* id of this report */
 	unsigned int type;				/* report type */
 	unsigned int application;			/* application usage for this report */
 	struct hid_field *field[HID_MAX_FIELDS];	/* fields of the report */
+	struct hid_field_entry *field_entries;		/* allocated memory of input field_entry */
 	unsigned maxfield;				/* maximum valid field index */
 	unsigned size;					/* size of the report (bits) */
 	struct hid_device *device;			/* associated device */
+
+	/* tool related state */
+	bool tool_active;				/* whether the current tool is active */
+	unsigned int tool;				/* BTN_TOOL_* */
 };
 
 #define HID_MAX_IDS 256
@@ -788,7 +819,7 @@ struct hid_driver {
 	container_of(pdrv, struct hid_driver, driver)
 
 /**
- * hid_ll_driver - low level driver callbacks
+ * struct hid_ll_driver - low level driver callbacks
  * @start: called on probe to start the device
  * @stop: called on remove
  * @open: called by input layer on open
@@ -840,6 +871,11 @@ static inline bool hid_is_using_ll_driver(struct hid_device *hdev,
 	return hdev->ll_driver == driver;
 }
 
+static inline bool hid_is_usb(struct hid_device *hdev)
+{
+	return hid_is_using_ll_driver(hdev, &usb_hid_driver);
+}
+
 #define	PM_HINT_FULLON	1<<5
 #define PM_HINT_NORMAL	1<<1
 
@@ -889,7 +925,6 @@ extern void hidinput_disconnect(struct hid_device *);
 
 int hid_set_field(struct hid_field *, unsigned, __s32);
 int hid_input_report(struct hid_device *, int type, u8 *, u32, int);
-int hidinput_find_field(struct hid_device *hid, unsigned int type, unsigned int code, struct hid_field **field);
 struct hid_field *hidinput_get_led_field(struct hid_device *hid);
 unsigned int hidinput_count_leds(struct hid_device *hid);
 __s32 hidinput_calc_abs_res(const struct hid_field *field, __u16 code);
@@ -922,6 +957,16 @@ bool hid_compare_device_paths(struct hid_device *hdev_a,
 s32 hid_snto32(__u32 value, unsigned n);
 __u32 hid_field_extract(const struct hid_device *hid, __u8 *report,
 		     unsigned offset, unsigned n);
+
+#ifdef CONFIG_PM
+int hid_driver_suspend(struct hid_device *hdev, pm_message_t state);
+int hid_driver_reset_resume(struct hid_device *hdev);
+int hid_driver_resume(struct hid_device *hdev);
+#else
+static inline int hid_driver_suspend(struct hid_device *hdev, pm_message_t state) { return 0; }
+static inline int hid_driver_reset_resume(struct hid_device *hdev) { return 0; }
+static inline int hid_driver_resume(struct hid_device *hdev) { return 0; }
+#endif
 
 /**
  * hid_device_io_start - enable HID input during probe, remove
@@ -1000,6 +1045,10 @@ static inline void hid_map_usage(struct hid_input *hidinput,
 		bmap = input->ledbit;
 		limit = LED_MAX;
 		break;
+	case EV_MSC:
+		bmap = input->mscbit;
+		limit = MSC_MAX;
+		break;
 	}
 
 	if (unlikely(c > limit || !bmap)) {
@@ -1056,6 +1105,12 @@ int __must_check hid_hw_start(struct hid_device *hdev,
 void hid_hw_stop(struct hid_device *hdev);
 int __must_check hid_hw_open(struct hid_device *hdev);
 void hid_hw_close(struct hid_device *hdev);
+void hid_hw_request(struct hid_device *hdev,
+		    struct hid_report *report, int reqtype);
+int hid_hw_raw_request(struct hid_device *hdev,
+		       unsigned char reportnum, __u8 *buf,
+		       size_t len, unsigned char rtype, int reqtype);
+int hid_hw_output_report(struct hid_device *hdev, __u8 *buf, size_t len);
 
 /**
  * hid_hw_power - requests underlying HW to go into given power mode
@@ -1072,68 +1127,6 @@ static inline int hid_hw_power(struct hid_device *hdev, int level)
 	return hdev->ll_driver->power ? hdev->ll_driver->power(hdev, level) : 0;
 }
 
-
-/**
- * hid_hw_request - send report request to device
- *
- * @hdev: hid device
- * @report: report to send
- * @reqtype: hid request type
- */
-static inline void hid_hw_request(struct hid_device *hdev,
-				  struct hid_report *report, int reqtype)
-{
-	if (hdev->ll_driver->request)
-		return hdev->ll_driver->request(hdev, report, reqtype);
-
-	__hid_request(hdev, report, reqtype);
-}
-
-/**
- * hid_hw_raw_request - send report request to device
- *
- * @hdev: hid device
- * @reportnum: report ID
- * @buf: in/out data to transfer
- * @len: length of buf
- * @rtype: HID report type
- * @reqtype: HID_REQ_GET_REPORT or HID_REQ_SET_REPORT
- *
- * Return: count of data transferred, negative if error
- *
- * Same behavior as hid_hw_request, but with raw buffers instead.
- */
-static inline int hid_hw_raw_request(struct hid_device *hdev,
-				  unsigned char reportnum, __u8 *buf,
-				  size_t len, unsigned char rtype, int reqtype)
-{
-	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
-		return -EINVAL;
-
-	return hdev->ll_driver->raw_request(hdev, reportnum, buf, len,
-						    rtype, reqtype);
-}
-
-/**
- * hid_hw_output_report - send output report to device
- *
- * @hdev: hid device
- * @buf: raw data to transfer
- * @len: length of buf
- *
- * Return: count of data transferred, negative if error
- */
-static inline int hid_hw_output_report(struct hid_device *hdev, __u8 *buf,
-					size_t len)
-{
-	if (len < 1 || len > HID_MAX_BUFFER_SIZE || !buf)
-		return -EINVAL;
-
-	if (hdev->ll_driver->output_report)
-		return hdev->ll_driver->output_report(hdev, buf, len);
-
-	return -ENOSYS;
-}
 
 /**
  * hid_hw_idle - send idle request to device
@@ -1153,7 +1146,7 @@ static inline int hid_hw_idle(struct hid_device *hdev, int report, int idle,
 }
 
 /**
- * hid_may_wakeup - return if the hid device may act as a wakeup source during system-suspend
+ * hid_hw_may_wakeup - return if the hid device may act as a wakeup source during system-suspend
  *
  * @hdev: hid device
  */

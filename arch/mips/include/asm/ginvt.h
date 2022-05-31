@@ -12,11 +12,13 @@ enum ginvt_type {
 
 #ifdef TOOLCHAIN_SUPPORTS_GINV
 # define _ASM_SET_GINV	".set	ginv\n"
+# define _ASM_UNSET_GINV
 #else
-_ASM_MACRO_1R1I(ginvt, rs, type,
-		_ASM_INSN_IF_MIPS(0x7c0000bd | (__rs << 21) | (\\type << 8))
-		_ASM_INSN32_IF_MM(0x0000717c | (__rs << 16) | (\\type << 9)));
-# define _ASM_SET_GINV
+# define _ASM_SET_GINV							\
+	_ASM_MACRO_1R1I(ginvt, rs, type,				\
+			_ASM_INSN_IF_MIPS(0x7c0000bd | (__rs << 21) | (\\type << 8))	\
+			_ASM_INSN32_IF_MM(0x0000717c | (__rs << 16) | (\\type << 9)))
+# define _ASM_UNSET_GINV ".purgem ginvt\n"
 #endif
 
 static __always_inline void ginvt(unsigned long addr, enum ginvt_type type)
@@ -25,6 +27,7 @@ static __always_inline void ginvt(unsigned long addr, enum ginvt_type type)
 		".set	push\n"
 		_ASM_SET_GINV
 		"	ginvt	%0, %1\n"
+		_ASM_UNSET_GINV
 		".set	pop"
 		: /* no outputs */
 		: "r"(addr), "i"(type)

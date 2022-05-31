@@ -60,7 +60,12 @@
 	.text
 ENTRY(__xtensa_copy_user)
 
-	abi_entry_default
+#if !XCHAL_HAVE_LOOPS && defined(__XTENSA_CALL0_ABI__)
+#define STACK_SIZE 4
+#else
+#define STACK_SIZE 0
+#endif
+	abi_entry(STACK_SIZE)
 	# a2/ dst, a3/ src, a4/ len
 	mov	a5, a2		# copy dst so that a2 is return value
 	mov	a11, a4		# preserve original len for error case
@@ -75,7 +80,7 @@ ENTRY(__xtensa_copy_user)
 	__ssa8	a3		# set shift amount from byte offset
 	bnez	a4, .Lsrcunaligned
 	movi	a2, 0		# return success for len==0
-	abi_ret_default
+	abi_ret(STACK_SIZE)
 
 /*
  * Destination is unaligned
@@ -127,7 +132,7 @@ EX(10f)	s8i	a6, a5, 0
 #endif /* !XCHAL_HAVE_LOOPS */
 .Lbytecopydone:
 	movi	a2, 0		# return success for len bytes copied
-	abi_ret_default
+	abi_ret(STACK_SIZE)
 
 /*
  * Destination and source are word-aligned.
@@ -187,7 +192,7 @@ EX(10f)	l8ui	a6, a3,  0
 EX(10f)	s8i	a6, a5,  0
 .L5:
 	movi	a2, 0		# return success for len bytes copied
-	abi_ret_default
+	abi_ret(STACK_SIZE)
 
 /*
  * Destination is aligned, Source is unaligned
@@ -205,8 +210,14 @@ EX(10f)	l32i	a6, a3, 0	# load first word
 	loopnez	a7, .Loop2done
 #else /* !XCHAL_HAVE_LOOPS */
 	beqz	a7, .Loop2done
+#if defined(__XTENSA_CALL0_ABI__)
+	s32i	a10, a1, 0
+	slli	a10, a7, 4
+	add	a10, a10, a3	# a10 = end of last 16B source chunk
+#else
 	slli	a12, a7, 4
 	add	a12, a12, a3	# a12 = end of last 16B source chunk
+#endif
 #endif /* !XCHAL_HAVE_LOOPS */
 .Loop2:
 EX(10f)	l32i	a7, a3,  4
@@ -224,7 +235,12 @@ EX(10f)	s32i	a8, a5,  8
 EX(10f)	s32i	a9, a5, 12
 	addi	a5, a5, 16
 #if !XCHAL_HAVE_LOOPS
+#if defined(__XTENSA_CALL0_ABI__)
+	blt	a3, a10, .Loop2
+	l32i	a10, a1, 0
+#else
 	blt	a3, a12, .Loop2
+#endif
 #endif /* !XCHAL_HAVE_LOOPS */
 .Loop2done:
 	bbci.l	a4, 3, .L12
@@ -264,7 +280,7 @@ EX(10f)	l8ui	a6, a3,  0
 EX(10f)	s8i	a6, a5,  0
 .L15:
 	movi	a2, 0		# return success for len bytes copied
-	abi_ret_default
+	abi_ret(STACK_SIZE)
 
 ENDPROC(__xtensa_copy_user)
 
@@ -281,4 +297,4 @@ ENDPROC(__xtensa_copy_user)
 10:
 	sub	a2, a5, a2	/* a2 <-- bytes copied */
 	sub	a2, a11, a2	/* a2 <-- bytes not copied */
-	abi_ret_default
+	abi_ret(STACK_SIZE)

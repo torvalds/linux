@@ -17,6 +17,7 @@
 #include <linux/rcupdate.h>
 #include <net/fib_notifier.h>
 #include <net/fib_rules.h>
+#include <net/inet_dscp.h>
 #include <net/inetpeer.h>
 #include <linux/percpu.h>
 #include <linux/notifier.h>
@@ -24,7 +25,7 @@
 
 struct fib_config {
 	u8			fc_dst_len;
-	u8			fc_tos;
+	dscp_t			fc_dscp;
 	u8			fc_protocol;
 	u8			fc_scope;
 	u8			fc_type;
@@ -79,6 +80,7 @@ struct fnhe_hash_bucket {
 
 struct fib_nh_common {
 	struct net_device	*nhc_dev;
+	netdevice_tracker	nhc_dev_tracker;
 	int			nhc_oif;
 	unsigned char		nhc_scope;
 	u8			nhc_family;
@@ -111,6 +113,7 @@ struct fib_nh {
 	int			nh_saddr_genid;
 #define fib_nh_family		nh_common.nhc_family
 #define fib_nh_dev		nh_common.nhc_dev
+#define fib_nh_dev_tracker	nh_common.nhc_dev_tracker
 #define fib_nh_oif		nh_common.nhc_oif
 #define fib_nh_flags		nh_common.nhc_flags
 #define fib_nh_lws		nh_common.nhc_lwtstate
@@ -438,7 +441,7 @@ int fib_validate_source(struct sk_buff *skb, __be32 src, __be32 dst,
 #ifdef CONFIG_IP_ROUTE_CLASSID
 static inline int fib_num_tclassid_users(struct net *net)
 {
-	return net->ipv4.fib_num_tclassid_users;
+	return atomic_read(&net->ipv4.fib_num_tclassid_users);
 }
 #else
 static inline int fib_num_tclassid_users(struct net *net)

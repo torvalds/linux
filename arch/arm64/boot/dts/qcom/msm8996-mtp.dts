@@ -5,9 +5,31 @@
 
 /dts-v1/;
 
-#include "msm8996-mtp.dtsi"
+#include "msm8996.dtsi"
 
 / {
 	model = "Qualcomm Technologies, Inc. MSM 8996 MTP";
-	compatible = "qcom,msm8996-mtp";
+	compatible = "qcom,msm8996-mtp", "qcom,msm8996";
+
+	aliases {
+		serial0 = &blsp2_uart2;
+	};
+
+	chosen {
+		stdout-path = "serial0";
+	};
+
+	soc {
+		serial@75b0000 {
+			status = "okay";
+		};
+	};
+};
+
+&hdmi {
+	status = "okay";
+};
+
+&hdmi_phy {
+	status = "okay";
 };

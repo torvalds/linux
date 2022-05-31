@@ -192,9 +192,8 @@ void hubp2_vready_at_or_After_vsync(struct hubp *hubp,
 	REG_UPDATE(DCHUBP_CNTL, HUBP_VREADY_AT_OR_AFTER_VSYNC, value);
 }
 
-void hubp2_program_requestor(
-		struct hubp *hubp,
-		struct _vcs_dpi_display_rq_regs_st *rq_regs)
+static void hubp2_program_requestor(struct hubp *hubp,
+				    struct _vcs_dpi_display_rq_regs_st *rq_regs)
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
@@ -708,17 +707,6 @@ bool hubp2_program_surface_flip_and_addr(
 	REG_UPDATE(VMID_SETTINGS_0,
 			VMID, address->vmid);
 
-	if (address->type == PLN_ADDR_TYPE_GRPH_STEREO) {
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x1);
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x1);
-
-	} else {
-		// turn off stereo if not in stereo
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_MODE_FOR_STEREOSYNC, 0x0);
-		REG_UPDATE(DCSURF_FLIP_CONTROL, SURFACE_FLIP_IN_STEREOSYNC, 0x0);
-	}
-
-
 
 	/* HW automatically latch rest of address register on write to
 	 * DCSURF_PRIMARY_SURFACE_ADDRESS if SURFACE_UPDATE_LOCK is not used
@@ -930,12 +918,18 @@ bool hubp2_is_flip_pending(struct hubp *hubp)
 
 void hubp2_set_blank(struct hubp *hubp, bool blank)
 {
+	hubp2_set_blank_regs(hubp, blank);
+
+	if (blank) {
+		hubp->mpcc_id = 0xf;
+		hubp->opp_id = OPP_ID_INVALID;
+	}
+}
+
+void hubp2_set_blank_regs(struct hubp *hubp, bool blank)
+{
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 	uint32_t blank_en = blank ? 1 : 0;
-
-	REG_UPDATE_2(DCHUBP_CNTL,
-			HUBP_BLANK_EN, blank_en,
-			HUBP_TTU_DISABLE, blank_en);
 
 	if (blank) {
 		uint32_t reg_val = REG_READ(DCHUBP_CNTL);
@@ -949,12 +943,13 @@ void hubp2_set_blank(struct hubp *hubp, bool blank)
 			 */
 			REG_WAIT(DCHUBP_CNTL,
 					HUBP_NO_OUTSTANDING_REQ, 1,
-					1, 200);
+					1, 100000);
 		}
-
-		hubp->mpcc_id = 0xf;
-		hubp->opp_id = OPP_ID_INVALID;
 	}
+
+	REG_UPDATE_2(DCHUBP_CNTL,
+			HUBP_BLANK_EN, blank_en,
+			HUBP_TTU_DISABLE, 0);
 }
 
 void hubp2_cursor_set_position(
@@ -1285,7 +1280,7 @@ void hubp2_read_state(struct hubp *hubp)
 
 }
 
-void hubp2_validate_dml_output(struct hubp *hubp,
+static void hubp2_validate_dml_output(struct hubp *hubp,
 		struct dc_context *ctx,
 		struct _vcs_dpi_display_rq_regs_st *dml_rq_regs,
 		struct _vcs_dpi_display_dlg_regs_st *dml_dlg_attr,
@@ -1603,6 +1598,7 @@ static struct hubp_funcs dcn20_hubp_funcs = {
 	.hubp_setup_interdependent = hubp2_setup_interdependent,
 	.hubp_set_vm_system_aperture_settings = hubp2_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
+	.set_blank_regs = hubp2_set_blank_regs,
 	.dcc_control = hubp2_dcc_control,
 	.mem_program_viewport = min_set_viewport,
 	.set_cursor_attributes	= hubp2_cursor_set_attributes,

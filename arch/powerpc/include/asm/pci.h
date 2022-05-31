@@ -48,7 +48,7 @@ static inline int pci_get_legacy_ide_irq(struct pci_dev *dev, int channel)
 }
 
 #ifdef CONFIG_PCI
-extern void set_pci_dma_ops(const struct dma_map_ops *dma_ops);
+void __init set_pci_dma_ops(const struct dma_map_ops *dma_ops);
 #else	/* CONFIG_PCI */
 #define set_pci_dma_ops(d)
 #endif

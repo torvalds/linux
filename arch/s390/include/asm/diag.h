@@ -11,6 +11,7 @@
 
 #include <linux/if_ether.h>
 #include <linux/percpu.h>
+#include <asm/asm-extable.h>
 
 enum diag_stat_enum {
 	DIAG_STAT_X008,
@@ -47,8 +48,8 @@ static inline void diag10_range(unsigned long start_pfn, unsigned long num_pfn)
 {
 	unsigned long start_addr, end_addr;
 
-	start_addr = start_pfn << PAGE_SHIFT;
-	end_addr = (start_pfn + num_pfn - 1) << PAGE_SHIFT;
+	start_addr = pfn_to_phys(start_pfn);
+	end_addr = pfn_to_phys(start_pfn + num_pfn - 1);
 
 	diag_stat_inc(DIAG_STAT_X010);
 	asm volatile(

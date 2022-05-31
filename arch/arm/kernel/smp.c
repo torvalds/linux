@@ -153,6 +153,7 @@ int __cpu_up(unsigned int cpu, struct task_struct *idle)
 	secondary_data.pgdir = virt_to_phys(idmap_pgd);
 	secondary_data.swapper_pg_dir = get_arch_pgd(swapper_pg_dir);
 #endif
+	secondary_data.task = idle;
 	sync_cache_w(&secondary_data);
 
 	/*
@@ -375,9 +376,12 @@ void arch_cpu_idle_dead(void)
 	 */
 	__asm__("mov	sp, %0\n"
 	"	mov	fp, #0\n"
+	"	mov	r0, %1\n"
 	"	b	secondary_start_kernel"
 		:
-		: "r" (task_stack_page(current) + THREAD_SIZE - 8));
+		: "r" (task_stack_page(current) + THREAD_SIZE - 8),
+		  "r" (current)
+		: "r0");
 }
 #endif /* CONFIG_HOTPLUG_CPU */
 
@@ -396,14 +400,22 @@ static void smp_store_cpu_info(unsigned int cpuid)
 	check_cpu_icache_size(cpuid);
 }
 
+static void set_current(struct task_struct *cur)
+{
+	/* Set TPIDRURO */
+	asm("mcr p15, 0, %0, c13, c0, 3" :: "r"(cur) : "memory");
+}
+
 /*
  * This is the secondary CPU boot entry.  We're using this CPUs
  * idle thread stack, but a set of temporary page tables.
  */
-asmlinkage void secondary_start_kernel(void)
+asmlinkage void secondary_start_kernel(struct task_struct *task)
 {
 	struct mm_struct *mm = &init_mm;
 	unsigned int cpu;
+
+	set_current(task);
 
 	secondary_biglittle_init();
 
@@ -622,11 +634,6 @@ static void ipi_complete(unsigned int cpu)
 /*
  * Main handler for inter-processor interrupts
  */
-asmlinkage void __exception_irq_entry do_IPI(int ipinr, struct pt_regs *regs)
-{
-	handle_IPI(ipinr, regs);
-}
-
 static void do_handle_IPI(int ipinr)
 {
 	unsigned int cpu = smp_processor_id();

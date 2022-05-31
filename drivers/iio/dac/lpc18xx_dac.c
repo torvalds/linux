@@ -16,9 +16,8 @@
 #include <linux/io.h>
 #include <linux/iopoll.h>
 #include <linux/module.h>
+#include <linux/mod_devicetable.h>
 #include <linux/mutex.h>
-#include <linux/of.h>
-#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regulator/consumer.h>
 
@@ -121,16 +120,14 @@ static int lpc18xx_dac_probe(struct platform_device *pdev)
 		return PTR_ERR(dac->base);
 
 	dac->clk = devm_clk_get(&pdev->dev, NULL);
-	if (IS_ERR(dac->clk)) {
-		dev_err(&pdev->dev, "error getting clock\n");
-		return PTR_ERR(dac->clk);
-	}
+	if (IS_ERR(dac->clk))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dac->clk),
+				     "error getting clock\n");
 
 	dac->vref = devm_regulator_get(&pdev->dev, "vref");
-	if (IS_ERR(dac->vref)) {
-		dev_err(&pdev->dev, "error getting regulator\n");
-		return PTR_ERR(dac->vref);
-	}
+	if (IS_ERR(dac->vref))
+		return dev_err_probe(&pdev->dev, PTR_ERR(dac->vref),
+				     "error getting regulator\n");
 
 	indio_dev->name = dev_name(&pdev->dev);
 	indio_dev->info = &lpc18xx_dac_info;

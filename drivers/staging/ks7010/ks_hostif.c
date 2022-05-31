@@ -541,7 +541,7 @@ void hostif_mib_get_confirm(struct ks_wlan_private *priv)
 		hostif_sme_enqueue(priv, SME_GET_MAC_ADDRESS);
 		ether_addr_copy(priv->eth_addr, priv->rxp);
 		priv->mac_address_valid = true;
-		ether_addr_copy(dev->dev_addr, priv->eth_addr);
+		eth_hw_addr_set(dev, priv->eth_addr);
 		netdev_info(dev, "MAC ADDRESS = %pM\n", priv->eth_addr);
 		break;
 	case DOT11_PRODUCT_VERSION:

@@ -23,7 +23,7 @@
 #include <linux/seq_file.h>
 #include <linux/tick.h>
 #include <linux/threads.h>
-#include <linux/tracehook.h>
+#include <linux/resume_user_mode.h>
 #include <asm/current.h>
 #include <asm/mmu_context.h>
 #include <linux/uaccess.h>
@@ -31,6 +31,7 @@
 #include <kern_util.h>
 #include <os.h>
 #include <skas.h>
+#include <registers.h>
 #include <linux/time-internal.h>
 
 /*
@@ -103,7 +104,7 @@ void interrupt_end(void)
 	    test_thread_flag(TIF_NOTIFY_SIGNAL))
 		do_signal(regs);
 	if (test_thread_flag(TIF_NOTIFY_RESUME))
-		tracehook_notify_resume(regs);
+		resume_user_mode_work(regs);
 }
 
 int get_current_pid(void)
@@ -263,11 +264,6 @@ int clear_user_proc(void __user *buf, int size)
 	return clear_user(buf, size);
 }
 
-int cpu(void)
-{
-	return current_thread_info()->cpu;
-}
-
 static atomic_t using_sysemu = ATOMIC_INIT(0);
 int sysemu_supported;
 
@@ -364,13 +360,10 @@ unsigned long arch_align_stack(unsigned long sp)
 }
 #endif
 
-unsigned long get_wchan(struct task_struct *p)
+unsigned long __get_wchan(struct task_struct *p)
 {
 	unsigned long stack_page, sp, ip;
 	bool seen_sched = 0;
-
-	if ((p == NULL) || (p == current) || task_is_running(p))
-		return 0;
 
 	stack_page = (unsigned long) task_stack_page(p);
 	/* Bail if the process has no kernel stack for some reason */

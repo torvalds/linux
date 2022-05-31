@@ -523,7 +523,7 @@ static void mtk_star_dma_resume_tx(struct mtk_star_priv *priv)
 static void mtk_star_set_mac_addr(struct net_device *ndev)
 {
 	struct mtk_star_priv *priv = netdev_priv(ndev);
-	u8 *mac_addr = ndev->dev_addr;
+	const u8 *mac_addr = ndev->dev_addr;
 	unsigned int high, low;
 
 	high = mac_addr[0] << 8 | mac_addr[1] << 0;
@@ -1544,7 +1544,7 @@ static int mtk_star_probe(struct platform_device *pdev)
 	if (ret)
 		return ret;
 
-	ret = eth_platform_get_mac_address(dev, ndev->dev_addr);
+	ret = platform_get_ethdev_address(dev, ndev);
 	if (ret || !is_valid_ether_addr(ndev->dev_addr))
 		eth_hw_addr_random(ndev);
 
@@ -1556,6 +1556,7 @@ static int mtk_star_probe(struct platform_device *pdev)
 	return devm_register_netdev(dev, ndev);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id mtk_star_of_match[] = {
 	{ .compatible = "mediatek,mt8516-eth", },
 	{ .compatible = "mediatek,mt8518-eth", },
@@ -1563,6 +1564,7 @@ static const struct of_device_id mtk_star_of_match[] = {
 	{ }
 };
 MODULE_DEVICE_TABLE(of, mtk_star_of_match);
+#endif
 
 static SIMPLE_DEV_PM_OPS(mtk_star_pm_ops,
 			 mtk_star_suspend, mtk_star_resume);

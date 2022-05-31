@@ -32,56 +32,54 @@ struct irdma_sc_ah {
 	struct irdma_ah_info ah_info;
 };
 
-enum irdma_status_code irdma_sc_add_mcast_grp(struct irdma_mcast_grp_info *ctx,
-					      struct irdma_mcast_grp_ctx_entry_info *mg);
-enum irdma_status_code irdma_sc_del_mcast_grp(struct irdma_mcast_grp_info *ctx,
-					      struct irdma_mcast_grp_ctx_entry_info *mg);
-enum irdma_status_code irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
-					  u32 op, u64 scratch);
-enum irdma_status_code irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
-					      struct irdma_mcast_grp_info *info,
-					      u32 op, u64 scratch);
+int irdma_sc_add_mcast_grp(struct irdma_mcast_grp_info *ctx,
+			   struct irdma_mcast_grp_ctx_entry_info *mg);
+int irdma_sc_del_mcast_grp(struct irdma_mcast_grp_info *ctx,
+			   struct irdma_mcast_grp_ctx_entry_info *mg);
+int irdma_sc_access_ah(struct irdma_sc_cqp *cqp, struct irdma_ah_info *info,
+		       u32 op, u64 scratch);
+int irdma_access_mcast_grp(struct irdma_sc_cqp *cqp,
+			   struct irdma_mcast_grp_info *info, u32 op,
+			   u64 scratch);
 
 static inline void irdma_sc_init_ah(struct irdma_sc_dev *dev, struct irdma_sc_ah *ah)
 {
 	ah->dev = dev;
 }
 
-static inline enum irdma_status_code irdma_sc_create_ah(struct irdma_sc_cqp *cqp,
-							struct irdma_ah_info *info,
-							u64 scratch)
+static inline int irdma_sc_create_ah(struct irdma_sc_cqp *cqp,
+				     struct irdma_ah_info *info, u64 scratch)
 {
 	return irdma_sc_access_ah(cqp, info, IRDMA_CQP_OP_CREATE_ADDR_HANDLE,
 				  scratch);
 }
 
-static inline enum irdma_status_code irdma_sc_destroy_ah(struct irdma_sc_cqp *cqp,
-							 struct irdma_ah_info *info,
-							 u64 scratch)
+static inline int irdma_sc_destroy_ah(struct irdma_sc_cqp *cqp,
+				      struct irdma_ah_info *info, u64 scratch)
 {
 	return irdma_sc_access_ah(cqp, info, IRDMA_CQP_OP_DESTROY_ADDR_HANDLE,
 				  scratch);
 }
 
-static inline enum irdma_status_code irdma_sc_create_mcast_grp(struct irdma_sc_cqp *cqp,
-							       struct irdma_mcast_grp_info *info,
-							       u64 scratch)
+static inline int irdma_sc_create_mcast_grp(struct irdma_sc_cqp *cqp,
+					    struct irdma_mcast_grp_info *info,
+					    u64 scratch)
 {
 	return irdma_access_mcast_grp(cqp, info, IRDMA_CQP_OP_CREATE_MCAST_GRP,
 				      scratch);
 }
 
-static inline enum irdma_status_code irdma_sc_modify_mcast_grp(struct irdma_sc_cqp *cqp,
-							       struct irdma_mcast_grp_info *info,
-							       u64 scratch)
+static inline int irdma_sc_modify_mcast_grp(struct irdma_sc_cqp *cqp,
+					    struct irdma_mcast_grp_info *info,
+					    u64 scratch)
 {
 	return irdma_access_mcast_grp(cqp, info, IRDMA_CQP_OP_MODIFY_MCAST_GRP,
 				      scratch);
 }
 
-static inline enum irdma_status_code irdma_sc_destroy_mcast_grp(struct irdma_sc_cqp *cqp,
-								struct irdma_mcast_grp_info *info,
-								u64 scratch)
+static inline int irdma_sc_destroy_mcast_grp(struct irdma_sc_cqp *cqp,
+					     struct irdma_mcast_grp_info *info,
+					     u64 scratch)
 {
 	return irdma_access_mcast_grp(cqp, info, IRDMA_CQP_OP_DESTROY_MCAST_GRP,
 				      scratch);

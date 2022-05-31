@@ -46,9 +46,9 @@ static int aic32x4_spi_probe(struct spi_device *spi)
 	return aic32x4_probe(&spi->dev, regmap);
 }
 
-static int aic32x4_spi_remove(struct spi_device *spi)
+static void aic32x4_spi_remove(struct spi_device *spi)
 {
-	return aic32x4_remove(&spi->dev);
+	aic32x4_remove(&spi->dev);
 }
 
 static const struct spi_device_id aic32x4_spi_id[] = {

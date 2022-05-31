@@ -384,6 +384,7 @@ void mptcp_token_destroy(struct mptcp_sock *msk)
 		bucket->chain_len--;
 	}
 	spin_unlock_bh(&bucket->lock);
+	WRITE_ONCE(msk->token, 0);
 }
 
 void __init mptcp_token_init(void)

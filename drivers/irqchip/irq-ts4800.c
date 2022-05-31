@@ -19,14 +19,15 @@
 #include <linux/of_address.h>
 #include <linux/of_irq.h>
 #include <linux/platform_device.h>
+#include <linux/seq_file.h>
 
 #define IRQ_MASK        0x4
 #define IRQ_STATUS      0x8
 
 struct ts4800_irq_data {
 	void __iomem            *base;
+	struct platform_device	*pdev;
 	struct irq_domain       *domain;
-	struct irq_chip         irq_chip;
 };
 
 static void ts4800_irq_mask(struct irq_data *d)
@@ -47,12 +48,25 @@ static void ts4800_irq_unmask(struct irq_data *d)
 	writew(reg & ~mask, data->base + IRQ_MASK);
 }
 
+static void ts4800_irq_print_chip(struct irq_data *d, struct seq_file *p)
+{
+	struct ts4800_irq_data *data = irq_data_get_irq_chip_data(d);
+
+	seq_printf(p, "%s", dev_name(&data->pdev->dev));
+}
+
+static const struct irq_chip ts4800_chip = {
+	.irq_mask	= ts4800_irq_mask,
+	.irq_unmask	= ts4800_irq_unmask,
+	.irq_print_chip	= ts4800_irq_print_chip,
+};
+
 static int ts4800_irqdomain_map(struct irq_domain *d, unsigned int irq,
 				irq_hw_number_t hwirq)
 {
 	struct ts4800_irq_data *data = d->host_data;
 
-	irq_set_chip_and_handler(irq, &data->irq_chip, handle_simple_irq);
+	irq_set_chip_and_handler(irq, &ts4800_chip, handle_simple_irq);
 	irq_set_chip_data(irq, data);
 	irq_set_noprobe(irq);
 
@@ -92,16 +106,14 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 {
 	struct device_node *node = pdev->dev.of_node;
 	struct ts4800_irq_data *data;
-	struct irq_chip *irq_chip;
-	struct resource *res;
 	int parent_irq;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(*data), GFP_KERNEL);
 	if (!data)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	data->base = devm_ioremap_resource(&pdev->dev, res);
+	data->pdev = pdev;
+	data->base = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(data->base))
 		return PTR_ERR(data->base);
 
@@ -112,11 +124,6 @@ static int ts4800_ic_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to get parent IRQ\n");
 		return -EINVAL;
 	}
-
-	irq_chip = &data->irq_chip;
-	irq_chip->name = dev_name(&pdev->dev);
-	irq_chip->irq_mask = ts4800_irq_mask;
-	irq_chip->irq_unmask = ts4800_irq_unmask;
 
 	data->domain = irq_domain_add_linear(node, 8, &ts4800_ic_ops, data);
 	if (!data->domain) {

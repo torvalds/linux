@@ -28,10 +28,10 @@
 #include "nbio_v7_0.h"
 #include "nbio_v7_4.h"
 
+extern const struct amdgpu_ip_block_version vega10_common_ip_block;
+
 #define SOC15_FLUSH_GPU_TLB_NUM_WREG		6
 #define SOC15_FLUSH_GPU_TLB_NUM_REG_WAIT	3
-
-extern const struct amd_ip_funcs soc15_common_ip_funcs;
 
 struct soc15_reg_golden {
 	u32	hwip;
@@ -102,7 +102,6 @@ struct soc15_ras_field_entry {
 void soc15_grbm_select(struct amdgpu_device *adev,
 		    u32 me, u32 pipe, u32 queue, u32 vmid);
 void soc15_set_virt_ops(struct amdgpu_device *adev);
-int soc15_set_ip_blocks(struct amdgpu_device *adev);
 
 void soc15_program_register_sequence(struct amdgpu_device *adev,
 					     const struct soc15_reg_golden *registers,

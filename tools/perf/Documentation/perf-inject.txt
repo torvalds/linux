@@ -45,6 +45,13 @@ OPTIONS
 	tasks slept. sched_switch contains a callchain where a task slept and
 	sched_stat contains a timeslice how long a task slept.
 
+-k::
+--vmlinux=<file>::
+        vmlinux pathname
+
+--ignore-vmlinux::
+	Ignore vmlinux files.
+
 --kallsyms=<file>::
 	kallsyms pathname
 

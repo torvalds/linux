@@ -47,11 +47,15 @@
 #include <asm/irq.h>
 #include <asm/ecard.h>
 
-#include "../scsi.h"
+#include <scsi/scsi.h>
+#include <scsi/scsi_cmnd.h>
 #include <scsi/scsi_dbg.h>
+#include <scsi/scsi_device.h>
+#include <scsi/scsi_eh.h>
 #include <scsi/scsi_host.h>
+#include <scsi/scsi_tcq.h>
 #include "fas216.h"
-#include "scsi.h"
+#include "arm_scsi.h"
 
 /* NOTE: SCSI2 Synchronous transfers *require* DMA according to
  *  the data sheet.  This restriction is crazy, especially when
@@ -757,7 +761,7 @@ static void fas216_transfer(FAS216_Info *info)
 		fas216_log(info, LOG_ERROR, "null buffer passed to "
 			   "fas216_starttransfer");
 		print_SCp(&info->scsi.SCp, "SCp: ", "\n");
-		print_SCp(&info->SCpnt->SCp, "Cmnd SCp: ", "\n");
+		print_SCp(arm_scsi_pointer(info->SCpnt), "Cmnd SCp: ", "\n");
 		return;
 	}
 
@@ -1007,7 +1011,7 @@ fas216_reselected_intr(FAS216_Info *info)
 		/*
 		 * Restore data pointer from SAVED data pointer
 		 */
-		info->scsi.SCp = info->SCpnt->SCp;
+		info->scsi.SCp = *arm_scsi_pointer(info->SCpnt);
 
 		fas216_log(info, LOG_CONNECT, "data pointers: [%p, %X]",
 			info->scsi.SCp.ptr, info->scsi.SCp.this_residual);
@@ -1050,6 +1054,7 @@ fas216_reselected_intr(FAS216_Info *info)
 
 static void fas216_parse_message(FAS216_Info *info, unsigned char *message, int msglen)
 {
+	struct scsi_pointer *scsi_pointer;
 	int i;
 
 	switch (message[0]) {
@@ -1074,8 +1079,9 @@ static void fas216_parse_message(FAS216_Info *info, unsigned char *message, int 
 		 * as required by the SCSI II standard.  These always
 		 * point to the start of their respective areas.
 		 */
-		info->SCpnt->SCp = info->scsi.SCp;
-		info->SCpnt->SCp.sent_command = 0;
+		scsi_pointer = arm_scsi_pointer(info->SCpnt);
+		*scsi_pointer = info->scsi.SCp;
+		scsi_pointer->sent_command = 0;
 		fas216_log(info, LOG_CONNECT | LOG_MESSAGES | LOG_BUFFER,
 			"save data pointers: [%p, %X]",
 			info->scsi.SCp.ptr, info->scsi.SCp.this_residual);
@@ -1088,7 +1094,7 @@ static void fas216_parse_message(FAS216_Info *info, unsigned char *message, int 
 		/*
 		 * Restore current data pointer from SAVED data pointer
 		 */
-		info->scsi.SCp = info->SCpnt->SCp;
+		info->scsi.SCp = *arm_scsi_pointer(info->SCpnt);
 		fas216_log(info, LOG_CONNECT | LOG_MESSAGES | LOG_BUFFER,
 			"restore data pointers: [%p, 0x%x]",
 			info->scsi.SCp.ptr, info->scsi.SCp.this_residual);
@@ -1766,7 +1772,7 @@ static void fas216_start_command(FAS216_Info *info, struct scsi_cmnd *SCpnt)
 	 * claim host busy
 	 */
 	info->scsi.phase = PHASE_SELECTION;
-	info->scsi.SCp = SCpnt->SCp;
+	info->scsi.SCp = *arm_scsi_pointer(SCpnt);
 	info->SCpnt = SCpnt;
 	info->dma.transfer_type = fasdma_none;
 
@@ -1845,7 +1851,7 @@ static void fas216_do_bus_device_reset(FAS216_Info *info,
 	 * claim host busy
 	 */
 	info->scsi.phase = PHASE_SELECTION;
-	info->scsi.SCp = SCpnt->SCp;
+	info->scsi.SCp = *arm_scsi_pointer(SCpnt);
 	info->SCpnt = SCpnt;
 	info->dma.transfer_type = fasdma_none;
 
@@ -1995,11 +2001,13 @@ static void fas216_devicereset_done(FAS216_Info *info, struct scsi_cmnd *SCpnt,
 static void fas216_rq_sns_done(FAS216_Info *info, struct scsi_cmnd *SCpnt,
 			       unsigned int result)
 {
+	struct scsi_pointer *scsi_pointer = arm_scsi_pointer(SCpnt);
+
 	fas216_log_target(info, LOG_CONNECT, SCpnt->device->id,
 		   "request sense complete, result=0x%04x%02x%02x",
-		   result, SCpnt->SCp.Message, SCpnt->SCp.Status);
+		   result, scsi_pointer->Message, scsi_pointer->Status);
 
-	if (result != DID_OK || SCpnt->SCp.Status != SAM_STAT_GOOD)
+	if (result != DID_OK || scsi_pointer->Status != SAM_STAT_GOOD)
 		/*
 		 * Something went wrong.  Make sure that we don't
 		 * have valid data in the sense buffer that could
@@ -2015,7 +2023,7 @@ static void fas216_rq_sns_done(FAS216_Info *info, struct scsi_cmnd *SCpnt,
 	 * correctly by fas216_std_done.
 	 */
 	scsi_eh_restore_cmnd(SCpnt, &info->ses);
-	SCpnt->scsi_done(SCpnt);
+	fas216_cmd_priv(SCpnt)->scsi_done(SCpnt);
 }
 
 /**
@@ -2029,6 +2037,8 @@ static void fas216_rq_sns_done(FAS216_Info *info, struct scsi_cmnd *SCpnt,
 static void
 fas216_std_done(FAS216_Info *info, struct scsi_cmnd *SCpnt, unsigned int result)
 {
+	struct scsi_pointer *scsi_pointer = arm_scsi_pointer(SCpnt);
+
 	info->stats.fins += 1;
 
 	set_host_byte(SCpnt, result);
@@ -2086,8 +2096,8 @@ fas216_std_done(FAS216_Info *info, struct scsi_cmnd *SCpnt, unsigned int result)
 	}
 
 done:
-	if (SCpnt->scsi_done) {
-		SCpnt->scsi_done(SCpnt);
+	if (fas216_cmd_priv(SCpnt)->scsi_done) {
+		fas216_cmd_priv(SCpnt)->scsi_done(SCpnt);
 		return;
 	}
 
@@ -2103,8 +2113,8 @@ request_sense:
 	fas216_log_target(info, LOG_CONNECT, SCpnt->device->id,
 			  "requesting sense");
 	init_SCp(SCpnt);
-	SCpnt->SCp.Message = 0;
-	SCpnt->SCp.Status = 0;
+	scsi_pointer->Message = 0;
+	scsi_pointer->Status = 0;
 	SCpnt->host_scribble = (void *)fas216_rq_sns_done;
 
 	/*
@@ -2184,7 +2194,7 @@ no_command:
 }
 
 /**
- * fas216_queue_command - queue a command for adapter to process.
+ * fas216_queue_command_internal - queue a command for the adapter to process
  * @SCpnt: Command to queue
  * @done: done function to call once command is complete
  *
@@ -2192,8 +2202,8 @@ no_command:
  * Returns: 0 on success, else error.
  * Notes: io_request_lock is held, interrupts are disabled.
  */
-static int fas216_queue_command_lck(struct scsi_cmnd *SCpnt,
-			 void (*done)(struct scsi_cmnd *))
+static int fas216_queue_command_internal(struct scsi_cmnd *SCpnt,
+					 void (*done)(struct scsi_cmnd *))
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 	int result;
@@ -2203,7 +2213,7 @@ static int fas216_queue_command_lck(struct scsi_cmnd *SCpnt,
 	fas216_log_command(info, LOG_CONNECT, SCpnt,
 			   "received command (%p)", SCpnt);
 
-	SCpnt->scsi_done = done;
+	fas216_cmd_priv(SCpnt)->scsi_done = done;
 	SCpnt->host_scribble = (void *)fas216_std_done;
 	SCpnt->result = 0;
 
@@ -2233,6 +2243,11 @@ static int fas216_queue_command_lck(struct scsi_cmnd *SCpnt,
 	return result;
 }
 
+static int fas216_queue_command_lck(struct scsi_cmnd *SCpnt)
+{
+	return fas216_queue_command_internal(SCpnt, scsi_done);
+}
+
 DEF_SCSI_QCMD(fas216_queue_command)
 
 /**
@@ -2258,8 +2273,7 @@ static void fas216_internal_done(struct scsi_cmnd *SCpnt)
  * Returns: scsi result code.
  * Notes: io_request_lock is held, interrupts are disabled.
  */
-static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt,
-			   void (*done)(struct scsi_cmnd *))
+static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt)
 {
 	FAS216_Info *info = (FAS216_Info *)SCpnt->device->host->hostdata;
 
@@ -2272,7 +2286,7 @@ static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt,
 	BUG_ON(info->scsi.irq);
 
 	info->internal_done = 0;
-	fas216_queue_command_lck(SCpnt, fas216_internal_done);
+	fas216_queue_command_internal(SCpnt, fas216_internal_done);
 
 	/*
 	 * This wastes time, since we can't return until the command is
@@ -2300,7 +2314,7 @@ static int fas216_noqueue_command_lck(struct scsi_cmnd *SCpnt,
 
 	spin_lock_irq(info->host->host_lock);
 
-	done(SCpnt);
+	scsi_done(SCpnt);
 
 	return 0;
 }

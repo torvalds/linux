@@ -556,6 +556,7 @@ static const struct regmap_range da9062_aa_writeable_ranges[] = {
 	regmap_reg_range(DA9062AA_VBUCK3_B, DA9062AA_VBUCK3_B),
 	regmap_reg_range(DA9062AA_VLDO1_B, DA9062AA_VLDO4_B),
 	regmap_reg_range(DA9062AA_BBAT_CONT, DA9062AA_BBAT_CONT),
+	regmap_reg_range(DA9062AA_CONFIG_J, DA9062AA_CONFIG_J),
 	regmap_reg_range(DA9062AA_GP_ID_0, DA9062AA_GP_ID_19),
 };
 
@@ -672,6 +673,17 @@ static int da9062_i2c_probe(struct i2c_client *i2c,
 		dev_err(chip->dev, "Failed to allocate register map: %d\n",
 			ret);
 		return ret;
+	}
+
+	/* If SMBus is not available and only I2C is possible, enter I2C mode */
+	if (i2c_check_functionality(i2c->adapter, I2C_FUNC_I2C)) {
+		dev_info(chip->dev, "Entering I2C mode!\n");
+		ret = regmap_clear_bits(chip->regmap, DA9062AA_CONFIG_J,
+					DA9062AA_TWOWIRE_TO_MASK);
+		if (ret < 0) {
+			dev_err(chip->dev, "Failed to set Two-Wire Bus Mode.\n");
+			return ret;
+		}
 	}
 
 	ret = da9062_clear_fault_log(chip);

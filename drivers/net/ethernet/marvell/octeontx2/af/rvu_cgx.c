@@ -324,7 +324,6 @@ static int cgx_lmac_event_handler_init(struct rvu *rvu)
 static void rvu_cgx_wq_destroy(struct rvu *rvu)
 {
 	if (rvu->cgx_evh_wq) {
-		flush_workqueue(rvu->cgx_evh_wq);
 		destroy_workqueue(rvu->cgx_evh_wq);
 		rvu->cgx_evh_wq = NULL;
 	}
@@ -411,7 +410,7 @@ int rvu_cgx_exit(struct rvu *rvu)
  * VF's of mapped PF and other PFs are not allowed. This fn() checks
  * whether a PFFUNC is permitted to do the config or not.
  */
-static bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
+inline bool is_cgx_config_permitted(struct rvu *rvu, u16 pcifunc)
 {
 	if ((pcifunc & RVU_PFVF_FUNC_MASK) ||
 	    !is_pf_cgxmapped(rvu, rvu_get_pf(pcifunc)))
@@ -442,16 +441,26 @@ void rvu_cgx_enadis_rx_bp(struct rvu *rvu, int pf, bool enable)
 int rvu_cgx_config_rxtx(struct rvu *rvu, u16 pcifunc, bool start)
 {
 	int pf = rvu_get_pf(pcifunc);
+	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
+	void *cgxd;
 
 	if (!is_cgx_config_permitted(rvu, pcifunc))
 		return LMAC_AF_ERR_PERM_DENIED;
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+	mac_ops = get_mac_ops(cgxd);
 
-	cgx_lmac_rx_tx_enable(rvu_cgx_pdata(cgx_id, rvu), lmac_id, start);
+	return mac_ops->mac_rx_tx_enable(cgxd, lmac_id, start);
+}
 
-	return 0;
+int rvu_cgx_config_tx(void *cgxd, int lmac_id, bool enable)
+{
+	struct mac_ops *mac_ops;
+
+	mac_ops = get_mac_ops(cgxd);
+	return mac_ops->mac_tx_enable(cgxd, lmac_id, enable);
 }
 
 void rvu_cgx_disable_dmac_entries(struct rvu *rvu, u16 pcifunc)
@@ -694,7 +703,9 @@ int rvu_mbox_handler_cgx_promisc_disable(struct rvu *rvu, struct msg_req *req,
 
 static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 {
+	struct rvu_pfvf *pfvf = rvu_get_pfvf(rvu, pcifunc);
 	int pf = rvu_get_pf(pcifunc);
+	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
 	void *cgxd;
 
@@ -711,13 +722,16 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	cgxd = rvu_cgx_pdata(cgx_id, rvu);
 
-	cgx_lmac_ptp_config(cgxd, lmac_id, enable);
+	mac_ops = get_mac_ops(cgxd);
+	mac_ops->mac_enadis_ptp_config(cgxd, lmac_id, true);
 	/* If PTP is enabled then inform NPC that packets to be
 	 * parsed by this PF will have their data shifted by 8 bytes
 	 * and if PTP is disabled then no shift is required
 	 */
 	if (npc_config_ts_kpuaction(rvu, pf, pcifunc, enable))
 		return -EINVAL;
+	/* This flag is required to clean up CGX conf if app gets killed */
+	pfvf->hw_rx_tstamp_en = enable;
 
 	return 0;
 }
@@ -725,6 +739,9 @@ static int rvu_cgx_ptp_rx_cfg(struct rvu *rvu, u16 pcifunc, bool enable)
 int rvu_mbox_handler_cgx_ptp_rx_enable(struct rvu *rvu, struct msg_req *req,
 				       struct msg_rsp *rsp)
 {
+	if (!is_pf_cgxmapped(rvu, rvu_get_pf(req->hdr.pcifunc)))
+		return -EPERM;
+
 	return rvu_cgx_ptp_rx_cfg(rvu, req->hdr.pcifunc, true);
 }
 
@@ -846,6 +863,45 @@ int rvu_mbox_handler_cgx_intlbk_disable(struct rvu *rvu, struct msg_req *req,
 	return 0;
 }
 
+int rvu_cgx_cfg_pause_frm(struct rvu *rvu, u16 pcifunc, u8 tx_pause, u8 rx_pause)
+{
+	int pf = rvu_get_pf(pcifunc);
+	u8 rx_pfc = 0, tx_pfc = 0;
+	struct mac_ops *mac_ops;
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+
+	if (!is_mac_feature_supported(rvu, pf, RVU_LMAC_FEAT_FC))
+		return 0;
+
+	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
+	 * if received from other PF/VF simply ACK, nothing to do.
+	 */
+	if (!is_pf_cgxmapped(rvu, pf))
+		return LMAC_AF_ERR_PF_NOT_MAPPED;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+	mac_ops = get_mac_ops(cgxd);
+
+	mac_ops->mac_get_pfc_frm_cfg(cgxd, lmac_id, &tx_pfc, &rx_pfc);
+	if (tx_pfc || rx_pfc) {
+		dev_warn(rvu->dev,
+			 "Can not configure 802.3X flow control as PFC frames are enabled");
+		return LMAC_AF_ERR_8023PAUSE_ENADIS_PERM_DENIED;
+	}
+
+	mutex_lock(&rvu->rsrc_lock);
+	if (verify_lmac_fc_cfg(cgxd, lmac_id, tx_pause, rx_pause,
+			       pcifunc & RVU_PFVF_FUNC_MASK)) {
+		mutex_unlock(&rvu->rsrc_lock);
+		return LMAC_AF_ERR_PERM_DENIED;
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+
+	return mac_ops->mac_enadis_pause_frm(cgxd, lmac_id, tx_pause, rx_pause);
+}
+
 int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 				       struct cgx_pause_frm_cfg *req,
 				       struct cgx_pause_frm_cfg *rsp)
@@ -853,10 +909,8 @@ int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 	int pf = rvu_get_pf(req->hdr.pcifunc);
 	struct mac_ops *mac_ops;
 	u8 cgx_id, lmac_id;
+	int err = 0;
 	void *cgxd;
-
-	if (!is_mac_feature_supported(rvu, pf, RVU_LMAC_FEAT_FC))
-		return 0;
 
 	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
 	 * if received from other PF/VF simply ACK, nothing to do.
@@ -869,13 +923,11 @@ int rvu_mbox_handler_cgx_cfg_pause_frm(struct rvu *rvu,
 	mac_ops = get_mac_ops(cgxd);
 
 	if (req->set)
-		mac_ops->mac_enadis_pause_frm(cgxd, lmac_id,
-					      req->tx_pause, req->rx_pause);
+		err = rvu_cgx_cfg_pause_frm(rvu, req->hdr.pcifunc, req->tx_pause, req->rx_pause);
 	else
-		mac_ops->mac_get_pause_frm_status(cgxd, lmac_id,
-						  &rsp->tx_pause,
-						  &rsp->rx_pause);
-	return 0;
+		mac_ops->mac_get_pause_frm_status(cgxd, lmac_id, &rsp->tx_pause, &rsp->rx_pause);
+
+	return err;
 }
 
 int rvu_mbox_handler_cgx_get_phy_fec_stats(struct rvu *rvu, struct msg_req *req,
@@ -1061,4 +1113,68 @@ int rvu_mbox_handler_cgx_mac_addr_update(struct rvu *rvu,
 
 	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
 	return cgx_lmac_addr_update(cgx_id, lmac_id, req->mac_addr, req->index);
+}
+
+int rvu_cgx_prio_flow_ctrl_cfg(struct rvu *rvu, u16 pcifunc, u8 tx_pause,
+			       u8 rx_pause, u16 pfc_en)
+{
+	int pf = rvu_get_pf(pcifunc);
+	u8 rx_8023 = 0, tx_8023 = 0;
+	struct mac_ops *mac_ops;
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+
+	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
+	 * if received from other PF/VF simply ACK, nothing to do.
+	 */
+	if (!is_pf_cgxmapped(rvu, pf))
+		return -ENODEV;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+	mac_ops = get_mac_ops(cgxd);
+
+	mac_ops->mac_get_pause_frm_status(cgxd, lmac_id, &tx_8023, &rx_8023);
+	if (tx_8023 || rx_8023) {
+		dev_warn(rvu->dev,
+			 "Can not configure PFC as 802.3X pause frames are enabled");
+		return LMAC_AF_ERR_PFC_ENADIS_PERM_DENIED;
+	}
+
+	mutex_lock(&rvu->rsrc_lock);
+	if (verify_lmac_fc_cfg(cgxd, lmac_id, tx_pause, rx_pause,
+			       pcifunc & RVU_PFVF_FUNC_MASK)) {
+		mutex_unlock(&rvu->rsrc_lock);
+		return LMAC_AF_ERR_PERM_DENIED;
+	}
+	mutex_unlock(&rvu->rsrc_lock);
+
+	return mac_ops->pfc_config(cgxd, lmac_id, tx_pause, rx_pause, pfc_en);
+}
+
+int rvu_mbox_handler_cgx_prio_flow_ctrl_cfg(struct rvu *rvu,
+					    struct cgx_pfc_cfg *req,
+					    struct cgx_pfc_rsp *rsp)
+{
+	int pf = rvu_get_pf(req->hdr.pcifunc);
+	struct mac_ops *mac_ops;
+	u8 cgx_id, lmac_id;
+	void *cgxd;
+	int err;
+
+	/* This msg is expected only from PF/VFs that are mapped to CGX LMACs,
+	 * if received from other PF/VF simply ACK, nothing to do.
+	 */
+	if (!is_pf_cgxmapped(rvu, pf))
+		return -ENODEV;
+
+	rvu_get_cgx_lmac_id(rvu->pf2cgxlmac_map[pf], &cgx_id, &lmac_id);
+	cgxd = rvu_cgx_pdata(cgx_id, rvu);
+	mac_ops = get_mac_ops(cgxd);
+
+	err = rvu_cgx_prio_flow_ctrl_cfg(rvu, req->hdr.pcifunc, req->tx_pause,
+					 req->rx_pause, req->pfc_en);
+
+	mac_ops->mac_get_pfc_frm_cfg(cgxd, lmac_id, &rsp->tx_pause, &rsp->rx_pause);
+	return err;
 }

@@ -191,9 +191,47 @@
 #endif
 	.endm
 
-#define XTENSA_STACK_ALIGNMENT		16
+	.macro	do_nsau cnt, val, tmp, a
+#if XCHAL_HAVE_NSA
+	nsau	\cnt, \val
+#else
+	mov	\a, \val
+	movi	\cnt, 0
+	extui	\tmp, \a, 16, 16
+	bnez	\tmp, 0f
+	movi	\cnt, 16
+	slli	\a, \a, 16
+0:
+	extui	\tmp, \a, 24, 8
+	bnez	\tmp, 1f
+	addi	\cnt, \cnt, 8
+	slli	\a, \a, 8
+1:
+	movi	\tmp, __nsau_data
+	extui	\a, \a, 24, 8
+	add	\tmp, \tmp, \a
+	l8ui	\tmp, \tmp, 0
+	add	\cnt, \cnt, \tmp
+#endif /* !XCHAL_HAVE_NSA */
+	.endm
+
+	.macro	do_abs dst, src, tmp
+#if XCHAL_HAVE_ABS
+	abs	\dst, \src
+#else
+	neg	\tmp, \src
+	movgez	\tmp, \src, \src
+	mov	\dst, \tmp
+#endif
+	.endm
 
 #if defined(__XTENSA_WINDOWED_ABI__)
+
+/* Assembly instructions for windowed kernel ABI. */
+#define KABI_W
+/* Assembly instructions for call0 kernel ABI (will be ignored). */
+#define KABI_C0 #
+
 #define XTENSA_FRAME_SIZE_RESERVE	16
 #define XTENSA_SPILL_STACK_RESERVE	32
 
@@ -206,7 +244,33 @@
 #define abi_ret(frame_size) retw
 #define abi_ret_default retw
 
+	/* direct call */
+#define abi_call call4
+	/* indirect call */
+#define abi_callx callx4
+	/* outgoing call argument registers */
+#define abi_arg0 a6
+#define abi_arg1 a7
+#define abi_arg2 a8
+#define abi_arg3 a9
+#define abi_arg4 a10
+#define abi_arg5 a11
+	/* return value */
+#define abi_rv a6
+	/* registers preserved across call */
+#define abi_saved0 a2
+#define abi_saved1 a3
+
+	/* none of the above */
+#define abi_tmp0 a4
+#define abi_tmp1 a5
+
 #elif defined(__XTENSA_CALL0_ABI__)
+
+/* Assembly instructions for windowed kernel ABI (will be ignored). */
+#define KABI_W #
+/* Assembly instructions for call0 kernel ABI. */
+#define KABI_C0
 
 #define XTENSA_SPILL_STACK_RESERVE	0
 
@@ -233,8 +297,41 @@
 
 #define abi_ret_default ret
 
+	/* direct call */
+#define abi_call call0
+	/* indirect call */
+#define abi_callx callx0
+	/* outgoing call argument registers */
+#define abi_arg0 a2
+#define abi_arg1 a3
+#define abi_arg2 a4
+#define abi_arg3 a5
+#define abi_arg4 a6
+#define abi_arg5 a7
+	/* return value */
+#define abi_rv a2
+	/* registers preserved across call */
+#define abi_saved0 a12
+#define abi_saved1 a13
+
+	/* none of the above */
+#define abi_tmp0 a8
+#define abi_tmp1 a9
+
 #else
 #error Unsupported Xtensa ABI
+#endif
+
+#if defined(USER_SUPPORT_WINDOWED)
+/* Assembly instructions for windowed user ABI. */
+#define UABI_W
+/* Assembly instructions for call0 user ABI (will be ignored). */
+#define UABI_C0 #
+#else
+/* Assembly instructions for windowed user ABI (will be ignored). */
+#define UABI_W #
+/* Assembly instructions for call0 user ABI. */
+#define UABI_C0
 #endif
 
 #define __XTENSA_HANDLER	.section ".exception.text", "ax"

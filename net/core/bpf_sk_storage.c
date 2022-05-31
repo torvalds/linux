@@ -13,6 +13,7 @@
 #include <net/sock.h>
 #include <uapi/linux/sock_diag.h>
 #include <uapi/linux/btf.h>
+#include <linux/rcupdate_trace.h>
 
 DEFINE_BPF_STORAGE_CACHE(sk_cache);
 
@@ -22,7 +23,8 @@ bpf_sk_storage_lookup(struct sock *sk, struct bpf_map *map, bool cacheit_lockit)
 	struct bpf_local_storage *sk_storage;
 	struct bpf_local_storage_map *smap;
 
-	sk_storage = rcu_dereference(sk->sk_bpf_storage);
+	sk_storage =
+		rcu_dereference_check(sk->sk_bpf_storage, bpf_rcu_lock_held());
 	if (!sk_storage)
 		return NULL;
 
@@ -139,7 +141,7 @@ static int bpf_fd_sk_storage_update_elem(struct bpf_map *map, void *key,
 	if (sock) {
 		sdata = bpf_local_storage_update(
 			sock->sk, (struct bpf_local_storage_map *)map, value,
-			map_flags);
+			map_flags, GFP_ATOMIC);
 		sockfd_put(sock);
 		return PTR_ERR_OR_ZERO(sdata);
 	}
@@ -170,7 +172,7 @@ bpf_sk_storage_clone_elem(struct sock *newsk,
 {
 	struct bpf_local_storage_elem *copy_selem;
 
-	copy_selem = bpf_selem_alloc(smap, newsk, NULL, true);
+	copy_selem = bpf_selem_alloc(smap, newsk, NULL, true, GFP_ATOMIC);
 	if (!copy_selem)
 		return NULL;
 
@@ -228,7 +230,7 @@ int bpf_sk_storage_clone(const struct sock *sk, struct sock *newsk)
 			bpf_selem_link_map(smap, copy_selem);
 			bpf_selem_link_storage_nolock(new_sk_storage, copy_selem);
 		} else {
-			ret = bpf_local_storage_alloc(newsk, smap, copy_selem);
+			ret = bpf_local_storage_alloc(newsk, smap, copy_selem, GFP_ATOMIC);
 			if (ret) {
 				kfree(copy_selem);
 				atomic_sub(smap->elem_size,
@@ -253,11 +255,13 @@ out:
 	return ret;
 }
 
-BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
-	   void *, value, u64, flags)
+/* *gfp_flags* is a hidden argument provided by the verifier */
+BPF_CALL_5(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
+	   void *, value, u64, flags, gfp_t, gfp_flags)
 {
 	struct bpf_local_storage_data *sdata;
 
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (!sk || !sk_fullsock(sk) || flags > BPF_SK_STORAGE_GET_F_CREATE)
 		return (unsigned long)NULL;
 
@@ -274,7 +278,7 @@ BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 	    refcount_inc_not_zero(&sk->sk_refcnt)) {
 		sdata = bpf_local_storage_update(
 			sk, (struct bpf_local_storage_map *)map, value,
-			BPF_NOEXIST);
+			BPF_NOEXIST, gfp_flags);
 		/* sk must be a fullsock (guaranteed by verifier),
 		 * so sock_gen_put() is unnecessary.
 		 */
@@ -288,6 +292,7 @@ BPF_CALL_4(bpf_sk_storage_get, struct bpf_map *, map, struct sock *, sk,
 
 BPF_CALL_2(bpf_sk_storage_delete, struct bpf_map *, map, struct sock *, sk)
 {
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (!sk || !sk_fullsock(sk))
 		return -EINVAL;
 
@@ -401,6 +406,8 @@ static bool bpf_sk_storage_tracing_allowed(const struct bpf_prog *prog)
 	case BPF_TRACE_FENTRY:
 	case BPF_TRACE_FEXIT:
 		btf_vmlinux = bpf_get_btf_vmlinux();
+		if (IS_ERR_OR_NULL(btf_vmlinux))
+			return false;
 		btf_id = prog->aux->attach_btf_id;
 		t = btf_type_by_id(btf_vmlinux, btf_id);
 		tname = btf_name_by_offset(btf_vmlinux, t->name_off);
@@ -413,18 +420,22 @@ static bool bpf_sk_storage_tracing_allowed(const struct bpf_prog *prog)
 	return false;
 }
 
-BPF_CALL_4(bpf_sk_storage_get_tracing, struct bpf_map *, map, struct sock *, sk,
-	   void *, value, u64, flags)
+/* *gfp_flags* is a hidden argument provided by the verifier */
+BPF_CALL_5(bpf_sk_storage_get_tracing, struct bpf_map *, map, struct sock *, sk,
+	   void *, value, u64, flags, gfp_t, gfp_flags)
 {
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (in_hardirq() || in_nmi())
 		return (unsigned long)NULL;
 
-	return (unsigned long)____bpf_sk_storage_get(map, sk, value, flags);
+	return (unsigned long)____bpf_sk_storage_get(map, sk, value, flags,
+						     gfp_flags);
 }
 
 BPF_CALL_2(bpf_sk_storage_delete_tracing, struct bpf_map *, map,
 	   struct sock *, sk)
 {
+	WARN_ON_ONCE(!bpf_rcu_lock_held());
 	if (in_hardirq() || in_nmi())
 		return -EPERM;
 
@@ -929,7 +940,7 @@ static struct bpf_iter_reg bpf_sk_storage_map_reg_info = {
 		{ offsetof(struct bpf_iter__bpf_sk_storage_map, sk),
 		  PTR_TO_BTF_ID_OR_NULL },
 		{ offsetof(struct bpf_iter__bpf_sk_storage_map, value),
-		  PTR_TO_RDWR_BUF_OR_NULL },
+		  PTR_TO_BUF | PTR_MAYBE_NULL },
 	},
 	.seq_info		= &iter_seq_info,
 };

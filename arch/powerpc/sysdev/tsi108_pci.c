@@ -257,7 +257,7 @@ static void tsi108_pci_int_unmask(u_int irq)
 	mb();
 }
 
-static void init_pci_source(void)
+static void __init init_pci_source(void)
 {
 	tsi108_write_reg(TSI108_PCI_OFFSET + TSI108_PCI_IRP_CFG_CTL,
 			0x0000ff00);

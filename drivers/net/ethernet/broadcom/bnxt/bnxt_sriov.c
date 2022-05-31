@@ -846,7 +846,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		return;
 
 	/* synchronize VF and VF-rep create and destroy */
-	mutex_lock(&bp->sriov_lock);
+	devl_lock(bp->dl);
 	bnxt_vf_reps_destroy(bp);
 
 	if (pci_vfs_assigned(bp->pdev)) {
@@ -859,7 +859,7 @@ void bnxt_sriov_disable(struct bnxt *bp)
 		/* Free the HW resources reserved for various VF's */
 		bnxt_hwrm_func_vf_resource_free(bp, num_vfs);
 	}
-	mutex_unlock(&bp->sriov_lock);
+	devl_unlock(bp->dl);
 
 	bnxt_free_vf_resources(bp);
 
@@ -1151,7 +1151,7 @@ void bnxt_hwrm_exec_fwd_req(struct bnxt *bp)
 	}
 }
 
-int bnxt_approve_mac(struct bnxt *bp, u8 *mac, bool strict)
+int bnxt_approve_mac(struct bnxt *bp, const u8 *mac, bool strict)
 {
 	struct hwrm_func_vf_cfg_input *req;
 	int rc = 0;
@@ -1217,7 +1217,7 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 
 	/* overwrite netdev dev_addr with admin VF MAC */
 	if (is_valid_ether_addr(bp->vf.mac_addr))
-		memcpy(bp->dev->dev_addr, bp->vf.mac_addr, ETH_ALEN);
+		eth_hw_addr_set(bp->dev, bp->vf.mac_addr);
 update_vf_mac_exit:
 	hwrm_req_drop(bp, req);
 	if (inform_pf)
@@ -1246,7 +1246,7 @@ void bnxt_update_vf_mac(struct bnxt *bp)
 {
 }
 
-int bnxt_approve_mac(struct bnxt *bp, u8 *mac, bool strict)
+int bnxt_approve_mac(struct bnxt *bp, const u8 *mac, bool strict)
 {
 	return 0;
 }

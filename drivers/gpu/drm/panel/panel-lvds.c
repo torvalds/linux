@@ -20,6 +20,7 @@
 #include <video/videomode.h>
 
 #include <drm/drm_crtc.h>
+#include <drm/drm_of.h>
 #include <drm/drm_panel.h>
 
 struct panel_lvds {
@@ -116,7 +117,6 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 {
 	struct device_node *np = lvds->dev->of_node;
 	struct display_timing timing;
-	const char *mapping;
 	int ret;
 
 	ret = of_drm_get_panel_orientation(np, &lvds->orientation);
@@ -149,24 +149,14 @@ static int panel_lvds_parse_dt(struct panel_lvds *lvds)
 
 	of_property_read_string(np, "label", &lvds->label);
 
-	ret = of_property_read_string(np, "data-mapping", &mapping);
+	ret = drm_of_lvds_get_data_mapping(np);
 	if (ret < 0) {
 		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
 			np, "data-mapping");
-		return -ENODEV;
+		return ret;
 	}
 
-	if (!strcmp(mapping, "jeida-18")) {
-		lvds->bus_format = MEDIA_BUS_FMT_RGB666_1X7X3_SPWG;
-	} else if (!strcmp(mapping, "jeida-24")) {
-		lvds->bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_JEIDA;
-	} else if (!strcmp(mapping, "vesa-24")) {
-		lvds->bus_format = MEDIA_BUS_FMT_RGB888_1X7X4_SPWG;
-	} else {
-		dev_err(lvds->dev, "%pOF: invalid or missing %s DT property\n",
-			np, "data-mapping");
-		return -EINVAL;
-	}
+	lvds->bus_format = ret;
 
 	lvds->data_mirror = of_property_read_bool(np, "data-mirror");
 

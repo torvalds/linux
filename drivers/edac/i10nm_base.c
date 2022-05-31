@@ -358,6 +358,9 @@ static int i10nm_get_hbm_munits(void)
 
 			mbase = ioremap(base + off, I10NM_HBM_IMC_MMIO_SIZE);
 			if (!mbase) {
+				pci_dev_put(d->imc[lmc].mdev);
+				d->imc[lmc].mdev = NULL;
+
 				i10nm_printk(KERN_ERR, "Failed to ioremap for hbm mc 0x%llx\n",
 					     base + off);
 				return -ENOMEM;
@@ -368,6 +371,12 @@ static int i10nm_get_hbm_munits(void)
 
 			mcmtr = I10NM_GET_MCMTR(&d->imc[lmc], 0);
 			if (!I10NM_IS_HBM_IMC(mcmtr)) {
+				iounmap(d->imc[lmc].mbase);
+				d->imc[lmc].mbase = NULL;
+				d->imc[lmc].hbm_mc = false;
+				pci_dev_put(d->imc[lmc].mdev);
+				d->imc[lmc].mdev = NULL;
+
 				i10nm_printk(KERN_ERR, "This isn't an hbm mc!\n");
 				return -ENODEV;
 			}

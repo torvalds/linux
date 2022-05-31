@@ -116,15 +116,11 @@ static acpi_status s3_wmi_attach_spi_device(acpi_handle handle,
 					    void *data,
 					    void **return_value)
 {
-	struct acpi_device *adev, **ts_adev;
+	struct acpi_device *adev = acpi_fetch_acpi_dev(handle);
+	struct acpi_device **ts_adev = data;
 
-	if (acpi_bus_get_device(handle, &adev))
-		return AE_OK;
-
-	ts_adev = data;
-
-	if (strncmp(acpi_device_bid(adev), SPI_TS_OBJ_NAME,
-	    strlen(SPI_TS_OBJ_NAME)))
+	if (!adev || strncmp(acpi_device_bid(adev), SPI_TS_OBJ_NAME,
+			     strlen(SPI_TS_OBJ_NAME)))
 		return AE_OK;
 
 	if (*ts_adev) {
@@ -139,13 +135,12 @@ static acpi_status s3_wmi_attach_spi_device(acpi_handle handle,
 
 static int s3_wmi_check_platform_device(struct device *dev, void *data)
 {
-	struct acpi_device *adev, *ts_adev = NULL;
-	acpi_handle handle;
+	struct acpi_device *adev = ACPI_COMPANION(dev);
+	struct acpi_device *ts_adev = NULL;
 	acpi_status status;
 
 	/* ignore non ACPI devices */
-	handle = ACPI_HANDLE(dev);
-	if (!handle || acpi_bus_get_device(handle, &adev))
+	if (!adev)
 		return 0;
 
 	/* check for LID ACPI switch */
@@ -159,7 +154,7 @@ static int s3_wmi_check_platform_device(struct device *dev, void *data)
 	    strlen(SPI_CTL_OBJ_NAME)))
 		return 0;
 
-	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, handle, 1,
+	status = acpi_walk_namespace(ACPI_TYPE_DEVICE, adev->handle, 1,
 				     s3_wmi_attach_spi_device, NULL,
 				     &ts_adev, NULL);
 	if (ACPI_FAILURE(status))
@@ -191,14 +186,11 @@ static int s3_wmi_create_and_register_input(struct platform_device *pdev)
 
 	error = input_register_device(input);
 	if (error)
-		goto out_err;
+		return error;
 
 	s3_wmi.input = input;
 
 	return 0;
- out_err:
-	input_free_device(s3_wmi.input);
-	return error;
 }
 
 static int __init s3_wmi_probe(struct platform_device *pdev)

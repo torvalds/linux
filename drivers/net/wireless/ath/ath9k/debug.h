@@ -39,6 +39,7 @@ struct fft_sample_tlv;
 #endif
 
 enum ath_reset_type {
+	RESET_TYPE_USER,
 	RESET_TYPE_BB_HANG,
 	RESET_TYPE_BB_WATCHDOG,
 	RESET_TYPE_FATAL_INT,

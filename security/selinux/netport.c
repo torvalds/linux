@@ -73,7 +73,7 @@ static unsigned int sel_netport_hashfn(u16 pnum)
 /**
  * sel_netport_find - Search for a port record
  * @protocol: protocol
- * @port: pnum
+ * @pnum: port
  *
  * Description:
  * Search the network port table and return the matching record.  If an entry
@@ -113,7 +113,7 @@ static void sel_netport_insert(struct sel_netport *port)
 		struct sel_netport *tail;
 		tail = list_entry(
 			rcu_dereference_protected(
-				sel_netport_hash[idx].list.prev,
+				list_tail_rcu(&sel_netport_hash[idx].list),
 				lockdep_is_held(&sel_netport_lock)),
 			struct sel_netport, list);
 		list_del_rcu(&tail->list);

@@ -359,6 +359,8 @@ enum wcn36xx_hal_host_msg_type {
 	WCN36XX_HAL_START_SCAN_OFFLOAD_RSP = 205,
 	WCN36XX_HAL_STOP_SCAN_OFFLOAD_REQ = 206,
 	WCN36XX_HAL_STOP_SCAN_OFFLOAD_RSP = 207,
+	WCN36XX_HAL_UPDATE_CHANNEL_LIST_REQ = 208,
+	WCN36XX_HAL_UPDATE_CHANNEL_LIST_RSP = 209,
 	WCN36XX_HAL_SCAN_OFFLOAD_IND = 210,
 
 	WCN36XX_HAL_AVOID_FREQ_RANGE_IND = 233,
@@ -1351,6 +1353,36 @@ struct wcn36xx_hal_stop_scan_offload_rsp_msg {
 
 	/* success or failure */
 	u32 status;
+} __packed;
+
+#define WCN36XX_HAL_CHAN_REG1_MIN_PWR_MASK  0x000000ff
+#define WCN36XX_HAL_CHAN_REG1_MAX_PWR_MASK  0x0000ff00
+#define WCN36XX_HAL_CHAN_REG1_REG_PWR_MASK  0x00ff0000
+#define WCN36XX_HAL_CHAN_REG1_CLASS_ID_MASK 0xff000000
+#define WCN36XX_HAL_CHAN_REG2_ANT_GAIN_MASK 0x000000ff
+#define WCN36XX_HAL_CHAN_INFO_FLAG_PASSIVE  BIT(7)
+#define WCN36XX_HAL_CHAN_INFO_FLAG_DFS      BIT(10)
+#define WCN36XX_HAL_CHAN_INFO_FLAG_HT       BIT(11)
+#define WCN36XX_HAL_CHAN_INFO_FLAG_VHT      BIT(12)
+#define WCN36XX_HAL_CHAN_INFO_PHY_11A       0
+#define WCN36XX_HAL_CHAN_INFO_PHY_11BG      1
+#define WCN36XX_HAL_DEFAULT_ANT_GAIN        6
+#define WCN36XX_HAL_DEFAULT_MIN_POWER       6
+
+struct wcn36xx_hal_channel_param {
+	u32 mhz;
+	u32 band_center_freq1;
+	u32 band_center_freq2;
+	u32 channel_info;
+	u32 reg_info_1;
+	u32 reg_info_2;
+} __packed;
+
+struct wcn36xx_hal_update_channel_list_req_msg {
+	struct wcn36xx_hal_msg_header header;
+
+	u8 num_channel;
+	struct wcn36xx_hal_channel_param channels[80];
 } __packed;
 
 enum wcn36xx_hal_rate_index {
@@ -3384,11 +3416,11 @@ struct tl_hal_flush_ac_rsp_msg {
 
 struct wcn36xx_hal_enter_imps_req_msg {
 	struct wcn36xx_hal_msg_header header;
-};
+} __packed;
 
-struct wcn36xx_hal_exit_imps_req {
+struct wcn36xx_hal_exit_imps_req_msg {
 	struct wcn36xx_hal_msg_header header;
-};
+} __packed;
 
 struct wcn36xx_hal_enter_bmps_req_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -3427,9 +3459,6 @@ struct wcn36xx_hal_missed_beacon_ind_msg {
 
 /* Beacon Filtering data structures */
 
-/* The above structure would be followed by multiple of below mentioned
- * structure
- */
 struct beacon_filter_ie {
 	u8 element_id;
 	u8 check_ie_presence;
@@ -3437,7 +3466,27 @@ struct beacon_filter_ie {
 	u8 value;
 	u8 bitmask;
 	u8 ref;
-};
+} __packed;
+
+#define WCN36XX_FILTER_CAPABILITY_MASK		0x73cf
+#define WCN36XX_FILTER_IE_DS_CHANNEL_MASK	0x00
+#define WCN36XX_FILTER_IE_ERP_FILTER_MASK	0xF8
+#define WCN36XX_FILTER_IE_EDCA_FILTER_MASK	0xF0
+#define WCN36XX_FILTER_IE_QOS_FILTER_MASK	0xF0
+#define WCN36XX_FILTER_IE_CHANNEL_SWITCH_MASK	0x00
+#define WCN36XX_FILTER_IE_HT_BYTE0_FILTER_MASK	0x00
+#define WCN36XX_FILTER_IE_HT_BYTE1_FILTER_MASK	0xF8
+#define WCN36XX_FILTER_IE_HT_BYTE2_FILTER_MASK	0xEB
+#define WCN36XX_FILTER_IE_HT_BYTE5_FILTER_MASK	0xFD
+#define WCN36XX_FILTER_IE_PWR_CONSTRAINT_MASK	0x00
+#define WCN36XX_FILTER_IE_OPMODE_NOTIF_MASK	0x00
+#define WCN36XX_FILTER_IE_VHTOP_CHWIDTH_MASK	0xFC
+#define WCN36XX_FILTER_IE_RSN_MASK		0x00
+#define WCN36XX_FILTER_IE_VENDOR_MASK		0x00
+
+/* The above structure would be followed by multiple of below mentioned
+ * structure
+ */
 
 struct wcn36xx_hal_add_bcn_filter_req_msg {
 	struct wcn36xx_hal_msg_header header;
@@ -3448,14 +3497,14 @@ struct wcn36xx_hal_add_bcn_filter_req_msg {
 	u16 ie_num;
 	u8 bss_index;
 	u8 reserved;
-};
+} __packed;
 
 struct wcn36xx_hal_rem_bcn_filter_req {
 	struct wcn36xx_hal_msg_header header;
 
 	u8 ie_Count;
 	u8 rem_ie_id[1];
-};
+} __packed;
 
 #define WCN36XX_HAL_IPV4_ARP_REPLY_OFFLOAD                  0
 #define WCN36XX_HAL_IPV6_NEIGHBOR_DISCOVERY_OFFLOAD         1

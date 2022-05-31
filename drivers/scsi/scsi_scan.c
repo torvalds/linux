@@ -97,7 +97,7 @@ MODULE_PARM_DESC(max_luns,
 #define SCSI_SCAN_TYPE_DEFAULT "sync"
 #endif
 
-char scsi_scan_type[7] = SCSI_SCAN_TYPE_DEFAULT;
+static char scsi_scan_type[7] = SCSI_SCAN_TYPE_DEFAULT;
 
 module_param_string(scan, scsi_scan_type, sizeof(scsi_scan_type),
 		    S_IRUGO|S_IWUSR);
@@ -121,6 +121,22 @@ struct async_scan_data {
 	struct Scsi_Host *shost;
 	struct completion prev_finished;
 };
+
+/*
+ * scsi_enable_async_suspend - Enable async suspend and resume
+ */
+void scsi_enable_async_suspend(struct device *dev)
+{
+	/*
+	 * If a user has disabled async probing a likely reason is due to a
+	 * storage enclosure that does not inject staggered spin-ups. For
+	 * safety, make resume synchronous as well in that case.
+	 */
+	if (strncmp(scsi_scan_type, "async", 5) != 0)
+		return;
+	/* Enable asynchronous suspend and resume. */
+	device_enable_async_suspend(dev);
+}
 
 /**
  * scsi_complete_async_scans - Wait for asynchronous scans to complete
@@ -196,6 +212,53 @@ static void scsi_unlock_floptical(struct scsi_device *sdev,
 	scsi_cmd[5] = 0;
 	scsi_execute_req(sdev, scsi_cmd, DMA_FROM_DEVICE, result, 0x2a, NULL,
 			 SCSI_TIMEOUT, 3, NULL);
+}
+
+static int scsi_realloc_sdev_budget_map(struct scsi_device *sdev,
+					unsigned int depth)
+{
+	int new_shift = sbitmap_calculate_shift(depth);
+	bool need_alloc = !sdev->budget_map.map;
+	bool need_free = false;
+	int ret;
+	struct sbitmap sb_backup;
+
+	depth = min_t(unsigned int, depth, scsi_device_max_queue_depth(sdev));
+
+	/*
+	 * realloc if new shift is calculated, which is caused by setting
+	 * up one new default queue depth after calling ->slave_configure
+	 */
+	if (!need_alloc && new_shift != sdev->budget_map.shift)
+		need_alloc = need_free = true;
+
+	if (!need_alloc)
+		return 0;
+
+	/*
+	 * Request queue has to be frozen for reallocating budget map,
+	 * and here disk isn't added yet, so freezing is pretty fast
+	 */
+	if (need_free) {
+		blk_mq_freeze_queue(sdev->request_queue);
+		sb_backup = sdev->budget_map;
+	}
+	ret = sbitmap_init_node(&sdev->budget_map,
+				scsi_device_max_queue_depth(sdev),
+				new_shift, GFP_KERNEL,
+				sdev->request_queue->node, false, true);
+	if (!ret)
+		sbitmap_resize(&sdev->budget_map, depth);
+
+	if (need_free) {
+		if (ret)
+			sdev->budget_map = sb_backup;
+		else
+			sbitmap_free(&sb_backup);
+		ret = 0;
+		blk_mq_unfreeze_queue(sdev->request_queue);
+	}
+	return ret;
 }
 
 /**
@@ -280,7 +343,6 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	sdev->request_queue = q;
 	q->queuedata = sdev;
 	__scsi_init_queue(sdev->host, q);
-	blk_queue_flag_set(QUEUE_FLAG_SCSI_PASSTHROUGH, q);
 	WARN_ON_ONCE(!blk_get_queue(q));
 
 	depth = sdev->host->cmd_per_lun ?: 1;
@@ -291,11 +353,7 @@ static struct scsi_device *scsi_alloc_sdev(struct scsi_target *starget,
 	 * default device queue depth to figure out sbitmap shift
 	 * since we use this queue depth most of times.
 	 */
-	if (sbitmap_init_node(&sdev->budget_map,
-				scsi_device_max_queue_depth(sdev),
-				sbitmap_calculate_shift(depth),
-				GFP_KERNEL, sdev->request_queue->node,
-				false, true)) {
+	if (scsi_realloc_sdev_budget_map(sdev, depth)) {
 		put_device(&starget->dev);
 		kfree(sdev);
 		goto out;
@@ -454,6 +512,7 @@ static struct scsi_target *scsi_alloc_target(struct device *parent,
 	dev_set_name(dev, "target%d:%d:%d", shost->host_no, channel, id);
 	dev->bus = &scsi_bus_type;
 	dev->type = &scsi_target_type;
+	scsi_enable_async_suspend(dev);
 	starget->id = id;
 	starget->channel = channel;
 	starget->can_queue = 0;
@@ -1001,6 +1060,13 @@ static int scsi_add_lun(struct scsi_device *sdev, unsigned char *inq_result,
 			}
 			return SCSI_SCAN_NO_RESPONSE;
 		}
+
+		/*
+		 * The queue_depth is often changed in ->slave_configure.
+		 * Set up budget map again since memory consumption of
+		 * the map depends on actual queue depth.
+		 */
+		scsi_realloc_sdev_budget_map(sdev, sdev->queue_depth);
 	}
 
 	if (sdev->scsi_level >= SCSI_3)
@@ -1901,61 +1967,4 @@ void scsi_forget_host(struct Scsi_Host *shost)
 	}
 	spin_unlock_irqrestore(shost->host_lock, flags);
 }
-
-/**
- * scsi_get_host_dev - Create a scsi_device that points to the host adapter itself
- * @shost: Host that needs a scsi_device
- *
- * Lock status: None assumed.
- *
- * Returns:     The scsi_device or NULL
- *
- * Notes:
- *	Attach a single scsi_device to the Scsi_Host - this should
- *	be made to look like a "pseudo-device" that points to the
- *	HA itself.
- *
- *	Note - this device is not accessible from any high-level
- *	drivers (including generics), which is probably not
- *	optimal.  We can add hooks later to attach.
- */
-struct scsi_device *scsi_get_host_dev(struct Scsi_Host *shost)
-{
-	struct scsi_device *sdev = NULL;
-	struct scsi_target *starget;
-
-	mutex_lock(&shost->scan_mutex);
-	if (!scsi_host_scan_allowed(shost))
-		goto out;
-	starget = scsi_alloc_target(&shost->shost_gendev, 0, shost->this_id);
-	if (!starget)
-		goto out;
-
-	sdev = scsi_alloc_sdev(starget, 0, NULL);
-	if (sdev)
-		sdev->borken = 0;
-	else
-		scsi_target_reap(starget);
-	put_device(&starget->dev);
- out:
-	mutex_unlock(&shost->scan_mutex);
-	return sdev;
-}
-EXPORT_SYMBOL(scsi_get_host_dev);
-
-/**
- * scsi_free_host_dev - Free a scsi_device that points to the host adapter itself
- * @sdev: Host device to be freed
- *
- * Lock status: None assumed.
- *
- * Returns:     Nothing
- */
-void scsi_free_host_dev(struct scsi_device *sdev)
-{
-	BUG_ON(sdev->id != sdev->host->this_id);
-
-	__scsi_remove_device(sdev);
-}
-EXPORT_SYMBOL(scsi_free_host_dev);
 

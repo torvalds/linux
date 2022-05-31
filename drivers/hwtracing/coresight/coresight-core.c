@@ -729,7 +729,7 @@ static inline void coresight_put_ref(struct coresight_device *csdev)
  * coresight_grab_device - Power up this device and any of the helper
  * devices connected to it for trace operation. Since the helper devices
  * don't appear on the trace path, they should be handled along with the
- * the master device.
+ * master device.
  */
 static int coresight_grab_device(struct coresight_device *csdev)
 {
@@ -1278,9 +1278,6 @@ static struct attribute *coresight_source_attrs[] = {
 ATTRIBUTE_GROUPS(coresight_source);
 
 static struct device_type coresight_dev_type[] = {
-	{
-		.name = "none",
-	},
 	{
 		.name = "sink",
 		.groups = coresight_sink_groups,

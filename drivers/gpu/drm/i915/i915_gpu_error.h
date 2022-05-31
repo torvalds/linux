@@ -39,10 +39,8 @@ struct i915_vma_coredump {
 	u64 gtt_size;
 	u32 gtt_page_sizes;
 
-	int num_pages;
-	int page_count;
 	int unused;
-	u32 *pages[];
+	struct list_head page_list;
 };
 
 struct i915_request_coredump {
@@ -211,6 +209,17 @@ struct drm_i915_error_state_buf {
 
 	int err;
 };
+
+static inline u32 i915_reset_count(struct i915_gpu_error *error)
+{
+	return atomic_read(&error->reset_count);
+}
+
+static inline u32 i915_reset_engine_count(struct i915_gpu_error *error,
+					  const struct intel_engine_cs *engine)
+{
+	return atomic_read(&error->reset_engine_count[engine->uabi_class]);
+}
 
 #if IS_ENABLED(CONFIG_DRM_I915_CAPTURE_ERROR)
 

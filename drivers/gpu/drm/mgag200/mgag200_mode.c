@@ -9,7 +9,7 @@
  */
 
 #include <linux/delay.h>
-#include <linux/dma-buf-map.h>
+#include <linux/iosys-map.h>
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_atomic_state_helper.h>
@@ -529,7 +529,10 @@ static void mgag200_set_format_regs(struct mga_device *mdev,
 	WREG_GFX(3, 0x00);
 	WREG_GFX(4, 0x00);
 	WREG_GFX(5, 0x40);
-	WREG_GFX(6, 0x05);
+	/* GCTL6 should be 0x05, but we configure memmapsl to 0xb8000 (text mode),
+	 * so that it doesn't hang when running kexec/kdump on G200_SE rev42.
+	 */
+	WREG_GFX(6, 0x0d);
 	WREG_GFX(7, 0x0f);
 	WREG_GFX(8, 0x0f);
 
@@ -845,11 +848,13 @@ mgag200_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 
 static void
 mgag200_handle_damage(struct mga_device *mdev, struct drm_framebuffer *fb,
-		      struct drm_rect *clip, const struct dma_buf_map *map)
+		      struct drm_rect *clip, const struct iosys_map *map)
 {
+	void __iomem *dst = mdev->vram;
 	void *vmap = map->vaddr; /* TODO: Use mapping abstraction properly */
 
-	drm_fb_memcpy_dstclip(mdev->vram, fb->pitches[0], vmap, fb, clip);
+	dst += drm_fb_clip_offset(fb->pitches[0], fb->format, clip);
+	drm_fb_memcpy_toio(dst, fb->pitches[0], vmap, fb, clip);
 
 	/* Always scanout image at VRAM offset 0 */
 	mgag200_set_startadd(mdev, (u32)0);

@@ -14,6 +14,8 @@
 #undef CONFIG_KASAN
 #undef CONFIG_KASAN_GENERIC
 
+#define __NO_FORTIFY
+
 /* cpu_feature_enabled() cannot be used this early */
 #define USE_EARLY_PGTABLE_L5
 
@@ -44,6 +46,8 @@ extern char _head[], _end[];
 /* misc.c */
 extern memptr free_mem_ptr;
 extern memptr free_mem_end_ptr;
+void *malloc(int size);
+void free(void *where);
 extern struct boot_params *boot_params;
 void __putstr(const char *s);
 void __puthex(unsigned long value);

@@ -13,6 +13,8 @@
 #include <linux/page_ext.h>
 #include <linux/page_idle.h>
 
+#include "internal.h"
+
 #define BITMAP_CHUNK_SIZE	sizeof(u64)
 #define BITMAP_CHUNK_BITS	(BITMAP_CHUNK_SIZE * BITS_PER_BYTE)
 
@@ -44,15 +46,11 @@ static struct page *page_idle_get_page(unsigned long pfn)
 	return page;
 }
 
-static bool page_idle_clear_pte_refs_one(struct page *page,
+static bool page_idle_clear_pte_refs_one(struct folio *folio,
 					struct vm_area_struct *vma,
 					unsigned long addr, void *arg)
 {
-	struct page_vma_mapped_walk pvmw = {
-		.page = page,
-		.vma = vma,
-		.address = addr,
-	};
+	DEFINE_FOLIO_VMA_WALK(pvmw, folio, vma, addr, 0);
 	bool referenced = false;
 
 	while (page_vma_mapped_walk(&pvmw)) {
@@ -74,41 +72,41 @@ static bool page_idle_clear_pte_refs_one(struct page *page,
 	}
 
 	if (referenced) {
-		clear_page_idle(page);
+		folio_clear_idle(folio);
 		/*
 		 * We cleared the referenced bit in a mapping to this page. To
 		 * avoid interference with page reclaim, mark it young so that
-		 * page_referenced() will return > 0.
+		 * folio_referenced() will return > 0.
 		 */
-		set_page_young(page);
+		folio_set_young(folio);
 	}
 	return true;
 }
 
 static void page_idle_clear_pte_refs(struct page *page)
 {
+	struct folio *folio = page_folio(page);
 	/*
 	 * Since rwc.arg is unused, rwc is effectively immutable, so we
 	 * can make it static const to save some cycles and stack.
 	 */
 	static const struct rmap_walk_control rwc = {
 		.rmap_one = page_idle_clear_pte_refs_one,
-		.anon_lock = page_lock_anon_vma_read,
+		.anon_lock = folio_lock_anon_vma_read,
 	};
 	bool need_lock;
 
-	if (!page_mapped(page) ||
-	    !page_rmapping(page))
+	if (!folio_mapped(folio) || !folio_raw_mapping(folio))
 		return;
 
-	need_lock = !PageAnon(page) || PageKsm(page);
-	if (need_lock && !trylock_page(page))
+	need_lock = !folio_test_anon(folio) || folio_test_ksm(folio);
+	if (need_lock && !folio_trylock(folio))
 		return;
 
-	rmap_walk(page, (struct rmap_walk_control *)&rwc);
+	rmap_walk(folio, &rwc);
 
 	if (need_lock)
-		unlock_page(page);
+		folio_unlock(folio);
 }
 
 static ssize_t page_idle_bitmap_read(struct file *file, struct kobject *kobj,

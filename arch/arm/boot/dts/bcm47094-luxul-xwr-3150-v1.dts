@@ -25,6 +25,9 @@
 	nvram@1eff0000 {
 		compatible = "brcm,nvram";
 		reg = <0x1eff0000 0x10000>;
+
+		et0macaddr: et0macaddr {
+		};
 	};
 
 	leds {
@@ -70,6 +73,11 @@
 			gpios = <&chipcommon 17 GPIO_ACTIVE_LOW>;
 		};
 	};
+};
+
+&gmac0 {
+	nvmem-cells = <&et0macaddr>;
+	nvmem-cell-names = "mac-address";
 };
 
 &usb3 {

@@ -34,7 +34,9 @@
 #include <linux/udp.h>
 #include <linux/tcp.h>
 #include <linux/iopoll.h>
+#include <linux/phy/phy.h>
 #include <linux/pm_runtime.h>
+#include <linux/reset.h>
 #include "macb.h"
 
 /* This structure is only used for MACB on SiFive FU540 devices */
@@ -313,7 +315,7 @@ static void macb_get_hwaddr(struct macb *bp)
 		addr[5] = (top >> 8) & 0xff;
 
 		if (is_valid_ether_addr(addr)) {
-			memcpy(bp->dev->dev_addr, addr, sizeof(addr));
+			eth_hw_addr_set(bp->dev, addr);
 			return;
 		}
 	}
@@ -506,85 +508,11 @@ static void macb_set_tx_clk(struct macb *bp, int speed)
 		netdev_err(bp->dev, "adjusting tx_clk failed.\n");
 }
 
-static void macb_validate(struct phylink_config *config,
-			  unsigned long *supported,
-			  struct phylink_link_state *state)
-{
-	struct net_device *ndev = to_net_dev(config->dev);
-	__ETHTOOL_DECLARE_LINK_MODE_MASK(mask) = { 0, };
-	struct macb *bp = netdev_priv(ndev);
-
-	/* We only support MII, RMII, GMII, RGMII & SGMII. */
-	if (state->interface != PHY_INTERFACE_MODE_NA &&
-	    state->interface != PHY_INTERFACE_MODE_MII &&
-	    state->interface != PHY_INTERFACE_MODE_RMII &&
-	    state->interface != PHY_INTERFACE_MODE_GMII &&
-	    state->interface != PHY_INTERFACE_MODE_SGMII &&
-	    state->interface != PHY_INTERFACE_MODE_10GBASER &&
-	    !phy_interface_mode_is_rgmii(state->interface)) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		return;
-	}
-
-	if (!macb_is_gem(bp) &&
-	    (state->interface == PHY_INTERFACE_MODE_GMII ||
-	     phy_interface_mode_is_rgmii(state->interface))) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		return;
-	}
-
-	if (state->interface == PHY_INTERFACE_MODE_10GBASER &&
-	    !(bp->caps & MACB_CAPS_HIGH_SPEED &&
-	      bp->caps & MACB_CAPS_PCS)) {
-		bitmap_zero(supported, __ETHTOOL_LINK_MODE_MASK_NBITS);
-		return;
-	}
-
-	phylink_set_port_modes(mask);
-	phylink_set(mask, Autoneg);
-	phylink_set(mask, Asym_Pause);
-
-	if (bp->caps & MACB_CAPS_GIGABIT_MODE_AVAILABLE &&
-	    (state->interface == PHY_INTERFACE_MODE_NA ||
-	     state->interface == PHY_INTERFACE_MODE_10GBASER)) {
-		phylink_set(mask, 10000baseCR_Full);
-		phylink_set(mask, 10000baseER_Full);
-		phylink_set(mask, 10000baseKR_Full);
-		phylink_set(mask, 10000baseLR_Full);
-		phylink_set(mask, 10000baseLRM_Full);
-		phylink_set(mask, 10000baseSR_Full);
-		phylink_set(mask, 10000baseT_Full);
-		if (state->interface != PHY_INTERFACE_MODE_NA)
-			goto out;
-	}
-
-	phylink_set(mask, 10baseT_Half);
-	phylink_set(mask, 10baseT_Full);
-	phylink_set(mask, 100baseT_Half);
-	phylink_set(mask, 100baseT_Full);
-
-	if (bp->caps & MACB_CAPS_GIGABIT_MODE_AVAILABLE &&
-	    (state->interface == PHY_INTERFACE_MODE_NA ||
-	     state->interface == PHY_INTERFACE_MODE_GMII ||
-	     state->interface == PHY_INTERFACE_MODE_SGMII ||
-	     phy_interface_mode_is_rgmii(state->interface))) {
-		phylink_set(mask, 1000baseT_Full);
-		phylink_set(mask, 1000baseX_Full);
-
-		if (!(bp->caps & MACB_CAPS_NO_GIGABIT_HALF))
-			phylink_set(mask, 1000baseT_Half);
-	}
-out:
-	bitmap_and(supported, supported, mask, __ETHTOOL_LINK_MODE_MASK_NBITS);
-	bitmap_and(state->advertising, state->advertising, mask,
-		   __ETHTOOL_LINK_MODE_MASK_NBITS);
-}
-
 static void macb_usx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 				 phy_interface_t interface, int speed,
 				 int duplex)
 {
-	struct macb *bp = container_of(pcs, struct macb, phylink_pcs);
+	struct macb *bp = container_of(pcs, struct macb, phylink_usx_pcs);
 	u32 config;
 
 	config = gem_readl(bp, USX_CONTROL);
@@ -598,7 +526,7 @@ static void macb_usx_pcs_link_up(struct phylink_pcs *pcs, unsigned int mode,
 static void macb_usx_pcs_get_state(struct phylink_pcs *pcs,
 				   struct phylink_link_state *state)
 {
-	struct macb *bp = container_of(pcs, struct macb, phylink_pcs);
+	struct macb *bp = container_of(pcs, struct macb, phylink_usx_pcs);
 	u32 val;
 
 	state->speed = SPEED_10000;
@@ -618,7 +546,7 @@ static int macb_usx_pcs_config(struct phylink_pcs *pcs,
 			       const unsigned long *advertising,
 			       bool permit_pause_to_mac)
 {
-	struct macb *bp = container_of(pcs, struct macb, phylink_pcs);
+	struct macb *bp = container_of(pcs, struct macb, phylink_usx_pcs);
 
 	gem_writel(bp, USX_CONTROL, gem_readl(bp, USX_CONTROL) |
 		   GEM_BIT(SIGNAL_OK));
@@ -684,6 +612,9 @@ static void macb_mac_config(struct phylink_config *config, unsigned int mode,
 		} else if (state->interface == PHY_INTERFACE_MODE_10GBASER) {
 			ctrl |= GEM_BIT(PCSSEL);
 			ncr |= GEM_BIT(ENABLE_HS_MAC);
+		} else if (bp->caps & MACB_CAPS_MIIONRGMII &&
+			   bp->phy_interface == PHY_INTERFACE_MODE_MII) {
+			ncr |= MACB_BIT(MIIONRGMII);
 		}
 	}
 
@@ -798,28 +729,23 @@ static void macb_mac_link_up(struct phylink_config *config,
 	netif_tx_wake_all_queues(ndev);
 }
 
-static int macb_mac_prepare(struct phylink_config *config, unsigned int mode,
-			    phy_interface_t interface)
+static struct phylink_pcs *macb_mac_select_pcs(struct phylink_config *config,
+					       phy_interface_t interface)
 {
 	struct net_device *ndev = to_net_dev(config->dev);
 	struct macb *bp = netdev_priv(ndev);
 
 	if (interface == PHY_INTERFACE_MODE_10GBASER)
-		bp->phylink_pcs.ops = &macb_phylink_usx_pcs_ops;
+		return &bp->phylink_usx_pcs;
 	else if (interface == PHY_INTERFACE_MODE_SGMII)
-		bp->phylink_pcs.ops = &macb_phylink_pcs_ops;
+		return &bp->phylink_sgmii_pcs;
 	else
-		bp->phylink_pcs.ops = NULL;
-
-	if (bp->phylink_pcs.ops)
-		phylink_set_pcs(bp->phylink, &bp->phylink_pcs);
-
-	return 0;
+		return NULL;
 }
 
 static const struct phylink_mac_ops macb_phylink_ops = {
-	.validate = macb_validate,
-	.mac_prepare = macb_mac_prepare,
+	.validate = phylink_generic_validate,
+	.mac_select_pcs = macb_mac_select_pcs,
 	.mac_config = macb_mac_config,
 	.mac_link_down = macb_mac_link_down,
 	.mac_link_up = macb_mac_link_up,
@@ -877,12 +803,44 @@ static int macb_mii_probe(struct net_device *dev)
 {
 	struct macb *bp = netdev_priv(dev);
 
+	bp->phylink_sgmii_pcs.ops = &macb_phylink_pcs_ops;
+	bp->phylink_usx_pcs.ops = &macb_phylink_usx_pcs_ops;
+
 	bp->phylink_config.dev = &dev->dev;
 	bp->phylink_config.type = PHYLINK_NETDEV;
 
 	if (bp->phy_interface == PHY_INTERFACE_MODE_SGMII) {
 		bp->phylink_config.poll_fixed_state = true;
 		bp->phylink_config.get_fixed_state = macb_get_pcs_fixed_state;
+	}
+
+	bp->phylink_config.mac_capabilities = MAC_ASYM_PAUSE |
+		MAC_10 | MAC_100;
+
+	__set_bit(PHY_INTERFACE_MODE_MII,
+		  bp->phylink_config.supported_interfaces);
+	__set_bit(PHY_INTERFACE_MODE_RMII,
+		  bp->phylink_config.supported_interfaces);
+
+	/* Determine what modes are supported */
+	if (macb_is_gem(bp) && (bp->caps & MACB_CAPS_GIGABIT_MODE_AVAILABLE)) {
+		bp->phylink_config.mac_capabilities |= MAC_1000FD;
+		if (!(bp->caps & MACB_CAPS_NO_GIGABIT_HALF))
+			bp->phylink_config.mac_capabilities |= MAC_1000HD;
+
+		__set_bit(PHY_INTERFACE_MODE_GMII,
+			  bp->phylink_config.supported_interfaces);
+		phy_interface_set_rgmii(bp->phylink_config.supported_interfaces);
+
+		if (bp->caps & MACB_CAPS_PCS)
+			__set_bit(PHY_INTERFACE_MODE_SGMII,
+				  bp->phylink_config.supported_interfaces);
+
+		if (bp->caps & MACB_CAPS_HIGH_SPEED) {
+			__set_bit(PHY_INTERFACE_MODE_10GBASER,
+				  bp->phylink_config.supported_interfaces);
+			bp->phylink_config.mac_capabilities |= MAC_10000FD;
+		}
 	}
 
 	bp->phylink = phylink_create(&bp->phylink_config, bp->pdev->dev.fwnode,
@@ -899,6 +857,17 @@ static int macb_mii_probe(struct net_device *dev)
 static int macb_mdiobus_register(struct macb *bp)
 {
 	struct device_node *child, *np = bp->pdev->dev.of_node;
+
+	/* If we have a child named mdio, probe it instead of looking for PHYs
+	 * directly under the MAC node
+	 */
+	child = of_get_child_by_name(np, "mdio");
+	if (child) {
+		int ret = of_mdiobus_register(bp->mii_bus, child);
+
+		of_node_put(child);
+		return ret;
+	}
 
 	if (of_phy_is_fixed_link(np))
 		return mdiobus_register(bp->mii_bus);
@@ -1250,7 +1219,6 @@ static void gem_rx_refill(struct macb_queue *queue)
 		/* Make hw descriptor updates visible to CPU */
 		rmb();
 
-		queue->rx_prepared_head++;
 		desc = macb_rx_desc(queue, entry);
 
 		if (!queue->rx_skbuff[entry]) {
@@ -1289,6 +1257,7 @@ static void gem_rx_refill(struct macb_queue *queue)
 			dma_wmb();
 			desc->addr &= ~MACB_BIT(RX_USED);
 		}
+		queue->rx_prepared_head++;
 	}
 
 	/* Make descriptor updates visible to hardware */
@@ -1606,7 +1575,14 @@ static int macb_poll(struct napi_struct *napi, int budget)
 	if (work_done < budget) {
 		napi_complete_done(napi, work_done);
 
-		/* Packets received while interrupts were disabled */
+		/* RSR bits only seem to propagate to raise interrupts when
+		 * interrupts are enabled at the time, so if bits are already
+		 * set due to packets received while interrupts were disabled,
+		 * they will not cause another interrupt to be generated when
+		 * interrupts are re-enabled.
+		 * Check for this case here. This has been seen to happen
+		 * around 30% of the time under heavy network load.
+		 */
 		status = macb_readl(bp, RSR);
 		if (status) {
 			if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
@@ -1614,6 +1590,22 @@ static int macb_poll(struct napi_struct *napi, int budget)
 			napi_reschedule(napi);
 		} else {
 			queue_writel(queue, IER, bp->rx_intr_mask);
+
+			/* In rare cases, packets could have been received in
+			 * the window between the check above and re-enabling
+			 * interrupts. Therefore, a double-check is required
+			 * to avoid losing a wakeup. This can potentially race
+			 * with the interrupt handler doing the same actions
+			 * if an interrupt is raised just after enabling them,
+			 * but this should be harmless.
+			 */
+			status = macb_readl(bp, RSR);
+			if (unlikely(status)) {
+				queue_writel(queue, IDR, bp->rx_intr_mask);
+				if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
+					queue_writel(queue, ISR, MACB_BIT(RCOMP));
+				napi_schedule(napi);
+			}
 		}
 	}
 
@@ -1666,11 +1658,19 @@ static void macb_tx_restart(struct macb_queue *queue)
 	unsigned int head = queue->tx_head;
 	unsigned int tail = queue->tx_tail;
 	struct macb *bp = queue->bp;
+	unsigned int head_idx, tbqp;
 
 	if (bp->caps & MACB_CAPS_ISR_CLEAR_ON_WRITE)
 		queue_writel(queue, ISR, MACB_BIT(TXUBR));
 
 	if (head == tail)
+		return;
+
+	tbqp = queue_readl(queue, TBQP) / macb_dma_desc_get_size(bp);
+	tbqp = macb_adj_dma_desc_idx(bp, macb_tx_ring_wrap(bp, tbqp));
+	head_idx = macb_adj_dma_desc_idx(bp, macb_tx_ring_wrap(bp, head));
+
+	if (tbqp == head_idx)
 		return;
 
 	macb_writel(bp, NCR, macb_readl(bp, NCR) | MACB_BIT(TSTART));
@@ -2772,9 +2772,13 @@ static int macb_open(struct net_device *dev)
 
 	macb_init_hw(bp);
 
-	err = macb_phylink_connect(bp);
+	err = phy_power_on(bp->sgmii_phy);
 	if (err)
 		goto reset_hw;
+
+	err = macb_phylink_connect(bp);
+	if (err)
+		goto phy_off;
 
 	netif_tx_start_all_queues(dev);
 
@@ -2782,6 +2786,9 @@ static int macb_open(struct net_device *dev)
 		bp->ptp_info->ptp_init(dev);
 
 	return 0;
+
+phy_off:
+	phy_power_off(bp->sgmii_phy);
 
 reset_hw:
 	macb_reset_hw(bp);
@@ -2807,6 +2814,8 @@ static int macb_close(struct net_device *dev)
 
 	phylink_stop(bp->phylink);
 	phylink_disconnect_phy(bp->phylink);
+
+	phy_power_off(bp->sgmii_phy);
 
 	spin_lock_irqsave(&bp->lock, flags);
 	macb_reset_hw(bp);
@@ -3093,7 +3102,9 @@ static int macb_set_link_ksettings(struct net_device *netdev,
 }
 
 static void macb_get_ringparam(struct net_device *netdev,
-			       struct ethtool_ringparam *ring)
+			       struct ethtool_ringparam *ring,
+			       struct kernel_ethtool_ringparam *kernel_ring,
+			       struct netlink_ext_ack *extack)
 {
 	struct macb *bp = netdev_priv(netdev);
 
@@ -3105,7 +3116,9 @@ static void macb_get_ringparam(struct net_device *netdev,
 }
 
 static int macb_set_ringparam(struct net_device *netdev,
-			      struct ethtool_ringparam *ring)
+			      struct ethtool_ringparam *ring,
+			      struct kernel_ethtool_ringparam *kernel_ring,
+			      struct netlink_ext_ack *extack)
 {
 	struct macb *bp = netdev_priv(netdev);
 	u32 new_rx_size, new_tx_size;
@@ -4573,13 +4586,55 @@ static const struct macb_config np4_config = {
 	.usrio = &macb_default_usrio,
 };
 
+static int zynqmp_init(struct platform_device *pdev)
+{
+	struct net_device *dev = platform_get_drvdata(pdev);
+	struct macb *bp = netdev_priv(dev);
+	int ret;
+
+	if (bp->phy_interface == PHY_INTERFACE_MODE_SGMII) {
+		/* Ensure PS-GTR PHY device used in SGMII mode is ready */
+		bp->sgmii_phy = devm_phy_get(&pdev->dev, "sgmii-phy");
+
+		if (IS_ERR(bp->sgmii_phy)) {
+			ret = PTR_ERR(bp->sgmii_phy);
+			dev_err_probe(&pdev->dev, ret,
+				      "failed to get PS-GTR PHY\n");
+			return ret;
+		}
+
+		ret = phy_init(bp->sgmii_phy);
+		if (ret) {
+			dev_err(&pdev->dev, "failed to init PS-GTR PHY: %d\n",
+				ret);
+			return ret;
+		}
+	}
+
+	/* Fully reset GEM controller at hardware level using zynqmp-reset driver,
+	 * if mapped in device tree.
+	 */
+	ret = device_reset_optional(&pdev->dev);
+	if (ret) {
+		dev_err_probe(&pdev->dev, ret, "failed to reset controller");
+		phy_exit(bp->sgmii_phy);
+		return ret;
+	}
+
+	ret = macb_init(pdev);
+	if (ret)
+		phy_exit(bp->sgmii_phy);
+
+	return ret;
+}
+
 static const struct macb_config zynqmp_config = {
 	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE |
 			MACB_CAPS_JUMBO |
 			MACB_CAPS_GEM_HAS_PTP | MACB_CAPS_BD_RD_PREFETCH,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
-	.init = macb_init,
+	.init = zynqmp_init,
 	.jumbo_max_len = 10240,
 	.usrio = &macb_default_usrio,
 };
@@ -4594,7 +4649,8 @@ static const struct macb_config zynq_config = {
 };
 
 static const struct macb_config sama7g5_gem_config = {
-	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_CLK_HW_CHG,
+	.caps = MACB_CAPS_GIGABIT_MODE_AVAILABLE | MACB_CAPS_CLK_HW_CHG |
+		MACB_CAPS_MIIONRGMII,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
@@ -4602,7 +4658,8 @@ static const struct macb_config sama7g5_gem_config = {
 };
 
 static const struct macb_config sama7g5_emac_config = {
-	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII | MACB_CAPS_USRIO_HAS_CLKEN,
+	.caps = MACB_CAPS_USRIO_DEFAULT_IS_MII_GMII |
+		MACB_CAPS_USRIO_HAS_CLKEN | MACB_CAPS_MIIONRGMII,
 	.dma_burst_length = 16,
 	.clk_init = macb_clk_init,
 	.init = macb_init,
@@ -4739,7 +4796,7 @@ static int macb_probe(struct platform_device *pdev)
 
 #ifdef CONFIG_ARCH_DMA_ADDR_T_64BIT
 	if (GEM_BFEXT(DAW64, gem_readl(bp, DCFG6))) {
-		dma_set_mask(&pdev->dev, DMA_BIT_MASK(44));
+		dma_set_mask_and_coherent(&pdev->dev, DMA_BIT_MASK(44));
 		bp->hw_dma_cap |= HW_DMA_CAP_64B;
 	}
 #endif
@@ -4774,7 +4831,7 @@ static int macb_probe(struct platform_device *pdev)
 	if (bp->caps & MACB_CAPS_NEEDS_RSTONUBR)
 		bp->rx_intr_mask |= MACB_BIT(RXUBR);
 
-	err = of_get_mac_address(np, bp->dev->dev_addr);
+	err = of_get_ethdev_address(np, bp->dev);
 	if (err == -EPROBE_DEFER)
 		goto err_out_free_netdev;
 	else if (err)
@@ -4794,7 +4851,7 @@ static int macb_probe(struct platform_device *pdev)
 
 	err = macb_mii_init(bp);
 	if (err)
-		goto err_out_free_netdev;
+		goto err_out_phy_exit;
 
 	netif_carrier_off(dev);
 
@@ -4819,6 +4876,9 @@ err_out_unregister_mdio:
 	mdiobus_unregister(bp->mii_bus);
 	mdiobus_free(bp->mii_bus);
 
+err_out_phy_exit:
+	phy_exit(bp->sgmii_phy);
+
 err_out_free_netdev:
 	free_netdev(dev);
 
@@ -4840,6 +4900,7 @@ static int macb_remove(struct platform_device *pdev)
 
 	if (dev) {
 		bp = netdev_priv(dev);
+		phy_exit(bp->sgmii_phy);
 		mdiobus_unregister(bp->mii_bus);
 		mdiobus_free(bp->mii_bus);
 

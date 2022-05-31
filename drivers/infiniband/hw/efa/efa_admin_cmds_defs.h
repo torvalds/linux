@@ -28,7 +28,9 @@ enum efa_admin_aq_opcode {
 	EFA_ADMIN_DEALLOC_PD                        = 15,
 	EFA_ADMIN_ALLOC_UAR                         = 16,
 	EFA_ADMIN_DEALLOC_UAR                       = 17,
-	EFA_ADMIN_MAX_OPCODE                        = 17,
+	EFA_ADMIN_CREATE_EQ                         = 18,
+	EFA_ADMIN_DESTROY_EQ                        = 19,
+	EFA_ADMIN_MAX_OPCODE                        = 19,
 };
 
 enum efa_admin_aq_feature_id {
@@ -38,6 +40,7 @@ enum efa_admin_aq_feature_id {
 	EFA_ADMIN_QUEUE_ATTR                        = 4,
 	EFA_ADMIN_HW_HINTS                          = 5,
 	EFA_ADMIN_HOST_INFO                         = 6,
+	EFA_ADMIN_EVENT_QUEUE_ATTR                  = 7,
 };
 
 /* QP transport type */
@@ -430,8 +433,8 @@ struct efa_admin_create_cq_cmd {
 	/*
 	 * 4:0 : reserved5 - MBZ
 	 * 5 : interrupt_mode_enabled - if set, cq operates
-	 *    in interrupt mode (i.e. CQ events and MSI-X are
-	 *    generated), otherwise - polling
+	 *    in interrupt mode (i.e. CQ events and EQ elements
+	 *    are generated), otherwise - polling
 	 * 6 : virt - If set, ring base address is virtual
 	 *    (IOVA returned by MR registration)
 	 * 7 : reserved6 - MBZ
@@ -448,8 +451,11 @@ struct efa_admin_create_cq_cmd {
 	/* completion queue depth in # of entries. must be power of 2 */
 	u16 cq_depth;
 
-	/* msix vector assigned to this cq */
-	u32 msix_vector_idx;
+	/* EQ number assigned to this cq */
+	u16 eqn;
+
+	/* MBZ */
+	u16 reserved;
 
 	/*
 	 * CQ ring base address, virtual or physical depending on 'virt'
@@ -480,6 +486,15 @@ struct efa_admin_create_cq_resp {
 
 	/* actual cq depth in number of entries */
 	u16 cq_actual_depth;
+
+	/* CQ doorbell address, as offset to PCIe DB BAR */
+	u32 db_offset;
+
+	/*
+	 * 0 : db_valid - If set, doorbell offset is valid.
+	 *    Always set when interrupts are requested.
+	 */
+	u32 flags;
 };
 
 struct efa_admin_destroy_cq_cmd {
@@ -669,6 +684,17 @@ struct efa_admin_feature_queue_attr_desc {
 	u16 max_tx_batch;
 };
 
+struct efa_admin_event_queue_attr_desc {
+	/* The maximum number of event queues supported */
+	u32 max_eq;
+
+	/* Maximum number of EQEs per Event Queue */
+	u32 max_eq_depth;
+
+	/* Supported events bitmask */
+	u32 event_bitmask;
+};
+
 struct efa_admin_feature_aenq_desc {
 	/* bitmask for AENQ groups the device can report */
 	u32 supported_groups;
@@ -726,6 +752,8 @@ struct efa_admin_get_feature_resp {
 		struct efa_admin_feature_network_attr_desc network_attr;
 
 		struct efa_admin_feature_queue_attr_desc queue_attr;
+
+		struct efa_admin_event_queue_attr_desc event_queue_attr;
 
 		struct efa_admin_hw_hints hw_hints;
 	} u;
@@ -807,6 +835,60 @@ struct efa_admin_dealloc_uar_cmd {
 };
 
 struct efa_admin_dealloc_uar_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+};
+
+struct efa_admin_create_eq_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+
+	/* Size of the EQ in entries, must be power of 2 */
+	u16 depth;
+
+	/* MSI-X table entry index */
+	u8 msix_vec;
+
+	/*
+	 * 4:0 : entry_size_words - size of EQ entry in
+	 *    32-bit words
+	 * 7:5 : reserved - MBZ
+	 */
+	u8 caps;
+
+	/* EQ ring base address */
+	struct efa_common_mem_addr ba;
+
+	/*
+	 * Enabled events on this EQ
+	 * 0 : completion_events - Enable completion events
+	 * 31:1 : reserved - MBZ
+	 */
+	u32 event_bitmask;
+
+	/* MBZ */
+	u32 reserved;
+};
+
+struct efa_admin_create_eq_resp {
+	struct efa_admin_acq_common_desc acq_common_desc;
+
+	/* EQ number */
+	u16 eqn;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_destroy_eq_cmd {
+	struct efa_admin_aq_common_desc aq_common_descriptor;
+
+	/* EQ number */
+	u16 eqn;
+
+	/* MBZ */
+	u16 reserved;
+};
+
+struct efa_admin_destroy_eq_resp {
 	struct efa_admin_acq_common_desc acq_common_desc;
 };
 
@@ -899,9 +981,17 @@ struct efa_admin_host_info {
 #define EFA_ADMIN_CREATE_CQ_CMD_VIRT_MASK                   BIT(6)
 #define EFA_ADMIN_CREATE_CQ_CMD_CQ_ENTRY_SIZE_WORDS_MASK    GENMASK(4, 0)
 
+/* create_cq_resp */
+#define EFA_ADMIN_CREATE_CQ_RESP_DB_VALID_MASK              BIT(0)
+
 /* feature_device_attr_desc */
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RDMA_READ_MASK   BIT(0)
 #define EFA_ADMIN_FEATURE_DEVICE_ATTR_DESC_RNR_RETRY_MASK   BIT(1)
+
+/* create_eq_cmd */
+#define EFA_ADMIN_CREATE_EQ_CMD_ENTRY_SIZE_WORDS_MASK       GENMASK(4, 0)
+#define EFA_ADMIN_CREATE_EQ_CMD_VIRT_MASK                   BIT(6)
+#define EFA_ADMIN_CREATE_EQ_CMD_COMPLETION_EVENTS_MASK      BIT(0)
 
 /* host_info */
 #define EFA_ADMIN_HOST_INFO_DRIVER_MODULE_TYPE_MASK         GENMASK(7, 0)

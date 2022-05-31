@@ -85,9 +85,8 @@ static void orion_nand_read_buf(struct nand_chip *chip, uint8_t *buf, int len)
 
 static int orion_nand_attach_chip(struct nand_chip *chip)
 {
-	chip->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
-
-	if (chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
+	if (chip->ecc.engine_type == NAND_ECC_ENGINE_TYPE_SOFT &&
+	    chip->ecc.algo == NAND_ECC_ALGO_UNKNOWN)
 		chip->ecc.algo = NAND_ECC_ALGO_HAMMING;
 
 	return 0;
@@ -189,6 +188,13 @@ static int __init orion_nand_probe(struct platform_device *pdev)
 		dev_err(&pdev->dev, "failed to prepare clock!\n");
 		return ret;
 	}
+
+	/*
+	 * This driver assumes that the default ECC engine should be TYPE_SOFT.
+	 * Set ->engine_type before registering the NAND devices in order to
+	 * provide a driver specific default value.
+	 */
+	nc->ecc.engine_type = NAND_ECC_ENGINE_TYPE_SOFT;
 
 	ret = nand_scan(nc, 1);
 	if (ret)

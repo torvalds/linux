@@ -12,6 +12,14 @@
 #include <asm/barrier.h>
 #include <linux/atomic.h>
 
+/* compiler build environment sanity checks: */
+#if !defined(CONFIG_64BIT) && defined(__LP64__)
+#error "Please use 'ARCH=parisc' to build the 32-bit kernel."
+#endif
+#if defined(CONFIG_64BIT) && !defined(__LP64__)
+#error "Please use 'ARCH=parisc64' to build the 64-bit kernel."
+#endif
+
 /* See http://marc.theaimsgroup.com/?t=108826637900003 for discussion
  * on use of volatile and __*_bit() (set/clear/change):
  *	*_bit() want use of volatile.
@@ -103,8 +111,6 @@ static __inline__ int test_and_change_bit(int nr, volatile unsigned long * addr)
 }
 
 #include <asm-generic/bitops/non-atomic.h>
-
-#ifdef __KERNEL__
 
 /**
  * __ffs - find first bit in word. returns 0 to "BITS_PER_LONG-1".
@@ -205,16 +211,7 @@ static __inline__ int fls(unsigned int x)
 #include <asm-generic/bitops/hweight.h>
 #include <asm-generic/bitops/lock.h>
 #include <asm-generic/bitops/sched.h>
-
-#endif /* __KERNEL__ */
-
-#include <asm-generic/bitops/find.h>
-
-#ifdef __KERNEL__
-
 #include <asm-generic/bitops/le.h>
 #include <asm-generic/bitops/ext2-atomic-setbit.h>
-
-#endif	/* __KERNEL__ */
 
 #endif /* _PARISC_BITOPS_H */

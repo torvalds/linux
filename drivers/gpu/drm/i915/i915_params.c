@@ -140,6 +140,9 @@ i915_param_named_unsafe(invert_brightness, int, 0400,
 i915_param_named(disable_display, bool, 0400,
 	"Disable display (default: false)");
 
+i915_param_named(memtest, bool, 0400,
+	"Perform a read/write test of all device memory on module load (default: off)");
+
 i915_param_named(mmio_debug, int, 0400,
 	"Enable the MMIO debug code for the first N failures (default: off). "
 	"This may negatively affect performance.");
@@ -190,11 +193,6 @@ i915_param_named(enable_dpcd_backlight, int, 0400,
 #if IS_ENABLED(CONFIG_DRM_I915_GVT)
 i915_param_named(enable_gvt, bool, 0400,
 	"Enable support for Intel GVT-g graphics virtualization host support(default:false)");
-#endif
-
-#if IS_ENABLED(CONFIG_DRM_I915_UNSTABLE_FAKE_LMEM)
-i915_param_named_unsafe(fake_lmem_start, ulong, 0400,
-	"Fake LMEM start offset (default: 0)");
 #endif
 
 #if CONFIG_DRM_I915_REQUEST_TIMEOUT

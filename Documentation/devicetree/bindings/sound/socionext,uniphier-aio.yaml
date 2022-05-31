@@ -46,7 +46,27 @@ properties:
 
 patternProperties:
   "^port@[0-9]$":
-    description: FIXME, Need to define what each port is.
+    description: |
+      Port number of DT node is specified by the following DAI channels that
+      depends on SoC.
+      ld11-aio,ld20-aio:
+        0: hdmi
+        1: pcmin2
+        2: line
+        3: hpcmout1
+        4: pcmout3
+        5: hiecout1
+        6: epcmout2
+        7: epcmout3
+        8: hieccompout1
+      pxs2-aio:
+        0: hdmi
+        1: line
+        2: aux
+        3: hiecout1
+        4: iecout1
+        5: hieccompout1
+        6: ieccompout1
     $ref: audio-graph-port.yaml#
     unevaluatedProperties: false
 

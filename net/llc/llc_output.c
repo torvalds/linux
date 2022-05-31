@@ -56,7 +56,7 @@ int llc_mac_hdr_init(struct sk_buff *skb,
  *	package primitive as an event and send to SAP event handler
  */
 int llc_build_and_send_ui_pkt(struct llc_sap *sap, struct sk_buff *skb,
-			      unsigned char *dmac, unsigned char dsap)
+			      const unsigned char *dmac, unsigned char dsap)
 {
 	int rc;
 	llc_pdu_header_init(skb, LLC_PDU_TYPE_U, sap->laddr.lsap,

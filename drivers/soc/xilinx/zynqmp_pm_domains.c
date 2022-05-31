@@ -20,8 +20,6 @@
 #include <linux/firmware/xlnx-zynqmp.h>
 
 #define ZYNQMP_NUM_DOMAINS		(100)
-/* Flag stating if PM nodes mapped to the PM domain has been requested */
-#define ZYNQMP_PM_DOMAIN_REQUESTED	BIT(0)
 
 static int min_capability;
 
@@ -29,13 +27,16 @@ static int min_capability;
  * struct zynqmp_pm_domain - Wrapper around struct generic_pm_domain
  * @gpd:		Generic power domain
  * @node_id:		PM node ID corresponding to device inside PM domain
- * @flags:		ZynqMP PM domain flags
+ * @requested:		The PM node mapped to the PM domain has been requested
  */
 struct zynqmp_pm_domain {
 	struct generic_pm_domain gpd;
 	u32 node_id;
-	u8 flags;
+	bool requested;
 };
+
+#define to_zynqmp_pm_domain(pm_domain) \
+	container_of(pm_domain, struct zynqmp_pm_domain, gpd)
 
 /**
  * zynqmp_gpd_is_active_wakeup_path() - Check if device is in wakeup source
@@ -71,21 +72,23 @@ static int zynqmp_gpd_is_active_wakeup_path(struct device *dev, void *not_used)
  */
 static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
-	struct zynqmp_pm_domain *pd;
 
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 	ret = zynqmp_pm_set_requirement(pd->node_id,
 					ZYNQMP_PM_CAPABILITY_ACCESS,
 					ZYNQMP_PM_MAX_QOS,
 					ZYNQMP_PM_REQUEST_ACK_BLOCKING);
 	if (ret) {
-		pr_err("%s() %s set requirement for node %d failed: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev,
+			"failed to set requirement to 0x%x for PM node id %d: %d\n",
+			ZYNQMP_PM_CAPABILITY_ACCESS, pd->node_id, ret);
 		return ret;
 	}
 
-	pr_debug("%s() Powered on %s domain\n", __func__, domain->name);
+	dev_dbg(&domain->dev, "set requirement to 0x%x for PM node id %d\n",
+		ZYNQMP_PM_CAPABILITY_ACCESS, pd->node_id);
+
 	return 0;
 }
 
@@ -100,18 +103,16 @@ static int zynqmp_gpd_power_on(struct generic_pm_domain *domain)
  */
 static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
 	struct pm_domain_data *pdd, *tmp;
-	struct zynqmp_pm_domain *pd;
 	u32 capabilities = min_capability;
 	bool may_wakeup;
 
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
-
 	/* If domain is already released there is nothing to be done */
-	if (!(pd->flags & ZYNQMP_PM_DOMAIN_REQUESTED)) {
-		pr_debug("%s() %s domain is already released\n",
-			 __func__, domain->name);
+	if (!pd->requested) {
+		dev_dbg(&domain->dev, "PM node id %d is already released\n",
+			pd->node_id);
 		return 0;
 	}
 
@@ -128,17 +129,16 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 
 	ret = zynqmp_pm_set_requirement(pd->node_id, capabilities, 0,
 					ZYNQMP_PM_REQUEST_ACK_NO);
-	/**
-	 * If powering down of any node inside this domain fails,
-	 * report and return the error
-	 */
 	if (ret) {
-		pr_err("%s() %s set requirement for node %d failed: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev,
+			"failed to set requirement to 0x%x for PM node id %d: %d\n",
+			capabilities, pd->node_id, ret);
 		return ret;
 	}
 
-	pr_debug("%s() Powered off %s domain\n", __func__, domain->name);
+	dev_dbg(&domain->dev, "set requirement to 0x%x for PM node id %d\n",
+		capabilities, pd->node_id);
+
 	return 0;
 }
 
@@ -152,10 +152,14 @@ static int zynqmp_gpd_power_off(struct generic_pm_domain *domain)
 static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 				 struct device *dev)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
+	struct device_link *link;
 	int ret;
-	struct zynqmp_pm_domain *pd;
 
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
+	link = device_link_add(dev, &domain->dev, DL_FLAG_SYNC_STATE_ONLY);
+	if (!link)
+		dev_dbg(&domain->dev, "failed to create device link for %s\n",
+			dev_name(dev));
 
 	/* If this is not the first device to attach there is nothing to do */
 	if (domain->device_count)
@@ -163,17 +167,17 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 
 	ret = zynqmp_pm_request_node(pd->node_id, 0, 0,
 				     ZYNQMP_PM_REQUEST_ACK_BLOCKING);
-	/* If requesting a node fails print and return the error */
 	if (ret) {
-		pr_err("%s() %s request failed for node %d: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev, "%s request failed for node %d: %d\n",
+			domain->name, pd->node_id, ret);
 		return ret;
 	}
 
-	pd->flags |= ZYNQMP_PM_DOMAIN_REQUESTED;
+	pd->requested = true;
 
-	pr_debug("%s() %s attached to %s domain\n", __func__,
-		 dev_name(dev), domain->name);
+	dev_dbg(&domain->dev, "%s requested PM node id %d\n",
+		dev_name(dev), pd->node_id);
+
 	return 0;
 }
 
@@ -185,27 +189,24 @@ static int zynqmp_gpd_attach_dev(struct generic_pm_domain *domain,
 static void zynqmp_gpd_detach_dev(struct generic_pm_domain *domain,
 				  struct device *dev)
 {
+	struct zynqmp_pm_domain *pd = to_zynqmp_pm_domain(domain);
 	int ret;
-	struct zynqmp_pm_domain *pd;
-
-	pd = container_of(domain, struct zynqmp_pm_domain, gpd);
 
 	/* If this is not the last device to detach there is nothing to do */
 	if (domain->device_count)
 		return;
 
 	ret = zynqmp_pm_release_node(pd->node_id);
-	/* If releasing a node fails print the error and return */
 	if (ret) {
-		pr_err("%s() %s release failed for node %d: %d\n",
-		       __func__, domain->name, pd->node_id, ret);
+		dev_err(&domain->dev, "failed to release PM node id %d: %d\n",
+			pd->node_id, ret);
 		return;
 	}
 
-	pd->flags &= ~ZYNQMP_PM_DOMAIN_REQUESTED;
+	pd->requested = false;
 
-	pr_debug("%s() %s detached from %s domain\n", __func__,
-		 dev_name(dev), domain->name);
+	dev_dbg(&domain->dev, "%s released PM node id %d\n",
+		dev_name(dev), pd->node_id);
 }
 
 static struct generic_pm_domain *zynqmp_gpd_xlate
@@ -215,7 +216,7 @@ static struct generic_pm_domain *zynqmp_gpd_xlate
 	unsigned int i, idx = genpdspec->args[0];
 	struct zynqmp_pm_domain *pd;
 
-	pd = container_of(genpd_data->domains[0], struct zynqmp_pm_domain, gpd);
+	pd = to_zynqmp_pm_domain(genpd_data->domains[0]);
 
 	if (genpdspec->args_count != 1)
 		return ERR_PTR(-EINVAL);
@@ -299,9 +300,19 @@ static int zynqmp_gpd_remove(struct platform_device *pdev)
 	return 0;
 }
 
+static void zynqmp_gpd_sync_state(struct device *dev)
+{
+	int ret;
+
+	ret = zynqmp_pm_init_finalize();
+	if (ret)
+		dev_warn(dev, "failed to release power management to firmware\n");
+}
+
 static struct platform_driver zynqmp_power_domain_driver = {
 	.driver	= {
 		.name = "zynqmp_power_controller",
+		.sync_state = zynqmp_gpd_sync_state,
 	},
 	.probe = zynqmp_gpd_probe,
 	.remove = zynqmp_gpd_remove,

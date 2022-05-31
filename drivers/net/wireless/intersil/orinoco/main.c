@@ -2265,7 +2265,7 @@ int orinoco_if_add(struct orinoco_private *priv,
 
 	netif_carrier_off(dev);
 
-	memcpy(dev->dev_addr, wiphy->perm_addr, ETH_ALEN);
+	eth_hw_addr_set(dev, wiphy->perm_addr);
 
 	dev->base_addr = base_addr;
 	dev->irq = irq;

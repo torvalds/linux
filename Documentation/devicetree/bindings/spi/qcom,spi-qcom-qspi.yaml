@@ -16,12 +16,16 @@ description: The QSPI controller allows SPI protocol communication in single,
   as NOR flash.
 
 allOf:
-  - $ref: /spi/spi-controller.yaml#
+  - $ref: /schemas/spi/spi-controller.yaml#
 
 properties:
   compatible:
     items:
-      - const: qcom,sdm845-qspi
+      - enum:
+          - qcom,sc7180-qspi
+          - qcom,sc7280-qspi
+          - qcom,sdm845-qspi
+
       - const: qcom,qspi-v1
 
   reg:

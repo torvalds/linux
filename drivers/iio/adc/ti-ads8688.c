@@ -281,12 +281,10 @@ static int ads8688_write_reg_range(struct iio_dev *indio_dev,
 				   enum ads8688_range range)
 {
 	unsigned int tmp;
-	int ret;
 
 	tmp = ADS8688_PROG_REG_RANGE_CH(chan->channel);
-	ret = ads8688_prog_write(indio_dev, tmp, range);
 
-	return ret;
+	return ads8688_prog_write(indio_dev, tmp, range);
 }
 
 static int ads8688_write_raw(struct iio_dev *indio_dev,
@@ -481,7 +479,7 @@ err_regulator_disable:
 	return ret;
 }
 
-static int ads8688_remove(struct spi_device *spi)
+static void ads8688_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct ads8688_state *st = iio_priv(indio_dev);
@@ -491,8 +489,6 @@ static int ads8688_remove(struct spi_device *spi)
 
 	if (!IS_ERR(st->reg))
 		regulator_disable(st->reg);
-
-	return 0;
 }
 
 static const struct spi_device_id ads8688_id[] = {

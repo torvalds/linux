@@ -625,6 +625,15 @@ int os_falloc_punch(int fd, unsigned long long offset, int len)
 	return n;
 }
 
+int os_falloc_zeroes(int fd, unsigned long long offset, int len)
+{
+	int n = fallocate(fd, FALLOC_FL_ZERO_RANGE|FALLOC_FL_KEEP_SIZE, offset, len);
+
+	if (n < 0)
+		return -errno;
+	return n;
+}
+
 int os_eventfd(unsigned int initval, int flags)
 {
 	int fd = eventfd(initval, flags);

@@ -329,7 +329,7 @@ struct sxgbe_core_ops {
 	/* Set power management mode (e.g. magic frame) */
 	void (*pmt)(void __iomem *ioaddr, unsigned long mode);
 	/* Set/Get Unicast MAC addresses */
-	void (*set_umac_addr)(void __iomem *ioaddr, unsigned char *addr,
+	void (*set_umac_addr)(void __iomem *ioaddr, const unsigned char *addr,
 			      unsigned int reg_n);
 	void (*get_umac_addr)(void __iomem *ioaddr, unsigned char *addr,
 			      unsigned int reg_n);

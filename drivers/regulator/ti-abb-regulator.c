@@ -42,7 +42,7 @@
 /**
  * struct ti_abb_info - ABB information per voltage setting
  * @opp_sel:	one of TI_ABB macro
- * @vset:	(optional) vset value that LDOVBB needs to be overriden with.
+ * @vset:	(optional) vset value that LDOVBB needs to be overridden with.
  *
  * Array of per voltage entries organized in the same order as regulator_desc's
  * volt_table list. (selector is used to index from this array)
@@ -484,7 +484,7 @@ static int ti_abb_init_timings(struct device *dev, struct ti_abb *abb)
 	/* Calculate cycle rate */
 	cycle_rate = DIV_ROUND_CLOSEST(clock_cycles * 10, clk_rate);
 
-	/* Calulate SR2_WTCNT_VALUE */
+	/* Calculate SR2_WTCNT_VALUE */
 	sr2_wt_cnt_val = DIV_ROUND_CLOSEST(abb->settling_time * 10, cycle_rate);
 
 	dev_dbg(dev, "%s: Clk_rate=%ld, sr2_cnt=0x%08x\n", __func__,
@@ -688,7 +688,7 @@ MODULE_DEVICE_TABLE(of, ti_abb_of_match);
  * @pdev: ABB platform device
  *
  * Initializes an individual ABB LDO for required Body-Bias. ABB is used to
- * addional bias supply to SoC modules for power savings or mandatory stability
+ * additional bias supply to SoC modules for power savings or mandatory stability
  * configuration at certain Operating Performance Points(OPPs).
  *
  * Return: 0 on success or appropriate error value when fails
@@ -725,9 +725,7 @@ static int ti_abb_probe(struct platform_device *pdev)
 
 	/* Map ABB resources */
 	if (abb->regs->setup_off || abb->regs->control_off) {
-		pname = "base-address";
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-		abb->base = devm_ioremap_resource(dev, res);
+		abb->base = devm_platform_ioremap_resource_byname(pdev, "base-address");
 		if (IS_ERR(abb->base))
 			return PTR_ERR(abb->base);
 
@@ -735,35 +733,18 @@ static int ti_abb_probe(struct platform_device *pdev)
 		abb->control_reg = abb->base + abb->regs->control_off;
 
 	} else {
-		pname = "control-address";
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-		abb->control_reg = devm_ioremap_resource(dev, res);
+		abb->control_reg = devm_platform_ioremap_resource_byname(pdev, "control-address");
 		if (IS_ERR(abb->control_reg))
 			return PTR_ERR(abb->control_reg);
 
-		pname = "setup-address";
-		res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-		abb->setup_reg = devm_ioremap_resource(dev, res);
+		abb->setup_reg = devm_platform_ioremap_resource_byname(pdev, "setup-address");
 		if (IS_ERR(abb->setup_reg))
 			return PTR_ERR(abb->setup_reg);
 	}
 
-	pname = "int-address";
-	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, pname);
-	if (!res) {
-		dev_err(dev, "Missing '%s' IO resource\n", pname);
-		return -ENODEV;
-	}
-	/*
-	 * We may have shared interrupt register offsets which are
-	 * write-1-to-clear between domains ensuring exclusivity.
-	 */
-	abb->int_base = devm_ioremap(dev, res->start,
-					     resource_size(res));
-	if (!abb->int_base) {
-		dev_err(dev, "Unable to map '%s'\n", pname);
-		return -ENOMEM;
-	}
+	abb->int_base = devm_platform_ioremap_resource_byname(pdev, "int-address");
+	if (IS_ERR(abb->int_base))
+		return PTR_ERR(abb->int_base);
 
 	/* Map Optional resources */
 	pname = "efuse-address";

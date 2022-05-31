@@ -570,7 +570,7 @@ int torture_shuffle_init(long shuffint)
 	shuffle_idle_cpu = -1;
 
 	if (!alloc_cpumask_var(&shuffle_tmp_mask, GFP_KERNEL)) {
-		VERBOSE_TOROUT_ERRSTRING("Failed to alloc mask");
+		TOROUT_ERRSTRING("Failed to alloc mask");
 		return -ENOMEM;
 	}
 
@@ -911,7 +911,7 @@ void torture_kthread_stopping(char *title)
 {
 	char buf[128];
 
-	snprintf(buf, sizeof(buf), "Stopping %s", title);
+	snprintf(buf, sizeof(buf), "%s is stopping", title);
 	VERBOSE_TOROUT_STRING(buf);
 	while (!kthread_should_stop()) {
 		torture_shutdown_absorb(title);
@@ -931,12 +931,14 @@ int _torture_create_kthread(int (*fn)(void *arg), void *arg, char *s, char *m,
 	int ret = 0;
 
 	VERBOSE_TOROUT_STRING(m);
-	*tp = kthread_run(fn, arg, "%s", s);
+	*tp = kthread_create(fn, arg, "%s", s);
 	if (IS_ERR(*tp)) {
 		ret = PTR_ERR(*tp);
-		VERBOSE_TOROUT_ERRSTRING(f);
+		TOROUT_ERRSTRING(f);
 		*tp = NULL;
+		return ret;
 	}
+	wake_up_process(*tp);  // Process is sleeping, so ordering provided.
 	torture_shuffle_task_register(*tp);
 	return ret;
 }

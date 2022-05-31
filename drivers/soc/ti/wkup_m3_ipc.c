@@ -413,8 +413,9 @@ void wkup_m3_ipc_put(struct wkup_m3_ipc *m3_ipc)
 }
 EXPORT_SYMBOL_GPL(wkup_m3_ipc_put);
 
-static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
+static int wkup_m3_rproc_boot_thread(void *arg)
 {
+	struct wkup_m3_ipc *m3_ipc = arg;
 	struct device *dev = m3_ipc->dev;
 	int ret;
 
@@ -426,7 +427,7 @@ static void wkup_m3_rproc_boot_thread(struct wkup_m3_ipc *m3_ipc)
 	else
 		m3_ipc_state = m3_ipc;
 
-	do_exit(0);
+	return 0;
 }
 
 static int wkup_m3_ipc_probe(struct platform_device *pdev)
@@ -449,9 +450,9 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 		return PTR_ERR(m3_ipc->ipc_mem_base);
 
 	irq = platform_get_irq(pdev, 0);
-	if (!irq) {
+	if (irq < 0) {
 		dev_err(&pdev->dev, "no irq resource\n");
-		return -ENXIO;
+		return irq;
 	}
 
 	ret = devm_request_irq(dev, irq, wkup_m3_txev_handler,
@@ -500,7 +501,7 @@ static int wkup_m3_ipc_probe(struct platform_device *pdev)
 	 * can boot the wkup_m3 as soon as it's ready without holding
 	 * up kernel boot
 	 */
-	task = kthread_run((void *)wkup_m3_rproc_boot_thread, m3_ipc,
+	task = kthread_run(wkup_m3_rproc_boot_thread, m3_ipc,
 			   "wkup_m3_rproc_loader");
 
 	if (IS_ERR(task)) {

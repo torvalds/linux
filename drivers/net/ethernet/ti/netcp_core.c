@@ -2028,16 +2028,16 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 
 		emac_arch_get_mac_addr(efuse_mac_addr, efuse, efuse_mac);
 		if (is_valid_ether_addr(efuse_mac_addr))
-			ether_addr_copy(ndev->dev_addr, efuse_mac_addr);
+			eth_hw_addr_set(ndev, efuse_mac_addr);
 		else
-			eth_random_addr(ndev->dev_addr);
+			eth_hw_addr_random(ndev);
 
 		devm_iounmap(dev, efuse);
 		devm_release_mem_region(dev, res.start, size);
 	} else {
-		ret = of_get_mac_address(node_interface, ndev->dev_addr);
+		ret = of_get_ethdev_address(node_interface, ndev);
 		if (ret)
-			eth_random_addr(ndev->dev_addr);
+			eth_hw_addr_random(ndev);
 	}
 
 	ret = of_property_read_string(node_interface, "rx-channel",
@@ -2082,7 +2082,7 @@ static int netcp_create_interface(struct netcp_device *netcp_device,
 	netcp->tx_pool_region_id = temp[1];
 
 	if (netcp->tx_pool_size < MAX_SKB_FRAGS) {
-		dev_err(dev, "tx-pool size too small, must be atleast(%ld)\n",
+		dev_err(dev, "tx-pool size too small, must be at least %ld\n",
 			MAX_SKB_FRAGS);
 		ret = -ENODEV;
 		goto quit;

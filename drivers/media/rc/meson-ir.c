@@ -102,7 +102,6 @@ static int meson_ir_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
-	struct resource *res;
 	const char *map_name;
 	struct meson_ir *ir;
 	int irq, ret;
@@ -111,8 +110,7 @@ static int meson_ir_probe(struct platform_device *pdev)
 	if (!ir)
 		return -ENOMEM;
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	ir->reg = devm_ioremap_resource(dev, res);
+	ir->reg = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(ir->reg))
 		return PTR_ERR(ir->reg);
 

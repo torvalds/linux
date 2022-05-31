@@ -26,6 +26,8 @@ source "drivers/staging/media/hantro/Kconfig"
 
 source "drivers/staging/media/imx/Kconfig"
 
+source "drivers/staging/media/max96712/Kconfig"
+
 source "drivers/staging/media/meson/vdec/Kconfig"
 
 source "drivers/staging/media/omap4iss/Kconfig"
@@ -33,8 +35,6 @@ source "drivers/staging/media/omap4iss/Kconfig"
 source "drivers/staging/media/rkvdec/Kconfig"
 
 source "drivers/staging/media/sunxi/Kconfig"
-
-source "drivers/staging/media/tegra-vde/Kconfig"
 
 source "drivers/staging/media/zoran/Kconfig"
 

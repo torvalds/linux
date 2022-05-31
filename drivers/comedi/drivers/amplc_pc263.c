@@ -25,7 +25,7 @@
  */
 
 #include <linux/module.h>
-#include "../comedidev.h"
+#include <linux/comedi/comedidev.h>
 
 /* PC263 registers */
 #define PC263_DO_0_7_REG	0x00

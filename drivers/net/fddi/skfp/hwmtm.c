@@ -38,10 +38,10 @@
 	-------------------------------------------------------------
 */
 #ifdef COMMON_MB_POOL
-static	SMbuf *mb_start = 0 ;
-static	SMbuf *mb_free = 0 ;
+static	SMbuf *mb_start;
+static	SMbuf *mb_free;
 static	int mb_init = FALSE ;
-static	int call_count = 0 ;
+static	int call_count;
 #endif
 
 /*

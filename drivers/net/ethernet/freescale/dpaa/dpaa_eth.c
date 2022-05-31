@@ -268,11 +268,11 @@ static int dpaa_netdev_init(struct net_device *net_dev,
 
 	if (is_valid_ether_addr(mac_addr)) {
 		memcpy(net_dev->perm_addr, mac_addr, net_dev->addr_len);
-		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, mac_addr);
 	} else {
 		eth_hw_addr_random(net_dev);
 		err = priv->mac_dev->change_addr(priv->mac_dev->fman_mac,
-			(enet_addr_t *)net_dev->dev_addr);
+			(const enet_addr_t *)net_dev->dev_addr);
 		if (err) {
 			dev_err(dev, "Failed to set random MAC address\n");
 			return -EINVAL;
@@ -452,7 +452,7 @@ static int dpaa_set_mac_address(struct net_device *net_dev, void *addr)
 	mac_dev = priv->mac_dev;
 
 	err = mac_dev->change_addr(mac_dev->fman_mac,
-				   (enet_addr_t *)net_dev->dev_addr);
+				   (const enet_addr_t *)net_dev->dev_addr);
 	if (err < 0) {
 		netif_err(priv, drv, net_dev, "mac_dev->change_addr() = %d\n",
 			  err);
@@ -2325,7 +2325,7 @@ dpaa_start_xmit(struct sk_buff *skb, struct net_device *net_dev)
 	txq = netdev_get_tx_queue(net_dev, queue_mapping);
 
 	/* LLTX requires to do our own update of trans_start */
-	txq->trans_start = jiffies;
+	txq_trans_cond_update(txq);
 
 	if (priv->tx_tstamp && skb_shinfo(skb)->tx_flags & SKBTX_HW_TSTAMP) {
 		fd.cmd |= cpu_to_be32(FM_FD_CMD_UPD);
@@ -2531,7 +2531,7 @@ static int dpaa_xdp_xmit_frame(struct net_device *net_dev,
 
 	/* Bump the trans_start */
 	txq = netdev_get_tx_queue(net_dev, smp_processor_id());
-	txq->trans_start = jiffies;
+	txq_trans_cond_update(txq);
 
 	err = dpaa_xmit(priv, percpu_stats, smp_processor_id(), &fd);
 	if (err) {
@@ -2623,7 +2623,7 @@ static u32 dpaa_run_xdp(struct dpaa_priv *priv, struct qm_fd *fd, void *vaddr,
 		}
 		break;
 	default:
-		bpf_warn_invalid_xdp_action(xdp_act);
+		bpf_warn_invalid_xdp_action(priv->net_dev, xdp_prog, xdp_act);
 		fallthrough;
 	case XDP_ABORTED:
 		trace_xdp_exception(priv->net_dev, xdp_prog, xdp_act);

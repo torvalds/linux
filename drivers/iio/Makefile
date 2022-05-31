@@ -15,6 +15,7 @@ obj-$(CONFIG_IIO_TRIGGERED_EVENT) += industrialio-triggered-event.o
 
 obj-y += accel/
 obj-y += adc/
+obj-y += addac/
 obj-y += afe/
 obj-y += amplifiers/
 obj-y += buffer/
@@ -24,6 +25,7 @@ obj-y += common/
 obj-y += dac/
 obj-y += dummy/
 obj-y += gyro/
+obj-y += filter/
 obj-y += frequency/
 obj-y += health/
 obj-y += humidity/

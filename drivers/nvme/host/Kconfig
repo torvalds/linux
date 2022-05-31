@@ -24,6 +24,14 @@ config NVME_MULTIPATH
 	   /dev/nvmeXnY device will show up for each NVMe namespace,
 	   even if it is accessible through multiple controllers.
 
+config NVME_VERBOSE_ERRORS
+	bool "NVMe verbose error reporting"
+	depends on NVME_CORE
+	help
+	   This option enables verbose reporting for NVMe errors. The
+	   error translation table will grow the kernel image size by
+	   about 4 KB.
+
 config NVME_HWMON
 	bool "NVMe hardware monitoring"
 	depends on (NVME_CORE=y && HWMON=y) || (NVME_CORE=m && HWMON)

@@ -205,6 +205,7 @@
 
 &am33xx_pinmux {
 
+	compatible = "pinconf-single";
 	pinctrl-names = "default";
 
 	pinctrl-0 =   < &P2_03_gpio &P1_34_gpio &P2_19_gpio &P2_24_gpio

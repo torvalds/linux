@@ -1,6 +1,6 @@
 /* SPDX-License-Identifier: GPL-2.0
  *
- * Copyright 2019-2020 HabanaLabs, Ltd.
+ * Copyright 2019-2022 HabanaLabs, Ltd.
  * All Rights Reserved.
  *
  */
@@ -177,7 +177,6 @@
 #define HW_CAP_MSI		BIT(6)
 #define HW_CAP_CPU_Q		BIT(7)
 #define HW_CAP_HBM_DMA		BIT(8)
-#define HW_CAP_CLK_GATE		BIT(9)
 #define HW_CAP_SRAM_SCRAMBLER	BIT(10)
 #define HW_CAP_HBM_SCRAMBLER	BIT(11)
 
@@ -313,13 +312,10 @@ struct gaudi_internal_qman_info {
  * struct gaudi_device - ASIC specific manage structure.
  * @cpucp_info_get: get information on device from CPU-CP
  * @hw_queues_lock: protects the H/W queues from concurrent access.
- * @clk_gate_mutex: protects code areas that require clock gating to be disabled
- *                  temporarily
  * @internal_qmans: Internal QMANs information. The array size is larger than
  *                  the actual number of internal queues because they are not in
  *                  consecutive order.
  * @hbm_bar_cur_addr: current address of HBM PCI bar.
- * @max_freq_value: current max clk frequency.
  * @events: array that holds all event id's
  * @events_stat: array that holds histogram of all received events.
  * @events_stat_aggregate: same as events_stat but doesn't get cleared on reset
@@ -338,14 +334,12 @@ struct gaudi_device {
 
 	/* TODO: remove hw_queues_lock after moving to scheduler code */
 	spinlock_t			hw_queues_lock;
-	struct mutex			clk_gate_mutex;
 
 	struct gaudi_internal_qman_info	internal_qmans[GAUDI_QUEUE_ID_SIZE];
 
 	struct gaudi_collective_properties collective_props;
 
 	u64				hbm_bar_cur_addr;
-	u64				max_freq_value;
 
 	u32				events[GAUDI_EVENT_SIZE];
 	u32				events_stat[GAUDI_EVENT_SIZE];
@@ -357,12 +351,8 @@ struct gaudi_device {
 
 void gaudi_init_security(struct hl_device *hdev);
 void gaudi_ack_protection_bits_errors(struct hl_device *hdev);
-void gaudi_add_device_attr(struct hl_device *hdev,
-			struct attribute_group *dev_attr_grp);
-void gaudi_set_pll_profile(struct hl_device *hdev, enum hl_pll_frequency freq);
-int gaudi_debug_coresight(struct hl_device *hdev, void *data);
-void gaudi_halt_coresight(struct hl_device *hdev);
-int gaudi_get_clk_rate(struct hl_device *hdev, u32 *cur_clk, u32 *max_clk);
+int gaudi_debug_coresight(struct hl_device *hdev, struct hl_ctx *ctx, void *data);
+void gaudi_halt_coresight(struct hl_device *hdev, struct hl_ctx *ctx);
 void gaudi_mmu_prepare_reg(struct hl_device *hdev, u64 reg, u32 asid);
 
 #endif /* GAUDIP_H_ */

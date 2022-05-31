@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0
 
 /*
- * Copyright 2016-2019 HabanaLabs, Ltd.
+ * Copyright 2016-2021 HabanaLabs, Ltd.
  * All Rights Reserved.
  */
 
@@ -13,6 +13,8 @@
 
 #define HL_CS_FLAGS_TYPE_MASK	(HL_CS_FLAGS_SIGNAL | HL_CS_FLAGS_WAIT | \
 				HL_CS_FLAGS_COLLECTIVE_WAIT)
+
+#define MAX_TS_ITER_NUM 10
 
 /**
  * enum hl_cs_wait_status - cs wait status
@@ -143,6 +145,7 @@ static void hl_fence_init(struct hl_fence *fence, u64 sequence)
 	fence->cs_sequence = sequence;
 	fence->error = 0;
 	fence->timestamp = ktime_set(0, 0);
+	fence->mcs_handling_done = false;
 	init_completion(&fence->completion);
 }
 
@@ -431,11 +434,10 @@ static void cs_handle_tdr(struct hl_device *hdev, struct hl_cs *cs)
 	/* Don't cancel TDR in case this CS was timedout because we might be
 	 * running from the TDR context
 	 */
-	if (cs && (cs->timedout ||
-			hdev->timeout_jiffies == MAX_SCHEDULE_TIMEOUT))
+	if (cs->timedout || hdev->timeout_jiffies == MAX_SCHEDULE_TIMEOUT)
 		return;
 
-	if (cs && cs->tdr_active)
+	if (cs->tdr_active)
 		cancel_delayed_work_sync(&cs->work_tdr);
 
 	spin_lock(&hdev->cs_mirror_lock);
@@ -533,13 +535,24 @@ static void complete_multi_cs(struct hl_device *hdev, struct hl_cs *cs)
 					mcs_compl->stream_master_qid_map)) {
 			/* extract the timestamp only of first completed CS */
 			if (!mcs_compl->timestamp)
-				mcs_compl->timestamp =
-						ktime_to_ns(fence->timestamp);
+				mcs_compl->timestamp = ktime_to_ns(fence->timestamp);
+
 			complete_all(&mcs_compl->completion);
+
+			/*
+			 * Setting mcs_handling_done inside the lock ensures
+			 * at least one fence have mcs_handling_done set to
+			 * true before wait for mcs finish. This ensures at
+			 * least one CS will be set as completed when polling
+			 * mcs fences.
+			 */
+			fence->mcs_handling_done = true;
 		}
 
 		spin_unlock(&mcs_compl->lock);
 	}
+	/* In case CS completed without mcs completion initialized */
+	fence->mcs_handling_done = true;
 }
 
 static inline void cs_release_sob_reset_handler(struct hl_device *hdev,
@@ -722,6 +735,14 @@ static void cs_timedout(struct work_struct *work)
 
 	hdev = cs->ctx->hdev;
 
+	/* Save only the first CS timeout parameters */
+	rc = atomic_cmpxchg(&hdev->last_error.cs_write_disable, 0, 1);
+	if (!rc) {
+		hdev->last_error.open_dev_timestamp = hdev->last_successful_open_ktime;
+		hdev->last_error.cs_timeout_timestamp = ktime_get();
+		hdev->last_error.cs_timeout_seq = cs->sequence;
+	}
+
 	switch (cs->type) {
 	case CS_TYPE_SIGNAL:
 		dev_err(hdev->dev,
@@ -756,9 +777,9 @@ static void cs_timedout(struct work_struct *work)
 
 	if (likely(!skip_reset_on_timeout)) {
 		if (hdev->reset_on_lockup)
-			hl_device_reset(hdev, HL_RESET_TDR);
+			hl_device_reset(hdev, HL_DRV_RESET_TDR);
 		else
-			hdev->needs_reset = true;
+			hdev->reset_info.needs_reset = true;
 	}
 }
 
@@ -795,7 +816,7 @@ static int allocate_cs(struct hl_device *hdev, struct hl_ctx *ctx,
 	cs->encaps_signals = !!(flags & HL_CS_FLAGS_ENCAP_SIGNALS);
 	cs->timeout_jiffies = timeout;
 	cs->skip_reset_on_timeout =
-		hdev->skip_reset_on_timeout ||
+		hdev->reset_info.skip_reset_on_timeout ||
 		!!(flags & HL_CS_FLAGS_SKIP_RESET_ON_TIMEOUT);
 	cs->submission_time_jiffies = jiffies;
 	INIT_LIST_HEAD(&cs->job_list);
@@ -900,18 +921,21 @@ static void cs_rollback(struct hl_device *hdev, struct hl_cs *cs)
 		complete_job(hdev, job);
 }
 
-void hl_cs_rollback_all(struct hl_device *hdev)
+void hl_cs_rollback_all(struct hl_device *hdev, bool skip_wq_flush)
 {
 	int i;
 	struct hl_cs *cs, *tmp;
 
-	flush_workqueue(hdev->sob_reset_wq);
+	if (!skip_wq_flush) {
+		flush_workqueue(hdev->ts_free_obj_wq);
 
-	/* flush all completions before iterating over the CS mirror list in
-	 * order to avoid a race with the release functions
-	 */
-	for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
-		flush_workqueue(hdev->cq_wq[i]);
+		/* flush all completions before iterating over the CS mirror list in
+		 * order to avoid a race with the release functions
+		 */
+		for (i = 0 ; i < hdev->asic_prop.completion_queues_count ; i++)
+			flush_workqueue(hdev->cq_wq[i]);
+
+	}
 
 	/* Make sure we don't have leftovers in the CS mirror list */
 	list_for_each_entry_safe(cs, tmp, &hdev->cs_mirror_list, mirror_node) {
@@ -929,13 +953,19 @@ void hl_cs_rollback_all(struct hl_device *hdev)
 static void
 wake_pending_user_interrupt_threads(struct hl_user_interrupt *interrupt)
 {
-	struct hl_user_pending_interrupt *pend;
+	struct hl_user_pending_interrupt *pend, *temp;
 	unsigned long flags;
 
 	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
-	list_for_each_entry(pend, &interrupt->wait_list_head, wait_list_node) {
-		pend->fence.error = -EIO;
-		complete_all(&pend->fence.completion);
+	list_for_each_entry_safe(pend, temp, &interrupt->wait_list_head, wait_list_node) {
+		if (pend->ts_reg_info.ts_buff) {
+			list_del(&pend->wait_list_node);
+			hl_ts_put(pend->ts_reg_info.ts_buff);
+			hl_cb_put(pend->ts_reg_info.cq_cb);
+		} else {
+			pend->fence.error = -EIO;
+			complete_all(&pend->fence.completion);
+		}
 	}
 	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 }
@@ -1120,9 +1150,6 @@ static int hl_cs_sanity_checks(struct hl_fpriv *hpriv, union hl_cs_args *args)
 	enum hl_cs_type cs_type;
 
 	if (!hl_device_operational(hdev, &status)) {
-		dev_warn_ratelimited(hdev->dev,
-			"Device is %s. Can't submit new CS\n",
-			hdev->status[status]);
 		return -EBUSY;
 	}
 
@@ -1251,7 +1278,8 @@ static u32 get_stream_master_qid_mask(struct hl_device *hdev, u32 qid)
 
 static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 				u32 num_chunks, u64 *cs_seq, u32 flags,
-				u32 encaps_signals_handle, u32 timeout)
+				u32 encaps_signals_handle, u32 timeout,
+				u16 *signal_initial_sob_count)
 {
 	bool staged_mid, int_queues_only = true;
 	struct hl_device *hdev = hpriv->hdev;
@@ -1418,6 +1446,8 @@ static int cs_ioctl_default(struct hl_fpriv *hpriv, void __user *chunks,
 		goto free_cs_object;
 	}
 
+	*signal_initial_sob_count = cs->initial_sob_count;
+
 	rc = HL_CS_STATUS_SUCCESS;
 	goto put_cs;
 
@@ -1446,6 +1476,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 	int rc = 0, do_ctx_switch;
 	void __user *chunks;
 	u32 num_chunks, tmp;
+	u16 sob_count;
 	int ret;
 
 	do_ctx_switch = atomic_cmpxchg(&ctx->thread_ctx_switch_token, 1, 0);
@@ -1486,7 +1517,7 @@ static int hl_cs_ctx_switch(struct hl_fpriv *hpriv, union hl_cs_args *args,
 			rc = 0;
 		} else {
 			rc = cs_ioctl_default(hpriv, chunks, num_chunks,
-					cs_seq, 0, 0, hdev->timeout_jiffies);
+					cs_seq, 0, 0, hdev->timeout_jiffies, &sob_count);
 		}
 
 		mutex_unlock(&hpriv->restore_phase_mutex);
@@ -1802,6 +1833,9 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 	}
 
 	handle->count = count;
+
+	hl_ctx_get(hdev, hpriv->ctx);
+	handle->ctx = hpriv->ctx;
 	mgr = &hpriv->ctx->sig_mgr;
 
 	spin_lock(&mgr->lock);
@@ -1811,7 +1845,7 @@ static int cs_ioctl_reserve_signals(struct hl_fpriv *hpriv,
 	if (hdl_id < 0) {
 		dev_err(hdev->dev, "Failed to allocate IDR for a new signal reservation\n");
 		rc = -EINVAL;
-		goto out;
+		goto put_ctx;
 	}
 
 	handle->id = hdl_id;
@@ -1864,7 +1898,10 @@ remove_idr:
 	idr_remove(&mgr->handles, hdl_id);
 	spin_unlock(&mgr->lock);
 
+put_ctx:
+	hl_ctx_put(handle->ctx);
 	kfree(handle);
+
 out:
 	return rc;
 }
@@ -1924,6 +1961,7 @@ static int cs_ioctl_unreserve_signals(struct hl_fpriv *hpriv, u32 handle_id)
 
 		/* Release the id and free allocated memory of the handle */
 		idr_remove(&mgr->handles, handle_id);
+		hl_ctx_put(encaps_sig_hdl->ctx);
 		kfree(encaps_sig_hdl);
 	} else {
 		rc = -EINVAL;
@@ -1937,7 +1975,8 @@ out:
 
 static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 				void __user *chunks, u32 num_chunks,
-				u64 *cs_seq, u32 flags, u32 timeout)
+				u64 *cs_seq, u32 flags, u32 timeout,
+				u32 *signal_sob_addr_offset, u16 *signal_initial_sob_count)
 {
 	struct hl_cs_encaps_sig_handle *encaps_sig_hdl = NULL;
 	bool handle_found = false, is_wait_cs = false,
@@ -2035,13 +2074,16 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 			idp = &ctx->sig_mgr.handles;
 			idr_for_each_entry(idp, encaps_sig_hdl, id) {
 				if (encaps_sig_hdl->cs_seq == signal_seq) {
-					handle_found = true;
-					/* get refcount to protect removing
-					 * this handle from idr, needed when
-					 * multiple wait cs are used with offset
+					/* get refcount to protect removing this handle from idr,
+					 * needed when multiple wait cs are used with offset
 					 * to wait on reserved encaps signals.
+					 * Since kref_put of this handle is executed outside the
+					 * current lock, it is possible that the handle refcount
+					 * is 0 but it yet to be removed from the list. In this
+					 * case need to consider the handle as not valid.
 					 */
-					kref_get(&encaps_sig_hdl->refcount);
+					if (kref_get_unless_zero(&encaps_sig_hdl->refcount))
+						handle_found = true;
 					break;
 				}
 			}
@@ -2169,6 +2211,9 @@ static int cs_ioctl_signal_wait(struct hl_fpriv *hpriv, enum hl_cs_type cs_type,
 		goto free_cs_object;
 	}
 
+	*signal_sob_addr_offset = cs->sob_addr_offset;
+	*signal_initial_sob_count = cs->initial_sob_count;
+
 	rc = HL_CS_STATUS_SUCCESS;
 	if (is_wait_cs)
 		wait_cs_submitted = true;
@@ -2199,6 +2244,7 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	void __user *chunks;
 	u32 num_chunks, flags, timeout,
 		signals_count = 0, sob_addr = 0, handle_id = 0;
+	u16 sob_initial_count = 0;
 	int rc;
 
 	rc = hl_cs_sanity_checks(hpriv, args);
@@ -2229,7 +2275,8 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 	case CS_TYPE_WAIT:
 	case CS_TYPE_COLLECTIVE_WAIT:
 		rc = cs_ioctl_signal_wait(hpriv, cs_type, chunks, num_chunks,
-					&cs_seq, args->in.cs_flags, timeout);
+					&cs_seq, args->in.cs_flags, timeout,
+					&sob_addr, &sob_initial_count);
 		break;
 	case CS_RESERVE_SIGNALS:
 		rc = cs_ioctl_reserve_signals(hpriv,
@@ -2245,20 +2292,33 @@ int hl_cs_ioctl(struct hl_fpriv *hpriv, void *data)
 		rc = cs_ioctl_default(hpriv, chunks, num_chunks, &cs_seq,
 						args->in.cs_flags,
 						args->in.encaps_sig_handle_id,
-						timeout);
+						timeout, &sob_initial_count);
 		break;
 	}
 out:
 	if (rc != -EAGAIN) {
 		memset(args, 0, sizeof(*args));
 
-		if (cs_type == CS_RESERVE_SIGNALS) {
+		switch (cs_type) {
+		case CS_RESERVE_SIGNALS:
 			args->out.handle_id = handle_id;
 			args->out.sob_base_addr_offset = sob_addr;
 			args->out.count = signals_count;
-		} else {
+			break;
+		case CS_TYPE_SIGNAL:
+			args->out.sob_base_addr_offset = sob_addr;
+			args->out.sob_count_before_submission = sob_initial_count;
 			args->out.seq = cs_seq;
+			break;
+		case CS_TYPE_DEFAULT:
+			args->out.sob_count_before_submission = sob_initial_count;
+			args->out.seq = cs_seq;
+			break;
+		default:
+			args->out.seq = cs_seq;
+			break;
 		}
+
 		args->out.status = rc;
 	}
 
@@ -2323,16 +2383,18 @@ static int hl_wait_for_fence(struct hl_ctx *ctx, u64 seq, struct hl_fence *fence
  * hl_cs_poll_fences - iterate CS fences to check for CS completion
  *
  * @mcs_data: multi-CS internal data
+ * @mcs_compl: multi-CS completion structure
  *
  * @return 0 on success, otherwise non 0 error code
  *
  * The function iterates on all CS sequence in the list and set bit in
  * completion_bitmap for each completed CS.
- * while iterating, the function can extracts the stream map to be later
- * used by the waiting function.
- * this function shall be called after taking context ref
+ * While iterating, the function sets the stream map of each fence in the fence
+ * array in the completion QID stream map to be used by CSs to perform
+ * completion to the multi-CS context.
+ * This function shall be called after taking context ref
  */
-static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
+static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_completion *mcs_compl)
 {
 	struct hl_fence **fence_ptr = mcs_data->fence_arr;
 	struct hl_device *hdev = mcs_data->ctx->hdev;
@@ -2349,6 +2411,15 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 		return rc;
 
 	/*
+	 * re-initialize the completion here to handle 2 possible cases:
+	 * 1. CS will complete the multi-CS prior clearing the completion. in which
+	 *    case the fence iteration is guaranteed to catch the CS completion.
+	 * 2. the completion will occur after re-init of the completion.
+	 *    in which case we will wake up immediately in wait_for_completion.
+	 */
+	reinit_completion(&mcs_compl->completion);
+
+	/*
 	 * set to maximum time to verify timestamp is valid: if at the end
 	 * this value is maintained- no timestamp was updated
 	 */
@@ -2357,6 +2428,21 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 
 	for (i = 0; i < arr_len; i++, fence_ptr++) {
 		struct hl_fence *fence = *fence_ptr;
+
+		/*
+		 * In order to prevent case where we wait until timeout even though a CS associated
+		 * with the multi-CS actually completed we do things in the below order:
+		 * 1. for each fence set it's QID map in the multi-CS completion QID map. This way
+		 *    any CS can, potentially, complete the multi CS for the specific QID (note
+		 *    that once completion is initialized, calling complete* and then wait on the
+		 *    completion will cause it to return at once)
+		 * 2. only after allowing multi-CS completion for the specific QID we check whether
+		 *    the specific CS already completed (and thus the wait for completion part will
+		 *    be skipped). if the CS not completed it is guaranteed that completing CS will
+		 *    wake up the completion.
+		 */
+		if (fence)
+			mcs_compl->stream_master_qid_map |= fence->stream_master_qid_map;
 
 		/*
 		 * function won't sleep as it is called with timeout 0 (i.e.
@@ -2371,32 +2457,56 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data)
 			break;
 		}
 
-		mcs_data->stream_master_qid_map |= fence->stream_master_qid_map;
+		switch (status) {
+		case CS_WAIT_STATUS_BUSY:
+			/* CS did not finished, QID to wait on already stored */
+			break;
+		case CS_WAIT_STATUS_COMPLETED:
+			/*
+			 * Using mcs_handling_done to avoid possibility of mcs_data
+			 * returns to user indicating CS completed before it finished
+			 * all of its mcs handling, to avoid race the next time the
+			 * user waits for mcs.
+			 * note: when reaching this case fence is definitely not NULL
+			 *       but NULL check was added to overcome static analysis
+			 */
+			if (fence && !fence->mcs_handling_done) {
+				/*
+				 * in case multi CS is completed but MCS handling not done
+				 * we "complete" the multi CS to prevent it from waiting
+				 * until time-out and the "multi-CS handling done" will have
+				 * another chance at the next iteration
+				 */
+				complete_all(&mcs_compl->completion);
+				break;
+			}
 
-		if (status == CS_WAIT_STATUS_BUSY)
-			continue;
-
-		mcs_data->completion_bitmap |= BIT(i);
-
-		/*
-		 * best effort to extract timestamp. few notes:
-		 * - if even single fence is gone we cannot extract timestamp
-		 *   (as fence not exist anymore)
-		 * - for all completed CSs we take the earliest timestamp.
-		 *   for this we have to validate that:
-		 *       1. given timestamp was indeed set
-		 *       2. the timestamp is earliest of all timestamps so far
-		 */
-
-		if (status == CS_WAIT_STATUS_GONE) {
+			mcs_data->completion_bitmap |= BIT(i);
+			/*
+			 * For all completed CSs we take the earliest timestamp.
+			 * For this we have to validate that the timestamp is
+			 * earliest of all timestamps so far.
+			 */
+			if (mcs_data->update_ts &&
+					(ktime_compare(fence->timestamp, first_cs_time) < 0))
+				first_cs_time = fence->timestamp;
+			break;
+		case CS_WAIT_STATUS_GONE:
 			mcs_data->update_ts = false;
 			mcs_data->gone_cs = true;
-		} else if (mcs_data->update_ts &&
-			(ktime_compare(fence->timestamp,
-						ktime_set(0, 0)) > 0) &&
-			(ktime_compare(fence->timestamp, first_cs_time) < 0)) {
-			first_cs_time = fence->timestamp;
+			/*
+			 * It is possible to get an old sequence numbers from user
+			 * which related to already completed CSs and their fences
+			 * already gone. In this case, CS set as completed but
+			 * no need to consider its QID for mcs completion.
+			 */
+			mcs_data->completion_bitmap |= BIT(i);
+			break;
+		default:
+			dev_err(hdev->dev, "Invalid fence status\n");
+			return -EINVAL;
 		}
+
 	}
 
 	hl_fences_put(mcs_data->fence_arr, arr_len);
@@ -2429,6 +2539,21 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	return rc;
 }
 
+static inline unsigned long hl_usecs64_to_jiffies(const u64 usecs)
+{
+	if (usecs <= U32_MAX)
+		return usecs_to_jiffies(usecs);
+
+	/*
+	 * If the value in nanoseconds is larger than 64 bit, use the largest
+	 * 64 bit value.
+	 */
+	if (usecs >= ((u64)(U64_MAX / NSEC_PER_USEC)))
+		return nsecs_to_jiffies(U64_MAX);
+
+	return nsecs_to_jiffies(usecs * NSEC_PER_USEC);
+}
+
 /*
  * hl_wait_multi_cs_completion_init - init completion structure
  *
@@ -2442,9 +2567,7 @@ static int _hl_cs_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
  * the function gets the first available completion (by marking it "used")
  * and initialize its values.
  */
-static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
-							struct hl_device *hdev,
-							u8 stream_master_bitmap)
+static struct multi_cs_completion *hl_wait_multi_cs_completion_init(struct hl_device *hdev)
 {
 	struct multi_cs_completion *mcs_compl;
 	int i;
@@ -2456,8 +2579,11 @@ static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
 		if (!mcs_compl->used) {
 			mcs_compl->used = 1;
 			mcs_compl->timestamp = 0;
-			mcs_compl->stream_master_qid_map = stream_master_bitmap;
-			reinit_completion(&mcs_compl->completion);
+			/*
+			 * init QID map to 0 to avoid completion by CSs. the actual QID map
+			 * to multi-CS CSs will be set incrementally at a later stage
+			 */
+			mcs_compl->stream_master_qid_map = 0;
 			spin_unlock(&mcs_compl->lock);
 			break;
 		}
@@ -2465,8 +2591,7 @@ static struct multi_cs_completion *hl_wait_multi_cs_completion_init(
 	}
 
 	if (i == MULTI_CS_MAX_USER_CTX) {
-		dev_err(hdev->dev,
-				"no available multi-CS completion structure\n");
+		dev_err(hdev->dev, "no available multi-CS completion structure\n");
 		return ERR_PTR(-ENOMEM);
 	}
 	return mcs_compl;
@@ -2497,26 +2622,17 @@ static void hl_wait_multi_cs_completion_fini(
  *
  * @return 0 on success, otherwise non 0 error code
  */
-static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data)
+static int hl_wait_multi_cs_completion(struct multi_cs_data *mcs_data,
+						struct multi_cs_completion *mcs_compl)
 {
-	struct hl_device *hdev = mcs_data->ctx->hdev;
-	struct multi_cs_completion *mcs_compl;
 	long completion_rc;
 
-	mcs_compl = hl_wait_multi_cs_completion_init(hdev,
-					mcs_data->stream_master_qid_map);
-	if (IS_ERR(mcs_compl))
-		return PTR_ERR(mcs_compl);
-
-	completion_rc = wait_for_completion_interruptible_timeout(
-					&mcs_compl->completion,
-					usecs_to_jiffies(mcs_data->timeout_us));
+	completion_rc = wait_for_completion_interruptible_timeout(&mcs_compl->completion,
+									mcs_data->timeout_jiffies);
 
 	/* update timestamp */
 	if (completion_rc > 0)
 		mcs_data->timestamp = mcs_compl->timestamp;
-
-	hl_wait_multi_cs_completion_fini(mcs_compl);
 
 	mcs_data->wait_status = completion_rc;
 
@@ -2550,6 +2666,7 @@ void hl_multi_cs_completion_init(struct hl_device *hdev)
  */
 static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
+	struct multi_cs_completion *mcs_compl;
 	struct hl_device *hdev = hpriv->hdev;
 	struct multi_cs_data mcs_data = {0};
 	union hl_wait_cs_args *args = data;
@@ -2604,9 +2721,17 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 
 	hl_ctx_get(hdev, ctx);
 
+	/* wait (with timeout) for the first CS to be completed */
+	mcs_data.timeout_jiffies = hl_usecs64_to_jiffies(args->in.timeout_us);
+	mcs_compl = hl_wait_multi_cs_completion_init(hdev);
+	if (IS_ERR(mcs_compl)) {
+		rc = PTR_ERR(mcs_compl);
+		goto put_ctx;
+	}
+
 	/* poll all CS fences, extract timestamp */
 	mcs_data.update_ts = true;
-	rc = hl_cs_poll_fences(&mcs_data);
+	rc = hl_cs_poll_fences(&mcs_data, mcs_compl);
 	/*
 	 * skip wait for CS completion when one of the below is true:
 	 * - an error on the poll function
@@ -2614,33 +2739,38 @@ static int hl_multi_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	 * - the user called ioctl with timeout 0
 	 */
 	if (rc || mcs_data.completion_bitmap || !args->in.timeout_us)
-		goto put_ctx;
+		goto completion_fini;
 
-	/* wait (with timeout) for the first CS to be completed */
-	mcs_data.timeout_us = args->in.timeout_us;
-	rc = hl_wait_multi_cs_completion(&mcs_data);
-	if (rc)
-		goto put_ctx;
+	while (true) {
+		rc = hl_wait_multi_cs_completion(&mcs_data, mcs_compl);
+		if (rc || (mcs_data.wait_status == 0))
+			break;
 
-	if (mcs_data.wait_status > 0) {
 		/*
 		 * poll fences once again to update the CS map.
 		 * no timestamp should be updated this time.
 		 */
 		mcs_data.update_ts = false;
-		rc = hl_cs_poll_fences(&mcs_data);
+		rc = hl_cs_poll_fences(&mcs_data, mcs_compl);
+
+		if (rc || mcs_data.completion_bitmap)
+			break;
 
 		/*
 		 * if hl_wait_multi_cs_completion returned before timeout (i.e.
-		 * it got a completion) we expect to see at least one CS
-		 * completed after the poll function.
+		 * it got a completion) it either got completed by CS in the multi CS list
+		 * (in which case the indication will be non empty completion_bitmap) or it
+		 * got completed by CS submitted to one of the shared stream master but
+		 * not in the multi CS list (in which case we should wait again but modify
+		 * the timeout and set timestamp as zero to let a CS related to the current
+		 * multi-CS set a new, relevant, timestamp)
 		 */
-		if (!mcs_data.completion_bitmap) {
-			dev_warn_ratelimited(hdev->dev,
-				"Multi-CS got completion on wait but no CS completed\n");
-			rc = -EFAULT;
-		}
+		mcs_data.timeout_jiffies = mcs_data.wait_status;
+		mcs_compl->timestamp = 0;
 	}
+
+completion_fini:
+	hl_wait_multi_cs_completion_fini(mcs_compl);
 
 put_ctx:
 	hl_ctx_put(ctx);
@@ -2672,7 +2802,7 @@ free_seq_arr:
 		}
 
 		/* update if some CS was gone */
-		if (mcs_data.timestamp)
+		if (!mcs_data.timestamp)
 			args->out.flags |= HL_WAIT_CS_STATUS_FLAG_GONE;
 	} else {
 		args->out.status = HL_WAIT_CS_STATUS_BUSY;
@@ -2738,37 +2868,258 @@ static int hl_cs_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	return 0;
 }
 
-static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
-				u32 timeout_us, u64 user_address,
-				u32 target_value, u16 interrupt_offset,
-				enum hl_cs_wait_status *status)
+static int ts_buff_get_kernel_ts_record(struct hl_ts_buff *ts_buff,
+					struct hl_cb *cq_cb,
+					u64 ts_offset, u64 cq_offset, u64 target_value,
+					spinlock_t *wait_list_lock,
+					struct hl_user_pending_interrupt **pend)
 {
+	struct hl_user_pending_interrupt *requested_offset_record =
+				(struct hl_user_pending_interrupt *)ts_buff->kernel_buff_address +
+				ts_offset;
+	struct hl_user_pending_interrupt *cb_last =
+			(struct hl_user_pending_interrupt *)ts_buff->kernel_buff_address +
+			(ts_buff->kernel_buff_size / sizeof(struct hl_user_pending_interrupt));
+	unsigned long flags, iter_counter = 0;
+	u64 current_cq_counter;
+
+	/* Validate ts_offset not exceeding last max */
+	if (requested_offset_record > cb_last) {
+		dev_err(ts_buff->hdev->dev, "Ts offset exceeds max CB offset(0x%llx)\n",
+								(u64)(uintptr_t)cb_last);
+		return -EINVAL;
+	}
+
+start_over:
+	spin_lock_irqsave(wait_list_lock, flags);
+
+	/* Unregister only if we didn't reach the target value
+	 * since in this case there will be no handling in irq context
+	 * and then it's safe to delete the node out of the interrupt list
+	 * then re-use it on other interrupt
+	 */
+	if (requested_offset_record->ts_reg_info.in_use) {
+		current_cq_counter = *requested_offset_record->cq_kernel_addr;
+		if (current_cq_counter < requested_offset_record->cq_target_value) {
+			list_del(&requested_offset_record->wait_list_node);
+			spin_unlock_irqrestore(wait_list_lock, flags);
+
+			hl_ts_put(requested_offset_record->ts_reg_info.ts_buff);
+			hl_cb_put(requested_offset_record->ts_reg_info.cq_cb);
+
+			dev_dbg(ts_buff->hdev->dev, "ts node removed from interrupt list now can re-use\n");
+		} else {
+			dev_dbg(ts_buff->hdev->dev, "ts node in middle of irq handling\n");
+
+			/* irq handling in the middle give it time to finish */
+			spin_unlock_irqrestore(wait_list_lock, flags);
+			usleep_range(1, 10);
+			if (++iter_counter == MAX_TS_ITER_NUM) {
+				dev_err(ts_buff->hdev->dev, "handling registration interrupt took too long!!\n");
+				return -EINVAL;
+			}
+
+			goto start_over;
+		}
+	} else {
+		spin_unlock_irqrestore(wait_list_lock, flags);
+	}
+
+	/* Fill up the new registration node info */
+	requested_offset_record->ts_reg_info.in_use = 1;
+	requested_offset_record->ts_reg_info.ts_buff = ts_buff;
+	requested_offset_record->ts_reg_info.cq_cb = cq_cb;
+	requested_offset_record->ts_reg_info.timestamp_kernel_addr =
+			(u64 *) ts_buff->user_buff_address + ts_offset;
+	requested_offset_record->cq_kernel_addr =
+			(u64 *) cq_cb->kernel_address + cq_offset;
+	requested_offset_record->cq_target_value = target_value;
+
+	*pend = requested_offset_record;
+
+	dev_dbg(ts_buff->hdev->dev, "Found available node in TS kernel CB(0x%llx)\n",
+						(u64)(uintptr_t)requested_offset_record);
+	return 0;
+}
+
+static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
+				struct hl_cb_mgr *cb_mgr, struct hl_ts_mgr *ts_mgr,
+				u64 timeout_us, u64 cq_counters_handle,	u64 cq_counters_offset,
+				u64 target_value, struct hl_user_interrupt *interrupt,
+				bool register_ts_record, u64 ts_handle, u64 ts_offset,
+				u32 *status, u64 *timestamp)
+{
+	u32 cq_patched_handle, ts_patched_handle;
 	struct hl_user_pending_interrupt *pend;
-	struct hl_user_interrupt *interrupt;
+	struct hl_ts_buff *ts_buff;
+	struct hl_cb *cq_cb;
 	unsigned long timeout, flags;
-	u32 completion_value;
 	long completion_rc;
 	int rc = 0;
 
-	if (timeout_us == U32_MAX)
-		timeout = timeout_us;
-	else
-		timeout = usecs_to_jiffies(timeout_us);
+	timeout = hl_usecs64_to_jiffies(timeout_us);
 
 	hl_ctx_get(hdev, ctx);
 
-	pend = kmalloc(sizeof(*pend), GFP_KERNEL);
+	cq_patched_handle = lower_32_bits(cq_counters_handle >> PAGE_SHIFT);
+	cq_cb = hl_cb_get(hdev, cb_mgr, cq_patched_handle);
+	if (!cq_cb) {
+		rc = -EINVAL;
+		goto put_ctx;
+	}
+
+	if (register_ts_record) {
+		dev_dbg(hdev->dev, "Timestamp registration: interrupt id: %u, ts offset: %llu, cq_offset: %llu\n",
+					interrupt->interrupt_id, ts_offset, cq_counters_offset);
+
+		ts_patched_handle = lower_32_bits(ts_handle >> PAGE_SHIFT);
+		ts_buff = hl_ts_get(hdev, ts_mgr, ts_patched_handle);
+		if (!ts_buff) {
+			rc = -EINVAL;
+			goto put_cq_cb;
+		}
+
+		/* Find first available record */
+		rc = ts_buff_get_kernel_ts_record(ts_buff, cq_cb, ts_offset,
+						cq_counters_offset, target_value,
+						&interrupt->wait_list_lock, &pend);
+		if (rc)
+			goto put_ts_buff;
+	} else {
+		pend = kzalloc(sizeof(*pend), GFP_KERNEL);
+		if (!pend) {
+			rc = -ENOMEM;
+			goto put_cq_cb;
+		}
+		hl_fence_init(&pend->fence, ULONG_MAX);
+		pend->cq_kernel_addr = (u64 *) cq_cb->kernel_address + cq_counters_offset;
+		pend->cq_target_value = target_value;
+	}
+
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+
+	/* We check for completion value as interrupt could have been received
+	 * before we added the node to the wait list
+	 */
+	if (*pend->cq_kernel_addr >= target_value) {
+		if (register_ts_record)
+			pend->ts_reg_info.in_use = 0;
+		spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
+
+		if (register_ts_record) {
+			*pend->ts_reg_info.timestamp_kernel_addr = ktime_get_ns();
+			goto put_ts_buff;
+		} else {
+			pend->fence.timestamp = ktime_get();
+			goto set_timestamp;
+		}
+	} else if (!timeout_us) {
+		spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+		*status = HL_WAIT_CS_STATUS_BUSY;
+		pend->fence.timestamp = ktime_get();
+		goto set_timestamp;
+	}
+
+	/* Add pending user interrupt to relevant list for the interrupt
+	 * handler to monitor.
+	 * Note that we cannot have sorted list by target value,
+	 * in order to shorten the list pass loop, since
+	 * same list could have nodes for different cq counter handle.
+	 */
+	list_add_tail(&pend->wait_list_node, &interrupt->wait_list_head);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+	if (register_ts_record) {
+		rc = *status = HL_WAIT_CS_STATUS_COMPLETED;
+		goto ts_registration_exit;
+	}
+
+	/* Wait for interrupt handler to signal completion */
+	completion_rc = wait_for_completion_interruptible_timeout(&pend->fence.completion,
+								timeout);
+	if (completion_rc > 0) {
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
+	} else {
+		if (completion_rc == -ERESTARTSYS) {
+			dev_err_ratelimited(hdev->dev,
+					"user process got signal while waiting for interrupt ID %d\n",
+					interrupt->interrupt_id);
+			rc = -EINTR;
+			*status = HL_WAIT_CS_STATUS_ABORTED;
+		} else {
+			if (pend->fence.error == -EIO) {
+				dev_err_ratelimited(hdev->dev,
+						"interrupt based wait ioctl aborted(error:%d) due to a reset cycle initiated\n",
+						pend->fence.error);
+				rc = -EIO;
+				*status = HL_WAIT_CS_STATUS_ABORTED;
+			} else {
+				/* The wait has timed-out. We don't know anything beyond that
+				 * because the workload wasn't submitted through the driver.
+				 * Therefore, from driver's perspective, the workload is still
+				 * executing.
+				 */
+				rc = 0;
+				*status = HL_WAIT_CS_STATUS_BUSY;
+			}
+		}
+	}
+
+	/*
+	 * We keep removing the node from list here, and not at the irq handler
+	 * for completion timeout case. and if it's a registration
+	 * for ts record, the node will be deleted in the irq handler after
+	 * we reach the target value.
+	 */
+	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
+	list_del(&pend->wait_list_node);
+	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+set_timestamp:
+	*timestamp = ktime_to_ns(pend->fence.timestamp);
+	kfree(pend);
+	hl_cb_put(cq_cb);
+ts_registration_exit:
+	hl_ctx_put(ctx);
+
+	return rc;
+
+put_ts_buff:
+	hl_ts_put(ts_buff);
+put_cq_cb:
+	hl_cb_put(cq_cb);
+put_ctx:
+	hl_ctx_put(ctx);
+
+	return rc;
+}
+
+static int _hl_interrupt_wait_ioctl_user_addr(struct hl_device *hdev, struct hl_ctx *ctx,
+				u64 timeout_us, u64 user_address,
+				u64 target_value, struct hl_user_interrupt *interrupt,
+
+				u32 *status,
+				u64 *timestamp)
+{
+	struct hl_user_pending_interrupt *pend;
+	unsigned long timeout, flags;
+	u64 completion_value;
+	long completion_rc;
+	int rc = 0;
+
+	timeout = hl_usecs64_to_jiffies(timeout_us);
+
+	hl_ctx_get(hdev, ctx);
+
+	pend = kzalloc(sizeof(*pend), GFP_KERNEL);
 	if (!pend) {
 		hl_ctx_put(ctx);
 		return -ENOMEM;
 	}
 
 	hl_fence_init(&pend->fence, ULONG_MAX);
-
-	if (interrupt_offset == HL_COMMON_USER_INTERRUPT_ID)
-		interrupt = &hdev->common_user_interrupt;
-	else
-		interrupt = &hdev->user_interrupt[interrupt_offset];
 
 	/* Add pending user interrupt to relevant list for the interrupt
 	 * handler to monitor
@@ -2780,18 +3131,21 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	/* We check for completion value as interrupt could have been received
 	 * before we added the node to the wait list
 	 */
-	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+	if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 8)) {
 		dev_err(hdev->dev, "Failed to copy completion value from user\n");
 		rc = -EFAULT;
 		goto remove_pending_user_interrupt;
 	}
 
-	if (completion_value >= target_value)
-		*status = CS_WAIT_STATUS_COMPLETED;
-	else
-		*status = CS_WAIT_STATUS_BUSY;
+	if (completion_value >= target_value) {
+		*status = HL_WAIT_CS_STATUS_COMPLETED;
+		/* There was no interrupt, we assume the completion is now. */
+		pend->fence.timestamp = ktime_get();
+	} else {
+		*status = HL_WAIT_CS_STATUS_BUSY;
+	}
 
-	if (!timeout_us || (*status == CS_WAIT_STATUS_COMPLETED))
+	if (!timeout_us || (*status == HL_WAIT_CS_STATUS_COMPLETED))
 		goto remove_pending_user_interrupt;
 
 wait_again:
@@ -2812,7 +3166,7 @@ wait_again:
 		reinit_completion(&pend->fence.completion);
 		spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
 
-		if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 4)) {
+		if (copy_from_user(&completion_value, u64_to_user_ptr(user_address), 8)) {
 			dev_err(hdev->dev, "Failed to copy completion value from user\n");
 			rc = -EFAULT;
 
@@ -2820,7 +3174,13 @@ wait_again:
 		}
 
 		if (completion_value >= target_value) {
-			*status = CS_WAIT_STATUS_COMPLETED;
+			*status = HL_WAIT_CS_STATUS_COMPLETED;
+		} else if (pend->fence.error) {
+			dev_err_ratelimited(hdev->dev,
+				"interrupt based wait ioctl aborted(error:%d) due to a reset cycle initiated\n",
+				pend->fence.error);
+			/* set the command completion status as ABORTED */
+			*status = HL_WAIT_CS_STATUS_ABORTED;
 		} else {
 			timeout = completion_rc;
 			goto wait_again;
@@ -2831,13 +3191,21 @@ wait_again:
 			interrupt->interrupt_id);
 		rc = -EINTR;
 	} else {
-		*status = CS_WAIT_STATUS_BUSY;
+		/* The wait has timed-out. We don't know anything beyond that
+		 * because the workload wasn't submitted through the driver.
+		 * Therefore, from driver's perspective, the workload is still
+		 * executing.
+		 */
+		rc = 0;
+		*status = HL_WAIT_CS_STATUS_BUSY;
 	}
 
 remove_pending_user_interrupt:
 	spin_lock_irqsave(&interrupt->wait_list_lock, flags);
 	list_del(&pend->wait_list_node);
 	spin_unlock_irqrestore(&interrupt->wait_list_lock, flags);
+
+	*timestamp = ktime_to_ns(pend->fence.timestamp);
 
 	kfree(pend);
 	hl_ctx_put(ctx);
@@ -2847,11 +3215,13 @@ remove_pending_user_interrupt:
 
 static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 {
-	u16 interrupt_id, interrupt_offset, first_interrupt, last_interrupt;
+	u16 interrupt_id, first_interrupt, last_interrupt;
 	struct hl_device *hdev = hpriv->hdev;
 	struct asic_fixed_properties *prop;
+	struct hl_user_interrupt *interrupt;
 	union hl_wait_cs_args *args = data;
-	enum hl_cs_wait_status status;
+	u32 status = HL_WAIT_CS_STATUS_BUSY;
+	u64 timestamp;
 	int rc;
 
 	prop = &hdev->asic_prop;
@@ -2861,8 +3231,7 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 		return -EPERM;
 	}
 
-	interrupt_id =
-		FIELD_GET(HL_WAIT_CS_FLAGS_INTERRUPT_MASK, args->in.flags);
+	interrupt_id = FIELD_GET(HL_WAIT_CS_FLAGS_INTERRUPT_MASK, args->in.flags);
 
 	first_interrupt = prop->first_available_user_msix_interrupt;
 	last_interrupt = prop->first_available_user_msix_interrupt +
@@ -2875,32 +3244,32 @@ static int hl_interrupt_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	}
 
 	if (interrupt_id == HL_COMMON_USER_INTERRUPT_ID)
-		interrupt_offset = HL_COMMON_USER_INTERRUPT_ID;
+		interrupt = &hdev->common_user_interrupt;
 	else
-		interrupt_offset = interrupt_id - first_interrupt;
+		interrupt = &hdev->user_interrupt[interrupt_id - first_interrupt];
 
-	rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx,
+	if (args->in.flags & HL_WAIT_CS_FLAGS_INTERRUPT_KERNEL_CQ)
+		rc = _hl_interrupt_wait_ioctl(hdev, hpriv->ctx, &hpriv->cb_mgr, &hpriv->ts_mem_mgr,
+				args->in.interrupt_timeout_us, args->in.cq_counters_handle,
+				args->in.cq_counters_offset,
+				args->in.target, interrupt,
+				!!(args->in.flags & HL_WAIT_CS_FLAGS_REGISTER_INTERRUPT),
+				args->in.timestamp_handle, args->in.timestamp_offset,
+				&status, &timestamp);
+	else
+		rc = _hl_interrupt_wait_ioctl_user_addr(hdev, hpriv->ctx,
 				args->in.interrupt_timeout_us, args->in.addr,
-				args->in.target, interrupt_offset, &status);
-
-	if (rc) {
-		if (rc != -EINTR)
-			dev_err_ratelimited(hdev->dev,
-				"interrupt_wait_ioctl failed (%d)\n", rc);
-
+				args->in.target, interrupt, &status,
+				&timestamp);
+	if (rc)
 		return rc;
-	}
 
 	memset(args, 0, sizeof(*args));
+	args->out.status = status;
 
-	switch (status) {
-	case CS_WAIT_STATUS_COMPLETED:
-		args->out.status = HL_WAIT_CS_STATUS_COMPLETED;
-		break;
-	case CS_WAIT_STATUS_BUSY:
-	default:
-		args->out.status = HL_WAIT_CS_STATUS_BUSY;
-		break;
+	if (timestamp) {
+		args->out.timestamp_nsec = timestamp;
+		args->out.flags |= HL_WAIT_CS_STATUS_FLAG_TIMESTAMP_VLD;
 	}
 
 	return 0;
@@ -2916,7 +3285,7 @@ int hl_wait_ioctl(struct hl_fpriv *hpriv, void *data)
 	 * user interrupt
 	 */
 	if (!hl_device_operational(hpriv->hdev, NULL))
-		return -EPERM;
+		return -EBUSY;
 
 	if (flags & HL_WAIT_CS_FLAGS_INTERRUPT)
 		rc = hl_interrupt_wait_ioctl(hpriv, data);

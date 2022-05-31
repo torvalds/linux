@@ -86,6 +86,9 @@
 	pinctrl-0 = <&pinctrl_eqos>;
 	phy-mode = "rgmii-id";
 	phy-handle = <&ethphy0>;
+	snps,force_thresh_dma_mode;
+	snps,mtl-tx-config = <&mtl_tx_setup>;
+	snps,mtl-rx-config = <&mtl_rx_setup>;
 	status = "okay";
 
 	mdio {
@@ -97,6 +100,75 @@
 			compatible = "ethernet-phy-ieee802.3-c22";
 			reg = <1>;
 			eee-broken-1000t;
+			reset-gpios = <&gpio4 22 GPIO_ACTIVE_LOW>;
+			reset-assert-us = <10000>;
+			reset-deassert-us = <80000>;
+			realtek,clkout-disable;
+		};
+	};
+
+	mtl_tx_setup: tx-queues-config {
+		snps,tx-queues-to-use = <5>;
+		snps,tx-sched-sp;
+
+		queue0 {
+			snps,dcb-algorithm;
+			snps,priority = <0x1>;
+		};
+
+		queue1 {
+			snps,dcb-algorithm;
+			snps,priority = <0x2>;
+		};
+
+		queue2 {
+			snps,dcb-algorithm;
+			snps,priority = <0x4>;
+		};
+
+		queue3 {
+			snps,dcb-algorithm;
+			snps,priority = <0x8>;
+		};
+
+		queue4 {
+			snps,dcb-algorithm;
+			snps,priority = <0xf0>;
+		};
+	};
+
+	mtl_rx_setup: rx-queues-config {
+		snps,rx-queues-to-use = <5>;
+		snps,rx-sched-sp;
+
+		queue0 {
+			snps,dcb-algorithm;
+			snps,priority = <0x1>;
+			snps,map-to-dma-channel = <0>;
+		};
+
+		queue1 {
+			snps,dcb-algorithm;
+			snps,priority = <0x2>;
+			snps,map-to-dma-channel = <1>;
+		};
+
+		queue2 {
+			snps,dcb-algorithm;
+			snps,priority = <0x4>;
+			snps,map-to-dma-channel = <2>;
+		};
+
+		queue3 {
+			snps,dcb-algorithm;
+			snps,priority = <0x8>;
+			snps,map-to-dma-channel = <3>;
+		};
+
+		queue4 {
+			snps,dcb-algorithm;
+			snps,priority = <0xf0>;
+			snps,map-to-dma-channel = <4>;
 		};
 	};
 };
@@ -120,6 +192,7 @@
 			reset-gpios = <&gpio4 2 GPIO_ACTIVE_LOW>;
 			reset-assert-us = <10000>;
 			reset-deassert-us = <80000>;
+			realtek,clkout-disable;
 		};
 	};
 };
@@ -221,7 +294,44 @@
 		reg = <0x20>;
 		gpio-controller;
 		#gpio-cells = <2>;
+		interrupt-controller;
+		#interrupt-cells = <2>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pinctrl_pca6416_int>;
+		interrupt-parent = <&gpio1>;
+		interrupts = <12 IRQ_TYPE_LEVEL_LOW>;
+		gpio-line-names = "EXT_PWREN1",
+			"EXT_PWREN2",
+			"CAN1/I2C5_SEL",
+			"PDM/CAN2_SEL",
+			"FAN_EN",
+			"PWR_MEAS_IO1",
+			"PWR_MEAS_IO2",
+			"EXP_P0_7",
+			"EXP_P1_0",
+			"EXP_P1_1",
+			"EXP_P1_2",
+			"EXP_P1_3",
+			"EXP_P1_4",
+			"EXP_P1_5",
+			"EXP_P1_6",
+			"EXP_P1_7";
 	};
+};
+
+/* I2C on expansion connector J22. */
+&i2c5 {
+	clock-frequency = <100000>; /* Lower clock speed for external bus. */
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_i2c5>;
+	status = "disabled"; /* can1 pins conflict with i2c5 */
+
+	/* GPIO 2 of PCA6416 is used to switch between CAN1 and I2C5 functions:
+	 *     LOW:  CAN1 (default, pull-down)
+	 *     HIGH: I2C5
+	 * You need to set it to high to enable I2C5 (for example, add gpio-hog
+	 * in pca6416 node).
+	 */
 };
 
 &snvs_pwrkey {
@@ -369,9 +479,22 @@
 		>;
 	};
 
+	pinctrl_i2c5: i2c5grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_SPDIF_RX__I2C5_SDA         0x400001c3
+			MX8MP_IOMUXC_SPDIF_TX__I2C5_SCL         0x400001c3
+		>;
+	};
+
 	pinctrl_pmic: pmicgrp {
 		fsl,pins = <
 			MX8MP_IOMUXC_GPIO1_IO03__GPIO1_IO03	0x000001c0
+		>;
+	};
+
+	pinctrl_pca6416_int: pca6416_int_grp {
+		fsl,pins = <
+			MX8MP_IOMUXC_GPIO1_IO12__GPIO1_IO12	0x146 /* Input pull-up. */
 		>;
 	};
 

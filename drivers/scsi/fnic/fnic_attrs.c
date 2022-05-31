@@ -48,9 +48,18 @@ static DEVICE_ATTR(fnic_state, S_IRUGO, fnic_show_state, NULL);
 static DEVICE_ATTR(drv_version, S_IRUGO, fnic_show_drv_version, NULL);
 static DEVICE_ATTR(link_state, S_IRUGO, fnic_show_link_state, NULL);
 
-struct device_attribute *fnic_attrs[] = {
-	&dev_attr_fnic_state,
-	&dev_attr_drv_version,
-	&dev_attr_link_state,
+static struct attribute *fnic_host_attrs[] = {
+	&dev_attr_fnic_state.attr,
+	&dev_attr_drv_version.attr,
+	&dev_attr_link_state.attr,
 	NULL,
+};
+
+static const struct attribute_group fnic_host_attr_group = {
+	.attrs = fnic_host_attrs
+};
+
+const struct attribute_group *fnic_host_groups[] = {
+	&fnic_host_attr_group,
+	NULL
 };

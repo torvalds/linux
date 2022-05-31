@@ -10,8 +10,9 @@
 #include <string.h>
 
 #include <bpf/bpf.h>
-#include <bpf/libbpf.h>
 #include <bpf/btf.h>
+#include <bpf/hashmap.h>
+#include <bpf/libbpf.h>
 
 #include "main.h"
 
@@ -30,11 +31,9 @@ bool block_mount;
 bool verifier_logs;
 bool relaxed_maps;
 bool use_loader;
+bool legacy_libbpf;
 struct btf *base_btf;
-struct pinned_obj_table prog_table;
-struct pinned_obj_table map_table;
-struct pinned_obj_table link_table;
-struct obj_refs_table refs_table;
+struct hashmap *refs_table;
 
 static void __noreturn clean_and_exit(int i)
 {
@@ -72,6 +71,17 @@ static int do_help(int argc, char **argv)
 	return 0;
 }
 
+#ifndef BPFTOOL_VERSION
+/* bpftool's major and minor version numbers are aligned on libbpf's. There is
+ * an offset of 6 for the version number, because bpftool's version was higher
+ * than libbpf's when we adopted this scheme. The patch number remains at 0
+ * for now. Set BPFTOOL_VERSION to override.
+ */
+#define BPFTOOL_MAJOR_VERSION (LIBBPF_MAJOR_VERSION + 6)
+#define BPFTOOL_MINOR_VERSION LIBBPF_MINOR_VERSION
+#define BPFTOOL_PATCH_VERSION 0
+#endif
+
 static int do_version(int argc, char **argv)
 {
 #ifdef HAVE_LIBBFD_SUPPORT
@@ -89,11 +99,20 @@ static int do_version(int argc, char **argv)
 		jsonw_start_object(json_wtr);	/* root object */
 
 		jsonw_name(json_wtr, "version");
+#ifdef BPFTOOL_VERSION
 		jsonw_printf(json_wtr, "\"%s\"", BPFTOOL_VERSION);
+#else
+		jsonw_printf(json_wtr, "\"%d.%d.%d\"", BPFTOOL_MAJOR_VERSION,
+			     BPFTOOL_MINOR_VERSION, BPFTOOL_PATCH_VERSION);
+#endif
+		jsonw_name(json_wtr, "libbpf_version");
+		jsonw_printf(json_wtr, "\"%d.%d\"",
+			     libbpf_major_version(), libbpf_minor_version());
 
 		jsonw_name(json_wtr, "features");
 		jsonw_start_object(json_wtr);	/* features */
 		jsonw_bool_field(json_wtr, "libbfd", has_libbfd);
+		jsonw_bool_field(json_wtr, "libbpf_strict", !legacy_libbpf);
 		jsonw_bool_field(json_wtr, "skeletons", has_skeletons);
 		jsonw_end_object(json_wtr);	/* features */
 
@@ -101,10 +120,20 @@ static int do_version(int argc, char **argv)
 	} else {
 		unsigned int nb_features = 0;
 
+#ifdef BPFTOOL_VERSION
 		printf("%s v%s\n", bin_name, BPFTOOL_VERSION);
+#else
+		printf("%s v%d.%d.%d\n", bin_name, BPFTOOL_MAJOR_VERSION,
+		       BPFTOOL_MINOR_VERSION, BPFTOOL_PATCH_VERSION);
+#endif
+		printf("using libbpf %s\n", libbpf_version_string());
 		printf("features:");
 		if (has_libbfd) {
 			printf(" libbfd");
+			nb_features++;
+		}
+		if (!legacy_libbpf) {
+			printf("%s libbpf_strict", nb_features++ ? "," : "");
 			nb_features++;
 		}
 		if (has_skeletons)
@@ -398,9 +427,13 @@ int main(int argc, char **argv)
 		{ "debug",	no_argument,	NULL,	'd' },
 		{ "use-loader",	no_argument,	NULL,	'L' },
 		{ "base-btf",	required_argument, NULL, 'B' },
+		{ "legacy",	no_argument,	NULL,	'l' },
 		{ 0 }
 	};
+	bool version_requested = false;
 	int opt, ret;
+
+	setlinebuf(stdout);
 
 	last_do_help = do_help;
 	pretty_output = false;
@@ -409,16 +442,13 @@ int main(int argc, char **argv)
 	block_mount = false;
 	bin_name = argv[0];
 
-	hash_init(prog_table.table);
-	hash_init(map_table.table);
-	hash_init(link_table.table);
-
 	opterr = 0;
-	while ((opt = getopt_long(argc, argv, "VhpjfLmndB:",
+	while ((opt = getopt_long(argc, argv, "VhpjfLmndB:l",
 				  options, NULL)) >= 0) {
 		switch (opt) {
 		case 'V':
-			return do_version(argc, argv);
+			version_requested = true;
+			break;
 		case 'h':
 			return do_help(argc, argv);
 		case 'p':
@@ -460,6 +490,9 @@ int main(int argc, char **argv)
 		case 'L':
 			use_loader = true;
 			break;
+		case 'l':
+			legacy_libbpf = true;
+			break;
 		default:
 			p_err("unrecognized option '%s'", argv[optind - 1]);
 			if (json_output)
@@ -469,21 +502,29 @@ int main(int argc, char **argv)
 		}
 	}
 
+	if (!legacy_libbpf) {
+		/* Allow legacy map definitions for skeleton generation.
+		 * It will still be rejected if users use LIBBPF_STRICT_ALL
+		 * mode for loading generated skeleton.
+		 */
+		ret = libbpf_set_strict_mode(LIBBPF_STRICT_ALL & ~LIBBPF_STRICT_MAP_DEFINITIONS);
+		if (ret)
+			p_err("failed to enable libbpf strict mode: %d", ret);
+	}
+
 	argc -= optind;
 	argv += optind;
 	if (argc < 0)
 		usage();
+
+	if (version_requested)
+		return do_version(argc, argv);
 
 	ret = cmd_select(cmds, argc, argv, do_help);
 
 	if (json_output)
 		jsonw_destroy(&json_wtr);
 
-	if (show_pinned) {
-		delete_pinned_obj_table(&prog_table);
-		delete_pinned_obj_table(&map_table);
-		delete_pinned_obj_table(&link_table);
-	}
 	btf__free(base_btf);
 
 	return ret;

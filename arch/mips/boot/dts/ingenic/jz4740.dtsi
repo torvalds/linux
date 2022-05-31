@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
-#include <dt-bindings/clock/jz4740-cgu.h>
+#include <dt-bindings/clock/ingenic,jz4740-cgu.h>
 #include <dt-bindings/clock/ingenic,tcu.h>
 
 / {
@@ -323,7 +323,7 @@
 
 	lcd: lcd-controller@13050000 {
 		compatible = "ingenic,jz4740-lcd";
-		reg = <0x13050000 0x1000>;
+		reg = <0x13050000 0x60>; /* LCDCMD1+4 */
 
 		interrupt-parent = <&intc>;
 		interrupts = <30>;

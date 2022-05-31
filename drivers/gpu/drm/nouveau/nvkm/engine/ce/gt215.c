@@ -78,6 +78,6 @@ int
 gt215_ce_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_engine **pengine)
 {
-	return nvkm_falcon_new_(&gt215_ce, device, type, inst,
+	return nvkm_falcon_new_(&gt215_ce, device, type, -1,
 				(device->chipset != 0xaf), 0x104000, pengine);
 }

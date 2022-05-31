@@ -28,6 +28,7 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <linux/uaccess.h>
+#include <linux/jiffies.h>
 #include <net/ax25.h>
 #include "z8530.h"
 
@@ -377,7 +378,7 @@ static int __init dmascc_init(void)
 		udelay(2000000 / TMR_0_HZ);
 
 		/* Timing loop */
-		while (jiffies - time < 13) {
+		while (time_is_after_jiffies(time + 13)) {
 			for (i = 0; i < hw[h].num_devs; i++)
 				if (base[i] && counting[i]) {
 					/* Read back Timer 1: latch; read LSB; read MSB */
@@ -426,7 +427,7 @@ static void __init dev_setup(struct net_device *dev)
 	dev->addr_len = AX25_ADDR_LEN;
 	dev->tx_queue_len = 64;
 	memcpy(dev->broadcast, &ax25_bcast, AX25_ADDR_LEN);
-	memcpy(dev->dev_addr, &ax25_defaddr, AX25_ADDR_LEN);
+	dev_addr_set(dev, (u8 *)&ax25_defaddr);
 }
 
 static const struct net_device_ops scc_netdev_ops = {
@@ -525,7 +526,7 @@ static int __init setup_adapter(int card_base, int type, int n)
 
 	/* Wait and detect IRQ */
 	time = jiffies;
-	while (jiffies - time < 2 + HZ / TMR_0_HZ);
+	while (time_is_after_jiffies(time + 2 + HZ / TMR_0_HZ));
 	irq = probe_irq_off(irqs);
 
 	/* Clear pending interrupt, disable interrupts */
@@ -956,8 +957,7 @@ static int scc_send_packet(struct sk_buff *skb, struct net_device *dev)
 
 static int scc_set_mac_address(struct net_device *dev, void *sa)
 {
-	memcpy(dev->dev_addr, ((struct sockaddr *) sa)->sa_data,
-	       dev->addr_len);
+	dev_addr_set(dev, ((struct sockaddr *)sa)->sa_data);
 	return 0;
 }
 
@@ -1354,7 +1354,7 @@ static void es_isr(struct scc_priv *priv)
 		/* Switch state */
 		write_scc(priv, R15, 0);
 		if (priv->tx_count &&
-		    (jiffies - priv->tx_start) < priv->param.txtimeout) {
+		    time_is_after_jiffies(priv->tx_start + priv->param.txtimeout)) {
 			priv->state = TX_PAUSE;
 			start_timer(priv, priv->param.txpause, 0);
 		} else {

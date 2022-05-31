@@ -8,10 +8,12 @@
 #include <linux/kthread.h>
 #include <linux/packing.h>
 #include <linux/skbuff.h>
+#include <net/dsa.h>
 
 struct ocelot_skb_cb {
 	struct sk_buff *clone;
 	unsigned int ptp_class; /* valid only for clones */
+	u32 tstamp_lo;
 	u8 ptp_cmd;
 	u8 ts_id;
 };
@@ -167,10 +169,17 @@ struct felix_deferred_xmit_work {
 	struct kthread_work work;
 };
 
-struct felix_port {
+struct ocelot_8021q_tagger_data {
 	void (*xmit_work_fn)(struct kthread_work *work);
-	struct kthread_worker *xmit_worker;
 };
+
+static inline struct ocelot_8021q_tagger_data *
+ocelot_8021q_tagger_data(struct dsa_switch *ds)
+{
+	BUG_ON(ds->dst->tag_ops->proto != DSA_TAG_PROTO_OCELOT_8021Q);
+
+	return ds->tagger_data;
+}
 
 static inline void ocelot_xfh_get_rew_val(void *extraction, u64 *rew_val)
 {
@@ -242,9 +251,9 @@ static inline void ocelot_ifh_set_tag_type(void *injection, u64 tag_type)
 	packing(injection, &tag_type, 16, 16, OCELOT_TAG_LEN, PACK, 0);
 }
 
-static inline void ocelot_ifh_set_vid(void *injection, u64 vid)
+static inline void ocelot_ifh_set_vlan_tci(void *injection, u64 vlan_tci)
 {
-	packing(injection, &vid, 11, 0, OCELOT_TAG_LEN, PACK, 0);
+	packing(injection, &vlan_tci, 15, 0, OCELOT_TAG_LEN, PACK, 0);
 }
 
 /* Determine the PTP REW_OP to use for injecting the given skb */

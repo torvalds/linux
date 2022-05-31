@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: (GPL-2.0 OR MPL-1.1)
-/* src/p80211/p80211knetdev.c
+/*
  *
  * Linux Kernel net device interface
  *
@@ -255,7 +255,7 @@ static int p80211_convert_to_ether(struct wlandevice *wlandev,
 	if (skb_p80211_to_ether(wlandev, wlandev->ethconv, skb) == 0) {
 		wlandev->netdev->stats.rx_packets++;
 		wlandev->netdev->stats.rx_bytes += skb->len;
-		netif_rx_ni(skb);
+		netif_rx(skb);
 		return 0;
 	}
 
@@ -290,7 +290,7 @@ static void p80211netdev_rx_bh(struct tasklet_struct *t)
 
 				dev->stats.rx_packets++;
 				dev->stats.rx_bytes += skb->len;
-				netif_rx_ni(skb);
+				netif_rx(skb);
 				continue;
 			} else {
 				if (!p80211_convert_to_ether(wlandev, skb))
@@ -616,7 +616,7 @@ static int p80211knetdev_set_mac_address(struct net_device *dev, void *addr)
 		result = -EADDRNOTAVAIL;
 	} else {
 		/* everything's ok, change the addr in netdev */
-		memcpy(dev->dev_addr, new_addr->sa_data, dev->addr_len);
+		eth_hw_addr_set(dev, new_addr->sa_data);
 	}
 
 	return result;

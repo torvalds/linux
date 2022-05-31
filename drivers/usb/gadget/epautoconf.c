@@ -181,7 +181,7 @@ EXPORT_SYMBOL_GPL(usb_ep_autoconfig);
  * This function can be used during function bind for endpoints obtained
  * from usb_ep_autoconfig(). It unclaims endpoint claimed by
  * usb_ep_autoconfig() to make it available for other functions. Endpoint
- * which was released is no longer invalid and shouldn't be used in
+ * which was released is no longer valid and shouldn't be used in
  * context of function which released it.
  */
 void usb_ep_autoconfig_release(struct usb_ep *ep)

@@ -36,6 +36,7 @@
 #define QL_VND_GET_HOST_STATS		0x24
 #define QL_VND_GET_TGT_STATS		0x25
 #define QL_VND_MANAGE_HOST_PORT		0x26
+#define QL_VND_MBX_PASSTHRU		0x2B
 
 /* BSG Vendor specific subcode returns */
 #define EXT_STATUS_OK			0
@@ -156,7 +157,7 @@ struct qla84_msg_mgmt {
 	uint16_t rsrvd;
 	struct qla84_mgmt_param mgmtp;/* parameters for cmd */
 	uint32_t len; /* bytes in payload following this struct */
-	uint8_t payload[0]; /* payload for cmd */
+	uint8_t payload[]; /* payload for cmd */
 };
 
 struct qla_bsg_a84_mgmt {
@@ -187,6 +188,12 @@ struct qla_port_param {
 	uint16_t speed;
 } __attribute__ ((packed));
 
+struct qla_mbx_passthru {
+	uint16_t reserved1[2];
+	uint16_t mbx_in[32];
+	uint16_t mbx_out[32];
+	uint32_t reserved2[16];
+} __packed;
 
 /* FRU VPD */
 
@@ -209,7 +216,7 @@ struct qla_image_version {
 
 struct qla_image_version_list {
 	uint32_t count;
-	struct qla_image_version version[0];
+	struct qla_image_version version[];
 } __packed;
 
 struct qla_status_reg {

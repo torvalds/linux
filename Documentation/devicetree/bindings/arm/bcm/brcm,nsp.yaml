@@ -22,16 +22,61 @@ properties:
   $nodename:
     const: '/'
   compatible:
-    items:
-      - enum:
-          - brcm,bcm58522
-          - brcm,bcm58525
-          - brcm,bcm58535
-          - brcm,bcm58622
-          - brcm,bcm58623
-          - brcm,bcm58625
-          - brcm,bcm88312
-      - const: brcm,nsp
+    oneOf:
+      - description: BCM58522 based boards
+        items:
+          - enum:
+              - brcm,bcm958522er
+          - const: brcm,bcm58522
+          - const: brcm,nsp
+
+      - description: BCM58525 based boards
+        items:
+          - enum:
+              - brcm,bcm958525er
+              - brcm,bcm958525xmc
+          - const: brcm,bcm58525
+          - const: brcm,nsp
+
+      - description: BCM58535 based boards
+        items:
+          - const: brcm,bcm58535
+          - const: brcm,nsp
+
+      - description: BCM58622 based boards
+        items:
+          - enum:
+              - brcm,bcm958622hr
+          - const: brcm,bcm58622
+          - const: brcm,nsp
+
+      - description: BCM58623 based boards
+        items:
+          - enum:
+              - brcm,bcm958623hr
+          - const: brcm,bcm58623
+          - const: brcm,nsp
+
+      - description: BCM58625 based boards
+        items:
+          - enum:
+              - brcm,bcm958625hr
+              - brcm,bcm958625k
+              - meraki,mx64
+              - meraki,mx64-a0
+              - meraki,mx64w
+              - meraki,mx64w-a0
+              - meraki,mx65
+              - meraki,mx65w
+          - const: brcm,bcm58625
+          - const: brcm,nsp
+
+      - description: BCM88312 based boards
+        items:
+          - enum:
+              - brcm,bcm988312hr
+          - const: brcm,bcm88312
+          - const: brcm,nsp
 
 additionalProperties: true
 

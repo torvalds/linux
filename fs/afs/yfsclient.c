@@ -83,25 +83,18 @@ static s64 linux_to_yfs_time(const struct timespec64 *t)
 	return (u64)t->tv_sec * 10000000 + t->tv_nsec/100;
 }
 
-static __be32 *xdr_encode_YFSStoreStatus_mode(__be32 *bp, mode_t mode)
+static __be32 *xdr_encode_YFSStoreStatus(__be32 *bp, mode_t *mode,
+					 const struct timespec64 *t)
 {
 	struct yfs_xdr_YFSStoreStatus *x = (void *)bp;
-
-	x->mask		= htonl(AFS_SET_MODE);
-	x->mode		= htonl(mode & S_IALLUGO);
-	x->mtime_client	= u64_to_xdr(0);
-	x->owner	= u64_to_xdr(0);
-	x->group	= u64_to_xdr(0);
-	return bp + xdr_size(x);
-}
-
-static __be32 *xdr_encode_YFSStoreStatus_mtime(__be32 *bp, const struct timespec64 *t)
-{
-	struct yfs_xdr_YFSStoreStatus *x = (void *)bp;
+	mode_t masked_mode = mode ? *mode & S_IALLUGO : 0;
 	s64 mtime = linux_to_yfs_time(t);
+	u32 mask = AFS_SET_MTIME;
 
-	x->mask		= htonl(AFS_SET_MTIME);
-	x->mode		= htonl(0);
+	mask |= mode ? AFS_SET_MODE : 0;
+
+	x->mask		= htonl(mask);
+	x->mode		= htonl(masked_mode);
 	x->mtime_client	= u64_to_xdr(mtime);
 	x->owner	= u64_to_xdr(0);
 	x->group	= u64_to_xdr(0);
@@ -576,7 +569,7 @@ void yfs_fs_create_file(struct afs_operation *op)
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &dvp->fid);
 	bp = xdr_encode_name(bp, name);
-	bp = xdr_encode_YFSStoreStatus_mode(bp, op->create.mode);
+	bp = xdr_encode_YFSStoreStatus(bp, &op->create.mode, &op->mtime);
 	bp = xdr_encode_u32(bp, yfs_LockNone); /* ViceLockType */
 	yfs_check_req(call, bp);
 
@@ -625,7 +618,7 @@ void yfs_fs_make_dir(struct afs_operation *op)
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &dvp->fid);
 	bp = xdr_encode_name(bp, name);
-	bp = xdr_encode_YFSStoreStatus_mode(bp, op->create.mode);
+	bp = xdr_encode_YFSStoreStatus(bp, &op->create.mode, &op->mtime);
 	yfs_check_req(call, bp);
 
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
@@ -946,6 +939,7 @@ void yfs_fs_symlink(struct afs_operation *op)
 	struct afs_vnode_param *dvp = &op->file[0];
 	struct afs_call *call;
 	size_t contents_sz;
+	mode_t mode = 0777;
 	__be32 *bp;
 
 	_enter("");
@@ -972,7 +966,7 @@ void yfs_fs_symlink(struct afs_operation *op)
 	bp = xdr_encode_YFSFid(bp, &dvp->fid);
 	bp = xdr_encode_name(bp, name);
 	bp = xdr_encode_string(bp, op->create.symlink, contents_sz);
-	bp = xdr_encode_YFSStoreStatus_mode(bp, S_IRWXUGO);
+	bp = xdr_encode_YFSStoreStatus(bp, &mode, &op->mtime);
 	yfs_check_req(call, bp);
 
 	trace_afs_make_fs_call1(call, &dvp->fid, name);
@@ -1103,7 +1097,7 @@ void yfs_fs_store_data(struct afs_operation *op)
 	bp = xdr_encode_u32(bp, YFSSTOREDATA64);
 	bp = xdr_encode_u32(bp, 0); /* RPC flags */
 	bp = xdr_encode_YFSFid(bp, &vp->fid);
-	bp = xdr_encode_YFSStoreStatus_mtime(bp, &op->mtime);
+	bp = xdr_encode_YFSStoreStatus(bp, NULL, &op->mtime);
 	bp = xdr_encode_u64(bp, op->store.pos);
 	bp = xdr_encode_u64(bp, op->store.size);
 	bp = xdr_encode_u64(bp, op->store.i_size);

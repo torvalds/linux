@@ -333,12 +333,6 @@ patternProperties:
               subnode describes. A value of 0 denotes the memory SD
               function, values from 1 to 7 denote the SDIO functions.
 
-      broken-hpi:
-        $ref: /schemas/types.yaml#/definitions/flag
-        description:
-          Use this to indicate that the mmc-card has a broken hpi
-          implementation, and that hpi should not be used.
-
     required:
       - reg
 

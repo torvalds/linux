@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause */
 /*
  * Copyright (C) 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2020 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 #ifndef __iwl_fw_runtime_h__
 #define __iwl_fw_runtime_h__
@@ -16,7 +16,7 @@
 #include "fw/acpi.h"
 
 struct iwl_fw_runtime_ops {
-	int (*dump_start)(void *ctx);
+	void (*dump_start)(void *ctx);
 	void (*dump_end)(void *ctx);
 	bool (*fw_running)(void *ctx);
 	int (*send_hcmd)(void *ctx, struct iwl_host_cmd *host_cmd);
@@ -105,6 +105,9 @@ struct iwl_fw_runtime {
 	const struct iwl_fw_runtime_ops *ops;
 	void *ops_ctx;
 
+	const struct iwl_dump_sanitize_ops *sanitize_ops;
+	void *sanitize_ctx;
+
 	/* Paging */
 	struct iwl_fw_paging fw_paging_db[NUM_OF_FW_PAGING_BLOCKS];
 	u16 num_of_paging_blk;
@@ -151,16 +154,24 @@ struct iwl_fw_runtime {
 	struct iwl_sar_profile sar_profiles[ACPI_SAR_PROFILE_NUM];
 	u8 sar_chain_a_profile;
 	u8 sar_chain_b_profile;
-	struct iwl_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES];
+	struct iwl_geo_profile geo_profiles[ACPI_NUM_GEO_PROFILES_REV3];
 	u32 geo_rev;
-	union iwl_ppag_table_cmd ppag_table;
+	u32 geo_num_profiles;
+	bool geo_enabled;
+	struct iwl_ppag_chain ppag_chains[IWL_NUM_CHAIN_LIMITS];
+	u32 ppag_flags;
 	u32 ppag_ver;
+	struct iwl_sar_offset_mapping_cmd sgom_table;
+	bool sgom_enabled;
+	u8 reduced_power_flags;
 #endif
 };
 
 void iwl_fw_runtime_init(struct iwl_fw_runtime *fwrt, struct iwl_trans *trans,
 			const struct iwl_fw *fw,
 			const struct iwl_fw_runtime_ops *ops, void *ops_ctx,
+			const struct iwl_dump_sanitize_ops *sanitize_ops,
+			void *sanitize_ctx,
 			struct dentry *dbgfs_dir);
 
 static inline void iwl_fw_runtime_free(struct iwl_fw_runtime *fwrt)

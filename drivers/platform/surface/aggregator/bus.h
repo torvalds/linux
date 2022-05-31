@@ -12,14 +12,11 @@
 
 #ifdef CONFIG_SURFACE_AGGREGATOR_BUS
 
-void ssam_controller_remove_clients(struct ssam_controller *ctrl);
-
 int ssam_bus_register(void);
 void ssam_bus_unregister(void);
 
 #else /* CONFIG_SURFACE_AGGREGATOR_BUS */
 
-static inline void ssam_controller_remove_clients(struct ssam_controller *ctrl) {}
 static inline int ssam_bus_register(void) { return 0; }
 static inline void ssam_bus_unregister(void) {}
 

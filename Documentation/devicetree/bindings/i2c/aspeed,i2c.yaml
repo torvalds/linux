@@ -63,7 +63,6 @@ examples:
     i2c0: i2c-bus@40 {
       #address-cells = <1>;
       #size-cells = <0>;
-      #interrupt-cells = <1>;
       compatible = "aspeed,ast2500-i2c-bus";
       reg = <0x40 0x40>;
       clocks = <&syscon ASPEED_CLK_APB>;

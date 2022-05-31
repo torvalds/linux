@@ -12,6 +12,8 @@
 #include <linux/pci.h>
 #include <linux/mmc/mmc.h>
 #include <linux/delay.h>
+#include <linux/of.h>
+#include <linux/iopoll.h>
 #include "sdhci.h"
 #include "sdhci-pci.h"
 #include "cqhci.h"
@@ -62,6 +64,7 @@
 #define   GLI_9750_MISC_RX_INV_OFF       0x0
 #define   GLI_9750_MISC_RX_INV_VALUE     GLI_9750_MISC_RX_INV_OFF
 #define   GLI_9750_MISC_TX1_DLY_VALUE    0x5
+#define   SDHCI_GLI_9750_MISC_SSC_OFF    BIT(26)
 
 #define SDHCI_GLI_9750_TUNING_CONTROL	          0x540
 #define   SDHCI_GLI_9750_TUNING_CONTROL_EN          BIT(4)
@@ -116,6 +119,8 @@
 #define PCI_GLI_9755_PECONF   0x44
 #define   PCI_GLI_9755_LFCLK    GENMASK(14, 12)
 #define   PCI_GLI_9755_DMACLK   BIT(29)
+#define   PCI_GLI_9755_INVERT_CD  BIT(30)
+#define   PCI_GLI_9755_INVERT_WP  BIT(31)
 
 #define PCI_GLI_9755_CFG2          0x48
 #define   PCI_GLI_9755_CFG2_L1DLY    GENMASK(28, 24)
@@ -133,6 +138,9 @@
 
 #define PCI_GLI_9755_SerDes  0x70
 #define PCI_GLI_9755_SCP_DIS   BIT(19)
+
+#define PCI_GLI_9755_MISC	    0x78
+#define   PCI_GLI_9755_MISC_SSC_OFF    BIT(26)
 
 #define GLI_MAX_TUNING_LOOP 40
 
@@ -368,6 +376,19 @@ static void gl9750_set_pll(struct sdhci_host *host, u8 dir, u16 ldiv, u8 pdiv)
 	mdelay(1);
 }
 
+static bool gl9750_ssc_enable(struct sdhci_host *host)
+{
+	u32 misc;
+	u8 off;
+
+	gl9750_wt_on(host);
+	misc = sdhci_readl(host, SDHCI_GLI_9750_MISC);
+	off = FIELD_GET(SDHCI_GLI_9750_MISC_SSC_OFF, misc);
+	gl9750_wt_off(host);
+
+	return !off;
+}
+
 static void gl9750_set_ssc(struct sdhci_host *host, u8 enable, u8 step, u16 ppm)
 {
 	u32 pll;
@@ -389,9 +410,29 @@ static void gl9750_set_ssc(struct sdhci_host *host, u8 enable, u8 step, u16 ppm)
 
 static void gl9750_set_ssc_pll_205mhz(struct sdhci_host *host)
 {
-	/* set pll to 205MHz and enable ssc */
-	gl9750_set_ssc(host, 0x1, 0x1F, 0xFFE7);
+	bool enable = gl9750_ssc_enable(host);
+
+	/* set pll to 205MHz and ssc */
+	gl9750_set_ssc(host, enable, 0xF, 0x5A1D);
 	gl9750_set_pll(host, 0x1, 0x246, 0x0);
+}
+
+static void gl9750_set_ssc_pll_100mhz(struct sdhci_host *host)
+{
+	bool enable = gl9750_ssc_enable(host);
+
+	/* set pll to 100MHz and ssc */
+	gl9750_set_ssc(host, enable, 0xE, 0x51EC);
+	gl9750_set_pll(host, 0x1, 0x244, 0x1);
+}
+
+static void gl9750_set_ssc_pll_50mhz(struct sdhci_host *host)
+{
+	bool enable = gl9750_ssc_enable(host);
+
+	/* set pll to 50MHz and ssc */
+	gl9750_set_ssc(host, enable, 0xE, 0x51EC);
+	gl9750_set_pll(host, 0x1, 0x244, 0x3);
 }
 
 static void sdhci_gl9750_set_clock(struct sdhci_host *host, unsigned int clock)
@@ -411,6 +452,10 @@ static void sdhci_gl9750_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock == 200000000 && ios->timing == MMC_TIMING_UHS_SDR104) {
 		host->mmc->actual_clock = 205000000;
 		gl9750_set_ssc_pll_205mhz(host);
+	} else if (clock == 100000000) {
+		gl9750_set_ssc_pll_100mhz(host);
+	} else if (clock == 50000000) {
+		gl9750_set_ssc_pll_50mhz(host);
 	}
 
 	sdhci_enable_clk(host, clk);
@@ -511,6 +556,19 @@ static void gl9755_set_pll(struct pci_dev *pdev, u8 dir, u16 ldiv, u8 pdiv)
 	mdelay(1);
 }
 
+static bool gl9755_ssc_enable(struct pci_dev *pdev)
+{
+	u32 misc;
+	u8 off;
+
+	gl9755_wt_on(pdev);
+	pci_read_config_dword(pdev, PCI_GLI_9755_MISC, &misc);
+	off = FIELD_GET(PCI_GLI_9755_MISC_SSC_OFF, misc);
+	gl9755_wt_off(pdev);
+
+	return !off;
+}
+
 static void gl9755_set_ssc(struct pci_dev *pdev, u8 enable, u8 step, u16 ppm)
 {
 	u32 pll;
@@ -532,9 +590,29 @@ static void gl9755_set_ssc(struct pci_dev *pdev, u8 enable, u8 step, u16 ppm)
 
 static void gl9755_set_ssc_pll_205mhz(struct pci_dev *pdev)
 {
-	/* set pll to 205MHz and enable ssc */
-	gl9755_set_ssc(pdev, 0x1, 0x1F, 0xFFE7);
+	bool enable = gl9755_ssc_enable(pdev);
+
+	/* set pll to 205MHz and ssc */
+	gl9755_set_ssc(pdev, enable, 0xF, 0x5A1D);
 	gl9755_set_pll(pdev, 0x1, 0x246, 0x0);
+}
+
+static void gl9755_set_ssc_pll_100mhz(struct pci_dev *pdev)
+{
+	bool enable = gl9755_ssc_enable(pdev);
+
+	/* set pll to 100MHz and ssc */
+	gl9755_set_ssc(pdev, enable, 0xE, 0x51EC);
+	gl9755_set_pll(pdev, 0x1, 0x244, 0x1);
+}
+
+static void gl9755_set_ssc_pll_50mhz(struct pci_dev *pdev)
+{
+	bool enable = gl9755_ssc_enable(pdev);
+
+	/* set pll to 50MHz and ssc */
+	gl9755_set_ssc(pdev, enable, 0xE, 0x51EC);
+	gl9755_set_pll(pdev, 0x1, 0x244, 0x3);
 }
 
 static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
@@ -557,6 +635,10 @@ static void sdhci_gl9755_set_clock(struct sdhci_host *host, unsigned int clock)
 	if (clock == 200000000 && ios->timing == MMC_TIMING_UHS_SDR104) {
 		host->mmc->actual_clock = 205000000;
 		gl9755_set_ssc_pll_205mhz(pdev);
+	} else if (clock == 100000000) {
+		gl9755_set_ssc_pll_100mhz(pdev);
+	} else if (clock == 50000000) {
+		gl9755_set_ssc_pll_50mhz(pdev);
 	}
 
 	sdhci_enable_clk(host, clk);
@@ -570,6 +652,14 @@ static void gl9755_hw_setting(struct sdhci_pci_slot *slot)
 	gl9755_wt_on(pdev);
 
 	pci_read_config_dword(pdev, PCI_GLI_9755_PECONF, &value);
+	/*
+	 * Apple ARM64 platforms using these chips may have
+	 * inverted CD/WP detection.
+	 */
+	if (of_property_read_bool(pdev->dev.of_node, "cd-inverted"))
+		value |= PCI_GLI_9755_INVERT_CD;
+	if (of_property_read_bool(pdev->dev.of_node, "wp-inverted"))
+		value |= PCI_GLI_9755_INVERT_WP;
 	value &= ~PCI_GLI_9755_LFCLK;
 	value &= ~PCI_GLI_9755_DMACLK;
 	pci_write_config_dword(pdev, PCI_GLI_9755_PECONF, value);
@@ -862,6 +952,47 @@ static void gli_set_gl9763e(struct sdhci_pci_slot *slot)
 	pci_write_config_dword(pdev, PCIE_GLI_9763E_VHS, value);
 }
 
+#ifdef CONFIG_PM
+static int gl9763e_runtime_suspend(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot = chip->slots[0];
+	struct sdhci_host *host = slot->host;
+	u16 clock;
+
+	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+	clock &= ~(SDHCI_CLOCK_PLL_EN | SDHCI_CLOCK_CARD_EN);
+	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	return 0;
+}
+
+static int gl9763e_runtime_resume(struct sdhci_pci_chip *chip)
+{
+	struct sdhci_pci_slot *slot = chip->slots[0];
+	struct sdhci_host *host = slot->host;
+	u16 clock;
+
+	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
+
+	clock |= SDHCI_CLOCK_PLL_EN;
+	clock &= ~SDHCI_CLOCK_INT_STABLE;
+	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	/* Wait max 150 ms */
+	if (read_poll_timeout(sdhci_readw, clock, (clock & SDHCI_CLOCK_INT_STABLE),
+			      1000, 150000, false, host, SDHCI_CLOCK_CONTROL)) {
+		pr_err("%s: PLL clock never stabilised.\n",
+		       mmc_hostname(host->mmc));
+		sdhci_dumpregs(host);
+	}
+
+	clock |= SDHCI_CLOCK_CARD_EN;
+	sdhci_writew(host, clock, SDHCI_CLOCK_CONTROL);
+
+	return 0;
+}
+#endif
+
 static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
 {
 	struct pci_dev *pdev = slot->chip->pdev;
@@ -891,7 +1022,28 @@ static int gli_probe_slot_gl9763e(struct sdhci_pci_slot *slot)
 	return 0;
 }
 
+#define REG_OFFSET_IN_BITS(reg) ((reg) << 3 & 0x18)
+
+static u16 sdhci_gli_readw(struct sdhci_host *host, int reg)
+{
+	u32 val = readl(host->ioaddr + (reg & ~3));
+	u16 word;
+
+	word = (val >> REG_OFFSET_IN_BITS(reg)) & 0xffff;
+	return word;
+}
+
+static u8 sdhci_gli_readb(struct sdhci_host *host, int reg)
+{
+	u32 val = readl(host->ioaddr + (reg & ~3));
+	u8 byte = (val >> REG_OFFSET_IN_BITS(reg)) & 0xff;
+
+	return byte;
+}
+
 static const struct sdhci_ops sdhci_gl9755_ops = {
+	.read_w			= sdhci_gli_readw,
+	.read_b			= sdhci_gli_readb,
 	.set_clock		= sdhci_gl9755_set_clock,
 	.enable_dma		= sdhci_pci_enable_dma,
 	.set_bus_width		= sdhci_set_bus_width,
@@ -911,6 +1063,8 @@ const struct sdhci_pci_fixes sdhci_gl9755 = {
 };
 
 static const struct sdhci_ops sdhci_gl9750_ops = {
+	.read_w			= sdhci_gli_readw,
+	.read_b			= sdhci_gli_readb,
 	.read_l                 = sdhci_gl9750_readl,
 	.set_clock		= sdhci_gl9750_set_clock,
 	.enable_dma		= sdhci_pci_enable_dma,
@@ -948,6 +1102,11 @@ const struct sdhci_pci_fixes sdhci_gl9763e = {
 #ifdef CONFIG_PM_SLEEP
 	.resume		= sdhci_cqhci_gli_resume,
 	.suspend	= sdhci_cqhci_gli_suspend,
+#endif
+#ifdef CONFIG_PM
+	.runtime_suspend = gl9763e_runtime_suspend,
+	.runtime_resume  = gl9763e_runtime_resume,
+	.allow_runtime_pm = true,
 #endif
 	.add_host       = gl9763e_add_host,
 };

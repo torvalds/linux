@@ -728,20 +728,20 @@ static int str_to_bitmap(char *s, cpumask_t *b, int nr_cpus)
 	int i;
 	int ret = 0;
 	struct perf_cpu_map *m;
-	int c;
+	struct perf_cpu c;
 
 	m = perf_cpu_map__new(s);
 	if (!m)
 		return -1;
 
-	for (i = 0; i < m->nr; i++) {
-		c = m->map[i];
-		if (c >= nr_cpus) {
+	for (i = 0; i < perf_cpu_map__nr(m); i++) {
+		c = perf_cpu_map__cpu(m, i);
+		if (c.cpu >= nr_cpus) {
 			ret = -1;
 			break;
 		}
 
-		set_bit(c, cpumask_bits(b));
+		set_bit(c.cpu, cpumask_bits(b));
 	}
 
 	perf_cpu_map__put(m);

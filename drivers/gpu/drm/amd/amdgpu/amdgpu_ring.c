@@ -191,8 +191,10 @@ int amdgpu_ring_init(struct amdgpu_device *adev, struct amdgpu_ring *ring,
 		ring->adev = adev;
 		ring->idx = adev->num_rings++;
 		adev->rings[ring->idx] = ring;
-		r = amdgpu_fence_driver_init_ring(ring, sched_hw_submission,
-						  sched_score);
+		ring->num_hw_submission = sched_hw_submission;
+		ring->sched_score = sched_score;
+		ring->vmid_wait = dma_fence_get_stub();
+		r = amdgpu_fence_driver_init_ring(ring);
 		if (r)
 			return r;
 	}
@@ -415,26 +417,20 @@ static const struct file_operations amdgpu_debugfs_ring_fops = {
 
 #endif
 
-int amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
-			     struct amdgpu_ring *ring)
+void amdgpu_debugfs_ring_init(struct amdgpu_device *adev,
+			      struct amdgpu_ring *ring)
 {
 #if defined(CONFIG_DEBUG_FS)
 	struct drm_minor *minor = adev_to_drm(adev)->primary;
-	struct dentry *ent, *root = minor->debugfs_root;
+	struct dentry *root = minor->debugfs_root;
 	char name[32];
 
 	sprintf(name, "amdgpu_ring_%s", ring->name);
+	debugfs_create_file_size(name, S_IFREG | S_IRUGO, root, ring,
+				 &amdgpu_debugfs_ring_fops,
+				 ring->ring_size + 12);
 
-	ent = debugfs_create_file(name,
-				  S_IFREG | S_IRUGO, root,
-				  ring, &amdgpu_debugfs_ring_fops);
-	if (IS_ERR(ent))
-		return PTR_ERR(ent);
-
-	i_size_write(ent->d_inode, ring->ring_size + 12);
-	ring->ent = ent;
 #endif
-	return 0;
 }
 
 /**

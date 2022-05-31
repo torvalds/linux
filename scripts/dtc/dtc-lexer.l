@@ -57,7 +57,7 @@ static void PRINTF(1, 2) lexical_error(const char *fmt, ...);
 			push_input_file(name);
 		}
 
-<*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)? {
+<*>^"#"(line)?[ \t]+[0-9]+[ \t]+{STRING}([ \t]+[0-9]+)* {
 			char *line, *fnstart, *fnend;
 			struct data fn;
 			/* skip text before line # */

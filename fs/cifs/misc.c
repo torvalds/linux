@@ -75,6 +75,7 @@ sesInfoAlloc(void)
 		INIT_LIST_HEAD(&ret_buf->tcon_list);
 		mutex_init(&ret_buf->session_mutex);
 		spin_lock_init(&ret_buf->iface_lock);
+		spin_lock_init(&ret_buf->chan_lock);
 	}
 	return ret_buf;
 }
@@ -94,6 +95,7 @@ sesInfoFree(struct cifs_ses *buf_to_free)
 	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->user_name);
 	kfree(buf_to_free->domainName);
+	kfree(buf_to_free->workstation_name);
 	kfree_sensitive(buf_to_free->auth_key.response);
 	kfree(buf_to_free->iface_list);
 	kfree_sensitive(buf_to_free);
@@ -114,7 +116,7 @@ tconInfoAlloc(void)
 	}
 
 	atomic_inc(&tconInfoAllocCount);
-	ret_buf->tidStatus = CifsNew;
+	ret_buf->status = TID_NEW;
 	++ret_buf->tc_count;
 	INIT_LIST_HEAD(&ret_buf->openFileList);
 	INIT_LIST_HEAD(&ret_buf->tcon_list);
@@ -138,9 +140,6 @@ tconInfoFree(struct cifs_tcon *buf_to_free)
 	kfree(buf_to_free->nativeFileSystem);
 	kfree_sensitive(buf_to_free->password);
 	kfree(buf_to_free->crfid.fid);
-#ifdef CONFIG_CIFS_DFS_UPCALL
-	kfree(buf_to_free->dfs_path);
-#endif
 	kfree(buf_to_free);
 }
 
@@ -152,7 +151,7 @@ cifs_buf_get(void)
 	 * SMB2 header is bigger than CIFS one - no problems to clean some
 	 * more bytes for CIFS.
 	 */
-	size_t buf_size = sizeof(struct smb2_sync_hdr);
+	size_t buf_size = sizeof(struct smb2_hdr);
 
 	/*
 	 * We could use negotiated size instead of max_msgsize -
@@ -1287,69 +1286,69 @@ out:
 	return rc;
 }
 
-static void tcon_super_cb(struct super_block *sb, void *arg)
+int cifs_update_super_prepath(struct cifs_sb_info *cifs_sb, char *prefix)
 {
-	struct super_cb_data *sd = arg;
-	struct cifs_tcon *tcon = sd->data;
-	struct cifs_sb_info *cifs_sb;
-
-	if (sd->sb)
-		return;
-
-	cifs_sb = CIFS_SB(sb);
-	if (tcon->dfs_path && cifs_sb->origin_fullpath &&
-	    !strcasecmp(tcon->dfs_path, cifs_sb->origin_fullpath))
-		sd->sb = sb;
-}
-
-static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
-{
-	return __cifs_get_super(tcon_super_cb, tcon);
-}
-
-static inline void cifs_put_tcon_super(struct super_block *sb)
-{
-	__cifs_put_super(sb);
-}
-#else
-static inline struct super_block *cifs_get_tcon_super(struct cifs_tcon *tcon)
-{
-	return ERR_PTR(-EOPNOTSUPP);
-}
-
-static inline void cifs_put_tcon_super(struct super_block *sb)
-{
-}
-#endif
-
-int update_super_prepath(struct cifs_tcon *tcon, char *prefix)
-{
-	struct super_block *sb;
-	struct cifs_sb_info *cifs_sb;
-	int rc = 0;
-
-	sb = cifs_get_tcon_super(tcon);
-	if (IS_ERR(sb))
-		return PTR_ERR(sb);
-
-	cifs_sb = CIFS_SB(sb);
-
 	kfree(cifs_sb->prepath);
 
 	if (prefix && *prefix) {
 		cifs_sb->prepath = kstrdup(prefix, GFP_ATOMIC);
-		if (!cifs_sb->prepath) {
-			rc = -ENOMEM;
-			goto out;
-		}
+		if (!cifs_sb->prepath)
+			return -ENOMEM;
 
 		convert_delimiter(cifs_sb->prepath, CIFS_DIR_SEP(cifs_sb));
 	} else
 		cifs_sb->prepath = NULL;
 
 	cifs_sb->mnt_cifs_flags |= CIFS_MOUNT_USE_PREFIX_PATH;
+	return 0;
+}
 
-out:
-	cifs_put_tcon_super(sb);
+/** cifs_dfs_query_info_nonascii_quirk
+ * Handle weird Windows SMB server behaviour. It responds with
+ * STATUS_OBJECT_NAME_INVALID code to SMB2 QUERY_INFO request
+ * for "\<server>\<dfsname>\<linkpath>" DFS reference,
+ * where <dfsname> contains non-ASCII unicode symbols.
+ *
+ * Check such DFS reference and emulate -ENOENT if it is actual.
+ */
+int cifs_dfs_query_info_nonascii_quirk(const unsigned int xid,
+				       struct cifs_tcon *tcon,
+				       struct cifs_sb_info *cifs_sb,
+				       const char *linkpath)
+{
+	char *treename, *dfspath, sep;
+	int treenamelen, linkpathlen, rc;
+
+	treename = tcon->treeName;
+	/* MS-DFSC: All paths in REQ_GET_DFS_REFERRAL and RESP_GET_DFS_REFERRAL
+	 * messages MUST be encoded with exactly one leading backslash, not two
+	 * leading backslashes.
+	 */
+	sep = CIFS_DIR_SEP(cifs_sb);
+	if (treename[0] == sep && treename[1] == sep)
+		treename++;
+	linkpathlen = strlen(linkpath);
+	treenamelen = strnlen(treename, MAX_TREE_SIZE + 1);
+	dfspath = kzalloc(treenamelen + linkpathlen + 1, GFP_KERNEL);
+	if (!dfspath)
+		return -ENOMEM;
+	if (treenamelen)
+		memcpy(dfspath, treename, treenamelen);
+	memcpy(dfspath + treenamelen, linkpath, linkpathlen);
+	rc = dfs_cache_find(xid, tcon->ses, cifs_sb->local_nls,
+			    cifs_remap(cifs_sb), dfspath, NULL, NULL);
+	if (rc == 0) {
+		cifs_dbg(FYI, "DFS ref '%s' is found, emulate -EREMOTE\n",
+			 dfspath);
+		rc = -EREMOTE;
+	} else if (rc == -EEXIST) {
+		cifs_dbg(FYI, "DFS ref '%s' is not found, emulate -ENOENT\n",
+			 dfspath);
+		rc = -ENOENT;
+	} else {
+		cifs_dbg(FYI, "%s: dfs_cache_find returned %d\n", __func__, rc);
+	}
+	kfree(dfspath);
 	return rc;
 }
+#endif

@@ -22,8 +22,6 @@
 #include <limits.h>
 #include <assert.h>
 
-#include <sys/capability.h>
-
 #include <linux/unistd.h>
 #include <linux/filter.h>
 #include <linux/bpf_perf_event.h>
@@ -31,6 +29,7 @@
 #include <linux/if_ether.h>
 #include <linux/btf.h>
 
+#include <bpf/btf.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
 
@@ -41,16 +40,20 @@
 #  define CONFIG_HAVE_EFFICIENT_UNALIGNED_ACCESS 1
 # endif
 #endif
-#include "bpf_rlimit.h"
+#include "cap_helpers.h"
 #include "bpf_rand.h"
 #include "bpf_util.h"
 #include "test_btf.h"
 #include "../../../include/linux/filter.h"
 
+#ifndef ENOTSUPP
+#define ENOTSUPP 524
+#endif
+
 #define MAX_INSNS	BPF_MAXINSNS
 #define MAX_TEST_INSNS	1000000
 #define MAX_FIXUPS	8
-#define MAX_NR_MAPS	21
+#define MAX_NR_MAPS	22
 #define MAX_TEST_RUNS	8
 #define POINTER_VALUE	0xcafe4all
 #define TEST_DATA_LEN	64
@@ -58,10 +61,19 @@
 #define F_NEEDS_EFFICIENT_UNALIGNED_ACCESS	(1 << 0)
 #define F_LOAD_WITH_STRICT_ALIGNMENT		(1 << 1)
 
+/* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
+#define ADMIN_CAPS (1ULL << CAP_NET_ADMIN |	\
+		    1ULL << CAP_PERFMON |	\
+		    1ULL << CAP_BPF)
 #define UNPRIV_SYSCTL "kernel/unprivileged_bpf_disabled"
 static bool unpriv_disabled = false;
 static int skips;
 static bool verbose = false;
+
+struct kfunc_btf_id_pair {
+	const char *kfunc;
+	int insn_idx;
+};
 
 struct bpf_test {
 	const char *descr;
@@ -88,6 +100,8 @@ struct bpf_test {
 	int fixup_map_event_output[MAX_FIXUPS];
 	int fixup_map_reuseport_array[MAX_FIXUPS];
 	int fixup_map_ringbuf[MAX_FIXUPS];
+	int fixup_map_timer[MAX_FIXUPS];
+	struct kfunc_btf_id_pair fixup_kfunc_btf_id[MAX_FIXUPS];
 	/* Expected verifier log output for result REJECT or VERBOSE_ACCEPT.
 	 * Can be a tab-separated sequence of expected strings. An empty string
 	 * means no log verification.
@@ -445,7 +459,7 @@ static int probe_filter_length(const struct bpf_insn *fp)
 
 static bool skip_unsupported_map(enum bpf_map_type map_type)
 {
-	if (!bpf_probe_map_type(map_type, 0)) {
+	if (!libbpf_probe_bpf_map_type(map_type, NULL)) {
 		printf("SKIP (unsupported map type %d)\n", map_type);
 		skips++;
 		return true;
@@ -457,11 +471,11 @@ static int __create_map(uint32_t type, uint32_t size_key,
 			uint32_t size_value, uint32_t max_elem,
 			uint32_t extra_flags)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int fd;
 
-	fd = bpf_create_map(type, size_key, size_value, max_elem,
-			    (type == BPF_MAP_TYPE_HASH ?
-			     BPF_F_NO_PREALLOC : 0) | extra_flags);
+	opts.map_flags = (type == BPF_MAP_TYPE_HASH ? BPF_F_NO_PREALLOC : 0) | extra_flags;
+	fd = bpf_map_create(type, NULL, size_key, size_value, max_elem, &opts);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -494,8 +508,7 @@ static int create_prog_dummy_simple(enum bpf_prog_type prog_type, int ret)
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
@@ -510,8 +523,7 @@ static int create_prog_dummy_loop(enum bpf_prog_type prog_type, int mfd,
 		BPF_EXIT_INSN(),
 	};
 
-	return bpf_load_program(prog_type, prog,
-				ARRAY_SIZE(prog), "GPL", 0, NULL, 0);
+	return bpf_prog_load(prog_type, NULL, "GPL", prog, ARRAY_SIZE(prog), NULL);
 }
 
 static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
@@ -519,8 +531,8 @@ static int create_prog_array(enum bpf_prog_type prog_type, uint32_t max_elem,
 {
 	int mfd, p1fd, p2fd, p3fd;
 
-	mfd = bpf_create_map(BPF_MAP_TYPE_PROG_ARRAY, sizeof(int),
-			     sizeof(int), max_elem, 0);
+	mfd = bpf_map_create(BPF_MAP_TYPE_PROG_ARRAY, NULL, sizeof(int),
+			     sizeof(int), max_elem, NULL);
 	if (mfd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_PROG_ARRAY))
 			return -1;
@@ -550,10 +562,11 @@ err:
 
 static int create_map_in_map(void)
 {
+	LIBBPF_OPTS(bpf_map_create_opts, opts);
 	int inner_map_fd, outer_map_fd;
 
-	inner_map_fd = bpf_create_map(BPF_MAP_TYPE_ARRAY, sizeof(int),
-				      sizeof(int), 1, 0);
+	inner_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, NULL, sizeof(int),
+				      sizeof(int), 1, NULL);
 	if (inner_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY))
 			return -1;
@@ -561,8 +574,9 @@ static int create_map_in_map(void)
 		return inner_map_fd;
 	}
 
-	outer_map_fd = bpf_create_map_in_map(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
-					     sizeof(int), inner_map_fd, 1, 0);
+	opts.inner_map_fd = inner_map_fd;
+	outer_map_fd = bpf_map_create(BPF_MAP_TYPE_ARRAY_OF_MAPS, NULL,
+				      sizeof(int), sizeof(int), 1, &opts);
 	if (outer_map_fd < 0) {
 		if (skip_unsupported_map(BPF_MAP_TYPE_ARRAY_OF_MAPS))
 			return -1;
@@ -581,8 +595,8 @@ static int create_cgroup_storage(bool percpu)
 		BPF_MAP_TYPE_CGROUP_STORAGE;
 	int fd;
 
-	fd = bpf_create_map(type, sizeof(struct bpf_cgroup_storage_key),
-			    TEST_DATA_LEN, 0, 0);
+	fd = bpf_map_create(type, NULL, sizeof(struct bpf_cgroup_storage_key),
+			    TEST_DATA_LEN, 0, NULL);
 	if (fd < 0) {
 		if (skip_unsupported_map(type))
 			return -1;
@@ -600,8 +614,15 @@ static int create_cgroup_storage(bool percpu)
  *   int cnt;
  *   struct bpf_spin_lock l;
  * };
+ * struct bpf_timer {
+ *   __u64 :64;
+ *   __u64 :64;
+ * } __attribute__((aligned(8)));
+ * struct timer {
+ *   struct bpf_timer t;
+ * };
  */
-static const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l";
+static const char btf_str_sec[] = "\0bpf_spin_lock\0val\0cnt\0l\0bpf_timer\0timer\0t";
 static __u32 btf_raw_types[] = {
 	/* int */
 	BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),  /* [1] */
@@ -612,6 +633,11 @@ static __u32 btf_raw_types[] = {
 	BTF_TYPE_ENC(15, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 2), 8),
 	BTF_MEMBER_ENC(19, 1, 0), /* int cnt; */
 	BTF_MEMBER_ENC(23, 2, 32),/* struct bpf_spin_lock l; */
+	/* struct bpf_timer */                          /* [4] */
+	BTF_TYPE_ENC(25, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 0), 16),
+	/* struct timer */                              /* [5] */
+	BTF_TYPE_ENC(35, BTF_INFO_ENC(BTF_KIND_STRUCT, 0, 1), 16),
+	BTF_MEMBER_ENC(41, 4, 0), /* struct bpf_timer t; */
 };
 
 static int load_btf(void)
@@ -637,7 +663,7 @@ static int load_btf(void)
 	memcpy(ptr, btf_str_sec, hdr.str_len);
 	ptr += hdr.str_len;
 
-	btf_fd = bpf_load_btf(raw_btf, ptr - raw_btf, 0, 0, 0);
+	btf_fd = bpf_btf_load(raw_btf, ptr - raw_btf, NULL);
 	free(raw_btf);
 	if (btf_fd < 0)
 		return -1;
@@ -646,22 +672,17 @@ static int load_btf(void)
 
 static int create_map_spin_lock(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_ARRAY,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 1,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 8, 1, &opts);
 	if (fd < 0)
 		printf("Failed to create map with spin_lock\n");
 	return fd;
@@ -669,26 +690,40 @@ static int create_map_spin_lock(void)
 
 static int create_sk_storage_map(void)
 {
-	struct bpf_create_map_attr attr = {
-		.name = "test_map",
-		.map_type = BPF_MAP_TYPE_SK_STORAGE,
-		.key_size = 4,
-		.value_size = 8,
-		.max_entries = 0,
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
 		.map_flags = BPF_F_NO_PREALLOC,
 		.btf_key_type_id = 1,
 		.btf_value_type_id = 3,
-	};
+	);
 	int fd, btf_fd;
 
 	btf_fd = load_btf();
 	if (btf_fd < 0)
 		return -1;
-	attr.btf_fd = btf_fd;
-	fd = bpf_create_map_xattr(&attr);
-	close(attr.btf_fd);
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_SK_STORAGE, "test_map", 4, 8, 0, &opts);
+	close(opts.btf_fd);
 	if (fd < 0)
 		printf("Failed to create sk_storage_map\n");
+	return fd;
+}
+
+static int create_map_timer(void)
+{
+	LIBBPF_OPTS(bpf_map_create_opts, opts,
+		.btf_key_type_id = 1,
+		.btf_value_type_id = 5,
+	);
+	int fd, btf_fd;
+
+	btf_fd = load_btf();
+	if (btf_fd < 0)
+		return -1;
+
+	opts.btf_fd = btf_fd;
+	fd = bpf_map_create(BPF_MAP_TYPE_ARRAY, "test_map", 4, 16, 1, &opts);
+	if (fd < 0)
+		printf("Failed to create map with timer\n");
 	return fd;
 }
 
@@ -718,6 +753,8 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 	int *fixup_map_event_output = test->fixup_map_event_output;
 	int *fixup_map_reuseport_array = test->fixup_map_reuseport_array;
 	int *fixup_map_ringbuf = test->fixup_map_ringbuf;
+	int *fixup_map_timer = test->fixup_map_timer;
+	struct kfunc_btf_id_pair *fixup_kfunc_btf_id = test->fixup_kfunc_btf_id;
 
 	if (test->fill_helper) {
 		test->fill_insns = calloc(MAX_TEST_INSNS, sizeof(struct bpf_insn));
@@ -903,6 +940,33 @@ static void do_test_fixup(struct bpf_test *test, enum bpf_prog_type prog_type,
 			fixup_map_ringbuf++;
 		} while (*fixup_map_ringbuf);
 	}
+	if (*fixup_map_timer) {
+		map_fds[21] = create_map_timer();
+		do {
+			prog[*fixup_map_timer].imm = map_fds[21];
+			fixup_map_timer++;
+		} while (*fixup_map_timer);
+	}
+
+	/* Patch in kfunc BTF IDs */
+	if (fixup_kfunc_btf_id->kfunc) {
+		struct btf *btf;
+		int btf_id;
+
+		do {
+			btf_id = 0;
+			btf = btf__load_vmlinux_btf();
+			if (btf) {
+				btf_id = btf__find_by_name_kind(btf,
+								fixup_kfunc_btf_id->kfunc,
+								BTF_KIND_FUNC);
+				btf_id = btf_id < 0 ? 0 : btf_id;
+			}
+			btf__free(btf);
+			prog[fixup_kfunc_btf_id->insn_idx].imm = btf_id;
+			fixup_kfunc_btf_id++;
+		} while (fixup_kfunc_btf_id->kfunc);
+	}
 }
 
 struct libcap {
@@ -912,47 +976,19 @@ struct libcap {
 
 static int set_admin(bool admin)
 {
-	cap_t caps;
-	/* need CAP_BPF, CAP_NET_ADMIN, CAP_PERFMON to load progs */
-	const cap_value_t cap_net_admin = CAP_NET_ADMIN;
-	const cap_value_t cap_sys_admin = CAP_SYS_ADMIN;
-	struct libcap *cap;
-	int ret = -1;
+	int err;
 
-	caps = cap_get_proc();
-	if (!caps) {
-		perror("cap_get_proc");
-		return -1;
-	}
-	cap = (struct libcap *)caps;
-	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_sys_admin, CAP_CLEAR)) {
-		perror("cap_set_flag clear admin");
-		goto out;
-	}
-	if (cap_set_flag(caps, CAP_EFFECTIVE, 1, &cap_net_admin,
-				admin ? CAP_SET : CAP_CLEAR)) {
-		perror("cap_set_flag set_or_clear net");
-		goto out;
-	}
-	/* libcap is likely old and simply ignores CAP_BPF and CAP_PERFMON,
-	 * so update effective bits manually
-	 */
 	if (admin) {
-		cap->data[1].effective |= 1 << (38 /* CAP_PERFMON */ - 32);
-		cap->data[1].effective |= 1 << (39 /* CAP_BPF */ - 32);
+		err = cap_enable_effective(ADMIN_CAPS, NULL);
+		if (err)
+			perror("cap_enable_effective(ADMIN_CAPS)");
 	} else {
-		cap->data[1].effective &= ~(1 << (38 - 32));
-		cap->data[1].effective &= ~(1 << (39 - 32));
+		err = cap_disable_effective(ADMIN_CAPS, NULL);
+		if (err)
+			perror("cap_disable_effective(ADMIN_CAPS)");
 	}
-	if (cap_set_proc(caps)) {
-		perror("cap_set_proc");
-		goto out;
-	}
-	ret = 0;
-out:
-	if (cap_free(caps))
-		perror("cap_free");
-	return ret;
+
+	return err;
 }
 
 static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
@@ -960,13 +996,18 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 {
 	__u8 tmp[TEST_DATA_LEN << 2];
 	__u32 size_tmp = sizeof(tmp);
-	uint32_t retval;
 	int err, saved_errno;
+	LIBBPF_OPTS(bpf_test_run_opts, topts,
+		.data_in = data,
+		.data_size_in = size_data,
+		.data_out = tmp,
+		.data_size_out = size_tmp,
+		.repeat = 1,
+	);
 
 	if (unpriv)
 		set_admin(true);
-	err = bpf_prog_test_run(fd_prog, 1, data, size_data,
-				tmp, &size_tmp, &retval, NULL);
+	err = bpf_prog_test_run_opts(fd_prog, &topts);
 	saved_errno = errno;
 
 	if (unpriv)
@@ -974,7 +1015,7 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 
 	if (err) {
 		switch (saved_errno) {
-		case 524/*ENOTSUPP*/:
+		case ENOTSUPP:
 			printf("Did not run the program (not supported) ");
 			return 0;
 		case EPERM:
@@ -990,9 +1031,8 @@ static int do_prog_test_run(int fd_prog, bool unpriv, uint32_t expected_val,
 		}
 	}
 
-	if (retval != expected_val &&
-	    expected_val != POINTER_VALUE) {
-		printf("FAIL retval %d != %d ", retval, expected_val);
+	if (topts.retval != expected_val && expected_val != POINTER_VALUE) {
+		printf("FAIL retval %d != %d ", topts.retval, expected_val);
 		return 1;
 	}
 
@@ -1041,7 +1081,7 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 	int fd_prog, expected_ret, alignment_prevented_execution;
 	int prog_len, prog_type = test->prog_type;
 	struct bpf_insn *prog = test->insns;
-	struct bpf_load_program_attr attr;
+	LIBBPF_OPTS(bpf_prog_load_opts, opts);
 	int run_errs, run_successes;
 	int map_fds[MAX_NR_MAPS];
 	const char *expected_err;
@@ -1081,40 +1121,48 @@ static void do_test_single(struct bpf_test *test, bool unpriv,
 		       test->result_unpriv : test->result;
 	expected_err = unpriv && test->errstr_unpriv ?
 		       test->errstr_unpriv : test->errstr;
-	memset(&attr, 0, sizeof(attr));
-	attr.prog_type = prog_type;
-	attr.expected_attach_type = test->expected_attach_type;
-	attr.insns = prog;
-	attr.insns_cnt = prog_len;
-	attr.license = "GPL";
+
+	opts.expected_attach_type = test->expected_attach_type;
 	if (verbose)
-		attr.log_level = 1;
+		opts.log_level = 1;
 	else if (expected_ret == VERBOSE_ACCEPT)
-		attr.log_level = 2;
+		opts.log_level = 2;
 	else
-		attr.log_level = 4;
-	attr.prog_flags = pflags;
+		opts.log_level = 4;
+	opts.prog_flags = pflags;
 
 	if (prog_type == BPF_PROG_TYPE_TRACING && test->kfunc) {
-		attr.attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
-						attr.expected_attach_type);
-		if (attr.attach_btf_id < 0) {
+		int attach_btf_id;
+
+		attach_btf_id = libbpf_find_vmlinux_btf_id(test->kfunc,
+						opts.expected_attach_type);
+		if (attach_btf_id < 0) {
 			printf("FAIL\nFailed to find BTF ID for '%s'!\n",
 				test->kfunc);
 			(*errors)++;
 			return;
 		}
+
+		opts.attach_btf_id = attach_btf_id;
 	}
 
-	fd_prog = bpf_load_program_xattr(&attr, bpf_vlog, sizeof(bpf_vlog));
+	opts.log_buf = bpf_vlog;
+	opts.log_size = sizeof(bpf_vlog);
+	fd_prog = bpf_prog_load(prog_type, NULL, "GPL", prog, prog_len, &opts);
 	saved_errno = errno;
 
 	/* BPF_PROG_TYPE_TRACING requires more setup and
 	 * bpf_probe_prog_type won't give correct answer
 	 */
 	if (fd_prog < 0 && prog_type != BPF_PROG_TYPE_TRACING &&
-	    !bpf_probe_prog_type(prog_type, 0)) {
+	    !libbpf_probe_bpf_prog_type(prog_type, NULL)) {
 		printf("SKIP (unsupported program type %d)\n", prog_type);
+		skips++;
+		goto close_fds;
+	}
+
+	if (fd_prog < 0 && saved_errno == ENOTSUPP) {
+		printf("SKIP (program uses an unsupported feature)\n");
 		skips++;
 		goto close_fds;
 	}
@@ -1218,31 +1266,18 @@ fail_log:
 
 static bool is_admin(void)
 {
-	cap_flag_value_t net_priv = CAP_CLEAR;
-	bool perfmon_priv = false;
-	bool bpf_priv = false;
-	struct libcap *cap;
-	cap_t caps;
+	__u64 caps;
 
-#ifdef CAP_IS_SUPPORTED
-	if (!CAP_IS_SUPPORTED(CAP_SETFCAP)) {
-		perror("cap_get_flag");
+	/* The test checks for finer cap as CAP_NET_ADMIN,
+	 * CAP_PERFMON, and CAP_BPF instead of CAP_SYS_ADMIN.
+	 * Thus, disable CAP_SYS_ADMIN at the beginning.
+	 */
+	if (cap_disable_effective(1ULL << CAP_SYS_ADMIN, &caps)) {
+		perror("cap_disable_effective(CAP_SYS_ADMIN)");
 		return false;
 	}
-#endif
-	caps = cap_get_proc();
-	if (!caps) {
-		perror("cap_get_proc");
-		return false;
-	}
-	cap = (struct libcap *)caps;
-	bpf_priv = cap->data[1].effective & (1 << (39/* CAP_BPF */ - 32));
-	perfmon_priv = cap->data[1].effective & (1 << (38/* CAP_PERFMON */ - 32));
-	if (cap_get_flag(caps, CAP_NET_ADMIN, CAP_EFFECTIVE, &net_priv))
-		perror("cap_get_flag NET");
-	if (cap_free(caps))
-		perror("cap_free");
-	return bpf_priv && perfmon_priv && net_priv == CAP_SET;
+
+	return (caps & ADMIN_CAPS) == ADMIN_CAPS;
 }
 
 static void get_unpriv_disabled()
@@ -1352,6 +1387,9 @@ int main(int argc, char **argv)
 		       UNPRIV_SYSCTL);
 		return EXIT_FAILURE;
 	}
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	bpf_semi_rand_init();
 	return do_test(unpriv, from, to);

@@ -701,10 +701,12 @@
 
 	serial@70006040 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	serial@70006300 {
 		compatible = "nvidia,tegra30-hsuart";
+		/delete-property/ reg-shift;
 	};
 
 	hdmi_ddc: i2c@7000c700 {
@@ -765,9 +767,14 @@
 
 				vddctrl_reg: vddctrl {
 					regulator-name = "+V1.0_VDD_CPU";
-					regulator-min-microvolt = <1150000>;
-					regulator-max-microvolt = <1150000>;
+					regulator-min-microvolt = <800000>;
+					regulator-max-microvolt = <1250000>;
+					regulator-coupled-with = <&vdd_core>;
+					regulator-coupled-max-spread = <300000>;
+					regulator-max-step-microvolt = <100000>;
 					regulator-always-on;
+
+					nvidia,tegra-cpu-regulator;
 				};
 
 				reg_1v8_vio: vio {
@@ -890,18 +897,20 @@
 		};
 
 		/* SW: +V1.2_VDD_CORE */
-		regulator@60 {
+		vdd_core: regulator@60 {
 			compatible = "ti,tps62362";
 			reg = <0x60>;
 
 			regulator-name = "tps62362-vout";
 			regulator-min-microvolt = <900000>;
 			regulator-max-microvolt = <1400000>;
+			regulator-coupled-with = <&vddctrl_reg>;
+			regulator-coupled-max-spread = <300000>;
+			regulator-max-step-microvolt = <100000>;
 			regulator-boot-on;
 			regulator-always-on;
-			ti,vsel0-state-low;
-			/* VSEL1: EN_CORE_DVFS_N low for DVFS */
-			ti,vsel1-state-low;
+
+			nvidia,tegra-core-regulator;
 		};
 	};
 
@@ -914,6 +923,7 @@
 		nvidia,core-pwr-off-time = <0>;
 		nvidia,core-power-req-active-high;
 		nvidia,sys-clock-req-active-high;
+		core-supply = <&vdd_core>;
 
 		/* Set DEV_OFF bit in DCDC control register of TPS65911 PMIC */
 		i2c-thermtrip {
@@ -950,7 +960,8 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		asix@1 {
+		ethernet@1 {
+			compatible = "usbb95,772b";
 			reg = <1>;
 			local-mac-address = [00 00 00 00 00 00];
 		};
@@ -1044,7 +1055,7 @@
 };
 
 &gpio {
-	lan-reset-n {
+	lan-reset-n-hog {
 		gpio-hog;
 		gpios = <TEGRA_GPIO(DD, 0) GPIO_ACTIVE_HIGH>;
 		output-high;

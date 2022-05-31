@@ -1387,10 +1387,10 @@ static int acpi_get_mac_address(struct device *dev, struct acpi_device *adev,
 				u8 *dst)
 {
 	u8 mac[ETH_ALEN];
-	u8 *addr;
+	int ret;
 
-	addr = fwnode_get_mac_address(acpi_fwnode_handle(adev), mac, ETH_ALEN);
-	if (!addr) {
+	ret = fwnode_get_mac_address(acpi_fwnode_handle(adev), mac);
+	if (ret) {
 		dev_err(dev, "MAC address invalid: %pM\n", mac);
 		return -EINVAL;
 	}
@@ -1409,7 +1409,8 @@ static acpi_status bgx_acpi_register_phy(acpi_handle handle,
 	struct device *dev = &bgx->pdev->dev;
 	struct acpi_device *adev;
 
-	if (acpi_bus_get_device(handle, &adev))
+	adev = acpi_fetch_acpi_dev(handle);
+	if (!adev)
 		goto out;
 
 	acpi_get_mac_address(dev, adev, bgx->lmac[bgx->acpi_lmac_idx].mac);
@@ -1597,9 +1598,8 @@ static int bgx_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 
 	err = pcim_enable_device(pdev);
 	if (err) {
-		dev_err(dev, "Failed to enable PCI device\n");
 		pci_set_drvdata(pdev, NULL);
-		return err;
+		return dev_err_probe(dev, err, "Failed to enable PCI device\n");
 	}
 
 	err = pci_request_regions(pdev, DRV_NAME);

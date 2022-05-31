@@ -231,8 +231,7 @@ sclp_vt220_emit_current(void)
 			list_add_tail(&sclp_vt220_current_request->list,
 				      &sclp_vt220_outqueue);
 			sclp_vt220_current_request = NULL;
-			if (timer_pending(&sclp_vt220_timer))
-				del_timer(&sclp_vt220_timer);
+			del_timer(&sclp_vt220_timer);
 		}
 		sclp_vt220_flush_later = 0;
 	}
@@ -768,14 +767,15 @@ out_driver:
 }
 __initcall(sclp_vt220_tty_init);
 
+#ifdef CONFIG_SCLP_VT220_CONSOLE
+
 static void __sclp_vt220_flush_buffer(void)
 {
 	unsigned long flags;
 
 	sclp_vt220_emit_current();
 	spin_lock_irqsave(&sclp_vt220_lock, flags);
-	if (timer_pending(&sclp_vt220_timer))
-		del_timer(&sclp_vt220_timer);
+	del_timer(&sclp_vt220_timer);
 	while (sclp_vt220_queue_running) {
 		spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 		sclp_sync_wait();
@@ -783,8 +783,6 @@ static void __sclp_vt220_flush_buffer(void)
 	}
 	spin_unlock_irqrestore(&sclp_vt220_lock, flags);
 }
-
-#ifdef CONFIG_SCLP_VT220_CONSOLE
 
 static void
 sclp_vt220_con_write(struct console *con, const char *buf, unsigned int count)

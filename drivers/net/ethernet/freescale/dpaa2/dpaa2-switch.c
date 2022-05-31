@@ -394,7 +394,8 @@ static int dpaa2_switch_dellink(struct ethsw_core *ethsw, u16 vid)
 
 	for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
 		ppriv_local = ethsw->ports[i];
-		ppriv_local->vlans[vid] = 0;
+		if (ppriv_local)
+			ppriv_local->vlans[vid] = 0;
 	}
 
 	return 0;
@@ -702,8 +703,10 @@ static int dpaa2_switch_port_open(struct net_device *netdev)
 
 	dpaa2_switch_enable_ctrl_if_napi(ethsw);
 
-	if (dpaa2_switch_port_is_type_phy(port_priv))
+	if (dpaa2_switch_port_is_type_phy(port_priv)) {
+		dpaa2_mac_start(port_priv->mac);
 		phylink_start(port_priv->mac->phylink);
+	}
 
 	return 0;
 }
@@ -716,6 +719,7 @@ static int dpaa2_switch_port_stop(struct net_device *netdev)
 
 	if (dpaa2_switch_port_is_type_phy(port_priv)) {
 		phylink_stop(port_priv->mac->phylink);
+		dpaa2_mac_stop(port_priv->mac);
 	} else {
 		netif_tx_stop_all_queues(netdev);
 		netif_carrier_off(netdev);
@@ -980,7 +984,7 @@ static int dpaa2_switch_port_set_mac_addr(struct ethsw_port_priv *port_priv)
 
 	/* First check if firmware has any address configured by bootloader */
 	if (!is_zero_ether_addr(mac_addr)) {
-		memcpy(net_dev->dev_addr, mac_addr, net_dev->addr_len);
+		eth_hw_addr_set(net_dev, mac_addr);
 	} else {
 		/* No MAC address configured, fill in net_dev->dev_addr
 		 * with a random one
@@ -1553,8 +1557,7 @@ static int dpaa2_switch_setup_irqs(struct fsl_mc_device *sw_dev)
 
 	irq = sw_dev->irqs[DPSW_IRQ_INDEX_IF];
 
-	err = devm_request_threaded_irq(dev, irq->msi_desc->irq,
-					NULL,
+	err = devm_request_threaded_irq(dev, irq->virq, NULL,
 					dpaa2_switch_irq0_handler_thread,
 					IRQF_NO_SUSPEND | IRQF_ONESHOT,
 					dev_name(dev), dev);
@@ -1580,7 +1583,7 @@ static int dpaa2_switch_setup_irqs(struct fsl_mc_device *sw_dev)
 	return 0;
 
 free_devm_irq:
-	devm_free_irq(dev, irq->msi_desc->irq, dev);
+	devm_free_irq(dev, irq->virq, dev);
 free_irq:
 	fsl_mc_free_irqs(sw_dev);
 	return err;
@@ -1896,9 +1899,11 @@ static int dpaa2_switch_port_del_vlan(struct ethsw_port_priv *port_priv, u16 vid
 		/* Delete VLAN from switch if it is no longer configured on
 		 * any port
 		 */
-		for (i = 0; i < ethsw->sw_attr.num_ifs; i++)
-			if (ethsw->ports[i]->vlans[vid] & ETHSW_VLAN_MEMBER)
+		for (i = 0; i < ethsw->sw_attr.num_ifs; i++) {
+			if (ethsw->ports[i] &&
+			    ethsw->ports[i]->vlans[vid] & ETHSW_VLAN_MEMBER)
 				return 0; /* Found a port member in VID */
+		}
 
 		ethsw->vlans[vid] &= ~ETHSW_VLAN_GLOBAL;
 

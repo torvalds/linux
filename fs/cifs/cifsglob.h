@@ -15,14 +15,15 @@
 #include <linux/slab.h>
 #include <linux/mempool.h>
 #include <linux/workqueue.h>
+#include <linux/utsname.h>
+#include <linux/netfs.h>
 #include "cifs_fs_sb.h"
 #include "cifsacl.h"
 #include <crypto/internal/hash.h>
 #include <linux/scatterlist.h>
 #include <uapi/linux/cifs/cifs_mount.h>
+#include "../smbfs_common/smb2pdu.h"
 #include "smb2pdu.h"
-
-#define CIFS_MAGIC_NUMBER 0xFF534D42      /* the first four bytes of SMB PDUs */
 
 #define SMB_PATH_MAX 260
 #define CIFS_PORT 445
@@ -74,7 +75,8 @@
 #define SMB_ECHO_INTERVAL_MAX 600
 #define SMB_ECHO_INTERVAL_DEFAULT 60
 
-/* dns resolution interval in seconds */
+/* dns resolution intervals in seconds */
+#define SMB_DNS_RESOLVE_INTERVAL_MIN     120
 #define SMB_DNS_RESOLVE_INTERVAL_DEFAULT 600
 
 /* maximum number of PDUs in one compound */
@@ -98,6 +100,8 @@
 #define XATTR_DOS_ATTRIB "user.DOSATTRIB"
 #endif
 
+#define CIFS_MAX_WORKSTATION_LEN  (__NEW_UTS_LEN + 1)  /* reasonable max for client */
+
 /*
  * CIFS vfs client Status information (based on what we know.)
  */
@@ -108,7 +112,22 @@ enum statusEnum {
 	CifsGood,
 	CifsExiting,
 	CifsNeedReconnect,
-	CifsNeedNegotiate
+	CifsNeedNegotiate,
+	CifsInNegotiate,
+	CifsNeedSessSetup,
+	CifsInSessSetup,
+};
+
+/* associated with each tree connection to the server */
+enum tid_status_enum {
+	TID_NEW = 0,
+	TID_GOOD,
+	TID_EXITING,
+	TID_NEED_RECON,
+	TID_NEED_TCON,
+	TID_IN_TCON,
+	TID_NEED_FILES_INVALIDATE, /* currently unused */
+	TID_IN_FILES_INVALIDATE
 };
 
 enum securityEnum {
@@ -258,13 +277,16 @@ struct smb_version_operations {
 	/* check if we need to negotiate */
 	bool (*need_neg)(struct TCP_Server_Info *);
 	/* negotiate to the server */
-	int (*negotiate)(const unsigned int, struct cifs_ses *);
+	int (*negotiate)(const unsigned int xid,
+			 struct cifs_ses *ses,
+			 struct TCP_Server_Info *server);
 	/* set negotiated write size */
 	unsigned int (*negotiate_wsize)(struct cifs_tcon *tcon, struct smb3_fs_context *ctx);
 	/* set negotiated read size */
 	unsigned int (*negotiate_rsize)(struct cifs_tcon *tcon, struct smb3_fs_context *ctx);
 	/* setup smb sessionn */
 	int (*sess_setup)(const unsigned int, struct cifs_ses *,
+			  struct TCP_Server_Info *server,
 			  const struct nls_table *);
 	/* close smb session */
 	int (*logoff)(const unsigned int, struct cifs_ses *);
@@ -409,7 +431,8 @@ struct smb_version_operations {
 	void (*set_lease_key)(struct inode *, struct cifs_fid *);
 	/* generate new lease key */
 	void (*new_lease_key)(struct cifs_fid *);
-	int (*generate_signingkey)(struct cifs_ses *);
+	int (*generate_signingkey)(struct cifs_ses *ses,
+				   struct TCP_Server_Info *server);
 	int (*calc_signature)(struct smb_rqst *, struct TCP_Server_Info *,
 				bool allocate_crypto);
 	int (*set_integrity)(const unsigned int, struct cifs_tcon *tcon,
@@ -577,7 +600,7 @@ struct TCP_Server_Info {
 	char server_RFC1001_name[RFC1001_NAME_LEN_WITH_NULL];
 	struct smb_version_operations	*ops;
 	struct smb_version_values	*vals;
-	/* updates to tcpStatus protected by GlobalMid_Lock */
+	/* updates to tcpStatus protected by cifs_tcp_ses_lock */
 	enum statusEnum tcpStatus; /* what we think the status is */
 	char *hostname; /* hostname portion of UNC string */
 	struct socket *ssocket;
@@ -591,6 +614,7 @@ struct TCP_Server_Info {
 	struct list_head pending_mid_q;
 	bool noblocksnd;		/* use blocking sendmsg */
 	bool noautotune;		/* do not autotune send buf sizes */
+	bool nosharesock;
 	bool tcp_nodelay;
 	unsigned int credits;  /* send no more requests at once */
 	unsigned int max_credits; /* can override large 32000 default at mnt */
@@ -653,9 +677,6 @@ struct TCP_Server_Info {
 	unsigned int total_read; /* total amount of data read in this pass */
 	atomic_t in_send; /* requests trying to send */
 	atomic_t num_waiters;   /* blocked waiting to get in sendrecv */
-#ifdef CONFIG_CIFS_FSCACHE
-	struct fscache_cookie   *fscache; /* client index cache cookie */
-#endif
 #ifdef CONFIG_CIFS_STATS2
 	atomic_t num_cmds[NUMBER_OF_SMB2_COMMANDS]; /* total requests by cmd */
 	atomic_t smb2slowcmd[NUMBER_OF_SMB2_COMMANDS]; /* count resps > 1 sec */
@@ -684,13 +705,34 @@ struct TCP_Server_Info {
 	 */
 	int nr_targets;
 	bool noblockcnt; /* use non-blocking connect() */
-	bool is_channel; /* if a session channel */
+
+	/*
+	 * If this is a session channel,
+	 * primary_server holds the ref-counted
+	 * pointer to primary channel connection for the session.
+	 */
+#define CIFS_SERVER_IS_CHAN(server)	(!!(server)->primary_server)
+	struct TCP_Server_Info *primary_server;
+
 #ifdef CONFIG_CIFS_SWN_UPCALL
 	bool use_swn_dstaddr;
 	struct sockaddr_storage swn_dstaddr;
 #endif
 #ifdef CONFIG_CIFS_DFS_UPCALL
 	bool is_dfs_conn; /* if a dfs connection */
+	struct mutex refpath_lock; /* protects leaf_fullpath */
+	/*
+	 * Canonical DFS full paths that were used to chase referrals in mount and reconnect.
+	 *
+	 * origin_fullpath: first or original referral path
+	 * leaf_fullpath: last referral path (might be changed due to nested links in reconnect)
+	 *
+	 * current_fullpath: pointer to either origin_fullpath or leaf_fullpath
+	 * NOTE: cannot be accessed outside cifs_reconnect() and smb2_reconnect()
+	 *
+	 * format: \\HOST\SHARE\[OPTIONAL PATH]
+	 */
+	char *origin_fullpath, *leaf_fullpath, *current_fullpath;
 #endif
 };
 
@@ -776,7 +818,7 @@ revert_current_mid(struct TCP_Server_Info *server, const unsigned int val)
 
 static inline void
 revert_current_mid_from_hdr(struct TCP_Server_Info *server,
-			    const struct smb2_sync_hdr *shdr)
+			    const struct smb2_hdr *shdr)
 {
 	unsigned int num = le16_to_cpu(shdr->CreditCharge);
 
@@ -819,13 +861,7 @@ compare_mid(__u16 mid, const struct smb_hdr *smb)
 #define CIFS_MAX_RFC1002_WSIZE ((1<<17) - 1 - sizeof(WRITE_REQ) + 4)
 #define CIFS_MAX_RFC1002_RSIZE ((1<<17) - 1 - sizeof(READ_RSP) + 4)
 
-/*
- * The default wsize is 1M. find_get_pages seems to return a maximum of 256
- * pages in a single call. With PAGE_SIZE == 4k, this means we can fill
- * a single wsize request with a single call.
- */
 #define CIFS_DEFAULT_IOSIZE (1024 * 1024)
-#define SMB3_DEFAULT_IOSIZE (4 * 1024 * 1024)
 
 /*
  * Windows only supports a max of 60kb reads and 65535 byte writes. Default to
@@ -888,12 +924,13 @@ struct cifs_chan {
  */
 struct cifs_ses {
 	struct list_head smb_ses_list;
+	struct list_head rlist; /* reconnect list */
 	struct list_head tcon_list;
 	struct cifs_tcon *tcon_ipc;
 	struct mutex session_mutex;
 	struct TCP_Server_Info *server;	/* pointer to server info */
 	int ses_count;		/* reference counter */
-	enum statusEnum status;  /* updates protected by GlobalMid_Lock */
+	enum statusEnum status;  /* updates protected by cifs_tcp_ses_lock */
 	unsigned overrideSecFlg;  /* if non-zero override global sec flags */
 	char *serverOS;		/* name of operating system underlying server */
 	char *serverNOS;	/* name of network operating system of server */
@@ -907,20 +944,17 @@ struct cifs_ses {
 				   and after mount option parsing we fill it */
 	char *domainName;
 	char *password;
+	char *workstation_name;
 	struct session_key auth_key;
 	struct ntlmssp_auth *ntlmssp; /* ciphertext, flags, server challenge */
 	enum securityEnum sectype; /* what security flavor was specified? */
 	bool sign;		/* is signing required? */
-	bool need_reconnect:1; /* connection reset, uid now invalid */
 	bool domainAuto:1;
-	bool binding:1; /* are we binding the session? */
 	__u16 session_flags;
 	__u8 smb3signingkey[SMB3_SIGN_KEY_SIZE];
 	__u8 smb3encryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8 smb3decryptionkey[SMB3_ENC_DEC_KEY_SIZE];
 	__u8 preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
-
-	__u8 binding_preauth_sha_hash[SMB2_PREAUTH_HASH_SIZE];
 
 	/*
 	 * Network interfaces available on the server this session is
@@ -932,48 +966,42 @@ struct cifs_ses {
 	 * iface_lock should be taken when accessing any of these fields
 	 */
 	spinlock_t iface_lock;
+	/* ========= begin: protected by iface_lock ======== */
 	struct cifs_server_iface *iface_list;
 	size_t iface_count;
 	unsigned long iface_last_update; /* jiffies */
+	/* ========= end: protected by iface_lock ======== */
 
+	spinlock_t chan_lock;
+	/* ========= begin: protected by chan_lock ======== */
 #define CIFS_MAX_CHANNELS 16
+#define CIFS_ALL_CHANNELS_SET(ses)	\
+	((1UL << (ses)->chan_count) - 1)
+#define CIFS_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect == CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_SET_ALL_CHANS_NEED_RECONNECT(ses)	\
+	((ses)->chans_need_reconnect = CIFS_ALL_CHANNELS_SET(ses))
+#define CIFS_CHAN_NEEDS_RECONNECT(ses, index)	\
+	test_bit((index), &(ses)->chans_need_reconnect)
+
 	struct cifs_chan chans[CIFS_MAX_CHANNELS];
-	struct cifs_chan *binding_chan;
 	size_t chan_count;
 	size_t chan_max;
 	atomic_t chan_seq; /* round robin state */
+
+	/*
+	 * chans_need_reconnect is a bitmap indicating which of the channels
+	 * under this smb session needs to be reconnected.
+	 * If not multichannel session, only one bit will be used.
+	 *
+	 * We will ask for sess and tcon reconnection only if all the
+	 * channels are marked for needing reconnection. This will
+	 * enable the sessions on top to continue to live till any
+	 * of the channels below are active.
+	 */
+	unsigned long chans_need_reconnect;
+	/* ========= end: protected by chan_lock ======== */
 };
-
-/*
- * When binding a new channel, we need to access the channel which isn't fully
- * established yet.
- */
-
-static inline
-struct cifs_chan *cifs_ses_binding_channel(struct cifs_ses *ses)
-{
-	if (ses->binding)
-		return ses->binding_chan;
-	else
-		return NULL;
-}
-
-/*
- * Returns the server pointer of the session. When binding a new
- * channel this returns the last channel which isn't fully established
- * yet.
- *
- * This function should be use for negprot/sess.setup codepaths. For
- * the other requests see cifs_pick_channel().
- */
-static inline
-struct TCP_Server_Info *cifs_ses_server(struct cifs_ses *ses)
-{
-	if (ses->binding)
-		return ses->binding_chan->server;
-	else
-		return ses->server;
-}
 
 static inline bool
 cap_unix(struct cifs_ses *ses)
@@ -1013,7 +1041,7 @@ struct cifs_tcon {
 	char *password;		/* for share-level security */
 	__u32 tid;		/* The 4 byte tree id */
 	__u16 Flags;		/* optional support bits */
-	enum statusEnum tidStatus;
+	enum tid_status_enum status;
 	atomic_t num_smbs_sent;
 	union {
 		struct {
@@ -1084,13 +1112,12 @@ struct cifs_tcon {
 	__u32 max_bytes_copy;
 #ifdef CONFIG_CIFS_FSCACHE
 	u64 resource_id;		/* server resource id */
-	struct fscache_cookie *fscache;	/* cookie for share */
+	struct fscache_volume *fscache;	/* cookie for share */
 #endif
 	struct list_head pending_opens;	/* list of incomplete opens */
 	struct cached_fid crfid; /* Cached root fid */
 	/* BB add field for back pointer to sb struct(s)? */
 #ifdef CONFIG_CIFS_DFS_UPCALL
-	char *dfs_path; /* canonical DFS path */
 	struct list_head ulist; /* cache update list */
 #endif
 };
@@ -1378,6 +1405,11 @@ void cifsFileInfo_put(struct cifsFileInfo *cifs_file);
  */
 
 struct cifsInodeInfo {
+	struct {
+		/* These must be contiguous */
+		struct inode	vfs_inode;	/* the VFS's inode record */
+		struct netfs_i_context netfs_ctx; /* Netfslib context */
+	};
 	bool can_cache_brlcks;
 	struct list_head llist;	/* locks helb by this inode */
 	/*
@@ -1408,10 +1440,6 @@ struct cifsInodeInfo {
 	u64  uniqueid;			/* server inode number */
 	u64  createtime;		/* creation time on server */
 	__u8 lease_key[SMB2_LEASE_KEY_SIZE];	/* lease key for this inode */
-#ifdef CONFIG_CIFS_FSCACHE
-	struct fscache_cookie *fscache;
-#endif
-	struct inode vfs_inode;
 	struct list_head deferred_closes; /* list of deferred closes */
 	spinlock_t deferred_lock; /* protection on deferred list */
 	bool lease_granted; /* Flag to indicate whether lease or oplock is granted. */
@@ -1939,6 +1967,16 @@ static inline bool is_tcon_dfs(struct cifs_tcon *tcon)
 		return false;
 	return is_smb1_server(tcon->ses->server) ? tcon->Flags & SMB_SHARE_IS_IN_DFS :
 		tcon->share_flags & (SHI1005_FLAGS_DFS | SHI1005_FLAGS_DFS_ROOT);
+}
+
+static inline bool cifs_is_referral_server(struct cifs_tcon *tcon,
+					   const struct dfs_info3_param *ref)
+{
+	/*
+	 * Check if all targets are capable of handling DFS referrals as per
+	 * MS-DFSC 2.2.4 RESP_GET_DFS_REFERRAL.
+	 */
+	return is_tcon_dfs(tcon) || (ref && (ref->flags & DFSREF_REFERRAL_SERVER));
 }
 
 #endif	/* _CIFS_GLOB_H */

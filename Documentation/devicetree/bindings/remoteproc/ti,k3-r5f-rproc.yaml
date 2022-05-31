@@ -38,6 +38,7 @@ properties:
       - ti,j721e-r5fss
       - ti,j7200-r5fss
       - ti,am64-r5fss
+      - ti,j721s2-r5fss
 
   power-domains:
     description: |
@@ -64,9 +65,9 @@ properties:
     description: |
       Configuration Mode for the Dual R5F cores within the R5F cluster.
       Should be either a value of 1 (LockStep mode) or 0 (Split mode) on
-      most SoCs (AM65x, J721E, J7200), default is LockStep mode if omitted;
-      and should be either a value of 0 (Split mode) or 2 (Single-CPU mode)
-      on AM64x SoCs, default is Split mode if omitted.
+      most SoCs (AM65x, J721E, J7200, J721s2), default is LockStep mode if
+      omitted; and should be either a value of 0 (Split mode) or 2
+      (Single-CPU mode) on AM64x SoCs, default is Split mode if omitted.
 
 # R5F Processor Child Nodes:
 # ==========================
@@ -94,8 +95,7 @@ patternProperties:
       addresses. Cache and memory access settings are provided through a
       Memory Protection Unit (MPU), programmable only from the R5Fs.
 
-    allOf:
-      - $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
+    $ref: /schemas/arm/keystone/ti,k3-sci-common.yaml#
 
     properties:
       compatible:
@@ -104,6 +104,7 @@ patternProperties:
           - ti,j721e-r5f
           - ti,j7200-r5f
           - ti,am64-r5f
+          - ti,j721s2-r5f
 
       reg:
         items:
@@ -187,6 +188,8 @@ patternProperties:
         $ref: /schemas/types.yaml#/definitions/phandle-array
         minItems: 1
         maxItems: 4
+        items:
+          maxItems: 1
         description: |
           phandles to one or more reserved on-chip SRAM regions. The regions
           should be defined as child nodes of the respective SRAM node, and
@@ -230,11 +233,17 @@ additionalProperties: false
 
 examples:
   - |
-    / {
-        model = "Texas Instruments K3 AM654 SoC";
-        compatible = "ti,am654-evm", "ti,am654";
+    soc {
         #address-cells = <2>;
         #size-cells = <2>;
+
+        mailbox0: mailbox-0 {
+            #mbox-cells = <1>;
+        };
+
+        mailbox1: mailbox-1 {
+            #mbox-cells = <1>;
+        };
 
         bus@100000 {
             compatible = "simple-bus";

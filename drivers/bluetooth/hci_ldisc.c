@@ -479,6 +479,9 @@ static int hci_uart_tty_open(struct tty_struct *tty)
 
 	BT_DBG("tty %p", tty);
 
+	if (!capable(CAP_NET_ADMIN))
+		return -EPERM;
+
 	/* Error if the tty has no write op instead of leaving an exploitable
 	 * hole
 	 */
@@ -736,14 +739,13 @@ static int hci_uart_set_flags(struct hci_uart *hu, unsigned long flags)
  * Arguments:
  *
  *    tty        pointer to tty instance data
- *    file       pointer to open file object for device
  *    cmd        IOCTL command code
  *    arg        argument for IOCTL call (cmd dependent)
  *
  * Return Value:    Command dependent
  */
-static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
-			      unsigned int cmd, unsigned long arg)
+static int hci_uart_tty_ioctl(struct tty_struct *tty, unsigned int cmd,
+			      unsigned long arg)
 {
 	struct hci_uart *hu = tty->disc_data;
 	int err = 0;
@@ -790,7 +792,7 @@ static int hci_uart_tty_ioctl(struct tty_struct *tty, struct file *file,
 		break;
 
 	default:
-		err = n_tty_ioctl_helper(tty, file, cmd, arg);
+		err = n_tty_ioctl_helper(tty, cmd, arg);
 		break;
 	}
 

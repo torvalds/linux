@@ -6,6 +6,7 @@
  */
 
 #include <linux/slab.h>
+#include <linux/module.h>
 
 #include <drm/drm_damage_helper.h>
 #include <drm/drm_fb_helper.h>
@@ -16,6 +17,8 @@
 #include <drm/drm_modeset_helper.h>
 
 #include "drm_internal.h"
+
+MODULE_IMPORT_NS(DMA_BUF);
 
 #define AFBC_HEADER_SIZE		16
 #define AFBC_TH_LAYOUT_ALIGNMENT	8
@@ -318,7 +321,7 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * @data: returns the data address for each BO, can be NULL
  *
  * This function maps all buffer objects of the given framebuffer into
- * kernel address space and stores them in struct dma_buf_map. If the
+ * kernel address space and stores them in struct iosys_map. If the
  * mapping operation fails for one of the BOs, the function unmaps the
  * already established mappings automatically.
  *
@@ -332,8 +335,8 @@ EXPORT_SYMBOL_GPL(drm_gem_fb_create_with_dirty);
  * 0 on success, or a negative errno code otherwise.
  */
 int drm_gem_fb_vmap(struct drm_framebuffer *fb,
-		    struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES],
-		    struct dma_buf_map data[DRM_FORMAT_MAX_PLANES])
+		    struct iosys_map map[static DRM_FORMAT_MAX_PLANES],
+		    struct iosys_map data[DRM_FORMAT_MAX_PLANES])
 {
 	struct drm_gem_object *obj;
 	unsigned int i;
@@ -342,7 +345,7 @@ int drm_gem_fb_vmap(struct drm_framebuffer *fb,
 	for (i = 0; i < DRM_FORMAT_MAX_PLANES; ++i) {
 		obj = drm_gem_fb_get_obj(fb, i);
 		if (!obj) {
-			dma_buf_map_clear(&map[i]);
+			iosys_map_clear(&map[i]);
 			continue;
 		}
 		ret = drm_gem_vmap(obj, &map[i]);
@@ -353,9 +356,9 @@ int drm_gem_fb_vmap(struct drm_framebuffer *fb,
 	if (data) {
 		for (i = 0; i < DRM_FORMAT_MAX_PLANES; ++i) {
 			memcpy(&data[i], &map[i], sizeof(data[i]));
-			if (dma_buf_map_is_null(&data[i]))
+			if (iosys_map_is_null(&data[i]))
 				continue;
-			dma_buf_map_incr(&data[i], fb->offsets[i]);
+			iosys_map_incr(&data[i], fb->offsets[i]);
 		}
 	}
 
@@ -383,7 +386,7 @@ EXPORT_SYMBOL(drm_gem_fb_vmap);
  * See drm_gem_fb_vmap() for more information.
  */
 void drm_gem_fb_vunmap(struct drm_framebuffer *fb,
-		       struct dma_buf_map map[static DRM_FORMAT_MAX_PLANES])
+		       struct iosys_map map[static DRM_FORMAT_MAX_PLANES])
 {
 	unsigned int i = DRM_FORMAT_MAX_PLANES;
 	struct drm_gem_object *obj;
@@ -393,7 +396,7 @@ void drm_gem_fb_vunmap(struct drm_framebuffer *fb,
 		obj = drm_gem_fb_get_obj(fb, i);
 		if (!obj)
 			continue;
-		if (dma_buf_map_is_null(&map[i]))
+		if (iosys_map_is_null(&map[i]))
 			continue;
 		drm_gem_vunmap(obj, &map[i]);
 	}

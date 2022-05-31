@@ -87,6 +87,7 @@ ALL_TESTS="
 NUM_NETIFS=4
 source $lib_dir/lib.sh
 source $lib_dir/devlink_lib.sh
+source mlxsw_lib.sh
 
 h1_create()
 {
@@ -626,8 +627,7 @@ ipv6_redirect_test()
 
 ptp_event_test()
 {
-	# PTP is only supported on Spectrum-1, for now.
-	[[ "$DEVLINK_VIDDID" != "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 1 || return
 
 	# PTP Sync (0)
 	devlink_trap_stats_test "PTP Time-Critical Event Message" "ptp_event" \
@@ -638,8 +638,7 @@ ptp_event_test()
 
 ptp_general_test()
 {
-	# PTP is only supported on Spectrum-1, for now.
-	[[ "$DEVLINK_VIDDID" != "15b3:cb84" ]] && return
+	mlxsw_only_on_spectrum 1 || return
 
 	# PTP Announce (b)
 	devlink_trap_stats_test "PTP General Message" "ptp_general" \

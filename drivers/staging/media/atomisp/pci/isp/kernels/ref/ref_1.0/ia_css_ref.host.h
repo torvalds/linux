@@ -23,17 +23,13 @@
 #include "ia_css_ref_param.h"
 #include "ia_css_ref_state.h"
 
-void
-ia_css_ref_config(
-    struct sh_css_isp_ref_isp_config      *to,
-    const struct ia_css_ref_configuration *from,
-    unsigned int size);
+int ia_css_ref_config(struct sh_css_isp_ref_isp_config      *to,
+		      const struct ia_css_ref_configuration *from,
+		      unsigned int size);
 
-void
-ia_css_ref_configure(
-    const struct ia_css_binary     *binary,
-    const struct ia_css_frame * const *ref_frames,
-    const uint32_t dvs_frame_delay);
+int ia_css_ref_configure(const struct ia_css_binary        *binary,
+			 const struct ia_css_frame * const *ref_frames,
+			 const uint32_t                    dvs_frame_delay);
 
 void
 ia_css_init_ref_state(

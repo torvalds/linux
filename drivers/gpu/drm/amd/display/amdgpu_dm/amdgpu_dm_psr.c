@@ -26,6 +26,30 @@
 #include "amdgpu_dm_psr.h"
 #include "dc.h"
 #include "dm_helpers.h"
+#include "amdgpu_dm.h"
+
+#ifdef CONFIG_DRM_AMD_DC_DCN
+static bool link_supports_psrsu(struct dc_link *link)
+{
+	struct dc *dc = link->ctx->dc;
+
+	if (!dc->caps.dmcub_support)
+		return false;
+
+	if (dc->ctx->dce_version < DCN_VERSION_3_1)
+		return false;
+
+	if (!link->dpcd_caps.alpm_caps.bits.AUX_WAKE_ALPM_CAP ||
+	    !link->dpcd_caps.psr_info.psr_dpcd_caps.bits.Y_COORDINATE_REQUIRED)
+		return false;
+
+	if (link->dpcd_caps.psr_info.psr_dpcd_caps.bits.SU_GRANULARITY_REQUIRED &&
+	    !link->dpcd_caps.psr_info.psr2_su_y_granularity_cap)
+		return false;
+
+	return true;
+}
+#endif
 
 /*
  * amdgpu_dm_set_psr_caps() - set link psr capabilities
@@ -34,26 +58,29 @@
  */
 void amdgpu_dm_set_psr_caps(struct dc_link *link)
 {
-	uint8_t dpcd_data[EDP_PSR_RECEIVER_CAP_SIZE];
-
 	if (!(link->connector_signal & SIGNAL_TYPE_EDP))
 		return;
+
 	if (link->type == dc_connection_none)
 		return;
-	if (dm_helpers_dp_read_dpcd(NULL, link, DP_PSR_SUPPORT,
-					dpcd_data, sizeof(dpcd_data))) {
-		link->dpcd_caps.psr_caps.psr_version = dpcd_data[0];
 
-		if (dpcd_data[0] == 0) {
-			link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
-			link->psr_settings.psr_feature_enabled = false;
-		} else {
+	if (link->dpcd_caps.psr_info.psr_version == 0) {
+		link->psr_settings.psr_version = DC_PSR_VERSION_UNSUPPORTED;
+		link->psr_settings.psr_feature_enabled = false;
+
+	} else {
+#ifdef CONFIG_DRM_AMD_DC_DCN
+		if (link_supports_psrsu(link))
+			link->psr_settings.psr_version = DC_PSR_VERSION_SU_1;
+		else
+#endif
 			link->psr_settings.psr_version = DC_PSR_VERSION_1;
-			link->psr_settings.psr_feature_enabled = true;
-		}
 
-		DRM_INFO("PSR support:%d\n", link->psr_settings.psr_feature_enabled);
+		link->psr_settings.psr_feature_enabled = true;
 	}
+
+	DRM_INFO("PSR support:%d\n", link->psr_settings.psr_feature_enabled);
+
 }
 
 /*
@@ -74,10 +101,8 @@ bool amdgpu_dm_link_setup_psr(struct dc_stream_state *stream)
 
 	link = stream->link;
 
-	psr_config.psr_version = link->dpcd_caps.psr_caps.psr_version;
-
-	if (psr_config.psr_version > 0) {
-		psr_config.psr_exit_link_training_required = 0x1;
+	if (link->psr_settings.psr_version != DC_PSR_VERSION_UNSUPPORTED) {
+		psr_config.psr_version = link->psr_settings.psr_version;
 		psr_config.psr_frame_capture_indication_req = 0;
 		psr_config.psr_rfb_setup_time = 0x37;
 		psr_config.psr_sdp_transmit_line_num_deadline = 0x20;
@@ -107,6 +132,8 @@ bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 	 */
 	// Init fail safe of 2 frames static
 	unsigned int num_frames_static = 2;
+	unsigned int power_opt = 0;
+	bool psr_enable = true;
 
 	DRM_DEBUG_DRIVER("Enabling psr...\n");
 
@@ -133,7 +160,9 @@ bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
 					   &stream, 1,
 					   &params);
 
-	return dc_link_set_psr_allow_active(link, true, false, false);
+	power_opt |= psr_power_opt_z10_static_screen;
+
+	return dc_link_set_psr_allow_active(link, &psr_enable, false, false, &power_opt);
 }
 
 /*
@@ -144,10 +173,12 @@ bool amdgpu_dm_psr_enable(struct dc_stream_state *stream)
  */
 bool amdgpu_dm_psr_disable(struct dc_stream_state *stream)
 {
+	unsigned int power_opt = 0;
+	bool psr_enable = false;
 
 	DRM_DEBUG_DRIVER("Disabling psr...\n");
 
-	return dc_link_set_psr_allow_active(stream->link, false, true, false);
+	return dc_link_set_psr_allow_active(stream->link, &psr_enable, true, false, &power_opt);
 }
 
 /*

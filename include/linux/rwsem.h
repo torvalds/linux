@@ -11,7 +11,6 @@
 #include <linux/linkage.h>
 
 #include <linux/types.h>
-#include <linux/kernel.h>
 #include <linux/list.h>
 #include <linux/spinlock.h>
 #include <linux/atomic.h>
@@ -231,7 +230,7 @@ extern void _down_write_nest_lock(struct rw_semaphore *sem, struct lockdep_map *
 do {								\
 	typecheck(struct lockdep_map *, &(nest_lock)->dep_map);	\
 	_down_write_nest_lock(sem, &(nest_lock)->dep_map);	\
-} while (0);
+} while (0)
 
 /*
  * Take/release a lock when not the owner will release it.

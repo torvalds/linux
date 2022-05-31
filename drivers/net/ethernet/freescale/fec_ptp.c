@@ -101,7 +101,6 @@ static int fec_ptp_enable_pps(struct fec_enet_private *fep, uint enable)
 	u32 val, tempval;
 	struct timespec64 ts;
 	u64 ns;
-	val = 0;
 
 	if (fep->pps_enable == enable)
 		return 0;
@@ -472,10 +471,6 @@ int fec_ptp_set(struct net_device *ndev, struct ifreq *ifr)
 
 	if (copy_from_user(&config, ifr->ifr_data, sizeof(config)))
 		return -EFAULT;
-
-	/* reserved for future extensions */
-	if (config.flags)
-		return -EINVAL;
 
 	switch (config.tx_type) {
 	case HWTSTAMP_TX_OFF:

@@ -34,7 +34,7 @@ struct {
 	__uint(max_entries, 128);
 } mac_map SEC(".maps");
 
-SEC("xdp_redirect_map_multi")
+SEC("xdp")
 int xdp_redirect_map_multi_prog(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
@@ -63,14 +63,14 @@ int xdp_redirect_map_multi_prog(struct xdp_md *ctx)
 }
 
 /* The following 2 progs are for 2nd devmap prog testing */
-SEC("xdp_redirect_map_ingress")
+SEC("xdp")
 int xdp_redirect_map_all_prog(struct xdp_md *ctx)
 {
 	return bpf_redirect_map(&map_egress, 0,
 				BPF_F_BROADCAST | BPF_F_EXCLUDE_INGRESS);
 }
 
-SEC("xdp_devmap/map_prog")
+SEC("xdp/devmap")
 int xdp_devmap_prog(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;

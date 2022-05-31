@@ -105,7 +105,7 @@ void f2fs_hash_filename(const struct inode *dir, struct f2fs_filename *fname)
 		return;
 	}
 
-#ifdef CONFIG_UNICODE
+#if IS_ENABLED(CONFIG_UNICODE)
 	if (IS_CASEFOLDED(dir)) {
 		/*
 		 * If the casefolded name is provided, hash it instead of the

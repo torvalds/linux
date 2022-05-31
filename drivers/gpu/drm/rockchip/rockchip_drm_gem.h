@@ -31,15 +31,9 @@ struct drm_gem_object *
 rockchip_gem_prime_import_sg_table(struct drm_device *dev,
 				   struct dma_buf_attachment *attach,
 				   struct sg_table *sg);
-int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct dma_buf_map *map);
-void rockchip_gem_prime_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map);
-
-/* drm driver mmap file operations */
-int rockchip_gem_mmap(struct file *filp, struct vm_area_struct *vma);
-
-/* mmap a gem object to userspace. */
-int rockchip_gem_mmap_buf(struct drm_gem_object *obj,
-			  struct vm_area_struct *vma);
+int rockchip_gem_prime_vmap(struct drm_gem_object *obj, struct iosys_map *map);
+void rockchip_gem_prime_vunmap(struct drm_gem_object *obj,
+			       struct iosys_map *map);
 
 struct rockchip_gem_object *
 	rockchip_gem_create_object(struct drm_device *drm, unsigned int size,

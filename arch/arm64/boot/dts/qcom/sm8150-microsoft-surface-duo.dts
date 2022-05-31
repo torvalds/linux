@@ -15,6 +15,7 @@
 / {
 	model = "Microsoft Surface Duo";
 	compatible = "microsoft,surface-duo", "qcom,sm8150";
+	chassis-type = "handset";
 
 	aliases {
 		serial0 = &uart2;
@@ -429,18 +430,8 @@
 	/* MAX34417 @ 0x1e */
 };
 
-&pon {
-	pwrkey {
-		status = "okay";
-	};
-
-	resin {
-		compatible = "qcom,pm8941-resin";
-		interrupts = <0x0 0x8 0x1 IRQ_TYPE_EDGE_BOTH>;
-		debounce = <15625>;
-		bias-pull-up;
-		linux,code = <KEY_VOLUMEDOWN>;
-	};
+&pon_pwrkey {
+	status = "okay";
 };
 
 &qupv3_id_0 {
@@ -475,6 +466,12 @@
 	firmware-name = "qcom/sm8150/microsoft/slpi.mdt";
 };
 
+&pon_resin {
+	status = "okay";
+
+	linux,code = <KEY_VOLUMEDOWN>;
+};
+
 &tlmm {
 	gpio-reserved-ranges = <126 4>;
 
@@ -507,9 +504,7 @@
 	status = "okay";
 
 	vdda-phy-supply = <&vdda_ufs_2ln_core_1>;
-	vdda-max-microamp = <90200>;
 	vdda-pll-supply = <&vreg_l3c_1p2>;
-	vdda-pll-max-microamp = <19000>;
 };
 
 &usb_1_hsphy {

@@ -13,7 +13,7 @@ struct mpi3_scsi_io_cdb_eedp32 {
 	__le32             transfer_length;
 };
 
-union mpi3_scso_io_cdb_union {
+union mpi3_scsi_io_cdb_union {
 	u8                         cdb32[32];
 	struct mpi3_scsi_io_cdb_eedp32 eedp32;
 	struct mpi3_sge_common         sge;
@@ -32,11 +32,12 @@ struct mpi3_scsi_io_request {
 	__le32                     skip_count;
 	__le32                     data_length;
 	u8                         lun[8];
-	union mpi3_scso_io_cdb_union  cdb;
+	union mpi3_scsi_io_cdb_union  cdb;
 	union mpi3_sge_union          sgl[4];
 };
 
 #define MPI3_SCSIIO_MSGFLAGS_METASGL_VALID                  (0x80)
+#define MPI3_SCSIIO_MSGFLAGS_DIVERT_TO_FIRMWARE             (0x40)
 #define MPI3_SCSIIO_FLAGS_LARGE_CDB                         (0x60000000)
 #define MPI3_SCSIIO_FLAGS_CDB_16_OR_LESS                    (0x00000000)
 #define MPI3_SCSIIO_FLAGS_CDB_GREATER_THAN_16               (0x20000000)
@@ -54,6 +55,9 @@ struct mpi3_scsi_io_request {
 #define MPI3_SCSIIO_FLAGS_DATADIRECTION_READ                (0x00080000)
 #define MPI3_SCSIIO_FLAGS_DMAOPERATION_MASK                 (0x00030000)
 #define MPI3_SCSIIO_FLAGS_DMAOPERATION_HOST_PI              (0x00010000)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_MASK                (0x000000f0)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_IO_THROTTLING       (0x00000010)
+#define MPI3_SCSIIO_FLAGS_DIVERT_REASON_PROD_SPECIFIC       (0x00000080)
 #define MPI3_SCSIIO_METASGL_INDEX                           (3)
 struct mpi3_scsi_io_reply {
 	__le16                     host_tag;
@@ -155,5 +159,13 @@ struct mpi3_scsi_task_mgmt_reply {
 	__le32                     reserved18;
 };
 
-#define MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC      (0x80)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_COMPLETE                (0x00)
+#define MPI3_SCSITASKMGMT_RSPCODE_INVALID_FRAME              (0x02)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_FUNCTION_NOT_SUPPORTED  (0x04)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_FAILED                  (0x05)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_SUCCEEDED               (0x08)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_INVALID_LUN             (0x09)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_OVERLAPPED_TAG          (0x0a)
+#define MPI3_SCSITASKMGMT_RSPCODE_IO_QUEUED_ON_IOC           (0x80)
+#define MPI3_SCSITASKMGMT_RSPCODE_TM_NVME_DENIED             (0x81)
 #endif

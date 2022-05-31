@@ -32,28 +32,52 @@
 
 #define SCAN_NOTIFY_TIMEOUT  msecs_to_jiffies(10)
 
+#define RTW_CHANNEL_TIME		45
+#define RTW_OFF_CHAN_TIME		100
+#define RTW_PASS_CHAN_TIME		105
+#define RTW_DFS_CHAN_TIME		20
+#define RTW_CH_INFO_SIZE		4
+#define RTW_EX_CH_INFO_SIZE		3
+#define RTW_EX_CH_INFO_HDR_SIZE		2
+#define RTW_SCAN_WIDTH			0
+#define RTW_PRI_CH_IDX			1
+#define RTW_PROBE_PG_CNT		2
+
 enum rtw_c2h_cmd_id {
 	C2H_CCX_TX_RPT = 0x03,
 	C2H_BT_INFO = 0x09,
 	C2H_BT_MP_INFO = 0x0b,
+	C2H_BT_HID_INFO = 0x45,
 	C2H_RA_RPT = 0x0c,
 	C2H_HW_FEATURE_REPORT = 0x19,
 	C2H_WLAN_INFO = 0x27,
 	C2H_WLAN_RFON = 0x32,
 	C2H_BCN_FILTER_NOTIFY = 0x36,
+	C2H_ADAPTIVITY = 0x37,
 	C2H_SCAN_RESULT = 0x38,
 	C2H_HW_FEATURE_DUMP = 0xfd,
 	C2H_HALMAC = 0xff,
 };
 
 enum rtw_c2h_cmd_id_ext {
+	C2H_SCAN_STATUS_RPT = 0x3,
 	C2H_CCX_RPT = 0x0f,
+	C2H_CHAN_SWITCH = 0x22,
 };
 
 struct rtw_c2h_cmd {
 	u8 id;
 	u8 seq;
 	u8 payload[];
+} __packed;
+
+struct rtw_c2h_adaptivity {
+	u8 density;
+	u8 igi;
+	u8 l2h_th_init;
+	u8 l2h;
+	u8 h2l;
+	u8 option;
 } __packed;
 
 enum rtw_rsvd_packet_type {
@@ -88,8 +112,11 @@ enum rtw_fw_feature {
 	FW_FEATURE_LPS_C2H = BIT(1),
 	FW_FEATURE_LCLK = BIT(2),
 	FW_FEATURE_PG = BIT(3),
+	FW_FEATURE_TX_WAKE = BIT(4),
 	FW_FEATURE_BCN_FILTER = BIT(5),
 	FW_FEATURE_NOTIFY_SCAN = BIT(6),
+	FW_FEATURE_ADAPTIVITY = BIT(7),
+	FW_FEATURE_SCAN_OFFLOAD = BIT(8),
 	FW_FEATURE_MAX = BIT(31),
 };
 
@@ -185,6 +212,51 @@ struct rtw_fw_wow_disconnect_para {
 	u8 retry_count;
 };
 
+enum rtw_channel_type {
+	RTW_CHANNEL_PASSIVE,
+	RTW_CHANNEL_ACTIVE,
+	RTW_CHANNEL_RADAR,
+};
+
+enum rtw_scan_extra_id {
+	RTW_SCAN_EXTRA_ID_DFS,
+};
+
+enum rtw_scan_extra_info {
+	RTW_SCAN_EXTRA_ACTION_SCAN,
+};
+
+enum rtw_scan_report_code {
+	RTW_SCAN_REPORT_SUCCESS = 0x00,
+	RTW_SCAN_REPORT_ERR_PHYDM = 0x01,
+	RTW_SCAN_REPORT_ERR_ID = 0x02,
+	RTW_SCAN_REPORT_ERR_TX = 0x03,
+	RTW_SCAN_REPORT_CANCELED = 0x10,
+	RTW_SCAN_REPORT_CANCELED_EXT = 0x11,
+	RTW_SCAN_REPORT_FW_DISABLED = 0xF0,
+};
+
+enum rtw_scan_notify_id {
+	RTW_SCAN_NOTIFY_ID_PRESWITCH = 0x00,
+	RTW_SCAN_NOTIFY_ID_POSTSWITCH = 0x01,
+	RTW_SCAN_NOTIFY_ID_PROBE_PRETX = 0x02,
+	RTW_SCAN_NOTIFY_ID_PROBE_ISSUETX = 0x03,
+	RTW_SCAN_NOTIFY_ID_NULL0_PRETX = 0x04,
+	RTW_SCAN_NOTIFY_ID_NULL0_ISSUETX = 0x05,
+	RTW_SCAN_NOTIFY_ID_NULL0_POSTTX = 0x06,
+	RTW_SCAN_NOTIFY_ID_NULL1_PRETX = 0x07,
+	RTW_SCAN_NOTIFY_ID_NULL1_ISSUETX = 0x08,
+	RTW_SCAN_NOTIFY_ID_NULL1_POSTTX = 0x09,
+	RTW_SCAN_NOTIFY_ID_DWELLEXT = 0x0A,
+};
+
+enum rtw_scan_notify_status {
+	RTW_SCAN_NOTIFY_STATUS_SUCCESS = 0x00,
+	RTW_SCAN_NOTIFY_STATUS_FAILURE = 0x01,
+	RTW_SCAN_NOTIFY_STATUS_RESOURCE = 0x02,
+	RTW_SCAN_NOTIFY_STATUS_TIMEOUT = 0x03,
+};
+
 struct rtw_ch_switch_option {
 	u8 periodic_option;
 	u32 tsf_high;
@@ -198,6 +270,8 @@ struct rtw_ch_switch_option {
 	u8 slow_period;
 	u8 slow_period_sel;
 	u8 nlo_en;
+	bool switch_en;
+	bool back_op_en;
 };
 
 struct rtw_fw_hdr {
@@ -254,6 +328,11 @@ struct rtw_fw_hdr_legacy {
 #define GET_CCX_REPORT_SEQNUM_V1(c2h_payload)	(c2h_payload[8] & 0xfc)
 #define GET_CCX_REPORT_STATUS_V1(c2h_payload)	(c2h_payload[9] & 0xc0)
 
+#define GET_SCAN_REPORT_RETURN_CODE(c2h_payload)	(c2h_payload[2] & 0xff)
+
+#define GET_CHAN_SWITCH_CENTRAL_CH(c2h_payload)	(c2h_payload[2])
+#define GET_CHAN_SWITCH_ID(c2h_payload)		(c2h_payload[3])
+#define GET_CHAN_SWITCH_STATUS(c2h_payload)	(c2h_payload[4])
 #define GET_RA_REPORT_RATE(c2h_payload)		(c2h_payload[0] & 0x7f)
 #define GET_RA_REPORT_SGI(c2h_payload)		((c2h_payload[0] & 0x80) >> 7)
 #define GET_RA_REPORT_BW(c2h_payload)		(c2h_payload[6])
@@ -273,6 +352,7 @@ struct rtw_fw_hdr_legacy {
 
 #define H2C_PKT_CH_SWITCH 0x02
 #define H2C_PKT_UPDATE_PKT 0x0C
+#define H2C_PKT_SCAN_OFFLOAD 0x19
 
 #define H2C_PKT_CH_SWITCH_LEN 0x20
 #define H2C_PKT_UPDATE_PKT_LEN 0x4
@@ -323,6 +403,30 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(23, 16))
 #define CHSW_INFO_SET_ACTION_ID(pkt, value)				       \
 	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, GENMASK(30, 24))
+#define CHSW_INFO_SET_EXTRA_INFO(pkt, value)				       \
+	le32p_replace_bits((__le32 *)(pkt) + 0x00, value, BIT(31))
+
+#define CH_INFO_SET_CH(pkt, value)					       \
+	u8p_replace_bits((u8 *)(pkt) + 0x00, value, GENMASK(7, 0))
+#define CH_INFO_SET_PRI_CH_IDX(pkt, value)				       \
+	u8p_replace_bits((u8 *)(pkt) + 0x01, value, GENMASK(3, 0))
+#define CH_INFO_SET_BW(pkt, value)					       \
+	u8p_replace_bits((u8 *)(pkt) + 0x01, value, GENMASK(7, 4))
+#define CH_INFO_SET_TIMEOUT(pkt, value)					       \
+	u8p_replace_bits((u8 *)(pkt) + 0x02, value, GENMASK(7, 0))
+#define CH_INFO_SET_ACTION_ID(pkt, value)				       \
+	u8p_replace_bits((u8 *)(pkt) + 0x03, value, GENMASK(6, 0))
+#define CH_INFO_SET_EXTRA_INFO(pkt, value)				       \
+	u8p_replace_bits((u8 *)(pkt) + 0x03, value, BIT(7))
+
+#define EXTRA_CH_INFO_SET_ID(pkt, value)				       \
+	u8p_replace_bits((u8 *)(pkt) + 0x04, value, GENMASK(6, 0))
+#define EXTRA_CH_INFO_SET_INFO(pkt, value)				       \
+	u8p_replace_bits((u8 *)(pkt) + 0x04, value, BIT(7))
+#define EXTRA_CH_INFO_SET_SIZE(pkt, value)				       \
+	u8p_replace_bits((u8 *)(pkt) + 0x05, value, GENMASK(7, 0))
+#define EXTRA_CH_INFO_SET_DFS_EXT_TIME(pkt, value)			       \
+	u8p_replace_bits((u8 *)(pkt) + 0x06, value, GENMASK(7, 0))
 
 #define UPDATE_PKT_SET_SIZE(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(15, 0))
@@ -339,12 +443,18 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(2))
 #define CH_SWITCH_SET_PERIODIC_OPT(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(4, 3))
+#define CH_SWITCH_SET_SCAN_MODE(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(5))
+#define CH_SWITCH_SET_BACK_OP_EN(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(6))
 #define CH_SWITCH_SET_INFO_LOC(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(15, 8))
 #define CH_SWITCH_SET_CH_NUM(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(23, 16))
 #define CH_SWITCH_SET_PRI_CH_IDX(h2c_pkt, value)			       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(27, 24))
+#define CH_SWITCH_SET_DEST_BW(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(31, 28))
 #define CH_SWITCH_SET_DEST_CH(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(7, 0))
 #define CH_SWITCH_SET_NORMAL_PERIOD(h2c_pkt, value)			       \
@@ -364,6 +474,41 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define CH_SWITCH_SET_INFO_SIZE(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x06, value, GENMASK(15, 0))
 
+#define SCAN_OFFLOAD_SET_START(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(0))
+#define SCAN_OFFLOAD_SET_BACK_OP_EN(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(1))
+#define SCAN_OFFLOAD_SET_RANDOM_SEQ_EN(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(2))
+#define SCAN_OFFLOAD_SET_NO_CCK_EN(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(3))
+#define SCAN_OFFLOAD_SET_VERBOSE(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, BIT(4))
+#define SCAN_OFFLOAD_SET_CH_NUM(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(15, 8))
+#define SCAN_OFFLOAD_SET_CH_INFO_SIZE(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x02, value, GENMASK(31, 16))
+#define SCAN_OFFLOAD_SET_CH_INFO_LOC(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(7, 0))
+#define SCAN_OFFLOAD_SET_OP_CH(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(15, 8))
+#define SCAN_OFFLOAD_SET_OP_PRI_CH_IDX(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(19, 16))
+#define SCAN_OFFLOAD_SET_OP_BW(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(23, 20))
+#define SCAN_OFFLOAD_SET_OP_PORT_ID(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x03, value, GENMASK(26, 24))
+#define SCAN_OFFLOAD_SET_OP_DWELL_TIME(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x04, value, GENMASK(15, 0))
+#define SCAN_OFFLOAD_SET_OP_GAP_TIME(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x04, value, GENMASK(31, 16))
+#define SCAN_OFFLOAD_SET_MODE(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x05, value, GENMASK(3, 0))
+#define SCAN_OFFLOAD_SET_SSID_NUM(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x05, value, GENMASK(7, 4))
+#define SCAN_OFFLOAD_SET_PKT_LOC(h2c_pkt, value)			       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x05, value, GENMASK(15, 8))
+
 /* Command H2C */
 #define H2C_CMD_RSVD_PAGE		0x0
 #define H2C_CMD_MEDIA_STATUS_RPT	0x01
@@ -375,6 +520,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_BCN_FILTER_OFFLOAD_P1	0x57
 #define H2C_CMD_WL_PHY_INFO		0x58
 #define H2C_CMD_SCAN			0x59
+#define H2C_CMD_ADAPTIVITY		0x5A
 
 #define H2C_CMD_COEX_TDMA_TYPE		0x60
 #define H2C_CMD_QUERY_BT_INFO		0x61
@@ -384,6 +530,7 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 #define H2C_CMD_QUERY_BT_MP_INFO	0x67
 #define H2C_CMD_BT_WIFI_CONTROL		0x69
 #define H2C_CMD_WIFI_CALIBRATION	0x6d
+#define H2C_CMD_QUERY_BT_HID_INFO	0x73
 
 #define H2C_CMD_KEEP_ALIVE		0x03
 #define H2C_CMD_DISCONNECT_DECISION	0x04
@@ -427,6 +574,17 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 
 #define SET_SCAN_START(h2c_pkt, value)					       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
+
+#define SET_ADAPTIVITY_MODE(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(11, 8))
+#define SET_ADAPTIVITY_OPTION(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(15, 12))
+#define SET_ADAPTIVITY_IGI(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
+#define SET_ADAPTIVITY_L2H(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(31, 24))
+#define SET_ADAPTIVITY_DENSITY(h2c_pkt, value)				       \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(7, 0))
 
 #define SET_PWR_MODE_SET_MODE(h2c_pkt, value)                                  \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(14, 8))
@@ -524,6 +682,11 @@ static inline void rtw_h2c_pkt_set_header(u8 *h2c_pkt, u8 sub_id)
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(15, 8))
 #define SET_BT_WIFI_CONTROL_DATA5(h2c_pkt, value)                              \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x01, value, GENMASK(23, 16))
+
+#define SET_COEX_QUERY_HID_INFO_SUBID(h2c_pkt, value)                          \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(15, 8))
+#define SET_COEX_QUERY_HID_INFO_DATA1(h2c_pkt, value)                          \
+	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, GENMASK(23, 16))
 
 #define SET_KEEP_ALIVE_ENABLE(h2c_pkt, value)				       \
 	le32p_replace_bits((__le32 *)(h2c_pkt) + 0x00, value, BIT(8))
@@ -624,6 +787,8 @@ void rtw_fw_force_bt_tx_power(struct rtw_dev *rtwdev, u8 bt_pwr_dec_lvl);
 void rtw_fw_bt_ignore_wlan_action(struct rtw_dev *rtwdev, bool enable);
 void rtw_fw_coex_tdma_type(struct rtw_dev *rtwdev,
 			   u8 para1, u8 para2, u8 para3, u8 para4, u8 para5);
+void rtw_fw_coex_query_hid_info(struct rtw_dev *rtwdev, u8 sub_id, u8 data);
+
 void rtw_fw_bt_wifi_control(struct rtw_dev *rtwdev, u8 op_code, u8 *data);
 void rtw_fw_send_rssi_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
 void rtw_fw_send_ra_info(struct rtw_dev *rtwdev, struct rtw_sta_info *si);
@@ -662,4 +827,15 @@ void rtw_fw_c2h_cmd_isr(struct rtw_dev *rtwdev);
 int rtw_fw_dump_fifo(struct rtw_dev *rtwdev, u8 fifo_sel, u32 addr, u32 size,
 		     u32 *buffer);
 void rtw_fw_scan_notify(struct rtw_dev *rtwdev, bool start);
+void rtw_fw_adaptivity(struct rtw_dev *rtwdev);
+void rtw_store_op_chan(struct rtw_dev *rtwdev);
+void rtw_hw_scan_start(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+		       struct ieee80211_scan_request *req);
+void rtw_hw_scan_complete(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			  bool aborted);
+int rtw_hw_scan_offload(struct rtw_dev *rtwdev, struct ieee80211_vif *vif,
+			bool enable);
+void rtw_hw_scan_status_report(struct rtw_dev *rtwdev, struct sk_buff *skb);
+void rtw_hw_scan_chan_switch(struct rtw_dev *rtwdev, struct sk_buff *skb);
+void rtw_hw_scan_abort(struct rtw_dev *rtwdev, struct ieee80211_vif *vif);
 #endif

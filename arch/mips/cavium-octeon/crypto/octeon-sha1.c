@@ -15,6 +15,7 @@
 
 #include <linux/mm.h>
 #include <crypto/sha1.h>
+#include <crypto/sha1_base.h>
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/module.h>
@@ -69,20 +70,6 @@ static void octeon_sha1_transform(const void *_block)
 	write_octeon_64bit_block_dword(block[5], 5);
 	write_octeon_64bit_block_dword(block[6], 6);
 	octeon_sha1_start(block[7]);
-}
-
-static int octeon_sha1_init(struct shash_desc *desc)
-{
-	struct sha1_state *sctx = shash_desc_ctx(desc);
-
-	sctx->state[0] = SHA1_H0;
-	sctx->state[1] = SHA1_H1;
-	sctx->state[2] = SHA1_H2;
-	sctx->state[3] = SHA1_H3;
-	sctx->state[4] = SHA1_H4;
-	sctx->count = 0;
-
-	return 0;
 }
 
 static void __octeon_sha1_update(struct sha1_state *sctx, const u8 *data,
@@ -200,7 +187,7 @@ static int octeon_sha1_import(struct shash_desc *desc, const void *in)
 
 static struct shash_alg octeon_sha1_alg = {
 	.digestsize	=	SHA1_DIGEST_SIZE,
-	.init		=	octeon_sha1_init,
+	.init		=	sha1_base_init,
 	.update		=	octeon_sha1_update,
 	.final		=	octeon_sha1_final,
 	.export		=	octeon_sha1_export,

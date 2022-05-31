@@ -147,6 +147,7 @@ Undo_phys:
 
 	return error;
 }
+EXPORT_SYMBOL_GPL(sas_register_ha);
 
 static void sas_disable_events(struct sas_ha_struct *sas_ha)
 {
@@ -176,6 +177,7 @@ int sas_unregister_ha(struct sas_ha_struct *sas_ha)
 
 	return 0;
 }
+EXPORT_SYMBOL_GPL(sas_unregister_ha);
 
 static int sas_get_linkerrors(struct sas_phy *phy)
 {
@@ -252,7 +254,7 @@ static int transport_sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	}
 }
 
-static int sas_phy_enable(struct sas_phy *phy, int enable)
+int sas_phy_enable(struct sas_phy *phy, int enable)
 {
 	int ret;
 	enum phy_func cmd;
@@ -284,6 +286,7 @@ static int sas_phy_enable(struct sas_phy *phy, int enable)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sas_phy_enable);
 
 int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 {
@@ -313,6 +316,7 @@ int sas_phy_reset(struct sas_phy *phy, int hard_reset)
 	}
 	return ret;
 }
+EXPORT_SYMBOL_GPL(sas_phy_reset);
 
 int sas_set_phy_speed(struct sas_phy *phy,
 		      struct sas_phy_linkrates *rates)
@@ -358,6 +362,7 @@ void sas_prep_resume_ha(struct sas_ha_struct *ha)
 	int i;
 
 	set_bit(SAS_HA_REGISTERED, &ha->state);
+	set_bit(SAS_HA_RESUMING, &ha->state);
 
 	/* clear out any stale link events/data from the suspension path */
 	for (i = 0; i < ha->num_phys; i++) {
@@ -383,7 +388,31 @@ static int phys_suspended(struct sas_ha_struct *ha)
 	return rc;
 }
 
-void sas_resume_ha(struct sas_ha_struct *ha)
+static void sas_resume_insert_broadcast_ha(struct sas_ha_struct *ha)
+{
+	int i;
+
+	for (i = 0; i < ha->num_phys; i++) {
+		struct asd_sas_port *port = ha->sas_port[i];
+		struct domain_device *dev = port->port_dev;
+
+		if (dev && dev_is_expander(dev->dev_type)) {
+			struct asd_sas_phy *first_phy;
+
+			spin_lock(&port->phy_list_lock);
+			first_phy = list_first_entry_or_null(
+				&port->phy_list, struct asd_sas_phy,
+				port_phy_el);
+			spin_unlock(&port->phy_list_lock);
+
+			if (first_phy)
+				sas_notify_port_event(first_phy,
+					PORTE_BROADCAST_RCVD, GFP_KERNEL);
+		}
+	}
+}
+
+static void _sas_resume_ha(struct sas_ha_struct *ha, bool drain)
 {
 	const unsigned long tmo = msecs_to_jiffies(25000);
 	int i;
@@ -413,9 +442,29 @@ void sas_resume_ha(struct sas_ha_struct *ha)
 	 * flush out disks that did not return
 	 */
 	scsi_unblock_requests(ha->core.shost);
-	sas_drain_work(ha);
+	if (drain)
+		sas_drain_work(ha);
+	clear_bit(SAS_HA_RESUMING, &ha->state);
+
+	sas_queue_deferred_work(ha);
+	/* send event PORTE_BROADCAST_RCVD to identify some new inserted
+	 * disks for expander
+	 */
+	sas_resume_insert_broadcast_ha(ha);
+}
+
+void sas_resume_ha(struct sas_ha_struct *ha)
+{
+	_sas_resume_ha(ha, true);
 }
 EXPORT_SYMBOL(sas_resume_ha);
+
+/* A no-sync variant, which does not call sas_drain_ha(). */
+void sas_resume_ha_no_sync(struct sas_ha_struct *ha)
+{
+	_sas_resume_ha(ha, false);
+}
+EXPORT_SYMBOL(sas_resume_ha_no_sync);
 
 void sas_suspend_ha(struct sas_ha_struct *ha)
 {
@@ -659,5 +708,3 @@ MODULE_LICENSE("GPL v2");
 module_init(sas_class_init);
 module_exit(sas_class_exit);
 
-EXPORT_SYMBOL_GPL(sas_register_ha);
-EXPORT_SYMBOL_GPL(sas_unregister_ha);

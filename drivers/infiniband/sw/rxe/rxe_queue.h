@@ -10,34 +10,47 @@
 /* for definition of shared struct rxe_queue_buf */
 #include <uapi/rdma/rdma_user_rxe.h>
 
-/* implements a simple circular buffer that can optionally be
- * shared between user space and the kernel and can be resized
- * the requested element size is rounded up to a power of 2
- * and the number of elements in the buffer is also rounded
- * up to a power of 2. Since the queue is empty when the
- * producer and consumer indices match the maximum capacity
- * of the queue is one less than the number of element slots
+/* Implements a simple circular buffer that is shared between user
+ * and the driver and can be resized. The requested element size is
+ * rounded up to a power of 2 and the number of elements in the buffer
+ * is also rounded up to a power of 2. Since the queue is empty when
+ * the producer and consumer indices match the maximum capacity of the
+ * queue is one less than the number of element slots.
  *
  * Notes:
- *   - Kernel space indices are always masked off to q->index_mask
- *   before storing so do not need to be checked on reads.
- *   - User space indices may be out of range and must be
- *   masked before use when read.
- *   - The kernel indices for shared queues must not be written
- *   by user space so a local copy is used and a shared copy is
- *   stored when the local copy changes.
+ *   - The driver indices are always masked off to q->index_mask
+ *     before storing so do not need to be checked on reads.
+ *   - The user whether user space or kernel is generally
+ *     not trusted so its parameters are masked to make sure
+ *     they do not access the queue out of bounds on reads.
+ *   - The driver indices for queues must not be written
+ *     by user so a local copy is used and a shared copy is
+ *     stored when the local copy is changed.
  *   - By passing the type in the parameter list separate from q
- *   the compiler can eliminate the switch statement when the
- *   actual queue type is known when the function is called.
- *   In the performance path this is done. In less critical
- *   paths just q->type is passed.
+ *     the compiler can eliminate the switch statement when the
+ *     actual queue type is known when the function is called at
+ *     compile time.
+ *   - These queues are lock free. The user and driver must protect
+ *     changes to their end of the queues with locks if more than one
+ *     CPU can be accessing it at the same time.
  */
 
-/* type of queue */
+/**
+ * enum queue_type - type of queue
+ * @QUEUE_TYPE_TO_CLIENT:	Queue is written by rxe driver and
+ *				read by client. Used by rxe driver only.
+ * @QUEUE_TYPE_FROM_CLIENT:	Queue is written by client and
+ *				read by rxe driver. Used by rxe driver only.
+ * @QUEUE_TYPE_TO_DRIVER:	Queue is written by client and
+ *				read by rxe driver. Used by kernel client only.
+ * @QUEUE_TYPE_FROM_DRIVER:	Queue is written by rxe driver and
+ *				read by client. Used by kernel client only.
+ */
 enum queue_type {
-	QUEUE_TYPE_KERNEL,
-	QUEUE_TYPE_TO_USER,
-	QUEUE_TYPE_FROM_USER,
+	QUEUE_TYPE_TO_CLIENT,
+	QUEUE_TYPE_FROM_CLIENT,
+	QUEUE_TYPE_TO_DRIVER,
+	QUEUE_TYPE_FROM_DRIVER,
 };
 
 struct rxe_queue {
@@ -69,201 +82,33 @@ struct rxe_queue *rxe_queue_init(struct rxe_dev *rxe, int *num_elem,
 int rxe_queue_resize(struct rxe_queue *q, unsigned int *num_elem_p,
 		     unsigned int elem_size, struct ib_udata *udata,
 		     struct mminfo __user *outbuf,
-		     /* Protect producers while resizing queue */
-		     spinlock_t *producer_lock,
-		     /* Protect consumers while resizing queue */
-		     spinlock_t *consumer_lock);
+		     spinlock_t *producer_lock, spinlock_t *consumer_lock);
 
 void rxe_queue_cleanup(struct rxe_queue *queue);
 
-static inline int next_index(struct rxe_queue *q, int index)
+static inline u32 queue_next_index(struct rxe_queue *q, int index)
 {
-	return (index + 1) & q->buf->index_mask;
+	return (index + 1) & q->index_mask;
 }
 
-static inline int queue_empty(struct rxe_queue *q, enum queue_type type)
-{
-	u32 prod;
-	u32 cons;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		/* protect user space index */
-		prod = smp_load_acquire(&q->buf->producer_index);
-		cons = q->index;
-		break;
-	case QUEUE_TYPE_TO_USER:
-		prod = q->index;
-		/* protect user space index */
-		cons = smp_load_acquire(&q->buf->consumer_index);
-		break;
-	case QUEUE_TYPE_KERNEL:
-		prod = q->buf->producer_index;
-		cons = q->buf->consumer_index;
-		break;
-	}
-
-	return ((prod - cons) & q->index_mask) == 0;
-}
-
-static inline int queue_full(struct rxe_queue *q, enum queue_type type)
-{
-	u32 prod;
-	u32 cons;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		/* protect user space index */
-		prod = smp_load_acquire(&q->buf->producer_index);
-		cons = q->index;
-		break;
-	case QUEUE_TYPE_TO_USER:
-		prod = q->index;
-		/* protect user space index */
-		cons = smp_load_acquire(&q->buf->consumer_index);
-		break;
-	case QUEUE_TYPE_KERNEL:
-		prod = q->buf->producer_index;
-		cons = q->buf->consumer_index;
-		break;
-	}
-
-	return ((prod + 1 - cons) & q->index_mask) == 0;
-}
-
-static inline unsigned int queue_count(const struct rxe_queue *q,
-					enum queue_type type)
-{
-	u32 prod;
-	u32 cons;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		/* protect user space index */
-		prod = smp_load_acquire(&q->buf->producer_index);
-		cons = q->index;
-		break;
-	case QUEUE_TYPE_TO_USER:
-		prod = q->index;
-		/* protect user space index */
-		cons = smp_load_acquire(&q->buf->consumer_index);
-		break;
-	case QUEUE_TYPE_KERNEL:
-		prod = q->buf->producer_index;
-		cons = q->buf->consumer_index;
-		break;
-	}
-
-	return (prod - cons) & q->index_mask;
-}
-
-static inline void advance_producer(struct rxe_queue *q, enum queue_type type)
+static inline u32 queue_get_producer(const struct rxe_queue *q,
+				     enum queue_type type)
 {
 	u32 prod;
 
 	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		pr_warn_once("Normally kernel should not write user space index\n");
-		/* protect user space index */
+	case QUEUE_TYPE_FROM_CLIENT:
+		/* protect user index */
 		prod = smp_load_acquire(&q->buf->producer_index);
-		prod = (prod + 1) & q->index_mask;
-		/* same */
-		smp_store_release(&q->buf->producer_index, prod);
 		break;
-	case QUEUE_TYPE_TO_USER:
-		prod = q->index;
-		q->index = (prod + 1) & q->index_mask;
-		q->buf->producer_index = q->index;
-		break;
-	case QUEUE_TYPE_KERNEL:
-		prod = q->buf->producer_index;
-		q->buf->producer_index = (prod + 1) & q->index_mask;
-		break;
-	}
-}
-
-static inline void advance_consumer(struct rxe_queue *q, enum queue_type type)
-{
-	u32 cons;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		cons = q->index;
-		q->index = (cons + 1) & q->index_mask;
-		q->buf->consumer_index = q->index;
-		break;
-	case QUEUE_TYPE_TO_USER:
-		pr_warn_once("Normally kernel should not write user space index\n");
-		/* protect user space index */
-		cons = smp_load_acquire(&q->buf->consumer_index);
-		cons = (cons + 1) & q->index_mask;
-		/* same */
-		smp_store_release(&q->buf->consumer_index, cons);
-		break;
-	case QUEUE_TYPE_KERNEL:
-		cons = q->buf->consumer_index;
-		q->buf->consumer_index = (cons + 1) & q->index_mask;
-		break;
-	}
-}
-
-static inline void *producer_addr(struct rxe_queue *q, enum queue_type type)
-{
-	u32 prod;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		/* protect user space index */
-		prod = smp_load_acquire(&q->buf->producer_index);
-		prod &= q->index_mask;
-		break;
-	case QUEUE_TYPE_TO_USER:
+	case QUEUE_TYPE_TO_CLIENT:
 		prod = q->index;
 		break;
-	case QUEUE_TYPE_KERNEL:
-		prod = q->buf->producer_index;
-		break;
-	}
-
-	return q->buf->data + (prod << q->log2_elem_size);
-}
-
-static inline void *consumer_addr(struct rxe_queue *q, enum queue_type type)
-{
-	u32 cons;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		cons = q->index;
-		break;
-	case QUEUE_TYPE_TO_USER:
-		/* protect user space index */
-		cons = smp_load_acquire(&q->buf->consumer_index);
-		cons &= q->index_mask;
-		break;
-	case QUEUE_TYPE_KERNEL:
-		cons = q->buf->consumer_index;
-		break;
-	}
-
-	return q->buf->data + (cons << q->log2_elem_size);
-}
-
-static inline unsigned int producer_index(struct rxe_queue *q,
-						enum queue_type type)
-{
-	u32 prod;
-
-	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
-		/* protect user space index */
+	case QUEUE_TYPE_FROM_DRIVER:
+		/* protect driver index */
 		prod = smp_load_acquire(&q->buf->producer_index);
-		prod &= q->index_mask;
 		break;
-	case QUEUE_TYPE_TO_USER:
-		prod = q->index;
-		break;
-	case QUEUE_TYPE_KERNEL:
+	case QUEUE_TYPE_TO_DRIVER:
 		prod = q->buf->producer_index;
 		break;
 	}
@@ -271,36 +116,137 @@ static inline unsigned int producer_index(struct rxe_queue *q,
 	return prod;
 }
 
-static inline unsigned int consumer_index(struct rxe_queue *q,
-						enum queue_type type)
+static inline u32 queue_get_consumer(const struct rxe_queue *q,
+				     enum queue_type type)
 {
 	u32 cons;
 
 	switch (type) {
-	case QUEUE_TYPE_FROM_USER:
+	case QUEUE_TYPE_FROM_CLIENT:
 		cons = q->index;
 		break;
-	case QUEUE_TYPE_TO_USER:
-		/* protect user space index */
+	case QUEUE_TYPE_TO_CLIENT:
+		/* protect user index */
 		cons = smp_load_acquire(&q->buf->consumer_index);
-		cons &= q->index_mask;
 		break;
-	case QUEUE_TYPE_KERNEL:
+	case QUEUE_TYPE_FROM_DRIVER:
 		cons = q->buf->consumer_index;
+		break;
+	case QUEUE_TYPE_TO_DRIVER:
+		/* protect driver index */
+		cons = smp_load_acquire(&q->buf->consumer_index);
 		break;
 	}
 
 	return cons;
 }
 
-static inline void *addr_from_index(struct rxe_queue *q,
-				unsigned int index)
+static inline int queue_empty(struct rxe_queue *q, enum queue_type type)
 {
-	return q->buf->data + ((index & q->index_mask)
-				<< q->buf->log2_elem_size);
+	u32 prod = queue_get_producer(q, type);
+	u32 cons = queue_get_consumer(q, type);
+
+	return ((prod - cons) & q->index_mask) == 0;
 }
 
-static inline unsigned int index_from_addr(const struct rxe_queue *q,
+static inline int queue_full(struct rxe_queue *q, enum queue_type type)
+{
+	u32 prod = queue_get_producer(q, type);
+	u32 cons = queue_get_consumer(q, type);
+
+	return ((prod + 1 - cons) & q->index_mask) == 0;
+}
+
+static inline u32 queue_count(const struct rxe_queue *q,
+					enum queue_type type)
+{
+	u32 prod = queue_get_producer(q, type);
+	u32 cons = queue_get_consumer(q, type);
+
+	return (prod - cons) & q->index_mask;
+}
+
+static inline void queue_advance_producer(struct rxe_queue *q,
+					  enum queue_type type)
+{
+	u32 prod;
+
+	switch (type) {
+	case QUEUE_TYPE_FROM_CLIENT:
+		pr_warn("%s: attempt to advance client index\n",
+			__func__);
+		break;
+	case QUEUE_TYPE_TO_CLIENT:
+		prod = q->index;
+		prod = (prod + 1) & q->index_mask;
+		q->index = prod;
+		/* protect user index */
+		smp_store_release(&q->buf->producer_index, prod);
+		break;
+	case QUEUE_TYPE_FROM_DRIVER:
+		pr_warn("%s: attempt to advance driver index\n",
+			__func__);
+		break;
+	case QUEUE_TYPE_TO_DRIVER:
+		prod = q->buf->producer_index;
+		prod = (prod + 1) & q->index_mask;
+		q->buf->producer_index = prod;
+		break;
+	}
+}
+
+static inline void queue_advance_consumer(struct rxe_queue *q,
+					  enum queue_type type)
+{
+	u32 cons;
+
+	switch (type) {
+	case QUEUE_TYPE_FROM_CLIENT:
+		cons = q->index;
+		cons = (cons + 1) & q->index_mask;
+		q->index = cons;
+		/* protect user index */
+		smp_store_release(&q->buf->consumer_index, cons);
+		break;
+	case QUEUE_TYPE_TO_CLIENT:
+		pr_warn("%s: attempt to advance client index\n",
+			__func__);
+		break;
+	case QUEUE_TYPE_FROM_DRIVER:
+		cons = q->buf->consumer_index;
+		cons = (cons + 1) & q->index_mask;
+		q->buf->consumer_index = cons;
+		break;
+	case QUEUE_TYPE_TO_DRIVER:
+		pr_warn("%s: attempt to advance driver index\n",
+			__func__);
+		break;
+	}
+}
+
+static inline void *queue_producer_addr(struct rxe_queue *q,
+					enum queue_type type)
+{
+	u32 prod = queue_get_producer(q, type);
+
+	return q->buf->data + (prod << q->log2_elem_size);
+}
+
+static inline void *queue_consumer_addr(struct rxe_queue *q,
+					enum queue_type type)
+{
+	u32 cons = queue_get_consumer(q, type);
+
+	return q->buf->data + (cons << q->log2_elem_size);
+}
+
+static inline void *queue_addr_from_index(struct rxe_queue *q, u32 index)
+{
+	return q->buf->data + ((index & q->index_mask)
+				<< q->log2_elem_size);
+}
+
+static inline u32 queue_index_from_addr(const struct rxe_queue *q,
 				const void *addr)
 {
 	return (((u8 *)addr - q->buf->data) >> q->log2_elem_size)
@@ -309,7 +255,7 @@ static inline unsigned int index_from_addr(const struct rxe_queue *q,
 
 static inline void *queue_head(struct rxe_queue *q, enum queue_type type)
 {
-	return queue_empty(q, type) ? NULL : consumer_addr(q, type);
+	return queue_empty(q, type) ? NULL : queue_consumer_addr(q, type);
 }
 
 #endif /* RXE_QUEUE_H */

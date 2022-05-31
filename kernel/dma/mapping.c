@@ -296,10 +296,6 @@ dma_addr_t dma_map_resource(struct device *dev, phys_addr_t phys_addr,
 	if (WARN_ON_ONCE(!dev->dma_mask))
 		return DMA_MAPPING_ERROR;
 
-	/* Don't allow RAM to be mapped */
-	if (WARN_ON_ONCE(pfn_valid(PHYS_PFN(phys_addr))))
-		return DMA_MAPPING_ERROR;
-
 	if (dma_map_direct(dev, ops))
 		addr = dma_direct_map_resource(dev, phys_addr, size, dir, attrs);
 	else if (ops->map_resource)
@@ -411,8 +407,6 @@ EXPORT_SYMBOL(dma_get_sgtable_attrs);
  */
 pgprot_t dma_pgprot(struct device *dev, pgprot_t prot, unsigned long attrs)
 {
-	if (force_dma_unencrypted(dev))
-		prot = pgprot_decrypted(prot);
 	if (dev_is_dma_coherent(dev))
 		return prot;
 #ifdef CONFIG_ARCH_HAS_DMA_WRITE_COMBINE
@@ -749,7 +743,6 @@ int dma_set_mask(struct device *dev, u64 mask)
 }
 EXPORT_SYMBOL(dma_set_mask);
 
-#ifndef CONFIG_ARCH_HAS_DMA_SET_COHERENT_MASK
 int dma_set_coherent_mask(struct device *dev, u64 mask)
 {
 	/*
@@ -765,7 +758,6 @@ int dma_set_coherent_mask(struct device *dev, u64 mask)
 	return 0;
 }
 EXPORT_SYMBOL(dma_set_coherent_mask);
-#endif
 
 size_t dma_max_mapping_size(struct device *dev)
 {

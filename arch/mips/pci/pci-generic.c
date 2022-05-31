@@ -46,3 +46,19 @@ void pcibios_fixup_bus(struct pci_bus *bus)
 {
 	pci_read_bridge_bases(bus);
 }
+
+#ifdef pci_remap_iospace
+int pci_remap_iospace(const struct resource *res, phys_addr_t phys_addr)
+{
+	unsigned long vaddr;
+
+	if (res->start != 0) {
+		WARN_ONCE(1, "resource start address is not zero\n");
+		return -ENODEV;
+	}
+
+	vaddr = (unsigned long)ioremap(phys_addr, resource_size(res));
+	set_io_port_base(vaddr);
+	return 0;
+}
+#endif

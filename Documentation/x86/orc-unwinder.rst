@@ -177,6 +177,6 @@ brutal, unyielding efficiency.
 ORC stands for Oops Rewind Capability.
 
 
-.. [1] https://lkml.kernel.org/r/20170602104048.jkkzssljsompjdwy@suse.de
-.. [2] https://lkml.kernel.org/r/d2ca5435-6386-29b8-db87-7f227c2b713a@suse.cz
+.. [1] https://lore.kernel.org/r/20170602104048.jkkzssljsompjdwy@suse.de
+.. [2] https://lore.kernel.org/r/d2ca5435-6386-29b8-db87-7f227c2b713a@suse.cz
 .. [3] http://dustin.wikidot.com/half-orcs-and-orcs

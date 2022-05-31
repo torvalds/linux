@@ -16,6 +16,7 @@
 / {
 	model = "PineTab, Development Sample";
 	compatible = "pine64,pinetab", "allwinner,sun50i-a64";
+	chassis-type = "tablet";
 
 	aliases {
 		serial0 = &uart0;
@@ -33,6 +34,17 @@
 
 	chosen {
 		stdout-path = "serial0:115200n8";
+	};
+
+	hdmi-connector {
+		compatible = "hdmi-connector";
+		type = "c";
+
+		port {
+			hdmi_con_in: endpoint {
+				remote-endpoint = <&hdmi_out_con>;
+			};
+		};
 	};
 
 	i2c-csi {
@@ -77,7 +89,7 @@
 		sound-name-prefix = "Speaker Amp";
 	};
 
-	vdd_bl: regulator@0 {
+	vdd_bl: regulator {
 		compatible = "regulator-fixed";
 		regulator-name = "bl-3v3";
 		regulator-min-microvolt = <3300000>;
@@ -408,6 +420,21 @@
 
 &reg_rtc_ldo {
 	regulator-name = "vcc-rtc";
+};
+
+&simplefb_hdmi {
+	vcc-hdmi-supply = <&reg_dldo1>;
+};
+
+&hdmi {
+	hvcc-supply = <&reg_dldo1>;
+	status = "okay";
+};
+
+&hdmi_out {
+	hdmi_out_con: endpoint {
+		remote-endpoint = <&hdmi_con_in>;
+	};
 };
 
 &sound {

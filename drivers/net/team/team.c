@@ -734,6 +734,11 @@ static rx_handler_result_t team_handle_frame(struct sk_buff **pskb)
 	port = team_port_get_rcu(skb->dev);
 	team = port->team;
 	if (!team_port_enabled(port)) {
+		if (is_link_local_ether_addr(eth_hdr(skb)->h_dest))
+			/* link-local packets are mostly useful when stack receives them
+			 * with the link they arrive on.
+			 */
+			return RX_HANDLER_PASS;
 		/* allow exact match delivery for disabled ports */
 		res = RX_HANDLER_EXACT;
 	} else {
@@ -1790,7 +1795,7 @@ static int team_set_mac_address(struct net_device *dev, void *p)
 
 	if (dev->type == ARPHRD_ETHER && !is_valid_ether_addr(addr->sa_data))
 		return -EADDRNOTAVAIL;
-	memcpy(dev->dev_addr, addr->sa_data, dev->addr_len);
+	dev_addr_set(dev, addr->sa_data);
 	mutex_lock(&team->lock);
 	list_for_each_entry(port, &team->port_list, list)
 		if (team->ops.port_change_dev_addr)

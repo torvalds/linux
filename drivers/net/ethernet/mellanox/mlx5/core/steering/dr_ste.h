@@ -135,12 +135,14 @@ struct mlx5dr_ste_ctx {
 	void DR_STE_CTX_BUILDER(tnl_vxlan_gpe);
 	void DR_STE_CTX_BUILDER(tnl_geneve);
 	void DR_STE_CTX_BUILDER(tnl_geneve_tlv_opt);
+	void DR_STE_CTX_BUILDER(tnl_geneve_tlv_opt_exist);
 	void DR_STE_CTX_BUILDER(register_0);
 	void DR_STE_CTX_BUILDER(register_1);
 	void DR_STE_CTX_BUILDER(src_gvmi_qpn);
 	void DR_STE_CTX_BUILDER(flex_parser_0);
 	void DR_STE_CTX_BUILDER(flex_parser_1);
 	void DR_STE_CTX_BUILDER(tnl_gtpu);
+	void DR_STE_CTX_BUILDER(tnl_header_0_1);
 	void DR_STE_CTX_BUILDER(tnl_gtpu_flex_parser_0);
 	void DR_STE_CTX_BUILDER(tnl_gtpu_flex_parser_1);
 
@@ -159,11 +161,13 @@ struct mlx5dr_ste_ctx {
 	u32 actions_caps;
 	void (*set_actions_rx)(struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
+			       u32 actions_caps,
 			       u8 *hw_ste_arr,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
 	void (*set_actions_tx)(struct mlx5dr_domain *dmn,
 			       u8 *action_type_set,
+			       u32 actions_caps,
 			       u8 *hw_ste_arr,
 			       struct mlx5dr_ste_actions_attr *attr,
 			       u32 *added_stes);
@@ -195,7 +199,8 @@ struct mlx5dr_ste_ctx {
 	void (*prepare_for_postsend)(u8 *hw_ste_p, u32 ste_size);
 };
 
-extern struct mlx5dr_ste_ctx ste_ctx_v0;
-extern struct mlx5dr_ste_ctx ste_ctx_v1;
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v0(void);
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v1(void);
+struct mlx5dr_ste_ctx *mlx5dr_ste_get_ctx_v2(void);
 
 #endif  /* _DR_STE_ */

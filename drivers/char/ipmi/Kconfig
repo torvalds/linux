@@ -69,11 +69,20 @@ config IPMI_SI
 
 config IPMI_SSIF
 	tristate 'IPMI SMBus handler (SSIF)'
-	select I2C
+	depends on I2C
 	help
 	  Provides a driver for a SMBus interface to a BMC, meaning that you
 	  have a driver that must be accessed over an I2C bus instead of a
 	  standard interface.  This module requires I2C support.
+
+config IPMI_IPMB
+	tristate 'IPMI IPMB interface'
+	depends on I2C && I2C_SLAVE
+	help
+	  Provides a driver for a system running right on the IPMB bus.
+	  It supports normal system interface messages to a BMC on the IPMB
+	  bus, and it also supports direct messaging on the bus using
+	  IPMB direct messages.  This module requires I2C support.
 
 config IPMI_POWERNV
 	depends on PPC_POWERNV

@@ -861,4 +861,3 @@ module_platform_driver(s5m_rtc_driver);
 MODULE_AUTHOR("Sangbeom Kim <sbkim73@samsung.com>");
 MODULE_DESCRIPTION("Samsung S5M/S2MPS14 RTC driver");
 MODULE_LICENSE("GPL");
-MODULE_ALIAS("platform:s5m-rtc");

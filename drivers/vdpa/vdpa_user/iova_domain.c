@@ -292,17 +292,9 @@ vduse_domain_alloc_iova(struct iova_domain *iovad,
 	unsigned long iova_len = iova_align(iovad, size) >> shift;
 	unsigned long iova_pfn;
 
-	/*
-	 * Freeing non-power-of-two-sized allocations back into the IOVA caches
-	 * will come back to bite us badly, so we have to waste a bit of space
-	 * rounding up anything cacheable to make sure that can't happen. The
-	 * order of the unadjusted size will still match upon freeing.
-	 */
-	if (iova_len < (1 << (IOVA_RANGE_CACHE_MAX_SIZE - 1)))
-		iova_len = roundup_pow_of_two(iova_len);
 	iova_pfn = alloc_iova_fast(iovad, iova_len, limit >> shift, true);
 
-	return iova_pfn << shift;
+	return (dma_addr_t)iova_pfn << shift;
 }
 
 static void vduse_domain_free_iova(struct iova_domain *iovad,
@@ -488,6 +480,7 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	struct file *file;
 	struct vduse_bounce_map *map;
 	unsigned long pfn, bounce_pfns;
+	int ret;
 
 	bounce_pfns = PAGE_ALIGN(bounce_size) >> PAGE_SHIFT;
 	if (iova_limit <= bounce_size)
@@ -521,10 +514,20 @@ vduse_domain_create(unsigned long iova_limit, size_t bounce_size)
 	spin_lock_init(&domain->iotlb_lock);
 	init_iova_domain(&domain->stream_iovad,
 			PAGE_SIZE, IOVA_START_PFN);
+	ret = iova_domain_init_rcaches(&domain->stream_iovad);
+	if (ret)
+		goto err_iovad_stream;
 	init_iova_domain(&domain->consistent_iovad,
 			PAGE_SIZE, bounce_pfns);
+	ret = iova_domain_init_rcaches(&domain->consistent_iovad);
+	if (ret)
+		goto err_iovad_consistent;
 
 	return domain;
+err_iovad_consistent:
+	put_iova_domain(&domain->stream_iovad);
+err_iovad_stream:
+	fput(file);
 err_file:
 	vfree(domain->bounce_maps);
 err_map:

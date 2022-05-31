@@ -1,0 +1,100 @@
+# SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+%YAML 1.2
+---
+$id: http://devicetree.org/schemas/sound/nvidia,tegra-audio-rt5677.yaml#
+$schema: http://devicetree.org/meta-schemas/core.yaml#
+
+title: NVIDIA Tegra audio complex with RT5677 CODEC
+
+maintainers:
+  - Jon Hunter <jonathanh@nvidia.com>
+  - Thierry Reding <thierry.reding@gmail.com>
+
+allOf:
+  - $ref: nvidia,tegra-audio-common.yaml#
+
+properties:
+  compatible:
+    items:
+      - pattern: '^[a-z0-9]+,tegra-audio-rt5677(-[a-z0-9]+)+$'
+      - const: nvidia,tegra-audio-rt5677
+
+  nvidia,audio-routing:
+    $ref: /schemas/types.yaml#/definitions/non-unique-string-array
+    description: |
+      A list of the connections between audio components.
+      Each entry is a pair of strings, the first being the connection's sink,
+      the second being the connection's source. Valid names for sources and
+      sinks are the pins (documented in the binding document),
+      and the jacks on the board.
+    minItems: 2
+    items:
+      enum:
+        # Board Connectors
+        - "Headphone"
+        - "Speaker"
+        - "Headset Mic"
+        - "Internal Mic 1"
+        - "Internal Mic 2"
+
+        # CODEC Pins
+        - IN1P
+        - IN1N
+        - IN2P
+        - IN2N
+        - MICBIAS1
+        - DMIC1
+        - DMIC2
+        - DMIC3
+        - DMIC4
+        - "DMIC L1"
+        - "DMIC L2"
+        - "DMIC L3"
+        - "DMIC L4"
+        - "DMIC R1"
+        - "DMIC R2"
+        - "DMIC R3"
+        - "DMIC R4"
+        - LOUT1
+        - LOUT2
+        - LOUT3
+        - PDM1L
+        - PDM1R
+        - PDM2L
+        - PDM2R
+
+required:
+  - nvidia,i2s-controller
+
+unevaluatedProperties: false
+
+examples:
+  - |
+    sound {
+        compatible = "nvidia,tegra-audio-rt5677-ryu",
+                     "nvidia,tegra-audio-rt5677";
+        nvidia,model = "NVIDIA Tegra Ryu";
+
+        nvidia,audio-routing =
+                "Headphone", "LOUT2",
+                "Headphone", "LOUT1",
+                "Headset Mic", "MICBIAS1",
+                "IN1P", "Headset Mic",
+                "IN1N", "Headset Mic",
+                "DMIC L1", "Internal Mic 1",
+                "DMIC R1", "Internal Mic 1",
+                "DMIC L2", "Internal Mic 2",
+                "DMIC R2", "Internal Mic 2",
+                "Speaker", "PDM1L",
+                "Speaker", "PDM1R";
+
+        nvidia,i2s-controller = <&tegra_i2s1>;
+        nvidia,audio-codec = <&rt5677>;
+
+        nvidia,hp-det-gpios = <&gpio 143 0>;
+
+        clocks = <&clk 216>,
+                 <&clk 217>,
+                 <&clk 121>;
+        clock-names = "pll_a", "pll_a_out0", "mclk";
+    };

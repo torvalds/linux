@@ -1859,10 +1859,9 @@ static struct fotg210_qh *fotg210_qh_alloc(struct fotg210_hcd *fotg210,
 	if (!qh)
 		goto done;
 	qh->hw = (struct fotg210_qh_hw *)
-		dma_pool_alloc(fotg210->qh_pool, flags, &dma);
+		dma_pool_zalloc(fotg210->qh_pool, flags, &dma);
 	if (!qh->hw)
 		goto fail;
-	memset(qh->hw, 0, sizeof(*qh->hw));
 	qh->qh_dma = dma;
 	INIT_LIST_HEAD(&qh->qtd_list);
 
@@ -4015,10 +4014,8 @@ static struct fotg210_iso_sched *iso_sched_alloc(unsigned packets,
 		gfp_t mem_flags)
 {
 	struct fotg210_iso_sched *iso_sched;
-	int size = sizeof(*iso_sched);
 
-	size += packets * sizeof(struct fotg210_iso_packet);
-	iso_sched = kzalloc(size, mem_flags);
+	iso_sched = kzalloc(struct_size(iso_sched, packet, packets), mem_flags);
 	if (likely(iso_sched != NULL))
 		INIT_LIST_HEAD(&iso_sched->td_list);
 
@@ -5023,7 +5020,7 @@ static int fotg210_run(struct usb_hcd *hcd)
 	 * hcc_params controls whether fotg210->regs->segment must (!!!)
 	 * be used; it constrains QH/ITD/SITD and QTD locations.
 	 * dma_pool consistent memory always uses segment zero.
-	 * streaming mappings for I/O buffers, like pci_map_single(),
+	 * streaming mappings for I/O buffers, like dma_map_single(),
 	 * can return segments above 4GB, if the device allows.
 	 *
 	 * NOTE:  the dma mask is visible through dev->dma_mask, so
@@ -5577,14 +5574,9 @@ static int fotg210_hcd_probe(struct platform_device *pdev)
 
 	pdev->dev.power.power_state = PMSG_ON;
 
-	res = platform_get_resource(pdev, IORESOURCE_IRQ, 0);
-	if (!res) {
-		dev_err(dev, "Found HC with no IRQ. Check %s setup!\n",
-				dev_name(dev));
-		return -ENODEV;
-	}
-
-	irq = res->start;
+	irq = platform_get_irq(pdev, 0);
+	if (irq < 0)
+		return irq;
 
 	hcd = usb_create_hcd(&fotg210_fotg210_hc_driver, dev,
 			dev_name(dev));

@@ -226,9 +226,23 @@ static int
 nv50_head_atomic_check_lut(struct nv50_head *head,
 			   struct nv50_head_atom *asyh)
 {
-	struct nv50_disp *disp = nv50_disp(head->base.base.dev);
-	struct drm_property_blob *olut = asyh->state.gamma_lut;
+	struct drm_device *dev = head->base.base.dev;
+	struct drm_crtc *crtc = &head->base.base;
+	struct nv50_disp *disp = nv50_disp(dev);
+	struct nouveau_drm *drm = nouveau_drm(dev);
+	struct drm_property_blob *olut = asyh->state.gamma_lut,
+				 *ilut = asyh->state.degamma_lut;
 	int size;
+
+	/* Ensure that the ilut is valid */
+	if (ilut) {
+		size = drm_color_lut_size(ilut);
+		if (!head->func->ilut_check(size)) {
+			NV_ATOMIC(drm, "Invalid size %d for degamma on [CRTC:%d:%s]\n",
+				  size, crtc->base.id, crtc->name);
+			return -EINVAL;
+		}
+	}
 
 	/* Determine whether core output LUT should be enabled. */
 	if (olut) {
@@ -256,7 +270,8 @@ nv50_head_atomic_check_lut(struct nv50_head *head,
 	}
 
 	if (!head->func->olut(head, asyh, size)) {
-		DRM_DEBUG_KMS("Invalid olut\n");
+		NV_ATOMIC(drm, "Invalid size %d for gamma on [CRTC:%d:%s]\n",
+			  size, crtc->base.id, crtc->name);
 		return -EINVAL;
 	}
 	asyh->olut.handle = disp->core->chan.vram.handle;
@@ -330,8 +345,17 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 	struct drm_connector_state *conns;
 	struct drm_connector *conn;
 	int i, ret;
+	bool check_lut = asyh->state.color_mgmt_changed ||
+			 memcmp(&armh->wndw, &asyh->wndw, sizeof(asyh->wndw));
 
 	NV_ATOMIC(drm, "%s atomic_check %d\n", crtc->name, asyh->state.active);
+
+	if (check_lut) {
+		ret = nv50_head_atomic_check_lut(head, asyh);
+		if (ret)
+			return ret;
+	}
+
 	if (asyh->state.active) {
 		for_each_new_connector_in_state(asyh->state.state, conn, conns, i) {
 			if (conns->crtc == crtc) {
@@ -357,14 +381,8 @@ nv50_head_atomic_check(struct drm_crtc *crtc, struct drm_atomic_state *state)
 		if (asyh->state.mode_changed || asyh->state.connectors_changed)
 			nv50_head_atomic_check_mode(head, asyh);
 
-		if (asyh->state.color_mgmt_changed ||
-		    memcmp(&armh->wndw, &asyh->wndw, sizeof(asyh->wndw))) {
-			int ret = nv50_head_atomic_check_lut(head, asyh);
-			if (ret)
-				return ret;
-
+		if (check_lut)
 			asyh->olut.visible = asyh->olut.handle != 0;
-		}
 
 		if (asyc) {
 			if (asyc->set.scaler)

@@ -31,12 +31,13 @@
 #include <uapi/linux/mount.h>
 #include <linux/fs_context.h>
 #include <linux/shmem_fs.h>
+#include <linux/mnt_idmapping.h>
 
 #include "pnode.h"
 #include "internal.h"
 
 /* Maximum number of mounts in a mount namespace */
-unsigned int sysctl_mount_max __read_mostly = 100000;
+static unsigned int sysctl_mount_max __read_mostly = 100000;
 
 static unsigned int m_hash_mask __read_mostly;
 static unsigned int m_hash_shift __read_mostly;
@@ -343,8 +344,24 @@ int __mnt_want_write(struct vfsmount *m)
 	 * incremented count after it has set MNT_WRITE_HOLD.
 	 */
 	smp_mb();
-	while (READ_ONCE(mnt->mnt.mnt_flags) & MNT_WRITE_HOLD)
-		cpu_relax();
+	might_lock(&mount_lock.lock);
+	while (READ_ONCE(mnt->mnt.mnt_flags) & MNT_WRITE_HOLD) {
+		if (!IS_ENABLED(CONFIG_PREEMPT_RT)) {
+			cpu_relax();
+		} else {
+			/*
+			 * This prevents priority inversion, if the task
+			 * setting MNT_WRITE_HOLD got preempted on a remote
+			 * CPU, and it prevents life lock if the task setting
+			 * MNT_WRITE_HOLD has a lower priority and is bound to
+			 * the same CPU as the task that is spinning here.
+			 */
+			preempt_enable();
+			lock_mount_hash();
+			unlock_mount_hash();
+			preempt_disable();
+		}
+	}
 	/*
 	 * After the slowpath clears MNT_WRITE_HOLD, mnt_is_readonly will
 	 * be set to match its requirements. So we must not load that until
@@ -468,6 +485,24 @@ void mnt_drop_write_file(struct file *file)
 }
 EXPORT_SYMBOL(mnt_drop_write_file);
 
+/**
+ * mnt_hold_writers - prevent write access to the given mount
+ * @mnt: mnt to prevent write access to
+ *
+ * Prevents write access to @mnt if there are no active writers for @mnt.
+ * This function needs to be called and return successfully before changing
+ * properties of @mnt that need to remain stable for callers with write access
+ * to @mnt.
+ *
+ * After this functions has been called successfully callers must pair it with
+ * a call to mnt_unhold_writers() in order to stop preventing write access to
+ * @mnt.
+ *
+ * Context: This function expects lock_mount_hash() to be held serializing
+ *          setting MNT_WRITE_HOLD.
+ * Return: On success 0 is returned.
+ *	   On error, -EBUSY is returned.
+ */
 static inline int mnt_hold_writers(struct mount *mnt)
 {
 	mnt->mnt.mnt_flags |= MNT_WRITE_HOLD;
@@ -499,6 +534,18 @@ static inline int mnt_hold_writers(struct mount *mnt)
 	return 0;
 }
 
+/**
+ * mnt_unhold_writers - stop preventing write access to the given mount
+ * @mnt: mnt to stop preventing write access to
+ *
+ * Stop preventing write access to @mnt allowing callers to gain write access
+ * to @mnt again.
+ *
+ * This function can only be called after a successful call to
+ * mnt_hold_writers().
+ *
+ * Context: This function expects lock_mount_hash() to be held.
+ */
 static inline void mnt_unhold_writers(struct mount *mnt)
 {
 	/*
@@ -532,12 +579,9 @@ int sb_prepare_remount_readonly(struct super_block *sb)
 	lock_mount_hash();
 	list_for_each_entry(mnt, &sb->s_mounts, mnt_instance) {
 		if (!(mnt->mnt.mnt_flags & MNT_READONLY)) {
-			mnt->mnt.mnt_flags |= MNT_WRITE_HOLD;
-			smp_mb();
-			if (mnt_get_writers(mnt) > 0) {
-				err = -EBUSY;
+			err = mnt_hold_writers(mnt);
+			if (err)
 				break;
-			}
 		}
 	}
 	if (!err && atomic_long_read(&sb->s_remove_count))
@@ -561,7 +605,7 @@ static void free_vfsmnt(struct mount *mnt)
 	struct user_namespace *mnt_userns;
 
 	mnt_userns = mnt_user_ns(&mnt->mnt);
-	if (mnt_userns != &init_user_ns)
+	if (!initial_idmapping(mnt_userns))
 		put_user_ns(mnt_userns);
 	kfree_const(mnt->mnt_devname);
 #ifdef CONFIG_SMP
@@ -965,6 +1009,7 @@ static struct mount *skip_mnt_tree(struct mount *p)
 struct vfsmount *vfs_create_mount(struct fs_context *fc)
 {
 	struct mount *mnt;
+	struct user_namespace *fs_userns;
 
 	if (!fc->root)
 		return ERR_PTR(-EINVAL);
@@ -981,6 +1026,10 @@ struct vfsmount *vfs_create_mount(struct fs_context *fc)
 	mnt->mnt.mnt_root	= dget(fc->root);
 	mnt->mnt_mountpoint	= mnt->mnt.mnt_root;
 	mnt->mnt_parent		= mnt;
+
+	fs_userns = mnt->mnt.mnt_sb->s_user_ns;
+	if (!initial_idmapping(fs_userns))
+		mnt->mnt.mnt_userns = get_user_ns(fs_userns);
 
 	lock_mount_hash();
 	list_add_tail(&mnt->mnt_instance, &mnt->mnt.mnt_sb->s_mounts);
@@ -1072,7 +1121,7 @@ static struct mount *clone_mnt(struct mount *old, struct dentry *root,
 
 	atomic_inc(&sb->s_active);
 	mnt->mnt.mnt_userns = mnt_user_ns(&old->mnt);
-	if (mnt->mnt.mnt_userns != &init_user_ns)
+	if (!initial_idmapping(mnt->mnt.mnt_userns))
 		mnt->mnt.mnt_userns = get_user_ns(mnt->mnt.mnt_userns);
 	mnt->mnt.mnt_sb = sb;
 	mnt->mnt.mnt_root = dget(root);
@@ -2063,22 +2112,23 @@ static int invent_group_ids(struct mount *mnt, bool recurse)
 int count_mounts(struct mnt_namespace *ns, struct mount *mnt)
 {
 	unsigned int max = READ_ONCE(sysctl_mount_max);
-	unsigned int mounts = 0, old, pending, sum;
+	unsigned int mounts = 0;
 	struct mount *p;
+
+	if (ns->mounts >= max)
+		return -ENOSPC;
+	max -= ns->mounts;
+	if (ns->pending_mounts >= max)
+		return -ENOSPC;
+	max -= ns->pending_mounts;
 
 	for (p = mnt; p; p = next_mnt(p, mnt))
 		mounts++;
 
-	old = ns->mounts;
-	pending = ns->pending_mounts;
-	sum = old + pending;
-	if ((old > sum) ||
-	    (pending > sum) ||
-	    (max < sum) ||
-	    (mounts > (max - sum)))
+	if (mounts > max)
 		return -ENOSPC;
 
-	ns->pending_mounts = pending + mounts;
+	ns->pending_mounts += mounts;
 	return 0;
 }
 
@@ -2561,6 +2611,7 @@ static void mnt_warn_timestamp_expiry(struct path *mountpoint, struct vfsmount *
 	struct super_block *sb = mnt->mnt_sb;
 
 	if (!__mnt_is_readonly(mnt) &&
+	   (!(sb->s_iflags & SB_I_TS_EXPIRY_WARNED)) &&
 	   (ktime_get_real_seconds() + TIME_UPTIME_SEC_MAX > sb->s_time_max)) {
 		char *buf = (char *)__get_free_page(GFP_KERNEL);
 		char *mntpath = buf ? d_path(mountpoint, buf, PAGE_SIZE) : ERR_PTR(-ENOMEM);
@@ -2575,6 +2626,7 @@ static void mnt_warn_timestamp_expiry(struct path *mountpoint, struct vfsmount *
 			tm.tm_year+1900, (unsigned long long)sb->s_time_max);
 
 		free_page((unsigned long)buf);
+		sb->s_iflags |= SB_I_TS_EXPIRY_WARNED;
 	}
 }
 
@@ -2870,7 +2922,7 @@ static int do_move_mount_old(struct path *path, const char *old_name)
  * add a mount into a namespace's mount tree
  */
 static int do_add_mount(struct mount *newmnt, struct mountpoint *mp,
-			struct path *path, int mnt_flags)
+			const struct path *path, int mnt_flags)
 {
 	struct mount *parent = real_mount(path->mnt);
 
@@ -2993,7 +3045,7 @@ static int do_new_mount(struct path *path, const char *fstype, int sb_flags,
 	return err;
 }
 
-int finish_automount(struct vfsmount *m, struct path *path)
+int finish_automount(struct vfsmount *m, const struct path *path)
 {
 	struct dentry *dentry = path->dentry;
 	struct mountpoint *mp;
@@ -3927,28 +3979,32 @@ static unsigned int recalc_flags(struct mount_kattr *kattr, struct mount *mnt)
 static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 {
 	struct vfsmount *m = &mnt->mnt;
+	struct user_namespace *fs_userns = m->mnt_sb->s_user_ns;
 
 	if (!kattr->mnt_userns)
 		return 0;
+
+	/*
+	 * Creating an idmapped mount with the filesystem wide idmapping
+	 * doesn't make sense so block that. We don't allow mushy semantics.
+	 */
+	if (kattr->mnt_userns == fs_userns)
+		return -EINVAL;
 
 	/*
 	 * Once a mount has been idmapped we don't allow it to change its
 	 * mapping. It makes things simpler and callers can just create
 	 * another bind-mount they can idmap if they want to.
 	 */
-	if (mnt_user_ns(m) != &init_user_ns)
+	if (is_idmapped_mnt(m))
 		return -EPERM;
 
 	/* The underlying filesystem doesn't support idmapped mounts yet. */
 	if (!(m->mnt_sb->s_type->fs_flags & FS_ALLOW_IDMAP))
 		return -EINVAL;
 
-	/* Don't yet support filesystem mountable in user namespaces. */
-	if (m->mnt_sb->s_user_ns != &init_user_ns)
-		return -EINVAL;
-
 	/* We're not controlling the superblock. */
-	if (!capable(CAP_SYS_ADMIN))
+	if (!ns_capable(fs_userns, CAP_SYS_ADMIN))
 		return -EPERM;
 
 	/* Mount has already been visible in the filesystem hierarchy. */
@@ -3958,102 +4014,122 @@ static int can_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 	return 0;
 }
 
-static struct mount *mount_setattr_prepare(struct mount_kattr *kattr,
-					   struct mount *mnt, int *err)
+/**
+ * mnt_allow_writers() - check whether the attribute change allows writers
+ * @kattr: the new mount attributes
+ * @mnt: the mount to which @kattr will be applied
+ *
+ * Check whether thew new mount attributes in @kattr allow concurrent writers.
+ *
+ * Return: true if writers need to be held, false if not
+ */
+static inline bool mnt_allow_writers(const struct mount_kattr *kattr,
+				     const struct mount *mnt)
 {
-	struct mount *m = mnt, *last = NULL;
+	return !(kattr->attr_set & MNT_READONLY) ||
+	       (mnt->mnt.mnt_flags & MNT_READONLY);
+}
 
-	if (!is_mounted(&m->mnt)) {
-		*err = -EINVAL;
-		goto out;
-	}
+static int mount_setattr_prepare(struct mount_kattr *kattr, struct mount *mnt)
+{
+	struct mount *m;
+	int err;
 
-	if (!(mnt_has_parent(m) ? check_mnt(m) : is_anon_ns(m->mnt_ns))) {
-		*err = -EINVAL;
-		goto out;
-	}
-
-	do {
-		unsigned int flags;
-
-		flags = recalc_flags(kattr, m);
-		if (!can_change_locked_flags(m, flags)) {
-			*err = -EPERM;
-			goto out;
+	for (m = mnt; m; m = next_mnt(m, mnt)) {
+		if (!can_change_locked_flags(m, recalc_flags(kattr, m))) {
+			err = -EPERM;
+			break;
 		}
 
-		*err = can_idmap_mount(kattr, m);
-		if (*err)
-			goto out;
+		err = can_idmap_mount(kattr, m);
+		if (err)
+			break;
 
-		last = m;
-
-		if ((kattr->attr_set & MNT_READONLY) &&
-		    !(m->mnt.mnt_flags & MNT_READONLY)) {
-			*err = mnt_hold_writers(m);
-			if (*err)
-				goto out;
+		if (!mnt_allow_writers(kattr, m)) {
+			err = mnt_hold_writers(m);
+			if (err)
+				break;
 		}
-	} while (kattr->recurse && (m = next_mnt(m, mnt)));
 
-out:
-	return last;
+		if (!kattr->recurse)
+			return 0;
+	}
+
+	if (err) {
+		struct mount *p;
+
+		/*
+		 * If we had to call mnt_hold_writers() MNT_WRITE_HOLD will
+		 * be set in @mnt_flags. The loop unsets MNT_WRITE_HOLD for all
+		 * mounts and needs to take care to include the first mount.
+		 */
+		for (p = mnt; p; p = next_mnt(p, mnt)) {
+			/* If we had to hold writers unblock them. */
+			if (p->mnt.mnt_flags & MNT_WRITE_HOLD)
+				mnt_unhold_writers(p);
+
+			/*
+			 * We're done once the first mount we changed got
+			 * MNT_WRITE_HOLD unset.
+			 */
+			if (p == m)
+				break;
+		}
+	}
+	return err;
 }
 
 static void do_idmap_mount(const struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct user_namespace *mnt_userns;
+	struct user_namespace *mnt_userns, *old_mnt_userns;
 
 	if (!kattr->mnt_userns)
 		return;
 
+	/*
+	 * We're the only ones able to change the mount's idmapping. So
+	 * mnt->mnt.mnt_userns is stable and we can retrieve it directly.
+	 */
+	old_mnt_userns = mnt->mnt.mnt_userns;
+
 	mnt_userns = get_user_ns(kattr->mnt_userns);
 	/* Pairs with smp_load_acquire() in mnt_user_ns(). */
 	smp_store_release(&mnt->mnt.mnt_userns, mnt_userns);
+
+	/*
+	 * If this is an idmapped filesystem drop the reference we've taken
+	 * in vfs_create_mount() before.
+	 */
+	if (!initial_idmapping(old_mnt_userns))
+		put_user_ns(old_mnt_userns);
 }
 
-static void mount_setattr_commit(struct mount_kattr *kattr,
-				 struct mount *mnt, struct mount *last,
-				 int err)
+static void mount_setattr_commit(struct mount_kattr *kattr, struct mount *mnt)
 {
-	struct mount *m = mnt;
+	struct mount *m;
 
-	do {
-		if (!err) {
-			unsigned int flags;
+	for (m = mnt; m; m = next_mnt(m, mnt)) {
+		unsigned int flags;
 
-			do_idmap_mount(kattr, m);
-			flags = recalc_flags(kattr, m);
-			WRITE_ONCE(m->mnt.mnt_flags, flags);
-		}
+		do_idmap_mount(kattr, m);
+		flags = recalc_flags(kattr, m);
+		WRITE_ONCE(m->mnt.mnt_flags, flags);
 
-		/*
-		 * We either set MNT_READONLY above so make it visible
-		 * before ~MNT_WRITE_HOLD or we failed to recursively
-		 * apply mount options.
-		 */
-		if ((kattr->attr_set & MNT_READONLY) &&
-		    (m->mnt.mnt_flags & MNT_WRITE_HOLD))
+		/* If we had to hold writers unblock them. */
+		if (m->mnt.mnt_flags & MNT_WRITE_HOLD)
 			mnt_unhold_writers(m);
 
-		if (!err && kattr->propagation)
+		if (kattr->propagation)
 			change_mnt_propagation(m, kattr->propagation);
-
-		/*
-		 * On failure, only cleanup until we found the first mount
-		 * we failed to handle.
-		 */
-		if (err && m == last)
+		if (!kattr->recurse)
 			break;
-	} while (kattr->recurse && (m = next_mnt(m, mnt)));
-
-	if (!err)
-		touch_mnt_namespace(mnt->mnt_ns);
+	}
+	touch_mnt_namespace(mnt->mnt_ns);
 }
 
 static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 {
-	struct mount *mnt = real_mount(path->mnt), *last = NULL;
+	struct mount *mnt = real_mount(path->mnt);
 	int err = 0;
 
 	if (path->dentry != mnt->mnt.mnt_root)
@@ -4074,16 +4150,32 @@ static int do_mount_setattr(struct path *path, struct mount_kattr *kattr)
 		}
 	}
 
+	err = -EINVAL;
 	lock_mount_hash();
 
-	/*
-	 * Get the mount tree in a shape where we can change mount
-	 * properties without failure.
-	 */
-	last = mount_setattr_prepare(kattr, mnt, &err);
-	if (last) /* Commit all changes or revert to the old state. */
-		mount_setattr_commit(kattr, mnt, last, err);
+	/* Ensure that this isn't anything purely vfs internal. */
+	if (!is_mounted(&mnt->mnt))
+		goto out;
 
+	/*
+	 * If this is an attached mount make sure it's located in the callers
+	 * mount namespace. If it's not don't let the caller interact with it.
+	 * If this is a detached mount make sure it has an anonymous mount
+	 * namespace attached to it, i.e. we've created it via OPEN_TREE_CLONE.
+	 */
+	if (!(mnt_has_parent(mnt) ? check_mnt(mnt) : is_anon_ns(mnt->mnt_ns)))
+		goto out;
+
+	/*
+	 * First, we get the mount tree in a shape where we can change mount
+	 * properties without failure. If we succeeded to do so we commit all
+	 * changes and if we failed we clean up.
+	 */
+	err = mount_setattr_prepare(kattr, mnt);
+	if (!err)
+		mount_setattr_commit(kattr, mnt);
+
+out:
 	unlock_mount_hash();
 
 	if (kattr->propagation) {
@@ -4133,13 +4225,15 @@ static int build_mount_idmapped(const struct mount_attr *attr, size_t usize,
 	}
 
 	/*
-	 * The init_user_ns is used to indicate that a vfsmount is not idmapped.
-	 * This is simpler than just having to treat NULL as unmapped. Users
-	 * wanting to idmap a mount to init_user_ns can just use a namespace
-	 * with an identity mapping.
+	 * The initial idmapping cannot be used to create an idmapped
+	 * mount. We use the initial idmapping as an indicator of a mount
+	 * that is not idmapped. It can simply be passed into helpers that
+	 * are aware of idmapped mounts as a convenient shortcut. A user
+	 * can just create a dedicated identity mapping to achieve the same
+	 * result.
 	 */
 	mnt_userns = container_of(ns, struct user_namespace, ns);
-	if (mnt_userns == &init_user_ns) {
+	if (initial_idmapping(mnt_userns)) {
 		err = -EPERM;
 		goto out_fput;
 	}
@@ -4263,12 +4357,11 @@ SYSCALL_DEFINE5(mount_setattr, int, dfd, const char __user *, path,
 		return err;
 
 	err = user_path_at(dfd, path, kattr.lookup_flags, &target);
-	if (err)
-		return err;
-
-	err = do_mount_setattr(&target, &kattr);
+	if (!err) {
+		err = do_mount_setattr(&target, &kattr);
+		path_put(&target);
+	}
 	finish_mount_kattr(&kattr);
-	path_put(&target);
 	return err;
 }
 
@@ -4596,3 +4689,25 @@ const struct proc_ns_operations mntns_operations = {
 	.install	= mntns_install,
 	.owner		= mntns_owner,
 };
+
+#ifdef CONFIG_SYSCTL
+static struct ctl_table fs_namespace_sysctls[] = {
+	{
+		.procname	= "mount-max",
+		.data		= &sysctl_mount_max,
+		.maxlen		= sizeof(unsigned int),
+		.mode		= 0644,
+		.proc_handler	= proc_dointvec_minmax,
+		.extra1		= SYSCTL_ONE,
+	},
+	{ }
+};
+
+static int __init init_fs_namespace_sysctls(void)
+{
+	register_sysctl_init("fs", fs_namespace_sysctls);
+	return 0;
+}
+fs_initcall(init_fs_namespace_sysctls);
+
+#endif /* CONFIG_SYSCTL */

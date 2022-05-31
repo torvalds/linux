@@ -303,13 +303,6 @@ xfs_qm_scall_setqlim(
 		return 0;
 
 	/*
-	 * We don't want to race with a quotaoff so take the quotaoff lock.
-	 * We don't hold an inode lock, so there's nothing else to stop
-	 * a quotaoff from happening.
-	 */
-	mutex_lock(&q->qi_quotaofflock);
-
-	/*
 	 * Get the dquot (locked) before we start, as we need to do a
 	 * transaction to allocate it if it doesn't exist. Once we have the
 	 * dquot, unlock it so we can start the next transaction safely. We hold
@@ -319,7 +312,7 @@ xfs_qm_scall_setqlim(
 	error = xfs_qm_dqget(mp, id, type, true, &dqp);
 	if (error) {
 		ASSERT(error != -ENOENT);
-		goto out_unlock;
+		return error;
 	}
 
 	defq = xfs_get_defquota(q, xfs_dquot_type(dqp));
@@ -415,8 +408,6 @@ xfs_qm_scall_setqlim(
 
 out_rele:
 	xfs_qm_dqrele(dqp);
-out_unlock:
-	mutex_unlock(&q->qi_quotaofflock);
 	return error;
 }
 

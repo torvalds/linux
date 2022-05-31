@@ -3,19 +3,17 @@
 #include <linux/bpf.h>
 #include <bpf/bpf_helpers.h>
 
-int _version SEC("version") = 1;
-
 struct ipv_counts {
 	unsigned int v4;
 	unsigned int v6;
 };
 
-struct bpf_map_def SEC("maps") btf_map = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(int),
-	.value_size = sizeof(struct ipv_counts),
-	.max_entries = 4,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__uint(key_size, sizeof(int));
+	__uint(value_size, sizeof(struct ipv_counts));
+	__uint(max_entries, 4);
+} btf_map SEC(".maps");
 
 __attribute__((noinline))
 int test_long_fname_2(void)

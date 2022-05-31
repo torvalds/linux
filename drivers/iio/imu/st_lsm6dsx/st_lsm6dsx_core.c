@@ -102,7 +102,6 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.addr = 0x22,
 			.mask = BIT(6),
 		},
-		.max_fifo_size = 32,
 		.id = {
 			{
 				.hw_id = ST_LSM9DS1_ID,
@@ -194,6 +193,9 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.mask = BIT(4),
 			},
 		},
+		.fifo_ops = {
+			.max_size = 32,
+		},
 	},
 	{
 		.reset = {
@@ -208,7 +210,6 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.addr = 0x12,
 			.mask = BIT(6),
 		},
-		.max_fifo_size = 1365,
 		.id = {
 			{
 				.hw_id = ST_LSM6DS3_ID,
@@ -329,6 +330,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x3a,
 				.mask = GENMASK(11, 0),
 			},
+			.max_size = 1365,
 			.th_wl = 3, /* 1LSB = 2B */
 		},
 		.ts_settings = {
@@ -374,7 +376,6 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.addr = 0x12,
 			.mask = BIT(6),
 		},
-		.max_fifo_size = 682,
 		.id = {
 			{
 				.hw_id = ST_LSM6DS3H_ID,
@@ -495,6 +496,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x3a,
 				.mask = GENMASK(11, 0),
 			},
+			.max_size = 682,
 			.th_wl = 3, /* 1LSB = 2B */
 		},
 		.ts_settings = {
@@ -540,7 +542,6 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.addr = 0x12,
 			.mask = BIT(6),
 		},
-		.max_fifo_size = 682,
 		.id = {
 			{
 				.hw_id = ST_LSM6DSL_ID,
@@ -677,6 +678,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x3a,
 				.mask = GENMASK(10, 0),
 			},
+			.max_size = 682,
 			.th_wl = 3, /* 1LSB = 2B */
 		},
 		.ts_settings = {
@@ -759,7 +761,6 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.addr = 0x12,
 			.mask = BIT(6),
 		},
-		.max_fifo_size = 512,
 		.id = {
 			{
 				.hw_id = ST_LSM6DSR_ID,
@@ -910,6 +911,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x3a,
 				.mask = GENMASK(9, 0),
 			},
+			.max_size = 512,
 			.th_wl = 1,
 		},
 		.ts_settings = {
@@ -984,7 +986,6 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 			.addr = 0x12,
 			.mask = BIT(6),
 		},
-		.max_fifo_size = 512,
 		.id = {
 			{
 				.hw_id = ST_ASM330LHH_ID,
@@ -1119,6 +1120,7 @@ static const struct st_lsm6dsx_settings st_lsm6dsx_sensor_settings[] = {
 				.addr = 0x3a,
 				.mask = GENMASK(9, 0),
 			},
+			.max_size = 512,
 			.th_wl = 1,
 		},
 		.ts_settings = {
@@ -1279,6 +1281,8 @@ st_lsm6dsx_set_odr(struct st_lsm6dsx_sensor *sensor, u32 req_odr)
 	int err;
 
 	switch (sensor->id) {
+	case ST_LSM6DSX_ID_GYRO:
+		break;
 	case ST_LSM6DSX_ID_EXT0:
 	case ST_LSM6DSX_ID_EXT1:
 	case ST_LSM6DSX_ID_EXT2:
@@ -1304,8 +1308,8 @@ st_lsm6dsx_set_odr(struct st_lsm6dsx_sensor *sensor, u32 req_odr)
 		}
 		break;
 	}
-	default:
-		break;
+	default: /* should never occur */
+		return -EINVAL;
 	}
 
 	if (req_odr > 0) {
@@ -1370,8 +1374,12 @@ static int st_lsm6dsx_read_oneshot(struct st_lsm6dsx_sensor *sensor,
 	if (err < 0)
 		return err;
 
+	/*
+	 * we need to wait for sensor settling time before
+	 * reading data in order to avoid corrupted samples
+	 */
 	delay = 1000000000 / sensor->odr;
-	usleep_range(delay, 2 * delay);
+	usleep_range(3 * delay, 4 * delay);
 
 	err = st_lsm6dsx_read_locked(hw, addr, &data, sizeof(data));
 	if (err < 0)
@@ -1603,7 +1611,7 @@ int st_lsm6dsx_set_watermark(struct iio_dev *iio_dev, unsigned int val)
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int err;
 
-	if (val < 1 || val > hw->settings->max_fifo_size)
+	if (val < 1 || val > hw->settings->fifo_ops.max_size)
 		return -EINVAL;
 
 	mutex_lock(&hw->conf_lock);
@@ -1625,7 +1633,7 @@ st_lsm6dsx_sysfs_sampling_frequency_avail(struct device *dev,
 					  struct device_attribute *attr,
 					  char *buf)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dsx_odr_table_entry *odr_table;
 	int i, len = 0;
 
@@ -1643,7 +1651,7 @@ static ssize_t st_lsm6dsx_sysfs_scale_avail(struct device *dev,
 					    struct device_attribute *attr,
 					    char *buf)
 {
-	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_get_drvdata(dev));
+	struct st_lsm6dsx_sensor *sensor = iio_priv(dev_to_iio_dev(dev));
 	const struct st_lsm6dsx_fs_table_entry *fs_table;
 	struct st_lsm6dsx_hw *hw = sensor->hw;
 	int i, len = 0;
@@ -2240,7 +2248,9 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 		return err;
 
 	hub_settings = &hw->settings->shub_settings;
-	if (hub_settings->master_en.addr) {
+	if (hub_settings->master_en.addr &&
+	    (!dev_fwnode(dev) ||
+	     !device_property_read_bool(dev, "st,disable-sensor-hub"))) {
 		err = st_lsm6dsx_shub_probe(hw, name);
 		if (err < 0)
 			return err;

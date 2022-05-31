@@ -46,6 +46,12 @@
 
 #define MAX_TIMESTAMP (~0ULL)
 
+#define INTEL_PT_CFG_PASS_THRU	BIT_ULL(0)
+#define INTEL_PT_CFG_PWR_EVT_EN	BIT_ULL(4)
+#define INTEL_PT_CFG_BRANCH_EN	BIT_ULL(13)
+#define INTEL_PT_CFG_EVT_EN	BIT_ULL(31)
+#define INTEL_PT_CFG_TNT_DIS	BIT_ULL(55)
+
 struct range {
 	u64 start;
 	u64 end;
@@ -71,6 +77,7 @@ struct intel_pt {
 	bool mispred_all;
 	bool use_thread_stack;
 	bool callstack;
+	bool cap_event_trace;
 	unsigned int br_stack_sz;
 	unsigned int br_stack_sz_plus;
 	int have_sched_switch;
@@ -111,8 +118,15 @@ struct intel_pt {
 	u64 cbr_id;
 	u64 psb_id;
 
+	bool single_pebs;
 	bool sample_pebs;
 	struct evsel *pebs_evsel;
+
+	u64 evt_sample_type;
+	u64 evt_id;
+
+	u64 iflag_chg_sample_type;
+	u64 iflag_chg_id;
 
 	u64 tsc_bit;
 	u64 mtc_bit;
@@ -148,6 +162,14 @@ enum switch_state {
 	INTEL_PT_SS_EXPECTING_SWITCH_IP,
 };
 
+/* applicable_counters is 64-bits */
+#define INTEL_PT_MAX_PEBS 64
+
+struct intel_pt_pebs_event {
+	struct evsel *evsel;
+	u64 id;
+};
+
 struct intel_pt_queue {
 	struct intel_pt *pt;
 	unsigned int queue_nr;
@@ -163,6 +185,7 @@ struct intel_pt_queue {
 	bool step_through_buffers;
 	bool use_buffer_pid_tid;
 	bool sync_switch;
+	bool sample_ipc;
 	pid_t pid, tid;
 	int cpu;
 	int switch_state;
@@ -189,6 +212,7 @@ struct intel_pt_queue {
 	u64 last_br_cyc_cnt;
 	unsigned int cbr_seen;
 	char insn[INTEL_PT_INSN_BUF_SZ];
+	struct intel_pt_pebs_event pebs[INTEL_PT_MAX_PEBS];
 };
 
 static void intel_pt_dump(struct intel_pt *pt __maybe_unused,
@@ -942,10 +966,24 @@ static bool intel_pt_branch_enable(struct intel_pt *pt)
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
-		    (config & 1) && !(config & 0x2000))
+		    (config & INTEL_PT_CFG_PASS_THRU) &&
+		    !(config & INTEL_PT_CFG_BRANCH_EN))
 			return false;
 	}
 	return true;
+}
+
+static bool intel_pt_disabled_tnt(struct intel_pt *pt)
+{
+	struct evsel *evsel;
+	u64 config;
+
+	evlist__for_each_entry(pt->session->evlist, evsel) {
+		if (intel_pt_get_config(pt, &evsel->core.attr, &config) &&
+		    config & INTEL_PT_CFG_TNT_DIS)
+			return true;
+	}
+	return false;
 }
 
 static unsigned int intel_pt_mtc_period(struct intel_pt *pt)
@@ -1203,6 +1241,10 @@ static struct intel_pt_queue *intel_pt_alloc_queue(struct intel_pt *pt,
 	params.first_timestamp = pt->first_timestamp;
 	params.max_loops = pt->max_loops;
 
+	/* Cannot walk code without TNT, so force 'quick' mode */
+	if (params.branch_enable && intel_pt_disabled_tnt(pt) && !params.quick)
+		params.quick = 1;
+
 	if (pt->filts.cnt > 0)
 		params.pgd_ip = intel_pt_pgd_ip;
 
@@ -1305,6 +1347,8 @@ static void intel_pt_set_pid_tid_cpu(struct intel_pt *pt,
 
 static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 {
+	struct intel_pt *pt = ptq->pt;
+
 	ptq->insn_len = 0;
 	if (ptq->state->flags & INTEL_PT_ABORT_TX) {
 		ptq->flags = PERF_IP_FLAG_BRANCH | PERF_IP_FLAG_TX_ABORT;
@@ -1335,6 +1379,17 @@ static void intel_pt_sample_flags(struct intel_pt_queue *ptq)
 		ptq->flags |= PERF_IP_FLAG_TRACE_BEGIN;
 	if (ptq->state->type & INTEL_PT_TRACE_END)
 		ptq->flags |= PERF_IP_FLAG_TRACE_END;
+
+	if (pt->cap_event_trace) {
+		if (ptq->state->type & INTEL_PT_IFLAG_CHG) {
+			if (!ptq->state->from_iflag)
+				ptq->flags |= PERF_IP_FLAG_INTR_DISABLE;
+			if (ptq->state->from_iflag != ptq->state->to_iflag)
+				ptq->flags |= PERF_IP_FLAG_INTR_TOGGLE;
+		} else if (!ptq->state->to_iflag) {
+			ptq->flags |= PERF_IP_FLAG_INTR_DISABLE;
+		}
+	}
 }
 
 static void intel_pt_setup_time_range(struct intel_pt *pt,
@@ -1571,7 +1626,7 @@ static int intel_pt_synth_branch_sample(struct intel_pt_queue *ptq)
 		sample.branch_stack = (struct branch_stack *)&dummy_bs;
 	}
 
-	if (ptq->state->flags & INTEL_PT_SAMPLE_IPC)
+	if (ptq->sample_ipc)
 		sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_br_cyc_cnt;
 	if (sample.cyc_cnt) {
 		sample.insn_cnt = ptq->ipc_insn_cnt - ptq->last_br_insn_cnt;
@@ -1622,7 +1677,7 @@ static int intel_pt_synth_instruction_sample(struct intel_pt_queue *ptq)
 	else
 		sample.period = ptq->state->tot_insn_cnt - ptq->last_insn_cnt;
 
-	if (ptq->state->flags & INTEL_PT_SAMPLE_IPC)
+	if (ptq->sample_ipc)
 		sample.cyc_cnt = ptq->ipc_cyc_cnt - ptq->last_in_cyc_cnt;
 	if (sample.cyc_cnt) {
 		sample.insn_cnt = ptq->ipc_insn_cnt - ptq->last_in_insn_cnt;
@@ -1978,15 +2033,13 @@ static void intel_pt_add_lbrs(struct branch_stack *br_stack,
 	}
 }
 
-static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
+static int intel_pt_do_synth_pebs_sample(struct intel_pt_queue *ptq, struct evsel *evsel, u64 id)
 {
 	const struct intel_pt_blk_items *items = &ptq->state->items;
 	struct perf_sample sample = { .ip = 0, };
 	union perf_event *event = ptq->event_buf;
 	struct intel_pt *pt = ptq->pt;
-	struct evsel *evsel = pt->pebs_evsel;
 	u64 sample_type = evsel->core.attr.sample_type;
-	u64 id = evsel->core.id[0];
 	u8 cpumode;
 	u64 regs[8 * sizeof(sample.intr_regs.mask)];
 
@@ -2112,6 +2165,117 @@ static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
 	return intel_pt_deliver_synth_event(pt, event, &sample, sample_type);
 }
 
+static int intel_pt_synth_single_pebs_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	struct evsel *evsel = pt->pebs_evsel;
+	u64 id = evsel->core.id[0];
+
+	return intel_pt_do_synth_pebs_sample(ptq, evsel, id);
+}
+
+static int intel_pt_synth_pebs_sample(struct intel_pt_queue *ptq)
+{
+	const struct intel_pt_blk_items *items = &ptq->state->items;
+	struct intel_pt_pebs_event *pe;
+	struct intel_pt *pt = ptq->pt;
+	int err = -EINVAL;
+	int hw_id;
+
+	if (!items->has_applicable_counters || !items->applicable_counters) {
+		if (!pt->single_pebs)
+			pr_err("PEBS-via-PT record with no applicable_counters\n");
+		return intel_pt_synth_single_pebs_sample(ptq);
+	}
+
+	for_each_set_bit(hw_id, (unsigned long *)&items->applicable_counters, INTEL_PT_MAX_PEBS) {
+		pe = &ptq->pebs[hw_id];
+		if (!pe->evsel) {
+			if (!pt->single_pebs)
+				pr_err("PEBS-via-PT record with no matching event, hw_id %d\n",
+				       hw_id);
+			return intel_pt_synth_single_pebs_sample(ptq);
+		}
+		err = intel_pt_do_synth_pebs_sample(ptq, pe->evsel, pe->id);
+		if (err)
+			return err;
+	}
+
+	return err;
+}
+
+static int intel_pt_synth_events_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct {
+		struct perf_synth_intel_evt cfe;
+		struct perf_synth_intel_evd evd[INTEL_PT_MAX_EVDS];
+	} raw;
+	int i;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id        = ptq->pt->evt_id;
+	sample.stream_id = ptq->pt->evt_id;
+
+	raw.cfe.type     = ptq->state->cfe_type;
+	raw.cfe.reserved = 0;
+	raw.cfe.ip       = !!(ptq->state->flags & INTEL_PT_FUP_IP);
+	raw.cfe.vector   = ptq->state->cfe_vector;
+	raw.cfe.evd_cnt  = ptq->state->evd_cnt;
+
+	for (i = 0; i < ptq->state->evd_cnt; i++) {
+		raw.evd[i].et       = 0;
+		raw.evd[i].evd_type = ptq->state->evd[i].type;
+		raw.evd[i].payload  = ptq->state->evd[i].payload;
+	}
+
+	sample.raw_size = perf_synth__raw_size(raw) +
+			  ptq->state->evd_cnt * sizeof(struct perf_synth_intel_evd);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, event, &sample,
+					    pt->evt_sample_type);
+}
+
+static int intel_pt_synth_iflag_chg_sample(struct intel_pt_queue *ptq)
+{
+	struct intel_pt *pt = ptq->pt;
+	union perf_event *event = ptq->event_buf;
+	struct perf_sample sample = { .ip = 0, };
+	struct perf_synth_intel_iflag_chg raw;
+
+	if (intel_pt_skip_event(pt))
+		return 0;
+
+	intel_pt_prep_p_sample(pt, ptq, event, &sample);
+
+	sample.id = ptq->pt->iflag_chg_id;
+	sample.stream_id = ptq->pt->iflag_chg_id;
+
+	raw.flags = 0;
+	raw.iflag = ptq->state->to_iflag;
+
+	if (ptq->state->type & INTEL_PT_BRANCH) {
+		raw.via_branch = 1;
+		raw.branch_ip = ptq->state->to_ip;
+	} else {
+		sample.addr = 0;
+	}
+	sample.flags = ptq->flags;
+
+	sample.raw_size = perf_synth__raw_size(raw);
+	sample.raw_data = perf_synth__raw_data(&raw);
+
+	return intel_pt_deliver_synth_event(pt, event, &sample,
+					    pt->iflag_chg_sample_type);
+}
+
 static int intel_pt_synth_error(struct intel_pt *pt, int code, int cpu,
 				pid_t pid, pid_t tid, u64 ip, u64 timestamp)
 {
@@ -2198,8 +2362,15 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 
 	ptq->have_sample = false;
 
-	ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
-	ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
+	if (pt->synth_opts.approx_ipc) {
+		ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
+		ptq->ipc_cyc_cnt = ptq->state->cycles;
+		ptq->sample_ipc = true;
+	} else {
+		ptq->ipc_insn_cnt = ptq->state->tot_insn_cnt;
+		ptq->ipc_cyc_cnt = ptq->state->tot_cyc_cnt;
+		ptq->sample_ipc = ptq->state->flags & INTEL_PT_SAMPLE_IPC;
+	}
 
 	/*
 	 * Do PEBS first to allow for the possibility that the PEBS timestamp
@@ -2209,6 +2380,19 @@ static int intel_pt_sample(struct intel_pt_queue *ptq)
 		err = intel_pt_synth_pebs_sample(ptq);
 		if (err)
 			return err;
+	}
+
+	if (pt->synth_opts.intr_events) {
+		if (state->type & INTEL_PT_EVT) {
+			err = intel_pt_synth_events_sample(ptq);
+			if (err)
+				return err;
+		}
+		if (state->type & INTEL_PT_IFLAG_CHG) {
+			err = intel_pt_synth_iflag_chg_sample(ptq);
+			if (err)
+				return err;
+		}
 	}
 
 	if (pt->sample_pwr_events) {
@@ -2510,6 +2694,7 @@ static int intel_pt_run_decoder(struct intel_pt_queue *ptq, u64 *timestamp)
 				ptq->sync_switch = false;
 				intel_pt_next_tid(pt, ptq);
 			}
+			ptq->timestamp = state->est_timestamp;
 			if (pt->synth_opts.errors) {
 				err = intel_ptq_synth_error(ptq, state);
 				if (err)
@@ -2882,6 +3067,30 @@ static int intel_pt_process_itrace_start(struct intel_pt *pt,
 					event->itrace_start.tid);
 }
 
+static int intel_pt_process_aux_output_hw_id(struct intel_pt *pt,
+					     union perf_event *event,
+					     struct perf_sample *sample)
+{
+	u64 hw_id = event->aux_output_hw_id.hw_id;
+	struct auxtrace_queue *queue;
+	struct intel_pt_queue *ptq;
+	struct evsel *evsel;
+
+	queue = auxtrace_queues__sample_queue(&pt->queues, sample, pt->session);
+	evsel = evlist__id2evsel_strict(pt->session->evlist, sample->id);
+	if (!queue || !queue->priv || !evsel || hw_id > INTEL_PT_MAX_PEBS) {
+		pr_err("Bad AUX output hardware ID\n");
+		return -EINVAL;
+	}
+
+	ptq = queue->priv;
+
+	ptq->pebs[hw_id].evsel = evsel;
+	ptq->pebs[hw_id].id = sample->id;
+
+	return 0;
+}
+
 static int intel_pt_find_map(struct thread *thread, u8 cpumode, u64 addr,
 			     struct addr_location *al)
 {
@@ -3009,6 +3218,8 @@ static int intel_pt_process_event(struct perf_session *session,
 		err = intel_pt_process_switch(pt, sample);
 	else if (event->header.type == PERF_RECORD_ITRACE_START)
 		err = intel_pt_process_itrace_start(pt, event, sample);
+	else if (event->header.type == PERF_RECORD_AUX_OUTPUT_HW_ID)
+		err = intel_pt_process_aux_output_hw_id(pt, event, sample);
 	else if (event->header.type == PERF_RECORD_SWITCH ||
 		 event->header.type == PERF_RECORD_SWITCH_CPU_WIDE)
 		err = intel_pt_context_switch(pt, event, sample);
@@ -3347,7 +3558,7 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		id += 1;
 	}
 
-	if (pt->synth_opts.pwr_events && (evsel->core.attr.config & 0x10)) {
+	if (pt->synth_opts.pwr_events && (evsel->core.attr.config & INTEL_PT_CFG_PWR_EVT_EN)) {
 		attr.config = PERF_SYNTH_INTEL_MWAIT;
 		err = intel_pt_synth_event(session, "mwait", &attr, id);
 		if (err)
@@ -3381,6 +3592,28 @@ static int intel_pt_synth_events(struct intel_pt *pt,
 		id += 1;
 	}
 
+	if (pt->synth_opts.intr_events && (evsel->core.attr.config & INTEL_PT_CFG_EVT_EN)) {
+		attr.config = PERF_SYNTH_INTEL_EVT;
+		err = intel_pt_synth_event(session, "evt", &attr, id);
+		if (err)
+			return err;
+		pt->evt_sample_type = attr.sample_type;
+		pt->evt_id = id;
+		intel_pt_set_event_name(evlist, id, "evt");
+		id += 1;
+	}
+
+	if (pt->synth_opts.intr_events && pt->cap_event_trace) {
+		attr.config = PERF_SYNTH_INTEL_IFLAG_CHG;
+		err = intel_pt_synth_event(session, "iflag", &attr, id);
+		if (err)
+			return err;
+		pt->iflag_chg_sample_type = attr.sample_type;
+		pt->iflag_chg_id = id;
+		intel_pt_set_event_name(evlist, id, "iflag");
+		id += 1;
+	}
+
 	return 0;
 }
 
@@ -3393,9 +3626,13 @@ static void intel_pt_setup_pebs_events(struct intel_pt *pt)
 
 	evlist__for_each_entry(pt->session->evlist, evsel) {
 		if (evsel->core.attr.aux_output && evsel->core.id) {
+			if (pt->single_pebs) {
+				pt->single_pebs = false;
+				return;
+			}
+			pt->single_pebs = true;
 			pt->sample_pebs = true;
 			pt->pebs_evsel = evsel;
-			return;
 		}
 	}
 }
@@ -3539,6 +3776,7 @@ static int intel_pt_parse_vm_tm_corr_arg(struct intel_pt *pt, char **args)
 		*args = p;
 		return 0;
 	}
+	p += 1;
 	while (1) {
 		vmcs = strtoull(p, &p, 0);
 		if (errno)
@@ -3651,8 +3889,6 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	if (err)
 		goto err_free;
 
-	intel_pt_log_set_name(INTEL_PT_PMU_NAME);
-
 	if (session->itrace_synth_opts->set) {
 		pt->synth_opts = *session->itrace_synth_opts;
 	} else {
@@ -3666,6 +3902,9 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 		}
 		pt->synth_opts.thread_stack = opts->thread_stack;
 	}
+
+	if (!(pt->synth_opts.log_plus_flags & AUXTRACE_LOG_FLG_USE_STDOUT))
+		intel_pt_log_set_name(INTEL_PT_PMU_NAME);
 
 	pt->session = session;
 	pt->machine = &session->machines.host; /* No kvm support */
@@ -3702,7 +3941,7 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 	}
 
 	info = &auxtrace_info->priv[INTEL_PT_FILTER_STR_LEN] + 1;
-	info_end = (void *)info + auxtrace_info->header.size;
+	info_end = (void *)auxtrace_info + auxtrace_info->header.size;
 
 	if (intel_pt_has(auxtrace_info, INTEL_PT_FILTER_STR_LEN)) {
 		size_t len;
@@ -3739,6 +3978,13 @@ int intel_pt_process_auxtrace_info(union perf_event *event,
 				goto err_free_queues;
 		}
 		intel_pt_print_info_str("Filter string", pt->filter);
+	}
+
+	if ((void *)info < info_end) {
+		pt->cap_event_trace = *info++;
+		if (dump_trace)
+			fprintf(stdout, "  Cap Event Trace     %d\n",
+				pt->cap_event_trace);
 	}
 
 	pt->timeless_decoding = intel_pt_timeless_decoding(pt);

@@ -42,11 +42,6 @@ struct rn5t618_adc_data {
 	int irq;
 };
 
-struct rn5t618_channel_ratios {
-	u16 numerator;
-	u16 denominator;
-};
-
 enum rn5t618_channels {
 	LIMMON = 0,
 	VBAT,
@@ -58,7 +53,7 @@ enum rn5t618_channels {
 	AIN0
 };
 
-static const struct rn5t618_channel_ratios rn5t618_ratios[8] = {
+static const struct u16_fract rn5t618_ratios[8] = {
 	[LIMMON] = {50, 32}, /* measured across 20mOhm, amplified by 32 */
 	[VBAT] = {2, 1},
 	[VADP] = {3, 1},
@@ -197,13 +192,6 @@ static struct iio_map rn5t618_maps[] = {
 	{ /* sentinel */ }
 };
 
-static void unregister_map(void *data)
-{
-	struct iio_dev *iio_dev = (struct iio_dev *) data;
-
-	iio_map_array_unregister(iio_dev);
-}
-
 static int rn5t618_adc_probe(struct platform_device *pdev)
 {
 	int ret;
@@ -254,11 +242,7 @@ static int rn5t618_adc_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	ret = iio_map_array_register(iio_dev, rn5t618_maps);
-	if (ret < 0)
-		return ret;
-
-	ret = devm_add_action_or_reset(adc->dev, unregister_map, iio_dev);
+	ret = devm_iio_map_array_register(adc->dev, iio_dev, rn5t618_maps);
 	if (ret < 0)
 		return ret;
 

@@ -130,19 +130,28 @@ u32 mlx5_eswitch_get_vport_metadata_for_set(struct mlx5_eswitch *esw,
 #define ESW_TUN_OPTS_MASK GENMASK(31 - ESW_TUN_ID_BITS - ESW_RESERVED_BITS, ESW_TUN_OPTS_OFFSET)
 #define ESW_TUN_MASK GENMASK(31 - ESW_RESERVED_BITS, ESW_TUN_OFFSET)
 #define ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT 0 /* 0 is not a valid tunnel id */
+#define ESW_TUN_ID_BRIDGE_INGRESS_PUSH_VLAN ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT
 /* 0x7FF is a reserved mapping */
 #define ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT GENMASK(ESW_TUN_OPTS_BITS - 1, 0)
 #define ESW_TUN_SLOW_TABLE_GOTO_VPORT ((ESW_TUN_ID_SLOW_TABLE_GOTO_VPORT << ESW_TUN_OPTS_BITS) | \
 				       ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT)
 #define ESW_TUN_SLOW_TABLE_GOTO_VPORT_MARK ESW_TUN_OPTS_MASK
+/* 0x7FE is a reserved mapping for bridge ingress push vlan mark */
+#define ESW_TUN_OPTS_BRIDGE_INGRESS_PUSH_VLAN (ESW_TUN_OPTS_SLOW_TABLE_GOTO_VPORT - 1)
+#define ESW_TUN_BRIDGE_INGRESS_PUSH_VLAN ((ESW_TUN_ID_BRIDGE_INGRESS_PUSH_VLAN << \
+					   ESW_TUN_OPTS_BITS) | \
+					  ESW_TUN_OPTS_BRIDGE_INGRESS_PUSH_VLAN)
+#define ESW_TUN_BRIDGE_INGRESS_PUSH_VLAN_MARK \
+	GENMASK(31 - ESW_TUN_ID_BITS - ESW_RESERVED_BITS, \
+		ESW_TUN_OPTS_OFFSET + 1)
 
-u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev);
+u8 mlx5_eswitch_mode(const struct mlx5_core_dev *dev);
 u16 mlx5_eswitch_get_total_vports(const struct mlx5_core_dev *dev);
 struct mlx5_core_dev *mlx5_eswitch_get_core_dev(struct mlx5_eswitch *esw);
 
 #else  /* CONFIG_MLX5_ESWITCH */
 
-static inline u8 mlx5_eswitch_mode(struct mlx5_core_dev *dev)
+static inline u8 mlx5_eswitch_mode(const struct mlx5_core_dev *dev)
 {
 	return MLX5_ESWITCH_NONE;
 }

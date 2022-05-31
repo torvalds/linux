@@ -219,17 +219,20 @@ mlx5_eswitch_termtbl_required(struct mlx5_eswitch *esw,
 
 	if (!MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, termination_table) ||
 	    !MLX5_CAP_ESW_FLOWTABLE_FDB(esw->dev, ignore_flow_level) ||
-	    attr->flags & MLX5_ESW_ATTR_FLAG_SLOW_PATH ||
-	    !mlx5_eswitch_offload_is_uplink_port(esw, spec))
+	    mlx5e_tc_attr_flags_skip(attr->flags) ||
+	    (!mlx5_eswitch_offload_is_uplink_port(esw, spec) && !esw_attr->int_port))
 		return false;
 
 	/* push vlan on RX */
-	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH)
+	if (flow_act->action & MLX5_FLOW_CONTEXT_ACTION_VLAN_PUSH &&
+	    !(mlx5_fs_get_capabilities(esw->dev, MLX5_FLOW_NAMESPACE_FDB) &
+	      MLX5_FLOW_STEERING_CAP_VLAN_PUSH_ON_RX))
 		return true;
 
 	/* hairpin */
 	for (i = esw_attr->split_count; i < esw_attr->out_count; i++)
-		if (esw_attr->dests[i].rep->vport == MLX5_VPORT_UPLINK)
+		if (!esw_attr->dest_int_port && esw_attr->dests[i].rep &&
+		    esw_attr->dests[i].rep->vport == MLX5_VPORT_UPLINK)
 			return true;
 
 	return false;

@@ -54,7 +54,7 @@ static void __ifh_encode_bitfield(void *ifh, u64 value, u32 pos, u32 width)
 		ifh_hdr[byte - 5] |= (u8)((encode & 0xFF0000000000) >> 40);
 }
 
-static void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
+void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
 {
 	/* VSTAX.RSV = 1. MSBit must be 1 */
 	ifh_encode_bitfield(ifh_hdr, 1, VSTAX + 79,  1);
@@ -72,6 +72,26 @@ static void sparx5_set_port_ifh(void *ifh_hdr, u16 portno)
 	ifh_encode_bitfield(ifh_hdr, 124,      57, 7);
 	/* FWD.UPDATE_FCS = Enable. Enforce update of FCS. */
 	ifh_encode_bitfield(ifh_hdr, 1,        67, 1);
+}
+
+void sparx5_set_port_ifh_rew_op(void *ifh_hdr, u32 rew_op)
+{
+	ifh_encode_bitfield(ifh_hdr, rew_op, VSTAX + 32,  10);
+}
+
+void sparx5_set_port_ifh_pdu_type(void *ifh_hdr, u32 pdu_type)
+{
+	ifh_encode_bitfield(ifh_hdr, pdu_type, 191, 4);
+}
+
+void sparx5_set_port_ifh_pdu_w16_offset(void *ifh_hdr, u32 pdu_w16_offset)
+{
+	ifh_encode_bitfield(ifh_hdr, pdu_w16_offset, 195, 6);
+}
+
+void sparx5_set_port_ifh_timestamp(void *ifh_hdr, u64 timestamp)
+{
+	ifh_encode_bitfield(ifh_hdr, timestamp, 232,  40);
 }
 
 static int sparx5_port_open(struct net_device *ndev)
@@ -162,7 +182,7 @@ static int sparx5_set_mac_address(struct net_device *dev, void *p)
 	sparx5_mact_learn(sparx5, PGID_CPU, addr->sa_data, port->pvid);
 
 	/* Record the address */
-	ether_addr_copy(dev->dev_addr, addr->sa_data);
+	eth_hw_addr_set(dev, addr->sa_data);
 
 	return 0;
 }
@@ -179,6 +199,24 @@ static int sparx5_get_port_parent_id(struct net_device *dev,
 	return 0;
 }
 
+static int sparx5_port_ioctl(struct net_device *dev, struct ifreq *ifr,
+			     int cmd)
+{
+	struct sparx5_port *sparx5_port = netdev_priv(dev);
+	struct sparx5 *sparx5 = sparx5_port->sparx5;
+
+	if (!phy_has_hwtstamp(dev->phydev) && sparx5->ptp) {
+		switch (cmd) {
+		case SIOCSHWTSTAMP:
+			return sparx5_ptp_hwtstamp_set(sparx5_port, ifr);
+		case SIOCGHWTSTAMP:
+			return sparx5_ptp_hwtstamp_get(sparx5_port, ifr);
+		}
+	}
+
+	return phy_mii_ioctl(dev->phydev, ifr, cmd);
+}
+
 static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_open               = sparx5_port_open,
 	.ndo_stop               = sparx5_port_stop,
@@ -189,6 +227,7 @@ static const struct net_device_ops sparx5_port_netdev_ops = {
 	.ndo_validate_addr      = eth_validate_addr,
 	.ndo_get_stats64        = sparx5_get_stats64,
 	.ndo_get_port_parent_id = sparx5_get_port_parent_id,
+	.ndo_eth_ioctl          = sparx5_port_ioctl,
 };
 
 bool sparx5_netdevice_check(const struct net_device *dev)
@@ -200,7 +239,6 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 {
 	struct sparx5_port *spx5_port;
 	struct net_device *ndev;
-	u64 val;
 
 	ndev = devm_alloc_etherdev(sparx5->dev, sizeof(struct sparx5_port));
 	if (!ndev)
@@ -211,13 +249,11 @@ struct net_device *sparx5_create_netdev(struct sparx5 *sparx5, u32 portno)
 	spx5_port->ndev = ndev;
 	spx5_port->sparx5 = sparx5;
 	spx5_port->portno = portno;
-	sparx5_set_port_ifh(spx5_port->ifh, portno);
 
 	ndev->netdev_ops = &sparx5_port_netdev_ops;
 	ndev->ethtool_ops = &sparx5_ethtool_ops;
 
-	val = ether_addr_to_u64(sparx5->base_mac) + portno + 1;
-	u64_to_ether_addr(val, ndev->dev_addr);
+	eth_hw_addr_gen(ndev, sparx5->base_mac, portno + 1);
 
 	return ndev;
 }

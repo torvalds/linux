@@ -41,20 +41,22 @@ static DEFINE_SPINLOCK(lock_me_up);
  * Make sure compiler does not optimize this function or stack frame away:
  * - function marked noinline
  * - stack variables are marked volatile
- * - stack variables are written (memset()) and read (pr_info())
- * - function has external effects (pr_info())
- * */
+ * - stack variables are written (memset()) and read (buf[..] passed as arg)
+ * - function may have external effects (memzero_explicit())
+ * - no tail recursion possible
+ */
 static int noinline recursive_loop(int remaining)
 {
 	volatile char buf[REC_STACK_SIZE];
+	volatile int ret;
 
 	memset((void *)buf, remaining & 0xFF, sizeof(buf));
-	pr_info("loop %d/%d ...\n", (int)buf[remaining % sizeof(buf)],
-		recur_count);
 	if (!remaining)
-		return 0;
+		ret = 0;
 	else
-		return recursive_loop(remaining - 1);
+		ret = recursive_loop((int)buf[remaining % sizeof(buf)] - 1);
+	memzero_explicit((void *)buf, sizeof(buf));
+	return ret;
 }
 
 /* If the depth is negative, use the default, otherwise keep parameter. */
@@ -149,6 +151,83 @@ void lkdtm_REPORT_STACK(void)
 	}
 
 	pr_info("Stack offset: %d\n", (int)(stack_addr - (uintptr_t)&magic));
+}
+
+static pid_t stack_canary_pid;
+static unsigned long stack_canary;
+static unsigned long stack_canary_offset;
+
+static noinline void __lkdtm_REPORT_STACK_CANARY(void *stack)
+{
+	int i = 0;
+	pid_t pid = task_pid_nr(current);
+	unsigned long *canary = (unsigned long *)stack;
+	unsigned long current_offset = 0, init_offset = 0;
+
+	/* Do our best to find the canary in a 16 word window ... */
+	for (i = 1; i < 16; i++) {
+		canary = (unsigned long *)stack + i;
+#ifdef CONFIG_STACKPROTECTOR
+		if (*canary == current->stack_canary)
+			current_offset = i;
+		if (*canary == init_task.stack_canary)
+			init_offset = i;
+#endif
+	}
+
+	if (current_offset == 0) {
+		/*
+		 * If the canary doesn't match what's in the task_struct,
+		 * we're either using a global canary or the stack frame
+		 * layout changed.
+		 */
+		if (init_offset != 0) {
+			pr_err("FAIL: global stack canary found at offset %ld (canary for pid %d matches init_task's)!\n",
+			       init_offset, pid);
+		} else {
+			pr_warn("FAIL: did not correctly locate stack canary :(\n");
+			pr_expected_config(CONFIG_STACKPROTECTOR);
+		}
+
+		return;
+	} else if (init_offset != 0) {
+		pr_warn("WARNING: found both current and init_task canaries nearby?!\n");
+	}
+
+	canary = (unsigned long *)stack + current_offset;
+	if (stack_canary_pid == 0) {
+		stack_canary = *canary;
+		stack_canary_pid = pid;
+		stack_canary_offset = current_offset;
+		pr_info("Recorded stack canary for pid %d at offset %ld\n",
+			stack_canary_pid, stack_canary_offset);
+	} else if (pid == stack_canary_pid) {
+		pr_warn("ERROR: saw pid %d again -- please use a new pid\n", pid);
+	} else {
+		if (current_offset != stack_canary_offset) {
+			pr_warn("ERROR: canary offset changed from %ld to %ld!?\n",
+				stack_canary_offset, current_offset);
+			return;
+		}
+
+		if (*canary == stack_canary) {
+			pr_warn("FAIL: canary identical for pid %d and pid %d at offset %ld!\n",
+				stack_canary_pid, pid, current_offset);
+		} else {
+			pr_info("ok: stack canaries differ between pid %d and pid %d at offset %ld.\n",
+				stack_canary_pid, pid, current_offset);
+			/* Reset the test. */
+			stack_canary_pid = 0;
+		}
+	}
+}
+
+void lkdtm_REPORT_STACK_CANARY(void)
+{
+	/* Use default char array length that triggers stack protection. */
+	char data[8] __aligned(sizeof(void *)) = { };
+
+	__lkdtm_REPORT_STACK_CANARY((void *)&data);
 }
 
 void lkdtm_UNALIGNED_LOAD_STORE_WRITE(void)

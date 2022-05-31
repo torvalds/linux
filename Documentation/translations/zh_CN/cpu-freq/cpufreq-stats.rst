@@ -8,13 +8,15 @@
 
  司延腾 Yanteng Si <siyanteng@loongson.cn>
 
-.. _cn_cpufreq-stats.rst:
+:校译:
+
+ 唐艺舟 Tang Yizhou <tangyeechou@gmail.com>
 
 ==========================================
 sysfs CPUFreq Stats的一般说明
 ==========================================
 
-用户信息
+为使用者准备的信息
 
 
 作者: Venkatesh Pallipadi <venkatesh.pallipadi@intel.com>
@@ -29,17 +31,16 @@ sysfs CPUFreq Stats的一般说明
 1. 简介
 ===============
 
-cpufreq-stats是一个为每个CPU提供CPU频率统计的驱动。
-这些统计数据在/sysfs中以一堆只读接口的形式提供。这个接口（在配置好后）将出现在
-/sysfs（<sysfs root>/devices/system/cpu/cpuX/cpufreq/stats/）中cpufreq下的一个单
-独的目录中，提供给每个CPU。
-各种统计数据将在此目录下形成只读文件。
+cpufreq-stats是一种为每个CPU提供CPU频率统计的驱动。
+这些统计数据以/sysfs中一系列只读接口的形式呈现。cpufreq-stats接口（若已配置）将为每个CPU生成
+/sysfs（<sysfs root>/devices/system/cpu/cpuX/cpufreq/stats/）中cpufreq目录下的stats目录。
+各项统计数据将在stats目录下形成对应的只读文件。
 
-此驱动是独立于任何可能运行在你所用CPU上的特定cpufreq_driver而设计的。因此，它将与所有
-cpufreq_driver一起工作。
+此驱动是以独立于任何可能运行在你所用CPU上的特定cpufreq_driver的方式设计的。因此，它将能和任何
+cpufreq_driver协同工作。
 
 
-2. 提供的统计数据(举例说明)
+2. 已提供的统计数据(有例子)
 =====================================
 
 cpufreq stats提供了以下统计数据（在下面详细解释）。
@@ -48,8 +49,8 @@ cpufreq stats提供了以下统计数据（在下面详细解释）。
 -  total_trans
 -  trans_table
 
-所有的统计数据将从统计驱动被载入的时间（或统计被重置的时间）开始，到某一统计数据被读取的时间为止。
-显然，统计驱动不会有任何关于统计驱动载入之前的频率转换信息。
+所有统计数据来自以下时间范围：从统计驱动被加载的时间（或统计数据被重置的时间）开始，到某一统计数据被读取的时间为止。
+显然，统计驱动不会保存它被加载之前的任何频率转换信息。
 
 ::
 
@@ -64,14 +65,14 @@ cpufreq stats提供了以下统计数据（在下面详细解释）。
 
 - **reset**
 
-只写属性，可用于重置统计计数器。这对于评估不同调节器下的系统行为非常有用，且无需重启。
+只写属性，可用于重置统计计数器。这对于评估不同调节器的系统行为非常有用，且无需重启。
 
 
 - **time_in_state**
 
-此项给出了这个CPU所支持的每个频率所花费的时间。cat输出的每一行都会有"<frequency>
-<time>"对，表示这个CPU在<frequency>上花费了<time>个usertime单位的时间。这里的
-usertime单位是10mS（类似于/proc中输出的其他时间）。
+此文件给出了在本CPU支持的每个频率上分别花费的时间。cat输出的每一行都是一个"<frequency>
+<time>"对，表示这个CPU在<frequency>上花费了<time>个usertime单位的时间。输出的每一行对应
+一个CPU支持的频率。这里usertime单位是10mS（类似于/proc导出的其它时间）。
 
 ::
 
@@ -85,7 +86,7 @@ usertime单位是10mS（类似于/proc中输出的其他时间）。
 
 - **total_trans**
 
-给出了这个CPU上频率转换的总次数。cat的输出将有一个单一的计数，这就是频率转换的总数。
+此文件给出了这个CPU频率转换的总次数。cat的输出是一个计数值，它就是频率转换的总次数。
 
 ::
 
@@ -94,10 +95,10 @@ usertime单位是10mS（类似于/proc中输出的其他时间）。
 
 - **trans_table**
 
-这将提供所有CPU频率转换的细粒度信息。这里的cat输出是一个二维矩阵，其中一个条目<i, j>（第
+本文件提供所有CPU频率转换的细粒度信息。这里的cat输出是一个二维矩阵，其中一个条目<i, j>（第
 i行，第j列）代表从Freq_i到Freq_j的转换次数。Freq_i行和Freq_j列遵循驱动最初提供给cpufreq
-核的频率表的排序顺序，因此可以排序（升序或降序）或不排序。 这里的输出也包含了每行每列的实际
-频率值，以便更好地阅读。
+核心的频率表的排列顺序，因此可以已排序（升序或降序）或未排序。这里的输出也包含了实际
+频率值，分别按行和按列显示，以便更好地阅读。
 
 如果转换表大于PAGE_SIZE，读取时将返回一个-EFBIG错误。
 
@@ -115,7 +116,7 @@ i行，第j列）代表从Freq_i到Freq_j的转换次数。Freq_i行和Freq_j列
 3. 配置cpufreq-stats
 ============================
 
-要在你的内核中配置cpufreq-stats::
+按以下方式在你的内核中配置cpufreq-stats::
 
 	Config Main Menu
 		Power management options (ACPI, APM)  --->
@@ -124,7 +125,7 @@ i行，第j列）代表从Freq_i到Freq_j的转换次数。Freq_i行和Freq_j列
 				[*]   CPU frequency translation statistics
 
 
-"CPU Frequency scaling" (CONFIG_CPU_FREQ) 应该被启用以配置cpufreq-stats。
+"CPU Frequency scaling" (CONFIG_CPU_FREQ) 应该被启用，以支持配置cpufreq-stats。
 
 "CPU frequency translation statistics" (CONFIG_CPU_FREQ_STAT)提供了包括
 time_in_state、total_trans和trans_table的统计数据。

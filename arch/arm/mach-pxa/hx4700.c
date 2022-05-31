@@ -616,7 +616,6 @@ static struct pxa2xx_spi_chip tsc2046_chip = {
 	.tx_threshold = 1,
 	.rx_threshold = 2,
 	.timeout      = 64,
-	.gpio_cs      = GPIO88_HX4700_TSC2046_CS,
 };
 
 static struct spi_board_info tsc2046_board_info[] __initdata = {
@@ -633,6 +632,14 @@ static struct spi_board_info tsc2046_board_info[] __initdata = {
 static struct pxa2xx_spi_controller pxa_ssp2_master_info = {
 	.num_chipselect = 1,
 	.enable_dma     = 1,
+};
+
+static struct gpiod_lookup_table pxa_ssp2_gpio_table = {
+	.dev_id = "pxa2xx-spi.2",
+	.table = {
+		GPIO_LOOKUP_IDX("gpio-pxa", GPIO88_HX4700_TSC2046_CS, "cs", 0, GPIO_ACTIVE_LOW),
+		{ },
+	},
 };
 
 /*
@@ -896,6 +903,7 @@ static void __init hx4700_init(void)
 	pxa_set_i2c_info(NULL);
 	i2c_register_board_info(0, ARRAY_AND_SIZE(i2c_board_info));
 	i2c_register_board_info(1, ARRAY_AND_SIZE(pi2c_board_info));
+	gpiod_add_lookup_table(&pxa_ssp2_gpio_table);
 	pxa2xx_set_spi_info(2, &pxa_ssp2_master_info);
 	spi_register_board_info(ARRAY_AND_SIZE(tsc2046_board_info));
 

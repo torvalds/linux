@@ -23,7 +23,7 @@
 #include "cx18-mailbox.h"
 #include "cx18-ioctl.h"
 #include "cx18-controls.h"
-#include "tuner-xc2028.h"
+#include "xc2028.h"
 #include <linux/dma-mapping.h>
 #include <media/tveeprom.h>
 
@@ -804,7 +804,7 @@ static int cx18_setup_pci(struct cx18 *cx, struct pci_dev *pci_dev,
 		CX18_ERR("Can't enable device %d!\n", cx->instance);
 		return -EIO;
 	}
-	if (pci_set_dma_mask(pci_dev, DMA_BIT_MASK(32))) {
+	if (dma_set_mask(&pci_dev->dev, DMA_BIT_MASK(32))) {
 		CX18_ERR("No suitable DMA available, card %d\n", cx->instance);
 		return -EIO;
 	}
@@ -899,7 +899,7 @@ static int cx18_probe(struct pci_dev *pci_dev,
 		return -ENOMEM;
 	}
 
-	cx = kzalloc(sizeof(*cx), GFP_ATOMIC);
+	cx = kzalloc(sizeof(*cx), GFP_KERNEL);
 	if (!cx)
 		return -ENOMEM;
 

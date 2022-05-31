@@ -424,5 +424,4 @@ module_platform_driver(max77693_haptic_driver);
 MODULE_AUTHOR("Jaewon Kim <jaewon02.kim@samsung.com>");
 MODULE_AUTHOR("Krzysztof Kozlowski <krzk@kernel.org>");
 MODULE_DESCRIPTION("MAXIM 77693/77843 Haptic driver");
-MODULE_ALIAS("platform:max77693-haptic");
 MODULE_LICENSE("GPL");

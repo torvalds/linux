@@ -32,6 +32,7 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
 	struct hfi_colour_space *colour_info;
 	struct hfi_buffer_requirements *bufreq;
 	struct hfi_extradata_input_crop *crop;
+	struct hfi_dpb_counts *dpb_count;
 	u8 *data_ptr;
 	u32 ptype;
 
@@ -109,6 +110,12 @@ static void event_seq_changed(struct venus_core *core, struct venus_inst *inst,
 			event.input_crop.width = crop->width;
 			event.input_crop.height = crop->height;
 			data_ptr += sizeof(*crop);
+			break;
+		case HFI_PROPERTY_PARAM_VDEC_DPB_COUNTS:
+			data_ptr += sizeof(u32);
+			dpb_count = (struct hfi_dpb_counts *)data_ptr;
+			event.buf_count = dpb_count->fw_min_cnt;
+			data_ptr += sizeof(*dpb_count);
 			break;
 		default:
 			break;

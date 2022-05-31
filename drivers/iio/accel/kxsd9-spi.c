@@ -32,9 +32,9 @@ static int kxsd9_spi_probe(struct spi_device *spi)
 				  spi_get_device_id(spi)->name);
 }
 
-static int kxsd9_spi_remove(struct spi_device *spi)
+static void kxsd9_spi_remove(struct spi_device *spi)
 {
-	return kxsd9_common_remove(&spi->dev);
+	kxsd9_common_remove(&spi->dev);
 }
 
 static const struct spi_device_id kxsd9_spi_id[] = {
@@ -64,3 +64,4 @@ module_spi_driver(kxsd9_spi_driver);
 MODULE_AUTHOR("Jonathan Cameron <jic23@kernel.org>");
 MODULE_DESCRIPTION("Kionix KXSD9 SPI driver");
 MODULE_LICENSE("GPL v2");
+MODULE_IMPORT_NS(IIO_KXSD9);

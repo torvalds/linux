@@ -167,7 +167,6 @@ struct drm_ioctl_desc {
 		.name = #ioctl						\
 	}
 
-int drm_ioctl_permit(u32 flags, struct drm_file *file_priv);
 long drm_ioctl(struct file *filp, unsigned int cmd, unsigned long arg);
 long drm_ioctl_kernel(struct file *, drm_ioctl_t, void *, u32);
 #ifdef CONFIG_COMPAT

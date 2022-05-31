@@ -10,12 +10,12 @@
 
 #define NUM_CGROUP_LEVELS	4
 
-struct bpf_map_def SEC("maps") cgroup_ids = {
-	.type = BPF_MAP_TYPE_ARRAY,
-	.key_size = sizeof(__u32),
-	.value_size = sizeof(__u64),
-	.max_entries = NUM_CGROUP_LEVELS,
-};
+struct {
+	__uint(type, BPF_MAP_TYPE_ARRAY);
+	__type(key, __u32);
+	__type(value, __u64);
+	__uint(max_entries, NUM_CGROUP_LEVELS);
+} cgroup_ids SEC(".maps");
 
 static __always_inline void log_nth_level(struct __sk_buff *skb, __u32 level)
 {
@@ -41,7 +41,5 @@ int log_cgroup_id(struct __sk_buff *skb)
 
 	return TC_ACT_OK;
 }
-
-int _version SEC("version") = 1;
 
 char _license[] SEC("license") = "GPL";

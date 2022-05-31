@@ -20,7 +20,7 @@ struct {
 
 __u32 invocations = 0;
 
-SEC("cgroup_skb/egress/1")
+SEC("cgroup_skb/egress")
 int egress1(struct __sk_buff *skb)
 {
 	struct cgroup_value *ptr_cg_storage =
@@ -32,7 +32,7 @@ int egress1(struct __sk_buff *skb)
 	return 1;
 }
 
-SEC("cgroup_skb/egress/2")
+SEC("cgroup_skb/egress")
 int egress2(struct __sk_buff *skb)
 {
 	struct cgroup_value *ptr_cg_storage =

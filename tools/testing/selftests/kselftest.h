@@ -28,6 +28,7 @@
  *
  * When all tests are finished, clean up and exit the program with one of:
  *
+ *    ksft_finished();
  *    ksft_exit(condition);
  *    ksft_exit_pass();
  *    ksft_exit_fail();
@@ -47,6 +48,10 @@
 #include <unistd.h>
 #include <stdarg.h>
 #include <stdio.h>
+
+#ifndef ARRAY_SIZE
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+#endif
 
 /* define kselftest exit codes */
 #define KSFT_PASS  0
@@ -230,6 +235,15 @@ static inline int ksft_exit_fail(void)
 	else				\
 		ksft_exit_fail();	\
 	} while (0)
+
+/**
+ * ksft_finished() - Exit selftest with success if all tests passed
+ */
+#define ksft_finished()			\
+	ksft_exit(ksft_plan ==		\
+		  ksft_cnt.ksft_pass +	\
+		  ksft_cnt.ksft_xfail +	\
+		  ksft_cnt.ksft_xskip)
 
 static inline int ksft_exit_fail_msg(const char *msg, ...)
 {

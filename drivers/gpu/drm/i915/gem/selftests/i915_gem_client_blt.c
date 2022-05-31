@@ -7,8 +7,9 @@
 
 #include "gt/intel_context.h"
 #include "gt/intel_engine_user.h"
-#include "gt/intel_gt.h"
 #include "gt/intel_gpu_commands.h"
+#include "gt/intel_gt.h"
+#include "gt/intel_gt_regs.h"
 #include "gem/i915_gem_lmem.h"
 
 #include "selftests/igt_flush_test.h"
@@ -17,13 +18,20 @@
 #include "huge_gem_object.h"
 #include "mock_context.h"
 
+enum client_tiling {
+	CLIENT_TILING_LINEAR,
+	CLIENT_TILING_X,
+	CLIENT_TILING_Y,
+	CLIENT_NUM_TILING_TYPES
+};
+
 #define WIDTH 512
 #define HEIGHT 32
 
 struct blit_buffer {
 	struct i915_vma *vma;
 	u32 start_val;
-	u32 tiling;
+	enum client_tiling tiling;
 };
 
 struct tiled_blits {
@@ -32,6 +40,7 @@ struct tiled_blits {
 	struct blit_buffer scratch;
 	struct i915_vma *batch;
 	u64 hole;
+	u64 align;
 	u32 width;
 	u32 height;
 };
@@ -53,9 +62,9 @@ static int prepare_blit(const struct tiled_blits *t,
 	*cs++ = MI_LOAD_REGISTER_IMM(1);
 	*cs++ = i915_mmio_reg_offset(BCS_SWCTRL);
 	cmd = (BCS_SRC_Y | BCS_DST_Y) << 16;
-	if (src->tiling == I915_TILING_Y)
+	if (src->tiling == CLIENT_TILING_Y)
 		cmd |= BCS_SRC_Y;
-	if (dst->tiling == I915_TILING_Y)
+	if (dst->tiling == CLIENT_TILING_Y)
 		cmd |= BCS_DST_Y;
 	*cs++ = cmd;
 
@@ -172,7 +181,7 @@ static int tiled_blits_create_buffers(struct tiled_blits *t,
 
 		t->buffers[i].vma = vma;
 		t->buffers[i].tiling =
-			i915_prandom_u32_max_state(I915_TILING_Y + 1, prng);
+			i915_prandom_u32_max_state(CLIENT_TILING_Y + 1, prng);
 	}
 
 	return 0;
@@ -197,17 +206,17 @@ static u64 swizzle_bit(unsigned int bit, u64 offset)
 static u64 tiled_offset(const struct intel_gt *gt,
 			u64 v,
 			unsigned int stride,
-			unsigned int tiling)
+			enum client_tiling tiling)
 {
 	unsigned int swizzle;
 	u64 x, y;
 
-	if (tiling == I915_TILING_NONE)
+	if (tiling == CLIENT_TILING_LINEAR)
 		return v;
 
 	y = div64_u64_rem(v, stride, &x);
 
-	if (tiling == I915_TILING_X) {
+	if (tiling == CLIENT_TILING_X) {
 		v = div64_u64_rem(y, 8, &y) * stride * 8;
 		v += y * 512;
 		v += div64_u64_rem(x, 512, &x) << 12;
@@ -244,12 +253,12 @@ static u64 tiled_offset(const struct intel_gt *gt,
 	return v;
 }
 
-static const char *repr_tiling(int tiling)
+static const char *repr_tiling(enum client_tiling tiling)
 {
 	switch (tiling) {
-	case I915_TILING_NONE: return "linear";
-	case I915_TILING_X: return "X";
-	case I915_TILING_Y: return "Y";
+	case CLIENT_TILING_LINEAR: return "linear";
+	case CLIENT_TILING_X: return "X";
+	case CLIENT_TILING_Y: return "Y";
 	default: return "unknown";
 	}
 }
@@ -311,7 +320,7 @@ static int pin_buffer(struct i915_vma *vma, u64 addr)
 	int err;
 
 	if (drm_mm_node_allocated(&vma->node) && vma->node.start != addr) {
-		err = i915_vma_unbind(vma);
+		err = i915_vma_unbind_unlocked(vma);
 		if (err)
 			return err;
 	}
@@ -403,14 +412,19 @@ tiled_blits_create(struct intel_engine_cs *engine, struct rnd_state *prng)
 		goto err_free;
 	}
 
-	hole_size = 2 * PAGE_ALIGN(WIDTH * HEIGHT * 4);
+	t->align = i915_vm_min_alignment(t->ce->vm, INTEL_MEMORY_LOCAL);
+	t->align = max(t->align,
+		       i915_vm_min_alignment(t->ce->vm, INTEL_MEMORY_SYSTEM));
+
+	hole_size = 2 * round_up(WIDTH * HEIGHT * 4, t->align);
 	hole_size *= 2; /* room to maneuver */
-	hole_size += 2 * I915_GTT_MIN_ALIGNMENT;
+	hole_size += 2 * t->align; /* padding on either side */
 
 	mutex_lock(&t->ce->vm->mutex);
 	memset(&hole, 0, sizeof(hole));
 	err = drm_mm_insert_node_in_range(&t->ce->vm->mm, &hole,
-					  hole_size, 0, I915_COLOR_UNEVICTABLE,
+					  hole_size, t->align,
+					  I915_COLOR_UNEVICTABLE,
 					  0, U64_MAX,
 					  DRM_MM_INSERT_BEST);
 	if (!err)
@@ -421,7 +435,7 @@ tiled_blits_create(struct intel_engine_cs *engine, struct rnd_state *prng)
 		goto err_put;
 	}
 
-	t->hole = hole.start + I915_GTT_MIN_ALIGNMENT;
+	t->hole = hole.start + t->align;
 	pr_info("Using hole at %llx\n", t->hole);
 
 	err = tiled_blits_create_buffers(t, WIDTH, HEIGHT, prng);
@@ -448,7 +462,7 @@ static void tiled_blits_destroy(struct tiled_blits *t)
 static int tiled_blits_prepare(struct tiled_blits *t,
 			       struct rnd_state *prng)
 {
-	u64 offset = PAGE_ALIGN(t->width * t->height * 4);
+	u64 offset = round_up(t->width * t->height * 4, t->align);
 	u32 *map;
 	int err;
 	int i;
@@ -479,8 +493,7 @@ static int tiled_blits_prepare(struct tiled_blits *t,
 
 static int tiled_blits_bounce(struct tiled_blits *t, struct rnd_state *prng)
 {
-	u64 offset =
-		round_up(t->width * t->height * 4, 2 * I915_GTT_MIN_ALIGNMENT);
+	u64 offset = round_up(t->width * t->height * 4, 2 * t->align);
 	int err;
 
 	/* We want to check position invariant tiling across GTT eviction */
@@ -493,7 +506,7 @@ static int tiled_blits_bounce(struct tiled_blits *t, struct rnd_state *prng)
 
 	/* Reposition so that we overlap the old addresses, and slightly off */
 	err = tiled_blit(t,
-			 &t->buffers[2], t->hole + I915_GTT_MIN_ALIGNMENT,
+			 &t->buffers[2], t->hole + t->align,
 			 &t->buffers[1], t->hole + 3 * offset / 2);
 	if (err)
 		return err;
@@ -536,7 +549,7 @@ static bool has_bit17_swizzle(int sw)
 
 static bool bad_swizzling(struct drm_i915_private *i915)
 {
-	struct i915_ggtt *ggtt = &i915->ggtt;
+	struct i915_ggtt *ggtt = to_gt(i915)->ggtt;
 
 	if (i915->quirks & QUIRK_PIN_SWIZZLED_PAGES)
 		return true;
@@ -585,7 +598,7 @@ int i915_gem_client_blt_live_selftests(struct drm_i915_private *i915)
 		SUBTEST(igt_client_tiled_blits),
 	};
 
-	if (intel_gt_is_wedged(&i915->gt))
+	if (intel_gt_is_wedged(to_gt(i915)))
 		return 0;
 
 	return i915_live_subtests(tests, i915);

@@ -202,7 +202,7 @@ static int check_extent_data_item(struct extent_buffer *leaf,
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_file_extent_item *fi;
 	u32 sectorsize = fs_info->sectorsize;
-	u32 item_size = btrfs_item_size_nr(leaf, slot);
+	u32 item_size = btrfs_item_size(leaf, slot);
 	u64 extent_end;
 
 	if (unlikely(!IS_ALIGNED(key->offset, sectorsize))) {
@@ -354,17 +354,17 @@ static int check_csum_item(struct extent_buffer *leaf, struct btrfs_key *key,
 			key->offset, sectorsize);
 		return -EUCLEAN;
 	}
-	if (unlikely(!IS_ALIGNED(btrfs_item_size_nr(leaf, slot), csumsize))) {
+	if (unlikely(!IS_ALIGNED(btrfs_item_size(leaf, slot), csumsize))) {
 		generic_err(leaf, slot,
 	"unaligned item size for csum item, have %u should be aligned to %u",
-			btrfs_item_size_nr(leaf, slot), csumsize);
+			btrfs_item_size(leaf, slot), csumsize);
 		return -EUCLEAN;
 	}
 	if (slot > 0 && prev_key->type == BTRFS_EXTENT_CSUM_KEY) {
 		u64 prev_csum_end;
 		u32 prev_item_size;
 
-		prev_item_size = btrfs_item_size_nr(leaf, slot - 1);
+		prev_item_size = btrfs_item_size(leaf, slot - 1);
 		prev_csum_end = (prev_item_size / csumsize) * sectorsize;
 		prev_csum_end += prev_key->offset;
 		if (unlikely(prev_csum_end > key->offset)) {
@@ -483,7 +483,7 @@ static int check_dir_item(struct extent_buffer *leaf,
 {
 	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_dir_item *di;
-	u32 item_size = btrfs_item_size_nr(leaf, slot);
+	u32 item_size = btrfs_item_size(leaf, slot);
 	u32 cur = 0;
 
 	if (unlikely(!check_prev_ino(leaf, key, slot, prev_key)))
@@ -639,8 +639,10 @@ static void block_group_err(const struct extent_buffer *eb, int slot,
 static int check_block_group_item(struct extent_buffer *leaf,
 				  struct btrfs_key *key, int slot)
 {
+	struct btrfs_fs_info *fs_info = leaf->fs_info;
 	struct btrfs_block_group_item bgi;
-	u32 item_size = btrfs_item_size_nr(leaf, slot);
+	u32 item_size = btrfs_item_size(leaf, slot);
+	u64 chunk_objectid;
 	u64 flags;
 	u64 type;
 
@@ -663,8 +665,23 @@ static int check_block_group_item(struct extent_buffer *leaf,
 
 	read_extent_buffer(leaf, &bgi, btrfs_item_ptr_offset(leaf, slot),
 			   sizeof(bgi));
-	if (unlikely(btrfs_stack_block_group_chunk_objectid(&bgi) !=
-		     BTRFS_FIRST_CHUNK_TREE_OBJECTID)) {
+	chunk_objectid = btrfs_stack_block_group_chunk_objectid(&bgi);
+	if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2)) {
+		/*
+		 * We don't init the nr_global_roots until we load the global
+		 * roots, so this could be 0 at mount time.  If it's 0 we'll
+		 * just assume we're fine, and later we'll check against our
+		 * actual value.
+		 */
+		if (unlikely(fs_info->nr_global_roots &&
+			     chunk_objectid >= fs_info->nr_global_roots)) {
+			block_group_err(leaf, slot,
+	"invalid block group global root id, have %llu, needs to be <= %llu",
+					chunk_objectid,
+					fs_info->nr_global_roots);
+			return -EUCLEAN;
+		}
+	} else if (unlikely(chunk_objectid != BTRFS_FIRST_CHUNK_TREE_OBJECTID)) {
 		block_group_err(leaf, slot,
 		"invalid block group chunk objectid, have %llu expect %llu",
 				btrfs_stack_block_group_chunk_objectid(&bgi),
@@ -912,10 +929,10 @@ static int check_leaf_chunk_item(struct extent_buffer *leaf,
 {
 	int num_stripes;
 
-	if (unlikely(btrfs_item_size_nr(leaf, slot) < sizeof(struct btrfs_chunk))) {
+	if (unlikely(btrfs_item_size(leaf, slot) < sizeof(struct btrfs_chunk))) {
 		chunk_err(leaf, chunk, key->offset,
 			"invalid chunk item size: have %u expect [%zu, %u)",
-			btrfs_item_size_nr(leaf, slot),
+			btrfs_item_size(leaf, slot),
 			sizeof(struct btrfs_chunk),
 			BTRFS_LEAF_DATA_SIZE(leaf->fs_info));
 		return -EUCLEAN;
@@ -927,10 +944,10 @@ static int check_leaf_chunk_item(struct extent_buffer *leaf,
 		goto out;
 
 	if (unlikely(btrfs_chunk_item_size(num_stripes) !=
-		     btrfs_item_size_nr(leaf, slot))) {
+		     btrfs_item_size(leaf, slot))) {
 		chunk_err(leaf, chunk, key->offset,
 			"invalid chunk item size: have %u expect %lu",
-			btrfs_item_size_nr(leaf, slot),
+			btrfs_item_size(leaf, slot),
 			btrfs_chunk_item_size(num_stripes));
 		return -EUCLEAN;
 	}
@@ -965,6 +982,7 @@ static int check_dev_item(struct extent_buffer *leaf,
 			  struct btrfs_key *key, int slot)
 {
 	struct btrfs_dev_item *ditem;
+	const u32 item_size = btrfs_item_size(leaf, slot);
 
 	if (unlikely(key->objectid != BTRFS_DEV_ITEMS_OBJECTID)) {
 		dev_item_err(leaf, slot,
@@ -972,6 +990,13 @@ static int check_dev_item(struct extent_buffer *leaf,
 			     key->objectid, BTRFS_DEV_ITEMS_OBJECTID);
 		return -EUCLEAN;
 	}
+
+	if (unlikely(item_size != sizeof(*ditem))) {
+		dev_item_err(leaf, slot, "invalid item size: has %u expect %zu",
+			     item_size, sizeof(*ditem));
+		return -EUCLEAN;
+	}
+
 	ditem = btrfs_item_ptr(leaf, slot, struct btrfs_dev_item);
 	if (unlikely(btrfs_device_id(leaf, ditem) != key->offset)) {
 		dev_item_err(leaf, slot,
@@ -1007,6 +1032,7 @@ static int check_inode_item(struct extent_buffer *leaf,
 	struct btrfs_inode_item *iitem;
 	u64 super_gen = btrfs_super_generation(fs_info->super_copy);
 	u32 valid_mask = (S_IFMT | S_ISUID | S_ISGID | S_ISVTX | 0777);
+	const u32 item_size = btrfs_item_size(leaf, slot);
 	u32 mode;
 	int ret;
 	u32 flags;
@@ -1015,6 +1041,12 @@ static int check_inode_item(struct extent_buffer *leaf,
 	ret = check_inode_key(leaf, key, slot);
 	if (unlikely(ret < 0))
 		return ret;
+
+	if (unlikely(item_size != sizeof(*iitem))) {
+		generic_err(leaf, slot, "invalid item size: has %u expect %zu",
+			    item_size, sizeof(*iitem));
+		return -EUCLEAN;
+	}
 
 	iitem = btrfs_item_ptr(leaf, slot, struct btrfs_inode_item);
 
@@ -1095,12 +1127,12 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	if (unlikely(ret < 0))
 		return ret;
 
-	if (unlikely(btrfs_item_size_nr(leaf, slot) != sizeof(ri) &&
-		     btrfs_item_size_nr(leaf, slot) !=
+	if (unlikely(btrfs_item_size(leaf, slot) != sizeof(ri) &&
+		     btrfs_item_size(leaf, slot) !=
 		     btrfs_legacy_root_item_size())) {
 		generic_err(leaf, slot,
 			    "invalid root item size, have %u expect %zu or %u",
-			    btrfs_item_size_nr(leaf, slot), sizeof(ri),
+			    btrfs_item_size(leaf, slot), sizeof(ri),
 			    btrfs_legacy_root_item_size());
 		return -EUCLEAN;
 	}
@@ -1111,7 +1143,7 @@ static int check_root_item(struct extent_buffer *leaf, struct btrfs_key *key,
 	 * And since we allow geneartion_v2 as 0, it will still pass the check.
 	 */
 	read_extent_buffer(leaf, &ri, btrfs_item_ptr_offset(leaf, slot),
-			   btrfs_item_size_nr(leaf, slot));
+			   btrfs_item_size(leaf, slot));
 
 	/* Generation related */
 	if (unlikely(btrfs_root_generation(&ri) >
@@ -1208,7 +1240,7 @@ static int check_extent_item(struct extent_buffer *leaf,
 	bool is_tree_block = false;
 	unsigned long ptr;	/* Current pointer inside inline refs */
 	unsigned long end;	/* Extent item end */
-	const u32 item_size = btrfs_item_size_nr(leaf, slot);
+	const u32 item_size = btrfs_item_size(leaf, slot);
 	u64 flags;
 	u64 generation;
 	u64 total_refs;		/* Total refs in btrfs_extent_item */
@@ -1432,10 +1464,10 @@ static int check_simple_keyed_refs(struct extent_buffer *leaf,
 	if (key->type == BTRFS_SHARED_DATA_REF_KEY)
 		expect_item_size = sizeof(struct btrfs_shared_data_ref);
 
-	if (unlikely(btrfs_item_size_nr(leaf, slot) != expect_item_size)) {
+	if (unlikely(btrfs_item_size(leaf, slot) != expect_item_size)) {
 		generic_err(leaf, slot,
 		"invalid item size, have %u expect %u for key type %u",
-			    btrfs_item_size_nr(leaf, slot),
+			    btrfs_item_size(leaf, slot),
 			    expect_item_size, key->type);
 		return -EUCLEAN;
 	}
@@ -1460,12 +1492,12 @@ static int check_extent_data_ref(struct extent_buffer *leaf,
 {
 	struct btrfs_extent_data_ref *dref;
 	unsigned long ptr = btrfs_item_ptr_offset(leaf, slot);
-	const unsigned long end = ptr + btrfs_item_size_nr(leaf, slot);
+	const unsigned long end = ptr + btrfs_item_size(leaf, slot);
 
-	if (unlikely(btrfs_item_size_nr(leaf, slot) % sizeof(*dref) != 0)) {
+	if (unlikely(btrfs_item_size(leaf, slot) % sizeof(*dref) != 0)) {
 		generic_err(leaf, slot,
 	"invalid item size, have %u expect aligned to %zu for key type %u",
-			    btrfs_item_size_nr(leaf, slot),
+			    btrfs_item_size(leaf, slot),
 			    sizeof(*dref), key->type);
 		return -EUCLEAN;
 	}
@@ -1507,16 +1539,16 @@ static int check_inode_ref(struct extent_buffer *leaf,
 	if (unlikely(!check_prev_ino(leaf, key, slot, prev_key)))
 		return -EUCLEAN;
 	/* namelen can't be 0, so item_size == sizeof() is also invalid */
-	if (unlikely(btrfs_item_size_nr(leaf, slot) <= sizeof(*iref))) {
+	if (unlikely(btrfs_item_size(leaf, slot) <= sizeof(*iref))) {
 		inode_ref_err(leaf, slot,
 			"invalid item size, have %u expect (%zu, %u)",
-			btrfs_item_size_nr(leaf, slot),
+			btrfs_item_size(leaf, slot),
 			sizeof(*iref), BTRFS_LEAF_DATA_SIZE(leaf->fs_info));
 		return -EUCLEAN;
 	}
 
 	ptr = btrfs_item_ptr_offset(leaf, slot);
-	end = ptr + btrfs_item_size_nr(leaf, slot);
+	end = ptr + btrfs_item_size(leaf, slot);
 	while (ptr < end) {
 		u16 namelen;
 
@@ -1633,7 +1665,6 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		/* These trees must never be empty */
 		if (unlikely(owner == BTRFS_ROOT_TREE_OBJECTID ||
 			     owner == BTRFS_CHUNK_TREE_OBJECTID ||
-			     owner == BTRFS_EXTENT_TREE_OBJECTID ||
 			     owner == BTRFS_DEV_TREE_OBJECTID ||
 			     owner == BTRFS_FS_TREE_OBJECTID ||
 			     owner == BTRFS_DATA_RELOC_TREE_OBJECTID)) {
@@ -1642,12 +1673,25 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 				    owner);
 			return -EUCLEAN;
 		}
+
 		/* Unknown tree */
 		if (unlikely(owner == 0)) {
 			generic_err(leaf, 0,
 				"invalid owner, root 0 is not defined");
 			return -EUCLEAN;
 		}
+
+		/* EXTENT_TREE_V2 can have empty extent trees. */
+		if (btrfs_fs_incompat(fs_info, EXTENT_TREE_V2))
+			return 0;
+
+		if (unlikely(owner == BTRFS_EXTENT_TREE_OBJECTID)) {
+			generic_err(leaf, 0,
+			"invalid root, root %llu must never be empty",
+				    owner);
+			return -EUCLEAN;
+		}
+
 		return 0;
 	}
 
@@ -1667,6 +1711,7 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 	 */
 	for (slot = 0; slot < nritems; slot++) {
 		u32 item_end_expected;
+		u64 item_data_end;
 		int ret;
 
 		btrfs_item_key_to_cpu(leaf, &key, slot);
@@ -1681,6 +1726,8 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 			return -EUCLEAN;
 		}
 
+		item_data_end = (u64)btrfs_item_offset(leaf, slot) +
+				btrfs_item_size(leaf, slot);
 		/*
 		 * Make sure the offset and ends are right, remember that the
 		 * item data starts at the end of the leaf and grows towards the
@@ -1689,13 +1736,12 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		if (slot == 0)
 			item_end_expected = BTRFS_LEAF_DATA_SIZE(fs_info);
 		else
-			item_end_expected = btrfs_item_offset_nr(leaf,
+			item_end_expected = btrfs_item_offset(leaf,
 								 slot - 1);
-		if (unlikely(btrfs_item_end_nr(leaf, slot) != item_end_expected)) {
+		if (unlikely(item_data_end != item_end_expected)) {
 			generic_err(leaf, slot,
-				"unexpected item end, have %u expect %u",
-				btrfs_item_end_nr(leaf, slot),
-				item_end_expected);
+				"unexpected item end, have %llu expect %u",
+				item_data_end, item_end_expected);
 			return -EUCLEAN;
 		}
 
@@ -1704,12 +1750,10 @@ static int check_leaf(struct extent_buffer *leaf, bool check_item_data)
 		 * just in case all the items are consistent to each other, but
 		 * all point outside of the leaf.
 		 */
-		if (unlikely(btrfs_item_end_nr(leaf, slot) >
-			     BTRFS_LEAF_DATA_SIZE(fs_info))) {
+		if (unlikely(item_data_end > BTRFS_LEAF_DATA_SIZE(fs_info))) {
 			generic_err(leaf, slot,
-			"slot end outside of leaf, have %u expect range [0, %u]",
-				btrfs_item_end_nr(leaf, slot),
-				BTRFS_LEAF_DATA_SIZE(fs_info));
+			"slot end outside of leaf, have %llu expect range [0, %u]",
+				item_data_end, BTRFS_LEAF_DATA_SIZE(fs_info));
 			return -EUCLEAN;
 		}
 

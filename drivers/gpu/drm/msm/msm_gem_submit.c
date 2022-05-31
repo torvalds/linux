@@ -52,8 +52,6 @@ static struct msm_gem_submit *submit_create(struct drm_device *dev,
 		return ERR_PTR(ret);
 	}
 
-	xa_init_flags(&submit->deps, XA_FLAGS_ALLOC);
-
 	kref_init(&submit->ref);
 	submit->dev = dev;
 	submit->aspace = queue->ctx->aspace;
@@ -72,8 +70,6 @@ void __msm_gem_submit_destroy(struct kref *kref)
 {
 	struct msm_gem_submit *submit =
 			container_of(kref, struct msm_gem_submit, ref);
-	unsigned long index;
-	struct dma_fence *fence;
 	unsigned i;
 
 	if (submit->fence_id) {
@@ -81,12 +77,6 @@ void __msm_gem_submit_destroy(struct kref *kref)
 		idr_remove(&submit->queue->fence_idr, submit->fence_id);
 		mutex_unlock(&submit->queue->lock);
 	}
-
-	xa_for_each (&submit->deps, index, fence) {
-		dma_fence_put(fence);
-	}
-
-	xa_destroy(&submit->deps);
 
 	dma_fence_put(submit->user_fence);
 	dma_fence_put(submit->hw_fence);
@@ -341,11 +331,13 @@ static int submit_fence_sync(struct msm_gem_submit *submit, bool no_implicit)
 				return ret;
 		}
 
-		if (no_implicit)
+		/* exclusive fences must be ordered */
+		if (no_implicit && !write)
 			continue;
 
-		ret = drm_gem_fence_array_add_implicit(&submit->deps, obj,
-			write);
+		ret = drm_sched_job_add_implicit_dependencies(&submit->base,
+							      obj,
+							      write);
 		if (ret)
 			break;
 	}
@@ -589,7 +581,7 @@ static struct drm_syncobj **msm_parse_deps(struct msm_gem_submit *submit,
 		if (ret)
 			break;
 
-		ret = drm_gem_fence_array_add(&submit->deps, fence);
+		ret = drm_sched_job_add_dependency(&submit->base, fence);
 		if (ret)
 			break;
 
@@ -780,6 +772,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 		args->nr_cmds);
 	if (IS_ERR(submit)) {
 		ret = PTR_ERR(submit);
+		submit = NULL;
 		goto out_unlock;
 	}
 
@@ -799,7 +792,7 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 			goto out_unlock;
 		}
 
-		ret = drm_gem_fence_array_add(&submit->deps, in_fence);
+		ret = drm_sched_job_add_dependency(&submit->base, in_fence);
 		if (ret)
 			goto out_unlock;
 	}
@@ -879,28 +872,59 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 
 	submit->nr_cmds = i;
 
-	submit->user_fence = dma_fence_get(&submit->base.s_fence->finished);
-
 	/*
-	 * Allocate an id which can be used by WAIT_FENCE ioctl to map back
-	 * to the underlying fence.
+	 * If using userspace provided seqno fence, validate that the id
+	 * is available before arming sched job.  Since access to fence_idr
+	 * is serialized on the queue lock, the slot should be still avail
+	 * after the job is armed
 	 */
-	submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
-			submit->user_fence, 0, INT_MAX, GFP_KERNEL);
-	if (submit->fence_id < 0) {
-		ret = submit->fence_id = 0;
-		submit->fence_id = 0;
+	if ((args->flags & MSM_SUBMIT_FENCE_SN_IN) &&
+			idr_find(&queue->fence_idr, args->fence)) {
+		ret = -EINVAL;
 		goto out;
 	}
 
-	if (args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
+	drm_sched_job_arm(&submit->base);
+
+	submit->user_fence = dma_fence_get(&submit->base.s_fence->finished);
+
+	if (args->flags & MSM_SUBMIT_FENCE_SN_IN) {
+		/*
+		 * Userspace has assigned the seqno fence that it wants
+		 * us to use.  It is an error to pick a fence sequence
+		 * number that is not available.
+		 */
+		submit->fence_id = args->fence;
+		ret = idr_alloc_u32(&queue->fence_idr, submit->user_fence,
+				    &submit->fence_id, submit->fence_id,
+				    GFP_KERNEL);
+		/*
+		 * We've already validated that the fence_id slot is valid,
+		 * so if idr_alloc_u32 failed, it is a kernel bug
+		 */
+		WARN_ON(ret);
+	} else {
+		/*
+		 * Allocate an id which can be used by WAIT_FENCE ioctl to map
+		 * back to the underlying fence.
+		 */
+		submit->fence_id = idr_alloc_cyclic(&queue->fence_idr,
+						    submit->user_fence, 1,
+						    INT_MAX, GFP_KERNEL);
+	}
+	if (submit->fence_id < 0) {
+		ret = submit->fence_id = 0;
+		submit->fence_id = 0;
+	}
+
+	if (ret == 0 && args->flags & MSM_SUBMIT_FENCE_FD_OUT) {
 		struct sync_file *sync_file = sync_file_create(submit->user_fence);
 		if (!sync_file) {
 			ret = -ENOMEM;
-			goto out;
+		} else {
+			fd_install(out_fence_fd, sync_file->file);
+			args->fence_fd = out_fence_fd;
 		}
-		fd_install(out_fence_fd, sync_file->file);
-		args->fence_fd = out_fence_fd;
 	}
 
 	submit_attach_object_fences(submit);
@@ -908,9 +932,10 @@ int msm_ioctl_gem_submit(struct drm_device *dev, void *data,
 	/* The scheduler owns a ref now: */
 	msm_gem_submit_get(submit);
 
-	drm_sched_entity_push_job(&submit->base, queue->entity);
+	drm_sched_entity_push_job(&submit->base);
 
 	args->fence = submit->fence_id;
+	queue->last_fence = submit->fence_id;
 
 	msm_reset_syncobjs(syncobjs_to_reset, args->nr_in_syncobjs);
 	msm_process_post_deps(post_deps, args->nr_out_syncobjs,

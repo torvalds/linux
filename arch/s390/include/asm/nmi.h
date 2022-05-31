@@ -6,7 +6,6 @@
  *    Author(s): Ingo Adlung <adlung@de.ibm.com>,
  *		 Martin Schwidefsky <schwidefsky@de.ibm.com>,
  *		 Cornelia Huck <cornelia.huck@de.ibm.com>,
- *		 Heiko Carstens <heiko.carstens@de.ibm.com>,
  */
 
 #ifndef _ASM_S390_NMI_H
@@ -98,9 +97,9 @@ struct mcesa {
 
 struct pt_regs;
 
-void nmi_alloc_boot_cpu(struct lowcore *lc);
-int nmi_alloc_per_cpu(struct lowcore *lc);
-void nmi_free_per_cpu(struct lowcore *lc);
+void nmi_alloc_mcesa_early(u64 *mcesad);
+int nmi_alloc_mcesa(u64 *mcesad);
+void nmi_free_mcesa(u64 *mcesad);
 
 void s390_handle_mcck(void);
 void __s390_handle_mcck(void);

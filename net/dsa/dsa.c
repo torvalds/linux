@@ -280,23 +280,22 @@ static int dsa_switch_rcv(struct sk_buff *skb, struct net_device *dev,
 }
 
 #ifdef CONFIG_PM_SLEEP
-static bool dsa_is_port_initialized(struct dsa_switch *ds, int p)
+static bool dsa_port_is_initialized(const struct dsa_port *dp)
 {
-	const struct dsa_port *dp = dsa_to_port(ds, p);
-
 	return dp->type == DSA_PORT_TYPE_USER && dp->slave;
 }
 
 int dsa_switch_suspend(struct dsa_switch *ds)
 {
-	int i, ret = 0;
+	struct dsa_port *dp;
+	int ret = 0;
 
 	/* Suspend slave network devices */
-	for (i = 0; i < ds->num_ports; i++) {
-		if (!dsa_is_port_initialized(ds, i))
+	dsa_switch_for_each_port(dp, ds) {
+		if (!dsa_port_is_initialized(dp))
 			continue;
 
-		ret = dsa_slave_suspend(dsa_to_port(ds, i)->slave);
+		ret = dsa_slave_suspend(dp->slave);
 		if (ret)
 			return ret;
 	}
@@ -310,7 +309,8 @@ EXPORT_SYMBOL_GPL(dsa_switch_suspend);
 
 int dsa_switch_resume(struct dsa_switch *ds)
 {
-	int i, ret = 0;
+	struct dsa_port *dp;
+	int ret = 0;
 
 	if (ds->ops->resume)
 		ret = ds->ops->resume(ds);
@@ -319,11 +319,11 @@ int dsa_switch_resume(struct dsa_switch *ds)
 		return ret;
 
 	/* Resume slave network devices */
-	for (i = 0; i < ds->num_ports; i++) {
-		if (!dsa_is_port_initialized(ds, i))
+	dsa_switch_for_each_port(dp, ds) {
+		if (!dsa_port_is_initialized(dp))
 			continue;
 
-		ret = dsa_slave_resume(dsa_to_port(ds, i)->slave);
+		ret = dsa_slave_resume(dp->slave);
 		if (ret)
 			return ret;
 	}
@@ -349,6 +349,7 @@ void dsa_flush_workqueue(void)
 {
 	flush_workqueue(dsa_owq);
 }
+EXPORT_SYMBOL_GPL(dsa_flush_workqueue);
 
 int dsa_devlink_param_get(struct devlink *dl, u32 id,
 			  struct devlink_param_gset_ctx *ctx)
@@ -406,7 +407,7 @@ EXPORT_SYMBOL_GPL(dsa_devlink_resource_register);
 
 void dsa_devlink_resources_unregister(struct dsa_switch *ds)
 {
-	devlink_resources_unregister(ds->devlink, NULL);
+	devlink_resources_unregister(ds->devlink);
 }
 EXPORT_SYMBOL_GPL(dsa_devlink_resources_unregister);
 
@@ -465,6 +466,106 @@ struct dsa_port *dsa_port_from_netdev(struct net_device *netdev)
 	return dsa_slave_to_port(netdev);
 }
 EXPORT_SYMBOL_GPL(dsa_port_from_netdev);
+
+int dsa_port_walk_fdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_mac_addr *a;
+	int err = 0;
+
+	mutex_lock(&dp->addr_lists_lock);
+
+	list_for_each_entry(a, &dp->fdbs, list) {
+		err = cb(ds, port, a->addr, a->vid, a->db);
+		if (err)
+			break;
+	}
+
+	mutex_unlock(&dp->addr_lists_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(dsa_port_walk_fdbs);
+
+int dsa_port_walk_mdbs(struct dsa_switch *ds, int port, dsa_fdb_walk_cb_t cb)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_mac_addr *a;
+	int err = 0;
+
+	mutex_lock(&dp->addr_lists_lock);
+
+	list_for_each_entry(a, &dp->mdbs, list) {
+		err = cb(ds, port, a->addr, a->vid, a->db);
+		if (err)
+			break;
+	}
+
+	mutex_unlock(&dp->addr_lists_lock);
+
+	return err;
+}
+EXPORT_SYMBOL_GPL(dsa_port_walk_mdbs);
+
+bool dsa_db_equal(const struct dsa_db *a, const struct dsa_db *b)
+{
+	if (a->type != b->type)
+		return false;
+
+	switch (a->type) {
+	case DSA_DB_PORT:
+		return a->dp == b->dp;
+	case DSA_DB_LAG:
+		return a->lag.dev == b->lag.dev;
+	case DSA_DB_BRIDGE:
+		return a->bridge.num == b->bridge.num;
+	default:
+		WARN_ON(1);
+		return false;
+	}
+}
+
+bool dsa_fdb_present_in_other_db(struct dsa_switch *ds, int port,
+				 const unsigned char *addr, u16 vid,
+				 struct dsa_db db)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_mac_addr *a;
+
+	lockdep_assert_held(&dp->addr_lists_lock);
+
+	list_for_each_entry(a, &dp->fdbs, list) {
+		if (!ether_addr_equal(a->addr, addr) || a->vid != vid)
+			continue;
+
+		if (a->db.type == db.type && !dsa_db_equal(&a->db, &db))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(dsa_fdb_present_in_other_db);
+
+bool dsa_mdb_present_in_other_db(struct dsa_switch *ds, int port,
+				 const struct switchdev_obj_port_mdb *mdb,
+				 struct dsa_db db)
+{
+	struct dsa_port *dp = dsa_to_port(ds, port);
+	struct dsa_mac_addr *a;
+
+	lockdep_assert_held(&dp->addr_lists_lock);
+
+	list_for_each_entry(a, &dp->mdbs, list) {
+		if (!ether_addr_equal(a->addr, mdb->addr) || a->vid != mdb->vid)
+			continue;
+
+		if (a->db.type == db.type && !dsa_db_equal(&a->db, &db))
+			return true;
+	}
+
+	return false;
+}
+EXPORT_SYMBOL_GPL(dsa_mdb_present_in_other_db);
 
 static int __init dsa_init_module(void)
 {

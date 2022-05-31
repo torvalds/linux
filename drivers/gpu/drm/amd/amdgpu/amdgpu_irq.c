@@ -199,13 +199,13 @@ static irqreturn_t amdgpu_irq_handler(int irq, void *arg)
 	 * ack the interrupt if it is there
 	 */
 	if (amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF)) {
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->handle_ras_controller_intr_no_bifring)
-			adev->nbio.ras_funcs->handle_ras_controller_intr_no_bifring(adev);
+		if (adev->nbio.ras &&
+		    adev->nbio.ras->handle_ras_controller_intr_no_bifring)
+			adev->nbio.ras->handle_ras_controller_intr_no_bifring(adev);
 
-		if (adev->nbio.ras_funcs &&
-		    adev->nbio.ras_funcs->handle_ras_err_event_athub_intr_no_bifring)
-			adev->nbio.ras_funcs->handle_ras_err_event_athub_intr_no_bifring(adev);
+		if (adev->nbio.ras &&
+		    adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring)
+			adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring(adev);
 	}
 
 	return ret;
@@ -333,7 +333,6 @@ int amdgpu_irq_init(struct amdgpu_device *adev)
 	if (!amdgpu_device_has_dc_support(adev)) {
 		if (!adev->enable_virtual_display)
 			/* Disable vblank IRQs aggressively for power-saving */
-			/* XXX: can this be enabled for DC? */
 			adev_to_drm(adev)->vblank_disable_immediate = true;
 
 		r = drm_vblank_init(adev_to_drm(adev), adev->mode_info.num_crtc);
@@ -391,7 +390,7 @@ void amdgpu_irq_fini_hw(struct amdgpu_device *adev)
 }
 
 /**
- * amdgpu_irq_fini - shut down interrupt handling
+ * amdgpu_irq_fini_sw - shut down interrupt handling
  *
  * @adev: amdgpu device pointer
  *
@@ -529,6 +528,9 @@ void amdgpu_irq_dispatch(struct amdgpu_device *adev,
 	/* Send it to amdkfd as well if it isn't already handled */
 	if (!handled)
 		amdgpu_amdkfd_interrupt(adev, entry.iv_entry);
+
+	if (amdgpu_ih_ts_after(ih->processed_timestamp, entry.timestamp))
+		ih->processed_timestamp = entry.timestamp;
 }
 
 /**

@@ -16,7 +16,6 @@
 #include <linux/interrupt.h>
 #include <linux/fs.h>
 #include <linux/console.h>
-#include <linux/genhd.h>
 #include <linux/errno.h>
 #include <linux/string.h>
 #include <linux/init.h>
@@ -47,6 +46,7 @@
 #endif
 #include <asm/macintosh.h>
 #include <asm/natfeat.h>
+#include <asm/config.h>
 
 #if !FPSTATESIZE || !NR_IRQS
 #warning No CPU/platform type selected, your kernel will not work!
@@ -112,28 +112,6 @@ int isa_sex;
 EXPORT_SYMBOL(isa_type);
 EXPORT_SYMBOL(isa_sex);
 #endif
-
-extern int amiga_parse_bootinfo(const struct bi_record *);
-extern int atari_parse_bootinfo(const struct bi_record *);
-extern int mac_parse_bootinfo(const struct bi_record *);
-extern int q40_parse_bootinfo(const struct bi_record *);
-extern int bvme6000_parse_bootinfo(const struct bi_record *);
-extern int mvme16x_parse_bootinfo(const struct bi_record *);
-extern int mvme147_parse_bootinfo(const struct bi_record *);
-extern int hp300_parse_bootinfo(const struct bi_record *);
-extern int apollo_parse_bootinfo(const struct bi_record *);
-
-extern void config_amiga(void);
-extern void config_atari(void);
-extern void config_mac(void);
-extern void config_sun3(void);
-extern void config_apollo(void);
-extern void config_mvme147(void);
-extern void config_mvme16x(void);
-extern void config_bvme6000(void);
-extern void config_hp300(void);
-extern void config_q40(void);
-extern void config_sun3x(void);
 
 #define MASK_256K 0xfffc0000
 
@@ -338,13 +316,6 @@ void __init setup_arch(char **cmdline_p)
 		panic("No configuration setup");
 	}
 
-	paging_init();
-
-#ifdef CONFIG_NATFEAT
-	nf_init();
-#endif
-
-#ifndef CONFIG_SUN3
 #ifdef CONFIG_BLK_DEV_INITRD
 	if (m68k_ramdisk.size) {
 		memblock_reserve(m68k_ramdisk.addr, m68k_ramdisk.size);
@@ -352,6 +323,12 @@ void __init setup_arch(char **cmdline_p)
 		initrd_end = initrd_start + m68k_ramdisk.size;
 		pr_info("initrd: %08lx - %08lx\n", initrd_start, initrd_end);
 	}
+#endif
+
+	paging_init();
+
+#ifdef CONFIG_NATFEAT
+	nf_init();
 #endif
 
 #ifdef CONFIG_ATARI
@@ -363,8 +340,6 @@ void __init setup_arch(char **cmdline_p)
 		dvma_init();
 	}
 #endif
-
-#endif /* !CONFIG_SUN3 */
 
 /* set ISA defs early as possible */
 #if defined(CONFIG_ISA) && defined(MULTI_ISA)

@@ -14,6 +14,7 @@ description: |
   in the SM8350 platform.
 
 allOf:
+  - $ref: "pinctrl.yaml#"
   - $ref: /schemas/pinctrl/qcom,tlmm-common.yaml#
 
 properties:

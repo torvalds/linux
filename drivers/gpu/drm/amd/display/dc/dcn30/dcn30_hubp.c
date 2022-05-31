@@ -356,12 +356,6 @@ void hubp3_dcc_control_sienna_cichlid(struct hubp *hubp,
 {
 	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
 
-	/*Workaround until UMD fix the new dcc_ind_blk interface */
-	if (dcc->independent_64b_blks && dcc->dcc_ind_blk == 0)
-		dcc->dcc_ind_blk = 1;
-	if (dcc->independent_64b_blks_c && dcc->dcc_ind_blk_c == 0)
-		dcc->dcc_ind_blk_c = 1;
-
 	REG_UPDATE_6(DCSURF_SURFACE_CONTROL,
 		PRIMARY_SURFACE_DCC_EN, dcc->enable,
 		PRIMARY_SURFACE_DCC_IND_BLK, dcc->dcc_ind_blk,
@@ -496,6 +490,7 @@ static struct hubp_funcs dcn30_hubp_funcs = {
 	.hubp_setup_interdependent = hubp2_setup_interdependent,
 	.hubp_set_vm_system_aperture_settings = hubp3_set_vm_system_aperture_settings,
 	.set_blank = hubp2_set_blank,
+	.set_blank_regs = hubp2_set_blank_regs,
 	.dcc_control = hubp3_dcc_control,
 	.mem_program_viewport = min_set_viewport,
 	.set_cursor_attributes	= hubp2_cursor_set_attributes,

@@ -48,11 +48,12 @@ SYM_FUNC_START(__put_user_1)
 	cmp %_ASM_BX,%_ASM_CX
 	jae .Lbad_put_user
 SYM_INNER_LABEL(__put_user_nocheck_1, SYM_L_GLOBAL)
+	ENDBR
 	ASM_STAC
 1:	movb %al,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__put_user_1)
 EXPORT_SYMBOL(__put_user_1)
 EXPORT_SYMBOL(__put_user_nocheck_1)
@@ -62,11 +63,12 @@ SYM_FUNC_START(__put_user_2)
 	cmp %_ASM_BX,%_ASM_CX
 	jae .Lbad_put_user
 SYM_INNER_LABEL(__put_user_nocheck_2, SYM_L_GLOBAL)
+	ENDBR
 	ASM_STAC
 2:	movw %ax,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__put_user_2)
 EXPORT_SYMBOL(__put_user_2)
 EXPORT_SYMBOL(__put_user_nocheck_2)
@@ -76,11 +78,12 @@ SYM_FUNC_START(__put_user_4)
 	cmp %_ASM_BX,%_ASM_CX
 	jae .Lbad_put_user
 SYM_INNER_LABEL(__put_user_nocheck_4, SYM_L_GLOBAL)
+	ENDBR
 	ASM_STAC
 3:	movl %eax,(%_ASM_CX)
 	xor %ecx,%ecx
 	ASM_CLAC
-	ret
+	RET
 SYM_FUNC_END(__put_user_4)
 EXPORT_SYMBOL(__put_user_4)
 EXPORT_SYMBOL(__put_user_nocheck_4)
@@ -90,6 +93,7 @@ SYM_FUNC_START(__put_user_8)
 	cmp %_ASM_BX,%_ASM_CX
 	jae .Lbad_put_user
 SYM_INNER_LABEL(__put_user_nocheck_8, SYM_L_GLOBAL)
+	ENDBR
 	ASM_STAC
 4:	mov %_ASM_AX,(%_ASM_CX)
 #ifdef CONFIG_X86_32

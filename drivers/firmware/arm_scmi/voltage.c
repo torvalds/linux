@@ -156,7 +156,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 			int cnt;
 
 			cmd->domain_id = cpu_to_le32(v->id);
-			cmd->level_index = desc_index;
+			cmd->level_index = cpu_to_le32(desc_index);
 			ret = ph->xops->do_xfer(ph, tl);
 			if (ret)
 				break;

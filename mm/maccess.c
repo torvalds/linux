@@ -12,8 +12,6 @@ bool __weak copy_from_kernel_nofault_allowed(const void *unsafe_src,
 	return true;
 }
 
-#ifdef HAVE_GET_KERNEL_NOFAULT
-
 #define copy_from_kernel_nofault_loop(dst, src, len, type, err_label)	\
 	while (len >= sizeof(type)) {					\
 		__get_kernel_nofault(dst, src, type, err_label);		\
@@ -102,112 +100,6 @@ Efault:
 	dst[-1] = '\0';
 	return -EFAULT;
 }
-#else /* HAVE_GET_KERNEL_NOFAULT */
-/**
- * copy_from_kernel_nofault(): safely attempt to read from kernel-space
- * @dst: pointer to the buffer that shall take the data
- * @src: address to read from
- * @size: size of the data chunk
- *
- * Safely read from kernel address @src to the buffer at @dst.  If a kernel
- * fault happens, handle that and return -EFAULT.  If @src is not a valid kernel
- * address, return -ERANGE.
- *
- * We ensure that the copy_from_user is executed in atomic context so that
- * do_page_fault() doesn't attempt to take mmap_lock.  This makes
- * copy_from_kernel_nofault() suitable for use within regions where the caller
- * already holds mmap_lock, or other locks which nest inside mmap_lock.
- */
-long copy_from_kernel_nofault(void *dst, const void *src, size_t size)
-{
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	if (!copy_from_kernel_nofault_allowed(src, size))
-		return -ERANGE;
-
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-	ret = __copy_from_user_inatomic(dst, (__force const void __user *)src,
-			size);
-	pagefault_enable();
-	set_fs(old_fs);
-
-	if (ret)
-		return -EFAULT;
-	return 0;
-}
-EXPORT_SYMBOL_GPL(copy_from_kernel_nofault);
-
-/**
- * copy_to_kernel_nofault(): safely attempt to write to a location
- * @dst: address to write to
- * @src: pointer to the data that shall be written
- * @size: size of the data chunk
- *
- * Safely write to address @dst from the buffer at @src.  If a kernel fault
- * happens, handle that and return -EFAULT.
- */
-long copy_to_kernel_nofault(void *dst, const void *src, size_t size)
-{
-	long ret;
-	mm_segment_t old_fs = get_fs();
-
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-	ret = __copy_to_user_inatomic((__force void __user *)dst, src, size);
-	pagefault_enable();
-	set_fs(old_fs);
-
-	if (ret)
-		return -EFAULT;
-	return 0;
-}
-
-/**
- * strncpy_from_kernel_nofault: - Copy a NUL terminated string from unsafe
- *				 address.
- * @dst:   Destination address, in kernel space.  This buffer must be at
- *         least @count bytes long.
- * @unsafe_addr: Unsafe address.
- * @count: Maximum number of bytes to copy, including the trailing NUL.
- *
- * Copies a NUL-terminated string from unsafe address to kernel buffer.
- *
- * On success, returns the length of the string INCLUDING the trailing NUL.
- *
- * If access fails, returns -EFAULT (some data may have been copied and the
- * trailing NUL added).  If @unsafe_addr is not a valid kernel address, return
- * -ERANGE.
- *
- * If @count is smaller than the length of the string, copies @count-1 bytes,
- * sets the last byte of @dst buffer to NUL and returns @count.
- */
-long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr, long count)
-{
-	mm_segment_t old_fs = get_fs();
-	const void *src = unsafe_addr;
-	long ret;
-
-	if (unlikely(count <= 0))
-		return 0;
-	if (!copy_from_kernel_nofault_allowed(unsafe_addr, count))
-		return -ERANGE;
-
-	set_fs(KERNEL_DS);
-	pagefault_disable();
-
-	do {
-		ret = __get_user(*dst++, (const char __user __force *)src++);
-	} while (dst[-1] && ret == 0 && src - unsafe_addr < count);
-
-	dst[-1] = '\0';
-	pagefault_enable();
-	set_fs(old_fs);
-
-	return ret ? -EFAULT : src - unsafe_addr;
-}
-#endif /* HAVE_GET_KERNEL_NOFAULT */
 
 /**
  * copy_from_user_nofault(): safely attempt to read from a user-space location
@@ -221,14 +113,11 @@ long strncpy_from_kernel_nofault(char *dst, const void *unsafe_addr, long count)
 long copy_from_user_nofault(void *dst, const void __user *src, size_t size)
 {
 	long ret = -EFAULT;
-	mm_segment_t old_fs = force_uaccess_begin();
-
 	if (access_ok(src, size)) {
 		pagefault_disable();
 		ret = __copy_from_user_inatomic(dst, src, size);
 		pagefault_enable();
 	}
-	force_uaccess_end(old_fs);
 
 	if (ret)
 		return -EFAULT;
@@ -248,14 +137,12 @@ EXPORT_SYMBOL_GPL(copy_from_user_nofault);
 long copy_to_user_nofault(void __user *dst, const void *src, size_t size)
 {
 	long ret = -EFAULT;
-	mm_segment_t old_fs = force_uaccess_begin();
 
 	if (access_ok(dst, size)) {
 		pagefault_disable();
 		ret = __copy_to_user_inatomic(dst, src, size);
 		pagefault_enable();
 	}
-	force_uaccess_end(old_fs);
 
 	if (ret)
 		return -EFAULT;
@@ -284,17 +171,14 @@ EXPORT_SYMBOL_GPL(copy_to_user_nofault);
 long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
 			      long count)
 {
-	mm_segment_t old_fs;
 	long ret;
 
 	if (unlikely(count <= 0))
 		return 0;
 
-	old_fs = force_uaccess_begin();
 	pagefault_disable();
 	ret = strncpy_from_user(dst, unsafe_addr, count);
 	pagefault_enable();
-	force_uaccess_end(old_fs);
 
 	if (ret >= count) {
 		ret = count;
@@ -324,14 +208,17 @@ long strncpy_from_user_nofault(char *dst, const void __user *unsafe_addr,
  */
 long strnlen_user_nofault(const void __user *unsafe_addr, long count)
 {
-	mm_segment_t old_fs;
 	int ret;
 
-	old_fs = force_uaccess_begin();
 	pagefault_disable();
 	ret = strnlen_user(unsafe_addr, count);
 	pagefault_enable();
-	force_uaccess_end(old_fs);
 
 	return ret;
 }
+
+void __copy_overflow(int size, unsigned long count)
+{
+	WARN(1, "Buffer overflow detected (%d < %lu)!\n", size, count);
+}
+EXPORT_SYMBOL(__copy_overflow);

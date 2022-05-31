@@ -269,9 +269,7 @@ static void xgene_free_domains(struct xgene_msi *msi)
 
 static int xgene_msi_init_allocator(struct xgene_msi *xgene_msi)
 {
-	int size = BITS_TO_LONGS(NR_MSI_VEC) * sizeof(long);
-
-	xgene_msi->bitmap = kzalloc(size, GFP_KERNEL);
+	xgene_msi->bitmap = bitmap_zalloc(NR_MSI_VEC, GFP_KERNEL);
 	if (!xgene_msi->bitmap)
 		return -ENOMEM;
 
@@ -302,7 +300,7 @@ static void xgene_msi_isr(struct irq_desc *desc)
 
 	/*
 	 * MSIINTn (n is 0..F) indicates if there is a pending MSI interrupt
-	 * If bit x of this register is set (x is 0..7), one or more interupts
+	 * If bit x of this register is set (x is 0..7), one or more interrupts
 	 * corresponding to MSInIRx is set.
 	 */
 	grp_select = xgene_msi_int_read(xgene_msi, msi_grp);
@@ -360,7 +358,7 @@ static int xgene_msi_remove(struct platform_device *pdev)
 
 	kfree(msi->msi_groups);
 
-	kfree(msi->bitmap);
+	bitmap_free(msi->bitmap);
 	msi->bitmap = NULL;
 
 	xgene_free_domains(msi);

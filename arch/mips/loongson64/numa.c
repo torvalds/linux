@@ -197,3 +197,13 @@ void __init prom_init_numa_memory(void)
 	prom_meminit();
 }
 EXPORT_SYMBOL(prom_init_numa_memory);
+
+pg_data_t * __init arch_alloc_nodedata(int nid)
+{
+	return memblock_alloc(sizeof(pg_data_t), SMP_CACHE_BYTES);
+}
+
+void arch_refresh_nodedata(int nid, pg_data_t *pgdat)
+{
+	__node_data[nid] = pgdat;
+}

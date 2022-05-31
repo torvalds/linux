@@ -315,8 +315,8 @@ To use the feature, admin should set up backing device via::
 
 	echo /dev/sda5 > /sys/block/zramX/backing_dev
 
-before disksize setting. It supports only partition at this moment.
-If admin wants to use incompressible page writeback, they could do via::
+before disksize setting. It supports only partitions at this moment.
+If admin wants to use incompressible page writeback, they could do it via::
 
 	echo huge > /sys/block/zramX/writeback
 
@@ -328,14 +328,22 @@ as idle::
 From now on, any pages on zram are idle pages. The idle mark
 will be removed until someone requests access of the block.
 IOW, unless there is access request, those pages are still idle pages.
+Additionally, when CONFIG_ZRAM_MEMORY_TRACKING is enabled pages can be
+marked as idle based on how long (in seconds) it's been since they were
+last accessed::
+
+        echo 86400 > /sys/block/zramX/idle
+
+In this example all pages which haven't been accessed in more than 86400
+seconds (one day) will be marked idle.
 
 Admin can request writeback of those idle pages at right timing via::
 
 	echo idle > /sys/block/zramX/writeback
 
-With the command, zram writeback idle pages from memory to the storage.
+With the command, zram will writeback idle pages from memory to the storage.
 
-If admin want to write a specific page in zram device to backing device,
+If an admin wants to write a specific page in zram device to the backing device,
 they could write a page index into the interface.
 
 	echo "page_index=1251" > /sys/block/zramX/writeback
@@ -346,7 +354,7 @@ to guarantee storage health for entire product life.
 
 To overcome the concern, zram supports "writeback_limit" feature.
 The "writeback_limit_enable"'s default value is 0 so that it doesn't limit
-any writeback. IOW, if admin wants to apply writeback budget, he should
+any writeback. IOW, if admin wants to apply writeback budget, they should
 enable writeback_limit_enable via::
 
 	$ echo 1 > /sys/block/zramX/writeback_limit_enable
@@ -357,7 +365,7 @@ until admin sets the budget via /sys/block/zramX/writeback_limit.
 (If admin doesn't enable writeback_limit_enable, writeback_limit's value
 assigned via /sys/block/zramX/writeback_limit is meaningless.)
 
-If admin want to limit writeback as per-day 400M, he could do it
+If admin wants to limit writeback as per-day 400M, they could do it
 like below::
 
 	$ MB_SHIFT=20
@@ -367,16 +375,16 @@ like below::
 	$ echo 1 > /sys/block/zram0/writeback_limit_enable
 
 If admins want to allow further write again once the budget is exhausted,
-he could do it like below::
+they could do it like below::
 
 	$ echo $((400<<MB_SHIFT>>4K_SHIFT)) > \
 		/sys/block/zram0/writeback_limit
 
-If admin wants to see remaining writeback budget since last set::
+If an admin wants to see the remaining writeback budget since last set::
 
 	$ cat /sys/block/zramX/writeback_limit
 
-If admin want to disable writeback limit, he could do::
+If an admin wants to disable writeback limit, they could do::
 
 	$ echo 0 > /sys/block/zramX/writeback_limit_enable
 
@@ -385,7 +393,7 @@ system reboot, echo 1 > /sys/block/zramX/reset) so keeping how many of
 writeback happened until you reset the zram to allocate extra writeback
 budget in next setting is user's job.
 
-If admin wants to measure writeback count in a certain period, he could
+If admin wants to measure writeback count in a certain period, they could
 know it via /sys/block/zram0/bd_stat's 3rd column.
 
 memory tracking

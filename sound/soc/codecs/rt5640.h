@@ -2124,6 +2124,7 @@ struct rt5640_priv {
 
 	int ldo1_en; /* GPIO for LDO1_EN */
 	int irq;
+	int jd_gpio_irq;
 	int sysclk;
 	int sysclk_src;
 	int lrck[RT5640_AIFS];
@@ -2136,6 +2137,8 @@ struct rt5640_priv {
 
 	bool hp_mute;
 	bool asrc_en;
+	bool irq_requested;
+	bool jd_gpio_irq_requested;
 
 	/* Jack and button detect data */
 	bool ovcd_irq_enabled;
@@ -2145,12 +2148,18 @@ struct rt5640_priv {
 	int release_count;
 	int poll_count;
 	struct delayed_work bp_work;
-	struct work_struct jack_work;
+	struct delayed_work jack_work;
 	struct snd_soc_jack *jack;
+	struct gpio_desc *jd_gpio;
 	unsigned int jd_src;
 	bool jd_inverted;
 	unsigned int ovcd_th;
 	unsigned int ovcd_sf;
+};
+
+struct rt5640_set_jack_data {
+	int codec_irq_override;
+	struct gpio_desc *jd_gpio;
 };
 
 int rt5640_dmic_enable(struct snd_soc_component *component,

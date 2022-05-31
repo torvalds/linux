@@ -155,20 +155,23 @@ follows::
     autofdo
     $ cd autofdo/
     $ ls
-    description   preset1  preset3  preset5  preset7  preset9
-    feature_refs  preset2  preset4  preset6  preset8
+    description  feature_refs  preset1  preset3  preset5  preset7  preset9
+    enable       preset        preset2  preset4  preset6  preset8
     $ cat description
     Setup ETMs with strobing for autofdo
     $ cat feature_refs
     strobing
 
-Each preset declared has a preset<n> subdirectory declared. The values for
+Each preset declared has a 'preset<n>' subdirectory declared. The values for
 the preset can be examined::
 
     $ cat preset1/values
     strobing.window = 0x1388 strobing.period = 0x2
     $ cat preset2/values
     strobing.window = 0x1388 strobing.period = 0x4
+
+The 'enable' and 'preset' files allow the control of a configuration when
+using CoreSight with sysfs.
 
 The features referenced by the configuration can be examined in the features
 directory::
@@ -211,19 +214,13 @@ also declared in the perf 'cs_etm' event infrastructure so that they can
 be selected when running trace under perf::
 
     $ ls /sys/devices/cs_etm
-    configurations  format  perf_event_mux_interval_ms  sinks  type
-    events  nr_addr_filters  power
+    cpu0  cpu2  events  nr_addr_filters		power  subsystem  uevent
+    cpu1  cpu3  format  perf_event_mux_interval_ms	sinks  type
 
-Key directories here are 'configurations' - which lists the loaded
-configurations, and 'events' - a generic perf directory which allows
-selection on the perf command line.::
+The key directory here is 'events' - a generic perf directory which allows
+selection on the perf command line. As with the sinks entries, this provides
+a hash of the configuration name.
 
-    $ ls configurations/
-    autofdo
-    $ cat configurations/autofdo
-    0xa7c3dddd
-
-As with the sinks entries, this provides a hash of the configuration name.
 The entry in the 'events' directory uses perfs built in syntax generator
 to substitute the syntax for the name when evaluating the command::
 
@@ -242,3 +239,56 @@ A preset to override the current parameter values can also be selected::
 
 When configurations are selected in this way, then the trace sink used is
 automatically selected.
+
+Using Configurations in sysfs
+=============================
+
+Coresight can be controlled using sysfs. When this is in use then a configuration
+can be made active for the devices that are used in the sysfs session.
+
+In a configuration there are 'enable' and 'preset' files.
+
+To enable a configuration for use with sysfs::
+
+    $ cd configurations/autofdo
+    $ echo 1 > enable
+
+This will then use any default parameter values in the features - which can be
+adjusted as described above.
+
+To use a preset<n> set of parameter values::
+
+    $ echo 3 > preset
+
+This will select preset3 for the configuration.
+The valid values for preset are 0 - to deselect presets, and any value of
+<n> where a preset<n> sub-directory is present.
+
+Note that the active sysfs configuration is a global parameter, therefore
+only a single configuration can be active for sysfs at any one time.
+Attempting to enable a second configuration will result in an error.
+Additionally, attempting to disable the configuration while in use will
+also result in an error.
+
+The use of the active configuration by sysfs is independent of the configuration
+used in perf.
+
+
+Creating and Loading Custom Configurations
+==========================================
+
+Custom configurations and / or features can be dynamically loaded into the
+system by using a loadable module.
+
+An example of a custom configuration is found in ./samples/coresight.
+
+This creates a new configuration that uses the existing built in
+strobing feature, but provides a different set of presets.
+
+When the module is loaded, then the configuration appears in the configfs
+file system and is selectable in the same way as the built in configuration
+described above.
+
+Configurations can use previously loaded features. The system will ensure
+that it is not possible to unload a feature that is currently in use, by
+enforcing the unload order as the strict reverse of the load order.

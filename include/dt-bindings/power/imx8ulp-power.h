@@ -1,0 +1,26 @@
+/* SPDX-License-Identifier: (GPL-2.0 OR MIT) */
+/*
+ *  Copyright 2021 NXP
+ */
+
+#ifndef __DT_BINDINGS_IMX8ULP_POWER_H__
+#define __DT_BINDINGS_IMX8ULP_POWER_H__
+
+#define IMX8ULP_PD_DMA1		0
+#define IMX8ULP_PD_FLEXSPI2	1
+#define IMX8ULP_PD_USB0		2
+#define IMX8ULP_PD_USDHC0	3
+#define IMX8ULP_PD_USDHC1	4
+#define IMX8ULP_PD_USDHC2_USB1	5
+#define IMX8ULP_PD_DCNANO	6
+#define IMX8ULP_PD_EPDC		7
+#define IMX8ULP_PD_DMA2		8
+#define IMX8ULP_PD_GPU2D	9
+#define IMX8ULP_PD_GPU3D	10
+#define IMX8ULP_PD_HIFI4	11
+#define IMX8ULP_PD_ISI		12
+#define IMX8ULP_PD_MIPI_CSI	13
+#define IMX8ULP_PD_MIPI_DSI	14
+#define IMX8ULP_PD_PXP		15
+
+#endif

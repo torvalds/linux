@@ -96,6 +96,20 @@
 		i2c32 = &i2c14mux1chn1;
 		i2c33 = &i2c14mux1chn2;
 		i2c34 = &i2c14mux1chn3;
+		i2c35 = &i2c15mux0chn0;
+		i2c36 = &i2c15mux0chn1;
+		i2c37 = &i2c15mux0chn2;
+		i2c38 = &i2c15mux0chn3;
+		i2c39 = &i2c15mux1chn0;
+		i2c40 = &i2c15mux1chn1;
+		i2c41 = &i2c15mux1chn2;
+		i2c42 = &i2c15mux1chn3;
+		i2c43 = &i2c15mux2chn0;
+		i2c44 = &i2c15mux2chn1;
+		i2c45 = &i2c15mux2chn2;
+		i2c46 = &i2c15mux2chn3;
+		i2c47 = &i2c8mux0chn0;
+		i2c48 = &i2c8mux0chn1;
 
 		serial4 = &uart5;
 
@@ -157,9 +171,10 @@
 		/* 48MB region from the end of flash to start of vga memory */
 		ramoops@bc000000 {
 			compatible = "ramoops";
-			reg = <0xbc000000 0x180000>; /* 16 * (3 * 0x8000) */
+			reg = <0xbc000000 0x200000>; /* 16 * (4 * 0x8000) */
 			record-size = <0x8000>;
 			console-size = <0x8000>;
+			ftrace-size = <0x8000>;
 			pmsg-size = <0x8000>;
 			max-reason = <3>; /* KMSG_DUMP_EMERG */
 		};
@@ -231,28 +246,42 @@
 			gpios = <&gpio0 ASPEED_GPIO(P, 4) GPIO_ACTIVE_LOW>;
 		};
 	};
+
+	iio-hwmon-battery {
+		compatible = "iio-hwmon";
+		io-channels = <&adc1 7>;
+	};
+};
+
+&adc1 {
+	status = "okay";
+	aspeed,int-vref-microvolt = <2500000>;
+	pinctrl-names = "default";
+	pinctrl-0 = <&pinctrl_adc8_default &pinctrl_adc9_default
+				 &pinctrl_adc10_default &pinctrl_adc11_default
+				 &pinctrl_adc12_default &pinctrl_adc13_default
+				 &pinctrl_adc14_default &pinctrl_adc15_default>;
 };
 
 &gpio0 {
 	gpio-line-names =
 	/*A0-A7*/	"","","","","","","","",
-	/*B0-B7*/	"USERSPACE_RSTIND_BUFF","","","","","","","",
+	/*B0-B7*/	"USERSPACE_RSTIND_BUFF","","","","","","checkstop","",
 	/*C0-C7*/	"","","","","","","","",
 	/*D0-D7*/	"","","","","","","","",
 	/*E0-E7*/	"","","","","","","","",
-	/*F0-F7*/	"PIN_HOLE_RESET_IN_N","","",
-				"PIN_HOLE_RESET_OUT_N","","","","",
+	/*F0-F7*/	"","","rtc-battery-voltage-read-enable","reset-cause-pinhole","","","factory-reset-toggle","",
 	/*G0-G7*/	"","","","","","","","",
 	/*H0-H7*/	"led-rtc-battery","led-bmc","led-rear-enc-id0","led-rear-enc-fault0","","","","",
-	/*I0-I7*/	"","","","","","","","",
+	/*I0-I7*/	"","","","","","","bmc-secure-boot","",
 	/*J0-J7*/	"","","","","","","","",
 	/*K0-K7*/	"","","","","","","","",
 	/*L0-L7*/	"","","","","","","","",
 	/*M0-M7*/	"","","","","","","","",
 	/*N0-N7*/	"","","","","","","","",
-	/*O0-O7*/	"","","","","","","","",
+	/*O0-O7*/	"","","","usb-power","","","","",
 	/*P0-P7*/	"","","","","led-pcieslot-power","","","",
-	/*Q0-Q7*/	"","","","","","","","",
+	/*Q0-Q7*/	"","","regulator-standby-faulted","","","","","",
 	/*R0-R7*/	"bmc-tpm-reset","power-chassis-control","power-chassis-good","","","I2C_FLASH_MICRO_N","","",
 	/*S0-S7*/	"","","","","","","","",
 	/*T0-T7*/	"","","","","","","","",
@@ -262,6 +291,12 @@
 	/*X0-X7*/	"","","","","","","","",
 	/*Y0-Y7*/	"","","","","","","","",
 	/*Z0-Z7*/   "","","","","","","","";
+
+	usb_power {
+		gpio-hog;
+		gpios = <ASPEED_GPIO(O, 3) GPIO_ACTIVE_LOW>;
+		output-high;
+	};
 };
 
 &i2c0 {
@@ -297,86 +332,6 @@
 			"presence-lcd-op",
 			"presence-base-op",
 			"";
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@1 {
-			reg = <1>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@2 {
-			reg = <2>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@3 {
-			reg = <3>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@4 {
-			reg = <4>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@5 {
-			reg = <5>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@6 {
-			reg = <6>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@8 {
-			reg = <8>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@9 {
-			reg = <9>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@10 {
-			reg = <10>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@11 {
-			reg = <11>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@12 {
-			reg = <12>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@13 {
-			reg = <13>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@14 {
-			reg = <14>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@15 {
-			reg = <15>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
 	};
 };
 
@@ -440,56 +395,6 @@
 			"expander-cable-card3",
 			"expander-cable-card4",
 			"expander-cable-card5";
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@1 {
-			reg = <1>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@2 {
-			reg = <2>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@3 {
-			reg = <3>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@4 {
-			reg = <4>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@5 {
-			reg = <5>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@6 {
-			reg = <6>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@8 {
-			reg = <8>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@9 {
-			reg = <9>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
 	};
 
 	i2c-switch@70 {
@@ -533,36 +438,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -598,36 +473,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -665,36 +510,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 	};
@@ -725,67 +540,6 @@
 			"expander-cable-card9",
 			"expander-cable-card10",
 			"expander-cable-card11";
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@1 {
-			reg = <1>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@2 {
-			reg = <2>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@3 {
-			reg = <3>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@4 {
-			reg = <4>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@5 {
-			reg = <5>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@6 {
-			reg = <6>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@8 {
-			reg = <8>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@9 {
-			reg = <9>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@10 {
-			reg = <10>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@11 {
-			reg = <11>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
 	};
 
 	i2c-switch@70 {
@@ -829,36 +583,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -894,36 +618,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -961,36 +655,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -1026,36 +690,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -1106,36 +740,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -1171,36 +775,6 @@
 					retain-state-shutdown;
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
 				};
 			};
 		};
@@ -1238,36 +812,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 
@@ -1304,36 +848,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 	};
@@ -1346,11 +860,6 @@
 
 		gpio-controller;
 		#gpio-cells = <2>;
-
-		gpio@0 {
-			reg = <0>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
 
 		led@1 {
 			label = "pcieslot-c01";
@@ -1438,26 +947,6 @@
 			retain-state-shutdown;
 			default-state = "keep";
 			type = <PCA955X_TYPE_LED>;
-		};
-
-		gpio@12 {
-			reg = <12>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@13 {
-			reg = <13>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@14 {
-			reg = <14>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
-		gpio@15 {
-			reg = <15>;
-			type = <PCA955X_TYPE_GPIO>;
 		};
 	};
 };
@@ -2082,11 +1571,6 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
 		led@8 {
 			label = "vrm4";
 			reg = <8>;
@@ -2217,11 +1701,6 @@
 			type = <PCA955X_TYPE_LED>;
 		};
 
-		gpio@7 {
-			reg = <7>;
-			type = <PCA955X_TYPE_GPIO>;
-		};
-
 		led@8 {
 			label = "vrm0";
 			reg = <8>;
@@ -2310,6 +1789,27 @@
 		compatible = "atmel,24c128";
 		reg = <0x50>;
 	};
+
+	i2c-switch@70 {
+		compatible = "nxp,pca9546";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		status = "okay";
+		i2c-mux-idle-disconnect;
+
+		i2c8mux0chn0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+		};
+
+		i2c8mux0chn1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+		};
+	};
 };
 
 &i2c9 {
@@ -2386,6 +1886,11 @@
 
 &i2c12 {
 	status = "okay";
+
+	tpm@2e {
+		compatible = "nuvoton,npct75x", "tcg,tpm-tis-i2c";
+		reg = <0x2e>;
+	};
 };
 
 &i2c13 {
@@ -2413,7 +1918,13 @@
 };
 
 &i2c14 {
+	multi-master;
 	status = "okay";
+
+	ibm-panel@62 {
+		compatible = "ibm,op-panel";
+		reg = <(0x62 | I2C_OWN_SLAVE_ADDRESS)>;
+	};
 
 	i2c-switch@70 {
 		compatible = "nxp,pca9546";
@@ -2421,7 +1932,7 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 		status = "okay";
-		i2c-mux-idle-disconnect;
+		idle-state = <1>;
 
 		i2c14mux0chn0: i2c@0 {
 			#address-cells = <1>;
@@ -2651,16 +2162,6 @@
 					default-state = "keep";
 					type = <PCA955X_TYPE_LED>;
 				};
-
-				gpio@14 {
-					reg = <14>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@15 {
-					reg = <15>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 
 			pca0: pca9552@61 {
@@ -2680,86 +2181,6 @@
 					"presence-fan2",
 					"presence-fan1",
 					"presence-fan0";
-
-				gpio@0 {
-					reg = <0>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@1 {
-					reg = <1>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@2 {
-					reg = <2>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@3 {
-					reg = <3>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@4 {
-					reg = <4>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@5 {
-					reg = <5>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@6 {
-					reg = <6>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@7 {
-					reg = <7>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@8 {
-					reg = <8>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@9 {
-					reg = <9>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@10 {
-					reg = <10>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@11 {
-					reg = <11>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@12 {
-					reg = <12>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@13 {
-					reg = <13>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@14 {
-					reg = <14>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
-
-				gpio@15 {
-					reg = <15>;
-					type = <PCA955X_TYPE_GPIO>;
-				};
 			};
 		};
 	};
@@ -2816,9 +2237,163 @@
 
 &i2c15 {
 	status = "okay";
+
+	i2c-switch@70 {
+		compatible = "nxp,pca9546";
+		reg = <0x70>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
+
+		i2c15mux0chn0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux0chn1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux0chn2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux0chn3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+	};
+
+	i2c-switch@71 {
+		compatible = "nxp,pca9546";
+		reg = <0x71>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
+
+		i2c15mux1chn0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux1chn1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux1chn2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux1chn3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+	};
+
+	i2c-switch@72 {
+		compatible = "nxp,pca9546";
+		reg = <0x72>;
+		#address-cells = <1>;
+		#size-cells = <0>;
+		i2c-mux-idle-disconnect;
+
+		i2c15mux2chn0: i2c@0 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <0>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux2chn1: i2c@1 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <1>;
+
+			eeprom@53 {
+				compatible = "atmel,24c64";
+				reg = <0x53>;
+			};
+		};
+
+		i2c15mux2chn2: i2c@2 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <2>;
+		};
+
+		i2c15mux2chn3: i2c@3 {
+			#address-cells = <1>;
+			#size-cells = <0>;
+			reg = <3>;
+		};
+	};
+};
+
+&ehci0 {
+	status = "okay";
 };
 
 &ehci1 {
+	status = "okay";
+};
+
+&uhci {
 	status = "okay";
 };
 
@@ -4050,11 +3625,6 @@
 	memory-region = <&flash_memory>;
 };
 
-&kcs4 {
-	compatible = "openbmc,mctp-lpc";
-	status = "okay";
-};
-
 &mac2 {
 	status = "okay";
 	pinctrl-names = "default";
@@ -4092,4 +3662,15 @@
 &xdma {
 	status = "okay";
 	memory-region = <&vga_memory>;
+};
+
+&kcs2 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca8 0xcac>;
+};
+
+&kcs3 {
+	status = "okay";
+	aspeed,lpc-io-reg = <0xca2>;
+	aspeed,lpc-interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
 };

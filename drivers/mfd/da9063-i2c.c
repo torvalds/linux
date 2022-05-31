@@ -391,6 +391,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 				&da9063_bb_da_volatile_table;
 			break;
 		case PMIC_DA9063_DA:
+		case PMIC_DA9063_EA:
 			da9063_regmap_config.rd_table =
 				&da9063_da_readable_table;
 			da9063_regmap_config.wr_table =
@@ -416,6 +417,7 @@ static int da9063_i2c_probe(struct i2c_client *i2c,
 				&da9063l_bb_da_volatile_table;
 			break;
 		case PMIC_DA9063_DA:
+		case PMIC_DA9063_EA:
 			da9063_regmap_config.rd_table =
 				&da9063l_da_readable_table;
 			da9063_regmap_config.wr_table =

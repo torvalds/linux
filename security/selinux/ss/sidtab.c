@@ -27,8 +27,8 @@ struct sidtab_str_cache {
 	char str[];
 };
 
-#define index_to_sid(index) (index + SECINITSID_NUM + 1)
-#define sid_to_index(sid) (sid - (SECINITSID_NUM + 1))
+#define index_to_sid(index) ((index) + SECINITSID_NUM + 1)
+#define sid_to_index(sid) ((sid) - (SECINITSID_NUM + 1))
 
 int sidtab_init(struct sidtab *s)
 {
@@ -570,7 +570,7 @@ void sidtab_sid2str_put(struct sidtab *s, struct sidtab_entry *entry,
 		goto out_unlock;
 	}
 
-	cache = kmalloc(sizeof(struct sidtab_str_cache) + str_len, GFP_ATOMIC);
+	cache = kmalloc(struct_size(cache, str, str_len), GFP_ATOMIC);
 	if (!cache)
 		goto out_unlock;
 

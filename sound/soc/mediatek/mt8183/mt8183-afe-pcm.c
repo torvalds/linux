@@ -1279,9 +1279,7 @@ static struct platform_driver mt8183_afe_pcm_driver = {
 	.driver = {
 		   .name = "mt8183-audio",
 		   .of_match_table = mt8183_afe_pcm_dt_match,
-#ifdef CONFIG_PM
 		   .pm = &mt8183_afe_pm_ops,
-#endif
 	},
 	.probe = mt8183_afe_pcm_dev_probe,
 	.remove = mt8183_afe_pcm_dev_remove,

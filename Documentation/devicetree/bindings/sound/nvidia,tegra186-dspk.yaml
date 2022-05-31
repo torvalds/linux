@@ -17,6 +17,9 @@ maintainers:
   - Jon Hunter <jonathanh@nvidia.com>
   - Sameer Pujar <spujar@nvidia.com>
 
+allOf:
+  - $ref: name-prefix.yaml#
+
 properties:
   $nodename:
     pattern: "^dspk@[0-9a-f]*$"
@@ -25,7 +28,9 @@ properties:
     oneOf:
       - const: nvidia,tegra186-dspk
       - items:
-          - const: nvidia,tegra194-dspk
+          - enum:
+              - nvidia,tegra234-dspk
+              - nvidia,tegra194-dspk
           - const: nvidia,tegra186-dspk
 
   reg:
@@ -48,12 +53,6 @@ properties:
 
   sound-name-prefix:
     pattern: "^DSPK[1-9]$"
-    $ref: /schemas/types.yaml#/definitions/string
-    description:
-      Used as prefix for sink/source names of the component. Must be a
-      unique string among multiple instances of the same component.
-      The name can be "DSPK1" or "DSPKx", where x depends on the maximum
-      available instances on a Tegra SoC.
 
   ports:
     $ref: /schemas/graph.yaml#/properties/ports

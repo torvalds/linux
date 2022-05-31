@@ -2697,7 +2697,7 @@ static int mt6359_codec_probe(struct snd_soc_component *cmpnt)
 
 static void mt6359_codec_remove(struct snd_soc_component *cmpnt)
 {
-	snd_soc_component_exit_regmap(cmpnt);
+	cmpnt->regmap = NULL;
 }
 
 static const DECLARE_TLV_DB_SCALE(hp_playback_tlv, -2200, 100, 0);

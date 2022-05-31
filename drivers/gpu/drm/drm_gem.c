@@ -25,20 +25,21 @@
  *
  */
 
-#include <linux/types.h>
-#include <linux/slab.h>
-#include <linux/mm.h>
-#include <linux/uaccess.h>
-#include <linux/fs.h>
-#include <linux/file.h>
-#include <linux/module.h>
-#include <linux/mman.h>
-#include <linux/pagemap.h>
-#include <linux/shmem_fs.h>
 #include <linux/dma-buf.h>
-#include <linux/dma-buf-map.h>
+#include <linux/file.h>
+#include <linux/fs.h>
+#include <linux/iosys-map.h>
 #include <linux/mem_encrypt.h>
+#include <linux/mm.h>
+#include <linux/mman.h>
+#include <linux/module.h>
+#include <linux/pagemap.h>
 #include <linux/pagevec.h>
+#include <linux/shmem_fs.h>
+#include <linux/slab.h>
+#include <linux/string_helpers.h>
+#include <linux/types.h>
+#include <linux/uaccess.h>
 
 #include <drm/drm.h>
 #include <drm/drm_device.h>
@@ -1145,7 +1146,7 @@ void drm_gem_print_info(struct drm_printer *p, unsigned int indent,
 			  drm_vma_node_start(&obj->vma_node));
 	drm_printf_indent(p, indent, "size=%zu\n", obj->size);
 	drm_printf_indent(p, indent, "imported=%s\n",
-			  obj->import_attach ? "yes" : "no");
+			  str_yes_no(obj->import_attach));
 
 	if (obj->funcs->print_info)
 		obj->funcs->print_info(p, indent, obj);
@@ -1165,7 +1166,7 @@ void drm_gem_unpin(struct drm_gem_object *obj)
 		obj->funcs->unpin(obj);
 }
 
-int drm_gem_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+int drm_gem_vmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
 	int ret;
 
@@ -1175,23 +1176,23 @@ int drm_gem_vmap(struct drm_gem_object *obj, struct dma_buf_map *map)
 	ret = obj->funcs->vmap(obj, map);
 	if (ret)
 		return ret;
-	else if (dma_buf_map_is_null(map))
+	else if (iosys_map_is_null(map))
 		return -ENOMEM;
 
 	return 0;
 }
 EXPORT_SYMBOL(drm_gem_vmap);
 
-void drm_gem_vunmap(struct drm_gem_object *obj, struct dma_buf_map *map)
+void drm_gem_vunmap(struct drm_gem_object *obj, struct iosys_map *map)
 {
-	if (dma_buf_map_is_null(map))
+	if (iosys_map_is_null(map))
 		return;
 
 	if (obj->funcs->vunmap)
 		obj->funcs->vunmap(obj, map);
 
 	/* Always set the mapping to NULL. Callers may rely on this. */
-	dma_buf_map_clear(map);
+	iosys_map_clear(map);
 }
 EXPORT_SYMBOL(drm_gem_vunmap);
 
@@ -1340,31 +1341,15 @@ int drm_gem_fence_array_add_implicit(struct xarray *fence_array,
 				     struct drm_gem_object *obj,
 				     bool write)
 {
-	int ret;
-	struct dma_fence **fences;
-	unsigned int i, fence_count;
+	struct dma_resv_iter cursor;
+	struct dma_fence *fence;
+	int ret = 0;
 
-	if (!write) {
-		struct dma_fence *fence =
-			dma_resv_get_excl_unlocked(obj->resv);
-
-		return drm_gem_fence_array_add(fence_array, fence);
-	}
-
-	ret = dma_resv_get_fences(obj->resv, NULL,
-						&fence_count, &fences);
-	if (ret || !fence_count)
-		return ret;
-
-	for (i = 0; i < fence_count; i++) {
-		ret = drm_gem_fence_array_add(fence_array, fences[i]);
+	dma_resv_for_each_fence(&cursor, obj->resv, write, fence) {
+		ret = drm_gem_fence_array_add(fence_array, fence);
 		if (ret)
 			break;
 	}
-
-	for (; i < fence_count; i++)
-		dma_fence_put(fences[i]);
-	kfree(fences);
 	return ret;
 }
 EXPORT_SYMBOL(drm_gem_fence_array_add_implicit);

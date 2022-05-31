@@ -24,7 +24,6 @@
 #include <linux/types.h>
 
 #include <asm/setup.h>
-#include <asm/segment.h>
 #include <asm/page.h>
 #include <asm/traps.h>
 #include <asm/io.h>

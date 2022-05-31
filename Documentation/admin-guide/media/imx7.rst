@@ -33,7 +33,7 @@ reference manual [#f1]_.
 Entities
 --------
 
-imx7-mipi-csi2
+imx-mipi-csi2
 --------------
 
 This is the MIPI CSI-2 receiver entity. It has one sink pad to receive the pixel
@@ -154,6 +154,66 @@ the resolutions supported by the sensor.
 	        pad0: Source
 	                [fmt:SBGGR10_1X10/800x600@1/30 field:none colorspace:srgb]
 	                -> "imx7-mipi-csis.0":0 [ENABLED]
+
+i.MX6ULL-EVK with OV5640
+------------------------
+
+On this platform a parallel OV5640 sensor is connected to the CSI port.
+The following example configures a video capture pipeline with an output
+of 640x480 and UYVY8_2X8 format:
+
+.. code-block:: none
+
+   # Setup links
+   media-ctl -l "'ov5640 1-003c':0 -> 'csi':0[1]"
+   media-ctl -l "'csi':1 -> 'csi capture':0[1]"
+
+   # Configure pads for pipeline
+   media-ctl -v -V "'ov5640 1-003c':0 [fmt:UYVY8_2X8/640x480 field:none]"
+
+After this streaming can start:
+
+.. code-block:: none
+
+   gst-launch-1.0 -v v4l2src device=/dev/video1 ! video/x-raw,format=UYVY,width=640,height=480 ! v4l2convert ! fbdevsink
+
+.. code-block:: none
+
+	# media-ctl -p
+	Media controller API version 5.14.0
+
+	Media device information
+	------------------------
+	driver          imx7-csi
+	model           imx-media
+	serial
+	bus info
+	hw revision     0x0
+	driver version  5.14.0
+
+	Device topology
+	- entity 1: csi (2 pads, 2 links)
+	            type V4L2 subdev subtype Unknown flags 0
+	            device node name /dev/v4l-subdev0
+	        pad0: Sink
+	                [fmt:UYVY8_2X8/640x480 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                <- "ov5640 1-003c":0 [ENABLED,IMMUTABLE]
+	        pad1: Source
+	                [fmt:UYVY8_2X8/640x480 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                -> "csi capture":0 [ENABLED,IMMUTABLE]
+
+	- entity 4: csi capture (1 pad, 1 link)
+	            type Node subtype V4L flags 0
+	            device node name /dev/video1
+	        pad0: Sink
+	                <- "csi":1 [ENABLED,IMMUTABLE]
+
+	- entity 10: ov5640 1-003c (1 pad, 1 link)
+	             type V4L2 subdev subtype Sensor flags 0
+	             device node name /dev/v4l-subdev1
+	        pad0: Source
+	                [fmt:UYVY8_2X8/640x480@1/30 field:none colorspace:srgb xfer:srgb ycbcr:601 quantization:full-range]
+	                -> "csi":0 [ENABLED,IMMUTABLE]
 
 References
 ----------

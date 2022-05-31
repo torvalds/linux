@@ -3533,11 +3533,31 @@ diag_trigger_master_store(struct device *cdev,
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct SL_WH_MASTER_TRIGGER_T *master_tg;
 	unsigned long flags;
 	ssize_t rc;
+	bool set = 1;
+
+	rc = min(sizeof(struct SL_WH_MASTER_TRIGGER_T), count);
+
+	if (ioc->supports_trigger_pages) {
+		master_tg = kzalloc(sizeof(struct SL_WH_MASTER_TRIGGER_T),
+		    GFP_KERNEL);
+		if (!master_tg)
+			return -ENOMEM;
+
+		memcpy(master_tg, buf, rc);
+		if (!master_tg->MasterData)
+			set = 0;
+		if (mpt3sas_config_update_driver_trigger_pg1(ioc, master_tg,
+		    set)) {
+			kfree(master_tg);
+			return -EFAULT;
+		}
+		kfree(master_tg);
+	}
 
 	spin_lock_irqsave(&ioc->diag_trigger_lock, flags);
-	rc = min(sizeof(struct SL_WH_MASTER_TRIGGER_T), count);
 	memset(&ioc->diag_trigger_master, 0,
 	    sizeof(struct SL_WH_MASTER_TRIGGER_T));
 	memcpy(&ioc->diag_trigger_master, buf, rc);
@@ -3589,11 +3609,31 @@ diag_trigger_event_store(struct device *cdev,
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct SL_WH_EVENT_TRIGGERS_T *event_tg;
 	unsigned long flags;
 	ssize_t sz;
+	bool set = 1;
+
+	sz = min(sizeof(struct SL_WH_EVENT_TRIGGERS_T), count);
+	if (ioc->supports_trigger_pages) {
+		event_tg = kzalloc(sizeof(struct SL_WH_EVENT_TRIGGERS_T),
+		    GFP_KERNEL);
+		if (!event_tg)
+			return -ENOMEM;
+
+		memcpy(event_tg, buf, sz);
+		if (!event_tg->ValidEntries)
+			set = 0;
+		if (mpt3sas_config_update_driver_trigger_pg2(ioc, event_tg,
+		    set)) {
+			kfree(event_tg);
+			return -EFAULT;
+		}
+		kfree(event_tg);
+	}
 
 	spin_lock_irqsave(&ioc->diag_trigger_lock, flags);
-	sz = min(sizeof(struct SL_WH_EVENT_TRIGGERS_T), count);
+
 	memset(&ioc->diag_trigger_event, 0,
 	    sizeof(struct SL_WH_EVENT_TRIGGERS_T));
 	memcpy(&ioc->diag_trigger_event, buf, sz);
@@ -3644,11 +3684,31 @@ diag_trigger_scsi_store(struct device *cdev,
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct SL_WH_SCSI_TRIGGERS_T *scsi_tg;
 	unsigned long flags;
 	ssize_t sz;
+	bool set = 1;
+
+	sz = min(sizeof(struct SL_WH_SCSI_TRIGGERS_T), count);
+	if (ioc->supports_trigger_pages) {
+		scsi_tg = kzalloc(sizeof(struct SL_WH_SCSI_TRIGGERS_T),
+		    GFP_KERNEL);
+		if (!scsi_tg)
+			return -ENOMEM;
+
+		memcpy(scsi_tg, buf, sz);
+		if (!scsi_tg->ValidEntries)
+			set = 0;
+		if (mpt3sas_config_update_driver_trigger_pg3(ioc, scsi_tg,
+		    set)) {
+			kfree(scsi_tg);
+			return -EFAULT;
+		}
+		kfree(scsi_tg);
+	}
 
 	spin_lock_irqsave(&ioc->diag_trigger_lock, flags);
-	sz = min(sizeof(ioc->diag_trigger_scsi), count);
+
 	memset(&ioc->diag_trigger_scsi, 0, sizeof(ioc->diag_trigger_scsi));
 	memcpy(&ioc->diag_trigger_scsi, buf, sz);
 	if (ioc->diag_trigger_scsi.ValidEntries > NUM_VALID_ENTRIES)
@@ -3698,11 +3758,30 @@ diag_trigger_mpi_store(struct device *cdev,
 {
 	struct Scsi_Host *shost = class_to_shost(cdev);
 	struct MPT3SAS_ADAPTER *ioc = shost_priv(shost);
+	struct SL_WH_MPI_TRIGGERS_T *mpi_tg;
 	unsigned long flags;
 	ssize_t sz;
+	bool set = 1;
+
+	sz = min(sizeof(struct SL_WH_MPI_TRIGGERS_T), count);
+	if (ioc->supports_trigger_pages) {
+		mpi_tg = kzalloc(sizeof(struct SL_WH_MPI_TRIGGERS_T),
+		    GFP_KERNEL);
+		if (!mpi_tg)
+			return -ENOMEM;
+
+		memcpy(mpi_tg, buf, sz);
+		if (!mpi_tg->ValidEntries)
+			set = 0;
+		if (mpt3sas_config_update_driver_trigger_pg4(ioc, mpi_tg,
+		    set)) {
+			kfree(mpi_tg);
+			return -EFAULT;
+		}
+		kfree(mpi_tg);
+	}
 
 	spin_lock_irqsave(&ioc->diag_trigger_lock, flags);
-	sz = min(sizeof(struct SL_WH_MPI_TRIGGERS_T), count);
 	memset(&ioc->diag_trigger_mpi, 0,
 	    sizeof(ioc->diag_trigger_mpi));
 	memcpy(&ioc->diag_trigger_mpi, buf, sz);
@@ -3842,35 +3921,44 @@ enable_sdev_max_qd_store(struct device *cdev,
 }
 static DEVICE_ATTR_RW(enable_sdev_max_qd);
 
-struct device_attribute *mpt3sas_host_attrs[] = {
-	&dev_attr_version_fw,
-	&dev_attr_version_bios,
-	&dev_attr_version_mpi,
-	&dev_attr_version_product,
-	&dev_attr_version_nvdata_persistent,
-	&dev_attr_version_nvdata_default,
-	&dev_attr_board_name,
-	&dev_attr_board_assembly,
-	&dev_attr_board_tracer,
-	&dev_attr_io_delay,
-	&dev_attr_device_delay,
-	&dev_attr_logging_level,
-	&dev_attr_fwfault_debug,
-	&dev_attr_fw_queue_depth,
-	&dev_attr_host_sas_address,
-	&dev_attr_ioc_reset_count,
-	&dev_attr_host_trace_buffer_size,
-	&dev_attr_host_trace_buffer,
-	&dev_attr_host_trace_buffer_enable,
-	&dev_attr_reply_queue_count,
-	&dev_attr_diag_trigger_master,
-	&dev_attr_diag_trigger_event,
-	&dev_attr_diag_trigger_scsi,
-	&dev_attr_diag_trigger_mpi,
-	&dev_attr_drv_support_bitmap,
-	&dev_attr_BRM_status,
-	&dev_attr_enable_sdev_max_qd,
+static struct attribute *mpt3sas_host_attrs[] = {
+	&dev_attr_version_fw.attr,
+	&dev_attr_version_bios.attr,
+	&dev_attr_version_mpi.attr,
+	&dev_attr_version_product.attr,
+	&dev_attr_version_nvdata_persistent.attr,
+	&dev_attr_version_nvdata_default.attr,
+	&dev_attr_board_name.attr,
+	&dev_attr_board_assembly.attr,
+	&dev_attr_board_tracer.attr,
+	&dev_attr_io_delay.attr,
+	&dev_attr_device_delay.attr,
+	&dev_attr_logging_level.attr,
+	&dev_attr_fwfault_debug.attr,
+	&dev_attr_fw_queue_depth.attr,
+	&dev_attr_host_sas_address.attr,
+	&dev_attr_ioc_reset_count.attr,
+	&dev_attr_host_trace_buffer_size.attr,
+	&dev_attr_host_trace_buffer.attr,
+	&dev_attr_host_trace_buffer_enable.attr,
+	&dev_attr_reply_queue_count.attr,
+	&dev_attr_diag_trigger_master.attr,
+	&dev_attr_diag_trigger_event.attr,
+	&dev_attr_diag_trigger_scsi.attr,
+	&dev_attr_diag_trigger_mpi.attr,
+	&dev_attr_drv_support_bitmap.attr,
+	&dev_attr_BRM_status.attr,
+	&dev_attr_enable_sdev_max_qd.attr,
 	NULL,
+};
+
+static const struct attribute_group mpt3sas_host_attr_group = {
+	.attrs = mpt3sas_host_attrs
+};
+
+const struct attribute_group *mpt3sas_host_groups[] = {
+	&mpt3sas_host_attr_group,
+	NULL
 };
 
 /* device attributes */
@@ -3976,12 +4064,21 @@ sas_ncq_prio_enable_store(struct device *dev,
 }
 static DEVICE_ATTR_RW(sas_ncq_prio_enable);
 
-struct device_attribute *mpt3sas_dev_attrs[] = {
-	&dev_attr_sas_address,
-	&dev_attr_sas_device_handle,
-	&dev_attr_sas_ncq_prio_supported,
-	&dev_attr_sas_ncq_prio_enable,
+static struct attribute *mpt3sas_dev_attrs[] = {
+	&dev_attr_sas_address.attr,
+	&dev_attr_sas_device_handle.attr,
+	&dev_attr_sas_ncq_prio_supported.attr,
+	&dev_attr_sas_ncq_prio_enable.attr,
 	NULL,
+};
+
+static const struct attribute_group mpt3sas_dev_attr_group = {
+	.attrs = mpt3sas_dev_attrs
+};
+
+const struct attribute_group *mpt3sas_dev_groups[] = {
+	&mpt3sas_dev_attr_group,
+	NULL
 };
 
 /* file operations table for mpt3ctl device */

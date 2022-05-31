@@ -40,11 +40,12 @@ struct dma_heap_attachment {
 	bool mapped;
 };
 
+#define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
+#define MID_ORDER_GFP (LOW_ORDER_GFP | __GFP_NOWARN)
 #define HIGH_ORDER_GFP  (((GFP_HIGHUSER | __GFP_ZERO | __GFP_NOWARN \
 				| __GFP_NORETRY) & ~__GFP_RECLAIM) \
 				| __GFP_COMP)
-#define LOW_ORDER_GFP (GFP_HIGHUSER | __GFP_ZERO | __GFP_COMP)
-static gfp_t order_flags[] = {HIGH_ORDER_GFP, LOW_ORDER_GFP, LOW_ORDER_GFP};
+static gfp_t order_flags[] = {HIGH_ORDER_GFP, MID_ORDER_GFP, LOW_ORDER_GFP};
 /*
  * The selection of the orders used for allocation (1MB, 64K, 4K) is designed
  * to match with the sizes often found in IOMMUs. Using order 4 pages instead
@@ -240,7 +241,7 @@ static void *system_heap_do_vmap(struct system_heap_buffer *buffer)
 	return vaddr;
 }
 
-static int system_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static int system_heap_vmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
 	void *vaddr;
@@ -249,7 +250,7 @@ static int system_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 	mutex_lock(&buffer->lock);
 	if (buffer->vmap_cnt) {
 		buffer->vmap_cnt++;
-		dma_buf_map_set_vaddr(map, buffer->vaddr);
+		iosys_map_set_vaddr(map, buffer->vaddr);
 		goto out;
 	}
 
@@ -261,14 +262,14 @@ static int system_heap_vmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 
 	buffer->vaddr = vaddr;
 	buffer->vmap_cnt++;
-	dma_buf_map_set_vaddr(map, buffer->vaddr);
+	iosys_map_set_vaddr(map, buffer->vaddr);
 out:
 	mutex_unlock(&buffer->lock);
 
 	return ret;
 }
 
-static void system_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
+static void system_heap_vunmap(struct dma_buf *dmabuf, struct iosys_map *map)
 {
 	struct system_heap_buffer *buffer = dmabuf->priv;
 
@@ -278,7 +279,7 @@ static void system_heap_vunmap(struct dma_buf *dmabuf, struct dma_buf_map *map)
 		buffer->vaddr = NULL;
 	}
 	mutex_unlock(&buffer->lock);
-	dma_buf_map_clear(map);
+	iosys_map_clear(map);
 }
 
 static void system_heap_dma_buf_release(struct dma_buf *dmabuf)
@@ -289,7 +290,7 @@ static void system_heap_dma_buf_release(struct dma_buf *dmabuf)
 	int i;
 
 	table = &buffer->sg_table;
-	for_each_sg(table->sgl, sg, table->nents, i) {
+	for_each_sgtable_sg(table, sg, i) {
 		struct page *page = sg_page(sg);
 
 		__free_pages(page, compound_order(page));

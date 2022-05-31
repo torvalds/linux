@@ -26,23 +26,37 @@ properties:
       - qcom,msm8939-bimc
       - qcom,msm8939-pcnoc
       - qcom,msm8939-snoc
-      - qcom,msm8939-snoc-mm
+      - qcom,msm8996-a0noc
+      - qcom,msm8996-a1noc
+      - qcom,msm8996-a2noc
+      - qcom,msm8996-bimc
+      - qcom,msm8996-cnoc
+      - qcom,msm8996-mnoc
+      - qcom,msm8996-pnoc
+      - qcom,msm8996-snoc
       - qcom,qcs404-bimc
       - qcom,qcs404-pcnoc
       - qcom,qcs404-snoc
+      - qcom,sdm660-a2noc
+      - qcom,sdm660-bimc
+      - qcom,sdm660-cnoc
+      - qcom,sdm660-gnoc
+      - qcom,sdm660-mnoc
+      - qcom,sdm660-snoc
 
   '#interconnect-cells':
     const: 1
 
-  clock-names:
-    items:
-      - const: bus
-      - const: bus_a
-
   clocks:
-    items:
-      - description: Bus Clock
-      - description: Bus A Clock
+    minItems: 2
+    maxItems: 7
+
+  clock-names:
+    minItems: 2
+    maxItems: 7
+
+  power-domains:
+    maxItems: 1
 
 required:
   - compatible
@@ -52,6 +66,150 @@ required:
   - clocks
 
 additionalProperties: false
+
+allOf:
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8916-bimc
+              - qcom,msm8916-pcnoc
+              - qcom,msm8916-snoc
+              - qcom,msm8939-bimc
+              - qcom,msm8939-pcnoc
+              - qcom,msm8939-snoc
+              - qcom,msm8996-a1noc
+              - qcom,msm8996-a2noc
+              - qcom,msm8996-bimc
+              - qcom,msm8996-cnoc
+              - qcom,msm8996-pnoc
+              - qcom,msm8996-snoc
+              - qcom,qcs404-bimc
+              - qcom,qcs404-pcnoc
+              - qcom,qcs404-snoc
+              - qcom,sdm660-bimc
+              - qcom,sdm660-cnoc
+              - qcom,sdm660-gnoc
+              - qcom,sdm660-snoc
+
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: bus
+            - const: bus_a
+
+        clocks:
+          items:
+            - description: Bus Clock
+            - description: Bus A Clock
+
+      # Child node's properties
+      patternProperties:
+        '^interconnect-[a-z0-9]+$':
+          type: object
+          description:
+            snoc-mm is a child of snoc, sharing snoc's register address space.
+
+          properties:
+            compatible:
+              enum:
+                - qcom,msm8939-snoc-mm
+
+            '#interconnect-cells':
+              const: 1
+
+            clock-names:
+              items:
+                - const: bus
+                - const: bus_a
+
+            clocks:
+              items:
+                - description: Bus Clock
+                - description: Bus A Clock
+
+          required:
+            - compatible
+            - '#interconnect-cells'
+            - clock-names
+            - clocks
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8996-mnoc
+              - qcom,sdm660-mnoc
+
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: bus
+            - const: bus_a
+            - const: iface
+
+        clocks:
+          items:
+            - description: Bus Clock.
+            - description: Bus A Clock.
+            - description: CPU-NoC High-performance Bus Clock.
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,msm8996-a0noc
+
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: aggre0_snoc_axi
+            - const: aggre0_cnoc_ahb
+            - const: aggre0_noc_mpu_cfg
+
+        clocks:
+          items:
+            - description: Aggregate0 System NoC AXI Clock.
+            - description: Aggregate0 Config NoC AHB Clock.
+            - description: Aggregate0 NoC MPU Clock.
+
+      required:
+        - power-domains
+
+  - if:
+      properties:
+        compatible:
+          contains:
+            enum:
+              - qcom,sdm660-a2noc
+
+    then:
+      properties:
+        clock-names:
+          items:
+            - const: bus
+            - const: bus_a
+            - const: ipa
+            - const: ufs_axi
+            - const: aggre2_ufs_axi
+            - const: aggre2_usb3_axi
+            - const: cfg_noc_usb2_axi
+
+        clocks:
+          items:
+            - description: Bus Clock.
+            - description: Bus A Clock.
+            - description: IPA Clock.
+            - description: UFS AXI Clock.
+            - description: Aggregate2 UFS AXI Clock.
+            - description: Aggregate2 USB3 AXI Clock.
+            - description: Config NoC USB2 AXI Clock.
 
 examples:
   - |

@@ -67,3 +67,4 @@ module_i2c_driver(adxl372_i2c_driver);
 MODULE_AUTHOR("Stefan Popa <stefan.popa@analog.com>");
 MODULE_DESCRIPTION("Analog Devices ADXL372 3-axis accelerometer I2C driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(IIO_ADXL372);

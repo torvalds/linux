@@ -1383,7 +1383,7 @@
 				};
 			};
 
-			gpio@0 {
+			hog-0 {
 				gpio-hog;
 				output-high;
 				gpios = <2 GPIO_ACTIVE_HIGH>,
@@ -1586,7 +1586,7 @@
 		status = "okay";
 	};
 
-	clk32k_in: clock@0 {
+	clk32k_in: clock-32k {
 		compatible = "fixed-clock";
 		clock-frequency = <32768>;
 		#clock-cells = <0>;
@@ -1635,7 +1635,7 @@
 		method = "smc";
 	};
 
-	battery_reg: regulator@0 {
+	battery_reg: regulator-vdd-ac-bat {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-ac-bat";
 		regulator-min-microvolt = <5000000>;
@@ -1643,7 +1643,7 @@
 		regulator-always-on;
 	};
 
-	vdd_3v3: regulator@1 {
+	vdd_3v3: regulator-vdd-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-3v3";
 		regulator-enable-ramp-delay = <160>;
@@ -1655,7 +1655,7 @@
 		enable-active-high;
 	};
 
-	max77620_gpio7: regulator@2 {
+	max77620_gpio7: regulator-max77620-gpio7 {
 		compatible = "regulator-fixed";
 		regulator-name = "max77620-gpio7";
 		regulator-enable-ramp-delay = <240>;
@@ -1669,7 +1669,7 @@
 		enable-active-high;
 	};
 
-	lcd_bl_en: regulator@3 {
+	lcd_bl_en: regulator-lcd-bl-en {
 		compatible = "regulator-fixed";
 		regulator-name = "lcd-bl-en";
 		regulator-min-microvolt = <1800000>;
@@ -1680,7 +1680,7 @@
 		enable-active-high;
 	};
 
-	en_vdd_sd: regulator@4 {
+	en_vdd_sd: regulator-vdd-sd {
 		compatible = "regulator-fixed";
 		regulator-name = "en-vdd-sd";
 		regulator-enable-ramp-delay = <472>;
@@ -1692,7 +1692,7 @@
 		enable-active-high;
 	};
 
-	en_vdd_cam: regulator@5 {
+	en_vdd_cam: regulator-vdd-cam {
 		compatible = "regulator-fixed";
 		regulator-name = "en-vdd-cam";
 		regulator-min-microvolt = <1800000>;
@@ -1702,7 +1702,7 @@
 		enable-active-high;
 	};
 
-	vdd_sys_boost: regulator@6 {
+	vdd_sys_boost: regulator-vdd-sys-boost {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-sys-boost";
 		regulator-enable-ramp-delay = <3090>;
@@ -1714,7 +1714,7 @@
 		enable-active-high;
 	};
 
-	vdd_hdmi: regulator@7 {
+	vdd_hdmi: regulator-vdd-hdmi {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-hdmi";
 		regulator-enable-ramp-delay = <468>;
@@ -1727,21 +1727,21 @@
 		enable-active-high;
 	};
 
-	en_vdd_cpu_fixed: regulator@8 {
+	en_vdd_cpu_fixed: regulator-vdd-cpu-fixed {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-cpu-fixed";
 		regulator-min-microvolt = <1000000>;
 		regulator-max-microvolt = <1000000>;
 	};
 
-	vdd_aux_3v3: regulator@9 {
+	vdd_aux_3v3: regulator-vdd-aux-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "aux-3v3";
 		regulator-min-microvolt = <3300000>;
 		regulator-max-microvolt = <3300000>;
 	};
 
-	vdd_snsr_pm: regulator@10 {
+	vdd_snsr_pm: regulator-vdd-snsr-pm {
 		compatible = "regulator-fixed";
 		regulator-name = "snsr_pm";
 		regulator-min-microvolt = <3300000>;
@@ -1750,7 +1750,7 @@
 		enable-active-high;
 	};
 
-	vdd_usb_5v0: regulator@11 {
+	vdd_usb_5v0: regulator-vdd-usb-5v0 {
 		compatible = "regulator-fixed";
 		status = "disabled";
 		regulator-name = "vdd-usb-5v0";
@@ -1761,7 +1761,7 @@
 		enable-active-high;
 	};
 
-	vdd_cdc_1v2_aud: regulator@101 {
+	vdd_cdc_1v2_aud: regulator-vdd-cdc-1v2-aud {
 		compatible = "regulator-fixed";
 		status = "disabled";
 		regulator-name = "vdd_cdc_1v2_aud";
@@ -1772,7 +1772,7 @@
 		enable-active-high;
 	};
 
-	vdd_disp_3v0: regulator@12 {
+	vdd_disp_3v0: regulator-vdd-disp-3v0 {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-disp-3v0";
 		regulator-enable-ramp-delay = <232>;
@@ -1784,7 +1784,7 @@
 		enable-active-high;
 	};
 
-	vdd_fan: regulator@13 {
+	vdd_fan: regulator-vdd-fan {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-fan";
 		regulator-enable-ramp-delay = <284>;
@@ -1795,7 +1795,7 @@
 		enable-active-high;
 	};
 
-	usb_vbus1: regulator@14 {
+	usb_vbus1: regulator-usb-vbus1 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb-vbus1";
 		regulator-min-microvolt = <5000000>;
@@ -1806,7 +1806,7 @@
 		gpio-open-drain;
 	};
 
-	usb_vbus2: regulator@15 {
+	usb_vbus2: regulator-usb-vbus2 {
 		compatible = "regulator-fixed";
 		regulator-name = "usb-vbus2";
 		regulator-min-microvolt = <5000000>;
@@ -1817,7 +1817,7 @@
 		gpio-open-drain;
 	};
 
-	vdd_3v3_eth: regulator@16 {
+	vdd_3v3_eth: regulator-vdd-3v3-eth {
 		compatible = "regulator-fixed";
 		regulator-name = "vdd-3v3-eth-a02";
 		regulator-min-microvolt = <3300000>;

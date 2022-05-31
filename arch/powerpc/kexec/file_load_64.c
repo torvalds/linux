@@ -700,6 +700,7 @@ static int update_usable_mem_fdt(void *fdt, struct crash_mem *usable_mem)
 		if (ret) {
 			pr_err("Failed to set linux,usable-memory property for %s node",
 			       dn->full_name);
+			of_node_put(dn);
 			goto out;
 		}
 	}

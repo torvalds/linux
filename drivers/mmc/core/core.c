@@ -1995,7 +1995,7 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
 
 /**
  * mmc_hw_reset - reset the card in hardware
- * @host: MMC host to which the card is attached
+ * @card: card to be reset
  *
  * Hard reset the card. This function is only for upper layers, like the
  * block layer or card drivers. You cannot use it in host drivers (struct
@@ -2003,8 +2003,9 @@ static void mmc_hw_reset_for_init(struct mmc_host *host)
  *
  * Return: 0 on success, -errno on failure
  */
-int mmc_hw_reset(struct mmc_host *host)
+int mmc_hw_reset(struct mmc_card *card)
 {
+	struct mmc_host *host = card->host;
 	int ret;
 
 	ret = host->bus_ops->hw_reset(host);
@@ -2264,7 +2265,7 @@ void mmc_start_host(struct mmc_host *host)
 	_mmc_detect_change(host, 0, false);
 }
 
-void mmc_stop_host(struct mmc_host *host)
+void __mmc_stop_host(struct mmc_host *host)
 {
 	if (host->slot.cd_irq >= 0) {
 		mmc_gpio_set_cd_wake(host, false);
@@ -2273,6 +2274,11 @@ void mmc_stop_host(struct mmc_host *host)
 
 	host->rescan_disable = 1;
 	cancel_delayed_work_sync(&host->detect);
+}
+
+void mmc_stop_host(struct mmc_host *host)
+{
+	__mmc_stop_host(host);
 
 	/* clear pm flags now and let card drivers set them as needed */
 	host->pm_flags = 0;

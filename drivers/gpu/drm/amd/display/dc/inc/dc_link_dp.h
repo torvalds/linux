@@ -30,8 +30,10 @@
 #define LINK_TRAINING_RETRY_DELAY 50 /* ms */
 #define LINK_AUX_DEFAULT_LTTPR_TIMEOUT_PERIOD 3200 /*us*/
 #define LINK_AUX_DEFAULT_TIMEOUT_PERIOD 552 /*us*/
+#define MAX_MTP_SLOT_COUNT 64
 #define DP_REPEATER_CONFIGURATION_AND_STATUS_SIZE 0x50
 #define TRAINING_AUX_RD_INTERVAL 100 //us
+#define LINK_AUX_WAKE_TIMEOUT_MS 1500 // Timeout when trying to wake unresponsive DPRX.
 
 struct dc_link;
 struct dc_stream_state;
@@ -53,18 +55,12 @@ enum {
 	PEAK_FACTOR_X1000 = 1006,
 };
 
-bool dp_verify_link_cap(
-	struct dc_link *link,
-	struct dc_link_settings *known_limit_link_setting,
-	int *fail_count);
+struct dc_link_settings dp_get_max_link_cap(struct dc_link *link);
 
 bool dp_verify_link_cap_with_retries(
 	struct dc_link *link,
 	struct dc_link_settings *known_limit_link_setting,
 	int attempts);
-
-bool dp_verify_mst_link_cap(
-	struct dc_link *link);
 
 bool dp_validate_mode_timing(
 	struct dc_link *link,
@@ -110,6 +106,9 @@ void dp_set_panel_mode(struct dc_link *link, enum dp_panel_mode panel_mode);
 bool dp_overwrite_extended_receiver_cap(struct dc_link *link);
 
 void dpcd_set_source_specific_data(struct dc_link *link);
+
+void dpcd_write_cable_id_to_dprx(struct dc_link *link);
+
 /* Write DPCD link configuration data. */
 enum dc_status dpcd_set_link_settings(
 	struct dc_link *link,
@@ -120,12 +119,12 @@ enum dc_status dpcd_set_lane_settings(
 	const struct link_training_settings *link_training_setting,
 	uint32_t offset);
 /* Read training status and adjustment requests from DPCD. */
-enum dc_status dp_get_lane_status_and_drive_settings(
+enum dc_status dp_get_lane_status_and_lane_adjust(
 	struct dc_link *link,
 	const struct link_training_settings *link_training_setting,
-	union lane_status *ln_status,
-	union lane_align_status_updated *ln_status_updated,
-	struct link_training_settings *req_settings,
+	union lane_status ln_status[LANE_COUNT_DP_MAX],
+	union lane_align_status_updated *ln_align,
+	union lane_adjust ln_adjust[LANE_COUNT_DP_MAX],
 	uint32_t offset);
 
 void dp_wait_for_training_aux_rd_interval(
@@ -146,10 +145,15 @@ bool dp_is_interlane_aligned(union lane_align_status_updated align_status);
 
 bool dp_is_max_vs_reached(
 	const struct link_training_settings *lt_settings);
-
-void dp_update_drive_settings(
-	struct link_training_settings *dest,
-	struct link_training_settings src);
+void dp_hw_to_dpcd_lane_settings(
+	const struct link_training_settings *lt_settings,
+	const struct dc_lane_settings hw_lane_settings[LANE_COUNT_DP_MAX],
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX]);
+void dp_decide_lane_settings(
+	const struct link_training_settings *lt_settings,
+	const union lane_adjust ln_adjust[LANE_COUNT_DP_MAX],
+	struct dc_lane_settings hw_lane_settings[LANE_COUNT_DP_MAX],
+	union dpcd_training_lane dpcd_lane_settings[LANE_COUNT_DP_MAX]);
 
 uint32_t dp_translate_training_aux_read_interval(uint32_t dpcd_aux_read_interval);
 
@@ -162,10 +166,10 @@ uint8_t dc_dp_initialize_scrambling_data_symbols(
 	struct dc_link *link,
 	enum dc_dp_training_pattern pattern);
 
-enum dc_status dp_set_fec_ready(struct dc_link *link, bool ready);
+enum dc_status dp_set_fec_ready(struct dc_link *link, const struct link_resource *link_res, bool ready);
 void dp_set_fec_enable(struct dc_link *link, bool enable);
 bool dp_set_dsc_enable(struct pipe_ctx *pipe_ctx, bool enable);
-bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable);
+bool dp_set_dsc_pps_sdp(struct pipe_ctx *pipe_ctx, bool enable, bool immediate_update);
 void dp_set_dsc_on_stream(struct pipe_ctx *pipe_ctx, bool enable);
 bool dp_update_dsc_config(struct pipe_ctx *pipe_ctx);
 bool dp_set_dsc_on_rx(struct pipe_ctx *pipe_ctx, bool enable);
@@ -189,5 +193,70 @@ enum dc_status dpcd_configure_lttpr_mode(
 		struct link_training_settings *lt_settings);
 
 enum dp_link_encoding dp_get_link_encoding_format(const struct dc_link_settings *link_settings);
+bool dpcd_write_128b_132b_sst_payload_allocation_table(
+		const struct dc_stream_state *stream,
+		struct dc_link *link,
+		struct link_mst_stream_allocation_table *proposed_table,
+		bool allocate);
+
+enum dc_status dpcd_configure_channel_coding(
+		struct dc_link *link,
+		struct link_training_settings *lt_settings);
+
+bool dpcd_poll_for_allocation_change_trigger(struct dc_link *link);
+
+struct fixed31_32 calculate_sst_avg_time_slots_per_mtp(
+		const struct dc_stream_state *stream,
+		const struct dc_link *link);
+void enable_dp_hpo_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct dc_link_settings *link_settings);
+void disable_dp_hpo_output(struct dc_link *link,
+		const struct link_resource *link_res,
+		enum signal_type signal);
+void setup_dp_hpo_stream(struct pipe_ctx *pipe_ctx, bool enable);
+bool is_dp_128b_132b_signal(struct pipe_ctx *pipe_ctx);
+
 bool dp_retrieve_lttpr_cap(struct dc_link *link);
+void edp_panel_backlight_power_on(struct dc_link *link);
+void dp_receiver_power_ctrl(struct dc_link *link, bool on);
+void dp_source_sequence_trace(struct dc_link *link, uint8_t dp_test_mode);
+void dp_enable_link_phy(
+	struct dc_link *link,
+	const struct link_resource *link_res,
+	enum signal_type signal,
+	enum clock_source_id clock_source,
+	const struct dc_link_settings *link_settings);
+void edp_add_delay_for_T9(struct dc_link *link);
+bool edp_receiver_ready_T9(struct dc_link *link);
+bool edp_receiver_ready_T7(struct dc_link *link);
+
+void dp_disable_link_phy(struct dc_link *link, const struct link_resource *link_res,
+		enum signal_type signal);
+
+void dp_disable_link_phy_mst(struct dc_link *link, const struct link_resource *link_res,
+		enum signal_type signal);
+
+bool dp_set_hw_training_pattern(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		enum dc_dp_training_pattern pattern,
+		uint32_t offset);
+
+void dp_set_hw_lane_settings(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		const struct link_training_settings *link_settings,
+		uint32_t offset);
+
+void dp_set_hw_test_pattern(
+		struct dc_link *link,
+		const struct link_resource *link_res,
+		enum dp_test_pattern test_pattern,
+		uint8_t *custom_pattern,
+		uint32_t custom_pattern_size);
+
+void dp_retrain_link_dp_test(struct dc_link *link,
+		struct dc_link_settings *link_setting,
+		bool skip_video_pattern);
 #endif /* __DC_LINK_DP_H__ */

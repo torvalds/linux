@@ -9,7 +9,7 @@
  */
 
 #include <linux/cdrom.h>
-#include <linux/genhd.h>
+#include <linux/blkdev.h>
 #include <linux/nls.h>
 #include <linux/slab.h>
 
@@ -36,7 +36,7 @@ static int hfs_get_last_session(struct super_block *sb,
 
 	/* default values */
 	*start = 0;
-	*size = i_size_read(sb->s_bdev->bd_inode) >> 9;
+	*size = bdev_nr_sectors(sb->s_bdev);
 
 	if (HFS_SB(sb)->session >= 0) {
 		struct cdrom_tocentry te;

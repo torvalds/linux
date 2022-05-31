@@ -36,6 +36,7 @@
 #define  MERGE_3D_IDX   23
 #define  INTF_IDX       31
 #define CTL_INVALID_BIT                 0xffff
+#define CTL_DEFAULT_GROUP_ID		0xf
 
 static const u32 fetch_tbl[SSPP_MAX] = {CTL_INVALID_BIT, 16, 17, 18, 19,
 	CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, CTL_INVALID_BIT, 0,
@@ -89,6 +90,11 @@ static inline void dpu_hw_ctl_trigger_start(struct dpu_hw_ctl *ctx)
 	trace_dpu_hw_ctl_trigger_start(ctx->pending_flush_mask,
 				       dpu_hw_ctl_get_flush_register(ctx));
 	DPU_REG_WRITE(&ctx->hw, CTL_START, 0x1);
+}
+
+static inline bool dpu_hw_ctl_is_started(struct dpu_hw_ctl *ctx)
+{
+	return !!(DPU_REG_READ(&ctx->hw, CTL_START) & BIT(0));
 }
 
 static inline void dpu_hw_ctl_trigger_pending(struct dpu_hw_ctl *ctx)
@@ -498,6 +504,13 @@ static void dpu_hw_ctl_intf_cfg_v1(struct dpu_hw_ctl *ctx,
 	u32 intf_active = 0;
 	u32 mode_sel = 0;
 
+	/* CTL_TOP[31:28] carries group_id to collate CTL paths
+	 * per VM. Explicitly disable it until VM support is
+	 * added in SW. Power on reset value is not disable.
+	 */
+	if ((test_bit(DPU_CTL_VM_CFG, &ctx->caps->features)))
+		mode_sel = CTL_DEFAULT_GROUP_ID  << 28;
+
 	if (cfg->intf_mode_sel == DPU_CTL_MODE_SEL_CMD)
 		mode_sel |= BIT(17);
 
@@ -579,6 +592,7 @@ static void _setup_ctl_ops(struct dpu_hw_ctl_ops *ops,
 	ops->get_pending_flush = dpu_hw_ctl_get_pending_flush;
 	ops->get_flush_register = dpu_hw_ctl_get_flush_register;
 	ops->trigger_start = dpu_hw_ctl_trigger_start;
+	ops->is_started = dpu_hw_ctl_is_started;
 	ops->trigger_pending = dpu_hw_ctl_trigger_pending;
 	ops->reset = dpu_hw_ctl_reset_control;
 	ops->wait_reset_status = dpu_hw_ctl_wait_reset_status;

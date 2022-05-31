@@ -1950,6 +1950,14 @@ There are some more advanced barrier functions:
      For load from persistent memory, existing read memory barriers are sufficient
      to ensure read ordering.
 
+ (*) io_stop_wc();
+
+     For memory accesses with write-combining attributes (e.g. those returned
+     by ioremap_wc(), the CPU may wait for prior accesses to be merged with
+     subsequent ones. io_stop_wc() can be used to prevent the merging of
+     write-combining memory accesses before this macro with those after it when
+     such wait has performance implications.
+
 ===============================
 IMPLICIT KERNEL MEMORY BARRIERS
 ===============================

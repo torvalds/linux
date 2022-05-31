@@ -50,11 +50,11 @@ ksmbd.mountd (user space daemon)
 --------------------------------
 
 ksmbd.mountd is userspace process to, transfer user account and password that
-are registered using ksmbd.adduser(part of utils for user space). Further it
+are registered using ksmbd.adduser (part of utils for user space). Further it
 allows sharing information parameters that parsed from smb.conf to ksmbd in
 kernel. For the execution part it has a daemon which is continuously running
 and connected to the kernel interface using netlink socket, it waits for the
-requests(dcerpc and share/user info). It handles RPC calls (at a minimum few
+requests (dcerpc and share/user info). It handles RPC calls (at a minimum few
 dozen) that are most important for file server from NetShareEnum and
 NetServerGetInfo. Complete DCE/RPC response is prepared from the user space
 and passed over to the associated kernel thread for the client.
@@ -82,10 +82,10 @@ Signing Update                 Supported.
 Pre-authentication integrity   Supported.
 SMB3 encryption(CCM, GCM)      Supported. (CCM and GCM128 supported, GCM256 in
                                progress)
-SMB direct(RDMA)               Partially Supported. SMB3 Multi-channel is
-                               required to connect to Windows client.
+SMB direct(RDMA)               Supported.
 SMB3 Multi-channel             Partially Supported. Planned to implement
                                replay/retry mechanisms for future.
+Receive Side Scaling mode      Supported.
 SMB3.1.1 POSIX extension       Supported.
 ACLs                           Partially Supported. only DACLs available, SACLs
                                (auditing) is planned for the future. For
@@ -154,11 +154,11 @@ Each layer
 1. Enable all component prints
 	# sudo ksmbd.control -d "all"
 
-2. Enable one of components(smb, auth, vfs, oplock, ipc, conn, rdma)
+2. Enable one of components (smb, auth, vfs, oplock, ipc, conn, rdma)
 	# sudo ksmbd.control -d "smb"
 
-3. Show what prints are enable.
-	# cat/sys/class/ksmbd-control/debug
+3. Show what prints are enabled.
+	# cat /sys/class/ksmbd-control/debug
 	  [smb] auth vfs oplock ipc conn [rdma]
 
 4. Disable prints:

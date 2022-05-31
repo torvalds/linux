@@ -21,8 +21,7 @@
 #include <linux/slab.h>
 #include <linux/bsearch.h>
 #include <linux/sort.h>
-
-#include "../comedi.h"
+#include <linux/comedi.h>
 
 #include "ni_routes.h"
 #include "ni_routing/ni_route_values.h"
@@ -57,8 +56,7 @@ static const u8 *ni_find_route_values(const char *device_family)
 	int i;
 
 	for (i = 0; ni_all_route_values[i]; ++i) {
-		if (memcmp(ni_all_route_values[i]->family, device_family,
-			   strnlen(device_family, 30)) == 0) {
+		if (!strcmp(ni_all_route_values[i]->family, device_family)) {
 			rv = &ni_all_route_values[i]->register_values[0][0];
 			break;
 		}
@@ -76,8 +74,7 @@ ni_find_valid_routes(const char *board_name)
 	int i;
 
 	for (i = 0; ni_device_routes_list[i]; ++i) {
-		if (memcmp(ni_device_routes_list[i]->device, board_name,
-			   strnlen(board_name, 30)) == 0) {
+		if (!strcmp(ni_device_routes_list[i]->device, board_name)) {
 			dr = ni_device_routes_list[i];
 			break;
 		}

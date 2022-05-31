@@ -455,7 +455,10 @@ int btrfs_test_qgroups(u32 sectorsize, u32 nodesize)
 	}
 
 	/* We are using this root as our extent root */
-	root->fs_info->extent_root = root;
+	root->root_key.objectid = BTRFS_EXTENT_TREE_OBJECTID;
+	root->root_key.type = BTRFS_ROOT_ITEM_KEY;
+	root->root_key.offset = 0;
+	btrfs_global_root_insert(root);
 
 	/*
 	 * Some of the paths we test assume we have a filled out fs_info, so we

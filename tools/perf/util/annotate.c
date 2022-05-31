@@ -28,10 +28,12 @@
 #include "evsel.h"
 #include "evlist.h"
 #include "bpf-event.h"
+#include "bpf-utils.h"
 #include "block-range.h"
 #include "string2.h"
 #include "util/event.h"
 #include "arch/common.h"
+#include "namespaces.h"
 #include <regex.h>
 #include <pthread.h>
 #include <linux/bitops.h>
@@ -151,6 +153,7 @@ static int arch__associate_ins_ops(struct arch* arch, const char *name, struct i
 #include "arch/mips/annotate/instructions.c"
 #include "arch/x86/annotate/instructions.c"
 #include "arch/powerpc/annotate/instructions.c"
+#include "arch/riscv64/annotate/instructions.c"
 #include "arch/s390/annotate/instructions.c"
 #include "arch/sparc/annotate/instructions.c"
 
@@ -183,7 +186,6 @@ static struct arch architectures[] = {
 		.init = x86__annotate_init,
 		.instructions = x86__instructions,
 		.nr_instructions = ARRAY_SIZE(x86__instructions),
-		.ins_is_fused = x86__ins_is_fused,
 		.objdump =  {
 			.comment_char = '#',
 		},
@@ -191,6 +193,10 @@ static struct arch architectures[] = {
 	{
 		.name = "powerpc",
 		.init = powerpc__annotate_init,
+	},
+	{
+		.name = "riscv64",
+		.init = riscv64__annotate_init,
 	},
 	{
 		.name = "s390",
@@ -1250,6 +1256,17 @@ int disasm_line__scnprintf(struct disasm_line *dl, char *bf, size_t size, bool r
 	return ins__scnprintf(&dl->ins, bf, size, &dl->ops, max_ins_name);
 }
 
+void annotation__init(struct annotation *notes)
+{
+	pthread_mutex_init(&notes->lock, NULL);
+}
+
+void annotation__exit(struct annotation *notes)
+{
+	annotated_source__delete(notes->src);
+	pthread_mutex_destroy(&notes->lock);
+}
+
 static void annotation_line__add(struct annotation_line *al, struct list_head *head)
 {
 	list_add_tail(&al->node, head);
@@ -1680,6 +1697,15 @@ fallback:
 		 * DSO is the same as when 'perf record' ran.
 		 */
 		__symbol__join_symfs(filename, filename_size, dso->long_name);
+
+		if (access(filename, R_OK) && errno == ENOENT && dso->nsinfo) {
+			char *new_name = filename_with_chroot(dso->nsinfo->pid,
+							      filename);
+			if (new_name) {
+				strlcpy(filename, new_name, filename_size);
+				free(new_name);
+			}
+		}
 	}
 
 	free(build_id_path);
@@ -1700,12 +1726,12 @@ static int symbol__disassemble_bpf(struct symbol *sym,
 {
 	struct annotation *notes = symbol__annotation(sym);
 	struct annotation_options *opts = args->options;
-	struct bpf_prog_info_linear *info_linear;
 	struct bpf_prog_linfo *prog_linfo = NULL;
 	struct bpf_prog_info_node *info_node;
 	int len = sym->end - sym->start;
 	disassembler_ftype disassemble;
 	struct map *map = args->ms.map;
+	struct perf_bpil *info_linear;
 	struct disassemble_info info;
 	struct dso *dso = map->dso;
 	int pc = 0, count, sub_id;
@@ -2020,6 +2046,8 @@ static int symbol__disassemble(struct symbol *sym, struct annotate_args *args)
 	memset(&objdump_process, 0, sizeof(objdump_process));
 	objdump_process.argv = objdump_argv;
 	objdump_process.out = -1;
+	objdump_process.err = -1;
+	objdump_process.no_stderr = 1;
 	if (start_command(&objdump_process)) {
 		pr_err("Failure starting to run %s\n", command);
 		err = -1;
@@ -3127,7 +3155,7 @@ int symbol__annotate2(struct map_symbol *ms, struct evsel *evsel,
 	notes->nr_events = nr_pcnt;
 
 	annotation__update_column_widths(notes);
-	sym->annotate2 = true;
+	sym->annotate2 = 1;
 
 	return 0;
 

@@ -184,6 +184,20 @@ static int tbf_offload_dump(struct Qdisc *sch)
 	return qdisc_offload_dump_helper(sch, TC_SETUP_QDISC_TBF, &qopt);
 }
 
+static void tbf_offload_graft(struct Qdisc *sch, struct Qdisc *new,
+			      struct Qdisc *old, struct netlink_ext_ack *extack)
+{
+	struct tc_tbf_qopt_offload graft_offload = {
+		.handle		= sch->handle,
+		.parent		= sch->parent,
+		.child_handle	= new->handle,
+		.command	= TC_TBF_GRAFT,
+	};
+
+	qdisc_offload_graft_helper(qdisc_dev(sch), sch, new, old,
+				   TC_SETUP_QDISC_TBF, &graft_offload, extack);
+}
+
 /* GSO packet is too big, segment it so that tbf can transmit
  * each segment in time
  */
@@ -547,6 +561,8 @@ static int tbf_graft(struct Qdisc *sch, unsigned long arg, struct Qdisc *new,
 		new = &noop_qdisc;
 
 	*old = qdisc_replace(sch, new, &q->qdisc);
+
+	tbf_offload_graft(sch, new, *old, extack);
 	return 0;
 }
 

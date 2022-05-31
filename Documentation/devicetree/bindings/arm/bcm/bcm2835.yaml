@@ -19,6 +19,7 @@ properties:
         items:
           - enum:
               - raspberrypi,400
+              - raspberrypi,4-compute-module
               - raspberrypi,4-model-b
           - const: brcm,bcm2711
 
@@ -50,6 +51,7 @@ properties:
               - raspberrypi,3-model-b-plus
               - raspberrypi,3-compute-module
               - raspberrypi,3-compute-module-lite
+              - raspberrypi,model-zero-2-w
           - const: brcm,bcm2837
 
 additionalProperties: true

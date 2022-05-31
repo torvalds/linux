@@ -23,11 +23,11 @@ on it as usual.  The `DAX` code currently only supports files with a block
 size equal to your kernel's `PAGE_SIZE`, so you may need to specify a block
 size when creating the filesystem.
 
-Currently 3 filesystems support `DAX`: ext2, ext4 and xfs.  Enabling `DAX` on them
-is different.
+Currently 5 filesystems support `DAX`: ext2, ext4, xfs, virtiofs and erofs.
+Enabling `DAX` on them is different.
 
-Enabling DAX on ext2
---------------------
+Enabling DAX on ext2 and erofs
+------------------------------
 
 When mounting the filesystem, use the ``-o dax`` option on the command line or
 add 'dax' to the options in ``/etc/fstab``.  This works to enable `DAX` on all files
@@ -166,6 +166,22 @@ statx can be used to query `S_DAX`.
 Setting the `FS_XFLAG_DAX` flag (specifically or through inheritance) occurs even
 if the underlying media does not support dax and/or the filesystem is
 overridden with a mount option.
+
+
+Enabling DAX on virtiofs
+----------------------------
+The semantic of DAX on virtiofs is basically equal to that on ext4 and xfs,
+except that when '-o dax=inode' is specified, virtiofs client derives the hint
+whether DAX shall be enabled or not from virtiofs server through FUSE protocol,
+rather than the persistent `FS_XFLAG_DAX` flag. That is, whether DAX shall be
+enabled or not is completely determined by virtiofs server, while virtiofs
+server itself may deploy various algorithm making this decision, e.g. depending
+on the persistent `FS_XFLAG_DAX` flag on the host.
+
+It is still supported to set or clear persistent `FS_XFLAG_DAX` flag inside
+guest, but it is not guaranteed that DAX will be enabled or disabled for
+corresponding file then. Users inside guest still need to call statx(2) and
+check the statx flag `STATX_ATTR_DAX` to see if DAX is enabled for this file.
 
 
 Implementation Tips for Block Driver Writers

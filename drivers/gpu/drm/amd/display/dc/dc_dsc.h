@@ -51,7 +51,6 @@ struct dc_dsc_policy {
 	int min_slice_height; // Must not be less than 8
 	uint32_t max_target_bpp;
 	uint32_t min_target_bpp;
-	uint32_t preferred_bpp_x16;
 	bool enable_dsc_when_not_needed;
 };
 
@@ -81,6 +80,16 @@ bool dc_dsc_compute_config(
 uint32_t dc_dsc_stream_bandwidth_in_kbps(const struct dc_crtc_timing *timing,
 		uint32_t bpp_x16, uint32_t num_slices_h, bool is_dp);
 
+uint32_t dc_dsc_stream_bandwidth_overhead_in_kbps(
+		const struct dc_crtc_timing *timing,
+		const int num_slices_h,
+		const bool is_dp);
+
+/* TODO - Hardware/specs limitation should be owned by dc dsc and returned to DM,
+ * and DM can choose to OVERRIDE the limitation on CASE BY CASE basis.
+ * Hardware/specs limitation should not be writable by DM.
+ * It should be decoupled from DM specific policy and named differently.
+ */
 void dc_dsc_get_policy_for_timing(const struct dc_crtc_timing *timing,
 		uint32_t max_target_bpp_limit_override_x16,
 		struct dc_dsc_policy *policy);

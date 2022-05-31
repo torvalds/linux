@@ -9,7 +9,8 @@ extern struct net init_net;
 
 struct seq_net_private {
 #ifdef CONFIG_NET_NS
-	struct net *net;
+	struct net	*net;
+	netns_tracker	ns_tracker;
 #endif
 };
 

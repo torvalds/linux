@@ -6,6 +6,8 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/vhost_iotlb.h>
+#include <linux/virtio_net.h>
+#include <linux/if_ether.h>
 
 /**
  * struct vdpa_calllback - vDPA callback definition.
@@ -62,7 +64,9 @@ struct vdpa_mgmt_dev;
  * struct vdpa_device - representation of a vDPA device
  * @dev: underlying device
  * @dma_dev: the actual device that is performing DMA
+ * @driver_override: driver name to force a match
  * @config: the configuration ops for this device.
+ * @cf_mutex: Protects get and set access to configuration layout.
  * @index: device index
  * @features_valid: were features initialized? for legacy guests
  * @use_va: indicate whether virtual address must be used by this device
@@ -73,11 +77,13 @@ struct vdpa_mgmt_dev;
 struct vdpa_device {
 	struct device dev;
 	struct device *dma_dev;
+	const char *driver_override;
 	const struct vdpa_config_ops *config;
+	struct mutex cf_mutex; /* Protects get/set config */
 	unsigned int index;
 	bool features_valid;
 	bool use_va;
-	int nvqs;
+	u32 nvqs;
 	struct vdpa_mgmt_dev *mdev;
 };
 
@@ -89,6 +95,15 @@ struct vdpa_device {
 struct vdpa_iova_range {
 	u64 first;
 	u64 last;
+};
+
+struct vdpa_dev_set_config {
+	struct {
+		u8 mac[ETH_ALEN];
+		u16 mtu;
+		u16 max_vq_pairs;
+	} net;
+	u64 mask;
 };
 
 /**
@@ -143,7 +158,7 @@ struct vdpa_map_file {
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				@state: pointer to returned state (last_avail_idx)
- * @get_vq_notification:	Get the notification area for a virtqueue
+ * @get_vq_notification:	Get the notification area for a virtqueue (optional)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns the notifcation area
@@ -157,20 +172,26 @@ struct vdpa_map_file {
  *				for the device
  *				@vdev: vdpa device
  *				Returns virtqueue algin requirement
- * @get_features:		Get virtio features supported by the device
+ * @get_device_features:	Get virtio features supported by the device
  *				@vdev: vdpa device
  *				Returns the virtio features support by the
  *				device
- * @set_features:		Set virtio features supported by the driver
+ * @set_driver_features:	Set virtio features supported by the driver
  *				@vdev: vdpa device
  *				@features: feature support by the driver
  *				Returns integer: success (0) or error (< 0)
+ * @get_driver_features:	Get the virtio driver features in action
+ *				@vdev: vdpa device
+ *				Returns the virtio features accepted
  * @set_config_cb:		Set the config interrupt callback
  *				@vdev: vdpa device
  *				@cb: virtio-vdev interrupt callback structure
  * @get_vq_num_max:		Get the max size of virtqueue
  *				@vdev: vdpa device
  *				Returns u16: max size of virtqueue
+ * @get_vq_num_min:		Get the min size of virtqueue (optional)
+ *				@vdev: vdpa device
+ *				Returns u16: min size of virtqueue
  * @get_device_id:		Get virtio device id
  *				@vdev: vdpa device
  *				Returns u32: virtio device id
@@ -186,7 +207,8 @@ struct vdpa_map_file {
  * @reset:			Reset device
  *				@vdev: vdpa device
  *				Returns integer: success (0) or error (< 0)
- * @get_config_size:		Get the size of the configuration space
+ * @get_config_size:		Get the size of the configuration space includes
+ *				fields that are conditional on feature bits.
  *				@vdev: vdpa device
  *				Returns size_t: configuration size
  * @get_config:			Read from device specific configuration space
@@ -257,15 +279,17 @@ struct vdpa_config_ops {
 	struct vdpa_notification_area
 	(*get_vq_notification)(struct vdpa_device *vdev, u16 idx);
 	/* vq irq is not expected to be changed once DRIVER_OK is set */
-	int (*get_vq_irq)(struct vdpa_device *vdv, u16 idx);
+	int (*get_vq_irq)(struct vdpa_device *vdev, u16 idx);
 
 	/* Device ops */
 	u32 (*get_vq_align)(struct vdpa_device *vdev);
-	u64 (*get_features)(struct vdpa_device *vdev);
-	int (*set_features)(struct vdpa_device *vdev, u64 features);
+	u64 (*get_device_features)(struct vdpa_device *vdev);
+	int (*set_driver_features)(struct vdpa_device *vdev, u64 features);
+	u64 (*get_driver_features)(struct vdpa_device *vdev);
 	void (*set_config_cb)(struct vdpa_device *vdev,
 			      struct vdpa_callback *cb);
 	u16 (*get_vq_num_max)(struct vdpa_device *vdev);
+	u16 (*get_vq_num_min)(struct vdpa_device *vdev);
 	u32 (*get_device_id)(struct vdpa_device *vdev);
 	u32 (*get_vendor_id)(struct vdpa_device *vdev);
 	u8 (*get_status)(struct vdpa_device *vdev);
@@ -314,10 +338,10 @@ struct vdpa_device *__vdpa_alloc_device(struct device *parent,
 				       dev_struct, member)), name, use_va), \
 				       dev_struct, member)
 
-int vdpa_register_device(struct vdpa_device *vdev, int nvqs);
+int vdpa_register_device(struct vdpa_device *vdev, u32 nvqs);
 void vdpa_unregister_device(struct vdpa_device *vdev);
 
-int _vdpa_register_device(struct vdpa_device *vdev, int nvqs);
+int _vdpa_register_device(struct vdpa_device *vdev, u32 nvqs);
 void _vdpa_unregister_device(struct vdpa_device *vdev);
 
 /**
@@ -369,39 +393,49 @@ static inline struct device *vdpa_get_dma_dev(struct vdpa_device *vdev)
 static inline int vdpa_reset(struct vdpa_device *vdev)
 {
 	const struct vdpa_config_ops *ops = vdev->config;
+	int ret;
 
+	mutex_lock(&vdev->cf_mutex);
 	vdev->features_valid = false;
-	return ops->reset(vdev);
+	ret = ops->reset(vdev);
+	mutex_unlock(&vdev->cf_mutex);
+	return ret;
+}
+
+static inline int vdpa_set_features_unlocked(struct vdpa_device *vdev, u64 features)
+{
+	const struct vdpa_config_ops *ops = vdev->config;
+	int ret;
+
+	vdev->features_valid = true;
+	ret = ops->set_driver_features(vdev, features);
+
+	return ret;
 }
 
 static inline int vdpa_set_features(struct vdpa_device *vdev, u64 features)
 {
-	const struct vdpa_config_ops *ops = vdev->config;
+	int ret;
 
-	vdev->features_valid = true;
-	return ops->set_features(vdev, features);
+	mutex_lock(&vdev->cf_mutex);
+	ret = vdpa_set_features_unlocked(vdev, features);
+	mutex_unlock(&vdev->cf_mutex);
+
+	return ret;
 }
 
-static inline void vdpa_get_config(struct vdpa_device *vdev,
-				   unsigned int offset, void *buf,
-				   unsigned int len)
-{
-	const struct vdpa_config_ops *ops = vdev->config;
-
-	/*
-	 * Config accesses aren't supposed to trigger before features are set.
-	 * If it does happen we assume a legacy guest.
-	 */
-	if (!vdev->features_valid)
-		vdpa_set_features(vdev, 0);
-	ops->get_config(vdev, offset, buf, len);
-}
+void vdpa_get_config(struct vdpa_device *vdev, unsigned int offset,
+		     void *buf, unsigned int len);
+void vdpa_set_config(struct vdpa_device *dev, unsigned int offset,
+		     const void *buf, unsigned int length);
+void vdpa_set_status(struct vdpa_device *vdev, u8 status);
 
 /**
  * struct vdpa_mgmtdev_ops - vdpa device ops
  * @dev_add: Add a vdpa device using alloc and register
  *	     @mdev: parent device to use for device addition
  *	     @name: name of the new vdpa device
+ *	     @config: config attributes to apply to the device under creation
  *	     Driver need to add a new device using _vdpa_register_device()
  *	     after fully initializing the vdpa device. Driver must return 0
  *	     on success or appropriate error code.
@@ -412,15 +446,28 @@ static inline void vdpa_get_config(struct vdpa_device *vdev,
  *	     _vdpa_unregister_device().
  */
 struct vdpa_mgmtdev_ops {
-	int (*dev_add)(struct vdpa_mgmt_dev *mdev, const char *name);
+	int (*dev_add)(struct vdpa_mgmt_dev *mdev, const char *name,
+		       const struct vdpa_dev_set_config *config);
 	void (*dev_del)(struct vdpa_mgmt_dev *mdev, struct vdpa_device *dev);
 };
 
+/**
+ * struct vdpa_mgmt_dev - vdpa management device
+ * @device: Management parent device
+ * @ops: operations supported by management device
+ * @id_table: Pointer to device id table of supported ids
+ * @config_attr_mask: bit mask of attributes of type enum vdpa_attr that
+ *		      management device support during dev_add callback
+ * @list: list entry
+ */
 struct vdpa_mgmt_dev {
 	struct device *device;
 	const struct vdpa_mgmtdev_ops *ops;
-	const struct virtio_device_id *id_table; /* supported ids */
+	const struct virtio_device_id *id_table;
+	u64 config_attr_mask;
 	struct list_head list;
+	u64 supported_features;
+	u32 max_supported_vqs;
 };
 
 int vdpa_mgmtdev_register(struct vdpa_mgmt_dev *mdev);

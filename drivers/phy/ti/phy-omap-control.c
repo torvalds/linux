@@ -26,7 +26,7 @@ void omap_control_pcie_pcs(struct device *dev, u8 delay)
 	u32 val;
 	struct omap_control_phy	*control_phy;
 
-	if (IS_ERR(dev) || !dev) {
+	if (IS_ERR_OR_NULL(dev)) {
 		pr_err("%s: invalid device\n", __func__);
 		return;
 	}
@@ -61,7 +61,7 @@ void omap_control_phy_power(struct device *dev, int on)
 	unsigned long rate;
 	struct omap_control_phy	*control_phy;
 
-	if (IS_ERR(dev) || !dev) {
+	if (IS_ERR_OR_NULL(dev)) {
 		pr_err("%s: invalid device\n", __func__);
 		return;
 	}
@@ -202,7 +202,7 @@ void omap_control_usb_set_mode(struct device *dev,
 {
 	struct omap_control_phy	*ctrl_phy;
 
-	if (IS_ERR(dev) || !dev)
+	if (IS_ERR_OR_NULL(dev))
 		return;
 
 	ctrl_phy = dev_get_drvdata(dev);

@@ -143,8 +143,6 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (!wcid)
 		wcid = &dev->mt76.global_wcid;
 
-	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
-
 	if ((info->flags & IEEE80211_TX_CTL_RATE_CTRL_PROBE) && msta) {
 		struct mt7615_phy *phy = &dev->phy;
 
@@ -164,6 +162,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (id < 0)
 		return id;
 
+	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 	mt7615_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, sta,
 			      pid, key, false);
 
@@ -198,7 +197,7 @@ void mt7615_dma_reset(struct mt7615_dev *dev)
 	mt76_for_each_q_rx(&dev->mt76, i)
 		mt76_queue_rx_reset(dev, i);
 
-	mt76_tx_status_check(&dev->mt76, NULL, true);
+	mt76_tx_status_check(&dev->mt76, true);
 
 	mt7615_dma_start(dev);
 }
@@ -326,6 +325,8 @@ void mt7615_mac_reset_work(struct work_struct *work)
 		clear_bit(MT76_RESET, &phy2->mt76->state);
 
 	mt76_worker_enable(&dev->mt76.tx_worker);
+
+	local_bh_disable();
 	napi_enable(&dev->mt76.tx_napi);
 	napi_schedule(&dev->mt76.tx_napi);
 
@@ -334,6 +335,7 @@ void mt7615_mac_reset_work(struct work_struct *work)
 
 	napi_enable(&dev->mt76.napi[1]);
 	napi_schedule(&dev->mt76.napi[1]);
+	local_bh_enable();
 
 	ieee80211_wake_queues(mt76_hw(dev));
 	if (ext_phy)

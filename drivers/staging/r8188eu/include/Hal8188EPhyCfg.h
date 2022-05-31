@@ -4,54 +4,11 @@
 #ifndef __INC_HAL8188EPHYCFG_H__
 #define __INC_HAL8188EPHYCFG_H__
 
-/*--------------------------Define Parameters-------------------------------*/
-#define LOOP_LIMIT			5
-#define MAX_STALL_TIME			50		/* us */
-#define AntennaDiversityValue		0x80
-#define MAX_TXPWR_IDX_NMODE_92S		63
-#define Reset_Cnt_Limit			3
-
-#define IQK_MAC_REG_NUM			4
-#define IQK_ADDA_REG_NUM		16
-#define IQK_BB_REG_NUM			9
-#define HP_THERMAL_NUM			8
-
 #define MAX_AGGR_NUM			0x07
-
-/*--------------------------Define Parameters-------------------------------*/
-
-/*------------------------------Define structure----------------------------*/
-enum sw_chnl_cmd_id {
-	CmdID_End,
-	CmdID_SetTxPowerLevel,
-	CmdID_BBRegWrite10,
-	CmdID_WritePortUlong,
-	CmdID_WritePortUshort,
-	CmdID_WritePortUchar,
-	CmdID_RF_WriteReg,
-};
-
-/* 1. Switch channel related */
-struct sw_chnl_cmd {
-	enum sw_chnl_cmd_id CmdID;
-	u32 Para1;
-	u32 Para2;
-	u32 msDelay;
-};
-
-enum hw90_block {
-	HW90_BLOCK_MAC = 0,
-	HW90_BLOCK_PHY0 = 1,
-	HW90_BLOCK_PHY1 = 2,
-	HW90_BLOCK_RF = 3,
-	HW90_BLOCK_MAXIMUM = 4, /*  Never use this */
-};
 
 enum rf_radio_path {
 	RF_PATH_A = 0,			/* Radio Path A */
 	RF_PATH_B = 1,			/* Radio Path B */
-	RF_PATH_C = 2,			/* Radio Path C */
-	RF_PATH_D = 3,			/* Radio Path D */
 };
 
 #define MAX_PG_GROUP 13
@@ -63,35 +20,6 @@ enum rf_radio_path {
 #define MAX_CHNL_GROUP_24G		6	/*  ch1~2, ch3~5, ch6~8,
 						 *ch9~11, ch12~13, CH 14
 						 * total three groups */
-#define CHANNEL_GROUP_MAX_88E		6
-
-enum wireless_mode {
-	WIRELESS_MODE_UNKNOWN = 0x00,
-	WIRELESS_MODE_B			= BIT(0),
-	WIRELESS_MODE_G			= BIT(1),
-	WIRELESS_MODE_AUTO		= BIT(5),
-	WIRELESS_MODE_N_24G		= BIT(3),
-};
-
-enum phy_rate_tx_offset_area {
-	RA_OFFSET_LEGACY_OFDM1,
-	RA_OFFSET_LEGACY_OFDM2,
-	RA_OFFSET_HT_OFDM1,
-	RA_OFFSET_HT_OFDM2,
-	RA_OFFSET_HT_OFDM3,
-	RA_OFFSET_HT_OFDM4,
-	RA_OFFSET_HT_CCK,
-};
-
-/* BB/RF related */
-enum RF_TYPE_8190P {
-	RF_TYPE_MIN,		/*  0 */
-	RF_8225 = 1,		/*  1 11b/g RF for verification only */
-	RF_8256 = 2,		/*  2 11b/g/n */
-	RF_6052 = 4,		/*  4 11b/g/n RF */
-	/*  TODO: We should remove this psudo PHY RF after we get new RF. */
-	RF_PSEUDO_11N = 5,	/*  5, It is a temporality RF. */
-};
 
 struct bb_reg_def {
 	u32 rfintfs;		/*  set software control: */
@@ -141,43 +69,12 @@ struct bb_reg_def {
 				 * Path A and B */
 };
 
-struct ant_sel_ofdm {
-	u32 r_tx_antenna:4;
-	u32 r_ant_l:4;
-	u32 r_ant_non_ht:4;
-	u32 r_ant_ht1:4;
-	u32 r_ant_ht2:4;
-	u32 r_ant_ht_s1:4;
-	u32 r_ant_non_ht_s1:4;
-	u32 OFDM_TXSC:2;
-	u32 reserved:2;
-};
-
-struct ant_sel_cck {
-	u8 r_cckrx_enable_2:2;
-	u8 r_cckrx_enable:2;
-	u8 r_ccktx_enable:4;
-};
-
-/*------------------------------Define structure----------------------------*/
-
-/*------------------------Export global variable----------------------------*/
-/*------------------------Export global variable----------------------------*/
-
-/*------------------------Export Marco Definition---------------------------*/
-/*------------------------Export Marco Definition---------------------------*/
-
-/*--------------------------Exported Function prototype---------------------*/
-/*  */
 /*  BB and RF register read/write */
-/*  */
 u32 rtl8188e_PHY_QueryBBReg(struct adapter *adapter, u32 regaddr, u32 mask);
 void rtl8188e_PHY_SetBBReg(struct adapter *Adapter, u32 RegAddr,
 			   u32 mask, u32 data);
-u32 rtl8188e_PHY_QueryRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
-			    u32 regaddr, u32 mask);
-void rtl8188e_PHY_SetRFReg(struct adapter *adapter, enum rf_radio_path rfpath,
-			   u32 regaddr, u32 mask, u32 data);
+u32 rtl8188e_PHY_QueryRFReg(struct adapter *adapter, u32 regaddr, u32 mask);
+void rtl8188e_PHY_SetRFReg(struct adapter *adapter, u32 regaddr, u32 mask, u32 data);
 
 /*  Initialization related function */
 /* MAC/BB/RF HAL config */
@@ -185,21 +82,8 @@ int PHY_MACConfig8188E(struct adapter *adapter);
 int PHY_BBConfig8188E(struct adapter *adapter);
 int PHY_RFConfig8188E(struct adapter *adapter);
 
-/* RF config */
-int rtl8188e_PHY_ConfigRFWithParaFile(struct adapter *adapter, u8 *filename,
-				      enum rf_radio_path rfpath);
-int rtl8188e_PHY_ConfigRFWithHeaderFile(struct adapter *adapter,
-					enum rf_radio_path rfpath);
-
-/* Read initi reg value for tx power setting. */
-void rtl8192c_PHY_GetHWRegOriginalValue(struct adapter *adapter);
-
 /*  BB TX Power R/W */
-void PHY_GetTxPowerLevel8188E(struct adapter *adapter, u32 *powerlevel);
 void PHY_SetTxPowerLevel8188E(struct adapter *adapter, u8 channel);
-bool PHY_UpdateTxPowerDbm8188E(struct adapter *adapter, int power);
-
-void PHY_ScanOperationBackup8188E(struct adapter *Adapter, u8 Operation);
 
 /*  Switch bandwidth for 8192S */
 void PHY_SetBWMode8188E(struct adapter *adapter,
@@ -207,43 +91,8 @@ void PHY_SetBWMode8188E(struct adapter *adapter,
 
 /*  channel switch related funciton */
 void PHY_SwChnl8188E(struct adapter *adapter, u8 channel);
-/*  Call after initialization */
-void ChkFwCmdIoDone(struct adapter *adapter);
-
-/*  BB/MAC/RF other monitor API */
-void PHY_SetRFPathSwitch_8188E(struct adapter *adapter,	bool main);
-
-void PHY_SwitchEphyParameter(struct adapter *adapter);
-
-void PHY_EnableHostClkReq(struct adapter *adapter);
-
-bool SetAntennaConfig92C(struct adapter *adapter, u8 defaultant);
 
 void storePwrIndexDiffRateOffset(struct adapter *adapter, u32 regaddr,
 				 u32 mask, u32 data);
-/*--------------------------Exported Function prototype---------------------*/
 
-#define PHY_QueryBBReg(adapt, regaddr, mask)			\
-	 rtl8188e_PHY_QueryBBReg((adapt), (regaddr), (mask))
-#define PHY_SetBBReg(adapt, regaddr, bitmask, data)		\
-	 rtl8188e_PHY_SetBBReg((adapt), (regaddr), (bitmask), (data))
-#define PHY_QueryRFReg(adapt, rfpath, regaddr, bitmask)	\
-	rtl8188e_PHY_QueryRFReg((adapt), (rfpath), (regaddr), (bitmask))
-#define PHY_SetRFReg(adapt, rfpath, regaddr, bitmask, data)	\
-	rtl8188e_PHY_SetRFReg((adapt), (rfpath), (regaddr), (bitmask), (data))
-
-#define PHY_SetMacReg	PHY_SetBBReg
-
-#define	SIC_HW_SUPPORT			0
-
-#define	SIC_MAX_POLL_CNT		5
-
-#define	SIC_CMD_READY			0
-#define	SIC_CMD_WRITE			1
-#define	SIC_CMD_READ			2
-
-#define	SIC_CMD_REG			0x1EB		/*  1byte */
-#define	SIC_ADDR_REG			0x1E8		/*  1b9~1ba, 2 bytes */
-#define	SIC_DATA_REG			0x1EC		/*  1bc~1bf */
-
-#endif	/*  __INC_HAL8192CPHYCFG_H */
+#endif

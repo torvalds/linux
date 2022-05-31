@@ -51,8 +51,8 @@ static u8 zynqmp_clk_mux_get_parent(struct clk_hw *hw)
 	ret = zynqmp_pm_clock_getparent(clk_id, &val);
 
 	if (ret) {
-		pr_warn_once("%s() getparent failed for clock: %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() getparent failed for clock: %s, ret = %d\n",
+			 __func__, clk_name, ret);
 		/*
 		 * clk_core_get_parent_by_index() takes num_parents as incorrect
 		 * index which is exactly what I want to return here
@@ -80,8 +80,8 @@ static int zynqmp_clk_mux_set_parent(struct clk_hw *hw, u8 index)
 	ret = zynqmp_pm_clock_setparent(clk_id, index);
 
 	if (ret)
-		pr_warn_once("%s() set parent failed for clock: %s, ret = %d\n",
-			     __func__, clk_name, ret);
+		pr_debug("%s() set parent failed for clock: %s, ret = %d\n",
+			 __func__, clk_name, ret);
 
 	return ret;
 }

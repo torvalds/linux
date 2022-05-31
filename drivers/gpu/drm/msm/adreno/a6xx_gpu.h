@@ -20,16 +20,6 @@ struct a6xx_gpu {
 
 	struct msm_ringbuffer *cur_ring;
 
-	/**
-	 * cur_ctx_seqno:
-	 *
-	 * The ctx->seqno value of the context with current pgtables
-	 * installed.  Tracked by seqno rather than pointer value to
-	 * avoid dangling pointers, and cases where a ctx can be freed
-	 * and a new one created with the same address.
-	 */
-	int cur_ctx_seqno;
-
 	struct a6xx_gmu gmu;
 
 	struct drm_gem_object *shadow_bo;

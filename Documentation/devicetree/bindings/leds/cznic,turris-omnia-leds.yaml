@@ -32,8 +32,7 @@ properties:
 patternProperties:
   "^multi-led@[0-9a-b]$":
     type: object
-    allOf:
-      - $ref: leds-class-multicolor.yaml#
+    $ref: leds-class-multicolor.yaml#
     description:
       This node represents one of the RGB LED devices on Turris Omnia.
       No subnodes need to be added for subchannels since this controller only

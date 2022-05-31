@@ -268,9 +268,6 @@ struct ib_pd *__ib_alloc_pd(struct ib_device *device, unsigned int flags,
 		return ERR_PTR(-ENOMEM);
 
 	pd->device = device;
-	pd->uobject = NULL;
-	pd->__internal_mr = NULL;
-	atomic_set(&pd->usecnt, 0);
 	pd->flags = flags;
 
 	rdma_restrack_new(&pd->res, RDMA_RESTRACK_PD);
@@ -340,11 +337,6 @@ int ib_dealloc_pd_user(struct ib_pd *pd, struct ib_udata *udata)
 		WARN_ON(ret);
 		pd->__internal_mr = NULL;
 	}
-
-	/* uverbs manipulates usecnt with proper locking, while the kabi
-	 * requires the caller to guarantee we can't race here.
-	 */
-	WARN_ON(atomic_read(&pd->usecnt));
 
 	ret = pd->device->ops.dealloc_pd(pd, udata);
 	if (ret)
@@ -1231,6 +1223,9 @@ static struct ib_qp *create_qp(struct ib_device *dev, struct ib_pd *pd,
 	spin_lock_init(&qp->mr_lock);
 	INIT_LIST_HEAD(&qp->rdma_mrs);
 	INIT_LIST_HEAD(&qp->sig_mrs);
+
+	qp->send_cq = attr->send_cq;
+	qp->recv_cq = attr->recv_cq;
 
 	rdma_restrack_new(&qp->res, RDMA_RESTRACK_QP);
 	WARN_ONCE(!udata && !caller, "Missing kernel QP owner");
@@ -2150,6 +2145,7 @@ struct ib_mr *ib_reg_user_mr(struct ib_pd *pd, u64 start, u64 length,
 		return mr;
 
 	mr->device = pd->device;
+	mr->type = IB_MR_TYPE_USER;
 	mr->pd = pd;
 	mr->dm = NULL;
 	atomic_inc(&pd->usecnt);
@@ -2976,3 +2972,52 @@ bool __rdma_block_iter_next(struct ib_block_iter *biter)
 	return true;
 }
 EXPORT_SYMBOL(__rdma_block_iter_next);
+
+/**
+ * rdma_alloc_hw_stats_struct - Helper function to allocate dynamic struct
+ *   for the drivers.
+ * @descs: array of static descriptors
+ * @num_counters: number of elements in array
+ * @lifespan: milliseconds between updates
+ */
+struct rdma_hw_stats *rdma_alloc_hw_stats_struct(
+	const struct rdma_stat_desc *descs, int num_counters,
+	unsigned long lifespan)
+{
+	struct rdma_hw_stats *stats;
+
+	stats = kzalloc(struct_size(stats, value, num_counters), GFP_KERNEL);
+	if (!stats)
+		return NULL;
+
+	stats->is_disabled = kcalloc(BITS_TO_LONGS(num_counters),
+				     sizeof(*stats->is_disabled), GFP_KERNEL);
+	if (!stats->is_disabled)
+		goto err;
+
+	stats->descs = descs;
+	stats->num_counters = num_counters;
+	stats->lifespan = msecs_to_jiffies(lifespan);
+	mutex_init(&stats->lock);
+
+	return stats;
+
+err:
+	kfree(stats);
+	return NULL;
+}
+EXPORT_SYMBOL(rdma_alloc_hw_stats_struct);
+
+/**
+ * rdma_free_hw_stats_struct - Helper function to release rdma_hw_stats
+ * @stats: statistics to release
+ */
+void rdma_free_hw_stats_struct(struct rdma_hw_stats *stats)
+{
+	if (!stats)
+		return;
+
+	kfree(stats->is_disabled);
+	kfree(stats);
+}
+EXPORT_SYMBOL(rdma_free_hw_stats_struct);

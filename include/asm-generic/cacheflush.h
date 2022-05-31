@@ -49,9 +49,9 @@ static inline void flush_cache_page(struct vm_area_struct *vma,
 static inline void flush_dcache_page(struct page *page)
 {
 }
+
 #define ARCH_IMPLEMENTS_FLUSH_DCACHE_PAGE 0
 #endif
-
 
 #ifndef flush_dcache_mmap_lock
 static inline void flush_dcache_mmap_lock(struct address_space *mapping)

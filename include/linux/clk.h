@@ -987,6 +987,17 @@ static inline void clk_bulk_disable_unprepare(int num_clks,
 }
 
 /**
+ * clk_drop_range - Reset any range set on that clock
+ * @clk: clock source
+ *
+ * Returns success (0) or negative errno.
+ */
+static inline int clk_drop_range(struct clk *clk)
+{
+	return clk_set_rate_range(clk, 0, ULONG_MAX);
+}
+
+/**
  * clk_get_optional - lookup and obtain a reference to an optional clock
  *		      producer.
  * @dev: device for clock "consumer"

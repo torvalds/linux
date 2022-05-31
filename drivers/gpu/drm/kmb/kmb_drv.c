@@ -15,8 +15,10 @@
 
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_cma_helper.h>
 #include <drm/drm_gem_framebuffer_helper.h>
+#include <drm/drm_module.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
@@ -176,6 +178,7 @@ static int kmb_setup_mode_config(struct drm_device *drm)
 	drm->mode_config.min_height = KMB_FB_MIN_HEIGHT;
 	drm->mode_config.max_width = KMB_FB_MAX_WIDTH;
 	drm->mode_config.max_height = KMB_FB_MAX_HEIGHT;
+	drm->mode_config.preferred_depth = 24;
 	drm->mode_config.funcs = &kmb_mode_config_funcs;
 
 	ret = kmb_setup_crtc(drm);
@@ -559,6 +562,8 @@ static int kmb_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_register;
 
+	drm_fbdev_generic_setup(&kmb->drm, 0);
+
 	return 0;
 
  err_register:
@@ -624,7 +629,7 @@ static struct platform_driver kmb_platform_driver = {
 	},
 };
 
-module_platform_driver(kmb_platform_driver);
+drm_module_platform_driver(kmb_platform_driver);
 
 MODULE_AUTHOR("Intel Corporation");
 MODULE_DESCRIPTION("Keembay Display driver");

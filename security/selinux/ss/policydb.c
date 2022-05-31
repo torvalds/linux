@@ -41,8 +41,6 @@
 #include "mls.h"
 #include "services.h"
 
-#define _DEBUG_HASHES
-
 #ifdef DEBUG_HASHES
 static const char *symtab_name[SYM_NUM] = {
 	"common prefixes",
@@ -704,7 +702,7 @@ static void symtab_hash_eval(struct symtab *s)
 }
 
 #else
-static inline void hash_eval(struct hashtab *h, char *hash_name)
+static inline void hash_eval(struct hashtab *h, const char *hash_name)
 {
 }
 #endif

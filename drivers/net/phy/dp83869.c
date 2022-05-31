@@ -16,6 +16,7 @@
 #include <dt-bindings/net/ti-dp83869.h>
 
 #define DP83869_PHY_ID		0x2000a0f1
+#define DP83561_PHY_ID		0x2000a1a4
 #define DP83869_DEVADDR		0x1f
 
 #define MII_DP83869_PHYCTRL	0x10
@@ -246,7 +247,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 {
 	struct net_device *ndev = phydev->attached_dev;
 	int val_rxcfg, val_micr;
-	u8 *mac;
+	const u8 *mac;
 	int ret;
 
 	val_rxcfg = phy_read_mmd(phydev, DP83869_DEVADDR, DP83869_RXFCFG);
@@ -264,7 +265,7 @@ static int dp83869_set_wol(struct phy_device *phydev,
 
 		if (wol->wolopts & WAKE_MAGIC ||
 		    wol->wolopts & WAKE_MAGICSECURE) {
-			mac = (u8 *)ndev->dev_addr;
+			mac = (const u8 *)ndev->dev_addr;
 
 			if (!is_valid_ether_addr(mac))
 				return -EINVAL;
@@ -878,34 +879,35 @@ static int dp83869_phy_reset(struct phy_device *phydev)
 	return dp83869_config_init(phydev);
 }
 
+
+#define DP83869_PHY_DRIVER(_id, _name)				\
+{								\
+	PHY_ID_MATCH_MODEL(_id),				\
+	.name		= (_name),				\
+	.probe          = dp83869_probe,			\
+	.config_init	= dp83869_config_init,			\
+	.soft_reset	= dp83869_phy_reset,			\
+	.config_intr	= dp83869_config_intr,			\
+	.handle_interrupt = dp83869_handle_interrupt,		\
+	.read_status	= dp83869_read_status,			\
+	.get_tunable	= dp83869_get_tunable,			\
+	.set_tunable	= dp83869_set_tunable,			\
+	.get_wol	= dp83869_get_wol,			\
+	.set_wol	= dp83869_set_wol,			\
+	.suspend	= genphy_suspend,			\
+	.resume		= genphy_resume,			\
+}
+
 static struct phy_driver dp83869_driver[] = {
-	{
-		PHY_ID_MATCH_MODEL(DP83869_PHY_ID),
-		.name		= "TI DP83869",
+	DP83869_PHY_DRIVER(DP83869_PHY_ID, "TI DP83869"),
+	DP83869_PHY_DRIVER(DP83561_PHY_ID, "TI DP83561-SP"),
 
-		.probe          = dp83869_probe,
-		.config_init	= dp83869_config_init,
-		.soft_reset	= dp83869_phy_reset,
-
-		/* IRQ related */
-		.config_intr	= dp83869_config_intr,
-		.handle_interrupt = dp83869_handle_interrupt,
-		.read_status	= dp83869_read_status,
-
-		.get_tunable	= dp83869_get_tunable,
-		.set_tunable	= dp83869_set_tunable,
-
-		.get_wol	= dp83869_get_wol,
-		.set_wol	= dp83869_set_wol,
-
-		.suspend	= genphy_suspend,
-		.resume		= genphy_resume,
-	},
 };
 module_phy_driver(dp83869_driver);
 
 static struct mdio_device_id __maybe_unused dp83869_tbl[] = {
 	{ PHY_ID_MATCH_MODEL(DP83869_PHY_ID) },
+	{ PHY_ID_MATCH_MODEL(DP83561_PHY_ID) },
 	{ }
 };
 MODULE_DEVICE_TABLE(mdio, dp83869_tbl);

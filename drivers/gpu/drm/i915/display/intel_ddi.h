@@ -6,11 +6,11 @@
 #ifndef __INTEL_DDI_H__
 #define __INTEL_DDI_H__
 
-#include "intel_display.h"
-#include "i915_reg.h"
+#include "i915_reg_defs.h"
 
 struct drm_connector_state;
 struct drm_i915_private;
+struct intel_atomic_state;
 struct intel_connector;
 struct intel_crtc;
 struct intel_crtc_state;
@@ -18,6 +18,8 @@ struct intel_dp;
 struct intel_dpll_hw_state;
 struct intel_encoder;
 struct intel_shared_dpll;
+enum pipe;
+enum port;
 enum transcoder;
 
 i915_reg_t dp_tp_ctl_reg(struct intel_encoder *encoder,
@@ -30,6 +32,7 @@ void intel_ddi_fdi_post_disable(struct intel_atomic_state *state,
 				const struct drm_connector_state *old_conn_state);
 void intel_ddi_enable_clock(struct intel_encoder *encoder,
 			    const struct intel_crtc_state *crtc_state);
+void intel_ddi_disable_clock(struct intel_encoder *encoder);
 void intel_ddi_get_clock(struct intel_encoder *encoder,
 			 struct intel_crtc_state *crtc_state,
 			 struct intel_shared_dpll *pll);
@@ -59,13 +62,12 @@ void intel_ddi_set_vc_payload_alloc(const struct intel_crtc_state *crtc_state,
 				    bool state);
 void intel_ddi_compute_min_voltage_level(struct drm_i915_private *dev_priv,
 					 struct intel_crtc_state *crtc_state);
-u32 bxt_signal_levels(struct intel_dp *intel_dp,
-		      const struct intel_crtc_state *crtc_state);
-u32 ddi_signal_levels(struct intel_dp *intel_dp,
-		      const struct intel_crtc_state *crtc_state);
 int intel_ddi_toggle_hdcp_bits(struct intel_encoder *intel_encoder,
 			       enum transcoder cpu_transcoder,
 			       bool enable, u32 hdcp_mask);
 void intel_ddi_sanitize_encoder_pll_mapping(struct intel_encoder *encoder);
+int intel_ddi_level(struct intel_encoder *encoder,
+		    const struct intel_crtc_state *crtc_state,
+		    int lane);
 
 #endif /* __INTEL_DDI_H__ */

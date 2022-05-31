@@ -8,6 +8,7 @@
 / {
 	model = "Samsung Galaxy S1 (GT-I9000) based on S5PV210";
 	compatible = "samsung,galaxys", "samsung,aries", "samsung,s5pv210";
+	chassis-type = "handset";
 
 	chosen {
 		stdout-path = &uart2;
@@ -149,53 +150,53 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&sleep_cfg>;
 
-	fm_i2c_pins: fm-i2c-pins {
+	fm_i2c_pins: fm-i2c-pins-pins {
 		samsung,pins = "gpd1-2", "gpd1-3";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	headset_det: headset-det {
+	headset_det: headset-det-pins {
 		samsung,pins = "gph0-6", "gph3-6";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_F>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 	};
 
-	fm_irq: fm-irq {
+	fm_irq: fm-irq-pins {
 		samsung,pins = "gpj2-4";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_INPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_UP>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	fm_rst: fm-rst {
+	fm_rst: fm-rst-pins {
 		samsung,pins = "gpj2-5";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	earpath_sel: earpath-sel {
+	earpath_sel: earpath-sel-pins {
 		samsung,pins = "gpj2-6";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	massmemory_en: massmemory-en {
+	massmemory_en: massmemory-en-pins {
 		samsung,pins = "gpj2-7";
 		samsung,pin-function = <EXYNOS_PIN_FUNC_OUTPUT>;
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
-	micbias_reg_ena: micbias-reg-ena {
+	micbias_reg_ena: micbias-reg-ena-pins {
 		samsung,pins = "gpj4-2";
 		samsung,pin-pud = <S3C64XX_PIN_PULL_NONE>;
 		samsung,pin-drv = <EXYNOS4_PIN_DRV_LV1>;
 	};
 
 	/* Based on CyanogenMod 3.0.101 kernel */
-	sleep_cfg: sleep-cfg {
+	sleep_cfg: sleep-state {
 		PIN_SLP(gpa0-0, PREV, NONE);
 		PIN_SLP(gpa0-1, PREV, NONE);
 		PIN_SLP(gpa0-2, PREV, NONE);

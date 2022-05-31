@@ -20,6 +20,7 @@
 struct clk_system {
 	struct clk_hw hw;
 	struct regmap *regmap;
+	struct at91_clk_pms pms;
 	u8 id;
 };
 
@@ -77,10 +78,29 @@ static int clk_system_is_prepared(struct clk_hw *hw)
 	return !!(status & (1 << sys->id));
 }
 
+static int clk_system_save_context(struct clk_hw *hw)
+{
+	struct clk_system *sys = to_clk_system(hw);
+
+	sys->pms.status = clk_system_is_prepared(hw);
+
+	return 0;
+}
+
+static void clk_system_restore_context(struct clk_hw *hw)
+{
+	struct clk_system *sys = to_clk_system(hw);
+
+	if (sys->pms.status)
+		clk_system_prepare(&sys->hw);
+}
+
 static const struct clk_ops system_ops = {
 	.prepare = clk_system_prepare,
 	.unprepare = clk_system_unprepare,
 	.is_prepared = clk_system_is_prepared,
+	.save_context = clk_system_save_context,
+	.restore_context = clk_system_restore_context,
 };
 
 struct clk_hw * __init

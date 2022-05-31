@@ -11,6 +11,9 @@
 #include <net/sock.h>
 #include <uapi/linux/sock_diag.h>
 #include <uapi/linux/btf.h>
+#include <linux/rcupdate.h>
+#include <linux/rcupdate_trace.h>
+#include <linux/rcupdate_wait.h>
 
 #define BPF_LOCAL_STORAGE_CREATE_FLAG_MASK (BPF_F_NO_PREALLOC | BPF_F_CLONE)
 
@@ -60,7 +63,7 @@ static bool selem_linked_to_map(const struct bpf_local_storage_elem *selem)
 
 struct bpf_local_storage_elem *
 bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
-		void *value, bool charge_mem)
+		void *value, bool charge_mem, gfp_t gfp_flags)
 {
 	struct bpf_local_storage_elem *selem;
 
@@ -68,7 +71,7 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 		return NULL;
 
 	selem = bpf_map_kzalloc(&smap->map, smap->elem_size,
-				GFP_ATOMIC | __GFP_NOWARN);
+				gfp_flags | __GFP_NOWARN);
 	if (selem) {
 		if (value)
 			memcpy(SDATA(selem)->data, value, smap->map.value_size);
@@ -79,6 +82,22 @@ bpf_selem_alloc(struct bpf_local_storage_map *smap, void *owner,
 		mem_uncharge(smap, owner, smap->elem_size);
 
 	return NULL;
+}
+
+void bpf_local_storage_free_rcu(struct rcu_head *rcu)
+{
+	struct bpf_local_storage *local_storage;
+
+	local_storage = container_of(rcu, struct bpf_local_storage, rcu);
+	kfree_rcu(local_storage, rcu);
+}
+
+static void bpf_selem_free_rcu(struct rcu_head *rcu)
+{
+	struct bpf_local_storage_elem *selem;
+
+	selem = container_of(rcu, struct bpf_local_storage_elem, rcu);
+	kfree_rcu(selem, rcu);
 }
 
 /* local_storage->lock must be held and selem->local_storage == local_storage.
@@ -93,7 +112,7 @@ bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
 	bool free_local_storage;
 	void *owner;
 
-	smap = rcu_dereference(SDATA(selem)->smap);
+	smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
 	owner = local_storage->owner;
 
 	/* All uncharging on the owner must be done first.
@@ -117,13 +136,13 @@ bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
 		 * will be done by the caller.
 		 *
 		 * Although the unlock will be done under
-		 * rcu_read_lock(),  it is more intutivie to
-		 * read if kfree_rcu(local_storage, rcu) is done
+		 * rcu_read_lock(),  it is more intuitive to
+		 * read if the freeing of the storage is done
 		 * after the raw_spin_unlock_bh(&local_storage->lock).
 		 *
 		 * Hence, a "bool free_local_storage" is returned
-		 * to the caller which then calls the kfree_rcu()
-		 * after unlock.
+		 * to the caller which then calls then frees the storage after
+		 * all the RCU grace periods have expired.
 		 */
 	}
 	hlist_del_init_rcu(&selem->snode);
@@ -131,8 +150,7 @@ bool bpf_selem_unlink_storage_nolock(struct bpf_local_storage *local_storage,
 	    SDATA(selem))
 		RCU_INIT_POINTER(local_storage->cache[smap->cache_idx], NULL);
 
-	kfree_rcu(selem, rcu);
-
+	call_rcu_tasks_trace(&selem->rcu, bpf_selem_free_rcu);
 	return free_local_storage;
 }
 
@@ -146,7 +164,8 @@ static void __bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem)
 		/* selem has already been unlinked from sk */
 		return;
 
-	local_storage = rcu_dereference(selem->local_storage);
+	local_storage = rcu_dereference_check(selem->local_storage,
+					      bpf_rcu_lock_held());
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
 	if (likely(selem_linked_to_storage(selem)))
 		free_local_storage = bpf_selem_unlink_storage_nolock(
@@ -154,7 +173,8 @@ static void __bpf_selem_unlink_storage(struct bpf_local_storage_elem *selem)
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
 
 	if (free_local_storage)
-		kfree_rcu(local_storage, rcu);
+		call_rcu_tasks_trace(&local_storage->rcu,
+				     bpf_local_storage_free_rcu);
 }
 
 void bpf_selem_link_storage_nolock(struct bpf_local_storage *local_storage,
@@ -174,7 +194,7 @@ void bpf_selem_unlink_map(struct bpf_local_storage_elem *selem)
 		/* selem has already be unlinked from smap */
 		return;
 
-	smap = rcu_dereference(SDATA(selem)->smap);
+	smap = rcu_dereference_check(SDATA(selem)->smap, bpf_rcu_lock_held());
 	b = select_bucket(smap, selem);
 	raw_spin_lock_irqsave(&b->lock, flags);
 	if (likely(selem_linked_to_map(selem)))
@@ -213,12 +233,14 @@ bpf_local_storage_lookup(struct bpf_local_storage *local_storage,
 	struct bpf_local_storage_elem *selem;
 
 	/* Fast path (cache hit) */
-	sdata = rcu_dereference(local_storage->cache[smap->cache_idx]);
+	sdata = rcu_dereference_check(local_storage->cache[smap->cache_idx],
+				      bpf_rcu_lock_held());
 	if (sdata && rcu_access_pointer(sdata->smap) == smap)
 		return sdata;
 
 	/* Slow path (cache miss) */
-	hlist_for_each_entry_rcu(selem, &local_storage->list, snode)
+	hlist_for_each_entry_rcu(selem, &local_storage->list, snode,
+				  rcu_read_lock_trace_held())
 		if (rcu_access_pointer(SDATA(selem)->smap) == smap)
 			break;
 
@@ -260,7 +282,8 @@ static int check_flags(const struct bpf_local_storage_data *old_sdata,
 
 int bpf_local_storage_alloc(void *owner,
 			    struct bpf_local_storage_map *smap,
-			    struct bpf_local_storage_elem *first_selem)
+			    struct bpf_local_storage_elem *first_selem,
+			    gfp_t gfp_flags)
 {
 	struct bpf_local_storage *prev_storage, *storage;
 	struct bpf_local_storage **owner_storage_ptr;
@@ -271,7 +294,7 @@ int bpf_local_storage_alloc(void *owner,
 		return err;
 
 	storage = bpf_map_kzalloc(&smap->map, sizeof(*storage),
-				  GFP_ATOMIC | __GFP_NOWARN);
+				  gfp_flags | __GFP_NOWARN);
 	if (!storage) {
 		err = -ENOMEM;
 		goto uncharge;
@@ -306,7 +329,8 @@ int bpf_local_storage_alloc(void *owner,
 		 * bucket->list, first_selem can be freed immediately
 		 * (instead of kfree_rcu) because
 		 * bpf_local_storage_map_free() does a
-		 * synchronize_rcu() before walking the bucket->list.
+		 * synchronize_rcu_mult (waiting for both sleepable and
+		 * normal programs) before walking the bucket->list.
 		 * Hence, no one is accessing selem from the
 		 * bucket->list under rcu_read_lock().
 		 */
@@ -327,10 +351,10 @@ uncharge:
  */
 struct bpf_local_storage_data *
 bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
-			 void *value, u64 map_flags)
+			 void *value, u64 map_flags, gfp_t gfp_flags)
 {
 	struct bpf_local_storage_data *old_sdata = NULL;
-	struct bpf_local_storage_elem *selem;
+	struct bpf_local_storage_elem *selem = NULL;
 	struct bpf_local_storage *local_storage;
 	unsigned long flags;
 	int err;
@@ -342,18 +366,22 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 		     !map_value_has_spin_lock(&smap->map)))
 		return ERR_PTR(-EINVAL);
 
-	local_storage = rcu_dereference(*owner_storage(smap, owner));
+	if (gfp_flags == GFP_KERNEL && (map_flags & ~BPF_F_LOCK) != BPF_NOEXIST)
+		return ERR_PTR(-EINVAL);
+
+	local_storage = rcu_dereference_check(*owner_storage(smap, owner),
+					      bpf_rcu_lock_held());
 	if (!local_storage || hlist_empty(&local_storage->list)) {
 		/* Very first elem for the owner */
 		err = check_flags(NULL, map_flags);
 		if (err)
 			return ERR_PTR(err);
 
-		selem = bpf_selem_alloc(smap, owner, value, true);
+		selem = bpf_selem_alloc(smap, owner, value, true, gfp_flags);
 		if (!selem)
 			return ERR_PTR(-ENOMEM);
 
-		err = bpf_local_storage_alloc(owner, smap, selem);
+		err = bpf_local_storage_alloc(owner, smap, selem, gfp_flags);
 		if (err) {
 			kfree(selem);
 			mem_uncharge(smap, owner, smap->elem_size);
@@ -378,6 +406,12 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 					      value, false);
 			return old_sdata;
 		}
+	}
+
+	if (gfp_flags == GFP_KERNEL) {
+		selem = bpf_selem_alloc(smap, owner, value, true, gfp_flags);
+		if (!selem)
+			return ERR_PTR(-ENOMEM);
 	}
 
 	raw_spin_lock_irqsave(&local_storage->lock, flags);
@@ -405,19 +439,21 @@ bpf_local_storage_update(void *owner, struct bpf_local_storage_map *smap,
 		goto unlock;
 	}
 
-	/* local_storage->lock is held.  Hence, we are sure
-	 * we can unlink and uncharge the old_sdata successfully
-	 * later.  Hence, instead of charging the new selem now
-	 * and then uncharge the old selem later (which may cause
-	 * a potential but unnecessary charge failure),  avoid taking
-	 * a charge at all here (the "!old_sdata" check) and the
-	 * old_sdata will not be uncharged later during
-	 * bpf_selem_unlink_storage_nolock().
-	 */
-	selem = bpf_selem_alloc(smap, owner, value, !old_sdata);
-	if (!selem) {
-		err = -ENOMEM;
-		goto unlock_err;
+	if (gfp_flags != GFP_KERNEL) {
+		/* local_storage->lock is held.  Hence, we are sure
+		 * we can unlink and uncharge the old_sdata successfully
+		 * later.  Hence, instead of charging the new selem now
+		 * and then uncharge the old selem later (which may cause
+		 * a potential but unnecessary charge failure),  avoid taking
+		 * a charge at all here (the "!old_sdata" check) and the
+		 * old_sdata will not be uncharged later during
+		 * bpf_selem_unlink_storage_nolock().
+		 */
+		selem = bpf_selem_alloc(smap, owner, value, !old_sdata, gfp_flags);
+		if (!selem) {
+			err = -ENOMEM;
+			goto unlock_err;
+		}
 	}
 
 	/* First, link the new selem to the map */
@@ -439,6 +475,10 @@ unlock:
 
 unlock_err:
 	raw_spin_unlock_irqrestore(&local_storage->lock, flags);
+	if (selem) {
+		mem_uncharge(smap, owner, smap->elem_size);
+		kfree(selem);
+	}
 	return ERR_PTR(err);
 }
 

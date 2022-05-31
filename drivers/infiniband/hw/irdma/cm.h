@@ -159,14 +159,6 @@ enum irdma_cm_event_type {
 	IRDMA_CM_EVENT_ABORTED,
 };
 
-struct irdma_bth { /* Base Trasnport Header */
-	u8 opcode;
-	u8 flags;
-	__be16 pkey;
-	__be32 qpn;
-	__be32 apsn;
-};
-
 struct ietf_mpa_v1 {
 	u8 key[IETF_MPA_KEY_SIZE];
 	u8 flags;
@@ -392,12 +384,19 @@ int irdma_schedule_cm_timer(struct irdma_cm_node *cm_node,
 			    struct irdma_puda_buf *sqbuf,
 			    enum irdma_timer_type type, int send_retrans,
 			    int close_when_complete);
+
+static inline u8 irdma_tos2dscp(u8 tos)
+{
+#define IRDMA_DSCP_VAL GENMASK(7, 2)
+	return (u8)FIELD_GET(IRDMA_DSCP_VAL, tos);
+}
+
 int irdma_accept(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int irdma_reject(struct iw_cm_id *cm_id, const void *pdata, u8 pdata_len);
 int irdma_connect(struct iw_cm_id *cm_id, struct iw_cm_conn_param *conn_param);
 int irdma_create_listen(struct iw_cm_id *cm_id, int backlog);
 int irdma_destroy_listen(struct iw_cm_id *cm_id);
-int irdma_add_arp(struct irdma_pci_f *rf, u32 *ip, bool ipv4, u8 *mac);
+int irdma_add_arp(struct irdma_pci_f *rf, u32 *ip, bool ipv4, const u8 *mac);
 void irdma_cm_teardown_connections(struct irdma_device *iwdev, u32 *ipaddr,
 				   struct irdma_cm_info *nfo,
 				   bool disconnect_all);
@@ -406,7 +405,7 @@ int irdma_cm_stop(struct irdma_device *dev);
 bool irdma_ipv4_is_lpb(u32 loc_addr, u32 rem_addr);
 bool irdma_ipv6_is_lpb(u32 *loc_addr, u32 *rem_addr);
 int irdma_arp_table(struct irdma_pci_f *rf, u32 *ip_addr, bool ipv4,
-		    u8 *mac_addr, u32 action);
+		    const u8 *mac_addr, u32 action);
 void irdma_if_notify(struct irdma_device *iwdev, struct net_device *netdev,
 		     u32 *ipaddr, bool ipv4, bool ifup);
 bool irdma_port_in_use(struct irdma_cm_core *cm_core, u16 port);

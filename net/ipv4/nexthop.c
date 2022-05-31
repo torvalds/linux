@@ -8,6 +8,7 @@
 #include <linux/nexthop.h>
 #include <linux/rtnetlink.h>
 #include <linux/slab.h>
+#include <linux/vmalloc.h>
 #include <net/arp.h>
 #include <net/ipv6_stubs.h>
 #include <net/lwtunnel.h>
@@ -1899,15 +1900,33 @@ static void remove_nexthop(struct net *net, struct nexthop *nh,
 /* if any FIB entries reference this nexthop, any dst entries
  * need to be regenerated
  */
-static void nh_rt_cache_flush(struct net *net, struct nexthop *nh)
+static void nh_rt_cache_flush(struct net *net, struct nexthop *nh,
+			      struct nexthop *replaced_nh)
 {
 	struct fib6_info *f6i;
+	struct nh_group *nhg;
+	int i;
 
 	if (!list_empty(&nh->fi_list))
 		rt_cache_flush(net);
 
 	list_for_each_entry(f6i, &nh->f6i_list, nh_list)
 		ipv6_stub->fib6_update_sernum(net, f6i);
+
+	/* if an IPv6 group was replaced, we have to release all old
+	 * dsts to make sure all refcounts are released
+	 */
+	if (!replaced_nh->is_group)
+		return;
+
+	nhg = rtnl_dereference(replaced_nh->nh_grp);
+	for (i = 0; i < nhg->num_nh; i++) {
+		struct nh_grp_entry *nhge = &nhg->nh_entries[i];
+		struct nh_info *nhi = rtnl_dereference(nhge->nh->nh_info);
+
+		if (nhi->family == AF_INET6)
+			ipv6_stub->fib6_nh_release_dsts(&nhi->fib6_nh);
+	}
 }
 
 static int replace_nexthop_grp(struct net *net, struct nexthop *old,
@@ -1981,9 +2000,10 @@ static int replace_nexthop_grp(struct net *net, struct nexthop *old,
 
 	rcu_assign_pointer(old->nh_grp, newg);
 
+	/* Make sure concurrent readers are not using 'oldg' anymore. */
+	synchronize_net();
+
 	if (newg->resilient) {
-		/* Make sure concurrent readers are not using 'oldg' anymore. */
-		synchronize_net();
 		rcu_assign_pointer(oldg->res_table, tmp_table);
 		rcu_assign_pointer(oldg->spare->res_table, tmp_table);
 	}
@@ -2247,7 +2267,7 @@ static int replace_nexthop(struct net *net, struct nexthop *old,
 		err = replace_nexthop_single(net, old, new, extack);
 
 	if (!err) {
-		nh_rt_cache_flush(net, old);
+		nh_rt_cache_flush(net, old, new);
 
 		__remove_nexthop(net, new, NULL);
 		nexthop_put(new);
@@ -2544,11 +2564,15 @@ static int nh_create_ipv6(struct net *net,  struct nexthop *nh,
 	/* sets nh_dev if successful */
 	err = ipv6_stub->fib6_nh_init(net, fib6_nh, &fib6_cfg, GFP_KERNEL,
 				      extack);
-	if (err)
+	if (err) {
+		/* IPv6 is not enabled, don't call fib6_nh_release */
+		if (err == -EAFNOSUPPORT)
+			goto out;
 		ipv6_stub->fib6_nh_release(fib6_nh);
-	else
+	} else {
 		nh->nh_flags = fib6_nh->fib_nh_flags;
-
+	}
+out:
 	return err;
 }
 
@@ -3709,12 +3733,16 @@ out:
 }
 EXPORT_SYMBOL(nexthop_res_grp_activity_update);
 
-static void __net_exit nexthop_net_exit(struct net *net)
+static void __net_exit nexthop_net_exit_batch(struct list_head *net_list)
 {
+	struct net *net;
+
 	rtnl_lock();
-	flush_all_nexthops(net);
+	list_for_each_entry(net, net_list, exit_list) {
+		flush_all_nexthops(net);
+		kfree(net->nexthop.devhash);
+	}
 	rtnl_unlock();
-	kfree(net->nexthop.devhash);
 }
 
 static int __net_init nexthop_net_init(struct net *net)
@@ -3732,7 +3760,7 @@ static int __net_init nexthop_net_init(struct net *net)
 
 static struct pernet_operations nexthop_net_ops = {
 	.init = nexthop_net_init,
-	.exit = nexthop_net_exit,
+	.exit_batch = nexthop_net_exit_batch,
 };
 
 static int __init nexthop_init(void)

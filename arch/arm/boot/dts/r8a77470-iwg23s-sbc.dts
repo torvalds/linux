@@ -79,6 +79,8 @@
 	status = "okay";
 
 	phy3: ethernet-phy@3 {
+		compatible = "ethernet-phy-id0022.1622",
+			     "ethernet-phy-ieee802.3-c22";
 		reg = <3>;
 		interrupt-parent = <&gpio5>;
 		interrupts = <16 IRQ_TYPE_LEVEL_LOW>;
@@ -114,7 +116,7 @@
 };
 
 &gpio2 {
-	interrupt-fixup {
+	interrupt-fixup-hog {
 		gpio-hog;
 		gpios = <29 GPIO_ACTIVE_HIGH>;
 		line-name = "hdmi-hpd-int";

@@ -93,7 +93,7 @@ config PMIC_ADP5520
 	bool "Analog Devices ADP5520/01 MFD PMIC Core Support"
 	depends on I2C=y
 	help
-	  Say yes here to add support for Analog Devices AD5520 and ADP5501,
+	  Say yes here to add support for Analog Devices ADP5520 and ADP5501,
 	  Multifunction Power Management IC. This includes
 	  the I2C driver and the core APIs _only_, you have to select
 	  individual components like LCD backlight, LEDs, GPIOs and Kepad
@@ -417,7 +417,9 @@ config MFD_EXYNOS_LPASS
 	select REGMAP_MMIO
 	help
 	  Select this option to enable support for Samsung Exynos Low Power
-	  Audio Subsystem.
+	  Audio Subsystem present on some of Samsung Exynos
+	  SoCs (e.g. Exynos5433).
+	  Choose Y here only if you build for such Samsung SoC.
 
 config MFD_GATEWORKS_GSC
 	tristate "Gateworks System Controller"
@@ -632,7 +634,7 @@ config INTEL_SOC_PMIC_CHTWC
 config INTEL_SOC_PMIC_CHTDC_TI
 	tristate "Support for Intel Cherry Trail Dollar Cove TI PMIC"
 	depends on GPIOLIB
-	depends on I2C
+	depends on I2C=y && I2C_DESIGNWARE_PLATFORM=y
 	depends on ACPI
 	depends on X86
 	select MFD_CORE
@@ -641,6 +643,10 @@ config INTEL_SOC_PMIC_CHTDC_TI
 	help
 	  Select this option for supporting Dollar Cove (TI version) PMIC
 	  device that is found on some Intel Cherry Trail systems.
+
+	  This option is a bool as it provides an ACPI OpRegion which must be
+	  available before any devices using it are probed. This option also
+	  needs the designware-i2c driver to be builtin for the same reason.
 
 config INTEL_SOC_PMIC_MRFLD
 	tristate "Support for Intel Merrifield Basin Cove PMIC"
@@ -689,16 +695,6 @@ config MFD_INTEL_PMC_BXT
 	  multi-function device that exposes IPC, General Control
 	  Register and P-unit access. In addition this creates devices
 	  for iTCO watchdog and telemetry that are part of the PMC.
-
-config MFD_INTEL_PMT
-	tristate "Intel Platform Monitoring Technology (PMT) support"
-	depends on PCI
-	select MFD_CORE
-	help
-	  The Intel Platform Monitoring Technology (PMT) is an interface that
-	  provides access to hardware monitor registers. This driver supports
-	  Telemetry, Watcher, and Crashlog PMT capabilities/devices for
-	  platforms starting from Tiger Lake.
 
 config MFD_IPAQ_MICRO
 	bool "Atmel Micro ASIC (iPAQ h3100/h3600/h3700) Support"
@@ -852,6 +848,20 @@ config MFD_MAX77693
 	  This driver provides common support for accessing the device;
 	  additional drivers must be enabled in order to use the functionality
 	  of the device.
+
+config MFD_MAX77714
+	tristate "Maxim Semiconductor MAX77714 PMIC Support"
+	depends on I2C
+	depends on OF || COMPILE_TEST
+	select MFD_CORE
+	select REGMAP_I2C
+	help
+	  Say yes here to add support for Maxim Semiconductor MAX77714.
+	  This is a Power Management IC with 4 buck regulators, 9
+	  low-dropout regulators, 8 GPIOs, RTC, watchdog etc. This driver
+	  provides common support for accessing the device; additional
+	  drivers must be enabled in order to use each functionality of the
+	  device.
 
 config MFD_MAX77843
 	bool "Maxim Semiconductor MAX77843 PMIC Support"
@@ -1192,8 +1202,9 @@ config MFD_SI476X_CORE
 	  module will be called si476x-core.
 
 config MFD_SIMPLE_MFD_I2C
-	tristate
+	tristate "Simple Multi-Functional Device support (I2C)"
 	depends on I2C
+	select MFD_CORE
 	select REGMAP_I2C
 	help
 	  This driver creates a single register map with the intention for it
@@ -1285,14 +1296,6 @@ config AB8500_CORE
 	  since hardware version v1.0) or the I2C bus via PRCMU. It also adds
 	  the irq_chip parts for handling the Mixed Signal chip events.
 	  This chip embeds various other multimedia functionalities as well.
-
-config AB8500_DEBUG
-	bool "Enable debug info via debugfs"
-	depends on AB8500_GPADC && DEBUG_FS
-	default y if DEBUG_FS
-	help
-	  Select this option if you want debug information using the debug
-	  filesystem, debugfs.
 
 config MFD_DB8500_PRCMU
 	bool "ST-Ericsson DB8500 Power Reset Control Management Unit"
@@ -1622,20 +1625,6 @@ config MFD_TPS65912_SPI
 	  If you say yes here you get support for the TPS65912 series of
 	  PM chips with SPI interface.
 
-config MFD_TPS80031
-	bool "TI TPS80031/TPS80032 Power Management chips"
-	depends on I2C=y
-	select MFD_CORE
-	select REGMAP_I2C
-	select REGMAP_IRQ
-	help
-	  If you say yes here you get support for the Texas Instruments
-	  TPS80031/ TPS80032 Fully Integrated Power Management with Power
-	  Path and Battery Charger. The device provides five configurable
-	  step-down converters, 11 general purpose LDOs, USB OTG Module,
-	  ADC, RTC, 2 PWM, System Voltage Regulator/Battery Charger with
-	  Power Path from USB, 32K clock generator.
-
 config TWL4030_CORE
 	bool "TI TWL4030/TWL5030/TWL6030/TPS659x0 Support"
 	depends on I2C=y
@@ -1955,23 +1944,6 @@ config MFD_ROHM_BD718XX
 	  Power Management ICs. BD71837 is designed to power processors like
 	  NXP i.MX8. It contains 8 BUCK outputs and 7 LDOs, voltage monitoring
 	  and emergency shut down as well as 32,768KHz clock output.
-
-config MFD_ROHM_BD70528
-	tristate "ROHM BD70528 Power Management IC"
-	depends on I2C=y
-	depends on OF
-	select REGMAP_I2C
-	select REGMAP_IRQ
-	select MFD_CORE
-	help
-	  Select this option to get support for the ROHM BD70528 Power
-	  Management IC. BD71837 is general purpose single-chip power
-	  management IC for battery-powered portable devices. It contains
-	  3 ultra-low current consumption buck converters, 3 LDOs and 2 LED
-	  drivers. Also included are 4 GPIOs, a real-time clock (RTC), a 32kHz
-	  crystal oscillator, high-accuracy VREF for use with an external ADC,
-	  10 bits SAR ADC for battery temperature monitor and 1S battery
-	  charger.
 
 config MFD_ROHM_BD71828
 	tristate "ROHM BD71828 and BD71815 Power Management IC"

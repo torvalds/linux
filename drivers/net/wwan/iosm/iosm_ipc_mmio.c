@@ -10,6 +10,7 @@
 #include <linux/slab.h>
 
 #include "iosm_ipc_mmio.h"
+#include "iosm_ipc_mux.h"
 
 /* Definition of MMIO offsets
  * note that MMIO_CI offsets are relative to end of chip info structure
@@ -71,8 +72,9 @@ void ipc_mmio_update_cp_capability(struct iosm_mmio *ipc_mmio)
 	ver = ipc_mmio_get_cp_version(ipc_mmio);
 	cp_cap = ioread32(ipc_mmio->base + ipc_mmio->offset.cp_capability);
 
-	ipc_mmio->has_mux_lite = (ver >= IOSM_CP_VERSION) &&
-				 !(cp_cap & DL_AGGR) && !(cp_cap & UL_AGGR);
+	ipc_mmio->mux_protocol = ((ver >= IOSM_CP_VERSION) && (cp_cap &
+				 (UL_AGGR | DL_AGGR))) ? MUX_AGGREGATION
+				 : MUX_LITE;
 
 	ipc_mmio->has_ul_flow_credit =
 		(ver >= IOSM_CP_VERSION) && (cp_cap & UL_FLOW_CREDIT);
@@ -192,7 +194,7 @@ void ipc_mmio_config(struct iosm_mmio *ipc_mmio)
 	iowrite64(0, ipc_mmio->base + ipc_mmio->offset.ap_win_end);
 
 	iowrite64(ipc_mmio->context_info_addr,
-			ipc_mmio->base + ipc_mmio->offset.context_info);
+		  ipc_mmio->base + ipc_mmio->offset.context_info);
 }
 
 void ipc_mmio_set_psi_addr_and_size(struct iosm_mmio *ipc_mmio, dma_addr_t addr,

@@ -68,6 +68,7 @@ static const char * const iio_ev_type_text[] = {
 	[IIO_EV_TYPE_THRESH_ADAPTIVE] = "thresh_adaptive",
 	[IIO_EV_TYPE_MAG_ADAPTIVE] = "mag_adaptive",
 	[IIO_EV_TYPE_CHANGE] = "change",
+	[IIO_EV_TYPE_MAG_REFERENCED] = "mag_referenced",
 };
 
 static const char * const iio_ev_dir_text[] = {
@@ -279,6 +280,7 @@ static void print_event(struct iio_event_data *event)
 		printf(", direction: %s", iio_ev_dir_text[dir]);
 
 	printf("\n");
+	fflush(stdout);
 }
 
 /* Enable or disable events in sysfs if the knob is available */

@@ -18,7 +18,7 @@
 
 #include "mpc83xx.h"
 
-static void mpc837x_rdb_sd_cfg(void)
+static void __init mpc837x_rdb_sd_cfg(void)
 {
 	void __iomem *im;
 

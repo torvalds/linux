@@ -111,7 +111,8 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 		if (requested_freq > policy->max)
 			requested_freq = policy->max;
 
-		__cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_H);
+		__cpufreq_driver_target(policy, requested_freq,
+					CPUFREQ_RELATION_HE);
 		dbs_info->requested_freq = requested_freq;
 		goto out;
 	}
@@ -134,7 +135,8 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 		else
 			requested_freq = policy->min;
 
-		__cpufreq_driver_target(policy, requested_freq, CPUFREQ_RELATION_L);
+		__cpufreq_driver_target(policy, requested_freq,
+					CPUFREQ_RELATION_LE);
 		dbs_info->requested_freq = requested_freq;
 	}
 
@@ -144,7 +146,7 @@ static unsigned int cs_dbs_update(struct cpufreq_policy *policy)
 
 /************************** sysfs interface ************************/
 
-static ssize_t store_sampling_down_factor(struct gov_attr_set *attr_set,
+static ssize_t sampling_down_factor_store(struct gov_attr_set *attr_set,
 					  const char *buf, size_t count)
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
@@ -159,7 +161,7 @@ static ssize_t store_sampling_down_factor(struct gov_attr_set *attr_set,
 	return count;
 }
 
-static ssize_t store_up_threshold(struct gov_attr_set *attr_set,
+static ssize_t up_threshold_store(struct gov_attr_set *attr_set,
 				  const char *buf, size_t count)
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
@@ -175,7 +177,7 @@ static ssize_t store_up_threshold(struct gov_attr_set *attr_set,
 	return count;
 }
 
-static ssize_t store_down_threshold(struct gov_attr_set *attr_set,
+static ssize_t down_threshold_store(struct gov_attr_set *attr_set,
 				    const char *buf, size_t count)
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
@@ -193,7 +195,7 @@ static ssize_t store_down_threshold(struct gov_attr_set *attr_set,
 	return count;
 }
 
-static ssize_t store_ignore_nice_load(struct gov_attr_set *attr_set,
+static ssize_t ignore_nice_load_store(struct gov_attr_set *attr_set,
 				      const char *buf, size_t count)
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
@@ -218,7 +220,7 @@ static ssize_t store_ignore_nice_load(struct gov_attr_set *attr_set,
 	return count;
 }
 
-static ssize_t store_freq_step(struct gov_attr_set *attr_set, const char *buf,
+static ssize_t freq_step_store(struct gov_attr_set *attr_set, const char *buf,
 			       size_t count)
 {
 	struct dbs_data *dbs_data = to_dbs_data(attr_set);
@@ -255,7 +257,7 @@ gov_attr_rw(ignore_nice_load);
 gov_attr_rw(down_threshold);
 gov_attr_rw(freq_step);
 
-static struct attribute *cs_attributes[] = {
+static struct attribute *cs_attrs[] = {
 	&sampling_rate.attr,
 	&sampling_down_factor.attr,
 	&up_threshold.attr,
@@ -264,6 +266,7 @@ static struct attribute *cs_attributes[] = {
 	&freq_step.attr,
 	NULL
 };
+ATTRIBUTE_GROUPS(cs);
 
 /************************** sysfs end ************************/
 
@@ -313,7 +316,7 @@ static void cs_start(struct cpufreq_policy *policy)
 
 static struct dbs_governor cs_governor = {
 	.gov = CPUFREQ_DBS_GOVERNOR_INITIALIZER("conservative"),
-	.kobj_type = { .default_attrs = cs_attributes },
+	.kobj_type = { .default_groups = cs_groups },
 	.gov_dbs_update = cs_dbs_update,
 	.alloc = cs_alloc,
 	.free = cs_free,

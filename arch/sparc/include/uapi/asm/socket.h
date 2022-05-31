@@ -124,6 +124,11 @@
 
 #define SO_BUF_LOCK              0x0051
 
+#define SO_RESERVE_MEM           0x0052
+
+#define SO_TXREHASH              0x0053
+
+
 #if !defined(__KERNEL__)
 
 

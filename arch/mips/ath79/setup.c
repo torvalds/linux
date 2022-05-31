@@ -34,15 +34,6 @@
 
 static char ath79_sys_type[ATH79_SYS_TYPE_LEN];
 
-static void ath79_restart(char *command)
-{
-	local_irq_disable();
-	ath79_device_reset_set(AR71XX_RESET_FULL_CHIP);
-	for (;;)
-		if (cpu_wait)
-			cpu_wait();
-}
-
 static void ath79_halt(void)
 {
 	while (1)
@@ -177,6 +168,12 @@ static void __init ath79_detect_sys_type(void)
 		rev = id & QCA956X_REV_ID_REVISION_MASK;
 		break;
 
+	case REV_ID_MAJOR_QCN550X:
+		ath79_soc = ATH79_SOC_QCA956X;
+		chip = "550X";
+		rev = id & QCA956X_REV_ID_REVISION_MASK;
+		break;
+
 	case REV_ID_MAJOR_TP9343:
 		ath79_soc = ATH79_SOC_TP9343;
 		chip = "9343";
@@ -234,7 +231,6 @@ void __init plat_mem_setup(void)
 
 	detect_memory_region(0, ATH79_MEM_SIZE_MIN, ATH79_MEM_SIZE_MAX);
 
-	_machine_restart = ath79_restart;
 	_machine_halt = ath79_halt;
 	pm_power_off = ath79_halt;
 }
@@ -272,9 +268,4 @@ void __init plat_time_init(void)
 void __init arch_init_irq(void)
 {
 	irqchip_init();
-}
-
-void __init device_tree_init(void)
-{
-	unflatten_and_copy_device_tree();
 }

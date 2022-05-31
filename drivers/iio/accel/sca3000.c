@@ -534,6 +534,13 @@ static const struct iio_chan_spec sca3000_channels_with_temp[] = {
 			BIT(IIO_CHAN_INFO_OFFSET),
 		/* No buffer support */
 		.scan_index = -1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 9,
+			.storagebits = 16,
+			.shift = 5,
+			.endianness = IIO_BE,
+		},
 	},
 	{
 		.type = IIO_ACCEL,
@@ -730,9 +737,9 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 				mutex_unlock(&st->lock);
 				return ret;
 			}
-			*val = (be16_to_cpup((__be16 *)st->rx) >> 3) & 0x1FFF;
-			*val = ((*val) << (sizeof(*val) * 8 - 13)) >>
-				(sizeof(*val) * 8 - 13);
+			*val = sign_extend32(be16_to_cpup((__be16 *)st->rx) >>
+					     chan->scan_type.shift,
+					     chan->scan_type.realbits - 1);
 		} else {
 			/* get the temperature when available */
 			ret = sca3000_read_data_short(st,
@@ -742,8 +749,9 @@ static int sca3000_read_raw(struct iio_dev *indio_dev,
 				mutex_unlock(&st->lock);
 				return ret;
 			}
-			*val = ((st->rx[0] & 0x3F) << 3) |
-			       ((st->rx[1] & 0xE0) >> 5);
+			*val = (be16_to_cpup((__be16 *)st->rx) >>
+				chan->scan_type.shift) &
+				GENMASK(chan->scan_type.realbits - 1, 0);
 		}
 		mutex_unlock(&st->lock);
 		return IIO_VAL_INT;
@@ -1516,7 +1524,7 @@ error_ret:
 	return ret;
 }
 
-static int sca3000_remove(struct spi_device *spi)
+static void sca3000_remove(struct spi_device *spi)
 {
 	struct iio_dev *indio_dev = spi_get_drvdata(spi);
 	struct sca3000_state *st = iio_priv(indio_dev);
@@ -1527,8 +1535,6 @@ static int sca3000_remove(struct spi_device *spi)
 	sca3000_stop_all_interrupts(st);
 	if (spi->irq)
 		free_irq(spi->irq, indio_dev);
-
-	return 0;
 }
 
 static const struct spi_device_id sca3000_id[] = {

@@ -41,7 +41,7 @@ realloc:
 	return cpu;
 }
 
-int test__PERF_RECORD(struct test *test __maybe_unused, int subtest __maybe_unused)
+static int test__PERF_RECORD(struct test_suite *test __maybe_unused, int subtest __maybe_unused)
 {
 	struct record_opts opts = {
 		.target = {
@@ -332,3 +332,5 @@ out_delete_evlist:
 out:
 	return (err < 0 || errs > 0) ? -1 : 0;
 }
+
+DEFINE_SUITE("PERF_RECORD_* events & perf_sample fields", PERF_RECORD);

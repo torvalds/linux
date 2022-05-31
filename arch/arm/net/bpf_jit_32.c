@@ -163,7 +163,7 @@ static const s8 bpf2a32[][2] = {
 	[BPF_REG_9] = {STACK_OFFSET(BPF_R9_HI), STACK_OFFSET(BPF_R9_LO)},
 	/* Read only Frame Pointer to access Stack */
 	[BPF_REG_FP] = {STACK_OFFSET(BPF_FP_HI), STACK_OFFSET(BPF_FP_LO)},
-	/* Temporary Register for internal BPF JIT, can be used
+	/* Temporary Register for BPF JIT, can be used
 	 * for constant blindings and others.
 	 */
 	[TMP_REG_1] = {ARM_R7, ARM_R6},
@@ -1199,7 +1199,8 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 
 	/* tmp2[0] = array, tmp2[1] = index */
 
-	/* if (tail_call_cnt > MAX_TAIL_CALL_CNT)
+	/*
+	 * if (tail_call_cnt >= MAX_TAIL_CALL_CNT)
 	 *	goto out;
 	 * tail_call_cnt++;
 	 */
@@ -1208,7 +1209,7 @@ static int emit_bpf_tail_call(struct jit_ctx *ctx)
 	tc = arm_bpf_get_reg64(tcc, tmp, ctx);
 	emit(ARM_CMP_I(tc[0], hi), ctx);
 	_emit(ARM_COND_EQ, ARM_CMP_I(tc[1], lo), ctx);
-	_emit(ARM_COND_HI, ARM_B(jmp_offset), ctx);
+	_emit(ARM_COND_CS, ARM_B(jmp_offset), ctx);
 	emit(ARM_ADDS_I(tc[1], tc[1], 1), ctx);
 	emit(ARM_ADC_I(tc[0], tc[0], 0), ctx);
 	arm_bpf_put_reg64(tcc, tmp, ctx);
@@ -1863,7 +1864,7 @@ static int build_body(struct jit_ctx *ctx)
 		if (ctx->target == NULL)
 			ctx->offsets[i] = ctx->idx;
 
-		/* If unsuccesfull, return with error code */
+		/* If unsuccesful, return with error code */
 		if (ret)
 			return ret;
 	}
@@ -1880,11 +1881,6 @@ static int validate_code(struct jit_ctx *ctx)
 	}
 
 	return 0;
-}
-
-void bpf_jit_compile(struct bpf_prog *prog)
-{
-	/* Nothing to do here. We support Internal BPF. */
 }
 
 bool bpf_jit_needs_zext(void)
@@ -1977,7 +1973,7 @@ struct bpf_prog *bpf_int_jit_compile(struct bpf_prog *prog)
 	 * for jit, although it can decrease the size of the image.
 	 *
 	 * As each arm instruction is of length 32bit, we are translating
-	 * number of JITed intructions into the size required to store these
+	 * number of JITed instructions into the size required to store these
 	 * JITed code.
 	 */
 	image_size = sizeof(u32) * ctx.idx;

@@ -139,6 +139,7 @@ struct hubp_funcs {
 	bool (*hubp_is_flip_pending)(struct hubp *hubp);
 
 	void (*set_blank)(struct hubp *hubp, bool blank);
+	void (*set_blank_regs)(struct hubp *hubp, bool blank);
 	void (*set_hubp_blank_en)(struct hubp *hubp, bool blank);
 
 	void (*set_cursor_attributes)(
@@ -194,6 +195,10 @@ struct hubp_funcs {
 
 	void (*hubp_set_flip_int)(struct hubp *hubp);
 
+	void (*program_extended_blank)(struct hubp *hubp,
+			unsigned int min_dst_y_next_start_optimized);
+
+	void (*hubp_wait_pipe_read_start)(struct hubp *hubp);
 };
 
 #endif

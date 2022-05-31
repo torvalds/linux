@@ -12,6 +12,7 @@
 
 #include "util/parse-events.h"
 #include "util/pmu.h"
+#include "util/pmu-hybrid.h"
 #include "util/debug.h"
 #include "util/metricgroup.h"
 #include <subcmd/pager.h>
@@ -20,13 +21,15 @@
 
 static bool desc_flag = true;
 static bool details_flag;
+static const char *hybrid_type;
 
 int cmd_list(int argc, const char **argv)
 {
-	int i;
+	int i, ret = 0;
 	bool raw_dump = false;
 	bool long_desc_flag = false;
 	bool deprecated = false;
+	char *pmu_name = NULL;
 	struct option list_options[] = {
 		OPT_BOOLEAN(0, "raw-dump", &raw_dump, "Dump raw events"),
 		OPT_BOOLEAN('d', "desc", &desc_flag,
@@ -37,6 +40,9 @@ int cmd_list(int argc, const char **argv)
 			    "Print information on the perf event names and expressions used internally by events."),
 		OPT_BOOLEAN(0, "deprecated", &deprecated,
 			    "Print deprecated events."),
+		OPT_STRING(0, "cputype", &hybrid_type, "hybrid cpu type",
+			   "Print events applying cpu with this type for hybrid platform "
+			   "(e.g. core or atom)"),
 		OPT_INCR(0, "debug", &verbose,
 			     "Enable debugging output"),
 		OPT_END()
@@ -56,10 +62,16 @@ int cmd_list(int argc, const char **argv)
 	if (!raw_dump && pager_in_use())
 		printf("\nList of pre-defined events (to be used in -e):\n\n");
 
+	if (hybrid_type) {
+		pmu_name = perf_pmu__hybrid_type_to_pmu(hybrid_type);
+		if (!pmu_name)
+			pr_warning("WARNING: hybrid cputype is not supported!\n");
+	}
+
 	if (argc == 0) {
 		print_events(NULL, raw_dump, !desc_flag, long_desc_flag,
-				details_flag, deprecated);
-		return 0;
+				details_flag, deprecated, pmu_name);
+		goto out;
 	}
 
 	for (i = 0; i < argc; ++i) {
@@ -82,25 +94,27 @@ int cmd_list(int argc, const char **argv)
 		else if (strcmp(argv[i], "pmu") == 0)
 			print_pmu_events(NULL, raw_dump, !desc_flag,
 						long_desc_flag, details_flag,
-						deprecated);
+						deprecated, pmu_name);
 		else if (strcmp(argv[i], "sdt") == 0)
 			print_sdt_events(NULL, NULL, raw_dump);
 		else if (strcmp(argv[i], "metric") == 0 || strcmp(argv[i], "metrics") == 0)
-			metricgroup__print(true, false, NULL, raw_dump, details_flag);
+			metricgroup__print(true, false, NULL, raw_dump, details_flag, pmu_name);
 		else if (strcmp(argv[i], "metricgroup") == 0 || strcmp(argv[i], "metricgroups") == 0)
-			metricgroup__print(false, true, NULL, raw_dump, details_flag);
+			metricgroup__print(false, true, NULL, raw_dump, details_flag, pmu_name);
 		else if ((sep = strchr(argv[i], ':')) != NULL) {
 			int sep_idx;
 
 			sep_idx = sep - argv[i];
 			s = strdup(argv[i]);
-			if (s == NULL)
-				return -1;
+			if (s == NULL) {
+				ret = -1;
+				goto out;
+			}
 
 			s[sep_idx] = '\0';
 			print_tracepoint_events(s, s + sep_idx + 1, raw_dump);
 			print_sdt_events(s, s + sep_idx + 1, raw_dump);
-			metricgroup__print(true, true, s, raw_dump, details_flag);
+			metricgroup__print(true, true, s, raw_dump, details_flag, pmu_name);
 			free(s);
 		} else {
 			if (asprintf(&s, "*%s*", argv[i]) < 0) {
@@ -116,12 +130,16 @@ int cmd_list(int argc, const char **argv)
 			print_pmu_events(s, raw_dump, !desc_flag,
 						long_desc_flag,
 						details_flag,
-						deprecated);
+						deprecated,
+						pmu_name);
 			print_tracepoint_events(NULL, s, raw_dump);
 			print_sdt_events(NULL, s, raw_dump);
-			metricgroup__print(true, true, s, raw_dump, details_flag);
+			metricgroup__print(true, true, s, raw_dump, details_flag, pmu_name);
 			free(s);
 		}
 	}
-	return 0;
+
+out:
+	free(pmu_name);
+	return ret;
 }

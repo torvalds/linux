@@ -181,8 +181,7 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 					   parent_names,
 					   &at91sam9x5_master_layout,
 					   &mck_characteristics,
-					   &at91sam9n12_mck_lock,
-					   CLK_SET_RATE_GATE, INT_MIN);
+					   &at91sam9n12_mck_lock);
 	if (IS_ERR(hw))
 		goto err_free;
 
@@ -191,7 +190,7 @@ static void __init at91sam9n12_pmc_setup(struct device_node *np)
 					  &at91sam9x5_master_layout,
 					  &mck_characteristics,
 					  &at91sam9n12_mck_lock,
-					  CLK_SET_RATE_GATE);
+					  CLK_SET_RATE_GATE, 0);
 	if (IS_ERR(hw))
 		goto err_free;
 

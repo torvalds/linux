@@ -251,7 +251,8 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		       struct ieee80211_sta *sta, struct peer_create_params *param)
 {
 	struct ath11k_peer *peer;
-	int ret;
+	struct ath11k_sta *arsta;
+	int ret, fbret;
 
 	lockdep_assert_held(&ar->conf_mutex);
 
@@ -290,22 +291,8 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 		ath11k_warn(ar->ab, "failed to find peer %pM on vdev %i after creation\n",
 			    param->peer_addr, param->vdev_id);
 
-		reinit_completion(&ar->peer_delete_done);
-
-		ret = ath11k_wmi_send_peer_delete_cmd(ar, param->peer_addr,
-						      param->vdev_id);
-		if (ret) {
-			ath11k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
-				    param->vdev_id, param->peer_addr);
-			return ret;
-		}
-
-		ret = ath11k_wait_for_peer_delete_done(ar, param->vdev_id,
-						       param->peer_addr);
-		if (ret)
-			return ret;
-
-		return -ENOENT;
+		ret = -ENOENT;
+		goto cleanup;
 	}
 
 	peer->pdev_idx = ar->pdev_idx;
@@ -319,9 +306,39 @@ int ath11k_peer_create(struct ath11k *ar, struct ath11k_vif *arvif,
 	peer->sec_type = HAL_ENCRYPT_TYPE_OPEN;
 	peer->sec_type_grp = HAL_ENCRYPT_TYPE_OPEN;
 
+	if (sta) {
+		arsta = (struct ath11k_sta *)sta->drv_priv;
+		arsta->tcl_metadata |= FIELD_PREP(HTT_TCL_META_DATA_TYPE, 0) |
+				       FIELD_PREP(HTT_TCL_META_DATA_PEER_ID,
+						  peer->peer_id);
+
+		/* set HTT extension valid bit to 0 by default */
+		arsta->tcl_metadata &= ~HTT_TCL_META_DATA_VALID_HTT;
+	}
+
 	ar->num_peers++;
 
 	spin_unlock_bh(&ar->ab->base_lock);
 
 	return 0;
+
+cleanup:
+	reinit_completion(&ar->peer_delete_done);
+
+	fbret = ath11k_wmi_send_peer_delete_cmd(ar, param->peer_addr,
+						param->vdev_id);
+	if (fbret) {
+		ath11k_warn(ar->ab, "failed to delete peer vdev_id %d addr %pM\n",
+			    param->vdev_id, param->peer_addr);
+		goto exit;
+	}
+
+	fbret = ath11k_wait_for_peer_delete_done(ar, param->vdev_id,
+						 param->peer_addr);
+	if (fbret)
+		ath11k_warn(ar->ab, "failed wait for peer %pM delete done id %d fallback ret %d\n",
+			    param->peer_addr, param->vdev_id, fbret);
+
+exit:
+	return ret;
 }

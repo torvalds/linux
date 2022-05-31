@@ -69,7 +69,7 @@ struct irdma_add_page_info {
 struct irdma_chunk {
 	struct list_head list;
 	struct irdma_dma_info dmainfo;
-	void *bitmapbuf;
+	unsigned long *bitmapbuf;
 
 	u32 sizeofbitmap;
 	u64 size;
@@ -78,7 +78,6 @@ struct irdma_chunk {
 	u32 pg_cnt;
 	enum irdma_alloc_type type;
 	struct irdma_sc_dev *dev;
-	struct irdma_virt_mem bitmapmem;
 	struct irdma_virt_mem chunkmem;
 };
 
@@ -109,20 +108,18 @@ struct irdma_hmc_pble_rsrc {
 };
 
 void irdma_destroy_pble_prm(struct irdma_hmc_pble_rsrc *pble_rsrc);
-enum irdma_status_code
-irdma_hmc_init_pble(struct irdma_sc_dev *dev,
-		    struct irdma_hmc_pble_rsrc *pble_rsrc);
+int irdma_hmc_init_pble(struct irdma_sc_dev *dev,
+			struct irdma_hmc_pble_rsrc *pble_rsrc);
 void irdma_free_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
 		     struct irdma_pble_alloc *palloc);
-enum irdma_status_code irdma_get_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
-				      struct irdma_pble_alloc *palloc,
-				      u32 pble_cnt, bool level1_only);
-enum irdma_status_code irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
-					      struct irdma_chunk *pchunk);
-enum irdma_status_code
-irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
-		    struct irdma_pble_chunkinfo *chunkinfo, u64 mem_size,
-		    u64 **vaddr, u64 *fpm_addr);
+int irdma_get_pble(struct irdma_hmc_pble_rsrc *pble_rsrc,
+		   struct irdma_pble_alloc *palloc, u32 pble_cnt,
+		   bool level1_only);
+int irdma_prm_add_pble_mem(struct irdma_pble_prm *pprm,
+			   struct irdma_chunk *pchunk);
+int irdma_prm_get_pbles(struct irdma_pble_prm *pprm,
+			struct irdma_pble_chunkinfo *chunkinfo, u64 mem_size,
+			u64 **vaddr, u64 *fpm_addr);
 void irdma_prm_return_pbles(struct irdma_pble_prm *pprm,
 			    struct irdma_pble_chunkinfo *chunkinfo);
 void irdma_pble_acquire_lock(struct irdma_hmc_pble_rsrc *pble_rsrc,
@@ -130,7 +127,6 @@ void irdma_pble_acquire_lock(struct irdma_hmc_pble_rsrc *pble_rsrc,
 void irdma_pble_release_lock(struct irdma_hmc_pble_rsrc *pble_rsrc,
 			     unsigned long *flags);
 void irdma_pble_free_paged_mem(struct irdma_chunk *chunk);
-enum irdma_status_code irdma_pble_get_paged_mem(struct irdma_chunk *chunk,
-						u32 pg_cnt);
+int irdma_pble_get_paged_mem(struct irdma_chunk *chunk, u32 pg_cnt);
 void irdma_prm_rem_bitmapmem(struct irdma_hw *hw, struct irdma_chunk *chunk);
 #endif /* IRDMA_PBLE_H */

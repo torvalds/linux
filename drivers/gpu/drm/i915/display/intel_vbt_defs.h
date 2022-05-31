@@ -162,6 +162,14 @@ struct bdb_general_features {
 	u8 dp_ssc_freq:1;	/* SSC freq for PCH attached eDP */
 	u8 dp_ssc_dongle_supported:1;
 	u8 rsvd11:2; /* finish byte */
+
+	/* bits 6 */
+	u8 tc_hpd_retry_timeout:7; /* 242 */
+	u8 rsvd12:1;
+
+	/* bits 7 */
+	u8 afc_startup_config:2;/* 249 */
+	u8 rsvd13:6;
 } __packed;
 
 /*
@@ -225,32 +233,6 @@ struct bdb_general_features {
 #define DEVICE_TYPE_DISPLAYPORT_OUTPUT	(1 << 2)
 #define DEVICE_TYPE_DIGITAL_OUTPUT	(1 << 1)
 #define DEVICE_TYPE_ANALOG_OUTPUT	(1 << 0)
-
-/*
- * Bits we care about when checking for DEVICE_TYPE_eDP. Depending on the
- * system, the other bits may or may not be set for eDP outputs.
- */
-#define DEVICE_TYPE_eDP_BITS \
-	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
-	 DEVICE_TYPE_MIPI_OUTPUT |		\
-	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
-	 DEVICE_TYPE_DUAL_CHANNEL |		\
-	 DEVICE_TYPE_LVDS_SIGNALING |		\
-	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
-	 DEVICE_TYPE_VIDEO_SIGNALING |		\
-	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
-	 DEVICE_TYPE_ANALOG_OUTPUT)
-
-#define DEVICE_TYPE_DP_DUAL_MODE_BITS \
-	(DEVICE_TYPE_INTERNAL_CONNECTOR |	\
-	 DEVICE_TYPE_MIPI_OUTPUT |		\
-	 DEVICE_TYPE_COMPOSITE_OUTPUT |		\
-	 DEVICE_TYPE_LVDS_SIGNALING |		\
-	 DEVICE_TYPE_TMDS_DVI_SIGNALING |	\
-	 DEVICE_TYPE_VIDEO_SIGNALING |		\
-	 DEVICE_TYPE_DISPLAYPORT_OUTPUT |	\
-	 DEVICE_TYPE_DIGITAL_OUTPUT |		\
-	 DEVICE_TYPE_ANALOG_OUTPUT)
 
 #define DEVICE_CFG_NONE		0x00
 #define DEVICE_CFG_12BIT_DVOB	0x01
@@ -330,7 +312,12 @@ enum vbt_gmbus_ddi {
 	ADLS_DDC_BUS_PORT_TC1 = 0x2,
 	ADLS_DDC_BUS_PORT_TC2,
 	ADLS_DDC_BUS_PORT_TC3,
-	ADLS_DDC_BUS_PORT_TC4
+	ADLS_DDC_BUS_PORT_TC4,
+	ADLP_DDC_BUS_PORT_TC1 = 0x3,
+	ADLP_DDC_BUS_PORT_TC2,
+	ADLP_DDC_BUS_PORT_TC3,
+	ADLP_DDC_BUS_PORT_TC4
+
 };
 
 #define DP_AUX_A 0x40

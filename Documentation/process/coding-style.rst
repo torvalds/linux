@@ -480,13 +480,48 @@ closing function brace line.  E.g.:
 	}
 	EXPORT_SYMBOL(system_is_up);
 
+6.1) Function prototypes
+************************
+
 In function prototypes, include parameter names with their data types.
 Although this is not required by the C language, it is preferred in Linux
 because it is a simple way to add valuable information for the reader.
 
-Do not use the ``extern`` keyword with function prototypes as this makes
+Do not use the ``extern`` keyword with function declarations as this makes
 lines longer and isn't strictly necessary.
 
+When writing function prototypes, please keep the `order of elements regular
+<https://lore.kernel.org/mm-commits/CAHk-=wiOCLRny5aifWNhr621kYrJwhfURsa0vFPeUEm8mF0ufg@mail.gmail.com/>`_.
+For example, using this function declaration example::
+
+ __init void * __must_check action(enum magic value, size_t size, u8 count,
+				   char *fmt, ...) __printf(4, 5) __malloc;
+
+The preferred order of elements for a function prototype is:
+
+- storage class (below, ``static __always_inline``, noting that ``__always_inline``
+  is technically an attribute but is treated like ``inline``)
+- storage class attributes (here, ``__init`` -- i.e. section declarations, but also
+  things like ``__cold``)
+- return type (here, ``void *``)
+- return type attributes (here, ``__must_check``)
+- function name (here, ``action``)
+- function parameters (here, ``(enum magic value, size_t size, u8 count, char *fmt, ...)``,
+  noting that parameter names should always be included)
+- function parameter attributes (here, ``__printf(4, 5)``)
+- function behavior attributes (here, ``__malloc``)
+
+Note that for a function **definition** (i.e. the actual function body),
+the compiler does not allow function parameter attributes after the
+function parameters. In these cases, they should go after the storage
+class attributes (e.g. note the changed position of ``__printf(4, 5)``
+below, compared to the **declaration** example above)::
+
+ static __always_inline __init __printf(4, 5) void * __must_check action(enum magic value,
+		size_t size, u8 count, char *fmt, ...) __malloc
+ {
+	...
+ }
 
 7) Centralized exiting of functions
 -----------------------------------
@@ -855,7 +890,7 @@ Kernel messages do not have to be terminated with a period.
 
 Printing numbers in parentheses (%d) adds no value and should be avoided.
 
-There are a number of driver model diagnostic macros in <linux/device.h>
+There are a number of driver model diagnostic macros in <linux/dev_printk.h>
 which you should use to make sure messages are matched to the right device
 and driver, and are tagged with the right level:  dev_err(), dev_warn(),
 dev_info(), and so forth.  For messages that aren't associated with a

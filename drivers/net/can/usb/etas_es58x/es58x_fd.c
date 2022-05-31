@@ -12,6 +12,7 @@
  */
 
 #include <linux/kernel.h>
+#include <linux/units.h>
 #include <asm/unaligned.h>
 
 #include "es58x_core.h"
@@ -68,7 +69,8 @@ static int es58x_fd_echo_msg(struct net_device *netdev,
 	int i, num_element;
 	u32 rcv_packet_idx;
 
-	const u32 mask = GENMASK(31, sizeof(echo_msg->packet_idx) * 8);
+	const u32 mask = GENMASK(BITS_PER_TYPE(mask) - 1,
+				 BITS_PER_TYPE(echo_msg->packet_idx));
 
 	num_element = es58x_msg_num_element(es58x_dev->dev,
 					    es58x_fd_urb_cmd->echo_msg,
@@ -171,11 +173,10 @@ static int es58x_fd_rx_event_msg(struct net_device *netdev,
 	const struct es58x_fd_rx_event_msg *rx_event_msg;
 	int ret;
 
+	rx_event_msg = &es58x_fd_urb_cmd->rx_event_msg;
 	ret = es58x_check_msg_len(es58x_dev->dev, *rx_event_msg, msg_len);
 	if (ret)
 		return ret;
-
-	rx_event_msg = &es58x_fd_urb_cmd->rx_event_msg;
 
 	return es58x_rx_err_msg(netdev, rx_event_msg->error_code,
 				rx_event_msg->event_code,
@@ -428,7 +429,7 @@ static int es58x_fd_enable_channel(struct es58x_priv *priv)
 		es58x_fd_convert_bittiming(&tx_conf_msg.data_bittiming,
 					   &priv->can.data_bittiming);
 
-		if (priv->can.tdc.tdco) {
+		if (can_tdc_is_enabled(&priv->can)) {
 			tx_conf_msg.tdc_enabled = 1;
 			tx_conf_msg.tdco = cpu_to_le16(priv->can.tdc.tdco);
 			tx_conf_msg.tdcf = cpu_to_le16(priv->can.tdc.tdcf);
@@ -505,8 +506,11 @@ static const struct can_bittiming_const es58x_fd_data_bittiming_const = {
  * Register" from Microchip.
  */
 static const struct can_tdc_const es58x_tdc_const = {
+	.tdcv_min = 0,
 	.tdcv_max = 0, /* Manual mode not supported. */
+	.tdco_min = 0,
 	.tdco_max = 127,
+	.tdcf_min = 0,
 	.tdcf_max = 127
 };
 
@@ -519,11 +523,11 @@ const struct es58x_parameters es58x_fd_param = {
 	 * Mbps work in an optimal environment but are not recommended
 	 * for production environment.
 	 */
-	.bitrate_max = 8 * CAN_MBPS,
-	.clock = {.freq = 80 * CAN_MHZ},
+	.bitrate_max = 8 * MEGA /* BPS */,
+	.clock = {.freq = 80 * MEGA /* Hz */},
 	.ctrlmode_supported = CAN_CTRLMODE_LOOPBACK | CAN_CTRLMODE_LISTENONLY |
 	    CAN_CTRLMODE_3_SAMPLES | CAN_CTRLMODE_FD | CAN_CTRLMODE_FD_NON_ISO |
-	    CAN_CTRLMODE_CC_LEN8_DLC,
+	    CAN_CTRLMODE_CC_LEN8_DLC | CAN_CTRLMODE_TDC_AUTO,
 	.tx_start_of_frame = 0xCEFA,	/* FACE in little endian */
 	.rx_start_of_frame = 0xFECA,	/* CAFE in little endian */
 	.tx_urb_cmd_max_len = ES58X_FD_TX_URB_CMD_MAX_LEN,

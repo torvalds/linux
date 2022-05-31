@@ -3,7 +3,6 @@
  * Stack trace management functions
  *
  *  Copyright IBM Corp. 2006
- *  Author(s): Heiko Carstens <heiko.carstens@de.ibm.com>
  */
 
 #include <linux/stacktrace.h>
@@ -46,7 +45,7 @@ int arch_stack_walk_reliable(stack_trace_consume_fn consume_entry,
 		 * Mark stacktraces with kretprobed functions on them
 		 * as unreliable.
 		 */
-		if (state.ip == (unsigned long)kretprobe_trampoline)
+		if (state.ip == (unsigned long)__kretprobe_trampoline)
 			return -EINVAL;
 #endif
 
