@@ -115,6 +115,15 @@ struct rkvenc_hw_info {
 	u32 err_mask;
 };
 
+#define INT_STA_ENC_DONE_STA	BIT(0)
+#define INT_STA_SCLR_DONE_STA	BIT(2)
+#define INT_STA_SLC_DONE_STA	BIT(3)
+#define INT_STA_BSF_OFLW_STA	BIT(4)
+#define INT_STA_BRSP_OTSD_STA	BIT(5)
+#define INT_STA_WBUS_ERR_STA	BIT(6)
+#define INT_STA_RBUS_ERR_STA	BIT(7)
+#define INT_STA_WDG_STA		BIT(8)
+
 #define DCHS_REG_OFFSET		(0x304)
 #define DCHS_CLASS_OFFSET	(33)
 #define DCHS_TXE		(0x10)
@@ -160,12 +169,21 @@ union rkvenc2_dual_core_handshake_id {
 #define RKVENC2_REG_SLICE_NUM_BASE	(0x4034)
 #define RKVENC2_REG_SLICE_LEN_BASE	(0x4038)
 
+union rkvenc2_slice_len_info {
+	u32 val;
+
+	struct {
+		u32 slice_len	: 31;
+		u32 last	: 1;
+	};
+};
+
 struct rkvenc_poll_slice_cfg {
 	s32 poll_type;
 	s32 poll_ret;
 	s32 count_max;
 	s32 count_ret;
-	s32 slice_len[];
+	union rkvenc2_slice_len_info slice_info[];
 };
 
 struct rkvenc_task {
@@ -196,7 +214,10 @@ struct rkvenc_task {
 	/* split output / slice mode info */
 	u32 task_split;
 	u32 task_split_done;
-	DECLARE_KFIFO(slice_len, u32, 64);
+	u32 last_slice_found;
+	u32 slice_wr_cnt;
+	u32 slice_rd_cnt;
+	DECLARE_KFIFO(slice_info, union rkvenc2_slice_len_info, 64);
 };
 
 #define RKVENC_MAX_RCB_NUM		(4)
@@ -788,7 +809,7 @@ static void *rkvenc_alloc_task(struct mpp_session *session,
 	task->clk_mode = CLK_MODE_NORMAL;
 	task->task_split = rkvenc2_is_split_task(task);
 	if (task->task_split)
-		INIT_KFIFO(task->slice_len);
+		INIT_KFIFO(task->slice_info);
 
 	mpp_debug_leave();
 
@@ -1048,24 +1069,38 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 
 static void rkvenc2_read_slice_len(struct mpp_dev *mpp, struct rkvenc_task *task)
 {
+	u32 last = mpp_read_relaxed(mpp, 0x002c) & INT_STA_ENC_DONE_STA;
 	u32 sli_num = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_NUM_BASE);
+	union rkvenc2_slice_len_info slice_info;
+	u32 task_id = task->mpp_task.task_id;
 	u32 i;
 
+	mpp_dbg_slice("task %d wr %3d len start %s\n", task_id,
+		      sli_num, last ? "last" : "");
+
 	for (i = 0; i < sli_num; i++) {
-		u32 sli_len = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_LEN_BASE);
+		slice_info.val = mpp_read_relaxed(mpp, RKVENC2_REG_SLICE_LEN_BASE);
 
-		mpp_dbg_slice("task %d wr len %d %d:%d\n",
-			      task->mpp_task.task_id, sli_len, sli_num, i);
-		kfifo_in(&task->slice_len, &sli_len, 1);
+		if (last && i == sli_num - 1) {
+			task->last_slice_found = 1;
+			slice_info.last = 1;
+		}
+
+		mpp_dbg_slice("task %d wr %3d len %d %s\n", task_id,
+			      task->slice_wr_cnt, slice_info.slice_len,
+			      slice_info.last ? "last" : "");
+
+		kfifo_in(&task->slice_info, &slice_info, 1);
+		task->slice_wr_cnt++;
 	}
-}
 
-static void rkvenc2_last_slice(struct rkvenc_task *task)
-{
-	u32 sli_len = 0;
-
-	mpp_dbg_slice("task %d last slice found\n", task->mpp_task.task_id);
-	kfifo_in(&task->slice_len, &sli_len, 1);
+	/* Fixup for async between last flag and slice number register */
+	if (last && !task->last_slice_found) {
+		mpp_dbg_slice("task %d mark last slice\n", task_id);
+		slice_info.last = 1;
+		slice_info.slice_len = 0;
+		kfifo_in(&task->slice_info, &slice_info, 1);
+	}
 }
 
 static int rkvenc_irq(struct mpp_dev *mpp)
@@ -1082,35 +1117,34 @@ static int rkvenc_irq(struct mpp_dev *mpp)
 	if (!mpp->irq_status)
 		return ret;
 
-	mpp_task = mpp->cur_task;
-
-	if (mpp_task) {
+	if (mpp->cur_task) {
+		mpp_task = mpp->cur_task;
 		task = to_rkvenc_task(mpp_task);
-
-		if (task->task_split) {
-			mpp_time_part_diff(mpp_task);
-
-			rkvenc2_read_slice_len(mpp, task);
-			mpp_write(mpp, hw->int_clr_base, 0x8);
-			wake_up(&mpp_task->wait);
-		}
 	}
 
-	if (mpp->irq_status & 1) {
+	if (mpp->irq_status & INT_STA_ENC_DONE_STA) {
+		if (task) {
+			if (task->task_split)
+				rkvenc2_read_slice_len(mpp, task);
+
+			wake_up(&mpp_task->wait);
+		}
+
 		mpp_write(mpp, hw->int_mask_base, 0x100);
 		mpp_write(mpp, hw->int_clr_base, 0xffffffff);
 		udelay(5);
 		mpp_write(mpp, hw->int_sta_base, 0);
 
 		ret = IRQ_WAKE_THREAD;
+	} else if (mpp->irq_status & INT_STA_SLC_DONE_STA) {
+		if (task && task->task_split) {
+			mpp_time_part_diff(mpp_task);
 
-		if (task) {
-			if (task->task_split) {
-				rkvenc2_read_slice_len(mpp, task);
-				rkvenc2_last_slice(task);
-			}
+			rkvenc2_read_slice_len(mpp, task);
 			wake_up(&mpp_task->wait);
 		}
+
+		mpp_write(mpp, hw->int_clr_base, INT_STA_SLC_DONE_STA);
 	}
 
 	mpp_debug_leave();
@@ -1613,7 +1647,7 @@ static int rkvenc2_wait_result(struct mpp_session *session,
 	struct mpp_request *req;
 	struct mpp_task *task;
 	struct mpp_dev *mpp;
-	u32 slice_len = 0;
+	union rkvenc2_slice_len_info slice_info;
 	u32 task_id;
 	int ret = 0;
 
@@ -1650,12 +1684,16 @@ task_done_ret:
 	if (!req) {
 		do {
 			ret = wait_event_timeout(task->wait,
-						 kfifo_out(&enc_task->slice_len, &slice_len, 1),
+						 kfifo_out(&enc_task->slice_info, &slice_info, 1),
 						 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
 			if (ret > 0) {
-				mpp_dbg_slice("task %d skip slice len %d\n",
-					      task_id, slice_len);
-				if (slice_len == 0)
+				mpp_dbg_slice("task %d rd %3d len %d %s\n",
+					      task_id, enc_task->slice_rd_cnt, slice_info.slice_len,
+					      slice_info.last ? "last" : "");
+
+				enc_task->slice_rd_cnt++;
+
+				if (slice_info.last)
 					goto task_done_ret;
 
 				continue;
@@ -1677,10 +1715,14 @@ task_done_ret:
 
 	/* handle slice mode poll return */
 	ret = wait_event_timeout(task->wait,
-				 kfifo_out(&enc_task->slice_len, &slice_len, 1),
+				 kfifo_out(&enc_task->slice_info, &slice_info, 1),
 				 msecs_to_jiffies(RKVENC2_WORK_TIMEOUT_DELAY));
 	if (ret > 0) {
-		mpp_dbg_slice("task %d rd len %d\n", task_id, slice_len);
+		mpp_dbg_slice("task %d rd %3d len %d %s\n", task_id,
+			      enc_task->slice_rd_cnt, slice_info.slice_len,
+			      slice_info.last ? "last" : "");
+
+		enc_task->slice_rd_cnt++;
 
 		if (cfg.count_ret < cfg.count_max) {
 			struct rkvenc_poll_slice_cfg __user *ucfg =
@@ -1688,7 +1730,7 @@ task_done_ret:
 			u32 __user *dst = (u32 __user *)(ucfg + 1);
 
 			/* Do NOT return here when put_user error. Just continue */
-			if (put_user(slice_len, dst + cfg.count_ret))
+			if (put_user(slice_info.val, dst + cfg.count_ret))
 				ret = -EFAULT;
 
 			cfg.count_ret++;
@@ -1696,7 +1738,7 @@ task_done_ret:
 				ret = -EFAULT;
 		}
 
-		if (!slice_len) {
+		if (slice_info.last) {
 			enc_task->task_split_done = 1;
 			goto task_done_ret;
 		}
