@@ -1221,6 +1221,17 @@ config VIDEO_IMX577
 	  To compile this driver as a module, choose M here: the
 	  module will be called imx577.
 
+config VIDEO_IMX586
+	tristate "Sony IMX586 sensor support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	depends on MEDIA_CAMERA_SUPPORT
+	help
+	  This is a Video4Linux2 sensor driver for the Sony
+	  IMX586 camera.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called imx586.
+
 config VIDEO_JX_K17
 	tristate "Soi JX_K17 sensor support"
 	depends on I2C && VIDEO_V4L2
