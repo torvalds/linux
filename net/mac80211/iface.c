@@ -220,8 +220,10 @@ static int ieee80211_change_mac(struct net_device *dev, void *addr)
 
 	ret = eth_mac_addr(dev, sa);
 
-	if (ret == 0)
+	if (ret == 0) {
 		memcpy(sdata->vif.addr, sa->sa_data, ETH_ALEN);
+		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
+	}
 
 	return ret;
 }
@@ -449,7 +451,12 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 	cancel_work_sync(&local->dynamic_ps_enable_work);
 
 	cancel_work_sync(&sdata->recalc_smps);
+
 	sdata_lock(sdata);
+	WARN(sdata->vif.valid_links,
+	     "destroying interface with valid links 0x%04x\n",
+	     sdata->vif.valid_links);
+
 	mutex_lock(&local->mtx);
 	sdata->vif.bss_conf.csa_active = false;
 	if (sdata->vif.type == NL80211_IFTYPE_STATION)
@@ -1013,10 +1020,15 @@ static void ieee80211_set_default_queues(struct ieee80211_sub_if_data *sdata)
 }
 
 static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
-				unsigned int link_id,
+				int link_id,
 				struct ieee80211_link_data *link,
 				struct ieee80211_bss_conf *link_conf)
 {
+	bool deflink = link_id < 0;
+
+	if (link_id < 0)
+		link_id = 0;
+
 	sdata->vif.link_conf[link_id] = link_conf;
 	sdata->link[link_id] = link;
 
@@ -1031,6 +1043,23 @@ static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 	INIT_LIST_HEAD(&link->reserved_chanctx_list);
 	INIT_DELAYED_WORK(&link->dfs_cac_timer_work,
 			  ieee80211_dfs_cac_timer_work);
+
+	if (!deflink) {
+		switch (sdata->vif.type) {
+		case NL80211_IFTYPE_AP:
+			ether_addr_copy(link_conf->addr,
+					sdata->wdev.links[link_id].addr);
+			WARN_ON(!(sdata->wdev.valid_links & BIT(link_id)));
+			break;
+		case NL80211_IFTYPE_STATION:
+			eth_random_addr(link_conf->addr);
+			ether_addr_copy(sdata->wdev.links[link_id].addr,
+					link_conf->addr);
+			break;
+		default:
+			WARN_ON(1);
+		}
+	}
 }
 
 static void ieee80211_sdata_init(struct ieee80211_local *local,
@@ -1046,7 +1075,7 @@ static void ieee80211_sdata_init(struct ieee80211_local *local,
 	 * Note that we never change this, so if link ID 0 isn't used in an
 	 * MLD connection, we get a separate allocation for it.
 	 */
-	ieee80211_link_init(sdata, 0, &sdata->deflink, &sdata->vif.bss_conf);
+	ieee80211_link_init(sdata, -1, &sdata->deflink, &sdata->vif.bss_conf);
 }
 
 int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
@@ -1768,6 +1797,10 @@ static int ieee80211_runtime_change_iftype(struct ieee80211_sub_if_data *sdata,
 	if (!local->ops->change_interface)
 		return -EBUSY;
 
+	/* for now, don't support changing while links exist */
+	if (sdata->vif.valid_links)
+		return -EBUSY;
+
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP:
 		if (!list_empty(&sdata->u.ap.vlans))
@@ -2030,6 +2063,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		strlcpy(sdata->name, name, IFNAMSIZ);
 		ieee80211_assign_perm_addr(local, wdev->address, type);
 		memcpy(sdata->vif.addr, wdev->address, ETH_ALEN);
+		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
 	} else {
 		int size = ALIGN(sizeof(*sdata) + local->hw.vif_data_size,
 				 sizeof(void *));
@@ -2094,6 +2128,7 @@ int ieee80211_if_add(struct ieee80211_local *local, const char *name,
 		sdata = netdev_priv(ndev);
 		ndev->ieee80211_ptr = &sdata->wdev;
 		memcpy(sdata->vif.addr, ndev->dev_addr, ETH_ALEN);
+		ether_addr_copy(sdata->vif.bss_conf.addr, sdata->vif.addr);
 		memcpy(sdata->name, ndev->name, IFNAMSIZ);
 
 		if (txq_size) {
@@ -2317,4 +2352,97 @@ void ieee80211_vif_dec_num_mcast(struct ieee80211_sub_if_data *sdata)
 		atomic_dec(&sdata->u.ap.num_mcast_sta);
 	else if (sdata->vif.type == NL80211_IFTYPE_AP_VLAN)
 		atomic_dec(&sdata->u.vlan.num_mcast_sta);
+}
+
+int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
+			    u16 new_links)
+{
+	u16 old_links = sdata->vif.valid_links;
+	unsigned long add = new_links & ~old_links;
+	unsigned long rem = old_links & ~new_links;
+	unsigned int link_id;
+	int ret;
+	struct {
+		struct ieee80211_link_data data;
+		struct ieee80211_bss_conf conf;
+	} *links[IEEE80211_MLD_MAX_NUM_LINKS] = {}, *link;
+	struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct ieee80211_link_data *old_data[IEEE80211_MLD_MAX_NUM_LINKS];
+	bool use_deflink = old_links == 0; /* set for error case */
+
+	sdata_assert_lock(sdata);
+
+	if (old_links == new_links)
+		return 0;
+
+	/* allocate new link structures first */
+	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
+		link = kzalloc(sizeof(*link), GFP_KERNEL);
+		if (!link) {
+			ret = -ENOMEM;
+			goto free;
+		}
+		links[link_id] = link;
+	}
+
+	/* keep track of the old pointers for the driver */
+	BUILD_BUG_ON(sizeof(old) != sizeof(sdata->vif.link_conf));
+	memcpy(old, sdata->vif.link_conf, sizeof(old));
+	/* and for us in error cases */
+	BUILD_BUG_ON(sizeof(old_data) != sizeof(sdata->link));
+	memcpy(old_data, sdata->link, sizeof(old_data));
+
+	/* link them into data structures */
+	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
+		WARN_ON(!use_deflink &&
+			sdata->link[link_id] == &sdata->deflink);
+
+		link = links[link_id];
+		ieee80211_link_init(sdata, link_id, &link->data, &link->conf);
+	}
+
+	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+		sdata->link[link_id] = NULL;
+		sdata->vif.link_conf[link_id] = NULL;
+	}
+
+	sdata->vif.valid_links = new_links;
+
+	/* tell the driver */
+	ret = drv_change_vif_links(sdata->local, sdata,
+				   old_links, new_links,
+				   old);
+	if (ret) {
+		/* restore config */
+		memcpy(sdata->link, old_data, sizeof(old_data));
+		memcpy(sdata->vif.link_conf, old, sizeof(old));
+		sdata->vif.valid_links = old_links;
+		/* and free the newly allocated links */
+		goto free;
+	}
+
+	/* use deflink/bss_conf again if and only if there are no more links */
+	use_deflink = new_links == 0;
+
+	/* now use this to free the old links */
+	memset(links, 0, sizeof(links));
+	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
+		if (sdata->link[link_id] == &sdata->deflink)
+			continue;
+		/*
+		 * we must have allocated the data through this path so
+		 * we know we can free both at the same time
+		 */
+		links[link_id] = container_of(sdata->link[link_id],
+					      typeof(*links[link_id]),
+					      data);
+	}
+
+free:
+	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
+		kfree(links[link_id]);
+	if (use_deflink)
+		ieee80211_link_init(sdata, -1, &sdata->deflink,
+				    &sdata->vif.bss_conf);
+	return ret;
 }

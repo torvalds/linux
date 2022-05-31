@@ -515,6 +515,7 @@ struct ieee80211_fils_discovery {
  * This structure keeps information about a BSS (and an association
  * to that BSS) that can change during the lifetime of the BSS.
  *
+ * @addr: (link) address used locally
  * @htc_trig_based_pkt_ext: default PE in 4us units, if BSS supports HE
  * @uora_exists: is the UORA element advertised by AP
  * @ack_enabled: indicates support to receive a multi-TID that solicits either
@@ -638,6 +639,7 @@ struct ieee80211_fils_discovery {
  */
 struct ieee80211_bss_conf {
 	const u8 *bssid;
+	u8 addr[ETH_ALEN] __aligned(2);
 	u8 htc_trig_based_pkt_ext;
 	bool uora_exists;
 	u8 uora_ocw_range;
@@ -1743,6 +1745,7 @@ struct ieee80211_vif_cfg {
  *	or the BSS we're associated to
  * @link_conf: in case of MLD, the per-link BSS configuration,
  *	indexed by link ID
+ * @valid_links: bitmap of valid links, or 0 for non-MLO.
  * @addr: address of this interface
  * @p2p: indicates whether this AP or STA interface is a p2p
  *	interface, i.e. a GO or p2p-sta respectively
@@ -1778,6 +1781,7 @@ struct ieee80211_vif {
 	struct ieee80211_vif_cfg cfg;
 	struct ieee80211_bss_conf bss_conf;
 	struct ieee80211_bss_conf *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
+	u16 valid_links;
 	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
 
@@ -4028,6 +4032,13 @@ struct ieee80211_prep_tx_info {
  *	disable background CAC/radar detection.
  * @net_fill_forward_path: Called from .ndo_fill_forward_path in order to
  *	resolve a path for hardware flow offloading
+ * @change_vif_links: Change the valid links on an interface, note that while
+ *	removing the old link information is still valid (link_conf pointer),
+ *	but may immediately disappear after the function returns. The old or
+ *	new links bitmaps may be 0 if going from/to a non-MLO situation.
+ *	The @old[] array contains pointers to the old bss_conf structures
+ *	that were already removed, in case they're needed.
+ *	This callback can sleep.
  */
 struct ieee80211_ops {
 	void (*tx)(struct ieee80211_hw *hw,
@@ -4371,6 +4382,10 @@ struct ieee80211_ops {
 				     struct ieee80211_sta *sta,
 				     struct net_device_path_ctx *ctx,
 				     struct net_device_path *path);
+	int (*change_vif_links)(struct ieee80211_hw *hw,
+				struct ieee80211_vif *vif,
+				u16 old_links, u16 new_links,
+				struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS]);
 };
 
 /**
