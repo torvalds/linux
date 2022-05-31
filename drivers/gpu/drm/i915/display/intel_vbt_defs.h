@@ -856,9 +856,9 @@ struct als_data_entry {
 	u16 lux;
 } __packed;
 
-struct agressiveness_profile_entry {
-	u8 dpst_agressiveness : 4;
-	u8 lace_agressiveness : 4;
+struct aggressiveness_profile_entry {
+	u8 dpst_aggressiveness : 4;
+	u8 lace_aggressiveness : 4;
 } __packed;
 
 struct bdb_lfp_power {
@@ -873,7 +873,7 @@ struct bdb_lfp_power {
 	u16 dmrrs;
 	u16 adb;
 	u16 lace_enabled_status;
-	struct agressiveness_profile_entry aggressivenes[16];
+	struct aggressiveness_profile_entry aggressiveness[16];
 	u16 hobl; /* 232+ */
 	u16 vrr_feature_enabled; /* 233+ */
 } __packed;
