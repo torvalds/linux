@@ -363,7 +363,16 @@ static int allocate_doorbell(struct qcm_process_device *qpd,
 		 */
 
 		uint32_t *idx_offset = dev->kfd->shared_resources.sdma_doorbell_idx;
-		uint32_t valid_id = idx_offset[q->properties.sdma_engine_id]
+
+		/*
+		 * q->properties.sdma_engine_id corresponds to the virtual
+		 * sdma engine number. However, for doorbell allocation,
+		 * we need the physical sdma engine id in order to get the
+		 * correct doorbell offset.
+		 */
+		uint32_t valid_id = idx_offset[qpd->dqm->dev->node_id *
+					       get_num_all_sdma_engines(qpd->dqm) +
+					       q->properties.sdma_engine_id]
 						+ (q->properties.sdma_queue_id & 1)
 						* KFD_QUEUE_DOORBELL_MIRROR_OFFSET
 						+ (q->properties.sdma_queue_id >> 1);
@@ -1388,7 +1397,6 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		}
 
 		q->properties.sdma_engine_id =
-			dqm->dev->node_id * get_num_all_sdma_engines(dqm) +
 			q->sdma_id % kfd_get_num_sdma_engines(dqm->dev);
 		q->properties.sdma_queue_id = q->sdma_id /
 				kfd_get_num_sdma_engines(dqm->dev);
@@ -1418,7 +1426,6 @@ static int allocate_sdma_queue(struct device_queue_manager *dqm,
 		 * PCIe-optimized ones
 		 */
 		q->properties.sdma_engine_id =
-			dqm->dev->node_id * get_num_all_sdma_engines(dqm) +
 			kfd_get_num_sdma_engines(dqm->dev) +
 			q->sdma_id % kfd_get_num_xgmi_sdma_engines(dqm->dev);
 		q->properties.sdma_queue_id = q->sdma_id /
@@ -2486,6 +2493,7 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 	int pipe, queue;
 	int r = 0, xcc;
 	uint32_t inst;
+	uint32_t sdma_engine_start;
 
 	if (!dqm->sched_running) {
 		seq_puts(m, " Device is stopped\n");
@@ -2530,7 +2538,10 @@ int dqm_debugfs_hqds(struct seq_file *m, void *data)
 		}
 	}
 
-	for (pipe = 0; pipe < get_num_all_sdma_engines(dqm); pipe++) {
+	sdma_engine_start = dqm->dev->node_id * get_num_all_sdma_engines(dqm);
+	for (pipe = sdma_engine_start;
+	     pipe < (sdma_engine_start + get_num_all_sdma_engines(dqm));
+	     pipe++) {
 		for (queue = 0;
 		     queue < dqm->dev->kfd->device_info.num_sdma_queues_per_engine;
 		     queue++) {
