@@ -213,7 +213,7 @@ irqreturn_t aspeed_pci_host_bmc_device_interrupt(int irq, void *dev_id)
 		writel(BMC2HOST_ENABLE_INTB, pci_bmc_device->msg_bar_reg + ASPEED_PCI_BMC_BMC2HOST_STS);
 
 	if (bmc2host_q_sts & BMC2HOST_Q1_FULL)
-		dev_info(pci_bmc_device->dev, "Q2 Full\n");
+		dev_info(pci_bmc_device->dev, "Q1 Full\n");
 
 	if (bmc2host_q_sts & BMC2HOST_Q2_FULL)
 		dev_info(pci_bmc_device->dev, "Q2 Full\n");
