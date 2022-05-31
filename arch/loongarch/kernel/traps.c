@@ -630,7 +630,7 @@ asmlinkage void noinstr do_vint(struct pt_regs *regs, unsigned long sp)
 	irqentry_exit(regs, state);
 }
 
-extern void tlb_init(void);
+extern void tlb_init(int cpu);
 extern void cache_error_setup(void);
 
 unsigned long eentry;
@@ -669,7 +669,7 @@ void per_cpu_trap_init(int cpu)
 		for (i = 0; i < 64; i++)
 			set_handler(i * VECSIZE, handle_reserved, VECSIZE);
 
-	tlb_init();
+	tlb_init(cpu);
 	cpu_cache_init();
 }
 
