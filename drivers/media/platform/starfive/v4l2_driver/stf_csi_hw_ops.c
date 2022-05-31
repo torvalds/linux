@@ -44,7 +44,7 @@ static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD18_MIPIRX, on);
 	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD09_MIPIRX, on);
 
-	aon_syscon = ioremap(0x17010000, 0x1000);
+	aon_syscon = ioremap(0x17010000, 0x4);
 	reg_write(aon_syscon, 0x00, 0x80000000);
 
 	return 0;
@@ -188,9 +188,8 @@ static int csi2rx_start(struct stf_csi_dev *csi_dev, void *reg_base)
 	u32 reg;
 
 	if (!csiphy) {
-		st_err(ST_CSI, "csiphy%d sensor not exist use csiphy%d init.\n",
-				csi_dev->csiphy_id, !csi_dev->csiphy_id);
-		csiphy = stfcamss->csiphy_dev[!csi_dev->csiphy_id].csiphy;
+		st_err(ST_CSI, "csiphy%d config not exist\n", csi_dev->csiphy_id);
+		return -EINVAL;
 	}
 
 	csi2rx_reset(reg_base);

@@ -101,15 +101,12 @@ static int stf_vin_clk_enable(struct stf_vin2_dev *vin_dev)
 {
 	struct stfcamss *stfcamss = vin_dev->stfcamss;
 
-	reset_control_deassert(stfcamss->sys_rst[STFRST_PCLK].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
-
 	clk_prepare_enable(stfcamss->sys_clk[STFCLK_PCLK].clk);
-
 	clk_set_rate(stfcamss->sys_clk[STFCLK_APB_FUNC].clk, 51200000);
 	clk_set_rate(stfcamss->sys_clk[STFCLK_SYS_CLK].clk, 307200000);
+
+	reset_control_deassert(stfcamss->sys_rst[STFRST_PCLK].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
 
 	return 0;
 }
@@ -121,8 +118,6 @@ static int stf_vin_clk_disable(struct stf_vin2_dev *vin_dev)
 
 	reset_control_assert(stfcamss->sys_rst[STFRST_PCLK].rstc);
 	reset_control_assert(stfcamss->sys_rst[STFRST_SYS_CLK].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIRD].rstc);
-	reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 
 	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_PCLK].clk);
 
@@ -136,13 +131,17 @@ static int stf_vin_config_set(struct stf_vin2_dev *vin_dev)
 
 static int stf_vin_wr_stream_set(struct stf_vin2_dev *vin_dev, int on)
 {
+	struct stfcamss *stfcamss = vin_dev->stfcamss;
 	struct stf_vin_dev *vin = vin_dev->stfcamss->vin;
 
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
-	if (on)
+	if (on) {
+		reset_control_deassert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
 		reg_set(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
-	else
+	} else {
 		reg_clear(vin->sysctrl_base, SYSCONSAIF_SYSCFG_20, U0_VIN_CNFG_AXIWR0_EN);
+		reset_control_assert(stfcamss->sys_rst[STFRST_AXIWR].rstc);
+	}
 
 	print_reg(ST_VIN, vin->sysctrl_base, SYSCONSAIF_SYSCFG_20);
 
