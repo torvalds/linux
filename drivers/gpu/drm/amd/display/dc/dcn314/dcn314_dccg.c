@@ -219,6 +219,21 @@ void dccg314_set_dpstreamclk(
 	}
 }
 
+void dccg314_set_valid_pixel_rate(
+		struct dccg *dccg,
+		int ref_dtbclk_khz,
+		int otg_inst,
+		int pixclk_khz)
+{
+	struct dtbclk_dto_params dto_params = {0};
+
+	dto_params.ref_dtbclk_khz = ref_dtbclk_khz;
+	dto_params.otg_inst = otg_inst;
+	dto_params.pixclk_khz = pixclk_khz;
+
+	dccg314_set_dtbclk_dto(dccg, &dto_params);
+}
+
 static const struct dccg_funcs dccg314_funcs = {
 	.update_dpp_dto = dccg31_update_dpp_dto,
 	.get_dccg_ref_freq = dccg31_get_dccg_ref_freq,
@@ -237,6 +252,8 @@ static const struct dccg_funcs dccg314_funcs = {
 	.set_dispclk_change_mode = dccg31_set_dispclk_change_mode,
 	.disable_dsc = dccg31_disable_dscclk,
 	.enable_dsc = dccg31_enable_dscclk,
+	.set_pixel_rate_div = dccg314_set_pixel_rate_div,
+	.set_valid_pixel_rate = dccg314_set_valid_pixel_rate,
 };
 
 struct dccg *dccg314_create(
