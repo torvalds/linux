@@ -1005,7 +1005,7 @@ bool dm_table_request_based(struct dm_table *t)
 	return __table_type_request_based(dm_table_get_type(t));
 }
 
-static int dm_table_supports_poll(struct dm_table *t);
+static bool dm_table_supports_poll(struct dm_table *t);
 
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
 {
@@ -1027,7 +1027,7 @@ static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *
 			per_io_data_size = max(per_io_data_size, ti->per_io_data_size);
 			min_pool_size = max(min_pool_size, ti->num_flush_bios);
 		}
-		poll_supported = !!dm_table_supports_poll(t);
+		poll_supported = dm_table_supports_poll(t);
 	}
 
 	t->mempools = dm_alloc_md_mempools(md, type, per_io_data_size, min_pool_size,
@@ -1547,9 +1547,20 @@ static int count_device(struct dm_target *ti, struct dm_dev *dev,
 	return 0;
 }
 
-static int dm_table_supports_poll(struct dm_table *t)
+static bool dm_table_supports_poll(struct dm_table *t)
 {
-	return !dm_table_any_dev_attr(t, device_not_poll_capable, NULL);
+	struct dm_target *ti;
+	unsigned i = 0;
+
+	while (i < dm_table_get_num_targets(t)) {
+		ti = dm_table_get_target(t, i++);
+
+		if (!ti->type->iterate_devices ||
+		    ti->type->iterate_devices(ti, device_not_poll_capable, NULL))
+			return false;
+	}
+
+	return true;
 }
 
 /*
