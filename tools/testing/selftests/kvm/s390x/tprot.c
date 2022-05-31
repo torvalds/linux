@@ -8,6 +8,7 @@
 #include <sys/mman.h>
 #include "test_util.h"
 #include "kvm_util.h"
+#include "kselftest.h"
 
 #define PAGE_SHIFT 12
 #define PAGE_SIZE (1 << PAGE_SHIFT)
@@ -63,12 +64,12 @@ static enum permission test_protection(void *addr, uint8_t key)
 }
 
 enum stage {
-	STAGE_END,
 	STAGE_INIT_SIMPLE,
 	TEST_SIMPLE,
 	STAGE_INIT_FETCH_PROT_OVERRIDE,
 	TEST_FETCH_PROT_OVERRIDE,
 	TEST_STORAGE_PROT_OVERRIDE,
+	STAGE_END	/* must be the last entry (it's the amount of tests) */
 };
 
 struct test {
@@ -182,7 +183,7 @@ static void guest_code(void)
 	GUEST_SYNC(perform_next_stage(&i, mapped_0));
 }
 
-#define HOST_SYNC(vmp, stage)							\
+#define HOST_SYNC_NO_TAP(vmp, stage)						\
 ({										\
 	struct kvm_vm *__vm = (vmp);						\
 	struct ucall uc;							\
@@ -198,11 +199,20 @@ static void guest_code(void)
 	ASSERT_EQ(uc.args[1], __stage);						\
 })
 
+#define HOST_SYNC(vmp, stage)			\
+({						\
+	HOST_SYNC_NO_TAP(vmp, stage);		\
+	ksft_test_result_pass("" #stage "\n");	\
+})
+
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	vm_vaddr_t guest_0_page;
+
+	ksft_print_header();
+	ksft_set_plan(STAGE_END);
 
 	vm = vm_create_default(VCPU_ID, 0, guest_code);
 	run = vcpu_state(vm, VCPU_ID);
@@ -212,9 +222,14 @@ int main(int argc, char *argv[])
 	HOST_SYNC(vm, TEST_SIMPLE);
 
 	guest_0_page = vm_vaddr_alloc(vm, PAGE_SIZE, 0);
-	if (guest_0_page != 0)
-		print_skip("Did not allocate page at 0 for fetch protection override tests");
-	HOST_SYNC(vm, STAGE_INIT_FETCH_PROT_OVERRIDE);
+	if (guest_0_page != 0) {
+		/* Use NO_TAP so we don't get a PASS print */
+		HOST_SYNC_NO_TAP(vm, STAGE_INIT_FETCH_PROT_OVERRIDE);
+		ksft_test_result_skip("STAGE_INIT_FETCH_PROT_OVERRIDE - "
+				      "Did not allocate page at 0\n");
+	} else {
+		HOST_SYNC(vm, STAGE_INIT_FETCH_PROT_OVERRIDE);
+	}
 	if (guest_0_page == 0)
 		mprotect(addr_gva2hva(vm, (vm_vaddr_t)0), PAGE_SIZE, PROT_READ);
 	run->s.regs.crs[0] |= CR0_FETCH_PROTECTION_OVERRIDE;
@@ -224,4 +239,8 @@ int main(int argc, char *argv[])
 	run->s.regs.crs[0] |= CR0_STORAGE_PROTECTION_OVERRIDE;
 	run->kvm_dirty_regs = KVM_SYNC_CRS;
 	HOST_SYNC(vm, TEST_STORAGE_PROT_OVERRIDE);
+
+	kvm_vm_free(vm);
+
+	ksft_finished();	/* Print results and exit() accordingly */
 }
