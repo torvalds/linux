@@ -294,6 +294,8 @@ struct intel_vbt_panel_data {
 	unsigned int lvds_dither:1;
 	unsigned int bios_lvds_val; /* initial [PCH_]LVDS reg val in VBIOS */
 
+	bool vrr;
+
 	u8 seamless_drrs_min_refresh_rate;
 	enum drrs_type drrs_type;
 
