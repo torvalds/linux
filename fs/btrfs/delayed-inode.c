@@ -52,18 +52,6 @@ static inline void btrfs_init_delayed_node(
 	INIT_LIST_HEAD(&delayed_node->p_list);
 }
 
-static inline int btrfs_is_continuous_delayed_item(
-					struct btrfs_delayed_item *item1,
-					struct btrfs_delayed_item *item2)
-{
-	if (item1->key.type == BTRFS_DIR_INDEX_KEY &&
-	    item1->key.objectid == item2->key.objectid &&
-	    item1->key.type == item2->key.type &&
-	    item1->key.offset + 1 == item2->key.offset)
-		return 1;
-	return 0;
-}
-
 static struct btrfs_delayed_node *btrfs_get_delayed_node(
 		struct btrfs_inode *btrfs_inode)
 {
@@ -674,8 +662,14 @@ static void btrfs_delayed_inode_release_metadata(struct btrfs_fs_info *fs_info,
 }
 
 /*
- * Insert a single delayed item or a batch of delayed items that have consecutive
- * keys if they exist.
+ * Insert a single delayed item or a batch of delayed items, as many as possible
+ * that fit in a leaf. The delayed items (dir index keys) are sorted by their key
+ * in the rbtree, and if there's a gap between two consecutive dir index items,
+ * then it means at some point we had delayed dir indexes to add but they got
+ * removed (by btrfs_delete_delayed_dir_index()) before we attempted to flush them
+ * into the subvolume tree. Dir index keys also have their offsets coming from a
+ * monotonically increasing counter, so we can't get new keys with an offset that
+ * fits within a gap between delayed dir index items.
  */
 static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 				     struct btrfs_root *root,
@@ -701,7 +695,7 @@ static int btrfs_insert_delayed_item(struct btrfs_trans_handle *trans,
 		int next_size;
 
 		next = __btrfs_next_delayed_item(curr);
-		if (!next || !btrfs_is_continuous_delayed_item(curr, next))
+		if (!next)
 			break;
 
 		next_size = next->data_len + sizeof(struct btrfs_item);
