@@ -80,9 +80,6 @@ properties:
       - const: hosc
       - const: losc
 
-  resets:
-    maxItems: 1
-
   gpio-controller: true
   interrupt-controller: true
   gpio-line-names: true
