@@ -797,20 +797,23 @@ static int btrfs_batch_delete_items(struct btrfs_trans_handle *trans,
 				    struct btrfs_delayed_item *item)
 {
 	struct btrfs_delayed_item *curr, *next;
-	struct extent_buffer *leaf;
+	struct extent_buffer *leaf = path->nodes[0];
 	struct btrfs_key key;
 	struct list_head head;
 	int nitems, i, last_item;
 	int ret = 0;
 
-	BUG_ON(!path->nodes[0]);
-
-	leaf = path->nodes[0];
+	ASSERT(leaf != NULL);
 
 	i = path->slots[0];
 	last_item = btrfs_header_nritems(leaf) - 1;
-	if (i > last_item)
-		return -ENOENT;	/* FIXME: Is errno suitable? */
+	/*
+	 * Our caller always gives us a path pointing to an existing item, so
+	 * this can not happen.
+	 */
+	ASSERT(i <= last_item);
+	if (WARN_ON(i > last_item))
+		return -ENOENT;
 
 	next = item;
 	INIT_LIST_HEAD(&head);
@@ -837,8 +840,13 @@ static int btrfs_batch_delete_items(struct btrfs_trans_handle *trans,
 		btrfs_item_key_to_cpu(leaf, &key, i);
 	}
 
-	if (!nitems)
-		return 0;
+	/*
+	 * Our caller always gives us a path pointing to an existing item, so
+	 * this can not happen.
+	 */
+	ASSERT(nitems >= 1);
+	if (nitems < 1)
+		return -ENOENT;
 
 	ret = btrfs_del_items(trans, root, path, path->slots[0], nitems);
 	if (ret)
