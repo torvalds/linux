@@ -1247,30 +1247,28 @@ static int xadc_parse_dt(struct iio_dev *indio_dev, unsigned int *conf, int irq)
 	chan = &channels[9];
 
 	chan_node = device_get_named_child_node(dev, "xlnx,channels");
-	if (chan_node) {
-		fwnode_for_each_child_node(chan_node, child) {
-			if (num_channels >= max_channels) {
-				fwnode_handle_put(child);
-				break;
-			}
-
-			ret = fwnode_property_read_u32(child, "reg", &reg);
-			if (ret || reg > 16)
-				continue;
-
-			if (fwnode_property_read_bool(child, "xlnx,bipolar"))
-				chan->scan_type.sign = 's';
-
-			if (reg == 0) {
-				chan->scan_index = 11;
-				chan->address = XADC_REG_VPVN;
-			} else {
-				chan->scan_index = 15 + reg;
-				chan->address = XADC_REG_VAUX(reg - 1);
-			}
-			num_channels++;
-			chan++;
+	fwnode_for_each_child_node(chan_node, child) {
+		if (num_channels >= max_channels) {
+			fwnode_handle_put(child);
+			break;
 		}
+
+		ret = fwnode_property_read_u32(child, "reg", &reg);
+		if (ret || reg > 16)
+			continue;
+
+		if (fwnode_property_read_bool(child, "xlnx,bipolar"))
+			chan->scan_type.sign = 's';
+
+		if (reg == 0) {
+			chan->scan_index = 11;
+			chan->address = XADC_REG_VPVN;
+		} else {
+			chan->scan_index = 15 + reg;
+			chan->address = XADC_REG_VAUX(reg - 1);
+		}
+		num_channels++;
+		chan++;
 	}
 	fwnode_handle_put(chan_node);
 
