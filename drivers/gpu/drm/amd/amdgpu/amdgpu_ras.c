@@ -2278,8 +2278,9 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 	    !amdgpu_ras_asic_supported(adev))
 		return;
 
-	if (!(amdgpu_sriov_vf(adev) &&
-		(adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2))))
+	/* If driver run on sriov guest side, only enable ras for aldebaran */
+	if (amdgpu_sriov_vf(adev) &&
+		adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 2))
 		return;
 
 	if (!adev->gmc.xgmi.connected_to_cpu) {
