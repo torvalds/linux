@@ -10424,23 +10424,53 @@ static int nl80211_crypto_settings(struct cfg80211_registered_device *rdev,
 	return 0;
 }
 
+static struct cfg80211_bss *nl80211_assoc_bss(struct cfg80211_registered_device *rdev,
+					      const u8 *ssid, int ssid_len,
+					      struct nlattr **attrs,
+					      const u8 **bssid_out)
+{
+	struct ieee80211_channel *chan;
+	struct cfg80211_bss *bss;
+	const u8 *bssid;
+	u32 freq;
+
+	if (!attrs[NL80211_ATTR_MAC] || !attrs[NL80211_ATTR_WIPHY_FREQ])
+		return ERR_PTR(-EINVAL);
+
+	bssid = nla_data(attrs[NL80211_ATTR_MAC]);
+
+	freq = MHZ_TO_KHZ(nla_get_u32(attrs[NL80211_ATTR_WIPHY_FREQ]));
+	if (attrs[NL80211_ATTR_WIPHY_FREQ_OFFSET])
+		freq += nla_get_u32(attrs[NL80211_ATTR_WIPHY_FREQ_OFFSET]);
+
+	chan = nl80211_get_valid_chan(&rdev->wiphy, freq);
+	if (!chan)
+		return ERR_PTR(-EINVAL);
+
+	bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid,
+			       ssid, ssid_len,
+			       IEEE80211_BSS_TYPE_ESS,
+			       IEEE80211_PRIVACY_ANY);
+	if (!bss)
+		return ERR_PTR(-ENOENT);
+
+	*bssid_out = bssid;
+	return bss;
+}
+
 static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 {
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
-	struct ieee80211_channel *chan;
 	struct cfg80211_assoc_request req = {};
 	const u8 *bssid, *ssid;
 	int err, ssid_len;
-	u32 freq;
 
 	if (dev->ieee80211_ptr->conn_owner_nlportid &&
 	    dev->ieee80211_ptr->conn_owner_nlportid != info->snd_portid)
 		return -EPERM;
 
-	if (!info->attrs[NL80211_ATTR_MAC] ||
-	    !info->attrs[NL80211_ATTR_SSID] ||
-	    !info->attrs[NL80211_ATTR_WIPHY_FREQ])
+	if (!info->attrs[NL80211_ATTR_SSID])
 		return -EINVAL;
 
 	if (!rdev->ops->assoc)
@@ -10449,16 +10479,6 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	if (dev->ieee80211_ptr->iftype != NL80211_IFTYPE_STATION &&
 	    dev->ieee80211_ptr->iftype != NL80211_IFTYPE_P2P_CLIENT)
 		return -EOPNOTSUPP;
-
-	bssid = nla_data(info->attrs[NL80211_ATTR_MAC]);
-
-	freq = MHZ_TO_KHZ(nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ]));
-	if (info->attrs[NL80211_ATTR_WIPHY_FREQ_OFFSET])
-		freq +=
-		    nla_get_u32(info->attrs[NL80211_ATTR_WIPHY_FREQ_OFFSET]);
-	chan = nl80211_get_valid_chan(&rdev->wiphy, freq);
-	if (!chan)
-		return -EINVAL;
 
 	ssid = nla_data(info->attrs[NL80211_ATTR_SSID]);
 	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
@@ -10553,12 +10573,9 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		       sizeof(req.s1g_capa));
 	}
 
-	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid,
-				   ssid, ssid_len,
-				   IEEE80211_BSS_TYPE_ESS,
-				   IEEE80211_PRIVACY_ANY);
-	if (!req.bss)
-		return -ENOENT;
+	req.bss = nl80211_assoc_bss(rdev, ssid, ssid_len, info->attrs, &bssid);
+	if (IS_ERR(req.bss))
+		return PTR_ERR(req.bss);
 
 	err = nl80211_crypto_settings(rdev, info, &req.crypto, 1);
 	if (!err) {
