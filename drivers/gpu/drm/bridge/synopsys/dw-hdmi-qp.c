@@ -1119,6 +1119,7 @@ static void hdmi_config_AVI(struct dw_hdmi_qp *hdmi,
 	}
 
 	frame.scan_mode = HDMI_SCAN_MODE_NONE;
+	frame.video_code = hdmi->vic;
 
 	hdmi_avi_infoframe_pack_only(&frame, buff, 17);
 
