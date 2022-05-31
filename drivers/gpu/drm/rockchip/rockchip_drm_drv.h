@@ -484,10 +484,16 @@ void drm_mode_convert_to_split_mode(struct drm_display_mode *mode);
 void drm_mode_convert_to_origin_mode(struct drm_display_mode *mode);
 #if IS_REACHABLE(CONFIG_DRM_ROCKCHIP)
 int rockchip_drm_get_sub_dev_type(void);
+u32 rockchip_drm_get_scan_line_time_ns(void);
 #else
 static inline int rockchip_drm_get_sub_dev_type(void)
 {
 	return DRM_MODE_CONNECTOR_Unknown;
+}
+
+static inline u32 rockchip_drm_get_scan_line_time_ns(void)
+{
+	return 0;
 }
 #endif
 
