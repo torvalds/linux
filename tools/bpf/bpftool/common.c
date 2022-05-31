@@ -31,52 +31,6 @@
 #define BPF_FS_MAGIC		0xcafe4a11
 #endif
 
-const char * const attach_type_name[__MAX_BPF_ATTACH_TYPE] = {
-	[BPF_CGROUP_INET_INGRESS]	= "ingress",
-	[BPF_CGROUP_INET_EGRESS]	= "egress",
-	[BPF_CGROUP_INET_SOCK_CREATE]	= "sock_create",
-	[BPF_CGROUP_INET_SOCK_RELEASE]	= "sock_release",
-	[BPF_CGROUP_SOCK_OPS]		= "sock_ops",
-	[BPF_CGROUP_DEVICE]		= "device",
-	[BPF_CGROUP_INET4_BIND]		= "bind4",
-	[BPF_CGROUP_INET6_BIND]		= "bind6",
-	[BPF_CGROUP_INET4_CONNECT]	= "connect4",
-	[BPF_CGROUP_INET6_CONNECT]	= "connect6",
-	[BPF_CGROUP_INET4_POST_BIND]	= "post_bind4",
-	[BPF_CGROUP_INET6_POST_BIND]	= "post_bind6",
-	[BPF_CGROUP_INET4_GETPEERNAME]	= "getpeername4",
-	[BPF_CGROUP_INET6_GETPEERNAME]	= "getpeername6",
-	[BPF_CGROUP_INET4_GETSOCKNAME]	= "getsockname4",
-	[BPF_CGROUP_INET6_GETSOCKNAME]	= "getsockname6",
-	[BPF_CGROUP_UDP4_SENDMSG]	= "sendmsg4",
-	[BPF_CGROUP_UDP6_SENDMSG]	= "sendmsg6",
-	[BPF_CGROUP_SYSCTL]		= "sysctl",
-	[BPF_CGROUP_UDP4_RECVMSG]	= "recvmsg4",
-	[BPF_CGROUP_UDP6_RECVMSG]	= "recvmsg6",
-	[BPF_CGROUP_GETSOCKOPT]		= "getsockopt",
-	[BPF_CGROUP_SETSOCKOPT]		= "setsockopt",
-	[BPF_SK_SKB_STREAM_PARSER]	= "sk_skb_stream_parser",
-	[BPF_SK_SKB_STREAM_VERDICT]	= "sk_skb_stream_verdict",
-	[BPF_SK_SKB_VERDICT]		= "sk_skb_verdict",
-	[BPF_SK_MSG_VERDICT]		= "sk_msg_verdict",
-	[BPF_LIRC_MODE2]		= "lirc_mode2",
-	[BPF_FLOW_DISSECTOR]		= "flow_dissector",
-	[BPF_TRACE_RAW_TP]		= "raw_tp",
-	[BPF_TRACE_FENTRY]		= "fentry",
-	[BPF_TRACE_FEXIT]		= "fexit",
-	[BPF_MODIFY_RETURN]		= "mod_ret",
-	[BPF_LSM_MAC]			= "lsm_mac",
-	[BPF_SK_LOOKUP]			= "sk_lookup",
-	[BPF_TRACE_ITER]		= "trace_iter",
-	[BPF_XDP_DEVMAP]		= "xdp_devmap",
-	[BPF_XDP_CPUMAP]		= "xdp_cpumap",
-	[BPF_XDP]			= "xdp",
-	[BPF_SK_REUSEPORT_SELECT]	= "sk_skb_reuseport_select",
-	[BPF_SK_REUSEPORT_SELECT_OR_MIGRATE]	= "sk_skb_reuseport_select_or_migrate",
-	[BPF_PERF_EVENT]		= "perf_event",
-	[BPF_TRACE_KPROBE_MULTI]	= "trace_kprobe_multi",
-};
-
 void p_err(const char *fmt, ...)
 {
 	va_list ap;
@@ -1008,4 +962,40 @@ size_t hash_fn_for_key_as_id(const void *key, void *ctx)
 bool equal_fn_for_key_as_id(const void *k1, const void *k2, void *ctx)
 {
 	return k1 == k2;
+}
+
+const char *bpf_attach_type_input_str(enum bpf_attach_type t)
+{
+	switch (t) {
+	case BPF_CGROUP_INET_INGRESS:		return "ingress";
+	case BPF_CGROUP_INET_EGRESS:		return "egress";
+	case BPF_CGROUP_INET_SOCK_CREATE:	return "sock_create";
+	case BPF_CGROUP_INET_SOCK_RELEASE:	return "sock_release";
+	case BPF_CGROUP_SOCK_OPS:		return "sock_ops";
+	case BPF_CGROUP_DEVICE:			return "device";
+	case BPF_CGROUP_INET4_BIND:		return "bind4";
+	case BPF_CGROUP_INET6_BIND:		return "bind6";
+	case BPF_CGROUP_INET4_CONNECT:		return "connect4";
+	case BPF_CGROUP_INET6_CONNECT:		return "connect6";
+	case BPF_CGROUP_INET4_POST_BIND:	return "post_bind4";
+	case BPF_CGROUP_INET6_POST_BIND:	return "post_bind6";
+	case BPF_CGROUP_INET4_GETPEERNAME:	return "getpeername4";
+	case BPF_CGROUP_INET6_GETPEERNAME:	return "getpeername6";
+	case BPF_CGROUP_INET4_GETSOCKNAME:	return "getsockname4";
+	case BPF_CGROUP_INET6_GETSOCKNAME:	return "getsockname6";
+	case BPF_CGROUP_UDP4_SENDMSG:		return "sendmsg4";
+	case BPF_CGROUP_UDP6_SENDMSG:		return "sendmsg6";
+	case BPF_CGROUP_SYSCTL:			return "sysctl";
+	case BPF_CGROUP_UDP4_RECVMSG:		return "recvmsg4";
+	case BPF_CGROUP_UDP6_RECVMSG:		return "recvmsg6";
+	case BPF_CGROUP_GETSOCKOPT:		return "getsockopt";
+	case BPF_CGROUP_SETSOCKOPT:		return "setsockopt";
+	case BPF_TRACE_RAW_TP:			return "raw_tp";
+	case BPF_TRACE_FENTRY:			return "fentry";
+	case BPF_TRACE_FEXIT:			return "fexit";
+	case BPF_MODIFY_RETURN:			return "mod_ret";
+	case BPF_SK_REUSEPORT_SELECT:		return "sk_skb_reuseport_select";
+	case BPF_SK_REUSEPORT_SELECT_OR_MIGRATE:	return "sk_skb_reuseport_select_or_migrate";
+	default:	return libbpf_bpf_attach_type_str(t);
+	}
 }
