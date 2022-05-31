@@ -569,10 +569,8 @@ static int lp50xx_remove(struct i2c_client *client)
 	int ret;
 
 	ret = lp50xx_enable_disable(led, 0);
-	if (ret) {
+	if (ret)
 		dev_err(led->dev, "Failed to disable chip\n");
-		return ret;
-	}
 
 	if (led->regulator) {
 		ret = regulator_disable(led->regulator);
