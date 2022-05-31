@@ -612,8 +612,7 @@ static int adp5588_remove(struct i2c_client *client)
 	return 0;
 }
 
-#ifdef CONFIG_PM
-static int adp5588_suspend(struct device *dev)
+static int __maybe_unused adp5588_suspend(struct device *dev)
 {
 	struct adp5588_kpad *kpad = dev_get_drvdata(dev);
 	struct i2c_client *client = kpad->client;
@@ -627,7 +626,7 @@ static int adp5588_suspend(struct device *dev)
 	return 0;
 }
 
-static int adp5588_resume(struct device *dev)
+static int __maybe_unused adp5588_resume(struct device *dev)
 {
 	struct adp5588_kpad *kpad = dev_get_drvdata(dev);
 	struct i2c_client *client = kpad->client;
@@ -640,11 +639,7 @@ static int adp5588_resume(struct device *dev)
 	return 0;
 }
 
-static const struct dev_pm_ops adp5588_dev_pm_ops = {
-	.suspend = adp5588_suspend,
-	.resume  = adp5588_resume,
-};
-#endif
+static SIMPLE_DEV_PM_OPS(adp5588_dev_pm_ops, adp5588_suspend, adp5588_resume);
 
 static const struct i2c_device_id adp5588_id[] = {
 	{ "adp5588-keys", 0 },
@@ -656,9 +651,7 @@ MODULE_DEVICE_TABLE(i2c, adp5588_id);
 static struct i2c_driver adp5588_driver = {
 	.driver = {
 		.name = KBUILD_MODNAME,
-#ifdef CONFIG_PM
 		.pm   = &adp5588_dev_pm_ops,
-#endif
 	},
 	.probe    = adp5588_probe,
 	.remove   = adp5588_remove,
