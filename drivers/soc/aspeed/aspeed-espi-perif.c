@@ -34,8 +34,8 @@ static long aspeed_espi_perif_pc_get_rx(struct file *fp,
 	struct aspeed_espi_ctrl *espi_ctrl = espi_perif->ctrl;
 
 	if (fp->f_flags & O_NONBLOCK) {
-		if (mutex_trylock(&espi_perif->pc_rx_mtx))
-			return -EBUSY;
+		if (!mutex_trylock(&espi_perif->pc_rx_mtx))
+			return -EAGAIN;
 
 		if (!espi_perif->rx_ready) {
 			rc = -ENODATA;
