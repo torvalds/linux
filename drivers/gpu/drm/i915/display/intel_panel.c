@@ -217,6 +217,10 @@ static void intel_panel_destroy_probed_modes(struct intel_connector *connector)
 	struct drm_display_mode *mode, *next;
 
 	list_for_each_entry_safe(mode, next, &connector->base.probed_modes, head) {
+		drm_dbg_kms(&i915->drm,
+			    "[CONNECTOR:%d:%s] not using EDID mode: " DRM_MODE_FMT "\n",
+			    connector->base.base.id, connector->base.name,
+			    DRM_MODE_ARG(mode));
 		list_del(&mode->head);
 		drm_mode_destroy(&i915->drm, mode);
 	}
