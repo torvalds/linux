@@ -6380,7 +6380,13 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 	}
 
 	btrfs_mark_buffer_dirty(path->nodes[0]);
-	btrfs_release_path(path);
+	/*
+	 * We don't need the path anymore, plus inheriting properties, adding
+	 * ACLs, security xattrs, orphan item or adding the link, will result in
+	 * allocating yet another path. So just free our path.
+	 */
+	btrfs_free_path(path);
+	path = NULL;
 
 	if (args->subvol) {
 		struct inode *parent;
@@ -6437,8 +6443,7 @@ int btrfs_create_new_inode(struct btrfs_trans_handle *trans,
 		goto discard;
 	}
 
-	ret = 0;
-	goto out;
+	return 0;
 
 discard:
 	/*
