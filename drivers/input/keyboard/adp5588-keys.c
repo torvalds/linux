@@ -588,8 +588,6 @@ static int adp5588_probe(struct i2c_client *client,
 	if (error)
 		return error;
 
-	device_init_wakeup(&client->dev, 1);
-
 	dev_info(&client->dev, "Rev.%d keypad, irq %d\n", revid, client->irq);
 	return 0;
 }
@@ -608,18 +606,12 @@ static int __maybe_unused adp5588_suspend(struct device *dev)
 
 	disable_irq(client->irq);
 
-	if (device_may_wakeup(&client->dev))
-		enable_irq_wake(client->irq);
-
 	return 0;
 }
 
 static int __maybe_unused adp5588_resume(struct device *dev)
 {
 	struct i2c_client *client = to_i2c_client(dev);
-
-	if (device_may_wakeup(&client->dev))
-		disable_irq_wake(client->irq);
 
 	enable_irq(client->irq);
 
