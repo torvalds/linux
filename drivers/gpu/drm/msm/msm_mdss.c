@@ -5,6 +5,7 @@
 
 #include <linux/clk.h>
 #include <linux/delay.h>
+#include <linux/interconnect.h>
 #include <linux/irq.h>
 #include <linux/irqchip.h>
 #include <linux/irqdesc.h>
@@ -25,6 +26,8 @@
 #define UBWC_CTRL_2			0x150
 #define UBWC_PREDICTION_MODE		0x154
 
+#define MIN_IB_BW	400000000UL /* Min ib vote 400MB */
+
 struct msm_mdss {
 	struct device *dev;
 
@@ -36,7 +39,46 @@ struct msm_mdss {
 		unsigned long enabled_mask;
 		struct irq_domain *domain;
 	} irq_controller;
+	struct icc_path *path[2];
+	u32 num_paths;
 };
+
+static int msm_mdss_parse_data_bus_icc_path(struct device *dev,
+					    struct msm_mdss *msm_mdss)
+{
+	struct icc_path *path0 = of_icc_get(dev, "mdp0-mem");
+	struct icc_path *path1 = of_icc_get(dev, "mdp1-mem");
+
+	if (IS_ERR_OR_NULL(path0))
+		return PTR_ERR_OR_ZERO(path0);
+
+	msm_mdss->path[0] = path0;
+	msm_mdss->num_paths = 1;
+
+	if (!IS_ERR_OR_NULL(path1)) {
+		msm_mdss->path[1] = path1;
+		msm_mdss->num_paths++;
+	}
+
+	return 0;
+}
+
+static void msm_mdss_put_icc_path(void *data)
+{
+	struct msm_mdss *msm_mdss = data;
+	int i;
+
+	for (i = 0; i < msm_mdss->num_paths; i++)
+		icc_put(msm_mdss->path[i]);
+}
+
+static void msm_mdss_icc_request_bw(struct msm_mdss *msm_mdss, unsigned long bw)
+{
+	int i;
+
+	for (i = 0; i < msm_mdss->num_paths; i++)
+		icc_set_bw(msm_mdss->path[i], 0, Bps_to_icc(bw));
+}
 
 static void msm_mdss_irq(struct irq_desc *desc)
 {
@@ -136,6 +178,13 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 {
 	int ret;
 
+	/*
+	 * Several components have AXI clocks that can only be turned on if
+	 * the interconnect is enabled (non-zero bandwidth). Let's make sure
+	 * that the interconnects are at least at a minimum amount.
+	 */
+	msm_mdss_icc_request_bw(msm_mdss, MIN_IB_BW);
+
 	ret = clk_bulk_prepare_enable(msm_mdss->num_clocks, msm_mdss->clocks);
 	if (ret) {
 		dev_err(msm_mdss->dev, "clock enable failed, ret:%d\n", ret);
@@ -178,6 +227,7 @@ static int msm_mdss_enable(struct msm_mdss *msm_mdss)
 static int msm_mdss_disable(struct msm_mdss *msm_mdss)
 {
 	clk_bulk_disable_unprepare(msm_mdss->num_clocks, msm_mdss->clocks);
+	msm_mdss_icc_request_bw(msm_mdss, 0);
 
 	return 0;
 }
@@ -270,6 +320,13 @@ static struct msm_mdss *msm_mdss_init(struct platform_device *pdev, bool is_mdp5
 		return ERR_CAST(msm_mdss->mmio);
 
 	dev_dbg(&pdev->dev, "mapped mdss address space @%pK\n", msm_mdss->mmio);
+
+	ret = msm_mdss_parse_data_bus_icc_path(&pdev->dev, msm_mdss);
+	if (ret)
+		return ERR_PTR(ret);
+	ret = devm_add_action_or_reset(&pdev->dev, msm_mdss_put_icc_path, msm_mdss);
+	if (ret)
+		return ERR_PTR(ret);
 
 	if (is_mdp5)
 		ret = mdp5_mdss_parse_clock(pdev, &msm_mdss->clocks);
