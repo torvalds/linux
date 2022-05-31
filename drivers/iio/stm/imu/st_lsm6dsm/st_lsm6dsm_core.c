@@ -110,6 +110,7 @@
 #define ST_LSM6DSM_FIFO_THR_L_ADDR			0x06
 #define ST_LSM6DSM_FIFO_THR_H_ADDR			0x07
 #define ST_LSM6DSM_FIFO_THR_MASK			0x07ff
+#define ST_LSM6DSM_FIFO_THR_H_MASK			0x07
 #define ST_LSM6DSM_FIFO_THR_IRQ_MASK			0x08
 #define ST_LSM6DSM_RESET_ADDR				0x12
 #define ST_LSM6DSM_RESET_MASK				0x01
@@ -585,7 +586,7 @@ static int lsm6dsm_set_watermark(struct lsm6dsm_data *cdata)
 			return err;
 
 		fifo_watermark = (fifo_watermark & ST_LSM6DSM_FIFO_THR_MASK) |
-					((reg_value & ~ST_LSM6DSM_FIFO_THR_MASK) << 8);
+				 ((reg_value & ~ST_LSM6DSM_FIFO_THR_H_MASK) << 8);
 
 		err = cdata->tf->write(cdata, ST_LSM6DSM_FIFO_THR_L_ADDR, 2,
 						(u8 *)&fifo_watermark, true);
