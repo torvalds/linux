@@ -3006,7 +3006,9 @@ KVM_CREATE_PIT2. The state is returned in the following structure::
 Valid flags are::
 
   /* disable PIT in HPET legacy mode */
-  #define KVM_PIT_FLAGS_HPET_LEGACY  0x00000001
+  #define KVM_PIT_FLAGS_HPET_LEGACY     0x00000001
+  /* speaker port data bit enabled */
+  #define KVM_PIT_FLAGS_SPEAKER_DATA_ON 0x00000002
 
 This IOCTL replaces the obsolete KVM_GET_PIT.
 

@@ -306,7 +306,8 @@ struct kvm_pit_state {
 	struct kvm_pit_channel_state channels[3];
 };
 
-#define KVM_PIT_FLAGS_HPET_LEGACY  0x00000001
+#define KVM_PIT_FLAGS_HPET_LEGACY     0x00000001
+#define KVM_PIT_FLAGS_SPEAKER_DATA_ON 0x00000002
 
 struct kvm_pit_state2 {
 	struct kvm_pit_channel_state channels[3];
