@@ -210,16 +210,10 @@ struct clk_hw *devm_clk_hw_register_fixed_factor(struct device *dev,
 EXPORT_SYMBOL_GPL(devm_clk_hw_register_fixed_factor);
 
 #ifdef CONFIG_OF
-static const struct of_device_id set_rate_parent_matches[] = {
-	{ .compatible = "allwinner,sun4i-a10-pll3-2x-clk" },
-	{ /* Sentinel */ },
-};
-
 static struct clk_hw *_of_fixed_factor_clk_setup(struct device_node *node)
 {
 	struct clk_hw *hw;
 	const char *clk_name = node->name;
-	unsigned long flags = 0;
 	u32 div, mult;
 	int ret;
 
@@ -237,11 +231,8 @@ static struct clk_hw *_of_fixed_factor_clk_setup(struct device_node *node)
 
 	of_property_read_string(node, "clock-output-names", &clk_name);
 
-	if (of_match_node(set_rate_parent_matches, node))
-		flags |= CLK_SET_RATE_PARENT;
-
 	hw = __clk_hw_register_fixed_factor(NULL, node, clk_name, NULL, 0,
-					    flags, mult, div, false);
+					    0, mult, div, false);
 	if (IS_ERR(hw)) {
 		/*
 		 * Clear OF_POPULATED flag so that clock registration can be
