@@ -1,0 +1,192 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3588-evb7-lp4.dtsi"
+#include "rk3588-ipc.dtsi"
+#include "rk3588-evb7-cam-8x.dtsi"
+
+/ {
+	model = "Rockchip RK3588-RK1608 EVB7 LP4 V10 Board";
+	compatible = "rk3588-evb7-lp4-v10-rk1608-ipc-8x-linux", "rockchip,rk3588";
+};
+
+&backlight {
+	status = "disabled";
+};
+
+&dp0 {
+	status = "disabled";
+};
+
+&dp0_in_vp2 {
+	status = "disabled";
+};
+
+&dp1 {
+	status = "disabled";
+};
+
+&dp1_in_vp2 {
+	status = "disabled";
+};
+
+&dsi0 {
+	status = "disabled";
+};
+
+&dsi0_in_vp3 {
+	status = "disabled";
+};
+
+&dsi0_panel {
+	status = "disabled";
+};
+
+&dsi1_panel {
+	status = "disabled";
+};
+
+&gt1x {
+	status = "disabled";
+};
+
+&hdmi0 {
+	status = "disabled";
+};
+
+&hdmi0_in_vp0 {
+	status = "disabled";
+};
+
+&hdmi0_sound {
+	status = "disabled";
+};
+
+&hdmi1 {
+	status = "disabled";
+};
+
+&hdmi1_in_vp1 {
+	status = "disabled";
+};
+
+&hdmi1_sound {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi0 {
+	status = "disabled";
+};
+
+&hdptxphy_hdmi1 {
+	status = "disabled";
+};
+
+&i2c6 {
+	status = "disabled";
+};
+
+&i2s5_8ch {
+	status = "disabled";
+};
+
+&i2s6_8ch {
+	status = "disabled";
+};
+
+&jpegd {
+	status = "disabled";
+};
+
+&jpegd_mmu {
+	status = "disabled";
+};
+
+&leds {
+	status = "disabled";
+};
+
+&pwm2 {
+	status = "disabled";
+};
+
+&rkvdec0 {
+	status = "disabled";
+};
+
+&rkvdec0_mmu {
+	status = "disabled";
+};
+
+&rkvdec1_mmu {
+	status = "disabled";
+};
+
+&rkvdec_ccu {
+	status = "disabled";
+};
+
+&rk_headset {
+	status = "disabled";
+};
+
+&sata0 {
+	status = "disabled";
+};
+
+&uart8 {
+	status = "disabled";
+};
+
+&vdpu {
+	status = "disabled";
+};
+
+&vdpu_mmu {
+	status = "disabled";
+};
+
+&wireless_bluetooth {
+	status = "disabled";
+};
+
+&wireless_wlan {
+	status = "disabled";
+};
+
+&es8388_sound {
+	status = "disabled";
+};
+
+&hdmirx_ctrler {
+	status = "disabled";
+};
+
+&gmac1 {
+	status = "disabled";
+};
+
+&uart9 {
+	status = "disabled";
+};
+
+&i2s0_8ch {
+	status = "disabled";
+};
+
+&sdmmc {
+	status = "disabled";
+};
+
+&sdio {
+	status = "disabled";
+};
+
+&sdio_pwrseq {
+	status = "disabled";
+};
