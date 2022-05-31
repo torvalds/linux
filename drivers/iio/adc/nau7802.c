@@ -407,8 +407,7 @@ static const struct iio_info nau7802_info = {
 	.attrs = &nau7802_attribute_group,
 };
 
-static int nau7802_probe(struct i2c_client *client,
-			const struct i2c_device_id *id)
+static int nau7802_probe(struct i2c_client *client)
 {
 	struct iio_dev *indio_dev;
 	struct nau7802_state *st;
@@ -416,11 +415,6 @@ static int nau7802_probe(struct i2c_client *client,
 	int i, ret;
 	u8 data;
 	u32 tmp = 0;
-
-	if (!client->dev.of_node) {
-		dev_err(&client->dev, "No device tree node available.\n");
-		return -EINVAL;
-	}
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*st));
 	if (indio_dev == NULL)
@@ -550,7 +544,7 @@ static const struct of_device_id nau7802_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, nau7802_dt_ids);
 
 static struct i2c_driver nau7802_driver = {
-	.probe = nau7802_probe,
+	.probe_new = nau7802_probe,
 	.id_table = nau7802_i2c_id,
 	.driver = {
 		   .name = "nau7802",
