@@ -9557,15 +9557,21 @@ static int btrfs_rename2(struct user_namespace *mnt_userns, struct inode *old_di
 			 struct dentry *old_dentry, struct inode *new_dir,
 			 struct dentry *new_dentry, unsigned int flags)
 {
+	int ret;
+
 	if (flags & ~(RENAME_NOREPLACE | RENAME_EXCHANGE | RENAME_WHITEOUT))
 		return -EINVAL;
 
 	if (flags & RENAME_EXCHANGE)
-		return btrfs_rename_exchange(old_dir, old_dentry, new_dir,
-					  new_dentry);
+		ret = btrfs_rename_exchange(old_dir, old_dentry, new_dir,
+					    new_dentry);
+	else
+		ret = btrfs_rename(mnt_userns, old_dir, old_dentry, new_dir,
+				   new_dentry, flags);
 
-	return btrfs_rename(mnt_userns, old_dir, old_dentry, new_dir,
-			    new_dentry, flags);
+	btrfs_btree_balance_dirty(BTRFS_I(new_dir)->root->fs_info);
+
+	return ret;
 }
 
 struct btrfs_delalloc_work {
