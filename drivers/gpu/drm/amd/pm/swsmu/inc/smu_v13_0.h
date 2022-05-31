@@ -278,20 +278,6 @@ int smu_v13_0_run_btc(struct smu_context *smu);
 int smu_v13_0_deep_sleep_control(struct smu_context *smu,
 				 bool enablement);
 
-int smu_v13_0_gfx_ulv_control(struct smu_context *smu,
-			      bool enablement);
-
-bool smu_v13_0_baco_is_support(struct smu_context *smu);
-
-enum smu_baco_state smu_v13_0_baco_get_state(struct smu_context *smu);
-
-int smu_v13_0_baco_set_state(struct smu_context *smu,
-			     enum smu_baco_state state);
-
-int smu_v13_0_baco_enter(struct smu_context *smu);
-
-int smu_v13_0_baco_exit(struct smu_context *smu);
-
 int smu_v13_0_set_gfx_power_up_by_imu(struct smu_context *smu);
 
 int smu_v13_0_od_edit_dpm_table(struct smu_context *smu,
