@@ -5,6 +5,7 @@
 #include "compression.h"
 #include "ctree.h"
 #include "delalloc-space.h"
+#include "disk-io.h"
 #include "reflink.h"
 #include "transaction.h"
 #include "subpage.h"
@@ -655,7 +656,8 @@ static void btrfs_double_mmap_unlock(struct inode *inode1, struct inode *inode2)
 static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 				   struct inode *dst, u64 dst_loff)
 {
-	const u64 bs = BTRFS_I(src)->root->fs_info->sb->s_blocksize;
+	struct btrfs_fs_info *fs_info = BTRFS_I(src)->root->fs_info;
+	const u64 bs = fs_info->sb->s_blocksize;
 	int ret;
 
 	/*
@@ -665,6 +667,8 @@ static int btrfs_extent_same_range(struct inode *src, u64 loff, u64 len,
 	btrfs_double_extent_lock(src, loff, dst, dst_loff, len);
 	ret = btrfs_clone(src, dst, loff, len, ALIGN(len, bs), dst_loff, 1);
 	btrfs_double_extent_unlock(src, loff, dst, dst_loff, len);
+
+	btrfs_btree_balance_dirty(fs_info);
 
 	return ret;
 }
@@ -774,6 +778,8 @@ static noinline int btrfs_clone_files(struct file *file, struct file *file_src,
 	truncate_inode_pages_range(&inode->i_data,
 				round_down(destoff, PAGE_SIZE),
 				round_up(destoff + len, PAGE_SIZE) - 1);
+
+	btrfs_btree_balance_dirty(fs_info);
 
 	return ret;
 }
