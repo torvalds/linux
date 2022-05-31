@@ -796,6 +796,7 @@ static const struct nla_policy nl80211_policy[NUM_NL80211_ATTR] = {
 		NLA_POLICY_NESTED_ARRAY(nl80211_policy),
 	[NL80211_ATTR_MLO_LINK_ID] =
 		NLA_POLICY_RANGE(NLA_U8, 0, IEEE80211_MLD_MAX_NUM_LINKS),
+	[NL80211_ATTR_MLD_ADDR] = NLA_POLICY_EXACT_LEN(ETH_ALEN),
 };
 
 /* policy for the key attributes */
@@ -10282,6 +10283,12 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	req.key = key.p.key;
 	req.key_len = key.p.key_len;
 	req.key_idx = key.idx;
+	req.link_id = nl80211_link_id_or_invalid(info->attrs);
+	if (req.link_id >= 0) {
+		if (!info->attrs[NL80211_ATTR_MLD_ADDR])
+			return -EINVAL;
+		req.ap_mld_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
+	}
 
 	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
 				   IEEE80211_BSS_TYPE_ESS,
@@ -10475,7 +10482,9 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct cfg80211_assoc_request req = {};
+	struct nlattr **attrs = NULL;
 	const u8 *bssid, *ssid;
+	unsigned int link_id;
 	int err, ssid_len;
 
 	if (dev->ieee80211_ptr->conn_owner_nlportid &&
@@ -10585,9 +10594,81 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		       sizeof(req.s1g_capa));
 	}
 
-	req.bss = nl80211_assoc_bss(rdev, ssid, ssid_len, info->attrs, &bssid);
-	if (IS_ERR(req.bss))
-		return PTR_ERR(req.bss);
+	req.link_id = nl80211_link_id_or_invalid(info->attrs);
+
+	if (info->attrs[NL80211_ATTR_MLO_LINKS]) {
+		unsigned int attrsize = NUM_NL80211_ATTR * sizeof(*attrs);
+		struct nlattr *link;
+		int rem = 0;
+
+		if (req.link_id < 0)
+			return -EINVAL;
+
+		if (!(rdev->wiphy.flags & WIPHY_FLAG_SUPPORTS_MLO))
+			return -EINVAL;
+
+		if (info->attrs[NL80211_ATTR_MAC] ||
+		    info->attrs[NL80211_ATTR_WIPHY_FREQ] ||
+		    !info->attrs[NL80211_ATTR_MLD_ADDR])
+			return -EINVAL;
+
+		req.ap_mld_addr = nla_data(info->attrs[NL80211_ATTR_MLD_ADDR]);
+
+		attrs = kzalloc(attrsize, GFP_KERNEL);
+		if (!attrs)
+			return -ENOMEM;
+
+		nla_for_each_nested(link,
+				    info->attrs[NL80211_ATTR_MLO_LINKS],
+				    rem) {
+			memset(attrs, 0, attrsize);
+
+			nla_parse_nested(attrs, NL80211_ATTR_MAX,
+					 link, NULL, NULL);
+
+			if (!attrs[NL80211_ATTR_MLO_LINK_ID]) {
+				err = -EINVAL;
+				goto free;
+			}
+
+			link_id = nla_get_u8(attrs[NL80211_ATTR_MLO_LINK_ID]);
+			/* cannot use the same link ID again */
+			if (req.links[link_id].bss) {
+				err = -EINVAL;
+				goto free;
+			}
+			req.links[link_id].bss =
+				nl80211_assoc_bss(rdev, ssid, ssid_len, attrs,
+						  &bssid);
+			if (IS_ERR(req.links[link_id].bss)) {
+				err = PTR_ERR(req.links[link_id].bss);
+				goto free;
+			}
+
+			if (attrs[NL80211_ATTR_IE]) {
+				req.links[link_id].elems =
+					nla_data(attrs[NL80211_ATTR_IE]);
+				req.links[link_id].elems_len =
+					nla_len(attrs[NL80211_ATTR_IE]);
+			}
+		}
+
+		if (!req.links[req.link_id].bss) {
+			err = -EINVAL;
+			goto free;
+		}
+
+		kfree(attrs);
+		attrs = NULL;
+	} else {
+		if (req.link_id >= 0)
+			return -EINVAL;
+
+		req.bss = nl80211_assoc_bss(rdev, ssid, ssid_len, info->attrs,
+					    &bssid);
+		if (IS_ERR(req.bss))
+			return PTR_ERR(req.bss);
+	}
 
 	err = nl80211_crypto_settings(rdev, info, &req.crypto, 1);
 	if (!err) {
@@ -10605,7 +10686,11 @@ static int nl80211_associate(struct sk_buff *skb, struct genl_info *info)
 		wdev_unlock(dev->ieee80211_ptr);
 	}
 
+free:
+	for (link_id = 0; link_id < ARRAY_SIZE(req.links); link_id++)
+		cfg80211_put_bss(&rdev->wiphy, req.links[link_id].bss);
 	cfg80211_put_bss(&rdev->wiphy, req.bss);
+	kfree(attrs);
 
 	return err;
 }

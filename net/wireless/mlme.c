@@ -241,6 +241,10 @@ int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 	if (!req->bss)
 		return -ENOENT;
 
+	if (req->link_id >= 0 &&
+	    !(wdev->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
+		return -EINVAL;
+
 	if (req->auth_type == NL80211_AUTHTYPE_SHARED_KEY) {
 		if (!req->key || !req->key_len ||
 		    req->key_idx < 0 || req->key_idx > 3)
@@ -294,9 +298,18 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 			struct cfg80211_assoc_request *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	int err;
+	int err, i, j;
 
 	ASSERT_WDEV_LOCK(wdev);
+
+	for (i = 1; i < ARRAY_SIZE(req->links); i++) {
+		if (!req->links[i].bss)
+			continue;
+		for (j = 0; j < i; j++) {
+			if (req->links[i].bss == req->links[j].bss)
+				return -EINVAL;
+		}
+	}
 
 	if (wdev->connected &&
 	    (!req->prev_bssid ||
@@ -310,8 +323,19 @@ int cfg80211_mlme_assoc(struct cfg80211_registered_device *rdev,
 
 	err = rdev_assoc(rdev, dev, req);
 	if (!err) {
-		cfg80211_ref_bss(&rdev->wiphy, req->bss);
-		cfg80211_hold_bss(bss_from_pub(req->bss));
+		int link_id;
+
+		if (req->bss) {
+			cfg80211_ref_bss(&rdev->wiphy, req->bss);
+			cfg80211_hold_bss(bss_from_pub(req->bss));
+		}
+
+		for (link_id = 0; link_id < ARRAY_SIZE(req->links); link_id++) {
+			if (!req->links[link_id].bss)
+				continue;
+			cfg80211_ref_bss(&rdev->wiphy, req->links[link_id].bss);
+			cfg80211_hold_bss(bss_from_pub(req->links[link_id].bss));
+		}
 	}
 	return err;
 }

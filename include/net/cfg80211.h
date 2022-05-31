@@ -2718,6 +2718,12 @@ static inline const u8 *ieee80211_bss_get_ie(struct cfg80211_bss *bss, u8 id)
  *	Authentication algorithm number, i.e., starting at the Authentication
  *	transaction sequence number field.
  * @auth_data_len: Length of auth_data buffer in octets
+ * @link_id: if >= 0, indicates authentication should be done as an MLD,
+ *	the interface address is included as the MLD address and the
+ *	necessary link (with the given link_id) will be created (and
+ *	given an MLD address) by the driver
+ * @ap_mld_addr: AP MLD address in case of authentication request with
+ *	an AP MLD, valid iff @link_id >= 0
  */
 struct cfg80211_auth_request {
 	struct cfg80211_bss *bss;
@@ -2728,6 +2734,21 @@ struct cfg80211_auth_request {
 	u8 key_len, key_idx;
 	const u8 *auth_data;
 	size_t auth_data_len;
+	s8 link_id;
+	const u8 *ap_mld_addr;
+};
+
+/**
+ * struct cfg80211_assoc_link - per-link information for MLO association
+ * @bss: the BSS pointer, see also &struct cfg80211_assoc_request::bss;
+ *	if this is %NULL for a link, that link is not requested
+ * @elems: extra elements for the per-STA profile for this link
+ * @elems_len: length of the elements
+ */
+struct cfg80211_assoc_link {
+	struct cfg80211_bss *bss;
+	const u8 *elems;
+	size_t elems_len;
 };
 
 /**
@@ -2761,6 +2782,8 @@ enum cfg80211_assoc_req_flags {
  *	given a reference that it must give back to cfg80211_send_rx_assoc()
  *	or to cfg80211_assoc_timeout(). To ensure proper refcounting, new
  *	association requests while already associating must be rejected.
+ *	This also applies to the @links.bss parameter, which is used instead
+ *	of this one (it is %NULL) for MLO associations.
  * @ie: Extra IEs to add to (Re)Association Request frame or %NULL
  * @ie_len: Length of ie buffer in octets
  * @use_mfp: Use management frame protection (IEEE 802.11w) in this association
@@ -2785,6 +2808,11 @@ enum cfg80211_assoc_req_flags {
  *	with 16 octets of STA Nonce followed by 16 octets of AP Nonce.
  * @s1g_capa: S1G capability override
  * @s1g_capa_mask: S1G capability override mask
+ * @links: per-link information for MLO connections
+ * @link_id: >= 0 for MLO connections, where links are given, and indicates
+ *	the link on which the association request should be sent
+ * @ap_mld_addr: AP MLD address in case of MLO association request,
+ *	valid iff @link_id >= 0
  */
 struct cfg80211_assoc_request {
 	struct cfg80211_bss *bss;
@@ -2800,6 +2828,9 @@ struct cfg80211_assoc_request {
 	size_t fils_kek_len;
 	const u8 *fils_nonces;
 	struct ieee80211_s1g_cap s1g_capa, s1g_capa_mask;
+	struct cfg80211_assoc_link links[IEEE80211_MLD_MAX_NUM_LINKS];
+	const u8 *ap_mld_addr;
+	s8 link_id;
 };
 
 /**

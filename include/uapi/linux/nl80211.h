@@ -2687,6 +2687,8 @@ enum nl80211_commands {
  *	various commands that need a link ID to operate.
  * @NL80211_ATTR_MLO_LINKS: A nested array of links, each containing some
  *	per-link information and a link ID.
+ * @NL80211_ATTR_MLD_ADDR: An MLD address, used with various commands such as
+ *	authenticate/associate.
  *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
@@ -3204,6 +3206,7 @@ enum nl80211_attrs {
 
 	NL80211_ATTR_MLO_LINKS,
 	NL80211_ATTR_MLO_LINK_ID,
+	NL80211_ATTR_MLD_ADDR,
 
 	/* add attributes here, update the policy in nl80211.c */
 
