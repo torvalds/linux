@@ -981,6 +981,7 @@ struct mlx5_async_work {
 	struct mlx5_async_ctx *ctx;
 	mlx5_async_cbk_t user_callback;
 	u16 opcode; /* cmd opcode */
+	u16 op_mod; /* cmd op_mod */
 	void *out; /* pointer to the cmd output buffer */
 };
 
