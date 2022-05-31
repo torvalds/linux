@@ -508,6 +508,7 @@ static int dwc3_usb_role_switch_set(struct usb_role_switch *sw,
 
 #if defined(CONFIG_ARCH_ROCKCHIP) && defined(CONFIG_NO_GKI)
 	dwc->desired_role_sw_mode = role;
+	phy_set_mode_ext(dwc->usb2_generic_phy, PHY_MODE_USB_OTG, role);
 #endif
 
 	switch (role) {
