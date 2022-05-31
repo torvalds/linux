@@ -315,6 +315,37 @@ static int sys_off_notify(struct notifier_block *nb,
 	return handler->sys_off_cb(&data);
 }
 
+static struct sys_off_handler platform_sys_off_handler;
+
+static struct sys_off_handler *alloc_sys_off_handler(int priority)
+{
+	struct sys_off_handler *handler;
+
+	/*
+	 * Platforms like m68k can't allocate sys_off handler dynamically
+	 * at the early boot time because memory allocator isn't available yet.
+	 */
+	if (priority == SYS_OFF_PRIO_PLATFORM) {
+		handler = &platform_sys_off_handler;
+		if (handler->cb_data)
+			return ERR_PTR(-EBUSY);
+	} else {
+		handler = kzalloc(sizeof(*handler), GFP_KERNEL);
+		if (!handler)
+			return ERR_PTR(-ENOMEM);
+	}
+
+	return handler;
+}
+
+static void free_sys_off_handler(struct sys_off_handler *handler)
+{
+	if (handler == &platform_sys_off_handler)
+		memset(handler, 0, sizeof(*handler));
+	else
+		kfree(handler);
+}
+
 /**
  *	register_sys_off_handler - Register sys-off handler
  *	@mode: Sys-off mode
@@ -345,9 +376,9 @@ register_sys_off_handler(enum sys_off_mode mode,
 	struct sys_off_handler *handler;
 	int err;
 
-	handler = kzalloc(sizeof(*handler), GFP_KERNEL);
-	if (!handler)
-		return ERR_PTR(-ENOMEM);
+	handler = alloc_sys_off_handler(priority);
+	if (IS_ERR(handler))
+		return handler;
 
 	switch (mode) {
 	case SYS_OFF_MODE_POWER_OFF_PREPARE:
@@ -364,7 +395,7 @@ register_sys_off_handler(enum sys_off_mode mode,
 		break;
 
 	default:
-		kfree(handler);
+		free_sys_off_handler(handler);
 		return ERR_PTR(-EINVAL);
 	}
 
@@ -391,7 +422,7 @@ register_sys_off_handler(enum sys_off_mode mode,
 	}
 
 	if (err) {
-		kfree(handler);
+		free_sys_off_handler(handler);
 		return ERR_PTR(err);
 	}
 
@@ -422,7 +453,7 @@ void unregister_sys_off_handler(struct sys_off_handler *handler)
 	/* sanity check, shall never happen */
 	WARN_ON(err);
 
-	kfree(handler);
+	free_sys_off_handler(handler);
 }
 EXPORT_SYMBOL_GPL(unregister_sys_off_handler);
 
