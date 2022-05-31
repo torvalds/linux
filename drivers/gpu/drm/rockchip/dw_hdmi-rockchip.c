@@ -1817,8 +1817,18 @@ dw_hdmi_rockchip_select_output(struct drm_connector_state *conn_state,
 		}
 	}
 
-	if (mode.clock >= 340000 && hdmi->is_hdmi_qp)
-		*color_format = RK_IF_FORMAT_YCBCR420;
+	if (hdmi->is_hdmi_qp) {
+		if (mode.clock >= 340000) {
+			if (drm_mode_is_420(info, &mode))
+				*color_format = RK_IF_FORMAT_YCBCR420;
+			else
+				*color_format = RK_IF_FORMAT_RGB;
+		} else if (tmdsclock > max_tmds_clock) {
+			color_depth = 8;
+			if (drm_mode_is_420(info, &mode))
+				*color_format = RK_IF_FORMAT_YCBCR420;
+		}
+	}
 
 	if (*color_format == RK_IF_FORMAT_YCBCR420) {
 		*output_mode = ROCKCHIP_OUT_MODE_YUV420;
