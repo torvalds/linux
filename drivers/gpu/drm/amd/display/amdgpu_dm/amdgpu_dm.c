@@ -2756,10 +2756,13 @@ static int dm_resume(void *handle)
 		if (!dc_link_detect_sink(aconnector->dc_link, &new_connection_type))
 			DRM_ERROR("KMS: Failed to detect connector\n");
 
-		if (aconnector->base.force && new_connection_type == dc_connection_none)
+		if (aconnector->base.force && new_connection_type == dc_connection_none) {
 			emulated_link_detect(aconnector->dc_link);
-		else
+		} else {
+			mutex_lock(&dm->dc_lock);
 			dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+			mutex_unlock(&dm->dc_lock);
+		}
 
 		if (aconnector->fake_enable && aconnector->dc_link->local_sink)
 			aconnector->fake_enable = false;
@@ -3090,6 +3093,7 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 #ifdef CONFIG_DRM_AMD_DC_HDCP
 	struct dm_connector_state *dm_con_state = to_dm_connector_state(connector->state);
 #endif
+	bool ret = false;
 
 	if (adev->dm.disable_hpd_irq)
 		return;
@@ -3121,16 +3125,20 @@ static void handle_hpd_irq_helper(struct amdgpu_dm_connector *aconnector)
 
 		if (aconnector->base.force == DRM_FORCE_UNSPECIFIED)
 			drm_kms_helper_connector_hotplug_event(connector);
+	} else {
+		mutex_lock(&adev->dm.dc_lock);
+		ret = dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD);
+		mutex_unlock(&adev->dm.dc_lock);
+		if (ret) {
+			amdgpu_dm_update_connector_after_detect(aconnector);
 
-	} else if (dc_link_detect(aconnector->dc_link, DETECT_REASON_HPD)) {
-		amdgpu_dm_update_connector_after_detect(aconnector);
+			drm_modeset_lock_all(dev);
+			dm_restore_drm_connector_state(dev, connector);
+			drm_modeset_unlock_all(dev);
 
-		drm_modeset_lock_all(dev);
-		dm_restore_drm_connector_state(dev, connector);
-		drm_modeset_unlock_all(dev);
-
-		if (aconnector->base.force == DRM_FORCE_UNSPECIFIED)
-			drm_kms_helper_connector_hotplug_event(connector);
+			if (aconnector->base.force == DRM_FORCE_UNSPECIFIED)
+				drm_kms_helper_connector_hotplug_event(connector);
+		}
 	}
 	mutex_unlock(&aconnector->hpd_lock);
 
@@ -3325,19 +3333,25 @@ out:
 			drm_modeset_unlock_all(dev);
 
 			drm_kms_helper_connector_hotplug_event(connector);
-		} else if (dc_link_detect(dc_link, DETECT_REASON_HPDRX)) {
+		} else {
+			bool ret = false;
 
-			if (aconnector->fake_enable)
-				aconnector->fake_enable = false;
+			mutex_lock(&adev->dm.dc_lock);
+			ret = dc_link_detect(dc_link, DETECT_REASON_HPDRX);
+			mutex_unlock(&adev->dm.dc_lock);
 
-			amdgpu_dm_update_connector_after_detect(aconnector);
+			if (ret) {
+				if (aconnector->fake_enable)
+					aconnector->fake_enable = false;
 
+				amdgpu_dm_update_connector_after_detect(aconnector);
 
-			drm_modeset_lock_all(dev);
-			dm_restore_drm_connector_state(dev, connector);
-			drm_modeset_unlock_all(dev);
+				drm_modeset_lock_all(dev);
+				dm_restore_drm_connector_state(dev, connector);
+				drm_modeset_unlock_all(dev);
 
-			drm_kms_helper_connector_hotplug_event(connector);
+				drm_kms_helper_connector_hotplug_event(connector);
+			}
 		}
 	}
 #ifdef CONFIG_DRM_AMD_DC_HDCP
@@ -4342,23 +4356,30 @@ static int amdgpu_dm_initialize_drm_device(struct amdgpu_device *adev)
 		if (aconnector->base.force && new_connection_type == dc_connection_none) {
 			emulated_link_detect(link);
 			amdgpu_dm_update_connector_after_detect(aconnector);
+		} else {
+			bool ret = false;
 
-		} else if (dc_link_detect(link, DETECT_REASON_BOOT)) {
-			amdgpu_dm_update_connector_after_detect(aconnector);
-			register_backlight_device(dm, link);
-			if (dm->num_of_edps)
-				update_connector_ext_caps(aconnector);
-			if (psr_feature_enabled)
-				amdgpu_dm_set_psr_caps(link);
+			mutex_lock(&dm->dc_lock);
+			ret = dc_link_detect(link, DETECT_REASON_BOOT);
+			mutex_unlock(&dm->dc_lock);
 
-			/* TODO: Fix vblank control helpers to delay PSR entry to allow this when
-			 * PSR is also supported.
-			 */
-			if (link->psr_settings.psr_feature_enabled)
-				adev_to_drm(adev)->vblank_disable_immediate = false;
+			if (ret) {
+				amdgpu_dm_update_connector_after_detect(aconnector);
+				register_backlight_device(dm, link);
+
+				if (dm->num_of_edps)
+					update_connector_ext_caps(aconnector);
+
+				if (psr_feature_enabled)
+					amdgpu_dm_set_psr_caps(link);
+
+				/* TODO: Fix vblank control helpers to delay PSR entry to allow this when
+				 * PSR is also supported.
+				 */
+				if (link->psr_settings.psr_feature_enabled)
+					adev_to_drm(adev)->vblank_disable_immediate = false;
+			}
 		}
-
-
 	}
 
 	/* Software is initialized. Now we can register interrupt handlers. */
