@@ -867,45 +867,52 @@ static int btrfs_delete_delayed_items(struct btrfs_trans_handle *trans,
 				      struct btrfs_root *root,
 				      struct btrfs_delayed_node *node)
 {
-	struct btrfs_delayed_item *curr, *prev;
 	int ret = 0;
 
-do_again:
-	mutex_lock(&node->mutex);
-	curr = __btrfs_first_delayed_deletion_item(node);
-	if (!curr)
-		goto delete_fail;
+	while (ret == 0) {
+		struct btrfs_delayed_item *item;
 
-	ret = btrfs_search_slot(trans, root, &curr->key, path, -1, 1);
-	if (ret < 0)
-		goto delete_fail;
-	else if (ret > 0) {
-		/*
-		 * can't find the item which the node points to, so this node
-		 * is invalid, just drop it.
-		 */
-		prev = curr;
-		curr = __btrfs_next_delayed_item(prev);
-		btrfs_release_delayed_item(prev);
-		ret = 0;
-		btrfs_release_path(path);
-		if (curr) {
+		mutex_lock(&node->mutex);
+		item = __btrfs_first_delayed_deletion_item(node);
+		if (!item) {
 			mutex_unlock(&node->mutex);
-			goto do_again;
-		} else
-			goto delete_fail;
+			break;
+		}
+
+		ret = btrfs_search_slot(trans, root, &item->key, path, -1, 1);
+		if (ret > 0) {
+			/*
+			 * There's no matching item in the leaf. This means we
+			 * have already deleted this item in a past run of the
+			 * delayed items. We ignore errors when running delayed
+			 * items from an async context, through a work queue job
+			 * running btrfs_async_run_delayed_root(), and don't
+			 * release delayed items that failed to complete. This
+			 * is because we will retry later, and at transaction
+			 * commit time we always run delayed items and will
+			 * then deal with errors if they fail to run again.
+			 *
+			 * So just release delayed items for which we can't find
+			 * an item in the tree, and move to the next item.
+			 */
+			btrfs_release_path(path);
+			btrfs_release_delayed_item(item);
+			ret = 0;
+		} else if (ret == 0) {
+			ret = btrfs_batch_delete_items(trans, root, path, item);
+			btrfs_release_path(path);
+		}
+
+		/*
+		 * We unlock and relock on each iteration, this is to prevent
+		 * blocking other tasks for too long while we are being run from
+		 * the async context (work queue job). Those tasks are typically
+		 * running system calls like creat/mkdir/rename/unlink/etc which
+		 * need to add delayed items to this delayed node.
+		 */
+		mutex_unlock(&node->mutex);
 	}
 
-	ret = btrfs_batch_delete_items(trans, root, path, curr);
-	if (ret)
-		goto delete_fail;
-	btrfs_release_path(path);
-	mutex_unlock(&node->mutex);
-	goto do_again;
-
-delete_fail:
-	btrfs_release_path(path);
-	mutex_unlock(&node->mutex);
 	return ret;
 }
 
