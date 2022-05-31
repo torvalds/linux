@@ -20,7 +20,6 @@
 
 #define MTK_PMIC_RST_DU_MASK	GENMASK(9, 8)
 #define MTK_PMIC_RST_DU_SHIFT	8
-#define MTK_PMIC_RST_KEY_MASK	GENMASK(6, 5)
 #define MTK_PMIC_PWRKEY_RST	BIT(6)
 #define MTK_PMIC_HOMEKEY_RST	BIT(5)
 
@@ -33,15 +32,17 @@ struct mtk_pmic_keys_regs {
 	u32 deb_mask;
 	u32 intsel_reg;
 	u32 intsel_mask;
+	u32 rst_en_mask;
 };
 
 #define MTK_PMIC_KEYS_REGS(_deb_reg, _deb_mask,		\
-	_intsel_reg, _intsel_mask)			\
+	_intsel_reg, _intsel_mask, _rst_mask)		\
 {							\
 	.deb_reg		= _deb_reg,		\
 	.deb_mask		= _deb_mask,		\
 	.intsel_reg		= _intsel_reg,		\
 	.intsel_mask		= _intsel_mask,		\
+	.rst_en_mask		= _rst_mask,		\
 }
 
 struct mtk_pmic_regs {
@@ -52,30 +53,32 @@ struct mtk_pmic_regs {
 static const struct mtk_pmic_regs mt6397_regs = {
 	.keys_regs[MTK_PMIC_PWRKEY_INDEX] =
 		MTK_PMIC_KEYS_REGS(MT6397_CHRSTATUS,
-		0x8, MT6397_INT_RSV, 0x10),
+		0x8, MT6397_INT_RSV, 0x10, MTK_PMIC_PWRKEY_RST),
 	.keys_regs[MTK_PMIC_HOMEKEY_INDEX] =
 		MTK_PMIC_KEYS_REGS(MT6397_OCSTATUS2,
-		0x10, MT6397_INT_RSV, 0x8),
+		0x10, MT6397_INT_RSV, 0x8, MTK_PMIC_HOMEKEY_RST),
 	.pmic_rst_reg = MT6397_TOP_RST_MISC,
 };
 
 static const struct mtk_pmic_regs mt6323_regs = {
 	.keys_regs[MTK_PMIC_PWRKEY_INDEX] =
 		MTK_PMIC_KEYS_REGS(MT6323_CHRSTATUS,
-		0x2, MT6323_INT_MISC_CON, 0x10),
+		0x2, MT6323_INT_MISC_CON, 0x10, MTK_PMIC_PWRKEY_RST),
 	.keys_regs[MTK_PMIC_HOMEKEY_INDEX] =
 		MTK_PMIC_KEYS_REGS(MT6323_CHRSTATUS,
-		0x4, MT6323_INT_MISC_CON, 0x8),
+		0x4, MT6323_INT_MISC_CON, 0x8, MTK_PMIC_HOMEKEY_RST),
 	.pmic_rst_reg = MT6323_TOP_RST_MISC,
 };
 
 static const struct mtk_pmic_regs mt6358_regs = {
 	.keys_regs[MTK_PMIC_PWRKEY_INDEX] =
 		MTK_PMIC_KEYS_REGS(MT6358_TOPSTATUS,
-				   0x2, MT6358_PSC_TOP_INT_CON0, 0x5),
+				   0x2, MT6358_PSC_TOP_INT_CON0, 0x5,
+				   MTK_PMIC_PWRKEY_RST),
 	.keys_regs[MTK_PMIC_HOMEKEY_INDEX] =
 		MTK_PMIC_KEYS_REGS(MT6358_TOPSTATUS,
-				   0x8, MT6358_PSC_TOP_INT_CON0, 0xa),
+				   0x8, MT6358_PSC_TOP_INT_CON0, 0xa,
+				   MTK_PMIC_HOMEKEY_RST),
 	.pmic_rst_reg = MT6358_TOP_RST_MISC,
 };
 
@@ -104,9 +107,13 @@ enum mtk_pmic_keys_lp_mode {
 static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
 					 u32 pmic_rst_reg)
 {
+	const struct mtk_pmic_keys_regs *kregs_home, *kregs_pwr;
 	u32 long_press_mode, long_press_debounce;
 	u32 value, mask;
 	int error;
+
+	kregs_home = keys->keys[MTK_PMIC_HOMEKEY_INDEX].regs;
+	kregs_pwr = keys->keys[MTK_PMIC_PWRKEY_INDEX].regs;
 
 	error = of_property_read_u32(keys->dev->of_node, "power-off-time-sec",
 				     &long_press_debounce);
@@ -124,15 +131,16 @@ static void mtk_pmic_keys_lp_reset_setup(struct mtk_pmic_keys *keys,
 
 	switch (long_press_mode) {
 	case LP_TWOKEY:
-		value |= MTK_PMIC_HOMEKEY_RST;
+		value |= kregs_home->rst_en_mask;
 		fallthrough;
 
 	case LP_ONEKEY:
-		value |= MTK_PMIC_PWRKEY_RST;
+		value |= kregs_pwr->rst_en_mask;
 		fallthrough;
 
 	case LP_DISABLE:
-		mask |= MTK_PMIC_RST_KEY_MASK;
+		mask |= kregs_home->rst_en_mask;
+		mask |= kregs_pwr->rst_en_mask;
 		break;
 
 	default:
