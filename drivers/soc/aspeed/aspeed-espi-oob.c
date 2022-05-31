@@ -105,8 +105,8 @@ static long aspeed_espi_oob_get_rx(struct file *fp,
 	struct aspeed_espi_ctrl *espi_ctrl = espi_oob->ctrl;
 
 	if (fp->f_flags & O_NONBLOCK) {
-		if (mutex_trylock(&espi_oob->get_rx_mtx))
-			return -EBUSY;
+		if (!mutex_trylock(&espi_oob->get_rx_mtx))
+			return -EAGAIN;
 
 		if (!espi_oob->rx_ready) {
 			rc = -ENODATA;
@@ -263,7 +263,7 @@ static long aspeed_espi_oob_put_tx(struct file *fp,
 	struct aspeed_espi_ctrl *espi_ctrl = espi_oob->ctrl;
 
 	if (!mutex_trylock(&espi_oob->put_tx_mtx))
-		return -EBUSY;
+		return -EAGAIN;
 
 	if (espi_oob->dma_mode && espi_ctrl->model->version != ESPI_AST2500) {
 		rc = aspeed_espi_oob_dma_desc_put_tx(fp, ioc, espi_oob);

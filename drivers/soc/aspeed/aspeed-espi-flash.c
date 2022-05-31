@@ -32,8 +32,8 @@ static long aspeed_espi_flash_get_rx(struct file *fp,
 	struct aspeed_espi_ctrl *espi_ctrl = espi_flash->ctrl;
 
 	if (fp->f_flags & O_NONBLOCK) {
-		if (mutex_trylock(&espi_flash->get_rx_mtx))
-			return -EBUSY;
+		if (!mutex_trylock(&espi_flash->get_rx_mtx))
+			return -EAGAIN;
 
 		if (!espi_flash->rx_ready) {
 			rc = -ENODATA;
