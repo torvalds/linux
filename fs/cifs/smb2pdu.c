@@ -288,6 +288,9 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 			mutex_unlock(&ses->session_mutex);
 			rc = -EHOSTDOWN;
 			goto failed;
+		} else if (rc) {
+			mutex_unlock(&ses->session_mutex);
+			goto out;
 		}
 	} else {
 		mutex_unlock(&ses->session_mutex);
