@@ -798,68 +798,58 @@ static int btrfs_batch_delete_items(struct btrfs_trans_handle *trans,
 {
 	struct btrfs_delayed_item *curr, *next;
 	struct extent_buffer *leaf = path->nodes[0];
-	struct btrfs_key key;
-	struct list_head head;
-	int nitems, i, last_item;
-	int ret = 0;
+	LIST_HEAD(batch_list);
+	int nitems, slot, last_slot;
+	int ret;
 
 	ASSERT(leaf != NULL);
 
-	i = path->slots[0];
-	last_item = btrfs_header_nritems(leaf) - 1;
+	slot = path->slots[0];
+	last_slot = btrfs_header_nritems(leaf) - 1;
 	/*
 	 * Our caller always gives us a path pointing to an existing item, so
 	 * this can not happen.
 	 */
-	ASSERT(i <= last_item);
-	if (WARN_ON(i > last_item))
+	ASSERT(slot <= last_slot);
+	if (WARN_ON(slot > last_slot))
 		return -ENOENT;
 
-	next = item;
-	INIT_LIST_HEAD(&head);
-	btrfs_item_key_to_cpu(leaf, &key, i);
-	nitems = 0;
-	/*
-	 * count the number of the dir index items that we can delete in batch
-	 */
-	while (btrfs_comp_cpu_keys(&next->key, &key) == 0) {
-		list_add_tail(&next->tree_list, &head);
-		nitems++;
+	nitems = 1;
+	curr = item;
+	list_add_tail(&curr->tree_list, &batch_list);
 
-		curr = next;
+	/*
+	 * Keep checking if the next delayed item matches the next item in the
+	 * leaf - if so, we can add it to the batch of items to delete from the
+	 * leaf.
+	 */
+	while (slot < last_slot) {
+		struct btrfs_key key;
+
 		next = __btrfs_next_delayed_item(curr);
 		if (!next)
 			break;
 
-		if (!btrfs_is_continuous_delayed_item(curr, next))
+		slot++;
+		btrfs_item_key_to_cpu(leaf, &key, slot);
+		if (btrfs_comp_cpu_keys(&next->key, &key) != 0)
 			break;
-
-		i++;
-		if (i > last_item)
-			break;
-		btrfs_item_key_to_cpu(leaf, &key, i);
+		nitems++;
+		curr = next;
+		list_add_tail(&curr->tree_list, &batch_list);
 	}
-
-	/*
-	 * Our caller always gives us a path pointing to an existing item, so
-	 * this can not happen.
-	 */
-	ASSERT(nitems >= 1);
-	if (nitems < 1)
-		return -ENOENT;
 
 	ret = btrfs_del_items(trans, root, path, path->slots[0], nitems);
 	if (ret)
-		goto out;
+		return ret;
 
-	list_for_each_entry_safe(curr, next, &head, tree_list) {
+	list_for_each_entry_safe(curr, next, &batch_list, tree_list) {
 		btrfs_delayed_item_release_metadata(root, curr);
 		list_del(&curr->tree_list);
 		btrfs_release_delayed_item(curr);
 	}
 
-out:
-	return ret;
+	return 0;
 }
 
 static int btrfs_delete_delayed_items(struct btrfs_trans_handle *trans,
