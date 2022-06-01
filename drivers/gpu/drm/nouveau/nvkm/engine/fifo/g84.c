@@ -42,6 +42,7 @@ g84_chan_bind(struct nvkm_chan *chan)
 
 const struct nvkm_chan_func
 g84_chan = {
+	.inst = &nv50_chan_inst,
 	.bind = g84_chan_bind,
 	.unbind = nv50_chan_unbind,
 	.start = nv50_chan_start,

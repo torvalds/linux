@@ -40,6 +40,7 @@ gv100_chan_doorbell_handle(struct nvkm_chan *chan)
 
 static const struct nvkm_chan_func
 gv100_chan = {
+	.inst = &gf100_chan_inst,
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,

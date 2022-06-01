@@ -19,6 +19,8 @@ struct nvkm_chan {
 	struct nvkm_cgrp *cgrp;
 	int runq;
 
+	struct nvkm_gpuobj *inst;
+	struct nvkm_vmm *vmm;
 	union { int id; int chid; }; /*FIXME: remove later */
 
 	spinlock_t lock;
@@ -31,9 +33,7 @@ struct nvkm_chan {
 	struct nvkm_object object;
 
 	struct list_head head;
-	struct nvkm_gpuobj *inst;
 	struct nvkm_gpuobj *push;
-	struct nvkm_vmm *vmm;
 	u64 addr;
 	u32 size;
 

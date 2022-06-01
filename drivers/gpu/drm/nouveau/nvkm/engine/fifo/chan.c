@@ -602,10 +602,31 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 		chan->cgrp = nvkm_cgrp_ref(cgrp);
 	}
 
-	/* instance memory */
-	ret = nvkm_gpuobj_new(device, size, align, zero, NULL, &chan->inst);
-	if (ret)
+	/* Allocate instance block. */
+	ret = nvkm_gpuobj_new(device, func->inst->size, 0x1000, func->inst->zero, NULL,
+			      &chan->inst);
+	if (ret) {
+		RUNL_DEBUG(runl, "inst %d", ret);
 		return ret;
+	}
+
+	/* Initialise virtual address-space. */
+	if (func->inst->vmm) {
+		struct nvkm_vmm *vmm = nvkm_uvmm_search(client, hvmm);
+		if (IS_ERR(vmm))
+			return PTR_ERR(vmm);
+
+		if (WARN_ON(vmm->mmu != device->mmu))
+			return -EINVAL;
+
+		ret = nvkm_vmm_join(vmm, chan->inst->memory);
+		if (ret) {
+			RUNL_DEBUG(runl, "vmm %d", ret);
+			return ret;
+		}
+
+		chan->vmm = nvkm_vmm_ref(vmm);
+	}
 
 	/* allocate push buffer ctxdma instance */
 	if (push) {
@@ -617,22 +638,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 				       &chan->push);
 		if (ret)
 			return ret;
-	}
-
-	/* channel address space */
-	if (hvmm) {
-		struct nvkm_vmm *vmm = nvkm_uvmm_search(client, hvmm);
-		if (IS_ERR(vmm))
-			return PTR_ERR(vmm);
-
-		if (vmm->mmu != device->mmu)
-			return -EINVAL;
-
-		ret = nvkm_vmm_join(vmm, chan->inst->memory);
-		if (ret)
-			return ret;
-
-		chan->vmm = nvkm_vmm_ref(vmm);
 	}
 
 	/* Allocate channel ID. */

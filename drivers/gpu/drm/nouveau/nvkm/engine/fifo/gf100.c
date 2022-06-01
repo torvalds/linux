@@ -82,8 +82,16 @@ gf100_chan_bind(struct nvkm_chan *chan)
 	nvkm_wr32(device, 0x003000 + (chan->id * 8), 0xc0000000 | chan->inst->addr >> 12);
 }
 
+const struct nvkm_chan_func_inst
+gf100_chan_inst = {
+	.size = 0x1000,
+	.zero = true,
+	.vmm = true,
+};
+
 static const struct nvkm_chan_func
 gf100_chan = {
+	.inst = &gf100_chan_inst,
 	.bind = gf100_chan_bind,
 	.unbind = gf100_chan_unbind,
 	.start = gf100_chan_start,

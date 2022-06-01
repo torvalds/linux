@@ -16,6 +16,12 @@ struct nvkm_cctx {
 };
 
 struct nvkm_chan_func {
+	const struct nvkm_chan_func_inst {
+		u32 size;
+		bool zero;
+		bool vmm;
+	} *inst;
+
 	void (*bind)(struct nvkm_chan *);
 	void (*unbind)(struct nvkm_chan *);
 	void (*start)(struct nvkm_chan *);
