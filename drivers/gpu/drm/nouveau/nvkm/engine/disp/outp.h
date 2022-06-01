@@ -54,6 +54,8 @@ struct nvkm_outp {
 			struct mutex mutex;
 			struct {
 				atomic_t done;
+				u8 nr;
+				u8 bw;
 				bool mst;
 			} lt;
 		} dp;

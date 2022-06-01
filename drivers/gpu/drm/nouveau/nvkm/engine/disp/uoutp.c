@@ -101,6 +101,23 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
+nvkm_uoutp_mthd_acquire_dp(struct nvkm_outp *outp, u8 dpcd[16],
+			   u8 link_nr, u8 link_bw, bool hda, bool mst)
+{
+	int ret;
+
+	ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, hda);
+	if (ret)
+		return ret;
+
+	memcpy(outp->dp.dpcd, dpcd, sizeof(outp->dp.dpcd));
+	outp->dp.lt.nr = link_nr;
+	outp->dp.lt.bw = link_bw;
+	outp->dp.lt.mst = mst;
+	return 0;
+}
+
+static int
 nvkm_uoutp_mthd_acquire_tmds(struct nvkm_outp *outp, u8 head, u8 hdmi, u8 hdmi_max_ac_packet,
 			     u8 hdmi_rekey, u8 hdmi_scdc, u8 hdmi_hda)
 {
@@ -152,6 +169,8 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
 		return -ENOSYS;
+	if (outp->ior)
+		return -EBUSY;
 
 	switch (args->v0.proto) {
 	case NVIF_OUTP_ACQUIRE_V0_RGB_CRT:
@@ -165,11 +184,15 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 							 args->v0.tmds.hdmi_scdc,
 							 args->v0.tmds.hdmi_hda);
 		break;
-	case NVIF_OUTP_ACQUIRE_V0_DP:
-		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.dp.hda);
-		break;
 	case NVIF_OUTP_ACQUIRE_V0_LVDS:
 		ret = nvkm_uoutp_mthd_acquire_lvds(outp, args->v0.lvds.dual, args->v0.lvds.bpc8);
+		break;
+	case NVIF_OUTP_ACQUIRE_V0_DP:
+		ret = nvkm_uoutp_mthd_acquire_dp(outp, args->v0.dp.dpcd,
+						       args->v0.dp.link_nr,
+						       args->v0.dp.link_bw,
+						       args->v0.dp.hda != 0,
+						       args->v0.dp.mst != 0);
 		break;
 	default:
 		ret = -EINVAL;

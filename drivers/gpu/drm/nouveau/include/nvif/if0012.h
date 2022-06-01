@@ -55,8 +55,12 @@ union nvif_outp_acquire_args {
 				__u8 pad02[6];
 			} lvds;
 			struct {
+				__u8 link_nr; /* 0 = highest possible. */
+				__u8 link_bw; /* 0 = highest possible, DP BW code otherwise. */
 				__u8 hda;
-				__u8 pad01[7];
+				__u8 mst;
+				__u8 pad04[4];
+				__u8 dpcd[16];
 			} dp;
 		};
 	} v0;

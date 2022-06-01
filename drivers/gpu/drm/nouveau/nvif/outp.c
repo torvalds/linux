@@ -84,16 +84,22 @@ nvif_outp_acquire(struct nvif_outp *outp, u8 proto, struct nvif_outp_acquire_v0 
 }
 
 int
-nvif_outp_acquire_dp(struct nvif_outp *outp,  bool hda)
+nvif_outp_acquire_dp(struct nvif_outp *outp, u8 dpcd[16],
+		     int link_nr, int link_bw, bool hda, bool mst)
 {
 	struct nvif_outp_acquire_v0 args;
 	int ret;
 
+	args.dp.link_nr = link_nr;
+	args.dp.link_bw = link_bw;
 	args.dp.hda = hda;
+	args.dp.mst = mst;
+	memcpy(args.dp.dpcd, dpcd, sizeof(args.dp.dpcd));
 
 	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_DP, &args);
 	NVIF_ERRON(ret, &outp->object,
-		   "[ACQUIRE proto:DP hda:%d] or:%d link:%d", args.dp.hda, args.or, args.link);
+		   "[ACQUIRE proto:DP link_nr:%d link_bw:%02x hda:%d mst:%d] or:%d link:%d",
+		   args.dp.link_nr, args.dp.link_bw, args.dp.hda, args.dp.mst, args.or, args.link);
 	return ret;
 }
 

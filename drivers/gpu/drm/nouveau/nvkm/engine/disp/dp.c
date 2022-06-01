@@ -287,7 +287,7 @@ nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
 	u8 sink[2], data;
 	int ret;
 
-	OUTP_DBG(outp, "training %d x %d MB/s", ior->dp.nr, ior->dp.bw * 27);
+	OUTP_DBG(outp, "training %dx%02x", ior->dp.nr, ior->dp.bw);
 
 	/* Intersect misc. capabilities of the OR and sink. */
 	if (disp->engine.subdev.device->chipset < 0x110)
@@ -455,6 +455,21 @@ nvkm_dp_train(struct nvkm_outp *outp, u32 dataKBps)
 	/* Link training. */
 	OUTP_DBG(outp, "training");
 	nvkm_dp_train_init(outp);
+
+	/* Validate and train at configuration requested (if any) on ACQUIRE. */
+	if (outp->dp.lt.nr) {
+		for (nr = outp->dp.links; ret < 0 && nr; nr >>= 1) {
+			for (rate = 0; nr == outp->dp.lt.nr && rate < outp->dp.rates; rate++) {
+				if (outp->dp.rate[rate].rate / 27000 == outp->dp.lt.bw) {
+					ior->dp.bw = outp->dp.rate[rate].rate / 27000;
+					ior->dp.nr = nr;
+					ret = nvkm_dp_train_links(outp, rate);
+				}
+			}
+		}
+	}
+
+	/* Otherwise, loop through all valid link configurations that support the data rate. */
 	for (nr = outp->dp.links; ret < 0 && nr; nr >>= 1) {
 		for (rate = 0; ret < 0 && rate < outp->dp.rates; rate++) {
 			if (outp->dp.rate[rate].rate * nr >= dataKBps || WARN_ON(!ior->dp.nr)) {
@@ -465,6 +480,8 @@ nvkm_dp_train(struct nvkm_outp *outp, u32 dataKBps)
 			}
 		}
 	}
+
+	/* Finish up. */
 	nvkm_dp_train_fini(outp);
 	if (ret < 0)
 		OUTP_ERR(outp, "training failed");
