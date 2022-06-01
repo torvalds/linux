@@ -26,7 +26,7 @@
 static int
 gv100_disp_curs_idle(struct nv50_disp_chan *chan)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u32 soff = (chan->chid.ctrl - 1) * 0x04;
 	nvkm_msec(device, 2000,
 		u32 stat = nvkm_rd32(device, 0x610664 + soff);
@@ -39,7 +39,7 @@ gv100_disp_curs_idle(struct nv50_disp_chan *chan)
 static void
 gv100_disp_curs_intr(struct nv50_disp_chan *chan, bool en)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u32 mask = 0x00010000 << chan->head;
 	const u32 data = en ? mask : 0;
 	nvkm_mask(device, 0x611dac, mask, data);
@@ -48,7 +48,7 @@ gv100_disp_curs_intr(struct nv50_disp_chan *chan, bool en)
 static void
 gv100_disp_curs_fini(struct nv50_disp_chan *chan)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u32 hoff = chan->chid.ctrl * 4;
 	nvkm_mask(device, 0x6104e0 + hoff, 0x00000010, 0x00000010);
 	gv100_disp_curs_idle(chan);
@@ -58,7 +58,7 @@ gv100_disp_curs_fini(struct nv50_disp_chan *chan)
 static int
 gv100_disp_curs_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	nvkm_wr32(device, 0x6104e0 + chan->chid.ctrl * 4, 0x00000001);
 	return gv100_disp_curs_idle(chan);
@@ -74,7 +74,7 @@ gv100_disp_curs = {
 
 int
 gv100_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_curs_new_(&gv100_disp_curs, disp, 73, 73,
 				   oclass, argv, argc, pobject);

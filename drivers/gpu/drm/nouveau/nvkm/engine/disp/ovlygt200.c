@@ -67,7 +67,7 @@ gt200_disp_ovly_mthd = {
 
 int
 gt200_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_ovly_new_(&nv50_disp_dmac_func, &gt200_disp_ovly_mthd,
 				   disp, 3, oclass, argv, argc, pobject);

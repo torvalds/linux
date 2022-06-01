@@ -32,7 +32,7 @@
 int
 nv50_disp_base_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp *disp, int chid,
+		    struct nvkm_disp *disp, int chid,
 		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nvkm_object **pobject)
 {
@@ -48,7 +48,7 @@ nv50_disp_base_new_(const struct nv50_disp_chan_func *func,
 		nvif_ioctl(parent, "create disp base channel dma vers %d "
 				   "pushbuf %016llx head %d\n",
 			   args->v0.version, args->v0.pushbuf, args->v0.head);
-		if (!nvkm_head_find(&disp->base, args->v0.head))
+		if (!nvkm_head_find(disp, args->v0.head))
 			return -EINVAL;
 		push = args->v0.pushbuf;
 		head = args->v0.head;
@@ -112,7 +112,7 @@ nv50_disp_base_mthd = {
 
 int
 nv50_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nv50_disp *disp, struct nvkm_object **pobject)
+		   struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_base_new_(&nv50_disp_dmac_func, &nv50_disp_base_mthd,
 				   disp, 1, oclass, argv, argc, pobject);

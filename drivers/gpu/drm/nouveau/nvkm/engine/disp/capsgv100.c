@@ -24,7 +24,7 @@
 
 struct gv100_disp_caps {
 	struct nvkm_object object;
-	struct nv50_disp *disp;
+	struct nvkm_disp *disp;
 };
 
 static int
@@ -32,7 +32,7 @@ gv100_disp_caps_map(struct nvkm_object *object, void *argv, u32 argc,
 		    enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	struct gv100_disp_caps *caps = gv100_disp_caps(object);
-	struct nvkm_device *device = caps->disp->base.engine.subdev.device;
+	struct nvkm_device *device = caps->disp->engine.subdev.device;
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = 0x640000 + device->func->resource_addr(device, 0);
 	*size = 0x1000;
@@ -46,7 +46,7 @@ gv100_disp_caps = {
 
 int
 gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	struct gv100_disp_caps *caps;
 

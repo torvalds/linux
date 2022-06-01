@@ -19,9 +19,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
+#include "outp.h"
 #include "channv50.h"
 #include "rootnv50.h"
 
@@ -39,16 +40,15 @@ gv100_disp_wndw_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 void
 gv100_disp_super(struct work_struct *work)
 {
-	struct nv50_disp *disp =
-		container_of(work, struct nv50_disp, supervisor);
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, supervisor);
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
 	u32 stat = nvkm_rd32(device, 0x6107a8);
 	u32 mask[4];
 
 	nvkm_debug(subdev, "supervisor %d: %08x\n", ffs(disp->super), stat);
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		mask[head->id] = nvkm_rd32(device, 0x6107ac + (head->id * 4));
 		HEAD_DBG(head, "%08x", mask[head->id]);
 	}
@@ -56,47 +56,47 @@ gv100_disp_super(struct work_struct *work)
 	if (disp->super & 0x00000001) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		nv50_disp_super_1(disp);
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_1_0(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000002) {
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_2_0(disp, head);
 		}
-		nvkm_outp_route(&disp->base);
-		list_for_each_entry(head, &disp->base.head, head) {
+		nvkm_outp_route(disp);
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00010000))
 				continue;
 			nv50_disp_super_2_1(disp, head);
 		}
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_2_2(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000004) {
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_3_0(disp, head);
 		}
 	}
 
-	list_for_each_entry(head, &disp->base.head, head)
+	list_for_each_entry(head, &disp->heads, head)
 		nvkm_wr32(device, 0x6107ac + (head->id * 4), 0x00000000);
 	nvkm_wr32(device, 0x6107a8, 0x80000000);
 }
 
 static void
-gv100_disp_exception(struct nv50_disp *disp, int chid)
+gv100_disp_exception(struct nvkm_disp *disp, int chid)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x611020 + (chid * 12));
 	u32 type = (stat & 0x00007000) >> 12;
@@ -136,9 +136,9 @@ gv100_disp_exception(struct nv50_disp *disp, int chid)
 }
 
 static void
-gv100_disp_intr_ctrl_disp(struct nv50_disp *disp)
+gv100_disp_intr_ctrl_disp(struct nvkm_disp *disp)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x611c30);
 
@@ -184,9 +184,9 @@ gv100_disp_intr_ctrl_disp(struct nv50_disp *disp)
 }
 
 static void
-gv100_disp_intr_exc_other(struct nv50_disp *disp)
+gv100_disp_intr_exc_other(struct nvkm_disp *disp)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x611854);
 	unsigned long mask;
@@ -213,9 +213,9 @@ gv100_disp_intr_exc_other(struct nv50_disp *disp)
 }
 
 static void
-gv100_disp_intr_exc_winim(struct nv50_disp *disp)
+gv100_disp_intr_exc_winim(struct nvkm_disp *disp)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	unsigned long stat = nvkm_rd32(device, 0x611850);
 	int wndw;
@@ -233,9 +233,9 @@ gv100_disp_intr_exc_winim(struct nv50_disp *disp)
 }
 
 static void
-gv100_disp_intr_exc_win(struct nv50_disp *disp)
+gv100_disp_intr_exc_win(struct nvkm_disp *disp)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	unsigned long stat = nvkm_rd32(device, 0x61184c);
 	int wndw;
@@ -253,9 +253,9 @@ gv100_disp_intr_exc_win(struct nv50_disp *disp)
 }
 
 static void
-gv100_disp_intr_head_timing(struct nv50_disp *disp, int head)
+gv100_disp_intr_head_timing(struct nvkm_disp *disp, int head)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x611800 + (head * 0x04));
 
@@ -266,7 +266,7 @@ gv100_disp_intr_head_timing(struct nv50_disp *disp, int head)
 	}
 
 	if (stat & 0x00000004) {
-		nvkm_disp_vblank(&disp->base, head);
+		nvkm_disp_vblank(disp, head);
 		nvkm_wr32(device, 0x611800 + (head * 0x04), 0x00000004);
 		stat &= ~0x00000004;
 	}
@@ -278,9 +278,9 @@ gv100_disp_intr_head_timing(struct nv50_disp *disp, int head)
 }
 
 void
-gv100_disp_intr(struct nv50_disp *disp)
+gv100_disp_intr(struct nvkm_disp *disp)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x611ec0);
 	unsigned long mask;
@@ -318,16 +318,16 @@ gv100_disp_intr(struct nv50_disp *disp)
 }
 
 void
-gv100_disp_fini(struct nv50_disp *disp)
+gv100_disp_fini(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_wr32(device, 0x611db0, 0x00000000);
 }
 
 static int
-gv100_disp_init(struct nv50_disp *disp)
+gv100_disp_init(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_head *head;
 	int i, j;
 	u32 tmp;
@@ -354,7 +354,7 @@ gv100_disp_init(struct nv50_disp *disp)
 	}
 
 	/* Head capabilities. */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const int id = head->id;
 
 		/* RG. */
@@ -414,7 +414,7 @@ gv100_disp_init(struct nv50_disp *disp)
 	nvkm_wr32(device, 0x611da4, 0x00000000); /* EN. */
 
 	/* HEAD_TIMING(n): VBLANK. */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const u32 hoff = head->id * 4;
 		nvkm_wr32(device, 0x611cc0 + hoff, 0x00000004); /* MSK. */
 		nvkm_wr32(device, 0x611d80 + hoff, 0x00000000); /* EN. */
@@ -430,19 +430,16 @@ static const struct nvkm_disp_func
 gv100_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = gv100_disp_init,
-	.fini_ = gv100_disp_fini,
-	.intr_ = gv100_disp_intr,
-	.uevent = &gv100_disp_chan_uevent,
+	.init = gv100_disp_init,
+	.fini = gv100_disp_fini,
+	.intr = gv100_disp_intr,
 	.super = gv100_disp_super,
-	.root = &gv100_disp_root_oclass,
+	.uevent = &gv100_disp_chan_uevent,
 	.wndw = { .cnt = gv100_disp_wndw_cnt },
 	.head = { .cnt = gv100_head_cnt, .new = gv100_head_new },
 	.sor = { .cnt = gv100_sor_cnt, .new = gv100_sor_new },
 	.ramht_size = 0x2000,
+	.root = &gv100_disp_root_oclass,
 };
 
 int

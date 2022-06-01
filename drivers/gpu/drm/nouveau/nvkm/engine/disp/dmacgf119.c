@@ -38,7 +38,7 @@ gf119_disp_dmac_bind(struct nv50_disp_chan *chan,
 void
 gf119_disp_dmac_fini(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;
@@ -60,7 +60,7 @@ gf119_disp_dmac_fini(struct nv50_disp_chan *chan)
 static int
 gf119_disp_dmac_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;

@@ -32,7 +32,7 @@
 int
 nv50_disp_core_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp *disp, int chid,
+		    struct nvkm_disp *disp, int chid,
 		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nvkm_object **pobject)
 {
@@ -166,7 +166,7 @@ nv50_disp_core_mthd = {
 static void
 nv50_disp_core_fini(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* deactivate channel */
@@ -186,7 +186,7 @@ nv50_disp_core_fini(struct nv50_disp_chan *chan)
 static int
 nv50_disp_core_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* attempt to unstick channel from some unknown state */
@@ -227,7 +227,7 @@ nv50_disp_core_func = {
 
 int
 nv50_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nv50_disp *disp, struct nvkm_object **pobject)
+		   struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_core_new_(&nv50_disp_core_func, &nv50_disp_core_mthd,
 				   disp, 0, oclass, argv, argc, pobject);

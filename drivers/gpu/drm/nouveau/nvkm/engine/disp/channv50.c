@@ -35,10 +35,10 @@
 #include <nvif/unpack.h>
 
 static void
-nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
+nv50_disp_mthd_list(struct nvkm_disp *disp, int debug, u32 base, int c,
 		    const struct nv50_disp_mthd_list *list, int inst)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int i;
 
@@ -66,8 +66,8 @@ nv50_disp_mthd_list(struct nv50_disp *disp, int debug, u32 base, int c,
 void
 nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int debug)
 {
-	struct nv50_disp *disp = chan->disp;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_disp *disp = chan->disp;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	const struct nv50_disp_chan_mthd *mthd = chan->mthd;
 	const struct nv50_disp_mthd_list *list;
 	int i, j;
@@ -106,8 +106,8 @@ nv50_disp_chan_mthd(struct nv50_disp_chan *chan, int debug)
 static void
 nv50_disp_chan_uevent_fini(struct nvkm_event *event, int type, int index)
 {
-	struct nv50_disp *disp = container_of(event, typeof(*disp), uevent);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_disp *disp = container_of(event, typeof(*disp), uevent);
+	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_mask(device, 0x610028, 0x00000001 << index, 0x00000000 << index);
 	nvkm_wr32(device, 0x610020, 0x00000001 << index);
 }
@@ -115,14 +115,14 @@ nv50_disp_chan_uevent_fini(struct nvkm_event *event, int type, int index)
 static void
 nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 {
-	struct nv50_disp *disp = container_of(event, typeof(*disp), uevent);
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_disp *disp = container_of(event, typeof(*disp), uevent);
+	struct nvkm_device *device = disp->engine.subdev.device;
 	nvkm_wr32(device, 0x610020, 0x00000001 << index);
 	nvkm_mask(device, 0x610028, 0x00000001 << index, 0x00000001 << index);
 }
 
 void
-nv50_disp_chan_uevent_send(struct nv50_disp *disp, int chid)
+nv50_disp_chan_uevent_send(struct nvkm_disp *disp, int chid)
 {
 	struct nvif_notify_uevent_rep {
 	} rep;
@@ -167,7 +167,7 @@ nv50_disp_chan_user(struct nv50_disp_chan *chan, u64 *psize)
 void
 nv50_disp_chan_intr(struct nv50_disp_chan *chan, bool en)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u32 mask = 0x00010001 << chan->chid.user;
 	const u32 data = en ? 0x00010000 << chan->chid.user : 0x00000000;
 	nvkm_mask(device, 0x610028, mask, data);
@@ -177,7 +177,7 @@ static int
 nv50_disp_chan_rd32(struct nvkm_object *object, u64 addr, u32 *data)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	u64 size, base = chan->func->user(chan, &size);
 	*data = nvkm_rd32(device, base + addr);
 	return 0;
@@ -187,7 +187,7 @@ static int
 nv50_disp_chan_wr32(struct nvkm_object *object, u64 addr, u32 data)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	u64 size, base = chan->func->user(chan, &size);
 	nvkm_wr32(device, base + addr, data);
 	return 0;
@@ -198,7 +198,7 @@ nv50_disp_chan_ntfy(struct nvkm_object *object, u32 type,
 		    struct nvkm_event **pevent)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nv50_disp *disp = chan->disp;
+	struct nvkm_disp *disp = chan->disp;
 	switch (type) {
 	case NV50_DISP_CORE_CHANNEL_DMA_V0_NTFY_UEVENT:
 		*pevent = &disp->uevent;
@@ -214,7 +214,7 @@ nv50_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 		   enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u64 base = device->func->resource_addr(device, 0);
 	*type = NVKM_OBJECT_MAP_IO;
 	*addr = base + chan->func->user(chan, size);
@@ -223,7 +223,7 @@ nv50_disp_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 
 struct nv50_disp_chan_object {
 	struct nvkm_oproxy oproxy;
-	struct nv50_disp *disp;
+	struct nvkm_disp *disp;
 	int hash;
 };
 
@@ -245,8 +245,8 @@ nv50_disp_chan_child_new(const struct nvkm_oclass *oclass,
 			 void *argv, u32 argc, struct nvkm_object **pobject)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(oclass->parent);
-	struct nv50_disp *disp = chan->disp;
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_disp *disp = chan->disp;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	const struct nvkm_device_oclass *sclass = oclass->priv;
 	struct nv50_disp_chan_object *object;
 	int ret;
@@ -274,7 +274,7 @@ nv50_disp_chan_child_get(struct nvkm_object *object, int index,
 			 struct nvkm_oclass *sclass)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const struct nvkm_device_oclass *oclass = NULL;
 
 	if (chan->func->bind)
@@ -315,7 +315,7 @@ static void *
 nv50_disp_chan_dtor(struct nvkm_object *object)
 {
 	struct nv50_disp_chan *chan = nv50_disp_chan(object);
-	struct nv50_disp *disp = chan->disp;
+	struct nvkm_disp *disp = chan->disp;
 	if (chan->chid.user >= 0)
 		disp->chan[chan->chid.user] = NULL;
 	nvkm_memory_unref(&chan->memory);
@@ -337,7 +337,7 @@ nv50_disp_chan = {
 int
 nv50_disp_chan_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp *disp, int ctrl, int user, int head,
+		    struct nvkm_disp *disp, int ctrl, int user, int head,
 		    const struct nvkm_oclass *oclass,
 		    struct nvkm_object **pobject)
 {

@@ -50,7 +50,7 @@ g94_disp_core_mthd = {
 
 int
 g94_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		  struct nv50_disp *disp, struct nvkm_object **pobject)
+		  struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_core_new_(&nv50_disp_core_func, &g94_disp_core_mthd,
 				   disp, 0, oclass, argv, argc, pobject);

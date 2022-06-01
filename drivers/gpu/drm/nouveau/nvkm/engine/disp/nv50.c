@@ -21,9 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
+#include "outp.h"
 #include "channv50.h"
 #include "rootnv50.h"
 
@@ -36,32 +37,9 @@
 #include <subdev/devinit.h>
 #include <subdev/timer.h>
 
-void
-nv50_disp_intr_(struct nvkm_disp *base)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	disp->func->intr_(disp);
-}
-
-void
-nv50_disp_fini_(struct nvkm_disp *base)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	disp->func->fini_(disp);
-}
-
-int
-nv50_disp_init_(struct nvkm_disp *base)
-{
-	struct nv50_disp *disp = nv50_disp(base);
-	return disp->func->init_(disp);
-}
-
 void *
-nv50_disp_dtor_(struct nvkm_disp *base)
+nv50_disp_dtor_(struct nvkm_disp *disp)
 {
-	struct nv50_disp *disp = nv50_disp(base);
-
 	nvkm_ramht_del(&disp->ramht);
 	nvkm_gpuobj_del(&disp->inst);
 
@@ -73,56 +51,55 @@ nv50_disp_dtor_(struct nvkm_disp *base)
 }
 
 int
-nv50_disp_oneinit_(struct nvkm_disp *base)
+nv50_disp_oneinit_(struct nvkm_disp *disp)
 {
-	struct nv50_disp *disp = nv50_disp(base);
 	const struct nvkm_disp_func *func = disp->func;
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ret, i;
 
 	if (func->wndw.cnt) {
-		disp->wndw.nr = func->wndw.cnt(&disp->base, &disp->wndw.mask);
+		disp->wndw.nr = func->wndw.cnt(disp, &disp->wndw.mask);
 		nvkm_debug(subdev, "Window(s): %d (%08lx)\n",
 			   disp->wndw.nr, disp->wndw.mask);
 	}
 
-	disp->head.nr = func->head.cnt(&disp->base, &disp->head.mask);
+	disp->head.nr = func->head.cnt(disp, &disp->head.mask);
 	nvkm_debug(subdev, "  Head(s): %d (%02lx)\n",
 		   disp->head.nr, disp->head.mask);
 	for_each_set_bit(i, &disp->head.mask, disp->head.nr) {
-		ret = func->head.new(&disp->base, i);
+		ret = func->head.new(disp, i);
 		if (ret)
 			return ret;
 	}
 
 	if (func->dac.cnt) {
-		disp->dac.nr = func->dac.cnt(&disp->base, &disp->dac.mask);
+		disp->dac.nr = func->dac.cnt(disp, &disp->dac.mask);
 		nvkm_debug(subdev, "   DAC(s): %d (%02lx)\n",
 			   disp->dac.nr, disp->dac.mask);
 		for_each_set_bit(i, &disp->dac.mask, disp->dac.nr) {
-			ret = func->dac.new(&disp->base, i);
+			ret = func->dac.new(disp, i);
 			if (ret)
 				return ret;
 		}
 	}
 
 	if (func->pior.cnt) {
-		disp->pior.nr = func->pior.cnt(&disp->base, &disp->pior.mask);
+		disp->pior.nr = func->pior.cnt(disp, &disp->pior.mask);
 		nvkm_debug(subdev, "  PIOR(s): %d (%02lx)\n",
 			   disp->pior.nr, disp->pior.mask);
 		for_each_set_bit(i, &disp->pior.mask, disp->pior.nr) {
-			ret = func->pior.new(&disp->base, i);
+			ret = func->pior.new(disp, i);
 			if (ret)
 				return ret;
 		}
 	}
 
-	disp->sor.nr = func->sor.cnt(&disp->base, &disp->sor.mask);
+	disp->sor.nr = func->sor.cnt(disp, &disp->sor.mask);
 	nvkm_debug(subdev, "   SOR(s): %d (%02lx)\n",
 		   disp->sor.nr, disp->sor.mask);
 	for_each_set_bit(i, &disp->sor.mask, disp->sor.nr) {
-		ret = func->sor.new(&disp->base, i);
+		ret = func->sor.new(disp, i);
 		if (ret)
 			return ret;
 	}
@@ -140,15 +117,15 @@ int
 nv50_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
-	struct nv50_disp *disp;
+	struct nvkm_disp *disp;
 	int ret;
 
 	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
 		return -ENOMEM;
 	disp->func = func;
-	*pdisp = &disp->base;
+	*pdisp = disp;
 
-	ret = nvkm_disp_ctor(func, device, type, inst, &disp->base);
+	ret = nvkm_disp_ctor(func, device, type, inst, disp);
 	if (ret)
 		return ret;
 
@@ -262,7 +239,7 @@ static struct nvkm_ior *
 nv50_disp_super_ior_asy(struct nvkm_head *head)
 {
 	struct nvkm_ior *ior;
-	list_for_each_entry(ior, &head->disp->ior, head) {
+	list_for_each_entry(ior, &head->disp->iors, head) {
 		if (ior->asy.head & (1 << head->id)) {
 			HEAD_DBG(head, "to %s", ior->name);
 			return ior;
@@ -276,7 +253,7 @@ static struct nvkm_ior *
 nv50_disp_super_ior_arm(struct nvkm_head *head)
 {
 	struct nvkm_ior *ior;
-	list_for_each_entry(ior, &head->disp->ior, head) {
+	list_for_each_entry(ior, &head->disp->iors, head) {
 		if (ior->arm.head & (1 << head->id)) {
 			HEAD_DBG(head, "on %s", ior->name);
 			return ior;
@@ -287,7 +264,7 @@ nv50_disp_super_ior_arm(struct nvkm_head *head)
 }
 
 void
-nv50_disp_super_3_0(struct nv50_disp *disp, struct nvkm_head *head)
+nv50_disp_super_3_0(struct nvkm_disp *disp, struct nvkm_head *head)
 {
 	struct nvkm_ior *ior;
 
@@ -412,7 +389,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 }
 
 void
-nv50_disp_super_2_2(struct nv50_disp *disp, struct nvkm_head *head)
+nv50_disp_super_2_2(struct nvkm_disp *disp, struct nvkm_head *head)
 {
 	const u32 khz = head->asy.hz / 1000;
 	struct nvkm_outp *outp;
@@ -459,9 +436,9 @@ nv50_disp_super_2_2(struct nv50_disp *disp, struct nvkm_head *head)
 }
 
 void
-nv50_disp_super_2_1(struct nv50_disp *disp, struct nvkm_head *head)
+nv50_disp_super_2_1(struct nvkm_disp *disp, struct nvkm_head *head)
 {
-	struct nvkm_devinit *devinit = disp->base.engine.subdev.device->devinit;
+	struct nvkm_devinit *devinit = disp->engine.subdev.device->devinit;
 	const u32 khz = head->asy.hz / 1000;
 	HEAD_DBG(head, "supervisor 2.1 - %d khz", khz);
 	if (khz)
@@ -469,7 +446,7 @@ nv50_disp_super_2_1(struct nv50_disp *disp, struct nvkm_head *head)
 }
 
 void
-nv50_disp_super_2_0(struct nv50_disp *disp, struct nvkm_head *head)
+nv50_disp_super_2_0(struct nvkm_disp *disp, struct nvkm_head *head)
 {
 	struct nvkm_outp *outp;
 	struct nvkm_ior *ior;
@@ -493,7 +470,7 @@ nv50_disp_super_2_0(struct nv50_disp *disp, struct nvkm_head *head)
 }
 
 void
-nv50_disp_super_1_0(struct nv50_disp *disp, struct nvkm_head *head)
+nv50_disp_super_1_0(struct nvkm_disp *disp, struct nvkm_head *head)
 {
 	struct nvkm_ior *ior;
 
@@ -508,17 +485,17 @@ nv50_disp_super_1_0(struct nv50_disp *disp, struct nvkm_head *head)
 }
 
 void
-nv50_disp_super_1(struct nv50_disp *disp)
+nv50_disp_super_1(struct nvkm_disp *disp)
 {
 	struct nvkm_head *head;
 	struct nvkm_ior *ior;
 
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		head->func->state(head, &head->arm);
 		head->func->state(head, &head->asy);
 	}
 
-	list_for_each_entry(ior, &disp->base.ior, head) {
+	list_for_each_entry(ior, &disp->iors, head) {
 		ior->func->state(ior, &ior->arm);
 		ior->func->state(ior, &ior->asy);
 	}
@@ -527,9 +504,8 @@ nv50_disp_super_1(struct nv50_disp *disp)
 void
 nv50_disp_super(struct work_struct *work)
 {
-	struct nv50_disp *disp =
-		container_of(work, struct nv50_disp, supervisor);
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, supervisor);
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
 	u32 super = nvkm_rd32(device, 0x610030);
@@ -539,7 +515,7 @@ nv50_disp_super(struct work_struct *work)
 	if (disp->super & 0x00000010) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		nv50_disp_super_1(disp);
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000020 << head->id)))
 				continue;
 			if (!(super & (0x00000080 << head->id)))
@@ -548,25 +524,25 @@ nv50_disp_super(struct work_struct *work)
 		}
 	} else
 	if (disp->super & 0x00000020) {
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
 			nv50_disp_super_2_0(disp, head);
 		}
-		nvkm_outp_route(&disp->base);
-		list_for_each_entry(head, &disp->base.head, head) {
+		nvkm_outp_route(disp);
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000200 << head->id)))
 				continue;
 			nv50_disp_super_2_1(disp, head);
 		}
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
 			nv50_disp_super_2_2(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000040) {
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
 			nv50_disp_super_3_0(disp, head);
@@ -595,9 +571,9 @@ nv50_disp_intr_error_code[] = {
 };
 
 static void
-nv50_disp_intr_error(struct nv50_disp *disp, int chid)
+nv50_disp_intr_error(struct nvkm_disp *disp, int chid)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 data = nvkm_rd32(device, 0x610084 + (chid * 0x08));
 	u32 addr = nvkm_rd32(device, 0x610080 + (chid * 0x08));
@@ -629,9 +605,9 @@ nv50_disp_intr_error(struct nv50_disp *disp, int chid)
 }
 
 void
-nv50_disp_intr(struct nv50_disp *disp)
+nv50_disp_intr(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	u32 intr0 = nvkm_rd32(device, 0x610020);
 	u32 intr1 = nvkm_rd32(device, 0x610024);
 
@@ -648,12 +624,12 @@ nv50_disp_intr(struct nv50_disp *disp)
 	}
 
 	if (intr1 & 0x00000004) {
-		nvkm_disp_vblank(&disp->base, 0);
+		nvkm_disp_vblank(disp, 0);
 		nvkm_wr32(device, 0x610024, 0x00000004);
 	}
 
 	if (intr1 & 0x00000008) {
-		nvkm_disp_vblank(&disp->base, 1);
+		nvkm_disp_vblank(disp, 1);
 		nvkm_wr32(device, 0x610024, 0x00000008);
 	}
 
@@ -665,18 +641,18 @@ nv50_disp_intr(struct nv50_disp *disp)
 }
 
 void
-nv50_disp_fini(struct nv50_disp *disp)
+nv50_disp_fini(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	/* disable all interrupts */
 	nvkm_wr32(device, 0x610024, 0x00000000);
 	nvkm_wr32(device, 0x610020, 0x00000000);
 }
 
 int
-nv50_disp_init(struct nv50_disp *disp)
+nv50_disp_init(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_head *head;
 	u32 tmp;
 	int i;
@@ -689,7 +665,7 @@ nv50_disp_init(struct nv50_disp *disp)
 	nvkm_wr32(device, 0x610184, tmp);
 
 	/* ... CRTC caps */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		tmp = nvkm_rd32(device, 0x616100 + (head->id * 0x800));
 		nvkm_wr32(device, 0x610190 + (head->id * 0x10), tmp);
 		tmp = nvkm_rd32(device, 0x616104 + (head->id * 0x800));
@@ -742,19 +718,16 @@ static const struct nvkm_disp_func
 nv50_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = nv50_disp_init,
-	.fini_ = nv50_disp_fini,
-	.intr_ = nv50_disp_intr,
-	.uevent = &nv50_disp_chan_uevent,
+	.init = nv50_disp_init,
+	.fini = nv50_disp_fini,
+	.intr = nv50_disp_intr,
 	.super = nv50_disp_super,
-	.root = &nv50_disp_root_oclass,
+	.uevent = &nv50_disp_chan_uevent,
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = nv50_sor_cnt, .new = nv50_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
+	.root = &nv50_disp_root_oclass,
 };
 
 int

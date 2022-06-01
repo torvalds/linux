@@ -28,7 +28,7 @@
 static int
 gp102_disp_dmac_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;

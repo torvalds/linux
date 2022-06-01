@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
 #include "rootnv50.h"
@@ -30,19 +30,16 @@ static const struct nvkm_disp_func
 gt215_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = nv50_disp_init,
-	.fini_ = nv50_disp_fini,
-	.intr_ = nv50_disp_intr,
-	.uevent = &nv50_disp_chan_uevent,
+	.init = nv50_disp_init,
+	.fini = nv50_disp_fini,
+	.intr = nv50_disp_intr,
 	.super = nv50_disp_super,
-	.root = &gt215_disp_root_oclass,
+	.uevent = &nv50_disp_chan_uevent,
 	.head = { .cnt = nv50_head_cnt, .new = nv50_head_new },
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = g94_sor_cnt, .new = gt215_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
+	.root = &gt215_disp_root_oclass,
 };
 
 int

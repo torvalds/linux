@@ -25,7 +25,7 @@
 
 int
 gp102_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_curs_new_(&gf119_disp_pioc_func, disp, 13, 17,
 				   oclass, argv, argc, pobject);

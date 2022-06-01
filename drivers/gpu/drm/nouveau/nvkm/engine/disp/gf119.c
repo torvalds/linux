@@ -21,9 +21,10 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
+#include "outp.h"
 #include "channv50.h"
 #include "rootnv50.h"
 
@@ -33,15 +34,14 @@
 void
 gf119_disp_super(struct work_struct *work)
 {
-	struct nv50_disp *disp =
-		container_of(work, struct nv50_disp, supervisor);
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, supervisor);
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
 	u32 mask[4];
 
 	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super));
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		mask[head->id] = nvkm_rd32(device, 0x6101d4 + (head->id * 0x800));
 		HEAD_DBG(head, "%08x", mask[head->id]);
 	}
@@ -49,47 +49,47 @@ gf119_disp_super(struct work_struct *work)
 	if (disp->super & 0x00000001) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		nv50_disp_super_1(disp);
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_1_0(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000002) {
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_2_0(disp, head);
 		}
-		nvkm_outp_route(&disp->base);
-		list_for_each_entry(head, &disp->base.head, head) {
+		nvkm_outp_route(disp);
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00010000))
 				continue;
 			nv50_disp_super_2_1(disp, head);
 		}
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_2_2(disp, head);
 		}
 	} else
 	if (disp->super & 0x00000004) {
-		list_for_each_entry(head, &disp->base.head, head) {
+		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
 			nv50_disp_super_3_0(disp, head);
 		}
 	}
 
-	list_for_each_entry(head, &disp->base.head, head)
+	list_for_each_entry(head, &disp->heads, head)
 		nvkm_wr32(device, 0x6101d4 + (head->id * 0x800), 0x00000000);
 	nvkm_wr32(device, 0x6101d0, 0x80000000);
 }
 
 void
-gf119_disp_intr_error(struct nv50_disp *disp, int chid)
+gf119_disp_intr_error(struct nvkm_disp *disp, int chid)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x6101f0 + (chid * 12));
 	u32 type = (stat & 0x00007000) >> 12;
@@ -119,9 +119,9 @@ gf119_disp_intr_error(struct nv50_disp *disp, int chid)
 }
 
 void
-gf119_disp_intr(struct nv50_disp *disp)
+gf119_disp_intr(struct nvkm_disp *disp)
 {
-	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
 	u32 intr = nvkm_rd32(device, 0x610088);
@@ -161,13 +161,13 @@ gf119_disp_intr(struct nv50_disp *disp)
 		intr &= ~0x00100000;
 	}
 
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const u32 hoff = head->id * 0x800;
 		u32 mask = 0x01000000 << head->id;
 		if (mask & intr) {
 			u32 stat = nvkm_rd32(device, 0x6100bc + hoff);
 			if (stat & 0x00000001)
-				nvkm_disp_vblank(&disp->base, head->id);
+				nvkm_disp_vblank(disp, head->id);
 			nvkm_mask(device, 0x6100bc + hoff, 0, 0);
 			nvkm_rd32(device, 0x6100c0 + hoff);
 		}
@@ -175,17 +175,17 @@ gf119_disp_intr(struct nv50_disp *disp)
 }
 
 void
-gf119_disp_fini(struct nv50_disp *disp)
+gf119_disp_fini(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	/* disable all interrupts */
 	nvkm_wr32(device, 0x6100b0, 0x00000000);
 }
 
 int
-gf119_disp_init(struct nv50_disp *disp)
+gf119_disp_init(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_head *head;
 	u32 tmp;
 	int i;
@@ -196,7 +196,7 @@ gf119_disp_init(struct nv50_disp *disp)
 	 */
 
 	/* ... CRTC caps */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const u32 hoff = head->id * 0x800;
 		tmp = nvkm_rd32(device, 0x616104 + hoff);
 		nvkm_wr32(device, 0x6101b4 + hoff, tmp);
@@ -243,7 +243,7 @@ gf119_disp_init(struct nv50_disp *disp)
 	 *
 	 * ftp://download.nvidia.com/open-gpu-doc/gk104-disable-underflow-reporting/1/gk104-disable-underflow-reporting.txt
 	 */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const u32 hoff = head->id * 0x800;
 		nvkm_mask(device, 0x616308 + hoff, 0x00000111, 0x00000010);
 	}
@@ -255,19 +255,16 @@ static const struct nvkm_disp_func
 gf119_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = gf119_disp_init,
-	.fini_ = gf119_disp_fini,
-	.intr_ = gf119_disp_intr,
+	.init = gf119_disp_init,
+	.fini = gf119_disp_fini,
+	.intr = gf119_disp_intr,
 	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
-	.root = &gf119_disp_root_oclass,
+	.uevent = &gf119_disp_chan_uevent,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gf119_sor_new },
+	.root = &gf119_disp_root_oclass,
 };
 
 int

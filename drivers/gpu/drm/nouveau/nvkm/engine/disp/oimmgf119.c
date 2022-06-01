@@ -25,7 +25,7 @@
 
 int
 gf119_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_oimm_new_(&gf119_disp_pioc_func, disp, 9, 9,
 				   oclass, argv, argc, pobject);

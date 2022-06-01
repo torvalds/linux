@@ -9,13 +9,41 @@ struct nvkm_disp {
 	const struct nvkm_disp_func *func;
 	struct nvkm_engine engine;
 
-	struct list_head head;
-	struct list_head ior;
-	struct list_head outp;
-	struct list_head conn;
+	struct list_head heads;
+	struct list_head iors;
+	struct list_head outps;
+	struct list_head conns;
 
 	struct nvkm_event hpd;
 	struct nvkm_event vblank;
+
+	struct workqueue_struct *wq;
+	struct work_struct supervisor;
+	u32 super;
+
+	struct nvkm_event uevent;
+
+	struct {
+		unsigned long mask;
+		int nr;
+	} wndw, head, dac;
+
+	struct {
+		unsigned long mask;
+		int nr;
+		u32 lvdsconf;
+	} sor;
+
+	struct {
+		unsigned long mask;
+		int nr;
+		u8 type[3];
+	} pior;
+
+	struct nvkm_gpuobj *inst;
+	struct nvkm_ramht *ramht;
+
+	struct nv50_disp_chan *chan[81];
 
 	struct {
 		spinlock_t lock;

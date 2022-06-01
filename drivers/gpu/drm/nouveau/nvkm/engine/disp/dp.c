@@ -508,7 +508,7 @@ nvkm_dp_acquire(struct nvkm_outp *outp)
 	mutex_lock(&outp->dp.mutex);
 
 	/* Check that link configuration meets current requirements. */
-	list_for_each_entry(head, &outp->disp->head, head) {
+	list_for_each_entry(head, &outp->disp->heads, head) {
 		if (ior->asy.head & (1 << head->id)) {
 			u32 khz = (head->asy.hz >> ior->asy.rgdiv) / 1000;
 			datakbps += khz * head->asy.or.depth;

@@ -25,6 +25,7 @@
 #include "channv50.h"
 #include "head.h"
 #include "ior.h"
+#include "outp.h"
 
 #include <core/client.h>
 
@@ -40,7 +41,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		struct nv50_disp_mthd_v1 v1;
 	} *args = data;
 	struct nv50_disp_root *root = nv50_disp_root(object);
-	struct nv50_disp *disp = root->disp;
+	struct nvkm_disp *disp = root->disp;
 	struct nvkm_outp *temp, *outp = NULL;
 	struct nvkm_head *head;
 	u16 type, mask = 0;
@@ -68,11 +69,11 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} else
 		return ret;
 
-	if (!(head = nvkm_head_find(&disp->base, hidx)))
+	if (!(head = nvkm_head_find(disp, hidx)))
 		return -ENXIO;
 
 	if (mask) {
-		list_for_each_entry(temp, &disp->base.outp, head) {
+		list_for_each_entry(temp, &disp->outps, head) {
 			if ((temp->info.hasht         == type) &&
 			    (temp->info.hashm & mask) == mask) {
 				outp = temp;
@@ -275,7 +276,7 @@ static int
 nv50_disp_root_child_new_(const struct nvkm_oclass *oclass,
 			  void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	struct nv50_disp *disp = nv50_disp_root(oclass->parent)->disp;
+	struct nvkm_disp *disp = nv50_disp_root(oclass->parent)->disp;
 	const struct nv50_disp_user *user = oclass->priv;
 	return user->ctor(oclass, argv, argc, disp, pobject);
 }
@@ -313,10 +314,9 @@ nv50_disp_root_ = {
 
 int
 nv50_disp_root_new_(const struct nv50_disp_root_func *func,
-		    struct nvkm_disp *base, const struct nvkm_oclass *oclass,
+		    struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
 		    void *data, u32 size, struct nvkm_object **pobject)
 {
-	struct nv50_disp *disp = nv50_disp(base);
 	struct nv50_disp_root *root;
 
 	if (!(root = kzalloc(sizeof(*root), GFP_KERNEL)))

@@ -33,7 +33,7 @@
 int
 nv50_disp_dmac_new_(const struct nv50_disp_chan_func *func,
 		    const struct nv50_disp_chan_mthd *mthd,
-		    struct nv50_disp *disp, int chid, int head, u64 push,
+		    struct nvkm_disp *disp, int chid, int head, u64 push,
 		    const struct nvkm_oclass *oclass,
 		    struct nvkm_object **pobject)
 {
@@ -79,7 +79,7 @@ nv50_disp_dmac_bind(struct nv50_disp_chan *chan,
 static void
 nv50_disp_dmac_fini(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;
@@ -101,7 +101,7 @@ nv50_disp_dmac_fini(struct nv50_disp_chan *chan)
 static int
 nv50_disp_dmac_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ctrl = chan->chid.ctrl;
 	int user = chan->chid.user;

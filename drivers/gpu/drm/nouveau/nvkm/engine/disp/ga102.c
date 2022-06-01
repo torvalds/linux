@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
 #include "channv50.h"
@@ -29,19 +29,16 @@ static const struct nvkm_disp_func
 ga102_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = tu102_disp_init,
-	.fini_ = gv100_disp_fini,
-	.intr_ = gv100_disp_intr,
-	.uevent = &gv100_disp_chan_uevent,
+	.init = tu102_disp_init,
+	.fini = gv100_disp_fini,
+	.intr = gv100_disp_intr,
 	.super = gv100_disp_super,
-	.root = &ga102_disp_root_oclass,
+	.uevent = &gv100_disp_chan_uevent,
 	.wndw = { .cnt = gv100_disp_wndw_cnt },
 	.head = { .cnt = gv100_head_cnt, .new = gv100_head_new },
 	.sor = { .cnt = gv100_sor_cnt, .new = ga102_sor_new },
 	.ramht_size = 0x2000,
+	.root = &ga102_disp_root_oclass,
 };
 
 int

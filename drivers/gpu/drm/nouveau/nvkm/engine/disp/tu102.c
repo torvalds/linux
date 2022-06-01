@@ -19,7 +19,7 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
 #include "channv50.h"
@@ -29,9 +29,9 @@
 #include <subdev/timer.h>
 
 int
-tu102_disp_init(struct nv50_disp *disp)
+tu102_disp_init(struct nvkm_disp *disp)
 {
-	struct nvkm_device *device = disp->base.engine.subdev.device;
+	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_head *head;
 	int i, j;
 	u32 tmp;
@@ -58,7 +58,7 @@ tu102_disp_init(struct nv50_disp *disp)
 	}
 
 	/* Head capabilities. */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const int id = head->id;
 
 		/* RG. */
@@ -119,7 +119,7 @@ tu102_disp_init(struct nv50_disp *disp)
 	nvkm_wr32(device, 0x611da4, 0x00000000); /* EN. */
 
 	/* HEAD_TIMING(n): VBLANK. */
-	list_for_each_entry(head, &disp->base.head, head) {
+	list_for_each_entry(head, &disp->heads, head) {
 		const u32 hoff = head->id * 4;
 		nvkm_wr32(device, 0x611cc0 + hoff, 0x00000004); /* MSK. */
 		nvkm_wr32(device, 0x611d80 + hoff, 0x00000000); /* EN. */
@@ -135,19 +135,16 @@ static const struct nvkm_disp_func
 tu102_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = tu102_disp_init,
-	.fini_ = gv100_disp_fini,
-	.intr_ = gv100_disp_intr,
-	.uevent = &gv100_disp_chan_uevent,
+	.init = tu102_disp_init,
+	.fini = gv100_disp_fini,
+	.intr = gv100_disp_intr,
 	.super = gv100_disp_super,
-	.root = &tu102_disp_root_oclass,
+	.uevent = &gv100_disp_chan_uevent,
 	.wndw = { .cnt = gv100_disp_wndw_cnt },
 	.head = { .cnt = gv100_head_cnt, .new = gv100_head_new },
 	.sor = { .cnt = gv100_sor_cnt, .new = tu102_sor_new },
 	.ramht_size = 0x2000,
+	.root = &tu102_disp_root_oclass,
 };
 
 int

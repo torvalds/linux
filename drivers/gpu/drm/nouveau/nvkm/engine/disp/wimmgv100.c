@@ -29,7 +29,7 @@
 static void
 gv100_disp_wimm_intr(struct nv50_disp_chan *chan, bool en)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u32 mask = 0x00000001 << chan->head;
 	const u32 data = en ? mask : 0;
 	nvkm_mask(device, 0x611da8, mask, data);
@@ -46,7 +46,7 @@ gv100_disp_wimm = {
 static int
 gv100_disp_wimm_new_(const struct nv50_disp_chan_func *func,
 		     const struct nv50_disp_chan_mthd *mthd,
-		     struct nv50_disp *disp, int chid,
+		     struct nvkm_disp *disp, int chid,
 		     const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		     struct nvkm_object **pobject)
 {
@@ -75,7 +75,7 @@ gv100_disp_wimm_new_(const struct nv50_disp_chan_func *func,
 
 int
 gv100_disp_wimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return gv100_disp_wimm_new_(&gv100_disp_wimm, NULL, disp, 33,
 				    oclass, argv, argc, pobject);

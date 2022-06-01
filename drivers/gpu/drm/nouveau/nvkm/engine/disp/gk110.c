@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "nv50.h"
+#include "priv.h"
 #include "head.h"
 #include "ior.h"
 #include "rootnv50.h"
@@ -30,19 +30,16 @@ static const struct nvkm_disp_func
 gk110_disp = {
 	.dtor = nv50_disp_dtor_,
 	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.init_ = gf119_disp_init,
-	.fini_ = gf119_disp_fini,
-	.intr_ = gf119_disp_intr,
+	.init = gf119_disp_init,
+	.fini = gf119_disp_fini,
+	.intr = gf119_disp_intr,
 	.intr_error = gf119_disp_intr_error,
-	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
-	.root = &gk110_disp_root_oclass,
+	.uevent = &gf119_disp_chan_uevent,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gk104_sor_new },
+	.root = &gk110_disp_root_oclass,
 };
 
 int

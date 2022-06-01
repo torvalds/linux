@@ -28,7 +28,7 @@
 static int
 gp102_disp_core_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	/* initialise channel for dma command submission */
@@ -63,7 +63,7 @@ gp102_disp_core_func = {
 
 int
 gp102_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_core_new_(&gp102_disp_core_func, &gk104_disp_core_mthd,
 				   disp, 0, oclass, argv, argc, pobject);

@@ -35,7 +35,7 @@ nvkm_outp_route(struct nvkm_disp *disp)
 	struct nvkm_outp *outp;
 	struct nvkm_ior *ior;
 
-	list_for_each_entry(ior, &disp->ior, head) {
+	list_for_each_entry(ior, &disp->iors, head) {
 		if ((outp = ior->arm.outp) && ior->arm.outp != ior->asy.outp) {
 			OUTP_DBG(outp, "release %s", ior->name);
 			if (ior->func->route.set)
@@ -44,7 +44,7 @@ nvkm_outp_route(struct nvkm_disp *disp)
 		}
 	}
 
-	list_for_each_entry(ior, &disp->ior, head) {
+	list_for_each_entry(ior, &disp->iors, head) {
 		if ((outp = ior->asy.outp)) {
 			OUTP_DBG(outp, "acquire %s", ior->name);
 			if (ior->asy.outp != ior->arm.outp) {
@@ -119,7 +119,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 	struct nvkm_ior *ior;
 
 	/* Failing that, a completely unused OR is the next best thing. */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
+	list_for_each_entry(ior, &outp->disp->iors, head) {
 		if (!ior->identity && !!ior->func->hda.hpd == hda &&
 		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
 		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
@@ -129,7 +129,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 	/* Last resort is to assign an OR that's already active on HW,
 	 * but will be released during the next modeset.
 	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
+	list_for_each_entry(ior, &outp->disp->iors, head) {
 		if (!ior->identity && !!ior->func->hda.hpd == hda &&
 		    !ior->asy.outp && ior->type == type &&
 		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
@@ -168,7 +168,7 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 	/* First preference is to reuse the OR that is currently armed
 	 * on HW, if any, in order to prevent unnecessary switching.
 	 */
-	list_for_each_entry(ior, &outp->disp->ior, head) {
+	list_for_each_entry(ior, &outp->disp->iors, head) {
 		if (!ior->identity && !ior->asy.outp && ior->arm.outp == outp) {
 			/*XXX: For various complicated reasons, we can't outright switch
 			 *     the boot-time OR on the first modeset without some fairly

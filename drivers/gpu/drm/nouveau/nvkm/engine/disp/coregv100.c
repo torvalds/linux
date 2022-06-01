@@ -137,7 +137,7 @@ gv100_disp_core_mthd = {
 static int
 gv100_disp_core_idle(struct nv50_disp_chan *chan)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	nvkm_msec(device, 2000,
 		u32 stat = nvkm_rd32(device, 0x610630);
 		if ((stat & 0x001f0000) == 0x000b0000)
@@ -156,7 +156,7 @@ gv100_disp_core_user(struct nv50_disp_chan *chan, u64 *psize)
 static void
 gv100_disp_core_intr(struct nv50_disp_chan *chan, bool en)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	const u32 mask = 0x00000001;
 	const u32 data = en ? mask : 0;
 	nvkm_mask(device, 0x611dac, mask, data);
@@ -165,7 +165,7 @@ gv100_disp_core_intr(struct nv50_disp_chan *chan, bool en)
 static void
 gv100_disp_core_fini(struct nv50_disp_chan *chan)
 {
-	struct nvkm_device *device = chan->disp->base.engine.subdev.device;
+	struct nvkm_device *device = chan->disp->engine.subdev.device;
 	nvkm_mask(device, 0x6104e0, 0x00000010, 0x00000000);
 	gv100_disp_core_idle(chan);
 	nvkm_mask(device, 0x6104e0, 0x00000002, 0x00000000);
@@ -175,7 +175,7 @@ gv100_disp_core_fini(struct nv50_disp_chan *chan)
 static int
 gv100_disp_core_init(struct nv50_disp_chan *chan)
 {
-	struct nvkm_subdev *subdev = &chan->disp->base.engine.subdev;
+	struct nvkm_subdev *subdev = &chan->disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 
 	nvkm_wr32(device, 0x610b24, lower_32_bits(chan->push));
@@ -200,7 +200,7 @@ gv100_disp_core = {
 
 int
 gv100_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nv50_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_core_new_(&gv100_disp_core, &gv100_disp_core_mthd,
 				   disp, 0, oclass, argv, argc, pobject);

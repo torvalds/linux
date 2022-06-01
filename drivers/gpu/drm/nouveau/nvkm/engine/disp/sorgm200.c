@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "ior.h"
+#include "outp.h"
 
 void
 gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)

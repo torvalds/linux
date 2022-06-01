@@ -155,7 +155,7 @@ g94_sor_war_update_sppll1(struct nvkm_disp *disp)
 	bool used = false;
 	u32 clksor;
 
-	list_for_each_entry(ior, &disp->ior, head) {
+	list_for_each_entry(ior, &disp->iors, head) {
 		if (ior->type != SOR)
 			continue;
 

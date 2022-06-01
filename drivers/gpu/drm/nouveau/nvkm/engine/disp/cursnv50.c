@@ -31,7 +31,7 @@
 
 int
 nv50_disp_curs_new_(const struct nv50_disp_chan_func *func,
-		    struct nv50_disp *disp, int ctrl, int user,
+		    struct nvkm_disp *disp, int ctrl, int user,
 		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		    struct nvkm_object **pobject)
 {
@@ -45,7 +45,7 @@ nv50_disp_curs_new_(const struct nv50_disp_chan_func *func,
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
 		nvif_ioctl(parent, "create disp cursor vers %d head %d\n",
 			   args->v0.version, args->v0.head);
-		if (!nvkm_head_find(&disp->base, args->v0.head))
+		if (!nvkm_head_find(disp, args->v0.head))
 			return -EINVAL;
 		head = args->v0.head;
 	} else
@@ -57,7 +57,7 @@ nv50_disp_curs_new_(const struct nv50_disp_chan_func *func,
 
 int
 nv50_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nv50_disp *disp, struct nvkm_object **pobject)
+		   struct nvkm_disp *disp, struct nvkm_object **pobject)
 {
 	return nv50_disp_curs_new_(&nv50_disp_pioc_func, disp, 7, 7,
 				   oclass, argv, argc, pobject);
