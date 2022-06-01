@@ -348,6 +348,24 @@ static void index_stripe_sectors(struct btrfs_raid_bio *rbio)
 	}
 }
 
+static void steal_rbio_page(struct btrfs_raid_bio *src,
+			    struct btrfs_raid_bio *dest, int page_nr)
+{
+	const u32 sectorsize = src->bioc->fs_info->sectorsize;
+	const u32 sectors_per_page = PAGE_SIZE / sectorsize;
+	int i;
+
+	if (dest->stripe_pages[page_nr])
+		__free_page(dest->stripe_pages[page_nr]);
+	dest->stripe_pages[page_nr] = src->stripe_pages[page_nr];
+	src->stripe_pages[page_nr] = NULL;
+
+	/* Also update the sector->uptodate bits. */
+	for (i = sectors_per_page * page_nr;
+	     i < sectors_per_page * page_nr + sectors_per_page; i++)
+		dest->stripe_sectors[i].uptodate = true;
+}
+
 /*
  * Stealing an rbio means taking all the uptodate pages from the stripe array
  * in the source rbio and putting them into the destination rbio.
@@ -359,7 +377,6 @@ static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 {
 	int i;
 	struct page *s;
-	struct page *d;
 
 	if (!test_bit(RBIO_CACHE_READY_BIT, &src->flags))
 		return;
@@ -369,12 +386,7 @@ static void steal_rbio(struct btrfs_raid_bio *src, struct btrfs_raid_bio *dest)
 		if (!s || !full_page_sectors_uptodate(src, i))
 			continue;
 
-		d = dest->stripe_pages[i];
-		if (d)
-			__free_page(d);
-
-		dest->stripe_pages[i] = s;
-		src->stripe_pages[i] = NULL;
+		steal_rbio_page(src, dest, i);
 	}
 	index_stripe_sectors(dest);
 	index_stripe_sectors(src);
