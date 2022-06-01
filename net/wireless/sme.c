@@ -147,6 +147,7 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 {
 	struct cfg80211_registered_device *rdev = wiphy_to_rdev(wdev->wiphy);
 	struct cfg80211_connect_params *params;
+	struct cfg80211_auth_request auth_req = {};
 	struct cfg80211_assoc_request req = {};
 	int err;
 
@@ -167,13 +168,18 @@ static int cfg80211_conn_do_work(struct wireless_dev *wdev,
 		if (WARN_ON(!rdev->ops->auth))
 			return -EOPNOTSUPP;
 		wdev->conn->state = CFG80211_CONN_AUTHENTICATING;
-		return cfg80211_mlme_auth(rdev, wdev->netdev,
-					  params->channel, params->auth_type,
-					  params->bssid,
-					  params->ssid, params->ssid_len,
-					  NULL, 0,
-					  params->key, params->key_len,
-					  params->key_idx, NULL, 0);
+		auth_req.key = params->key;
+		auth_req.key_len = params->key_len;
+		auth_req.key_idx = params->key_idx;
+		auth_req.auth_type = params->auth_type;
+		auth_req.bss = cfg80211_get_bss(&rdev->wiphy, params->channel,
+						params->bssid,
+						params->ssid, params->ssid_len,
+						IEEE80211_BSS_TYPE_ESS,
+						IEEE80211_PRIVACY_ANY);
+		err = cfg80211_mlme_auth(rdev, wdev->netdev, &auth_req);
+		cfg80211_put_bss(&rdev->wiphy, auth_req.bss);
+		return err;
 	case CFG80211_CONN_AUTH_FAILED_TIMEOUT:
 		*treason = NL80211_TIMEOUT_AUTH;
 		return -ENOTCONN;

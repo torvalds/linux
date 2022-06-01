@@ -232,47 +232,26 @@ EXPORT_SYMBOL(cfg80211_michael_mic_failure);
 /* some MLME handling for userspace SME */
 int cfg80211_mlme_auth(struct cfg80211_registered_device *rdev,
 		       struct net_device *dev,
-		       struct ieee80211_channel *chan,
-		       enum nl80211_auth_type auth_type,
-		       const u8 *bssid,
-		       const u8 *ssid, int ssid_len,
-		       const u8 *ie, int ie_len,
-		       const u8 *key, int key_len, int key_idx,
-		       const u8 *auth_data, int auth_data_len)
+		       struct cfg80211_auth_request *req)
 {
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
-	struct cfg80211_auth_request req = {
-		.ie = ie,
-		.ie_len = ie_len,
-		.auth_data = auth_data,
-		.auth_data_len = auth_data_len,
-		.auth_type = auth_type,
-		.key = key,
-		.key_len = key_len,
-		.key_idx = key_idx,
-	};
-	int err;
 
 	ASSERT_WDEV_LOCK(wdev);
 
-	if (auth_type == NL80211_AUTHTYPE_SHARED_KEY)
-		if (!key || !key_len || key_idx < 0 || key_idx > 3)
-			return -EINVAL;
-
-	if (wdev->connected &&
-	    ether_addr_equal(bssid, wdev->u.client.connected_addr))
-		return -EALREADY;
-
-	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
-				   IEEE80211_BSS_TYPE_ESS,
-				   IEEE80211_PRIVACY_ANY);
-	if (!req.bss)
+	if (!req->bss)
 		return -ENOENT;
 
-	err = rdev_auth(rdev, dev, &req);
+	if (req->auth_type == NL80211_AUTHTYPE_SHARED_KEY) {
+		if (!req->key || !req->key_len ||
+		    req->key_idx < 0 || req->key_idx > 3)
+			return -EINVAL;
+	}
 
-	cfg80211_put_bss(&rdev->wiphy, req.bss);
-	return err;
+	if (wdev->connected &&
+	    ether_addr_equal(req->bss->bssid, wdev->u.client.connected_addr))
+		return -EALREADY;
+
+	return rdev_auth(rdev, dev, req);
 }
 
 /*  Do a logical ht_capa &= ht_capa_mask.  */

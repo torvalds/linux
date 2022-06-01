@@ -10168,11 +10168,12 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	struct net_device *dev = info->user_ptr[1];
 	struct ieee80211_channel *chan;
-	const u8 *bssid, *ssid, *ie = NULL, *auth_data = NULL;
-	int err, ssid_len, ie_len = 0, auth_data_len = 0;
+	const u8 *bssid, *ssid;
+	int err, ssid_len;
 	enum nl80211_auth_type auth_type;
 	struct key_parse key;
 	bool local_state_change;
+	struct cfg80211_auth_request req = {};
 	u32 freq;
 
 	if (!info->attrs[NL80211_ATTR_MAC])
@@ -10243,8 +10244,8 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	ssid_len = nla_len(info->attrs[NL80211_ATTR_SSID]);
 
 	if (info->attrs[NL80211_ATTR_IE]) {
-		ie = nla_data(info->attrs[NL80211_ATTR_IE]);
-		ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
+		req.ie = nla_data(info->attrs[NL80211_ATTR_IE]);
+		req.ie_len = nla_len(info->attrs[NL80211_ATTR_IE]);
 	}
 
 	auth_type = nla_get_u32(info->attrs[NL80211_ATTR_AUTH_TYPE]);
@@ -10264,8 +10265,8 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 		    auth_type != NL80211_AUTHTYPE_FILS_SK_PFS &&
 		    auth_type != NL80211_AUTHTYPE_FILS_PK)
 			return -EINVAL;
-		auth_data = nla_data(info->attrs[NL80211_ATTR_AUTH_DATA]);
-		auth_data_len = nla_len(info->attrs[NL80211_ATTR_AUTH_DATA]);
+		req.auth_data = nla_data(info->attrs[NL80211_ATTR_AUTH_DATA]);
+		req.auth_data_len = nla_len(info->attrs[NL80211_ATTR_AUTH_DATA]);
 	}
 
 	local_state_change = !!info->attrs[NL80211_ATTR_LOCAL_STATE_CHANGE];
@@ -10277,12 +10278,23 @@ static int nl80211_authenticate(struct sk_buff *skb, struct genl_info *info)
 	if (local_state_change)
 		return 0;
 
+	req.auth_type = auth_type;
+	req.key = key.p.key;
+	req.key_len = key.p.key_len;
+	req.key_idx = key.idx;
+
+	req.bss = cfg80211_get_bss(&rdev->wiphy, chan, bssid, ssid, ssid_len,
+				   IEEE80211_BSS_TYPE_ESS,
+				   IEEE80211_PRIVACY_ANY);
+	if (!req.bss)
+		return -ENOENT;
+
 	wdev_lock(dev->ieee80211_ptr);
-	err = cfg80211_mlme_auth(rdev, dev, chan, auth_type, bssid,
-				 ssid, ssid_len, ie, ie_len,
-				 key.p.key, key.p.key_len, key.idx,
-				 auth_data, auth_data_len);
+	err = cfg80211_mlme_auth(rdev, dev, &req);
 	wdev_unlock(dev->ieee80211_ptr);
+
+	cfg80211_put_bss(&rdev->wiphy, req.bss);
+
 	return err;
 }
 
