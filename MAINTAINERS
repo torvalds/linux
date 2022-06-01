@@ -18662,6 +18662,7 @@ SOFTWARE RAID (Multiple Disks) SUPPORT
 M:	Song Liu <song@kernel.org>
 L:	linux-raid@vger.kernel.org
 S:	Supported
+Q:	https://patchwork.kernel.org/project/linux-raid/list/
 T:	git git://git.kernel.org/pub/scm/linux/kernel/git/song/md.git
 F:	drivers/md/Kconfig
 F:	drivers/md/Makefile
