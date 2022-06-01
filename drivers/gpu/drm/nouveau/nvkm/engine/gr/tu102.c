@@ -53,7 +53,7 @@ tu102_gr_init_zcull(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const u32 magicgpc918 = DIV_ROUND_UP(0x00800000, gr->tpc_total);
-	const u8 tile_nr = ALIGN(gr->tpc_total, 64);
+	const u8 tile_nr = gr->func->gpc_nr * gr->func->tpc_nr;
 	u8 bank[GPC_MAX] = {}, gpc, i, j;
 	u32 data;
 
@@ -115,7 +115,7 @@ tu102_gr = {
 	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
-	.tpc_nr = 5,
+	.tpc_nr = 6,
 	.ppc_nr = 3,
 	.grctx = &tu102_grctx,
 	.zbc = &gp102_gr_zbc,
