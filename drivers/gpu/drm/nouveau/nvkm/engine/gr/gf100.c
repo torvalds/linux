@@ -394,6 +394,17 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	chan->vmm = nvkm_vmm_ref(fifoch->vmm);
 	*pobject = &chan->object;
 
+	/* Generate golden context image. */
+	mutex_lock(&gr->fecs.mutex);
+	if (gr->data == NULL) {
+		ret = gf100_grctx_generate(gr, chan, fifoch->inst);
+		if (ret) {
+			nvkm_error(&base->engine.subdev, "failed to construct context\n");
+			return ret;
+		}
+	}
+	mutex_unlock(&gr->fecs.mutex);
+
 	/* allocate memory for a "mmio list" buffer that's used by the HUB
 	 * fuc to modify some per-context register settings on first load
 	 * of the context.
@@ -1763,15 +1774,6 @@ gf100_gr_init_ctxctl_ext(struct gf100_gr *gr)
 			return ret;
 	}
 
-	/* Generate golden context image. */
-	if (gr->data == NULL) {
-		int ret = gf100_grctx_generate(gr);
-		if (ret) {
-			nvkm_error(subdev, "failed to construct context\n");
-			return ret;
-		}
-	}
-
 	return 0;
 }
 
@@ -1823,14 +1825,6 @@ gf100_gr_init_ctxctl_int(struct gf100_gr *gr)
 	}
 
 	gr->size = nvkm_rd32(device, 0x409804);
-	if (gr->data == NULL) {
-		int ret = gf100_grctx_generate(gr);
-		if (ret) {
-			nvkm_error(subdev, "failed to construct context\n");
-			return ret;
-		}
-	}
-
 	return 0;
 }
 

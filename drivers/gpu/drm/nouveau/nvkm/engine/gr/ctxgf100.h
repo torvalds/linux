@@ -81,7 +81,7 @@ struct gf100_grctx_func {
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
-int  gf100_grctx_generate(struct gf100_gr *);
+int  gf100_grctx_generate(struct gf100_gr *, struct gf100_gr_chan *, struct nvkm_gpuobj *inst);
 void gf100_grctx_generate_main(struct gf100_gr *, struct gf100_grctx *);
 void gf100_grctx_generate_bundle(struct gf100_grctx *);
 void gf100_grctx_generate_pagepool(struct gf100_grctx *);

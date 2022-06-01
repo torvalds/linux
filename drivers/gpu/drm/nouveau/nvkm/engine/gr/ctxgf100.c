@@ -26,6 +26,7 @@
 #include <subdev/fb.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
+#include <engine/fifo.h>
 
 /*******************************************************************************
  * PGRAPH context register lists
@@ -1433,14 +1434,12 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 #define CB_RESERVED 0x80000
 
 int
-gf100_grctx_generate(struct gf100_gr *gr)
+gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvkm_gpuobj *inst)
 {
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_memory *inst = NULL;
 	struct nvkm_memory *data = NULL;
-	struct nvkm_vmm *vmm = NULL;
 	struct nvkm_vma *ctx = NULL;
 	struct gf100_grctx info;
 	int ret, i;
@@ -1472,37 +1471,19 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	/* Init SCC RAM. */
 	nvkm_wr32(device, 0x40802c, 0x00000001);
 
-	/* Allocate memory to for a "channel", which we'll use to generate
-	 * the default context values.
-	 */
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-			      0x1000, 0x1000, true, &inst);
-	if (ret)
-		goto done;
-
-	ret = nvkm_vmm_new(device, 0, 0, NULL, 0, NULL, "grctx", &vmm);
-	if (ret)
-		goto done;
-
-	vmm->debug = subdev->debug;
-
-	ret = nvkm_vmm_join(vmm, inst);
-	if (ret)
-		goto done;
-
+	/* Allocate memory to store context, and dummy global context buffers. */
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
 			      CB_RESERVED + gr->size, 0, true, &data);
 	if (ret)
 		goto done;
 
-	ret = nvkm_vmm_get(vmm, 0, nvkm_memory_size(data), &ctx);
+	ret = nvkm_vmm_get(chan->vmm, 0, nvkm_memory_size(data), &ctx);
 	if (ret)
 		goto done;
 
-	ret = nvkm_memory_map(data, 0, vmm, ctx, NULL, 0);
+	ret = nvkm_memory_map(data, 0, chan->vmm, ctx, NULL, 0);
 	if (ret)
 		goto done;
-
 
 	/* Setup context pointer. */
 	nvkm_kmap(inst);
@@ -1518,11 +1499,11 @@ gf100_grctx_generate(struct gf100_gr *gr)
 	info.buffer_nr = 0;
 
 	/* Make channel current. */
-	addr = nvkm_memory_addr(inst) >> 12;
+	addr = inst->addr >> 12;
 	if (gr->firmware) {
 		ret = gf100_gr_fecs_bind_pointer(gr, 0x80000000 | addr);
 		if (ret)
-			goto done;
+			goto done_inst;
 
 		nvkm_kmap(data);
 		nvkm_wo32(data, 0x1c, 1);
@@ -1552,7 +1533,7 @@ gf100_grctx_generate(struct gf100_gr *gr)
 			break;
 	) < 0) {
 		ret = -EBUSY;
-		goto done;
+		goto done_inst;
 	}
 
 	gr->data = kmalloc(gr->size, GFP_KERNEL);
@@ -1566,12 +1547,14 @@ gf100_grctx_generate(struct gf100_gr *gr)
 		ret = -ENOMEM;
 	}
 
+done_inst:
+	nvkm_kmap(inst);
+	nvkm_wo32(inst, 0x0210, 0);
+	nvkm_wo32(inst, 0x0214, 0);
+	nvkm_done(inst);
 done:
-	nvkm_vmm_put(vmm, &ctx);
+	nvkm_vmm_put(chan->vmm, &ctx);
 	nvkm_memory_unref(&data);
-	nvkm_vmm_part(vmm, inst);
-	nvkm_vmm_unref(&vmm);
-	nvkm_memory_unref(&inst);
 	return ret;
 }
 
