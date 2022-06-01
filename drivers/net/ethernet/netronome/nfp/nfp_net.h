@@ -117,11 +117,20 @@ struct nfp_nfdk_tx_buf;
 /* Convenience macro for writing dma address into RX/TX descriptors */
 #define nfp_desc_set_dma_addr(desc, dma_addr)				\
 	do {								\
-		__typeof(desc) __d = (desc);				\
+		__typeof__(desc) __d = (desc);				\
 		dma_addr_t __addr = (dma_addr);				\
 									\
 		__d->dma_addr_lo = cpu_to_le32(lower_32_bits(__addr));	\
 		__d->dma_addr_hi = upper_32_bits(__addr) & 0xff;	\
+	} while (0)
+
+#define nfp_nfdk_tx_desc_set_dma_addr(desc, dma_addr)			       \
+	do {								       \
+		__typeof__(desc) __d = (desc);				       \
+		dma_addr_t __addr = (dma_addr);				       \
+									       \
+		__d->dma_addr_hi = cpu_to_le16(upper_32_bits(__addr) & 0xff);  \
+		__d->dma_addr_lo = cpu_to_le32(lower_32_bits(__addr));         \
 	} while (0)
 
 /**
