@@ -48,10 +48,7 @@ mcp89_sor = {
 		.ctrl = gt215_sor_hdmi_ctrl,
 	},
 	.dp = &mcp89_sor_dp,
-	.hda = {
-		.hpd = gt215_sor_hda_hpd,
-		.eld = gt215_sor_hda_eld,
-	},
+	.hda = &gt215_sor_hda,
 };
 
 static int

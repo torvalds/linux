@@ -31,7 +31,7 @@
 
 #include <nvif/class.h>
 
-void
+static void
 gt215_sor_hda_eld(struct nvkm_ior *ior, int head, u8 *data, u8 size)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
@@ -45,7 +45,7 @@ gt215_sor_hda_eld(struct nvkm_ior *ior, int head, u8 *data, u8 size)
 	nvkm_mask(device, 0x61c448 + soff, 0x80000002, 0x80000002);
 }
 
-void
+static void
 gt215_sor_hda_hpd(struct nvkm_ior *ior, int head, bool present)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
@@ -57,6 +57,12 @@ gt215_sor_hda_hpd(struct nvkm_ior *ior, int head, bool present)
 		mask |= 0x00000002;
 	nvkm_mask(device, 0x61c448 + ior->id * 0x800, mask, data);
 }
+
+const struct nvkm_ior_func_hda
+gt215_sor_hda = {
+	.hpd = gt215_sor_hda_hpd,
+	.eld = gt215_sor_hda_eld,
+};
 
 void
 gt215_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
@@ -162,10 +168,7 @@ gt215_sor = {
 		.ctrl = gt215_sor_hdmi_ctrl,
 	},
 	.dp = &gt215_sor_dp,
-	.hda = {
-		.hpd = gt215_sor_hda_hpd,
-		.eld = gt215_sor_hda_eld,
-	},
+	.hda = &gt215_sor_hda,
 };
 
 static int

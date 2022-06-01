@@ -86,11 +86,11 @@ struct nvkm_ior_func {
 		void (*watermark)(struct nvkm_ior *, int head, u8 watermark);
 	} *dp;
 
-	struct {
+	const struct nvkm_ior_func_hda {
 		void (*hpd)(struct nvkm_ior *, int head, bool present);
 		void (*eld)(struct nvkm_ior *, int head, u8 *data, u8 size);
 		void (*device_entry)(struct nvkm_ior *, int head);
-	} hda;
+	} *hda;
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
@@ -139,8 +139,7 @@ void g94_sor_dp_watermark(struct nvkm_ior *, int, u8);
 
 void gt215_sor_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
 void gt215_sor_dp_audio(struct nvkm_ior *, int, bool);
-void gt215_sor_hda_hpd(struct nvkm_ior *, int, bool);
-void gt215_sor_hda_eld(struct nvkm_ior *, int, u8 *, u8);
+extern const struct nvkm_ior_func_hda gt215_sor_hda;
 
 int gf119_sor_cnt(struct nvkm_disp *, unsigned long *);
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
@@ -152,9 +151,9 @@ void gf119_sor_dp_vcpi(struct nvkm_ior *, int, u8, u8, u16, u16);
 void gf119_sor_dp_audio(struct nvkm_ior *, int, bool);
 void gf119_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
 void gf119_sor_dp_watermark(struct nvkm_ior *, int, u8);
+extern const struct nvkm_ior_func_hda gf119_sor_hda;
 void gf119_sor_hda_hpd(struct nvkm_ior *, int, bool);
 void gf119_sor_hda_eld(struct nvkm_ior *, int, u8 *, u8);
-void gf119_sor_hda_device_entry(struct nvkm_ior *, int);
 
 int gk104_sor_new(struct nvkm_disp *, int);
 void gk104_sor_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8);
@@ -175,7 +174,7 @@ void gv100_sor_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, 
 void gv100_sor_dp_audio(struct nvkm_ior *, int, bool);
 void gv100_sor_dp_audio_sym(struct nvkm_ior *, int, u16, u32);
 void gv100_sor_dp_watermark(struct nvkm_ior *, int, u8);
-void gv100_sor_hda_device_entry(struct nvkm_ior *, int);
+extern const struct nvkm_ior_func_hda gv100_sor_hda;
 
 void tu102_sor_dp_vcpi(struct nvkm_ior *, int, u8, u8, u16, u16);
 

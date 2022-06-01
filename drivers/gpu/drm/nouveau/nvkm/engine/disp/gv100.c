@@ -36,7 +36,7 @@
 #include <nvif/clc37e.h>
 #include <nvif/unpack.h>
 
-void
+static void
 gv100_sor_hda_device_entry(struct nvkm_ior *ior, int head)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
@@ -44,6 +44,13 @@ gv100_sor_hda_device_entry(struct nvkm_ior *ior, int head)
 
 	nvkm_mask(device, 0x616528 + hoff, 0x00000070, head << 4);
 }
+
+const struct nvkm_ior_func_hda
+gv100_sor_hda = {
+	.hpd = gf119_sor_hda_hpd,
+	.eld = gf119_sor_hda_eld,
+	.device_entry = gv100_sor_hda_device_entry,
+};
 
 void
 gv100_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
@@ -190,11 +197,7 @@ gv100_sor = {
 		.scdc = gm200_sor_hdmi_scdc,
 	},
 	.dp = &gv100_sor_dp,
-	.hda = {
-		.hpd = gf119_sor_hda_hpd,
-		.eld = gf119_sor_hda_eld,
-		.device_entry = gv100_sor_hda_device_entry,
-	},
+	.hda = &gv100_sor_hda,
 };
 
 static int

@@ -136,11 +136,7 @@ gm200_sor = {
 		.scdc = gm200_sor_hdmi_scdc,
 	},
 	.dp = &gm200_sor_dp,
-	.hda = {
-		.hpd = gf119_sor_hda_hpd,
-		.eld = gf119_sor_hda_eld,
-		.device_entry = gf119_sor_hda_device_entry,
-	},
+	.hda = &gf119_sor_hda,
 };
 
 static int

@@ -146,18 +146,18 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		} else
 			return ret;
 
-		if (!ior->func->hda.hpd)
+		if (!ior->hda)
 			return -ENODEV;
 
 		if (size && args->v0.data[0]) {
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp->audio(ior, hidx, true);
-			ior->func->hda.hpd(ior, hidx, true);
-			ior->func->hda.eld(ior, hidx, data, size);
+			ior->func->hda->hpd(ior, hidx, true);
+			ior->func->hda->eld(ior, hidx, data, size);
 		} else {
 			if (outp->info.type == DCB_OUTPUT_DP)
 				ior->func->dp->audio(ior, hidx, false);
-			ior->func->hda.hpd(ior, hidx, false);
+			ior->func->hda->hpd(ior, hidx, false);
 		}
 
 		return 0;

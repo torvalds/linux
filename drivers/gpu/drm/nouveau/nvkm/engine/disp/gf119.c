@@ -33,7 +33,7 @@
 
 #include <nvif/class.h>
 
-void
+static void
 gf119_sor_hda_device_entry(struct nvkm_ior *ior, int head)
 {
 	struct nvkm_device *device = ior->disp->engine.subdev.device;
@@ -65,7 +65,7 @@ gf119_sor_hda_hpd(struct nvkm_ior *ior, int head, bool present)
 	u32 mask = 0x80000001;
 
 	if (present) {
-		ior->func->hda.device_entry(ior, head);
+		ior->func->hda->device_entry(ior, head);
 		data |= 0x00000001;
 	} else {
 		mask |= 0x00000002;
@@ -73,6 +73,13 @@ gf119_sor_hda_hpd(struct nvkm_ior *ior, int head, bool present)
 
 	nvkm_mask(device, 0x10ec10 + soff, mask, data);
 }
+
+const struct nvkm_ior_func_hda
+gf119_sor_hda = {
+	.hpd = gf119_sor_hda_hpd,
+	.eld = gf119_sor_hda_eld,
+	.device_entry = gf119_sor_hda_device_entry,
+};
 
 void
 gf119_sor_dp_watermark(struct nvkm_ior *sor, int head, u8 watermark)
@@ -302,11 +309,7 @@ gf119_sor = {
 		.ctrl = gf119_sor_hdmi_ctrl,
 	},
 	.dp = &gf119_sor_dp,
-	.hda = {
-		.hpd = gf119_sor_hda_hpd,
-		.eld = gf119_sor_hda_eld,
-		.device_entry = gf119_sor_hda_device_entry,
-	},
+	.hda = &gf119_sor_hda,
 };
 
 static int
