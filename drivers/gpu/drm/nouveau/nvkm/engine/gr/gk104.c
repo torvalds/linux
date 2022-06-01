@@ -418,7 +418,7 @@ gk104_gr_init_ppc_exceptions(struct gf100_gr *gr)
 	int gpc, ppc;
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++) {
+		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++) {
 			if (!(gr->ppc_mask[gpc] & (1 << ppc)))
 				continue;
 			nvkm_wr32(device, PPC_UNIT(gpc, ppc, 0x038), 0xc0000000);

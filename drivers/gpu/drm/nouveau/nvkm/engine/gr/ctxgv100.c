@@ -75,7 +75,7 @@ gv100_grctx_generate_attrib(struct gf100_gr_chan *chan)
 	gf100_grctx_patch_wr32(chan, 0x40585c, alpha);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++, n++) {
+		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++, n++) {
 			const u32 as =  alpha * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 bs = attrib * gr->ppc_tpc_max;
 			const u32 gs =   gfxp * gr->ppc_tpc_max;

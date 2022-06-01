@@ -2003,12 +2003,14 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 		gr->tpc_nr[i]  = nvkm_rd32(device, GPC_UNIT(i, 0x2608));
 		gr->tpc_max = max(gr->tpc_max, gr->tpc_nr[i]);
 		gr->tpc_total += gr->tpc_nr[i];
-		gr->ppc_nr[i]  = gr->func->ppc_nr;
-		for (j = 0; j < gr->ppc_nr[i]; j++) {
+		for (j = 0; j < gr->func->ppc_nr; j++) {
 			gr->ppc_tpc_mask[i][j] =
 				nvkm_rd32(device, GPC_UNIT(i, 0x0c30 + (j * 4)));
 			if (gr->ppc_tpc_mask[i][j] == 0)
 				continue;
+
+			gr->ppc_nr[i]++;
+
 			gr->ppc_mask[i] |= (1 << j);
 			gr->ppc_tpc_nr[i][j] = hweight8(gr->ppc_tpc_mask[i][j]);
 			if (gr->ppc_tpc_min == 0 ||

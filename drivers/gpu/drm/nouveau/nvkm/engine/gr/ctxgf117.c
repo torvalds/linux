@@ -257,7 +257,7 @@ gf117_grctx_generate_attrib(struct gf100_gr_chan *chan)
 	gf100_grctx_patch_wr32(chan, 0x4064c4, ((alpha / 4) << 16) | max_batches);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++) {
+		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++) {
 			const u32 a = alpha * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 b =  beta * gr->ppc_tpc_nr[gpc][ppc];
 			const u32 t = timeslice_mode;

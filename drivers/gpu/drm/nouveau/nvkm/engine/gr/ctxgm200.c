@@ -87,7 +87,7 @@ gm200_grctx_generate_dist_skip_table(struct gf100_gr *gr)
 	int gpc, ppc, i;
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
-		for (ppc = 0; ppc < gr->ppc_nr[gpc]; ppc++) {
+		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++) {
 			u8 ppc_tpcs = gr->ppc_tpc_nr[gpc][ppc];
 			u8 ppc_tpcm = gr->ppc_tpc_mask[gpc][ppc];
 			while (ppc_tpcs-- > gr->ppc_tpc_min)
