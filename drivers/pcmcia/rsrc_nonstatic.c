@@ -394,7 +394,7 @@ static int do_validate_mem(struct pcmcia_socket *s,
  * do_mem_probe() checks a memory region for use by the PCMCIA subsystem.
  * To do so, the area is split up into sensible parts, and then passed
  * into the @validate() function. Only if @validate() and @fallback() fail,
- * the area is marked as unavaibale for use by the PCMCIA subsystem. The
+ * the area is marked as unavailable for use by the PCMCIA subsystem. The
  * function returns the size of the usable memory area.
  */
 static int do_mem_probe(struct pcmcia_socket *s, u_long base, u_long num,
