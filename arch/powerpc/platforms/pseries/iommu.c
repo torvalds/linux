@@ -1021,9 +1021,6 @@ static int query_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 
 	ret = rtas_call(ddw_avail[DDW_QUERY_PE_DMA_WIN], 3, out_sz, query_out,
 			cfg_addr, BUID_HI(buid), BUID_LO(buid));
-	dev_info(&dev->dev, "ibm,query-pe-dma-windows(%x) %x %x %x returned %d\n",
-		 ddw_avail[DDW_QUERY_PE_DMA_WIN], cfg_addr, BUID_HI(buid),
-		 BUID_LO(buid), ret);
 
 	switch (out_sz) {
 	case 5:
@@ -1040,6 +1037,11 @@ static int query_ddw(struct pci_dev *dev, const u32 *ddw_avail,
 		query->migration_capable = query_out[4];
 		break;
 	}
+
+	dev_info(&dev->dev, "ibm,query-pe-dma-windows(%x) %x %x %x returned %d, lb=%llx ps=%x wn=%d\n",
+		 ddw_avail[DDW_QUERY_PE_DMA_WIN], cfg_addr, BUID_HI(buid),
+		 BUID_LO(buid), ret, query->largest_available_block,
+		 query->page_size, query->windows_available);
 
 	return ret;
 }
