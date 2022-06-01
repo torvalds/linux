@@ -18,7 +18,6 @@
 #include "svm_util.h"
 #include "test_util.h"
 
-#define VCPU_ID		0
 #define INT_NR			0x20
 #define X86_FEATURE_NRIPS	BIT(3)
 
@@ -135,6 +134,7 @@ static void l1_guest_code(struct svm_test_data *svm, uint64_t is_nmi, uint64_t i
 
 static void run_test(bool is_nmi)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	vm_vaddr_t svm_gva;
 	vm_vaddr_t idt_alt_vm;
@@ -142,10 +142,10 @@ static void run_test(bool is_nmi)
 
 	pr_info("Running %s test\n", is_nmi ? "NMI" : "soft int");
 
-	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
+	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, VCPU_ID);
+	vcpu_init_descriptor_tables(vm, vcpu->id);
 
 	vm_install_exception_handler(vm, NMI_VECTOR, guest_nmi_handler);
 	vm_install_exception_handler(vm, BP_VECTOR, guest_bp_handler);
@@ -163,23 +163,23 @@ static void run_test(bool is_nmi)
 	} else {
 		idt_alt_vm = 0;
 	}
-	vcpu_args_set(vm, VCPU_ID, 3, svm_gva, (uint64_t)is_nmi, (uint64_t)idt_alt_vm);
+	vcpu_args_set(vm, vcpu->id, 3, svm_gva, (uint64_t)is_nmi, (uint64_t)idt_alt_vm);
 
 	memset(&debug, 0, sizeof(debug));
-	vcpu_guest_debug_set(vm, VCPU_ID, &debug);
+	vcpu_guest_debug_set(vm, vcpu->id, &debug);
 
-	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
+	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
 	alarm(2);
-	vcpu_run(vm, VCPU_ID);
+	vcpu_run(vm, vcpu->id);
 	alarm(0);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	switch (get_ucall(vm, VCPU_ID, &uc)) {
+	switch (get_ucall(vm, vcpu->id, &uc)) {
 	case UCALL_ABORT:
 		TEST_FAIL("%s at %s:%ld, vals = 0x%lx 0x%lx 0x%lx", (const char *)uc.args[0],
 			  __FILE__, uc.args[1], uc.args[2], uc.args[3], uc.args[4]);
