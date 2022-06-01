@@ -216,6 +216,7 @@
 #define PASCAL_DMA_COPY_B                                            0x0000c1b5
 #define VOLTA_DMA_COPY_A                                             0x0000c3b5
 #define TURING_DMA_COPY_A                                            0x0000c5b5
+#define AMPERE_DMA_COPY_A                                            0x0000c6b5
 #define AMPERE_DMA_COPY_B                                            0x0000c7b5
 
 #define FERMI_DECOMPRESS                                             0x000090b8
