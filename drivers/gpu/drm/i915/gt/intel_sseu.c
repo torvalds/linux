@@ -169,11 +169,41 @@ static void gen11_compute_sseu_info(struct sseu_dev_info *sseu, u8 s_en,
 	sseu->eu_total = compute_eu_total(sseu);
 }
 
-static void gen12_sseu_info_init(struct intel_gt *gt)
+static void xehp_sseu_info_init(struct intel_gt *gt)
 {
 	struct sseu_dev_info *sseu = &gt->info.sseu;
 	struct intel_uncore *uncore = gt->uncore;
 	u32 g_dss_en, c_dss_en = 0;
+	u16 eu_en = 0;
+	u8 eu_en_fuse;
+	int eu;
+
+	/*
+	 * The concept of slice has been removed in Xe_HP.  To be compatible
+	 * with prior generations, assume a single slice across the entire
+	 * device. Then calculate out the DSS for each workload type within
+	 * that software slice.
+	 */
+	intel_sseu_set_info(sseu, 1, 32, 16);
+	sseu->has_xehp_dss = 1;
+
+	g_dss_en = intel_uncore_read(uncore, GEN12_GT_GEOMETRY_DSS_ENABLE);
+	c_dss_en = intel_uncore_read(uncore, GEN12_GT_COMPUTE_DSS_ENABLE);
+
+	eu_en_fuse = intel_uncore_read(uncore, XEHP_EU_ENABLE) & XEHP_EU_ENA_MASK;
+
+	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
+		if (eu_en_fuse & BIT(eu))
+			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
+
+	gen11_compute_sseu_info(sseu, 0x1, g_dss_en, c_dss_en, eu_en);
+}
+
+static void gen12_sseu_info_init(struct intel_gt *gt)
+{
+	struct sseu_dev_info *sseu = &gt->info.sseu;
+	struct intel_uncore *uncore = gt->uncore;
+	u32 g_dss_en;
 	u16 eu_en = 0;
 	u8 eu_en_fuse;
 	u8 s_en;
@@ -183,43 +213,23 @@ static void gen12_sseu_info_init(struct intel_gt *gt)
 	 * Gen12 has Dual-Subslices, which behave similarly to 2 gen11 SS.
 	 * Instead of splitting these, provide userspace with an array
 	 * of DSS to more closely represent the hardware resource.
-	 *
-	 * In addition, the concept of slice has been removed in Xe_HP.
-	 * To be compatible with prior generations, assume a single slice
-	 * across the entire device. Then calculate out the DSS for each
-	 * workload type within that software slice.
 	 */
-	if (IS_DG2(gt->i915) || IS_XEHPSDV(gt->i915))
-		intel_sseu_set_info(sseu, 1, 32, 16);
-	else
-		intel_sseu_set_info(sseu, 1, 6, 16);
+	intel_sseu_set_info(sseu, 1, 6, 16);
 
-	/*
-	 * As mentioned above, Xe_HP does not have the concept of a slice.
-	 * Enable one for software backwards compatibility.
-	 */
-	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
-		s_en = 0x1;
-	else
-		s_en = intel_uncore_read(uncore, GEN11_GT_SLICE_ENABLE) &
-		       GEN11_GT_S_ENA_MASK;
+	s_en = intel_uncore_read(uncore, GEN11_GT_SLICE_ENABLE) &
+		GEN11_GT_S_ENA_MASK;
 
 	g_dss_en = intel_uncore_read(uncore, GEN12_GT_GEOMETRY_DSS_ENABLE);
-	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
-		c_dss_en = intel_uncore_read(uncore, GEN12_GT_COMPUTE_DSS_ENABLE);
 
 	/* one bit per pair of EUs */
-	if (GRAPHICS_VER_FULL(gt->i915) >= IP_VER(12, 50))
-		eu_en_fuse = intel_uncore_read(uncore, XEHP_EU_ENABLE) & XEHP_EU_ENA_MASK;
-	else
-		eu_en_fuse = ~(intel_uncore_read(uncore, GEN11_EU_DISABLE) &
-			       GEN11_EU_DIS_MASK);
+	eu_en_fuse = ~(intel_uncore_read(uncore, GEN11_EU_DISABLE) &
+		       GEN11_EU_DIS_MASK);
 
 	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
 		if (eu_en_fuse & BIT(eu))
 			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
 
-	gen11_compute_sseu_info(sseu, s_en, g_dss_en, c_dss_en, eu_en);
+	gen11_compute_sseu_info(sseu, s_en, g_dss_en, 0, eu_en);
 
 	/* TGL only supports slice-level power gating */
 	sseu->has_slice_pg = 1;
@@ -574,18 +584,20 @@ void intel_sseu_info_init(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
-	if (IS_HASWELL(i915))
-		hsw_sseu_info_init(gt);
-	else if (IS_CHERRYVIEW(i915))
-		cherryview_sseu_info_init(gt);
-	else if (IS_BROADWELL(i915))
-		bdw_sseu_info_init(gt);
-	else if (GRAPHICS_VER(i915) == 9)
-		gen9_sseu_info_init(gt);
-	else if (GRAPHICS_VER(i915) == 11)
-		gen11_sseu_info_init(gt);
+	if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50))
+		xehp_sseu_info_init(gt);
 	else if (GRAPHICS_VER(i915) >= 12)
 		gen12_sseu_info_init(gt);
+	else if (GRAPHICS_VER(i915) >= 11)
+		gen11_sseu_info_init(gt);
+	else if (GRAPHICS_VER(i915) >= 9)
+		gen9_sseu_info_init(gt);
+	else if (IS_BROADWELL(i915))
+		bdw_sseu_info_init(gt);
+	else if (IS_CHERRYVIEW(i915))
+		cherryview_sseu_info_init(gt);
+	else if (IS_HASWELL(i915))
+		hsw_sseu_info_init(gt);
 }
 
 u32 intel_sseu_make_rpcs(struct intel_gt *gt,

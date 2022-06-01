@@ -66,6 +66,11 @@ struct sseu_dev_info {
 	u8 has_slice_pg:1;
 	u8 has_subslice_pg:1;
 	u8 has_eu_pg:1;
+	/*
+	 * For Xe_HP and beyond, the hardware no longer has traditional slices
+	 * so we just report the entire DSS pool under a fake "slice 0."
+	 */
+	u8 has_xehp_dss:1;
 
 	/* Topology fields */
 	u8 max_slices;
