@@ -351,7 +351,7 @@ rockchip_rk3588_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 
 	if (fin_hz / MHZ * MHZ == fin_hz && fout_hz / MHZ * MHZ == fout_hz) {
 		for (s = 0; s <= 6; s++) {
-			fvco = fout_hz << s;
+			fvco = (u64)fout_hz << s;
 			if (fvco < fvco_min || fvco > fvco_max)
 				continue;
 			for (p = 2; p <= 4; p++) {
@@ -369,7 +369,7 @@ rockchip_rk3588_pll_clk_set_by_auto(struct rockchip_clk_pll *pll,
 		pr_err("CANNOT FIND Fout by auto,fout = %lu\n", fout_hz);
 	} else {
 		for (s = 0; s <= 6; s++) {
-			fvco = fout_hz << s;
+			fvco = (u64)fout_hz << s;
 			if (fvco < fvco_min || fvco > fvco_max)
 				continue;
 			for (p = 1; p <= 4; p++) {
