@@ -25,8 +25,23 @@ struct nvkm_event_func {
 	void (*fini)(struct nvkm_event *, int type, int index);
 };
 
-int  nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *, int types_nr,
-		     int index_nr, struct nvkm_event *);
+int  __nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *, int types_nr,
+		       int index_nr, struct nvkm_event *);
+
+/* Each nvkm_event needs its own lockdep class due to inter-dependencies, to
+ * prevent lockdep false-positives.
+ *
+ * Inlining the spinlock initialisation ensures each is unique.
+ */
+static __always_inline int
+nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
+		int types_nr, int index_nr, struct nvkm_event *event)
+{
+	spin_lock_init(&event->refs_lock);
+	spin_lock_init(&event->list_lock);
+	return __nvkm_event_init(func, subdev, types_nr, index_nr, event);
+}
+
 void nvkm_event_fini(struct nvkm_event *);
 
 #define NVKM_EVENT_KEEP 0

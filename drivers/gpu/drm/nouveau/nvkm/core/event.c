@@ -198,8 +198,8 @@ nvkm_event_fini(struct nvkm_event *event)
 }
 
 int
-nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
-		int types_nr, int index_nr, struct nvkm_event *event)
+__nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
+		  int types_nr, int index_nr, struct nvkm_event *event)
 {
 	event->refs = kzalloc(array3_size(index_nr, types_nr, sizeof(*event->refs)), GFP_KERNEL);
 	if (!event->refs)
@@ -209,8 +209,6 @@ nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
 	event->subdev = subdev;
 	event->types_nr = types_nr;
 	event->index_nr = index_nr;
-	spin_lock_init(&event->refs_lock);
-	spin_lock_init(&event->list_lock);
 	INIT_LIST_HEAD(&event->ntfy);
 	return 0;
 }
