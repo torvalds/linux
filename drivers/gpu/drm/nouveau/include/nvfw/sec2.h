@@ -10,6 +10,7 @@ struct nv_sec2_args {
 };
 
 #define NV_SEC2_UNIT_INIT                                                  0x01
+#define NV_SEC2_UNIT_UNLOAD                                                0x06
 #define NV_SEC2_UNIT_ACR                                                   0x08
 
 struct nv_sec2_init_msg {
@@ -57,4 +58,8 @@ struct nv_sec2_acr_bootstrap_falcon_msg {
 	u32 error_code;
 	u32 falcon_id;
 };
+
+#define NV_SEC2_UNIT_V2_INIT   0x01
+#define NV_SEC2_UNIT_V2_UNLOAD 0x05
+#define NV_SEC2_UNIT_V2_ACR    0x07
 #endif

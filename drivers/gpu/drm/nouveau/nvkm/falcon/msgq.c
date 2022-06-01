@@ -25,7 +25,7 @@
 static void
 nvkm_falcon_msgq_open(struct nvkm_falcon_msgq *msgq)
 {
-	mutex_lock(&msgq->mutex);
+	spin_lock(&msgq->lock);
 	msgq->position = nvkm_falcon_rd32(msgq->qmgr->falcon, msgq->tail_reg);
 }
 
@@ -37,10 +37,10 @@ nvkm_falcon_msgq_close(struct nvkm_falcon_msgq *msgq, bool commit)
 	if (commit)
 		nvkm_falcon_wr32(falcon, msgq->tail_reg, msgq->position);
 
-	mutex_unlock(&msgq->mutex);
+	spin_unlock(&msgq->lock);
 }
 
-static bool
+bool
 nvkm_falcon_msgq_empty(struct nvkm_falcon_msgq *msgq)
 {
 	u32 head = nvkm_falcon_rd32(msgq->qmgr->falcon, msgq->head_reg);
@@ -208,6 +208,6 @@ nvkm_falcon_msgq_new(struct nvkm_falcon_qmgr *qmgr, const char *name,
 
 	msgq->qmgr = qmgr;
 	msgq->name = name;
-	mutex_init(&msgq->mutex);
+	spin_lock_init(&msgq->lock);
 	return 0;
 }

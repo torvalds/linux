@@ -109,7 +109,6 @@ struct nvkm_acr_lsf_func {
 	u32 bld_size;
 	void (*bld_write)(struct nvkm_acr *, u32 bld, struct nvkm_acr_lsfw *);
 	void (*bld_patch)(struct nvkm_acr *, u32 bld, s64 adjust);
-	int (*boot)(struct nvkm_falcon *);
 	u64 bootstrap_falcons;
 	int (*bootstrap_falcon)(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 	int (*bootstrap_multiple_falcons)(struct nvkm_falcon *, u32 mask);

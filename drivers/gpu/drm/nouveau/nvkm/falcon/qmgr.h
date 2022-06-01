@@ -73,7 +73,7 @@ struct nvkm_falcon_cmdq {
 struct nvkm_falcon_msgq {
 	struct nvkm_falcon_qmgr *qmgr;
 	const char *name;
-	struct mutex mutex;
+	spinlock_t lock;
 
 	u32 head_reg;
 	u32 tail_reg;

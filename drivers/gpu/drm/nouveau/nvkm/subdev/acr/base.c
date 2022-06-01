@@ -97,7 +97,6 @@ nvkm_acr_load(struct nvkm_acr *acr)
 {
 	struct nvkm_subdev *subdev = &acr->subdev;
 	struct nvkm_acr_lsf *rtos = nvkm_acr_rtos(acr);
-	struct nvkm_acr_lsf *lsf;
 	u64 start, limit;
 	int ret;
 
@@ -127,14 +126,6 @@ nvkm_acr_load(struct nvkm_acr *acr)
 			return ret;
 
 		acr->rtos = rtos;
-	}
-
-	list_for_each_entry(lsf, &acr->lsf, head) {
-		if (lsf->func->boot) {
-			ret = lsf->func->boot(lsf->falcon);
-			if (ret)
-				break;
-		}
 	}
 
 	return ret;

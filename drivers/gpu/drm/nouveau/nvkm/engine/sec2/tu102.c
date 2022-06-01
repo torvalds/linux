@@ -22,6 +22,8 @@
 #include "priv.h"
 #include <subdev/acr.h>
 
+#include <nvfw/sec2.h>
+
 static const struct nvkm_falcon_func
 tu102_sec2_flcn = {
 	.debug = 0x408,
@@ -44,7 +46,8 @@ tu102_sec2_flcn = {
 static const struct nvkm_sec2_func
 tu102_sec2 = {
 	.flcn = &tu102_sec2_flcn,
-	.unit_acr = 0x07,
+	.unit_unload = NV_SEC2_UNIT_V2_UNLOAD,
+	.unit_acr = NV_SEC2_UNIT_V2_ACR,
 	.intr = gp102_sec2_intr,
 	.initmsg = gp102_sec2_initmsg,
 };

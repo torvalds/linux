@@ -74,16 +74,6 @@ gp102_sec2_acr_bootstrap_falcon(struct nvkm_falcon *falcon,
 				     msecs_to_jiffies(1000));
 }
 
-static int
-gp102_sec2_acr_boot(struct nvkm_falcon *falcon)
-{
-	struct nv_sec2_args args = {};
-	nvkm_falcon_load_dmem(falcon, &args,
-			      falcon->func->emem_addr, sizeof(args), 0);
-	nvkm_falcon_start(falcon);
-	return 0;
-}
-
 static void
 gp102_sec2_acr_bld_patch(struct nvkm_acr *acr, u32 bld, s64 adjust)
 {
@@ -122,7 +112,6 @@ gp102_sec2_acr_0 = {
 	.bld_size = sizeof(struct loader_config_v1),
 	.bld_write = gp102_sec2_acr_bld_write,
 	.bld_patch = gp102_sec2_acr_bld_patch,
-	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
 			     BIT_ULL(NVKM_ACR_LSF_GPCCS) |
 			     BIT_ULL(NVKM_ACR_LSF_SEC2),
@@ -169,9 +158,27 @@ gp102_sec2_intr(struct nvkm_sec2 *sec2)
 	u32 intr = nvkm_falcon_rd32(falcon, 0x008) & disp & ~(disp >> 16);
 
 	if (intr & 0x00000040) {
-		schedule_work(&sec2->work);
+		if (unlikely(atomic_read(&sec2->initmsg) == 0)) {
+			int ret = sec2->func->initmsg(sec2);
+
+			if (ret)
+				nvkm_error(subdev, "error parsing init message: %d\n", ret);
+
+			atomic_set(&sec2->initmsg, ret ?: 1);
+		}
+
+		if (atomic_read(&sec2->initmsg) > 0) {
+			if (!nvkm_falcon_msgq_empty(sec2->msgq))
+				nvkm_falcon_msgq_recv(sec2->msgq);
+		}
+
 		nvkm_falcon_wr32(falcon, 0x004, 0x00000040);
 		intr &= ~0x00000040;
+	}
+
+	if (intr & 0x00000010) {
+		nvkm_falcon_wr32(falcon, 0x004, 0x00000010);
+		intr &= ~0x00000010;
 	}
 
 	if (intr) {
@@ -250,6 +257,7 @@ gp102_sec2_flcn = {
 const struct nvkm_sec2_func
 gp102_sec2 = {
 	.flcn = &gp102_sec2_flcn,
+	.unit_unload = NV_SEC2_UNIT_UNLOAD,
 	.unit_acr = NV_SEC2_UNIT_ACR,
 	.intr = gp102_sec2_intr,
 	.initmsg = gp102_sec2_initmsg,
@@ -304,7 +312,6 @@ gp102_sec2_acr_1 = {
 	.bld_size = sizeof(struct flcn_bl_dmem_desc_v2),
 	.bld_write = gp102_sec2_acr_bld_write_1,
 	.bld_patch = gp102_sec2_acr_bld_patch_1,
-	.boot = gp102_sec2_acr_boot,
 	.bootstrap_falcons = BIT_ULL(NVKM_ACR_LSF_FECS) |
 			     BIT_ULL(NVKM_ACR_LSF_GPCCS) |
 			     BIT_ULL(NVKM_ACR_LSF_SEC2),
