@@ -166,23 +166,10 @@ g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	return nvkm_ramht_insert(chan->ramht, object, 0, 4, handle, context);
 }
 
-static void
-g84_fifo_chan_init(struct nvkm_fifo_chan *base)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nv50_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u64 addr = chan->ramfc->addr >> 8;
-	u32 chid = chan->base.chid;
-
-	nvkm_wr32(device, 0x002600 + (chid * 4), 0x80000000 | addr);
-	nv50_fifo_runlist_update(fifo);
-}
-
 static const struct nvkm_fifo_chan_func
 g84_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
-	.init = g84_fifo_chan_init,
+	.init = nv50_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
 	.engine_ctor = g84_fifo_chan_engine_ctor,
 	.engine_dtor = nv50_fifo_chan_engine_dtor,

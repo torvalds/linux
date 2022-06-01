@@ -33,6 +33,8 @@
 
 static const struct nvkm_chan_func
 gv100_chan = {
+	.bind = gk104_chan_bind_inst,
+	.unbind = gk104_chan_unbind,
 };
 
 const struct nvkm_engn_func

@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
@@ -38,8 +39,32 @@
 
 #include <nvif/class.h>
 
+static void gf100_fifo_intr_engine(struct nvkm_fifo *);
+
+static void
+gf100_chan_unbind(struct nvkm_chan *chan)
+{
+	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
+	struct nvkm_device *device = fifo->engine.subdev.device;
+
+	/*TODO: Is this cargo-culted, or necessary? RM does *something* here... Why? */
+	gf100_fifo_intr_engine(fifo);
+
+	nvkm_wr32(device, 0x003000 + (chan->id * 8), 0x00000000);
+}
+
+static void
+gf100_chan_bind(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x003000 + (chan->id * 8), 0xc0000000 | chan->inst->addr >> 12);
+}
+
 static const struct nvkm_chan_func
 gf100_chan = {
+	.bind = gf100_chan_bind,
+	.unbind = gf100_chan_unbind,
 };
 
 static const struct nvkm_engn_func
@@ -619,15 +644,15 @@ gf100_fifo_intr_engine_unit(struct nvkm_fifo *fifo, int engn)
 	}
 }
 
-void
-gf100_fifo_intr_engine(struct gf100_fifo *fifo)
+static void
+gf100_fifo_intr_engine(struct nvkm_fifo *fifo)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	u32 mask = nvkm_rd32(device, 0x0025a4);
 
 	while (mask) {
 		u32 unit = __ffs(mask);
-		gf100_fifo_intr_engine_unit(&fifo->base, unit);
+		gf100_fifo_intr_engine_unit(fifo, unit);
 		mask &= ~(1 << unit);
 	}
 }
@@ -684,7 +709,7 @@ gf100_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x80000000) {
-		gf100_fifo_intr_engine(gf100_fifo(fifo));
+		gf100_fifo_intr_engine(fifo);
 		stat &= ~0x80000000;
 	}
 

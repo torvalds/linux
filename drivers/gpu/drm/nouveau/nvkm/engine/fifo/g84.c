@@ -21,16 +21,29 @@
  *
  * Authors: Ben Skeggs
  */
+#include "cgrp.h"
 #include "chan.h"
 #include "runl.h"
+
+#include <core/gpuobj.h>
 
 #include "nv50.h"
 #include "channv50.h"
 
 #include <nvif/class.h>
 
+static void
+g84_chan_bind(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x002600 + (chan->id * 4), nv50_fifo_chan(chan)->ramfc->addr >> 8);
+}
+
 const struct nvkm_chan_func
 g84_chan = {
+	.bind = g84_chan_bind,
+	.unbind = nv50_chan_unbind,
 };
 
 const struct nvkm_engn_func

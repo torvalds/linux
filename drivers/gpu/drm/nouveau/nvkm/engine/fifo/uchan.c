@@ -217,6 +217,9 @@ nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 	if (ret && suspend)
 		return ret;
 
+	if (chan->func->unbind)
+		chan->func->unbind(chan);
+
 	return 0;
 }
 
@@ -224,6 +227,9 @@ static int
 nvkm_uchan_init(struct nvkm_object *object)
 {
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+
+	if (chan->func->bind)
+		chan->func->bind(chan);
 
 	return chan->object.func->init(&chan->object);
 }

@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
@@ -33,8 +34,26 @@
 
 #include <nvif/class.h>
 
+void
+nv50_chan_unbind(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x002600 + (chan->id * 4), 0x00000000);
+}
+
+static void
+nv50_chan_bind(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x002600 + (chan->id * 4), nv50_fifo_chan(chan)->ramfc->addr >> 12);
+}
+
 static const struct nvkm_chan_func
 nv50_chan = {
+	.bind = nv50_chan_bind,
+	.unbind = nv50_chan_unbind,
 };
 
 static const struct nvkm_engn_func

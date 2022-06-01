@@ -103,6 +103,7 @@ int nv50_fifo_chid_ctor(struct nvkm_fifo *, int);
 extern const struct nvkm_runl_func nv50_runl;
 int nv50_runl_wait(struct nvkm_runl *);
 extern const struct nvkm_engn_func nv50_engn_sw;
+void nv50_chan_unbind(struct nvkm_chan *);
 
 extern const struct nvkm_event_func g84_fifo_nonstall;
 extern const struct nvkm_engn_func g84_engn;
@@ -142,6 +143,9 @@ bool gk104_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
 extern const struct nvkm_bitfield gk104_runq_intr_0_names[];
 extern const struct nvkm_engn_func gk104_engn;
 extern const struct nvkm_engn_func gk104_engn_ce;
+void gk104_chan_bind(struct nvkm_chan *);
+void gk104_chan_bind_inst(struct nvkm_chan *);
+void gk104_chan_unbind(struct nvkm_chan *);
 
 int gk110_fifo_chid_ctor(struct nvkm_fifo *, int);
 extern const struct nvkm_runl_func gk110_runl;

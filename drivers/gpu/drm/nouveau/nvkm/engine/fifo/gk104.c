@@ -38,8 +38,36 @@
 
 #include <nvif/class.h>
 
+void
+gk104_chan_unbind(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x800000 + (chan->id * 8), 0x00000000);
+}
+
+void
+gk104_chan_bind_inst(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x800000 + (chan->id * 8), 0x80000000 | chan->inst->addr >> 12);
+}
+
+void
+gk104_chan_bind(struct nvkm_chan *chan)
+{
+	struct nvkm_runl *runl = chan->cgrp->runl;
+	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x800004 + (chan->id * 8), 0x000f0000, runl->id << 16);
+	gk104_chan_bind_inst(chan);
+}
+
 static const struct nvkm_chan_func
 gk104_chan = {
+	.bind = gk104_chan_bind,
+	.unbind = gk104_chan_unbind,
 };
 
 void

@@ -34,6 +34,8 @@
 
 const struct nvkm_chan_func
 gm107_chan = {
+	.bind = gk104_chan_bind_inst,
+	.unbind = gk104_chan_unbind,
 };
 
 static void

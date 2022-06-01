@@ -16,6 +16,9 @@ struct nvkm_cctx {
 };
 
 struct nvkm_chan_func {
+	void (*bind)(struct nvkm_chan *);
+	void (*unbind)(struct nvkm_chan *);
+
 	void *(*dtor)(struct nvkm_fifo_chan *);
 	void (*init)(struct nvkm_fifo_chan *);
 	void (*fini)(struct nvkm_fifo_chan *);

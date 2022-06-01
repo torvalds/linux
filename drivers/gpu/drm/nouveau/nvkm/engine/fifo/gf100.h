@@ -28,7 +28,6 @@ struct gf100_fifo {
 	} user;
 };
 
-void gf100_fifo_intr_engine(struct gf100_fifo *);
 void gf100_fifo_runlist_insert(struct gf100_fifo *, struct gf100_fifo_chan *);
 void gf100_fifo_runlist_remove(struct gf100_fifo *, struct gf100_fifo_chan *);
 void gf100_fifo_runlist_commit(struct gf100_fifo *);

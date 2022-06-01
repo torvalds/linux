@@ -33,6 +33,8 @@
 
 static const struct nvkm_chan_func
 tu102_chan = {
+	.bind = gk104_chan_bind_inst,
+	.unbind = gk104_chan_unbind,
 };
 
 static bool
