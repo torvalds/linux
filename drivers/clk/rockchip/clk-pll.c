@@ -460,6 +460,7 @@ static int rockchip_pll_wait_lock(struct rockchip_clk_pll *pll)
 #define RK3036_PLLCON1_DSMPD_MASK		0x1
 #define RK3036_PLLCON1_DSMPD_SHIFT		12
 #define RK3036_PLLCON1_PWRDOWN			BIT(13)
+#define RK3036_PLLCON1_PLLPDSEL			BIT(15)
 #define RK3036_PLLCON2_FRAC_MASK		0xffffff
 #define RK3036_PLLCON2_FRAC_SHIFT		0
 
@@ -1525,6 +1526,10 @@ int rockchip_pll_clk_compensation(struct clk *clk, int ppm)
 		fbdiv_mask = RK3036_PLLCON0_FBDIV_MASK;
 		frac_mask = RK3036_PLLCON2_FRAC_MASK;
 		frac_shift = RK3036_PLLCON2_FRAC_SHIFT;
+		if (!frac)
+			writel(HIWORD_UPDATE(RK3036_PLLCON1_PLLPDSEL,
+					     RK3036_PLLCON1_PLLPDSEL, 0),
+			       pll->reg_base + RK3036_PLLCON(1));
 		break;
 	case pll_rk3066:
 		return -EINVAL;
