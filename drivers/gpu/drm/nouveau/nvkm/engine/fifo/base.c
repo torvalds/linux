@@ -35,6 +35,22 @@
 #include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
+bool
+nvkm_fifo_ctxsw_in_progress(struct nvkm_engine *engine)
+{
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
+
+	nvkm_runl_foreach(runl, engine->subdev.device->fifo) {
+		nvkm_runl_foreach_engn(engn, runl) {
+			if (engn->engine == engine)
+				return engn->func->chsw ? engn->func->chsw(engn) : false;
+		}
+	}
+
+	return false;
+}
+
 void
 nvkm_fifo_pause(struct nvkm_fifo *fifo, unsigned long *flags)
 {

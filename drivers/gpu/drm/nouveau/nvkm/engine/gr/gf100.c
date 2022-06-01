@@ -1003,7 +1003,7 @@ gf100_gr_wait_idle(struct gf100_gr *gr)
 		nvkm_rd32(device, 0x400700);
 
 		gr_enabled = nvkm_rd32(device, 0x200) & 0x1000;
-		ctxsw_active = nvkm_rd32(device, 0x2640) & 0x8000;
+		ctxsw_active = nvkm_fifo_ctxsw_in_progress(&gr->base.engine);
 		gr_busy = nvkm_rd32(device, 0x40060c) & 0x1;
 
 		if (!gr_enabled || (!gr_busy && !ctxsw_active))

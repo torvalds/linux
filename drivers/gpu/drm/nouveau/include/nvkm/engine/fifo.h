@@ -75,6 +75,7 @@ struct nvkm_fifo {
 void nvkm_fifo_fault(struct nvkm_fifo *, struct nvkm_fault_data *);
 void nvkm_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nvkm_fifo_start(struct nvkm_fifo *, unsigned long *);
+bool nvkm_fifo_ctxsw_in_progress(struct nvkm_engine *);
 
 int nv04_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int nv10_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
