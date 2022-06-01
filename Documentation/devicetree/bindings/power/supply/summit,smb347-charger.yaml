@@ -82,7 +82,7 @@ properties:
       - 1 # SMB3XX_SYSOK_INOK_ACTIVE_HIGH
 
   usb-vbus:
-    $ref: "../../regulator/regulator.yaml#"
+    $ref: /schemas/regulator/regulator.yaml#
     type: object
 
     properties:
