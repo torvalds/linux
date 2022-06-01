@@ -34,6 +34,7 @@
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
+#include <subdev/mc.h>
 #include <engine/sw.h>
 
 #include <nvif/class.h>
@@ -525,11 +526,11 @@ gf100_fifo_intr_engine(struct gf100_fifo *fifo)
 	}
 }
 
-static void
-gf100_fifo_intr(struct nvkm_fifo *base)
+static irqreturn_t
+gf100_fifo_intr(struct nvkm_inth *inth)
 {
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_fifo *fifo = container_of(inth, typeof(*fifo), engine.subdev.inth);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mask = nvkm_rd32(device, 0x002140);
 	u32 stat = nvkm_rd32(device, 0x002100) & mask;
@@ -542,7 +543,7 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 	}
 
 	if (stat & 0x00000100) {
-		gf100_fifo_intr_sched(fifo);
+		gf100_fifo_intr_sched(gf100_fifo(fifo));
 		nvkm_wr32(device, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
 	}
@@ -565,7 +566,7 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x00259c);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			gf100_fifo_intr_mmu_fault_unit(&fifo->base, unit);
+			gf100_fifo_intr_mmu_fault_unit(fifo, unit);
 			nvkm_wr32(device, 0x00259c, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -576,7 +577,7 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x0025a0);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			gf100_fifo_intr_pbdma(fifo, unit);
+			gf100_fifo_intr_pbdma(gf100_fifo(fifo), unit);
 			nvkm_wr32(device, 0x0025a0, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -584,12 +585,12 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 	}
 
 	if (stat & 0x40000000) {
-		gf100_fifo_intr_runlist(fifo);
+		gf100_fifo_intr_runlist(gf100_fifo(fifo));
 		stat &= ~0x40000000;
 	}
 
 	if (stat & 0x80000000) {
-		gf100_fifo_intr_engine(fifo);
+		gf100_fifo_intr_engine(gf100_fifo(fifo));
 		stat &= ~0x80000000;
 	}
 
@@ -598,6 +599,8 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 		nvkm_mask(device, 0x002140, stat, 0x00000000);
 		nvkm_wr32(device, 0x002100, stat);
 	}
+
+	return IRQ_HANDLED;
 }
 
 static void

@@ -41,7 +41,7 @@ g84_mc_intrs[] = {
 	{ NVKM_ENGINE_BSP   , 0, 0, 0x00008000, true },
 	{ NVKM_ENGINE_CIPHER, 0, 0, 0x00004000, true },
 	{ NVKM_ENGINE_GR    , 0, 0, 0x00001000, true },
-	{ NVKM_ENGINE_FIFO  , 0, 0, 0x00000100, true },
+	{ NVKM_ENGINE_FIFO  , 0, 0, 0x00000100 },
 	{ NVKM_ENGINE_MPEG  , 0, 0, 0x00000001, true },
 	{ NVKM_SUBDEV_FB    , 0, 0, 0x0002d101, true },
 	{ NVKM_SUBDEV_BUS   , 0, 0, 0x10000000, true },

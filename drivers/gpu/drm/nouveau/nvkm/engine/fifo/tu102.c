@@ -30,6 +30,7 @@
 #include <core/memory.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
+#include <subdev/mc.h>
 #include <subdev/top.h>
 
 #include <nvif/class.h>
@@ -367,21 +368,20 @@ tu102_fifo_intr_ctxsw_timeout(struct gk104_fifo *fifo)
 }
 
 static void
-tu102_fifo_intr_sched(struct gk104_fifo *fifo)
+tu102_fifo_intr_sched(struct nvkm_fifo *fifo)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 intr = nvkm_rd32(device, 0x00254c);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
+	u32 intr = nvkm_rd32(subdev->device, 0x00254c);
 	u32 code = intr & 0x000000ff;
 
 	nvkm_error(subdev, "SCHED_ERROR %02x\n", code);
 }
 
-static void
-tu102_fifo_intr(struct nvkm_fifo *base)
+static irqreturn_t
+tu102_fifo_intr(struct nvkm_inth *inth)
 {
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_fifo *fifo = container_of(inth, typeof(*fifo), engine.subdev.inth);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mask = nvkm_rd32(device, 0x002140);
 	u32 stat = nvkm_rd32(device, 0x002100) & mask;
@@ -393,7 +393,7 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 	}
 
 	if (stat & 0x00000002) {
-		tu102_fifo_intr_ctxsw_timeout(fifo);
+		tu102_fifo_intr_ctxsw_timeout(gk104_fifo(fifo));
 		stat &= ~0x00000002;
 	}
 
@@ -415,8 +415,8 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 		while (mask) {
 			u32 unit = __ffs(mask);
 
-			gk104_fifo_intr_pbdma_0(fifo, unit);
-			gk104_fifo_intr_pbdma_1(fifo, unit);
+			gk104_fifo_intr_pbdma_0(gk104_fifo(fifo), unit);
+			gk104_fifo_intr_pbdma_1(gk104_fifo(fifo), unit);
 			nvkm_wr32(device, 0x0025a0, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -424,13 +424,13 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 	}
 
 	if (stat & 0x40000000) {
-		gk104_fifo_intr_runlist(fifo);
+		gk104_fifo_intr_runlist(gk104_fifo(fifo));
 		stat &= ~0x40000000;
 	}
 
 	if (stat & 0x80000000) {
 		nvkm_wr32(device, 0x002100, 0x80000000);
-		gk104_fifo_intr_engine(fifo);
+		gk104_fifo_intr_engine(gk104_fifo(fifo));
 		stat &= ~0x80000000;
 	}
 
@@ -439,6 +439,8 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 		nvkm_mask(device, 0x002140, stat, 0x00000000);
 		nvkm_wr32(device, 0x002100, stat);
 	}
+
+	return IRQ_HANDLED;
 }
 
 static const struct nvkm_fifo_func

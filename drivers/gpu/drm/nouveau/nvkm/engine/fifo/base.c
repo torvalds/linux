@@ -193,19 +193,16 @@ nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_dev
 	return c;
 }
 
-static void
-nvkm_fifo_intr(struct nvkm_engine *engine)
-{
-	struct nvkm_fifo *fifo = nvkm_fifo(engine);
-	fifo->func->intr(fifo);
-}
-
 static int
 nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+
+	nvkm_inth_block(&fifo->engine.subdev.inth);
+
 	if (fifo->func->fini)
 		fifo->func->fini(fifo);
+
 	return 0;
 }
 
@@ -213,7 +210,10 @@ static int
 nvkm_fifo_init(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+
 	fifo->func->init(fifo);
+
+	nvkm_inth_allow(&fifo->engine.subdev.inth);
 	return 0;
 }
 
@@ -290,6 +290,8 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
+	struct nvkm_subdev *subdev = &engine->subdev;
+	struct nvkm_device *device = subdev->device;
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn;
@@ -319,6 +321,16 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 		RUNL_DEBUG(runl, "");
 		nvkm_runl_foreach_engn(engn, runl) {
 			ENGN_DEBUG(engn, "");
+		}
+	}
+
+	/* Register interrupt handler. */
+	if (fifo->func->intr) {
+		ret = nvkm_inth_add(&device->mc->intr, NVKM_INTR_SUBDEV, NVKM_INTR_PRIO_NORMAL,
+				    subdev, fifo->func->intr, &subdev->inth);
+		if (ret) {
+			nvkm_error(subdev, "intr %d\n", ret);
+			return ret;
 		}
 	}
 
@@ -366,7 +378,6 @@ nvkm_fifo = {
 	.info = nvkm_fifo_info,
 	.init = nvkm_fifo_init,
 	.fini = nvkm_fifo_fini,
-	.intr = nvkm_fifo_intr,
 	.base.sclass = nvkm_fifo_class_get,
 };
 

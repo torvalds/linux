@@ -26,7 +26,7 @@
 const struct nvkm_intr_data
 gp100_mc_intrs[] = {
 	{ NVKM_ENGINE_DISP    , 0, 0, 0x04000000, true },
-	{ NVKM_ENGINE_FIFO    , 0, 0, 0x00000100, true },
+	{ NVKM_ENGINE_FIFO    , 0, 0, 0x00000100 },
 	{ NVKM_SUBDEV_FAULT   , 0, 0, 0x00000200, true },
 	{ NVKM_SUBDEV_PRIVRING, 0, 0, 0x40000000, true },
 	{ NVKM_SUBDEV_BUS     , 0, 0, 0x10000000, true },

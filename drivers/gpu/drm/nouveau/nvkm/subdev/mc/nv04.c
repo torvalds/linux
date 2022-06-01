@@ -62,7 +62,7 @@ static const struct nvkm_intr_data
 nv04_mc_intrs[] = {
 	{ NVKM_ENGINE_DISP , 0, 0, 0x01010000, true },
 	{ NVKM_ENGINE_GR   , 0, 0, 0x00001000, true },
-	{ NVKM_ENGINE_FIFO , 0, 0, 0x00000100, true },
+	{ NVKM_ENGINE_FIFO , 0, 0, 0x00000100 },
 	{ NVKM_SUBDEV_BUS  , 0, 0, 0x10000000, true },
 	{ NVKM_SUBDEV_TIMER, 0, 0, 0x00100000, true },
 	{}

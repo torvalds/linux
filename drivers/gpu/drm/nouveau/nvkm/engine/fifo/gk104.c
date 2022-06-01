@@ -34,6 +34,7 @@
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
+#include <subdev/mc.h>
 #include <subdev/timer.h>
 #include <subdev/top.h>
 #include <engine/sw.h>
@@ -720,7 +721,7 @@ gk104_fifo_mmu_fault = {
 };
 
 static const struct nvkm_enum
-gk104_fifo_bind_reason[] = {
+gk104_fifo_intr_bind_reason[] = {
 	{ 0x01, "BIND_NOT_UNBOUND" },
 	{ 0x02, "SNOOP_WITHOUT_BAR1" },
 	{ 0x03, "UNBIND_WHILE_RUNNING" },
@@ -731,14 +732,12 @@ gk104_fifo_bind_reason[] = {
 };
 
 void
-gk104_fifo_intr_bind(struct gk104_fifo *fifo)
+gk104_fifo_intr_bind(struct nvkm_fifo *fifo)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 intr = nvkm_rd32(device, 0x00252c);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
+	u32 intr = nvkm_rd32(subdev->device, 0x00252c);
 	u32 code = intr & 0x000000ff;
-	const struct nvkm_enum *en =
-		nvkm_enum_find(gk104_fifo_bind_reason, code);
+	const struct nvkm_enum *en = nvkm_enum_find(gk104_fifo_intr_bind_reason, code);
 
 	nvkm_error(subdev, "BIND_ERROR %02x [%s]\n", code, en ? en->name : "");
 }
@@ -802,21 +801,22 @@ gk104_fifo_intr_sched(struct gk104_fifo *fifo)
 }
 
 void
-gk104_fifo_intr_chsw(struct gk104_fifo *fifo)
+gk104_fifo_intr_chsw(struct nvkm_fifo *fifo)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 stat = nvkm_rd32(device, 0x00256c);
+
 	nvkm_error(subdev, "CHSW_ERROR %08x\n", stat);
 	nvkm_wr32(device, 0x00256c, stat);
 }
 
-void
-gk104_fifo_intr_dropped_fault(struct gk104_fifo *fifo)
+static void
+gk104_fifo_intr_dropped_fault(struct nvkm_fifo *fifo)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 stat = nvkm_rd32(device, 0x00259c);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
+	u32 stat = nvkm_rd32(subdev->device, 0x00259c);
+
 	nvkm_error(subdev, "DROPPED_MMU_FAULT %08x\n", stat);
 }
 
@@ -879,11 +879,11 @@ gk104_fifo_intr_engine(struct gk104_fifo *fifo)
 	nvkm_fifo_uevent(&fifo->base);
 }
 
-void
-gk104_fifo_intr(struct nvkm_fifo *base)
+irqreturn_t
+gk104_fifo_intr(struct nvkm_inth *inth)
 {
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_fifo *fifo = container_of(inth, typeof(*fifo), engine.subdev.inth);
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 mask = nvkm_rd32(device, 0x002140);
 	u32 stat = nvkm_rd32(device, 0x002100) & mask;
@@ -901,7 +901,7 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 	}
 
 	if (stat & 0x00000100) {
-		gk104_fifo_intr_sched(fifo);
+		gk104_fifo_intr_sched(gk104_fifo(fifo));
 		nvkm_wr32(device, 0x002100, 0x00000100);
 		stat &= ~0x00000100;
 	}
@@ -934,7 +934,7 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x00259c);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			fifo->func->intr_mmu_fault_unit(&fifo->base, unit);
+			fifo->func->intr_mmu_fault_unit(fifo, unit);
 			nvkm_wr32(device, 0x00259c, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -945,8 +945,8 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x0025a0);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			gk104_fifo_intr_pbdma_0(fifo, unit);
-			gk104_fifo_intr_pbdma_1(fifo, unit);
+			gk104_fifo_intr_pbdma_0(gk104_fifo(fifo), unit);
+			gk104_fifo_intr_pbdma_1(gk104_fifo(fifo), unit);
 			nvkm_wr32(device, 0x0025a0, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -954,13 +954,13 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 	}
 
 	if (stat & 0x40000000) {
-		gk104_fifo_intr_runlist(fifo);
+		gk104_fifo_intr_runlist(gk104_fifo(fifo));
 		stat &= ~0x40000000;
 	}
 
 	if (stat & 0x80000000) {
 		nvkm_wr32(device, 0x002100, 0x80000000);
-		gk104_fifo_intr_engine(fifo);
+		gk104_fifo_intr_engine(gk104_fifo(fifo));
 		stat &= ~0x80000000;
 	}
 
@@ -969,16 +969,15 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 		nvkm_mask(device, 0x002140, stat, 0x00000000);
 		nvkm_wr32(device, 0x002100, stat);
 	}
+
+	return IRQ_HANDLED;
 }
 
 void
 gk104_fifo_fini(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	flush_work(&fifo->recover.work);
-	/* allow mmu fault interrupts, even when we're not using fifo */
-	nvkm_mask(device, 0x002140, 0x10000000, 0x10000000);
 }
 
 void

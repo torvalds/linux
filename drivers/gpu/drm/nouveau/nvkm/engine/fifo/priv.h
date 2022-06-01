@@ -28,7 +28,7 @@ struct nvkm_fifo_func {
 	void (*init)(struct nvkm_fifo *);
 	void (*fini)(struct nvkm_fifo *);
 
-	void (*intr)(struct nvkm_fifo *);
+	irqreturn_t (*intr)(struct nvkm_inth *);
 	void (*intr_mmu_fault_unit)(struct nvkm_fifo *, int unit);
 
 	const struct nvkm_fifo_func_mmu_fault {
@@ -95,7 +95,7 @@ int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvk
 int nv04_fifo_chid_ctor(struct nvkm_fifo *, int);
 int nv04_fifo_runl_ctor(struct nvkm_fifo *);
 void nv04_fifo_init(struct nvkm_fifo *);
-void nv04_fifo_intr(struct nvkm_fifo *);
+irqreturn_t nv04_fifo_intr(struct nvkm_inth *);
 int nv04_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
@@ -120,7 +120,9 @@ extern const struct nvkm_engn_func gf100_engn_sw;
 
 int gk104_fifo_chid_nr(struct nvkm_fifo *);
 int gk104_fifo_runl_ctor(struct nvkm_fifo *);
-void gk104_fifo_intr(struct nvkm_fifo *);
+irqreturn_t gk104_fifo_intr(struct nvkm_inth *);
+void gk104_fifo_intr_chsw(struct nvkm_fifo *);
+void gk104_fifo_intr_bind(struct nvkm_fifo *);
 extern const struct nvkm_fifo_func_mmu_fault gk104_fifo_mmu_fault;
 void gk104_fifo_fault(struct nvkm_fifo *, struct nvkm_fault_data *);
 void gk104_fifo_recover_chan(struct nvkm_fifo *, int);
