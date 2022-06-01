@@ -36,6 +36,11 @@ gv100_gsp_flcn = {
 	.disable = nvkm_falcon_v1_disable,
 };
 
+static const struct nvkm_gsp_func
+gv100_gsp = {
+	.flcn = &gv100_gsp_flcn,
+};
+
 static int
 gv100_gsp_nofw(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 {
@@ -43,8 +48,8 @@ gv100_gsp_nofw(struct nvkm_gsp *gsp, int ver, const struct nvkm_gsp_fwif *fwif)
 }
 
 static struct nvkm_gsp_fwif
-gv100_gsp[] = {
-	{ -1, gv100_gsp_nofw, &gv100_gsp_flcn },
+gv100_gsps[] = {
+	{ -1, gv100_gsp_nofw, &gv100_gsp },
 	{}
 };
 
@@ -52,5 +57,5 @@ int
 gv100_gsp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_gsp **pgsp)
 {
-	return nvkm_gsp_new_(gv100_gsp, device, type, inst, pgsp);
+	return nvkm_gsp_new_(gv100_gsps, device, type, inst, pgsp);
 }

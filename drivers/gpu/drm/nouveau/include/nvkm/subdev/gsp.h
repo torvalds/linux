@@ -5,7 +5,9 @@
 #include <core/falcon.h>
 
 struct nvkm_gsp {
+	const struct nvkm_gsp_func *func;
 	struct nvkm_subdev subdev;
+
 	struct nvkm_falcon falcon;
 };
 
