@@ -2055,64 +2055,12 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	return gr;
 }
 
-static const struct nvkm_gr_func
-gf100_gr_ = {
-	.dtor = gf100_gr_dtor,
-	.oneinit = gf100_gr_oneinit,
-	.init = gf100_gr_init_,
-	.fini = gf100_gr_fini,
-	.intr = gf100_gr_intr,
-	.units = gf100_gr_units,
-	.chan_new = gf100_gr_chan_new,
-	.object_get = gf100_gr_object_get,
-	.chsw_load = gf100_gr_chsw_load,
-	.ctxsw.pause = gf100_gr_fecs_stop_ctxsw,
-	.ctxsw.resume = gf100_gr_fecs_start_ctxsw,
-	.ctxsw.inst = gf100_gr_ctxsw_inst,
-};
-
 static const struct nvkm_falcon_func
 gf100_gr_flcn = {
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,
 	.start = nvkm_falcon_v1_start,
 };
-
-int
-gf100_gr_new_(const struct gf100_gr_fwif *fwif, struct nvkm_device *device,
-	      enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
-{
-	struct gf100_gr *gr;
-	int ret;
-
-	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
-		return -ENOMEM;
-	*pgr = &gr->base;
-
-	ret = nvkm_gr_ctor(&gf100_gr_, device, type, inst, true, &gr->base);
-	if (ret)
-		return ret;
-
-	fwif = nvkm_firmware_load(&gr->base.engine.subdev, fwif, "Gr", gr);
-	if (IS_ERR(fwif))
-		return PTR_ERR(fwif);
-
-	gr->func = fwif->func;
-
-	ret = nvkm_falcon_ctor(&gf100_gr_flcn, &gr->base.engine.subdev,
-			       "fecs", 0x409000, &gr->fecs.falcon);
-	if (ret)
-		return ret;
-
-	mutex_init(&gr->fecs.mutex);
-
-	ret = nvkm_falcon_ctor(&gf100_gr_flcn, &gr->base.engine.subdev,
-			       "gpccs", 0x41a000, &gr->gpccs.falcon);
-	if (ret)
-		return ret;
-
-	return 0;
-}
 
 void
 gf100_gr_init_num_tpc_per_gpc(struct gf100_gr *gr, bool pd, bool ds)
@@ -2383,6 +2331,22 @@ gf100_gr_gpccs_ucode = {
 	.data.size = sizeof(gf100_grgpc_data),
 };
 
+static const struct nvkm_gr_func
+gf100_gr_ = {
+	.dtor = gf100_gr_dtor,
+	.oneinit = gf100_gr_oneinit,
+	.init = gf100_gr_init_,
+	.fini = gf100_gr_fini,
+	.intr = gf100_gr_intr,
+	.units = gf100_gr_units,
+	.chan_new = gf100_gr_chan_new,
+	.object_get = gf100_gr_object_get,
+	.chsw_load = gf100_gr_chsw_load,
+	.ctxsw.pause = gf100_gr_fecs_stop_ctxsw,
+	.ctxsw.resume = gf100_gr_fecs_start_ctxsw,
+	.ctxsw.inst = gf100_gr_ctxsw_inst,
+};
+
 static const struct gf100_gr_func
 gf100_gr = {
 	.oneinit_tiles = gf100_gr_oneinit_tiles,
@@ -2473,6 +2437,42 @@ gf100_gr_fwif[] = {
 	{ -1, gf100_gr_nofw, &gf100_gr },
 	{}
 };
+
+int
+gf100_gr_new_(const struct gf100_gr_fwif *fwif, struct nvkm_device *device,
+	      enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
+{
+	struct gf100_gr *gr;
+	int ret;
+
+	if (!(gr = kzalloc(sizeof(*gr), GFP_KERNEL)))
+		return -ENOMEM;
+	*pgr = &gr->base;
+
+	ret = nvkm_gr_ctor(&gf100_gr_, device, type, inst, true, &gr->base);
+	if (ret)
+		return ret;
+
+	fwif = nvkm_firmware_load(&gr->base.engine.subdev, fwif, "Gr", gr);
+	if (IS_ERR(fwif))
+		return PTR_ERR(fwif);
+
+	gr->func = fwif->func;
+
+	ret = nvkm_falcon_ctor(&gf100_gr_flcn, &gr->base.engine.subdev,
+			       "fecs", 0x409000, &gr->fecs.falcon);
+	if (ret)
+		return ret;
+
+	mutex_init(&gr->fecs.mutex);
+
+	ret = nvkm_falcon_ctor(&gf100_gr_flcn, &gr->base.engine.subdev,
+			       "gpccs", 0x41a000, &gr->gpccs.falcon);
+	if (ret)
+		return ret;
+
+	return 0;
+}
 
 int
 gf100_gr_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst, struct nvkm_gr **pgr)
