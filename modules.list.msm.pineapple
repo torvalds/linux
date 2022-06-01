@@ -12,6 +12,8 @@ dispcc-pineapple.ko
 gcc-pineapple.ko
 videocc-pineapple.ko
 stub-regulator.ko
+gdsc-regulator.ko
+debug-regulator.ko
 phy-qcom-ufs.ko
 phy-qcom-ufs-qrbtc-sdm845.ko
 ufs_qcom.ko
