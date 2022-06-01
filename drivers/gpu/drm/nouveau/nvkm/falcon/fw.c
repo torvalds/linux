@@ -294,3 +294,61 @@ done:
 	nvkm_firmware_put(blob);
 	return ret;
 }
+
+int
+nvkm_falcon_fw_ctor_hs_v2(const struct nvkm_falcon_fw_func *func, const char *name,
+			  struct nvkm_subdev *subdev, const char *img, int ver,
+			  struct nvkm_falcon *falcon, struct nvkm_falcon_fw *fw)
+{
+	const struct nvfw_bin_hdr *hdr;
+	const struct nvfw_hs_header_v2 *hshdr;
+	const struct nvfw_hs_load_header_v2 *lhdr;
+	const struct firmware *blob;
+	u32 loc, sig, cnt, *meta;
+	int ret;
+
+	ret = nvkm_firmware_load_name(subdev, img, "", ver, &blob);
+	if (ret)
+		return ret;
+
+	hdr = nvfw_bin_hdr(subdev, blob->data);
+	hshdr = nvfw_hs_header_v2(subdev, blob->data + hdr->header_offset);
+	meta = (u32 *)(blob->data + hshdr->meta_data_offset);
+	loc = *(u32 *)(blob->data + hshdr->patch_loc);
+	sig = *(u32 *)(blob->data + hshdr->patch_sig);
+	cnt = *(u32 *)(blob->data + hshdr->num_sig);
+
+	ret = nvkm_falcon_fw_ctor(func, name, subdev->device, true,
+				  blob->data + hdr->data_offset, hdr->data_size, falcon, fw);
+	if (ret)
+		goto done;
+
+	ret = nvkm_falcon_fw_sign(fw, loc, hshdr->sig_prod_size / cnt, blob->data,
+				  cnt, hshdr->sig_prod_offset + sig, 0, 0);
+	if (ret)
+		goto done;
+
+	lhdr = nvfw_hs_load_header_v2(subdev, blob->data + hshdr->header_offset);
+
+	fw->imem_base_img = lhdr->app[0].offset;
+	fw->imem_base = 0;
+	fw->imem_size = lhdr->app[0].size;
+
+	fw->dmem_base_img = lhdr->os_data_offset;
+	fw->dmem_base = 0;
+	fw->dmem_size = lhdr->os_data_size;
+	fw->dmem_sign = loc - lhdr->os_data_offset;
+
+	fw->boot_addr = lhdr->app[0].offset;
+
+	fw->fuse_ver = meta[0];
+	fw->engine_id = meta[1];
+	fw->ucode_id = meta[2];
+
+done:
+	if (ret)
+		nvkm_falcon_fw_dtor(fw);
+
+	nvkm_firmware_put(blob);
+	return ret;
+}

@@ -66,6 +66,14 @@ gp102_flcn_emem_pio = {
 int
 gp102_flcn_reset_eng(struct nvkm_falcon *falcon)
 {
+	int ret;
+
+	if (falcon->func->reset_prep) {
+		ret = falcon->func->reset_prep(falcon);
+		if (ret)
+			return ret;
+	}
+
 	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000001);
 	udelay(10);
 	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000000);

@@ -19,6 +19,7 @@ struct nvkm_falcon {
 	struct nvkm_subdev *owner;
 	const char *name;
 	u32 addr;
+	u32 addr2;
 
 	struct mutex mutex;
 	struct mutex dmem_mutex;
@@ -59,8 +60,10 @@ int nvkm_falcon_new_(const struct nvkm_falcon_func *, struct nvkm_device *,
 struct nvkm_falcon_func {
 	int (*disable)(struct nvkm_falcon *);
 	int (*enable)(struct nvkm_falcon *);
+	u32 addr2;
 	bool reset_pmc;
 	int (*reset_eng)(struct nvkm_falcon *);
+	int (*reset_prep)(struct nvkm_falcon *);
 	int (*reset_wait_mem_scrubbing)(struct nvkm_falcon *);
 
 	u32 debug;
@@ -69,7 +72,10 @@ struct nvkm_falcon_func {
 	bool bind_intr;
 
 	const struct nvkm_falcon_func_pio *imem_pio;
+	const struct nvkm_falcon_func_dma *imem_dma;
+
 	const struct nvkm_falcon_func_pio *dmem_pio;
+	const struct nvkm_falcon_func_dma *dmem_dma;
 
 	u32 emem_addr;
 	const struct nvkm_falcon_func_pio *emem_pio;

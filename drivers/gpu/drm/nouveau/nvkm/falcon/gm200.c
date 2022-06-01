@@ -171,8 +171,15 @@ gm200_flcn_disable(struct nvkm_falcon *falcon)
 	nvkm_falcon_mask(falcon, 0x048, 0x00000003, 0x00000000);
 	nvkm_falcon_wr32(falcon, 0x014, 0xffffffff);
 
-	if (falcon->func->reset_pmc)
+	if (falcon->func->reset_pmc) {
+		if (falcon->func->reset_prep) {
+			ret = falcon->func->reset_prep(falcon);
+			if (ret)
+				return ret;
+		}
+
 		nvkm_mc_disable(device, falcon->owner->type, falcon->owner->inst);
+	}
 
 	if (falcon->func->reset_eng) {
 		ret = falcon->func->reset_eng(falcon);

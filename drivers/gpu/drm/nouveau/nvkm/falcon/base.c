@@ -25,6 +25,82 @@
 #include <subdev/timer.h>
 #include <subdev/top.h>
 
+static const struct nvkm_falcon_func_dma *
+nvkm_falcon_dma(struct nvkm_falcon *falcon, enum nvkm_falcon_mem *mem_type, u32 *mem_base)
+{
+	switch (*mem_type) {
+	case IMEM: return falcon->func->imem_dma;
+	case DMEM: return falcon->func->dmem_dma;
+	default:
+		return NULL;
+	}
+}
+
+int
+nvkm_falcon_dma_wr(struct nvkm_falcon *falcon, const u8 *img, u64 dma_addr, u32 dma_base,
+		   enum nvkm_falcon_mem mem_type, u32 mem_base, int len, bool sec)
+{
+	const struct nvkm_falcon_func_dma *dma = nvkm_falcon_dma(falcon, &mem_type, &mem_base);
+	const char *type = nvkm_falcon_mem(mem_type);
+	const int dmalen = 256;
+	u32 dma_start = 0;
+	u32 dst, src, cmd;
+	int ret, i;
+
+	if (WARN_ON(!dma->xfer))
+		return -EINVAL;
+
+	if (mem_type == DMEM) {
+		dma_start = dma_base;
+		dma_addr += dma_base;
+	}
+
+	FLCN_DBG(falcon, "%s %08x <- %08x bytes at %08x (%010llx %08x)",
+		 type, mem_base, len, dma_base, dma_addr - dma_base, dma_start);
+	if (WARN_ON(!len || (len & (dmalen - 1))))
+		return -EINVAL;
+
+	ret = dma->init(falcon, dma_addr, dmalen, mem_type, sec, &cmd);
+	if (ret)
+		return ret;
+
+	dst = mem_base;
+	src = dma_base;
+	if (len) {
+		while (len >= dmalen) {
+			dma->xfer(falcon, dst, src - dma_start, cmd);
+
+			if (img && nvkm_printk_ok(falcon->owner, falcon->user, NV_DBG_TRACE)) {
+				for (i = 0; i < dmalen; i += 4, mem_base += 4) {
+					const int w = 8, x = (i / 4) % w;
+
+					if (x == 0)
+						printk(KERN_INFO "%s %08x <-", type, mem_base);
+					printk(KERN_CONT " %08x", *(u32 *)(img + src + i));
+					if (x == (w - 1) || ((i + 4) == dmalen))
+						printk(KERN_CONT " <- %08x+%08x", dma_base,
+						       src + i - dma_base - (x * 4));
+					if (i == (7 * 4))
+						printk(KERN_CONT " *");
+				}
+			}
+
+			if (nvkm_msec(falcon->owner->device, 2000,
+				if (dma->done(falcon))
+					break;
+			) < 0)
+				return -ETIMEDOUT;
+
+			src += dmalen;
+			dst += dmalen;
+			len -= dmalen;
+		}
+		WARN_ON(len);
+	}
+
+	return 0;
+}
+
 static const struct nvkm_falcon_func_pio *
 nvkm_falcon_pio(struct nvkm_falcon *falcon, enum nvkm_falcon_mem *mem_type, u32 *mem_base)
 {
@@ -239,6 +315,7 @@ nvkm_falcon_ctor(const struct nvkm_falcon_func *func,
 	falcon->owner = subdev;
 	falcon->name = name;
 	falcon->addr = addr;
+	falcon->addr2 = func->addr2;
 	mutex_init(&falcon->mutex);
 	mutex_init(&falcon->dmem_mutex);
 	return 0;
