@@ -571,13 +571,20 @@ CLK_OF_DECLARE(exynos7885_cmu_peri, "samsung,exynos7885-cmu-peri",
 /* ---- CMU_CORE ------------------------------------------------------------ */
 
 /* Register Offset definitions for CMU_CORE (0x12000000) */
-#define PLL_CON0_MUX_CLKCMU_CORE_BUS_USER	0x0100
-#define PLL_CON0_MUX_CLKCMU_CORE_CCI_USER	0x0120
-#define PLL_CON0_MUX_CLKCMU_CORE_G3D_USER	0x0140
-#define CLK_CON_MUX_MUX_CLK_CORE_GIC		0x1000
-#define CLK_CON_DIV_DIV_CLK_CORE_BUSP		0x1800
-#define CLK_CON_GAT_GOUT_CORE_CCI_550_ACLK	0x2054
-#define CLK_CON_GAT_GOUT_CORE_GIC400_CLK	0x2058
+#define PLL_CON0_MUX_CLKCMU_CORE_BUS_USER		0x0100
+#define PLL_CON0_MUX_CLKCMU_CORE_CCI_USER		0x0120
+#define PLL_CON0_MUX_CLKCMU_CORE_G3D_USER		0x0140
+#define CLK_CON_MUX_MUX_CLK_CORE_GIC			0x1000
+#define CLK_CON_DIV_DIV_CLK_CORE_BUSP			0x1800
+#define CLK_CON_GAT_GOUT_CORE_CCI_550_ACLK		0x2054
+#define CLK_CON_GAT_GOUT_CORE_GIC400_CLK		0x2058
+#define CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_ACLK		0x215c
+#define CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_GCLK		0x2160
+#define CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_PCLK		0x2164
+#define CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_ACLK_P_CORE	0x2168
+#define CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_CCLK_P_CORE	0x216c
+#define CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_PCLK		0x2170
+#define CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_PCLK_P_CORE	0x2174
 
 static const unsigned long core_clk_regs[] __initconst = {
 	PLL_CON0_MUX_CLKCMU_CORE_BUS_USER,
@@ -587,6 +594,13 @@ static const unsigned long core_clk_regs[] __initconst = {
 	CLK_CON_DIV_DIV_CLK_CORE_BUSP,
 	CLK_CON_GAT_GOUT_CORE_CCI_550_ACLK,
 	CLK_CON_GAT_GOUT_CORE_GIC400_CLK,
+	CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_ACLK,
+	CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_GCLK,
+	CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_PCLK,
+	CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_ACLK_P_CORE,
+	CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_CCLK_P_CORE,
+	CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_PCLK,
+	CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_PCLK_P_CORE,
 };
 
 /* List of parent clocks for Muxes in CMU_CORE */
@@ -618,6 +632,27 @@ static const struct samsung_gate_clock core_gate_clks[] __initconst = {
 	/* GIC (interrupt controller) clock must be always running */
 	GATE(CLK_GOUT_GIC400_CLK, "gout_gic400_clk", "mout_core_gic",
 	     CLK_CON_GAT_GOUT_CORE_GIC400_CLK, 21, CLK_IS_CRITICAL, 0),
+	/*
+	 * TREX D and P Core (seems to be related to "bus traffic shaper")
+	 * clocks must always be running
+	 */
+	GATE(CLK_GOUT_TREX_D_CORE_ACLK, "gout_trex_d_core_aclk", "mout_core_bus_user",
+	     CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_ACLK, 21, CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_TREX_D_CORE_GCLK, "gout_trex_d_core_gclk", "mout_core_g3d_user",
+	     CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_GCLK, 21, CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_TREX_D_CORE_PCLK, "gout_trex_d_core_pclk", "dout_core_busp",
+	     CLK_CON_GAT_GOUT_CORE_TREX_D_CORE_PCLK, 21, CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_TREX_P_CORE_ACLK_P_CORE, "gout_trex_p_core_aclk_p_core",
+	     "mout_core_bus_user", CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_ACLK_P_CORE, 21,
+	     CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_TREX_P_CORE_CCLK_P_CORE, "gout_trex_p_core_cclk_p_core",
+	     "mout_core_cci_user", CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_CCLK_P_CORE, 21,
+	     CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_TREX_P_CORE_PCLK, "gout_trex_p_core_pclk", "dout_core_busp",
+	     CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_PCLK, 21, CLK_IS_CRITICAL, 0),
+	GATE(CLK_GOUT_TREX_P_CORE_PCLK_P_CORE, "gout_trex_p_core_pclk_p_core",
+	     "dout_core_busp", CLK_CON_GAT_GOUT_CORE_TREX_P_CORE_PCLK_P_CORE, 21,
+	     CLK_IS_CRITICAL, 0),
 };
 
 static const struct samsung_cmu_info core_cmu_info __initconst = {
