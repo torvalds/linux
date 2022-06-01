@@ -441,6 +441,18 @@ int pmbus_update_byte_data(struct i2c_client *client, int page, u8 reg,
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_update_byte_data, PMBUS);
 
+static int pmbus_read_block_data(struct i2c_client *client, int page, u8 reg,
+				 char *data_buf)
+{
+	int rv;
+
+	rv = pmbus_set_page(client, page, 0xff);
+	if (rv < 0)
+		return rv;
+
+	return i2c_smbus_read_block_data(client, reg, data_buf);
+}
+
 static struct pmbus_sensor *pmbus_find_sensor(struct pmbus_data *data, int page,
 					      int reg)
 {
@@ -577,6 +589,22 @@ bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 	return pmbus_check_register(client, __pmbus_read_word_data, page, reg);
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_check_word_register, PMBUS);
+
+static bool pmbus_check_block_register(struct i2c_client *client, int page,
+				       int reg)
+{
+	int rv;
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	char data_buf[I2C_SMBUS_BLOCK_MAX + 2];
+
+	rv = pmbus_read_block_data(client, page, reg, data_buf);
+	if (rv >= 0 && !(data->flags & PMBUS_SKIP_STATUS_CHECK))
+		rv = pmbus_check_status_cml(client);
+	if (rv < 0 && (data->flags & PMBUS_READ_STATUS_AFTER_FAILED_CHECK))
+		data->read_status(client, -1);
+	pmbus_clear_fault_page(client, -1);
+	return rv >= 0;
+}
 
 const struct pmbus_driver_info *pmbus_get_driver_info(struct i2c_client *client)
 {
