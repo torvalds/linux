@@ -4,7 +4,7 @@
 #include <core/subdev.h>
 #include <core/mm.h>
 
-#define NVKM_LTC_MAX_ZBC_COLOR_CNT 16
+#define NVKM_LTC_MAX_ZBC_COLOR_CNT 32
 #define NVKM_LTC_MAX_ZBC_DEPTH_CNT 16
 
 struct nvkm_ltc {
@@ -44,4 +44,5 @@ int gm200_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct 
 int gp100_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
 int gp102_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
 int gp10b_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
+int ga102_ltc_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_ltc **);
 #endif
