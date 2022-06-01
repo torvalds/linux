@@ -596,6 +596,16 @@ config TASKSTATS
 
 	  Say N if unsure.
 
+config MSM_SYSSTATS
+	tristate "Export system/task statistics through netlink"
+	depends on NET
+	depends on MULTIUSER
+	help
+	  Export system and task statistics through generic netlink
+	  interface. Userspace can retrieve these statistics via netlink
+	  socket.
+	  If unsure, say N
+
 config TASK_DELAY_ACCT
 	bool "Enable per-task delay accounting"
 	depends on TASKSTATS
