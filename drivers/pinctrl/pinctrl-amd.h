@@ -291,36 +291,12 @@ static const unsigned uart0_pins[] = {135, 136, 137, 138, 139};
 static const unsigned uart1_pins[] = {140, 141, 142, 143, 144};
 
 static const struct pingroup kerncz_groups[] = {
-	{
-		.name = "i2c0",
-		.pins = i2c0_pins,
-		.npins = 2,
-	},
-	{
-		.name = "i2c1",
-		.pins = i2c1_pins,
-		.npins = 2,
-	},
-	{
-		.name = "i2c2",
-		.pins = i2c2_pins,
-		.npins = 2,
-	},
-	{
-		.name = "i2c3",
-		.pins = i2c3_pins,
-		.npins = 2,
-	},
-	{
-		.name = "uart0",
-		.pins = uart0_pins,
-		.npins = 5,
-	},
-	{
-		.name = "uart1",
-		.pins = uart1_pins,
-		.npins = 5,
-	},
+	PINCTRL_PINGROUP("i2c0", i2c0_pins, 2),
+	PINCTRL_PINGROUP("i2c1", i2c1_pins, 2),
+	PINCTRL_PINGROUP("i2c2", i2c2_pins, 2),
+	PINCTRL_PINGROUP("i2c3", i2c3_pins, 2),
+	PINCTRL_PINGROUP("uart0", uart0_pins, 5),
+	PINCTRL_PINGROUP("uart1", uart1_pins, 5),
 };
 
 #endif
