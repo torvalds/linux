@@ -1072,14 +1072,6 @@ static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-static unsigned int mgag200_preferred_depth(struct mga_device *mdev)
-{
-	if (IS_G200_SE(mdev) && mdev->vram_fb_available < (2048*1024))
-		return 16;
-	else
-		return 32;
-}
-
 int mgag200_modeset_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
@@ -1100,11 +1092,8 @@ int mgag200_modeset_init(struct mga_device *mdev)
 
 	dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
 	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
-
-	dev->mode_config.preferred_depth = mgag200_preferred_depth(mdev);
-
+	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.fb_base = mdev->mc.vram_base;
-
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
 
 	ret = mgag200_i2c_init(mdev, i2c);
