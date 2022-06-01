@@ -43,6 +43,7 @@
 
 /* address block */
 #define smnMP1_FIRMWARE_FLAGS		0x3010024
+#define smnMP1_V13_0_4_FIRMWARE_FLAGS	0x3010028
 #define smnMP0_FW_INTF			0x30101c0
 #define smnMP1_PUB_CTRL			0x3010b14
 
