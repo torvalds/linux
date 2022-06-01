@@ -2,6 +2,7 @@
 #define __NVKM_RUNL_H__
 #include <core/os.h>
 struct nvkm_cgrp;
+struct nvkm_chan;
 struct nvkm_memory;
 enum nvkm_subdev_type;
 
@@ -28,6 +29,12 @@ struct nvkm_engn {
 
 struct nvkm_runl {
 	const struct nvkm_runl_func {
+		int runqs;
+		u8 size;
+		int (*update)(struct nvkm_runl *);
+		void (*insert_cgrp)(struct nvkm_cgrp *, struct nvkm_memory *, u64 offset);
+		void (*insert_chan)(struct nvkm_chan *, struct nvkm_memory *, u64 offset);
+		void (*commit)(struct nvkm_runl *, struct nvkm_memory *, u32 start, int count);
 		int (*wait)(struct nvkm_runl *);
 		bool (*pending)(struct nvkm_runl *);
 		void (*block)(struct nvkm_runl *, u32 engm);
@@ -52,6 +59,9 @@ struct nvkm_runl {
 	struct list_head cgrps;
 	int cgrp_nr;
 	int chan_nr;
+	atomic_t changed;
+	struct nvkm_memory *mem;
+	u32 offset;
 	struct mutex mutex;
 
 	int blocked;
@@ -71,6 +81,7 @@ void nvkm_runl_del(struct nvkm_runl *);
 void nvkm_runl_fini(struct nvkm_runl *);
 void nvkm_runl_block(struct nvkm_runl *);
 void nvkm_runl_allow(struct nvkm_runl *);
+void nvkm_runl_update_locked(struct nvkm_runl *, bool wait);
 bool nvkm_runl_update_pending(struct nvkm_runl *);
 int nvkm_runl_preempt_wait(struct nvkm_runl *);
 

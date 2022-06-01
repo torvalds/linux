@@ -6,24 +6,12 @@
 
 #include <subdev/mmu.h>
 
-struct gf100_fifo_chan;
 struct gf100_fifo {
 	struct nvkm_fifo base;
-
-	struct list_head chan;
-
-	struct {
-		struct nvkm_memory *mem[2];
-		int active;
-	} runlist;
 
 	struct {
 		struct nvkm_memory *mem;
 		struct nvkm_vma *bar;
 	} user;
 };
-
-void gf100_fifo_runlist_insert(struct gf100_fifo *, struct gf100_fifo_chan *);
-void gf100_fifo_runlist_remove(struct gf100_fifo *, struct gf100_fifo_chan *);
-void gf100_fifo_runlist_commit(struct gf100_fifo *);
 #endif

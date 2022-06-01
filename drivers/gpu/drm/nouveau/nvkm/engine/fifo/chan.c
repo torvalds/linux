@@ -339,22 +339,60 @@ nvkm_fifo_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 	return 0;
 }
 
-static int
-nvkm_fifo_chan_fini(struct nvkm_object *object, bool suspend)
+void
+nvkm_chan_remove_locked(struct nvkm_chan *chan)
 {
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	if (chan->func->fini)
-		chan->func->fini(chan);
-	return 0;
+	struct nvkm_cgrp *cgrp = chan->cgrp;
+	struct nvkm_runl *runl = cgrp->runl;
+
+	if (list_empty(&chan->head))
+		return;
+
+	CHAN_TRACE(chan, "remove");
+	if (!--cgrp->chan_nr) {
+		runl->cgrp_nr--;
+		list_del(&cgrp->head);
+	}
+	runl->chan_nr--;
+	list_del_init(&chan->head);
+	atomic_set(&runl->changed, 1);
 }
 
-static int
-nvkm_fifo_chan_init(struct nvkm_object *object)
+void
+nvkm_chan_remove(struct nvkm_chan *chan, bool preempt)
 {
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	if (chan->func->init)
-		chan->func->init(chan);
-	return 0;
+	struct nvkm_runl *runl = chan->cgrp->runl;
+
+	mutex_lock(&runl->mutex);
+	if (preempt && chan->func->preempt)
+		nvkm_chan_preempt_locked(chan, true);
+	nvkm_chan_remove_locked(chan);
+	nvkm_runl_update_locked(runl, true);
+	mutex_unlock(&runl->mutex);
+}
+
+void
+nvkm_chan_insert(struct nvkm_chan *chan)
+{
+	struct nvkm_cgrp *cgrp = chan->cgrp;
+	struct nvkm_runl *runl = cgrp->runl;
+
+	mutex_lock(&runl->mutex);
+	if (WARN_ON(!list_empty(&chan->head))) {
+		mutex_unlock(&runl->mutex);
+		return;
+	}
+
+	CHAN_TRACE(chan, "insert");
+	list_add_tail(&chan->head, &cgrp->chans);
+	runl->chan_nr++;
+	if (!cgrp->chan_nr++) {
+		list_add_tail(&cgrp->head, &cgrp->runl->cgrps);
+		runl->cgrp_nr++;
+	}
+	atomic_set(&runl->changed, 1);
+	nvkm_runl_update_locked(runl, true);
+	mutex_unlock(&runl->mutex);
 }
 
 static void
@@ -420,15 +458,7 @@ static void *
 nvkm_fifo_chan_dtor(struct nvkm_object *object)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	struct nvkm_fifo *fifo = chan->fifo;
 	void *data = chan->func->dtor(chan);
-	unsigned long flags;
-
-	spin_lock_irqsave(&fifo->lock, flags);
-	if (!list_empty(&chan->head)) {
-		list_del(&chan->head);
-	}
-	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	if (chan->vmm) {
 		nvkm_vmm_part(chan->vmm, chan->inst->memory);
@@ -494,8 +524,6 @@ nvkm_chan_get_chid(struct nvkm_engine *engine, int id, unsigned long *pirqflags)
 static const struct nvkm_object_func
 nvkm_fifo_chan_func = {
 	.dtor = nvkm_fifo_chan_dtor,
-	.init = nvkm_fifo_chan_init,
-	.fini = nvkm_fifo_chan_fini,
 	.map = nvkm_fifo_chan_map,
 };
 
@@ -514,7 +542,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn = NULL;
 	struct nvkm_vmm *vmm = NULL;
-	unsigned long flags;
 	int ret;
 
 	nvkm_runl_foreach(runl, fifo) {
@@ -532,8 +559,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 
 	*func = *fifo->func->chan.func;
 	func->dtor = fn->dtor;
-	func->init = fn->init;
-	func->fini = fn->fini;
 	func->engine_ctor = fn->engine_ctor;
 	func->engine_dtor = fn->engine_dtor;
 	func->engine_init = fn->engine_init;
@@ -611,23 +636,14 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	}
 
 	/* Allocate channel ID. */
-	if (runl->cgid) {
-		chan->id = chan->cgrp->id;
-		runl->chid->data[chan->id] = chan;
-		set_bit(chan->id, runl->chid->used);
-		goto temp_hack_until_no_chid_eq_cgid_req;
-	}
-
 	chan->id = nvkm_chid_get(runl->chid, chan);
 	if (chan->id < 0) {
 		RUNL_ERROR(runl, "!chids");
 		return -ENOSPC;
 	}
 
-temp_hack_until_no_chid_eq_cgid_req:
-	spin_lock_irqsave(&fifo->lock, flags);
-	list_add(&chan->head, &fifo->chan);
-	spin_unlock_irqrestore(&fifo->lock, flags);
+	if (cgrp->id < 0)
+		cgrp->id = chan->id;
 
 	/* determine address of this channel's user registers */
 	chan->addr = device->func->resource_addr(device, bar) +

@@ -66,28 +66,25 @@ tu102_runl_pending(struct nvkm_runl *runl)
 }
 
 static void
-tu102_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
-			  struct nvkm_memory *mem, int nr)
+tu102_runl_commit(struct nvkm_runl *runl, struct nvkm_memory *memory, u32 start, int count)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u64 addr = nvkm_memory_addr(mem);
+	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+	u64 addr = nvkm_memory_addr(memory) + start;
 	/*XXX: target? */
 
-	nvkm_wr32(device, 0x002b00 + (runl * 0x10), lower_32_bits(addr));
-	nvkm_wr32(device, 0x002b04 + (runl * 0x10), upper_32_bits(addr));
-	nvkm_wr32(device, 0x002b08 + (runl * 0x10), nr);
+	nvkm_wr32(device, 0x002b00 + (runl->id * 0x10), lower_32_bits(addr));
+	nvkm_wr32(device, 0x002b04 + (runl->id * 0x10), upper_32_bits(addr));
+	nvkm_wr32(device, 0x002b08 + (runl->id * 0x10), count);
 }
-
-static const struct gk104_fifo_runlist_func
-tu102_fifo_runlist = {
-	.size = 16,
-	.cgrp = gv100_fifo_runlist_cgrp,
-	.chan = gv100_fifo_runlist_chan,
-	.commit = tu102_fifo_runlist_commit,
-};
 
 static const struct nvkm_runl_func
 tu102_runl = {
+	.runqs = 2,
+	.size = 16,
+	.update = nv50_runl_update,
+	.insert_cgrp = gv100_runl_insert_cgrp,
+	.insert_chan = gv100_runl_insert_chan,
+	.commit = tu102_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = tu102_runl_pending,
 	.block = gk104_runl_block,
@@ -274,7 +271,6 @@ tu102_fifo = {
 	.intr = tu102_fifo_intr,
 	.mmu_fault = &tu102_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.runlist = &tu102_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &tu102_runl,
 	.runq = &gv100_runq,

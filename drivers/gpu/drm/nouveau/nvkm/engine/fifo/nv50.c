@@ -82,36 +82,6 @@ const struct nvkm_engn_func
 nv50_engn_sw = {
 };
 
-static void
-nv50_fifo_runlist_update_locked(struct nv50_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_memory *cur;
-	int i, p;
-
-	cur = fifo->runlist[fifo->cur_runlist];
-	fifo->cur_runlist = !fifo->cur_runlist;
-
-	nvkm_kmap(cur);
-	for (i = 0, p = 0; i < fifo->base.nr; i++) {
-		if (nvkm_rd32(device, 0x002600 + (i * 4)) & 0x80000000)
-			nvkm_wo32(cur, p++ * 4, i);
-	}
-	nvkm_done(cur);
-
-	nvkm_wr32(device, 0x0032f4, nvkm_memory_addr(cur) >> 12);
-	nvkm_wr32(device, 0x0032ec, p);
-	nvkm_wr32(device, 0x002500, 0x00000101);
-}
-
-void
-nv50_fifo_runlist_update(struct nv50_fifo *fifo)
-{
-	mutex_lock(&fifo->base.mutex);
-	nv50_fifo_runlist_update_locked(fifo);
-	mutex_unlock(&fifo->base.mutex);
-}
-
 static bool
 nv50_runl_pending(struct nvkm_runl *runl)
 {
@@ -132,17 +102,112 @@ nv50_runl_wait(struct nvkm_runl *runl)
 	return -ETIMEDOUT;
 }
 
+static void
+nv50_runl_commit(struct nvkm_runl *runl, struct nvkm_memory *memory, u32 start, int count)
+{
+	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+	u64 addr = nvkm_memory_addr(memory) + start;
+
+	nvkm_wr32(device, 0x0032f4, addr >> 12);
+	nvkm_wr32(device, 0x0032ec, count);
+}
+
+static void
+nv50_runl_insert_chan(struct nvkm_chan *chan, struct nvkm_memory *memory, u64 offset)
+{
+	nvkm_wo32(memory, offset, chan->id);
+}
+
+static struct nvkm_memory *
+nv50_runl_alloc(struct nvkm_runl *runl, u32 *offset)
+{
+	const u32 segment = ALIGN((runl->cgrp_nr + runl->chan_nr) * runl->func->size, 0x1000);
+	const u32 maxsize = (runl->cgid ? runl->cgid->nr : 0) + runl->chid->nr;
+	int ret;
+
+	if (unlikely(!runl->mem)) {
+		ret = nvkm_memory_new(runl->fifo->engine.subdev.device, NVKM_MEM_TARGET_INST,
+				      maxsize * 2 * runl->func->size, 0, false, &runl->mem);
+		if (ret) {
+			RUNL_ERROR(runl, "alloc %d\n", ret);
+			return ERR_PTR(ret);
+		}
+	} else {
+		if (runl->offset + segment >= nvkm_memory_size(runl->mem)) {
+			ret = runl->func->wait(runl);
+			if (ret) {
+				RUNL_DEBUG(runl, "rewind timeout");
+				return ERR_PTR(ret);
+			}
+
+			runl->offset = 0;
+		}
+	}
+
+	*offset = runl->offset;
+	runl->offset += segment;
+	return runl->mem;
+}
+
+int
+nv50_runl_update(struct nvkm_runl *runl)
+{
+	struct nvkm_memory *memory;
+	struct nvkm_cgrp *cgrp;
+	struct nvkm_chan *chan;
+	u32 start, offset, count;
+
+	/*TODO: prio, interleaving. */
+
+	RUNL_TRACE(runl, "RAMRL: update cgrps:%d chans:%d", runl->cgrp_nr, runl->chan_nr);
+	memory = nv50_runl_alloc(runl, &start);
+	if (IS_ERR(memory))
+		return PTR_ERR(memory);
+
+	RUNL_TRACE(runl, "RAMRL: update start:%08x", start);
+	offset = start;
+
+	nvkm_kmap(memory);
+	nvkm_runl_foreach_cgrp(cgrp, runl) {
+		if (cgrp->hw) {
+			CGRP_TRACE(cgrp, "     RAMRL+%08x: chans:%d", offset, cgrp->chan_nr);
+			runl->func->insert_cgrp(cgrp, memory, offset);
+			offset += runl->func->size;
+		}
+
+		nvkm_cgrp_foreach_chan(chan, cgrp) {
+			CHAN_TRACE(chan, "RAMRL+%08x: [%s]", offset, chan->name);
+			runl->func->insert_chan(chan, memory, offset);
+			offset += runl->func->size;
+		}
+	}
+	nvkm_done(memory);
+
+	/*TODO: look into using features on newer HW to guarantee forward progress. */
+	list_rotate_left(&runl->cgrps);
+
+	count = (offset - start) / runl->func->size;
+	RUNL_TRACE(runl, "RAMRL: commit start:%08x count:%d", start, count);
+
+	runl->func->commit(runl, memory, start, count);
+	return 0;
+}
+
 const struct nvkm_runl_func
 nv50_runl = {
+	.size = 4,
+	.update = nv50_runl_update,
+	.insert_chan = nv50_runl_insert_chan,
+	.commit = nv50_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = nv50_runl_pending,
 };
 
 void
-nv50_fifo_init(struct nvkm_fifo *base)
+nv50_fifo_init(struct nvkm_fifo *fifo)
 {
-	struct nv50_fifo *fifo = nv50_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_runl *runl = nvkm_runl_first(fifo);
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	int i;
 
 	nvkm_mask(device, 0x000200, 0x00000100, 0x00000000);
@@ -155,7 +220,9 @@ nv50_fifo_init(struct nvkm_fifo *base)
 
 	for (i = 0; i < 128; i++)
 		nvkm_wr32(device, 0x002600 + (i * 4), 0x00000000);
-	nv50_fifo_runlist_update_locked(fifo);
+
+	atomic_set(&runl->changed, 1);
+	runl->func->update(runl);
 
 	nvkm_wr32(device, 0x003200, 0x00000001);
 	nvkm_wr32(device, 0x003250, 0x00000001);
@@ -175,28 +242,10 @@ nv50_fifo_chid_nr(struct nvkm_fifo *fifo)
 	return 128;
 }
 
-int
-nv50_fifo_oneinit(struct nvkm_fifo *base)
-{
-	struct nv50_fifo *fifo = nv50_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
-			      false, &fifo->runlist[0]);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 4, 0x1000,
-			       false, &fifo->runlist[1]);
-}
-
 void *
 nv50_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct nv50_fifo *fifo = nv50_fifo(base);
-	nvkm_memory_unref(&fifo->runlist[1]);
-	nvkm_memory_unref(&fifo->runlist[0]);
 	return fifo;
 }
 
@@ -221,7 +270,6 @@ nv50_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 static const struct nvkm_fifo_func
 nv50_fifo = {
 	.dtor = nv50_fifo_dtor,
-	.oneinit = nv50_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = nv50_fifo_chid_ctor,
 	.runl_ctor = nv04_fifo_runl_ctor,

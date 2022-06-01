@@ -152,43 +152,16 @@ gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 	return nvkm_memory_map(engn->inst, 0, chan->base.vmm, engn->vma, NULL, 0);
 }
 
-void
-gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct gk104_fifo *fifo = chan->fifo;
-
-	if (!list_empty(&chan->head)) {
-		gk104_fifo_runlist_remove(fifo, chan);
-		gk104_fifo_runlist_update(fifo, chan->runl);
-	}
-}
-
-void
-gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct gk104_fifo *fifo = chan->fifo;
-
-	if (list_empty(&chan->head) && !chan->killed) {
-		gk104_fifo_runlist_insert(fifo, chan);
-		gk104_fifo_runlist_update(fifo, chan->runl);
-	}
-}
-
 void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	kfree(chan->cgrp);
 	return chan;
 }
 
 const struct nvkm_fifo_chan_func
 gk104_fifo_gpfifo_func = {
 	.dtor = gk104_fifo_gpfifo_dtor,
-	.init = gk104_fifo_gpfifo_init,
-	.fini = gk104_fifo_gpfifo_fini,
 	.engine_ctor = gk104_fifo_gpfifo_engine_ctor,
 	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
 	.engine_init = gk104_fifo_gpfifo_engine_init,
@@ -215,7 +188,6 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	*pobject = &chan->base.object;
 	chan->fifo = fifo;
 	chan->runl = runlist;
-	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(&gk104_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, vmm, 0, fifo->runlist[runlist].engm_sw,
@@ -226,18 +198,6 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 
 	*chid = chan->base.chid;
 	*inst = chan->base.inst->addr;
-
-	/* Hack to support GPUs where even individual channels should be
-	 * part of a channel group.
-	 */
-	if (fifo->func->cgrp.force) {
-		if (!(chan->cgrp = kmalloc(sizeof(*chan->cgrp), GFP_KERNEL)))
-			return -ENOMEM;
-		chan->cgrp->id = chan->base.chid;
-		INIT_LIST_HEAD(&chan->cgrp->head);
-		INIT_LIST_HEAD(&chan->cgrp->chan);
-		chan->cgrp->chan_nr = 0;
-	}
 
 	/* Clear channel control registers. */
 	usermem = chan->base.chid * 0x200;

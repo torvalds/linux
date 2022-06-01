@@ -9,9 +9,6 @@ struct gf100_fifo_chan {
 	struct nvkm_fifo_chan base;
 	struct gf100_fifo *fifo;
 
-	struct list_head head;
-	bool killed;
-
 #define GF100_FIFO_ENGN_GR     0
 #define GF100_FIFO_ENGN_MSPDEC 1
 #define GF100_FIFO_ENGN_MSPPP  2

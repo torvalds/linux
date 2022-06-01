@@ -68,24 +68,20 @@ gk110_cgrp = {
 };
 
 void
-gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *cgrp,
-			struct nvkm_memory *memory, u32 offset)
+gk110_runl_insert_cgrp(struct nvkm_cgrp *cgrp, struct nvkm_memory *memory, u64 offset)
 {
 	nvkm_wo32(memory, offset + 0, (cgrp->chan_nr << 26) | (128 << 18) |
 				      (3 << 14) | 0x00002000 | cgrp->id);
 	nvkm_wo32(memory, offset + 4, 0x00000000);
 }
 
-const struct gk104_fifo_runlist_func
-gk110_fifo_runlist = {
-	.size = 8,
-	.cgrp = gk110_fifo_runlist_cgrp,
-	.chan = gk104_fifo_runlist_chan,
-	.commit = gk104_fifo_runlist_commit,
-};
-
 const struct nvkm_runl_func
 gk110_runl = {
+	.size = 8,
+	.update = nv50_runl_update,
+	.insert_cgrp = gk110_runl_insert_cgrp,
+	.insert_chan = gk104_runl_insert_chan,
+	.commit = gk104_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
@@ -121,7 +117,6 @@ gk110_fifo = {
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.runlist = &gk110_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk110_runl,
 	.runq = &gk104_runq,

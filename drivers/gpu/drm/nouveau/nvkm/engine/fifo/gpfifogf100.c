@@ -127,30 +127,6 @@ gf100_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
 	return nvkm_memory_map(engn->inst, 0, chan->base.vmm, engn->vma, NULL, 0);
 }
 
-static void
-gf100_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
-{
-	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct gf100_fifo *fifo = chan->fifo;
-
-	if (!list_empty(&chan->head) && !chan->killed) {
-		gf100_fifo_runlist_remove(fifo, chan);
-		gf100_fifo_runlist_commit(fifo);
-	}
-}
-
-static void
-gf100_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
-{
-	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct gf100_fifo *fifo = chan->fifo;
-
-	if (list_empty(&chan->head) && !chan->killed) {
-		gf100_fifo_runlist_insert(fifo, chan);
-		gf100_fifo_runlist_commit(fifo);
-	}
-}
-
 static void *
 gf100_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
@@ -160,8 +136,6 @@ gf100_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 static const struct nvkm_fifo_chan_func
 gf100_fifo_gpfifo_func = {
 	.dtor = gf100_fifo_gpfifo_dtor,
-	.init = gf100_fifo_gpfifo_init,
-	.fini = gf100_fifo_gpfifo_fini,
 	.engine_ctor = gf100_fifo_gpfifo_engine_ctor,
 	.engine_dtor = gf100_fifo_gpfifo_engine_dtor,
 	.engine_init = gf100_fifo_gpfifo_engine_init,
@@ -197,7 +171,6 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 		return -ENOMEM;
 	*pobject = &chan->base.object;
 	chan->fifo = fifo;
-	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(&gf100_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, args->v0.vmm, 0,

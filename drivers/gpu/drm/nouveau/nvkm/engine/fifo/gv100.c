@@ -98,22 +98,20 @@ gv100_runl_preempt(struct nvkm_runl *runl)
 }
 
 void
-gv100_fifo_runlist_chan(struct gk104_fifo_chan *chan,
-			struct nvkm_memory *memory, u32 offset)
+gv100_runl_insert_chan(struct nvkm_chan *chan, struct nvkm_memory *memory, u64 offset)
 {
-	struct nvkm_memory *usermem = chan->fifo->user.mem;
-	const u64 user = nvkm_memory_addr(usermem) + (chan->base.chid * 0x200);
-	const u64 inst = chan->base.inst->addr;
+	struct nvkm_memory *usermem = gk104_fifo(chan->cgrp->runl->fifo)->user.mem;
+	const u64 user = nvkm_memory_addr(usermem) + (chan->id * 0x200);
+	const u64 inst = chan->inst->addr;
 
-	nvkm_wo32(memory, offset + 0x0, lower_32_bits(user));
+	nvkm_wo32(memory, offset + 0x0, lower_32_bits(user) | chan->runq << 1);
 	nvkm_wo32(memory, offset + 0x4, upper_32_bits(user));
-	nvkm_wo32(memory, offset + 0x8, lower_32_bits(inst) | chan->base.chid);
+	nvkm_wo32(memory, offset + 0x8, lower_32_bits(inst) | chan->id);
 	nvkm_wo32(memory, offset + 0xc, upper_32_bits(inst));
 }
 
 void
-gv100_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *cgrp,
-			struct nvkm_memory *memory, u32 offset)
+gv100_runl_insert_cgrp(struct nvkm_cgrp *cgrp, struct nvkm_memory *memory, u64 offset)
 {
 	nvkm_wo32(memory, offset + 0x0, (128 << 24) | (3 << 16) | 0x00000001);
 	nvkm_wo32(memory, offset + 0x4, cgrp->chan_nr);
@@ -121,16 +119,14 @@ gv100_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *cgrp,
 	nvkm_wo32(memory, offset + 0xc, 0x00000000);
 }
 
-static const struct gk104_fifo_runlist_func
-gv100_fifo_runlist = {
-	.size = 16,
-	.cgrp = gv100_fifo_runlist_cgrp,
-	.chan = gv100_fifo_runlist_chan,
-	.commit = gk104_fifo_runlist_commit,
-};
-
 static const struct nvkm_runl_func
 gv100_runl = {
+	.runqs = 2,
+	.size = 16,
+	.update = nv50_runl_update,
+	.insert_cgrp = gv100_runl_insert_cgrp,
+	.insert_chan = gv100_runl_insert_chan,
+	.commit = gk104_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
@@ -401,7 +397,6 @@ gv100_fifo = {
 	.intr_ctxsw_timeout = gv100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gv100_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.runlist = &gv100_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gv100_runl,
 	.runq = &gv100_runq,

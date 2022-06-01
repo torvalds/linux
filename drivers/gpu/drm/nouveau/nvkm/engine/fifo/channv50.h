@@ -40,8 +40,6 @@ struct nv50_fifo_chan {
 int nv50_fifo_chan_ctor(struct nv50_fifo *, u64 vmm, u64 push,
 			const struct nvkm_oclass *, struct nv50_fifo_chan *);
 void *nv50_fifo_chan_dtor(struct nvkm_fifo_chan *);
-void nv50_fifo_chan_init(struct nvkm_fifo_chan *);
-void nv50_fifo_chan_fini(struct nvkm_fifo_chan *);
 struct nvkm_gpuobj **nv50_fifo_chan_engine(struct nv50_fifo_chan *, struct nvkm_engine *);
 void nv50_fifo_chan_engine_dtor(struct nvkm_fifo_chan *, struct nvkm_engine *);
 void nv50_fifo_chan_object_dtor(struct nvkm_fifo_chan *, int);

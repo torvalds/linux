@@ -24,8 +24,6 @@ struct nvkm_chan_func {
 	u32 (*doorbell_handle)(struct nvkm_chan *);
 
 	void *(*dtor)(struct nvkm_fifo_chan *);
-	void (*init)(struct nvkm_fifo_chan *);
-	void (*fini)(struct nvkm_fifo_chan *);
 	int  (*engine_ctor)(struct nvkm_fifo_chan *, struct nvkm_engine *,
 			    struct nvkm_object *);
 	void (*engine_dtor)(struct nvkm_fifo_chan *, struct nvkm_engine *);
@@ -44,6 +42,9 @@ void nvkm_chan_del(struct nvkm_chan **);
 void nvkm_chan_allow(struct nvkm_chan *);
 void nvkm_chan_block(struct nvkm_chan *);
 void nvkm_chan_error(struct nvkm_chan *, bool preempt);
+void nvkm_chan_insert(struct nvkm_chan *);
+void nvkm_chan_remove(struct nvkm_chan *, bool preempt);
+void nvkm_chan_remove_locked(struct nvkm_chan *);
 int nvkm_chan_preempt(struct nvkm_chan *, bool wait);
 int nvkm_chan_preempt_locked(struct nvkm_chan *, bool wait);
 int nvkm_chan_cctx_get(struct nvkm_chan *, struct nvkm_engn *, struct nvkm_cctx **,

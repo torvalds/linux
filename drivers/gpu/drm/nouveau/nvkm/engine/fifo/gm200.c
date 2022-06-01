@@ -53,7 +53,6 @@ gm200_fifo = {
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gm107_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.runlist = &gm107_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gm107_runl,
 	.runq = &gk208_runq,

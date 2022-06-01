@@ -31,7 +31,7 @@ struct nvkm_cgrp {
 	int id;
 	struct kref kref;
 
-	struct nvkm_chan *chans;
+	struct list_head chans;
 	int chan_nr;
 
 	spinlock_t lock; /* protects irq handler channel (group) lookup */
@@ -46,7 +46,6 @@ struct nvkm_cgrp {
 	atomic_t rc;
 
 	struct list_head head;
-	struct list_head chan;
 };
 
 int nvkm_cgrp_new(struct nvkm_runl *, const char *name, struct nvkm_vmm *, bool hw,
@@ -59,9 +58,9 @@ void nvkm_cgrp_vctx_put(struct nvkm_cgrp *, struct nvkm_vctx **);
 
 void nvkm_cgrp_put(struct nvkm_cgrp **, unsigned long irqflags);
 
-#define nvkm_cgrp_foreach_chan(chan,cgrp) for ((chan) = (cgrp)->chans; (chan); (chan) = NULL)
+#define nvkm_cgrp_foreach_chan(chan,cgrp) list_for_each_entry((chan), &(cgrp)->chans, head)
 #define nvkm_cgrp_foreach_chan_safe(chan,ctmp,cgrp) \
-	(void)(ctmp); nvkm_cgrp_foreach_chan((chan), (cgrp))
+	list_for_each_entry_safe((chan), (ctmp), &(cgrp)->chans, head)
 
 #define CGRP_PRCLI(c,l,p,f,a...) RUNL_PRINT((c)->runl, l, p, "%04x:[%s]"f, (c)->id, (c)->name, ##a)
 #define CGRP_PRINT(c,l,p,f,a...) RUNL_PRINT((c)->runl, l, p, "%04x:"f, (c)->id, ##a)

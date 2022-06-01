@@ -183,24 +183,6 @@ nv50_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 	return nvkm_ramht_insert(chan->ramht, object, 0, 4, handle, context);
 }
 
-void
-nv50_fifo_chan_fini(struct nvkm_fifo_chan *base)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nv50_fifo *fifo = chan->fifo;
-
-	nv50_fifo_runlist_update(fifo);
-}
-
-void
-nv50_fifo_chan_init(struct nvkm_fifo_chan *base)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nv50_fifo *fifo = chan->fifo;
-
-	nv50_fifo_runlist_update(fifo);
-}
-
 void *
 nv50_fifo_chan_dtor(struct nvkm_fifo_chan *base)
 {
@@ -216,8 +198,6 @@ nv50_fifo_chan_dtor(struct nvkm_fifo_chan *base)
 static const struct nvkm_fifo_chan_func
 nv50_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
-	.init = nv50_fifo_chan_init,
-	.fini = nv50_fifo_chan_fini,
 	.engine_ctor = nv50_fifo_chan_engine_ctor,
 	.engine_dtor = nv50_fifo_chan_engine_dtor,
 	.engine_init = nv50_fifo_chan_engine_init,

@@ -287,64 +287,38 @@ gf100_runl_pending(struct nvkm_runl *runl)
 	return nvkm_rd32(runl->fifo->engine.subdev.device, 0x00227c) & 0x00100000;
 }
 
-void
-gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
+static void
+gf100_runl_commit(struct nvkm_runl *runl, struct nvkm_memory *memory, u32 start, int count)
 {
-	struct gf100_fifo_chan *chan;
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_runl *runl = nvkm_runl_first(&fifo->base);
-	struct nvkm_memory *cur;
-	int nr = 0;
+	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+	u64 addr = nvkm_memory_addr(memory) + start;
 	int target;
 
-	mutex_lock(&fifo->base.mutex);
-	cur = fifo->runlist.mem[fifo->runlist.active];
-	fifo->runlist.active = !fifo->runlist.active;
-
-	nvkm_kmap(cur);
-	list_for_each_entry(chan, &fifo->chan, head) {
-		nvkm_wo32(cur, (nr * 8) + 0, chan->base.chid);
-		nvkm_wo32(cur, (nr * 8) + 4, 0x00000004);
-		nr++;
-	}
-	nvkm_done(cur);
-
-	switch (nvkm_memory_target(cur)) {
+	switch (nvkm_memory_target(memory)) {
 	case NVKM_MEM_TARGET_VRAM: target = 0; break;
 	case NVKM_MEM_TARGET_NCOH: target = 3; break;
 	default:
-		mutex_unlock(&fifo->base.mutex);
 		WARN_ON(1);
 		return;
 	}
 
-	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(cur) >> 12) |
-				    (target << 28));
-	nvkm_wr32(device, 0x002274, 0x01f00000 | nr);
-
-	runl->func->wait(runl);
-	mutex_unlock(&fifo->base.mutex);
+	nvkm_wr32(device, 0x002270, (target << 28) | (addr >> 12));
+	nvkm_wr32(device, 0x002274, 0x01f00000 | count);
 }
 
-void
-gf100_fifo_runlist_remove(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
+static void
+gf100_runl_insert_chan(struct nvkm_chan *chan, struct nvkm_memory *memory, u64 offset)
 {
-	mutex_lock(&fifo->base.mutex);
-	list_del_init(&chan->head);
-	mutex_unlock(&fifo->base.mutex);
-}
-
-void
-gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
-{
-	mutex_lock(&fifo->base.mutex);
-	list_add_tail(&chan->head, &fifo->chan);
-	mutex_unlock(&fifo->base.mutex);
+	nvkm_wo32(memory, offset + 0, chan->id);
+	nvkm_wo32(memory, offset + 4, 0x00000004);
 }
 
 static const struct nvkm_runl_func
 gf100_runl = {
+	.size = 8,
+	.update = nv50_runl_update,
+	.insert_chan = gf100_runl_insert_chan,
+	.commit = gf100_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = gf100_runl_pending,
 	.block = gf100_runl_block,
@@ -884,16 +858,6 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int ret;
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[0]);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[1]);
-	if (ret)
-		return ret;
-
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
 			      0x1000, false, &fifo->user.mem);
 	if (ret)
@@ -914,8 +878,6 @@ gf100_fifo_dtor(struct nvkm_fifo *base)
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
 	nvkm_memory_unref(&fifo->user.mem);
-	nvkm_memory_unref(&fifo->runlist.mem[0]);
-	nvkm_memory_unref(&fifo->runlist.mem[1]);
 	return fifo;
 }
 
@@ -950,7 +912,6 @@ gf100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 
 	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
 		return -ENOMEM;
-	INIT_LIST_HEAD(&fifo->chan);
 	*pfifo = &fifo->base;
 
 	return nvkm_fifo_ctor(&gf100_fifo, device, type, inst, &fifo->base);

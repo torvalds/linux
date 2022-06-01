@@ -125,7 +125,6 @@ g84_fifo_runl_ctor(struct nvkm_fifo *fifo)
 static const struct nvkm_fifo_func
 g84_fifo = {
 	.dtor = nv50_fifo_dtor,
-	.oneinit = nv50_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = nv50_fifo_chid_ctor,
 	.runl_ctor = g84_fifo_runl_ctor,

@@ -326,15 +326,14 @@ gk104_runl_pending(struct nvkm_runl *runl)
 }
 
 void
-gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
-			  struct nvkm_memory *mem, int nr)
+gk104_runl_commit(struct nvkm_runl *runl, struct nvkm_memory *memory, u32 start, int count)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_runl *rl = nvkm_runl_get(&fifo->base, runl, 0);
+	struct nvkm_fifo *fifo = runl->fifo;
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	u64 addr = nvkm_memory_addr(memory) + start;
 	int target;
 
-	switch (nvkm_memory_target(mem)) {
+	switch (nvkm_memory_target(memory)) {
 	case NVKM_MEM_TARGET_VRAM: target = 0; break;
 	case NVKM_MEM_TARGET_NCOH: target = 3; break;
 	default:
@@ -342,88 +341,25 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 		return;
 	}
 
-	nvkm_wr32(device, 0x002270, (nvkm_memory_addr(mem) >> 12) |
-				    (target << 28));
-	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
-
-	rl->func->wait(rl);
+	spin_lock_irq(&fifo->lock);
+	nvkm_wr32(device, 0x002270, (target << 28) | (addr >> 12));
+	nvkm_wr32(device, 0x002274, (runl->id << 20) | count);
+	spin_unlock_irq(&fifo->lock);
 }
 
 void
-gk104_fifo_runlist_update(struct gk104_fifo *fifo, int runl)
+gk104_runl_insert_chan(struct nvkm_chan *chan, struct nvkm_memory *memory, u64 offset)
 {
-	const struct gk104_fifo_runlist_func *func = fifo->func->runlist;
-	struct gk104_fifo_chan *chan;
-	struct nvkm_memory *mem;
-	struct nvkm_fifo_cgrp *cgrp;
-	int nr = 0;
-
-	mutex_lock(&fifo->base.mutex);
-	mem = fifo->runlist[runl].mem[fifo->runlist[runl].next];
-	fifo->runlist[runl].next = !fifo->runlist[runl].next;
-
-	nvkm_kmap(mem);
-	list_for_each_entry(chan, &fifo->runlist[runl].chan, head) {
-		func->chan(chan, mem, nr++ * func->size);
-	}
-
-	list_for_each_entry(cgrp, &fifo->runlist[runl].cgrp, head) {
-		func->cgrp(cgrp, mem, nr++ * func->size);
-		list_for_each_entry(chan, &cgrp->chan, head) {
-			func->chan(chan, mem, nr++ * func->size);
-		}
-	}
-	nvkm_done(mem);
-
-	func->commit(fifo, runl, mem, nr);
-	mutex_unlock(&fifo->base.mutex);
-}
-
-void
-gk104_fifo_runlist_remove(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
-{
-	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
-	mutex_lock(&fifo->base.mutex);
-	if (!list_empty(&chan->head)) {
-		list_del_init(&chan->head);
-		if (cgrp && !--cgrp->chan_nr)
-			list_del_init(&cgrp->head);
-	}
-	mutex_unlock(&fifo->base.mutex);
-}
-
-void
-gk104_fifo_runlist_insert(struct gk104_fifo *fifo, struct gk104_fifo_chan *chan)
-{
-	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
-	mutex_lock(&fifo->base.mutex);
-	if (cgrp) {
-		if (!cgrp->chan_nr++)
-			list_add_tail(&cgrp->head, &fifo->runlist[chan->runl].cgrp);
-		list_add_tail(&chan->head, &cgrp->chan);
-	} else {
-		list_add_tail(&chan->head, &fifo->runlist[chan->runl].chan);
-	}
-	mutex_unlock(&fifo->base.mutex);
-}
-
-void
-gk104_fifo_runlist_chan(struct gk104_fifo_chan *chan,
-			struct nvkm_memory *memory, u32 offset)
-{
-	nvkm_wo32(memory, offset + 0, chan->base.chid);
+	nvkm_wo32(memory, offset + 0, chan->id);
 	nvkm_wo32(memory, offset + 4, 0x00000000);
 }
 
-const struct gk104_fifo_runlist_func
-gk104_fifo_runlist = {
-	.size = 8,
-	.chan = gk104_fifo_runlist_chan,
-	.commit = gk104_fifo_runlist_commit,
-};
-
 static const struct nvkm_runl_func
 gk104_runl = {
+	.size = 8,
+	.update = nv50_runl_update,
+	.insert_chan = gk104_runl_insert_chan,
+	.commit = gk104_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
@@ -793,7 +729,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	struct nvkm_top_device *tdev;
-	int ret, i, j;
+	int ret;
 
 	/* Determine runlist configuration from topology device info. */
 	list_for_each_entry(tdev, &device->top->device, head) {
@@ -809,21 +745,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		if (tdev->type == NVKM_ENGINE_GR)
 			fifo->runlist[tdev->runlist].engm_sw |= BIT(GK104_FIFO_ENGN_SW);
 		fifo->runlist_nr = max(fifo->runlist_nr, tdev->runlist + 1);
-	}
-
-	for (i = 0; i < fifo->runlist_nr; i++) {
-		for (j = 0; j < ARRAY_SIZE(fifo->runlist[i].mem); j++) {
-			ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-					      fifo->base.nr * 2/* TSG+chan */ *
-					      fifo->func->runlist->size,
-					      0x1000, false,
-					      &fifo->runlist[i].mem[j]);
-			if (ret)
-				return ret;
-		}
-
-		INIT_LIST_HEAD(&fifo->runlist[i].cgrp);
-		INIT_LIST_HEAD(&fifo->runlist[i].chan);
 	}
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
@@ -845,16 +766,9 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int i;
 
 	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
 	nvkm_memory_unref(&fifo->user.mem);
-
-	for (i = 0; i < fifo->runlist_nr; i++) {
-		nvkm_memory_unref(&fifo->runlist[i].mem[1]);
-		nvkm_memory_unref(&fifo->runlist[i].mem[0]);
-	}
-
 	return fifo;
 }
 
@@ -887,7 +801,6 @@ gk104_fifo = {
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.runlist = &gk104_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk104_runl,
 	.runq = &gk104_runq,

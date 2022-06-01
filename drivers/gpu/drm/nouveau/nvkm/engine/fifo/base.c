@@ -310,8 +310,6 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	INIT_LIST_HEAD(&fifo->chan);
-
 	nr = func->chid_nr(fifo);
 	fifo->nr = nr;
 

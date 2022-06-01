@@ -213,14 +213,9 @@ static int
 nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
-	int ret;
 
 	nvkm_chan_block(chan);
-	nvkm_chan_preempt(chan, true);
-
-	ret = chan->object.func->fini(&chan->object, suspend);
-	if (ret && suspend)
-		return ret;
+	nvkm_chan_remove(chan, true);
 
 	if (chan->func->unbind)
 		chan->func->unbind(chan);
@@ -240,8 +235,8 @@ nvkm_uchan_init(struct nvkm_object *object)
 		chan->func->bind(chan);
 
 	nvkm_chan_allow(chan);
-
-	return chan->object.func->init(&chan->object);
+	nvkm_chan_insert(chan);
+	return 0;
 }
 
 static void *

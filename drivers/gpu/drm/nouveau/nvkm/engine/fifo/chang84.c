@@ -169,8 +169,6 @@ g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 static const struct nvkm_fifo_chan_func
 g84_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
-	.init = nv50_fifo_chan_init,
-	.fini = nv50_fifo_chan_fini,
 	.engine_ctor = g84_fifo_chan_engine_ctor,
 	.engine_dtor = nv50_fifo_chan_engine_dtor,
 	.engine_init = g84_fifo_chan_engine_init,

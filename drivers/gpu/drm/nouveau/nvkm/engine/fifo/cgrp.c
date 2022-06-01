@@ -196,7 +196,7 @@ nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bo
 	cgrp->hw = hw;
 	cgrp->id = -1;
 	kref_init(&cgrp->kref);
-	cgrp->chans = NULL;
+	INIT_LIST_HEAD(&cgrp->chans);
 	cgrp->chan_nr = 0;
 	spin_lock_init(&cgrp->lock);
 	INIT_LIST_HEAD(&cgrp->ectxs);

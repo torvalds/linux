@@ -105,8 +105,6 @@ gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
 static const struct nvkm_fifo_chan_func
 gv100_fifo_gpfifo = {
 	.dtor = gk104_fifo_gpfifo_dtor,
-	.init = gk104_fifo_gpfifo_init,
-	.fini = gk104_fifo_gpfifo_fini,
 	.engine_ctor = gk104_fifo_gpfifo_engine_ctor,
 	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
 	.engine_init = gv100_fifo_gpfifo_engine_init,
@@ -134,7 +132,6 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	*pobject = &chan->base.object;
 	chan->fifo = fifo;
 	chan->runl = runlist;
-	INIT_LIST_HEAD(&chan->head);
 
 	ret = nvkm_fifo_chan_ctor(func, &fifo->base, 0x1000, 0x1000, true, vmm,
 				  0, fifo->runlist[runlist].engm, 1, fifo->user.bar->addr, 0x200,
@@ -145,18 +142,6 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	*chid = chan->base.chid;
 	*inst = chan->base.inst->addr;
 	*token = chan->base.func->doorbell_handle(&chan->base);
-
-	/* Hack to support GPUs where even individual channels should be
-	 * part of a channel group.
-	 */
-	if (fifo->func->cgrp.force) {
-		if (!(chan->cgrp = kmalloc(sizeof(*chan->cgrp), GFP_KERNEL)))
-			return -ENOMEM;
-		chan->cgrp->id = chan->base.chid;
-		INIT_LIST_HEAD(&chan->cgrp->head);
-		INIT_LIST_HEAD(&chan->cgrp->chan);
-		chan->cgrp->chan_nr = 0;
-	}
 
 	/* Clear channel control registers. */
 	usermem = chan->base.chid * 0x200;

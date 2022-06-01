@@ -25,12 +25,26 @@
 #include "gk104.h"
 #include "changk104.h"
 
+#include <core/gpuobj.h>
 #include <subdev/fault.h>
 
 #include <nvif/class.h>
 
+static void
+gp100_runl_insert_chan(struct nvkm_chan *chan, struct nvkm_memory *memory, u64 offset)
+{
+	nvkm_wo32(memory, offset + 0, chan->id | chan->runq << 14);
+	nvkm_wo32(memory, offset + 4, chan->inst->addr >> 12);
+}
+
 static const struct nvkm_runl_func
 gp100_runl = {
+	.runqs = 2,
+	.size = 8,
+	.update = nv50_runl_update,
+	.insert_cgrp = gk110_runl_insert_cgrp,
+	.insert_chan = gp100_runl_insert_chan,
+	.commit = gk104_runl_commit,
 	.wait = nv50_runl_wait,
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
@@ -112,7 +126,6 @@ gp100_fifo = {
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gp100_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.runlist = &gm107_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gp100_runl,
 	.runq = &gk208_runq,

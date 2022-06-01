@@ -17,6 +17,7 @@ struct nvkm_chan {
 	const struct nvkm_chan_func *func;
 	char name[64];
 	struct nvkm_cgrp *cgrp;
+	int runq;
 
 	union { int id; int chid; }; /*FIXME: remove later */
 
@@ -63,7 +64,6 @@ struct nvkm_fifo {
 	} timeout;
 
 	int nr;
-	struct list_head chan;
 	spinlock_t lock;
 	struct mutex mutex;
 };

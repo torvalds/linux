@@ -54,9 +54,6 @@ nvkm_engn_cgrp_get(struct nvkm_engn *engn, unsigned long *pirqflags)
 	return cgrp;
 }
 
-#include "gf100.h"
-#include "gk104.h"
-
 static void
 nvkm_runl_rc(struct nvkm_runl *runl)
 {
@@ -79,8 +76,10 @@ nvkm_runl_rc(struct nvkm_runl *runl)
 		state = atomic_cmpxchg(&cgrp->rc, NVKM_CGRP_RC_PENDING, NVKM_CGRP_RC_RUNNING);
 		if (state == NVKM_CGRP_RC_PENDING) {
 			/* Disable all channels in them, and remove from runlist. */
-			nvkm_cgrp_foreach_chan_safe(chan, ctmp, cgrp)
+			nvkm_cgrp_foreach_chan_safe(chan, ctmp, cgrp) {
 				nvkm_chan_error(chan, false);
+				nvkm_chan_remove_locked(chan);
+			}
 		}
 	}
 
@@ -119,16 +118,14 @@ nvkm_runl_rc(struct nvkm_runl *runl)
 	}
 
 	/* Submit runlist update, and clear any remaining exception state. */
-	if (runl->fifo->engine.subdev.device->card_type < NV_E0)
-		gf100_fifo_runlist_commit(gf100_fifo(runl->fifo));
-	else
-		gk104_fifo_runlist_update(gk104_fifo(runl->fifo), runl->id);
+	runl->func->update(runl);
 	if (runl->func->fault_clear)
 		runl->func->fault_clear(runl);
 
 	/* Unblock runlist processing. */
 	while (rc--)
 		nvkm_runl_allow(runl);
+	runl->func->wait(runl);
 }
 
 static void
@@ -271,6 +268,16 @@ nvkm_runl_update_pending(struct nvkm_runl *runl)
 }
 
 void
+nvkm_runl_update_locked(struct nvkm_runl *runl, bool wait)
+{
+	if (atomic_xchg(&runl->changed, 0) && runl->func->update) {
+		runl->func->update(runl);
+		if (wait)
+			runl->func->wait(runl);
+	}
+}
+
+void
 nvkm_runl_allow(struct nvkm_runl *runl)
 {
 	struct nvkm_fifo *fifo = runl->fifo;
@@ -308,6 +315,8 @@ void
 nvkm_runl_del(struct nvkm_runl *runl)
 {
 	struct nvkm_engn *engn, *engt;
+
+	nvkm_memory_unref(&runl->mem);
 
 	list_for_each_entry_safe(engn, engt, &runl->engns, head) {
 		list_del(&engn->head);
@@ -395,6 +404,7 @@ nvkm_runl_new(struct nvkm_fifo *fifo, int runi, u32 addr, int id_nr)
 	runl->addr = addr;
 	INIT_LIST_HEAD(&runl->engns);
 	INIT_LIST_HEAD(&runl->cgrps);
+	atomic_set(&runl->changed, 0);
 	mutex_init(&runl->mutex);
 	INIT_WORK(&runl->work, nvkm_runl_work);
 	atomic_set(&runl->rc_triggered, 0);
