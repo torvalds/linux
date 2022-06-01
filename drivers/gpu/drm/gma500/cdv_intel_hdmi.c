@@ -245,7 +245,7 @@ static void cdv_hdmi_destroy(struct drm_connector *connector)
 	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	gma_i2c_destroy(gma_encoder->i2c_bus);
 	drm_connector_cleanup(connector);
 	kfree(gma_connector);
 }
@@ -342,8 +342,8 @@ void cdv_hdmi_init(struct drm_device *dev,
 		break;
 	}
 
-	gma_encoder->i2c_bus = psb_intel_i2c_create(dev,
-				ddc_bus, (reg == SDVOB) ? "HDMIB" : "HDMIC");
+	gma_encoder->i2c_bus = gma_i2c_create(dev, ddc_bus,
+					(reg == SDVOB) ? "HDMIB" : "HDMIC");
 
 	if (!gma_encoder->i2c_bus) {
 		dev_err(dev->dev, "No ddc adapter available!\n");

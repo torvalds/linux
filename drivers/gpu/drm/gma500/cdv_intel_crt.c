@@ -194,7 +194,7 @@ static void cdv_intel_crt_destroy(struct drm_connector *connector)
 	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
+	gma_i2c_destroy(gma_encoder->ddc_bus);
 	drm_connector_cleanup(connector);
 	kfree(gma_connector);
 }
@@ -267,7 +267,7 @@ void cdv_intel_crt_init(struct drm_device *dev,
 	gma_connector_attach_encoder(gma_connector, gma_encoder);
 
 	/* Set up the DDC bus. */
-	gma_encoder->ddc_bus = psb_intel_i2c_create(dev, GPIOA, "CRTDDC_A");
+	gma_encoder->ddc_bus = gma_i2c_create(dev, GPIOA, "CRTDDC_A");
 	if (!gma_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, dev->dev, "DDC bus registration failed.\n");
 		goto failed_ddc;

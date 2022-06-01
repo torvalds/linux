@@ -408,7 +408,7 @@ failed_find:
 
 	dev_dbg(dev->dev, "No LVDS modes found, disabling.\n");
 	if (gma_encoder->ddc_bus) {
-		psb_intel_i2c_destroy(gma_encoder->ddc_bus);
+		gma_i2c_destroy(gma_encoder->ddc_bus);
 		gma_encoder->ddc_bus = NULL;
 	}
 

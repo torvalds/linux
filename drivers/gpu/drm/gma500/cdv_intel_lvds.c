@@ -329,7 +329,7 @@ static void cdv_intel_lvds_destroy(struct drm_connector *connector)
 	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
-	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	gma_i2c_destroy(gma_encoder->i2c_bus);
 	drm_connector_cleanup(connector);
 	kfree(gma_connector);
 }
@@ -550,9 +550,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	 * Set up I2C bus
 	 * FIXME: distroy i2c_bus when exit
 	 */
-	gma_encoder->i2c_bus = psb_intel_i2c_create(dev,
-							 GPIOB,
-							 "LVDSBLC_B");
+	gma_encoder->i2c_bus = gma_i2c_create(dev, GPIOB, "LVDSBLC_B");
 	if (!gma_encoder->i2c_bus) {
 		dev_printk(KERN_ERR,
 			dev->dev, "I2C bus registration failed.\n");
@@ -572,9 +570,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	 */
 
 	/* Set up the DDC bus. */
-	gma_encoder->ddc_bus = psb_intel_i2c_create(dev,
-							 GPIOC,
-							 "LVDSDDC_C");
+	gma_encoder->ddc_bus = gma_i2c_create(dev, GPIOC, "LVDSDDC_C");
 	if (!gma_encoder->ddc_bus) {
 		dev_printk(KERN_ERR, dev->dev,
 			   "DDC bus registration " "failed.\n");
@@ -652,10 +648,10 @@ out:
 failed_find:
 	mutex_unlock(&dev->mode_config.mutex);
 	pr_err("Failed find\n");
-	psb_intel_i2c_destroy(gma_encoder->ddc_bus);
+	gma_i2c_destroy(gma_encoder->ddc_bus);
 failed_ddc:
 	pr_err("Failed DDC\n");
-	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
+	gma_i2c_destroy(gma_encoder->i2c_bus);
 failed_blc_i2c:
 	pr_err("Failed BLC\n");
 	drm_encoder_cleanup(encoder);

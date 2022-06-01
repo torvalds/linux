@@ -49,8 +49,8 @@ struct psb_intel_lvds_priv {
 	uint32_t savePFIT_PGM_RATIOS;
 	uint32_t saveBLC_PWM_CTL;
 
-	struct psb_intel_i2c_chan *i2c_bus;
-	struct psb_intel_i2c_chan *ddc_bus;
+	struct gma_i2c_chan *i2c_bus;
+	struct gma_i2c_chan *ddc_bus;
 };
 
 
@@ -90,7 +90,7 @@ static int psb_lvds_i2c_set_brightness(struct drm_device *dev,
 {
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 
-	struct psb_intel_i2c_chan *lvds_i2c_bus = dev_priv->lvds_i2c_bus;
+	struct gma_i2c_chan *lvds_i2c_bus = dev_priv->lvds_i2c_bus;
 	u8 out_buf[2];
 	unsigned int blc_i2c_brightness;
 
@@ -525,7 +525,7 @@ void psb_intel_lvds_destroy(struct drm_connector *connector)
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 
-	psb_intel_i2c_destroy(lvds_priv->ddc_bus);
+	gma_i2c_destroy(lvds_priv->ddc_bus);
 	drm_connector_cleanup(connector);
 	kfree(gma_connector);
 }
@@ -695,7 +695,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	 * Set up I2C bus
 	 * FIXME: distroy i2c_bus when exit
 	 */
-	lvds_priv->i2c_bus = psb_intel_i2c_create(dev, GPIOB, "LVDSBLC_B");
+	lvds_priv->i2c_bus = gma_i2c_create(dev, GPIOB, "LVDSBLC_B");
 	if (!lvds_priv->i2c_bus) {
 		dev_printk(KERN_ERR,
 			dev->dev, "I2C bus registration failed.\n");
@@ -715,7 +715,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	 */
 
 	/* Set up the DDC bus. */
-	lvds_priv->ddc_bus = psb_intel_i2c_create(dev, GPIOC, "LVDSDDC_C");
+	lvds_priv->ddc_bus = gma_i2c_create(dev, GPIOC, "LVDSDDC_C");
 	if (!lvds_priv->ddc_bus) {
 		dev_printk(KERN_ERR, dev->dev,
 			   "DDC bus registration " "failed.\n");
@@ -786,9 +786,9 @@ out:
 
 failed_find:
 	mutex_unlock(&dev->mode_config.mutex);
-	psb_intel_i2c_destroy(lvds_priv->ddc_bus);
+	gma_i2c_destroy(lvds_priv->ddc_bus);
 failed_ddc:
-	psb_intel_i2c_destroy(lvds_priv->i2c_bus);
+	gma_i2c_destroy(lvds_priv->i2c_bus);
 failed_blc_i2c:
 	drm_encoder_cleanup(encoder);
 	drm_connector_cleanup(connector);

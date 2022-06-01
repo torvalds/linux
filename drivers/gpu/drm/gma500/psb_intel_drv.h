@@ -78,7 +78,7 @@ struct psb_intel_mode_device {
 	uint32_t saveBLC_PWM_CTL;
 };
 
-struct psb_intel_i2c_chan {
+struct gma_i2c_chan {
 	/* for getting at dev. private (mmio etc.) */
 	struct drm_device *drm_dev;
 	u32 reg;		/* GPIO reg */
@@ -103,8 +103,8 @@ struct gma_encoder {
 
 	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's
 	   own set of output privates */
-	struct psb_intel_i2c_chan *i2c_bus;
-	struct psb_intel_i2c_chan *ddc_bus;
+	struct gma_i2c_chan *i2c_bus;
+	struct gma_i2c_chan *ddc_bus;
 };
 
 struct gma_connector {
@@ -176,9 +176,9 @@ struct gma_crtc {
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
 
-struct psb_intel_i2c_chan *psb_intel_i2c_create(struct drm_device *dev,
-					const u32 reg, const char *name);
-void psb_intel_i2c_destroy(struct psb_intel_i2c_chan *chan);
+struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
+				    const char *name);
+void gma_i2c_destroy(struct gma_i2c_chan *chan);
 int psb_intel_ddc_get_modes(struct drm_connector *connector,
 			    struct i2c_adapter *adapter);
 extern bool psb_intel_ddc_probe(struct i2c_adapter *adapter);

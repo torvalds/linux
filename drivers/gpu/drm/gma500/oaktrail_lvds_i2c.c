@@ -65,7 +65,7 @@
 
 static int get_clock(void *data)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	u32 val;
 
 	val = LPC_READ_REG(chan, RGIO);
@@ -79,7 +79,7 @@ static int get_clock(void *data)
 
 static int get_data(void *data)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	u32 val;
 
 	val = LPC_READ_REG(chan, RGIO);
@@ -93,7 +93,7 @@ static int get_data(void *data)
 
 static void set_clock(void *data, int state_high)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	u32 val;
 
 	if (state_high) {
@@ -112,7 +112,7 @@ static void set_clock(void *data, int state_high)
 
 static void set_data(void *data, int state_high)
 {
-	struct psb_intel_i2c_chan *chan = data;
+	struct gma_i2c_chan *chan = data;
 	u32 val;
 
 	if (state_high) {
@@ -134,9 +134,9 @@ void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
 	struct drm_device *dev = encoder->dev;
 	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
-	struct psb_intel_i2c_chan *chan;
+	struct gma_i2c_chan *chan;
 
-	chan = kzalloc(sizeof(struct psb_intel_i2c_chan), GFP_KERNEL);
+	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
 	if (!chan)
 		return;
 
