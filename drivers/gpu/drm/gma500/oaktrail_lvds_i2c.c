@@ -129,16 +129,15 @@ static void set_data(void *data, int state_high)
 	}
 }
 
-void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
+struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev)
 {
-	struct drm_device *dev = encoder->dev;
-	struct gma_encoder *gma_encoder = to_gma_encoder(encoder);
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct gma_i2c_chan *chan;
+	int ret;
 
 	chan = kzalloc(sizeof(struct gma_i2c_chan), GFP_KERNEL);
 	if (!chan)
-		return;
+		return ERR_PTR(-ENOMEM);
 
 	chan->drm_dev = dev;
 	chan->reg = dev_priv->lpc_gpio_base;
@@ -160,10 +159,11 @@ void oaktrail_lvds_i2c_init(struct drm_encoder *encoder)
 	set_clock(chan, 1);
 	udelay(50);
 
-	if (i2c_bit_add_bus(&chan->base)) {
+	ret = i2c_bit_add_bus(&chan->base);
+	if (ret < 0) {
 		kfree(chan);
-		return;
+		return ERR_PTR(ret);
 	}
 
-	gma_encoder->ddc_bus = chan;
+	return chan;
 }

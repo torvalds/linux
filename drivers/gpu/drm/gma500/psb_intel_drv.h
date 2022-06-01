@@ -105,7 +105,6 @@ struct gma_encoder {
 	/* FIXME: Either make SDVO and LVDS store it's i2c here or give CDV it's
 	   own set of output privates */
 	struct gma_i2c_chan *i2c_bus;
-	struct gma_i2c_chan *ddc_bus;
 };
 
 struct gma_connector {
@@ -200,7 +199,7 @@ extern void oaktrail_lvds_init(struct drm_device *dev,
 extern void oaktrail_wait_for_INTR_PKT_SENT(struct drm_device *dev);
 extern void oaktrail_dsi_init(struct drm_device *dev,
 			   struct psb_intel_mode_device *mode_dev);
-extern void oaktrail_lvds_i2c_init(struct drm_encoder *encoder);
+struct gma_i2c_chan *oaktrail_lvds_i2c_init(struct drm_device *dev);
 extern void mid_dsi_init(struct drm_device *dev,
 		    struct psb_intel_mode_device *mode_dev, int dsi_num);
 
