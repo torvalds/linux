@@ -29,14 +29,11 @@ struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const stru
 	if (ret)
 		return ERR_PTR(ret);
 
-	mdev->flags = flags;
-	mdev->type = type;
-
-	ret = mgag200_regs_init(mdev);
+	ret = mgag200_device_preinit(mdev);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_mm_init(mdev);
+	ret = mgag200_device_init(mdev, type, flags);
 	if (ret)
 		return ERR_PTR(ret);
 

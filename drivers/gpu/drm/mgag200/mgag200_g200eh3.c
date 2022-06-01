@@ -26,18 +26,15 @@ struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev,
 
 	pci_set_drvdata(pdev, dev);
 
-	mdev->flags = flags;
-	mdev->type = type;
-
 	ret = mgag200_init_pci_options(pdev, 0x00000120, 0x0000b000);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_regs_init(mdev);
+	ret = mgag200_device_preinit(mdev);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_mm_init(mdev);
+	ret = mgag200_device_init(mdev, type, flags);
 	if (ret)
 		return ERR_PTR(ret);
 

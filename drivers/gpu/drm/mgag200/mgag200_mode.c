@@ -32,11 +32,6 @@
  * This file contains setup code for the CRTC.
  */
 
-resource_size_t mgag200_device_probe_vram(struct mga_device *mdev)
-{
-	return mgag200_probe_vram(mdev->vram, mdev->mc.vram_size);
-}
-
 static void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
 					  const struct drm_format_info *format)
 {
@@ -1103,7 +1098,7 @@ int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available
 	dev->mode_config.max_width = MGAG200_MAX_FB_WIDTH;
 	dev->mode_config.max_height = MGAG200_MAX_FB_HEIGHT;
 	dev->mode_config.preferred_depth = 24;
-	dev->mode_config.fb_base = mdev->mc.vram_base;
+	dev->mode_config.fb_base = mdev->vram_res->start;
 	dev->mode_config.funcs = &mgag200_mode_config_funcs;
 
 	ret = mgag200_i2c_init(mdev, i2c);

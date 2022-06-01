@@ -111,34 +111,84 @@ static const struct drm_driver mgag200_driver = {
  * DRM device
  */
 
-int mgag200_regs_init(struct mga_device *mdev)
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev)
+{
+	return mgag200_probe_vram(mdev->vram, resource_size(mdev->vram_res));
+}
+
+int mgag200_device_preinit(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	u8 crtcext3;
+	resource_size_t start, len;
+	struct resource *res;
+
+	/* BAR 1 contains registers */
+
+	start = pci_resource_start(pdev, 1);
+	len = pci_resource_len(pdev, 1);
+
+	res = devm_request_mem_region(dev->dev, start, len, "mgadrmfb_mmio");
+	if (!res) {
+		drm_err(dev, "devm_request_mem_region(MMIO) failed\n");
+		return -ENXIO;
+	}
+	mdev->rmmio_res = res;
+
+	mdev->rmmio = pcim_iomap(pdev, 1, 0);
+	if (!mdev->rmmio)
+		return -ENOMEM;
+
+	/* BAR 0 is VRAM */
+
+	start = pci_resource_start(pdev, 0);
+	len = pci_resource_len(pdev, 0);
+
+	res = devm_request_mem_region(dev->dev, start, len, "mgadrmfb_vram");
+	if (!res) {
+		drm_err(dev, "devm_request_mem_region(VRAM) failed\n");
+		return -ENXIO;
+	}
+	mdev->vram_res = res;
+
+	/* Don't fail on errors, but performance might be reduced. */
+	devm_arch_io_reserve_memtype_wc(dev->dev, res->start, resource_size(res));
+	devm_arch_phys_wc_add(dev->dev, res->start, resource_size(res));
+
+	mdev->vram = devm_ioremap(dev->dev, res->start, resource_size(res));
+	if (!mdev->vram)
+		return -ENOMEM;
+
+	return 0;
+}
+
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags)
+{
+	struct drm_device *dev = &mdev->base;
+	u8 crtcext3, misc;
 	int ret;
+
+	mdev->flags = flags;
+	mdev->type = type;
 
 	ret = drmm_mutex_init(dev, &mdev->rmmio_lock);
 	if (ret)
 		return ret;
 
-	/* BAR 1 contains registers */
-	mdev->rmmio_base = pci_resource_start(pdev, 1);
-	mdev->rmmio_size = pci_resource_len(pdev, 1);
-
-	if (!devm_request_mem_region(dev->dev, mdev->rmmio_base,
-				     mdev->rmmio_size, "mgadrmfb_mmio")) {
-		drm_err(dev, "can't reserve mmio registers\n");
-		return -ENOMEM;
-	}
-
-	mdev->rmmio = pcim_iomap(pdev, 1, 0);
-	if (mdev->rmmio == NULL)
-		return -ENOMEM;
+	mutex_lock(&mdev->rmmio_lock);
 
 	RREG_ECRT(0x03, crtcext3);
 	crtcext3 |= MGAREG_CRTCEXT3_MGAMODE;
 	WREG_ECRT(0x03, crtcext3);
+
+	WREG_ECRT(0x04, 0x00);
+
+	misc = RREG8(MGA_MISC_IN);
+	misc |= MGAREG_MISC_RAMMAPEN |
+		MGAREG_MISC_HIGH_PG_SEL;
+	WREG8(MGA_MISC_OUT, misc);
+
+	mutex_unlock(&mdev->rmmio_lock);
 
 	return 0;
 }

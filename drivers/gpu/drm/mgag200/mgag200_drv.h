@@ -175,12 +175,6 @@ struct mga_i2c_chan {
 	int data, clock;
 };
 
-struct mga_mc {
-	resource_size_t			vram_size;
-	resource_size_t			vram_base;
-	resource_size_t			vram_window;
-};
-
 enum mga_type {
 	G200_PCI,
 	G200_AGP,
@@ -206,13 +200,11 @@ struct mga_device {
 	struct drm_device		base;
 	unsigned long			flags;
 
-	struct mutex			rmmio_lock; /* Protects access to rmmio */
-	resource_size_t			rmmio_base;
-	resource_size_t			rmmio_size;
+	struct resource			*rmmio_res;
 	void __iomem			*rmmio;
+	struct mutex			rmmio_lock; /* Protects access to rmmio */
 
-	struct mga_mc			mc;
-
+	struct resource			*vram_res;
 	void __iomem			*vram;
 	resource_size_t			vram_available;
 
@@ -258,7 +250,9 @@ static inline struct mgag200_g200se_device *to_mgag200_g200se_device(struct drm_
 				/* mgag200_drv.c */
 int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2);
 resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size);
-int mgag200_regs_init(struct mga_device *mdev);
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
+int mgag200_device_preinit(struct mga_device *mdev);
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags);
 
 				/* mgag200_<device type>.c */
 struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
@@ -284,9 +278,6 @@ int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_fb_availa
 
 				/* mgag200_i2c.c */
 int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);
-
-				/* mgag200_mm.c */
-int mgag200_mm_init(struct mga_device *mdev);
 
 				/* mgag200_pll.c */
 int mgag200_pixpll_init(struct mgag200_pll *pixpll, struct mga_device *mdev);

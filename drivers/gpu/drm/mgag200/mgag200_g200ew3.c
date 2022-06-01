@@ -12,7 +12,7 @@
 
 static resource_size_t mgag200_g200ew3_device_probe_vram(struct mga_device *mdev)
 {
-	resource_size_t vram_size = mdev->mc.vram_size;
+	resource_size_t vram_size = resource_size(mdev->vram_res);
 
 	if (vram_size >= 0x1000000)
 		vram_size = vram_size - 0x400000;
@@ -39,14 +39,11 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	mdev->flags = flags;
-	mdev->type = type;
-
-	ret = mgag200_regs_init(mdev);
+	ret = mgag200_device_preinit(mdev);
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_mm_init(mdev);
+	ret = mgag200_device_init(mdev, type, flags);
 	if (ret)
 		return ERR_PTR(ret);
 

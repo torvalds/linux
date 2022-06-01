@@ -10,7 +10,6 @@ mgag200-y := \
 	mgag200_g200se.o \
 	mgag200_g200wb.o \
 	mgag200_i2c.o \
-	mgag200_mm.o \
 	mgag200_mode.o \
 	mgag200_pll.o
 
