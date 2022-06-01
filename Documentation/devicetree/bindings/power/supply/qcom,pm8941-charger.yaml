@@ -117,6 +117,13 @@ properties:
       be done externally to fully comply with the JEITA safety guidelines if this flag
       is set.
 
+  usb-charge-current-limit:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    minimum: 100000
+    maximum: 2500000
+    description: |
+      Default USB charge current limit in uA.
+
   usb-otg-in-supply:
     description: Reference to the regulator supplying power to the USB_OTG_IN pin.
 
