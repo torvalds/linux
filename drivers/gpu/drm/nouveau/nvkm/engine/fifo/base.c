@@ -124,6 +124,7 @@ nvkm_fifo_init(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nvkm_runq *runq;
+	struct nvkm_runl *runl;
 	u32 mask = 0;
 
 	if (fifo->func->init_pbdmas) {
@@ -136,7 +137,13 @@ nvkm_fifo_init(struct nvkm_engine *engine)
 			runq->func->init(runq);
 	}
 
-	fifo->func->init(fifo);
+	nvkm_runl_foreach(runl, fifo) {
+		if (runl->func->init)
+			runl->func->init(runl);
+	}
+
+	if (fifo->func->init)
+		fifo->func->init(fifo);
 
 	nvkm_inth_allow(&fifo->engine.subdev.inth);
 	return 0;
@@ -243,7 +250,7 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 		return ret;
 
 	nvkm_runl_foreach(runl, fifo) {
-		RUNL_DEBUG(runl, "");
+		RUNL_DEBUG(runl, "chan:%06x", runl->chan);
 		nvkm_runl_foreach_engn(engn, runl) {
 			ENGN_DEBUG(engn, "");
 		}
@@ -256,6 +263,14 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 		if (ret) {
 			nvkm_error(subdev, "intr %d\n", ret);
 			return ret;
+		}
+	}
+
+	/* Initialise non-stall intr handling. */
+	if (fifo->func->nonstall_ctor) {
+		ret = fifo->func->nonstall_ctor(fifo);
+		if (ret) {
+			nvkm_error(subdev, "nonstall %d\n", ret);
 		}
 	}
 

@@ -308,6 +308,9 @@ nvkm_runl_block(struct nvkm_runl *runl)
 void
 nvkm_runl_fini(struct nvkm_runl *runl)
 {
+	if (runl->func->fini)
+		runl->func->fini(runl);
+
 	flush_work(&runl->work);
 }
 

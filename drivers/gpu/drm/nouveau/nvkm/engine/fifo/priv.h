@@ -37,6 +37,7 @@ struct nvkm_fifo_func {
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 
+	int (*nonstall_ctor)(struct nvkm_fifo *);
 	const struct nvkm_event_func *nonstall;
 
 	const struct nvkm_runl_func *runl;
@@ -190,6 +191,16 @@ extern const struct nvkm_chan_func_ramfc gv100_chan_ramfc;
 
 void tu102_fifo_intr_ctxsw_timeout_info(struct nvkm_engn *, u32 info);
 extern const struct nvkm_fifo_func_mmu_fault tu102_fifo_mmu_fault;
+
+int ga100_fifo_runl_ctor(struct nvkm_fifo *);
+int ga100_fifo_nonstall_ctor(struct nvkm_fifo *);
+extern const struct nvkm_event_func ga100_fifo_nonstall;
+extern const struct nvkm_runl_func ga100_runl;
+extern const struct nvkm_runq_func ga100_runq;
+extern const struct nvkm_engn_func ga100_engn;
+extern const struct nvkm_engn_func ga100_engn_ce;
+extern const struct nvkm_cgrp_func ga100_cgrp;
+extern const struct nvkm_chan_func ga100_chan;
 
 int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,
 		   void *argv, u32 argc, struct nvkm_object **);

@@ -86,6 +86,7 @@
 #define PASCAL_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c06f
 #define VOLTA_CHANNEL_GPFIFO_A                        /* if0020.h */ 0x0000c36f
 #define TURING_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c46f
+#define AMPERE_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c56f
 #define AMPERE_CHANNEL_GPFIFO_B                       /* if0020.h */ 0x0000c76f
 
 #define NV50_DISP                                     /* if0010.h */ 0x00005070

@@ -253,6 +253,7 @@ nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool p
 		int version;
 	} hosts[] = {
 		{  AMPERE_CHANNEL_GPFIFO_B, 0 },
+		{  AMPERE_CHANNEL_GPFIFO_A, 0 },
 		{  TURING_CHANNEL_GPFIFO_A, 0 },
 		{   VOLTA_CHANNEL_GPFIFO_A, 0 },
 		{  PASCAL_CHANNEL_GPFIFO_A, 0 },
@@ -365,8 +366,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	if (ret)
 		return ret;
 
-	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO &&
-	    chan->user.oclass < AMPERE_CHANNEL_GPFIFO_B) {
+	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
 		struct {
 			struct nvif_event_v0 base;
 			struct nvif_chan_event_v0 host;

@@ -56,6 +56,7 @@ struct nvkm_fifo {
 	struct {
 #define NVKM_FIFO_NONSTALL_EVENT BIT(0)
 		struct nvkm_event event;
+		struct nvkm_inth intr;
 	} nonstall;
 
 	struct {
@@ -92,5 +93,6 @@ int gm200_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct
 int gp100_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int gv100_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int tu102_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
+int ga100_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int ga102_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 #endif

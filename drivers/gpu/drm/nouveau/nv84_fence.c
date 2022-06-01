@@ -210,7 +210,7 @@ nv84_fence_create(struct nouveau_drm *drm)
 	priv->base.context_new = nv84_fence_context_new;
 	priv->base.context_del = nv84_fence_context_del;
 
-	priv->base.uevent = drm->client.device.info.family < NV_DEVICE_INFO_V0_AMPERE;
+	priv->base.uevent = true;
 
 	mutex_init(&priv->mutex);
 

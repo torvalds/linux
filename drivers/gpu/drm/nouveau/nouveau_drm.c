@@ -348,9 +348,6 @@ nouveau_accel_gr_init(struct nouveau_drm *drm)
 	u64 runm;
 	int ret;
 
-	if (device->info.family >= NV_DEVICE_INFO_V0_AMPERE)
-		return;
-
 	/* Allocate channel that has access to the graphics engine. */
 	runm = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
 	if (!runm) {
@@ -473,6 +470,7 @@ nouveau_accel_init(struct nouveau_drm *drm)
 		case PASCAL_CHANNEL_GPFIFO_A:
 		case VOLTA_CHANNEL_GPFIFO_A:
 		case TURING_CHANNEL_GPFIFO_A:
+		case AMPERE_CHANNEL_GPFIFO_A:
 		case AMPERE_CHANNEL_GPFIFO_B:
 			ret = nvc0_fence_create(drm);
 			break;

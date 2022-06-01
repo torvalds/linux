@@ -2590,6 +2590,7 @@ nv170_chipset = {
 	.top      = { 0x00000001, ga100_top_new },
 	.vfn      = { 0x00000001, ga100_vfn_new },
 	.ce       = { 0x000003ff, ga100_ce_new },
+	.fifo     = { 0x00000001, ga100_fifo_new },
 };
 
 static const struct nvkm_device_chip

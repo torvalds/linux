@@ -1,6 +1,6 @@
 #ifndef __NVKM_RUNL_H__
 #define __NVKM_RUNL_H__
-#include <core/os.h>
+#include <core/intr.h>
 struct nvkm_cctx;
 struct nvkm_cgrp;
 struct nvkm_chan;
@@ -36,6 +36,8 @@ struct nvkm_engn {
 
 struct nvkm_runl {
 	const struct nvkm_runl_func {
+		void (*init)(struct nvkm_runl *);
+		void (*fini)(struct nvkm_runl *);
 		int runqs;
 		u8 size;
 		int (*update)(struct nvkm_runl *);
@@ -53,6 +55,8 @@ struct nvkm_runl {
 	struct nvkm_fifo *fifo;
 	int id;
 	u32 addr;
+	u32 chan;
+	u16 doorbell;
 
 	struct nvkm_chid *cgid;
 #define NVKM_CHAN_EVENT_ERRORED BIT(0)
@@ -62,6 +66,8 @@ struct nvkm_runl {
 
 	struct nvkm_runq *runq[2];
 	int runq_nr;
+
+	struct nvkm_inth inth;
 
 	struct list_head cgrps;
 	int cgrp_nr;
