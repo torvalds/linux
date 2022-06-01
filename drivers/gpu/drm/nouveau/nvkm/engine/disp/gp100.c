@@ -101,7 +101,6 @@ gp100_sor_new(struct nvkm_disp *disp, int id)
 
 static const struct nvkm_disp_func
 gp100_disp = {
-	.dtor = nv50_disp_dtor,
 	.oneinit = nv50_disp_oneinit,
 	.init = gf119_disp_init,
 	.fini = gf119_disp_fini,
@@ -126,5 +125,5 @@ int
 gp100_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&gp100_disp, device, type, inst, pdisp);
+	return nvkm_disp_new_(&gp100_disp, device, type, inst, pdisp);
 }

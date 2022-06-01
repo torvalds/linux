@@ -15,7 +15,6 @@ int nvkm_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvk
 void nvkm_disp_vblank(struct nvkm_disp *, int head);
 
 struct nvkm_disp_func {
-	void *(*dtor)(struct nvkm_disp *);
 	int (*oneinit)(struct nvkm_disp *);
 	int (*init)(struct nvkm_disp *);
 	void (*fini)(struct nvkm_disp *);
@@ -46,9 +45,6 @@ int  nvkm_disp_ntfy(struct nvkm_object *, u32, struct nvkm_event **);
 int nv04_disp_mthd(struct nvkm_object *, u32, void *, u32);
 int nv50_disp_root_mthd_(struct nvkm_object *, u32, void *, u32);
 
-int nv50_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_disp **);
-void *nv50_disp_dtor(struct nvkm_disp *);
 int nv50_disp_oneinit(struct nvkm_disp *);
 int nv50_disp_init(struct nvkm_disp *);
 void nv50_disp_fini(struct nvkm_disp *);

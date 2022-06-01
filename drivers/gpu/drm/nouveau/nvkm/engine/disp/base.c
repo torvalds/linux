@@ -30,6 +30,7 @@
 
 #include <core/client.h>
 #include <core/notify.h>
+#include <core/ramht.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 
@@ -394,8 +395,12 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	struct nvkm_head *head;
 	void *data = disp;
 
-	if (disp->func->dtor)
-		data = disp->func->dtor(disp);
+	nvkm_ramht_del(&disp->ramht);
+	nvkm_gpuobj_del(&disp->inst);
+
+	nvkm_event_fini(&disp->uevent);
+	if (disp->super.wq)
+		destroy_workqueue(disp->super.wq);
 
 	nvkm_event_fini(&disp->vblank);
 	nvkm_event_fini(&disp->hpd);
@@ -436,23 +441,33 @@ nvkm_disp = {
 };
 
 int
-nvkm_disp_ctor(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, struct nvkm_disp *disp)
+nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
+	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
+	struct nvkm_disp *disp;
+	int ret;
+
+	if (!(disp = *pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
+		return -ENOMEM;
+
 	disp->func = func;
 	INIT_LIST_HEAD(&disp->heads);
 	INIT_LIST_HEAD(&disp->iors);
 	INIT_LIST_HEAD(&disp->outps);
 	INIT_LIST_HEAD(&disp->conns);
 	spin_lock_init(&disp->client.lock);
-	return nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
-}
 
-int
-nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
-{
-	if (!(*pdisp = kzalloc(sizeof(**pdisp), GFP_KERNEL)))
-		return -ENOMEM;
-	return nvkm_disp_ctor(func, device, type, inst, *pdisp);
+	ret = nvkm_engine_ctor(&nvkm_disp, device, type, inst, true, &disp->engine);
+	if (ret)
+		return ret;
+
+	if (func->super) {
+		disp->super.wq = create_singlethread_workqueue("nvkm-disp");
+		if (!disp->super.wq)
+			return -ENOMEM;
+
+		INIT_WORK(&disp->super.work, func->super);
+	}
+
+	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan), &disp->uevent);
 }

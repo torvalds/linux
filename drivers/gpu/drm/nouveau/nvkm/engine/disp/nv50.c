@@ -1788,22 +1788,8 @@ nv50_disp_oneinit(struct nvkm_disp *disp)
 			      0x1000, 0, disp->inst, &disp->ramht);
 }
 
-void *
-nv50_disp_dtor(struct nvkm_disp *disp)
-{
-	nvkm_ramht_del(&disp->ramht);
-	nvkm_gpuobj_del(&disp->inst);
-
-	nvkm_event_fini(&disp->uevent);
-	if (disp->super.wq)
-		destroy_workqueue(disp->super.wq);
-
-	return disp;
-}
-
 static const struct nvkm_disp_func
 nv50_disp = {
-	.dtor = nv50_disp_dtor,
 	.oneinit = nv50_disp_oneinit,
 	.init = nv50_disp_init,
 	.fini = nv50_disp_fini,
@@ -1826,34 +1812,8 @@ nv50_disp = {
 };
 
 int
-nv50_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
-{
-	struct nvkm_disp *disp;
-	int ret;
-
-	if (!(disp = kzalloc(sizeof(*disp), GFP_KERNEL)))
-		return -ENOMEM;
-	disp->func = func;
-	*pdisp = disp;
-
-	ret = nvkm_disp_ctor(func, device, type, inst, disp);
-	if (ret)
-		return ret;
-
-	disp->super.wq = create_singlethread_workqueue("nvkm-disp");
-	if (!disp->super.wq)
-		return -ENOMEM;
-
-	INIT_WORK(&disp->super.work, func->super);
-
-	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan),
-			       &disp->uevent);
-}
-
-int
 nv50_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&nv50_disp, device, type, inst, pdisp);
+	return nvkm_disp_new_(&nv50_disp, device, type, inst, pdisp);
 }

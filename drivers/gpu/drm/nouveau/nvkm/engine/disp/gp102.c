@@ -172,7 +172,6 @@ gp102_disp_intr_error(struct nvkm_disp *disp, int chid)
 
 static const struct nvkm_disp_func
 gp102_disp = {
-	.dtor = nv50_disp_dtor,
 	.oneinit = nv50_disp_oneinit,
 	.init = gf119_disp_init,
 	.fini = gf119_disp_fini,
@@ -197,5 +196,5 @@ int
 gp102_disp_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_disp **pdisp)
 {
-	return nv50_disp_new_(&gp102_disp, device, type, inst, pdisp);
+	return nvkm_disp_new_(&gp102_disp, device, type, inst, pdisp);
 }
