@@ -3786,6 +3786,7 @@ F:	Documentation/devicetree/bindings/arm/bcm/brcm,bcmbca.yaml
 F:	arch/arm64/boot/dts/broadcom/bcmbca/*
 N:	bcmbca
 N:	bcm[9]?47622
+N:	bcm[9]?4912
 N:	bcm[9]?63158
 N:	bcm[9]?63178
 
