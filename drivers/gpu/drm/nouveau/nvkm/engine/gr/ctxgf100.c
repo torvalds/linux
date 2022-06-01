@@ -1381,12 +1381,17 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan)
 	gf100_gr_wait_idle(gr);
 
 	if (grctx->r400088) grctx->r400088(gr, false);
+
 	if (gr->bundle)
 		gf100_gr_icmd(gr, gr->bundle);
 	else
 		gf100_gr_icmd(gr, grctx->icmd);
+
+	if (gr->bundle_veid)
+		gf100_gr_icmd(gr, gr->bundle_veid);
 	if (grctx->sw_veid_bundle_init)
 		gf100_gr_icmd(gr, grctx->sw_veid_bundle_init);
+
 	if (grctx->r400088) grctx->r400088(gr, true);
 
 	nvkm_wr32(device, 0x404154, idle_timeout);

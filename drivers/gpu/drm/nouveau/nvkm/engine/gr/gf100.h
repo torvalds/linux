@@ -90,6 +90,7 @@ struct gf100_gr {
 	struct gf100_gr_pack *sw_nonctx;
 	struct gf100_gr_pack *sw_ctx;
 	struct gf100_gr_pack *bundle;
+	struct gf100_gr_pack *bundle_veid;
 	struct gf100_gr_pack *method;
 
 	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_COLOR_CNT];
@@ -224,6 +225,7 @@ void gm107_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gm107_gr_init_400054(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
+int gk20a_gr_av_to_init_(struct nvkm_blob *, u8 count, u32 pitch, struct gf100_gr_pack **);
 int gk20a_gr_av_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
 int gk20a_gr_aiv_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
 int gk20a_gr_av_to_method(struct nvkm_blob *, struct gf100_gr_pack **);
@@ -252,6 +254,8 @@ void gv100_gr_init_419bd8(struct gf100_gr *);
 void gv100_gr_init_504430(struct gf100_gr *, int, int);
 void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gv100_gr_trap_mp(struct gf100_gr *, int, int);
+
+int tu102_gr_av_to_init_veid(struct nvkm_blob *, struct gf100_gr_pack **);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>

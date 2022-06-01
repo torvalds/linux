@@ -34,7 +34,7 @@ struct gk20a_fw_av
 };
 
 int
-gk20a_gr_av_to_init(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
+gk20a_gr_av_to_init_(struct nvkm_blob *blob, u8 count, u32 pitch, struct gf100_gr_pack **ppack)
 {
 	struct gf100_gr_init *init;
 	struct gf100_gr_pack *pack;
@@ -55,12 +55,18 @@ gk20a_gr_av_to_init(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
 
 		ent->addr = av->addr;
 		ent->data = av->data;
-		ent->count = 1;
-		ent->pitch = 1;
+		ent->count = ((ent->addr & 0xffff) != 0xe100) ? count : 1;
+		ent->pitch = pitch;
 	}
 
 	*ppack = pack;
 	return 0;
+}
+
+int
+gk20a_gr_av_to_init(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
+{
+	return gk20a_gr_av_to_init_(blob, 1, 1, ppack);
 }
 
 struct gk20a_fw_aiv

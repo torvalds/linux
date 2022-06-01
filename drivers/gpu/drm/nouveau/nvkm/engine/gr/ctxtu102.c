@@ -51,7 +51,6 @@ tu102_grctx_init_unknown_bundle_init_0[] = {
 
 static const struct gf100_gr_pack
 tu102_grctx_pack_sw_veid_bundle_init[] = {
-	{ gv100_grctx_init_sw_veid_bundle_init_0 },
 	{ tu102_grctx_init_unknown_bundle_init_0 },
 	{}
 };

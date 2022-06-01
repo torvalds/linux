@@ -25,7 +25,7 @@
  * PGRAPH context implementation
  ******************************************************************************/
 
-const struct gf100_gr_init
+static const struct gf100_gr_init
 gv100_grctx_init_sw_veid_bundle_init_0[] = {
 	{ 0x00001000, 64, 0x00100000, 0x00000008 },
 	{ 0x00000941, 64, 0x00100000, 0x00000000 },

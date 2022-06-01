@@ -141,6 +141,7 @@ MODULE_FIRMWARE("nvidia/tu102/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu102/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu102/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu104/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/fecs_inst.bin");
@@ -154,6 +155,7 @@ MODULE_FIRMWARE("nvidia/tu104/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu104/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu104/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu106/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/fecs_inst.bin");
@@ -167,6 +169,7 @@ MODULE_FIRMWARE("nvidia/tu106/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu106/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu106/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu117/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/fecs_inst.bin");
@@ -180,6 +183,7 @@ MODULE_FIRMWARE("nvidia/tu117/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu117/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu117/gr/sw_veid_bundle_init.bin");
 
 MODULE_FIRMWARE("nvidia/tu116/gr/fecs_bl.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/fecs_inst.bin");
@@ -193,6 +197,26 @@ MODULE_FIRMWARE("nvidia/tu116/gr/sw_ctx.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_nonctx.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_bundle_init.bin");
 MODULE_FIRMWARE("nvidia/tu116/gr/sw_method_init.bin");
+MODULE_FIRMWARE("nvidia/tu116/gr/sw_veid_bundle_init.bin");
+
+int
+tu102_gr_av_to_init_veid(struct nvkm_blob *blob, struct gf100_gr_pack **ppack)
+{
+	return gk20a_gr_av_to_init_(blob, 64, 0x00100000, ppack);
+}
+
+int
+tu102_gr_load(struct gf100_gr *gr, int ver, const struct gf100_gr_fwif *fwif)
+{
+	int ret;
+
+	ret = gm200_gr_load(gr, ver, fwif);
+	if (ret)
+		return ret;
+
+	return gk20a_gr_load_net(gr, "gr/", "sw_veid_bundle_init", ver, tu102_gr_av_to_init_veid,
+				 &gr->bundle_veid);
+}
 
 static const struct gf100_gr_fwif
 tu102_gr_fwif[] = {

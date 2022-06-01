@@ -153,7 +153,6 @@ extern const struct gf100_grctx_func gv100_grctx;
 extern const struct gf100_grctx_func tu102_grctx;
 void gv100_grctx_unkn88c(struct gf100_gr *, bool);
 void gv100_grctx_generate_unkn(struct gf100_gr *);
-extern const struct gf100_gr_init gv100_grctx_init_sw_veid_bundle_init_0[];
 void gv100_grctx_generate_attrib_cb(struct gf100_gr_chan *, u64, u32);
 void gv100_grctx_generate_attrib(struct gf100_gr_chan *);
 void gv100_grctx_generate_rop_mapping(struct gf100_gr *);

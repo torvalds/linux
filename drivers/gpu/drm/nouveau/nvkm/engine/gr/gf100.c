@@ -2139,6 +2139,7 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	nvkm_blob_dtor(&gr->gpccs.inst);
 	nvkm_blob_dtor(&gr->gpccs.data);
 
+	vfree(gr->bundle_veid);
 	vfree(gr->bundle);
 	vfree(gr->method);
 	vfree(gr->sw_ctx);
