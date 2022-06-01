@@ -55,7 +55,7 @@ nvkm_ior_del(struct nvkm_ior **pior)
 
 int
 nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *disp,
-	      enum nvkm_ior_type type, int id)
+	      enum nvkm_ior_type type, int id, bool hda)
 {
 	struct nvkm_ior *ior;
 	if (!(ior = kzalloc(sizeof(*ior), GFP_KERNEL)))
@@ -64,6 +64,7 @@ nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *disp,
 	ior->disp = disp;
 	ior->type = type;
 	ior->id = id;
+	ior->hda = hda;
 	snprintf(ior->name, sizeof(ior->name), "%s-%d", nvkm_ior_name[ior->type], ior->id);
 	list_add_tail(&ior->head, &disp->iors);
 	IOR_DBG(ior, "ctor");

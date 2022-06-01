@@ -13,6 +13,7 @@ struct nvkm_ior {
 		PIOR,
 	} type;
 	int id;
+	bool hda;
 	char name[8];
 
 	struct list_head head;
@@ -93,7 +94,7 @@ struct nvkm_ior_func {
 };
 
 int nvkm_ior_new_(const struct nvkm_ior_func *func, struct nvkm_disp *,
-		  enum nvkm_ior_type type, int id);
+		  enum nvkm_ior_type type, int id, bool hda);
 void nvkm_ior_del(struct nvkm_ior **);
 struct nvkm_ior *nvkm_ior_find(struct nvkm_disp *, enum nvkm_ior_type, int id);
 

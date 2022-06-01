@@ -84,7 +84,7 @@ ga102_sor_clock(struct nvkm_ior *sor)
 }
 
 static const struct nvkm_ior_func
-ga102_sor_hda = {
+ga102_sor = {
 	.route = {
 		.get = gm200_sor_route_get,
 		.set = gm200_sor_route_set,
@@ -114,40 +114,13 @@ ga102_sor_hda = {
 	},
 };
 
-static const struct nvkm_ior_func
-ga102_sor = {
-	.route = {
-		.get = gm200_sor_route_get,
-		.set = gm200_sor_route_set,
-	},
-	.state = gv100_sor_state,
-	.power = nv50_sor_power,
-	.clock = ga102_sor_clock,
-	.hdmi = {
-		.ctrl = gv100_sor_hdmi_ctrl,
-		.scdc = gm200_sor_hdmi_scdc,
-	},
-	.dp = {
-		.lanes = { 0, 1, 2, 3 },
-		.links = ga102_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gm107_sor_dp_pattern,
-		.drive = gm200_sor_dp_drive,
-		.vcpi = tu102_sor_dp_vcpi,
-		.audio = gv100_sor_dp_audio,
-		.audio_sym = gv100_sor_dp_audio_sym,
-		.watermark = gv100_sor_dp_watermark,
-	},
-};
-
 static int
 ga102_sor_new(struct nvkm_disp *disp, int id)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	u32 hda = nvkm_rd32(device, 0x08a15c);
-	if (hda & BIT(id))
-		return nvkm_ior_new_(&ga102_sor_hda, disp, SOR, id);
-	return nvkm_ior_new_(&ga102_sor, disp, SOR, id);
+
+	return nvkm_ior_new_(&ga102_sor, disp, SOR, id, hda & BIT(id));
 }
 
 static const struct nvkm_disp_func

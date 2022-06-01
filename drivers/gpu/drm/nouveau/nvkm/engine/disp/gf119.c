@@ -309,7 +309,7 @@ gf119_sor = {
 static int
 gf119_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&gf119_sor, disp, SOR, id);
+	return nvkm_ior_new_(&gf119_sor, disp, SOR, id, true);
 }
 
 int
@@ -357,7 +357,7 @@ gf119_dac = {
 int
 gf119_dac_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&gf119_dac, disp, DAC, id);
+	return nvkm_ior_new_(&gf119_dac, disp, DAC, id, false);
 }
 
 int

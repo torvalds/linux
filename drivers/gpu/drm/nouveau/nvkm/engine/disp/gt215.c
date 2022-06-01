@@ -168,7 +168,7 @@ gt215_sor = {
 static int
 gt215_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&gt215_sor, disp, SOR, id);
+	return nvkm_ior_new_(&gt215_sor, disp, SOR, id, true);
 }
 
 static const struct nvkm_disp_func

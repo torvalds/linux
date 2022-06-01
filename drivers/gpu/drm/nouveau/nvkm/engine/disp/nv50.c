@@ -147,7 +147,7 @@ nv50_pior = {
 int
 nv50_pior_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&nv50_pior, disp, PIOR, id);
+	return nvkm_ior_new_(&nv50_pior, disp, PIOR, id, false);
 }
 
 int
@@ -228,7 +228,7 @@ nv50_sor = {
 static int
 nv50_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&nv50_sor, disp, SOR, id);
+	return nvkm_ior_new_(&nv50_sor, disp, SOR, id, false);
 }
 
 int
@@ -324,7 +324,7 @@ nv50_dac = {
 int
 nv50_dac_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&nv50_dac, disp, DAC, id);
+	return nvkm_ior_new_(&nv50_dac, disp, DAC, id, false);
 }
 
 int

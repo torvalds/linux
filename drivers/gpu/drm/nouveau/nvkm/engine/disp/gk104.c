@@ -116,7 +116,7 @@ gk104_sor = {
 int
 gk104_sor_new(struct nvkm_disp *disp, int id)
 {
-	return nvkm_ior_new_(&gk104_sor, disp, SOR, id);
+	return nvkm_ior_new_(&gk104_sor, disp, SOR, id, true);
 }
 
 static const struct nvkm_disp_mthd_list

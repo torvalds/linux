@@ -120,7 +120,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 
 	/* Failing that, a completely unused OR is the next best thing. */
 	list_for_each_entry(ior, &outp->disp->iors, head) {
-		if (!ior->identity && !!ior->func->hda.hpd == hda &&
+		if (!ior->identity && ior->hda == hda &&
 		    !ior->asy.outp && ior->type == type && !ior->arm.outp &&
 		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
 			return nvkm_outp_acquire_ior(outp, user, ior);
@@ -130,7 +130,7 @@ nvkm_outp_acquire_hda(struct nvkm_outp *outp, enum nvkm_ior_type type,
 	 * but will be released during the next modeset.
 	 */
 	list_for_each_entry(ior, &outp->disp->iors, head) {
-		if (!ior->identity && !!ior->func->hda.hpd == hda &&
+		if (!ior->identity && ior->hda == hda &&
 		    !ior->asy.outp && ior->type == type &&
 		    (ior->func->route.set || ior->id == __ffs(outp->info.or)))
 			return nvkm_outp_acquire_ior(outp, user, ior);
@@ -181,7 +181,7 @@ nvkm_outp_acquire(struct nvkm_outp *outp, u8 user, bool hda)
 			 *
 			 *     This warning is to make it obvious if that proves wrong.
 			 */
-			WARN_ON(hda && !ior->func->hda.hpd);
+			WARN_ON(hda && !ior->hda);
 			return nvkm_outp_acquire_ior(outp, user, ior);
 		}
 	}

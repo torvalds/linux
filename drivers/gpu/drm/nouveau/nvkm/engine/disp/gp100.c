@@ -29,7 +29,7 @@
 #include <nvif/class.h>
 
 static const struct nvkm_ior_func
-gp100_sor_hda = {
+gp100_sor = {
 	.route = {
 		.get = gm200_sor_route_get,
 		.set = gm200_sor_route_set,
@@ -59,32 +59,6 @@ gp100_sor_hda = {
 	},
 };
 
-static const struct nvkm_ior_func
-gp100_sor = {
-	.route = {
-		.get = gm200_sor_route_get,
-		.set = gm200_sor_route_set,
-	},
-	.state = gf119_sor_state,
-	.power = nv50_sor_power,
-	.clock = gf119_sor_clock,
-	.hdmi = {
-		.ctrl = gk104_sor_hdmi_ctrl,
-		.scdc = gm200_sor_hdmi_scdc,
-	},
-	.dp = {
-		.lanes = { 0, 1, 2, 3 },
-		.links = gf119_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gm107_sor_dp_pattern,
-		.drive = gm200_sor_dp_drive,
-		.vcpi = gf119_sor_dp_vcpi,
-		.audio = gf119_sor_dp_audio,
-		.audio_sym = gf119_sor_dp_audio_sym,
-		.watermark = gf119_sor_dp_watermark,
-	},
-};
-
 int
 gp100_sor_new(struct nvkm_disp *disp, int id)
 {
@@ -94,9 +68,7 @@ gp100_sor_new(struct nvkm_disp *disp, int id)
 	if (!((hda = nvkm_rd32(device, 0x08a15c)) & 0x40000000))
 		hda = nvkm_rd32(device, 0x10ebb0) >> 8;
 
-	if (hda & BIT(id))
-		return nvkm_ior_new_(&gp100_sor_hda, disp, SOR, id);
-	return nvkm_ior_new_(&gp100_sor, disp, SOR, id);
+	return nvkm_ior_new_(&gp100_sor, disp, SOR, id, hda & BIT(id));
 }
 
 static const struct nvkm_disp_func
