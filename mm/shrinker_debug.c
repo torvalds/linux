@@ -1,0 +1,168 @@
+// SPDX-License-Identifier: GPL-2.0
+#include <linux/idr.h>
+#include <linux/slab.h>
+#include <linux/debugfs.h>
+#include <linux/seq_file.h>
+#include <linux/shrinker.h>
+#include <linux/memcontrol.h>
+
+/* defined in vmscan.c */
+extern struct rw_semaphore shrinker_rwsem;
+extern struct list_head shrinker_list;
+
+static DEFINE_IDA(shrinker_debugfs_ida);
+static struct dentry *shrinker_debugfs_root;
+
+static unsigned long shrinker_count_objects(struct shrinker *shrinker,
+					    struct mem_cgroup *memcg,
+					    unsigned long *count_per_node)
+{
+	unsigned long nr, total = 0;
+	int nid;
+
+	for_each_node(nid) {
+		if (nid == 0 || (shrinker->flags & SHRINKER_NUMA_AWARE)) {
+			struct shrink_control sc = {
+				.gfp_mask = GFP_KERNEL,
+				.nid = nid,
+				.memcg = memcg,
+			};
+
+			nr = shrinker->count_objects(shrinker, &sc);
+			if (nr == SHRINK_EMPTY)
+				nr = 0;
+		} else {
+			nr = 0;
+		}
+
+		count_per_node[nid] = nr;
+		total += nr;
+	}
+
+	return total;
+}
+
+static int shrinker_debugfs_count_show(struct seq_file *m, void *v)
+{
+	struct shrinker *shrinker = m->private;
+	unsigned long *count_per_node;
+	struct mem_cgroup *memcg;
+	unsigned long total;
+	bool memcg_aware;
+	int ret, nid;
+
+	count_per_node = kcalloc(nr_node_ids, sizeof(unsigned long), GFP_KERNEL);
+	if (!count_per_node)
+		return -ENOMEM;
+
+	ret = down_read_killable(&shrinker_rwsem);
+	if (ret) {
+		kfree(count_per_node);
+		return ret;
+	}
+	rcu_read_lock();
+
+	memcg_aware = shrinker->flags & SHRINKER_MEMCG_AWARE;
+
+	memcg = mem_cgroup_iter(NULL, NULL, NULL);
+	do {
+		if (memcg && !mem_cgroup_online(memcg))
+			continue;
+
+		total = shrinker_count_objects(shrinker,
+					       memcg_aware ? memcg : NULL,
+					       count_per_node);
+		if (total) {
+			seq_printf(m, "%lu", mem_cgroup_ino(memcg));
+			for_each_node(nid)
+				seq_printf(m, " %lu", count_per_node[nid]);
+			seq_putc(m, '\n');
+		}
+
+		if (!memcg_aware) {
+			mem_cgroup_iter_break(NULL, memcg);
+			break;
+		}
+
+		if (signal_pending(current)) {
+			mem_cgroup_iter_break(NULL, memcg);
+			ret = -EINTR;
+			break;
+		}
+	} while ((memcg = mem_cgroup_iter(NULL, memcg, NULL)) != NULL);
+
+	rcu_read_unlock();
+	up_read(&shrinker_rwsem);
+
+	kfree(count_per_node);
+	return ret;
+}
+DEFINE_SHOW_ATTRIBUTE(shrinker_debugfs_count);
+
+int shrinker_debugfs_add(struct shrinker *shrinker)
+{
+	struct dentry *entry;
+	char buf[16];
+	int id;
+
+	lockdep_assert_held(&shrinker_rwsem);
+
+	/* debugfs isn't initialized yet, add debugfs entries later. */
+	if (!shrinker_debugfs_root)
+		return 0;
+
+	id = ida_alloc(&shrinker_debugfs_ida, GFP_KERNEL);
+	if (id < 0)
+		return id;
+	shrinker->debugfs_id = id;
+
+	snprintf(buf, sizeof(buf), "%d", id);
+
+	/* create debugfs entry */
+	entry = debugfs_create_dir(buf, shrinker_debugfs_root);
+	if (IS_ERR(entry)) {
+		ida_free(&shrinker_debugfs_ida, id);
+		return PTR_ERR(entry);
+	}
+	shrinker->debugfs_entry = entry;
+
+	debugfs_create_file("count", 0220, entry, shrinker,
+			    &shrinker_debugfs_count_fops);
+	return 0;
+}
+
+void shrinker_debugfs_remove(struct shrinker *shrinker)
+{
+	lockdep_assert_held(&shrinker_rwsem);
+
+	if (!shrinker->debugfs_entry)
+		return;
+
+	debugfs_remove_recursive(shrinker->debugfs_entry);
+	ida_free(&shrinker_debugfs_ida, shrinker->debugfs_id);
+}
+
+static int __init shrinker_debugfs_init(void)
+{
+	struct shrinker *shrinker;
+	struct dentry *dentry;
+	int ret = 0;
+
+	dentry = debugfs_create_dir("shrinker", NULL);
+	if (IS_ERR(dentry))
+		return PTR_ERR(dentry);
+	shrinker_debugfs_root = dentry;
+
+	/* Create debugfs entries for shrinkers registered at boot */
+	down_write(&shrinker_rwsem);
+	list_for_each_entry(shrinker, &shrinker_list, list)
+		if (!shrinker->debugfs_entry) {
+			ret = shrinker_debugfs_add(shrinker);
+			if (ret)
+				break;
+		}
+	up_write(&shrinker_rwsem);
+
+	return ret;
+}
+late_initcall(shrinker_debugfs_init);

@@ -699,6 +699,15 @@ config DEBUG_OBJECTS_ENABLE_DEFAULT
 	help
 	  Debug objects boot parameter default value
 
+config SHRINKER_DEBUG
+	default y
+	bool "Enable shrinker debugging support"
+	depends on DEBUG_FS
+	help
+	  Say Y to enable the shrinker debugfs interface which provides
+	  visibility into the kernel memory shrinkers subsystem.
+	  Disable it to avoid an extra memory footprint.
+
 config HAVE_DEBUG_KMEMLEAK
 	bool
 

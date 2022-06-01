@@ -73,6 +73,10 @@ struct shrinker {
 	/* ID in shrinker_idr */
 	int id;
 #endif
+#ifdef CONFIG_SHRINKER_DEBUG
+	int debugfs_id;
+	struct dentry *debugfs_entry;
+#endif
 	/* objs pending delete, per node */
 	atomic_long_t *nr_deferred;
 };
@@ -94,4 +98,17 @@ extern int register_shrinker(struct shrinker *shrinker);
 extern void unregister_shrinker(struct shrinker *shrinker);
 extern void free_prealloced_shrinker(struct shrinker *shrinker);
 extern void synchronize_shrinkers(void);
-#endif
+
+#ifdef CONFIG_SHRINKER_DEBUG
+extern int shrinker_debugfs_add(struct shrinker *shrinker);
+extern void shrinker_debugfs_remove(struct shrinker *shrinker);
+#else /* CONFIG_SHRINKER_DEBUG */
+static inline int shrinker_debugfs_add(struct shrinker *shrinker)
+{
+	return 0;
+}
+static inline void shrinker_debugfs_remove(struct shrinker *shrinker)
+{
+}
+#endif /* CONFIG_SHRINKER_DEBUG */
+#endif /* _LINUX_SHRINKER_H */
