@@ -26,9 +26,10 @@ static const struct nvkm_fb_func
 ga102_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
-	.init = gp100_fb_init,
+	.init = gm200_fb_init,
 	.init_page = gv100_fb_init_page,
 	.init_unkn = gp100_fb_init_unkn,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.ram_new = ga102_ram_new,
 	.default_bigpage = 16,
 };

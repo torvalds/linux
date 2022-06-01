@@ -55,9 +55,10 @@ static const struct nvkm_fb_func
 gp102_fb = {
 	.dtor = gf100_fb_dtor,
 	.oneinit = gf100_fb_oneinit,
-	.init = gp100_fb_init,
+	.init = gm200_fb_init,
 	.init_remapper = gp100_fb_init_remapper,
 	.init_page = gm200_fb_init_page,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 	.vpr.scrub_required = gp102_fb_vpr_scrub_required,
 	.vpr.scrub = gp102_fb_vpr_scrub,
 	.ram_new = gp100_ram_new,

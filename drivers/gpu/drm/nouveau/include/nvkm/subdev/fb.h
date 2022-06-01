@@ -35,6 +35,11 @@ struct nvkm_fb {
 
 	struct nvkm_blob vpr_scrubber;
 
+	struct {
+		struct page *flush_page;
+		dma_addr_t flush_page_addr;
+	} sysmem;
+
 	struct nvkm_ram *ram;
 
 	struct {

@@ -28,6 +28,7 @@ gp10b_fb = {
 	.init = gm200_fb_init,
 	.init_page = gm200_fb_init_page,
 	.intr = gf100_fb_intr,
+	.sysmem.flush_page_init = gf100_fb_sysmem_flush_page_init,
 };
 
 int

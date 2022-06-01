@@ -57,6 +57,15 @@ nvkm_fb_tile_prog(struct nvkm_fb *fb, int region, struct nvkm_fb_tile *tile)
 	}
 }
 
+static void
+nvkm_fb_sysmem_flush_page_init(struct nvkm_device *device)
+{
+	struct nvkm_fb *fb = device->fb;
+
+	if (fb->func->sysmem.flush_page_init)
+		fb->func->sysmem.flush_page_init(fb);
+}
+
 int
 nvkm_fb_bios_memtype(struct nvkm_bios *bios)
 {
@@ -168,6 +177,8 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 	for (i = 0; i < fb->tile.regions; i++)
 		fb->func->tile.prog(fb, i, &fb->tile.region[i]);
 
+	nvkm_fb_sysmem_flush_page_init(subdev->device);
+
 	if (fb->func->init)
 		fb->func->init(fb);
 
@@ -193,6 +204,13 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 	return 0;
 }
 
+static int
+nvkm_fb_preinit(struct nvkm_subdev *subdev)
+{
+	nvkm_fb_sysmem_flush_page_init(subdev->device);
+	return 0;
+}
+
 static void *
 nvkm_fb_dtor(struct nvkm_subdev *subdev)
 {
@@ -212,20 +230,28 @@ nvkm_fb_dtor(struct nvkm_subdev *subdev)
 
 	nvkm_blob_dtor(&fb->vpr_scrubber);
 
+	if (fb->sysmem.flush_page) {
+		dma_unmap_page(subdev->device->dev, fb->sysmem.flush_page_addr,
+			       PAGE_SIZE, DMA_BIDIRECTIONAL);
+		__free_page(fb->sysmem.flush_page);
+	}
+
 	if (fb->func->dtor)
 		return fb->func->dtor(fb);
+
 	return fb;
 }
 
 static const struct nvkm_subdev_func
 nvkm_fb = {
 	.dtor = nvkm_fb_dtor,
+	.preinit = nvkm_fb_preinit,
 	.oneinit = nvkm_fb_oneinit,
 	.init = nvkm_fb_init,
 	.intr = nvkm_fb_intr,
 };
 
-void
+int
 nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	     enum nvkm_subdev_type type, int inst, struct nvkm_fb *fb)
 {
@@ -234,6 +260,19 @@ nvkm_fb_ctor(const struct nvkm_fb_func *func, struct nvkm_device *device,
 	fb->tile.regions = fb->func->tile.regions;
 	fb->page = nvkm_longopt(device->cfgopt, "NvFbBigPage", fb->func->default_bigpage);
 	mutex_init(&fb->tags.mutex);
+
+	if (func->sysmem.flush_page_init) {
+		fb->sysmem.flush_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
+		if (!fb->sysmem.flush_page)
+			return -ENOMEM;
+
+		fb->sysmem.flush_page_addr = dma_map_page(device->dev, fb->sysmem.flush_page,
+							  0, PAGE_SIZE, DMA_BIDIRECTIONAL);
+		if (dma_mapping_error(device->dev, fb->sysmem.flush_page_addr))
+			return -EFAULT;
+	}
+
+	return 0;
 }
 
 int
@@ -242,6 +281,5 @@ nvkm_fb_new_(const struct nvkm_fb_func *func, struct nvkm_device *device,
 {
 	if (!(*pfb = kzalloc(sizeof(**pfb), GFP_KERNEL)))
 		return -ENOMEM;
-	nvkm_fb_ctor(func, device, type, inst, *pfb);
-	return 0;
+	return nvkm_fb_ctor(func, device, type, inst, *pfb);
 }

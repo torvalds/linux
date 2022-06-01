@@ -191,34 +191,11 @@ nv50_fb_intr(struct nvkm_fb *base)
 	nvkm_chan_put(&chan, flags);
 }
 
-static int
-nv50_fb_oneinit(struct nvkm_fb *base)
-{
-	struct nv50_fb *fb = nv50_fb(base);
-	struct nvkm_device *device = fb->base.subdev.device;
-
-	fb->r100c08_page = alloc_page(GFP_KERNEL | __GFP_ZERO);
-	if (fb->r100c08_page) {
-		fb->r100c08 = dma_map_page(device->dev, fb->r100c08_page, 0,
-					   PAGE_SIZE, DMA_BIDIRECTIONAL);
-		if (dma_mapping_error(device->dev, fb->r100c08))
-			return -EFAULT;
-	}
-
-	return 0;
-}
-
 static void
 nv50_fb_init(struct nvkm_fb *base)
 {
 	struct nv50_fb *fb = nv50_fb(base);
 	struct nvkm_device *device = fb->base.subdev.device;
-
-	/* Not a clue what this is exactly.  Without pointing it at a
-	 * scratch page, VRAM->GART blits with M2MF (as in DDX DFS)
-	 * cause IOMMU "read from address 0" errors (rh#561267)
-	 */
-	nvkm_wr32(device, 0x100c08, fb->r100c08 >> 8);
 
 	/* This is needed to get meaningful information from 100c90
 	 * on traps. No idea what these values mean exactly. */
@@ -234,17 +211,16 @@ nv50_fb_tags(struct nvkm_fb *base)
 	return 0;
 }
 
+static void
+nv50_fb_sysmem_flush_page_init(struct nvkm_fb *fb)
+{
+	nvkm_wr32(fb->subdev.device, 0x100c08, fb->sysmem.flush_page_addr >> 8);
+}
+
 static void *
 nv50_fb_dtor(struct nvkm_fb *base)
 {
 	struct nv50_fb *fb = nv50_fb(base);
-	struct nvkm_device *device = fb->base.subdev.device;
-
-	if (fb->r100c08_page) {
-		dma_unmap_page(device->dev, fb->r100c08, PAGE_SIZE,
-			       DMA_BIDIRECTIONAL);
-		__free_page(fb->r100c08_page);
-	}
 
 	return fb;
 }
@@ -253,9 +229,9 @@ static const struct nvkm_fb_func
 nv50_fb_ = {
 	.dtor = nv50_fb_dtor,
 	.tags = nv50_fb_tags,
-	.oneinit = nv50_fb_oneinit,
 	.init = nv50_fb_init,
 	.intr = nv50_fb_intr,
+	.sysmem.flush_page_init = nv50_fb_sysmem_flush_page_init,
 	.ram_new = nv50_fb_ram_new,
 };
 
