@@ -1447,6 +1447,10 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 
 	/* NV_PGRAPH_FE_PWR_MODE_AUTO. */
 	nvkm_wr32(device, 0x404170, 0x00000010);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x404170) & 0x00000010))
+			break;
+	);
 
 	/* Init SCC RAM. */
 	nvkm_wr32(device, 0x40802c, 0x00000001);
