@@ -54,6 +54,7 @@ static unsigned int defer_sync_state_count = 1;
 static DEFINE_MUTEX(fwnode_link_lock);
 static bool fw_devlink_is_permissive(void);
 static bool fw_devlink_drv_reg_done;
+static bool fw_devlink_best_effort;
 
 /**
  * fwnode_link_add - Create a link between two fwnode_handles.
@@ -965,6 +966,11 @@ static void device_links_missing_supplier(struct device *dev)
 	}
 }
 
+static bool dev_is_best_effort(struct device *dev)
+{
+	return fw_devlink_best_effort && dev->can_match;
+}
+
 /**
  * device_links_check_suppliers - Check presence of supplier drivers.
  * @dev: Consumer device.
@@ -984,7 +990,7 @@ static void device_links_missing_supplier(struct device *dev)
 int device_links_check_suppliers(struct device *dev)
 {
 	struct device_link *link;
-	int ret = 0;
+	int ret = 0, fwnode_ret = 0;
 	struct fwnode_handle *sup_fw;
 
 	/*
@@ -997,12 +1003,17 @@ int device_links_check_suppliers(struct device *dev)
 		sup_fw = list_first_entry(&dev->fwnode->suppliers,
 					  struct fwnode_link,
 					  c_hook)->supplier;
-		dev_err_probe(dev, -EPROBE_DEFER, "wait for supplier %pfwP\n",
-			      sup_fw);
-		mutex_unlock(&fwnode_link_lock);
-		return -EPROBE_DEFER;
+		if (!dev_is_best_effort(dev)) {
+			fwnode_ret = -EPROBE_DEFER;
+			dev_err_probe(dev, -EPROBE_DEFER,
+				    "wait for supplier %pfwP\n", sup_fw);
+		} else {
+			fwnode_ret = -EAGAIN;
+		}
 	}
 	mutex_unlock(&fwnode_link_lock);
+	if (fwnode_ret == -EPROBE_DEFER)
+		return fwnode_ret;
 
 	device_links_write_lock();
 
@@ -1012,6 +1023,14 @@ int device_links_check_suppliers(struct device *dev)
 
 		if (link->status != DL_STATE_AVAILABLE &&
 		    !(link->flags & DL_FLAG_SYNC_STATE_ONLY)) {
+
+			if (dev_is_best_effort(dev) &&
+			    link->flags & DL_FLAG_INFERRED &&
+			    !link->supplier->can_match) {
+				ret = -EAGAIN;
+				continue;
+			}
+
 			device_links_missing_supplier(dev);
 			dev_err_probe(dev, -EPROBE_DEFER,
 				      "supplier %s not ready\n",
@@ -1024,7 +1043,8 @@ int device_links_check_suppliers(struct device *dev)
 	dev->links.status = DL_DEV_PROBING;
 
 	device_links_write_unlock();
-	return ret;
+
+	return ret ? ret : fwnode_ret;
 }
 
 /**
@@ -1287,6 +1307,18 @@ void device_links_driver_bound(struct device *dev)
 			 * When DL_FLAG_SYNC_STATE_ONLY is set, it means no
 			 * other DL_MANAGED_LINK_FLAGS have been set. So, it's
 			 * save to drop the managed link completely.
+			 */
+			device_link_drop_managed(link);
+		} else if (dev_is_best_effort(dev) &&
+			   link->flags & DL_FLAG_INFERRED &&
+			   link->status != DL_STATE_CONSUMER_PROBE &&
+			   !link->supplier->can_match) {
+			/*
+			 * When dev_is_best_effort() is true, we ignore device
+			 * links to suppliers that don't have a driver.  If the
+			 * consumer device still managed to probe, there's no
+			 * point in maintaining a device link in a weird state
+			 * (consumer probed before supplier). So delete it.
 			 */
 			device_link_drop_managed(link);
 		} else {
@@ -1653,6 +1685,62 @@ void fw_devlink_drivers_done(void)
 	class_for_each_device(&devlink_class, NULL, NULL,
 			      fw_devlink_no_driver);
 	device_links_write_unlock();
+}
+
+/**
+ * wait_for_init_devices_probe - Try to probe any device needed for init
+ *
+ * Some devices might need to be probed and bound successfully before the kernel
+ * boot sequence can finish and move on to init/userspace. For example, a
+ * network interface might need to be bound to be able to mount a NFS rootfs.
+ *
+ * With fw_devlink=on by default, some of these devices might be blocked from
+ * probing because they are waiting on a optional supplier that doesn't have a
+ * driver. While fw_devlink will eventually identify such devices and unblock
+ * the probing automatically, it might be too late by the time it unblocks the
+ * probing of devices. For example, the IP4 autoconfig might timeout before
+ * fw_devlink unblocks probing of the network interface.
+ *
+ * This function is available to temporarily try and probe all devices that have
+ * a driver even if some of their suppliers haven't been added or don't have
+ * drivers.
+ *
+ * The drivers can then decide which of the suppliers are optional vs mandatory
+ * and probe the device if possible. By the time this function returns, all such
+ * "best effort" probes are guaranteed to be completed. If a device successfully
+ * probes in this mode, we delete all fw_devlink discovered dependencies of that
+ * device where the supplier hasn't yet probed successfully because they have to
+ * be optional dependencies.
+ *
+ * Any devices that didn't successfully probe go back to being treated as if
+ * this function was never called.
+ *
+ * This also means that some devices that aren't needed for init and could have
+ * waited for their optional supplier to probe (when the supplier's module is
+ * loaded later on) would end up probing prematurely with limited functionality.
+ * So call this function only when boot would fail without it.
+ */
+void __init wait_for_init_devices_probe(void)
+{
+	if (!fw_devlink_flags || fw_devlink_is_permissive())
+		return;
+
+	/*
+	 * Wait for all ongoing probes to finish so that the "best effort" is
+	 * only applied to devices that can't probe otherwise.
+	 */
+	wait_for_device_probe();
+
+	pr_info("Trying to probe devices needed for running init ...\n");
+	fw_devlink_best_effort = true;
+	driver_deferred_probe_trigger();
+
+	/*
+	 * Wait for all "best effort" probes to finish before going back to
+	 * normal enforcement.
+	 */
+	wait_for_device_probe();
+	fw_devlink_best_effort = false;
 }
 
 static void fw_devlink_unblock_consumers(struct device *dev)

@@ -172,7 +172,7 @@ static bool driver_deferred_probe_enable;
  * changes in the midst of a probe, then deferred processing should be triggered
  * again.
  */
-static void driver_deferred_probe_trigger(void)
+void driver_deferred_probe_trigger(void)
 {
 	if (!driver_deferred_probe_enable)
 		return;
@@ -580,7 +580,7 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 {
 	bool test_remove = IS_ENABLED(CONFIG_DEBUG_TEST_DRIVER_REMOVE) &&
 			   !drv->suppress_bind_attrs;
-	int ret;
+	int ret, link_ret;
 
 	if (defer_all_probes) {
 		/*
@@ -592,9 +592,9 @@ static int really_probe(struct device *dev, struct device_driver *drv)
 		return -EPROBE_DEFER;
 	}
 
-	ret = device_links_check_suppliers(dev);
-	if (ret)
-		return ret;
+	link_ret = device_links_check_suppliers(dev);
+	if (link_ret == -EPROBE_DEFER)
+		return link_ret;
 
 	pr_debug("bus: '%s': %s: probing driver %s with device %s\n",
 		 drv->bus->name, __func__, drv->name, dev_name(dev));
@@ -633,6 +633,15 @@ re_probe:
 
 	ret = call_driver_probe(dev, drv);
 	if (ret) {
+		/*
+		 * If fw_devlink_best_effort is active (denoted by -EAGAIN), the
+		 * device might actually probe properly once some of its missing
+		 * suppliers have probed. So, treat this as if the driver
+		 * returned -EPROBE_DEFER.
+		 */
+		if (link_ret == -EAGAIN)
+			ret = -EPROBE_DEFER;
+
 		/*
 		 * Return probe errors as positive values so that the callers
 		 * can distinguish them from other errors.
