@@ -166,14 +166,14 @@ gv100_fault_intr(struct nvkm_fault *fault)
 
 	if (stat & 0x20000000) {
 		if (fault->buffer[0]) {
-			nvkm_event_send(&fault->event, NVKM_FAULT_BUFFER_EVENT_PENDING, 0, NULL, 0);
+			nvkm_event_ntfy(&fault->event, 0, NVKM_FAULT_BUFFER_EVENT_PENDING);
 			stat &= ~0x20000000;
 		}
 	}
 
 	if (stat & 0x08000000) {
 		if (fault->buffer[1]) {
-			nvkm_event_send(&fault->event, NVKM_FAULT_BUFFER_EVENT_PENDING, 1, NULL, 0);
+			nvkm_event_ntfy(&fault->event, 1, NVKM_FAULT_BUFFER_EVENT_PENDING);
 			stat &= ~0x08000000;
 		}
 	}

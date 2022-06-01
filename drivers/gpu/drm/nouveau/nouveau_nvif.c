@@ -27,12 +27,10 @@
  ******************************************************************************/
 
 #include <core/client.h>
-#include <core/notify.h>
 #include <core/ioctl.h>
 
 #include <nvif/client.h>
 #include <nvif/driver.h>
-#include <nvif/notify.h>
 #include <nvif/event.h>
 #include <nvif/ioctl.h>
 
@@ -87,7 +85,7 @@ static int
 nvkm_client_driver_init(const char *name, u64 device, const char *cfg,
 			const char *dbg, void **ppriv)
 {
-	return nvkm_client_new(name, device, cfg, dbg, nvif_notify, nvkm_client_event,
+	return nvkm_client_new(name, device, cfg, dbg, nvkm_client_event,
 			       (struct nvkm_client **)ppriv);
 }
 

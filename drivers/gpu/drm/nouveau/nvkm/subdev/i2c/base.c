@@ -130,7 +130,7 @@ nvkm_i2c_intr(struct nvkm_subdev *subdev)
 		if (rq & aux->intr) mask |= NVKM_I2C_IRQ;
 		if (tx & aux->intr) mask |= NVKM_I2C_DONE;
 		if (mask)
-			nvkm_event_send(&i2c->event, mask, aux->id, NULL, 0);
+			nvkm_event_ntfy(&i2c->event, aux->id, mask);
 	}
 }
 

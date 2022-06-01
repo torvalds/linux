@@ -121,7 +121,7 @@ nvkm_fifo_chan_chid(struct nvkm_fifo *fifo, int chid, unsigned long *rflags)
 void
 nvkm_fifo_kevent(struct nvkm_fifo *fifo, int chid)
 {
-	nvkm_event_send(&fifo->kevent, NVKM_FIFO_EVENT_KILLED, chid, NULL, 0);
+	nvkm_event_ntfy(&fifo->kevent, chid, NVKM_FIFO_EVENT_KILLED);
 }
 
 static const struct nvkm_event_func
@@ -151,7 +151,7 @@ nvkm_fifo_uevent_func = {
 void
 nvkm_fifo_uevent(struct nvkm_fifo *fifo)
 {
-	nvkm_event_send(&fifo->uevent, NVKM_FIFO_EVENT_NON_STALL_INTR, 0, NULL, 0);
+	nvkm_event_ntfy(&fifo->uevent, 0, NVKM_FIFO_EVENT_NON_STALL_INTR);
 }
 
 static int

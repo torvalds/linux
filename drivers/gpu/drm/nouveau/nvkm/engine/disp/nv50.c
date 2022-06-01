@@ -503,7 +503,7 @@ nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 void
 nv50_disp_chan_uevent_send(struct nvkm_disp *disp, int chid)
 {
-	nvkm_event_send(&disp->uevent, NVKM_DISP_EVENT_CHAN_AWAKEN, chid, NULL, 0);
+	nvkm_event_ntfy(&disp->uevent, chid, NVKM_DISP_EVENT_CHAN_AWAKEN);
 }
 
 const struct nvkm_event_func

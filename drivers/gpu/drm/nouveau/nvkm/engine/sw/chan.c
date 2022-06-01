@@ -35,7 +35,7 @@ nvkm_sw_chan_mthd(struct nvkm_sw_chan *chan, int subc, u32 mthd, u32 data)
 	case 0x0000:
 		return true;
 	case 0x0500:
-		nvkm_event_send(&chan->event, NVKM_SW_CHAN_EVENT_PAGE_FLIP, 0, NULL, 0);
+		nvkm_event_ntfy(&chan->event, 0, NVKM_SW_CHAN_EVENT_PAGE_FLIP);
 		return true;
 	default:
 		if (chan->func->mthd)

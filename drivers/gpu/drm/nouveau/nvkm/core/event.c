@@ -20,10 +20,9 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include <core/event.h>
-#include <core/notify.h>
 #include <core/subdev.h>
 
-void
+static void
 nvkm_event_put(struct nvkm_event *event, u32 types, int index)
 {
 	assert_spin_locked(&event->refs_lock);
@@ -40,7 +39,7 @@ nvkm_event_put(struct nvkm_event *event, u32 types, int index)
 	}
 }
 
-void
+static void
 nvkm_event_get(struct nvkm_event *event, u32 types, int index)
 {
 	assert_spin_locked(&event->refs_lock);
@@ -171,8 +170,13 @@ void
 nvkm_event_ntfy(struct nvkm_event *event, int id, u32 bits)
 {
 	struct nvkm_event_ntfy *ntfy, *ntmp;
+	unsigned long flags;
+
+	if (!event->refs || WARN_ON(id >= event->index_nr))
+		return;
 
 	nvkm_trace(event->subdev, "event: ntfy %08x on %d\n", bits, id);
+	spin_lock_irqsave(&event->list_lock, flags);
 
 	list_for_each_entry_safe(ntfy, ntmp, &event->ntfy, head) {
 		if (ntfy->id == id && ntfy->bits & bits) {
@@ -180,29 +184,7 @@ nvkm_event_ntfy(struct nvkm_event *event, int id, u32 bits)
 				ntfy->func(ntfy, ntfy->bits & bits);
 		}
 	}
-}
 
-void
-nvkm_event_send(struct nvkm_event *event, u32 types, int index, void *data, u32 size)
-{
-	struct nvkm_notify *notify;
-	unsigned long flags;
-
-	if (!event->refs || WARN_ON(index >= event->index_nr))
-		return;
-
-	spin_lock_irqsave(&event->list_lock, flags);
-	nvkm_event_ntfy(event, index, types);
-
-	list_for_each_entry(notify, &event->list, head) {
-		if (notify->index == index && (notify->types & types)) {
-			if (event->func->send) {
-				event->func->send(data, size, notify);
-				continue;
-			}
-			nvkm_notify_send(notify, data, size);
-		}
-	}
 	spin_unlock_irqrestore(&event->list_lock, flags);
 }
 
@@ -229,7 +211,6 @@ nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *subdev,
 	event->index_nr = index_nr;
 	spin_lock_init(&event->refs_lock);
 	spin_lock_init(&event->list_lock);
-	INIT_LIST_HEAD(&event->list);
 	INIT_LIST_HEAD(&event->ntfy);
 	return 0;
 }

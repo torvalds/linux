@@ -139,7 +139,7 @@ nvkm_gpio_intr(struct nvkm_subdev *subdev)
 	for (i = 0; (hi | lo) && i < gpio->func->lines; i++) {
 		u32 mask = (NVKM_GPIO_HI * !!(hi & (1 << i))) |
 			   (NVKM_GPIO_LO * !!(lo & (1 << i)));
-		nvkm_event_send(&gpio->event, mask, i, NULL, 0);
+		nvkm_event_ntfy(&gpio->event, i, mask);
 	}
 }
 

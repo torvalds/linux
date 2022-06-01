@@ -33,31 +33,4 @@ nvif_event_ctor(struct nvif_object *parent, const char *name, u32 handle, nvif_e
 void nvif_event_dtor(struct nvif_event *);
 int nvif_event_allow(struct nvif_event *);
 int nvif_event_block(struct nvif_event *);
-
-struct nvif_notify_req_v0 {
-	__u8  version;
-	__u8  reply;
-	__u8  pad02[5];
-#define NVIF_NOTIFY_V0_ROUTE_NVIF                                          0x00
-	__u8  route;
-	__u64 token;	/* must be unique */
-	__u8  data[];	/* request data (below) */
-};
-
-struct nvif_notify_rep_v0 {
-	__u8  version;
-	__u8  pad01[6];
-	__u8  route;
-	__u64 token;
-	__u8  data[];	/* reply data (below) */
-};
-
-struct nvif_notify_uevent_req {
-	/* nvif_notify_req ... */
-};
-
-struct nvif_notify_uevent_rep {
-	/* nvif_notify_rep ... */
-};
-
 #endif

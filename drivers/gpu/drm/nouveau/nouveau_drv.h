@@ -78,11 +78,6 @@ enum nouveau_drm_object_route {
 	NVDRM_OBJECT_ANY = NVIF_IOCTL_V0_OWNER_ANY,
 };
 
-enum nouveau_drm_notify_route {
-	NVDRM_NOTIFY_NVIF = 0,
-	NVDRM_NOTIFY_USIF
-};
-
 enum nouveau_drm_handle {
 	NVDRM_CHAN    = 0xcccc0000, /* |= client chid */
 	NVDRM_NVSW    = 0x55550000,

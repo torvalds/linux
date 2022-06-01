@@ -65,7 +65,7 @@ nvkm_disp_vblank_func = {
 void
 nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 {
-	nvkm_event_send(&disp->vblank, NVKM_DISP_HEAD_EVENT_VBLANK, head, NULL, 0);
+	nvkm_event_ntfy(&disp->vblank, head, NVKM_DISP_HEAD_EVENT_VBLANK);
 }
 
 static int
