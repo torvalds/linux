@@ -1359,6 +1359,9 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan)
 		gf100_gr_mmio(gr, gr->sw_ctx);
 	}
 
+	if (gr->func->init_419bd8)
+		gr->func->init_419bd8(gr);
+
 	gf100_gr_wait_idle(gr);
 
 	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);

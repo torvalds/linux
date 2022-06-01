@@ -2333,9 +2333,6 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	nvkm_mask(device, 0x400500, 0x00010001, 0x00000000);
 
-	if (gr->func->init_419bd8)
-		gr->func->init_419bd8(gr);
-
 	gr->func->init_gpc_mmu(gr);
 
 	if (gr->sw_nonctx)
