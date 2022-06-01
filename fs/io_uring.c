@@ -5448,27 +5448,24 @@ static int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
-	if (alloc_slot) {
-		io_ring_submit_lock(ctx, issue_flags);
-		ret = io_file_bitmap_get(ctx);
-		if (unlikely(ret < 0)) {
-			io_ring_submit_unlock(ctx, issue_flags);
-			fput(file);
-			return ret;
-		}
+	io_ring_submit_lock(ctx, issue_flags);
 
+	if (alloc_slot) {
+		ret = io_file_bitmap_get(ctx);
+		if (unlikely(ret < 0))
+			goto err;
 		file_slot = ret;
 	} else {
 		file_slot--;
 	}
 
 	ret = io_install_fixed_file(req, file, issue_flags, file_slot);
-	if (alloc_slot) {
-		io_ring_submit_unlock(ctx, issue_flags);
-		if (!ret)
-			return file_slot;
-	}
-
+	if (!ret && alloc_slot)
+		ret = file_slot;
+err:
+	io_ring_submit_unlock(ctx, issue_flags);
+	if (unlikely(ret < 0))
+		fput(file);
 	return ret;
 }
 
@@ -10179,21 +10176,19 @@ static int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
 
 static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 				 unsigned int issue_flags, u32 slot_index)
+	__must_hold(&req->ctx->uring_lock)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	bool needs_switch = false;
 	struct io_fixed_file *file_slot;
-	int ret = -EBADF;
+	int ret;
 
-	io_ring_submit_lock(ctx, issue_flags);
 	if (file->f_op == &io_uring_fops)
-		goto err;
-	ret = -ENXIO;
+		return -EBADF;
 	if (!ctx->file_data)
-		goto err;
-	ret = -EINVAL;
+		return -ENXIO;
 	if (slot_index >= ctx->nr_user_files)
-		goto err;
+		return -EINVAL;
 
 	slot_index = array_index_nospec(slot_index, ctx->nr_user_files);
 	file_slot = io_fixed_file_slot(&ctx->file_table, slot_index);
@@ -10224,7 +10219,6 @@ static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 err:
 	if (needs_switch)
 		io_rsrc_node_switch(ctx, ctx->file_data);
-	io_ring_submit_unlock(ctx, issue_flags);
 	if (ret)
 		fput(file);
 	return ret;
