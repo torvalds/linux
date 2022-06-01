@@ -53,8 +53,11 @@ struct gf100_grctx_func {
 	u32 alpha_nr_max;
 	u32 alpha_nr;
 	u32 gfxp_nr;
+	/* some other context buffer */
+	void (*unknown)(struct gf100_gr_chan *, u64 addr, u32 size);
+	u32 unknown_size;
 	/* other patch buffer stuff */
-	void (*patch_ltc)(struct gf100_grctx *);
+	void (*patch_ltc)(struct gf100_gr_chan *);
 	/* floorsweeping */
 	void (*sm_id)(struct gf100_gr *, int gpc, int tpc, int sm);
 	void (*tpc_nr)(struct gf100_gr *, int gpc);
@@ -118,7 +121,7 @@ void gk104_grctx_generate_gpc_tpc_nr(struct gf100_gr *);
 extern const struct gf100_grctx_func gk20a_grctx;
 void gk104_grctx_generate_pagepool(struct gf100_gr_chan *, u64);
 void gk104_grctx_generate_bundle(struct gf100_gr_chan *, u64, u32);
-void gk104_grctx_generate_patch_ltc(struct gf100_grctx *);
+void gk104_grctx_generate_patch_ltc(struct gf100_gr_chan *);
 void gk104_grctx_generate_unkn(struct gf100_gr *);
 void gk104_grctx_generate_r418800(struct gf100_gr *);
 
@@ -163,6 +166,8 @@ extern const struct gf100_gr_init gv100_grctx_init_sw_veid_bundle_init_0[];
 void gv100_grctx_generate_attrib(struct gf100_grctx *);
 void gv100_grctx_generate_rop_mapping(struct gf100_gr *);
 void gv100_grctx_generate_r400088(struct gf100_gr *, bool);
+
+void tu102_grctx_generate_unknown(struct gf100_gr_chan *, u64, u32);
 
 /* context init value lists */
 

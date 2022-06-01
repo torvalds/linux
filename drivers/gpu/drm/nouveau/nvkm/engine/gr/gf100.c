@@ -365,6 +365,7 @@ gf100_gr_chan_dtor(struct nvkm_object *object)
 	nvkm_vmm_put(chan->vmm, &chan->mmio_vma);
 	nvkm_memory_unref(&chan->mmio);
 
+	nvkm_vmm_put(chan->vmm, &chan->unknown);
 	nvkm_vmm_put(chan->vmm, &chan->bundle_cb);
 	nvkm_vmm_put(chan->vmm, &chan->pagepool);
 	nvkm_vmm_unref(&chan->vmm);
@@ -414,6 +415,18 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	ret = nvkm_memory_map(gr->bundle_cb, 0, chan->vmm, chan->bundle_cb, &args, sizeof(args));
 	if (ret)
 		return ret;
+
+	/* Map some context buffer of unknown purpose. */
+	if (gr->func->grctx->unknown_size) {
+		ret = nvkm_vmm_get(chan->vmm, 12, nvkm_memory_size(gr->unknown), &chan->unknown);
+		if (ret)
+			return ret;
+
+		ret = nvkm_memory_map(gr->unknown, 0, chan->vmm, chan->unknown,
+				      &args, sizeof(args));
+		if (ret)
+			return ret;
+	}
 
 	/* Generate golden context image. */
 	mutex_lock(&gr->fecs.mutex);
@@ -485,6 +498,10 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, data);
 		mmio++;
 	}
+	if (gr->func->grctx->patch_ltc)
+		gr->func->grctx->patch_ltc(chan);
+	if (gr->func->grctx->unknown_size)
+		gr->func->grctx->unknown(chan, chan->unknown->addr, gr->func->grctx->unknown_size);
 	nvkm_done(chan->mmio);
 	return 0;
 }
@@ -1998,6 +2015,13 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		return ret;
 
+	if (gr->func->grctx->unknown_size) {
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->unknown_size,
+				      0x100, false, &gr->unknown);
+		if (ret)
+			return ret;
+	}
+
 	memset(gr->tile, 0xff, sizeof(gr->tile));
 	gr->func->oneinit_tiles(gr);
 	gr->func->oneinit_sm_id(gr);
@@ -2067,6 +2091,7 @@ gf100_gr_dtor(struct nvkm_gr *base)
 
 	kfree(gr->data);
 
+	nvkm_memory_unref(&gr->unknown);
 	nvkm_memory_unref(&gr->bundle_cb);
 	nvkm_memory_unref(&gr->pagepool);
 

@@ -123,6 +123,7 @@ struct gf100_gr {
 
 	struct nvkm_memory *pagepool;
 	struct nvkm_memory *bundle_cb;
+	struct nvkm_memory *unknown;
 
 	u8 screen_tile_row_offset;
 	u8 tile[TPC_MAX];
@@ -263,6 +264,7 @@ struct gf100_gr_chan {
 
 	struct nvkm_vma *pagepool;
 	struct nvkm_vma *bundle_cb;
+	struct nvkm_vma *unknown;
 
 	struct nvkm_memory *mmio;
 	struct nvkm_vma *mmio_vma;

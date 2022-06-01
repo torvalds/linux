@@ -1396,7 +1396,9 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
 	grctx->bundle(chan, chan->bundle_cb->addr, grctx->bundle_size);
 	grctx->attrib(info);
 	if (grctx->patch_ltc)
-		grctx->patch_ltc(info);
+		grctx->patch_ltc(chan);
+	if (grctx->unknown_size)
+		grctx->unknown(chan, chan->unknown->addr, grctx->unknown_size);
 	grctx->unkn(gr);
 
 	gf100_grctx_generate_floorsweep(gr);

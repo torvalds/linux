@@ -53,19 +53,13 @@ tu102_grctx_pack_sw_veid_bundle_init[] = {
 	{}
 };
 
-static void
-tu102_grctx_generate_attrib(struct gf100_grctx *info)
+void
+tu102_grctx_generate_unknown(struct gf100_gr_chan *chan, u64 addr, u32 size)
 {
-	const u64 size = 0x80000; /*XXX: educated guess */
-	const int s = 8;
-	const int b = mmio_vram(info, size, (1 << s), true);
-
-	gv100_grctx_generate_attrib(info);
-
-	mmio_refn(info, 0x408070, 0x00000000, s, b);
-	mmio_wr32(info, 0x408074, size >> s); /*XXX: guess */
-	mmio_refn(info, 0x419034, 0x00000000, s, b);
-	mmio_wr32(info, 0x408078, 0x00000000);
+	gf100_grctx_patch_wr32(chan, 0x408070, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x408074, size >> 8); /*XXX: guess */
+	gf100_grctx_patch_wr32(chan, 0x419034, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x408078, 0x00000000);
 }
 
 const struct gf100_grctx_func
@@ -80,9 +74,11 @@ tu102_grctx = {
 	.bundle_token_limit = 0xa80,
 	.pagepool = gp100_grctx_generate_pagepool,
 	.pagepool_size = 0x20000,
-	.attrib = tu102_grctx_generate_attrib,
+	.attrib = gv100_grctx_generate_attrib,
 	.attrib_nr_max = 0x800,
 	.attrib_nr = 0x700,
+	.unknown_size = 0x80000,
+	.unknown = tu102_grctx_generate_unknown,
 	.alpha_nr_max = 0xc00,
 	.alpha_nr = 0x800,
 	.gfxp_nr = 0xfa8,
