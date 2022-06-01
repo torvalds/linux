@@ -169,6 +169,7 @@ static void __init md_setup_drive(struct md_setup_args *args)
 
 	pr_info("md: Loading %s: %s\n", name, args->device_names);
 
+	md_alloc(mdev, name);
 	bdev = blkdev_get_by_dev(mdev, FMODE_READ, NULL);
 	if (IS_ERR(bdev)) {
 		pr_err("md: open failed - cannot start array %s\n", name);
