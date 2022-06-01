@@ -1361,6 +1361,8 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan)
 
 	if (gr->func->init_419bd8)
 		gr->func->init_419bd8(gr);
+	if (grctx->r419ea8)
+		grctx->r419ea8(gr);
 
 	gf100_gr_wait_idle(gr);
 

@@ -118,6 +118,7 @@ struct nvkm_acr_lsf_func {
 #define NVKM_ACR_LSF_DMACTL_REQ_CTX                                  0x00000004
 #define NVKM_ACR_LSF_FORCE_PRIV_LOAD                                 0x00000008
 	u32 flags;
+	u32 bl_entry;
 	u32 bld_size;
 	void (*bld_write)(struct nvkm_acr *, u32 bld, struct nvkm_acr_lsfw *);
 	void (*bld_patch)(struct nvkm_acr *, u32 bld, s64 adjust);
@@ -144,4 +145,10 @@ int
 nvkm_acr_lsfw_load_bl_inst_data_sig(struct nvkm_subdev *, struct nvkm_falcon *,
 				    enum nvkm_acr_lsf_id, const char *path,
 				    int ver, const struct nvkm_acr_lsf_func *);
+
+int
+nvkm_acr_lsfw_load_bl_sig_net(struct nvkm_subdev *, struct nvkm_falcon *,
+				    enum nvkm_acr_lsf_id, const char *path,
+				    int ver, const struct nvkm_acr_lsf_func *,
+				    const void *, u32, const void *, u32);
 #endif

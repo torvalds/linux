@@ -69,6 +69,7 @@ struct gf100_grctx_func {
 	void (*r419a3c)(struct gf100_gr *);
 	void (*r408840)(struct gf100_gr *);
 	void (*r419c0c)(struct gf100_gr *);
+	void (*r419ea8)(struct gf100_gr *);
 };
 
 extern const struct gf100_grctx_func gf100_grctx;
@@ -160,6 +161,8 @@ void gv100_grctx_generate_rop_mapping(struct gf100_gr *);
 void gv100_grctx_generate_r400088(struct gf100_gr *, bool);
 
 void tu102_grctx_generate_unknown(struct gf100_gr_chan *, u64, u32);
+
+extern const struct gf100_grctx_func ga102_grctx;
 
 /* context init value lists */
 

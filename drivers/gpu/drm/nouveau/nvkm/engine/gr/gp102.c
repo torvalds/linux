@@ -26,7 +26,7 @@
 
 #include <nvif/class.h>
 
-static void
+void
 gp102_gr_zbc_clear_stencil(struct gf100_gr *gr, int zbc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -40,7 +40,7 @@ gp102_gr_zbc_clear_stencil(struct gf100_gr *gr, int zbc)
 			  gr->zbc_stencil[zbc].format << ((znum % 4) * 7));
 }
 
-static int
+int
 gp102_gr_zbc_stencil_get(struct gf100_gr *gr, int format,
 			 const u32 ds, const u32 l2)
 {

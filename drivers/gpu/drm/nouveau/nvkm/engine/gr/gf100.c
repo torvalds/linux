@@ -1995,6 +1995,9 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	enum nvkm_intr_type intr_type = NVKM_INTR_SUBDEV;
 	int ret, i, j;
 
+	if (gr->func->oneinit_intr)
+		intr = gr->func->oneinit_intr(gr, &intr_type);
+
 	ret = nvkm_inth_add(intr, intr_type, NVKM_INTR_PRIO_NORMAL, &gr->base.engine.subdev,
 			    gf100_gr_intr, &gr->base.engine.subdev.inth);
 	if (ret)
@@ -2147,6 +2150,10 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	vfree(gr->method);
 	vfree(gr->sw_ctx);
 	vfree(gr->sw_nonctx);
+	vfree(gr->sw_nonctx1);
+	vfree(gr->sw_nonctx2);
+	vfree(gr->sw_nonctx3);
+	vfree(gr->sw_nonctx4);
 
 	return gr;
 }
@@ -2324,6 +2331,8 @@ gf100_gr_reset(struct nvkm_gr *base)
 
 	subdev->func->fini(subdev, false);
 	nvkm_mc_disable(device, subdev->type, subdev->inst);
+	if (gr->func->gpccs.reset)
+		gr->func->gpccs.reset(gr);
 
 	nvkm_mc_enable(device, subdev->type, subdev->inst);
 	return subdev->func->init(subdev);
@@ -2339,10 +2348,17 @@ gf100_gr_init(struct gf100_gr *gr)
 
 	gr->func->init_gpc_mmu(gr);
 
-	if (gr->sw_nonctx)
+	if (gr->sw_nonctx1) {
+		gf100_gr_mmio(gr, gr->sw_nonctx1);
+		gf100_gr_mmio(gr, gr->sw_nonctx2);
+		gf100_gr_mmio(gr, gr->sw_nonctx3);
+		gf100_gr_mmio(gr, gr->sw_nonctx4);
+	} else
+	if (gr->sw_nonctx) {
 		gf100_gr_mmio(gr, gr->sw_nonctx);
-	else
+	} else {
 		gf100_gr_mmio(gr, gr->func->mmio);
+	}
 
 	gf100_gr_wait_idle(gr);
 
@@ -2374,6 +2390,10 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x400124, 0x00000002);
 
 	gr->func->init_fecs_exceptions(gr);
+
+	if (gr->func->init_40a790)
+		gr->func->init_40a790(gr);
+
 	if (gr->func->init_ds_hww_esr_2)
 		gr->func->init_ds_hww_esr_2(gr);
 

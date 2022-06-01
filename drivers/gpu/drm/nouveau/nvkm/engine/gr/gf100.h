@@ -88,6 +88,10 @@ struct gf100_gr {
 	 * using hardcoded arrays. To be allocated with vzalloc().
 	 */
 	struct gf100_gr_pack *sw_nonctx;
+	struct gf100_gr_pack *sw_nonctx1;
+	struct gf100_gr_pack *sw_nonctx2;
+	struct gf100_gr_pack *sw_nonctx3;
+	struct gf100_gr_pack *sw_nonctx4;
 	struct gf100_gr_pack *sw_ctx;
 	struct gf100_gr_pack *bundle;
 	struct gf100_gr_pack *bundle_veid;
@@ -143,6 +147,7 @@ struct gf100_gr_func_zbc {
 };
 
 struct gf100_gr_func {
+	struct nvkm_intr *(*oneinit_intr)(struct gf100_gr *, enum nvkm_intr_type *);
 	void (*oneinit_tiles)(struct gf100_gr *);
 	int (*oneinit_sm_id)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
@@ -158,6 +163,7 @@ struct gf100_gr_func {
 	void (*init_swdx_pes_mask)(struct gf100_gr *);
 	void (*init_fs)(struct gf100_gr *);
 	void (*init_fecs_exceptions)(struct gf100_gr *);
+	void (*init_40a790)(struct gf100_gr *);
 	void (*init_ds_hww_esr_2)(struct gf100_gr *);
 	void (*init_40601c)(struct gf100_gr *);
 	void (*init_sked_hww_esr)(struct gf100_gr *);
@@ -181,6 +187,7 @@ struct gf100_gr_func {
 	} fecs;
 	struct {
 		struct gf100_gr_ucode *ucode;
+		void (*reset)(struct gf100_gr *);
 	} gpccs;
 	int (*rops)(struct gf100_gr *);
 	int gpc_nr;
@@ -246,6 +253,8 @@ extern const struct gf100_gr_func_zbc gp100_gr_zbc;
 
 void gp102_gr_init_swdx_pes_mask(struct gf100_gr *);
 extern const struct gf100_gr_func_zbc gp102_gr_zbc;
+int gp102_gr_zbc_stencil_get(struct gf100_gr *, int, const u32, const u32);
+void gp102_gr_zbc_clear_stencil(struct gf100_gr *, int);
 
 extern const struct gf100_gr_func gp107_gr;
 
@@ -258,6 +267,9 @@ void gv100_gr_init_4188a4(struct gf100_gr *);
 void gv100_gr_trap_mp(struct gf100_gr *, int, int);
 
 int tu102_gr_av_to_init_veid(struct nvkm_blob *, struct gf100_gr_pack **);
+void tu102_gr_init_zcull(struct gf100_gr *);
+void tu102_gr_init_fs(struct gf100_gr *);
+void tu102_gr_init_fecs_exceptions(struct gf100_gr *);
 
 #define gf100_gr_chan(p) container_of((p), struct gf100_gr_chan, object)
 #include <core/object.h>
@@ -427,6 +439,8 @@ void gm20b_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 
 extern const struct nvkm_acr_lsf_func gp108_gr_gpccs_acr;
 extern const struct nvkm_acr_lsf_func gp108_gr_fecs_acr;
+void gp108_gr_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
+void gp108_gr_acr_bld_patch(struct nvkm_acr *, u32, s64);
 
 int gf100_gr_new_(const struct gf100_gr_fwif *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  struct nvkm_gr **);
