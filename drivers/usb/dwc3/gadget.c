@@ -2982,6 +2982,14 @@ static int dwc3_gadget_init_in_endpoint(struct dwc3_ep *dep)
 	else
 		size /= 2;
 
+	/*
+	 * If enable tx fifos resize, set each in ep maxpacket
+	 * to 1024, it can avoid being dependent on the default
+	 * fifo size, and more flexible use of endpoints.
+	 */
+	if (dwc->do_fifo_resize)
+		size = 1024;
+
 	usb_ep_set_maxpacket_limit(&dep->endpoint, size);
 
 	dep->endpoint.max_streams = 16;
@@ -3048,13 +3056,24 @@ static int dwc3_gadget_init_endpoint(struct dwc3 *dwc, u8 epnum)
 	bool				direction = epnum & 1;
 	int				ret;
 	u8				num = epnum >> 1;
+	u8				num_in_eps, num_out_eps, min_eps;
 
 	dep = kzalloc(sizeof(*dep), GFP_KERNEL);
 	if (!dep)
 		return -ENOMEM;
 
+	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
+	num_out_eps = dwc->num_eps - num_in_eps;
+	min_eps = min_t(u8, num_in_eps, num_out_eps);
+
+	/* reconfig direction and num if num_out_eps != num_in_eps */
+	if (num + 1 > min_eps && num_in_eps != num_out_eps) {
+		num = epnum - min_eps;
+		direction = num + 1 > num_out_eps ? 1 : 0;
+	}
+
 	dep->dwc = dwc;
-	dep->number = epnum;
+	dep->number = num << 1 | direction;
 	dep->direction = direction;
 	dep->regs = dwc->regs + DWC3_DEP_BASE(epnum);
 	dwc->eps[epnum] = dep;

@@ -285,11 +285,22 @@ static struct dwc3_ep *dwc3_wIndex_to_dep(struct dwc3 *dwc, __le16 wIndex_le)
 {
 	struct dwc3_ep		*dep;
 	u32			windex = le16_to_cpu(wIndex_le);
-	u32			epnum;
+	u32			ep, epnum;
+	u8			num_in_eps, num_out_eps, min_eps;
 
-	epnum = (windex & USB_ENDPOINT_NUMBER_MASK) << 1;
-	if ((windex & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
-		epnum |= 1;
+	num_in_eps = DWC3_NUM_IN_EPS(&dwc->hwparams);
+	num_out_eps = dwc->num_eps - num_in_eps;
+	min_eps = min_t(u8, num_in_eps, num_out_eps);
+	ep = windex & USB_ENDPOINT_NUMBER_MASK;
+
+	if (ep + 1 > min_eps && num_in_eps != num_out_eps) {
+		epnum = ep + min_eps;
+
+	} else {
+		epnum = ep << 1;
+		if ((windex & USB_ENDPOINT_DIR_MASK) == USB_DIR_IN)
+			epnum |= 1;
+	}
 
 	dep = dwc->eps[epnum];
 	if (dep == NULL)
