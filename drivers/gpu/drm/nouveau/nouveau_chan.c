@@ -513,14 +513,13 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 int
 nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
-		    u32 arg0, u32 arg1, bool priv,
-		    struct nouveau_channel **pchan)
+		    bool priv, u64 runm, u32 vram, u32 gart, struct nouveau_channel **pchan)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
 	int ret;
 
 	/* hack until fencenv50 is fixed, and agp access relaxed */
-	ret = nouveau_channel_ind(drm, device, arg0, priv, pchan);
+	ret = nouveau_channel_ind(drm, device, runm, priv, pchan);
 	if (ret) {
 		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
 		ret = nouveau_channel_dma(drm, device, pchan);
@@ -530,7 +529,7 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 		}
 	}
 
-	ret = nouveau_channel_init(*pchan, arg0, arg1);
+	ret = nouveau_channel_init(*pchan, vram, gart);
 	if (ret) {
 		NV_PRINTK(err, cli, "channel failed to initialise, %d\n", ret);
 		nouveau_channel_del(pchan);

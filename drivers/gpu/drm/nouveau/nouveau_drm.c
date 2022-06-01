@@ -316,28 +316,19 @@ static void
 nouveau_accel_ce_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
+	u64 runm;
 	int ret = 0;
 
 	/* Allocate channel that has access to a (preferably async) copy
 	 * engine, to use for TTM buffer moves.
 	 */
-	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		ret = nouveau_channel_new(drm, device,
-					  nvif_fifo_runlist_ce(device), 0,
-					  true, &drm->cechan);
-	} else
-	if (device->info.chipset >= 0xa3 &&
-	    device->info.chipset != 0xaa &&
-	    device->info.chipset != 0xac) {
-		/* Prior to Kepler, there's only a single runlist, so all
-		 * engines can be accessed from any channel.
-		 *
-		 * We still want to use a separate channel though.
-		 */
-		ret = nouveau_channel_new(drm, device, NvDmaFB, NvDmaTT, false,
-					  &drm->cechan);
+	runm = nvif_fifo_runlist_ce(device);
+	if (!runm) {
+		NV_DEBUG(drm, "no ce runlist\n");
+		return;
 	}
 
+	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->cechan);
 	if (ret)
 		NV_ERROR(drm, "failed to create ce channel, %d\n", ret);
 }
@@ -355,23 +346,20 @@ static void
 nouveau_accel_gr_init(struct nouveau_drm *drm)
 {
 	struct nvif_device *device = &drm->client.device;
-	u32 arg0, arg1;
+	u64 runm;
 	int ret;
 
 	if (device->info.family >= NV_DEVICE_INFO_V0_AMPERE)
 		return;
 
 	/* Allocate channel that has access to the graphics engine. */
-	if (device->info.family >= NV_DEVICE_INFO_V0_KEPLER) {
-		arg0 = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
-		arg1 = 1;
-	} else {
-		arg0 = NvDmaFB;
-		arg1 = NvDmaTT;
+	runm = nvif_fifo_runlist(device, NV_DEVICE_HOST_RUNLIST_ENGINES_GR);
+	if (!runm) {
+		NV_DEBUG(drm, "no gr runlist\n");
+		return;
 	}
 
-	ret = nouveau_channel_new(drm, device, arg0, arg1, false,
-				  &drm->channel);
+	ret = nouveau_channel_new(drm, device, false, runm, NvDmaFB, NvDmaTT, &drm->channel);
 	if (ret) {
 		NV_ERROR(drm, "failed to create kernel channel, %d\n", ret);
 		nouveau_accel_gr_fini(drm);

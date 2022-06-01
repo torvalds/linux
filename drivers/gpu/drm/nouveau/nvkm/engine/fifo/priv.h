@@ -25,7 +25,6 @@ struct nvkm_fifo_func {
 	int (*runq_nr)(struct nvkm_fifo *);
 	int (*runl_ctor)(struct nvkm_fifo *);
 
-	int (*info)(struct nvkm_fifo *, u64 mthd, u64 *data);
 	void (*init)(struct nvkm_fifo *);
 	void (*fini)(struct nvkm_fifo *);
 

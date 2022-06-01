@@ -82,7 +82,6 @@ gk110_fifo = {
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
-	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,

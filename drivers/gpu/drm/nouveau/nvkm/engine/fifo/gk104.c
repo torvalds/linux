@@ -39,7 +39,6 @@
 #include <engine/sw.h>
 
 #include <nvif/class.h>
-#include <nvif/cl0080.h>
 
 static const struct nvkm_chan_func
 gk104_chan = {
@@ -991,56 +990,6 @@ gk104_fifo_fini(struct nvkm_fifo *base)
 	nvkm_mask(device, 0x002140, 0x10000000, 0x10000000);
 }
 
-int
-gk104_fifo_info(struct nvkm_fifo *base, u64 mthd, u64 *data)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	switch (mthd) {
-	case NV_DEVICE_HOST_RUNLISTS:
-		*data = (1ULL << fifo->runlist_nr) - 1;
-		return 0;
-	case NV_DEVICE_HOST_RUNLIST_ENGINES: {
-		if (*data < fifo->runlist_nr) {
-			unsigned long engm = fifo->runlist[*data].engm;
-			struct nvkm_engine *engine;
-			int engn;
-			*data = 0;
-			for_each_set_bit(engn, &engm, fifo->engine_nr) {
-				if ((engine = fifo->engine[engn].engine)) {
-#define CASE(n) case NVKM_ENGINE_##n: *data |= NV_DEVICE_HOST_RUNLIST_ENGINES_##n; break
-					switch (engine->subdev.type) {
-					CASE(SW    );
-					CASE(GR    );
-					CASE(MPEG  );
-					CASE(ME    );
-					CASE(CIPHER);
-					CASE(BSP   );
-					CASE(VP    );
-					CASE(CE    );
-					CASE(SEC   );
-					CASE(MSVLD );
-					CASE(MSPDEC);
-					CASE(MSPPP );
-					CASE(MSENC );
-					CASE(VIC   );
-					CASE(SEC2  );
-					CASE(NVDEC );
-					CASE(NVENC );
-					default:
-						WARN_ON(1);
-						break;
-					}
-				}
-			}
-			return 0;
-		}
-	}
-		return -EINVAL;
-	default:
-		return -EINVAL;
-	}
-}
-
 void
 gk104_fifo_init(struct nvkm_fifo *base)
 {
@@ -1225,7 +1174,6 @@ gk104_fifo = {
 	.chid_ctor = gf100_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
 	.runl_ctor = gk104_fifo_runl_ctor,
-	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
