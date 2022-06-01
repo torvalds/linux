@@ -1081,10 +1081,10 @@ nv04_finish_page_flip(struct nouveau_channel *chan,
 }
 
 int
-nv04_flip_complete(struct nvif_notify *notify)
+nv04_flip_complete(struct nvif_event *event, void *argv, u32 argc)
 {
-	struct nouveau_cli *cli = (void *)notify->object->client;
-	struct nouveau_drm *drm = cli->drm;
+	struct nv04_display *disp = container_of(event, typeof(*disp), flip);
+	struct nouveau_drm *drm = disp->drm;
 	struct nouveau_channel *chan = drm->channel;
 	struct nv04_page_flip_state state;
 
@@ -1095,7 +1095,7 @@ nv04_flip_complete(struct nvif_notify *notify)
 				 state.bpp / 8);
 	}
 
-	return NVIF_NOTIFY_KEEP;
+	return NVIF_EVENT_KEEP;
 }
 
 static int
