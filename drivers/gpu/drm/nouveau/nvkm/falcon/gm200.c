@@ -151,6 +151,12 @@ gm200_flcn_enable(struct nvkm_falcon *falcon)
 			return ret;
 	}
 
+	if (falcon->func->select) {
+		ret = falcon->func->select(falcon);
+		if (ret)
+			return ret;
+	}
+
 	if (falcon->func->reset_pmc)
 		nvkm_mc_enable(device, falcon->owner->type, falcon->owner->inst);
 
@@ -167,6 +173,12 @@ gm200_flcn_disable(struct nvkm_falcon *falcon)
 {
 	struct nvkm_device *device = falcon->owner->device;
 	int ret;
+
+	if (falcon->func->select) {
+		ret = falcon->func->select(falcon);
+		if (ret)
+			return ret;
+	}
 
 	nvkm_falcon_mask(falcon, 0x048, 0x00000003, 0x00000000);
 	nvkm_falcon_wr32(falcon, 0x014, 0xffffffff);

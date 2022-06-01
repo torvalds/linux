@@ -29,6 +29,7 @@ void
 nvkm_acr_lsfw_del(struct nvkm_acr_lsfw *lsfw)
 {
 	nvkm_blob_dtor(&lsfw->img);
+	kfree(lsfw->sigs);
 	nvkm_firmware_put(lsfw->sig);
 	list_del(&lsfw->head);
 	kfree(lsfw);
@@ -174,6 +175,75 @@ nvkm_acr_lsfw_load_sig_image_desc_v1(struct nvkm_subdev *subdev,
 	nvkm_acr_lsfw_from_desc(&nvfw_ls_desc_v1(subdev, fw->data)->head, lsfw);
 	nvkm_firmware_put(fw);
 	return 0;
+}
+
+int
+nvkm_acr_lsfw_load_sig_image_desc_v2(struct nvkm_subdev *subdev,
+				     struct nvkm_falcon *falcon,
+				     enum nvkm_acr_lsf_id id,
+				     const char *path, int ver,
+				     const struct nvkm_acr_lsf_func *func)
+{
+	const struct firmware *fw;
+	struct nvkm_acr_lsfw *lsfw;
+	const struct nvfw_ls_desc_v2 *desc;
+	int ret = 0;
+
+	lsfw = nvkm_acr_lsfw_load_sig_image_desc_(subdev, falcon, id, path, ver, func, &fw);
+	if (IS_ERR(lsfw))
+		return PTR_ERR(lsfw);
+
+	desc = nvfw_ls_desc_v2(subdev, fw->data);
+
+	lsfw->secure_bootloader = desc->secure_bootloader;
+	lsfw->bootloader_size = ALIGN(desc->bootloader_size, 256);
+	lsfw->bootloader_imem_offset = desc->bootloader_imem_offset;
+
+	lsfw->app_size = ALIGN(desc->app_size, 256);
+	lsfw->app_start_offset = desc->app_start_offset;
+	lsfw->app_imem_entry = desc->app_imem_entry;
+	lsfw->app_resident_code_offset = desc->app_resident_code_offset;
+	lsfw->app_resident_code_size = desc->app_resident_code_size;
+	lsfw->app_resident_data_offset = desc->app_resident_data_offset;
+	lsfw->app_resident_data_size = desc->app_resident_data_size;
+	lsfw->app_imem_offset = desc->app_imem_offset;
+	lsfw->app_dmem_offset = desc->app_dmem_offset;
+
+	lsfw->ucode_size = ALIGN(lsfw->app_resident_data_offset, 256) + lsfw->bootloader_size;
+	lsfw->data_size = lsfw->app_size + lsfw->bootloader_size - lsfw->ucode_size;
+
+	nvkm_firmware_put(fw);
+
+	if (lsfw->secure_bootloader) {
+		const struct firmware *hsbl;
+		const struct nvfw_ls_hsbl_bin_hdr *hdr;
+		const struct nvfw_ls_hsbl_hdr *hshdr;
+		u32 loc, sig, cnt, *meta;
+
+		ret = nvkm_firmware_load_name(subdev, path, "hs_bl_sig", ver, &hsbl);
+		if (ret)
+			return ret;
+
+		hdr = nvfw_ls_hsbl_bin_hdr(subdev, hsbl->data);
+		hshdr = nvfw_ls_hsbl_hdr(subdev, hsbl->data + hdr->header_offset);
+		meta = (u32 *)(hsbl->data + hshdr->meta_data_offset);
+		loc = *(u32 *)(hsbl->data + hshdr->patch_loc);
+		sig = *(u32 *)(hsbl->data + hshdr->patch_sig);
+		cnt = *(u32 *)(hsbl->data + hshdr->num_sig);
+
+		lsfw->fuse_ver = meta[0];
+		lsfw->engine_id = meta[1];
+		lsfw->ucode_id = meta[2];
+		lsfw->sig_size = hshdr->sig_prod_size / cnt;
+		lsfw->sig_nr = cnt;
+		lsfw->sigs = kmemdup(hsbl->data + hshdr->sig_prod_offset + sig,
+				     lsfw->sig_nr * lsfw->sig_size, GFP_KERNEL);
+		nvkm_firmware_put(hsbl);
+		if (!lsfw->sigs)
+			ret = -ENOMEM;
+	}
+
+	return ret;
 }
 
 int

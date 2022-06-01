@@ -29,7 +29,7 @@
 
 #include <nvfw/acr.h>
 
-static int
+int
 tu102_acr_init(struct nvkm_acr *acr)
 {
 	int ret = nvkm_acr_hsfw_boot(acr, "AHESASC");

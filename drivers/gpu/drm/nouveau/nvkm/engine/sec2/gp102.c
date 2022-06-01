@@ -237,7 +237,7 @@ MODULE_FIRMWARE("nvidia/gp107/sec2/desc.bin");
 MODULE_FIRMWARE("nvidia/gp107/sec2/image.bin");
 MODULE_FIRMWARE("nvidia/gp107/sec2/sig.bin");
 
-static void
+void
 gp102_sec2_acr_bld_patch_1(struct nvkm_acr *acr, u32 bld, s64 adjust)
 {
 	struct flcn_bl_dmem_desc_v2 hdr;
@@ -248,7 +248,7 @@ gp102_sec2_acr_bld_patch_1(struct nvkm_acr *acr, u32 bld, s64 adjust)
 	flcn_bl_dmem_desc_v2_dump(&acr->subdev, &hdr);
 }
 
-static void
+void
 gp102_sec2_acr_bld_write_1(struct nvkm_acr *acr, u32 bld,
 			   struct nvkm_acr_lsfw *lsfw)
 {

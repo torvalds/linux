@@ -60,6 +60,7 @@ int nvkm_falcon_new_(const struct nvkm_falcon_func *, struct nvkm_device *,
 struct nvkm_falcon_func {
 	int (*disable)(struct nvkm_falcon *);
 	int (*enable)(struct nvkm_falcon *);
+	int (*select)(struct nvkm_falcon *);
 	u32 addr2;
 	bool reset_pmc;
 	int (*reset_eng)(struct nvkm_falcon *);

@@ -67,6 +67,7 @@ int gp108_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct 
 int gp10b_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 int gv100_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 int tu102_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
+int ga102_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 
 struct nvkm_acr_lsfw {
 	const struct nvkm_acr_lsf_func *func;
@@ -79,6 +80,7 @@ struct nvkm_acr_lsfw {
 
 	const struct firmware *sig;
 
+	bool secure_bootloader;
 	u32 bootloader_size;
 	u32 bootloader_imem_offset;
 
@@ -89,9 +91,18 @@ struct nvkm_acr_lsfw {
 	u32 app_resident_code_size;
 	u32 app_resident_data_offset;
 	u32 app_resident_data_size;
+	u32 app_imem_offset;
+	u32 app_dmem_offset;
 
 	u32 ucode_size;
 	u32 data_size;
+
+	u32 fuse_ver;
+	u32 engine_id;
+	u32 ucode_id;
+	u32 sig_size;
+	u32 sig_nr;
+	u8 *sigs;
 
 	struct {
 		u32 lsb;
@@ -123,6 +134,12 @@ int
 nvkm_acr_lsfw_load_sig_image_desc_v1(struct nvkm_subdev *, struct nvkm_falcon *,
 				     enum nvkm_acr_lsf_id, const char *path,
 				     int ver, const struct nvkm_acr_lsf_func *);
+
+int
+nvkm_acr_lsfw_load_sig_image_desc_v2(struct nvkm_subdev *, struct nvkm_falcon *,
+				     enum nvkm_acr_lsf_id, const char *path,
+				     int ver, const struct nvkm_acr_lsf_func *);
+
 int
 nvkm_acr_lsfw_load_bl_inst_data_sig(struct nvkm_subdev *, struct nvkm_falcon *,
 				    enum nvkm_acr_lsf_id, const char *path,

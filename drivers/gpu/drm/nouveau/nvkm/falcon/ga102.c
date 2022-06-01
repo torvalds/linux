@@ -77,14 +77,28 @@ ga102_flcn_reset_wait_mem_scrubbing(struct nvkm_falcon *falcon)
 int
 ga102_flcn_reset_prep(struct nvkm_falcon *falcon)
 {
-	const u32 addr2 = (falcon->owner->type != NVKM_ENGINE_NVDEC) ? 0x530 : 0x930;
+	nvkm_falcon_rd32(falcon, 0x0f4);
 
-	if (nvkm_msec(falcon->owner->device, 10,
-		if ((nvkm_falcon_rd32(falcon, falcon->addr2 + 0x1ec) & 0x00000003) == 0x00000001 &&
-		    (nvkm_falcon_rd32(falcon,		      addr2) & 0x00000008) == 0x00000008)
+	nvkm_usec(falcon->owner->device, 150,
+		if (nvkm_falcon_rd32(falcon, 0x0f4) & 0x80000000)
 			break;
-	) < 0)
-		return -ETIMEDOUT;
+		_warn = false;
+	);
+
+	return 0;
+}
+
+int
+ga102_flcn_select(struct nvkm_falcon *falcon)
+{
+	if ((nvkm_falcon_rd32(falcon, falcon->addr2 + 0x668) & 0x00000010) != 0x00000000) {
+		nvkm_falcon_wr32(falcon, falcon->addr2 + 0x668, 0x00000000);
+		if (nvkm_msec(falcon->owner->device, 10,
+			if (nvkm_falcon_rd32(falcon, falcon->addr2 + 0x668) & 0x00000001)
+				break;
+		) < 0)
+			return -ETIMEDOUT;
+	}
 
 	return 0;
 }

@@ -29,7 +29,7 @@
 #include <nvfw/acr.h>
 #include <nvfw/flcn.h>
 
-void
+int
 gp102_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 {
 	struct wpr_header_v1 hdr;
@@ -54,6 +54,8 @@ gp102_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 
 		offset += sizeof(hdr);
 	} while (hdr.falcon_id != WPR_HEADER_V1_FALCON_ID_INVALID);
+
+	return 0;
 }
 
 int

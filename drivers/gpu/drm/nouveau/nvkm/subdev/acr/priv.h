@@ -24,7 +24,7 @@ struct nvkm_acr_func {
 	u32 (*wpr_layout)(struct nvkm_acr *);
 	int (*wpr_alloc)(struct nvkm_acr *, u32 wpr_size);
 	int (*wpr_build)(struct nvkm_acr *, struct nvkm_acr_lsf *rtos);
-	void (*wpr_patch)(struct nvkm_acr *, s64 adjust);
+	int (*wpr_patch)(struct nvkm_acr *, s64 adjust);
 	void (*wpr_check)(struct nvkm_acr *, u64 *start, u64 *limit);
 	int (*init)(struct nvkm_acr *);
 	void (*fini)(struct nvkm_acr *);
@@ -35,7 +35,7 @@ extern const struct nvkm_acr_func gm200_acr;
 int gm200_acr_wpr_parse(struct nvkm_acr *);
 u32 gm200_acr_wpr_layout(struct nvkm_acr *);
 int gm200_acr_wpr_build(struct nvkm_acr *, struct nvkm_acr_lsf *);
-void gm200_acr_wpr_patch(struct nvkm_acr *, s64);
+int gm200_acr_wpr_patch(struct nvkm_acr *, s64);
 void gm200_acr_wpr_check(struct nvkm_acr *, u64 *, u64 *);
 void gm200_acr_wpr_build_lsb_tail(struct nvkm_acr_lsfw *,
 				  struct lsb_header_tail *);
@@ -48,7 +48,11 @@ u32 gp102_acr_wpr_layout(struct nvkm_acr *);
 int gp102_acr_wpr_alloc(struct nvkm_acr *, u32 wpr_size);
 int gp102_acr_wpr_build(struct nvkm_acr *, struct nvkm_acr_lsf *);
 int gp102_acr_wpr_build_lsb(struct nvkm_acr *, struct nvkm_acr_lsfw *);
-void gp102_acr_wpr_patch(struct nvkm_acr *, s64);
+int gp102_acr_wpr_patch(struct nvkm_acr *, s64);
+
+int tu102_acr_init(struct nvkm_acr *);
+
+void ga100_acr_wpr_check(struct nvkm_acr *, u64 *, u64 *);
 
 struct nvkm_acr_hsfw {
 	struct nvkm_falcon_fw fw;
@@ -92,6 +96,9 @@ extern const struct nvkm_falcon_fw_func gp108_acr_load_0;
 
 extern const struct nvkm_falcon_fw_func gp108_acr_hsfw_0;
 int gp108_acr_hsfw_load_bld(struct nvkm_falcon_fw *);
+
+int ga100_acr_hsfw_ctor(struct nvkm_acr *, const char *, const char *, const char *, int,
+			const struct nvkm_acr_hsf_fwif *);
 
 int nvkm_acr_new_(const struct nvkm_acr_fwif *, struct nvkm_device *, enum nvkm_subdev_type,
 		  int inst, struct nvkm_acr **);

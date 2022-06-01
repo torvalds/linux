@@ -100,6 +100,12 @@ nvkm_sec2_oneinit(struct nvkm_engine *engine)
 	struct nvkm_intr *intr = &sec2->engine.subdev.device->mc->intr;
 	enum nvkm_intr_type type = NVKM_INTR_SUBDEV;
 
+	if (sec2->func->intr_vector) {
+		intr = sec2->func->intr_vector(sec2, &type);
+		if (IS_ERR(intr))
+			return PTR_ERR(intr);
+	}
+
 	return nvkm_inth_add(intr, type, NVKM_INTR_PRIO_NORMAL, subdev, sec2->func->intr,
 			     &subdev->inth);
 }

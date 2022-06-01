@@ -61,7 +61,7 @@ gm200_acr_wpr_check(struct nvkm_acr *acr, u64 *start, u64 *limit)
 	*limit = *limit + 0x20000;
 }
 
-void
+int
 gm200_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 {
 	struct nvkm_subdev *subdev = &acr->subdev;
@@ -86,6 +86,8 @@ gm200_acr_wpr_patch(struct nvkm_acr *acr, s64 adjust)
 		}
 		offset += sizeof(hdr);
 	} while (hdr.falcon_id != WPR_HEADER_V0_FALCON_ID_INVALID);
+
+	return 0;
 }
 
 void

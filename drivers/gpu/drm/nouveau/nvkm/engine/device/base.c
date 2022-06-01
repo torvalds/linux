@@ -2596,12 +2596,14 @@ nv170_chipset = {
 static const struct nvkm_device_chip
 nv172_chipset = {
 	.name = "GA102",
+	.acr      = { 0x00000001, ga102_acr_new },
 	.bar      = { 0x00000001, tu102_bar_new },
 	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga102_fb_new },
 	.gpio     = { 0x00000001, ga102_gpio_new },
+	.gsp      = { 0x00000001, ga102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.mc       = { 0x00000001, ga100_mc_new },
@@ -2616,17 +2618,20 @@ nv172_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
 static const struct nvkm_device_chip
 nv173_chipset = {
 	.name = "GA103",
+	.acr      = { 0x00000001, ga102_acr_new },
 	.bar      = { 0x00000001, tu102_bar_new },
 	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga102_fb_new },
 	.gpio     = { 0x00000001, ga102_gpio_new },
+	.gsp      = { 0x00000001, ga102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.mc       = { 0x00000001, ga100_mc_new },
@@ -2641,17 +2646,20 @@ nv173_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
 static const struct nvkm_device_chip
 nv174_chipset = {
 	.name = "GA104",
+	.acr      = { 0x00000001, ga102_acr_new },
 	.bar      = { 0x00000001, tu102_bar_new },
 	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga102_fb_new },
 	.gpio     = { 0x00000001, ga102_gpio_new },
+	.gsp      = { 0x00000001, ga102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.mc       = { 0x00000001, ga100_mc_new },
@@ -2666,17 +2674,20 @@ nv174_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
 static const struct nvkm_device_chip
 nv176_chipset = {
 	.name = "GA106",
+	.acr      = { 0x00000001, ga102_acr_new },
 	.bar      = { 0x00000001, tu102_bar_new },
 	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga102_fb_new },
 	.gpio     = { 0x00000001, ga102_gpio_new },
+	.gsp      = { 0x00000001, ga102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.mc       = { 0x00000001, ga100_mc_new },
@@ -2691,17 +2702,20 @@ nv176_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
 static const struct nvkm_device_chip
 nv177_chipset = {
 	.name = "GA107",
+	.acr      = { 0x00000001, ga102_acr_new },
 	.bar      = { 0x00000001, tu102_bar_new },
 	.bios     = { 0x00000001, nvkm_bios_new },
 	.devinit  = { 0x00000001, ga100_devinit_new },
 	.fault    = { 0x00000001, tu102_fault_new },
 	.fb       = { 0x00000001, ga102_fb_new },
 	.gpio     = { 0x00000001, ga102_gpio_new },
+	.gsp      = { 0x00000001, ga102_gsp_new },
 	.i2c      = { 0x00000001, gm200_i2c_new },
 	.imem     = { 0x00000001, nv50_instmem_new },
 	.mc       = { 0x00000001, ga100_mc_new },
@@ -2716,6 +2730,7 @@ nv177_chipset = {
 	.dma      = { 0x00000001, gv100_dma_new },
 	.fifo     = { 0x00000001, ga102_fifo_new },
 	.nvdec    = { 0x00000001, ga102_nvdec_new },
+	.sec2     = { 0x00000001, ga102_sec2_new },
 };
 
 struct nvkm_subdev *

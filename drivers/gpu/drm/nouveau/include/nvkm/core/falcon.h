@@ -61,6 +61,7 @@ void gm200_flcn_tracepc(struct nvkm_falcon *);
 int gp102_flcn_reset_eng(struct nvkm_falcon *);
 extern const struct nvkm_falcon_func_pio gp102_flcn_emem_pio;
 
+int ga102_flcn_select(struct nvkm_falcon *);
 int ga102_flcn_reset_prep(struct nvkm_falcon *);
 int ga102_flcn_reset_wait_mem_scrubbing(struct nvkm_falcon *);
 extern const struct nvkm_falcon_func_dma ga102_flcn_dma;
