@@ -34,7 +34,7 @@
  */
 
 
-#define TASKSTATS_VERSION	12
+#define TASKSTATS_VERSION	13
 #define TS_COMM_LEN		32	/* should be >= TASK_COMM_LEN
 					 * in linux/sched.h */
 
@@ -194,6 +194,10 @@ struct taskstats {
 	__u64   ac_exe_dev;     /* program binary device ID */
 	__u64   ac_exe_inode;   /* program binary inode number */
 	/* v12 end */
+
+	/* v13: Delay waiting for write-protect copy */
+	__u64    wpcopy_count;
+	__u64    wpcopy_delay_total;
 };
 
 
