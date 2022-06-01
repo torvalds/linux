@@ -12,6 +12,8 @@ struct nvkm_vfn {
 		u32 user;
 	} addr;
 
+	struct nvkm_intr intr;
+
 	struct nvkm_device_oclass user;
 };
 
