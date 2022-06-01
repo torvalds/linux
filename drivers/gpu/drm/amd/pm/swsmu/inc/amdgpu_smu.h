@@ -432,6 +432,7 @@ struct smu_baco_context
 {
 	uint32_t state;
 	bool platform_support;
+	bool maco_support;
 };
 
 struct smu_freq_info {
