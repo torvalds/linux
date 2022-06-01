@@ -26,11 +26,16 @@
 #include "ior.h"
 #include "rootnv50.h"
 
-static const struct nv50_disp_func
+static const struct nvkm_disp_func
 gt215_disp = {
-	.init = nv50_disp_init,
-	.fini = nv50_disp_fini,
-	.intr = nv50_disp_intr,
+	.dtor = nv50_disp_dtor_,
+	.oneinit = nv50_disp_oneinit_,
+	.init = nv50_disp_init_,
+	.fini = nv50_disp_fini_,
+	.intr = nv50_disp_intr_,
+	.init_ = nv50_disp_init,
+	.fini_ = nv50_disp_fini,
+	.intr_ = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &gt215_disp_root_oclass,

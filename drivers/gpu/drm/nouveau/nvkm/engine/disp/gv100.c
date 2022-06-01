@@ -426,11 +426,16 @@ gv100_disp_init(struct nv50_disp *disp)
 	return 0;
 }
 
-static const struct nv50_disp_func
+static const struct nvkm_disp_func
 gv100_disp = {
-	.init = gv100_disp_init,
-	.fini = gv100_disp_fini,
-	.intr = gv100_disp_intr,
+	.dtor = nv50_disp_dtor_,
+	.oneinit = nv50_disp_oneinit_,
+	.init = nv50_disp_init_,
+	.fini = nv50_disp_fini_,
+	.intr = nv50_disp_intr_,
+	.init_ = gv100_disp_init,
+	.fini_ = gv100_disp_fini,
+	.intr_ = gv100_disp_intr,
 	.uevent = &gv100_disp_chan_uevent,
 	.super = gv100_disp_super,
 	.root = &gv100_disp_root_oclass,

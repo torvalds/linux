@@ -24,12 +24,6 @@
 #include "priv.h"
 #include "head.h"
 
-static const struct nvkm_disp_oclass *
-nv04_disp_root(struct nvkm_disp *disp)
-{
-	return &nv04_disp_root_oclass;
-}
-
 static void
 nv04_disp_intr(struct nvkm_disp *disp)
 {
@@ -60,7 +54,7 @@ nv04_disp_intr(struct nvkm_disp *disp)
 static const struct nvkm_disp_func
 nv04_disp = {
 	.intr = nv04_disp_intr,
-	.root = nv04_disp_root,
+	.root = &nv04_disp_root_oclass,
 };
 
 int

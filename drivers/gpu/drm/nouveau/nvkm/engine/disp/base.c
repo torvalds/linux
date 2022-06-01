@@ -197,9 +197,8 @@ nvkm_disp_class_get(struct nvkm_oclass *oclass, int index,
 {
 	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
 	if (index == 0) {
-		const struct nvkm_disp_oclass *root = disp->func->root(disp);
-		oclass->base = root->base;
-		oclass->engn = root;
+		oclass->base = disp->func->root->base;
+		oclass->engn = disp->func->root;
 		*class = &nvkm_disp_sclass;
 		return 0;
 	}

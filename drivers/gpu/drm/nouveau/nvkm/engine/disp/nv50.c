@@ -36,34 +36,28 @@
 #include <subdev/devinit.h>
 #include <subdev/timer.h>
 
-static const struct nvkm_disp_oclass *
-nv50_disp_root_(struct nvkm_disp *base)
-{
-	return nv50_disp(base)->func->root;
-}
-
-static void
+void
 nv50_disp_intr_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
-	disp->func->intr(disp);
+	disp->func->intr_(disp);
 }
 
-static void
+void
 nv50_disp_fini_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
-	disp->func->fini(disp);
+	disp->func->fini_(disp);
 }
 
-static int
+int
 nv50_disp_init_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
-	return disp->func->init(disp);
+	return disp->func->init_(disp);
 }
 
-static void *
+void *
 nv50_disp_dtor_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
@@ -78,11 +72,11 @@ nv50_disp_dtor_(struct nvkm_disp *base)
 	return disp;
 }
 
-static int
+int
 nv50_disp_oneinit_(struct nvkm_disp *base)
 {
 	struct nv50_disp *disp = nv50_disp(base);
-	const struct nv50_disp_func *func = disp->func;
+	const struct nvkm_disp_func *func = disp->func;
 	struct nvkm_subdev *subdev = &disp->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	int ret, i;
@@ -142,18 +136,8 @@ nv50_disp_oneinit_(struct nvkm_disp *base)
 			      0x1000, 0, disp->inst, &disp->ramht);
 }
 
-static const struct nvkm_disp_func
-nv50_disp_ = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
-	.init = nv50_disp_init_,
-	.fini = nv50_disp_fini_,
-	.intr = nv50_disp_intr_,
-	.root = nv50_disp_root_,
-};
-
 int
-nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
+nv50_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_disp **pdisp)
 {
 	struct nv50_disp *disp;
@@ -164,7 +148,7 @@ nv50_disp_new_(const struct nv50_disp_func *func, struct nvkm_device *device,
 	disp->func = func;
 	*pdisp = &disp->base;
 
-	ret = nvkm_disp_ctor(&nv50_disp_, device, type, inst, &disp->base);
+	ret = nvkm_disp_ctor(func, device, type, inst, &disp->base);
 	if (ret)
 		return ret;
 
@@ -754,11 +738,16 @@ nv50_disp_init(struct nv50_disp *disp)
 	return 0;
 }
 
-static const struct nv50_disp_func
+static const struct nvkm_disp_func
 nv50_disp = {
-	.init = nv50_disp_init,
-	.fini = nv50_disp_fini,
-	.intr = nv50_disp_intr,
+	.dtor = nv50_disp_dtor_,
+	.oneinit = nv50_disp_oneinit_,
+	.init = nv50_disp_init_,
+	.fini = nv50_disp_fini_,
+	.intr = nv50_disp_intr_,
+	.init_ = nv50_disp_init,
+	.fini_ = nv50_disp_fini,
+	.intr_ = nv50_disp_intr,
 	.uevent = &nv50_disp_chan_uevent,
 	.super = nv50_disp_super,
 	.root = &nv50_disp_root_oclass,

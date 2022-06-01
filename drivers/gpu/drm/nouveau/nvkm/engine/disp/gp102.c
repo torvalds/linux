@@ -53,11 +53,16 @@ gp102_disp_intr_error(struct nv50_disp *disp, int chid)
 	nvkm_wr32(device, 0x6111f0 + (chid * 12), 0x90000000);
 }
 
-static const struct nv50_disp_func
+static const struct nvkm_disp_func
 gp102_disp = {
-	.init = gf119_disp_init,
-	.fini = gf119_disp_fini,
-	.intr = gf119_disp_intr,
+	.dtor = nv50_disp_dtor_,
+	.oneinit = nv50_disp_oneinit_,
+	.init = nv50_disp_init_,
+	.fini = nv50_disp_fini_,
+	.intr = nv50_disp_intr_,
+	.init_ = gf119_disp_init,
+	.fini_ = gf119_disp_fini,
+	.intr_ = gf119_disp_intr,
 	.intr_error = gp102_disp_intr_error,
 	.uevent = &gf119_disp_chan_uevent,
 	.super = gf119_disp_super,
