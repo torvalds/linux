@@ -13,11 +13,6 @@ struct gf100_fifo {
 	struct list_head chan;
 
 	struct {
-		struct work_struct work;
-		u64 mask;
-	} recover;
-
-	struct {
 		struct nvkm_memory *mem[2];
 		int active;
 	} runlist;

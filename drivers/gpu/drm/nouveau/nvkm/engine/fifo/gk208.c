@@ -40,6 +40,7 @@ gk208_runq = {
 	.init = gk208_runq_init,
 	.intr = gk104_runq_intr,
 	.intr_0_names = gk104_runq_intr_0_names,
+	.idle = gk104_runq_idle,
 };
 
 static int
@@ -58,12 +59,11 @@ gk208_fifo = {
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
 	.init_pbdmas = gk104_fifo_init_pbdmas,
-	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
+	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk110_runl,

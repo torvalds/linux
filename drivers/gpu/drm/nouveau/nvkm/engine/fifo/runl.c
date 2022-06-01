@@ -24,10 +24,163 @@
 #include "chan.h"
 #include "chid.h"
 #include "priv.h"
+#include "runq.h"
 
 #include <core/gpuobj.h>
 #include <subdev/timer.h>
 #include <subdev/top.h>
+
+struct nvkm_cgrp *
+nvkm_engn_cgrp_get(struct nvkm_engn *engn, unsigned long *pirqflags)
+{
+	struct nvkm_cgrp *cgrp = NULL;
+	struct nvkm_chan *chan;
+	bool cgid;
+	int id;
+
+	id = engn->func->cxid(engn, &cgid);
+	if (id < 0)
+		return NULL;
+
+	if (!cgid) {
+		chan = nvkm_runl_chan_get_chid(engn->runl, id, pirqflags);
+		if (chan)
+			cgrp = chan->cgrp;
+	} else {
+		cgrp = nvkm_runl_cgrp_get_cgid(engn->runl, id, pirqflags);
+	}
+
+	WARN_ON(!cgrp);
+	return cgrp;
+}
+
+#include "gf100.h"
+#include "gk104.h"
+
+static void
+nvkm_runl_rc(struct nvkm_runl *runl)
+{
+	struct nvkm_fifo *fifo = runl->fifo;
+	struct nvkm_cgrp *cgrp, *gtmp;
+	struct nvkm_chan *chan, *ctmp;
+	struct nvkm_engn *engn;
+	unsigned long flags;
+	int rc, state, i;
+	bool reset;
+
+	/* Runlist is blocked before scheduling recovery - fetch count. */
+	BUG_ON(!mutex_is_locked(&runl->mutex));
+	rc = atomic_xchg(&runl->rc_pending, 0);
+	if (!rc)
+		return;
+
+	/* Look for channel groups flagged for RC. */
+	nvkm_runl_foreach_cgrp_safe(cgrp, gtmp, runl) {
+		state = atomic_cmpxchg(&cgrp->rc, NVKM_CGRP_RC_PENDING, NVKM_CGRP_RC_RUNNING);
+		if (state == NVKM_CGRP_RC_PENDING) {
+			/* Disable all channels in them, and remove from runlist. */
+			nvkm_cgrp_foreach_chan_safe(chan, ctmp, cgrp)
+				nvkm_chan_error(chan, false);
+		}
+	}
+
+	/* On GPUs with runlist preempt, wait for PBDMA(s) servicing runlist to go idle. */
+	if (runl->func->preempt) {
+		for (i = 0; i < runl->runq_nr; i++) {
+			struct nvkm_runq *runq = runl->runq[i];
+
+			if (runq) {
+				nvkm_msec(fifo->engine.subdev.device, 2000,
+					if (runq->func->idle(runq))
+						break;
+				);
+			}
+		}
+	}
+
+	/* Look for engines that are still on flagged channel groups - reset them. */
+	nvkm_runl_foreach_engn_cond(engn, runl, engn->func->cxid) {
+		cgrp = nvkm_engn_cgrp_get(engn, &flags);
+		if (!cgrp) {
+			ENGN_DEBUG(engn, "cxid not valid");
+			continue;
+		}
+
+		reset = atomic_read(&cgrp->rc) == NVKM_CGRP_RC_RUNNING;
+		nvkm_cgrp_put(&cgrp, flags);
+		if (!reset) {
+			ENGN_DEBUG(engn, "cxid not in recovery");
+			continue;
+		}
+
+		ENGN_DEBUG(engn, "resetting...");
+		nvkm_subdev_fini(&engn->engine->subdev, false);
+		WARN_ON(nvkm_subdev_init(&engn->engine->subdev));
+	}
+
+	/* Submit runlist update, and clear any remaining exception state. */
+	if (runl->fifo->engine.subdev.device->card_type < NV_E0)
+		gf100_fifo_runlist_commit(gf100_fifo(runl->fifo));
+	else
+		gk104_fifo_runlist_update(gk104_fifo(runl->fifo), runl->id);
+	if (runl->func->fault_clear)
+		runl->func->fault_clear(runl);
+
+	/* Unblock runlist processing. */
+	while (rc--)
+		nvkm_runl_allow(runl);
+}
+
+static void
+nvkm_runl_rc_runl(struct nvkm_runl *runl)
+{
+	RUNL_ERROR(runl, "rc scheduled");
+
+	nvkm_runl_block(runl);
+	if (runl->func->preempt)
+		runl->func->preempt(runl);
+
+	atomic_inc(&runl->rc_pending);
+	schedule_work(&runl->work);
+}
+
+void
+nvkm_runl_rc_cgrp(struct nvkm_cgrp *cgrp)
+{
+	if (atomic_cmpxchg(&cgrp->rc, NVKM_CGRP_RC_NONE, NVKM_CGRP_RC_PENDING) != NVKM_CGRP_RC_NONE)
+		return;
+
+	CGRP_ERROR(cgrp, "rc scheduled");
+	nvkm_runl_rc_runl(cgrp->runl);
+}
+
+void
+nvkm_runl_rc_engn(struct nvkm_runl *runl, struct nvkm_engn *engn)
+{
+	struct nvkm_cgrp *cgrp;
+	unsigned long flags;
+
+	/* Lookup channel group currently on engine. */
+	cgrp = nvkm_engn_cgrp_get(engn, &flags);
+	if (!cgrp) {
+		ENGN_DEBUG(engn, "rc skipped, not on channel");
+		return;
+	}
+
+	nvkm_runl_rc_cgrp(cgrp);
+	nvkm_cgrp_put(&cgrp, flags);
+}
+
+static void
+nvkm_runl_work(struct work_struct *work)
+{
+	struct nvkm_runl *runl = container_of(work, typeof(*runl), work);
+
+	mutex_lock(&runl->mutex);
+	nvkm_runl_rc(runl);
+	mutex_unlock(&runl->mutex);
+
+}
 
 struct nvkm_chan *
 nvkm_runl_chan_get_inst(struct nvkm_runl *runl, u64 inst, unsigned long *pirqflags)
@@ -74,6 +227,27 @@ nvkm_runl_chan_get_chid(struct nvkm_runl *runl, int id, unsigned long *pirqflags
 	return NULL;
 }
 
+struct nvkm_cgrp *
+nvkm_runl_cgrp_get_cgid(struct nvkm_runl *runl, int id, unsigned long *pirqflags)
+{
+	struct nvkm_chid *cgid = runl->cgid;
+	struct nvkm_cgrp *cgrp;
+	unsigned long flags;
+
+	spin_lock_irqsave(&cgid->lock, flags);
+	if (!WARN_ON(id >= cgid->nr)) {
+		cgrp = cgid->data[id];
+		if (likely(cgrp)) {
+			spin_lock(&cgrp->lock);
+			*pirqflags = flags;
+			spin_unlock(&cgid->lock);
+			return cgrp;
+		}
+	}
+	spin_unlock_irqrestore(&cgid->lock, flags);
+	return NULL;
+}
+
 int
 nvkm_runl_preempt_wait(struct nvkm_runl *runl)
 {
@@ -81,6 +255,7 @@ nvkm_runl_preempt_wait(struct nvkm_runl *runl)
 		if (!runl->func->preempt_pending(runl))
 			break;
 
+		nvkm_runl_rc(runl);
 		usleep_range(1, 2);
 	) < 0 ? -ETIMEDOUT : 0;
 }
@@ -91,6 +266,7 @@ nvkm_runl_update_pending(struct nvkm_runl *runl)
 	if (!runl->func->pending(runl))
 		return false;
 
+	nvkm_runl_rc(runl);
 	return true;
 }
 
@@ -120,6 +296,12 @@ nvkm_runl_block(struct nvkm_runl *runl)
 		runl->func->block(runl, ~0);
 	}
 	spin_unlock_irqrestore(&fifo->lock, flags);
+}
+
+void
+nvkm_runl_fini(struct nvkm_runl *runl)
+{
+	flush_work(&runl->work);
 }
 
 void
@@ -214,6 +396,9 @@ nvkm_runl_new(struct nvkm_fifo *fifo, int runi, u32 addr, int id_nr)
 	INIT_LIST_HEAD(&runl->engns);
 	INIT_LIST_HEAD(&runl->cgrps);
 	mutex_init(&runl->mutex);
+	INIT_WORK(&runl->work, nvkm_runl_work);
+	atomic_set(&runl->rc_triggered, 0);
+	atomic_set(&runl->rc_pending, 0);
 	list_add_tail(&runl->head, &fifo->runls);
 
 	if (!fifo->chid) {

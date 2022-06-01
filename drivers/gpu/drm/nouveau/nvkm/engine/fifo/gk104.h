@@ -15,15 +15,7 @@ struct gk104_fifo {
 	struct nvkm_fifo base;
 
 	struct {
-		struct work_struct work;
-		u32 engm;
-		u32 runm;
-	} recover;
-
-	struct {
 		struct nvkm_engine *engine;
-		int runl;
-		int pbid;
 	} engine[16];
 	int engine_nr;
 
@@ -43,29 +35,14 @@ struct gk104_fifo {
 	} user;
 };
 
-struct gk104_fifo_engine_status {
-	bool busy;
-	bool faulted;
-	bool chsw;
-	bool save;
-	bool load;
-	struct {
-		bool tsg;
-		u32 id;
-	} prev, next, *chan;
-};
-
 int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		    int index, int nr, struct nvkm_fifo **);
 void gk104_fifo_runlist_insert(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_update(struct gk104_fifo *, int runl);
-void gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
-			      struct gk104_fifo_engine_status *status);
 void *gk104_fifo_dtor(struct nvkm_fifo *base);
 int gk104_fifo_oneinit(struct nvkm_fifo *);
 void gk104_fifo_init(struct nvkm_fifo *base);
-void gk104_fifo_fini(struct nvkm_fifo *base);
 
 extern const struct gk104_fifo_runlist_func gk104_fifo_runlist;
 void gk104_fifo_runlist_chan(struct gk104_fifo_chan *,

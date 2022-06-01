@@ -5,6 +5,7 @@
 #include <engine/fifo.h>
 #include <core/enum.h>
 struct nvkm_cgrp;
+struct nvkm_engn;
 struct nvkm_memory;
 struct nvkm_runl;
 struct nvkm_runq;
@@ -24,10 +25,9 @@ struct nvkm_fifo_func {
 	void (*init)(struct nvkm_fifo *);
 	void (*init_pbdmas)(struct nvkm_fifo *, u32 mask);
 
-	void (*fini)(struct nvkm_fifo *);
-
 	irqreturn_t (*intr)(struct nvkm_inth *);
 	void (*intr_mmu_fault_unit)(struct nvkm_fifo *, int unit);
+	void (*intr_ctxsw_timeout)(struct nvkm_fifo *, u32 engm);
 
 	const struct nvkm_fifo_func_mmu_fault {
 		void (*recover)(struct nvkm_fifo *, struct nvkm_fault_data *);
@@ -41,7 +41,6 @@ struct nvkm_fifo_func {
 	int (*engine_id)(struct nvkm_fifo *, struct nvkm_engine *);
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
-	void (*recover_chan)(struct nvkm_fifo *, int chid);
 
 	const struct gk104_fifo_runlist_func {
 		u8 size;
@@ -116,12 +115,16 @@ int gf100_fifo_runq_nr(struct nvkm_fifo *);
 bool gf100_fifo_intr_pbdma(struct nvkm_fifo *);
 void gf100_fifo_intr_mmu_fault(struct nvkm_fifo *);
 void gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *, int);
+void gf100_fifo_intr_sched(struct nvkm_fifo *);
+void gf100_fifo_intr_ctxsw_timeout(struct nvkm_fifo *, u32);
 void gf100_fifo_mmu_fault_recover(struct nvkm_fifo *, struct nvkm_fault_data *);
 extern const struct nvkm_enum gf100_fifo_mmu_fault_access[];
 extern const struct nvkm_event_func gf100_fifo_nonstall;
 bool gf100_runl_preempt_pending(struct nvkm_runl *);
 void gf100_runq_init(struct nvkm_runq *);
 bool gf100_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
+void gf100_engn_mmu_fault_trigger(struct nvkm_engn *);
+bool gf100_engn_mmu_fault_triggered(struct nvkm_engn *);
 extern const struct nvkm_engn_func gf100_engn_sw;
 void gf100_chan_preempt(struct nvkm_chan *);
 
@@ -136,16 +139,19 @@ extern const struct nvkm_fifo_func_mmu_fault gk104_fifo_mmu_fault;
 extern const struct nvkm_enum gk104_fifo_mmu_fault_reason[];
 extern const struct nvkm_enum gk104_fifo_mmu_fault_hubclient[];
 extern const struct nvkm_enum gk104_fifo_mmu_fault_gpcclient[];
-void gk104_fifo_recover_chan(struct nvkm_fifo *, int);
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 bool gk104_runl_pending(struct nvkm_runl *);
 void gk104_runl_block(struct nvkm_runl *, u32);
 void gk104_runl_allow(struct nvkm_runl *, u32);
+void gk104_runl_fault_clear(struct nvkm_runl *);
 extern const struct nvkm_runq_func gk104_runq;
 void gk104_runq_init(struct nvkm_runq *);
 bool gk104_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
 extern const struct nvkm_bitfield gk104_runq_intr_0_names[];
+bool gk104_runq_idle(struct nvkm_runq *);
 extern const struct nvkm_engn_func gk104_engn;
+bool gk104_engn_chsw(struct nvkm_engn *);
+int gk104_engn_cxid(struct nvkm_engn *, bool *cgid);
 extern const struct nvkm_engn_func gk104_engn_ce;
 void gk104_chan_bind(struct nvkm_chan *);
 void gk104_chan_bind_inst(struct nvkm_chan *);
@@ -174,10 +180,12 @@ extern const struct nvkm_enum gv100_fifo_mmu_fault_access[];
 extern const struct nvkm_enum gv100_fifo_mmu_fault_reason[];
 extern const struct nvkm_enum gv100_fifo_mmu_fault_hubclient[];
 extern const struct nvkm_enum gv100_fifo_mmu_fault_gpcclient[];
+void gv100_runl_preempt(struct nvkm_runl *);
 extern const struct nvkm_runq_func gv100_runq;
 extern const struct nvkm_engn_func gv100_engn;
 extern const struct nvkm_engn_func gv100_engn_ce;
 
+void tu102_fifo_intr_ctxsw_timeout_info(struct nvkm_engn *, u32 info);
 extern const struct nvkm_fifo_func_mmu_fault tu102_fifo_mmu_fault;
 
 int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,

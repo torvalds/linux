@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "chan.h"
+#include "chid.h"
 #include "cgrp.h"
 #include "runl.h"
 #include "runq.h"
@@ -49,10 +50,14 @@ gv100_chan = {
 
 const struct nvkm_engn_func
 gv100_engn = {
+	.chsw = gk104_engn_chsw,
+	.cxid = gk104_engn_cxid,
 };
 
 const struct nvkm_engn_func
 gv100_engn_ce = {
+	.chsw = gk104_engn_chsw,
+	.cxid = gk104_engn_cxid,
 };
 
 static bool
@@ -83,7 +88,14 @@ gv100_runq = {
 	.intr = gk104_runq_intr,
 	.intr_0_names = gk104_runq_intr_0_names,
 	.intr_1_ctxnotvalid = gv100_runq_intr_1_ctxnotvalid,
+	.idle = gk104_runq_idle,
 };
+
+void
+gv100_runl_preempt(struct nvkm_runl *runl)
+{
+	nvkm_wr32(runl->fifo->engine.subdev.device, 0x002638, BIT(runl->id));
+}
 
 void
 gv100_fifo_runlist_chan(struct gk104_fifo_chan *chan,
@@ -123,6 +135,7 @@ gv100_runl = {
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
 	.allow = gk104_runl_allow,
+	.preempt = gv100_runl_preempt,
 	.preempt_pending = gf100_runl_preempt_pending,
 };
 
@@ -362,6 +375,18 @@ gv100_fifo_mmu_fault = {
 	.gpcclient = gv100_fifo_mmu_fault_gpcclient,
 };
 
+static void
+gv100_fifo_intr_ctxsw_timeout(struct nvkm_fifo *fifo, u32 engm)
+{
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
+
+	nvkm_runl_foreach(runl, fifo) {
+		nvkm_runl_foreach_engn_cond(engn, runl, engm & BIT(engn->id))
+			nvkm_runl_rc_engn(runl, engn);
+	}
+}
+
 static const struct nvkm_fifo_func
 gv100_fifo = {
 	.dtor = gk104_fifo_dtor,
@@ -372,11 +397,10 @@ gv100_fifo = {
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
 	.init_pbdmas = gk104_fifo_init_pbdmas,
-	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
+	.intr_ctxsw_timeout = gv100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gv100_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gv100_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gv100_runl,

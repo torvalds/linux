@@ -93,11 +93,12 @@ static int
 nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	struct nvkm_runl *runl;
 
 	nvkm_inth_block(&fifo->engine.subdev.inth);
 
-	if (fifo->func->fini)
-		fifo->func->fini(fifo);
+	nvkm_runl_foreach(runl, fifo)
+		nvkm_runl_fini(runl);
 
 	return 0;
 }

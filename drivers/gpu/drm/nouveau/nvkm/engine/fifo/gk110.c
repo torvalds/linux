@@ -90,6 +90,7 @@ gk110_runl = {
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
 	.allow = gk104_runl_allow,
+	.fault_clear = gk104_runl_fault_clear,
 	.preempt_pending = gf100_runl_preempt_pending,
 };
 
@@ -115,12 +116,11 @@ gk110_fifo = {
 	.runl_ctor = gk104_fifo_runl_ctor,
 	.init = gk104_fifo_init,
 	.init_pbdmas = gk104_fifo_init_pbdmas,
-	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
+	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
 	.engine_id = gk104_fifo_engine_id,
-	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk110_runl,

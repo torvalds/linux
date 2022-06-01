@@ -168,6 +168,18 @@ nvkm_cgrp_ref(struct nvkm_cgrp *cgrp)
 	return cgrp;
 }
 
+void
+nvkm_cgrp_put(struct nvkm_cgrp **pcgrp, unsigned long irqflags)
+{
+	struct nvkm_cgrp *cgrp = *pcgrp;
+
+	if (!cgrp)
+		return;
+
+	*pcgrp = NULL;
+	spin_unlock_irqrestore(&cgrp->lock, irqflags);
+}
+
 int
 nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bool hw,
 	      struct nvkm_cgrp **pcgrp)
@@ -190,6 +202,7 @@ nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bo
 	INIT_LIST_HEAD(&cgrp->ectxs);
 	INIT_LIST_HEAD(&cgrp->vctxs);
 	mutex_init(&cgrp->mutex);
+	atomic_set(&cgrp->rc, NVKM_CGRP_RC_NONE);
 
 	if (runl->cgid) {
 		cgrp->id = nvkm_chid_get(runl->cgid, cgrp);
