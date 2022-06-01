@@ -18,8 +18,6 @@ struct nv04_fifo_chan {
 
 extern const struct nvkm_fifo_chan_func nv04_fifo_dma_func;
 void *nv04_fifo_dma_dtor(struct nvkm_fifo_chan *);
-void nv04_fifo_dma_init(struct nvkm_fifo_chan *);
-void nv04_fifo_dma_fini(struct nvkm_fifo_chan *);
 void nv04_fifo_dma_object_dtor(struct nvkm_fifo_chan *, int);
 
 extern const struct nvkm_fifo_chan_oclass nv04_fifo_dma_oclass;

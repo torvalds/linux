@@ -52,15 +52,14 @@ nv04_fifo_ramfc[] = {
 };
 
 void
-nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
+nv04_chan_stop(struct nvkm_chan *chan)
 {
-	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	struct nv04_fifo *fifo = chan->fifo;
+	struct nv04_fifo *fifo = nv04_fifo(chan->cgrp->runl->fifo);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	struct nvkm_memory *fctx = device->imem->ramfc;
 	const struct nv04_fifo_ramfc *c;
 	unsigned long flags;
-	u32 data = chan->ramfc;
+	u32 data = nv04_fifo_chan(chan)->ramfc;
 	u32 chid;
 
 	/* prevent fifo context switches */
@@ -69,7 +68,7 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 
 	/* if this channel is active, replace it with a null context */
 	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & fifo->base.chid->mask;
-	if (chid == chan->base.chid) {
+	if (chid == chan->id) {
 		nvkm_mask(device, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
 		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 0);
 		nvkm_mask(device, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
@@ -98,26 +97,26 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 	}
 
 	/* restore normal operation, after disabling dma mode */
-	nvkm_mask(device, NV04_PFIFO_MODE, 1 << chan->base.chid, 0);
+	nvkm_mask(device, NV04_PFIFO_MODE, BIT(chan->id), 0);
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
 void
-nv04_fifo_dma_init(struct nvkm_fifo_chan *base)
+nv04_chan_start(struct nvkm_chan *chan)
 {
-	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	struct nv04_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u32 mask = 1 << chan->base.chid;
+	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
 	unsigned long flags;
-	spin_lock_irqsave(&fifo->base.lock, flags);
-	nvkm_mask(device, NV04_PFIFO_MODE, mask, mask);
-	spin_unlock_irqrestore(&fifo->base.lock, flags);
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	nvkm_mask(fifo->engine.subdev.device, NV04_PFIFO_MODE, BIT(chan->id), BIT(chan->id));
+	spin_unlock_irqrestore(&fifo->lock, flags);
 }
 
 static const struct nvkm_chan_func
 nv04_chan = {
+	.start = nv04_chan_start,
+	.stop = nv04_chan_stop,
 };
 
 const struct nvkm_cgrp_func

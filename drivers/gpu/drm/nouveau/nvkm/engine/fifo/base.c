@@ -62,16 +62,6 @@ nvkm_fifo_fault(struct nvkm_fifo *fifo, struct nvkm_fault_data *info)
 	return fifo->func->mmu_fault->recover(fifo, info);
 }
 
-void
-nvkm_fifo_kevent(struct nvkm_fifo *fifo, int chid)
-{
-	nvkm_event_ntfy(&fifo->kevent, chid, NVKM_FIFO_EVENT_KILLED);
-}
-
-static const struct nvkm_event_func
-nvkm_fifo_kevent_func = {
-};
-
 static int
 nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 		    void *argv, u32 argc, struct nvkm_object **pobject)
@@ -293,7 +283,6 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 
 	if (fifo->func->dtor)
 		data = fifo->func->dtor(fifo);
-	nvkm_event_fini(&fifo->kevent);
 	nvkm_event_fini(&fifo->nonstall.event);
 	mutex_destroy(&fifo->mutex);
 	return data;
@@ -343,5 +332,5 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 			return ret;
 	}
 
-	return nvkm_event_init(&nvkm_fifo_kevent_func, &fifo->engine.subdev, 1, nr, &fifo->kevent);
+	return 0;
 }

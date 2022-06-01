@@ -39,6 +39,22 @@
 
 #include <nvif/class.h>
 
+static void
+gf100_chan_stop(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x003004 + (chan->id * 8), 0x00000001, 0x00000000);
+}
+
+static void
+gf100_chan_start(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_wr32(device, 0x003004 + (chan->id * 8), 0x001f0001);
+}
+
 static void gf100_fifo_intr_engine(struct nvkm_fifo *);
 
 static void
@@ -65,6 +81,8 @@ static const struct nvkm_chan_func
 gf100_chan = {
 	.bind = gf100_chan_bind,
 	.unbind = gf100_chan_unbind,
+	.start = gf100_chan_start,
+	.stop = gf100_chan_stop,
 };
 
 static const struct nvkm_engn_func
@@ -321,7 +339,6 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 		   struct gf100_fifo_chan *chan)
 {
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
 	u32 chid = chan->base.chid;
 	int engi = gf100_fifo_engine_id(&fifo->base, engine);
 
@@ -329,14 +346,13 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 		   engine->subdev.name, chid);
 	assert_spin_locked(&fifo->base.lock);
 
-	nvkm_mask(device, 0x003004 + (chid * 0x08), 0x00000001, 0x00000000);
+	nvkm_chan_error(&chan->base, false);
 	list_del_init(&chan->head);
 	chan->killed = true;
 
 	if (engi >= 0 && engi != GF100_FIFO_ENGN_SW)
 		fifo->recover.mask |= BIT(engi);
 	schedule_work(&fifo->recover.work);
-	nvkm_fifo_kevent(&fifo->base, chid);
 }
 
 static const struct nvkm_enum

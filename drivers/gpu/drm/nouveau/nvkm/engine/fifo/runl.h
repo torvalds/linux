@@ -34,6 +34,7 @@ struct nvkm_runl {
 	u32 addr;
 
 	struct nvkm_chid *cgid;
+#define NVKM_CHAN_EVENT_ERRORED BIT(0)
 	struct nvkm_chid *chid;
 
 	struct list_head engns;

@@ -39,6 +39,22 @@
 #include <nvif/class.h>
 
 void
+gk104_chan_stop(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x800004 + (chan->id * 8), 0x00000800, 0x00000800);
+}
+
+void
+gk104_chan_start(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x800004 + (chan->id * 8), 0x00000400, 0x00000400);
+}
+
+void
 gk104_chan_unbind(struct nvkm_chan *chan)
 {
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
@@ -68,6 +84,8 @@ static const struct nvkm_chan_func
 gk104_chan = {
 	.bind = gk104_chan_bind,
 	.unbind = gk104_chan_unbind,
+	.start = gk104_chan_start,
+	.stop = gk104_chan_stop,
 };
 
 void
@@ -469,12 +487,8 @@ gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 	chan = gk104_fifo_recover_chid(fifo, runl, chid);
 	if (chan) {
 		chan->killed = true;
-		nvkm_fifo_kevent(&fifo->base, chid);
+		nvkm_chan_error(&chan->base, false);
 	}
-
-	/* Disable channel. */
-	nvkm_wr32(device, 0x800004 + (chid * 0x08), stat | 0x00000800);
-	nvkm_warn(subdev, "channel %d: killed\n", chid);
 
 	/* Block channel assignments from changing during recovery. */
 	gk104_fifo_recover_runl(fifo, runl);

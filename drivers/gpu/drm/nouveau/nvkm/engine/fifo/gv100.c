@@ -31,10 +31,19 @@
 
 #include <nvif/class.h>
 
+static u32
+gv100_chan_doorbell_handle(struct nvkm_chan *chan)
+{
+	return chan->id;
+}
+
 static const struct nvkm_chan_func
 gv100_chan = {
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
+	.start = gk104_chan_start,
+	.stop = gk104_chan_stop,
+	.doorbell_handle = gv100_chan_doorbell_handle,
 };
 
 const struct nvkm_engn_func

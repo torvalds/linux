@@ -64,6 +64,8 @@ nv40_fifo_ramfc[] = {
 
 static const struct nvkm_chan_func
 nv40_chan = {
+	.start = nv04_chan_start,
+	.stop = nv04_chan_stop,
 };
 
 static const struct nvkm_engn_func

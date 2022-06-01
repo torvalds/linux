@@ -28,13 +28,32 @@
 
 #include <core/memory.h>
 #include <subdev/mc.h>
+#include <subdev/vfn.h>
 
 #include <nvif/class.h>
+
+static u32
+tu102_chan_doorbell_handle(struct nvkm_chan *chan)
+{
+	return (chan->cgrp->runl->id << 16) | chan->id;
+}
+
+static void
+tu102_chan_start(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	gk104_chan_start(chan);
+	nvkm_wr32(device, device->vfn->addr.user + 0x0090, chan->func->doorbell_handle(chan));
+}
 
 static const struct nvkm_chan_func
 tu102_chan = {
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
+	.start = tu102_chan_start,
+	.stop = gk104_chan_stop,
+	.doorbell_handle = tu102_chan_doorbell_handle,
 };
 
 static bool
@@ -202,12 +221,8 @@ tu102_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 	chan = tu102_fifo_recover_chid(fifo, runl, chid);
 	if (chan) {
 		chan->killed = true;
-		nvkm_fifo_kevent(&fifo->base, chid);
+		nvkm_chan_error(&chan->base, false);
 	}
-
-	/* Disable channel. */
-	nvkm_wr32(device, 0x800004 + (chid * 0x08), stat | 0x00000800);
-	nvkm_warn(subdev, "channel %d: killed\n", chid);
 
 	/* Block channel assignments from changing during recovery. */
 	tu102_fifo_recover_runl(fifo, runl);

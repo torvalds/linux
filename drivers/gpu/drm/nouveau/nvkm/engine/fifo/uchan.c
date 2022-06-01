@@ -22,6 +22,7 @@
 #define nvkm_uchan(p) container_of((p), struct nvkm_uchan, object)
 #include "cgrp.h"
 #include "chan.h"
+#include "chid.h"
 #include "runl.h"
 
 #include <core/oproxy.h>
@@ -52,7 +53,8 @@ nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 		return nvkm_uevent_add(uevent, &runl->fifo->nonstall.event, 0,
 				       NVKM_FIFO_NONSTALL_EVENT, NULL);
 	case NVIF_CHAN_EVENT_V0_KILLED:
-		return chan->object.func->uevent(&chan->object, argv, argc, uevent);
+		return nvkm_uevent_add(uevent, &runl->chid->event, chan->id,
+				       NVKM_CHAN_EVENT_ERRORED, NULL);
 	default:
 		break;
 	}
@@ -213,6 +215,8 @@ nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
 	int ret;
 
+	nvkm_chan_block(chan);
+
 	ret = chan->object.func->fini(&chan->object, suspend);
 	if (ret && suspend)
 		return ret;
@@ -228,8 +232,13 @@ nvkm_uchan_init(struct nvkm_object *object)
 {
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
 
+	if (atomic_read(&chan->errored))
+		return 0;
+
 	if (chan->func->bind)
 		chan->func->bind(chan);
+
+	nvkm_chan_allow(chan);
 
 	return chan->object.func->init(&chan->object);
 }

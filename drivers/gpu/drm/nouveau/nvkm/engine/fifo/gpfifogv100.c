@@ -28,12 +28,6 @@
 #include <nvif/clc36f.h>
 #include <nvif/unpack.h>
 
-static u32
-gv100_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *chan)
-{
-	return chan->chid;
-}
-
 static int
 gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid)
 {
@@ -125,7 +119,6 @@ gv100_fifo_gpfifo = {
 	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
 	.engine_init = gv100_fifo_gpfifo_engine_init,
 	.engine_fini = gv100_fifo_gpfifo_engine_fini,
-	.submit_token = gv100_fifo_gpfifo_submit_token,
 };
 
 int
@@ -159,7 +152,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 
 	*chid = chan->base.chid;
 	*inst = chan->base.inst->addr;
-	*token = chan->base.func->submit_token(&chan->base);
+	*token = chan->base.func->doorbell_handle(&chan->base);
 
 	/* Hack to support GPUs where even individual channels should be
 	 * part of a channel group.

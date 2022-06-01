@@ -44,6 +44,8 @@ const struct nvkm_chan_func
 g84_chan = {
 	.bind = g84_chan_bind,
 	.unbind = nv50_chan_unbind,
+	.start = nv50_chan_start,
+	.stop = nv50_chan_stop,
 };
 
 const struct nvkm_engn_func

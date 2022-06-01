@@ -188,11 +188,7 @@ nv50_fifo_chan_fini(struct nvkm_fifo_chan *base)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
 	struct nv50_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u32 chid = chan->base.chid;
 
-	/* remove channel from runlist, fifo will unload context */
-	nvkm_mask(device, 0x002600 + (chid * 4), 0x80000000, 0x00000000);
 	nv50_fifo_runlist_update(fifo);
 }
 
@@ -201,10 +197,7 @@ nv50_fifo_chan_init(struct nvkm_fifo_chan *base)
 {
 	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
 	struct nv50_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u32 chid = chan->base.chid;
 
-	nvkm_mask(device, 0x002600 + (chid * 4), 0x80000000, 0x80000000);
 	nv50_fifo_runlist_update(fifo);
 }
 

@@ -35,6 +35,22 @@
 #include <nvif/class.h>
 
 void
+nv50_chan_stop(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x002600 + (chan->id * 4), 0x80000000, 0x00000000);
+}
+
+void
+nv50_chan_start(struct nvkm_chan *chan)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x002600 + (chan->id * 4), 0x80000000, 0x80000000);
+}
+
+void
 nv50_chan_unbind(struct nvkm_chan *chan)
 {
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
@@ -54,6 +70,8 @@ static const struct nvkm_chan_func
 nv50_chan = {
 	.bind = nv50_chan_bind,
 	.unbind = nv50_chan_unbind,
+	.start = nv50_chan_start,
+	.stop = nv50_chan_stop,
 };
 
 static const struct nvkm_engn_func

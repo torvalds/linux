@@ -176,8 +176,6 @@ nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
 static const struct nvkm_fifo_chan_func
 nv40_fifo_dma_func = {
 	.dtor = nv04_fifo_dma_dtor,
-	.init = nv04_fifo_dma_init,
-	.fini = nv04_fifo_dma_fini,
 	.engine_ctor = nv40_fifo_dma_engine_ctor,
 	.engine_dtor = nv40_fifo_dma_engine_dtor,
 	.engine_init = nv40_fifo_dma_engine_init,

@@ -18,6 +18,9 @@ struct nvkm_cctx {
 struct nvkm_chan_func {
 	void (*bind)(struct nvkm_chan *);
 	void (*unbind)(struct nvkm_chan *);
+	void (*start)(struct nvkm_chan *);
+	void (*stop)(struct nvkm_chan *);
+	u32 (*doorbell_handle)(struct nvkm_chan *);
 
 	void *(*dtor)(struct nvkm_fifo_chan *);
 	void (*init)(struct nvkm_fifo_chan *);
@@ -30,7 +33,6 @@ struct nvkm_chan_func {
 			    bool suspend);
 	int  (*object_ctor)(struct nvkm_fifo_chan *, struct nvkm_object *);
 	void (*object_dtor)(struct nvkm_fifo_chan *, int);
-	u32 (*submit_token)(struct nvkm_fifo_chan *);
 };
 
 int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,
@@ -38,6 +40,9 @@ int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,
 			u32 engm, int bar, u32 base, u32 user,
 			const struct nvkm_oclass *, struct nvkm_fifo_chan *);
 void nvkm_chan_del(struct nvkm_chan **);
+void nvkm_chan_allow(struct nvkm_chan *);
+void nvkm_chan_block(struct nvkm_chan *);
+void nvkm_chan_error(struct nvkm_chan *, bool preempt);
 int nvkm_chan_cctx_get(struct nvkm_chan *, struct nvkm_engn *, struct nvkm_cctx **,
 		       struct nvkm_client * /*TODO: remove need for this */);
 void nvkm_chan_cctx_put(struct nvkm_chan *, struct nvkm_cctx **);

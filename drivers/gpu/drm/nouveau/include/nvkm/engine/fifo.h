@@ -20,6 +20,10 @@ struct nvkm_chan {
 
 	union { int id; int chid; }; /*FIXME: remove later */
 
+	spinlock_t lock;
+	atomic_t blocked;
+	atomic_t errored;
+
 	struct list_head cctxs;
 
 	struct nvkm_fifo *fifo;
@@ -62,9 +66,6 @@ struct nvkm_fifo {
 	struct list_head chan;
 	spinlock_t lock;
 	struct mutex mutex;
-
-#define NVKM_FIFO_EVENT_KILLED         BIT(0)
-	struct nvkm_event kevent; /* channel killed */
 };
 
 void nvkm_fifo_fault(struct nvkm_fifo *, struct nvkm_fault_data *);

@@ -199,12 +199,9 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	struct gk104_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u32 coff = chan->base.chid * 8;
 
 	if (!list_empty(&chan->head)) {
 		gk104_fifo_runlist_remove(fifo, chan);
-		nvkm_mask(device, 0x800004 + coff, 0x00000800, 0x00000800);
 		gk104_fifo_gpfifo_kick(chan);
 		gk104_fifo_runlist_update(fifo, chan->runl);
 	}
@@ -215,14 +212,10 @@ gk104_fifo_gpfifo_init(struct nvkm_fifo_chan *base)
 {
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	struct gk104_fifo *fifo = chan->fifo;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	u32 coff = chan->base.chid * 8;
 
 	if (list_empty(&chan->head) && !chan->killed) {
 		gk104_fifo_runlist_insert(fifo, chan);
-		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
 		gk104_fifo_runlist_update(fifo, chan->runl);
-		nvkm_mask(device, 0x800004 + coff, 0x00000400, 0x00000400);
 	}
 }
 

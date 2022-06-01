@@ -37,6 +37,8 @@ const struct nvkm_chan_func
 gk110_chan = {
 	.bind = gk104_chan_bind,
 	.unbind = gk104_chan_unbind,
+	.start = gk104_chan_start,
+	.stop = gk104_chan_stop,
 };
 
 const struct nvkm_cgrp_func

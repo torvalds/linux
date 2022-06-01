@@ -28,13 +28,6 @@
 #include <nvif/clc36f.h>
 #include <nvif/unpack.h>
 
-static u32
-tu102_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *base)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	return (chan->runl << 16) | chan->base.chid;
-}
-
 static const struct nvkm_fifo_chan_func
 tu102_fifo_gpfifo = {
 	.dtor = gk104_fifo_gpfifo_dtor,
@@ -44,7 +37,6 @@ tu102_fifo_gpfifo = {
 	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
 	.engine_init = gv100_fifo_gpfifo_engine_init,
 	.engine_fini = gv100_fifo_gpfifo_engine_fini,
-	.submit_token = tu102_fifo_gpfifo_submit_token,
 };
 
 int

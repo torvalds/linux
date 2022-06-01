@@ -24,6 +24,7 @@
 #include "chan.h"
 #include "chid.h"
 #include "cgrp.h"
+#include "chid.h"
 #include "runl.h"
 #include "priv.h"
 
@@ -219,6 +220,8 @@ nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct n
 	 */
 	if (cgrp->hw)
 		nvkm_runl_block(runl);
+	else
+		nvkm_chan_block(chan);
 
 	/* Update context pointer. */
 	if (cctx)
@@ -229,6 +232,8 @@ nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct n
 	/* Resume normal operation. */
 	if (cgrp->hw)
 		nvkm_runl_allow(runl);
+	else
+		nvkm_chan_allow(chan);
 }
 
 void
@@ -296,23 +301,6 @@ done:
 }
 
 static int
-nvkm_fifo_chan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	union nvif_chan_event_args *args = argv;
-
-	switch (args->v0.type) {
-	case NVIF_CHAN_EVENT_V0_KILLED:
-		return nvkm_uevent_add(uevent, &chan->fifo->kevent, chan->chid,
-				       NVKM_FIFO_EVENT_KILLED, NULL);
-	default:
-		break;
-	}
-
-	return -ENOSYS;
-}
-
-static int
 nvkm_fifo_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 		   enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
@@ -327,7 +315,8 @@ static int
 nvkm_fifo_chan_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	chan->func->fini(chan);
+	if (chan->func->fini)
+		chan->func->fini(chan);
 	return 0;
 }
 
@@ -335,8 +324,49 @@ static int
 nvkm_fifo_chan_init(struct nvkm_object *object)
 {
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	chan->func->init(chan);
+	if (chan->func->init)
+		chan->func->init(chan);
 	return 0;
+}
+
+static void
+nvkm_chan_block_locked(struct nvkm_chan *chan)
+{
+	CHAN_TRACE(chan, "block %d", atomic_read(&chan->blocked));
+	if (atomic_inc_return(&chan->blocked) == 1)
+		chan->func->stop(chan);
+}
+
+void
+nvkm_chan_error(struct nvkm_chan *chan, bool preempt)
+{
+	unsigned long flags;
+
+	spin_lock_irqsave(&chan->lock, flags);
+	if (atomic_inc_return(&chan->errored) == 1) {
+		CHAN_ERROR(chan, "errored - disabling channel");
+		nvkm_chan_block_locked(chan);
+		nvkm_event_ntfy(&chan->cgrp->runl->chid->event, chan->id, NVKM_CHAN_EVENT_ERRORED);
+	}
+	spin_unlock_irqrestore(&chan->lock, flags);
+}
+
+void
+nvkm_chan_block(struct nvkm_chan *chan)
+{
+	spin_lock_irq(&chan->lock);
+	nvkm_chan_block_locked(chan);
+	spin_unlock_irq(&chan->lock);
+}
+
+void
+nvkm_chan_allow(struct nvkm_chan *chan)
+{
+	spin_lock_irq(&chan->lock);
+	CHAN_TRACE(chan, "allow %d", atomic_read(&chan->blocked));
+	if (atomic_dec_and_test(&chan->blocked))
+		chan->func->start(chan);
+	spin_unlock_irq(&chan->lock);
 }
 
 void
@@ -437,7 +467,6 @@ nvkm_fifo_chan_func = {
 	.init = nvkm_fifo_chan_init,
 	.fini = nvkm_fifo_chan_fini,
 	.map = nvkm_fifo_chan_map,
-	.uevent = nvkm_fifo_chan_uevent,
 };
 
 int
@@ -481,10 +510,12 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	func->engine_fini = fn->engine_fini;
 	func->object_ctor = fn->object_ctor;
 	func->object_dtor = fn->object_dtor;
-	func->submit_token = fn->submit_token;
 
 	chan->func = func;
 	chan->id = -1;
+	spin_lock_init(&chan->lock);
+	atomic_set(&chan->blocked, 1);
+	atomic_set(&chan->errored, 0);
 
 	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->fifo = fifo;

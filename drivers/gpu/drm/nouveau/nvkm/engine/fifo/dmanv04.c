@@ -88,8 +88,6 @@ nv04_fifo_dma_dtor(struct nvkm_fifo_chan *base)
 const struct nvkm_fifo_chan_func
 nv04_fifo_dma_func = {
 	.dtor = nv04_fifo_dma_dtor,
-	.init = nv04_fifo_dma_init,
-	.fini = nv04_fifo_dma_fini,
 	.object_ctor = nv04_fifo_dma_object_ctor,
 	.object_dtor = nv04_fifo_dma_object_dtor,
 };
