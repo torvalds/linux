@@ -27,7 +27,6 @@ void rate_control_get_rate(struct ieee80211_sub_if_data *sdata,
 			   struct ieee80211_tx_rate_control *txrc);
 
 void rate_control_tx_status(struct ieee80211_local *local,
-			    struct ieee80211_supported_band *sband,
 			    struct ieee80211_tx_status *st);
 
 void rate_control_rate_init(struct sta_info *sta);

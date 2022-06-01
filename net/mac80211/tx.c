@@ -5228,7 +5228,6 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 	struct ieee80211_mutable_offsets offs = {};
 	struct sk_buff *bcn = __ieee80211_beacon_get(hw, vif, &offs, false);
 	struct sk_buff *copy;
-	struct ieee80211_supported_band *sband;
 	int shift;
 
 	if (!bcn)
@@ -5250,12 +5249,7 @@ struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 		return bcn;
 
 	shift = ieee80211_vif_get_shift(vif);
-	sband = ieee80211_get_sband(vif_to_sdata(vif));
-	if (!sband)
-		return bcn;
-
-	ieee80211_tx_monitor(hw_to_local(hw), copy, sband, 1, shift, false,
-			     NULL);
+	ieee80211_tx_monitor(hw_to_local(hw), copy, 1, shift, false, NULL);
 
 	return bcn;
 }
