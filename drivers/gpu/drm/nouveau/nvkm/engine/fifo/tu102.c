@@ -99,7 +99,6 @@ tu102_fifo_pbdma_init(struct gk104_fifo *fifo)
 
 static const struct gk104_fifo_pbdma_func
 tu102_fifo_pbdma = {
-	.nr = gm200_fifo_pbdma_nr,
 	.init = tu102_fifo_pbdma_init,
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
 };
@@ -443,6 +442,7 @@ tu102_fifo = {
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
+	.runq_nr = gm200_fifo_runq_nr,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -460,6 +460,7 @@ tu102_fifo = {
 	.recover_chan = tu102_fifo_recover_chan,
 	.runlist = &tu102_fifo_runlist,
 	.pbdma = &tu102_fifo_pbdma,
+	.runq = &gv100_runq,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0, TURING_CHANNEL_GPFIFO_A }, &tu102_chan, .ctor = tu102_fifo_gpfifo_new },
 };

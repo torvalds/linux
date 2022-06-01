@@ -87,6 +87,7 @@ gp100_fifo = {
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
+	.runq_nr = gm200_fifo_runq_nr,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -105,6 +106,7 @@ gp100_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gm107_fifo_runlist,
 	.pbdma = &gm200_fifo_pbdma,
+	.runq = &gk208_runq,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0, PASCAL_CHANNEL_GPFIFO_A }, &gm107_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

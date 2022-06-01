@@ -40,6 +40,8 @@ struct nvkm_fifo {
 	struct nvkm_chid *chid;
 	struct nvkm_chid *cgid;
 
+	struct list_head runqs;
+
 	DECLARE_BITMAP(mask, NVKM_FIFO_CHID_NR);
 	int nr;
 	struct list_head chan;

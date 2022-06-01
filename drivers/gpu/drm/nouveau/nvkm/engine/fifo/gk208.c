@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "runq.h"
 #include "gk104.h"
 #include "changk104.h"
 
@@ -38,9 +39,12 @@ gk208_fifo_pbdma_init_timeout(struct gk104_fifo *fifo)
 
 const struct gk104_fifo_pbdma_func
 gk208_fifo_pbdma = {
-	.nr = gk104_fifo_pbdma_nr,
 	.init = gk104_fifo_pbdma_init,
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
+};
+
+const struct nvkm_runq_func
+gk208_runq = {
 };
 
 static int
@@ -55,6 +59,7 @@ gk208_fifo = {
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk208_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
+	.runq_nr = gf100_fifo_runq_nr,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -73,6 +78,7 @@ gk208_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
 	.pbdma = &gk208_fifo_pbdma,
+	.runq = &gk208_runq,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp },
 	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk110_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

@@ -23,6 +23,7 @@
  */
 #include "chan.h"
 #include "chid.h"
+#include "runq.h"
 
 #include "gf100.h"
 #include "changf100.h"
@@ -99,6 +100,10 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 	nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
 	nvkm_wr32(device, 0x040108 + (unit * 0x2000), stat);
 }
+
+static const struct nvkm_runq_func
+gf100_runq = {
+};
 
 void
 gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
@@ -626,6 +631,18 @@ gf100_fifo_init(struct nvkm_fifo *base)
 }
 
 int
+gf100_fifo_runq_nr(struct nvkm_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	u32 save;
+
+	/* Determine number of PBDMAs by checking valid enable bits. */
+	save = nvkm_mask(device, 0x000204, 0xffffffff, 0xffffffff);
+	save = nvkm_mask(device, 0x000204, 0xffffffff, save);
+	return hweight32(save);
+}
+
+int
 gf100_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
 {
 	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr, &fifo->chid);
@@ -640,11 +657,7 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int ret;
 
-	/* Determine number of PBDMAs by checking valid enable bits. */
-	nvkm_wr32(device, 0x002204, 0xffffffff);
-	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x002204));
-	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
-
+	fifo->pbdma_nr = fifo->base.func->runq_nr(&fifo->base);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
 			      false, &fifo->runlist.mem[0]);
@@ -689,6 +702,7 @@ gf100_fifo = {
 	.oneinit = gf100_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
+	.runq_nr = gf100_fifo_runq_nr,
 	.init = gf100_fifo_init,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
@@ -697,6 +711,7 @@ gf100_fifo = {
 	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
+	.runq = &gf100_runq,
 	.cgrp = {{                            }, &nv04_cgrp },
 	.chan = {{ 0, 0, FERMI_CHANNEL_GPFIFO }, &gf100_chan, .oclass = &gf100_fifo_gpfifo_oclass },
 };

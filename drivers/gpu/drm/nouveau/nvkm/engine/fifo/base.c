@@ -24,6 +24,7 @@
 #include "priv.h"
 #include "chan.h"
 #include "chid.h"
+#include "runq.h"
 
 #include <core/gpuobj.h>
 #include <subdev/mc.h>
@@ -235,13 +236,21 @@ static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
-	int ret;
+	int ret, nr, i;
 
 	/* Initialise CHID/CGID allocator(s) on GPUs where they aren't per-runlist. */
 	if (fifo->func->chid_nr) {
 		ret = fifo->func->chid_ctor(fifo, fifo->func->chid_nr(fifo));
 		if (ret)
 			return ret;
+	}
+
+	/* Create runqueues for each PBDMA. */
+	if (fifo->func->runq_nr) {
+		for (nr = fifo->func->runq_nr(fifo), i = 0; i < nr; i++) {
+			if (!nvkm_runq_new(fifo, i))
+				return -ENOMEM;
+		}
 	}
 
 	if (fifo->func->oneinit)
@@ -260,7 +269,11 @@ static void *
 nvkm_fifo_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	struct nvkm_runq *runq, *rtmp;
 	void *data = fifo;
+
+	list_for_each_entry_safe(runq, rtmp, &fifo->runqs, head)
+		nvkm_runq_del(runq);
 
 	nvkm_chid_unref(&fifo->cgid);
 	nvkm_chid_unref(&fifo->chid);
@@ -292,6 +305,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	int ret, nr;
 
 	fifo->func = func;
+	INIT_LIST_HEAD(&fifo->runqs);
 	spin_lock_init(&fifo->lock);
 	mutex_init(&fifo->mutex);
 

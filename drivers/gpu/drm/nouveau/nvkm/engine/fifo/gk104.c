@@ -23,6 +23,7 @@
  */
 #include "chan.h"
 #include "chid.h"
+#include "runq.h"
 
 #include "gk104.h"
 #include "cgrp.h"
@@ -168,6 +169,10 @@ static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
 	{}
 };
 
+const struct nvkm_runq_func
+gk104_runq = {
+};
+
 void
 gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 			  struct nvkm_memory *mem, int nr)
@@ -275,18 +280,8 @@ gk104_fifo_pbdma_init(struct gk104_fifo *fifo)
 	nvkm_wr32(device, 0x000204, (1 << fifo->pbdma_nr) - 1);
 }
 
-int
-gk104_fifo_pbdma_nr(struct gk104_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	/* Determine number of PBDMAs by checking valid enable bits. */
-	nvkm_wr32(device, 0x000204, 0xffffffff);
-	return hweight32(nvkm_rd32(device, 0x000204));
-}
-
 const struct gk104_fifo_pbdma_func
 gk104_fifo_pbdma = {
-	.nr = gk104_fifo_pbdma_nr,
 	.init = gk104_fifo_pbdma_init,
 };
 
@@ -1076,8 +1071,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	int pbid, ret, i, j;
 	u32 *map;
 
-	fifo->pbdma_nr = fifo->func->pbdma->nr(fifo);
-	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
+	fifo->pbdma_nr = fifo->func->runq_nr(&fifo->base);
 
 	/* Read PBDMA->runlist(s) mapping from HW. */
 	if (!(map = kcalloc(fifo->pbdma_nr, sizeof(*map), GFP_KERNEL)))
@@ -1195,6 +1189,7 @@ gk104_fifo = {
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk104_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
+	.runq_nr = gf100_fifo_runq_nr,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -1213,6 +1208,7 @@ gk104_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk104_fifo_runlist,
 	.pbdma = &gk104_fifo_pbdma,
+	.runq = &gk104_runq,
 	.cgrp = {{                               }, &nv04_cgrp },
 	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk104_chan, .ctor = &gk104_fifo_gpfifo_new },
 };
