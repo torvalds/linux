@@ -90,8 +90,7 @@ nvkm_disp_vblank_func = {
 void
 nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 {
-	struct nvif_notify_head_rep_v0 rep = {};
-	nvkm_event_send(&disp->vblank, 1, head, &rep, sizeof(rep));
+	nvkm_event_send(&disp->vblank, NVKM_DISP_HEAD_EVENT_VBLANK, head, NULL, 0);
 }
 
 static int

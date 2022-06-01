@@ -61,8 +61,6 @@ struct nvif_notify_head_req_v0 {
 
 struct nvif_notify_head_rep_v0 {
 	/* nvif_notify_rep ... */
-	__u8  version;
-	__u8  pad01[7];
 };
 
 struct nvif_notify_conn_req_v0 {

@@ -16,6 +16,7 @@ struct nvkm_disp {
 	struct list_head conns;
 
 	struct nvkm_event hpd;
+#define NVKM_DISP_HEAD_EVENT_VBLANK BIT(0)
 	struct nvkm_event vblank;
 
 	struct {
