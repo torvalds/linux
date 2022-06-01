@@ -674,8 +674,8 @@ static void engine_mask_apply_compute_fuses(struct intel_gt *gt)
 	if (GRAPHICS_VER_FULL(i915) < IP_VER(12, 50))
 		return;
 
-	ccs_mask = intel_slicemask_from_dssmask(intel_sseu_get_compute_subslices(&info->sseu),
-						ss_per_ccs);
+	ccs_mask = intel_slicemask_from_xehp_dssmask(info->sseu.compute_subslice_mask,
+						     ss_per_ccs);
 	/*
 	 * If all DSS in a quadrant are fused off, the corresponding CCS
 	 * engine is not available for use.

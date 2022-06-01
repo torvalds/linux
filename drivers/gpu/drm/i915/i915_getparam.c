@@ -162,8 +162,7 @@ int i915_getparam_ioctl(struct drm_device *dev, void *data,
 			return -EINVAL;
 
 		/* Only copy bits from the first slice */
-		memcpy(&value, sseu->subslice_mask,
-		       min(sseu->ss_stride, (u8)sizeof(value)));
+		value = intel_sseu_get_hsw_subslices(sseu, 0);
 		if (!value)
 			return -ENODEV;
 		break;

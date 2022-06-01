@@ -1875,6 +1875,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 {
 	const struct sseu_dev_info *device = &gt->info.sseu;
 	struct drm_i915_private *i915 = gt->i915;
+	unsigned int dev_subslice_mask = intel_sseu_get_hsw_subslices(device, 0);
 
 	/* No zeros in any field. */
 	if (!user->slice_mask || !user->subslice_mask ||
@@ -1901,7 +1902,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 	if (user->slice_mask & ~device->slice_mask)
 		return -EINVAL;
 
-	if (user->subslice_mask & ~device->subslice_mask[0])
+	if (user->subslice_mask & ~dev_subslice_mask)
 		return -EINVAL;
 
 	if (user->max_eus_per_subslice > device->max_eus_per_subslice)
@@ -1915,7 +1916,7 @@ i915_gem_user_to_context_sseu(struct intel_gt *gt,
 	/* Part specific restrictions. */
 	if (GRAPHICS_VER(i915) == 11) {
 		unsigned int hw_s = hweight8(device->slice_mask);
-		unsigned int hw_ss_per_s = hweight8(device->subslice_mask[0]);
+		unsigned int hw_ss_per_s = hweight8(dev_subslice_mask);
 		unsigned int req_s = hweight8(context->slice_mask);
 		unsigned int req_ss = hweight8(context->subslice_mask);
 
