@@ -63,138 +63,6 @@ struct sector_ptr {
 	unsigned int uptodate:8;
 };
 
-enum btrfs_rbio_ops {
-	BTRFS_RBIO_WRITE,
-	BTRFS_RBIO_READ_REBUILD,
-	BTRFS_RBIO_PARITY_SCRUB,
-	BTRFS_RBIO_REBUILD_MISSING,
-};
-
-struct btrfs_raid_bio {
-	struct btrfs_io_context *bioc;
-
-	/* while we're doing rmw on a stripe
-	 * we put it into a hash table so we can
-	 * lock the stripe and merge more rbios
-	 * into it.
-	 */
-	struct list_head hash_list;
-
-	/*
-	 * LRU list for the stripe cache
-	 */
-	struct list_head stripe_cache;
-
-	/*
-	 * for scheduling work in the helper threads
-	 */
-	struct work_struct work;
-
-	/*
-	 * bio list and bio_list_lock are used
-	 * to add more bios into the stripe
-	 * in hopes of avoiding the full rmw
-	 */
-	struct bio_list bio_list;
-	spinlock_t bio_list_lock;
-
-	/* also protected by the bio_list_lock, the
-	 * plug list is used by the plugging code
-	 * to collect partial bios while plugged.  The
-	 * stripe locking code also uses it to hand off
-	 * the stripe lock to the next pending IO
-	 */
-	struct list_head plug_list;
-
-	/*
-	 * flags that tell us if it is safe to
-	 * merge with this bio
-	 */
-	unsigned long flags;
-
-	/*
-	 * set if we're doing a parity rebuild
-	 * for a read from higher up, which is handled
-	 * differently from a parity rebuild as part of
-	 * rmw
-	 */
-	enum btrfs_rbio_ops operation;
-
-	/* Size of each individual stripe on disk */
-	u32 stripe_len;
-
-	/* How many pages there are for the full stripe including P/Q */
-	u16 nr_pages;
-
-	/* How many sectors there are for the full stripe including P/Q */
-	u16 nr_sectors;
-
-	/* Number of data stripes (no p/q) */
-	u8 nr_data;
-
-	/* Number of all stripes (including P/Q) */
-	u8 real_stripes;
-
-	/* How many pages there are for each stripe */
-	u8 stripe_npages;
-
-	/* How many sectors there are for each stripe */
-	u8 stripe_nsectors;
-
-	/* First bad stripe, -1 means no corruption */
-	s8 faila;
-
-	/* Second bad stripe (for RAID6 use) */
-	s8 failb;
-
-	/* Stripe number that we're scrubbing  */
-	u8 scrubp;
-
-	/*
-	 * size of all the bios in the bio_list.  This
-	 * helps us decide if the rbio maps to a full
-	 * stripe or not
-	 */
-	int bio_list_bytes;
-
-	int generic_bio_cnt;
-
-	refcount_t refs;
-
-	atomic_t stripes_pending;
-
-	atomic_t error;
-
-	/* Bitmap to record which horizontal stripe has data */
-	unsigned long dbitmap;
-
-	/* Allocated with stripe_nsectors-many bits for finish_*() calls */
-	unsigned long finish_pbitmap;
-
-	/*
-	 * these are two arrays of pointers.  We allocate the
-	 * rbio big enough to hold them both and setup their
-	 * locations when the rbio is allocated
-	 */
-
-	/* pointers to pages that we allocated for
-	 * reading/writing stripes directly from the disk (including P/Q)
-	 */
-	struct page **stripe_pages;
-
-	/* Pointers to the sectors in the bio_list, for faster lookup */
-	struct sector_ptr *bio_sectors;
-
-	/*
-	 * For subpage support, we need to map each sector to above
-	 * stripe_pages.
-	 */
-	struct sector_ptr *stripe_sectors;
-
-	/* allocated with real_stripes-many pointers for finish_*() calls */
-	void **finish_pointers;
-};
-
 static int __raid56_parity_recover(struct btrfs_raid_bio *rbio);
 static noinline void finish_rmw(struct btrfs_raid_bio *rbio);
 static void rmw_work(struct work_struct *work);
@@ -1275,6 +1143,34 @@ static void index_rbio_pages(struct btrfs_raid_bio *rbio)
 	spin_unlock_irq(&rbio->bio_list_lock);
 }
 
+static void bio_get_trace_info(struct btrfs_raid_bio *rbio, struct bio *bio,
+			       struct raid56_bio_trace_info *trace_info)
+{
+	const struct btrfs_io_context *bioc = rbio->bioc;
+	int i;
+
+	ASSERT(bioc);
+
+	/* We rely on bio->bi_bdev to find the stripe number. */
+	if (!bio->bi_bdev)
+		goto not_found;
+
+	for (i = 0; i < bioc->num_stripes; i++) {
+		if (bio->bi_bdev != bioc->stripes[i].dev->bdev)
+			continue;
+		trace_info->stripe_nr = i;
+		trace_info->devid = bioc->stripes[i].dev->devid;
+		trace_info->offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
+				     bioc->stripes[i].physical;
+		return;
+	}
+
+not_found:
+	trace_info->devid = -1;
+	trace_info->offset = -1;
+	trace_info->stripe_nr = -1;
+}
+
 /*
  * this is called from one of two situations.  We either
  * have a full stripe from the higher layers, or we've read all
@@ -1440,6 +1336,12 @@ write_data:
 	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_end_io = raid_write_end_io;
 
+		if (trace_raid56_write_stripe_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_write_stripe(rbio, bio, &trace_info);
+		}
 		submit_bio(bio);
 	}
 	return;
@@ -1701,6 +1603,12 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 
 		btrfs_bio_wq_end_io(rbio->bioc->fs_info, bio, BTRFS_WQ_ENDIO_RAID56);
 
+		if (trace_raid56_read_partial_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_read_partial(rbio, bio, &trace_info);
+		}
 		submit_bio(bio);
 	}
 	/* the actual write will happen once the reads are done */
@@ -2274,6 +2182,12 @@ static int __raid56_parity_recover(struct btrfs_raid_bio *rbio)
 
 		btrfs_bio_wq_end_io(rbio->bioc->fs_info, bio, BTRFS_WQ_ENDIO_RAID56);
 
+		if (trace_raid56_scrub_read_recover_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_scrub_read_recover(rbio, bio, &trace_info);
+		}
 		submit_bio(bio);
 	}
 
@@ -2643,6 +2557,12 @@ submit_write:
 	while ((bio = bio_list_pop(&bio_list))) {
 		bio->bi_end_io = raid_write_end_io;
 
+		if (trace_raid56_scrub_write_stripe_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_scrub_write_stripe(rbio, bio, &trace_info);
+		}
 		submit_bio(bio);
 	}
 	return;
@@ -2822,6 +2742,12 @@ static void raid56_parity_scrub_stripe(struct btrfs_raid_bio *rbio)
 
 		btrfs_bio_wq_end_io(rbio->bioc->fs_info, bio, BTRFS_WQ_ENDIO_RAID56);
 
+		if (trace_raid56_scrub_read_enabled()) {
+			struct raid56_bio_trace_info trace_info = { 0 };
+
+			bio_get_trace_info(rbio, bio, &trace_info);
+			trace_raid56_scrub_read(rbio, bio, &trace_info);
+		}
 		submit_bio(bio);
 	}
 	/* the actual write will happen once the reads are done */
