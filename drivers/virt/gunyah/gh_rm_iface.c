@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
@@ -2281,3 +2282,135 @@ int gh_rm_vm_set_time_base(gh_vmid_t vmid)
 	return 0;
 }
 EXPORT_SYMBOL(gh_rm_vm_set_time_base);
+
+/**
+ * gh_rm_minidump_get_info: Get available slot number of current VM
+ *
+ * On success, the function will return available slot number.
+ * Otherwise, a negative number will be returned.
+ */
+int gh_rm_minidump_get_info(void)
+{
+	struct gh_minidump_get_info_req_payload req_payload = {};
+	struct gh_minidump_get_info_resp_payload *resp_payload;
+	size_t resp_size;
+	int ret = 0, reply_err_code;
+
+	resp_payload = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_GET_INFO,
+				  &req_payload, sizeof(req_payload), &resp_size,
+				  &reply_err_code);
+	if (reply_err_code || IS_ERR(resp_payload)) {
+		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp_payload, reply_err_code);
+		ret = PTR_ERR(resp_payload);
+		goto err_rm_call;
+	}
+	if (resp_size != sizeof(*resp_payload)) {
+		ret = -EINVAL;
+		pr_err("%s: Invalid size received: %u\n", __func__, resp_size);
+		goto err_resp_size;
+	}
+
+	pr_debug("%s: slot num: %d\n", __func__, resp_payload->slot_num);
+	ret = resp_payload->slot_num;
+
+err_resp_size:
+	kfree(resp_payload);
+err_rm_call:
+	return ret;
+}
+EXPORT_SYMBOL(gh_rm_minidump_get_info);
+
+/**
+ * gh_rm_minidump_register_range: Register a minidump entry
+ *
+ * @base_ipa: The base ipa of mem region which need to register
+ * @region_size: The size of mem region
+ * @name: The name of minidump entry
+ * @name_size: The size of entry name
+ *
+ * On success, the function will return slot number. Otherwise, a negative number will be
+ * returned.
+ */
+int gh_rm_minidump_register_range(phys_addr_t base_ipa, size_t region_size,
+				  const char *name, size_t name_size)
+{
+	struct gh_minidump_register_range_req_hdr *req_hdr;
+	struct gh_minidump_register_range_resp_payload *resp_payload;
+	void *req_buf;
+	size_t resp_size, req_size;
+	int ret = 0, reply_err_code;
+
+	if (!name)
+		return -EINVAL;
+	req_size = sizeof(*req_hdr);
+	req_size += name_size;
+
+	req_buf = kmalloc(req_size, GFP_KERNEL);
+	if (!req_buf)
+		return -ENOMEM;
+
+	req_hdr = req_buf;
+	req_hdr->base_ipa = base_ipa;
+	req_hdr->region_size = region_size;
+	req_hdr->name_size = name_size;
+	req_hdr->name_offset = sizeof(*req_hdr) + 8;
+	memcpy(req_buf + sizeof(*req_hdr), name, name_size);
+
+	resp_payload =
+		gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_REGISTER_RANGE,
+			   req_buf, req_size, &resp_size, &reply_err_code);
+	if (reply_err_code || IS_ERR(resp_payload)) {
+		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp_payload, reply_err_code);
+		ret = PTR_ERR(resp_payload);
+		goto err_rm_call;
+	}
+
+	if (resp_size != sizeof(*resp_payload)) {
+		ret = -EINVAL;
+		pr_err("%s: Invalid size received: %u\n", __func__, resp_size);
+		goto err_resp_size;
+	}
+	ret = resp_payload->slot_num;
+
+	pr_debug("%s: slot num: %d\n", __func__, resp_payload->slot_num);
+
+err_resp_size:
+	kfree(resp_payload);
+err_rm_call:
+	kfree(req_buf);
+	return ret;
+}
+EXPORT_SYMBOL(gh_rm_minidump_register_range);
+
+/**
+ * gh_rm_minidump_deregister_slot: Deregister a minidump entry with slot number
+ *
+ * @slot_num: The number of slot which need to be deregistered
+ *
+ * On success, the function will return 0. Otherwise, a negative number will be
+ * returned.
+ */
+int gh_rm_minidump_deregister_slot(uint16_t slot_num)
+{
+	struct gh_minidump_deregister_slot_req_payload req_payload = {};
+	void *resp;
+	size_t resp_size;
+	int reply_err_code;
+
+	req_payload.slot_num = slot_num;
+
+	resp = gh_rm_call(GH_RM_RPC_MSG_ID_CALL_VM_MINIDUMP_DEREGISTER_SLOT,
+			  &req_payload, sizeof(req_payload), &resp_size,
+			  &reply_err_code);
+	if (reply_err_code || IS_ERR(resp)) {
+		pr_err("%s failed with err: 0x%llx %d\n", __func__, resp, reply_err_code);
+		return PTR_ERR(resp);
+	}
+	if (resp_size) {
+		pr_err("%s: Invalid size received: %u\n", __func__, resp_size);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL(gh_rm_minidump_deregister_slot);
