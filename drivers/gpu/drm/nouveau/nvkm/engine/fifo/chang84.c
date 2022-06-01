@@ -31,20 +31,6 @@
 #include <nvif/cl826e.h>
 
 static int
-g84_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
-		   struct nvkm_event **pevent)
-{
-	switch (type) {
-	case NV826E_V0_NTFY_NON_STALL_INTERRUPT:
-		*pevent = &chan->fifo->uevent;
-		return 0;
-	default:
-		break;
-	}
-	return -EINVAL;
-}
-
-static int
 g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
 {
 	switch (engine->subdev.type) {
@@ -198,7 +184,6 @@ g84_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
 	.init = g84_fifo_chan_init,
 	.fini = nv50_fifo_chan_fini,
-	.ntfy = g84_fifo_chan_ntfy,
 	.engine_ctor = g84_fifo_chan_engine_ctor,
 	.engine_dtor = nv50_fifo_chan_engine_dtor,
 	.engine_init = g84_fifo_chan_engine_init,

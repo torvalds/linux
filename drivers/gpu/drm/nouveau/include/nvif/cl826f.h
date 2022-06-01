@@ -11,6 +11,4 @@ struct g82_channel_gpfifo_v0 {
 	__u64 pushbuf;
 	__u64 vmm;
 };
-
-#define NV826F_V0_NTFY_NON_STALL_INTERRUPT                                 0x00
 #endif

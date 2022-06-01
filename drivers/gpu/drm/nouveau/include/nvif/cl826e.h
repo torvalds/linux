@@ -10,6 +10,4 @@ struct g82_channel_dma_v0 {
 	__u64 pushbuf;
 	__u64 offset;
 };
-
-#define NV826E_V0_NTFY_NON_STALL_INTERRUPT                                 0x00
 #endif

@@ -40,6 +40,8 @@
 #define NVIF_CLASS_HEAD                              /* if0013.h */  0x80000013
 #define NVIF_CLASS_DISP_CHAN                         /* if0014.h */  0x80000014
 
+#define NVIF_CLASS_CHAN                              /* if0020.h */  0x80000020
+
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
 

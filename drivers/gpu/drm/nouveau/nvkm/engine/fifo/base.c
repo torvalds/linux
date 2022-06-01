@@ -158,27 +158,8 @@ nvkm_fifo_uevent_init(struct nvkm_event *event, int type, int index)
 	fifo->func->uevent_init(fifo);
 }
 
-static int
-nvkm_fifo_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
-{
-	union {
-		struct nvif_notify_uevent_req none;
-	} *req = data;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unvers(ret, &data, &size, req->none))) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = 0;
-	}
-
-	return ret;
-}
-
 static const struct nvkm_event_func
 nvkm_fifo_uevent_func = {
-	.ctor = nvkm_fifo_uevent_ctor,
 	.init = nvkm_fifo_uevent_init,
 	.fini = nvkm_fifo_uevent_fini,
 };
@@ -186,9 +167,7 @@ nvkm_fifo_uevent_func = {
 void
 nvkm_fifo_uevent(struct nvkm_fifo *fifo)
 {
-	struct nvif_notify_uevent_rep rep = {
-	};
-	nvkm_event_send(&fifo->uevent, 1, 0, &rep, sizeof(rep));
+	nvkm_event_send(&fifo->uevent, NVKM_FIFO_EVENT_NON_STALL_INTR, 0, NULL, 0);
 }
 
 static int

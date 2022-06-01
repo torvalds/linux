@@ -37,9 +37,6 @@ gf100_fifo_chan_ntfy(struct nvkm_fifo_chan *chan, u32 type,
 		     struct nvkm_event **pevent)
 {
 	switch (type) {
-	case NV906F_V0_NTFY_NON_STALL_INTERRUPT:
-		*pevent = &chan->fifo->uevent;
-		return 0;
 	case NV906F_V0_NTFY_KILLED:
 		*pevent = &chan->fifo->kevent;
 		return 0;

@@ -29,6 +29,8 @@
 #include <subdev/mmu.h>
 #include <engine/dma.h>
 
+#include <nvif/if0020.h>
+
 struct nvkm_fifo_chan_object {
 	struct nvkm_oproxy oproxy;
 	struct nvkm_fifo_chan *chan;
@@ -251,6 +253,28 @@ nvkm_fifo_chan_child_get(struct nvkm_object *object, int index,
 }
 
 static int
+nvkm_fifo_chan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+{
+	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
+	union nvif_chan_event_args *args = argv;
+
+	if (!uevent)
+		return 0;
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	switch (args->v0.type) {
+	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
+		return nvkm_uevent_add(uevent, &chan->fifo->uevent, 0,
+				       NVKM_FIFO_EVENT_NON_STALL_INTR, NULL);
+	default:
+		break;
+	}
+
+	return -ENOSYS;
+}
+
+static int
 nvkm_fifo_chan_ntfy(struct nvkm_object *object, u32 type,
 		    struct nvkm_event **pevent)
 {
@@ -320,6 +344,7 @@ nvkm_fifo_chan_func = {
 	.ntfy = nvkm_fifo_chan_ntfy,
 	.map = nvkm_fifo_chan_map,
 	.sclass = nvkm_fifo_chan_child_get,
+	.uevent = nvkm_fifo_chan_uevent,
 };
 
 int

@@ -42,6 +42,7 @@ struct nvkm_fifo {
 	spinlock_t lock;
 	struct mutex mutex;
 
+#define NVKM_FIFO_EVENT_NON_STALL_INTR BIT(0)
 	struct nvkm_event uevent; /* async user trigger */
 	struct nvkm_event kevent; /* channel killed */
 };
