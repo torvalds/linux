@@ -2285,6 +2285,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int gpc, tpc, rop;
 
+	nvkm_mask(device, 0x400500, 0x00010001, 0x00000000);
+
 	if (gr->func->init_419bd8)
 		gr->func->init_419bd8(gr);
 
