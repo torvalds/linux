@@ -21,8 +21,11 @@
  */
 #include "priv.h"
 
+#include <nvif/class.h>
+
 static const struct nvkm_vfn_func
 ga100_vfn = {
+	.user = { 0x030000, 0x010000, { -1, -1, AMPERE_USERMODE_A } },
 };
 
 int

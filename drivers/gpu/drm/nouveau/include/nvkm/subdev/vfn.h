@@ -9,7 +9,10 @@ struct nvkm_vfn {
 
 	struct {
 		u32 priv;
+		u32 user;
 	} addr;
+
+	struct nvkm_device_oclass user;
 };
 
 int gv100_vfn_new(struct nvkm_device *, enum nvkm_subdev_type, int, struct nvkm_vfn **);

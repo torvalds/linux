@@ -21,8 +21,11 @@
  */
 #include "priv.h"
 
+#include <nvif/class.h>
+
 static const struct nvkm_vfn_func
 tu102_vfn = {
+	.user = { 0x030000, 0x010000, { -1, -1, TURING_USERMODE_A } },
 };
 
 int

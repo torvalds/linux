@@ -22,7 +22,6 @@
 #define ga102_fifo(p) container_of((p), struct ga102_fifo, base.engine)
 #define ga102_chan(p) container_of((p), struct ga102_chan, object)
 #include <engine/fifo.h>
-#include "user.h"
 
 #include <core/memory.h>
 #include <subdev/mmu.h>
@@ -243,32 +242,15 @@ ga102_chan_oclass = {
 };
 
 static int
-ga102_user_new(struct nvkm_device *device,
-	       const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
-{
-	return tu102_fifo_user_new(oclass, argv, argc, pobject);
-}
-
-static const struct nvkm_device_oclass
-ga102_user_oclass = {
-	.ctor = ga102_user_new,
-};
-
-static int
 ga102_fifo_sclass(struct nvkm_oclass *oclass, int index, const struct nvkm_device_oclass **class)
 {
 	if (index == 0) {
-		oclass->base = (struct nvkm_sclass) { -1, -1, VOLTA_USERMODE_A };
-		*class = &ga102_user_oclass;
-		return 0;
-	} else
-	if (index == 1) {
 		oclass->base = (struct nvkm_sclass) { 0, 0, AMPERE_CHANNEL_GPFIFO_B };
 		*class = &ga102_chan_oclass;
 		return 0;
 	}
 
-	return 2;
+	return 1;
 }
 
 static int

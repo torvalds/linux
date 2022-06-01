@@ -44,5 +44,9 @@ nvkm_vfn_new_(const struct nvkm_vfn_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_vfn, device, type, inst, &vfn->subdev);
 	vfn->func = func;
 	vfn->addr.priv = addr;
+	vfn->addr.user = vfn->addr.priv + func->user.addr;
+
+	vfn->user.ctor = nvkm_uvfn_new;
+	vfn->user.base = func->user.base;
 	return 0;
 }

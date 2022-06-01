@@ -22,7 +22,6 @@
 #include "gk104.h"
 #include "cgrp.h"
 #include "changk104.h"
-#include "user.h"
 
 #include <core/client.h>
 #include <core/gpuobj.h>
@@ -110,7 +109,6 @@ tu102_fifo = {
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.runlist = &tu102_fifo_runlist,
-	.user = {{-1,-1,VOLTA_USERMODE_A       }, tu102_fifo_user_new   },
 	.chan = {{ 0, 0,TURING_CHANNEL_GPFIFO_A}, tu102_fifo_gpfifo_new },
 	.cgrp_force = true,
 };

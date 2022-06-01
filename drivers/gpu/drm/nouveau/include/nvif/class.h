@@ -63,6 +63,8 @@
 #define NV04_DISP                                     /* cl0046.h */ 0x00000046
 
 #define VOLTA_USERMODE_A                                             0x0000c361
+#define TURING_USERMODE_A                                            0x0000c461
+#define AMPERE_USERMODE_A                                            0x0000c561
 
 #define MAXWELL_FAULT_BUFFER_A                        /* clb069.h */ 0x0000b069
 #define VOLTA_FAULT_BUFFER_A                          /* clb069.h */ 0x0000c369

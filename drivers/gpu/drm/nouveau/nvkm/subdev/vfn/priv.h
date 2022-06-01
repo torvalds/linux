@@ -5,8 +5,16 @@
 #include <subdev/vfn.h>
 
 struct nvkm_vfn_func {
+	struct {
+		u32 addr;
+		u32 size;
+		const struct nvkm_sclass base;
+	} user;
 };
 
 int nvkm_vfn_new_(const struct nvkm_vfn_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		  u32 addr, struct nvkm_vfn **);
+
+int nvkm_uvfn_new(struct nvkm_device *, const struct nvkm_oclass *, void *, u32,
+		  struct nvkm_object **);
 #endif
