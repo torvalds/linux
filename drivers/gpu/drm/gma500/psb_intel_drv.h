@@ -79,12 +79,13 @@ struct psb_intel_mode_device {
 };
 
 struct gma_i2c_chan {
-	/* for getting at dev. private (mmio etc.) */
-	struct drm_device *drm_dev;
-	u32 reg;		/* GPIO reg */
-	struct i2c_adapter adapter;
+	struct i2c_adapter base;
 	struct i2c_algo_bit_data algo;
 	u8 slave_addr;
+
+	/* for getting at dev. private (mmio etc.) */
+	struct drm_device *drm_dev;
+	u32 reg; /* GPIO reg */
 };
 
 struct gma_encoder {
@@ -175,6 +176,8 @@ struct gma_crtc {
 		container_of(x, struct gma_encoder, base)
 #define to_psb_intel_framebuffer(x)	\
 		container_of(x, struct psb_intel_framebuffer, base)
+#define to_gma_i2c_chan(x)	\
+		container_of(x, struct gma_i2c_chan, base)
 
 struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
 				    const char *name);

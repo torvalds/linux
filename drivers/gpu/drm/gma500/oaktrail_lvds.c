@@ -359,7 +359,7 @@ void oaktrail_lvds_init(struct drm_device *dev,
 	if (edid == NULL && dev_priv->lpc_gpio_base) {
 		oaktrail_lvds_i2c_init(encoder);
 		if (gma_encoder->ddc_bus != NULL) {
-			i2c_adap = &gma_encoder->ddc_bus->adapter;
+			i2c_adap = &gma_encoder->ddc_bus->base;
 			edid = drm_get_edid(connector, i2c_adap);
 		}
 	}

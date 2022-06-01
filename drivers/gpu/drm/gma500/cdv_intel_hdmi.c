@@ -130,7 +130,7 @@ static enum drm_connector_status cdv_hdmi_detect(
 	struct edid *edid = NULL;
 	enum drm_connector_status status = connector_status_disconnected;
 
-	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->adapter);
+	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->base);
 
 	hdmi_priv->has_hdmi_sink = false;
 	hdmi_priv->has_hdmi_audio = false;
@@ -212,7 +212,7 @@ static int cdv_hdmi_get_modes(struct drm_connector *connector)
 	struct edid *edid = NULL;
 	int ret = 0;
 
-	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->adapter);
+	edid = drm_get_edid(connector, &gma_encoder->i2c_bus->base);
 	if (edid) {
 		drm_connector_update_edid_property(connector, edid);
 		ret = drm_add_edid_modes(connector, edid);
@@ -350,7 +350,7 @@ void cdv_hdmi_init(struct drm_device *dev,
 		goto failed_ddc;
 	}
 
-	hdmi_priv->hdmi_i2c_adapter = &(gma_encoder->i2c_bus->adapter);
+	hdmi_priv->hdmi_i2c_adapter = &gma_encoder->i2c_bus->base;
 	hdmi_priv->dev = dev;
 	return;
 

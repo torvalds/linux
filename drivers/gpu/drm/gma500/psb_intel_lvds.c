@@ -113,7 +113,7 @@ static int psb_lvds_i2c_set_brightness(struct drm_device *dev,
 	out_buf[0] = dev_priv->lvds_bl->brightnesscmd;
 	out_buf[1] = (u8)blc_i2c_brightness;
 
-	if (i2c_transfer(&lvds_i2c_bus->adapter, msgs, 1) == 1) {
+	if (i2c_transfer(&lvds_i2c_bus->base, msgs, 1) == 1) {
 		dev_dbg(dev->dev, "I2C set brightness.(command, value) (%d, %d)\n",
 			dev_priv->lvds_bl->brightnesscmd,
 			blc_i2c_brightness);
@@ -497,7 +497,7 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 	int ret = 0;
 
 	if (!IS_MRST(dev))
-		ret = psb_intel_ddc_get_modes(connector, &lvds_priv->i2c_bus->adapter);
+		ret = psb_intel_ddc_get_modes(connector, &lvds_priv->i2c_bus->base);
 
 	if (ret)
 		return ret;
@@ -727,7 +727,7 @@ void psb_intel_lvds_init(struct drm_device *dev,
 	 * preferred mode is the right one.
 	 */
 	mutex_lock(&dev->mode_config.mutex);
-	psb_intel_ddc_get_modes(connector, &lvds_priv->ddc_bus->adapter);
+	psb_intel_ddc_get_modes(connector, &lvds_priv->ddc_bus->base);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =

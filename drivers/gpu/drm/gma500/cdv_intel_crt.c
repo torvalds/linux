@@ -203,7 +203,7 @@ static int cdv_intel_crt_get_modes(struct drm_connector *connector)
 {
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 	return psb_intel_ddc_get_modes(connector,
-				       &gma_encoder->ddc_bus->adapter);
+				       &gma_encoder->ddc_bus->base);
 }
 
 static int cdv_intel_crt_set_property(struct drm_connector *connector,

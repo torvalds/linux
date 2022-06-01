@@ -302,7 +302,7 @@ static int cdv_intel_lvds_get_modes(struct drm_connector *connector)
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
 	int ret;
 
-	ret = psb_intel_ddc_get_modes(connector, &gma_encoder->i2c_bus->adapter);
+	ret = psb_intel_ddc_get_modes(connector, &gma_encoder->i2c_bus->base);
 
 	if (ret)
 		return ret;
@@ -583,7 +583,7 @@ void cdv_intel_lvds_init(struct drm_device *dev,
 	 */
 	mutex_lock(&dev->mode_config.mutex);
 	psb_intel_ddc_get_modes(connector,
-				&gma_encoder->ddc_bus->adapter);
+				&gma_encoder->ddc_bus->base);
 	list_for_each_entry(scan, &connector->probed_modes, head) {
 		if (scan->type & DRM_MODE_TYPE_PREFERRED) {
 			mode_dev->panel_fixed_mode =

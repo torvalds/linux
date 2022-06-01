@@ -113,10 +113,10 @@ struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
 
 	chan->drm_dev = dev;
 	chan->reg = reg;
-	snprintf(chan->adapter.name, I2C_NAME_SIZE, "intel drm %s", name);
-	chan->adapter.owner = THIS_MODULE;
-	chan->adapter.algo_data = &chan->algo;
-	chan->adapter.dev.parent = dev->dev;
+	snprintf(chan->base.name, I2C_NAME_SIZE, "intel drm %s", name);
+	chan->base.owner = THIS_MODULE;
+	chan->base.algo_data = &chan->algo;
+	chan->base.dev.parent = dev->dev;
 	chan->algo.setsda = set_data;
 	chan->algo.setscl = set_clock;
 	chan->algo.getsda = get_data;
@@ -125,9 +125,9 @@ struct gma_i2c_chan *gma_i2c_create(struct drm_device *dev, const u32 reg,
 	chan->algo.timeout = usecs_to_jiffies(2200);
 	chan->algo.data = chan;
 
-	i2c_set_adapdata(&chan->adapter, chan);
+	i2c_set_adapdata(&chan->base, chan);
 
-	if (i2c_bit_add_bus(&chan->adapter))
+	if (i2c_bit_add_bus(&chan->base))
 		goto out_free;
 
 	/* JJJ:  raise SCL and SDA? */
@@ -153,6 +153,6 @@ void gma_i2c_destroy(struct gma_i2c_chan *chan)
 	if (!chan)
 		return;
 
-	i2c_del_adapter(&chan->adapter);
+	i2c_del_adapter(&chan->base);
 	kfree(chan);
 }
