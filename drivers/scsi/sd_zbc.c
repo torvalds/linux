@@ -786,8 +786,11 @@ static int sd_zbc_init_disk(struct scsi_disk *sdkp)
 	return 0;
 }
 
-static void sd_zbc_clear_zone_info(struct scsi_disk *sdkp)
+void sd_zbc_free_zone_info(struct scsi_disk *sdkp)
 {
+	if (!sdkp->zone_wp_update_buf)
+		return;
+
 	/* Serialize against revalidate zones */
 	mutex_lock(&sdkp->rev_mutex);
 
@@ -800,12 +803,6 @@ static void sd_zbc_clear_zone_info(struct scsi_disk *sdkp)
 	sdkp->zone_info = (struct zoned_disk_info){ };
 
 	mutex_unlock(&sdkp->rev_mutex);
-}
-
-void sd_zbc_release_disk(struct scsi_disk *sdkp)
-{
-	if (sd_is_zoned(sdkp))
-		sd_zbc_clear_zone_info(sdkp);
 }
 
 static void sd_zbc_revalidate_zones_cb(struct gendisk *disk)
@@ -914,12 +911,15 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
 	u32 zone_blocks = 0;
 	int ret;
 
-	if (!sd_is_zoned(sdkp))
+	if (!sd_is_zoned(sdkp)) {
 		/*
-		 * Device managed or normal SCSI disk,
-		 * no special handling required
+		 * Device managed or normal SCSI disk, no special handling
+		 * required. Nevertheless, free the disk zone information in
+		 * case the device type changed.
 		 */
+		sd_zbc_free_zone_info(sdkp);
 		return 0;
+	}
 
 	/* READ16/WRITE16 is mandatory for ZBC disks */
 	sdkp->device->use_16_for_rw = 1;
@@ -928,11 +928,11 @@ int sd_zbc_read_zones(struct scsi_disk *sdkp, u8 buf[SD_BUF_SIZE])
 	if (!blk_queue_is_zoned(q)) {
 		/*
 		 * This can happen for a host aware disk with partitions.
-		 * The block device zone information was already cleared
-		 * by blk_queue_set_zoned(). Only clear the scsi disk zone
+		 * The block device zone model was already cleared by
+		 * blk_queue_set_zoned(). Only free the scsi disk zone
 		 * information and exit early.
 		 */
-		sd_zbc_clear_zone_info(sdkp);
+		sd_zbc_free_zone_info(sdkp);
 		return 0;
 	}
 
