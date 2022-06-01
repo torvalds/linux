@@ -29,8 +29,8 @@
 #include "priv.h"
 
 #include <core/client.h>
-#include <core/gpuobj.h>
 #include <core/oproxy.h>
+#include <core/ramht.h>
 #include <subdev/mmu.h>
 #include <engine/dma.h>
 
@@ -434,6 +434,15 @@ nvkm_chan_del(struct nvkm_chan **pchan)
 	if (!chan)
 		return;
 
+	if (chan->func->ramfc->clear)
+		chan->func->ramfc->clear(chan);
+
+	nvkm_ramht_del(&chan->ramht);
+	nvkm_gpuobj_del(&chan->pgd);
+	nvkm_gpuobj_del(&chan->eng);
+	nvkm_gpuobj_del(&chan->cache);
+	nvkm_gpuobj_del(&chan->ramfc);
+
 	nvkm_memory_unref(&chan->userd.mem);
 
 	if (chan->cgrp) {
@@ -618,16 +627,17 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 		chan->vmm = nvkm_vmm_ref(vmm);
 	}
 
-	/* allocate push buffer ctxdma instance */
-	if (push) {
+	/* Allocate HW ctxdma for push buffer. */
+	if (func->ramfc->ctxdma) {
 		dmaobj = nvkm_dmaobj_search(client, push);
 		if (IS_ERR(dmaobj))
 			return PTR_ERR(dmaobj);
 
-		ret = nvkm_object_bind(&dmaobj->object, chan->inst, -16,
-				       &chan->push);
-		if (ret)
+		ret = nvkm_object_bind(&dmaobj->object, chan->inst, -16, &chan->push);
+		if (ret) {
+			RUNL_DEBUG(runl, "bind %d", ret);
 			return ret;
+		}
 	}
 
 	/* Allocate channel ID. */

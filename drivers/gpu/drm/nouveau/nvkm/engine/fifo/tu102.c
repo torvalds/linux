@@ -51,6 +51,7 @@ static const struct nvkm_chan_func
 tu102_chan = {
 	.inst = &gf100_chan_inst,
 	.userd = &gv100_chan_userd,
+	.ramfc = &gv100_chan_ramfc,
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
 	.start = tu102_chan_start,

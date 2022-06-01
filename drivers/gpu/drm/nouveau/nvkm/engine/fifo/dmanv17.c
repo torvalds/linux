@@ -41,8 +41,6 @@ nv17_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	} *args = data;
 	struct nv04_fifo *fifo = nv04_fifo(base);
 	struct nv04_fifo_chan *chan = NULL;
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	struct nvkm_instmem *imem = device->imem;
 	int ret = -ENOSYS;
 
 	nvif_ioctl(parent, "create channel dma size %d\n", size);
@@ -71,20 +69,8 @@ nv17_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 		return ret;
 
 	args->v0.chid = chan->base.chid;
-	chan->ramfc = chan->base.chid * 64;
 
-	nvkm_kmap(imem->ramfc);
-	nvkm_wo32(imem->ramfc, chan->ramfc + 0x00, args->v0.offset);
-	nvkm_wo32(imem->ramfc, chan->ramfc + 0x04, args->v0.offset);
-	nvkm_wo32(imem->ramfc, chan->ramfc + 0x0c, chan->base.push->addr >> 4);
-	nvkm_wo32(imem->ramfc, chan->ramfc + 0x14,
-			       NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
-			       NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
-#ifdef __BIG_ENDIAN
-			       NV_PFIFO_CACHE1_BIG_ENDIAN |
-#endif
-			       NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
-	nvkm_done(imem->ramfc);
+	chan->base.func->ramfc->write(&chan->base, args->v0.offset, 0, BIT(0), false);
 	return 0;
 }
 

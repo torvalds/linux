@@ -9,10 +9,7 @@ struct nv50_fifo_chan {
 	struct nv50_fifo *fifo;
 	struct nvkm_fifo_chan base;
 
-	struct nvkm_gpuobj *ramfc;
-	struct nvkm_gpuobj *cache;
 	struct nvkm_gpuobj *eng;
-	struct nvkm_gpuobj *pgd;
 	struct nvkm_ramht *ramht;
 
 #define NV50_FIFO_ENGN_SW   0

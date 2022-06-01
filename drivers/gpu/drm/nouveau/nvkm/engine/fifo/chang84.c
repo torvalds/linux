@@ -182,7 +182,6 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 		   const struct nvkm_oclass *oclass,
 		   struct nv50_fifo_chan *chan)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	int ret;
 
 	if (!vmm)
@@ -206,28 +205,5 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 				  BIT(G84_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
 	chan->fifo = fifo;
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x0200, 0, true, chan->base.inst,
-			      &chan->eng);
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x4000, 0, false, chan->base.inst,
-			      &chan->pgd);
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x1000, 0x400, true, chan->base.inst,
-			      &chan->cache);
-	if (ret)
-		return ret;
-
-	ret = nvkm_gpuobj_new(device, 0x100, 0x100, true, chan->base.inst,
-			      &chan->ramfc);
-	if (ret)
-		return ret;
-
-	return nvkm_ramht_new(device, 0x8000, 16, chan->base.inst, &chan->ramht);
+	return ret;
 }

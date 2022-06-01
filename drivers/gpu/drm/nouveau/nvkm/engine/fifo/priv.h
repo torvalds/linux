@@ -82,6 +82,7 @@ extern const struct nvkm_engn_func nv04_engn;
 extern const struct nvkm_cgrp_func nv04_cgrp;
 extern const struct nvkm_chan_func_inst nv04_chan_inst;
 extern const struct nvkm_chan_func_userd nv04_chan_userd;
+void nv04_chan_ramfc_clear(struct nvkm_chan *);
 void nv04_chan_start(struct nvkm_chan *);
 void nv04_chan_stop(struct nvkm_chan *);
 
@@ -154,6 +155,7 @@ bool gk104_engn_chsw(struct nvkm_engn *);
 int gk104_engn_cxid(struct nvkm_engn *, bool *cgid);
 extern const struct nvkm_engn_func gk104_engn_ce;
 extern const struct nvkm_chan_func_userd gk104_chan_userd;
+extern const struct nvkm_chan_func_ramfc gk104_chan_ramfc;
 void gk104_chan_bind(struct nvkm_chan *);
 void gk104_chan_bind_inst(struct nvkm_chan *);
 void gk104_chan_unbind(struct nvkm_chan *);
@@ -189,6 +191,7 @@ extern const struct nvkm_runq_func gv100_runq;
 extern const struct nvkm_engn_func gv100_engn;
 extern const struct nvkm_engn_func gv100_engn_ce;
 extern const struct nvkm_chan_func_userd gv100_chan_userd;
+extern const struct nvkm_chan_func_ramfc gv100_chan_ramfc;
 
 void tu102_fifo_intr_ctxsw_timeout_info(struct nvkm_engn *, u32 info);
 extern const struct nvkm_fifo_func_mmu_fault tu102_fifo_mmu_fault;

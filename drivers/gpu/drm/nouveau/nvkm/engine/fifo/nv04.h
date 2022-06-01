@@ -4,17 +4,10 @@
 #define nv04_fifo(p) container_of((p), struct nv04_fifo, base)
 #include "priv.h"
 
-struct nv04_fifo_ramfc {
-	unsigned bits:6;
-	unsigned ctxs:5;
-	unsigned ctxp:8;
-	unsigned regs:5;
-	unsigned regp;
-};
+#define nv04_fifo_ramfc nvkm_ramfc_layout
 
 struct nv04_fifo {
 	struct nvkm_fifo base;
-	const struct nv04_fifo_ramfc *ramfc;
 };
 
 int nv04_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,

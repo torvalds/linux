@@ -78,6 +78,39 @@ gk104_chan_bind(struct nvkm_chan *chan)
 	gk104_chan_bind_inst(chan);
 }
 
+static int
+gk104_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, bool priv)
+{
+	const u64 userd = nvkm_memory_addr(chan->userd.mem) + chan->userd.base;
+	const u32 limit2 = ilog2(length / 8);
+
+	nvkm_kmap(chan->inst);
+	nvkm_wo32(chan->inst, 0x08, lower_32_bits(userd));
+	nvkm_wo32(chan->inst, 0x0c, upper_32_bits(userd));
+	nvkm_wo32(chan->inst, 0x10, 0x0000face);
+	nvkm_wo32(chan->inst, 0x30, 0xfffff902);
+	nvkm_wo32(chan->inst, 0x48, lower_32_bits(offset));
+	nvkm_wo32(chan->inst, 0x4c, upper_32_bits(offset) | (limit2 << 16));
+	nvkm_wo32(chan->inst, 0x84, 0x20400000);
+	nvkm_wo32(chan->inst, 0x94, 0x30000000 | devm);
+	nvkm_wo32(chan->inst, 0x9c, 0x00000100);
+	nvkm_wo32(chan->inst, 0xac, 0x0000001f);
+	nvkm_wo32(chan->inst, 0xe4, priv ? 0x00000020 : 0x00000000);
+	nvkm_wo32(chan->inst, 0xe8, chan->id);
+	nvkm_wo32(chan->inst, 0xb8, 0xf8000000);
+	nvkm_wo32(chan->inst, 0xf8, 0x10003080); /* 0x002310 */
+	nvkm_wo32(chan->inst, 0xfc, 0x10000010); /* 0x002350 */
+	nvkm_done(chan->inst);
+	return 0;
+}
+
+const struct nvkm_chan_func_ramfc
+gk104_chan_ramfc = {
+	.write = gk104_chan_ramfc_write,
+	.devm = 0xfff,
+	.priv = true,
+};
+
 const struct nvkm_chan_func_userd
 gk104_chan_userd = {
 	.bar = 1,
@@ -89,6 +122,7 @@ static const struct nvkm_chan_func
 gk104_chan = {
 	.inst = &gf100_chan_inst,
 	.userd = &gk104_chan_userd,
+	.ramfc = &gk104_chan_ramfc,
 	.bind = gk104_chan_bind,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,

@@ -26,7 +26,7 @@
 #include "chid.h"
 #include "runl.h"
 
-#include <core/gpuobj.h>
+#include <core/ramht.h>
 #include <subdev/timer.h>
 
 #include "nv50.h"
@@ -63,8 +63,57 @@ nv50_chan_bind(struct nvkm_chan *chan)
 {
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
 
-	nvkm_wr32(device, 0x002600 + (chan->id * 4), nv50_fifo_chan(chan)->ramfc->addr >> 12);
+	nvkm_wr32(device, 0x002600 + (chan->id * 4), chan->ramfc->addr >> 12);
 }
+
+static int
+nv50_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, bool priv)
+{
+	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
+	const u32 limit2 = ilog2(length / 8);
+	int ret;
+
+	ret = nvkm_gpuobj_new(device, 0x0200, 0x1000, true, chan->inst, &chan->ramfc);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gpuobj_new(device, 0x1200, 0, true, chan->inst, &chan->eng);
+	if (ret)
+		return ret;
+
+	ret = nvkm_gpuobj_new(device, 0x4000, 0, false, chan->inst, &chan->pgd);
+	if (ret)
+		return ret;
+
+	ret = nvkm_ramht_new(device, 0x8000, 16, chan->inst, &chan->ramht);
+	if (ret)
+		return ret;
+
+	nv50_fifo_chan(chan)->eng = chan->eng;
+	nv50_fifo_chan(chan)->ramht = chan->ramht;
+
+	nvkm_kmap(chan->ramfc);
+	nvkm_wo32(chan->ramfc, 0x3c, 0x403f6078);
+	nvkm_wo32(chan->ramfc, 0x44, 0x01003fff);
+	nvkm_wo32(chan->ramfc, 0x48, chan->push->node->offset >> 4);
+	nvkm_wo32(chan->ramfc, 0x50, lower_32_bits(offset));
+	nvkm_wo32(chan->ramfc, 0x54, upper_32_bits(offset) | (limit2 << 16));
+	nvkm_wo32(chan->ramfc, 0x60, 0x7fffffff);
+	nvkm_wo32(chan->ramfc, 0x78, 0x00000000);
+	nvkm_wo32(chan->ramfc, 0x7c, 0x30000000 | devm);
+	nvkm_wo32(chan->ramfc, 0x80, ((chan->ramht->bits - 9) << 27) |
+				     (4 << 24) /* SEARCH_FULL */ |
+				     (chan->ramht->gpuobj->node->offset >> 4));
+	nvkm_done(chan->ramfc);
+	return 0;
+}
+
+static const struct nvkm_chan_func_ramfc
+nv50_chan_ramfc = {
+	.write = nv50_chan_ramfc_write,
+	.ctxdma = true,
+	.devm = 0xfff,
+};
 
 const struct nvkm_chan_func_userd
 nv50_chan_userd = {
@@ -83,6 +132,7 @@ static const struct nvkm_chan_func
 nv50_chan = {
 	.inst = &nv50_chan_inst,
 	.userd = &nv50_chan_userd,
+	.ramfc = &nv50_chan_ramfc,
 	.bind = nv50_chan_bind,
 	.unbind = nv50_chan_unbind,
 	.start = nv50_chan_start,

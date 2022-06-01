@@ -28,6 +28,13 @@ struct nvkm_chan {
 		u32 base;
 	} userd;
 
+	u32 ramfc_offset;
+	struct nvkm_gpuobj *ramfc;
+	struct nvkm_gpuobj *cache;
+	struct nvkm_gpuobj *eng;
+	struct nvkm_gpuobj *pgd;
+	struct nvkm_ramht *ramht;
+
 	spinlock_t lock;
 	atomic_t blocked;
 	atomic_t errored;

@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
@@ -35,31 +36,61 @@
 
 #include <nvif/class.h>
 
-static const struct nv04_fifo_ramfc
-nv40_fifo_ramfc[] = {
-	{ 32,  0, 0x00,  0, NV04_PFIFO_CACHE1_DMA_PUT },
-	{ 32,  0, 0x04,  0, NV04_PFIFO_CACHE1_DMA_GET },
-	{ 32,  0, 0x08,  0, NV10_PFIFO_CACHE1_REF_CNT },
-	{ 32,  0, 0x0c,  0, NV04_PFIFO_CACHE1_DMA_INSTANCE },
-	{ 32,  0, 0x10,  0, NV04_PFIFO_CACHE1_DMA_DCOUNT },
-	{ 32,  0, 0x14,  0, NV04_PFIFO_CACHE1_DMA_STATE },
-	{ 28,  0, 0x18,  0, NV04_PFIFO_CACHE1_DMA_FETCH },
-	{  2, 28, 0x18, 28, 0x002058 },
-	{ 32,  0, 0x1c,  0, NV04_PFIFO_CACHE1_ENGINE },
-	{ 32,  0, 0x20,  0, NV04_PFIFO_CACHE1_PULL1 },
-	{ 32,  0, 0x24,  0, NV10_PFIFO_CACHE1_ACQUIRE_VALUE },
-	{ 32,  0, 0x28,  0, NV10_PFIFO_CACHE1_ACQUIRE_TIMESTAMP },
-	{ 32,  0, 0x2c,  0, NV10_PFIFO_CACHE1_ACQUIRE_TIMEOUT },
-	{ 32,  0, 0x30,  0, NV10_PFIFO_CACHE1_SEMAPHORE },
-	{ 32,  0, 0x34,  0, NV10_PFIFO_CACHE1_DMA_SUBROUTINE },
-	{ 32,  0, 0x38,  0, NV40_PFIFO_GRCTX_INSTANCE },
-	{ 17,  0, 0x3c,  0, NV04_PFIFO_DMA_TIMESLICE },
-	{ 32,  0, 0x40,  0, 0x0032e4 },
-	{ 32,  0, 0x44,  0, 0x0032e8 },
-	{ 32,  0, 0x4c,  0, 0x002088 },
-	{ 32,  0, 0x50,  0, 0x003300 },
-	{ 32,  0, 0x54,  0, 0x00330c },
-	{}
+static int
+nv40_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, bool priv)
+{
+	struct nvkm_memory *ramfc = chan->cgrp->runl->fifo->engine.subdev.device->imem->ramfc;
+	const u32 base = chan->id * 128;
+
+	chan->ramfc_offset = base;
+	nv04_fifo_chan(chan)->ramfc = base;
+
+	nvkm_kmap(ramfc);
+	nvkm_wo32(ramfc, base + 0x00, offset);
+	nvkm_wo32(ramfc, base + 0x04, offset);
+	nvkm_wo32(ramfc, base + 0x0c, chan->push->addr >> 4);
+	nvkm_wo32(ramfc, base + 0x18, 0x30000000 |
+				      NV_PFIFO_CACHE1_DMA_FETCH_TRIG_128_BYTES |
+				      NV_PFIFO_CACHE1_DMA_FETCH_SIZE_128_BYTES |
+#ifdef __BIG_ENDIAN
+				      NV_PFIFO_CACHE1_BIG_ENDIAN |
+#endif
+				      NV_PFIFO_CACHE1_DMA_FETCH_MAX_REQS_8);
+	nvkm_wo32(ramfc, base + 0x3c, 0x0001ffff);
+	nvkm_done(ramfc);
+	return 0;
+}
+
+static const struct nvkm_chan_func_ramfc
+nv40_chan_ramfc = {
+	.layout = (const struct nvkm_ramfc_layout[]) {
+		{ 32,  0, 0x00,  0, NV04_PFIFO_CACHE1_DMA_PUT },
+		{ 32,  0, 0x04,  0, NV04_PFIFO_CACHE1_DMA_GET },
+		{ 32,  0, 0x08,  0, NV10_PFIFO_CACHE1_REF_CNT },
+		{ 32,  0, 0x0c,  0, NV04_PFIFO_CACHE1_DMA_INSTANCE },
+		{ 32,  0, 0x10,  0, NV04_PFIFO_CACHE1_DMA_DCOUNT },
+		{ 32,  0, 0x14,  0, NV04_PFIFO_CACHE1_DMA_STATE },
+		{ 28,  0, 0x18,  0, NV04_PFIFO_CACHE1_DMA_FETCH },
+		{  2, 28, 0x18, 28, 0x002058 },
+		{ 32,  0, 0x1c,  0, NV04_PFIFO_CACHE1_ENGINE },
+		{ 32,  0, 0x20,  0, NV04_PFIFO_CACHE1_PULL1 },
+		{ 32,  0, 0x24,  0, NV10_PFIFO_CACHE1_ACQUIRE_VALUE },
+		{ 32,  0, 0x28,  0, NV10_PFIFO_CACHE1_ACQUIRE_TIMESTAMP },
+		{ 32,  0, 0x2c,  0, NV10_PFIFO_CACHE1_ACQUIRE_TIMEOUT },
+		{ 32,  0, 0x30,  0, NV10_PFIFO_CACHE1_SEMAPHORE },
+		{ 32,  0, 0x34,  0, NV10_PFIFO_CACHE1_DMA_SUBROUTINE },
+		{ 32,  0, 0x38,  0, NV40_PFIFO_GRCTX_INSTANCE },
+		{ 17,  0, 0x3c,  0, NV04_PFIFO_DMA_TIMESLICE },
+		{ 32,  0, 0x40,  0, 0x0032e4 },
+		{ 32,  0, 0x44,  0, 0x0032e8 },
+		{ 32,  0, 0x4c,  0, 0x002088 },
+		{ 32,  0, 0x50,  0, 0x003300 },
+		{ 32,  0, 0x54,  0, 0x00330c },
+		{}
+	},
+	.write = nv40_chan_ramfc_write,
+	.clear = nv04_chan_ramfc_clear,
+	.ctxdma = true,
 };
 
 static const struct nvkm_chan_func_userd
@@ -73,6 +104,7 @@ static const struct nvkm_chan_func
 nv40_chan = {
 	.inst = &nv04_chan_inst,
 	.userd = &nv40_chan_userd,
+	.ramfc = &nv40_chan_ramfc,
 	.start = nv04_chan_start,
 	.stop = nv04_chan_stop,
 };
@@ -157,5 +189,5 @@ int
 nv40_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv40_fifo, device, type, inst, 32, nv40_fifo_ramfc, pfifo);
+	return nv04_fifo_new_(&nv40_fifo, device, type, inst, 0, NULL, pfifo);
 }

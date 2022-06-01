@@ -120,7 +120,6 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 {
 	struct gk104_fifo_chan *chan;
 	int runlist = ffs(*runlists) -1, ret;
-	u64 usermem;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
 		return -EINVAL;
@@ -143,27 +142,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	*inst = chan->base.inst->addr;
 	*token = chan->base.func->doorbell_handle(&chan->base);
 
-	/* Clear channel control registers. */
-	usermem = nvkm_memory_addr(chan->base.userd.mem) + chan->base.userd.base;
-	ilength = order_base_2(ilength / 8);
-
-	/* RAMFC */
-	nvkm_kmap(chan->base.inst);
-	nvkm_wo32(chan->base.inst, 0x008, lower_32_bits(usermem));
-	nvkm_wo32(chan->base.inst, 0x00c, upper_32_bits(usermem));
-	nvkm_wo32(chan->base.inst, 0x010, 0x0000face);
-	nvkm_wo32(chan->base.inst, 0x030, 0x7ffff902);
-	nvkm_wo32(chan->base.inst, 0x048, lower_32_bits(ioffset));
-	nvkm_wo32(chan->base.inst, 0x04c, upper_32_bits(ioffset) |
-					  (ilength << 16));
-	nvkm_wo32(chan->base.inst, 0x084, 0x20400000);
-	nvkm_wo32(chan->base.inst, 0x094, 0x30000001);
-	nvkm_wo32(chan->base.inst, 0x0e4, priv ? 0x00000020 : 0x00000000);
-	nvkm_wo32(chan->base.inst, 0x0e8, chan->base.chid);
-	nvkm_wo32(chan->base.inst, 0x0f4, 0x00001000);
-	nvkm_wo32(chan->base.inst, 0x0f8, 0x10003080);
-	nvkm_mo32(chan->base.inst, 0x218, 0x00000000, 0x00000000);
-	nvkm_done(chan->base.inst);
+	chan->base.func->ramfc->write(&chan->base, ioffset, ilength, BIT(0), priv);
 	return 0;
 }
 

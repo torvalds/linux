@@ -38,6 +38,37 @@ gv100_chan_doorbell_handle(struct nvkm_chan *chan)
 	return chan->id;
 }
 
+static int
+gv100_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, bool priv)
+{
+	const u64 userd = nvkm_memory_addr(chan->userd.mem) + chan->userd.base;
+	const u32 limit2 = ilog2(length / 8);
+
+	nvkm_kmap(chan->inst);
+	nvkm_wo32(chan->inst, 0x008, lower_32_bits(userd));
+	nvkm_wo32(chan->inst, 0x00c, upper_32_bits(userd));
+	nvkm_wo32(chan->inst, 0x010, 0x0000face);
+	nvkm_wo32(chan->inst, 0x030, 0x7ffff902);
+	nvkm_wo32(chan->inst, 0x048, lower_32_bits(offset));
+	nvkm_wo32(chan->inst, 0x04c, upper_32_bits(offset) | (limit2 << 16));
+	nvkm_wo32(chan->inst, 0x084, 0x20400000);
+	nvkm_wo32(chan->inst, 0x094, 0x30000000 | devm);
+	nvkm_wo32(chan->inst, 0x0e4, priv ? 0x00000020 : 0x00000000);
+	nvkm_wo32(chan->inst, 0x0e8, chan->id);
+	nvkm_wo32(chan->inst, 0x0f4, 0x00001000 | (priv ? 0x00000100 : 0x00000000));
+	nvkm_wo32(chan->inst, 0x0f8, 0x10003080);
+	nvkm_mo32(chan->inst, 0x218, 0x00000000, 0x00000000);
+	nvkm_done(chan->inst);
+	return 0;
+}
+
+const struct nvkm_chan_func_ramfc
+gv100_chan_ramfc = {
+	.write = gv100_chan_ramfc_write,
+	.devm = 0xfff,
+	.priv = true,
+};
+
 const struct nvkm_chan_func_userd
 gv100_chan_userd = {
 	.bar = 1, /*FIXME: hw doesn't have poller, flip to user-allocated in uapi commit. */
@@ -49,6 +80,7 @@ static const struct nvkm_chan_func
 gv100_chan = {
 	.inst = &gf100_chan_inst,
 	.userd = &gv100_chan_userd,
+	.ramfc = &gv100_chan_ramfc,
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,
