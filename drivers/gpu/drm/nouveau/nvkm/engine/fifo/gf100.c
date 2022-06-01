@@ -741,7 +741,6 @@ gf100_fifo = {
 	.intr = gf100_fifo_intr,
 	.mmu_fault = &gf100_fifo_mmu_fault,
 	.engine_id = gf100_fifo_engine_id,
-	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
 	.runl = &gf100_runl,

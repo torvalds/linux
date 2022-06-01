@@ -459,7 +459,6 @@ tu102_fifo = {
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
-	.id_engine = gk104_fifo_id_engine,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = tu102_fifo_recover_chan,

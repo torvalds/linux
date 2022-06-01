@@ -57,7 +57,6 @@ g98_fifo = {
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = g84_fifo_engine_id,
-	.id_engine = g84_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.uevent_init = g84_fifo_uevent_init,

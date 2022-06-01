@@ -19,7 +19,6 @@ void nv50_fifo_init(struct nvkm_fifo *);
 void nv50_fifo_runlist_update(struct nv50_fifo *);
 
 int g84_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
-struct nvkm_engine *g84_fifo_id_engine(struct nvkm_fifo *, int);
 void g84_fifo_uevent_init(struct nvkm_fifo *);
 void g84_fifo_uevent_fini(struct nvkm_fifo *);
 #endif

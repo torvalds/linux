@@ -22,7 +22,6 @@ struct nvkm_chan {
 	union { int id; int chid; }; /*FIXME: remove later */
 
 	struct nvkm_fifo *fifo;
-	u32 engm;
 	struct nvkm_object object;
 
 	struct list_head head;

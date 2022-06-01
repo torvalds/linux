@@ -22,6 +22,7 @@
 #define nvkm_uchan(p) container_of((p), struct nvkm_uchan, object)
 #include "cgrp.h"
 #include "chan.h"
+#include "runl.h"
 
 #include <core/oproxy.h>
 
@@ -89,14 +90,43 @@ static int
 nvkm_uchan_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
 {
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_engn *engn;
 	int ret;
 
-	ret = chan->object.func->sclass(&chan->object, index, oclass);
-	if (ret)
-		return ret;
+	nvkm_runl_foreach_engn(engn, chan->cgrp->runl) {
+		struct nvkm_engine *engine = engn->engine;
+		int c = 0;
 
-	oclass->ctor = nvkm_uchan_object_new;
-	return 0;
+		oclass->engine = engine;
+		oclass->base.oclass = 0;
+
+		if (engine->func->fifo.sclass) {
+			ret = engine->func->fifo.sclass(oclass, index);
+			if (oclass->base.oclass) {
+				if (!oclass->base.ctor)
+					oclass->base.ctor = nvkm_object_new;
+				oclass->ctor = nvkm_uchan_object_new;
+				return 0;
+			}
+
+			index -= ret;
+			continue;
+		}
+
+		while (engine->func->sclass[c].oclass) {
+			if (c++ == index) {
+				oclass->base = engine->func->sclass[index];
+				if (!oclass->base.ctor)
+					oclass->base.ctor = nvkm_object_new;
+				oclass->ctor = nvkm_uchan_object_new;
+				return 0;
+			}
+		}
+
+		index -= c;
+	}
+
+	return -EINVAL;
 }
 
 static int

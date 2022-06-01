@@ -182,24 +182,6 @@ const struct nvkm_runl_func
 nv04_runl = {
 };
 
-struct nvkm_engine *
-nv04_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
-{
-	enum nvkm_subdev_type type;
-
-	switch (engi) {
-	case NV04_FIFO_ENGN_SW  : type = NVKM_ENGINE_SW; break;
-	case NV04_FIFO_ENGN_GR  : type = NVKM_ENGINE_GR; break;
-	case NV04_FIFO_ENGN_MPEG: type = NVKM_ENGINE_MPEG; break;
-	case NV04_FIFO_ENGN_DMA : type = NVKM_ENGINE_DMAOBJ; break;
-	default:
-		WARN_ON(1);
-		return NULL;
-	}
-
-	return nvkm_device_engine(fifo->engine.subdev.device, type, 0);
-}
-
 int
 nv04_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
 {
@@ -500,7 +482,6 @@ nv04_fifo = {
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
-	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.runl = &nv04_runl,

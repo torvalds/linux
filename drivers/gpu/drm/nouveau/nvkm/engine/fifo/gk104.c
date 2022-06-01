@@ -303,15 +303,6 @@ gk104_fifo_pbdma = {
 	.init = gk104_fifo_pbdma_init,
 };
 
-struct nvkm_engine *
-gk104_fifo_id_engine(struct nvkm_fifo *base, int engi)
-{
-	if (engi == GK104_FIFO_ENGN_SW)
-		return nvkm_device_engine(base->engine.subdev.device, NVKM_ENGINE_SW, 0);
-
-	return gk104_fifo(base)->engine[engi].engine;
-}
-
 int
 gk104_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
 {
@@ -1185,7 +1176,6 @@ gk104_fifo = {
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
-	.id_engine = gk104_fifo_id_engine,
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = gk104_fifo_recover_chan,

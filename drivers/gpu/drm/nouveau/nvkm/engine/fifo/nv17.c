@@ -93,7 +93,6 @@ nv17_fifo = {
 	.init = nv17_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
-	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.runl = &nv04_runl,
