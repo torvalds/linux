@@ -24,6 +24,7 @@
 #include "priv.h"
 #include "chan.h"
 #include "chid.h"
+#include "runl.h"
 #include "runq.h"
 
 #include <core/gpuobj.h>
@@ -236,6 +237,8 @@ static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
 	int ret, nr, i;
 
 	/* Initialise CHID/CGID allocator(s) on GPUs where they aren't per-runlist. */
@@ -250,6 +253,18 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 		for (nr = fifo->func->runq_nr(fifo), i = 0; i < nr; i++) {
 			if (!nvkm_runq_new(fifo, i))
 				return -ENOMEM;
+		}
+	}
+
+	/* Create runlists. */
+	ret = fifo->func->runl_ctor(fifo);
+	if (ret)
+		return ret;
+
+	nvkm_runl_foreach(runl, fifo) {
+		RUNL_DEBUG(runl, "");
+		nvkm_runl_foreach_engn(engn, runl) {
+			ENGN_DEBUG(engn, "");
 		}
 	}
 
@@ -269,9 +284,12 @@ static void *
 nvkm_fifo_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	struct nvkm_runl *runl, *runt;
 	struct nvkm_runq *runq, *rtmp;
 	void *data = fifo;
 
+	list_for_each_entry_safe(runl, runt, &fifo->runls, head)
+		nvkm_runl_del(runl);
 	list_for_each_entry_safe(runq, rtmp, &fifo->runqs, head)
 		nvkm_runq_del(runq);
 
@@ -306,6 +324,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 
 	fifo->func = func;
 	INIT_LIST_HEAD(&fifo->runqs);
+	INIT_LIST_HEAD(&fifo->runls);
 	spin_lock_init(&fifo->lock);
 	mutex_init(&fifo->mutex);
 

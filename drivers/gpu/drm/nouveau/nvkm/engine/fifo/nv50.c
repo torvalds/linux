@@ -23,6 +23,7 @@
  */
 #include "chan.h"
 #include "chid.h"
+#include "runl.h"
 
 #include "nv50.h"
 #include "channv50.h"
@@ -33,6 +34,14 @@
 
 static const struct nvkm_chan_func
 nv50_chan = {
+};
+
+static const struct nvkm_engn_func
+nv50_engn = {
+};
+
+const struct nvkm_engn_func
+nv50_engn_sw = {
 };
 
 static void
@@ -64,6 +73,10 @@ nv50_fifo_runlist_update(struct nv50_fifo *fifo)
 	nv50_fifo_runlist_update_locked(fifo);
 	mutex_unlock(&fifo->base.mutex);
 }
+
+const struct nvkm_runl_func
+nv50_runl = {
+};
 
 void
 nv50_fifo_init(struct nvkm_fifo *base)
@@ -153,12 +166,16 @@ nv50_fifo = {
 	.oneinit = nv50_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = nv50_fifo_chid_ctor,
+	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
+	.runl = &nv50_runl,
+	.engn = &nv50_engn,
+	.engn_sw = &nv50_engn_sw,
 	.cgrp = {{                           }, &nv04_cgrp },
 	.chan = {{ 0, 0, NV50_CHANNEL_GPFIFO }, &nv50_chan, .oclass = &nv50_fifo_gpfifo_oclass },
 };

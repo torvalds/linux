@@ -24,6 +24,7 @@
 #include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
+#include "runl.h"
 
 #include "nv04.h"
 #include "channv04.h"
@@ -123,6 +124,10 @@ const struct nvkm_cgrp_func
 nv04_cgrp = {
 };
 
+const struct nvkm_engn_func
+nv04_engn = {
+};
+
 void
 nv04_fifo_pause(struct nvkm_fifo *base, unsigned long *pflags)
 __acquires(fifo->base.lock)
@@ -172,6 +177,10 @@ __releases(fifo->base.lock)
 
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
+
+const struct nvkm_runl_func
+nv04_runl = {
+};
 
 struct nvkm_engine *
 nv04_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
@@ -435,6 +444,22 @@ nv04_fifo_init(struct nvkm_fifo *fifo)
 }
 
 int
+nv04_fifo_runl_ctor(struct nvkm_fifo *fifo)
+{
+	struct nvkm_runl *runl;
+
+	runl = nvkm_runl_new(fifo, 0, 0, 0);
+	if (IS_ERR(runl))
+		return PTR_ERR(runl);
+
+	nvkm_runl_add(runl, 0, fifo->func->engn_sw, NVKM_ENGINE_SW, 0);
+	nvkm_runl_add(runl, 0, fifo->func->engn_sw, NVKM_ENGINE_DMAOBJ, 0);
+	nvkm_runl_add(runl, 1, fifo->func->engn   , NVKM_ENGINE_GR, 0);
+	nvkm_runl_add(runl, 2, fifo->func->engn   , NVKM_ENGINE_MPEG, 0); /* NV31- */
+	return 0;
+}
+
+int
 nv04_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
 {
 	/* The last CHID is reserved by HW as a "channel invalid" marker. */
@@ -472,12 +497,16 @@ static const struct nvkm_fifo_func
 nv04_fifo = {
 	.chid_nr = nv04_fifo_chid_nr,
 	.chid_ctor = nv04_fifo_chid_ctor,
+	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
+	.runl = &nv04_runl,
+	.engn = &nv04_engn,
+	.engn_sw = &nv04_engn,
 	.cgrp = {{                        }, &nv04_cgrp },
 	.chan = {{ 0, 0, NV03_CHANNEL_DMA }, &nv04_chan, .oclass = &nv04_fifo_dma_oclass },
 };

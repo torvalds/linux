@@ -23,6 +23,7 @@
  */
 #include "chan.h"
 #include "chid.h"
+#include "runl.h"
 
 #include "nv04.h"
 #include "channv04.h"
@@ -63,6 +64,14 @@ nv40_fifo_ramfc[] = {
 
 static const struct nvkm_chan_func
 nv40_chan = {
+};
+
+static const struct nvkm_engn_func
+nv40_engn = {
+};
+
+static const struct nvkm_engn_func
+nv40_engn_sw = {
 };
 
 static void
@@ -120,12 +129,16 @@ static const struct nvkm_fifo_func
 nv40_fifo = {
 	.chid_nr = nv10_fifo_chid_nr,
 	.chid_ctor = nv04_fifo_chid_ctor,
+	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv40_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
+	.runl = &nv04_runl,
+	.engn = &nv40_engn,
+	.engn_sw = &nv40_engn_sw,
 	.cgrp = {{                        }, &nv04_cgrp },
 	.chan = {{ 0, 0, NV40_CHANNEL_DMA }, &nv40_chan, .oclass = &nv40_fifo_dma_oclass },
 };

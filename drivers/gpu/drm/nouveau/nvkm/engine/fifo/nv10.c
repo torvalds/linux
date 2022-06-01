@@ -57,12 +57,16 @@ static const struct nvkm_fifo_func
 nv10_fifo = {
 	.chid_nr = nv10_fifo_chid_nr,
 	.chid_ctor = nv04_fifo_chid_ctor,
+	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
+	.runl = &nv04_runl,
+	.engn = &nv04_engn,
+	.engn_sw = &nv04_engn,
 	.cgrp = {{                        }, &nv04_cgrp },
 	.chan = {{ 0, 0, NV10_CHANNEL_DMA }, &nv10_chan, .oclass = &nv10_fifo_dma_oclass },
 };

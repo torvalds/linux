@@ -23,6 +23,7 @@
  */
 #include "chan.h"
 #include "chid.h"
+#include "runl.h"
 #include "runq.h"
 
 #include "gk104.h"
@@ -90,6 +91,14 @@ gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 		   status->next.tsg ? "tsg" : "ch", status->next.id,
 		   status->chan == &status->next ? "*" : " ");
 }
+
+const struct nvkm_engn_func
+gk104_engn = {
+};
+
+const struct nvkm_engn_func
+gk104_engn_ce = {
+};
 
 void
 gk104_fifo_uevent_fini(struct nvkm_fifo *fifo)
@@ -168,6 +177,12 @@ static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
 	{ 0x80000000, "SIGNATURE" },
 	{}
 };
+
+static u32
+gk104_runq_runm(struct nvkm_runq *runq)
+{
+	return nvkm_rd32(runq->fifo->engine.subdev.device, 0x002390 + (runq->id * 0x04));
+}
 
 const struct nvkm_runq_func
 gk104_runq = {
@@ -271,6 +286,10 @@ gk104_fifo_runlist = {
 	.size = 8,
 	.chan = gk104_fifo_runlist_chan,
 	.commit = gk104_fifo_runlist_commit,
+};
+
+static const struct nvkm_runl_func
+gk104_runl = {
 };
 
 void
@@ -1055,6 +1074,52 @@ gk104_fifo_init(struct nvkm_fifo *base)
 }
 
 int
+gk104_fifo_runl_ctor(struct nvkm_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_top_device *tdev;
+	struct nvkm_runl *runl;
+	struct nvkm_runq *runq;
+	const struct nvkm_engn_func *func;
+
+	nvkm_list_foreach(tdev, &device->top->device, head, tdev->runlist >= 0) {
+		runl = nvkm_runl_get(fifo, tdev->runlist, tdev->runlist);
+		if (!runl) {
+			runl = nvkm_runl_new(fifo, tdev->runlist, tdev->runlist, 0);
+			if (IS_ERR(runl))
+				return PTR_ERR(runl);
+
+			nvkm_runq_foreach_cond(runq, fifo, gk104_runq_runm(runq) & BIT(runl->id)) {
+				if (WARN_ON(runl->runq_nr == ARRAY_SIZE(runl->runq)))
+					return -ENOMEM;
+
+				runl->runq[runl->runq_nr++] = runq;
+			}
+
+		}
+
+		if (tdev->engine < 0)
+			continue;
+
+		switch (tdev->type) {
+		case NVKM_ENGINE_CE:
+			func = fifo->func->engn_ce;
+			break;
+		case NVKM_ENGINE_GR:
+			nvkm_runl_add(runl, 15, &gf100_engn_sw, NVKM_ENGINE_SW, 0);
+			fallthrough;
+		default:
+			func = fifo->func->engn;
+			break;
+		}
+
+		nvkm_runl_add(runl, tdev->engine, func, tdev->type, tdev->inst);
+	}
+
+	return 0;
+}
+
+int
 gk104_fifo_chid_nr(struct nvkm_fifo *fifo)
 {
 	return 4096;
@@ -1068,48 +1133,19 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	struct nvkm_top_device *tdev;
-	int pbid, ret, i, j;
-	u32 *map;
+	int ret, i, j;
 
 	fifo->pbdma_nr = fifo->func->runq_nr(&fifo->base);
-
-	/* Read PBDMA->runlist(s) mapping from HW. */
-	if (!(map = kcalloc(fifo->pbdma_nr, sizeof(*map), GFP_KERNEL)))
-		return -ENOMEM;
-
-	for (i = 0; i < fifo->pbdma_nr; i++)
-		map[i] = nvkm_rd32(device, 0x002390 + (i * 0x04));
 
 	/* Determine runlist configuration from topology device info. */
 	list_for_each_entry(tdev, &device->top->device, head) {
 		const int engn = tdev->engine;
-		char _en[16], *en;
 
 		if (engn < 0)
 			continue;
 
-		/* Determine which PBDMA handles requests for this engine. */
-		for (j = 0, pbid = -1; j < fifo->pbdma_nr; j++) {
-			if (map[j] & BIT(tdev->runlist)) {
-				pbid = j;
-				break;
-			}
-		}
-
 		fifo->engine[engn].engine = nvkm_device_engine(device, tdev->type, tdev->inst);
-		if (!fifo->engine[engn].engine) {
-			snprintf(_en, sizeof(_en), "%s, %d",
-				 nvkm_subdev_type[tdev->type], tdev->inst);
-			en = _en;
-		} else {
-			en = fifo->engine[engn].engine->subdev.name;
-		}
-
-		nvkm_debug(subdev, "engine %2d: runlist %2d pbdma %2d (%s)\n",
-			   tdev->engine, tdev->runlist, pbid, en);
-
 		fifo->engine[engn].runl = tdev->runlist;
-		fifo->engine[engn].pbid = pbid;
 		fifo->engine_nr = max(fifo->engine_nr, engn + 1);
 		fifo->runlist[tdev->runlist].engm |= BIT(engn);
 		fifo->runlist[tdev->runlist].engm_sw |= BIT(engn);
@@ -1117,8 +1153,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 			fifo->runlist[tdev->runlist].engm_sw |= BIT(GK104_FIFO_ENGN_SW);
 		fifo->runlist_nr = max(fifo->runlist_nr, tdev->runlist + 1);
 	}
-
-	kfree(map);
 
 	for (i = 0; i < fifo->runlist_nr; i++) {
 		for (j = 0; j < ARRAY_SIZE(fifo->runlist[i].mem); j++) {
@@ -1190,6 +1224,7 @@ gk104_fifo = {
 	.chid_nr = gk104_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
+	.runl_ctor = gk104_fifo_runl_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -1208,7 +1243,10 @@ gk104_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk104_fifo_runlist,
 	.pbdma = &gk104_fifo_pbdma,
+	.runl = &gk104_runl,
 	.runq = &gk104_runq,
+	.engn = &gk104_engn,
+	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{                               }, &nv04_cgrp },
 	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk104_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

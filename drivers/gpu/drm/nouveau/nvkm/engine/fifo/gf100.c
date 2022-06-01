@@ -23,6 +23,7 @@
  */
 #include "chan.h"
 #include "chid.h"
+#include "runl.h"
 #include "runq.h"
 
 #include "gf100.h"
@@ -53,6 +54,14 @@ gf100_fifo_uevent_fini(struct nvkm_fifo *fifo)
 
 static const struct nvkm_chan_func
 gf100_chan = {
+};
+
+static const struct nvkm_engn_func
+gf100_engn = {
+};
+
+const struct nvkm_engn_func
+gf100_engn_sw = {
 };
 
 static const struct nvkm_bitfield
@@ -162,6 +171,10 @@ gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 	list_add_tail(&chan->head, &fifo->chan);
 	mutex_unlock(&fifo->base.mutex);
 }
+
+static const struct nvkm_runl_func
+gf100_runl = {
+};
 
 static struct nvkm_engine *
 gf100_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
@@ -630,6 +643,25 @@ gf100_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, 0x002628, 0x00000001); /* ENGINE_INTR_EN */
 }
 
+static int
+gf100_fifo_runl_ctor(struct nvkm_fifo *fifo)
+{
+	struct nvkm_runl *runl;
+
+	runl = nvkm_runl_new(fifo, 0, 0, 0);
+	if (IS_ERR(runl))
+		return PTR_ERR(runl);
+
+	nvkm_runl_add(runl,  0, fifo->func->engn, NVKM_ENGINE_GR, 0);
+	nvkm_runl_add(runl,  1, fifo->func->engn, NVKM_ENGINE_MSPDEC, 0);
+	nvkm_runl_add(runl,  2, fifo->func->engn, NVKM_ENGINE_MSPPP, 0);
+	nvkm_runl_add(runl,  3, fifo->func->engn, NVKM_ENGINE_MSVLD, 0);
+	nvkm_runl_add(runl,  4, fifo->func->engn, NVKM_ENGINE_CE, 0);
+	nvkm_runl_add(runl,  5, fifo->func->engn, NVKM_ENGINE_CE, 1);
+	nvkm_runl_add(runl, 15,   &gf100_engn_sw, NVKM_ENGINE_SW, 0);
+	return 0;
+}
+
 int
 gf100_fifo_runq_nr(struct nvkm_fifo *fifo)
 {
@@ -703,6 +735,7 @@ gf100_fifo = {
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
+	.runl_ctor = gf100_fifo_runl_ctor,
 	.init = gf100_fifo_init,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
@@ -711,7 +744,9 @@ gf100_fifo = {
 	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
+	.runl = &gf100_runl,
 	.runq = &gf100_runq,
+	.engn = &gf100_engn,
 	.cgrp = {{                            }, &nv04_cgrp },
 	.chan = {{ 0, 0, FERMI_CHANNEL_GPFIFO }, &gf100_chan, .oclass = &gf100_fifo_gpfifo_oclass },
 };

@@ -21,12 +21,17 @@
  *
  * Authors: Ben Skeggs
  */
+#include "runl.h"
 #include "gk104.h"
 #include "changk104.h"
 
 #include <subdev/fault.h>
 
 #include <nvif/class.h>
+
+static const struct nvkm_runl_func
+gp100_runl = {
+};
 
 const struct nvkm_enum
 gp100_fifo_fault_engine[] = {
@@ -88,6 +93,7 @@ gp100_fifo = {
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gm200_fifo_runq_nr,
+	.runl_ctor = gk104_fifo_runl_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -106,7 +112,10 @@ gp100_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gm107_fifo_runlist,
 	.pbdma = &gm200_fifo_pbdma,
+	.runl = &gp100_runl,
 	.runq = &gk208_runq,
+	.engn = &gk104_engn,
+	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0, PASCAL_CHANNEL_GPFIFO_A }, &gm107_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

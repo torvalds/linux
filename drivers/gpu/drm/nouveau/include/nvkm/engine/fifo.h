@@ -41,6 +41,7 @@ struct nvkm_fifo {
 	struct nvkm_chid *cgid;
 
 	struct list_head runqs;
+	struct list_head runls;
 
 	DECLARE_BITMAP(mask, NVKM_FIFO_CHID_NR);
 	int nr;
@@ -71,6 +72,7 @@ int nv17_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct 
 int nv40_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int nv50_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int g84_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
+int g98_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int gf100_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int gk104_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int gk110_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);

@@ -21,6 +21,7 @@
  */
 #include "chan.h"
 #include "cgrp.h"
+#include "runl.h"
 #include "runq.h"
 
 #include "gk104.h"
@@ -32,6 +33,14 @@
 
 static const struct nvkm_chan_func
 gv100_chan = {
+};
+
+const struct nvkm_engn_func
+gv100_engn = {
+};
+
+const struct nvkm_engn_func
+gv100_engn_ce = {
 };
 
 const struct nvkm_runq_func
@@ -68,6 +77,10 @@ gv100_fifo_runlist = {
 	.cgrp = gv100_fifo_runlist_cgrp,
 	.chan = gv100_fifo_runlist_chan,
 	.commit = gk104_fifo_runlist_commit,
+};
+
+static const struct nvkm_runl_func
+gv100_runl = {
 };
 
 const struct nvkm_enum
@@ -308,6 +321,7 @@ gv100_fifo = {
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gm200_fifo_runq_nr,
+	.runl_ctor = gk104_fifo_runl_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -325,7 +339,10 @@ gv100_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gv100_fifo_runlist,
 	.pbdma = &gm200_fifo_pbdma,
+	.runl = &gv100_runl,
 	.runq = &gv100_runq,
+	.engn = &gv100_engn,
+	.engn_ce = &gv100_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0,  VOLTA_CHANNEL_GPFIFO_A }, &gv100_chan, .ctor = gv100_fifo_gpfifo_new },
 };

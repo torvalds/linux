@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "runl.h"
 
 #include "nv50.h"
 #include "channv50.h"
@@ -32,21 +33,25 @@ const struct nvkm_chan_func
 g84_chan = {
 };
 
-static void
+const struct nvkm_engn_func
+g84_engn = {
+};
+
+void
 g84_fifo_uevent_fini(struct nvkm_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	nvkm_mask(device, 0x002140, 0x40000000, 0x00000000);
 }
 
-static void
+void
 g84_fifo_uevent_init(struct nvkm_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	nvkm_mask(device, 0x002140, 0x40000000, 0x40000000);
 }
 
-static struct nvkm_engine *
+struct nvkm_engine *
 g84_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
@@ -92,7 +97,7 @@ g84_fifo_id_engine(struct nvkm_fifo *fifo, int engi)
 	return nvkm_device_engine(fifo->engine.subdev.device, type, 0);
 }
 
-static int
+int
 g84_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
 {
 	switch (engine->subdev.type) {
@@ -114,12 +119,33 @@ g84_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
 	}
 }
 
+static int
+g84_fifo_runl_ctor(struct nvkm_fifo *fifo)
+{
+	struct nvkm_runl *runl;
+
+	runl = nvkm_runl_new(fifo, 0, 0, 0);
+	if (IS_ERR(runl))
+		return PTR_ERR(runl);
+
+	nvkm_runl_add(runl, 0, fifo->func->engn_sw, NVKM_ENGINE_SW, 0);
+	nvkm_runl_add(runl, 0, fifo->func->engn_sw, NVKM_ENGINE_DMAOBJ, 0);
+	nvkm_runl_add(runl, 1, fifo->func->engn, NVKM_ENGINE_GR, 0);
+	nvkm_runl_add(runl, 2, fifo->func->engn, NVKM_ENGINE_MPEG, 0);
+	nvkm_runl_add(runl, 3, fifo->func->engn, NVKM_ENGINE_ME, 0);
+	nvkm_runl_add(runl, 4, fifo->func->engn, NVKM_ENGINE_VP, 0);
+	nvkm_runl_add(runl, 5, fifo->func->engn, NVKM_ENGINE_CIPHER, 0);
+	nvkm_runl_add(runl, 6, fifo->func->engn, NVKM_ENGINE_BSP, 0);
+	return 0;
+}
+
 static const struct nvkm_fifo_func
 g84_fifo = {
 	.dtor = nv50_fifo_dtor,
 	.oneinit = nv50_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = nv50_fifo_chid_ctor,
+	.runl_ctor = g84_fifo_runl_ctor,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = g84_fifo_engine_id,
@@ -128,6 +154,9 @@ g84_fifo = {
 	.start = nv04_fifo_start,
 	.uevent_init = g84_fifo_uevent_init,
 	.uevent_fini = g84_fifo_uevent_fini,
+	.runl = &nv50_runl,
+	.engn = &g84_engn,
+	.engn_sw = &nv50_engn_sw,
 	.cgrp = {{                          }, &nv04_cgrp },
 	.chan = {{ 0, 0, G82_CHANNEL_GPFIFO }, &g84_chan, .oclass = &g84_fifo_gpfifo_oclass },
 };

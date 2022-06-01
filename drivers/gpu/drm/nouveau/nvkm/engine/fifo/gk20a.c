@@ -31,6 +31,7 @@ gk20a_fifo = {
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
+	.runl_ctor = gk104_fifo_runl_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -49,7 +50,10 @@ gk20a_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
 	.pbdma = &gk208_fifo_pbdma,
+	.runl = &gk110_runl,
 	.runq = &gk208_runq,
+	.engn = &gk104_engn,
+	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{                               }, &gk110_cgrp },
 	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk110_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

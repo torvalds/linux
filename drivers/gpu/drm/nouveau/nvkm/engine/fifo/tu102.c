@@ -20,6 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "chan.h"
+#include "runl.h"
 
 #include "gk104.h"
 #include "cgrp.h"
@@ -58,6 +59,10 @@ tu102_fifo_runlist = {
 	.cgrp = gv100_fifo_runlist_cgrp,
 	.chan = gv100_fifo_runlist_chan,
 	.commit = tu102_fifo_runlist_commit,
+};
+
+static const struct nvkm_runl_func
+tu102_runl = {
 };
 
 static const struct nvkm_enum
@@ -443,6 +448,7 @@ tu102_fifo = {
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gm200_fifo_runq_nr,
+	.runl_ctor = gk104_fifo_runl_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
@@ -460,7 +466,10 @@ tu102_fifo = {
 	.recover_chan = tu102_fifo_recover_chan,
 	.runlist = &tu102_fifo_runlist,
 	.pbdma = &tu102_fifo_pbdma,
+	.runl = &tu102_runl,
 	.runq = &gv100_runq,
+	.engn = &gv100_engn,
+	.engn_ce = &gv100_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0, TURING_CHANNEL_GPFIFO_A }, &tu102_chan, .ctor = tu102_fifo_gpfifo_new },
 };
