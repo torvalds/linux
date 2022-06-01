@@ -1163,8 +1163,11 @@ static int fsl_sai_probe(struct platform_device *pdev)
 	 */
 	if (sai->soc_data->use_imx_pcm) {
 		ret = imx_pcm_dma_init(pdev);
-		if (ret)
+		if (ret) {
+			if (!IS_ENABLED(CONFIG_SND_SOC_IMX_PCM_DMA))
+				dev_err(dev, "Error: You must enable the imx-pcm-dma support!\n");
 			goto err_pm_get_sync;
+		}
 	} else {
 		ret = devm_snd_dmaengine_pcm_register(dev, NULL, 0);
 		if (ret)
