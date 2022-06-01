@@ -57,7 +57,11 @@ struct sseu_dev_info {
 	u8 subslice_mask[GEN_SS_MASK_SIZE];
 	u8 geometry_subslice_mask[GEN_SS_MASK_SIZE];
 	u8 compute_subslice_mask[GEN_SS_MASK_SIZE];
-	u8 eu_mask[GEN_SS_MASK_SIZE * GEN_MAX_EU_STRIDE];
+	union {
+		u16 hsw[GEN_MAX_HSW_SLICES][GEN_MAX_SS_PER_HSW_SLICE];
+		u16 xehp[GEN_MAX_DSS];
+	} eu_mask;
+
 	u16 eu_total;
 	u8 eu_per_subslice;
 	u8 min_eu_in_pool;
@@ -78,7 +82,6 @@ struct sseu_dev_info {
 	u8 max_eus_per_subslice;
 
 	u8 ss_stride;
-	u8 eu_stride;
 };
 
 /*
@@ -149,5 +152,8 @@ void intel_sseu_print_topology(struct drm_i915_private *i915,
 			       struct drm_printer *p);
 
 u16 intel_slicemask_from_dssmask(u64 dss_mask, int dss_per_slice);
+
+int intel_sseu_copy_eumask_to_user(void __user *to,
+				   const struct sseu_dev_info *sseu);
 
 #endif /* __INTEL_SSEU_H__ */

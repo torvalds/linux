@@ -35,6 +35,7 @@ static int fill_topology_info(const struct sseu_dev_info *sseu,
 {
 	struct drm_i915_query_topology_info topo;
 	u32 slice_length, subslice_length, eu_length, total_length;
+	int eu_stride = GEN_SSEU_STRIDE(sseu->max_eus_per_subslice);
 	int ret;
 
 	BUILD_BUG_ON(sizeof(u8) != sizeof(sseu->slice_mask));
@@ -44,7 +45,7 @@ static int fill_topology_info(const struct sseu_dev_info *sseu,
 
 	slice_length = sizeof(sseu->slice_mask);
 	subslice_length = sseu->max_slices * sseu->ss_stride;
-	eu_length = sseu->max_slices * sseu->max_subslices * sseu->eu_stride;
+	eu_length = sseu->max_slices * sseu->max_subslices * eu_stride;
 	total_length = sizeof(topo) + slice_length + subslice_length +
 		       eu_length;
 
@@ -61,7 +62,7 @@ static int fill_topology_info(const struct sseu_dev_info *sseu,
 	topo.subslice_offset = slice_length;
 	topo.subslice_stride = sseu->ss_stride;
 	topo.eu_offset = slice_length + subslice_length;
-	topo.eu_stride = sseu->eu_stride;
+	topo.eu_stride = eu_stride;
 
 	if (copy_to_user(u64_to_user_ptr(query_item->data_ptr),
 			 &topo, sizeof(topo)))
@@ -76,10 +77,10 @@ static int fill_topology_info(const struct sseu_dev_info *sseu,
 			 subslice_mask, subslice_length))
 		return -EFAULT;
 
-	if (copy_to_user(u64_to_user_ptr(query_item->data_ptr +
-					 sizeof(topo) +
-					 slice_length + subslice_length),
-			 sseu->eu_mask, eu_length))
+	if (intel_sseu_copy_eumask_to_user(u64_to_user_ptr(query_item->data_ptr +
+							   sizeof(topo) +
+							   slice_length + subslice_length),
+					   sseu))
 		return -EFAULT;
 
 	return total_length;
