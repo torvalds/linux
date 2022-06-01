@@ -116,7 +116,7 @@ static int amdgpu_cs_parser_init(struct amdgpu_cs_parser *p, union drm_amdgpu_cs
 	int ret;
 
 	if (cs->in.num_chunks == 0)
-		return 0;
+		return -EINVAL;
 
 	chunk_array = kvmalloc_array(cs->in.num_chunks, sizeof(uint64_t), GFP_KERNEL);
 	if (!chunk_array)
@@ -1252,7 +1252,7 @@ static int amdgpu_cs_submit(struct amdgpu_cs_parser *p,
 
 	p->fence = dma_fence_get(&job->base.s_fence->finished);
 
-	amdgpu_ctx_add_fence(p->ctx, entity, p->fence, &seq);
+	seq = amdgpu_ctx_add_fence(p->ctx, entity, p->fence);
 	amdgpu_cs_post_dependencies(p);
 
 	if ((job->preamble_status & AMDGPU_PREAMBLE_IB_PRESENT) &&

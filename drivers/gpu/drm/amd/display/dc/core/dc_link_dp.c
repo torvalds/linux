@@ -2783,31 +2783,37 @@ bool perform_link_training_with_retries(
 	struct dc_link *link = stream->link;
 	enum dp_panel_mode panel_mode = dp_get_panel_mode(link);
 	enum link_training_result status = LINK_TRAINING_CR_FAIL_LANE0;
-	struct dc_link_settings current_setting = *link_setting;
+	struct dc_link_settings cur_link_settings = *link_setting;
 	const struct link_hwss *link_hwss = get_link_hwss(link, &pipe_ctx->link_res);
 	int fail_count = 0;
+	bool is_link_bw_low = false; /* link bandwidth < stream bandwidth */
+	bool is_link_bw_min = /* RBR x 1 */
+		(cur_link_settings.link_rate <= LINK_RATE_LOW) &&
+		(cur_link_settings.lane_count <= LANE_COUNT_ONE);
 
 	dp_trace_commit_lt_init(link);
 
 
-	if (dp_get_link_encoding_format(&current_setting) == DP_8b_10b_ENCODING)
+	if (dp_get_link_encoding_format(&cur_link_settings) == DP_8b_10b_ENCODING)
 		/* We need to do this before the link training to ensure the idle
 		 * pattern in SST mode will be sent right after the link training
 		 */
 		link_hwss->setup_stream_encoder(pipe_ctx);
 
 	dp_trace_set_lt_start_timestamp(link, false);
-	for (j = 0; j < attempts; ++j) {
+	j = 0;
+	while (j < attempts && fail_count < (attempts * 10)) {
 
-		DC_LOG_HW_LINK_TRAINING("%s: Beginning link training attempt %u of %d\n",
-			__func__, (unsigned int)j + 1, attempts);
+		DC_LOG_HW_LINK_TRAINING("%s: Beginning link training attempt %u of %d @ rate(%d) x lane(%d)\n",
+			__func__, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
+			cur_link_settings.lane_count);
 
 		dp_enable_link_phy(
 			link,
 			&pipe_ctx->link_res,
 			signal,
 			pipe_ctx->clock_source->id,
-			&current_setting);
+			&cur_link_settings);
 
 		if (stream->sink_patches.dppowerup_delay > 0) {
 			int delay_dp_power_up_in_ms = stream->sink_patches.dppowerup_delay;
@@ -2832,30 +2838,30 @@ bool perform_link_training_with_retries(
 		dp_set_panel_mode(link, panel_mode);
 
 		if (link->aux_access_disabled) {
-			dc_link_dp_perform_link_training_skip_aux(link, &pipe_ctx->link_res, &current_setting);
+			dc_link_dp_perform_link_training_skip_aux(link, &pipe_ctx->link_res, &cur_link_settings);
 			return true;
 		} else {
 			/** @todo Consolidate USB4 DP and DPx.x training. */
 			if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA) {
 				status = dc_link_dpia_perform_link_training(link,
 						&pipe_ctx->link_res,
-						&current_setting,
+						&cur_link_settings,
 						skip_video_pattern);
 
 				/* Transmit idle pattern once training successful. */
-				if (status == LINK_TRAINING_SUCCESS)
+				if (status == LINK_TRAINING_SUCCESS && !is_link_bw_low)
 					dp_set_hw_test_pattern(link, &pipe_ctx->link_res, DP_TEST_PATTERN_VIDEO_MODE, NULL, 0);
 			} else {
 				status = dc_link_dp_perform_link_training(link,
 						&pipe_ctx->link_res,
-						&current_setting,
+						&cur_link_settings,
 						skip_video_pattern);
 			}
 
 			dp_trace_lt_total_count_increment(link, false);
 			dp_trace_lt_result_update(link, status, false);
 			dp_trace_set_lt_end_timestamp(link, false);
-			if (status == LINK_TRAINING_SUCCESS)
+			if (status == LINK_TRAINING_SUCCESS && !is_link_bw_low)
 				return true;
 		}
 
@@ -2866,8 +2872,9 @@ bool perform_link_training_with_retries(
 		if (j == (attempts - 1) && link->ep_type == DISPLAY_ENDPOINT_PHY)
 			break;
 
-		DC_LOG_WARNING("%s: Link training attempt %u of %d failed\n",
-			__func__, (unsigned int)j + 1, attempts);
+		DC_LOG_WARNING("%s: Link training attempt %u of %d failed @ rate(%d) x lane(%d)\n",
+			__func__, (unsigned int)j + 1, attempts, cur_link_settings.link_rate,
+			cur_link_settings.lane_count);
 
 		dp_disable_link_phy(link, &pipe_ctx->link_res, signal);
 
@@ -2876,27 +2883,49 @@ bool perform_link_training_with_retries(
 			enum dc_connection_type type = dc_connection_none;
 
 			dc_link_detect_sink(link, &type);
-			if (type == dc_connection_none)
+			if (type == dc_connection_none) {
+				DC_LOG_HW_LINK_TRAINING("%s: Aborting training because sink unplugged\n", __func__);
 				break;
-		} else if (do_fallback) {
+			}
+		}
+
+		/* Try to train again at original settings if:
+		 * - not falling back between training attempts;
+		 * - aborted previous attempt due to reasons other than sink unplug;
+		 * - successfully trained but at a link rate lower than that required by stream;
+		 * - reached minimum link bandwidth.
+		 */
+		if (!do_fallback || (status == LINK_TRAINING_ABORT) ||
+				(status == LINK_TRAINING_SUCCESS && is_link_bw_low) ||
+				is_link_bw_min) {
+			j++;
+			cur_link_settings = *link_setting;
+			delay_between_attempts += LINK_TRAINING_RETRY_DELAY;
+			is_link_bw_low = false;
+			is_link_bw_min = (cur_link_settings.link_rate <= LINK_RATE_LOW) &&
+				(cur_link_settings.lane_count <= LANE_COUNT_ONE);
+
+		} else if (do_fallback) { /* Try training at lower link bandwidth if doing fallback. */
 			uint32_t req_bw;
 			uint32_t link_bw;
 
-			decide_fallback_link_setting(link, *link_setting, &current_setting, status);
-			/* Fail link training if reduced link bandwidth no longer meets
-			 * stream requirements.
+			decide_fallback_link_setting(link, *link_setting, &cur_link_settings, status);
+			/* Flag if reduced link bandwidth no longer meets stream requirements or fallen back to
+			 * minimum link bandwidth.
 			 */
 			req_bw = dc_bandwidth_in_kbps_from_timing(&stream->timing);
-			link_bw = dc_link_bandwidth_kbps(link, &current_setting);
-			if (req_bw > link_bw)
-				break;
+			link_bw = dc_link_bandwidth_kbps(link, &cur_link_settings);
+			is_link_bw_low = (req_bw > link_bw);
+			is_link_bw_min = ((cur_link_settings.link_rate <= LINK_RATE_LOW) &&
+				(cur_link_settings.lane_count <= LANE_COUNT_ONE));
+
+			if (is_link_bw_low)
+				DC_LOG_WARNING("%s: Link bandwidth too low after fallback req_bw(%d) > link_bw(%d)\n",
+					__func__, req_bw, link_bw);
 		}
 
 		msleep(delay_between_attempts);
-
-		delay_between_attempts += LINK_TRAINING_RETRY_DELAY;
 	}
-
 	return false;
 }
 
@@ -5097,13 +5126,16 @@ static bool dpcd_read_sink_ext_caps(struct dc_link *link)
 	return true;
 }
 
-void dp_retrieve_lttpr_cap(struct dc_link *link)
+bool dp_retrieve_lttpr_cap(struct dc_link *link)
 {
+	uint8_t lttpr_dpcd_data[8];
 	bool allow_lttpr_non_transparent_mode = 0;
+	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
 	bool vbios_lttpr_interop = link->dc->caps.vbios_lttpr_aware;
 	enum dc_status status = DC_ERROR_UNEXPECTED;
+	bool is_lttpr_present = false;
 
-	memset(link->lttpr_dpcd_data, '\0', sizeof(link->lttpr_dpcd_data));
+	memset(lttpr_dpcd_data, '\0', sizeof(lttpr_dpcd_data));
 
 	if ((link->dc->config.allow_lttpr_non_transparent_mode.bits.DP2_0 &&
 			link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)) {
@@ -5113,116 +5145,82 @@ void dp_retrieve_lttpr_cap(struct dc_link *link)
 		allow_lttpr_non_transparent_mode = 1;
 	}
 
-	link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
-	link->lttpr_support = LTTPR_UNSUPPORTED;
-
 	/*
-	 * Logic to determine LTTPR support
+	 * Logic to determine LTTPR mode
 	 */
-	if (vbios_lttpr_interop)
-		link->lttpr_support = LTTPR_SUPPORTED;
-	else if (link->dc->config.allow_lttpr_non_transparent_mode.raw == 0
-			|| !link->dc->caps.extended_aux_timeout_support)
-			link->lttpr_support = LTTPR_UNSUPPORTED;
-	else
-		link->lttpr_support = LTTPR_CHECK_EXT_SUPPORT;
+	link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+	if (vbios_lttpr_enable && vbios_lttpr_interop)
+		link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	else if (!vbios_lttpr_enable && vbios_lttpr_interop) {
+		if (allow_lttpr_non_transparent_mode)
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+		else
+			link->lttpr_mode = LTTPR_MODE_TRANSPARENT;
+	} else if (!vbios_lttpr_enable && !vbios_lttpr_interop) {
+		if (!allow_lttpr_non_transparent_mode || !link->dc->caps.extended_aux_timeout_support)
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+		else
+			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
+	}
 
+#if defined(CONFIG_DRM_AMD_DC_DCN)
 	/* Check DP tunnel LTTPR mode debug option. */
 	if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
 	    link->dc->debug.dpia_debug.bits.force_non_lttpr)
-		link->lttpr_support = LTTPR_UNSUPPORTED;
+		link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
+#endif
 
-	if (link->lttpr_support > LTTPR_UNSUPPORTED) {
+	if (link->lttpr_mode == LTTPR_MODE_NON_TRANSPARENT || link->lttpr_mode == LTTPR_MODE_TRANSPARENT) {
 		/* By reading LTTPR capability, RX assumes that we will enable
 		 * LTTPR extended aux timeout if LTTPR is present.
 		 */
 		status = core_link_read_dpcd(
 				link,
 				DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV,
-				link->lttpr_dpcd_data,
-				sizeof(link->lttpr_dpcd_data));
+				lttpr_dpcd_data,
+				sizeof(lttpr_dpcd_data));
+
+		link->dpcd_caps.lttpr_caps.revision.raw =
+				lttpr_dpcd_data[DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_link_rate =
+				lttpr_dpcd_data[DP_MAX_LINK_RATE_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.phy_repeater_cnt =
+				lttpr_dpcd_data[DP_PHY_REPEATER_CNT -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_lane_count =
+				lttpr_dpcd_data[DP_MAX_LANE_COUNT_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.mode =
+				lttpr_dpcd_data[DP_PHY_REPEATER_MODE -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.max_ext_timeout =
+				lttpr_dpcd_data[DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+		link->dpcd_caps.lttpr_caps.main_link_channel_coding.raw =
+				lttpr_dpcd_data[DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.raw =
+				lttpr_dpcd_data[DP_PHY_REPEATER_128B132B_RATES -
+								DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
+
+		/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
+		is_lttpr_present = (link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
+				link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
+				link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
+		if (is_lttpr_present) {
+			CONN_DATA_DETECT(link, lttpr_dpcd_data, sizeof(lttpr_dpcd_data), "LTTPR Caps: ");
+			configure_lttpr_mode_transparent(link);
+		} else
+			link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
 	}
-}
-
-bool dp_parse_lttpr_mode(struct dc_link *link)
-{
-	bool dpcd_allow_lttpr_non_transparent_mode = false;
-	bool is_lttpr_present = false;
-
-	bool vbios_lttpr_enable = link->dc->caps.vbios_lttpr_enable;
-
-	if ((link->dc->config.allow_lttpr_non_transparent_mode.bits.DP2_0 &&
-			link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED)) {
-		dpcd_allow_lttpr_non_transparent_mode = true;
-	} else if (link->dc->config.allow_lttpr_non_transparent_mode.bits.DP1_4A &&
-			!link->dpcd_caps.channel_coding_cap.bits.DP_128b_132b_SUPPORTED) {
-		dpcd_allow_lttpr_non_transparent_mode = true;
-	}
-
-	/*
-	 * Logic to determine LTTPR mode
-	 */
-	if (link->lttpr_support == LTTPR_SUPPORTED)
-		if (vbios_lttpr_enable)
-			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
-		else if (dpcd_allow_lttpr_non_transparent_mode)
-			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
-		else
-			link->lttpr_mode = LTTPR_MODE_TRANSPARENT;
-	else	// lttpr_support == LTTPR_CHECK_EXT_SUPPORT
-		if (dpcd_allow_lttpr_non_transparent_mode) {
-			link->lttpr_support = LTTPR_SUPPORTED;
-			link->lttpr_mode = LTTPR_MODE_NON_TRANSPARENT;
-		} else {
-			link->lttpr_support = LTTPR_UNSUPPORTED;
-		}
-
-	if (link->lttpr_support == LTTPR_UNSUPPORTED)
-		return false;
-
-	link->dpcd_caps.lttpr_caps.revision.raw =
-			link->lttpr_dpcd_data[DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.max_link_rate =
-			link->lttpr_dpcd_data[DP_MAX_LINK_RATE_PHY_REPEATER -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.phy_repeater_cnt =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_CNT -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.max_lane_count =
-			link->lttpr_dpcd_data[DP_MAX_LANE_COUNT_PHY_REPEATER -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.mode =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_MODE -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.max_ext_timeout =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_EXTENDED_WAIT_TIMEOUT -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.main_link_channel_coding.raw =
-			link->lttpr_dpcd_data[DP_MAIN_LINK_CHANNEL_CODING_PHY_REPEATER -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-	link->dpcd_caps.lttpr_caps.supported_128b_132b_rates.raw =
-			link->lttpr_dpcd_data[DP_PHY_REPEATER_128B132B_RATES -
-							DP_LT_TUNABLE_PHY_REPEATER_FIELD_DATA_STRUCTURE_REV];
-
-
-	/* Attempt to train in LTTPR transparent mode if repeater count exceeds 8. */
-	is_lttpr_present = (link->dpcd_caps.lttpr_caps.max_lane_count > 0 &&
-			link->dpcd_caps.lttpr_caps.max_lane_count <= 4 &&
-			link->dpcd_caps.lttpr_caps.revision.raw >= 0x14);
-	if (is_lttpr_present) {
-		CONN_DATA_DETECT(link, link->lttpr_dpcd_data, sizeof(link->lttpr_dpcd_data), "LTTPR Caps: ");
-		configure_lttpr_mode_transparent(link);
-	} else
-		link->lttpr_mode = LTTPR_MODE_NON_LTTPR;
-
 	return is_lttpr_present;
 }
 
@@ -5374,8 +5372,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		status = wa_try_to_wake_dprx(link, timeout_ms);
 	}
 
-	dp_retrieve_lttpr_cap(link);
-
+	is_lttpr_present = dp_retrieve_lttpr_cap(link);
 	/* Read DP tunneling information. */
 	status = dpcd_get_tunneling_device_data(link);
 
@@ -5410,9 +5407,6 @@ static bool retrieve_link_cap(struct dc_link *link)
 		dm_error("%s: Read receiver caps dpcd data failed.\n", __func__);
 		return false;
 	}
-
-	if (link->lttpr_support > LTTPR_UNSUPPORTED)
-		is_lttpr_present = dp_parse_lttpr_mode(link);
 
 	if (!is_lttpr_present)
 		dc_link_aux_try_to_configure_timeout(link->ddc, LINK_AUX_DEFAULT_TIMEOUT_PERIOD);

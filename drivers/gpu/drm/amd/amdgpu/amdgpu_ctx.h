@@ -40,7 +40,7 @@ struct amdgpu_ctx_entity {
 
 struct amdgpu_ctx {
 	struct kref			refcount;
-	struct amdgpu_device		*adev;
+	struct amdgpu_ctx_mgr		*mgr;
 	unsigned			reset_counter;
 	unsigned			reset_counter_query;
 	uint32_t			vram_lost_counter;
@@ -70,9 +70,9 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
 int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			  u32 ring, struct drm_sched_entity **entity);
-void amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
-			  struct drm_sched_entity *entity,
-			  struct dma_fence *fence, uint64_t *seq);
+uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
+			      struct drm_sched_entity *entity,
+			      struct dma_fence *fence);
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 				       struct drm_sched_entity *entity,
 				       uint64_t seq);
@@ -85,7 +85,8 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx,
 			       struct drm_sched_entity *entity);
 
-void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
+void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr,
+			 struct amdgpu_device *adev);
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);
 long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout);
 void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);

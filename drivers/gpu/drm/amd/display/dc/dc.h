@@ -47,7 +47,7 @@ struct aux_payload;
 struct set_config_cmd_payload;
 struct dmub_notification;
 
-#define DC_VER "3.2.185"
+#define DC_VER "3.2.186"
 
 #define MAX_SURFACES 3
 #define MAX_PLANES 6
@@ -329,7 +329,7 @@ struct dc_config {
 	bool disable_dmcu;
 	bool enable_4to1MPC;
 	bool enable_windowed_mpo_odm;
-	bool allow_edp_hotplug_detection;
+	uint32_t allow_edp_hotplug_detection;
 	bool clamp_min_dcfclk;
 	uint64_t vblank_alignment_dto_params;
 	uint8_t  vblank_alignment_max_frame_time_diff;
@@ -1011,6 +1011,7 @@ struct dc_plane_state {
 
 	bool is_tiling_rotated;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool global_alpha;
 	int  global_alpha_value;
 	bool visible;
@@ -1045,6 +1046,7 @@ struct dc_plane_info {
 	bool horizontal_mirror;
 	bool visible;
 	bool per_pixel_alpha;
+	bool pre_multiplied_alpha;
 	bool global_alpha;
 	int  global_alpha_value;
 	bool input_csc_enabled;

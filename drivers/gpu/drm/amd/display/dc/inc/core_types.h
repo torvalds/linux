@@ -486,4 +486,11 @@ struct dc_state {
 	} perf_params;
 };
 
+struct dc_bounding_box_max_clk {
+	int max_dcfclk_mhz;
+	int max_dispclk_mhz;
+	int max_dppclk_mhz;
+	int max_phyclk_mhz;
+};
+
 #endif /* _CORE_TYPES_H_ */
