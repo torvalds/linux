@@ -100,20 +100,6 @@ const struct nvkm_engn_func
 gk104_engn_ce = {
 };
 
-void
-gk104_fifo_uevent_fini(struct nvkm_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->engine.subdev.device;
-	nvkm_mask(device, 0x002140, 0x80000000, 0x00000000);
-}
-
-void
-gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->engine.subdev.device;
-	nvkm_mask(device, 0x002140, 0x80000000, 0x80000000);
-}
-
 static const struct nvkm_bitfield gk104_fifo_pbdma_intr_1[] = {
 	{ 0x00000001, "HCE_RE_ILLEGAL_OP" },
 	{ 0x00000002, "HCE_RE_ALIGNB" },
@@ -873,12 +859,6 @@ gk104_fifo_intr_runlist(struct gk104_fifo *fifo)
 	}
 }
 
-void
-gk104_fifo_intr_engine(struct gk104_fifo *fifo)
-{
-	nvkm_fifo_uevent(&fifo->base);
-}
-
 irqreturn_t
 gk104_fifo_intr(struct nvkm_inth *inth)
 {
@@ -960,13 +940,15 @@ gk104_fifo_intr(struct nvkm_inth *inth)
 
 	if (stat & 0x80000000) {
 		nvkm_wr32(device, 0x002100, 0x80000000);
-		gk104_fifo_intr_engine(gk104_fifo(fifo));
+		nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
 		stat &= ~0x80000000;
 	}
 
 	if (stat) {
 		nvkm_error(subdev, "INTR %08x\n", stat);
+		spin_lock(&fifo->lock);
 		nvkm_mask(device, 0x002140, stat, 0x00000000);
+		spin_unlock(&fifo->lock);
 		nvkm_wr32(device, 0x002100, stat);
 	}
 
@@ -1175,11 +1157,10 @@ gk104_fifo = {
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk104_fifo_runlist,
 	.pbdma = &gk104_fifo_pbdma,
+	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk104_runl,
 	.runq = &gk104_runq,
 	.engn = &gk104_engn,

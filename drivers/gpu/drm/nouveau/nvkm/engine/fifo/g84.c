@@ -37,19 +37,33 @@ const struct nvkm_engn_func
 g84_engn = {
 };
 
-void
-g84_fifo_uevent_fini(struct nvkm_fifo *fifo)
+static void
+g84_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
 {
-	struct nvkm_device *device = fifo->engine.subdev.device;
-	nvkm_mask(device, 0x002140, 0x40000000, 0x00000000);
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	nvkm_mask(fifo->engine.subdev.device, 0x002140, 0x40000000, 0x00000000);
+	spin_unlock_irqrestore(&fifo->lock, flags);
 }
 
-void
-g84_fifo_uevent_init(struct nvkm_fifo *fifo)
+static void
+g84_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
 {
-	struct nvkm_device *device = fifo->engine.subdev.device;
-	nvkm_mask(device, 0x002140, 0x40000000, 0x40000000);
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	nvkm_mask(fifo->engine.subdev.device, 0x002140, 0x40000000, 0x40000000);
+	spin_unlock_irqrestore(&fifo->lock, flags);
 }
+
+const struct nvkm_event_func
+g84_fifo_nonstall = {
+	.init = g84_fifo_nonstall_allow,
+	.fini = g84_fifo_nonstall_block,
+};
 
 int
 g84_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
@@ -105,8 +119,7 @@ g84_fifo = {
 	.engine_id = g84_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
-	.uevent_init = g84_fifo_uevent_init,
-	.uevent_fini = g84_fifo_uevent_fini,
+	.nonstall = &g84_fifo_nonstall,
 	.runl = &nv50_runl,
 	.engn = &g84_engn,
 	.engn_sw = &nv50_engn_sw,

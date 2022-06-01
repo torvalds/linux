@@ -8,7 +8,6 @@ struct nvkm_memory;
 struct gk104_fifo;
 struct gk104_fifo_chan;
 
-void nvkm_fifo_uevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);
 void nvkm_fifo_recover_chan(struct nvkm_fifo *, int chid);
 
@@ -46,8 +45,6 @@ struct nvkm_fifo_func {
 	int (*engine_id)(struct nvkm_fifo *, struct nvkm_engine *);
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
-	void (*uevent_init)(struct nvkm_fifo *);
-	void (*uevent_fini)(struct nvkm_fifo *);
 	void (*recover_chan)(struct nvkm_fifo *, int chid);
 
 	const struct gk104_fifo_runlist_func {
@@ -64,6 +61,8 @@ struct nvkm_fifo_func {
 		void (*init)(struct gk104_fifo *);
 		void (*init_timeout)(struct gk104_fifo *);
 	} *pbdma;
+
+	const struct nvkm_event_func *nonstall;
 
 	const struct nvkm_runl_func *runl;
 	const struct nvkm_runq_func *runq;
@@ -110,12 +109,14 @@ int nv50_fifo_chid_ctor(struct nvkm_fifo *, int);
 extern const struct nvkm_runl_func nv50_runl;
 extern const struct nvkm_engn_func nv50_engn_sw;
 
+extern const struct nvkm_event_func g84_fifo_nonstall;
 extern const struct nvkm_engn_func g84_engn;
 extern const struct nvkm_chan_func g84_chan;
 
 int gf100_fifo_chid_ctor(struct nvkm_fifo *, int);
 int gf100_fifo_runq_nr(struct nvkm_fifo *);
 void gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *, int);
+extern const struct nvkm_event_func gf100_fifo_nonstall;
 extern const struct nvkm_engn_func gf100_engn_sw;
 
 int gk104_fifo_chid_nr(struct nvkm_fifo *);

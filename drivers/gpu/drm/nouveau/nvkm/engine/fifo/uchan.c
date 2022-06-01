@@ -39,6 +39,7 @@ static int
 nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
 {
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
+	struct nvkm_runl *runl = chan->cgrp->runl;
 	union nvif_chan_event_args *args = argv;
 
 	if (!uevent)
@@ -48,6 +49,8 @@ nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 
 	switch (args->v0.type) {
 	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
+		return nvkm_uevent_add(uevent, &runl->fifo->nonstall.event, 0,
+				       NVKM_FIFO_NONSTALL_EVENT, NULL);
 	case NVIF_CHAN_EVENT_V0_KILLED:
 		return chan->object.func->uevent(&chan->object, argv, argc, uevent);
 	default:

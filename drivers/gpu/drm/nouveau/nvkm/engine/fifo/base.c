@@ -129,32 +129,6 @@ static const struct nvkm_event_func
 nvkm_fifo_kevent_func = {
 };
 
-static void
-nvkm_fifo_uevent_fini(struct nvkm_event *event, int type, int index)
-{
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), uevent);
-	fifo->func->uevent_fini(fifo);
-}
-
-static void
-nvkm_fifo_uevent_init(struct nvkm_event *event, int type, int index)
-{
-	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), uevent);
-	fifo->func->uevent_init(fifo);
-}
-
-static const struct nvkm_event_func
-nvkm_fifo_uevent_func = {
-	.init = nvkm_fifo_uevent_init,
-	.fini = nvkm_fifo_uevent_fini,
-};
-
-void
-nvkm_fifo_uevent(struct nvkm_fifo *fifo)
-{
-	nvkm_event_ntfy(&fifo->uevent, 0, NVKM_FIFO_EVENT_NON_STALL_INTR);
-}
-
 static int
 nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
 		    void *argv, u32 argc, struct nvkm_object **pobject)
@@ -365,7 +339,7 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	if (fifo->func->dtor)
 		data = fifo->func->dtor(fifo);
 	nvkm_event_fini(&fifo->kevent);
-	nvkm_event_fini(&fifo->uevent);
+	nvkm_event_fini(&fifo->nonstall.event);
 	mutex_destroy(&fifo->mutex);
 	return data;
 }
@@ -402,9 +376,9 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	nr = func->chid_nr(fifo);
 	fifo->nr = nr;
 
-	if (func->uevent_init) {
-		ret = nvkm_event_init(&nvkm_fifo_uevent_func, &fifo->engine.subdev, 1, 1,
-				      &fifo->uevent);
+	if (func->nonstall) {
+		ret = nvkm_event_init(func->nonstall, &fifo->engine.subdev, 1, 1,
+				      &fifo->nonstall.event);
 		if (ret)
 			return ret;
 	}

@@ -69,13 +69,10 @@ void gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 void gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit);
 void gk104_fifo_intr_pbdma_1(struct gk104_fifo *fifo, int unit);
 void gk104_fifo_intr_runlist(struct gk104_fifo *fifo);
-void gk104_fifo_intr_engine(struct gk104_fifo *fifo);
 void *gk104_fifo_dtor(struct nvkm_fifo *base);
 int gk104_fifo_oneinit(struct nvkm_fifo *);
 void gk104_fifo_init(struct nvkm_fifo *base);
 void gk104_fifo_fini(struct nvkm_fifo *base);
-void gk104_fifo_uevent_fini(struct nvkm_fifo *fifo);
-void gk104_fifo_uevent_init(struct nvkm_fifo *fifo);
 
 extern const struct gk104_fifo_pbdma_func gk104_fifo_pbdma;
 void gk104_fifo_pbdma_init(struct gk104_fifo *);

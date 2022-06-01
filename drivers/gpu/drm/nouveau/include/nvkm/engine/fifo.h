@@ -44,13 +44,16 @@ struct nvkm_fifo {
 	struct list_head runqs;
 	struct list_head runls;
 
+	struct {
+#define NVKM_FIFO_NONSTALL_EVENT BIT(0)
+		struct nvkm_event event;
+	} nonstall;
+
 	int nr;
 	struct list_head chan;
 	spinlock_t lock;
 	struct mutex mutex;
 
-#define NVKM_FIFO_EVENT_NON_STALL_INTR BIT(0)
-	struct nvkm_event uevent; /* async user trigger */
 #define NVKM_FIFO_EVENT_KILLED         BIT(0)
 	struct nvkm_event kevent; /* channel killed */
 };

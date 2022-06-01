@@ -223,9 +223,6 @@ nvkm_fifo_chan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct n
 	union nvif_chan_event_args *args = argv;
 
 	switch (args->v0.type) {
-	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
-		return nvkm_uevent_add(uevent, &chan->fifo->uevent, 0,
-				       NVKM_FIFO_EVENT_NON_STALL_INTR, NULL);
 	case NVIF_CHAN_EVENT_V0_KILLED:
 		return nvkm_uevent_add(uevent, &chan->fifo->kevent, chan->chid,
 				       NVKM_FIFO_EVENT_KILLED, NULL);

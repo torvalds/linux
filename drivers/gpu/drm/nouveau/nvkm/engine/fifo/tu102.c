@@ -430,13 +430,15 @@ tu102_fifo_intr(struct nvkm_inth *inth)
 
 	if (stat & 0x80000000) {
 		nvkm_wr32(device, 0x002100, 0x80000000);
-		gk104_fifo_intr_engine(gk104_fifo(fifo));
+		nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
 		stat &= ~0x80000000;
 	}
 
 	if (stat) {
 		nvkm_error(subdev, "INTR %08x\n", stat);
+		spin_lock(&fifo->lock);
 		nvkm_mask(device, 0x002140, stat, 0x00000000);
+		spin_unlock(&fifo->lock);
 		nvkm_wr32(device, 0x002100, stat);
 	}
 
@@ -461,11 +463,10 @@ tu102_fifo = {
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = tu102_fifo_recover_chan,
 	.runlist = &tu102_fifo_runlist,
 	.pbdma = &tu102_fifo_pbdma,
+	.nonstall = &gf100_fifo_nonstall,
 	.runl = &tu102_runl,
 	.runq = &gv100_runq,
 	.engn = &gv100_engn,

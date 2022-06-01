@@ -39,20 +39,6 @@
 
 #include <nvif/class.h>
 
-static void
-gf100_fifo_uevent_init(struct nvkm_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->engine.subdev.device;
-	nvkm_mask(device, 0x002140, 0x80000000, 0x80000000);
-}
-
-static void
-gf100_fifo_uevent_fini(struct nvkm_fifo *fifo)
-{
-	struct nvkm_device *device = fifo->engine.subdev.device;
-	nvkm_mask(device, 0x002140, 0x80000000, 0x00000000);
-}
-
 static const struct nvkm_chan_func
 gf100_chan = {
 };
@@ -175,6 +161,34 @@ gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 
 static const struct nvkm_runl_func
 gf100_runl = {
+};
+
+static void
+gf100_fifo_nonstall_allow(struct nvkm_event *event, int type, int index)
+{
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	nvkm_mask(fifo->engine.subdev.device, 0x002140, 0x80000000, 0x80000000);
+	spin_unlock_irqrestore(&fifo->lock, flags);
+}
+
+void
+gf100_fifo_nonstall_block(struct nvkm_event *event, int type, int index)
+{
+	struct nvkm_fifo *fifo = container_of(event, typeof(*fifo), nonstall.event);
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	nvkm_mask(fifo->engine.subdev.device, 0x002140, 0x80000000, 0x00000000);
+	spin_unlock_irqrestore(&fifo->lock, flags);
+}
+
+const struct nvkm_event_func
+gf100_fifo_nonstall = {
+	.init = gf100_fifo_nonstall_allow,
+	.fini = gf100_fifo_nonstall_block,
 };
 
 static struct nvkm_engine *
@@ -490,9 +504,9 @@ gf100_fifo_intr_runlist(struct gf100_fifo *fifo)
 }
 
 static void
-gf100_fifo_intr_engine_unit(struct gf100_fifo *fifo, int engn)
+gf100_fifo_intr_engine_unit(struct nvkm_fifo *fifo, int engn)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 intr = nvkm_rd32(device, 0x0025a8 + (engn * 0x04));
 	u32 inte = nvkm_rd32(device, 0x002628);
@@ -503,12 +517,11 @@ gf100_fifo_intr_engine_unit(struct gf100_fifo *fifo, int engn)
 	for (unkn = 0; unkn < 8; unkn++) {
 		u32 ints = (intr >> (unkn * 0x04)) & inte;
 		if (ints & 0x1) {
-			nvkm_fifo_uevent(&fifo->base);
+			nvkm_event_ntfy(&fifo->nonstall.event, 0, NVKM_FIFO_NONSTALL_EVENT);
 			ints &= ~1;
 		}
 		if (ints) {
-			nvkm_error(subdev, "ENGINE %d %d %01x",
-				   engn, unkn, ints);
+			nvkm_error(subdev, "ENGINE %d %d %01x", engn, unkn, ints);
 			nvkm_mask(device, 0x002628, ints, 0);
 		}
 	}
@@ -519,9 +532,10 @@ gf100_fifo_intr_engine(struct gf100_fifo *fifo)
 {
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
 	u32 mask = nvkm_rd32(device, 0x0025a4);
+
 	while (mask) {
 		u32 unit = __ffs(mask);
-		gf100_fifo_intr_engine_unit(fifo, unit);
+		gf100_fifo_intr_engine_unit(&fifo->base, unit);
 		mask &= ~(1 << unit);
 	}
 }
@@ -596,7 +610,9 @@ gf100_fifo_intr(struct nvkm_inth *inth)
 
 	if (stat) {
 		nvkm_error(subdev, "INTR %08x\n", stat);
+		spin_lock(&fifo->lock);
 		nvkm_mask(device, 0x002140, stat, 0x00000000);
+		spin_unlock(&fifo->lock);
 		nvkm_wr32(device, 0x002100, stat);
 	}
 
@@ -744,8 +760,7 @@ gf100_fifo = {
 	.intr = gf100_fifo_intr,
 	.mmu_fault = &gf100_fifo_mmu_fault,
 	.engine_id = gf100_fifo_engine_id,
-	.uevent_init = gf100_fifo_uevent_init,
-	.uevent_fini = gf100_fifo_uevent_fini,
+	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gf100_runl,
 	.runq = &gf100_runq,
 	.engn = &gf100_engn,
