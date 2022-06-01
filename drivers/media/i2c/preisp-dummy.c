@@ -287,7 +287,10 @@ static long pisp_dmy_compat_ioctl32(struct v4l2_subdev *sd,
 
 		ret = pisp_dmy_ioctl(sd, cmd, inf);
 		if (!ret)
-			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (copy_to_user(up, inf, sizeof(*inf))) {
+				kfree(inf);
+				return -EFAULT;
+			}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -297,9 +300,12 @@ static long pisp_dmy_compat_ioctl32(struct v4l2_subdev *sd,
 			return ret;
 		}
 
-		ret = copy_from_user(cfg, up, sizeof(*cfg));
-		if (!ret)
-			ret = pisp_dmy_ioctl(sd, cmd, cfg);
+		if (copy_from_user(cfg, up, sizeof(*cfg))) {
+			kfree(cfg);
+			return -EFAULT;
+		}
+
+		ret = pisp_dmy_ioctl(sd, cmd, cfg);
 		kfree(cfg);
 		break;
 	default:
