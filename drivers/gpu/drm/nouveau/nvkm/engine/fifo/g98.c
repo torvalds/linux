@@ -19,11 +19,9 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "priv.h"
 #include "chan.h"
 #include "runl.h"
-
-#include "nv50.h"
-#include "channv50.h"
 
 #include <nvif/class.h>
 
@@ -49,7 +47,6 @@ g98_fifo_runl_ctor(struct nvkm_fifo *fifo)
 
 static const struct nvkm_fifo_func
 g98_fifo = {
-	.dtor = nv50_fifo_dtor,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = nv50_fifo_chid_ctor,
 	.runl_ctor = g98_fifo_runl_ctor,
@@ -62,12 +59,12 @@ g98_fifo = {
 	.engn = &g84_engn,
 	.engn_sw = &nv50_engn_sw,
 	.cgrp = {{                          }, &nv04_cgrp },
-	.chan = {{ 0, 0, G82_CHANNEL_GPFIFO }, &g84_chan, .oclass = &g84_fifo_gpfifo_oclass },
+	.chan = {{ 0, 0, G82_CHANNEL_GPFIFO }, &g84_chan },
 };
 
 int
 g98_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return nv50_fifo_new_(&g98_fifo, device, type, inst, pfifo);
+	return nvkm_fifo_new_(&g98_fifo, device, type, inst, pfifo);
 }

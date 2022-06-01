@@ -11,13 +11,8 @@ struct nvkm_memory;
 struct nvkm_runl;
 struct nvkm_runq;
 struct nvkm_vctx;
-struct gk104_fifo;
 
-struct nvkm_fifo_chan_oclass;
 struct nvkm_fifo_func {
-	void *(*dtor)(struct nvkm_fifo *);
-
-	int (*oneinit)(struct nvkm_fifo *);
 	int (*chid_nr)(struct nvkm_fifo *);
 	int (*chid_ctor)(struct nvkm_fifo *, int nr);
 	int (*runq_nr)(struct nvkm_fifo *);
@@ -59,17 +54,11 @@ struct nvkm_fifo_func {
 	struct nvkm_fifo_func_chan {
 		struct nvkm_sclass user;
 		const struct nvkm_chan_func *func;
-		const struct nvkm_fifo_chan_oclass {
-			int (*ctor)(struct nvkm_fifo *, const struct nvkm_oclass *,
-			void *data, u32 size, struct nvkm_object **);
-		} *oclass;
-		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *, void *, u32,
-			    struct nvkm_object **);
 	} chan;
 };
 
-int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_fifo *);
+int nvkm_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_fifo **);
 
 int nv04_fifo_chid_ctor(struct nvkm_fifo *, int);
 int nv04_fifo_runl_ctor(struct nvkm_fifo *);
@@ -204,4 +193,6 @@ extern const struct nvkm_fifo_func_mmu_fault tu102_fifo_mmu_fault;
 
 int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,
 		   void *argv, u32 argc, struct nvkm_object **);
+int nvkm_ucgrp_new(struct nvkm_fifo *, const struct nvkm_oclass *, void *argv, u32 argc,
+		   struct nvkm_object **);
 #endif

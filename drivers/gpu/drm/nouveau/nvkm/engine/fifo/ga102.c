@@ -29,7 +29,7 @@
 #include <subdev/top.h>
 
 #include <nvif/cl0080.h>
-#include <nvif/clc36f.h>
+#include <nvif/if0020.h>
 #include <nvif/class.h>
 
 struct ga102_fifo {
@@ -148,9 +148,10 @@ static int
 ga102_chan_new(struct nvkm_device *device,
 	       const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nvkm_object **pobject)
 {
-	struct volta_channel_gpfifo_a_v0 *args = argv;
+	struct nvif_chan_v0 *args = argv;
 	struct nvkm_top_device *tdev;
 	struct nvkm_vmm *vmm;
+	struct nvkm_memory *userd;
 	struct ga102_chan *chan;
 	int ret;
 
@@ -194,9 +195,9 @@ ga102_chan_new(struct nvkm_device *device,
 	nvkm_kmap(chan->inst);
 	nvkm_wo32(chan->inst, 0x010, 0x0000face);
 	nvkm_wo32(chan->inst, 0x030, 0x7ffff902);
-	nvkm_wo32(chan->inst, 0x048, lower_32_bits(args->ioffset));
-	nvkm_wo32(chan->inst, 0x04c, upper_32_bits(args->ioffset) |
-				     (order_base_2(args->ilength / 8) << 16));
+	nvkm_wo32(chan->inst, 0x048, lower_32_bits(args->offset));
+	nvkm_wo32(chan->inst, 0x04c, upper_32_bits(args->offset) |
+				     (order_base_2(args->length / 8) << 16));
 	nvkm_wo32(chan->inst, 0x084, 0x20400000);
 	nvkm_wo32(chan->inst, 0x094, 0x30000001);
 	nvkm_wo32(chan->inst, 0x0ac, 0x00020000);
@@ -209,7 +210,12 @@ ga102_chan_new(struct nvkm_device *device,
 	nvkm_wo32(chan->inst, 0x224, upper_32_bits(nvkm_memory_bar2(chan->mthd)));
 	nvkm_done(chan->inst);
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000, true, &chan->user);
+	userd = nvkm_umem_search(oclass->client, args->huserd);
+	if (IS_ERR(userd))
+		return PTR_ERR(userd);
+
+	ret = nvkm_memory_kmap(userd, &chan->user);
+	nvkm_memory_unref(&userd);
 	if (ret)
 		return ret;
 

@@ -19,12 +19,10 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "priv.h"
+#include "cgrp.h"
 #include "chan.h"
 #include "runl.h"
-
-#include "gk104.h"
-#include "cgrp.h"
-#include "changk104.h"
 
 #include <core/memory.h>
 #include <subdev/mc.h>
@@ -263,8 +261,6 @@ tu102_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
 
 static const struct nvkm_fifo_func
 tu102_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gm200_fifo_runq_nr,
@@ -279,19 +275,12 @@ tu102_fifo = {
 	.engn = &gv100_engn,
 	.engn_ce = &gv100_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
-	.chan = {{ 0, 0, TURING_CHANNEL_GPFIFO_A }, &tu102_chan, .ctor = tu102_fifo_gpfifo_new },
+	.chan = {{ 0, 0, TURING_CHANNEL_GPFIFO_A }, &tu102_chan },
 };
 
 int
 tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	struct gk104_fifo *fifo;
-
-	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
-		return -ENOMEM;
-	fifo->func = &tu102_fifo;
-	*pfifo = &fifo->base;
-
-	return nvkm_fifo_ctor(&tu102_fifo, device, type, inst, &fifo->base);
+	return nvkm_fifo_new_(&tu102_fifo, device, type, inst, pfifo);
 }

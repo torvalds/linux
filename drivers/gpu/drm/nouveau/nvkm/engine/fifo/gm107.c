@@ -24,8 +24,6 @@
 #include "priv.h"
 #include "chan.h"
 #include "runl.h"
-#include "gk104.h"
-#include "changk104.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fault.h>
@@ -131,8 +129,6 @@ gm107_fifo_chid_nr(struct nvkm_fifo *fifo)
 
 static const struct nvkm_fifo_func
 gm107_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm107_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
@@ -149,12 +145,12 @@ gm107_fifo = {
 	.engn = &gk104_engn,
 	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp },
-	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_B }, &gm107_chan, .ctor = &gk104_fifo_gpfifo_new },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_B }, &gm107_chan },
 };
 
 int
 gm107_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gm107_fifo, device, type, inst, 0, pfifo);
+	return nvkm_fifo_new_(&gm107_fifo, device, type, inst, pfifo);
 }

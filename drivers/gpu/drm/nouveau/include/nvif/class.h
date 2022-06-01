@@ -70,23 +70,23 @@
 #define MAXWELL_FAULT_BUFFER_A                        /* clb069.h */ 0x0000b069
 #define VOLTA_FAULT_BUFFER_A                          /* clb069.h */ 0x0000c369
 
-#define NV03_CHANNEL_DMA                              /* cl506b.h */ 0x0000006b
-#define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
-#define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
-#define NV40_CHANNEL_DMA                              /* cl506b.h */ 0x0000406e
+#define NV03_CHANNEL_DMA                              /* if0020.h */ 0x0000006b
+#define NV10_CHANNEL_DMA                              /* if0020.h */ 0x0000006e
+#define NV17_CHANNEL_DMA                              /* if0020.h */ 0x0000176e
+#define NV40_CHANNEL_DMA                              /* if0020.h */ 0x0000406e
 
 #define KEPLER_CHANNEL_GROUP_A                        /* if0021.h */ 0x0000a06c
 
-#define NV50_CHANNEL_GPFIFO                           /* cl506f.h */ 0x0000506f
-#define G82_CHANNEL_GPFIFO                            /* cl826f.h */ 0x0000826f
-#define FERMI_CHANNEL_GPFIFO                          /* cl906f.h */ 0x0000906f
-#define KEPLER_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000a06f
-#define KEPLER_CHANNEL_GPFIFO_B                       /* cla06f.h */ 0x0000a16f
-#define MAXWELL_CHANNEL_GPFIFO_A                      /* cla06f.h */ 0x0000b06f
-#define PASCAL_CHANNEL_GPFIFO_A                       /* cla06f.h */ 0x0000c06f
-#define VOLTA_CHANNEL_GPFIFO_A                        /* clc36f.h */ 0x0000c36f
-#define TURING_CHANNEL_GPFIFO_A                       /* clc36f.h */ 0x0000c46f
-#define AMPERE_CHANNEL_GPFIFO_B                       /* clc36f.h */ 0x0000c76f
+#define NV50_CHANNEL_GPFIFO                           /* if0020.h */ 0x0000506f
+#define G82_CHANNEL_GPFIFO                            /* if0020.h */ 0x0000826f
+#define FERMI_CHANNEL_GPFIFO                          /* if0020.h */ 0x0000906f
+#define KEPLER_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000a06f
+#define KEPLER_CHANNEL_GPFIFO_B                       /* if0020.h */ 0x0000a16f
+#define MAXWELL_CHANNEL_GPFIFO_A                      /* if0020.h */ 0x0000b06f
+#define PASCAL_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c06f
+#define VOLTA_CHANNEL_GPFIFO_A                        /* if0020.h */ 0x0000c36f
+#define TURING_CHANNEL_GPFIFO_A                       /* if0020.h */ 0x0000c46f
+#define AMPERE_CHANNEL_GPFIFO_B                       /* if0020.h */ 0x0000c76f
 
 #define NV50_DISP                                     /* if0010.h */ 0x00005070
 #define G82_DISP                                      /* if0010.h */ 0x00008270

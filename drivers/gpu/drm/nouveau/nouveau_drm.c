@@ -50,7 +50,6 @@
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
-#include <nvif/cla06f.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"

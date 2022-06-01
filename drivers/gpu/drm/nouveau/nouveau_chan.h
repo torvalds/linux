@@ -16,6 +16,9 @@ struct nouveau_channel {
 	struct nouveau_drm *drm;
 	struct nouveau_vmm *vmm;
 
+	struct nvif_mem mem_userd;
+	struct nvif_object *userd;
+
 	int runlist;
 	int chid;
 	u64 inst;

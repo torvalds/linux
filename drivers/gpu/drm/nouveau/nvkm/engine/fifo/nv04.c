@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
 
-#include "nv04.h"
-#include "channv04.h"
 #include "regsnv04.h"
 
 #include <core/ramht.h>
@@ -520,25 +519,6 @@ nv04_fifo_chid_nr(struct nvkm_fifo *fifo)
 	return 16;
 }
 
-int
-nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, int nr, const struct nv04_fifo_ramfc *ramfc,
-	       struct nvkm_fifo **pfifo)
-{
-	struct nv04_fifo *fifo;
-	int ret;
-
-	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
-		return -ENOMEM;
-	*pfifo = &fifo->base;
-
-	ret = nvkm_fifo_ctor(func, device, type, inst, &fifo->base);
-	if (ret)
-		return ret;
-
-	return 0;
-}
-
 static const struct nvkm_fifo_func
 nv04_fifo = {
 	.chid_nr = nv04_fifo_chid_nr,
@@ -552,12 +532,12 @@ nv04_fifo = {
 	.engn = &nv04_engn,
 	.engn_sw = &nv04_engn,
 	.cgrp = {{                        }, &nv04_cgrp },
-	.chan = {{ 0, 0, NV03_CHANNEL_DMA }, &nv04_chan, .oclass = &nv04_fifo_dma_oclass },
+	.chan = {{ 0, 0, NV03_CHANNEL_DMA }, &nv04_chan },
 };
 
 int
 nv04_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv04_fifo, device, type, inst, 0, NULL, pfifo);
+	return nvkm_fifo_new_(&nv04_fifo, device, type, inst, pfifo);
 }

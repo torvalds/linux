@@ -21,13 +21,12 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
 
-#include "nv04.h"
-#include "channv04.h"
 #include "regsnv04.h"
 
 #include <core/ramht.h>
@@ -132,12 +131,12 @@ nv17_fifo = {
 	.engn = &nv04_engn,
 	.engn_sw = &nv04_engn,
 	.cgrp = {{                        }, &nv04_cgrp },
-	.chan = {{ 0, 0, NV17_CHANNEL_DMA }, &nv17_chan, .oclass = &nv17_fifo_dma_oclass },
+	.chan = {{ 0, 0, NV17_CHANNEL_DMA }, &nv17_chan },
 };
 
 int
 nv17_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv17_fifo, device, type, inst, 0, NULL, pfifo);
+	return nvkm_fifo_new_(&nv17_fifo, device, type, inst, pfifo);
 }

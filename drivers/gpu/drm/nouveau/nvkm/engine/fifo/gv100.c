@@ -19,16 +19,15 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "priv.h"
 #include "chan.h"
 #include "chid.h"
 #include "cgrp.h"
 #include "runl.h"
 #include "runq.h"
 
-#include "gk104.h"
-#include "changk104.h"
-
 #include <core/gpuobj.h>
+#include <subdev/mmu.h>
 
 #include <nvif/class.h>
 
@@ -71,7 +70,7 @@ gv100_chan_ramfc = {
 
 const struct nvkm_chan_func_userd
 gv100_chan_userd = {
-	.bar = 1, /*FIXME: hw doesn't have poller, flip to user-allocated in uapi commit. */
+	.bar = -1,
 	.size = 0x200,
 	.clear = gf100_chan_userd_clear,
 };
@@ -467,8 +466,6 @@ gv100_fifo_intr_ctxsw_timeout(struct nvkm_fifo *fifo, u32 engm)
 
 static const struct nvkm_fifo_func
 gv100_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gm200_fifo_runq_nr,
@@ -484,12 +481,12 @@ gv100_fifo = {
 	.engn = &gv100_engn,
 	.engn_ce = &gv100_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
-	.chan = {{ 0, 0,  VOLTA_CHANNEL_GPFIFO_A }, &gv100_chan, .ctor = gv100_fifo_gpfifo_new },
+	.chan = {{ 0, 0,  VOLTA_CHANNEL_GPFIFO_A }, &gv100_chan },
 };
 
 int
 gv100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gv100_fifo, device, type, inst, 0, pfifo);
+	return nvkm_fifo_new_(&gv100_fifo, device, type, inst, pfifo);
 }

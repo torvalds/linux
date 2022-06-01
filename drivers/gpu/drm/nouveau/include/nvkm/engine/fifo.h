@@ -16,7 +16,8 @@ struct nvkm_chan {
 
 	struct nvkm_gpuobj *inst;
 	struct nvkm_vmm *vmm;
-	union { int id; int chid; }; /*FIXME: remove later */
+	struct nvkm_gpuobj *push;
+	int id;
 
 	struct {
 		struct nvkm_memory *mem;
@@ -35,11 +36,7 @@ struct nvkm_chan {
 	atomic_t errored;
 
 	struct list_head cctxs;
-
-	struct nvkm_object object;
-
 	struct list_head head;
-	struct nvkm_gpuobj *push;
 };
 
 struct nvkm_chan *nvkm_chan_get_chid(struct nvkm_engine *, int id, unsigned long *irqflags);

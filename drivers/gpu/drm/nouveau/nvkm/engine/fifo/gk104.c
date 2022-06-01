@@ -21,17 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
 #include "runq.h"
 
-#include "gk104.h"
-#include "cgrp.h"
-#include "changk104.h"
-
 #include <core/gpuobj.h>
 #include <subdev/mc.h>
+#include <subdev/mmu.h>
 #include <subdev/top.h>
 
 #include <nvif/class.h>
@@ -805,56 +804,8 @@ gk104_fifo_chid_nr(struct nvkm_fifo *fifo)
 	return 4096;
 }
 
-int
-gk104_fifo_oneinit(struct nvkm_fifo *base)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_top_device *tdev;
-
-	/* Determine runlist configuration from topology device info. */
-	list_for_each_entry(tdev, &device->top->device, head) {
-		const int engn = tdev->engine;
-
-		if (engn < 0)
-			continue;
-
-		fifo->runlist[tdev->runlist].engm |= BIT(engn);
-		fifo->runlist[tdev->runlist].engm_sw |= BIT(engn);
-		if (tdev->type == NVKM_ENGINE_GR)
-			fifo->runlist[tdev->runlist].engm_sw |= BIT(GK104_FIFO_ENGN_SW);
-		fifo->runlist_nr = max(fifo->runlist_nr, tdev->runlist + 1);
-	}
-
-	return 0;
-}
-
-void *
-gk104_fifo_dtor(struct nvkm_fifo *base)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	return fifo;
-}
-
-int
-gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
-		enum nvkm_subdev_type type, int inst, int nr, struct nvkm_fifo **pfifo)
-{
-	struct gk104_fifo *fifo;
-
-	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
-		return -ENOMEM;
-	fifo->func = func;
-	*pfifo = &fifo->base;
-
-	return nvkm_fifo_ctor(func, device, type, inst, &fifo->base);
-}
-
 static const struct nvkm_fifo_func
 gk104_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk104_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
@@ -871,12 +822,12 @@ gk104_fifo = {
 	.engn = &gk104_engn,
 	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{                               }, &nv04_cgrp },
-	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk104_chan, .ctor = &gk104_fifo_gpfifo_new },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk104_chan },
 };
 
 int
 gk104_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk104_fifo, device, type, inst, 0, pfifo);
+	return nvkm_fifo_new_(&gk104_fifo, device, type, inst, pfifo);
 }

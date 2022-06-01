@@ -21,9 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "runq.h"
-#include "gk104.h"
-#include "changk104.h"
 
 #include <nvif/class.h>
 
@@ -51,8 +50,6 @@ gk208_fifo_chid_nr(struct nvkm_fifo *fifo)
 
 static const struct nvkm_fifo_func
 gk208_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk208_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
@@ -69,12 +66,12 @@ gk208_fifo = {
 	.engn = &gk104_engn,
 	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp },
-	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk110_chan, .ctor = &gk104_fifo_gpfifo_new },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk110_chan },
 };
 
 int
 gk208_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk208_fifo, device, type, inst, 0, pfifo);
+	return nvkm_fifo_new_(&gk208_fifo, device, type, inst, pfifo);
 }

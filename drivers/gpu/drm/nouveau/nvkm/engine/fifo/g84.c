@@ -21,15 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "cgrp.h"
 #include "chan.h"
 #include "runl.h"
 
 #include <core/ramht.h>
 #include <subdev/timer.h>
-
-#include "nv50.h"
-#include "channv50.h"
 
 #include <nvif/class.h>
 
@@ -210,7 +208,6 @@ g84_fifo_runl_ctor(struct nvkm_fifo *fifo)
 
 static const struct nvkm_fifo_func
 g84_fifo = {
-	.dtor = nv50_fifo_dtor,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = nv50_fifo_chid_ctor,
 	.runl_ctor = g84_fifo_runl_ctor,
@@ -223,12 +220,12 @@ g84_fifo = {
 	.engn = &g84_engn,
 	.engn_sw = &nv50_engn_sw,
 	.cgrp = {{                          }, &nv04_cgrp },
-	.chan = {{ 0, 0, G82_CHANNEL_GPFIFO }, &g84_chan, .oclass = &g84_fifo_gpfifo_oclass },
+	.chan = {{ 0, 0, G82_CHANNEL_GPFIFO }, &g84_chan },
 };
 
 int
 g84_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	     struct nvkm_fifo **pfifo)
 {
-	return nv50_fifo_new_(&g84_fifo, device, type, inst, pfifo);
+	return nvkm_fifo_new_(&g84_fifo, device, type, inst, pfifo);
 }

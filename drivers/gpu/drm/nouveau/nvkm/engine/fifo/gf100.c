@@ -21,19 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "runl.h"
 #include "runq.h"
 
-#include "gf100.h"
-#include "changf100.h"
-
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
 #include <subdev/mc.h>
+#include <subdev/mmu.h>
 #include <engine/sw.h>
 
 #include <nvif/class.h>
@@ -942,16 +941,8 @@ gf100_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
 	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr, &fifo->chid);
 }
 
-static void *
-gf100_fifo_dtor(struct nvkm_fifo *base)
-{
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	return fifo;
-}
-
 static const struct nvkm_fifo_func
 gf100_fifo = {
-	.dtor = gf100_fifo_dtor,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,
@@ -967,18 +958,12 @@ gf100_fifo = {
 	.runq = &gf100_runq,
 	.engn = &gf100_engn,
 	.cgrp = {{                            }, &nv04_cgrp },
-	.chan = {{ 0, 0, FERMI_CHANNEL_GPFIFO }, &gf100_chan, .oclass = &gf100_fifo_gpfifo_oclass },
+	.chan = {{ 0, 0, FERMI_CHANNEL_GPFIFO }, &gf100_chan },
 };
 
 int
 gf100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	struct gf100_fifo *fifo;
-
-	if (!(fifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
-		return -ENOMEM;
-	*pfifo = &fifo->base;
-
-	return nvkm_fifo_ctor(&gf100_fifo, device, type, inst, &fifo->base);
+	return nvkm_fifo_new_(&gf100_fifo, device, type, inst, pfifo);
 }

@@ -21,6 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "cgrp.h"
 #include "chan.h"
 #include "runl.h"
@@ -28,8 +29,6 @@
 #include <core/gpuobj.h>
 #include <subdev/instmem.h>
 
-#include "nv04.h"
-#include "channv04.h"
 #include "regsnv04.h"
 
 #include <nvif/class.h>
@@ -103,12 +102,12 @@ nv10_fifo = {
 	.engn = &nv04_engn,
 	.engn_sw = &nv04_engn,
 	.cgrp = {{                        }, &nv04_cgrp },
-	.chan = {{ 0, 0, NV10_CHANNEL_DMA }, &nv10_chan, .oclass = &nv10_fifo_dma_oclass },
+	.chan = {{ 0, 0, NV10_CHANNEL_DMA }, &nv10_chan },
 };
 
 int
 nv10_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	      struct nvkm_fifo **pfifo)
 {
-	return nv04_fifo_new_(&nv10_fifo, device, type, inst, 0, NULL, pfifo);
+	return nvkm_fifo_new_(&nv10_fifo, device, type, inst, pfifo);
 }

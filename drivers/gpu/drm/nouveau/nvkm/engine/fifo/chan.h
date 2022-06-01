@@ -1,9 +1,10 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_CHAN_H__
 #define __NVKM_CHAN_H__
-#define nvkm_chan(p) container_of((p), struct nvkm_chan, object) /*FIXME: remove later */
 #include <engine/fifo.h>
+struct nvkm_dmaobj;
 struct nvkm_engn;
+struct nvkm_runl;
 
 extern const struct nvkm_event_func nvkm_chan_event;
 
@@ -50,14 +51,12 @@ struct nvkm_chan_func {
 	void (*stop)(struct nvkm_chan *);
 	void (*preempt)(struct nvkm_chan *);
 	u32 (*doorbell_handle)(struct nvkm_chan *);
-
-	void *(*dtor)(struct nvkm_fifo_chan *);
 };
 
-int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,
-			u32 size, u32 align, bool zero, u64 vm, u64 push,
-			u32 engm, int bar, u32 base, u32 user,
-			const struct nvkm_oclass *, struct nvkm_fifo_chan *);
+int nvkm_chan_new_(const struct nvkm_chan_func *, struct nvkm_runl *, int runq, struct nvkm_cgrp *,
+		   const char *name, bool priv, u32 devm, struct nvkm_vmm *, struct nvkm_dmaobj *,
+		   u64 offset, u64 length, struct nvkm_memory *userd, u64 userd_bar1,
+		   struct nvkm_chan **);
 void nvkm_chan_del(struct nvkm_chan **);
 void nvkm_chan_allow(struct nvkm_chan *);
 void nvkm_chan_block(struct nvkm_chan *);

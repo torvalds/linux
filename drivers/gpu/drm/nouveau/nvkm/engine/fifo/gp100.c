@@ -21,9 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
 #include "runl.h"
-#include "gk104.h"
-#include "changk104.h"
 
 #include <core/gpuobj.h>
 #include <subdev/fault.h>
@@ -113,8 +112,6 @@ gp100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *fifo, int unit)
 
 static const struct nvkm_fifo_func
 gp100_fifo = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
 	.chid_ctor = gk110_fifo_chid_ctor,
 	.runq_nr = gm200_fifo_runq_nr,
@@ -131,12 +128,12 @@ gp100_fifo = {
 	.engn = &gk104_engn,
 	.engn_ce = &gk104_engn_ce,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
-	.chan = {{ 0, 0, PASCAL_CHANNEL_GPFIFO_A }, &gm107_chan, .ctor = &gk104_fifo_gpfifo_new },
+	.chan = {{ 0, 0, PASCAL_CHANNEL_GPFIFO_A }, &gm107_chan },
 };
 
 int
 gp100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gp100_fifo, device, type, inst, 0, pfifo);
+	return nvkm_fifo_new_(&gp100_fifo, device, type, inst, pfifo);
 }

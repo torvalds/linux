@@ -25,13 +25,7 @@
 
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
-#include <nvif/cl006b.h>
-#include <nvif/cl506f.h>
-#include <nvif/cl906f.h>
-#include <nvif/cla06f.h>
-#include <nvif/clc36f.h>
 #include <nvif/if0020.h>
-#include <nvif/ioctl.h>
 
 #include "nouveau_drv.h"
 #include "nouveau_dma.h"
@@ -101,6 +95,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->vram);
 		nvif_event_dtor(&chan->kill);
 		nvif_object_dtor(&chan->user);
+		nvif_mem_dtor(&chan->mem_userd);
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
 		nouveau_bo_unmap(chan->push.buffer);
@@ -250,134 +245,112 @@ nouveau_channel_prep(struct nouveau_drm *drm, struct nvif_device *device,
 }
 
 static int
-nouveau_channel_ind(struct nouveau_drm *drm, struct nvif_device *device,
-		    u64 runlist, bool priv, struct nouveau_channel **pchan)
+nouveau_channel_ctor(struct nouveau_drm *drm, struct nvif_device *device, bool priv, u64 runm,
+		     struct nouveau_channel **pchan)
 {
-	static const u16 oclasses[] = { AMPERE_CHANNEL_GPFIFO_B,
-					TURING_CHANNEL_GPFIFO_A,
-					VOLTA_CHANNEL_GPFIFO_A,
-					PASCAL_CHANNEL_GPFIFO_A,
-					MAXWELL_CHANNEL_GPFIFO_A,
-					KEPLER_CHANNEL_GPFIFO_B,
-					KEPLER_CHANNEL_GPFIFO_A,
-					FERMI_CHANNEL_GPFIFO,
-					G82_CHANNEL_GPFIFO,
-					NV50_CHANNEL_GPFIFO,
-					0 };
-	const u16 *oclass = oclasses;
-	union {
-		struct nv50_channel_gpfifo_v0 nv50;
-		struct fermi_channel_gpfifo_v0 fermi;
-		struct kepler_channel_gpfifo_a_v0 kepler;
-		struct volta_channel_gpfifo_a_v0 volta;
+	static const struct {
+		s32 oclass;
+		int version;
+	} hosts[] = {
+		{  AMPERE_CHANNEL_GPFIFO_B, 0 },
+		{  TURING_CHANNEL_GPFIFO_A, 0 },
+		{   VOLTA_CHANNEL_GPFIFO_A, 0 },
+		{  PASCAL_CHANNEL_GPFIFO_A, 0 },
+		{ MAXWELL_CHANNEL_GPFIFO_A, 0 },
+		{  KEPLER_CHANNEL_GPFIFO_B, 0 },
+		{  KEPLER_CHANNEL_GPFIFO_A, 0 },
+		{   FERMI_CHANNEL_GPFIFO  , 0 },
+		{     G82_CHANNEL_GPFIFO  , 0 },
+		{    NV50_CHANNEL_GPFIFO  , 0 },
+		{    NV40_CHANNEL_DMA     , 0 },
+		{    NV17_CHANNEL_DMA     , 0 },
+		{    NV10_CHANNEL_DMA     , 0 },
+		{    NV03_CHANNEL_DMA     , 0 },
+		{}
+	};
+	struct {
+		struct nvif_chan_v0 chan;
+		char name[TASK_COMM_LEN+16];
 	} args;
+	struct nouveau_cli *cli = (void *)device->object.client;
 	struct nouveau_channel *chan;
-	u32 size;
-	int ret;
+	const u64 plength = 0x10000;
+	const u64 ioffset = plength;
+	const u64 ilength = 0x02000;
+	char name[TASK_COMM_LEN];
+	int cid, ret;
+	u64 size;
+
+	cid = nvif_mclass(&device->object, hosts);
+	if (cid < 0)
+		return cid;
+
+	if (hosts[cid].oclass < NV50_CHANNEL_GPFIFO)
+		size = plength;
+	else
+		size = ioffset + ilength;
 
 	/* allocate dma push buffer */
-	ret = nouveau_channel_prep(drm, device, 0x12000, &chan);
+	ret = nouveau_channel_prep(drm, device, size, &chan);
 	*pchan = chan;
 	if (ret)
 		return ret;
 
 	/* create channel object */
-	do {
-		if (oclass[0] >= VOLTA_CHANNEL_GPFIFO_A) {
-			args.volta.version = 0;
-			args.volta.ilength = 0x02000;
-			args.volta.ioffset = 0x10000 + chan->push.addr;
-			args.volta.runlist = runlist;
-			args.volta.vmm = nvif_handle(&chan->vmm->vmm.object);
-			args.volta.priv = priv;
-			size = sizeof(args.volta);
-		} else
-		if (oclass[0] >= KEPLER_CHANNEL_GPFIFO_A) {
-			args.kepler.version = 0;
-			args.kepler.ilength = 0x02000;
-			args.kepler.ioffset = 0x10000 + chan->push.addr;
-			args.kepler.runlist = runlist;
-			args.kepler.vmm = nvif_handle(&chan->vmm->vmm.object);
-			args.kepler.priv = priv;
-			size = sizeof(args.kepler);
-		} else
-		if (oclass[0] >= FERMI_CHANNEL_GPFIFO) {
-			args.fermi.version = 0;
-			args.fermi.ilength = 0x02000;
-			args.fermi.ioffset = 0x10000 + chan->push.addr;
-			args.fermi.vmm = nvif_handle(&chan->vmm->vmm.object);
-			size = sizeof(args.fermi);
-		} else {
-			args.nv50.version = 0;
-			args.nv50.ilength = 0x02000;
-			args.nv50.ioffset = 0x10000 + chan->push.addr;
-			args.nv50.pushbuf = nvif_handle(&chan->push.ctxdma);
-			args.nv50.vmm = nvif_handle(&chan->vmm->vmm.object);
-			size = sizeof(args.nv50);
-		}
+	args.chan.version = 0;
+	args.chan.namelen = sizeof(args.name);
+	args.chan.runlist = __ffs64(runm);
+	args.chan.runq = 0;
+	args.chan.priv = priv;
+	args.chan.devm = BIT(0);
+	if (hosts[cid].oclass < NV50_CHANNEL_GPFIFO) {
+		args.chan.vmm = 0;
+		args.chan.ctxdma = nvif_handle(&chan->push.ctxdma);
+		args.chan.offset = chan->push.addr;
+		args.chan.length = 0;
+	} else {
+		args.chan.vmm = nvif_handle(&chan->vmm->vmm.object);
+		if (hosts[cid].oclass < FERMI_CHANNEL_GPFIFO)
+			args.chan.ctxdma = nvif_handle(&chan->push.ctxdma);
+		else
+			args.chan.ctxdma = 0;
+		args.chan.offset = ioffset + chan->push.addr;
+		args.chan.length = ilength;
+	}
+	args.chan.huserd = 0;
+	args.chan.ouserd = 0;
 
-		ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0,
-				       *oclass++, &args, size, &chan->user);
-		if (ret == 0) {
-			if (chan->user.oclass >= VOLTA_CHANNEL_GPFIFO_A) {
-				chan->chid = args.volta.chid;
-				chan->inst = args.volta.inst;
-				chan->token = args.volta.token;
-			} else
-			if (chan->user.oclass >= KEPLER_CHANNEL_GPFIFO_A) {
-				chan->chid = args.kepler.chid;
-				chan->inst = args.kepler.inst;
-			} else
-			if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO) {
-				chan->chid = args.fermi.chid;
-			} else {
-				chan->chid = args.nv50.chid;
-			}
+	/* allocate userd */
+	if (hosts[cid].oclass >= VOLTA_CHANNEL_GPFIFO_A) {
+		ret = nvif_mem_ctor(&cli->mmu, "abi16ChanUSERD", NVIF_CLASS_MEM_GF100,
+				    NVIF_MEM_VRAM | NVIF_MEM_COHERENT | NVIF_MEM_MAPPABLE,
+				    0, PAGE_SIZE, NULL, 0, &chan->mem_userd);
+		if (ret)
 			return ret;
-		}
-	} while (*oclass);
 
-	nouveau_channel_del(pchan);
-	return ret;
-}
+		args.chan.huserd = nvif_handle(&chan->mem_userd.object);
+		args.chan.ouserd = 0;
 
-static int
-nouveau_channel_dma(struct nouveau_drm *drm, struct nvif_device *device,
-		    struct nouveau_channel **pchan)
-{
-	static const u16 oclasses[] = { NV40_CHANNEL_DMA,
-					NV17_CHANNEL_DMA,
-					NV10_CHANNEL_DMA,
-					NV03_CHANNEL_DMA,
-					0 };
-	const u16 *oclass = oclasses;
-	struct nv03_channel_dma_v0 args;
-	struct nouveau_channel *chan;
-	int ret;
+		chan->userd = &chan->mem_userd.object;
+	} else {
+		chan->userd = &chan->user;
+	}
 
-	/* allocate dma push buffer */
-	ret = nouveau_channel_prep(drm, device, 0x10000, &chan);
-	*pchan = chan;
-	if (ret)
+	get_task_comm(name, current);
+	snprintf(args.name, sizeof(args.name), "%s[%d]", name, task_pid_nr(current));
+
+	ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0, hosts[cid].oclass,
+			       &args, sizeof(args), &chan->user);
+	if (ret) {
+		nouveau_channel_del(pchan);
 		return ret;
+	}
 
-	/* create channel object */
-	args.version = 0;
-	args.pushbuf = nvif_handle(&chan->push.ctxdma);
-	args.offset = chan->push.addr;
-
-	do {
-		ret = nvif_object_ctor(&device->object, "abi16ChanUser", 0,
-				       *oclass++, &args, sizeof(args),
-				       &chan->user);
-		if (ret == 0) {
-			chan->chid = args.chid;
-			return ret;
-		}
-	} while (ret && *oclass);
-
-	nouveau_channel_del(pchan);
-	return ret;
+	chan->runlist = args.chan.runlist;
+	chan->chid = args.chan.chid;
+	chan->inst = args.chan.inst;
+	chan->token = args.chan.token;
+	return 0;
 }
 
 static int
@@ -388,7 +361,7 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 	struct nv_dma_v0 args = {};
 	int ret, i;
 
-	ret = nvif_object_map(&chan->user, NULL, 0);
+	ret = nvif_object_map(chan->userd, NULL, 0);
 	if (ret)
 		return ret;
 
@@ -518,15 +491,10 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	struct nouveau_cli *cli = (void *)device->object.client;
 	int ret;
 
-	/* hack until fencenv50 is fixed, and agp access relaxed */
-	ret = nouveau_channel_ind(drm, device, runm, priv, pchan);
+	ret = nouveau_channel_ctor(drm, device, priv, runm, pchan);
 	if (ret) {
-		NV_PRINTK(dbg, cli, "ib channel create, %d\n", ret);
-		ret = nouveau_channel_dma(drm, device, pchan);
-		if (ret) {
-			NV_PRINTK(dbg, cli, "dma channel create, %d\n", ret);
-			return ret;
-		}
+		NV_PRINTK(dbg, cli, "channel create, %d\n", ret);
+		return ret;
 	}
 
 	ret = nouveau_channel_init(*pchan, vram, gart);

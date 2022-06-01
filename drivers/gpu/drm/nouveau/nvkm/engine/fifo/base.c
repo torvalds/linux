@@ -59,6 +59,9 @@ nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
 
+	if (oclass->engn == &fifo->func->cgrp.user)
+		return nvkm_ucgrp_new(fifo, oclass, argv, argc, pobject);
+
 	if (oclass->engn == &fifo->func->chan.user)
 		return nvkm_uchan_new(fifo, NULL, oclass, argv, argc, pobject);
 
@@ -75,8 +78,19 @@ static int
 nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_device_oclass **class)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
+	const struct nvkm_fifo_func_cgrp *cgrp = &fifo->func->cgrp;
 	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
 	int c = 0;
+
+	/* *_CHANNEL_GROUP_* */
+	if (cgrp->user.oclass) {
+		if (c++ == index) {
+			oclass->base = cgrp->user;
+			oclass->engn = &fifo->func->cgrp.user;
+			*class = &nvkm_fifo_class;
+			return 0;
+		}
+	}
 
 	/* *_CHANNEL_DMA, *_CHANNEL_GPFIFO_* */
 	if (chan->user.oclass) {
@@ -264,9 +278,6 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 			return ret;
 	}
 
-	if (fifo->func->oneinit)
-		return fifo->func->oneinit(fifo);
-
 	return 0;
 }
 
@@ -282,7 +293,6 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	struct nvkm_runl *runl, *runt;
 	struct nvkm_runq *runq, *rtmp;
-	void *data = fifo;
 
 	if (fifo->userd.bar1)
 		nvkm_vmm_put(nvkm_bar_bar1_vmm(engine->subdev.device), &fifo->userd.bar1);
@@ -296,11 +306,9 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	nvkm_chid_unref(&fifo->cgid);
 	nvkm_chid_unref(&fifo->chid);
 
-	if (fifo->func->dtor)
-		data = fifo->func->dtor(fifo);
 	nvkm_event_fini(&fifo->nonstall.event);
 	mutex_destroy(&fifo->mutex);
-	return data;
+	return fifo;
 }
 
 static const struct nvkm_engine_func
@@ -315,10 +323,14 @@ nvkm_fifo = {
 };
 
 int
-nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, struct nvkm_fifo *fifo)
+nvkm_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
+	       enum nvkm_subdev_type type, int inst, struct nvkm_fifo **pfifo)
 {
+	struct nvkm_fifo *fifo;
 	int ret;
+
+	if (!(fifo = *pfifo = kzalloc(sizeof(*fifo), GFP_KERNEL)))
+		return -ENOMEM;
 
 	fifo->func = func;
 	INIT_LIST_HEAD(&fifo->runqs);
