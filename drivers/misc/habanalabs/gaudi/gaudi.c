@@ -7410,8 +7410,8 @@ static void gaudi_print_irq_info(struct hl_device *hdev, u16 event_type,
 		gaudi_print_and_get_mmu_error_info(hdev, &razwi_addr, &razwi_type);
 
 		/* In case it's the first razwi, save its parameters*/
-		rc = atomic_cmpxchg(&hdev->last_error.razwi.write_disable, 0, 1);
-		if (!rc) {
+		rc = atomic_cmpxchg(&hdev->last_error.razwi.write_enable, 1, 0);
+		if (rc) {
 			hdev->last_error.razwi.timestamp = ktime_get();
 			hdev->last_error.razwi.addr = razwi_addr;
 			hdev->last_error.razwi.engine_id_1 = engine_id_1;

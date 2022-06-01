@@ -2570,21 +2570,21 @@ struct hl_clk_throttle {
 /**
  * struct cs_timeout_info - info of last CS timeout occurred.
  * @timestamp: CS timeout timestamp.
- * @write_disable: if set writing to CS parameters in the structure is disabled so,
- *                 the first (root cause) CS timeout will not be overwritten.
+ * @write_enable: if set writing to CS parameters in the structure is enabled. otherwise - disabled,
+ *                so the first (root cause) CS timeout will not be overwritten.
  * @seq: CS timeout sequence number.
  */
 struct cs_timeout_info {
 	ktime_t		timestamp;
-	atomic_t	write_disable;
+	atomic_t	write_enable;
 	u64		seq;
 };
 
 /**
  * struct razwi_info - info about last razwi error occurred.
  * @timestamp: razwi timestamp.
- * @write_disable: if set writing to razwi parameters in the structure is disabled so the
- *                 first (root cause) razwi will not be overwritten.
+ * @write_enable: if set writing to razwi parameters in the structure is enabled.
+ *                otherwise - disabled, so the first (root cause) razwi will not be overwritten.
  * @addr: address that caused razwi.
  * @engine_id_1: engine id of the razwi initiator, if it was initiated by engine that does
  *               not have engine id it will be set to U16_MAX.
@@ -2596,7 +2596,7 @@ struct cs_timeout_info {
  */
 struct razwi_info {
 	ktime_t		timestamp;
-	atomic_t	write_disable;
+	atomic_t	write_enable;
 	u64		addr;
 	u16		engine_id_1;
 	u16		engine_id_2;

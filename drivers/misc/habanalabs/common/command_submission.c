@@ -735,8 +735,8 @@ static void cs_timedout(struct work_struct *work)
 	hdev = cs->ctx->hdev;
 
 	/* Save only the first CS timeout parameters */
-	rc = atomic_cmpxchg(&hdev->last_error.cs_timeout.write_disable, 0, 1);
-	if (!rc) {
+	rc = atomic_cmpxchg(&hdev->last_error.cs_timeout.write_enable, 1, 0);
+	if (rc) {
 		hdev->last_error.cs_timeout.timestamp = ktime_get();
 		hdev->last_error.cs_timeout.seq = cs->sequence;
 	}
