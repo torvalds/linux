@@ -10,12 +10,22 @@
  * DRM device
  */
 
+static resource_size_t mgag200_g200ew3_device_probe_vram(struct mga_device *mdev)
+{
+	resource_size_t vram_size = mdev->mc.vram_size;
+
+	if (vram_size >= 0x1000000)
+		vram_size = vram_size - 0x400000;
+	return mgag200_probe_vram(mdev->vram, vram_size);
+}
+
 struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev,
 						 const struct drm_driver *drv,
 						 enum mga_type type, unsigned long flags)
 {
 	struct mga_device *mdev;
 	struct drm_device *dev;
+	resource_size_t vram_available;
 	int ret;
 
 	mdev = devm_drm_dev_alloc(&pdev->dev, drv, struct mga_device, base);
@@ -40,7 +50,9 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_modeset_init(mdev);
+	vram_available = mgag200_g200ew3_device_probe_vram(mdev);
+
+	ret = mgag200_modeset_init(mdev, vram_available);
 	if (ret)
 		return ERR_PTR(ret);
 

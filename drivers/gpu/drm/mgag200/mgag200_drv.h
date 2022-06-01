@@ -214,7 +214,7 @@ struct mga_device {
 	struct mga_mc			mc;
 
 	void __iomem			*vram;
-	size_t				vram_fb_available;
+	resource_size_t			vram_available;
 
 	enum mga_type			type;
 
@@ -257,6 +257,7 @@ static inline struct mgag200_g200se_device *to_mgag200_g200se_device(struct drm_
 
 				/* mgag200_drv.c */
 int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2);
+resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size);
 int mgag200_regs_init(struct mga_device *mdev);
 
 				/* mgag200_<device type>.c */
@@ -278,7 +279,8 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const str
 						 enum mga_type type, unsigned long flags);
 
 				/* mgag200_mode.c */
-int mgag200_modeset_init(struct mga_device *mdev);
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
+int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_fb_available);
 
 				/* mgag200_i2c.c */
 int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c);

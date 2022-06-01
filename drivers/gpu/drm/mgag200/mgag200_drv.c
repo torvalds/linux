@@ -50,6 +50,45 @@ int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2)
 	return 0;
 }
 
+resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size)
+{
+	int offset;
+	int orig;
+	int test1, test2;
+	int orig1, orig2;
+	size_t vram_size;
+
+	/* Probe */
+	orig = ioread16(mem);
+	iowrite16(0, mem);
+
+	vram_size = size;
+
+	for (offset = 0x100000; offset < vram_size; offset += 0x4000) {
+		orig1 = ioread8(mem + offset);
+		orig2 = ioread8(mem + offset + 0x100);
+
+		iowrite16(0xaa55, mem + offset);
+		iowrite16(0xaa55, mem + offset + 0x100);
+
+		test1 = ioread16(mem + offset);
+		test2 = ioread16(mem);
+
+		iowrite16(orig1, mem + offset);
+		iowrite16(orig2, mem + offset + 0x100);
+
+		if (test1 != 0xaa55)
+			break;
+
+		if (test2)
+			break;
+	}
+
+	iowrite16(orig, mem);
+
+	return offset - 65536;
+}
+
 /*
  * DRM driver
  */

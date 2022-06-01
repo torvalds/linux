@@ -15,6 +15,7 @@ struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const stru
 {
 	struct mga_device *mdev;
 	struct drm_device *dev;
+	resource_size_t vram_available;
 	int ret;
 
 	mdev = devm_drm_dev_alloc(&pdev->dev, drv, struct mga_device, base);
@@ -35,7 +36,9 @@ struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const stru
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_modeset_init(mdev);
+	vram_available = mgag200_device_probe_vram(mdev);
+
+	ret = mgag200_modeset_init(mdev, vram_available);
 	if (ret)
 		return ERR_PTR(ret);
 

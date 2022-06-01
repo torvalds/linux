@@ -32,6 +32,11 @@
  * This file contains setup code for the CRTC.
  */
 
+resource_size_t mgag200_device_probe_vram(struct mga_device *mdev)
+{
+	return mgag200_probe_vram(mdev->vram, mdev->mc.vram_size);
+}
+
 static void mgag200_crtc_set_gamma_linear(struct mga_device *mdev,
 					  const struct drm_format_info *format)
 {
@@ -1030,7 +1035,7 @@ static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *de
 	unsigned long fbsize, fbpages, max_fbpages;
 	struct mgag200_g200se_device *g200se;
 
-	max_fbpages = mdev->vram_fb_available >> PAGE_SHIFT;
+	max_fbpages = mdev->vram_available >> PAGE_SHIFT;
 
 	fbsize = mode->hdisplay * mode->vdisplay * max_bpp;
 	fbpages = DIV_ROUND_UP(fbsize, PAGE_SIZE);
@@ -1075,7 +1080,7 @@ static const struct drm_mode_config_funcs mgag200_mode_config_funcs = {
 	.atomic_commit = drm_atomic_helper_commit,
 };
 
-int mgag200_modeset_init(struct mga_device *mdev)
+int mgag200_modeset_init(struct mga_device *mdev, resource_size_t vram_available)
 {
 	struct drm_device *dev = &mdev->base;
 	struct mga_i2c_chan *i2c = &mdev->i2c;
@@ -1085,6 +1090,8 @@ int mgag200_modeset_init(struct mga_device *mdev)
 	int ret;
 
 	mgag200_init_regs(mdev);
+
+	mdev->vram_available = vram_available;
 
 	ret = drmm_mode_config_init(dev);
 	if (ret) {
