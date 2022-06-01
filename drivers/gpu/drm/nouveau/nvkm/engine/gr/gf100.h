@@ -172,6 +172,7 @@ struct gf100_gr_func {
 	const struct gf100_gr_pack *mmio;
 	struct {
 		struct gf100_gr_ucode *ucode;
+		void (*reset)(struct gf100_gr *);
 	} fecs;
 	struct {
 		struct gf100_gr_ucode *ucode;
@@ -202,6 +203,7 @@ void gf100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gf100_gr_init_400054(struct gf100_gr *);
 void gf100_gr_init_num_tpc_per_gpc(struct gf100_gr *, bool, bool);
 extern const struct gf100_gr_func_zbc gf100_gr_zbc;
+void gf100_gr_fecs_reset(struct gf100_gr *);
 
 void gf117_gr_init_zcull(struct gf100_gr *);
 

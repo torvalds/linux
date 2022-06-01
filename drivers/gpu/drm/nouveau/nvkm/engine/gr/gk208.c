@@ -180,6 +180,7 @@ gk208_gr = {
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gk208_gr_pack_mmio,
 	.fecs.ucode = &gk208_gr_fecs_ucode,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.gpccs.ucode = &gk208_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 1,

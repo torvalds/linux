@@ -201,6 +201,7 @@ gm200_gr = {
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
 	.init_400054 = gm107_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.tpc_nr = 4,
 	.ppc_nr = 2,

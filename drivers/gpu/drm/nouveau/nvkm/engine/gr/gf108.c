@@ -129,6 +129,7 @@ gf108_gr = {
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf108_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.grctx = &gf108_grctx,

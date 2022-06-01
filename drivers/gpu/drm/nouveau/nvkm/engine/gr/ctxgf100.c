@@ -1438,11 +1438,7 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 		grctx->unkn88c(gr, true);
 
 	/* Reset FECS. */
-	nvkm_wr32(device, 0x409614, 0x00000070);
-	nvkm_usec(device, 10, NVKM_DELAY);
-	nvkm_mask(device, 0x409614, 0x00000700, 0x00000700);
-	nvkm_usec(device, 10, NVKM_DELAY);
-	nvkm_rd32(device, 0x409614);
+	gr->func->fecs.reset(gr);
 
 	if (grctx->unkn88c)
 		grctx->unkn88c(gr, false);

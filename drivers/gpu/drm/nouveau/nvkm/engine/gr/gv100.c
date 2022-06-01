@@ -105,6 +105,7 @@ gv100_gr = {
 	.init_shader_exceptions = gv100_gr_init_shader_exceptions,
 	.init_4188a4 = gv100_gr_init_4188a4,
 	.trap_mp = gv100_gr_trap_mp,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
 	.tpc_nr = 5,

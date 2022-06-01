@@ -294,6 +294,7 @@ gk20a_gr = {
 	.init_rop_active_fbps = gk104_gr_init_rop_active_fbps,
 	.trap_mp = gf100_gr_trap_mp,
 	.set_hww_esr_report_mask = gk20a_gr_set_hww_esr_report_mask,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 1,
 	.grctx = &gk20a_grctx,

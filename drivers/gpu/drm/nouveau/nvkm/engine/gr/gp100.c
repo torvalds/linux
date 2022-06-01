@@ -120,6 +120,7 @@ gp100_gr = {
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gp100_gr_init_shader_exceptions,
 	.trap_mp = gf100_gr_trap_mp,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,
 	.gpc_nr = 6,
 	.tpc_nr = 5,

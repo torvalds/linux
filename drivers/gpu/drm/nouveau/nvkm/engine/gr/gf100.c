@@ -2400,6 +2400,18 @@ gf100_gr_init(struct gf100_gr *gr)
 	return gf100_gr_init_ctxctl(gr);
 }
 
+void
+gf100_gr_fecs_reset(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x409614, 0x00000070);
+	nvkm_usec(device, 10, NVKM_DELAY);
+	nvkm_mask(device, 0x409614, 0x00000700, 0x00000700);
+	nvkm_usec(device, 10, NVKM_DELAY);
+	nvkm_rd32(device, 0x409614);
+}
+
 #include "fuc/hubgf100.fuc3.h"
 
 struct gf100_gr_ucode
@@ -2456,6 +2468,7 @@ gf100_gr = {
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf100_gr_pack_mmio,
 	.fecs.ucode = &gf100_gr_fecs_ucode,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.gpccs.ucode = &gf100_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.grctx = &gf100_grctx,

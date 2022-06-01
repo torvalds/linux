@@ -415,6 +415,7 @@ gm107_gr = {
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gm107_gr_pack_mmio,
 	.fecs.ucode = &gm107_gr_fecs_ucode,
+	.fecs.reset = gf100_gr_fecs_reset,
 	.gpccs.ucode = &gm107_gr_gpccs_ucode,
 	.rops = gf100_gr_rops,
 	.ppc_nr = 2,
