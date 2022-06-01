@@ -24,6 +24,7 @@
 #include <core/ioctl.h>
 #include <core/client.h>
 #include <core/engine.h>
+#include <core/event.h>
 
 #include <nvif/unpack.h>
 #include <nvif/ioctl.h>
