@@ -114,14 +114,15 @@ static int ieee80211_set_mon_options(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
-					   struct cfg80211_mbssid_config params)
+					   struct cfg80211_mbssid_config params,
+					   struct ieee80211_bss_conf *link_conf)
 {
 	struct ieee80211_sub_if_data *tx_sdata;
 
 	sdata->vif.mbssid_tx_vif = NULL;
-	sdata->vif.bss_conf.bssid_index = 0;
-	sdata->vif.bss_conf.nontransmitted = false;
-	sdata->vif.bss_conf.ema_ap = false;
+	link_conf->bssid_index = 0;
+	link_conf->nontransmitted = false;
+	link_conf->ema_ap = false;
 
 	if (sdata->vif.type != NL80211_IFTYPE_AP || !params.tx_wdev)
 		return -EINVAL;
@@ -134,11 +135,11 @@ static int ieee80211_set_ap_mbssid_options(struct ieee80211_sub_if_data *sdata,
 		sdata->vif.mbssid_tx_vif = &sdata->vif;
 	} else {
 		sdata->vif.mbssid_tx_vif = &tx_sdata->vif;
-		sdata->vif.bss_conf.nontransmitted = true;
-		sdata->vif.bss_conf.bssid_index = params.index;
+		link_conf->nontransmitted = true;
+		link_conf->bssid_index = params.index;
 	}
 	if (params.ema)
-		sdata->vif.bss_conf.ema_ap = true;
+		link_conf->ema_ap = true;
 
 	return 0;
 }
@@ -861,14 +862,15 @@ static int
 ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 			 const u8 *resp, size_t resp_len,
 			 const struct ieee80211_csa_settings *csa,
-			 const struct ieee80211_color_change_settings *cca)
+			 const struct ieee80211_color_change_settings *cca,
+			 struct ieee80211_link_data *link)
 {
 	struct probe_resp *new, *old;
 
 	if (!resp || !resp_len)
 		return 1;
 
-	old = sdata_dereference(sdata->deflink.u.ap.probe_resp, sdata);
+	old = sdata_dereference(link->u.ap.probe_resp, sdata);
 
 	new = kzalloc(sizeof(struct probe_resp) + resp_len, GFP_KERNEL);
 	if (!new)
@@ -884,7 +886,7 @@ ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 	else if (cca)
 		new->cntdwn_counter_offsets[0] = cca->counter_offset_presp;
 
-	rcu_assign_pointer(sdata->deflink.u.ap.probe_resp, new);
+	rcu_assign_pointer(link->u.ap.probe_resp, new);
 	if (old)
 		kfree_rcu(old, rcu_head);
 
@@ -892,7 +894,9 @@ ieee80211_set_probe_resp(struct ieee80211_sub_if_data *sdata,
 }
 
 static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
-					struct cfg80211_fils_discovery *params)
+					struct cfg80211_fils_discovery *params,
+					struct ieee80211_link_data *link,
+					struct ieee80211_bss_conf *link_conf)
 {
 	struct fils_discovery_data *new, *old = NULL;
 	struct ieee80211_fils_discovery *fd;
@@ -900,17 +904,17 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
 	if (!params->tmpl || !params->tmpl_len)
 		return -EINVAL;
 
-	fd = &sdata->vif.bss_conf.fils_discovery;
+	fd = &link_conf->fils_discovery;
 	fd->min_interval = params->min_interval;
 	fd->max_interval = params->max_interval;
 
-	old = sdata_dereference(sdata->deflink.u.ap.fils_discovery, sdata);
+	old = sdata_dereference(link->u.ap.fils_discovery, sdata);
 	new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 	new->len = params->tmpl_len;
 	memcpy(new->data, params->tmpl, params->tmpl_len);
-	rcu_assign_pointer(sdata->deflink.u.ap.fils_discovery, new);
+	rcu_assign_pointer(link->u.ap.fils_discovery, new);
 
 	if (old)
 		kfree_rcu(old, rcu_head);
@@ -920,27 +924,27 @@ static int ieee80211_set_fils_discovery(struct ieee80211_sub_if_data *sdata,
 
 static int
 ieee80211_set_unsol_bcast_probe_resp(struct ieee80211_sub_if_data *sdata,
-				     struct cfg80211_unsol_bcast_probe_resp *params)
+				     struct cfg80211_unsol_bcast_probe_resp *params,
+				     struct ieee80211_link_data *link,
+				     struct ieee80211_bss_conf *link_conf)
 {
 	struct unsol_bcast_probe_resp_data *new, *old = NULL;
 
 	if (!params->tmpl || !params->tmpl_len)
 		return -EINVAL;
 
-	old = sdata_dereference(sdata->deflink.u.ap.unsol_bcast_probe_resp,
-				sdata);
+	old = sdata_dereference(link->u.ap.unsol_bcast_probe_resp, sdata);
 	new = kzalloc(sizeof(*new) + params->tmpl_len, GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 	new->len = params->tmpl_len;
 	memcpy(new->data, params->tmpl, params->tmpl_len);
-	rcu_assign_pointer(sdata->deflink.u.ap.unsol_bcast_probe_resp, new);
+	rcu_assign_pointer(link->u.ap.unsol_bcast_probe_resp, new);
 
 	if (old)
 		kfree_rcu(old, rcu_head);
 
-	sdata->vif.bss_conf.unsol_bcast_probe_resp_interval =
-							params->interval;
+	link_conf->unsol_bcast_probe_resp_interval = params->interval;
 
 	return 0;
 }
@@ -948,18 +952,17 @@ ieee80211_set_unsol_bcast_probe_resp(struct ieee80211_sub_if_data *sdata,
 static int ieee80211_set_ftm_responder_params(
 				struct ieee80211_sub_if_data *sdata,
 				const u8 *lci, size_t lci_len,
-				const u8 *civicloc, size_t civicloc_len)
+				const u8 *civicloc, size_t civicloc_len,
+				struct ieee80211_bss_conf *link_conf)
 {
 	struct ieee80211_ftm_responder_params *new, *old;
-	struct ieee80211_bss_conf *bss_conf;
 	u8 *pos;
 	int len;
 
 	if (!lci_len && !civicloc_len)
 		return 0;
 
-	bss_conf = &sdata->vif.bss_conf;
-	old = bss_conf->ftmr_params;
+	old = link_conf->ftmr_params;
 	len = lci_len + civicloc_len;
 
 	new = kzalloc(sizeof(*new) + len, GFP_KERNEL);
@@ -981,7 +984,7 @@ static int ieee80211_set_ftm_responder_params(
 		pos += civicloc_len;
 	}
 
-	bss_conf->ftmr_params = new;
+	link_conf->ftmr_params = new;
 	kfree(old);
 
 	return 0;
@@ -1014,8 +1017,11 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 	int new_head_len, new_tail_len;
 	int size, err;
 	u32 changed = BSS_CHANGED_BEACON;
+	struct ieee80211_link_data *link = sdata->link[params->link_id];
+	struct ieee80211_bss_conf *link_conf =
+		sdata->vif.link_conf[params->link_id];
 
-	old = sdata_dereference(sdata->deflink.u.ap.beacon, sdata);
+	old = sdata_dereference(link->u.ap.beacon, sdata);
 
 	/* Need to have a beacon head if we don't have one yet */
 	if (!params->head && !old)
@@ -1069,7 +1075,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 		pos += struct_size(new->mbssid_ies, elem, mbssid->cnt);
 		ieee80211_copy_mbssid_beacon(pos, new->mbssid_ies, mbssid);
 		/* update bssid_indicator */
-		sdata->vif.bss_conf.bssid_indicator =
+		link_conf->bssid_indicator =
 			ilog2(__roundup_pow_of_two(mbssid->cnt + 1));
 	}
 
@@ -1097,7 +1103,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 			memcpy(new->tail, old->tail, new_tail_len);
 
 	err = ieee80211_set_probe_resp(sdata, params->probe_resp,
-				       params->probe_resp_len, csa, cca);
+				       params->probe_resp_len, csa, cca, link);
 	if (err < 0) {
 		kfree(new);
 		return err;
@@ -1106,12 +1112,13 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_AP_PROBE_RESP;
 
 	if (params->ftm_responder != -1) {
-		sdata->vif.bss_conf.ftm_responder = params->ftm_responder;
+		link_conf->ftm_responder = params->ftm_responder;
 		err = ieee80211_set_ftm_responder_params(sdata,
 							 params->lci,
 							 params->lci_len,
 							 params->civicloc,
-							 params->civicloc_len);
+							 params->civicloc_len,
+							 link_conf);
 
 		if (err < 0) {
 			kfree(new);
@@ -1121,7 +1128,7 @@ static int ieee80211_assign_beacon(struct ieee80211_sub_if_data *sdata,
 		changed |= BSS_CHANGED_FTM_RESPONDER;
 	}
 
-	rcu_assign_pointer(sdata->deflink.u.ap.beacon, new);
+	rcu_assign_pointer(link->u.ap.beacon, new);
 	sdata->u.ap.active = true;
 
 	if (old)
@@ -1140,33 +1147,35 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	u32 changed = BSS_CHANGED_BEACON_INT |
 		      BSS_CHANGED_BEACON_ENABLED |
 		      BSS_CHANGED_BEACON |
-		      BSS_CHANGED_SSID |
 		      BSS_CHANGED_P2P_PS |
 		      BSS_CHANGED_TXPOWER |
 		      BSS_CHANGED_TWT;
 	int i, err;
 	int prev_beacon_int;
+	unsigned int link_id = params->beacon.link_id;
+	struct ieee80211_link_data *link = sdata->link[link_id];
+	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
 
-	old = sdata_dereference(sdata->deflink.u.ap.beacon, sdata);
+	old = sdata_dereference(link->u.ap.beacon, sdata);
 	if (old)
 		return -EALREADY;
 
 	if (params->smps_mode != NL80211_SMPS_OFF)
 		return -ENOTSUPP;
 
-	sdata->deflink.smps_mode = IEEE80211_SMPS_OFF;
+	link->smps_mode = IEEE80211_SMPS_OFF;
 
-	sdata->deflink.needed_rx_chains = sdata->local->rx_chains;
+	link->needed_rx_chains = sdata->local->rx_chains;
 
-	prev_beacon_int = sdata->vif.bss_conf.beacon_int;
-	sdata->vif.bss_conf.beacon_int = params->beacon_interval;
+	prev_beacon_int = link_conf->beacon_int;
+	link_conf->beacon_int = params->beacon_interval;
 
 	if (params->he_cap && params->he_oper) {
-		sdata->vif.bss_conf.he_support = true;
-		sdata->vif.bss_conf.htc_trig_based_pkt_ext =
+		link_conf->he_support = true;
+		link_conf->htc_trig_based_pkt_ext =
 			le32_get_bits(params->he_oper->he_oper_params,
 			      IEEE80211_HE_OPERATION_DFLT_PE_DURATION_MASK);
-		sdata->vif.bss_conf.frame_time_rts_th =
+		link_conf->frame_time_rts_th =
 			le32_get_bits(params->he_oper->he_oper_params,
 			      IEEE80211_HE_OPERATION_RTS_THRESHOLD_MASK);
 		changed |= BSS_CHANGED_HE_OBSS_PD;
@@ -1178,21 +1187,20 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (sdata->vif.type == NL80211_IFTYPE_AP &&
 	    params->mbssid_config.tx_wdev) {
 		err = ieee80211_set_ap_mbssid_options(sdata,
-						      params->mbssid_config);
+						      params->mbssid_config,
+						      link_conf);
 		if (err)
 			return err;
 	}
 
 	mutex_lock(&local->mtx);
-	err = ieee80211_link_use_channel(sdata->link[params->beacon.link_id],
-					 &params->chandef,
+	err = ieee80211_link_use_channel(link, &params->chandef,
 					 IEEE80211_CHANCTX_SHARED);
 	if (!err)
-		ieee80211_link_copy_chanctx_to_vlans(sdata->link[params->beacon.link_id],
-						     false);
+		ieee80211_link_copy_chanctx_to_vlans(link, false);
 	mutex_unlock(&local->mtx);
 	if (err) {
-		sdata->vif.bss_conf.beacon_int = prev_beacon_int;
+		link_conf->beacon_int = prev_beacon_int;
 		return err;
 	}
 
@@ -1218,12 +1226,12 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 			params->crypto.control_port_no_preauth;
 	}
 
-	sdata->vif.bss_conf.dtim_period = params->dtim_period;
-	sdata->vif.bss_conf.enable_beacon = true;
-	sdata->vif.bss_conf.allow_p2p_go_ps = sdata->vif.p2p;
-	sdata->vif.bss_conf.twt_responder = params->twt_responder;
-	sdata->vif.bss_conf.he_obss_pd = params->he_obss_pd;
-	sdata->vif.bss_conf.he_bss_color = params->beacon.he_bss_color;
+	link_conf->dtim_period = params->dtim_period;
+	link_conf->enable_beacon = true;
+	link_conf->allow_p2p_go_ps = sdata->vif.p2p;
+	link_conf->twt_responder = params->twt_responder;
+	link_conf->he_obss_pd = params->he_obss_pd;
+	link_conf->he_bss_color = params->beacon.he_bss_color;
 	sdata->vif.cfg.s1g = params->chandef.chan->band ==
 				  NL80211_BAND_S1GHZ;
 
@@ -1231,15 +1239,15 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (params->ssid_len)
 		memcpy(sdata->vif.cfg.ssid, params->ssid,
 		       params->ssid_len);
-	sdata->vif.bss_conf.hidden_ssid =
+	link_conf->hidden_ssid =
 		(params->hidden_ssid != NL80211_HIDDEN_SSID_NOT_IN_USE);
 
-	memset(&sdata->vif.bss_conf.p2p_noa_attr, 0,
-	       sizeof(sdata->vif.bss_conf.p2p_noa_attr));
-	sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow =
+	memset(&link_conf->p2p_noa_attr, 0,
+	       sizeof(link_conf->p2p_noa_attr));
+	link_conf->p2p_noa_attr.oppps_ctwindow =
 		params->p2p_ctwindow & IEEE80211_P2P_OPPPS_CTWINDOW_MASK;
 	if (params->p2p_opp_ps)
-		sdata->vif.bss_conf.p2p_noa_attr.oppps_ctwindow |=
+		link_conf->p2p_noa_attr.oppps_ctwindow |=
 					IEEE80211_P2P_OPPPS_ENABLE_BIT;
 
 	sdata->beacon_rate_set = false;
@@ -1254,7 +1262,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 	}
 
 	if (ieee80211_hw_check(&local->hw, HAS_RATE_CONTROL))
-		sdata->vif.bss_conf.beacon_tx_rate = params->beacon_rate;
+		link_conf->beacon_tx_rate = params->beacon_rate;
 
 	err = ieee80211_assign_beacon(sdata, &params->beacon, NULL, NULL);
 	if (err < 0)
@@ -1263,7 +1271,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	if (params->fils_discovery.max_interval) {
 		err = ieee80211_set_fils_discovery(sdata,
-						   &params->fils_discovery);
+						   &params->fils_discovery,
+						   link, link_conf);
 		if (err < 0)
 			goto error;
 		changed |= BSS_CHANGED_FILS_DISCOVERY;
@@ -1271,7 +1280,8 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	if (params->unsol_bcast_probe_resp.interval) {
 		err = ieee80211_set_unsol_bcast_probe_resp(sdata,
-							   &params->unsol_bcast_probe_resp);
+							   &params->unsol_bcast_probe_resp,
+							   link, link_conf);
 		if (err < 0)
 			goto error;
 		changed |= BSS_CHANGED_UNSOL_BCAST_PROBE_RESP;
@@ -1279,17 +1289,18 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	err = drv_start_ap(sdata->local, sdata);
 	if (err) {
-		old = sdata_dereference(sdata->deflink.u.ap.beacon, sdata);
+		old = sdata_dereference(link->u.ap.beacon, sdata);
 
 		if (old)
 			kfree_rcu(old, rcu_head);
-		RCU_INIT_POINTER(sdata->deflink.u.ap.beacon, NULL);
+		RCU_INIT_POINTER(link->u.ap.beacon, NULL);
 		sdata->u.ap.active = false;
 		goto error;
 	}
 
 	ieee80211_recalc_dtim(local, sdata);
-	ieee80211_bss_info_change_notify(sdata, changed);
+	ieee80211_vif_cfg_change_notify(sdata, BSS_CHANGED_SSID);
+	ieee80211_link_info_change_notify(sdata, link_id, changed);
 
 	netif_carrier_on(dev);
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
@@ -1299,7 +1310,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 
 error:
 	mutex_lock(&local->mtx);
-	ieee80211_link_release_channel(sdata->link[params->beacon.link_id]);
+	ieee80211_link_release_channel(link);
 	mutex_unlock(&local->mtx);
 
 	return err;
@@ -1308,21 +1319,22 @@ error:
 static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 				   struct cfg80211_beacon_data *params)
 {
-	struct ieee80211_sub_if_data *sdata;
-	struct ieee80211_bss_conf *bss_conf;
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	struct beacon_data *old;
 	int err;
+	struct ieee80211_bss_conf *link_conf =
+		sdata->vif.link_conf[params->link_id];
 
-	sdata = IEEE80211_DEV_TO_SUB_IF(dev);
 	sdata_assert_lock(sdata);
 
 	/* don't allow changing the beacon while a countdown is in place - offset
 	 * of channel switch counter may change
 	 */
-	if (sdata->vif.bss_conf.csa_active || sdata->vif.bss_conf.color_change_active)
+	if (link_conf->csa_active || link_conf->color_change_active)
 		return -EBUSY;
 
-	old = sdata_dereference(sdata->deflink.u.ap.beacon, sdata);
+	old = sdata_dereference(sdata->link[params->link_id]->u.ap.beacon,
+				sdata);
 	if (!old)
 		return -ENOENT;
 
@@ -1330,10 +1342,9 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	if (err < 0)
 		return err;
 
-	bss_conf = &sdata->vif.bss_conf;
 	if (params->he_bss_color_valid &&
-	    params->he_bss_color.enabled != bss_conf->he_bss_color.enabled) {
-		bss_conf->he_bss_color.enabled = params->he_bss_color.enabled;
+	    params->he_bss_color.enabled != link_conf->he_bss_color.enabled) {
+		link_conf->he_bss_color.enabled = params->he_bss_color.enabled;
 		err |= BSS_CHANGED_HE_BSS_COLOR;
 	}
 
@@ -1341,14 +1352,14 @@ static int ieee80211_change_beacon(struct wiphy *wiphy, struct net_device *dev,
 	return 0;
 }
 
-static void ieee80211_free_next_beacon(struct ieee80211_sub_if_data *sdata)
+static void ieee80211_free_next_beacon(struct ieee80211_link_data *link)
 {
-	if (!sdata->deflink.u.ap.next_beacon)
+	if (!link->u.ap.next_beacon)
 		return;
 
-	kfree(sdata->deflink.u.ap.next_beacon->mbssid_ies);
-	kfree(sdata->deflink.u.ap.next_beacon);
-	sdata->deflink.u.ap.next_beacon = NULL;
+	kfree(link->u.ap.next_beacon->mbssid_ies);
+	kfree(link->u.ap.next_beacon);
+	link->u.ap.next_beacon = NULL;
 }
 
 static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
@@ -1362,32 +1373,34 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	struct fils_discovery_data *old_fils_discovery;
 	struct unsol_bcast_probe_resp_data *old_unsol_bcast_probe_resp;
 	struct cfg80211_chan_def chandef;
+	struct ieee80211_link_data *link = sdata->link[link_id];
+	struct ieee80211_bss_conf *link_conf = sdata->vif.link_conf[link_id];
 
 	sdata_assert_lock(sdata);
 
-	old_beacon = sdata_dereference(sdata->deflink.u.ap.beacon, sdata);
+	old_beacon = sdata_dereference(link->u.ap.beacon, sdata);
 	if (!old_beacon)
 		return -ENOENT;
-	old_probe_resp = sdata_dereference(sdata->deflink.u.ap.probe_resp,
+	old_probe_resp = sdata_dereference(link->u.ap.probe_resp,
 					   sdata);
-	old_fils_discovery = sdata_dereference(sdata->deflink.u.ap.fils_discovery,
+	old_fils_discovery = sdata_dereference(link->u.ap.fils_discovery,
 					       sdata);
 	old_unsol_bcast_probe_resp =
-		sdata_dereference(sdata->deflink.u.ap.unsol_bcast_probe_resp,
+		sdata_dereference(link->u.ap.unsol_bcast_probe_resp,
 				  sdata);
 
 	/* abort any running channel switch */
 	mutex_lock(&local->mtx);
-	sdata->vif.bss_conf.csa_active = false;
-	if (sdata->deflink.csa_block_tx) {
+	link_conf->csa_active = false;
+	if (link->csa_block_tx) {
 		ieee80211_wake_vif_queues(local, sdata,
 					  IEEE80211_QUEUE_STOP_REASON_CSA);
-		sdata->deflink.csa_block_tx = false;
+		link->csa_block_tx = false;
 	}
 
 	mutex_unlock(&local->mtx);
 
-	ieee80211_free_next_beacon(sdata);
+	ieee80211_free_next_beacon(link);
 
 	/* turn off carrier for this interface and dependent VLANs */
 	list_for_each_entry(vlan, &sdata->u.ap.vlans, u.vlan.list)
@@ -1396,10 +1409,10 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 
 	/* remove beacon and probe response */
 	sdata->u.ap.active = false;
-	RCU_INIT_POINTER(sdata->deflink.u.ap.beacon, NULL);
-	RCU_INIT_POINTER(sdata->deflink.u.ap.probe_resp, NULL);
-	RCU_INIT_POINTER(sdata->deflink.u.ap.fils_discovery, NULL);
-	RCU_INIT_POINTER(sdata->deflink.u.ap.unsol_bcast_probe_resp, NULL);
+	RCU_INIT_POINTER(link->u.ap.beacon, NULL);
+	RCU_INIT_POINTER(link->u.ap.probe_resp, NULL);
+	RCU_INIT_POINTER(link->u.ap.fils_discovery, NULL);
+	RCU_INIT_POINTER(link->u.ap.unsol_bcast_probe_resp, NULL);
 	kfree_rcu(old_beacon, rcu_head);
 	if (old_probe_resp)
 		kfree_rcu(old_probe_resp, rcu_head);
@@ -1408,13 +1421,13 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	if (old_unsol_bcast_probe_resp)
 		kfree_rcu(old_unsol_bcast_probe_resp, rcu_head);
 
-	kfree(sdata->vif.bss_conf.ftmr_params);
-	sdata->vif.bss_conf.ftmr_params = NULL;
+	kfree(link_conf->ftmr_params);
+	link_conf->ftmr_params = NULL;
 
 	__sta_info_flush(sdata, true);
 	ieee80211_free_keys(sdata, true);
 
-	sdata->vif.bss_conf.enable_beacon = false;
+	link_conf->enable_beacon = false;
 	sdata->beacon_rate_set = false;
 	sdata->vif.cfg.ssid_len = 0;
 	clear_bit(SDATA_STATE_OFFCHANNEL_BEACON_STOPPED, &sdata->state);
@@ -1422,8 +1435,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 					  BSS_CHANGED_BEACON_ENABLED);
 
 	if (sdata->wdev.cac_started) {
-		chandef = sdata->vif.bss_conf.chandef;
-		cancel_delayed_work_sync(&sdata->deflink.dfs_cac_timer_work);
+		chandef = link_conf->chandef;
+		cancel_delayed_work_sync(&link->dfs_cac_timer_work);
 		cfg80211_cac_event(sdata->dev, &chandef,
 				   NL80211_RADAR_CAC_ABORTED,
 				   GFP_KERNEL);
@@ -1436,8 +1449,8 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 	ieee80211_purge_tx_queue(&local->hw, &sdata->u.ap.ps.bc_buf);
 
 	mutex_lock(&local->mtx);
-	ieee80211_link_copy_chanctx_to_vlans(sdata->link[link_id], true);
-	ieee80211_link_release_channel(sdata->link[link_id]);
+	ieee80211_link_copy_chanctx_to_vlans(link, true);
+	ieee80211_link_release_channel(link);
 	mutex_unlock(&local->mtx);
 
 	return 0;
@@ -3335,7 +3348,7 @@ static int ieee80211_set_after_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		err = ieee80211_assign_beacon(sdata,
 					      sdata->deflink.u.ap.next_beacon,
 					      NULL, NULL);
-		ieee80211_free_next_beacon(sdata);
+		ieee80211_free_next_beacon(&sdata->deflink);
 
 		if (err < 0)
 			return err;
@@ -3491,7 +3504,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM) ||
 		    (params->n_counter_offsets_presp >
 		     IEEE80211_MAX_CNTDWN_COUNTERS_NUM)) {
-			ieee80211_free_next_beacon(sdata);
+			ieee80211_free_next_beacon(&sdata->deflink);
 			return -EINVAL;
 		}
 
@@ -3503,7 +3516,7 @@ static int ieee80211_set_csa_beacon(struct ieee80211_sub_if_data *sdata,
 
 		err = ieee80211_assign_beacon(sdata, &params->beacon_csa, &csa, NULL);
 		if (err < 0) {
-			ieee80211_free_next_beacon(sdata);
+			ieee80211_free_next_beacon(&sdata->deflink);
 			return err;
 		}
 		*changed |= err;
@@ -3594,7 +3607,7 @@ static void ieee80211_color_change_abort(struct ieee80211_sub_if_data  *sdata)
 {
 	sdata->vif.bss_conf.color_change_active = false;
 
-	ieee80211_free_next_beacon(sdata);
+	ieee80211_free_next_beacon(&sdata->deflink);
 
 	cfg80211_color_change_aborted_notify(sdata->dev);
 }
@@ -4340,7 +4353,7 @@ ieee80211_set_after_color_change_beacon(struct ieee80211_sub_if_data *sdata,
 		ret = ieee80211_assign_beacon(sdata,
 					      sdata->deflink.u.ap.next_beacon,
 					      NULL, NULL);
-		ieee80211_free_next_beacon(sdata);
+		ieee80211_free_next_beacon(&sdata->deflink);
 
 		if (ret < 0)
 			return ret;
@@ -4383,7 +4396,7 @@ ieee80211_set_color_change_beacon(struct ieee80211_sub_if_data *sdata,
 		err = ieee80211_assign_beacon(sdata, &params->beacon_color_change,
 					      NULL, &color_change);
 		if (err < 0) {
-			ieee80211_free_next_beacon(sdata);
+			ieee80211_free_next_beacon(&sdata->deflink);
 			return err;
 		}
 		*changed |= err;
