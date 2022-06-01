@@ -34,6 +34,16 @@ config SPMI_MSM_PMIC_ARB
 	  This is required for communicating with Qualcomm PMICs and
 	  other devices that have the SPMI interface.
 
+config SPMI_MSM_PMIC_ARB_DEBUG
+	tristate "QTI SPMI Debug Controller (PMIC Arbiter)"
+	depends on ARCH_QCOM || COMPILE_TEST
+	depends on HAS_IOMEM
+	help
+	  If you say yes to this option, support will be included for the
+	  built-in SPMI PMIC Arbiter debug interface on Qualcomm Technologies,
+	  Inc. (QTI) MSM family processors.  This feature is available on chips
+	  with PMIC arbiter version 5 and above.
+
 config SPMI_MTK_PMIF
 	tristate "Mediatek SPMI Controller (PMIC Arbiter)"
 	depends on ARCH_MEDIATEK || COMPILE_TEST
