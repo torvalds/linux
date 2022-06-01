@@ -21,6 +21,7 @@
  */
 #include "priv.h"
 #include "conn.h"
+#include "outp.h"
 
 #include <nvif/class.h>
 #include <nvif/if0010.h>
@@ -33,6 +34,12 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 	if (index-- == 0) {
 		sclass->base = (struct nvkm_sclass) { 0, 0, NVIF_CLASS_CONN };
 		sclass->ctor = nvkm_uconn_new;
+		return 0;
+	}
+
+	if (index-- == 0) {
+		sclass->base = (struct nvkm_sclass) { 0, 0, NVIF_CLASS_OUTP };
+		sclass->ctor = nvkm_uoutp_new;
 		return 0;
 	}
 
@@ -81,6 +88,7 @@ nvkm_udisp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 {
 	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
 	struct nvkm_conn *conn;
+	struct nvkm_outp *outp;
 	union nvif_disp_args *args = argv;
 
 	if (argc != sizeof(args->v0) || args->v0.version != 0)
@@ -98,6 +106,10 @@ nvkm_udisp_new(const struct nvkm_oclass *oclass, void *argv, u32 argc, struct nv
 	args->v0.conn_mask = 0;
 	list_for_each_entry(conn, &disp->conns, head)
 		args->v0.conn_mask |= BIT(conn->index);
+
+	args->v0.outp_mask = 0;
+	list_for_each_entry(outp, &disp->outps, head)
+		args->v0.outp_mask |= BIT(outp->index);
 
 	return 0;
 }

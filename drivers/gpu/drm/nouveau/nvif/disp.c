@@ -72,7 +72,9 @@ nvif_disp_ctor(struct nvif_device *device, const char *name, s32 oclass, struct 
 	if (ret)
 		return ret;
 
-	NVIF_DEBUG(&disp->object, "[NEW] conn_mask:%08x", args.conn_mask);
+	NVIF_DEBUG(&disp->object, "[NEW] conn_mask:%08x outp_mask:%08x",
+		   args.conn_mask, args.outp_mask);
 	disp->conn_mask = args.conn_mask;
+	disp->outp_mask = args.outp_mask;
 	return 0;
 }

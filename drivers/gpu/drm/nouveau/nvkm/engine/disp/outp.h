@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_OUTP_H__
 #define __NVKM_DISP_OUTP_H__
-#include <engine/disp.h>
+#include "priv.h"
 #include <core/notify.h>
 
 #include <subdev/bios.h>
@@ -53,6 +53,8 @@ struct nvkm_outp {
 			} lt;
 		} dp;
 	};
+
+	struct nvkm_object object;
 };
 
 int nvkm_outp_new_(const struct nvkm_outp_func *, struct nvkm_disp *, int index,
