@@ -33,22 +33,22 @@ static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
  */
 
 static const struct mgag200_device_info mgag200_g200se_a_01_device_info =
-	MGAG200_DEVICE_INFO_INIT(1600, 1200, 24400, true);
+	MGAG200_DEVICE_INFO_INIT(1600, 1200, 24400, false, true);
 
 static const struct mgag200_device_info mgag200_g200se_a_02_device_info =
-	MGAG200_DEVICE_INFO_INIT(1920, 1200, 30100, true);
+	MGAG200_DEVICE_INFO_INIT(1920, 1200, 30100, false, true);
 
 static const struct mgag200_device_info mgag200_g200se_a_03_device_info =
-	MGAG200_DEVICE_INFO_INIT(2048, 2048, 55000, false);
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 55000, false, false);
 
 static const struct mgag200_device_info mgag200_g200se_b_01_device_info =
-	MGAG200_DEVICE_INFO_INIT(1600, 1200, 24400, false);
+	MGAG200_DEVICE_INFO_INIT(1600, 1200, 24400, false, false);
 
 static const struct mgag200_device_info mgag200_g200se_b_02_device_info =
-	MGAG200_DEVICE_INFO_INIT(1920, 1200, 30100, false);
+	MGAG200_DEVICE_INFO_INIT(1920, 1200, 30100, false, false);
 
 static const struct mgag200_device_info mgag200_g200se_b_03_device_info =
-	MGAG200_DEVICE_INFO_INIT(2048, 2048, 55000, false);
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 55000, false, false);
 
 static int mgag200_g200se_init_unique_rev_id(struct mgag200_g200se_device *g200se)
 {

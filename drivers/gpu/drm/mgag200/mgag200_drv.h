@@ -200,6 +200,9 @@ struct mgag200_device_info {
 	 */
 	unsigned long max_mem_bandwidth;
 
+	/* HW has external source (e.g., BMC) to synchronize with */
+	bool has_vidrst:1;
+
 	/*
 	 * HW does not handle 'startadd' register correctly. Always set
 	 * it's value to 0.
@@ -208,11 +211,12 @@ struct mgag200_device_info {
 };
 
 #define MGAG200_DEVICE_INFO_INIT(_max_hdisplay, _max_vdisplay, _max_mem_bandwidth, \
-				 _bug_no_startadd) \
+				 _has_vidrst, _bug_no_startadd) \
 	{ \
 		.max_hdisplay = (_max_hdisplay), \
 		.max_vdisplay = (_max_vdisplay), \
 		.max_mem_bandwidth = (_max_mem_bandwidth), \
+		.has_vidrst = (_has_vidrst), \
 		.bug_no_startadd = (_bug_no_startadd), \
 	}
 

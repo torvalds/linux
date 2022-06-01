@@ -377,6 +377,7 @@ static void mgag200_init_regs(struct mga_device *mdev)
 static void mgag200_set_mode_regs(struct mga_device *mdev,
 				  const struct drm_display_mode *mode)
 {
+	const struct mgag200_device_info *info = mdev->info;
 	unsigned int hdisplay, hsyncstart, hsyncend, htotal;
 	unsigned int vdisplay, vsyncstart, vsyncend, vtotal;
 	u8 misc, crtcext1, crtcext2, crtcext5;
@@ -411,9 +412,9 @@ static void mgag200_set_mode_regs(struct mga_device *mdev,
 		   ((hdisplay & 0x100) >> 7) |
 		   ((hsyncstart & 0x100) >> 6) |
 		    (htotal & 0x40);
-	if (mdev->type == G200_WB || mdev->type == G200_EW3)
-		crtcext1 |= BIT(7) | /* vrsten */
-			    BIT(3); /* hrsten */
+	if (info->has_vidrst)
+		crtcext1 |= MGAREG_CRTCEXT1_VRSTEN |
+			    MGAREG_CRTCEXT1_HRSTEN;
 
 	crtcext2 = ((vtotal & 0xc00) >> 10) |
 		   ((vdisplay & 0x400) >> 8) |
