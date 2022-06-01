@@ -702,7 +702,7 @@ static int haptics_read(struct haptics_chip *chip,
 
 	rc = regmap_bulk_read(chip->regmap, addr, val, length);
 	if (rc < 0)
-		dev_err(chip->dev, "read addr %d failed, rc=%d\n", addr, rc);
+		dev_err(chip->dev, "read addr %#x failed, rc=%d\n", addr, rc);
 
 	return rc;
 }
@@ -715,7 +715,7 @@ static int haptics_write(struct haptics_chip *chip,
 
 	rc = regmap_bulk_write(chip->regmap, addr, val, length);
 	if (rc < 0)
-		dev_err(chip->dev, "write addr %d failed, rc=%d\n", addr, rc);
+		dev_err(chip->dev, "write addr %#x failed, rc=%d\n", addr, rc);
 
 	return rc;
 }
@@ -728,7 +728,7 @@ static int haptics_masked_write(struct haptics_chip *chip,
 
 	regmap_update_bits(chip->regmap, addr, mask, val);
 	if (rc < 0)
-		dev_err(chip->dev, "update addr %d failed, rc=%d\n", addr, rc);
+		dev_err(chip->dev, "update addr %#x failed, rc=%d\n", addr, rc);
 
 	return rc;
 }
