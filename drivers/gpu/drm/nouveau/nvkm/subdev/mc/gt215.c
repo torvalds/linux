@@ -83,6 +83,7 @@ gt215_mc = {
 	.init = nv50_mc_init,
 	.intr = &nv04_mc_intr,
 	.intrs = gt215_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = gt215_mc_reset,
 };
 

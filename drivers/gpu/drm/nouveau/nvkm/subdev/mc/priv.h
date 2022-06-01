@@ -21,7 +21,14 @@ struct nvkm_mc_func {
 	const struct nvkm_intr_data *intrs;
 	bool intr_nonstall;
 
+	const struct nvkm_mc_device_func {
+		bool (*enabled)(struct nvkm_mc *, u32 mask);
+		void (*enable)(struct nvkm_mc *, u32 mask);
+		void (*disable)(struct nvkm_mc *, u32 mask);
+	} *device;
+
 	const struct nvkm_mc_map *reset;
+
 	void (*unk260)(struct nvkm_mc *, u32);
 };
 
@@ -30,6 +37,7 @@ extern const struct nvkm_intr_func nv04_mc_intr;
 bool nv04_mc_intr_pending(struct nvkm_intr *);
 void nv04_mc_intr_unarm(struct nvkm_intr *);
 void nv04_mc_intr_rearm(struct nvkm_intr *);
+extern const struct nvkm_mc_device_func nv04_mc_device;
 extern const struct nvkm_mc_map nv04_mc_reset[];
 
 extern const struct nvkm_intr_data nv17_mc_intrs[];

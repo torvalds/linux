@@ -38,6 +38,7 @@ nv11_mc = {
 	.init = nv04_mc_init,
 	.intr = &nv04_mc_intr,
 	.intrs = nv11_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = nv04_mc_reset,
 };
 

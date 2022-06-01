@@ -24,6 +24,7 @@
 static const struct nvkm_mc_func
 ga100_mc = {
 	.init = nv50_mc_init,
+	.device = &nv04_mc_device,
 	.reset = gk104_mc_reset,
 };
 

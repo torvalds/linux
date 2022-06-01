@@ -42,6 +42,7 @@ nv44_mc = {
 	.init = nv44_mc_init,
 	.intr = &nv04_mc_intr,
 	.intrs = nv17_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = nv17_mc_reset,
 };
 

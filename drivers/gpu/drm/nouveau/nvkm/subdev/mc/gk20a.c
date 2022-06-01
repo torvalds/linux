@@ -29,6 +29,7 @@ gk20a_mc = {
 	.intr = &gt215_mc_intr,
 	.intrs = gk104_mc_intrs,
 	.intr_nonstall = true,
+	.device = &nv04_mc_device,
 	.reset = gk104_mc_reset,
 };
 

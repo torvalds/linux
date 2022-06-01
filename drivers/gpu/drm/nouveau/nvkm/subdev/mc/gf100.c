@@ -71,6 +71,7 @@ gf100_mc = {
 	.intrs = gf100_mc_intrs,
 	.intr_nonstall = true,
 	.reset = gf100_mc_reset,
+	.device = &nv04_mc_device,
 	.unk260 = gf100_mc_unk260,
 };
 

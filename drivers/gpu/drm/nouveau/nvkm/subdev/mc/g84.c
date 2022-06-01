@@ -56,6 +56,7 @@ g84_mc = {
 	.init = nv50_mc_init,
 	.intr = &nv04_mc_intr,
 	.intrs = g84_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = g84_mc_reset,
 };
 

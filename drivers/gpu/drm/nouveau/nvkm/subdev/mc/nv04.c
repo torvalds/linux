@@ -30,6 +30,34 @@ nv04_mc_reset[] = {
 	{}
 };
 
+static void
+nv04_mc_device_disable(struct nvkm_mc *mc, u32 mask)
+{
+	nvkm_mask(mc->subdev.device, 0x000200, mask, 0x00000000);
+}
+
+static void
+nv04_mc_device_enable(struct nvkm_mc *mc, u32 mask)
+{
+	struct nvkm_device *device = mc->subdev.device;
+
+	nvkm_mask(device, 0x000200, mask, mask);
+	nvkm_rd32(device, 0x000200);
+}
+
+static bool
+nv04_mc_device_enabled(struct nvkm_mc *mc, u32 mask)
+{
+	return (nvkm_rd32(mc->subdev.device, 0x000200) & mask) == mask;
+}
+
+const struct nvkm_mc_device_func
+nv04_mc_device = {
+	.enabled = nv04_mc_device_enabled,
+	.enable = nv04_mc_device_enable,
+	.disable = nv04_mc_device_disable,
+};
+
 static const struct nvkm_intr_data
 nv04_mc_intrs[] = {
 	{ NVKM_ENGINE_DISP , 0, 0, 0x01010000, true },
@@ -98,6 +126,7 @@ nv04_mc = {
 	.init = nv04_mc_init,
 	.intr = &nv04_mc_intr,
 	.intrs = nv04_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = nv04_mc_reset,
 };
 

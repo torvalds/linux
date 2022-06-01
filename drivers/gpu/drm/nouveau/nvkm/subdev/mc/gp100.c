@@ -90,6 +90,7 @@ gp100_mc = {
 	.intr = &gp100_mc_intr,
 	.intrs = gp100_mc_intrs,
 	.intr_nonstall = true,
+	.device = &nv04_mc_device,
 	.reset = gk104_mc_reset,
 };
 

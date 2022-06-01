@@ -54,6 +54,7 @@ gk104_mc = {
 	.intrs = gk104_mc_intrs,
 	.intr_nonstall = true,
 	.reset = gk104_mc_reset,
+	.device = &nv04_mc_device,
 	.unk260 = gf100_mc_unk260,
 };
 

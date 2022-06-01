@@ -73,9 +73,8 @@ nvkm_mc_reset(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	u64 pmc_enable = nvkm_mc_reset_mask(device, true, type, inst);
 	if (pmc_enable) {
-		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
-		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
-		nvkm_rd32(device, 0x000200);
+		device->mc->func->device->disable(device->mc, pmc_enable);
+		device->mc->func->device->enable(device->mc, pmc_enable);
 	}
 }
 
@@ -84,17 +83,15 @@ nvkm_mc_disable(struct nvkm_device *device, enum nvkm_subdev_type type, int inst
 {
 	u64 pmc_enable = nvkm_mc_reset_mask(device, false, type, inst);
 	if (pmc_enable)
-		nvkm_mask(device, 0x000200, pmc_enable, 0x00000000);
+		device->mc->func->device->disable(device->mc, pmc_enable);
 }
 
 void
 nvkm_mc_enable(struct nvkm_device *device, enum nvkm_subdev_type type, int inst)
 {
 	u64 pmc_enable = nvkm_mc_reset_mask(device, false, type, inst);
-	if (pmc_enable) {
-		nvkm_mask(device, 0x000200, pmc_enable, pmc_enable);
-		nvkm_rd32(device, 0x000200);
-	}
+	if (pmc_enable)
+		device->mc->func->device->enable(device->mc, pmc_enable);
 }
 
 bool
@@ -102,10 +99,8 @@ nvkm_mc_enabled(struct nvkm_device *device, enum nvkm_subdev_type type, int inst
 {
 	u64 pmc_enable = nvkm_mc_reset_mask(device, false, type, inst);
 
-	return (pmc_enable != 0) &&
-	       ((nvkm_rd32(device, 0x000200) & pmc_enable) == pmc_enable);
+	return (pmc_enable != 0) && device->mc->func->device->enabled(device->mc, pmc_enable);
 }
-
 
 static int
 nvkm_mc_init(struct nvkm_subdev *subdev)

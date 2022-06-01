@@ -56,6 +56,7 @@ g98_mc = {
 	.init = nv50_mc_init,
 	.intr = &nv04_mc_intr,
 	.intrs = g98_mc_intrs,
+	.device = &nv04_mc_device,
 	.reset = g98_mc_reset,
 };
 
