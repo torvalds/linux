@@ -164,6 +164,12 @@ gk104_runq_intr_1(struct nvkm_runq *runq)
 	u32 chid = nvkm_rd32(device, 0x040120 + (runq->id * 0x2000)) & 0xfff;
 	char msg[128];
 
+	if (stat & 0x80000000) {
+		if (runq->func->intr_1_ctxnotvalid &&
+		    runq->func->intr_1_ctxnotvalid(runq, chid))
+			stat &= ~0x80000000;
+	}
+
 	if (stat) {
 		nvkm_snprintbf(msg, sizeof(msg), gk104_runq_intr_1_names, stat);
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d %08x %08x\n",

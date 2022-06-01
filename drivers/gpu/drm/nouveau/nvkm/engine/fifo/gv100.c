@@ -55,11 +55,34 @@ const struct nvkm_engn_func
 gv100_engn_ce = {
 };
 
+static bool
+gv100_runq_intr_1_ctxnotvalid(struct nvkm_runq *runq, int chid)
+{
+	struct nvkm_fifo *fifo = runq->fifo;
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_chan *chan;
+	unsigned long flags;
+
+	RUNQ_ERROR(runq, "CTXNOTVALID chid:%d", chid);
+
+	chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
+	if (WARN_ON_ONCE(!chan))
+		return false;
+
+	nvkm_chan_error(chan, true);
+	nvkm_chan_put(&chan, flags);
+
+	nvkm_mask(device, 0x0400ac + (runq->id * 0x2000), 0x00030000, 0x00030000);
+	nvkm_wr32(device, 0x040148 + (runq->id * 0x2000), 0x80000000);
+	return true;
+}
+
 const struct nvkm_runq_func
 gv100_runq = {
 	.init = gk208_runq_init,
 	.intr = gk104_runq_intr,
 	.intr_0_names = gk104_runq_intr_0_names,
+	.intr_1_ctxnotvalid = gv100_runq_intr_1_ctxnotvalid,
 };
 
 void

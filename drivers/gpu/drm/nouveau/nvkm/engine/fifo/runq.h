@@ -9,6 +9,7 @@ struct nvkm_runq {
 		void (*init)(struct nvkm_runq *);
 		bool (*intr)(struct nvkm_runq *, struct nvkm_runl *);
 		const struct nvkm_bitfield *intr_0_names;
+		bool (*intr_1_ctxnotvalid)(struct nvkm_runq *, int chid);
 	} *func;
 	struct nvkm_fifo *fifo;
 	int id;
