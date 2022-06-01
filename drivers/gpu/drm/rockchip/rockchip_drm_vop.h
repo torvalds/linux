@@ -254,6 +254,7 @@ struct vop_ctrl {
 	struct vop_reg post_scl_factor;
 	struct vop_reg post_scl_ctrl;
 	struct vop_reg dsp_interlace;
+	struct vop_reg dsp_interlace_pol;
 	struct vop_reg global_regdone_en;
 	struct vop_reg auto_gate_en;
 	struct vop_reg post_lb_mode;
