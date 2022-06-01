@@ -10,6 +10,11 @@ union nvif_head_args {
 	} v0;
 };
 
+union nvif_head_event_args {
+	struct nvif_head_event_vn {
+	} vn;
+};
+
 #define NVIF_HEAD_V0_SCANOUTPOS 0x00
 
 union nvif_head_scanoutpos_args {

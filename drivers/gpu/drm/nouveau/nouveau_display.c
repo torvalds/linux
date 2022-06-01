@@ -52,7 +52,7 @@ nouveau_display_vblank_enable(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc;
 
 	nv_crtc = nouveau_crtc(crtc);
-	nvif_notify_get(&nv_crtc->vblank);
+	nvif_event_allow(&nv_crtc->vblank);
 
 	return 0;
 }
@@ -63,7 +63,7 @@ nouveau_display_vblank_disable(struct drm_crtc *crtc)
 	struct nouveau_crtc *nv_crtc;
 
 	nv_crtc = nouveau_crtc(crtc);
-	nvif_notify_put(&nv_crtc->vblank);
+	nvif_event_block(&nv_crtc->vblank);
 }
 
 static inline int

@@ -21,8 +21,26 @@
  */
 #define nvkm_uhead(p) container_of((p), struct nvkm_head, object)
 #include "head.h"
+#include <core/event.h>
 
 #include <nvif/if0013.h>
+
+#include <nvif/event.h>
+
+static int
+nvkm_uhead_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_uevent *uevent)
+{
+	struct nvkm_head *head = nvkm_uhead(object);
+	union nvif_head_event_args *args = argv;
+
+	if (!uevent)
+		return 0;
+	if (argc != sizeof(args->vn))
+		return -ENOSYS;
+
+	return nvkm_uevent_add(uevent, &head->disp->vblank, head->id,
+			       NVKM_DISP_HEAD_EVENT_VBLANK, NULL);
+}
 
 static int
 nvkm_uhead_mthd_scanoutpos(struct nvkm_head *head, void *argv, u32 argc)
@@ -81,6 +99,7 @@ static const struct nvkm_object_func
 nvkm_uhead = {
 	.dtor = nvkm_uhead_dtor,
 	.mthd = nvkm_uhead_mthd,
+	.uevent = nvkm_uhead_uevent,
 };
 
 int

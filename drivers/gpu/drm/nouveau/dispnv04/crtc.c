@@ -761,7 +761,7 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_unmap(nv_crtc->cursor.nvbo);
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
-	nvif_notify_dtor(&nv_crtc->vblank);
+	nvif_event_dtor(&nv_crtc->vblank);
 	nvif_head_dtor(&nv_crtc->head);
 	kfree(nv_crtc);
 }
@@ -1280,13 +1280,13 @@ static const struct drm_plane_funcs nv04_primary_plane_funcs = {
 	DRM_PLANE_NON_ATOMIC_FUNCS,
 };
 
-static int nv04_crtc_vblank_handler(struct nvif_notify *notify)
+static int
+nv04_crtc_vblank_handler(struct nvif_event *event, void *repv, u32 repc)
 {
-	struct nouveau_crtc *nv_crtc =
-		container_of(notify, struct nouveau_crtc, vblank);
+	struct nouveau_crtc *nv_crtc = container_of(event, struct nouveau_crtc, vblank);
 
 	drm_crtc_handle_vblank(&nv_crtc->base);
-	return NVIF_NOTIFY_KEEP;
+	return NVIF_EVENT_KEEP;
 }
 
 int
@@ -1346,14 +1346,6 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	if (ret)
 		return ret;
 
-	ret = nvif_notify_ctor(&disp->disp.object, "kmsVbl", nv04_crtc_vblank_handler,
-			       false, NV04_DISP_NTFY_VBLANK,
-			       &(struct nvif_notify_head_req_v0) {
-				    .head = nv_crtc->index,
-			       },
-			       sizeof(struct nvif_notify_head_req_v0),
-			       sizeof(struct nvif_notify_head_rep_v0),
-			       &nv_crtc->vblank);
-
-	return ret;
+	return nvif_head_vblank_event_ctor(&nv_crtc->head, "kmsVbl", nv04_crtc_vblank_handler,
+					   false, &nv_crtc->vblank);
 }

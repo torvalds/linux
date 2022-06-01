@@ -52,17 +52,6 @@ struct nvif_notify_rep_v0 {
 	__u8  data[];	/* reply data (below) */
 };
 
-struct nvif_notify_head_req_v0 {
-	/* nvif_notify_req ... */
-	__u8  version;
-	__u8  head;
-	__u8  pad02[6];
-};
-
-struct nvif_notify_head_rep_v0 {
-	/* nvif_notify_rep ... */
-};
-
 struct nvif_notify_conn_req_v0 {
 	/* nvif_notify_req ... */
 	__u8  version;

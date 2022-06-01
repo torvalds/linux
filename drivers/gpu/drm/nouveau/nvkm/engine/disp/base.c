@@ -57,32 +57,8 @@ nvkm_disp_vblank_init(struct nvkm_event *event, int type, int id)
 		head->func->vblank_get(head);
 }
 
-static int
-nvkm_disp_vblank_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
-{
-	struct nvkm_disp *disp =
-		container_of(notify->event, typeof(*disp), vblank);
-	union {
-		struct nvif_notify_head_req_v0 v0;
-	} *req = data;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
-		notify->size = sizeof(struct nvif_notify_head_rep_v0);
-		if (ret = -ENXIO, req->v0.head <= disp->vblank.index_nr) {
-			notify->types = 1;
-			notify->index = req->v0.head;
-			return 0;
-		}
-	}
-
-	return ret;
-}
-
 static const struct nvkm_event_func
 nvkm_disp_vblank_func = {
-	.ctor = nvkm_disp_vblank_ctor,
 	.init = nvkm_disp_vblank_init,
 	.fini = nvkm_disp_vblank_fini,
 };
@@ -132,9 +108,6 @@ nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
 {
 	struct nvkm_disp *disp = nvkm_disp(object->engine);
 	switch (type) {
-	case NV04_DISP_NTFY_VBLANK:
-		*event = &disp->vblank;
-		return 0;
 	case NV04_DISP_NTFY_CONN:
 		*event = &disp->hpd;
 		return 0;

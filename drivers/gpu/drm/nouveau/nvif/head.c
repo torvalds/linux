@@ -26,6 +26,16 @@
 #include <nvif/class.h>
 #include <nvif/if0013.h>
 
+int
+nvif_head_vblank_event_ctor(struct nvif_head *head, const char *name, nvif_event_func func,
+			    bool wait, struct nvif_event *event)
+{
+	int ret = nvif_event_ctor(&head->object, name ?: "nvifHeadVBlank", nvif_head_id(head),
+				  func, wait, NULL, 0, event);
+	NVIF_ERRON(ret, &head->object, "[NEW EVENT:VBLANK]");
+	return ret;
+}
+
 void
 nvif_head_dtor(struct nvif_head *head)
 {
