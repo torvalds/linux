@@ -1521,15 +1521,15 @@ nv50_disp_super_1(struct nvkm_disp *disp)
 void
 nv50_disp_super(struct work_struct *work)
 {
-	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, supervisor);
+	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, super.work);
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
 	u32 super = nvkm_rd32(device, 0x610030);
 
-	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super, super);
+	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super.pending, super);
 
-	if (disp->super & 0x00000010) {
+	if (disp->super.pending & 0x00000010) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		nv50_disp_super_1(disp);
 		list_for_each_entry(head, &disp->heads, head) {
@@ -1540,7 +1540,7 @@ nv50_disp_super(struct work_struct *work)
 			nv50_disp_super_1_0(disp, head);
 		}
 	} else
-	if (disp->super & 0x00000020) {
+	if (disp->super.pending & 0x00000020) {
 		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
@@ -1558,7 +1558,7 @@ nv50_disp_super(struct work_struct *work)
 			nv50_disp_super_2_2(disp, head);
 		}
 	} else
-	if (disp->super & 0x00000040) {
+	if (disp->super.pending & 0x00000040) {
 		list_for_each_entry(head, &disp->heads, head) {
 			if (!(super & (0x00000080 << head->id)))
 				continue;
@@ -1651,9 +1651,9 @@ nv50_disp_intr(struct nvkm_disp *disp)
 	}
 
 	if (intr1 & 0x00000070) {
-		disp->super = (intr1 & 0x00000070);
-		queue_work(disp->wq, &disp->supervisor);
-		nvkm_wr32(device, 0x610024, disp->super);
+		disp->super.pending = (intr1 & 0x00000070);
+		queue_work(disp->super.wq, &disp->super.work);
+		nvkm_wr32(device, 0x610024, disp->super.pending);
 	}
 }
 
@@ -1795,8 +1795,8 @@ nv50_disp_dtor(struct nvkm_disp *disp)
 	nvkm_gpuobj_del(&disp->inst);
 
 	nvkm_event_fini(&disp->uevent);
-	if (disp->wq)
-		destroy_workqueue(disp->wq);
+	if (disp->super.wq)
+		destroy_workqueue(disp->super.wq);
 
 	return disp;
 }
@@ -1841,11 +1841,11 @@ nv50_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	disp->wq = create_singlethread_workqueue("nvkm-disp");
-	if (!disp->wq)
+	disp->super.wq = create_singlethread_workqueue("nvkm-disp");
+	if (!disp->super.wq)
 		return -ENOMEM;
 
-	INIT_WORK(&disp->supervisor, func->super);
+	INIT_WORK(&disp->super.work, func->super);
 
 	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan),
 			       &disp->uevent);

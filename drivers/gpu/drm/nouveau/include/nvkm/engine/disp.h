@@ -18,9 +18,11 @@ struct nvkm_disp {
 	struct nvkm_event hpd;
 	struct nvkm_event vblank;
 
-	struct workqueue_struct *wq;
-	struct work_struct supervisor;
-	u32 super;
+	struct {
+		struct workqueue_struct *wq;
+		struct work_struct work;
+		u32 pending;
+	} super;
 
 	struct nvkm_event uevent;
 

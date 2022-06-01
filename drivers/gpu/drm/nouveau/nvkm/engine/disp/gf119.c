@@ -983,19 +983,19 @@ gf119_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 void
 gf119_disp_super(struct work_struct *work)
 {
-	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, supervisor);
+	struct nvkm_disp *disp = container_of(work, struct nvkm_disp, super.work);
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
 	u32 mask[4];
 
-	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super));
+	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super.pending));
 	list_for_each_entry(head, &disp->heads, head) {
 		mask[head->id] = nvkm_rd32(device, 0x6101d4 + (head->id * 0x800));
 		HEAD_DBG(head, "%08x", mask[head->id]);
 	}
 
-	if (disp->super & 0x00000001) {
+	if (disp->super.pending & 0x00000001) {
 		nv50_disp_chan_mthd(disp->chan[0], NV_DBG_DEBUG);
 		nv50_disp_super_1(disp);
 		list_for_each_entry(head, &disp->heads, head) {
@@ -1004,7 +1004,7 @@ gf119_disp_super(struct work_struct *work)
 			nv50_disp_super_1_0(disp, head);
 		}
 	} else
-	if (disp->super & 0x00000002) {
+	if (disp->super.pending & 0x00000002) {
 		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
@@ -1022,7 +1022,7 @@ gf119_disp_super(struct work_struct *work)
 			nv50_disp_super_2_2(disp, head);
 		}
 	} else
-	if (disp->super & 0x00000004) {
+	if (disp->super.pending & 0x00000004) {
 		list_for_each_entry(head, &disp->heads, head) {
 			if (!(mask[head->id] & 0x00001000))
 				continue;
@@ -1096,9 +1096,9 @@ gf119_disp_intr(struct nvkm_disp *disp)
 	if (intr & 0x00100000) {
 		u32 stat = nvkm_rd32(device, 0x6100ac);
 		if (stat & 0x00000007) {
-			disp->super = (stat & 0x00000007);
-			queue_work(disp->wq, &disp->supervisor);
-			nvkm_wr32(device, 0x6100ac, disp->super);
+			disp->super.pending = (stat & 0x00000007);
+			queue_work(disp->super.wq, &disp->super.work);
+			nvkm_wr32(device, 0x6100ac, disp->super.pending);
 			stat &= ~0x00000007;
 		}
 
