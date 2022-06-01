@@ -1,0 +1,21 @@
+cc_binary_host {
+    name: "unifdef",
+    srcs: ["scripts/unifdef.c"],
+    sanitize: {
+        never: true,
+    },
+}
+
+genrule {
+    name: "gen-headers_install.sh",
+    srcs: ["scripts/headers_install.sh"],
+    tools: ["unifdef"],
+    out: ["headers_install.sh"],
+    cmd: "sed 's+scripts/unifdef+$${LOC_UNIFDEF:-$$(dirname $$0)/unifdef}+g' $(in) > $(out)",
+}
+
+sh_binary_host {
+    name: "headers_install.sh",
+    src: ":gen-headers_install.sh",
+    required: ["unifdef"],
+}
