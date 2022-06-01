@@ -134,6 +134,8 @@ extern const struct nvkm_enum gk104_fifo_mmu_fault_gpcclient[];
 void gk104_fifo_recover_chan(struct nvkm_fifo *, int);
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 bool gk104_runl_pending(struct nvkm_runl *);
+void gk104_runl_block(struct nvkm_runl *, u32);
+void gk104_runl_allow(struct nvkm_runl *, u32);
 extern const struct nvkm_runq_func gk104_runq;
 void gk104_runq_init(struct nvkm_runq *);
 bool gk104_runq_intr(struct nvkm_runq *, struct nvkm_runl *);

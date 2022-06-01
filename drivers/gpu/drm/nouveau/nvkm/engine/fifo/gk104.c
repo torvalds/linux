@@ -197,6 +197,18 @@ gk104_runq = {
 	.intr_0_names = gk104_runq_intr_0_names,
 };
 
+void
+gk104_runl_allow(struct nvkm_runl *runl, u32 engm)
+{
+	nvkm_mask(runl->fifo->engine.subdev.device, 0x002630, BIT(runl->id), 0x00000000);
+}
+
+void
+gk104_runl_block(struct nvkm_runl *runl, u32 engm)
+{
+	nvkm_mask(runl->fifo->engine.subdev.device, 0x002630, BIT(runl->id), BIT(runl->id));
+}
+
 bool
 gk104_runl_pending(struct nvkm_runl *runl)
 {
@@ -306,6 +318,8 @@ static const struct nvkm_runl_func
 gk104_runl = {
 	.wait = nv50_runl_wait,
 	.pending = gk104_runl_pending,
+	.block = gk104_runl_block,
+	.allow = gk104_runl_allow,
 };
 
 int

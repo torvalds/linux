@@ -115,6 +115,18 @@ gf100_runq = {
 	.intr_0_names = gf100_runq_intr_0_names,
 };
 
+static void
+gf100_runl_allow(struct nvkm_runl *runl, u32 engm)
+{
+	nvkm_mask(runl->fifo->engine.subdev.device, 0x002630, engm, 0x00000000);
+}
+
+static void
+gf100_runl_block(struct nvkm_runl *runl, u32 engm)
+{
+	nvkm_mask(runl->fifo->engine.subdev.device, 0x002630, engm, engm);
+}
+
 static bool
 gf100_runl_pending(struct nvkm_runl *runl)
 {
@@ -181,6 +193,8 @@ static const struct nvkm_runl_func
 gf100_runl = {
 	.wait = nv50_runl_wait,
 	.pending = gf100_runl_pending,
+	.block = gf100_runl_block,
+	.allow = gf100_runl_allow,
 };
 
 static void

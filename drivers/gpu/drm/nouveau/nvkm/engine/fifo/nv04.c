@@ -129,14 +129,13 @@ nv04_engn = {
 };
 
 void
-nv04_fifo_pause(struct nvkm_fifo *base, unsigned long *pflags)
-__acquires(fifo->base.lock)
+nv04_fifo_pause(struct nvkm_fifo *fifo, unsigned long *pflags)
+__acquires(fifo->lock)
 {
-	struct nv04_fifo *fifo = nv04_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	unsigned long flags;
 
-	spin_lock_irqsave(&fifo->base.lock, flags);
+	spin_lock_irqsave(&fifo->lock, flags);
 	*pflags = flags;
 
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 0x00000000);
@@ -165,17 +164,16 @@ __acquires(fifo->base.lock)
 }
 
 void
-nv04_fifo_start(struct nvkm_fifo *base, unsigned long *pflags)
-__releases(fifo->base.lock)
+nv04_fifo_start(struct nvkm_fifo *fifo, unsigned long *pflags)
+__releases(fifo->lock)
 {
-	struct nv04_fifo *fifo = nv04_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	unsigned long flags = *pflags;
 
 	nvkm_mask(device, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0x00000001);
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 0x00000001);
 
-	spin_unlock_irqrestore(&fifo->base.lock, flags);
+	spin_unlock_irqrestore(&fifo->lock, flags);
 }
 
 const struct nvkm_runl_func

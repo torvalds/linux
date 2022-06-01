@@ -83,6 +83,34 @@ nvkm_runl_update_pending(struct nvkm_runl *runl)
 }
 
 void
+nvkm_runl_allow(struct nvkm_runl *runl)
+{
+	struct nvkm_fifo *fifo = runl->fifo;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	if (!--runl->blocked) {
+		RUNL_TRACE(runl, "running");
+		runl->func->allow(runl, ~0);
+	}
+	spin_unlock_irqrestore(&fifo->lock, flags);
+}
+
+void
+nvkm_runl_block(struct nvkm_runl *runl)
+{
+	struct nvkm_fifo *fifo = runl->fifo;
+	unsigned long flags;
+
+	spin_lock_irqsave(&fifo->lock, flags);
+	if (!runl->blocked++) {
+		RUNL_TRACE(runl, "stopped");
+		runl->func->block(runl, ~0);
+	}
+	spin_unlock_irqrestore(&fifo->lock, flags);
+}
+
+void
 nvkm_runl_del(struct nvkm_runl *runl)
 {
 	struct nvkm_engn *engn, *engt;

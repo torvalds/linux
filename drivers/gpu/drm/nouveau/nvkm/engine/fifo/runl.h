@@ -26,6 +26,8 @@ struct nvkm_runl {
 	const struct nvkm_runl_func {
 		int (*wait)(struct nvkm_runl *);
 		bool (*pending)(struct nvkm_runl *);
+		void (*block)(struct nvkm_runl *, u32 engm);
+		void (*allow)(struct nvkm_runl *, u32 engm);
 	} *func;
 	struct nvkm_fifo *fifo;
 	int id;
@@ -44,6 +46,8 @@ struct nvkm_runl {
 	int chan_nr;
 	struct mutex mutex;
 
+	int blocked;
+
 	struct list_head head;
 };
 
@@ -52,6 +56,8 @@ struct nvkm_runl *nvkm_runl_get(struct nvkm_fifo *, int runi, u32 addr);
 struct nvkm_engn *nvkm_runl_add(struct nvkm_runl *, int engi, const struct nvkm_engn_func *,
 				enum nvkm_subdev_type, int inst);
 void nvkm_runl_del(struct nvkm_runl *);
+void nvkm_runl_block(struct nvkm_runl *);
+void nvkm_runl_allow(struct nvkm_runl *);
 bool nvkm_runl_update_pending(struct nvkm_runl *);
 
 struct nvkm_chan *nvkm_runl_chan_get_chid(struct nvkm_runl *, int chid, unsigned long *irqflags);

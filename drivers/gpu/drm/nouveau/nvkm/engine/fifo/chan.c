@@ -211,11 +211,24 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 void
 nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct nvkm_cctx *cctx)
 {
+	struct nvkm_cgrp *cgrp = chan->cgrp;
+	struct nvkm_runl *runl = cgrp->runl;
+
+	/* Prevent any channel in channel group from being rescheduled, kick them
+	 * off host and any engine(s) they're loaded on.
+	 */
+	if (cgrp->hw)
+		nvkm_runl_block(runl);
+
 	/* Update context pointer. */
 	if (cctx)
 		nvkm_fifo_chan_child_init(nvkm_oproxy(oproxy->object));
 	else
 		nvkm_fifo_chan_child_fini(nvkm_oproxy(oproxy->object), false);
+
+	/* Resume normal operation. */
+	if (cgrp->hw)
+		nvkm_runl_allow(runl);
 }
 
 void

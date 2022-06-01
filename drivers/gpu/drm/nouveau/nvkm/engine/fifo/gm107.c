@@ -56,6 +56,8 @@ const struct nvkm_runl_func
 gm107_runl = {
 	.wait = nv50_runl_wait,
 	.pending = gk104_runl_pending,
+	.block = gk104_runl_block,
+	.allow = gk104_runl_allow,
 };
 
 static const struct nvkm_enum

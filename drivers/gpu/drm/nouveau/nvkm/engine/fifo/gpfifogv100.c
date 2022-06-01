@@ -37,15 +37,12 @@ gv100_fifo_gpfifo_submit_token(struct nvkm_fifo_chan *chan)
 static int
 gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid)
 {
-	struct nvkm_subdev *subdev = &chan->base.fifo->engine.subdev;
-	struct nvkm_device *device = subdev->device;
 	const u32 mask = ce ? 0x00020000 : 0x00010000;
 	const u32 data = valid ? mask : 0x00000000;
 	int ret;
 
 	/* Block runlist to prevent the channel from being rescheduled. */
 	mutex_lock(&chan->fifo->base.mutex);
-	nvkm_mask(device, 0x002630, BIT(chan->runl), BIT(chan->runl));
 
 	/* Preempt the channel. */
 	ret = gk104_fifo_gpfifo_kick_locked(chan);
@@ -57,7 +54,6 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 	}
 
 	/* Resume runlist. */
-	nvkm_mask(device, 0x002630, BIT(chan->runl), 0);
 	mutex_unlock(&chan->fifo->base.mutex);
 	return ret;
 }
