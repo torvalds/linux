@@ -1029,7 +1029,9 @@ ieee80211_rate_get_vht_nss(const struct ieee80211_tx_rate *rate)
  *  (3) TX status information - driver tells mac80211 what happened
  *
  * @flags: transmit info flags, defined above
- * @band: the band to transmit on (use for checking for races)
+ * @band: the band to transmit on (use e.g. for checking for races),
+ *	not valid if the interface is an MLD since we won't know which
+ *	link the frame will be transmitted on
  * @hw_queue: HW queue to put the frame on, skb_get_queue_mapping() gives the AC
  * @ack_frame_id: internal frame ID for TX status, used internally
  * @tx_time_est: TX time estimate in units of 4us, used internally

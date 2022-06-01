@@ -2566,8 +2566,7 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	bool tdls_peer;
 	bool multicast;
 	u16 info_id = 0;
-	struct ieee80211_chanctx_conf *chanctx_conf;
-	struct ieee80211_sub_if_data *ap_sdata;
+	struct ieee80211_chanctx_conf *chanctx_conf = NULL;
 	enum nl80211_band band;
 	int ret;
 
@@ -2584,7 +2583,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	ethertype = (skb->data[12] << 8) | skb->data[13];
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+	if (!sdata->vif.valid_links)
+		chanctx_conf =
+			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
 
 	switch (sdata->vif.type) {
 	case NL80211_IFTYPE_AP_VLAN:
@@ -2599,10 +2600,16 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 			authorized = test_sta_flag(sta, WLAN_STA_AUTHORIZED);
 			wme_sta = sta->sta.wme;
 		}
-		/* override chanctx_conf from AP (we don't have one) */
-		ap_sdata = container_of(sdata->bss, struct ieee80211_sub_if_data,
-					u.ap);
-		chanctx_conf = rcu_dereference(ap_sdata->vif.bss_conf.chanctx_conf);
+		if (!sdata->vif.valid_links) {
+			struct ieee80211_sub_if_data *ap_sdata;
+
+			/* override chanctx_conf from AP (we don't have one) */
+			ap_sdata = container_of(sdata->bss,
+						struct ieee80211_sub_if_data,
+						u.ap);
+			chanctx_conf =
+				rcu_dereference(ap_sdata->vif.bss_conf.chanctx_conf);
+		}
 		if (sdata->wdev.use_4addr)
 			break;
 		fallthrough;
@@ -2738,10 +2745,15 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (!chanctx_conf) {
-		ret = -ENOTCONN;
-		goto free;
+		if (!sdata->vif.valid_links) {
+			ret = -ENOTCONN;
+			goto free;
+		}
+		/* MLD transmissions must not rely on the band */
+		band = 0;
+	} else {
+		band = chanctx_conf->def.chan->band;
 	}
-	band = chanctx_conf->def.chan->band;
 
 	multicast = is_multicast_ether_addr(hdr.addr1);
 
@@ -2953,14 +2965,20 @@ void ieee80211_check_fast_xmit(struct sta_info *sta)
 	    !ieee80211_hw_check(&local->hw, SUPPORTS_TX_FRAG))
 		goto out;
 
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
-	if (!chanctx_conf) {
+	if (!sdata->vif.valid_links) {
+		rcu_read_lock();
+		chanctx_conf =
+			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+		if (!chanctx_conf) {
+			rcu_read_unlock();
+			goto out;
+		}
+		build.band = chanctx_conf->def.chan->band;
 		rcu_read_unlock();
-		goto out;
+	} else {
+		/* MLD transmissions must not rely on the band */
+		build.band = 0;
 	}
-	build.band = chanctx_conf->def.chan->band;
-	rcu_read_unlock();
 
 	fc = cpu_to_le16(IEEE80211_FTYPE_DATA | IEEE80211_STYPE_DATA);
 
@@ -4577,12 +4595,16 @@ static bool ieee80211_tx_pending_skb(struct ieee80211_local *local,
 	sdata = vif_to_sdata(info->control.vif);
 
 	if (info->control.flags & IEEE80211_TX_INTCFL_NEED_TXPROCESSING) {
-		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
-		if (unlikely(!chanctx_conf)) {
-			dev_kfree_skb(skb);
-			return true;
+		/* update band only for non-MLD */
+		if (!sdata->vif.valid_links) {
+			chanctx_conf =
+				rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+			if (unlikely(!chanctx_conf)) {
+				dev_kfree_skb(skb);
+				return true;
+			}
+			info->band = chanctx_conf->def.chan->band;
 		}
-		info->band = chanctx_conf->def.chan->band;
 		result = ieee80211_tx(sdata, NULL, skb, true);
 	} else if (info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP) {
 		if (ieee80211_lookup_ra_sta(sdata, skb, &sta)) {
@@ -5663,6 +5685,31 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 	IEEE80211_SKB_CB(skb)->band = band;
 	ieee80211_xmit(sdata, NULL, skb);
 	local_bh_enable();
+}
+
+void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
+			  struct sk_buff *skb, int tid)
+{
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum nl80211_band band;
+
+	rcu_read_lock();
+	if (!sdata->vif.valid_links) {
+		chanctx_conf =
+			rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+		if (WARN_ON(!chanctx_conf)) {
+			rcu_read_unlock();
+			kfree_skb(skb);
+			return;
+		}
+		band = chanctx_conf->def.chan->band;
+	} else {
+		/* MLD transmissions must not rely on the band */
+		band = 0;
+	}
+
+	__ieee80211_tx_skb_tid_band(sdata, skb, tid, band);
+	rcu_read_unlock();
 }
 
 int ieee80211_tx_control_port(struct wiphy *wiphy, struct net_device *dev,

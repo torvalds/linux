@@ -2251,23 +2251,8 @@ ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 }
 
-static inline void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
-					struct sk_buff *skb, int tid)
-{
-	struct ieee80211_chanctx_conf *chanctx_conf;
-
-	rcu_read_lock();
-	chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
-	if (WARN_ON(!chanctx_conf)) {
-		rcu_read_unlock();
-		kfree_skb(skb);
-		return;
-	}
-
-	__ieee80211_tx_skb_tid_band(sdata, skb, tid,
-				    chanctx_conf->def.chan->band);
-	rcu_read_unlock();
-}
+void ieee80211_tx_skb_tid(struct ieee80211_sub_if_data *sdata,
+			  struct sk_buff *skb, int tid);
 
 static inline void ieee80211_tx_skb(struct ieee80211_sub_if_data *sdata,
 				    struct sk_buff *skb)
