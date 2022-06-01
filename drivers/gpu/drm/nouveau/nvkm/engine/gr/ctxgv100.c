@@ -113,13 +113,14 @@ void
 gv100_grctx_generate_rop_mapping(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+	const u32 mapregs = DIV_ROUND_UP(gr->func->gpc_nr * gr->func->tpc_nr, 6);
 	u32 data;
 	int i, j;
 
 	/* Pack tile map into register format. */
 	nvkm_wr32(device, 0x418bb8, (gr->tpc_total << 8) |
 				     gr->screen_tile_row_offset);
-	for (i = 0; i < 11; i++) {
+	for (i = 0; i < mapregs; i++) {
 		for (data = 0, j = 0; j < 6; j++)
 			data |= (gr->tile[i * 6 + j] & 0x1f) << (j * 5);
 		nvkm_wr32(device, 0x418b08 + (i * 4), data);
