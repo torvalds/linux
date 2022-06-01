@@ -2775,6 +2775,10 @@ nvkm_device_preinit(struct nvkm_device *device)
 	if (ret)
 		goto fail;
 
+	ret = nvkm_top_parse(device);
+	if (ret)
+		goto fail;
+
 	time = ktime_to_us(ktime_get()) - time;
 	nvdev_trace(device, "preinit completed in %lldus\n", time);
 	return 0;
