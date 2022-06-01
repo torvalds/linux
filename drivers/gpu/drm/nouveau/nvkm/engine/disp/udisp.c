@@ -24,24 +24,13 @@
 #include <nvif/if0010.h>
 
 static int
-nvkm_udisp_sclass_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		      struct nvkm_object **pobject)
-{
-	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
-	const struct nvkm_disp_user *user = oclass->priv;
-
-	return user->ctor(oclass, argv, argc, disp, pobject);
-}
-
-static int
 nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *sclass)
 {
 	struct nvkm_disp *disp = nvkm_udisp(object);
 
 	if (disp->func->user[index].ctor) {
 		sclass->base = disp->func->user[index].base;
-		sclass->priv = disp->func->user + index;
-		sclass->ctor = nvkm_udisp_sclass_new;
+		sclass->ctor = disp->func->user[index].ctor;
 		return 0;
 	}
 

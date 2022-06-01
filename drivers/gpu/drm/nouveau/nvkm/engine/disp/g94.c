@@ -338,13 +338,13 @@ g94_disp_core_mthd = {
 	}
 };
 
-int
-g94_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		  struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&nv50_disp_core_func, &g94_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+g94_disp_core = {
+	.func = &nv50_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &g94_disp_core_mthd,
+};
 
 static const struct nvkm_disp_func
 g94_disp = {
@@ -360,11 +360,11 @@ g94_disp = {
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 	.root = { 0,0,GT206_DISP },
 	.user = {
-		{{0,0,  G82_DISP_CURSOR             },  nv50_disp_curs_new },
-		{{0,0,  G82_DISP_OVERLAY            },  nv50_disp_oimm_new },
-		{{0,0,GT200_DISP_BASE_CHANNEL_DMA   },   g84_disp_base_new },
-		{{0,0,GT206_DISP_CORE_CHANNEL_DMA   },   g94_disp_core_new },
-		{{0,0,GT200_DISP_OVERLAY_CHANNEL_DMA}, gt200_disp_ovly_new },
+		{{0,0,  G82_DISP_CURSOR             }, nvkm_disp_chan_new, & nv50_disp_curs },
+		{{0,0,  G82_DISP_OVERLAY            }, nvkm_disp_chan_new, & nv50_disp_oimm },
+		{{0,0,GT200_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &  g84_disp_base },
+		{{0,0,GT206_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &  g94_disp_core },
+		{{0,0,GT200_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, &gt200_disp_ovly },
 		{}
 	},
 };

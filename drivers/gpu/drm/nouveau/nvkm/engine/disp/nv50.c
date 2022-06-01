@@ -39,12 +39,6 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
-#include <nvif/cl507a.h>
-#include <nvif/cl507b.h>
-#include <nvif/cl507c.h>
-#include <nvif/cl507d.h>
-#include <nvif/cl507e.h>
-#include <nvif/event.h>
 #include <nvif/unpack.h>
 
 static void
@@ -509,35 +503,11 @@ nv50_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 void
 nv50_disp_chan_uevent_send(struct nvkm_disp *disp, int chid)
 {
-	struct nvif_notify_uevent_rep {
-	} rep;
-
-	nvkm_event_send(&disp->uevent, 1, chid, &rep, sizeof(rep));
-}
-
-int
-nv50_disp_chan_uevent_ctor(struct nvkm_object *object, void *data, u32 size,
-			   struct nvkm_notify *notify)
-{
-	struct nvkm_disp_chan *chan = nvkm_disp_chan(object);
-	union {
-		struct nvif_notify_uevent_req none;
-	} *args = data;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unvers(ret, &data, &size, args->none))) {
-		notify->size  = sizeof(struct nvif_notify_uevent_rep);
-		notify->types = 1;
-		notify->index = chan->chid.user;
-		return 0;
-	}
-
-	return ret;
+	nvkm_event_send(&disp->uevent, NVKM_DISP_EVENT_CHAN_AWAKEN, chid, NULL, 0);
 }
 
 const struct nvkm_event_func
 nv50_disp_chan_uevent = {
-	.ctor = nv50_disp_chan_uevent_ctor,
 	.init = nv50_disp_chan_uevent_init,
 	.fini = nv50_disp_chan_uevent_fini,
 };
@@ -677,23 +647,9 @@ nv50_disp_dmac_init(struct nvkm_disp_chan *chan)
 }
 
 int
-nv50_disp_dmac_new_(const struct nvkm_disp_chan_func *func,
-		    const struct nvkm_disp_chan_mthd *mthd,
-		    struct nvkm_disp *disp, int chid, int head, u64 push,
-		    const struct nvkm_oclass *oclass,
-		    struct nvkm_object **pobject)
+nv50_disp_dmac_push(struct nvkm_disp_chan *chan, u64 object)
 {
-	struct nvkm_client *client = oclass->client;
-	struct nvkm_disp_chan *chan;
-	int ret;
-
-	ret = nvkm_disp_chan_new_(func, mthd, disp, chid, chid, head, oclass,
-				  pobject);
-	chan = nvkm_disp_chan(*pobject);
-	if (ret)
-		return ret;
-
-	chan->memory = nvkm_umem_search(client, push);
+	chan->memory = nvkm_umem_search(chan->object.client, object);
 	if (IS_ERR(chan->memory))
 		return PTR_ERR(chan->memory);
 
@@ -714,6 +670,7 @@ nv50_disp_dmac_new_(const struct nvkm_disp_chan_func *func,
 
 const struct nvkm_disp_chan_func
 nv50_disp_dmac_func = {
+	.push = nv50_disp_dmac_push,
 	.init = nv50_disp_dmac_init,
 	.fini = nv50_disp_dmac_fini,
 	.intr = nv50_disp_chan_intr,
@@ -721,103 +678,19 @@ nv50_disp_dmac_func = {
 	.bind = nv50_disp_dmac_bind,
 };
 
-int
-nv50_disp_curs_new_(const struct nvkm_disp_chan_func *func,
-		    struct nvkm_disp *disp, int ctrl, int user,
-		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
-{
-	union {
-		struct nv50_disp_cursor_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	int head, ret = -ENOSYS;
+const struct nvkm_disp_chan_user
+nv50_disp_curs = {
+	.func = &nv50_disp_pioc_func,
+	.ctrl = 7,
+	.user = 7,
+};
 
-	nvif_ioctl(parent, "create disp cursor size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create disp cursor vers %d head %d\n",
-			   args->v0.version, args->v0.head);
-		if (!nvkm_head_find(disp, args->v0.head))
-			return -EINVAL;
-		head = args->v0.head;
-	} else
-		return ret;
-
-	return nvkm_disp_chan_new_(func, NULL, disp, ctrl + head, user + head,
-				   head, oclass, pobject);
-}
-
-int
-nv50_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_curs_new_(&nv50_disp_pioc_func, disp, 7, 7,
-				   oclass, argv, argc, pobject);
-}
-
-int
-nv50_disp_oimm_new_(const struct nvkm_disp_chan_func *func,
-		    struct nvkm_disp *disp, int ctrl, int user,
-		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
-{
-	union {
-		struct nv50_disp_overlay_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	int head, ret = -ENOSYS;
-
-	nvif_ioctl(parent, "create disp overlay size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create disp overlay vers %d head %d\n",
-			   args->v0.version, args->v0.head);
-		if (!nvkm_head_find(disp, args->v0.head))
-			return -EINVAL;
-		head = args->v0.head;
-	} else
-		return ret;
-
-	return nvkm_disp_chan_new_(func, NULL, disp, ctrl + head, user + head,
-				   head, oclass, pobject);
-}
-
-int
-nv50_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_oimm_new_(&nv50_disp_pioc_func, disp, 5, 5,
-				   oclass, argv, argc, pobject);
-}
-
-int
-nv50_disp_ovly_new_(const struct nvkm_disp_chan_func *func,
-		    const struct nvkm_disp_chan_mthd *mthd,
-		    struct nvkm_disp *disp, int chid,
-		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
-{
-	union {
-		struct nv50_disp_overlay_channel_dma_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	int head, ret = -ENOSYS;
-	u64 push;
-
-	nvif_ioctl(parent, "create disp overlay channel dma size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create disp overlay channel dma vers %d "
-				   "pushbuf %016llx head %d\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.head);
-		if (!nvkm_head_find(disp, args->v0.head))
-			return -EINVAL;
-		push = args->v0.pushbuf;
-		head = args->v0.head;
-	} else
-		return ret;
-
-	return nv50_disp_dmac_new_(func, mthd, disp, chid + head,
-				   head, push, oclass, pobject);
-}
+const struct nvkm_disp_chan_user
+nv50_disp_oimm = {
+	.func = &nv50_disp_pioc_func,
+	.ctrl = 5,
+	.user = 5,
+};
 
 static const struct nvkm_disp_mthd_list
 nv50_disp_ovly_mthd_base = {
@@ -858,43 +731,13 @@ nv50_disp_ovly_mthd = {
 	}
 };
 
-int
-nv50_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_ovly_new_(&nv50_disp_dmac_func, &nv50_disp_ovly_mthd,
-				   disp, 3, oclass, argv, argc, pobject);
-}
-
-int
-nv50_disp_base_new_(const struct nvkm_disp_chan_func *func,
-		    const struct nvkm_disp_chan_mthd *mthd,
-		    struct nvkm_disp *disp, int chid,
-		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
-{
-	union {
-		struct nv50_disp_base_channel_dma_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	int head, ret = -ENOSYS;
-	u64 push;
-
-	nvif_ioctl(parent, "create disp base channel dma size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create disp base channel dma vers %d "
-				   "pushbuf %016llx head %d\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.head);
-		if (!nvkm_head_find(disp, args->v0.head))
-			return -EINVAL;
-		push = args->v0.pushbuf;
-		head = args->v0.head;
-	} else
-		return ret;
-
-	return nv50_disp_dmac_new_(func, mthd, disp, chid + head,
-				   head, push, oclass, pobject);
-}
+static const struct nvkm_disp_chan_user
+nv50_disp_ovly = {
+	.func = &nv50_disp_dmac_func,
+	.ctrl = 3,
+	.user = 3,
+	.mthd = &nv50_disp_ovly_mthd,
+};
 
 static const struct nvkm_disp_mthd_list
 nv50_disp_base_mthd_base = {
@@ -947,40 +790,13 @@ nv50_disp_base_mthd = {
 	}
 };
 
-int
-nv50_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_base_new_(&nv50_disp_dmac_func, &nv50_disp_base_mthd,
-				   disp, 1, oclass, argv, argc, pobject);
-}
-
-int
-nv50_disp_core_new_(const struct nvkm_disp_chan_func *func,
-		    const struct nvkm_disp_chan_mthd *mthd,
-		    struct nvkm_disp *disp, int chid,
-		    const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_object **pobject)
-{
-	union {
-		struct nv50_disp_core_channel_dma_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	u64 push;
-	int ret = -ENOSYS;
-
-	nvif_ioctl(parent, "create disp core channel dma size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create disp core channel dma vers %d "
-				   "pushbuf %016llx\n",
-			   args->v0.version, args->v0.pushbuf);
-		push = args->v0.pushbuf;
-	} else
-		return ret;
-
-	return nv50_disp_dmac_new_(func, mthd, disp, chid, 0,
-				   push, oclass, pobject);
-}
+static const struct nvkm_disp_chan_user
+nv50_disp_base = {
+	.func = &nv50_disp_dmac_func,
+	.ctrl = 1,
+	.user = 1,
+	.mthd = &nv50_disp_base_mthd,
+};
 
 const struct nvkm_disp_mthd_list
 nv50_disp_core_mthd_base = {
@@ -1144,6 +960,7 @@ nv50_disp_core_init(struct nvkm_disp_chan *chan)
 
 const struct nvkm_disp_chan_func
 nv50_disp_core_func = {
+	.push = nv50_disp_dmac_push,
 	.init = nv50_disp_core_init,
 	.fini = nv50_disp_core_fini,
 	.intr = nv50_disp_chan_intr,
@@ -1151,13 +968,13 @@ nv50_disp_core_func = {
 	.bind = nv50_disp_dmac_bind,
 };
 
-int
-nv50_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		   struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&nv50_disp_core_func, &nv50_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+nv50_disp_core = {
+	.func = &nv50_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &nv50_disp_core_mthd,
+};
 
 static u32
 nv50_disp_super_iedt(struct nvkm_head *head, struct nvkm_outp *outp,
@@ -1805,11 +1622,11 @@ nv50_disp = {
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 	.root = { 0, 0, NV50_DISP },
 	.user = {
-		{{0,0,NV50_DISP_CURSOR             }, nv50_disp_curs_new },
-		{{0,0,NV50_DISP_OVERLAY            }, nv50_disp_oimm_new },
-		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nv50_disp_base_new },
-		{{0,0,NV50_DISP_CORE_CHANNEL_DMA   }, nv50_disp_core_new },
-		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nv50_disp_ovly_new },
+		{{0,0,NV50_DISP_CURSOR             }, nvkm_disp_chan_new, &nv50_disp_curs },
+		{{0,0,NV50_DISP_OVERLAY            }, nvkm_disp_chan_new, &nv50_disp_oimm },
+		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &nv50_disp_base },
+		{{0,0,NV50_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &nv50_disp_core },
+		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, &nv50_disp_ovly },
 		{}
 	}
 };

@@ -33,6 +33,7 @@
 #define NVIF_CLASS_VMM_GP100                         /* ifc00d.h */  0x8000c00d
 
 #define NVIF_CLASS_DISP                              /* if0010.h */  0x80000010
+#define NVIF_CLASS_DISP_CHAN                         /* if0014.h */  0x80000014
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
@@ -98,59 +99,59 @@
 
 #define NV74_VP2                                                     0x00007476
 
-#define NV50_DISP_CURSOR                              /* cl507a.h */ 0x0000507a
-#define G82_DISP_CURSOR                               /* cl507a.h */ 0x0000827a
-#define GT214_DISP_CURSOR                             /* cl507a.h */ 0x0000857a
-#define GF110_DISP_CURSOR                             /* cl507a.h */ 0x0000907a
-#define GK104_DISP_CURSOR                             /* cl507a.h */ 0x0000917a
-#define GV100_DISP_CURSOR                             /* cl507a.h */ 0x0000c37a
-#define TU102_DISP_CURSOR                             /* cl507a.h */ 0x0000c57a
-#define GA102_DISP_CURSOR                             /* cl507a.h */ 0x0000c67a
+#define NV50_DISP_CURSOR                              /* if0014.h */ 0x0000507a
+#define G82_DISP_CURSOR                               /* if0014.h */ 0x0000827a
+#define GT214_DISP_CURSOR                             /* if0014.h */ 0x0000857a
+#define GF110_DISP_CURSOR                             /* if0014.h */ 0x0000907a
+#define GK104_DISP_CURSOR                             /* if0014.h */ 0x0000917a
+#define GV100_DISP_CURSOR                             /* if0014.h */ 0x0000c37a
+#define TU102_DISP_CURSOR                             /* if0014.h */ 0x0000c57a
+#define GA102_DISP_CURSOR                             /* if0014.h */ 0x0000c67a
 
-#define NV50_DISP_OVERLAY                             /* cl507b.h */ 0x0000507b
-#define G82_DISP_OVERLAY                              /* cl507b.h */ 0x0000827b
-#define GT214_DISP_OVERLAY                            /* cl507b.h */ 0x0000857b
-#define GF110_DISP_OVERLAY                            /* cl507b.h */ 0x0000907b
-#define GK104_DISP_OVERLAY                            /* cl507b.h */ 0x0000917b
+#define NV50_DISP_OVERLAY                             /* if0014.h */ 0x0000507b
+#define G82_DISP_OVERLAY                              /* if0014.h */ 0x0000827b
+#define GT214_DISP_OVERLAY                            /* if0014.h */ 0x0000857b
+#define GF110_DISP_OVERLAY                            /* if0014.h */ 0x0000907b
+#define GK104_DISP_OVERLAY                            /* if0014.h */ 0x0000917b
 
-#define GV100_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c37b
-#define TU102_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c57b
-#define GA102_DISP_WINDOW_IMM_CHANNEL_DMA             /* clc37b.h */ 0x0000c67b
+#define GV100_DISP_WINDOW_IMM_CHANNEL_DMA             /* if0014.h */ 0x0000c37b
+#define TU102_DISP_WINDOW_IMM_CHANNEL_DMA             /* if0014.h */ 0x0000c57b
+#define GA102_DISP_WINDOW_IMM_CHANNEL_DMA             /* if0014.h */ 0x0000c67b
 
-#define NV50_DISP_BASE_CHANNEL_DMA                    /* cl507c.h */ 0x0000507c
-#define G82_DISP_BASE_CHANNEL_DMA                     /* cl507c.h */ 0x0000827c
-#define GT200_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000837c
-#define GT214_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000857c
-#define GF110_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000907c
-#define GK104_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000917c
-#define GK110_DISP_BASE_CHANNEL_DMA                   /* cl507c.h */ 0x0000927c
+#define NV50_DISP_BASE_CHANNEL_DMA                    /* if0014.h */ 0x0000507c
+#define G82_DISP_BASE_CHANNEL_DMA                     /* if0014.h */ 0x0000827c
+#define GT200_DISP_BASE_CHANNEL_DMA                   /* if0014.h */ 0x0000837c
+#define GT214_DISP_BASE_CHANNEL_DMA                   /* if0014.h */ 0x0000857c
+#define GF110_DISP_BASE_CHANNEL_DMA                   /* if0014.h */ 0x0000907c
+#define GK104_DISP_BASE_CHANNEL_DMA                   /* if0014.h */ 0x0000917c
+#define GK110_DISP_BASE_CHANNEL_DMA                   /* if0014.h */ 0x0000927c
 
-#define NV50_DISP_CORE_CHANNEL_DMA                    /* cl507d.h */ 0x0000507d
-#define G82_DISP_CORE_CHANNEL_DMA                     /* cl507d.h */ 0x0000827d
-#define GT200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000837d
-#define GT214_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000857d
-#define GT206_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000887d
-#define GF110_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000907d
-#define GK104_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000917d
-#define GK110_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000927d
-#define GM107_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000947d
-#define GM200_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000957d
-#define GP100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000977d
-#define GP102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000987d
-#define GV100_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c37d
-#define TU102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c57d
-#define GA102_DISP_CORE_CHANNEL_DMA                   /* cl507d.h */ 0x0000c67d
+#define NV50_DISP_CORE_CHANNEL_DMA                    /* if0014.h */ 0x0000507d
+#define G82_DISP_CORE_CHANNEL_DMA                     /* if0014.h */ 0x0000827d
+#define GT200_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000837d
+#define GT214_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000857d
+#define GT206_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000887d
+#define GF110_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000907d
+#define GK104_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000917d
+#define GK110_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000927d
+#define GM107_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000947d
+#define GM200_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000957d
+#define GP100_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000977d
+#define GP102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000987d
+#define GV100_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c37d
+#define TU102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c57d
+#define GA102_DISP_CORE_CHANNEL_DMA                   /* if0014.h */ 0x0000c67d
 
-#define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* cl507e.h */ 0x0000507e
-#define G82_DISP_OVERLAY_CHANNEL_DMA                  /* cl507e.h */ 0x0000827e
-#define GT200_DISP_OVERLAY_CHANNEL_DMA                /* cl507e.h */ 0x0000837e
-#define GT214_DISP_OVERLAY_CHANNEL_DMA                /* cl507e.h */ 0x0000857e
-#define GF110_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000907e
-#define GK104_DISP_OVERLAY_CONTROL_DMA                /* cl507e.h */ 0x0000917e
+#define NV50_DISP_OVERLAY_CHANNEL_DMA                 /* if0014.h */ 0x0000507e
+#define G82_DISP_OVERLAY_CHANNEL_DMA                  /* if0014.h */ 0x0000827e
+#define GT200_DISP_OVERLAY_CHANNEL_DMA                /* if0014.h */ 0x0000837e
+#define GT214_DISP_OVERLAY_CHANNEL_DMA                /* if0014.h */ 0x0000857e
+#define GF110_DISP_OVERLAY_CONTROL_DMA                /* if0014.h */ 0x0000907e
+#define GK104_DISP_OVERLAY_CONTROL_DMA                /* if0014.h */ 0x0000917e
 
-#define GV100_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c37e
-#define TU102_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c57e
-#define GA102_DISP_WINDOW_CHANNEL_DMA                 /* clc37e.h */ 0x0000c67e
+#define GV100_DISP_WINDOW_CHANNEL_DMA                 /* if0014.h */ 0x0000c37e
+#define TU102_DISP_WINDOW_CHANNEL_DMA                 /* if0014.h */ 0x0000c57e
+#define GA102_DISP_WINDOW_CHANNEL_DMA                 /* if0014.h */ 0x0000c67e
 
 #define NV50_TESLA                                                   0x00005097
 #define G82_TESLA                                                    0x00008297

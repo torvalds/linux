@@ -644,7 +644,6 @@ nv50_wndw_destroy(struct drm_plane *plane)
 		nv50_wndw_ctxdma_del(ctxdma);
 	}
 
-	nvif_notify_dtor(&wndw->notify);
 	nv50_dmac_destroy(&wndw->wimm);
 	nv50_dmac_destroy(&wndw->wndw);
 
@@ -687,12 +686,6 @@ nv50_wndw = {
 	.atomic_destroy_state = nv50_wndw_atomic_destroy_state,
 	.format_mod_supported = nv50_plane_format_mod_supported,
 };
-
-static int
-nv50_wndw_notify(struct nvif_notify *notify)
-{
-	return NVIF_NOTIFY_KEEP;
-}
 
 static const u64 nv50_cursor_format_modifiers[] = {
 	DRM_FORMAT_MOD_LINEAR,
@@ -746,8 +739,6 @@ nv50_wndw_new_(const struct nv50_wndw_func *func, struct drm_device *dev,
 		if (ret)
 			return ret;
 	}
-
-	wndw->notify.func = nv50_wndw_notify;
 
 	if (wndw->func->blend_set) {
 		ret = drm_plane_create_zpos_property(&wndw->plane,

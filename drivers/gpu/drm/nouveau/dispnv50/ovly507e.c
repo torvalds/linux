@@ -26,8 +26,7 @@
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 
-#include <nvif/cl507e.h>
-#include <nvif/event.h>
+#include <nvif/if0014.h>
 #include <nvif/push507c.h>
 
 #include <nvhw/class/cl507e.h>
@@ -147,8 +146,8 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 	      struct nouveau_drm *drm, int head, s32 oclass, u32 interlock_data,
 	      struct nv50_wndw **pwndw)
 {
-	struct nv50_disp_overlay_channel_dma_v0 args = {
-		.head = head,
+	struct nvif_disp_chan_v0 args = {
+		.id = head,
 	};
 	struct nv50_disp *disp = nv50_disp(drm->dev);
 	struct nv50_wndw *wndw;
@@ -168,16 +167,6 @@ ovly507e_new_(const struct nv50_wndw_func *func, const u32 *format,
 		NV_ERROR(drm, "ovly%04x allocation failed: %d\n", oclass, ret);
 		return ret;
 	}
-
-	ret = nvif_notify_ctor(&wndw->wndw.base.user, "kmsOvlyNtfy",
-			       wndw->notify.func, false,
-			       NV50_DISP_OVERLAY_CHANNEL_DMA_V0_NTFY_UEVENT,
-			       &(struct nvif_notify_uevent_req) {},
-			       sizeof(struct nvif_notify_uevent_req),
-			       sizeof(struct nvif_notify_uevent_rep),
-			       &wndw->notify);
-	if (ret)
-		return ret;
 
 	wndw->ntfy = NV50_DISP_OVLY_NTFY(wndw->id);
 	wndw->sema = NV50_DISP_OVLY_SEM0(wndw->id);

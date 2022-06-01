@@ -32,8 +32,6 @@
 #include <subdev/timer.h>
 
 #include <nvif/class.h>
-#include <nvif/clc37b.h>
-#include <nvif/clc37e.h>
 #include <nvif/unpack.h>
 
 static void
@@ -309,7 +307,6 @@ gv100_head_cnt(struct nvkm_disp *disp, unsigned long *pmask)
 
 const struct nvkm_event_func
 gv100_disp_chan_uevent = {
-	.ctor = nv50_disp_chan_uevent_ctor,
 };
 
 u64
@@ -382,50 +379,20 @@ gv100_disp_wimm_intr(struct nvkm_disp_chan *chan, bool en)
 }
 
 static const struct nvkm_disp_chan_func
-gv100_disp_wimm = {
+gv100_disp_wimm_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gv100_disp_dmac_init,
 	.fini = gv100_disp_dmac_fini,
 	.intr = gv100_disp_wimm_intr,
 	.user = gv100_disp_chan_user,
 };
 
-static int
-gv100_disp_wimm_new_(const struct nvkm_disp_chan_func *func,
-		     const struct nvkm_disp_chan_mthd *mthd,
-		     struct nvkm_disp *disp, int chid,
-		     const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		     struct nvkm_object **pobject)
-{
-	union {
-		struct nvc37b_window_imm_channel_dma_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	int wndw, ret = -ENOSYS;
-	u64 push;
-
-	nvif_ioctl(parent, "create window imm channel dma size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create window imm channel dma vers %d "
-				   "pushbuf %016llx index %d\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.index);
-		if (!(disp->wndw.mask & BIT(args->v0.index)))
-			return -EINVAL;
-		push = args->v0.pushbuf;
-		wndw = args->v0.index;
-	} else
-		return ret;
-
-	return nv50_disp_dmac_new_(func, mthd, disp, chid + wndw,
-				   wndw, push, oclass, pobject);
-}
-
-int
-gv100_disp_wimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return gv100_disp_wimm_new_(&gv100_disp_wimm, NULL, disp, 33,
-				    oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gv100_disp_wimm = {
+	.func = &gv100_disp_wimm_func,
+	.ctrl = 33,
+	.user = 33,
+};
 
 static const struct nvkm_disp_mthd_list
 gv100_disp_wndw_mthd_base = {
@@ -538,7 +505,8 @@ gv100_disp_wndw_intr(struct nvkm_disp_chan *chan, bool en)
 }
 
 static const struct nvkm_disp_chan_func
-gv100_disp_wndw = {
+gv100_disp_wndw_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gv100_disp_dmac_init,
 	.fini = gv100_disp_dmac_fini,
 	.intr = gv100_disp_wndw_intr,
@@ -546,43 +514,13 @@ gv100_disp_wndw = {
 	.bind = gv100_disp_dmac_bind,
 };
 
-static int
-gv100_disp_wndw_new_(const struct nvkm_disp_chan_func *func,
-		     const struct nvkm_disp_chan_mthd *mthd,
-		     struct nvkm_disp *disp, int chid,
-		     const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		     struct nvkm_object **pobject)
-{
-	union {
-		struct nvc37e_window_channel_dma_v0 v0;
-	} *args = argv;
-	struct nvkm_object *parent = oclass->parent;
-	int wndw, ret = -ENOSYS;
-	u64 push;
-
-	nvif_ioctl(parent, "create window channel dma size %d\n", argc);
-	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))) {
-		nvif_ioctl(parent, "create window channel dma vers %d "
-				   "pushbuf %016llx index %d\n",
-			   args->v0.version, args->v0.pushbuf, args->v0.index);
-		if (!(disp->wndw.mask & BIT(args->v0.index)))
-			return -EINVAL;
-		push = args->v0.pushbuf;
-		wndw = args->v0.index;
-	} else
-		return ret;
-
-	return nv50_disp_dmac_new_(func, mthd, disp, chid + wndw,
-				   wndw, push, oclass, pobject);
-}
-
-int
-gv100_disp_wndw_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return gv100_disp_wndw_new_(&gv100_disp_wndw, &gv100_disp_wndw_mthd,
-				    disp, 1, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gv100_disp_wndw = {
+	.func = &gv100_disp_wndw_func,
+	.ctrl = 1,
+	.user = 1,
+	.mthd = &gv100_disp_wndw_mthd,
+};
 
 int
 gv100_disp_wndw_cnt(struct nvkm_disp *disp, unsigned long *pmask)
@@ -635,20 +573,19 @@ gv100_disp_curs_init(struct nvkm_disp_chan *chan)
 }
 
 static const struct nvkm_disp_chan_func
-gv100_disp_curs = {
+gv100_disp_curs_func = {
 	.init = gv100_disp_curs_init,
 	.fini = gv100_disp_curs_fini,
 	.intr = gv100_disp_curs_intr,
 	.user = gv100_disp_chan_user,
 };
 
-int
-gv100_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_curs_new_(&gv100_disp_curs, disp, 73, 73,
-				   oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gv100_disp_curs = {
+	.func = &gv100_disp_curs_func,
+	.ctrl = 73,
+	.user = 73,
+};
 
 const struct nvkm_disp_mthd_list
 gv100_disp_core_mthd_base = {
@@ -817,7 +754,8 @@ gv100_disp_core_init(struct nvkm_disp_chan *chan)
 }
 
 static const struct nvkm_disp_chan_func
-gv100_disp_core = {
+gv100_disp_core_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gv100_disp_core_init,
 	.fini = gv100_disp_core_fini,
 	.intr = gv100_disp_core_intr,
@@ -825,13 +763,13 @@ gv100_disp_core = {
 	.bind = gv100_disp_dmac_bind,
 };
 
-int
-gv100_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&gv100_disp_core, &gv100_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gv100_disp_core = {
+	.func = &gv100_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &gv100_disp_core_mthd,
+};
 
 #define gv100_disp_caps(p) container_of((p), struct gv100_disp_caps, object)
 
@@ -859,8 +797,9 @@ gv100_disp_caps = {
 
 int
 gv100_disp_caps_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
+		    struct nvkm_object **pobject)
 {
+	struct nvkm_disp *disp = nvkm_udisp(oclass->parent);
 	struct gv100_disp_caps *caps;
 
 	if (!(caps = kzalloc(sizeof(*caps), GFP_KERNEL)))
@@ -1276,10 +1215,10 @@ gv100_disp = {
 	.root = {  0, 0,GV100_DISP },
 	.user = {
 		{{-1,-1,GV100_DISP_CAPS                  }, gv100_disp_caps_new },
-		{{ 0, 0,GV100_DISP_CURSOR                }, gv100_disp_curs_new },
-		{{ 0, 0,GV100_DISP_WINDOW_IMM_CHANNEL_DMA}, gv100_disp_wimm_new },
-		{{ 0, 0,GV100_DISP_CORE_CHANNEL_DMA      }, gv100_disp_core_new },
-		{{ 0, 0,GV100_DISP_WINDOW_CHANNEL_DMA    }, gv100_disp_wndw_new },
+		{{ 0, 0,GV100_DISP_CURSOR                },  nvkm_disp_chan_new, &gv100_disp_curs },
+		{{ 0, 0,GV100_DISP_WINDOW_IMM_CHANNEL_DMA},  nvkm_disp_wndw_new, &gv100_disp_wimm },
+		{{ 0, 0,GV100_DISP_CORE_CHANNEL_DMA      },  nvkm_disp_core_new, &gv100_disp_core },
+		{{ 0, 0,GV100_DISP_WINDOW_CHANNEL_DMA    },  nvkm_disp_wndw_new, &gv100_disp_wndw },
 		{}
 	},
 };

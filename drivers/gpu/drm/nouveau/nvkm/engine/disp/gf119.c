@@ -474,7 +474,6 @@ gf119_disp_chan_uevent_init(struct nvkm_event *event, int types, int index)
 
 const struct nvkm_event_func
 gf119_disp_chan_uevent = {
-	.ctor = nv50_disp_chan_uevent_ctor,
 	.init = gf119_disp_chan_uevent_init,
 	.fini = gf119_disp_chan_uevent_fini,
 };
@@ -603,6 +602,7 @@ gf119_disp_dmac_init(struct nvkm_disp_chan *chan)
 
 const struct nvkm_disp_chan_func
 gf119_disp_dmac_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gf119_disp_dmac_init,
 	.fini = gf119_disp_dmac_fini,
 	.intr = gf119_disp_chan_intr,
@@ -610,21 +610,19 @@ gf119_disp_dmac_func = {
 	.bind = gf119_disp_dmac_bind,
 };
 
-int
-gf119_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_curs_new_(&gf119_disp_pioc_func, disp, 13, 13,
-				   oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gf119_disp_curs = {
+	.func = &gf119_disp_pioc_func,
+	.ctrl = 13,
+	.user = 13,
+};
 
-int
-gf119_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_oimm_new_(&gf119_disp_pioc_func, disp, 9, 9,
-				   oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gf119_disp_oimm = {
+	.func = &gf119_disp_pioc_func,
+	.ctrl = 9,
+	.user = 9,
+};
 
 static const struct nvkm_disp_mthd_list
 gf119_disp_ovly_mthd_base = {
@@ -689,13 +687,13 @@ gf119_disp_ovly_mthd = {
 	}
 };
 
-int
-gf119_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_ovly_new_(&gf119_disp_dmac_func, &gf119_disp_ovly_mthd,
-				   disp, 5, oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gf119_disp_ovly = {
+	.func = &gf119_disp_dmac_func,
+	.ctrl = 5,
+	.user = 5,
+	.mthd = &gf119_disp_ovly_mthd,
+};
 
 static const struct nvkm_disp_mthd_list
 gf119_disp_base_mthd_base = {
@@ -773,13 +771,13 @@ gf119_disp_base_mthd = {
 	}
 };
 
-int
-gf119_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_base_new_(&gf119_disp_dmac_func, &gf119_disp_base_mthd,
-				   disp, 1, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gf119_disp_base = {
+	.func = &gf119_disp_dmac_func,
+	.ctrl = 1,
+	.user = 1,
+	.mthd = &gf119_disp_base_mthd,
+};
 
 const struct nvkm_disp_mthd_list
 gf119_disp_core_mthd_base = {
@@ -971,6 +969,7 @@ gf119_disp_core_init(struct nvkm_disp_chan *chan)
 
 const struct nvkm_disp_chan_func
 gf119_disp_core_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gf119_disp_core_init,
 	.fini = gf119_disp_core_fini,
 	.intr = gf119_disp_chan_intr,
@@ -978,13 +977,13 @@ gf119_disp_core_func = {
 	.bind = gf119_disp_dmac_bind,
 };
 
-int
-gf119_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&gf119_disp_core_func, &gf119_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gf119_disp_core = {
+	.func = &gf119_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &gf119_disp_core_mthd,
+};
 
 void
 gf119_disp_super(struct work_struct *work)
@@ -1220,11 +1219,11 @@ gf119_disp = {
 	.sor = { .cnt = gf119_sor_cnt, .new = gf119_sor_new },
 	.root = { 0,0,GF110_DISP },
 	.user = {
-		{{0,0,GF110_DISP_CURSOR             }, gf119_disp_curs_new },
-		{{0,0,GF110_DISP_OVERLAY            }, gf119_disp_oimm_new },
-		{{0,0,GF110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
-		{{0,0,GF110_DISP_CORE_CHANNEL_DMA   }, gf119_disp_core_new },
-		{{0,0,GF110_DISP_OVERLAY_CONTROL_DMA}, gf119_disp_ovly_new },
+		{{0,0,GF110_DISP_CURSOR             }, nvkm_disp_chan_new, &gf119_disp_curs },
+		{{0,0,GF110_DISP_OVERLAY            }, nvkm_disp_chan_new, &gf119_disp_oimm },
+		{{0,0,GF110_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &gf119_disp_base },
+		{{0,0,GF110_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &gf119_disp_core },
+		{{0,0,GF110_DISP_OVERLAY_CONTROL_DMA}, nvkm_disp_chan_new, &gf119_disp_ovly },
 		{}
 	},
 };

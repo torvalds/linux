@@ -24,6 +24,7 @@ struct nvkm_disp {
 		u32 pending;
 	} super;
 
+#define NVKM_DISP_EVENT_CHAN_AWAKEN BIT(0)
 	struct nvkm_event uevent;
 
 	struct {

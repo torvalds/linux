@@ -24,7 +24,12 @@ struct nvkm_disp_chan {
 	u32 suspend_put;
 };
 
+int nvkm_disp_core_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+int nvkm_disp_chan_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+int nvkm_disp_wndw_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
+
 struct nvkm_disp_chan_func {
+	int (*push)(struct nvkm_disp_chan *, u64 object);
 	int (*init)(struct nvkm_disp_chan *);
 	void (*fini)(struct nvkm_disp_chan *);
 	void (*intr)(struct nvkm_disp_chan *, bool en);
@@ -32,19 +37,11 @@ struct nvkm_disp_chan_func {
 	int (*bind)(struct nvkm_disp_chan *, struct nvkm_object *, u32 handle);
 };
 
-int nvkm_disp_chan_new_(const struct nvkm_disp_chan_func *,
-			const struct nvkm_disp_chan_mthd *,
-			struct nvkm_disp *, int ctrl, int user, int head,
-			const struct nvkm_oclass *, struct nvkm_object **);
-int nv50_disp_dmac_new_(const struct nvkm_disp_chan_func *,
-			const struct nvkm_disp_chan_mthd *,
-			struct nvkm_disp *, int chid, int head, u64 push,
-			const struct nvkm_oclass *, struct nvkm_object **);
-
 void nv50_disp_chan_intr(struct nvkm_disp_chan *, bool);
 u64 nv50_disp_chan_user(struct nvkm_disp_chan *, u64 *);
 extern const struct nvkm_disp_chan_func nv50_disp_pioc_func;
 extern const struct nvkm_disp_chan_func nv50_disp_dmac_func;
+int nv50_disp_dmac_push(struct nvkm_disp_chan *, u64);
 int nv50_disp_dmac_bind(struct nvkm_disp_chan *, struct nvkm_object *, u32);
 extern const struct nvkm_disp_chan_func nv50_disp_core_func;
 
@@ -63,89 +60,35 @@ int gv100_disp_dmac_init(struct nvkm_disp_chan *);
 void gv100_disp_dmac_fini(struct nvkm_disp_chan *);
 int gv100_disp_dmac_bind(struct nvkm_disp_chan *, struct nvkm_object *, u32);
 
-int nv50_disp_curs_new_(const struct nvkm_disp_chan_func *,
-			struct nvkm_disp *, int ctrl, int user,
-			const struct nvkm_oclass *, void *argv, u32 argc,
-			struct nvkm_object **);
-int nv50_disp_oimm_new_(const struct nvkm_disp_chan_func *,
-			struct nvkm_disp *, int ctrl, int user,
-			const struct nvkm_oclass *, void *argv, u32 argc,
-			struct nvkm_object **);
-int nv50_disp_base_new_(const struct nvkm_disp_chan_func *,
-			const struct nvkm_disp_chan_mthd *,
-			struct nvkm_disp *, int chid,
-			const struct nvkm_oclass *, void *argv, u32 argc,
-			struct nvkm_object **);
-int nv50_disp_core_new_(const struct nvkm_disp_chan_func *,
-			const struct nvkm_disp_chan_mthd *,
-			struct nvkm_disp *, int chid,
-			const struct nvkm_oclass *oclass, void *argv, u32 argc,
-			struct nvkm_object **);
-int nv50_disp_ovly_new_(const struct nvkm_disp_chan_func *,
-			const struct nvkm_disp_chan_mthd *,
-			struct nvkm_disp *, int chid,
-			const struct nvkm_oclass *, void *argv, u32 argc,
-			struct nvkm_object **);
+struct nvkm_disp_chan_user {
+	const struct nvkm_disp_chan_func *func;
+	int ctrl;
+	int user;
+	const struct nvkm_disp_chan_mthd *mthd;
+};
 
-int nv50_disp_curs_new(const struct nvkm_oclass *, void *, u32,
-		       struct nvkm_disp *, struct nvkm_object **);
-int nv50_disp_oimm_new(const struct nvkm_oclass *, void *, u32,
-		       struct nvkm_disp *, struct nvkm_object **);
-int nv50_disp_base_new(const struct nvkm_oclass *, void *, u32,
-		       struct nvkm_disp *, struct nvkm_object **);
-int nv50_disp_core_new(const struct nvkm_oclass *, void *, u32,
-		       struct nvkm_disp *, struct nvkm_object **);
-int nv50_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
-		       struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user nv50_disp_oimm;
+extern const struct nvkm_disp_chan_user nv50_disp_curs;
 
-int g84_disp_base_new(const struct nvkm_oclass *, void *, u32,
-		      struct nvkm_disp *, struct nvkm_object **);
-int g84_disp_core_new(const struct nvkm_oclass *, void *, u32,
-		      struct nvkm_disp *, struct nvkm_object **);
-int g84_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
-		      struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user g84_disp_core;
+extern const struct nvkm_disp_chan_user g84_disp_base;
+extern const struct nvkm_disp_chan_user g84_disp_ovly;
 
-int g94_disp_core_new(const struct nvkm_oclass *, void *, u32,
-		      struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user g94_disp_core;
 
-int gt200_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user gt200_disp_ovly;
 
-int gf119_disp_curs_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gf119_disp_oimm_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gf119_disp_base_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gf119_disp_core_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gf119_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user gf119_disp_base;
+extern const struct nvkm_disp_chan_user gf119_disp_oimm;
+extern const struct nvkm_disp_chan_user gf119_disp_curs;
 
-int gk104_disp_core_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gk104_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user gk104_disp_core;
+extern const struct nvkm_disp_chan_user gk104_disp_ovly;
 
-int gp102_disp_curs_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gp102_disp_oimm_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gp102_disp_base_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gp102_disp_core_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gp102_disp_ovly_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-
-int gv100_disp_curs_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gv100_disp_wimm_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gv100_disp_core_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
-int gv100_disp_wndw_new(const struct nvkm_oclass *, void *, u32,
-			struct nvkm_disp *, struct nvkm_object **);
+extern const struct nvkm_disp_chan_user gv100_disp_core;
+extern const struct nvkm_disp_chan_user gv100_disp_curs;
+extern const struct nvkm_disp_chan_user gv100_disp_wndw;
+extern const struct nvkm_disp_chan_user gv100_disp_wimm;
 
 struct nvkm_disp_mthd_list {
 	u32 mthd;

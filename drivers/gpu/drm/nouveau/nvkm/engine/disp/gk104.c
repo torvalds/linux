@@ -170,13 +170,13 @@ gk104_disp_ovly_mthd = {
 	}
 };
 
-int
-gk104_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_ovly_new_(&gf119_disp_dmac_func, &gk104_disp_ovly_mthd,
-				   disp, 5, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gk104_disp_ovly = {
+	.func = &gf119_disp_dmac_func,
+	.ctrl = 5,
+	.user = 5,
+	.mthd = &gk104_disp_ovly_mthd,
+};
 
 static const struct nvkm_disp_mthd_list
 gk104_disp_core_mthd_head = {
@@ -272,13 +272,13 @@ gk104_disp_core_mthd = {
 	}
 };
 
-int
-gk104_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&gf119_disp_core_func, &gk104_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+gk104_disp_core = {
+	.func = &gf119_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &gk104_disp_core_mthd,
+};
 
 static const struct nvkm_disp_func
 gk104_disp = {
@@ -294,11 +294,11 @@ gk104_disp = {
 	.sor = { .cnt = gf119_sor_cnt, .new = gk104_sor_new },
 	.root = { 0,0,GK104_DISP },
 	.user = {
-		{{0,0,GK104_DISP_CURSOR             }, gf119_disp_curs_new },
-		{{0,0,GK104_DISP_OVERLAY            }, gf119_disp_oimm_new },
-		{{0,0,GK104_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
-		{{0,0,GK104_DISP_CORE_CHANNEL_DMA   }, gk104_disp_core_new },
-		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gk104_disp_ovly_new },
+		{{0,0,GK104_DISP_CURSOR             }, nvkm_disp_chan_new, &gf119_disp_curs },
+		{{0,0,GK104_DISP_OVERLAY            }, nvkm_disp_chan_new, &gf119_disp_oimm },
+		{{0,0,GK104_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &gf119_disp_base },
+		{{0,0,GK104_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &gk104_disp_core },
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, nvkm_disp_chan_new, &gk104_disp_ovly },
 		{}
 	},
 };

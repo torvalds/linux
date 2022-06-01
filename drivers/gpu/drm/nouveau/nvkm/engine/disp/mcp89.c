@@ -71,11 +71,11 @@ mcp89_disp = {
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 	.root = { 0,0,GT214_DISP },
 	.user = {
-		{{0,0,GT214_DISP_CURSOR             },  nv50_disp_curs_new },
-		{{0,0,GT214_DISP_OVERLAY            },  nv50_disp_oimm_new },
-		{{0,0,GT214_DISP_BASE_CHANNEL_DMA   },   g84_disp_base_new },
-		{{0,0,GT214_DISP_CORE_CHANNEL_DMA   },   g94_disp_core_new },
-		{{0,0,GT214_DISP_OVERLAY_CHANNEL_DMA},   g84_disp_ovly_new },
+		{{0,0,GT214_DISP_CURSOR             }, nvkm_disp_chan_new, &nv50_disp_curs },
+		{{0,0,GT214_DISP_OVERLAY            }, nvkm_disp_chan_new, &nv50_disp_oimm },
+		{{0,0,GT214_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, & g84_disp_base },
+		{{0,0,GT214_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, & g94_disp_core },
+		{{0,0,GT214_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, & g84_disp_ovly },
 		{}
 	},
 };

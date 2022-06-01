@@ -48,8 +48,8 @@
 #include <nvif/class.h>
 #include <nvif/cl0002.h>
 #include <nvif/cl5070.h>
-#include <nvif/cl507d.h>
 #include <nvif/event.h>
+#include <nvif/if0014.h>
 #include <nvif/timer.h>
 
 #include <nvhw/class/cl507c.h>
@@ -231,7 +231,7 @@ nv50_dmac_create(struct nvif_device *device, struct nvif_object *disp,
 		 struct nv50_dmac *dmac)
 {
 	struct nouveau_cli *cli = (void *)device->object.client;
-	struct nv50_disp_core_channel_dma_v0 *args = data;
+	struct nvif_disp_chan_v0 *args = data;
 	u8 type = NVIF_MEM_COHERENT;
 	int ret;
 

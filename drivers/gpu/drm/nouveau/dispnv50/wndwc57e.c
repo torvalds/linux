@@ -26,7 +26,6 @@
 #include <drm/drm_plane_helper.h>
 #include <nouveau_bo.h>
 
-#include <nvif/clc37e.h>
 #include <nvif/pushc37b.h>
 
 #include <nvhw/class/clc57e.h>

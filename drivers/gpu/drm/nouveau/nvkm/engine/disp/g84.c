@@ -151,13 +151,13 @@ g84_disp_ovly_mthd = {
 	}
 };
 
-int
-g84_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		  struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_ovly_new_(&nv50_disp_dmac_func, &g84_disp_ovly_mthd,
-				   disp, 3, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+g84_disp_ovly = {
+	.func = &nv50_disp_dmac_func,
+	.ctrl = 3,
+	.user = 3,
+	.mthd = &g84_disp_ovly_mthd,
+};
 
 static const struct nvkm_disp_mthd_list
 g84_disp_base_mthd_base = {
@@ -201,13 +201,13 @@ g84_disp_base_mthd = {
 	}
 };
 
-int
-g84_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		  struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_base_new_(&nv50_disp_dmac_func, &g84_disp_base_mthd,
-				   disp, 1, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+g84_disp_base = {
+	.func = &nv50_disp_dmac_func,
+	.ctrl = 1,
+	.user = 1,
+	.mthd = &g84_disp_base_mthd,
+};
 
 const struct nvkm_disp_mthd_list
 g84_disp_core_mthd_dac = {
@@ -288,13 +288,13 @@ g84_disp_core_mthd = {
 	}
 };
 
-int
-g84_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		  struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&nv50_disp_core_func, &g84_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+const struct nvkm_disp_chan_user
+g84_disp_core = {
+	.func = &nv50_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &g84_disp_core_mthd,
+};
 
 static const struct nvkm_disp_func
 g84_disp = {
@@ -310,11 +310,11 @@ g84_disp = {
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
 	.root = { 0,0,G82_DISP },
 	.user = {
-		{{0,0,G82_DISP_CURSOR             }, nv50_disp_curs_new },
-		{{0,0,G82_DISP_OVERLAY            }, nv50_disp_oimm_new },
-		{{0,0,G82_DISP_BASE_CHANNEL_DMA   },  g84_disp_base_new },
-		{{0,0,G82_DISP_CORE_CHANNEL_DMA   },  g84_disp_core_new },
-		{{0,0,G82_DISP_OVERLAY_CHANNEL_DMA},  g84_disp_ovly_new },
+		{{0,0,G82_DISP_CURSOR             }, nvkm_disp_chan_new, &nv50_disp_curs },
+		{{0,0,G82_DISP_OVERLAY            }, nvkm_disp_chan_new, &nv50_disp_oimm },
+		{{0,0,G82_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, & g84_disp_base },
+		{{0,0,G82_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, & g84_disp_core },
+		{{0,0,G82_DISP_OVERLAY_CHANNEL_DMA}, nvkm_disp_chan_new, & g84_disp_ovly },
 		{}
 	},
 };

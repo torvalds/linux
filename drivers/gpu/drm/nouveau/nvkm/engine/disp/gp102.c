@@ -61,6 +61,7 @@ gp102_disp_dmac_init(struct nvkm_disp_chan *chan)
 
 const struct nvkm_disp_chan_func
 gp102_disp_dmac_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gp102_disp_dmac_init,
 	.fini = gf119_disp_dmac_fini,
 	.intr = gf119_disp_chan_intr,
@@ -68,37 +69,35 @@ gp102_disp_dmac_func = {
 	.bind = gf119_disp_dmac_bind,
 };
 
-int
-gp102_disp_curs_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_curs_new_(&gf119_disp_pioc_func, disp, 13, 17,
-				   oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gp102_disp_curs = {
+	.func = &gf119_disp_pioc_func,
+	.ctrl = 13,
+	.user = 17,
+};
 
-int
-gp102_disp_oimm_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_oimm_new_(&gf119_disp_pioc_func, disp, 9, 13,
-				   oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gp102_disp_oimm = {
+	.func = &gf119_disp_pioc_func,
+	.ctrl = 9,
+	.user = 13,
+};
 
-int
-gp102_disp_ovly_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_ovly_new_(&gp102_disp_dmac_func, &gk104_disp_ovly_mthd,
-				   disp, 5, oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gp102_disp_ovly = {
+	.func = &gp102_disp_dmac_func,
+	.ctrl = 5,
+	.user = 5,
+	.mthd = &gk104_disp_ovly_mthd,
+};
 
-int
-gp102_disp_base_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_base_new_(&gp102_disp_dmac_func, &gf119_disp_base_mthd,
-				   disp, 1, oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gp102_disp_base = {
+	.func = &gp102_disp_dmac_func,
+	.ctrl = 1,
+	.user = 1,
+	.mthd = &gf119_disp_base_mthd,
+};
 
 static int
 gp102_disp_core_init(struct nvkm_disp_chan *chan)
@@ -129,6 +128,7 @@ gp102_disp_core_init(struct nvkm_disp_chan *chan)
 
 static const struct nvkm_disp_chan_func
 gp102_disp_core_func = {
+	.push = nv50_disp_dmac_push,
 	.init = gp102_disp_core_init,
 	.fini = gf119_disp_core_fini,
 	.intr = gf119_disp_chan_intr,
@@ -136,13 +136,13 @@ gp102_disp_core_func = {
 	.bind = gf119_disp_dmac_bind,
 };
 
-int
-gp102_disp_core_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
-		    struct nvkm_disp *disp, struct nvkm_object **pobject)
-{
-	return nv50_disp_core_new_(&gp102_disp_core_func, &gk104_disp_core_mthd,
-				   disp, 0, oclass, argv, argc, pobject);
-}
+static const struct nvkm_disp_chan_user
+gp102_disp_core = {
+	.func = &gp102_disp_core_func,
+	.ctrl = 0,
+	.user = 0,
+	.mthd = &gk104_disp_core_mthd,
+};
 
 static void
 gp102_disp_intr_error(struct nvkm_disp *disp, int chid)
@@ -183,11 +183,11 @@ gp102_disp = {
 	.sor = { .cnt = gf119_sor_cnt, .new = gp100_sor_new },
 	.root = { 0,0,GP102_DISP },
 	.user = {
-		{{0,0,GK104_DISP_CURSOR             }, gp102_disp_curs_new },
-		{{0,0,GK104_DISP_OVERLAY            }, gp102_disp_oimm_new },
-		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gp102_disp_base_new },
-		{{0,0,GP102_DISP_CORE_CHANNEL_DMA   }, gp102_disp_core_new },
-		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gp102_disp_ovly_new },
+		{{0,0,GK104_DISP_CURSOR             }, nvkm_disp_chan_new, &gp102_disp_curs },
+		{{0,0,GK104_DISP_OVERLAY            }, nvkm_disp_chan_new, &gp102_disp_oimm },
+		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, nvkm_disp_chan_new, &gp102_disp_base },
+		{{0,0,GP102_DISP_CORE_CHANNEL_DMA   }, nvkm_disp_core_new, &gp102_disp_core },
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, nvkm_disp_chan_new, &gp102_disp_ovly },
 		{}
 	},
 };
