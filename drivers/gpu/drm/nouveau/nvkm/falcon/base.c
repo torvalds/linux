@@ -24,6 +24,60 @@
 #include <subdev/mc.h>
 #include <subdev/top.h>
 
+static const struct nvkm_falcon_func_pio *
+nvkm_falcon_pio(struct nvkm_falcon *falcon, enum nvkm_falcon_mem *mem_type, u32 *mem_base)
+{
+	switch (*mem_type) {
+	case IMEM:
+		return falcon->func->imem_pio;
+	case DMEM:
+		if (!falcon->func->emem_addr || *mem_base < falcon->func->emem_addr)
+			return falcon->func->dmem_pio;
+
+		*mem_base -= falcon->func->emem_addr;
+		fallthrough;
+	default:
+		return NULL;
+	}
+}
+
+int
+nvkm_falcon_pio_wr(struct nvkm_falcon *falcon, const u8 *img, u32 img_base, u8 port,
+		   enum nvkm_falcon_mem mem_type, u32 mem_base, int len, u16 tag, bool sec)
+{
+	const struct nvkm_falcon_func_pio *pio = nvkm_falcon_pio(falcon, &mem_type, &mem_base);
+	const char *type = nvkm_falcon_mem(mem_type);
+	int xfer_len;
+
+	if (WARN_ON(!pio || !pio->wr))
+		return -EINVAL;
+
+	FLCN_DBG(falcon, "%s %08x <- %08x bytes at %08x", type, mem_base, len, img_base);
+	if (WARN_ON(!len || (len & (pio->min - 1))))
+		return -EINVAL;
+
+	pio->wr_init(falcon, port, sec, mem_base);
+	do {
+		xfer_len = min(len, pio->max);
+		pio->wr(falcon, port, img, xfer_len, tag++);
+
+		if (nvkm_printk_ok(falcon->owner, falcon->user, NV_DBG_TRACE)) {
+			for (img_base = 0; img_base < xfer_len; img_base += 4, mem_base += 4) {
+				if (((img_base / 4) % 8) == 0)
+					printk(KERN_INFO "%s %08x <-", type, mem_base);
+				printk(KERN_CONT " %08x", *(u32 *)(img + img_base));
+				if ((img_base / 4) == 7 && mem_type == IMEM)
+					printk(KERN_CONT " %04x", tag - 1);
+			}
+		}
+
+		img += xfer_len;
+		len -= xfer_len;
+	} while (len);
+
+	return 0;
+}
+
 void
 nvkm_falcon_load_imem(struct nvkm_falcon *falcon, void *data, u32 start,
 		      u32 size, u16 tag, u8 port, bool secure)

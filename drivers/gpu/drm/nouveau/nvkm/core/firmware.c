@@ -107,3 +107,45 @@ nvkm_firmware_put(const struct firmware *fw)
 {
 	release_firmware(fw);
 }
+
+void
+nvkm_firmware_dtor(struct nvkm_firmware *fw)
+{
+	if (!fw->img)
+		return;
+
+	switch (fw->func->type) {
+	case NVKM_FIRMWARE_IMG_RAM:
+		kfree(fw->img);
+		break;
+	default:
+		WARN_ON(1);
+		break;
+	}
+
+	fw->img = NULL;
+}
+
+int
+nvkm_firmware_ctor(const struct nvkm_firmware_func *func, const char *name,
+		   struct nvkm_device *device, const void *src, int len, struct nvkm_firmware *fw)
+{
+	fw->func = func;
+	fw->name = name;
+	fw->device = device;
+
+	switch (fw->func->type) {
+	case NVKM_FIRMWARE_IMG_RAM:
+		fw->len = len;
+		fw->img = kmemdup(src, fw->len, GFP_KERNEL);
+		break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	if (!fw->img)
+		return -ENOMEM;
+
+	return 0;
+}

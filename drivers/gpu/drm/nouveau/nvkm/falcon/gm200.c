@@ -24,6 +24,55 @@
 #include <subdev/mc.h>
 #include <subdev/timer.h>
 
+static void
+gm200_flcn_pio_dmem_wr(struct nvkm_falcon *falcon, u8 port, const u8 *img, int len, u16 tag)
+{
+	while (len >= 4) {
+		nvkm_falcon_wr32(falcon, 0x1c4 + (port * 8), *(u32 *)img);
+		img += 4;
+		len -= 4;
+	}
+}
+
+static void
+gm200_flcn_pio_dmem_wr_init(struct nvkm_falcon *falcon, u8 port, bool sec, u32 dmem_base)
+{
+	nvkm_falcon_wr32(falcon, 0x1c0 + (port * 8), BIT(24) | dmem_base);
+}
+
+const struct nvkm_falcon_func_pio
+gm200_flcn_dmem_pio = {
+	.min = 4,
+	.max = 0x100,
+	.wr_init = gm200_flcn_pio_dmem_wr_init,
+	.wr = gm200_flcn_pio_dmem_wr,
+};
+
+static void
+gm200_flcn_pio_imem_wr_init(struct nvkm_falcon *falcon, u8 port, bool sec, u32 imem_base)
+{
+	nvkm_falcon_wr32(falcon, 0x180 + (port * 0x10), (sec ? BIT(28) : 0) | BIT(24) | imem_base);
+}
+
+static void
+gm200_flcn_pio_imem_wr(struct nvkm_falcon *falcon, u8 port, const u8 *img, int len, u16 tag)
+{
+	nvkm_falcon_wr32(falcon, 0x188 + (port * 0x10), tag++);
+	while (len >= 4) {
+		nvkm_falcon_wr32(falcon, 0x184 + (port * 0x10), *(u32 *)img);
+		img += 4;
+		len -= 4;
+	}
+}
+
+const struct nvkm_falcon_func_pio
+gm200_flcn_imem_pio = {
+	.min = 0x100,
+	.max = 0x100,
+	.wr_init = gm200_flcn_pio_imem_wr_init,
+	.wr = gm200_flcn_pio_imem_wr,
+};
+
 int
 gm200_flcn_reset_wait_mem_scrubbing(struct nvkm_falcon *falcon)
 {
@@ -81,3 +130,98 @@ gm200_flcn_disable(struct nvkm_falcon *falcon)
 
 	return 0;
 }
+
+int
+gm200_flcn_fw_boot(struct nvkm_falcon_fw *fw, u32 *pmbox0, u32 *pmbox1, u32 mbox0_ok, u32 irqsclr)
+{
+	struct nvkm_falcon *falcon = fw->falcon;
+	u32 mbox0, mbox1;
+	int ret = 0;
+
+	nvkm_falcon_wr32(falcon, 0x040, pmbox0 ? *pmbox0 : 0xcafebeef);
+	if (pmbox1)
+		nvkm_falcon_wr32(falcon, 0x044, *pmbox1);
+
+	nvkm_falcon_wr32(falcon, 0x104, fw->boot_addr);
+	nvkm_falcon_wr32(falcon, 0x100, 0x00000002);
+
+	if (nvkm_msec(falcon->owner->device, 2000,
+		if (nvkm_falcon_rd32(falcon, 0x100) & 0x00000010)
+			break;
+	) < 0)
+		ret = -ETIMEDOUT;
+
+	mbox0 = nvkm_falcon_rd32(falcon, 0x040);
+	mbox1 = nvkm_falcon_rd32(falcon, 0x044);
+	if (FLCN_ERRON(falcon, ret || mbox0 != mbox0_ok, "mbox %08x %08x", mbox0, mbox1))
+		ret = ret ?: -EIO;
+
+	if (irqsclr)
+		nvkm_falcon_mask(falcon, 0x004, 0xffffffff, irqsclr);
+
+	return ret;
+}
+
+int
+gm200_flcn_fw_load(struct nvkm_falcon_fw *fw)
+{
+	struct nvkm_falcon *falcon = fw->falcon;
+	int ret;
+
+	if (1) {
+		nvkm_falcon_mask(falcon, 0x624, 0x00000080, 0x00000080);
+		nvkm_falcon_wr32(falcon, 0x10c, 0x00000000);
+	}
+
+	ret = nvkm_falcon_pio_wr(falcon, fw->fw.img + fw->nmem_base_img, fw->nmem_base_img, 0,
+				 IMEM, fw->nmem_base, fw->nmem_size, fw->nmem_base >> 8, false);
+	if (ret)
+		return ret;
+
+	ret = nvkm_falcon_pio_wr(falcon, fw->fw.img + fw->imem_base_img, fw->imem_base_img, 0,
+				 IMEM, fw->imem_base, fw->imem_size, fw->imem_base >> 8, true);
+	if (ret)
+		return ret;
+
+	ret = nvkm_falcon_pio_wr(falcon, fw->fw.img + fw->dmem_base_img, fw->dmem_base_img, 0,
+				 DMEM, fw->dmem_base, fw->dmem_size, 0, false);
+	if (ret)
+		return ret;
+
+	return 0;
+}
+
+int
+gm200_flcn_fw_reset(struct nvkm_falcon_fw *fw)
+{
+	return nvkm_falcon_reset(fw->falcon);
+}
+
+int
+gm200_flcn_fw_signature(struct nvkm_falcon_fw *fw, u32 *sig_base_src)
+{
+	struct nvkm_falcon *falcon = fw->falcon;
+	u32 addr = falcon->func->debug;
+	int ret = 0;
+
+	if (addr) {
+		ret = nvkm_falcon_enable(falcon);
+		if (ret)
+			return ret;
+
+		if (nvkm_falcon_rd32(falcon, addr) & 0x00100000) {
+			*sig_base_src = fw->sig_base_dbg;
+			return 1;
+		}
+	}
+
+	return ret;
+}
+
+const struct nvkm_falcon_fw_func
+gm200_flcn_fw = {
+	.signature = gm200_flcn_fw_signature,
+	.reset = gm200_flcn_fw_reset,
+	.load = gm200_flcn_fw_load,
+	.boot = gm200_flcn_fw_boot,
+};

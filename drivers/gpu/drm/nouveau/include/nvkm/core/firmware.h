@@ -4,6 +4,23 @@
 #include <core/option.h>
 #include <core/subdev.h>
 
+struct nvkm_firmware {
+	const struct nvkm_firmware_func {
+		enum nvkm_firmware_type {
+			NVKM_FIRMWARE_IMG_RAM,
+		} type;
+	} *func;
+	const char *name;
+	struct nvkm_device *device;
+
+	int len;
+	u8 *img;
+};
+
+int nvkm_firmware_ctor(const struct nvkm_firmware_func *, const char *name, struct nvkm_device *,
+		       const void *ptr, int len, struct nvkm_firmware *);
+void nvkm_firmware_dtor(struct nvkm_firmware *);
+
 int nvkm_firmware_get(const struct nvkm_subdev *, const char *fwname, int ver,
 		      const struct firmware **);
 void nvkm_firmware_put(const struct firmware *);

@@ -63,6 +63,10 @@ struct nvkm_falcon_func {
 	int (*reset_eng)(struct nvkm_falcon *);
 	int (*reset_wait_mem_scrubbing)(struct nvkm_falcon *);
 
+	u32 debug;
+	const struct nvkm_falcon_func_pio *imem_pio;
+	const struct nvkm_falcon_func_pio *dmem_pio;
+
 	struct {
 		u32 *data;
 		u32  size;
@@ -74,7 +78,6 @@ struct nvkm_falcon_func {
 	void (*init)(struct nvkm_falcon *);
 	void (*intr)(struct nvkm_falcon *, struct nvkm_chan *);
 
-	u32 debug;
 	u32 fbif;
 
 	void (*load_imem)(struct nvkm_falcon *, void *, u32, u32, u16, u8, bool);
