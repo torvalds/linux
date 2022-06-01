@@ -26,7 +26,6 @@ struct nvkm_fifo_chan {
 	struct nvkm_gpuobj *inst;
 	struct nvkm_gpuobj *push;
 	struct nvkm_vmm *vmm;
-	void __iomem *user;
 	u64 addr;
 	u32 size;
 
