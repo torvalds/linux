@@ -164,6 +164,17 @@ static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
 	{}
 };
 
+void
+gk104_runq_init(struct nvkm_runq *runq)
+{
+	struct nvkm_device *device = runq->fifo->engine.subdev.device;
+
+	gf100_runq_init(runq);
+
+	nvkm_wr32(device, 0x040148 + (runq->id * 0x2000), 0xffffffff); /* HCE.INTR */
+	nvkm_wr32(device, 0x04014c + (runq->id * 0x2000), 0xffffffff); /* HCE.INTREN */
+}
+
 static u32
 gk104_runq_runm(struct nvkm_runq *runq)
 {
@@ -172,6 +183,7 @@ gk104_runq_runm(struct nvkm_runq *runq)
 
 const struct nvkm_runq_func
 gk104_runq = {
+	.init = gk104_runq_init,
 };
 
 void
@@ -276,10 +288,6 @@ gk104_fifo_runlist = {
 
 static const struct nvkm_runl_func
 gk104_runl = {
-};
-
-const struct gk104_fifo_pbdma_func
-gk104_fifo_pbdma = {
 };
 
 int
@@ -968,25 +976,8 @@ gk104_fifo_init(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int i;
-
-	/* PBDMA[n] */
-	for (i = 0; i < fifo->pbdma_nr; i++) {
-		nvkm_mask(device, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
-		nvkm_wr32(device, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
-		nvkm_wr32(device, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
-	}
-
-	/* PBDMA[n].HCE */
-	for (i = 0; i < fifo->pbdma_nr; i++) {
-		nvkm_wr32(device, 0x040148 + (i * 0x2000), 0xffffffff); /* INTR */
-		nvkm_wr32(device, 0x04014c + (i * 0x2000), 0xffffffff); /* INTREN */
-	}
 
 	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
-
-	if (fifo->func->pbdma->init_timeout)
-		fifo->func->pbdma->init_timeout(fifo);
 
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
@@ -1053,8 +1044,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	struct nvkm_top_device *tdev;
 	int ret, i, j;
-
-	fifo->pbdma_nr = fifo->func->runq_nr(&fifo->base);
 
 	/* Determine runlist configuration from topology device info. */
 	list_for_each_entry(tdev, &device->top->device, head) {
@@ -1158,7 +1147,6 @@ gk104_fifo = {
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk104_fifo_runlist,
-	.pbdma = &gk104_fifo_pbdma,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk104_runl,
 	.runq = &gk104_runq,

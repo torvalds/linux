@@ -46,7 +46,6 @@ gk20a_fifo = {
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
-	.pbdma = &gk208_fifo_pbdma,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk110_runl,
 	.runq = &gk208_runq,

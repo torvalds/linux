@@ -94,11 +94,6 @@ tu102_fifo_fault_engine[] = {
 	{}
 };
 
-static const struct gk104_fifo_pbdma_func
-tu102_fifo_pbdma = {
-	.init_timeout = gk208_fifo_pbdma_init_timeout,
-};
-
 static void
 tu102_fifo_recover_work(struct work_struct *w)
 {
@@ -463,7 +458,6 @@ tu102_fifo = {
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = tu102_fifo_recover_chan,
 	.runlist = &tu102_fifo_runlist,
-	.pbdma = &tu102_fifo_pbdma,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &tu102_runl,
 	.runq = &gv100_runq,

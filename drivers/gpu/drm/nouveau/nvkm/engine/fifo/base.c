@@ -192,6 +192,9 @@ nvkm_fifo_init(struct nvkm_engine *engine)
 			mask |= BIT(runq->id);
 
 		fifo->func->init_pbdmas(fifo, mask);
+
+		nvkm_runq_foreach(runq, fifo)
+			runq->func->init(runq);
 	}
 
 	fifo->func->init(fifo);

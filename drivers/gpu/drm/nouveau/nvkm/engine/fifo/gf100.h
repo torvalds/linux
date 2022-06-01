@@ -17,8 +17,6 @@ struct gf100_fifo {
 		u64 mask;
 	} recover;
 
-	int pbdma_nr;
-
 	struct {
 		struct nvkm_memory *mem[2];
 		int active;

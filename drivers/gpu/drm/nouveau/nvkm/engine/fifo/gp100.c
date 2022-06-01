@@ -108,7 +108,6 @@ gp100_fifo = {
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gm107_fifo_runlist,
-	.pbdma = &gm200_fifo_pbdma,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gp100_runl,
 	.runq = &gk208_runq,

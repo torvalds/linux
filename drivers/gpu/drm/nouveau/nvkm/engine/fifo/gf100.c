@@ -97,8 +97,19 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 	nvkm_wr32(device, 0x040108 + (unit * 0x2000), stat);
 }
 
+void
+gf100_runq_init(struct nvkm_runq *runq)
+{
+	struct nvkm_device *device = runq->fifo->engine.subdev.device;
+
+	nvkm_mask(device, 0x04013c + (runq->id * 0x2000), 0x10000100, 0x00000000);
+	nvkm_wr32(device, 0x040108 + (runq->id * 0x2000), 0xffffffff); /* INTR */
+	nvkm_wr32(device, 0x04010c + (runq->id * 0x2000), 0xfffffeff); /* INTREN */
+}
+
 static const struct nvkm_runq_func
 gf100_runq = {
+	.init = gf100_runq_init,
 };
 
 void
@@ -653,14 +664,6 @@ gf100_fifo_init(struct nvkm_fifo *base)
 {
 	struct gf100_fifo *fifo = gf100_fifo(base);
 	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int i;
-
-	/* PBDMA[n] */
-	for (i = 0; i < fifo->pbdma_nr; i++) {
-		nvkm_mask(device, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
-		nvkm_wr32(device, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
-		nvkm_wr32(device, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
-	}
 
 	nvkm_mask(device, 0x002200, 0x00000001, 0x00000001);
 	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
@@ -715,8 +718,6 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	int ret;
-
-	fifo->pbdma_nr = fifo->base.func->runq_nr(&fifo->base);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
 			      false, &fifo->runlist.mem[0]);

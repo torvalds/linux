@@ -28,22 +28,16 @@
 #include <nvif/class.h>
 
 void
-gk208_fifo_pbdma_init_timeout(struct gk104_fifo *fifo)
+gk208_runq_init(struct nvkm_runq *runq)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int i;
+	gk104_runq_init(runq);
 
-	for (i = 0; i < fifo->pbdma_nr; i++)
-		nvkm_wr32(device, 0x04012c + (i * 0x2000), 0x0000ffff);
+	nvkm_wr32(runq->fifo->engine.subdev.device, 0x04012c + (runq->id * 0x2000), 0x000f4240);
 }
-
-const struct gk104_fifo_pbdma_func
-gk208_fifo_pbdma = {
-	.init_timeout = gk208_fifo_pbdma_init_timeout,
-};
 
 const struct nvkm_runq_func
 gk208_runq = {
+	.init = gk208_runq_init,
 };
 
 static int
@@ -75,7 +69,6 @@ gk208_fifo = {
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
 	.nonstall = &gf100_fifo_nonstall,
-	.pbdma = &gk208_fifo_pbdma,
 	.runl = &gk110_runl,
 	.runq = &gk208_runq,
 	.engn = &gk104_engn,

@@ -5,6 +5,7 @@
 
 struct nvkm_runq {
 	const struct nvkm_runq_func {
+		void (*init)(struct nvkm_runq *);
 	} *func;
 	struct nvkm_fifo *fifo;
 	int id;

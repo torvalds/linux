@@ -45,6 +45,7 @@ gv100_engn_ce = {
 
 const struct nvkm_runq_func
 gv100_runq = {
+	.init = gk208_runq_init,
 };
 
 void
@@ -335,7 +336,6 @@ gv100_fifo = {
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gv100_fifo_runlist,
-	.pbdma = &gm200_fifo_pbdma,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gv100_runl,
 	.runq = &gv100_runq,

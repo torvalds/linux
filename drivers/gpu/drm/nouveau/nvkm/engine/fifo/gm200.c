@@ -32,11 +32,6 @@ gm200_fifo_runq_nr(struct nvkm_fifo *fifo)
 	return nvkm_rd32(fifo->engine.subdev.device, 0x002004) & 0x000000ff;
 }
 
-const struct gk104_fifo_pbdma_func
-gm200_fifo_pbdma = {
-	.init_timeout = gk208_fifo_pbdma_init_timeout,
-};
-
 int
 gm200_fifo_chid_nr(struct nvkm_fifo *fifo)
 {
@@ -65,7 +60,6 @@ gm200_fifo = {
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gm107_fifo_runlist,
-	.pbdma = &gm200_fifo_pbdma,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gm107_runl,
 	.runq = &gk208_runq,
