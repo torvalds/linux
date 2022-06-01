@@ -1084,7 +1084,7 @@ int binder_alloc_shrinker_init(void)
 	int ret = list_lru_init(&binder_alloc_lru);
 
 	if (ret == 0) {
-		ret = register_shrinker(&binder_shrinker);
+		ret = register_shrinker(&binder_shrinker, "android-binder");
 		if (ret)
 			list_lru_destroy(&binder_alloc_lru);
 	}

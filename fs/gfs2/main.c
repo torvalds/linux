@@ -148,7 +148,7 @@ static int __init init_gfs2_fs(void)
 	if (!gfs2_trans_cachep)
 		goto fail_cachep8;
 
-	error = register_shrinker(&gfs2_qd_shrinker);
+	error = register_shrinker(&gfs2_qd_shrinker, "gfs2-qd");
 	if (error)
 		goto fail_shrinker;
 

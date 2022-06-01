@@ -102,7 +102,7 @@ DEFINE_SHOW_ATTRIBUTE(shrinker_debugfs_count);
 int shrinker_debugfs_add(struct shrinker *shrinker)
 {
 	struct dentry *entry;
-	char buf[16];
+	char buf[128];
 	int id;
 
 	lockdep_assert_held(&shrinker_rwsem);
@@ -116,7 +116,7 @@ int shrinker_debugfs_add(struct shrinker *shrinker)
 		return id;
 	shrinker->debugfs_id = id;
 
-	snprintf(buf, sizeof(buf), "%d", id);
+	snprintf(buf, sizeof(buf), "%s-%d", shrinker->name, id);
 
 	/* create debugfs entry */
 	entry = debugfs_create_dir(buf, shrinker_debugfs_root);
@@ -131,9 +131,52 @@ int shrinker_debugfs_add(struct shrinker *shrinker)
 	return 0;
 }
 
+int shrinker_debugfs_rename(struct shrinker *shrinker, const char *fmt, ...)
+{
+	struct dentry *entry;
+	char buf[128];
+	const char *new, *old;
+	va_list ap;
+	int ret = 0;
+
+	va_start(ap, fmt);
+	new = kvasprintf_const(GFP_KERNEL, fmt, ap);
+	va_end(ap);
+
+	if (!new)
+		return -ENOMEM;
+
+	down_write(&shrinker_rwsem);
+
+	old = shrinker->name;
+	shrinker->name = new;
+
+	if (shrinker->debugfs_entry) {
+		snprintf(buf, sizeof(buf), "%s-%d", shrinker->name,
+			 shrinker->debugfs_id);
+
+		entry = debugfs_rename(shrinker_debugfs_root,
+				       shrinker->debugfs_entry,
+				       shrinker_debugfs_root, buf);
+		if (IS_ERR(entry))
+			ret = PTR_ERR(entry);
+		else
+			shrinker->debugfs_entry = entry;
+	}
+
+	up_write(&shrinker_rwsem);
+
+	kfree_const(old);
+
+	return ret;
+}
+EXPORT_SYMBOL(shrinker_debugfs_rename);
+
 void shrinker_debugfs_remove(struct shrinker *shrinker)
 {
 	lockdep_assert_held(&shrinker_rwsem);
+
+	kfree_const(shrinker->name);
 
 	if (!shrinker->debugfs_entry)
 		return;

@@ -875,7 +875,7 @@ static int virtio_balloon_register_shrinker(struct virtio_balloon *vb)
 	vb->shrinker.count_objects = virtio_balloon_shrinker_count;
 	vb->shrinker.seeks = DEFAULT_SEEKS;
 
-	return register_shrinker(&vb->shrinker);
+	return register_shrinker(&vb->shrinker, "virtio-balloon");
 }
 
 static int virtballoon_probe(struct virtio_device *vdev)
