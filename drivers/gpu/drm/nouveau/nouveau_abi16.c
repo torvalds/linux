@@ -126,9 +126,8 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 {
 	struct nouveau_abi16_ntfy *ntfy, *temp;
 
-	/* wait for all activity to stop before releasing notify object, which
-	 * may be still in use */
-	if (chan->chan && chan->ntfy)
+	/* wait for all activity to stop before cleaning up */
+	if (chan->chan)
 		nouveau_channel_idle(chan->chan);
 
 	/* cleanup notifier state */
@@ -148,7 +147,6 @@ nouveau_abi16_chan_fini(struct nouveau_abi16 *abi16,
 	/* destroy channel object, all children will be killed too */
 	if (chan->chan) {
 		nvif_object_dtor(&chan->ce);
-		nouveau_channel_idle(chan->chan);
 		nouveau_channel_del(&chan->chan);
 	}
 
