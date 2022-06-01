@@ -153,7 +153,7 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	struct nvkm_object *parent = oclass->parent;
 	struct gf100_fifo_chan *chan;
 	u64 usermem, ioffset, ilength;
-	int ret = -ENOSYS, i;
+	int ret = -ENOSYS;
 
 	nvif_ioctl(parent, "create channel gpfifo size %d\n", size);
 	if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
@@ -181,24 +181,16 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 				  BIT(GF100_FIFO_ENGN_CE0) |
 				  BIT(GF100_FIFO_ENGN_CE1) |
 				  BIT(GF100_FIFO_ENGN_SW),
-				  1, fifo->user.bar->addr, 0x1000,
+				  0, 0, 0,
 				  oclass, &chan->base);
 	if (ret)
 		return ret;
 
 	args->v0.chid = chan->base.chid;
 
-	/* clear channel control registers */
-
-	usermem = chan->base.chid * 0x1000;
+	usermem = nvkm_memory_addr(chan->base.userd.mem) + chan->base.userd.base;
 	ioffset = args->v0.ioffset;
 	ilength = order_base_2(args->v0.ilength / 8);
-
-	nvkm_kmap(fifo->user.mem);
-	for (i = 0; i < 0x1000; i += 4)
-		nvkm_wo32(fifo->user.mem, usermem + i, 0x00000000);
-	nvkm_done(fifo->user.mem);
-	usermem = nvkm_memory_addr(fifo->user.mem) + usermem;
 
 	/* RAMFC */
 	nvkm_kmap(chan->base.inst);

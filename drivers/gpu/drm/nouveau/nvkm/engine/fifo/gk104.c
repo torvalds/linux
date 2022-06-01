@@ -31,7 +31,6 @@
 #include "changk104.h"
 
 #include <core/gpuobj.h>
-#include <subdev/bar.h>
 #include <subdev/mc.h>
 #include <subdev/top.h>
 
@@ -79,9 +78,17 @@ gk104_chan_bind(struct nvkm_chan *chan)
 	gk104_chan_bind_inst(chan);
 }
 
+const struct nvkm_chan_func_userd
+gk104_chan_userd = {
+	.bar = 1,
+	.size = 0x200,
+	.clear = gf100_chan_userd_clear,
+};
+
 static const struct nvkm_chan_func
 gk104_chan = {
 	.inst = &gf100_chan_inst,
+	.userd = &gk104_chan_userd,
 	.bind = gk104_chan_bind,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,
@@ -659,12 +666,12 @@ gk104_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
 }
 
 void
-gk104_fifo_init(struct nvkm_fifo *base)
+gk104_fifo_init(struct nvkm_fifo *fifo)
 {
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 
-	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
+	if (fifo->func->chan.func->userd->bar == 1)
+		nvkm_wr32(device, 0x002254, 0x10000000 | fifo->userd.bar1->addr >> 12);
 
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
@@ -728,9 +735,7 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	struct gk104_fifo *fifo = gk104_fifo(base);
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
 	struct nvkm_top_device *tdev;
-	int ret;
 
 	/* Determine runlist configuration from topology device info. */
 	list_for_each_entry(tdev, &device->top->device, head) {
@@ -748,28 +753,13 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		fifo->runlist_nr = max(fifo->runlist_nr, tdev->runlist + 1);
 	}
 
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-			      fifo->base.nr * 0x200, 0x1000, true,
-			      &fifo->user.mem);
-	if (ret)
-		return ret;
-
-	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
-			   &fifo->user.bar);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
+	return 0;
 }
 
 void *
 gk104_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-
-	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
-	nvkm_memory_unref(&fifo->user.mem);
 	return fifo;
 }
 

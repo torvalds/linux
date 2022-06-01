@@ -22,6 +22,13 @@ struct nvkm_chan_func {
 		bool vmm;
 	} *inst;
 
+	const struct nvkm_chan_func_userd {
+		int bar;
+		u32 base;
+		u32 size;
+		void (*clear)(struct nvkm_chan *);
+	} *userd;
+
 	void (*bind)(struct nvkm_chan *);
 	void (*unbind)(struct nvkm_chan *);
 	void (*start)(struct nvkm_chan *);

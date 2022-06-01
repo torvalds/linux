@@ -175,7 +175,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 		       struct nvkm_object **pobject)
 {
 	struct gk104_fifo_chan *chan;
-	int runlist = ffs(*runlists) -1, ret, i;
+	int runlist = ffs(*runlists) -1, ret;
 	u64 usermem;
 
 	if (!vmm || runlist < 0 || runlist >= fifo->runlist_nr)
@@ -191,7 +191,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 
 	ret = nvkm_fifo_chan_ctor(&gk104_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, vmm, 0, fifo->runlist[runlist].engm_sw,
-				  1, fifo->user.bar->addr, 0x200,
+				  0, 0, 0,
 				  oclass, &chan->base);
 	if (ret)
 		return ret;
@@ -199,15 +199,8 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	*chid = chan->base.chid;
 	*inst = chan->base.inst->addr;
 
-	/* Clear channel control registers. */
-	usermem = chan->base.chid * 0x200;
+	usermem = nvkm_memory_addr(chan->base.userd.mem) + chan->base.userd.base;
 	ilength = order_base_2(ilength / 8);
-
-	nvkm_kmap(fifo->user.mem);
-	for (i = 0; i < 0x200; i += 4)
-		nvkm_wo32(fifo->user.mem, usermem + i, 0x00000000);
-	nvkm_done(fifo->user.mem);
-	usermem = nvkm_memory_addr(fifo->user.mem) + usermem;
 
 	/* RAMFC */
 	nvkm_kmap(chan->base.inst);

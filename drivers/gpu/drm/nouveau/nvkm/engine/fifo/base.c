@@ -28,7 +28,9 @@
 #include "runq.h"
 
 #include <core/gpuobj.h>
+#include <subdev/bar.h>
 #include <subdev/mc.h>
+#include <subdev/mmu.h>
 
 #include <nvif/cl0080.h>
 #include <nvif/unpack.h>
@@ -243,6 +245,25 @@ nvkm_fifo_oneinit(struct nvkm_engine *engine)
 		}
 	}
 
+	/* Allocate USERD + BAR1 polling area. */
+	if (fifo->func->chan.func->userd->bar == 1) {
+		struct nvkm_vmm *bar1 = nvkm_bar_bar1_vmm(device);
+
+		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, fifo->chid->nr *
+				      fifo->func->chan.func->userd->size, 0, true,
+				      &fifo->userd.mem);
+		if (ret)
+			return ret;
+
+		ret = nvkm_vmm_get(bar1, 12, nvkm_memory_size(fifo->userd.mem), &fifo->userd.bar1);
+		if (ret)
+			return ret;
+
+		ret = nvkm_memory_map(fifo->userd.mem, 0, bar1, fifo->userd.bar1, NULL, 0);
+		if (ret)
+			return ret;
+	}
+
 	if (fifo->func->oneinit)
 		return fifo->func->oneinit(fifo);
 
@@ -262,6 +283,10 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 	struct nvkm_runl *runl, *runt;
 	struct nvkm_runq *runq, *rtmp;
 	void *data = fifo;
+
+	if (fifo->userd.bar1)
+		nvkm_vmm_put(nvkm_bar_bar1_vmm(engine->subdev.device), &fifo->userd.bar1);
+	nvkm_memory_unref(&fifo->userd.mem);
 
 	list_for_each_entry_safe(runl, runt, &fifo->runls, head)
 		nvkm_runl_del(runl);

@@ -113,6 +113,13 @@ nv04_chan_start(struct nvkm_chan *chan)
 	spin_unlock_irqrestore(&fifo->lock, flags);
 }
 
+const struct nvkm_chan_func_userd
+nv04_chan_userd = {
+	.bar = 0,
+	.base = 0x800000,
+	.size = 0x010000,
+};
+
 const struct nvkm_chan_func_inst
 nv04_chan_inst = {
 	.size = 0x1000,
@@ -121,6 +128,7 @@ nv04_chan_inst = {
 static const struct nvkm_chan_func
 nv04_chan = {
 	.inst = &nv04_chan_inst,
+	.userd = &nv04_chan_userd,
 	.start = nv04_chan_start,
 	.stop = nv04_chan_stop,
 };

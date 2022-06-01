@@ -62,9 +62,17 @@ nv40_fifo_ramfc[] = {
 	{}
 };
 
+static const struct nvkm_chan_func_userd
+nv40_chan_userd = {
+	.bar = 0,
+	.base = 0xc00000,
+	.size = 0x001000,
+};
+
 static const struct nvkm_chan_func
 nv40_chan = {
 	.inst = &nv04_chan_inst,
+	.userd = &nv40_chan_userd,
 	.start = nv04_chan_start,
 	.stop = nv04_chan_stop,
 };

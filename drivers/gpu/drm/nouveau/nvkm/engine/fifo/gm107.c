@@ -35,6 +35,7 @@
 const struct nvkm_chan_func
 gm107_chan = {
 	.inst = &gf100_chan_inst,
+	.userd = &gk104_chan_userd,
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,

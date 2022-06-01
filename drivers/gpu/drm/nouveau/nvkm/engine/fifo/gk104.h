@@ -24,16 +24,10 @@ struct gk104_fifo {
 		u32 engm_sw;
 	} runlist[16];
 	int runlist_nr;
-
-	struct {
-		struct nvkm_memory *mem;
-		struct nvkm_vma *bar;
-	} user;
 };
 
 int gk104_fifo_new_(const struct gk104_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		    int index, int nr, struct nvkm_fifo **);
 void *gk104_fifo_dtor(struct nvkm_fifo *base);
 int gk104_fifo_oneinit(struct nvkm_fifo *);
-void gk104_fifo_init(struct nvkm_fifo *base);
 #endif

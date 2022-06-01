@@ -204,9 +204,17 @@ static int
 nvkm_uchan_map(struct nvkm_object *object, void *argv, u32 argc,
 	       enum nvkm_object_map *type, u64 *addr, u64 *size)
 {
+	struct nvkm_device *device = object->engine->subdev.device;
 	struct nvkm_chan *chan = nvkm_uchan(object)->chan;
 
-	return chan->object.func->map(&chan->object, argv, argc, type, addr, size);
+	if (chan->func->userd->bar < 0)
+		return -ENOSYS;
+
+	*type = NVKM_OBJECT_MAP_IO;
+	*addr = device->func->resource_addr(device, chan->func->userd->bar) +
+		chan->func->userd->base + chan->userd.base;
+	*size = chan->func->userd->size;
+	return 0;
 }
 
 static int

@@ -50,6 +50,7 @@ gk110_chan_preempt(struct nvkm_chan *chan)
 const struct nvkm_chan_func
 gk110_chan = {
 	.inst = &gf100_chan_inst,
+	.userd = &gk104_chan_userd,
 	.bind = gk104_chan_bind,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,

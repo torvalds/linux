@@ -23,6 +23,11 @@ struct nvkm_chan {
 	struct nvkm_vmm *vmm;
 	union { int id; int chid; }; /*FIXME: remove later */
 
+	struct {
+		struct nvkm_memory *mem;
+		u32 base;
+	} userd;
+
 	spinlock_t lock;
 	atomic_t blocked;
 	atomic_t errored;
@@ -34,8 +39,6 @@ struct nvkm_chan {
 
 	struct list_head head;
 	struct nvkm_gpuobj *push;
-	u64 addr;
-	u32 size;
 
 	struct nvkm_fifo_engn engn[NVKM_FIFO_ENGN_NR];
 };
@@ -62,6 +65,11 @@ struct nvkm_fifo {
 	struct {
 		u32 chan_msec;
 	} timeout;
+
+	struct {
+		struct nvkm_memory *mem;
+		struct nvkm_vma *bar1;
+	} userd;
 
 	int nr;
 	spinlock_t lock;

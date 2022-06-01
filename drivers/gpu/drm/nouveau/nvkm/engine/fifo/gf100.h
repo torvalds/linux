@@ -8,10 +8,5 @@
 
 struct gf100_fifo {
 	struct nvkm_fifo base;
-
-	struct {
-		struct nvkm_memory *mem;
-		struct nvkm_vma *bar;
-	} user;
 };
 #endif

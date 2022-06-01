@@ -82,6 +82,30 @@ gf100_chan_bind(struct nvkm_chan *chan)
 	nvkm_wr32(device, 0x003000 + (chan->id * 8), 0xc0000000 | chan->inst->addr >> 12);
 }
 
+void
+gf100_chan_userd_clear(struct nvkm_chan *chan)
+{
+	nvkm_kmap(chan->userd.mem);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x040, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x044, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x048, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x04c, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x050, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x058, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x05c, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x060, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x088, 0x00000000);
+	nvkm_wo32(chan->userd.mem, chan->userd.base + 0x08c, 0x00000000);
+	nvkm_done(chan->userd.mem);
+}
+
+static const struct nvkm_chan_func_userd
+gf100_chan_userd = {
+	.bar = 1,
+	.size = 0x1000,
+	.clear = gf100_chan_userd_clear,
+};
+
 const struct nvkm_chan_func_inst
 gf100_chan_inst = {
 	.size = 0x1000,
@@ -92,6 +116,7 @@ gf100_chan_inst = {
 static const struct nvkm_chan_func
 gf100_chan = {
 	.inst = &gf100_chan_inst,
+	.userd = &gf100_chan_userd,
 	.bind = gf100_chan_bind,
 	.unbind = gf100_chan_unbind,
 	.start = gf100_chan_start,
@@ -807,13 +832,12 @@ gf100_fifo_init_pbdmas(struct nvkm_fifo *fifo, u32 mask)
 }
 
 static void
-gf100_fifo_init(struct nvkm_fifo *base)
+gf100_fifo_init(struct nvkm_fifo *fifo)
 {
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 
 	nvkm_mask(device, 0x002200, 0x00000001, 0x00000001);
-	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
+	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->userd.bar1->addr >> 12);
 
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
@@ -857,42 +881,16 @@ gf100_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
 	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr, &fifo->chid);
 }
 
-static int
-gf100_fifo_oneinit(struct nvkm_fifo *base)
-{
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
-	int ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
-			      0x1000, false, &fifo->user.mem);
-	if (ret)
-		return ret;
-
-	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
-			   &fifo->user.bar);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
-}
-
 static void *
 gf100_fifo_dtor(struct nvkm_fifo *base)
 {
 	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	nvkm_vmm_put(nvkm_bar_bar1_vmm(device), &fifo->user.bar);
-	nvkm_memory_unref(&fifo->user.mem);
 	return fifo;
 }
 
 static const struct nvkm_fifo_func
 gf100_fifo = {
 	.dtor = gf100_fifo_dtor,
-	.oneinit = gf100_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
 	.chid_ctor = gf100_fifo_chid_ctor,
 	.runq_nr = gf100_fifo_runq_nr,

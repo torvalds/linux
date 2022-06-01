@@ -328,17 +328,6 @@ nvkm_chan_preempt(struct nvkm_chan *chan, bool wait)
 	return ret;
 }
 
-static int
-nvkm_fifo_chan_map(struct nvkm_object *object, void *argv, u32 argc,
-		   enum nvkm_object_map *type, u64 *addr, u64 *size)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	*type = NVKM_OBJECT_MAP_IO;
-	*addr = chan->addr;
-	*size = chan->size;
-	return 0;
-}
-
 void
 nvkm_chan_remove_locked(struct nvkm_chan *chan)
 {
@@ -445,6 +434,8 @@ nvkm_chan_del(struct nvkm_chan **pchan)
 	if (!chan)
 		return;
 
+	nvkm_memory_unref(&chan->userd.mem);
+
 	if (chan->cgrp) {
 		nvkm_chid_put(chan->cgrp->runl->chid, chan->id, &chan->cgrp->lock);
 		nvkm_cgrp_unref(&chan->cgrp);
@@ -524,7 +515,6 @@ nvkm_chan_get_chid(struct nvkm_engine *engine, int id, unsigned long *pirqflags)
 static const struct nvkm_object_func
 nvkm_fifo_chan_func = {
 	.dtor = nvkm_fifo_chan_dtor,
-	.map = nvkm_fifo_chan_map,
 };
 
 int
@@ -650,9 +640,14 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	if (cgrp->id < 0)
 		cgrp->id = chan->id;
 
-	/* determine address of this channel's user registers */
-	chan->addr = device->func->resource_addr(device, bar) +
-		     base + user * chan->chid;
-	chan->size = user;
+	/* Initialise USERD. */
+	if (1) {
+		chan->userd.mem = nvkm_memory_ref(fifo->userd.mem);
+		chan->userd.base = chan->id * chan->func->userd->size;
+	}
+
+	if (chan->func->userd->clear)
+		chan->func->userd->clear(chan);
+
 	return 0;
 }

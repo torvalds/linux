@@ -38,9 +38,17 @@ gv100_chan_doorbell_handle(struct nvkm_chan *chan)
 	return chan->id;
 }
 
+const struct nvkm_chan_func_userd
+gv100_chan_userd = {
+	.bar = 1, /*FIXME: hw doesn't have poller, flip to user-allocated in uapi commit. */
+	.size = 0x200,
+	.clear = gf100_chan_userd_clear,
+};
+
 static const struct nvkm_chan_func
 gv100_chan = {
 	.inst = &gf100_chan_inst,
+	.userd = &gv100_chan_userd,
 	.bind = gk104_chan_bind_inst,
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,
@@ -101,8 +109,7 @@ gv100_runl_preempt(struct nvkm_runl *runl)
 void
 gv100_runl_insert_chan(struct nvkm_chan *chan, struct nvkm_memory *memory, u64 offset)
 {
-	struct nvkm_memory *usermem = gk104_fifo(chan->cgrp->runl->fifo)->user.mem;
-	const u64 user = nvkm_memory_addr(usermem) + (chan->id * 0x200);
+	const u64 user = nvkm_memory_addr(chan->userd.mem) + chan->userd.base;
 	const u64 inst = chan->inst->addr;
 
 	nvkm_wo32(memory, offset + 0x0, lower_32_bits(user) | chan->runq << 1);

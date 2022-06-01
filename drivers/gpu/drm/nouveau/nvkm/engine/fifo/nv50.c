@@ -66,6 +66,13 @@ nv50_chan_bind(struct nvkm_chan *chan)
 	nvkm_wr32(device, 0x002600 + (chan->id * 4), nv50_fifo_chan(chan)->ramfc->addr >> 12);
 }
 
+const struct nvkm_chan_func_userd
+nv50_chan_userd = {
+	.bar = 0,
+	.base = 0xc00000,
+	.size = 0x002000,
+};
+
 const struct nvkm_chan_func_inst
 nv50_chan_inst = {
 	.size = 0x10000,
@@ -75,6 +82,7 @@ nv50_chan_inst = {
 static const struct nvkm_chan_func
 nv50_chan = {
 	.inst = &nv50_chan_inst,
+	.userd = &nv50_chan_userd,
 	.bind = nv50_chan_bind,
 	.unbind = nv50_chan_unbind,
 	.start = nv50_chan_start,
