@@ -17,12 +17,19 @@ struct nvkm_subdev {
 	struct nvkm_device *device;
 	enum nvkm_subdev_type type;
 	int inst;
+
 	char name[16];
 	u32 debug;
-	struct list_head head;
+
+	struct {
+		refcount_t refcount;
+		struct mutex mutex;
+		bool enabled;
+	} use;
 
 	struct nvkm_inth inth;
 
+	struct list_head head;
 	void **pself;
 	bool oneinit;
 };
@@ -40,11 +47,23 @@ struct nvkm_subdev_func {
 extern const char *nvkm_subdev_type[NVKM_SUBDEV_NR];
 int nvkm_subdev_new_(const struct nvkm_subdev_func *, struct nvkm_device *, enum nvkm_subdev_type,
 		     int inst, struct nvkm_subdev **);
-void nvkm_subdev_ctor(const struct nvkm_subdev_func *, struct nvkm_device *,
-		      enum nvkm_subdev_type, int inst, struct nvkm_subdev *);
+void __nvkm_subdev_ctor(const struct nvkm_subdev_func *, struct nvkm_device *,
+			enum nvkm_subdev_type, int inst, struct nvkm_subdev *);
+
+static inline void
+nvkm_subdev_ctor(const struct nvkm_subdev_func *func, struct nvkm_device *device,
+		 enum nvkm_subdev_type type, int inst, struct nvkm_subdev *subdev)
+{
+	__nvkm_subdev_ctor(func, device, type, inst, subdev);
+	mutex_init(&subdev->use.mutex);
+}
+
 void nvkm_subdev_disable(struct nvkm_device *, enum nvkm_subdev_type, int inst);
 void nvkm_subdev_del(struct nvkm_subdev **);
+int  nvkm_subdev_ref(struct nvkm_subdev *);
+void nvkm_subdev_unref(struct nvkm_subdev *);
 int  nvkm_subdev_preinit(struct nvkm_subdev *);
+int  nvkm_subdev_oneinit(struct nvkm_subdev *);
 int  nvkm_subdev_init(struct nvkm_subdev *);
 int  nvkm_subdev_fini(struct nvkm_subdev *, bool suspend);
 int  nvkm_subdev_info(struct nvkm_subdev *, u64, u64 *);

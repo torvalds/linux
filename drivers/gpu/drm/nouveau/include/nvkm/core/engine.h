@@ -12,12 +12,6 @@ struct nvkm_engine {
 	const struct nvkm_engine_func *func;
 	struct nvkm_subdev subdev;
 	spinlock_t lock;
-
-	struct {
-		refcount_t refcount;
-		struct mutex mutex;
-		bool enabled;
-	} use;
 };
 
 struct nvkm_engine_func {
