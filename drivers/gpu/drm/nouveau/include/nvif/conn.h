@@ -10,4 +10,9 @@ struct nvif_conn {
 
 int nvif_conn_ctor(struct nvif_disp *, const char *name, int id, struct nvif_conn *);
 void nvif_conn_dtor(struct nvif_conn *);
+
+#define NVIF_CONN_HPD_STATUS_UNSUPPORTED 0 /* negative if query fails */
+#define NVIF_CONN_HPD_STATUS_NOT_PRESENT 1
+#define NVIF_CONN_HPD_STATUS_PRESENT     2
+int nvif_conn_hpd_status(struct nvif_conn *);
 #endif

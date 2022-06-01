@@ -9,4 +9,15 @@ union nvif_conn_args {
 		__u8 pad02[6];
 	} v0;
 };
+
+#define NVIF_CONN_V0_HPD_STATUS 0x00000000
+
+union nvif_conn_hpd_status_args {
+	struct nvif_conn_hpd_status_v0 {
+		__u8 version;
+		__u8 support;
+		__u8 present;
+		__u8 pad03[5];
+	} v0;
+};
 #endif

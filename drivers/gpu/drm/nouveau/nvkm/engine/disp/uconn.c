@@ -22,7 +22,49 @@
 #define nvkm_uconn(p) container_of((p), struct nvkm_conn, object)
 #include "conn.h"
 
+#include <subdev/gpio.h>
+
 #include <nvif/if0011.h>
+
+static int
+nvkm_uconn_mthd_hpd_status(struct nvkm_conn *conn, void *argv, u32 argc)
+{
+	struct nvkm_gpio *gpio = conn->disp->engine.subdev.device->gpio;
+	union nvif_conn_hpd_status_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	args->v0.support = gpio && conn->info.hpd != DCB_GPIO_UNUSED;
+	args->v0.present = 0;
+
+	if (args->v0.support) {
+		int ret = nvkm_gpio_get(gpio, 0, DCB_GPIO_UNUSED, conn->info.hpd);
+
+		if (WARN_ON(ret < 0)) {
+			args->v0.support = false;
+			return 0;
+		}
+
+		args->v0.present = ret;
+	}
+
+	return 0;
+}
+
+static int
+nvkm_uconn_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
+{
+	struct nvkm_conn *conn = nvkm_uconn(object);
+
+	switch (mthd) {
+	case NVIF_CONN_V0_HPD_STATUS: return nvkm_uconn_mthd_hpd_status(conn, argv, argc);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
 
 static void *
 nvkm_uconn_dtor(struct nvkm_object *object)
@@ -39,6 +81,7 @@ nvkm_uconn_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_uconn = {
 	.dtor = nvkm_uconn_dtor,
+	.mthd = nvkm_uconn_mthd,
 };
 
 int
