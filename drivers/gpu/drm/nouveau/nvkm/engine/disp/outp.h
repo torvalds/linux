@@ -55,10 +55,9 @@ struct nvkm_outp {
 	};
 };
 
-int nvkm_outp_ctor(const struct nvkm_outp_func *, struct nvkm_disp *,
-		   int index, struct dcb_output *, struct nvkm_outp *);
-int nvkm_outp_new(struct nvkm_disp *, int index, struct dcb_output *,
-		  struct nvkm_outp **);
+int nvkm_outp_new_(const struct nvkm_outp_func *, struct nvkm_disp *, int index,
+		   struct dcb_output *, struct nvkm_outp **);
+int nvkm_outp_new(struct nvkm_disp *, int index, struct dcb_output *, struct nvkm_outp **);
 void nvkm_outp_del(struct nvkm_outp **);
 void nvkm_outp_init(struct nvkm_outp *);
 void nvkm_outp_fini(struct nvkm_outp *);

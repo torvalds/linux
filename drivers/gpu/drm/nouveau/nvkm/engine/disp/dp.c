@@ -762,22 +762,26 @@ nvkm_dp_func = {
 	.disable = nvkm_dp_disable,
 };
 
-static int
-nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
-	     struct nvkm_i2c_aux *aux, struct nvkm_outp *outp)
+int
+nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE, struct nvkm_outp **poutp)
 {
 	struct nvkm_device *device = disp->engine.subdev.device;
 	struct nvkm_bios *bios = device->bios;
 	struct nvkm_i2c *i2c = device->i2c;
+	struct nvkm_outp *outp;
 	u8  hdr, cnt, len;
 	u32 data;
 	int ret;
 
-	ret = nvkm_outp_ctor(&nvkm_dp_func, disp, index, dcbE, outp);
+	ret = nvkm_outp_new_(&nvkm_dp_func, disp, index, dcbE, poutp);
+	outp = *poutp;
 	if (ret)
 		return ret;
 
-	outp->dp.aux = aux;
+	if (dcbE->location == 0)
+		outp->dp.aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_CCB(dcbE->i2c_index));
+	else
+		outp->dp.aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbE->extdev));
 	if (!outp->dp.aux) {
 		OUTP_ERR(outp, "no aux");
 		return -EINVAL;
@@ -811,22 +815,4 @@ nvkm_dp_ctor(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 	mutex_init(&outp->dp.mutex);
 	atomic_set(&outp->dp.lt.done, 0);
 	return 0;
-}
-
-int
-nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE, struct nvkm_outp **poutp)
-{
-	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
-	struct nvkm_i2c_aux *aux;
-	struct nvkm_outp *outp;
-
-	if (dcbE->location == 0)
-		aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_CCB(dcbE->i2c_index));
-	else
-		aux = nvkm_i2c_aux_find(i2c, NVKM_I2C_AUX_EXT(dcbE->extdev));
-
-	if (!(outp = *poutp = kzalloc(sizeof(*outp), GFP_KERNEL)))
-		return -ENOMEM;
-
-	return nvkm_dp_ctor(disp, index, dcbE, aux, outp);
 }

@@ -294,12 +294,16 @@ nvkm_outp_del(struct nvkm_outp **poutp)
 }
 
 int
-nvkm_outp_ctor(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
-	       int index, struct dcb_output *dcbE, struct nvkm_outp *outp)
+nvkm_outp_new_(const struct nvkm_outp_func *func, struct nvkm_disp *disp,
+	       int index, struct dcb_output *dcbE, struct nvkm_outp **poutp)
 {
 	struct nvkm_i2c *i2c = disp->engine.subdev.device->i2c;
+	struct nvkm_outp *outp;
 	enum nvkm_ior_proto proto;
 	enum nvkm_ior_type type;
+
+	if (!(outp = *poutp = kzalloc(sizeof(*outp), GFP_KERNEL)))
+		return -ENOMEM;
 
 	outp->func = func;
 	outp->disp = disp;
@@ -330,7 +334,5 @@ int
 nvkm_outp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE,
 	      struct nvkm_outp **poutp)
 {
-	if (!(*poutp = kzalloc(sizeof(**poutp), GFP_KERNEL)))
-		return -ENOMEM;
-	return nvkm_outp_ctor(&nvkm_outp, disp, index, dcbE, *poutp);
+	return nvkm_outp_new_(&nvkm_outp, disp, index, dcbE, poutp);
 }
