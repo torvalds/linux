@@ -87,12 +87,12 @@
 		rockchip,uboot-exit-charge-auto = <0>;
 		rockchip,system-suspend = <1>;
 		regulator-on-in-mem = <&vdd_log_s0>, <&vcc_2v0_pldo_s3>,
-			<&vdd2_ddr_s3>, <&vcc_1v8_s3>, <&vcc_1v8_s0>,
+			<&vdd2_ddr_s3>, <&vcc_1v8_s3>, <&avcc_1v8_s0>,
 			<&vdd_0v75_s3>, <&pldo6_s3>;
 
 		regulator-off-in-mem = <&vdd_gpu_s0>, <&vdd_npu_s0>,
 			<&vdd_vdenc_s0>, <&vdd_gpu_mem_s0>, <&vdd_npu_mem_s0>,
-			<&vdd_vdenc_mem_s0>, <&avcc_1v8_s0>, <&vcc_3v3_s0>,
+			<&vdd_vdenc_mem_s0>, <&vcc_1v8_s0>, <&vcc_3v3_s0>,
 			<&vccio_sd_s0>, <&avdd_0v75_s0>, <&vdd_0v85_s0>,
 			<&vdd_cpu_big1_s0>, <&vdd_cpu_big0_s0>, <&vdd_cpu_lit_s0>,
 			<&vdd_cpu_big1_mem_s0>, <&vdd_cpu_big0_mem_s0>, <&vdd_cpu_lit_mem_s0>,
@@ -539,7 +539,7 @@
 		status = "okay";
 		#sound-dai-cells = <0>;
 		compatible = "ES7202_PDM_ADC_1";
-		power-supply = <&vcc_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
+		power-supply = <&avcc_1v8_s0>;	/* only 1v8 or 3v3, default is 3v3 */
 		reg = <0x32>;
 	};
 };
@@ -1215,7 +1215,7 @@
 
 &saradc {
 	status = "okay";
-	vref-supply = <&avcc_1v8_s0>;
+	vref-supply = <&vcc_1v8_s0>;
 };
 
 &sdhci {
