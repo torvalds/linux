@@ -91,6 +91,7 @@ struct gf100_gr {
 	struct gf100_gr_pack *sw_ctx;
 	struct gf100_gr_pack *bundle;
 	struct gf100_gr_pack *bundle_veid;
+	struct gf100_gr_pack *bundle64;
 	struct gf100_gr_pack *method;
 
 	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_COLOR_CNT];
@@ -286,7 +287,7 @@ struct gf100_gr_init {
 	u32 addr;
 	u8  count;
 	u32 pitch;
-	u32 data;
+	u64 data;
 };
 
 struct gf100_gr_pack {

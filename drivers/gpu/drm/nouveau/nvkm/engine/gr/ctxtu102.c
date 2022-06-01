@@ -50,8 +50,8 @@ tu102_grctx_init_unknown_bundle_init_0[] = {
 };
 
 static const struct gf100_gr_pack
-tu102_grctx_pack_sw_veid_bundle_init[] = {
-	{ tu102_grctx_init_unknown_bundle_init_0 },
+tu102_grctx_pack_sw_bundle64_init[] = {
+	{ tu102_grctx_init_unknown_bundle_init_0, .type = 64 },
 	{}
 };
 
@@ -69,7 +69,7 @@ tu102_grctx = {
 	.unkn88c = gv100_grctx_unkn88c,
 	.main = gf100_grctx_generate_main,
 	.unkn = gv100_grctx_generate_unkn,
-	.sw_veid_bundle_init = tu102_grctx_pack_sw_veid_bundle_init,
+	.sw_bundle64_init = tu102_grctx_pack_sw_bundle64_init,
 	.bundle = gm107_grctx_generate_bundle,
 	.bundle_size = 0x3000,
 	.bundle_min_gpm_fifo_depth = 0x180,

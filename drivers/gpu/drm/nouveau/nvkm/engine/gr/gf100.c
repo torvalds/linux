@@ -1097,7 +1097,7 @@ gf100_gr_icmd(struct gf100_gr *gr, const struct gf100_gr_pack *p)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_gr_pack *pack;
 	const struct gf100_gr_init *init;
-	u32 data = 0;
+	u64 data = 0;
 
 	nvkm_wr32(device, 0x400208, 0x80000000);
 
@@ -1107,6 +1107,8 @@ gf100_gr_icmd(struct gf100_gr *gr, const struct gf100_gr_pack *p)
 
 		if ((pack == p && init == p->init) || data != init->data) {
 			nvkm_wr32(device, 0x400204, init->data);
+			if (pack->type == 64)
+				nvkm_wr32(device, 0x40020c, upper_32_bits(init->data));
 			data = init->data;
 		}
 
@@ -2139,6 +2141,7 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	nvkm_blob_dtor(&gr->gpccs.inst);
 	nvkm_blob_dtor(&gr->gpccs.data);
 
+	vfree(gr->bundle64);
 	vfree(gr->bundle_veid);
 	vfree(gr->bundle);
 	vfree(gr->method);

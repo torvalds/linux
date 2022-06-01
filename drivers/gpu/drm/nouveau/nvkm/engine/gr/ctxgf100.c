@@ -1389,8 +1389,14 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan)
 
 	if (gr->bundle_veid)
 		gf100_gr_icmd(gr, gr->bundle_veid);
-	if (grctx->sw_veid_bundle_init)
+	else
 		gf100_gr_icmd(gr, grctx->sw_veid_bundle_init);
+
+	if (gr->bundle64)
+		gf100_gr_icmd(gr, gr->bundle64);
+	else
+	if (grctx->sw_bundle64_init)
+		gf100_gr_icmd(gr, grctx->sw_bundle64_init);
 
 	if (grctx->r400088) grctx->r400088(gr, true);
 

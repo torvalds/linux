@@ -22,6 +22,7 @@ struct gf100_grctx_func {
 	const struct gf100_gr_pack *icmd;
 	const struct gf100_gr_pack *mthd;
 	const struct gf100_gr_pack *sw_veid_bundle_init;
+	const struct gf100_gr_pack *sw_bundle64_init;
 	/* bundle circular buffer */
 	void (*bundle)(struct gf100_gr_chan *, u64 addr, u32 size);
 	u32 bundle_size;
