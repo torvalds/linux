@@ -39,11 +39,6 @@ tu102_mc_intr_update(struct tu102_mc *mc)
 		nvkm_wr32(device, 0x000180 + (i * 0x04), ~mask);
 		nvkm_wr32(device, 0x000160 + (i * 0x04),  mask);
 	}
-
-	if (mask & 0x00000200)
-		nvkm_wr32(device, 0xb81608, 0x6);
-	else
-		nvkm_wr32(device, 0xb81610, 0x6);
 }
 
 static void
@@ -88,14 +83,6 @@ tu102_mc_intr_stat(struct nvkm_mc *mc)
 	struct nvkm_device *device = mc->subdev.device;
 	u32 intr0 = nvkm_rd32(device, 0x000100);
 	u32 intr1 = nvkm_rd32(device, 0x000104);
-	u32 intr_top = nvkm_rd32(device, 0xb81600);
-
-	/* Turing and above route the MMU fault interrupts via a different
-	 * interrupt tree with different control registers. For the moment remap
-	 * them back to the old PMC vector.
-	 */
-	if (intr_top & 0x00000006)
-		intr0 |= 0x00000200;
 
 	return intr0 | intr1;
 }

@@ -7,6 +7,8 @@ struct nvkm_fault {
 	const struct nvkm_fault_func *func;
 	struct nvkm_subdev subdev;
 
+	struct nvkm_inth info_fault;
+
 	struct nvkm_fault_buffer *buffer[2];
 	int buffer_nr;
 

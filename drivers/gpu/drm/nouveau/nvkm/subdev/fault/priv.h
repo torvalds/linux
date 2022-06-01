@@ -16,6 +16,8 @@ struct nvkm_fault_buffer {
 	u32 put;
 	struct nvkm_memory *mem;
 	u64 addr;
+
+	struct nvkm_inth inth;
 };
 
 int nvkm_fault_new_(const struct nvkm_fault_func *, struct nvkm_device *, enum nvkm_subdev_type,
