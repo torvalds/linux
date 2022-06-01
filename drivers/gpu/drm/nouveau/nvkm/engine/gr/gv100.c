@@ -52,10 +52,11 @@ gv100_gr_trap_mp(struct gf100_gr *gr, int gpc, int tpc)
 	gv100_gr_trap_sm(gr, gpc, tpc, 1);
 }
 
-static void
+void
 gv100_gr_init_4188a4(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+
 	nvkm_mask(device, 0x4188a4, 0x03000000, 0x03000000);
 }
 

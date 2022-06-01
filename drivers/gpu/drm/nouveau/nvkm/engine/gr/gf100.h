@@ -254,6 +254,7 @@ u32 gv100_gr_nonpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc);
 void gv100_gr_init_419bd8(struct gf100_gr *);
 void gv100_gr_init_504430(struct gf100_gr *, int, int);
 void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
+void gv100_gr_init_4188a4(struct gf100_gr *);
 void gv100_gr_trap_mp(struct gf100_gr *, int, int);
 
 int tu102_gr_av_to_init_veid(struct nvkm_blob *, struct gf100_gr_pack **);
