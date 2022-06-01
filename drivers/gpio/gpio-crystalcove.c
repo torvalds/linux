@@ -188,8 +188,9 @@ static int crystalcove_irq_type(struct irq_data *data, unsigned int type)
 {
 	struct crystalcove_gpio *cg =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 
-	if (data->hwirq >= CRYSTALCOVE_GPIO_NUM)
+	if (hwirq >= CRYSTALCOVE_GPIO_NUM)
 		return 0;
 
 	switch (type) {
@@ -226,12 +227,12 @@ static void crystalcove_bus_sync_unlock(struct irq_data *data)
 {
 	struct crystalcove_gpio *cg =
 		gpiochip_get_data(irq_data_get_irq_chip_data(data));
-	int gpio = data->hwirq;
+	irq_hw_number_t hwirq = irqd_to_hwirq(data);
 
 	if (cg->update & UPDATE_IRQ_TYPE)
-		crystalcove_update_irq_ctrl(cg, gpio);
+		crystalcove_update_irq_ctrl(cg, hwirq);
 	if (cg->update & UPDATE_IRQ_MASK)
-		crystalcove_update_irq_mask(cg, gpio);
+		crystalcove_update_irq_mask(cg, hwirq);
 	cg->update = 0;
 
 	mutex_unlock(&cg->buslock);
