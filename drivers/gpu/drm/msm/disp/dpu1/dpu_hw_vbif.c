@@ -222,7 +222,6 @@ static const struct dpu_vbif_cfg *_top_offset(enum dpu_vbif vbif,
 		if (vbif == m->vbif[i].id) {
 			b->base_off = addr;
 			b->blk_off = m->vbif[i].base;
-			b->length = m->vbif[i].len;
 			b->log_mask = DPU_DBG_MASK_VBIF;
 			return &m->vbif[i];
 		}

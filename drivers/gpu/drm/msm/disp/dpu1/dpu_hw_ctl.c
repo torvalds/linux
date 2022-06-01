@@ -60,7 +60,6 @@ static const struct dpu_ctl_cfg *_ctl_offset(enum dpu_ctl ctl,
 		if (ctl == m->ctl[i].id) {
 			b->base_off = addr;
 			b->blk_off = m->ctl[i].base;
-			b->length = m->ctl[i].len;
 			b->log_mask = DPU_DBG_MASK_CTL;
 			return &m->ctl[i];
 		}

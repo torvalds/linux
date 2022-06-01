@@ -25,12 +25,10 @@
  * absoulute IO address
  * @base_off:     mdp register mapped offset
  * @blk_off:      pipe offset relative to mdss offset
- * @length        length of register block offset
  */
 struct dpu_hw_blk_reg_map {
 	void __iomem *base_off;
 	u32 blk_off;
-	u32 length;
 	u32 log_mask;
 };
 

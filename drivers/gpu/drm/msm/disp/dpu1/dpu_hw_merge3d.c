@@ -25,7 +25,6 @@ static const struct dpu_merge_3d_cfg *_merge_3d_offset(enum dpu_merge_3d idx,
 		if (idx == m->merge_3d[i].id) {
 			b->base_off = addr;
 			b->blk_off = m->merge_3d[i].base;
-			b->length = m->merge_3d[i].len;
 			b->log_mask = DPU_DBG_MASK_PINGPONG;
 			return &m->merge_3d[i];
 		}
