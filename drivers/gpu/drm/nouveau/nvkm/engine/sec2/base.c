@@ -22,6 +22,7 @@
 #include "priv.h"
 
 #include <core/firmware.h>
+#include <subdev/mc.h>
 #include <subdev/timer.h>
 
 #include <nvfw/sec2.h>
@@ -33,13 +34,6 @@ nvkm_sec2_finimsg(void *priv, struct nvfw_falcon_msg *hdr)
 
 	atomic_set(&sec2->running, 0);
 	return 0;
-}
-
-static void
-nvkm_sec2_intr(struct nvkm_engine *engine)
-{
-	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
-	sec2->func->intr(sec2);
 }
 
 static int
@@ -69,6 +63,8 @@ nvkm_sec2_fini(struct nvkm_engine *engine, bool suspend)
 		);
 	}
 
+	nvkm_inth_block(&subdev->inth);
+
 	nvkm_falcon_cmdq_fini(cmdq);
 	falcon->func->disable(falcon);
 	nvkm_falcon_put(falcon, subdev);
@@ -90,9 +86,22 @@ nvkm_sec2_init(struct nvkm_engine *engine)
 	nvkm_falcon_wr32(falcon, 0x014, 0xffffffff);
 	atomic_set(&sec2->initmsg, 0);
 	atomic_set(&sec2->running, 1);
+	nvkm_inth_allow(&subdev->inth);
 
 	nvkm_falcon_start(falcon);
 	return 0;
+}
+
+static int
+nvkm_sec2_oneinit(struct nvkm_engine *engine)
+{
+	struct nvkm_sec2 *sec2 = nvkm_sec2(engine);
+	struct nvkm_subdev *subdev = &sec2->engine.subdev;
+	struct nvkm_intr *intr = &sec2->engine.subdev.device->mc->intr;
+	enum nvkm_intr_type type = NVKM_INTR_SUBDEV;
+
+	return nvkm_inth_add(intr, type, NVKM_INTR_PRIO_NORMAL, subdev, sec2->func->intr,
+			     &subdev->inth);
 }
 
 static void *
@@ -110,9 +119,9 @@ nvkm_sec2_dtor(struct nvkm_engine *engine)
 static const struct nvkm_engine_func
 nvkm_sec2 = {
 	.dtor = nvkm_sec2_dtor,
+	.oneinit = nvkm_sec2_oneinit,
 	.init = nvkm_sec2_init,
 	.fini = nvkm_sec2_fini,
-	.intr = nvkm_sec2_intr,
 };
 
 int

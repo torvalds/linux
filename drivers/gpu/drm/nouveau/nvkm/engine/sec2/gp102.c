@@ -149,9 +149,10 @@ gp102_sec2_initmsg(struct nvkm_sec2 *sec2)
 	return 0;
 }
 
-void
-gp102_sec2_intr(struct nvkm_sec2 *sec2)
+irqreturn_t
+gp102_sec2_intr(struct nvkm_inth *inth)
 {
+	struct nvkm_sec2 *sec2 = container_of(inth, typeof(*sec2), engine.subdev.inth);
 	struct nvkm_subdev *subdev = &sec2->engine.subdev;
 	struct nvkm_falcon *falcon = &sec2->falcon;
 	u32 disp = nvkm_falcon_rd32(falcon, 0x01c);
@@ -185,6 +186,8 @@ gp102_sec2_intr(struct nvkm_sec2 *sec2)
 		nvkm_error(subdev, "unhandled intr %08x\n", intr);
 		nvkm_falcon_wr32(falcon, 0x004, intr);
 	}
+
+	return IRQ_HANDLED;
 }
 
 int
