@@ -760,7 +760,6 @@ static noinline int add_ra_bio_pages(struct inode *inode,
 				int zeros;
 				zeros = PAGE_SIZE - zero_offset;
 				memzero_page(page, zero_offset, zeros);
-				flush_dcache_page(page);
 			}
 		}
 
@@ -1476,7 +1475,6 @@ int btrfs_decompress_buf2page(const char *buf, u32 buf_len,
 		ASSERT(copy_start - decompressed < buf_len);
 		memcpy_to_page(bvec.bv_page, bvec.bv_offset,
 			       buf + copy_start - decompressed, copy_len);
-		flush_dcache_page(bvec.bv_page);
 		cur_offset += copy_len;
 
 		bio_advance(orig_bio, copy_len);

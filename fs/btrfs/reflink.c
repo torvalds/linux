@@ -110,7 +110,6 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	if (comp_type == BTRFS_COMPRESS_NONE) {
 		memcpy_to_page(page, offset_in_page(file_offset), data_start,
 			       datal);
-		flush_dcache_page(page);
 	} else {
 		ret = btrfs_decompress(comp_type, data_start, page,
 				       offset_in_page(file_offset),
@@ -132,10 +131,8 @@ static int copy_inline_to_page(struct btrfs_inode *inode,
 	 *
 	 * So what's in the range [500, 4095] corresponds to zeroes.
 	 */
-	if (datal < block_size) {
+	if (datal < block_size)
 		memzero_page(page, datal, block_size - datal);
-		flush_dcache_page(page);
-	}
 
 	btrfs_page_set_uptodate(fs_info, page, file_offset, block_size);
 	btrfs_page_clear_checked(fs_info, page, file_offset, block_size);

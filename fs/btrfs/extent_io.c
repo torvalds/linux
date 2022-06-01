@@ -3641,7 +3641,6 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 		if (zero_offset) {
 			iosize = PAGE_SIZE - zero_offset;
 			memzero_page(page, zero_offset, iosize);
-			flush_dcache_page(page);
 		}
 	}
 	begin_page_read(fs_info, page);
@@ -3656,7 +3655,6 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 			iosize = PAGE_SIZE - pg_offset;
 			memzero_page(page, pg_offset, iosize);
-			flush_dcache_page(page);
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
 			unlock_extent_cached(tree, cur,
@@ -3740,7 +3738,6 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 			struct extent_state *cached = NULL;
 
 			memzero_page(page, pg_offset, iosize);
-			flush_dcache_page(page);
 
 			set_extent_uptodate(tree, cur, cur + iosize - 1,
 					    &cached, GFP_NOFS);
@@ -4158,10 +4155,8 @@ static int __extent_writepage(struct page *page, struct writeback_control *wbc,
 		return 0;
 	}
 
-	if (page->index == end_index) {
+	if (page->index == end_index)
 		memzero_page(page, pg_offset, PAGE_SIZE - pg_offset);
-		flush_dcache_page(page);
-	}
 
 	ret = set_page_extent_mapped(page);
 	if (ret < 0) {

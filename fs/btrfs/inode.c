@@ -4873,7 +4873,6 @@ again:
 		else
 			memzero_page(page, (block_start - page_offset(page)) + offset,
 				     len);
-		flush_dcache_page(page);
 	}
 	btrfs_page_clear_checked(fs_info, page, block_start,
 				 block_end + 1 - block_start);
@@ -8598,10 +8597,9 @@ again:
 	else
 		zero_start = PAGE_SIZE;
 
-	if (zero_start != PAGE_SIZE) {
+	if (zero_start != PAGE_SIZE)
 		memzero_page(page, zero_start, PAGE_SIZE - zero_start);
-		flush_dcache_page(page);
-	}
+
 	btrfs_page_clear_checked(fs_info, page, page_start, PAGE_SIZE);
 	btrfs_page_set_dirty(fs_info, page, page_start, end + 1 - page_start);
 	btrfs_page_set_uptodate(fs_info, page, page_start, end + 1 - page_start);
