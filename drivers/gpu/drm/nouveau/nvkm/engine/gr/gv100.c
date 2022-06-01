@@ -65,7 +65,6 @@ gv100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	int sm;
 	for (sm = 0; sm < 0x100; sm += 0x80) {
-		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x728 + sm), 0x0085eb64);
 		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x610), 0x00000001);
 		nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x72c + sm), 0x00000004);
 	}
