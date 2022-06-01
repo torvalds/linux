@@ -23,16 +23,20 @@
 #ifndef __AMDGPU_CTX_H__
 #define __AMDGPU_CTX_H__
 
+#include <linux/ktime.h>
+#include <linux/types.h>
+
 #include "amdgpu_ring.h"
 
 struct drm_device;
 struct drm_file;
 struct amdgpu_fpriv;
+struct amdgpu_ctx_mgr;
 
 #define AMDGPU_MAX_ENTITY_NUM 4
-#define AMDGPU_CTX_FENCE_USAGE_MIN_RATIO(max, total) ((max) > 16384ULL*(total))
 
 struct amdgpu_ctx_entity {
+	uint32_t		hw_ip;
 	uint64_t		sequence;
 	struct drm_sched_entity	entity;
 	struct dma_fence	*fences[];
@@ -61,6 +65,7 @@ struct amdgpu_ctx_mgr {
 	struct mutex		lock;
 	/* protected by lock */
 	struct idr		ctx_handles;
+	atomic64_t		time_spend[AMDGPU_HW_IP_NUM];
 };
 
 extern const unsigned int amdgpu_ctx_num_entities[AMDGPU_HW_IP_NUM];
@@ -90,6 +95,7 @@ void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr,
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);
 long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout);
 void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
-ktime_t amdgpu_ctx_mgr_fence_usage(struct amdgpu_ctx_mgr *mgr, uint32_t hwip,
-		uint32_t idx, uint64_t *elapsed);
+void amdgpu_ctx_mgr_usage(struct amdgpu_ctx_mgr *mgr,
+			  ktime_t usage[AMDGPU_HW_IP_NUM]);
+
 #endif
