@@ -81,32 +81,11 @@
 #define MAX_CHANNEL_NUM		8
 #define MIN_CHANNEL_NUM		2
 
-enum {
-	CLK_DAC_INNER = 0,
-	CLK_DAC_BCLK_MST,
-	CLK_DAC_LRCLK_MST,
-	CLK_MCLK,
-	CLK_DAC_BCLK0,
-	CLK_DAC_LRCLK0,
-	CLK_DAC_BCLK_MST_1,
-	CLK_DAC_LRCLK_MST_1,
-	CLK_DAC_BCLK_1,
-	CLK_DAC_LRCLK_1,
-	CLK_ADC_APB0,
-	CLK_ADC_APB,
-	CLK_ADC_LRCLK,
-	CLK_AUDIO_NUM,
-};
-
-enum {
-	RST_APB0_BUS = 0,
-	RST_BCLK_0,
-	RST_APB1_BUS,
-	RST_BCLK_1,
-	RST_APB_RX,
-	RST_BCLK_RX,
-	RST_AUDIO_NUM,
-};
+/* SYSCON Registers */
+#define I2SRX_3CH_ADC_MASK	0x2
+#define I2SRX_3CH_ADC_EN	BIT(1)
+#define AUDIO_SDIN_MUX_MASK	0x3FC00
+#define I2SRX_DATA_SRC_PDM	(0x91 << 10)
 
 union dw_i2s_snd_dma_data {
 	struct i2s_dma_data pd;
@@ -115,7 +94,7 @@ union dw_i2s_snd_dma_data {
 
 struct dw_i2s_dev {
 	void __iomem *i2s_base;
-	struct clk *clk;
+	struct regmap *syscon_base;
 	int active;
 	unsigned int capability;
 	unsigned int quirks;
@@ -125,9 +104,17 @@ struct dw_i2s_dev {
 	u32 ccr;
 	u32 xfer_resolution;
 	u32 fifo_th;
+	u32 syscon_offset_18;
+	u32 syscon_offset_34;
 
-	struct clk *clks[CLK_AUDIO_NUM];
-	struct reset_control *rstc[RST_AUDIO_NUM];
+	struct clk *clk_apb0;
+	struct clk *clk_i2srx_apb;
+	struct clk *clk_i2srx_bclk_mst;
+	struct clk *clk_i2srx_lrck_mst;
+	struct clk *clk_i2srx_bclk;
+	struct clk *clk_i2srx_lrck;
+	struct reset_control *rst_i2srx_apb;
+	struct reset_control *rst_i2srx_bclk;
 
 	/* data related to DMA transfers b/w i2s and DMAC */
 	union dw_i2s_snd_dma_data play_dma_data;

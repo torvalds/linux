@@ -448,7 +448,7 @@
 
 &i2srx_3ch {
 	pinctrl-names = "default";
-	pinctrl-0 = <&i2srx_pins>;
+	pinctrl-0 = <&i2s_clk_pins>;
 	status = "okay";
 };
 
