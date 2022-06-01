@@ -6,6 +6,7 @@
 enum nvkm_falcon_mem {
 	IMEM,
 	DMEM,
+	EMEM,
 };
 
 static inline const char *
@@ -14,6 +15,7 @@ nvkm_falcon_mem(enum nvkm_falcon_mem mem)
 	switch (mem) {
 	case IMEM: return "imem";
 	case DMEM: return "dmem";
+	case EMEM: return "emem";
 	default:
 		WARN_ON(1);
 		return "?mem";
@@ -25,6 +27,8 @@ struct nvkm_falcon_func_pio {
 	int max;
 	void (*wr_init)(struct nvkm_falcon *, u8 port, bool sec, u32 mem_base);
 	void (*wr)(struct nvkm_falcon *, u8 port, const u8 *img, int len, u16 tag);
+	void (*rd_init)(struct nvkm_falcon *, u8 port, u32 mem_base);
+	void (*rd)(struct nvkm_falcon *, u8 port, const u8 *img, int len);
 };
 
 int nvkm_falcon_ctor(const struct nvkm_falcon_func *, struct nvkm_subdev *owner,
@@ -33,26 +37,24 @@ void nvkm_falcon_dtor(struct nvkm_falcon *);
 int nvkm_falcon_reset(struct nvkm_falcon *);
 int nvkm_falcon_pio_wr(struct nvkm_falcon *, const u8 *img, u32 img_base, u8 port,
 		       enum nvkm_falcon_mem mem_type, u32 mem_base, int len, u16 tag, bool sec);
+int nvkm_falcon_pio_rd(struct nvkm_falcon *, u8 port, enum nvkm_falcon_mem type, u32 mem_base,
+		       const u8 *img, u32 img_base, int len);
 
 int gm200_flcn_reset_wait_mem_scrubbing(struct nvkm_falcon *);
 int gm200_flcn_disable(struct nvkm_falcon *);
 int gm200_flcn_enable(struct nvkm_falcon *);
+void gm200_flcn_bind_inst(struct nvkm_falcon *, int, u64);
+int gm200_flcn_bind_stat(struct nvkm_falcon *, bool);
 extern const struct nvkm_falcon_func_pio gm200_flcn_imem_pio;
 extern const struct nvkm_falcon_func_pio gm200_flcn_dmem_pio;
 
 int gp102_flcn_reset_eng(struct nvkm_falcon *);
+extern const struct nvkm_falcon_func_pio gp102_flcn_emem_pio;
 
 void nvkm_falcon_v1_load_imem(struct nvkm_falcon *,
 			      void *, u32, u32, u16, u8, bool);
 void nvkm_falcon_v1_load_dmem(struct nvkm_falcon *, void *, u32, u32, u8);
-void nvkm_falcon_v1_read_dmem(struct nvkm_falcon *, u32, u32, u8, void *);
-void nvkm_falcon_v1_bind_context(struct nvkm_falcon *, struct nvkm_memory *);
-int nvkm_falcon_v1_wait_for_halt(struct nvkm_falcon *, u32);
-int nvkm_falcon_v1_clear_interrupt(struct nvkm_falcon *, u32);
-void nvkm_falcon_v1_set_start_addr(struct nvkm_falcon *, u32 start_addr);
 void nvkm_falcon_v1_start(struct nvkm_falcon *);
-
-void gp102_sec2_flcn_bind_context(struct nvkm_falcon *, struct nvkm_memory *);
 
 #define FLCN_PRINTK(f,l,p,fmt,a...) ({                                                          \
 	if ((f)->owner->name != (f)->name)                                                      \
@@ -70,7 +72,9 @@ struct nvkm_falcon_fw {
 	const struct nvkm_falcon_fw_func {
 		int (*signature)(struct nvkm_falcon_fw *, u32 *sig_base_src);
 		int (*reset)(struct nvkm_falcon_fw *);
+		int (*setup)(struct nvkm_falcon_fw *);
 		int (*load)(struct nvkm_falcon_fw *);
+		int (*load_bld)(struct nvkm_falcon_fw *);
 		int (*boot)(struct nvkm_falcon_fw *,
 			    u32 *mbox0, u32 *mbox1, u32 mbox0_ok, u32 irqsclr);
 	} *func;
@@ -96,11 +100,14 @@ struct nvkm_falcon_fw {
 	u32 dmem_size;
 	u32 dmem_sign;
 
+	u8 *boot;
+	u32 boot_size;
 	u32 boot_addr;
 
 	struct nvkm_falcon *falcon;
 	struct nvkm_memory *inst;
 	struct nvkm_vmm *vmm;
+	struct nvkm_vma *vma;
 };
 
 int nvkm_falcon_fw_ctor(const struct nvkm_falcon_fw_func *, const char *name, struct nvkm_device *,

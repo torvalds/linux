@@ -36,7 +36,7 @@ struct nvkm_acr {
 	const struct nvkm_acr_func *func;
 	struct nvkm_subdev subdev;
 
-	struct list_head hsfw, hsf;
+	struct list_head hsfw;
 	struct list_head lsfw, lsf;
 
 	u64 managed_falcons;
@@ -65,6 +65,7 @@ int gm20b_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct 
 int gp102_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 int gp108_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 int gp10b_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
+int gv100_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 int tu102_acr_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_acr **);
 
 struct nvkm_acr_lsfw {

@@ -64,8 +64,21 @@ struct nvkm_falcon_func {
 	int (*reset_wait_mem_scrubbing)(struct nvkm_falcon *);
 
 	u32 debug;
+	void (*bind_inst)(struct nvkm_falcon *, int target, u64 addr);
+	int (*bind_stat)(struct nvkm_falcon *, bool intr);
+	bool bind_intr;
+
 	const struct nvkm_falcon_func_pio *imem_pio;
 	const struct nvkm_falcon_func_pio *dmem_pio;
+
+	u32 emem_addr;
+	const struct nvkm_falcon_func_pio *emem_pio;
+
+	struct {
+		u32 head;
+		u32 tail;
+		u32 stride;
+	} cmdq, msgq;
 
 	struct {
 		u32 *data;
@@ -78,23 +91,9 @@ struct nvkm_falcon_func {
 	void (*init)(struct nvkm_falcon *);
 	void (*intr)(struct nvkm_falcon *, struct nvkm_chan *);
 
-	u32 fbif;
-
 	void (*load_imem)(struct nvkm_falcon *, void *, u32, u32, u16, u8, bool);
 	void (*load_dmem)(struct nvkm_falcon *, void *, u32, u32, u8);
-	void (*read_dmem)(struct nvkm_falcon *, u32, u32, u8, void *);
-	u32 emem_addr;
-	void (*bind_context)(struct nvkm_falcon *, struct nvkm_memory *);
-	int (*wait_for_halt)(struct nvkm_falcon *, u32);
-	int (*clear_interrupt)(struct nvkm_falcon *, u32);
-	void (*set_start_addr)(struct nvkm_falcon *, u32 start_addr);
 	void (*start)(struct nvkm_falcon *);
-
-	struct {
-		u32 head;
-		u32 tail;
-		u32 stride;
-	} cmdq, msgq;
 
 	struct nvkm_sclass sclass[];
 };
@@ -122,10 +121,5 @@ nvkm_falcon_mask(struct nvkm_falcon *falcon, u32 addr, u32 mask, u32 val)
 void nvkm_falcon_load_imem(struct nvkm_falcon *, void *, u32, u32, u16, u8,
 			   bool);
 void nvkm_falcon_load_dmem(struct nvkm_falcon *, void *, u32, u32, u8);
-void nvkm_falcon_read_dmem(struct nvkm_falcon *, u32, u32, u8, void *);
-void nvkm_falcon_bind_context(struct nvkm_falcon *, struct nvkm_memory *);
-void nvkm_falcon_set_start_addr(struct nvkm_falcon *, u32);
 void nvkm_falcon_start(struct nvkm_falcon *);
-int nvkm_falcon_wait_for_halt(struct nvkm_falcon *, u32);
-int nvkm_falcon_clear_interrupt(struct nvkm_falcon *, u32);
 #endif

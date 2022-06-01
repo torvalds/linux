@@ -190,45 +190,6 @@ gp102_sec2_intr(struct nvkm_inth *inth)
 	return IRQ_HANDLED;
 }
 
-void
-gp102_sec2_flcn_bind_context(struct nvkm_falcon *falcon,
-			     struct nvkm_memory *ctx)
-{
-	struct nvkm_device *device = falcon->owner->device;
-
-	nvkm_falcon_v1_bind_context(falcon, ctx);
-	if (!ctx)
-		return;
-
-	/* Not sure if this is a WAR for a HW issue, or some additional
-	 * programming sequence that's needed to properly complete the
-	 * context switch we trigger above.
-	 *
-	 * Fixes unreliability of booting the SEC2 RTOS on Quadro P620,
-	 * particularly when resuming from suspend.
-	 *
-	 * Also removes the need for an odd workaround where we needed
-	 * to program SEC2's FALCON_CPUCTL_ALIAS_STARTCPU twice before
-	 * the SEC2 RTOS would begin executing.
-	 */
-	nvkm_msec(device, 10,
-		u32 irqstat = nvkm_falcon_rd32(falcon, 0x008);
-		u32 flcn0dc = nvkm_falcon_rd32(falcon, 0x0dc);
-		if ((irqstat & 0x00000008) &&
-		    (flcn0dc & 0x00007000) == 0x00005000)
-			break;
-	);
-
-	nvkm_falcon_mask(falcon, 0x004, 0x00000008, 0x00000008);
-	nvkm_falcon_mask(falcon, 0x058, 0x00000002, 0x00000002);
-
-	nvkm_msec(device, 10,
-		u32 flcn0dc = nvkm_falcon_rd32(falcon, 0x0dc);
-		if ((flcn0dc & 0x00007000) == 0x00000000)
-			break;
-	);
-}
-
 static const struct nvkm_falcon_func
 gp102_sec2_flcn = {
 	.disable = gm200_flcn_disable,
@@ -237,15 +198,13 @@ gp102_sec2_flcn = {
 	.reset_eng = gp102_flcn_reset_eng,
 	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0x408,
-	.fbif = 0x600,
-	.load_imem = nvkm_falcon_v1_load_imem,
-	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
+	.bind_inst = gm200_flcn_bind_inst,
+	.bind_stat = gm200_flcn_bind_stat,
+	.bind_intr = true,
+	.imem_pio = &gm200_flcn_imem_pio,
+	.dmem_pio = &gm200_flcn_dmem_pio,
 	.emem_addr = 0x01000000,
-	.bind_context = gp102_sec2_flcn_bind_context,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
+	.emem_pio = &gp102_flcn_emem_pio,
 	.start = nvkm_falcon_v1_start,
 	.cmdq = { 0xa00, 0xa04, 8 },
 	.msgq = { 0xa30, 0xa34, 8 },

@@ -21,8 +21,25 @@
  */
 #include "priv.h"
 
+#include <core/memory.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
+
+static void
+gm200_flcn_pio_dmem_rd(struct nvkm_falcon *falcon, u8 port, const u8 *img, int len)
+{
+	while (len >= 4) {
+		*(u32 *)img = nvkm_falcon_rd32(falcon, 0x1c4 + (port * 8));
+		img += 4;
+		len -= 4;
+	}
+}
+
+static void
+gm200_flcn_pio_dmem_rd_init(struct nvkm_falcon *falcon, u8 port, u32 dmem_base)
+{
+	nvkm_falcon_wr32(falcon, 0x1c0 + (port * 8), BIT(25) | dmem_base);
+}
 
 static void
 gm200_flcn_pio_dmem_wr(struct nvkm_falcon *falcon, u8 port, const u8 *img, int len, u16 tag)
@@ -46,6 +63,8 @@ gm200_flcn_dmem_pio = {
 	.max = 0x100,
 	.wr_init = gm200_flcn_pio_dmem_wr_init,
 	.wr = gm200_flcn_pio_dmem_wr,
+	.rd_init = gm200_flcn_pio_dmem_rd_init,
+	.rd = gm200_flcn_pio_dmem_rd,
 };
 
 static void
@@ -72,6 +91,24 @@ gm200_flcn_imem_pio = {
 	.wr_init = gm200_flcn_pio_imem_wr_init,
 	.wr = gm200_flcn_pio_imem_wr,
 };
+
+int
+gm200_flcn_bind_stat(struct nvkm_falcon *falcon, bool intr)
+{
+	if (intr && !(nvkm_falcon_rd32(falcon, 0x008) & 0x00000008))
+		return -1;
+
+	return (nvkm_falcon_rd32(falcon, 0x0dc) & 0x00007000) >> 12;
+}
+
+void
+gm200_flcn_bind_inst(struct nvkm_falcon *falcon, int target, u64 addr)
+{
+	nvkm_falcon_mask(falcon, 0x604, 0x00000007, 0x00000000); /* DMAIDX_VIRT */
+	nvkm_falcon_wr32(falcon, 0x054, (1 << 30) | (target << 28) | (addr >> 12));
+	nvkm_falcon_mask(falcon, 0x090, 0x00010000, 0x00010000);
+	nvkm_falcon_mask(falcon, 0x0a4, 0x00000008, 0x00000008);
+}
 
 int
 gm200_flcn_reset_wait_mem_scrubbing(struct nvkm_falcon *falcon)
@@ -166,11 +203,58 @@ int
 gm200_flcn_fw_load(struct nvkm_falcon_fw *fw)
 {
 	struct nvkm_falcon *falcon = fw->falcon;
-	int ret;
+	int target, ret;
 
-	if (1) {
+	if (fw->inst) {
+		nvkm_falcon_mask(falcon, 0x048, 0x00000001, 0x00000001);
+
+		switch (nvkm_memory_target(fw->inst)) {
+		case NVKM_MEM_TARGET_VRAM: target = 0; break;
+		case NVKM_MEM_TARGET_HOST: target = 2; break;
+		case NVKM_MEM_TARGET_NCOH: target = 3; break;
+		default:
+			WARN_ON(1);
+			return -EINVAL;
+		}
+
+		falcon->func->bind_inst(falcon, target, nvkm_memory_addr(fw->inst));
+
+		if (nvkm_msec(falcon->owner->device, 10,
+			if (falcon->func->bind_stat(falcon, falcon->func->bind_intr) == 5)
+				break;
+		) < 0)
+			return -ETIMEDOUT;
+
+		nvkm_falcon_mask(falcon, 0x004, 0x00000008, 0x00000008);
+		nvkm_falcon_mask(falcon, 0x058, 0x00000002, 0x00000002);
+
+		if (nvkm_msec(falcon->owner->device, 10,
+			if (falcon->func->bind_stat(falcon, false) == 0)
+				break;
+		) < 0)
+			return -ETIMEDOUT;
+	} else {
 		nvkm_falcon_mask(falcon, 0x624, 0x00000080, 0x00000080);
 		nvkm_falcon_wr32(falcon, 0x10c, 0x00000000);
+	}
+
+	if (fw->boot) {
+		switch (nvkm_memory_target(&fw->fw.mem.memory)) {
+		case NVKM_MEM_TARGET_VRAM: target = 4; break;
+		case NVKM_MEM_TARGET_HOST: target = 5; break;
+		case NVKM_MEM_TARGET_NCOH: target = 6; break;
+		default:
+			WARN_ON(1);
+			return -EINVAL;
+		}
+
+		ret = nvkm_falcon_pio_wr(falcon, fw->boot, 0, 0,
+					 IMEM, falcon->code.limit - fw->boot_size, fw->boot_size,
+					 fw->boot_addr >> 8, false);
+		if (ret)
+			return ret;
+
+		return fw->func->load_bld(fw);
 	}
 
 	ret = nvkm_falcon_pio_wr(falcon, fw->fw.img + fw->nmem_base_img, fw->nmem_base_img, 0,

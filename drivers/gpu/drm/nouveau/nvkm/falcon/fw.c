@@ -93,6 +93,12 @@ nvkm_falcon_fw_boot(struct nvkm_falcon_fw *fw, struct nvkm_subdev *user,
 	fw->func->reset(fw);
 
 	FLCNFW_DBG(fw, "loading");
+	if (fw->func->setup) {
+		ret = fw->func->setup(fw);
+		if (ret)
+			goto done;
+	}
+
 	ret = fw->func->load(fw);
 	if (ret)
 		goto done;
@@ -114,20 +120,44 @@ int
 nvkm_falcon_fw_oneinit(struct nvkm_falcon_fw *fw, struct nvkm_falcon *falcon,
 		       struct nvkm_vmm *vmm, struct nvkm_memory *inst)
 {
+	int ret;
+
 	fw->falcon = falcon;
 	fw->vmm = nvkm_vmm_ref(vmm);
 	fw->inst = nvkm_memory_ref(inst);
+
+	if (fw->boot) {
+		FLCN_DBG(falcon, "mapping %s fw", fw->fw.name);
+		ret = nvkm_vmm_get(fw->vmm, 12, nvkm_memory_size(&fw->fw.mem.memory), &fw->vma);
+		if (ret) {
+			FLCN_ERR(falcon, "get %d", ret);
+			return ret;
+		}
+
+		ret = nvkm_memory_map(&fw->fw.mem.memory, 0, fw->vmm, fw->vma, NULL, 0);
+		if (ret) {
+			FLCN_ERR(falcon, "map %d", ret);
+			return ret;
+		}
+	}
+
 	return 0;
 }
 
 void
 nvkm_falcon_fw_dtor(struct nvkm_falcon_fw *fw)
 {
+	nvkm_vmm_put(fw->vmm, &fw->vma);
 	nvkm_vmm_unref(&fw->vmm);
 	nvkm_memory_unref(&fw->inst);
 	nvkm_falcon_fw_dtor_sigs(fw);
 	nvkm_firmware_dtor(&fw->fw);
 }
+
+static const struct nvkm_firmware_func
+nvkm_falcon_fw_dma = {
+	.type = NVKM_FIRMWARE_IMG_DMA,
+};
 
 static const struct nvkm_firmware_func
 nvkm_falcon_fw = {
@@ -160,7 +190,7 @@ nvkm_falcon_fw_ctor(const struct nvkm_falcon_fw_func *func, const char *name,
 		    struct nvkm_device *device, bool dma, const void *src, u32 len,
 		    struct nvkm_falcon *falcon, struct nvkm_falcon_fw *fw)
 {
-	const struct nvkm_firmware_func *type = &nvkm_falcon_fw;
+	const struct nvkm_firmware_func *type = dma ? &nvkm_falcon_fw_dma : &nvkm_falcon_fw;
 	int ret;
 
 	fw->func = func;
@@ -181,6 +211,7 @@ nvkm_falcon_fw_ctor_hs(const struct nvkm_falcon_fw_func *func, const char *name,
 	const struct nvfw_bin_hdr *hdr;
 	const struct nvfw_hs_header *hshdr;
 	const struct nvfw_hs_load_header *lhdr;
+	const struct nvfw_bl_desc *desc;
 	u32 loc, sig;
 	int ret;
 
@@ -190,13 +221,30 @@ nvkm_falcon_fw_ctor_hs(const struct nvkm_falcon_fw_func *func, const char *name,
 
 	hdr = nvfw_bin_hdr(subdev, blob->data);
 	hshdr = nvfw_hs_header(subdev, blob->data + hdr->header_offset);
-	loc = *(u32 *)(blob->data + hshdr->patch_loc);
-	sig = *(u32 *)(blob->data + hshdr->patch_sig);
 
 	ret = nvkm_falcon_fw_ctor(func, name, subdev->device, bl != NULL,
 				  blob->data + hdr->data_offset, hdr->data_size, falcon, fw);
 	if (ret)
 		goto done;
+
+	/* Earlier FW releases by NVIDIA for Nouveau's use aren't in NVIDIA's
+	 * standard format, and don't have the indirection seen in the 0x10de
+	 * case.
+	 */
+	switch (hdr->bin_magic) {
+	case 0x000010de:
+		loc = *(u32 *)(blob->data + hshdr->patch_loc);
+		sig = *(u32 *)(blob->data + hshdr->patch_sig);
+		break;
+	case 0x3b1d14f0:
+		loc = hshdr->patch_loc;
+		sig = hshdr->patch_sig;
+		break;
+	default:
+		WARN_ON(1);
+		ret = -EINVAL;
+		goto done;
+	}
 
 	ret = nvkm_falcon_fw_sign(fw, loc, hshdr->sig_prod_size, blob->data,
 				  1, hshdr->sig_prod_offset + sig,
@@ -219,7 +267,26 @@ nvkm_falcon_fw_ctor_hs(const struct nvkm_falcon_fw_func *func, const char *name,
 	fw->dmem_size = lhdr->data_size;
 	fw->dmem_sign = loc - lhdr->data_dma_base;
 
-	fw->boot_addr = fw->nmem_base;
+	if (bl) {
+		nvkm_firmware_put(blob);
+
+		ret = nvkm_firmware_load_name(subdev, bl, "", ver, &blob);
+		if (ret)
+			return ret;
+
+		hdr = nvfw_bin_hdr(subdev, blob->data);
+		desc = nvfw_bl_desc(subdev, blob->data + hdr->header_offset);
+
+		fw->boot_addr = desc->start_tag << 8;
+		fw->boot_size = desc->code_size;
+		fw->boot = kmemdup(blob->data + hdr->data_offset + desc->code_off,
+				   fw->boot_size, GFP_KERNEL);
+		if (!fw->boot)
+			ret = -ENOMEM;
+	} else {
+		fw->boot_addr = fw->nmem_base;
+	}
+
 done:
 	if (ret)
 		nvkm_falcon_fw_dtor(fw);

@@ -68,7 +68,7 @@ nvkm_falcon_msgq_pop(struct nvkm_falcon_msgq *msgq, void *data, u32 size)
 		return -EINVAL;
 	}
 
-	nvkm_falcon_read_dmem(falcon, tail, size, 0, data);
+	nvkm_falcon_pio_rd(falcon, 0, DMEM, tail, data, 0, size);
 	msgq->position += ALIGN(size, QUEUE_ALIGNMENT);
 	return 0;
 }

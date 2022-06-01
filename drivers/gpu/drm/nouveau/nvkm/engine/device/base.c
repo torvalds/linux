@@ -2364,7 +2364,7 @@ nv13b_chipset = {
 static const struct nvkm_device_chip
 nv140_chipset = {
 	.name = "GV100",
-	.acr      = { 0x00000001, gp108_acr_new },
+	.acr      = { 0x00000001, gv100_acr_new },
 	.bar      = { 0x00000001, gm107_bar_new },
 	.bios     = { 0x00000001, nvkm_bios_new },
 	.bus      = { 0x00000001, gf100_bus_new },

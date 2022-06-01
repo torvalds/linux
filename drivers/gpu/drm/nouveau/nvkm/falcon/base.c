@@ -22,6 +22,7 @@
 #include "priv.h"
 
 #include <subdev/mc.h>
+#include <subdev/timer.h>
 #include <subdev/top.h>
 
 static const struct nvkm_falcon_func_pio *
@@ -36,9 +37,46 @@ nvkm_falcon_pio(struct nvkm_falcon *falcon, enum nvkm_falcon_mem *mem_type, u32 
 
 		*mem_base -= falcon->func->emem_addr;
 		fallthrough;
+	case EMEM:
+		return falcon->func->emem_pio;
 	default:
 		return NULL;
 	}
+}
+
+int
+nvkm_falcon_pio_rd(struct nvkm_falcon *falcon, u8 port, enum nvkm_falcon_mem mem_type, u32 mem_base,
+		   const u8 *img, u32 img_base, int len)
+{
+	const struct nvkm_falcon_func_pio *pio = nvkm_falcon_pio(falcon, &mem_type, &mem_base);
+	const char *type = nvkm_falcon_mem(mem_type);
+	int xfer_len;
+
+	if (WARN_ON(!pio || !pio->rd))
+		return -EINVAL;
+
+	FLCN_DBG(falcon, "%s %08x -> %08x bytes at %08x", type, mem_base, len, img_base);
+	if (WARN_ON(!len || (len & (pio->min - 1))))
+		return -EINVAL;
+
+	pio->rd_init(falcon, port, mem_base);
+	do {
+		xfer_len = min(len, pio->max);
+		pio->rd(falcon, port, img, xfer_len);
+
+		if (nvkm_printk_ok(falcon->owner, falcon->user, NV_DBG_TRACE)) {
+			for (img_base = 0; img_base < xfer_len; img_base += 4, mem_base += 4) {
+				if (((img_base / 4) % 8) == 0)
+					printk(KERN_INFO "%s %08x ->", type, mem_base);
+				printk(KERN_CONT " %08x", *(u32 *)(img + img_base));
+			}
+		}
+
+		img += xfer_len;
+		len -= xfer_len;
+	} while (len);
+
+	return 0;
 }
 
 int
@@ -104,35 +142,6 @@ nvkm_falcon_load_dmem(struct nvkm_falcon *falcon, void *data, u32 start,
 }
 
 void
-nvkm_falcon_read_dmem(struct nvkm_falcon *falcon, u32 start, u32 size, u8 port,
-		      void *data)
-{
-	mutex_lock(&falcon->dmem_mutex);
-
-	falcon->func->read_dmem(falcon, start, size, port, data);
-
-	mutex_unlock(&falcon->dmem_mutex);
-}
-
-void
-nvkm_falcon_bind_context(struct nvkm_falcon *falcon, struct nvkm_memory *inst)
-{
-	if (!falcon->func->bind_context) {
-		nvkm_error(falcon->user,
-			   "Context binding not supported on this falcon!\n");
-		return;
-	}
-
-	falcon->func->bind_context(falcon, inst);
-}
-
-void
-nvkm_falcon_set_start_addr(struct nvkm_falcon *falcon, u32 start_addr)
-{
-	falcon->func->set_start_addr(falcon, start_addr);
-}
-
-void
 nvkm_falcon_start(struct nvkm_falcon *falcon)
 {
 	falcon->func->start(falcon);
@@ -148,18 +157,6 @@ nvkm_falcon_reset(struct nvkm_falcon *falcon)
 		return ret;
 
 	return nvkm_falcon_enable(falcon);
-}
-
-int
-nvkm_falcon_wait_for_halt(struct nvkm_falcon *falcon, u32 ms)
-{
-	return falcon->func->wait_for_halt(falcon, ms);
-}
-
-int
-nvkm_falcon_clear_interrupt(struct nvkm_falcon *falcon, u32 mask)
-{
-	return falcon->func->clear_interrupt(falcon, mask);
 }
 
 static int

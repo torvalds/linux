@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_FIRMWARE_H__
 #define __NVKM_FIRMWARE_H__
+#include <core/memory.h>
 #include <core/option.h>
 #include <core/subdev.h>
 
@@ -8,6 +9,7 @@ struct nvkm_firmware {
 	const struct nvkm_firmware_func {
 		enum nvkm_firmware_type {
 			NVKM_FIRMWARE_IMG_RAM,
+			NVKM_FIRMWARE_IMG_DMA,
 		} type;
 	} *func;
 	const char *name;
@@ -15,6 +17,12 @@ struct nvkm_firmware {
 
 	int len;
 	u8 *img;
+	u64 phys;
+
+	struct nvkm_firmware_mem {
+		struct nvkm_memory memory;
+		struct scatterlist sgl;
+	} mem;
 };
 
 int nvkm_firmware_ctor(const struct nvkm_firmware_func *, const char *name, struct nvkm_device *,
