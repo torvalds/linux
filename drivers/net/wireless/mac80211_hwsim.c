@@ -3118,7 +3118,7 @@ static const struct ieee80211_sband_iftype_data sband_capa_2ghz[] = {
 			.has_eht = true,
 			.eht_cap_elem = {
 				.mac_cap_info[0] =
-					IEEE80211_EHT_MAC_CAP0_NSEP_PRIO_ACCESS |
+					IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
 					IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1,
 				.phy_cap_info[0] =
@@ -3271,7 +3271,7 @@ static const struct ieee80211_sband_iftype_data sband_capa_5ghz[] = {
 			.has_eht = true,
 			.eht_cap_elem = {
 				.mac_cap_info[0] =
-					IEEE80211_EHT_MAC_CAP0_NSEP_PRIO_ACCESS |
+					IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
 					IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1,
 				.phy_cap_info[0] =
@@ -3453,7 +3453,7 @@ static const struct ieee80211_sband_iftype_data sband_capa_6ghz[] = {
 			.has_eht = true,
 			.eht_cap_elem = {
 				.mac_cap_info[0] =
-					IEEE80211_EHT_MAC_CAP0_NSEP_PRIO_ACCESS |
+					IEEE80211_EHT_MAC_CAP0_EPCS_PRIO_ACCESS |
 					IEEE80211_EHT_MAC_CAP0_OM_CONTROL |
 					IEEE80211_EHT_MAC_CAP0_TRIG_TXOP_SHARING_MODE1,
 				.phy_cap_info[0] =
