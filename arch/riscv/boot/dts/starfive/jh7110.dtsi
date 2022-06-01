@@ -1090,15 +1090,12 @@
 			clocks = <&clkgen JH7110_PDM_CLK_DMIC>,
 				 <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_PDM_CLK_APB>,
-				 <&clkgen JH7110_PDM_CLK_DMIC0_BCLK_SLV>,
-				 <&clkgen JH7110_PDM_CLK_DMIC0_LRCK_SLV>,
-				 <&clkgen JH7110_PDM_CLK_DMIC1_BCLK_SLV>,
-				 <&clkgen JH7110_PDM_CLK_DMIC1_LRCK_SLV>,
-				 <&clkgen JH7110_I2SRX0_3CH_BCLK>;
-			clock-names = "pdm_dmic", "clk_apb0", "pdm_apb",
-					"pdm_dmic0_bclk", "pdm_dmic0_lrck",
-					"pdm_dmic1_bclk", "pdm_dmic1_lrck",
-					"u0_i2srx_3ch_bclk";
+				 <&clkgen JH7110_MCLK_INNER>,
+				 <&clkgen JH7110_MCLK>,
+				 <&clkgen JH7110_MCLK_OUT>;
+			clock-names = "pdm_mclk", "clk_apb0",
+				      "pdm_apb", "mclk_inner",
+				      "clk_mclk", "mclk_out";
 			resets = <&rstgen RSTN_U0_PDM_4MIC_DMIC>,
 				 <&rstgen RSTN_U0_PDM_4MIC_APB>;
 			reset-names = "pdm_dmic", "pdm_apb";
@@ -1110,16 +1107,19 @@
 			reg = <0x0 0x100e0000 0x0 0x1000>;
 			clocks = <&clkgen JH7110_APB0>,
 				 <&clkgen JH7110_I2SRX0_3CH_CLK_APB>,
-				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>;
-			clock-names = "apb0", "3ch-apb",
-					"3ch-bclk";
+				 <&clkgen JH7110_I2SRX_3CH_BCLK_MST>,
+				 <&clkgen JH7110_I2SRX_3CH_LRCK_MST>,
+				 <&clkgen JH7110_I2SRX0_3CH_BCLK>,
+				 <&clkgen JH7110_I2SRX0_3CH_LRCK>;
+			clock-names = "apb0", "i2srx_apb",
+				      "i2srx_bclk_mst", "i2srx_lrck_mst",
+				      "i2srx_bclk", "i2srx_lrck";
 			resets = <&rstgen RSTN_U0_I2SRX_3CH_APB>,
 				 <&rstgen RSTN_U0_I2SRX_3CH_BCLK>;
 			reset-names = "rst_apb_rx", "rst_bclk_rx";
-			interrupts = <42>;
-			interrupt-names = "rx";
 			dmas = <&dma 24 1>;
 			dma-names = "rx";
+			starfive,sys-syscon = <&sys_syscon 0x18 0x34>;
 			#sound-dai-cells = <0>;
 			status = "disabled";
 		};
@@ -1581,6 +1581,22 @@
 
 				codec {
 					sound-dai = <&pwmdac_codec>;
+				};
+			};
+
+			simple-audio-card,dai-link@1 {
+				reg = <0>;
+				status = "okay";
+				format = "i2s";
+				bitclock-master = <&dailink_master>;
+				frame-master = <&dailink_master>;
+
+				dailink_master:cpu {
+					sound-dai = <&i2srx_3ch>;
+				};
+
+				dailink_slave:codec {
+					sound-dai = <&pdm>;
 				};
 			};
 		};
