@@ -581,6 +581,15 @@ static void error_print_engine(struct drm_i915_error_state_buf *m,
 		err_printf(m, "  RC PSMI: 0x%08x\n", ee->rc_psmi);
 		err_printf(m, "  FAULT_REG: 0x%08x\n", ee->fault_reg);
 	}
+	if (GRAPHICS_VER(m->i915) >= 11) {
+		err_printf(m, "  NOPID: 0x%08x\n", ee->nopid);
+		err_printf(m, "  EXCC: 0x%08x\n", ee->excc);
+		err_printf(m, "  CMD_CCTL: 0x%08x\n", ee->cmd_cctl);
+		err_printf(m, "  CSCMDOP: 0x%08x\n", ee->cscmdop);
+		err_printf(m, "  CTX_SR_CTL: 0x%08x\n", ee->ctx_sr_ctl);
+		err_printf(m, "  DMA_FADDR_HI: 0x%08x\n", ee->dma_faddr_hi);
+		err_printf(m, "  DMA_FADDR_LO: 0x%08x\n", ee->dma_faddr_lo);
+	}
 	if (HAS_PPGTT(m->i915)) {
 		err_printf(m, "  GFX_MODE: 0x%08x\n", ee->vm_info.gfx_mode);
 
@@ -1222,6 +1231,16 @@ static void engine_record_registers(struct intel_engine_coredump *ee)
 		ee->faddr = ENGINE_READ(engine, DMA_FADD_I8XX);
 		ee->ipeir = ENGINE_READ(engine, IPEIR);
 		ee->ipehr = ENGINE_READ(engine, IPEHR);
+	}
+
+	if (GRAPHICS_VER(i915) >= 11) {
+		ee->cmd_cctl = ENGINE_READ(engine, RING_CMD_CCTL);
+		ee->cscmdop = ENGINE_READ(engine, RING_CSCMDOP);
+		ee->ctx_sr_ctl = ENGINE_READ(engine, RING_CTX_SR_CTL);
+		ee->dma_faddr_hi = ENGINE_READ(engine, RING_DMA_FADD_UDW);
+		ee->dma_faddr_lo = ENGINE_READ(engine, RING_DMA_FADD);
+		ee->nopid = ENGINE_READ(engine, RING_NOPID);
+		ee->excc = ENGINE_READ(engine, RING_EXCC);
 	}
 
 	intel_engine_get_instdone(engine, &ee->instdone);
