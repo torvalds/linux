@@ -7290,7 +7290,7 @@ extract_ecc_info:
 		ecc_address, ecc_syndrom, memory_wrapper_idx);
 }
 
-static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type)
+static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type, u64 *event_mask)
 {
 	u64 qman_base;
 	char desc[32];
@@ -7299,6 +7299,12 @@ static void gaudi_handle_qman_err(struct hl_device *hdev, u16 event_type)
 
 	switch (event_type) {
 	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
+		/* In TPC QM event, notify on TPC assertion. While there isn't
+		 * a specific event for assertion yet, the FW generates QM event.
+		 * The SW upper layer will inspect an internal mapped area to indicate
+		 * if the event is a tpc assertion or tpc QM.
+		 */
+		*event_mask |= HL_NOTIFIER_EVENT_TPC_ASSERT;
 		index = event_type - GAUDI_EVENT_TPC0_QM;
 		qid_base = GAUDI_QUEUE_ID_TPC_0_0 + index * QMAN_STREAMS;
 		qman_base = mmTPC0_QM_BASE + index * TPC_QMAN_OFFSET;
@@ -7715,7 +7721,7 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 				struct hl_eq_entry *eq_entry)
 {
 	struct gaudi_device *gaudi = hdev->asic_specific;
-	u64 data = le64_to_cpu(eq_entry->data[0]);
+	u64 data = le64_to_cpu(eq_entry->data[0]), event_mask = 0;
 	u32 ctl = le32_to_cpu(eq_entry->hdr.ctl);
 	u32 fw_fatal_err_flag = 0;
 	u16 event_type = ((ctl & EQ_CTL_EVENT_TYPE_MASK)
@@ -7892,22 +7898,10 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 	case GAUDI_EVENT_NIC4_QM0:
 	case GAUDI_EVENT_NIC4_QM1:
 	case GAUDI_EVENT_DMA0_CORE ... GAUDI_EVENT_DMA7_CORE:
-		gaudi_print_irq_info(hdev, event_type, true);
-		gaudi_handle_qman_err(hdev, event_type);
-		hl_fw_unmask_irq(hdev, event_type);
-		break;
-
 	case GAUDI_EVENT_TPC0_QM ... GAUDI_EVENT_TPC7_QM:
 		gaudi_print_irq_info(hdev, event_type, true);
-		gaudi_handle_qman_err(hdev, event_type);
+		gaudi_handle_qman_err(hdev, event_type, &event_mask);
 		hl_fw_unmask_irq(hdev, event_type);
-
-		/* In TPC QM event, notify on TPC assertion. While there isn't
-		 * a specific event for assertion yet, the FW generates QM event.
-		 * The SW upper layer will inspect an internal mapped area to indicate
-		 * if the event is a tpc assertion or tpc QM.
-		 */
-		hl_notifier_event_send_all(hdev, HL_NOTIFIER_EVENT_TPC_ASSERT);
 		break;
 
 	case GAUDI_EVENT_RAZWI_OR_ADC_SW:
@@ -7977,6 +7971,9 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 				event_type);
 		break;
 	}
+
+	if (event_mask)
+		hl_notifier_event_send_all(hdev, event_mask);
 
 	return;
 
