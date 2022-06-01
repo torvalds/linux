@@ -1343,15 +1343,16 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 	// If not exiting a read-side critical section, mark as checked
 	// so that the grace-period kthread will remove it from the
 	// holdout list.
-	if (nesting <= 0) {
-		if (!nesting)
-			rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS_CHECKED);
-		return nesting ? -EINVAL : 0;  // If in QS, done, otherwise try again later.
+	if (!nesting) {
+		rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS_CHECKED);
+		return 0;  // In QS, so done.
 	}
+	if (nesting < 0)
+		return -EINVAL; //  QS transitioning, try again later.
 
 	// The task is in a read-side critical section, so set up its
-	// state so that it will awaken the grace-period kthread upon exit
-	// from that critical section.
+	// state so that it will update state upon exit from that critical
+	// section.
 	if (!rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS | TRC_NEED_QS_CHECKED))
 		trc_add_holdout(t, bhp);
 	return 0;
