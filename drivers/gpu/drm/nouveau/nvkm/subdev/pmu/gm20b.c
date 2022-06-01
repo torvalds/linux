@@ -166,7 +166,7 @@ gm20b_pmu_acr_init_wpr(struct nvkm_pmu *pmu)
 				     gm20b_pmu_acr_init_wpr_callback, pmu, 0);
 }
 
-int
+static int
 gm20b_pmu_initmsg(struct nvkm_pmu *pmu)
 {
 	struct nv_pmu_init_msg msg;
@@ -192,7 +192,7 @@ gm20b_pmu_initmsg(struct nvkm_pmu *pmu)
 	return gm20b_pmu_acr_init_wpr(pmu);
 }
 
-void
+static void
 gm20b_pmu_recv(struct nvkm_pmu *pmu)
 {
 	if (!pmu->initmsg_received) {
@@ -209,10 +209,9 @@ gm20b_pmu_recv(struct nvkm_pmu *pmu)
 	nvkm_falcon_msgq_recv(pmu->msgq);
 }
 
-static const struct nvkm_pmu_func
+const struct nvkm_pmu_func
 gm20b_pmu = {
 	.flcn = &gm200_pmu_flcn,
-	.enabled = gf100_pmu_enabled,
 	.intr = gt215_pmu_intr,
 	.recv = gm20b_pmu_recv,
 	.initmsg = gm20b_pmu_initmsg,

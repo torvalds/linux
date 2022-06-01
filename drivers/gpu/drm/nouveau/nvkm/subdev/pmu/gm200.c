@@ -55,10 +55,8 @@ gm200_pmu_flcn = {
 static const struct nvkm_pmu_func
 gm200_pmu = {
 	.flcn = &gm200_pmu_flcn,
-	.enabled = gf100_pmu_enabled,
 	.reset = gf100_pmu_reset,
 };
-
 
 int
 gm200_pmu_nofw(struct nvkm_pmu *pmu, int ver, const struct nvkm_pmu_fwif *fwif)
