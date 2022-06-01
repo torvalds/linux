@@ -26,6 +26,81 @@
 #include <nvif/class.h>
 #include <nvif/if0012.h>
 
+void
+nvif_outp_release(struct nvif_outp *outp)
+{
+	int ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_RELEASE, NULL, 0);
+	NVIF_ERRON(ret, &outp->object, "[RELEASE]");
+	outp->or.id = -1;
+}
+
+static inline int
+nvif_outp_acquire(struct nvif_outp *outp, u8 proto, struct nvif_outp_acquire_v0 *args)
+{
+	int ret;
+
+	args->version = 0;
+	args->proto = proto;
+
+	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_ACQUIRE, args, sizeof(*args));
+	if (ret)
+		return ret;
+
+	outp->or.id = args->or;
+	outp->or.link = args->link;
+	return 0;
+}
+
+int
+nvif_outp_acquire_dp(struct nvif_outp *outp,  bool hda)
+{
+	struct nvif_outp_acquire_v0 args;
+	int ret;
+
+	args.dp.hda = hda;
+
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_DP, &args);
+	NVIF_ERRON(ret, &outp->object,
+		   "[ACQUIRE proto:DP hda:%d] or:%d link:%d", args.dp.hda, args.or, args.link);
+	return ret;
+}
+
+int
+nvif_outp_acquire_lvds(struct nvif_outp *outp)
+{
+	struct nvif_outp_acquire_v0 args;
+	int ret;
+
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_LVDS, &args);
+	NVIF_ERRON(ret, &outp->object, "[ACQUIRE proto:LVDS] or:%d link:%d", args.or, args.link);
+	return ret;
+}
+
+int
+nvif_outp_acquire_tmds(struct nvif_outp *outp, bool hda)
+{
+	struct nvif_outp_acquire_v0 args;
+	int ret;
+
+	args.tmds.hda = hda;
+
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_TMDS, &args);
+	NVIF_ERRON(ret, &outp->object,
+		   "[ACQUIRE proto:TMDS hda:%d] or:%d link:%d", args.tmds.hda, args.or, args.link);
+	return ret;
+}
+
+int
+nvif_outp_acquire_rgb_crt(struct nvif_outp *outp)
+{
+	struct nvif_outp_acquire_v0 args;
+	int ret;
+
+	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_RGB_CRT, &args);
+	NVIF_ERRON(ret, &outp->object, "[ACQUIRE proto:RGB_CRT] or:%d", args.or);
+	return ret;
+}
+
 int
 nvif_outp_load_detect(struct nvif_outp *outp, u32 loadval)
 {
@@ -58,5 +133,9 @@ nvif_outp_ctor(struct nvif_disp *disp, const char *name, int id, struct nvif_out
 	ret = nvif_object_ctor(&disp->object, name ?: "nvifOutp", id, NVIF_CLASS_OUTP,
 			       &args, sizeof(args), &outp->object);
 	NVIF_ERRON(ret, &disp->object, "[NEW outp id:%d]", id);
-	return ret;
+	if (ret)
+		return ret;
+
+	outp->or.id = -1;
+	return 0;
 }

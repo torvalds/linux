@@ -317,52 +317,6 @@ nv50_outp_dump_caps(struct nouveau_drm *drm,
 		 outp->base.base.name, outp->caps.dp_interlace);
 }
 
-static void
-nv50_outp_release(struct nouveau_encoder *nv_encoder)
-{
-	struct nv50_disp *disp = nv50_disp(nv_encoder->base.base.dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_RELEASE,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-	};
-
-	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
-	nv_encoder->or = -1;
-	nv_encoder->link = 0;
-}
-
-static int
-nv50_outp_acquire(struct nouveau_encoder *nv_encoder, bool hda)
-{
-	struct nouveau_drm *drm = nouveau_drm(nv_encoder->base.base.dev);
-	struct nv50_disp *disp = nv50_disp(drm->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_acquire_v0 info;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_ACQUIRE,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = nv_encoder->dcb->hashm,
-		.info.hda = hda,
-	};
-	int ret;
-
-	ret = nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
-	if (ret) {
-		NV_ERROR(drm, "error acquiring output path: %d\n", ret);
-		return ret;
-	}
-
-	nv_encoder->or = args.info.or;
-	nv_encoder->link = args.info.link;
-	return 0;
-}
-
 static int
 nv50_outp_atomic_check_view(struct drm_encoder *encoder,
 			    struct drm_crtc_state *crtc_state,
@@ -489,9 +443,9 @@ nv50_dac_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	const u32 ctrl = NVDEF(NV507D, DAC_SET_CONTROL, OWNER, NONE);
 
-	core->func->dac->ctrl(core, nv_encoder->or, ctrl, NULL);
+	core->func->dac->ctrl(core, nv_encoder->outp.or.id, ctrl, NULL);
 	nv_encoder->crtc = NULL;
-	nv50_outp_release(nv_encoder);
+	nvif_outp_release(&nv_encoder->outp);
 }
 
 static void
@@ -516,9 +470,9 @@ nv50_dac_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 
 	ctrl |= NVDEF(NV507D, DAC_SET_CONTROL, PROTOCOL, RGB_CRT);
 
-	nv50_outp_acquire(nv_encoder, false);
+	nvif_outp_acquire_rgb_crt(&nv_encoder->outp);
 
-	core->func->dac->ctrl(core, nv_encoder->or, ctrl, asyh);
+	core->func->dac->ctrl(core, nv_encoder->outp.or.id, ctrl, asyh);
 	asyh->or.depth = 0;
 
 	nv_encoder->crtc = &nv_crtc->base;
@@ -634,7 +588,7 @@ nv50_audio_component_get_eld(struct device *kdev, int port, int dev_id,
 		nv_connector = nouveau_connector(nv_encoder->audio.connector);
 		nv_crtc = nouveau_crtc(nv_encoder->crtc);
 
-		if (!nv_crtc || nv_encoder->or != port || nv_crtc->index != dev_id)
+		if (!nv_crtc || nv_encoder->outp.or.id != port || nv_crtc->index != dev_id)
 			continue;
 
 		*enabled = nv_encoder->audio.enabled;
@@ -724,6 +678,7 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct nvif_outp *outp = &nv_encoder->outp;
 	struct {
 		struct nv50_disp_mthd_v1 base;
 		struct nv50_disp_sor_hda_eld_v0 eld;
@@ -743,8 +698,7 @@ nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 	}
 	mutex_unlock(&drm->audio.lock);
 
-	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
-					nv_crtc->index);
+	nv50_audio_component_eld_notify(drm->audio.component, outp->or.id, nv_crtc->index);
 }
 
 static void
@@ -755,6 +709,7 @@ nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct nvif_outp *outp = &nv_encoder->outp;
 	struct __packed {
 		struct {
 			struct nv50_disp_mthd_v1 mthd;
@@ -783,8 +738,7 @@ nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 
 	mutex_unlock(&drm->audio.lock);
 
-	nv50_audio_component_eld_notify(drm->audio.component, nv_encoder->or,
-					nv_crtc->index);
+	nv50_audio_component_eld_notify(drm->audio.component, outp->or.id, nv_crtc->index);
 }
 
 /******************************************************************************
@@ -1107,10 +1061,12 @@ nv50_msto_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	if (WARN_ON(!mstc))
 		return;
 
-	if (!mstm->links++)
-		nv50_outp_acquire(mstm->outp, false /*XXX: MST audio.*/);
+	if (!mstm->links++) {
+		/*XXX: MST audio. */
+		nvif_outp_acquire_dp(&mstm->outp->outp, false);
+	}
 
-	if (mstm->outp->link & 1)
+	if (mstm->outp->outp.or.link & 1)
 		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_A;
 	else
 		proto = NV917D_SOR_SET_CONTROL_PROTOCOL_DP_B;
@@ -1405,7 +1361,7 @@ nv50_mstm_prepare(struct drm_atomic_state *state,
 
 	if (mstm->disabled) {
 		if (!mstm->links)
-			nv50_outp_release(mstm->outp);
+			nvif_outp_release(&mstm->outp->outp);
 		mstm->disabled = false;
 	}
 }
@@ -1623,7 +1579,7 @@ nv50_sor_update(struct nouveau_encoder *nv_encoder, u8 head,
 		asyh->or.depth = depth;
 	}
 
-	core->func->sor->ctrl(core, nv_encoder->or, nv_encoder->ctrl, asyh);
+	core->func->sor->ctrl(core, nv_encoder->outp.or.id, nv_encoder->ctrl, asyh);
 }
 
 /* TODO: Should we extend this to PWM-only backlights?
@@ -1667,7 +1623,7 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	nv_encoder->update(nv_encoder, nv_crtc->index, NULL, 0, 0);
 	nv50_audio_disable(encoder, nv_crtc);
 	nv50_hdmi_disable(&nv_encoder->base.base, nv_crtc);
-	nv50_outp_release(nv_encoder);
+	nvif_outp_release(&nv_encoder->outp);
 	nv_encoder->crtc = NULL;
 }
 
@@ -1707,11 +1663,11 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	     disp->disp->object.oclass >= GF110_DISP) &&
 	    drm_detect_monitor_audio(nv_connector->edid))
 		hda = true;
-	nv50_outp_acquire(nv_encoder, hda);
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
-		if (nv_encoder->link & 1) {
+		nvif_outp_acquire_tmds(&nv_encoder->outp, hda);
+		if (nv_encoder->outp.or.link & 1) {
 			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_A;
 			/* Only enable dual-link if:
 			 *  - Need to (i.e. rate > 165MHz)
@@ -1758,12 +1714,14 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 				lvds.lvds.script |= 0x0200;
 		}
 
+		nvif_outp_acquire_lvds(&nv_encoder->outp);
 		nvif_mthd(&disp->disp->object, 0, &lvds, sizeof(lvds));
 		break;
 	case DCB_OUTPUT_DP:
+		nvif_outp_acquire_dp(&nv_encoder->outp, hda);
 		depth = nv50_dp_bpc_to_depth(asyh->or.bpc);
 
-		if (nv_encoder->link & 1)
+		if (nv_encoder->outp.or.link & 1)
 			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_A;
 		else
 			proto = NV887D_SOR_SET_CONTROL_PROTOCOL_DP_B;
@@ -1921,9 +1879,9 @@ nv50_pior_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *s
 	struct nv50_core *core = nv50_disp(encoder->dev)->core;
 	const u32 ctrl = NVDEF(NV507D, PIOR_SET_CONTROL, OWNER, NONE);
 
-	core->func->pior->ctrl(core, nv_encoder->or, ctrl, NULL);
+	core->func->pior->ctrl(core, nv_encoder->outp.or.id, ctrl, NULL);
 	nv_encoder->crtc = NULL;
-	nv50_outp_release(nv_encoder);
+	nvif_outp_release(&nv_encoder->outp);
 }
 
 static void
@@ -1944,8 +1902,6 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 		break;
 	}
 
-	nv50_outp_acquire(nv_encoder, false);
-
 	switch (asyh->or.bpc) {
 	case 10: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_30_444; break;
 	case  8: asyh->or.depth = NV837D_PIOR_SET_CONTROL_PIXEL_DEPTH_BPP_24_444; break;
@@ -1955,15 +1911,19 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
+		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
+		nvif_outp_acquire_tmds(&nv_encoder->outp, false);
+		break;
 	case DCB_OUTPUT_DP:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
+		nvif_outp_acquire_dp(&nv_encoder->outp, false);
 		break;
 	default:
 		BUG();
 		break;
 	}
 
-	core->func->pior->ctrl(core, nv_encoder->or, ctrl, asyh);
+	core->func->pior->ctrl(core, nv_encoder->outp.or.id, ctrl, asyh);
 	nv_encoder->crtc = &nv_crtc->base;
 }
 

@@ -26,6 +26,49 @@
 #include <nvif/if0012.h>
 
 static int
+nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_release_args *args = argv;
+
+	if (argc != sizeof(args->vn))
+		return -ENOSYS;
+
+	nvkm_outp_release(outp, NVKM_OUTP_USER);
+	return 0;
+}
+
+static int
+nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_acquire_args *args = argv;
+	int ret;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	switch (args->v0.proto) {
+	case NVIF_OUTP_ACQUIRE_V0_RGB_CRT:
+	case NVIF_OUTP_ACQUIRE_V0_LVDS:
+		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, false);
+		break;
+	case NVIF_OUTP_ACQUIRE_V0_TMDS:
+	case NVIF_OUTP_ACQUIRE_V0_DP:
+		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.dp.hda);
+		break;
+	default:
+		ret = -EINVAL;
+		break;
+	}
+
+	if (ret)
+		return ret;
+
+	args->v0.or = outp->ior->id;
+	args->v0.link = outp->ior->asy.link;
+	return 0;
+}
+
+static int
 nvkm_uoutp_mthd_load_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	union nvif_outp_load_detect_args *args = argv;
@@ -49,10 +92,23 @@ nvkm_uoutp_mthd_load_detect(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
+nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
+{
+	switch (mthd) {
+	case NVIF_OUTP_V0_RELEASE    : return nvkm_uoutp_mthd_release    (outp, argv, argc);
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int
 nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
 	case NVIF_OUTP_V0_LOAD_DETECT: return nvkm_uoutp_mthd_load_detect(outp, argv, argc);
+	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
 	default:
 		break;
 	}
@@ -72,6 +128,11 @@ nvkm_uoutp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
 	ret = nvkm_uoutp_mthd_noacquire(outp, mthd, argv, argc);
 	if (ret <= 0)
 		goto done;
+
+	if (outp->ior)
+		ret = nvkm_uoutp_mthd_acquired(outp, mthd, argv, argc);
+	else
+		ret = -EIO;
 
 done:
 	mutex_unlock(&disp->super.mutex);

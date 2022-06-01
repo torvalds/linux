@@ -91,24 +91,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 
 	switch (mthd * !!outp) {
-	case NV50_DISP_MTHD_V1_ACQUIRE: {
-		union {
-			struct nv50_disp_acquire_v0 v0;
-		} *args = data;
-		int ret = -ENOSYS;
-		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-			ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.hda);
-			if (ret == 0) {
-				args->v0.or = outp->ior->id;
-				args->v0.link = outp->ior->asy.link;
-			}
-		}
-		return ret;
-	}
-		break;
-	case NV50_DISP_MTHD_V1_RELEASE:
-		nvkm_outp_release(outp, NVKM_OUTP_USER);
-		return 0;
 	case NV50_DISP_MTHD_V1_SOR_HDA_ELD: {
 		union {
 			struct nv50_disp_sor_hda_eld_v0 v0;
