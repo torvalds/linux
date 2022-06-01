@@ -86,6 +86,12 @@
 		};
 	};
 
+	firmware {
+		scm {
+			compatible = "qcom,scm-sdx65", "qcom,scm";
+		};
+	};
+
 	mc_virt: interconnect-mc-virt {
 		compatible = "qcom,sdx65-mc-virt";
 		#interconnect-cells = <1>;
