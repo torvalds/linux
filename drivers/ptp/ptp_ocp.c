@@ -300,7 +300,7 @@ struct ptp_ocp {
 	struct platform_device	*spi_flash;
 	struct clk_hw		*i2c_clk;
 	struct timer_list	watchdog;
-	const struct ocp_attr_group *attr_tbl;
+	const struct attribute_group **attr_group;
 	const struct ptp_ocp_eeprom_map *eeprom_map;
 	struct dentry		*debug_root;
 	time64_t		gnss_lost;
@@ -841,7 +841,7 @@ __ptp_ocp_adjtime_locked(struct ptp_ocp *bp, u32 adj_val)
 }
 
 static void
-ptp_ocp_adjtime_coarse(struct ptp_ocp *bp, u64 delta_ns)
+ptp_ocp_adjtime_coarse(struct ptp_ocp *bp, s64 delta_ns)
 {
 	struct timespec64 ts;
 	unsigned long flags;
@@ -850,7 +850,8 @@ ptp_ocp_adjtime_coarse(struct ptp_ocp *bp, u64 delta_ns)
 	spin_lock_irqsave(&bp->lock, flags);
 	err = __ptp_ocp_gettime_locked(bp, &ts, NULL);
 	if (likely(!err)) {
-		timespec64_add_ns(&ts, delta_ns);
+		set_normalized_timespec64(&ts, ts.tv_sec,
+					  ts.tv_nsec + delta_ns);
 		__ptp_ocp_settime_locked(bp, &ts);
 	}
 	spin_unlock_irqrestore(&bp->lock, flags);
@@ -1836,6 +1837,42 @@ ptp_ocp_signal_init(struct ptp_ocp *bp)
 }
 
 static void
+ptp_ocp_attr_group_del(struct ptp_ocp *bp)
+{
+	sysfs_remove_groups(&bp->dev.kobj, bp->attr_group);
+	kfree(bp->attr_group);
+}
+
+static int
+ptp_ocp_attr_group_add(struct ptp_ocp *bp,
+		       const struct ocp_attr_group *attr_tbl)
+{
+	int count, i;
+	int err;
+
+	count = 0;
+	for (i = 0; attr_tbl[i].cap; i++)
+		if (attr_tbl[i].cap & bp->fw_cap)
+			count++;
+
+	bp->attr_group = kcalloc(count + 1, sizeof(struct attribute_group *),
+				 GFP_KERNEL);
+	if (!bp->attr_group)
+		return -ENOMEM;
+
+	count = 0;
+	for (i = 0; attr_tbl[i].cap; i++)
+		if (attr_tbl[i].cap & bp->fw_cap)
+			bp->attr_group[count++] = attr_tbl[i].group;
+
+	err = sysfs_create_groups(&bp->dev.kobj, bp->attr_group);
+	if (err)
+		bp->attr_group[0] = NULL;
+
+	return err;
+}
+
+static void
 ptp_ocp_sma_init(struct ptp_ocp *bp)
 {
 	u32 reg;
@@ -1904,7 +1941,6 @@ ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 	bp->flash_start = 1024 * 4096;
 	bp->eeprom_map = fb_eeprom_map;
 	bp->fw_version = ioread32(&bp->image->version);
-	bp->attr_tbl = fb_timecard_groups;
 	bp->fw_cap = OCP_CAP_BASIC;
 
 	ver = bp->fw_version & 0xffff;
@@ -1917,6 +1953,10 @@ ptp_ocp_fb_board_init(struct ptp_ocp *bp, struct ocp_resource *r)
 	ptp_ocp_nmea_out_init(bp);
 	ptp_ocp_sma_init(bp);
 	ptp_ocp_signal_init(bp);
+
+	err = ptp_ocp_attr_group_add(bp, fb_timecard_groups);
+	if (err)
+		return err;
 
 	err = ptp_ocp_fb_set_pins(bp);
 	if (err)
@@ -3388,7 +3428,6 @@ ptp_ocp_complete(struct ptp_ocp *bp)
 {
 	struct pps_device *pps;
 	char buf[32];
-	int i, err;
 
 	if (bp->gnss_port != -1) {
 		sprintf(buf, "ttyS%d", bp->gnss_port);
@@ -3412,14 +3451,6 @@ ptp_ocp_complete(struct ptp_ocp *bp)
 	pps = pps_lookup_dev(bp->ptp);
 	if (pps)
 		ptp_ocp_symlink(bp, pps->dev, "pps");
-
-	for (i = 0; bp->attr_tbl[i].cap; i++) {
-		if (!(bp->attr_tbl[i].cap & bp->fw_cap))
-			continue;
-		err = sysfs_create_group(&bp->dev.kobj, bp->attr_tbl[i].group);
-		if (err)
-			return err;
-	}
 
 	ptp_ocp_debugfs_add_device(bp);
 
@@ -3492,15 +3523,11 @@ static void
 ptp_ocp_detach_sysfs(struct ptp_ocp *bp)
 {
 	struct device *dev = &bp->dev;
-	int i;
 
 	sysfs_remove_link(&dev->kobj, "ttyGNSS");
 	sysfs_remove_link(&dev->kobj, "ttyMAC");
 	sysfs_remove_link(&dev->kobj, "ptp");
 	sysfs_remove_link(&dev->kobj, "pps");
-	if (bp->attr_tbl)
-		for (i = 0; bp->attr_tbl[i].cap; i++)
-			sysfs_remove_group(&dev->kobj, bp->attr_tbl[i].group);
 }
 
 static void
@@ -3510,6 +3537,7 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 
 	ptp_ocp_debugfs_remove_device(bp);
 	ptp_ocp_detach_sysfs(bp);
+	ptp_ocp_attr_group_del(bp);
 	if (timer_pending(&bp->watchdog))
 		del_timer_sync(&bp->watchdog);
 	if (bp->ts0)

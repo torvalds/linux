@@ -1046,6 +1046,20 @@ bool amdgpu_acpi_is_s3_active(struct amdgpu_device *adev)
 }
 
 /**
+ * amdgpu_acpi_should_gpu_reset
+ *
+ * @adev: amdgpu_device_pointer
+ *
+ * returns true if should reset GPU, false if not
+ */
+bool amdgpu_acpi_should_gpu_reset(struct amdgpu_device *adev)
+{
+	if (adev->flags & AMD_IS_APU)
+		return false;
+	return pm_suspend_target_state != PM_SUSPEND_TO_IDLE;
+}
+
+/**
  * amdgpu_acpi_is_s0ix_active
  *
  * @adev: amdgpu_device_pointer
