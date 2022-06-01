@@ -30,7 +30,6 @@
 #include "gf100.h"
 #include "changf100.h"
 
-#include <core/client.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
@@ -138,8 +137,9 @@ gf100_runq_intr(struct nvkm_runq *runq, struct nvkm_runl *null)
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   runq->id, show, msg, chid, chan ? chan->inst->addr : 0,
-			   chan ? chan->object.client->name : "unknown",
-			   subc, mthd, data);
+			   chan ? chan->name : "unknown", subc, mthd, data);
+		if ((stat & 0xc67fe000) && chan)
+			nvkm_chan_error(chan, true);
 		nvkm_chan_put(&chan, flags);
 	}
 
