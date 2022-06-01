@@ -35,6 +35,16 @@ nvkm_engine_chsw_load(struct nvkm_engine *engine)
 	return false;
 }
 
+int
+nvkm_engine_reset(struct nvkm_engine *engine)
+{
+	if (engine->func->reset)
+		return engine->func->reset(engine);
+
+	nvkm_subdev_fini(&engine->subdev, false);
+	return nvkm_subdev_init(&engine->subdev);
+}
+
 void
 nvkm_engine_unref(struct nvkm_engine **pengine)
 {

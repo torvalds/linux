@@ -113,8 +113,8 @@ nvkm_runl_rc(struct nvkm_runl *runl)
 		}
 
 		ENGN_DEBUG(engn, "resetting...");
-		nvkm_subdev_fini(&engn->engine->subdev, false);
-		WARN_ON(nvkm_subdev_init(&engn->engine->subdev));
+		/*TODO: can we do something less of a potential catastrophe on failure? */
+		WARN_ON(nvkm_engine_reset(engn->engine));
 	}
 
 	/* Submit runlist update, and clear any remaining exception state. */
