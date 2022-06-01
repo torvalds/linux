@@ -43,7 +43,6 @@ nv40_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 	const u32 base = chan->id * 128;
 
 	chan->ramfc_offset = base;
-	nv04_fifo_chan(chan)->ramfc = base;
 
 	nvkm_kmap(ramfc);
 	nvkm_wo32(ramfc, base + 0x00, offset);
@@ -109,8 +108,52 @@ nv40_chan = {
 	.stop = nv04_chan_stop,
 };
 
+static void
+nv40_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_memory *ramfc = device->imem->ramfc;
+	u32 inst = 0x00000000, reg, ctx;
+	int chid;
+
+	switch (engn->engine->subdev.type) {
+	case NVKM_ENGINE_GR:
+		reg = 0x0032e0;
+		ctx = 0x38;
+		break;
+	case NVKM_ENGINE_MPEG:
+		if (WARN_ON(device->chipset < 0x44))
+			return;
+		reg = 0x00330c;
+		ctx = 0x54;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (cctx)
+		inst = cctx->vctx->inst->addr >> 4;
+
+	spin_lock_irq(&fifo->lock);
+	nvkm_mask(device, 0x002500, 0x00000001, 0x00000000);
+
+	chid = nvkm_rd32(device, 0x003204) & (fifo->chid->nr - 1);
+	if (chid == chan->id)
+		nvkm_wr32(device, reg, inst);
+
+	nvkm_kmap(ramfc);
+	nvkm_wo32(ramfc, chan->ramfc_offset + ctx, inst);
+	nvkm_done(ramfc);
+
+	nvkm_mask(device, 0x002500, 0x00000001, 0x00000001);
+	spin_unlock_irq(&fifo->lock);
+}
+
 static const struct nvkm_engn_func
 nv40_engn = {
+	.bind = nv40_ectx_bind,
 };
 
 static const struct nvkm_engn_func
@@ -175,7 +218,6 @@ nv40_fifo = {
 	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv40_fifo_init,
 	.intr = nv04_fifo_intr,
-	.engine_id = nv04_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.runl = &nv04_runl,

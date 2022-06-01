@@ -158,6 +158,47 @@ gf100_chan = {
 	.preempt = gf100_chan_preempt,
 };
 
+static void
+gf100_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	u64 addr = 0ULL;
+	u32 ptr0;
+
+	switch (engn->engine->subdev.type) {
+	case NVKM_ENGINE_SW    : return;
+	case NVKM_ENGINE_GR    : ptr0 = 0x0210; break;
+	case NVKM_ENGINE_CE    : ptr0 = 0x0230 + (engn->engine->subdev.inst * 0x10); break;
+	case NVKM_ENGINE_MSPDEC: ptr0 = 0x0250; break;
+	case NVKM_ENGINE_MSPPP : ptr0 = 0x0260; break;
+	case NVKM_ENGINE_MSVLD : ptr0 = 0x0270; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (cctx) {
+		addr  = cctx->vctx->vma->addr;
+		addr |= 4ULL;
+	}
+
+	nvkm_kmap(chan->inst);
+	nvkm_wo32(chan->inst, ptr0 + 0, lower_32_bits(addr));
+	nvkm_wo32(chan->inst, ptr0 + 4, upper_32_bits(addr));
+	nvkm_done(chan->inst);
+}
+
+static int
+gf100_ectx_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx)
+{
+	int ret;
+
+	ret = nvkm_vmm_get(vctx->vmm, 12, vctx->inst->size, &vctx->vma);
+	if (ret)
+		return ret;
+
+	return nvkm_memory_map(vctx->inst, 0, vctx->vmm, vctx->vma, NULL, 0);
+}
+
 bool
 gf100_engn_mmu_fault_triggered(struct nvkm_engn *engn)
 {
@@ -250,6 +291,8 @@ gf100_engn = {
 	.cxid = gf100_engn_cxid,
 	.mmu_fault_trigger = gf100_engn_mmu_fault_trigger,
 	.mmu_fault_triggered = gf100_engn_mmu_fault_triggered,
+	.ctor = gf100_ectx_ctor,
+	.bind = gf100_ectx_bind,
 };
 
 const struct nvkm_engn_func
@@ -421,22 +464,6 @@ gf100_fifo_nonstall = {
 	.init = gf100_fifo_nonstall_allow,
 	.fini = gf100_fifo_nonstall_block,
 };
-
-static int
-gf100_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
-{
-	switch (engine->subdev.type) {
-	case NVKM_ENGINE_GR    : return GF100_FIFO_ENGN_GR;
-	case NVKM_ENGINE_MSPDEC: return GF100_FIFO_ENGN_MSPDEC;
-	case NVKM_ENGINE_MSPPP : return GF100_FIFO_ENGN_MSPPP;
-	case NVKM_ENGINE_MSVLD : return GF100_FIFO_ENGN_MSVLD;
-	case NVKM_ENGINE_CE    : return GF100_FIFO_ENGN_CE0 + engine->subdev.inst;
-	case NVKM_ENGINE_SW    : return GF100_FIFO_ENGN_SW;
-	default:
-		WARN_ON(1);
-		return -1;
-	}
-}
 
 static const struct nvkm_enum
 gf100_fifo_mmu_fault_engine[] = {
@@ -935,7 +962,6 @@ gf100_fifo = {
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gf100_fifo_mmu_fault,
-	.engine_id = gf100_fifo_engine_id,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gf100_runl,
 	.runq = &gf100_runq,

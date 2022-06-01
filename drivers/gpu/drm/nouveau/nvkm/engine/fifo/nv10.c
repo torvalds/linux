@@ -97,7 +97,6 @@ nv10_fifo = {
 	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
-	.engine_id = nv04_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.runl = &nv04_runl,

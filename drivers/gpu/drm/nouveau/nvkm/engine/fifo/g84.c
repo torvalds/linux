@@ -26,6 +26,7 @@
 #include "runl.h"
 
 #include <core/ramht.h>
+#include <subdev/timer.h>
 
 #include "nv50.h"
 #include "channv50.h"
@@ -67,7 +68,6 @@ g84_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, b
 	if (ret)
 		return ret;
 
-	nv50_fifo_chan(chan)->eng = chan->eng;
 	nv50_fifo_chan(chan)->ramht = chan->ramht;
 
 	nvkm_kmap(chan->ramfc);
@@ -106,8 +106,58 @@ g84_chan = {
 	.stop = nv50_chan_stop,
 };
 
+static void
+g84_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	struct nvkm_subdev *subdev = &chan->cgrp->runl->fifo->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u64 start = 0, limit = 0;
+	u32 flags = 0, ptr0, save;
+
+	switch (engn->engine->subdev.type) {
+	case NVKM_ENGINE_GR    : ptr0 = 0x0020; break;
+	case NVKM_ENGINE_VP    :
+	case NVKM_ENGINE_MSPDEC: ptr0 = 0x0040; break;
+	case NVKM_ENGINE_MPEG  :
+	case NVKM_ENGINE_MSPPP : ptr0 = 0x0060; break;
+	case NVKM_ENGINE_BSP   :
+	case NVKM_ENGINE_MSVLD : ptr0 = 0x0080; break;
+	case NVKM_ENGINE_CIPHER:
+	case NVKM_ENGINE_SEC   : ptr0 = 0x00a0; break;
+	case NVKM_ENGINE_CE    : ptr0 = 0x00c0; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (!cctx) {
+		save = nvkm_mask(device, 0x002520, 0x0000003f, BIT(engn->id - 1));
+		nvkm_wr32(device, 0x0032fc, chan->inst->addr >> 12);
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x0032fc) != 0xffffffff)
+				break;
+		);
+		nvkm_wr32(device, 0x002520, save);
+	} else {
+		flags = 0x00190000;
+		start = cctx->vctx->inst->addr;
+		limit = start + cctx->vctx->inst->size - 1;
+	}
+
+	nvkm_kmap(chan->eng);
+	nvkm_wo32(chan->eng, ptr0 + 0x00, flags);
+	nvkm_wo32(chan->eng, ptr0 + 0x04, lower_32_bits(limit));
+	nvkm_wo32(chan->eng, ptr0 + 0x08, lower_32_bits(start));
+	nvkm_wo32(chan->eng, ptr0 + 0x0c, upper_32_bits(limit) << 24 |
+					  lower_32_bits(start));
+	nvkm_wo32(chan->eng, ptr0 + 0x10, 0x00000000);
+	nvkm_wo32(chan->eng, ptr0 + 0x14, 0x00000000);
+	nvkm_done(chan->eng);
+}
+
 const struct nvkm_engn_func
 g84_engn = {
+	.bind = g84_ectx_bind,
 };
 
 static void
@@ -138,28 +188,6 @@ g84_fifo_nonstall = {
 	.fini = g84_fifo_nonstall_block,
 };
 
-int
-g84_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
-{
-	switch (engine->subdev.type) {
-	case NVKM_ENGINE_SW    : return G84_FIFO_ENGN_SW;
-	case NVKM_ENGINE_GR    : return G84_FIFO_ENGN_GR;
-	case NVKM_ENGINE_MPEG  :
-	case NVKM_ENGINE_MSPPP : return G84_FIFO_ENGN_MPEG;
-	case NVKM_ENGINE_CE    : return G84_FIFO_ENGN_CE0;
-	case NVKM_ENGINE_VP    :
-	case NVKM_ENGINE_MSPDEC: return G84_FIFO_ENGN_VP;
-	case NVKM_ENGINE_CIPHER:
-	case NVKM_ENGINE_SEC   : return G84_FIFO_ENGN_CIPHER;
-	case NVKM_ENGINE_BSP   :
-	case NVKM_ENGINE_MSVLD : return G84_FIFO_ENGN_BSP;
-	case NVKM_ENGINE_DMAOBJ: return G84_FIFO_ENGN_DMA;
-	default:
-		WARN_ON(1);
-		return -1;
-	}
-}
-
 static int
 g84_fifo_runl_ctor(struct nvkm_fifo *fifo)
 {
@@ -188,7 +216,6 @@ g84_fifo = {
 	.runl_ctor = g84_fifo_runl_ctor,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
-	.engine_id = g84_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.nonstall = &g84_fifo_nonstall,

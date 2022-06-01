@@ -28,87 +28,9 @@
 #include <nvif/clc36f.h>
 #include <nvif/unpack.h>
 
-static int
-gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid)
-{
-	const u32 mask = ce ? 0x00020000 : 0x00010000;
-	const u32 data = valid ? mask : 0x00000000;
-
-	if (1) {
-		/* Update engine context validity. */
-		nvkm_kmap(chan->base.inst);
-		nvkm_mo32(chan->base.inst, 0x0ac, mask, data);
-		nvkm_done(chan->base.inst);
-	}
-
-	return 0;
-}
-
-int
-gv100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine, bool suspend)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct nvkm_gpuobj *inst = chan->base.inst;
-	int ret;
-
-	if (engine->subdev.type == NVKM_ENGINE_CE) {
-		ret = gv100_fifo_gpfifo_engine_valid(chan, true, false);
-		if (ret && suspend)
-			return ret;
-
-		nvkm_kmap(inst);
-		nvkm_wo32(chan->base.inst, 0x220, 0x00000000);
-		nvkm_wo32(chan->base.inst, 0x224, 0x00000000);
-		nvkm_done(inst);
-		return ret;
-	}
-
-	ret = gv100_fifo_gpfifo_engine_valid(chan, false, false);
-	if (ret && suspend)
-		return ret;
-
-	nvkm_kmap(inst);
-	nvkm_wo32(inst, 0x0210, 0x00000000);
-	nvkm_wo32(inst, 0x0214, 0x00000000);
-	nvkm_done(inst);
-	return ret;
-}
-
-int
-gv100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
-	struct nvkm_gpuobj *inst = chan->base.inst;
-
-	if (engine->subdev.type == NVKM_ENGINE_CE) {
-		const u64 bar2 = nvkm_memory_bar2(engn->inst->memory);
-
-		nvkm_kmap(inst);
-		nvkm_wo32(chan->base.inst, 0x220, lower_32_bits(bar2));
-		nvkm_wo32(chan->base.inst, 0x224, upper_32_bits(bar2));
-		nvkm_done(inst);
-
-		return gv100_fifo_gpfifo_engine_valid(chan, true, true);
-	}
-
-	nvkm_kmap(inst);
-	nvkm_wo32(inst, 0x210, lower_32_bits(engn->vma->addr) | 0x00000004);
-	nvkm_wo32(inst, 0x214, upper_32_bits(engn->vma->addr));
-	nvkm_done(inst);
-
-	return gv100_fifo_gpfifo_engine_valid(chan, false, true);
-}
-
 static const struct nvkm_fifo_chan_func
 gv100_fifo_gpfifo = {
 	.dtor = gk104_fifo_gpfifo_dtor,
-	.engine_ctor = gk104_fifo_gpfifo_engine_ctor,
-	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
-	.engine_init = gv100_fifo_gpfifo_engine_init,
-	.engine_fini = gv100_fifo_gpfifo_engine_fini,
 };
 
 int

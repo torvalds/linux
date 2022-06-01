@@ -38,7 +38,6 @@ gk20a_fifo = {
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
-	.engine_id = gk104_fifo_engine_id,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk110_runl,
 	.runq = &gk208_runq,

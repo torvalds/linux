@@ -31,102 +31,6 @@
 #include <nvif/cl906f.h>
 #include <nvif/unpack.h>
 
-static u32
-gf100_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
-{
-	switch (engine->subdev.type) {
-	case NVKM_ENGINE_SW    : return 0;
-	case NVKM_ENGINE_GR    : return 0x0210;
-	case NVKM_ENGINE_CE    : return 0x0230 + (engine->subdev.inst * 0x10);
-	case NVKM_ENGINE_MSPDEC: return 0x0250;
-	case NVKM_ENGINE_MSPPP : return 0x0260;
-	case NVKM_ENGINE_MSVLD : return 0x0270;
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-}
-
-static struct gf100_fifo_engn *
-gf100_fifo_gpfifo_engine(struct gf100_fifo_chan *chan, struct nvkm_engine *engine)
-{
-	int engi = chan->base.fifo->func->engine_id(chan->base.fifo, engine);
-	if (engi >= 0)
-		return &chan->engn[engi];
-	return NULL;
-}
-
-static int
-gf100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine, bool suspend)
-{
-	const u32 offset = gf100_fifo_gpfifo_engine_addr(engine);
-	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct nvkm_gpuobj *inst = chan->base.inst;
-	int ret = 0;
-
-	if (offset) {
-		nvkm_kmap(inst);
-		nvkm_wo32(inst, offset + 0x00, 0x00000000);
-		nvkm_wo32(inst, offset + 0x04, 0x00000000);
-		nvkm_done(inst);
-	}
-
-	return ret;
-}
-
-static int
-gf100_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine)
-{
-	const u32 offset = gf100_fifo_gpfifo_engine_addr(engine);
-	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct gf100_fifo_engn *engn = gf100_fifo_gpfifo_engine(chan, engine);
-	struct nvkm_gpuobj *inst = chan->base.inst;
-
-	if (offset) {
-		nvkm_kmap(inst);
-		nvkm_wo32(inst, offset + 0x00, lower_32_bits(engn->vma->addr) | 4);
-		nvkm_wo32(inst, offset + 0x04, upper_32_bits(engn->vma->addr));
-		nvkm_done(inst);
-	}
-
-	return 0;
-}
-
-static void
-gf100_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine)
-{
-	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct gf100_fifo_engn *engn = gf100_fifo_gpfifo_engine(chan, engine);
-	nvkm_vmm_put(chan->base.vmm, &engn->vma);
-	nvkm_gpuobj_del(&engn->inst);
-}
-
-static int
-gf100_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine,
-			      struct nvkm_object *object)
-{
-	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct gf100_fifo_engn *engn = gf100_fifo_gpfifo_engine(chan, engine);
-	int ret;
-
-	if (!gf100_fifo_gpfifo_engine_addr(engine))
-		return 0;
-
-	ret = nvkm_object_bind(object, NULL, 0, &engn->inst);
-	if (ret)
-		return ret;
-
-	ret = nvkm_vmm_get(chan->base.vmm, 12, engn->inst->size, &engn->vma);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_map(engn->inst, 0, chan->base.vmm, engn->vma, NULL, 0);
-}
-
 static void *
 gf100_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
@@ -136,10 +40,6 @@ gf100_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 static const struct nvkm_fifo_chan_func
 gf100_fifo_gpfifo_func = {
 	.dtor = gf100_fifo_gpfifo_dtor,
-	.engine_ctor = gf100_fifo_gpfifo_engine_ctor,
-	.engine_dtor = gf100_fifo_gpfifo_engine_dtor,
-	.engine_init = gf100_fifo_gpfifo_engine_init,
-	.engine_fini = gf100_fifo_gpfifo_engine_fini,
 };
 
 static int

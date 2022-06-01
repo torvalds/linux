@@ -12,6 +12,4 @@ int nv50_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvk
 		   struct nvkm_fifo **);
 
 void *nv50_fifo_dtor(struct nvkm_fifo *);
-
-int g84_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 #endif

@@ -89,7 +89,6 @@ nv50_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 	if (ret)
 		return ret;
 
-	nv50_fifo_chan(chan)->eng = chan->eng;
 	nv50_fifo_chan(chan)->ramht = chan->ramht;
 
 	nvkm_kmap(chan->ramfc);
@@ -139,8 +138,64 @@ nv50_chan = {
 	.stop = nv50_chan_stop,
 };
 
+static void
+nv50_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	struct nvkm_subdev *subdev = &chan->cgrp->runl->fifo->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u64 start = 0, limit = 0;
+	u32 flags = 0, ptr0, save;
+
+	switch (engn->engine->subdev.type) {
+	case NVKM_ENGINE_GR    : ptr0 = 0x0000; break;
+	case NVKM_ENGINE_MPEG  : ptr0 = 0x0060; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (!cctx) {
+		/* HW bug workaround:
+		 *
+		 * PFIFO will hang forever if the connected engines don't report
+		 * that they've processed the context switch request.
+		 *
+		 * In order for the kickoff to work, we need to ensure all the
+		 * connected engines are in a state where they can answer.
+		 *
+		 * Newer chipsets don't seem to suffer from this issue, and well,
+		 * there's also a "ignore these engines" bitmask reg we can use
+		 * if we hit the issue there..
+		 */
+		save = nvkm_mask(device, 0x00b860, 0x00000001, 0x00000001);
+
+		/* Tell engines to save out contexts. */
+		nvkm_wr32(device, 0x0032fc, chan->inst->addr >> 12);
+		nvkm_msec(device, 2000,
+			if (nvkm_rd32(device, 0x0032fc) != 0xffffffff)
+				break;
+		);
+		nvkm_wr32(device, 0x00b860, save);
+	} else {
+		flags = 0x00190000;
+		start = cctx->vctx->inst->addr;
+		limit = start + cctx->vctx->inst->size - 1;
+	}
+
+	nvkm_kmap(chan->eng);
+	nvkm_wo32(chan->eng, ptr0 + 0x00, flags);
+	nvkm_wo32(chan->eng, ptr0 + 0x04, lower_32_bits(limit));
+	nvkm_wo32(chan->eng, ptr0 + 0x08, lower_32_bits(start));
+	nvkm_wo32(chan->eng, ptr0 + 0x0c, upper_32_bits(limit) << 24 |
+					  lower_32_bits(start));
+	nvkm_wo32(chan->eng, ptr0 + 0x10, 0x00000000);
+	nvkm_wo32(chan->eng, ptr0 + 0x14, 0x00000000);
+	nvkm_done(chan->eng);
+}
+
 static const struct nvkm_engn_func
 nv50_engn = {
+	.bind = nv50_ectx_bind,
 };
 
 const struct nvkm_engn_func
@@ -340,7 +395,6 @@ nv50_fifo = {
 	.runl_ctor = nv04_fifo_runl_ctor,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
-	.engine_id = nv04_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.runl = &nv50_runl,

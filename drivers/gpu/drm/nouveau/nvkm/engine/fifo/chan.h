@@ -52,12 +52,6 @@ struct nvkm_chan_func {
 	u32 (*doorbell_handle)(struct nvkm_chan *);
 
 	void *(*dtor)(struct nvkm_fifo_chan *);
-	int  (*engine_ctor)(struct nvkm_fifo_chan *, struct nvkm_engine *,
-			    struct nvkm_object *);
-	void (*engine_dtor)(struct nvkm_fifo_chan *, struct nvkm_engine *);
-	int  (*engine_init)(struct nvkm_fifo_chan *, struct nvkm_engine *);
-	int  (*engine_fini)(struct nvkm_fifo_chan *, struct nvkm_engine *,
-			    bool suspend);
 	int  (*object_ctor)(struct nvkm_fifo_chan *, struct nvkm_object *);
 	void (*object_dtor)(struct nvkm_fifo_chan *, int);
 };
@@ -78,8 +72,7 @@ int nvkm_chan_preempt_locked(struct nvkm_chan *, bool wait);
 int nvkm_chan_cctx_get(struct nvkm_chan *, struct nvkm_engn *, struct nvkm_cctx **,
 		       struct nvkm_client * /*TODO: remove need for this */);
 void nvkm_chan_cctx_put(struct nvkm_chan *, struct nvkm_cctx **);
-struct nvkm_oproxy;
-void nvkm_chan_cctx_bind(struct nvkm_chan *, struct nvkm_oproxy *, struct nvkm_cctx *);
+void nvkm_chan_cctx_bind(struct nvkm_chan *, struct nvkm_engn *, struct nvkm_cctx *);
 
 #define CHAN_PRCLI(c,l,p,f,a...) CGRP_PRINT((c)->cgrp, l, p, "%04x:[%s]"f, (c)->id, (c)->name, ##a)
 #define CHAN_PRINT(c,l,p,f,a...) CGRP_PRINT((c)->cgrp, l, p, "%04x:"f, (c)->id, ##a)

@@ -1,9 +1,11 @@
 #ifndef __NVKM_RUNL_H__
 #define __NVKM_RUNL_H__
 #include <core/os.h>
+struct nvkm_cctx;
 struct nvkm_cgrp;
 struct nvkm_chan;
 struct nvkm_memory;
+struct nvkm_vctx;
 enum nvkm_subdev_type;
 
 struct nvkm_engn {
@@ -12,6 +14,8 @@ struct nvkm_engn {
 		int (*cxid)(struct nvkm_engn *, bool *cgid);
 		void (*mmu_fault_trigger)(struct nvkm_engn *);
 		bool (*mmu_fault_triggered)(struct nvkm_engn *);
+		int (*ctor)(struct nvkm_engn *, struct nvkm_vctx *);
+		void (*bind)(struct nvkm_engn *, struct nvkm_cctx *, struct nvkm_chan *);
 	} *func;
 	struct nvkm_runl *runl;
 	int id;

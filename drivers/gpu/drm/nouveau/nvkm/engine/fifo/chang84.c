@@ -31,111 +31,6 @@
 #include <nvif/cl826e.h>
 
 static int
-g84_fifo_chan_engine_addr(struct nvkm_engine *engine)
-{
-	switch (engine->subdev.type) {
-	case NVKM_ENGINE_DMAOBJ:
-	case NVKM_ENGINE_SW    : return -1;
-	case NVKM_ENGINE_GR    : return 0x0020;
-	case NVKM_ENGINE_VP    :
-	case NVKM_ENGINE_MSPDEC: return 0x0040;
-	case NVKM_ENGINE_MPEG  :
-	case NVKM_ENGINE_MSPPP : return 0x0060;
-	case NVKM_ENGINE_BSP   :
-	case NVKM_ENGINE_MSVLD : return 0x0080;
-	case NVKM_ENGINE_CIPHER:
-	case NVKM_ENGINE_SEC   : return 0x00a0;
-	case NVKM_ENGINE_CE    : return 0x00c0;
-	default:
-		WARN_ON(1);
-		return -1;
-	}
-}
-
-static int
-g84_fifo_chan_engine_fini(struct nvkm_fifo_chan *base,
-			  struct nvkm_engine *engine, bool suspend)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nv50_fifo *fifo = chan->fifo;
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 engn, save;
-	int offset;
-	bool done;
-
-	offset = g84_fifo_chan_engine_addr(engine);
-	if (offset < 0)
-		return 0;
-
-	engn = fifo->base.func->engine_id(&fifo->base, engine) - 1;
-	save = nvkm_mask(device, 0x002520, 0x0000003f, 1 << engn);
-	nvkm_wr32(device, 0x0032fc, chan->base.inst->addr >> 12);
-	done = nvkm_msec(device, 2000,
-		if (nvkm_rd32(device, 0x0032fc) != 0xffffffff)
-			break;
-	) >= 0;
-	nvkm_wr32(device, 0x002520, save);
-	if (!done) {
-		nvkm_error(subdev, "channel %d [%s] unload timeout\n",
-			   chan->base.chid, chan->base.object.client->name);
-		if (suspend)
-			return -EBUSY;
-	}
-
-	nvkm_kmap(chan->eng);
-	nvkm_wo32(chan->eng, offset + 0x00, 0x00000000);
-	nvkm_wo32(chan->eng, offset + 0x04, 0x00000000);
-	nvkm_wo32(chan->eng, offset + 0x08, 0x00000000);
-	nvkm_wo32(chan->eng, offset + 0x0c, 0x00000000);
-	nvkm_wo32(chan->eng, offset + 0x10, 0x00000000);
-	nvkm_wo32(chan->eng, offset + 0x14, 0x00000000);
-	nvkm_done(chan->eng);
-	return 0;
-}
-
-
-static int
-g84_fifo_chan_engine_init(struct nvkm_fifo_chan *base,
-			  struct nvkm_engine *engine)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	struct nvkm_gpuobj *engn = *nv50_fifo_chan_engine(chan, engine);
-	u64 limit, start;
-	int offset;
-
-	offset = g84_fifo_chan_engine_addr(engine);
-	if (offset < 0)
-		return 0;
-	limit = engn->addr + engn->size - 1;
-	start = engn->addr;
-
-	nvkm_kmap(chan->eng);
-	nvkm_wo32(chan->eng, offset + 0x00, 0x00190000);
-	nvkm_wo32(chan->eng, offset + 0x04, lower_32_bits(limit));
-	nvkm_wo32(chan->eng, offset + 0x08, lower_32_bits(start));
-	nvkm_wo32(chan->eng, offset + 0x0c, upper_32_bits(limit) << 24 |
-					    upper_32_bits(start));
-	nvkm_wo32(chan->eng, offset + 0x10, 0x00000000);
-	nvkm_wo32(chan->eng, offset + 0x14, 0x00000000);
-	nvkm_done(chan->eng);
-	return 0;
-}
-
-static int
-g84_fifo_chan_engine_ctor(struct nvkm_fifo_chan *base,
-			  struct nvkm_engine *engine,
-			  struct nvkm_object *object)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-
-	if (g84_fifo_chan_engine_addr(engine) < 0)
-		return 0;
-
-	return nvkm_object_bind(object, NULL, 0, nv50_fifo_chan_engine(chan, engine));
-}
-
-static int
 g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 			  struct nvkm_object *object)
 {
@@ -169,10 +64,6 @@ g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
 static const struct nvkm_fifo_chan_func
 g84_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
-	.engine_ctor = g84_fifo_chan_engine_ctor,
-	.engine_dtor = nv50_fifo_chan_engine_dtor,
-	.engine_init = g84_fifo_chan_engine_init,
-	.engine_fini = g84_fifo_chan_engine_fini,
 	.object_ctor = g84_fifo_chan_object_ctor,
 	.object_dtor = nv50_fifo_chan_object_dtor,
 };

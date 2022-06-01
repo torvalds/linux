@@ -273,7 +273,6 @@ tu102_fifo = {
 	.init_pbdmas = tu102_fifo_init_pbdmas,
 	.intr = tu102_fifo_intr,
 	.mmu_fault = &tu102_fifo_mmu_fault,
-	.engine_id = gk104_fifo_engine_id,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &tu102_runl,
 	.runq = &gv100_runq,

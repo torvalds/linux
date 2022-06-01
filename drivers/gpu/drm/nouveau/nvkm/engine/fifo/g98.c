@@ -55,7 +55,6 @@ g98_fifo = {
 	.runl_ctor = g98_fifo_runl_ctor,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
-	.engine_id = g84_fifo_engine_id,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
 	.nonstall = &g84_fifo_nonstall,

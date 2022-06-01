@@ -318,7 +318,7 @@ int
 nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, struct nvkm_fifo *fifo)
 {
-	int ret, nr;
+	int ret;
 
 	fifo->func = func;
 	INIT_LIST_HEAD(&fifo->runqs);
@@ -334,9 +334,6 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	ret = nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
 	if (ret)
 		return ret;
-
-	nr = func->chid_nr(fifo);
-	fifo->nr = nr;
 
 	if (func->nonstall) {
 		ret = nvkm_event_init(func->nonstall, &fifo->engine.subdev, 1, 1,

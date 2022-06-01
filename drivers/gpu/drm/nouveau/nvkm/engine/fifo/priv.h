@@ -4,11 +4,13 @@
 #define nvkm_fifo(p) container_of((p), struct nvkm_fifo, engine)
 #include <engine/fifo.h>
 #include <core/enum.h>
+struct nvkm_cctx;
 struct nvkm_cgrp;
 struct nvkm_engn;
 struct nvkm_memory;
 struct nvkm_runl;
 struct nvkm_runq;
+struct nvkm_vctx;
 struct gk104_fifo;
 
 struct nvkm_fifo_chan_oclass;
@@ -37,7 +39,6 @@ struct nvkm_fifo_func {
 		const struct nvkm_enum *gpcclient;
 	} *mmu_fault;
 
-	int (*engine_id)(struct nvkm_fifo *, struct nvkm_engine *);
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
 	void (*start)(struct nvkm_fifo *, unsigned long *);
 
@@ -74,7 +75,6 @@ int nv04_fifo_chid_ctor(struct nvkm_fifo *, int);
 int nv04_fifo_runl_ctor(struct nvkm_fifo *);
 void nv04_fifo_init(struct nvkm_fifo *);
 irqreturn_t nv04_fifo_intr(struct nvkm_inth *);
-int nv04_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
 extern const struct nvkm_runl_func nv04_runl;
@@ -138,7 +138,6 @@ extern const struct nvkm_fifo_func_mmu_fault gk104_fifo_mmu_fault;
 extern const struct nvkm_enum gk104_fifo_mmu_fault_reason[];
 extern const struct nvkm_enum gk104_fifo_mmu_fault_hubclient[];
 extern const struct nvkm_enum gk104_fifo_mmu_fault_gpcclient[];
-int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 void gk104_runl_insert_chan(struct nvkm_chan *, struct nvkm_memory *, u64);
 void gk104_runl_commit(struct nvkm_runl *, struct nvkm_memory *, u32, int);
 bool gk104_runl_pending(struct nvkm_runl *);
@@ -153,6 +152,7 @@ bool gk104_runq_idle(struct nvkm_runq *);
 extern const struct nvkm_engn_func gk104_engn;
 bool gk104_engn_chsw(struct nvkm_engn *);
 int gk104_engn_cxid(struct nvkm_engn *, bool *cgid);
+int gk104_ectx_ctor(struct nvkm_engn *, struct nvkm_vctx *);
 extern const struct nvkm_engn_func gk104_engn_ce;
 extern const struct nvkm_chan_func_userd gk104_chan_userd;
 extern const struct nvkm_chan_func_ramfc gk104_chan_ramfc;
@@ -189,7 +189,10 @@ void gv100_runl_insert_chan(struct nvkm_chan *, struct nvkm_memory *, u64);
 void gv100_runl_preempt(struct nvkm_runl *);
 extern const struct nvkm_runq_func gv100_runq;
 extern const struct nvkm_engn_func gv100_engn;
+void gv100_ectx_bind(struct nvkm_engn *, struct nvkm_cctx *, struct nvkm_chan *);
 extern const struct nvkm_engn_func gv100_engn_ce;
+int gv100_ectx_ce_ctor(struct nvkm_engn *, struct nvkm_vctx *);
+void gv100_ectx_ce_bind(struct nvkm_engn *, struct nvkm_cctx *, struct nvkm_chan *);
 extern const struct nvkm_chan_func_userd gv100_chan_userd;
 extern const struct nvkm_chan_func_ramfc gv100_chan_ramfc;
 

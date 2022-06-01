@@ -33,125 +33,6 @@
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
-static u32
-gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
-{
-	switch (engine->subdev.type) {
-	case NVKM_ENGINE_SW    :
-	case NVKM_ENGINE_CE    : return 0;
-	case NVKM_ENGINE_GR    : return 0x0210;
-	case NVKM_ENGINE_SEC   : return 0x0220;
-	case NVKM_ENGINE_MSPDEC: return 0x0250;
-	case NVKM_ENGINE_MSPPP : return 0x0260;
-	case NVKM_ENGINE_MSVLD : return 0x0270;
-	case NVKM_ENGINE_VIC   : return 0x0280;
-	case NVKM_ENGINE_MSENC : return 0x0290;
-	case NVKM_ENGINE_NVDEC : return 0x02100270;
-	case NVKM_ENGINE_NVENC :
-		if (engine->subdev.inst)
-			return 0x0210;
-		return 0x02100290;
-	default:
-		WARN_ON(1);
-		return 0;
-	}
-}
-
-struct gk104_fifo_engn *
-gk104_fifo_gpfifo_engine(struct gk104_fifo_chan *chan, struct nvkm_engine *engine)
-{
-	int engi = chan->base.fifo->func->engine_id(chan->base.fifo, engine);
-	if (engi >= 0)
-		return &chan->engn[engi];
-	return NULL;
-}
-
-static int
-gk104_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine, bool suspend)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct nvkm_gpuobj *inst = chan->base.inst;
-	u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
-
-	if (offset) {
-		nvkm_kmap(inst);
-		nvkm_wo32(inst, (offset & 0xffff) + 0x00, 0x00000000);
-		nvkm_wo32(inst, (offset & 0xffff) + 0x04, 0x00000000);
-		if ((offset >>= 16)) {
-			nvkm_wo32(inst, offset + 0x00, 0x00000000);
-			nvkm_wo32(inst, offset + 0x04, 0x00000000);
-		}
-		nvkm_done(inst);
-	}
-
-	return 0;
-}
-
-static int
-gk104_fifo_gpfifo_engine_init(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
-	struct nvkm_gpuobj *inst = chan->base.inst;
-	u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
-
-	if (offset) {
-		u32 datalo = lower_32_bits(engn->vma->addr) | 0x00000004;
-		u32 datahi = upper_32_bits(engn->vma->addr);
-		nvkm_kmap(inst);
-		nvkm_wo32(inst, (offset & 0xffff) + 0x00, datalo);
-		nvkm_wo32(inst, (offset & 0xffff) + 0x04, datahi);
-		if ((offset >>= 16)) {
-			nvkm_wo32(inst, offset + 0x00, datalo);
-			nvkm_wo32(inst, offset + 0x04, datahi);
-		}
-		nvkm_done(inst);
-	}
-
-	return 0;
-}
-
-void
-gk104_fifo_gpfifo_engine_dtor(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
-	nvkm_vmm_put(chan->base.vmm, &engn->vma);
-	nvkm_gpuobj_del(&engn->inst);
-}
-
-int
-gk104_fifo_gpfifo_engine_ctor(struct nvkm_fifo_chan *base,
-			      struct nvkm_engine *engine,
-			      struct nvkm_object *object)
-{
-	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
-	struct gk104_fifo_engn *engn = gk104_fifo_gpfifo_engine(chan, engine);
-	int ret;
-
-	if (!gk104_fifo_gpfifo_engine_addr(engine)) {
-		if (engine->subdev.type != NVKM_ENGINE_CE ||
-		    engine->subdev.device->card_type < GV100)
-			return 0;
-	}
-
-	ret = nvkm_object_bind(object, NULL, 0, &engn->inst);
-	if (ret)
-		return ret;
-
-	if (!gk104_fifo_gpfifo_engine_addr(engine))
-		return 0;
-
-	ret = nvkm_vmm_get(chan->base.vmm, 12, engn->inst->size, &engn->vma);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_map(engn->inst, 0, chan->base.vmm, engn->vma, NULL, 0);
-}
-
 void *
 gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 {
@@ -162,10 +43,6 @@ gk104_fifo_gpfifo_dtor(struct nvkm_fifo_chan *base)
 const struct nvkm_fifo_chan_func
 gk104_fifo_gpfifo_func = {
 	.dtor = gk104_fifo_gpfifo_dtor,
-	.engine_ctor = gk104_fifo_gpfifo_engine_ctor,
-	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
-	.engine_init = gk104_fifo_gpfifo_engine_init,
-	.engine_fini = gk104_fifo_gpfifo_engine_fini,
 };
 
 static int

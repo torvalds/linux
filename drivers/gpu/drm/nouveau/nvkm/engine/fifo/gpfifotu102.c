@@ -31,10 +31,6 @@
 static const struct nvkm_fifo_chan_func
 tu102_fifo_gpfifo = {
 	.dtor = gk104_fifo_gpfifo_dtor,
-	.engine_ctor = gk104_fifo_gpfifo_engine_ctor,
-	.engine_dtor = gk104_fifo_gpfifo_engine_dtor,
-	.engine_init = gv100_fifo_gpfifo_engine_init,
-	.engine_fini = gv100_fifo_gpfifo_engine_fini,
 };
 
 int

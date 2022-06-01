@@ -25,6 +25,7 @@
 #include "runl.h"
 #include "priv.h"
 
+#include <core/gpuobj.h>
 #include <subdev/mmu.h>
 
 static void
@@ -37,6 +38,7 @@ nvkm_cgrp_ectx_put(struct nvkm_cgrp *cgrp, struct nvkm_ectx **pectx)
 
 		if (refcount_dec_and_test(&ectx->refs)) {
 			CGRP_TRACE(cgrp, "dtor ectx %d[%s]", engn->id, engn->engine->subdev.name);
+			nvkm_object_del(&ectx->object);
 			list_del(&ectx->head);
 			kfree(ectx);
 		}
@@ -49,6 +51,11 @@ static int
 nvkm_cgrp_ectx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_ectx **pectx,
 		   struct nvkm_chan *chan, struct nvkm_client *client)
 {
+	struct nvkm_engine *engine = engn->engine;
+	struct nvkm_oclass cclass = {
+		.client = client,
+		.engine = engine,
+	};
 	struct nvkm_ectx *ectx;
 	int ret = 0;
 
@@ -67,7 +74,18 @@ nvkm_cgrp_ectx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_e
 
 	ectx->engn = engn;
 	refcount_set(&ectx->refs, 1);
+	refcount_set(&ectx->uses, 0);
 	list_add_tail(&ectx->head, &cgrp->ectxs);
+
+	/* Allocate the HW structures. */
+	if (engine->func->fifo.cclass)
+		ret = engine->func->fifo.cclass(chan, &cclass, &ectx->object);
+	else if (engine->func->cclass)
+		ret = nvkm_object_new_(engine->func->cclass, &cclass, NULL, 0, &ectx->object);
+
+	if (ret)
+		nvkm_cgrp_ectx_put(cgrp, pectx);
+
 	return ret;
 }
 
@@ -81,6 +99,8 @@ nvkm_cgrp_vctx_put(struct nvkm_cgrp *cgrp, struct nvkm_vctx **pvctx)
 
 		if (refcount_dec_and_test(&vctx->refs)) {
 			CGRP_TRACE(cgrp, "dtor vctx %d[%s]", engn->id, engn->engine->subdev.name);
+			nvkm_vmm_put(vctx->vmm, &vctx->vma);
+			nvkm_gpuobj_del(&vctx->inst);
 
 			nvkm_cgrp_ectx_put(cgrp, &vctx->ectx);
 			if (vctx->vmm) {
@@ -130,6 +150,21 @@ nvkm_cgrp_vctx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_c
 	vctx->vmm = nvkm_vmm_ref(chan->vmm);
 	refcount_set(&vctx->refs, 1);
 	list_add_tail(&vctx->head, &cgrp->vctxs);
+
+	/* MMU on some GPUs needs to know engine usage for TLB invalidation. */
+	if (vctx->vmm)
+		atomic_inc(&vctx->vmm->engref[engn->engine->subdev.type]);
+
+	/* Allocate the HW structures. */
+	if (engn->func->bind) {
+		ret = nvkm_object_bind(vctx->ectx->object, NULL, 0, &vctx->inst);
+		if (ret == 0 && engn->func->ctor)
+			ret = engn->func->ctor(engn, vctx);
+	}
+
+	if (ret)
+		nvkm_cgrp_vctx_put(cgrp, pvctx);
+
 	return ret;
 }
 

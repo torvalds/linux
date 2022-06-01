@@ -89,16 +89,58 @@ gv100_chan = {
 	.doorbell_handle = gv100_chan_doorbell_handle,
 };
 
+void
+gv100_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	u64 addr = 0ULL;
+
+	if (cctx) {
+		addr  = cctx->vctx->vma->addr;
+		addr |= 4ULL;
+	}
+
+	nvkm_kmap(chan->inst);
+	nvkm_wo32(chan->inst, 0x210, lower_32_bits(addr));
+	nvkm_wo32(chan->inst, 0x214, upper_32_bits(addr));
+	nvkm_mo32(chan->inst, 0x0ac, 0x00010000, cctx ? 0x00010000 : 0x00000000);
+	nvkm_done(chan->inst);
+}
+
 const struct nvkm_engn_func
 gv100_engn = {
 	.chsw = gk104_engn_chsw,
 	.cxid = gk104_engn_cxid,
+	.ctor = gk104_ectx_ctor,
+	.bind = gv100_ectx_bind,
 };
+
+void
+gv100_ectx_ce_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	const u64 bar2 = cctx ? nvkm_memory_bar2(cctx->vctx->inst->memory) : 0ULL;
+
+	nvkm_kmap(chan->inst);
+	nvkm_wo32(chan->inst, 0x220, lower_32_bits(bar2));
+	nvkm_wo32(chan->inst, 0x224, upper_32_bits(bar2));
+	nvkm_mo32(chan->inst, 0x0ac, 0x00020000, cctx ? 0x00020000 : 0x00000000);
+	nvkm_done(chan->inst);
+}
+
+int
+gv100_ectx_ce_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx)
+{
+	if (nvkm_memory_bar2(vctx->inst->memory) == ~0ULL)
+		return -EFAULT;
+
+	return 0;
+}
 
 const struct nvkm_engn_func
 gv100_engn_ce = {
 	.chsw = gk104_engn_chsw,
 	.cxid = gk104_engn_cxid,
+	.ctor = gv100_ectx_ce_ctor,
+	.bind = gv100_ectx_ce_bind,
 };
 
 static bool
@@ -436,7 +478,6 @@ gv100_fifo = {
 	.intr = gk104_fifo_intr,
 	.intr_ctxsw_timeout = gv100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gv100_fifo_mmu_fault,
-	.engine_id = gk104_fifo_engine_id,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gv100_runl,
 	.runq = &gv100_runq,

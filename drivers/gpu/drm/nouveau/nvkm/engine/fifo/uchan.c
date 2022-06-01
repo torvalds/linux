@@ -25,6 +25,7 @@
 #include "chid.h"
 #include "runl.h"
 
+#include <core/gpuobj.h>
 #include <core/oproxy.h>
 
 #include <nvif/if0020.h>
@@ -74,10 +75,17 @@ nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, bool suspend)
 	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
 	struct nvkm_chan *chan = uobj->chan;
 	struct nvkm_cctx *cctx = uobj->cctx;
+	struct nvkm_ectx *ectx = cctx->vctx->ectx;
+
+	if (!ectx->object)
+		return 0;
 
 	/* Unbind engine context from channel, if no longer required. */
 	if (refcount_dec_and_mutex_lock(&cctx->uses, &chan->cgrp->mutex)) {
-		nvkm_chan_cctx_bind(chan, oproxy, NULL);
+		nvkm_chan_cctx_bind(chan, ectx->engn, NULL);
+
+		if (refcount_dec_and_test(&ectx->uses))
+			nvkm_object_fini(ectx->object, false);
 		mutex_unlock(&chan->cgrp->mutex);
 	}
 
@@ -90,14 +98,24 @@ nvkm_uchan_object_init_0(struct nvkm_oproxy *oproxy)
 	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
 	struct nvkm_chan *chan = uobj->chan;
 	struct nvkm_cctx *cctx = uobj->cctx;
+	struct nvkm_ectx *ectx = cctx->vctx->ectx;
 	int ret = 0;
+
+	if (!ectx->object)
+		return 0;
 
 	/* Bind engine context to channel, if it hasn't been already. */
 	if (!refcount_inc_not_zero(&cctx->uses)) {
 		mutex_lock(&chan->cgrp->mutex);
 		if (!refcount_inc_not_zero(&cctx->uses)) {
+			if (!refcount_inc_not_zero(&ectx->uses)) {
+				ret = nvkm_object_init(ectx->object);
+				if (ret == 0)
+					refcount_set(&ectx->uses, 1);
+			}
+
 			if (ret == 0) {
-				nvkm_chan_cctx_bind(chan, oproxy, cctx);
+				nvkm_chan_cctx_bind(chan, ectx->engn, cctx);
 				refcount_set(&cctx->uses, 1);
 			}
 		}
@@ -111,6 +129,9 @@ static void
 nvkm_uchan_object_dtor(struct nvkm_oproxy *oproxy)
 {
 	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
+
+	if (!uobj->cctx)
+		return;
 
 	nvkm_chan_cctx_put(uobj->chan, &uobj->cctx);
 }

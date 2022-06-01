@@ -28,7 +28,6 @@
 #include "runl.h"
 #include "priv.h"
 
-#include <core/client.h>
 #include <core/oproxy.h>
 #include <core/ramht.h>
 #include <subdev/mmu.h>
@@ -46,94 +45,15 @@ struct nvkm_fifo_chan_object {
 	int hash;
 };
 
-static struct nvkm_fifo_engn *
-nvkm_fifo_chan_engn(struct nvkm_fifo_chan *chan, struct nvkm_engine *engine)
-{
-	int engi = chan->fifo->func->engine_id(chan->fifo, engine);
-	if (engi >= 0)
-		return &chan->engn[engi];
-	return NULL;
-}
-
-static int
-nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
-{
-	struct nvkm_fifo_chan_object *object =
-		container_of(base, typeof(*object), oproxy);
-	struct nvkm_engine *engine  = object->oproxy.object->engine;
-	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
-	const char *name = engine->subdev.name;
-	int ret = 0;
-
-	if (chan->func->engine_fini) {
-		ret = chan->func->engine_fini(chan, engine, suspend);
-		if (ret) {
-			nvif_error(&chan->object,
-				   "detach %s failed, %d\n", name, ret);
-			return ret;
-		}
-	}
-
-	if (engn->object) {
-		ret = nvkm_object_fini(engn->object, suspend);
-		if (ret && suspend)
-			return ret;
-	}
-
-	nvif_trace(&chan->object, "detached %s\n", name);
-	return ret;
-}
-
-static int
-nvkm_fifo_chan_child_init(struct nvkm_oproxy *base)
-{
-	struct nvkm_fifo_chan_object *object =
-		container_of(base, typeof(*object), oproxy);
-	struct nvkm_engine *engine  = object->oproxy.object->engine;
-	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
-	const char *name = engine->subdev.name;
-	int ret;
-
-	if (engn->object) {
-		ret = nvkm_object_init(engn->object);
-		if (ret)
-			return ret;
-	}
-
-	if (chan->func->engine_init) {
-		ret = chan->func->engine_init(chan, engine);
-		if (ret) {
-			nvif_error(&chan->object,
-				   "attach %s failed, %d\n", name, ret);
-			return ret;
-		}
-	}
-
-	nvif_trace(&chan->object, "attached %s\n", name);
-	return 0;
-}
-
 static void
 nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 {
 	struct nvkm_fifo_chan_object *object =
 		container_of(base, typeof(*object), oproxy);
-	struct nvkm_engine *engine  = object->oproxy.base.engine;
 	struct nvkm_fifo_chan *chan = object->chan;
-	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 
 	if (chan->func->object_dtor)
 		chan->func->object_dtor(chan, object->hash);
-
-	if (!--engn->refcount) {
-		if (chan->func->engine_dtor)
-			chan->func->engine_dtor(chan, engine);
-		nvkm_object_del(&engn->object);
-		if (chan->vmm)
-			atomic_dec(&chan->vmm->engref[engine->subdev.type]);
-	}
 }
 
 static const struct nvkm_oproxy_func
@@ -147,7 +67,8 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 {
 	struct nvkm_engine *engine = oclass->engine;
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(oclass->parent);
-	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
+	struct nvkm_ectx *engn = nvkm_list_find(engn, &chan->cgrp->ectxs, head,
+						engn->engn->engine == engine);
 	struct nvkm_fifo_chan_object *object;
 	int ret = 0;
 
@@ -157,33 +78,6 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	object->chan = chan;
 	*pobject = &object->oproxy.base;
 
-	if (!engn->refcount++) {
-		struct nvkm_oclass cclass = {
-			.client = oclass->client,
-			.engine = oclass->engine,
-		};
-
-		if (chan->vmm)
-			atomic_inc(&chan->vmm->engref[engine->subdev.type]);
-
-		if (engine->func->fifo.cclass) {
-			ret = engine->func->fifo.cclass(chan, &cclass,
-							&engn->object);
-		} else
-		if (engine->func->cclass) {
-			ret = nvkm_object_new_(engine->func->cclass, &cclass,
-					       NULL, 0, &engn->object);
-		}
-		if (ret)
-			return ret;
-
-		if (chan->func->engine_ctor) {
-			ret = chan->func->engine_ctor(chan, oclass->engine,
-						      engn->object);
-			if (ret)
-				return ret;
-		}
-	}
 
 	ret = oclass->base.ctor(&(const struct nvkm_oclass) {
 					.base = oclass->base,
@@ -210,10 +104,16 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 }
 
 void
-nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct nvkm_cctx *cctx)
+nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_engn *engn, struct nvkm_cctx *cctx)
 {
 	struct nvkm_cgrp *cgrp = chan->cgrp;
 	struct nvkm_runl *runl = cgrp->runl;
+	struct nvkm_engine *engine = engn->engine;
+
+	if (!engn->func->bind)
+		return;
+
+	CHAN_TRACE(chan, "%sbind cctx %d[%s]", cctx ? "" : "un", engn->id, engine->subdev.name);
 
 	/* Prevent any channel in channel group from being rescheduled, kick them
 	 * off host and any engine(s) they're loaded on.
@@ -225,10 +125,7 @@ nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct n
 	nvkm_chan_preempt(chan, true);
 
 	/* Update context pointer. */
-	if (cctx)
-		nvkm_fifo_chan_child_init(nvkm_oproxy(oproxy->object));
-	else
-		nvkm_fifo_chan_child_fini(nvkm_oproxy(oproxy->object), false);
+	engn->func->bind(engn, cctx, chan);
 
 	/* Resume normal operation. */
 	if (cgrp->hw)
@@ -558,10 +455,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 
 	*func = *fifo->func->chan.func;
 	func->dtor = fn->dtor;
-	func->engine_ctor = fn->engine_ctor;
-	func->engine_dtor = fn->engine_dtor;
-	func->engine_init = fn->engine_init;
-	func->engine_fini = fn->engine_fini;
 	func->object_ctor = fn->object_ctor;
 	func->object_dtor = fn->object_dtor;
 
@@ -572,7 +465,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	atomic_set(&chan->errored, 0);
 
 	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
-	chan->fifo = fifo;
 	INIT_LIST_HEAD(&chan->cctxs);
 	INIT_LIST_HEAD(&chan->head);
 

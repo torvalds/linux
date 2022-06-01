@@ -15,11 +15,6 @@ struct gk104_fifo {
 	struct nvkm_fifo base;
 
 	struct {
-		struct nvkm_engine *engine;
-	} engine[16];
-	int engine_nr;
-
-	struct {
 		u32 engm;
 		u32 engm_sw;
 	} runlist[16];

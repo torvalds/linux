@@ -8,11 +8,6 @@ struct nvkm_fault_data;
 
 #define NVKM_FIFO_ENGN_NR 16
 
-struct nvkm_fifo_engn {
-	struct nvkm_object *object;
-	int refcount;
-};
-
 struct nvkm_chan {
 	const struct nvkm_chan_func *func;
 	char name[64];
@@ -41,13 +36,10 @@ struct nvkm_chan {
 
 	struct list_head cctxs;
 
-	struct nvkm_fifo *fifo;
 	struct nvkm_object object;
 
 	struct list_head head;
 	struct nvkm_gpuobj *push;
-
-	struct nvkm_fifo_engn engn[NVKM_FIFO_ENGN_NR];
 };
 
 struct nvkm_chan *nvkm_chan_get_chid(struct nvkm_engine *, int id, unsigned long *irqflags);
@@ -78,7 +70,6 @@ struct nvkm_fifo {
 		struct nvkm_vma *bar1;
 	} userd;
 
-	int nr;
 	spinlock_t lock;
 	struct mutex mutex;
 };

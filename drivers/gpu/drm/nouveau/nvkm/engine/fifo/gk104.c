@@ -35,6 +35,7 @@
 #include <subdev/top.h>
 
 #include <nvif/class.h>
+#include <nvif/if900d.h>
 
 void
 gk104_chan_stop(struct nvkm_chan *chan)
@@ -130,6 +131,63 @@ gk104_chan = {
 	.preempt = gf100_chan_preempt,
 };
 
+static void
+gk104_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
+{
+	u32 ptr0, ptr1 = 0;
+	u64 addr = 0ULL;
+
+	switch (engn->engine->subdev.type) {
+	case NVKM_ENGINE_SW    : return;
+	case NVKM_ENGINE_GR    : ptr0 = 0x0210; break;
+	case NVKM_ENGINE_SEC   : ptr0 = 0x0220; break;
+	case NVKM_ENGINE_MSPDEC: ptr0 = 0x0250; break;
+	case NVKM_ENGINE_MSPPP : ptr0 = 0x0260; break;
+	case NVKM_ENGINE_MSVLD : ptr0 = 0x0270; break;
+	case NVKM_ENGINE_VIC   : ptr0 = 0x0280; break;
+	case NVKM_ENGINE_MSENC : ptr0 = 0x0290; break;
+	case NVKM_ENGINE_NVDEC :
+		ptr1 = 0x0270;
+		ptr0 = 0x0210;
+		break;
+	case NVKM_ENGINE_NVENC :
+		if (!engn->engine->subdev.inst)
+			ptr1 = 0x0290;
+		ptr0 = 0x0210;
+		break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (cctx) {
+		addr  = cctx->vctx->vma->addr;
+		addr |= 4ULL;
+	}
+
+	nvkm_kmap(chan->inst);
+	nvkm_wo32(chan->inst, ptr0 + 0, lower_32_bits(addr));
+	nvkm_wo32(chan->inst, ptr0 + 4, upper_32_bits(addr));
+	if (ptr1) {
+		nvkm_wo32(chan->inst, ptr1 + 0, lower_32_bits(addr));
+		nvkm_wo32(chan->inst, ptr1 + 4, upper_32_bits(addr));
+	}
+	nvkm_done(chan->inst);
+}
+
+int
+gk104_ectx_ctor(struct nvkm_engn *engn, struct nvkm_vctx *vctx)
+{
+	struct gf100_vmm_map_v0 args = { .priv = 1 };
+	int ret;
+
+	ret = nvkm_vmm_get(vctx->vmm, 12, vctx->inst->size, &vctx->vma);
+	if (ret)
+		return ret;
+
+	return nvkm_memory_map(vctx->inst, 0, vctx->vmm, vctx->vma, &args, sizeof(args));
+}
+
 /*TODO: clean this up */
 struct gk104_engn_status {
 	bool busy;
@@ -216,6 +274,8 @@ gk104_engn = {
 	.cxid = gk104_engn_cxid,
 	.mmu_fault_trigger = gf100_engn_mmu_fault_trigger,
 	.mmu_fault_triggered = gf100_engn_mmu_fault_triggered,
+	.ctor = gk104_ectx_ctor,
+	.bind = gk104_ectx_bind,
 };
 
 const struct nvkm_engn_func
@@ -409,24 +469,6 @@ gk104_runl = {
 	.fault_clear = gk104_runl_fault_clear,
 	.preempt_pending = gf100_runl_preempt_pending,
 };
-
-int
-gk104_fifo_engine_id(struct nvkm_fifo *base, struct nvkm_engine *engine)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	int engn;
-
-	if (engine->subdev.type == NVKM_ENGINE_SW)
-		return GK104_FIFO_ENGN_SW;
-
-	for (engn = 0; engn < fifo->engine_nr && engine; engn++) {
-		if (fifo->engine[engn].engine == engine)
-			return engn;
-	}
-
-	WARN_ON(1);
-	return -1;
-}
 
 static const struct nvkm_enum
 gk104_fifo_mmu_fault_engine[] = {
@@ -778,8 +820,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 		if (engn < 0)
 			continue;
 
-		fifo->engine[engn].engine = nvkm_device_engine(device, tdev->type, tdev->inst);
-		fifo->engine_nr = max(fifo->engine_nr, engn + 1);
 		fifo->runlist[tdev->runlist].engm |= BIT(engn);
 		fifo->runlist[tdev->runlist].engm_sw |= BIT(engn);
 		if (tdev->type == NVKM_ENGINE_GR)
@@ -825,7 +865,6 @@ gk104_fifo = {
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.intr_ctxsw_timeout = gf100_fifo_intr_ctxsw_timeout,
 	.mmu_fault = &gk104_fifo_mmu_fault,
-	.engine_id = gk104_fifo_engine_id,
 	.nonstall = &gf100_fifo_nonstall,
 	.runl = &gk104_runl,
 	.runq = &gk104_runq,

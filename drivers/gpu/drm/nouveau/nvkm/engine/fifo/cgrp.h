@@ -10,12 +10,18 @@ struct nvkm_vctx {
 	struct nvkm_vmm *vmm;
 	refcount_t refs;
 
+	struct nvkm_gpuobj *inst;
+	struct nvkm_vma *vma;
+
 	struct list_head head;
 };
 
 struct nvkm_ectx {
 	struct nvkm_engn *engn;
 	refcount_t refs;
+	refcount_t uses;
+
+	struct nvkm_object *object;
 
 	struct list_head head;
 };
