@@ -339,6 +339,11 @@ tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
 
+const struct nvkm_fifo_func_mmu_fault
+tu102_fifo_mmu_fault = {
+	.recover = tu102_fifo_fault,
+};
+
 static void
 tu102_fifo_intr_ctxsw_timeout(struct gk104_fifo *fifo)
 {
@@ -433,31 +438,27 @@ tu102_fifo_intr(struct nvkm_fifo *base)
 }
 
 static const struct nvkm_fifo_func
-tu102_fifo_ = {
+tu102_fifo = {
 	.dtor = gk104_fifo_dtor,
 	.oneinit = gk104_fifo_oneinit,
+	.chid_nr = gm200_fifo_chid_nr,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,
 	.intr = tu102_fifo_intr,
-	.fault = tu102_fifo_fault,
-	.engine_id = gk104_fifo_engine_id,
-	.id_engine = gk104_fifo_id_engine,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
-	.recover_chan = tu102_fifo_recover_chan,
-};
-
-static const struct gk104_fifo_func
-tu102_fifo = {
-	.chid_nr = gm200_fifo_chid_nr,
-	.pbdma = &tu102_fifo_pbdma,
+	.mmu_fault = &tu102_fifo_mmu_fault,
 	.fault.access = gv100_fifo_fault_access,
 	.fault.engine = tu102_fifo_fault_engine,
 	.fault.reason = gv100_fifo_fault_reason,
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
+	.engine_id = gk104_fifo_engine_id,
+	.id_engine = gk104_fifo_id_engine,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.recover_chan = tu102_fifo_recover_chan,
 	.runlist = &tu102_fifo_runlist,
+	.pbdma = &tu102_fifo_pbdma,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0, TURING_CHANNEL_GPFIFO_A }, &tu102_chan, .ctor = tu102_fifo_gpfifo_new },
 };
@@ -474,5 +475,5 @@ tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	INIT_WORK(&fifo->recover.work, tu102_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&tu102_fifo_, device, type, inst, &fifo->base);
+	return nvkm_fifo_ctor(&tu102_fifo, device, type, inst, &fifo->base);
 }

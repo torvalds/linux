@@ -162,8 +162,8 @@ nvkm_uchan_new(struct nvkm_fifo *fifo, struct nvkm_cgrp *cgrp, const struct nvkm
 	nvkm_object_ctor(&nvkm_uchan, oclass, &uchan->object);
 	*pobject = &uchan->object;
 
-	if (!fifo->func->chan.func)
-		ret = gk104_fifo(fifo)->func->chan.ctor(gk104_fifo(fifo), oclass, argv, argc, &object);
+	if (fifo->func->chan.ctor)
+		ret = fifo->func->chan.ctor(gk104_fifo(fifo), oclass, argv, argc, &object);
 	else
 		ret = fifo->func->chan.oclass->ctor(fifo, oclass, argv, argc, &object);
 	if (!object)

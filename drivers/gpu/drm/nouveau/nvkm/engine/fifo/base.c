@@ -30,8 +30,6 @@
 #include <nvif/cl0080.h>
 #include <nvif/unpack.h>
 
-#include "gk104.h"
-
 void
 nvkm_fifo_recover_chan(struct nvkm_fifo *fifo, int chid)
 {
@@ -58,7 +56,7 @@ nvkm_fifo_start(struct nvkm_fifo *fifo, unsigned long *flags)
 void
 nvkm_fifo_fault(struct nvkm_fifo *fifo, struct nvkm_fault_data *info)
 {
-	return fifo->func->fault(fifo, info);
+	return fifo->func->mmu_fault->recover(fifo, info);
 }
 
 void
@@ -179,9 +177,6 @@ nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_dev
 	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
 	int c = 0;
 
-	if (fifo->func->engine_id == gk104_fifo_engine_id)
-		chan = &gk104_fifo(fifo)->func->chan;
-
 	/* *_CHANNEL_DMA, *_CHANNEL_GPFIFO_* */
 	if (chan->user.oclass) {
 		if (c++ == index) {
@@ -289,7 +284,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 
 	INIT_LIST_HEAD(&fifo->chan);
 
-	nr = func->chid_nr ? func->chid_nr(fifo) : gk104_fifo(fifo)->func->chid_nr(fifo);
+	nr = func->chid_nr(fifo);
 	if (WARN_ON(fifo->nr > NVKM_FIFO_CHID_NR))
 		fifo->nr = NVKM_FIFO_CHID_NR;
 	else

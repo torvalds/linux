@@ -24,17 +24,29 @@
 
 #include <nvif/class.h>
 
-static const struct gk104_fifo_func
+static const struct nvkm_fifo_func
 gk20a_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
-	.intr.fault = gf100_fifo_intr_fault,
-	.pbdma = &gk208_fifo_pbdma,
+	.info = gk104_fifo_info,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
+	.mmu_fault = &gk104_fifo_mmu_fault,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
+	.engine_id = gk104_fifo_engine_id,
+	.id_engine = gk104_fifo_id_engine,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk110_fifo_runlist,
+	.pbdma = &gk208_fifo_pbdma,
 	.cgrp = {{                               }, &gk110_cgrp },
 	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk110_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

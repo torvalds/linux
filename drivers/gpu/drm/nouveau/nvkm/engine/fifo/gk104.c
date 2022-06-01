@@ -397,7 +397,7 @@ gk104_fifo_recover_chid(struct gk104_fifo *fifo, int runl, int chid)
 	return NULL;
 }
 
-static void
+void
 gk104_fifo_recover_chan(struct nvkm_fifo *base, int chid)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -629,7 +629,7 @@ gk104_fifo_fault_gpcclient[] = {
 	{}
 };
 
-static void
+void
 gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -708,6 +708,11 @@ gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 
 	spin_unlock_irqrestore(&fifo->base.lock, flags);
 }
+
+const struct nvkm_fifo_func_mmu_fault
+gk104_fifo_mmu_fault = {
+	.recover = gk104_fifo_fault,
+};
 
 static const struct nvkm_enum
 gk104_fifo_bind_reason[] = {
@@ -869,7 +874,7 @@ gk104_fifo_intr_engine(struct gk104_fifo *fifo)
 	nvkm_fifo_uevent(&fifo->base);
 }
 
-static void
+void
 gk104_fifo_intr(struct nvkm_fifo *base)
 {
 	struct gk104_fifo *fifo = gk104_fifo(base);
@@ -924,7 +929,7 @@ gk104_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x00259c);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			fifo->func->intr.fault(&fifo->base, unit);
+			fifo->func->intr_mmu_fault_unit(&fifo->base, unit);
 			nvkm_wr32(device, 0x00259c, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -1168,22 +1173,6 @@ gk104_fifo_dtor(struct nvkm_fifo *base)
 	return fifo;
 }
 
-static const struct nvkm_fifo_func
-gk104_fifo_ = {
-	.dtor = gk104_fifo_dtor,
-	.oneinit = gk104_fifo_oneinit,
-	.info = gk104_fifo_info,
-	.init = gk104_fifo_init,
-	.fini = gk104_fifo_fini,
-	.intr = gk104_fifo_intr,
-	.fault = gk104_fifo_fault,
-	.engine_id = gk104_fifo_engine_id,
-	.id_engine = gk104_fifo_id_engine,
-	.uevent_init = gk104_fifo_uevent_init,
-	.uevent_fini = gk104_fifo_uevent_fini,
-	.recover_chan = gk104_fifo_recover_chan,
-};
-
 int
 gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
 		enum nvkm_subdev_type type, int inst, int nr, struct nvkm_fifo **pfifo)
@@ -1196,20 +1185,32 @@ gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
 	INIT_WORK(&fifo->recover.work, gk104_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&gk104_fifo_, device, type, inst, &fifo->base);
+	return nvkm_fifo_ctor(func, device, type, inst, &fifo->base);
 }
 
-static const struct gk104_fifo_func
+static const struct nvkm_fifo_func
 gk104_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk104_fifo_chid_nr,
-	.intr.fault = gf100_fifo_intr_fault,
-	.pbdma = &gk104_fifo_pbdma,
+	.info = gk104_fifo_info,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
+	.mmu_fault = &gk104_fifo_mmu_fault,
 	.fault.access = gk104_fifo_fault_access,
 	.fault.engine = gk104_fifo_fault_engine,
 	.fault.reason = gk104_fifo_fault_reason,
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
+	.engine_id = gk104_fifo_engine_id,
+	.id_engine = gk104_fifo_id_engine,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk104_fifo_runlist,
+	.pbdma = &gk104_fifo_pbdma,
 	.cgrp = {{                               }, &nv04_cgrp },
 	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk104_chan, .ctor = &gk104_fifo_gpfifo_new },
 };

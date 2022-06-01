@@ -8,6 +8,8 @@ struct nvkm_fifo_cgrp;
 #include <core/enum.h>
 #include <subdev/mmu.h>
 
+#define gk104_fifo_func nvkm_fifo_func
+
 struct gk104_fifo_chan;
 struct gk104_fifo {
 	const struct gk104_fifo_func *func;
@@ -43,41 +45,6 @@ struct gk104_fifo {
 		struct nvkm_memory *mem;
 		struct nvkm_vma *bar;
 	} user;
-};
-
-struct gk104_fifo_func {
-	int (*chid_nr)(struct nvkm_fifo *);
-
-	struct {
-		void (*fault)(struct nvkm_fifo *, int unit);
-	} intr;
-
-	const struct gk104_fifo_pbdma_func {
-		int (*nr)(struct gk104_fifo *);
-		void (*init)(struct gk104_fifo *);
-		void (*init_timeout)(struct gk104_fifo *);
-	} *pbdma;
-
-	struct {
-		const struct nvkm_enum *access;
-		const struct nvkm_enum *engine;
-		const struct nvkm_enum *reason;
-		const struct nvkm_enum *hubclient;
-		const struct nvkm_enum *gpcclient;
-	} fault;
-
-	const struct gk104_fifo_runlist_func {
-		u8 size;
-		void (*cgrp)(struct nvkm_fifo_cgrp *,
-			     struct nvkm_memory *, u32 offset);
-		void (*chan)(struct gk104_fifo_chan *,
-			     struct nvkm_memory *, u32 offset);
-		void (*commit)(struct gk104_fifo *, int runl,
-			       struct nvkm_memory *, int entries);
-	} *runlist;
-
-	struct nvkm_fifo_func_cgrp cgrp;
-	struct nvkm_fifo_func_chan chan;
 };
 
 struct gk104_fifo_engine_status {
@@ -135,14 +102,12 @@ void gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *,
 extern const struct gk104_fifo_pbdma_func gk208_fifo_pbdma;
 void gk208_fifo_pbdma_init_timeout(struct gk104_fifo *);
 
-void gm107_fifo_intr_fault(struct nvkm_fifo *, int);
 extern const struct nvkm_enum gm107_fifo_fault_engine[];
 extern const struct gk104_fifo_runlist_func gm107_fifo_runlist;
 
 extern const struct gk104_fifo_pbdma_func gm200_fifo_pbdma;
 int gm200_fifo_pbdma_nr(struct gk104_fifo *);
 
-void gp100_fifo_intr_fault(struct nvkm_fifo *, int);
 extern const struct nvkm_enum gp100_fifo_fault_engine[];
 
 extern const struct nvkm_enum gv100_fifo_fault_access[];

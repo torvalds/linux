@@ -359,6 +359,11 @@ gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 	nvkm_fifo_chan_put(&fifo->base, flags, &chan);
 }
 
+static const struct nvkm_fifo_func_mmu_fault
+gf100_fifo_mmu_fault = {
+	.recover = gf100_fifo_fault,
+};
+
 static const struct nvkm_enum
 gf100_fifo_sched_reason[] = {
 	{ 0x0a, "CTXSW_TIMEOUT" },
@@ -422,7 +427,7 @@ gf100_fifo_intr_sched(struct gf100_fifo *fifo)
 }
 
 void
-gf100_fifo_intr_fault(struct nvkm_fifo *fifo, int unit)
+gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *fifo, int unit)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	u32 inst = nvkm_rd32(device, 0x002800 + (unit * 0x10));
@@ -541,7 +546,7 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 		u32 mask = nvkm_rd32(device, 0x00259c);
 		while (mask) {
 			u32 unit = __ffs(mask);
-			gf100_fifo_intr_fault(&fifo->base, unit);
+			gf100_fifo_intr_mmu_fault_unit(&fifo->base, unit);
 			nvkm_wr32(device, 0x00259c, (1 << unit));
 			mask &= ~(1 << unit);
 		}
@@ -679,7 +684,7 @@ gf100_fifo = {
 	.init = gf100_fifo_init,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
-	.fault = gf100_fifo_fault,
+	.mmu_fault = &gf100_fifo_mmu_fault,
 	.engine_id = gf100_fifo_engine_id,
 	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,

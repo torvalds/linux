@@ -291,16 +291,33 @@ gv100_fifo_fault_access[] = {
 	{}
 };
 
-static const struct gk104_fifo_func
+static const struct nvkm_fifo_func_mmu_fault
+gv100_fifo_mmu_fault = {
+	.recover = gk104_fifo_fault,
+};
+
+static const struct nvkm_fifo_func
 gv100_fifo = {
+	.dtor = gk104_fifo_dtor,
+	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
-	.pbdma = &gm200_fifo_pbdma,
+	.info = gk104_fifo_info,
+	.init = gk104_fifo_init,
+	.fini = gk104_fifo_fini,
+	.intr = gk104_fifo_intr,
+	.mmu_fault = &gv100_fifo_mmu_fault,
 	.fault.access = gv100_fifo_fault_access,
 	.fault.engine = gv100_fifo_fault_engine,
 	.fault.reason = gv100_fifo_fault_reason,
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
+	.engine_id = gk104_fifo_engine_id,
+	.id_engine = gk104_fifo_id_engine,
+	.uevent_init = gk104_fifo_uevent_init,
+	.uevent_fini = gk104_fifo_uevent_fini,
+	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gv100_fifo_runlist,
+	.pbdma = &gm200_fifo_pbdma,
 	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
 	.chan = {{ 0, 0,  VOLTA_CHANNEL_GPFIFO_A }, &gv100_chan, .ctor = gv100_fifo_gpfifo_new },
 };
