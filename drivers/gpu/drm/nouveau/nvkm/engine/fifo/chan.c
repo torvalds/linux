@@ -65,9 +65,6 @@ nvkm_fifo_chan_child_fini(struct nvkm_oproxy *base, bool suspend)
 	const char *name = engine->subdev.name;
 	int ret = 0;
 
-	if (--engn->usecount)
-		return 0;
-
 	if (chan->func->engine_fini) {
 		ret = chan->func->engine_fini(chan, engine, suspend);
 		if (ret) {
@@ -97,9 +94,6 @@ nvkm_fifo_chan_child_init(struct nvkm_oproxy *base)
 	struct nvkm_fifo_engn *engn = nvkm_fifo_chan_engn(chan, engine);
 	const char *name = engine->subdev.name;
 	int ret;
-
-	if (engn->usecount++)
-		return 0;
 
 	if (engn->object) {
 		ret = nvkm_object_init(engn->object);
@@ -144,8 +138,6 @@ nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
 static const struct nvkm_oproxy_func
 nvkm_fifo_chan_child_func = {
 	.dtor[0] = nvkm_fifo_chan_child_del,
-	.init[0] = nvkm_fifo_chan_child_init,
-	.fini[0] = nvkm_fifo_chan_child_fini,
 };
 
 int
@@ -214,6 +206,80 @@ nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 	}
 
 	return 0;
+}
+
+void
+nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct nvkm_cctx *cctx)
+{
+	/* Update context pointer. */
+	if (cctx)
+		nvkm_fifo_chan_child_init(nvkm_oproxy(oproxy->object));
+	else
+		nvkm_fifo_chan_child_fini(nvkm_oproxy(oproxy->object), false);
+}
+
+void
+nvkm_chan_cctx_put(struct nvkm_chan *chan, struct nvkm_cctx **pcctx)
+{
+	struct nvkm_cctx *cctx = *pcctx;
+
+	if (cctx) {
+		struct nvkm_engn *engn = cctx->vctx->ectx->engn;
+
+		if (refcount_dec_and_mutex_lock(&cctx->refs, &chan->cgrp->mutex)) {
+			CHAN_TRACE(chan, "dtor cctx %d[%s]", engn->id, engn->engine->subdev.name);
+			nvkm_cgrp_vctx_put(chan->cgrp, &cctx->vctx);
+			list_del(&cctx->head);
+			kfree(cctx);
+			mutex_unlock(&chan->cgrp->mutex);
+		}
+
+		*pcctx = NULL;
+	}
+}
+
+int
+nvkm_chan_cctx_get(struct nvkm_chan *chan, struct nvkm_engn *engn, struct nvkm_cctx **pcctx,
+		   struct nvkm_client *client)
+{
+	struct nvkm_cgrp *cgrp = chan->cgrp;
+	struct nvkm_vctx *vctx;
+	struct nvkm_cctx *cctx;
+	int ret;
+
+	/* Look for an existing channel context for this engine+VEID. */
+	mutex_lock(&cgrp->mutex);
+	cctx = nvkm_list_find(cctx, &chan->cctxs, head,
+			      cctx->vctx->ectx->engn == engn && cctx->vctx->vmm == chan->vmm);
+	if (cctx) {
+		refcount_inc(&cctx->refs);
+		*pcctx = cctx;
+		mutex_unlock(&chan->cgrp->mutex);
+		return 0;
+	}
+
+	/* Nope - create a fresh one.  But, sub-context first. */
+	ret = nvkm_cgrp_vctx_get(cgrp, engn, chan, &vctx, client);
+	if (ret) {
+		CHAN_ERROR(chan, "vctx %d[%s]: %d", engn->id, engn->engine->subdev.name, ret);
+		goto done;
+	}
+
+	/* Now, create the channel context - to track engine binding. */
+	CHAN_TRACE(chan, "ctor cctx %d[%s]", engn->id, engn->engine->subdev.name);
+	if (!(cctx = *pcctx = kzalloc(sizeof(*cctx), GFP_KERNEL))) {
+		nvkm_cgrp_vctx_put(cgrp, &vctx);
+		ret = -ENOMEM;
+		goto done;
+	}
+
+	cctx->vctx = vctx;
+	refcount_set(&cctx->refs, 1);
+	refcount_set(&cctx->uses, 0);
+	list_add_tail(&cctx->head, &chan->cctxs);
+done:
+	mutex_unlock(&cgrp->mutex);
+	return ret;
 }
 
 static int
@@ -409,6 +475,7 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 
 	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->fifo = fifo;
+	INIT_LIST_HEAD(&chan->cctxs);
 	INIT_LIST_HEAD(&chan->head);
 
 	/* Join channel group.

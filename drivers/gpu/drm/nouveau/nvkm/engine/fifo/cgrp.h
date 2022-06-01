@@ -3,6 +3,22 @@
 #define __NVKM_CGRP_H__
 #include <core/os.h>
 struct nvkm_chan;
+struct nvkm_client;
+
+struct nvkm_vctx {
+	struct nvkm_ectx *ectx;
+	struct nvkm_vmm *vmm;
+	refcount_t refs;
+
+	struct list_head head;
+};
+
+struct nvkm_ectx {
+	struct nvkm_engn *engn;
+	refcount_t refs;
+
+	struct list_head head;
+};
 
 struct nvkm_cgrp {
 	const struct nvkm_cgrp_func {
@@ -19,6 +35,10 @@ struct nvkm_cgrp {
 
 	spinlock_t lock; /* protects irq handler channel (group) lookup */
 
+	struct list_head ectxs;
+	struct list_head vctxs;
+	struct mutex mutex;
+
 	struct list_head head;
 	struct list_head chan;
 };
@@ -27,6 +47,9 @@ int nvkm_cgrp_new(struct nvkm_runl *, const char *name, struct nvkm_vmm *, bool 
 		  struct nvkm_cgrp **);
 struct nvkm_cgrp *nvkm_cgrp_ref(struct nvkm_cgrp *);
 void nvkm_cgrp_unref(struct nvkm_cgrp **);
+int nvkm_cgrp_vctx_get(struct nvkm_cgrp *, struct nvkm_engn *, struct nvkm_chan *,
+		       struct nvkm_vctx **, struct nvkm_client *);
+void nvkm_cgrp_vctx_put(struct nvkm_cgrp *, struct nvkm_vctx **);
 
 #define CGRP_PRCLI(c,l,p,f,a...) RUNL_PRINT((c)->runl, l, p, "%04x:[%s]"f, (c)->id, (c)->name, ##a)
 #define CGRP_PRINT(c,l,p,f,a...) RUNL_PRINT((c)->runl, l, p, "%04x:"f, (c)->id, ##a)

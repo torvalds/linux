@@ -63,10 +63,61 @@ nvkm_uchan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct nvkm_
 struct nvkm_uobj {
 	struct nvkm_oproxy oproxy;
 	struct nvkm_chan *chan;
+	struct nvkm_cctx *cctx;
 };
+
+static int
+nvkm_uchan_object_fini_1(struct nvkm_oproxy *oproxy, bool suspend)
+{
+	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
+	struct nvkm_chan *chan = uobj->chan;
+	struct nvkm_cctx *cctx = uobj->cctx;
+
+	/* Unbind engine context from channel, if no longer required. */
+	if (refcount_dec_and_mutex_lock(&cctx->uses, &chan->cgrp->mutex)) {
+		nvkm_chan_cctx_bind(chan, oproxy, NULL);
+		mutex_unlock(&chan->cgrp->mutex);
+	}
+
+	return 0;
+}
+
+static int
+nvkm_uchan_object_init_0(struct nvkm_oproxy *oproxy)
+{
+	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
+	struct nvkm_chan *chan = uobj->chan;
+	struct nvkm_cctx *cctx = uobj->cctx;
+	int ret = 0;
+
+	/* Bind engine context to channel, if it hasn't been already. */
+	if (!refcount_inc_not_zero(&cctx->uses)) {
+		mutex_lock(&chan->cgrp->mutex);
+		if (!refcount_inc_not_zero(&cctx->uses)) {
+			if (ret == 0) {
+				nvkm_chan_cctx_bind(chan, oproxy, cctx);
+				refcount_set(&cctx->uses, 1);
+			}
+		}
+		mutex_unlock(&chan->cgrp->mutex);
+	}
+
+	return ret;
+}
+
+static void
+nvkm_uchan_object_dtor(struct nvkm_oproxy *oproxy)
+{
+	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
+
+	nvkm_chan_cctx_put(uobj->chan, &uobj->cctx);
+}
 
 static const struct nvkm_oproxy_func
 nvkm_uchan_object = {
+	.dtor[1] = nvkm_uchan_object_dtor,
+	.init[0] = nvkm_uchan_object_init_0,
+	.fini[1] = nvkm_uchan_object_fini_1,
 };
 
 static int
@@ -74,9 +125,18 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		      struct nvkm_object **pobject)
 {
 	struct nvkm_chan *chan = nvkm_uchan(oclass->parent)->chan;
+	struct nvkm_cgrp *cgrp = chan->cgrp;
+	struct nvkm_engn *engn;
 	struct nvkm_uobj *uobj;
 	struct nvkm_oclass _oclass;
+	int ret;
 
+	/* Lookup host engine state for target engine. */
+	engn = nvkm_runl_find_engn(engn, cgrp->runl, engn->engine == oclass->engine);
+	if (WARN_ON(!engn))
+		return -EINVAL;
+
+	/* Allocate SW object. */
 	if (!(uobj = kzalloc(sizeof(*uobj), GFP_KERNEL)))
 		return -ENOMEM;
 
@@ -84,6 +144,12 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	uobj->chan = chan;
 	*pobject = &uobj->oproxy.base;
 
+	/* Ref. channel context for target engine.*/
+	ret = nvkm_chan_cctx_get(chan, engn, &uobj->cctx, oclass->client);
+	if (ret)
+		return ret;
+
+	/* Allocate HW object. */
 	_oclass = *oclass;
 	_oclass.parent = &chan->object;
 	return nvkm_fifo_chan_child_new(&_oclass, argv, argc, &uobj->oproxy.object);

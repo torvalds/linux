@@ -28,6 +28,112 @@
 #include <subdev/mmu.h>
 
 static void
+nvkm_cgrp_ectx_put(struct nvkm_cgrp *cgrp, struct nvkm_ectx **pectx)
+{
+	struct nvkm_ectx *ectx = *pectx;
+
+	if (ectx) {
+		struct nvkm_engn *engn = ectx->engn;
+
+		if (refcount_dec_and_test(&ectx->refs)) {
+			CGRP_TRACE(cgrp, "dtor ectx %d[%s]", engn->id, engn->engine->subdev.name);
+			list_del(&ectx->head);
+			kfree(ectx);
+		}
+
+		*pectx = NULL;
+	}
+}
+
+static int
+nvkm_cgrp_ectx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_ectx **pectx,
+		   struct nvkm_chan *chan, struct nvkm_client *client)
+{
+	struct nvkm_ectx *ectx;
+	int ret = 0;
+
+	/* Look for an existing context for this engine in the channel group. */
+	ectx = nvkm_list_find(ectx, &cgrp->ectxs, head, ectx->engn == engn);
+	if (ectx) {
+		refcount_inc(&ectx->refs);
+		*pectx = ectx;
+		return 0;
+	}
+
+	/* Nope - create a fresh one. */
+	CGRP_TRACE(cgrp, "ctor ectx %d[%s]", engn->id, engn->engine->subdev.name);
+	if (!(ectx = *pectx = kzalloc(sizeof(*ectx), GFP_KERNEL)))
+		return -ENOMEM;
+
+	ectx->engn = engn;
+	refcount_set(&ectx->refs, 1);
+	list_add_tail(&ectx->head, &cgrp->ectxs);
+	return ret;
+}
+
+void
+nvkm_cgrp_vctx_put(struct nvkm_cgrp *cgrp, struct nvkm_vctx **pvctx)
+{
+	struct nvkm_vctx *vctx = *pvctx;
+
+	if (vctx) {
+		struct nvkm_engn *engn = vctx->ectx->engn;
+
+		if (refcount_dec_and_test(&vctx->refs)) {
+			CGRP_TRACE(cgrp, "dtor vctx %d[%s]", engn->id, engn->engine->subdev.name);
+
+			nvkm_cgrp_ectx_put(cgrp, &vctx->ectx);
+			if (vctx->vmm) {
+				atomic_dec(&vctx->vmm->engref[engn->engine->subdev.type]);
+				nvkm_vmm_unref(&vctx->vmm);
+			}
+			list_del(&vctx->head);
+			kfree(vctx);
+		}
+
+		*pvctx = NULL;
+	}
+}
+
+int
+nvkm_cgrp_vctx_get(struct nvkm_cgrp *cgrp, struct nvkm_engn *engn, struct nvkm_chan *chan,
+		   struct nvkm_vctx **pvctx, struct nvkm_client *client)
+{
+	struct nvkm_ectx *ectx;
+	struct nvkm_vctx *vctx;
+	int ret;
+
+	/* Look for an existing sub-context for this engine+VEID in the channel group. */
+	vctx = nvkm_list_find(vctx, &cgrp->vctxs, head,
+			      vctx->ectx->engn == engn && vctx->vmm == chan->vmm);
+	if (vctx) {
+		refcount_inc(&vctx->refs);
+		*pvctx = vctx;
+		return 0;
+	}
+
+	/* Nope - create a fresh one.  But, context first. */
+	ret = nvkm_cgrp_ectx_get(cgrp, engn, &ectx, chan, client);
+	if (ret) {
+		CGRP_ERROR(cgrp, "ectx %d[%s]: %d", engn->id, engn->engine->subdev.name, ret);
+		return ret;
+	}
+
+	/* Now, create the sub-context. */
+	CGRP_TRACE(cgrp, "ctor vctx %d[%s]", engn->id, engn->engine->subdev.name);
+	if (!(vctx = *pvctx = kzalloc(sizeof(*vctx), GFP_KERNEL))) {
+		nvkm_cgrp_ectx_put(cgrp, &ectx);
+		return -ENOMEM;
+	}
+
+	vctx->ectx = ectx;
+	vctx->vmm = nvkm_vmm_ref(chan->vmm);
+	refcount_set(&vctx->refs, 1);
+	list_add_tail(&vctx->head, &cgrp->vctxs);
+	return ret;
+}
+
+static void
 nvkm_cgrp_del(struct kref *kref)
 {
 	struct nvkm_cgrp *cgrp = container_of(kref, typeof(*cgrp), kref);
@@ -36,6 +142,7 @@ nvkm_cgrp_del(struct kref *kref)
 	if (runl->cgid)
 		nvkm_chid_put(runl->cgid, cgrp->id, &cgrp->lock);
 
+	mutex_destroy(&cgrp->mutex);
 	nvkm_vmm_unref(&cgrp->vmm);
 	kfree(cgrp);
 }
@@ -80,6 +187,9 @@ nvkm_cgrp_new(struct nvkm_runl *runl, const char *name, struct nvkm_vmm *vmm, bo
 	cgrp->chans = NULL;
 	cgrp->chan_nr = 0;
 	spin_lock_init(&cgrp->lock);
+	INIT_LIST_HEAD(&cgrp->ectxs);
+	INIT_LIST_HEAD(&cgrp->vctxs);
+	mutex_init(&cgrp->mutex);
 
 	if (runl->cgid) {
 		cgrp->id = nvkm_chid_get(runl->cgid, cgrp);

@@ -11,7 +11,6 @@ struct nvkm_fault_data;
 struct nvkm_fifo_engn {
 	struct nvkm_object *object;
 	int refcount;
-	int usecount;
 };
 
 struct nvkm_chan {
@@ -20,6 +19,8 @@ struct nvkm_chan {
 	struct nvkm_cgrp *cgrp;
 
 	union { int id; int chid; }; /*FIXME: remove later */
+
+	struct list_head cctxs;
 
 	struct nvkm_fifo *fifo;
 	struct nvkm_object object;
