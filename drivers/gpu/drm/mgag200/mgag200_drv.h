@@ -218,18 +218,6 @@ struct mga_device {
 
 	enum mga_type			type;
 
-	union {
-		struct {
-			long ref_clk;
-			long pclk_min;
-			long pclk_max;
-		} g200;
-		struct {
-			/* SE model number stored in reg 0x1e24 */
-			u32 unique_rev_id;
-		} g200se;
-	} model;
-
 	struct mgag200_pll pixpll;
 	struct mga_i2c_chan i2c;
 	struct drm_connector connector;
@@ -240,6 +228,53 @@ static inline struct mga_device *to_mga_device(struct drm_device *dev)
 {
 	return container_of(dev, struct mga_device, base);
 }
+
+struct mgag200_g200_device {
+	struct mga_device base;
+
+	/* PLL constants */
+	long ref_clk;
+	long pclk_min;
+	long pclk_max;
+};
+
+static inline struct mgag200_g200_device *to_mgag200_g200_device(struct drm_device *dev)
+{
+	return container_of(to_mga_device(dev), struct mgag200_g200_device, base);
+}
+
+struct mgag200_g200se_device {
+	struct mga_device base;
+
+	/* SE model number stored in reg 0x1e24 */
+	u32 unique_rev_id;
+};
+
+static inline struct mgag200_g200se_device *to_mgag200_g200se_device(struct drm_device *dev)
+{
+	return container_of(to_mga_device(dev), struct mgag200_g200se_device, base);
+}
+
+				/* mgag200_drv.c */
+int mgag200_regs_init(struct mga_device *mdev);
+
+				/* mgag200_<device type>.c */
+struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+					      enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						 enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						enum mga_type type, unsigned long flags);
+struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
+						 enum mga_type type, unsigned long flags);
 
 				/* mgag200_mode.c */
 int mgag200_modeset_init(struct mga_device *mdev);

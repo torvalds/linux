@@ -583,13 +583,13 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 					const struct drm_display_mode *mode,
 					const struct drm_framebuffer *fb)
 {
-	u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+	struct mgag200_g200se_device *g200se = to_mgag200_g200se_device(&mdev->base);
 	unsigned int hiprilvl;
 	u8 crtcext6;
 
-	if  (unique_rev_id >= 0x04) {
+	if  (g200se->unique_rev_id >= 0x04) {
 		hiprilvl = 0;
-	} else if (unique_rev_id >= 0x02) {
+	} else if (g200se->unique_rev_id >= 0x02) {
 		unsigned int bpp;
 		unsigned long mb;
 
@@ -614,7 +614,7 @@ static void mgag200_g200se_set_hiprilvl(struct mga_device *mdev,
 		else
 			hiprilvl = 5;
 
-	} else if (unique_rev_id >= 0x01) {
+	} else if (g200se->unique_rev_id >= 0x01) {
 		hiprilvl = 3;
 	} else {
 		hiprilvl = 4;
@@ -725,17 +725,19 @@ static enum drm_mode_status
 mgag200_simple_display_pipe_mode_valid(struct drm_simple_display_pipe *pipe,
 				       const struct drm_display_mode *mode)
 {
-	struct mga_device *mdev = to_mga_device(pipe->crtc.dev);
+	struct drm_device *dev = pipe->crtc.dev;
+	struct mga_device *mdev = to_mga_device(dev);
+	struct mgag200_g200se_device *g200se;
 
 	if (IS_G200_SE(mdev)) {
-		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+		g200se = to_mgag200_g200se_device(dev);
 
-		if (unique_rev_id == 0x01) {
+		if (g200se->unique_rev_id == 0x01) {
 			if (mode->hdisplay > 1600)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)
 				return MODE_VIRTUAL_Y;
-		} else if (unique_rev_id == 0x02) {
+		} else if (g200se->unique_rev_id == 0x02) {
 			if (mode->hdisplay > 1920)
 				return MODE_VIRTUAL_X;
 			if (mode->vdisplay > 1200)
@@ -1026,6 +1028,7 @@ static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *de
 	static const unsigned int max_bpp = 4; // DRM_FORMAT_XRGB8888
 	struct mga_device *mdev = to_mga_device(dev);
 	unsigned long fbsize, fbpages, max_fbpages;
+	struct mgag200_g200se_device *g200se;
 
 	max_fbpages = mdev->vram_fb_available >> PAGE_SHIFT;
 
@@ -1036,12 +1039,12 @@ static enum drm_mode_status mgag200_mode_config_mode_valid(struct drm_device *de
 		return MODE_MEM;
 
 	if (IS_G200_SE(mdev)) {
-		u32 unique_rev_id = mdev->model.g200se.unique_rev_id;
+		g200se = to_mgag200_g200se_device(dev);
 
-		if (unique_rev_id == 0x01) {
+		if (g200se->unique_rev_id == 0x01) {
 			if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (24400 * 1024))
 				return MODE_BAD;
-		} else if (unique_rev_id == 0x02) {
+		} else if (g200se->unique_rev_id == 0x02) {
 			if (mgag200_calculate_mode_bandwidth(mode, max_bpp * 8) > (30100 * 1024))
 				return MODE_BAD;
 		} else {
