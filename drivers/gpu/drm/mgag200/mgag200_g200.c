@@ -34,7 +34,7 @@ static int mgag200_g200_init_pci_options(struct pci_dev *pdev)
  */
 
 static const struct mgag200_device_info mgag200_g200_device_info =
-	MGAG200_DEVICE_INFO_INIT(2048, 2048, 0, false, false);
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 0, false, 1, 3, false);
 
 static void mgag200_g200_interpret_bios(struct mgag200_g200_device *g200,
 					const unsigned char *bios, size_t size)

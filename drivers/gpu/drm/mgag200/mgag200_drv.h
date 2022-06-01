@@ -203,6 +203,11 @@ struct mgag200_device_info {
 	/* HW has external source (e.g., BMC) to synchronize with */
 	bool has_vidrst:1;
 
+	struct {
+		unsigned data_bit:3;
+		unsigned clock_bit:3;
+	} i2c;
+
 	/*
 	 * HW does not handle 'startadd' register correctly. Always set
 	 * it's value to 0.
@@ -211,12 +216,17 @@ struct mgag200_device_info {
 };
 
 #define MGAG200_DEVICE_INFO_INIT(_max_hdisplay, _max_vdisplay, _max_mem_bandwidth, \
-				 _has_vidrst, _bug_no_startadd) \
+				 _has_vidrst, _i2c_data_bit, _i2c_clock_bit, \
+				 _bug_no_startadd) \
 	{ \
 		.max_hdisplay = (_max_hdisplay), \
 		.max_vdisplay = (_max_vdisplay), \
 		.max_mem_bandwidth = (_max_mem_bandwidth), \
 		.has_vidrst = (_has_vidrst), \
+		.i2c = { \
+			.data_bit = (_i2c_data_bit), \
+			.clock_bit = (_i2c_clock_bit), \
+		}, \
 		.bug_no_startadd = (_bug_no_startadd), \
 	}
 

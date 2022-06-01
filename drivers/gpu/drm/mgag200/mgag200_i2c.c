@@ -96,36 +96,15 @@ static void mgag200_i2c_release(void *res)
 int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
 {
 	struct drm_device *dev = &mdev->base;
+	const struct mgag200_device_info *info = mdev->info;
 	int ret;
-	int data, clock;
 
 	WREG_DAC(MGA1064_GEN_IO_CTL2, 1);
 	WREG_DAC(MGA1064_GEN_IO_DATA, 0xff);
 	WREG_DAC(MGA1064_GEN_IO_CTL, 0);
 
-	switch (mdev->type) {
-	case G200_SE_A:
-	case G200_SE_B:
-	case G200_EV:
-	case G200_WB:
-	case G200_EW3:
-		data = 1;
-		clock = 2;
-		break;
-	case G200_EH:
-	case G200_EH3:
-	case G200_ER:
-		data = 2;
-		clock = 1;
-		break;
-	default:
-		data = 2;
-		clock = 8;
-		break;
-	}
-
-	i2c->data = data;
-	i2c->clock = clock;
+	i2c->data = BIT(info->i2c.data_bit);
+	i2c->clock = BIT(info->i2c.clock_bit);
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.class = I2C_CLASS_DDC;
 	i2c->adapter.dev.parent = dev->dev;

@@ -11,7 +11,7 @@
  */
 
 static const struct mgag200_device_info mgag200_g200ev_device_info =
-	MGAG200_DEVICE_INFO_INIT(2048, 2048, 32700, false, false);
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 32700, false, 0, 1, false);
 
 struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type)
