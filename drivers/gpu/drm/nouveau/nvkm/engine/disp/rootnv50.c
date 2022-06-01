@@ -37,7 +37,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	union {
 		struct nv50_disp_mthd_v0 v0;
-		struct nv50_disp_mthd_v1 v1;
 	} *args = data;
 	struct nvkm_disp *disp = nvkm_udisp(object);
 	struct nvkm_outp *temp, *outp = NULL;
@@ -54,16 +53,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 			   args->v0.version, args->v0.method, args->v0.head);
 		mthd = args->v0.method;
 		hidx = args->v0.head;
-	} else
-	if (!(ret = nvif_unpack(ret, &data, &size, args->v1, 1, 1, true))) {
-		nvif_ioctl(object, "disp mthd vers %d mthd %02x "
-				   "type %04x mask %04x\n",
-			   args->v1.version, args->v1.method,
-			   args->v1.hasht, args->v1.hashm);
-		mthd = args->v1.method;
-		type = args->v1.hasht;
-		mask = args->v1.hashm;
-		hidx = ffs((mask >> 8) & 0x0f) - 1;
 	} else
 		return ret;
 
@@ -86,35 +75,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	case NV50_DISP_SCANOUTPOS: {
 		return nvkm_head_mthd_scanoutpos(object, head, data, size);
 	}
-	default:
-		break;
-	}
-
-	switch (mthd * !!outp) {
-	case NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI: {
-		union {
-			struct nv50_disp_sor_dp_mst_vcpi_v0 v0;
-		} *args = data;
-		int ret = -ENOSYS;
-		nvif_ioctl(object, "disp sor dp mst vcpi size %d\n", size);
-		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-			nvif_ioctl(object, "disp sor dp mst vcpi vers %d "
-					   "slot %02x/%02x pbn %04x/%04x\n",
-				   args->v0.version, args->v0.start_slot,
-				   args->v0.num_slots, args->v0.pbn,
-				   args->v0.aligned_pbn);
-			if (!outp->ior->func->dp->vcpi)
-				return -ENODEV;
-			outp->ior->func->dp->vcpi(outp->ior, hidx,
-						 args->v0.start_slot,
-						 args->v0.num_slots,
-						 args->v0.pbn,
-						 args->v0.aligned_pbn);
-			return 0;
-		} else
-			return ret;
-	}
-		break;
 	default:
 		break;
 	}

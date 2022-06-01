@@ -17,6 +17,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_HDA_ELD     0x04
 #define NVIF_OUTP_V0_DP_AUX_PWR  0x05
 #define NVIF_OUTP_V0_DP_RETRAIN  0x06
+#define NVIF_OUTP_V0_DP_MST_VCPI 0x07
 
 union nvif_outp_load_detect_args {
 	struct nvif_outp_load_detect_v0 {
@@ -105,5 +106,16 @@ union nvif_outp_dp_aux_pwr_args {
 union nvif_outp_dp_retrain_args {
 	struct nvif_outp_dp_retrain_vn {
 	} vn;
+};
+
+union nvif_outp_dp_mst_vcpi_args {
+	struct nvif_outp_dp_mst_vcpi_v0 {
+		__u8  version;
+		__u8  head;
+		__u8  start_slot;
+		__u8  num_slots;
+		__u16 pbn;
+		__u16 aligned_pbn;
+	} v0;
 };
 #endif

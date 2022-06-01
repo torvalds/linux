@@ -28,4 +28,6 @@ int nvif_outp_infoframe(struct nvif_outp *, u8 type, struct nvif_outp_infoframe_
 int nvif_outp_hda_eld(struct nvif_outp *, int head, void *data, u32 size);
 int nvif_outp_dp_aux_pwr(struct nvif_outp *, bool enable);
 int nvif_outp_dp_retrain(struct nvif_outp *);
+int nvif_outp_dp_mst_vcpi(struct nvif_outp *, int head,
+			  u8 start_slot, u8 num_slots, u16 pbn, u16 aligned_pbn);
 #endif

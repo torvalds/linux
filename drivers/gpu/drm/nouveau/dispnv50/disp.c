@@ -884,16 +884,6 @@ nv50_msto_prepare(struct drm_atomic_state *state,
 	struct nv50_mstc *mstc = msto->mstc;
 	struct nv50_mstm *mstm = mstc->mstm;
 	struct drm_dp_mst_atomic_payload *payload;
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_dp_mst_vcpi_v0 vcpi;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI,
-		.base.hasht  = mstm->outp->dcb->hasht,
-		.base.hashm  = (0xf0ff & mstm->outp->dcb->hashm) |
-			       (0x0100 << msto->head->base.index),
-	};
 
 	NV_ATOMIC(drm, "%s: msto prepare\n", msto->encoder.name);
 
@@ -902,22 +892,16 @@ nv50_msto_prepare(struct drm_atomic_state *state,
 	// TODO: Figure out if we want to do a better job of handling VCPI allocation failures here?
 	if (msto->disabled) {
 		drm_dp_remove_payload(mgr, mst_state, payload);
+
+		nvif_outp_dp_mst_vcpi(&mstm->outp->outp, msto->head->base.index, 0, 0, 0, 0);
 	} else {
 		if (msto->enabled)
 			drm_dp_add_payload_part1(mgr, mst_state, payload);
 
-		args.vcpi.start_slot = payload->vc_start_slot;
-		args.vcpi.num_slots = payload->time_slots;
-		args.vcpi.pbn = payload->pbn;
-		args.vcpi.aligned_pbn = payload->time_slots * mst_state->pbn_div;
+		nvif_outp_dp_mst_vcpi(&mstm->outp->outp, msto->head->base.index,
+				      payload->vc_start_slot, payload->time_slots,
+				      payload->pbn, payload->time_slots * mst_state->pbn_div);
 	}
-
-	NV_ATOMIC(drm, "%s: %s: %02x %02x %04x %04x\n",
-		  msto->encoder.name, msto->head->base.base.name,
-		  args.vcpi.start_slot, args.vcpi.num_slots,
-		  args.vcpi.pbn, args.vcpi.aligned_pbn);
-
-	nvif_mthd(&drm->display->disp.object, 0, &args, sizeof(args));
 }
 
 static int
