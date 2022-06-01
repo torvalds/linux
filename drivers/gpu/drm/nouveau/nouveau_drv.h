@@ -201,7 +201,7 @@ struct nouveau_drm {
 	struct nvbios vbios;
 	struct nouveau_display *display;
 	struct work_struct hpd_work;
-	struct mutex hpd_lock;
+	spinlock_t hpd_lock;
 	u32 hpd_pending;
 	struct work_struct fbcon_work;
 	int fbcon_new_state;

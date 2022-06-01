@@ -456,9 +456,9 @@ nouveau_display_hpd_resume(struct drm_device *dev)
 {
 	struct nouveau_drm *drm = nouveau_drm(dev);
 
-	mutex_lock(&drm->hpd_lock);
+	spin_lock_irq(&drm->hpd_lock);
 	drm->hpd_pending = ~0;
-	mutex_unlock(&drm->hpd_lock);
+	spin_unlock_irq(&drm->hpd_lock);
 
 	schedule_work(&drm->hpd_work);
 }
@@ -475,10 +475,10 @@ nouveau_display_hpd_work(struct work_struct *work)
 
 	pm_runtime_get_sync(dev->dev);
 
-	mutex_lock(&drm->hpd_lock);
+	spin_lock_irq(&drm->hpd_lock);
 	pending = drm->hpd_pending;
 	drm->hpd_pending = 0;
-	mutex_unlock(&drm->hpd_lock);
+	spin_unlock_irq(&drm->hpd_lock);
 
 	/* Nothing to do, exit early without updating the last busy counter */
 	if (!pending)
@@ -732,7 +732,7 @@ nouveau_display_create(struct drm_device *dev)
 	}
 
 	INIT_WORK(&drm->hpd_work, nouveau_display_hpd_work);
-	mutex_init(&drm->hpd_lock);
+	spin_lock_init(&drm->hpd_lock);
 #ifdef CONFIG_ACPI
 	drm->acpi_nb.notifier_call = nouveau_display_acpi_ntfy;
 	register_acpi_notifier(&drm->acpi_nb);
@@ -766,8 +766,7 @@ nouveau_display_destroy(struct drm_device *dev)
 
 	nvif_disp_dtor(&disp->disp);
 
-	nouveau_drm(dev)->display = NULL;
-	mutex_destroy(&drm->hpd_lock);
+	drm->display = NULL;
 	kfree(disp);
 }
 

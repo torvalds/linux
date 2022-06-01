@@ -1166,13 +1166,14 @@ nouveau_connector_hpd(struct drm_connector *connector)
 {
 	struct nouveau_drm *drm = nouveau_drm(connector->dev);
 	u32 mask = drm_connector_mask(connector);
+	unsigned long flags;
 
-	mutex_lock(&drm->hpd_lock);
+	spin_lock_irqsave(&drm->hpd_lock, flags);
 	if (!(drm->hpd_pending & mask)) {
 		drm->hpd_pending |= mask;
 		schedule_work(&drm->hpd_work);
 	}
-	mutex_unlock(&drm->hpd_lock);
+	spin_unlock_irqrestore(&drm->hpd_lock, flags);
 }
 
 static int
