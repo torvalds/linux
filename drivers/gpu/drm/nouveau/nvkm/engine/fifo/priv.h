@@ -37,15 +37,12 @@ struct nvkm_fifo_func {
 
 	const struct nvkm_fifo_func_mmu_fault {
 		void (*recover)(struct nvkm_fifo *, struct nvkm_fault_data *);
-	} *mmu_fault;
-
-	struct {
 		const struct nvkm_enum *access;
 		const struct nvkm_enum *engine;
 		const struct nvkm_enum *reason;
 		const struct nvkm_enum *hubclient;
 		const struct nvkm_enum *gpcclient;
-	} fault;
+	} *mmu_fault;
 
 	int (*engine_id)(struct nvkm_fifo *, struct nvkm_engine *);
 	void (*pause)(struct nvkm_fifo *, unsigned long *);
@@ -116,7 +113,10 @@ extern const struct nvkm_chan_func g84_chan;
 int gf100_fifo_chid_ctor(struct nvkm_fifo *, int);
 int gf100_fifo_runq_nr(struct nvkm_fifo *);
 bool gf100_fifo_intr_pbdma(struct nvkm_fifo *);
+void gf100_fifo_intr_mmu_fault(struct nvkm_fifo *);
 void gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *, int);
+void gf100_fifo_mmu_fault_recover(struct nvkm_fifo *, struct nvkm_fault_data *);
+extern const struct nvkm_enum gf100_fifo_mmu_fault_access[];
 extern const struct nvkm_event_func gf100_fifo_nonstall;
 void gf100_runq_init(struct nvkm_runq *);
 bool gf100_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
@@ -129,7 +129,9 @@ irqreturn_t gk104_fifo_intr(struct nvkm_inth *);
 void gk104_fifo_intr_chsw(struct nvkm_fifo *);
 void gk104_fifo_intr_bind(struct nvkm_fifo *);
 extern const struct nvkm_fifo_func_mmu_fault gk104_fifo_mmu_fault;
-void gk104_fifo_fault(struct nvkm_fifo *, struct nvkm_fault_data *);
+extern const struct nvkm_enum gk104_fifo_mmu_fault_reason[];
+extern const struct nvkm_enum gk104_fifo_mmu_fault_hubclient[];
+extern const struct nvkm_enum gk104_fifo_mmu_fault_gpcclient[];
 void gk104_fifo_recover_chan(struct nvkm_fifo *, int);
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 extern const struct nvkm_runq_func gk104_runq;
@@ -155,8 +157,10 @@ extern const struct nvkm_chan_func gm107_chan;
 int gm200_fifo_chid_nr(struct nvkm_fifo *);
 int gm200_fifo_runq_nr(struct nvkm_fifo *);
 
-void gp100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *, int);
-
+extern const struct nvkm_enum gv100_fifo_mmu_fault_access[];
+extern const struct nvkm_enum gv100_fifo_mmu_fault_reason[];
+extern const struct nvkm_enum gv100_fifo_mmu_fault_hubclient[];
+extern const struct nvkm_enum gv100_fifo_mmu_fault_gpcclient[];
 extern const struct nvkm_runq_func gv100_runq;
 extern const struct nvkm_engn_func gv100_engn;
 extern const struct nvkm_engn_func gv100_engn_ce;

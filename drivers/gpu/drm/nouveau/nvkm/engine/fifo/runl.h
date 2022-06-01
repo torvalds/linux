@@ -13,6 +13,8 @@ struct nvkm_engn {
 
 	struct nvkm_engine *engine;
 
+	int fault;
+
 	struct list_head head;
 };
 

@@ -87,7 +87,7 @@ gv100_runl = {
 };
 
 const struct nvkm_enum
-gv100_fifo_fault_gpcclient[] = {
+gv100_fifo_mmu_fault_gpcclient[] = {
 	{ 0x00, "T1_0" },
 	{ 0x01, "T1_1" },
 	{ 0x02, "T1_2" },
@@ -189,7 +189,7 @@ gv100_fifo_fault_gpcclient[] = {
 };
 
 const struct nvkm_enum
-gv100_fifo_fault_hubclient[] = {
+gv100_fifo_mmu_fault_hubclient[] = {
 	{ 0x00, "VIP" },
 	{ 0x01, "CE0" },
 	{ 0x02, "CE1" },
@@ -251,7 +251,7 @@ gv100_fifo_fault_hubclient[] = {
 };
 
 const struct nvkm_enum
-gv100_fifo_fault_reason[] = {
+gv100_fifo_mmu_fault_reason[] = {
 	{ 0x00, "PDE" },
 	{ 0x01, "PDE_SIZE" },
 	{ 0x02, "PTE" },
@@ -272,7 +272,7 @@ gv100_fifo_fault_reason[] = {
 };
 
 static const struct nvkm_enum
-gv100_fifo_fault_engine[] = {
+gv100_fifo_mmu_fault_engine[] = {
 	{ 0x01, "DISPLAY" },
 	{ 0x03, "PTP" },
 	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
@@ -299,7 +299,7 @@ gv100_fifo_fault_engine[] = {
 };
 
 const struct nvkm_enum
-gv100_fifo_fault_access[] = {
+gv100_fifo_mmu_fault_access[] = {
 	{ 0x0, "VIRT_READ" },
 	{ 0x1, "VIRT_WRITE" },
 	{ 0x2, "VIRT_ATOMIC" },
@@ -314,7 +314,12 @@ gv100_fifo_fault_access[] = {
 
 static const struct nvkm_fifo_func_mmu_fault
 gv100_fifo_mmu_fault = {
-	.recover = gk104_fifo_fault,
+	.recover = gf100_fifo_mmu_fault_recover,
+	.access = gv100_fifo_mmu_fault_access,
+	.engine = gv100_fifo_mmu_fault_engine,
+	.reason = gv100_fifo_mmu_fault_reason,
+	.hubclient = gv100_fifo_mmu_fault_hubclient,
+	.gpcclient = gv100_fifo_mmu_fault_gpcclient,
 };
 
 static const struct nvkm_fifo_func
@@ -330,11 +335,6 @@ gv100_fifo = {
 	.fini = gk104_fifo_fini,
 	.intr = gk104_fifo_intr,
 	.mmu_fault = &gv100_fifo_mmu_fault,
-	.fault.access = gv100_fifo_fault_access,
-	.fault.engine = gv100_fifo_fault_engine,
-	.fault.reason = gv100_fifo_fault_reason,
-	.fault.hubclient = gv100_fifo_fault_hubclient,
-	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gv100_fifo_runlist,

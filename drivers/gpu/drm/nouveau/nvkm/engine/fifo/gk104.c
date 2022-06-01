@@ -30,10 +30,8 @@
 #include "cgrp.h"
 #include "changk104.h"
 
-#include <core/client.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
-#include <subdev/fault.h>
 #include <subdev/mc.h>
 #include <subdev/timer.h>
 #include <subdev/top.h>
@@ -474,7 +472,7 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	if (!status.faulted && engine) {
 		mmui = nvkm_top_fault_id(device, engine->subdev.type, engine->subdev.inst);
 		if (mmui < 0) {
-			const struct nvkm_enum *en = fifo->func->fault.engine;
+			const struct nvkm_enum *en = fifo->func->mmu_fault->engine;
 			for (; en && en->name; en++) {
 				if (en->data2 == engine->subdev.type &&
 				    en->inst  == engine->subdev.inst) {
@@ -512,15 +510,8 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	schedule_work(&fifo->recover.work);
 }
 
-const struct nvkm_enum
-gk104_fifo_fault_access[] = {
-	{ 0x0, "READ" },
-	{ 0x1, "WRITE" },
-	{}
-};
-
-const struct nvkm_enum
-gk104_fifo_fault_engine[] = {
+static const struct nvkm_enum
+gk104_fifo_mmu_fault_engine[] = {
 	{ 0x00, "GR", NULL, NVKM_ENGINE_GR },
 	{ 0x01, "DISPLAY" },
 	{ 0x02, "CAPTURE" },
@@ -528,14 +519,14 @@ gk104_fifo_fault_engine[] = {
 	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
 	{ 0x05, "BAR2", NULL, NVKM_SUBDEV_INSTMEM },
 	{ 0x06, "SCHED" },
-	{ 0x07, "HOST0", NULL, NVKM_ENGINE_FIFO },
-	{ 0x08, "HOST1", NULL, NVKM_ENGINE_FIFO },
-	{ 0x09, "HOST2", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0a, "HOST3", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0b, "HOST4", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0c, "HOST5", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0d, "HOST6", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0e, "HOST7", NULL, NVKM_ENGINE_FIFO },
+	{ 0x07, "HOST0" },
+	{ 0x08, "HOST1" },
+	{ 0x09, "HOST2" },
+	{ 0x0a, "HOST3" },
+	{ 0x0b, "HOST4" },
+	{ 0x0c, "HOST5" },
+	{ 0x0d, "HOST6" },
+	{ 0x0e, "HOST7" },
 	{ 0x0f, "HOSTSR" },
 	{ 0x10, "MSVLD", NULL, NVKM_ENGINE_MSVLD },
 	{ 0x11, "MSPPP", NULL, NVKM_ENGINE_MSPPP },
@@ -551,7 +542,7 @@ gk104_fifo_fault_engine[] = {
 };
 
 const struct nvkm_enum
-gk104_fifo_fault_reason[] = {
+gk104_fifo_mmu_fault_reason[] = {
 	{ 0x00, "PDE" },
 	{ 0x01, "PDE_SIZE" },
 	{ 0x02, "PTE" },
@@ -572,7 +563,7 @@ gk104_fifo_fault_reason[] = {
 };
 
 const struct nvkm_enum
-gk104_fifo_fault_hubclient[] = {
+gk104_fifo_mmu_fault_hubclient[] = {
 	{ 0x00, "VIP" },
 	{ 0x01, "CE0" },
 	{ 0x02, "CE1" },
@@ -609,7 +600,7 @@ gk104_fifo_fault_hubclient[] = {
 };
 
 const struct nvkm_enum
-gk104_fifo_fault_gpcclient[] = {
+gk104_fifo_mmu_fault_gpcclient[] = {
 	{ 0x00, "L1_0" }, { 0x01, "T1_0" }, { 0x02, "PE_0" },
 	{ 0x03, "L1_1" }, { 0x04, "T1_1" }, { 0x05, "PE_1" },
 	{ 0x06, "L1_2" }, { 0x07, "T1_2" }, { 0x08, "PE_2" },
@@ -634,89 +625,14 @@ gk104_fifo_fault_gpcclient[] = {
 	{}
 };
 
-void
-gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	const struct nvkm_enum *er, *ee, *ec, *ea;
-	struct nvkm_engine *engine = NULL;
-	struct nvkm_fifo_chan *chan;
-	unsigned long flags;
-	const char *en = "";
-	char ct[8] = "HUB/";
-
-	er = nvkm_enum_find(fifo->func->fault.reason, info->reason);
-	ee = nvkm_enum_find(fifo->func->fault.engine, info->engine);
-	if (info->hub) {
-		ec = nvkm_enum_find(fifo->func->fault.hubclient, info->client);
-	} else {
-		ec = nvkm_enum_find(fifo->func->fault.gpcclient, info->client);
-		snprintf(ct, sizeof(ct), "GPC%d/", info->gpc);
-	}
-	ea = nvkm_enum_find(fifo->func->fault.access, info->access);
-
-	if (ee && ee->data2) {
-		switch (ee->data2) {
-		case NVKM_SUBDEV_BAR:
-			nvkm_bar_bar1_reset(device);
-			break;
-		case NVKM_SUBDEV_INSTMEM:
-			nvkm_bar_bar2_reset(device);
-			break;
-		case NVKM_ENGINE_IFB:
-			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
-			break;
-		default:
-			engine = nvkm_device_engine(device, ee->data2, 0);
-			break;
-		}
-	}
-
-	if (ee == NULL) {
-		struct nvkm_subdev *subdev = nvkm_top_fault(device, info->engine);
-		if (subdev) {
-			if (subdev->func == &nvkm_engine)
-				engine = container_of(subdev, typeof(*engine), subdev);
-			en = engine->subdev.name;
-		}
-	} else {
-		en = ee->name;
-	}
-
-	spin_lock_irqsave(&fifo->base.lock, flags);
-	chan = nvkm_fifo_chan_inst_locked(&fifo->base, info->inst);
-
-	nvkm_error(subdev,
-		   "fault %02x [%s] at %016llx engine %02x [%s] client %02x "
-		   "[%s%s] reason %02x [%s] on channel %d [%010llx %s]\n",
-		   info->access, ea ? ea->name : "", info->addr,
-		   info->engine, ee ? ee->name : en,
-		   info->client, ct, ec ? ec->name : "",
-		   info->reason, er ? er->name : "", chan ? chan->chid : -1,
-		   info->inst, chan ? chan->object.client->name : "unknown");
-
-	/* Kill the channel that caused the fault. */
-	if (chan)
-		gk104_fifo_recover_chan(&fifo->base, chan->chid);
-
-	/* Channel recovery will probably have already done this for the
-	 * correct engine(s), but just in case we can't find the channel
-	 * information...
-	 */
-	if (engine) {
-		int engn = fifo->base.func->engine_id(&fifo->base, engine);
-		if (engn >= 0 && engn != GK104_FIFO_ENGN_SW)
-			gk104_fifo_recover_engn(fifo, engn);
-	}
-
-	spin_unlock_irqrestore(&fifo->base.lock, flags);
-}
-
 const struct nvkm_fifo_func_mmu_fault
 gk104_fifo_mmu_fault = {
-	.recover = gk104_fifo_fault,
+	.recover = gf100_fifo_mmu_fault_recover,
+	.access = gf100_fifo_mmu_fault_access,
+	.engine = gk104_fifo_mmu_fault_engine,
+	.reason = gk104_fifo_mmu_fault_reason,
+	.hubclient = gk104_fifo_mmu_fault_hubclient,
+	.gpcclient = gk104_fifo_mmu_fault_gpcclient,
 };
 
 static const struct nvkm_enum
@@ -884,13 +800,7 @@ gk104_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x10000000) {
-		u32 mask = nvkm_rd32(device, 0x00259c);
-		while (mask) {
-			u32 unit = __ffs(mask);
-			fifo->func->intr_mmu_fault_unit(fifo, unit);
-			nvkm_wr32(device, 0x00259c, (1 << unit));
-			mask &= ~(1 << unit);
-		}
+		gf100_fifo_intr_mmu_fault(fifo);
 		stat &= ~0x10000000;
 	}
 
@@ -1105,11 +1015,6 @@ gk104_fifo = {
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.mmu_fault = &gk104_fifo_mmu_fault,
-	.fault.access = gk104_fifo_fault_access,
-	.fault.engine = gk104_fifo_fault_engine,
-	.fault.reason = gk104_fifo_fault_reason,
-	.fault.hubclient = gk104_fifo_fault_hubclient,
-	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gk104_fifo_runlist,

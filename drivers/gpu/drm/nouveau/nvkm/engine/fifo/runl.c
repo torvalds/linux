@@ -24,6 +24,8 @@
 #include "chid.h"
 #include "priv.h"
 
+#include <subdev/top.h>
+
 void
 nvkm_runl_del(struct nvkm_runl *runl)
 {
@@ -46,7 +48,8 @@ struct nvkm_engn *
 nvkm_runl_add(struct nvkm_runl *runl, int engi, const struct nvkm_engn_func *func,
 	      enum nvkm_subdev_type type, int inst)
 {
-	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+	struct nvkm_fifo *fifo = runl->fifo;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_engine *engine;
 	struct nvkm_engn *engn;
 
@@ -63,7 +66,25 @@ nvkm_runl_add(struct nvkm_runl *runl, int engi, const struct nvkm_engn_func *fun
 	engn->runl = runl;
 	engn->id = engi;
 	engn->engine = engine;
+	engn->fault = -1;
 	list_add_tail(&engn->head, &runl->engns);
+
+	/* Lookup MMU engine ID for fault handling. */
+	if (device->top)
+		engn->fault = nvkm_top_fault_id(device, engine->subdev.type, engine->subdev.inst);
+
+	if (engn->fault < 0 && fifo->func->mmu_fault) {
+		const struct nvkm_enum *map = fifo->func->mmu_fault->engine;
+
+		while (map->name) {
+			if (map->data2 == engine->subdev.type && map->inst == engine->subdev.inst) {
+				engn->fault = map->value;
+				break;
+			}
+			map++;
+		}
+	}
+
 	return engn;
 }
 

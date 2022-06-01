@@ -33,23 +33,23 @@ static const struct nvkm_runl_func
 gp100_runl = {
 };
 
-const struct nvkm_enum
-gp100_fifo_fault_engine[] = {
+static const struct nvkm_enum
+gp100_fifo_mmu_fault_engine[] = {
 	{ 0x01, "DISPLAY" },
 	{ 0x03, "IFB", NULL, NVKM_ENGINE_IFB },
 	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
 	{ 0x05, "BAR2", NULL, NVKM_SUBDEV_INSTMEM },
-	{ 0x06, "HOST0", NULL, NVKM_ENGINE_FIFO },
-	{ 0x07, "HOST1", NULL, NVKM_ENGINE_FIFO },
-	{ 0x08, "HOST2", NULL, NVKM_ENGINE_FIFO },
-	{ 0x09, "HOST3", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0a, "HOST4", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0b, "HOST5", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0c, "HOST6", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0d, "HOST7", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0e, "HOST8", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0f, "HOST9", NULL, NVKM_ENGINE_FIFO },
-	{ 0x10, "HOST10", NULL, NVKM_ENGINE_FIFO },
+	{ 0x06, "HOST0" },
+	{ 0x07, "HOST1" },
+	{ 0x08, "HOST2" },
+	{ 0x09, "HOST3" },
+	{ 0x0a, "HOST4" },
+	{ 0x0b, "HOST5" },
+	{ 0x0c, "HOST6" },
+	{ 0x0d, "HOST7" },
+	{ 0x0e, "HOST8" },
+	{ 0x0f, "HOST9" },
+	{ 0x10, "HOST10" },
 	{ 0x13, "PERF" },
 	{ 0x17, "PMU" },
 	{ 0x18, "PTP" },
@@ -59,10 +59,15 @@ gp100_fifo_fault_engine[] = {
 
 static const struct nvkm_fifo_func_mmu_fault
 gp100_fifo_mmu_fault = {
-	.recover = gk104_fifo_fault,
+	.recover = gf100_fifo_mmu_fault_recover,
+	.access = gf100_fifo_mmu_fault_access,
+	.engine = gp100_fifo_mmu_fault_engine,
+	.reason = gk104_fifo_mmu_fault_reason,
+	.hubclient = gk104_fifo_mmu_fault_hubclient,
+	.gpcclient = gk104_fifo_mmu_fault_gpcclient,
 };
 
-void
+static void
 gp100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *fifo, int unit)
 {
 	struct nvkm_device *device = fifo->engine.subdev.device;
@@ -100,11 +105,6 @@ gp100_fifo = {
 	.intr = gk104_fifo_intr,
 	.intr_mmu_fault_unit = gp100_fifo_intr_mmu_fault_unit,
 	.mmu_fault = &gp100_fifo_mmu_fault,
-	.fault.access = gk104_fifo_fault_access,
-	.fault.engine = gp100_fifo_fault_engine,
-	.fault.reason = gk104_fifo_fault_reason,
-	.fault.hubclient = gk104_fifo_fault_hubclient,
-	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = gk104_fifo_recover_chan,
 	.runlist = &gm107_fifo_runlist,

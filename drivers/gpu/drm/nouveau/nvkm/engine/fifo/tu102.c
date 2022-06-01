@@ -26,12 +26,8 @@
 #include "cgrp.h"
 #include "changk104.h"
 
-#include <core/client.h>
 #include <core/memory.h>
-#include <subdev/bar.h>
-#include <subdev/fault.h>
 #include <subdev/mc.h>
-#include <subdev/top.h>
 
 #include <nvif/class.h>
 
@@ -67,7 +63,7 @@ tu102_runl = {
 };
 
 static const struct nvkm_enum
-tu102_fifo_fault_engine[] = {
+tu102_fifo_mmu_fault_engine[] = {
 	{ 0x01, "DISPLAY" },
 	{ 0x03, "PTP" },
 	{ 0x06, "PWR_PMU" },
@@ -247,91 +243,14 @@ tu102_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	schedule_work(&fifo->recover.work);
 }
 
-static void
-tu102_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	const struct nvkm_enum *er, *ee, *ec, *ea;
-	struct nvkm_engine *engine = NULL;
-	struct nvkm_fifo_chan *chan;
-	unsigned long flags;
-	const char *en = "";
-	char ct[8] = "HUB/";
-	int engn;
-
-	er = nvkm_enum_find(fifo->func->fault.reason, info->reason);
-	ee = nvkm_enum_find(fifo->func->fault.engine, info->engine);
-	if (info->hub) {
-		ec = nvkm_enum_find(fifo->func->fault.hubclient, info->client);
-	} else {
-		ec = nvkm_enum_find(fifo->func->fault.gpcclient, info->client);
-		snprintf(ct, sizeof(ct), "GPC%d/", info->gpc);
-	}
-	ea = nvkm_enum_find(fifo->func->fault.access, info->access);
-
-	if (ee && ee->data2) {
-		switch (ee->data2) {
-		case NVKM_SUBDEV_BAR:
-			nvkm_bar_bar1_reset(device);
-			break;
-		case NVKM_SUBDEV_INSTMEM:
-			nvkm_bar_bar2_reset(device);
-			break;
-		case NVKM_ENGINE_IFB:
-			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
-			break;
-		default:
-			engine = nvkm_device_engine(device, ee->data2, 0);
-			break;
-		}
-	}
-
-	if (ee == NULL) {
-		struct nvkm_subdev *subdev = nvkm_top_fault(device, info->engine);
-		if (subdev) {
-			if (subdev->func == &nvkm_engine)
-				engine = container_of(subdev, typeof(*engine), subdev);
-			en = engine->subdev.name;
-		}
-	} else {
-		en = ee->name;
-	}
-
-	spin_lock_irqsave(&fifo->base.lock, flags);
-	chan = nvkm_fifo_chan_inst_locked(&fifo->base, info->inst);
-
-	nvkm_error(subdev,
-		   "fault %02x [%s] at %016llx engine %02x [%s] client %02x "
-		   "[%s%s] reason %02x [%s] on channel %d [%010llx %s]\n",
-		   info->access, ea ? ea->name : "", info->addr,
-		   info->engine, ee ? ee->name : en,
-		   info->client, ct, ec ? ec->name : "",
-		   info->reason, er ? er->name : "", chan ? chan->chid : -1,
-		   info->inst, chan ? chan->object.client->name : "unknown");
-
-	/* Kill the channel that caused the fault. */
-	if (chan)
-		tu102_fifo_recover_chan(&fifo->base, chan->chid);
-
-	/* Channel recovery will probably have already done this for the
-	 * correct engine(s), but just in case we can't find the channel
-	 * information...
-	 */
-	for (engn = 0; engn < fifo->engine_nr && engine; engn++) {
-		if (fifo->engine[engn].engine == engine) {
-			tu102_fifo_recover_engn(fifo, engn);
-			break;
-		}
-	}
-
-	spin_unlock_irqrestore(&fifo->base.lock, flags);
-}
-
 const struct nvkm_fifo_func_mmu_fault
 tu102_fifo_mmu_fault = {
-	.recover = tu102_fifo_fault,
+	.recover = gf100_fifo_mmu_fault_recover,
+	.access = gv100_fifo_mmu_fault_access,
+	.engine = tu102_fifo_mmu_fault_engine,
+	.reason = gv100_fifo_mmu_fault_reason,
+	.hubclient = gv100_fifo_mmu_fault_hubclient,
+	.gpcclient = gv100_fifo_mmu_fault_gpcclient,
 };
 
 static void
@@ -441,11 +360,6 @@ tu102_fifo = {
 	.fini = gk104_fifo_fini,
 	.intr = tu102_fifo_intr,
 	.mmu_fault = &tu102_fifo_mmu_fault,
-	.fault.access = gv100_fifo_fault_access,
-	.fault.engine = tu102_fifo_fault_engine,
-	.fault.reason = gv100_fifo_fault_reason,
-	.fault.hubclient = gv100_fifo_fault_hubclient,
-	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.engine_id = gk104_fifo_engine_id,
 	.recover_chan = tu102_fifo_recover_chan,
 	.runlist = &tu102_fifo_runlist,

@@ -295,7 +295,7 @@ gf100_fifo_recover(struct gf100_fifo *fifo, struct nvkm_engine *engine,
 }
 
 static const struct nvkm_enum
-gf100_fifo_fault_engine[] = {
+gf100_fifo_mmu_fault_engine[] = {
 	{ 0x00, "PGRAPH", NULL, NVKM_ENGINE_GR },
 	{ 0x03, "PEEPHOLE", NULL, NVKM_ENGINE_IFB },
 	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
@@ -312,7 +312,7 @@ gf100_fifo_fault_engine[] = {
 };
 
 static const struct nvkm_enum
-gf100_fifo_fault_reason[] = {
+gf100_fifo_mmu_fault_reason[] = {
 	{ 0x00, "PT_NOT_PRESENT" },
 	{ 0x01, "PT_TOO_SHORT" },
 	{ 0x02, "PAGE_NOT_PRESENT" },
@@ -326,7 +326,7 @@ gf100_fifo_fault_reason[] = {
 };
 
 static const struct nvkm_enum
-gf100_fifo_fault_hubclient[] = {
+gf100_fifo_mmu_fault_hubclient[] = {
 	{ 0x01, "PCOPY0" },
 	{ 0x02, "PCOPY1" },
 	{ 0x04, "DISPATCH" },
@@ -345,7 +345,7 @@ gf100_fifo_fault_hubclient[] = {
 };
 
 static const struct nvkm_enum
-gf100_fifo_fault_gpcclient[] = {
+gf100_fifo_mmu_fault_gpcclient[] = {
 	{ 0x01, "TEX" },
 	{ 0x0c, "ESETUP" },
 	{ 0x0e, "CTXCTL" },
@@ -353,29 +353,48 @@ gf100_fifo_fault_gpcclient[] = {
 	{}
 };
 
-static void
-gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
+const struct nvkm_enum
+gf100_fifo_mmu_fault_access[] = {
+	{ 0x00, "READ" },
+	{ 0x01, "WRITE" },
+	{}
+};
+
+void
+gf100_fifo_mmu_fault_recover(struct nvkm_fifo *fifo, struct nvkm_fault_data *info)
 {
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	const struct nvkm_enum *er, *eu, *ec;
+	const struct nvkm_enum *er, *ee, *ec, *ea;
 	struct nvkm_engine *engine = NULL;
 	struct nvkm_fifo_chan *chan;
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
 	unsigned long flags;
-	char gpcid[8] = "";
+	char ct[8] = "HUB/";
 
-	er = nvkm_enum_find(gf100_fifo_fault_reason, info->reason);
-	eu = nvkm_enum_find(gf100_fifo_fault_engine, info->engine);
-	if (info->hub) {
-		ec = nvkm_enum_find(gf100_fifo_fault_hubclient, info->client);
-	} else {
-		ec = nvkm_enum_find(gf100_fifo_fault_gpcclient, info->client);
-		snprintf(gpcid, sizeof(gpcid), "GPC%d/", info->gpc);
+	/* Lookup engine by MMU fault ID. */
+	nvkm_runl_foreach(runl, fifo) {
+		engn = nvkm_runl_find_engn(engn, runl, engn->fault == info->engine);
+		if (engn) {
+			engine = engn->engine;
+			break;
+		}
 	}
 
-	if (eu && eu->data2) {
-		switch (eu->data2) {
+	er = nvkm_enum_find(fifo->func->mmu_fault->reason, info->reason);
+	ee = nvkm_enum_find(fifo->func->mmu_fault->engine, info->engine);
+	if (info->hub) {
+		ec = nvkm_enum_find(fifo->func->mmu_fault->hubclient, info->client);
+	} else {
+		ec = nvkm_enum_find(fifo->func->mmu_fault->gpcclient, info->client);
+		snprintf(ct, sizeof(ct), "GPC%d/", info->gpc);
+	}
+	ea = nvkm_enum_find(fifo->func->mmu_fault->access, info->access);
+
+	/* Handle BAR faults. */
+	if (ee && ee->data2) {
+		switch (ee->data2) {
 		case NVKM_SUBDEV_BAR:
 			nvkm_bar_bar1_reset(device);
 			break;
@@ -386,30 +405,39 @@ gf100_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 			nvkm_mask(device, 0x001718, 0x00000000, 0x00000000);
 			break;
 		default:
-			engine = nvkm_device_engine(device, eu->data2, eu->inst);
 			break;
 		}
 	}
 
-	chan = nvkm_fifo_chan_inst(&fifo->base, info->inst, &flags);
+	chan = nvkm_fifo_chan_inst(fifo, info->inst, &flags);
 
 	nvkm_error(subdev,
-		   "%s fault at %010llx engine %02x [%s] client %02x [%s%s] "
-		   "reason %02x [%s] on channel %d [%010llx %s]\n",
-		   info->access ? "write" : "read", info->addr,
-		   info->engine, eu ? eu->name : "",
-		   info->client, gpcid, ec ? ec->name : "",
-		   info->reason, er ? er->name : "", chan ? chan->chid : -1,
-		   info->inst, chan ? chan->object.client->name : "unknown");
+		   "fault %02x [%s] at %016llx engine %02x [%s] client %02x "
+		   "[%s%s] reason %02x [%s] on channel %d [%010llx %s]\n",
+		   info->access, ea ? ea->name : "", info->addr,
+		   info->engine, ee ? ee->name : engine ? engine->subdev.name : "",
+		   info->client, ct, ec ? ec->name : "",
+		   info->reason, er ? er->name : "",
+		   chan ? chan->id : -1, info->inst, chan ? chan->name : "unknown");
 
+	/* Handle host/engine faults. */
+	if (fifo->func->recover_chan && chan)
+		fifo->func->recover_chan(fifo, chan->id);
+	else
 	if (engine && chan)
-		gf100_fifo_recover(fifo, engine, (void *)chan);
-	nvkm_fifo_chan_put(&fifo->base, flags, &chan);
+		gf100_fifo_recover(gf100_fifo(fifo), engine, (void *)chan);
+
+	nvkm_fifo_chan_put(fifo, flags, &chan);
 }
 
 static const struct nvkm_fifo_func_mmu_fault
 gf100_fifo_mmu_fault = {
-	.recover = gf100_fifo_fault,
+	.recover = gf100_fifo_mmu_fault_recover,
+	.access = gf100_fifo_mmu_fault_access,
+	.engine = gf100_fifo_mmu_fault_engine,
+	.reason = gf100_fifo_mmu_fault_reason,
+	.hubclient = gf100_fifo_mmu_fault_hubclient,
+	.gpcclient = gf100_fifo_mmu_fault_gpcclient,
 };
 
 static const struct nvkm_enum
@@ -496,6 +524,19 @@ gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *fifo, int unit)
 	info.reason = (type & 0x0000000f);
 
 	nvkm_fifo_fault(fifo, &info);
+}
+
+void
+gf100_fifo_intr_mmu_fault(struct nvkm_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	unsigned long mask = nvkm_rd32(device, 0x00259c);
+	int unit;
+
+	for_each_set_bit(unit, &mask, 32) {
+		fifo->func->intr_mmu_fault_unit(fifo, unit);
+		nvkm_wr32(device, 0x00259c, BIT(unit));
+	}
 }
 
 bool
@@ -609,13 +650,7 @@ gf100_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x10000000) {
-		u32 mask = nvkm_rd32(device, 0x00259c);
-		while (mask) {
-			u32 unit = __ffs(mask);
-			gf100_fifo_intr_mmu_fault_unit(fifo, unit);
-			nvkm_wr32(device, 0x00259c, (1 << unit));
-			mask &= ~(1 << unit);
-		}
+		gf100_fifo_intr_mmu_fault(fifo);
 		stat &= ~0x10000000;
 	}
 
@@ -783,6 +818,7 @@ gf100_fifo = {
 	.init_pbdmas = gf100_fifo_init_pbdmas,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
+	.intr_mmu_fault_unit = gf100_fifo_intr_mmu_fault_unit,
 	.mmu_fault = &gf100_fifo_mmu_fault,
 	.engine_id = gf100_fifo_engine_id,
 	.nonstall = &gf100_fifo_nonstall,
