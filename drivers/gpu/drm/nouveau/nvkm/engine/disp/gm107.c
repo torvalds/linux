@@ -22,16 +22,72 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
-#include "channv50.h"
 
 #include <nvif/class.h>
 
+void
+gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	u32 mask = 0x1f1f1f1f, data;
+
+	switch (pattern) {
+	case 0: data = 0x10101010; break;
+	case 1: data = 0x01010101; break;
+	case 2: data = 0x02020202; break;
+	case 3: data = 0x03030303; break;
+	case 4: data = 0x1b1b1b1b; break;
+	default:
+		WARN_ON(1);
+		return;
+	}
+
+	if (sor->asy.link & 1)
+		nvkm_mask(device, 0x61c110 + soff, mask, data);
+	else
+		nvkm_mask(device, 0x61c12c + soff, mask, data);
+}
+
+static const struct nvkm_ior_func
+gm107_sor = {
+	.state = gf119_sor_state,
+	.power = nv50_sor_power,
+	.clock = gf119_sor_clock,
+	.hdmi = {
+		.ctrl = gk104_sor_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = gf119_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gf119_sor_dp_drive,
+		.vcpi = gf119_sor_dp_vcpi,
+		.audio = gf119_sor_dp_audio,
+		.audio_sym = gf119_sor_dp_audio_sym,
+		.watermark = gf119_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gf119_sor_hda_hpd,
+		.eld = gf119_sor_hda_eld,
+		.device_entry = gf119_sor_hda_device_entry,
+	},
+};
+
+static int
+gm107_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&gm107_sor, disp, SOR, id);
+}
+
 static const struct nvkm_disp_func
 gm107_disp = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
+	.dtor = nv50_disp_dtor,
+	.oneinit = nv50_disp_oneinit,
 	.init = gf119_disp_init,
 	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,

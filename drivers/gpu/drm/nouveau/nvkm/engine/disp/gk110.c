@@ -22,16 +22,16 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
-#include "channv50.h"
 
 #include <nvif/class.h>
 
 static const struct nvkm_disp_func
 gk110_disp = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
+	.dtor = nv50_disp_dtor,
+	.oneinit = nv50_disp_oneinit,
 	.init = gf119_disp_init,
 	.fini = gf119_disp_fini,
 	.intr = gf119_disp_intr,

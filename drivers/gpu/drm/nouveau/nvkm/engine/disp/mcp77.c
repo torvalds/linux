@@ -20,16 +20,42 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
-#include "channv50.h"
 
 #include <nvif/class.h>
 
+static const struct nvkm_ior_func
+mcp77_sor = {
+	.state = g94_sor_state,
+	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
+	.hdmi = {
+		.ctrl = g84_sor_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 2, 1, 0, 3},
+		.links = g94_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = g94_sor_dp_pattern,
+		.drive = g94_sor_dp_drive,
+		.audio_sym = g94_sor_dp_audio_sym,
+		.activesym = g94_sor_dp_activesym,
+		.watermark = g94_sor_dp_watermark,
+	},
+};
+
+static int
+mcp77_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&mcp77_sor, disp, SOR, id);
+}
+
 static const struct nvkm_disp_func
 mcp77_disp = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
+	.dtor = nv50_disp_dtor,
+	.oneinit = nv50_disp_oneinit,
 	.init = nv50_disp_init,
 	.fini = nv50_disp_fini,
 	.intr = nv50_disp_intr,

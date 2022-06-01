@@ -20,16 +20,140 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
-#include "channv50.h"
+
+#include <subdev/timer.h>
 
 #include <nvif/class.h>
 
+static int
+ga102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	const u32 loff = nv50_sor_link(sor);
+	u32 dpctrl = 0x00000000;
+	u32 clksor = 0x00000000;
+
+	switch (sor->dp.bw) {
+	case 0x06: clksor |= 0x00000000; break;
+	case 0x0a: clksor |= 0x00040000; break;
+	case 0x14: clksor |= 0x00080000; break;
+	case 0x1e: clksor |= 0x000c0000; break;
+	case 0x08: clksor |= 0x00100000; break;
+	case 0x09: clksor |= 0x00140000; break;
+	case 0x0c: clksor |= 0x00180000; break;
+	case 0x10: clksor |= 0x001c0000; break;
+	default:
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	dpctrl |= ((1 << sor->dp.nr) - 1) << 16;
+	if (sor->dp.mst)
+		dpctrl |= 0x40000000;
+	if (sor->dp.ef)
+		dpctrl |= 0x00004000;
+
+	nvkm_mask(device, 0x612300 + soff, 0x007c0000, clksor);
+
+	/*XXX*/
+	nvkm_msec(device, 40, NVKM_DELAY);
+	nvkm_mask(device, 0x612300 + soff, 0x00030000, 0x00010000);
+	nvkm_mask(device, 0x61c10c + loff, 0x00000003, 0x00000001);
+
+	nvkm_mask(device, 0x61c10c + loff, 0x401f4000, dpctrl);
+	return 0;
+}
+
+static void
+ga102_sor_clock(struct nvkm_ior *sor)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	u32 div2 = 0;
+
+	if (sor->asy.proto == TMDS) {
+		if (sor->tmds.high_speed)
+			div2 = 1;
+	}
+
+	nvkm_wr32(device, 0x00ec08 + (sor->id * 0x10), 0x00000000);
+	nvkm_wr32(device, 0x00ec04 + (sor->id * 0x10), div2);
+}
+
+static const struct nvkm_ior_func
+ga102_sor_hda = {
+	.route = {
+		.get = gm200_sor_route_get,
+		.set = gm200_sor_route_set,
+	},
+	.state = gv100_sor_state,
+	.power = nv50_sor_power,
+	.clock = ga102_sor_clock,
+	.hdmi = {
+		.ctrl = gv100_sor_hdmi_ctrl,
+		.scdc = gm200_sor_hdmi_scdc,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = ga102_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gm200_sor_dp_drive,
+		.vcpi = tu102_sor_dp_vcpi,
+		.audio = gv100_sor_dp_audio,
+		.audio_sym = gv100_sor_dp_audio_sym,
+		.watermark = gv100_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gf119_sor_hda_hpd,
+		.eld = gf119_sor_hda_eld,
+		.device_entry = gv100_sor_hda_device_entry,
+	},
+};
+
+static const struct nvkm_ior_func
+ga102_sor = {
+	.route = {
+		.get = gm200_sor_route_get,
+		.set = gm200_sor_route_set,
+	},
+	.state = gv100_sor_state,
+	.power = nv50_sor_power,
+	.clock = ga102_sor_clock,
+	.hdmi = {
+		.ctrl = gv100_sor_hdmi_ctrl,
+		.scdc = gm200_sor_hdmi_scdc,
+	},
+	.dp = {
+		.lanes = { 0, 1, 2, 3 },
+		.links = ga102_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = gm107_sor_dp_pattern,
+		.drive = gm200_sor_dp_drive,
+		.vcpi = tu102_sor_dp_vcpi,
+		.audio = gv100_sor_dp_audio,
+		.audio_sym = gv100_sor_dp_audio_sym,
+		.watermark = gv100_sor_dp_watermark,
+	},
+};
+
+static int
+ga102_sor_new(struct nvkm_disp *disp, int id)
+{
+	struct nvkm_device *device = disp->engine.subdev.device;
+	u32 hda = nvkm_rd32(device, 0x08a15c);
+	if (hda & BIT(id))
+		return nvkm_ior_new_(&ga102_sor_hda, disp, SOR, id);
+	return nvkm_ior_new_(&ga102_sor, disp, SOR, id);
+}
+
 static const struct nvkm_disp_func
 ga102_disp = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
+	.dtor = nv50_disp_dtor,
+	.oneinit = nv50_disp_oneinit,
 	.init = tu102_disp_init,
 	.fini = gv100_disp_fini,
 	.intr = gv100_disp_intr,

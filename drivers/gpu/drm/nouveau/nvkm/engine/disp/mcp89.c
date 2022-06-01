@@ -20,16 +20,47 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "priv.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
-#include "channv50.h"
 
 #include <nvif/class.h>
 
+static const struct nvkm_ior_func
+mcp89_sor = {
+	.state = g94_sor_state,
+	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
+	.hdmi = {
+		.ctrl = gt215_sor_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 3, 2, 1, 0 },
+		.links = g94_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = g94_sor_dp_pattern,
+		.drive = g94_sor_dp_drive,
+		.audio = gt215_sor_dp_audio,
+		.audio_sym = g94_sor_dp_audio_sym,
+		.activesym = g94_sor_dp_activesym,
+		.watermark = g94_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gt215_sor_hda_hpd,
+		.eld = gt215_sor_hda_eld,
+	},
+};
+
+static int
+mcp89_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&mcp89_sor, disp, SOR, id);
+}
+
 static const struct nvkm_disp_func
 mcp89_disp = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
+	.dtor = nv50_disp_dtor,
+	.oneinit = nv50_disp_oneinit,
 	.init = nv50_disp_init,
 	.fini = nv50_disp_fini,
 	.intr = nv50_disp_intr,

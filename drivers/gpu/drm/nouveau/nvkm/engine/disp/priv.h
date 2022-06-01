@@ -46,27 +46,21 @@ int  nvkm_disp_ntfy(struct nvkm_object *, u32, struct nvkm_event **);
 int nv04_disp_mthd(struct nvkm_object *, u32, void *, u32);
 int nv50_disp_root_mthd_(struct nvkm_object *, u32, void *, u32);
 
-void *nv50_disp_dtor_(struct nvkm_disp *);
-int nv50_disp_oneinit_(struct nvkm_disp *);
-int nv50_disp_init_(struct nvkm_disp *);
-void nv50_disp_fini_(struct nvkm_disp *);
-void nv50_disp_intr_(struct nvkm_disp *);
-
+int nv50_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_disp **);
+void *nv50_disp_dtor(struct nvkm_disp *);
+int nv50_disp_oneinit(struct nvkm_disp *);
+int nv50_disp_init(struct nvkm_disp *);
+void nv50_disp_fini(struct nvkm_disp *);
+void nv50_disp_intr(struct nvkm_disp *);
+extern const struct nvkm_enum nv50_disp_intr_error_type[];
+void nv50_disp_super(struct work_struct *);
 void nv50_disp_super_1(struct nvkm_disp *);
 void nv50_disp_super_1_0(struct nvkm_disp *, struct nvkm_head *);
 void nv50_disp_super_2_0(struct nvkm_disp *, struct nvkm_head *);
 void nv50_disp_super_2_1(struct nvkm_disp *, struct nvkm_head *);
 void nv50_disp_super_2_2(struct nvkm_disp *, struct nvkm_head *);
 void nv50_disp_super_3_0(struct nvkm_disp *, struct nvkm_head *);
-
-int nv50_disp_new_(const struct nvkm_disp_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   struct nvkm_disp **);
-
-int nv50_disp_init(struct nvkm_disp *);
-void nv50_disp_fini(struct nvkm_disp *);
-void nv50_disp_intr(struct nvkm_disp *);
-void nv50_disp_super(struct work_struct *);
-extern const struct nvkm_enum nv50_disp_intr_error_type[];
 
 int gf119_disp_init(struct nvkm_disp *);
 void gf119_disp_fini(struct nvkm_disp *);

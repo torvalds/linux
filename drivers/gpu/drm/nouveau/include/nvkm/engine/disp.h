@@ -44,7 +44,7 @@ struct nvkm_disp {
 	struct nvkm_gpuobj *inst;
 	struct nvkm_ramht *ramht;
 
-	struct nv50_disp_chan *chan[81];
+	struct nvkm_disp_chan *chan[81];
 
 	struct {
 		spinlock_t lock;

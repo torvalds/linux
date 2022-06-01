@@ -22,16 +22,159 @@
  * Authors: Ben Skeggs
  */
 #include "priv.h"
+#include "chan.h"
+#include "hdmi.h"
 #include "head.h"
 #include "ior.h"
-#include "channv50.h"
+
+#include <subdev/timer.h>
 
 #include <nvif/class.h>
 
+void
+gt215_sor_hda_eld(struct nvkm_ior *ior, int head, u8 *data, u8 size)
+{
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 soff = ior->id * 0x800;
+	int i;
+
+	for (i = 0; i < size; i++)
+		nvkm_wr32(device, 0x61c440 + soff, (i << 8) | data[i]);
+	for (; i < 0x60; i++)
+		nvkm_wr32(device, 0x61c440 + soff, (i << 8));
+	nvkm_mask(device, 0x61c448 + soff, 0x80000002, 0x80000002);
+}
+
+void
+gt215_sor_hda_hpd(struct nvkm_ior *ior, int head, bool present)
+{
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	u32 data = 0x80000000;
+	u32 mask = 0x80000001;
+	if (present)
+		data |= 0x00000001;
+	else
+		mask |= 0x00000002;
+	nvkm_mask(device, 0x61c448 + ior->id * 0x800, mask, data);
+}
+
+void
+gt215_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
+{
+	struct nvkm_device *device = sor->disp->engine.subdev.device;
+	const u32 soff = nv50_ior_base(sor);
+	const u32 data = 0x80000000 | (0x00000001 * enable);
+	const u32 mask = 0x8000000d;
+
+	nvkm_mask(device, 0x61c1e0 + soff, mask, data);
+	nvkm_msec(device, 2000,
+		if (!(nvkm_rd32(device, 0x61c1e0 + soff) & 0x80000000))
+			break;
+	);
+}
+
+void
+gt215_sor_hdmi_ctrl(struct nvkm_ior *ior, int head, bool enable, u8 max_ac_packet,
+		    u8 rekey, u8 *avi, u8 avi_size, u8 *vendor, u8 vendor_size)
+{
+	struct nvkm_device *device = ior->disp->engine.subdev.device;
+	const u32 ctrl = 0x40000000 * enable |
+			 0x1f000000 /* ??? */ |
+			 max_ac_packet << 16 |
+			 rekey;
+	const u32 soff = nv50_ior_base(ior);
+	struct packed_hdmi_infoframe avi_infoframe;
+	struct packed_hdmi_infoframe vendor_infoframe;
+
+	pack_hdmi_infoframe(&avi_infoframe, avi, avi_size);
+	pack_hdmi_infoframe(&vendor_infoframe, vendor, vendor_size);
+
+	if (!(ctrl & 0x40000000)) {
+		nvkm_mask(device, 0x61c5a4 + soff, 0x40000000, 0x00000000);
+		nvkm_mask(device, 0x61c53c + soff, 0x00000001, 0x00000000);
+		nvkm_mask(device, 0x61c520 + soff, 0x00000001, 0x00000000);
+		nvkm_mask(device, 0x61c500 + soff, 0x00000001, 0x00000000);
+		return;
+	}
+
+	/* AVI InfoFrame */
+	nvkm_mask(device, 0x61c520 + soff, 0x00000001, 0x00000000);
+	if (avi_size) {
+		nvkm_wr32(device, 0x61c528 + soff, avi_infoframe.header);
+		nvkm_wr32(device, 0x61c52c + soff, avi_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x61c530 + soff, avi_infoframe.subpack0_high);
+		nvkm_wr32(device, 0x61c534 + soff, avi_infoframe.subpack1_low);
+		nvkm_wr32(device, 0x61c538 + soff, avi_infoframe.subpack1_high);
+		nvkm_mask(device, 0x61c520 + soff, 0x00000001, 0x00000001);
+	}
+
+	/* Audio InfoFrame */
+	nvkm_mask(device, 0x61c500 + soff, 0x00000001, 0x00000000);
+	nvkm_wr32(device, 0x61c508 + soff, 0x000a0184);
+	nvkm_wr32(device, 0x61c50c + soff, 0x00000071);
+	nvkm_wr32(device, 0x61c510 + soff, 0x00000000);
+	nvkm_mask(device, 0x61c500 + soff, 0x00000001, 0x00000001);
+
+	/* Vendor InfoFrame */
+	nvkm_mask(device, 0x61c53c + soff, 0x00010001, 0x00010000);
+	if (vendor_size) {
+		nvkm_wr32(device, 0x61c544 + soff, vendor_infoframe.header);
+		nvkm_wr32(device, 0x61c548 + soff, vendor_infoframe.subpack0_low);
+		nvkm_wr32(device, 0x61c54c + soff, vendor_infoframe.subpack0_high);
+		/* Is there a second (or up to fourth?) set of subpack registers here? */
+		/* nvkm_wr32(device, 0x61c550 + soff, vendor_infoframe.subpack1_low); */
+		/* nvkm_wr32(device, 0x61c554 + soff, vendor_infoframe.subpack1_high); */
+		nvkm_mask(device, 0x61c53c + soff, 0x00010001, 0x00010001);
+	}
+
+	nvkm_mask(device, 0x61c5d0 + soff, 0x00070001, 0x00010001); /* SPARE, HW_CTS */
+	nvkm_mask(device, 0x61c568 + soff, 0x00010101, 0x00000000); /* ACR_CTRL, ?? */
+	nvkm_mask(device, 0x61c578 + soff, 0x80000000, 0x80000000); /* ACR_0441_ENABLE */
+
+	/* ??? */
+	nvkm_mask(device, 0x61733c, 0x00100000, 0x00100000); /* RESETF */
+	nvkm_mask(device, 0x61733c, 0x10000000, 0x10000000); /* LOOKUP_EN */
+	nvkm_mask(device, 0x61733c, 0x00100000, 0x00000000); /* !RESETF */
+
+	/* HDMI_CTRL */
+	nvkm_mask(device, 0x61c5a4 + soff, 0x5f1f007f, ctrl);
+}
+
+static const struct nvkm_ior_func
+gt215_sor = {
+	.state = g94_sor_state,
+	.power = nv50_sor_power,
+	.clock = nv50_sor_clock,
+	.hdmi = {
+		.ctrl = gt215_sor_hdmi_ctrl,
+	},
+	.dp = {
+		.lanes = { 2, 1, 0, 3 },
+		.links = g94_sor_dp_links,
+		.power = g94_sor_dp_power,
+		.pattern = g94_sor_dp_pattern,
+		.drive = g94_sor_dp_drive,
+		.audio = gt215_sor_dp_audio,
+		.audio_sym = g94_sor_dp_audio_sym,
+		.activesym = g94_sor_dp_activesym,
+		.watermark = g94_sor_dp_watermark,
+	},
+	.hda = {
+		.hpd = gt215_sor_hda_hpd,
+		.eld = gt215_sor_hda_eld,
+	},
+};
+
+static int
+gt215_sor_new(struct nvkm_disp *disp, int id)
+{
+	return nvkm_ior_new_(&gt215_sor, disp, SOR, id);
+}
+
 static const struct nvkm_disp_func
 gt215_disp = {
-	.dtor = nv50_disp_dtor_,
-	.oneinit = nv50_disp_oneinit_,
+	.dtor = nv50_disp_dtor,
+	.oneinit = nv50_disp_oneinit,
 	.init = nv50_disp_init,
 	.fini = nv50_disp_fini,
 	.intr = nv50_disp_intr,

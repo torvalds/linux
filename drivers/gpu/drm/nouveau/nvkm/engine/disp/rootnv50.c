@@ -21,7 +21,7 @@
  *
  * Authors: Ben Skeggs
  */
-#include "channv50.h"
+#include "chan.h"
 #include "head.h"
 #include "ior.h"
 #include "outp.h"
