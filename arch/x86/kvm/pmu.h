@@ -170,9 +170,11 @@ static inline void kvm_init_pmu_capability(void)
 	  * For Intel, only support guest architectural pmu
 	  * on a host with architectural pmu.
 	  */
-	if ((is_intel && !kvm_pmu_cap.version) || !kvm_pmu_cap.num_counters_gp) {
-		memset(&kvm_pmu_cap, 0, sizeof(kvm_pmu_cap));
+	if ((is_intel && !kvm_pmu_cap.version) || !kvm_pmu_cap.num_counters_gp)
 		enable_pmu = false;
+
+	if (!enable_pmu) {
+		memset(&kvm_pmu_cap, 0, sizeof(kvm_pmu_cap));
 		return;
 	}
 

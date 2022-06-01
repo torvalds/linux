@@ -7568,6 +7568,9 @@ static __init void vmx_set_cpu_caps(void)
 		kvm_cpu_cap_check_and_set(X86_FEATURE_DTES64);
 	}
 
+	if (!enable_pmu)
+		kvm_cpu_cap_clear(X86_FEATURE_PDCM);
+
 	if (!enable_sgx) {
 		kvm_cpu_cap_clear(X86_FEATURE_SGX);
 		kvm_cpu_cap_clear(X86_FEATURE_SGX_LC);
@@ -8233,7 +8236,7 @@ static __init int hardware_setup(void)
 
 	if (pt_mode != PT_MODE_SYSTEM && pt_mode != PT_MODE_HOST_GUEST)
 		return -EINVAL;
-	if (!enable_ept || !cpu_has_vmx_intel_pt())
+	if (!enable_ept || !enable_pmu || !cpu_has_vmx_intel_pt())
 		pt_mode = PT_MODE_SYSTEM;
 	if (pt_mode == PT_MODE_HOST_GUEST)
 		vmx_init_ops.handle_intel_pt_intr = vmx_handle_intel_pt_intr;
