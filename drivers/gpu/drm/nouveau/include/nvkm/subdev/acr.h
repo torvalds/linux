@@ -50,6 +50,7 @@ struct nvkm_acr {
 	struct nvkm_vmm *vmm;
 
 	bool done;
+	struct nvkm_acr_lsf *rtos;
 
 	const struct firmware *wpr_fw;
 	bool wpr_comp;

@@ -87,13 +87,6 @@ nvkm_pmu_fini(struct nvkm_subdev *subdev, bool suspend)
 	if (pmu->func->fini)
 		pmu->func->fini(pmu);
 
-	flush_work(&pmu->recv.work);
-
-	reinit_completion(&pmu->wpr_ready);
-
-	nvkm_falcon_cmdq_fini(pmu->lpq);
-	nvkm_falcon_cmdq_fini(pmu->hpq);
-	pmu->initmsg_received = false;
 	return 0;
 }
 

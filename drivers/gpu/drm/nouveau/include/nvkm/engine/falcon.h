@@ -16,7 +16,7 @@ enum nvkm_falcon_dmaidx {
 
 struct nvkm_falcon {
 	const struct nvkm_falcon_func *func;
-	const struct nvkm_subdev *owner;
+	struct nvkm_subdev *owner;
 	const char *name;
 	u32 addr;
 
@@ -24,7 +24,7 @@ struct nvkm_falcon {
 	struct mutex dmem_mutex;
 	bool oneinit;
 
-	const struct nvkm_subdev *user;
+	struct nvkm_subdev *user;
 
 	u8 version;
 	u8 secret;
@@ -50,8 +50,8 @@ struct nvkm_falcon {
 	struct nvkm_engine engine;
 };
 
-int nvkm_falcon_get(struct nvkm_falcon *, const struct nvkm_subdev *);
-void nvkm_falcon_put(struct nvkm_falcon *, const struct nvkm_subdev *);
+int nvkm_falcon_get(struct nvkm_falcon *, struct nvkm_subdev *);
+void nvkm_falcon_put(struct nvkm_falcon *, struct nvkm_subdev *);
 
 int nvkm_falcon_new_(const struct nvkm_falcon_func *, struct nvkm_device *,
 		     enum nvkm_subdev_type, int inst, bool enable, u32 addr, struct nvkm_engine **);

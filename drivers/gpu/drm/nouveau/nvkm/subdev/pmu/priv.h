@@ -50,7 +50,6 @@ extern const struct nvkm_falcon_func gm200_pmu_flcn;
 extern const struct nvkm_pmu_func gm20b_pmu;
 void gm20b_pmu_acr_bld_patch(struct nvkm_acr *, u32, s64);
 void gm20b_pmu_acr_bld_write(struct nvkm_acr *, u32, struct nvkm_acr_lsfw *);
-int gm20b_pmu_acr_boot(struct nvkm_falcon *);
 int gm20b_pmu_acr_bootstrap_falcon(struct nvkm_falcon *, enum nvkm_acr_lsf_id);
 
 struct nvkm_pmu_fwif {

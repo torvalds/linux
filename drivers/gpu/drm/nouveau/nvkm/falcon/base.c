@@ -169,7 +169,7 @@ nvkm_falcon_oneinit(struct nvkm_falcon *falcon)
 }
 
 void
-nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
+nvkm_falcon_put(struct nvkm_falcon *falcon, struct nvkm_subdev *user)
 {
 	if (unlikely(!falcon))
 		return;
@@ -183,7 +183,7 @@ nvkm_falcon_put(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
 }
 
 int
-nvkm_falcon_get(struct nvkm_falcon *falcon, const struct nvkm_subdev *user)
+nvkm_falcon_get(struct nvkm_falcon *falcon, struct nvkm_subdev *user)
 {
 	int ret = 0;
 

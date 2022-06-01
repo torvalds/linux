@@ -63,10 +63,30 @@ nvkm_acr_hsf_boot(struct nvkm_acr *acr, const char *name)
 	return 0;
 }
 
+static struct nvkm_acr_lsf *
+nvkm_acr_rtos(struct nvkm_acr *acr)
+{
+	struct nvkm_acr_lsf *lsf;
+
+	if (acr) {
+		list_for_each_entry(lsf, &acr->lsf, head) {
+			if (lsf->func->bootstrap_falcon)
+				return lsf;
+		}
+	}
+
+	return NULL;
+}
+
 static void
 nvkm_acr_unload(struct nvkm_acr *acr)
 {
 	if (acr->done) {
+		if (acr->rtos) {
+			nvkm_subdev_unref(acr->rtos->falcon->owner);
+			acr->rtos = NULL;
+		}
+
 		nvkm_acr_hsf_boot(acr, "unload");
 		acr->done = false;
 	}
@@ -76,6 +96,7 @@ static int
 nvkm_acr_load(struct nvkm_acr *acr)
 {
 	struct nvkm_subdev *subdev = &acr->subdev;
+	struct nvkm_acr_lsf *rtos = nvkm_acr_rtos(acr);
 	struct nvkm_acr_lsf *lsf;
 	u64 start, limit;
 	int ret;
@@ -100,6 +121,14 @@ nvkm_acr_load(struct nvkm_acr *acr)
 
 	acr->done = true;
 
+	if (rtos) {
+		ret = nvkm_subdev_ref(rtos->falcon->owner);
+		if (ret)
+			return ret;
+
+		acr->rtos = rtos;
+	}
+
 	list_for_each_entry(lsf, &acr->lsf, head) {
 		if (lsf->func->boot) {
 			ret = lsf->func->boot(lsf->falcon);
@@ -118,33 +147,17 @@ nvkm_acr_reload(struct nvkm_acr *acr)
 	return nvkm_acr_load(acr);
 }
 
-static struct nvkm_acr_lsf *
-nvkm_acr_falcon(struct nvkm_device *device)
-{
-	struct nvkm_acr *acr = device->acr;
-	struct nvkm_acr_lsf *lsf;
-
-	if (acr) {
-		list_for_each_entry(lsf, &acr->lsf, head) {
-			if (lsf->func->bootstrap_falcon)
-				return lsf;
-		}
-	}
-
-	return NULL;
-}
-
 int
 nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 {
-	struct nvkm_acr_lsf *acrflcn = nvkm_acr_falcon(device);
 	struct nvkm_acr *acr = device->acr;
+	struct nvkm_acr_lsf *rtos = nvkm_acr_rtos(acr);
 	unsigned long id;
 
 	/* If there's no LS FW managing bootstrapping of other LS falcons,
 	 * we depend on the HS firmware being able to do it instead.
 	 */
-	if (!acrflcn) {
+	if (!rtos) {
 		/* Which isn't possible everywhere... */
 		if ((mask & acr->func->bootstrap_falcons) == mask) {
 			int ret = nvkm_acr_reload(acr);
@@ -156,16 +169,14 @@ nvkm_acr_bootstrap_falcons(struct nvkm_device *device, unsigned long mask)
 		return -ENOSYS;
 	}
 
-	if ((mask & acrflcn->func->bootstrap_falcons) != mask)
+	if ((mask & rtos->func->bootstrap_falcons) != mask)
 		return -ENOSYS;
 
-	if (acrflcn->func->bootstrap_multiple_falcons) {
-		return acrflcn->func->
-			bootstrap_multiple_falcons(acrflcn->falcon, mask);
-	}
+	if (rtos->func->bootstrap_multiple_falcons)
+		return rtos->func->bootstrap_multiple_falcons(rtos->falcon, mask);
 
 	for_each_set_bit(id, &mask, NVKM_ACR_LSF_NUM) {
-		int ret = acrflcn->func->bootstrap_falcon(acrflcn->falcon, id);
+		int ret = rtos->func->bootstrap_falcon(rtos->falcon, id);
 		if (ret)
 			return ret;
 	}
@@ -189,6 +200,9 @@ nvkm_acr_managed_falcon(struct nvkm_device *device, enum nvkm_acr_lsf_id id)
 static int
 nvkm_acr_fini(struct nvkm_subdev *subdev, bool suspend)
 {
+	if (!subdev->use.enabled)
+		return 0;
+
 	nvkm_acr_unload(nvkm_acr(subdev));
 	return 0;
 }
@@ -196,10 +210,12 @@ nvkm_acr_fini(struct nvkm_subdev *subdev, bool suspend)
 static int
 nvkm_acr_init(struct nvkm_subdev *subdev)
 {
-	if (!nvkm_acr_falcon(subdev->device))
+	struct nvkm_acr *acr = nvkm_acr(subdev);
+
+	if (!nvkm_acr_rtos(acr))
 		return 0;
 
-	return nvkm_acr_load(nvkm_acr(subdev));
+	return nvkm_acr_load(acr);
 }
 
 static void
@@ -218,7 +234,7 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 	struct nvkm_acr *acr = nvkm_acr(subdev);
 	struct nvkm_acr_hsfw *hsfw;
 	struct nvkm_acr_lsfw *lsfw, *lsft;
-	struct nvkm_acr_lsf *lsf;
+	struct nvkm_acr_lsf *lsf, *rtos;
 	u32 wpr_size = 0;
 	u64 falcons;
 	int ret, i;
@@ -260,10 +276,10 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 	}
 
 	/* Ensure the falcon that'll provide ACR functions is booted first. */
-	lsf = nvkm_acr_falcon(device);
-	if (lsf) {
-		falcons = lsf->func->bootstrap_falcons;
-		list_move(&lsf->head, &acr->lsf);
+	rtos = nvkm_acr_rtos(acr);
+	if (rtos) {
+		falcons = rtos->func->bootstrap_falcons;
+		list_move(&rtos->head, &acr->lsf);
 	} else {
 		falcons = acr->func->bootstrap_falcons;
 	}
@@ -301,7 +317,7 @@ nvkm_acr_oneinit(struct nvkm_subdev *subdev)
 		nvkm_wobj(acr->wpr, 0, acr->wpr_fw->data, acr->wpr_fw->size);
 
 	if (!acr->wpr_fw || acr->wpr_comp)
-		acr->func->wpr_build(acr, nvkm_acr_falcon(device));
+		acr->func->wpr_build(acr, rtos);
 	acr->func->wpr_patch(acr, (s64)acr->wpr_start - acr->wpr_prev);
 
 	if (acr->wpr_fw && acr->wpr_comp) {
