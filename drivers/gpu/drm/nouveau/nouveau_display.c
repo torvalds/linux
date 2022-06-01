@@ -42,7 +42,7 @@
 #include "nv50_display.h"
 
 #include <nvif/class.h>
-#include <nvif/cl0046.h>
+#include <nvif/if0013.h>
 #include <nvif/event.h>
 #include <dispnv50/crc.h>
 
@@ -84,24 +84,20 @@ static bool
 nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 				ktime_t *stime, ktime_t *etime)
 {
-	struct {
-		struct nv04_disp_mthd_v0 base;
-		struct nv04_disp_scanoutpos_v0 scan;
-	} args = {
-		.base.method = NV04_DISP_SCANOUTPOS,
-		.base.head = nouveau_crtc(crtc)->index,
-	};
-	struct nouveau_display *disp = nouveau_display(crtc->dev);
 	struct drm_vblank_crtc *vblank = &crtc->dev->vblank[drm_crtc_index(crtc)];
+	struct nvif_head *head = &nouveau_crtc(crtc)->head;
+	struct nvif_head_scanoutpos_v0 args;
 	int retry = 20;
 	bool ret = false;
 
+	args.version = 0;
+
 	do {
-		ret = nvif_mthd(&disp->disp.object, 0, &args, sizeof(args));
+		ret = nvif_mthd(&head->object, NVIF_HEAD_V0_SCANOUTPOS, &args, sizeof(args));
 		if (ret != 0)
 			return false;
 
-		if (args.scan.vline) {
+		if (args.vline) {
 			ret = true;
 			break;
 		}
@@ -109,11 +105,10 @@ nouveau_display_scanoutpos_head(struct drm_crtc *crtc, int *vpos, int *hpos,
 		if (retry) ndelay(vblank->linedur_ns);
 	} while (retry--);
 
-	*hpos = args.scan.hline;
-	*vpos = calc(args.scan.vblanks, args.scan.vblanke,
-		     args.scan.vtotal, args.scan.vline);
-	if (stime) *stime = ns_to_ktime(args.scan.time[0]);
-	if (etime) *etime = ns_to_ktime(args.scan.time[1]);
+	*hpos = args.hline;
+	*vpos = calc(args.vblanks, args.vblanke, args.vtotal, args.vline);
+	if (stime) *stime = ns_to_ktime(args.time[0]);
+	if (etime) *etime = ns_to_ktime(args.time[1]);
 
 	return ret;
 }

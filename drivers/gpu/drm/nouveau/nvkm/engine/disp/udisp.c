@@ -59,17 +59,6 @@ nvkm_udisp_sclass(struct nvkm_object *object, int index, struct nvkm_oclass *scl
 	return -EINVAL;
 }
 
-static int
-nvkm_udisp_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
-{
-	struct nvkm_disp *disp = nvkm_udisp(object);
-
-	if (disp->engine.subdev.device->card_type >= NV_50)
-		return nv50_disp_root_mthd_(object, mthd, argv, argc);
-
-	return nv04_disp_mthd(object, mthd, argv, argc);
-}
-
 static void *
 nvkm_udisp_dtor(struct nvkm_object *object)
 {
@@ -85,7 +74,6 @@ nvkm_udisp_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_udisp = {
 	.dtor = nvkm_udisp_dtor,
-	.mthd = nvkm_udisp_mthd,
 	.ntfy = nvkm_disp_ntfy,
 	.sclass = nvkm_udisp_sclass,
 };

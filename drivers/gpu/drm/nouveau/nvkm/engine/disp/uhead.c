@@ -24,6 +24,47 @@
 
 #include <nvif/if0013.h>
 
+static int
+nvkm_uhead_mthd_scanoutpos(struct nvkm_head *head, void *argv, u32 argc)
+{
+	union nvif_head_scanoutpos_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	head->func->state(head, &head->arm);
+	args->v0.vtotal  = head->arm.vtotal;
+	args->v0.vblanks = head->arm.vblanks;
+	args->v0.vblanke = head->arm.vblanke;
+	args->v0.htotal  = head->arm.htotal;
+	args->v0.hblanks = head->arm.hblanks;
+	args->v0.hblanke = head->arm.hblanke;
+
+	/* We don't support reading htotal/vtotal on pre-NV50 VGA,
+	 * so we have to give up and trigger the timestamping
+	 * fallback in the drm core.
+	 */
+	if (!args->v0.vtotal || !args->v0.htotal)
+		return -ENOTSUPP;
+
+	args->v0.time[0] = ktime_to_ns(ktime_get());
+	head->func->rgpos(head, &args->v0.hline, &args->v0.vline);
+	args->v0.time[1] = ktime_to_ns(ktime_get());
+	return 0;
+}
+
+static int
+nvkm_uhead_mthd(struct nvkm_object *object, u32 mthd, void *argv, u32 argc)
+{
+	struct nvkm_head *head = nvkm_uhead(object);
+
+	switch (mthd) {
+	case NVIF_HEAD_V0_SCANOUTPOS: return nvkm_uhead_mthd_scanoutpos(head, argv, argc);
+	default:
+		return -EINVAL;
+	}
+}
+
 static void *
 nvkm_uhead_dtor(struct nvkm_object *object)
 {
@@ -39,6 +80,7 @@ nvkm_uhead_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_uhead = {
 	.dtor = nvkm_uhead_dtor,
+	.mthd = nvkm_uhead_mthd,
 };
 
 int

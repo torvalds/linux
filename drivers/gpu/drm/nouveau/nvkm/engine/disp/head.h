@@ -33,8 +33,6 @@ struct nvkm_head {
 
 int nvkm_head_new_(const struct nvkm_head_func *, struct nvkm_disp *, int id);
 void nvkm_head_del(struct nvkm_head **);
-int nvkm_head_mthd_scanoutpos(struct nvkm_object *,
-			      struct nvkm_head *, void *, u32);
 struct nvkm_head *nvkm_head_find(struct nvkm_disp *, int id);
 
 struct nvkm_head_func {
