@@ -1162,14 +1162,15 @@ nouveau_connector_funcs_lvds = {
 };
 
 void
-nouveau_connector_hpd(struct drm_connector *connector)
+nouveau_connector_hpd(struct nouveau_connector *nv_connector, u64 bits)
 {
-	struct nouveau_drm *drm = nouveau_drm(connector->dev);
-	u32 mask = drm_connector_mask(connector);
+	struct nouveau_drm *drm = nouveau_drm(nv_connector->base.dev);
+	u32 mask = drm_connector_mask(&nv_connector->base);
 	unsigned long flags;
 
 	spin_lock_irqsave(&drm->hpd_lock, flags);
 	if (!(drm->hpd_pending & mask)) {
+		nv_connector->hpd_pending |= bits;
 		drm->hpd_pending |= mask;
 		schedule_work(&drm->hpd_work);
 	}
@@ -1185,15 +1186,13 @@ nouveau_connector_hotplug(struct nvif_notify *notify)
 	struct drm_device *dev = connector->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	const struct nvif_notify_conn_rep_v0 *rep = notify->data;
-	bool plugged = (rep->mask != NVIF_NOTIFY_CONN_V0_UNPLUG);
 
 	if (rep->mask & NVIF_NOTIFY_CONN_V0_IRQ) {
 		nouveau_dp_irq(drm, nv_connector);
 		return NVIF_NOTIFY_KEEP;
 	}
 
-	NV_DEBUG(drm, "%splugged %s\n", plugged ? "" : "un", connector->name);
-	nouveau_connector_hpd(connector);
+	nouveau_connector_hpd(nv_connector, rep->mask);
 
 	return NVIF_NOTIFY_KEEP;
 }

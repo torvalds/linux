@@ -29,8 +29,7 @@
 #include "nouveau_encoder.h"
 #include "nouveau_crtc.h"
 
-#include <nvif/class.h>
-#include <nvif/cl5070.h>
+#include <nvif/event.h>
 
 MODULE_PARM_DESC(mst, "Enable DisplayPort multi-stream (default: enabled)");
 static int nouveau_mst = 1;
@@ -218,8 +217,8 @@ void nouveau_dp_irq(struct nouveau_drm *drm,
 	struct drm_connector *connector = &nv_connector->base;
 	struct nouveau_encoder *outp = find_encoder(connector, DCB_OUTPUT_DP);
 	struct nv50_mstm *mstm;
+	u64 hpd = 0;
 	int ret;
-	bool send_hpd = false;
 
 	if (!outp)
 		return;
@@ -231,14 +230,14 @@ void nouveau_dp_irq(struct nouveau_drm *drm,
 
 	if (mstm && mstm->is_mst) {
 		if (!nv50_mstm_service(drm, nv_connector, mstm))
-			send_hpd = true;
+			hpd |= NVIF_NOTIFY_CONN_V0_UNPLUG;
 	} else {
 		drm_dp_cec_irq(&nv_connector->aux);
 
 		if (nouveau_dp_has_sink_count(connector, outp)) {
 			ret = drm_dp_read_sink_count(&nv_connector->aux);
 			if (ret != outp->dp.sink_count)
-				send_hpd = true;
+				hpd |= NVIF_NOTIFY_CONN_V0_PLUG;
 			if (ret >= 0)
 				outp->dp.sink_count = ret;
 		}
@@ -246,8 +245,7 @@ void nouveau_dp_irq(struct nouveau_drm *drm,
 
 	mutex_unlock(&outp->dp.hpd_irq_lock);
 
-	if (send_hpd)
-		nouveau_connector_hpd(connector);
+	nouveau_connector_hpd(nv_connector, NVIF_NOTIFY_CONN_V0_IRQ | hpd);
 }
 
 /* TODO:

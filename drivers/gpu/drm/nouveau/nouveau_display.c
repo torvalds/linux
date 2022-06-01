@@ -488,14 +488,28 @@ nouveau_display_hpd_work(struct work_struct *work)
 	drm_connector_list_iter_begin(dev, &conn_iter);
 
 	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
+		struct nouveau_connector *nv_connector = nouveau_connector(connector);
 		enum drm_connector_status old_status = connector->status;
-		u64 old_epoch_counter = connector->epoch_counter;
+		u64 bits, old_epoch_counter = connector->epoch_counter;
 
 		if (!(pending & drm_connector_mask(connector)))
 			continue;
 
-		connector->status = drm_helper_probe_detect(connector, NULL,
-							    false);
+		spin_lock_irq(&drm->hpd_lock);
+		bits = nv_connector->hpd_pending;
+		nv_connector->hpd_pending = 0;
+		spin_unlock_irq(&drm->hpd_lock);
+
+		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] plug:%d unplug:%d irq:%d\n",
+			    connector->base.id, connector->name,
+			    !!(bits & NVIF_NOTIFY_CONN_V0_PLUG),
+			    !!(bits & NVIF_NOTIFY_CONN_V0_UNPLUG),
+			    !!(bits & NVIF_NOTIFY_CONN_V0_IRQ));
+
+		if (bits & NVIF_NOTIFY_CONN_V0_IRQ)
+			continue;
+
+		connector->status = drm_helper_probe_detect(connector, NULL, false);
 		if (old_epoch_counter == connector->epoch_counter)
 			continue;
 
