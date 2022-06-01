@@ -69,5 +69,10 @@ nvif_disp_ctor(struct nvif_device *device, const char *name, s32 oclass, struct 
 	ret = nvif_object_ctor(&device->object, name ?: "nvifDisp", 0,
 			       disps[cid].oclass, &args, sizeof(args), &disp->object);
 	NVIF_ERRON(ret, &device->object, "[NEW disp%04x]", disps[cid].oclass);
-	return ret;
+	if (ret)
+		return ret;
+
+	NVIF_DEBUG(&disp->object, "[NEW] conn_mask:%08x", args.conn_mask);
+	disp->conn_mask = args.conn_mask;
+	return 0;
 }

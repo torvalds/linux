@@ -404,6 +404,7 @@ nouveau_connector_destroy(struct drm_connector *connector)
 		drm_dp_cec_unregister_connector(&nv_connector->aux);
 		kfree(nv_connector->aux.name);
 	}
+	nvif_conn_dtor(&nv_connector->conn);
 	kfree(connector);
 }
 
@@ -1387,6 +1388,15 @@ nouveau_connector_create(struct drm_device *dev,
 
 	drm_connector_init(dev, connector, funcs, type);
 	drm_connector_helper_add(connector, &nouveau_connector_helper_funcs);
+
+	if (nv_connector->dcb && (disp->disp.conn_mask & BIT(nv_connector->index))) {
+		ret = nvif_conn_ctor(&disp->disp, nv_connector->base.name, nv_connector->index,
+				     &nv_connector->conn);
+		if (ret) {
+			kfree(nv_connector);
+			return ERR_PTR(ret);
+		}
+	}
 
 	connector->funcs->reset(connector);
 	nouveau_conn_attach_properties(connector);

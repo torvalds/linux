@@ -5,7 +5,8 @@
 union nvif_disp_args {
 	struct nvif_disp_v0 {
 		__u8 version;
-		__u8 pad01[7];
+		__u8 pad01[3];
+		__u32 conn_mask;
 	} v0;
 };
 #endif

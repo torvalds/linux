@@ -33,6 +33,7 @@
 #define NVIF_CLASS_VMM_GP100                         /* ifc00d.h */  0x8000c00d
 
 #define NVIF_CLASS_DISP                              /* if0010.h */  0x80000010
+#define NVIF_CLASS_CONN                              /* if0011.h */  0x80000011
 #define NVIF_CLASS_DISP_CHAN                         /* if0014.h */  0x80000014
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
