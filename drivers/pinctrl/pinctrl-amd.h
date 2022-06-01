@@ -282,21 +282,14 @@ static const struct pinctrl_pin_desc kerncz_pins[] = {
 	PINCTRL_PIN(183, "GPIO_183"),
 };
 
-static const unsigned i2c0_pins[] = {145, 146};
-static const unsigned i2c1_pins[] = {147, 148};
-static const unsigned i2c2_pins[] = {113, 114};
-static const unsigned i2c3_pins[] = {19, 20};
-
-static const unsigned uart0_pins[] = {135, 136, 137, 138, 139};
-static const unsigned uart1_pins[] = {140, 141, 142, 143, 144};
-
+#define AMD_PINS(...) (const unsigned int []){__VA_ARGS__}
 static const struct pingroup kerncz_groups[] = {
-	PINCTRL_PINGROUP("i2c0", i2c0_pins, 2),
-	PINCTRL_PINGROUP("i2c1", i2c1_pins, 2),
-	PINCTRL_PINGROUP("i2c2", i2c2_pins, 2),
-	PINCTRL_PINGROUP("i2c3", i2c3_pins, 2),
-	PINCTRL_PINGROUP("uart0", uart0_pins, 5),
-	PINCTRL_PINGROUP("uart1", uart1_pins, 5),
+	PINCTRL_PINGROUP("i2c0", AMD_PINS(145, 146), 2),
+	PINCTRL_PINGROUP("i2c1", AMD_PINS(147, 148), 2),
+	PINCTRL_PINGROUP("i2c2", AMD_PINS(113, 114), 2),
+	PINCTRL_PINGROUP("i2c3", AMD_PINS(19, 20), 2),
+	PINCTRL_PINGROUP("uart0", AMD_PINS(135, 136, 137, 138, 139), 5),
+	PINCTRL_PINGROUP("uart1", AMD_PINS(140, 141, 142, 143, 144), 5),
 };
 
 #endif
