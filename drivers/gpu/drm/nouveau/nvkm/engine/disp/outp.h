@@ -2,9 +2,11 @@
 #ifndef __NVKM_DISP_OUTP_H__
 #define __NVKM_DISP_OUTP_H__
 #include <engine/disp.h>
+#include <core/notify.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
+#include <subdev/bios/dp.h>
 
 struct nvkm_outp {
 	const struct nvkm_outp_func *func;
@@ -23,6 +25,34 @@ struct nvkm_outp {
 #define NVKM_OUTP_USER 2
 	u8 acquired:2;
 	struct nvkm_ior *ior;
+
+	union {
+		struct {
+			struct nvbios_dpout info;
+			u8 version;
+
+			struct nvkm_i2c_aux *aux;
+
+			struct nvkm_notify hpd;
+			bool present;
+			u8 lttpr[6];
+			u8 lttprs;
+			u8 dpcd[16];
+
+			struct {
+				int dpcd; /* -1, or index into SUPPORTED_LINK_RATES table */
+				u32 rate;
+			} rate[8];
+			int rates;
+			int links;
+
+			struct mutex mutex;
+			struct {
+				atomic_t done;
+				bool mst;
+			} lt;
+		} dp;
+	};
 };
 
 int nvkm_outp_ctor(const struct nvkm_outp_func *, struct nvkm_disp *,

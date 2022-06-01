@@ -23,7 +23,6 @@
  */
 #include "rootnv50.h"
 #include "channv50.h"
-#include "dp.h"
 #include "head.h"
 #include "ior.h"
 
@@ -227,7 +226,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	}
 		break;
 	case NV50_DISP_MTHD_V1_SOR_DP_MST_LINK: {
-		struct nvkm_dp *dp = nvkm_dp(outp);
 		union {
 			struct nv50_disp_sor_dp_mst_link_v0 v0;
 		} *args = data;
@@ -236,7 +234,7 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
 			nvif_ioctl(object, "disp sor dp mst link vers %d state %d\n",
 				   args->v0.version, args->v0.state);
-			dp->lt.mst = !!args->v0.state;
+			outp->dp.lt.mst = !!args->v0.state;
 			return 0;
 		} else
 			return ret;
