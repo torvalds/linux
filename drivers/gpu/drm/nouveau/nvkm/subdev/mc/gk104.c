@@ -43,7 +43,8 @@ gk104_mc_intrs[] = {
 	{ NVKM_SUBDEV_I2C     , 0, 0, 0x00200000, true },
 	{ NVKM_SUBDEV_TIMER   , 0, 0, 0x00100000, true },
 	{ NVKM_SUBDEV_THERM   , 0, 0, 0x00040000, true },
-	{ NVKM_SUBDEV_TOP     , 0, 0, 0xffffffff, true },
+	{ NVKM_SUBDEV_TOP     , 0, 0, 0x00001000 },
+	{ NVKM_SUBDEV_TOP     , 0, 0, 0xffffefff, true },
 	{},
 };
 

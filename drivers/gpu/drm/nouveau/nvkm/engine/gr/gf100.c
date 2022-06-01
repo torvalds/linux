@@ -1600,10 +1600,10 @@ gf100_gr_ctxctl_isr(struct gf100_gr *gr)
 	}
 }
 
-static void
-gf100_gr_intr(struct nvkm_gr *base)
+static irqreturn_t
+gf100_gr_intr(struct nvkm_inth *inth)
 {
-	struct gf100_gr *gr = gf100_gr(base);
+	struct gf100_gr *gr = container_of(inth, typeof(*gr), base.engine.subdev.inth);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_chan *chan;
@@ -1690,6 +1690,7 @@ gf100_gr_intr(struct nvkm_gr *base)
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
 	nvkm_chan_put(&chan, flags);
+	return IRQ_HANDLED;
 }
 
 static void
@@ -1985,7 +1986,14 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_intr *intr = &device->mc->intr;
+	enum nvkm_intr_type intr_type = NVKM_INTR_SUBDEV;
 	int ret, i, j;
+
+	ret = nvkm_inth_add(intr, intr_type, NVKM_INTR_PRIO_NORMAL, &gr->base.engine.subdev,
+			    gf100_gr_intr, &gr->base.engine.subdev.inth);
+	if (ret)
+		return ret;
 
 	nvkm_pmu_pgob(device->pmu, false);
 
@@ -2047,7 +2055,7 @@ gf100_gr_init_(struct nvkm_gr *base)
 	struct nvkm_subdev *subdev = &base->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	bool reset = device->chipset == 0x137 || device->chipset == 0x138;
-	u32 ret;
+	int ret;
 
 	/* On certain GP107/GP108 boards, we trigger a weird issue where
 	 * GR will stop responding to PRI accesses after we've asked the
@@ -2083,7 +2091,12 @@ gf100_gr_init_(struct nvkm_gr *base)
 	if (ret)
 		return ret;
 
-	return gr->func->init(gr);
+	ret = gr->func->init(gr);
+	if (ret)
+		return ret;
+
+	nvkm_inth_allow(&subdev->inth);
+	return 0;
 }
 
 static int
@@ -2091,6 +2104,9 @@ gf100_gr_fini(struct nvkm_gr *base, bool suspend)
 {
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
+
+	nvkm_inth_block(&subdev->inth);
+
 	nvkm_falcon_put(&gr->gpccs.falcon, subdev);
 	nvkm_falcon_put(&gr->fecs.falcon, subdev);
 	return 0;
@@ -2457,7 +2473,6 @@ gf100_gr_ = {
 	.init = gf100_gr_init_,
 	.fini = gf100_gr_fini,
 	.reset = gf100_gr_reset,
-	.intr = gf100_gr_intr,
 	.units = gf100_gr_units,
 	.chan_new = gf100_gr_chan_new,
 	.object_get = gf100_gr_object_get,

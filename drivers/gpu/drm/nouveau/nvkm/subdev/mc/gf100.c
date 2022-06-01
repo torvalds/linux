@@ -41,7 +41,7 @@ gf100_mc_intrs[] = {
 	{ NVKM_ENGINE_DISP    , 0, 0, 0x04000000, true },
 	{ NVKM_ENGINE_MSPDEC  , 0, 0, 0x00020000, true },
 	{ NVKM_ENGINE_MSVLD   , 0, 0, 0x00008000, true },
-	{ NVKM_ENGINE_GR      , 0, 0, 0x00001000, true },
+	{ NVKM_ENGINE_GR      , 0, 0, 0x00001000 },
 	{ NVKM_ENGINE_FIFO    , 0, 0, 0x00000100 },
 	{ NVKM_ENGINE_CE      , 1, 0, 0x00000040, true },
 	{ NVKM_ENGINE_CE      , 0, 0, 0x00000020, true },
