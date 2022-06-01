@@ -47,7 +47,7 @@ gp102_gr_zbc_stencil_get(struct gf100_gr *gr, int format,
 	struct nvkm_ltc *ltc = gr->base.engine.subdev.device->ltc;
 	int zbc = -ENOSPC, i;
 
-	for (i = ltc->zbc_min; i <= ltc->zbc_max; i++) {
+	for (i = ltc->zbc_depth_min; i <= ltc->zbc_depth_max; i++) {
 		if (gr->zbc_stencil[i].format) {
 			if (gr->zbc_stencil[i].format != format)
 				continue;

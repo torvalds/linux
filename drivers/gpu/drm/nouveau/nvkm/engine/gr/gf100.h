@@ -105,9 +105,9 @@ struct gf100_gr {
 	struct gf100_gr_pack *bundle;
 	struct gf100_gr_pack *method;
 
-	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_CNT];
-	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_CNT];
-	struct gf100_gr_zbc_stencil zbc_stencil[NVKM_LTC_MAX_ZBC_CNT];
+	struct gf100_gr_zbc_color zbc_color[NVKM_LTC_MAX_ZBC_COLOR_CNT];
+	struct gf100_gr_zbc_depth zbc_depth[NVKM_LTC_MAX_ZBC_DEPTH_CNT];
+	struct gf100_gr_zbc_stencil zbc_stencil[NVKM_LTC_MAX_ZBC_DEPTH_CNT];
 
 	u8 rop_nr;
 	u8 gpc_nr;
