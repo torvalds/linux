@@ -66,7 +66,6 @@ tu102_grctx_generate_unknown(struct gf100_gr_chan *chan, u64 addr, u32 size)
 
 const struct gf100_grctx_func
 tu102_grctx = {
-	.unkn88c = gv100_grctx_unkn88c,
 	.main = gf100_grctx_generate_main,
 	.unkn = gv100_grctx_generate_unkn,
 	.sw_bundle64_init = tu102_grctx_pack_sw_bundle64_init,
