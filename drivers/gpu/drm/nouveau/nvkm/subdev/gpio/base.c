@@ -251,6 +251,5 @@ nvkm_gpio_new_(const struct nvkm_gpio_func *func, struct nvkm_device *device,
 	nvkm_subdev_ctor(&nvkm_gpio, device, type, inst, &gpio->subdev);
 	gpio->func = func;
 
-	return nvkm_event_init(&nvkm_gpio_intr_func, 2, func->lines,
-			       &gpio->event);
+	return nvkm_event_init(&nvkm_gpio_intr_func, &gpio->subdev, 2, func->lines, &gpio->event);
 }

@@ -44,7 +44,7 @@ nvkm_uclient_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	if (!(ret = nvif_unpack(ret, &argv, &argc, args->v0, 0, 0, false))){
 		args->v0.name[sizeof(args->v0.name) - 1] = 0;
 		ret = nvkm_client_new(args->v0.name, args->v0.device, NULL,
-				      NULL, oclass->client->ntfy, &client);
+				      NULL, oclass->client->ntfy, oclass->client->event, &client);
 		if (ret)
 			return ret;
 	} else
@@ -286,7 +286,7 @@ int
 nvkm_client_new(const char *name, u64 device, const char *cfg,
 		const char *dbg,
 		int (*ntfy)(const void *, u32, const void *, u32),
-		struct nvkm_client **pclient)
+		int (*event)(u64, void *, u32), struct nvkm_client **pclient)
 {
 	struct nvkm_oclass oclass = { .base = nvkm_uclient_sclass };
 	struct nvkm_client *client;
@@ -301,6 +301,7 @@ nvkm_client_new(const char *name, u64 device, const char *cfg,
 	client->debug = nvkm_dbgopt(dbg, "CLIENT");
 	client->objroot = RB_ROOT;
 	client->ntfy = ntfy;
+	client->event = event;
 	INIT_LIST_HEAD(&client->umem);
 	spin_lock_init(&client->lock);
 	return 0;

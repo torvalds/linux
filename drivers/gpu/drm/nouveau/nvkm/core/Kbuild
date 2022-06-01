@@ -14,3 +14,4 @@ nvkm-y += nvkm/core/oproxy.o
 nvkm-y += nvkm/core/option.o
 nvkm-y += nvkm/core/ramht.o
 nvkm-y += nvkm/core/subdev.o
+nvkm-y += nvkm/core/uevent.o

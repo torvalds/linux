@@ -5,6 +5,7 @@ nvif-y += nvif/conn.o
 nvif-y += nvif/device.o
 nvif-y += nvif/disp.o
 nvif-y += nvif/driver.o
+nvif-y += nvif/event.o
 nvif-y += nvif/fifo.o
 nvif-y += nvif/head.o
 nvif-y += nvif/mem.o

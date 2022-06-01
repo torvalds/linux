@@ -106,6 +106,18 @@ nvkm_oproxy_sclass(struct nvkm_object *object, int index,
 }
 
 static int
+nvkm_oproxy_uevent(struct nvkm_object *object, void *argv, u32 argc,
+		   struct nvkm_uevent *uevent)
+{
+	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
+
+	if (!oproxy->object->func->uevent)
+		return -ENOSYS;
+
+	return oproxy->object->func->uevent(oproxy->object, argv, argc, uevent);
+}
+
+static int
 nvkm_oproxy_fini(struct nvkm_object *object, bool suspend)
 {
 	struct nvkm_oproxy *oproxy = nvkm_oproxy(object);
@@ -188,6 +200,7 @@ nvkm_oproxy_func = {
 	.wr32 = nvkm_oproxy_wr32,
 	.bind = nvkm_oproxy_bind,
 	.sclass = nvkm_oproxy_sclass,
+	.uevent = nvkm_oproxy_uevent,
 };
 
 void

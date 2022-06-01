@@ -130,8 +130,7 @@ nvkm_fault_oneinit(struct nvkm_subdev *subdev)
 		}
 	}
 
-	ret = nvkm_event_init(&nvkm_fault_ntfy, 1, fault->buffer_nr,
-			      &fault->event);
+	ret = nvkm_event_init(&nvkm_fault_ntfy, subdev, 1, fault->buffer_nr, &fault->event);
 	if (ret)
 		return ret;
 

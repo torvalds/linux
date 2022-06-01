@@ -47,6 +47,26 @@ nvkm_ioctl_nop(struct nvkm_client *client,
 	return ret;
 }
 
+#include <nvif/class.h>
+
+static int
+nvkm_ioctl_sclass_(struct nvkm_object *object, int index, struct nvkm_oclass *oclass)
+{
+	if ( object->func->uevent &&
+	    !object->func->uevent(object, NULL, 0, NULL) && index-- == 0) {
+		oclass->ctor = nvkm_uevent_new;
+		oclass->base.minver = 0;
+		oclass->base.maxver = 0;
+		oclass->base.oclass = NVIF_CLASS_EVENT;
+		return 0;
+	}
+
+	if (object->func->sclass)
+		return object->func->sclass(object, index, oclass);
+
+	return -ENOSYS;
+}
+
 static int
 nvkm_ioctl_sclass(struct nvkm_client *client,
 		  struct nvkm_object *object, void *data, u32 size)
@@ -64,8 +84,7 @@ nvkm_ioctl_sclass(struct nvkm_client *client,
 		if (size != args->v0.count * sizeof(args->v0.oclass[0]))
 			return -EINVAL;
 
-		while (object->func->sclass &&
-		       object->func->sclass(object, i, &oclass) >= 0) {
+		while (nvkm_ioctl_sclass_(object, i, &oclass) >= 0) {
 			if (i < args->v0.count) {
 				args->v0.oclass[i].oclass = oclass.base.oclass;
 				args->v0.oclass[i].minver = oclass.base.minver;
@@ -100,7 +119,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 	} else
 		return ret;
 
-	if (!parent->func->sclass) {
+	if (!parent->func->sclass && !parent->func->uevent) {
 		nvif_ioctl(parent, "cannot have children\n");
 		return -EINVAL;
 	}
@@ -113,7 +132,7 @@ nvkm_ioctl_new(struct nvkm_client *client,
 		oclass.object = args->v0.object;
 		oclass.client = client;
 		oclass.parent = parent;
-		ret = parent->func->sclass(parent, i++, &oclass);
+		ret = nvkm_ioctl_sclass_(parent, i++, &oclass);
 		if (ret)
 			return ret;
 	} while (oclass.base.oclass != args->v0.oclass);

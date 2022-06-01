@@ -347,11 +347,11 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 		return ret;
 
 	if (func->uevent_init) {
-		ret = nvkm_event_init(&nvkm_fifo_uevent_func, 1, 1,
+		ret = nvkm_event_init(&nvkm_fifo_uevent_func, &fifo->engine.subdev, 1, 1,
 				      &fifo->uevent);
 		if (ret)
 			return ret;
 	}
 
-	return nvkm_event_init(&nvkm_fifo_kevent_func, 1, nr, &fifo->kevent);
+	return nvkm_event_init(&nvkm_fifo_kevent_func, &fifo->engine.subdev, 1, nr, &fifo->kevent);
 }

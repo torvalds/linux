@@ -4,9 +4,12 @@
 #include <core/os.h>
 struct nvkm_notify;
 struct nvkm_object;
+struct nvkm_oclass;
+struct nvkm_uevent;
 
 struct nvkm_event {
 	const struct nvkm_event_func *func;
+	struct nvkm_subdev *subdev;
 
 	int types_nr;
 	int index_nr;
@@ -15,6 +18,8 @@ struct nvkm_event {
 	spinlock_t list_lock;
 	struct list_head list;
 	int *refs;
+
+	struct list_head ntfy;
 };
 
 struct nvkm_event_func {
@@ -25,11 +30,42 @@ struct nvkm_event_func {
 	void (*fini)(struct nvkm_event *, int type, int index);
 };
 
-int  nvkm_event_init(const struct nvkm_event_func *func, int types_nr,
+int  nvkm_event_init(const struct nvkm_event_func *func, struct nvkm_subdev *, int types_nr,
 		     int index_nr, struct nvkm_event *);
 void nvkm_event_fini(struct nvkm_event *);
 void nvkm_event_get(struct nvkm_event *, u32 types, int index);
 void nvkm_event_put(struct nvkm_event *, u32 types, int index);
 void nvkm_event_send(struct nvkm_event *, u32 types, int index,
 		     void *data, u32 size);
+
+#define NVKM_EVENT_KEEP 0
+#define NVKM_EVENT_DROP 1
+struct nvkm_event_ntfy;
+typedef int (*nvkm_event_func)(struct nvkm_event_ntfy *, u32 bits);
+
+struct nvkm_event_ntfy {
+	struct nvkm_event *event;
+	int id;
+	u32 bits;
+	bool wait;
+	nvkm_event_func func;
+
+	atomic_t allowed;
+	bool running;
+
+	struct list_head head;
+};
+
+void nvkm_event_ntfy(struct nvkm_event *, int id, u32 bits);
+bool nvkm_event_ntfy_valid(struct nvkm_event *, int id, u32 bits);
+void nvkm_event_ntfy_add(struct nvkm_event *, int id, u32 bits, bool wait, nvkm_event_func,
+			 struct nvkm_event_ntfy *);
+void nvkm_event_ntfy_del(struct nvkm_event_ntfy *);
+void nvkm_event_ntfy_allow(struct nvkm_event_ntfy *);
+void nvkm_event_ntfy_block(struct nvkm_event_ntfy *);
+
+typedef int (*nvkm_uevent_func)(struct nvkm_object *, u64 token, u32 bits);
+
+int nvkm_uevent_new(const struct nvkm_oclass *, void *argv, u32 argc, struct nvkm_object **);
+int nvkm_uevent_add(struct nvkm_uevent *, struct nvkm_event *, int id, u32 bits, nvkm_uevent_func);
 #endif

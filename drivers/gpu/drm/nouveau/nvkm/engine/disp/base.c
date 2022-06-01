@@ -343,9 +343,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		/* Apparently we need to create a new one! */
 		ret = nvkm_conn_new(disp, i, &connE, &outp->conn);
 		if (ret) {
-			nvkm_error(&disp->engine.subdev,
-				   "failed to create outp %d conn: %d\n",
-				   outp->index, ret);
+			nvkm_error(subdev, "failed to create outp %d conn: %d\n", outp->index, ret);
 			nvkm_conn_del(&outp->conn);
 			list_del(&outp->head);
 			nvkm_outp_del(&outp);
@@ -355,7 +353,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		list_add_tail(&outp->conn->head, &disp->conns);
 	}
 
-	ret = nvkm_event_init(&nvkm_disp_hpd_func, 3, hpd, &disp->hpd);
+	ret = nvkm_event_init(&nvkm_disp_hpd_func, subdev, 3, hpd, &disp->hpd);
 	if (ret)
 		return ret;
 
@@ -382,7 +380,7 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 	list_for_each_entry(head, &disp->heads, head)
 		i = max(i, head->id + 1);
 
-	return nvkm_event_init(&nvkm_disp_vblank_func, 1, i, &disp->vblank);
+	return nvkm_event_init(&nvkm_disp_vblank_func, subdev, 1, i, &disp->vblank);
 }
 
 static void *
@@ -473,5 +471,6 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 		mutex_init(&disp->super.mutex);
 	}
 
-	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan), &disp->uevent);
+	return nvkm_event_init(func->uevent, &disp->engine.subdev, 1, ARRAY_SIZE(disp->chan),
+			       &disp->uevent);
 }

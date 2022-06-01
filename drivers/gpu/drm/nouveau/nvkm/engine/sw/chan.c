@@ -107,5 +107,5 @@ nvkm_sw_chan_ctor(const struct nvkm_sw_chan_func *func, struct nvkm_sw *sw,
 	list_add(&chan->head, &sw->chan);
 	spin_unlock_irqrestore(&sw->engine.lock, flags);
 
-	return nvkm_event_init(&nvkm_sw_chan_event, 1, 1, &chan->event);
+	return nvkm_event_init(&nvkm_sw_chan_event, &sw->engine.subdev, 1, 1, &chan->event);
 }

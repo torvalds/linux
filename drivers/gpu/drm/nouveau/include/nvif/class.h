@@ -32,6 +32,8 @@
 #define NVIF_CLASS_VMM_GM200                         /* ifb00d.h */  0x8000b00d
 #define NVIF_CLASS_VMM_GP100                         /* ifc00d.h */  0x8000c00d
 
+#define NVIF_CLASS_EVENT                             /* if000e.h */  0x8000000e
+
 #define NVIF_CLASS_DISP                              /* if0010.h */  0x80000010
 #define NVIF_CLASS_CONN                              /* if0011.h */  0x80000011
 #define NVIF_CLASS_OUTP                              /* if0012.h */  0x80000012
