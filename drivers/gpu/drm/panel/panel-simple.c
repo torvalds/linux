@@ -551,12 +551,12 @@ static int panel_simple_prepare(struct drm_panel *panel)
 
 	gpiod_direction_output(p->reset_gpio, 0);
 
+	if (p->desc->delay.init)
+		msleep(p->desc->delay.init);
+
 	if (p->desc->init_seq)
 		if (p->dsi)
 			panel_simple_xfer_dsi_cmd_seq(p, p->desc->init_seq);
-
-	if (p->desc->delay.init)
-		msleep(p->desc->delay.init);
 
 	p->prepared = true;
 
