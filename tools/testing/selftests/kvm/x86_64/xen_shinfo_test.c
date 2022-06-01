@@ -472,7 +472,7 @@ int main(int argc, char *argv[])
 		irq_routes.entries[1].u.xen_evtchn.vcpu = vcpu->id;
 		irq_routes.entries[1].u.xen_evtchn.priority = KVM_IRQ_ROUTING_XEN_EVTCHN_PRIO_2LEVEL;
 
-		vm_ioctl(vm, KVM_SET_GSI_ROUTING, &irq_routes);
+		vm_ioctl(vm, KVM_SET_GSI_ROUTING, &irq_routes.info);
 
 		struct kvm_irqfd ifd = { };
 
@@ -716,7 +716,7 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Testing restored oneshot timer\n");
 
-				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000,
+				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000;
 				vcpu_ioctl(vcpu, KVM_XEN_VCPU_SET_ATTR, &tmr);
 				evtchn_irq_expected = true;
 				alarm(1);
@@ -743,7 +743,7 @@ int main(int argc, char *argv[])
 				if (verbose)
 					printf("Testing SCHEDOP_poll wake on masked event\n");
 
-				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000,
+				tmr.u.timer.expires_ns = rs->state_entry_time + 100000000;
 				vcpu_ioctl(vcpu, KVM_XEN_VCPU_SET_ATTR, &tmr);
 				alarm(1);
 				break;

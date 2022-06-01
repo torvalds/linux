@@ -72,7 +72,7 @@ unsigned int kvm_check_cap(long cap)
 	int kvm_fd;
 
 	kvm_fd = open_kvm_dev_path_or_exit();
-	ret = __kvm_ioctl(kvm_fd, KVM_CHECK_EXTENSION, cap);
+	ret = __kvm_ioctl(kvm_fd, KVM_CHECK_EXTENSION, (void *)cap);
 	TEST_ASSERT(ret >= 0, KVM_IOCTL_ERROR(KVM_CHECK_EXTENSION, ret));
 
 	close(kvm_fd);
@@ -92,7 +92,7 @@ static void vm_open(struct kvm_vm *vm)
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_IMMEDIATE_EXIT));
 
-	vm->fd = __kvm_ioctl(vm->kvm_fd, KVM_CREATE_VM, vm->type);
+	vm->fd = __kvm_ioctl(vm->kvm_fd, KVM_CREATE_VM, (void *)vm->type);
 	TEST_ASSERT(vm->fd >= 0, KVM_IOCTL_ERROR(KVM_CREATE_VM, vm->fd));
 }
 
@@ -1450,19 +1450,6 @@ struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vcpu *vcpu)
 	return reg_list;
 }
 
-int __vcpu_ioctl(struct kvm_vcpu *vcpu, unsigned long cmd, void *arg)
-{
-	return ioctl(vcpu->fd, cmd, arg);
-}
-
-void _vcpu_ioctl(struct kvm_vcpu *vcpu, unsigned long cmd, const char *name,
-		 void *arg)
-{
-	int ret = __vcpu_ioctl(vcpu, cmd, arg);
-
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));
-}
-
 void *vcpu_map_dirty_ring(struct kvm_vcpu *vcpu)
 {
 	uint32_t page_size = vcpu->vm->page_size;
@@ -1490,18 +1477,6 @@ void *vcpu_map_dirty_ring(struct kvm_vcpu *vcpu)
 	}
 
 	return vcpu->dirty_gfns;
-}
-
-int __vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg)
-{
-	return ioctl(vm->fd, cmd, arg);
-}
-
-void _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, const char *name, void *arg)
-{
-	int ret = __vm_ioctl(vm, cmd, arg);
-
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));
 }
 
 /*

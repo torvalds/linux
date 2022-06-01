@@ -276,7 +276,7 @@ static void test_without_filter(struct kvm_vcpu *vcpu)
 static uint64_t test_with_filter(struct kvm_vcpu *vcpu,
 				 struct kvm_pmu_event_filter *f)
 {
-	vm_ioctl(vcpu->vm, KVM_SET_PMU_EVENT_FILTER, (void *)f);
+	vm_ioctl(vcpu->vm, KVM_SET_PMU_EVENT_FILTER, f);
 	return run_vcpu_to_sync(vcpu);
 }
 
