@@ -148,11 +148,11 @@ gm200_gr_tile_map_2_8[] = {
 	0, 1, 1, 0, 0, 1, 1, 0,
 };
 
-void
+int
 gm200_gr_oneinit_sm_id(struct gf100_gr *gr)
 {
 	/*XXX: There's a different algorithm here I've not yet figured out. */
-	gf100_gr_oneinit_sm_id(gr);
+	return gf100_gr_oneinit_sm_id(gr);
 }
 
 void

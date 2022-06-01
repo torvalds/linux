@@ -107,6 +107,7 @@ struct gf100_gr {
 	u8 ppc_tpc_nr[GPC_MAX][4];
 	u8 ppc_tpc_min;
 	u8 ppc_tpc_max;
+	u8 ppc_total;
 
 	struct nvkm_memory *pagepool;
 	struct nvkm_memory *bundle_cb;
@@ -141,7 +142,7 @@ struct gf100_gr_func_zbc {
 
 struct gf100_gr_func {
 	void (*oneinit_tiles)(struct gf100_gr *);
-	void (*oneinit_sm_id)(struct gf100_gr *);
+	int (*oneinit_sm_id)(struct gf100_gr *);
 	int (*init)(struct gf100_gr *);
 	void (*init_419bd8)(struct gf100_gr *);
 	void (*init_gpc_mmu)(struct gf100_gr *);
@@ -191,7 +192,7 @@ struct gf100_gr_func {
 
 int gf100_gr_rops(struct gf100_gr *);
 void gf100_gr_oneinit_tiles(struct gf100_gr *);
-void gf100_gr_oneinit_sm_id(struct gf100_gr *);
+int gf100_gr_oneinit_sm_id(struct gf100_gr *);
 int gf100_gr_init(struct gf100_gr *);
 void gf100_gr_init_vsc_stream_master(struct gf100_gr *);
 void gf100_gr_init_zcull(struct gf100_gr *);
@@ -228,7 +229,7 @@ int gk20a_gr_aiv_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
 int gk20a_gr_av_to_method(struct nvkm_blob *, struct gf100_gr_pack **);
 
 void gm200_gr_oneinit_tiles(struct gf100_gr *);
-void gm200_gr_oneinit_sm_id(struct gf100_gr *);
+int gm200_gr_oneinit_sm_id(struct gf100_gr *);
 int gm200_gr_rops(struct gf100_gr *);
 void gm200_gr_init_num_active_ltcs(struct gf100_gr *);
 void gm200_gr_init_ds_hww_esr_2(struct gf100_gr *);
@@ -245,6 +246,8 @@ extern const struct gf100_gr_func_zbc gp102_gr_zbc;
 
 extern const struct gf100_gr_func gp107_gr;
 
+int gv100_gr_oneinit_sm_id(struct gf100_gr *);
+u32 gv100_gr_nonpes_aware_tpc(struct gf100_gr *gr, u32 gpc, u32 tpc);
 void gv100_gr_init_419bd8(struct gf100_gr *);
 void gv100_gr_init_504430(struct gf100_gr *, int, int);
 void gv100_gr_init_shader_exceptions(struct gf100_gr *, int, int);

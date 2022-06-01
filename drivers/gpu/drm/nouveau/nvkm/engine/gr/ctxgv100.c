@@ -157,6 +157,9 @@ static void
 gv100_grctx_generate_sm_id(struct gf100_gr *gr, int gpc, int tpc, int sm)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	tpc = gv100_gr_nonpes_aware_tpc(gr, gpc, tpc);
+
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x608), sm);
 	nvkm_wr32(device, GPC_UNIT(gpc, 0x0c10 + tpc * 4), sm);
 	nvkm_wr32(device, TPC_UNIT(gpc, tpc, 0x088), sm);

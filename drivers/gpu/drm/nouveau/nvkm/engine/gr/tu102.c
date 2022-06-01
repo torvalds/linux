@@ -40,8 +40,9 @@ tu102_gr_init_fs(struct gf100_gr *gr)
 	gk104_grctx_generate_gpc_tpc_nr(gr);
 
 	for (sm = 0; sm < gr->sm_nr; sm++) {
-		nvkm_wr32(device, GPC_UNIT(gr->sm[sm].gpc, 0x0c10 +
-					   gr->sm[sm].tpc * 4), sm);
+		int tpc = gv100_gr_nonpes_aware_tpc(gr, gr->sm[sm].gpc, gr->sm[sm].tpc);
+
+		nvkm_wr32(device, GPC_UNIT(gr->sm[sm].gpc, 0x0c10 + tpc * 4), sm);
 	}
 
 	gm200_grctx_generate_dist_skip_table(gr);
@@ -93,7 +94,7 @@ tu102_gr_init_gpc_mmu(struct gf100_gr *gr)
 static const struct gf100_gr_func
 tu102_gr = {
 	.oneinit_tiles = gm200_gr_oneinit_tiles,
-	.oneinit_sm_id = gm200_gr_oneinit_sm_id,
+	.oneinit_sm_id = gv100_gr_oneinit_sm_id,
 	.init = gf100_gr_init,
 	.init_419bd8 = gv100_gr_init_419bd8,
 	.init_gpc_mmu = tu102_gr_init_gpc_mmu,
