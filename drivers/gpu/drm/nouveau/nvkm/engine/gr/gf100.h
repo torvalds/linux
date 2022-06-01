@@ -44,19 +44,6 @@ struct nvkm_acr_lsfw;
 #define PPC_UNIT(t, m, r) (0x503000 + (t) * 0x8000 + (m) * 0x200 + (r))
 #define TPC_UNIT(t, m, r) (0x504000 + (t) * 0x8000 + (m) * 0x800 + (r))
 
-struct gf100_gr_data {
-	u32 size;
-	u32 align;
-	bool priv;
-};
-
-struct gf100_gr_mmio {
-	u32 addr;
-	u32 data;
-	u32 shift;
-	int buffer;
-};
-
 struct gf100_gr_zbc_color {
 	u32 format;
 	u32 ds[4];
@@ -123,6 +110,7 @@ struct gf100_gr {
 
 	struct nvkm_memory *pagepool;
 	struct nvkm_memory *bundle_cb;
+	struct nvkm_memory *attrib_cb;
 	struct nvkm_memory *unknown;
 
 	u8 screen_tile_row_offset;
@@ -134,8 +122,6 @@ struct gf100_gr {
 	} sm[TPC_MAX];
 	u8 sm_nr;
 
-	struct gf100_gr_data mmio_data[4];
-	struct gf100_gr_mmio mmio_list[4096/8];
 	u32  size;
 	u32 *data;
 	u32 size_zcull;
@@ -264,16 +250,12 @@ struct gf100_gr_chan {
 
 	struct nvkm_vma *pagepool;
 	struct nvkm_vma *bundle_cb;
+	struct nvkm_vma *attrib_cb;
 	struct nvkm_vma *unknown;
 
 	struct nvkm_memory *mmio;
 	struct nvkm_vma *mmio_vma;
 	int mmio_nr;
-
-	struct {
-		struct nvkm_memory *mem;
-		struct nvkm_vma *vma;
-	} data[4];
 };
 
 void gf100_gr_ctxctl_debug(struct gf100_gr *);

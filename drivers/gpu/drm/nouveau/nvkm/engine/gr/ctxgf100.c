@@ -1003,45 +1003,6 @@ gf100_grctx_patch_wr32(struct gf100_gr_chan *chan, u32 addr, u32 data)
 	nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, data);
 }
 
-int
-gf100_grctx_mmio_data(struct gf100_grctx *info, u32 size, u32 align, bool priv)
-{
-	if (info->data) {
-		info->buffer[info->buffer_nr] = round_up(info->addr, align);
-		info->addr = info->buffer[info->buffer_nr] + size;
-		info->data->size = size;
-		info->data->align = align;
-		info->data->priv = priv;
-		info->data++;
-		return info->buffer_nr++;
-	}
-	return -1;
-}
-
-void
-gf100_grctx_mmio_item(struct gf100_grctx *info, u32 addr, u32 data,
-		      int shift, int buffer)
-{
-	struct nvkm_device *device = info->gr->base.engine.subdev.device;
-	if (info->data) {
-		if (shift >= 0) {
-			info->mmio->addr = addr;
-			info->mmio->data = data;
-			info->mmio->shift = shift;
-			info->mmio->buffer = buffer;
-			if (buffer >= 0)
-				data |= info->buffer[buffer] >> shift;
-			info->mmio++;
-		} else
-			return;
-	} else {
-		if (buffer >= 0)
-			return;
-	}
-
-	nvkm_wr32(device, addr, data);
-}
-
 void
 gf100_grctx_generate_r419cb8(struct gf100_gr *gr)
 {
@@ -1068,29 +1029,39 @@ gf100_grctx_generate_pagepool(struct gf100_gr_chan *chan, u64 addr)
 }
 
 void
-gf100_grctx_generate_attrib(struct gf100_grctx *info)
+gf100_grctx_generate_attrib(struct gf100_gr_chan *chan)
 {
-	struct gf100_gr *gr = info->gr;
+	struct gf100_gr *gr = chan->gr;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	const u32 attrib = grctx->attrib_nr;
-	const u32   size = 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max);
-	const int s = 12;
-	const int b = mmio_vram(info, size * gr->tpc_total, (1 << s), false);
 	int gpc, tpc;
 	u32 bo = 0;
 
-	mmio_refn(info, 0x418810, 0x80000000, s, b);
-	mmio_refn(info, 0x419848, 0x10000000, s, b);
-	mmio_wr32(info, 0x405830, (attrib << 16));
+	gf100_grctx_patch_wr32(chan, 0x405830, (attrib << 16));
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		for (tpc = 0; tpc < gr->tpc_nr[gpc]; tpc++) {
 			const u32 o = TPC_UNIT(gpc, tpc, 0x0520);
-			mmio_skip(info, o, (attrib << 16) | ++bo);
-			mmio_wr32(info, o, (attrib << 16) | --bo);
+
+			gf100_grctx_patch_wr32(chan, o, (attrib << 16) | bo);
 			bo += grctx->attrib_nr_max;
 		}
 	}
+}
+
+void
+gf100_grctx_generate_attrib_cb(struct gf100_gr_chan *chan, u64 addr, u32 size)
+{
+	gf100_grctx_patch_wr32(chan, 0x418810, 0x80000000 | addr >> 12);
+	gf100_grctx_patch_wr32(chan, 0x419848, 0x10000000 | addr >> 12);
+}
+
+u32
+gf100_grctx_generate_attrib_cb_size(struct gf100_gr *gr)
+{
+	const struct gf100_grctx_func *grctx = gr->func->grctx;
+
+	return 0x20 * (grctx->attrib_nr_max + grctx->alpha_nr_max) * gr->tpc_total;
 }
 
 void
@@ -1368,7 +1339,7 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 }
 
 void
-gf100_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
+gf100_grctx_generate_main(struct gf100_gr_chan *chan)
 {
 	struct gf100_gr *gr = chan->gr;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -1394,7 +1365,8 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
 
 	grctx->pagepool(chan, chan->pagepool->addr);
 	grctx->bundle(chan, chan->bundle_cb->addr, grctx->bundle_size);
-	grctx->attrib(info);
+	grctx->attrib_cb(chan, chan->attrib_cb->addr, grctx->attrib_cb_size(gr));
+	grctx->attrib(chan);
 	if (grctx->patch_ltc)
 		grctx->patch_ltc(chan);
 	if (grctx->unknown_size)
@@ -1450,7 +1422,6 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_memory *data = NULL;
 	struct nvkm_vma *ctx = NULL;
-	struct gf100_grctx info;
 	int ret, i;
 	u64 addr;
 
@@ -1500,13 +1471,6 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 	nvkm_wo32(inst, 0x0214, upper_32_bits(ctx->addr + CB_RESERVED));
 	nvkm_done(inst);
 
-	/* Setup default state for mmio list construction. */
-	info.gr = gr;
-	info.data = gr->mmio_data;
-	info.mmio = gr->mmio_list;
-	info.addr = ctx->addr;
-	info.buffer_nr = 0;
-
 	/* Make channel current. */
 	addr = inst->addr >> 12;
 	if (gr->firmware) {
@@ -1530,7 +1494,7 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 		);
 	}
 
-	grctx->main(chan, &info);
+	grctx->main(chan);
 
 	/* Trigger a context unload by unsetting the "next channel valid" bit
 	 * and faking a context switch interrupt.
@@ -1582,6 +1546,8 @@ gf100_grctx = {
 	.bundle_size = 0x1800,
 	.pagepool = gf100_grctx_generate_pagepool,
 	.pagepool_size = 0x8000,
+	.attrib_cb_size = gf100_grctx_generate_attrib_cb_size,
+	.attrib_cb = gf100_grctx_generate_attrib_cb,
 	.attrib = gf100_grctx_generate_attrib,
 	.attrib_nr_max = 0x324,
 	.attrib_nr = 0x218,

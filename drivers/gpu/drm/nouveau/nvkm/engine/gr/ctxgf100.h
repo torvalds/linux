@@ -3,28 +3,12 @@
 #define __NVKM_GRCTX_NVC0_H__
 #include "gf100.h"
 
-struct gf100_grctx {
-	struct gf100_gr *gr;
-	struct gf100_gr_data *data;
-	struct gf100_gr_mmio *mmio;
-	int buffer_nr;
-	u64 buffer[4];
-	u64 addr;
-};
-
-int  gf100_grctx_mmio_data(struct gf100_grctx *, u32 size, u32 align, bool priv);
-void gf100_grctx_mmio_item(struct gf100_grctx *, u32 addr, u32 data, int s, int);
 void gf100_grctx_patch_wr32(struct gf100_gr_chan *, u32 addr, u32 data);
-
-#define mmio_vram(a,b,c,d) gf100_grctx_mmio_data((a), (b), (c), (d))
-#define mmio_refn(a,b,c,d,e) gf100_grctx_mmio_item((a), (b), (c), (d), (e))
-#define mmio_skip(a,b,c) mmio_refn((a), (b), (c), -1, -1)
-#define mmio_wr32(a,b,c) mmio_refn((a), (b), (c),  0, -1)
 
 struct gf100_grctx_func {
 	void (*unkn88c)(struct gf100_gr *, bool on);
 	/* main context generation function */
-	void  (*main)(struct gf100_gr_chan *, struct gf100_grctx *);
+	void  (*main)(struct gf100_gr_chan *);
 	/* context-specific modify-on-first-load list generation function */
 	void  (*unkn)(struct gf100_gr *);
 	/* mmio context data */
@@ -47,7 +31,9 @@ struct gf100_grctx_func {
 	void (*pagepool)(struct gf100_gr_chan *, u64 addr);
 	u32 pagepool_size;
 	/* attribute(/alpha) circular buffer */
-	void (*attrib)(struct gf100_grctx *);
+	u32 (*attrib_cb_size)(struct gf100_gr *);
+	void (*attrib_cb)(struct gf100_gr_chan *, u64 addr, u32 size);
+	void (*attrib)(struct gf100_gr_chan *);
 	u32 attrib_nr_max;
 	u32 attrib_nr;
 	u32 alpha_nr_max;
@@ -86,10 +72,12 @@ struct gf100_grctx_func {
 
 extern const struct gf100_grctx_func gf100_grctx;
 int  gf100_grctx_generate(struct gf100_gr *, struct gf100_gr_chan *, struct nvkm_gpuobj *inst);
-void gf100_grctx_generate_main(struct gf100_gr_chan *, struct gf100_grctx *);
+void gf100_grctx_generate_main(struct gf100_gr_chan *);
 void gf100_grctx_generate_pagepool(struct gf100_gr_chan *, u64);
 void gf100_grctx_generate_bundle(struct gf100_gr_chan *, u64, u32);
-void gf100_grctx_generate_attrib(struct gf100_grctx *);
+u32 gf100_grctx_generate_attrib_cb_size(struct gf100_gr *);
+void gf100_grctx_generate_attrib_cb(struct gf100_gr_chan *, u64, u32);
+void gf100_grctx_generate_attrib(struct gf100_gr_chan *);
 void gf100_grctx_generate_unkn(struct gf100_gr *);
 void gf100_grctx_generate_floorsweep(struct gf100_gr *);
 void gf100_grctx_generate_sm_id(struct gf100_gr *, int, int, int);
@@ -101,14 +89,14 @@ void gf100_grctx_generate_max_ways_evict(struct gf100_gr *);
 void gf100_grctx_generate_r419cb8(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gf108_grctx;
-void gf108_grctx_generate_attrib(struct gf100_grctx *);
+void gf108_grctx_generate_attrib(struct gf100_gr_chan *);
 void gf108_grctx_generate_unkn(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gf104_grctx;
 extern const struct gf100_grctx_func gf110_grctx;
 
 extern const struct gf100_grctx_func gf117_grctx;
-void gf117_grctx_generate_attrib(struct gf100_grctx *);
+void gf117_grctx_generate_attrib(struct gf100_gr_chan *);
 void gf117_grctx_generate_rop_mapping(struct gf100_gr *);
 void gf117_grctx_generate_dist_skip_table(struct gf100_gr *);
 
@@ -134,7 +122,8 @@ extern const struct gf100_grctx_func gk208_grctx;
 extern const struct gf100_grctx_func gm107_grctx;
 void gm107_grctx_generate_pagepool(struct gf100_gr_chan *, u64);
 void gm107_grctx_generate_bundle(struct gf100_gr_chan *, u64, u32);
-void gm107_grctx_generate_attrib(struct gf100_grctx *);
+void gm107_grctx_generate_attrib_cb(struct gf100_gr_chan *, u64, u32);
+void gm107_grctx_generate_attrib(struct gf100_gr_chan *);
 void gm107_grctx_generate_sm_id(struct gf100_gr *, int, int, int);
 
 extern const struct gf100_grctx_func gm200_grctx;
@@ -148,10 +137,12 @@ extern const struct gf100_grctx_func gm20b_grctx;
 
 extern const struct gf100_grctx_func gp100_grctx;
 void gp100_grctx_generate_pagepool(struct gf100_gr_chan *, u64);
+void gp100_grctx_generate_attrib_cb(struct gf100_gr_chan *, u64, u32);
 void gp100_grctx_generate_smid_config(struct gf100_gr *);
 
 extern const struct gf100_grctx_func gp102_grctx;
-void gp102_grctx_generate_attrib(struct gf100_grctx *);
+u32 gp102_grctx_generate_attrib_cb_size(struct gf100_gr *);
+void gp102_grctx_generate_attrib(struct gf100_gr_chan *);
 
 extern const struct gf100_grctx_func gp104_grctx;
 
@@ -163,7 +154,8 @@ extern const struct gf100_grctx_func tu102_grctx;
 void gv100_grctx_unkn88c(struct gf100_gr *, bool);
 void gv100_grctx_generate_unkn(struct gf100_gr *);
 extern const struct gf100_gr_init gv100_grctx_init_sw_veid_bundle_init_0[];
-void gv100_grctx_generate_attrib(struct gf100_grctx *);
+void gv100_grctx_generate_attrib_cb(struct gf100_gr_chan *, u64, u32);
+void gv100_grctx_generate_attrib(struct gf100_gr_chan *);
 void gv100_grctx_generate_rop_mapping(struct gf100_gr *);
 void gv100_grctx_generate_r400088(struct gf100_gr *, bool);
 

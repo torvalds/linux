@@ -355,16 +355,11 @@ static void *
 gf100_gr_chan_dtor(struct nvkm_object *object)
 {
 	struct gf100_gr_chan *chan = gf100_gr_chan(object);
-	int i;
-
-	for (i = 0; i < ARRAY_SIZE(chan->data); i++) {
-		nvkm_vmm_put(chan->vmm, &chan->data[i].vma);
-		nvkm_memory_unref(&chan->data[i].mem);
-	}
 
 	nvkm_vmm_put(chan->vmm, &chan->mmio_vma);
 	nvkm_memory_unref(&chan->mmio);
 
+	nvkm_vmm_put(chan->vmm, &chan->attrib_cb);
 	nvkm_vmm_put(chan->vmm, &chan->unknown);
 	nvkm_vmm_put(chan->vmm, &chan->bundle_cb);
 	nvkm_vmm_put(chan->vmm, &chan->pagepool);
@@ -384,12 +379,10 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 		  struct nvkm_object **pobject)
 {
 	struct gf100_gr *gr = gf100_gr(base);
-	struct gf100_gr_data *data = gr->mmio_data;
-	struct gf100_gr_mmio *mmio = gr->mmio_list;
 	struct gf100_gr_chan *chan;
 	struct gf100_vmm_map_v0 args = { .priv = 1 };
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int ret, i;
+	int ret;
 
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
 		return -ENOMEM;
@@ -415,6 +408,22 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	ret = nvkm_memory_map(gr->bundle_cb, 0, chan->vmm, chan->bundle_cb, &args, sizeof(args));
 	if (ret)
 		return ret;
+
+	/* Map attribute circular buffer. */
+	ret = nvkm_vmm_get(chan->vmm, 12, nvkm_memory_size(gr->attrib_cb), &chan->attrib_cb);
+	if (ret)
+		return ret;
+
+	if (device->card_type < GP100) {
+		ret = nvkm_memory_map(gr->attrib_cb, 0, chan->vmm, chan->attrib_cb, NULL, 0);
+		if (ret)
+			return ret;
+	} else {
+		ret = nvkm_memory_map(gr->attrib_cb, 0, chan->vmm, chan->attrib_cb,
+				      &args, sizeof(args));;
+		if (ret)
+			return ret;
+	}
 
 	/* Map some context buffer of unknown purpose. */
 	if (gr->func->grctx->unknown_size) {
@@ -457,47 +466,12 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	if (ret)
 		return ret;
 
-	/* allocate buffers referenced by mmio list */
-	for (i = 0; data->size && i < ARRAY_SIZE(gr->mmio_data); i++) {
-		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST,
-				      data->size, data->align, false,
-				      &chan->data[i].mem);
-		if (ret)
-			return ret;
-
-		ret = nvkm_vmm_get(fifoch->vmm, 12,
-				   nvkm_memory_size(chan->data[i].mem),
-				   &chan->data[i].vma);
-		if (ret)
-			return ret;
-
-		args.priv = data->priv;
-
-		ret = nvkm_memory_map(chan->data[i].mem, 0, chan->vmm,
-				      chan->data[i].vma, &args, sizeof(args));
-		if (ret)
-			return ret;
-
-		data++;
-	}
-
 	/* finally, fill in the mmio list and point the context at it */
 	nvkm_kmap(chan->mmio);
 	gr->func->grctx->pagepool(chan, chan->pagepool->addr);
 	gr->func->grctx->bundle(chan, chan->bundle_cb->addr, gr->func->grctx->bundle_size);
-	for (i = 0; mmio->addr && i < ARRAY_SIZE(gr->mmio_list); i++) {
-		u32 addr = mmio->addr;
-		u32 data = mmio->data;
-
-		if (mmio->buffer >= 0) {
-			u64 info = chan->data[mmio->buffer].vma->addr;
-			data |= info >> mmio->shift;
-		}
-
-		nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, addr);
-		nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, data);
-		mmio++;
-	}
+	gr->func->grctx->attrib_cb(chan, chan->attrib_cb->addr, gr->func->grctx->attrib_cb_size(gr));
+	gr->func->grctx->attrib(chan);
 	if (gr->func->grctx->patch_ltc)
 		gr->func->grctx->patch_ltc(chan);
 	if (gr->func->grctx->unknown_size)
@@ -2015,6 +1989,11 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	if (ret)
 		return ret;
 
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->attrib_cb_size(gr),
+			      0x1000, false, &gr->attrib_cb);
+	if (ret)
+		return ret;
+
 	if (gr->func->grctx->unknown_size) {
 		ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->unknown_size,
 				      0x100, false, &gr->unknown);
@@ -2092,6 +2071,7 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	kfree(gr->data);
 
 	nvkm_memory_unref(&gr->unknown);
+	nvkm_memory_unref(&gr->attrib_cb);
 	nvkm_memory_unref(&gr->bundle_cb);
 	nvkm_memory_unref(&gr->pagepool);
 
