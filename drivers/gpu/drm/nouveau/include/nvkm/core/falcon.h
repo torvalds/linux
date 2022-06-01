@@ -47,6 +47,7 @@ void gm200_flcn_bind_inst(struct nvkm_falcon *, int, u64);
 int gm200_flcn_bind_stat(struct nvkm_falcon *, bool);
 extern const struct nvkm_falcon_func_pio gm200_flcn_imem_pio;
 extern const struct nvkm_falcon_func_pio gm200_flcn_dmem_pio;
+void gm200_flcn_tracepc(struct nvkm_falcon *);
 
 int gp102_flcn_reset_eng(struct nvkm_falcon *);
 extern const struct nvkm_falcon_func_pio gp102_flcn_emem_pio;

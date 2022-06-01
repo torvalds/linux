@@ -178,6 +178,11 @@ gp102_sec2_intr(struct nvkm_inth *inth)
 	}
 
 	if (intr & 0x00000010) {
+		if (atomic_read(&sec2->running)) {
+			FLCN_ERR(falcon, "halted");
+			gm200_flcn_tracepc(falcon);
+		}
+
 		nvkm_falcon_wr32(falcon, 0x004, 0x00000010);
 		intr &= ~0x00000010;
 	}

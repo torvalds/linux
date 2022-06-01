@@ -25,6 +25,21 @@
 #include <subdev/mc.h>
 #include <subdev/timer.h>
 
+void
+gm200_flcn_tracepc(struct nvkm_falcon *falcon)
+{
+	u32 sctl = nvkm_falcon_rd32(falcon, 0x240);
+	u32 tidx = nvkm_falcon_rd32(falcon, 0x148);
+	int nr = (tidx & 0x00ff0000) >> 16, sp, ip;
+
+	FLCN_ERR(falcon, "TRACEPC SCTL %08x TIDX %08x", sctl, tidx);
+	for (sp = 0; sp < nr; sp++) {
+		nvkm_falcon_wr32(falcon, 0x148, sp);
+		ip = nvkm_falcon_rd32(falcon, 0x14c);
+		FLCN_ERR(falcon, "TRACEPC: %08x", ip);
+	}
+}
+
 static void
 gm200_flcn_pio_dmem_rd(struct nvkm_falcon *falcon, u8 port, const u8 *img, int len)
 {
