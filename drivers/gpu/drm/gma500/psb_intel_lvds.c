@@ -491,12 +491,10 @@ static int psb_intel_lvds_get_modes(struct drm_connector *connector)
 	struct drm_device *dev = connector->dev;
 	struct drm_psb_private *dev_priv = to_drm_psb_private(dev);
 	struct psb_intel_mode_device *mode_dev = &dev_priv->mode_dev;
-	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
-	struct psb_intel_lvds_priv *lvds_priv = gma_encoder->dev_priv;
 	int ret = 0;
 
 	if (!IS_MRST(dev))
-		ret = psb_intel_ddc_get_modes(connector, &lvds_priv->i2c_bus->base);
+		ret = psb_intel_ddc_get_modes(connector, connector->ddc);
 
 	if (ret)
 		return ret;
