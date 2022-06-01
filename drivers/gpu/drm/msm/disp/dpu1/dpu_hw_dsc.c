@@ -166,8 +166,7 @@ static struct dpu_dsc_cfg *_dsc_offset(enum dpu_dsc dsc,
 
 	for (i = 0; i < m->dsc_count; i++) {
 		if (dsc == m->dsc[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->dsc[i].base;
+			b->blk_addr = addr + m->dsc[i].base;
 			b->log_mask = DPU_DBG_MASK_DSC;
 			return &m->dsc[i];
 		}

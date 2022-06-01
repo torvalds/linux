@@ -82,13 +82,13 @@ void dpu_reg_write(struct dpu_hw_blk_reg_map *c,
 	/* don't need to mutex protect this */
 	if (c->log_mask & dpu_hw_util_log_mask)
 		DPU_DEBUG_DRIVER("[%s:0x%X] <= 0x%X\n",
-				name, c->blk_off + reg_off, val);
-	writel_relaxed(val, c->base_off + c->blk_off + reg_off);
+				name, reg_off, val);
+	writel_relaxed(val, c->blk_addr + reg_off);
 }
 
 int dpu_reg_read(struct dpu_hw_blk_reg_map *c, u32 reg_off)
 {
-	return readl_relaxed(c->base_off + c->blk_off + reg_off);
+	return readl_relaxed(c->blk_addr + reg_off);
 }
 
 u32 *dpu_hw_util_get_log_mask_ptr(void)

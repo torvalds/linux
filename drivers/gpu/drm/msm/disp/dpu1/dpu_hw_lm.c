@@ -39,8 +39,7 @@ static const struct dpu_lm_cfg *_lm_offset(enum dpu_lm mixer,
 
 	for (i = 0; i < m->mixer_count; i++) {
 		if (mixer == m->mixer[i].id) {
-			b->base_off = addr;
-			b->blk_off = m->mixer[i].base;
+			b->blk_addr = addr + m->mixer[i].base;
 			b->log_mask = DPU_DBG_MASK_LM;
 			return &m->mixer[i];
 		}

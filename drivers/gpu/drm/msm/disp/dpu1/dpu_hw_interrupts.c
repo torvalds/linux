@@ -401,8 +401,7 @@ u32 dpu_core_irq_read(struct dpu_kms *dpu_kms, int irq_idx)
 static void __intr_offset(const struct dpu_mdss_cfg *m,
 		void __iomem *addr, struct dpu_hw_blk_reg_map *hw)
 {
-	hw->base_off = addr;
-	hw->blk_off = m->mdp[0].base;
+	hw->blk_addr = addr + m->mdp[0].base;
 }
 
 struct dpu_hw_intr *dpu_hw_intr_init(void __iomem *addr,

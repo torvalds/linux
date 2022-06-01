@@ -769,8 +769,7 @@ static const struct dpu_sspp_cfg *_sspp_offset(enum dpu_sspp sspp,
 	if ((sspp < SSPP_MAX) && catalog && addr && b) {
 		for (i = 0; i < catalog->sspp_count; i++) {
 			if (sspp == catalog->sspp[i].id) {
-				b->base_off = addr;
-				b->blk_off = catalog->sspp[i].base;
+				b->blk_addr = addr + catalog->sspp[i].base;
 				b->log_mask = DPU_DBG_MASK_SSPP;
 				return &catalog->sspp[i];
 			}

@@ -82,8 +82,7 @@ static const struct dpu_intf_cfg *_intf_offset(enum dpu_intf intf,
 	for (i = 0; i < m->intf_count; i++) {
 		if ((intf == m->intf[i].id) &&
 		(m->intf[i].type != INTF_NONE)) {
-			b->base_off = addr;
-			b->blk_off = m->intf[i].base;
+			b->blk_addr = addr + m->intf[i].base;
 			b->log_mask = DPU_DBG_MASK_INTF;
 			return &m->intf[i];
 		}
