@@ -200,6 +200,7 @@ struct rockchip_spi {
 	bool slave_abort;
 	bool cs_inactive; /* spi slave tansmition stop when cs inactive */
 	struct spi_transfer *xfer; /* Store xfer temporarily */
+	spinlock_t lock; /* prevent I/O concurrent access */
 };
 
 static inline void spi_enable_chip(struct rockchip_spi *rs, bool enable)
@@ -294,9 +295,13 @@ static void rockchip_spi_handle_err(struct spi_controller *ctlr,
 
 static void rockchip_spi_pio_writer(struct rockchip_spi *rs)
 {
-	u32 tx_free = rs->fifo_len - readl_relaxed(rs->regs + ROCKCHIP_SPI_TXFLR);
-	u32 words = min(rs->tx_left, tx_free);
+	u32 tx_free;
+	u32 words;
+	unsigned long flags;
 
+	spin_lock_irqsave(&rs->lock, flags);
+	tx_free = rs->fifo_len - readl_relaxed(rs->regs + ROCKCHIP_SPI_TXFLR);
+	words = min(rs->tx_left, tx_free);
 	rs->tx_left -= words;
 	for (; words; words--) {
 		u32 txw;
@@ -309,6 +314,7 @@ static void rockchip_spi_pio_writer(struct rockchip_spi *rs)
 		writel_relaxed(txw, rs->regs + ROCKCHIP_SPI_TXDR);
 		rs->tx += rs->n_bytes;
 	}
+	spin_unlock_irqrestore(&rs->lock, flags);
 }
 
 static void rockchip_spi_pio_reader(struct rockchip_spi *rs)
@@ -786,6 +792,8 @@ static int rockchip_spi_probe(struct platform_device *pdev)
 		ret =  PTR_ERR(rs->regs);
 		goto err_put_ctlr;
 	}
+
+	spin_lock_init(&rs->lock);
 
 	rs->apb_pclk = devm_clk_get(&pdev->dev, "apb_pclk");
 	if (IS_ERR(rs->apb_pclk)) {
