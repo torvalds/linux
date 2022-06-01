@@ -2,7 +2,7 @@
 #ifndef __NOUVEAU_CHAN_H__
 #define __NOUVEAU_CHAN_H__
 #include <nvif/object.h>
-#include <nvif/notify.h>
+#include <nvif/event.h>
 #include <nvif/push.h>
 struct nvif_device;
 
@@ -50,7 +50,7 @@ struct nouveau_channel {
 
 	struct nvif_object user;
 
-	struct nvif_notify kill;
+	struct nvif_event kill;
 	atomic_t killed;
 };
 

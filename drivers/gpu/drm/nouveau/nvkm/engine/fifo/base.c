@@ -26,7 +26,6 @@
 
 #include <core/client.h>
 #include <core/gpuobj.h>
-#include <core/notify.h>
 #include <subdev/mc.h>
 
 #include <nvif/event.h>
@@ -122,26 +121,11 @@ nvkm_fifo_chan_chid(struct nvkm_fifo *fifo, int chid, unsigned long *rflags)
 void
 nvkm_fifo_kevent(struct nvkm_fifo *fifo, int chid)
 {
-	nvkm_event_send(&fifo->kevent, 1, chid, NULL, 0);
-}
-
-static int
-nvkm_fifo_kevent_ctor(struct nvkm_object *object, void *data, u32 size,
-		      struct nvkm_notify *notify)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	if (size == 0) {
-		notify->size  = 0;
-		notify->types = 1;
-		notify->index = chan->chid;
-		return 0;
-	}
-	return -ENOSYS;
+	nvkm_event_send(&fifo->kevent, NVKM_FIFO_EVENT_KILLED, chid, NULL, 0);
 }
 
 static const struct nvkm_event_func
 nvkm_fifo_kevent_func = {
-	.ctor = nvkm_fifo_kevent_ctor,
 };
 
 static void

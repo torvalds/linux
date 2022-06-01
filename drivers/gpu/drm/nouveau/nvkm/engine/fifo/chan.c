@@ -267,21 +267,14 @@ nvkm_fifo_chan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct n
 	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
 		return nvkm_uevent_add(uevent, &chan->fifo->uevent, 0,
 				       NVKM_FIFO_EVENT_NON_STALL_INTR, NULL);
+	case NVIF_CHAN_EVENT_V0_KILLED:
+		return nvkm_uevent_add(uevent, &chan->fifo->kevent, chan->chid,
+				       NVKM_FIFO_EVENT_KILLED, NULL);
 	default:
 		break;
 	}
 
 	return -ENOSYS;
-}
-
-static int
-nvkm_fifo_chan_ntfy(struct nvkm_object *object, u32 type,
-		    struct nvkm_event **pevent)
-{
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
-	if (chan->func->ntfy)
-		return chan->func->ntfy(chan, type, pevent);
-	return -ENODEV;
 }
 
 static int
@@ -341,7 +334,6 @@ nvkm_fifo_chan_func = {
 	.dtor = nvkm_fifo_chan_dtor,
 	.init = nvkm_fifo_chan_init,
 	.fini = nvkm_fifo_chan_fini,
-	.ntfy = nvkm_fifo_chan_ntfy,
 	.map = nvkm_fifo_chan_map,
 	.sclass = nvkm_fifo_chan_child_get,
 	.uevent = nvkm_fifo_chan_uevent,

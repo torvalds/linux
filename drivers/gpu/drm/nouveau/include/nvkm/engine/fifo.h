@@ -44,6 +44,7 @@ struct nvkm_fifo {
 
 #define NVKM_FIFO_EVENT_NON_STALL_INTR BIT(0)
 	struct nvkm_event uevent; /* async user trigger */
+#define NVKM_FIFO_EVENT_KILLED         BIT(0)
 	struct nvkm_event kevent; /* channel killed */
 };
 

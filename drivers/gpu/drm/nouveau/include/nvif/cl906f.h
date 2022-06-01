@@ -10,6 +10,4 @@ struct fermi_channel_gpfifo_v0 {
 	__u64 ioffset;
 	__u64 vmm;
 };
-
-#define NV906F_V0_NTFY_KILLED                                              0x01
 #endif

@@ -30,6 +30,7 @@
 #include <nvif/cl906f.h>
 #include <nvif/cla06f.h>
 #include <nvif/clc36f.h>
+#include <nvif/if0020.h>
 #include <nvif/ioctl.h>
 
 #include "nouveau_drv.h"
@@ -46,15 +47,17 @@ int nouveau_vram_pushbuf;
 module_param_named(vram_pushbuf, nouveau_vram_pushbuf, int, 0400);
 
 static int
-nouveau_channel_killed(struct nvif_notify *ntfy)
+nouveau_channel_killed(struct nvif_event *event, void *repv, u32 repc)
 {
-	struct nouveau_channel *chan = container_of(ntfy, typeof(*chan), kill);
+	struct nouveau_channel *chan = container_of(event, typeof(*chan), kill);
 	struct nouveau_cli *cli = (void *)chan->user.client;
+
 	NV_PRINTK(warn, cli, "channel %d killed!\n", chan->chid);
 	atomic_set(&chan->killed, 1);
 	if (chan->fence)
 		nouveau_fence_context_kill(chan->fence, -ENODEV);
-	return NVIF_NOTIFY_DROP;
+
+	return NVIF_EVENT_DROP;
 }
 
 int
@@ -96,7 +99,7 @@ nouveau_channel_del(struct nouveau_channel **pchan)
 		nvif_object_dtor(&chan->nvsw);
 		nvif_object_dtor(&chan->gart);
 		nvif_object_dtor(&chan->vram);
-		nvif_notify_dtor(&chan->kill);
+		nvif_event_dtor(&chan->kill);
 		nvif_object_dtor(&chan->user);
 		nvif_object_dtor(&chan->push.ctxdma);
 		nouveau_vma_del(&chan->push.vma);
@@ -391,12 +394,19 @@ nouveau_channel_init(struct nouveau_channel *chan, u32 vram, u32 gart)
 
 	if (chan->user.oclass >= FERMI_CHANNEL_GPFIFO &&
 	    chan->user.oclass < AMPERE_CHANNEL_GPFIFO_B) {
-		ret = nvif_notify_ctor(&chan->user, "abi16ChanKilled",
-				       nouveau_channel_killed,
-				       true, NV906F_V0_NTFY_KILLED,
-				       NULL, 0, 0, &chan->kill);
+		struct {
+			struct nvif_event_v0 base;
+			struct nvif_chan_event_v0 host;
+		} args;
+
+		args.host.version = 0;
+		args.host.type = NVIF_CHAN_EVENT_V0_KILLED;
+
+		ret = nvif_event_ctor(&chan->user, "abi16ChanKilled", chan->chid,
+				      nouveau_channel_killed, false,
+				      &args.base, sizeof(args), &chan->kill);
 		if (ret == 0)
-			ret = nvif_notify_get(&chan->kill);
+			ret = nvif_event_allow(&chan->kill);
 		if (ret) {
 			NV_ERROR(drm, "Failed to request channel kill "
 				      "notification: %d\n", ret);

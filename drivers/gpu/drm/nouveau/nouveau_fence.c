@@ -88,8 +88,9 @@ void
 nouveau_fence_context_kill(struct nouveau_fence_chan *fctx, int error)
 {
 	struct nouveau_fence *fence;
+	unsigned long flags;
 
-	spin_lock_irq(&fctx->lock);
+	spin_lock_irqsave(&fctx->lock, flags);
 	while (!list_empty(&fctx->pending)) {
 		fence = list_entry(fctx->pending.next, typeof(*fence), head);
 
@@ -99,7 +100,7 @@ nouveau_fence_context_kill(struct nouveau_fence_chan *fctx, int error)
 		if (nouveau_fence_signal(fence))
 			nvif_event_block(&fctx->event);
 	}
-	spin_unlock_irq(&fctx->lock);
+	spin_unlock_irqrestore(&fctx->lock, flags);
 }
 
 void

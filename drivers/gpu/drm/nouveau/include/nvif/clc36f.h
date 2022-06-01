@@ -13,6 +13,4 @@ struct volta_channel_gpfifo_a_v0 {
 	__u64 inst;
 	__u32 token;
 };
-
-#define NVC36F_V0_NTFY_KILLED                                              0x01
 #endif

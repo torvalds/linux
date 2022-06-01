@@ -8,7 +8,6 @@ struct nvkm_fifo_chan_func {
 	void *(*dtor)(struct nvkm_fifo_chan *);
 	void (*init)(struct nvkm_fifo_chan *);
 	void (*fini)(struct nvkm_fifo_chan *);
-	int (*ntfy)(struct nvkm_fifo_chan *, u32 type, struct nvkm_event **);
 	int  (*engine_ctor)(struct nvkm_fifo_chan *, struct nvkm_engine *,
 			    struct nvkm_object *);
 	void (*engine_dtor)(struct nvkm_fifo_chan *, struct nvkm_engine *);

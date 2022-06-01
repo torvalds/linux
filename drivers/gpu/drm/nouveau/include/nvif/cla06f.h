@@ -12,6 +12,4 @@ struct kepler_channel_gpfifo_a_v0 {
 	__u64 vmm;
 	__u64 inst;
 };
-
-#define NVA06F_V0_NTFY_KILLED                                              0x01
 #endif
