@@ -32,8 +32,11 @@ static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
  * DRM device
  */
 
-static const struct mgag200_device_info mgag200_g200se_device_info =
-	MGAG200_DEVICE_INFO_INIT();
+static const struct mgag200_device_info mgag200_g200se_a_device_info =
+	MGAG200_DEVICE_INFO_INIT(true);
+
+static const struct mgag200_device_info mgag200_g200se_b_device_info =
+	MGAG200_DEVICE_INFO_INIT(false);
 
 static void mgag200_g200se_init_unique_id(struct mgag200_g200se_device *g200se)
 {
@@ -47,9 +50,10 @@ static void mgag200_g200se_init_unique_id(struct mgag200_g200se_device *g200se)
 }
 
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags)
+						enum mga_type type)
 {
 	struct mgag200_g200se_device *g200se;
+	const struct mgag200_device_info *info;
 	struct mga_device *mdev;
 	struct drm_device *dev;
 	resource_size_t vram_available;
@@ -73,7 +77,18 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 
 	mgag200_g200se_init_unique_id(g200se);
 
-	ret = mgag200_device_init(mdev, type, flags, &mgag200_g200se_device_info);
+	switch (type) {
+	case G200_SE_A:
+		info = &mgag200_g200se_a_device_info;
+		break;
+	case G200_SE_B:
+		info = &mgag200_g200se_b_device_info;
+		break;
+	default:
+		return ERR_PTR(-EINVAL);
+	}
+
+	ret = mgag200_device_init(mdev, type, info);
 	if (ret)
 		return ERR_PTR(ret);
 

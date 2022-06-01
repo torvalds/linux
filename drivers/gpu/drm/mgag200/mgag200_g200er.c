@@ -11,10 +11,10 @@
  */
 
 static const struct mgag200_device_info mgag200_g200er_device_info =
-	MGAG200_DEVICE_INFO_INIT();
+	MGAG200_DEVICE_INFO_INIT(false);
 
 struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags)
+						enum mga_type type)
 {
 	struct mga_device *mdev;
 	struct drm_device *dev;
@@ -32,7 +32,7 @@ struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const stru
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_device_init(mdev, type, flags, &mgag200_g200er_device_info);
+	ret = mgag200_device_init(mdev, type, &mgag200_g200er_device_info);
 	if (ret)
 		return ERR_PTR(ret);
 

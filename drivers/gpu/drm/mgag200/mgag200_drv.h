@@ -188,24 +188,23 @@ enum mga_type {
 	G200_EW3,
 };
 
-/* HW does not handle 'startadd' field correct. */
-#define MGAG200_FLAG_HW_BUG_NO_STARTADD	(1ul << 8)
-
-#define MGAG200_TYPE_MASK	(0x000000ff)
-#define MGAG200_FLAG_MASK	(0x00ffff00)
-
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
 struct mgag200_device_info {
+	/*
+	 * HW does not handle 'startadd' register correctly. Always set
+	 * it's value to 0.
+	 */
+	bool bug_no_startadd:1;
 };
 
-#define MGAG200_DEVICE_INFO_INIT() \
+#define MGAG200_DEVICE_INFO_INIT(_bug_no_startadd) \
 	{ \
+		.bug_no_startadd = (_bug_no_startadd), \
 	}
 
 struct mga_device {
-	struct drm_device		base;
-	unsigned long			flags;
+	struct drm_device base;
 
 	const struct mgag200_device_info *info;
 
@@ -261,26 +260,26 @@ int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2);
 resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size);
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
 int mgag200_device_preinit(struct mga_device *mdev);
-int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags,
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type,
 			const struct mgag200_device_info *info);
 
 				/* mgag200_<device type>.c */
 struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-					      enum mga_type type, unsigned long flags);
+					      enum mga_type type);
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags);
+						enum mga_type type);
 struct mga_device *mgag200_g200wb_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags);
+						enum mga_type type);
 struct mga_device *mgag200_g200ev_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags);
+						enum mga_type type);
 struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags);
+						enum mga_type type);
 struct mga_device *mgag200_g200eh3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						 enum mga_type type, unsigned long flags);
+						 enum mga_type type);
 struct mga_device *mgag200_g200er_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						enum mga_type type, unsigned long flags);
+						enum mga_type type);
 struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
-						 enum mga_type type, unsigned long flags);
+						 enum mga_type type);
 
 				/* mgag200_mode.c */
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);

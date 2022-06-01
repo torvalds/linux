@@ -162,14 +162,13 @@ int mgag200_device_preinit(struct mga_device *mdev)
 	return 0;
 }
 
-int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags,
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type,
 			const struct mgag200_device_info *info)
 {
 	struct drm_device *dev = &mdev->base;
 	u8 crtcext3, misc;
 	int ret;
 
-	mdev->flags = flags;
 	mdev->info = info;
 	mdev->type = type;
 
@@ -202,8 +201,7 @@ int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned lo
 static const struct pci_device_id mgag200_pciidlist[] = {
 	{ PCI_VENDOR_ID_MATROX, 0x520, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_PCI },
 	{ PCI_VENDOR_ID_MATROX, 0x521, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_AGP },
-	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0,
-		G200_SE_A | MGAG200_FLAG_HW_BUG_NO_STARTADD},
+	{ PCI_VENDOR_ID_MATROX, 0x522, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_A },
 	{ PCI_VENDOR_ID_MATROX, 0x524, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_SE_B },
 	{ PCI_VENDOR_ID_MATROX, 0x530, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_EV },
 	{ PCI_VENDOR_ID_MATROX, 0x532, PCI_ANY_ID, PCI_ANY_ID, 0, 0, G200_WB },
@@ -216,22 +214,10 @@ static const struct pci_device_id mgag200_pciidlist[] = {
 
 MODULE_DEVICE_TABLE(pci, mgag200_pciidlist);
 
-static enum mga_type mgag200_type_from_driver_data(kernel_ulong_t driver_data)
-{
-	return (enum mga_type)(driver_data & MGAG200_TYPE_MASK);
-}
-
-static unsigned long mgag200_flags_from_driver_data(kernel_ulong_t driver_data)
-{
-	return driver_data & MGAG200_FLAG_MASK;
-}
-
 static int
 mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 {
-	kernel_ulong_t driver_data = ent->driver_data;
-	enum mga_type type = mgag200_type_from_driver_data(driver_data);
-	unsigned long flags = mgag200_flags_from_driver_data(driver_data);
+	enum mga_type type = (enum mga_type)ent->driver_data;
 	struct mga_device *mdev;
 	struct drm_device *dev;
 	int ret;
@@ -247,29 +233,29 @@ mgag200_pci_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 	switch (type) {
 	case G200_PCI:
 	case G200_AGP:
-		mdev = mgag200_g200_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_SE_A:
 	case G200_SE_B:
-		mdev = mgag200_g200se_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200se_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_WB:
-		mdev = mgag200_g200wb_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200wb_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_EV:
-		mdev = mgag200_g200ev_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200ev_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_EH:
-		mdev = mgag200_g200eh_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200eh_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_EH3:
-		mdev = mgag200_g200eh3_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200eh3_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_ER:
-		mdev = mgag200_g200er_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200er_device_create(pdev, &mgag200_driver, type);
 		break;
 	case G200_EW3:
-		mdev = mgag200_g200ew3_device_create(pdev, &mgag200_driver, type, flags);
+		mdev = mgag200_g200ew3_device_create(pdev, &mgag200_driver, type);
 		break;
 	default:
 		dev_err(&pdev->dev, "Device type %d is unsupported\n", type);
