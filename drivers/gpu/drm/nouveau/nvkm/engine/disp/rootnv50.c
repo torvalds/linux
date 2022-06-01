@@ -21,7 +21,6 @@
  *
  * Authors: Ben Skeggs
  */
-#include "rootnv50.h"
 #include "channv50.h"
 #include "head.h"
 #include "ior.h"
@@ -33,15 +32,14 @@
 #include <nvif/cl5070.h>
 #include <nvif/unpack.h>
 
-static int
+int
 nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
 	union {
 		struct nv50_disp_mthd_v0 v0;
 		struct nv50_disp_mthd_v1 v1;
 	} *args = data;
-	struct nv50_disp_root *root = nv50_disp_root(object);
-	struct nvkm_disp *disp = root->disp;
+	struct nvkm_disp *disp = nvkm_udisp(object);
 	struct nvkm_outp *temp, *outp = NULL;
 	struct nvkm_head *head;
 	u16 type, mask = 0;
@@ -271,88 +269,3 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 
 	return -EINVAL;
 }
-
-static int
-nv50_disp_root_child_new_(const struct nvkm_oclass *oclass,
-			  void *argv, u32 argc, struct nvkm_object **pobject)
-{
-	struct nvkm_disp *disp = nv50_disp_root(oclass->parent)->disp;
-	const struct nv50_disp_user *user = oclass->priv;
-	return user->ctor(oclass, argv, argc, disp, pobject);
-}
-
-static int
-nv50_disp_root_child_get_(struct nvkm_object *object, int index,
-			  struct nvkm_oclass *sclass)
-{
-	struct nv50_disp_root *root = nv50_disp_root(object);
-
-	if (root->func->user[index].ctor) {
-		sclass->base = root->func->user[index].base;
-		sclass->priv = root->func->user + index;
-		sclass->ctor = nv50_disp_root_child_new_;
-		return 0;
-	}
-
-	return -EINVAL;
-}
-
-static void *
-nv50_disp_root_dtor_(struct nvkm_object *object)
-{
-	struct nv50_disp_root *root = nv50_disp_root(object);
-	return root;
-}
-
-static const struct nvkm_object_func
-nv50_disp_root_ = {
-	.dtor = nv50_disp_root_dtor_,
-	.mthd = nv50_disp_root_mthd_,
-	.ntfy = nvkm_disp_ntfy,
-	.sclass = nv50_disp_root_child_get_,
-};
-
-int
-nv50_disp_root_new_(const struct nv50_disp_root_func *func,
-		    struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		    void *data, u32 size, struct nvkm_object **pobject)
-{
-	struct nv50_disp_root *root;
-
-	if (!(root = kzalloc(sizeof(*root), GFP_KERNEL)))
-		return -ENOMEM;
-	*pobject = &root->object;
-
-	nvkm_object_ctor(&nv50_disp_root_, oclass, &root->object);
-	root->func = func;
-	root->disp = disp;
-	return 0;
-}
-
-static const struct nv50_disp_root_func
-nv50_disp_root = {
-	.user = {
-		{{0,0,NV50_DISP_CURSOR             }, nv50_disp_curs_new },
-		{{0,0,NV50_DISP_OVERLAY            }, nv50_disp_oimm_new },
-		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nv50_disp_base_new },
-		{{0,0,NV50_DISP_CORE_CHANNEL_DMA   }, nv50_disp_core_new },
-		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nv50_disp_ovly_new },
-		{}
-	},
-};
-
-static int
-nv50_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		   void *data, u32 size, struct nvkm_object **pobject)
-{
-	return nv50_disp_root_new_(&nv50_disp_root, disp, oclass,
-				   data, size, pobject);
-}
-
-const struct nvkm_disp_oclass
-nv50_disp_root_oclass = {
-	.base.oclass = NV50_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = nv50_disp_root_new,
-};

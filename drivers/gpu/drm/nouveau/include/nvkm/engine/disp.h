@@ -3,6 +3,7 @@
 #define __NVKM_DISP_H__
 #define nvkm_disp(p) container_of((p), struct nvkm_disp, engine)
 #include <core/engine.h>
+#include <core/object.h>
 #include <core/event.h>
 
 struct nvkm_disp {
@@ -47,7 +48,7 @@ struct nvkm_disp {
 
 	struct {
 		spinlock_t lock;
-		struct nvkm_oproxy *object;
+		struct nvkm_object object;
 	} client;
 };
 

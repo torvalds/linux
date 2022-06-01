@@ -30,7 +30,6 @@
 
 #include <core/client.h>
 #include <core/notify.h>
-#include <core/oproxy.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
 
@@ -145,45 +144,12 @@ nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
 	return -EINVAL;
 }
 
-static void
-nvkm_disp_class_del(struct nvkm_oproxy *oproxy)
-{
-	struct nvkm_disp *disp = nvkm_disp(oproxy->base.engine);
-	spin_lock(&disp->client.lock);
-	if (disp->client.object == oproxy)
-		disp->client.object = NULL;
-	spin_unlock(&disp->client.lock);
-}
-
-static const struct nvkm_oproxy_func
-nvkm_disp_class = {
-	.dtor[1] = nvkm_disp_class_del,
-};
-
 static int
 nvkm_disp_class_new(struct nvkm_device *device,
 		    const struct nvkm_oclass *oclass, void *data, u32 size,
 		    struct nvkm_object **pobject)
 {
-	const struct nvkm_disp_oclass *sclass = oclass->engn;
-	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
-	struct nvkm_oproxy *oproxy;
-	int ret;
-
-	ret = nvkm_oproxy_new_(&nvkm_disp_class, oclass, &oproxy);
-	if (ret)
-		return ret;
-	*pobject = &oproxy->base;
-
-	spin_lock(&disp->client.lock);
-	if (disp->client.object) {
-		spin_unlock(&disp->client.lock);
-		return -EBUSY;
-	}
-	disp->client.object = oproxy;
-	spin_unlock(&disp->client.lock);
-
-	return sclass->ctor(disp, oclass, data, size, &oproxy->object);
+	return nvkm_udisp_new(oclass, data, size, pobject);
 }
 
 static const struct nvkm_device_oclass
@@ -197,8 +163,7 @@ nvkm_disp_class_get(struct nvkm_oclass *oclass, int index,
 {
 	struct nvkm_disp *disp = nvkm_disp(oclass->engine);
 	if (index == 0) {
-		oclass->base = disp->func->root->base;
-		oclass->engn = disp->func->root;
+		oclass->base = disp->func->root;
 		*class = &nvkm_disp_sclass;
 		return 0;
 	}

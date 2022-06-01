@@ -25,7 +25,8 @@
 #include "head.h"
 #include "ior.h"
 #include "channv50.h"
-#include "rootnv50.h"
+
+#include <nvif/class.h>
 
 static void
 gp102_disp_intr_error(struct nvkm_disp *disp, int chid)
@@ -65,7 +66,15 @@ gp102_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gp100_sor_new },
-	.root = &gp102_disp_root_oclass,
+	.root = { 0,0,GP102_DISP },
+	.user = {
+		{{0,0,GK104_DISP_CURSOR             }, gp102_disp_curs_new },
+		{{0,0,GK104_DISP_OVERLAY            }, gp102_disp_oimm_new },
+		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gp102_disp_base_new },
+		{{0,0,GP102_DISP_CORE_CHANNEL_DMA   }, gp102_disp_core_new },
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gp102_disp_ovly_new },
+		{}
+	},
 };
 
 int

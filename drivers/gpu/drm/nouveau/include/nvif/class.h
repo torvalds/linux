@@ -32,6 +32,8 @@
 #define NVIF_CLASS_VMM_GM200                         /* ifb00d.h */  0x8000b00d
 #define NVIF_CLASS_VMM_GP100                         /* ifc00d.h */  0x8000c00d
 
+#define NVIF_CLASS_DISP                              /* if0010.h */  0x80000010
+
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
 
@@ -73,21 +75,21 @@
 #define TURING_CHANNEL_GPFIFO_A                       /* clc36f.h */ 0x0000c46f
 #define AMPERE_CHANNEL_GPFIFO_B                       /* clc36f.h */ 0x0000c76f
 
-#define NV50_DISP                                     /* cl5070.h */ 0x00005070
-#define G82_DISP                                      /* cl5070.h */ 0x00008270
-#define GT200_DISP                                    /* cl5070.h */ 0x00008370
-#define GT214_DISP                                    /* cl5070.h */ 0x00008570
-#define GT206_DISP                                    /* cl5070.h */ 0x00008870
-#define GF110_DISP                                    /* cl5070.h */ 0x00009070
-#define GK104_DISP                                    /* cl5070.h */ 0x00009170
-#define GK110_DISP                                    /* cl5070.h */ 0x00009270
-#define GM107_DISP                                    /* cl5070.h */ 0x00009470
-#define GM200_DISP                                    /* cl5070.h */ 0x00009570
-#define GP100_DISP                                    /* cl5070.h */ 0x00009770
-#define GP102_DISP                                    /* cl5070.h */ 0x00009870
-#define GV100_DISP                                    /* cl5070.h */ 0x0000c370
-#define TU102_DISP                                    /* cl5070.h */ 0x0000c570
-#define GA102_DISP                                    /* cl5070.h */ 0x0000c670
+#define NV50_DISP                                     /* if0010.h */ 0x00005070
+#define G82_DISP                                      /* if0010.h */ 0x00008270
+#define GT200_DISP                                    /* if0010.h */ 0x00008370
+#define GT214_DISP                                    /* if0010.h */ 0x00008570
+#define GT206_DISP                                    /* if0010.h */ 0x00008870
+#define GF110_DISP                                    /* if0010.h */ 0x00009070
+#define GK104_DISP                                    /* if0010.h */ 0x00009170
+#define GK110_DISP                                    /* if0010.h */ 0x00009270
+#define GM107_DISP                                    /* if0010.h */ 0x00009470
+#define GM200_DISP                                    /* if0010.h */ 0x00009570
+#define GP100_DISP                                    /* if0010.h */ 0x00009770
+#define GP102_DISP                                    /* if0010.h */ 0x00009870
+#define GV100_DISP                                    /* if0010.h */ 0x0000c370
+#define TU102_DISP                                    /* if0010.h */ 0x0000c570
+#define GA102_DISP                                    /* if0010.h */ 0x0000c670
 
 #define GV100_DISP_CAPS                                              0x0000c373
 

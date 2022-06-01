@@ -26,7 +26,6 @@
 #include "ior.h"
 #include "outp.h"
 #include "channv50.h"
-#include "rootnv50.h"
 
 #include <core/client.h>
 #include <core/ramht.h>
@@ -36,6 +35,8 @@
 #include <subdev/bios/pll.h>
 #include <subdev/devinit.h>
 #include <subdev/timer.h>
+
+#include <nvif/class.h>
 
 void *
 nv50_disp_dtor_(struct nvkm_disp *disp)
@@ -727,7 +728,15 @@ nv50_disp = {
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = nv50_sor_cnt, .new = nv50_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
-	.root = &nv50_disp_root_oclass,
+	.root = { 0, 0, NV50_DISP },
+	.user = {
+		{{0,0,NV50_DISP_CURSOR             }, nv50_disp_curs_new },
+		{{0,0,NV50_DISP_OVERLAY            }, nv50_disp_oimm_new },
+		{{0,0,NV50_DISP_BASE_CHANNEL_DMA   }, nv50_disp_base_new },
+		{{0,0,NV50_DISP_CORE_CHANNEL_DMA   }, nv50_disp_core_new },
+		{{0,0,NV50_DISP_OVERLAY_CHANNEL_DMA}, nv50_disp_ovly_new },
+		{}
+	}
 };
 
 int

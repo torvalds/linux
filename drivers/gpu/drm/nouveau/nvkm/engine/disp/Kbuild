@@ -64,20 +64,6 @@ nvkm-y += nvkm/engine/disp/conn.o
 
 nvkm-y += nvkm/engine/disp/rootnv04.o
 nvkm-y += nvkm/engine/disp/rootnv50.o
-nvkm-y += nvkm/engine/disp/rootg84.o
-nvkm-y += nvkm/engine/disp/rootg94.o
-nvkm-y += nvkm/engine/disp/rootgt200.o
-nvkm-y += nvkm/engine/disp/rootgt215.o
-nvkm-y += nvkm/engine/disp/rootgf119.o
-nvkm-y += nvkm/engine/disp/rootgk104.o
-nvkm-y += nvkm/engine/disp/rootgk110.o
-nvkm-y += nvkm/engine/disp/rootgm107.o
-nvkm-y += nvkm/engine/disp/rootgm200.o
-nvkm-y += nvkm/engine/disp/rootgp100.o
-nvkm-y += nvkm/engine/disp/rootgp102.o
-nvkm-y += nvkm/engine/disp/rootgv100.o
-nvkm-y += nvkm/engine/disp/roottu102.o
-nvkm-y += nvkm/engine/disp/rootga102.o
 
 nvkm-y += nvkm/engine/disp/capsgv100.o
 
@@ -125,3 +111,5 @@ nvkm-y += nvkm/engine/disp/cursgv100.o
 nvkm-y += nvkm/engine/disp/oimmnv50.o
 nvkm-y += nvkm/engine/disp/oimmgf119.o
 nvkm-y += nvkm/engine/disp/oimmgp102.o
+
+nvkm-y += nvkm/engine/disp/udisp.o

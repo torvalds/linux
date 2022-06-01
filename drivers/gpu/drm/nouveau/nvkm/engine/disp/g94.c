@@ -24,7 +24,9 @@
 #include "priv.h"
 #include "head.h"
 #include "ior.h"
-#include "rootnv50.h"
+#include "channv50.h"
+
+#include <nvif/class.h>
 
 static const struct nvkm_disp_func
 g94_disp = {
@@ -39,7 +41,15 @@ g94_disp = {
 	.dac = { .cnt = nv50_dac_cnt, .new = nv50_dac_new },
 	.sor = { .cnt = g94_sor_cnt, .new = g94_sor_new },
 	.pior = { .cnt = nv50_pior_cnt, .new = nv50_pior_new },
-	.root = &g94_disp_root_oclass,
+	.root = { 0,0,GT206_DISP },
+	.user = {
+		{{0,0,  G82_DISP_CURSOR             },  nv50_disp_curs_new },
+		{{0,0,  G82_DISP_OVERLAY            },  nv50_disp_oimm_new },
+		{{0,0,GT200_DISP_BASE_CHANNEL_DMA   },   g84_disp_base_new },
+		{{0,0,GT206_DISP_CORE_CHANNEL_DMA   },   g94_disp_core_new },
+		{{0,0,GT200_DISP_OVERLAY_CHANNEL_DMA}, gt200_disp_ovly_new },
+		{}
+	},
 };
 
 int

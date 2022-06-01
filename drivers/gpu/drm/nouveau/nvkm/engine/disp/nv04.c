@@ -24,6 +24,8 @@
 #include "priv.h"
 #include "head.h"
 
+#include <nvif/class.h>
+
 static void
 nv04_disp_intr(struct nvkm_disp *disp)
 {
@@ -54,7 +56,8 @@ nv04_disp_intr(struct nvkm_disp *disp)
 static const struct nvkm_disp_func
 nv04_disp = {
 	.intr = nv04_disp_intr,
-	.root = &nv04_disp_root_oclass,
+	.root = { 0, 0, NV04_DISP },
+	.user = { {} },
 };
 
 int

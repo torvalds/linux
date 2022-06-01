@@ -20,7 +20,7 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #define gv100_disp_caps(p) container_of((p), struct gv100_disp_caps, object)
-#include "rootnv50.h"
+#include "priv.h"
 
 struct gv100_disp_caps {
 	struct nvkm_object object;

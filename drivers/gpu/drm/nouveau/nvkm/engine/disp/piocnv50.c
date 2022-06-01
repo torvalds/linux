@@ -22,7 +22,6 @@
  * Authors: Ben Skeggs
  */
 #include "channv50.h"
-#include "rootnv50.h"
 
 #include <subdev/timer.h>
 

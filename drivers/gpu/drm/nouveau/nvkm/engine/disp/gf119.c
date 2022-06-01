@@ -26,10 +26,11 @@
 #include "ior.h"
 #include "outp.h"
 #include "channv50.h"
-#include "rootnv50.h"
 
 #include <core/ramht.h>
 #include <subdev/timer.h>
+
+#include <nvif/class.h>
 
 void
 gf119_disp_super(struct work_struct *work)
@@ -264,7 +265,15 @@ gf119_disp = {
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.dac = { .cnt = gf119_dac_cnt, .new = gf119_dac_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gf119_sor_new },
-	.root = &gf119_disp_root_oclass,
+	.root = { 0,0,GF110_DISP },
+	.user = {
+		{{0,0,GF110_DISP_CURSOR             }, gf119_disp_curs_new },
+		{{0,0,GF110_DISP_OVERLAY            }, gf119_disp_oimm_new },
+		{{0,0,GF110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
+		{{0,0,GF110_DISP_CORE_CHANNEL_DMA   }, gf119_disp_core_new },
+		{{0,0,GF110_DISP_OVERLAY_CONTROL_DMA}, gf119_disp_ovly_new },
+		{}
+	},
 };
 
 int

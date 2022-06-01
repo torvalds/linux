@@ -24,7 +24,9 @@
 #include "priv.h"
 #include "head.h"
 #include "ior.h"
-#include "rootnv50.h"
+#include "channv50.h"
+
+#include <nvif/class.h>
 
 static const struct nvkm_disp_func
 gp100_disp = {
@@ -38,7 +40,15 @@ gp100_disp = {
 	.uevent = &gf119_disp_chan_uevent,
 	.head = { .cnt = gf119_head_cnt, .new = gf119_head_new },
 	.sor = { .cnt = gf119_sor_cnt, .new = gp100_sor_new },
-	.root = &gp100_disp_root_oclass,
+	.root = { 0,0,GP100_DISP },
+	.user = {
+		{{0,0,GK104_DISP_CURSOR             }, gf119_disp_curs_new },
+		{{0,0,GK104_DISP_OVERLAY            }, gf119_disp_oimm_new },
+		{{0,0,GK110_DISP_BASE_CHANNEL_DMA   }, gf119_disp_base_new },
+		{{0,0,GP100_DISP_CORE_CHANNEL_DMA   }, gk104_disp_core_new },
+		{{0,0,GK104_DISP_OVERLAY_CONTROL_DMA}, gk104_disp_ovly_new },
+		{}
+	},
 };
 
 int

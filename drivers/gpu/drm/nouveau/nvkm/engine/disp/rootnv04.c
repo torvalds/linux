@@ -21,25 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
-#define nv04_disp_root(p) container_of((p), struct nv04_disp_root, object)
 #include "priv.h"
 #include "head.h"
 
 #include <core/client.h>
 
-#include <nvif/class.h>
 #include <nvif/cl0046.h>
 #include <nvif/unpack.h>
 
-struct nv04_disp_root {
-	struct nvkm_object object;
-	struct nvkm_disp *disp;
-};
-
-static int
+int
 nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 {
-	struct nv04_disp_root *root = nv04_disp_root(object);
+	struct nvkm_disp *disp = nvkm_disp(object->engine);
 	union {
 		struct nv04_disp_mthd_v0 v0;
 	} *args = data;
@@ -55,7 +48,7 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 	} else
 		return ret;
 
-	if (!(head = nvkm_head_find(root->disp, id)))
+	if (!(head = nvkm_head_find(disp, id)))
 		return -ENXIO;
 
 	switch (mthd) {
@@ -67,32 +60,3 @@ nv04_disp_mthd(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 
 	return -EINVAL;
 }
-
-static const struct nvkm_object_func
-nv04_disp_root = {
-	.mthd = nv04_disp_mthd,
-	.ntfy = nvkm_disp_ntfy,
-};
-
-static int
-nv04_disp_root_new(struct nvkm_disp *disp, const struct nvkm_oclass *oclass,
-		   void *data, u32 size, struct nvkm_object **pobject)
-{
-	struct nv04_disp_root *root;
-
-	if (!(root = kzalloc(sizeof(*root), GFP_KERNEL)))
-		return -ENOMEM;
-	root->disp = disp;
-	*pobject = &root->object;
-
-	nvkm_object_ctor(&nv04_disp_root, oclass, &root->object);
-	return 0;
-}
-
-const struct nvkm_disp_oclass
-nv04_disp_root_oclass = {
-	.base.oclass = NV04_DISP,
-	.base.minver = -1,
-	.base.maxver = -1,
-	.ctor = nv04_disp_root_new,
-};
