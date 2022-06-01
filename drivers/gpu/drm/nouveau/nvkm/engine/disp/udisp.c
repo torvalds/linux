@@ -74,7 +74,6 @@ nvkm_udisp_dtor(struct nvkm_object *object)
 static const struct nvkm_object_func
 nvkm_udisp = {
 	.dtor = nvkm_udisp_dtor,
-	.ntfy = nvkm_disp_ntfy,
 	.sclass = nvkm_udisp_sclass,
 };
 

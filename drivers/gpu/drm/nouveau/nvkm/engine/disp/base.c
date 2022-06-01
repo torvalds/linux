@@ -29,7 +29,6 @@
 #include "outp.h"
 
 #include <core/client.h>
-#include <core/notify.h>
 #include <core/ramht.h>
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -67,54 +66,6 @@ void
 nvkm_disp_vblank(struct nvkm_disp *disp, int head)
 {
 	nvkm_event_send(&disp->vblank, NVKM_DISP_HEAD_EVENT_VBLANK, head, NULL, 0);
-}
-
-static int
-nvkm_disp_hpd_ctor(struct nvkm_object *object, void *data, u32 size,
-		   struct nvkm_notify *notify)
-{
-	struct nvkm_disp *disp =
-		container_of(notify->event, typeof(*disp), hpd);
-	union {
-		struct nvif_notify_conn_req_v0 v0;
-	} *req = data;
-	struct nvkm_outp *outp;
-	int ret = -ENOSYS;
-
-	if (!(ret = nvif_unpack(ret, &data, &size, req->v0, 0, 0, false))) {
-		notify->size = sizeof(struct nvif_notify_conn_rep_v0);
-		list_for_each_entry(outp, &disp->outps, head) {
-			if (ret = -ENXIO, outp->conn->index == req->v0.conn) {
-				if (ret = -ENODEV, outp->conn->hpd.event) {
-					notify->types = req->v0.mask;
-					notify->index = req->v0.conn;
-					ret = 0;
-				}
-				break;
-			}
-		}
-	}
-
-	return ret;
-}
-
-static const struct nvkm_event_func
-nvkm_disp_hpd_func = {
-	.ctor = nvkm_disp_hpd_ctor
-};
-
-int
-nvkm_disp_ntfy(struct nvkm_object *object, u32 type, struct nvkm_event **event)
-{
-	struct nvkm_disp *disp = nvkm_disp(object->engine);
-	switch (type) {
-	case NV04_DISP_NTFY_CONN:
-		*event = &disp->hpd;
-		return 0;
-	default:
-		break;
-	}
-	return -EINVAL;
 }
 
 static int
@@ -325,10 +276,6 @@ nvkm_disp_oneinit(struct nvkm_engine *engine)
 		list_add_tail(&outp->conn->head, &disp->conns);
 	}
 
-	ret = nvkm_event_init(&nvkm_disp_hpd_func, subdev, 3, hpd, &disp->hpd);
-	if (ret)
-		return ret;
-
 	if (disp->func->oneinit) {
 		ret = disp->func->oneinit(disp);
 		if (ret)
@@ -376,7 +323,6 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	}
 
 	nvkm_event_fini(&disp->vblank);
-	nvkm_event_fini(&disp->hpd);
 
 	while (!list_empty(&disp->conns)) {
 		conn = list_first_entry(&disp->conns, typeof(*conn), head);

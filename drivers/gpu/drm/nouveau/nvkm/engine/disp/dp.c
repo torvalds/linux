@@ -738,31 +738,9 @@ nvkm_dp_enable(struct nvkm_outp *outp, bool auxpwr)
 	}
 }
 
-static int
-nvkm_dp_hpd(struct nvkm_notify *notify)
-{
-	const struct nvkm_i2c_ntfy_rep *line = notify->data;
-	struct nvkm_outp *outp = container_of(notify, typeof(*outp), dp.hpd);
-	struct nvkm_conn *conn = outp->conn;
-	struct nvkm_disp *disp = outp->disp;
-	struct nvif_notify_conn_rep_v0 rep = {};
-
-	OUTP_DBG(outp, "HPD: %d", line->mask);
-	if (line->mask & NVKM_I2C_IRQ)
-		rep.mask |= NVIF_NOTIFY_CONN_V0_IRQ;
-	if (line->mask & NVKM_I2C_UNPLUG)
-		rep.mask |= NVIF_NOTIFY_CONN_V0_UNPLUG;
-	if (line->mask & NVKM_I2C_PLUG)
-		rep.mask |= NVIF_NOTIFY_CONN_V0_PLUG;
-
-	nvkm_event_send(&disp->hpd, rep.mask, conn->index, &rep, sizeof(rep));
-	return NVKM_NOTIFY_KEEP;
-}
-
 static void
 nvkm_dp_fini(struct nvkm_outp *outp)
 {
-	nvkm_notify_put(&outp->dp.hpd);
 	nvkm_dp_enable(outp, false);
 }
 
@@ -770,14 +748,11 @@ static void
 nvkm_dp_init(struct nvkm_outp *outp)
 {
 	nvkm_dp_enable(outp, outp->dp.enabled);
-	nvkm_notify_put(&outp->conn->hpd);
-	nvkm_notify_get(&outp->dp.hpd);
 }
 
 static void *
 nvkm_dp_dtor(struct nvkm_outp *outp)
 {
-	nvkm_notify_fini(&outp->dp.hpd);
 	return outp;
 }
 
@@ -825,21 +800,6 @@ nvkm_dp_new(struct nvkm_disp *disp, int index, struct dcb_output *dcbE, struct n
 	}
 
 	OUTP_DBG(outp, "bios dp %02x %02x %02x %02x", outp->dp.version, hdr, cnt, len);
-
-	/* hotplug detect, replaces gpio-based mechanism with aux events */
-	ret = nvkm_notify_init(NULL, &i2c->event, nvkm_dp_hpd, true,
-			       &(struct nvkm_i2c_ntfy_req) {
-				.mask = NVKM_I2C_PLUG | NVKM_I2C_UNPLUG |
-					NVKM_I2C_IRQ,
-				.port = outp->dp.aux->id,
-			       },
-			       sizeof(struct nvkm_i2c_ntfy_req),
-			       sizeof(struct nvkm_i2c_ntfy_rep),
-			       &outp->dp.hpd);
-	if (ret) {
-		OUTP_ERR(outp, "error monitoring aux hpd: %d", ret);
-		return ret;
-	}
 
 	mutex_init(&outp->dp.mutex);
 	atomic_set(&outp->dp.lt.done, 0);

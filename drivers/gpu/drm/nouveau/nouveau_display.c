@@ -42,8 +42,8 @@
 #include "nv50_display.h"
 
 #include <nvif/class.h>
+#include <nvif/if0011.h>
 #include <nvif/if0013.h>
-#include <nvif/event.h>
 #include <dispnv50/crc.h>
 
 int
@@ -497,11 +497,11 @@ nouveau_display_hpd_work(struct work_struct *work)
 
 		drm_dbg_kms(dev, "[CONNECTOR:%d:%s] plug:%d unplug:%d irq:%d\n",
 			    connector->base.id, connector->name,
-			    !!(bits & NVIF_NOTIFY_CONN_V0_PLUG),
-			    !!(bits & NVIF_NOTIFY_CONN_V0_UNPLUG),
-			    !!(bits & NVIF_NOTIFY_CONN_V0_IRQ));
+			    !!(bits & NVIF_CONN_EVENT_V0_PLUG),
+			    !!(bits & NVIF_CONN_EVENT_V0_UNPLUG),
+			    !!(bits & NVIF_CONN_EVENT_V0_IRQ));
 
-		if (bits & NVIF_NOTIFY_CONN_V0_IRQ) {
+		if (bits & NVIF_CONN_EVENT_V0_IRQ) {
 			if (nouveau_dp_link_check(nv_connector))
 				continue;
 		}
@@ -584,7 +584,8 @@ nouveau_display_init(struct drm_device *dev, bool resume, bool runtime)
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		nvif_notify_get(&conn->hpd);
+		nvif_event_allow(&conn->hpd);
+		nvif_event_allow(&conn->irq);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 
@@ -619,7 +620,8 @@ nouveau_display_fini(struct drm_device *dev, bool suspend, bool runtime)
 	drm_connector_list_iter_begin(dev, &conn_iter);
 	nouveau_for_each_non_mst_connector_iter(connector, &conn_iter) {
 		struct nouveau_connector *conn = nouveau_connector(connector);
-		nvif_notify_put(&conn->hpd);
+		nvif_event_block(&conn->irq);
+		nvif_event_block(&conn->hpd);
 	}
 	drm_connector_list_iter_end(&conn_iter);
 

@@ -2,7 +2,6 @@
 #ifndef __NVKM_DISP_OUTP_H__
 #define __NVKM_DISP_OUTP_H__
 #include "priv.h"
-#include <core/notify.h>
 
 #include <subdev/bios.h>
 #include <subdev/bios/dcb.h>
@@ -38,7 +37,6 @@ struct nvkm_outp {
 
 			struct nvkm_i2c_aux *aux;
 
-			struct nvkm_notify hpd;
 			bool enabled;
 			bool aux_pwr;
 			bool aux_pwr_pu;

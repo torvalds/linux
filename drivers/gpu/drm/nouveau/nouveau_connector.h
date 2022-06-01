@@ -27,7 +27,7 @@
 #ifndef __NOUVEAU_CONNECTOR_H__
 #define __NOUVEAU_CONNECTOR_H__
 #include <nvif/conn.h>
-#include <nvif/notify.h>
+#include <nvif/event.h>
 
 #include <nvhw/class/cl507d.h>
 #include <nvhw/class/cl907d.h>
@@ -125,7 +125,9 @@ struct nouveau_connector {
 
 	struct nvif_conn conn;
 	u64 hpd_pending;
-	struct nvif_notify hpd;
+	struct nvif_event hpd;
+	struct nvif_event irq;
+	struct work_struct irq_work;
 
 	struct drm_dp_aux aux;
 

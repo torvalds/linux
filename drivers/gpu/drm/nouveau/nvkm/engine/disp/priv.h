@@ -42,8 +42,6 @@ struct nvkm_disp_func {
 	} user[];
 };
 
-int  nvkm_disp_ntfy(struct nvkm_object *, u32, struct nvkm_event **);
-
 int nv50_disp_oneinit(struct nvkm_disp *);
 int nv50_disp_init(struct nvkm_disp *);
 void nv50_disp_fini(struct nvkm_disp *);
