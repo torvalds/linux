@@ -223,6 +223,9 @@ void gm107_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gm107_gr_init_400054(struct gf100_gr *);
 
 int gk20a_gr_init(struct gf100_gr *);
+int gk20a_gr_av_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
+int gk20a_gr_aiv_to_init(struct nvkm_blob *, struct gf100_gr_pack **);
+int gk20a_gr_av_to_method(struct nvkm_blob *, struct gf100_gr_pack **);
 
 void gm200_gr_oneinit_tiles(struct gf100_gr *);
 void gm200_gr_oneinit_sm_id(struct gf100_gr *);
@@ -400,6 +403,9 @@ int gf100_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 int gf100_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 
 int gk20a_gr_load_sw(struct gf100_gr *, const char *path, int ver);
+int gk20a_gr_load_net(struct gf100_gr *, const char *, const char *, int,
+		      int (*)(struct nvkm_blob *, struct gf100_gr_pack **),
+		      struct gf100_gr_pack **);
 
 int gm200_gr_nofw(struct gf100_gr *, int, const struct gf100_gr_fwif *);
 int gm200_gr_load(struct gf100_gr *, int, const struct gf100_gr_fwif *);
