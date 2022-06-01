@@ -256,6 +256,7 @@ static inline struct mgag200_g200se_device *to_mgag200_g200se_device(struct drm_
 }
 
 				/* mgag200_drv.c */
+int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2);
 int mgag200_regs_init(struct mga_device *mdev);
 
 				/* mgag200_<device type>.c */

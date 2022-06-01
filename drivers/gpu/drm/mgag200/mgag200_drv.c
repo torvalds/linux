@@ -24,6 +24,32 @@ int mgag200_modeset = -1;
 MODULE_PARM_DESC(modeset, "Disable/Enable modesetting");
 module_param_named(modeset, mgag200_modeset, int, 0400);
 
+int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2)
+{
+	struct device *dev = &pdev->dev;
+	int err;
+
+	err = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
+	if (err != PCIBIOS_SUCCESSFUL) {
+		dev_err(dev, "pci_read_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
+		return pcibios_err_to_errno(err);
+	}
+
+	err = pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
+	if (err != PCIBIOS_SUCCESSFUL) {
+		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
+		return pcibios_err_to_errno(err);
+	}
+
+	err = pci_write_config_dword(pdev, PCI_MGA_OPTION2, option2);
+	if (err != PCIBIOS_SUCCESSFUL) {
+		dev_err(dev, "pci_write_config_dword(PCI_MGA_OPTION2) failed: %d\n", err);
+		return pcibios_err_to_errno(err);
+	}
+
+	return 0;
+}
+
 /*
  * DRM driver
  */
@@ -46,71 +72,16 @@ static const struct drm_driver mgag200_driver = {
  * DRM device
  */
 
-static bool mgag200_has_sgram(struct mga_device *mdev)
-{
-	struct drm_device *dev = &mdev->base;
-	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	u32 option;
-	int ret;
-
-	ret = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
-	if (drm_WARN(dev, ret, "failed to read PCI config dword: %d\n", ret))
-		return false;
-
-	return !!(option & PCI_MGA_OPTION_HARDPWMSK);
-}
-
 int mgag200_regs_init(struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
-	u32 option, option2;
 	u8 crtcext3;
 	int ret;
 
 	ret = drmm_mutex_init(dev, &mdev->rmmio_lock);
 	if (ret)
 		return ret;
-
-	switch (mdev->type) {
-	case G200_PCI:
-	case G200_AGP:
-		if (mgag200_has_sgram(mdev))
-			option = 0x4049cd21;
-		else
-			option = 0x40499121;
-		option2 = 0x00008000;
-		break;
-	case G200_SE_A:
-	case G200_SE_B:
-		option = 0x40049120;
-		if (mgag200_has_sgram(mdev))
-			option |= PCI_MGA_OPTION_HARDPWMSK;
-		option2 = 0x00008000;
-		break;
-	case G200_WB:
-	case G200_EW3:
-		option = 0x41049120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EV:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	case G200_EH:
-	case G200_EH3:
-		option = 0x00000120;
-		option2 = 0x0000b000;
-		break;
-	default:
-		option = 0;
-		option2 = 0;
-	}
-
-	if (option)
-		pci_write_config_dword(pdev, PCI_MGA_OPTION, option);
-	if (option2)
-		pci_write_config_dword(pdev, PCI_MGA_OPTION2, option2);
 
 	/* BAR 1 contains registers */
 	mdev->rmmio_base = pci_resource_start(pdev, 1);

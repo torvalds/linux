@@ -6,6 +6,28 @@
 
 #include "mgag200_drv.h"
 
+static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
+{
+	struct device *dev = &pdev->dev;
+	bool has_sgram;
+	u32 option;
+	int err;
+
+	err = pci_read_config_dword(pdev, PCI_MGA_OPTION, &option);
+	if (err != PCIBIOS_SUCCESSFUL) {
+		dev_err(dev, "pci_read_config_dword(PCI_MGA_OPTION) failed: %d\n", err);
+		return pcibios_err_to_errno(err);
+	}
+
+	has_sgram = !!(option & PCI_MGA_OPTION_HARDPWMSK);
+
+	option = 0x40049120;
+	if (has_sgram)
+		option |= PCI_MGA_OPTION_HARDPWMSK;
+
+	return mgag200_init_pci_options(pdev, option, 0x00008000);
+}
+
 /*
  * DRM device
  */
@@ -36,6 +58,10 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 	dev = &mdev->base;
 
 	pci_set_drvdata(pdev, dev);
+
+	ret = mgag200_g200se_init_pci_options(pdev);
+	if (ret)
+		return ERR_PTR(ret);
 
 	mdev->flags = flags;
 	mdev->type = type;

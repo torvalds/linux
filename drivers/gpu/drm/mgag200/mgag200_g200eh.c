@@ -27,6 +27,10 @@ struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const stru
 	mdev->flags = flags;
 	mdev->type = type;
 
+	ret = mgag200_init_pci_options(pdev, 0x00000120, 0x0000b000);
+	if (ret)
+		return ERR_PTR(ret);
+
 	ret = mgag200_regs_init(mdev);
 	if (ret)
 		return ERR_PTR(ret);
