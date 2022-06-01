@@ -23,18 +23,12 @@
  */
 #include "priv.h"
 
-static int
-gm200_pmu_flcn_reset(struct nvkm_falcon *falcon)
-{
-	struct nvkm_pmu *pmu = container_of(falcon, typeof(*pmu), falcon);
-
-	nvkm_falcon_wr32(falcon, 0x014, 0x0000ffff);
-	pmu->func->reset(pmu);
-	return nvkm_falcon_enable(falcon);
-}
-
 const struct nvkm_falcon_func
 gm200_pmu_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_pmc = true,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0xc08,
 	.fbif = 0xe00,
 	.load_imem = nvkm_falcon_v1_load_imem,
@@ -45,9 +39,6 @@ gm200_pmu_flcn = {
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
 	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
-	.reset = gm200_pmu_flcn_reset,
 	.cmdq = { 0x4a0, 0x4b0, 4 },
 	.msgq = { 0x4c8, 0x4cc, 0 },
 };

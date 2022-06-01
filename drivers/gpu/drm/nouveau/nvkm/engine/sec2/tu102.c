@@ -26,6 +26,11 @@
 
 static const struct nvkm_falcon_func
 tu102_sec2_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_pmc = true,
+	.reset_eng = gp102_flcn_reset_eng,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0x408,
 	.fbif = 0x600,
 	.load_imem = nvkm_falcon_v1_load_imem,
@@ -37,8 +42,6 @@ tu102_sec2_flcn = {
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
 	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
 	.cmdq = { 0xc00, 0xc04, 8 },
 	.msgq = { 0xc80, 0xc84, 8 },
 };

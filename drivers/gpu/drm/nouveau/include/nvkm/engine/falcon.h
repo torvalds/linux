@@ -57,6 +57,12 @@ int nvkm_falcon_new_(const struct nvkm_falcon_func *, struct nvkm_device *,
 		     enum nvkm_subdev_type, int inst, bool enable, u32 addr, struct nvkm_engine **);
 
 struct nvkm_falcon_func {
+	int (*disable)(struct nvkm_falcon *);
+	int (*enable)(struct nvkm_falcon *);
+	bool reset_pmc;
+	int (*reset_eng)(struct nvkm_falcon *);
+	int (*reset_wait_mem_scrubbing)(struct nvkm_falcon *);
+
 	struct {
 		u32 *data;
 		u32  size;
@@ -80,9 +86,6 @@ struct nvkm_falcon_func {
 	int (*clear_interrupt)(struct nvkm_falcon *, u32);
 	void (*set_start_addr)(struct nvkm_falcon *, u32 start_addr);
 	void (*start)(struct nvkm_falcon *);
-	int (*enable)(struct nvkm_falcon *falcon);
-	void (*disable)(struct nvkm_falcon *falcon);
-	int (*reset)(struct nvkm_falcon *);
 
 	struct {
 		u32 head;
@@ -122,7 +125,4 @@ void nvkm_falcon_set_start_addr(struct nvkm_falcon *, u32);
 void nvkm_falcon_start(struct nvkm_falcon *);
 int nvkm_falcon_wait_for_halt(struct nvkm_falcon *, u32);
 int nvkm_falcon_clear_interrupt(struct nvkm_falcon *, u32);
-int nvkm_falcon_enable(struct nvkm_falcon *);
-void nvkm_falcon_disable(struct nvkm_falcon *);
-int nvkm_falcon_reset(struct nvkm_falcon *);
 #endif

@@ -1,5 +1,5 @@
 /*
- * Copyright 2016 Red Hat Inc.
+ * Copyright 2022 Red Hat Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the "Software"),
@@ -18,45 +18,15 @@
  * OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE,
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
- *
- * Authors: Ben Skeggs <bskeggs@redhat.com>
  */
 #include "priv.h"
 
-static const struct nvkm_falcon_func
-gp102_pmu_flcn = {
-	.disable = gm200_flcn_disable,
-	.enable = gm200_flcn_enable,
-	.reset_eng = gp102_flcn_reset_eng,
-	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
-	.debug = 0xc08,
-	.fbif = 0xe00,
-	.load_imem = nvkm_falcon_v1_load_imem,
-	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
-	.bind_context = nvkm_falcon_v1_bind_context,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
-	.start = nvkm_falcon_v1_start,
-	.cmdq = { 0x4a0, 0x4b0, 4 },
-	.msgq = { 0x4c8, 0x4cc, 0 },
-};
-
-static const struct nvkm_pmu_func
-gp102_pmu = {
-	.flcn = &gp102_pmu_flcn,
-};
-
-static const struct nvkm_pmu_fwif
-gp102_pmu_fwif[] = {
-	{ -1, gm200_pmu_nofw, &gp102_pmu },
-	{}
-};
-
 int
-gp102_pmu_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
-	      struct nvkm_pmu **ppmu)
+gp102_flcn_reset_eng(struct nvkm_falcon *falcon)
 {
-	return nvkm_pmu_new_(gp102_pmu_fwif, device, type, inst, ppmu);
+	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000001);
+	udelay(10);
+	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000000);
+
+	return falcon->func->reset_wait_mem_scrubbing(falcon);
 }

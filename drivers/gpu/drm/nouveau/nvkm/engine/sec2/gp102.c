@@ -190,15 +190,6 @@ gp102_sec2_intr(struct nvkm_inth *inth)
 	return IRQ_HANDLED;
 }
 
-int
-gp102_sec2_flcn_enable(struct nvkm_falcon *falcon)
-{
-	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000001);
-	udelay(10);
-	nvkm_falcon_mask(falcon, 0x3c0, 0x00000001, 0x00000000);
-	return nvkm_falcon_v1_enable(falcon);
-}
-
 void
 gp102_sec2_flcn_bind_context(struct nvkm_falcon *falcon,
 			     struct nvkm_memory *ctx)
@@ -240,6 +231,11 @@ gp102_sec2_flcn_bind_context(struct nvkm_falcon *falcon,
 
 static const struct nvkm_falcon_func
 gp102_sec2_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_pmc = true,
+	.reset_eng = gp102_flcn_reset_eng,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0x408,
 	.fbif = 0x600,
 	.load_imem = nvkm_falcon_v1_load_imem,
@@ -251,8 +247,6 @@ gp102_sec2_flcn = {
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
 	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = gp102_sec2_flcn_enable,
-	.disable = nvkm_falcon_v1_disable,
 	.cmdq = { 0xa00, 0xa04, 8 },
 	.msgq = { 0xa30, 0xa34, 8 },
 };

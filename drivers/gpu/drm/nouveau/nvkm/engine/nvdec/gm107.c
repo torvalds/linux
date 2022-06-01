@@ -23,6 +23,10 @@
 
 static const struct nvkm_falcon_func
 gm107_nvdec_flcn = {
+	.disable = gm200_flcn_disable,
+	.enable = gm200_flcn_enable,
+	.reset_pmc = true,
+	.reset_wait_mem_scrubbing = gm200_flcn_reset_wait_mem_scrubbing,
 	.debug = 0xd00,
 	.fbif = 0x600,
 	.load_imem = nvkm_falcon_v1_load_imem,
@@ -33,8 +37,6 @@ gm107_nvdec_flcn = {
 	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
 	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
 };
 
 static const struct nvkm_nvdec_func

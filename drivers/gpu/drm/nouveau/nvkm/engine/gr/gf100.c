@@ -2073,17 +2073,9 @@ gf100_gr_ = {
 
 static const struct nvkm_falcon_func
 gf100_gr_flcn = {
-	.fbif = 0x600,
 	.load_imem = nvkm_falcon_v1_load_imem,
 	.load_dmem = nvkm_falcon_v1_load_dmem,
-	.read_dmem = nvkm_falcon_v1_read_dmem,
-	.bind_context = nvkm_falcon_v1_bind_context,
-	.wait_for_halt = nvkm_falcon_v1_wait_for_halt,
-	.clear_interrupt = nvkm_falcon_v1_clear_interrupt,
-	.set_start_addr = nvkm_falcon_v1_set_start_addr,
 	.start = nvkm_falcon_v1_start,
-	.enable = nvkm_falcon_v1_enable,
-	.disable = nvkm_falcon_v1_disable,
 };
 
 int

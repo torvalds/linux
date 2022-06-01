@@ -4,3 +4,6 @@ nvkm-y += nvkm/falcon/cmdq.o
 nvkm-y += nvkm/falcon/msgq.o
 nvkm-y += nvkm/falcon/qmgr.o
 nvkm-y += nvkm/falcon/v1.o
+
+nvkm-y += nvkm/falcon/gm200.o
+nvkm-y += nvkm/falcon/gp102.o
