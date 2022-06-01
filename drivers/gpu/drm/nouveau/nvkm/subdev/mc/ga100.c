@@ -21,35 +21,9 @@
  */
 #include "priv.h"
 
-static void
-ga100_mc_intr_unarm(struct nvkm_mc *mc)
-{
-}
-
-static void
-ga100_mc_intr_rearm(struct nvkm_mc *mc)
-{
-}
-
-static u32
-ga100_mc_intr_stat(struct nvkm_mc *mc)
-{
-	return 0;
-}
-
-static void
-ga100_mc_init(struct nvkm_mc *mc)
-{
-	nv50_mc_init(mc);
-}
-
 static const struct nvkm_mc_func
 ga100_mc = {
-	.init = ga100_mc_init,
-	.intr = gp100_mc_intr,
-	.intr_unarm = ga100_mc_intr_unarm,
-	.intr_rearm = ga100_mc_intr_rearm,
-	.intr_stat = ga100_mc_intr_stat,
+	.init = nv50_mc_init,
 	.reset = gk104_mc_reset,
 };
 

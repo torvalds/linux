@@ -25,8 +25,6 @@
 #include <subdev/pci.h>
 #include <subdev/top.h>
 
-#include <subdev/mc.h>
-
 static int
 nvkm_intr_xlat(struct nvkm_subdev *subdev, struct nvkm_intr *intr,
 	       enum nvkm_intr_type type, int *leaf, u32 *mask)
@@ -151,7 +149,6 @@ nvkm_intr_rearm_locked(struct nvkm_device *device)
 
 	list_for_each_entry(intr, &device->intr.intr, head)
 		intr->func->rearm(intr);
-	nvkm_mc_intr_rearm(device);
 }
 
 static void
@@ -161,7 +158,6 @@ nvkm_intr_unarm_locked(struct nvkm_device *device)
 
 	list_for_each_entry(intr, &device->intr.intr, head)
 		intr->func->unarm(intr);
-	nvkm_mc_intr_unarm(device);
 }
 
 static irqreturn_t
@@ -171,7 +167,7 @@ nvkm_intr(int irq, void *arg)
 	struct nvkm_intr *intr;
 	struct nvkm_inth *inth;
 	irqreturn_t ret = IRQ_NONE;
-	bool pending = false, handled;
+	bool pending = false;
 	int prio, leaf;
 
 	/* Disable all top-level interrupt sources, and re-arm MSI interrupts. */
@@ -187,10 +183,6 @@ nvkm_intr(int irq, void *arg)
 		if (intr->func->pending(intr))
 			pending = true;
 	}
-
-	nvkm_mc_intr(device, &handled);
-	if (handled)
-		ret = IRQ_HANDLED;
 
 	if (!pending)
 		goto done;

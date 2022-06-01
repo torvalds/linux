@@ -30,36 +30,60 @@ nv04_mc_reset[] = {
 	{}
 };
 
-static const struct nvkm_mc_map
-nv04_mc_intr[] = {
-	{ 0x01010000, NVKM_ENGINE_DISP },
-	{ 0x00001000, NVKM_ENGINE_GR },
-	{ 0x00000100, NVKM_ENGINE_FIFO },
-	{ 0x10000000, NVKM_SUBDEV_BUS },
-	{ 0x00100000, NVKM_SUBDEV_TIMER },
+static const struct nvkm_intr_data
+nv04_mc_intrs[] = {
+	{ NVKM_ENGINE_DISP , 0, 0, 0x01010000, true },
+	{ NVKM_ENGINE_GR   , 0, 0, 0x00001000, true },
+	{ NVKM_ENGINE_FIFO , 0, 0, 0x00000100, true },
+	{ NVKM_SUBDEV_BUS  , 0, 0, 0x10000000, true },
+	{ NVKM_SUBDEV_TIMER, 0, 0, 0x00100000, true },
 	{}
 };
 
 void
-nv04_mc_intr_unarm(struct nvkm_mc *mc)
+nv04_mc_intr_rearm(struct nvkm_intr *intr)
 {
-	struct nvkm_device *device = mc->subdev.device;
-	nvkm_wr32(device, 0x000140, 0x00000000);
-	nvkm_rd32(device, 0x000140);
+	struct nvkm_mc *mc = container_of(intr, typeof(*mc), intr);
+	int leaf;
+
+	for (leaf = 0; leaf < intr->leaves; leaf++)
+		nvkm_wr32(mc->subdev.device, 0x000140 + (leaf * 4), 0x00000001);
 }
 
 void
-nv04_mc_intr_rearm(struct nvkm_mc *mc)
+nv04_mc_intr_unarm(struct nvkm_intr *intr)
 {
-	struct nvkm_device *device = mc->subdev.device;
-	nvkm_wr32(device, 0x000140, 0x00000001);
+	struct nvkm_mc *mc = container_of(intr, typeof(*mc), intr);
+	int leaf;
+
+	for (leaf = 0; leaf < intr->leaves; leaf++)
+		nvkm_wr32(mc->subdev.device, 0x000140 + (leaf * 4), 0x00000000);
+
+	nvkm_rd32(mc->subdev.device, 0x000140);
 }
 
-u32
-nv04_mc_intr_stat(struct nvkm_mc *mc)
+bool
+nv04_mc_intr_pending(struct nvkm_intr *intr)
 {
-	return nvkm_rd32(mc->subdev.device, 0x000100);
+	struct nvkm_mc *mc = container_of(intr, typeof(*mc), intr);
+	bool pending = false;
+	int leaf;
+
+	for (leaf = 0; leaf < intr->leaves; leaf++) {
+		intr->stat[leaf] = nvkm_rd32(mc->subdev.device, 0x000100 + (leaf * 4));
+		if (intr->stat[leaf])
+			pending = true;
+	}
+
+	return pending;
 }
+
+const struct nvkm_intr_func
+nv04_mc_intr = {
+	.pending = nv04_mc_intr_pending,
+	.unarm = nv04_mc_intr_unarm,
+	.rearm = nv04_mc_intr_rearm,
+};
 
 void
 nv04_mc_init(struct nvkm_mc *mc)
@@ -72,10 +96,8 @@ nv04_mc_init(struct nvkm_mc *mc)
 static const struct nvkm_mc_func
 nv04_mc = {
 	.init = nv04_mc_init,
-	.intr = nv04_mc_intr,
-	.intr_unarm = nv04_mc_intr_unarm,
-	.intr_rearm = nv04_mc_intr_rearm,
-	.intr_stat = nv04_mc_intr_stat,
+	.intr = &nv04_mc_intr,
+	.intrs = nv04_mc_intrs,
 	.reset = nv04_mc_reset,
 };
 
