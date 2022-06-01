@@ -60,6 +60,9 @@ struct nvkm_outp {
 	};
 
 	struct nvkm_object object;
+	struct {
+		struct nvkm_head *head;
+	} asy;
 };
 
 int nvkm_outp_new_(const struct nvkm_outp_func *, struct nvkm_disp *, int index,

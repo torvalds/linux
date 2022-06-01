@@ -29,7 +29,6 @@ struct nv50_disp_scanoutpos_v0 {
 struct nv50_disp_mthd_v1 {
 	__u8  version;
 #define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
-#define NV50_DISP_MTHD_V1_SOR_HDMI_PWR                                     0x22
 #define NV50_DISP_MTHD_V1_SOR_DP_MST_LINK                                  0x25
 #define NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI                                  0x26
 	__u8  method;
@@ -42,19 +41,6 @@ struct nv50_disp_sor_hda_eld_v0 {
 	__u8  version;
 	__u8  pad01[7];
 	__u8  data[];
-};
-
-struct nv50_disp_sor_hdmi_pwr_v0 {
-	__u8  version;
-	__u8  state;
-	__u8  max_ac_packet;
-	__u8  rekey;
-	__u8  avi_infoframe_length;
-	__u8  vendor_infoframe_length;
-#define NV50_DISP_SOR_HDMI_PWR_V0_SCDC_SCRAMBLE (1 << 0)
-#define NV50_DISP_SOR_HDMI_PWR_V0_SCDC_DIV_BY_4 (1 << 1)
-	__u8  scdc;
-	__u8  pad07[1];
 };
 
 struct nv50_disp_sor_dp_mst_link_v0 {

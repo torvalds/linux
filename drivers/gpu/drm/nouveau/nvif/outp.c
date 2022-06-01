@@ -24,7 +24,18 @@
 #include <nvif/printf.h>
 
 #include <nvif/class.h>
-#include <nvif/if0012.h>
+
+int
+nvif_outp_infoframe(struct nvif_outp *outp, u8 type, struct nvif_outp_infoframe_v0 *args, u32 size)
+{
+	int ret;
+
+	args->type = type;
+
+	ret = nvif_mthd(&outp->object, NVIF_OUTP_V0_INFOFRAME, args, sizeof(*args) + size);
+	NVIF_ERRON(ret, &outp->object, "[INFOFRAME type:%d size:%d]", type, size);
+	return ret;
+}
 
 void
 nvif_outp_release(struct nvif_outp *outp)
@@ -82,16 +93,25 @@ nvif_outp_acquire_lvds(struct nvif_outp *outp, bool dual, bool bpc8)
 }
 
 int
-nvif_outp_acquire_tmds(struct nvif_outp *outp, bool hda)
+nvif_outp_acquire_tmds(struct nvif_outp *outp, int head,
+		       bool hdmi, u8 max_ac_packet, u8 rekey, u8 scdc, bool hda)
 {
 	struct nvif_outp_acquire_v0 args;
 	int ret;
 
-	args.tmds.hda = hda;
+	args.tmds.head = head;
+	args.tmds.hdmi = hdmi;
+	args.tmds.hdmi_max_ac_packet = max_ac_packet;
+	args.tmds.hdmi_rekey = rekey;
+	args.tmds.hdmi_scdc = scdc;
+	args.tmds.hdmi_hda = hda;
 
 	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_TMDS, &args);
 	NVIF_ERRON(ret, &outp->object,
-		   "[ACQUIRE proto:TMDS hda:%d] or:%d link:%d", args.tmds.hda, args.or, args.link);
+		   "[ACQUIRE proto:TMDS head:%d hdmi:%d max_ac_packet:%d rekey:%d scdc:%d hda:%d]"
+		   " or:%d link:%d", args.tmds.head, args.tmds.hdmi, args.tmds.hdmi_max_ac_packet,
+		   args.tmds.hdmi_rekey, args.tmds.hdmi_scdc, args.tmds.hdmi_hda,
+		   args.or, args.link);
 	return ret;
 }
 

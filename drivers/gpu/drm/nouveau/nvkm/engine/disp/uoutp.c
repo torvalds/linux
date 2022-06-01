@@ -21,19 +21,85 @@
  */
 #define nvkm_uoutp(p) container_of((p), struct nvkm_outp, object)
 #include "outp.h"
+#include "head.h"
 #include "ior.h"
 
 #include <nvif/if0012.h>
 
 static int
+nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	struct nvkm_ior *ior = outp->ior;
+	union nvif_outp_infoframe_args *args = argv;
+
+	if (argc < sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+	if (!nvkm_head_find(outp->disp, args->v0.head))
+		return -EINVAL;
+
+	switch (ior->func->hdmi ? args->v0.type : 0xff) {
+	case NVIF_OUTP_INFOFRAME_V0_AVI:
+		ior->func->hdmi->infoframe_avi(ior, args->v0.head, argv, argc);
+		return 0;
+	case NVIF_OUTP_INFOFRAME_V0_VSI:
+		ior->func->hdmi->infoframe_vsi(ior, args->v0.head, argv, argc);
+		return 0;
+	default:
+		break;
+	}
+
+	return -EINVAL;
+}
+
+static int
 nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 {
+	struct nvkm_head *head = outp->asy.head;
+	struct nvkm_ior *ior = outp->ior;
 	union nvif_outp_release_args *args = argv;
 
 	if (argc != sizeof(args->vn))
 		return -ENOSYS;
 
+	if (ior->func->hdmi && head) {
+		ior->func->hdmi->infoframe_avi(ior, head->id, NULL, 0);
+		ior->func->hdmi->infoframe_vsi(ior, head->id, NULL, 0);
+		ior->func->hdmi->ctrl(ior, head->id, false, 0, 0);
+	}
+
 	nvkm_outp_release(outp, NVKM_OUTP_USER);
+	return 0;
+}
+
+static int
+nvkm_uoutp_mthd_acquire_tmds(struct nvkm_outp *outp, u8 head, u8 hdmi, u8 hdmi_max_ac_packet,
+			     u8 hdmi_rekey, u8 hdmi_scdc, u8 hdmi_hda)
+{
+	struct nvkm_ior *ior;
+	int ret;
+
+	if (!(outp->asy.head = nvkm_head_find(outp->disp, head)))
+		return -EINVAL;
+
+	ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, hdmi && hdmi_hda);
+	if (ret)
+		return ret;
+
+	ior = outp->ior;
+
+	if (hdmi) {
+		if (!ior->func->hdmi ||
+		    hdmi_max_ac_packet > 0x1f || hdmi_rekey > 0x7f ||
+		    (hdmi_scdc && !ior->func->hdmi->scdc)) {
+			nvkm_outp_release(outp, NVKM_OUTP_USER);
+			return -EINVAL;
+		}
+
+		ior->func->hdmi->ctrl(ior, head, hdmi, hdmi_max_ac_packet, hdmi_rekey);
+		if (ior->func->hdmi->scdc)
+			ior->func->hdmi->scdc(ior, hdmi_scdc);
+	}
+
 	return 0;
 }
 
@@ -63,6 +129,13 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, false);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_TMDS:
+		ret = nvkm_uoutp_mthd_acquire_tmds(outp, args->v0.tmds.head,
+							 args->v0.tmds.hdmi,
+							 args->v0.tmds.hdmi_max_ac_packet,
+							 args->v0.tmds.hdmi_rekey,
+							 args->v0.tmds.hdmi_scdc,
+							 args->v0.tmds.hdmi_hda);
+		break;
 	case NVIF_OUTP_ACQUIRE_V0_DP:
 		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.dp.hda);
 		break;
@@ -110,6 +183,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 {
 	switch (mthd) {
 	case NVIF_OUTP_V0_RELEASE    : return nvkm_uoutp_mthd_release    (outp, argv, argc);
+	case NVIF_OUTP_V0_INFOFRAME  : return nvkm_uoutp_mthd_infoframe  (outp, argv, argc);
 	default:
 		break;
 	}

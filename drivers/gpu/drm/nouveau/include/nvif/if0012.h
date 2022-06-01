@@ -13,6 +13,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_LOAD_DETECT 0x00
 #define NVIF_OUTP_V0_ACQUIRE     0x01
 #define NVIF_OUTP_V0_RELEASE     0x02
+#define NVIF_OUTP_V0_INFOFRAME   0x03
 
 union nvif_outp_load_detect_args {
 	struct nvif_outp_load_detect_v0 {
@@ -37,8 +38,15 @@ union nvif_outp_acquire_args {
 		__u8 pad04[4];
 		union {
 			struct {
-				__u8 hda;
-				__u8 pad01[7];
+				__u8 head;
+				__u8 hdmi;
+				__u8 hdmi_max_ac_packet;
+				__u8 hdmi_rekey;
+#define NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_SCRAMBLE (1 << 0)
+#define NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_DIV_BY_4 (1 << 1)
+				__u8 hdmi_scdc;
+				__u8 hdmi_hda;
+				__u8 pad06[2];
 			} tmds;
 			struct {
 				__u8 dual;
@@ -56,5 +64,17 @@ union nvif_outp_acquire_args {
 union nvif_outp_release_args {
 	struct nvif_outp_release_vn {
 	} vn;
+};
+
+union nvif_outp_infoframe_args {
+	struct nvif_outp_infoframe_v0 {
+		__u8 version;
+#define NVIF_OUTP_INFOFRAME_V0_AVI 0
+#define NVIF_OUTP_INFOFRAME_V0_VSI 1
+		__u8 type;
+		__u8 head;
+		__u8 pad03[5];
+		__u8 data[];
+	} v0;
 };
 #endif

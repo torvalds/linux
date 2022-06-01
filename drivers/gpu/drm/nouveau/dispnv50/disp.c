@@ -48,6 +48,7 @@
 #include <nvif/cl0002.h>
 #include <nvif/cl5070.h>
 #include <nvif/event.h>
+#include <nvif/if0012.h>
 #include <nvif/if0014.h>
 #include <nvif/timer.h>
 
@@ -745,122 +746,84 @@ nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
  * HDMI
  *****************************************************************************/
 static void
-nv50_hdmi_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
-{
-	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
-			       (0x0100 << nv_crtc->index),
-	};
-
-	nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
-}
-
-static void
 nv50_hdmi_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 		 struct nouveau_connector *nv_connector, struct drm_atomic_state *state,
-		 struct drm_display_mode *mode)
+		 struct drm_display_mode *mode, bool hda)
 {
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_hdmi_pwr_v0 pwr;
-		u8 infoframes[2 * 17]; /* two frames, up to 17 bytes each */
-	} args = {
-		.base.version = 1,
-		.base.method = NV50_DISP_MTHD_V1_SOR_HDMI_PWR,
-		.base.hasht  = nv_encoder->dcb->hasht,
-		.base.hashm  = (0xf0ff & nv_encoder->dcb->hashm) |
-			       (0x0100 << nv_crtc->index),
-		.pwr.state = 1,
-		.pwr.rekey = 56, /* binary driver, and tegra, constant */
-	};
-	struct drm_hdmi_info *hdmi;
+	struct drm_hdmi_info *hdmi = &nv_connector->base.display_info.hdmi;
+	union hdmi_infoframe infoframe;
+	const u8 rekey = 56; /* binary driver, and tegra, constant */
+	u8 config, scdc = 0;
 	u32 max_ac_packet;
-	union hdmi_infoframe avi_frame;
-	union hdmi_infoframe vendor_frame;
-	bool high_tmds_clock_ratio = false, scrambling = false;
-	u8 config;
-	int ret;
-	int size;
-
-	if (!drm_detect_hdmi_monitor(nv_connector->edid))
-		return;
-
-	hdmi = &nv_connector->base.display_info.hdmi;
-
-	ret = drm_hdmi_avi_infoframe_from_display_mode(&avi_frame.avi,
-						       &nv_connector->base, mode);
-	if (!ret) {
-		drm_hdmi_avi_infoframe_quant_range(&avi_frame.avi,
-						   &nv_connector->base, mode,
-						   HDMI_QUANTIZATION_RANGE_FULL);
-		/* We have an AVI InfoFrame, populate it to the display */
-		args.pwr.avi_infoframe_length
-			= hdmi_infoframe_pack(&avi_frame, args.infoframes, 17);
-	}
-
-	ret = drm_hdmi_vendor_infoframe_from_display_mode(&vendor_frame.vendor.hdmi,
-							  &nv_connector->base, mode);
-	if (!ret) {
-		/* We have a Vendor InfoFrame, populate it to the display */
-		args.pwr.vendor_infoframe_length
-			= hdmi_infoframe_pack(&vendor_frame,
-					      args.infoframes
-					      + args.pwr.avi_infoframe_length,
-					      17);
-	}
+	struct {
+		struct nvif_outp_infoframe_v0 infoframe;
+		u8 data[17];
+	} args;
+	int ret, size;
 
 	max_ac_packet  = mode->htotal - mode->hdisplay;
-	max_ac_packet -= args.pwr.rekey;
+	max_ac_packet -= rekey;
 	max_ac_packet -= 18; /* constant from tegra */
-	args.pwr.max_ac_packet = max_ac_packet / 32;
+	max_ac_packet /= 32;
 
 	if (hdmi->scdc.scrambling.supported) {
-		high_tmds_clock_ratio = mode->clock > 340000;
-		scrambling = high_tmds_clock_ratio ||
-			hdmi->scdc.scrambling.low_rates;
+		const bool high_tmds_clock_ratio = mode->clock > 340000;
+
+		ret = drm_scdc_readb(nv_encoder->i2c, SCDC_TMDS_CONFIG, &config);
+		if (ret < 0) {
+			NV_ERROR(drm, "Failure to read SCDC_TMDS_CONFIG: %d\n", ret);
+			return;
+		}
+
+		config &= ~(SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 | SCDC_SCRAMBLING_ENABLE);
+		if (high_tmds_clock_ratio || hdmi->scdc.scrambling.low_rates)
+			config |= SCDC_SCRAMBLING_ENABLE;
+		if (high_tmds_clock_ratio)
+			config |= SCDC_TMDS_BIT_CLOCK_RATIO_BY_40;
+
+		ret = drm_scdc_writeb(nv_encoder->i2c, SCDC_TMDS_CONFIG, config);
+		if (ret < 0)
+			NV_ERROR(drm, "Failure to write SCDC_TMDS_CONFIG = 0x%02x: %d\n",
+				 config, ret);
+
+		if (high_tmds_clock_ratio || hdmi->scdc.scrambling.low_rates)
+			scdc |= NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_SCRAMBLE;
+		if (high_tmds_clock_ratio)
+			scdc |= NVIF_OUTP_ACQUIRE_V0_TMDS_HDMI_SCDC_DIV_BY_4;
 	}
 
-	args.pwr.scdc =
-		NV50_DISP_SOR_HDMI_PWR_V0_SCDC_SCRAMBLE * scrambling |
-		NV50_DISP_SOR_HDMI_PWR_V0_SCDC_DIV_BY_4 * high_tmds_clock_ratio;
+	ret = nvif_outp_acquire_tmds(&nv_encoder->outp, nv_crtc->index, true,
+				     max_ac_packet, rekey, scdc, hda);
+	if (ret)
+		return;
 
-	size = sizeof(args.base)
-		+ sizeof(args.pwr)
-		+ args.pwr.avi_infoframe_length
-		+ args.pwr.vendor_infoframe_length;
-	nvif_mthd(&disp->disp->object, 0, &args, size);
+	/* AVI InfoFrame. */
+	args.infoframe.version = 0;
+	args.infoframe.head = nv_crtc->index;
+
+	if (!drm_hdmi_avi_infoframe_from_display_mode(&infoframe.avi, &nv_connector->base, mode)) {
+		drm_hdmi_avi_infoframe_quant_range(&infoframe.avi, &nv_connector->base, mode,
+						   HDMI_QUANTIZATION_RANGE_FULL);
+
+		size = hdmi_infoframe_pack(&infoframe, args.data, 17);
+	} else {
+		size = 0;
+	}
+
+	nvif_outp_infoframe(&nv_encoder->outp, NVIF_OUTP_INFOFRAME_V0_AVI, &args.infoframe, size);
+
+	/* Vendor InfoFrame. */
+	if (!drm_hdmi_vendor_infoframe_from_display_mode(&infoframe.vendor.hdmi,
+							 &nv_connector->base, mode))
+		size = hdmi_infoframe_pack(&infoframe, args.data, 17);
+	else
+		size = 0;
+
+	nvif_outp_infoframe(&nv_encoder->outp, NVIF_OUTP_INFOFRAME_V0_VSI, &args.infoframe, size);
 
 	nv50_audio_enable(encoder, nv_crtc, nv_connector, state, mode);
-
-	/* If SCDC is supported by the downstream monitor, update
-	 * divider / scrambling settings to what we programmed above.
-	 */
-	if (!hdmi->scdc.scrambling.supported)
-		return;
-
-	ret = drm_scdc_readb(nv_encoder->i2c, SCDC_TMDS_CONFIG, &config);
-	if (ret < 0) {
-		NV_ERROR(drm, "Failure to read SCDC_TMDS_CONFIG: %d\n", ret);
-		return;
-	}
-	config &= ~(SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 | SCDC_SCRAMBLING_ENABLE);
-	config |= SCDC_TMDS_BIT_CLOCK_RATIO_BY_40 * high_tmds_clock_ratio;
-	config |= SCDC_SCRAMBLING_ENABLE * scrambling;
-	ret = drm_scdc_writeb(nv_encoder->i2c, SCDC_TMDS_CONFIG, config);
-	if (ret < 0)
-		NV_ERROR(drm, "Failure to write SCDC_TMDS_CONFIG = 0x%02x: %d\n",
-			 config, ret);
 }
 
 /******************************************************************************
@@ -1622,7 +1585,6 @@ nv50_sor_atomic_disable(struct drm_encoder *encoder, struct drm_atomic_state *st
 
 	nv_encoder->update(nv_encoder, nv_crtc->index, NULL, 0, 0);
 	nv50_audio_disable(encoder, nv_crtc);
-	nv50_hdmi_disable(&nv_encoder->base.base, nv_crtc);
 	nvif_outp_release(&nv_encoder->outp);
 	nv_encoder->crtc = NULL;
 }
@@ -1636,6 +1598,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
+	struct nvif_outp *outp = &nv_encoder->outp;
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
 	struct nouveau_connector *nv_connector;
@@ -1657,7 +1620,12 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
-		nvif_outp_acquire_tmds(&nv_encoder->outp, hda);
+		if (disp->disp->object.oclass == NV50_DISP ||
+		    !drm_detect_hdmi_monitor(nv_connector->edid))
+			nvif_outp_acquire_tmds(outp, nv_crtc->index, false, 0, 0, 0, false);
+		else
+			nv50_hdmi_enable(encoder, nv_crtc, nv_connector, state, mode, hda);
+
 		if (nv_encoder->outp.or.link & 1) {
 			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_A;
 			/* Only enable dual-link if:
@@ -1673,8 +1641,6 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		} else {
 			proto = NV507D_SOR_SET_CONTROL_PROTOCOL_SINGLE_TMDS_B;
 		}
-
-		nv50_hdmi_enable(&nv_encoder->base.base, nv_crtc, nv_connector, state, mode);
 		break;
 	case DCB_OUTPUT_LVDS:
 		proto = NV507D_SOR_SET_CONTROL_PROTOCOL_LVDS_CUSTOM;
@@ -1900,7 +1866,7 @@ nv50_pior_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *st
 	switch (nv_encoder->dcb->type) {
 	case DCB_OUTPUT_TMDS:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
-		nvif_outp_acquire_tmds(&nv_encoder->outp, false);
+		nvif_outp_acquire_tmds(&nv_encoder->outp, false, false, 0, 0, 0, false);
 		break;
 	case DCB_OUTPUT_DP:
 		ctrl |= NVDEF(NV507D, PIOR_SET_CONTROL, PROTOCOL, EXT_TMDS_ENC);
