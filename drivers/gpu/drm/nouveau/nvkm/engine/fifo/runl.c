@@ -26,6 +26,7 @@
 #include "priv.h"
 
 #include <core/gpuobj.h>
+#include <subdev/timer.h>
 #include <subdev/top.h>
 
 struct nvkm_chan *
@@ -71,6 +72,17 @@ nvkm_runl_chan_get_chid(struct nvkm_runl *runl, int id, unsigned long *pirqflags
 	}
 	spin_unlock_irqrestore(&chid->lock, flags);
 	return NULL;
+}
+
+int
+nvkm_runl_preempt_wait(struct nvkm_runl *runl)
+{
+	return nvkm_msec(runl->fifo->engine.subdev.device, runl->fifo->timeout.chan_msec,
+		if (!runl->func->preempt_pending(runl))
+			break;
+
+		usleep_range(1, 2);
+	) < 0 ? -ETIMEDOUT : 0;
 }
 
 bool

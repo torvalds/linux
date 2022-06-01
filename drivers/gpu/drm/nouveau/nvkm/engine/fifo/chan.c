@@ -222,6 +222,7 @@ nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_oproxy *oproxy, struct n
 		nvkm_runl_block(runl);
 	else
 		nvkm_chan_block(chan);
+	nvkm_chan_preempt(chan, true);
 
 	/* Update context pointer. */
 	if (cctx)
@@ -300,6 +301,33 @@ done:
 	return ret;
 }
 
+int
+nvkm_chan_preempt_locked(struct nvkm_chan *chan, bool wait)
+{
+	struct nvkm_runl *runl = chan->cgrp->runl;
+
+	CHAN_TRACE(chan, "preempt");
+	chan->func->preempt(chan);
+	if (!wait)
+		return 0;
+
+	return nvkm_runl_preempt_wait(runl);
+}
+
+int
+nvkm_chan_preempt(struct nvkm_chan *chan, bool wait)
+{
+	int ret;
+
+	if (!chan->func->preempt)
+		return 0;
+
+	mutex_lock(&chan->cgrp->runl->mutex);
+	ret = nvkm_chan_preempt_locked(chan, wait);
+	mutex_unlock(&chan->cgrp->runl->mutex);
+	return ret;
+}
+
 static int
 nvkm_fifo_chan_map(struct nvkm_object *object, void *argv, u32 argc,
 		   enum nvkm_object_map *type, u64 *addr, u64 *size)
@@ -346,6 +374,8 @@ nvkm_chan_error(struct nvkm_chan *chan, bool preempt)
 	if (atomic_inc_return(&chan->errored) == 1) {
 		CHAN_ERROR(chan, "errored - disabling channel");
 		nvkm_chan_block_locked(chan);
+		if (preempt)
+			chan->func->preempt(chan);
 		nvkm_event_ntfy(&chan->cgrp->runl->chid->event, chan->id, NVKM_CHAN_EVENT_ERRORED);
 	}
 	spin_unlock_irqrestore(&chan->lock, flags);

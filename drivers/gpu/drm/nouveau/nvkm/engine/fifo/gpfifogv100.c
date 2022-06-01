@@ -33,23 +33,15 @@ gv100_fifo_gpfifo_engine_valid(struct gk104_fifo_chan *chan, bool ce, bool valid
 {
 	const u32 mask = ce ? 0x00020000 : 0x00010000;
 	const u32 data = valid ? mask : 0x00000000;
-	int ret;
 
-	/* Block runlist to prevent the channel from being rescheduled. */
-	mutex_lock(&chan->fifo->base.mutex);
-
-	/* Preempt the channel. */
-	ret = gk104_fifo_gpfifo_kick_locked(chan);
-	if (ret == 0) {
+	if (1) {
 		/* Update engine context validity. */
 		nvkm_kmap(chan->base.inst);
 		nvkm_mo32(chan->base.inst, 0x0ac, mask, data);
 		nvkm_done(chan->base.inst);
 	}
 
-	/* Resume runlist. */
-	mutex_unlock(&chan->fifo->base.mutex);
-	return ret;
+	return 0;
 }
 
 int

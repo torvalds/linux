@@ -216,6 +216,7 @@ nvkm_uchan_fini(struct nvkm_object *object, bool suspend)
 	int ret;
 
 	nvkm_chan_block(chan);
+	nvkm_chan_preempt(chan, true);
 
 	ret = chan->object.func->fini(&chan->object, suspend);
 	if (ret && suspend)

@@ -39,6 +39,12 @@
 
 #include <nvif/class.h>
 
+void
+gf100_chan_preempt(struct nvkm_chan *chan)
+{
+	nvkm_wr32(chan->cgrp->runl->fifo->engine.subdev.device, 0x002634, chan->id);
+}
+
 static void
 gf100_chan_stop(struct nvkm_chan *chan)
 {
@@ -83,6 +89,7 @@ gf100_chan = {
 	.unbind = gf100_chan_unbind,
 	.start = gf100_chan_start,
 	.stop = gf100_chan_stop,
+	.preempt = gf100_chan_preempt,
 };
 
 static const struct nvkm_engn_func
@@ -157,6 +164,12 @@ gf100_runq = {
 	.intr = gf100_runq_intr,
 	.intr_0_names = gf100_runq_intr_0_names,
 };
+
+bool
+gf100_runl_preempt_pending(struct nvkm_runl *runl)
+{
+	return nvkm_rd32(runl->fifo->engine.subdev.device, 0x002634) & 0x00100000;
+}
 
 static void
 gf100_runl_allow(struct nvkm_runl *runl, u32 engm)
@@ -238,6 +251,7 @@ gf100_runl = {
 	.pending = gf100_runl_pending,
 	.block = gf100_runl_block,
 	.allow = gf100_runl_allow,
+	.preempt_pending = gf100_runl_preempt_pending,
 };
 
 static void

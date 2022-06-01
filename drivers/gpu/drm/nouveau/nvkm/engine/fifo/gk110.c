@@ -30,8 +30,22 @@
 #include "changk104.h"
 
 #include <core/memory.h>
+#include <subdev/timer.h>
 
 #include <nvif/class.h>
+
+void
+gk110_chan_preempt(struct nvkm_chan *chan)
+{
+	struct nvkm_cgrp *cgrp = chan->cgrp;
+
+	if (cgrp->hw) {
+		cgrp->func->preempt(cgrp);
+		return;
+	}
+
+	gf100_chan_preempt(chan);
+}
 
 const struct nvkm_chan_func
 gk110_chan = {
@@ -39,10 +53,18 @@ gk110_chan = {
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,
 	.stop = gk104_chan_stop,
+	.preempt = gk110_chan_preempt,
 };
+
+static void
+gk110_cgrp_preempt(struct nvkm_cgrp *cgrp)
+{
+	nvkm_wr32(cgrp->runl->fifo->engine.subdev.device, 0x002634, 0x01000000 | cgrp->id);
+}
 
 const struct nvkm_cgrp_func
 gk110_cgrp = {
+	.preempt = gk110_cgrp_preempt,
 };
 
 void
@@ -68,6 +90,7 @@ gk110_runl = {
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
 	.allow = gk104_runl_allow,
+	.preempt_pending = gf100_runl_preempt_pending,
 };
 
 int

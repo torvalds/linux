@@ -22,6 +22,7 @@ struct nvkm_ectx {
 
 struct nvkm_cgrp {
 	const struct nvkm_cgrp_func {
+		void (*preempt)(struct nvkm_cgrp *);
 	} *func;
 	char name[64];
 	struct nvkm_runl *runl;

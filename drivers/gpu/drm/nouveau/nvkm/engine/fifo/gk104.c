@@ -86,6 +86,7 @@ gk104_chan = {
 	.unbind = gk104_chan_unbind,
 	.start = gk104_chan_start,
 	.stop = gk104_chan_stop,
+	.preempt = gf100_chan_preempt,
 };
 
 void
@@ -366,6 +367,7 @@ gk104_runl = {
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
 	.allow = gk104_runl_allow,
+	.preempt_pending = gf100_runl_preempt_pending,
 };
 
 int

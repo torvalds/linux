@@ -35,6 +35,7 @@ gp100_runl = {
 	.pending = gk104_runl_pending,
 	.block = gk104_runl_block,
 	.allow = gk104_runl_allow,
+	.preempt_pending = gf100_runl_preempt_pending,
 };
 
 static const struct nvkm_enum

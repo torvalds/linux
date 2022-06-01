@@ -33,43 +33,6 @@
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
-int
-gk104_fifo_gpfifo_kick_locked(struct gk104_fifo_chan *chan)
-{
-	struct gk104_fifo *fifo = chan->fifo;
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_client *client = chan->base.object.client;
-	struct nvkm_fifo_cgrp *cgrp = chan->cgrp;
-	int ret = 0;
-
-	if (cgrp)
-		nvkm_wr32(device, 0x002634, cgrp->id | 0x01000000);
-	else
-		nvkm_wr32(device, 0x002634, chan->base.chid);
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x002634) & 0x00100000))
-			break;
-	) < 0) {
-		nvkm_error(subdev, "%s %d [%s] kick timeout\n",
-			   cgrp ? "tsg" : "channel",
-			   cgrp ? cgrp->id : chan->base.chid, client->name);
-		nvkm_fifo_recover_chan(&fifo->base, chan->base.chid);
-		ret = -ETIMEDOUT;
-	}
-	return ret;
-}
-
-int
-gk104_fifo_gpfifo_kick(struct gk104_fifo_chan *chan)
-{
-	int ret;
-	mutex_lock(&chan->base.fifo->mutex);
-	ret = gk104_fifo_gpfifo_kick_locked(chan);
-	mutex_unlock(&chan->base.fifo->mutex);
-	return ret;
-}
-
 static u32
 gk104_fifo_gpfifo_engine_addr(struct nvkm_engine *engine)
 {
@@ -110,11 +73,6 @@ gk104_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 	struct gk104_fifo_chan *chan = gk104_fifo_chan(base);
 	struct nvkm_gpuobj *inst = chan->base.inst;
 	u32 offset = gk104_fifo_gpfifo_engine_addr(engine);
-	int ret;
-
-	ret = gk104_fifo_gpfifo_kick(chan);
-	if (ret && suspend)
-		return ret;
 
 	if (offset) {
 		nvkm_kmap(inst);
@@ -127,7 +85,7 @@ gk104_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 		nvkm_done(inst);
 	}
 
-	return ret;
+	return 0;
 }
 
 static int
@@ -202,7 +160,6 @@ gk104_fifo_gpfifo_fini(struct nvkm_fifo_chan *base)
 
 	if (!list_empty(&chan->head)) {
 		gk104_fifo_runlist_remove(fifo, chan);
-		gk104_fifo_gpfifo_kick(chan);
 		gk104_fifo_runlist_update(fifo, chan->runl);
 	}
 }

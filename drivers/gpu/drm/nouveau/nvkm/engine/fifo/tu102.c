@@ -53,6 +53,7 @@ tu102_chan = {
 	.unbind = gk104_chan_unbind,
 	.start = tu102_chan_start,
 	.stop = gk104_chan_stop,
+	.preempt = gk110_chan_preempt,
 	.doorbell_handle = tu102_chan_doorbell_handle,
 };
 
@@ -91,6 +92,7 @@ tu102_runl = {
 	.pending = tu102_runl_pending,
 	.block = gk104_runl_block,
 	.allow = gk104_runl_allow,
+	.preempt_pending = gf100_runl_preempt_pending,
 };
 
 static const struct nvkm_enum

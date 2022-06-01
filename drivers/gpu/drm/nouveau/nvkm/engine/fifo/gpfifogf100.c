@@ -62,25 +62,8 @@ gf100_fifo_gpfifo_engine_fini(struct nvkm_fifo_chan *base,
 {
 	const u32 offset = gf100_fifo_gpfifo_engine_addr(engine);
 	struct gf100_fifo_chan *chan = gf100_fifo_chan(base);
-	struct nvkm_subdev *subdev = &chan->fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
 	struct nvkm_gpuobj *inst = chan->base.inst;
 	int ret = 0;
-
-	mutex_lock(&chan->fifo->base.mutex);
-	nvkm_wr32(device, 0x002634, chan->base.chid);
-	if (nvkm_msec(device, 2000,
-		if (nvkm_rd32(device, 0x002634) == chan->base.chid)
-			break;
-	) < 0) {
-		nvkm_error(subdev, "channel %d [%s] kick timeout\n",
-			   chan->base.chid, chan->base.object.client->name);
-		ret = -ETIMEDOUT;
-	}
-	mutex_unlock(&chan->fifo->base.mutex);
-
-	if (ret && suspend)
-		return ret;
 
 	if (offset) {
 		nvkm_kmap(inst);

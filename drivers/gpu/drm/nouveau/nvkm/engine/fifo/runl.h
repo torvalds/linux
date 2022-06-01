@@ -28,6 +28,7 @@ struct nvkm_runl {
 		bool (*pending)(struct nvkm_runl *);
 		void (*block)(struct nvkm_runl *, u32 engm);
 		void (*allow)(struct nvkm_runl *, u32 engm);
+		bool (*preempt_pending)(struct nvkm_runl *);
 	} *func;
 	struct nvkm_fifo *fifo;
 	int id;
@@ -60,6 +61,7 @@ void nvkm_runl_del(struct nvkm_runl *);
 void nvkm_runl_block(struct nvkm_runl *);
 void nvkm_runl_allow(struct nvkm_runl *);
 bool nvkm_runl_update_pending(struct nvkm_runl *);
+int nvkm_runl_preempt_wait(struct nvkm_runl *);
 
 struct nvkm_chan *nvkm_runl_chan_get_chid(struct nvkm_runl *, int chid, unsigned long *irqflags);
 struct nvkm_chan *nvkm_runl_chan_get_inst(struct nvkm_runl *, u64 inst, unsigned long *irqflags);
