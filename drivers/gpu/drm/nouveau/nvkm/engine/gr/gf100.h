@@ -166,6 +166,7 @@ struct gf100_gr_func {
 	void (*init_504430)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_shader_exceptions)(struct gf100_gr *, int gpc, int tpc);
 	void (*init_rop_exceptions)(struct gf100_gr *);
+	void (*init_exception2)(struct gf100_gr *);
 	void (*init_400054)(struct gf100_gr *);
 	void (*init_4188a4)(struct gf100_gr *);
 	void (*trap_mp)(struct gf100_gr *, int gpc, int tpc);
@@ -202,6 +203,7 @@ void gf100_gr_init_419eb4(struct gf100_gr *);
 void gf100_gr_init_tex_hww_esr(struct gf100_gr *, int, int);
 void gf100_gr_init_shader_exceptions(struct gf100_gr *, int, int);
 void gf100_gr_init_rop_exceptions(struct gf100_gr *);
+void gf100_gr_init_exception2(struct gf100_gr *);
 void gf100_gr_init_400054(struct gf100_gr *);
 void gf100_gr_init_num_tpc_per_gpc(struct gf100_gr *, bool, bool);
 extern const struct gf100_gr_func_zbc gf100_gr_zbc;

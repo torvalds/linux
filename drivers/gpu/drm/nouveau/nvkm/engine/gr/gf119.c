@@ -191,6 +191,7 @@ gf119_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
 	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.init_400054 = gf100_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf119_gr_pack_mmio,

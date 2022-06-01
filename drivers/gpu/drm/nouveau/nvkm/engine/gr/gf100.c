@@ -2155,6 +2155,15 @@ gf100_gr_init_400054(struct gf100_gr *gr)
 }
 
 void
+gf100_gr_init_exception2(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_wr32(device, 0x40011c, 0xffffffff);
+	nvkm_wr32(device, 0x400134, 0xffffffff);
+}
+
+void
 gf100_gr_init_rop_exceptions(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -2395,8 +2404,8 @@ gf100_gr_init(struct gf100_gr *gr)
 	nvkm_wr32(device, 0x400138, 0xffffffff);
 	nvkm_wr32(device, 0x400118, 0xffffffff);
 	nvkm_wr32(device, 0x400130, 0xffffffff);
-	nvkm_wr32(device, 0x40011c, 0xffffffff);
-	nvkm_wr32(device, 0x400134, 0xffffffff);
+	if (gr->func->init_exception2)
+		gr->func->init_exception2(gr);
 
 	if (gr->func->init_400054)
 		gr->func->init_400054(gr);
@@ -2474,6 +2483,7 @@ gf100_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
 	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.init_400054 = gf100_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf100_gr_pack_mmio,

@@ -412,6 +412,7 @@ gm107_gr = {
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
 	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
+	.init_exception2 = gf100_gr_init_exception2,
 	.init_400054 = gm107_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gm107_gr_pack_mmio,
