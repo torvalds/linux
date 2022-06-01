@@ -57,6 +57,6 @@ bool arch_evsel__must_be_in_group(const struct evsel *evsel)
 		return false;
 
 	return evsel->name &&
-		(!strcasecmp(evsel->name, "slots") ||
+		(strcasestr(evsel->name, "slots") ||
 		 strcasestr(evsel->name, "topdown"));
 }
