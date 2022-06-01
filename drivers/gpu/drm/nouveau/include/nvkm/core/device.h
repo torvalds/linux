@@ -63,6 +63,8 @@ struct nvkm_device {
 	struct list_head subdev;
 
 	struct {
+		struct list_head intr;
+		struct list_head prio[NVKM_INTR_PRIO_NR];
 		spinlock_t lock;
 		int irq;
 		bool alloc;
