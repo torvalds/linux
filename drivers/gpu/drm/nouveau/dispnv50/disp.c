@@ -673,29 +673,33 @@ nv50_audio_component_fini(struct nouveau_drm *drm)
 /******************************************************************************
  * Audio
  *****************************************************************************/
+static bool
+nv50_audio_supported(struct drm_encoder *encoder)
+{
+	struct nv50_disp *disp = nv50_disp(encoder->dev);
+
+	if (disp->disp->object.oclass <= GT200_DISP ||
+	    disp->disp->object.oclass == GT206_DISP)
+		return false;
+
+	return true;
+}
+
 static void
 nv50_audio_disable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc)
 {
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct nvif_outp *outp = &nv_encoder->outp;
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_hda_eld_v0 eld;
-	} args = {
-		.base.version = 1,
-		.base.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
-		.base.hasht   = nv_encoder->dcb->hasht,
-		.base.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
-				(0x0100 << nv_crtc->index),
-	};
+
+	if (!nv50_audio_supported(encoder))
+		return;
 
 	mutex_lock(&drm->audio.lock);
 	if (nv_encoder->audio.enabled) {
 		nv_encoder->audio.enabled = false;
 		nv_encoder->audio.connector = NULL;
-		nvif_mthd(&disp->disp->object, 0, &args, sizeof(args));
+		nvif_outp_hda_eld(&nv_encoder->outp, nv_crtc->index, NULL, 0);
 	}
 	mutex_unlock(&drm->audio.lock);
 
@@ -709,31 +713,15 @@ nv50_audio_enable(struct drm_encoder *encoder, struct nouveau_crtc *nv_crtc,
 {
 	struct nouveau_drm *drm = nouveau_drm(encoder->dev);
 	struct nouveau_encoder *nv_encoder = nouveau_encoder(encoder);
-	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct nvif_outp *outp = &nv_encoder->outp;
-	struct __packed {
-		struct {
-			struct nv50_disp_mthd_v1 mthd;
-			struct nv50_disp_sor_hda_eld_v0 eld;
-		} base;
-		u8 data[sizeof(nv_connector->base.eld)];
-	} args = {
-		.base.mthd.version = 1,
-		.base.mthd.method  = NV50_DISP_MTHD_V1_SOR_HDA_ELD,
-		.base.mthd.hasht   = nv_encoder->dcb->hasht,
-		.base.mthd.hashm   = (0xf0ff & nv_encoder->dcb->hashm) |
-				     (0x0100 << nv_crtc->index),
-	};
 
-	if (!drm_detect_monitor_audio(nv_connector->edid))
+	if (!nv50_audio_supported(encoder) || !drm_detect_monitor_audio(nv_connector->edid))
 		return;
 
 	mutex_lock(&drm->audio.lock);
 
-	memcpy(args.data, nv_connector->base.eld, sizeof(args.data));
-
-	nvif_mthd(&disp->disp->object, 0, &args,
-		  sizeof(args.base) + drm_eld_size(args.data));
+	nvif_outp_hda_eld(&nv_encoder->outp, nv_crtc->index, nv_connector->base.eld,
+			  drm_eld_size(nv_connector->base.eld));
 	nv_encoder->audio.enabled = true;
 	nv_encoder->audio.connector = &nv_connector->base;
 

@@ -27,6 +27,35 @@
 #include <nvif/if0012.h>
 
 static int
+nvkm_uoutp_mthd_hda_eld(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	struct nvkm_ior *ior = outp->ior;
+	union nvif_outp_hda_eld_args *args = argv;
+
+	if (argc < sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+	argc -= sizeof(args->v0);
+
+	if (!ior->hda || !nvkm_head_find(outp->disp, args->v0.head))
+		return -EINVAL;
+	if (argc > 0x60)
+		return -E2BIG;
+
+	if (argc && args->v0.data[0]) {
+		if (outp->info.type == DCB_OUTPUT_DP)
+			ior->func->dp->audio(ior, args->v0.head, true);
+		ior->func->hda->hpd(ior, args->v0.head, true);
+		ior->func->hda->eld(ior, args->v0.head, args->v0.data, argc);
+	} else {
+		if (outp->info.type == DCB_OUTPUT_DP)
+			ior->func->dp->audio(ior, args->v0.head, false);
+		ior->func->hda->hpd(ior, args->v0.head, false);
+	}
+
+	return 0;
+}
+
+static int
 nvkm_uoutp_mthd_infoframe(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	struct nvkm_ior *ior = outp->ior;
@@ -184,6 +213,7 @@ nvkm_uoutp_mthd_acquired(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc)
 	switch (mthd) {
 	case NVIF_OUTP_V0_RELEASE    : return nvkm_uoutp_mthd_release    (outp, argv, argc);
 	case NVIF_OUTP_V0_INFOFRAME  : return nvkm_uoutp_mthd_infoframe  (outp, argv, argc);
+	case NVIF_OUTP_V0_HDA_ELD    : return nvkm_uoutp_mthd_hda_eld    (outp, argv, argc);
 	default:
 		break;
 	}

@@ -14,6 +14,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_ACQUIRE     0x01
 #define NVIF_OUTP_V0_RELEASE     0x02
 #define NVIF_OUTP_V0_INFOFRAME   0x03
+#define NVIF_OUTP_V0_HDA_ELD     0x04
 
 union nvif_outp_load_detect_args {
 	struct nvif_outp_load_detect_v0 {
@@ -75,6 +76,15 @@ union nvif_outp_infoframe_args {
 		__u8 head;
 		__u8 pad03[5];
 		__u8 data[];
+	} v0;
+};
+
+union nvif_outp_hda_eld_args {
+	struct nvif_outp_hda_eld_v0 {
+		__u8  version;
+		__u8  head;
+		__u8  pad02[6];
+		__u8  data[];
 	} v0;
 };
 #endif

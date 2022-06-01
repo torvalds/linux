@@ -28,19 +28,12 @@ struct nv50_disp_scanoutpos_v0 {
 
 struct nv50_disp_mthd_v1 {
 	__u8  version;
-#define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
 #define NV50_DISP_MTHD_V1_SOR_DP_MST_LINK                                  0x25
 #define NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI                                  0x26
 	__u8  method;
 	__u16 hasht;
 	__u16 hashm;
 	__u8  pad06[2];
-};
-
-struct nv50_disp_sor_hda_eld_v0 {
-	__u8  version;
-	__u8  pad01[7];
-	__u8  data[];
 };
 
 struct nv50_disp_sor_dp_mst_link_v0 {
