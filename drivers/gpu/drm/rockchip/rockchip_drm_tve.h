@@ -15,6 +15,9 @@
 #ifndef __ROCKCHIP_DRM_TVE_H__
 #define __ROCKCHIP_DRM_TVE_H__
 
+#define RK3036_GRF_SOC_CON3	0x0154
+#define RK312X_GRF_TVE_CON	0x0170
+
 #define TV_CTRL			(0x00)
 	#define m_CVBS_MODE			BIT(24)
 	#define m_CLK_UPSTREAM_EN		(3 << 18)
@@ -129,6 +132,13 @@ enum {
 	INPUT_FORMAT_YUV
 };
 
+enum {
+	SOC_RK3036 = 0,
+	SOC_RK312X,
+	SOC_RK322X,
+	SOC_RK3328
+};
+
 #define grf_writel(offset, v)	do { \
 	writel_relaxed(v, RK_GRF_VIRT + (offset)); \
 	dsb(sy); \
@@ -143,10 +153,13 @@ struct rockchip_tve {
 	u32 tv_format;
 	void __iomem			*regbase;
 	void __iomem			*vdacbase;
+	struct clk			*aclk;
 	struct clk			*dac_clk;
+	struct regmap			*dac_grf;
 	u32				reg_phy_base;
 	u32				len;
-	int				inputformat;
+	int				input_format;
+	int				soc_type;
 	bool				enable;
 	u32 test_mode;
 	u32 saturation;
