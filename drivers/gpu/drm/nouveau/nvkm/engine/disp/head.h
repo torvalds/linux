@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: MIT */
 #ifndef __NVKM_DISP_HEAD_H__
 #define __NVKM_DISP_HEAD_H__
+#include <nvif/object.h>
 #include "priv.h"
 
 struct nvkm_head {
@@ -26,6 +27,8 @@ struct nvkm_head {
 			u8 depth;
 		} or;
 	} arm, asy;
+
+	struct nvkm_object object;
 };
 
 int nvkm_head_new_(const struct nvkm_head_func *, struct nvkm_disp *, int id);

@@ -34,3 +34,4 @@ nvkm-y += nvkm/engine/disp/rootnv50.o
 nvkm-y += nvkm/engine/disp/udisp.o
 nvkm-y += nvkm/engine/disp/uconn.o
 nvkm-y += nvkm/engine/disp/uoutp.o
+nvkm-y += nvkm/engine/disp/uhead.o

@@ -26,14 +26,15 @@
 
 #ifndef __NOUVEAU_CRTC_H__
 #define __NOUVEAU_CRTC_H__
-
 #include <drm/drm_crtc.h>
 
+#include <nvif/head.h>
 #include <nvif/notify.h>
 
 struct nouveau_crtc {
 	struct drm_crtc base;
 
+	struct nvif_head head;
 	int index;
 	struct nvif_notify vblank;
 

@@ -762,6 +762,7 @@ static void nv_crtc_destroy(struct drm_crtc *crtc)
 	nouveau_bo_unpin(nv_crtc->cursor.nvbo);
 	nouveau_bo_ref(NULL, &nv_crtc->cursor.nvbo);
 	nvif_notify_dtor(&nv_crtc->vblank);
+	nvif_head_dtor(&nv_crtc->head);
 	kfree(nv_crtc);
 }
 
@@ -1340,6 +1341,10 @@ nv04_crtc_create(struct drm_device *dev, int crtc_num)
 	}
 
 	nv04_cursor_init(nv_crtc);
+
+	ret = nvif_head_ctor(&disp->disp, nv_crtc->base.name, nv_crtc->index, &nv_crtc->head);
+	if (ret)
+		return ret;
 
 	ret = nvif_notify_ctor(&disp->disp.object, "kmsVbl", nv04_crtc_vblank_handler,
 			       false, NV04_DISP_NTFY_VBLANK,

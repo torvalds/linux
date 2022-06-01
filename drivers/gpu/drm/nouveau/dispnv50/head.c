@@ -518,6 +518,7 @@ nv50_head_destroy(struct drm_crtc *crtc)
 	struct nv50_head *head = nv50_head(crtc);
 
 	nvif_notify_dtor(&head->base.vblank);
+	nvif_head_dtor(&head->base.head);
 	nv50_lut_fini(&head->olut);
 	drm_crtc_cleanup(crtc);
 	kfree(head);
@@ -623,6 +624,10 @@ nv50_head_create(struct drm_device *dev, int index)
 			return ERR_PTR(ret);
 		}
 	}
+
+	ret = nvif_head_ctor(disp->disp, head->base.base.name, head->base.index, &head->base.head);
+	if (ret)
+		return ERR_PTR(ret);
 
 	ret = nvif_notify_ctor(&disp->disp->object, "kmsVbl", nv50_head_vblank_handler,
 			       false, NV04_DISP_NTFY_VBLANK,
