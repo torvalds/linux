@@ -74,7 +74,7 @@ void gk104_fifo_intr_pbdma_1(struct gk104_fifo *fifo, int unit);
 void gk104_fifo_intr_runlist(struct gk104_fifo *fifo);
 void gk104_fifo_intr_engine(struct gk104_fifo *fifo);
 void *gk104_fifo_dtor(struct nvkm_fifo *base);
-int gk104_fifo_oneinit(struct nvkm_fifo *base);
+int gk104_fifo_oneinit(struct nvkm_fifo *);
 int gk104_fifo_info(struct nvkm_fifo *base, u64 mthd, u64 *data);
 void gk104_fifo_init(struct nvkm_fifo *base);
 void gk104_fifo_fini(struct nvkm_fifo *base);

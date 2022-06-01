@@ -23,6 +23,7 @@
  */
 #include "cgrp.h"
 #include "chan.h"
+#include "chid.h"
 
 #include "nv04.h"
 #include "channv04.h"
@@ -58,7 +59,6 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 	struct nvkm_memory *fctx = device->imem->ramfc;
 	const struct nv04_fifo_ramfc *c;
 	unsigned long flags;
-	u32 mask = fifo->base.nr - 1;
 	u32 data = chan->ramfc;
 	u32 chid;
 
@@ -67,7 +67,7 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 0);
 
 	/* if this channel is active, replace it with a null context */
-	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & mask;
+	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & fifo->base.chid->mask;
 	if (chid == chan->base.chid) {
 		nvkm_mask(device, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
 		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 0);
@@ -91,7 +91,7 @@ nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
 
 		nvkm_wr32(device, NV03_PFIFO_CACHE1_GET, 0);
 		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUT, 0);
-		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, mask);
+		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.chid->mask);
 		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 1);
 		nvkm_wr32(device, NV04_PFIFO_CACHE1_PULL0, 1);
 	}
@@ -360,7 +360,7 @@ nv04_fifo_intr(struct nvkm_fifo *base)
 	reassign = nvkm_rd32(device, NV03_PFIFO_CACHES) & 1;
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 0);
 
-	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & (fifo->base.nr - 1);
+	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & fifo->base.chid->mask;
 	get  = nvkm_rd32(device, NV03_PFIFO_CACHE1_GET);
 
 	if (stat & NV_PFIFO_INTR_CACHE_ERROR) {
@@ -407,10 +407,9 @@ nv04_fifo_intr(struct nvkm_fifo *base)
 }
 
 void
-nv04_fifo_init(struct nvkm_fifo *base)
+nv04_fifo_init(struct nvkm_fifo *fifo)
 {
-	struct nv04_fifo *fifo = nv04_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_instmem *imem = device->imem;
 	struct nvkm_ramht *ramht = imem->ramht;
 	struct nvkm_memory *ramro = imem->ramro;
@@ -425,7 +424,7 @@ nv04_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, NV03_PFIFO_RAMRO, nvkm_memory_addr(ramro) >> 8);
 	nvkm_wr32(device, NV03_PFIFO_RAMFC, nvkm_memory_addr(ramfc) >> 8);
 
-	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.nr - 1);
+	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->chid->mask);
 
 	nvkm_wr32(device, NV03_PFIFO_INTR_0, 0xffffffff);
 	nvkm_wr32(device, NV03_PFIFO_INTR_EN_0, 0xffffffff);
@@ -433,6 +432,13 @@ nv04_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 1);
 	nvkm_wr32(device, NV04_PFIFO_CACHE1_PULL0, 1);
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
+}
+
+int
+nv04_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
+{
+	/* The last CHID is reserved by HW as a "channel invalid" marker. */
+	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr - 1, &fifo->chid);
 }
 
 static int
@@ -465,6 +471,7 @@ nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 static const struct nvkm_fifo_func
 nv04_fifo = {
 	.chid_nr = nv04_fifo_chid_nr,
+	.chid_ctor = nv04_fifo_chid_ctor,
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,

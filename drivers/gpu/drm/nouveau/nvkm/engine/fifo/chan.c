@@ -32,6 +32,10 @@
 
 #include <nvif/if0020.h>
 
+const struct nvkm_event_func
+nvkm_chan_event = {
+};
+
 struct nvkm_fifo_chan_object {
 	struct nvkm_oproxy oproxy;
 	struct nvkm_fifo_chan *chan;

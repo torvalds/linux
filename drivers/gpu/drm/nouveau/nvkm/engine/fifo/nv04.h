@@ -19,5 +19,4 @@ struct nv04_fifo {
 
 int nv04_fifo_new_(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
 		   int nr, const struct nv04_fifo_ramfc *, struct nvkm_fifo **);
-void nv04_fifo_init(struct nvkm_fifo *);
 #endif

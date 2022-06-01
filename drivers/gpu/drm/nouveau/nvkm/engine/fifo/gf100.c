@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "chid.h"
 
 #include "gf100.h"
 #include "changf100.h"
@@ -624,6 +625,12 @@ gf100_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, 0x002628, 0x00000001); /* ENGINE_INTR_EN */
 }
 
+int
+gf100_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
+{
+	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr, &fifo->chid);
+}
+
 static int
 gf100_fifo_oneinit(struct nvkm_fifo *base)
 {
@@ -681,6 +688,7 @@ gf100_fifo = {
 	.dtor = gf100_fifo_dtor,
 	.oneinit = gf100_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
+	.chid_ctor = gf100_fifo_chid_ctor,
 	.init = gf100_fifo_init,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,

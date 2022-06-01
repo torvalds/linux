@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "chid.h"
 
 #include "nv04.h"
 #include "channv04.h"
@@ -56,10 +57,9 @@ nv17_chan = {
 };
 
 static void
-nv17_fifo_init(struct nvkm_fifo *base)
+nv17_fifo_init(struct nvkm_fifo *fifo)
 {
-	struct nv04_fifo *fifo = nv04_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_instmem *imem = device->imem;
 	struct nvkm_ramht *ramht = imem->ramht;
 	struct nvkm_memory *ramro = imem->ramro;
@@ -75,7 +75,7 @@ nv17_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, NV03_PFIFO_RAMFC, nvkm_memory_addr(ramfc) >> 8 |
 					    0x00010000);
 
-	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->base.nr - 1);
+	nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, fifo->chid->mask);
 
 	nvkm_wr32(device, NV03_PFIFO_INTR_0, 0xffffffff);
 	nvkm_wr32(device, NV03_PFIFO_INTR_EN_0, 0xffffffff);
@@ -88,6 +88,7 @@ nv17_fifo_init(struct nvkm_fifo *base)
 static const struct nvkm_fifo_func
 nv17_fifo = {
 	.chid_nr = nv10_fifo_chid_nr,
+	.chid_ctor = nv04_fifo_chid_ctor,
 	.init = nv17_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,

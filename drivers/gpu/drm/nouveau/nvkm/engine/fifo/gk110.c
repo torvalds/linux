@@ -23,6 +23,7 @@
  */
 #include "cgrp.h"
 #include "chan.h"
+#include "chid.h"
 
 #include "gk104.h"
 #include "changk104.h"
@@ -56,11 +57,24 @@ gk110_fifo_runlist = {
 	.commit = gk104_fifo_runlist_commit,
 };
 
+int
+gk110_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
+{
+	int ret;
+
+	ret = nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 0, nr, &fifo->cgid);
+	if (ret)
+		return ret;
+
+	return gf100_fifo_chid_ctor(fifo, nr);
+}
+
 static const struct nvkm_fifo_func
 gk110_fifo = {
 	.dtor = gk104_fifo_dtor,
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk104_fifo_chid_nr,
+	.chid_ctor = gk110_fifo_chid_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,

@@ -37,6 +37,9 @@ struct nvkm_fifo {
 	const struct nvkm_fifo_func *func;
 	struct nvkm_engine engine;
 
+	struct nvkm_chid *chid;
+	struct nvkm_chid *cgid;
+
 	DECLARE_BITMAP(mask, NVKM_FIFO_CHID_NR);
 	int nr;
 	struct list_head chan;

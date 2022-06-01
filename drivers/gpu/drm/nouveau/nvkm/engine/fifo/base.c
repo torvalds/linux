@@ -23,6 +23,7 @@
  */
 #include "priv.h"
 #include "chan.h"
+#include "chid.h"
 
 #include <core/gpuobj.h>
 #include <subdev/mc.h>
@@ -218,13 +219,15 @@ static int
 nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+
 	switch (mthd) {
-	case NV_DEVICE_HOST_CHANNELS: *data = fifo->nr; return 0;
+	case NV_DEVICE_HOST_CHANNELS: *data = fifo->chid ? fifo->chid->nr : 0; return 0;
 	default:
 		if (fifo->func->info)
 			return fifo->func->info(fifo, mthd, data);
 		break;
 	}
+
 	return -ENOSYS;
 }
 
@@ -232,8 +235,18 @@ static int
 nvkm_fifo_oneinit(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	int ret;
+
+	/* Initialise CHID/CGID allocator(s) on GPUs where they aren't per-runlist. */
+	if (fifo->func->chid_nr) {
+		ret = fifo->func->chid_ctor(fifo, fifo->func->chid_nr(fifo));
+		if (ret)
+			return ret;
+	}
+
 	if (fifo->func->oneinit)
 		return fifo->func->oneinit(fifo);
+
 	return 0;
 }
 
@@ -248,6 +261,10 @@ nvkm_fifo_dtor(struct nvkm_engine *engine)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
 	void *data = fifo;
+
+	nvkm_chid_unref(&fifo->cgid);
+	nvkm_chid_unref(&fifo->chid);
+
 	if (fifo->func->dtor)
 		data = fifo->func->dtor(fifo);
 	nvkm_event_fini(&fifo->kevent);
@@ -289,7 +306,6 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 		fifo->nr = NVKM_FIFO_CHID_NR;
 	else
 		fifo->nr = nr;
-	bitmap_clear(fifo->mask, 0, fifo->nr);
 
 	if (func->uevent_init) {
 		ret = nvkm_event_init(&nvkm_fifo_uevent_func, &fifo->engine.subdev, 1, 1,

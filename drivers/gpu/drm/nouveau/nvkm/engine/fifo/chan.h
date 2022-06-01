@@ -4,6 +4,8 @@
 #define nvkm_chan(p) container_of((p), struct nvkm_chan, object) /*FIXME: remove later */
 #include <engine/fifo.h>
 
+extern const struct nvkm_event_func nvkm_chan_event;
+
 struct nvkm_chan_func {
 	void *(*dtor)(struct nvkm_fifo_chan *);
 	void (*init)(struct nvkm_fifo_chan *);

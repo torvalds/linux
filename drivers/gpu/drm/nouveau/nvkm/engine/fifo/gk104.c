@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "chid.h"
 
 #include "gk104.h"
 #include "cgrp.h"
@@ -1193,6 +1194,7 @@ gk104_fifo = {
 	.dtor = gk104_fifo_dtor,
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gk104_fifo_chid_nr,
+	.chid_ctor = gf100_fifo_chid_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,

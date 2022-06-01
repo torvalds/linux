@@ -442,6 +442,7 @@ tu102_fifo = {
 	.dtor = gk104_fifo_dtor,
 	.oneinit = gk104_fifo_oneinit,
 	.chid_nr = gm200_fifo_chid_nr,
+	.chid_ctor = gk110_fifo_chid_ctor,
 	.info = gk104_fifo_info,
 	.init = gk104_fifo_init,
 	.fini = gk104_fifo_fini,

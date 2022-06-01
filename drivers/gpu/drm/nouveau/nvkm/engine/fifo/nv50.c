@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "chid.h"
 
 #include "nv50.h"
 #include "channv50.h"
@@ -89,6 +90,13 @@ nv50_fifo_init(struct nvkm_fifo *base)
 }
 
 int
+nv50_fifo_chid_ctor(struct nvkm_fifo *fifo, int nr)
+{
+	/* CHID 0 is unusable (some kind of PIO channel?), 127 is "channel invalid". */
+	return nvkm_chid_new(&nvkm_chan_event, &fifo->engine.subdev, nr, 1, nr - 2, &fifo->chid);
+}
+
+int
 nv50_fifo_chid_nr(struct nvkm_fifo *fifo)
 {
 	return 128;
@@ -144,6 +152,7 @@ nv50_fifo = {
 	.dtor = nv50_fifo_dtor,
 	.oneinit = nv50_fifo_oneinit,
 	.chid_nr = nv50_fifo_chid_nr,
+	.chid_ctor = nv50_fifo_chid_ctor,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,
