@@ -53,6 +53,52 @@ static const struct nvkm_chan_func
 gf100_chan = {
 };
 
+static const struct nvkm_bitfield
+gf100_fifo_pbdma_intr[] = {
+/*	{ 0x00008000, "" }	seen with null ib push */
+	{ 0x00200000, "ILLEGAL_MTHD" },
+	{ 0x00800000, "EMPTY_SUBC" },
+	{}
+};
+
+static void
+gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
+{
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 stat = nvkm_rd32(device, 0x040108 + (unit * 0x2000));
+	u32 addr = nvkm_rd32(device, 0x0400c0 + (unit * 0x2000));
+	u32 data = nvkm_rd32(device, 0x0400c4 + (unit * 0x2000));
+	u32 chid = nvkm_rd32(device, 0x040120 + (unit * 0x2000)) & 0x7f;
+	u32 subc = (addr & 0x00070000) >> 16;
+	u32 mthd = (addr & 0x00003ffc);
+	struct nvkm_fifo_chan *chan;
+	unsigned long flags;
+	u32 show = stat;
+	char msg[128];
+
+	if (stat & 0x00800000) {
+		if (device->sw) {
+			if (nvkm_sw_mthd(device->sw, chid, subc, mthd, data))
+				show &= ~0x00800000;
+		}
+	}
+
+	if (show) {
+		nvkm_snprintbf(msg, sizeof(msg), gf100_fifo_pbdma_intr, show);
+		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
+		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
+				   "subc %d mthd %04x data %08x\n",
+			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
+			   chan ? chan->object.client->name : "unknown",
+			   subc, mthd, data);
+		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
+	}
+
+	nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
+	nvkm_wr32(device, 0x040108 + (unit * 0x2000), stat);
+}
+
 void
 gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 {
@@ -399,52 +445,6 @@ gf100_fifo_intr_fault(struct nvkm_fifo *fifo, int unit)
 	nvkm_fifo_fault(fifo, &info);
 }
 
-static const struct nvkm_bitfield
-gf100_fifo_pbdma_intr[] = {
-/*	{ 0x00008000, "" }	seen with null ib push */
-	{ 0x00200000, "ILLEGAL_MTHD" },
-	{ 0x00800000, "EMPTY_SUBC" },
-	{}
-};
-
-static void
-gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
-{
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 stat = nvkm_rd32(device, 0x040108 + (unit * 0x2000));
-	u32 addr = nvkm_rd32(device, 0x0400c0 + (unit * 0x2000));
-	u32 data = nvkm_rd32(device, 0x0400c4 + (unit * 0x2000));
-	u32 chid = nvkm_rd32(device, 0x040120 + (unit * 0x2000)) & 0x7f;
-	u32 subc = (addr & 0x00070000) >> 16;
-	u32 mthd = (addr & 0x00003ffc);
-	struct nvkm_fifo_chan *chan;
-	unsigned long flags;
-	u32 show= stat;
-	char msg[128];
-
-	if (stat & 0x00800000) {
-		if (device->sw) {
-			if (nvkm_sw_mthd(device->sw, chid, subc, mthd, data))
-				show &= ~0x00800000;
-		}
-	}
-
-	if (show) {
-		nvkm_snprintbf(msg, sizeof(msg), gf100_fifo_pbdma_intr, show);
-		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
-		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
-				   "subc %d mthd %04x data %08x\n",
-			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
-			   chan ? chan->object.client->name : "unknown",
-			   subc, mthd, data);
-		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
-	}
-
-	nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
-	nvkm_wr32(device, 0x040108 + (unit * 0x2000), stat);
-}
-
 static void
 gf100_fifo_intr_runlist(struct gf100_fifo *fifo)
 {
@@ -576,46 +576,6 @@ gf100_fifo_intr(struct nvkm_fifo *base)
 	}
 }
 
-static int
-gf100_fifo_oneinit(struct nvkm_fifo *base)
-{
-	struct gf100_fifo *fifo = gf100_fifo(base);
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
-	int ret;
-
-	/* Determine number of PBDMAs by checking valid enable bits. */
-	nvkm_wr32(device, 0x002204, 0xffffffff);
-	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x002204));
-	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
-
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[0]);
-	if (ret)
-		return ret;
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
-			      false, &fifo->runlist.mem[1]);
-	if (ret)
-		return ret;
-
-	init_waitqueue_head(&fifo->runlist.wait);
-
-	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
-			      0x1000, false, &fifo->user.mem);
-	if (ret)
-		return ret;
-
-	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
-			   &fifo->user.bar);
-	if (ret)
-		return ret;
-
-	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
-}
-
 static void
 gf100_fifo_fini(struct nvkm_fifo *base)
 {
@@ -657,6 +617,46 @@ gf100_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, 0x002100, 0xffffffff);
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
 	nvkm_wr32(device, 0x002628, 0x00000001); /* ENGINE_INTR_EN */
+}
+
+static int
+gf100_fifo_oneinit(struct nvkm_fifo *base)
+{
+	struct gf100_fifo *fifo = gf100_fifo(base);
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct nvkm_vmm *bar = nvkm_bar_bar1_vmm(device);
+	int ret;
+
+	/* Determine number of PBDMAs by checking valid enable bits. */
+	nvkm_wr32(device, 0x002204, 0xffffffff);
+	fifo->pbdma_nr = hweight32(nvkm_rd32(device, 0x002204));
+	nvkm_debug(subdev, "%d PBDMA(s)\n", fifo->pbdma_nr);
+
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
+			      false, &fifo->runlist.mem[0]);
+	if (ret)
+		return ret;
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 0x1000, 0x1000,
+			      false, &fifo->runlist.mem[1]);
+	if (ret)
+		return ret;
+
+	init_waitqueue_head(&fifo->runlist.wait);
+
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
+			      0x1000, false, &fifo->user.mem);
+	if (ret)
+		return ret;
+
+	ret = nvkm_vmm_get(bar, 12, nvkm_memory_size(fifo->user.mem),
+			   &fifo->user.bar);
+	if (ret)
+		return ret;
+
+	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
 }
 
 static void *

@@ -103,6 +103,70 @@ gk104_fifo_uevent_init(struct nvkm_fifo *fifo)
 	nvkm_mask(device, 0x002140, 0x80000000, 0x80000000);
 }
 
+static const struct nvkm_bitfield gk104_fifo_pbdma_intr_1[] = {
+	{ 0x00000001, "HCE_RE_ILLEGAL_OP" },
+	{ 0x00000002, "HCE_RE_ALIGNB" },
+	{ 0x00000004, "HCE_PRIV" },
+	{ 0x00000008, "HCE_ILLEGAL_MTHD" },
+	{ 0x00000010, "HCE_ILLEGAL_CLASS" },
+	{}
+};
+
+void
+gk104_fifo_intr_pbdma_1(struct gk104_fifo *fifo, int unit)
+{
+	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	u32 mask = nvkm_rd32(device, 0x04014c + (unit * 0x2000));
+	u32 stat = nvkm_rd32(device, 0x040148 + (unit * 0x2000)) & mask;
+	u32 chid = nvkm_rd32(device, 0x040120 + (unit * 0x2000)) & 0xfff;
+	char msg[128];
+
+	if (stat) {
+		nvkm_snprintbf(msg, sizeof(msg), gk104_fifo_pbdma_intr_1, stat);
+		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d %08x %08x\n",
+			   unit, stat, msg, chid,
+			   nvkm_rd32(device, 0x040150 + (unit * 0x2000)),
+			   nvkm_rd32(device, 0x040154 + (unit * 0x2000)));
+	}
+
+	nvkm_wr32(device, 0x040148 + (unit * 0x2000), stat);
+}
+
+static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
+	{ 0x00000001, "MEMREQ" },
+	{ 0x00000002, "MEMACK_TIMEOUT" },
+	{ 0x00000004, "MEMACK_EXTRA" },
+	{ 0x00000008, "MEMDAT_TIMEOUT" },
+	{ 0x00000010, "MEMDAT_EXTRA" },
+	{ 0x00000020, "MEMFLUSH" },
+	{ 0x00000040, "MEMOP" },
+	{ 0x00000080, "LBCONNECT" },
+	{ 0x00000100, "LBREQ" },
+	{ 0x00000200, "LBACK_TIMEOUT" },
+	{ 0x00000400, "LBACK_EXTRA" },
+	{ 0x00000800, "LBDAT_TIMEOUT" },
+	{ 0x00001000, "LBDAT_EXTRA" },
+	{ 0x00002000, "GPFIFO" },
+	{ 0x00004000, "GPPTR" },
+	{ 0x00008000, "GPENTRY" },
+	{ 0x00010000, "GPCRC" },
+	{ 0x00020000, "PBPTR" },
+	{ 0x00040000, "PBENTRY" },
+	{ 0x00080000, "PBCRC" },
+	{ 0x00100000, "XBARCONNECT" },
+	{ 0x00200000, "METHOD" },
+	{ 0x00400000, "METHODCRC" },
+	{ 0x00800000, "DEVICE" },
+	{ 0x02000000, "SEMAPHORE" },
+	{ 0x04000000, "ACQUIRE" },
+	{ 0x08000000, "PRI" },
+	{ 0x20000000, "NO_CTXSW_SEG" },
+	{ 0x40000000, "PBSEG" },
+	{ 0x80000000, "SIGNATURE" },
+	{}
+};
+
 void
 gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 			  struct nvkm_memory *mem, int nr)
@@ -443,6 +507,128 @@ gk104_fifo_recover_engn(struct gk104_fifo *fifo, int engn)
 	schedule_work(&fifo->recover.work);
 }
 
+const struct nvkm_enum
+gk104_fifo_fault_access[] = {
+	{ 0x0, "READ" },
+	{ 0x1, "WRITE" },
+	{}
+};
+
+const struct nvkm_enum
+gk104_fifo_fault_engine[] = {
+	{ 0x00, "GR", NULL, NVKM_ENGINE_GR },
+	{ 0x01, "DISPLAY" },
+	{ 0x02, "CAPTURE" },
+	{ 0x03, "IFB", NULL, NVKM_ENGINE_IFB },
+	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
+	{ 0x05, "BAR2", NULL, NVKM_SUBDEV_INSTMEM },
+	{ 0x06, "SCHED" },
+	{ 0x07, "HOST0", NULL, NVKM_ENGINE_FIFO },
+	{ 0x08, "HOST1", NULL, NVKM_ENGINE_FIFO },
+	{ 0x09, "HOST2", NULL, NVKM_ENGINE_FIFO },
+	{ 0x0a, "HOST3", NULL, NVKM_ENGINE_FIFO },
+	{ 0x0b, "HOST4", NULL, NVKM_ENGINE_FIFO },
+	{ 0x0c, "HOST5", NULL, NVKM_ENGINE_FIFO },
+	{ 0x0d, "HOST6", NULL, NVKM_ENGINE_FIFO },
+	{ 0x0e, "HOST7", NULL, NVKM_ENGINE_FIFO },
+	{ 0x0f, "HOSTSR" },
+	{ 0x10, "MSVLD", NULL, NVKM_ENGINE_MSVLD },
+	{ 0x11, "MSPPP", NULL, NVKM_ENGINE_MSPPP },
+	{ 0x13, "PERF" },
+	{ 0x14, "MSPDEC", NULL, NVKM_ENGINE_MSPDEC },
+	{ 0x15, "CE0", NULL, NVKM_ENGINE_CE, 0 },
+	{ 0x16, "CE1", NULL, NVKM_ENGINE_CE, 1 },
+	{ 0x17, "PMU" },
+	{ 0x18, "PTP" },
+	{ 0x19, "MSENC", NULL, NVKM_ENGINE_MSENC },
+	{ 0x1b, "CE2", NULL, NVKM_ENGINE_CE, 2 },
+	{}
+};
+
+const struct nvkm_enum
+gk104_fifo_fault_reason[] = {
+	{ 0x00, "PDE" },
+	{ 0x01, "PDE_SIZE" },
+	{ 0x02, "PTE" },
+	{ 0x03, "VA_LIMIT_VIOLATION" },
+	{ 0x04, "UNBOUND_INST_BLOCK" },
+	{ 0x05, "PRIV_VIOLATION" },
+	{ 0x06, "RO_VIOLATION" },
+	{ 0x07, "WO_VIOLATION" },
+	{ 0x08, "PITCH_MASK_VIOLATION" },
+	{ 0x09, "WORK_CREATION" },
+	{ 0x0a, "UNSUPPORTED_APERTURE" },
+	{ 0x0b, "COMPRESSION_FAILURE" },
+	{ 0x0c, "UNSUPPORTED_KIND" },
+	{ 0x0d, "REGION_VIOLATION" },
+	{ 0x0e, "BOTH_PTES_VALID" },
+	{ 0x0f, "INFO_TYPE_POISONED" },
+	{}
+};
+
+const struct nvkm_enum
+gk104_fifo_fault_hubclient[] = {
+	{ 0x00, "VIP" },
+	{ 0x01, "CE0" },
+	{ 0x02, "CE1" },
+	{ 0x03, "DNISO" },
+	{ 0x04, "FE" },
+	{ 0x05, "FECS" },
+	{ 0x06, "HOST" },
+	{ 0x07, "HOST_CPU" },
+	{ 0x08, "HOST_CPU_NB" },
+	{ 0x09, "ISO" },
+	{ 0x0a, "MMU" },
+	{ 0x0b, "MSPDEC" },
+	{ 0x0c, "MSPPP" },
+	{ 0x0d, "MSVLD" },
+	{ 0x0e, "NISO" },
+	{ 0x0f, "P2P" },
+	{ 0x10, "PD" },
+	{ 0x11, "PERF" },
+	{ 0x12, "PMU" },
+	{ 0x13, "RASTERTWOD" },
+	{ 0x14, "SCC" },
+	{ 0x15, "SCC_NB" },
+	{ 0x16, "SEC" },
+	{ 0x17, "SSYNC" },
+	{ 0x18, "GR_CE" },
+	{ 0x19, "CE2" },
+	{ 0x1a, "XV" },
+	{ 0x1b, "MMU_NB" },
+	{ 0x1c, "MSENC" },
+	{ 0x1d, "DFALCON" },
+	{ 0x1e, "SKED" },
+	{ 0x1f, "AFALCON" },
+	{}
+};
+
+const struct nvkm_enum
+gk104_fifo_fault_gpcclient[] = {
+	{ 0x00, "L1_0" }, { 0x01, "T1_0" }, { 0x02, "PE_0" },
+	{ 0x03, "L1_1" }, { 0x04, "T1_1" }, { 0x05, "PE_1" },
+	{ 0x06, "L1_2" }, { 0x07, "T1_2" }, { 0x08, "PE_2" },
+	{ 0x09, "L1_3" }, { 0x0a, "T1_3" }, { 0x0b, "PE_3" },
+	{ 0x0c, "RAST" },
+	{ 0x0d, "GCC" },
+	{ 0x0e, "GPCCS" },
+	{ 0x0f, "PROP_0" },
+	{ 0x10, "PROP_1" },
+	{ 0x11, "PROP_2" },
+	{ 0x12, "PROP_3" },
+	{ 0x13, "L1_4" }, { 0x14, "T1_4" }, { 0x15, "PE_4" },
+	{ 0x16, "L1_5" }, { 0x17, "T1_5" }, { 0x18, "PE_5" },
+	{ 0x19, "L1_6" }, { 0x1a, "T1_6" }, { 0x1b, "PE_6" },
+	{ 0x1c, "L1_7" }, { 0x1d, "T1_7" }, { 0x1e, "PE_7" },
+	{ 0x1f, "GPM" },
+	{ 0x20, "LTP_UTLB_0" },
+	{ 0x21, "LTP_UTLB_1" },
+	{ 0x22, "LTP_UTLB_2" },
+	{ 0x23, "LTP_UTLB_3" },
+	{ 0x24, "GPC_RGG_UTLB" },
+	{}
+};
+
 static void
 gk104_fifo_fault(struct nvkm_fifo *base, struct nvkm_fault_data *info)
 {
@@ -624,40 +810,6 @@ gk104_fifo_intr_dropped_fault(struct gk104_fifo *fifo)
 	nvkm_error(subdev, "DROPPED_MMU_FAULT %08x\n", stat);
 }
 
-static const struct nvkm_bitfield gk104_fifo_pbdma_intr_0[] = {
-	{ 0x00000001, "MEMREQ" },
-	{ 0x00000002, "MEMACK_TIMEOUT" },
-	{ 0x00000004, "MEMACK_EXTRA" },
-	{ 0x00000008, "MEMDAT_TIMEOUT" },
-	{ 0x00000010, "MEMDAT_EXTRA" },
-	{ 0x00000020, "MEMFLUSH" },
-	{ 0x00000040, "MEMOP" },
-	{ 0x00000080, "LBCONNECT" },
-	{ 0x00000100, "LBREQ" },
-	{ 0x00000200, "LBACK_TIMEOUT" },
-	{ 0x00000400, "LBACK_EXTRA" },
-	{ 0x00000800, "LBDAT_TIMEOUT" },
-	{ 0x00001000, "LBDAT_EXTRA" },
-	{ 0x00002000, "GPFIFO" },
-	{ 0x00004000, "GPPTR" },
-	{ 0x00008000, "GPENTRY" },
-	{ 0x00010000, "GPCRC" },
-	{ 0x00020000, "PBPTR" },
-	{ 0x00040000, "PBENTRY" },
-	{ 0x00080000, "PBCRC" },
-	{ 0x00100000, "XBARCONNECT" },
-	{ 0x00200000, "METHOD" },
-	{ 0x00400000, "METHODCRC" },
-	{ 0x00800000, "DEVICE" },
-	{ 0x02000000, "SEMAPHORE" },
-	{ 0x04000000, "ACQUIRE" },
-	{ 0x08000000, "PRI" },
-	{ 0x20000000, "NO_CTXSW_SEG" },
-	{ 0x40000000, "PBSEG" },
-	{ 0x80000000, "SIGNATURE" },
-	{}
-};
-
 void
 gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit)
 {
@@ -696,36 +848,6 @@ gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit)
 	}
 
 	nvkm_wr32(device, 0x040108 + (unit * 0x2000), stat);
-}
-
-static const struct nvkm_bitfield gk104_fifo_pbdma_intr_1[] = {
-	{ 0x00000001, "HCE_RE_ILLEGAL_OP" },
-	{ 0x00000002, "HCE_RE_ALIGNB" },
-	{ 0x00000004, "HCE_PRIV" },
-	{ 0x00000008, "HCE_ILLEGAL_MTHD" },
-	{ 0x00000010, "HCE_ILLEGAL_CLASS" },
-	{}
-};
-
-void
-gk104_fifo_intr_pbdma_1(struct gk104_fifo *fifo, int unit)
-{
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
-	struct nvkm_device *device = subdev->device;
-	u32 mask = nvkm_rd32(device, 0x04014c + (unit * 0x2000));
-	u32 stat = nvkm_rd32(device, 0x040148 + (unit * 0x2000)) & mask;
-	u32 chid = nvkm_rd32(device, 0x040120 + (unit * 0x2000)) & 0xfff;
-	char msg[128];
-
-	if (stat) {
-		nvkm_snprintbf(msg, sizeof(msg), gk104_fifo_pbdma_intr_1, stat);
-		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d %08x %08x\n",
-			   unit, stat, msg, chid,
-			   nvkm_rd32(device, 0x040150 + (unit * 0x2000)),
-			   nvkm_rd32(device, 0x040154 + (unit * 0x2000)));
-	}
-
-	nvkm_wr32(device, 0x040148 + (unit * 0x2000), stat);
 }
 
 void
@@ -899,6 +1021,44 @@ gk104_fifo_info(struct nvkm_fifo *base, u64 mthd, u64 *data)
 	}
 }
 
+void
+gk104_fifo_init(struct nvkm_fifo *base)
+{
+	struct gk104_fifo *fifo = gk104_fifo(base);
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	int i;
+
+	/* Enable PBDMAs. */
+	fifo->func->pbdma->init(fifo);
+
+	/* PBDMA[n] */
+	for (i = 0; i < fifo->pbdma_nr; i++) {
+		nvkm_mask(device, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
+		nvkm_wr32(device, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
+		nvkm_wr32(device, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
+	}
+
+	/* PBDMA[n].HCE */
+	for (i = 0; i < fifo->pbdma_nr; i++) {
+		nvkm_wr32(device, 0x040148 + (i * 0x2000), 0xffffffff); /* INTR */
+		nvkm_wr32(device, 0x04014c + (i * 0x2000), 0xffffffff); /* INTREN */
+	}
+
+	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
+
+	if (fifo->func->pbdma->init_timeout)
+		fifo->func->pbdma->init_timeout(fifo);
+
+	nvkm_wr32(device, 0x002100, 0xffffffff);
+	nvkm_wr32(device, 0x002140, 0x7fffffff);
+}
+
+int
+gk104_fifo_chid_nr(struct nvkm_fifo *fifo)
+{
+	return 4096;
+}
+
 int
 gk104_fifo_oneinit(struct nvkm_fifo *base)
 {
@@ -990,44 +1150,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 	return nvkm_memory_map(fifo->user.mem, 0, bar, fifo->user.bar, NULL, 0);
 }
 
-void
-gk104_fifo_init(struct nvkm_fifo *base)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
-	int i;
-
-	/* Enable PBDMAs. */
-	fifo->func->pbdma->init(fifo);
-
-	/* PBDMA[n] */
-	for (i = 0; i < fifo->pbdma_nr; i++) {
-		nvkm_mask(device, 0x04013c + (i * 0x2000), 0x10000100, 0x00000000);
-		nvkm_wr32(device, 0x040108 + (i * 0x2000), 0xffffffff); /* INTR */
-		nvkm_wr32(device, 0x04010c + (i * 0x2000), 0xfffffeff); /* INTREN */
-	}
-
-	/* PBDMA[n].HCE */
-	for (i = 0; i < fifo->pbdma_nr; i++) {
-		nvkm_wr32(device, 0x040148 + (i * 0x2000), 0xffffffff); /* INTR */
-		nvkm_wr32(device, 0x04014c + (i * 0x2000), 0xffffffff); /* INTREN */
-	}
-
-	nvkm_wr32(device, 0x002254, 0x10000000 | fifo->user.bar->addr >> 12);
-
-	if (fifo->func->pbdma->init_timeout)
-		fifo->func->pbdma->init_timeout(fifo);
-
-	nvkm_wr32(device, 0x002100, 0xffffffff);
-	nvkm_wr32(device, 0x002140, 0x7fffffff);
-}
-
-int
-gk104_fifo_chid_nr(struct nvkm_fifo *fifo)
-{
-	return 4096;
-}
-
 void *
 gk104_fifo_dtor(struct nvkm_fifo *base)
 {
@@ -1076,128 +1198,6 @@ gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
 
 	return nvkm_fifo_ctor(&gk104_fifo_, device, type, inst, &fifo->base);
 }
-
-const struct nvkm_enum
-gk104_fifo_fault_access[] = {
-	{ 0x0, "READ" },
-	{ 0x1, "WRITE" },
-	{}
-};
-
-const struct nvkm_enum
-gk104_fifo_fault_engine[] = {
-	{ 0x00, "GR", NULL, NVKM_ENGINE_GR },
-	{ 0x01, "DISPLAY" },
-	{ 0x02, "CAPTURE" },
-	{ 0x03, "IFB", NULL, NVKM_ENGINE_IFB },
-	{ 0x04, "BAR1", NULL, NVKM_SUBDEV_BAR },
-	{ 0x05, "BAR2", NULL, NVKM_SUBDEV_INSTMEM },
-	{ 0x06, "SCHED" },
-	{ 0x07, "HOST0", NULL, NVKM_ENGINE_FIFO },
-	{ 0x08, "HOST1", NULL, NVKM_ENGINE_FIFO },
-	{ 0x09, "HOST2", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0a, "HOST3", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0b, "HOST4", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0c, "HOST5", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0d, "HOST6", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0e, "HOST7", NULL, NVKM_ENGINE_FIFO },
-	{ 0x0f, "HOSTSR" },
-	{ 0x10, "MSVLD", NULL, NVKM_ENGINE_MSVLD },
-	{ 0x11, "MSPPP", NULL, NVKM_ENGINE_MSPPP },
-	{ 0x13, "PERF" },
-	{ 0x14, "MSPDEC", NULL, NVKM_ENGINE_MSPDEC },
-	{ 0x15, "CE0", NULL, NVKM_ENGINE_CE, 0 },
-	{ 0x16, "CE1", NULL, NVKM_ENGINE_CE, 1 },
-	{ 0x17, "PMU" },
-	{ 0x18, "PTP" },
-	{ 0x19, "MSENC", NULL, NVKM_ENGINE_MSENC },
-	{ 0x1b, "CE2", NULL, NVKM_ENGINE_CE, 2 },
-	{}
-};
-
-const struct nvkm_enum
-gk104_fifo_fault_reason[] = {
-	{ 0x00, "PDE" },
-	{ 0x01, "PDE_SIZE" },
-	{ 0x02, "PTE" },
-	{ 0x03, "VA_LIMIT_VIOLATION" },
-	{ 0x04, "UNBOUND_INST_BLOCK" },
-	{ 0x05, "PRIV_VIOLATION" },
-	{ 0x06, "RO_VIOLATION" },
-	{ 0x07, "WO_VIOLATION" },
-	{ 0x08, "PITCH_MASK_VIOLATION" },
-	{ 0x09, "WORK_CREATION" },
-	{ 0x0a, "UNSUPPORTED_APERTURE" },
-	{ 0x0b, "COMPRESSION_FAILURE" },
-	{ 0x0c, "UNSUPPORTED_KIND" },
-	{ 0x0d, "REGION_VIOLATION" },
-	{ 0x0e, "BOTH_PTES_VALID" },
-	{ 0x0f, "INFO_TYPE_POISONED" },
-	{}
-};
-
-const struct nvkm_enum
-gk104_fifo_fault_hubclient[] = {
-	{ 0x00, "VIP" },
-	{ 0x01, "CE0" },
-	{ 0x02, "CE1" },
-	{ 0x03, "DNISO" },
-	{ 0x04, "FE" },
-	{ 0x05, "FECS" },
-	{ 0x06, "HOST" },
-	{ 0x07, "HOST_CPU" },
-	{ 0x08, "HOST_CPU_NB" },
-	{ 0x09, "ISO" },
-	{ 0x0a, "MMU" },
-	{ 0x0b, "MSPDEC" },
-	{ 0x0c, "MSPPP" },
-	{ 0x0d, "MSVLD" },
-	{ 0x0e, "NISO" },
-	{ 0x0f, "P2P" },
-	{ 0x10, "PD" },
-	{ 0x11, "PERF" },
-	{ 0x12, "PMU" },
-	{ 0x13, "RASTERTWOD" },
-	{ 0x14, "SCC" },
-	{ 0x15, "SCC_NB" },
-	{ 0x16, "SEC" },
-	{ 0x17, "SSYNC" },
-	{ 0x18, "GR_CE" },
-	{ 0x19, "CE2" },
-	{ 0x1a, "XV" },
-	{ 0x1b, "MMU_NB" },
-	{ 0x1c, "MSENC" },
-	{ 0x1d, "DFALCON" },
-	{ 0x1e, "SKED" },
-	{ 0x1f, "AFALCON" },
-	{}
-};
-
-const struct nvkm_enum
-gk104_fifo_fault_gpcclient[] = {
-	{ 0x00, "L1_0" }, { 0x01, "T1_0" }, { 0x02, "PE_0" },
-	{ 0x03, "L1_1" }, { 0x04, "T1_1" }, { 0x05, "PE_1" },
-	{ 0x06, "L1_2" }, { 0x07, "T1_2" }, { 0x08, "PE_2" },
-	{ 0x09, "L1_3" }, { 0x0a, "T1_3" }, { 0x0b, "PE_3" },
-	{ 0x0c, "RAST" },
-	{ 0x0d, "GCC" },
-	{ 0x0e, "GPCCS" },
-	{ 0x0f, "PROP_0" },
-	{ 0x10, "PROP_1" },
-	{ 0x11, "PROP_2" },
-	{ 0x12, "PROP_3" },
-	{ 0x13, "L1_4" }, { 0x14, "T1_4" }, { 0x15, "PE_4" },
-	{ 0x16, "L1_5" }, { 0x17, "T1_5" }, { 0x18, "PE_5" },
-	{ 0x19, "L1_6" }, { 0x1a, "T1_6" }, { 0x1b, "PE_6" },
-	{ 0x1c, "L1_7" }, { 0x1d, "T1_7" }, { 0x1e, "PE_7" },
-	{ 0x1f, "GPM" },
-	{ 0x20, "LTP_UTLB_0" },
-	{ 0x21, "LTP_UTLB_1" },
-	{ 0x22, "LTP_UTLB_2" },
-	{ 0x23, "LTP_UTLB_3" },
-	{ 0x24, "GPC_RGG_UTLB" },
-	{}
-};
 
 static const struct gk104_fifo_func
 gk104_fifo = {

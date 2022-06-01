@@ -49,6 +49,72 @@ nv04_fifo_ramfc[] = {
 	{}
 };
 
+void
+nv04_fifo_dma_fini(struct nvkm_fifo_chan *base)
+{
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	struct nv04_fifo *fifo = chan->fifo;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_memory *fctx = device->imem->ramfc;
+	const struct nv04_fifo_ramfc *c;
+	unsigned long flags;
+	u32 mask = fifo->base.nr - 1;
+	u32 data = chan->ramfc;
+	u32 chid;
+
+	/* prevent fifo context switches */
+	spin_lock_irqsave(&fifo->base.lock, flags);
+	nvkm_wr32(device, NV03_PFIFO_CACHES, 0);
+
+	/* if this channel is active, replace it with a null context */
+	chid = nvkm_rd32(device, NV03_PFIFO_CACHE1_PUSH1) & mask;
+	if (chid == chan->base.chid) {
+		nvkm_mask(device, NV04_PFIFO_CACHE1_DMA_PUSH, 0x00000001, 0);
+		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 0);
+		nvkm_mask(device, NV04_PFIFO_CACHE1_PULL0, 0x00000001, 0);
+
+		c = fifo->ramfc;
+		nvkm_kmap(fctx);
+		do {
+			u32 rm = ((1ULL << c->bits) - 1) << c->regs;
+			u32 cm = ((1ULL << c->bits) - 1) << c->ctxs;
+			u32 rv = (nvkm_rd32(device, c->regp) &  rm) >> c->regs;
+			u32 cv = (nvkm_ro32(fctx, c->ctxp + data) & ~cm);
+			nvkm_wo32(fctx, c->ctxp + data, cv | (rv << c->ctxs));
+		} while ((++c)->bits);
+		nvkm_done(fctx);
+
+		c = fifo->ramfc;
+		do {
+			nvkm_wr32(device, c->regp, 0x00000000);
+		} while ((++c)->bits);
+
+		nvkm_wr32(device, NV03_PFIFO_CACHE1_GET, 0);
+		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUT, 0);
+		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH1, mask);
+		nvkm_wr32(device, NV03_PFIFO_CACHE1_PUSH0, 1);
+		nvkm_wr32(device, NV04_PFIFO_CACHE1_PULL0, 1);
+	}
+
+	/* restore normal operation, after disabling dma mode */
+	nvkm_mask(device, NV04_PFIFO_MODE, 1 << chan->base.chid, 0);
+	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
+}
+
+void
+nv04_fifo_dma_init(struct nvkm_fifo_chan *base)
+{
+	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
+	struct nv04_fifo *fifo = chan->fifo;
+	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	u32 mask = 1 << chan->base.chid;
+	unsigned long flags;
+	spin_lock_irqsave(&fifo->base.lock, flags);
+	nvkm_mask(device, NV04_PFIFO_MODE, mask, mask);
+	spin_unlock_irqrestore(&fifo->base.lock, flags);
+}
+
 static const struct nvkm_chan_func
 nv04_chan = {
 };

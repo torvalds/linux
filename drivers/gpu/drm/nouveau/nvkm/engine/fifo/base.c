@@ -212,6 +212,14 @@ nvkm_fifo_fini(struct nvkm_engine *engine, bool suspend)
 }
 
 static int
+nvkm_fifo_init(struct nvkm_engine *engine)
+{
+	struct nvkm_fifo *fifo = nvkm_fifo(engine);
+	fifo->func->init(fifo);
+	return 0;
+}
+
+static int
 nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(engine);
@@ -238,14 +246,6 @@ static void
 nvkm_fifo_preinit(struct nvkm_engine *engine)
 {
 	nvkm_mc_reset(engine->subdev.device, NVKM_ENGINE_FIFO, 0);
-}
-
-static int
-nvkm_fifo_init(struct nvkm_engine *engine)
-{
-	struct nvkm_fifo *fifo = nvkm_fifo(engine);
-	fifo->func->init(fifo);
-	return 0;
 }
 
 static void *
