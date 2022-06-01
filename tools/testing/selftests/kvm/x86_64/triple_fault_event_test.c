@@ -47,7 +47,7 @@ int main(void)
 	struct ucall uc;
 
 	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_TRIPLE_FAULT_EVENT,
+		.cap = KVM_CAP_X86_TRIPLE_FAULT_EVENT,
 		.args = {1}
 	};
 
@@ -56,8 +56,8 @@ int main(void)
 		exit(KSFT_SKIP);
 	}
 
-	if (!kvm_check_cap(KVM_CAP_TRIPLE_FAULT_EVENT)) {
-		print_skip("KVM_CAP_TRIPLE_FAULT_EVENT not supported");
+	if (!kvm_check_cap(KVM_CAP_X86_TRIPLE_FAULT_EVENT)) {
+		print_skip("KVM_CAP_X86_TRIPLE_FAULT_EVENT not supported");
 		exit(KSFT_SKIP);
 	}
 
