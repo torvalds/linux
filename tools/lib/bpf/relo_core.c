@@ -167,7 +167,7 @@ static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
  * just a parsed access string representation): [0, 1, 2, 3].
  *
  * High-level spec will capture only 3 points:
- *   - intial zero-index access by pointer (&s->... is the same as &s[0]...);
+ *   - initial zero-index access by pointer (&s->... is the same as &s[0]...);
  *   - field 'a' access (corresponds to '2' in low-level spec);
  *   - array element #3 access (corresponds to '3' in low-level spec).
  *
@@ -1148,11 +1148,11 @@ int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *s
  * 3. It is supported and expected that there might be multiple flavors
  *    matching the spec. As long as all the specs resolve to the same set of
  *    offsets across all candidates, there is no error. If there is any
- *    ambiguity, CO-RE relocation will fail. This is necessary to accomodate
- *    imprefection of BTF deduplication, which can cause slight duplication of
+ *    ambiguity, CO-RE relocation will fail. This is necessary to accommodate
+ *    imperfection of BTF deduplication, which can cause slight duplication of
  *    the same BTF type, if some directly or indirectly referenced (by
  *    pointer) type gets resolved to different actual types in different
- *    object files. If such situation occurs, deduplicated BTF will end up
+ *    object files. If such a situation occurs, deduplicated BTF will end up
  *    with two (or more) structurally identical types, which differ only in
  *    types they refer to through pointer. This should be OK in most cases and
  *    is not an error.

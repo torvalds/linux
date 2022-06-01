@@ -107,7 +107,7 @@ struct bpf_object_open_attr {
 };
 
 struct bpf_object_open_opts {
-	/* size of this struct, for forward/backward compatiblity */
+	/* size of this struct, for forward/backward compatibility */
 	size_t sz;
 	/* object name override, if provided:
 	 * - for object open from file, this will override setting object

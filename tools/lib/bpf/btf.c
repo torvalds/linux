@@ -130,7 +130,7 @@ static inline __u64 ptr_to_u64(const void *ptr)
 
 /* Ensure given dynamically allocated memory region pointed to by *data* with
  * capacity of *cap_cnt* elements each taking *elem_sz* bytes has enough
- * memory to accomodate *add_cnt* new elements, assuming *cur_cnt* elements
+ * memory to accommodate *add_cnt* new elements, assuming *cur_cnt* elements
  * are already used. At most *max_cnt* elements can be ever allocated.
  * If necessary, memory is reallocated and all existing data is copied over,
  * new pointer to the memory region is stored at *data, new memory region
