@@ -27,5 +27,10 @@ int nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *, struct nvkm_fifo *,
 			const struct nvkm_oclass *, struct nvkm_fifo_chan *);
 void nvkm_chan_del(struct nvkm_chan **);
 
+#define CHAN_PRCLI(c,l,p,f,a...) CGRP_PRINT((c)->cgrp, l, p, "%04x:[%s]"f, (c)->id, (c)->name, ##a)
+#define CHAN_PRINT(c,l,p,f,a...) CGRP_PRINT((c)->cgrp, l, p, "%04x:"f, (c)->id, ##a)
+#define CHAN_ERROR(c,f,a...) CHAN_PRCLI((c), ERROR,    err, " "f"\n", ##a)
+#define CHAN_TRACE(c,f,a...) CHAN_PRINT((c), TRACE,   info, " "f"\n", ##a)
+
 int nvkm_fifo_chan_child_new(const struct nvkm_oclass *, void *, u32, struct nvkm_object **);
 #endif

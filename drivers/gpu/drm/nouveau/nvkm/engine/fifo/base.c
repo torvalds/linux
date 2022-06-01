@@ -389,10 +389,7 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	INIT_LIST_HEAD(&fifo->chan);
 
 	nr = func->chid_nr(fifo);
-	if (WARN_ON(fifo->nr > NVKM_FIFO_CHID_NR))
-		fifo->nr = NVKM_FIFO_CHID_NR;
-	else
-		fifo->nr = nr;
+	fifo->nr = nr;
 
 	if (func->uevent_init) {
 		ret = nvkm_event_init(&nvkm_fifo_uevent_func, &fifo->engine.subdev, 1, 1,

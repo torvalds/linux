@@ -38,6 +38,7 @@ nvkm_runl_del(struct nvkm_runl *runl)
 	nvkm_chid_unref(&runl->cgid);
 
 	list_del(&runl->head);
+	mutex_destroy(&runl->mutex);
 	kfree(runl);
 }
 
@@ -94,6 +95,8 @@ nvkm_runl_new(struct nvkm_fifo *fifo, int runi, u32 addr, int id_nr)
 	runl->id = runi;
 	runl->addr = addr;
 	INIT_LIST_HEAD(&runl->engns);
+	INIT_LIST_HEAD(&runl->cgrps);
+	mutex_init(&runl->mutex);
 	list_add_tail(&runl->head, &fifo->runls);
 
 	if (!fifo->chid) {

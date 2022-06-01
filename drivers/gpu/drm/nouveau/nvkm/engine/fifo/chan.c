@@ -22,6 +22,9 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "chid.h"
+#include "cgrp.h"
+#include "runl.h"
 #include "priv.h"
 
 #include <core/client.h>
@@ -312,6 +315,11 @@ nvkm_chan_del(struct nvkm_chan **pchan)
 	if (!chan)
 		return;
 
+	if (chan->cgrp) {
+		nvkm_chid_put(chan->cgrp->runl->chid, chan->id, &chan->cgrp->lock);
+		nvkm_cgrp_unref(&chan->cgrp);
+	}
+
 	chan = nvkm_object_dtor(&chan->object);
 	kfree(chan);
 }
@@ -326,7 +334,6 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 
 	spin_lock_irqsave(&fifo->lock, flags);
 	if (!list_empty(&chan->head)) {
-		__clear_bit(chan->chid, fifo->mask);
 		list_del(&chan->head);
 	}
 	spin_unlock_irqrestore(&fifo->lock, flags);
@@ -363,8 +370,21 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_dmaobj *dmaobj;
+	struct nvkm_cgrp *cgrp = NULL;
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn = NULL;
+	struct nvkm_vmm *vmm = NULL;
 	unsigned long flags;
 	int ret;
+
+	nvkm_runl_foreach(runl, fifo) {
+		engn = nvkm_runl_find_engn(engn, runl, engm & BIT(engn->id));
+		if (engn)
+			break;
+	}
+
+	if (!engn)
+		return -EINVAL;
 
 	/*FIXME: temp kludge to ease transition, remove later */
 	if (!(func = kmalloc(sizeof(*func), GFP_KERNEL)))
@@ -383,11 +403,37 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 	func->submit_token = fn->submit_token;
 
 	chan->func = func;
+	chan->id = -1;
 
 	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->fifo = fifo;
 	chan->engm = engm;
 	INIT_LIST_HEAD(&chan->head);
+
+	/* Join channel group.
+	 *
+	 * GK110 and newer support channel groups (aka TSGs), where individual channels
+	 * share a timeslice, and, engine context(s).
+	 *
+	 * As such, engine contexts are tracked in nvkm_cgrp and we need them even when
+	 * channels aren't in an API channel group, and on HW that doesn't support TSGs.
+	 */
+	if (!cgrp) {
+		ret = nvkm_cgrp_new(runl, chan->name, vmm, fifo->func->cgrp.force, &chan->cgrp);
+		if (ret) {
+			RUNL_DEBUG(runl, "cgrp %d", ret);
+			return ret;
+		}
+
+		cgrp = chan->cgrp;
+	} else {
+		if (cgrp->runl != runl || cgrp->vmm != vmm) {
+			RUNL_DEBUG(runl, "cgrp %d %d", cgrp->runl != runl, cgrp->vmm != vmm);
+			return -EINVAL;
+		}
+
+		chan->cgrp = nvkm_cgrp_ref(cgrp);
+	}
 
 	/* instance memory */
 	ret = nvkm_gpuobj_new(device, size, align, zero, NULL, &chan->inst);
@@ -422,15 +468,23 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 		chan->vmm = nvkm_vmm_ref(vmm);
 	}
 
-	/* allocate channel id */
-	spin_lock_irqsave(&fifo->lock, flags);
-	chan->chid = find_first_zero_bit(fifo->mask, NVKM_FIFO_CHID_NR);
-	if (chan->chid >= NVKM_FIFO_CHID_NR) {
-		spin_unlock_irqrestore(&fifo->lock, flags);
+	/* Allocate channel ID. */
+	if (runl->cgid) {
+		chan->id = chan->cgrp->id;
+		runl->chid->data[chan->id] = chan;
+		set_bit(chan->id, runl->chid->used);
+		goto temp_hack_until_no_chid_eq_cgid_req;
+	}
+
+	chan->id = nvkm_chid_get(runl->chid, chan);
+	if (chan->id < 0) {
+		RUNL_ERROR(runl, "!chids");
 		return -ENOSPC;
 	}
+
+temp_hack_until_no_chid_eq_cgid_req:
+	spin_lock_irqsave(&fifo->lock, flags);
 	list_add(&chan->head, &fifo->chan);
-	__set_bit(chan->chid, fifo->mask);
 	spin_unlock_irqrestore(&fifo->lock, flags);
 
 	/* determine address of this channel's user registers */

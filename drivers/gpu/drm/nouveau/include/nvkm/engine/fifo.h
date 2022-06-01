@@ -6,7 +6,6 @@
 #include <core/event.h>
 struct nvkm_fault_data;
 
-#define NVKM_FIFO_CHID_NR 4096
 #define NVKM_FIFO_ENGN_NR 16
 
 struct nvkm_fifo_engn {
@@ -17,13 +16,16 @@ struct nvkm_fifo_engn {
 
 struct nvkm_chan {
 	const struct nvkm_chan_func *func;
+	char name[64];
+	struct nvkm_cgrp *cgrp;
+
+	union { int id; int chid; }; /*FIXME: remove later */
 
 	struct nvkm_fifo *fifo;
 	u32 engm;
 	struct nvkm_object object;
 
 	struct list_head head;
-	u16 chid;
 	struct nvkm_gpuobj *inst;
 	struct nvkm_gpuobj *push;
 	struct nvkm_vmm *vmm;
@@ -43,7 +45,6 @@ struct nvkm_fifo {
 	struct list_head runqs;
 	struct list_head runls;
 
-	DECLARE_BITMAP(mask, NVKM_FIFO_CHID_NR);
 	int nr;
 	struct list_head chan;
 	spinlock_t lock;

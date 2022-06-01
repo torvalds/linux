@@ -155,8 +155,6 @@ nv50_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	set_bit(0, fifo->base.mask); /* PIO channel */
-	set_bit(127, fifo->base.mask); /* inactive channel */
 	return 0;
 }
 

@@ -35,6 +35,11 @@ struct nvkm_runl {
 	struct nvkm_runq *runq[2];
 	int runq_nr;
 
+	struct list_head cgrps;
+	int cgrp_nr;
+	int chan_nr;
+	struct mutex mutex;
+
 	struct list_head head;
 };
 
@@ -44,8 +49,12 @@ struct nvkm_engn *nvkm_runl_add(struct nvkm_runl *, int engi, const struct nvkm_
 				enum nvkm_subdev_type, int inst);
 void nvkm_runl_del(struct nvkm_runl *);
 
+#define nvkm_runl_find_engn(engn,runl,cond) nvkm_list_find(engn, &(runl)->engns, head, (cond))
+
 #define nvkm_runl_foreach(runl,fifo) list_for_each_entry((runl), &(fifo)->runls, head)
 #define nvkm_runl_foreach_engn(engn,runl) list_for_each_entry((engn), &(runl)->engns, head)
+#define nvkm_runl_foreach_engn_cond(engn,runl,cond) \
+	nvkm_list_foreach(engn, &(runl)->engns, head, (cond))
 
 #define RUNL_PRINT(r,l,p,f,a...)                                                          \
 	nvkm_printk__(&(r)->fifo->engine.subdev, NV_DBG_##l, p, "%06x:"f, (r)->addr, ##a)

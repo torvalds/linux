@@ -489,7 +489,6 @@ nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	if (ret)
 		return ret;
 
-	set_bit(nr - 1, fifo->base.mask); /* inactive channel */
 	return 0;
 }
 

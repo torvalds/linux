@@ -21,6 +21,35 @@
  */
 #include "chid.h"
 
+void
+nvkm_chid_put(struct nvkm_chid *chid, int id, spinlock_t *data_lock)
+{
+	if (id >= 0) {
+		spin_lock_irq(&chid->lock);
+		spin_lock(data_lock);
+		chid->data[id] = NULL;
+		spin_unlock(data_lock);
+		clear_bit(id, chid->used);
+		spin_unlock_irq(&chid->lock);
+	}
+}
+
+int
+nvkm_chid_get(struct nvkm_chid *chid, void *data)
+{
+	int id = -1, cid;
+
+	spin_lock_irq(&chid->lock);
+	cid = find_first_zero_bit(chid->used, chid->nr);
+	if (cid < chid->nr) {
+		set_bit(cid, chid->used);
+		chid->data[cid] = data;
+		id = cid;
+	}
+	spin_unlock_irq(&chid->lock);
+	return id;
+}
+
 static void
 nvkm_chid_del(struct kref *kref)
 {
