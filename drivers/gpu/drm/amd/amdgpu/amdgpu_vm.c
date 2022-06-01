@@ -679,6 +679,7 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 {
 	struct amdgpu_vm_update_params params;
 	struct amdgpu_vm_bo_base *entry;
+	bool flush_tlb_needed = false;
 	int r, idx;
 
 	if (list_empty(&vm->relocated))
@@ -697,6 +698,9 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 		goto error;
 
 	list_for_each_entry(entry, &vm->relocated, vm_status) {
+		/* vm_flush_needed after updating moved PDEs */
+		flush_tlb_needed |= entry->moved;
+
 		r = amdgpu_vm_pde_update(&params, entry);
 		if (r)
 			goto error;
@@ -706,8 +710,8 @@ int amdgpu_vm_update_pdes(struct amdgpu_device *adev,
 	if (r)
 		goto error;
 
-	/* vm_flush_needed after updating PDEs */
-	atomic64_inc(&vm->tlb_seq);
+	if (flush_tlb_needed)
+		atomic64_inc(&vm->tlb_seq);
 
 	while (!list_empty(&vm->relocated)) {
 		entry = list_first_entry(&vm->relocated,
