@@ -65,7 +65,7 @@ gm20b_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
 
 	gf100_gr_icmd(gr, gr->bundle);
 	grctx->pagepool(chan, chan->pagepool->addr);
-	grctx->bundle(info);
+	grctx->bundle(chan, chan->bundle_cb->addr, grctx->bundle_size);
 }
 
 const struct gf100_grctx_func

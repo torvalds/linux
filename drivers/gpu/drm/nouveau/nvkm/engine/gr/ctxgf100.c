@@ -1050,15 +1050,12 @@ gf100_grctx_generate_r419cb8(struct gf100_gr *gr)
 }
 
 void
-gf100_grctx_generate_bundle(struct gf100_grctx *info)
+gf100_grctx_generate_bundle(struct gf100_gr_chan *chan, u64 addr, u32 size)
 {
-	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const int s = 8;
-	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), true);
-	mmio_refn(info, 0x408004, 0x00000000, s, b);
-	mmio_wr32(info, 0x408008, 0x80000000 | (grctx->bundle_size >> s));
-	mmio_refn(info, 0x418808, 0x00000000, s, b);
-	mmio_wr32(info, 0x41880c, 0x80000000 | (grctx->bundle_size >> s));
+	gf100_grctx_patch_wr32(chan, 0x408004, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x408008, 0x80000000 | (size >> 8));
+	gf100_grctx_patch_wr32(chan, 0x418808, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x41880c, 0x80000000 | (size >> 8));
 }
 
 void
@@ -1396,7 +1393,7 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
 	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
 	grctx->pagepool(chan, chan->pagepool->addr);
-	grctx->bundle(info);
+	grctx->bundle(chan, chan->bundle_cb->addr, grctx->bundle_size);
 	grctx->attrib(info);
 	if (grctx->patch_ltc)
 		grctx->patch_ltc(info);

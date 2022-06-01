@@ -872,19 +872,14 @@ gk104_grctx_generate_patch_ltc(struct gf100_grctx *info)
 }
 
 void
-gk104_grctx_generate_bundle(struct gf100_grctx *info)
+gk104_grctx_generate_bundle(struct gf100_gr_chan *chan, u64 addr, u32 size)
 {
-	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const u32 state_limit = min(grctx->bundle_min_gpm_fifo_depth,
-				    grctx->bundle_size / 0x20);
+	const struct gf100_grctx_func *grctx = chan->gr->func->grctx;
+	const u32 state_limit = min(grctx->bundle_min_gpm_fifo_depth, size / 0x20);
 	const u32 token_limit = grctx->bundle_token_limit;
-	const int s = 8;
-	const int b = mmio_vram(info, grctx->bundle_size, (1 << s), true);
-	mmio_refn(info, 0x408004, 0x00000000, s, b);
-	mmio_wr32(info, 0x408008, 0x80000000 | (grctx->bundle_size >> s));
-	mmio_refn(info, 0x418808, 0x00000000, s, b);
-	mmio_wr32(info, 0x41880c, 0x80000000 | (grctx->bundle_size >> s));
-	mmio_wr32(info, 0x4064c8, (state_limit << 16) | token_limit);
+
+	gf100_grctx_generate_bundle(chan, addr, size);
+	gf100_grctx_patch_wr32(chan, 0x4064c8, (state_limit << 16) | token_limit);
 }
 
 void
