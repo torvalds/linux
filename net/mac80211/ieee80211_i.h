@@ -389,37 +389,55 @@ struct ieee80211_mgd_auth_data {
 	bool peer_confirmed;
 	bool timeout_started;
 
+	u8 ap_addr[ETH_ALEN] __aligned(2);
+
 	u16 sae_trans, sae_status;
 	size_t data_len;
 	u8 data[];
 };
 
 struct ieee80211_mgd_assoc_data {
-	struct cfg80211_bss *bss;
+	struct {
+		struct cfg80211_bss *bss;
+
+		u8 addr[ETH_ALEN] __aligned(2);
+
+		u8 ap_ht_param;
+
+		struct ieee80211_vht_cap ap_vht_cap;
+
+		size_t elems_len;
+		u8 *elems; /* pointing to inside ie[] below */
+
+		ieee80211_conn_flags_t conn_flags;
+	} link[IEEE80211_MLD_MAX_NUM_LINKS];
+
+	u8 ap_addr[ETH_ALEN] __aligned(2);
+
+	/* this is for a workaround, so we use it only for non-MLO */
 	const u8 *supp_rates;
+	u8 supp_rates_len;
 
 	unsigned long timeout;
 	int tries;
 
-	u16 capability;
-	u8 prev_bssid[ETH_ALEN];
+	u8 prev_ap_addr[ETH_ALEN];
 	u8 ssid[IEEE80211_MAX_SSID_LEN];
 	u8 ssid_len;
-	u8 supp_rates_len;
 	bool wmm, uapsd;
 	bool need_beacon;
 	bool synced;
 	bool timeout_started;
+	bool s1g;
 
-	u8 ap_ht_param;
-
-	struct ieee80211_vht_cap ap_vht_cap;
+	unsigned int assoc_link_id;
 
 	u8 fils_nonces[2 * FILS_NONCE_LEN];
 	u8 fils_kek[FILS_MAX_KEK_LEN];
 	size_t fils_kek_len;
 
 	size_t ie_len;
+	u8 *ie_pos; /* used to fill ie[] with link[].elems */
 	u8 ie[];
 };
 

@@ -2478,7 +2478,7 @@ int ieee80211_lookup_ra_sta(struct ieee80211_sub_if_data *sdata,
 
 		}
 
-		sta = sta_info_get(sdata, sdata->deflink.u.mgd.bssid);
+		sta = sta_info_get(sdata, sdata->vif.cfg.ap_addr);
 		if (!sta)
 			return -ENOLINK;
 		break;
