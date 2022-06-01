@@ -24,13 +24,13 @@
 #include "priv.h"
 #include "chan.h"
 
-#include <core/client.h>
 #include <core/gpuobj.h>
 #include <subdev/mc.h>
 
-#include <nvif/event.h>
 #include <nvif/cl0080.h>
 #include <nvif/unpack.h>
+
+#include "gk104.h"
 
 void
 nvkm_fifo_recover_chan(struct nvkm_fifo *fifo, int chid)
@@ -290,24 +290,26 @@ nvkm_fifo = {
 
 int
 nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
-	       enum nvkm_subdev_type type, int inst, int nr, struct nvkm_fifo *fifo)
+	       enum nvkm_subdev_type type, int inst, struct nvkm_fifo *fifo)
 {
-	int ret;
+	int ret, nr;
 
 	fifo->func = func;
-	INIT_LIST_HEAD(&fifo->chan);
 	spin_lock_init(&fifo->lock);
 	mutex_init(&fifo->mutex);
 
+	ret = nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
+	if (ret)
+		return ret;
+
+	INIT_LIST_HEAD(&fifo->chan);
+
+	nr = func->chid_nr ? func->chid_nr(fifo) : gk104_fifo(fifo)->func->chid_nr(fifo);
 	if (WARN_ON(fifo->nr > NVKM_FIFO_CHID_NR))
 		fifo->nr = NVKM_FIFO_CHID_NR;
 	else
 		fifo->nr = nr;
 	bitmap_clear(fifo->mask, 0, fifo->nr);
-
-	ret = nvkm_engine_ctor(&nvkm_fifo, device, type, inst, true, &fifo->engine);
-	if (ret)
-		return ret;
 
 	if (func->uevent_init) {
 		ret = nvkm_event_init(&nvkm_fifo_uevent_func, &fifo->engine.subdev, 1, 1,

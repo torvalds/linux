@@ -287,6 +287,7 @@ gv100_fifo_fault_access[] = {
 
 static const struct gk104_fifo_func
 gv100_fifo = {
+	.chid_nr = gm200_fifo_chid_nr,
 	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gv100_fifo_fault_access,
 	.fault.engine = gv100_fifo_fault_engine,
@@ -302,5 +303,5 @@ int
 gv100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gv100_fifo, device, type, inst, 4096, pfifo);
+	return gk104_fifo_new_(&gv100_fifo, device, type, inst, 0, pfifo);
 }

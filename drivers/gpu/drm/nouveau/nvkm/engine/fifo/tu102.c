@@ -24,12 +24,10 @@
 #include "changk104.h"
 
 #include <core/client.h>
-#include <core/gpuobj.h>
+#include <core/memory.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
 #include <subdev/top.h>
-#include <subdev/timer.h>
-#include <engine/sw.h>
 
 #include <nvif/class.h>
 
@@ -98,19 +96,6 @@ tu102_fifo_pbdma = {
 	.nr = gm200_fifo_pbdma_nr,
 	.init = tu102_fifo_pbdma_init,
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
-};
-
-static const struct gk104_fifo_func
-tu102_fifo = {
-	.pbdma = &tu102_fifo_pbdma,
-	.fault.access = gv100_fifo_fault_access,
-	.fault.engine = tu102_fifo_fault_engine,
-	.fault.reason = gv100_fifo_fault_reason,
-	.fault.hubclient = gv100_fifo_fault_hubclient,
-	.fault.gpcclient = gv100_fifo_fault_gpcclient,
-	.runlist = &tu102_fifo_runlist,
-	.chan = {{ 0, 0,TURING_CHANNEL_GPFIFO_A}, tu102_fifo_gpfifo_new },
-	.cgrp_force = true,
 };
 
 static void
@@ -459,6 +444,20 @@ tu102_fifo_ = {
 	.class_new = gk104_fifo_class_new,
 };
 
+static const struct gk104_fifo_func
+tu102_fifo = {
+	.chid_nr = gm200_fifo_chid_nr,
+	.pbdma = &tu102_fifo_pbdma,
+	.fault.access = gv100_fifo_fault_access,
+	.fault.engine = tu102_fifo_fault_engine,
+	.fault.reason = gv100_fifo_fault_reason,
+	.fault.hubclient = gv100_fifo_fault_hubclient,
+	.fault.gpcclient = gv100_fifo_fault_gpcclient,
+	.runlist = &tu102_fifo_runlist,
+	.chan = {{ 0, 0,TURING_CHANNEL_GPFIFO_A}, tu102_fifo_gpfifo_new },
+	.cgrp_force = true,
+};
+
 int
 tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
@@ -471,5 +470,5 @@ tu102_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	INIT_WORK(&fifo->recover.work, tu102_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&tu102_fifo_, device, type, inst, 4096, &fifo->base);
+	return nvkm_fifo_ctor(&tu102_fifo_, device, type, inst, &fifo->base);
 }

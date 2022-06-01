@@ -4,8 +4,6 @@
 #define nvkm_fifo(p) container_of((p), struct nvkm_fifo, engine)
 #include <engine/fifo.h>
 
-int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
-		   int nr, struct nvkm_fifo *);
 void nvkm_fifo_uevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);
 void nvkm_fifo_recover_chan(struct nvkm_fifo *, int chid);
@@ -16,7 +14,10 @@ nvkm_fifo_chan_inst_locked(struct nvkm_fifo *, u64 inst);
 struct nvkm_fifo_chan_oclass;
 struct nvkm_fifo_func {
 	void *(*dtor)(struct nvkm_fifo *);
+
 	int (*oneinit)(struct nvkm_fifo *);
+	int (*chid_nr)(struct nvkm_fifo *);
+
 	int (*info)(struct nvkm_fifo *, u64 mthd, u64 *data);
 	void (*init)(struct nvkm_fifo *);
 	void (*fini)(struct nvkm_fifo *);
@@ -35,14 +36,24 @@ struct nvkm_fifo_func {
 	const struct nvkm_fifo_chan_oclass *chan[];
 };
 
+int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
+		   struct nvkm_fifo *);
+
 void nv04_fifo_intr(struct nvkm_fifo *);
 int nv04_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 struct nvkm_engine *nv04_fifo_id_engine(struct nvkm_fifo *, int);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
 
+int nv10_fifo_chid_nr(struct nvkm_fifo *);
+
+int nv50_fifo_chid_nr(struct nvkm_fifo *);
+
 void gf100_fifo_intr_fault(struct nvkm_fifo *, int);
 
+int gk104_fifo_chid_nr(struct nvkm_fifo *);
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 struct nvkm_engine *gk104_fifo_id_engine(struct nvkm_fifo *, int);
+
+int gm200_fifo_chid_nr(struct nvkm_fifo *);
 #endif

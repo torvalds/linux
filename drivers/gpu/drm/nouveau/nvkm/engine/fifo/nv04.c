@@ -356,6 +356,12 @@ nv04_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, NV03_PFIFO_CACHES, 1);
 }
 
+static int
+nv04_fifo_chid_nr(struct nvkm_fifo *fifo)
+{
+	return 16;
+}
+
 int
 nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	       enum nvkm_subdev_type type, int inst, int nr, const struct nv04_fifo_ramfc *ramfc,
@@ -369,7 +375,7 @@ nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	fifo->ramfc = ramfc;
 	*pfifo = &fifo->base;
 
-	ret = nvkm_fifo_ctor(func, device, type, inst, nr, &fifo->base);
+	ret = nvkm_fifo_ctor(func, device, type, inst, &fifo->base);
 	if (ret)
 		return ret;
 
@@ -379,6 +385,7 @@ nv04_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 
 static const struct nvkm_fifo_func
 nv04_fifo = {
+	.chid_nr = nv04_fifo_chid_nr,
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,

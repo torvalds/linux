@@ -40,8 +40,15 @@ gm200_fifo_pbdma = {
 	.init_timeout = gk208_fifo_pbdma_init_timeout,
 };
 
+int
+gm200_fifo_chid_nr(struct nvkm_fifo *fifo)
+{
+	return nvkm_rd32(fifo->engine.subdev.device, 0x002008);
+}
+
 static const struct gk104_fifo_func
 gm200_fifo = {
+	.chid_nr = gm200_fifo_chid_nr,
 	.intr.fault = gm107_fifo_intr_fault,
 	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
@@ -57,5 +64,5 @@ int
 gm200_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gm200_fifo, device, type, inst, 4096, pfifo);
+	return gk104_fifo_new_(&gm200_fifo, device, type, inst, 0, pfifo);
 }

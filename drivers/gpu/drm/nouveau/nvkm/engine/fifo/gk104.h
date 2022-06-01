@@ -46,6 +46,8 @@ struct gk104_fifo {
 };
 
 struct gk104_fifo_func {
+	int (*chid_nr)(struct nvkm_fifo *);
+
 	struct {
 		void (*fault)(struct nvkm_fifo *, int unit);
 	} intr;

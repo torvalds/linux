@@ -34,4 +34,5 @@ nvkm_blob_dtor(struct nvkm_blob *blob)
 	blob->data = NULL;
 	blob->size = 0;
 }
+
 #endif

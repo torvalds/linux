@@ -39,8 +39,15 @@ nv10_fifo_ramfc[] = {
 	{}
 };
 
+int
+nv10_fifo_chid_nr(struct nvkm_fifo *fifo)
+{
+	return 32;
+}
+
 static const struct nvkm_fifo_func
 nv10_fifo = {
+	.chid_nr = nv10_fifo_chid_nr,
 	.init = nv04_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,

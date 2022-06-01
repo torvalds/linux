@@ -1055,6 +1055,12 @@ gk104_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, 0x002140, 0x7fffffff);
 }
 
+int
+gk104_fifo_chid_nr(struct nvkm_fifo *fifo)
+{
+	return 4096;
+}
+
 void *
 gk104_fifo_dtor(struct nvkm_fifo *base)
 {
@@ -1103,7 +1109,7 @@ gk104_fifo_new_(const struct gk104_fifo_func *func, struct nvkm_device *device,
 	INIT_WORK(&fifo->recover.work, gk104_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&gk104_fifo_, device, type, inst, nr, &fifo->base);
+	return nvkm_fifo_ctor(&gk104_fifo_, device, type, inst, &fifo->base);
 }
 
 const struct nvkm_enum
@@ -1230,6 +1236,7 @@ gk104_fifo_fault_gpcclient[] = {
 
 static const struct gk104_fifo_func
 gk104_fifo = {
+	.chid_nr = gk104_fifo_chid_nr,
 	.intr.fault = gf100_fifo_intr_fault,
 	.pbdma = &gk104_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
@@ -1245,5 +1252,5 @@ int
 gk104_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gk104_fifo, device, type, inst, 4096, pfifo);
+	return gk104_fifo_new_(&gk104_fifo, device, type, inst, 0, pfifo);
 }

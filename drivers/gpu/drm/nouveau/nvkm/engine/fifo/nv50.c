@@ -96,6 +96,12 @@ nv50_fifo_init(struct nvkm_fifo *base)
 	nvkm_wr32(device, 0x002500, 0x00000001);
 }
 
+int
+nv50_fifo_chid_nr(struct nvkm_fifo *fifo)
+{
+	return 128;
+}
+
 void *
 nv50_fifo_dtor(struct nvkm_fifo *base)
 {
@@ -116,7 +122,7 @@ nv50_fifo_new_(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 		return -ENOMEM;
 	*pfifo = &fifo->base;
 
-	ret = nvkm_fifo_ctor(func, device, type, inst, 128, &fifo->base);
+	ret = nvkm_fifo_ctor(func, device, type, inst, &fifo->base);
 	if (ret)
 		return ret;
 
@@ -129,6 +135,7 @@ static const struct nvkm_fifo_func
 nv50_fifo = {
 	.dtor = nv50_fifo_dtor,
 	.oneinit = nv50_fifo_oneinit,
+	.chid_nr = nv50_fifo_chid_nr,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,

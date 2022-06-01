@@ -110,6 +110,7 @@ static const struct nvkm_fifo_func
 g84_fifo = {
 	.dtor = nv50_fifo_dtor,
 	.oneinit = nv50_fifo_oneinit,
+	.chid_nr = nv50_fifo_chid_nr,
 	.init = nv50_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = g84_fifo_engine_id,

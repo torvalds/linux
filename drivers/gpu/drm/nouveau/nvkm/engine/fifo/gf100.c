@@ -669,6 +669,7 @@ static const struct nvkm_fifo_func
 gf100_fifo = {
 	.dtor = gf100_fifo_dtor,
 	.oneinit = gf100_fifo_oneinit,
+	.chid_nr = nv50_fifo_chid_nr,
 	.init = gf100_fifo_init,
 	.fini = gf100_fifo_fini,
 	.intr = gf100_fifo_intr,
@@ -695,5 +696,5 @@ gf100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	INIT_WORK(&fifo->recover.work, gf100_fifo_recover_work);
 	*pfifo = &fifo->base;
 
-	return nvkm_fifo_ctor(&gf100_fifo, device, type, inst, 128, &fifo->base);
+	return nvkm_fifo_ctor(&gf100_fifo, device, type, inst, &fifo->base);
 }

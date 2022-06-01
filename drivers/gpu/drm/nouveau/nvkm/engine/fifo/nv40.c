@@ -110,6 +110,7 @@ nv40_fifo_init(struct nvkm_fifo *base)
 
 static const struct nvkm_fifo_func
 nv40_fifo = {
+	.chid_nr = nv10_fifo_chid_nr,
 	.init = nv40_fifo_init,
 	.intr = nv04_fifo_intr,
 	.engine_id = nv04_fifo_engine_id,

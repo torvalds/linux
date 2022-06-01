@@ -78,6 +78,7 @@ gp100_fifo_intr_fault(struct nvkm_fifo *fifo, int unit)
 
 static const struct gk104_fifo_func
 gp100_fifo = {
+	.chid_nr = gm200_fifo_chid_nr,
 	.intr.fault = gp100_fifo_intr_fault,
 	.pbdma = &gm200_fifo_pbdma,
 	.fault.access = gk104_fifo_fault_access,
@@ -94,5 +95,5 @@ int
 gp100_fifo_new(struct nvkm_device *device, enum nvkm_subdev_type type, int inst,
 	       struct nvkm_fifo **pfifo)
 {
-	return gk104_fifo_new_(&gp100_fifo, device, type, inst, 4096, pfifo);
+	return gk104_fifo_new_(&gp100_fifo, device, type, inst, 0, pfifo);
 }
