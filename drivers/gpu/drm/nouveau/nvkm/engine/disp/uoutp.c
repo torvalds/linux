@@ -21,10 +21,24 @@
  */
 #define nvkm_uoutp(p) container_of((p), struct nvkm_outp, object)
 #include "outp.h"
+#include "dp.h"
 #include "head.h"
 #include "ior.h"
 
 #include <nvif/if0012.h>
+
+static int
+nvkm_uoutp_mthd_dp_aux_pwr(struct nvkm_outp *outp, void *argv, u32 argc)
+{
+	union nvif_outp_dp_aux_pwr_args *args = argv;
+
+	if (argc != sizeof(args->v0) || args->v0.version != 0)
+		return -ENOSYS;
+
+	outp->dp.enabled = !!args->v0.state;
+	nvkm_dp_enable(outp, outp->dp.enabled);
+	return 0;
+}
 
 static int
 nvkm_uoutp_mthd_hda_eld(struct nvkm_outp *outp, void *argv, u32 argc)
@@ -250,6 +264,7 @@ nvkm_uoutp_mthd_noacquire(struct nvkm_outp *outp, u32 mthd, void *argv, u32 argc
 	switch (mthd) {
 	case NVIF_OUTP_V0_LOAD_DETECT: return nvkm_uoutp_mthd_load_detect(outp, argv, argc);
 	case NVIF_OUTP_V0_ACQUIRE    : return nvkm_uoutp_mthd_acquire    (outp, argv, argc);
+	case NVIF_OUTP_V0_DP_AUX_PWR : return nvkm_uoutp_mthd_dp_aux_pwr (outp, argv, argc);
 	default:
 		break;
 	}

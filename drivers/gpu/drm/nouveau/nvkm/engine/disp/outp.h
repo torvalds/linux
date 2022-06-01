@@ -39,7 +39,9 @@ struct nvkm_outp {
 			struct nvkm_i2c_aux *aux;
 
 			struct nvkm_notify hpd;
-			bool present;
+			bool enabled;
+			bool aux_pwr;
+			bool aux_pwr_pu;
 			u8 lttpr[6];
 			u8 lttprs;
 			u8 dpcd[16];

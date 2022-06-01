@@ -612,17 +612,37 @@ nvkm_dp_enable_supported_link_rates(struct nvkm_outp *outp)
 	return outp->dp.rates != 0;
 }
 
-static bool
-nvkm_dp_enable(struct nvkm_outp *outp, bool enable)
+void
+nvkm_dp_enable(struct nvkm_outp *outp, bool auxpwr)
 {
+	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
 	struct nvkm_i2c_aux *aux = outp->dp.aux;
 
-	if (enable) {
-		if (!outp->dp.present) {
-			OUTP_DBG(outp, "aux power -> always");
-			nvkm_i2c_aux_monitor(aux, true);
-			outp->dp.present = true;
+	if (auxpwr && !outp->dp.aux_pwr) {
+		/* eDP panels need powering on by us (if the VBIOS doesn't default it
+		 * to on) before doing any AUX channel transactions.  LVDS panel power
+		 * is handled by the SOR itself, and not required for LVDS DDC.
+		 */
+		if (outp->conn->info.type == DCB_CONNECTOR_eDP) {
+			int power = nvkm_gpio_get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
+			if (power == 0) {
+				nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
+				outp->dp.aux_pwr_pu = true;
+			}
+
+			/* We delay here unconditionally, even if already powered,
+			 * because some laptop panels having a significant resume
+			 * delay before the panel begins responding.
+			 *
+			 * This is likely a bit of a hack, but no better idea for
+			 * handling this at the moment.
+			 */
+			msleep(300);
 		}
+
+		OUTP_DBG(outp, "aux power -> always");
+		nvkm_i2c_aux_monitor(aux, true);
+		outp->dp.aux_pwr = true;
 
 		/* Detect any LTTPRs before reading DPCD receiver caps. */
 		if (!nvkm_rdaux(aux, DPCD_LTTPR_REV, outp->dp.lttpr, sizeof(outp->dp.lttpr)) &&
@@ -676,19 +696,24 @@ nvkm_dp_enable(struct nvkm_outp *outp, bool enable)
 					outp->dp.rates++;
 				}
 			}
-
-			return true;
 		}
-	}
-
-	if (outp->dp.present) {
+	} else
+	if (!auxpwr && outp->dp.aux_pwr) {
 		OUTP_DBG(outp, "aux power -> demand");
 		nvkm_i2c_aux_monitor(aux, false);
-		outp->dp.present = false;
-	}
+		outp->dp.aux_pwr = false;
+		atomic_set(&outp->dp.lt.done, 0);
 
-	atomic_set(&outp->dp.lt.done, 0);
-	return false;
+		/* Restore eDP panel GPIO to its prior state if we changed it, as
+		 * it could potentially interfere with other outputs.
+		 */
+		if (outp->conn->info.type == DCB_CONNECTOR_eDP) {
+			if (outp->dp.aux_pwr_pu) {
+				nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 0);
+				outp->dp.aux_pwr_pu = false;
+			}
+		}
+	}
 }
 
 static int
@@ -705,8 +730,6 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 		if (atomic_read(&outp->dp.lt.done))
 			outp->func->acquire(outp);
 		rep.mask |= NVIF_NOTIFY_CONN_V0_IRQ;
-	} else {
-		nvkm_dp_enable(outp, true);
 	}
 
 	if (line->mask & NVKM_I2C_UNPLUG)
@@ -728,37 +751,8 @@ nvkm_dp_fini(struct nvkm_outp *outp)
 static void
 nvkm_dp_init(struct nvkm_outp *outp)
 {
-	struct nvkm_gpio *gpio = outp->disp->engine.subdev.device->gpio;
-
+	nvkm_dp_enable(outp, outp->dp.enabled);
 	nvkm_notify_put(&outp->conn->hpd);
-
-	/* eDP panels need powering on by us (if the VBIOS doesn't default it
-	 * to on) before doing any AUX channel transactions.  LVDS panel power
-	 * is handled by the SOR itself, and not required for LVDS DDC.
-	 */
-	if (outp->conn->info.type == DCB_CONNECTOR_eDP) {
-		int power = nvkm_gpio_get(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff);
-		if (power == 0)
-			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 1);
-
-		/* We delay here unconditionally, even if already powered,
-		 * because some laptop panels having a significant resume
-		 * delay before the panel begins responding.
-		 *
-		 * This is likely a bit of a hack, but no better idea for
-		 * handling this at the moment.
-		 */
-		msleep(300);
-
-		/* If the eDP panel can't be detected, we need to restore
-		 * the panel power GPIO to avoid breaking another output.
-		 */
-		if (!nvkm_dp_enable(outp, true) && power == 0)
-			nvkm_gpio_set(gpio, 0, DCB_GPIO_PANEL_POWER, 0xff, 0);
-	} else {
-		nvkm_dp_enable(outp, true);
-	}
-
 	nvkm_notify_get(&outp->dp.hpd);
 }
 

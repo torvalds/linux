@@ -140,12 +140,17 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 	 * TODO: look into checking this before probing I2C to detect DVI/HDMI
 	 */
 	hpd = nvif_conn_hpd_status(&nv_connector->conn);
-	if (hpd == NVIF_CONN_HPD_STATUS_NOT_PRESENT)
+	if (hpd == NVIF_CONN_HPD_STATUS_NOT_PRESENT) {
+		nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 		goto out;
+	}
+	nvif_outp_dp_aux_pwr(&nv_encoder->outp, true);
 
 	status = nouveau_dp_probe_dpcd(nv_connector, nv_encoder);
-	if (status == connector_status_disconnected)
+	if (status == connector_status_disconnected) {
+		nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 		goto out;
+	}
 
 	/* If we're in MST mode, we're done here */
 	if (mstm && mstm->can_mst && mstm->is_mst) {
@@ -193,6 +198,7 @@ nouveau_dp_detect(struct nouveau_connector *nv_connector,
 			ret = NOUVEAU_DP_MST;
 			goto out;
 		} else if (ret != 0) {
+			nvif_outp_dp_aux_pwr(&nv_encoder->outp, false);
 			goto out;
 		}
 	}

@@ -26,6 +26,20 @@
 #include <nvif/class.h>
 
 int
+nvif_outp_dp_aux_pwr(struct nvif_outp *outp, bool enable)
+{
+	struct nvif_outp_dp_aux_pwr_v0 args;
+	int ret;
+
+	args.version = 0;
+	args.state = enable;
+
+	ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_AUX_PWR, &args, sizeof(args));
+	NVIF_ERRON(ret, &outp->object, "[DP_AUX_PWR state:%d]", args.state);
+	return ret;
+}
+
+int
 nvif_outp_hda_eld(struct nvif_outp *outp, int head, void *data, u32 size)
 {
 	struct {

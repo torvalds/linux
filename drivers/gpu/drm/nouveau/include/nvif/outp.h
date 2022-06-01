@@ -26,4 +26,5 @@ int nvif_outp_acquire_dp(struct nvif_outp *, u8 dpcd[16],
 void nvif_outp_release(struct nvif_outp *);
 int nvif_outp_infoframe(struct nvif_outp *, u8 type, struct nvif_outp_infoframe_v0 *, u32 size);
 int nvif_outp_hda_eld(struct nvif_outp *, int head, void *data, u32 size);
+int nvif_outp_dp_aux_pwr(struct nvif_outp *, bool enable);
 #endif
