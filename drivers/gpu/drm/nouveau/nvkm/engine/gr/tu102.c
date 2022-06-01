@@ -27,7 +27,7 @@
 static void
 tu102_gr_init_fecs_exceptions(struct gf100_gr *gr)
 {
-	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, 0x006f0002);
+	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, 0x006e0003);
 }
 
 static void

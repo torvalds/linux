@@ -87,7 +87,7 @@ gp100_gr_init_419c9c(struct gf100_gr *gr)
 void
 gp100_gr_init_fecs_exceptions(struct gf100_gr *gr)
 {
-	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, 0x000f0002);
+	nvkm_wr32(gr->base.engine.subdev.device, 0x409c24, 0x000e0002);
 }
 
 void
