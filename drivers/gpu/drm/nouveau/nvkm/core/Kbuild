@@ -5,6 +5,7 @@ nvkm-y += nvkm/core/enum.o
 nvkm-y += nvkm/core/event.o
 nvkm-y += nvkm/core/firmware.o
 nvkm-y += nvkm/core/gpuobj.o
+nvkm-y += nvkm/core/intr.o
 nvkm-y += nvkm/core/ioctl.o
 nvkm-y += nvkm/core/memory.o
 nvkm-y += nvkm/core/mm.o

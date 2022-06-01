@@ -2734,6 +2734,8 @@ nvkm_device_fini(struct nvkm_device *device, bool suspend)
 	if (device->func->fini)
 		device->func->fini(device, suspend);
 
+	nvkm_intr_unarm(device);
+
 	time = ktime_to_us(ktime_get()) - time;
 	nvdev_trace(device, "%s completed in %lldus...\n", action, time);
 	return 0;
@@ -2758,6 +2760,8 @@ nvkm_device_preinit(struct nvkm_device *device)
 
 	nvdev_trace(device, "preinit running...\n");
 	time = ktime_to_us(ktime_get());
+
+	nvkm_intr_unarm(device);
 
 	if (device->func->preinit) {
 		ret = device->func->preinit(device);
@@ -2804,6 +2808,8 @@ nvkm_device_init(struct nvkm_device *device)
 	nvdev_trace(device, "init running...\n");
 	time = ktime_to_us(ktime_get());
 
+	nvkm_intr_rearm(device);
+
 	if (device->func->init) {
 		ret = device->func->init(device);
 		if (ret)
@@ -2840,6 +2846,8 @@ nvkm_device_del(struct nvkm_device **pdevice)
 	struct nvkm_subdev *subdev, *subtmp;
 	if (device) {
 		mutex_lock(&nv_devices_mutex);
+
+		nvkm_intr_dtor(device);
 
 		list_for_each_entry_safe_reverse(subdev, subtmp, &device->subdev, head)
 			nvkm_subdev_del(&subdev);
@@ -3148,6 +3156,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 		device->name = device->chip->name;
 
 	mutex_init(&device->mutex);
+	nvkm_intr_ctor(device);
 
 #define NVKM_LAYOUT_ONCE(type,data,ptr)                                                      \
 	if (device->chip->ptr.inst && (subdev_mask & (BIT_ULL(type)))) {                     \
@@ -3189,7 +3198,7 @@ nvkm_device_ctor(const struct nvkm_device_func *func,
 #undef NVKM_LAYOUT_INST
 #undef NVKM_LAYOUT_ONCE
 
-	ret = 0;
+	ret = nvkm_intr_install(device);
 done:
 	if (device->pri && (!mmio || ret)) {
 		iounmap(device->pri);
