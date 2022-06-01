@@ -44,7 +44,6 @@ struct nvkm_fifo {
 	struct mutex mutex;
 
 	struct nvkm_event uevent; /* async user trigger */
-	struct nvkm_event cevent; /* channel creation event */
 	struct nvkm_event kevent; /* channel killed */
 };
 

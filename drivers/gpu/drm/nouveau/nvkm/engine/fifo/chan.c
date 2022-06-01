@@ -424,7 +424,5 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
 	chan->addr = device->func->resource_addr(device, bar) +
 		     base + user * chan->chid;
 	chan->size = user;
-
-	nvkm_fifo_cevent(fifo);
 	return 0;
 }
