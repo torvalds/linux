@@ -22,6 +22,7 @@ struct nvkm_disp {
 		struct workqueue_struct *wq;
 		struct work_struct work;
 		u32 pending;
+		struct mutex mutex;
 	} super;
 
 #define NVKM_DISP_EVENT_CHAN_AWAKEN BIT(0)

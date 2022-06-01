@@ -399,8 +399,11 @@ nvkm_disp_dtor(struct nvkm_engine *engine)
 	nvkm_gpuobj_del(&disp->inst);
 
 	nvkm_event_fini(&disp->uevent);
-	if (disp->super.wq)
+
+	if (disp->super.wq) {
 		destroy_workqueue(disp->super.wq);
+		mutex_destroy(&disp->super.mutex);
+	}
 
 	nvkm_event_fini(&disp->vblank);
 	nvkm_event_fini(&disp->hpd);
@@ -467,6 +470,7 @@ nvkm_disp_new_(const struct nvkm_disp_func *func, struct nvkm_device *device,
 			return -ENOMEM;
 
 		INIT_WORK(&disp->super.work, func->super);
+		mutex_init(&disp->super.mutex);
 	}
 
 	return nvkm_event_init(func->uevent, 1, ARRAY_SIZE(disp->chan), &disp->uevent);

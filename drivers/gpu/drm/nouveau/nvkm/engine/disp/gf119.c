@@ -995,6 +995,8 @@ gf119_disp_super(struct work_struct *work)
 	u32 mask[4];
 
 	nvkm_debug(subdev, "supervisor %d\n", ffs(disp->super.pending));
+	mutex_lock(&disp->super.mutex);
+
 	list_for_each_entry(head, &disp->heads, head) {
 		mask[head->id] = nvkm_rd32(device, 0x6101d4 + (head->id * 0x800));
 		HEAD_DBG(head, "%08x", mask[head->id]);
@@ -1037,7 +1039,9 @@ gf119_disp_super(struct work_struct *work)
 
 	list_for_each_entry(head, &disp->heads, head)
 		nvkm_wr32(device, 0x6101d4 + (head->id * 0x800), 0x00000000);
+
 	nvkm_wr32(device, 0x6101d0, 0x80000000);
+	mutex_unlock(&disp->super.mutex);
 }
 
 void

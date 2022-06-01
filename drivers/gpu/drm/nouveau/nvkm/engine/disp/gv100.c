@@ -818,8 +818,10 @@ gv100_disp_super(struct work_struct *work)
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
-	u32 stat = nvkm_rd32(device, 0x6107a8);
-	u32 mask[4];
+	u32 stat, mask[4];
+
+	mutex_lock(&disp->super.mutex);
+	stat = nvkm_rd32(device, 0x6107a8);
 
 	nvkm_debug(subdev, "supervisor %d: %08x\n", ffs(disp->super.pending), stat);
 	list_for_each_entry(head, &disp->heads, head) {
@@ -864,7 +866,9 @@ gv100_disp_super(struct work_struct *work)
 
 	list_for_each_entry(head, &disp->heads, head)
 		nvkm_wr32(device, 0x6107ac + (head->id * 4), 0x00000000);
+
 	nvkm_wr32(device, 0x6107a8, 0x80000000);
+	mutex_unlock(&disp->super.mutex);
 }
 
 static void

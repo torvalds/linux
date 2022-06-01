@@ -1345,7 +1345,10 @@ nv50_disp_super(struct work_struct *work)
 	struct nvkm_subdev *subdev = &disp->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	struct nvkm_head *head;
-	u32 super = nvkm_rd32(device, 0x610030);
+	u32 super;
+
+	mutex_lock(&disp->super.mutex);
+	super = nvkm_rd32(device, 0x610030);
 
 	nvkm_debug(subdev, "supervisor %08x %08x\n", disp->super.pending, super);
 
@@ -1387,6 +1390,7 @@ nv50_disp_super(struct work_struct *work)
 	}
 
 	nvkm_wr32(device, 0x610030, 0x80000000);
+	mutex_unlock(&disp->super.mutex);
 }
 
 const struct nvkm_enum
