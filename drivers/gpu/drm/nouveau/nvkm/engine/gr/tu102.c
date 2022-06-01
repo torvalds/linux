@@ -109,6 +109,7 @@ tu102_gr = {
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_504430 = gv100_gr_init_504430,
 	.init_shader_exceptions = gv100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
 	.trap_mp = gv100_gr_trap_mp,
 	.fecs.reset = gf100_gr_fecs_reset,
 	.rops = gm200_gr_rops,

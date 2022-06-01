@@ -199,6 +199,7 @@ gm200_gr = {
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_504430 = gm107_gr_init_504430,
 	.init_shader_exceptions = gm107_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
 	.init_400054 = gm107_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.fecs.reset = gf100_gr_fecs_reset,

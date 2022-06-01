@@ -366,6 +366,7 @@ gk110_gr = {
 	.init_ppc_exceptions = gk104_gr_init_ppc_exceptions,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
 	.init_400054 = gf100_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gk110_gr_pack_mmio,

@@ -2155,6 +2155,20 @@ gf100_gr_init_400054(struct gf100_gr *gr)
 }
 
 void
+gf100_gr_init_rop_exceptions(struct gf100_gr *gr)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+	int rop;
+
+	for (rop = 0; rop < gr->rop_nr; rop++) {
+		nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0x40000000);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0x40000000);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x204), 0xffffffff);
+		nvkm_wr32(device, ROP_UNIT(rop, 0x208), 0xffffffff);
+	}
+}
+
+void
 gf100_gr_init_shader_exceptions(struct gf100_gr *gr, int gpc, int tpc)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
@@ -2283,7 +2297,7 @@ int
 gf100_gr_init(struct gf100_gr *gr)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
-	int gpc, tpc, rop;
+	int gpc, tpc;
 
 	nvkm_mask(device, 0x400500, 0x00010001, 0x00000000);
 
@@ -2375,12 +2389,7 @@ gf100_gr_init(struct gf100_gr *gr)
 		nvkm_wr32(device, GPC_UNIT(gpc, 0x2c94), 0xffffffff);
 	}
 
-	for (rop = 0; rop < gr->rop_nr; rop++) {
-		nvkm_wr32(device, ROP_UNIT(rop, 0x144), 0x40000000);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x070), 0x40000000);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x204), 0xffffffff);
-		nvkm_wr32(device, ROP_UNIT(rop, 0x208), 0xffffffff);
-	}
+	gr->func->init_rop_exceptions(gr);
 
 	nvkm_wr32(device, 0x400108, 0xffffffff);
 	nvkm_wr32(device, 0x400138, 0xffffffff);
@@ -2464,6 +2473,7 @@ gf100_gr = {
 	.init_419eb4 = gf100_gr_init_419eb4,
 	.init_tex_hww_esr = gf100_gr_init_tex_hww_esr,
 	.init_shader_exceptions = gf100_gr_init_shader_exceptions,
+	.init_rop_exceptions = gf100_gr_init_rop_exceptions,
 	.init_400054 = gf100_gr_init_400054,
 	.trap_mp = gf100_gr_trap_mp,
 	.mmio = gf100_gr_pack_mmio,
