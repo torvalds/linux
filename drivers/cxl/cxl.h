@@ -282,6 +282,7 @@ struct cxl_nvdimm {
  *		     decode hierarchy.
  * @dev: this port's device
  * @uport: PCI or platform device implementing the upstream port capability
+ * @host_bridge: Shortcut to the platform attach point for this port
  * @id: id for port device-name
  * @dports: cxl_dport instances referenced by decoders
  * @endpoints: cxl_ep instances, endpoints that are a descendant of this port
@@ -293,6 +294,7 @@ struct cxl_nvdimm {
 struct cxl_port {
 	struct device dev;
 	struct device *uport;
+	struct device *host_bridge;
 	int id;
 	struct list_head dports;
 	struct list_head endpoints;

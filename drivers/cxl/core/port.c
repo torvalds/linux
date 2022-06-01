@@ -392,6 +392,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	if (rc < 0)
 		goto err;
 	port->id = rc;
+	port->uport = uport;
 
 	/*
 	 * The top-level cxl_port "cxl_root" does not have a cxl_port as
@@ -401,12 +402,27 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	 */
 	dev = &port->dev;
 	if (parent_port) {
+		struct cxl_port *iter;
+
 		dev->parent = &parent_port->dev;
 		port->depth = parent_port->depth + 1;
+
+		/*
+		 * walk to the host bridge, or the first ancestor that knows
+		 * the host bridge
+		 */
+		iter = port;
+		while (!iter->host_bridge &&
+		       !is_cxl_root(to_cxl_port(iter->dev.parent)))
+			iter = to_cxl_port(iter->dev.parent);
+		if (iter->host_bridge)
+			port->host_bridge = iter->host_bridge;
+		else
+			port->host_bridge = iter->uport;
+		dev_dbg(uport, "host-bridge: %s\n", dev_name(port->host_bridge));
 	} else
 		dev->parent = uport;
 
-	port->uport = uport;
 	port->component_reg_phys = component_reg_phys;
 	ida_init(&port->decoder_ida);
 	INIT_LIST_HEAD(&port->dports);
