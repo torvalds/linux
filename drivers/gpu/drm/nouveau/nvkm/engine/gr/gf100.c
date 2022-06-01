@@ -364,6 +364,8 @@ gf100_gr_chan_dtor(struct nvkm_object *object)
 
 	nvkm_vmm_put(chan->vmm, &chan->mmio_vma);
 	nvkm_memory_unref(&chan->mmio);
+
+	nvkm_vmm_put(chan->vmm, &chan->pagepool);
 	nvkm_vmm_unref(&chan->vmm);
 	return chan;
 }
@@ -393,6 +395,15 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 	chan->gr = gr;
 	chan->vmm = nvkm_vmm_ref(fifoch->vmm);
 	*pobject = &chan->object;
+
+	/* Map pagepool. */
+	ret = nvkm_vmm_get(chan->vmm, 12, nvkm_memory_size(gr->pagepool), &chan->pagepool);
+	if (ret)
+		return ret;
+
+	ret = nvkm_memory_map(gr->pagepool, 0, chan->vmm, chan->pagepool, &args, sizeof(args));
+	if (ret)
+		return ret;
 
 	/* Generate golden context image. */
 	mutex_lock(&gr->fecs.mutex);
@@ -449,6 +460,7 @@ gf100_gr_chan_new(struct nvkm_gr *base, struct nvkm_fifo_chan *fifoch,
 
 	/* finally, fill in the mmio list and point the context at it */
 	nvkm_kmap(chan->mmio);
+	gr->func->grctx->pagepool(chan, chan->pagepool->addr);
 	for (i = 0; mmio->addr && i < ARRAY_SIZE(gr->mmio_list); i++) {
 		u32 addr = mmio->addr;
 		u32 data = mmio->data;
@@ -1938,7 +1950,7 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	int i, j;
+	int ret, i, j;
 
 	nvkm_pmu_pgob(device->pmu, false);
 
@@ -1963,6 +1975,12 @@ gf100_gr_oneinit(struct nvkm_gr *base)
 				gr->ppc_tpc_max = gr->ppc_tpc_nr[i][j];
 		}
 	}
+
+	/* Allocate global context buffers. */
+	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, gr->func->grctx->pagepool_size,
+			      0x100, false, &gr->pagepool);
+	if (ret)
+		return ret;
 
 	memset(gr->tile, 0xff, sizeof(gr->tile));
 	gr->func->oneinit_tiles(gr);
@@ -2032,6 +2050,8 @@ gf100_gr_dtor(struct nvkm_gr *base)
 	struct gf100_gr *gr = gf100_gr(base);
 
 	kfree(gr->data);
+
+	nvkm_memory_unref(&gr->pagepool);
 
 	nvkm_falcon_dtor(&gr->gpccs.falcon);
 	nvkm_falcon_dtor(&gr->fecs.falcon);

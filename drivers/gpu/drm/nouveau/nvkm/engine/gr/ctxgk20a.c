@@ -25,8 +25,9 @@
 #include <subdev/mc.h>
 
 static void
-gk20a_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
+gk20a_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
 {
+	struct gf100_gr *gr = chan->gr;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	u32 idle_timeout;
@@ -60,7 +61,7 @@ gk20a_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 	gf100_gr_wait_idle(gr);
 
 	gf100_gr_icmd(gr, gr->bundle);
-	grctx->pagepool(info);
+	grctx->pagepool(chan, chan->pagepool->addr);
 	grctx->bundle(info);
 }
 

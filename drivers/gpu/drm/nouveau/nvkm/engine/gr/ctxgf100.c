@@ -991,6 +991,18 @@ gf100_grctx_pack_tpc[] = {
  * PGRAPH context implementation
  ******************************************************************************/
 
+void
+gf100_grctx_patch_wr32(struct gf100_gr_chan *chan, u32 addr, u32 data)
+{
+	if (unlikely(!chan->mmio)) {
+		nvkm_wr32(chan->gr->base.engine.subdev.device, addr, data);
+		return;
+	}
+
+	nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, addr);
+	nvkm_wo32(chan->mmio, chan->mmio_nr++ * 4, data);
+}
+
 int
 gf100_grctx_mmio_data(struct gf100_grctx *info, u32 size, u32 align, bool priv)
 {
@@ -1050,15 +1062,12 @@ gf100_grctx_generate_bundle(struct gf100_grctx *info)
 }
 
 void
-gf100_grctx_generate_pagepool(struct gf100_grctx *info)
+gf100_grctx_generate_pagepool(struct gf100_gr_chan *chan, u64 addr)
 {
-	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const int s = 8;
-	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
-	mmio_refn(info, 0x40800c, 0x00000000, s, b);
-	mmio_wr32(info, 0x408010, 0x80000000);
-	mmio_refn(info, 0x419004, 0x00000000, s, b);
-	mmio_wr32(info, 0x419008, 0x00000000);
+	gf100_grctx_patch_wr32(chan, 0x40800c, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x408010, 0x80000000);
+	gf100_grctx_patch_wr32(chan, 0x419004, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x419008, 0x00000000);
 }
 
 void
@@ -1362,8 +1371,9 @@ gf100_grctx_generate_floorsweep(struct gf100_gr *gr)
 }
 
 void
-gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
+gf100_grctx_generate_main(struct gf100_gr_chan *chan, struct gf100_grctx *info)
 {
+	struct gf100_gr *gr = chan->gr;
 	struct nvkm_device *device = gr->base.engine.subdev.device;
 	const struct gf100_grctx_func *grctx = gr->func->grctx;
 	u32 idle_timeout;
@@ -1385,7 +1395,7 @@ gf100_grctx_generate_main(struct gf100_gr *gr, struct gf100_grctx *info)
 
 	idle_timeout = nvkm_mask(device, 0x404154, 0xffffffff, 0x00000000);
 
-	grctx->pagepool(info);
+	grctx->pagepool(chan, chan->pagepool->addr);
 	grctx->bundle(info);
 	grctx->attrib(info);
 	if (grctx->patch_ltc)
@@ -1521,7 +1531,7 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 		);
 	}
 
-	grctx->main(gr, &info);
+	grctx->main(chan, &info);
 
 	/* Trigger a context unload by unsetting the "next channel valid" bit
 	 * and faking a context switch interrupt.

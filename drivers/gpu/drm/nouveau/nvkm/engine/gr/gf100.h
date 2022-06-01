@@ -121,6 +121,8 @@ struct gf100_gr {
 	u8 ppc_tpc_min;
 	u8 ppc_tpc_max;
 
+	struct nvkm_memory *pagepool;
+
 	u8 screen_tile_row_offset;
 	u8 tile[TPC_MAX];
 
@@ -257,6 +259,8 @@ struct gf100_gr_chan {
 	struct nvkm_object object;
 	struct gf100_gr *gr;
 	struct nvkm_vmm *vmm;
+
+	struct nvkm_vma *pagepool;
 
 	struct nvkm_memory *mmio;
 	struct nvkm_vma *mmio_vma;

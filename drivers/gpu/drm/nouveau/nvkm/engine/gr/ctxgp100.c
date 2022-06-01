@@ -30,15 +30,12 @@
  ******************************************************************************/
 
 void
-gp100_grctx_generate_pagepool(struct gf100_grctx *info)
+gp100_grctx_generate_pagepool(struct gf100_gr_chan *chan, u64 addr)
 {
-	const struct gf100_grctx_func *grctx = info->gr->func->grctx;
-	const int s = 8;
-	const int b = mmio_vram(info, grctx->pagepool_size, (1 << s), true);
-	mmio_refn(info, 0x40800c, 0x00000000, s, b);
-	mmio_wr32(info, 0x408010, 0x8007d800);
-	mmio_refn(info, 0x419004, 0x00000000, s, b);
-	mmio_wr32(info, 0x419008, 0x00000000);
+	gf100_grctx_patch_wr32(chan, 0x40800c, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x408010, 0x8007d800);
+	gf100_grctx_patch_wr32(chan, 0x419004, addr >> 8);
+	gf100_grctx_patch_wr32(chan, 0x419008, 0x00000000);
 }
 
 static void
