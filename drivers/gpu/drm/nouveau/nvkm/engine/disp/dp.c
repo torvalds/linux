@@ -274,70 +274,17 @@ nvkm_dp_train_cr(struct lt_state *lt)
 }
 
 static int
-nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
+nvkm_dp_train_link(struct nvkm_outp *outp, int rate)
 {
 	struct nvkm_ior *ior = outp->ior;
-	struct nvkm_disp *disp = outp->disp;
-	struct nvkm_subdev *subdev = &disp->engine.subdev;
-	struct nvkm_bios *bios = subdev->device->bios;
 	struct lt_state lt = {
 		.outp = outp,
+		.pc2 = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED,
 	};
-	u32 lnkcmp;
 	u8 sink[2], data;
 	int ret;
 
 	OUTP_DBG(outp, "training %dx%02x", ior->dp.nr, ior->dp.bw);
-
-	/* Intersect misc. capabilities of the OR and sink. */
-	if (disp->engine.subdev.device->chipset < 0x110)
-		outp->dp.dpcd[DPCD_RC03] &= ~DPCD_RC03_TPS4_SUPPORTED;
-	if (disp->engine.subdev.device->chipset < 0xd0)
-		outp->dp.dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
-	lt.pc2 = outp->dp.dpcd[DPCD_RC02] & DPCD_RC02_TPS3_SUPPORTED;
-
-	if (AMPERE_IED_HACK(disp) && (lnkcmp = lt.outp->dp.info.script[0])) {
-		/* Execute BeforeLinkTraining script from DP Info table. */
-		while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
-			lnkcmp += 3;
-		lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
-
-		nvbios_init(&outp->disp->engine.subdev, lnkcmp,
-			init.outp = &outp->info;
-			init.or   = ior->id;
-			init.link = ior->asy.link;
-		);
-	}
-
-	/* Set desired link configuration on the source. */
-	if ((lnkcmp = lt.outp->dp.info.lnkcmp)) {
-		if (outp->dp.version < 0x30) {
-			while ((ior->dp.bw * 2700) < nvbios_rd16(bios, lnkcmp))
-				lnkcmp += 4;
-			lnkcmp = nvbios_rd16(bios, lnkcmp + 2);
-		} else {
-			while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
-				lnkcmp += 3;
-			lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
-		}
-
-		nvbios_init(subdev, lnkcmp,
-			init.outp = &outp->info;
-			init.or   = ior->id;
-			init.link = ior->asy.link;
-		);
-	}
-
-	ret = ior->func->dp->links(ior, outp->dp.aux);
-	if (ret) {
-		if (ret < 0) {
-			OUTP_ERR(outp, "train failed with %d", ret);
-			return ret;
-		}
-		return 0;
-	}
-
-	ior->func->dp->power(ior, ior->dp.nr);
 
 	/* Select LTTPR non-transparent mode if we have a valid configuration,
 	 * use transparent mode otherwise.
@@ -393,6 +340,71 @@ nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
 	return ret;
 }
 
+static int
+nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
+{
+	struct nvkm_ior *ior = outp->ior;
+	struct nvkm_disp *disp = outp->disp;
+	struct nvkm_subdev *subdev = &disp->engine.subdev;
+	struct nvkm_bios *bios = subdev->device->bios;
+	u32 lnkcmp;
+	int ret;
+
+	OUTP_DBG(outp, "programming link for %dx%02x", ior->dp.nr, ior->dp.bw);
+
+	/* Intersect misc. capabilities of the OR and sink. */
+	if (disp->engine.subdev.device->chipset < 0x110)
+		outp->dp.dpcd[DPCD_RC03] &= ~DPCD_RC03_TPS4_SUPPORTED;
+	if (disp->engine.subdev.device->chipset < 0xd0)
+		outp->dp.dpcd[DPCD_RC02] &= ~DPCD_RC02_TPS3_SUPPORTED;
+
+	if (AMPERE_IED_HACK(disp) && (lnkcmp = outp->dp.info.script[0])) {
+		/* Execute BeforeLinkTraining script from DP Info table. */
+		while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
+			lnkcmp += 3;
+		lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
+
+		nvbios_init(&outp->disp->engine.subdev, lnkcmp,
+			init.outp = &outp->info;
+			init.or   = ior->id;
+			init.link = ior->asy.link;
+		);
+	}
+
+	/* Set desired link configuration on the source. */
+	if ((lnkcmp = outp->dp.info.lnkcmp)) {
+		if (outp->dp.version < 0x30) {
+			while ((ior->dp.bw * 2700) < nvbios_rd16(bios, lnkcmp))
+				lnkcmp += 4;
+			lnkcmp = nvbios_rd16(bios, lnkcmp + 2);
+		} else {
+			while (ior->dp.bw < nvbios_rd08(bios, lnkcmp))
+				lnkcmp += 3;
+			lnkcmp = nvbios_rd16(bios, lnkcmp + 1);
+		}
+
+		nvbios_init(subdev, lnkcmp,
+			init.outp = &outp->info;
+			init.or   = ior->id;
+			init.link = ior->asy.link;
+		);
+	}
+
+	ret = ior->func->dp->links(ior, outp->dp.aux);
+	if (ret) {
+		if (ret < 0) {
+			OUTP_ERR(outp, "train failed with %d", ret);
+			return ret;
+		}
+		return 0;
+	}
+
+	ior->func->dp->power(ior, ior->dp.nr);
+
+	/* Attempt to train the link in this configuration. */
+	return nvkm_dp_train_link(outp, rate);
+}
+
 static void
 nvkm_dp_train_fini(struct nvkm_outp *outp)
 {
@@ -438,6 +450,16 @@ nvkm_dp_train(struct nvkm_outp *outp, u32 dataKBps)
 	struct nvkm_ior *ior = outp->ior;
 	int ret = -EINVAL, nr, rate;
 	u8  pwr;
+
+	/* Retraining link?  Skip source configuration, it can mess up the active modeset. */
+	if (atomic_read(&outp->dp.lt.done)) {
+		for (rate = 0; rate < outp->dp.rates; rate++) {
+			if (outp->dp.rate[rate].rate == ior->dp.bw * 27000)
+				return nvkm_dp_train_link(outp, ret);
+		}
+		WARN_ON(1);
+		return -EINVAL;
+	}
 
 	/* Ensure sink is not in a low-power state. */
 	if (!nvkm_rdaux(outp->dp.aux, DPCD_SC00, &pwr, 1)) {
@@ -726,12 +748,8 @@ nvkm_dp_hpd(struct nvkm_notify *notify)
 	struct nvif_notify_conn_rep_v0 rep = {};
 
 	OUTP_DBG(outp, "HPD: %d", line->mask);
-	if (line->mask & NVKM_I2C_IRQ) {
-		if (atomic_read(&outp->dp.lt.done))
-			outp->func->acquire(outp);
+	if (line->mask & NVKM_I2C_IRQ)
 		rep.mask |= NVIF_NOTIFY_CONN_V0_IRQ;
-	}
-
 	if (line->mask & NVKM_I2C_UNPLUG)
 		rep.mask |= NVIF_NOTIFY_CONN_V0_UNPLUG;
 	if (line->mask & NVKM_I2C_PLUG)

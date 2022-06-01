@@ -211,6 +211,17 @@ out:
 	return ret;
 }
 
+bool
+nouveau_dp_link_check(struct nouveau_connector *nv_connector)
+{
+	struct nouveau_encoder *nv_encoder = find_encoder(&nv_connector->base, DCB_OUTPUT_DP);
+
+	if (!nv_encoder || nv_encoder->outp.or.id < 0)
+		return true;
+
+	return nvif_outp_dp_retrain(&nv_encoder->outp) == 0;
+}
+
 void nouveau_dp_irq(struct nouveau_drm *drm,
 		    struct nouveau_connector *nv_connector)
 {

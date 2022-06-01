@@ -16,6 +16,7 @@ union nvif_outp_args {
 #define NVIF_OUTP_V0_INFOFRAME   0x03
 #define NVIF_OUTP_V0_HDA_ELD     0x04
 #define NVIF_OUTP_V0_DP_AUX_PWR  0x05
+#define NVIF_OUTP_V0_DP_RETRAIN  0x06
 
 union nvif_outp_load_detect_args {
 	struct nvif_outp_load_detect_v0 {
@@ -99,5 +100,10 @@ union nvif_outp_dp_aux_pwr_args {
 		__u8 state;
 		__u8 pad02[6];
 	} v0;
+};
+
+union nvif_outp_dp_retrain_args {
+	struct nvif_outp_dp_retrain_vn {
+	} vn;
 };
 #endif

@@ -26,6 +26,14 @@
 #include <nvif/class.h>
 
 int
+nvif_outp_dp_retrain(struct nvif_outp *outp)
+{
+	int ret = nvif_object_mthd(&outp->object, NVIF_OUTP_V0_DP_RETRAIN, NULL, 0);
+	NVIF_ERRON(ret, &outp->object, "[DP_RETRAIN]");
+	return ret;
+}
+
+int
 nvif_outp_dp_aux_pwr(struct nvif_outp *outp, bool enable)
 {
 	struct nvif_outp_dp_aux_pwr_v0 args;

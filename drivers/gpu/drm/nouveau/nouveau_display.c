@@ -506,8 +506,10 @@ nouveau_display_hpd_work(struct work_struct *work)
 			    !!(bits & NVIF_NOTIFY_CONN_V0_UNPLUG),
 			    !!(bits & NVIF_NOTIFY_CONN_V0_IRQ));
 
-		if (bits & NVIF_NOTIFY_CONN_V0_IRQ)
-			continue;
+		if (bits & NVIF_NOTIFY_CONN_V0_IRQ) {
+			if (nouveau_dp_link_check(nv_connector))
+				continue;
+		}
 
 		connector->status = drm_helper_probe_detect(connector, NULL, false);
 		if (old_epoch_counter == connector->epoch_counter)
