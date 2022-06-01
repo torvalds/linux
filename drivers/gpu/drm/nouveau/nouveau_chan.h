@@ -16,6 +16,7 @@ struct nouveau_channel {
 	struct nouveau_drm *drm;
 	struct nouveau_vmm *vmm;
 
+	int runlist;
 	int chid;
 	u64 inst;
 	u32 token;
@@ -55,6 +56,7 @@ struct nouveau_channel {
 };
 
 int nouveau_channels_init(struct nouveau_drm *);
+void nouveau_channels_fini(struct nouveau_drm *);
 
 int  nouveau_channel_new(struct nouveau_drm *, struct nvif_device *, bool priv, u64 runm,
 			 u32 vram, u32 gart, struct nouveau_channel **);

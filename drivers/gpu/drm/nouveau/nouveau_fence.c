@@ -77,10 +77,6 @@ nouveau_local_fence(struct dma_fence *fence, struct nouveau_drm *drm)
 	    fence->ops != &nouveau_fence_ops_uevent)
 		return NULL;
 
-	if (fence->context < drm->chan.context_base ||
-	    fence->context >= drm->chan.context_base + drm->chan.nr)
-		return NULL;
-
 	return from_fence(fence);
 }
 
@@ -184,7 +180,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	INIT_LIST_HEAD(&fctx->flip);
 	INIT_LIST_HEAD(&fctx->pending);
 	spin_lock_init(&fctx->lock);
-	fctx->context = chan->drm->chan.context_base + chan->chid;
+	fctx->context = chan->drm->runl[chan->runlist].context_base + chan->chid;
 
 	if (chan == chan->drm->cechan)
 		strcpy(fctx->name, "copy engine channel");
@@ -200,7 +196,7 @@ nouveau_fence_context_new(struct nouveau_channel *chan, struct nouveau_fence_cha
 	args.host.version = 0;
 	args.host.type = NVIF_CHAN_EVENT_V0_NON_STALL_INTR;
 
-	ret = nvif_event_ctor(&chan->user, "fenceNonStallIntr", chan->chid,
+	ret = nvif_event_ctor(&chan->user, "fenceNonStallIntr", (chan->runlist << 16) | chan->chid,
 			      nouveau_fence_wait_uevent_handler, false,
 			      &args.base, sizeof(args), &fctx->event);
 

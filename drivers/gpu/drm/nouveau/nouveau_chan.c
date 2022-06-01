@@ -543,6 +543,12 @@ nouveau_channel_new(struct nouveau_drm *drm, struct nvif_device *device,
 	return ret;
 }
 
+void
+nouveau_channels_fini(struct nouveau_drm *drm)
+{
+	kfree(drm->runl);
+}
+
 int
 nouveau_channels_init(struct nouveau_drm *drm)
 {
@@ -550,20 +556,53 @@ nouveau_channels_init(struct nouveau_drm *drm)
 		struct nv_device_info_v1 m;
 		struct {
 			struct nv_device_info_v1_data channels;
+			struct nv_device_info_v1_data runlists;
 		} v;
 	} args = {
 		.m.version = 1,
 		.m.count = sizeof(args.v) / sizeof(args.v.channels),
 		.v.channels.mthd = NV_DEVICE_HOST_CHANNELS,
+		.v.runlists.mthd = NV_DEVICE_HOST_RUNLISTS,
 	};
 	struct nvif_object *device = &drm->client.device.object;
-	int ret;
+	int ret, i;
 
 	ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
-	if (ret || args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
+	if (ret ||
+	    args.v.runlists.mthd == NV_DEVICE_INFO_INVALID || !args.v.runlists.data ||
+	    args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
 		return -ENODEV;
 
-	drm->chan.nr = args.v.channels.data;
-	drm->chan.context_base = dma_fence_context_alloc(drm->chan.nr);
+	drm->chan_nr = drm->chan_total = args.v.channels.data;
+	drm->runl_nr = fls64(args.v.runlists.data);
+	drm->runl = kcalloc(drm->runl_nr, sizeof(*drm->runl), GFP_KERNEL);
+	if (!drm->runl)
+		return -ENOMEM;
+
+	if (drm->chan_nr == 0) {
+		for (i = 0; i < drm->runl_nr; i++) {
+			if (!(args.v.runlists.data & BIT(i)))
+				continue;
+
+			args.v.channels.mthd = NV_DEVICE_HOST_RUNLIST_CHANNELS;
+			args.v.channels.data = i;
+
+			ret = nvif_object_mthd(device, NV_DEVICE_V0_INFO, &args, sizeof(args));
+			if (ret || args.v.channels.mthd == NV_DEVICE_INFO_INVALID)
+				return -ENODEV;
+
+			drm->runl[i].chan_nr = args.v.channels.data;
+			drm->runl[i].chan_id_base = drm->chan_total;
+			drm->runl[i].context_base = dma_fence_context_alloc(drm->runl[i].chan_nr);
+
+			drm->chan_total += drm->runl[i].chan_nr;
+		}
+	} else {
+		drm->runl[0].context_base = dma_fence_context_alloc(drm->chan_nr);
+		for (i = 1; i < drm->runl_nr; i++)
+			drm->runl[i].context_base = drm->runl[0].context_base;
+
+	}
+
 	return 0;
 }

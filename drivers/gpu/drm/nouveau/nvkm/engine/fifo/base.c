@@ -271,6 +271,15 @@ nvkm_fifo_info(struct nvkm_engine *engine, u64 mthd, u64 *data)
 			return 0;
 		}
 		return -EINVAL;
+	case NV_DEVICE_HOST_RUNLIST_CHANNELS:
+		if (!fifo->chid) {
+			runl = nvkm_runl_get(fifo, *data, 0);
+			if (runl) {
+				*data = runl->chid->nr;
+				return 0;
+			}
+		}
+		return -EINVAL;
 	default:
 		break;
 	}

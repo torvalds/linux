@@ -174,10 +174,14 @@ struct nouveau_drm {
 	void *fence;
 
 	/* Global channel management. */
+	int chan_total; /* Number of channels across all runlists. */
+	int chan_nr;	/* 0 if per-runlist CHIDs. */
+	int runl_nr;
 	struct {
-		int nr;
+		int chan_nr;
+		int chan_id_base;
 		u64 context_base;
-	} chan;
+	} *runl;
 
 	/* context for accelerated drm-internal operations */
 	struct nouveau_channel *cechan;

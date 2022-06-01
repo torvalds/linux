@@ -424,6 +424,7 @@ nouveau_accel_fini(struct nouveau_drm *drm)
 	nouveau_accel_gr_fini(drm);
 	if (drm->fence)
 		nouveau_fence(drm)->dtor(drm);
+	nouveau_channels_fini(drm);
 }
 
 static void
