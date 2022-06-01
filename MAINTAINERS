@@ -3789,6 +3789,7 @@ N:	bcm[9]?47622
 N:	bcm[9]?4912
 N:	bcm[9]?63158
 N:	bcm[9]?63178
+N:	bcm[9]?6858
 
 BROADCOM BCM2711/BCM2835 ARM ARCHITECTURE
 M:	Nicolas Saenz Julienne <nsaenz@kernel.org>
