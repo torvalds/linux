@@ -41,6 +41,7 @@
 #define NVIF_CLASS_DISP_CHAN                         /* if0014.h */  0x80000014
 
 #define NVIF_CLASS_CHAN                              /* if0020.h */  0x80000020
+#define NVIF_CLASS_CGRP                              /* if0021.h */  0x80000021
 
 /* the below match nvidia-assigned (either in hw, or sw) class numbers */
 #define NV_NULL_CLASS                                                0x00000030
@@ -73,6 +74,8 @@
 #define NV10_CHANNEL_DMA                              /* cl506b.h */ 0x0000006e
 #define NV17_CHANNEL_DMA                              /* cl506b.h */ 0x0000176e
 #define NV40_CHANNEL_DMA                              /* cl506b.h */ 0x0000406e
+
+#define KEPLER_CHANNEL_GROUP_A                        /* if0021.h */ 0x0000a06c
 
 #define NV50_CHANNEL_GPFIFO                           /* cl506f.h */ 0x0000506f
 #define G82_CHANNEL_GPFIFO                            /* cl826f.h */ 0x0000826f

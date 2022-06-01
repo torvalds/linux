@@ -168,7 +168,7 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	/* Hack to support GPUs where even individual channels should be
 	 * part of a channel group.
 	 */
-	if (fifo->func->cgrp_force) {
+	if (fifo->func->cgrp.force) {
 		if (!(chan->cgrp = kmalloc(sizeof(*chan->cgrp), GFP_KERNEL)))
 			return -ENOMEM;
 		chan->cgrp->id = chan->base.chid;

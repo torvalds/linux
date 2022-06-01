@@ -21,8 +21,16 @@
  *
  * Authors: Ben Skeggs
  */
+#include "chan.h"
+
 #include "nv50.h"
 #include "channv50.h"
+
+#include <nvif/class.h>
+
+const struct nvkm_chan_func
+g84_chan = {
+};
 
 static void
 g84_fifo_uevent_fini(struct nvkm_fifo *fifo)
@@ -119,10 +127,8 @@ g84_fifo = {
 	.start = nv04_fifo_start,
 	.uevent_init = g84_fifo_uevent_init,
 	.uevent_fini = g84_fifo_uevent_fini,
-	.chan = {
-		&g84_fifo_gpfifo_oclass,
-		NULL
-	},
+	.cgrp = {{                          }, &nv04_cgrp },
+	.chan = {{ 0, 0, G82_CHANNEL_GPFIFO }, &g84_chan, .oclass = &g84_fifo_gpfifo_oclass },
 };
 
 int

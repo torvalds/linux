@@ -19,6 +19,8 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
+#include "chan.h"
+
 #include "gk104.h"
 #include "cgrp.h"
 #include "changk104.h"
@@ -30,6 +32,10 @@
 #include <subdev/top.h>
 
 #include <nvif/class.h>
+
+static const struct nvkm_chan_func
+tu102_chan = {
+};
 
 static void
 tu102_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
@@ -440,8 +446,6 @@ tu102_fifo_ = {
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = tu102_fifo_recover_chan,
-	.class_get = gk104_fifo_class_get,
-	.class_new = gk104_fifo_class_new,
 };
 
 static const struct gk104_fifo_func
@@ -454,8 +458,8 @@ tu102_fifo = {
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.runlist = &tu102_fifo_runlist,
-	.chan = {{ 0, 0,TURING_CHANNEL_GPFIFO_A}, tu102_fifo_gpfifo_new },
-	.cgrp_force = true,
+	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
+	.chan = {{ 0, 0, TURING_CHANNEL_GPFIFO_A }, &tu102_chan, .ctor = tu102_fifo_gpfifo_new },
 };
 
 int

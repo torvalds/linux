@@ -30,7 +30,6 @@
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
 
-#include <nvif/class.h>
 #include <nvif/cla06f.h>
 #include <nvif/unpack.h>
 
@@ -287,7 +286,7 @@ gk104_fifo_gpfifo_new_(struct gk104_fifo *fifo, u64 *runlists, u16 *chid,
 	/* Hack to support GPUs where even individual channels should be
 	 * part of a channel group.
 	 */
-	if (fifo->func->cgrp_force) {
+	if (fifo->func->cgrp.force) {
 		if (!(chan->cgrp = kmalloc(sizeof(*chan->cgrp), GFP_KERNEL)))
 			return -ENOMEM;
 		chan->cgrp->id = chan->base.chid;

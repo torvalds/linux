@@ -19,13 +19,19 @@
  * ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR
  * OTHER DEALINGS IN THE SOFTWARE.
  */
-#include "gk104.h"
+#include "chan.h"
 #include "cgrp.h"
+
+#include "gk104.h"
 #include "changk104.h"
 
 #include <core/gpuobj.h>
 
 #include <nvif/class.h>
+
+static const struct nvkm_chan_func
+gv100_chan = {
+};
 
 void
 gv100_fifo_runlist_chan(struct gk104_fifo_chan *chan,
@@ -295,8 +301,8 @@ gv100_fifo = {
 	.fault.hubclient = gv100_fifo_fault_hubclient,
 	.fault.gpcclient = gv100_fifo_fault_gpcclient,
 	.runlist = &gv100_fifo_runlist,
-	.chan = {{ 0, 0,VOLTA_CHANNEL_GPFIFO_A}, gv100_fifo_gpfifo_new },
-	.cgrp_force = true,
+	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp, .force = true },
+	.chan = {{ 0, 0,  VOLTA_CHANNEL_GPFIFO_A }, &gv100_chan, .ctor = gv100_fifo_gpfifo_new },
 };
 
 int

@@ -21,6 +21,9 @@
  *
  * Authors: Ben Skeggs
  */
+#include "cgrp.h"
+#include "chan.h"
+
 #include "nv04.h"
 #include "channv04.h"
 #include "regsnv04.h"
@@ -30,6 +33,8 @@
 #include <subdev/instmem.h>
 #include <subdev/timer.h>
 #include <engine/sw.h>
+
+#include <nvif/class.h>
 
 static const struct nv04_fifo_ramfc
 nv04_fifo_ramfc[] = {
@@ -42,6 +47,14 @@ nv04_fifo_ramfc[] = {
 	{ 32,  0, 0x14,  0, NV04_PFIFO_CACHE1_ENGINE },
 	{ 32,  0, 0x18,  0, NV04_PFIFO_CACHE1_PULL1 },
 	{}
+};
+
+static const struct nvkm_chan_func
+nv04_chan = {
+};
+
+const struct nvkm_cgrp_func
+nv04_cgrp = {
 };
 
 void
@@ -392,10 +405,8 @@ nv04_fifo = {
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
-	.chan = {
-		&nv04_fifo_dma_oclass,
-		NULL
-	},
+	.cgrp = {{                        }, &nv04_cgrp },
+	.chan = {{ 0, 0, NV03_CHANNEL_DMA }, &nv04_chan, .oclass = &nv04_fifo_dma_oclass },
 };
 
 int

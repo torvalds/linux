@@ -155,27 +155,16 @@ nvkm_fifo_uevent(struct nvkm_fifo *fifo)
 }
 
 static int
-nvkm_fifo_class_new_(struct nvkm_device *device,
-		     const struct nvkm_oclass *oclass, void *data, u32 size,
-		     struct nvkm_object **pobject)
+nvkm_fifo_class_new(struct nvkm_device *device, const struct nvkm_oclass *oclass,
+		    void *argv, u32 argc, struct nvkm_object **pobject)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
-	return fifo->func->class_new(fifo, oclass, data, size, pobject);
-}
 
-static const struct nvkm_device_oclass
-nvkm_fifo_class_ = {
-	.ctor = nvkm_fifo_class_new_,
-};
+	if (oclass->engn == &fifo->func->chan.user)
+		return nvkm_uchan_new(fifo, NULL, oclass, argv, argc, pobject);
 
-static int
-nvkm_fifo_class_new(struct nvkm_device *device,
-		    const struct nvkm_oclass *oclass, void *data, u32 size,
-		    struct nvkm_object **pobject)
-{
-	const struct nvkm_fifo_chan_oclass *sclass = oclass->engn;
-	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
-	return sclass->ctor(fifo, oclass, data, size, pobject);
+	WARN_ON(1);
+	return -ENOSYS;
 }
 
 static const struct nvkm_device_oclass
@@ -184,24 +173,20 @@ nvkm_fifo_class = {
 };
 
 static int
-nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index,
-		    const struct nvkm_device_oclass **class)
+nvkm_fifo_class_get(struct nvkm_oclass *oclass, int index, const struct nvkm_device_oclass **class)
 {
 	struct nvkm_fifo *fifo = nvkm_fifo(oclass->engine);
-	const struct nvkm_fifo_chan_oclass *sclass;
+	const struct nvkm_fifo_func_chan *chan = &fifo->func->chan;
 	int c = 0;
 
-	if (fifo->func->class_get) {
-		int ret = fifo->func->class_get(fifo, index, oclass);
-		if (ret == 0)
-			*class = &nvkm_fifo_class_;
-		return ret;
-	}
+	if (fifo->func->engine_id == gk104_fifo_engine_id)
+		chan = &gk104_fifo(fifo)->func->chan;
 
-	while ((sclass = fifo->func->chan[c])) {
+	/* *_CHANNEL_DMA, *_CHANNEL_GPFIFO_* */
+	if (chan->user.oclass) {
 		if (c++ == index) {
-			oclass->base = sclass->base;
-			oclass->engn = sclass;
+			oclass->base = chan->user;
+			oclass->engn = &fifo->func->chan.user;
 			*class = &nvkm_fifo_class;
 			return 0;
 		}

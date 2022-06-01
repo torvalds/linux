@@ -60,7 +60,8 @@ gk208_fifo = {
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.runlist = &gk110_fifo_runlist,
-	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
+	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk110_chan, .ctor = &gk104_fifo_gpfifo_new },
 };
 
 int

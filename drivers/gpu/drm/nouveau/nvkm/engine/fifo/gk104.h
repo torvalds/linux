@@ -76,18 +76,8 @@ struct gk104_fifo_func {
 			       struct nvkm_memory *, int entries);
 	} *runlist;
 
-	struct gk104_fifo_user_user {
-		struct nvkm_sclass user;
-		int (*ctor)(const struct nvkm_oclass *, void *, u32,
-			    struct nvkm_object **);
-	} user;
-
-	struct gk104_fifo_chan_user {
-		struct nvkm_sclass user;
-		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *,
-			    void *, u32, struct nvkm_object **);
-	} chan;
-	bool cgrp_force;
+	struct nvkm_fifo_func_cgrp cgrp;
+	struct nvkm_fifo_func_chan chan;
 };
 
 struct gk104_fifo_engine_status {
@@ -121,10 +111,6 @@ int gk104_fifo_oneinit(struct nvkm_fifo *base);
 int gk104_fifo_info(struct nvkm_fifo *base, u64 mthd, u64 *data);
 void gk104_fifo_init(struct nvkm_fifo *base);
 void gk104_fifo_fini(struct nvkm_fifo *base);
-int gk104_fifo_class_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
-			 void *argv, u32 argc, struct nvkm_object **pobject);
-int gk104_fifo_class_get(struct nvkm_fifo *base, int index,
-			 struct nvkm_oclass *oclass);
 void gk104_fifo_uevent_fini(struct nvkm_fifo *fifo);
 void gk104_fifo_uevent_init(struct nvkm_fifo *fifo);
 

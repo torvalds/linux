@@ -28,7 +28,6 @@
 #include <core/ramht.h>
 #include <subdev/instmem.h>
 
-#include <nvif/class.h>
 #include <nvif/cl006b.h>
 #include <nvif/unpack.h>
 
@@ -247,8 +246,5 @@ nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 const struct nvkm_fifo_chan_oclass
 nv40_fifo_dma_oclass = {
-	.base.oclass = NV40_CHANNEL_DMA,
-	.base.minver = 0,
-	.base.maxver = 0,
 	.ctor = nv40_fifo_dma_new,
 };

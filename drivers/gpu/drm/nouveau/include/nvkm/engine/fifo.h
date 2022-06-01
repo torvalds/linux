@@ -15,8 +15,9 @@ struct nvkm_fifo_engn {
 	int usecount;
 };
 
-struct nvkm_fifo_chan {
-	const struct nvkm_fifo_chan_func *func;
+struct nvkm_chan {
+	const struct nvkm_chan_func *func;
+
 	struct nvkm_fifo *fifo;
 	u32 engm;
 	struct nvkm_object object;

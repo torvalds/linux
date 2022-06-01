@@ -3,6 +3,8 @@
 #define __NVKM_FIFO_PRIV_H__
 #define nvkm_fifo(p) container_of((p), struct nvkm_fifo, engine)
 #include <engine/fifo.h>
+struct nvkm_cgrp;
+struct gk104_fifo;
 
 void nvkm_fifo_uevent(struct nvkm_fifo *);
 void nvkm_fifo_kevent(struct nvkm_fifo *, int chid);
@@ -30,10 +32,23 @@ struct nvkm_fifo_func {
 	void (*uevent_init)(struct nvkm_fifo *);
 	void (*uevent_fini)(struct nvkm_fifo *);
 	void (*recover_chan)(struct nvkm_fifo *, int chid);
-	int (*class_get)(struct nvkm_fifo *, int index, struct nvkm_oclass *);
-	int (*class_new)(struct nvkm_fifo *, const struct nvkm_oclass *,
-			 void *, u32, struct nvkm_object **);
-	const struct nvkm_fifo_chan_oclass *chan[];
+
+	struct nvkm_fifo_func_cgrp {
+		struct nvkm_sclass user;
+		const struct nvkm_cgrp_func *func;
+		bool force;
+	} cgrp;
+
+	struct nvkm_fifo_func_chan {
+		struct nvkm_sclass user;
+		const struct nvkm_chan_func *func;
+		const struct nvkm_fifo_chan_oclass {
+			int (*ctor)(struct nvkm_fifo *, const struct nvkm_oclass *,
+			void *data, u32 size, struct nvkm_object **);
+		} *oclass;
+		int (*ctor)(struct gk104_fifo *, const struct nvkm_oclass *, void *, u32,
+			    struct nvkm_object **);
+	} chan;
 };
 
 int nvkm_fifo_ctor(const struct nvkm_fifo_func *, struct nvkm_device *, enum nvkm_subdev_type, int,
@@ -44,10 +59,13 @@ int nv04_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 struct nvkm_engine *nv04_fifo_id_engine(struct nvkm_fifo *, int);
 void nv04_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nv04_fifo_start(struct nvkm_fifo *, unsigned long *);
+extern const struct nvkm_cgrp_func nv04_cgrp;
 
 int nv10_fifo_chid_nr(struct nvkm_fifo *);
 
 int nv50_fifo_chid_nr(struct nvkm_fifo *);
+
+extern const struct nvkm_chan_func g84_chan;
 
 void gf100_fifo_intr_fault(struct nvkm_fifo *, int);
 
@@ -55,5 +73,13 @@ int gk104_fifo_chid_nr(struct nvkm_fifo *);
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 struct nvkm_engine *gk104_fifo_id_engine(struct nvkm_fifo *, int);
 
+extern const struct nvkm_cgrp_func gk110_cgrp;
+extern const struct nvkm_chan_func gk110_chan;
+
+extern const struct nvkm_chan_func gm107_chan;
+
 int gm200_fifo_chid_nr(struct nvkm_fifo *);
+
+int nvkm_uchan_new(struct nvkm_fifo *, struct nvkm_cgrp *, const struct nvkm_oclass *,
+		   void *argv, u32 argc, struct nvkm_object **);
 #endif

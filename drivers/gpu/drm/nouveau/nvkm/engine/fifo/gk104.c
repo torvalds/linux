@@ -21,6 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
+#include "chan.h"
+
 #include "gk104.h"
 #include "cgrp.h"
 #include "changk104.h"
@@ -35,6 +37,10 @@
 
 #include <nvif/class.h>
 #include <nvif/cl0080.h>
+
+static const struct nvkm_chan_func
+gk104_chan = {
+};
 
 void
 gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
@@ -81,45 +87,6 @@ gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 		   status->chan == &status->prev ? "*" : " ",
 		   status->next.tsg ? "tsg" : "ch", status->next.id,
 		   status->chan == &status->next ? "*" : " ");
-}
-
-int
-gk104_fifo_class_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
-		     void *argv, u32 argc, struct nvkm_object **pobject)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	if (oclass->engn == &fifo->func->chan) {
-		const struct gk104_fifo_chan_user *user = oclass->engn;
-		return user->ctor(fifo, oclass, argv, argc, pobject);
-	} else
-	if (oclass->engn == &fifo->func->user) {
-		const struct gk104_fifo_user_user *user = oclass->engn;
-		return user->ctor(oclass, argv, argc, pobject);
-	}
-	WARN_ON(1);
-	return -EINVAL;
-}
-
-int
-gk104_fifo_class_get(struct nvkm_fifo *base, int index,
-		     struct nvkm_oclass *oclass)
-{
-	struct gk104_fifo *fifo = gk104_fifo(base);
-	int c = 0;
-
-	if (fifo->func->user.ctor && c++ == index) {
-		oclass->base =  fifo->func->user.user;
-		oclass->engn = &fifo->func->user;
-		return 0;
-	}
-
-	if (fifo->func->chan.ctor && c++ == index) {
-		oclass->base =  fifo->func->chan.user;
-		oclass->engn = &fifo->func->chan;
-		return 0;
-	}
-
-	return c;
 }
 
 void
@@ -1093,8 +1060,6 @@ gk104_fifo_ = {
 	.uevent_init = gk104_fifo_uevent_init,
 	.uevent_fini = gk104_fifo_uevent_fini,
 	.recover_chan = gk104_fifo_recover_chan,
-	.class_get = gk104_fifo_class_get,
-	.class_new = gk104_fifo_class_new,
 };
 
 int
@@ -1245,7 +1210,8 @@ gk104_fifo = {
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.runlist = &gk104_fifo_runlist,
-	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_A}, gk104_fifo_gpfifo_new },
+	.cgrp = {{                               }, &nv04_cgrp },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_A }, &gk104_chan, .ctor = &gk104_fifo_gpfifo_new },
 };
 
 int

@@ -26,7 +26,6 @@
 #include <core/client.h>
 #include <core/ramht.h>
 
-#include <nvif/class.h>
 #include <nvif/cl506f.h>
 #include <nvif/unpack.h>
 
@@ -86,8 +85,5 @@ nv50_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 const struct nvkm_fifo_chan_oclass
 nv50_fifo_gpfifo_oclass = {
-	.base.oclass = NV50_CHANNEL_GPFIFO,
-	.base.minver = 0,
-	.base.maxver = 0,
 	.ctor = nv50_fifo_gpfifo_new,
 };

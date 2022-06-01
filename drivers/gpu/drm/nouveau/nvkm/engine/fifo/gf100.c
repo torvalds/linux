@@ -21,6 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
+#include "chan.h"
+
 #include "gf100.h"
 #include "changf100.h"
 
@@ -46,6 +48,10 @@ gf100_fifo_uevent_fini(struct nvkm_fifo *fifo)
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	nvkm_mask(device, 0x002140, 0x80000000, 0x00000000);
 }
+
+static const struct nvkm_chan_func
+gf100_chan = {
+};
 
 void
 gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
@@ -678,10 +684,8 @@ gf100_fifo = {
 	.id_engine = gf100_fifo_id_engine,
 	.uevent_init = gf100_fifo_uevent_init,
 	.uevent_fini = gf100_fifo_uevent_fini,
-	.chan = {
-		&gf100_fifo_gpfifo_oclass,
-		NULL
-	},
+	.cgrp = {{                            }, &nv04_cgrp },
+	.chan = {{ 0, 0, FERMI_CHANNEL_GPFIFO }, &gf100_chan, .oclass = &gf100_fifo_gpfifo_oclass },
 };
 
 int

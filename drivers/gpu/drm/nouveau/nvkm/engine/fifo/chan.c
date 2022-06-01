@@ -22,6 +22,7 @@
  * Authors: Ben Skeggs
  */
 #include "chan.h"
+#include "priv.h"
 
 #include <core/client.h>
 #include <core/gpuobj.h>
@@ -140,7 +141,7 @@ nvkm_fifo_chan_child_func = {
 	.fini[0] = nvkm_fifo_chan_child_fini,
 };
 
-static int
+int
 nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
 			 struct nvkm_object **pobject)
 {
@@ -258,11 +259,6 @@ nvkm_fifo_chan_uevent(struct nvkm_object *object, void *argv, u32 argc, struct n
 	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(object);
 	union nvif_chan_event_args *args = argv;
 
-	if (!uevent)
-		return 0;
-	if (argc != sizeof(args->v0) || args->v0.version != 0)
-		return -ENOSYS;
-
 	switch (args->v0.type) {
 	case NVIF_CHAN_EVENT_V0_NON_STALL_INTR:
 		return nvkm_uevent_add(uevent, &chan->fifo->uevent, 0,
@@ -304,6 +300,18 @@ nvkm_fifo_chan_init(struct nvkm_object *object)
 	return 0;
 }
 
+void
+nvkm_chan_del(struct nvkm_chan **pchan)
+{
+	struct nvkm_chan *chan = *pchan;
+
+	if (!chan)
+		return;
+
+	chan = nvkm_object_dtor(&chan->object);
+	kfree(chan);
+}
+
 static void *
 nvkm_fifo_chan_dtor(struct nvkm_object *object)
 {
@@ -326,6 +334,7 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 
 	nvkm_gpuobj_del(&chan->push);
 	nvkm_gpuobj_del(&chan->inst);
+	kfree(chan->func);
 	return data;
 }
 
@@ -340,20 +349,38 @@ nvkm_fifo_chan_func = {
 };
 
 int
-nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *func,
+nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 		    struct nvkm_fifo *fifo, u32 size, u32 align, bool zero,
 		    u64 hvmm, u64 push, u32 engm, int bar, u32 base,
 		    u32 user, const struct nvkm_oclass *oclass,
 		    struct nvkm_fifo_chan *chan)
 {
+	struct nvkm_chan_func *func;
 	struct nvkm_client *client = oclass->client;
 	struct nvkm_device *device = fifo->engine.subdev.device;
 	struct nvkm_dmaobj *dmaobj;
 	unsigned long flags;
 	int ret;
 
-	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
+	/*FIXME: temp kludge to ease transition, remove later */
+	if (!(func = kmalloc(sizeof(*func), GFP_KERNEL)))
+		return -ENOMEM;
+
+	*func = *fifo->func->chan.func;
+	func->dtor = fn->dtor;
+	func->init = fn->init;
+	func->fini = fn->fini;
+	func->engine_ctor = fn->engine_ctor;
+	func->engine_dtor = fn->engine_dtor;
+	func->engine_init = fn->engine_init;
+	func->engine_fini = fn->engine_fini;
+	func->object_ctor = fn->object_ctor;
+	func->object_dtor = fn->object_dtor;
+	func->submit_token = fn->submit_token;
+
 	chan->func = func;
+
+	nvkm_object_ctor(&nvkm_fifo_chan_func, oclass, &chan->object);
 	chan->fifo = fifo;
 	chan->engm = engm;
 	INIT_LIST_HEAD(&chan->head);

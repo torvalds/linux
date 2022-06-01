@@ -35,4 +35,8 @@ nvkm_blob_dtor(struct nvkm_blob *blob)
 	blob->size = 0;
 }
 
+/*FIXME: remove after */
+#define nvkm_fifo_chan nvkm_chan
+#define nvkm_fifo_chan_func nvkm_chan_func
+#define nvkm_fifo_cgrp nvkm_cgrp
 #endif

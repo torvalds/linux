@@ -28,7 +28,6 @@
 #include <subdev/fb.h>
 #include <subdev/timer.h>
 
-#include <nvif/class.h>
 #include <nvif/cl906f.h>
 #include <nvif/unpack.h>
 
@@ -283,8 +282,5 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 
 const struct nvkm_fifo_chan_oclass
 gf100_fifo_gpfifo_oclass = {
-	.base.oclass = FERMI_CHANNEL_GPFIFO,
-	.base.minver = 0,
-	.base.maxver = 0,
 	.ctor = gf100_fifo_gpfifo_new,
 };

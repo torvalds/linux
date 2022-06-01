@@ -21,9 +21,13 @@
  *
  * Authors: Ben Skeggs
  */
+#include "chan.h"
+
 #include "nv04.h"
 #include "channv04.h"
 #include "regsnv04.h"
+
+#include <nvif/class.h>
 
 static const struct nv04_fifo_ramfc
 nv10_fifo_ramfc[] = {
@@ -37,6 +41,10 @@ nv10_fifo_ramfc[] = {
 	{ 32,  0, 0x18,  0, NV04_PFIFO_CACHE1_ENGINE },
 	{ 32,  0, 0x1c,  0, NV04_PFIFO_CACHE1_PULL1 },
 	{}
+};
+
+static const struct nvkm_chan_func
+nv10_chan = {
 };
 
 int
@@ -54,10 +62,8 @@ nv10_fifo = {
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
-	.chan = {
-		&nv10_fifo_dma_oclass,
-		NULL
-	},
+	.cgrp = {{                        }, &nv04_cgrp },
+	.chan = {{ 0, 0, NV10_CHANNEL_DMA }, &nv10_chan, .oclass = &nv10_fifo_dma_oclass },
 };
 
 int

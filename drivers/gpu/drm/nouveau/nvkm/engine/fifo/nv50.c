@@ -21,10 +21,18 @@
  *
  * Authors: Ben Skeggs
  */
+#include "chan.h"
+
 #include "nv50.h"
 #include "channv50.h"
 
 #include <core/gpuobj.h>
+
+#include <nvif/class.h>
+
+static const struct nvkm_chan_func
+nv50_chan = {
+};
 
 static void
 nv50_fifo_runlist_update_locked(struct nv50_fifo *fifo)
@@ -142,10 +150,8 @@ nv50_fifo = {
 	.id_engine = nv04_fifo_id_engine,
 	.pause = nv04_fifo_pause,
 	.start = nv04_fifo_start,
-	.chan = {
-		&nv50_fifo_gpfifo_oclass,
-		NULL
-	},
+	.cgrp = {{                           }, &nv04_cgrp },
+	.chan = {{ 0, 0, NV50_CHANNEL_GPFIFO }, &nv50_chan, .oclass = &nv50_fifo_gpfifo_oclass },
 };
 
 int

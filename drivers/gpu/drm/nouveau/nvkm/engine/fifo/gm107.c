@@ -21,6 +21,8 @@
  *
  * Authors: Ben Skeggs
  */
+#include "priv.h"
+#include "chan.h"
 #include "gk104.h"
 #include "changk104.h"
 
@@ -28,6 +30,10 @@
 #include <subdev/fault.h>
 
 #include <nvif/class.h>
+
+const struct nvkm_chan_func
+gm107_chan = {
+};
 
 static void
 gm107_fifo_runlist_chan(struct gk104_fifo_chan *chan,
@@ -109,7 +115,8 @@ gm107_fifo = {
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.runlist = &gm107_fifo_runlist,
-	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_B}, gk104_fifo_gpfifo_new },
+	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_B }, &gm107_chan, .ctor = &gk104_fifo_gpfifo_new },
 };
 
 int

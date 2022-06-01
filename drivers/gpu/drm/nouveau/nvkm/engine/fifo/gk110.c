@@ -21,13 +21,23 @@
  *
  * Authors: Ben Skeggs
  */
-#include "gk104.h"
 #include "cgrp.h"
+#include "chan.h"
+
+#include "gk104.h"
 #include "changk104.h"
 
 #include <core/memory.h>
 
 #include <nvif/class.h>
+
+const struct nvkm_chan_func
+gk110_chan = {
+};
+
+const struct nvkm_cgrp_func
+gk110_cgrp = {
+};
 
 void
 gk110_fifo_runlist_cgrp(struct nvkm_fifo_cgrp *cgrp,
@@ -57,7 +67,8 @@ gk110_fifo = {
 	.fault.hubclient = gk104_fifo_fault_hubclient,
 	.fault.gpcclient = gk104_fifo_fault_gpcclient,
 	.runlist = &gk110_fifo_runlist,
-	.chan = {{0,0,KEPLER_CHANNEL_GPFIFO_B}, gk104_fifo_gpfifo_new },
+	.cgrp = {{ 0, 0, KEPLER_CHANNEL_GROUP_A  }, &gk110_cgrp },
+	.chan = {{ 0, 0, KEPLER_CHANNEL_GPFIFO_B }, &gk110_chan, .ctor = &gk104_fifo_gpfifo_new },
 };
 
 int
