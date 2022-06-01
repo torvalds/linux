@@ -69,6 +69,7 @@ struct nvkm_device {
 		int irq;
 		bool alloc;
 		bool armed;
+		bool legacy_done;
 	} intr;
 };
 

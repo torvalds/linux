@@ -30,6 +30,7 @@ struct nvkm_intr {
 		int inst;
 		int leaf;
 		u32 mask; /* 0-terminated. */
+		bool legacy; /* auto-create "legacy" nvkm_subdev_intr() handler */
 	} *data;
 
 	struct nvkm_subdev *subdev;

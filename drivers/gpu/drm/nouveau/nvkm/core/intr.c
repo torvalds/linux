@@ -265,11 +265,72 @@ nvkm_intr_add(const struct nvkm_intr_func *func, const struct nvkm_intr_data *da
 	return 0;
 }
 
+static irqreturn_t
+nvkm_intr_subdev(struct nvkm_inth *inth)
+{
+	struct nvkm_subdev *subdev = container_of(inth, typeof(*subdev), inth);
+
+	nvkm_subdev_intr(subdev);
+	return IRQ_HANDLED;
+}
+
+static void
+nvkm_intr_subdev_add_dev(struct nvkm_intr *intr, enum nvkm_subdev_type type, int inst)
+{
+	struct nvkm_subdev *subdev;
+	enum nvkm_intr_prio prio;
+	int ret;
+
+	subdev = nvkm_device_subdev(intr->subdev->device, type, inst);
+	if (!subdev || !subdev->func->intr)
+		return;
+
+	if (type == NVKM_ENGINE_DISP)
+		prio = NVKM_INTR_PRIO_VBLANK;
+	else
+		prio = NVKM_INTR_PRIO_NORMAL;
+
+	ret = nvkm_inth_add(intr, NVKM_INTR_SUBDEV, prio, subdev, nvkm_intr_subdev, &subdev->inth);
+	if (WARN_ON(ret))
+		return;
+
+	nvkm_inth_allow(&subdev->inth);
+}
+
+static void
+nvkm_intr_subdev_add(struct nvkm_intr *intr)
+{
+	const struct nvkm_intr_data *data;
+	struct nvkm_device *device = intr->subdev->device;
+	struct nvkm_top_device *tdev;
+
+	for (data = intr->data; data && data->mask; data++) {
+		if (data->legacy) {
+			if (data->type == NVKM_SUBDEV_TOP) {
+				list_for_each_entry(tdev, &device->top->device, head) {
+					if (tdev->intr < 0 || !(data->mask & BIT(tdev->intr)))
+						continue;
+
+					nvkm_intr_subdev_add_dev(intr, tdev->type, tdev->inst);
+				}
+			} else {
+				nvkm_intr_subdev_add_dev(intr, data->type, data->inst);
+			}
+		}
+	}
+}
+
 void
 nvkm_intr_rearm(struct nvkm_device *device)
 {
 	struct nvkm_intr *intr;
 	int i;
+
+	if (unlikely(!device->intr.legacy_done)) {
+		list_for_each_entry(intr, &device->intr.intr, head)
+			nvkm_intr_subdev_add(intr);
+		device->intr.legacy_done = true;
+	}
 
 	spin_lock_irq(&device->intr.lock);
 	list_for_each_entry(intr, &device->intr.intr, head) {

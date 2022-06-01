@@ -21,6 +21,8 @@ struct nvkm_subdev {
 	u32 debug;
 	struct list_head head;
 
+	struct nvkm_inth inth;
+
 	void **pself;
 	bool oneinit;
 };
