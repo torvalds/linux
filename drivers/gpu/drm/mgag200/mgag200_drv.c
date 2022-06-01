@@ -162,13 +162,15 @@ int mgag200_device_preinit(struct mga_device *mdev)
 	return 0;
 }
 
-int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags)
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags,
+			const struct mgag200_device_info *info)
 {
 	struct drm_device *dev = &mdev->base;
 	u8 crtcext3, misc;
 	int ret;
 
 	mdev->flags = flags;
+	mdev->info = info;
 	mdev->type = type;
 
 	ret = drmm_mutex_init(dev, &mdev->rmmio_lock);

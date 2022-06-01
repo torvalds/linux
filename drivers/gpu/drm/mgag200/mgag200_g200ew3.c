@@ -10,6 +10,9 @@
  * DRM device
  */
 
+static const struct mgag200_device_info mgag200_g200ew3_device_info =
+	MGAG200_DEVICE_INFO_INIT();
+
 static resource_size_t mgag200_g200ew3_device_probe_vram(struct mga_device *mdev)
 {
 	resource_size_t vram_size = resource_size(mdev->vram_res);
@@ -43,7 +46,7 @@ struct mga_device *mgag200_g200ew3_device_create(struct pci_dev *pdev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_device_init(mdev, type, flags);
+	ret = mgag200_device_init(mdev, type, flags, &mgag200_g200ew3_device_info);
 	if (ret)
 		return ERR_PTR(ret);
 

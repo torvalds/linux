@@ -196,9 +196,18 @@ enum mga_type {
 
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
+struct mgag200_device_info {
+};
+
+#define MGAG200_DEVICE_INFO_INIT() \
+	{ \
+	}
+
 struct mga_device {
 	struct drm_device		base;
 	unsigned long			flags;
+
+	const struct mgag200_device_info *info;
 
 	struct resource			*rmmio_res;
 	void __iomem			*rmmio;
@@ -252,7 +261,8 @@ int mgag200_init_pci_options(struct pci_dev *pdev, u32 option, u32 option2);
 resource_size_t mgag200_probe_vram(void __iomem *mem, resource_size_t size);
 resource_size_t mgag200_device_probe_vram(struct mga_device *mdev);
 int mgag200_device_preinit(struct mga_device *mdev);
-int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags);
+int mgag200_device_init(struct mga_device *mdev, enum mga_type type, unsigned long flags,
+			const struct mgag200_device_info *info);
 
 				/* mgag200_<device type>.c */
 struct mga_device *mgag200_g200_device_create(struct pci_dev *pdev, const struct drm_driver *drv,

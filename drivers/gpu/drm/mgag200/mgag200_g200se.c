@@ -32,6 +32,9 @@ static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
  * DRM device
  */
 
+static const struct mgag200_device_info mgag200_g200se_device_info =
+	MGAG200_DEVICE_INFO_INIT();
+
 static void mgag200_g200se_init_unique_id(struct mgag200_g200se_device *g200se)
 {
 	struct mga_device *mdev = &g200se->base;
@@ -70,7 +73,7 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 
 	mgag200_g200se_init_unique_id(g200se);
 
-	ret = mgag200_device_init(mdev, type, flags);
+	ret = mgag200_device_init(mdev, type, flags, &mgag200_g200se_device_info);
 	if (ret)
 		return ERR_PTR(ret);
 

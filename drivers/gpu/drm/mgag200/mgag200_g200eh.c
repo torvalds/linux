@@ -10,6 +10,9 @@
  * DRM device
  */
 
+static const struct mgag200_device_info mgag200_g200eh_device_info =
+	MGAG200_DEVICE_INFO_INIT();
+
 struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
 						enum mga_type type, unsigned long flags)
 {
@@ -33,7 +36,7 @@ struct mga_device *mgag200_g200eh_device_create(struct pci_dev *pdev, const stru
 	if (ret)
 		return ERR_PTR(ret);
 
-	ret = mgag200_device_init(mdev, type, flags);
+	ret = mgag200_device_init(mdev, type, flags, &mgag200_g200eh_device_info);
 	if (ret)
 		return ERR_PTR(ret);
 
