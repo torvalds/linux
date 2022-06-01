@@ -30,42 +30,9 @@
 
 #include <nvif/cl826e.h>
 
-static int
-g84_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
-			  struct nvkm_object *object)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	u32 handle = object->handle;
-	u32 context;
-
-	switch (object->engine->subdev.type) {
-	case NVKM_ENGINE_DMAOBJ:
-	case NVKM_ENGINE_SW    : context = 0x00000000; break;
-	case NVKM_ENGINE_GR    : context = 0x00100000; break;
-	case NVKM_ENGINE_MPEG  :
-	case NVKM_ENGINE_MSPPP : context = 0x00200000; break;
-	case NVKM_ENGINE_ME    :
-	case NVKM_ENGINE_CE    : context = 0x00300000; break;
-	case NVKM_ENGINE_VP    :
-	case NVKM_ENGINE_MSPDEC: context = 0x00400000; break;
-	case NVKM_ENGINE_CIPHER:
-	case NVKM_ENGINE_SEC   :
-	case NVKM_ENGINE_VIC   : context = 0x00500000; break;
-	case NVKM_ENGINE_BSP   :
-	case NVKM_ENGINE_MSVLD : context = 0x00600000; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	return nvkm_ramht_insert(chan->ramht, object, 0, 4, handle, context);
-}
-
 static const struct nvkm_fifo_chan_func
 g84_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
-	.object_ctor = g84_fifo_chan_object_ctor,
-	.object_dtor = nv50_fifo_chan_object_dtor,
 };
 
 int
@@ -95,6 +62,5 @@ g84_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 				  BIT(G84_FIFO_ENGN_MSVLD) |
 				  BIT(G84_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
-	chan->fifo = fifo;
 	return ret;
 }

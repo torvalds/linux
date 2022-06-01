@@ -68,8 +68,6 @@ g84_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, b
 	if (ret)
 		return ret;
 
-	nv50_fifo_chan(chan)->ramht = chan->ramht;
-
 	nvkm_kmap(chan->ramfc);
 	nvkm_wo32(chan->ramfc, 0x3c, 0x403f6078);
 	nvkm_wo32(chan->ramfc, 0x44, 0x01003fff);
@@ -158,6 +156,8 @@ g84_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *
 const struct nvkm_engn_func
 g84_engn = {
 	.bind = g84_ectx_bind,
+	.ramht_add = nv50_eobj_ramht_add,
+	.ramht_del = nv50_eobj_ramht_del,
 };
 
 static void

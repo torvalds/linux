@@ -67,6 +67,7 @@ struct nvkm_uobj {
 	struct nvkm_oproxy oproxy;
 	struct nvkm_chan *chan;
 	struct nvkm_cctx *cctx;
+	int hash;
 };
 
 static int
@@ -129,9 +130,14 @@ static void
 nvkm_uchan_object_dtor(struct nvkm_oproxy *oproxy)
 {
 	struct nvkm_uobj *uobj = container_of(oproxy, typeof(*uobj), oproxy);
+	struct nvkm_engn *engn;
 
 	if (!uobj->cctx)
 		return;
+
+	engn = uobj->cctx->vctx->ectx->engn;
+	if (engn->func->ramht_del)
+		engn->func->ramht_del(uobj->chan, uobj->hash);
 
 	nvkm_chan_cctx_put(uobj->chan, &uobj->cctx);
 }
@@ -151,7 +157,6 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 	struct nvkm_cgrp *cgrp = chan->cgrp;
 	struct nvkm_engn *engn;
 	struct nvkm_uobj *uobj;
-	struct nvkm_oclass _oclass;
 	int ret;
 
 	/* Lookup host engine state for target engine. */
@@ -173,9 +178,25 @@ nvkm_uchan_object_new(const struct nvkm_oclass *oclass, void *argv, u32 argc,
 		return ret;
 
 	/* Allocate HW object. */
-	_oclass = *oclass;
-	_oclass.parent = &chan->object;
-	return nvkm_fifo_chan_child_new(&_oclass, argv, argc, &uobj->oproxy.object);
+	ret = oclass->base.ctor(&(const struct nvkm_oclass) {
+					.base = oclass->base,
+					.engn = oclass->engn,
+					.handle = oclass->handle,
+					.object = oclass->object,
+					.client = oclass->client,
+					.parent = uobj->cctx->vctx->ectx->object ?: oclass->parent,
+					.engine = engn->engine,
+				 }, argv, argc, &uobj->oproxy.object);
+	if (ret)
+		return ret;
+
+	if (engn->func->ramht_add) {
+		uobj->hash = engn->func->ramht_add(engn, uobj->oproxy.object, uobj->chan);
+		if (uobj->hash < 0)
+			return uobj->hash;
+	}
+
+	return 0;
 }
 
 static int

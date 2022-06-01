@@ -51,7 +51,6 @@ gv100_fifo_gpfifo_new_(const struct nvkm_fifo_chan_func *func,
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
 		return -ENOMEM;
 	*pobject = &chan->base.object;
-	chan->fifo = fifo;
 	chan->runl = runlist;
 
 	ret = nvkm_fifo_chan_ctor(func, &fifo->base, 0x1000, 0x1000, true, vmm,

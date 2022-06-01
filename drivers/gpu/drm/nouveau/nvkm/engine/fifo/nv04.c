@@ -178,8 +178,35 @@ const struct nvkm_cgrp_func
 nv04_cgrp = {
 };
 
+void
+nv04_eobj_ramht_del(struct nvkm_chan *chan, int hash)
+{
+	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
+	struct nvkm_instmem *imem = fifo->engine.subdev.device->imem;
+
+	mutex_lock(&fifo->mutex);
+	nvkm_ramht_remove(imem->ramht, hash);
+	mutex_unlock(&fifo->mutex);
+}
+
+static int
+nv04_eobj_ramht_add(struct nvkm_engn *engn, struct nvkm_object *eobj, struct nvkm_chan *chan)
+{
+	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
+	struct nvkm_instmem *imem = fifo->engine.subdev.device->imem;
+	u32 context = 0x80000000 | chan->id << 24 | engn->id << 16;
+	int hash;
+
+	mutex_lock(&fifo->mutex);
+	hash = nvkm_ramht_insert(imem->ramht, eobj, chan->id, 4, eobj->handle, context);
+	mutex_unlock(&fifo->mutex);
+	return hash;
+}
+
 const struct nvkm_engn_func
 nv04_engn = {
+	.ramht_add = nv04_eobj_ramht_add,
+	.ramht_del = nv04_eobj_ramht_del,
 };
 
 void

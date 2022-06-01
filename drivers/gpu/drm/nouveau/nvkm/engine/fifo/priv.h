@@ -85,6 +85,7 @@ extern const struct nvkm_chan_func_userd nv04_chan_userd;
 void nv04_chan_ramfc_clear(struct nvkm_chan *);
 void nv04_chan_start(struct nvkm_chan *);
 void nv04_chan_stop(struct nvkm_chan *);
+void nv04_eobj_ramht_del(struct nvkm_chan *, int);
 
 int nv10_fifo_chid_nr(struct nvkm_fifo *);
 
@@ -101,6 +102,8 @@ void nv50_chan_unbind(struct nvkm_chan *);
 void nv50_chan_start(struct nvkm_chan *);
 void nv50_chan_stop(struct nvkm_chan *);
 void nv50_chan_preempt(struct nvkm_chan *);
+int nv50_eobj_ramht_add(struct nvkm_engn *, struct nvkm_object *, struct nvkm_chan *);
+void nv50_eobj_ramht_del(struct nvkm_chan *, int);
 
 extern const struct nvkm_event_func g84_fifo_nonstall;
 extern const struct nvkm_engn_func g84_engn;

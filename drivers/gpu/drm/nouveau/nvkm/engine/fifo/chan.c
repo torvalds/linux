@@ -39,70 +39,6 @@ const struct nvkm_event_func
 nvkm_chan_event = {
 };
 
-struct nvkm_fifo_chan_object {
-	struct nvkm_oproxy oproxy;
-	struct nvkm_fifo_chan *chan;
-	int hash;
-};
-
-static void
-nvkm_fifo_chan_child_del(struct nvkm_oproxy *base)
-{
-	struct nvkm_fifo_chan_object *object =
-		container_of(base, typeof(*object), oproxy);
-	struct nvkm_fifo_chan *chan = object->chan;
-
-	if (chan->func->object_dtor)
-		chan->func->object_dtor(chan, object->hash);
-}
-
-static const struct nvkm_oproxy_func
-nvkm_fifo_chan_child_func = {
-	.dtor[0] = nvkm_fifo_chan_child_del,
-};
-
-int
-nvkm_fifo_chan_child_new(const struct nvkm_oclass *oclass, void *data, u32 size,
-			 struct nvkm_object **pobject)
-{
-	struct nvkm_engine *engine = oclass->engine;
-	struct nvkm_fifo_chan *chan = nvkm_fifo_chan(oclass->parent);
-	struct nvkm_ectx *engn = nvkm_list_find(engn, &chan->cgrp->ectxs, head,
-						engn->engn->engine == engine);
-	struct nvkm_fifo_chan_object *object;
-	int ret = 0;
-
-	if (!(object = kzalloc(sizeof(*object), GFP_KERNEL)))
-		return -ENOMEM;
-	nvkm_oproxy_ctor(&nvkm_fifo_chan_child_func, oclass, &object->oproxy);
-	object->chan = chan;
-	*pobject = &object->oproxy.base;
-
-
-	ret = oclass->base.ctor(&(const struct nvkm_oclass) {
-					.base = oclass->base,
-					.engn = oclass->engn,
-					.handle = oclass->handle,
-					.object = oclass->object,
-					.client = oclass->client,
-					.parent = engn->object ?
-						  engn->object :
-						  oclass->parent,
-					.engine = engine,
-				}, data, size, &object->oproxy.object);
-	if (ret)
-		return ret;
-
-	if (chan->func->object_ctor) {
-		object->hash =
-			chan->func->object_ctor(chan, object->oproxy.object);
-		if (object->hash < 0)
-			return object->hash;
-	}
-
-	return 0;
-}
-
 void
 nvkm_chan_cctx_bind(struct nvkm_chan *chan, struct nvkm_engn *engn, struct nvkm_cctx *cctx)
 {
@@ -455,8 +391,6 @@ nvkm_fifo_chan_ctor(const struct nvkm_fifo_chan_func *fn,
 
 	*func = *fifo->func->chan.func;
 	func->dtor = fn->dtor;
-	func->object_ctor = fn->object_ctor;
-	func->object_dtor = fn->object_dtor;
 
 	chan->func = func;
 	chan->id = -1;

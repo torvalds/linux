@@ -31,44 +31,6 @@
 #include <nvif/cl006b.h>
 #include <nvif/unpack.h>
 
-void
-nv04_fifo_dma_object_dtor(struct nvkm_fifo_chan *base, int cookie)
-{
-	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	struct nvkm_instmem *imem = chan->fifo->base.engine.subdev.device->imem;
-
-	mutex_lock(&chan->fifo->base.mutex);
-	nvkm_ramht_remove(imem->ramht, cookie);
-	mutex_unlock(&chan->fifo->base.mutex);
-}
-
-static int
-nv04_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
-			  struct nvkm_object *object)
-{
-	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	struct nvkm_instmem *imem = chan->fifo->base.engine.subdev.device->imem;
-	u32 context = 0x80000000 | chan->base.chid << 24;
-	u32 handle  = object->handle;
-	int hash;
-
-	switch (object->engine->subdev.type) {
-	case NVKM_ENGINE_DMAOBJ:
-	case NVKM_ENGINE_SW    : context |= 0x00000000; break;
-	case NVKM_ENGINE_GR    : context |= 0x00010000; break;
-	case NVKM_ENGINE_MPEG  : context |= 0x00020000; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	mutex_lock(&chan->fifo->base.mutex);
-	hash = nvkm_ramht_insert(imem->ramht, object, chan->base.chid, 4,
-				 handle, context);
-	mutex_unlock(&chan->fifo->base.mutex);
-	return hash;
-}
-
 void *
 nv04_fifo_dma_dtor(struct nvkm_fifo_chan *base)
 {
@@ -79,8 +41,6 @@ nv04_fifo_dma_dtor(struct nvkm_fifo_chan *base)
 const struct nvkm_fifo_chan_func
 nv04_fifo_dma_func = {
 	.dtor = nv04_fifo_dma_dtor,
-	.object_ctor = nv04_fifo_dma_object_ctor,
-	.object_dtor = nv04_fifo_dma_object_dtor,
 };
 
 static int
@@ -115,7 +75,6 @@ nv04_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 				  BIT(NV04_FIFO_ENGN_GR) |
 				  BIT(NV04_FIFO_ENGN_DMA),
 				  0, 0x800000, 0x10000, oclass, &chan->base);
-	chan->fifo = fifo;
 	if (ret)
 		return ret;
 

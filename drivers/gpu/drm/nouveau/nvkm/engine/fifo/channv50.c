@@ -28,34 +28,6 @@
 #include <subdev/mmu.h>
 #include <subdev/timer.h>
 
-void
-nv50_fifo_chan_object_dtor(struct nvkm_fifo_chan *base, int cookie)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	nvkm_ramht_remove(chan->ramht, cookie);
-}
-
-static int
-nv50_fifo_chan_object_ctor(struct nvkm_fifo_chan *base,
-			   struct nvkm_object *object)
-{
-	struct nv50_fifo_chan *chan = nv50_fifo_chan(base);
-	u32 handle = object->handle;
-	u32 context;
-
-	switch (object->engine->subdev.type) {
-	case NVKM_ENGINE_DMAOBJ:
-	case NVKM_ENGINE_SW    : context = 0x00000000; break;
-	case NVKM_ENGINE_GR    : context = 0x00100000; break;
-	case NVKM_ENGINE_MPEG  : context = 0x00200000; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	return nvkm_ramht_insert(chan->ramht, object, 0, 4, handle, context);
-}
-
 void *
 nv50_fifo_chan_dtor(struct nvkm_fifo_chan *base)
 {
@@ -66,8 +38,6 @@ nv50_fifo_chan_dtor(struct nvkm_fifo_chan *base)
 static const struct nvkm_fifo_chan_func
 nv50_fifo_chan_func = {
 	.dtor = nv50_fifo_chan_dtor,
-	.object_ctor = nv50_fifo_chan_object_ctor,
-	.object_dtor = nv50_fifo_chan_object_dtor,
 };
 
 int
@@ -87,6 +57,5 @@ nv50_fifo_chan_ctor(struct nv50_fifo *fifo, u64 vmm, u64 push,
 				  BIT(NV50_FIFO_ENGN_MPEG) |
 				  BIT(NV50_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x2000, oclass, &chan->base);
-	chan->fifo = fifo;
 	return ret;
 }

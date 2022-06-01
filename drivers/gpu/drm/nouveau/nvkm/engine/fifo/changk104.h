@@ -7,7 +7,6 @@
 
 struct gk104_fifo_chan {
 	struct nvkm_fifo_chan base;
-	struct gk104_fifo *fifo;
 	int runl;
 
 #define GK104_FIFO_ENGN_SW 15

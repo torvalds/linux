@@ -70,7 +70,6 @@ gf100_fifo_gpfifo_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 	if (!(chan = kzalloc(sizeof(*chan), GFP_KERNEL)))
 		return -ENOMEM;
 	*pobject = &chan->base.object;
-	chan->fifo = fifo;
 
 	ret = nvkm_fifo_chan_ctor(&gf100_fifo_gpfifo_func, &fifo->base,
 				  0x1000, 0x1000, true, args->v0.vmm, 0,

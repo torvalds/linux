@@ -31,38 +31,8 @@
 #include <nvif/cl006b.h>
 #include <nvif/unpack.h>
 
-static int
-nv40_fifo_dma_object_ctor(struct nvkm_fifo_chan *base,
-			  struct nvkm_object *object)
-{
-	struct nv04_fifo_chan *chan = nv04_fifo_chan(base);
-	struct nvkm_instmem *imem = chan->fifo->base.engine.subdev.device->imem;
-	u32 context = chan->base.chid << 23;
-	u32 handle  = object->handle;
-	int hash;
-
-	switch (object->engine->subdev.type) {
-	case NVKM_ENGINE_DMAOBJ:
-	case NVKM_ENGINE_SW    : context |= 0x00000000; break;
-	case NVKM_ENGINE_GR    : context |= 0x00100000; break;
-	case NVKM_ENGINE_MPEG  : context |= 0x00200000; break;
-	default:
-		WARN_ON(1);
-		return -EINVAL;
-	}
-
-	mutex_lock(&chan->fifo->base.mutex);
-	hash = nvkm_ramht_insert(imem->ramht, object, chan->base.chid, 4,
-				 handle, context);
-	mutex_unlock(&chan->fifo->base.mutex);
-	return hash;
-}
-
 static const struct nvkm_fifo_chan_func
 nv40_fifo_dma_func = {
-	.dtor = nv04_fifo_dma_dtor,
-	.object_ctor = nv40_fifo_dma_object_ctor,
-	.object_dtor = nv04_fifo_dma_object_dtor,
 };
 
 static int
@@ -98,7 +68,6 @@ nv40_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 				  BIT(NV04_FIFO_ENGN_MPEG) |
 				  BIT(NV04_FIFO_ENGN_DMA),
 				  0, 0xc00000, 0x1000, oclass, &chan->base);
-	chan->fifo = fifo;
 	if (ret)
 		return ret;
 

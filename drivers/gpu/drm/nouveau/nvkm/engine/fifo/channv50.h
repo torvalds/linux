@@ -6,10 +6,7 @@
 #include "nv50.h"
 
 struct nv50_fifo_chan {
-	struct nv50_fifo *fifo;
 	struct nvkm_fifo_chan base;
-
-	struct nvkm_ramht *ramht;
 
 #define NV50_FIFO_ENGN_SW   0
 #define NV50_FIFO_ENGN_GR   1
@@ -35,7 +32,6 @@ struct nv50_fifo_chan {
 int nv50_fifo_chan_ctor(struct nv50_fifo *, u64 vmm, u64 push,
 			const struct nvkm_oclass *, struct nv50_fifo_chan *);
 void *nv50_fifo_chan_dtor(struct nvkm_fifo_chan *);
-void nv50_fifo_chan_object_dtor(struct nvkm_fifo_chan *, int);
 
 int g84_fifo_chan_ctor(struct nv50_fifo *, u64 vmm, u64 push,
 		       const struct nvkm_oclass *, struct nv50_fifo_chan *);

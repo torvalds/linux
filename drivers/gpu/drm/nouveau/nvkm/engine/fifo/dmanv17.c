@@ -64,7 +64,6 @@ nv17_fifo_dma_new(struct nvkm_fifo *base, const struct nvkm_oclass *oclass,
 				  BIT(NV04_FIFO_ENGN_MPEG) | /* NV31- */
 				  BIT(NV04_FIFO_ENGN_DMA),
 				  0, 0x800000, 0x10000, oclass, &chan->base);
-	chan->fifo = fifo;
 	if (ret)
 		return ret;
 

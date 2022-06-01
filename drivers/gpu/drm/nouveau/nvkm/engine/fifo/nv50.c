@@ -35,6 +35,18 @@
 #include <nvif/class.h>
 
 void
+nv50_eobj_ramht_del(struct nvkm_chan *chan, int hash)
+{
+	nvkm_ramht_remove(chan->ramht, hash);
+}
+
+int
+nv50_eobj_ramht_add(struct nvkm_engn *engn, struct nvkm_object *eobj, struct nvkm_chan *chan)
+{
+	return nvkm_ramht_insert(chan->ramht, eobj, 0, 4, eobj->handle, engn->id << 20);
+}
+
+void
 nv50_chan_stop(struct nvkm_chan *chan)
 {
 	struct nvkm_device *device = chan->cgrp->runl->fifo->engine.subdev.device;
@@ -88,8 +100,6 @@ nv50_chan_ramfc_write(struct nvkm_chan *chan, u64 offset, u64 length, u32 devm, 
 	ret = nvkm_ramht_new(device, 0x8000, 16, chan->inst, &chan->ramht);
 	if (ret)
 		return ret;
-
-	nv50_fifo_chan(chan)->ramht = chan->ramht;
 
 	nvkm_kmap(chan->ramfc);
 	nvkm_wo32(chan->ramfc, 0x3c, 0x403f6078);
@@ -196,10 +206,14 @@ nv50_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan 
 static const struct nvkm_engn_func
 nv50_engn = {
 	.bind = nv50_ectx_bind,
+	.ramht_add = nv50_eobj_ramht_add,
+	.ramht_del = nv50_eobj_ramht_del,
 };
 
 const struct nvkm_engn_func
 nv50_engn_sw = {
+	.ramht_add = nv50_eobj_ramht_add,
+	.ramht_del = nv50_eobj_ramht_del,
 };
 
 static bool

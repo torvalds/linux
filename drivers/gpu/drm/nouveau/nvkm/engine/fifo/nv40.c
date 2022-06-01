@@ -108,6 +108,20 @@ nv40_chan = {
 	.stop = nv04_chan_stop,
 };
 
+static int
+nv40_eobj_ramht_add(struct nvkm_engn *engn, struct nvkm_object *eobj, struct nvkm_chan *chan)
+{
+	struct nvkm_fifo *fifo = chan->cgrp->runl->fifo;
+	struct nvkm_instmem *imem = fifo->engine.subdev.device->imem;
+	u32 context = chan->id << 23 | engn->id << 20;
+	int hash;
+
+	mutex_lock(&fifo->mutex);
+	hash = nvkm_ramht_insert(imem->ramht, eobj, chan->id, 4, eobj->handle, context);
+	mutex_unlock(&fifo->mutex);
+	return hash;
+}
+
 static void
 nv40_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan *chan)
 {
@@ -154,10 +168,14 @@ nv40_ectx_bind(struct nvkm_engn *engn, struct nvkm_cctx *cctx, struct nvkm_chan 
 static const struct nvkm_engn_func
 nv40_engn = {
 	.bind = nv40_ectx_bind,
+	.ramht_add = nv40_eobj_ramht_add,
+	.ramht_del = nv04_eobj_ramht_del,
 };
 
 static const struct nvkm_engn_func
 nv40_engn_sw = {
+	.ramht_add = nv40_eobj_ramht_add,
+	.ramht_del = nv04_eobj_ramht_del,
 };
 
 static void

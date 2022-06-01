@@ -7,7 +7,6 @@
 
 struct nv04_fifo_chan {
 	struct nvkm_fifo_chan base;
-	struct nv04_fifo *fifo;
 #define NV04_FIFO_ENGN_SW   0
 #define NV04_FIFO_ENGN_GR   1
 #define NV04_FIFO_ENGN_MPEG 2
@@ -16,7 +15,6 @@ struct nv04_fifo_chan {
 
 extern const struct nvkm_fifo_chan_func nv04_fifo_dma_func;
 void *nv04_fifo_dma_dtor(struct nvkm_fifo_chan *);
-void nv04_fifo_dma_object_dtor(struct nvkm_fifo_chan *, int);
 
 extern const struct nvkm_fifo_chan_oclass nv04_fifo_dma_oclass;
 extern const struct nvkm_fifo_chan_oclass nv10_fifo_dma_oclass;
