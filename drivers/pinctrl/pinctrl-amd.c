@@ -963,6 +963,30 @@ static struct pinctrl_desc amd_pinctrl_desc = {
 	.owner = THIS_MODULE,
 };
 
+static void amd_get_iomux_res(struct amd_gpio *gpio_dev)
+{
+	struct pinctrl_desc *desc = &amd_pinctrl_desc;
+	struct device *dev = &gpio_dev->pdev->dev;
+	int index;
+
+	index = device_property_match_string(dev, "pinctrl-resource-names",  "iomux");
+	if (index < 0) {
+		dev_warn(dev, "failed to get iomux index\n");
+		goto out_no_pinmux;
+	}
+
+	gpio_dev->iomux_base = devm_platform_ioremap_resource(gpio_dev->pdev, index);
+	if (IS_ERR(gpio_dev->iomux_base)) {
+		dev_warn(dev, "Failed to get iomux %d io resource\n", index);
+		goto out_no_pinmux;
+	}
+
+	return;
+
+out_no_pinmux:
+	desc->pmxops = NULL;
+}
+
 static int amd_gpio_probe(struct platform_device *pdev)
 {
 	int ret = 0;
@@ -1020,6 +1044,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev->ngroups = ARRAY_SIZE(kerncz_groups);
 
 	amd_pinctrl_desc.name = dev_name(&pdev->dev);
+	amd_get_iomux_res(gpio_dev);
 	gpio_dev->pctrl = devm_pinctrl_register(&pdev->dev, &amd_pinctrl_desc,
 						gpio_dev);
 	if (IS_ERR(gpio_dev->pctrl)) {
