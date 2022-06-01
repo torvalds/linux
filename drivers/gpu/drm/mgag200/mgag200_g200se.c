@@ -32,21 +32,37 @@ static int mgag200_g200se_init_pci_options(struct pci_dev *pdev)
  * DRM device
  */
 
-static const struct mgag200_device_info mgag200_g200se_a_device_info =
-	MGAG200_DEVICE_INFO_INIT(true);
+static const struct mgag200_device_info mgag200_g200se_a_01_device_info =
+	MGAG200_DEVICE_INFO_INIT(1600, 1200, 24400, true);
 
-static const struct mgag200_device_info mgag200_g200se_b_device_info =
-	MGAG200_DEVICE_INFO_INIT(false);
+static const struct mgag200_device_info mgag200_g200se_a_02_device_info =
+	MGAG200_DEVICE_INFO_INIT(1920, 1200, 30100, true);
 
-static void mgag200_g200se_init_unique_id(struct mgag200_g200se_device *g200se)
+static const struct mgag200_device_info mgag200_g200se_a_03_device_info =
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 55000, false);
+
+static const struct mgag200_device_info mgag200_g200se_b_01_device_info =
+	MGAG200_DEVICE_INFO_INIT(1600, 1200, 24400, false);
+
+static const struct mgag200_device_info mgag200_g200se_b_02_device_info =
+	MGAG200_DEVICE_INFO_INIT(1920, 1200, 30100, false);
+
+static const struct mgag200_device_info mgag200_g200se_b_03_device_info =
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 55000, false);
+
+static int mgag200_g200se_init_unique_rev_id(struct mgag200_g200se_device *g200se)
 {
 	struct mga_device *mdev = &g200se->base;
 	struct drm_device *dev = &mdev->base;
 
 	/* stash G200 SE model number for later use */
 	g200se->unique_rev_id = RREG32(0x1e24);
+	if (!g200se->unique_rev_id)
+		return -ENODEV;
 
 	drm_dbg(dev, "G200 SE unique revision id is 0x%x\n", g200se->unique_rev_id);
+
+	return 0;
 }
 
 struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const struct drm_driver *drv,
@@ -75,14 +91,26 @@ struct mga_device *mgag200_g200se_device_create(struct pci_dev *pdev, const stru
 	if (ret)
 		return ERR_PTR(ret);
 
-	mgag200_g200se_init_unique_id(g200se);
+	ret = mgag200_g200se_init_unique_rev_id(g200se);
+	if (ret)
+		return ERR_PTR(ret);
 
 	switch (type) {
 	case G200_SE_A:
-		info = &mgag200_g200se_a_device_info;
+		if (g200se->unique_rev_id >= 0x03)
+			info = &mgag200_g200se_a_03_device_info;
+		else if (g200se->unique_rev_id >= 0x02)
+			info = &mgag200_g200se_a_02_device_info;
+		else
+			info = &mgag200_g200se_a_01_device_info;
 		break;
 	case G200_SE_B:
-		info = &mgag200_g200se_b_device_info;
+		if (g200se->unique_rev_id >= 0x03)
+			info = &mgag200_g200se_b_03_device_info;
+		else if (g200se->unique_rev_id >= 0x02)
+			info = &mgag200_g200se_b_02_device_info;
+		else
+			info = &mgag200_g200se_b_01_device_info;
 		break;
 	default:
 		return ERR_PTR(-EINVAL);

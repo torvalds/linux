@@ -191,6 +191,15 @@ enum mga_type {
 #define IS_G200_SE(mdev) (mdev->type == G200_SE_A || mdev->type == G200_SE_B)
 
 struct mgag200_device_info {
+	u16 max_hdisplay;
+	u16 max_vdisplay;
+
+	/*
+	 * Maximum memory bandwidth (MiB/sec). Setting this to zero disables
+	 * the rsp test during mode validation.
+	 */
+	unsigned long max_mem_bandwidth;
+
 	/*
 	 * HW does not handle 'startadd' register correctly. Always set
 	 * it's value to 0.
@@ -198,8 +207,12 @@ struct mgag200_device_info {
 	bool bug_no_startadd:1;
 };
 
-#define MGAG200_DEVICE_INFO_INIT(_bug_no_startadd) \
+#define MGAG200_DEVICE_INFO_INIT(_max_hdisplay, _max_vdisplay, _max_mem_bandwidth, \
+				 _bug_no_startadd) \
 	{ \
+		.max_hdisplay = (_max_hdisplay), \
+		.max_vdisplay = (_max_vdisplay), \
+		.max_mem_bandwidth = (_max_mem_bandwidth), \
 		.bug_no_startadd = (_bug_no_startadd), \
 	}
 

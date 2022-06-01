@@ -11,7 +11,7 @@
  */
 
 static const struct mgag200_device_info mgag200_g200ew3_device_info =
-	MGAG200_DEVICE_INFO_INIT(false);
+	MGAG200_DEVICE_INFO_INIT(2048, 2048, 0, false);
 
 static resource_size_t mgag200_g200ew3_device_probe_vram(struct mga_device *mdev)
 {
