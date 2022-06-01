@@ -210,7 +210,16 @@ static void xehp_sseu_info_init(struct intel_gt *gt)
 	struct intel_uncore *uncore = gt->uncore;
 	u16 eu_en = 0;
 	u8 eu_en_fuse;
+	int num_compute_regs, num_geometry_regs;
 	int eu;
+
+	if (IS_PONTEVECCHIO(gt->i915)) {
+		num_geometry_regs = 0;
+		num_compute_regs = 2;
+	} else {
+		num_geometry_regs = 1;
+		num_compute_regs = 1;
+	}
 
 	/*
 	 * The concept of slice has been removed in Xe_HP.  To be compatible
@@ -218,19 +227,27 @@ static void xehp_sseu_info_init(struct intel_gt *gt)
 	 * device. Then calculate out the DSS for each workload type within
 	 * that software slice.
 	 */
-	intel_sseu_set_info(sseu, 1, 32, 16);
+	intel_sseu_set_info(sseu, 1,
+			    32 * max(num_geometry_regs, num_compute_regs),
+			    16);
 	sseu->has_xehp_dss = 1;
 
-	xehp_load_dss_mask(uncore, &sseu->geometry_subslice_mask, 1,
+	xehp_load_dss_mask(uncore, &sseu->geometry_subslice_mask,
+			   num_geometry_regs,
 			   GEN12_GT_GEOMETRY_DSS_ENABLE);
-	xehp_load_dss_mask(uncore, &sseu->compute_subslice_mask, 1,
-			   GEN12_GT_COMPUTE_DSS_ENABLE);
+	xehp_load_dss_mask(uncore, &sseu->compute_subslice_mask,
+			   num_compute_regs,
+			   GEN12_GT_COMPUTE_DSS_ENABLE,
+			   XEHPC_GT_COMPUTE_DSS_ENABLE_EXT);
 
 	eu_en_fuse = intel_uncore_read(uncore, XEHP_EU_ENABLE) & XEHP_EU_ENA_MASK;
 
-	for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
-		if (eu_en_fuse & BIT(eu))
-			eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
+	if (HAS_ONE_EU_PER_FUSE_BIT(gt->i915))
+		eu_en = eu_en_fuse;
+	else
+		for (eu = 0; eu < sseu->max_eus_per_subslice / 2; eu++)
+			if (eu_en_fuse & BIT(eu))
+				eu_en |= BIT(eu * 2) | BIT(eu * 2 + 1);
 
 	xehp_compute_sseu_info(sseu, eu_en);
 }

@@ -33,7 +33,7 @@ struct drm_printer;
  * Maximum number of 32-bit registers used by hardware to express the
  * enabled/disabled subslices.
  */
-#define I915_MAX_SS_FUSE_REGS	1
+#define I915_MAX_SS_FUSE_REGS	2
 #define I915_MAX_SS_FUSE_BITS	(I915_MAX_SS_FUSE_REGS * 32)
 
 /* Maximum number of EUs that can exist within a subslice or DSS. */
