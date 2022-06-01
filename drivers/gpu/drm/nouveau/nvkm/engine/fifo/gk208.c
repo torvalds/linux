@@ -38,6 +38,8 @@ gk208_runq_init(struct nvkm_runq *runq)
 const struct nvkm_runq_func
 gk208_runq = {
 	.init = gk208_runq_init,
+	.intr = gk104_runq_intr,
+	.intr_0_names = gk104_runq_intr_0_names,
 };
 
 static int

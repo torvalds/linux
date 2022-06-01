@@ -2,10 +2,13 @@
 #ifndef __NVKM_RUNQ_H__
 #define __NVKM_RUNQ_H__
 #include <core/os.h>
+struct nvkm_runl;
 
 struct nvkm_runq {
 	const struct nvkm_runq_func {
 		void (*init)(struct nvkm_runq *);
+		bool (*intr)(struct nvkm_runq *, struct nvkm_runl *);
+		const struct nvkm_bitfield *intr_0_names;
 	} *func;
 	struct nvkm_fifo *fifo;
 	int id;

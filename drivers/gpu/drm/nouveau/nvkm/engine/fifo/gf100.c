@@ -30,7 +30,6 @@
 #include "changf100.h"
 
 #include <core/client.h>
-#include <core/enum.h>
 #include <core/gpuobj.h>
 #include <subdev/bar.h>
 #include <subdev/fault.h>
@@ -52,27 +51,28 @@ gf100_engn_sw = {
 };
 
 static const struct nvkm_bitfield
-gf100_fifo_pbdma_intr[] = {
+gf100_runq_intr_0_names[] = {
 /*	{ 0x00008000, "" }	seen with null ib push */
 	{ 0x00200000, "ILLEGAL_MTHD" },
 	{ 0x00800000, "EMPTY_SUBC" },
 	{}
 };
 
-static void
-gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
+bool
+gf100_runq_intr(struct nvkm_runq *runq, struct nvkm_runl *null)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_subdev *subdev = &runq->fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	u32 stat = nvkm_rd32(device, 0x040108 + (unit * 0x2000));
-	u32 addr = nvkm_rd32(device, 0x0400c0 + (unit * 0x2000));
-	u32 data = nvkm_rd32(device, 0x0400c4 + (unit * 0x2000));
-	u32 chid = nvkm_rd32(device, 0x040120 + (unit * 0x2000)) & 0x7f;
+	u32 mask = nvkm_rd32(device, 0x04010c + (runq->id * 0x2000));
+	u32 stat = nvkm_rd32(device, 0x040108 + (runq->id * 0x2000)) & mask;
+	u32 addr = nvkm_rd32(device, 0x0400c0 + (runq->id * 0x2000));
+	u32 data = nvkm_rd32(device, 0x0400c4 + (runq->id * 0x2000));
+	u32 chid = nvkm_rd32(device, 0x040120 + (runq->id * 0x2000)) & runq->fifo->chid->mask;
 	u32 subc = (addr & 0x00070000) >> 16;
 	u32 mthd = (addr & 0x00003ffc);
-	struct nvkm_fifo_chan *chan;
-	unsigned long flags;
 	u32 show = stat;
+	struct nvkm_chan *chan;
+	unsigned long flags;
 	char msg[128];
 
 	if (stat & 0x00800000) {
@@ -83,18 +83,19 @@ gf100_fifo_intr_pbdma(struct gf100_fifo *fifo, int unit)
 	}
 
 	if (show) {
-		nvkm_snprintbf(msg, sizeof(msg), gf100_fifo_pbdma_intr, show);
-		chan = nvkm_fifo_chan_chid(&fifo->base, chid, &flags);
+		nvkm_snprintbf(msg, sizeof(msg), runq->func->intr_0_names, show);
+		chan = nvkm_fifo_chan_chid(runq->fifo, chid, &flags);
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
-			   unit, show, msg, chid, chan ? chan->inst->addr : 0,
+			   runq->id, show, msg, chid, chan ? chan->inst->addr : 0,
 			   chan ? chan->object.client->name : "unknown",
 			   subc, mthd, data);
-		nvkm_fifo_chan_put(&fifo->base, flags, &chan);
+		nvkm_fifo_chan_put(runq->fifo, flags, &chan);
 	}
 
-	nvkm_wr32(device, 0x0400c0 + (unit * 0x2000), 0x80600008);
-	nvkm_wr32(device, 0x040108 + (unit * 0x2000), stat);
+	nvkm_wr32(device, 0x0400c0 + (runq->id * 0x2000), 0x80600008);
+	nvkm_wr32(device, 0x040108 + (runq->id * 0x2000), stat);
+	return true;
 }
 
 void
@@ -110,6 +111,8 @@ gf100_runq_init(struct nvkm_runq *runq)
 static const struct nvkm_runq_func
 gf100_runq = {
 	.init = gf100_runq_init,
+	.intr = gf100_runq_intr,
+	.intr_0_names = gf100_runq_intr_0_names,
 };
 
 void
@@ -495,6 +498,24 @@ gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *fifo, int unit)
 	nvkm_fifo_fault(fifo, &info);
 }
 
+bool
+gf100_fifo_intr_pbdma(struct nvkm_fifo *fifo)
+{
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_runq *runq;
+	u32 mask = nvkm_rd32(device, 0x0025a0);
+	bool handled = false;
+
+	nvkm_runq_foreach_cond(runq, fifo, mask & BIT(runq->id)) {
+		if (runq->func->intr(runq, NULL))
+			handled = true;
+
+		nvkm_wr32(device, 0x0025a0, BIT(runq->id));
+	}
+
+	return handled;
+}
+
 static void
 gf100_fifo_intr_runlist(struct gf100_fifo *fifo)
 {
@@ -599,14 +620,8 @@ gf100_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x20000000) {
-		u32 mask = nvkm_rd32(device, 0x0025a0);
-		while (mask) {
-			u32 unit = __ffs(mask);
-			gf100_fifo_intr_pbdma(gf100_fifo(fifo), unit);
-			nvkm_wr32(device, 0x0025a0, (1 << unit));
-			mask &= ~(1 << unit);
-		}
-		stat &= ~0x20000000;
+		if (gf100_fifo_intr_pbdma(fifo))
+			stat &= ~0x20000000;
 	}
 
 	if (stat & 0x40000000) {

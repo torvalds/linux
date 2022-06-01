@@ -3,8 +3,10 @@
 #define __NVKM_FIFO_PRIV_H__
 #define nvkm_fifo(p) container_of((p), struct nvkm_fifo, engine)
 #include <engine/fifo.h>
+#include <core/enum.h>
 struct nvkm_cgrp;
 struct nvkm_memory;
+struct nvkm_runl;
 struct nvkm_runq;
 struct gk104_fifo;
 struct gk104_fifo_chan;
@@ -113,9 +115,11 @@ extern const struct nvkm_chan_func g84_chan;
 
 int gf100_fifo_chid_ctor(struct nvkm_fifo *, int);
 int gf100_fifo_runq_nr(struct nvkm_fifo *);
+bool gf100_fifo_intr_pbdma(struct nvkm_fifo *);
 void gf100_fifo_intr_mmu_fault_unit(struct nvkm_fifo *, int);
 extern const struct nvkm_event_func gf100_fifo_nonstall;
 void gf100_runq_init(struct nvkm_runq *);
+bool gf100_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
 extern const struct nvkm_engn_func gf100_engn_sw;
 
 int gk104_fifo_chid_nr(struct nvkm_fifo *);
@@ -130,6 +134,8 @@ void gk104_fifo_recover_chan(struct nvkm_fifo *, int);
 int gk104_fifo_engine_id(struct nvkm_fifo *, struct nvkm_engine *);
 extern const struct nvkm_runq_func gk104_runq;
 void gk104_runq_init(struct nvkm_runq *);
+bool gk104_runq_intr(struct nvkm_runq *, struct nvkm_runl *);
+extern const struct nvkm_bitfield gk104_runq_intr_0_names[];
 extern const struct nvkm_engn_func gk104_engn;
 extern const struct nvkm_engn_func gk104_engn_ce;
 

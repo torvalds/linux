@@ -46,6 +46,8 @@ gv100_engn_ce = {
 const struct nvkm_runq_func
 gv100_runq = {
 	.init = gk208_runq_init,
+	.intr = gk104_runq_intr,
+	.intr_0_names = gk104_runq_intr_0_names,
 };
 
 void

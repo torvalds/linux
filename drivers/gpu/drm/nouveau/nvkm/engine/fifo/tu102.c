@@ -395,17 +395,8 @@ tu102_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x20000000) {
-		u32 mask = nvkm_rd32(device, 0x0025a0);
-
-		while (mask) {
-			u32 unit = __ffs(mask);
-
-			gk104_fifo_intr_pbdma_0(gk104_fifo(fifo), unit);
-			gk104_fifo_intr_pbdma_1(gk104_fifo(fifo), unit);
-			nvkm_wr32(device, 0x0025a0, (1 << unit));
-			mask &= ~(1 << unit);
-		}
-		stat &= ~0x20000000;
+		if (gf100_fifo_intr_pbdma(fifo))
+			stat &= ~0x20000000;
 	}
 
 	if (stat & 0x40000000) {

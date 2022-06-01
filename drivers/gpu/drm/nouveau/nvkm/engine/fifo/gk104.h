@@ -5,7 +5,6 @@
 #include "priv.h"
 struct nvkm_fifo_cgrp;
 
-#include <core/enum.h>
 #include <subdev/mmu.h>
 
 #define gk104_fifo_func nvkm_fifo_func
@@ -64,8 +63,6 @@ void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_update(struct gk104_fifo *, int runl);
 void gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 			      struct gk104_fifo_engine_status *status);
-void gk104_fifo_intr_pbdma_0(struct gk104_fifo *fifo, int unit);
-void gk104_fifo_intr_pbdma_1(struct gk104_fifo *fifo, int unit);
 void gk104_fifo_intr_runlist(struct gk104_fifo *fifo);
 void *gk104_fifo_dtor(struct nvkm_fifo *base);
 int gk104_fifo_oneinit(struct nvkm_fifo *);
