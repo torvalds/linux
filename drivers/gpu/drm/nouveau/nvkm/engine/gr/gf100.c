@@ -796,6 +796,20 @@ gf100_gr_fecs_stop_ctxsw(struct nvkm_gr *base)
 	return ret;
 }
 
+static int
+gf100_gr_fecs_halt_pipeline(struct gf100_gr *gr)
+{
+	int ret = 0;
+
+	if (gr->firmware) {
+		mutex_lock(&gr->fecs.mutex);
+		ret = gf100_gr_fecs_ctrl_ctxsw(gr, 0x04);
+		mutex_unlock(&gr->fecs.mutex);
+	}
+
+	return ret;
+}
+
 int
 gf100_gr_fecs_wfi_golden_save(struct gf100_gr *gr, u32 inst)
 {
@@ -2247,6 +2261,24 @@ gf100_gr_init_vsc_stream_master(struct gf100_gr *gr)
 	nvkm_mask(device, TPC_UNIT(0, 0, 0x05c), 0x00000001, 0x00000001);
 }
 
+static int
+gf100_gr_reset(struct nvkm_gr *base)
+{
+	struct nvkm_subdev *subdev = &base->engine.subdev;
+	struct nvkm_device *device = subdev->device;
+	struct gf100_gr *gr = gf100_gr(base);
+
+	nvkm_mask(device, 0x400500, 0x00000001, 0x00000000);
+
+	WARN_ON(gf100_gr_fecs_halt_pipeline(gr));
+
+	subdev->func->fini(subdev, false);
+	nvkm_mc_disable(device, subdev->type, subdev->inst);
+
+	nvkm_mc_enable(device, subdev->type, subdev->inst);
+	return subdev->func->init(subdev);
+}
+
 int
 gf100_gr_init(struct gf100_gr *gr)
 {
@@ -2392,6 +2424,7 @@ gf100_gr_ = {
 	.oneinit = gf100_gr_oneinit,
 	.init = gf100_gr_init_,
 	.fini = gf100_gr_fini,
+	.reset = gf100_gr_reset,
 	.intr = gf100_gr_intr,
 	.units = gf100_gr_units,
 	.chan_new = gf100_gr_chan_new,
