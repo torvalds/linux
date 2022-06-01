@@ -66,6 +66,11 @@ nv50_pior_dp_links(struct nvkm_ior *pior, struct nvkm_i2c_aux *aux)
 	return 1;
 }
 
+static const struct nvkm_ior_func_dp
+nv50_pior_dp = {
+	.links = nv50_pior_dp_links,
+};
+
 static void
 nv50_pior_power_wait(struct nvkm_device *device, u32 poff)
 {
@@ -139,9 +144,7 @@ nv50_pior = {
 	.state = nv50_pior_state,
 	.power = nv50_pior_power,
 	.clock = nv50_pior_clock,
-	.dp = {
-		.links = nv50_pior_dp_links,
-	},
+	.dp = &nv50_pior_dp,
 };
 
 int
@@ -1324,7 +1327,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 	do_div(v, khz);
 	v = v - ((36 / ior->dp.nr) + 3) - 1;
 
-	ior->func->dp.audio_sym(ior, head->id, h, v);
+	ior->func->dp->audio_sym(ior, head->id, h, v);
 
 	/* watermark / activesym */
 	link_data_rate = (khz * head->asy.or.depth / 8) / ior->dp.nr;
@@ -1333,7 +1336,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 	link_ratio = link_data_rate * symbol;
 	do_div(link_ratio, linkKBps);
 
-	for (TU = 64; ior->func->dp.activesym && TU >= 32; TU--) {
+	for (TU = 64; ior->func->dp->activesym && TU >= 32; TU--) {
 		/* calculate average number of valid symbols in each TU */
 		u32 tu_valid = link_ratio * TU;
 		u32 calc, diff;
@@ -1384,13 +1387,13 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 		}
 	}
 
-	if (ior->func->dp.activesym) {
+	if (ior->func->dp->activesym) {
 		if (!bestTU) {
 			nvkm_error(subdev, "unable to determine dp config\n");
 			return;
 		}
-		ior->func->dp.activesym(ior, head->id, bestTU,
-					bestVTUa, bestVTUf, bestVTUi);
+
+		ior->func->dp->activesym(ior, head->id, bestTU, bestVTUa, bestVTUf, bestVTUi);
 	} else {
 		bestTU = 64;
 	}
@@ -1402,7 +1405,7 @@ nv50_disp_super_2_2_dp(struct nvkm_head *head, struct nvkm_ior *ior)
 	do_div(unk, symbol);
 	unk += 6;
 
-	ior->func->dp.watermark(ior, head->id, unk);
+	ior->func->dp->watermark(ior, head->id, unk);
 }
 
 void

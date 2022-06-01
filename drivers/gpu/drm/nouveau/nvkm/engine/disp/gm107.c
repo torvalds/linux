@@ -52,6 +52,19 @@ gm107_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 		nvkm_mask(device, 0x61c12c + soff, mask, data);
 }
 
+static const struct nvkm_ior_func_dp
+gm107_sor_dp = {
+	.lanes = { 0, 1, 2, 3 },
+	.links = gf119_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = gm107_sor_dp_pattern,
+	.drive = gf119_sor_dp_drive,
+	.vcpi = gf119_sor_dp_vcpi,
+	.audio = gf119_sor_dp_audio,
+	.audio_sym = gf119_sor_dp_audio_sym,
+	.watermark = gf119_sor_dp_watermark,
+};
+
 static const struct nvkm_ior_func
 gm107_sor = {
 	.state = gf119_sor_state,
@@ -60,17 +73,7 @@ gm107_sor = {
 	.hdmi = {
 		.ctrl = gk104_sor_hdmi_ctrl,
 	},
-	.dp = {
-		.lanes = { 0, 1, 2, 3 },
-		.links = gf119_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gm107_sor_dp_pattern,
-		.drive = gf119_sor_dp_drive,
-		.vcpi = gf119_sor_dp_vcpi,
-		.audio = gf119_sor_dp_audio,
-		.audio_sym = gf119_sor_dp_audio_sym,
-		.watermark = gf119_sor_dp_watermark,
-	},
+	.dp = &gm107_sor_dp,
 	.hda = {
 		.hpd = gf119_sor_hda_hpd,
 		.eld = gf119_sor_hda_eld,

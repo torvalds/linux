@@ -66,6 +66,19 @@ tu102_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	return 0;
 }
 
+static const struct nvkm_ior_func_dp
+tu102_sor_dp = {
+	.lanes = { 0, 1, 2, 3 },
+	.links = tu102_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = gm107_sor_dp_pattern,
+	.drive = gm200_sor_dp_drive,
+	.vcpi = tu102_sor_dp_vcpi,
+	.audio = gv100_sor_dp_audio,
+	.audio_sym = gv100_sor_dp_audio_sym,
+	.watermark = gv100_sor_dp_watermark,
+};
+
 static const struct nvkm_ior_func
 tu102_sor = {
 	.route = {
@@ -79,17 +92,7 @@ tu102_sor = {
 		.ctrl = gv100_sor_hdmi_ctrl,
 		.scdc = gm200_sor_hdmi_scdc,
 	},
-	.dp = {
-		.lanes = { 0, 1, 2, 3 },
-		.links = tu102_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gm107_sor_dp_pattern,
-		.drive = gm200_sor_dp_drive,
-		.vcpi = tu102_sor_dp_vcpi,
-		.audio = gv100_sor_dp_audio,
-		.audio_sym = gv100_sor_dp_audio_sym,
-		.watermark = gv100_sor_dp_watermark,
-	},
+	.dp = &tu102_sor_dp,
 	.hda = {
 		.hpd = gf119_sor_hda_hpd,
 		.eld = gf119_sor_hda_eld,

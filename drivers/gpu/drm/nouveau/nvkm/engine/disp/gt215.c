@@ -73,6 +73,19 @@ gt215_sor_dp_audio(struct nvkm_ior *sor, int head, bool enable)
 	);
 }
 
+static const struct nvkm_ior_func_dp
+gt215_sor_dp = {
+	.lanes = { 2, 1, 0, 3 },
+	.links = g94_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = g94_sor_dp_pattern,
+	.drive = g94_sor_dp_drive,
+	.audio = gt215_sor_dp_audio,
+	.audio_sym = g94_sor_dp_audio_sym,
+	.activesym = g94_sor_dp_activesym,
+	.watermark = g94_sor_dp_watermark,
+};
+
 void
 gt215_sor_hdmi_ctrl(struct nvkm_ior *ior, int head, bool enable, u8 max_ac_packet,
 		    u8 rekey, u8 *avi, u8 avi_size, u8 *vendor, u8 vendor_size)
@@ -148,17 +161,7 @@ gt215_sor = {
 	.hdmi = {
 		.ctrl = gt215_sor_hdmi_ctrl,
 	},
-	.dp = {
-		.lanes = { 2, 1, 0, 3 },
-		.links = g94_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = g94_sor_dp_pattern,
-		.drive = g94_sor_dp_drive,
-		.audio = gt215_sor_dp_audio,
-		.audio_sym = g94_sor_dp_audio_sym,
-		.activesym = g94_sor_dp_activesym,
-		.watermark = g94_sor_dp_watermark,
-	},
+	.dp = &gt215_sor_dp,
 	.hda = {
 		.hpd = gt215_sor_hda_hpd,
 		.eld = gt215_sor_hda_eld,

@@ -35,7 +35,7 @@ gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32  loff = nv50_sor_link(sor);
-	const u32 shift = sor->func->dp.lanes[ln] * 8;
+	const u32 shift = sor->func->dp->lanes[ln] * 8;
 	u32 data[4];
 
 	pu &= 0x0f;
@@ -53,6 +53,19 @@ gm200_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 	data[3] = nvkm_rd32(device, 0x61c13c + loff) & ~(0x000000ff << shift);
 	nvkm_wr32(device, 0x61c13c + loff, data[3] | (pc << shift));
 }
+
+const struct nvkm_ior_func_dp
+gm200_sor_dp = {
+	.lanes = { 0, 1, 2, 3 },
+	.links = gf119_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = gm107_sor_dp_pattern,
+	.drive = gm200_sor_dp_drive,
+	.vcpi = gf119_sor_dp_vcpi,
+	.audio = gf119_sor_dp_audio,
+	.audio_sym = gf119_sor_dp_audio_sym,
+	.watermark = gf119_sor_dp_watermark,
+};
 
 void
 gm200_sor_hdmi_scdc(struct nvkm_ior *ior, u8 scdc)
@@ -122,17 +135,7 @@ gm200_sor = {
 		.ctrl = gk104_sor_hdmi_ctrl,
 		.scdc = gm200_sor_hdmi_scdc,
 	},
-	.dp = {
-		.lanes = { 0, 1, 2, 3 },
-		.links = gf119_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gm107_sor_dp_pattern,
-		.drive = gm200_sor_dp_drive,
-		.vcpi = gf119_sor_dp_vcpi,
-		.audio = gf119_sor_dp_audio,
-		.audio_sym = gf119_sor_dp_audio_sym,
-		.watermark = gf119_sor_dp_watermark,
-	},
+	.dp = &gm200_sor_dp,
 	.hda = {
 		.hpd = gf119_sor_hda_hpd,
 		.eld = gf119_sor_hda_eld,

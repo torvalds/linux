@@ -70,7 +70,7 @@ struct nvkm_ior_func {
 		void (*scdc)(struct nvkm_ior *, u8 scdc);
 	} hdmi;
 
-	struct {
+	const struct nvkm_ior_func_dp {
 		u8 lanes[4];
 		int (*links)(struct nvkm_ior *, struct nvkm_i2c_aux *);
 		void (*power)(struct nvkm_ior *, int nr);
@@ -84,7 +84,7 @@ struct nvkm_ior_func {
 		void (*activesym)(struct nvkm_ior *, int head,
 				  u8 TU, u8 VTUa, u8 VTUf, u8 VTUi);
 		void (*watermark)(struct nvkm_ior *, int head, u8 watermark);
-	} dp;
+	} *dp;
 
 	struct {
 		void (*hpd)(struct nvkm_ior *, int head, bool present);
@@ -128,6 +128,7 @@ void g84_sor_hdmi_ctrl(struct nvkm_ior *, int, bool, u8, u8, u8 *, u8 , u8 *, u8
 
 int g94_sor_cnt(struct nvkm_disp *, unsigned long *);
 void g94_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
+extern const struct nvkm_ior_func_dp g94_sor_dp;
 int g94_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
 void g94_sor_dp_power(struct nvkm_ior *, int);
 void g94_sor_dp_pattern(struct nvkm_ior *, int);
@@ -144,8 +145,8 @@ void gt215_sor_hda_eld(struct nvkm_ior *, int, u8 *, u8);
 int gf119_sor_cnt(struct nvkm_disp *, unsigned long *);
 void gf119_sor_state(struct nvkm_ior *, struct nvkm_ior_state *);
 void gf119_sor_clock(struct nvkm_ior *);
+extern const struct nvkm_ior_func_dp gf119_sor_dp;
 int gf119_sor_dp_links(struct nvkm_ior *, struct nvkm_i2c_aux *);
-void gf119_sor_dp_pattern(struct nvkm_ior *, int);
 void gf119_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 void gf119_sor_dp_vcpi(struct nvkm_ior *, int, u8, u8, u16, u16);
 void gf119_sor_dp_audio(struct nvkm_ior *, int, bool);
@@ -163,6 +164,7 @@ void gm107_sor_dp_pattern(struct nvkm_ior *, int);
 void gm200_sor_route_set(struct nvkm_outp *, struct nvkm_ior *);
 int gm200_sor_route_get(struct nvkm_outp *, int *);
 void gm200_sor_hdmi_scdc(struct nvkm_ior *, u8);
+extern const struct nvkm_ior_func_dp gm200_sor_dp;
 void gm200_sor_dp_drive(struct nvkm_ior *, int, int, int, int, int);
 
 int gp100_sor_new(struct nvkm_disp *, int);

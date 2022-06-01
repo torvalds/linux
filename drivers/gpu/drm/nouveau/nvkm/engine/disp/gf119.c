@@ -123,7 +123,7 @@ gf119_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32  loff = nv50_sor_link(sor);
-	const u32 shift = sor->func->dp.lanes[ln] * 8;
+	const u32 shift = sor->func->dp->lanes[ln] * 8;
 	u32 data[4];
 
 	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
@@ -140,7 +140,7 @@ gf119_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 	nvkm_wr32(device, 0x61c13c + loff, data[3] | (pc << shift));
 }
 
-void
+static void
 gf119_sor_dp_pattern(struct nvkm_ior *sor, int pattern)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
@@ -180,6 +180,19 @@ gf119_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	nvkm_mask(device, 0x61c10c + loff, 0x401f4000, dpctrl);
 	return 0;
 }
+
+const struct nvkm_ior_func_dp
+gf119_sor_dp = {
+	.lanes = { 2, 1, 0, 3 },
+	.links = gf119_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = gf119_sor_dp_pattern,
+	.drive = gf119_sor_dp_drive,
+	.vcpi = gf119_sor_dp_vcpi,
+	.audio = gf119_sor_dp_audio,
+	.audio_sym = gf119_sor_dp_audio_sym,
+	.watermark = gf119_sor_dp_watermark,
+};
 
 static void
 gf119_sor_hdmi_ctrl(struct nvkm_ior *ior, int head, bool enable, u8 max_ac_packet,
@@ -288,17 +301,7 @@ gf119_sor = {
 	.hdmi = {
 		.ctrl = gf119_sor_hdmi_ctrl,
 	},
-	.dp = {
-		.lanes = { 2, 1, 0, 3 },
-		.links = gf119_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = gf119_sor_dp_pattern,
-		.drive = gf119_sor_dp_drive,
-		.vcpi = gf119_sor_dp_vcpi,
-		.audio = gf119_sor_dp_audio,
-		.audio_sym = gf119_sor_dp_audio_sym,
-		.watermark = gf119_sor_dp_watermark,
-	},
+	.dp = &gf119_sor_dp,
 	.hda = {
 		.hpd = gf119_sor_hda_hpd,
 		.eld = gf119_sor_hda_eld,

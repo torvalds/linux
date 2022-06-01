@@ -65,7 +65,7 @@ g94_sor_dp_drive(struct nvkm_ior *sor, int ln, int pc, int dc, int pe, int pu)
 {
 	struct nvkm_device *device = sor->disp->engine.subdev.device;
 	const u32  loff = nv50_sor_link(sor);
-	const u32 shift = sor->func->dp.lanes[ln] * 8;
+	const u32 shift = sor->func->dp->lanes[ln] * 8;
 	u32 data[3];
 
 	data[0] = nvkm_rd32(device, 0x61c118 + loff) & ~(0x000000ff << shift);
@@ -107,7 +107,7 @@ g94_sor_dp_power(struct nvkm_ior *sor, int nr)
 	u32 mask = 0, i;
 
 	for (i = 0; i < nr; i++)
-		mask |= 1 << sor->func->dp.lanes[i];
+		mask |= 1 << sor->func->dp->lanes[i];
 
 	nvkm_mask(device, 0x61c130 + loff, 0x0000000f, mask);
 	nvkm_mask(device, 0x61c034 + soff, 0x80000000, 0x80000000);
@@ -136,6 +136,18 @@ g94_sor_dp_links(struct nvkm_ior *sor, struct nvkm_i2c_aux *aux)
 	nvkm_mask(device, 0x61c10c + loff, 0x001f4000, dpctrl);
 	return 0;
 }
+
+const struct nvkm_ior_func_dp
+g94_sor_dp = {
+	.lanes = { 2, 1, 0, 3},
+	.links = g94_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = g94_sor_dp_pattern,
+	.drive = g94_sor_dp_drive,
+	.audio_sym = g94_sor_dp_audio_sym,
+	.activesym = g94_sor_dp_activesym,
+	.watermark = g94_sor_dp_watermark,
+};
 
 static bool
 g94_sor_war_needed(struct nvkm_ior *sor)
@@ -283,16 +295,7 @@ g94_sor = {
 	.clock = nv50_sor_clock,
 	.war_2 = g94_sor_war_2,
 	.war_3 = g94_sor_war_3,
-	.dp = {
-		.lanes = { 2, 1, 0, 3},
-		.links = g94_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = g94_sor_dp_pattern,
-		.drive = g94_sor_dp_drive,
-		.audio_sym = g94_sor_dp_audio_sym,
-		.activesym = g94_sor_dp_activesym,
-		.watermark = g94_sor_dp_watermark,
-	},
+	.dp = &g94_sor_dp,
 };
 
 static int

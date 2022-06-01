@@ -26,6 +26,19 @@
 
 #include <nvif/class.h>
 
+static const struct nvkm_ior_func_dp
+mcp89_sor_dp = {
+	.lanes = { 3, 2, 1, 0 },
+	.links = g94_sor_dp_links,
+	.power = g94_sor_dp_power,
+	.pattern = g94_sor_dp_pattern,
+	.drive = g94_sor_dp_drive,
+	.audio = gt215_sor_dp_audio,
+	.audio_sym = g94_sor_dp_audio_sym,
+	.activesym = g94_sor_dp_activesym,
+	.watermark = g94_sor_dp_watermark,
+};
+
 static const struct nvkm_ior_func
 mcp89_sor = {
 	.state = g94_sor_state,
@@ -34,17 +47,7 @@ mcp89_sor = {
 	.hdmi = {
 		.ctrl = gt215_sor_hdmi_ctrl,
 	},
-	.dp = {
-		.lanes = { 3, 2, 1, 0 },
-		.links = g94_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = g94_sor_dp_pattern,
-		.drive = g94_sor_dp_drive,
-		.audio = gt215_sor_dp_audio,
-		.audio_sym = g94_sor_dp_audio_sym,
-		.activesym = g94_sor_dp_activesym,
-		.watermark = g94_sor_dp_watermark,
-	},
+	.dp = &mcp89_sor_dp,
 	.hda = {
 		.hpd = gt215_sor_hda_hpd,
 		.eld = gt215_sor_hda_eld,

@@ -34,16 +34,7 @@ mcp77_sor = {
 	.hdmi = {
 		.ctrl = g84_sor_hdmi_ctrl,
 	},
-	.dp = {
-		.lanes = { 2, 1, 0, 3},
-		.links = g94_sor_dp_links,
-		.power = g94_sor_dp_power,
-		.pattern = g94_sor_dp_pattern,
-		.drive = g94_sor_dp_drive,
-		.audio_sym = g94_sor_dp_audio_sym,
-		.activesym = g94_sor_dp_activesym,
-		.watermark = g94_sor_dp_watermark,
-	},
+	.dp = &g94_sor_dp,
 };
 
 static int

@@ -142,7 +142,7 @@ nvkm_dp_train_drive(struct lt_state *lt, bool pc)
 		if (!data)
 			continue;
 
-		ior->func->dp.drive(ior, i, ocfg.pc, ocfg.dc, ocfg.pe, ocfg.tx_pu);
+		ior->func->dp->drive(ior, i, ocfg.pc, ocfg.dc, ocfg.pe, ocfg.tx_pu);
 	}
 
 	if (lt->repeater)
@@ -171,7 +171,7 @@ nvkm_dp_train_pattern(struct lt_state *lt, u8 pattern)
 	u8 sink_tp;
 
 	OUTP_TRACE(outp, "training pattern %d", pattern);
-	outp->ior->func->dp.pattern(outp->ior, pattern);
+	outp->ior->func->dp->pattern(outp->ior, pattern);
 
 	if (lt->repeater)
 		addr = DPCD_LTTPR_PATTERN_SET(lt->repeater);
@@ -328,7 +328,7 @@ nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
 		);
 	}
 
-	ret = ior->func->dp.links(ior, outp->dp.aux);
+	ret = ior->func->dp->links(ior, outp->dp.aux);
 	if (ret) {
 		if (ret < 0) {
 			OUTP_ERR(outp, "train failed with %d", ret);
@@ -337,7 +337,7 @@ nvkm_dp_train_links(struct nvkm_outp *outp, int rate)
 		return 0;
 	}
 
-	ior->func->dp.power(ior, ior->dp.nr);
+	ior->func->dp->power(ior, ior->dp.nr);
 
 	/* Select LTTPR non-transparent mode if we have a valid configuration,
 	 * use transparent mode otherwise.
