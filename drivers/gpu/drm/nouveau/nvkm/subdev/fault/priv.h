@@ -46,6 +46,7 @@ void gp100_fault_buffer_fini(struct nvkm_fault_buffer *);
 void gp100_fault_buffer_init(struct nvkm_fault_buffer *);
 u64 gp100_fault_buffer_pin(struct nvkm_fault_buffer *);
 void gp100_fault_buffer_info(struct nvkm_fault_buffer *);
+void gv100_fault_buffer_process(struct work_struct *);
 void gp100_fault_intr(struct nvkm_fault *);
 
 u64 gp10b_fault_buffer_pin(struct nvkm_fault_buffer *);
