@@ -58,6 +58,8 @@ struct nvkm_fb {
 	struct nvkm_memory *mmu_wr;
 };
 
+int nvkm_fb_mem_unlock(struct nvkm_fb *);
+
 void nvkm_fb_tile_init(struct nvkm_fb *, int region, u32 addr, u32 size,
 		       u32 pitch, u32 flags, struct nvkm_fb_tile *);
 void nvkm_fb_tile_fini(struct nvkm_fb *, int region, struct nvkm_fb_tile *);

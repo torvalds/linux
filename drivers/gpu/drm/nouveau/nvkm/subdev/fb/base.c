@@ -134,11 +134,19 @@ nvkm_fb_oneinit(struct nvkm_subdev *subdev)
 	return nvkm_mm_init(&fb->tags.mm, 0, 0, tags, 1);
 }
 
-static int
-nvkm_fb_init_scrub_vpr(struct nvkm_fb *fb)
+int
+nvkm_fb_mem_unlock(struct nvkm_fb *fb)
 {
 	struct nvkm_subdev *subdev = &fb->subdev;
 	int ret;
+
+	if (!fb->func->vpr.scrub_required)
+		return 0;
+
+	if (!fb->func->vpr.scrub_required(fb)) {
+		nvkm_debug(subdev, "VPR not locked\n");
+		return 0;
+	}
 
 	nvkm_debug(subdev, "VPR locked, running scrubber binary\n");
 
@@ -193,13 +201,6 @@ nvkm_fb_init(struct nvkm_subdev *subdev)
 
 	if (fb->func->init_unkn)
 		fb->func->init_unkn(fb);
-
-	if (fb->func->vpr.scrub_required &&
-	    fb->func->vpr.scrub_required(fb)) {
-		ret = nvkm_fb_init_scrub_vpr(fb);
-		if (ret)
-			return ret;
-	}
 
 	return 0;
 }
