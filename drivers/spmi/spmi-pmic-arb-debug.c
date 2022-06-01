@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
-/* Copyright (c) 2012-2017, The Linux Foundation. All rights reserved. */
+/* Copyright (c) 2012-2018, 2020, The Linux Foundation. All rights reserved. */
 
+#include <linux/clk.h>
 #include <linux/delay.h>
 #include <linux/err.h>
 #include <linux/io.h>
@@ -59,6 +60,7 @@ enum pmic_arb_cmd_op_code {
 struct spmi_pmic_arb_debug {
 	void __iomem		*addr;
 	raw_spinlock_t		lock;
+	struct clk		*clock;
 };
 
 static inline void pmic_arb_debug_write(struct spmi_pmic_arb_debug *pa,
@@ -171,6 +173,12 @@ static int pmic_arb_debug_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 	else
 		return -EINVAL;
 
+	rc = clk_prepare_enable(pa->clock);
+	if (rc) {
+		pr_err("%s: failed to enable core clock, rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
 	raw_spin_lock_irqsave(&pa->lock, flags);
 
 	rc = pmic_arb_debug_issue_command(ctrl, opc, sid, addr, len);
@@ -182,6 +190,7 @@ static int pmic_arb_debug_read_cmd(struct spmi_controller *ctrl, u8 opc, u8 sid,
 		buf[i] = pmic_arb_debug_read(pa, PMIC_ARB_DEBUG_RDATA(i));
 done:
 	raw_spin_unlock_irqrestore(&pa->lock, flags);
+	clk_disable_unprepare(pa->clock);
 
 	return rc;
 }
@@ -211,6 +220,12 @@ static int pmic_arb_debug_write_cmd(struct spmi_controller *ctrl, u8 opc,
 	else
 		return -EINVAL;
 
+	rc = clk_prepare_enable(pa->clock);
+	if (rc) {
+		pr_err("%s: failed to enable core clock, rc=%d\n",
+			__func__, rc);
+		return rc;
+	}
 	raw_spin_lock_irqsave(&pa->lock, flags);
 
 	/* Write data to FIFO */
@@ -220,6 +235,7 @@ static int pmic_arb_debug_write_cmd(struct spmi_controller *ctrl, u8 opc,
 	rc = pmic_arb_debug_issue_command(ctrl, opc, sid, addr, len);
 
 	raw_spin_unlock_irqrestore(&pa->lock, flags);
+	clk_disable_unprepare(pa->clock);
 
 	return rc;
 }
@@ -232,13 +248,21 @@ static int spmi_pmic_arb_debug_probe(struct platform_device *pdev)
 	int rc;
 	u32 fuse_val, fuse_bit;
 	void __iomem *fuse_addr;
+	bool is_disable_fuse = true;
 
-	/* Check if the debug bus is disabled by a fuse. */
+	/* Check if the debug bus is enabled or disabled by a fuse. */
 	rc = of_property_read_u32(pdev->dev.of_node, "qcom,fuse-disable-bit",
 				  &fuse_bit);
+	if (rc) {
+		is_disable_fuse = false;
+		rc = of_property_read_u32(pdev->dev.of_node,
+					  "qcom,fuse-enable-bit",
+					  &fuse_bit);
+	}
 	if (!rc) {
 		if (fuse_bit > 31) {
-			dev_err(&pdev->dev, "qcom,fuse-disable-bit supports values 0 to 31, but %u specified\n",
+			dev_err(&pdev->dev, "qcom,fuse-%s-bit supports values 0 to 31, but %u specified\n",
+				is_disable_fuse ? "disable" : "enable",
 				fuse_bit);
 			return -EINVAL;
 		}
@@ -257,7 +281,7 @@ static int spmi_pmic_arb_debug_probe(struct platform_device *pdev)
 		fuse_val = readl_relaxed(fuse_addr);
 		iounmap(fuse_addr);
 
-		if (fuse_val & BIT(fuse_bit)) {
+		if (!!(fuse_val & BIT(fuse_bit)) == is_disable_fuse) {
 			dev_err(&pdev->dev, "SPMI PMIC arbiter debug bus disabled by fuse\n");
 			return -ENODEV;
 		}
@@ -281,6 +305,17 @@ static int spmi_pmic_arb_debug_probe(struct platform_device *pdev)
 	if (IS_ERR(pa->addr)) {
 		rc = PTR_ERR(pa->addr);
 		goto err_put_ctrl;
+	}
+
+	if (of_find_property(pdev->dev.of_node, "clock-names", NULL)) {
+		pa->clock = devm_clk_get(&pdev->dev, "core_clk");
+		if (IS_ERR(pa->clock)) {
+			rc = PTR_ERR(pa->clock);
+			if (rc != -EPROBE_DEFER)
+				dev_err(&pdev->dev, "unable to request core clock, rc=%d\n",
+					rc);
+			goto err_put_ctrl;
+		}
 	}
 
 	platform_set_drvdata(pdev, ctrl);
@@ -328,17 +363,7 @@ static struct platform_driver spmi_pmic_arb_debug_driver = {
 	},
 };
 
-int __init spmi_pmic_arb_debug_init(void)
-{
-	return platform_driver_register(&spmi_pmic_arb_debug_driver);
-}
-arch_initcall(spmi_pmic_arb_debug_init);
-
-static void __exit spmi_pmic_arb_debug_exit(void)
-{
-	platform_driver_unregister(&spmi_pmic_arb_debug_driver);
-}
-module_exit(spmi_pmic_arb_debug_exit);
+module_platform_driver(spmi_pmic_arb_debug_driver);
 
 MODULE_LICENSE("GPL v2");
 MODULE_ALIAS("platform:spmi_pmic_arb_debug");
