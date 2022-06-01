@@ -41,6 +41,11 @@ union nvif_outp_acquire_args {
 				__u8 pad01[7];
 			} tmds;
 			struct {
+				__u8 dual;
+				__u8 bpc8;
+				__u8 pad02[6];
+			} lvds;
+			struct {
 				__u8 hda;
 				__u8 pad01[7];
 			} dp;

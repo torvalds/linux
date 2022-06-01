@@ -1635,15 +1635,6 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	struct nv50_head_atom *asyh =
 		nv50_head_atom(drm_atomic_get_new_crtc_state(state, &nv_crtc->base));
 	struct drm_display_mode *mode = &asyh->state.adjusted_mode;
-	struct {
-		struct nv50_disp_mthd_v1 base;
-		struct nv50_disp_sor_lvds_script_v0 lvds;
-	} lvds = {
-		.base.version = 1,
-		.base.method  = NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT,
-		.base.hasht   = nv_encoder->dcb->hasht,
-		.base.hashm   = nv_encoder->dcb->hashm,
-	};
 	struct nv50_disp *disp = nv50_disp(encoder->dev);
 	struct drm_device *dev = encoder->dev;
 	struct nouveau_drm *drm = nouveau_drm(dev);
@@ -1652,7 +1643,7 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 	struct nouveau_backlight *backlight;
 #endif
 	struct nvbios *bios = &drm->vbios;
-	bool hda = false;
+	bool lvds_dual = false, lvds_8bpc = false, hda = false;
 	u8 proto = NV507D_SOR_SET_CONTROL_PROTOCOL_CUSTOM;
 	u8 depth = NV837D_SOR_SET_CONTROL_PIXEL_DEPTH_DEFAULT;
 
@@ -1689,33 +1680,30 @@ nv50_sor_atomic_enable(struct drm_encoder *encoder, struct drm_atomic_state *sta
 		proto = NV507D_SOR_SET_CONTROL_PROTOCOL_LVDS_CUSTOM;
 
 		if (bios->fp_no_ddc) {
-			if (bios->fp.dual_link)
-				lvds.lvds.script |= 0x0100;
-			if (bios->fp.if_is_24bit)
-				lvds.lvds.script |= 0x0200;
+			lvds_dual = bios->fp.dual_link;
+			lvds_8bpc = bios->fp.if_is_24bit;
 		} else {
 			if (nv_connector->type == DCB_CONNECTOR_LVDS_SPWG) {
 				if (((u8 *)nv_connector->edid)[121] == 2)
-					lvds.lvds.script |= 0x0100;
+					lvds_dual = true;
 			} else
 			if (mode->clock >= bios->fp.duallink_transition_clk) {
-				lvds.lvds.script |= 0x0100;
+				lvds_dual = true;
 			}
 
-			if (lvds.lvds.script & 0x0100) {
+			if (lvds_dual) {
 				if (bios->fp.strapless_is_24bit & 2)
-					lvds.lvds.script |= 0x0200;
+					lvds_8bpc = true;
 			} else {
 				if (bios->fp.strapless_is_24bit & 1)
-					lvds.lvds.script |= 0x0200;
+					lvds_8bpc = true;
 			}
 
 			if (asyh->or.bpc == 8)
-				lvds.lvds.script |= 0x0200;
+				lvds_8bpc = true;
 		}
 
-		nvif_outp_acquire_lvds(&nv_encoder->outp);
-		nvif_mthd(&disp->disp->object, 0, &lvds, sizeof(lvds));
+		nvif_outp_acquire_lvds(&nv_encoder->outp, lvds_dual, lvds_8bpc);
 		break;
 	case DCB_OUTPUT_DP:
 		nvif_outp_acquire_dp(&nv_encoder->outp, hda);

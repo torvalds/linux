@@ -66,13 +66,18 @@ nvif_outp_acquire_dp(struct nvif_outp *outp,  bool hda)
 }
 
 int
-nvif_outp_acquire_lvds(struct nvif_outp *outp)
+nvif_outp_acquire_lvds(struct nvif_outp *outp, bool dual, bool bpc8)
 {
 	struct nvif_outp_acquire_v0 args;
 	int ret;
 
+	args.lvds.dual = dual;
+	args.lvds.bpc8 = bpc8;
+
 	ret = nvif_outp_acquire(outp, NVIF_OUTP_ACQUIRE_V0_LVDS, &args);
-	NVIF_ERRON(ret, &outp->object, "[ACQUIRE proto:LVDS] or:%d link:%d", args.or, args.link);
+	NVIF_ERRON(ret, &outp->object,
+		   "[ACQUIRE proto:LVDS dual:%d 8bpc:%d] or:%d link:%d",
+		   args.lvds.dual, args.lvds.bpc8, args.or, args.link);
 	return ret;
 }
 

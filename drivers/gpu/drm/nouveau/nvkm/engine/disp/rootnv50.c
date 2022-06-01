@@ -169,22 +169,6 @@ nv50_disp_root_mthd_(struct nvkm_object *object, u32 mthd, void *data, u32 size)
 		return 0;
 	}
 		break;
-	case NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT: {
-		union {
-			struct nv50_disp_sor_lvds_script_v0 v0;
-		} *args = data;
-		int ret = -ENOSYS;
-		nvif_ioctl(object, "disp sor lvds script size %d\n", size);
-		if (!(ret = nvif_unpack(ret, &data, &size, args->v0, 0, 0, false))) {
-			nvif_ioctl(object, "disp sor lvds script "
-					   "vers %d name %04x\n",
-				   args->v0.version, args->v0.script);
-			disp->sor.lvdsconf = args->v0.script;
-			return 0;
-		} else
-			return ret;
-	}
-		break;
 	case NV50_DISP_MTHD_V1_SOR_DP_MST_LINK: {
 		union {
 			struct nv50_disp_sor_dp_mst_link_v0 v0;

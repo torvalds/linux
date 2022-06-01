@@ -30,7 +30,6 @@ struct nv50_disp_mthd_v1 {
 	__u8  version;
 #define NV50_DISP_MTHD_V1_SOR_HDA_ELD                                      0x21
 #define NV50_DISP_MTHD_V1_SOR_HDMI_PWR                                     0x22
-#define NV50_DISP_MTHD_V1_SOR_LVDS_SCRIPT                                  0x23
 #define NV50_DISP_MTHD_V1_SOR_DP_MST_LINK                                  0x25
 #define NV50_DISP_MTHD_V1_SOR_DP_MST_VCPI                                  0x26
 	__u8  method;
@@ -56,13 +55,6 @@ struct nv50_disp_sor_hdmi_pwr_v0 {
 #define NV50_DISP_SOR_HDMI_PWR_V0_SCDC_DIV_BY_4 (1 << 1)
 	__u8  scdc;
 	__u8  pad07[1];
-};
-
-struct nv50_disp_sor_lvds_script_v0 {
-	__u8  version;
-	__u8  pad01[1];
-	__u16 script;
-	__u8  pad04[4];
 };
 
 struct nv50_disp_sor_dp_mst_link_v0 {

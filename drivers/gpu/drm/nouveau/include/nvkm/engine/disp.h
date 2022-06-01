@@ -31,13 +31,7 @@ struct nvkm_disp {
 	struct {
 		unsigned long mask;
 		int nr;
-	} wndw, head, dac;
-
-	struct {
-		unsigned long mask;
-		int nr;
-		u32 lvdsconf;
-	} sor;
+	} wndw, head, dac, sor;
 
 	struct {
 		unsigned long mask;

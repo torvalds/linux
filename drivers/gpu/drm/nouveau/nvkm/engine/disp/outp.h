@@ -28,6 +28,11 @@ struct nvkm_outp {
 
 	union {
 		struct {
+			bool dual;
+			bool bpc8;
+		} lvds;
+
+		struct {
 			struct nvbios_dpout info;
 			u8 version;
 

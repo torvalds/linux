@@ -1238,6 +1238,8 @@ nv50_disp_super_2_2(struct nvkm_disp *disp, struct nvkm_head *head)
 	if (!ior)
 		return;
 
+	outp = ior->asy.outp;
+
 	/* For some reason, NVIDIA decided not to:
 	 *
 	 * A) Give dual-link LVDS a separate EVO protocol, like for TMDS.
@@ -1247,13 +1249,13 @@ nv50_disp_super_2_2(struct nvkm_disp *disp, struct nvkm_head *head)
 	 * Override the values we usually read from HW with the same
 	 * data we pass though an ioctl instead.
 	 */
-	if (ior->type == SOR && ior->asy.proto == LVDS) {
-		head->asy.or.depth = (disp->sor.lvdsconf & 0x0200) ? 24 : 18;
-		ior->asy.link      = (disp->sor.lvdsconf & 0x0100) ? 3  : 1;
+	if (outp && ior->type == SOR && ior->asy.proto == LVDS) {
+		head->asy.or.depth = outp->lvds.bpc8 ? 24 : 18;
+		ior->asy.link      = outp->lvds.dual ? 3 : 1;
 	}
 
 	/* Handle any link training, etc. */
-	if ((outp = ior->asy.outp) && outp->func->acquire)
+	if (outp && outp->func->acquire)
 		outp->func->acquire(outp);
 
 	/* Execute OnInt2 IED script. */

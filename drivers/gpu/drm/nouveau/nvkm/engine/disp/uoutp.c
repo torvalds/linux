@@ -38,6 +38,18 @@ nvkm_uoutp_mthd_release(struct nvkm_outp *outp, void *argv, u32 argc)
 }
 
 static int
+nvkm_uoutp_mthd_acquire_lvds(struct nvkm_outp *outp, bool dual, bool bpc8)
+{
+	if (outp->info.type != DCB_OUTPUT_LVDS)
+		return -EINVAL;
+
+	outp->lvds.dual = dual;
+	outp->lvds.bpc8 = bpc8;
+
+	return nvkm_outp_acquire(outp, NVKM_OUTP_USER, false);
+}
+
+static int
 nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 {
 	union nvif_outp_acquire_args *args = argv;
@@ -48,12 +60,14 @@ nvkm_uoutp_mthd_acquire(struct nvkm_outp *outp, void *argv, u32 argc)
 
 	switch (args->v0.proto) {
 	case NVIF_OUTP_ACQUIRE_V0_RGB_CRT:
-	case NVIF_OUTP_ACQUIRE_V0_LVDS:
 		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, false);
 		break;
 	case NVIF_OUTP_ACQUIRE_V0_TMDS:
 	case NVIF_OUTP_ACQUIRE_V0_DP:
 		ret = nvkm_outp_acquire(outp, NVKM_OUTP_USER, args->v0.dp.hda);
+		break;
+	case NVIF_OUTP_ACQUIRE_V0_LVDS:
+		ret = nvkm_uoutp_mthd_acquire_lvds(outp, args->v0.lvds.dual, args->v0.lvds.bpc8);
 		break;
 	default:
 		ret = -EINVAL;

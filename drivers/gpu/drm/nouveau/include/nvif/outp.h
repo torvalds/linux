@@ -18,7 +18,7 @@ void nvif_outp_dtor(struct nvif_outp *);
 int nvif_outp_load_detect(struct nvif_outp *, u32 loadval);
 int nvif_outp_acquire_rgb_crt(struct nvif_outp *);
 int nvif_outp_acquire_tmds(struct nvif_outp *, bool hda);
-int nvif_outp_acquire_lvds(struct nvif_outp *);
+int nvif_outp_acquire_lvds(struct nvif_outp *, bool dual, bool bpc8);
 int nvif_outp_acquire_dp(struct nvif_outp *, bool hda);
 void nvif_outp_release(struct nvif_outp *);
 #endif
