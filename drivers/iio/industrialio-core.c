@@ -1104,12 +1104,12 @@ int __iio_device_attr_init(struct device_attribute *dev_attr,
 	dev_attr->attr.name = name;
 
 	if (readfunc) {
-		dev_attr->attr.mode |= S_IRUGO;
+		dev_attr->attr.mode |= 0444;
 		dev_attr->show = readfunc;
 	}
 
 	if (writefunc) {
-		dev_attr->attr.mode |= S_IWUSR;
+		dev_attr->attr.mode |= 0200;
 		dev_attr->store = writefunc;
 	}
 
@@ -1383,29 +1383,27 @@ void iio_free_chan_devattr_list(struct list_head *attr_list)
 	}
 }
 
-static ssize_t iio_show_dev_name(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t name_show(struct device *dev, struct device_attribute *attr,
+			 char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sysfs_emit(buf, "%s\n", indio_dev->name);
 }
 
-static DEVICE_ATTR(name, S_IRUGO, iio_show_dev_name, NULL);
+static DEVICE_ATTR_RO(name);
 
-static ssize_t iio_show_dev_label(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
+static ssize_t label_show(struct device *dev, struct device_attribute *attr,
+			  char *buf)
 {
 	struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	return sysfs_emit(buf, "%s\n", indio_dev->label);
 }
 
-static DEVICE_ATTR(label, S_IRUGO, iio_show_dev_label, NULL);
+static DEVICE_ATTR_RO(label);
 
-static ssize_t iio_show_timestamp_clock(struct device *dev,
-					struct device_attribute *attr,
-					char *buf)
+static ssize_t current_timestamp_clock_show(struct device *dev,
+					    struct device_attribute *attr,
+					    char *buf)
 {
 	const struct iio_dev *indio_dev = dev_to_iio_dev(dev);
 	const clockid_t clk = iio_device_get_clock(indio_dev);
@@ -1449,9 +1447,9 @@ static ssize_t iio_show_timestamp_clock(struct device *dev,
 	return sz;
 }
 
-static ssize_t iio_store_timestamp_clock(struct device *dev,
-					 struct device_attribute *attr,
-					 const char *buf, size_t len)
+static ssize_t current_timestamp_clock_store(struct device *dev,
+					     struct device_attribute *attr,
+					     const char *buf, size_t len)
 {
 	clockid_t clk;
 	int ret;
@@ -1499,8 +1497,7 @@ int iio_device_register_sysfs_group(struct iio_dev *indio_dev,
 	return 0;
 }
 
-static DEVICE_ATTR(current_timestamp_clock, S_IRUGO | S_IWUSR,
-		   iio_show_timestamp_clock, iio_store_timestamp_clock);
+static DEVICE_ATTR_RW(current_timestamp_clock);
 
 static int iio_device_register_sysfs(struct iio_dev *indio_dev)
 {
