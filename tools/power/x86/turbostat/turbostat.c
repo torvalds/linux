@@ -230,6 +230,7 @@ unsigned int do_slm_cstates;
 unsigned int use_c1_residency_msr;
 unsigned int has_aperf;
 unsigned int has_epb;
+unsigned int is_hybrid;
 unsigned int do_irtl_snb;
 unsigned int do_irtl_hsw;
 unsigned int units = 1000000;	/* MHz etc */
@@ -5630,7 +5631,10 @@ void process_cpuid()
 		__cpuid_count(0x7, 0, eax, ebx, ecx, edx);
 
 		has_sgx = ebx & (1 << 2);
-		fprintf(outf, "CPUID(7): %sSGX\n", has_sgx ? "" : "No-");
+
+		is_hybrid = edx & (1 << 15);
+
+		fprintf(outf, "CPUID(7): %sSGX %sHybrid\n", has_sgx ? "" : "No-", is_hybrid ? "" : "No-");
 
 		if (has_sgx)
 			decode_feature_control_msr();
