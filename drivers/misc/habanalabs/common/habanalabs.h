@@ -94,7 +94,7 @@ struct hl_fpriv;
 #define MMU_HASH_TABLE_BITS		7 /* 1 << 7 buckets */
 
 /**
- * enum hl_mmu_page_table_locaion - mmu page table location
+ * enum hl_mmu_page_table_location - mmu page table location
  * @MMU_DR_PGT: page-table is located on device DRAM.
  * @MMU_HR_PGT: page-table is located on host memory.
  * @MMU_NUM_PGT_LOCATIONS: number of page-table locations currently supported.
@@ -800,7 +800,7 @@ struct hl_fence {
  * @lock: spinlock to protect fence.
  * @hdev: habanalabs device structure.
  * @hw_sob: the H/W SOB used in this signal/wait CS.
- * @encaps_sig_hdl: encaps signals hanlder.
+ * @encaps_sig_hdl: encaps signals handler.
  * @cs_seq: command submission sequence number.
  * @type: type of the CS - signal/wait.
  * @sob_val: the SOB value that is used in this signal/wait CS.
@@ -908,7 +908,7 @@ struct hl_mmap_mem_buf {
  * @size: holds the CB's size.
  * @cs_cnt: holds number of CS that this CB participates in.
  * @is_pool: true if CB was acquired from the pool, false otherwise.
- * @is_internal: internaly allocated
+ * @is_internal: internally allocated
  * @is_mmu_mapped: true if the CB is mapped to the device's MMU.
  */
 struct hl_cb {
@@ -1116,7 +1116,7 @@ struct timestamp_reg_info {
  * @fence: hl fence object for interrupt completion
  * @cq_target_value: CQ target value
  * @cq_kernel_addr: CQ kernel address, to be used in the cq interrupt
- *                  handler for taget value comparison
+ *                  handler for target value comparison
  */
 struct hl_user_pending_interrupt {
 	struct timestamp_reg_info	ts_reg_info;
@@ -1742,10 +1742,10 @@ struct hl_cs_outcome {
 
 /**
  * struct hl_cs_outcome_store - represents a limited store of completed CS outcomes
- * @outcome_map: index of completed CS searcheable by sequence number
+ * @outcome_map: index of completed CS searchable by sequence number
  * @used_list: list of outcome objects currently in use
  * @free_list: list of outcome objects currently not in use
- * @nodes_pool: a static pool of preallocated outcome objects
+ * @nodes_pool: a static pool of pre-allocated outcome objects
  * @db_lock: any operation on the store must take this lock
  */
 struct hl_cs_outcome_store {
@@ -1769,7 +1769,7 @@ struct hl_cs_outcome_store {
  * @refcount: reference counter for the context. Context is released only when
  *		this hits 0l. It is incremented on CS and CS_WAIT.
  * @cs_pending: array of hl fence objects representing pending CS.
- * @outcome_store: storage data structure used to remember ouitcomes of completed
+ * @outcome_store: storage data structure used to remember outcomes of completed
  *                 command submissions for a long time after CS id wraparound.
  * @va_range: holds available virtual addresses for host and dram mappings.
  * @mem_hash_lock: protects the mem_hash.
@@ -1838,7 +1838,6 @@ struct hl_ctx_mgr {
 };
 
 
-
 /*
  * COMMAND SUBMISSIONS
  */
@@ -1904,7 +1903,7 @@ struct hl_userptr {
  * @tdr_active: true if TDR was activated for this CS (to prevent
  *		double TDR activation).
  * @aborted: true if CS was aborted due to some device error.
- * @timestamp: true if a timestmap must be captured upon completion.
+ * @timestamp: true if a timestamp must be captured upon completion.
  * @staged_last: true if this is the last staged CS and needs completion.
  * @staged_first: true if this is the first staged CS and we need to receive
  *                timeout for this CS.
@@ -2229,7 +2228,7 @@ struct hl_info_list {
 
 /**
  * struct hl_debugfs_entry - debugfs dentry wrapper.
- * @info_ent: dentry realted ops.
+ * @info_ent: dentry related ops.
  * @dev_entry: ASIC specific debugfs manager.
  */
 struct hl_debugfs_entry {
@@ -2934,7 +2933,7 @@ struct razwi_info {
  * struct undefined_opcode_info - info about last undefined opcode error
  * @timestamp: timestamp of the undefined opcode error
  * @cb_addr_streams: CB addresses (per stream) that are currently exists in the PQ
- *                   entiers. In case all streams array entries are
+ *                   entries. In case all streams array entries are
  *                   filled with values, it means the execution was in Lower-CP.
  * @cq_addr: the address of the current handled command buffer
  * @cq_size: the size of the current handled command buffer
@@ -2975,7 +2974,7 @@ struct last_error_session_info {
 /**
  * struct hl_reset_info - holds current device reset information.
  * @lock: lock to protect critical reset flows.
- * @compute_reset_cnt: number of compte resets since the driver was loaded.
+ * @compute_reset_cnt: number of compute resets since the driver was loaded.
  * @hard_reset_cnt: number of hard resets since the driver was loaded.
  * @hard_reset_schedule_flags: hard reset is scheduled to after current compute reset,
  *                             here we hold the hard reset flags.
@@ -2986,7 +2985,7 @@ struct last_error_session_info {
  * @hard_reset_pending: is there a hard reset work pending.
  * @curr_reset_cause: saves an enumerated reset cause when a hard reset is
  *                    triggered, and cleared after it is shared with preboot.
- * @prev_reset_trigger: saves the previous trigger which caused a reset, overidden
+ * @prev_reset_trigger: saves the previous trigger which caused a reset, overridden
  *                      with a new value on next reset
  * @reset_trigger_repeated: set if device reset is triggered more than once with
  *                          same cause.
@@ -3064,7 +3063,7 @@ struct hl_reset_info {
  * @hl_chip_info: ASIC's sensors information.
  * @device_status_description: device status description.
  * @hl_debugfs: device's debugfs manager.
- * @cb_pool: list of preallocated CBs.
+ * @cb_pool: list of pre allocated CBs.
  * @cb_pool_lock: protects the CB pool.
  * @internal_cb_pool_virt_addr: internal command buffer pool virtual address.
  * @internal_cb_pool_dma_addr: internal command buffer pool dma address.

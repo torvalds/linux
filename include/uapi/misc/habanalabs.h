@@ -876,13 +876,13 @@ struct hl_info_hw_idle {
 	__u32 is_idle;
 	/*
 	 * Bitmask of busy engines.
-	 * Bits definition is according to `enum <chip>_enging_id'.
+	 * Bits definition is according to `enum <chip>_engine_id'.
 	 */
 	__u32 busy_engines_mask;
 
 	/*
 	 * Extended Bitmask of busy engines.
-	 * Bits definition is according to `enum <chip>_enging_id'.
+	 * Bits definition is according to `enum <chip>_engine_id'.
 	 */
 	__u64 busy_engines_mask_ext[HL_BUSY_ENGINES_MASK_EXT_SIZE];
 };
@@ -1078,12 +1078,12 @@ struct hl_info_razwi_event {
  * struct hl_info_undefined_opcode_event - info about last undefined opcode error
  * @timestamp: timestamp of the undefined opcode error
  * @cb_addr_streams: CB addresses (per stream) that are currently exists in the PQ
- *                   entiers. In case all streams array entries are
+ *                   entries. In case all streams array entries are
  *                   filled with values, it means the execution was in Lower-CP.
  * @cq_addr: the address of the current handled command buffer
  * @cq_size: the size of the current handled command buffer
  * @cb_addr_streams_len: num of streams - actual len of cb_addr_streams array.
- *                       should be equal to 1 incase of undefined opcode
+ *                       should be equal to 1 in case of undefined opcode
  *                       in Upper-CP (specific stream) and equal to 4 incase
  *                       of undefined opcode in Lower-CP.
  * @engine_id: engine-id that the error occurred on
@@ -1412,7 +1412,7 @@ struct hl_cs_out {
 
 		/* Valid only when HL_CS_FLAGS_RESERVE_SIGNALS_ONLY is set */
 		struct {
-			/* This is the resereved signal handle id */
+			/* This is the reserved signal handle id */
 			__u32 handle_id;
 
 			/* This is the signals count */

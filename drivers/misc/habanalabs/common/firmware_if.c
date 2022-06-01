@@ -1514,7 +1514,7 @@ int hl_fw_read_preboot_status(struct hl_device *hdev)
 	hdev->asic_funcs->init_firmware_preload_params(hdev);
 
 	/*
-	 * In order to determine boot method (static VS dymanic) we need to
+	 * In order to determine boot method (static VS dynamic) we need to
 	 * read the boot caps register
 	 */
 	rc = hl_fw_read_preboot_caps(hdev);
@@ -1781,7 +1781,7 @@ int hl_fw_dynamic_send_protocol_cmd(struct hl_device *hdev,
  *
  * @return the CRC32 result
  *
- * NOTE: kernel's CRC32 differ's from standard CRC32 calculation.
+ * NOTE: kernel's CRC32 differs from standard CRC32 calculation.
  *       in order to be aligned we need to flip the bits of both the input
  *       initial CRC and kernel's CRC32 result.
  *       in addition both sides use initial CRC of 0,
@@ -1798,7 +1798,7 @@ static u32 hl_fw_compat_crc32(u8 *data, size_t size)
  *
  * @hdev: pointer to the habanalabs device structure
  * @addr: device address of memory transfer
- * @size: memory transter size
+ * @size: memory transfer size
  * @region: PCI memory region
  *
  * @return 0 on success, otherwise non-zero error code
@@ -2547,7 +2547,7 @@ static int hl_fw_dynamic_init_cpu(struct hl_device *hdev,
 	/*
 	 * when testing FW load (without Linux) on PLDM we don't want to
 	 * wait until boot fit is active as it may take several hours.
-	 * instead, we load the bootfit and let it do all initializations in
+	 * instead, we load the bootfit and let it do all initialization in
 	 * the background.
 	 */
 	if (hdev->pldm && !(hdev->fw_components & FW_TYPE_LINUX))
