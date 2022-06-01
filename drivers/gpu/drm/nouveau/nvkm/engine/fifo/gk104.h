@@ -30,7 +30,6 @@ struct gk104_fifo {
 	struct {
 		struct nvkm_memory *mem[2];
 		int next;
-		wait_queue_head_t wait;
 		struct list_head cgrp;
 		struct list_head chan;
 		u32 engm;
@@ -63,7 +62,6 @@ void gk104_fifo_runlist_remove(struct gk104_fifo *, struct gk104_fifo_chan *);
 void gk104_fifo_runlist_update(struct gk104_fifo *, int runl);
 void gk104_fifo_engine_status(struct gk104_fifo *fifo, int engn,
 			      struct gk104_fifo_engine_status *status);
-void gk104_fifo_intr_runlist(struct gk104_fifo *fifo);
 void *gk104_fifo_dtor(struct nvkm_fifo *base);
 int gk104_fifo_oneinit(struct nvkm_fifo *);
 void gk104_fifo_init(struct nvkm_fifo *base);

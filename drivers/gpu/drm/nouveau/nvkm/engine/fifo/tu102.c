@@ -35,6 +35,14 @@ static const struct nvkm_chan_func
 tu102_chan = {
 };
 
+static bool
+tu102_runl_pending(struct nvkm_runl *runl)
+{
+	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+
+	return nvkm_rd32(device, 0x002b0c + (runl->id * 0x10)) & 0x00008000;
+}
+
 static void
 tu102_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 			  struct nvkm_memory *mem, int nr)
@@ -46,8 +54,6 @@ tu102_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 	nvkm_wr32(device, 0x002b00 + (runl * 0x10), lower_32_bits(addr));
 	nvkm_wr32(device, 0x002b04 + (runl * 0x10), upper_32_bits(addr));
 	nvkm_wr32(device, 0x002b08 + (runl * 0x10), nr);
-
-	/*XXX: how to wait? can you even wait? */
 }
 
 static const struct gk104_fifo_runlist_func
@@ -60,6 +66,8 @@ tu102_fifo_runlist = {
 
 static const struct nvkm_runl_func
 tu102_runl = {
+	.wait = nv50_runl_wait,
+	.pending = tu102_runl_pending,
 };
 
 static const struct nvkm_enum
@@ -319,7 +327,7 @@ tu102_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x40000000) {
-		gk104_fifo_intr_runlist(gk104_fifo(fifo));
+		gk104_fifo_intr_runlist(fifo);
 		stat &= ~0x40000000;
 	}
 

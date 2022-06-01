@@ -20,7 +20,6 @@ struct gf100_fifo {
 	struct {
 		struct nvkm_memory *mem[2];
 		int active;
-		wait_queue_head_t wait;
 	} runlist;
 
 	struct {

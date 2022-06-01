@@ -319,6 +319,11 @@ nvkm_fifo_ctor(const struct nvkm_fifo_func *func, struct nvkm_device *device,
 	fifo->func = func;
 	INIT_LIST_HEAD(&fifo->runqs);
 	INIT_LIST_HEAD(&fifo->runls);
+	/*TODO: Needs to be >CTXSW_TIMEOUT, so RC can recover before this is hit.
+	 *      CTXSW_TIMEOUT HW default seems to differ between GPUs, so just a
+	 *      large number for now until we support changing it.
+	 */
+	fifo->timeout.chan_msec = 10000;
 	spin_lock_init(&fifo->lock);
 	mutex_init(&fifo->mutex);
 

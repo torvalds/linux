@@ -197,12 +197,21 @@ gk104_runq = {
 	.intr_0_names = gk104_runq_intr_0_names,
 };
 
+bool
+gk104_runl_pending(struct nvkm_runl *runl)
+{
+	struct nvkm_device *device = runl->fifo->engine.subdev.device;
+
+	return nvkm_rd32(device, 0x002284 + (runl->id * 0x08)) & 0x00100000;
+}
+
 void
 gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 			  struct nvkm_memory *mem, int nr)
 {
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_runl *rl = nvkm_runl_get(&fifo->base, runl, 0);
 	int target;
 
 	switch (nvkm_memory_target(mem)) {
@@ -217,11 +226,7 @@ gk104_fifo_runlist_commit(struct gk104_fifo *fifo, int runl,
 				    (target << 28));
 	nvkm_wr32(device, 0x002274, (runl << 20) | nr);
 
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x002284 + (runl * 0x08)) & 0x00100000))
-			break;
-	) < 0)
-		nvkm_error(subdev, "runlist %d update timeout\n", runl);
+	rl->func->wait(rl);
 }
 
 void
@@ -299,6 +304,8 @@ gk104_fifo_runlist = {
 
 static const struct nvkm_runl_func
 gk104_runl = {
+	.wait = nv50_runl_wait,
+	.pending = gk104_runl_pending,
 };
 
 int
@@ -736,15 +743,14 @@ gk104_fifo_intr_dropped_fault(struct nvkm_fifo *fifo)
 }
 
 void
-gk104_fifo_intr_runlist(struct gk104_fifo *fifo)
+gk104_fifo_intr_runlist(struct nvkm_fifo *fifo)
 {
-	struct nvkm_device *device = fifo->base.engine.subdev.device;
+	struct nvkm_device *device = fifo->engine.subdev.device;
+	struct nvkm_runl *runl;
 	u32 mask = nvkm_rd32(device, 0x002a00);
-	while (mask) {
-		int runl = __ffs(mask);
-		wake_up(&fifo->runlist[runl].wait);
-		nvkm_wr32(device, 0x002a00, 1 << runl);
-		mask &= ~(1 << runl);
+
+	nvkm_runl_foreach_cond(runl, fifo, mask & BIT(runl->id)) {
+		nvkm_wr32(device, 0x002a00, BIT(runl->id));
 	}
 }
 
@@ -810,7 +816,7 @@ gk104_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x40000000) {
-		gk104_fifo_intr_runlist(gk104_fifo(fifo));
+		gk104_fifo_intr_runlist(fifo);
 		stat &= ~0x40000000;
 	}
 
@@ -949,7 +955,6 @@ gk104_fifo_oneinit(struct nvkm_fifo *base)
 				return ret;
 		}
 
-		init_waitqueue_head(&fifo->runlist[i].wait);
 		INIT_LIST_HEAD(&fifo->runlist[i].cgrp);
 		INIT_LIST_HEAD(&fifo->runlist[i].chan);
 	}

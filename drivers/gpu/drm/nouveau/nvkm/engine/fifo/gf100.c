@@ -115,12 +115,19 @@ gf100_runq = {
 	.intr_0_names = gf100_runq_intr_0_names,
 };
 
+static bool
+gf100_runl_pending(struct nvkm_runl *runl)
+{
+	return nvkm_rd32(runl->fifo->engine.subdev.device, 0x00227c) & 0x00100000;
+}
+
 void
 gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 {
 	struct gf100_fifo_chan *chan;
 	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
+	struct nvkm_runl *runl = nvkm_runl_first(&fifo->base);
 	struct nvkm_memory *cur;
 	int nr = 0;
 	int target;
@@ -150,10 +157,7 @@ gf100_fifo_runlist_commit(struct gf100_fifo *fifo)
 				    (target << 28));
 	nvkm_wr32(device, 0x002274, 0x01f00000 | nr);
 
-	if (wait_event_timeout(fifo->runlist.wait,
-			       !(nvkm_rd32(device, 0x00227c) & 0x00100000),
-			       msecs_to_jiffies(2000)) == 0)
-		nvkm_error(subdev, "runlist update timeout\n");
+	runl->func->wait(runl);
 	mutex_unlock(&fifo->base.mutex);
 }
 
@@ -175,6 +179,8 @@ gf100_fifo_runlist_insert(struct gf100_fifo *fifo, struct gf100_fifo_chan *chan)
 
 static const struct nvkm_runl_func
 gf100_runl = {
+	.wait = nv50_runl_wait,
+	.pending = gf100_runl_pending,
 };
 
 static void
@@ -558,14 +564,13 @@ gf100_fifo_intr_pbdma(struct nvkm_fifo *fifo)
 }
 
 static void
-gf100_fifo_intr_runlist(struct gf100_fifo *fifo)
+gf100_fifo_intr_runlist(struct nvkm_fifo *fifo)
 {
-	struct nvkm_subdev *subdev = &fifo->base.engine.subdev;
+	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
 	u32 intr = nvkm_rd32(device, 0x002a00);
 
 	if (intr & 0x10000000) {
-		wake_up(&fifo->runlist.wait);
 		nvkm_wr32(device, 0x002a00, 0x10000000);
 		intr &= ~0x10000000;
 	}
@@ -660,7 +665,7 @@ gf100_fifo_intr(struct nvkm_inth *inth)
 	}
 
 	if (stat & 0x40000000) {
-		gf100_fifo_intr_runlist(gf100_fifo(fifo));
+		gf100_fifo_intr_runlist(fifo);
 		stat &= ~0x40000000;
 	}
 
@@ -778,8 +783,6 @@ gf100_fifo_oneinit(struct nvkm_fifo *base)
 			      false, &fifo->runlist.mem[1]);
 	if (ret)
 		return ret;
-
-	init_waitqueue_head(&fifo->runlist.wait);
 
 	ret = nvkm_memory_new(device, NVKM_MEM_TARGET_INST, 128 * 0x1000,
 			      0x1000, false, &fifo->user.mem);

@@ -73,6 +73,15 @@ nvkm_runl_chan_get_chid(struct nvkm_runl *runl, int id, unsigned long *pirqflags
 	return NULL;
 }
 
+bool
+nvkm_runl_update_pending(struct nvkm_runl *runl)
+{
+	if (!runl->func->pending(runl))
+		return false;
+
+	return true;
+}
+
 void
 nvkm_runl_del(struct nvkm_runl *runl)
 {

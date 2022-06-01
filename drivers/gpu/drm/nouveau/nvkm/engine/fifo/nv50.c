@@ -25,10 +25,11 @@
 #include "chid.h"
 #include "runl.h"
 
+#include <core/gpuobj.h>
+#include <subdev/timer.h>
+
 #include "nv50.h"
 #include "channv50.h"
-
-#include <core/gpuobj.h>
 
 #include <nvif/class.h>
 
@@ -74,8 +75,30 @@ nv50_fifo_runlist_update(struct nv50_fifo *fifo)
 	mutex_unlock(&fifo->base.mutex);
 }
 
+static bool
+nv50_runl_pending(struct nvkm_runl *runl)
+{
+	return nvkm_rd32(runl->fifo->engine.subdev.device, 0x0032ec) & 0x00000100;
+}
+
+int
+nv50_runl_wait(struct nvkm_runl *runl)
+{
+	struct nvkm_fifo *fifo = runl->fifo;
+
+	nvkm_msec(fifo->engine.subdev.device, fifo->timeout.chan_msec,
+		if (!nvkm_runl_update_pending(runl))
+			return 0;
+		usleep_range(1, 2);
+	);
+
+	return -ETIMEDOUT;
+}
+
 const struct nvkm_runl_func
 nv50_runl = {
+	.wait = nv50_runl_wait,
+	.pending = nv50_runl_pending,
 };
 
 void

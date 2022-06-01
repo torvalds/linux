@@ -54,6 +54,10 @@ struct nvkm_fifo {
 		struct nvkm_event event;
 	} nonstall;
 
+	struct {
+		u32 chan_msec;
+	} timeout;
+
 	int nr;
 	struct list_head chan;
 	spinlock_t lock;

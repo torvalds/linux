@@ -31,6 +31,8 @@
 
 static const struct nvkm_runl_func
 gp100_runl = {
+	.wait = nv50_runl_wait,
+	.pending = gk104_runl_pending,
 };
 
 static const struct nvkm_enum

@@ -60,6 +60,8 @@ gk110_fifo_runlist = {
 
 const struct nvkm_runl_func
 gk110_runl = {
+	.wait = nv50_runl_wait,
+	.pending = gk104_runl_pending,
 };
 
 int

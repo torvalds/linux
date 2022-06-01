@@ -24,6 +24,8 @@ struct nvkm_engn {
 
 struct nvkm_runl {
 	const struct nvkm_runl_func {
+		int (*wait)(struct nvkm_runl *);
+		bool (*pending)(struct nvkm_runl *);
 	} *func;
 	struct nvkm_fifo *fifo;
 	int id;
@@ -50,13 +52,16 @@ struct nvkm_runl *nvkm_runl_get(struct nvkm_fifo *, int runi, u32 addr);
 struct nvkm_engn *nvkm_runl_add(struct nvkm_runl *, int engi, const struct nvkm_engn_func *,
 				enum nvkm_subdev_type, int inst);
 void nvkm_runl_del(struct nvkm_runl *);
+bool nvkm_runl_update_pending(struct nvkm_runl *);
 
 struct nvkm_chan *nvkm_runl_chan_get_chid(struct nvkm_runl *, int chid, unsigned long *irqflags);
 struct nvkm_chan *nvkm_runl_chan_get_inst(struct nvkm_runl *, u64 inst, unsigned long *irqflags);
 
 #define nvkm_runl_find_engn(engn,runl,cond) nvkm_list_find(engn, &(runl)->engns, head, (cond))
 
+#define nvkm_runl_first(fifo) list_first_entry(&(fifo)->runls, struct nvkm_runl, head)
 #define nvkm_runl_foreach(runl,fifo) list_for_each_entry((runl), &(fifo)->runls, head)
+#define nvkm_runl_foreach_cond(runl,fifo,cond) nvkm_list_foreach(runl, &(fifo)->runls, head, (cond))
 #define nvkm_runl_foreach_engn(engn,runl) list_for_each_entry((engn), &(runl)->engns, head)
 #define nvkm_runl_foreach_engn_cond(engn,runl,cond) \
 	nvkm_list_foreach(engn, &(runl)->engns, head, (cond))

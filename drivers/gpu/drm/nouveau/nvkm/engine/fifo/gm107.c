@@ -54,6 +54,8 @@ gm107_fifo_runlist = {
 
 const struct nvkm_runl_func
 gm107_runl = {
+	.wait = nv50_runl_wait,
+	.pending = gk104_runl_pending,
 };
 
 static const struct nvkm_enum
