@@ -12,7 +12,6 @@
 #include "dpu_hw_top.h"
 #include "dpu_hw_wb.h"
 #include "dpu_hw_lm.h"
-#include "dpu_hw_blk.h"
 #include "dpu_hw_merge3d.h"
 #include "dpu_hw_interrupts.h"
 #include "dpu_core_irq.h"

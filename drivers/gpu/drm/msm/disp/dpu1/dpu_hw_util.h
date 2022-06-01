@@ -32,6 +32,13 @@ struct dpu_hw_blk_reg_map {
 };
 
 /**
+ * struct dpu_hw_blk - opaque hardware block object
+ */
+struct dpu_hw_blk {
+	/* opaque */
+};
+
+/**
  * struct dpu_hw_scaler3_de_cfg : QSEEDv3 detail enhancer configuration
  * @enable:         detail enhancer enable/disable
  * @sharpen_level1: sharpening strength for noise
