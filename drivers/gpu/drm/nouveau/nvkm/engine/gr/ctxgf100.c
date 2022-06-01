@@ -1410,6 +1410,8 @@ gf100_grctx_generate_main(struct gf100_gr_chan *chan)
 		grctx->r408840(gr);
 	if (grctx->r419c0c)
 		grctx->r419c0c(gr);
+
+	gf100_gr_wait_idle(gr);
 }
 
 #define CB_RESERVED 0x80000
