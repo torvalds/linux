@@ -21,14 +21,14 @@ void nvkm_falcon_v1_disable(struct nvkm_falcon *);
 void gp102_sec2_flcn_bind_context(struct nvkm_falcon *, struct nvkm_memory *);
 int gp102_sec2_flcn_enable(struct nvkm_falcon *);
 
-#define FLCN_PRINTK(t,f,fmt,a...) do {                               \
-	if ((f)->owner->name != (f)->name)                           \
-		nvkm_##t((f)->owner, "%s: "fmt"\n", (f)->name, ##a); \
-	else                                                         \
-		nvkm_##t((f)->owner, fmt"\n", ##a);                  \
-} while(0)
-#define FLCN_DBG(f,fmt,a...) FLCN_PRINTK(debug, (f), fmt, ##a)
-#define FLCN_ERR(f,fmt,a...) FLCN_PRINTK(error, (f), fmt, ##a)
+#define FLCN_PRINTK(f,l,p,fmt,a...) ({                                                          \
+	if ((f)->owner->name != (f)->name)                                                      \
+		nvkm_printk___((f)->owner, (f)->user, NV_DBG_##l, p, "%s:"fmt, (f)->name, ##a); \
+	else                                                                                    \
+		nvkm_printk___((f)->owner, (f)->user, NV_DBG_##l, p, fmt, ##a);                 \
+})
+#define FLCN_DBG(f,fmt,a...) FLCN_PRINTK((f), DEBUG, info, " "fmt"\n", ##a)
+#define FLCN_ERR(f,fmt,a...) FLCN_PRINTK((f), ERROR, err, " "fmt"\n", ##a)
 
 /**
  * struct nvfw_falcon_msg - header for all messages

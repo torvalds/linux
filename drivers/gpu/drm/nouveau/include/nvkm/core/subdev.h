@@ -70,11 +70,18 @@ int  nvkm_subdev_info(struct nvkm_subdev *, u64, u64 *);
 void nvkm_subdev_intr(struct nvkm_subdev *);
 
 /* subdev logging */
-#define nvkm_printk_(s,l,p,f,a...) do {                                        \
-	const struct nvkm_subdev *_subdev = (s);                               \
-	if (CONFIG_NOUVEAU_DEBUG >= (l) && _subdev->debug >= (l))              \
-		dev_##p(_subdev->device->dev, "%s: "f, _subdev->name, ##a);    \
+#define nvkm_printk_ok(s,u,l)                                                                \
+	((CONFIG_NOUVEAU_DEBUG >= (l)) && ((s)->debug >= (l) || ((u) && (u)->debug >= (l))))
+#define nvkm_printk___(s,u,l,p,f,a...) do {                                                  \
+	if (nvkm_printk_ok((s), (u), (l))) {                                                 \
+		if ((u) && (u) != (s))                                                       \
+			dev_##p((s)->device->dev, "%s(%s):"f, (s)->name, (u)->name, ##a);    \
+		else                                                                         \
+			dev_##p((s)->device->dev, "%s:"f, (s)->name, ##a);                   \
+	}                                                                                    \
 } while(0)
+#define nvkm_printk__(s,l,p,f,a...) nvkm_printk___((s), (s), (l), p, f, ##a)
+#define nvkm_printk_(s,l,p,f,a...) nvkm_printk__((s), (l), p, " "f, ##a)
 #define nvkm_printk(s,l,p,f,a...) nvkm_printk_((s), NV_DBG_##l, p, f, ##a)
 #define nvkm_fatal(s,f,a...) nvkm_printk((s), FATAL,   crit, f, ##a)
 #define nvkm_error(s,f,a...) nvkm_printk((s), ERROR,    err, f, ##a)
