@@ -302,6 +302,56 @@ nvkm_fifo_chan_dtor(struct nvkm_object *object)
 	return data;
 }
 
+void
+nvkm_chan_put(struct nvkm_chan **pchan, unsigned long irqflags)
+{
+	struct nvkm_chan *chan = *pchan;
+
+	if (!chan)
+		return;
+
+	*pchan = NULL;
+	spin_unlock_irqrestore(&chan->cgrp->lock, irqflags);
+}
+
+struct nvkm_chan *
+nvkm_chan_get_inst(struct nvkm_engine *engine, u64 inst, unsigned long *pirqflags)
+{
+	struct nvkm_fifo *fifo = engine->subdev.device->fifo;
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
+	struct nvkm_chan *chan;
+
+	nvkm_runl_foreach(runl, fifo) {
+		nvkm_runl_foreach_engn(engn, runl) {
+			if (engine == &fifo->engine || engn->engine == engine) {
+				chan = nvkm_runl_chan_get_inst(runl, inst, pirqflags);
+				if (chan || engn->engine == engine)
+					return chan;
+			}
+		}
+	}
+
+	return NULL;
+}
+
+struct nvkm_chan *
+nvkm_chan_get_chid(struct nvkm_engine *engine, int id, unsigned long *pirqflags)
+{
+	struct nvkm_fifo *fifo = engine->subdev.device->fifo;
+	struct nvkm_runl *runl;
+	struct nvkm_engn *engn;
+
+	nvkm_runl_foreach(runl, fifo) {
+		nvkm_runl_foreach_engn(engn, runl) {
+			if (fifo->chid || engn->engine == engine)
+				return nvkm_runl_chan_get_chid(runl, id, pirqflags);
+		}
+	}
+
+	return NULL;
+}
+
 static const struct nvkm_object_func
 nvkm_fifo_chan_func = {
 	.dtor = nvkm_fifo_chan_dtor,

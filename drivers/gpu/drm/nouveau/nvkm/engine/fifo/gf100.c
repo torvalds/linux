@@ -84,13 +84,13 @@ gf100_runq_intr(struct nvkm_runq *runq, struct nvkm_runl *null)
 
 	if (show) {
 		nvkm_snprintbf(msg, sizeof(msg), runq->func->intr_0_names, show);
-		chan = nvkm_fifo_chan_chid(runq->fifo, chid, &flags);
+		chan = nvkm_chan_get_chid(&runq->fifo->engine, chid, &flags);
 		nvkm_error(subdev, "PBDMA%d: %08x [%s] ch %d [%010llx %s] "
 				   "subc %d mthd %04x data %08x\n",
 			   runq->id, show, msg, chid, chan ? chan->inst->addr : 0,
 			   chan ? chan->object.client->name : "unknown",
 			   subc, mthd, data);
-		nvkm_fifo_chan_put(runq->fifo, flags, &chan);
+		nvkm_chan_put(&chan, flags);
 	}
 
 	nvkm_wr32(device, 0x0400c0 + (runq->id * 0x2000), 0x80600008);
@@ -367,9 +367,9 @@ gf100_fifo_mmu_fault_recover(struct nvkm_fifo *fifo, struct nvkm_fault_data *inf
 	struct nvkm_device *device = subdev->device;
 	const struct nvkm_enum *er, *ee, *ec, *ea;
 	struct nvkm_engine *engine = NULL;
-	struct nvkm_fifo_chan *chan;
 	struct nvkm_runl *runl;
 	struct nvkm_engn *engn;
+	struct nvkm_chan *chan;
 	unsigned long flags;
 	char ct[8] = "HUB/";
 
@@ -409,7 +409,7 @@ gf100_fifo_mmu_fault_recover(struct nvkm_fifo *fifo, struct nvkm_fault_data *inf
 		}
 	}
 
-	chan = nvkm_fifo_chan_inst(fifo, info->inst, &flags);
+	chan = nvkm_chan_get_inst(&fifo->engine, info->inst, &flags);
 
 	nvkm_error(subdev,
 		   "fault %02x [%s] at %016llx engine %02x [%s] client %02x "
@@ -427,7 +427,7 @@ gf100_fifo_mmu_fault_recover(struct nvkm_fifo *fifo, struct nvkm_fault_data *inf
 	if (engine && chan)
 		gf100_fifo_recover(gf100_fifo(fifo), engine, (void *)chan);
 
-	nvkm_fifo_chan_put(fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 }
 
 static const struct nvkm_fifo_func_mmu_fault

@@ -30,7 +30,6 @@
 #include "channv04.h"
 #include "regsnv04.h"
 
-#include <core/client.h>
 #include <core/ramht.h>
 #include <subdev/instmem.h>
 #include <subdev/mc.h>
@@ -241,7 +240,7 @@ nv04_fifo_intr_cache_error(struct nvkm_fifo *fifo, u32 chid, u32 get)
 {
 	struct nvkm_subdev *subdev = &fifo->engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	unsigned long flags;
 	u32 pull0 = nvkm_rd32(device, 0x003250);
 	u32 mthd, data;
@@ -264,12 +263,12 @@ nv04_fifo_intr_cache_error(struct nvkm_fifo *fifo, u32 chid, u32 get)
 
 	if (!(pull0 & 0x00000100) ||
 	    !nv04_fifo_swmthd(device, chid, mthd, data)) {
-		chan = nvkm_fifo_chan_chid(fifo, chid, &flags);
+		chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
 		nvkm_error(subdev, "CACHE_ERROR - "
 			   "ch %d [%s] subc %d mthd %04x data %08x\n",
-			   chid, chan ? chan->object.client->name : "unknown",
+			   chid, chan ? chan->name : "unknown",
 			   (mthd >> 13) & 7, mthd & 0x1ffc, data);
-		nvkm_fifo_chan_put(fifo, flags, &chan);
+		nvkm_chan_put(&chan, flags);
 	}
 
 	nvkm_wr32(device, NV04_PFIFO_CACHE1_DMA_PUSH, 0);
@@ -296,12 +295,12 @@ nv04_fifo_intr_dma_pusher(struct nvkm_fifo *fifo, u32 chid)
 	u32 dma_put = nvkm_rd32(device, 0x003240);
 	u32 push = nvkm_rd32(device, 0x003220);
 	u32 state = nvkm_rd32(device, 0x003228);
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	unsigned long flags;
 	const char *name;
 
-	chan = nvkm_fifo_chan_chid(fifo, chid, &flags);
-	name = chan ? chan->object.client->name : "unknown";
+	chan = nvkm_chan_get_chid(&fifo->engine, chid, &flags);
+	name = chan ? chan->name : "unknown";
 	if (device->card_type == NV_50) {
 		u32 ho_get = nvkm_rd32(device, 0x003328);
 		u32 ho_put = nvkm_rd32(device, 0x003320);
@@ -332,7 +331,7 @@ nv04_fifo_intr_dma_pusher(struct nvkm_fifo *fifo, u32 chid)
 		if (dma_get != dma_put)
 			nvkm_wr32(device, 0x003244, dma_put);
 	}
-	nvkm_fifo_chan_put(fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 
 	nvkm_wr32(device, 0x003228, 0x00000000);
 	nvkm_wr32(device, 0x003220, 0x00000001);

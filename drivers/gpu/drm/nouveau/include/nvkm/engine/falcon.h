@@ -66,7 +66,7 @@ struct nvkm_falcon_func {
 		u32  size;
 	} data;
 	void (*init)(struct nvkm_falcon *);
-	void (*intr)(struct nvkm_falcon *, struct nvkm_fifo_chan *);
+	void (*intr)(struct nvkm_falcon *, struct nvkm_chan *);
 
 	u32 debug;
 	u32 fbif;

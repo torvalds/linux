@@ -34,6 +34,10 @@ struct nvkm_chan {
 	struct nvkm_fifo_engn engn[NVKM_FIFO_ENGN_NR];
 };
 
+struct nvkm_chan *nvkm_chan_get_chid(struct nvkm_engine *, int id, unsigned long *irqflags);
+struct nvkm_chan *nvkm_chan_get_inst(struct nvkm_engine *, u64 inst, unsigned long *irqflags);
+void nvkm_chan_put(struct nvkm_chan **, unsigned long irqflags);
+
 struct nvkm_fifo {
 	const struct nvkm_fifo_func *func;
 	struct nvkm_engine engine;
@@ -61,13 +65,6 @@ struct nvkm_fifo {
 void nvkm_fifo_fault(struct nvkm_fifo *, struct nvkm_fault_data *);
 void nvkm_fifo_pause(struct nvkm_fifo *, unsigned long *);
 void nvkm_fifo_start(struct nvkm_fifo *, unsigned long *);
-
-void nvkm_fifo_chan_put(struct nvkm_fifo *, unsigned long flags,
-			struct nvkm_fifo_chan **);
-struct nvkm_fifo_chan *
-nvkm_fifo_chan_inst(struct nvkm_fifo *, u64 inst, unsigned long *flags);
-struct nvkm_fifo_chan *
-nvkm_fifo_chan_chid(struct nvkm_fifo *, int chid, unsigned long *flags);
 
 int nv04_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);
 int nv10_fifo_new(struct nvkm_device *, enum nvkm_subdev_type, int inst, struct nvkm_fifo **);

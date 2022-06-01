@@ -1548,7 +1548,7 @@ gf100_gr_intr(struct nvkm_gr *base)
 	struct gf100_gr *gr = gf100_gr(base);
 	struct nvkm_subdev *subdev = &gr->base.engine.subdev;
 	struct nvkm_device *device = subdev->device;
-	struct nvkm_fifo_chan *chan;
+	struct nvkm_chan *chan;
 	unsigned long flags;
 	u64 inst = nvkm_rd32(device, 0x409b00) & 0x0fffffff;
 	u32 stat = nvkm_rd32(device, 0x400100);
@@ -1561,10 +1561,10 @@ gf100_gr_intr(struct nvkm_gr *base)
 	const char *name = "unknown";
 	int chid = -1;
 
-	chan = nvkm_fifo_chan_inst(device->fifo, (u64)inst << 12, &flags);
+	chan = nvkm_chan_get_inst(&gr->base.engine, (u64)inst << 12, &flags);
 	if (chan) {
-		name = chan->object.client->name;
-		chid = chan->chid;
+		name = chan->name;
+		chid = chan->id;
 	}
 
 	if (device->card_type < NV_E0 || subc < 4)
@@ -1631,7 +1631,7 @@ gf100_gr_intr(struct nvkm_gr *base)
 	}
 
 	nvkm_wr32(device, 0x400500, 0x00010001);
-	nvkm_fifo_chan_put(device->fifo, flags, &chan);
+	nvkm_chan_put(&chan, flags);
 }
 
 static void

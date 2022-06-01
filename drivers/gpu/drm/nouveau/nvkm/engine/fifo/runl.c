@@ -20,11 +20,58 @@
  * OTHER DEALINGS IN THE SOFTWARE.
  */
 #include "runl.h"
+#include "cgrp.h"
 #include "chan.h"
 #include "chid.h"
 #include "priv.h"
 
+#include <core/gpuobj.h>
 #include <subdev/top.h>
+
+struct nvkm_chan *
+nvkm_runl_chan_get_inst(struct nvkm_runl *runl, u64 inst, unsigned long *pirqflags)
+{
+	struct nvkm_chid *chid = runl->chid;
+	struct nvkm_chan *chan;
+	unsigned long flags;
+	int id;
+
+	spin_lock_irqsave(&chid->lock, flags);
+	for_each_set_bit(id, chid->used, chid->nr) {
+		chan = chid->data[id];
+		if (likely(chan)) {
+			if (chan->inst->addr == inst) {
+				spin_lock(&chan->cgrp->lock);
+				*pirqflags = flags;
+				spin_unlock(&chid->lock);
+				return chan;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&chid->lock, flags);
+	return NULL;
+}
+
+struct nvkm_chan *
+nvkm_runl_chan_get_chid(struct nvkm_runl *runl, int id, unsigned long *pirqflags)
+{
+	struct nvkm_chid *chid = runl->chid;
+	struct nvkm_chan *chan;
+	unsigned long flags;
+
+	spin_lock_irqsave(&chid->lock, flags);
+	if (!WARN_ON(id >= chid->nr)) {
+		chan = chid->data[id];
+		if (likely(chan)) {
+			spin_lock(&chan->cgrp->lock);
+			*pirqflags = flags;
+			spin_unlock(&chid->lock);
+			return chan;
+		}
+	}
+	spin_unlock_irqrestore(&chid->lock, flags);
+	return NULL;
+}
 
 void
 nvkm_runl_del(struct nvkm_runl *runl)
