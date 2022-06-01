@@ -2529,13 +2529,14 @@ int has_turbo_ratio_group_limits(int family, int model)
 	}
 }
 
-static void dump_turbo_ratio_limits(int family, int model)
+static void dump_turbo_ratio_limits(int trl_msr_offset, int family, int model)
 {
 	unsigned long long msr, core_counts;
 	int shift;
 
-	get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT, &msr);
-	fprintf(outf, "cpu%d: MSR_TURBO_RATIO_LIMIT: 0x%08llx\n", base_cpu, msr);
+	get_msr(base_cpu, trl_msr_offset, &msr);
+	fprintf(outf, "cpu%d: MSR_%sTURBO_RATIO_LIMIT: 0x%08llx\n",
+		base_cpu, trl_msr_offset == MSR_SECONDARY_TURBO_RATIO_LIMIT ? "SECONDARY" : "", msr);
 
 	if (has_turbo_ratio_group_limits(family, model)) {
 		get_msr(base_cpu, MSR_TURBO_RATIO_LIMIT1, &core_counts);
@@ -4073,8 +4074,12 @@ static void dump_cstate_pstate_config_info(unsigned int family, unsigned int mod
 	if (has_ivt_turbo_ratio_limit(family, model))
 		dump_ivt_turbo_ratio_limits();
 
-	if (has_turbo_ratio_limit(family, model))
-		dump_turbo_ratio_limits(family, model);
+	if (has_turbo_ratio_limit(family, model)) {
+		dump_turbo_ratio_limits(MSR_TURBO_RATIO_LIMIT, family, model);
+
+		if (is_hybrid)
+			dump_turbo_ratio_limits(MSR_SECONDARY_TURBO_RATIO_LIMIT, family, model);
+	}
 
 	if (has_atom_turbo_ratio_limit(family, model))
 		dump_atom_turbo_ratio_limits();
