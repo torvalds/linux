@@ -66,6 +66,7 @@ gv100_grctx_generate_attrib(struct gf100_gr_chan *chan)
 	const u32  alpha = grctx->alpha_nr;
 	const u32 attrib = grctx->attrib_nr;
 	const u32   gfxp = grctx->gfxp_nr;
+	const int max_batches = 0xffff;
 	u32 size = grctx->alpha_nr_max * gr->tpc_total;
 	u32 ao = 0;
 	u32 bo = ao + size;
@@ -73,6 +74,7 @@ gv100_grctx_generate_attrib(struct gf100_gr_chan *chan)
 
 	gf100_grctx_patch_wr32(chan, 0x405830, attrib);
 	gf100_grctx_patch_wr32(chan, 0x40585c, alpha);
+	gf100_grctx_patch_wr32(chan, 0x4064c4, ((alpha / 4) << 16) | max_batches);
 
 	for (gpc = 0; gpc < gr->gpc_nr; gpc++) {
 		for (ppc = 0; ppc < gr->func->ppc_nr; ppc++, n++) {
