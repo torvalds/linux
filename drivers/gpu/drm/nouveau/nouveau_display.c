@@ -35,7 +35,6 @@
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_vblank.h>
 
-#include "nouveau_fbcon.h"
 #include "nouveau_crtc.h"
 #include "nouveau_gem.h"
 #include "nouveau_connector.h"
@@ -392,7 +391,7 @@ nouveau_user_framebuffer_create(struct drm_device *dev,
 
 static const struct drm_mode_config_funcs nouveau_mode_config_funcs = {
 	.fb_create = nouveau_user_framebuffer_create,
-	.output_poll_changed = nouveau_fbcon_output_poll_changed,
+	.output_poll_changed = drm_fb_helper_output_poll_changed,
 };
 
 
@@ -788,6 +787,9 @@ nouveau_display_suspend(struct drm_device *dev, bool runtime)
 {
 	struct nouveau_display *disp = nouveau_display(dev);
 
+	/* Disable console. */
+	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, true);
+
 	if (drm_drv_uses_atomic_modeset(dev)) {
 		if (!runtime) {
 			disp->suspend = drm_atomic_helper_suspend(dev);
@@ -815,8 +817,10 @@ nouveau_display_resume(struct drm_device *dev, bool runtime)
 			drm_atomic_helper_resume(dev, disp->suspend);
 			disp->suspend = NULL;
 		}
-		return;
 	}
+
+	/* Enable console. */
+	drm_fb_helper_set_suspend_unlocked(dev->fb_helper, false);
 }
 
 int

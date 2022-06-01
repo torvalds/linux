@@ -33,6 +33,7 @@
 #include <drm/drm_aperture.h>
 #include <drm/drm_crtc_helper.h>
 #include <drm/drm_drv.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_gem_ttm_helper.h>
 #include <drm/drm_ioctl.h>
 #include <drm/drm_vblank.h>
@@ -62,7 +63,6 @@
 #include "nouveau_bios.h"
 #include "nouveau_ioctl.h"
 #include "nouveau_abi16.h"
-#include "nouveau_fbcon.h"
 #include "nouveau_fence.h"
 #include "nouveau_debugfs.h"
 #include "nouveau_usif.h"
@@ -611,7 +611,6 @@ nouveau_drm_device_init(struct drm_device *dev)
 	nouveau_hwmon_init(dev);
 	nouveau_svm_init(drm);
 	nouveau_dmem_init(drm);
-	nouveau_fbcon_init(dev);
 	nouveau_led_init(dev);
 
 	if (nouveau_pmops_runtime()) {
@@ -655,7 +654,6 @@ nouveau_drm_device_fini(struct drm_device *dev)
 	}
 
 	nouveau_led_fini(dev);
-	nouveau_fbcon_fini(dev);
 	nouveau_dmem_fini(drm);
 	nouveau_svm_fini(drm);
 	nouveau_hwmon_fini(dev);
@@ -809,6 +807,11 @@ static int nouveau_drm_probe(struct pci_dev *pdev,
 	if (ret)
 		goto fail_drm_dev_init;
 
+	if (nouveau_drm(drm_dev)->client.device.info.ram_size <= 32 * 1024 * 1024)
+		drm_fbdev_generic_setup(drm_dev, 8);
+	else
+		drm_fbdev_generic_setup(drm_dev, 32);
+
 	quirk_broken_nv_runpm(pdev);
 	return 0;
 
@@ -865,8 +868,6 @@ nouveau_do_suspend(struct drm_device *dev, bool runtime)
 	nouveau_led_suspend(dev);
 
 	if (dev->mode_config.num_crtc) {
-		NV_DEBUG(drm, "suspending console...\n");
-		nouveau_fbcon_set_suspend(dev, 1);
 		NV_DEBUG(drm, "suspending display...\n");
 		ret = nouveau_display_suspend(dev, runtime);
 		if (ret)
@@ -940,8 +941,6 @@ nouveau_do_resume(struct drm_device *dev, bool runtime)
 	if (dev->mode_config.num_crtc) {
 		NV_DEBUG(drm, "resuming display...\n");
 		nouveau_display_resume(dev, runtime);
-		NV_DEBUG(drm, "resuming console...\n");
-		nouveau_fbcon_set_suspend(dev, 0);
 	}
 
 	nouveau_led_resume(dev);
@@ -1296,7 +1295,6 @@ static void nouveau_display_options(void)
 	DRM_DEBUG_DRIVER("... tv_disable   : %d\n", nouveau_tv_disable);
 	DRM_DEBUG_DRIVER("... ignorelid    : %d\n", nouveau_ignorelid);
 	DRM_DEBUG_DRIVER("... duallink     : %d\n", nouveau_duallink);
-	DRM_DEBUG_DRIVER("... nofbaccel    : %d\n", nouveau_nofbaccel);
 	DRM_DEBUG_DRIVER("... config       : %s\n", nouveau_config);
 	DRM_DEBUG_DRIVER("... debug        : %s\n", nouveau_debug);
 	DRM_DEBUG_DRIVER("... noaccel      : %d\n", nouveau_noaccel);

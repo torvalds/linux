@@ -23,6 +23,7 @@
  * DEALINGS IN THE SOFTWARE.
  */
 #include <drm/drm_crtc_helper.h>
+#include <drm/drm_fb_helper.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_plane_helper.h>
 #include <drm/drm_vblank.h>
@@ -37,7 +38,6 @@
 #include "nouveau_crtc.h"
 #include "hw.h"
 #include "nvreg.h"
-#include "nouveau_fbcon.h"
 #include "disp.h"
 #include "nouveau_dma.h"
 
@@ -915,14 +915,6 @@ nv04_crtc_mode_set_base_atomic(struct drm_crtc *crtc,
 			       struct drm_framebuffer *fb,
 			       int x, int y, enum mode_set_atomic state)
 {
-	struct nouveau_drm *drm = nouveau_drm(crtc->dev);
-	struct drm_device *dev = drm->dev;
-
-	if (state == ENTER_ATOMIC_MODE_SET)
-		nouveau_fbcon_accel_save_disable(dev);
-	else
-		nouveau_fbcon_accel_restore(dev);
-
 	return nv04_crtc_do_mode_set_base(crtc, fb, x, y, true);
 }
 

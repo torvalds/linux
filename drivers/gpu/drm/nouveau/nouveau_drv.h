@@ -183,7 +183,6 @@ struct nouveau_drm {
 	struct nouveau_channel *cechan;
 	struct nouveau_channel *channel;
 	struct nvkm_gpuobj *notify;
-	struct nouveau_fbdev *fbcon;
 	struct nvif_object ntfy;
 
 	/* nv10-nv40 tiling regions */
@@ -198,8 +197,6 @@ struct nouveau_drm {
 	struct work_struct hpd_work;
 	spinlock_t hpd_lock;
 	u32 hpd_pending;
-	struct work_struct fbcon_work;
-	int fbcon_new_state;
 #ifdef CONFIG_ACPI
 	struct notifier_block acpi_nb;
 #endif
