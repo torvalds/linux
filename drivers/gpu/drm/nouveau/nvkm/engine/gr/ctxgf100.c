@@ -1496,17 +1496,25 @@ gf100_grctx_generate(struct gf100_gr *gr, struct gf100_gr_chan *chan, struct nvk
 
 	grctx->main(chan);
 
-	/* Trigger a context unload by unsetting the "next channel valid" bit
-	 * and faking a context switch interrupt.
-	 */
-	nvkm_mask(device, 0x409b04, 0x80000000, 0x00000000);
-	nvkm_wr32(device, 0x409000, 0x00000100);
-	if (nvkm_msec(device, 2000,
-		if (!(nvkm_rd32(device, 0x409b00) & 0x80000000))
-			break;
-	) < 0) {
-		ret = -EBUSY;
-		goto done_inst;
+	if (!gr->firmware) {
+		/* Trigger a context unload by unsetting the "next channel valid" bit
+		 * and faking a context switch interrupt.
+		 */
+		nvkm_mask(device, 0x409b04, 0x80000000, 0x00000000);
+		nvkm_wr32(device, 0x409000, 0x00000100);
+		if (nvkm_msec(device, 2000,
+			if (!(nvkm_rd32(device, 0x409b00) & 0x80000000))
+				break;
+		) < 0) {
+			ret = -EBUSY;
+			goto done_inst;
+		}
+	} else {
+		ret = gf100_gr_fecs_wfi_golden_save(gr, 0x80000000 | addr);
+		if (ret)
+			goto done_inst;
+
+		nvkm_mask(device, 0x409b00, 0x80000000, 0x00000000);
 	}
 
 	gr->data = kmalloc(gr->size, GFP_KERNEL);

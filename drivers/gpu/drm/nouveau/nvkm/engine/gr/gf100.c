@@ -797,6 +797,25 @@ gf100_gr_fecs_stop_ctxsw(struct nvkm_gr *base)
 }
 
 int
+gf100_gr_fecs_wfi_golden_save(struct gf100_gr *gr, u32 inst)
+{
+	struct nvkm_device *device = gr->base.engine.subdev.device;
+
+	nvkm_mask(device, 0x409800, 0x00000003, 0x00000000);
+	nvkm_wr32(device, 0x409500, inst);
+	nvkm_wr32(device, 0x409504, 0x00000009);
+	nvkm_msec(device, 2000,
+		u32 stat = nvkm_rd32(device, 0x409800);
+		if (stat & 0x00000002)
+			return -EIO;
+		if (stat & 0x00000001)
+			return 0;
+	);
+
+	return -ETIMEDOUT;
+}
+
+int
 gf100_gr_fecs_bind_pointer(struct gf100_gr *gr, u32 inst)
 {
 	struct nvkm_device *device = gr->base.engine.subdev.device;
