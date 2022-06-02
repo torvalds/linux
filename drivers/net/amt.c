@@ -2698,7 +2698,8 @@ static int amt_rcv(struct sock *sk, struct sk_buff *skb)
 	amt = rcu_dereference_sk_user_data(sk);
 	if (!amt) {
 		err = true;
-		goto drop;
+		kfree_skb(skb);
+		goto out;
 	}
 
 	skb->dev = amt->dev;
