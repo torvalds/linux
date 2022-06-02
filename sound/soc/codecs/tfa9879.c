@@ -111,8 +111,8 @@ static int tfa9879_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	int i2s_set;
 	int sck_pol;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
