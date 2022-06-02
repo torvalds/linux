@@ -5366,8 +5366,6 @@ exit:
 void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status)
 {
 	u16 start_seq;
-	u16 BA_para_set;
-	__le16	le_tmp;
 	u16 BA_starting_seqctrl = 0;
 	struct xmit_frame *pmgntframe;
 	struct pkt_attrib *pattrib;
@@ -5403,7 +5401,6 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	mgmt->seq_ctrl = cpu_to_le16(pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
 
-	pframe += sizeof(struct ieee80211_hdr_3addr);
 	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
 
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
@@ -5452,10 +5449,8 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	case WLAN_ACTION_DELBA:
 		mgmt->u.action.u.delba.action_code = WLAN_ACTION_DELBA;
 		pattrib->pktlen++;
-		BA_para_set = (status & 0x1F) << 3;
-		le_tmp = cpu_to_le16(BA_para_set);
-		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
-
+		mgmt->u.action.u.delba.params = cpu_to_le16((status & 0x1F) << 3);
+		pattrib->pktlen += 2;
 		mgmt->u.action.u.delba.reason_code = cpu_to_le16(WLAN_STATUS_REQUEST_DECLINED);
 		pattrib->pktlen += 2;
 		break;
