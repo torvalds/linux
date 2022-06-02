@@ -24,7 +24,6 @@
 #include <linux/pci.h>
 #include <linux/pci-ecam.h>
 #include <linux/printk.h>
-#include <linux/regulator/consumer.h>
 #include <linux/reset.h>
 #include <linux/sizes.h>
 #include <linux/slab.h>
@@ -196,8 +195,6 @@ static inline void brcm_pcie_bridge_sw_init_set_generic(struct brcm_pcie *pcie, 
 static inline void brcm_pcie_perst_set_4908(struct brcm_pcie *pcie, u32 val);
 static inline void brcm_pcie_perst_set_7278(struct brcm_pcie *pcie, u32 val);
 static inline void brcm_pcie_perst_set_generic(struct brcm_pcie *pcie, u32 val);
-static int brcm_pcie_linkup(struct brcm_pcie *pcie);
-static int brcm_pcie_add_bus(struct pci_bus *bus);
 
 enum {
 	RGR1_SW_INIT_1,
@@ -286,14 +283,6 @@ static const struct pcie_cfg_data bcm2711_cfg = {
 	.bridge_sw_init_set = brcm_pcie_bridge_sw_init_set_generic,
 };
 
-struct subdev_regulators {
-	unsigned int num_supplies;
-	struct regulator_bulk_data supplies[];
-};
-
-static int pci_subdev_regulators_add_bus(struct pci_bus *bus);
-static void pci_subdev_regulators_remove_bus(struct pci_bus *bus);
-
 struct brcm_msi {
 	struct device		*dev;
 	void __iomem		*base;
@@ -331,9 +320,6 @@ struct brcm_pcie {
 	u32			hw_rev;
 	void			(*perst_set)(struct brcm_pcie *pcie, u32 val);
 	void			(*bridge_sw_init_set)(struct brcm_pcie *pcie, u32 val);
-	bool			refusal_mode;
-	struct subdev_regulators *sr;
-	bool			ep_wakeup_capable;
 };
 
 static inline bool is_bmips(const struct brcm_pcie *pcie)
@@ -448,99 +434,6 @@ static int brcm_pcie_set_ssc(struct brcm_pcie *pcie)
 	pll = FIELD_GET(SSC_STATUS_PLL_LOCK_MASK, tmp);
 
 	return ssc && pll ? 0 : -EIO;
-}
-
-static void *alloc_subdev_regulators(struct device *dev)
-{
-	static const char * const supplies[] = {
-		"vpcie3v3",
-		"vpcie3v3aux",
-		"vpcie12v",
-	};
-	const size_t size = sizeof(struct subdev_regulators)
-		+ sizeof(struct regulator_bulk_data) * ARRAY_SIZE(supplies);
-	struct subdev_regulators *sr;
-	int i;
-
-	sr = devm_kzalloc(dev, size, GFP_KERNEL);
-	if (sr) {
-		sr->num_supplies = ARRAY_SIZE(supplies);
-		for (i = 0; i < ARRAY_SIZE(supplies); i++)
-			sr->supplies[i].supply = supplies[i];
-	}
-
-	return sr;
-}
-
-static int pci_subdev_regulators_add_bus(struct pci_bus *bus)
-{
-	struct device *dev = &bus->dev;
-	struct subdev_regulators *sr;
-	int ret;
-
-	if (!dev->of_node || !bus->parent || !pci_is_root_bus(bus->parent))
-		return 0;
-
-	if (dev->driver_data)
-		dev_err(dev, "dev.driver_data unexpectedly non-NULL\n");
-
-	sr = alloc_subdev_regulators(dev);
-	if (!sr)
-		return -ENOMEM;
-
-	dev->driver_data = sr;
-	ret = regulator_bulk_get(dev, sr->num_supplies, sr->supplies);
-	if (ret)
-		return ret;
-
-	ret = regulator_bulk_enable(sr->num_supplies, sr->supplies);
-	if (ret) {
-		dev_err(dev, "failed to enable regulators for downstream device\n");
-		return ret;
-	}
-
-	return 0;
-}
-
-static int brcm_pcie_add_bus(struct pci_bus *bus)
-{
-	struct device *dev = &bus->dev;
-	struct brcm_pcie *pcie = (struct brcm_pcie *) bus->sysdata;
-	int ret;
-
-	if (!dev->of_node || !bus->parent || !pci_is_root_bus(bus->parent))
-		return 0;
-
-	ret = pci_subdev_regulators_add_bus(bus);
-	if (ret)
-		return ret;
-
-	/* Grab the regulators for suspend/resume */
-	pcie->sr = bus->dev.driver_data;
-
-	/*
-	 * If we have failed linkup there is no point to return an error as
-	 * currently it will cause a WARNING() from pci_alloc_child_bus().
-	 * We return 0 and turn on the "refusal_mode" so that any further
-	 * accesses to the pci_dev just get 0xffffffff
-	 */
-	if (brcm_pcie_linkup(pcie) != 0)
-		pcie->refusal_mode = true;
-
-	return 0;
-}
-
-static void pci_subdev_regulators_remove_bus(struct pci_bus *bus)
-{
-	struct device *dev = &bus->dev;
-	struct subdev_regulators *sr = dev->driver_data;
-
-	if (!sr || !bus->parent || !pci_is_root_bus(bus->parent))
-		return;
-
-	if (regulator_bulk_disable(sr->num_supplies, sr->supplies))
-		dev_err(dev, "failed to disable regulators for downstream device\n");
-	dev->driver_data = NULL;
 }
 
 /* Limits operation to a specific generation (1, 2, or 3) */
@@ -858,18 +751,6 @@ static void __iomem *brcm_pcie_map_conf(struct pci_bus *bus, unsigned int devfn,
 	/* Accesses to the RC go right to the RC registers if slot==0 */
 	if (pci_is_root_bus(bus))
 		return PCI_SLOT(devfn) ? NULL : base + where;
-	if (pcie->refusal_mode) {
-		/*
-		 * At this point we do not have link.  There will be a CPU
-		 * abort -- a quirk with this controller --if Linux tries
-		 * to read any config-space registers besides those
-		 * targeting the host bridge.  To prevent this we hijack
-		 * the address to point to a safe access that will return
-		 * 0xffffffff.
-		 */
-		writel(0xffffffff, base + PCIE_MISC_RC_BAR2_CONFIG_HI);
-		return base + PCIE_MISC_RC_BAR2_CONFIG_HI + (where & 0x3);
-	}
 
 	/* For devices, write to the config space index register */
 	idx = PCIE_ECAM_OFFSET(bus->number, devfn, 0);
@@ -898,8 +779,6 @@ static struct pci_ops brcm_pcie_ops = {
 	.map_bus = brcm_pcie_map_conf,
 	.read = pci_generic_config_read,
 	.write = pci_generic_config_write,
-	.add_bus = brcm_pcie_add_bus,
-	.remove_bus = pci_subdev_regulators_remove_bus,
 };
 
 static struct pci_ops brcm_pcie_ops32 = {
@@ -1047,9 +926,16 @@ static inline int brcm_pcie_get_rc_bar2_size_and_offset(struct brcm_pcie *pcie,
 
 static int brcm_pcie_setup(struct brcm_pcie *pcie)
 {
+	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
 	u64 rc_bar2_offset, rc_bar2_size;
 	void __iomem *base = pcie->base;
-	int ret, memc;
+	struct device *dev = pcie->dev;
+	struct resource_entry *entry;
+	bool ssc_good = false;
+	struct resource *res;
+	int num_out_wins = 0;
+	u16 nlw, cls, lnksta;
+	int i, ret, memc;
 	u32 tmp, burst, aspm_support;
 
 	/* Reset the bridge */
@@ -1139,40 +1025,6 @@ static int brcm_pcie_setup(struct brcm_pcie *pcie)
 	if (pcie->gen)
 		brcm_pcie_set_gen(pcie, pcie->gen);
 
-	/* Don't advertise L0s capability if 'aspm-no-l0s' */
-	aspm_support = PCIE_LINK_STATE_L1;
-	if (!of_property_read_bool(pcie->np, "aspm-no-l0s"))
-		aspm_support |= PCIE_LINK_STATE_L0S;
-	tmp = readl(base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
-	u32p_replace_bits(&tmp, aspm_support,
-		PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK);
-	writel(tmp, base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
-
-	/*
-	 * For config space accesses on the RC, show the right class for
-	 * a PCIe-PCIe bridge (the default setting is to be EP mode).
-	 */
-	tmp = readl(base + PCIE_RC_CFG_PRIV1_ID_VAL3);
-	u32p_replace_bits(&tmp, 0x060400,
-			  PCIE_RC_CFG_PRIV1_ID_VAL3_CLASS_CODE_MASK);
-	writel(tmp, base + PCIE_RC_CFG_PRIV1_ID_VAL3);
-
-	return 0;
-}
-
-static int brcm_pcie_linkup(struct brcm_pcie *pcie)
-{
-	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
-	struct device *dev = pcie->dev;
-	void __iomem *base = pcie->base;
-	struct resource_entry *entry;
-	struct resource *res;
-	int num_out_wins = 0;
-	u16 nlw, cls, lnksta;
-	bool ssc_good = false;
-	u32 tmp;
-	int ret, i;
-
 	/* Unassert the fundamental reset */
 	pcie->perst_set(pcie, 0);
 
@@ -1222,6 +1074,24 @@ static int brcm_pcie_linkup(struct brcm_pcie *pcie)
 					   resource_size(res));
 		num_out_wins++;
 	}
+
+	/* Don't advertise L0s capability if 'aspm-no-l0s' */
+	aspm_support = PCIE_LINK_STATE_L1;
+	if (!of_property_read_bool(pcie->np, "aspm-no-l0s"))
+		aspm_support |= PCIE_LINK_STATE_L0S;
+	tmp = readl(base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
+	u32p_replace_bits(&tmp, aspm_support,
+		PCIE_RC_CFG_PRIV1_LINK_CAPABILITY_ASPM_SUPPORT_MASK);
+	writel(tmp, base + PCIE_RC_CFG_PRIV1_LINK_CAPABILITY);
+
+	/*
+	 * For config space accesses on the RC, show the right class for
+	 * a PCIe-PCIe bridge (the default setting is to be EP mode).
+	 */
+	tmp = readl(base + PCIE_RC_CFG_PRIV1_ID_VAL3);
+	u32p_replace_bits(&tmp, 0x060400,
+			  PCIE_RC_CFG_PRIV1_ID_VAL3_CLASS_CODE_MASK);
+	writel(tmp, base + PCIE_RC_CFG_PRIV1_ID_VAL3);
 
 	if (pcie->ssc) {
 		ret = brcm_pcie_set_ssc(pcie);
@@ -1351,21 +1221,9 @@ static void brcm_pcie_turn_off(struct brcm_pcie *pcie)
 	pcie->bridge_sw_init_set(pcie, 1);
 }
 
-static int pci_dev_may_wakeup(struct pci_dev *dev, void *data)
-{
-	bool *ret = data;
-
-	if (device_may_wakeup(&dev->dev)) {
-		*ret = true;
-		dev_info(&dev->dev, "disable cancelled for wake-up device\n");
-	}
-	return (int) *ret;
-}
-
 static int brcm_pcie_suspend(struct device *dev)
 {
 	struct brcm_pcie *pcie = dev_get_drvdata(dev);
-	struct pci_host_bridge *bridge = pci_host_bridge_from_priv(pcie);
 	int ret;
 
 	brcm_pcie_turn_off(pcie);
@@ -1383,25 +1241,6 @@ static int brcm_pcie_suspend(struct device *dev)
 		return ret;
 	}
 
-	if (pcie->sr) {
-		/*
-		 * Now turn off the regulators, but if at least one
-		 * downstream device is enabled as a wake-up source, do not
-		 * turn off regulators.
-		 */
-		pcie->ep_wakeup_capable = false;
-		pci_walk_bus(bridge->bus, pci_dev_may_wakeup,
-			     &pcie->ep_wakeup_capable);
-		if (!pcie->ep_wakeup_capable) {
-			ret = regulator_bulk_disable(pcie->sr->num_supplies,
-						     pcie->sr->supplies);
-			if (ret) {
-				dev_err(dev, "Could not turn off regulators\n");
-				reset_control_reset(pcie->rescal);
-				return ret;
-			}
-		}
-	}
 	clk_disable_unprepare(pcie->clk);
 
 	return 0;
@@ -1419,28 +1258,9 @@ static int brcm_pcie_resume(struct device *dev)
 	if (ret)
 		return ret;
 
-	if (pcie->sr) {
-		if (pcie->ep_wakeup_capable) {
-			/*
-			 * We are resuming from a suspend.  In the suspend we
-			 * did not disable the power supplies, so there is
-			 * no need to enable them (and falsely increase their
-			 * usage count).
-			 */
-			pcie->ep_wakeup_capable = false;
-		} else {
-			ret = regulator_bulk_enable(pcie->sr->num_supplies,
-						    pcie->sr->supplies);
-			if (ret) {
-				dev_err(dev, "Could not turn on regulators\n");
-				goto err_disable_clk;
-			}
-		}
-	}
-
 	ret = reset_control_reset(pcie->rescal);
 	if (ret)
-		goto err_regulator;
+		goto err_disable_clk;
 
 	ret = brcm_phy_start(pcie);
 	if (ret)
@@ -1461,10 +1281,6 @@ static int brcm_pcie_resume(struct device *dev)
 	if (ret)
 		goto err_reset;
 
-	ret = brcm_pcie_linkup(pcie);
-	if (ret)
-		goto err_reset;
-
 	if (pcie->msi)
 		brcm_msi_set_regs(pcie->msi);
 
@@ -1472,9 +1288,6 @@ static int brcm_pcie_resume(struct device *dev)
 
 err_reset:
 	reset_control_rearm(pcie->rescal);
-err_regulator:
-	if (pcie->sr)
-		regulator_bulk_disable(pcie->sr->num_supplies, pcie->sr->supplies);
 err_disable_clk:
 	clk_disable_unprepare(pcie->clk);
 	return ret;
@@ -1606,17 +1419,7 @@ static int brcm_pcie_probe(struct platform_device *pdev)
 
 	platform_set_drvdata(pdev, pcie);
 
-	ret = pci_host_probe(bridge);
-	if (!ret && !brcm_pcie_link_up(pcie))
-		ret = -ENODEV;
-
-	if (ret) {
-		brcm_pcie_remove(pdev);
-		return ret;
-	}
-
-	return 0;
-
+	return pci_host_probe(bridge);
 fail:
 	__brcm_pcie_remove(pcie);
 	return ret;
@@ -1625,8 +1428,8 @@ fail:
 MODULE_DEVICE_TABLE(of, brcm_pcie_match);
 
 static const struct dev_pm_ops brcm_pcie_pm_ops = {
-	.suspend_noirq = brcm_pcie_suspend,
-	.resume_noirq = brcm_pcie_resume,
+	.suspend = brcm_pcie_suspend,
+	.resume = brcm_pcie_resume,
 };
 
 static struct platform_driver brcm_pcie_driver = {
