@@ -1408,6 +1408,18 @@ static int smu_disable_dpms(struct smu_context *smu)
 		 ((adev->in_runpm || adev->in_s4) && amdgpu_asic_supports_baco(adev)));
 
 	/*
+	 * For SMU 13.0.0 and 13.0.7, PMFW will handle the DPM features(disablement or others)
+	 * properly on suspend/reset/unload. Driver involvement may cause some unexpected issues.
+	 */
+	switch (adev->ip_versions[MP1_HWIP][0]) {
+	case IP_VERSION(13, 0, 0):
+	case IP_VERSION(13, 0, 7):
+		return 0;
+	default:
+		break;
+	}
+
+	/*
 	 * For custom pptable uploading, skip the DPM features
 	 * disable process on Navi1x ASICs.
 	 *   - As the gfx related features are under control of
@@ -1444,7 +1456,6 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 5):
 		case IP_VERSION(11, 0, 9):
-		case IP_VERSION(13, 0, 0):
 			return 0;
 		default:
 			break;
