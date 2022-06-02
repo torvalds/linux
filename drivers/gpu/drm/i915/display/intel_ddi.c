@@ -32,6 +32,7 @@
 
 #include "i915_drv.h"
 #include "intel_audio.h"
+#include "intel_audio_regs.h"
 #include "intel_backlight.h"
 #include "intel_combo_phy.h"
 #include "intel_combo_phy_regs.h"
