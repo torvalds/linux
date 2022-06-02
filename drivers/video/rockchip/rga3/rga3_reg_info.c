@@ -1350,15 +1350,16 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		}
 	}
 
-	/*
-	 * Layer binding:
-	 *     src => win1
-	 *     src1/dst => win0
-	 *     dst => wr
-	 */
 	/* simple win can not support dst offset */
 	if ((!((req_rga->alpha_rop_flag) & 1)) &&
-	    (req_rga->dst.x_offset == 0 && req_rga->dst.y_offset == 0)) {
+	    (req_rga->dst.x_offset == 0 && req_rga->dst.y_offset == 0) &&
+	    (req_rga->src.yrgb_addr != req_rga->dst.yrgb_addr)) {
+		/*
+		 * ABB mode Layer binding:
+		 *     src => win0
+		 *     dst => wr
+		 */
+
 		set_win_info(&req->win0, &req_rga->src);
 
 		/* enable win0 rotate */
@@ -1374,6 +1375,13 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		req->win0.format = req_rga->src.format;
 		req->wr.format = req_rga->dst.format;
 	} else {
+		/*
+		 * ABC mode Layer binding:
+		 *     src => win1
+		 *     src1/dst => win0
+		 *     dst => wr
+		 */
+
 		if (req_rga->pat.yrgb_addr != 0) {
 			if (req_rga->src.yrgb_addr == req_rga->dst.yrgb_addr) {
 				/* Convert ABC mode to ABB mode. */
