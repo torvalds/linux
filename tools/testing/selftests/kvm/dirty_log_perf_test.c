@@ -213,7 +213,6 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 	struct timespec get_dirty_log_total = (struct timespec){0};
 	struct timespec vcpu_dirty_total = (struct timespec){0};
 	struct timespec avg;
-	struct kvm_enable_cap cap = {};
 	struct timespec clear_dirty_log_total = (struct timespec){0};
 
 	vm = perf_test_create_vm(mode, nr_vcpus, guest_percpu_mem_size,
@@ -229,11 +228,9 @@ static void run_test(enum vm_guest_mode mode, void *arg)
 
 	bitmaps = alloc_bitmaps(p->slots, pages_per_slot);
 
-	if (dirty_log_manual_caps) {
-		cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
-		cap.args[0] = dirty_log_manual_caps;
-		vm_enable_cap(vm, &cap);
-	}
+	if (dirty_log_manual_caps)
+		vm_enable_cap(vm, KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2,
+			      dirty_log_manual_caps);
 
 	arch_setup_vm(vm, nr_vcpus);
 

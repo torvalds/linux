@@ -14,7 +14,6 @@
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
-	struct kvm_enable_cap cap = { 0 };
 	int ret;
 
 	vm = vm_create(0);
@@ -23,21 +22,16 @@ int main(int argc, char *argv[])
 	ret = vm_check_cap(vm, KVM_CAP_MAX_VCPU_ID);
 
 	/* Try to set KVM_CAP_MAX_VCPU_ID beyond KVM cap */
-	cap.cap = KVM_CAP_MAX_VCPU_ID;
-	cap.args[0] = ret + 1;
-	ret = __vm_enable_cap(vm, &cap);
+	ret = __vm_enable_cap(vm, KVM_CAP_MAX_VCPU_ID, ret + 1);
 	TEST_ASSERT(ret < 0,
 		    "Setting KVM_CAP_MAX_VCPU_ID beyond KVM cap should fail");
 
 	/* Set KVM_CAP_MAX_VCPU_ID */
-	cap.cap = KVM_CAP_MAX_VCPU_ID;
-	cap.args[0] = MAX_VCPU_ID;
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_MAX_VCPU_ID, MAX_VCPU_ID);
 
 
 	/* Try to set KVM_CAP_MAX_VCPU_ID again */
-	cap.args[0] = MAX_VCPU_ID + 1;
-	ret = __vm_enable_cap(vm, &cap);
+	ret = __vm_enable_cap(vm, KVM_CAP_MAX_VCPU_ID, MAX_VCPU_ID + 1);
 	TEST_ASSERT(ret < 0,
 		    "Setting KVM_CAP_MAX_VCPU_ID multiple times should fail");
 

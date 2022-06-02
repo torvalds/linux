@@ -161,10 +161,6 @@ static uint64_t process_ucall(struct kvm_vm *vm)
 
 int main(int argc, char *argv[])
 {
-	struct kvm_enable_cap emul_failure_cap = {
-		.cap = KVM_CAP_EXIT_ON_EMULATION_FAILURE,
-		.args[0] = 1,
-	};
 	struct kvm_cpuid_entry2 *entry;
 	struct kvm_cpuid2 *cpuid;
 	struct kvm_vm *vm;
@@ -192,7 +188,7 @@ int main(int argc, char *argv[])
 
 	rc = kvm_check_cap(KVM_CAP_EXIT_ON_EMULATION_FAILURE);
 	TEST_ASSERT(rc, "KVM_CAP_EXIT_ON_EMULATION_FAILURE is unavailable");
-	vm_enable_cap(vm, &emul_failure_cap);
+	vm_enable_cap(vm, KVM_CAP_EXIT_ON_EMULATION_FAILURE, 1);
 
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS,
 				    MEM_REGION_GPA, MEM_REGION_SLOT,

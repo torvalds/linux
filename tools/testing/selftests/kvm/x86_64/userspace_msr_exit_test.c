@@ -550,11 +550,8 @@ static void run_guest_then_process_ucall_done(struct kvm_vm *vm)
 	process_ucall_done(vm);
 }
 
-static void test_msr_filter_allow(void) {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_USER_SPACE_MSR,
-		.args[0] = KVM_MSR_EXIT_REASON_FILTER,
-	};
+static void test_msr_filter_allow(void)
+{
 	struct kvm_vm *vm;
 	int rc;
 
@@ -564,7 +561,7 @@ static void test_msr_filter_allow(void) {
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
 	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");
@@ -673,13 +670,8 @@ static void handle_wrmsr(struct kvm_run *run)
 	}
 }
 
-static void test_msr_filter_deny(void) {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_USER_SPACE_MSR,
-		.args[0] = KVM_MSR_EXIT_REASON_INVAL |
-			   KVM_MSR_EXIT_REASON_UNKNOWN |
-			   KVM_MSR_EXIT_REASON_FILTER,
-	};
+static void test_msr_filter_deny(void)
+{
 	struct kvm_vm *vm;
 	struct kvm_run *run;
 	int rc;
@@ -691,7 +683,9 @@ static void test_msr_filter_deny(void) {
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_INVAL |
+						      KVM_MSR_EXIT_REASON_UNKNOWN |
+						      KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
 	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");
@@ -726,11 +720,8 @@ done:
 	kvm_vm_free(vm);
 }
 
-static void test_msr_permission_bitmap(void) {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_USER_SPACE_MSR,
-		.args[0] = KVM_MSR_EXIT_REASON_FILTER,
-	};
+static void test_msr_permission_bitmap(void)
+{
 	struct kvm_vm *vm;
 	int rc;
 
@@ -740,7 +731,7 @@ static void test_msr_permission_bitmap(void) {
 
 	rc = kvm_check_cap(KVM_CAP_X86_USER_SPACE_MSR);
 	TEST_ASSERT(rc, "KVM_CAP_X86_USER_SPACE_MSR is available");
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_USER_SPACE_MSR, KVM_MSR_EXIT_REASON_FILTER);
 
 	rc = kvm_check_cap(KVM_CAP_X86_MSR_FILTER);
 	TEST_ASSERT(rc, "KVM_CAP_X86_MSR_FILTER is available");

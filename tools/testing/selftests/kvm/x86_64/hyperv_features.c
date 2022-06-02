@@ -182,10 +182,6 @@ static void guest_test_msrs_access(void)
 	};
 	struct kvm_cpuid2 *best;
 	vm_vaddr_t msr_gva;
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_HYPERV_ENFORCE_CPUID,
-		.args = {1}
-	};
 	struct msr_data *msr;
 
 	while (true) {
@@ -196,7 +192,7 @@ static void guest_test_msrs_access(void)
 		msr = addr_gva2hva(vm, msr_gva);
 
 		vcpu_args_set(vm, VCPU_ID, 1, msr_gva);
-		vcpu_enable_cap(vm, VCPU_ID, &cap);
+		vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
 
 		vcpu_set_hv_cpuid(vm, VCPU_ID);
 
@@ -337,9 +333,7 @@ static void guest_test_msrs_access(void)
 			 * Remains unavailable even with KVM_CAP_HYPERV_SYNIC2
 			 * capability enabled and guest visible CPUID bit unset.
 			 */
-			cap.cap = KVM_CAP_HYPERV_SYNIC2;
-			cap.args[0] = 0;
-			vcpu_enable_cap(vm, VCPU_ID, &cap);
+			vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_HYPERV_SYNIC2, 0);
 			break;
 		case 22:
 			feat.eax |= HV_MSR_SYNIC_AVAILABLE;
@@ -518,10 +512,6 @@ static void guest_test_hcalls_access(void)
 	struct kvm_cpuid_entry2 dbg = {
 		.function = HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
 	};
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_HYPERV_ENFORCE_CPUID,
-		.args = {1}
-	};
 	vm_vaddr_t hcall_page, hcall_params;
 	struct hcall_data *hcall;
 	struct kvm_cpuid2 *best;
@@ -542,7 +532,7 @@ static void guest_test_hcalls_access(void)
 		memset(addr_gva2hva(vm, hcall_params), 0x0, getpagesize());
 
 		vcpu_args_set(vm, VCPU_ID, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
-		vcpu_enable_cap(vm, VCPU_ID, &cap);
+		vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
 
 		vcpu_set_hv_cpuid(vm, VCPU_ID);
 

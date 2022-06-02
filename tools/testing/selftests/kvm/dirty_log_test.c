@@ -217,16 +217,13 @@ static bool clear_log_supported(void)
 
 static void clear_log_create_vm_done(struct kvm_vm *vm)
 {
-	struct kvm_enable_cap cap = {};
 	u64 manual_caps;
 
 	manual_caps = kvm_check_cap(KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2);
 	TEST_ASSERT(manual_caps, "MANUAL_CAPS is zero!");
 	manual_caps &= (KVM_DIRTY_LOG_MANUAL_PROTECT_ENABLE |
 			KVM_DIRTY_LOG_INITIALLY_SET);
-	cap.cap = KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2;
-	cap.args[0] = manual_caps;
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_MANUAL_DIRTY_LOG_PROTECT2, manual_caps);
 }
 
 static void dirty_log_collect_dirty_pages(struct kvm_vm *vm, int slot,

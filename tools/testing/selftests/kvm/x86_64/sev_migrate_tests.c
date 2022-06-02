@@ -82,12 +82,7 @@ static struct kvm_vm *aux_vm_create(bool with_vcpus)
 
 static int __sev_migrate_from(struct kvm_vm *dst, struct kvm_vm *src)
 {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM,
-		.args = { src->fd }
-	};
-
-	return __vm_enable_cap(dst, &cap);
+	return __vm_enable_cap(dst, KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM, src->fd);
 }
 
 
@@ -223,12 +218,7 @@ out:
 
 static int __sev_mirror_create(struct kvm_vm *dst, struct kvm_vm *src)
 {
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_VM_COPY_ENC_CONTEXT_FROM,
-		.args = { src->fd }
-	};
-
-	return __vm_enable_cap(dst, &cap);
+	return __vm_enable_cap(dst, KVM_CAP_VM_COPY_ENC_CONTEXT_FROM, src->fd);
 }
 
 

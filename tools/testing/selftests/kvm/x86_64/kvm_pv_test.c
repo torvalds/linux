@@ -206,7 +206,6 @@ static void enter_guest(struct kvm_vm *vm)
 
 int main(void)
 {
-	struct kvm_enable_cap cap = {0};
 	struct kvm_cpuid2 *best;
 	struct kvm_vm *vm;
 
@@ -217,9 +216,7 @@ int main(void)
 
 	vm = vm_create_default(VCPU_ID, 0, guest_main);
 
-	cap.cap = KVM_CAP_ENFORCE_PV_FEATURE_CPUID;
-	cap.args[0] = 1;
-	vcpu_enable_cap(vm, VCPU_ID, &cap);
+	vcpu_enable_cap(vm, VCPU_ID, KVM_CAP_ENFORCE_PV_FEATURE_CPUID, 1);
 
 	best = kvm_get_supported_cpuid();
 	clear_kvm_cpuid_features(best);

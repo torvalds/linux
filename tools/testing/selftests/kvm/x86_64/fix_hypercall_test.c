@@ -140,15 +140,13 @@ static void test_fix_hypercall(void)
 
 static void test_fix_hypercall_disabled(void)
 {
-	struct kvm_enable_cap cap = {0};
 	struct kvm_vm *vm;
 
 	vm = vm_create_default(VCPU_ID, 0, guest_main);
 	setup_ud_vector(vm);
 
-	cap.cap = KVM_CAP_DISABLE_QUIRKS2;
-	cap.args[0] = KVM_X86_QUIRK_FIX_HYPERCALL_INSN;
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_DISABLE_QUIRKS2,
+		      KVM_X86_QUIRK_FIX_HYPERCALL_INSN);
 
 	ud_expected = true;
 	sync_global_to_guest(vm, ud_expected);

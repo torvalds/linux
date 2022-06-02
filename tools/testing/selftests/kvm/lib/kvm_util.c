@@ -85,11 +85,7 @@ int kvm_check_cap(long cap)
 
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size)
 {
-	struct kvm_enable_cap cap = { 0 };
-
-	cap.cap = KVM_CAP_DIRTY_LOG_RING;
-	cap.args[0] = ring_size;
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_DIRTY_LOG_RING, ring_size);
 	vm->dirty_ring_size = ring_size;
 }
 

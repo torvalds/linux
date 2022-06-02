@@ -360,7 +360,6 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 {
 	int r;
 	struct kvm_vm *vm;
-	struct kvm_enable_cap cap = { 0 };
 
 	r = kvm_check_cap(KVM_CAP_PMU_CAPABILITY);
 	if (!(r & KVM_PMU_CAP_DISABLE))
@@ -368,9 +367,7 @@ static void test_pmu_config_disable(void (*guest_code)(void))
 
 	vm = vm_create_without_vcpus(VM_MODE_DEFAULT, DEFAULT_GUEST_PHY_PAGES);
 
-	cap.cap = KVM_CAP_PMU_CAPABILITY;
-	cap.args[0] = KVM_PMU_CAP_DISABLE;
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_PMU_CAPABILITY, KVM_PMU_CAP_DISABLE);
 
 	vm_vcpu_add_default(vm, VCPU_ID, guest_code);
 	vm_init_descriptor_tables(vm);

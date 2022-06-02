@@ -35,22 +35,12 @@ static void guest_code(void)
 	}
 }
 
-static void set_msr_platform_info_enabled(struct kvm_vm *vm, bool enable)
-{
-	struct kvm_enable_cap cap = {};
-
-	cap.cap = KVM_CAP_MSR_PLATFORM_INFO;
-	cap.flags = 0;
-	cap.args[0] = (int)enable;
-	vm_enable_cap(vm, &cap);
-}
-
 static void test_msr_platform_info_enabled(struct kvm_vm *vm)
 {
 	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
 	struct ucall uc;
 
-	set_msr_platform_info_enabled(vm, true);
+	vm_enable_cap(vm, KVM_CAP_MSR_PLATFORM_INFO, true);
 	vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			"Exit_reason other than KVM_EXIT_IO: %u (%s),\n",
@@ -69,7 +59,7 @@ static void test_msr_platform_info_disabled(struct kvm_vm *vm)
 {
 	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
 
-	set_msr_platform_info_enabled(vm, false);
+	vm_enable_cap(vm, KVM_CAP_MSR_PLATFORM_INFO, false);
 	vcpu_run(vm, VCPU_ID);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
 			"Exit_reason other than KVM_EXIT_SHUTDOWN: %u (%s)\n",

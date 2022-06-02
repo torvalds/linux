@@ -231,13 +231,17 @@ static inline int vm_check_cap(struct kvm_vm *vm, long cap)
 	return ret;
 }
 
-static inline int __vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
+static inline int __vm_enable_cap(struct kvm_vm *vm, uint32_t cap, uint64_t arg0)
 {
-	return __vm_ioctl(vm, KVM_ENABLE_CAP, cap);
+	struct kvm_enable_cap enable_cap = { .cap = cap, .args = { arg0 } };
+
+	return __vm_ioctl(vm, KVM_ENABLE_CAP, &enable_cap);
 }
-static inline void vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
+static inline void vm_enable_cap(struct kvm_vm *vm, uint32_t cap, uint64_t arg0)
 {
-	vm_ioctl(vm, KVM_ENABLE_CAP, cap);
+	struct kvm_enable_cap enable_cap = { .cap = cap, .args = { arg0 } };
+
+	vm_ioctl(vm, KVM_ENABLE_CAP, &enable_cap);
 }
 
 void vm_enable_dirty_ring(struct kvm_vm *vm, uint32_t ring_size);
@@ -363,9 +367,11 @@ void vcpu_run_complete_io(struct kvm_vm *vm, uint32_t vcpuid);
 struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid);
 
 static inline void vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
-				   struct kvm_enable_cap *cap)
+				   uint32_t cap, uint64_t arg0)
 {
-	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, cap);
+	struct kvm_enable_cap enable_cap = { .cap = cap, .args = { arg0 } };
+
+	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_cap);
 }
 
 static inline void vcpu_set_guest_debug(struct kvm_vm *vm, uint32_t vcpuid,

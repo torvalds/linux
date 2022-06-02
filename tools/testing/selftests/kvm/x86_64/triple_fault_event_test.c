@@ -46,11 +46,6 @@ int main(void)
 	vm_vaddr_t vmx_pages_gva;
 	struct ucall uc;
 
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_X86_TRIPLE_FAULT_EVENT,
-		.args = {1}
-	};
-
 	if (!nested_vmx_supported()) {
 		print_skip("Nested VMX not supported");
 		exit(KSFT_SKIP);
@@ -62,7 +57,7 @@ int main(void)
 	}
 
 	vm = vm_create_default(VCPU_ID, 0, (void *) l1_guest_code);
-	vm_enable_cap(vm, &cap);
+	vm_enable_cap(vm, KVM_CAP_X86_TRIPLE_FAULT_EVENT, 1);
 
 	run = vcpu_state(vm, VCPU_ID);
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);

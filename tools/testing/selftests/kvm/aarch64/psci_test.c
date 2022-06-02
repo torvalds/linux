@@ -156,15 +156,6 @@ static void host_test_cpu_on(void)
 	kvm_vm_free(vm);
 }
 
-static void enable_system_suspend(struct kvm_vm *vm)
-{
-	struct kvm_enable_cap cap = {
-		.cap = KVM_CAP_ARM_SYSTEM_SUSPEND,
-	};
-
-	vm_enable_cap(vm, &cap);
-}
-
 static void guest_test_system_suspend(void)
 {
 	uint64_t ret;
@@ -183,7 +174,7 @@ static void host_test_system_suspend(void)
 	struct kvm_vm *vm;
 
 	vm = setup_vm(guest_test_system_suspend);
-	enable_system_suspend(vm);
+	vm_enable_cap(vm, KVM_CAP_ARM_SYSTEM_SUSPEND, 0);
 
 	vcpu_power_off(vm, VCPU_ID_TARGET);
 	run = vcpu_state(vm, VCPU_ID_SOURCE);
