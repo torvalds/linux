@@ -178,8 +178,9 @@ void virt_arch_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	}
 }
 
-void riscv_vcpu_mmu_setup(struct kvm_vm *vm, int vcpuid)
+void riscv_vcpu_mmu_setup(struct kvm_vcpu *vcpu)
 {
+	struct kvm_vm *vm = vcpu->vm;
 	unsigned long satp;
 
 	/*
@@ -198,46 +199,46 @@ void riscv_vcpu_mmu_setup(struct kvm_vm *vm, int vcpuid)
 	satp = (vm->pgd >> PGTBL_PAGE_SIZE_SHIFT) & SATP_PPN;
 	satp |= SATP_MODE_48;
 
-	vcpu_set_reg(vm, vcpuid, RISCV_CSR_REG(satp), satp);
+	vcpu_set_reg(vcpu, RISCV_CSR_REG(satp), satp);
 }
 
-void vcpu_arch_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
 {
 	struct kvm_riscv_core core;
 
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(mode), &core.mode);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.pc), &core.regs.pc);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.ra), &core.regs.ra);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.sp), &core.regs.sp);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.gp), &core.regs.gp);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.tp), &core.regs.tp);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t0), &core.regs.t0);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t1), &core.regs.t1);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t2), &core.regs.t2);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s0), &core.regs.s0);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s1), &core.regs.s1);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a0), &core.regs.a0);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a1), &core.regs.a1);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a2), &core.regs.a2);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a3), &core.regs.a3);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a4), &core.regs.a4);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a5), &core.regs.a5);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a6), &core.regs.a6);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.a7), &core.regs.a7);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s2), &core.regs.s2);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s3), &core.regs.s3);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s4), &core.regs.s4);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s5), &core.regs.s5);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s6), &core.regs.s6);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s7), &core.regs.s7);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s8), &core.regs.s8);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s9), &core.regs.s9);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s10), &core.regs.s10);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.s11), &core.regs.s11);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t3), &core.regs.t3);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t4), &core.regs.t4);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t5), &core.regs.t5);
-	vcpu_get_reg(vm, vcpuid, RISCV_CORE_REG(regs.t6), &core.regs.t6);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(mode), &core.mode);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.pc), &core.regs.pc);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.ra), &core.regs.ra);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.sp), &core.regs.sp);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.gp), &core.regs.gp);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.tp), &core.regs.tp);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t0), &core.regs.t0);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t1), &core.regs.t1);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t2), &core.regs.t2);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s0), &core.regs.s0);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s1), &core.regs.s1);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a0), &core.regs.a0);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a1), &core.regs.a1);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a2), &core.regs.a2);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a3), &core.regs.a3);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a4), &core.regs.a4);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a5), &core.regs.a5);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a6), &core.regs.a6);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.a7), &core.regs.a7);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s2), &core.regs.s2);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s3), &core.regs.s3);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s4), &core.regs.s4);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s5), &core.regs.s5);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s6), &core.regs.s6);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s7), &core.regs.s7);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s8), &core.regs.s8);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s9), &core.regs.s9);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s10), &core.regs.s10);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.s11), &core.regs.s11);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t3), &core.regs.t3);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t4), &core.regs.t4);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t5), &core.regs.t5);
+	vcpu_get_reg(vcpu, RISCV_CORE_REG(regs.t6), &core.regs.t6);
 
 	fprintf(stream,
 		" MODE:  0x%lx\n", core.mode);
@@ -288,7 +289,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	struct kvm_vcpu *vcpu;
 
 	vcpu = __vm_vcpu_add(vm, vcpu_id);
-	riscv_vcpu_mmu_setup(vm, vcpu_id);
+	riscv_vcpu_mmu_setup(vcpu);
 
 	/*
 	 * With SBI HSM support in KVM RISC-V, all secondary VCPUs are
@@ -296,28 +297,25 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	 * are powered-on using KVM_SET_MP_STATE ioctl().
 	 */
 	mps.mp_state = KVM_MP_STATE_RUNNABLE;
-	r = __vcpu_ioctl(vm, vcpu_id, KVM_SET_MP_STATE, &mps);
+	r = __vcpu_ioctl(vcpu, KVM_SET_MP_STATE, &mps);
 	TEST_ASSERT(!r, "IOCTL KVM_SET_MP_STATE failed (error %d)", r);
 
 	/* Setup global pointer of guest to be same as the host */
 	asm volatile (
 		"add %0, gp, zero" : "=r" (current_gp) : : "memory");
-	vcpu_set_reg(vm, vcpu_id, RISCV_CORE_REG(regs.gp), current_gp);
+	vcpu_set_reg(vcpu, RISCV_CORE_REG(regs.gp), current_gp);
 
 	/* Setup stack pointer and program counter of guest */
-	vcpu_set_reg(vm, vcpu_id, RISCV_CORE_REG(regs.sp),
-		     stack_vaddr + stack_size);
-	vcpu_set_reg(vm, vcpu_id, RISCV_CORE_REG(regs.pc),
-		     (unsigned long)guest_code);
+	vcpu_set_reg(vcpu, RISCV_CORE_REG(regs.sp), stack_vaddr + stack_size);
+	vcpu_set_reg(vcpu, RISCV_CORE_REG(regs.pc), (unsigned long)guest_code);
 
 	/* Setup default exception vector of guest */
-	vcpu_set_reg(vm, vcpu_id, RISCV_CSR_REG(stvec),
-		     (unsigned long)guest_unexp_trap);
+	vcpu_set_reg(vcpu, RISCV_CSR_REG(stvec), (unsigned long)guest_unexp_trap);
 
 	return vcpu;
 }
 
-void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
+void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 {
 	va_list ap;
 	uint64_t id = RISCV_CORE_REG(regs.a0);
@@ -355,12 +353,12 @@ void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
 			id = RISCV_CORE_REG(regs.a7);
 			break;
 		}
-		vcpu_set_reg(vm, vcpuid, id, va_arg(ap, uint64_t));
+		vcpu_set_reg(vcpu, id, va_arg(ap, uint64_t));
 	}
 
 	va_end(ap);
 }
 
-void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid)
+void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 {
 }

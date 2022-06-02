@@ -422,9 +422,8 @@ static inline unsigned int x86_model(unsigned int eax)
 	return ((eax >> 12) & 0xf0) | ((eax >> 4) & 0x0f);
 }
 
-struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid,
-		     struct kvm_x86_state *state);
+struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu);
+void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state);
 void kvm_x86_state_cleanup(struct kvm_x86_state *state);
 
 const struct kvm_msr_list *kvm_get_msr_index_list(void);
@@ -432,73 +431,71 @@ const struct kvm_msr_list *kvm_get_feature_msr_index_list(void);
 bool kvm_msr_is_in_save_restore_list(uint32_t msr_index);
 uint64_t kvm_get_feature_msr(uint64_t msr_index);
 
-static inline void vcpu_msrs_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_msrs_get(struct kvm_vcpu *vcpu,
 				 struct kvm_msrs *msrs)
 {
-	int r = __vcpu_ioctl(vm, vcpuid, KVM_GET_MSRS, msrs);
+	int r = __vcpu_ioctl(vcpu, KVM_GET_MSRS, msrs);
 
 	TEST_ASSERT(r == msrs->nmsrs,
 		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
 		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
 }
-static inline void vcpu_msrs_set(struct kvm_vm *vm, uint32_t vcpuid,
-				 struct kvm_msrs *msrs)
+static inline void vcpu_msrs_set(struct kvm_vcpu *vcpu, struct kvm_msrs *msrs)
 {
-	int r = __vcpu_ioctl(vm, vcpuid, KVM_SET_MSRS, msrs);
+	int r = __vcpu_ioctl(vcpu, KVM_SET_MSRS, msrs);
 
 	TEST_ASSERT(r == msrs->nmsrs,
 		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
 		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
 }
-static inline void vcpu_debugregs_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_debugregs_get(struct kvm_vcpu *vcpu,
 				      struct kvm_debugregs *debugregs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_DEBUGREGS, debugregs);
+	vcpu_ioctl(vcpu, KVM_GET_DEBUGREGS, debugregs);
 }
-static inline void vcpu_debugregs_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_debugregs_set(struct kvm_vcpu *vcpu,
 				      struct kvm_debugregs *debugregs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_DEBUGREGS, debugregs);
+	vcpu_ioctl(vcpu, KVM_SET_DEBUGREGS, debugregs);
 }
-static inline void vcpu_xsave_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_xsave_get(struct kvm_vcpu *vcpu,
 				  struct kvm_xsave *xsave)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_XSAVE, xsave);
+	vcpu_ioctl(vcpu, KVM_GET_XSAVE, xsave);
 }
-static inline void vcpu_xsave2_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_xsave2_get(struct kvm_vcpu *vcpu,
 				   struct kvm_xsave *xsave)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_XSAVE2, xsave);
+	vcpu_ioctl(vcpu, KVM_GET_XSAVE2, xsave);
 }
-static inline void vcpu_xsave_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_xsave_set(struct kvm_vcpu *vcpu,
 				  struct kvm_xsave *xsave)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_XSAVE, xsave);
+	vcpu_ioctl(vcpu, KVM_SET_XSAVE, xsave);
 }
-static inline void vcpu_xcrs_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_xcrs_get(struct kvm_vcpu *vcpu,
 				 struct kvm_xcrs *xcrs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_XCRS, xcrs);
+	vcpu_ioctl(vcpu, KVM_GET_XCRS, xcrs);
 }
-static inline void vcpu_xcrs_set(struct kvm_vm *vm, uint32_t vcpuid,
-				 struct kvm_xcrs *xcrs)
+static inline void vcpu_xcrs_set(struct kvm_vcpu *vcpu, struct kvm_xcrs *xcrs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_XCRS, xcrs);
+	vcpu_ioctl(vcpu, KVM_SET_XCRS, xcrs);
 }
 
 struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
-struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
+struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vcpu *vcpu);
 
-static inline int __vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
+static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu,
 				   struct kvm_cpuid2 *cpuid)
 {
-	return __vcpu_ioctl(vm, vcpuid, KVM_SET_CPUID2, cpuid);
+	return __vcpu_ioctl(vcpu, KVM_SET_CPUID2, cpuid);
 }
 
-static inline void vcpu_set_cpuid(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu,
 				  struct kvm_cpuid2 *cpuid)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_CPUID2, cpuid);
+	vcpu_ioctl(vcpu, KVM_SET_CPUID2, cpuid);
 }
 
 struct kvm_cpuid_entry2 *
@@ -510,14 +507,13 @@ kvm_get_supported_cpuid_entry(uint32_t function)
 	return kvm_get_supported_cpuid_index(function, 0);
 }
 
-uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index);
-int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
-		  uint64_t msr_value);
+uint64_t vcpu_get_msr(struct kvm_vcpu *vcpu, uint64_t msr_index);
+int _vcpu_set_msr(struct kvm_vcpu *vcpu, uint64_t msr_index, uint64_t msr_value);
 
-static inline void vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid,
-				uint64_t msr_index, uint64_t msr_value)
+static inline void vcpu_set_msr(struct kvm_vcpu *vcpu, uint64_t msr_index,
+				uint64_t msr_value)
 {
-	int r = _vcpu_set_msr(vm, vcpuid, msr_index, msr_value);
+	int r = _vcpu_set_msr(vcpu, msr_index, msr_value);
 
 	TEST_ASSERT(r == 1, KVM_IOCTL_ERROR(KVM_SET_MSRS, r));
 }
@@ -541,13 +537,14 @@ struct ex_regs {
 };
 
 void vm_init_descriptor_tables(struct kvm_vm *vm);
-void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
 
-uint64_t vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr);
-void vm_set_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr,
-			     uint64_t pte);
+uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
+				 uint64_t vaddr);
+void vm_set_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
+			     uint64_t vaddr, uint64_t pte);
 
 /*
  * get_cpuid() - find matching CPUID entry and return pointer to it.
@@ -567,8 +564,8 @@ uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 		       uint64_t a3);
 
 struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void);
-void vcpu_set_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
-struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu);
+struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu);
 void vm_xsave_req_perm(int bit);
 
 enum pg_level {

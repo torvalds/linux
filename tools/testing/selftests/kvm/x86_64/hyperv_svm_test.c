@@ -133,19 +133,19 @@ int main(int argc, char *argv[])
 	}
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	vcpu_set_hv_cpuid(vm, vcpu->id);
+	vcpu_set_hv_cpuid(vcpu);
 	run = vcpu->run;
 	vcpu_alloc_svm(vm, &nested_gva);
-	vcpu_args_set(vm, vcpu->id, 1, nested_gva);
+	vcpu_args_set(vcpu, 1, nested_gva);
 
 	for (stage = 1;; stage++) {
-		vcpu_run(vm, vcpu->id);
+		vcpu_run(vcpu);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Stage %d: unexpected exit reason: %u (%s),\n",
 			    stage, run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vm, vcpu->id, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
 			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
 				  __FILE__, uc.args[1]);

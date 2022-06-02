@@ -67,7 +67,7 @@ static void vcpu_power_off(struct kvm_vcpu *vcpu)
 		.mp_state = KVM_MP_STATE_STOPPED,
 	};
 
-	vcpu_mp_state_set(vcpu->vm, vcpu->id, &mp_state);
+	vcpu_mp_state_set(vcpu, &mp_state);
 }
 
 static struct kvm_vm *setup_vm(void *guest_code, struct kvm_vcpu **source,
@@ -92,8 +92,8 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	vcpu_run(vcpu->vm, vcpu->id);
-	if (get_ucall(vcpu->vm, vcpu->id, &uc) == UCALL_ABORT)
+	vcpu_run(vcpu);
+	if (get_ucall(vcpu, &uc) == UCALL_ABORT)
 		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__,
 			  uc.args[1]);
 }
@@ -102,8 +102,8 @@ static void assert_vcpu_reset(struct kvm_vcpu *vcpu)
 {
 	uint64_t obs_pc, obs_x0;
 
-	vcpu_get_reg(vcpu->vm, vcpu->id, ARM64_CORE_REG(regs.pc), &obs_pc);
-	vcpu_get_reg(vcpu->vm, vcpu->id, ARM64_CORE_REG(regs.regs[0]), &obs_x0);
+	vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.pc), &obs_pc);
+	vcpu_get_reg(vcpu, ARM64_CORE_REG(regs.regs[0]), &obs_x0);
 
 	TEST_ASSERT(obs_pc == CPU_ON_ENTRY_ADDR,
 		    "unexpected target cpu pc: %lx (expected: %lx)",
@@ -143,11 +143,11 @@ static void host_test_cpu_on(void)
 	 */
 	vcpu_power_off(target);
 
-	vcpu_get_reg(vm, target->id, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &target_mpidr);
-	vcpu_args_set(vm, source->id, 1, target_mpidr & MPIDR_HWID_BITMASK);
+	vcpu_get_reg(target, KVM_ARM64_SYS_REG(SYS_MPIDR_EL1), &target_mpidr);
+	vcpu_args_set(source, 1, target_mpidr & MPIDR_HWID_BITMASK);
 	enter_guest(source);
 
-	if (get_ucall(vm, source->id, &uc) != UCALL_DONE)
+	if (get_ucall(source, &uc) != UCALL_DONE)
 		TEST_FAIL("Unhandled ucall: %lu", uc.cmd);
 
 	assert_vcpu_reset(target);

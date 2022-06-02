@@ -116,14 +116,14 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 
 		vm_ioctl(vm, KVM_GET_CLOCK, &start);
 
-		vcpu_run(vcpu->vm, vcpu->id);
+		vcpu_run(vcpu);
 		vm_ioctl(vm, KVM_GET_CLOCK, &end);
 
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "unexpected exit reason: %u (%s)",
 			    run->exit_reason, exit_reason_str(run->exit_reason));
 
-		switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
 			handle_sync(&uc, &start, &end);
 			break;
@@ -193,7 +193,7 @@ int main(void)
 
 	pvti_gva = vm_vaddr_alloc(vm, getpagesize(), 0x10000);
 	pvti_gpa = addr_gva2gpa(vm, pvti_gva);
-	vcpu_args_set(vm, vcpu->id, 2, pvti_gpa, pvti_gva);
+	vcpu_args_set(vcpu, 2, pvti_gpa, pvti_gva);
 
 	enter_guest(vcpu);
 	kvm_vm_free(vm);

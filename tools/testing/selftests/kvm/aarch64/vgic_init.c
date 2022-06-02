@@ -70,7 +70,7 @@ static int run_vcpu(struct kvm_vcpu *vcpu)
 {
 	ucall_init(vcpu->vm, NULL);
 
-	return __vcpu_run(vcpu->vm, vcpu->id) ? -errno : 0;
+	return __vcpu_run(vcpu) ? -errno : 0;
 }
 
 static struct vm_gic vm_gic_create_with_vcpus(uint32_t gic_dev_type,

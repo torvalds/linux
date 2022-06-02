@@ -64,9 +64,9 @@ int main(int argc, char *argv[])
 
 	/* Allocate VMX pages and shared descriptors (vmx_pages). */
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vm, vcpu->id, 1, vmx_pages_gva);
+	vcpu_args_set(vcpu, 1, vmx_pages_gva);
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	run = vcpu->run;
 
@@ -88,13 +88,13 @@ int main(int argc, char *argv[])
 	 * emulating invalid guest state for L2.
 	 */
 	memset(&sregs, 0, sizeof(sregs));
-	vcpu_sregs_get(vm, vcpu->id, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	sregs.tr.unusable = 1;
-	vcpu_sregs_set(vm, vcpu->id, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
-	switch (get_ucall(vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_DONE:
 		break;
 	case UCALL_ABORT:

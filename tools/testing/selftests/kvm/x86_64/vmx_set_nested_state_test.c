@@ -28,7 +28,7 @@ bool have_evmcs;
 
 void test_nested_state(struct kvm_vcpu *vcpu, struct kvm_nested_state *state)
 {
-	vcpu_nested_state_set(vcpu->vm, vcpu->id, state);
+	vcpu_nested_state_set(vcpu, state);
 }
 
 void test_nested_state_expect_errno(struct kvm_vcpu *vcpu,
@@ -37,7 +37,7 @@ void test_nested_state_expect_errno(struct kvm_vcpu *vcpu,
 {
 	int rv;
 
-	rv = __vcpu_nested_state_set(vcpu->vm, vcpu->id, state);
+	rv = __vcpu_nested_state_set(vcpu, state);
 	TEST_ASSERT(rv == -1 && errno == expected_errno,
 		"Expected %s (%d) from vcpu_nested_state_set but got rv: %i errno: %s (%d)",
 		strerror(expected_errno), expected_errno, rv, strerror(errno),
@@ -121,7 +121,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	test_nested_state(vcpu, state);
 
 	/* Enable VMX in the guest CPUID. */
-	vcpu_set_cpuid(vcpu->vm, vcpu->id, kvm_get_supported_cpuid());
+	vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
 
 	/*
 	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
@@ -137,7 +137,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	state->flags &= KVM_STATE_NESTED_EVMCS;
 	if (have_evmcs) {
 		test_nested_state_expect_einval(vcpu, state);
-		vcpu_enable_evmcs(vcpu->vm, vcpu->id);
+		vcpu_enable_evmcs(vcpu);
 	}
 	test_nested_state(vcpu, state);
 
@@ -233,7 +233,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	state->hdr.vmx.vmcs12_pa = -1ull;
 	state->flags = 0;
 	test_nested_state(vcpu, state);
-	vcpu_nested_state_get(vcpu->vm, vcpu->id, state);
+	vcpu_nested_state_get(vcpu, state);
 	TEST_ASSERT(state->size >= sizeof(*state) && state->size <= state_sz,
 		    "Size must be between %ld and %d.  The size returned was %d.",
 		    sizeof(*state), state_sz, state->size);
@@ -255,7 +255,7 @@ void disable_vmx(struct kvm_vcpu *vcpu)
 	TEST_ASSERT(i != cpuid->nent, "CPUID function 1 not found");
 
 	cpuid->entries[i].ecx &= ~CPUID_VMX;
-	vcpu_set_cpuid(vcpu->vm, vcpu->id, cpuid);
+	vcpu_set_cpuid(vcpu, cpuid);
 	cpuid->entries[i].ecx |= CPUID_VMX;
 }
 

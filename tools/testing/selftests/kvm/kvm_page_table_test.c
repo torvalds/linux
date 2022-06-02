@@ -184,7 +184,6 @@ static void guest_code(bool do_write)
 
 static void *vcpu_worker(void *data)
 {
-	struct kvm_vm *vm = test_args.vm;
 	struct kvm_vcpu *vcpu = data;
 	bool do_write = !(vcpu->id % 2);
 	struct timespec start;
@@ -192,7 +191,7 @@ static void *vcpu_worker(void *data)
 	enum test_stage stage;
 	int ret;
 
-	vcpu_args_set(vm, vcpu->id, 1, do_write);
+	vcpu_args_set(vcpu, 1, do_write);
 
 	while (!READ_ONCE(host_quit)) {
 		ret = sem_wait(&test_stage_updated);
@@ -202,11 +201,11 @@ static void *vcpu_worker(void *data)
 			return NULL;
 
 		clock_gettime(CLOCK_MONOTONIC_RAW, &start);
-		ret = _vcpu_run(vm, vcpu->id);
+		ret = _vcpu_run(vcpu);
 		ts_diff = timespec_elapsed(start);
 
 		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
-		TEST_ASSERT(get_ucall(vm, vcpu->id, NULL) == UCALL_SYNC,
+		TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
 			    "Invalid guest sync status: exit_reason=%s\n",
 			    exit_reason_str(vcpu->run->exit_reason));
 

@@ -35,7 +35,7 @@ static void mmu_role_test(u32 *cpuid_reg, u32 evil_cpuid_val)
 	/* Map 1gb page without a backing memlot. */
 	__virt_pg_map(vm, MMIO_GPA, MMIO_GPA, PG_LEVEL_1G);
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	/* Guest access to the 1gb page should trigger MMIO. */
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_MMIO,
@@ -54,7 +54,7 @@ static void mmu_role_test(u32 *cpuid_reg, u32 evil_cpuid_val)
 	 * returns the struct that contains the entry being modified.  Eww.
 	 */
 	*cpuid_reg = evil_cpuid_val;
-	vcpu_set_cpuid(vm, vcpu->id, kvm_get_supported_cpuid());
+	vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
 
 	/*
 	 * Add a dummy memslot to coerce KVM into bumping the MMIO generation.
@@ -67,12 +67,12 @@ static void mmu_role_test(u32 *cpuid_reg, u32 evil_cpuid_val)
 
 	/* Set up a #PF handler to eat the RSVD #PF and signal all done! */
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, vcpu->id);
+	vcpu_init_descriptor_tables(vcpu);
 	vm_install_exception_handler(vm, PF_VECTOR, guest_pf_handler);
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
-	cmd = get_ucall(vm, vcpu->id, NULL);
+	cmd = get_ucall(vcpu, NULL);
 	TEST_ASSERT(cmd == UCALL_DONE,
 		    "Unexpected guest exit, exit_reason=%s, ucall.cmd = %lu\n",
 		    exit_reason_str(run->exit_reason), cmd);

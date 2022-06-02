@@ -145,7 +145,7 @@ static void run_test(bool is_nmi)
 	vm = vm_create_with_one_vcpu(&vcpu, l1_guest_code);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, vcpu->id);
+	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_exception_handler(vm, NMI_VECTOR, guest_nmi_handler);
 	vm_install_exception_handler(vm, BP_VECTOR, guest_bp_handler);
@@ -163,23 +163,23 @@ static void run_test(bool is_nmi)
 	} else {
 		idt_alt_vm = 0;
 	}
-	vcpu_args_set(vm, vcpu->id, 3, svm_gva, (uint64_t)is_nmi, (uint64_t)idt_alt_vm);
+	vcpu_args_set(vcpu, 3, svm_gva, (uint64_t)is_nmi, (uint64_t)idt_alt_vm);
 
 	memset(&debug, 0, sizeof(debug));
-	vcpu_guest_debug_set(vm, vcpu->id, &debug);
+	vcpu_guest_debug_set(vcpu, &debug);
 
 	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
 	alarm(2);
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 	alarm(0);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Got exit_reason other than KVM_EXIT_IO: %u (%s)\n",
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	switch (get_ucall(vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
 		TEST_FAIL("%s at %s:%ld, vals = 0x%lx 0x%lx 0x%lx", (const char *)uc.args[0],
 			  __FILE__, uc.args[1], uc.args[2], uc.args[3], uc.args[4]);

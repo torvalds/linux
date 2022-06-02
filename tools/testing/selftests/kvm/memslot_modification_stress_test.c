@@ -39,7 +39,6 @@ static bool run_vcpus = true;
 static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 {
 	struct kvm_vcpu *vcpu = vcpu_args->vcpu;
-	struct kvm_vm *vm = perf_test_args.vm;
 	struct kvm_run *run;
 	int ret;
 
@@ -47,10 +46,10 @@ static void vcpu_worker(struct perf_test_vcpu_args *vcpu_args)
 
 	/* Let the guest access its memory until a stop signal is received */
 	while (READ_ONCE(run_vcpus)) {
-		ret = _vcpu_run(vm, vcpu->id);
+		ret = _vcpu_run(vcpu);
 		TEST_ASSERT(ret == 0, "vcpu_run failed: %d\n", ret);
 
-		if (get_ucall(vm, vcpu->id, NULL) == UCALL_SYNC)
+		if (get_ucall(vcpu, NULL) == UCALL_SYNC)
 			continue;
 
 		TEST_ASSERT(false,

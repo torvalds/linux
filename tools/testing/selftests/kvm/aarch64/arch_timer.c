@@ -218,14 +218,14 @@ static void *test_vcpu_run(void *arg)
 	struct kvm_vm *vm = vcpu->vm;
 	struct test_vcpu_shared_data *shared_data = &vcpu_shared_data[vcpu_idx];
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	/* Currently, any exit from guest is an indication of completion */
 	pthread_mutex_lock(&vcpu_done_map_lock);
 	set_bit(vcpu_idx, vcpu_done_map);
 	pthread_mutex_unlock(&vcpu_done_map_lock);
 
-	switch (get_ucall(vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 	case UCALL_DONE:
 		break;
@@ -345,9 +345,9 @@ static void test_run(struct kvm_vm *vm)
 static void test_init_timer_irq(struct kvm_vm *vm)
 {
 	/* Timer initid should be same for all the vCPUs, so query only vCPU-0 */
-	vcpu_device_attr_get(vm, vcpus[0]->id, KVM_ARM_VCPU_TIMER_CTRL,
+	vcpu_device_attr_get(vcpus[0], KVM_ARM_VCPU_TIMER_CTRL,
 			     KVM_ARM_VCPU_TIMER_IRQ_PTIMER, &ptimer_irq);
-	vcpu_device_attr_get(vm, vcpus[0]->id, KVM_ARM_VCPU_TIMER_CTRL,
+	vcpu_device_attr_get(vcpus[0], KVM_ARM_VCPU_TIMER_CTRL,
 			     KVM_ARM_VCPU_TIMER_IRQ_VTIMER, &vtimer_irq);
 
 	sync_global_to_guest(vm, ptimer_irq);
@@ -370,7 +370,7 @@ static struct kvm_vm *test_vm_create(void)
 	vm_install_exception_handler(vm, VECTOR_IRQ_CURRENT, guest_irq_handler);
 
 	for (i = 0; i < nr_vcpus; i++)
-		vcpu_init_descriptor_tables(vm, vcpus[i]->id);
+		vcpu_init_descriptor_tables(vcpus[i]);
 
 	ucall_init(vm, NULL);
 	test_init_timer_irq(vm);

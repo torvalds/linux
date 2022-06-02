@@ -118,12 +118,12 @@ void inject_smi(struct kvm_vcpu *vcpu)
 {
 	struct kvm_vcpu_events events;
 
-	vcpu_events_get(vcpu->vm, vcpu->id, &events);
+	vcpu_events_get(vcpu, &events);
 
 	events.smi.pending = 1;
 	events.flags |= KVM_VCPUEVENT_VALID_SMM;
 
-	vcpu_events_set(vcpu->vm, vcpu->id, &events);
+	vcpu_events_set(vcpu, &events);
 }
 
 int main(int argc, char *argv[])
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
 	memcpy(addr_gpa2hva(vm, SMRAM_GPA) + 0x8000, smi_handler,
 	       sizeof(smi_handler));
 
-	vcpu_set_msr(vm, vcpu->id, MSR_IA32_SMBASE, SMRAM_GPA);
+	vcpu_set_msr(vcpu, MSR_IA32_SMBASE, SMRAM_GPA);
 
 	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
 		if (nested_svm_supported())
@@ -163,17 +163,17 @@ int main(int argc, char *argv[])
 	if (!nested_gva)
 		pr_info("will skip SMM test with VMX enabled\n");
 
-	vcpu_args_set(vm, vcpu->id, 1, nested_gva);
+	vcpu_args_set(vcpu, 1, nested_gva);
 
 	for (stage = 1;; stage++) {
-		vcpu_run(vm, vcpu->id);
+		vcpu_run(vcpu);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Stage %d: unexpected exit reason: %u (%s),\n",
 			    stage, run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
 		memset(&regs, 0, sizeof(regs));
-		vcpu_regs_get(vm, vcpu->id, &regs);
+		vcpu_regs_get(vcpu, &regs);
 
 		stage_reported = regs.rax & 0xff;
 
@@ -201,12 +201,12 @@ int main(int argc, char *argv[])
 		if (stage == 10)
 			inject_smi(vcpu);
 
-		state = vcpu_save_state(vm, vcpu->id);
+		state = vcpu_save_state(vcpu);
 		kvm_vm_release(vm);
 
 		vcpu = vm_recreate_with_one_vcpu(vm);
-		vcpu_set_cpuid(vm, vcpu->id, kvm_get_supported_cpuid());
-		vcpu_load_state(vm, vcpu->id, state);
+		vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
+		vcpu_load_state(vcpu, state);
 		run = vcpu->run;
 		kvm_x86_state_cleanup(state);
 	}

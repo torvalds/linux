@@ -63,10 +63,10 @@ static void *vcpu_worker(void *data)
 	 * has been deleted or while it is being moved .
 	 */
 	while (1) {
-		vcpu_run(vcpu->vm, vcpu->id);
+		vcpu_run(vcpu);
 
 		if (run->exit_reason == KVM_EXIT_IO) {
-			cmd = get_ucall(vcpu->vm, vcpu->id, &uc);
+			cmd = get_ucall(vcpu, &uc);
 			if (cmd != UCALL_SYNC)
 				break;
 
@@ -291,7 +291,7 @@ static void test_delete_memory_region(void)
 		    run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
 		    "Unexpected exit reason = %d", run->exit_reason);
 
-	vcpu_regs_get(vm, vcpu->id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 
 	/*
 	 * On AMD, after KVM_EXIT_SHUTDOWN the VMCB has been reinitialized already,
@@ -318,7 +318,7 @@ static void test_zero_memory_regions(void)
 	vcpu = __vm_vcpu_add(vm, 0);
 
 	vm_ioctl(vm, KVM_SET_NR_MMU_PAGES, (void *)64ul);
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	run = vcpu->run;
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_INTERNAL_ERROR,

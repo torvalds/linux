@@ -152,7 +152,7 @@ static void memop_ioctl(struct test_info info, struct kvm_s390_mem_op *ksmo)
 	if (!vcpu)
 		vm_ioctl(info.vm, KVM_S390_MEM_OP, ksmo);
 	else
-		vcpu_ioctl(vcpu->vm, vcpu->id, KVM_S390_MEM_OP, ksmo);
+		vcpu_ioctl(vcpu, KVM_S390_MEM_OP, ksmo);
 }
 
 static int err_memop_ioctl(struct test_info info, struct kvm_s390_mem_op *ksmo)
@@ -162,7 +162,7 @@ static int err_memop_ioctl(struct test_info info, struct kvm_s390_mem_op *ksmo)
 	if (!vcpu)
 		return __vm_ioctl(info.vm, KVM_S390_MEM_OP, ksmo);
 	else
-		return __vcpu_ioctl(vcpu->vm, vcpu->id, KVM_S390_MEM_OP, ksmo);
+		return __vcpu_ioctl(vcpu, KVM_S390_MEM_OP, ksmo);
 }
 
 #define MEMOP(err, info_p, mop_target_p, access_mode_p, buf_p, size_p, ...)	\
@@ -250,8 +250,8 @@ enum stage {
 	struct ucall uc;						\
 	int __stage = (stage);						\
 									\
-	vcpu_run(__vcpu->vm, __vcpu->id);				\
-	get_ucall(__vcpu->vm, __vcpu->id, &uc);				\
+	vcpu_run(__vcpu);						\
+	get_ucall(__vcpu, &uc);						\
 	ASSERT_EQ(uc.cmd, UCALL_SYNC);					\
 	ASSERT_EQ(uc.args[1], __stage);					\
 })									\

@@ -206,14 +206,14 @@ static void *vcpu_thread(void *arg)
 		    vcpu->id, r);
 
 	fprintf(stderr, "vCPU thread running vCPU %u\n", vcpu->id);
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	exit_reason = vcpu->run->exit_reason;
 
 	TEST_ASSERT(exit_reason == KVM_EXIT_IO,
 		    "vCPU %u exited with unexpected exit reason %u-%s, expected KVM_EXIT_IO",
 		    vcpu->id, exit_reason, exit_reason_str(exit_reason));
 
-	if (get_ucall(vcpu->vm, vcpu->id, &uc) == UCALL_ABORT) {
+	if (get_ucall(vcpu, &uc) == UCALL_ABORT) {
 		TEST_ASSERT(false,
 			    "vCPU %u exited with error: %s.\n"
 			    "Sending vCPU sent %lu IPIs to halting vCPU\n"
@@ -415,7 +415,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&params[0].vcpu, halter_guest_code);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, params[0].vcpu->id);
+	vcpu_init_descriptor_tables(params[0].vcpu);
 	vm_install_exception_handler(vm, IPI_VECTOR, guest_ipi_handler);
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
@@ -428,8 +428,8 @@ int main(int argc, char *argv[])
 	params[0].data = data;
 	params[1].data = data;
 
-	vcpu_args_set(vm, params[0].vcpu->id, 1, test_data_page_vaddr);
-	vcpu_args_set(vm, params[1].vcpu->id, 1, test_data_page_vaddr);
+	vcpu_args_set(params[0].vcpu, 1, test_data_page_vaddr);
+	vcpu_args_set(params[1].vcpu, 1, test_data_page_vaddr);
 
 	pipis_rcvd = (uint64_t *)addr_gva2hva(vm, (uint64_t)&ipis_rcvd);
 	params[0].pipis_rcvd = pipis_rcvd;

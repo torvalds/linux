@@ -146,9 +146,9 @@ static void *vcpu_worker(void *__data)
 	struct ucall uc;
 
 	while (1) {
-		vcpu_run(data->vm, vcpu->id);
+		vcpu_run(vcpu);
 
-		switch (get_ucall(data->vm, vcpu->id, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(uc.args[1] == 0,
 				"Unexpected sync ucall, got %lx",

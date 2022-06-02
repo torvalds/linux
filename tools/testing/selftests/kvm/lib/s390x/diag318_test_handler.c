@@ -32,7 +32,7 @@ static uint64_t diag318_handler(void)
 	uint64_t diag318_info;
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 	run = vcpu->run;
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,

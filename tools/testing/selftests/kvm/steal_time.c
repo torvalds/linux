@@ -73,11 +73,11 @@ static void steal_time_init(struct kvm_vcpu *vcpu, uint32_t i)
 	st_gva[i] = (void *)(ST_GPA_BASE + i * STEAL_TIME_SIZE);
 	sync_global_to_guest(vcpu->vm, st_gva[i]);
 
-	ret = _vcpu_set_msr(vcpu->vm, vcpu->id, MSR_KVM_STEAL_TIME,
+	ret = _vcpu_set_msr(vcpu, MSR_KVM_STEAL_TIME,
 			    (ulong)st_gva[i] | KVM_STEAL_RESERVED_MASK);
 	TEST_ASSERT(ret == 0, "Bad GPA didn't fail");
 
-	vcpu_set_msr(vcpu->vm, vcpu->id, MSR_KVM_STEAL_TIME, (ulong)st_gva[i] | KVM_MSR_ENABLED);
+	vcpu_set_msr(vcpu, MSR_KVM_STEAL_TIME, (ulong)st_gva[i] | KVM_MSR_ENABLED);
 }
 
 static void steal_time_dump(struct kvm_vm *vm, uint32_t vcpu_idx)
@@ -163,7 +163,7 @@ static bool is_steal_time_supported(struct kvm_vcpu *vcpu)
 		.attr = KVM_ARM_VCPU_PVTIME_IPA,
 	};
 
-	return !__vcpu_ioctl(vcpu->vm, vcpu->id, KVM_HAS_DEVICE_ATTR, &dev);
+	return !__vcpu_ioctl(vcpu, KVM_HAS_DEVICE_ATTR, &dev);
 }
 
 static void steal_time_init(struct kvm_vcpu *vcpu, uint32_t i)
@@ -178,20 +178,20 @@ static void steal_time_init(struct kvm_vcpu *vcpu, uint32_t i)
 		.addr = (uint64_t)&st_ipa,
 	};
 
-	vcpu_ioctl(vm, vcpu->id, KVM_HAS_DEVICE_ATTR, &dev);
+	vcpu_ioctl(vcpu, KVM_HAS_DEVICE_ATTR, &dev);
 
 	/* ST_GPA_BASE is identity mapped */
 	st_gva[i] = (void *)(ST_GPA_BASE + i * STEAL_TIME_SIZE);
 	sync_global_to_guest(vm, st_gva[i]);
 
 	st_ipa = (ulong)st_gva[i] | 1;
-	ret = __vcpu_ioctl(vm, vcpu->id, KVM_SET_DEVICE_ATTR, &dev);
+	ret = __vcpu_ioctl(vcpu, KVM_SET_DEVICE_ATTR, &dev);
 	TEST_ASSERT(ret == -1 && errno == EINVAL, "Bad IPA didn't report EINVAL");
 
 	st_ipa = (ulong)st_gva[i];
-	vcpu_ioctl(vm, vcpu->id, KVM_SET_DEVICE_ATTR, &dev);
+	vcpu_ioctl(vcpu, KVM_SET_DEVICE_ATTR, &dev);
 
-	ret = __vcpu_ioctl(vm, vcpu->id, KVM_SET_DEVICE_ATTR, &dev);
+	ret = __vcpu_ioctl(vcpu, KVM_SET_DEVICE_ATTR, &dev);
 	TEST_ASSERT(ret == -1 && errno == EEXIST, "Set IPA twice without EEXIST");
 }
 
@@ -227,9 +227,9 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 
-	switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 	case UCALL_DONE:
 		break;
@@ -280,7 +280,7 @@ int main(int ac, char **av)
 	for (i = 0; i < NR_VCPUS; ++i) {
 		steal_time_init(vcpus[i], i);
 
-		vcpu_args_set(vm, vcpus[i]->id, 1, i);
+		vcpu_args_set(vcpus[i], 1, i);
 
 		/* First VCPU run initializes steal-time */
 		run_vcpu(vcpus[i]);

@@ -83,9 +83,9 @@ static void process_exit_on_emulation_error(struct kvm_vcpu *vcpu)
 			 * contained an flds instruction that is 2-bytes in
 			 * length (ie: no prefix, no SIB, no displacement).
 			 */
-			vcpu_regs_get(vcpu->vm, vcpu->id, &regs);
+			vcpu_regs_get(vcpu, &regs);
 			regs.rip += 2;
-			vcpu_regs_set(vcpu->vm, vcpu->id, &regs);
+			vcpu_regs_set(vcpu, &regs);
 		}
 	}
 }
@@ -101,7 +101,7 @@ static void check_for_guest_assert(struct kvm_vcpu *vcpu)
 	struct ucall uc;
 
 	if (vcpu->run->exit_reason == KVM_EXIT_IO &&
-	    get_ucall(vcpu->vm, vcpu->id, &uc) == UCALL_ABORT) {
+	    get_ucall(vcpu, &uc) == UCALL_ABORT) {
 		do_guest_assert(&uc);
 	}
 }
@@ -118,7 +118,7 @@ static void process_ucall_done(struct kvm_vcpu *vcpu)
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	TEST_ASSERT(get_ucall(vcpu->vm, vcpu->id, &uc) == UCALL_DONE,
+	TEST_ASSERT(get_ucall(vcpu, &uc) == UCALL_DONE,
 		    "Unexpected ucall command: %lu, expected UCALL_DONE (%d)",
 		    uc.cmd, UCALL_DONE);
 }
@@ -133,7 +133,7 @@ static uint64_t process_ucall(struct kvm_vcpu *vcpu)
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 		break;
 	case UCALL_ABORT:
@@ -175,7 +175,7 @@ int main(int argc, char *argv[])
 	entry->eax = (entry->eax & 0xffffff00) | MAXPHYADDR;
 	set_cpuid(cpuid, entry);
 
-	vcpu_set_cpuid(vm, vcpu->id, cpuid);
+	vcpu_set_cpuid(vcpu, cpuid);
 
 	rc = kvm_check_cap(KVM_CAP_EXIT_ON_EMULATION_FAILURE);
 	TEST_ASSERT(rc, "KVM_CAP_EXIT_ON_EMULATION_FAILURE is unavailable");
@@ -190,12 +190,12 @@ int main(int argc, char *argv[])
 	virt_map(vm, MEM_REGION_GVA, MEM_REGION_GPA, 1);
 	hva = addr_gpa2hva(vm, MEM_REGION_GPA);
 	memset(hva, 0, PAGE_SIZE);
-	pte = vm_get_page_table_entry(vm, vcpu->id, MEM_REGION_GVA);
-	vm_set_page_table_entry(vm, vcpu->id, MEM_REGION_GVA, pte | (1ull << 36));
+	pte = vm_get_page_table_entry(vm, vcpu, MEM_REGION_GVA);
+	vm_set_page_table_entry(vm, vcpu, MEM_REGION_GVA, pte | (1ull << 36));
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 	process_exit_on_emulation_error(vcpu);
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	TEST_ASSERT(process_ucall(vcpu) == UCALL_DONE, "Expected UCALL_DONE");
 

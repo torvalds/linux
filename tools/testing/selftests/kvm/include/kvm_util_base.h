@@ -93,7 +93,7 @@ struct kvm_vm {
 			continue;			\
 		else
 
-struct kvm_vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpuid);
+struct kvm_vcpu *vcpu_get(struct kvm_vm *vm, uint32_t vcpu_id);
 
 struct userspace_mem_region *
 memslot2region(struct kvm_vm *vm, uint32_t memslot);
@@ -196,12 +196,12 @@ int __vm_ioctl(struct kvm_vm *vm, unsigned long cmd, void *arg);
 void _vm_ioctl(struct kvm_vm *vm, unsigned long cmd, const char *name, void *arg);
 #define vm_ioctl(vm, cmd, arg) _vm_ioctl(vm, cmd, #cmd, arg)
 
-int __vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid, unsigned long cmd,
+int __vcpu_ioctl(struct kvm_vcpu *vcpu, unsigned long cmd,
 		 void *arg);
-void _vcpu_ioctl(struct kvm_vm *vm, uint32_t vcpuid, unsigned long cmd,
+void _vcpu_ioctl(struct kvm_vcpu *vcpu, unsigned long cmd,
 		 const char *name, void *arg);
-#define vcpu_ioctl(vm, vcpuid, cmd, arg) \
-	_vcpu_ioctl(vm, vcpuid, cmd, #cmd, arg)
+#define vcpu_ioctl(vcpu, cmd, arg) \
+	_vcpu_ioctl(vcpu, cmd, #cmd, arg)
 
 /*
  * Looks up and returns the value corresponding to the capability
@@ -288,7 +288,7 @@ void vm_userspace_mem_region_add(struct kvm_vm *vm,
 void vm_mem_region_set_flags(struct kvm_vm *vm, uint32_t slot, uint32_t flags);
 void vm_mem_region_move(struct kvm_vm *vm, uint32_t slot, uint64_t new_gpa);
 void vm_mem_region_delete(struct kvm_vm *vm, uint32_t slot);
-struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpuid);
+struct kvm_vcpu *__vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id);
 vm_vaddr_t vm_vaddr_alloc(struct kvm_vm *vm, size_t sz, vm_vaddr_t vaddr_min);
 vm_vaddr_t vm_vaddr_alloc_pages(struct kvm_vm *vm, int nr_pages);
 vm_vaddr_t vm_vaddr_alloc_page(struct kvm_vm *vm);
@@ -300,143 +300,132 @@ void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva);
 vm_paddr_t addr_hva2gpa(struct kvm_vm *vm, void *hva);
 void *addr_gpa2alias(struct kvm_vm *vm, vm_paddr_t gpa);
 
-struct kvm_run *vcpu_state(struct kvm_vm *vm, uint32_t vcpuid);
-void vcpu_run(struct kvm_vm *vm, uint32_t vcpuid);
-int _vcpu_run(struct kvm_vm *vm, uint32_t vcpuid);
+struct kvm_run *vcpu_state(struct kvm_vcpu *vcpu);
+void vcpu_run(struct kvm_vcpu *vcpu);
+int _vcpu_run(struct kvm_vcpu *vcpu);
 
-static inline int __vcpu_run(struct kvm_vm *vm, uint32_t vcpuid)
+static inline int __vcpu_run(struct kvm_vcpu *vcpu)
 {
-	return __vcpu_ioctl(vm, vcpuid, KVM_RUN, NULL);
+	return __vcpu_ioctl(vcpu, KVM_RUN, NULL);
 }
 
-void vcpu_run_complete_io(struct kvm_vm *vm, uint32_t vcpuid);
-struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_run_complete_io(struct kvm_vcpu *vcpu);
+struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vcpu *vcpu);
 
-static inline void vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
-				   uint32_t cap, uint64_t arg0)
+static inline void vcpu_enable_cap(struct kvm_vcpu *vcpu, uint32_t cap,
+				   uint64_t arg0)
 {
 	struct kvm_enable_cap enable_cap = { .cap = cap, .args = { arg0 } };
 
-	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_cap);
+	vcpu_ioctl(vcpu, KVM_ENABLE_CAP, &enable_cap);
 }
 
-static inline void vcpu_guest_debug_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_guest_debug_set(struct kvm_vcpu *vcpu,
 					struct kvm_guest_debug *debug)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_GUEST_DEBUG, debug);
+	vcpu_ioctl(vcpu, KVM_SET_GUEST_DEBUG, debug);
 }
 
-static inline void vcpu_mp_state_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_mp_state_get(struct kvm_vcpu *vcpu,
 				     struct kvm_mp_state *mp_state)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_MP_STATE, mp_state);
+	vcpu_ioctl(vcpu, KVM_GET_MP_STATE, mp_state);
 }
-static inline void vcpu_mp_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_mp_state_set(struct kvm_vcpu *vcpu,
 				     struct kvm_mp_state *mp_state)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_MP_STATE, mp_state);
+	vcpu_ioctl(vcpu, KVM_SET_MP_STATE, mp_state);
 }
 
-static inline void vcpu_regs_get(struct kvm_vm *vm, uint32_t vcpuid,
-				 struct kvm_regs *regs)
+static inline void vcpu_regs_get(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_REGS, regs);
+	vcpu_ioctl(vcpu, KVM_GET_REGS, regs);
 }
 
-static inline void vcpu_regs_set(struct kvm_vm *vm, uint32_t vcpuid,
-				 struct kvm_regs *regs)
+static inline void vcpu_regs_set(struct kvm_vcpu *vcpu, struct kvm_regs *regs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_REGS, regs);
+	vcpu_ioctl(vcpu, KVM_SET_REGS, regs);
 }
-static inline void vcpu_sregs_get(struct kvm_vm *vm, uint32_t vcpuid,
-				  struct kvm_sregs *sregs)
+static inline void vcpu_sregs_get(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_SREGS, sregs);
+	vcpu_ioctl(vcpu, KVM_GET_SREGS, sregs);
 
 }
-static inline void vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
-				  struct kvm_sregs *sregs)
+static inline void vcpu_sregs_set(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_SREGS, sregs);
+	vcpu_ioctl(vcpu, KVM_SET_SREGS, sregs);
 }
-static inline int _vcpu_sregs_set(struct kvm_vm *vm, uint32_t vcpuid,
-				  struct kvm_sregs *sregs)
+static inline int _vcpu_sregs_set(struct kvm_vcpu *vcpu, struct kvm_sregs *sregs)
 {
-	return __vcpu_ioctl(vm, vcpuid, KVM_SET_SREGS, sregs);
+	return __vcpu_ioctl(vcpu, KVM_SET_SREGS, sregs);
 }
-static inline void vcpu_fpu_get(struct kvm_vm *vm, uint32_t vcpuid,
-				struct kvm_fpu *fpu)
+static inline void vcpu_fpu_get(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_FPU, fpu);
+	vcpu_ioctl(vcpu, KVM_GET_FPU, fpu);
 }
-static inline void vcpu_fpu_set(struct kvm_vm *vm, uint32_t vcpuid,
-				struct kvm_fpu *fpu)
+static inline void vcpu_fpu_set(struct kvm_vcpu *vcpu, struct kvm_fpu *fpu)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_FPU, fpu);
+	vcpu_ioctl(vcpu, KVM_SET_FPU, fpu);
 }
 
-static inline int __vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid,
-				 uint64_t reg_id, void *addr)
+static inline int __vcpu_get_reg(struct kvm_vcpu *vcpu, uint64_t id, void *addr)
 {
-	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)addr };
+	struct kvm_one_reg reg = { .id = id, .addr = (uint64_t)addr };
 
-	return __vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, &reg);
+	return __vcpu_ioctl(vcpu, KVM_GET_ONE_REG, &reg);
 }
-static inline int __vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid,
-				 uint64_t reg_id, uint64_t val)
+static inline int __vcpu_set_reg(struct kvm_vcpu *vcpu, uint64_t id, uint64_t val)
 {
-	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)&val };
+	struct kvm_one_reg reg = { .id = id, .addr = (uint64_t)&val };
 
-	return __vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
+	return __vcpu_ioctl(vcpu, KVM_SET_ONE_REG, &reg);
 }
-static inline void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid,
-				uint64_t reg_id, void *addr)
+static inline void vcpu_get_reg(struct kvm_vcpu *vcpu, uint64_t id, void *addr)
 {
-	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)addr };
+	struct kvm_one_reg reg = { .id = id, .addr = (uint64_t)addr };
 
-	vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, &reg);
+	vcpu_ioctl(vcpu, KVM_GET_ONE_REG, &reg);
 }
-static inline void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid,
-				uint64_t reg_id, uint64_t val)
+static inline void vcpu_set_reg(struct kvm_vcpu *vcpu, uint64_t id, uint64_t val)
 {
-	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)&val };
+	struct kvm_one_reg reg = { .id = id, .addr = (uint64_t)&val };
 
-	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
+	vcpu_ioctl(vcpu, KVM_SET_ONE_REG, &reg);
 }
 
 #ifdef __KVM_HAVE_VCPU_EVENTS
-static inline void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_events_get(struct kvm_vcpu *vcpu,
 				   struct kvm_vcpu_events *events)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_VCPU_EVENTS, events);
+	vcpu_ioctl(vcpu, KVM_GET_VCPU_EVENTS, events);
 }
-static inline void vcpu_events_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_events_set(struct kvm_vcpu *vcpu,
 				   struct kvm_vcpu_events *events)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_VCPU_EVENTS, events);
+	vcpu_ioctl(vcpu, KVM_SET_VCPU_EVENTS, events);
 }
 #endif
 #ifdef __x86_64__
-static inline void vcpu_nested_state_get(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_nested_state_get(struct kvm_vcpu *vcpu,
 					 struct kvm_nested_state *state)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_NESTED_STATE, state);
+	vcpu_ioctl(vcpu, KVM_GET_NESTED_STATE, state);
 }
-static inline int __vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline int __vcpu_nested_state_set(struct kvm_vcpu *vcpu,
 					  struct kvm_nested_state *state)
 {
-	return __vcpu_ioctl(vm, vcpuid, KVM_SET_NESTED_STATE, state);
+	return __vcpu_ioctl(vcpu, KVM_SET_NESTED_STATE, state);
 }
 
-static inline void vcpu_nested_state_set(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_nested_state_set(struct kvm_vcpu *vcpu,
 					 struct kvm_nested_state *state)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_NESTED_STATE, state);
+	vcpu_ioctl(vcpu, KVM_SET_NESTED_STATE, state);
 }
 #endif
-static inline int vcpu_get_stats_fd(struct kvm_vm *vm, uint32_t vcpuid)
+static inline int vcpu_get_stats_fd(struct kvm_vcpu *vcpu)
 {
-	int fd = __vcpu_ioctl(vm, vcpuid, KVM_GET_STATS_FD, NULL);
+	int fd = __vcpu_ioctl(vcpu, KVM_GET_STATS_FD, NULL);
 
 	TEST_ASSERT(fd >= 0, KVM_IOCTL_ERROR(KVM_GET_STATS_FD, fd));
 	return fd;
@@ -471,25 +460,42 @@ static inline void kvm_device_attr_set(int dev_fd, uint32_t group,
 	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_SET_DEVICE_ATTR, ret));
 }
 
-int __vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			   uint64_t attr);
-
-static inline void vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid,
-					uint32_t group, uint64_t attr)
+static inline int __vcpu_has_device_attr(struct kvm_vcpu *vcpu, uint32_t group,
+					 uint64_t attr)
 {
-	int ret = __vcpu_has_device_attr(vm, vcpuid, group, attr);
-
-	TEST_ASSERT(!ret, KVM_IOCTL_ERROR(KVM_HAS_DEVICE_ATTR, ret));
+	return __kvm_has_device_attr(vcpu->fd, group, attr);
 }
 
-int __vcpu_device_attr_get(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			   uint64_t attr, void *val);
-void vcpu_device_attr_get(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			  uint64_t attr, void *val);
-int __vcpu_device_attr_set(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			   uint64_t attr, void *val);
-void vcpu_device_attr_set(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			  uint64_t attr, void *val);
+static inline void vcpu_has_device_attr(struct kvm_vcpu *vcpu, uint32_t group,
+					uint64_t attr)
+{
+	kvm_has_device_attr(vcpu->fd, group, attr);
+}
+
+static inline int __vcpu_device_attr_get(struct kvm_vcpu *vcpu, uint32_t group,
+					 uint64_t attr, void *val)
+{
+	return __kvm_device_attr_get(vcpu->fd, group, attr, val);
+}
+
+static inline void vcpu_device_attr_get(struct kvm_vcpu *vcpu, uint32_t group,
+					uint64_t attr, void *val)
+{
+	kvm_device_attr_get(vcpu->fd, group, attr, val);
+}
+
+static inline int __vcpu_device_attr_set(struct kvm_vcpu *vcpu, uint32_t group,
+					 uint64_t attr, void *val)
+{
+	return __kvm_device_attr_set(vcpu->fd, group, attr, val);
+}
+
+static inline void vcpu_device_attr_set(struct kvm_vcpu *vcpu, uint32_t group,
+					uint64_t attr, void *val)
+{
+	kvm_device_attr_set(vcpu->fd, group, attr, val);
+}
+
 int __kvm_test_create_device(struct kvm_vm *vm, uint64_t type);
 int __kvm_create_device(struct kvm_vm *vm, uint64_t type);
 
@@ -501,14 +507,13 @@ static inline int kvm_create_device(struct kvm_vm *vm, uint64_t type)
 	return fd;
 }
 
-void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid);
+void *vcpu_map_dirty_ring(struct kvm_vcpu *vcpu);
 
 /*
  * VM VCPU Args Set
  *
  * Input Args:
  *   vm - Virtual Machine
- *   vcpuid - VCPU ID
  *   num - number of arguments
  *   ... - arguments, each of type uint64_t
  *
@@ -516,12 +521,12 @@ void *vcpu_map_dirty_ring(struct kvm_vm *vm, uint32_t vcpuid);
  *
  * Return: None
  *
- * Sets the first @num function input registers of the VCPU with @vcpuid,
- * per the C calling convention of the architecture, to the values given
- * as variable args. Each of the variable args is expected to be of type
- * uint64_t. The maximum @num can be is specific to the architecture.
+ * Sets the first @num input parameters for the function at @vcpu's entry point,
+ * per the C calling convention of the architecture, to the values given as
+ * variable args. Each of the variable args is expected to be of type uint64_t.
+ * The maximum @num can be is specific to the architecture.
  */
-void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...);
+void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...);
 
 void kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level);
 int _kvm_irq_line(struct kvm_vm *vm, uint32_t irq, int level);
@@ -626,32 +631,15 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 	memcpy(&(g), _p, sizeof(g));				\
 })
 
-void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid);
+void assert_on_unhandled_exception(struct kvm_vcpu *vcpu);
 
-/*
- * VM VCPU Dump
- *
- * Input Args:
- *   stream - Output FILE stream
- *   vm     - Virtual Machine
- *   vcpuid - VCPU ID
- *   indent - Left margin indent amount
- *
- * Output Args: None
- *
- * Return: None
- *
- * Dumps the current state of the VCPU specified by @vcpuid, within the VM
- * given by @vm, to the FILE stream given by @stream.
- */
-
-void vcpu_arch_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
+void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu,
 		    uint8_t indent);
 
-static inline void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_dump(FILE *stream, struct kvm_vcpu *vcpu,
 			     uint8_t indent)
 {
-	vcpu_arch_dump(stream, vm, vcpuid, indent);
+	vcpu_arch_dump(stream, vcpu, indent);
 }
 
 /*
@@ -659,7 +647,7 @@ static inline void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid,
  *
  * Input Args:
  *   vm - Virtual Machine
- *   vcpuid - The id of the VCPU to add to the VM.
+ *   vcpu_id - The id of the VCPU to add to the VM.
  *   guest_code - The vCPU's entry point
  */
 struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,

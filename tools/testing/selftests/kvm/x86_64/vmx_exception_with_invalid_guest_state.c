@@ -24,7 +24,7 @@ static void __run_vcpu_with_invalid_state(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
 
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_INTERNAL_ERROR,
 		    "Expected KVM_EXIT_INTERNAL_ERROR, got %d (%s)\n",
@@ -60,9 +60,9 @@ static void set_or_clear_invalid_guest_state(struct kvm_vcpu *vcpu, bool set)
 	static struct kvm_sregs sregs;
 
 	if (!sregs.cr0)
-		vcpu_sregs_get(vcpu->vm, vcpu->id, &sregs);
+		vcpu_sregs_get(vcpu, &sregs);
 	sregs.tr.unusable = !!set;
-	vcpu_sregs_set(vcpu->vm, vcpu->id, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 }
 
 static void set_invalid_guest_state(struct kvm_vcpu *vcpu)
@@ -91,7 +91,7 @@ static void sigalrm_handler(int sig)
 
 	TEST_ASSERT(sig == SIGALRM, "Unexpected signal = %d", sig);
 
-	vcpu_events_get(vcpu->vm, vcpu->id, &events);
+	vcpu_events_get(vcpu, &events);
 
 	/*
 	 * If an exception is pending, attempt KVM_RUN with invalid guest,
@@ -120,7 +120,7 @@ int main(int argc, char *argv[])
 	get_set_sigalrm_vcpu(vcpu);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, vcpu->id);
+	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
 

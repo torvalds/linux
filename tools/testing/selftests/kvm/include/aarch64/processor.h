@@ -47,7 +47,7 @@
 
 #define MPIDR_HWID_BITMASK (0xff00fffffful)
 
-void aarch64_vcpu_setup(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_vcpu_init *init);
+void aarch64_vcpu_setup(struct kvm_vcpu *vcpu, struct kvm_vcpu_init *init);
 struct kvm_vcpu *aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 				  struct kvm_vcpu_init *init, void *guest_code);
 
@@ -101,7 +101,7 @@ void aarch64_get_supported_page_sizes(uint32_t ipa,
 				      bool *ps4k, bool *ps16k, bool *ps64k);
 
 void vm_init_descriptor_tables(struct kvm_vm *vm);
-void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid);
+void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 
 typedef void(*handler_fn)(struct ex_regs *);
 void vm_install_exception_handler(struct kvm_vm *vm,

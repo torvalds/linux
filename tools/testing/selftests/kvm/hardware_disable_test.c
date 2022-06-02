@@ -39,7 +39,7 @@ static void *run_vcpu(void *arg)
 	struct kvm_vcpu *vcpu = arg;
 	struct kvm_run *run = vcpu->run;
 
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 
 	TEST_ASSERT(false, "%s: exited with reason %d: %s\n",
 		    __func__, run->exit_reason,

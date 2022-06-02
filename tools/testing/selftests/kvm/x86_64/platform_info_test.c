@@ -40,12 +40,12 @@ static void test_msr_platform_info_enabled(struct kvm_vcpu *vcpu)
 	struct ucall uc;
 
 	vm_enable_cap(vcpu->vm, KVM_CAP_MSR_PLATFORM_INFO, true);
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			"Exit_reason other than KVM_EXIT_IO: %u (%s),\n",
 			run->exit_reason,
 			exit_reason_str(run->exit_reason));
-	get_ucall(vcpu->vm, vcpu->id, &uc);
+	get_ucall(vcpu, &uc);
 	TEST_ASSERT(uc.cmd == UCALL_SYNC,
 			"Received ucall other than UCALL_SYNC: %lu\n", uc.cmd);
 	TEST_ASSERT((uc.args[1] & MSR_PLATFORM_INFO_MAX_TURBO_RATIO) ==
@@ -59,7 +59,7 @@ static void test_msr_platform_info_disabled(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 
 	vm_enable_cap(vcpu->vm, KVM_CAP_MSR_PLATFORM_INFO, false);
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_SHUTDOWN,
 			"Exit_reason other than KVM_EXIT_SHUTDOWN: %u (%s)\n",
 			run->exit_reason,
@@ -84,12 +84,12 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	msr_platform_info = vcpu_get_msr(vm, vcpu->id, MSR_PLATFORM_INFO);
-	vcpu_set_msr(vm, vcpu->id, MSR_PLATFORM_INFO,
-		msr_platform_info | MSR_PLATFORM_INFO_MAX_TURBO_RATIO);
+	msr_platform_info = vcpu_get_msr(vcpu, MSR_PLATFORM_INFO);
+	vcpu_set_msr(vcpu, MSR_PLATFORM_INFO,
+		     msr_platform_info | MSR_PLATFORM_INFO_MAX_TURBO_RATIO);
 	test_msr_platform_info_enabled(vcpu);
 	test_msr_platform_info_disabled(vcpu);
-	vcpu_set_msr(vm, vcpu->id, MSR_PLATFORM_INFO, msr_platform_info);
+	vcpu_set_msr(vcpu, MSR_PLATFORM_INFO, msr_platform_info);
 
 	kvm_vm_free(vm);
 

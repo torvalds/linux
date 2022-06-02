@@ -38,11 +38,11 @@ int main(int argc, char *argv[])
 		exit(KSFT_SKIP);
 	}
 
-	xss_val = vcpu_get_msr(vm, vcpu->id, MSR_IA32_XSS);
+	xss_val = vcpu_get_msr(vcpu, MSR_IA32_XSS);
 	TEST_ASSERT(xss_val == 0,
 		    "MSR_IA32_XSS should be initialized to zero\n");
 
-	vcpu_set_msr(vm, vcpu->id, MSR_IA32_XSS, xss_val);
+	vcpu_set_msr(vcpu, MSR_IA32_XSS, xss_val);
 
 	/*
 	 * At present, KVM only supports a guest IA32_XSS value of 0. Verify
@@ -52,7 +52,7 @@ int main(int argc, char *argv[])
 	 */
 	xss_in_msr_list = kvm_msr_is_in_save_restore_list(MSR_IA32_XSS);
 	for (i = 0; i < MSR_BITS; ++i) {
-		r = _vcpu_set_msr(vm, vcpu->id, MSR_IA32_XSS, 1ull << i);
+		r = _vcpu_set_msr(vcpu, MSR_IA32_XSS, 1ull << i);
 
 		/*
 		 * Setting a list of MSRs returns the entry that "faulted", or

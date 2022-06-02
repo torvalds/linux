@@ -70,9 +70,9 @@ static void vcpu_skip_insn(struct kvm_vcpu *vcpu, int insn_len)
 {
 	struct kvm_regs regs;
 
-	vcpu_regs_get(vcpu->vm, vcpu->id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	regs.rip += insn_len;
-	vcpu_regs_set(vcpu->vm, vcpu->id, &regs);
+	vcpu_regs_set(vcpu, &regs);
 }
 
 int main(void)
@@ -106,8 +106,8 @@ int main(void)
 	/* Test software BPs - int3 */
 	memset(&debug, 0, sizeof(debug));
 	debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_SW_BP;
-	vcpu_guest_debug_set(vm, vcpu->id, &debug);
-	vcpu_run(vm, vcpu->id);
+	vcpu_guest_debug_set(vcpu, &debug);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG &&
 		    run->debug.arch.exception == BP_VECTOR &&
 		    run->debug.arch.pc == CAST_TO_RIP(sw_bp),
@@ -122,8 +122,8 @@ int main(void)
 		debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW_BP;
 		debug.arch.debugreg[i] = CAST_TO_RIP(hw_bp);
 		debug.arch.debugreg[7] = 0x400 | (1UL << (2*i+1));
-		vcpu_guest_debug_set(vm, vcpu->id, &debug);
-		vcpu_run(vm, vcpu->id);
+		vcpu_guest_debug_set(vcpu, &debug);
+		vcpu_run(vcpu);
 		target_dr6 = 0xffff0ff0 | (1UL << i);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG &&
 			    run->debug.arch.exception == DB_VECTOR &&
@@ -145,8 +145,8 @@ int main(void)
 		debug.arch.debugreg[i] = CAST_TO_RIP(guest_value);
 		debug.arch.debugreg[7] = 0x00000400 | (1UL << (2*i+1)) |
 		    (0x000d0000UL << (4*i));
-		vcpu_guest_debug_set(vm, vcpu->id, &debug);
-		vcpu_run(vm, vcpu->id);
+		vcpu_guest_debug_set(vcpu, &debug);
+		vcpu_run(vcpu);
 		target_dr6 = 0xffff0ff0 | (1UL << i);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG &&
 			    run->debug.arch.exception == DB_VECTOR &&
@@ -172,8 +172,8 @@ int main(void)
 		debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_SINGLESTEP |
 				KVM_GUESTDBG_BLOCKIRQ;
 		debug.arch.debugreg[7] = 0x00000400;
-		vcpu_guest_debug_set(vm, vcpu->id, &debug);
-		vcpu_run(vm, vcpu->id);
+		vcpu_guest_debug_set(vcpu, &debug);
+		vcpu_run(vcpu);
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG &&
 			    run->debug.arch.exception == DB_VECTOR &&
 			    run->debug.arch.pc == target_rip &&
@@ -189,8 +189,8 @@ int main(void)
 	memset(&debug, 0, sizeof(debug));
 	debug.control = KVM_GUESTDBG_ENABLE | KVM_GUESTDBG_USE_HW_BP;
 	debug.arch.debugreg[7] = 0x400 | DR7_GD;
-	vcpu_guest_debug_set(vm, vcpu->id, &debug);
-	vcpu_run(vm, vcpu->id);
+	vcpu_guest_debug_set(vcpu, &debug);
+	vcpu_run(vcpu);
 	target_dr6 = 0xffff0ff0 | DR6_BD;
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_DEBUG &&
 		    run->debug.arch.exception == DB_VECTOR &&
@@ -204,11 +204,11 @@ int main(void)
 
 	/* Disable all debug controls, run to the end */
 	memset(&debug, 0, sizeof(debug));
-	vcpu_guest_debug_set(vm, vcpu->id, &debug);
+	vcpu_guest_debug_set(vcpu, &debug);
 
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO, "KVM_EXIT_IO");
-	cmd = get_ucall(vm, vcpu->id, &uc);
+	cmd = get_ucall(vcpu, &uc);
 	TEST_ASSERT(cmd == UCALL_DONE, "UCALL_DONE");
 
 	kvm_vm_free(vm);

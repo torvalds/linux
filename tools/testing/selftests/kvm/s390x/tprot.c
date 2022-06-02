@@ -187,8 +187,8 @@ static void guest_code(void)
 	struct ucall uc;							\
 	int __stage = (stage);							\
 										\
-	vcpu_run(__vcpu->vm, __vcpu->id);					\
-	get_ucall(__vcpu->vm, __vcpu->id, &uc);					\
+	vcpu_run(__vcpu);							\
+	get_ucall(__vcpu, &uc);							\
 	if (uc.cmd == UCALL_ABORT) {						\
 		TEST_FAIL("line %lu: %s, hints: %lu, %lu", uc.args[1],		\
 			  (const char *)uc.args[0], uc.args[2], uc.args[3]);	\

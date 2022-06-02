@@ -80,14 +80,14 @@ void test_read_invalid(struct kvm_vcpu *vcpu)
 
 	/* Request reading invalid register set from VCPU. */
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
 	run->kvm_valid_regs = 0;
 
 	run->kvm_valid_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
@@ -101,14 +101,14 @@ void test_set_invalid(struct kvm_vcpu *vcpu)
 
 	/* Request setting invalid register set into VCPU. */
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
 	run->kvm_dirty_regs = 0;
 
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD | TEST_SYNC_FIELDS;
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv < 0 && errno == EINVAL,
 		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
@@ -124,7 +124,7 @@ void test_req_and_verify_all_valid_regs(struct kvm_vcpu *vcpu)
 
 	/* Request and verify all valid register sets. */
 	run->kvm_valid_regs = TEST_SYNC_FIELDS;
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv == 0, "vcpu_run failed: %d\n", rv);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "Unexpected exit reason: %u (%s)\n",
@@ -137,10 +137,10 @@ void test_req_and_verify_all_valid_regs(struct kvm_vcpu *vcpu)
 		    run->s390_sieic.icptcode, run->s390_sieic.ipa,
 		    run->s390_sieic.ipb);
 
-	vcpu_regs_get(vcpu->vm, vcpu->id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	compare_regs(&regs, &run->s.regs);
 
-	vcpu_sregs_get(vcpu->vm, vcpu->id, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	compare_sregs(&sregs, &run->s.regs);
 }
 
@@ -163,7 +163,7 @@ void test_set_and_verify_various_reg_values(struct kvm_vcpu *vcpu)
 		run->kvm_dirty_regs |= KVM_SYNC_DIAG318;
 	}
 
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv == 0, "vcpu_run failed: %d\n", rv);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "Unexpected exit reason: %u (%s)\n",
@@ -179,10 +179,10 @@ void test_set_and_verify_various_reg_values(struct kvm_vcpu *vcpu)
 		    "diag318 sync regs value incorrect 0x%llx.",
 		    run->s.regs.diag318);
 
-	vcpu_regs_get(vcpu->vm, vcpu->id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	compare_regs(&regs, &run->s.regs);
 
-	vcpu_sregs_get(vcpu->vm, vcpu->id, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	compare_sregs(&sregs, &run->s.regs);
 }
 
@@ -198,7 +198,7 @@ void test_clear_kvm_dirty_regs_bits(struct kvm_vcpu *vcpu)
 	run->kvm_dirty_regs = 0;
 	run->s.regs.gprs[11] = 0xDEADBEEF;
 	run->s.regs.diag318 = 0x4B1D;
-	rv = _vcpu_run(vcpu->vm, vcpu->id);
+	rv = _vcpu_run(vcpu);
 	TEST_ASSERT(rv == 0, "vcpu_run failed: %d\n", rv);
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_S390_SIEIC,
 		    "Unexpected exit reason: %u (%s)\n",

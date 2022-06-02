@@ -233,8 +233,8 @@ int main(int argc, char *argv[])
 	pthread_create(&migration_thread, NULL, migration_worker, 0);
 
 	for (i = 0; !done; i++) {
-		vcpu_run(vm, vcpu->id);
-		TEST_ASSERT(get_ucall(vm, vcpu->id, NULL) == UCALL_SYNC,
+		vcpu_run(vcpu);
+		TEST_ASSERT(get_ucall(vcpu, NULL) == UCALL_SYNC,
 			    "Guest failed?");
 
 		/*

@@ -95,7 +95,7 @@ static void guest_main(void)
 static void setup_ud_vector(struct kvm_vcpu *vcpu)
 {
 	vm_init_descriptor_tables(vcpu->vm);
-	vcpu_init_descriptor_tables(vcpu->vm, vcpu->id);
+	vcpu_init_descriptor_tables(vcpu);
 	vm_install_exception_handler(vcpu->vm, UD_VECTOR, guest_ud_handler);
 }
 
@@ -104,8 +104,8 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 	struct kvm_run *run = vcpu->run;
 	struct ucall uc;
 
-	vcpu_run(vcpu->vm, vcpu->id);
-	switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+	vcpu_run(vcpu);
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 		pr_info("%s: %016lx\n", (const char *)uc.args[2], uc.args[3]);
 		break;

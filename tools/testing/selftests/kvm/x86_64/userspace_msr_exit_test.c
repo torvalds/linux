@@ -399,7 +399,7 @@ static void check_for_guest_assert(struct kvm_vcpu *vcpu)
 	struct ucall uc;
 
 	if (vcpu->run->exit_reason == KVM_EXIT_IO &&
-	    get_ucall(vcpu->vm, vcpu->id, &uc) == UCALL_ABORT) {
+	    get_ucall(vcpu, &uc) == UCALL_ABORT) {
 		TEST_FAIL("%s at %s:%ld",
 			  (const char *)uc.args[0], __FILE__, uc.args[1]);
 	}
@@ -483,7 +483,7 @@ static void process_ucall_done(struct kvm_vcpu *vcpu)
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	TEST_ASSERT(get_ucall(vcpu->vm, vcpu->id, &uc) == UCALL_DONE,
+	TEST_ASSERT(get_ucall(vcpu, &uc) == UCALL_DONE,
 		    "Unexpected ucall command: %lu, expected UCALL_DONE (%d)",
 		    uc.cmd, UCALL_DONE);
 }
@@ -500,7 +500,7 @@ static uint64_t process_ucall(struct kvm_vcpu *vcpu)
 		    run->exit_reason,
 		    exit_reason_str(run->exit_reason));
 
-	switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_SYNC:
 		break;
 	case UCALL_ABORT:
@@ -519,26 +519,26 @@ static uint64_t process_ucall(struct kvm_vcpu *vcpu)
 static void run_guest_then_process_rdmsr(struct kvm_vcpu *vcpu,
 					 uint32_t msr_index)
 {
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	process_rdmsr(vcpu, msr_index);
 }
 
 static void run_guest_then_process_wrmsr(struct kvm_vcpu *vcpu,
 					 uint32_t msr_index)
 {
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	process_wrmsr(vcpu, msr_index);
 }
 
 static uint64_t run_guest_then_process_ucall(struct kvm_vcpu *vcpu)
 {
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	return process_ucall(vcpu);
 }
 
 static void run_guest_then_process_ucall_done(struct kvm_vcpu *vcpu)
 {
-	vcpu_run(vcpu->vm, vcpu->id);
+	vcpu_run(vcpu);
 	process_ucall_done(vcpu);
 }
 
@@ -560,7 +560,7 @@ static void test_msr_filter_allow(void)
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_allow);
 
 	vm_init_descriptor_tables(vm);
-	vcpu_init_descriptor_tables(vm, vcpu->id);
+	vcpu_init_descriptor_tables(vcpu);
 
 	vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
 
@@ -577,7 +577,7 @@ static void test_msr_filter_allow(void)
 	run_guest_then_process_rdmsr(vcpu, MSR_NON_EXISTENT);
 
 	vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 	vm_install_exception_handler(vm, UD_VECTOR, NULL);
 
 	if (process_ucall(vcpu) != UCALL_DONE) {
@@ -608,7 +608,7 @@ static int handle_ucall(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
 		TEST_FAIL("Guest assertion not met");
 		break;
@@ -684,7 +684,7 @@ static void test_msr_filter_deny(void)
 	vm_ioctl(vm, KVM_X86_SET_MSR_FILTER, &filter_deny);
 
 	while (1) {
-		vcpu_run(vm, vcpu->id);
+		vcpu_run(vcpu);
 
 		switch (run->exit_reason) {
 		case KVM_EXIT_X86_RDMSR:

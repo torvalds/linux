@@ -65,14 +65,14 @@ int main(int argc, char *argv[])
 	memset(&regs, 0, sizeof(regs));
 
 	while (1) {
-		vcpu_run(vm, vcpu->id);
+		vcpu_run(vcpu);
 
 		TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 			    "Unexpected exit reason: %u (%s),\n",
 			    run->exit_reason,
 			    exit_reason_str(run->exit_reason));
 
-		if (get_ucall(vm, vcpu->id, &uc))
+		if (get_ucall(vcpu, &uc))
 			break;
 
 		TEST_ASSERT(run->io.port == 0x80,
@@ -85,13 +85,13 @@ int main(int argc, char *argv[])
 		 * scope from a testing perspective as it's not ABI in any way,
 		 * i.e. it really is abusing internal KVM knowledge.
 		 */
-		vcpu_regs_get(vm, vcpu->id, &regs);
+		vcpu_regs_get(vcpu, &regs);
 		if (regs.rcx == 2)
 			regs.rcx = 1;
 		if (regs.rcx == 3)
 			regs.rcx = 8192;
 		memset((void *)run + run->io.data_offset, 0xaa, 4096);
-		vcpu_regs_set(vm, vcpu->id, &regs);
+		vcpu_regs_set(vcpu, &regs);
 	}
 
 	switch (uc.cmd) {

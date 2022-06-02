@@ -194,7 +194,7 @@ static void mark_vcpu_memory_idle(struct kvm_vm *vm,
 static void assert_ucall(struct kvm_vcpu *vcpu, uint64_t expected_ucall)
 {
 	struct ucall uc;
-	uint64_t actual_ucall = get_ucall(vcpu->vm, vcpu->id, &uc);
+	uint64_t actual_ucall = get_ucall(vcpu, &uc);
 
 	TEST_ASSERT(expected_ucall == actual_ucall,
 		    "Guest exited unexpectedly (expected ucall %" PRIu64
@@ -226,7 +226,7 @@ static void vcpu_thread_main(struct perf_test_vcpu_args *vcpu_args)
 	while (spin_wait_for_next_iteration(&current_iteration)) {
 		switch (READ_ONCE(iteration_work)) {
 		case ITERATION_ACCESS_MEMORY:
-			vcpu_run(vm, vcpu->id);
+			vcpu_run(vcpu);
 			assert_ucall(vcpu, UCALL_SYNC);
 			break;
 		case ITERATION_MARK_IDLE:

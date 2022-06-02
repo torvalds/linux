@@ -212,8 +212,9 @@ void virt_arch_pg_map(struct kvm_vm *vm, uint64_t vaddr, uint64_t paddr)
 	__virt_pg_map(vm, vaddr, paddr, PG_LEVEL_4K);
 }
 
-static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
-						       uint64_t vaddr)
+static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm,
+					  struct kvm_vcpu *vcpu,
+					  uint64_t vaddr)
 {
 	uint16_t index[4];
 	uint64_t *pml4e, *pdpe, *pde;
@@ -235,7 +236,7 @@ static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
 	 * If IA32_EFER.NXE = 0 and the P flag of a paging-structure entry is 1,
 	 * the XD flag (bit 63) is reserved.
 	 */
-	vcpu_sregs_get(vm, vcpuid, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	if ((sregs.efer & EFER_NX) == 0) {
 		rsvd_mask |= PTE_NX_MASK;
 	}
@@ -287,17 +288,18 @@ static uint64_t *_vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid,
 	return &pte[index[0]];
 }
 
-uint64_t vm_get_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr)
+uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
+				 uint64_t vaddr)
 {
-	uint64_t *pte = _vm_get_page_table_entry(vm, vcpuid, vaddr);
+	uint64_t *pte = _vm_get_page_table_entry(vm, vcpu, vaddr);
 
 	return *(uint64_t *)pte;
 }
 
-void vm_set_page_table_entry(struct kvm_vm *vm, int vcpuid, uint64_t vaddr,
-			     uint64_t pte)
+void vm_set_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
+			     uint64_t vaddr, uint64_t pte)
 {
-	uint64_t *new_pte = _vm_get_page_table_entry(vm, vcpuid, vaddr);
+	uint64_t *new_pte = _vm_get_page_table_entry(vm, vcpu, vaddr);
 
 	*(uint64_t *)new_pte = pte;
 }
@@ -546,12 +548,12 @@ static void kvm_setup_tss_64bit(struct kvm_vm *vm, struct kvm_segment *segp,
 	kvm_seg_fill_gdt_64bit(vm, segp);
 }
 
-static void vcpu_setup(struct kvm_vm *vm, int vcpuid)
+static void vcpu_setup(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 {
 	struct kvm_sregs sregs;
 
 	/* Set mode specific system register values. */
-	vcpu_sregs_get(vm, vcpuid, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 
 	sregs.idt.limit = 0;
 
@@ -575,7 +577,7 @@ static void vcpu_setup(struct kvm_vm *vm, int vcpuid)
 	}
 
 	sregs.cr3 = vm->pgd;
-	vcpu_sregs_set(vm, vcpuid, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 }
 
 #define CPUID_XFD_BIT (1 << 4)
@@ -644,19 +646,19 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
 	vcpu = __vm_vcpu_add(vm, vcpu_id);
-	vcpu_set_cpuid(vm, vcpu_id, kvm_get_supported_cpuid());
-	vcpu_setup(vm, vcpu_id);
+	vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
+	vcpu_setup(vm, vcpu);
 
 	/* Setup guest general purpose registers */
-	vcpu_regs_get(vm, vcpu_id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	regs.rflags = regs.rflags | 0x2;
 	regs.rsp = stack_vaddr + (DEFAULT_STACK_PGS * getpagesize());
 	regs.rip = (unsigned long) guest_code;
-	vcpu_regs_set(vm, vcpu_id, &regs);
+	vcpu_regs_set(vcpu, &regs);
 
 	/* Setup the MP state */
 	mp_state.mp_state = 0;
-	vcpu_mp_state_set(vm, vcpu_id, &mp_state);
+	vcpu_mp_state_set(vcpu, &mp_state);
 
 	return vcpu;
 }
@@ -742,20 +744,7 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
 	return buffer.entry.data;
 }
 
-/*
- * VM VCPU CPUID Set
- *
- * Input Args:
- *   vm - Virtual Machine
- *   vcpuid - VCPU id
- *
- * Output Args: None
- *
- * Return: KVM CPUID (KVM_GET_CPUID2)
- *
- * Set the VCPU's CPUID.
- */
-struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
+struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vcpu *vcpu)
 {
 	struct kvm_cpuid2 *cpuid;
 	int max_ent;
@@ -765,7 +754,7 @@ struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
 	max_ent = cpuid->nent;
 
 	for (cpuid->nent = 1; cpuid->nent <= max_ent; cpuid->nent++) {
-		rc = __vcpu_ioctl(vm, vcpuid, KVM_GET_CPUID2, cpuid);
+		rc = __vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
 		if (!rc)
 			break;
 
@@ -812,7 +801,7 @@ kvm_get_supported_cpuid_index(uint32_t function, uint32_t index)
 	return entry;
 }
 
-uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index)
+uint64_t vcpu_get_msr(struct kvm_vcpu *vcpu, uint64_t msr_index)
 {
 	struct {
 		struct kvm_msrs header;
@@ -822,13 +811,12 @@ uint64_t vcpu_get_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index)
 	buffer.header.nmsrs = 1;
 	buffer.entry.index = msr_index;
 
-	vcpu_msrs_get(vm, vcpuid, &buffer.header);
+	vcpu_msrs_get(vcpu, &buffer.header);
 
 	return buffer.entry.data;
 }
 
-int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
-		  uint64_t msr_value)
+int _vcpu_set_msr(struct kvm_vcpu *vcpu, uint64_t msr_index, uint64_t msr_value)
 {
 	struct {
 		struct kvm_msrs header;
@@ -840,10 +828,10 @@ int _vcpu_set_msr(struct kvm_vm *vm, uint32_t vcpuid, uint64_t msr_index,
 	buffer.entry.index = msr_index;
 	buffer.entry.data = msr_value;
 
-	return __vcpu_ioctl(vm, vcpuid, KVM_SET_MSRS, &buffer.header);
+	return __vcpu_ioctl(vcpu, KVM_SET_MSRS, &buffer.header);
 }
 
-void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
+void vcpu_args_set(struct kvm_vcpu *vcpu, unsigned int num, ...)
 {
 	va_list ap;
 	struct kvm_regs regs;
@@ -853,7 +841,7 @@ void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
 		    num);
 
 	va_start(ap, num);
-	vcpu_regs_get(vm, vcpuid, &regs);
+	vcpu_regs_get(vcpu, &regs);
 
 	if (num >= 1)
 		regs.rdi = va_arg(ap, uint64_t);
@@ -873,23 +861,23 @@ void vcpu_args_set(struct kvm_vm *vm, uint32_t vcpuid, unsigned int num, ...)
 	if (num >= 6)
 		regs.r9 = va_arg(ap, uint64_t);
 
-	vcpu_regs_set(vm, vcpuid, &regs);
+	vcpu_regs_set(vcpu, &regs);
 	va_end(ap);
 }
 
-void vcpu_arch_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
+void vcpu_arch_dump(FILE *stream, struct kvm_vcpu *vcpu, uint8_t indent)
 {
 	struct kvm_regs regs;
 	struct kvm_sregs sregs;
 
-	fprintf(stream, "%*scpuid: %u\n", indent, "", vcpuid);
+	fprintf(stream, "%*svCPU ID: %u\n", indent, "", vcpu->id);
 
 	fprintf(stream, "%*sregs:\n", indent + 2, "");
-	vcpu_regs_get(vm, vcpuid, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	regs_dump(stream, &regs, indent + 4);
 
 	fprintf(stream, "%*ssregs:\n", indent + 2, "");
-	vcpu_sregs_get(vm, vcpuid, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	sregs_dump(stream, &sregs, indent + 4);
 }
 
@@ -959,21 +947,21 @@ bool kvm_msr_is_in_save_restore_list(uint32_t msr_index)
 	return false;
 }
 
-static void vcpu_save_xsave_state(struct kvm_vm *vm, uint32_t vcpuid,
+static void vcpu_save_xsave_state(struct kvm_vcpu *vcpu,
 				  struct kvm_x86_state *state)
 {
-	int size = vm_check_cap(vm, KVM_CAP_XSAVE2);
+	int size = vm_check_cap(vcpu->vm, KVM_CAP_XSAVE2);
 
 	if (size) {
 		state->xsave = malloc(size);
-		vcpu_xsave2_get(vm, vcpuid, state->xsave);
+		vcpu_xsave2_get(vcpu, state->xsave);
 	} else {
 		state->xsave = malloc(sizeof(struct kvm_xsave));
-		vcpu_xsave_get(vm, vcpuid, state->xsave);
+		vcpu_xsave_get(vcpu, state->xsave);
 	}
 }
 
-struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
+struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu)
 {
 	const struct kvm_msr_list *msr_list = kvm_get_msr_index_list();
 	struct kvm_x86_state *state;
@@ -994,24 +982,24 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	 * kernel with KVM_RUN.  Complete IO prior to migrating state
 	 * to a new VM.
 	 */
-	vcpu_run_complete_io(vm, vcpuid);
+	vcpu_run_complete_io(vcpu);
 
 	state = malloc(sizeof(*state) + msr_list->nmsrs * sizeof(state->msrs.entries[0]));
 
-	vcpu_events_get(vm, vcpuid, &state->events);
-	vcpu_mp_state_get(vm, vcpuid, &state->mp_state);
-	vcpu_regs_get(vm, vcpuid, &state->regs);
-	vcpu_save_xsave_state(vm, vcpuid, state);
+	vcpu_events_get(vcpu, &state->events);
+	vcpu_mp_state_get(vcpu, &state->mp_state);
+	vcpu_regs_get(vcpu, &state->regs);
+	vcpu_save_xsave_state(vcpu, state);
 
 	if (kvm_check_cap(KVM_CAP_XCRS))
-		vcpu_xcrs_get(vm, vcpuid, &state->xcrs);
+		vcpu_xcrs_get(vcpu, &state->xcrs);
 
-	vcpu_sregs_get(vm, vcpuid, &state->sregs);
+	vcpu_sregs_get(vcpu, &state->sregs);
 
 	if (nested_size) {
 		state->nested.size = sizeof(state->nested_);
 
-		vcpu_nested_state_get(vm, vcpuid, &state->nested);
+		vcpu_nested_state_get(vcpu, &state->nested);
 		TEST_ASSERT(state->nested.size <= nested_size,
 			    "Nested state size too big, %i (KVM_CHECK_CAP gave %i)",
 			    state->nested.size, nested_size);
@@ -1022,29 +1010,29 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	state->msrs.nmsrs = msr_list->nmsrs;
 	for (i = 0; i < msr_list->nmsrs; i++)
 		state->msrs.entries[i].index = msr_list->indices[i];
-	vcpu_msrs_get(vm, vcpuid, &state->msrs);
+	vcpu_msrs_get(vcpu, &state->msrs);
 
-	vcpu_debugregs_get(vm, vcpuid, &state->debugregs);
+	vcpu_debugregs_get(vcpu, &state->debugregs);
 
 	return state;
 }
 
-void vcpu_load_state(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_x86_state *state)
+void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state)
 {
-	vcpu_sregs_set(vm, vcpuid, &state->sregs);
-	vcpu_msrs_set(vm, vcpuid, &state->msrs);
+	vcpu_sregs_set(vcpu, &state->sregs);
+	vcpu_msrs_set(vcpu, &state->msrs);
 
 	if (kvm_check_cap(KVM_CAP_XCRS))
-		vcpu_xcrs_set(vm, vcpuid, &state->xcrs);
+		vcpu_xcrs_set(vcpu, &state->xcrs);
 
-	vcpu_xsave_set(vm, vcpuid,  state->xsave);
-	vcpu_events_set(vm, vcpuid, &state->events);
-	vcpu_mp_state_set(vm, vcpuid, &state->mp_state);
-	vcpu_debugregs_set(vm, vcpuid, &state->debugregs);
-	vcpu_regs_set(vm, vcpuid, &state->regs);
+	vcpu_xsave_set(vcpu,  state->xsave);
+	vcpu_events_set(vcpu, &state->events);
+	vcpu_mp_state_set(vcpu, &state->mp_state);
+	vcpu_debugregs_set(vcpu, &state->debugregs);
+	vcpu_regs_set(vcpu, &state->regs);
 
 	if (state->nested.size)
-		vcpu_nested_state_set(vm, vcpuid, &state->nested);
+		vcpu_nested_state_set(vcpu, &state->nested);
 }
 
 void kvm_x86_state_cleanup(struct kvm_x86_state *state)
@@ -1170,17 +1158,18 @@ void vm_init_descriptor_tables(struct kvm_vm *vm)
 			DEFAULT_CODE_SELECTOR);
 }
 
-void vcpu_init_descriptor_tables(struct kvm_vm *vm, uint32_t vcpuid)
+void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu)
 {
+	struct kvm_vm *vm = vcpu->vm;
 	struct kvm_sregs sregs;
 
-	vcpu_sregs_get(vm, vcpuid, &sregs);
+	vcpu_sregs_get(vcpu, &sregs);
 	sregs.idt.base = vm->idt;
 	sregs.idt.limit = NUM_INTERRUPTS * sizeof(struct idt_entry) - 1;
 	sregs.gdt.base = vm->gdt;
 	sregs.gdt.limit = getpagesize() - 1;
 	kvm_seg_set_kernel_data_64bit(NULL, DEFAULT_DATA_SELECTOR, &sregs.gs);
-	vcpu_sregs_set(vm, vcpuid, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 	*(vm_vaddr_t *)addr_gva2hva(vm, (vm_vaddr_t)(&exception_handlers)) = vm->handlers;
 }
 
@@ -1192,11 +1181,11 @@ void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 	handlers[vector] = (vm_vaddr_t)handler;
 }
 
-void assert_on_unhandled_exception(struct kvm_vm *vm, uint32_t vcpuid)
+void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 {
 	struct ucall uc;
 
-	if (get_ucall(vm, vcpuid, &uc) == UCALL_UNHANDLED) {
+	if (get_ucall(vcpu, &uc) == UCALL_UNHANDLED) {
 		uint64_t vector = uc.args[0];
 
 		TEST_FAIL("Unexpected vectored event in guest (vector:0x%lx)",
@@ -1267,7 +1256,7 @@ struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
 	return cpuid;
 }
 
-void vcpu_set_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
+void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu)
 {
 	static struct kvm_cpuid2 *cpuid_full;
 	struct kvm_cpuid2 *cpuid_sys, *cpuid_hv;
@@ -1299,16 +1288,16 @@ void vcpu_set_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
 		cpuid_full->nent = nent + cpuid_hv->nent;
 	}
 
-	vcpu_set_cpuid(vm, vcpuid, cpuid_full);
+	vcpu_set_cpuid(vcpu, cpuid_full);
 }
 
-struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vm *vm, uint32_t vcpuid)
+struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu)
 {
 	static struct kvm_cpuid2 *cpuid;
 
 	cpuid = allocate_kvm_cpuid2();
 
-	vcpu_ioctl(vm, vcpuid, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
+	vcpu_ioctl(vcpu, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
 
 	return cpuid;
 }

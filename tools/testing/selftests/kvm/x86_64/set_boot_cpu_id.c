@@ -49,9 +49,9 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 
 	for (stage = 0; stage < 2; stage++) {
 
-		vcpu_run(vcpu->vm, vcpu->id);
+		vcpu_run(vcpu);
 
-		switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
 			TEST_ASSERT(!strcmp((const char *)uc.args[0], "hello") &&
 					uc.args[1] == stage + 1,

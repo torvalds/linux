@@ -174,7 +174,7 @@ static void vm_stats_test(struct kvm_vm *vm)
 
 static void vcpu_stats_test(struct kvm_vcpu *vcpu)
 {
-	int stats_fd = vcpu_get_stats_fd(vcpu->vm, vcpu->id);
+	int stats_fd = vcpu_get_stats_fd(vcpu);
 
 	stats_test(stats_fd);
 	close(stats_fd);

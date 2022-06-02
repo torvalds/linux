@@ -88,9 +88,9 @@ void ucall(uint64_t cmd, int nargs, ...)
 	*ucall_exit_mmio_addr = (vm_vaddr_t)&uc;
 }
 
-uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
+uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc)
 {
-	struct kvm_run *run = vcpu_state(vm, vcpu_id);
+	struct kvm_run *run = vcpu->run;
 	struct ucall ucall = {};
 
 	if (uc)
@@ -103,9 +103,9 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 		TEST_ASSERT(run->mmio.is_write && run->mmio.len == 8,
 			    "Unexpected ucall exit mmio address access");
 		memcpy(&gva, run->mmio.data, sizeof(gva));
-		memcpy(&ucall, addr_gva2hva(vm, gva), sizeof(ucall));
+		memcpy(&ucall, addr_gva2hva(vcpu->vm, gva), sizeof(ucall));
 
-		vcpu_run_complete_io(vm, vcpu_id);
+		vcpu_run_complete_io(vcpu);
 		if (uc)
 			memcpy(uc, &ucall, sizeof(ucall));
 	}

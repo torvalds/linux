@@ -51,10 +51,10 @@ static void rendezvous_with_boss(void)
 	}
 }
 
-static void run_vcpu(struct kvm_vm *vm, uint32_t vcpu_id)
+static void run_vcpu(struct kvm_vcpu *vcpu)
 {
-	vcpu_run(vm, vcpu_id);
-	ASSERT_EQ(get_ucall(vm, vcpu_id, NULL), UCALL_DONE);
+	vcpu_run(vcpu);
+	ASSERT_EQ(get_ucall(vcpu, NULL), UCALL_DONE);
 }
 
 static void *vcpu_worker(void *data)
@@ -65,25 +65,25 @@ static void *vcpu_worker(void *data)
 	struct kvm_sregs sregs;
 	struct kvm_regs regs;
 
-	vcpu_args_set(vm, vcpu->id, 3, info->start_gpa, info->end_gpa,
+	vcpu_args_set(vcpu, 3, info->start_gpa, info->end_gpa,
 		      vm_get_page_size(vm));
 
 	/* Snapshot regs before the first run. */
-	vcpu_regs_get(vm, vcpu->id, &regs);
+	vcpu_regs_get(vcpu, &regs);
 	rendezvous_with_boss();
 
-	run_vcpu(vm, vcpu->id);
+	run_vcpu(vcpu);
 	rendezvous_with_boss();
-	vcpu_regs_set(vm, vcpu->id, &regs);
-	vcpu_sregs_get(vm, vcpu->id, &sregs);
+	vcpu_regs_set(vcpu, &regs);
+	vcpu_sregs_get(vcpu, &sregs);
 #ifdef __x86_64__
 	/* Toggle CR0.WP to trigger a MMU context reset. */
 	sregs.cr0 ^= X86_CR0_WP;
 #endif
-	vcpu_sregs_set(vm, vcpu->id, &sregs);
+	vcpu_sregs_set(vcpu, &sregs);
 	rendezvous_with_boss();
 
-	run_vcpu(vm, vcpu->id);
+	run_vcpu(vcpu);
 	rendezvous_with_boss();
 
 	return NULL;

@@ -28,8 +28,7 @@ static struct test_case test_cases[] = {
 
 static void check_preconditions(struct kvm_vcpu *vcpu)
 {
-	if (!__vcpu_has_device_attr(vcpu->vm, vcpu->id, KVM_VCPU_TSC_CTRL,
-				    KVM_VCPU_TSC_OFFSET))
+	if (!__vcpu_has_device_attr(vcpu, KVM_VCPU_TSC_CTRL, KVM_VCPU_TSC_OFFSET))
 		return;
 
 	print_skip("KVM_VCPU_TSC_OFFSET not supported; skipping test");
@@ -38,8 +37,8 @@ static void check_preconditions(struct kvm_vcpu *vcpu)
 
 static void setup_system_counter(struct kvm_vcpu *vcpu, struct test_case *test)
 {
-	vcpu_device_attr_set(vcpu->vm, vcpu->id, KVM_VCPU_TSC_CTRL,
-			     KVM_VCPU_TSC_OFFSET, &test->tsc_offset);
+	vcpu_device_attr_set(vcpu, KVM_VCPU_TSC_CTRL, KVM_VCPU_TSC_OFFSET,
+			     &test->tsc_offset);
 }
 
 static uint64_t guest_read_system_counter(struct test_case *test)
@@ -101,10 +100,10 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 
 		setup_system_counter(vcpu, test);
 		start = host_read_guest_system_counter(test);
-		vcpu_run(vcpu->vm, vcpu->id);
+		vcpu_run(vcpu);
 		end = host_read_guest_system_counter(test);
 
-		switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
+		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_SYNC:
 			handle_sync(&uc, start, end);
 			break;
@@ -113,7 +112,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 			return;
 		default:
 			TEST_ASSERT(0, "unhandled ucall %ld\n",
-				    get_ucall(vcpu->vm, vcpu->id, &uc));
+				    get_ucall(vcpu, &uc));
 		}
 	}
 }

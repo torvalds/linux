@@ -61,8 +61,8 @@ int main(void)
 
 	run = vcpu->run;
 	vcpu_alloc_vmx(vm, &vmx_pages_gva);
-	vcpu_args_set(vm, vcpu->id, 1, vmx_pages_gva);
-	vcpu_run(vm, vcpu->id);
+	vcpu_args_set(vcpu, 1, vmx_pages_gva);
+	vcpu_run(vcpu);
 
 	TEST_ASSERT(run->exit_reason == KVM_EXIT_IO,
 		    "Expected KVM_EXIT_IO, got: %u (%s)\n",
@@ -70,21 +70,21 @@ int main(void)
 	TEST_ASSERT(run->io.port == ARBITRARY_IO_PORT,
 		    "Expected IN from port %d from L2, got port %d",
 		    ARBITRARY_IO_PORT, run->io.port);
-	vcpu_events_get(vm, vcpu->id, &events);
+	vcpu_events_get(vcpu, &events);
 	events.flags |= KVM_VCPUEVENT_VALID_TRIPLE_FAULT;
 	events.triple_fault.pending = true;
-	vcpu_events_set(vm, vcpu->id, &events);
+	vcpu_events_set(vcpu, &events);
 	run->immediate_exit = true;
-	vcpu_run_complete_io(vm, vcpu->id);
+	vcpu_run_complete_io(vcpu);
 
-	vcpu_events_get(vm, vcpu->id, &events);
+	vcpu_events_get(vcpu, &events);
 	TEST_ASSERT(events.flags & KVM_VCPUEVENT_VALID_TRIPLE_FAULT,
 		    "Triple fault event invalid");
 	TEST_ASSERT(events.triple_fault.pending,
 		    "No triple fault pending");
-	vcpu_run(vm, vcpu->id);
+	vcpu_run(vcpu);
 
-	switch (get_ucall(vm, vcpu->id, &uc)) {
+	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_DONE:
 		break;
 	case UCALL_ABORT:
