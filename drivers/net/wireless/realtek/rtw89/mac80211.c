@@ -381,7 +381,8 @@ static void rtw89_ops_bss_info_changed(struct ieee80211_hw *hw,
 	mutex_unlock(&rtwdev->mutex);
 }
 
-static int rtw89_ops_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+static int rtw89_ops_start_ap(struct ieee80211_hw *hw,
+			      struct ieee80211_vif *vif, unsigned int link_id)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
@@ -401,7 +402,8 @@ static int rtw89_ops_start_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif
 }
 
 static
-void rtw89_ops_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif)
+void rtw89_ops_stop_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+		       unsigned int link_id)
 {
 	struct rtw89_dev *rtwdev = hw->priv;
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;

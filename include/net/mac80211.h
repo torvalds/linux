@@ -4084,8 +4084,10 @@ struct ieee80211_ops {
 				  struct ieee80211_vif *vif,
 				  unsigned int link_id, u64 changed);
 
-	int (*start_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
-	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif);
+	int (*start_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			unsigned int link_id);
+	void (*stop_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
+			unsigned int link_id);
 
 	u64 (*prepare_multicast)(struct ieee80211_hw *hw,
 				 struct netdev_hw_addr_list *mc_list);

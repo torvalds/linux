@@ -1287,7 +1287,7 @@ static int ieee80211_start_ap(struct wiphy *wiphy, struct net_device *dev,
 		changed |= BSS_CHANGED_UNSOL_BCAST_PROBE_RESP;
 	}
 
-	err = drv_start_ap(sdata->local, sdata);
+	err = drv_start_ap(sdata->local, sdata, link_id);
 	if (err) {
 		old = sdata_dereference(link->u.ap.beacon, sdata);
 
@@ -1442,7 +1442,7 @@ static int ieee80211_stop_ap(struct wiphy *wiphy, struct net_device *dev,
 				   GFP_KERNEL);
 	}
 
-	drv_stop_ap(sdata->local, sdata);
+	drv_stop_ap(sdata->local, sdata, link_id);
 
 	/* free all potentially still buffered bcast frames */
 	local->total_ps_buffered -= skb_queue_len(&sdata->u.ap.ps.bc_buf);
