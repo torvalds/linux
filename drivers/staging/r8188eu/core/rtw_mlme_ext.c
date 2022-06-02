@@ -5367,7 +5367,6 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 {
 	u16 start_seq;
 	u16 BA_para_set;
-	u16 reason_code;
 	__le16	le_tmp;
 	u16 BA_starting_seqctrl = 0;
 	struct xmit_frame *pmgntframe;
@@ -5457,9 +5456,8 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 		le_tmp = cpu_to_le16(BA_para_set);
 		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
 
-		reason_code = 37;/* Requested from peer STA as it does not want to use the mechanism */
-		le_tmp = cpu_to_le16(reason_code);
-		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		mgmt->u.action.u.delba.reason_code = cpu_to_le16(WLAN_STATUS_REQUEST_DECLINED);
+		pattrib->pktlen += 2;
 		break;
 	default:
 		break;
