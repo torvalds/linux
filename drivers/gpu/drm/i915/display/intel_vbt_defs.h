@@ -638,6 +638,7 @@ struct bdb_sdvo_panel_dtds {
 #define EDP_30BPP	2
 #define EDP_RATE_1_62	0
 #define EDP_RATE_2_7	1
+#define EDP_RATE_5_4	2
 #define EDP_LANE_1	0
 #define EDP_LANE_2	1
 #define EDP_LANE_4	3

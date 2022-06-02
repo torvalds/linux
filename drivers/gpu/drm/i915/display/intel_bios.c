@@ -1366,18 +1366,26 @@ parse_edp(struct drm_i915_private *i915,
 
 	panel->vbt.edp.pps = *edp_pps;
 
-	switch (edp_link_params->rate) {
-	case EDP_RATE_1_62:
-		panel->vbt.edp.rate = DP_LINK_BW_1_62;
-		break;
-	case EDP_RATE_2_7:
-		panel->vbt.edp.rate = DP_LINK_BW_2_7;
-		break;
-	default:
-		drm_dbg_kms(&i915->drm,
-			    "VBT has unknown eDP link rate value %u\n",
-			     edp_link_params->rate);
-		break;
+	if (i915->vbt.version >= 224) {
+		panel->vbt.edp.rate =
+			edp->edp_fast_link_training_rate[panel_type] * 20;
+	} else {
+		switch (edp_link_params->rate) {
+		case EDP_RATE_1_62:
+			panel->vbt.edp.rate = 162000;
+			break;
+		case EDP_RATE_2_7:
+			panel->vbt.edp.rate = 270000;
+			break;
+		case EDP_RATE_5_4:
+			panel->vbt.edp.rate = 540000;
+			break;
+		default:
+			drm_dbg_kms(&i915->drm,
+				    "VBT has unknown eDP link rate value %u\n",
+				    edp_link_params->rate);
+			break;
+		}
 	}
 
 	switch (edp_link_params->lanes) {
