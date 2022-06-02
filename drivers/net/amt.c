@@ -51,6 +51,7 @@ static char *status_str[] = {
 };
 
 static char *type_str[] = {
+	"", /* Type 0 is not defined */
 	"AMT_MSG_DISCOVERY",
 	"AMT_MSG_ADVERTISEMENT",
 	"AMT_MSG_REQUEST",
