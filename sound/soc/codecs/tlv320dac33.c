@@ -1317,16 +1317,14 @@ static int dac33_set_dai_fmt(struct snd_soc_dai *codec_dai,
 
 	aictrl_a = dac33_read_reg_cache(component, DAC33_SER_AUDIOIF_CTRL_A);
 	aictrl_b = dac33_read_reg_cache(component, DAC33_SER_AUDIOIF_CTRL_B);
-	/* set master/slave audio interface */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBM_CFM:
-		/* Codec Master */
+
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBP_CFP:
 		aictrl_a |= (DAC33_MSBCLK | DAC33_MSWCLK);
 		break;
-	case SND_SOC_DAIFMT_CBS_CFS:
-		/* Codec Slave */
+	case SND_SOC_DAIFMT_CBC_CFC:
 		if (dac33->fifo_mode) {
-			dev_err(component->dev, "FIFO mode requires master mode\n");
+			dev_err(component->dev, "FIFO mode requires provider mode\n");
 			return -EINVAL;
 		} else
 			aictrl_a &= ~(DAC33_MSBCLK | DAC33_MSWCLK);
