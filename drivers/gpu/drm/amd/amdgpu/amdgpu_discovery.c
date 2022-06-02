@@ -1435,6 +1435,11 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 		return -EINVAL;
 	}
 
+	/* num_vcn_inst is currently limited to AMDGPU_MAX_VCN_INSTANCES
+	 * which is smaller than VCN_INFO_TABLE_MAX_NUM_INSTANCES
+	 * but that may change in the future with new GPUs so keep this
+	 * check for defensive purposes.
+	 */
 	if (adev->vcn.num_vcn_inst > VCN_INFO_TABLE_MAX_NUM_INSTANCES) {
 		dev_err(adev->dev, "invalid vcn instances\n");
 		return -EINVAL;
@@ -1450,6 +1455,9 @@ static int amdgpu_discovery_get_vcn_info(struct amdgpu_device *adev)
 
 	switch (le16_to_cpu(vcn_info->v1.header.version_major)) {
 	case 1:
+		/* num_vcn_inst is currently limited to AMDGPU_MAX_VCN_INSTANCES
+		 * so this won't overflow.
+		 */
 		for (v = 0; v < adev->vcn.num_vcn_inst; v++) {
 			adev->vcn.vcn_codec_disable_mask[v] =
 				le32_to_cpu(vcn_info->v1.instance_info[v].fuse_data.all_bits);
