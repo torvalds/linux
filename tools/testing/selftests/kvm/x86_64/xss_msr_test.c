@@ -17,28 +17,11 @@
 
 #define X86_FEATURE_XSAVES	(1<<3)
 
-bool is_supported_msr(u32 msr_index)
-{
-	struct kvm_msr_list *list;
-	bool found = false;
-	int i;
-
-	list = kvm_get_msr_index_list();
-	for (i = 0; i < list->nmsrs; ++i) {
-		if (list->indices[i] == msr_index) {
-			found = true;
-			break;
-		}
-	}
-
-	free(list);
-	return found;
-}
-
 int main(int argc, char *argv[])
 {
 	struct kvm_cpuid_entry2 *entry;
 	bool xss_supported = false;
+	bool xss_in_msr_list;
 	struct kvm_vm *vm;
 	uint64_t xss_val;
 	int i, r;
@@ -64,12 +47,14 @@ int main(int argc, char *argv[])
 	 * At present, KVM only supports a guest IA32_XSS value of 0. Verify
 	 * that trying to set the guest IA32_XSS to an unsupported value fails.
 	 * Also, in the future when a non-zero value succeeds check that
-	 * IA32_XSS is in the KVM_GET_MSR_INDEX_LIST.
+	 * IA32_XSS is in the list of MSRs to save/restore.
 	 */
+	xss_in_msr_list = kvm_msr_is_in_save_restore_list(MSR_IA32_XSS);
 	for (i = 0; i < MSR_BITS; ++i) {
 		r = _vcpu_set_msr(vm, VCPU_ID, MSR_IA32_XSS, 1ull << i);
-		TEST_ASSERT(r == 0 || is_supported_msr(MSR_IA32_XSS),
-			    "IA32_XSS was able to be set, but was not found in KVM_GET_MSR_INDEX_LIST.\n");
+
+		TEST_ASSERT(r == 0 || xss_in_msr_list,
+			    "IA32_XSS was able to be set, but was not in save/restore list");
 	}
 
 	kvm_vm_free(vm);

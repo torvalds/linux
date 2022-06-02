@@ -719,18 +719,6 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 	return cpuid;
 }
 
-/*
- * KVM Get MSR
- *
- * Input Args:
- *   msr_index - Index of MSR
- *
- * Output Args: None
- *
- * Return: On success, value of the MSR. On failure a TEST_ASSERT is produced.
- *
- * Get value of MSR for VCPU.
- */
 uint64_t kvm_get_feature_msr(uint64_t msr_index)
 {
 	struct {
@@ -903,38 +891,47 @@ void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
 	sregs_dump(stream, &sregs, indent + 4);
 }
 
-static int kvm_get_num_msrs_fd(int kvm_fd)
+const struct kvm_msr_list *kvm_get_msr_index_list(void)
 {
+	static struct kvm_msr_list *list;
 	struct kvm_msr_list nmsrs;
-	int r;
+	int kvm_fd, r;
+
+	if (list)
+		return list;
+
+	kvm_fd = open_kvm_dev_path_or_exit();
 
 	nmsrs.nmsrs = 0;
 	r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
 	TEST_ASSERT(r == -1 && errno == E2BIG,
-		    "Unexpected result from KVM_GET_MSR_INDEX_LIST probe, r: %i", r);
+		    "Expected -E2BIG, got rc: %i errno: %i (%s)",
+		    r, errno, strerror(errno));
 
-	return nmsrs.nmsrs;
-}
+	list = malloc(sizeof(*list) + nmsrs.nmsrs * sizeof(list->indices[0]));
+	TEST_ASSERT(list, "-ENOMEM when allocating MSR index list");
+	list->nmsrs = nmsrs.nmsrs;
 
-static int kvm_get_num_msrs(struct kvm_vm *vm)
-{
-	return kvm_get_num_msrs_fd(vm->kvm_fd);
-}
-
-struct kvm_msr_list *kvm_get_msr_index_list(void)
-{
-	struct kvm_msr_list *list;
-	int nmsrs, kvm_fd;
-
-	kvm_fd = open_kvm_dev_path_or_exit();
-
-	nmsrs = kvm_get_num_msrs_fd(kvm_fd);
-	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
-	list->nmsrs = nmsrs;
 	kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
 	close(kvm_fd);
 
+	TEST_ASSERT(list->nmsrs == nmsrs.nmsrs,
+		    "Number of save/restore MSRs changed, was %d, now %d",
+		    nmsrs.nmsrs, list->nmsrs);
 	return list;
+}
+
+bool kvm_msr_is_in_save_restore_list(uint32_t msr_index)
+{
+	const struct kvm_msr_list *list = kvm_get_msr_index_list();
+	int i;
+
+	for (i = 0; i < list->nmsrs; ++i) {
+		if (list->indices[i] == msr_index)
+			return true;
+	}
+
+	return false;
 }
 
 static int vcpu_save_xsave_state(struct kvm_vm *vm, struct vcpu *vcpu,
@@ -955,10 +952,10 @@ static int vcpu_save_xsave_state(struct kvm_vm *vm, struct vcpu *vcpu,
 
 struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 {
+	const struct kvm_msr_list *msr_list = kvm_get_msr_index_list();
 	struct vcpu *vcpu = vcpu_get(vm, vcpuid);
-	struct kvm_msr_list *list;
 	struct kvm_x86_state *state;
-	int nmsrs, r, i;
+	int r, i;
 	static int nested_size = -1;
 
 	if (nested_size == -1) {
@@ -976,12 +973,7 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	 */
 	vcpu_run_complete_io(vm, vcpuid);
 
-	nmsrs = kvm_get_num_msrs(vm);
-	list = malloc(sizeof(*list) + nmsrs * sizeof(list->indices[0]));
-	list->nmsrs = nmsrs;
-	kvm_ioctl(vm->kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
-
-	state = malloc(sizeof(*state) + nmsrs * sizeof(state->msrs.entries[0]));
+	state = malloc(sizeof(*state) + msr_list->nmsrs * sizeof(state->msrs.entries[0]));
 	r = ioctl(vcpu->fd, KVM_GET_VCPU_EVENTS, &state->events);
 	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_VCPU_EVENTS, r: %i",
 		    r);
@@ -1019,18 +1011,17 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vm *vm, uint32_t vcpuid)
 	} else
 		state->nested.size = 0;
 
-	state->msrs.nmsrs = nmsrs;
-	for (i = 0; i < nmsrs; i++)
-		state->msrs.entries[i].index = list->indices[i];
+	state->msrs.nmsrs = msr_list->nmsrs;
+	for (i = 0; i < msr_list->nmsrs; i++)
+		state->msrs.entries[i].index = msr_list->indices[i];
 	r = ioctl(vcpu->fd, KVM_GET_MSRS, &state->msrs);
-	TEST_ASSERT(r == nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed MSR was 0x%x)",
-		    r, r == nmsrs ? -1 : list->indices[r]);
+	TEST_ASSERT(r == msr_list->nmsrs, "Unexpected result from KVM_GET_MSRS, r: %i (failed MSR was 0x%x)",
+		    r, r == msr_list->nmsrs ? -1 : msr_list->indices[r]);
 
 	r = ioctl(vcpu->fd, KVM_GET_DEBUGREGS, &state->debugregs);
 	TEST_ASSERT(r == 0, "Unexpected result from KVM_GET_DEBUGREGS, r: %i",
 		    r);
 
-	free(list);
 	return state;
 }
 
