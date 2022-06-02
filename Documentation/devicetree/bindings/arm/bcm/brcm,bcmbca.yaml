@@ -56,6 +56,13 @@ properties:
           - const: brcm,bcm6858
           - const: brcm,bcmbca
 
+      - description: BCM6878 based boards
+        items:
+          - enum:
+              - brcm,bcm96878
+          - const: brcm,bcm6878
+          - const: brcm,bcmbca
+
 additionalProperties: true
 
 ...
