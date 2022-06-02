@@ -882,7 +882,7 @@ static struct tb_port *tb_find_dp_out(struct tb *tb, struct tb_port *in)
 			continue;
 
 		if (tb_port_is_enabled(port)) {
-			tb_port_dbg(port, "in use\n");
+			tb_port_dbg(port, "DP OUT in use\n");
 			continue;
 		}
 
@@ -931,7 +931,7 @@ static void tb_tunnel_dp(struct tb *tb)
 			continue;
 
 		if (tb_port_is_enabled(port)) {
-			tb_port_dbg(port, "in use\n");
+			tb_port_dbg(port, "DP IN in use\n");
 			continue;
 		}
 
