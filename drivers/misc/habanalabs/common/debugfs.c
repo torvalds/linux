@@ -543,7 +543,7 @@ static ssize_t hl_memory_scrub(struct file *f, const char __user *buf,
 {
 	struct hl_dbg_device_entry *entry = file_inode(f)->i_private;
 	struct hl_device *hdev = entry->hdev;
-	u64 val = entry->memory_scrub_val;
+	u64 val = hdev->memory_scrub_val;
 	int rc;
 
 	if (!hl_device_operational(hdev, NULL)) {
@@ -1516,7 +1516,7 @@ void hl_debugfs_add_device(struct hl_device *hdev)
 	debugfs_create_x64("memory_scrub_val",
 				0644,
 				dev_entry->root,
-				&dev_entry->memory_scrub_val);
+				&hdev->memory_scrub_val);
 
 	debugfs_create_file("memory_scrub",
 				0200,

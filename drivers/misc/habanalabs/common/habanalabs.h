@@ -2065,7 +2065,6 @@ struct hl_debugfs_entry {
  * @addr: next address to read/write from/to in read/write32.
  * @mmu_addr: next virtual address to translate to physical address in mmu_show.
  * @userptr_lookup: the target user ptr to look up for on demand.
- * @memory_scrub_val: the value to which the dram will be scrubbed to using cb scrub_device_dram
  * @mmu_asid: ASID to use while translating in mmu_show.
  * @state_dump_head: index of the latest state dump
  * @i2c_bus: generic u8 debugfs file for bus value to use in i2c_data_read.
@@ -2096,7 +2095,6 @@ struct hl_dbg_device_entry {
 	u64				addr;
 	u64				mmu_addr;
 	u64				userptr_lookup;
-	u64				memory_scrub_val;
 	u32				mmu_asid;
 	u32				state_dump_head;
 	u8				i2c_bus;
@@ -2797,6 +2795,7 @@ struct hl_reset_info {
  * @stream_master_qid_arr: pointer to array with QIDs of master streams.
  * @fw_major_version: major version of current loaded preboot
  * @dram_used_mem: current DRAM memory consumption.
+ * @memory_scrub_val: the value to which the dram will be scrubbed to using cb scrub_device_dram
  * @timeout_jiffies: device CS timeout value.
  * @max_power: the max power of the device, as configured by the sysadmin. This
  *             value is saved so in case of hard-reset, the driver will restore
@@ -2942,6 +2941,7 @@ struct hl_device {
 	u32				*stream_master_qid_arr;
 	u32				fw_major_version;
 	atomic64_t			dram_used_mem;
+	u64				memory_scrub_val;
 	u64				timeout_jiffies;
 	u64				max_power;
 	u64				boot_error_status_mask;
