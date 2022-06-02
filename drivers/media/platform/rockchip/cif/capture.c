@@ -7726,13 +7726,15 @@ unsigned int rkcif_irq_global(struct rkcif_device *cif_dev)
 	return intstat_glb;
 }
 
-static bool rkcif_check_buffer_prepare(struct rkcif_device *cif_dev)
+static bool rkcif_check_buffer_prepare(struct rkcif_stream *stream)
 {
+	struct rkcif_device *cif_dev = stream->cifdev;
 	unsigned long flags;
 	bool is_update = false;
 
 	spin_lock_irqsave(&cif_dev->hw_dev->group_lock, flags);
-	if (cif_dev->hw_dev->sync_config.update_code & BIT(cif_dev->csi_host_idx)) {
+	if (stream->id == 0 &&
+	    cif_dev->hw_dev->sync_config.update_code & BIT(cif_dev->csi_host_idx)) {
 		is_update = true;
 		cif_dev->hw_dev->sync_config.update_code &= ~(BIT(cif_dev->csi_host_idx));
 		if (!cif_dev->hw_dev->sync_config.update_code &&
@@ -7740,7 +7742,11 @@ static bool rkcif_check_buffer_prepare(struct rkcif_device *cif_dev)
 			cif_dev->hw_dev->sync_config.update_code = cif_dev->hw_dev->sync_config.update_cache;
 			cif_dev->hw_dev->sync_config.update_cache = 0;
 		}
+	} else {
+		if (cif_dev->rdbk_buf[RDBK_L])
+			is_update = true;
 	}
+
 	spin_unlock_irqrestore(&cif_dev->hw_dev->group_lock, flags);
 	return is_update;
 }
@@ -7885,7 +7891,7 @@ void rkcif_irq_pingpong_v1(struct rkcif_device *cif_dev)
 				if (cif_dev->sync_type == RKCIF_NOSYNC_MODE)
 					is_update = true;
 				else
-					is_update = rkcif_check_buffer_prepare(cif_dev);
+					is_update = rkcif_check_buffer_prepare(stream);
 				if (is_update)
 					rkcif_update_stream(cif_dev, stream, mipi_id);
 				if (cif_dev->chip_id == CHIP_RV1106_CIF)
