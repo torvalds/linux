@@ -14,6 +14,8 @@
 #define FIFO_FULL_RESERVE	8
 #define FIFO_SIZE		0x4000
 
+#define HDR_KEY_VALUE		0xdead
+
 #define MAGIC_KEY_VALUE		0x24495043 /* "$IPC" */
 #define MAGIC_KEY		0x0
 #define BUFFER_SIZE		0x4
@@ -31,6 +33,11 @@
 #define FIFO_1_TAIL		0x24
 #define FIFO_1_HEAD		0x28
 #define FIFO_1_NOTIFY		0x2c
+
+struct qrtr_genpool_hdr {
+	__le16 len;
+	__le16 magic;
+};
 
 struct qrtr_genpool_ring {
 	void *buf;
@@ -139,10 +146,22 @@ static void qrtr_genpool_wait_for_tx_avail(struct qrtr_genpool_dev *qdev)
 			   qrtr_genpool_tx_avail(&qdev->tx_pipe), 10 * HZ);
 }
 
+static void qrtr_genpool_generate_hdr(struct qrtr_genpool_dev *qdev,
+				      struct qrtr_genpool_hdr *hdr)
+{
+	size_t hdr_len = sizeof(*hdr);
+
+	while (qrtr_genpool_tx_avail(&qdev->tx_pipe) < hdr_len)
+		qrtr_genpool_wait_for_tx_avail(qdev);
+
+	qrtr_genpool_tx_write(&qdev->tx_pipe, hdr, hdr_len);
+};
+
 /* from qrtr to genpool fifo */
 static int qrtr_genpool_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 {
 	struct qrtr_genpool_dev *qdev;
+	struct qrtr_genpool_hdr hdr;
 	size_t tx_avail;
 	int chunk_size;
 	int left_size;
@@ -156,6 +175,10 @@ static int qrtr_genpool_send(struct qrtr_endpoint *ep, struct sk_buff *skb)
 		kfree_skb(skb);
 		return rc;
 	}
+
+	hdr.len = cpu_to_le16(skb->len);
+	hdr.magic = cpu_to_le16(HDR_KEY_VALUE);
+	qrtr_genpool_generate_hdr(qdev, &hdr);
 
 	left_size = skb->len;
 	offset = 0;
@@ -243,19 +266,21 @@ static bool qrtr_genpool_get_read_notify(struct qrtr_genpool_dev *qdev)
 static void qrtr_genpool_read_new(struct qrtr_genpool_dev *qdev)
 {
 	struct qrtr_genpool_ring *ring = &qdev->ring;
+	struct qrtr_genpool_hdr hdr = {0, 0};
 	size_t rx_avail;
 	size_t pkt_len;
 	size_t hdr_len;
-	u32 hdr[8];
 	int rc;
 
+	/* copy hdr from rx_pipe and check hdr for pkt size */
 	hdr_len = sizeof(hdr);
 	qrtr_genpool_rx_peak(&qdev->rx_pipe, &hdr, 0, hdr_len);
-	pkt_len = qrtr_peek_pkt_size((void *)&hdr);
+	pkt_len = le16_to_cpu(hdr.len);
 	if (pkt_len > MAX_PKT_SZ) {
 		dev_err(qdev->dev, "invalid pkt_len %zu\n", pkt_len);
 		return;
 	}
+	qrtr_genpool_rx_advance(&qdev->rx_pipe, hdr_len);
 
 	rx_avail = qrtr_genpool_rx_avail(&qdev->rx_pipe);
 	if (rx_avail > pkt_len)
