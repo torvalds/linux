@@ -593,7 +593,7 @@ sanitize:
 	__uc_sanitize(uc);
 }
 
-void intel_uc_reset(struct intel_uc *uc, bool stalled)
+void intel_uc_reset(struct intel_uc *uc, intel_engine_mask_t stalled)
 {
 	struct intel_guc *guc = &uc->guc;
 
