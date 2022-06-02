@@ -369,7 +369,7 @@
 			};
 		};
 
-		ufs_0_phy: ufs0-phy@17e04000 {
+		ufs_0_phy: phy@17e04000 {
 			compatible = "samsung,exynosautov9-ufs-phy";
 			reg = <0x17e04000 0xc00>;
 			reg-names = "phy-pma";
@@ -380,13 +380,13 @@
 			status = "disabled";
 		};
 
-		ufs_0: ufs0@17e00000 {
+		ufs_0: ufs@17e00000 {
 			compatible = "samsung,exynosautov9-ufs";
 
-			reg = <0x17e00000 0x100>,  /* 0: HCI standard */
-				<0x17e01100 0x410>,  /* 1: Vendor-specific */
-				<0x17e80000 0x8000>,  /* 2: UNIPRO */
-				<0x17dc0000 0x2200>;  /* 3: UFS protector */
+			reg = <0x17e00000 0x100>,
+			      <0x17e01100 0x410>,
+			      <0x17e80000 0x8000>,
+			      <0x17dc0000 0x2200>;
 			reg-names = "hci", "vs_hci", "unipro", "ufsp";
 			interrupts = <GIC_SPI 227 IRQ_TYPE_LEVEL_HIGH>;
 			clocks = <&cmu_fsys2 CLK_GOUT_FSYS2_UFS_EMBD0_ACLK>,
