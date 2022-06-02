@@ -630,8 +630,8 @@ static int sta350_set_dai_fmt(struct snd_soc_dai *codec_dai,
 	struct sta350_priv *sta350 = snd_soc_component_get_drvdata(component);
 	unsigned int confb = 0;
 
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_CBC_CFC:
 		break;
 	default:
 		return -EINVAL;
