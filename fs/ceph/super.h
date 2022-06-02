@@ -1022,6 +1022,7 @@ static inline void ceph_queue_flush_snaps(struct inode *inode)
 	ceph_queue_inode_work(inode, CEPH_I_WORK_FLUSH_SNAPS);
 }
 
+extern int ceph_try_to_choose_auth_mds(struct inode *inode, int mask);
 extern int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 			     int mask, bool force);
 static inline int ceph_do_getattr(struct inode *inode, int mask, bool force)
@@ -1278,9 +1279,29 @@ extern void ceph_fs_debugfs_init(struct ceph_fs_client *client);
 extern void ceph_fs_debugfs_cleanup(struct ceph_fs_client *client);
 
 /* quota.c */
-static inline bool __ceph_has_any_quota(struct ceph_inode_info *ci)
+
+enum quota_get_realm {
+	QUOTA_GET_MAX_FILES,
+	QUOTA_GET_MAX_BYTES,
+	QUOTA_GET_ANY
+};
+
+static inline bool __ceph_has_quota(struct ceph_inode_info *ci,
+				    enum quota_get_realm which)
 {
-	return ci->i_max_files || ci->i_max_bytes;
+	bool has_quota = false;
+
+	switch (which) {
+	case QUOTA_GET_MAX_BYTES:
+		has_quota = !!ci->i_max_bytes;
+		break;
+	case QUOTA_GET_MAX_FILES:
+		has_quota = !!ci->i_max_files;
+		break;
+	default:
+		has_quota = !!(ci->i_max_files || ci->i_max_bytes);
+	}
+	return has_quota;
 }
 
 extern void ceph_adjust_quota_realms_count(struct inode *inode, bool inc);
@@ -1289,10 +1310,10 @@ static inline void __ceph_update_quota(struct ceph_inode_info *ci,
 				       u64 max_bytes, u64 max_files)
 {
 	bool had_quota, has_quota;
-	had_quota = __ceph_has_any_quota(ci);
+	had_quota = __ceph_has_quota(ci, QUOTA_GET_ANY);
 	ci->i_max_bytes = max_bytes;
 	ci->i_max_files = max_files;
-	has_quota = __ceph_has_any_quota(ci);
+	has_quota = __ceph_has_quota(ci, QUOTA_GET_ANY);
 
 	if (had_quota != has_quota)
 		ceph_adjust_quota_realms_count(&ci->vfs_inode, has_quota);
