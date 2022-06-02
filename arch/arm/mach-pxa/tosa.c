@@ -40,16 +40,16 @@
 #include <asm/mach-types.h>
 
 #include "pxa25x.h"
-#include <mach/reset.h>
+#include "reset.h"
 #include <linux/platform_data/irda-pxaficp.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "udc.h"
 #include "tosa_bt.h"
-#include <mach/audio.h>
-#include <mach/smemc.h>
+#include <linux/platform_data/asoc-pxa.h>
+#include "smemc.h"
 
 #include <asm/mach/arch.h>
-#include <mach/tosa.h>
+#include "tosa.h"
 
 #include <asm/hardware/scoop.h>
 #include <asm/mach/sharpsl_param.h>
@@ -296,9 +296,9 @@ static struct gpiod_lookup_table tosa_mci_gpio_table = {
 	.table = {
 		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_nSD_DETECT,
 			    "cd", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_SD_WP,
+		GPIO_LOOKUP("sharp-scoop.0", TOSA_GPIO_SD_WP - TOSA_SCOOP_GPIO_BASE,
 			    "wp", GPIO_ACTIVE_LOW),
-		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_PWR_ON,
+		GPIO_LOOKUP("sharp-scoop.0", TOSA_GPIO_PWR_ON - TOSA_SCOOP_GPIO_BASE,
 			    "power", GPIO_ACTIVE_HIGH),
 		{ },
 	},
@@ -616,6 +616,22 @@ static struct resource tc6393xb_resources[] = {
 	},
 };
 
+static struct gpiod_lookup_table tosa_battery_gpio_table = {
+	.dev_id = "wm97xx-battery",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_BAT0_CRG,
+			    "main battery full", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_BAT1_CRG,
+			    "jacket battery full", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_BAT0_LOW,
+			    "main battery low", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_BAT1_LOW,
+			    "jacket battery low", GPIO_ACTIVE_HIGH),
+		GPIO_LOOKUP("gpio-pxa", TOSA_GPIO_JACKET_DETECT,
+			    "jacket detect", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
 
 static int tosa_tc6393xb_enable(struct platform_device *dev)
 {
@@ -709,31 +725,6 @@ static struct tmio_nand_data tosa_tc6393xb_nand_config = {
 	.part_parsers = probes,
 };
 
-static int tosa_tc6393xb_setup(struct platform_device *dev)
-{
-	int rc;
-
-	rc = gpio_request(TOSA_GPIO_CARD_VCC_ON, "CARD_VCC_ON");
-	if (rc)
-		goto err_req;
-
-	rc = gpio_direction_output(TOSA_GPIO_CARD_VCC_ON, 1);
-	if (rc)
-		goto err_dir;
-
-	return rc;
-
-err_dir:
-	gpio_free(TOSA_GPIO_CARD_VCC_ON);
-err_req:
-	return rc;
-}
-
-static void tosa_tc6393xb_teardown(struct platform_device *dev)
-{
-	gpio_free(TOSA_GPIO_CARD_VCC_ON);
-}
-
 #ifdef CONFIG_MFD_TC6393XB
 static struct fb_videomode tosa_tc6393xb_lcd_mode[] = {
 	{
@@ -778,9 +769,6 @@ static struct tc6393xb_platform_data tosa_tc6393xb_data = {
 	.scr_gper	= 0x3300,
 
 	.irq_base	= IRQ_BOARD_START,
-	.gpio_base	= TOSA_TC6393XB_GPIO_BASE,
-	.setup		= tosa_tc6393xb_setup,
-	.teardown	= tosa_tc6393xb_teardown,
 
 	.enable		= tosa_tc6393xb_enable,
 	.disable	= tosa_tc6393xb_disable,
@@ -819,26 +807,6 @@ static struct platform_device tosa_bt_device = {
 
 static struct pxa2xx_spi_controller pxa_ssp_master_info = {
 	.num_chipselect	= 1,
-};
-
-static struct gpiod_lookup_table tosa_lcd_gpio_table = {
-	.dev_id = "spi2.0",
-	.table = {
-		GPIO_LOOKUP("tc6393xb",
-			    TOSA_GPIO_TG_ON - TOSA_TC6393XB_GPIO_BASE,
-			    "tg #pwr", GPIO_ACTIVE_HIGH),
-		{ },
-	},
-};
-
-static struct gpiod_lookup_table tosa_lcd_bl_gpio_table = {
-	.dev_id = "i2c-tosa-bl",
-	.table = {
-		GPIO_LOOKUP("tc6393xb",
-			    TOSA_GPIO_BL_C20MA - TOSA_TC6393XB_GPIO_BASE,
-			    "backlight", GPIO_ACTIVE_HIGH),
-		{ },
-	},
 };
 
 static struct spi_board_info spi_board_info[] __initdata = {
@@ -943,6 +911,8 @@ static void __init tosa_init(void)
 	/* enable batt_fault */
 	PMCR = 0x01;
 
+	gpiod_add_lookup_table(&tosa_battery_gpio_table);
+
 	gpiod_add_lookup_table(&tosa_mci_gpio_table);
 	pxa_set_mci_info(&tosa_mci_platform_data);
 	pxa_set_ficp_info(&tosa_ficp_platform_data);
@@ -951,8 +921,6 @@ static void __init tosa_init(void)
 	platform_scoop_config = &tosa_pcmcia_config;
 
 	pxa2xx_set_spi_info(2, &pxa_ssp_master_info);
-	gpiod_add_lookup_table(&tosa_lcd_gpio_table);
-	gpiod_add_lookup_table(&tosa_lcd_bl_gpio_table);
 	spi_register_board_info(spi_board_info, ARRAY_SIZE(spi_board_info));
 
 	clk_add_alias("CLK_CK3P6MI", tc6393xb_device.name, "GPIO11_CLK", NULL);

@@ -23,7 +23,7 @@
 #include <asm/mach-types.h>
 #include <linux/sizes.h>
 
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include "colibri.h"
 #include "pxa27x.h"
 

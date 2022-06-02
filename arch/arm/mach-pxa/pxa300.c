@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/io.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "pxa300.h"
 
