@@ -5456,8 +5456,7 @@ EXPORT_SYMBOL(drm_dp_mst_topology_state_funcs);
  *
  * This function wraps drm_atomic_get_priv_obj_state() passing in the MST atomic
  * state vtable so that the private object state returned is that of a MST
- * topology object. Also, drm_atomic_get_private_obj_state() expects the caller
- * to care of the locking, so warn if don't hold the connection_mutex.
+ * topology object.
  *
  * RETURNS:
  *
