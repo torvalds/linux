@@ -396,7 +396,6 @@ struct gfs2_inode {
 	atomic_t i_sizehint;  /* hint of the write size */
 	struct rw_semaphore i_rw_mutex;
 	struct list_head i_ordered;
-	struct list_head i_trunc_list;
 	__be64 *i_hash_cache;
 	u32 i_entries;
 	u32 i_diskflags;
@@ -784,8 +783,6 @@ struct gfs2_sbd {
 	struct mutex sd_quota_mutex;
 	struct mutex sd_quota_sync_mutex;
 	wait_queue_head_t sd_quota_wait;
-	struct list_head sd_trunc_list;
-	spinlock_t sd_trunc_lock;
 
 	unsigned int sd_quota_slots;
 	unsigned long *sd_quota_bitmap;

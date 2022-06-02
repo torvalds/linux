@@ -518,8 +518,7 @@ again:
  * do_promote - promote as many requests as possible on the current queue
  * @gl: The glock
  * 
- * Returns: 1 if there is a blocked holder at the head of the list, or 2
- *          if a type specific operation is underway.
+ * Returns: 1 if there is a blocked holder at the head of the list
  */
 
 static int do_promote(struct gfs2_glock *gl)
@@ -627,7 +626,6 @@ static void finish_xmote(struct gfs2_glock *gl, unsigned int ret)
 	const struct gfs2_glock_operations *glops = gl->gl_ops;
 	struct gfs2_holder *gh;
 	unsigned state = ret & LM_OUT_ST_MASK;
-	int rv;
 
 	spin_lock(&gl->gl_lockref.lock);
 	trace_gfs2_glock_state_change(gl, state);
@@ -685,6 +683,8 @@ retry:
 		gfs2_demote_wake(gl);
 	if (state != LM_ST_UNLOCKED) {
 		if (glops->go_xmote_bh) {
+			int rv;
+
 			spin_unlock(&gl->gl_lockref.lock);
 			rv = glops->go_xmote_bh(gl);
 			spin_lock(&gl->gl_lockref.lock);
@@ -693,13 +693,10 @@ retry:
 				goto out;
 			}
 		}
-		rv = do_promote(gl);
-		if (rv == 2)
-			goto out_locked;
+		do_promote(gl);
 	}
 out:
 	clear_bit(GLF_LOCK, &gl->gl_flags);
-out_locked:
 	spin_unlock(&gl->gl_lockref.lock);
 }
 
@@ -856,7 +853,6 @@ __releases(&gl->gl_lockref.lock)
 __acquires(&gl->gl_lockref.lock)
 {
 	struct gfs2_holder *gh = NULL;
-	int ret;
 
 	if (test_and_set_bit(GLF_LOCK, &gl->gl_flags))
 		return;
@@ -875,18 +871,14 @@ __acquires(&gl->gl_lockref.lock)
 	} else {
 		if (test_bit(GLF_DEMOTE, &gl->gl_flags))
 			gfs2_demote_wake(gl);
-		ret = do_promote(gl);
-		if (ret == 0)
+		if (do_promote(gl) == 0)
 			goto out_unlock;
-		if (ret == 2)
-			goto out;
 		gh = find_first_waiter(gl);
 		gl->gl_target = gh->gh_state;
 		if (!(gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)))
 			do_error(gl, 0); /* Fail queued try locks */
 	}
 	do_xmote(gl, gh, gl->gl_target);
-out:
 	return;
 
 out_sched:
@@ -2211,29 +2203,6 @@ void gfs2_gl_hash_clear(struct gfs2_sbd *sdp)
 			   atomic_read(&sdp->sd_glock_disposal) == 0,
 			   HZ * 600);
 	glock_hash_walk(dump_glock_func, sdp);
-}
-
-void gfs2_glock_finish_truncate(struct gfs2_inode *ip)
-{
-	struct gfs2_glock *gl = ip->i_gl;
-	int ret;
-
-	ret = gfs2_truncatei_resume(ip);
-	gfs2_glock_assert_withdraw(gl, ret == 0);
-
-	spin_lock(&gl->gl_lockref.lock);
-	clear_bit(GLF_LOCK, &gl->gl_flags);
-	run_queue(gl, 1);
-	wake_up_glock(gl);
-	spin_unlock(&gl->gl_lockref.lock);
-}
-
-void gfs2_wait_truncate(struct gfs2_inode *ip)
-{
-	struct gfs2_glock *gl = ip->i_gl;
-	wait_queue_head_t *wq = glock_waitqueue(&gl->gl_name);
-
-	wait_event(*wq, !(ip->i_diskflags & GFS2_DIF_TRUNC_IN_PROG));
 }
 
 static const char *state2str(unsigned state)
