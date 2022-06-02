@@ -552,6 +552,9 @@ irqreturn_t mhi_intvec_threaded_handler(int irq_number, void *priv)
 	case MHI_EE_RDDM:
 		/* proceed if power down is not already in progress */
 		if (mhi_cntrl->rddm_image && mhi_is_active(mhi_cntrl)) {
+			/* notify critical clients with early notifications */
+			mhi_report_error(mhi_cntrl);
+
 			mhi_cntrl->status_cb(mhi_cntrl, MHI_CB_EE_RDDM);
 			mhi_cntrl->ee = ee;
 			wake_up_all(&mhi_cntrl->state_event);
