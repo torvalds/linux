@@ -2075,16 +2075,12 @@ static int hdptx_phy_clk_set_rate(struct clk_hw *hw, unsigned long rate,
 				      unsigned long parent_rate)
 {
 	struct rockchip_hdptx_phy *hdptx = to_rockchip_hdptx_phy(hw);
-	int bus_width = phy_get_bus_width(hdptx->phy);
-	u8 color_depth = (bus_width & COLOR_DEPTH_MASK) ? 1 : 0;
 
 	if (hdptx_grf_read(hdptx, GRF_HDPTX_STATUS) & HDPTX_O_PLL_LOCK_DONE)
 		hdptx_phy_disable(hdptx);
 
-	if (color_depth)
-		rate = (rate / 100) * 5 / 4;
-	else
-		rate = rate / 100;
+	rate = rate / 100;
+
 	return hdptx_ropll_cmn_config(hdptx, rate);
 }
 
