@@ -200,16 +200,14 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 		return -EFAULT;
 
 	count -= size;
-	if (!count) {
-		/* Copy the payload */
-		size = simple_write_to_buffer(ipc4_msg->data_ptr,
-					      priv->max_msg_size, ppos, buffer,
-					      count);
-		if (size < 0)
-			return size;
-		if (size != count)
-			return -EFAULT;
-	}
+	/* Copy the payload */
+	size = simple_write_to_buffer(ipc4_msg->data_ptr,
+				      priv->max_msg_size, ppos, buffer,
+				      count);
+	if (size < 0)
+		return size;
+	if (size != count)
+		return -EFAULT;
 
 	ipc4_msg->data_size = count;
 
