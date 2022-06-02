@@ -150,23 +150,19 @@ struct st_time {
 #define STEAL_TIME_SIZE		((sizeof(struct st_time) + 63) & ~63)
 #define ST_GPA_BASE		(1 << 30)
 
-static void steal_time_init(struct kvm_vm *vm)
+static void steal_time_init(struct kvm_vcpu *vcpu)
 {
 	uint64_t st_ipa = (ulong)ST_GPA_BASE;
 	unsigned int gpages;
-	struct kvm_device_attr dev = {
-		.group = KVM_ARM_VCPU_PVTIME_CTRL,
-		.attr = KVM_ARM_VCPU_PVTIME_IPA,
-		.addr = (uint64_t)&st_ipa,
-	};
 
 	gpages = vm_calc_num_guest_pages(VM_MODE_DEFAULT, STEAL_TIME_SIZE);
-	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS, ST_GPA_BASE, 1, gpages, 0);
+	vm_userspace_mem_region_add(vcpu->vm, VM_MEM_SRC_ANONYMOUS, ST_GPA_BASE, 1, gpages, 0);
 
-	vcpu_ioctl(vm, 0, KVM_SET_DEVICE_ATTR, &dev);
+	vcpu_device_attr_set(vcpu->vm, vcpu->id, KVM_ARM_VCPU_PVTIME_CTRL,
+			     KVM_ARM_VCPU_PVTIME_IPA, &st_ipa);
 }
 
-static void test_fw_regs_before_vm_start(struct kvm_vm *vm)
+static void test_fw_regs_before_vm_start(struct kvm_vcpu *vcpu)
 {
 	uint64_t val;
 	unsigned int i;
@@ -176,18 +172,18 @@ static void test_fw_regs_before_vm_start(struct kvm_vm *vm)
 		const struct kvm_fw_reg_info *reg_info = &fw_reg_info[i];
 
 		/* First 'read' should be an upper limit of the features supported */
-		vcpu_get_reg(vm, 0, reg_info->reg, &val);
+		vcpu_get_reg(vcpu->vm, vcpu->id, reg_info->reg, &val);
 		TEST_ASSERT(val == FW_REG_ULIMIT_VAL(reg_info->max_feat_bit),
 			"Expected all the features to be set for reg: 0x%lx; expected: 0x%lx; read: 0x%lx\n",
 			reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit), val);
 
 		/* Test a 'write' by disabling all the features of the register map */
-		ret = __vcpu_set_reg(vm, 0, reg_info->reg, 0);
+		ret = __vcpu_set_reg(vcpu->vm, vcpu->id, reg_info->reg, 0);
 		TEST_ASSERT(ret == 0,
 			"Failed to clear all the features of reg: 0x%lx; ret: %d\n",
 			reg_info->reg, errno);
 
-		vcpu_get_reg(vm, 0, reg_info->reg, &val);
+		vcpu_get_reg(vcpu->vm, vcpu->id, reg_info->reg, &val);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx\n", reg_info->reg);
 
@@ -196,7 +192,7 @@ static void test_fw_regs_before_vm_start(struct kvm_vm *vm)
 		 * Avoid this check if all the bits are occupied.
 		 */
 		if (reg_info->max_feat_bit < 63) {
-			ret = __vcpu_set_reg(vm, 0, reg_info->reg, BIT(reg_info->max_feat_bit + 1));
+			ret = __vcpu_set_reg(vcpu->vm, vcpu->id, reg_info->reg, BIT(reg_info->max_feat_bit + 1));
 			TEST_ASSERT(ret != 0 && errno == EINVAL,
 			"Unexpected behavior or return value (%d) while setting an unsupported feature for reg: 0x%lx\n",
 			errno, reg_info->reg);
@@ -204,7 +200,7 @@ static void test_fw_regs_before_vm_start(struct kvm_vm *vm)
 	}
 }
 
-static void test_fw_regs_after_vm_start(struct kvm_vm *vm)
+static void test_fw_regs_after_vm_start(struct kvm_vcpu *vcpu)
 {
 	uint64_t val;
 	unsigned int i;
@@ -217,7 +213,7 @@ static void test_fw_regs_after_vm_start(struct kvm_vm *vm)
 		 * Before starting the VM, the test clears all the bits.
 		 * Check if that's still the case.
 		 */
-		vcpu_get_reg(vm, 0, reg_info->reg, &val);
+		vcpu_get_reg(vcpu->vm, vcpu->id, reg_info->reg, &val);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx\n",
 			reg_info->reg);
@@ -227,26 +223,26 @@ static void test_fw_regs_after_vm_start(struct kvm_vm *vm)
 		 * the registers and should return EBUSY. Set the registers and check for
 		 * the expected errno.
 		 */
-		ret = __vcpu_set_reg(vm, 0, reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit));
+		ret = __vcpu_set_reg(vcpu->vm, vcpu->id, reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit));
 		TEST_ASSERT(ret != 0 && errno == EBUSY,
 		"Unexpected behavior or return value (%d) while setting a feature while VM is running for reg: 0x%lx\n",
 		errno, reg_info->reg);
 	}
 }
 
-static struct kvm_vm *test_vm_create(void)
+static struct kvm_vm *test_vm_create(struct kvm_vcpu **vcpu)
 {
 	struct kvm_vm *vm;
 
-	vm = vm_create_default(0, 0, guest_code);
+	vm = vm_create_with_one_vcpu(vcpu, guest_code);
 
 	ucall_init(vm, NULL);
-	steal_time_init(vm);
+	steal_time_init(*vcpu);
 
 	return vm;
 }
 
-static void test_guest_stage(struct kvm_vm **vm)
+static void test_guest_stage(struct kvm_vm **vm, struct kvm_vcpu **vcpu)
 {
 	int prev_stage = stage;
 
@@ -258,12 +254,12 @@ static void test_guest_stage(struct kvm_vm **vm)
 
 	switch (prev_stage) {
 	case TEST_STAGE_REG_IFACE:
-		test_fw_regs_after_vm_start(*vm);
+		test_fw_regs_after_vm_start(*vcpu);
 		break;
 	case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:
 		/* Start a new VM so that all the features are now enabled by default */
 		kvm_vm_free(*vm);
-		*vm = test_vm_create();
+		*vm = test_vm_create(vcpu);
 		break;
 	case TEST_STAGE_HVC_IFACE_FEAT_ENABLED:
 	case TEST_STAGE_HVC_IFACE_FALSE_INFO:
@@ -275,20 +271,21 @@ static void test_guest_stage(struct kvm_vm **vm)
 
 static void test_run(void)
 {
+	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	struct ucall uc;
 	bool guest_done = false;
 
-	vm = test_vm_create();
+	vm = test_vm_create(&vcpu);
 
-	test_fw_regs_before_vm_start(vm);
+	test_fw_regs_before_vm_start(vcpu);
 
 	while (!guest_done) {
-		vcpu_run(vm, 0);
+		vcpu_run(vcpu->vm, vcpu->id);
 
-		switch (get_ucall(vm, 0, &uc)) {
+		switch (get_ucall(vcpu->vm, vcpu->id, &uc)) {
 		case UCALL_SYNC:
-			test_guest_stage(&vm);
+			test_guest_stage(&vm, &vcpu);
 			break;
 		case UCALL_DONE:
 			guest_done = true;
