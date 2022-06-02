@@ -238,6 +238,7 @@ struct dw_hdmi_qp {
 	bool sink_is_hdmi;
 	bool sink_has_audio;
 	bool dclk_en;
+	bool frl_switch;
 
 	struct mutex mutex;		/* for state below and previous_mode */
 	struct drm_connector *curr_conn;/* current connector (only valid when !disabled) */
@@ -1432,6 +1433,9 @@ static void hdmi_set_op_mode(struct dw_hdmi_qp *hdmi,
 	int frl_rate;
 	int i;
 
+	if (hdmi->frl_switch)
+		return;
+
 	/* set sink frl mode disable and wait sink ready */
 	hdmi_writel(hdmi, 0, FLT_CONFIG0);
 	if (dw_hdmi_support_scdc(hdmi, &connector->display_info))
@@ -1591,9 +1595,11 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		vmode->mtmdsclock /= 2;
 	dev_info(hdmi->dev, "final tmdsclk = %d\n", vmode->mtmdsclock);
 
-	ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
-	if (ret)
-		return ret;
+	if (!hdmi->frl_switch) {
+		ret = hdmi->phy.ops->init(hdmi, hdmi->phy.data, &hdmi->previous_mode);
+		if (ret)
+			return ret;
+	}
 
 	if (hdmi->plat_data->set_grf_cfg)
 		hdmi->plat_data->set_grf_cfg(data);
@@ -1637,6 +1643,8 @@ static int dw_hdmi_qp_setup(struct dw_hdmi_qp *hdmi,
 		hdmi_modb(hdmi, OPMODE_DVI, OPMODE_DVI, LINK_CONFIG0);
 		dev_info(hdmi->dev, "%s DVI mode\n", __func__);
 	}
+
+	hdmi->frl_switch = false;
 
 	return 0;
 }
@@ -1925,12 +1933,12 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 	if (IS_ERR(crtc_state))
 		return PTR_ERR(crtc_state);
 
+	mode = &crtc_state->mode;
 	/*
 	 * If HDMI is enabled in uboot, it's need to record
 	 * drm_display_mode and set phy status to enabled.
 	 */
 	if (!vmode->mpixelclock) {
-		crtc_state = drm_atomic_get_crtc_state(state, crtc);
 		if (hdmi->plat_data->get_enc_in_encoding)
 			hdmi->hdmi_data.enc_in_encoding =
 				hdmi->plat_data->get_enc_in_encoding(data);
@@ -1944,7 +1952,6 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			hdmi->hdmi_data.enc_out_bus_format =
 				hdmi->plat_data->get_output_bus_format(data);
 
-		mode = &crtc_state->mode;
 		if (hdmi->plat_data->split_mode) {
 			hdmi->plat_data->convert_to_origin_mode(mode);
 			mode->crtc_clock /= 2;
@@ -1981,6 +1988,8 @@ static int dw_hdmi_connector_atomic_check(struct drm_connector *connector,
 			return PTR_ERR(crtc_state);
 
 		crtc_state->mode_changed = true;
+		if (mode->clock > 600000)
+			hdmi->frl_switch = true;
 	}
 
 	return 0;
@@ -2092,6 +2101,8 @@ static void dw_hdmi_qp_bridge_mode_set(struct drm_bridge *bridge,
 
 	mutex_lock(&hdmi->mutex);
 
+	if (!drm_mode_equal(orig_mode, mode))
+		hdmi->frl_switch = false;
 	/* Store the display mode for plugin/DKMS poweron events */
 	memcpy(&hdmi->previous_mode, mode, sizeof(hdmi->previous_mode));
 	if (hdmi->plat_data->split_mode)
@@ -2120,7 +2131,7 @@ static void dw_hdmi_qp_bridge_atomic_disable(struct drm_bridge *bridge,
 		mutex_unlock(&hdmi->audio_mutex);
 	};
 
-	if (hdmi->phy.ops->disable)
+	if (hdmi->phy.ops->disable && !hdmi->frl_switch)
 		hdmi->phy.ops->disable(hdmi, hdmi->phy.data);
 	hdmi->disabled = true;
 	mutex_unlock(&hdmi->mutex);
