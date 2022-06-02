@@ -5446,16 +5446,11 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 		pattrib->pktlen++;
 		mgmt->u.action.u.addba_resp.status = cpu_to_le16(status);
 		pattrib->pktlen += 2;
-		BA_para_set = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
-		BA_para_set |= 0x1000; /* 64 buffer size */
-
-		if (pregpriv->ampdu_amsdu == 0)/* disabled */
-			BA_para_set = BA_para_set & ~BIT(0);
-		else if (pregpriv->ampdu_amsdu == 1)/* enabled */
-			BA_para_set = BA_para_set | BIT(0);
-		le_tmp = cpu_to_le16(BA_para_set);
-
-		pframe = rtw_set_fixed_ie(pframe, 2, (unsigned char *)&le_tmp, &pattrib->pktlen);
+		capab = le16_to_cpu(pmlmeinfo->ADDBA_req.BA_para_set) & 0x3f;
+		capab |= u16_encode_bits(64, IEEE80211_ADDBA_PARAM_BUF_SIZE_MASK);
+		capab |= u16_encode_bits(pregpriv->ampdu_amsdu, IEEE80211_ADDBA_PARAM_AMSDU_MASK);
+		mgmt->u.action.u.addba_req.capab = cpu_to_le16(capab);
+		pattrib->pktlen += 2;
 		mgmt->u.action.u.addba_resp.timeout = pmlmeinfo->ADDBA_req.BA_timeout_value;
 		pattrib->pktlen += 2;
 		break;
