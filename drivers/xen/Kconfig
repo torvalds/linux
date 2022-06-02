@@ -347,6 +347,7 @@ config XEN_VIRTIO
 	bool "Xen virtio support"
 	depends on VIRTIO
 	select XEN_GRANT_DMA_OPS
+	select XEN_GRANT_DMA_IOMMU if OF
 	help
 	  Enable virtio support for running as Xen guest. Depending on the
 	  guest type this will require special support on the backend side

@@ -216,9 +216,14 @@ static inline void xen_preemptible_hcall_end(void) { }
 
 #ifdef CONFIG_XEN_GRANT_DMA_OPS
 void xen_grant_setup_dma_ops(struct device *dev);
+bool xen_is_grant_dma_device(struct device *dev);
 #else
 static inline void xen_grant_setup_dma_ops(struct device *dev)
 {
+}
+static inline bool xen_is_grant_dma_device(struct device *dev)
+{
+	return false;
 }
 #endif /* CONFIG_XEN_GRANT_DMA_OPS */
 
