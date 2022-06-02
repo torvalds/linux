@@ -335,6 +335,10 @@ config XEN_UNPOPULATED_ALLOC
 	  having to balloon out RAM regions in order to obtain physical memory
 	  space to create such mappings.
 
+config XEN_GRANT_DMA_IOMMU
+	bool
+	select IOMMU_API
+
 config XEN_GRANT_DMA_OPS
 	bool
 	select DMA_OPS
