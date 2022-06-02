@@ -150,7 +150,7 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 {
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
-	size_t size;
+	ssize_t size;
 	int ret;
 
 	if (*ppos)
@@ -158,8 +158,10 @@ static ssize_t sof_msg_inject_dfs_write(struct file *file, const char __user *bu
 
 	size = simple_write_to_buffer(priv->tx_buffer, priv->max_msg_size,
 				      ppos, buffer, count);
+	if (size < 0)
+		return size;
 	if (size != count)
-		return size > 0 ? -EFAULT : size;
+		return -EFAULT;
 
 	memset(priv->rx_buffer, 0, priv->max_msg_size);
 
@@ -179,7 +181,7 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 	struct sof_client_dev *cdev = file->private_data;
 	struct sof_msg_inject_priv *priv = cdev->data;
 	struct sof_ipc4_msg *ipc4_msg = priv->tx_buffer;
-	size_t size;
+	ssize_t size;
 	int ret;
 
 	if (*ppos)
@@ -192,8 +194,10 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 	size = simple_write_to_buffer(&ipc4_msg->header_u64,
 				      sizeof(ipc4_msg->header_u64),
 				      ppos, buffer, count);
+	if (size < 0)
+		return size;
 	if (size != sizeof(ipc4_msg->header_u64))
-		return size > 0 ? -EFAULT : size;
+		return -EFAULT;
 
 	count -= size;
 	if (!count) {
@@ -201,8 +205,10 @@ static ssize_t sof_msg_inject_ipc4_dfs_write(struct file *file,
 		size = simple_write_to_buffer(ipc4_msg->data_ptr,
 					      priv->max_msg_size, ppos, buffer,
 					      count);
+		if (size < 0)
+			return size;
 		if (size != count)
-			return size > 0 ? -EFAULT : size;
+			return -EFAULT;
 	}
 
 	ipc4_msg->data_size = count;
