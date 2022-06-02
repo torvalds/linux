@@ -155,8 +155,6 @@ enum {
 	BTRFS_SEND_A_MAX		= 31,
 };
 
-#ifdef __KERNEL__
 long btrfs_ioctl_send(struct inode *inode, struct btrfs_ioctl_send_args *arg);
-#endif
 
 #endif
