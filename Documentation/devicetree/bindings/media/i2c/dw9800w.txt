@@ -1,0 +1,44 @@
+* DW9800W vcm driver support
+
+Required Properties:
+- compatible: Must contain "chipnext,cn3927v"
+- reg: I2C slave address
+
+Optional Properties:
+- rockchip,vcm-max-current: max output current, unit: mA.
+- rockchip,vcm-start-current: starting current.
+- rockchip,vcm-rated-current: rate current.
+- rockchip,vcm-step-mode: 0 SAC2 mode,1 SAC3 mode,2 SAC4 mode,3 SAC5 mode,4 Direct mode,5 LSC mode.
+- rockchip,vcm-t-src : SACT[5:0],  Tvib = 6.3ms + SACT[5:0]*0.1ms, recommend: 10ms.
+- rockchip,vcm-t-div : 0 Tvibx2(double),1 Tvibx1(default),2 Tvibx1/2(half),3 Tvibx1/4(quarter),4 Tvibx8,5 Tvibx4,
+
+Required Special properties:
+- rockchip,camera-module-index : indicate which camera the vcm belongs to.
+- rockchip,camera-module-facing : indicate the camera facing.
+
+Example:
+
+&i2c4 {
+	...
+	dw9800w: dw9800w@c {
+		compatible = "dongwoon,dw9800w";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-max-current = <100>;
+		rockchip,vcm-start-current = <20>;
+		rockchip,vcm-rated-current = <80>;
+		rockchip,vcm-step-mode = <1>;
+		rockchip,vcm-t-src = <0x25>;
+		rockchip,vcm-t-div = <1>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	...
+	imx586: s5kjn1@1a {
+		...
+		lens-focus = <&dw9800w>;
+		...
+	};
+	...
+}
