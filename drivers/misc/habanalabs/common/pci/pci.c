@@ -445,7 +445,7 @@ disable_device:
 }
 
 /**
- * hl_fw_fini() - PCI finalization code.
+ * hl_pci_fini() - PCI finalization code.
  * @hdev: Pointer to hl_device structure
  *
  * Unmap PCI bars and disable PCI device.
