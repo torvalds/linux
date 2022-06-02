@@ -1987,17 +1987,12 @@ static const struct dpu_mdss_hw_cfg_handler cfg_handler[] = {
 	{ .hw_rev = DPU_HW_VER_720, .cfg_init = sc7280_cfg_init},
 };
 
-void dpu_hw_catalog_deinit(struct dpu_mdss_cfg *dpu_cfg)
-{
-	kfree(dpu_cfg);
-}
-
-struct dpu_mdss_cfg *dpu_hw_catalog_init(u32 hw_rev)
+const struct dpu_mdss_cfg *dpu_hw_catalog_init(struct device *dev, u32 hw_rev)
 {
 	int i;
 	struct dpu_mdss_cfg *dpu_cfg;
 
-	dpu_cfg = kzalloc(sizeof(*dpu_cfg), GFP_KERNEL);
+	dpu_cfg = devm_kzalloc(dev, sizeof(*dpu_cfg), GFP_KERNEL);
 	if (!dpu_cfg)
 		return ERR_PTR(-ENOMEM);
 
@@ -2009,7 +2004,7 @@ struct dpu_mdss_cfg *dpu_hw_catalog_init(u32 hw_rev)
 	}
 
 	DPU_ERROR("unsupported chipset id:%X\n", hw_rev);
-	dpu_hw_catalog_deinit(dpu_cfg);
+
 	return ERR_PTR(-ENODEV);
 }
 
