@@ -70,7 +70,7 @@ static void vcpu_power_off(struct kvm_vm *vm, uint32_t vcpuid)
 		.mp_state = KVM_MP_STATE_STOPPED,
 	};
 
-	vcpu_set_mp_state(vm, vcpuid, &mp_state);
+	vcpu_mp_state_set(vm, vcpuid, &mp_state);
 }
 
 static struct kvm_vm *setup_vm(void *guest_code)

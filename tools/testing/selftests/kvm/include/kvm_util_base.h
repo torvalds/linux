@@ -374,13 +374,18 @@ static inline void vcpu_enable_cap(struct kvm_vm *vm, uint32_t vcpu_id,
 	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_cap);
 }
 
-static inline void vcpu_set_guest_debug(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_guest_debug_set(struct kvm_vm *vm, uint32_t vcpuid,
 					struct kvm_guest_debug *debug)
 {
 	vcpu_ioctl(vm, vcpuid, KVM_SET_GUEST_DEBUG, debug);
 }
 
-static inline void vcpu_set_mp_state(struct kvm_vm *vm, uint32_t vcpuid,
+static inline void vcpu_mp_state_get(struct kvm_vm *vm, uint32_t vcpuid,
+				     struct kvm_mp_state *mp_state)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_MP_STATE, mp_state);
+}
+static inline void vcpu_mp_state_set(struct kvm_vm *vm, uint32_t vcpuid,
 				     struct kvm_mp_state *mp_state)
 {
 	vcpu_ioctl(vm, vcpuid, KVM_SET_MP_STATE, mp_state);

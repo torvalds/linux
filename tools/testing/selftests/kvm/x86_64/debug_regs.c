@@ -67,7 +67,7 @@ static void guest_code(void)
 }
 
 #define  CLEAR_DEBUG()  memset(&debug, 0, sizeof(debug))
-#define  APPLY_DEBUG()  vcpu_set_guest_debug(vm, VCPU_ID, &debug)
+#define  APPLY_DEBUG()  vcpu_guest_debug_set(vm, VCPU_ID, &debug)
 #define  CAST_TO_RIP(v)  ((unsigned long long)&(v))
 #define  SET_RIP(v)  do {				\
 		vcpu_regs_get(vm, VCPU_ID, &regs);	\

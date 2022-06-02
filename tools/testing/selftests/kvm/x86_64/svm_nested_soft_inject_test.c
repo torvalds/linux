@@ -166,7 +166,7 @@ static void run_test(bool is_nmi)
 	vcpu_args_set(vm, VCPU_ID, 3, svm_gva, (uint64_t)is_nmi, (uint64_t)idt_alt_vm);
 
 	memset(&debug, 0, sizeof(debug));
-	vcpu_set_guest_debug(vm, VCPU_ID, &debug);
+	vcpu_guest_debug_set(vm, VCPU_ID, &debug);
 
 	struct kvm_run *run = vcpu_state(vm, VCPU_ID);
 	struct ucall uc;
