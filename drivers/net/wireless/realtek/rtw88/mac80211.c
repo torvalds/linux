@@ -493,9 +493,7 @@ static int rtw_ops_set_tim(struct ieee80211_hw *hw, struct ieee80211_sta *sta,
 {
 	struct rtw_dev *rtwdev = hw->priv;
 
-	mutex_lock(&rtwdev->mutex);
-	rtw_fw_download_rsvd_page(rtwdev);
-	mutex_unlock(&rtwdev->mutex);
+	ieee80211_queue_work(hw, &rtwdev->update_beacon_work);
 
 	return 0;
 }
