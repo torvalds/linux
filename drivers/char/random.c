@@ -163,7 +163,6 @@ int __cold register_random_ready_notifier(struct notifier_block *nb)
 	spin_unlock_irqrestore(&random_ready_chain_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(register_random_ready_notifier);
 
 /*
  * Delete a previously registered readiness callback function.
@@ -178,7 +177,6 @@ int __cold unregister_random_ready_notifier(struct notifier_block *nb)
 	spin_unlock_irqrestore(&random_ready_chain_lock, flags);
 	return ret;
 }
-EXPORT_SYMBOL(unregister_random_ready_notifier);
 
 static void __cold process_random_ready_list(void)
 {
