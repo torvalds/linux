@@ -25,7 +25,7 @@ struct or1k_frameinfo {
 /*
  * Verify a frameinfo structure.  The return address should be a valid text
  * address.  The frame pointer may be null if its the last frame, otherwise
- * the frame pointer should point to a location in the stack after the the
+ * the frame pointer should point to a location in the stack after the
  * top of the next frame up.
  */
 static inline int or1k_frameinfo_valid(struct or1k_frameinfo *frameinfo)
