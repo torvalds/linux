@@ -412,7 +412,7 @@ err_pool_add:
 }
 
 /**
- * hl_mmu_fini() - release the MMU module.
+ * hl_mmu_v1_fini() - release the MMU module.
  * @hdev: habanalabs device structure.
  *
  * This function does the following:
@@ -438,7 +438,7 @@ static void hl_mmu_v1_fini(struct hl_device *hdev)
 }
 
 /**
- * hl_mmu_ctx_init() - initialize a context for using the MMU module.
+ * hl_mmu_v1_ctx_init() - initialize a context for using the MMU module.
  * @ctx: pointer to the context structure to initialize.
  *
  * Initialize a mutex to protect the concurrent mapping flow, a hash to hold all
