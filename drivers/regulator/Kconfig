@@ -1481,6 +1481,15 @@ config REGULATOR_QCOM_LABIBB
 	  boost regulator and IBB can be used as a negative boost regulator
 	  for LCD display panel.
 
+config REGULATOR_RPMH
+	tristate "Qualcomm Technologies, Inc. Legacy RPMh regulator driver"
+	depends on QCOM_RPMH
+	help
+	  This driver supports control of PMIC regulators via the RPMh hardware
+	  block found on Qualcomm Technologies Inc. SoCs.  RPMh regulator
+	  control allows for voting on regulator state between multiple
+	  processors within the SoC.
+
 config REGULATOR_STUB
 	tristate "Stub Regulator"
 	help
