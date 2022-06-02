@@ -34,7 +34,7 @@
 
 #include "../fbdev/sticore.h"
 
-#define STI_DRIVERVERSION "Version 0.9b"
+#define STI_DRIVERVERSION "Version 0.9c"
 
 static struct sti_struct *default_sti __read_mostly;
 
@@ -503,7 +503,7 @@ sti_select_fbfont(struct sti_cooked_rom *cooked_rom, const char *fbfont_name)
 	if (!fbfont)
 		return NULL;
 
-	pr_info("STI selected %ux%u framebuffer font %s for sticon\n",
+	pr_info("    using %ux%u framebuffer font %s\n",
 			fbfont->width, fbfont->height, fbfont->name);
 			
 	bpc = ((fbfont->width+7)/8) * fbfont->height; 
@@ -947,6 +947,7 @@ out_err:
 
 static void sticore_check_for_default_sti(struct sti_struct *sti, char *path)
 {
+	pr_info("    located at [%s]\n", sti->pa_path);
 	if (strcmp (path, default_sti_path) == 0)
 		default_sti = sti;
 }
@@ -958,7 +959,6 @@ static void sticore_check_for_default_sti(struct sti_struct *sti, char *path)
  */
 static int __init sticore_pa_init(struct parisc_device *dev)
 {
-	char pa_path[21];
 	struct sti_struct *sti = NULL;
 	int hpa = dev->hpa.start;
 
@@ -971,8 +971,8 @@ static int __init sticore_pa_init(struct parisc_device *dev)
 	if (!sti)
 		return 1;
 
-	print_pa_hwpath(dev, pa_path);
-	sticore_check_for_default_sti(sti, pa_path);
+	print_pa_hwpath(dev, sti->pa_path);
+	sticore_check_for_default_sti(sti, sti->pa_path);
 	return 0;
 }
 
@@ -1008,9 +1008,8 @@ static int sticore_pci_init(struct pci_dev *pd, const struct pci_device_id *ent)
 
 	sti = sti_try_rom_generic(rom_base, fb_base, pd);
 	if (sti) {
-		char pa_path[30];
-		print_pci_hwpath(pd, pa_path);
-		sticore_check_for_default_sti(sti, pa_path);
+		print_pci_hwpath(pd, sti->pa_path);
+		sticore_check_for_default_sti(sti, sti->pa_path);
 	}
 	
 	if (!sti) {
