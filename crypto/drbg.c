@@ -1047,6 +1047,27 @@ static inline int __drbg_seed(struct drbg_state *drbg, struct list_head *seed,
 	/* 10.1.1.2 / 10.1.1.3 step 5 */
 	drbg->reseed_ctr = 1;
 
+	switch (drbg->seeded) {
+	case DRBG_SEED_STATE_UNSEEDED:
+		/* Impossible, but handle it to silence compiler warnings. */
+		fallthrough;
+	case DRBG_SEED_STATE_PARTIAL:
+		/*
+		 * Require frequent reseeds until the seed source is
+		 * fully initialized.
+		 */
+		drbg->reseed_threshold = 50;
+		break;
+
+	case DRBG_SEED_STATE_FULL:
+		/*
+		 * Seed source has become fully initialized, frequent
+		 * reseeds no longer required.
+		 */
+		drbg->reseed_threshold = drbg_max_requests(drbg);
+		break;
+	}
+
 	return ret;
 }
 
@@ -1094,9 +1115,6 @@ static void drbg_async_seed(struct work_struct *work)
 	drbg->seeded = DRBG_SEED_STATE_UNSEEDED;
 
 	__drbg_seed(drbg, &seedlist, true, DRBG_SEED_STATE_FULL);
-
-	if (drbg->seeded == DRBG_SEED_STATE_FULL)
-		drbg->reseed_threshold = drbg_max_requests(drbg);
 
 unlock:
 	mutex_unlock(&drbg->drbg_mutex);
@@ -1532,12 +1550,6 @@ static int drbg_prepare_hrng(struct drbg_state *drbg)
 		drbg->random_ready.notifier_call = NULL;
 		return err;
 	}
-
-	/*
-	 * Require frequent reseeds until the seed source is fully
-	 * initialized.
-	 */
-	drbg->reseed_threshold = 50;
 
 	return err;
 }
