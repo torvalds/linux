@@ -601,7 +601,7 @@ static int rockchip_canfd_rx(struct net_device *ndev)
 	return 1;
 }
 
-static int rockchip_canfd_err(struct net_device *ndev, u8 isr)
+static int rockchip_canfd_err(struct net_device *ndev, u32 isr)
 {
 	struct rockchip_canfd *rcan = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
@@ -665,9 +665,9 @@ static irqreturn_t rockchip_canfd_interrupt(int irq, void *dev_id)
 	struct net_device *ndev = (struct net_device *)dev_id;
 	struct rockchip_canfd *rcan = netdev_priv(ndev);
 	struct net_device_stats *stats = &ndev->stats;
-	u8 err_int = ERR_WARN_INT | RX_BUF_OV_INT | PASSIVE_ERR_INT |
-		     TX_LOSTARB_INT | BUS_ERR_INT;
-	u8 isr;
+	u32 err_int = ERR_WARN_INT | RX_BUF_OV_INT | PASSIVE_ERR_INT |
+		      TX_LOSTARB_INT | BUS_ERR_INT | BUS_OFF_INT;
+	u32 isr;
 	u32 dlc = 0;
 
 	isr = rockchip_canfd_read(rcan, CAN_INT);
