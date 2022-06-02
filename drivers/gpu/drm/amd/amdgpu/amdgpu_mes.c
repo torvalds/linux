@@ -675,6 +675,7 @@ int amdgpu_mes_add_hw_queue(struct amdgpu_device *adev, int gang_id,
 	queue_input.doorbell_offset = qprops->doorbell_off;
 	queue_input.mqd_addr = queue->mqd_gpu_addr;
 	queue_input.wptr_addr = qprops->wptr_gpu_addr;
+	queue_input.wptr_mc_addr = qprops->wptr_mc_addr;
 	queue_input.queue_type = qprops->queue_type;
 	queue_input.paging = qprops->paging;
 	queue_input.is_kfd_process = 0;
@@ -802,6 +803,8 @@ amdgpu_mes_ring_to_queue_props(struct amdgpu_device *adev,
 	props->hqd_base_gpu_addr = ring->gpu_addr;
 	props->rptr_gpu_addr = ring->rptr_gpu_addr;
 	props->wptr_gpu_addr = ring->wptr_gpu_addr;
+	props->wptr_mc_addr =
+		ring->mes_ctx->meta_data_mc_addr + ring->wptr_offs;
 	props->queue_size = ring->ring_size;
 	props->eop_gpu_addr = ring->eop_gpu_addr;
 	props->hqd_pipe_priority = AMDGPU_GFX_PIPE_PRIO_NORMAL;
@@ -962,7 +965,8 @@ int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 	r = amdgpu_bo_create_kernel(adev,
 			    sizeof(struct amdgpu_mes_ctx_meta_data),
 			    PAGE_SIZE, AMDGPU_GEM_DOMAIN_GTT,
-			    &ctx_data->meta_data_obj, NULL,
+			    &ctx_data->meta_data_obj,
+			    &ctx_data->meta_data_mc_addr,
 			    &ctx_data->meta_data_ptr);
 	if (!ctx_data->meta_data_obj)
 		return -ENOMEM;
@@ -976,7 +980,9 @@ int amdgpu_mes_ctx_alloc_meta_data(struct amdgpu_device *adev,
 void amdgpu_mes_ctx_free_meta_data(struct amdgpu_mes_ctx_data *ctx_data)
 {
 	if (ctx_data->meta_data_obj)
-		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj, NULL, NULL);
+		amdgpu_bo_free_kernel(&ctx_data->meta_data_obj,
+				      &ctx_data->meta_data_mc_addr,
+				      &ctx_data->meta_data_ptr);
 }
 
 int amdgpu_mes_ctx_map_meta_data(struct amdgpu_device *adev,

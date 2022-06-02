@@ -176,6 +176,7 @@ struct amdgpu_mes_queue_properties {
 	uint64_t                hqd_base_gpu_addr;
 	uint64_t                rptr_gpu_addr;
 	uint64_t                wptr_gpu_addr;
+	uint64_t                wptr_mc_addr;
 	uint32_t                queue_size;
 	uint64_t                eop_gpu_addr;
 	uint32_t                hqd_pipe_priority;
@@ -208,6 +209,7 @@ struct mes_add_queue_input {
 	uint32_t	doorbell_offset;
 	uint64_t	mqd_addr;
 	uint64_t	wptr_addr;
+	uint64_t	wptr_mc_addr;
 	uint32_t	queue_type;
 	uint32_t	paging;
 	uint32_t        gws_base;

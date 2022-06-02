@@ -156,7 +156,13 @@ static int mes_v11_0_add_hw_queue(struct amdgpu_mes *mes,
 		input->gang_global_priority_level;
 	mes_add_queue_pkt.doorbell_offset = input->doorbell_offset;
 	mes_add_queue_pkt.mqd_addr = input->mqd_addr;
-	mes_add_queue_pkt.wptr_addr = input->wptr_addr;
+
+	if (((adev->mes.sched_version & AMDGPU_MES_API_VERSION_MASK) >>
+			AMDGPU_MES_API_VERSION_SHIFT) >= 2)
+		mes_add_queue_pkt.wptr_addr = input->wptr_mc_addr;
+	else
+		mes_add_queue_pkt.wptr_addr = input->wptr_addr;
+
 	mes_add_queue_pkt.queue_type =
 		convert_to_mes_queue_type(input->queue_type);
 	mes_add_queue_pkt.paging = input->paging;
