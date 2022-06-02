@@ -1085,7 +1085,8 @@ static int zonefs_seq_file_write_open(struct inode *inode)
 
 		if (sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) {
 
-			if (wro > sbi->s_max_wro_seq_files) {
+			if (sbi->s_max_wro_seq_files
+			    && wro > sbi->s_max_wro_seq_files) {
 				atomic_dec(&sbi->s_wro_seq_files);
 				ret = -EBUSY;
 				goto unlock;
@@ -1785,8 +1786,10 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 		    blkdev_nr_zones(sb->s_bdev->bd_disk));
 
 	if (!sbi->s_max_wro_seq_files &&
+	    !sbi->s_max_active_seq_files &&
 	    sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) {
-		zonefs_info(sb, "No open zones limit. Ignoring explicit_open mount option\n");
+		zonefs_info(sb,
+			"No open and active zone limits. Ignoring explicit_open mount option\n");
 		sbi->s_mount_opts &= ~ZONEFS_MNTOPT_EXPLICIT_OPEN;
 	}
 
