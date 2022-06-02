@@ -538,6 +538,7 @@ enum cif_reg_index {
 #define DVP_SW_HURRY_VALUE(val)		(((val) & 0x7) << 9)
 #define DVP_SW_CAP_EN(ID)		(2 << ID)
 #define DVP_SW_DMA_EN(ID)		(0x100000 << ID)
+#define DVP_START_INTSTAT(ID)		(0x3 << ((ID) * 2))
 
 #define DVP_DMA_END_INTEN(id)	\
 	({ \
@@ -1044,6 +1045,10 @@ enum cif_reg_index {
 
 
 /*toisp*/
+#define TOISP_FS_CH0(index)		(0x1 << (14 + index * 3))
+#define TOISP_FS_CH1(index)		(0x1 << (15 + index * 3))
+#define TOISP_FS_CH2(index)		(0x1 << (16 + index * 3))
+
 #define TOISP_END_CH0(index)		(0x1 << (20 + index * 3))
 #define TOISP_END_CH1(index)		(0x1 << (21 + index * 3))
 #define TOISP_END_CH2(index)		(0x1 << (22 + index * 3))

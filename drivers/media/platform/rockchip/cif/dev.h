@@ -802,7 +802,7 @@ void rkcif_free_rx_buf(struct rkcif_stream *stream, int buf_num);
 int rkcif_set_fmt(struct rkcif_stream *stream,
 		       struct v4l2_pix_format_mplane *pixm,
 		       bool try);
-void rkcif_enable_dma_capture(struct rkcif_stream *stream);
+void rkcif_enable_dma_capture(struct rkcif_stream *stream, bool is_only_enable);
 
 void rkcif_do_soft_reset(struct rkcif_device *dev);
 

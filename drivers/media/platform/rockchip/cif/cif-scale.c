@@ -1048,7 +1048,7 @@ void rkcif_irq_handle_scale(struct rkcif_device *cif_dev, unsigned int intstat_g
 		rkcif_scale_update_stream(scale_vdev, ch);
 		stream = scale_vdev->stream;
 		if (stream->to_en_dma)
-			rkcif_enable_dma_capture(stream);
+			rkcif_enable_dma_capture(stream, false);
 	}
 }
 
