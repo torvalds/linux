@@ -5401,10 +5401,7 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 	mgmt->seq_ctrl = cpu_to_le16(pmlmeext->mgnt_seq);
 	pmlmeext->mgnt_seq++;
 
-	pattrib->pktlen = sizeof(struct ieee80211_hdr_3addr);
-
 	mgmt->u.action.category = WLAN_CATEGORY_BACK;
-	pattrib->pktlen++;
 
 	switch (action) {
 	case WLAN_ACTION_ADDBA_REQ:
@@ -5448,14 +5445,12 @@ void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned ch
 		break;
 	case WLAN_ACTION_DELBA:
 		mgmt->u.action.u.delba.action_code = WLAN_ACTION_DELBA;
-		pattrib->pktlen++;
 		mgmt->u.action.u.delba.params = cpu_to_le16((status & 0x1F) << 3);
 		params = u16_encode_bits((status & 0x1), IEEE80211_DELBA_PARAM_INITIATOR_MASK);
 		params |= u16_encode_bits((status >> 1) & 0xF, IEEE80211_DELBA_PARAM_TID_MASK);
 		mgmt->u.action.u.delba.params = cpu_to_le16(params);
-		pattrib->pktlen += 2;
 		mgmt->u.action.u.delba.reason_code = cpu_to_le16(WLAN_STATUS_REQUEST_DECLINED);
-		pattrib->pktlen += 2;
+		pattrib->pktlen = offsetofend(struct ieee80211_mgmt, u.action.u.delba.reason_code);
 		break;
 	default:
 		break;
