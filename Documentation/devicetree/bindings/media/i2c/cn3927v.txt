@@ -1,0 +1,74 @@
+* CN3927V vcm driver support
+
+Required Properties:
+- compatible: Must contain "chipnext,cn3927v"
+- reg: I2C slave address
+
+Common Optional Properties:
+- rockchip,vcm-max-current: max output current, default 120, unit: mA.
+- rockchip,vcm-start-current: starting current.
+- rockchip,vcm-rated-current: rate current.
+
+Normal Mode Optional Properties:
+- rockchip,vcm-step-mode: S[3:2]: Codes per step, S[1:0]: Step period, default 0xd.
+- rockchip,vcm-edlc-enable: Enhanced Dual Level Control Mode enable, default 0.
+- rockchip,vcm-dlc-enable: Dual level control enable, default 0.
+- rockchip,vcm-mclk: MCLK[1:0], default 0.
+- rockchip,vcm-t-src: T_SRC[4:0], default 0.
+
+Advanced Mode Optional Properties:
+- rockchip,vcm-adcanced-mode: Enable Advanced mode, 0: Normal mode; 1: Advanced mode.
+- rockchip,vcm-sac-mode: SAC_MODE[3:0]: 0x0~0xe, other reserved.
+- rockchip,vcm-sac-time: SACT[6:0]: SAC time selection.
+- rockchip,vcm-prescl: PRESC[1:0]: Prescaler (SAC Period Divider).
+  : SAC setting time = tVIB = (3.81ms+(SACT [6:0]) x 0.03ms)) x (PRESC[1:0]).
+
+NRC(Noise Reduction Control) mode Properties:
+Current not used, for future use
+- rockchip,vcm-nrc-en: NRC EN: 0:Direct mode, 1:NRC mode.
+- rockchip,vcm-nrc-mode: NRC_MODE: 0: NRC start, 1: NRC landing.
+- rockchip,vcm-nrc-preset: PRESET[7:0]: NRC Current Setting.
+- rockchip,vcm-nrc-infl: NRC_INF[1:0]: NRC inflection point.
+- rockchip,vcm-nrc-time: NRC Operation Time: 0: 32ms, 1: 64ms.
+
+Required Special properties:
+- rockchip,camera-module-index : indicate which camera the vcm belongs to.
+- rockchip,camera-module-facing : indicate the camera facing.
+
+Example:
+
+&i2c1 {
+	...
+	cn3927v: cn3927v@c {
+		compatible = "chipnext,cn3927v";
+		status = "okay";
+		reg = <0x0c>;
+		rockchip,vcm-max-current = <120>;
+		rockchip,vcm-start-current = <30>;
+		rockchip,vcm-rated-current = <80>;
+		rockchip,vcm-step-mode = <0x8>;
+		rockchip,vcm-edlc-enable = <0>;
+		rockchip,vcm-dlc-enable = <0>;
+		rockchip,vcm-mclk = <1>;
+		rockchip,vcm-t-src = <0>;
+		rockchip,vcm-adcanced-mode = <1>;
+		rockchip,vcm-sac-mode = <0x03>;
+		rockchip,vcm-sac-time = <0x28>;
+		rockchip,vcm-prescl = <0x02>;
+		rockchip,vcm-nrc-en = <0>;
+		rockchip,vcm-nrc-mode = <1>;
+		rockchip,vcm-nrc-preset = <0x11110000>;
+		rockchip,vcm-nrc-infl = <0x01>;
+		rockchip,vcm-nrc-time = <0>;
+		rockchip,camera-module-index = <0>;
+		rockchip,camera-module-facing = "back";
+	};
+
+	...
+	s5kjn1: s5kjn1@10 {
+		...
+		lens-focus = <&cn3927v>;
+		...
+	};
+	...
+}
