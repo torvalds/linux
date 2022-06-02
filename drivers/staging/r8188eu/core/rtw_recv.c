@@ -452,8 +452,7 @@ static int recv_decache(struct recv_frame *precv_frame, u8 bretry, struct stainf
 	return _SUCCESS;
 }
 
-void process_pwrbit_data(struct adapter *padapter, struct recv_frame *precv_frame);
-void process_pwrbit_data(struct adapter *padapter, struct recv_frame *precv_frame)
+static void process_pwrbit_data(struct adapter *padapter, struct recv_frame *precv_frame)
 {
 	unsigned char pwrbit;
 	u8 *ptr = precv_frame->rx_data;
