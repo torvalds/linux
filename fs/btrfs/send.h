@@ -7,7 +7,7 @@
 #ifndef BTRFS_SEND_H
 #define BTRFS_SEND_H
 
-#include "ctree.h"
+#include <linux/types.h>
 
 #define BTRFS_SEND_STREAM_MAGIC "btrfs-stream"
 #define BTRFS_SEND_STREAM_VERSION 2
@@ -17,6 +17,9 @@
  * should be assumed.
  */
 #define BTRFS_SEND_BUF_SIZE_V1				SZ_64K
+
+struct inode;
+struct btrfs_ioctl_send_args;
 
 enum btrfs_tlv_type {
 	BTRFS_TLV_U8,
