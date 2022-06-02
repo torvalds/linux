@@ -138,7 +138,7 @@
 		opp-600000000 {
 			opp-hz = /bits/ 64 <600000000>;
 			opp-microvolt = <1150000 1150000 1425000>;
-			opp-microvolt-L0 = <11500000 1150000 1425000>;
+			opp-microvolt-L0 = <1150000 1150000 1425000>;
 			opp-microvolt-L1 = <1100000 1100000 1425000>;
 			opp-microvolt-L2 = <1050000 1050000 1425000>;
 			clock-latency-ns = <40000>;
@@ -250,7 +250,7 @@
 		};
 		opp-300000000 {
 			opp-hz = /bits/ 64 <300000000>;
-			opp-microvolt = <10250000>;
+			opp-microvolt = <1025000>;
 		};
 		opp-396000000 {
 			opp-hz = /bits/ 64 <396000000>;
