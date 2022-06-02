@@ -891,19 +891,20 @@ void vcpu_dump(FILE *stream, struct kvm_vm *vm, uint32_t vcpuid, uint8_t indent)
 	sregs_dump(stream, &sregs, indent + 4);
 }
 
-const struct kvm_msr_list *kvm_get_msr_index_list(void)
+static struct kvm_msr_list *__kvm_get_msr_index_list(bool feature_msrs)
 {
-	static struct kvm_msr_list *list;
+	struct kvm_msr_list *list;
 	struct kvm_msr_list nmsrs;
 	int kvm_fd, r;
-
-	if (list)
-		return list;
 
 	kvm_fd = open_kvm_dev_path_or_exit();
 
 	nmsrs.nmsrs = 0;
-	r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
+	if (!feature_msrs)
+		r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, &nmsrs);
+	else
+		r = __kvm_ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, &nmsrs);
+
 	TEST_ASSERT(r == -1 && errno == E2BIG,
 		    "Expected -E2BIG, got rc: %i errno: %i (%s)",
 		    r, errno, strerror(errno));
@@ -912,12 +913,34 @@ const struct kvm_msr_list *kvm_get_msr_index_list(void)
 	TEST_ASSERT(list, "-ENOMEM when allocating MSR index list");
 	list->nmsrs = nmsrs.nmsrs;
 
-	kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
+	if (!feature_msrs)
+		kvm_ioctl(kvm_fd, KVM_GET_MSR_INDEX_LIST, list);
+	else
+		kvm_ioctl(kvm_fd, KVM_GET_MSR_FEATURE_INDEX_LIST, list);
 	close(kvm_fd);
 
 	TEST_ASSERT(list->nmsrs == nmsrs.nmsrs,
-		    "Number of save/restore MSRs changed, was %d, now %d",
+		    "Number of MSRs in list changed, was %d, now %d",
 		    nmsrs.nmsrs, list->nmsrs);
+	return list;
+}
+
+const struct kvm_msr_list *kvm_get_msr_index_list(void)
+{
+	static const struct kvm_msr_list *list;
+
+	if (!list)
+		list = __kvm_get_msr_index_list(false);
+	return list;
+}
+
+
+const struct kvm_msr_list *kvm_get_feature_msr_index_list(void)
+{
+	static const struct kvm_msr_list *list;
+
+	if (!list)
+		list = __kvm_get_msr_index_list(true);
 	return list;
 }
 
