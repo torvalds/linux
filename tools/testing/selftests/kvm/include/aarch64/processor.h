@@ -19,7 +19,7 @@
 /*
  * KVM_ARM64_SYS_REG(sys_reg_id): Helper macro to convert
  * SYS_* register definitions in asm/sysreg.h to use in KVM
- * calls such as get_reg() and set_reg().
+ * calls such as vcpu_get_reg() and vcpu_set_reg().
  */
 #define KVM_ARM64_SYS_REG(sys_reg_id)			\
 	ARM64_SYS_REG(sys_reg_Op0(sys_reg_id),		\
@@ -46,22 +46,6 @@
 			  (0xbbul << (5 * 8)))
 
 #define MPIDR_HWID_BITMASK (0xff00fffffful)
-
-static inline void get_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id, uint64_t *addr)
-{
-	struct kvm_one_reg reg;
-	reg.id = id;
-	reg.addr = (uint64_t)addr;
-	vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, &reg);
-}
-
-static inline void set_reg(struct kvm_vm *vm, uint32_t vcpuid, uint64_t id, uint64_t val)
-{
-	struct kvm_one_reg reg;
-	reg.id = id;
-	reg.addr = (uint64_t)&val;
-	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
-}
 
 void aarch64_vcpu_setup(struct kvm_vm *vm, uint32_t vcpuid, struct kvm_vcpu_init *init);
 struct kvm_vcpu *aarch64_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,

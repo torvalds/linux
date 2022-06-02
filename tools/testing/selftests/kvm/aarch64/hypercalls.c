@@ -141,26 +141,6 @@ static void guest_code(void)
 	GUEST_DONE();
 }
 
-static int set_fw_reg(struct kvm_vm *vm, uint64_t id, uint64_t val)
-{
-	struct kvm_one_reg reg = {
-		.id = id,
-		.addr = (uint64_t)&val,
-	};
-
-	return __vcpu_ioctl(vm, 0, KVM_SET_ONE_REG, &reg);
-}
-
-static void get_fw_reg(struct kvm_vm *vm, uint64_t id, uint64_t *addr)
-{
-	struct kvm_one_reg reg = {
-		.id = id,
-		.addr = (uint64_t)addr,
-	};
-
-	vcpu_ioctl(vm, 0, KVM_GET_ONE_REG, &reg);
-}
-
 struct st_time {
 	uint32_t rev;
 	uint32_t attr;
@@ -196,18 +176,18 @@ static void test_fw_regs_before_vm_start(struct kvm_vm *vm)
 		const struct kvm_fw_reg_info *reg_info = &fw_reg_info[i];
 
 		/* First 'read' should be an upper limit of the features supported */
-		get_fw_reg(vm, reg_info->reg, &val);
+		vcpu_get_reg(vm, 0, reg_info->reg, &val);
 		TEST_ASSERT(val == FW_REG_ULIMIT_VAL(reg_info->max_feat_bit),
 			"Expected all the features to be set for reg: 0x%lx; expected: 0x%lx; read: 0x%lx\n",
 			reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit), val);
 
 		/* Test a 'write' by disabling all the features of the register map */
-		ret = set_fw_reg(vm, reg_info->reg, 0);
+		ret = __vcpu_set_reg(vm, 0, reg_info->reg, 0);
 		TEST_ASSERT(ret == 0,
 			"Failed to clear all the features of reg: 0x%lx; ret: %d\n",
 			reg_info->reg, errno);
 
-		get_fw_reg(vm, reg_info->reg, &val);
+		vcpu_get_reg(vm, 0, reg_info->reg, &val);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx\n", reg_info->reg);
 
@@ -216,7 +196,7 @@ static void test_fw_regs_before_vm_start(struct kvm_vm *vm)
 		 * Avoid this check if all the bits are occupied.
 		 */
 		if (reg_info->max_feat_bit < 63) {
-			ret = set_fw_reg(vm, reg_info->reg, BIT(reg_info->max_feat_bit + 1));
+			ret = __vcpu_set_reg(vm, 0, reg_info->reg, BIT(reg_info->max_feat_bit + 1));
 			TEST_ASSERT(ret != 0 && errno == EINVAL,
 			"Unexpected behavior or return value (%d) while setting an unsupported feature for reg: 0x%lx\n",
 			errno, reg_info->reg);
@@ -237,7 +217,7 @@ static void test_fw_regs_after_vm_start(struct kvm_vm *vm)
 		 * Before starting the VM, the test clears all the bits.
 		 * Check if that's still the case.
 		 */
-		get_fw_reg(vm, reg_info->reg, &val);
+		vcpu_get_reg(vm, 0, reg_info->reg, &val);
 		TEST_ASSERT(val == 0,
 			"Expected all the features to be cleared for reg: 0x%lx\n",
 			reg_info->reg);
@@ -247,7 +227,7 @@ static void test_fw_regs_after_vm_start(struct kvm_vm *vm)
 		 * the registers and should return EBUSY. Set the registers and check for
 		 * the expected errno.
 		 */
-		ret = set_fw_reg(vm, reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit));
+		ret = __vcpu_set_reg(vm, 0, reg_info->reg, FW_REG_ULIMIT_VAL(reg_info->max_feat_bit));
 		TEST_ASSERT(ret != 0 && errno == EBUSY,
 		"Unexpected behavior or return value (%d) while setting a feature while VM is running for reg: 0x%lx\n",
 		errno, reg_info->reg);

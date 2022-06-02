@@ -374,16 +374,36 @@ static inline void vcpu_fpu_set(struct kvm_vm *vm, uint32_t vcpuid,
 {
 	vcpu_ioctl(vm, vcpuid, KVM_SET_FPU, fpu);
 }
-static inline void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid,
-				struct kvm_one_reg *reg)
+
+static inline int __vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid,
+				 uint64_t reg_id, void *addr)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, reg);
+	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)addr };
+
+	return __vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, &reg);
+}
+static inline int __vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid,
+				 uint64_t reg_id, uint64_t val)
+{
+	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)&val };
+
+	return __vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
+}
+static inline void vcpu_get_reg(struct kvm_vm *vm, uint32_t vcpuid,
+				uint64_t reg_id, void *addr)
+{
+	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)addr };
+
+	vcpu_ioctl(vm, vcpuid, KVM_GET_ONE_REG, &reg);
 }
 static inline void vcpu_set_reg(struct kvm_vm *vm, uint32_t vcpuid,
-				struct kvm_one_reg *reg)
+				uint64_t reg_id, uint64_t val)
 {
-	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, reg);
+	struct kvm_one_reg reg = { .id = reg_id, .addr = (uint64_t)&val };
+
+	vcpu_ioctl(vm, vcpuid, KVM_SET_ONE_REG, &reg);
 }
+
 #ifdef __KVM_HAVE_VCPU_EVENTS
 static inline void vcpu_events_get(struct kvm_vm *vm, uint32_t vcpuid,
 				   struct kvm_vcpu_events *events)
