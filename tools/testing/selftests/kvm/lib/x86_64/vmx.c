@@ -51,7 +51,7 @@ int vcpu_enable_evmcs(struct kvm_vm *vm, int vcpu_id)
 		 .args[0] = (unsigned long)&evmcs_ver
 	};
 
-	vcpu_ioctl(vm, vcpu_id, KVM_ENABLE_CAP, &enable_evmcs_cap);
+	vcpu_enable_cap(vm, vcpu_id, &enable_evmcs_cap);
 
 	/* KVM should return supported EVMCS version range */
 	TEST_ASSERT(((evmcs_ver >> 8) >= (evmcs_ver & 0xff)) &&

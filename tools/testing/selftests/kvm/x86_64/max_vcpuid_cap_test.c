@@ -25,28 +25,25 @@ int main(int argc, char *argv[])
 	/* Try to set KVM_CAP_MAX_VCPU_ID beyond KVM cap */
 	cap.cap = KVM_CAP_MAX_VCPU_ID;
 	cap.args[0] = ret + 1;
-	ret = ioctl(vm->fd, KVM_ENABLE_CAP, &cap);
+	ret = __vm_enable_cap(vm, &cap);
 	TEST_ASSERT(ret < 0,
-		    "Unexpected success to enable KVM_CAP_MAX_VCPU_ID"
-		    "beyond KVM cap!\n");
+		    "Setting KVM_CAP_MAX_VCPU_ID beyond KVM cap should fail");
 
 	/* Set KVM_CAP_MAX_VCPU_ID */
 	cap.cap = KVM_CAP_MAX_VCPU_ID;
 	cap.args[0] = MAX_VCPU_ID;
-	ret = ioctl(vm->fd, KVM_ENABLE_CAP, &cap);
-	TEST_ASSERT(ret == 0,
-		    "Unexpected failure to enable KVM_CAP_MAX_VCPU_ID!\n");
+	vm_enable_cap(vm, &cap);
+
 
 	/* Try to set KVM_CAP_MAX_VCPU_ID again */
 	cap.args[0] = MAX_VCPU_ID + 1;
-	ret = ioctl(vm->fd, KVM_ENABLE_CAP, &cap);
+	ret = __vm_enable_cap(vm, &cap);
 	TEST_ASSERT(ret < 0,
-		    "Unexpected success to enable KVM_CAP_MAX_VCPU_ID again\n");
+		    "Setting KVM_CAP_MAX_VCPU_ID multiple times should fail");
 
 	/* Create vCPU with id beyond KVM_CAP_MAX_VCPU_ID cap*/
-	ret = ioctl(vm->fd, KVM_CREATE_VCPU, MAX_VCPU_ID);
-	TEST_ASSERT(ret < 0,
-		    "Unexpected success in creating a vCPU with VCPU ID out of range\n");
+	ret = __vm_ioctl(vm, KVM_CREATE_VCPU, (void *)MAX_VCPU_ID);
+	TEST_ASSERT(ret < 0, "Creating vCPU with ID > MAX_VCPU_ID should fail");
 
 	kvm_vm_free(vm);
 	return 0;

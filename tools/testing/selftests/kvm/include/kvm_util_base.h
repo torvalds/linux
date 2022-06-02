@@ -231,6 +231,10 @@ static inline int vm_check_cap(struct kvm_vm *vm, long cap)
 	return ret;
 }
 
+static inline int __vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
+{
+	return __vm_ioctl(vm, KVM_ENABLE_CAP, cap);
+}
 static inline void vm_enable_cap(struct kvm_vm *vm, struct kvm_enable_cap *cap)
 {
 	vm_ioctl(vm, KVM_ENABLE_CAP, cap);
