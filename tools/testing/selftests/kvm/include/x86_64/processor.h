@@ -432,6 +432,60 @@ const struct kvm_msr_list *kvm_get_feature_msr_index_list(void);
 bool kvm_msr_is_in_save_restore_list(uint32_t msr_index);
 uint64_t kvm_get_feature_msr(uint64_t msr_index);
 
+static inline void vcpu_msrs_get(struct kvm_vm *vm, uint32_t vcpuid,
+				 struct kvm_msrs *msrs)
+{
+	int r = __vcpu_ioctl(vm, vcpuid, KVM_GET_MSRS, msrs);
+
+	TEST_ASSERT(r == msrs->nmsrs,
+		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
+		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
+}
+static inline void vcpu_msrs_set(struct kvm_vm *vm, uint32_t vcpuid,
+				 struct kvm_msrs *msrs)
+{
+	int r = __vcpu_ioctl(vm, vcpuid, KVM_SET_MSRS, msrs);
+
+	TEST_ASSERT(r == msrs->nmsrs,
+		    "KVM_GET_MSRS failed, r: %i (failed on MSR %x)",
+		    r, r < 0 || r >= msrs->nmsrs ? -1 : msrs->entries[r].index);
+}
+static inline void vcpu_debugregs_get(struct kvm_vm *vm, uint32_t vcpuid,
+				      struct kvm_debugregs *debugregs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_DEBUGREGS, debugregs);
+}
+static inline void vcpu_debugregs_set(struct kvm_vm *vm, uint32_t vcpuid,
+				      struct kvm_debugregs *debugregs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_DEBUGREGS, debugregs);
+}
+static inline void vcpu_xsave_get(struct kvm_vm *vm, uint32_t vcpuid,
+				  struct kvm_xsave *xsave)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_XSAVE, xsave);
+}
+static inline void vcpu_xsave2_get(struct kvm_vm *vm, uint32_t vcpuid,
+				   struct kvm_xsave *xsave)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_XSAVE2, xsave);
+}
+static inline void vcpu_xsave_set(struct kvm_vm *vm, uint32_t vcpuid,
+				  struct kvm_xsave *xsave)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_XSAVE, xsave);
+}
+static inline void vcpu_xcrs_get(struct kvm_vm *vm, uint32_t vcpuid,
+				 struct kvm_xcrs *xcrs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_GET_XCRS, xcrs);
+}
+static inline void vcpu_xcrs_set(struct kvm_vm *vm, uint32_t vcpuid,
+				 struct kvm_xcrs *xcrs)
+{
+	vcpu_ioctl(vm, vcpuid, KVM_SET_XCRS, xcrs);
+}
+
 struct kvm_cpuid2 *kvm_get_supported_cpuid(void);
 struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vm *vm, uint32_t vcpuid);
 
