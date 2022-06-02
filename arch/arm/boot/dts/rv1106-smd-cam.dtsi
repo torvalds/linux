@@ -281,9 +281,6 @@
 &rkcif_mipi_lvds1 {
 	status = "okay";
 
-	pinctrl-names = "default";
-	pinctrl-0 = <&mipi_pins>;
-
 	port {
 		/* MIPI CSI-2 endpoint */
 		cif_mipi1_in: endpoint {
