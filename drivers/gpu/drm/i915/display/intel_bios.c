@@ -1460,6 +1460,10 @@ parse_edp(struct drm_i915_private *i915,
 
 	panel->vbt.edp.drrs_msa_timing_delay =
 		(edp->sdrrs_msa_timing_delay >> (panel_type * 2)) & 3;
+
+	if (i915->vbt.version >= 244)
+		panel->vbt.edp.max_link_rate =
+			edp->edp_max_port_link_rate[panel_type] * 20;
 }
 
 static void

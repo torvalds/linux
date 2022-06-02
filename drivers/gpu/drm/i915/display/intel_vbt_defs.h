@@ -697,6 +697,7 @@ struct bdb_edp {
 	u16 apical_enable;					/* 203 */
 	struct edp_apical_params apical_params[16];		/* 203 */
 	u16 edp_fast_link_training_rate[16];			/* 224 */
+	u16 edp_max_port_link_rate[16];				/* 244 */
 } __packed;
 
 /*

@@ -300,6 +300,7 @@ struct intel_vbt_panel_data {
 	enum drrs_type drrs_type;
 
 	struct {
+		int max_link_rate;
 		int rate;
 		int lanes;
 		int preemphasis;
