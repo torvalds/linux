@@ -246,32 +246,31 @@ static struct kvm_vm *test_vm_create(void)
 	return vm;
 }
 
-static struct kvm_vm *test_guest_stage(struct kvm_vm *vm)
+static void test_guest_stage(struct kvm_vm **vm)
 {
-	struct kvm_vm *ret_vm = vm;
+	int prev_stage = stage;
 
-	pr_debug("Stage: %d\n", stage);
+	pr_debug("Stage: %d\n", prev_stage);
 
-	switch (stage) {
+	/* Sync the stage early, the VM might be freed below. */
+	stage++;
+	sync_global_to_guest(*vm, stage);
+
+	switch (prev_stage) {
 	case TEST_STAGE_REG_IFACE:
-		test_fw_regs_after_vm_start(vm);
+		test_fw_regs_after_vm_start(*vm);
 		break;
 	case TEST_STAGE_HVC_IFACE_FEAT_DISABLED:
 		/* Start a new VM so that all the features are now enabled by default */
-		kvm_vm_free(vm);
-		ret_vm = test_vm_create();
+		kvm_vm_free(*vm);
+		*vm = test_vm_create();
 		break;
 	case TEST_STAGE_HVC_IFACE_FEAT_ENABLED:
 	case TEST_STAGE_HVC_IFACE_FALSE_INFO:
 		break;
 	default:
-		TEST_FAIL("Unknown test stage: %d\n", stage);
+		TEST_FAIL("Unknown test stage: %d\n", prev_stage);
 	}
-
-	stage++;
-	sync_global_to_guest(vm, stage);
-
-	return ret_vm;
 }
 
 static void test_run(void)
@@ -289,7 +288,7 @@ static void test_run(void)
 
 		switch (get_ucall(vm, 0, &uc)) {
 		case UCALL_SYNC:
-			vm = test_guest_stage(vm);
+			test_guest_stage(&vm);
 			break;
 		case UCALL_DONE:
 			guest_done = true;
