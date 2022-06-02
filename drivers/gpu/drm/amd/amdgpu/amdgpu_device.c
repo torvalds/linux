@@ -4666,15 +4666,15 @@ int amdgpu_device_pre_asic_reset(struct amdgpu_device *adev,
 
 static int amdgpu_reset_reg_dumps(struct amdgpu_device *adev)
 {
-	uint32_t reg_value;
 	int i;
 
 	lockdep_assert_held(&adev->reset_domain->sem);
 	dump_stack();
 
 	for (i = 0; i < adev->num_regs; i++) {
-		reg_value = RREG32(adev->reset_dump_reg_list[i]);
-		trace_amdgpu_reset_reg_dumps(adev->reset_dump_reg_list[i], reg_value);
+		adev->reset_dump_reg_value[i] = RREG32(adev->reset_dump_reg_list[i]);
+		trace_amdgpu_reset_reg_dumps(adev->reset_dump_reg_list[i],
+					     adev->reset_dump_reg_value[i]);
 	}
 
 	return 0;

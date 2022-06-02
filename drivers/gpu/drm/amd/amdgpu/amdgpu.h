@@ -1044,6 +1044,7 @@ struct amdgpu_device {
 
 	/* reset dump register */
 	uint32_t                        *reset_dump_reg_list;
+	uint32_t			*reset_dump_reg_value;
 	int                             num_regs;
 
 	bool                            scpm_enabled;
