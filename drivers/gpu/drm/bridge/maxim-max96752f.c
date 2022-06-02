@@ -24,7 +24,6 @@
 struct max96752f_bridge {
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
-	struct drm_connector connector;
 	struct drm_panel *panel;
 
 	struct device *dev;
@@ -34,34 +33,16 @@ struct max96752f_bridge {
 
 #define to_max96752f_bridge(x)	container_of(x, struct max96752f_bridge, x)
 
-static int max96752f_bridge_connector_get_modes(struct drm_connector *connector)
+static int max96752f_bridge_get_modes(struct drm_bridge *bridge,
+				      struct drm_connector *connector)
 {
-	struct max96752f_bridge *des = to_max96752f_bridge(connector);
+	struct max96752f_bridge *des = to_max96752f_bridge(bridge);
+
+	if (des->next_bridge)
+		return drm_bridge_get_modes(des->next_bridge, connector);
 
 	return drm_panel_get_modes(des->panel, connector);
 }
-
-static const struct drm_connector_helper_funcs
-max96752f_bridge_connector_helper_funcs = {
-	.get_modes = max96752f_bridge_connector_get_modes,
-};
-
-static enum drm_connector_status
-max96752f_bridge_connector_detect(struct drm_connector *connector, bool force)
-{
-	struct max96752f_bridge *des = to_max96752f_bridge(connector);
-
-	return drm_bridge_detect(&des->bridge);
-}
-
-static const struct drm_connector_funcs max96752f_bridge_connector_funcs = {
-	.reset = drm_atomic_helper_connector_reset,
-	.fill_modes = drm_helper_probe_single_connector_modes,
-	.detect = max96752f_bridge_connector_detect,
-	.destroy = drm_connector_cleanup,
-	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
-	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
-};
 
 static void
 max96752f_bridge_atomic_pre_enable(struct drm_bridge *bridge,
@@ -94,7 +75,8 @@ max96752f_bridge_atomic_pre_enable(struct drm_bridge *bridge,
 	regmap_update_bits(des->regmap, OLDI_REG(1), OLDI_FORMAT,
 			   FIELD_PREP(OLDI_FORMAT, oldi_format));
 
-	drm_panel_prepare(des->panel);
+	if (des->panel)
+		drm_panel_prepare(des->panel);
 }
 
 static void
@@ -106,7 +88,8 @@ max96752f_bridge_atomic_enable(struct drm_bridge *bridge,
 	regmap_update_bits(des->regmap, 0x0002, VID_EN,
 			   FIELD_PREP(VID_EN, 1));
 
-	drm_panel_enable(des->panel);
+	if (des->panel)
+		drm_panel_enable(des->panel);
 }
 
 static void
@@ -114,8 +97,15 @@ max96752f_bridge_atomic_disable(struct drm_bridge *bridge,
 				struct drm_bridge_state *old_bridge_state)
 {
 	struct max96752f_bridge *des = to_max96752f_bridge(bridge);
+	struct drm_connector *connector =
+		drm_atomic_get_old_connector_for_encoder(old_bridge_state->base.state,
+							 bridge->encoder);
 
-	drm_panel_disable(des->panel);
+	if (connector->status == connector_status_disconnected)
+		regcache_cache_only(des->regmap, true);
+
+	if (des->panel)
+		drm_panel_disable(des->panel);
 
 	regmap_update_bits(des->regmap, 0x0002, VID_EN,
 			   FIELD_PREP(VID_EN, 0));
@@ -127,7 +117,8 @@ max96752f_bridge_atomic_post_disable(struct drm_bridge *bridge,
 {
 	struct max96752f_bridge *des = to_max96752f_bridge(bridge);
 
-	drm_panel_unprepare(des->panel);
+	if (des->panel)
+		drm_panel_unprepare(des->panel);
 }
 
 static u32 *
@@ -160,7 +151,6 @@ static int max96752f_bridge_attach(struct drm_bridge *bridge,
 				   enum drm_bridge_attach_flags flags)
 {
 	struct max96752f_bridge *des = to_max96752f_bridge(bridge);
-	struct drm_connector *connector = &des->connector;
 	int ret;
 
 	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, &des->panel,
@@ -168,51 +158,16 @@ static int max96752f_bridge_attach(struct drm_bridge *bridge,
 	if (ret)
 		return ret;
 
-
 	if (des->next_bridge)
 		return drm_bridge_attach(bridge->encoder, des->next_bridge,
 					 bridge, 0);
 
-	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
-			    DRM_CONNECTOR_POLL_DISCONNECT;
-
-	drm_connector_helper_add(connector,
-				 &max96752f_bridge_connector_helper_funcs);
-
-	ret = drm_connector_init(bridge->dev, connector,
-				 &max96752f_bridge_connector_funcs,
-				 bridge->type);
-	if (ret) {
-		DRM_ERROR("Failed to initialize connector\n");
-		return ret;
-	}
-
-	drm_connector_attach_encoder(connector, bridge->encoder);
-
 	return 0;
-}
-
-static enum drm_connector_status
-max96752f_bridge_detect(struct drm_bridge *bridge)
-{
-	struct max96752f_bridge *des = to_max96752f_bridge(bridge);
-	struct drm_bridge *prev_bridge = drm_bridge_get_prev_bridge(bridge);
-
-	if (prev_bridge) {
-		if (prev_bridge->ops & DRM_BRIDGE_OP_DETECT) {
-			if (drm_bridge_detect(prev_bridge) != connector_status_connected) {
-				regcache_cache_only(des->regmap, true);
-				return connector_status_disconnected;
-			}
-		}
-	}
-
-	return connector_status_connected;
 }
 
 static const struct drm_bridge_funcs max96752f_bridge_funcs = {
 	.attach = max96752f_bridge_attach,
-	.detect = max96752f_bridge_detect,
+	.get_modes = max96752f_bridge_get_modes,
 	.atomic_pre_enable = max96752f_bridge_atomic_pre_enable,
 	.atomic_post_disable = max96752f_bridge_atomic_post_disable,
 	.atomic_enable = max96752f_bridge_atomic_enable,
@@ -243,7 +198,7 @@ static int max96752f_bridge_probe(struct platform_device *pdev)
 
 	des->bridge.funcs = &max96752f_bridge_funcs;
 	des->bridge.of_node = dev->of_node;
-	des->bridge.ops = DRM_BRIDGE_OP_DETECT;
+	des->bridge.ops = DRM_BRIDGE_OP_MODES;
 	des->bridge.type = DRM_MODE_CONNECTOR_LVDS;
 
 	drm_bridge_add(&des->bridge);
