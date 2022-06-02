@@ -9,7 +9,7 @@
 #include <asm/unistd.h>
 #include <asm/ftrace.h>
 #include <asm/unwind.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #ifdef CONFIG_AEABI
 #include <asm/unistd-oabi.h>
 #endif

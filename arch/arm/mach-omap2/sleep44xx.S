@@ -9,7 +9,7 @@
 #include <linux/linkage.h>
 #include <asm/assembler.h>
 #include <asm/smp_scu.h>
-#include <asm/memory.h>
+#include <asm/page.h>
 #include <asm/hardware/cache-l2x0.h>
 
 #include "omap-secure.h"
