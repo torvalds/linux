@@ -582,8 +582,6 @@ struct ath11k {
 	struct ath11k_pdev_wmi *wmi;
 	struct ath11k_pdev_dp dp;
 	u8 mac_addr[ETH_ALEN];
-	u32 ht_cap_info;
-	u32 vht_cap_info;
 	struct ath11k_he ar_he;
 	enum ath11k_state state;
 	bool supports_6ghz;

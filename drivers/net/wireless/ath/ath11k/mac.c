@@ -7800,6 +7800,7 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 {
 	struct ath11k_vif *arvif = (void *)vif->drv_priv;
 	struct cfg80211_chan_def def;
+	struct ath11k_pdev_cap *cap;
 	struct ath11k *ar = arvif->ar;
 	enum nl80211_band band;
 	const u8 *ht_mcs_mask;
@@ -7820,10 +7821,11 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 		return -EPERM;
 
 	band = def.chan->band;
+	cap = &ar->pdev->cap;
 	ht_mcs_mask = mask->control[band].ht_mcs;
 	vht_mcs_mask = mask->control[band].vht_mcs;
 	he_mcs_mask = mask->control[band].he_mcs;
-	ldpc = !!(ar->ht_cap_info & WMI_HT_CAP_LDPC);
+	ldpc = !!(cap->band[band].ht_cap_info & WMI_HT_CAP_TX_LDPC);
 
 	sgi = mask->control[band].gi;
 	if (sgi == NL80211_TXRATE_FORCE_LGI)
