@@ -5363,7 +5363,7 @@ exit:
 	return ret;
 }
 
-void issue_action_BA(struct adapter *padapter, unsigned char *raddr, unsigned char action, unsigned short status)
+void issue_action_BA(struct adapter *padapter, unsigned char *raddr, u8 action, u16 status)
 {
 	u16 start_seq;
 	u16 BA_starting_seqctrl = 0;
