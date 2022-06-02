@@ -53,7 +53,12 @@ int main(int argc, char *argv[])
 	for (i = 0; i < MSR_BITS; ++i) {
 		r = _vcpu_set_msr(vm, VCPU_ID, MSR_IA32_XSS, 1ull << i);
 
-		TEST_ASSERT(r == 0 || xss_in_msr_list,
+		/*
+		 * Setting a list of MSRs returns the entry that "faulted", or
+		 * the last entry +1 if all MSRs were successfully written.
+		 */
+		TEST_ASSERT(!r || r == 1, KVM_IOCTL_ERROR(KVM_SET_MSRS, r));
+		TEST_ASSERT(r != 1 || xss_in_msr_list,
 			    "IA32_XSS was able to be set, but was not in save/restore list");
 	}
 
