@@ -291,20 +291,6 @@ static inline struct iommu_domain *rga_iommu_get_dma_domain(struct device *dev)
 	return iommu_get_domain_for_dev(dev);
 }
 
-static inline void rga_dma_flush_cache_by_sgt(struct sg_table *sgt)
-{
-	struct scatterlist *sg;
-	int i;
-
-#if (LINUX_VERSION_CODE >= KERNEL_VERSION(5, 10, 0))
-	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
-		arch_dma_prep_coherent(sg_page(sg), sg->length);
-#else
-	for_each_sg(sgt->sgl, sg, sgt->orig_nents, i)
-		__dma_flush_area(sg_page(sg), sg->length);
-#endif
-}
-
 void rga_iommu_unmap_virt_addr(struct rga_dma_buffer *virt_dma_buf)
 {
 	if (virt_dma_buf == NULL)
@@ -352,9 +338,6 @@ int rga_iommu_map_virt_addr(struct rga_memory_parm *memory_parm,
 		pr_err("rga_iommu_dma_alloc_iova failed");
 		return -ENOMEM;
 	}
-
-	if (!(ioprot & IOMMU_CACHE))
-		rga_dma_flush_cache_by_sgt(sgt);
 
 	map_size = rga_iommu_map_sg(domain, iova, sgt->sgl, sgt->orig_nents, ioprot);
 	if (map_size < size) {
