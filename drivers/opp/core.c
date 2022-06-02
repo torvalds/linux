@@ -427,6 +427,131 @@ int dev_pm_opp_get_opp_count(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
 
+/* Helpers to read keys */
+static unsigned long _read_freq(struct dev_pm_opp *opp, int index)
+{
+	return opp->rate;
+}
+
+/* Generic comparison helpers */
+static bool _compare_exact(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
+			   unsigned long opp_key, unsigned long key)
+{
+	if (opp_key == key) {
+		*opp = temp_opp;
+		return true;
+	}
+
+	return false;
+}
+
+static bool _compare_ceil(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
+			  unsigned long opp_key, unsigned long key)
+{
+	if (opp_key >= key) {
+		*opp = temp_opp;
+		return true;
+	}
+
+	return false;
+}
+
+static bool _compare_floor(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
+			   unsigned long opp_key, unsigned long key)
+{
+	if (opp_key > key)
+		return true;
+
+	*opp = temp_opp;
+	return false;
+}
+
+/* Generic key finding helpers */
+static struct dev_pm_opp *_opp_table_find_key(struct opp_table *opp_table,
+		unsigned long *key, int index, bool available,
+		unsigned long (*read)(struct dev_pm_opp *opp, int index),
+		bool (*compare)(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
+				unsigned long opp_key, unsigned long key))
+{
+	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
+
+	mutex_lock(&opp_table->lock);
+
+	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
+		if (temp_opp->available == available) {
+			if (compare(&opp, temp_opp, read(temp_opp, index), *key))
+				break;
+		}
+	}
+
+	/* Increment the reference count of OPP */
+	if (!IS_ERR(opp)) {
+		*key = read(opp, index);
+		dev_pm_opp_get(opp);
+	}
+
+	mutex_unlock(&opp_table->lock);
+
+	return opp;
+}
+
+static struct dev_pm_opp *
+_find_key(struct device *dev, unsigned long *key, int index, bool available,
+	  unsigned long (*read)(struct dev_pm_opp *opp, int index),
+	  bool (*compare)(struct dev_pm_opp **opp, struct dev_pm_opp *temp_opp,
+			  unsigned long opp_key, unsigned long key))
+{
+	struct opp_table *opp_table;
+	struct dev_pm_opp *opp;
+
+	opp_table = _find_opp_table(dev);
+	if (IS_ERR(opp_table)) {
+		dev_err(dev, "%s: OPP table not found (%ld)\n", __func__,
+			PTR_ERR(opp_table));
+		return ERR_CAST(opp_table);
+	}
+
+	opp = _opp_table_find_key(opp_table, key, index, available, read,
+				  compare);
+
+	dev_pm_opp_put_opp_table(opp_table);
+
+	return opp;
+}
+
+static struct dev_pm_opp *_find_key_exact(struct device *dev,
+		unsigned long key, int index, bool available,
+		unsigned long (*read)(struct dev_pm_opp *opp, int index))
+{
+	/*
+	 * The value of key will be updated here, but will be ignored as the
+	 * caller doesn't need it.
+	 */
+	return _find_key(dev, &key, index, available, read, _compare_exact);
+}
+
+static struct dev_pm_opp *_opp_table_find_key_ceil(struct opp_table *opp_table,
+		unsigned long *key, int index, bool available,
+		unsigned long (*read)(struct dev_pm_opp *opp, int index))
+{
+	return _opp_table_find_key(opp_table, key, index, available, read,
+				   _compare_ceil);
+}
+
+static struct dev_pm_opp *_find_key_ceil(struct device *dev, unsigned long *key,
+		int index, bool available,
+		unsigned long (*read)(struct dev_pm_opp *opp, int index))
+{
+	return _find_key(dev, key, index, available, read, _compare_ceil);
+}
+
+static struct dev_pm_opp *_find_key_floor(struct device *dev,
+		unsigned long *key, int index, bool available,
+		unsigned long (*read)(struct dev_pm_opp *opp, int index))
+{
+	return _find_key(dev, key, index, available, read, _compare_floor);
+}
+
 /**
  * dev_pm_opp_find_freq_exact() - search for an exact frequency
  * @dev:		device for which we do this operation
@@ -451,61 +576,16 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_get_opp_count);
  * use.
  */
 struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
-					      unsigned long freq,
-					      bool available)
+		unsigned long freq, bool available)
 {
-	struct opp_table *opp_table;
-	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table)) {
-		int r = PTR_ERR(opp_table);
-
-		dev_err(dev, "%s: OPP table not found (%d)\n", __func__, r);
-		return ERR_PTR(r);
-	}
-
-	mutex_lock(&opp_table->lock);
-
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
-		if (temp_opp->available == available &&
-				temp_opp->rate == freq) {
-			opp = temp_opp;
-
-			/* Increment the reference count of OPP */
-			dev_pm_opp_get(opp);
-			break;
-		}
-	}
-
-	mutex_unlock(&opp_table->lock);
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return opp;
+	return _find_key_exact(dev, freq, 0, available, _read_freq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
 
 static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 						   unsigned long *freq)
 {
-	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
-
-	mutex_lock(&opp_table->lock);
-
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
-		if (temp_opp->available && temp_opp->rate >= *freq) {
-			opp = temp_opp;
-			*freq = opp->rate;
-
-			/* Increment the reference count of OPP */
-			dev_pm_opp_get(opp);
-			break;
-		}
-	}
-
-	mutex_unlock(&opp_table->lock);
-
-	return opp;
+	return _opp_table_find_key_ceil(opp_table, freq, 0, true, _read_freq);
 }
 
 /**
@@ -529,23 +609,7 @@ static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					     unsigned long *freq)
 {
-	struct opp_table *opp_table;
-	struct dev_pm_opp *opp;
-
-	if (!dev || !freq) {
-		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
-		return ERR_PTR(-EINVAL);
-	}
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
-		return ERR_CAST(opp_table);
-
-	opp = _find_freq_ceil(opp_table, freq);
-
-	dev_pm_opp_put_opp_table(opp_table);
-
-	return opp;
+	return _find_key_ceil(dev, freq, 0, true, _read_freq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
 
@@ -570,40 +634,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
 struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					      unsigned long *freq)
 {
-	struct opp_table *opp_table;
-	struct dev_pm_opp *temp_opp, *opp = ERR_PTR(-ERANGE);
-
-	if (!dev || !freq) {
-		dev_err(dev, "%s: Invalid argument freq=%p\n", __func__, freq);
-		return ERR_PTR(-EINVAL);
-	}
-
-	opp_table = _find_opp_table(dev);
-	if (IS_ERR(opp_table))
-		return ERR_CAST(opp_table);
-
-	mutex_lock(&opp_table->lock);
-
-	list_for_each_entry(temp_opp, &opp_table->opp_list, node) {
-		if (temp_opp->available) {
-			/* go to the next node, before choosing prev */
-			if (temp_opp->rate > *freq)
-				break;
-			else
-				opp = temp_opp;
-		}
-	}
-
-	/* Increment the reference count of OPP */
-	if (!IS_ERR(opp))
-		dev_pm_opp_get(opp);
-	mutex_unlock(&opp_table->lock);
-	dev_pm_opp_put_opp_table(opp_table);
-
-	if (!IS_ERR(opp))
-		*freq = opp->rate;
-
-	return opp;
+	return _find_key_floor(dev, freq, 0, true, _read_freq);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 
