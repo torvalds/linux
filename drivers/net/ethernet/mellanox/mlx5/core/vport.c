@@ -1086,9 +1086,17 @@ int mlx5_nic_vport_affiliate_multiport(struct mlx5_core_dev *master_mdev,
 		goto free;
 
 	MLX5_SET(modify_nic_vport_context_in, in, field_select.affiliation, 1);
-	MLX5_SET(modify_nic_vport_context_in, in,
-		 nic_vport_context.affiliated_vhca_id,
-		 MLX5_CAP_GEN(master_mdev, vhca_id));
+	if (MLX5_CAP_GEN_2(master_mdev, sw_vhca_id_valid)) {
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 nic_vport_context.vhca_id_type, VHCA_ID_TYPE_SW);
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 nic_vport_context.affiliated_vhca_id,
+			 MLX5_CAP_GEN_2(master_mdev, sw_vhca_id));
+	} else {
+		MLX5_SET(modify_nic_vport_context_in, in,
+			 nic_vport_context.affiliated_vhca_id,
+			 MLX5_CAP_GEN(master_mdev, vhca_id));
+	}
 	MLX5_SET(modify_nic_vport_context_in, in,
 		 nic_vport_context.affiliation_criteria,
 		 MLX5_CAP_GEN(port_mdev, affiliate_nic_vport_criteria));

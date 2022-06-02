@@ -610,6 +610,7 @@ struct mlx5_priv {
 	spinlock_t              ctx_lock;
 	struct mlx5_adev       **adev;
 	int			adev_idx;
+	int			sw_vhca_id;
 	struct mlx5_events      *events;
 
 	struct mlx5_flow_steering *steering;
