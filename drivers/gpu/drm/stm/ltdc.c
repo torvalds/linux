@@ -1218,7 +1218,8 @@ static int ltdc_plane_atomic_check(struct drm_plane *plane,
 
 	/* Reject scaling */
 	if (src_w != new_plane_state->crtc_w || src_h != new_plane_state->crtc_h) {
-		DRM_ERROR("Scaling is not supported");
+		DRM_DEBUG_DRIVER("Scaling is not supported");
+
 		return -EINVAL;
 	}
 
