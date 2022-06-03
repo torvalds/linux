@@ -790,10 +790,16 @@ static void ltdc_crtc_atomic_disable(struct drm_crtc *crtc,
 {
 	struct ltdc_device *ldev = crtc_to_ltdc(crtc);
 	struct drm_device *ddev = crtc->dev;
+	int layer_index = 0;
 
 	DRM_DEBUG_DRIVER("\n");
 
 	drm_crtc_vblank_off(crtc);
+
+	/* Disable all layers */
+	for (layer_index = 0; layer_index < ldev->caps.nb_layers; layer_index++)
+		regmap_write_bits(ldev->regmap, LTDC_L1CR + layer_index * LAY_OFS,
+				  LXCR_CLUTEN | LXCR_LEN, 0);
 
 	/* disable IRQ */
 	regmap_clear_bits(ldev->regmap, LTDC_IER, IER_RRIE | IER_FUIE | IER_TERRIE);
