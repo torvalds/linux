@@ -479,6 +479,22 @@ static const struct usbmix_name_map gigabyte_b450_map[] = {
 	{}
 };
 
+/* ASUS ROG Strix Z590-A Gaming WiFi */
+static const struct usbmix_name_map asus_rog_z590_a_map[] = {
+	{ 24, NULL },			/* OT, IEC958?, disabled */
+	{ 21, "Speaker" },		/* OT */
+	{ 29, "Speaker Playback" },	/* FU */
+	{ 22, "Headphone" },		/* OT */
+	{ 30, "Headphone Playback" },	/* FU */
+	{ 11, "Line" },			/* IT */
+	{ 25, "Line Capture" },		/* FU */
+	{ 12, "Mic" },			/* IT */
+	{ 28, "Mic Capture" },		/* FU */
+	{ 9, "Front Mic" },		/* IT */
+	{ 27, "Front Mic Capture" },	/* FU */
+	{}
+};
+
 static const struct usbmix_connector_map gigabyte_b450_connector_map[] = {
 	{ 13, 21 },	/* Speaker */
 	{ 14, 22 },	/* Headphone */
@@ -639,6 +655,10 @@ static const struct usbmix_ctl_map usbmix_ctl_maps[] = {
 		.id = USB_ID(0x0b05, 0x1916),
 		.map = asus_zenith_ii_map,
 		.connector_map = asus_zenith_ii_connector_map,
+	},
+	{	/* ASUS ROG Strix Z590-A Gaming WiFi */
+		.id = USB_ID(0x0b05, 0x1999),
+		.map = asus_rog_z590_a_map,
 	},
 	{	/* ASUS ROG Strix */
 		.id = USB_ID(0x0b05, 0x1917),
