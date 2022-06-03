@@ -697,11 +697,6 @@ static int linker_load_obj_file(struct bpf_linker *linker, const char *filename,
 	return err;
 }
 
-static bool is_pow_of_2(size_t x)
-{
-	return x && (x & (x - 1)) == 0;
-}
-
 static int linker_sanity_check_elf(struct src_obj *obj)
 {
 	struct src_sec *sec;
