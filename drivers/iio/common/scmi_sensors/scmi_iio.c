@@ -686,7 +686,6 @@ static int scmi_iio_dev_probe(struct scmi_device *sdev)
 
 		err = devm_iio_kfifo_buffer_setup(&scmi_iio_dev->dev,
 						  scmi_iio_dev,
-						  INDIO_BUFFER_SOFTWARE,
 						  &scmi_iio_buffer_ops);
 		if (err < 0) {
 			dev_err(dev,

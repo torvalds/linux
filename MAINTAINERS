@@ -1090,6 +1090,14 @@ W:	https://ez.analog.com/linux-software-drivers
 F:	Documentation/devicetree/bindings/iio/adc/adi,ad7292.yaml
 F:	drivers/iio/adc/ad7292.c
 
+ANALOG DEVICES INC AD3552R DRIVER
+M:	Nuno Sá <nuno.sa@analog.com>
+L:	linux-iio@vger.kernel.org
+S:	Supported
+W:	https://ez.analog.com/linux-software-drivers
+F:	Documentation/devicetree/bindings/iio/dac/adi,ad3552r.yaml
+F:	drivers/iio/dac/ad3552r.c
+
 ANALOG DEVICES INC AD7293 DRIVER
 M:	Antoniu Miclaus <antoniu.miclaus@analog.com>
 L:	linux-iio@vger.kernel.org
@@ -1830,6 +1838,7 @@ F:	Documentation/devicetree/bindings/iommu/apple,dart.yaml
 F:	Documentation/devicetree/bindings/iommu/apple,sart.yaml
 F:	Documentation/devicetree/bindings/mailbox/apple,mailbox.yaml
 F:	Documentation/devicetree/bindings/nvme/apple,nvme-ans.yaml
+F:	Documentation/devicetree/bindings/nvmem/apple,efuses.yaml
 F:	Documentation/devicetree/bindings/pci/apple,pcie.yaml
 F:	Documentation/devicetree/bindings/pinctrl/apple,pinctrl.yaml
 F:	Documentation/devicetree/bindings/power/apple*
@@ -1842,6 +1851,7 @@ F:	drivers/iommu/apple-dart.c
 F:	drivers/irqchip/irq-apple-aic.c
 F:	drivers/mailbox/apple-mailbox.c
 F:	drivers/nvme/host/apple.c
+F:	drivers/nvmem/apple-efuses.c
 F:	drivers/pinctrl/pinctrl-apple-gpio.c
 F:	drivers/soc/apple/*
 F:	drivers/watchdog/apple_wdt.c
@@ -7785,7 +7795,7 @@ R:	Tom Rix <trix@redhat.com>
 L:	linux-fpga@vger.kernel.org
 S:	Maintained
 Q:	http://patchwork.kernel.org/project/linux-fpga/list/
-T:	git git://git.kernel.org/pub/scm/linux/kernel/git/mdf/linux-fpga.git
+T:	git git://git.kernel.org/pub/scm/linux/kernel/git/fpga/linux-fpga.git
 F:	Documentation/devicetree/bindings/fpga/
 F:	Documentation/driver-api/fpga/
 F:	Documentation/fpga/
@@ -9063,7 +9073,7 @@ S:	Maintained
 F:	drivers/input/touchscreen/htcpen.c
 
 HTS221 TEMPERATURE-HUMIDITY IIO DRIVER
-M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
+M:	Lorenzo Bianconi <lorenzo@kernel.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 W:	http://www.st.com/
@@ -12902,7 +12912,7 @@ F:	arch/arm64/boot/dts/marvell/armada-3720-uDPU.dts
 
 MHI BUS
 M:	Manivannan Sadhasivam <manivannan.sadhasivam@linaro.org>
-R:	Hemant Kumar <hemantk@codeaurora.org>
+R:	Hemant Kumar <quic_hemantk@quicinc.com>
 L:	mhi@lists.linux.dev
 L:	linux-arm-msm@vger.kernel.org
 S:	Maintained
@@ -18794,7 +18804,7 @@ S:	Maintained
 F:	arch/alpha/kernel/srm_env.c
 
 ST LSM6DSx IMU IIO DRIVER
-M:	Lorenzo Bianconi <lorenzo.bianconi83@gmail.com>
+M:	Lorenzo Bianconi <lorenzo@kernel.org>
 L:	linux-iio@vger.kernel.org
 S:	Maintained
 W:	http://www.st.com/

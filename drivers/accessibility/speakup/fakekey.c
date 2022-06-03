@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0+
 /* fakekey.c
- * Functions for simulating keypresses.
+ * Functions for simulating key presses.
  *
  * Copyright (C) 2010 the Speakup Team
  */
@@ -78,7 +78,7 @@ void speakup_fake_down_arrow(void)
 }
 
 /*
- * Are we handling a simulated keypress on the current CPU?
+ * Are we handling a simulated key press on the current CPU?
  * Returns a boolean.
  */
 bool speakup_fake_key_pressed(void)

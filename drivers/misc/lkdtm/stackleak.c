@@ -115,7 +115,7 @@ out:
 	}
 }
 
-void lkdtm_STACKLEAK_ERASING(void)
+static void lkdtm_STACKLEAK_ERASING(void)
 {
 	unsigned long flags;
 
@@ -124,7 +124,7 @@ void lkdtm_STACKLEAK_ERASING(void)
 	local_irq_restore(flags);
 }
 #else /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */
-void lkdtm_STACKLEAK_ERASING(void)
+static void lkdtm_STACKLEAK_ERASING(void)
 {
 	if (IS_ENABLED(CONFIG_HAVE_ARCH_STACKLEAK)) {
 		pr_err("XFAIL: stackleak is not enabled (CONFIG_GCC_PLUGIN_STACKLEAK=n)\n");
@@ -133,3 +133,12 @@ void lkdtm_STACKLEAK_ERASING(void)
 	}
 }
 #endif /* defined(CONFIG_GCC_PLUGIN_STACKLEAK) */
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(STACKLEAK_ERASING),
+};
+
+struct crashtype_category stackleak_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

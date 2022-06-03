@@ -22,8 +22,11 @@ static volatile int __offset = 1;
 /*
  * If there aren't guard pages, it's likely that a consecutive allocation will
  * let us overflow into the second allocation without overwriting something real.
+ *
+ * This should always be caught because there is an unconditional unmapped
+ * page after vmap allocations.
  */
-void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
+static void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
 {
 	char *one, *two;
 
@@ -41,8 +44,11 @@ void lkdtm_VMALLOC_LINEAR_OVERFLOW(void)
  * This tries to stay within the next largest power-of-2 kmalloc cache
  * to avoid actually overwriting anything important if it's not detected
  * correctly.
+ *
+ * This should get caught by either memory tagging, KASan, or by using
+ * CONFIG_SLUB_DEBUG=y and slub_debug=ZF (or CONFIG_SLUB_DEBUG_ON=y).
  */
-void lkdtm_SLAB_LINEAR_OVERFLOW(void)
+static void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 {
 	size_t len = 1020;
 	u32 *data = kmalloc(len, GFP_KERNEL);
@@ -50,11 +56,12 @@ void lkdtm_SLAB_LINEAR_OVERFLOW(void)
 		return;
 
 	pr_info("Attempting slab linear overflow ...\n");
+	OPTIMIZER_HIDE_VAR(data);
 	data[1024 / sizeof(u32)] = 0x12345678;
 	kfree(data);
 }
 
-void lkdtm_WRITE_AFTER_FREE(void)
+static void lkdtm_WRITE_AFTER_FREE(void)
 {
 	int *base, *again;
 	size_t len = 1024;
@@ -80,7 +87,7 @@ void lkdtm_WRITE_AFTER_FREE(void)
 		pr_info("Hmm, didn't get the same memory range.\n");
 }
 
-void lkdtm_READ_AFTER_FREE(void)
+static void lkdtm_READ_AFTER_FREE(void)
 {
 	int *base, *val, saw;
 	size_t len = 1024;
@@ -124,7 +131,7 @@ void lkdtm_READ_AFTER_FREE(void)
 	kfree(val);
 }
 
-void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
+static void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 	if (!p) {
@@ -144,7 +151,7 @@ void lkdtm_WRITE_BUDDY_AFTER_FREE(void)
 	schedule();
 }
 
-void lkdtm_READ_BUDDY_AFTER_FREE(void)
+static void lkdtm_READ_BUDDY_AFTER_FREE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 	int saw, *val;
@@ -181,7 +188,7 @@ void lkdtm_READ_BUDDY_AFTER_FREE(void)
 	kfree(val);
 }
 
-void lkdtm_SLAB_INIT_ON_ALLOC(void)
+static void lkdtm_SLAB_INIT_ON_ALLOC(void)
 {
 	u8 *first;
 	u8 *val;
@@ -213,7 +220,7 @@ void lkdtm_SLAB_INIT_ON_ALLOC(void)
 	kfree(val);
 }
 
-void lkdtm_BUDDY_INIT_ON_ALLOC(void)
+static void lkdtm_BUDDY_INIT_ON_ALLOC(void)
 {
 	u8 *first;
 	u8 *val;
@@ -246,7 +253,7 @@ void lkdtm_BUDDY_INIT_ON_ALLOC(void)
 	free_page((unsigned long)val);
 }
 
-void lkdtm_SLAB_FREE_DOUBLE(void)
+static void lkdtm_SLAB_FREE_DOUBLE(void)
 {
 	int *val;
 
@@ -263,7 +270,7 @@ void lkdtm_SLAB_FREE_DOUBLE(void)
 	kmem_cache_free(double_free_cache, val);
 }
 
-void lkdtm_SLAB_FREE_CROSS(void)
+static void lkdtm_SLAB_FREE_CROSS(void)
 {
 	int *val;
 
@@ -279,7 +286,7 @@ void lkdtm_SLAB_FREE_CROSS(void)
 	kmem_cache_free(b_cache, val);
 }
 
-void lkdtm_SLAB_FREE_PAGE(void)
+static void lkdtm_SLAB_FREE_PAGE(void)
 {
 	unsigned long p = __get_free_page(GFP_KERNEL);
 
@@ -313,3 +320,22 @@ void __exit lkdtm_heap_exit(void)
 	kmem_cache_destroy(a_cache);
 	kmem_cache_destroy(b_cache);
 }
+
+static struct crashtype crashtypes[] = {
+	CRASHTYPE(SLAB_LINEAR_OVERFLOW),
+	CRASHTYPE(VMALLOC_LINEAR_OVERFLOW),
+	CRASHTYPE(WRITE_AFTER_FREE),
+	CRASHTYPE(READ_AFTER_FREE),
+	CRASHTYPE(WRITE_BUDDY_AFTER_FREE),
+	CRASHTYPE(READ_BUDDY_AFTER_FREE),
+	CRASHTYPE(SLAB_INIT_ON_ALLOC),
+	CRASHTYPE(BUDDY_INIT_ON_ALLOC),
+	CRASHTYPE(SLAB_FREE_DOUBLE),
+	CRASHTYPE(SLAB_FREE_CROSS),
+	CRASHTYPE(SLAB_FREE_PAGE),
+};
+
+struct crashtype_category heap_crashtypes = {
+	.crashtypes = crashtypes,
+	.len	    = ARRAY_SIZE(crashtypes),
+};

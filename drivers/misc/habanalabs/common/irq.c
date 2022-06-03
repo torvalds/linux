@@ -152,11 +152,11 @@ static void hl_ts_free_objects(struct work_struct *work)
 	struct hl_device *hdev = job->hdev;
 
 	list_for_each_entry_safe(free_obj, temp_free_obj, free_list_head, free_objects_node) {
-		dev_dbg(hdev->dev, "About to put refcount to ts_buff (%p) cq_cb(%p)\n",
-					free_obj->ts_buff,
+		dev_dbg(hdev->dev, "About to put refcount to buf (%p) cq_cb(%p)\n",
+					free_obj->buf,
 					free_obj->cq_cb);
 
-		hl_ts_put(free_obj->ts_buff);
+		hl_mmap_mem_buf_put(free_obj->buf);
 		hl_cb_put(free_obj->cq_cb);
 		kfree(free_obj);
 	}
@@ -210,7 +210,7 @@ static int handle_registration_node(struct hl_device *hdev, struct hl_user_pendi
 	/* Putting the refcount for ts_buff and cq_cb objects will be handled
 	 * in workqueue context, just add job to free_list.
 	 */
-	free_node->ts_buff = pend->ts_reg_info.ts_buff;
+	free_node->buf = pend->ts_reg_info.buf;
 	free_node->cq_cb = pend->ts_reg_info.cq_cb;
 	list_add(&free_node->free_objects_node, *free_list);
 
@@ -244,7 +244,7 @@ static void handle_user_cq(struct hl_device *hdev,
 	list_for_each_entry_safe(pend, temp_pend, &user_cq->wait_list_head, wait_list_node) {
 		if ((pend->cq_kernel_addr && *(pend->cq_kernel_addr) >= pend->cq_target_value) ||
 				!pend->cq_kernel_addr) {
-			if (pend->ts_reg_info.ts_buff) {
+			if (pend->ts_reg_info.buf) {
 				if (!reg_node_handle_fail) {
 					rc = handle_registration_node(hdev, pend,
 									&ts_reg_free_list_head);
@@ -281,10 +281,6 @@ irqreturn_t hl_irq_handler_user_cq(int irq, void *arg)
 {
 	struct hl_user_interrupt *user_cq = arg;
 	struct hl_device *hdev = user_cq->hdev;
-
-	dev_dbg(hdev->dev,
-		"got user completion interrupt id %u",
-		user_cq->interrupt_id);
 
 	/* Handle user cq interrupts registered on all interrupts */
 	handle_user_cq(hdev, &hdev->common_user_interrupt);

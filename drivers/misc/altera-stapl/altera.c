@@ -530,11 +530,8 @@ exit_done:
 			}
 			break;
 		case OP_SWP:
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 			break;
 		case OP_ADD:
 			if (altera_check_stack(stack_ptr, 2, &status)) {
@@ -912,34 +909,22 @@ exit_done:
 			 */
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* SWPN 7 */
 			index = 7 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* SWPN 6 */
 			index = 6 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* DUPN 8 */
 			index = 8 + 1;
@@ -950,18 +935,12 @@ exit_done:
 
 			/* SWPN 2 */
 			index = 2 + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 
 			/* SWP  */
-			if (altera_check_stack(stack_ptr, 2, &status)) {
-				long_tmp = stack[stack_ptr - 2];
-				stack[stack_ptr - 2] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, 2, &status))
+				swap(stack[stack_ptr - 2], stack[stack_ptr - 1]);
 
 			/* DUPN 6 */
 			index = 6 + 1;
@@ -1075,11 +1054,8 @@ exit_done:
 			 * to swap with top element
 			 */
 			index = (args[0]) + 1;
-			if (altera_check_stack(stack_ptr, index, &status)) {
-				long_tmp = stack[stack_ptr - index];
-				stack[stack_ptr - index] = stack[stack_ptr - 1];
-				stack[stack_ptr - 1] = long_tmp;
-			}
+			if (altera_check_stack(stack_ptr, index, &status))
+				swap(stack[stack_ptr - index], stack[stack_ptr - 1]);
 			break;
 		case OP_DUPN:
 			/*

@@ -189,7 +189,7 @@ int qcom_icc_rpmh_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct icc_onecell_data *data;
 	struct icc_provider *provider;
-	struct qcom_icc_node **qnodes, *qn;
+	struct qcom_icc_node * const *qnodes, *qn;
 	struct qcom_icc_provider *qp;
 	struct icc_node *node;
 	size_t num_nodes, i, j;
