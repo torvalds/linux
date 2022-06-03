@@ -10266,6 +10266,7 @@ static struct ibm_struct proxsensor_driver_data = {
 #define DYTC_CMD_FUNC_CAP     3 /* To get DYTC capabilities */
 #define DYTC_FC_MMC           27 /* MMC Mode supported */
 #define DYTC_FC_PSC           29 /* PSC Mode supported */
+#define DYTC_FC_AMT           31 /* AMT mode supported */
 
 #define DYTC_GET_FUNCTION_BIT 8  /* Bits  8-11 - function setting */
 #define DYTC_GET_MODE_BIT     12 /* Bits 12-15 - mode setting */
@@ -10278,6 +10279,10 @@ static struct ibm_struct proxsensor_driver_data = {
 #define DYTC_FUNCTION_CQL     1  /* Function = 1, lap mode */
 #define DYTC_FUNCTION_MMC     11 /* Function = 11, MMC mode */
 #define DYTC_FUNCTION_PSC     13 /* Function = 13, PSC mode */
+#define DYTC_FUNCTION_AMT     15 /* Function = 15, AMT mode */
+
+#define DYTC_MODE_AMT_ENABLE   0x1 /* Enable AMT (in balanced mode) */
+#define DYTC_MODE_AMT_DISABLE  0xF /* Disable AMT (in other modes) */
 
 #define DYTC_MODE_MMC_PERFORM  2  /* High power mode aka performance */
 #define DYTC_MODE_MMC_LOWPOWER 3  /* Low power mode */
@@ -10298,6 +10303,8 @@ static struct ibm_struct proxsensor_driver_data = {
 
 #define DYTC_DISABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_MMC_BALANCE, 0)
 #define DYTC_ENABLE_CQL DYTC_SET_COMMAND(DYTC_FUNCTION_CQL, DYTC_MODE_MMC_BALANCE, 1)
+static int dytc_control_amt(bool enable);
+static bool dytc_amt_active;
 
 static enum platform_profile_option dytc_current_profile;
 static atomic_t dytc_ignore_event = ATOMIC_INIT(0);
@@ -10377,6 +10384,30 @@ static int dytc_profile_get(struct platform_profile_handler *pprof,
 			    enum platform_profile_option *profile)
 {
 	*profile = dytc_current_profile;
+	return 0;
+}
+
+static int dytc_control_amt(bool enable)
+{
+	int dummy;
+	int err;
+	int cmd;
+
+	if (!(dytc_capabilities & BIT(DYTC_FC_AMT))) {
+		pr_warn("Attempting to toggle AMT on a system that doesn't advertise support\n");
+		return -ENODEV;
+	}
+
+	if (enable)
+		cmd = DYTC_SET_COMMAND(DYTC_FUNCTION_AMT, DYTC_MODE_AMT_ENABLE, enable);
+	else
+		cmd = DYTC_SET_COMMAND(DYTC_FUNCTION_AMT, DYTC_MODE_AMT_DISABLE, enable);
+
+	pr_debug("%sabling AMT (cmd 0x%x)", enable ? "en":"dis", cmd);
+	err = dytc_command(cmd, &dummy);
+	if (err)
+		return err;
+	dytc_amt_active = enable;
 	return 0;
 }
 
@@ -10462,6 +10493,9 @@ static int dytc_profile_set(struct platform_profile_handler *pprof,
 		err = dytc_command(DYTC_SET_COMMAND(DYTC_FUNCTION_PSC, perfmode, 1), &output);
 		if (err)
 			goto unlock;
+		/* system supports AMT, activate it when on balanced */
+		if (dytc_capabilities & BIT(DYTC_FC_AMT))
+			dytc_control_amt(profile == PLATFORM_PROFILE_BALANCED);
 	}
 	/* Success - update current profile */
 	dytc_current_profile = profile;
