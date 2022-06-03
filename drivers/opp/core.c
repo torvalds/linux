@@ -784,19 +784,33 @@ static int _set_opp_voltage(struct device *dev, struct regulator *reg,
 	return ret;
 }
 
-static inline int _generic_set_opp_clk_only(struct device *dev, struct clk *clk,
-					    unsigned long freq)
+static inline int _generic_set_opp_clk_only(struct device *dev,
+		struct opp_table *opp_table, struct dev_pm_opp *opp, void *data)
 {
+	unsigned long *target = data;
+	unsigned long freq;
 	int ret;
 
 	/* We may reach here for devices which don't change frequency */
-	if (IS_ERR(clk))
+	if (IS_ERR(opp_table->clk))
 		return 0;
 
-	ret = clk_set_rate(clk, freq);
+	/* One of target and opp must be available */
+	if (target) {
+		freq = *target;
+	} else if (opp) {
+		freq = opp->rate;
+	} else {
+		WARN_ON(1);
+		return -EINVAL;
+	}
+
+	ret = clk_set_rate(opp_table->clk, freq);
 	if (ret) {
 		dev_err(dev, "%s: failed to set clock rate: %d\n", __func__,
 			ret);
+	} else {
+		opp_table->rate_clk_single = freq;
 	}
 
 	return ret;
@@ -990,7 +1004,7 @@ static int _disable_opp_table(struct device *dev, struct opp_table *opp_table)
 }
 
 static int _set_opp(struct device *dev, struct opp_table *opp_table,
-		    struct dev_pm_opp *opp, unsigned long freq)
+		    struct dev_pm_opp *opp, void *clk_data, bool forced)
 {
 	struct dev_pm_opp *old_opp;
 	int scaling_down, ret;
@@ -1005,15 +1019,14 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	old_opp = opp_table->current_opp;
 
 	/* Return early if nothing to do */
-	if (old_opp == opp && opp_table->current_rate == freq &&
-	    opp_table->enabled) {
+	if (!forced && old_opp == opp && opp_table->enabled) {
 		dev_dbg(dev, "%s: OPPs are same, nothing to do\n", __func__);
 		return 0;
 	}
 
 	dev_dbg(dev, "%s: switching OPP: Freq %lu -> %lu Hz, Level %u -> %u, Bw %u -> %u\n",
-		__func__, opp_table->current_rate, freq, old_opp->level,
-		opp->level, old_opp->bandwidth ? old_opp->bandwidth[0].peak : 0,
+		__func__, old_opp->rate, opp->rate, old_opp->level, opp->level,
+		old_opp->bandwidth ? old_opp->bandwidth[0].peak : 0,
 		opp->bandwidth ? opp->bandwidth[0].peak : 0);
 
 	scaling_down = _opp_compare_key(old_opp, opp);
@@ -1046,7 +1059,7 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 		}
 	}
 
-	ret = _generic_set_opp_clk_only(dev, opp_table->clk, freq);
+	ret = _generic_set_opp_clk_only(dev, opp_table, opp, clk_data);
 	if (ret)
 		return ret;
 
@@ -1082,7 +1095,6 @@ static int _set_opp(struct device *dev, struct opp_table *opp_table,
 	/* Make sure current_opp doesn't get freed */
 	dev_pm_opp_get(opp);
 	opp_table->current_opp = opp;
-	opp_table->current_rate = freq;
 
 	return ret;
 }
@@ -1103,6 +1115,7 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 	struct opp_table *opp_table;
 	unsigned long freq = 0, temp_freq;
 	struct dev_pm_opp *opp = NULL;
+	bool forced = false;
 	int ret;
 
 	opp_table = _find_opp_table(dev);
@@ -1120,7 +1133,8 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 		 * equivalent to a clk_set_rate()
 		 */
 		if (!_get_opp_count(opp_table)) {
-			ret = _generic_set_opp_clk_only(dev, opp_table->clk, target_freq);
+			ret = _generic_set_opp_clk_only(dev, opp_table, NULL,
+							&target_freq);
 			goto put_opp_table;
 		}
 
@@ -1141,12 +1155,22 @@ int dev_pm_opp_set_rate(struct device *dev, unsigned long target_freq)
 				__func__, freq, ret);
 			goto put_opp_table;
 		}
+
+		/*
+		 * An OPP entry specifies the highest frequency at which other
+		 * properties of the OPP entry apply. Even if the new OPP is
+		 * same as the old one, we may still reach here for a different
+		 * value of the frequency. In such a case, do not abort but
+		 * configure the hardware to the desired frequency forcefully.
+		 */
+		forced = opp_table->rate_clk_single != target_freq;
 	}
 
-	ret = _set_opp(dev, opp_table, opp, freq);
+	ret = _set_opp(dev, opp_table, opp, &target_freq, forced);
 
 	if (target_freq)
 		dev_pm_opp_put(opp);
+
 put_opp_table:
 	dev_pm_opp_put_opp_table(opp_table);
 	return ret;
@@ -1174,7 +1198,7 @@ int dev_pm_opp_set_opp(struct device *dev, struct dev_pm_opp *opp)
 		return PTR_ERR(opp_table);
 	}
 
-	ret = _set_opp(dev, opp_table, opp, opp ? opp->rate : 0);
+	ret = _set_opp(dev, opp_table, opp, NULL, false);
 	dev_pm_opp_put_opp_table(opp_table);
 
 	return ret;
