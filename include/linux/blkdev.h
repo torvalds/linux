@@ -342,7 +342,6 @@ static inline int blkdev_zone_mgmt_ioctl(struct block_device *bdev,
  */
 struct blk_independent_access_range {
 	struct kobject		kobj;
-	struct request_queue	*queue;
 	sector_t		sector;
 	sector_t		nr_sectors;
 };
