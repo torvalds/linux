@@ -68,16 +68,6 @@ enum btc_chip_interface {
 	BTC_INTF_MAX
 };
 
-enum {
-	BTC_CHIP_UNDEF		= 0,
-	BTC_CHIP_CSR_BC4	= 1,
-	BTC_CHIP_CSR_BC8	= 2,
-	BTC_CHIP_RTL8723A	= 3,
-	BTC_CHIP_RTL8821	= 4,
-	BTC_CHIP_RTL8723B	= 5,
-	BTC_CHIP_MAX
-};
-
 /*  following is for wifi link status */
 #define WIFI_STA_CONNECTED				BIT0
 #define WIFI_AP_CONNECTED				BIT1
@@ -87,7 +77,6 @@ enum {
 
 struct btc_board_info {
 	/*  The following is some board information */
-	u8 btChipType;
 	u8 pgAntNum;	/*  pg ant number */
 	u8 btdmAntNum;	/*  ant number for btdm */
 	u8 btdmAntPos;		/* Bryant Add to indicate Antenna Position for (pgAntNum = 2) && (btdmAntNum = 1)  (DPDT+1Ant case) */

@@ -1790,7 +1790,7 @@ struct ieee80211_device {
 	short sta_sleep;
 	int ps_timeout;
 	int ps_period;
-	struct tasklet_struct ps_task;
+	struct work_struct ps_task;
 	u32 ps_th;
 	u32 ps_tl;
 

@@ -289,8 +289,7 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 				      enum vchiq_bulk_mode __user *mode)
 {
 	struct vchiq_service *service;
-	struct bulk_waiter_node *waiter = NULL;
-	bool found = false;
+	struct bulk_waiter_node *waiter = NULL, *iter;
 	void *userdata;
 	int status = 0;
 	int ret;
@@ -309,16 +308,16 @@ static int vchiq_irq_queue_bulk_tx_rx(struct vchiq_instance *instance,
 		userdata = &waiter->bulk_waiter;
 	} else if (args->mode == VCHIQ_BULK_MODE_WAITING) {
 		mutex_lock(&instance->bulk_waiter_list_mutex);
-		list_for_each_entry(waiter, &instance->bulk_waiter_list,
+		list_for_each_entry(iter, &instance->bulk_waiter_list,
 				    list) {
-			if (waiter->pid == current->pid) {
-				list_del(&waiter->list);
-				found = true;
+			if (iter->pid == current->pid) {
+				list_del(&iter->list);
+				waiter = iter;
 				break;
 			}
 		}
 		mutex_unlock(&instance->bulk_waiter_list_mutex);
-		if (!found) {
+		if (!waiter) {
 			vchiq_log_error(vchiq_arm_log_level,
 					"no bulk_waiter found for pid %d", current->pid);
 			ret = -ESRCH;

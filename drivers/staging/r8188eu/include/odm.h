@@ -98,22 +98,6 @@ struct odm_per_pkt_info {
 	bool	bPacketBeacon;
 };
 
-enum odm_ability {
-	/*  BB Team */
-	ODM_DIG			= 0x00000001,
-	ODM_HIGH_POWER		= 0x00000002,
-	ODM_CCK_CCA_TH		= 0x00000004,
-	ODM_FA_STATISTICS	= 0x00000008,
-	ODM_RAMASK		= 0x00000010,
-	ODM_RSSI_MONITOR	= 0x00000020,
-	ODM_SW_ANTDIV		= 0x00000040,
-	ODM_HW_ANTDIV		= 0x00000080,
-	ODM_BB_PWRSV		= 0x00000100,
-	ODM_2TPATHDIV		= 0x00000200,
-	ODM_1TPATHDIV		= 0x00000400,
-	ODM_PSD2AFH		= 0x00000800
-};
-
 /*  2011/10/20 MH Define Common info enum for all team. */
 
 enum odm_common_info_def {
@@ -136,19 +120,6 @@ enum odm_ability_def {
 };
 
 # define ODM_ITRF_USB 0x2
-
-/*  ODM_CMNINFO_OP_MODE */
-enum odm_operation_mode {
-	ODM_NO_LINK		= BIT(0),
-	ODM_LINK		= BIT(1),
-	ODM_SCAN		= BIT(2),
-	ODM_POWERSAVE		= BIT(3),
-	ODM_AP_MODE		= BIT(4),
-	ODM_CLIENT_MODE		= BIT(5),
-	ODM_AD_HOC		= BIT(6),
-	ODM_WIFI_DIRECT		= BIT(7),
-	ODM_WIFI_DISPLAY	= BIT(8),
-};
 
 /*  ODM_CMNINFO_WM_MODE */
 enum odm_wireless_mode {

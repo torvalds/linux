@@ -744,9 +744,9 @@ static void dump_port_info(struct vchiq_mmal_port *port)
 			 port->es.video.crop.y,
 			 port->es.video.crop.width, port->es.video.crop.height);
 		pr_debug("		 : framerate %d/%d  aspect %d/%d\n",
-			 port->es.video.frame_rate.num,
-			 port->es.video.frame_rate.den,
-			 port->es.video.par.num, port->es.video.par.den);
+			 port->es.video.frame_rate.numerator,
+			 port->es.video.frame_rate.denominator,
+			 port->es.video.par.numerator, port->es.video.par.denominator);
 	}
 }
 
@@ -1549,8 +1549,8 @@ int vchiq_mmal_port_connect_tunnel(struct vchiq_mmal_instance *instance,
 	dst->es.video.crop.y = src->es.video.crop.y;
 	dst->es.video.crop.width = src->es.video.crop.width;
 	dst->es.video.crop.height = src->es.video.crop.height;
-	dst->es.video.frame_rate.num = src->es.video.frame_rate.num;
-	dst->es.video.frame_rate.den = src->es.video.frame_rate.den;
+	dst->es.video.frame_rate.numerator = src->es.video.frame_rate.numerator;
+	dst->es.video.frame_rate.denominator = src->es.video.frame_rate.denominator;
 
 	/* set new format */
 	ret = port_info_set(instance, dst);
@@ -1841,7 +1841,6 @@ int vchiq_mmal_finalise(struct vchiq_mmal_instance *instance)
 	mutex_unlock(&instance->vchiq_mutex);
 
 	vchiq_shutdown(instance->vchiq_instance);
-	flush_workqueue(instance->bulk_wq);
 	destroy_workqueue(instance->bulk_wq);
 
 	idr_destroy(&instance->context_map);

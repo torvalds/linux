@@ -57,10 +57,10 @@ int rtw_IOL_append_cmds(struct xmit_frame *xmit_frame, u8 *IOL_cmds, u32 cmd_len
 
 bool rtw_IOL_applied(struct adapter  *adapter)
 {
-	if (1 == adapter->registrypriv.fw_iol)
+	if (adapter->registrypriv.fw_iol == 1)
 		return true;
 
-	if ((2 == adapter->registrypriv.fw_iol) &&
+	if ((adapter->registrypriv.fw_iol == 2) &&
 	    (adapter_to_dvobj(adapter)->pusbdev->speed != USB_SPEED_HIGH))
 		return true;
 

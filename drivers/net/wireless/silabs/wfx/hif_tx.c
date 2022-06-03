@@ -280,7 +280,7 @@ int wfx_hif_stop_scan(struct wfx_vif *wvif)
 }
 
 int wfx_hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
-		 struct ieee80211_channel *channel, const u8 *ssid, int ssidlen)
+		 struct ieee80211_channel *channel, const u8 *ssid, int ssid_len)
 {
 	int ret;
 	struct wfx_hif_msg *hif;
@@ -288,8 +288,8 @@ int wfx_hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 
 	WARN_ON(!conf->beacon_int);
 	WARN_ON(!conf->basic_rates);
-	WARN_ON(sizeof(body->ssid) < ssidlen);
-	WARN(!conf->ibss_joined && !ssidlen, "joining an unknown BSS");
+	WARN_ON(sizeof(body->ssid) < ssid_len);
+	WARN(!conf->ibss_joined && !ssid_len, "joining an unknown BSS");
 	if (!hif)
 		return -ENOMEM;
 	body->infrastructure_bss_mode = !conf->ibss_joined;
@@ -300,8 +300,8 @@ int wfx_hif_join(struct wfx_vif *wvif, const struct ieee80211_bss_conf *conf,
 	body->basic_rate_set = cpu_to_le32(wfx_rate_mask_to_hw(wvif->wdev, conf->basic_rates));
 	memcpy(body->bssid, conf->bssid, sizeof(body->bssid));
 	if (ssid) {
-		body->ssid_length = cpu_to_le32(ssidlen);
-		memcpy(body->ssid, ssid, ssidlen);
+		body->ssid_length = cpu_to_le32(ssid_len);
+		memcpy(body->ssid, ssid, ssid_len);
 	}
 	wfx_fill_header(hif, wvif->id, HIF_REQ_ID_JOIN, sizeof(*body));
 	ret = wfx_cmd_send(wvif->wdev, hif, NULL, 0, false);

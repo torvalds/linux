@@ -201,7 +201,7 @@ static int prism2_wep_get_key(void *key, int len, u8 *seq, void *priv)
 	struct prism2_wep_data *wep = priv;
 
 	if (len < wep->key_len)
-		return -1;
+		return 0;
 
 	memcpy(key, wep->key, wep->key_len);
 
