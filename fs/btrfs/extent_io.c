@@ -144,6 +144,7 @@ struct tree_entry {
  */
 struct btrfs_bio_ctrl {
 	struct bio *bio;
+	int mirror_num;
 	enum btrfs_compression_type compress_type;
 	u32 len_to_stripe_boundary;
 	u32 len_to_oe_boundary;
@@ -178,10 +179,18 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 	return ret;
 }
 
-static void submit_one_bio(struct bio *bio, int mirror_num,
-			   enum btrfs_compression_type compress_type)
+static void submit_one_bio(struct btrfs_bio_ctrl *bio_ctrl)
 {
-	struct inode *inode = bio_first_page_all(bio)->mapping->host;
+	struct bio *bio;
+	struct inode *inode;
+	int mirror_num;
+
+	if (!bio_ctrl->bio)
+		return;
+
+	bio = bio_ctrl->bio;
+	inode = bio_first_page_all(bio)->mapping->host;
+	mirror_num = bio_ctrl->mirror_num;
 
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bio->bi_iter.bi_size);
@@ -191,14 +200,11 @@ static void submit_one_bio(struct bio *bio, int mirror_num,
 	else if (btrfs_op(bio) == BTRFS_MAP_WRITE)
 		btrfs_submit_data_write_bio(inode, bio, mirror_num);
 	else
-		btrfs_submit_data_read_bio(inode, bio, mirror_num, compress_type);
+		btrfs_submit_data_read_bio(inode, bio, mirror_num,
+					   bio_ctrl->compress_type);
 
-	/*
-	 * Above submission hooks will handle the error by ending the bio,
-	 * which will do the cleanup properly.  So here we should not return
-	 * any error, or the caller of submit_extent_page() will do cleanup
-	 * again, causing problems.
-	 */
+	/* The bio is owned by the bi_end_io handler now */
+	bio_ctrl->bio = NULL;
 }
 
 /*
@@ -215,12 +221,11 @@ static void submit_write_bio(struct extent_page_data *epd, int ret)
 		ASSERT(ret < 0);
 		bio->bi_status = errno_to_blk_status(ret);
 		bio_endio(bio);
+		/* The bio is owned by the bi_end_io handler now */
+		epd->bio_ctrl.bio = NULL;
 	} else {
-		submit_one_bio(bio, 0, 0);
+		submit_one_bio(&epd->bio_ctrl);
 	}
-
-	/* The bio is owned by the bi_end_io handler now */
-	epd->bio_ctrl.bio = NULL;
 }
 
 int __init extent_state_cache_init(void)
@@ -3410,7 +3415,6 @@ static int submit_extent_page(unsigned int opf,
 			      struct page *page, u64 disk_bytenr,
 			      size_t size, unsigned long pg_offset,
 			      bio_end_io_t end_io_func,
-			      int mirror_num,
 			      enum btrfs_compression_type compress_type,
 			      bool force_bio_submit)
 {
@@ -3422,10 +3426,8 @@ static int submit_extent_page(unsigned int opf,
 
 	ASSERT(pg_offset < PAGE_SIZE && size <= PAGE_SIZE &&
 	       pg_offset + size <= PAGE_SIZE);
-	if (force_bio_submit && bio_ctrl->bio) {
-		submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->compress_type);
-		bio_ctrl->bio = NULL;
-	}
+	if (force_bio_submit)
+		submit_one_bio(bio_ctrl);
 
 	while (cur < pg_offset + size) {
 		u32 offset = cur - pg_offset;
@@ -3465,8 +3467,7 @@ static int submit_extent_page(unsigned int opf,
 		if (added < size - offset) {
 			/* The bio should contain some page(s) */
 			ASSERT(bio_ctrl->bio->bi_iter.bi_size);
-			submit_one_bio(bio_ctrl->bio, mirror_num, bio_ctrl->compress_type);
-			bio_ctrl->bio = NULL;
+			submit_one_bio(bio_ctrl);
 		}
 		cur += added;
 	}
@@ -3743,10 +3744,8 @@ static int btrfs_do_readpage(struct page *page, struct extent_map **em_cached,
 
 		ret = submit_extent_page(REQ_OP_READ | read_flags, NULL,
 					 bio_ctrl, page, disk_bytenr, iosize,
-					 pg_offset,
-					 end_bio_extent_readpage, 0,
-					 this_bio_flag,
-					 force_bio_submit);
+					 pg_offset, end_bio_extent_readpage,
+					 this_bio_flag, force_bio_submit);
 		if (ret) {
 			/*
 			 * We have to unlock the remaining range, or the page
@@ -3779,8 +3778,7 @@ int btrfs_read_folio(struct file *file, struct folio *folio)
 	 * If btrfs_do_readpage() failed we will want to submit the assembled
 	 * bio to do the cleanup.
 	 */
-	if (bio_ctrl.bio)
-		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.compress_type);
+	submit_one_bio(&bio_ctrl);
 	return ret;
 }
 
@@ -4063,7 +4061,7 @@ static noinline_for_stack int __extent_writepage_io(struct btrfs_inode *inode,
 					 disk_bytenr, iosize,
 					 cur - page_offset(page),
 					 end_bio_extent_writepage,
-					 0, 0, false);
+					 0, false);
 		if (ret) {
 			has_error = true;
 			if (!saved_ret)
@@ -4556,7 +4554,7 @@ static int write_one_subpage_eb(struct extent_buffer *eb,
 	ret = submit_extent_page(REQ_OP_WRITE | write_flags, wbc,
 			&epd->bio_ctrl, page, eb->start, eb->len,
 			eb->start - page_offset(page),
-			end_bio_subpage_eb_writepage, 0, 0, false);
+			end_bio_subpage_eb_writepage, 0, false);
 	if (ret) {
 		btrfs_subpage_clear_writeback(fs_info, page, eb->start, eb->len);
 		set_btree_ioerr(page, eb);
@@ -4597,7 +4595,7 @@ static noinline_for_stack int write_one_eb(struct extent_buffer *eb,
 					 &epd->bio_ctrl, p, disk_bytenr,
 					 PAGE_SIZE, 0,
 					 end_bio_extent_buffer_writepage,
-					 0, 0, false);
+					 0, false);
 		if (ret) {
 			set_btree_ioerr(p, eb);
 			if (PageWriteback(p))
@@ -5209,9 +5207,7 @@ void extent_readahead(struct readahead_control *rac)
 
 	if (em_cached)
 		free_extent_map(em_cached);
-
-	if (bio_ctrl.bio)
-		submit_one_bio(bio_ctrl.bio, 0, bio_ctrl.compress_type);
+	submit_one_bio(&bio_ctrl);
 }
 
 /*
@@ -6545,7 +6541,9 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	struct btrfs_fs_info *fs_info = eb->fs_info;
 	struct extent_io_tree *io_tree;
 	struct page *page = eb->pages[0];
-	struct btrfs_bio_ctrl bio_ctrl = { 0 };
+	struct btrfs_bio_ctrl bio_ctrl = {
+		.mirror_num = mirror_num,
+	};
 	int ret = 0;
 
 	ASSERT(!test_bit(EXTENT_BUFFER_UNMAPPED, &eb->bflags));
@@ -6580,8 +6578,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 	ret = submit_extent_page(REQ_OP_READ, NULL, &bio_ctrl,
 				 page, eb->start, eb->len,
 				 eb->start - page_offset(page),
-				 end_bio_extent_readpage, mirror_num, 0,
-				 true);
+				 end_bio_extent_readpage, 0, true);
 	if (ret) {
 		/*
 		 * In the endio function, if we hit something wrong we will
@@ -6590,10 +6587,7 @@ static int read_extent_buffer_subpage(struct extent_buffer *eb, int wait,
 		 */
 		atomic_dec(&eb->io_pages);
 	}
-	if (bio_ctrl.bio) {
-		submit_one_bio(bio_ctrl.bio, mirror_num, 0);
-		bio_ctrl.bio = NULL;
-	}
+	submit_one_bio(&bio_ctrl);
 	if (ret || wait != WAIT_COMPLETE)
 		return ret;
 
@@ -6613,7 +6607,9 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 	int all_uptodate = 1;
 	int num_pages;
 	unsigned long num_reads = 0;
-	struct btrfs_bio_ctrl bio_ctrl = { 0 };
+	struct btrfs_bio_ctrl bio_ctrl = {
+		.mirror_num = mirror_num,
+	};
 
 	if (test_bit(EXTENT_BUFFER_UPTODATE, &eb->bflags))
 		return 0;
@@ -6687,7 +6683,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 			err = submit_extent_page(REQ_OP_READ, NULL,
 					 &bio_ctrl, page, page_offset(page),
 					 PAGE_SIZE, 0, end_bio_extent_readpage,
-					 mirror_num, 0, false);
+					 0, false);
 			if (err) {
 				/*
 				 * We failed to submit the bio so it's the
@@ -6704,10 +6700,7 @@ int read_extent_buffer_pages(struct extent_buffer *eb, int wait, int mirror_num)
 		}
 	}
 
-	if (bio_ctrl.bio) {
-		submit_one_bio(bio_ctrl.bio, mirror_num, bio_ctrl.compress_type);
-		bio_ctrl.bio = NULL;
-	}
+	submit_one_bio(&bio_ctrl);
 
 	if (ret || wait != WAIT_COMPLETE)
 		return ret;
