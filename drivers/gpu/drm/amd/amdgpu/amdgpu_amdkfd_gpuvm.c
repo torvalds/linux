@@ -1621,7 +1621,7 @@ int amdgpu_amdkfd_gpuvm_free_memory_of_gpu(
 
 	mutex_lock(&mem->lock);
 
-	/* Unpin MMIO/DOORBELL BO's that were pinnned during allocation */
+	/* Unpin MMIO/DOORBELL BO's that were pinned during allocation */
 	if (mem->alloc_flags &
 	    (KFD_IOC_ALLOC_MEM_FLAGS_DOORBELL |
 	     KFD_IOC_ALLOC_MEM_FLAGS_MMIO_REMAP)) {

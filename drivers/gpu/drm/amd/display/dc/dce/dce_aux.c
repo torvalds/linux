@@ -87,7 +87,8 @@ static void release_engine(
 
 	engine->ddc = NULL;
 
-	REG_UPDATE(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1);
+	REG_UPDATE_2(AUX_ARB_CONTROL, AUX_SW_DONE_USING_AUX_REG, 1,
+		AUX_SW_USE_AUX_REG_REQ, 0);
 }
 
 #define SW_CAN_ACCESS_AUX 1
