@@ -322,22 +322,17 @@ static int meson_sar_adc_calib_val(struct iio_dev *indio_dev, int val)
 static int meson_sar_adc_wait_busy_clear(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int regval, timeout = 10000;
+	int val;
 
 	/*
 	 * NOTE: we need a small delay before reading the status, otherwise
 	 * the sample engine may not have started internally (which would
 	 * seem to us that sampling is already finished).
 	 */
-	do {
-		udelay(1);
-		regmap_read(priv->regmap, MESON_SAR_ADC_REG0, &regval);
-	} while (FIELD_GET(MESON_SAR_ADC_REG0_BUSY_MASK, regval) && timeout--);
-
-	if (timeout < 0)
-		return -ETIMEDOUT;
-
-	return 0;
+	udelay(1);
+	return regmap_read_poll_timeout_atomic(priv->regmap, MESON_SAR_ADC_REG0, val,
+					       !FIELD_GET(MESON_SAR_ADC_REG0_BUSY_MASK, val),
+					       1, 10000);
 }
 
 static int meson_sar_adc_read_raw_sample(struct iio_dev *indio_dev,
@@ -489,7 +484,7 @@ static void meson_sar_adc_stop_sample_engine(struct iio_dev *indio_dev)
 static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 {
 	struct meson_sar_adc_priv *priv = iio_priv(indio_dev);
-	int val, timeout = 10000;
+	int val, ret;
 
 	mutex_lock(&indio_dev->mlock);
 
@@ -499,18 +494,18 @@ static int meson_sar_adc_lock(struct iio_dev *indio_dev)
 				   MESON_SAR_ADC_DELAY_KERNEL_BUSY,
 				   MESON_SAR_ADC_DELAY_KERNEL_BUSY);
 
+		udelay(1);
+
 		/*
 		 * wait until BL30 releases it's lock (so we can use the SAR
 		 * ADC)
 		 */
-		do {
-			udelay(1);
-			regmap_read(priv->regmap, MESON_SAR_ADC_DELAY, &val);
-		} while (val & MESON_SAR_ADC_DELAY_BL30_BUSY && timeout--);
-
-		if (timeout < 0) {
+		ret = regmap_read_poll_timeout_atomic(priv->regmap, MESON_SAR_ADC_DELAY, val,
+						      !(val & MESON_SAR_ADC_DELAY_BL30_BUSY),
+						      1, 10000);
+		if (ret) {
 			mutex_unlock(&indio_dev->mlock);
-			return -ETIMEDOUT;
+			return ret;
 		}
 	}
 
