@@ -748,6 +748,7 @@ struct dc_debug_options {
 	uint8_t psr_power_use_phy_fsm;
 	enum dml_hostvm_override_opts dml_hostvm_override;
 	bool use_legacy_soc_bb_mechanism;
+	bool exit_idle_opt_for_cursor_updates;
 };
 
 struct gpu_info_soc_bounding_box_v1_0;
