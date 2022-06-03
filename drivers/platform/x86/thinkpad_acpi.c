@@ -159,6 +159,7 @@ enum tpacpi_hkey_event_t {
 	TP_HKEY_EV_VOL_DOWN		= 0x1016, /* Volume down or unmute */
 	TP_HKEY_EV_VOL_MUTE		= 0x1017, /* Mixer output mute */
 	TP_HKEY_EV_PRIVACYGUARD_TOGGLE	= 0x130f, /* Toggle priv.guard on/off */
+	TP_HKEY_EV_AMT_TOGGLE		= 0x131a, /* Toggle AMT on/off */
 
 	/* Reasons for waking up from S3/S4 */
 	TP_HKEY_EV_WKUP_S3_UNDOCK	= 0x2304, /* undock requested, S3 */
@@ -3735,6 +3736,7 @@ static bool hotkey_notify_extended_hotkey(const u32 hkey)
 
 	switch (hkey) {
 	case TP_HKEY_EV_PRIVACYGUARD_TOGGLE:
+	case TP_HKEY_EV_AMT_TOGGLE:
 		tpacpi_driver_event(hkey);
 		return true;
 	}
@@ -11038,6 +11040,15 @@ static void tpacpi_driver_event(const unsigned int hkey_event)
 		if (changed)
 			drm_privacy_screen_call_notifier_chain(lcdshadow_dev);
 	}
+	if (hkey_event == TP_HKEY_EV_AMT_TOGGLE) {
+		/* If we're enabling AMT we need to force balanced mode */
+		if (!dytc_amt_active)
+			/* This will also set AMT mode enabled */
+			dytc_profile_set(NULL, PLATFORM_PROFILE_BALANCED);
+		else
+			dytc_control_amt(!dytc_amt_active);
+	}
+
 }
 
 static void hotkey_driver_event(const unsigned int scancode)
