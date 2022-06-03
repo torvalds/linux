@@ -537,13 +537,6 @@ out:
 		break;
 	}
 
-	if (!ret && mt76_is_sdio(&dev->mt76)) {
-		/* activate again */
-		ret = __mt7921_mcu_fw_pmctrl(dev);
-		if (!ret)
-			ret = __mt7921_mcu_drv_pmctrl(dev);
-	}
-
 	release_firmware(fw);
 
 	return ret;
@@ -661,6 +654,13 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 	ret = mt7921_load_patch(dev);
 	if (ret)
 		return ret;
+
+	if (mt76_is_sdio(&dev->mt76)) {
+		/* activate again */
+		ret = __mt7921_mcu_fw_pmctrl(dev);
+		if (!ret)
+			ret = __mt7921_mcu_drv_pmctrl(dev);
+	}
 
 	ret = mt7921_load_ram(dev);
 	if (ret)
