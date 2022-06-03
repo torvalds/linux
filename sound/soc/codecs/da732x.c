@@ -1546,11 +1546,6 @@ err:
 	return ret;
 }
 
-static int da732x_i2c_remove(struct i2c_client *client)
-{
-	return 0;
-}
-
 static const struct i2c_device_id da732x_i2c_id[] = {
 	{ "da7320", 0},
 	{ }
@@ -1562,7 +1557,6 @@ static struct i2c_driver da732x_i2c_driver = {
 		.name	= "da7320",
 	},
 	.probe_new	= da732x_i2c_probe,
-	.remove		= da732x_i2c_remove,
 	.id_table	= da732x_i2c_id,
 };
 
