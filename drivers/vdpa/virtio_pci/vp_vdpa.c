@@ -32,13 +32,19 @@ struct vp_vring {
 
 struct vp_vdpa {
 	struct vdpa_device vdpa;
-	struct virtio_pci_modern_device mdev;
+	struct virtio_pci_modern_device *mdev;
 	struct vp_vring *vring;
 	struct vdpa_callback config_cb;
 	char msix_name[VP_VDPA_NAME_SIZE];
 	int config_irq;
 	int queues;
 	int vectors;
+};
+
+struct vp_vdpa_mgmtdev {
+	struct vdpa_mgmt_dev mgtdev;
+	struct virtio_pci_modern_device *mdev;
+	struct vp_vdpa *vp_vdpa;
 };
 
 static struct vp_vdpa *vdpa_to_vp(struct vdpa_device *vdpa)
@@ -50,7 +56,12 @@ static struct virtio_pci_modern_device *vdpa_to_mdev(struct vdpa_device *vdpa)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
 
-	return &vp_vdpa->mdev;
+	return vp_vdpa->mdev;
+}
+
+static struct virtio_pci_modern_device *vp_vdpa_to_mdev(struct vp_vdpa *vp_vdpa)
+{
+	return vp_vdpa->mdev;
 }
 
 static u64 vp_vdpa_get_device_features(struct vdpa_device *vdpa)
@@ -96,7 +107,7 @@ static int vp_vdpa_get_vq_irq(struct vdpa_device *vdpa, u16 idx)
 
 static void vp_vdpa_free_irq(struct vp_vdpa *vp_vdpa)
 {
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	struct pci_dev *pdev = mdev->pci_dev;
 	int i;
 
@@ -143,7 +154,7 @@ static irqreturn_t vp_vdpa_config_handler(int irq, void *arg)
 
 static int vp_vdpa_request_irq(struct vp_vdpa *vp_vdpa)
 {
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	struct pci_dev *pdev = mdev->pci_dev;
 	int i, ret, irq;
 	int queues = vp_vdpa->queues;
@@ -198,7 +209,7 @@ err:
 static void vp_vdpa_set_status(struct vdpa_device *vdpa, u8 status)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	u8 s = vp_vdpa_get_status(vdpa);
 
 	if (status & VIRTIO_CONFIG_S_DRIVER_OK &&
@@ -212,7 +223,7 @@ static void vp_vdpa_set_status(struct vdpa_device *vdpa, u8 status)
 static int vp_vdpa_reset(struct vdpa_device *vdpa)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	u8 s = vp_vdpa_get_status(vdpa);
 
 	vp_modern_set_status(mdev, 0);
@@ -372,7 +383,7 @@ static void vp_vdpa_get_config(struct vdpa_device *vdpa,
 			       void *buf, unsigned int len)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	u8 old, new;
 	u8 *p;
 	int i;
@@ -392,7 +403,7 @@ static void vp_vdpa_set_config(struct vdpa_device *vdpa,
 			       unsigned int len)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	const u8 *p = buf;
 	int i;
 
@@ -412,7 +423,7 @@ static struct vdpa_notification_area
 vp_vdpa_get_vq_notification(struct vdpa_device *vdpa, u16 qid)
 {
 	struct vp_vdpa *vp_vdpa = vdpa_to_vp(vdpa);
-	struct virtio_pci_modern_device *mdev = &vp_vdpa->mdev;
+	struct virtio_pci_modern_device *mdev = vp_vdpa_to_mdev(vp_vdpa);
 	struct vdpa_notification_area notify;
 
 	notify.addr = vp_vdpa->vring[qid].notify_pa;
@@ -454,38 +465,31 @@ static void vp_vdpa_free_irq_vectors(void *data)
 	pci_free_irq_vectors(data);
 }
 
-static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+static int vp_vdpa_dev_add(struct vdpa_mgmt_dev *v_mdev, const char *name,
+			   const struct vdpa_dev_set_config *add_config)
 {
-	struct virtio_pci_modern_device *mdev;
+	struct vp_vdpa_mgmtdev *vp_vdpa_mgtdev =
+		container_of(v_mdev, struct vp_vdpa_mgmtdev, mgtdev);
+
+	struct virtio_pci_modern_device *mdev = vp_vdpa_mgtdev->mdev;
+	struct pci_dev *pdev = mdev->pci_dev;
 	struct device *dev = &pdev->dev;
-	struct vp_vdpa *vp_vdpa;
+	struct vp_vdpa *vp_vdpa = NULL;
 	int ret, i;
 
-	ret = pcim_enable_device(pdev);
-	if (ret)
-		return ret;
-
 	vp_vdpa = vdpa_alloc_device(struct vp_vdpa, vdpa,
-				    dev, &vp_vdpa_ops, NULL, false);
+				    dev, &vp_vdpa_ops, 1, 1, name, false);
+
 	if (IS_ERR(vp_vdpa)) {
 		dev_err(dev, "vp_vdpa: Failed to allocate vDPA structure\n");
 		return PTR_ERR(vp_vdpa);
 	}
 
-	mdev = &vp_vdpa->mdev;
-	mdev->pci_dev = pdev;
-
-	ret = vp_modern_probe(mdev);
-	if (ret) {
-		dev_err(&pdev->dev, "Failed to probe modern PCI device\n");
-		goto err;
-	}
-
-	pci_set_master(pdev);
-	pci_set_drvdata(pdev, vp_vdpa);
+	vp_vdpa_mgtdev->vp_vdpa = vp_vdpa;
 
 	vp_vdpa->vdpa.dma_dev = &pdev->dev;
 	vp_vdpa->queues = vp_modern_get_num_queues(mdev);
+	vp_vdpa->mdev = mdev;
 
 	ret = devm_add_action_or_reset(dev, vp_vdpa_free_irq_vectors, pdev);
 	if (ret) {
@@ -516,7 +520,8 @@ static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
 	}
 	vp_vdpa->config_irq = VIRTIO_MSI_NO_VECTOR;
 
-	ret = vdpa_register_device(&vp_vdpa->vdpa, vp_vdpa->queues);
+	vp_vdpa->vdpa.mdev = &vp_vdpa_mgtdev->mgtdev;
+	ret = _vdpa_register_device(&vp_vdpa->vdpa, vp_vdpa->queues);
 	if (ret) {
 		dev_err(&pdev->dev, "Failed to register to vdpa bus\n");
 		goto err;
@@ -529,12 +534,104 @@ err:
 	return ret;
 }
 
+static void vp_vdpa_dev_del(struct vdpa_mgmt_dev *v_mdev,
+			    struct vdpa_device *dev)
+{
+	struct vp_vdpa_mgmtdev *vp_vdpa_mgtdev =
+		container_of(v_mdev, struct vp_vdpa_mgmtdev, mgtdev);
+
+	struct vp_vdpa *vp_vdpa = vp_vdpa_mgtdev->vp_vdpa;
+
+	_vdpa_unregister_device(&vp_vdpa->vdpa);
+	vp_vdpa_mgtdev->vp_vdpa = NULL;
+}
+
+static const struct vdpa_mgmtdev_ops vp_vdpa_mdev_ops = {
+	.dev_add = vp_vdpa_dev_add,
+	.dev_del = vp_vdpa_dev_del,
+};
+
+static int vp_vdpa_probe(struct pci_dev *pdev, const struct pci_device_id *id)
+{
+	struct vp_vdpa_mgmtdev *vp_vdpa_mgtdev = NULL;
+	struct vdpa_mgmt_dev *mgtdev;
+	struct device *dev = &pdev->dev;
+	struct virtio_pci_modern_device *mdev = NULL;
+	struct virtio_device_id *mdev_id = NULL;
+	int err;
+
+	vp_vdpa_mgtdev = kzalloc(sizeof(*vp_vdpa_mgtdev), GFP_KERNEL);
+	if (!vp_vdpa_mgtdev)
+		return -ENOMEM;
+
+	mgtdev = &vp_vdpa_mgtdev->mgtdev;
+	mgtdev->ops = &vp_vdpa_mdev_ops;
+	mgtdev->device = dev;
+
+	mdev = kzalloc(sizeof(struct virtio_pci_modern_device), GFP_KERNEL);
+	if (!mdev) {
+		err = -ENOMEM;
+		goto mdev_err;
+	}
+
+	mdev_id = kzalloc(sizeof(struct virtio_device_id), GFP_KERNEL);
+	if (!mdev_id) {
+		err = -ENOMEM;
+		goto mdev_id_err;
+	}
+
+	vp_vdpa_mgtdev->mdev = mdev;
+	mdev->pci_dev = pdev;
+
+	err = pcim_enable_device(pdev);
+	if (err) {
+		goto probe_err;
+	}
+
+	err = vp_modern_probe(mdev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to probe modern PCI device\n");
+		goto probe_err;
+	}
+
+	mdev_id->device = mdev->id.device;
+	mdev_id->vendor = mdev->id.vendor;
+	mgtdev->id_table = mdev_id;
+	mgtdev->max_supported_vqs = vp_modern_get_num_queues(mdev);
+	mgtdev->supported_features = vp_modern_get_features(mdev);
+	pci_set_master(pdev);
+	pci_set_drvdata(pdev, vp_vdpa_mgtdev);
+
+	err = vdpa_mgmtdev_register(mgtdev);
+	if (err) {
+		dev_err(&pdev->dev, "Failed to register vdpa mgmtdev device\n");
+		goto register_err;
+	}
+
+	return 0;
+
+register_err:
+	vp_modern_remove(vp_vdpa_mgtdev->mdev);
+probe_err:
+	kfree(mdev_id);
+mdev_id_err:
+	kfree(mdev);
+mdev_err:
+	kfree(vp_vdpa_mgtdev);
+	return err;
+}
+
 static void vp_vdpa_remove(struct pci_dev *pdev)
 {
-	struct vp_vdpa *vp_vdpa = pci_get_drvdata(pdev);
+	struct vp_vdpa_mgmtdev *vp_vdpa_mgtdev = pci_get_drvdata(pdev);
+	struct virtio_pci_modern_device *mdev = NULL;
 
-	vp_modern_remove(&vp_vdpa->mdev);
-	vdpa_unregister_device(&vp_vdpa->vdpa);
+	mdev = vp_vdpa_mgtdev->mdev;
+	vp_modern_remove(mdev);
+	vdpa_mgmtdev_unregister(&vp_vdpa_mgtdev->mgtdev);
+	kfree(&vp_vdpa_mgtdev->mgtdev.id_table);
+	kfree(mdev);
+	kfree(vp_vdpa_mgtdev);
 }
 
 static struct pci_driver vp_vdpa_driver = {
