@@ -1045,7 +1045,7 @@ static int spear_smi_remove(struct platform_device *pdev)
 {
 	struct spear_smi *dev;
 	struct spear_snor_flash *flash;
-	int ret, i;
+	int i;
 
 	dev = platform_get_drvdata(pdev);
 	if (!dev) {
@@ -1060,9 +1060,7 @@ static int spear_smi_remove(struct platform_device *pdev)
 			continue;
 
 		/* clean up mtd stuff */
-		ret = mtd_device_unregister(&flash->mtd);
-		if (ret)
-			dev_err(&pdev->dev, "error removing mtd\n");
+		WARN_ON(mtd_device_unregister(&flash->mtd));
 	}
 
 	clk_disable_unprepare(dev->clk);
