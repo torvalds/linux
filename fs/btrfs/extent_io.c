@@ -201,39 +201,26 @@ static void submit_one_bio(struct bio *bio, int mirror_num,
 	 */
 }
 
-/* Cleanup unsubmitted bios */
-static void end_write_bio(struct extent_page_data *epd, int ret)
+/*
+ * Submit or fail the current bio in an extent_page_data structure.
+ */
+static void submit_write_bio(struct extent_page_data *epd, int ret)
 {
 	struct bio *bio = epd->bio_ctrl.bio;
 
-	if (bio) {
+	if (!bio)
+		return;
+
+	if (ret) {
+		ASSERT(ret < 0);
 		bio->bi_status = errno_to_blk_status(ret);
 		bio_endio(bio);
-		epd->bio_ctrl.bio = NULL;
-	}
-}
-
-/*
- * Submit bio from extent page data via submit_one_bio
- *
- * Return 0 if everything is OK.
- * Return <0 for error.
- */
-static void flush_write_bio(struct extent_page_data *epd)
-{
-	struct bio *bio = epd->bio_ctrl.bio;
-
-	if (bio) {
+	} else {
 		submit_one_bio(bio, 0, 0);
-		/*
-		 * Clean up of epd->bio is handled by its endio function.
-		 * And endio is either triggered by successful bio execution
-		 * or the error handler of submit bio hook.
-		 * So at this point, no matter what happened, we don't need
-		 * to clean up epd->bio.
-		 */
-		epd->bio_ctrl.bio = NULL;
 	}
+
+	/* The bio is owned by the bi_end_io handler now */
+	epd->bio_ctrl.bio = NULL;
 }
 
 int __init extent_state_cache_init(void)
@@ -4251,7 +4238,7 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 	int ret = 0;
 
 	if (!btrfs_try_tree_write_lock(eb)) {
-		flush_write_bio(epd);
+		submit_write_bio(epd, 0);
 		flush = 1;
 		btrfs_tree_lock(eb);
 	}
@@ -4261,7 +4248,7 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 		if (!epd->sync_io)
 			return 0;
 		if (!flush) {
-			flush_write_bio(epd);
+			submit_write_bio(epd, 0);
 			flush = 1;
 		}
 		while (1) {
@@ -4308,7 +4295,7 @@ static noinline_for_stack int lock_extent_buffer_for_io(struct extent_buffer *eb
 
 		if (!trylock_page(p)) {
 			if (!flush) {
-				flush_write_bio(epd);
+				submit_write_bio(epd, 0);
 				flush = 1;
 			}
 			lock_page(p);
@@ -4724,7 +4711,7 @@ static int submit_eb_subpage(struct page *page,
 
 cleanup:
 	/* We hit error, end bio for the submitted extent buffers */
-	end_write_bio(epd, ret);
+	submit_write_bio(epd, ret);
 	return ret;
 }
 
@@ -4903,10 +4890,6 @@ retry:
 		index = 0;
 		goto retry;
 	}
-	if (ret < 0) {
-		end_write_bio(&epd, ret);
-		goto out;
-	}
 	/*
 	 * If something went wrong, don't allow any metadata write bio to be
 	 * submitted.
@@ -4933,21 +4916,17 @@ retry:
 	 *   Now such dirty tree block will not be cleaned by any dirty
 	 *   extent io tree. Thus we don't want to submit such wild eb
 	 *   if the fs already has error.
-	 */
-	if (!BTRFS_FS_ERROR(fs_info)) {
-		flush_write_bio(&epd);
-	} else {
-		ret = -EROFS;
-		end_write_bio(&epd, ret);
-	}
-out:
-	btrfs_zoned_meta_io_unlock(fs_info);
-	/*
+	 *
 	 * We can get ret > 0 from submit_extent_page() indicating how many ebs
 	 * were submitted. Reset it to 0 to avoid false alerts for the caller.
 	 */
 	if (ret > 0)
 		ret = 0;
+	if (!ret && BTRFS_FS_ERROR(fs_info))
+		ret = -EROFS;
+	submit_write_bio(&epd, ret);
+
+	btrfs_zoned_meta_io_unlock(fs_info);
 	return ret;
 }
 
@@ -5049,7 +5028,7 @@ retry:
 			 * tmpfs file mapping
 			 */
 			if (!trylock_page(page)) {
-				flush_write_bio(epd);
+				submit_write_bio(epd, 0);
 				lock_page(page);
 			}
 
@@ -5060,7 +5039,7 @@ retry:
 
 			if (wbc->sync_mode != WB_SYNC_NONE) {
 				if (PageWriteback(page))
-					flush_write_bio(epd);
+					submit_write_bio(epd, 0);
 				wait_on_page_writeback(page);
 			}
 
@@ -5100,7 +5079,7 @@ retry:
 		 * page in our current bio, and thus deadlock, so flush the
 		 * write bio here.
 		 */
-		flush_write_bio(epd);
+		submit_write_bio(epd, 0);
 		goto retry;
 	}
 
@@ -5121,13 +5100,7 @@ int extent_write_full_page(struct page *page, struct writeback_control *wbc)
 	};
 
 	ret = __extent_writepage(page, wbc, &epd);
-	ASSERT(ret <= 0);
-	if (ret < 0) {
-		end_write_bio(&epd, ret);
-		return ret;
-	}
-
-	flush_write_bio(&epd);
+	submit_write_bio(&epd, ret);
 	return ret;
 }
 
@@ -5188,10 +5161,7 @@ int extent_write_locked_range(struct inode *inode, u64 start, u64 end)
 		cur = cur_end + 1;
 	}
 
-	if (!found_error)
-		flush_write_bio(&epd);
-	else
-		end_write_bio(&epd, ret);
+	submit_write_bio(&epd, found_error ? ret : 0);
 
 	wbc_detach_inode(&wbc_writepages);
 	if (found_error)
@@ -5216,13 +5186,7 @@ int extent_writepages(struct address_space *mapping,
 	 */
 	btrfs_zoned_data_reloc_lock(BTRFS_I(inode));
 	ret = extent_write_cache_pages(mapping, wbc, &epd);
-	ASSERT(ret <= 0);
-	if (ret < 0) {
-		btrfs_zoned_data_reloc_unlock(BTRFS_I(inode));
-		end_write_bio(&epd, ret);
-		return ret;
-	}
-	flush_write_bio(&epd);
+	submit_write_bio(&epd, ret);
 	btrfs_zoned_data_reloc_unlock(BTRFS_I(inode));
 	return ret;
 }
