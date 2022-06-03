@@ -26,6 +26,13 @@
 #define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
 #define PATCH_SEC_TYPE_INFO		0x2
 
+#define PATCH_SEC_ENC_TYPE_MASK			GENMASK(31, 24)
+#define PATCH_SEC_ENC_TYPE_PLAIN		0x00
+#define PATCH_SEC_ENC_TYPE_AES			0x01
+#define PATCH_SEC_ENC_TYPE_SCRAMBLE		0x02
+#define PATCH_SEC_ENC_SCRAMBLE_INFO_MASK	GENMASK(15, 0)
+#define PATCH_SEC_ENC_AES_KEY_MASK		GENMASK(7, 0)
+
 struct mt76_connac2_patch_hdr {
 	char build_date[16];
 	char platform[4];
@@ -1711,4 +1718,5 @@ int mt76_connac_mcu_rdd_cmd(struct mt76_dev *dev, int cmd, u8 index,
 			    u8 rx_sel, u8 val);
 int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
 			  const char *fw_wa);
+int mt76_connac2_load_patch(struct mt76_dev *dev, const char *fw_name);
 #endif /* __MT76_CONNAC_MCU_H */

@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#include <linux/firmware.h>
 #include <linux/fs.h>
 #include "mt7915.h"
 #include "mcu.h"
@@ -2078,89 +2077,6 @@ static int mt7915_driver_own(struct mt7915_dev *dev, u8 band)
 	return 0;
 }
 
-static int mt7915_load_patch(struct mt7915_dev *dev)
-{
-	const struct mt76_connac2_patch_hdr *hdr;
-	const struct firmware *fw = NULL;
-	int i, ret, sem;
-
-	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, 1);
-	switch (sem) {
-	case PATCH_IS_DL:
-		return 0;
-	case PATCH_NOT_DL_SEM_SUCCESS:
-		break;
-	default:
-		dev_err(dev->mt76.dev, "Failed to get patch semaphore\n");
-		return -EAGAIN;
-	}
-
-	ret = request_firmware(&fw, fw_name_var(dev, ROM_PATCH),
-			       dev->mt76.dev);
-	if (ret)
-		goto out;
-
-	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
-		dev_err(dev->mt76.dev, "Invalid firmware\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	hdr = (const struct mt76_connac2_patch_hdr *)fw->data;
-
-	dev_info(dev->mt76.dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
-		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
-
-	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
-		struct mt76_connac2_patch_sec *sec;
-		const u8 *dl;
-		u32 len, addr;
-
-		sec = (void *)(fw->data + sizeof(*hdr) + i * sizeof(*sec));
-		if ((be32_to_cpu(sec->type) & PATCH_SEC_TYPE_MASK) !=
-		    PATCH_SEC_TYPE_INFO) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		addr = be32_to_cpu(sec->info.addr);
-		len = be32_to_cpu(sec->info.len);
-		dl = fw->data + be32_to_cpu(sec->offs);
-
-		ret = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
-						    DL_MODE_NEED_RSP);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					       dl, len, 4096);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send patch\n");
-			goto out;
-		}
-	}
-
-	ret = mt76_connac_mcu_start_patch(&dev->mt76);
-	if (ret)
-		dev_err(dev->mt76.dev, "Failed to start patch\n");
-
-out:
-	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, 0);
-	switch (sem) {
-	case PATCH_REL_SEM_SUCCESS:
-		break;
-	default:
-		ret = -EAGAIN;
-		dev_err(dev->mt76.dev, "Failed to release patch semaphore\n");
-		break;
-	}
-	release_firmware(fw);
-
-	return ret;
-}
-
 static int
 mt7915_firmware_state(struct mt7915_dev *dev, bool wa)
 {
@@ -2191,7 +2107,7 @@ static int mt7915_load_firmware(struct mt7915_dev *dev)
 		}
 	}
 
-	ret = mt7915_load_patch(dev);
+	ret = mt76_connac2_load_patch(&dev->mt76, fw_name_var(dev, ROM_PATCH));
 	if (ret)
 		return ret;
 

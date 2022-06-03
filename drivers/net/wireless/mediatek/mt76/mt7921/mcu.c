@@ -1,7 +1,6 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
-#include <linux/firmware.h>
 #include <linux/fs.h>
 #include "mt7921.h"
 #include "mt7921_trace.h"
@@ -10,13 +9,6 @@
 
 #define MT_STA_BFER			BIT(0)
 #define MT_STA_BFEE			BIT(1)
-
-#define PATCH_SEC_ENC_TYPE_MASK		GENMASK(31, 24)
-#define PATCH_SEC_ENC_TYPE_PLAIN		0x00
-#define PATCH_SEC_ENC_TYPE_AES			0x01
-#define PATCH_SEC_ENC_TYPE_SCRAMBLE		0x02
-#define PATCH_SEC_ENC_SCRAMBLE_INFO_MASK	GENMASK(15, 0)
-#define PATCH_SEC_ENC_AES_KEY_MASK		GENMASK(7, 0)
 
 static int
 mt7921_mcu_parse_eeprom(struct mt76_dev *dev, struct sk_buff *skb)
@@ -414,34 +406,6 @@ int mt7921_mcu_uni_rx_ba(struct mt7921_dev *dev,
 				      enable, false);
 }
 
-static u32 mt7921_get_data_mode(struct mt7921_dev *dev, u32 info)
-{
-	u32 mode = DL_MODE_NEED_RSP;
-
-	if (info == PATCH_SEC_NOT_SUPPORT)
-		return mode;
-
-	switch (FIELD_GET(PATCH_SEC_ENC_TYPE_MASK, info)) {
-	case PATCH_SEC_ENC_TYPE_PLAIN:
-		break;
-	case PATCH_SEC_ENC_TYPE_AES:
-		mode |= DL_MODE_ENCRYPT;
-		mode |= FIELD_PREP(DL_MODE_KEY_IDX,
-				(info & PATCH_SEC_ENC_AES_KEY_MASK)) & DL_MODE_KEY_IDX;
-		mode |= DL_MODE_RESET_SEC_IV;
-		break;
-	case PATCH_SEC_ENC_TYPE_SCRAMBLE:
-		mode |= DL_MODE_ENCRYPT;
-		mode |= DL_CONFIG_ENCRY_MODE_SEL;
-		mode |= DL_MODE_RESET_SEC_IV;
-		break;
-	default:
-		dev_err(dev->mt76.dev, "Encryption type not support!\n");
-	}
-
-	return mode;
-}
-
 static char *mt7921_patch_name(struct mt7921_dev *dev)
 {
 	char *ret;
@@ -450,94 +414,6 @@ static char *mt7921_patch_name(struct mt7921_dev *dev)
 		ret = MT7922_ROM_PATCH;
 	else
 		ret = MT7921_ROM_PATCH;
-
-	return ret;
-}
-
-static int mt7921_load_patch(struct mt7921_dev *dev)
-{
-	const struct mt76_connac2_patch_hdr *hdr;
-	const struct firmware *fw = NULL;
-	int i, ret, sem, max_len;
-
-	max_len = mt76_is_sdio(&dev->mt76) ? 2048 : 4096;
-
-	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, true);
-	switch (sem) {
-	case PATCH_IS_DL:
-		return 0;
-	case PATCH_NOT_DL_SEM_SUCCESS:
-		break;
-	default:
-		dev_err(dev->mt76.dev, "Failed to get patch semaphore\n");
-		return -EAGAIN;
-	}
-
-	ret = request_firmware(&fw, mt7921_patch_name(dev), dev->mt76.dev);
-	if (ret)
-		goto out;
-
-	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
-		dev_err(dev->mt76.dev, "Invalid firmware\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	hdr = (const struct mt76_connac2_patch_hdr *)fw->data;
-
-	dev_info(dev->mt76.dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
-		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
-
-	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
-		struct mt76_connac2_patch_sec *sec;
-		const u8 *dl;
-		u32 len, addr, mode;
-		u32 sec_info = 0;
-
-		sec = (void *)(fw->data + sizeof(*hdr) + i * sizeof(*sec));
-		if ((be32_to_cpu(sec->type) & PATCH_SEC_TYPE_MASK) !=
-		    PATCH_SEC_TYPE_INFO) {
-			ret = -EINVAL;
-			goto out;
-		}
-
-		addr = be32_to_cpu(sec->info.addr);
-		len = be32_to_cpu(sec->info.len);
-		dl = fw->data + be32_to_cpu(sec->offs);
-		sec_info = be32_to_cpu(sec->info.sec_key_idx);
-		mode = mt7921_get_data_mode(dev, sec_info);
-
-		ret = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
-						    mode);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			goto out;
-		}
-
-		ret = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					       dl, len, max_len);
-		if (ret) {
-			dev_err(dev->mt76.dev, "Failed to send patch\n");
-			goto out;
-		}
-	}
-
-	ret = mt76_connac_mcu_start_patch(&dev->mt76);
-	if (ret)
-		dev_err(dev->mt76.dev, "Failed to start patch\n");
-
-out:
-	sem = mt76_connac_mcu_patch_sem_ctrl(&dev->mt76, false);
-	switch (sem) {
-	case PATCH_REL_SEM_SUCCESS:
-		break;
-	default:
-		ret = -EAGAIN;
-		dev_err(dev->mt76.dev, "Failed to release patch semaphore\n");
-		break;
-	}
-
-	release_firmware(fw);
 
 	return ret;
 }
@@ -564,7 +440,7 @@ static int mt7921_load_firmware(struct mt7921_dev *dev)
 		goto fw_loaded;
 	}
 
-	ret = mt7921_load_patch(dev);
+	ret = mt76_connac2_load_patch(&dev->mt76, mt7921_patch_name(dev));
 	if (ret)
 		return ret;
 
