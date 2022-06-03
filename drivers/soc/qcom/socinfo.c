@@ -1116,6 +1116,7 @@ static void socinfo_populate_sysfs(struct qcom_socinfo *qcom_socinfo)
 	case SOCINFO_VERSION(0, 15):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_soc_sku.attr;
 		msm_custom_socinfo_attrs[i++] = &dev_attr_nmodem_supported.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 14):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_num_clusters.attr;
 		msm_custom_socinfo_attrs[i++] =
@@ -1124,37 +1125,50 @@ static void socinfo_populate_sysfs(struct qcom_socinfo *qcom_socinfo)
 			&dev_attr_num_defective_parts.attr;
 		msm_custom_socinfo_attrs[i++] =
 			&dev_attr_ndefective_parts_array_offset.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 13):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_nproduct_id.attr;
 		msm_custom_socinfo_attrs[i++] = &dev_attr_chip_id.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 12):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_chip_family.attr;
 		msm_custom_socinfo_attrs[i++] =
 			&dev_attr_raw_device_family.attr;
 		msm_custom_socinfo_attrs[i++] =
 			&dev_attr_raw_device_number.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 11):
+		fallthrough;
 	case SOCINFO_VERSION(0, 10):
+		fallthrough;
 	case SOCINFO_VERSION(0, 9):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_foundry_id.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 8):
+		fallthrough;
 	case SOCINFO_VERSION(0, 7):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_pmic_model.attr;
 		msm_custom_socinfo_attrs[i++] =
 			&dev_attr_pmic_die_revision.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 6):
 		msm_custom_socinfo_attrs[i++] =
 			&dev_attr_platform_subtype_id.attr;
 		msm_custom_socinfo_attrs[i++] = &dev_attr_platform_subtype.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 5):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_accessory_chip.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 4):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_platform_version.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 3):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_hw_platform.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 2):
 		msm_custom_socinfo_attrs[i++] = &dev_attr_raw_id.attr;
 		msm_custom_socinfo_attrs[i++] = &dev_attr_raw_version.attr;
+		fallthrough;
 	case SOCINFO_VERSION(0, 1):
 		break;
 	default:
@@ -1221,6 +1235,7 @@ static void socinfo_print(void)
 				socinfo->hw_plat_subtype);
 		break;
 	case SOCINFO_VERSION(0, 7):
+		fallthrough;
 	case SOCINFO_VERSION(0, 8):
 		pr_info("v%u.%u, id=%u, ver=%u.%u, raw_id=%u, raw_ver=%u, " \
 				"hw_plat=%u, hw_plat_ver=%u\n accessory_chip=%u, " \
