@@ -911,9 +911,9 @@ static void ltdc_crtc_mode_set_nofb(struct drm_crtc *crtc)
 		drm_connector_list_iter_end(&iter);
 	}
 
-	if (bridge && bridge->timings)
+	if (bridge && bridge->timings) {
 		bus_flags = bridge->timings->input_bus_flags;
-	else if (connector) {
+	} else if (connector) {
 		bus_flags = connector->display_info.bus_flags;
 		if (connector->display_info.num_bus_formats)
 			bus_formats = connector->display_info.bus_formats[0];
@@ -1920,7 +1920,6 @@ int ltdc_load(struct drm_device *ddev)
 			DRM_ERROR("Failed to register LTDC interrupt\n");
 			goto err;
 		}
-
 	}
 
 	crtc = devm_kzalloc(dev, sizeof(*crtc), GFP_KERNEL);
