@@ -54,6 +54,8 @@ static char *mutex_path_override;
 /* ACPI mutex for locking access to the EC for the firmware */
 #define ASUS_HW_ACCESS_MUTEX_ASMX	"\\AMW0.ASMX"
 
+#define ASUS_HW_ACCESS_MUTEX_RMTW_ASMX	"\\RMTW.ASMX"
+
 #define MAX_IDENTICAL_BOARD_VARIATIONS	3
 
 /* Moniker for the ACPI global lock (':' is not allowed in ASL identifiers) */
@@ -139,6 +141,7 @@ enum board_family {
 	family_unknown,
 	family_amd_400_series,
 	family_amd_500_series,
+	family_intel_600_series
 };
 
 /* All the known sensors for ASUS EC controllers */
@@ -195,6 +198,12 @@ static const struct ec_sensor_info sensors_family_amd_500[] = {
 		EC_SENSOR("Water_In", hwmon_temp, 1, 0x01, 0x00),
 	[ec_sensor_temp_water_out] =
 		EC_SENSOR("Water_Out", hwmon_temp, 1, 0x01, 0x01),
+};
+
+static const struct ec_sensor_info sensors_family_intel_600[] = {
+	[ec_sensor_temp_t_sensor] =
+		EC_SENSOR("T_Sensor", hwmon_temp, 1, 0x00, 0x3d),
+	[ec_sensor_temp_vrm] = EC_SENSOR("VRM", hwmon_temp, 1, 0x00, 0x3e),
 };
 
 /* Shortcuts for common combinations */
@@ -329,6 +338,12 @@ static const struct ec_board_info board_info[] = {
 			SENSOR_IN_CPU_CORE,
 		.mutex_path = ASUS_HW_ACCESS_MUTEX_ASMX,
 		.family = family_amd_500_series,
+	},
+	{
+		.board_names = {"ROG STRIX Z690-A GAMING WIFI D4"},
+		.sensors = SENSOR_TEMP_T_SENSOR | SENSOR_TEMP_VRM,
+		.mutex_path = ASUS_HW_ACCESS_MUTEX_RMTW_ASMX,
+		.family = family_intel_600_series,
 	},
 	{}
 };
@@ -798,6 +813,9 @@ static int __init asus_ec_probe(struct platform_device *pdev)
 		break;
 	case family_amd_500_series:
 		ec_data->sensors_info = sensors_family_amd_500;
+		break;
+	case family_intel_600_series:
+		ec_data->sensors_info = sensors_family_intel_600;
 		break;
 	default:
 		dev_err(dev, "Unknown board family: %d",
