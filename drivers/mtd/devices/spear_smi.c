@@ -1048,10 +1048,6 @@ static int spear_smi_remove(struct platform_device *pdev)
 	int i;
 
 	dev = platform_get_drvdata(pdev);
-	if (!dev) {
-		dev_err(&pdev->dev, "dev is null\n");
-		return -ENODEV;
-	}
 
 	/* clean up for all nor flash */
 	for (i = 0; i < dev->num_flashes; i++) {
