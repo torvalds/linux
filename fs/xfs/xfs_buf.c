@@ -1911,7 +1911,7 @@ xfs_free_buftarg(
 	list_lru_destroy(&btp->bt_lru);
 
 	blkdev_issue_flush(btp->bt_bdev);
-	fs_put_dax(btp->bt_daxdev);
+	fs_put_dax(btp->bt_daxdev, NULL);
 
 	kmem_free(btp);
 }
@@ -1964,7 +1964,8 @@ xfs_alloc_buftarg(
 	btp->bt_mount = mp;
 	btp->bt_dev =  bdev->bd_dev;
 	btp->bt_bdev = bdev;
-	btp->bt_daxdev = fs_dax_get_by_bdev(bdev, &btp->bt_dax_part_off);
+	btp->bt_daxdev = fs_dax_get_by_bdev(bdev, &btp->bt_dax_part_off, NULL,
+					    NULL);
 
 	/*
 	 * Buffer IO error rate limiting. Limit it to no more than 10 messages
