@@ -26,12 +26,11 @@
 #include <linux/memcontrol.h>
 #include <linux/stackdepot.h>
 
+#include "internal.h"
+#include "slab.h"
+
 #define CREATE_TRACE_POINTS
 #include <trace/events/kmem.h>
-
-#include "internal.h"
-
-#include "slab.h"
 
 enum slab_state slab_state;
 LIST_HEAD(slab_caches);
@@ -959,7 +958,7 @@ EXPORT_SYMBOL(kmalloc_order);
 void *kmalloc_order_trace(size_t size, gfp_t flags, unsigned int order)
 {
 	void *ret = kmalloc_order(size, flags, order);
-	trace_kmalloc(_RET_IP_, ret, size, PAGE_SIZE << order, flags);
+	trace_kmalloc(_RET_IP_, ret, NULL, size, PAGE_SIZE << order, flags);
 	return ret;
 }
 EXPORT_SYMBOL(kmalloc_order_trace);
