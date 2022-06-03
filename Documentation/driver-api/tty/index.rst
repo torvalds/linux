@@ -36,18 +36,16 @@ In-detail description of the named TTY structures is in separate documents:
    tty_struct
    tty_ldisc
    tty_buffer
-   n_tty
    tty_internals
 
 Writing TTY Driver
 ==================
 
 Before one starts writing a TTY driver, they must consider
-:doc:`Serial <../driver-api/serial/driver>` and :doc:`USB Serial
-<../usb/usb-serial>` layers
-first. Drivers for serial devices can often use one of these specific layers to
-implement a serial driver. Only special devices should be handled directly by
-the TTY Layer. If you are about to write such a driver, read on.
+:doc:`Serial <../serial/driver>` and :doc:`USB Serial <../../usb/usb-serial>`
+layers first. Drivers for serial devices can often use one of these specific
+layers to implement a serial driver. Only special devices should be handled
+directly by the TTY Layer. If you are about to write such a driver, read on.
 
 A *typical* sequence a TTY driver performs is as follows:
 
@@ -61,3 +59,15 @@ A *typical* sequence a TTY driver performs is as follows:
 Steps regarding driver, i.e. 1., 3., and 5. are described in detail in
 :doc:`tty_driver`. For the other two (devices handling), look into
 :doc:`tty_port`.
+
+Other Documentation
+===================
+
+Miscellaneous documentation can be further found in these documents:
+
+.. toctree::
+   :maxdepth: 2
+
+   moxa-smartio
+   n_gsm
+   n_tty

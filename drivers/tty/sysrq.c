@@ -232,8 +232,10 @@ static void showacpu(void *dummy)
 	unsigned long flags;
 
 	/* Idle CPUs have no interesting backtrace. */
-	if (idle_cpu(smp_processor_id()))
+	if (idle_cpu(smp_processor_id())) {
+		pr_info("CPU%d: backtrace skipped as idling\n", smp_processor_id());
 		return;
+	}
 
 	raw_spin_lock_irqsave(&show_lock, flags);
 	pr_info("CPU%d:\n", smp_processor_id());
@@ -260,10 +262,13 @@ static void sysrq_handle_showallcpus(int key)
 
 		if (in_hardirq())
 			regs = get_irq_regs();
-		if (regs) {
-			pr_info("CPU%d:\n", smp_processor_id());
+
+		pr_info("CPU%d:\n", smp_processor_id());
+		if (regs)
 			show_regs(regs);
-		}
+		else
+			show_stack(NULL, NULL, KERN_INFO);
+
 		schedule_work(&sysrq_showallcpus);
 	}
 }
@@ -274,6 +279,8 @@ static const struct sysrq_key_op sysrq_showallcpus_op = {
 	.action_msg	= "Show backtrace of all active CPUs",
 	.enable_mask	= SYSRQ_ENABLE_DUMP,
 };
+#else
+#define sysrq_showallcpus_op (*(const struct sysrq_key_op *)NULL)
 #endif
 
 static void sysrq_handle_showregs(int key)
@@ -405,6 +412,7 @@ static const struct sysrq_key_op sysrq_moom_op = {
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
 
+#ifdef CONFIG_BLOCK
 static void sysrq_handle_thaw(int key)
 {
 	emergency_thaw_all();
@@ -415,6 +423,9 @@ static const struct sysrq_key_op sysrq_thaw_op = {
 	.action_msg	= "Emergency Thaw of all frozen filesystems",
 	.enable_mask	= SYSRQ_ENABLE_SIGNAL,
 };
+#else
+#define sysrq_thaw_op (*(const struct sysrq_key_op *)NULL)
+#endif
 
 static void sysrq_handle_kill(int key)
 {
@@ -468,17 +479,9 @@ static const struct sysrq_key_op *sysrq_key_table[62] = {
 	NULL,				/* g */
 	NULL,				/* h - reserved for help */
 	&sysrq_kill_op,			/* i */
-#ifdef CONFIG_BLOCK
 	&sysrq_thaw_op,			/* j */
-#else
-	NULL,				/* j */
-#endif
 	&sysrq_SAK_op,			/* k */
-#ifdef CONFIG_SMP
 	&sysrq_showallcpus_op,		/* l */
-#else
-	NULL,				/* l */
-#endif
 	&sysrq_showmem_op,		/* m */
 	&sysrq_unrt_op,			/* n */
 	/* o: This will often be registered as 'Off' at init time */

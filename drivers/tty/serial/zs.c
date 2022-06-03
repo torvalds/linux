@@ -981,7 +981,7 @@ static const char *zs_type(struct uart_port *uport)
 static void zs_release_port(struct uart_port *uport)
 {
 	iounmap(uport->membase);
-	uport->membase = 0;
+	uport->membase = NULL;
 	release_mem_region(uport->mapbase, ZS_CHAN_IO_SIZE);
 }
 
