@@ -1229,6 +1229,30 @@ void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id)
 	kref_put(&mg->refcount, mount_group_release);
 }
 
+/* Extract share from DFS target and return a pointer to prefix path or NULL */
+static const char *parse_target_share(const char *target, char **share)
+{
+	const char *s, *seps = "/\\";
+	size_t len;
+
+	s = strpbrk(target + 1, seps);
+	if (!s)
+		return ERR_PTR(-EINVAL);
+
+	len = strcspn(s + 1, seps);
+	if (!len)
+		return ERR_PTR(-EINVAL);
+	s += len;
+
+	len = s - target + 1;
+	*share = kstrndup(target, len, GFP_KERNEL);
+	if (!*share)
+		return ERR_PTR(-ENOMEM);
+
+	s = target + len;
+	return s + strspn(s, seps);
+}
+
 /**
  * dfs_cache_get_tgt_share - parse a DFS target
  *
@@ -1242,56 +1266,45 @@ void dfs_cache_put_refsrv_sessions(const uuid_t *mount_id)
 int dfs_cache_get_tgt_share(char *path, const struct dfs_cache_tgt_iterator *it, char **share,
 			    char **prefix)
 {
-	char *s, sep, *p;
-	size_t len;
-	size_t plen1, plen2;
+	char sep;
+	char *target_share, *ppath;
+	const char *target_ppath, *dfsref_ppath;
+	size_t target_pplen, dfsref_pplen;
+	size_t len, c;
 
 	if (!it || !path || !share || !prefix || strlen(path) < it->it_path_consumed)
 		return -EINVAL;
-
-	*share = NULL;
-	*prefix = NULL;
 
 	sep = it->it_name[0];
 	if (sep != '\\' && sep != '/')
 		return -EINVAL;
 
-	s = strchr(it->it_name + 1, sep);
-	if (!s)
-		return -EINVAL;
+	target_ppath = parse_target_share(it->it_name, &target_share);
+	if (IS_ERR(target_ppath))
+		return PTR_ERR(target_ppath);
 
-	/* point to prefix in target node */
-	s = strchrnul(s + 1, sep);
+	/* point to prefix in DFS referral path */
+	dfsref_ppath = path + it->it_path_consumed;
+	dfsref_ppath += strspn(dfsref_ppath, "/\\");
 
-	/* extract target share */
-	*share = kstrndup(it->it_name, s - it->it_name, GFP_KERNEL);
-	if (!*share)
-		return -ENOMEM;
+	target_pplen = strlen(target_ppath);
+	dfsref_pplen = strlen(dfsref_ppath);
 
-	/* skip separator */
-	if (*s)
-		s++;
-	/* point to prefix in DFS path */
-	p = path + it->it_path_consumed;
-	if (*p == sep)
-		p++;
-
-	/* merge prefix paths from DFS path and target node */
-	plen1 = it->it_name + strlen(it->it_name) - s;
-	plen2 = path + strlen(path) - p;
-	if (plen1 || plen2) {
-		len = plen1 + plen2 + 2;
-		*prefix = kmalloc(len, GFP_KERNEL);
-		if (!*prefix) {
-			kfree(*share);
-			*share = NULL;
+	/* merge prefix paths from DFS referral path and target node */
+	if (target_pplen || dfsref_pplen) {
+		len = target_pplen + dfsref_pplen + 2;
+		ppath = kzalloc(len, GFP_KERNEL);
+		if (!ppath) {
+			kfree(target_share);
 			return -ENOMEM;
 		}
-		if (plen1)
-			scnprintf(*prefix, len, "%.*s%c%.*s", (int)plen1, s, sep, (int)plen2, p);
-		else
-			strscpy(*prefix, p, len);
+		c = strscpy(ppath, target_ppath, len);
+		if (c && dfsref_pplen)
+			ppath[c] = sep;
+		strlcat(ppath, dfsref_ppath, len);
 	}
+	*share = target_share;
+	*prefix = ppath;
 	return 0;
 }
 
