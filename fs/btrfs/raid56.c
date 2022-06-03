@@ -1106,9 +1106,6 @@ static void index_one_bio(struct btrfs_raid_bio *rbio, struct bio *bio)
 	u32 offset = (bio->bi_iter.bi_sector << SECTOR_SHIFT) -
 		     rbio->bioc->raid_map[0];
 
-	if (bio_flagged(bio, BIO_CLONED))
-		bio->bi_iter = btrfs_bio(bio)->iter;
-
 	bio_for_each_segment(bvec, bio, iter) {
 		u32 bvec_offset;
 
