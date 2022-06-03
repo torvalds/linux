@@ -370,7 +370,7 @@ static void unregister_port(void *_port)
 		lock_dev = &parent->dev;
 
 	device_lock_assert(lock_dev);
-	port->uport = NULL;
+	port->dead = true;
 	device_unregister(&port->dev);
 }
 
@@ -857,7 +857,7 @@ static void delete_endpoint(void *data)
 	parent = &parent_port->dev;
 
 	device_lock(parent);
-	if (parent->driver && endpoint->uport) {
+	if (parent->driver && !endpoint->dead) {
 		devm_release_action(parent, cxl_unlink_uport, endpoint);
 		devm_release_action(parent, unregister_port, endpoint);
 	}
