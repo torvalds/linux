@@ -3864,6 +3864,10 @@ static netdev_features_t mlx5e_fix_uplink_rep_features(struct net_device *netdev
 	if (netdev->features & NETIF_F_NTUPLE)
 		netdev_warn(netdev, "Disabling ntuple, not supported in switchdev mode\n");
 
+	features &= ~NETIF_F_GRO_HW;
+	if (netdev->features & NETIF_F_GRO_HW)
+		netdev_warn(netdev, "Disabling HW_GRO, not supported in switchdev mode\n");
+
 	return features;
 }
 
@@ -3892,6 +3896,25 @@ static netdev_features_t mlx5e_fix_features(struct net_device *netdev,
 		}
 		if (features & NETIF_F_GRO_HW) {
 			netdev_warn(netdev, "Disabling HW-GRO, not supported in legacy RQ\n");
+			features &= ~NETIF_F_GRO_HW;
+		}
+	}
+
+	if (params->xdp_prog) {
+		if (features & NETIF_F_LRO) {
+			netdev_warn(netdev, "LRO is incompatible with XDP\n");
+			features &= ~NETIF_F_LRO;
+		}
+		if (features & NETIF_F_GRO_HW) {
+			netdev_warn(netdev, "HW GRO is incompatible with XDP\n");
+			features &= ~NETIF_F_GRO_HW;
+		}
+	}
+
+	if (priv->xsk.refcnt) {
+		if (features & NETIF_F_GRO_HW) {
+			netdev_warn(netdev, "HW GRO is incompatible with AF_XDP (%u XSKs are active)\n",
+				    priv->xsk.refcnt);
 			features &= ~NETIF_F_GRO_HW;
 		}
 	}
@@ -4849,10 +4872,6 @@ static void mlx5e_build_nic_netdev(struct net_device *netdev)
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_RX;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_CTAG_FILTER;
 	netdev->hw_features      |= NETIF_F_HW_VLAN_STAG_TX;
-
-	if (!!MLX5_CAP_GEN(mdev, shampo) &&
-	    mlx5e_check_fragmented_striding_rq_cap(mdev))
-		netdev->hw_features    |= NETIF_F_GRO_HW;
 
 	if (mlx5e_tunnel_any_tx_proto_supported(mdev)) {
 		netdev->hw_enc_features |= NETIF_F_HW_CSUM;

@@ -8,7 +8,8 @@
 enum {
 	MLX5_FW_RESET_FLAGS_RESET_REQUESTED,
 	MLX5_FW_RESET_FLAGS_NACK_RESET_REQUEST,
-	MLX5_FW_RESET_FLAGS_PENDING_COMP
+	MLX5_FW_RESET_FLAGS_PENDING_COMP,
+	MLX5_FW_RESET_FLAGS_DROP_NEW_REQUESTS
 };
 
 struct mlx5_fw_reset {
@@ -208,7 +209,10 @@ static void poll_sync_reset(struct timer_list *t)
 
 	if (fatal_error) {
 		mlx5_core_warn(dev, "Got Device Reset\n");
-		queue_work(fw_reset->wq, &fw_reset->reset_reload_work);
+		if (!test_bit(MLX5_FW_RESET_FLAGS_DROP_NEW_REQUESTS, &fw_reset->reset_flags))
+			queue_work(fw_reset->wq, &fw_reset->reset_reload_work);
+		else
+			mlx5_core_err(dev, "Device is being removed, Drop new reset work\n");
 		return;
 	}
 
@@ -433,9 +437,12 @@ static int fw_reset_event_notifier(struct notifier_block *nb, unsigned long acti
 	struct mlx5_fw_reset *fw_reset = mlx5_nb_cof(nb, struct mlx5_fw_reset, nb);
 	struct mlx5_eqe *eqe = data;
 
+	if (test_bit(MLX5_FW_RESET_FLAGS_DROP_NEW_REQUESTS, &fw_reset->reset_flags))
+		return NOTIFY_DONE;
+
 	switch (eqe->sub_type) {
 	case MLX5_GENERAL_SUBTYPE_FW_LIVE_PATCH_EVENT:
-			queue_work(fw_reset->wq, &fw_reset->fw_live_patch_work);
+		queue_work(fw_reset->wq, &fw_reset->fw_live_patch_work);
 		break;
 	case MLX5_GENERAL_SUBTYPE_PCI_SYNC_FOR_FW_UPDATE_EVENT:
 		mlx5_sync_reset_events_handle(fw_reset, eqe);
@@ -477,6 +484,18 @@ void mlx5_fw_reset_events_start(struct mlx5_core_dev *dev)
 void mlx5_fw_reset_events_stop(struct mlx5_core_dev *dev)
 {
 	mlx5_eq_notifier_unregister(dev, &dev->priv.fw_reset->nb);
+}
+
+void mlx5_drain_fw_reset(struct mlx5_core_dev *dev)
+{
+	struct mlx5_fw_reset *fw_reset = dev->priv.fw_reset;
+
+	set_bit(MLX5_FW_RESET_FLAGS_DROP_NEW_REQUESTS, &fw_reset->reset_flags);
+	cancel_work_sync(&fw_reset->fw_live_patch_work);
+	cancel_work_sync(&fw_reset->reset_request_work);
+	cancel_work_sync(&fw_reset->reset_reload_work);
+	cancel_work_sync(&fw_reset->reset_now_work);
+	cancel_work_sync(&fw_reset->reset_abort_work);
 }
 
 int mlx5_fw_reset_init(struct mlx5_core_dev *dev)

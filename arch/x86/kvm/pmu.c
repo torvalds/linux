@@ -171,9 +171,12 @@ static bool pmc_resume_counter(struct kvm_pmc *pmc)
 	return true;
 }
 
-static int cmp_u64(const void *a, const void *b)
+static int cmp_u64(const void *pa, const void *pb)
 {
-	return *(__u64 *)a - *(__u64 *)b;
+	u64 a = *(u64 *)pa;
+	u64 b = *(u64 *)pb;
+
+	return (a > b) - (a < b);
 }
 
 void reprogram_gp_counter(struct kvm_pmc *pmc, u64 eventsel)

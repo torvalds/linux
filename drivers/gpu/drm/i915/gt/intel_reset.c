@@ -806,7 +806,7 @@ static int gt_reset(struct intel_gt *gt, intel_engine_mask_t stalled_mask)
 		__intel_engine_reset(engine, stalled_mask & engine->mask);
 	local_bh_enable();
 
-	intel_uc_reset(&gt->uc, true);
+	intel_uc_reset(&gt->uc, ALL_ENGINES);
 
 	intel_ggtt_restore_fences(gt->ggtt);
 

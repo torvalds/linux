@@ -1137,23 +1137,27 @@ static ssize_t lio_target_wwn_cpus_allowed_list_show(
 static ssize_t lio_target_wwn_cpus_allowed_list_store(
 		struct config_item *item, const char *page, size_t count)
 {
-	int ret;
+	int ret = -ENOMEM;
 	char *orig;
-	cpumask_t new_allowed_cpumask;
+	cpumask_var_t new_allowed_cpumask;
+
+	if (!zalloc_cpumask_var(&new_allowed_cpumask, GFP_KERNEL))
+		goto out;
 
 	orig = kstrdup(page, GFP_KERNEL);
 	if (!orig)
-		return -ENOMEM;
+		goto out_free_cpumask;
 
-	cpumask_clear(&new_allowed_cpumask);
-	ret = cpulist_parse(orig, &new_allowed_cpumask);
+	ret = cpulist_parse(orig, new_allowed_cpumask);
+	if (!ret)
+		cpumask_copy(iscsit_global->allowed_cpumask,
+			     new_allowed_cpumask);
 
 	kfree(orig);
-	if (ret != 0)
-		return ret;
-
-	cpumask_copy(iscsit_global->allowed_cpumask, &new_allowed_cpumask);
-	return count;
+out_free_cpumask:
+	free_cpumask_var(new_allowed_cpumask);
+out:
+	return ret ? ret : count;
 }
 
 CONFIGFS_ATTR(lio_target_wwn_, cpus_allowed_list);

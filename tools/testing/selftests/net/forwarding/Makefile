@@ -86,7 +86,7 @@ TEST_PROGS = bridge_igmp.sh \
 	vxlan_bridge_1d_port_8472.sh \
 	vxlan_bridge_1d.sh \
 	vxlan_bridge_1q_ipv6.sh \
-	vxlan_bridge_1q_port_8472_ipv6.sh
+	vxlan_bridge_1q_port_8472_ipv6.sh \
 	vxlan_bridge_1q_port_8472.sh \
 	vxlan_bridge_1q.sh \
 	vxlan_symmetric_ipv6.sh \

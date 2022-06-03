@@ -1914,7 +1914,7 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 	struct hv_send_ipi_ex send_ipi_ex;
 	struct hv_send_ipi send_ipi;
 	DECLARE_BITMAP(vcpu_mask, KVM_MAX_VCPUS);
-	unsigned long valid_bank_mask;
+	u64 valid_bank_mask;
 	u64 sparse_banks[KVM_HV_MAX_SPARSE_VCPU_SET_BITS];
 	u32 vector;
 	bool all_cpus;
@@ -1956,7 +1956,7 @@ static u64 kvm_hv_send_ipi(struct kvm_vcpu *vcpu, struct kvm_hv_hcall *hc)
 		valid_bank_mask = send_ipi_ex.vp_set.valid_bank_mask;
 		all_cpus = send_ipi_ex.vp_set.format == HV_GENERIC_SET_ALL;
 
-		if (hc->var_cnt != bitmap_weight(&valid_bank_mask, 64))
+		if (hc->var_cnt != bitmap_weight((unsigned long *)&valid_bank_mask, 64))
 			return HV_STATUS_INVALID_HYPERCALL_INPUT;
 
 		if (all_cpus)

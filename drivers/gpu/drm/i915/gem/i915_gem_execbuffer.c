@@ -1252,14 +1252,12 @@ static void *reloc_iomap(struct i915_vma *batch,
 		 * Only attempt to pin the batch buffer to ggtt if the current batch
 		 * is not inside ggtt, or the batch buffer is not misplaced.
 		 */
-		if (!i915_is_ggtt(batch->vm)) {
+		if (!i915_is_ggtt(batch->vm) ||
+		    !i915_vma_misplaced(batch, 0, 0, PIN_MAPPABLE)) {
 			vma = i915_gem_object_ggtt_pin_ww(obj, &eb->ww, NULL, 0, 0,
 							  PIN_MAPPABLE |
 							  PIN_NONBLOCK /* NOWARN */ |
 							  PIN_NOEVICT);
-		} else if (i915_vma_is_map_and_fenceable(batch)) {
-			__i915_vma_pin(batch);
-			vma = batch;
 		}
 
 		if (vma == ERR_PTR(-EDEADLK))

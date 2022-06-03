@@ -2663,28 +2663,6 @@ static void cleanup_root_ns(struct mlx5_flow_root_namespace *root_ns)
 	clean_tree(&root_ns->ns.node);
 }
 
-void mlx5_cleanup_fs(struct mlx5_core_dev *dev)
-{
-	struct mlx5_flow_steering *steering = dev->priv.steering;
-
-	cleanup_root_ns(steering->root_ns);
-	cleanup_root_ns(steering->fdb_root_ns);
-	steering->fdb_root_ns = NULL;
-	kfree(steering->fdb_sub_ns);
-	steering->fdb_sub_ns = NULL;
-	cleanup_root_ns(steering->port_sel_root_ns);
-	cleanup_root_ns(steering->sniffer_rx_root_ns);
-	cleanup_root_ns(steering->sniffer_tx_root_ns);
-	cleanup_root_ns(steering->rdma_rx_root_ns);
-	cleanup_root_ns(steering->rdma_tx_root_ns);
-	cleanup_root_ns(steering->egress_root_ns);
-	mlx5_cleanup_fc_stats(dev);
-	kmem_cache_destroy(steering->ftes_cache);
-	kmem_cache_destroy(steering->fgs_cache);
-	mlx5_ft_pool_destroy(dev);
-	kfree(steering);
-}
-
 static int init_sniffer_tx_root_ns(struct mlx5_flow_steering *steering)
 {
 	struct fs_prio *prio;
@@ -3086,42 +3064,27 @@ cleanup:
 	return err;
 }
 
-int mlx5_init_fs(struct mlx5_core_dev *dev)
+void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev)
 {
-	struct mlx5_flow_steering *steering;
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+
+	cleanup_root_ns(steering->root_ns);
+	cleanup_root_ns(steering->fdb_root_ns);
+	steering->fdb_root_ns = NULL;
+	kfree(steering->fdb_sub_ns);
+	steering->fdb_sub_ns = NULL;
+	cleanup_root_ns(steering->port_sel_root_ns);
+	cleanup_root_ns(steering->sniffer_rx_root_ns);
+	cleanup_root_ns(steering->sniffer_tx_root_ns);
+	cleanup_root_ns(steering->rdma_rx_root_ns);
+	cleanup_root_ns(steering->rdma_tx_root_ns);
+	cleanup_root_ns(steering->egress_root_ns);
+}
+
+int mlx5_fs_core_init(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
 	int err = 0;
-
-	err = mlx5_init_fc_stats(dev);
-	if (err)
-		return err;
-
-	err = mlx5_ft_pool_init(dev);
-	if (err)
-		return err;
-
-	steering = kzalloc(sizeof(*steering), GFP_KERNEL);
-	if (!steering) {
-		err = -ENOMEM;
-		goto err;
-	}
-
-	steering->dev = dev;
-	dev->priv.steering = steering;
-
-	if (mlx5_fs_dr_is_supported(dev))
-		steering->mode = MLX5_FLOW_STEERING_MODE_SMFS;
-	else
-		steering->mode = MLX5_FLOW_STEERING_MODE_DMFS;
-
-	steering->fgs_cache = kmem_cache_create("mlx5_fs_fgs",
-						sizeof(struct mlx5_flow_group), 0,
-						0, NULL);
-	steering->ftes_cache = kmem_cache_create("mlx5_fs_ftes", sizeof(struct fs_fte), 0,
-						 0, NULL);
-	if (!steering->ftes_cache || !steering->fgs_cache) {
-		err = -ENOMEM;
-		goto err;
-	}
 
 	if ((((MLX5_CAP_GEN(dev, port_type) == MLX5_CAP_PORT_TYPE_ETH) &&
 	      (MLX5_CAP_GEN(dev, nic_flow_table))) ||
@@ -3180,8 +3143,64 @@ int mlx5_init_fs(struct mlx5_core_dev *dev)
 	}
 
 	return 0;
+
 err:
-	mlx5_cleanup_fs(dev);
+	mlx5_fs_core_cleanup(dev);
+	return err;
+}
+
+void mlx5_fs_core_free(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering = dev->priv.steering;
+
+	kmem_cache_destroy(steering->ftes_cache);
+	kmem_cache_destroy(steering->fgs_cache);
+	kfree(steering);
+	mlx5_ft_pool_destroy(dev);
+	mlx5_cleanup_fc_stats(dev);
+}
+
+int mlx5_fs_core_alloc(struct mlx5_core_dev *dev)
+{
+	struct mlx5_flow_steering *steering;
+	int err = 0;
+
+	err = mlx5_init_fc_stats(dev);
+	if (err)
+		return err;
+
+	err = mlx5_ft_pool_init(dev);
+	if (err)
+		goto err;
+
+	steering = kzalloc(sizeof(*steering), GFP_KERNEL);
+	if (!steering) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	steering->dev = dev;
+	dev->priv.steering = steering;
+
+	if (mlx5_fs_dr_is_supported(dev))
+		steering->mode = MLX5_FLOW_STEERING_MODE_SMFS;
+	else
+		steering->mode = MLX5_FLOW_STEERING_MODE_DMFS;
+
+	steering->fgs_cache = kmem_cache_create("mlx5_fs_fgs",
+						sizeof(struct mlx5_flow_group), 0,
+						0, NULL);
+	steering->ftes_cache = kmem_cache_create("mlx5_fs_ftes", sizeof(struct fs_fte), 0,
+						 0, NULL);
+	if (!steering->ftes_cache || !steering->fgs_cache) {
+		err = -ENOMEM;
+		goto err;
+	}
+
+	return 0;
+
+err:
+	mlx5_fs_core_free(dev);
 	return err;
 }
 

@@ -4481,6 +4481,9 @@ done:
 	if (ret < 0)
 		req_set_fail(req);
 	__io_req_complete(req, issue_flags, ret, 0);
+	/* put file to avoid an attempt to IOPOLL the req */
+	io_put_file(req->file);
+	req->file = NULL;
 	return 0;
 }
 

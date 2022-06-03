@@ -366,7 +366,7 @@
 
 		gpio1: gpio@20121000 {
 			compatible = "microchip,mpfs-gpio";
-			reg = <000 0x20121000 0x0 0x1000>;
+			reg = <0x0 0x20121000 0x0 0x1000>;
 			interrupt-parent = <&plic>;
 			interrupt-controller;
 			#interrupt-cells = <1>;

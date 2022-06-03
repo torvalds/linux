@@ -298,8 +298,10 @@ int mlx5_flow_namespace_set_peer(struct mlx5_flow_root_namespace *ns,
 int mlx5_flow_namespace_set_mode(struct mlx5_flow_namespace *ns,
 				 enum mlx5_flow_steering_mode mode);
 
-int mlx5_init_fs(struct mlx5_core_dev *dev);
-void mlx5_cleanup_fs(struct mlx5_core_dev *dev);
+int mlx5_fs_core_alloc(struct mlx5_core_dev *dev);
+void mlx5_fs_core_free(struct mlx5_core_dev *dev);
+int mlx5_fs_core_init(struct mlx5_core_dev *dev);
+void mlx5_fs_core_cleanup(struct mlx5_core_dev *dev);
 
 int mlx5_fs_egress_acls_init(struct mlx5_core_dev *dev, int total_vports);
 void mlx5_fs_egress_acls_cleanup(struct mlx5_core_dev *dev);

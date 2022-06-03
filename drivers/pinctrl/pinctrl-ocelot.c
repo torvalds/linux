@@ -129,6 +129,7 @@ enum {
 	FUNC_PTP1,
 	FUNC_PTP2,
 	FUNC_PTP3,
+	FUNC_PTPSYNC_0,
 	FUNC_PTPSYNC_1,
 	FUNC_PTPSYNC_2,
 	FUNC_PTPSYNC_3,
@@ -252,6 +253,7 @@ static const char *const ocelot_function_names[] = {
 	[FUNC_PTP1]		= "ptp1",
 	[FUNC_PTP2]		= "ptp2",
 	[FUNC_PTP3]		= "ptp3",
+	[FUNC_PTPSYNC_0]	= "ptpsync_0",
 	[FUNC_PTPSYNC_1]	= "ptpsync_1",
 	[FUNC_PTPSYNC_2]	= "ptpsync_2",
 	[FUNC_PTPSYNC_3]	= "ptpsync_3",
@@ -983,7 +985,7 @@ LAN966X_P(31,   GPIO,   FC3_c,     CAN1,      NONE,   OB_TRG,   RECO_b,      NON
 LAN966X_P(32,   GPIO,   FC3_c,     NONE,   SGPIO_a,     NONE,  MIIM_Sa,      NONE,        R);
 LAN966X_P(33,   GPIO,   FC1_b,     NONE,   SGPIO_a,     NONE,  MIIM_Sa,    MIIM_b,        R);
 LAN966X_P(34,   GPIO,   FC1_b,     NONE,   SGPIO_a,     NONE,  MIIM_Sa,    MIIM_b,        R);
-LAN966X_P(35,   GPIO,   FC1_b,     NONE,   SGPIO_a,   CAN0_b,     NONE,      NONE,        R);
+LAN966X_P(35,   GPIO,   FC1_b,  PTPSYNC_0, SGPIO_a,   CAN0_b,     NONE,      NONE,        R);
 LAN966X_P(36,   GPIO,    NONE,  PTPSYNC_1,    NONE,   CAN0_b,     NONE,      NONE,        R);
 LAN966X_P(37,   GPIO, FC_SHRD0, PTPSYNC_2, TWI_SLC_GATE_AD, NONE, NONE,      NONE,        R);
 LAN966X_P(38,   GPIO,    NONE,  PTPSYNC_3,    NONE,     NONE,     NONE,      NONE,        R);

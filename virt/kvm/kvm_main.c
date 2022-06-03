@@ -1560,7 +1560,7 @@ static int kvm_prepare_memory_region(struct kvm *kvm,
 	r = kvm_arch_prepare_memory_region(kvm, old, new, change);
 
 	/* Free the bitmap on failure if it was allocated above. */
-	if (r && new && new->dirty_bitmap && old && !old->dirty_bitmap)
+	if (r && new && new->dirty_bitmap && (!old || !old->dirty_bitmap))
 		kvm_destroy_dirty_bitmap(new);
 
 	return r;

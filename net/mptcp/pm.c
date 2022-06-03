@@ -178,14 +178,13 @@ void mptcp_pm_subflow_check_next(struct mptcp_sock *msk, const struct sock *ssk,
 	struct mptcp_pm_data *pm = &msk->pm;
 	bool update_subflows;
 
-	update_subflows = (ssk->sk_state == TCP_CLOSE) &&
-			  (subflow->request_join || subflow->mp_join);
+	update_subflows = subflow->request_join || subflow->mp_join;
 	if (!READ_ONCE(pm->work_pending) && !update_subflows)
 		return;
 
 	spin_lock_bh(&pm->lock);
 	if (update_subflows)
-		pm->subflows--;
+		__mptcp_pm_close_subflow(msk);
 
 	/* Even if this subflow is not really established, tell the PM to try
 	 * to pick the next ones, if possible.

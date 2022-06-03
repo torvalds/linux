@@ -147,7 +147,7 @@ TRACE_EVENT(io_uring_queue_async_work,
 	TP_PROTO(void *ctx, void * req, unsigned long long user_data, u8 opcode,
 		unsigned int flags, struct io_wq_work *work, int rw),
 
-	TP_ARGS(ctx, req, user_data, flags, opcode, work, rw),
+	TP_ARGS(ctx, req, user_data, opcode, flags, work, rw),
 
 	TP_STRUCT__entry (
 		__field(  void *,			ctx		)
