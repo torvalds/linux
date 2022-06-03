@@ -2162,115 +2162,6 @@ out:
 }
 
 static int
-mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
-			     const struct mt76_connac2_fw_trailer *hdr,
-			     const u8 *data, bool is_wa)
-{
-	int i, offset = 0;
-	u32 override = 0, option = 0;
-
-	for (i = 0; i < hdr->n_region; i++) {
-		const struct mt76_connac2_fw_region *region;
-		u32 len, addr, mode;
-		int err;
-
-		region = (const void *)((const u8 *)hdr -
-					(hdr->n_region - i) * sizeof(*region));
-		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
-						   region->feature_set, is_wa);
-		len = le32_to_cpu(region->len);
-		addr = le32_to_cpu(region->addr);
-
-		if (region->feature_set & FW_FEATURE_OVERRIDE_ADDR)
-			override = addr;
-
-		err = mt76_connac_mcu_init_download(&dev->mt76, addr, len,
-						    mode);
-		if (err) {
-			dev_err(dev->mt76.dev, "Download request failed\n");
-			return err;
-		}
-
-		err = __mt76_mcu_send_firmware(&dev->mt76, MCU_CMD(FW_SCATTER),
-					       data + offset, len, 4096);
-		if (err) {
-			dev_err(dev->mt76.dev, "Failed to send firmware.\n");
-			return err;
-		}
-
-		offset += len;
-	}
-
-	if (override)
-		option |= FW_START_OVERRIDE;
-
-	if (is_wa)
-		option |= FW_START_WORKING_PDA_CR4;
-
-	return mt76_connac_mcu_start_firmware(&dev->mt76, override, option);
-}
-
-static int mt7915_load_ram(struct mt7915_dev *dev)
-{
-	const struct mt76_connac2_fw_trailer *hdr;
-	const struct firmware *fw;
-	int ret;
-
-	ret = request_firmware(&fw, fw_name_var(dev, FIRMWARE_WM),
-			       dev->mt76.dev);
-	if (ret)
-		return ret;
-
-	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
-		dev_err(dev->mt76.dev, "Invalid firmware\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
-	dev_info(dev->mt76.dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
-		 hdr->fw_ver, hdr->build_date);
-
-	ret = mt7915_mcu_send_ram_firmware(dev, hdr, fw->data, false);
-	if (ret) {
-		dev_err(dev->mt76.dev, "Failed to start WM firmware\n");
-		goto out;
-	}
-
-	release_firmware(fw);
-
-	ret = request_firmware(&fw, fw_name(dev, FIRMWARE_WA),
-			       dev->mt76.dev);
-	if (ret)
-		return ret;
-
-	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
-		dev_err(dev->mt76.dev, "Invalid firmware\n");
-		ret = -EINVAL;
-		goto out;
-	}
-
-	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
-	dev_info(dev->mt76.dev, "WA Firmware Version: %.10s, Build Time: %.15s\n",
-		 hdr->fw_ver, hdr->build_date);
-
-	ret = mt7915_mcu_send_ram_firmware(dev, hdr, fw->data, true);
-	if (ret) {
-		dev_err(dev->mt76.dev, "Failed to start WA firmware\n");
-		goto out;
-	}
-
-	snprintf(dev->mt76.hw->wiphy->fw_version,
-		 sizeof(dev->mt76.hw->wiphy->fw_version),
-		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
-
-out:
-	release_firmware(fw);
-
-	return ret;
-}
-
-static int
 mt7915_firmware_state(struct mt7915_dev *dev, bool wa)
 {
 	u32 state = FIELD_PREP(MT_TOP_MISC_FW_STATE,
@@ -2304,7 +2195,8 @@ static int mt7915_load_firmware(struct mt7915_dev *dev)
 	if (ret)
 		return ret;
 
-	ret = mt7915_load_ram(dev);
+	ret = mt76_connac2_load_ram(&dev->mt76, fw_name_var(dev, FIRMWARE_WM),
+				    fw_name(dev, FIRMWARE_WA));
 	if (ret)
 		return ret;
 

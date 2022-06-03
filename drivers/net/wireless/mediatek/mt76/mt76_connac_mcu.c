@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: ISC
 /* Copyright (C) 2020 MediaTek Inc. */
 
+#include <linux/firmware.h>
 #include "mt76_connac_mcu.h"
 
 int mt76_connac_mcu_start_firmware(struct mt76_dev *dev, u32 addr, u32 option)
@@ -2807,6 +2808,116 @@ int mt76_connac_mcu_rdd_cmd(struct mt76_dev *dev, int cmd, u8 index,
 				 sizeof(req), true);
 }
 EXPORT_SYMBOL_GPL(mt76_connac_mcu_rdd_cmd);
+
+static int
+mt76_connac_mcu_send_ram_firmware(struct mt76_dev *dev,
+				  const struct mt76_connac2_fw_trailer *hdr,
+				  const u8 *data, bool is_wa)
+{
+	int i, offset = 0, max_len = mt76_is_sdio(dev) ? 2048 : 4096;
+	u32 override = 0, option = 0;
+
+	for (i = 0; i < hdr->n_region; i++) {
+		const struct mt76_connac2_fw_region *region;
+		u32 len, addr, mode;
+		int err;
+
+		region = (const void *)((const u8 *)hdr -
+					(hdr->n_region - i) * sizeof(*region));
+		mode = mt76_connac_mcu_gen_dl_mode(dev, region->feature_set,
+						   is_wa);
+		len = le32_to_cpu(region->len);
+		addr = le32_to_cpu(region->addr);
+
+		if (region->feature_set & FW_FEATURE_OVERRIDE_ADDR)
+			override = addr;
+
+		err = mt76_connac_mcu_init_download(dev, addr, len, mode);
+		if (err) {
+			dev_err(dev->dev, "Download request failed\n");
+			return err;
+		}
+
+		err = __mt76_mcu_send_firmware(dev, MCU_CMD(FW_SCATTER),
+					       data + offset, len, max_len);
+		if (err) {
+			dev_err(dev->dev, "Failed to send firmware.\n");
+			return err;
+		}
+
+		offset += len;
+	}
+
+	if (override)
+		option |= FW_START_OVERRIDE;
+	if (is_wa)
+		option |= FW_START_WORKING_PDA_CR4;
+
+	return mt76_connac_mcu_start_firmware(dev, override, option);
+}
+
+int mt76_connac2_load_ram(struct mt76_dev *dev, const char *fw_wm,
+			  const char *fw_wa)
+{
+	const struct mt76_connac2_fw_trailer *hdr;
+	const struct firmware *fw;
+	int ret;
+
+	ret = request_firmware(&fw, fw_wm, dev->dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev->dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+	dev_info(dev->dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
+		 hdr->fw_ver, hdr->build_date);
+
+	ret = mt76_connac_mcu_send_ram_firmware(dev, hdr, fw->data, false);
+	if (ret) {
+		dev_err(dev->dev, "Failed to start WM firmware\n");
+		goto out;
+	}
+
+	release_firmware(fw);
+
+	if (!fw_wa)
+		return 0;
+
+	ret = request_firmware(&fw, fw_wa, dev->dev);
+	if (ret)
+		return ret;
+
+	if (!fw || !fw->data || fw->size < sizeof(*hdr)) {
+		dev_err(dev->dev, "Invalid firmware\n");
+		ret = -EINVAL;
+		goto out;
+	}
+
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
+	dev_info(dev->dev, "WA Firmware Version: %.10s, Build Time: %.15s\n",
+		 hdr->fw_ver, hdr->build_date);
+
+	ret = mt76_connac_mcu_send_ram_firmware(dev, hdr, fw->data, true);
+	if (ret) {
+		dev_err(dev->dev, "Failed to start WA firmware\n");
+		goto out;
+	}
+
+	snprintf(dev->hw->wiphy->fw_version,
+		 sizeof(dev->hw->wiphy->fw_version),
+		 "%.10s-%.15s", hdr->fw_ver, hdr->build_date);
+
+out:
+	release_firmware(fw);
+
+	return ret;
+}
+EXPORT_SYMBOL_GPL(mt76_connac2_load_ram);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo@kernel.org>");
 MODULE_LICENSE("Dual BSD/GPL");
