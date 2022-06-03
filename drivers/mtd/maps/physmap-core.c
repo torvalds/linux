@@ -69,10 +69,6 @@ static int physmap_flash_remove(struct platform_device *dev)
 	int i;
 
 	info = platform_get_drvdata(dev);
-	if (!info) {
-		err = -EINVAL;
-		goto out;
-	}
 
 	if (info->cmtd) {
 		WARN_ON(mtd_device_unregister(info->cmtd));
