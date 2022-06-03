@@ -1269,7 +1269,7 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 	return ret;
 }
 
-static int do_discard_extent(struct btrfs_io_stripe *stripe, u64 *bytes)
+static int do_discard_extent(struct btrfs_discard_stripe *stripe, u64 *bytes)
 {
 	struct btrfs_device *dev = stripe->dev;
 	struct btrfs_fs_info *fs_info = dev->fs_info;
@@ -1316,76 +1316,60 @@ int btrfs_discard_extent(struct btrfs_fs_info *fs_info, u64 bytenr,
 	u64 discarded_bytes = 0;
 	u64 end = bytenr + num_bytes;
 	u64 cur = bytenr;
-	struct btrfs_io_context *bioc = NULL;
 
 	/*
-	 * Avoid races with device replace and make sure our bioc has devices
-	 * associated to its stripes that don't go away while we are discarding.
+	 * Avoid races with device replace and make sure the devices in the
+	 * stripes don't go away while we are discarding.
 	 */
 	btrfs_bio_counter_inc_blocked(fs_info);
 	while (cur < end) {
-		struct btrfs_io_stripe *stripe;
+		struct btrfs_discard_stripe *stripes;
+		unsigned int num_stripes;
 		int i;
 
 		num_bytes = end - cur;
-		/* Tell the block device(s) that the sectors can be discarded */
-		ret = btrfs_map_block(fs_info, BTRFS_MAP_DISCARD, cur,
-				      &num_bytes, &bioc, 0);
-		/*
-		 * Error can be -ENOMEM, -ENOENT (no such chunk mapping) or
-		 * -EOPNOTSUPP. For any such error, @num_bytes is not updated,
-		 * thus we can't continue anyway.
-		 */
-		if (ret < 0)
-			goto out;
+		stripes = btrfs_map_discard(fs_info, cur, &num_bytes, &num_stripes);
+		if (IS_ERR(stripes)) {
+			ret = PTR_ERR(stripes);
+			if (ret == -EOPNOTSUPP)
+				ret = 0;
+			break;
+		}
 
-		stripe = bioc->stripes;
-		for (i = 0; i < bioc->num_stripes; i++, stripe++) {
+		for (i = 0; i < num_stripes; i++) {
+			struct btrfs_discard_stripe *stripe = stripes + i;
 			u64 bytes;
-			struct btrfs_device *device = stripe->dev;
 
-			if (!device->bdev) {
+			if (!stripe->dev->bdev) {
 				ASSERT(btrfs_test_opt(fs_info, DEGRADED));
 				continue;
 			}
 
-			if (!test_bit(BTRFS_DEV_STATE_WRITEABLE, &device->dev_state))
+			if (!test_bit(BTRFS_DEV_STATE_WRITEABLE,
+					&stripe->dev->dev_state))
 				continue;
 
 			ret = do_discard_extent(stripe, &bytes);
-			if (!ret) {
-				discarded_bytes += bytes;
-			} else if (ret != -EOPNOTSUPP) {
+			if (ret) {
 				/*
-				 * Logic errors or -ENOMEM, or -EIO, but
-				 * unlikely to happen.
-				 *
-				 * And since there are two loops, explicitly
-				 * go to out to avoid confusion.
+				 * Keep going if discard is not supported by the
+				 * device.
 				 */
-				btrfs_put_bioc(bioc);
-				goto out;
+				if (ret != -EOPNOTSUPP)
+					break;
+				ret = 0;
+			} else {
+				discarded_bytes += bytes;
 			}
-
-			/*
-			 * Just in case we get back EOPNOTSUPP for some reason,
-			 * just ignore the return value so we don't screw up
-			 * people calling discard_extent.
-			 */
-			ret = 0;
 		}
-		btrfs_put_bioc(bioc);
+		kfree(stripes);
+		if (ret)
+			break;
 		cur += num_bytes;
 	}
-out:
 	btrfs_bio_counter_dec(fs_info);
-
 	if (actual_bytes)
 		*actual_bytes = discarded_bytes;
-
-
-	if (ret == -EOPNOTSUPP)
-		ret = 0;
 	return ret;
 }
 

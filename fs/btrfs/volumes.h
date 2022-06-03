@@ -418,7 +418,12 @@ struct btrfs_io_stripe {
 		/* For the endio handler */
 		struct btrfs_io_context *bioc;
 	};
-	u64 length; /* only used for discard mappings */
+};
+
+struct btrfs_discard_stripe {
+	struct btrfs_device *dev;
+	u64 physical;
+	u64 length;
 };
 
 /*
@@ -557,6 +562,9 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 int btrfs_map_sblock(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		     u64 logical, u64 *length,
 		     struct btrfs_io_context **bioc_ret);
+struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
+					       u64 logical, u64 *length_ret,
+					       u32 *num_stripes);
 int btrfs_get_io_geometry(struct btrfs_fs_info *fs_info, struct extent_map *map,
 			  enum btrfs_map_op op, u64 logical,
 			  struct btrfs_io_geometry *io_geom);

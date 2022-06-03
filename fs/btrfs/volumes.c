@@ -5913,18 +5913,17 @@ void btrfs_put_bioc(struct btrfs_io_context *bioc)
 		kfree(bioc);
 }
 
-/* can REQ_OP_DISCARD be sent with other REQ like REQ_OP_WRITE? */
 /*
  * Please note that, discard won't be sent to target device of device
  * replace.
  */
-static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
-					 u64 logical, u64 *length_ret,
-					 struct btrfs_io_context **bioc_ret)
+struct btrfs_discard_stripe *btrfs_map_discard(struct btrfs_fs_info *fs_info,
+					       u64 logical, u64 *length_ret,
+					       u32 *num_stripes)
 {
 	struct extent_map *em;
 	struct map_lookup *map;
-	struct btrfs_io_context *bioc;
+	struct btrfs_discard_stripe *stripes;
 	u64 length = *length_ret;
 	u64 offset;
 	u64 stripe_nr;
@@ -5933,29 +5932,26 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 	u64 stripe_cnt;
 	u64 stripe_len;
 	u64 stripe_offset;
-	u64 num_stripes;
 	u32 stripe_index;
 	u32 factor = 0;
 	u32 sub_stripes = 0;
 	u64 stripes_per_dev = 0;
 	u32 remaining_stripes = 0;
 	u32 last_stripe = 0;
-	int ret = 0;
+	int ret;
 	int i;
-
-	/* Discard always returns a bioc. */
-	ASSERT(bioc_ret);
 
 	em = btrfs_get_chunk_map(fs_info, logical, length);
 	if (IS_ERR(em))
-		return PTR_ERR(em);
+		return ERR_CAST(em);
 
 	map = em->map_lookup;
+
 	/* we don't discard raid56 yet */
 	if (map->type & BTRFS_BLOCK_GROUP_RAID56_MASK) {
 		ret = -EOPNOTSUPP;
-		goto out;
-	}
+		goto out_free_map;
+}
 
 	offset = logical - em->start;
 	length = min_t(u64, em->start + em->len - logical, length);
@@ -5981,7 +5977,7 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 	 * device we have to walk to find the data, and stripe_index is
 	 * the number of our device in the stripe array
 	 */
-	num_stripes = 1;
+	*num_stripes = 1;
 	stripe_index = 0;
 	if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
 			 BTRFS_BLOCK_GROUP_RAID10)) {
@@ -5991,7 +5987,7 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 			sub_stripes = map->sub_stripes;
 
 		factor = map->num_stripes / sub_stripes;
-		num_stripes = min_t(u64, map->num_stripes,
+		*num_stripes = min_t(u64, map->num_stripes,
 				    sub_stripes * stripe_cnt);
 		stripe_nr = div_u64_rem(stripe_nr, factor, &stripe_index);
 		stripe_index *= sub_stripes;
@@ -6001,31 +5997,30 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 		last_stripe *= sub_stripes;
 	} else if (map->type & (BTRFS_BLOCK_GROUP_RAID1_MASK |
 				BTRFS_BLOCK_GROUP_DUP)) {
-		num_stripes = map->num_stripes;
+		*num_stripes = map->num_stripes;
 	} else {
 		stripe_nr = div_u64_rem(stripe_nr, map->num_stripes,
 					&stripe_index);
 	}
 
-	bioc = alloc_btrfs_io_context(fs_info, num_stripes, 0);
-	if (!bioc) {
+	stripes = kcalloc(*num_stripes, sizeof(*stripes), GFP_NOFS);
+	if (!stripes) {
 		ret = -ENOMEM;
-		goto out;
+		goto out_free_map;
 	}
 
-	for (i = 0; i < num_stripes; i++) {
-		bioc->stripes[i].physical =
+	for (i = 0; i < *num_stripes; i++) {
+		stripes[i].physical =
 			map->stripes[stripe_index].physical +
 			stripe_offset + stripe_nr * map->stripe_len;
-		bioc->stripes[i].dev = map->stripes[stripe_index].dev;
+		stripes[i].dev = map->stripes[stripe_index].dev;
 
 		if (map->type & (BTRFS_BLOCK_GROUP_RAID0 |
 				 BTRFS_BLOCK_GROUP_RAID10)) {
-			bioc->stripes[i].length = stripes_per_dev *
-				map->stripe_len;
+			stripes[i].length = stripes_per_dev * map->stripe_len;
 
 			if (i / sub_stripes < remaining_stripes)
-				bioc->stripes[i].length += map->stripe_len;
+				stripes[i].length += map->stripe_len;
 
 			/*
 			 * Special for the first stripe and
@@ -6036,17 +6031,17 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 			 *    off     end_off
 			 */
 			if (i < sub_stripes)
-				bioc->stripes[i].length -= stripe_offset;
+				stripes[i].length -= stripe_offset;
 
 			if (stripe_index >= last_stripe &&
 			    stripe_index <= (last_stripe +
 					     sub_stripes - 1))
-				bioc->stripes[i].length -= stripe_end_offset;
+				stripes[i].length -= stripe_end_offset;
 
 			if (i == sub_stripes - 1)
 				stripe_offset = 0;
 		} else {
-			bioc->stripes[i].length = length;
+			stripes[i].length = length;
 		}
 
 		stripe_index++;
@@ -6056,12 +6051,11 @@ static int __btrfs_map_block_for_discard(struct btrfs_fs_info *fs_info,
 		}
 	}
 
-	*bioc_ret = bioc;
-	bioc->map_type = map->type;
-	bioc->num_stripes = num_stripes;
-out:
 	free_extent_map(em);
-	return ret;
+	return stripes;
+out_free_map:
+	free_extent_map(em);
+	return ERR_PTR(ret);
 }
 
 /*
@@ -6204,7 +6198,6 @@ static void handle_ops_on_dev_replace(enum btrfs_map_op op,
 					bioc->stripes + i;
 
 				new->physical = old->physical;
-				new->length = old->length;
 				new->dev = dev_replace->tgtdev;
 				bioc->tgtdev_map[i] = index_where_to_add;
 				index_where_to_add++;
@@ -6245,8 +6238,6 @@ static void handle_ops_on_dev_replace(enum btrfs_map_op op,
 				bioc->stripes + num_stripes;
 
 			tgtdev_stripe->physical = physical_of_found;
-			tgtdev_stripe->length =
-				bioc->stripes[index_srcdev].length;
 			tgtdev_stripe->dev = dev_replace->tgtdev;
 			bioc->tgtdev_map[index_srcdev] = num_stripes;
 
@@ -6600,10 +6591,6 @@ int btrfs_map_block(struct btrfs_fs_info *fs_info, enum btrfs_map_op op,
 		      u64 logical, u64 *length,
 		      struct btrfs_io_context **bioc_ret, int mirror_num)
 {
-	if (op == BTRFS_MAP_DISCARD)
-		return __btrfs_map_block_for_discard(fs_info, logical,
-						     length, bioc_ret);
-
 	return __btrfs_map_block(fs_info, op, logical, length, bioc_ret,
 				 mirror_num, 0);
 }
