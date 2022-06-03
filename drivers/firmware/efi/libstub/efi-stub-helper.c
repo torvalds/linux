@@ -419,7 +419,6 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
 /**
  * efi_exit_boot_services() - Exit boot services
  * @handle:	handle of the exiting image
- * @map:	pointer to receive the memory map
  * @priv:	argument to be passed to @priv_func
  * @priv_func:	function to process the memory map before exiting boot services
  *
@@ -432,14 +431,13 @@ char *efi_convert_cmdline(efi_loaded_image_t *image, int *cmd_line_len)
  *
  * Return:	status code
  */
-efi_status_t efi_exit_boot_services(void *handle,
-				    struct efi_boot_memmap *map,
-				    void *priv,
+efi_status_t efi_exit_boot_services(void *handle, void *priv,
 				    efi_exit_boot_map_processing priv_func)
 {
+	struct efi_boot_memmap *map;
 	efi_status_t status;
 
-	status = efi_get_memory_map(map);
+	status = efi_get_memory_map(&map);
 
 	if (status != EFI_SUCCESS)
 		goto fail;
@@ -451,7 +449,7 @@ efi_status_t efi_exit_boot_services(void *handle,
 	if (efi_disable_pci_dma)
 		efi_pci_disable_bridge_busmaster();
 
-	status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
+	status = efi_bs_call(exit_boot_services, handle, map->map_key);
 
 	if (status == EFI_INVALID_PARAMETER) {
 		/*
@@ -467,13 +465,13 @@ efi_status_t efi_exit_boot_services(void *handle,
 		 * buffer should account for any changes in the map so the call
 		 * to get_memory_map() is expected to succeed here.
 		 */
-		*map->map_size = *map->buff_size;
+		map->map_size = map->buff_size;
 		status = efi_bs_call(get_memory_map,
-				     map->map_size,
-				     *map->map,
-				     map->key_ptr,
-				     map->desc_size,
-				     map->desc_ver);
+				     &map->map_size,
+				     &map->map,
+				     &map->map_key,
+				     &map->desc_size,
+				     &map->desc_ver);
 
 		/* exit_boot_services() was called, thus cannot free */
 		if (status != EFI_SUCCESS)
@@ -484,7 +482,7 @@ efi_status_t efi_exit_boot_services(void *handle,
 		if (status != EFI_SUCCESS)
 			goto fail;
 
-		status = efi_bs_call(exit_boot_services, handle, *map->key_ptr);
+		status = efi_bs_call(exit_boot_services, handle, map->map_key);
 	}
 
 	/* exit_boot_services() was called, thus cannot free */
@@ -494,7 +492,7 @@ efi_status_t efi_exit_boot_services(void *handle,
 	return EFI_SUCCESS;
 
 free_map:
-	efi_bs_call(free_pool, *map->map);
+	efi_bs_call(free_pool, map);
 fail:
 	return status;
 }

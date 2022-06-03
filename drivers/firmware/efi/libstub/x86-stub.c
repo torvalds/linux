@@ -716,32 +716,22 @@ static efi_status_t exit_boot_func(struct efi_boot_memmap *map,
 
 	efi_set_u64_split((unsigned long)efi_system_table,
 			  &p->efi->efi_systab, &p->efi->efi_systab_hi);
-	p->efi->efi_memdesc_size	= *map->desc_size;
-	p->efi->efi_memdesc_version	= *map->desc_ver;
-	efi_set_u64_split((unsigned long)*map->map,
+	p->efi->efi_memdesc_size	= map->desc_size;
+	p->efi->efi_memdesc_version	= map->desc_ver;
+	efi_set_u64_split((unsigned long)map->map,
 			  &p->efi->efi_memmap, &p->efi->efi_memmap_hi);
-	p->efi->efi_memmap_size		= *map->map_size;
+	p->efi->efi_memmap_size		= map->map_size;
 
 	return EFI_SUCCESS;
 }
 
 static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 {
-	unsigned long map_sz, key, desc_size, buff_size;
-	efi_memory_desc_t *mem_map;
 	struct setup_data *e820ext = NULL;
 	__u32 e820ext_size = 0;
 	efi_status_t status;
-	__u32 desc_version;
-	struct efi_boot_memmap map;
 	struct exit_boot_struct priv;
 
-	map.map			= &mem_map;
-	map.map_size		= &map_sz;
-	map.desc_size		= &desc_size;
-	map.desc_ver		= &desc_version;
-	map.key_ptr		= &key;
-	map.buff_size		= &buff_size;
 	priv.boot_params	= boot_params;
 	priv.efi		= &boot_params->efi_info;
 
@@ -750,7 +740,7 @@ static efi_status_t exit_boot(struct boot_params *boot_params, void *handle)
 		return status;
 
 	/* Might as well exit boot services now */
-	status = efi_exit_boot_services(handle, &map, &priv, exit_boot_func);
+	status = efi_exit_boot_services(handle, &priv, exit_boot_func);
 	if (status != EFI_SUCCESS)
 		return status;
 
