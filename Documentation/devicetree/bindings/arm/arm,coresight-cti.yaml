@@ -12,8 +12,7 @@ description: |
   to one or more CoreSight components and/or a CPU, with CTIs interconnected in
   a star topology via the Cross Trigger Matrix (CTM), which is not programmable.
   The ECT components are not part of the trace generation data path and are thus
-  not part of the CoreSight graph described in the general CoreSight bindings
-  file coresight.txt.
+  not part of the CoreSight graph.
 
   The CTI component properties define the connections between the individual
   CTI and the components it is directly connected to, consisting of input and

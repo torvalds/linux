@@ -20,7 +20,6 @@ description: |
   Arm Trace Buffer Extension (TRBE)). Since the ETE can be connected to
   legacy CoreSight components, a node must be listed per instance, along
   with any optional connection graph as per the coresight bindings.
-  See bindings/arm/coresight.txt.
 
 properties:
   $nodename:
