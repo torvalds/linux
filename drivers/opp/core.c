@@ -1019,7 +1019,7 @@ static int _set_required_opp(struct device *dev, struct device *pd_dev,
 
 	ret = dev_pm_genpd_set_performance_state(pd_dev, pstate);
 	if (ret) {
-		dev_err(dev, "Failed to set performance rate of %s: %d (%d)\n",
+		dev_err(dev, "Failed to set performance state of %s: %d (%d)\n",
 			dev_name(pd_dev), pstate, ret);
 	}
 
