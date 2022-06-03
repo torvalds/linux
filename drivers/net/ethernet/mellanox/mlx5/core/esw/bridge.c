@@ -18,13 +18,13 @@
 #define MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_GRP_IDX_FROM 0
 #define MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_GRP_IDX_TO		\
 	(MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_GRP_SIZE - 1)
-#define MLX5_ESW_BRIDGE_INGRESS_TABLE_FILTER_GRP_IDX_FROM	\
+#define MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_FILTER_GRP_IDX_FROM	\
 	(MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_GRP_IDX_TO + 1)
-#define MLX5_ESW_BRIDGE_INGRESS_TABLE_FILTER_GRP_IDX_TO			\
-	(MLX5_ESW_BRIDGE_INGRESS_TABLE_FILTER_GRP_IDX_FROM +		\
+#define MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_FILTER_GRP_IDX_TO		\
+	(MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_FILTER_GRP_IDX_FROM +	\
 	 MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_GRP_SIZE - 1)
-#define MLX5_ESW_BRIDGE_INGRESS_TABLE_MAC_GRP_IDX_FROM		\
-	(MLX5_ESW_BRIDGE_INGRESS_TABLE_FILTER_GRP_IDX_TO + 1)
+#define MLX5_ESW_BRIDGE_INGRESS_TABLE_MAC_GRP_IDX_FROM			\
+	(MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_FILTER_GRP_IDX_TO + 1)
 #define MLX5_ESW_BRIDGE_INGRESS_TABLE_MAC_GRP_IDX_TO			\
 	(MLX5_ESW_BRIDGE_INGRESS_TABLE_MAC_GRP_IDX_FROM +		\
 	 MLX5_ESW_BRIDGE_INGRESS_TABLE_UNTAGGED_GRP_SIZE - 1)
@@ -193,8 +193,8 @@ mlx5_esw_bridge_ingress_vlan_fg_create(struct mlx5_eswitch *esw, struct mlx5_flo
 }
 
 static struct mlx5_flow_group *
-mlx5_esw_bridge_ingress_filter_fg_create(struct mlx5_eswitch *esw,
-					 struct mlx5_flow_table *ingress_ft)
+mlx5_esw_bridge_ingress_vlan_filter_fg_create(struct mlx5_eswitch *esw,
+					      struct mlx5_flow_table *ingress_ft)
 {
 	int inlen = MLX5_ST_SZ_BYTES(create_flow_group_in);
 	struct mlx5_flow_group *fg;
@@ -216,9 +216,9 @@ mlx5_esw_bridge_ingress_filter_fg_create(struct mlx5_eswitch *esw,
 		 mlx5_eswitch_get_vport_metadata_mask());
 
 	MLX5_SET(create_flow_group_in, in, start_flow_index,
-		 MLX5_ESW_BRIDGE_INGRESS_TABLE_FILTER_GRP_IDX_FROM);
+		 MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_FILTER_GRP_IDX_FROM);
 	MLX5_SET(create_flow_group_in, in, end_flow_index,
-		 MLX5_ESW_BRIDGE_INGRESS_TABLE_FILTER_GRP_IDX_TO);
+		 MLX5_ESW_BRIDGE_INGRESS_TABLE_VLAN_FILTER_GRP_IDX_TO);
 
 	fg = mlx5_create_flow_group(ingress_ft, in);
 	if (IS_ERR(fg))
@@ -363,7 +363,7 @@ mlx5_esw_bridge_egress_miss_fg_create(struct mlx5_eswitch *esw, struct mlx5_flow
 static int
 mlx5_esw_bridge_ingress_table_init(struct mlx5_esw_bridge_offloads *br_offloads)
 {
-	struct mlx5_flow_group *mac_fg, *filter_fg, *vlan_fg;
+	struct mlx5_flow_group *mac_fg, *vlan_filter_fg, *vlan_fg;
 	struct mlx5_flow_table *ingress_ft, *skip_ft;
 	struct mlx5_eswitch *esw = br_offloads->esw;
 	int err;
@@ -391,10 +391,10 @@ mlx5_esw_bridge_ingress_table_init(struct mlx5_esw_bridge_offloads *br_offloads)
 		goto err_vlan_fg;
 	}
 
-	filter_fg = mlx5_esw_bridge_ingress_filter_fg_create(esw, ingress_ft);
-	if (IS_ERR(filter_fg)) {
-		err = PTR_ERR(filter_fg);
-		goto err_filter_fg;
+	vlan_filter_fg = mlx5_esw_bridge_ingress_vlan_filter_fg_create(esw, ingress_ft);
+	if (IS_ERR(vlan_filter_fg)) {
+		err = PTR_ERR(vlan_filter_fg);
+		goto err_vlan_filter_fg;
 	}
 
 	mac_fg = mlx5_esw_bridge_ingress_mac_fg_create(esw, ingress_ft);
@@ -406,13 +406,13 @@ mlx5_esw_bridge_ingress_table_init(struct mlx5_esw_bridge_offloads *br_offloads)
 	br_offloads->ingress_ft = ingress_ft;
 	br_offloads->skip_ft = skip_ft;
 	br_offloads->ingress_vlan_fg = vlan_fg;
-	br_offloads->ingress_filter_fg = filter_fg;
+	br_offloads->ingress_vlan_filter_fg = vlan_filter_fg;
 	br_offloads->ingress_mac_fg = mac_fg;
 	return 0;
 
 err_mac_fg:
-	mlx5_destroy_flow_group(filter_fg);
-err_filter_fg:
+	mlx5_destroy_flow_group(vlan_filter_fg);
+err_vlan_filter_fg:
 	mlx5_destroy_flow_group(vlan_fg);
 err_vlan_fg:
 	mlx5_destroy_flow_table(skip_ft);
@@ -426,8 +426,8 @@ mlx5_esw_bridge_ingress_table_cleanup(struct mlx5_esw_bridge_offloads *br_offloa
 {
 	mlx5_destroy_flow_group(br_offloads->ingress_mac_fg);
 	br_offloads->ingress_mac_fg = NULL;
-	mlx5_destroy_flow_group(br_offloads->ingress_filter_fg);
-	br_offloads->ingress_filter_fg = NULL;
+	mlx5_destroy_flow_group(br_offloads->ingress_vlan_filter_fg);
+	br_offloads->ingress_vlan_filter_fg = NULL;
 	mlx5_destroy_flow_group(br_offloads->ingress_vlan_fg);
 	br_offloads->ingress_vlan_fg = NULL;
 	mlx5_destroy_flow_table(br_offloads->skip_ft);
