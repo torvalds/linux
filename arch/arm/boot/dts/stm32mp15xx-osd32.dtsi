@@ -78,6 +78,7 @@
 			compatible = "st,stpmic1-regulators";
 
 			ldo1-supply = <&v3v3>;
+			ldo3-supply = <&vdd_ddr>;
 			ldo6-supply = <&v3v3>;
 			pwr_sw1-supply = <&bst_out>;
 
