@@ -221,10 +221,6 @@ enum {
 #ifndef ASICREV_IS_VANGOGH
 #define ASICREV_IS_VANGOGH(eChipRev) ((eChipRev >= VANGOGH_A0) && (eChipRev < VANGOGH_UNKNOWN))
 #endif
-#define GREEN_SARDINE_A0 0xA1
-#ifndef ASICREV_IS_GREEN_SARDINE
-#define ASICREV_IS_GREEN_SARDINE(eChipRev) ((eChipRev >= GREEN_SARDINE_A0) && (eChipRev < 0xFF))
-#endif
 
 #define FAMILY_YELLOW_CARP                     146
 #define YELLOW_CARP_A0 0x01
@@ -287,7 +283,5 @@ enum {
 #define FAMILY_AI 141
 
 #define	FAMILY_UNKNOWN 0xFF
-
-
 
 #endif /* __DAL_ASIC_ID_H__ */
