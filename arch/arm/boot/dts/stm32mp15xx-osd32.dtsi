@@ -50,12 +50,6 @@
 			no-map;
 		};
 	};
-
-	reg_sip_eeprom: regulator_eeprom {
-		compatible = "regulator-fixed";
-		regulator-name = "sip_eeprom";
-		regulator-always-on;
-	};
 };
 
 &i2c4 {
@@ -204,7 +198,7 @@
 
 	sip_eeprom: eeprom@50 {
 		compatible = "atmel,24c32";
-		vcc-supply = <&reg_sip_eeprom>;
+		vcc-supply = <&vdd>;
 		reg = <0x50>;
 	};
 };
