@@ -26,6 +26,62 @@
 #define PATCH_SEC_TYPE_MASK		GENMASK(15, 0)
 #define PATCH_SEC_TYPE_INFO		0x2
 
+struct mt76_connac2_patch_hdr {
+	char build_date[16];
+	char platform[4];
+	__be32 hw_sw_ver;
+	__be32 patch_ver;
+	__be16 checksum;
+	u16 rsv;
+	struct {
+		__be32 patch_ver;
+		__be32 subsys;
+		__be32 feature;
+		__be32 n_region;
+		__be32 crc;
+		u32 rsv[11];
+	} desc;
+} __packed;
+
+struct mt76_connac2_patch_sec {
+	__be32 type;
+	__be32 offs;
+	__be32 size;
+	union {
+		__be32 spec[13];
+		struct {
+			__be32 addr;
+			__be32 len;
+			__be32 sec_key_idx;
+			__be32 align_len;
+			u32 rsv[9];
+		} info;
+	};
+} __packed;
+
+struct mt76_connac2_fw_trailer {
+	u8 chip_id;
+	u8 eco_code;
+	u8 n_region;
+	u8 format_ver;
+	u8 format_flag;
+	u8 rsv[2];
+	char fw_ver[10];
+	char build_date[15];
+	__le32 crc;
+} __packed;
+
+struct mt76_connac2_fw_region {
+	__le32 decomp_crc;
+	__le32 decomp_len;
+	__le32 decomp_blk_sz;
+	u8 rsv[4];
+	__le32 addr;
+	__le32 len;
+	u8 feature_set;
+	u8 rsv1[15];
+} __packed;
+
 struct tlv {
 	__le16 tag;
 	__le16 len;

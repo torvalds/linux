@@ -8,62 +8,6 @@
 #include "mac.h"
 #include "eeprom.h"
 
-struct mt7915_patch_hdr {
-	char build_date[16];
-	char platform[4];
-	__be32 hw_sw_ver;
-	__be32 patch_ver;
-	__be16 checksum;
-	u16 reserved;
-	struct {
-		__be32 patch_ver;
-		__be32 subsys;
-		__be32 feature;
-		__be32 n_region;
-		__be32 crc;
-		u32 reserved[11];
-	} desc;
-} __packed;
-
-struct mt7915_patch_sec {
-	__be32 type;
-	__be32 offs;
-	__be32 size;
-	union {
-		__be32 spec[13];
-		struct {
-			__be32 addr;
-			__be32 len;
-			__be32 sec_key_idx;
-			__be32 align_len;
-			u32 reserved[9];
-		} info;
-	};
-} __packed;
-
-struct mt7915_fw_trailer {
-	u8 chip_id;
-	u8 eco_code;
-	u8 n_region;
-	u8 format_ver;
-	u8 format_flag;
-	u8 reserved[2];
-	char fw_ver[10];
-	char build_date[15];
-	u32 crc;
-} __packed;
-
-struct mt7915_fw_region {
-	__le32 decomp_crc;
-	__le32 decomp_len;
-	__le32 decomp_blk_sz;
-	u8 reserved[4];
-	__le32 addr;
-	__le32 len;
-	u8 feature_set;
-	u8 reserved1[15];
-} __packed;
-
 #define fw_name(_dev, name, ...)	({			\
 	char *_fw;						\
 	switch (mt76_chip(&(_dev)->mt76)) {			\
@@ -2136,7 +2080,7 @@ static int mt7915_driver_own(struct mt7915_dev *dev, u8 band)
 
 static int mt7915_load_patch(struct mt7915_dev *dev)
 {
-	const struct mt7915_patch_hdr *hdr;
+	const struct mt76_connac2_patch_hdr *hdr;
 	const struct firmware *fw = NULL;
 	int i, ret, sem;
 
@@ -2162,18 +2106,17 @@ static int mt7915_load_patch(struct mt7915_dev *dev)
 		goto out;
 	}
 
-	hdr = (const struct mt7915_patch_hdr *)(fw->data);
+	hdr = (const struct mt76_connac2_patch_hdr *)fw->data;
 
 	dev_info(dev->mt76.dev, "HW/SW Version: 0x%x, Build Time: %.16s\n",
 		 be32_to_cpu(hdr->hw_sw_ver), hdr->build_date);
 
 	for (i = 0; i < be32_to_cpu(hdr->desc.n_region); i++) {
-		struct mt7915_patch_sec *sec;
+		struct mt76_connac2_patch_sec *sec;
 		const u8 *dl;
 		u32 len, addr;
 
-		sec = (struct mt7915_patch_sec *)(fw->data + sizeof(*hdr) +
-						  i * sizeof(*sec));
+		sec = (void *)(fw->data + sizeof(*hdr) + i * sizeof(*sec));
 		if ((be32_to_cpu(sec->type) & PATCH_SEC_TYPE_MASK) !=
 		    PATCH_SEC_TYPE_INFO) {
 			ret = -EINVAL;
@@ -2220,19 +2163,19 @@ out:
 
 static int
 mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
-			     const struct mt7915_fw_trailer *hdr,
+			     const struct mt76_connac2_fw_trailer *hdr,
 			     const u8 *data, bool is_wa)
 {
 	int i, offset = 0;
 	u32 override = 0, option = 0;
 
 	for (i = 0; i < hdr->n_region; i++) {
-		const struct mt7915_fw_region *region;
-		int err;
+		const struct mt76_connac2_fw_region *region;
 		u32 len, addr, mode;
+		int err;
 
-		region = (const struct mt7915_fw_region *)((const u8 *)hdr -
-			 (hdr->n_region - i) * sizeof(*region));
+		region = (const void *)((const u8 *)hdr -
+					(hdr->n_region - i) * sizeof(*region));
 		mode = mt76_connac_mcu_gen_dl_mode(&dev->mt76,
 						   region->feature_set, is_wa);
 		len = le32_to_cpu(region->len);
@@ -2269,7 +2212,7 @@ mt7915_mcu_send_ram_firmware(struct mt7915_dev *dev,
 
 static int mt7915_load_ram(struct mt7915_dev *dev)
 {
-	const struct mt7915_fw_trailer *hdr;
+	const struct mt76_connac2_fw_trailer *hdr;
 	const struct firmware *fw;
 	int ret;
 
@@ -2284,9 +2227,7 @@ static int mt7915_load_ram(struct mt7915_dev *dev)
 		goto out;
 	}
 
-	hdr = (const struct mt7915_fw_trailer *)(fw->data + fw->size -
-					sizeof(*hdr));
-
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
 	dev_info(dev->mt76.dev, "WM Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 
@@ -2309,9 +2250,7 @@ static int mt7915_load_ram(struct mt7915_dev *dev)
 		goto out;
 	}
 
-	hdr = (const struct mt7915_fw_trailer *)(fw->data + fw->size -
-					sizeof(*hdr));
-
+	hdr = (const void *)(fw->data + fw->size - sizeof(*hdr));
 	dev_info(dev->mt76.dev, "WA Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 
