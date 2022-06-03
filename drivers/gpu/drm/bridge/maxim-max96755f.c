@@ -25,6 +25,8 @@
 struct max96755f_bridge {
 	struct drm_bridge bridge;
 	struct drm_bridge *next_bridge;
+	struct drm_connector connector;
+	struct drm_panel *panel;
 
 	struct device *dev;
 	struct regmap *regmap;
@@ -39,8 +41,40 @@ struct max96755f_bridge {
 
 #define to_max96755f_bridge(x)	container_of(x, struct max96755f_bridge, x)
 
+static int max96755f_bridge_connector_get_modes(struct drm_connector *connector)
+{
+	struct max96755f_bridge *ser = to_max96755f_bridge(connector);
+
+	if (ser->next_bridge)
+		return drm_bridge_get_modes(ser->next_bridge, connector);
+
+	return drm_panel_get_modes(ser->panel, connector);
+}
+
+static const struct drm_connector_helper_funcs
+max96755f_bridge_connector_helper_funcs = {
+	.get_modes = max96755f_bridge_connector_get_modes,
+};
+
+static enum drm_connector_status
+max96755f_bridge_connector_detect(struct drm_connector *connector, bool force)
+{
+	struct max96755f_bridge *ser = to_max96755f_bridge(connector);
+
+	return drm_bridge_detect(&ser->bridge);
+}
+
+static const struct drm_connector_funcs max96755f_bridge_connector_funcs = {
+	.reset = drm_atomic_helper_connector_reset,
+	.fill_modes = drm_helper_probe_single_connector_modes,
+	.detect = max96755f_bridge_connector_detect,
+	.destroy = drm_connector_cleanup,
+	.atomic_duplicate_state = drm_atomic_helper_connector_duplicate_state,
+	.atomic_destroy_state = drm_atomic_helper_connector_destroy_state,
+};
+
 static struct mipi_dsi_device *max96755f_attach_dsi(struct max96755f_bridge *max96755f,
-						 struct device_node *dsi_node)
+						    struct device_node *dsi_node)
 {
 	const struct mipi_dsi_device_info info = { "max96755f", 0, NULL };
 	struct mipi_dsi_device *dsi;
@@ -74,20 +108,39 @@ static struct mipi_dsi_device *max96755f_attach_dsi(struct max96755f_bridge *max
 }
 
 static int max96755f_bridge_attach(struct drm_bridge *bridge,
-				  enum drm_bridge_attach_flags flags)
+				   enum drm_bridge_attach_flags flags)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+	struct drm_connector *connector = &ser->connector;
 	int ret;
 
-	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, NULL,
+	ret = drm_of_find_panel_or_bridge(bridge->of_node, 1, -1, &ser->panel,
 					  &ser->next_bridge);
 	if (ret)
 		return ret;
 
-	ret = drm_bridge_attach(bridge->encoder, ser->next_bridge,
-				bridge, flags);
-	if (ret)
+	if (ser->next_bridge) {
+		ret = drm_bridge_attach(bridge->encoder, ser->next_bridge,
+					bridge, DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+		if (ret)
+			return ret;
+	}
+
+	connector->polled = DRM_CONNECTOR_POLL_CONNECT |
+			    DRM_CONNECTOR_POLL_DISCONNECT;
+
+	drm_connector_helper_add(connector,
+				 &max96755f_bridge_connector_helper_funcs);
+
+	ret = drm_connector_init(bridge->dev, connector,
+				 &max96755f_bridge_connector_funcs,
+				 ser->next_bridge ? ser->next_bridge->type : bridge->type);
+	if (ret) {
+		DRM_ERROR("Failed to initialize connector\n");
 		return ret;
+	}
+
+	drm_connector_attach_encoder(connector, bridge->encoder);
 
 	ser->dsi = max96755f_attach_dsi(ser, ser->dsi_node);
 	if (IS_ERR(ser->dsi))
@@ -142,8 +195,8 @@ static void max96755f_mipi_dsi_rx_config(struct max96755f_bridge *ser)
 		     FIELD_PREP(DPI_HSYNC_WIDTH_H, (hsa >> 8)));
 	regmap_write(ser->regmap, 0x03a5, FIELD_PREP(DPI_VFP_L, vfp));
 	regmap_write(ser->regmap, 0x03a6,
-			   FIELD_PREP(DPI_VBP_L, vbp) |
-			   FIELD_PREP(DPI_VFP_H, (vfp >> 8)));
+		     FIELD_PREP(DPI_VBP_L, vbp) |
+		     FIELD_PREP(DPI_VFP_H, (vfp >> 8)));
 	regmap_write(ser->regmap, 0x03a7, FIELD_PREP(DPI_VBP_H, (vbp >> 4)));
 	regmap_write(ser->regmap, 0x03a8, FIELD_PREP(DPI_VACT_L, vact));
 	regmap_write(ser->regmap, 0x03a9, FIELD_PREP(DPI_VACT_H, (vact >> 8)));
@@ -180,6 +233,9 @@ static void max96755f_bridge_pre_enable(struct drm_bridge *bridge)
 				   FIELD_PREP(DV_SPL, 1) |
 				   FIELD_PREP(DV_EN, 1));
 	}
+
+	if (ser->panel)
+		drm_panel_prepare(ser->panel);
 }
 
 static void max96755f_bridge_enable(struct drm_bridge *bridge)
@@ -219,11 +275,17 @@ static void max96755f_bridge_enable(struct drm_bridge *bridge)
 	regmap_update_bits(ser->regmap, 0x10, RESET_ONESHOT,
 			   FIELD_PREP(RESET_ONESHOT, 1));
 	mdelay(100);
+
+	if (ser->panel)
+		drm_panel_enable(ser->panel);
 }
 
 static void max96755f_bridge_disable(struct drm_bridge *bridge)
 {
 	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+
+	if (ser->panel)
+		drm_panel_disable(ser->panel);
 
 	regmap_update_bits(ser->regmap, 0x02, VID_TX_EN_X | VID_TX_EN_Y,
 			   FIELD_PREP(VID_TX_EN_X, 0) |
@@ -238,6 +300,10 @@ static void max96755f_bridge_disable(struct drm_bridge *bridge)
 
 static void max96755f_bridge_post_disable(struct drm_bridge *bridge)
 {
+	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
+
+	if (ser->panel)
+		drm_panel_unprepare(ser->panel);
 }
 
 static enum drm_connector_status
@@ -249,17 +315,17 @@ max96755f_bridge_detect(struct drm_bridge *bridge)
 	if (regmap_read(ser->regmap, 0x0013, &val))
 		return connector_status_disconnected;
 
-	if (FIELD_GET(LOCKED, val))
-		return connector_status_connected;
-	else
+	if (!FIELD_GET(LOCKED, val))
 		return connector_status_disconnected;
+
+	return connector_status_connected;
 }
 
 static void max96755f_bridge_mode_set(struct drm_bridge *bridge,
-				   const struct drm_display_mode *mode,
-				   const struct drm_display_mode *adj_mode)
+				      const struct drm_display_mode *mode,
+				      const struct drm_display_mode *adj_mode)
 {
-	struct max96755f_bridge *ser  = to_max96755f_bridge(bridge);
+	struct max96755f_bridge *ser = to_max96755f_bridge(bridge);
 
 	drm_mode_copy(&ser->mode, adj_mode);
 }
