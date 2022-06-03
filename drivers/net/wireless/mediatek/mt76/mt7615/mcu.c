@@ -40,18 +40,6 @@ struct mt7615_fw_trailer {
 #define FW_START_DLYCAL                 BIT(1)
 #define FW_START_WORKING_PDA_CR4	BIT(2)
 
-struct mt7663_fw_trailer {
-	u8 chip_id;
-	u8 eco_code;
-	u8 n_region;
-	u8 format_ver;
-	u8 format_flag;
-	u8 reserv[2];
-	char fw_ver[10];
-	char build_date[15];
-	__le32 crc;
-} __packed;
-
 struct mt7663_fw_buf {
 	__le32 crc;
 	__le32 d_img_size;
@@ -1518,7 +1506,7 @@ static int mt7615_mcu_cal_cache_apply(struct mt7615_dev *dev)
 static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 {
 	u32 offset = 0, override_addr = 0, flag = FW_START_DLYCAL;
-	const struct mt7663_fw_trailer *hdr;
+	const struct mt76_connac2_fw_trailer *hdr;
 	const struct mt7663_fw_buf *buf;
 	const struct firmware *fw;
 	const u8 *base_addr;
@@ -1534,9 +1522,7 @@ static int mt7663_load_n9(struct mt7615_dev *dev, const char *name)
 		goto out;
 	}
 
-	hdr = (const struct mt7663_fw_trailer *)(fw->data + fw->size -
-						 FW_V3_COMMON_TAILER_SIZE);
-
+	hdr = (const void *)(fw->data + fw->size - FW_V3_COMMON_TAILER_SIZE);
 	dev_info(dev->mt76.dev, "N9 Firmware Version: %.10s, Build Time: %.15s\n",
 		 hdr->fw_ver, hdr->build_date);
 	dev_info(dev->mt76.dev, "Region number: 0x%x\n", hdr->n_region);
