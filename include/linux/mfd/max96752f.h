@@ -105,7 +105,6 @@ struct max96752f {
 	struct regmap *regmap;
 	struct i2c_client *client;
 	struct i2c_mux_core *muxc;
-	u32 stream_id;
 };
 
 void max96752f_regcache_sync(struct max96752f *max96752f);
