@@ -1445,8 +1445,6 @@ static int meson_nfc_remove(struct platform_device *pdev)
 
 	meson_nfc_disable_clk(nfc);
 
-	platform_set_drvdata(pdev, NULL);
-
 	return 0;
 }
 
