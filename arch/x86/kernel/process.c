@@ -131,9 +131,11 @@ static int set_new_tls(struct task_struct *p, unsigned long tls)
 		return do_set_thread_area_64(p, ARCH_SET_FS, tls);
 }
 
-int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
-		struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
+	unsigned long clone_flags = args->flags;
+	unsigned long sp = args->stack;
+	unsigned long tls = args->tls;
 	struct inactive_task_frame *frame;
 	struct fork_frame *fork_frame;
 	struct pt_regs *childregs;
@@ -171,13 +173,13 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	frame->flags = X86_EFLAGS_FIXED;
 #endif
 
-	fpu_clone(p, clone_flags);
+	fpu_clone(p, clone_flags, args->fn);
 
 	/* Kernel thread ? */
 	if (unlikely(p->flags & PF_KTHREAD)) {
 		p->thread.pkru = pkru_get_init_value();
 		memset(childregs, 0, sizeof(struct pt_regs));
-		kthread_frame_init(frame, sp, arg);
+		kthread_frame_init(frame, args->fn, args->fn_arg);
 		return 0;
 	}
 
@@ -193,10 +195,10 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 	if (sp)
 		childregs->sp = sp;
 
-	if (unlikely(p->flags & PF_IO_WORKER)) {
+	if (unlikely(args->fn)) {
 		/*
-		 * An IO thread is a user space thread, but it doesn't
-		 * return to ret_after_fork().
+		 * A user space thread, but it doesn't return to
+		 * ret_after_fork().
 		 *
 		 * In order to indicate that to tools like gdb,
 		 * we reset the stack and instruction pointers.
@@ -206,7 +208,7 @@ int copy_thread(unsigned long clone_flags, unsigned long sp, unsigned long arg,
 		 */
 		childregs->sp = 0;
 		childregs->ip = 0;
-		kthread_frame_init(frame, sp, arg);
+		kthread_frame_init(frame, args->fn, args->fn_arg);
 		return 0;
 	}
 
