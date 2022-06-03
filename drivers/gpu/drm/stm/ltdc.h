@@ -28,6 +28,7 @@ struct ltdc_caps {
 	bool ycbcr_output;	/* ycbcr output converter supported */
 	bool plane_reg_shadow;	/* plane shadow registers ability */
 	bool crc;		/* cyclic redundancy check supported */
+	bool dynamic_zorder;	/* dynamic z-order */
 };
 
 #define LTDC_MAX_LAYER	4

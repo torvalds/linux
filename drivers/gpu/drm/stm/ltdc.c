@@ -197,6 +197,7 @@
 
 #define LXBFCR_BF2	GENMASK(2, 0)	/* Blending Factor 2 */
 #define LXBFCR_BF1	GENMASK(10, 8)	/* Blending Factor 1 */
+#define LXBFCR_BOR	GENMASK(18, 16) /* Blending ORder */
 
 #define LXCFBLR_CFBLL	GENMASK(12, 0)	/* Color Frame Buffer Line Length */
 #define LXCFBLR_CFBP	GENMASK(28, 16)	/* Color Frame Buffer Pitch in bytes */
@@ -1312,7 +1313,14 @@ static void ltdc_plane_atomic_update(struct drm_plane *plane,
 	    plane->type != DRM_PLANE_TYPE_PRIMARY)
 		val = BF1_PAXCA | BF2_1PAXCA;
 
-	regmap_write_bits(ldev->regmap, LTDC_L1BFCR + lofs, LXBFCR_BF2 | LXBFCR_BF1, val);
+	if (ldev->caps.dynamic_zorder) {
+		val |= (newstate->normalized_zpos << 16);
+		regmap_write_bits(ldev->regmap, LTDC_L1BFCR + lofs,
+				  LXBFCR_BF2 | LXBFCR_BF1 | LXBFCR_BOR, val);
+	} else {
+		regmap_write_bits(ldev->regmap, LTDC_L1BFCR + lofs,
+				  LXBFCR_BF2 | LXBFCR_BF1, val);
+	}
 
 	/* Configures the frame buffer line number */
 	line_number = y1 - y0 + 1;
@@ -1581,7 +1589,10 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 		return -EINVAL;
 	}
 
-	drm_plane_create_zpos_immutable_property(primary, 0);
+	if (ldev->caps.dynamic_zorder)
+		drm_plane_create_zpos_property(primary, 0, 0, ldev->caps.nb_layers - 1);
+	else
+		drm_plane_create_zpos_immutable_property(primary, 0);
 
 	/* Init CRTC according to its hardware features */
 	if (ldev->caps.crc)
@@ -1610,7 +1621,10 @@ static int ltdc_crtc_init(struct drm_device *ddev, struct drm_crtc *crtc)
 			DRM_ERROR("Can not create overlay plane %d\n", i);
 			goto cleanup;
 		}
-		drm_plane_create_zpos_immutable_property(overlay, i);
+		if (ldev->caps.dynamic_zorder)
+			drm_plane_create_zpos_property(overlay, i, 0, ldev->caps.nb_layers - 1);
+		else
+			drm_plane_create_zpos_immutable_property(overlay, i);
 	}
 
 	return 0;
@@ -1740,6 +1754,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.ycbcr_output = false;
 		ldev->caps.plane_reg_shadow = false;
 		ldev->caps.crc = false;
+		ldev->caps.dynamic_zorder = false;
 		break;
 	case HWVER_20101:
 		ldev->caps.layer_ofs = LAY_OFS_0;
@@ -1755,6 +1770,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.ycbcr_output = false;
 		ldev->caps.plane_reg_shadow = false;
 		ldev->caps.crc = false;
+		ldev->caps.dynamic_zorder = false;
 		break;
 	case HWVER_40100:
 		ldev->caps.layer_ofs = LAY_OFS_1;
@@ -1770,6 +1786,7 @@ static int ltdc_get_caps(struct drm_device *ddev)
 		ldev->caps.ycbcr_output = true;
 		ldev->caps.plane_reg_shadow = true;
 		ldev->caps.crc = true;
+		ldev->caps.dynamic_zorder = true;
 		break;
 	default:
 		return -ENODEV;
