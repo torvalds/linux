@@ -177,6 +177,7 @@ config FW_LOADER_COMPRESS_XZ
 	bool "Enable XZ-compressed firmware support"
 	select FW_LOADER_PAGED_BUF
 	select XZ_DEC
+	default y
 	help
 	  This option adds the support for XZ-compressed files.
 	  The files have to be compressed with either none or crc32
