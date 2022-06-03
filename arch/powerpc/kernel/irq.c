@@ -194,8 +194,8 @@ static inline void check_stack_overflow(void)
 
 	sp = current_stack_pointer & (THREAD_SIZE - 1);
 
-	/* check for stack overflow: is there less than 2KB free? */
-	if (unlikely(sp < 2048)) {
+	/* check for stack overflow: is there less than 1/4th free? */
+	if (unlikely(sp < THREAD_SIZE / 4)) {
 		pr_err("do_IRQ: stack overflow: %ld\n", sp);
 		dump_stack();
 	}
