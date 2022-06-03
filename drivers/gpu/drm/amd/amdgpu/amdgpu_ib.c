@@ -433,11 +433,6 @@ int amdgpu_ib_ring_tests(struct amdgpu_device *adev)
 		else
 			tmo = tmo_gfx;
 
-		/* skip ib test on the slave kcq */
-		if (ring->funcs->type == AMDGPU_RING_TYPE_COMPUTE &&
-		    !amdgpu_gfx_is_master_xcc(adev, ring->xcc_id))
-			continue;
-
 		r = amdgpu_ring_test_ib(ring, tmo);
 		if (!r) {
 			DRM_DEV_DEBUG(adev->dev, "ib test on %s succeeded\n",
