@@ -116,7 +116,7 @@ static void mt7921e_unregister_device(struct mt7921_dev *dev)
 	mt7921_mcu_drv_pmctrl(dev);
 	mt7921_dma_cleanup(dev);
 	mt7921_wfsys_reset(dev);
-	mt7921_mcu_exit(dev);
+	skb_queue_purge(&dev->mt76.mcu.res_q);
 
 	tasklet_disable(&dev->irq_tasklet);
 }

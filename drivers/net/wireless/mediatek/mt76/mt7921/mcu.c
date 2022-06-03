@@ -773,12 +773,6 @@ int mt7921_run_firmware(struct mt7921_dev *dev)
 }
 EXPORT_SYMBOL_GPL(mt7921_run_firmware);
 
-void mt7921_mcu_exit(struct mt7921_dev *dev)
-{
-	skb_queue_purge(&dev->mt76.mcu.res_q);
-}
-EXPORT_SYMBOL_GPL(mt7921_mcu_exit);
-
 int mt7921_mcu_set_tx(struct mt7921_dev *dev, struct ieee80211_vif *vif)
 {
 	struct mt7921_vif *mvif = (struct mt7921_vif *)vif->drv_priv;
