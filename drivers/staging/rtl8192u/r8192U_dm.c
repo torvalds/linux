@@ -3002,7 +3002,7 @@ static void dm_check_txrateandretrycount(struct net_device *dev)
 	/* for initial tx rate */
 	/*priv->stats.last_packet_rate = read_nic_byte(dev, INITIAL_TX_RATE_REG);*/
 	read_nic_byte(dev, INITIAL_TX_RATE_REG, &ieee->softmac_stats.last_packet_rate);
-	/* for tx tx retry count */
+	/* for tx retry count */
 	/*priv->stats.txretrycount = read_nic_dword(dev, TX_RETRY_COUNT_REG);*/
 	read_nic_dword(dev, TX_RETRY_COUNT_REG, &ieee->softmac_stats.txretrycount);
 }
