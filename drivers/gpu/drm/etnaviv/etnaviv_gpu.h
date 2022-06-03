@@ -168,7 +168,7 @@ bool etnaviv_fill_identity_from_hwdb(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_debugfs(struct etnaviv_gpu *gpu, struct seq_file *m);
 #endif
 
-void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu);
+void etnaviv_gpu_recover_hang(struct etnaviv_gem_submit *submit);
 void etnaviv_gpu_retire(struct etnaviv_gpu *gpu);
 int etnaviv_gpu_wait_fence_interruptible(struct etnaviv_gpu *gpu,
 	u32 fence, struct drm_etnaviv_timespec *timeout);

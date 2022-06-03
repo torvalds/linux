@@ -1045,11 +1045,27 @@ pm_put:
 }
 #endif
 
-void etnaviv_gpu_recover_hang(struct etnaviv_gpu *gpu)
+void etnaviv_gpu_recover_hang(struct etnaviv_gem_submit *submit)
 {
+	struct etnaviv_gpu *gpu = submit->gpu;
+	char *comm = NULL, *cmd = NULL;
+	struct task_struct *task;
 	unsigned int i;
 
 	dev_err(gpu->dev, "recover hung GPU!\n");
+
+	task = get_pid_task(submit->pid, PIDTYPE_PID);
+	if (task) {
+		comm = kstrdup(task->comm, GFP_KERNEL);
+		cmd = kstrdup_quotable_cmdline(task, GFP_KERNEL);
+		put_task_struct(task);
+	}
+
+	if (comm && cmd)
+		dev_err(gpu->dev, "offending task: %s (%s)\n", comm, cmd);
+
+	kfree(cmd);
+	kfree(comm);
 
 	if (pm_runtime_get_sync(gpu->dev) < 0)
 		goto pm_put;
