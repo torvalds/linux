@@ -1287,6 +1287,9 @@ static int slim_rx_mux_put(struct snd_kcontrol *kc,
 	struct snd_soc_dapm_update *update = NULL;
 	u32 port_id = w->shift;
 
+	if (wcd->rx_port_value[port_id] == ucontrol->value.enumerated.item[0])
+		return 0;
+
 	wcd->rx_port_value[port_id] = ucontrol->value.enumerated.item[0];
 
 	/* Remove channel from any list it's in before adding it to a new one */
