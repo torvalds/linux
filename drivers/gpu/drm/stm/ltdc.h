@@ -29,6 +29,7 @@ struct ltdc_caps {
 	bool plane_reg_shadow;	/* plane shadow registers ability */
 	bool crc;		/* cyclic redundancy check supported */
 	bool dynamic_zorder;	/* dynamic z-order */
+	bool plane_rotation;	/* plane rotation */
 };
 
 #define LTDC_MAX_LAYER	4
