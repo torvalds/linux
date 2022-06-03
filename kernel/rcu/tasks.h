@@ -1479,21 +1479,6 @@ static void rcu_tasks_trace_pertask(struct task_struct *t, struct list_head *hop
 		trc_wait_for_one_reader(t, hop);
 }
 
-/*
- * Get the current CPU's current task on the holdout list.
- * Calls to this function must be serialized.
- */
-static void rcu_tasks_trace_pertask_handler(void *hop_in)
-{
-	struct list_head *hop = hop_in;
-	struct task_struct *t = current;
-
-	// Pull in the currently running task, but only if it is currently
-	// in an RCU tasks trace read-side critical section.
-	if (rcu_tasks_trace_pertask_prep(t, false))
-		trc_add_holdout(t, hop);
-}
-
 /* Initialize for a new RCU-tasks-trace grace period. */
 static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 {
@@ -1513,8 +1498,13 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 
 	// These smp_call_function_single() calls are serialized to
 	// allow safe access to the hop list.
-	for_each_online_cpu(cpu)
-		smp_call_function_single(cpu, rcu_tasks_trace_pertask_handler, hop, 1);
+	for_each_online_cpu(cpu) {
+		rcu_read_lock();
+		t = cpu_curr_snapshot(cpu);
+		if (rcu_tasks_trace_pertask_prep(t, true))
+			trc_add_holdout(t, hop);
+		rcu_read_unlock();
+	}
 
 	// Only after all running tasks have been accounted for is it
 	// safe to take care of the tasks that have blocked within their
