@@ -1025,6 +1025,39 @@ mlx5_esw_bridge_vlan_push_mark_cleanup(struct mlx5_esw_bridge_vlan *vlan, struct
 	vlan->pkt_mod_hdr_push_mark = NULL;
 }
 
+static int
+mlx5_esw_bridge_vlan_push_pop_create(u16 flags, struct mlx5_esw_bridge_vlan *vlan,
+				     struct mlx5_eswitch *esw)
+{
+	int err;
+
+	if (flags & BRIDGE_VLAN_INFO_PVID) {
+		err = mlx5_esw_bridge_vlan_push_create(vlan, esw);
+		if (err)
+			return err;
+
+		err = mlx5_esw_bridge_vlan_push_mark_create(vlan, esw);
+		if (err)
+			goto err_vlan_push_mark;
+	}
+
+	if (flags & BRIDGE_VLAN_INFO_UNTAGGED) {
+		err = mlx5_esw_bridge_vlan_pop_create(vlan, esw);
+		if (err)
+			goto err_vlan_pop;
+	}
+
+	return 0;
+
+err_vlan_pop:
+	if (vlan->pkt_mod_hdr_push_mark)
+		mlx5_esw_bridge_vlan_push_mark_cleanup(vlan, esw);
+err_vlan_push_mark:
+	if (vlan->pkt_reformat_push)
+		mlx5_esw_bridge_vlan_push_cleanup(vlan, esw);
+	return err;
+}
+
 static struct mlx5_esw_bridge_vlan *
 mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *port,
 			    struct mlx5_eswitch *esw)
@@ -1040,20 +1073,9 @@ mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *por
 	vlan->flags = flags;
 	INIT_LIST_HEAD(&vlan->fdb_list);
 
-	if (flags & BRIDGE_VLAN_INFO_PVID) {
-		err = mlx5_esw_bridge_vlan_push_create(vlan, esw);
-		if (err)
-			goto err_vlan_push;
-
-		err = mlx5_esw_bridge_vlan_push_mark_create(vlan, esw);
-		if (err)
-			goto err_vlan_push_mark;
-	}
-	if (flags & BRIDGE_VLAN_INFO_UNTAGGED) {
-		err = mlx5_esw_bridge_vlan_pop_create(vlan, esw);
-		if (err)
-			goto err_vlan_pop;
-	}
+	err = mlx5_esw_bridge_vlan_push_pop_create(flags, vlan, esw);
+	if (err)
+		goto err_vlan_push_pop;
 
 	err = xa_insert(&port->vlans, vid, vlan, GFP_KERNEL);
 	if (err)
@@ -1065,13 +1087,11 @@ mlx5_esw_bridge_vlan_create(u16 vid, u16 flags, struct mlx5_esw_bridge_port *por
 err_xa_insert:
 	if (vlan->pkt_reformat_pop)
 		mlx5_esw_bridge_vlan_pop_cleanup(vlan, esw);
-err_vlan_pop:
 	if (vlan->pkt_mod_hdr_push_mark)
 		mlx5_esw_bridge_vlan_push_mark_cleanup(vlan, esw);
-err_vlan_push_mark:
 	if (vlan->pkt_reformat_push)
 		mlx5_esw_bridge_vlan_push_cleanup(vlan, esw);
-err_vlan_push:
+err_vlan_push_pop:
 	kvfree(vlan);
 	return ERR_PTR(err);
 }
