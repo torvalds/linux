@@ -86,6 +86,9 @@
 
 #define RTC_VREF_INIT			0x40
 
+#define D2A_POR_REG_SEL1		BIT(4)
+#define D2A_POR_REG_SEL0		BIT(1)
+
 #define NUM_TIME_REGS			8
 #define NUM_ALARM_REGS			7
 
@@ -692,10 +695,18 @@ static int rockchip_rtc_probe(struct platform_device *pdev)
 		return dev_err_probe(dev, ret,
 				     "Failed to add clk disable action.");
 
-	ret = rockchip_rtc_write(rtc->regmap, RTC_ANALOG_TEST, RTC_VREF_INIT);
+	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_VPTAT_TRIM,
+				       D2A_POR_REG_SEL1,
+				       D2A_POR_REG_SEL1);
 	if (ret)
 		return dev_err_probe(&pdev->dev, ret,
-				     "Failed to write RTC_ANALOG_TEST\n");
+				     "Failed to write RTC_VPTAT_TRIM\n");
+	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_ANALOG_EN,
+				       D2A_POR_REG_SEL0,
+				       0x00);
+	if (ret)
+		return dev_err_probe(&pdev->dev, ret,
+				     "Failed to write RTC_ANALOG_EN\n");
 
 	ret = rockchip_rtc_update_bits(rtc->regmap, RTC_LDO_CTRL,
 				       RTC_D2A_XO_EN,
