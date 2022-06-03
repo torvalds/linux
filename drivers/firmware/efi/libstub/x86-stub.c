@@ -260,10 +260,10 @@ adjust_memory_range_protection(unsigned long start, unsigned long size)
 				      EFI_MEMORY_WB);
 
 		if (status != EFI_SUCCESS) {
-			efi_warn("Unable to unprotect memory range [%08lx,%08lx]: %d\n",
+			efi_warn("Unable to unprotect memory range [%08lx,%08lx]: %lx\n",
 				 unprotect_start,
 				 unprotect_start + unprotect_size,
-				 (int)status);
+				 status);
 		}
 	}
 }
