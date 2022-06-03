@@ -293,6 +293,16 @@ Contact:	thunderbolt-software@lists.01.org
 Description:	This contains XDomain service specific settings as
 		bitmask. Format: %x
 
+What:		/sys/bus/thunderbolt/devices/usb4_portX/connector
+Date:		April 2022
+Contact:	Heikki Krogerus <heikki.krogerus@linux.intel.com>
+Description:
+		Symlink to the USB Type-C connector. This link is only
+		created when USB Type-C Connector Class is enabled,
+		and only if the system firmware is capable of
+		describing the connection between a port and its
+		connector.
+
 What:		/sys/bus/thunderbolt/devices/usb4_portX/link
 Date:		Sep 2021
 KernelVersion:	v5.14

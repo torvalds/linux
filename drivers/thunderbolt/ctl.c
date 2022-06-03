@@ -158,21 +158,20 @@ static bool tb_cfg_request_is_active(struct tb_cfg_request *req)
 static struct tb_cfg_request *
 tb_cfg_request_find(struct tb_ctl *ctl, struct ctl_pkg *pkg)
 {
-	struct tb_cfg_request *req;
-	bool found = false;
+	struct tb_cfg_request *req = NULL, *iter;
 
 	mutex_lock(&pkg->ctl->request_queue_lock);
-	list_for_each_entry(req, &pkg->ctl->request_queue, list) {
-		tb_cfg_request_get(req);
-		if (req->match(req, pkg)) {
-			found = true;
+	list_for_each_entry(iter, &pkg->ctl->request_queue, list) {
+		tb_cfg_request_get(iter);
+		if (iter->match(iter, pkg)) {
+			req = iter;
 			break;
 		}
-		tb_cfg_request_put(req);
+		tb_cfg_request_put(iter);
 	}
 	mutex_unlock(&pkg->ctl->request_queue_lock);
 
-	return found ? req : NULL;
+	return req;
 }
 
 /* utility functions */

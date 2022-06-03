@@ -422,7 +422,7 @@ static struct usb_gadget_driver dbgp_driver = {
 
 static int __init dbgp_init(void)
 {
-	return usb_gadget_probe_driver(&dbgp_driver);
+	return usb_gadget_register_driver(&dbgp_driver);
 }
 
 static void __exit dbgp_exit(void)
