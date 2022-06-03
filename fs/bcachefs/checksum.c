@@ -114,15 +114,41 @@ static inline int do_encrypt(struct crypto_sync_skcipher *tfm,
 			      struct nonce nonce,
 			      void *buf, size_t len)
 {
-	struct scatterlist sg;
+	if (!is_vmalloc_addr(buf)) {
+		struct scatterlist sg;
 
-	sg_init_table(&sg, 1);
-	sg_set_page(&sg,
-		    is_vmalloc_addr(buf)
-		    ? vmalloc_to_page(buf)
-		    : virt_to_page(buf),
-		    len, offset_in_page(buf));
-	return do_encrypt_sg(tfm, nonce, &sg, len);
+		sg_init_table(&sg, 1);
+		sg_set_page(&sg,
+			    is_vmalloc_addr(buf)
+			    ? vmalloc_to_page(buf)
+			    : virt_to_page(buf),
+			    len, offset_in_page(buf));
+		return do_encrypt_sg(tfm, nonce, &sg, len);
+	} else {
+		unsigned pages = buf_pages(buf, len);
+		struct scatterlist *sg;
+		size_t orig_len = len;
+		int ret, i;
+
+		sg = kmalloc_array(sizeof(*sg), pages, GFP_KERNEL);
+		if (!sg)
+			return -ENOMEM;
+
+		sg_init_table(sg, pages);
+
+		for (i = 0; i < pages; i++) {
+			unsigned offset = offset_in_page(buf);
+			unsigned pg_len = min(len, PAGE_SIZE - offset);
+
+			sg_set_page(sg + i, vmalloc_to_page(buf), pg_len, offset);
+			buf += pg_len;
+			len -= pg_len;
+		}
+
+		ret = do_encrypt_sg(tfm, nonce, sg, orig_len);
+		kfree(sg);
+		return ret;
+	}
 }
 
 int bch2_chacha_encrypt_key(struct bch_key *key, struct nonce nonce,
