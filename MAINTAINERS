@@ -6435,6 +6435,7 @@ DRM DRIVER FOR TI DLPC3433 MIPI DSI TO DMD BRIDGE
 M:	Jagan Teki <jagan@amarulasolutions.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/display/bridge/ti,dlpc3433.yaml
+F:	drivers/gpu/drm/bridge/ti-dlpc3433.c
 
 DRM DRIVER FOR TI SN65DSI86 BRIDGE CHIP
 R:	Douglas Anderson <dianders@chromium.org>
