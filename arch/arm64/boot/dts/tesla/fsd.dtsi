@@ -831,6 +831,35 @@
 			clocks = <&fin_pll>, <&clock_imem IMEM_MCT_PCLK>;
 			clock-names = "fin_pll", "mct";
 		};
+
+		ufs: ufs@15120000 {
+			compatible = "tesla,fsd-ufs";
+			reg = <0x0 0x15120000 0x0 0x200>,  /* 0: HCI standard */
+			      <0x0 0x15121100 0x0 0x200>,  /* 1: Vendor specified */
+			      <0x0 0x15110000 0x0 0x8000>,  /* 2: UNIPRO */
+			      <0x0 0x15130000 0x0 0x100>;  /* 3: UFS protector */
+			reg-names = "hci", "vs_hci", "unipro", "ufsp";
+			interrupts = <GIC_SPI 91 IRQ_TYPE_LEVEL_HIGH>;
+			clocks = <&clock_fsys0 UFS0_TOP0_HCLK_BUS>,
+				 <&clock_fsys0 UFS0_TOP0_CLK_UNIPRO>;
+			clock-names = "core_clk", "sclk_unipro_main";
+			freq-table-hz = <0 0>, <0 0>;
+			pinctrl-names = "default";
+			pinctrl-0 = <&ufs_rst_n &ufs_refclk_out>;
+			phys = <&ufs_phy>;
+			phy-names = "ufs-phy";
+			status = "disabled";
+		};
+
+		ufs_phy: ufs-phy@15124000 {
+			compatible = "tesla,fsd-ufs-phy";
+			reg = <0x0 0x15124000 0x0 0x800>;
+			reg-names = "phy-pma";
+			samsung,pmu-syscon = <&pmu_system_controller>;
+			#phy-cells = <0>;
+			clocks = <&clock_fsys0 UFS0_MPHY_REFCLK_IXTAL26>;
+			clock-names = "ref_clk";
+		};
 	};
 };
 
