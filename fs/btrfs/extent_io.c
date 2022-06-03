@@ -181,10 +181,7 @@ static int add_extent_changeset(struct extent_state *state, u32 bits,
 static void submit_one_bio(struct bio *bio, int mirror_num,
 			   enum btrfs_compression_type compress_type)
 {
-	struct extent_io_tree *tree = bio->bi_private;
-	struct inode *inode = tree->private_data;
-
-	bio->bi_private = NULL;
+	struct inode *inode = bio_first_page_all(bio)->mapping->host;
 
 	/* Caller should ensure the bio has at least some range added */
 	ASSERT(bio->bi_iter.bi_size);
@@ -3362,7 +3359,6 @@ static int alloc_new_bio(struct btrfs_inode *inode,
 	bio_ctrl->bio = bio;
 	bio_ctrl->compress_type = compress_type;
 	bio->bi_end_io = end_io_func;
-	bio->bi_private = &inode->io_tree;
 	bio->bi_opf = opf;
 	ret = calc_bio_boundaries(bio_ctrl, inode, file_offset);
 	if (ret < 0)
