@@ -288,6 +288,7 @@ static struct attribute *cxl_decoder_base_attrs[] = {
 	&dev_attr_locked.attr,
 	&dev_attr_interleave_granularity.attr,
 	&dev_attr_interleave_ways.attr,
+	SET_CXL_REGION_ATTR(region)
 	NULL,
 };
 
@@ -1583,6 +1584,7 @@ struct cxl_endpoint_decoder *cxl_endpoint_decoder_alloc(struct cxl_port *port)
 	if (!cxled)
 		return ERR_PTR(-ENOMEM);
 
+	cxled->pos = -1;
 	cxld = &cxled->cxld;
 	rc = cxl_decoder_init(port, cxld);
 	if (rc)	 {
@@ -1687,6 +1689,13 @@ EXPORT_SYMBOL_NS_GPL(cxl_decoder_add, CXL);
 
 static void cxld_unregister(void *dev)
 {
+	struct cxl_endpoint_decoder *cxled;
+
+	if (is_endpoint_decoder(dev)) {
+		cxled = to_cxl_endpoint_decoder(dev);
+		cxl_decoder_kill_region(cxled);
+	}
+
 	device_unregister(dev);
 }
 

@@ -24,6 +24,7 @@
  * but is only visible for persistent regions.
  * 1. Interleave granularity
  * 2. Interleave size
+ * 3. Decoder targets
  */
 
 /*
@@ -141,6 +142,8 @@ static ssize_t interleave_ways_show(struct device *dev,
 	return rc;
 }
 
+static const struct attribute_group *get_cxl_region_target_group(void);
+
 static ssize_t interleave_ways_store(struct device *dev,
 				     struct device_attribute *attr,
 				     const char *buf, size_t len)
@@ -149,7 +152,7 @@ static ssize_t interleave_ways_store(struct device *dev,
 	struct cxl_decoder *cxld = &cxlrd->cxlsd.cxld;
 	struct cxl_region *cxlr = to_cxl_region(dev);
 	struct cxl_region_params *p = &cxlr->params;
-	int rc, val;
+	int rc, val, save;
 	u8 iw;
 
 	rc = kstrtoint(buf, 0, &val);
@@ -178,7 +181,11 @@ static ssize_t interleave_ways_store(struct device *dev,
 		goto out;
 	}
 
+	save = p->interleave_ways;
 	p->interleave_ways = val;
+	rc = sysfs_update_group(&cxlr->dev.kobj, get_cxl_region_target_group());
+	if (rc)
+		p->interleave_ways = save;
 out:
 	up_write(&cxl_region_rwsem);
 	if (rc)
@@ -404,9 +411,262 @@ static const struct attribute_group cxl_region_group = {
 	.is_visible = cxl_region_visible,
 };
 
+static size_t show_targetN(struct cxl_region *cxlr, char *buf, int pos)
+{
+	struct cxl_region_params *p = &cxlr->params;
+	struct cxl_endpoint_decoder *cxled;
+	int rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	if (pos >= p->interleave_ways) {
+		dev_dbg(&cxlr->dev, "position %d out of range %d\n", pos,
+			p->interleave_ways);
+		rc = -ENXIO;
+		goto out;
+	}
+
+	cxled = p->targets[pos];
+	if (!cxled)
+		rc = sysfs_emit(buf, "\n");
+	else
+		rc = sysfs_emit(buf, "%s\n", dev_name(&cxled->cxld.dev));
+out:
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+
+/*
+ * - Check that the given endpoint is attached to a host-bridge identified
+ *   in the root interleave.
+ */
+static int cxl_region_attach(struct cxl_region *cxlr,
+			     struct cxl_endpoint_decoder *cxled, int pos)
+{
+	struct cxl_region_params *p = &cxlr->params;
+
+	if (cxled->mode == CXL_DECODER_DEAD) {
+		dev_dbg(&cxlr->dev, "%s dead\n", dev_name(&cxled->cxld.dev));
+		return -ENODEV;
+	}
+
+	if (pos >= p->interleave_ways) {
+		dev_dbg(&cxlr->dev, "position %d out of range %d\n", pos,
+			p->interleave_ways);
+		return -ENXIO;
+	}
+
+	if (p->targets[pos] == cxled)
+		return 0;
+
+	if (p->targets[pos]) {
+		struct cxl_endpoint_decoder *cxled_target = p->targets[pos];
+		struct cxl_memdev *cxlmd_target = cxled_to_memdev(cxled_target);
+
+		dev_dbg(&cxlr->dev, "position %d already assigned to %s:%s\n",
+			pos, dev_name(&cxlmd_target->dev),
+			dev_name(&cxled_target->cxld.dev));
+		return -EBUSY;
+	}
+
+	p->targets[pos] = cxled;
+	cxled->pos = pos;
+	p->nr_targets++;
+
+	return 0;
+}
+
+static void cxl_region_detach(struct cxl_endpoint_decoder *cxled)
+{
+	struct cxl_region *cxlr = cxled->cxld.region;
+	struct cxl_region_params *p;
+
+	lockdep_assert_held_write(&cxl_region_rwsem);
+
+	if (!cxlr)
+		return;
+
+	p = &cxlr->params;
+	get_device(&cxlr->dev);
+
+	if (cxled->pos < 0 || cxled->pos >= p->interleave_ways ||
+	    p->targets[cxled->pos] != cxled) {
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+
+		dev_WARN_ONCE(&cxlr->dev, 1, "expected %s:%s at position %d\n",
+			      dev_name(&cxlmd->dev), dev_name(&cxled->cxld.dev),
+			      cxled->pos);
+		goto out;
+	}
+
+	p->targets[cxled->pos] = NULL;
+	p->nr_targets--;
+
+	/* notify the region driver that one of its targets has deparated */
+	up_write(&cxl_region_rwsem);
+	device_release_driver(&cxlr->dev);
+	down_write(&cxl_region_rwsem);
+out:
+	put_device(&cxlr->dev);
+}
+
+void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
+{
+	down_write(&cxl_region_rwsem);
+	cxled->mode = CXL_DECODER_DEAD;
+	cxl_region_detach(cxled);
+	up_write(&cxl_region_rwsem);
+}
+
+static int attach_target(struct cxl_region *cxlr, const char *decoder, int pos)
+{
+	struct device *dev;
+	int rc;
+
+	dev = bus_find_device_by_name(&cxl_bus_type, NULL, decoder);
+	if (!dev)
+		return -ENODEV;
+
+	if (!is_endpoint_decoder(dev)) {
+		put_device(dev);
+		return -EINVAL;
+	}
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		goto out;
+	down_read(&cxl_dpa_rwsem);
+	rc = cxl_region_attach(cxlr, to_cxl_endpoint_decoder(dev), pos);
+	up_read(&cxl_dpa_rwsem);
+	up_write(&cxl_region_rwsem);
+out:
+	put_device(dev);
+	return rc;
+}
+
+static int detach_target(struct cxl_region *cxlr, int pos)
+{
+	struct cxl_region_params *p = &cxlr->params;
+	int rc;
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	if (pos >= p->interleave_ways) {
+		dev_dbg(&cxlr->dev, "position %d out of range %d\n", pos,
+			p->interleave_ways);
+		rc = -ENXIO;
+		goto out;
+	}
+
+	if (!p->targets[pos]) {
+		rc = 0;
+		goto out;
+	}
+
+	cxl_region_detach(p->targets[pos]);
+	rc = 0;
+out:
+	up_write(&cxl_region_rwsem);
+	return rc;
+}
+
+static size_t store_targetN(struct cxl_region *cxlr, const char *buf, int pos,
+			    size_t len)
+{
+	int rc;
+
+	if (sysfs_streq(buf, "\n"))
+		rc = detach_target(cxlr, pos);
+	else
+		rc = attach_target(cxlr, buf, pos);
+
+	if (rc < 0)
+		return rc;
+	return len;
+}
+
+#define TARGET_ATTR_RW(n)                                              \
+static ssize_t target##n##_show(                                       \
+	struct device *dev, struct device_attribute *attr, char *buf)  \
+{                                                                      \
+	return show_targetN(to_cxl_region(dev), buf, (n));             \
+}                                                                      \
+static ssize_t target##n##_store(struct device *dev,                   \
+				 struct device_attribute *attr,        \
+				 const char *buf, size_t len)          \
+{                                                                      \
+	return store_targetN(to_cxl_region(dev), buf, (n), len);       \
+}                                                                      \
+static DEVICE_ATTR_RW(target##n)
+
+TARGET_ATTR_RW(0);
+TARGET_ATTR_RW(1);
+TARGET_ATTR_RW(2);
+TARGET_ATTR_RW(3);
+TARGET_ATTR_RW(4);
+TARGET_ATTR_RW(5);
+TARGET_ATTR_RW(6);
+TARGET_ATTR_RW(7);
+TARGET_ATTR_RW(8);
+TARGET_ATTR_RW(9);
+TARGET_ATTR_RW(10);
+TARGET_ATTR_RW(11);
+TARGET_ATTR_RW(12);
+TARGET_ATTR_RW(13);
+TARGET_ATTR_RW(14);
+TARGET_ATTR_RW(15);
+
+static struct attribute *target_attrs[] = {
+	&dev_attr_target0.attr,
+	&dev_attr_target1.attr,
+	&dev_attr_target2.attr,
+	&dev_attr_target3.attr,
+	&dev_attr_target4.attr,
+	&dev_attr_target5.attr,
+	&dev_attr_target6.attr,
+	&dev_attr_target7.attr,
+	&dev_attr_target8.attr,
+	&dev_attr_target9.attr,
+	&dev_attr_target10.attr,
+	&dev_attr_target11.attr,
+	&dev_attr_target12.attr,
+	&dev_attr_target13.attr,
+	&dev_attr_target14.attr,
+	&dev_attr_target15.attr,
+	NULL,
+};
+
+static umode_t cxl_region_target_visible(struct kobject *kobj,
+					 struct attribute *a, int n)
+{
+	struct device *dev = kobj_to_dev(kobj);
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+
+	if (n < p->interleave_ways)
+		return a->mode;
+	return 0;
+}
+
+static const struct attribute_group cxl_region_target_group = {
+	.attrs = target_attrs,
+	.is_visible = cxl_region_target_visible,
+};
+
+static const struct attribute_group *get_cxl_region_target_group(void)
+{
+	return &cxl_region_target_group;
+}
+
 static const struct attribute_group *region_groups[] = {
 	&cxl_base_attribute_group,
 	&cxl_region_group,
+	&cxl_region_target_group,
 	NULL,
 };
 
@@ -565,6 +825,26 @@ static ssize_t create_pmem_region_store(struct device *dev,
 	return len;
 }
 DEVICE_ATTR_RW(create_pmem_region);
+
+static ssize_t region_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct cxl_decoder *cxld = to_cxl_decoder(dev);
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	if (cxld->region)
+		rc = sysfs_emit(buf, "%s\n", dev_name(&cxld->region->dev));
+	else
+		rc = sysfs_emit(buf, "\n");
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+DEVICE_ATTR_RO(region);
 
 static struct cxl_region *
 cxl_find_region_by_name(struct cxl_root_decoder *cxlrd, const char *name)

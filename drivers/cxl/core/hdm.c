@@ -17,7 +17,7 @@
  * for enumerating these registers and capabilities.
  */
 
-static DECLARE_RWSEM(cxl_dpa_rwsem);
+DECLARE_RWSEM(cxl_dpa_rwsem);
 
 static int add_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 			   int *target_map)
@@ -321,6 +321,12 @@ int cxl_dpa_free(struct cxl_endpoint_decoder *cxled)
 		rc = 0;
 		goto out;
 	}
+	if (cxled->cxld.region) {
+		dev_dbg(dev, "decoder assigned to: %s\n",
+			dev_name(&cxled->cxld.region->dev));
+		rc = -EBUSY;
+		goto out;
+	}
 	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE) {
 		dev_dbg(dev, "decoder enabled\n");
 		rc = -EBUSY;
@@ -397,6 +403,13 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size)
 	int rc;
 
 	down_write(&cxl_dpa_rwsem);
+	if (cxled->cxld.region) {
+		dev_dbg(dev, "decoder attached to %s\n",
+			dev_name(&cxled->cxld.region->dev));
+		rc = -EBUSY;
+		goto out;
+	}
+
 	if (cxled->cxld.flags & CXL_DECODER_F_ENABLE) {
 		dev_dbg(dev, "decoder enabled\n");
 		rc = -EBUSY;

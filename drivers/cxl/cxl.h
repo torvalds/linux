@@ -255,6 +255,7 @@ enum cxl_decoder_type {
  * @interleave_ways: number of cxl_dports in this decode
  * @interleave_granularity: data stride per dport
  * @target_type: accelerator vs expander (type2 vs type3) selector
+ * @region: currently assigned region for this decoder
  * @flags: memory type capabilities and locking
  */
 struct cxl_decoder {
@@ -264,14 +265,20 @@ struct cxl_decoder {
 	int interleave_ways;
 	int interleave_granularity;
 	enum cxl_decoder_type target_type;
+	struct cxl_region *region;
 	unsigned long flags;
 };
 
+/*
+ * CXL_DECODER_DEAD prevents endpoints from being reattached to regions
+ * while cxld_unregister() is running
+ */
 enum cxl_decoder_mode {
 	CXL_DECODER_NONE,
 	CXL_DECODER_RAM,
 	CXL_DECODER_PMEM,
 	CXL_DECODER_MIXED,
+	CXL_DECODER_DEAD,
 };
 
 /**
@@ -280,12 +287,14 @@ enum cxl_decoder_mode {
  * @dpa_res: actively claimed DPA span of this decoder
  * @skip: offset into @dpa_res where @cxld.hpa_range maps
  * @mode: which memory type / access-mode-partition this decoder targets
+ * @pos: interleave position in @cxld.region
  */
 struct cxl_endpoint_decoder {
 	struct cxl_decoder cxld;
 	struct resource *dpa_res;
 	resource_size_t skip;
 	enum cxl_decoder_mode mode;
+	int pos;
 };
 
 /**
@@ -351,6 +360,8 @@ struct cxl_region_params {
 	int interleave_ways;
 	int interleave_granularity;
 	struct resource *res;
+	struct cxl_endpoint_decoder *targets[CXL_DECODER_MAX_INTERLEAVE];
+	int nr_targets;
 };
 
 /**

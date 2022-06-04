@@ -12,9 +12,14 @@ extern struct attribute_group cxl_base_attribute_group;
 #ifdef CONFIG_CXL_REGION
 extern struct device_attribute dev_attr_create_pmem_region;
 extern struct device_attribute dev_attr_delete_region;
+extern struct device_attribute dev_attr_region;
+void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled);
 #define CXL_REGION_ATTR(x) (&dev_attr_##x.attr)
 #define SET_CXL_REGION_ATTR(x) (&dev_attr_##x.attr),
 #else
+static inline void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
+{
+}
 #define CXL_REGION_ATTR(x) NULL
 #define SET_CXL_REGION_ATTR(x)
 #endif
@@ -34,6 +39,7 @@ int cxl_dpa_alloc(struct cxl_endpoint_decoder *cxled, unsigned long long size);
 int cxl_dpa_free(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_size(struct cxl_endpoint_decoder *cxled);
 resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled);
+extern struct rw_semaphore cxl_dpa_rwsem;
 
 int cxl_memdev_init(void);
 void cxl_memdev_exit(void);

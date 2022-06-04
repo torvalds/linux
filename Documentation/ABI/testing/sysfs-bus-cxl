@@ -353,3 +353,22 @@ Description:
 		size attribute, the resulting physical address space determined
 		by the driver is reflected here. It is therefore not useful to
 		read this before writing a value to the size attribute.
+
+
+What:		/sys/bus/cxl/devices/regionZ/target[0..N]
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Write an endpoint decoder object name to 'targetX' where X
+		is the intended position of the endpoint device in the region
+		interleave and N is the 'interleave_ways' setting for the
+		region. ENXIO is returned if the write results in an impossible
+		to map decode scenario, like the endpoint is unreachable at that
+		position relative to the root decoder interleave. EBUSY is
+		returned if the position in the region is already occupied, or
+		if the region is not in a state to accept interleave
+		configuration changes. EINVAL is returned if the object name is
+		not an endpoint decoder. Once all positions have been
+		successfully written a final validation for decode conflicts is
+		performed before activating the region.
