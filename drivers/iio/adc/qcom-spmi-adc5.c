@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- * Copyright (c) 2018, 2020, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2018-2021, The Linux Foundation. All rights reserved.
  */
 
 #include <linux/bitops.h>
@@ -75,9 +75,10 @@
  * samples and measurements queued across different VADC peripherals.
  * Set the timeout to a max of 100ms.
  */
-#define ADC5_CONV_TIME_MIN_US			263
-#define ADC5_CONV_TIME_MAX_US			264
-#define ADC5_CONV_TIME_RETRY			400
+#define ADC5_POLL_DELAY_MIN_US			10000
+#define ADC5_POLL_DELAY_MAX_US			10001
+#define ADC5_CONV_TIME_RETRY_POLL		40
+#define ADC5_CONV_TIME_RETRY			30
 #define ADC5_CONV_TIMEOUT			msecs_to_jiffies(100)
 
 /* Digital version >= 5.3 supports hw_settle_2 */
@@ -87,7 +88,7 @@
 /* For PMIC7 */
 #define ADC_APP_SID				0x40
 #define ADC_APP_SID_MASK			GENMASK(3, 0)
-#define ADC7_CONV_TIMEOUT			msecs_to_jiffies(10)
+#define ADC7_CONV_TIMEOUT_MS			501
 
 enum adc5_cal_method {
 	ADC5_NO_CAL = 0,
@@ -195,11 +196,16 @@ static int adc5_read_voltage_data(struct adc5_chip *adc, u16 *data)
 	return 0;
 }
 
-static int adc5_poll_wait_eoc(struct adc5_chip *adc)
+static int adc5_poll_wait_eoc(struct adc5_chip *adc, bool poll_only)
 {
 	unsigned int count, retry = ADC5_CONV_TIME_RETRY;
 	u8 status1;
 	int ret;
+
+	if (poll_only)
+		retry = ADC5_CONV_TIME_RETRY_POLL;
+	else
+		retry = ADC5_CONV_TIME_RETRY;
 
 	for (count = 0; count < retry; count++) {
 		ret = adc5_read(adc, ADC5_USR_STATUS1, &status1,
@@ -211,7 +217,7 @@ static int adc5_poll_wait_eoc(struct adc5_chip *adc)
 		if (status1 == ADC5_USR_STATUS1_EOC)
 			return 0;
 
-		usleep_range(ADC5_CONV_TIME_MIN_US, ADC5_CONV_TIME_MAX_US);
+		usleep_range(ADC5_POLL_DELAY_MIN_US, ADC5_POLL_DELAY_MAX_US);
 	}
 
 	return -ETIMEDOUT;
@@ -327,7 +333,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 	}
 
 	if (adc->poll_eoc) {
-		ret = adc5_poll_wait_eoc(adc);
+		ret = adc5_poll_wait_eoc(adc, true);
 		if (ret) {
 			dev_err(adc->dev, "EOC bit not set\n");
 			goto unlock;
@@ -337,7 +343,7 @@ static int adc5_do_conversion(struct adc5_chip *adc,
 							ADC5_CONV_TIMEOUT);
 		if (!ret) {
 			dev_dbg(adc->dev, "Did not get completion timeout.\n");
-			ret = adc5_poll_wait_eoc(adc);
+			ret = adc5_poll_wait_eoc(adc, false);
 			if (ret) {
 				dev_err(adc->dev, "EOC bit not set\n");
 				goto unlock;
@@ -359,6 +365,8 @@ static int adc7_do_conversion(struct adc5_chip *adc,
 {
 	int ret;
 	u8 status;
+	unsigned long rc;
+	unsigned int time_pending_ms;
 
 	mutex_lock(&adc->lock);
 
@@ -369,14 +377,44 @@ static int adc7_do_conversion(struct adc5_chip *adc,
 	}
 
 	/* No support for polling mode at present */
-	wait_for_completion_timeout(&adc->complete, ADC7_CONV_TIMEOUT);
+	rc = wait_for_completion_timeout(&adc->complete,
+					msecs_to_jiffies(ADC7_CONV_TIMEOUT_MS));
+	if (!rc) {
+		dev_err(adc->dev, "Reading ADC channel %s timed out\n",
+			prop->datasheet_name);
+		ret = -ETIMEDOUT;
+		goto unlock;
+	}
+
+	/*
+	 * As per the hardware documentation, EOC should happen within 15 ms
+	 * in a good case where there could be multiple conversion requests
+	 * going through PMIC HW arbiter for reading ADC channels. However, if
+	 * for some reason, one of the conversion request fails and times out,
+	 * worst possible delay can be 500 ms. Hence print a warning when we
+	 * see EOC completion happened more than 15 ms.
+	 */
+	time_pending_ms = jiffies_to_msecs(rc);
+	if (time_pending_ms < ADC7_CONV_TIMEOUT_MS &&
+	    (ADC7_CONV_TIMEOUT_MS - time_pending_ms) > 15)
+		dev_warn(adc->dev, "ADC channel %s EOC took %u ms\n",
+			prop->datasheet_name,
+			ADC7_CONV_TIMEOUT_MS - time_pending_ms);
 
 	ret = adc5_read(adc, ADC5_USR_STATUS1, &status, 1);
 	if (ret)
 		goto unlock;
 
 	if (status & ADC5_USR_STATUS1_CONV_FAULT) {
-		dev_err(adc->dev, "Unexpected conversion fault\n");
+		dev_err(adc->dev, "ADC channel %s unexpected conversion fault\n",
+			prop->datasheet_name);
+		ret = -EIO;
+		goto unlock;
+	}
+
+	if (!(status & ADC5_USR_STATUS1_EOC)) {
+		dev_err(adc->dev, "ADC channel %s EOC bit not set, status=%#x\n",
+			prop->datasheet_name, status);
 		ret = -EIO;
 		goto unlock;
 	}
@@ -517,6 +555,11 @@ struct adc5_channels {
 		  BIT(IIO_CHAN_INFO_PROCESSED),				\
 		  _pre, _scale)						\
 
+#define ADC5_CHAN_CUR(_dname, _pre, _scale)				\
+	ADC5_CHAN(_dname, IIO_CURRENT,					\
+		  BIT(IIO_CHAN_INFO_PROCESSED),				\
+		  _pre, _scale)						\
+
 static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 	[ADC5_REF_GND]		= ADC5_CHAN_VOLT("ref_gnd", 0,
 					SCALE_HW_CALIB_DEFAULT)
@@ -541,14 +584,32 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm", 0,
 					SCALE_HW_CALIB_XOTHERM)
+	[ADC5_BAT_THERM_100K_PU]	= ADC5_CHAN_TEMP("bat_therm_100k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_100K)
+	[ADC5_BAT_THERM_30K_PU]	= ADC5_CHAN_TEMP("bat_therm_30k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_30K)
+	[ADC5_BAT_THERM_400K_PU]	= ADC5_CHAN_TEMP("bat_therm_400k_pu", 0,
+					SCALE_HW_CALIB_BATT_THERM_400K)
+	[ADC5_BAT_ID_100K_PU]	= ADC5_CHAN_TEMP("bat_id", 0,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC5_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2_100K_PU] = ADC5_CHAN_TEMP("amux_thm2_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM3_100K_PU] = ADC5_CHAN_TEMP("amux_thm3_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_AMUX_THM4_100K_PU] = ADC5_CHAN_TEMP("amux_thm4_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2]	= ADC5_CHAN_TEMP("amux_thm2", 0,
 					SCALE_HW_CALIB_PM5_SMB_TEMP)
+	[ADC5_GPIO1_100K_PU]	= ADC5_CHAN_TEMP("gpio1_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO3_100K_PU]	= ADC5_CHAN_TEMP("gpio3_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO4_100K_PU]	= ADC5_CHAN_TEMP("gpio4_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
 };
 
 static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
@@ -560,6 +621,18 @@ static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC7_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 3,
 					SCALE_HW_CALIB_DEFAULT)
+	[ADC7_AMUX_THM3]	= ADC5_CHAN_TEMP("smb_temp", 0,
+					SCALE_HW_CALIB_PM7_SMB_TEMP)
+	[ADC7_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
+					SCALE_HW_CALIB_PM7_CHG_TEMP)
+	[ADC7_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 9,
+					SCALE_HW_CALIB_CUR)
+	[ADC7_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 10,
+					SCALE_HW_CALIB_CUR)
+	[ADC7_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 11,
+					SCALE_HW_CALIB_CUR)
+	[ADC7_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 12,
+					SCALE_HW_CALIB_CUR_RAW)
 	[ADC7_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
 					SCALE_HW_CALIB_PMIC_THERM_PM7)
 	[ADC7_AMUX_THM1_100K_PU] = ADC5_CHAN_TEMP("amux_thm1_pu2", 0,
