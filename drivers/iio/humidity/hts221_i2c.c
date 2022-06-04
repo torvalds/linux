@@ -62,7 +62,7 @@ MODULE_DEVICE_TABLE(i2c, hts221_i2c_id_table);
 static struct i2c_driver hts221_driver = {
 	.driver = {
 		.name = "hts221_i2c",
-		.pm = &hts221_pm_ops,
+		.pm = pm_sleep_ptr(&hts221_pm_ops),
 		.of_match_table = hts221_i2c_of_match,
 		.acpi_match_table = ACPI_PTR(hts221_acpi_match),
 	},
