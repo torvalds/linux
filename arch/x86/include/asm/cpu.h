@@ -36,6 +36,8 @@ extern int _debug_hotplug_cpu(int cpu, int action);
 #endif
 #endif
 
+extern void ap_init_aperfmperf(void);
+
 int mwait_usable(const struct cpuinfo_x86 *);
 
 unsigned int x86_family(unsigned int sig);

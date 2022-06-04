@@ -1687,15 +1687,12 @@ EXPORT_SYMBOL_GPL(xstate_get_guest_group_perm);
  * e.g. for AMX which requires XFEATURE_XTILE_CFG(17) and
  * XFEATURE_XTILE_DATA(18) this would be XFEATURE_XTILE_DATA(18).
  */
-long fpu_xstate_prctl(struct task_struct *tsk, int option, unsigned long arg2)
+long fpu_xstate_prctl(int option, unsigned long arg2)
 {
 	u64 __user *uptr = (u64 __user *)arg2;
 	u64 permitted, supported;
 	unsigned long idx = arg2;
 	bool guest = false;
-
-	if (tsk != current)
-		return -EPERM;
 
 	switch (option) {
 	case ARCH_GET_XCOMP_SUPP:
