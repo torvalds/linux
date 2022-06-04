@@ -53,7 +53,10 @@ memptr free_mem_end_ptr;
 
 static char *vidmem;
 static int vidport;
-static int lines, cols;
+
+/* These might be accessed before .bss is cleared, so use .data instead. */
+static int lines __section(".data");
+static int cols __section(".data");
 
 #ifdef CONFIG_KERNEL_GZIP
 #include "../../../../lib/decompress_inflate.c"
