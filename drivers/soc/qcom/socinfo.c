@@ -808,49 +808,6 @@ static const struct soc_id soc_id[] = {
 	{ 577, "PINEAPPLEP" },
 };
 
-struct soc_sku {
-	u32 id;
-	u32 feature_id;
-	const char *sku_name;
-};
-
-static const struct soc_sku soc_sku[] = {
-	{ 415, 0, "AB" },
-	{ 415, 8, "AC" },
-};
-
-static ssize_t msm_get_soc_sku(struct device *dev,
-		struct device_attribute *attr, char *buf)
-{
-	const char *soc_sku_name = NULL;
-	int feature_id, idx;
-	u32 id;
-
-	id = socinfo_get_id();
-	feature_id = qcom_smem_get_feature_id();
-
-	if (feature_id < 0) {
-		dev_err(dev, "Cannot get feature_id\n");
-		return 0;
-	}
-
-	for (idx = 0; idx < ARRAY_SIZE(soc_sku); idx++) {
-		if (soc_sku[idx].id == id &&
-				soc_sku[idx].feature_id == feature_id) {
-			soc_sku_name = soc_sku[idx].sku_name;
-			break;
-		}
-	}
-
-	if (IS_ERR_OR_NULL(soc_sku_name)) {
-		dev_err(dev, "soc_sku_name not found\n");
-		return 0;
-	}
-
-	return scnprintf(buf, PAGE_SIZE, "%s\n", soc_sku_name);
-}
-ATTR_DEFINE(soc_sku);
-
 static struct qcom_socinfo *qsocinfo;
 static struct attribute *msm_custom_socinfo_attrs[35];
 
@@ -1114,7 +1071,6 @@ static void socinfo_populate_sysfs(struct qcom_socinfo *qcom_socinfo)
 
 	switch (socinfo_format) {
 	case SOCINFO_VERSION(0, 15):
-		msm_custom_socinfo_attrs[i++] = &dev_attr_soc_sku.attr;
 		msm_custom_socinfo_attrs[i++] = &dev_attr_nmodem_supported.attr;
 		fallthrough;
 	case SOCINFO_VERSION(0, 14):
