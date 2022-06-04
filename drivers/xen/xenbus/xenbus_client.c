@@ -439,7 +439,7 @@ void xenbus_teardown_ring(void **vaddr, unsigned int nr_pages,
 
 	for (i = 0; i < nr_pages; i++) {
 		if (grefs[i] != INVALID_GRANT_REF) {
-			gnttab_end_foreign_access(grefs[i], 0);
+			gnttab_end_foreign_access(grefs[i], NULL);
 			grefs[i] = INVALID_GRANT_REF;
 		}
 	}
