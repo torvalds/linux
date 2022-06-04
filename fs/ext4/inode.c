@@ -2314,8 +2314,8 @@ out:
  */
 static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 {
-	struct pagevec pvec;
-	int nr_pages, i;
+	struct folio_batch fbatch;
+	unsigned nr, i;
 	struct inode *inode = mpd->inode;
 	int bpp_bits = PAGE_SHIFT - inode->i_blkbits;
 	pgoff_t start, end;
@@ -2329,14 +2329,13 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 	lblk = start << bpp_bits;
 	pblock = mpd->map.m_pblk;
 
-	pagevec_init(&pvec);
+	folio_batch_init(&fbatch);
 	while (start <= end) {
-		nr_pages = pagevec_lookup_range(&pvec, inode->i_mapping,
-						&start, end);
-		if (nr_pages == 0)
+		nr = filemap_get_folios(inode->i_mapping, &start, end, &fbatch);
+		if (nr == 0)
 			break;
-		for (i = 0; i < nr_pages; i++) {
-			struct page *page = pvec.pages[i];
+		for (i = 0; i < nr; i++) {
+			struct page *page = &fbatch.folios[i]->page;
 
 			err = mpage_process_page(mpd, page, &lblk, &pblock,
 						 &map_bh);
@@ -2352,14 +2351,14 @@ static int mpage_map_and_submit_buffers(struct mpage_da_data *mpd)
 			if (err < 0)
 				goto out;
 		}
-		pagevec_release(&pvec);
+		folio_batch_release(&fbatch);
 	}
 	/* Extent fully mapped and matches with page boundary. We are done. */
 	mpd->map.m_len = 0;
 	mpd->map.m_flags = 0;
 	return 0;
 out:
-	pagevec_release(&pvec);
+	folio_batch_release(&fbatch);
 	return err;
 }
 
