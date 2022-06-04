@@ -107,7 +107,7 @@ struct mlx5_vdpa_virtqueue {
 
 	/* Resources for implementing the notification channel from the device
 	 * to the driver. fwqp is the firmware end of an RC connection; the
-	 * other end is vqqp used by the driver. cq is is where completions are
+	 * other end is vqqp used by the driver. cq is where completions are
 	 * reported.
 	 */
 	struct mlx5_vdpa_cq cq;
