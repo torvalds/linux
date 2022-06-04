@@ -424,7 +424,7 @@ error_ret:
  * sca3000_print_rev() - sysfs interface to read the chip revision number
  * @indio_dev: Device instance specific generic IIO data.
  * Driver specific device instance data can be obtained via
- * via iio_priv(indio_dev)
+ * iio_priv(indio_dev)
  */
 static int sca3000_print_rev(struct iio_dev *indio_dev)
 {
