@@ -28,6 +28,7 @@
 
 #include <linux/export.h>
 #include <linux/acpi.h>
+#include <linux/apple-gmux.h>
 #include <linux/backlight.h>
 #include <linux/dmi.h>
 #include <linux/module.h>
@@ -606,6 +607,9 @@ static enum acpi_backlight_type __acpi_video_get_backlight_type(bool native)
 	/* Special cases such as nvidia_wmi_ec and apple gmux. */
 	if (nvidia_wmi_ec_present)
 		return acpi_backlight_nvidia_wmi_ec;
+
+	if (apple_gmux_present())
+		return acpi_backlight_apple_gmux;
 
 	/* On systems with ACPI video use either native or ACPI video. */
 	if (video_caps & ACPI_VIDEO_BACKLIGHT) {
