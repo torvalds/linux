@@ -374,12 +374,18 @@ static void damon_reclaim_timer_fn(struct work_struct *work)
 }
 static DECLARE_DELAYED_WORK(damon_reclaim_timer, damon_reclaim_timer_fn);
 
+static bool damon_reclaim_initialized;
+
 static int enabled_store(const char *val,
 		const struct kernel_param *kp)
 {
 	int rc = param_set_bool(val, kp);
 
 	if (rc < 0)
+		return rc;
+
+	/* system_wq might not initialized yet */
+	if (!damon_reclaim_initialized)
 		return rc;
 
 	if (enabled)
@@ -449,6 +455,8 @@ static int __init damon_reclaim_init(void)
 	damon_add_target(ctx, target);
 
 	schedule_delayed_work(&damon_reclaim_timer, 0);
+
+	damon_reclaim_initialized = true;
 	return 0;
 }
 
