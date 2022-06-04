@@ -267,20 +267,32 @@ int bch2_opt_parse(struct bch_fs *c,
 	switch (opt->type) {
 	case BCH_OPT_BOOL:
 		ret = kstrtou64(val, 10, res);
-		if (ret < 0)
+		if (ret < 0 || (*res != 0 && *res != 1)) {
+			if (err)
+				pr_buf(err, "%s: must be bool",
+				       opt->attr.name);
 			return ret;
+		}
 		break;
 	case BCH_OPT_UINT:
 		ret = opt->flags & OPT_HUMAN_READABLE
 			? bch2_strtou64_h(val, res)
 			: kstrtou64(val, 10, res);
-		if (ret < 0)
+		if (ret < 0) {
+			if (err)
+				pr_buf(err, "%s: must be a number",
+				       opt->attr.name);
 			return ret;
+		}
 		break;
 	case BCH_OPT_STR:
 		ret = match_string(opt->choices, -1, val);
-		if (ret < 0)
+		if (ret < 0) {
+			if (err)
+				pr_buf(err, "%s: invalid selection",
+				       opt->attr.name);
 			return ret;
+		}
 
 		*res = ret;
 		break;
@@ -289,8 +301,12 @@ int bch2_opt_parse(struct bch_fs *c,
 			return 0;
 
 		ret = opt->parse(c, val, res);
-		if (ret < 0)
+		if (ret < 0) {
+			if (err)
+				pr_buf(err, "%s: parse error",
+				       opt->attr.name);
 			return ret;
+		}
 	}
 
 	return bch2_opt_validate(opt, *res, err);
