@@ -1083,7 +1083,7 @@ bool blk_mq_complete_request_remote(struct request *rq)
 	WRITE_ONCE(rq->state, MQ_RQ_COMPLETE);
 
 	/*
-	 * For a polled request, always complete locallly, it's pointless
+	 * For a polled request, always complete locally, it's pointless
 	 * to redirect the completion.
 	 */
 	if (rq->cmd_flags & REQ_POLLED)

@@ -1239,7 +1239,7 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 
 		if (size) {
 			ret = blkdev_issue_discard(bdev, start >> 9, size >> 9,
-						   GFP_NOFS, 0);
+						   GFP_NOFS);
 			if (!ret)
 				*discarded_bytes += size;
 			else if (ret != -EOPNOTSUPP)
@@ -1256,7 +1256,7 @@ static int btrfs_issue_discard(struct block_device *bdev, u64 start, u64 len,
 
 	if (bytes_left) {
 		ret = blkdev_issue_discard(bdev, start >> 9, bytes_left >> 9,
-					   GFP_NOFS, 0);
+					   GFP_NOFS);
 		if (!ret)
 			*discarded_bytes += bytes_left;
 	}
@@ -1291,7 +1291,7 @@ static int do_discard_extent(struct btrfs_io_stripe *stripe, u64 *bytes)
 		ret = btrfs_reset_device_zone(dev_replace->tgtdev, phys, len,
 					      &discarded);
 		discarded += src_disc;
-	} else if (blk_queue_discard(bdev_get_queue(stripe->dev->bdev))) {
+	} else if (bdev_max_discard_sectors(stripe->dev->bdev)) {
 		ret = btrfs_issue_discard(dev->bdev, phys, len, &discarded);
 	} else {
 		ret = 0;
@@ -5987,7 +5987,7 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 	*trimmed = 0;
 
 	/* Discard not supported = nothing to do. */
-	if (!blk_queue_discard(bdev_get_queue(device->bdev)))
+	if (!bdev_max_discard_sectors(device->bdev))
 		return 0;
 
 	/* Not writable = nothing to do. */

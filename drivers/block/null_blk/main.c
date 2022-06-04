@@ -11,6 +11,9 @@
 #include <linux/init.h>
 #include "null_blk.h"
 
+#undef pr_fmt
+#define pr_fmt(fmt)	"null_blk: " fmt
+
 #define FREE_BATCH		16
 
 #define TICKS_PER_SEC		50ULL
@@ -232,6 +235,7 @@ static struct nullb_device *null_alloc_dev(void);
 static void null_free_dev(struct nullb_device *dev);
 static void null_del_dev(struct nullb *nullb);
 static int null_add_dev(struct nullb_device *dev);
+static struct nullb *null_find_dev_by_name(const char *name);
 static void null_free_device_storage(struct nullb_device *dev, bool is_cache);
 
 static inline struct nullb_device *to_nullb_device(struct config_item *item)
@@ -559,6 +563,9 @@ static struct
 config_item *nullb_group_make_item(struct config_group *group, const char *name)
 {
 	struct nullb_device *dev;
+
+	if (null_find_dev_by_name(name))
+		return ERR_PTR(-EEXIST);
 
 	dev = null_alloc_dev();
 	if (!dev)
@@ -1765,9 +1772,7 @@ static void null_config_discard(struct nullb *nullb)
 	}
 
 	nullb->q->limits.discard_granularity = nullb->dev->blocksize;
-	nullb->q->limits.discard_alignment = nullb->dev->blocksize;
 	blk_queue_max_discard_sectors(nullb->q, UINT_MAX >> 9);
-	blk_queue_flag_set(QUEUE_FLAG_DISCARD, nullb->q);
 }
 
 static const struct block_device_operations null_bio_ops = {
@@ -2061,7 +2066,13 @@ static int null_add_dev(struct nullb_device *dev)
 
 	null_config_discard(nullb);
 
-	sprintf(nullb->disk_name, "nullb%d", nullb->index);
+	if (config_item_name(&dev->item)) {
+		/* Use configfs dir name as the device name */
+		snprintf(nullb->disk_name, sizeof(nullb->disk_name),
+			 "%s", config_item_name(&dev->item));
+	} else {
+		sprintf(nullb->disk_name, "nullb%d", nullb->index);
+	}
 
 	rv = null_gendisk_register(nullb);
 	if (rv)
@@ -2070,6 +2081,8 @@ static int null_add_dev(struct nullb_device *dev)
 	mutex_lock(&lock);
 	list_add_tail(&nullb->list, &nullb_list);
 	mutex_unlock(&lock);
+
+	pr_info("disk %s created\n", nullb->disk_name);
 
 	return 0;
 out_cleanup_zone:
@@ -2088,12 +2101,53 @@ out:
 	return rv;
 }
 
+static struct nullb *null_find_dev_by_name(const char *name)
+{
+	struct nullb *nullb = NULL, *nb;
+
+	mutex_lock(&lock);
+	list_for_each_entry(nb, &nullb_list, list) {
+		if (strcmp(nb->disk_name, name) == 0) {
+			nullb = nb;
+			break;
+		}
+	}
+	mutex_unlock(&lock);
+
+	return nullb;
+}
+
+static int null_create_dev(void)
+{
+	struct nullb_device *dev;
+	int ret;
+
+	dev = null_alloc_dev();
+	if (!dev)
+		return -ENOMEM;
+
+	ret = null_add_dev(dev);
+	if (ret) {
+		null_free_dev(dev);
+		return ret;
+	}
+
+	return 0;
+}
+
+static void null_destroy_dev(struct nullb *nullb)
+{
+	struct nullb_device *dev = nullb->dev;
+
+	null_del_dev(nullb);
+	null_free_dev(dev);
+}
+
 static int __init null_init(void)
 {
 	int ret = 0;
 	unsigned int i;
 	struct nullb *nullb;
-	struct nullb_device *dev;
 
 	if (g_bs > PAGE_SIZE) {
 		pr_warn("invalid block size\n");
@@ -2113,19 +2167,21 @@ static int __init null_init(void)
 	}
 
 	if (g_queue_mode == NULL_Q_RQ) {
-		pr_err("legacy IO path no longer available\n");
+		pr_err("legacy IO path is no longer available\n");
 		return -EINVAL;
 	}
+
 	if (g_queue_mode == NULL_Q_MQ && g_use_per_node_hctx) {
 		if (g_submit_queues != nr_online_nodes) {
 			pr_warn("submit_queues param is set to %u.\n",
-							nr_online_nodes);
+				nr_online_nodes);
 			g_submit_queues = nr_online_nodes;
 		}
-	} else if (g_submit_queues > nr_cpu_ids)
+	} else if (g_submit_queues > nr_cpu_ids) {
 		g_submit_queues = nr_cpu_ids;
-	else if (g_submit_queues <= 0)
+	} else if (g_submit_queues <= 0) {
 		g_submit_queues = 1;
+	}
 
 	if (g_queue_mode == NULL_Q_MQ && shared_tags) {
 		ret = null_init_tag_set(NULL, &tag_set);
@@ -2149,16 +2205,9 @@ static int __init null_init(void)
 	}
 
 	for (i = 0; i < nr_devices; i++) {
-		dev = null_alloc_dev();
-		if (!dev) {
-			ret = -ENOMEM;
+		ret = null_create_dev();
+		if (ret)
 			goto err_dev;
-		}
-		ret = null_add_dev(dev);
-		if (ret) {
-			null_free_dev(dev);
-			goto err_dev;
-		}
 	}
 
 	pr_info("module loaded\n");
@@ -2167,9 +2216,7 @@ static int __init null_init(void)
 err_dev:
 	while (!list_empty(&nullb_list)) {
 		nullb = list_entry(nullb_list.next, struct nullb, list);
-		dev = nullb->dev;
-		null_del_dev(nullb);
-		null_free_dev(dev);
+		null_destroy_dev(nullb);
 	}
 	unregister_blkdev(null_major, "nullb");
 err_conf:
@@ -2190,12 +2237,8 @@ static void __exit null_exit(void)
 
 	mutex_lock(&lock);
 	while (!list_empty(&nullb_list)) {
-		struct nullb_device *dev;
-
 		nullb = list_entry(nullb_list.next, struct nullb, list);
-		dev = nullb->dev;
-		null_del_dev(nullb);
-		null_free_dev(dev);
+		null_destroy_dev(nullb);
 	}
 	mutex_unlock(&lock);
 

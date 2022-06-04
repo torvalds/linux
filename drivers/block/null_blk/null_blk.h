@@ -16,13 +16,15 @@
 #include <linux/mutex.h>
 
 struct nullb_cmd {
-	struct request *rq;
-	struct bio *bio;
+	union {
+		struct request *rq;
+		struct bio *bio;
+	};
 	unsigned int tag;
 	blk_status_t error;
+	bool fake_timeout;
 	struct nullb_queue *nq;
 	struct hrtimer timer;
-	bool fake_timeout;
 };
 
 struct nullb_queue {
