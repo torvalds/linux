@@ -1333,8 +1333,10 @@ static int switch_to_rt_policy(void)
 	if (policy == SCHED_NORMAL)
 		/* Switch to SCHED_FIFO from SCHED_NORMAL. */
 		return sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
-	else
+	else if (policy == SCHED_FIFO || policy == SCHED_RR)
 		return 1;
+	else
+		return -EPERM;
 }
 
 static int switch_to_fair_policy(void)
@@ -1430,6 +1432,8 @@ static int cpu_up(unsigned int cpu, enum cpuhp_state target)
 	 */
 
 	switch_err = switch_to_rt_policy();
+	if (switch_err < 0)
+		return switch_err;
 
 	err = try_online_node(cpu_to_node(cpu));
 	if (err)
