@@ -1604,7 +1604,7 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 {
 	struct inode *bd_inode = bdev->bd_inode;
 	struct address_space *bd_mapping = bd_inode->i_mapping;
-	struct pagevec pvec;
+	struct folio_batch fbatch;
 	pgoff_t index = block >> (PAGE_SHIFT - bd_inode->i_blkbits);
 	pgoff_t end;
 	int i, count;
@@ -1612,24 +1612,24 @@ void clean_bdev_aliases(struct block_device *bdev, sector_t block, sector_t len)
 	struct buffer_head *head;
 
 	end = (block + len - 1) >> (PAGE_SHIFT - bd_inode->i_blkbits);
-	pagevec_init(&pvec);
-	while (pagevec_lookup_range(&pvec, bd_mapping, &index, end)) {
-		count = pagevec_count(&pvec);
+	folio_batch_init(&fbatch);
+	while (filemap_get_folios(bd_mapping, &index, end, &fbatch)) {
+		count = folio_batch_count(&fbatch);
 		for (i = 0; i < count; i++) {
-			struct page *page = pvec.pages[i];
+			struct folio *folio = fbatch.folios[i];
 
-			if (!page_has_buffers(page))
+			if (!folio_buffers(folio))
 				continue;
 			/*
-			 * We use page lock instead of bd_mapping->private_lock
+			 * We use folio lock instead of bd_mapping->private_lock
 			 * to pin buffers here since we can afford to sleep and
 			 * it scales better than a global spinlock lock.
 			 */
-			lock_page(page);
-			/* Recheck when the page is locked which pins bhs */
-			if (!page_has_buffers(page))
+			folio_lock(folio);
+			/* Recheck when the folio is locked which pins bhs */
+			head = folio_buffers(folio);
+			if (!head)
 				goto unlock_page;
-			head = page_buffers(page);
 			bh = head;
 			do {
 				if (!buffer_mapped(bh) || (bh->b_blocknr < block))
@@ -1643,9 +1643,9 @@ next:
 				bh = bh->b_this_page;
 			} while (bh != head);
 unlock_page:
-			unlock_page(page);
+			folio_unlock(folio);
 		}
-		pagevec_release(&pvec);
+		folio_batch_release(&fbatch);
 		cond_resched();
 		/* End of range already reached? */
 		if (index > end || !index)
