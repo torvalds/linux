@@ -46,7 +46,7 @@ struct hybrid_node {
 struct hybrid_cpc_node {
 	int		nr_cpu_pmu_caps;
 	unsigned int    max_branches;
-	char            *cpu_pmu_caps;
+	char            **cpu_pmu_caps;
 	char            *pmu_name;
 };
 
@@ -81,7 +81,7 @@ struct perf_env {
 	char			*sibling_dies;
 	char			*sibling_threads;
 	char			*pmu_mappings;
-	char			*cpu_pmu_caps;
+	char			**cpu_pmu_caps;
 	struct cpu_topology_map	*cpu;
 	struct cpu_cache_level	*caches;
 	int			 caches_cnt;

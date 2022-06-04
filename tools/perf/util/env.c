@@ -179,7 +179,7 @@ static void perf_env__purge_bpf(struct perf_env *env __maybe_unused)
 
 void perf_env__exit(struct perf_env *env)
 {
-	int i;
+	int i, j;
 
 	perf_env__purge_bpf(env);
 	perf_env__purge_cgroups(env);
@@ -196,6 +196,8 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->sibling_threads);
 	zfree(&env->pmu_mappings);
 	zfree(&env->cpu);
+	for (i = 0; i < env->nr_cpu_pmu_caps; i++)
+		zfree(&env->cpu_pmu_caps[i]);
 	zfree(&env->cpu_pmu_caps);
 	zfree(&env->numa_map);
 
@@ -218,6 +220,8 @@ void perf_env__exit(struct perf_env *env)
 	zfree(&env->hybrid_nodes);
 
 	for (i = 0; i < env->nr_hybrid_cpc_nodes; i++) {
+		for (j = 0; j < env->hybrid_cpc_nodes[i].nr_cpu_pmu_caps; j++)
+			zfree(&env->hybrid_cpc_nodes[i].cpu_pmu_caps[j]);
 		zfree(&env->hybrid_cpc_nodes[i].cpu_pmu_caps);
 		zfree(&env->hybrid_cpc_nodes[i].pmu_name);
 	}
