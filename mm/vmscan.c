@@ -4790,45 +4790,57 @@ int node_reclaim(struct pglist_data *pgdat, gfp_t gfp_mask, unsigned int order)
 }
 #endif
 
-/**
- * check_move_unevictable_pages - check pages for evictability and move to
- * appropriate zone lru list
- * @pvec: pagevec with lru pages to check
- *
- * Checks pages for evictability, if an evictable page is in the unevictable
- * lru list, moves it to the appropriate evictable lru list. This function
- * should be only used for lru pages.
- */
 void check_move_unevictable_pages(struct pagevec *pvec)
+{
+	struct folio_batch fbatch;
+	unsigned i;
+
+	folio_batch_init(&fbatch);
+	for (i = 0; i < pvec->nr; i++) {
+		struct page *page = pvec->pages[i];
+
+		if (PageTransTail(page))
+			continue;
+		folio_batch_add(&fbatch, page_folio(page));
+	}
+	check_move_unevictable_folios(&fbatch);
+}
+EXPORT_SYMBOL_GPL(check_move_unevictable_pages);
+
+/**
+ * check_move_unevictable_folios - Move evictable folios to appropriate zone
+ * lru list
+ * @fbatch: Batch of lru folios to check.
+ *
+ * Checks folios for evictability, if an evictable folio is in the unevictable
+ * lru list, moves it to the appropriate evictable lru list. This function
+ * should be only used for lru folios.
+ */
+void check_move_unevictable_folios(struct folio_batch *fbatch)
 {
 	struct lruvec *lruvec = NULL;
 	int pgscanned = 0;
 	int pgrescued = 0;
 	int i;
 
-	for (i = 0; i < pvec->nr; i++) {
-		struct page *page = pvec->pages[i];
-		struct folio *folio = page_folio(page);
-		int nr_pages;
+	for (i = 0; i < fbatch->nr; i++) {
+		struct folio *folio = fbatch->folios[i];
+		int nr_pages = folio_nr_pages(folio);
 
-		if (PageTransTail(page))
-			continue;
-
-		nr_pages = thp_nr_pages(page);
 		pgscanned += nr_pages;
 
-		/* block memcg migration during page moving between lru */
-		if (!TestClearPageLRU(page))
+		/* block memcg migration while the folio moves between lrus */
+		if (!folio_test_clear_lru(folio))
 			continue;
 
 		lruvec = folio_lruvec_relock_irq(folio, lruvec);
-		if (page_evictable(page) && PageUnevictable(page)) {
-			del_page_from_lru_list(page, lruvec);
-			ClearPageUnevictable(page);
-			add_page_to_lru_list(page, lruvec);
+		if (folio_evictable(folio) && folio_test_unevictable(folio)) {
+			lruvec_del_folio(lruvec, folio);
+			folio_clear_unevictable(folio);
+			lruvec_add_folio(lruvec, folio);
 			pgrescued += nr_pages;
 		}
-		SetPageLRU(page);
+		folio_set_lru(folio);
 	}
 
 	if (lruvec) {
@@ -4839,4 +4851,4 @@ void check_move_unevictable_pages(struct pagevec *pvec)
 		count_vm_events(UNEVICTABLE_PGSCANNED, pgscanned);
 	}
 }
-EXPORT_SYMBOL_GPL(check_move_unevictable_pages);
+EXPORT_SYMBOL_GPL(check_move_unevictable_folios);
