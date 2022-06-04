@@ -809,7 +809,7 @@ static bool keep_feat(int feat)
 	case HEADER_CPU_PMU_CAPS:
 	case HEADER_CLOCK_DATA:
 	case HEADER_HYBRID_TOPOLOGY:
-	case HEADER_HYBRID_CPU_PMU_CAPS:
+	case HEADER_PMU_CAPS:
 		return true;
 	/* Information that can be updated */
 	case HEADER_BUILD_ID:
