@@ -2289,7 +2289,7 @@ int st_lsm6dsx_probe(struct device *dev, int irq, int hw_id,
 
 	return 0;
 }
-EXPORT_SYMBOL(st_lsm6dsx_probe);
+EXPORT_SYMBOL_NS(st_lsm6dsx_probe, IIO_LSM6DSX);
 
 static int st_lsm6dsx_suspend(struct device *dev)
 {
@@ -2366,8 +2366,8 @@ static int st_lsm6dsx_resume(struct device *dev)
 	return err;
 }
 
-EXPORT_SIMPLE_DEV_PM_OPS(st_lsm6dsx_pm_ops, st_lsm6dsx_suspend,
-			 st_lsm6dsx_resume);
+EXPORT_NS_SIMPLE_DEV_PM_OPS(st_lsm6dsx_pm_ops, st_lsm6dsx_suspend,
+			    st_lsm6dsx_resume, IIO_LSM6DSX);
 
 MODULE_AUTHOR("Lorenzo Bianconi <lorenzo.bianconi@st.com>");
 MODULE_AUTHOR("Denis Ciocca <denis.ciocca@st.com>");
