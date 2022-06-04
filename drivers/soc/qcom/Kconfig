@@ -437,6 +437,15 @@ config QCOM_APR
 	  used by audio driver to configure QDSP6
 	  ASM, ADM and AFE modules.
 
+config QPNP_PBS
+	tristate "PBS trigger support for QPNP PMIC"
+	depends on SPMI
+	help
+	  This driver supports configuring software PBS trigger event through PBS
+	  RAM on Qualcomm Technologies, Inc. QPNP PMICs. This module provides
+	  the APIs to the client drivers that wants to send the PBS trigger
+	  event to the PBS RAM.
+
 config MSM_BOOT_STATS
 	tristate "Use MSM boot stats reporting"
 	help
