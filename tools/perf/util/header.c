@@ -2058,17 +2058,11 @@ static void print_per_cpu_pmu_caps(FILE *fp, int nr_caps, char *cpu_pmu_caps,
 	char *str, buf[128];
 
 	if (!nr_caps) {
-		if (!pmu_name)
-			fprintf(fp, "# cpu pmu capabilities: not available\n");
-		else
-			fprintf(fp, "# %s pmu capabilities: not available\n", pmu_name);
+		fprintf(fp, "# %s pmu capabilities: not available\n", pmu_name);
 		return;
 	}
 
-	if (!pmu_name)
-		scnprintf(buf, sizeof(buf), "# cpu pmu capabilities: ");
-	else
-		scnprintf(buf, sizeof(buf), "# %s pmu capabilities: ", pmu_name);
+	scnprintf(buf, sizeof(buf), "# %s pmu capabilities: ", pmu_name);
 
 	delimiter = buf;
 
@@ -2085,7 +2079,7 @@ static void print_per_cpu_pmu_caps(FILE *fp, int nr_caps, char *cpu_pmu_caps,
 static void print_cpu_pmu_caps(struct feat_fd *ff, FILE *fp)
 {
 	print_per_cpu_pmu_caps(fp, ff->ph->env.nr_cpu_pmu_caps,
-			       ff->ph->env.cpu_pmu_caps, NULL);
+			       ff->ph->env.cpu_pmu_caps, (char *)"cpu");
 }
 
 static void print_hybrid_cpu_pmu_caps(struct feat_fd *ff, FILE *fp)
