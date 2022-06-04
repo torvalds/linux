@@ -3,7 +3,7 @@
  * apei-base.c - ACPI Platform Error Interface (APEI) supporting
  * infrastructure
  *
- * APEI allows to report errors (for example from the chipset) to the
+ * APEI allows to report errors (for example from the chipset) to
  * the operating system. This improves NMI handling especially. In
  * addition it supports error serialization and error injection.
  *
