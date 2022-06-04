@@ -272,14 +272,6 @@ static const struct key_entry toshiba_acpi_alt_keymap[] = {
 };
 
 /*
- * List of models which have a broken acpi-video backlight interface and thus
- * need to use the toshiba (vendor) interface instead.
- */
-static const struct dmi_system_id toshiba_vendor_backlight_dmi[] = {
-	{}
-};
-
-/*
  * Utility
  */
 
@@ -2880,14 +2872,6 @@ static int toshiba_acpi_setup_backlight(struct toshiba_acpi_dev *dev)
 		pr_debug("Backlight method is read-only, disabling backlight support\n");
 		return 0;
 	}
-
-	/*
-	 * Tell acpi-video-detect code to prefer vendor backlight on all
-	 * systems with transflective backlight and on dmi matched systems.
-	 */
-	if (dev->tr_backlight_supported ||
-	    dmi_check_system(toshiba_vendor_backlight_dmi))
-		acpi_video_set_dmi_backlight_type(acpi_backlight_vendor);
 
 	if (acpi_video_get_backlight_type() != acpi_backlight_vendor)
 		return 0;
