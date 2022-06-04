@@ -11,6 +11,7 @@
 #include <linux/init.h>
 #include <linux/kernel.h>
 #include <linux/module.h>
+#include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
 #include <linux/regulator/driver.h>
@@ -178,6 +179,7 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 {
 	struct device *dev = &client->dev;
 	struct regulator_config config = { NULL, };
+	static const struct regulator_desc *desc;
 	struct regulator_dev *rdev;
 	struct regmap *regmap;
 	int i;
@@ -188,12 +190,16 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 		return PTR_ERR(regmap);
 	}
 
+	desc = of_device_get_match_data(dev);
+	if (!desc)
+		return -ENODEV;
+
 	config.dev = dev;
 	config.regmap = regmap;
 
 	for (i = 0; i < MP5416_MAX_REGULATORS; i++) {
 		rdev = devm_regulator_register(dev,
-					       &mp5416_regulators_desc[i],
+					       &desc[i],
 					       &config);
 		if (IS_ERR(rdev)) {
 			dev_err(dev, "Failed to register regulator!\n");
@@ -205,7 +211,7 @@ static int mp5416_i2c_probe(struct i2c_client *client)
 }
 
 static const struct of_device_id mp5416_of_match[] = {
-	{ .compatible = "mps,mp5416" },
+	{ .compatible = "mps,mp5416", .data = &mp5416_regulators_desc },
 	{},
 };
 MODULE_DEVICE_TABLE(of, mp5416_of_match);
