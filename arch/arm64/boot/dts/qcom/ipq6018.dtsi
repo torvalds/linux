@@ -282,7 +282,7 @@
 			status = "disabled";
 		};
 
-		spi_0: spi@78b5000 {
+		blsp1_spi1: spi@78b5000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -297,7 +297,7 @@
 			status = "disabled";
 		};
 
-		spi_1: spi@78b6000 {
+		blsp1_spi2: spi@78b6000 {
 			compatible = "qcom,spi-qup-v2.2.1";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -312,7 +312,7 @@
 			status = "disabled";
 		};
 
-		i2c_0: i2c@78b6000 {
+		blsp1_i2c2: i2c@78b6000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			#address-cells = <1>;
 			#size-cells = <0>;
@@ -327,7 +327,7 @@
 			status = "disabled";
 		};
 
-		i2c_1: i2c@78b7000 { /* BLSP1 QUP2 */
+		blsp1_i2c3: i2c@78b7000 {
 			compatible = "qcom,i2c-qup-v2.2.1";
 			#address-cells = <1>;
 			#size-cells = <0>;
