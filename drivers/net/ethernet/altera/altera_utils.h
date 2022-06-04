@@ -3,10 +3,11 @@
  * Copyright (C) 2014 Altera Corporation. All rights reserved
  */
 
-#include <linux/kernel.h>
-
 #ifndef __ALTERA_UTILS_H__
 #define __ALTERA_UTILS_H__
+
+#include <linux/compiler.h>
+#include <linux/types.h>
 
 void tse_set_bit(void __iomem *ioaddr, size_t offs, u32 bit_mask);
 void tse_clear_bit(void __iomem *ioaddr, size_t offs, u32 bit_mask);
