@@ -788,11 +788,13 @@ static int viommu_attach_dev(struct iommu_domain *domain, struct device *dev)
 	return 0;
 }
 
-static int viommu_map(struct iommu_domain *domain, unsigned long iova,
-		      phys_addr_t paddr, size_t size, int prot, gfp_t gfp)
+static int viommu_map_pages(struct iommu_domain *domain, unsigned long iova,
+			    phys_addr_t paddr, size_t pgsize, size_t pgcount,
+			    int prot, gfp_t gfp, size_t *mapped)
 {
 	int ret;
 	u32 flags;
+	size_t size = pgsize * pgcount;
 	u64 end = iova + size - 1;
 	struct virtio_iommu_req_map map;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
@@ -823,17 +825,21 @@ static int viommu_map(struct iommu_domain *domain, unsigned long iova,
 	ret = viommu_send_req_sync(vdomain->viommu, &map, sizeof(map));
 	if (ret)
 		viommu_del_mappings(vdomain, iova, end);
+	else if (mapped)
+		*mapped = size;
 
 	return ret;
 }
 
-static size_t viommu_unmap(struct iommu_domain *domain, unsigned long iova,
-			   size_t size, struct iommu_iotlb_gather *gather)
+static size_t viommu_unmap_pages(struct iommu_domain *domain, unsigned long iova,
+				 size_t pgsize, size_t pgcount,
+				 struct iommu_iotlb_gather *gather)
 {
 	int ret = 0;
 	size_t unmapped;
 	struct virtio_iommu_req_unmap unmap;
 	struct viommu_domain *vdomain = to_viommu_domain(domain);
+	size_t size = pgsize * pgcount;
 
 	unmapped = viommu_del_mappings(vdomain, iova, iova + size - 1);
 	if (unmapped < size)
@@ -1018,8 +1024,8 @@ static struct iommu_ops viommu_ops = {
 	.owner			= THIS_MODULE,
 	.default_domain_ops = &(const struct iommu_domain_ops) {
 		.attach_dev		= viommu_attach_dev,
-		.map			= viommu_map,
-		.unmap			= viommu_unmap,
+		.map_pages		= viommu_map_pages,
+		.unmap_pages		= viommu_unmap_pages,
 		.iova_to_phys		= viommu_iova_to_phys,
 		.iotlb_sync		= viommu_iotlb_sync,
 		.free			= viommu_domain_free,
