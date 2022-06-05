@@ -384,41 +384,6 @@ btree_key_can_insert_cached(struct btree_trans *trans,
 	return -EINTR;
 }
 
-static inline void do_btree_insert_one(struct btree_trans *trans,
-				       struct btree_insert_entry *i)
-{
-	struct bch_fs *c = trans->c;
-	struct journal *j = &c->journal;
-
-	EBUG_ON(trans->journal_res.ref !=
-		!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY));
-
-	i->k->k.needs_whiteout = false;
-
-	if (!i->cached)
-		btree_insert_key_leaf(trans, i);
-	else if (!i->key_cache_already_flushed)
-		bch2_btree_insert_key_cached(trans, i->path, i->k);
-	else {
-		bch2_btree_key_cache_drop(trans, i->path);
-		return;
-	}
-
-	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) &&
-	    !(i->flags & BTREE_UPDATE_NOJOURNAL)) {
-		struct jset_entry *entry;
-
-		entry = bch2_journal_add_entry(j, &trans->journal_res,
-				       BCH_JSET_ENTRY_btree_keys,
-				       i->btree_id, i->level,
-				       i->k->k.u64s);
-		bkey_copy(&entry->start[0], i->k);
-
-		if (trans->journal_seq)
-			*trans->journal_seq = trans->journal_res.seq;
-	}
-}
-
 /* Triggers: */
 
 static int run_one_mem_trigger(struct btree_trans *trans,
@@ -729,8 +694,47 @@ bch2_trans_commit_write_locked(struct btree_trans *trans,
 			return ret;
 	}
 
-	trans_for_each_update(trans, i)
-		do_btree_insert_one(trans, i);
+	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY))) {
+		trans_for_each_update(trans, i) {
+			struct journal *j = &c->journal;
+			struct jset_entry *entry;
+
+			if (i->key_cache_already_flushed)
+				continue;
+
+			if (i->flags & BTREE_UPDATE_NOJOURNAL)
+				continue;
+
+			if (trans->journal_transaction_names) {
+				entry = bch2_journal_add_entry(j, &trans->journal_res,
+						       BCH_JSET_ENTRY_overwrite,
+						       i->btree_id, i->level,
+						       i->old_k.u64s);
+				bkey_reassemble(&entry->start[0],
+						(struct bkey_s_c) { &i->old_k, i->old_v });
+			}
+
+			entry = bch2_journal_add_entry(j, &trans->journal_res,
+					       BCH_JSET_ENTRY_btree_keys,
+					       i->btree_id, i->level,
+					       i->k->k.u64s);
+			bkey_copy(&entry->start[0], i->k);
+		}
+
+		if (trans->journal_seq)
+			*trans->journal_seq = trans->journal_res.seq;
+	}
+
+	trans_for_each_update(trans, i) {
+		i->k->k.needs_whiteout = false;
+
+		if (!i->cached)
+			btree_insert_key_leaf(trans, i);
+		else if (!i->key_cache_already_flushed)
+			bch2_btree_insert_key_cached(trans, i->path, i->k);
+		else
+			bch2_btree_key_cache_drop(trans, i->path);
+	}
 
 	return ret;
 }
@@ -1134,13 +1138,23 @@ int __bch2_trans_commit(struct btree_trans *trans)
 
 		BUG_ON(!btree_node_intent_locked(i->path, i->level));
 
+		if (i->key_cache_already_flushed)
+			continue;
+
+		/* we're going to journal the key being updated: */
 		u64s = jset_u64s(i->k->k.u64s);
 		if (i->cached &&
 		    likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)))
 			trans->journal_preres_u64s += u64s;
 
-		if (!(i->flags & BTREE_UPDATE_NOJOURNAL))
-			trans->journal_u64s += u64s;
+		if (i->flags & BTREE_UPDATE_NOJOURNAL)
+			continue;
+
+		trans->journal_u64s += u64s;
+
+		/* and we're also going to log the overwrite: */
+		if (trans->journal_transaction_names)
+			trans->journal_u64s += jset_u64s(i->old_k.u64s);
 	}
 
 	if (trans->extra_journal_res) {
