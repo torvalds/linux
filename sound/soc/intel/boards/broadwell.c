@@ -227,7 +227,7 @@ static struct snd_soc_dai_link broadwell_rt286_dais[] = {
 	},
 };
 
-static int broadwell_disable_jack(struct snd_soc_card *card)
+static void broadwell_disable_jack(struct snd_soc_card *card)
 {
 	struct snd_soc_component *component;
 
@@ -239,13 +239,13 @@ static int broadwell_disable_jack(struct snd_soc_card *card)
 			break;
 		}
 	}
-
-	return 0;
 }
 
 static int broadwell_suspend(struct snd_soc_card *card)
 {
-	return broadwell_disable_jack(card);
+	broadwell_disable_jack(card);
+
+	return 0;
 }
 
 static int broadwell_resume(struct snd_soc_card *card){
@@ -315,7 +315,9 @@ static int broadwell_audio_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	return broadwell_disable_jack(card);
+	broadwell_disable_jack(card);
+
+	return 0;
 }
 
 static struct platform_driver broadwell_audio = {
