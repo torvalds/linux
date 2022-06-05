@@ -800,8 +800,7 @@ struct file *__close_fd_get_file(unsigned int fd)
 
 /*
  * variant of close_fd that gets a ref on the file for later fput.
- * The caller must ensure that filp_close() called on the file, and then
- * an fput().
+ * The caller must ensure that filp_close() called on the file.
  */
 struct file *close_fd_get_file(unsigned int fd)
 {
