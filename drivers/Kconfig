@@ -237,4 +237,6 @@ source "drivers/most/Kconfig"
 
 source "drivers/peci/Kconfig"
 
+source "drivers/hte/Kconfig"
+
 endmenu
