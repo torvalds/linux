@@ -239,7 +239,7 @@ static bool kvm_request_needs_ipi(struct kvm_vcpu *vcpu, unsigned req)
 	return mode == IN_GUEST_MODE;
 }
 
-static void ack_flush(void *_completed)
+static void ack_kick(void *_completed)
 {
 }
 
@@ -248,7 +248,7 @@ static inline bool kvm_kick_many_cpus(struct cpumask *cpus, bool wait)
 	if (cpumask_empty(cpus))
 		return false;
 
-	smp_call_function_many(cpus, ack_flush, NULL, wait);
+	smp_call_function_many(cpus, ack_kick, NULL, wait);
 	return true;
 }
 
