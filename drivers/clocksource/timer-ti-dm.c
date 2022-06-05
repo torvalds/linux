@@ -828,8 +828,7 @@ static int omap_dm_timer_probe(struct platform_device *pdev)
 		cpu_pm_register_notifier(&timer->nb);
 	}
 
-	if (pdata)
-		timer->errata = pdata->timer_errata;
+	timer->errata = pdata->timer_errata;
 
 	timer->pdev = pdev;
 
