@@ -218,8 +218,9 @@ struct rk_hdmirx_dev {
 	bool power_on;
 	bool initialized;
 	bool freq_qos_add;
-	bool hdcp1x_enable;
 	bool get_timing;
+	u8 hdcp_enable;
+	u8 hdcp_support;
 	u32 num_clks;
 	u32 edid_blocks_written;
 	u32 hpd_trigger_level;
@@ -827,7 +828,7 @@ static int hdmirx_query_dv_timings(struct file *file, void *_fh,
 	return 0;
 }
 
-static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
+static void hdmirx_hpd_config(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 {
 	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
 
@@ -837,6 +838,21 @@ static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
 	hdmirx_update_bits(hdmirx_dev, SCDC_CONFIG, HPDLOW, en ? 0 : HPDLOW);
 	en = hdmirx_dev->hpd_trigger_level ? en : !en;
 	hdmirx_writel(hdmirx_dev, CORE_CONFIG, en);
+}
+
+static void hdmirx_hpd_ctrl(struct rk_hdmirx_dev *hdmirx_dev, bool en)
+{
+	struct v4l2_device *v4l2_dev = &hdmirx_dev->v4l2_dev;
+
+	v4l2_dbg(1, debug, v4l2_dev, "%s: %sable, hpd_trigger_level:%d\n",
+			__func__, en ? "en" : "dis",
+			hdmirx_dev->hpd_trigger_level);
+	hdmirx_hpd_config(hdmirx_dev, en);
+	if (hdmirx_dev->hdcp && hdmirx_dev->hdcp->hdcp2_connect_ctrl) {
+		regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON1,
+			     HDCP1_P0_GPIO_IN_SEL | HDCP1_P0_GPIO_IN_SEL << 16);
+		hdmirx_dev->hdcp->hdcp2_connect_ctrl(hdmirx_dev->hdcp, en);
+	}
 }
 
 static int hdmirx_write_edid(struct rk_hdmirx_dev *hdmirx_dev,
@@ -992,13 +1008,16 @@ static int hdmirx_enum_dv_timings(struct file *file, void *_fh,
 
 static void hdmirx_register_hdcp(struct device *dev,
 				 struct rk_hdmirx_dev *hdmirx_dev,
-				 bool hdcp1x_enable)
+				 u8 hdcp_enable)
 {
 	struct rk_hdmirx_hdcp hdmirx_hdcp = {
 		.hdmirx = hdmirx_dev,
 		.write = hdmirx_writel,
 		.read = hdmirx_readl,
-		.enable = hdcp1x_enable,
+		.hpd_config = hdmirx_hpd_config,
+		.tx_5v_power = tx_5v_power_present,
+		.enable = hdcp_enable,
+		.hdcp_support = hdmirx_dev->hdcp_support,
 		.dev = hdmirx_dev->dev,
 	};
 
@@ -1374,7 +1393,6 @@ static void hdmirx_submodule_init(struct rk_hdmirx_dev *hdmirx_dev)
 {
 	/* Note: if not config HDCP2_CONFIG, there will be some errors; */
 	hdmirx_update_bits(hdmirx_dev, HDCP2_CONFIG,
-			   HDCP2_SWITCH_OVR_VALUE |
 			   HDCP2_SWITCH_OVR_EN,
 			   HDCP2_SWITCH_OVR_EN);
 	hdmirx_scdc_init(hdmirx_dev);
@@ -2897,8 +2915,18 @@ static int hdmirx_parse_dt(struct rk_hdmirx_dev *hdmirx_dev)
 		dev_warn(dev, "failed to get hpd-trigger-level, set high as default\n");
 	}
 
-	if (of_property_read_bool(np, "hdcp1x-enable"))
-		hdmirx_dev->hdcp1x_enable = true;
+	if (of_property_read_bool(np, "hdcp1x-enable")) {
+		hdmirx_dev->hdcp_support |= HDCP_1X_ENABLE;
+		hdmirx_dev->hdcp_enable = HDCP_1X_ENABLE;
+	}
+	if (of_property_read_bool(np, "hdcp2x-enable")) {
+		hdmirx_dev->hdcp_support |= HDCP_2X_ENABLE;
+		hdmirx_dev->hdcp_enable = HDCP_2X_ENABLE;
+	}
+	if (of_property_read_bool(np, "hdcp1x-default-enable")) {
+		hdmirx_dev->hdcp_support |= HDCP_1X_ENABLE;
+		hdmirx_dev->hdcp_enable = HDCP_1X_ENABLE;
+	}
 
 	ret = of_reserved_mem_device_init(dev);
 	if (ret)
@@ -2947,6 +2975,8 @@ static int hdmirx_power_on(struct rk_hdmirx_dev *hdmirx_dev)
 	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON2,
 		(HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
 		((HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) << 16));
+	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON1,
+		HDCP1_P0_GPIO_IN_SEL | HDCP1_P0_GPIO_IN_SEL << 16);
 
 	/*
 	 * Some interrupts are enabled by default, so we disable
@@ -3037,6 +3067,8 @@ static int hdmirx_runtime_resume(struct device *dev)
 	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON2,
 		     (HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) |
 		     ((HDCP1_GATING_EN | HDMIRX_SDAIN_MSK | HDMIRX_SCLIN_MSK) << 16));
+	regmap_write(hdmirx_dev->vo1_grf, VO1_GRF_VO1_CON1,
+		     HDCP1_P0_GPIO_IN_SEL | HDCP1_P0_GPIO_IN_SEL << 16);
 	if (hdmirx_dev->initialized)
 		schedule_delayed_work_on(hdmirx_dev->bound_cpu,
 				&hdmirx_dev->delayed_work_hotplug,
@@ -3771,7 +3803,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	cec_data.irq = irq;
 	cec_data.edid = edid_init_data_340M;
 	hdmirx_dev->cec = rk_hdmirx_cec_register(&cec_data);
-	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp1x_enable);
+	hdmirx_register_hdcp(dev, hdmirx_dev, hdmirx_dev->hdcp_enable);
 
 	hdmirx_register_debugfs(hdmirx_dev->dev, hdmirx_dev);
 

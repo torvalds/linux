@@ -27,6 +27,11 @@
 #define HDCP_SIG_MAGIC		0x4B534541	/* "AESK" */
 #define HDCP_FLG_AES		1
 
+enum hdmirx_hdcp_enable {
+	HDCP_1X_ENABLE = 0x1,
+	HDCP_2X_ENABLE = 0x2,
+};
+
 struct hdcp_key_data_t {
 	unsigned int signature;
 	unsigned int length;
@@ -35,24 +40,12 @@ struct hdcp_key_data_t {
 	unsigned char data[0];
 };
 
-struct rk_hdmirx_hdcp2 {
-	int enable;
-	void (*start)(void);
-	void (*stop)(void);
-
-	struct device *dev;
-	int wait_hdcp2_reset;
-	int hot_plug;
-	struct miscdevice mdev;
-	int auth_success;
-};
-
 struct rk_hdmirx_hdcp {
-	bool enable;
+	u8 enable;
+	u8 hdcp_support;
 	int hdcp2_enable;
 	int status;
 
-	struct rk_hdmirx_hdcp2 *hdcp2;
 	struct miscdevice mdev;
 	bool keys_is_load;
 	bool aes_encrypt;
@@ -61,8 +54,11 @@ struct rk_hdmirx_hdcp {
 
 	void (*write)(struct rk_hdmirx_dev *hdmirx, int reg, u32 val);
 	u32 (*read)(struct rk_hdmirx_dev *hdmirx, int reg);
+	void (*hpd_config)(struct rk_hdmirx_dev *hdmirx, bool en);
+	bool (*tx_5v_power)(struct rk_hdmirx_dev *hdmirx);
 	int (*hdcp_start)(struct rk_hdmirx_hdcp *hdcp);
 	int (*hdcp_stop)(struct rk_hdmirx_hdcp *hdcp);
+	void (*hdcp2_connect_ctrl)(struct rk_hdmirx_hdcp *hdcp, bool en);
 };
 
 struct rk_hdmirx_hdcp *rk_hdmirx_hdcp_register(struct rk_hdmirx_hdcp *hdcp);

@@ -22,10 +22,15 @@
 #define SYS_GRF_CHIP_ID				0x0600
 
 // -------------------- VO1_GRF ---------------------------------
+#define VO1_GRF_VO1_CON1			0x0004
+#define HDCP1_P0_GPIO_IN_SEL			BIT(8)
+
 #define VO1_GRF_VO1_CON2			0x0008
 #define HDCP1_GATING_EN				BIT(10)
 #define HDMIRX_SDAIN_MSK			BIT(2)
 #define HDMIRX_SCLIN_MSK			BIT(1)
+#define HDCP2_SWITCH_LCK			BIT(0)
+#define HDCP2_ESM_P0_GPIO_IN			0x0300
 
 // -------------------- HDMIRX PHY -------------------------------
 #define SUP_DIG_ANA_CREGS_SUP_ANA_NC			0x004f
@@ -159,6 +164,8 @@
 #define HDCP2_CONNECTED				BIT(12)
 #define HDCP2_SWITCH_OVR_VALUE			BIT(2)
 #define HDCP2_SWITCH_OVR_EN			BIT(1)
+#define HDCP2_STATUS				0x02f4
+#define HDCP2_ESM_P0_GPIO_OUT			0x0304
 
 #define VIDEO_CONFIG2				0x042c
 #define VPROC_VSYNC_POL_OVR_VALUE		BIT(19)
