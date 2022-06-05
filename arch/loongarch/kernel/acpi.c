@@ -138,6 +138,7 @@ void __init acpi_boot_table_init(void)
 	}
 }
 
+#ifdef CONFIG_SMP
 static int set_processor_mask(u32 id, u32 flags)
 {
 
@@ -166,15 +167,18 @@ static int set_processor_mask(u32 id, u32 flags)
 
 	return cpu;
 }
+#endif
 
 static void __init acpi_process_madt(void)
 {
+#ifdef CONFIG_SMP
 	int i;
 
 	for (i = 0; i < NR_CPUS; i++) {
 		__cpu_number_map[i] = -1;
 		__cpu_logical_map[i] = -1;
 	}
+#endif
 
 	loongson_sysconf.nr_cpus = num_processors;
 }
