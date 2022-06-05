@@ -125,8 +125,6 @@ module_param(dbg, bool, 0644);
 
 
 #define PT32_BASE_ADDR_MASK PAGE_MASK
-#define PT32_DIR_BASE_ADDR_MASK \
-	(PAGE_MASK & ~((1ULL << (PAGE_SHIFT + PT32_LEVEL_BITS)) - 1))
 #define PT32_LVL_ADDR_MASK(level) \
 	(PAGE_MASK & ~((1ULL << (PAGE_SHIFT + (((level) - 1) \
 					    * PT32_LEVEL_BITS))) - 1))
