@@ -5562,8 +5562,14 @@ static int gaudi_parse_cb_mmu(struct hl_device *hdev,
 	}
 
 	/*
-	 * The check that parser->user_cb_size <= parser->user_cb->size was done
-	 * in validate_queue_index().
+	 * We are protected from overflow because the check
+	 * "parser->user_cb_size <= parser->user_cb->size" was done in get_cb_from_cs_chunk()
+	 * in the common code. That check is done only if is_kernel_allocated_cb is true.
+	 *
+	 * There is no option to reach here without going through that check because:
+	 * 1. validate_queue_index() assigns true to is_kernel_allocated_cb for any submission to
+	 *    an external queue.
+	 * 2. For Gaudi, we only parse CBs that were submitted to the external queues.
 	 */
 	memcpy(parser->patched_cb->kernel_address,
 		parser->user_cb->kernel_address,
