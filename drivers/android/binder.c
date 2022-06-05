@@ -1857,6 +1857,8 @@ static void binder_deferred_fd_close(int fd)
 	init_task_work(&twcb->twork, binder_do_fd_close);
 	twcb->file = close_fd_get_file(fd);
 	if (twcb->file) {
+		// pin it until binder_do_fd_close(); see comments there
+		get_file(twcb->file);
 		filp_close(twcb->file, current->files);
 		task_work_add(current, &twcb->twork, TWA_RESUME);
 	} else {
