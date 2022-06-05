@@ -609,7 +609,7 @@ void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 }
 EXPORT_SYMBOL_GPL(asoc_simple_canonicalize_cpu);
 
-int asoc_simple_clean_reference(struct snd_soc_card *card)
+void asoc_simple_clean_reference(struct snd_soc_card *card)
 {
 	struct snd_soc_dai_link *dai_link;
 	struct snd_soc_dai_link_component *cpu;
@@ -622,7 +622,6 @@ int asoc_simple_clean_reference(struct snd_soc_card *card)
 		for_each_link_codecs(dai_link, j, codec)
 			of_node_put(codec->of_node);
 	}
-	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_clean_reference);
 
@@ -877,7 +876,9 @@ int asoc_simple_remove(struct platform_device *pdev)
 {
 	struct snd_soc_card *card = platform_get_drvdata(pdev);
 
-	return asoc_simple_clean_reference(card);
+	asoc_simple_clean_reference(card);
+
+	return 0;
 }
 EXPORT_SYMBOL_GPL(asoc_simple_remove);
 

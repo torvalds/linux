@@ -173,7 +173,7 @@ void asoc_simple_canonicalize_platform(struct snd_soc_dai_link_component *platfo
 void asoc_simple_canonicalize_cpu(struct snd_soc_dai_link_component *cpus,
 				  int is_single_links);
 
-int asoc_simple_clean_reference(struct snd_soc_card *card);
+void asoc_simple_clean_reference(struct snd_soc_card *card);
 
 void asoc_simple_convert_fixup(struct asoc_simple_data *data,
 				      struct snd_pcm_hw_params *params);
