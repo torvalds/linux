@@ -3090,6 +3090,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 	int page_copied = 0;
 	struct mmu_notifier_range range;
 
+	delayacct_wpcopy_start();
+
 	if (unlikely(anon_vma_prepare(vma)))
 		goto oom;
 
@@ -3114,6 +3116,8 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 			put_page(new_page);
 			if (old_page)
 				put_page(old_page);
+
+			delayacct_wpcopy_end();
 			return 0;
 		}
 	}
@@ -3220,12 +3224,16 @@ static vm_fault_t wp_page_copy(struct vm_fault *vmf)
 			free_swap_cache(old_page);
 		put_page(old_page);
 	}
+
+	delayacct_wpcopy_end();
 	return (page_copied && !unshare) ? VM_FAULT_WRITE : 0;
 oom_free_new:
 	put_page(new_page);
 oom:
 	if (old_page)
 		put_page(old_page);
+
+	delayacct_wpcopy_end();
 	return VM_FAULT_OOM;
 }
 
