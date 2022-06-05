@@ -239,7 +239,7 @@ objtool_args =								\
 	$(if $(CONFIG_SLS), --sls)					\
 	$(if $(CONFIG_STACK_VALIDATION), --stackval)			\
 	$(if $(CONFIG_HAVE_STATIC_CALL_INLINE), --static-call)		\
-	--uaccess							\
+	$(if $(CONFIG_HAVE_UACCESS_VALIDATION), --uaccess)		\
 	$(if $(delay-objtool), --link)					\
 	$(if $(part-of-module), --module)				\
 	$(if $(CONFIG_GCOV_KERNEL), --no-unreachable)
