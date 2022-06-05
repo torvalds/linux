@@ -199,9 +199,9 @@ journal_res_entry(struct journal *j, struct journal_res *res)
 	return vstruct_idx(j->buf[res->idx].data, res->offset);
 }
 
-static inline unsigned journal_entry_set(struct jset_entry *entry, unsigned type,
+static inline unsigned journal_entry_init(struct jset_entry *entry, unsigned type,
 					  enum btree_id id, unsigned level,
-					  const void *data, unsigned u64s)
+					  unsigned u64s)
 {
 	entry->u64s	= cpu_to_le16(u64s);
 	entry->btree_id = id;
@@ -210,32 +210,33 @@ static inline unsigned journal_entry_set(struct jset_entry *entry, unsigned type
 	entry->pad[0]	= 0;
 	entry->pad[1]	= 0;
 	entry->pad[2]	= 0;
-	memcpy_u64s_small(entry->_data, data, u64s);
-
 	return jset_u64s(u64s);
 }
 
-static inline void bch2_journal_add_entry(struct journal *j, struct journal_res *res,
-					  unsigned type, enum btree_id id,
-					  unsigned level,
+static inline unsigned journal_entry_set(struct jset_entry *entry, unsigned type,
+					  enum btree_id id, unsigned level,
 					  const void *data, unsigned u64s)
 {
-	unsigned actual = journal_entry_set(journal_res_entry(j, res),
-			       type, id, level, data, u64s);
+	unsigned ret = journal_entry_init(entry, type, id, level, u64s);
+
+	memcpy_u64s_small(entry->_data, data, u64s);
+	return ret;
+}
+
+static inline struct jset_entry *
+bch2_journal_add_entry(struct journal *j, struct journal_res *res,
+			 unsigned type, enum btree_id id,
+			 unsigned level, unsigned u64s)
+{
+	struct jset_entry *entry = journal_res_entry(j, res);
+	unsigned actual = journal_entry_init(entry, type, id, level, u64s);
 
 	EBUG_ON(!res->ref);
 	EBUG_ON(actual > res->u64s);
 
 	res->offset	+= actual;
 	res->u64s	-= actual;
-}
-
-static inline void bch2_journal_add_keys(struct journal *j, struct journal_res *res,
-					enum btree_id id, unsigned level,
-					const struct bkey_i *k)
-{
-	bch2_journal_add_entry(j, res, BCH_JSET_ENTRY_btree_keys,
-			       id, level, k, k->k.u64s);
+	return entry;
 }
 
 static inline bool journal_entry_empty(struct jset *j)
@@ -283,7 +284,7 @@ static inline void bch2_journal_res_put(struct journal *j,
 	while (res->u64s)
 		bch2_journal_add_entry(j, res,
 				       BCH_JSET_ENTRY_btree_keys,
-				       0, 0, NULL, 0);
+				       0, 0, 0);
 
 	bch2_journal_buf_put(j, res->idx);
 

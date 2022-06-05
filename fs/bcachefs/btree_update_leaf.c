@@ -309,25 +309,15 @@ static inline int bch2_trans_journal_res_get(struct btree_trans *trans,
 static noinline void journal_transaction_name(struct btree_trans *trans)
 {
 	struct bch_fs *c = trans->c;
-	struct jset_entry *entry = journal_res_entry(&c->journal, &trans->journal_res);
-	struct jset_entry_log *l = container_of(entry, struct jset_entry_log, entry);
-	unsigned u64s = JSET_ENTRY_LOG_U64s - 1;
-	unsigned b, buflen = u64s * sizeof(u64);
+	struct journal *j = &c->journal;
+	struct jset_entry *entry =
+		bch2_journal_add_entry(j, &trans->journal_res,
+				       BCH_JSET_ENTRY_log, 0, 0,
+				       JSET_ENTRY_LOG_U64s);
+	struct jset_entry_log *l =
+		container_of(entry, struct jset_entry_log, entry);
 
-	l->entry.u64s		= cpu_to_le16(u64s);
-	l->entry.btree_id	= 0;
-	l->entry.level		= 0;
-	l->entry.type		= BCH_JSET_ENTRY_log;
-	l->entry.pad[0]		= 0;
-	l->entry.pad[1]		= 0;
-	l->entry.pad[2]		= 0;
-	b = min_t(unsigned, strlen(trans->fn), buflen);
-	memcpy(l->d, trans->fn, b);
-	while (b < buflen)
-		l->d[b++] = '\0';
-
-	trans->journal_res.offset	+= JSET_ENTRY_LOG_U64s;
-	trans->journal_res.u64s		-= JSET_ENTRY_LOG_U64s;
+	strncpy(l->d, trans->fn, JSET_ENTRY_LOG_U64s * sizeof(u64));
 }
 
 static inline enum btree_insert_ret
@@ -416,10 +406,13 @@ static inline void do_btree_insert_one(struct btree_trans *trans,
 
 	if (likely(!(trans->flags & BTREE_INSERT_JOURNAL_REPLAY)) &&
 	    !(i->flags & BTREE_UPDATE_NOJOURNAL)) {
-		bch2_journal_add_keys(j, &trans->journal_res,
-				      i->btree_id,
-				      i->level,
-				      i->k);
+		struct jset_entry *entry;
+
+		entry = bch2_journal_add_entry(j, &trans->journal_res,
+				       BCH_JSET_ENTRY_btree_keys,
+				       i->btree_id, i->level,
+				       i->k->k.u64s);
+		bkey_copy(&entry->start[0], i->k);
 
 		if (trans->journal_seq)
 			*trans->journal_seq = trans->journal_res.seq;
@@ -1127,7 +1120,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	trans->journal_transaction_names = READ_ONCE(c->opts.journal_transaction_names);
 
 	if (trans->journal_transaction_names)
-		trans->journal_u64s += JSET_ENTRY_LOG_U64s;
+		trans->journal_u64s += jset_u64s(JSET_ENTRY_LOG_U64s);
 
 	trans_for_each_update(trans, i) {
 		BUG_ON(!i->path->should_be_locked);
