@@ -15,8 +15,8 @@
 #include <dt-bindings/gpio/gpio.h>
 #include <dt-bindings/input/linux-event-codes.h>
 #include <dt-bindings/interrupt-controller/irq.h>
-#include <dt-bindings/pinctrl/samsung.h>
 #include <dt-bindings/power/summit,smb347-charger.h>
+#include "exynos-pinctrl.h"
 
 / {
 	compatible = "samsung,p4note", "samsung,exynos4412", "samsung,exynos4";
