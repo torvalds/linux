@@ -120,10 +120,12 @@ int arch_dup_task_struct(struct task_struct *dst, struct task_struct *src)
 /*
  * Copy architecture-specific thread state
  */
-int copy_thread(unsigned long clone_flags, unsigned long usp,
-	unsigned long kthread_arg, struct task_struct *p, unsigned long tls)
+int copy_thread(struct task_struct *p, const struct kernel_clone_args *args)
 {
 	unsigned long childksp;
+	unsigned long tls = args->tls;
+	unsigned long usp = args->stack;
+	unsigned long clone_flags = args->flags;
 	struct pt_regs *childregs, *regs = current_pt_regs();
 
 	childksp = (unsigned long)task_stack_page(p) + THREAD_SIZE - 32;
@@ -136,12 +138,12 @@ int copy_thread(unsigned long clone_flags, unsigned long usp,
 	p->thread.csr_crmd = csr_read32(LOONGARCH_CSR_CRMD);
 	p->thread.csr_prmd = csr_read32(LOONGARCH_CSR_PRMD);
 	p->thread.csr_ecfg = csr_read32(LOONGARCH_CSR_ECFG);
-	if (unlikely(p->flags & (PF_KTHREAD | PF_IO_WORKER))) {
+	if (unlikely(args->fn)) {
 		/* kernel thread */
-		p->thread.reg23 = usp; /* fn */
-		p->thread.reg24 = kthread_arg;
 		p->thread.reg03 = childksp;
-		p->thread.reg01 = (unsigned long) ret_from_kernel_thread;
+		p->thread.reg23 = (unsigned long)args->fn;
+		p->thread.reg24 = (unsigned long)args->fn_arg;
+		p->thread.reg01 = (unsigned long)ret_from_kernel_thread;
 		memset(childregs, 0, sizeof(struct pt_regs));
 		childregs->csr_euen = p->thread.csr_euen;
 		childregs->csr_crmd = p->thread.csr_crmd;
