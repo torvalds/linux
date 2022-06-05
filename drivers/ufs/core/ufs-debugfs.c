@@ -4,7 +4,7 @@
 #include <linux/debugfs.h>
 
 #include "ufs-debugfs.h"
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-priv.h"
 
 static struct dentry *ufs_debugfs_root;

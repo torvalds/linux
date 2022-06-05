@@ -1899,6 +1899,24 @@ nvme_fc_ctrl_ioerr_work(struct work_struct *work)
 	nvme_fc_error_recovery(ctrl, "transport detected io error");
 }
 
+/*
+ * nvme_fc_io_getuuid - Routine called to get the appid field
+ * associated with request by the lldd
+ * @req:IO request from nvme fc to driver
+ * Returns: UUID if there is an appid associated with VM or
+ * NULL if the user/libvirt has not set the appid to VM
+ */
+char *nvme_fc_io_getuuid(struct nvmefc_fcp_req *req)
+{
+	struct nvme_fc_fcp_op *op = fcp_req_to_fcp_op(req);
+	struct request *rq = op->rq;
+
+	if (!IS_ENABLED(CONFIG_BLK_CGROUP_FC_APPID) || !rq->bio)
+		return NULL;
+	return blkcg_get_fc_appid(rq->bio);
+}
+EXPORT_SYMBOL_GPL(nvme_fc_io_getuuid);
+
 static void
 nvme_fc_fcpio_done(struct nvmefc_fcp_req *req)
 {

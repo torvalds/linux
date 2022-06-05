@@ -3,7 +3,7 @@
  * Copyright 2019 Google LLC
  */
 
-#include "ufshcd.h"
+#include <ufs/ufshcd.h>
 #include "ufshcd-crypto.h"
 
 /* Blk-crypto modes supported by UFS crypto */

@@ -48,13 +48,6 @@ MODULE_PARM_DESC(qlini_mode,
 	"when ready "
 	"\"enabled\" (default) - initiator mode will always stay enabled.");
 
-static int ql_dm_tgt_ex_pct = 0;
-module_param(ql_dm_tgt_ex_pct, int, S_IRUGO|S_IWUSR);
-MODULE_PARM_DESC(ql_dm_tgt_ex_pct,
-	"For Dual Mode (qlini_mode=dual), this parameter determines "
-	"the percentage of exchanges/cmds FW will allocate resources "
-	"for Target mode.");
-
 int ql2xuctrlirq = 1;
 module_param(ql2xuctrlirq, int, 0644);
 MODULE_PARM_DESC(ql2xuctrlirq,

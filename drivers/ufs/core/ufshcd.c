@@ -26,8 +26,8 @@
 #include <scsi/scsi_driver.h>
 #include <scsi/scsi_eh.h>
 #include "ufshcd-priv.h"
-#include "ufs_quirks.h"
-#include "unipro.h"
+#include <ufs/ufs_quirks.h>
+#include <ufs/unipro.h>
 #include "ufs-sysfs.h"
 #include "ufs-debugfs.h"
 #include "ufs-fault-injection.h"
@@ -8445,10 +8445,7 @@ static int ufshcd_init_hba_vreg(struct ufs_hba *hba)
 {
 	struct ufs_vreg_info *info = &hba->vreg_info;
 
-	if (info)
-		return ufshcd_get_vreg(hba->dev, info->vdd_hba);
-
-	return 0;
+	return ufshcd_get_vreg(hba->dev, info->vdd_hba);
 }
 
 static int ufshcd_setup_clocks(struct ufs_hba *hba, bool on)

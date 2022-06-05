@@ -1487,28 +1487,28 @@ static int mpi3mr_bsg_request(struct bsg_job *job)
  */
 void mpi3mr_bsg_exit(struct mpi3mr_ioc *mrioc)
 {
+	struct device *bsg_dev = &mrioc->bsg_dev;
 	if (!mrioc->bsg_queue)
 		return;
 
 	bsg_remove_queue(mrioc->bsg_queue);
 	mrioc->bsg_queue = NULL;
 
-	device_del(mrioc->bsg_dev);
-	put_device(mrioc->bsg_dev);
-	kfree(mrioc->bsg_dev);
+	device_del(bsg_dev);
+	put_device(bsg_dev);
 }
 
 /**
  * mpi3mr_bsg_node_release -release bsg device node
  * @dev: bsg device node
  *
- * decrements bsg dev reference count
+ * decrements bsg dev parent reference count
  *
  * Return:Nothing
  */
 static void mpi3mr_bsg_node_release(struct device *dev)
 {
-	put_device(dev);
+	put_device(dev->parent);
 }
 
 /**
@@ -1521,41 +1521,37 @@ static void mpi3mr_bsg_node_release(struct device *dev)
  */
 void mpi3mr_bsg_init(struct mpi3mr_ioc *mrioc)
 {
-	mrioc->bsg_dev = kzalloc(sizeof(struct device), GFP_KERNEL);
-	if (!mrioc->bsg_dev) {
-		ioc_err(mrioc, "bsg device mem allocation failed\n");
+	struct device *bsg_dev = &mrioc->bsg_dev;
+	struct device *parent = &mrioc->shost->shost_gendev;
+
+	device_initialize(bsg_dev);
+
+	bsg_dev->parent = get_device(parent);
+	bsg_dev->release = mpi3mr_bsg_node_release;
+
+	dev_set_name(bsg_dev, "mpi3mrctl%u", mrioc->id);
+
+	if (device_add(bsg_dev)) {
+		ioc_err(mrioc, "%s: bsg device add failed\n",
+		    dev_name(bsg_dev));
+		put_device(bsg_dev);
 		return;
 	}
 
-	device_initialize(mrioc->bsg_dev);
-	dev_set_name(mrioc->bsg_dev, "mpi3mrctl%u", mrioc->id);
-
-	if (device_add(mrioc->bsg_dev)) {
-		ioc_err(mrioc, "%s: bsg device add failed\n",
-		    dev_name(mrioc->bsg_dev));
-		goto err_device_add;
-	}
-
-	mrioc->bsg_dev->release = mpi3mr_bsg_node_release;
-
-	mrioc->bsg_queue = bsg_setup_queue(mrioc->bsg_dev, dev_name(mrioc->bsg_dev),
+	mrioc->bsg_queue = bsg_setup_queue(bsg_dev, dev_name(bsg_dev),
 			mpi3mr_bsg_request, NULL, 0);
 	if (IS_ERR(mrioc->bsg_queue)) {
 		ioc_err(mrioc, "%s: bsg registration failed\n",
-		    dev_name(mrioc->bsg_dev));
-		goto err_setup_queue;
+		    dev_name(bsg_dev));
+		device_del(bsg_dev);
+		put_device(bsg_dev);
+		return;
 	}
 
 	blk_queue_max_segments(mrioc->bsg_queue, MPI3MR_MAX_APP_XFER_SEGMENTS);
 	blk_queue_max_hw_sectors(mrioc->bsg_queue, MPI3MR_MAX_APP_XFER_SECTORS);
 
 	return;
-
-err_setup_queue:
-	device_del(mrioc->bsg_dev);
-	put_device(mrioc->bsg_dev);
-err_device_add:
-	kfree(mrioc->bsg_dev);
 }
 
 /**
@@ -1693,7 +1689,7 @@ logging_level_store(struct device *dev,
 static DEVICE_ATTR_RW(logging_level);
 
 /**
- * adapter_state_show - SysFS callback for adapter state show
+ * adp_state_show() - SysFS callback for adapter state show
  * @dev: class device
  * @attr: Device attributes
  * @buf: Buffer to copy
