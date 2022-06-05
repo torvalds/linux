@@ -142,12 +142,6 @@ config BINFMT_ZFLAT
 	help
 	  Support FLAT format compressed binaries
 
-config BINFMT_SHARED_FLAT
-	bool "Enable shared FLAT support"
-	depends on BINFMT_FLAT
-	help
-	  Support FLAT shared libraries
-
 config HAVE_AOUT
        def_bool n
 
