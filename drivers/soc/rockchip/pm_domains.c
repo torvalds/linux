@@ -283,7 +283,7 @@ static int rockchip_pmu_set_idle_request(struct rockchip_pm_domain *pd,
 		regmap_update_bits(pmu->regmap, pmu->info->req_offset,
 				   pd_info->req_mask, idle ? -1U : 0);
 
-	dsb(sy);
+	wmb();
 
 	/* Wait util idle_ack = 1 */
 	target_ack = idle ? pd_info->ack_mask : 0;
@@ -390,7 +390,7 @@ static void rockchip_do_pmu_set_power_domain(struct rockchip_pm_domain *pd,
 		regmap_update_bits(pmu->regmap, pmu->info->pwr_offset,
 				   pd->info->pwr_mask, on ? 0 : -1U);
 
-	dsb(sy);
+	wmb();
 
 	if (readx_poll_timeout_atomic(rockchip_pmu_domain_is_on, pd, is_on,
 				      is_on == on, 0, 10000)) {
@@ -1186,9 +1186,9 @@ static struct platform_driver rockchip_pm_domain_driver = {
 		.name   = "rockchip-pm-domain",
 		.of_match_table = rockchip_pm_domain_dt_match,
 		/*
-		 * We can't forcibly eject devices form power domain,
-		 * so we can't really remove power domains once they
-		 * were added.
+		 * We can't forcibly eject devices from the power
+		 * domain, so we can't really remove power domains
+		 * once they were added.
 		 */
 		.suppress_bind_attrs = true,
 	},

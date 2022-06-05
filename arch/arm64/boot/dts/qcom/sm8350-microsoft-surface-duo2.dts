@@ -281,6 +281,14 @@
 	firmware-name = "qcom/sm8350/microsoft/cdsp.mbn";
 };
 
+&i2c10 {
+	status = "okay";
+};
+
+&i2c11 {
+	status = "okay";
+};
+
 &ipa {
 	status = "okay";
 
@@ -293,6 +301,10 @@
 };
 
 &qupv3_id_0 {
+	status = "okay";
+};
+
+&qupv3_id_1 {
 	status = "okay";
 };
 

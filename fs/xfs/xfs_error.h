@@ -64,16 +64,16 @@ extern int xfs_errortag_clearall(struct xfs_mount *mp);
  * XFS panic tags -- allow a call to xfs_alert_tag() be turned into
  *			a panic by setting xfs_panic_mask in a sysctl.
  */
-#define		XFS_NO_PTAG			0
-#define		XFS_PTAG_IFLUSH			0x00000001
-#define		XFS_PTAG_LOGRES			0x00000002
-#define		XFS_PTAG_AILDELETE		0x00000004
-#define		XFS_PTAG_ERROR_REPORT		0x00000008
-#define		XFS_PTAG_SHUTDOWN_CORRUPT	0x00000010
-#define		XFS_PTAG_SHUTDOWN_IOERROR	0x00000020
-#define		XFS_PTAG_SHUTDOWN_LOGERROR	0x00000040
-#define		XFS_PTAG_FSBLOCK_ZERO		0x00000080
-#define		XFS_PTAG_VERIFIER_ERROR		0x00000100
+#define		XFS_NO_PTAG			0u
+#define		XFS_PTAG_IFLUSH			(1u << 0)
+#define		XFS_PTAG_LOGRES			(1u << 1)
+#define		XFS_PTAG_AILDELETE		(1u << 2)
+#define		XFS_PTAG_ERROR_REPORT		(1u << 3)
+#define		XFS_PTAG_SHUTDOWN_CORRUPT	(1u << 4)
+#define		XFS_PTAG_SHUTDOWN_IOERROR	(1u << 5)
+#define		XFS_PTAG_SHUTDOWN_LOGERROR	(1u << 6)
+#define		XFS_PTAG_FSBLOCK_ZERO		(1u << 7)
+#define		XFS_PTAG_VERIFIER_ERROR		(1u << 8)
 
 #define XFS_PTAG_STRINGS \
 	{ XFS_NO_PTAG,			"none" }, \

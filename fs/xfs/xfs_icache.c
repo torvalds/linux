@@ -1916,13 +1916,16 @@ xfs_inodegc_want_queue_rt_file(
 	struct xfs_inode	*ip)
 {
 	struct xfs_mount	*mp = ip->i_mount;
-	uint64_t		freertx;
 
 	if (!XFS_IS_REALTIME_INODE(ip))
 		return false;
 
-	freertx = READ_ONCE(mp->m_sb.sb_frextents);
-	return freertx < mp->m_low_rtexts[XFS_LOWSP_5_PCNT];
+	if (__percpu_counter_compare(&mp->m_frextents,
+				mp->m_low_rtexts[XFS_LOWSP_5_PCNT],
+				XFS_FDBLOCKS_BATCH) < 0)
+		return true;
+
+	return false;
 }
 #else
 # define xfs_inodegc_want_queue_rt_file(ip)	(false)

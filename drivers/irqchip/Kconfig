@@ -342,17 +342,6 @@ config INGENIC_TCU_IRQ
 
 	  If unsure, say N.
 
-config RENESAS_H8300H_INTC
-        bool
-	select IRQ_DOMAIN
-
-config RENESAS_H8S_INTC
-	bool "Renesas H8S Interrupt Controller Support" if COMPILE_TEST
-	select IRQ_DOMAIN
-	help
-	  Enable support for the Renesas H8/300 Interrupt Controller, as found
-	  on Renesas H8S SoCs.
-
 config IMX_GPCV2
 	bool
 	select IRQ_DOMAIN

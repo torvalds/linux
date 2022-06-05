@@ -501,7 +501,7 @@
 			<75000000>;
 	};
 
-	pdma: pdma@110f0000 {
+	pdma: dma-controller@110f0000 {
 		compatible = "arm,pl330", "arm,primecell";
 		reg = <0x110f0000 0x4000>;
 		interrupts = <GIC_SPI 0 IRQ_TYPE_LEVEL_HIGH>,

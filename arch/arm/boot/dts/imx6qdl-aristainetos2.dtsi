@@ -131,7 +131,7 @@
 	pinctrl-0 = <&pinctrl_ecspi4>;
 	status = "okay";
 
-	flash: m25p80@1 {
+	flash: flash@1 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "micron,n25q128a11", "jedec,spi-nor";
