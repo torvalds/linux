@@ -261,7 +261,7 @@
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>;
 			reset-names = "vout_src";
 			#clock-cells = <1>;
-			status = "disabled";
+			status = "okay";
 		};
 
 		clkisp: clock-controller@19810000 {

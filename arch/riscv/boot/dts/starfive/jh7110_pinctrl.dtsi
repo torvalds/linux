@@ -821,13 +821,11 @@
 			sf,pinmux = <PAD_GPIO41_FUNC_SEL 1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		};
-/*
 		rgb-6-pins {
 			sf,pins = <PAD_GPIO42>;
 			sf,pinmux = <PAD_GPIO42_FUNC_SEL 1>;
 			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
 		};
-*/
 		rgb-7-pins {
 			sf,pins = <PAD_GPIO43>;
 			sf,pinmux = <PAD_GPIO43_FUNC_SEL 1>;
