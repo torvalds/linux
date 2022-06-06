@@ -385,9 +385,9 @@ static int isolate_single_pageblock(unsigned long boundary_pfn, int flags,
 		 * above do the rest. If migration is not possible, just fail.
 		 */
 		if (PageCompound(page)) {
-			unsigned long nr_pages = compound_nr(page);
 			struct page *head = compound_head(page);
 			unsigned long head_pfn = page_to_pfn(head);
+			unsigned long nr_pages = compound_nr(head);
 
 			if (head_pfn + nr_pages <= boundary_pfn) {
 				pfn = head_pfn + nr_pages;
