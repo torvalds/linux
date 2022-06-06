@@ -656,7 +656,7 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 	msg->head.mipi_clk = 2 * pdata->dphy[id]->link_freqs;
 	msg->head.line_length_pclk = fmt_inf->htotal;
 	msg->head.frame_length_lines = fmt_inf->vtotal;
-	msg->head.mipi_lane = fmt_inf->mipi_lane;
+	msg->head.mipi_lane = fmt_inf->mipi_lane_out;
 	msg->head.flip = pdata->flip;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->head.msg_head);

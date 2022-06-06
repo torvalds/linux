@@ -257,7 +257,7 @@ static int rk1608_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 	struct rk1608_dphy *pdata = to_state(sd);
 	u32 val = 0;
 
-	val = 1 << (pdata->fmt_inf[pdata->fmt_inf_idx].mipi_lane - 1) |
+	val = 1 << (pdata->fmt_inf[pdata->fmt_inf_idx].mipi_lane_out - 1) |
 	V4L2_MBUS_CSI2_CHANNEL_0 |
 	V4L2_MBUS_CSI2_CONTINUOUS_CLOCK;
 
@@ -637,6 +637,11 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 				&dphy->fmt_inf[idx].mipi_lane);
 			if (ret)
 				dev_warn(dphy->dev, "Can not get mipi_lane!");
+
+			ret = of_property_read_u32(node, "mipi_lane_out",
+				&dphy->fmt_inf[idx].mipi_lane_out);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get mipi_lane_out!");
 
 			ret = of_property_read_u32(node, "field",
 				&dphy->fmt_inf[idx].mf.field);
