@@ -204,6 +204,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -442,6 +446,11 @@
 &i2c5 {
 	/* pin 3 (SDA) + 4 (SCL) of header con2 */
 	status = "disabled";
+};
+
+&i2s0_8ch {
+	/* hdmi sound */
+	status = "okay";
 };
 
 &mdio1 {
