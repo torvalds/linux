@@ -1036,30 +1036,6 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 			rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_BCN);
 		}
 		break;
-	case HW_VAR_SLOT_TIME:
-		{
-			u8 u1bAIFS, aSifsTime;
-			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
-			struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
-
-			rtw_write8(Adapter, REG_SLOT, val[0]);
-
-			if (pmlmeinfo->WMM_enable == 0) {
-				if (pmlmeext->cur_wireless_mode == WIRELESS_11B)
-					aSifsTime = 10;
-				else
-					aSifsTime = 16;
-
-				u1bAIFS = aSifsTime + (2 * pmlmeinfo->slotTime);
-
-				/*  <Roger_EXP> Temporary removed, 2008.06.20. */
-				rtw_write8(Adapter, REG_EDCA_VO_PARAM, u1bAIFS);
-				rtw_write8(Adapter, REG_EDCA_VI_PARAM, u1bAIFS);
-				rtw_write8(Adapter, REG_EDCA_BE_PARAM, u1bAIFS);
-				rtw_write8(Adapter, REG_EDCA_BK_PARAM, u1bAIFS);
-			}
-		}
-		break;
 	case HW_VAR_DM_FLAG:
 		podmpriv->SupportAbility = *((u8 *)val);
 		break;

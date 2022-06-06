@@ -1348,6 +1348,30 @@ static void set_ack_preamble(struct adapter *adapter, bool short_preamble)
 	rtw_write8(adapter, REG_RRSR + 2, val8);
 };
 
+static void set_slot_time(struct adapter *adapter, u8 slot_time)
+{
+	u8 u1bAIFS, aSifsTime;
+	struct mlme_ext_priv *pmlmeext = &adapter->mlmeextpriv;
+	struct mlme_ext_info *pmlmeinfo = &pmlmeext->mlmext_info;
+
+	rtw_write8(adapter, REG_SLOT, slot_time);
+
+	if (pmlmeinfo->WMM_enable == 0) {
+		if (pmlmeext->cur_wireless_mode == WIRELESS_11B)
+			aSifsTime = 10;
+		else
+			aSifsTime = 16;
+
+		u1bAIFS = aSifsTime + (2 * pmlmeinfo->slotTime);
+
+		/*  <Roger_EXP> Temporary removed, 2008.06.20. */
+		rtw_write8(adapter, REG_EDCA_VO_PARAM, u1bAIFS);
+		rtw_write8(adapter, REG_EDCA_VI_PARAM, u1bAIFS);
+		rtw_write8(adapter, REG_EDCA_BE_PARAM, u1bAIFS);
+		rtw_write8(adapter, REG_EDCA_BK_PARAM, u1bAIFS);
+	}
+}
+
 void update_capinfo(struct adapter *Adapter, u16 updateCap)
 {
 	struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
@@ -1386,7 +1410,7 @@ void update_capinfo(struct adapter *Adapter, u16 updateCap)
 		}
 	}
 
-	SetHwReg8188EU(Adapter, HW_VAR_SLOT_TIME, &pmlmeinfo->slotTime);
+	set_slot_time(Adapter, pmlmeinfo->slotTime);
 }
 
 void update_wireless_mode(struct adapter *padapter)
