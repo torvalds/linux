@@ -322,11 +322,13 @@ struct cxl_switch_decoder {
  * struct cxl_root_decoder - Static platform CXL address decoder
  * @res: host / parent resource for region allocations
  * @region_id: region id for next region provisioning event
+ * @calc_hb: which host bridge covers the n'th position by granularity
  * @cxlsd: base cxl switch decoder
  */
 struct cxl_root_decoder {
 	struct resource *res;
 	atomic_t region_id;
+	struct cxl_dport *(*calc_hb)(struct cxl_root_decoder *cxlrd, int pos);
 	struct cxl_switch_decoder cxlsd;
 };
 

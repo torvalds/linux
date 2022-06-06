@@ -1421,6 +1421,20 @@ static int decoder_populate_targets(struct cxl_switch_decoder *cxlsd,
 	return rc;
 }
 
+static struct cxl_dport *cxl_hb_modulo(struct cxl_root_decoder *cxlrd, int pos)
+{
+	struct cxl_switch_decoder *cxlsd = &cxlrd->cxlsd;
+	struct cxl_decoder *cxld = &cxlsd->cxld;
+	int iw;
+
+	iw = cxld->interleave_ways;
+	if (dev_WARN_ONCE(&cxld->dev, iw != cxlsd->nr_targets,
+			  "misconfigured root decoder\n"))
+		return NULL;
+
+	return cxlrd->cxlsd.target[pos % iw];
+}
+
 static struct lock_class_key cxl_decoder_key;
 
 /**
@@ -1509,6 +1523,8 @@ struct cxl_root_decoder *cxl_root_decoder_alloc(struct cxl_port *port,
 		kfree(cxlrd);
 		return ERR_PTR(rc);
 	}
+
+	cxlrd->calc_hb = cxl_hb_modulo;
 
 	cxld = &cxlsd->cxld;
 	cxld->dev.type = &cxl_decoder_root_type;
