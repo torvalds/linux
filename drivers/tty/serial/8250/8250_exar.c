@@ -427,8 +427,6 @@ static int generic_rs485_config(struct uart_port *port,
 	if (is_rs485)
 		writeb(UART_EXAR_RS485_DLY(4), p + UART_MSR);
 
-	port->rs485 = *rs485;
-
 	return 0;
 }
 
