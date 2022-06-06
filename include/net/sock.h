@@ -611,7 +611,7 @@ void sock_net_set(struct sock *sk, struct net *net)
 
 int sk_set_peek_off(struct sock *sk, int val);
 
-static inline int sk_peek_offset(struct sock *sk, int flags)
+static inline int sk_peek_offset(const struct sock *sk, int flags)
 {
 	if (unlikely(flags & MSG_PEEK)) {
 		return READ_ONCE(sk->sk_peek_off);
@@ -863,7 +863,7 @@ static inline void sk_add_bind2_node(struct sock *sk, struct hlist_head *list)
 		({ tpos = (typeof(*tpos) *)((void *)pos - offset); 1;});       \
 	     pos = rcu_dereference(hlist_next_rcu(pos)))
 
-static inline struct user_namespace *sk_user_ns(struct sock *sk)
+static inline struct user_namespace *sk_user_ns(const struct sock *sk)
 {
 	/* Careful only use this in a context where these parameters
 	 * can not change and must all be valid, such as recvmsg from
@@ -909,7 +909,7 @@ enum sock_flags {
 
 #define SK_FLAGS_TIMESTAMP ((1UL << SOCK_TIMESTAMP) | (1UL << SOCK_TIMESTAMPING_RX_SOFTWARE))
 
-static inline void sock_copy_flags(struct sock *nsk, struct sock *osk)
+static inline void sock_copy_flags(struct sock *nsk, const struct sock *osk)
 {
 	nsk->sk_flags = osk->sk_flags;
 }
