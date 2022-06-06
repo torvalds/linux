@@ -10,6 +10,7 @@
  *  2. add get virtual channel hotplug status ioctl
  *  3. add virtual channel hotplug status event report to vicap
  *  4. fixup variables are reused when multiple devices use the same driver
+ * V0.0X01.0X02 add quick stream support
  */
 
 #include <linux/clk.h>
@@ -42,7 +43,7 @@
 #include <linux/platform_device.h>
 #include <linux/input.h>
 
-#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x0)
+#define DRIVER_VERSION				KERNEL_VERSION(0, 0x01, 0x2)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN			V4L2_CID_GAIN
@@ -689,7 +690,7 @@ static struct nvp6188_mode supported_modes[] = {
 			.denominator = 250000,
 		},
 		.global_reg_list = common_setting_1458M_regs,
-		.mipi_freq_idx = 1,
+		.mipi_freq_idx = 0,
 		.bpp = 8,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 		.vc[PAD1] = V4L2_MBUS_CSI2_CHANNEL_1,
@@ -1052,10 +1053,38 @@ static int nvp6188_enum_frame_sizes(struct v4l2_subdev *sd,
 	return 0;
 }
 
-static int nvp6188_g_mbus_config(struct v4l2_subdev *sd,
+static int nvp6188_g_frame_interval(struct v4l2_subdev *sd,
+				    struct v4l2_subdev_frame_interval *fi)
+{
+	struct nvp6188 *nvp6188 = to_nvp6188(sd);
+	const struct nvp6188_mode *mode = &nvp6188->cur_mode;
+
+	mutex_lock(&nvp6188->mutex);
+	fi->interval = mode->max_fps;
+	mutex_unlock(&nvp6188->mutex);
+
+	return 0;
+}
+
+static int nvp6188_enum_frame_interval(struct v4l2_subdev *sd,
+				       struct v4l2_subdev_pad_config *cfg,
+				       struct v4l2_subdev_frame_interval_enum *fie)
+{
+	if (fie->index >= ARRAY_SIZE(supported_modes))
+		return -EINVAL;
+
+	fie->code = supported_modes[fie->index].bus_fmt;
+	fie->width = supported_modes[fie->index].width;
+	fie->height = supported_modes[fie->index].height;
+	fie->interval = supported_modes[fie->index].max_fps;
+
+	return 0;
+}
+
+static int nvp6188_g_mbus_config(struct v4l2_subdev *sd, unsigned int pad_id,
 				 struct v4l2_mbus_config *cfg)
 {
-	cfg->type = V4L2_MBUS_CSI2;
+	cfg->type = V4L2_MBUS_CSI2_DPHY;
 	cfg->flags = V4L2_MBUS_CSI2_4_LANE |
 		     V4L2_MBUS_CSI2_CHANNELS;
 
@@ -1115,16 +1144,16 @@ static void nvp6188_get_vc_fmt_inf(struct nvp6188 *nvp6188,
 				inf->height[ch] = 720;
 				inf->fps[ch] = 30;
 			break;
-			case NVP_RESO_1080P_PAL_VALUE:
-				inf->width[ch] = 1920;
-				inf->height[ch] = 1080;
-				inf->fps[ch] = 25;
-			break;
 			case NVP_RESO_1080P_NSTC_VALUE:
-			default:
 				inf->width[ch] = 1920;
 				inf->height[ch] = 1080;
 				inf->fps[ch] = 30;
+			break;
+			case NVP_RESO_1080P_PAL_VALUE:
+			default:
+				inf->width[ch] = 1920;
+				inf->height[ch] = 1080;
+				inf->fps[ch] = 25;
 			break;
 		}
 	}
@@ -1151,10 +1180,26 @@ static void nvp6188_set_vicap_rst_inf(struct nvp6188 *nvp6188,
 	nvp6188->is_reset = rst_info.is_reset;
 }
 
+static void nvp6188_set_streaming(struct nvp6188 *nvp6188, int on)
+{
+	struct i2c_client *client = nvp6188->client;
+
+	dev_info(&client->dev, "%s: on: %d\n", __func__, on);
+
+	if (on) {
+		nvp6188_write_reg(client, 0xff, 0x20);
+		nvp6188_write_reg(client, 0xff, 0xff);
+	} else {
+		nvp6188_write_reg(client, 0xff, 0x20);
+		nvp6188_write_reg(client, 0xff, 0x00);
+	}
+}
+
 static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 {
 	struct nvp6188 *nvp6188 = to_nvp6188(sd);
 	long ret = 0;
+	u32 stream = 0;
 
 	switch (cmd) {
 	case RKMODULE_GET_MODULE_INFO:
@@ -1175,6 +1220,11 @@ static long nvp6188_ioctl(struct v4l2_subdev *sd, unsigned int cmd, void *arg)
 	case RKMODULE_GET_START_STREAM_SEQ:
 		*(int *)arg = RKMODULE_START_STREAM_FRONT;
 		break;
+	case RKMODULE_SET_QUICK_STREAM:
+		stream = *((u32 *)arg);
+		nvp6188_set_streaming(nvp6188, !!stream);
+		break;
+
 	default:
 		ret = -ENOTTY;
 		break;
@@ -1205,8 +1255,11 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = nvp6188_ioctl(sd, cmd, inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, inf, sizeof(*inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(inf);
 		break;
 	case RKMODULE_AWB_CFG:
@@ -1219,6 +1272,8 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(cfg, up, sizeof(*cfg));
 		if (!ret)
 			ret = nvp6188_ioctl(sd, cmd, cfg);
+		else
+			ret = -EFAULT;
 		kfree(cfg);
 		break;
 	case RKMODULE_GET_VC_FMT_INFO:
@@ -1229,8 +1284,11 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = nvp6188_ioctl(sd, cmd, vc_fmt_inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, vc_fmt_inf, sizeof(*vc_fmt_inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(vc_fmt_inf);
 		break;
 	case RKMODULE_GET_VC_HOTPLUG_INFO:
@@ -1241,8 +1299,11 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = nvp6188_ioctl(sd, cmd, vc_hp_inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, vc_hp_inf, sizeof(*vc_hp_inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(vc_hp_inf);
 		break;
 	case RKMODULE_GET_VICAP_RST_INFO:
@@ -1253,8 +1314,11 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = nvp6188_ioctl(sd, cmd, vicap_rst_inf);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, vicap_rst_inf, sizeof(*vicap_rst_inf));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(vicap_rst_inf);
 		break;
 	case RKMODULE_SET_VICAP_RST_INFO:
@@ -1267,6 +1331,8 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		ret = copy_from_user(vicap_rst_inf, up, sizeof(*vicap_rst_inf));
 		if (!ret)
 			ret = nvp6188_ioctl(sd, cmd, vicap_rst_inf);
+		else
+			ret = -EFAULT;
 		kfree(vicap_rst_inf);
 		break;
 	case RKMODULE_GET_START_STREAM_SEQ:
@@ -1277,8 +1343,11 @@ static long nvp6188_compat_ioctl32(struct v4l2_subdev *sd,
 		}
 
 		ret = nvp6188_ioctl(sd, cmd, seq);
-		if (!ret)
+		if (!ret) {
 			ret = copy_to_user(up, seq, sizeof(*seq));
+			if (ret)
+				ret = -EFAULT;
+		}
 		kfree(seq);
 		break;
 	default:
@@ -1911,14 +1980,16 @@ static const struct v4l2_subdev_internal_ops nvp6188_internal_ops = {
 
 static const struct v4l2_subdev_video_ops nvp6188_video_ops = {
 	.s_stream = nvp6188_stream,
-	.g_mbus_config = nvp6188_g_mbus_config,
+	.g_frame_interval = nvp6188_g_frame_interval,
 };
 
 static const struct v4l2_subdev_pad_ops nvp6188_subdev_pad_ops = {
 	.enum_mbus_code = nvp6188_enum_mbus_code,
 	.enum_frame_size = nvp6188_enum_frame_sizes,
+	.enum_frame_interval = nvp6188_enum_frame_interval,
 	.get_fmt = nvp6188_get_fmt,
 	.set_fmt = nvp6188_set_fmt,
+	.get_mbus_config = nvp6188_g_mbus_config,
 };
 
 static const struct v4l2_subdev_core_ops nvp6188_core_ops = {

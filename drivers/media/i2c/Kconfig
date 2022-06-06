@@ -398,6 +398,16 @@ config VIDEO_NVP6158
 	  To compile this driver as a module, choose M here: the
 	  module will be called nvp6158_drv.
 
+config VIDEO_NVP6188
+	tristate "NEXTCHIP nvp6188 driver support"
+	depends on I2C && VIDEO_V4L2 && VIDEO_V4L2_SUBDEV_API
+	help
+	  Support for the Nextchip NVP6188 multi channels digital decode to
+	  MIPI CSI-2 bridge.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called nvp6188.
+
 config VIDEO_NVP6324
 	tristate "NEXTCHIP nvp6324 driver support"
 	depends on VIDEO_V4L2 && I2C
