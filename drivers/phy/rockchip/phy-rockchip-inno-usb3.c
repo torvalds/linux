@@ -141,7 +141,6 @@ struct rockchip_u3phy {
 	struct regmap *grf;
 	int um_ls_irq;
 	struct clk *clks[U3PHY_MAX_CLKS];
-	struct dentry *root;
 	struct regulator *vbus;
 	struct reset_control *rsts[U3PHY_RESET_MAX];
 	struct rockchip_u3phy_apbcfg apbcfg;
@@ -294,32 +293,13 @@ static const struct file_operations rockchip_u3phy_usb2_only_fops = {
 	.release		= single_release,
 };
 
-int rockchip_u3phy_debugfs_init(struct rockchip_u3phy *u3phy)
+static void rockchip_u3phy_debugfs_init(struct rockchip_u3phy *u3phy)
 {
 	struct dentry		*root;
-	struct dentry		*file;
-	int			ret;
 
 	root = debugfs_create_dir(dev_name(u3phy->dev), NULL);
-	if (!root) {
-		ret = -ENOMEM;
-		goto err0;
-	}
-
-	u3phy->root = root;
-
-	file = debugfs_create_file("u3phy_mode", 0644, root,
-				   u3phy, &rockchip_u3phy_usb2_only_fops);
-	if (!file) {
-		ret = -ENOMEM;
-		goto err1;
-	}
-	return 0;
-
-err1:
-	debugfs_remove_recursive(root);
-err0:
-	return ret;
+	debugfs_create_file("u3phy_mode", 0644, root,
+			    u3phy, &rockchip_u3phy_usb2_only_fops);
 }
 
 static const char *get_rest_name(enum rockchip_u3phy_rest_req rst)
