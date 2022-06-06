@@ -2055,10 +2055,9 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 }
 
 static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
-			 struct extent_buffer *eb, void *ctx);
+			 struct extent_buffer *eb, struct inode_fs_paths *ipath);
 
-static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
-			      struct btrfs_path *path, void *ctx)
+static int iterate_inode_refs(u64 inum, struct inode_fs_paths *ipath)
 {
 	int ret = 0;
 	int slot;
@@ -2067,6 +2066,8 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 	u32 name_len;
 	u64 parent = 0;
 	int found = 0;
+	struct btrfs_root *fs_root = ipath->fs_root;
+	struct btrfs_path *path = ipath->btrfs_path;
 	struct extent_buffer *eb;
 	struct btrfs_inode_ref *iref;
 	struct btrfs_key found_key;
@@ -2103,7 +2104,7 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 				cur, found_key.objectid,
 				fs_root->root_key.objectid);
 			ret = inode_to_path(parent, name_len,
-				      (unsigned long)(iref + 1), eb, ctx);
+				      (unsigned long)(iref + 1), eb, ipath);
 			if (ret)
 				break;
 			len = sizeof(*iref) + name_len;
@@ -2117,14 +2118,15 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 	return ret;
 }
 
-static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
-				 struct btrfs_path *path, void *ctx)
+static int iterate_inode_extrefs(u64 inum, struct inode_fs_paths *ipath)
 {
 	int ret;
 	int slot;
 	u64 offset = 0;
 	u64 parent;
 	int found = 0;
+	struct btrfs_root *fs_root = ipath->fs_root;
+	struct btrfs_path *path = ipath->btrfs_path;
 	struct extent_buffer *eb;
 	struct btrfs_inode_extref *extref;
 	u32 item_size;
@@ -2161,7 +2163,7 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 			parent = btrfs_inode_extref_parent(eb, extref);
 			name_len = btrfs_inode_extref_name_len(eb, extref);
 			ret = inode_to_path(parent, name_len,
-				      (unsigned long)&extref->name, eb, ctx);
+				      (unsigned long)&extref->name, eb, ipath);
 			if (ret)
 				break;
 
@@ -2183,9 +2185,8 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
  * returns <0 in case of an error
  */
 static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
-			 struct extent_buffer *eb, void *ctx)
+			 struct extent_buffer *eb, struct inode_fs_paths *ipath)
 {
-	struct inode_fs_paths *ipath = ctx;
 	char *fspath;
 	char *fspath_min;
 	int i = ipath->fspath->elem_cnt;
@@ -2229,13 +2230,13 @@ int paths_from_inode(u64 inum, struct inode_fs_paths *ipath)
 	int ret;
 	int found_refs = 0;
 
-	ret = iterate_inode_refs(inum, ipath->fs_root, ipath->btrfs_path, ipath);
+	ret = iterate_inode_refs(inum, ipath);
 	if (!ret)
 		++found_refs;
 	else if (ret != -ENOENT)
 		return ret;
 
-	ret = iterate_inode_extrefs(inum, ipath->fs_root, ipath->btrfs_path, ipath);
+	ret = iterate_inode_extrefs(inum, ipath);
 	if (ret == -ENOENT && found_refs)
 		return 0;
 
