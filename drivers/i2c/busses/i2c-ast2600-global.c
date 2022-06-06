@@ -25,8 +25,7 @@ static const struct of_device_id ast2600_i2c_global_of_match[] = {
 MODULE_DEVICE_TABLE(of, ast2600_i2c_global_of_match);
 
 #define AST2600_GLOBAL_INIT					\
-			(AST2600_I2CG_SLAVE_PKT_NAK |	\
-			AST2600_I2CG_CTRL_NEW_REG |		\
+			(AST2600_I2CG_CTRL_NEW_REG |		\
 			AST2600_I2CG_CTRL_NEW_CLK_DIV)
 #define I2CCG_DIV_CTRL 0xC6411208
 /*
