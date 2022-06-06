@@ -24,6 +24,8 @@ struct rk1608_fmt_inf {
 	struct v4l2_mbus_framefmt mf;
 	struct rk1608_chinf in_ch[4];
 	struct rk1608_chinf out_ch[4];
+	u32 hcrop;
+	u32 vcrop;
 };
 
 struct rk1608_dphy {

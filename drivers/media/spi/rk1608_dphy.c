@@ -393,20 +393,28 @@ static int rk1608_set_ctrl(struct v4l2_ctrl *ctrl)
 	return ret;
 }
 
+#define CROP_START(SRC, DST) (((SRC) - (DST)) / 2 / 4 * 4)
 static int rk1608_get_selection(struct v4l2_subdev *sd,
 		struct v4l2_subdev_pad_config *cfg,
 		struct v4l2_subdev_selection *sel)
 {
 	struct rk1608_dphy *pdata = to_state(sd);
 	u32 idx = pdata->fmt_inf_idx;
+	u32 width = pdata->fmt_inf[idx].mf.width;
+	u32 height = pdata->fmt_inf[idx].mf.height;
 
 	if (sel->target != V4L2_SEL_TGT_CROP_BOUNDS)
 		return -EINVAL;
 
-	sel->r.left = 0;
-	sel->r.top = 0;
-	sel->r.width = pdata->fmt_inf[idx].mf.width;
-	sel->r.height = pdata->fmt_inf[idx].mf.height;
+	if (pdata->fmt_inf[idx].hcrop && pdata->fmt_inf[idx].vcrop) {
+		width = pdata->fmt_inf[idx].hcrop;
+		height = pdata->fmt_inf[idx].vcrop;
+	}
+
+	sel->r.left = CROP_START(pdata->fmt_inf[idx].mf.width, width);
+	sel->r.top = CROP_START(pdata->fmt_inf[idx].mf.height, height);
+	sel->r.width = width;
+	sel->r.height = height;
 
 	return 0;
 }
@@ -727,6 +735,16 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 				(u32 *)&dphy->fmt_inf[idx].out_ch[3], 5);
 			if (ret)
 				dev_info(dphy->dev, "Can not get outch3-info!");
+
+			ret = of_property_read_u32(node, "hcrop",
+				&dphy->fmt_inf[idx].hcrop);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get hcrop!");
+
+			ret = of_property_read_u32(node, "vcrop",
+				&dphy->fmt_inf[idx].vcrop);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get vcrop!");
 
 			idx++;
 		}
