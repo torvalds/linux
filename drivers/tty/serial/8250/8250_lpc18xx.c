@@ -98,6 +98,12 @@ static void lpc18xx_uart_serial_out(struct uart_port *p, int offset, int value)
 	writel(value, p->membase + offset);
 }
 
+static const struct serial_rs485 lpc18xx_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND,
+	.delay_rts_after_send = 1,
+	/* Delay RTS before send is not supported */
+};
+
 static int lpc18xx_serial_probe(struct platform_device *pdev)
 {
 	struct lpc18xx_uart_data *data;
@@ -168,6 +174,7 @@ static int lpc18xx_serial_probe(struct platform_device *pdev)
 	uart.port.uartclk = clk_get_rate(data->clk_uart);
 	uart.port.private_data = data;
 	uart.port.rs485_config = lpc18xx_rs485_config;
+	uart.port.rs485_supported = &lpc18xx_rs485_supported;
 	uart.port.serial_out = lpc18xx_uart_serial_out;
 
 	uart.dma = &data->dma;
