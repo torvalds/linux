@@ -1,7 +1,5 @@
 // SPDX-License-Identifier: GPL-2.0
 /*
- *  linux/arch/x86_64/ia32/ia32_signal.c
- *
  *  Copyright (C) 1991, 1992  Linus Torvalds
  *
  *  1997-11-28  Modified for POSIX.1b signals by Richard Henderson
@@ -26,7 +24,6 @@
 #include <linux/uaccess.h>
 #include <asm/fpu/signal.h>
 #include <asm/ptrace.h>
-#include <asm/ia32_unistd.h>
 #include <asm/user32.h>
 #include <uapi/asm/sigcontext.h>
 #include <asm/proto.h>
@@ -34,6 +31,9 @@
 #include <asm/sigframe.h>
 #include <asm/sighandling.h>
 #include <asm/smap.h>
+
+#ifdef CONFIG_IA32_EMULATION
+#include <asm/ia32_unistd.h>
 
 static inline void reload_segments(struct sigcontext_32 *sc)
 {
@@ -52,6 +52,21 @@ static inline void reload_segments(struct sigcontext_32 *sc)
 	if ((sc->es | 0x03) != cur)
 		loadsegment(es, sc->es | 0x03);
 }
+
+#define sigset32_t			compat_sigset_t
+#define restore_altstack32		compat_restore_altstack
+#define unsafe_save_altstack32		unsafe_compat_save_altstack
+
+#else
+
+#define sigset32_t			sigset_t
+#define __NR_ia32_sigreturn		__NR_sigreturn
+#define __NR_ia32_rt_sigreturn		__NR_rt_sigreturn
+#define restore_altstack32		restore_altstack
+#define unsafe_save_altstack32		unsafe_save_altstack
+#define __copy_siginfo_to_user32	copy_siginfo_to_user
+
+#endif
 
 /*
  * Do a signal return; undo the signal stack.
@@ -86,6 +101,7 @@ static bool ia32_restore_sigcontext(struct pt_regs *regs,
 	/* disable syscall checks */
 	regs->orig_ax = -1;
 
+#ifdef CONFIG_IA32_EMULATION
 	/*
 	 * Reload fs and gs if they have changed in the signal
 	 * handler.  This does not handle long fs/gs base changes in
@@ -93,10 +109,17 @@ static bool ia32_restore_sigcontext(struct pt_regs *regs,
 	 * normal case.
 	 */
 	reload_segments(&sc);
+#else
+	loadsegment(gs, sc.gs);
+	regs->fs = sc.fs;
+	regs->es = sc.es;
+	regs->ds = sc.ds;
+#endif
+
 	return fpu__restore_sig(compat_ptr(sc.fpstate), 1);
 }
 
-COMPAT_SYSCALL_DEFINE0(sigreturn)
+SYSCALL32_DEFINE0(sigreturn)
 {
 	struct pt_regs *regs = current_pt_regs();
 	struct sigframe_ia32 __user *frame = (struct sigframe_ia32 __user *)(regs->sp-8);
@@ -119,7 +142,7 @@ badframe:
 	return 0;
 }
 
-COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
+SYSCALL32_DEFINE0(rt_sigreturn)
 {
 	struct pt_regs *regs = current_pt_regs();
 	struct rt_sigframe_ia32 __user *frame;
@@ -129,7 +152,7 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 
 	if (!access_ok(frame, sizeof(*frame)))
 		goto badframe;
-	if (__get_user(set.sig[0], (__u64 __user *)&frame->uc.uc_sigmask))
+	if (__get_user(*(__u64 *)&set, (__u64 __user *)&frame->uc.uc_sigmask))
 		goto badframe;
 
 	set_current_blocked(&set);
@@ -137,7 +160,7 @@ COMPAT_SYSCALL_DEFINE0(rt_sigreturn)
 	if (!ia32_restore_sigcontext(regs, &frame->uc.uc_mcontext))
 		goto badframe;
 
-	if (compat_restore_altstack(&frame->uc.uc_stack))
+	if (restore_altstack32(&frame->uc.uc_stack))
 		goto badframe;
 
 	return regs->ax;
@@ -159,9 +182,15 @@ __unsafe_setup_sigcontext32(struct sigcontext_32 __user *sc,
 			    struct pt_regs *regs, unsigned int mask)
 {
 	unsafe_put_user(get_user_seg(gs), (unsigned int __user *)&sc->gs, Efault);
+#ifdef CONFIG_IA32_EMULATION
 	unsafe_put_user(get_user_seg(fs), (unsigned int __user *)&sc->fs, Efault);
 	unsafe_put_user(get_user_seg(ds), (unsigned int __user *)&sc->ds, Efault);
 	unsafe_put_user(get_user_seg(es), (unsigned int __user *)&sc->es, Efault);
+#else
+	unsafe_put_user(regs->fs, (unsigned int __user *)&sc->fs, Efault);
+	unsafe_put_user(regs->es, (unsigned int __user *)&sc->es, Efault);
+	unsafe_put_user(regs->ds, (unsigned int __user *)&sc->ds, Efault);
+#endif
 
 	unsafe_put_user(regs->di, &sc->di, Efault);
 	unsafe_put_user(regs->si, &sc->si, Efault);
@@ -198,7 +227,7 @@ do {									\
 
 int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
-	compat_sigset_t *set = (compat_sigset_t *) sigmask_to_save();
+	sigset32_t *set = (sigset32_t *) sigmask_to_save();
 	struct sigframe_ia32 __user *frame;
 	void __user *restorer;
 	void __user *fp = NULL;
@@ -250,8 +279,13 @@ int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 	regs->dx = 0;
 	regs->cx = 0;
 
+#ifdef CONFIG_IA32_EMULATION
 	loadsegment(ds, __USER_DS);
 	loadsegment(es, __USER_DS);
+#else
+	regs->ds = __USER_DS;
+	regs->es = __USER_DS;
+#endif
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER_DS;
@@ -264,7 +298,7 @@ Efault:
 
 int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
-	compat_sigset_t *set = (compat_sigset_t *) sigmask_to_save();
+	sigset32_t *set = (sigset32_t *) sigmask_to_save();
 	struct rt_sigframe_ia32 __user *frame;
 	void __user *restorer;
 	void __user *fp = NULL;
@@ -297,7 +331,7 @@ int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	else
 		unsafe_put_user(0, &frame->uc.uc_flags, Efault);
 	unsafe_put_user(0, &frame->uc.uc_link, Efault);
-	unsafe_compat_save_altstack(&frame->uc.uc_stack, regs->sp, Efault);
+	unsafe_save_altstack32(&frame->uc.uc_stack, regs->sp, Efault);
 
 	if (ksig->ka.sa.sa_flags & SA_RESTORER)
 		restorer = ksig->ka.sa.sa_restorer;
@@ -327,8 +361,13 @@ int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	regs->dx = (unsigned long) &frame->info;
 	regs->cx = (unsigned long) &frame->uc;
 
+#ifdef CONFIG_IA32_EMULATION
 	loadsegment(ds, __USER_DS);
 	loadsegment(es, __USER_DS);
+#else
+	regs->ds = __USER_DS;
+	regs->es = __USER_DS;
+#endif
 
 	regs->cs = __USER32_CS;
 	regs->ss = __USER_DS;
