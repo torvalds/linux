@@ -295,6 +295,37 @@
 				reg = <0>;
 				remote-endpoint = <&hdmi_in_vop>;
 			};
+			vop_out_tve: endpoint@1 {
+				reg = <1>;
+				remote-endpoint = <&tve_in_vop>;
+			};
+		};
+	};
+
+	tve: tve@10118200 {
+		compatible = "rockchip,rk3036-tve";
+		reg = <0x10118200 0x100>;
+		clocks = <&cru ACLK_VIO>;
+		clock-names = "aclk";
+		rockchip,saturation = <0x00386346>;
+		rockchip,brightcontrast = <0x00008b00>;
+		rockchip,adjtiming = <0xa6c00880>;
+		rockchip,lumafilter0 = <0x02ff0000>;
+		rockchip,lumafilter1 = <0xf40202fd>;
+		rockchip,lumafilter2 = <0xf332d919>;
+		rockchip,daclevel = <0x3e>;
+		rockchip,grf = <&grf>;
+		status = "disabled";
+
+		ports {
+			tve_in: port {
+				#address-cells = <1>;
+				#size-cells = <0>;
+				tve_in_vop: endpoint@0 {
+					reg = <0>;
+					remote-endpoint = <&vop_out_tve>;
+				};
+			};
 		};
 	};
 
