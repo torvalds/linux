@@ -22,36 +22,6 @@ struct cros_ec_regulator_data {
 	u16 num_voltages;
 };
 
-static int cros_ec_cmd(struct cros_ec_device *ec, u32 version, u32 command,
-		       void *outdata, u32 outsize, void *indata, u32 insize)
-{
-	struct cros_ec_command *msg;
-	int ret;
-
-	msg = kzalloc(sizeof(*msg) + max(outsize, insize), GFP_KERNEL);
-	if (!msg)
-		return -ENOMEM;
-
-	msg->version = version;
-	msg->command = command;
-	msg->outsize = outsize;
-	msg->insize = insize;
-
-	if (outdata && outsize > 0)
-		memcpy(msg->data, outdata, outsize);
-
-	ret = cros_ec_cmd_xfer_status(ec, msg);
-	if (ret < 0)
-		goto cleanup;
-
-	if (insize)
-		memcpy(indata, msg->data, insize);
-
-cleanup:
-	kfree(msg);
-	return ret;
-}
-
 static int cros_ec_regulator_enable(struct regulator_dev *dev)
 {
 	struct cros_ec_regulator_data *data = rdev_get_drvdata(dev);
@@ -60,8 +30,8 @@ static int cros_ec_regulator_enable(struct regulator_dev *dev)
 		.enable = 1,
 	};
 
-	return cros_ec_cmd(data->ec_dev, 0, EC_CMD_REGULATOR_ENABLE, &cmd,
-			  sizeof(cmd), NULL, 0);
+	return cros_ec_command(data->ec_dev, 0, EC_CMD_REGULATOR_ENABLE, &cmd,
+			       sizeof(cmd), NULL, 0);
 }
 
 static int cros_ec_regulator_disable(struct regulator_dev *dev)
@@ -72,8 +42,8 @@ static int cros_ec_regulator_disable(struct regulator_dev *dev)
 		.enable = 0,
 	};
 
-	return cros_ec_cmd(data->ec_dev, 0, EC_CMD_REGULATOR_ENABLE, &cmd,
-			  sizeof(cmd), NULL, 0);
+	return cros_ec_command(data->ec_dev, 0, EC_CMD_REGULATOR_ENABLE, &cmd,
+			       sizeof(cmd), NULL, 0);
 }
 
 static int cros_ec_regulator_is_enabled(struct regulator_dev *dev)
@@ -85,8 +55,8 @@ static int cros_ec_regulator_is_enabled(struct regulator_dev *dev)
 	struct ec_response_regulator_is_enabled resp;
 	int ret;
 
-	ret = cros_ec_cmd(data->ec_dev, 0, EC_CMD_REGULATOR_IS_ENABLED, &cmd,
-			  sizeof(cmd), &resp, sizeof(resp));
+	ret = cros_ec_command(data->ec_dev, 0, EC_CMD_REGULATOR_IS_ENABLED, &cmd,
+			      sizeof(cmd), &resp, sizeof(resp));
 	if (ret < 0)
 		return ret;
 	return resp.enabled;
@@ -112,8 +82,8 @@ static int cros_ec_regulator_get_voltage(struct regulator_dev *dev)
 	struct ec_response_regulator_get_voltage resp;
 	int ret;
 
-	ret = cros_ec_cmd(data->ec_dev, 0, EC_CMD_REGULATOR_GET_VOLTAGE, &cmd,
-			  sizeof(cmd), &resp, sizeof(resp));
+	ret = cros_ec_command(data->ec_dev, 0, EC_CMD_REGULATOR_GET_VOLTAGE, &cmd,
+			      sizeof(cmd), &resp, sizeof(resp));
 	if (ret < 0)
 		return ret;
 	return resp.voltage_mv * 1000;
@@ -138,8 +108,8 @@ static int cros_ec_regulator_set_voltage(struct regulator_dev *dev, int min_uV,
 	if (min_mV > max_mV)
 		return -EINVAL;
 
-	return cros_ec_cmd(data->ec_dev, 0, EC_CMD_REGULATOR_SET_VOLTAGE, &cmd,
-			   sizeof(cmd), NULL, 0);
+	return cros_ec_command(data->ec_dev, 0, EC_CMD_REGULATOR_SET_VOLTAGE, &cmd,
+			       sizeof(cmd), NULL, 0);
 }
 
 static const struct regulator_ops cros_ec_regulator_voltage_ops = {
@@ -160,8 +130,8 @@ static int cros_ec_regulator_init_info(struct device *dev,
 	struct ec_response_regulator_get_info resp;
 	int ret;
 
-	ret = cros_ec_cmd(data->ec_dev, 0, EC_CMD_REGULATOR_GET_INFO, &cmd,
-			   sizeof(cmd), &resp, sizeof(resp));
+	ret = cros_ec_command(data->ec_dev, 0, EC_CMD_REGULATOR_GET_INFO, &cmd,
+			      sizeof(cmd), &resp, sizeof(resp));
 	if (ret < 0)
 		return ret;
 
