@@ -11,6 +11,7 @@
 #include <linux/uaccess.h>
 #include <linux/vfio.h>
 #include <linux/vfio_zdev.h>
+#include <linux/kvm_host.h>
 #include <asm/pci_clp.h>
 #include <asm/pci_io.h>
 
@@ -135,4 +136,27 @@ int vfio_pci_info_zdev_add_caps(struct vfio_pci_core_device *vdev,
 	ret = zpci_pfip_cap(zdev, caps);
 
 	return ret;
+}
+
+int vfio_pci_zdev_open_device(struct vfio_pci_core_device *vdev)
+{
+	struct zpci_dev *zdev = to_zpci(vdev->pdev);
+
+	if (!zdev)
+		return -ENODEV;
+
+	if (!vdev->vdev.kvm)
+		return 0;
+
+	return kvm_s390_pci_register_kvm(zdev, vdev->vdev.kvm);
+}
+
+void vfio_pci_zdev_close_device(struct vfio_pci_core_device *vdev)
+{
+	struct zpci_dev *zdev = to_zpci(vdev->pdev);
+
+	if (!zdev || !vdev->vdev.kvm)
+		return;
+
+	kvm_s390_pci_unregister_kvm(zdev);
 }
