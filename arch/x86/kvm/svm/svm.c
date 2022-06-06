@@ -1400,13 +1400,13 @@ static void svm_vcpu_load(struct kvm_vcpu *vcpu, int cpu)
 		indirect_branch_prediction_barrier();
 	}
 	if (kvm_vcpu_apicv_active(vcpu))
-		__avic_vcpu_load(vcpu, cpu);
+		avic_vcpu_load(vcpu, cpu);
 }
 
 static void svm_vcpu_put(struct kvm_vcpu *vcpu)
 {
 	if (kvm_vcpu_apicv_active(vcpu))
-		__avic_vcpu_put(vcpu);
+		avic_vcpu_put(vcpu);
 
 	svm_prepare_host_switch(vcpu);
 
