@@ -443,6 +443,19 @@ static int mt8195_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 {
 	struct platform_device *pdev = container_of(sdev->dev, struct platform_device, dev);
 	int ret;
+	u32 reset_sw, dbg_pc;
+
+	/* wait dsp enter idle, timeout is 1 second */
+	ret = snd_sof_dsp_read_poll_timeout(sdev, DSP_REG_BAR,
+					    DSP_RESET_SW, reset_sw,
+					    ((reset_sw & ADSP_PWAIT) == ADSP_PWAIT),
+					    SUSPEND_DSP_IDLE_POLL_INTERVAL_US,
+					    SUSPEND_DSP_IDLE_TIMEOUT_US);
+	if (ret < 0) {
+		dbg_pc = snd_sof_dsp_read(sdev, DSP_REG_BAR, DSP_PDEBUGPC);
+		dev_warn(sdev->dev, "dsp not idle, powering off anyway : swrest %#x, pc %#x, ret %d\n",
+			 reset_sw, dbg_pc, ret);
+	}
 
 	/* stall and reset dsp */
 	sof_hifixdsp_shutdown(sdev);
