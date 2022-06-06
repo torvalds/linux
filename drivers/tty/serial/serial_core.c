@@ -1276,6 +1276,35 @@ static int uart_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
+static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs485 *rs485)
+{
+	/* pick sane settings if the user hasn't */
+	if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+	    !(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): invalid RTS setting, using RTS_ON_SEND instead\n",
+			port->name, port->line);
+		rs485->flags |= SER_RS485_RTS_ON_SEND;
+		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
+	}
+
+	if (rs485->delay_rts_before_send > RS485_MAX_RTS_DELAY) {
+		rs485->delay_rts_before_send = RS485_MAX_RTS_DELAY;
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): RTS delay before sending clamped to %u ms\n",
+			port->name, port->line, rs485->delay_rts_before_send);
+	}
+
+	if (rs485->delay_rts_after_send > RS485_MAX_RTS_DELAY) {
+		rs485->delay_rts_after_send = RS485_MAX_RTS_DELAY;
+		dev_warn_ratelimited(port->dev,
+			"%s (%d): RTS delay after sending clamped to %u ms\n",
+			port->name, port->line, rs485->delay_rts_after_send);
+	}
+	/* Return clean padding area to userspace */
+	memset(rs485->padding, 0, sizeof(rs485->padding));
+}
+
 int uart_rs485_config(struct uart_port *port)
 {
 	return port->rs485_config(port, &port->rs485);
@@ -1311,31 +1340,7 @@ static int uart_set_rs485_config(struct uart_port *port,
 	if (copy_from_user(&rs485, rs485_user, sizeof(*rs485_user)))
 		return -EFAULT;
 
-	/* pick sane settings if the user hasn't */
-	if (!(rs485.flags & SER_RS485_RTS_ON_SEND) ==
-	    !(rs485.flags & SER_RS485_RTS_AFTER_SEND)) {
-		dev_warn_ratelimited(port->dev,
-			"%s (%d): invalid RTS setting, using RTS_ON_SEND instead\n",
-			port->name, port->line);
-		rs485.flags |= SER_RS485_RTS_ON_SEND;
-		rs485.flags &= ~SER_RS485_RTS_AFTER_SEND;
-	}
-
-	if (rs485.delay_rts_before_send > RS485_MAX_RTS_DELAY) {
-		rs485.delay_rts_before_send = RS485_MAX_RTS_DELAY;
-		dev_warn_ratelimited(port->dev,
-			"%s (%d): RTS delay before sending clamped to %u ms\n",
-			port->name, port->line, rs485.delay_rts_before_send);
-	}
-
-	if (rs485.delay_rts_after_send > RS485_MAX_RTS_DELAY) {
-		rs485.delay_rts_after_send = RS485_MAX_RTS_DELAY;
-		dev_warn_ratelimited(port->dev,
-			"%s (%d): RTS delay after sending clamped to %u ms\n",
-			port->name, port->line, rs485.delay_rts_after_send);
-	}
-	/* Return clean padding area to userspace */
-	memset(rs485.padding, 0, sizeof(rs485.padding));
+	uart_sanitize_serial_rs485(port, &rs485);
 
 	spin_lock_irqsave(&port->lock, flags);
 	ret = port->rs485_config(port, &rs485);
