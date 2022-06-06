@@ -647,6 +647,14 @@ void serial8250_em485_destroy(struct uart_8250_port *p)
 }
 EXPORT_SYMBOL_GPL(serial8250_em485_destroy);
 
+struct serial_rs485 serial8250_em485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND |
+		 SER_RS485_TERMINATE_BUS | SER_RS485_RX_DURING_TX,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+EXPORT_SYMBOL_GPL(serial8250_em485_supported);
+
 /**
  * serial8250_em485_config() - generic ->rs485_config() callback
  * @port: uart port
