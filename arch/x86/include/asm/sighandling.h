@@ -15,4 +15,8 @@
 
 void signal_fault(struct pt_regs *regs, void __user *frame, char *where);
 
+void __user *
+get_sigframe(struct ksignal *ksig, struct pt_regs *regs, size_t frame_size,
+	     void __user **fpstate);
+
 #endif /* _ASM_X86_SIGHANDLING_H */
