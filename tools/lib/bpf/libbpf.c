@@ -11192,43 +11192,6 @@ static int perf_event_uprobe_open_legacy(const char *probe_name, bool retprobe,
 	return pfd;
 }
 
-/* uprobes deal in relative offsets; subtract the base address associated with
- * the mapped binary.  See Documentation/trace/uprobetracer.rst for more
- * details.
- */
-static long elf_find_relative_offset(const char *filename, Elf *elf, long addr)
-{
-	size_t n;
-	int i;
-
-	if (elf_getphdrnum(elf, &n)) {
-		pr_warn("elf: failed to find program headers for '%s': %s\n", filename,
-			elf_errmsg(-1));
-		return -ENOENT;
-	}
-
-	for (i = 0; i < n; i++) {
-		int seg_start, seg_end, seg_offset;
-		GElf_Phdr phdr;
-
-		if (!gelf_getphdr(elf, i, &phdr)) {
-			pr_warn("elf: failed to get program header %d from '%s': %s\n", i, filename,
-				elf_errmsg(-1));
-			return -ENOENT;
-		}
-		if (phdr.p_type != PT_LOAD || !(phdr.p_flags & PF_X))
-			continue;
-
-		seg_start = phdr.p_vaddr;
-		seg_end = seg_start + phdr.p_memsz;
-		seg_offset = phdr.p_offset;
-		if (addr >= seg_start && addr < seg_end)
-			return addr - seg_start + seg_offset;
-	}
-	pr_warn("elf: failed to find prog header containing 0x%lx in '%s'\n", addr, filename);
-	return -ENOENT;
-}
-
 /* Return next ELF section of sh_type after scn, or first of that type if scn is NULL. */
 static Elf_Scn *elf_find_next_scn_by_type(Elf *elf, int sh_type, Elf_Scn *scn)
 {
@@ -11315,6 +11278,8 @@ static long elf_find_func_offset(const char *binary_path, const char *name)
 		for (idx = 0; idx < nr_syms; idx++) {
 			int curr_bind;
 			GElf_Sym sym;
+			Elf_Scn *sym_scn;
+			GElf_Shdr sym_sh;
 
 			if (!gelf_getsym(symbols, idx, &sym))
 				continue;
@@ -11352,12 +11317,28 @@ static long elf_find_func_offset(const char *binary_path, const char *name)
 					continue;
 				}
 			}
-			ret = sym.st_value;
+
+			/* Transform symbol's virtual address (absolute for
+			 * binaries and relative for shared libs) into file
+			 * offset, which is what kernel is expecting for
+			 * uprobe/uretprobe attachment.
+			 * See Documentation/trace/uprobetracer.rst for more
+			 * details.
+			 * This is done by looking up symbol's containing
+			 * section's header and using it's virtual address
+			 * (sh_addr) and corresponding file offset (sh_offset)
+			 * to transform sym.st_value (virtual address) into
+			 * desired final file offset.
+			 */
+			sym_scn = elf_getscn(elf, sym.st_shndx);
+			if (!sym_scn)
+				continue;
+			if (!gelf_getshdr(sym_scn, &sym_sh))
+				continue;
+
+			ret = sym.st_value - sym_sh.sh_addr + sym_sh.sh_offset;
 			last_bind = curr_bind;
 		}
-		/* For binaries that are not shared libraries, we need relative offset */
-		if (ret > 0 && !is_shared_lib)
-			ret = elf_find_relative_offset(binary_path, elf, ret);
 		if (ret > 0)
 			break;
 	}
