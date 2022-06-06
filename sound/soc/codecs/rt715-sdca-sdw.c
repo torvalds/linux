@@ -13,6 +13,7 @@
 #include <linux/soundwire/sdw_type.h>
 #include <linux/soundwire/sdw_registers.h>
 #include <linux/module.h>
+#include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 #include <sound/soc.h>
 #include "rt715-sdca.h"
@@ -195,6 +196,16 @@ static int rt715_sdca_sdw_probe(struct sdw_slave *slave,
 	return rt715_sdca_init(&slave->dev, mbq_regmap, regmap, slave);
 }
 
+static int rt715_sdca_sdw_remove(struct sdw_slave *slave)
+{
+	struct rt715_sdca_priv *rt715 = dev_get_drvdata(&slave->dev);
+
+	if (rt715->first_hw_init)
+		pm_runtime_disable(&slave->dev);
+
+	return 0;
+}
+
 static const struct sdw_device_id rt715_sdca_id[] = {
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x715, 0x3, 0x1, 0),
 	SDW_SLAVE_ENTRY_EXT(0x025d, 0x714, 0x3, 0x1, 0),
@@ -269,6 +280,7 @@ static struct sdw_driver rt715_sdw_driver = {
 		.pm = &rt715_pm,
 	},
 	.probe = rt715_sdca_sdw_probe,
+	.remove = rt715_sdca_sdw_remove,
 	.ops = &rt715_sdca_slave_ops,
 	.id_table = rt715_sdca_id,
 };
