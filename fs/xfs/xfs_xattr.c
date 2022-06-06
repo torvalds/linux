@@ -68,6 +68,18 @@ xfs_attr_rele_log_assist(
 	xlog_drop_incompat_feat(mp->m_log);
 }
 
+static inline bool
+xfs_attr_want_log_assist(
+	struct xfs_mount	*mp)
+{
+#ifdef DEBUG
+	/* Logged xattrs require a V5 super for log_incompat */
+	return xfs_has_crc(mp) && xfs_globals.larp;
+#else
+	return false;
+#endif
+}
+
 /*
  * Set or remove an xattr, having grabbed the appropriate logging resources
  * prior to calling libxfs.
@@ -80,11 +92,14 @@ xfs_attr_change(
 	bool			use_logging = false;
 	int			error;
 
-	if (xfs_has_larp(mp)) {
+	ASSERT(!(args->op_flags & XFS_DA_OP_LOGGED));
+
+	if (xfs_attr_want_log_assist(mp)) {
 		error = xfs_attr_grab_log_assist(mp);
 		if (error)
 			return error;
 
+		args->op_flags |= XFS_DA_OP_LOGGED;
 		use_logging = true;
 	}
 
