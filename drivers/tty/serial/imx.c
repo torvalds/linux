@@ -1913,10 +1913,6 @@ static int imx_uart_rs485_config(struct uart_port *port,
 	struct imx_port *sport = (struct imx_port *)port;
 	u32 ucr2;
 
-	/* RTS is required to control the transmitter */
-	if (!sport->have_rtscts && !sport->have_rtsgpio)
-		rs485conf->flags &= ~SER_RS485_ENABLED;
-
 	if (rs485conf->flags & SER_RS485_ENABLED) {
 		/* Enable receiver if low-active RTS signal is requested */
 		if (sport->have_rtscts &&  !sport->have_rtsgpio &&
