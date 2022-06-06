@@ -34,6 +34,7 @@ struct stm32_exti_bank {
 	u32 swier_ofst;
 	u32 rpr_ofst;
 	u32 fpr_ofst;
+	u32 trg_ofst;
 };
 
 #define UNDEF_REG ~0
@@ -41,7 +42,6 @@ struct stm32_exti_bank {
 struct stm32_desc_irq {
 	u32 exti;
 	u32 irq_parent;
-	struct irq_chip *chip;
 };
 
 struct stm32_exti_drv_data {
@@ -78,6 +78,7 @@ static const struct stm32_exti_bank stm32f4xx_exti_b1 = {
 	.swier_ofst	= 0x10,
 	.rpr_ofst	= 0x14,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank *stm32f4xx_exti_banks[] = {
@@ -97,6 +98,7 @@ static const struct stm32_exti_bank stm32h7xx_exti_b1 = {
 	.swier_ofst	= 0x08,
 	.rpr_ofst	= 0x88,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank stm32h7xx_exti_b2 = {
@@ -107,6 +109,7 @@ static const struct stm32_exti_bank stm32h7xx_exti_b2 = {
 	.swier_ofst	= 0x28,
 	.rpr_ofst	= 0x98,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank stm32h7xx_exti_b3 = {
@@ -117,6 +120,7 @@ static const struct stm32_exti_bank stm32h7xx_exti_b3 = {
 	.swier_ofst	= 0x48,
 	.rpr_ofst	= 0xA8,
 	.fpr_ofst	= UNDEF_REG,
+	.trg_ofst	= UNDEF_REG,
 };
 
 static const struct stm32_exti_bank *stm32h7xx_exti_banks[] = {
@@ -138,6 +142,7 @@ static const struct stm32_exti_bank stm32mp1_exti_b1 = {
 	.swier_ofst	= 0x08,
 	.rpr_ofst	= 0x0C,
 	.fpr_ofst	= 0x10,
+	.trg_ofst	= 0x3EC,
 };
 
 static const struct stm32_exti_bank stm32mp1_exti_b2 = {
@@ -148,6 +153,7 @@ static const struct stm32_exti_bank stm32mp1_exti_b2 = {
 	.swier_ofst	= 0x28,
 	.rpr_ofst	= 0x2C,
 	.fpr_ofst	= 0x30,
+	.trg_ofst	= 0x3E8,
 };
 
 static const struct stm32_exti_bank stm32mp1_exti_b3 = {
@@ -158,6 +164,7 @@ static const struct stm32_exti_bank stm32mp1_exti_b3 = {
 	.swier_ofst	= 0x48,
 	.rpr_ofst	= 0x4C,
 	.fpr_ofst	= 0x50,
+	.trg_ofst	= 0x3E4,
 };
 
 static const struct stm32_exti_bank *stm32mp1_exti_banks[] = {
@@ -170,90 +177,90 @@ static struct irq_chip stm32_exti_h_chip;
 static struct irq_chip stm32_exti_h_chip_direct;
 
 static const struct stm32_desc_irq stm32mp1_desc_irq[] = {
-	{ .exti = 0, .irq_parent = 6, .chip = &stm32_exti_h_chip },
-	{ .exti = 1, .irq_parent = 7, .chip = &stm32_exti_h_chip },
-	{ .exti = 2, .irq_parent = 8, .chip = &stm32_exti_h_chip },
-	{ .exti = 3, .irq_parent = 9, .chip = &stm32_exti_h_chip },
-	{ .exti = 4, .irq_parent = 10, .chip = &stm32_exti_h_chip },
-	{ .exti = 5, .irq_parent = 23, .chip = &stm32_exti_h_chip },
-	{ .exti = 6, .irq_parent = 64, .chip = &stm32_exti_h_chip },
-	{ .exti = 7, .irq_parent = 65, .chip = &stm32_exti_h_chip },
-	{ .exti = 8, .irq_parent = 66, .chip = &stm32_exti_h_chip },
-	{ .exti = 9, .irq_parent = 67, .chip = &stm32_exti_h_chip },
-	{ .exti = 10, .irq_parent = 40, .chip = &stm32_exti_h_chip },
-	{ .exti = 11, .irq_parent = 42, .chip = &stm32_exti_h_chip },
-	{ .exti = 12, .irq_parent = 76, .chip = &stm32_exti_h_chip },
-	{ .exti = 13, .irq_parent = 77, .chip = &stm32_exti_h_chip },
-	{ .exti = 14, .irq_parent = 121, .chip = &stm32_exti_h_chip },
-	{ .exti = 15, .irq_parent = 127, .chip = &stm32_exti_h_chip },
-	{ .exti = 16, .irq_parent = 1, .chip = &stm32_exti_h_chip },
-	{ .exti = 19, .irq_parent = 3, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 21, .irq_parent = 31, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 22, .irq_parent = 33, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 23, .irq_parent = 72, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 24, .irq_parent = 95, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 25, .irq_parent = 107, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 26, .irq_parent = 37, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 27, .irq_parent = 38, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 28, .irq_parent = 39, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 29, .irq_parent = 71, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 30, .irq_parent = 52, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 31, .irq_parent = 53, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 32, .irq_parent = 82, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 33, .irq_parent = 83, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 47, .irq_parent = 93, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 48, .irq_parent = 138, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 50, .irq_parent = 139, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 52, .irq_parent = 140, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 53, .irq_parent = 141, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 54, .irq_parent = 135, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 61, .irq_parent = 100, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 65, .irq_parent = 144, .chip = &stm32_exti_h_chip },
-	{ .exti = 68, .irq_parent = 143, .chip = &stm32_exti_h_chip },
-	{ .exti = 70, .irq_parent = 62, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 73, .irq_parent = 129, .chip = &stm32_exti_h_chip },
+	{ .exti = 0, .irq_parent = 6 },
+	{ .exti = 1, .irq_parent = 7 },
+	{ .exti = 2, .irq_parent = 8 },
+	{ .exti = 3, .irq_parent = 9 },
+	{ .exti = 4, .irq_parent = 10 },
+	{ .exti = 5, .irq_parent = 23 },
+	{ .exti = 6, .irq_parent = 64 },
+	{ .exti = 7, .irq_parent = 65 },
+	{ .exti = 8, .irq_parent = 66 },
+	{ .exti = 9, .irq_parent = 67 },
+	{ .exti = 10, .irq_parent = 40 },
+	{ .exti = 11, .irq_parent = 42 },
+	{ .exti = 12, .irq_parent = 76 },
+	{ .exti = 13, .irq_parent = 77 },
+	{ .exti = 14, .irq_parent = 121 },
+	{ .exti = 15, .irq_parent = 127 },
+	{ .exti = 16, .irq_parent = 1 },
+	{ .exti = 19, .irq_parent = 3 },
+	{ .exti = 21, .irq_parent = 31 },
+	{ .exti = 22, .irq_parent = 33 },
+	{ .exti = 23, .irq_parent = 72 },
+	{ .exti = 24, .irq_parent = 95 },
+	{ .exti = 25, .irq_parent = 107 },
+	{ .exti = 26, .irq_parent = 37 },
+	{ .exti = 27, .irq_parent = 38 },
+	{ .exti = 28, .irq_parent = 39 },
+	{ .exti = 29, .irq_parent = 71 },
+	{ .exti = 30, .irq_parent = 52 },
+	{ .exti = 31, .irq_parent = 53 },
+	{ .exti = 32, .irq_parent = 82 },
+	{ .exti = 33, .irq_parent = 83 },
+	{ .exti = 47, .irq_parent = 93 },
+	{ .exti = 48, .irq_parent = 138 },
+	{ .exti = 50, .irq_parent = 139 },
+	{ .exti = 52, .irq_parent = 140 },
+	{ .exti = 53, .irq_parent = 141 },
+	{ .exti = 54, .irq_parent = 135 },
+	{ .exti = 61, .irq_parent = 100 },
+	{ .exti = 65, .irq_parent = 144 },
+	{ .exti = 68, .irq_parent = 143 },
+	{ .exti = 70, .irq_parent = 62 },
+	{ .exti = 73, .irq_parent = 129 },
 };
 
 static const struct stm32_desc_irq stm32mp13_desc_irq[] = {
-	{ .exti = 0, .irq_parent = 6, .chip = &stm32_exti_h_chip },
-	{ .exti = 1, .irq_parent = 7, .chip = &stm32_exti_h_chip },
-	{ .exti = 2, .irq_parent = 8, .chip = &stm32_exti_h_chip },
-	{ .exti = 3, .irq_parent = 9, .chip = &stm32_exti_h_chip },
-	{ .exti = 4, .irq_parent = 10, .chip = &stm32_exti_h_chip },
-	{ .exti = 5, .irq_parent = 24, .chip = &stm32_exti_h_chip },
-	{ .exti = 6, .irq_parent = 65, .chip = &stm32_exti_h_chip },
-	{ .exti = 7, .irq_parent = 66, .chip = &stm32_exti_h_chip },
-	{ .exti = 8, .irq_parent = 67, .chip = &stm32_exti_h_chip },
-	{ .exti = 9, .irq_parent = 68, .chip = &stm32_exti_h_chip },
-	{ .exti = 10, .irq_parent = 41, .chip = &stm32_exti_h_chip },
-	{ .exti = 11, .irq_parent = 43, .chip = &stm32_exti_h_chip },
-	{ .exti = 12, .irq_parent = 77, .chip = &stm32_exti_h_chip },
-	{ .exti = 13, .irq_parent = 78, .chip = &stm32_exti_h_chip },
-	{ .exti = 14, .irq_parent = 106, .chip = &stm32_exti_h_chip },
-	{ .exti = 15, .irq_parent = 109, .chip = &stm32_exti_h_chip },
-	{ .exti = 16, .irq_parent = 1, .chip = &stm32_exti_h_chip },
-	{ .exti = 19, .irq_parent = 3, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 21, .irq_parent = 32, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 22, .irq_parent = 34, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 23, .irq_parent = 73, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 24, .irq_parent = 93, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 25, .irq_parent = 114, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 26, .irq_parent = 38, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 27, .irq_parent = 39, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 28, .irq_parent = 40, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 29, .irq_parent = 72, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 30, .irq_parent = 53, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 31, .irq_parent = 54, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 32, .irq_parent = 83, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 33, .irq_parent = 84, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 44, .irq_parent = 96, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 47, .irq_parent = 92, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 48, .irq_parent = 116, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 50, .irq_parent = 117, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 52, .irq_parent = 118, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 53, .irq_parent = 119, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 68, .irq_parent = 63, .chip = &stm32_exti_h_chip_direct },
-	{ .exti = 70, .irq_parent = 98, .chip = &stm32_exti_h_chip_direct },
+	{ .exti = 0, .irq_parent = 6 },
+	{ .exti = 1, .irq_parent = 7 },
+	{ .exti = 2, .irq_parent = 8 },
+	{ .exti = 3, .irq_parent = 9 },
+	{ .exti = 4, .irq_parent = 10 },
+	{ .exti = 5, .irq_parent = 24 },
+	{ .exti = 6, .irq_parent = 65 },
+	{ .exti = 7, .irq_parent = 66 },
+	{ .exti = 8, .irq_parent = 67 },
+	{ .exti = 9, .irq_parent = 68 },
+	{ .exti = 10, .irq_parent = 41 },
+	{ .exti = 11, .irq_parent = 43 },
+	{ .exti = 12, .irq_parent = 77 },
+	{ .exti = 13, .irq_parent = 78 },
+	{ .exti = 14, .irq_parent = 106 },
+	{ .exti = 15, .irq_parent = 109 },
+	{ .exti = 16, .irq_parent = 1 },
+	{ .exti = 19, .irq_parent = 3 },
+	{ .exti = 21, .irq_parent = 32 },
+	{ .exti = 22, .irq_parent = 34 },
+	{ .exti = 23, .irq_parent = 73 },
+	{ .exti = 24, .irq_parent = 93 },
+	{ .exti = 25, .irq_parent = 114 },
+	{ .exti = 26, .irq_parent = 38 },
+	{ .exti = 27, .irq_parent = 39 },
+	{ .exti = 28, .irq_parent = 40 },
+	{ .exti = 29, .irq_parent = 72 },
+	{ .exti = 30, .irq_parent = 53 },
+	{ .exti = 31, .irq_parent = 54 },
+	{ .exti = 32, .irq_parent = 83 },
+	{ .exti = 33, .irq_parent = 84 },
+	{ .exti = 44, .irq_parent = 96 },
+	{ .exti = 47, .irq_parent = 92 },
+	{ .exti = 48, .irq_parent = 116 },
+	{ .exti = 50, .irq_parent = 117 },
+	{ .exti = 52, .irq_parent = 118 },
+	{ .exti = 53, .irq_parent = 119 },
+	{ .exti = 68, .irq_parent = 63 },
+	{ .exti = 70, .irq_parent = 98 },
 };
 
 static const struct stm32_exti_drv_data stm32mp1_drv_data = {
@@ -711,6 +718,8 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
 	struct irq_fwspec p_fwspec;
 	irq_hw_number_t hwirq;
 	int bank;
+	u32 event_trg;
+	struct irq_chip *chip;
 
 	hwirq = fwspec->param[0];
 	if (hwirq >= host_data->drv_data->bank_nr * IRQS_PER_BANK)
@@ -724,8 +733,11 @@ static int stm32_exti_h_domain_alloc(struct irq_domain *dm,
 	if (!desc)
 		return -EINVAL;
 
-	irq_domain_set_hwirq_and_chip(dm, virq, hwirq, desc->chip,
-				      chip_data);
+	event_trg = readl_relaxed(host_data->base + chip_data->reg_bank->trg_ofst);
+	chip = (event_trg & BIT(hwirq % IRQS_PER_BANK)) ?
+	       &stm32_exti_h_chip : &stm32_exti_h_chip_direct;
+
+	irq_domain_set_hwirq_and_chip(dm, virq, hwirq, chip, chip_data);
 	if (desc->irq_parent) {
 		p_fwspec.fwnode = dm->parent->fwnode;
 		p_fwspec.param_count = 3;
