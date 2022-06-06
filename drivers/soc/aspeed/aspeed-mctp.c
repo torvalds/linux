@@ -1618,6 +1618,20 @@ out:
 	return ret;
 }
 
+static int aspeed_mctp_set_own_eid(struct aspeed_mctp *priv, void __user *userbuf)
+{
+	struct aspeed_mctp_set_own_eid data;
+
+	if (copy_from_user(&data, userbuf, sizeof(data))) {
+		dev_err(priv->dev, "copy from user failed\n");
+		return -EFAULT;
+	}
+
+	priv->eid = data.eid;
+
+	return 0;
+}
+
 static long
 aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 {
@@ -1669,6 +1683,10 @@ aspeed_mctp_ioctl(struct file *file, unsigned int cmd, unsigned long arg)
 
 	case ASPEED_MCTP_IOCTL_SET_EID_EXT_INFO:
 		ret = aspeed_mctp_set_eid_info(priv, userbuf, ASPEED_MCTP_EXTENDED_ADDR_FORMAT);
+	break;
+
+	case ASPEED_MCTP_IOCTL_SET_OWN_EID:
+		ret = aspeed_mctp_set_own_eid(priv, userbuf);
 	break;
 
 	default:
