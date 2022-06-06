@@ -231,8 +231,7 @@ mlx5e_set_ktls_rx_priv_ctx(struct tls_context *tls_ctx,
 	struct mlx5e_ktls_offload_context_rx **ctx =
 		__tls_driver_ctx(tls_ctx, TLS_OFFLOAD_CTX_DIR_RX);
 
-	BUILD_BUG_ON(sizeof(struct mlx5e_ktls_offload_context_rx *) >
-		     TLS_OFFLOAD_CONTEXT_SIZE_RX);
+	BUILD_BUG_ON(sizeof(priv_rx) > TLS_DRIVER_STATE_SIZE_RX);
 
 	*ctx = priv_rx;
 }
