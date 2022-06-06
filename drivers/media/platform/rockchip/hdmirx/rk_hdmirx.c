@@ -3717,8 +3717,10 @@ static int hdmirx_probe(struct platform_device *pdev)
 							 hdmirx_dev,
 							 hdmirx_groups,
 							 "hdmirx");
-	if (IS_ERR(hdmirx_dev->classdev))
+	if (IS_ERR(hdmirx_dev->classdev)) {
+		ret = PTR_ERR(hdmirx_dev->classdev);
 		goto err_unreg_video_dev;
+	}
 	ret = devm_add_action_or_reset(dev, hdmirx_unregister_class_device, hdmirx_dev);
 	if (ret)
 		goto err_unreg_video_dev;
