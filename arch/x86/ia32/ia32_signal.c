@@ -212,7 +212,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 	if (ksig->ka.sa.sa_flags & SA_ONSTACK)
 		sp = sigsp(sp, ksig);
 	/* This is the legacy signal stack switching. */
-	else if (regs->ss != __USER32_DS &&
+	else if (regs->ss != __USER_DS &&
 		!(ksig->ka.sa.sa_flags & SA_RESTORER) &&
 		 ksig->ka.sa.sa_restorer)
 		sp = (unsigned long) ksig->ka.sa.sa_restorer;
@@ -284,11 +284,11 @@ int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 	regs->dx = 0;
 	regs->cx = 0;
 
-	loadsegment(ds, __USER32_DS);
-	loadsegment(es, __USER32_DS);
+	loadsegment(ds, __USER_DS);
+	loadsegment(es, __USER_DS);
 
 	regs->cs = __USER32_CS;
-	regs->ss = __USER32_DS;
+	regs->ss = __USER_DS;
 
 	return 0;
 Efault:
@@ -361,11 +361,11 @@ int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 	regs->dx = (unsigned long) &frame->info;
 	regs->cx = (unsigned long) &frame->uc;
 
-	loadsegment(ds, __USER32_DS);
-	loadsegment(es, __USER32_DS);
+	loadsegment(ds, __USER_DS);
+	loadsegment(es, __USER_DS);
 
 	regs->cs = __USER32_CS;
-	regs->ss = __USER32_DS;
+	regs->ss = __USER_DS;
 
 	return 0;
 Efault:
