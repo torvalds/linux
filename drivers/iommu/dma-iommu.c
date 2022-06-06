@@ -1249,6 +1249,13 @@ void iommu_setup_dma_ops(struct device *dev, u64 dma_base, u64 size)
 		dev->dma_ops = &iommu_dma_ops;
 	}
 
+	if (domain->type == IOMMU_DOMAIN_DMA) {
+		struct iommu_dma_cookie *cookie = domain->iova_cookie;
+		struct iova_domain *iovad = &cookie->iovad;
+
+		init_iova_domain_procfs(iovad, dev_name(dev));
+	}
+
 	return;
 out_err:
 	 pr_warn("Failed to set up IOMMU for device %s; retaining platform DMA ops\n",

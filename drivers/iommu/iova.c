@@ -11,6 +11,8 @@
 #include <linux/smp.h>
 #include <linux/bitops.h>
 #include <linux/cpu.h>
+#include <linux/proc_fs.h>
+#include <linux/seq_file.h>
 
 /* The anchor node sits above the top of the usable address space */
 #define IOVA_ANCHOR	~0UL
@@ -26,6 +28,63 @@ static void free_iova_rcaches(struct iova_domain *iovad);
 static void fq_destroy_all_entries(struct iova_domain *iovad);
 static void fq_flush_timeout(struct timer_list *t);
 static void iova_dump(struct iova_domain *iovad);
+
+static int iova_used_show(struct seq_file *s, void *v)
+{
+	struct iova_domain *iovad = s->private;
+	struct iova *iova, *t;
+	unsigned long flags, cpu;
+	unsigned long used_pfn = 0;
+	int i = 0;
+
+	for_each_online_cpu(cpu)
+		free_cpu_cached_iovas(cpu, iovad);
+	free_global_cached_iovas(iovad);
+
+	spin_lock_irqsave(&iovad->iova_rbtree_lock, flags);
+	rbtree_postorder_for_each_entry_safe(iova, t, &iovad->rbroot, node) {
+		dma_addr_t start = iova->pfn_lo << iova_shift(iovad);
+		dma_addr_t end = iova->pfn_hi << iova_shift(iovad);
+		unsigned long pfn = iova->pfn_hi + 1 - iova->pfn_lo;
+
+		if ((iova->pfn_hi == IOVA_ANCHOR) || (iova->pfn_lo == IOVA_ANCHOR))
+			continue;
+
+		seq_printf(s, "%4d: [%pad..%pad] %6luKiB (%4lu - %4lu)MiB\n",
+			   i++, &start, &end,
+			   pfn << (PAGE_SHIFT - 10),
+			   iova->pfn_lo >> (20 - PAGE_SHIFT),
+			   (iova->pfn_hi + 1) >> (20 - PAGE_SHIFT));
+		used_pfn += pfn;
+	}
+	spin_unlock_irqrestore(&iovad->iova_rbtree_lock, flags);
+	seq_printf(s, "used: %lu MiB\n", used_pfn >> (20 - PAGE_SHIFT));
+
+	return 0;
+}
+
+static struct proc_dir_entry *iova_dir;
+
+void init_iova_domain_procfs(struct iova_domain *iovad, const char *name)
+{
+	struct proc_dir_entry *root;
+
+	root = proc_mkdir(name, iova_dir);
+	if (!root)
+		return;
+
+	proc_create_single_data("used", 0, root, iova_used_show, iovad);
+}
+EXPORT_SYMBOL_GPL(init_iova_domain_procfs);
+
+static int __init iova_procfs_create(void)
+{
+	if (!iova_dir)
+		iova_dir = proc_mkdir("iova", NULL);
+
+	return 0;
+}
+subsys_initcall(iova_procfs_create);
 
 void
 init_iova_domain(struct iova_domain *iovad, unsigned long granule,
