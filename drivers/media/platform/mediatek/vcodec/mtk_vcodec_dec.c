@@ -979,6 +979,7 @@ int mtk_vcodec_dec_queue_init(void *priv, struct vb2_queue *src_vq,
 	src_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	src_vq->lock		= &ctx->dev->dev_mutex;
 	src_vq->dev             = &ctx->dev->plat_dev->dev;
+	src_vq->allow_cache_hints = 1;
 
 	ret = vb2_queue_init(src_vq);
 	if (ret) {
@@ -994,6 +995,7 @@ int mtk_vcodec_dec_queue_init(void *priv, struct vb2_queue *src_vq,
 	dst_vq->timestamp_flags = V4L2_BUF_FLAG_TIMESTAMP_COPY;
 	dst_vq->lock		= &ctx->dev->dev_mutex;
 	dst_vq->dev             = &ctx->dev->plat_dev->dev;
+	dst_vq->allow_cache_hints = 1;
 
 	ret = vb2_queue_init(dst_vq);
 	if (ret)
