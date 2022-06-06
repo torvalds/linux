@@ -93,9 +93,6 @@ static int dw8250_rs485_config(struct uart_port *p, struct serial_rs485 *rs485)
 	tcr &= ~DW_UART_TCR_XFER_MODE;
 
 	if (rs485->flags & SER_RS485_ENABLED) {
-		/* Clear unsupported flags. */
-		rs485->flags &= SER_RS485_ENABLED | SER_RS485_RX_DURING_TX |
-				SER_RS485_RTS_ON_SEND | SER_RS485_RTS_AFTER_SEND;
 		tcr |= DW_UART_TCR_RS485_EN;
 
 		if (rs485->flags & SER_RS485_RX_DURING_TX) {
@@ -111,8 +108,6 @@ static int dw8250_rs485_config(struct uart_port *p, struct serial_rs485 *rs485)
 		dw8250_writel_ext(p, DW_UART_DE_EN, 1);
 		dw8250_writel_ext(p, DW_UART_RE_EN, 1);
 	} else {
-		rs485->flags = 0;
-
 		tcr &= ~DW_UART_TCR_RS485_EN;
 	}
 
@@ -126,11 +121,6 @@ static int dw8250_rs485_config(struct uart_port *p, struct serial_rs485 *rs485)
 		tcr |= DW_UART_TCR_RE_POL;
 
 	dw8250_writel_ext(p, DW_UART_TCR, tcr);
-
-	rs485->delay_rts_before_send = 0;
-	rs485->delay_rts_after_send = 0;
-
-	p->rs485 = *rs485;
 
 	return 0;
 }
