@@ -1369,8 +1369,7 @@ static void vdec_cleanup(struct vpu_inst *inst)
 		return;
 
 	vdec = inst->priv;
-	if (vdec)
-		vfree(vdec);
+	vfree(vdec);
 	inst->priv = NULL;
 	vfree(inst);
 }
