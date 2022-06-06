@@ -1819,7 +1819,6 @@ static void kfd_topology_update_io_links(int proximity_domain)
 			 */
 			if (iolink->node_to == proximity_domain) {
 				list_del(&iolink->list);
-				dev->io_link_count--;
 				dev->node_props.io_links_count--;
 			} else {
 				if (iolink->node_from > proximity_domain)

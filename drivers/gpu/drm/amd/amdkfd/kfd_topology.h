@@ -130,7 +130,6 @@ struct kfd_topology_device {
 	struct list_head		mem_props;
 	uint32_t			cache_count;
 	struct list_head		cache_props;
-	uint32_t			io_link_count;
 	struct list_head		io_link_props;
 	struct list_head		p2p_link_props;
 	struct list_head		perf_props;
