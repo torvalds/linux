@@ -1276,6 +1276,12 @@ static int uart_get_icount(struct tty_struct *tty,
 	return 0;
 }
 
+int uart_rs485_config(struct uart_port *port)
+{
+	return port->rs485_config(port, &port->rs485);
+}
+EXPORT_SYMBOL_GPL(uart_rs485_config);
+
 static int uart_get_rs485_config(struct uart_port *port,
 			 struct serial_rs485 __user *rs485)
 {

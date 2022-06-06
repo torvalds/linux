@@ -1562,9 +1562,7 @@ static int pci_fintek_rs485_config(struct uart_port *port,
 
 	pci_read_config_byte(pci_dev, 0x40 + 8 * *index + 7, &setting);
 
-	if (!rs485)
-		rs485 = &port->rs485;
-	else if (rs485->flags & SER_RS485_ENABLED)
+	if (rs485->flags & SER_RS485_ENABLED)
 		memset(rs485->padding, 0, sizeof(rs485->padding));
 	else
 		memset(rs485, 0, sizeof(*rs485));
@@ -1689,7 +1687,7 @@ static int pci_fintek_init(struct pci_dev *dev)
 			 * pciserial_resume_ports()
 			 */
 			port = serial8250_get_port(priv->line[i]);
-			pci_fintek_rs485_config(&port->port, NULL);
+			uart_rs485_config(&port->port);
 		} else {
 			/* First init without port data
 			 * force init to RS232 Mode
