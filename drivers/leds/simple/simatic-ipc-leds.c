@@ -15,7 +15,6 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/pci.h>
-#include <linux/platform_data/x86/p2sb.h>
 #include <linux/platform_data/x86/simatic-ipc-base.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
@@ -24,7 +23,7 @@
 #define SIMATIC_IPC_LED_PORT_BASE	0x404E
 
 struct simatic_ipc_led {
-	unsigned int value; /* mask for io and offset for mem */
+	unsigned int value; /* mask for io */
 	char *name;
 	struct led_classdev cdev;
 };
@@ -36,21 +35,6 @@ static struct simatic_ipc_led simatic_ipc_leds_io[] = {
 	{1 << 6,  "yellow:" LED_FUNCTION_STATUS "-2" },
 	{1 << 13, "red:" LED_FUNCTION_STATUS "-3" },
 	{1 << 5,  "yellow:" LED_FUNCTION_STATUS "-3" },
-	{ }
-};
-
-/* the actual start will be discovered with p2sb, 0 is a placeholder */
-static struct resource simatic_ipc_led_mem_res = DEFINE_RES_MEM_NAMED(0, 0, KBUILD_MODNAME);
-
-static void __iomem *simatic_ipc_led_memory;
-
-static struct simatic_ipc_led simatic_ipc_leds_mem[] = {
-	{0x500 + 0x1A0, "red:" LED_FUNCTION_STATUS "-1"},
-	{0x500 + 0x1A8, "green:" LED_FUNCTION_STATUS "-1"},
-	{0x500 + 0x1C8, "red:" LED_FUNCTION_STATUS "-2"},
-	{0x500 + 0x1D0, "green:" LED_FUNCTION_STATUS "-2"},
-	{0x500 + 0x1E0, "red:" LED_FUNCTION_STATUS "-3"},
-	{0x500 + 0x198, "green:" LED_FUNCTION_STATUS "-3"},
 	{ }
 };
 
@@ -89,28 +73,6 @@ static enum led_brightness simatic_ipc_led_get_io(struct led_classdev *led_cd)
 	return inw(SIMATIC_IPC_LED_PORT_BASE) & led->value ? LED_OFF : led_cd->max_brightness;
 }
 
-static void simatic_ipc_led_set_mem(struct led_classdev *led_cd,
-				    enum led_brightness brightness)
-{
-	struct simatic_ipc_led *led = cdev_to_led(led_cd);
-	void __iomem *reg = simatic_ipc_led_memory + led->value;
-	u32 val;
-
-	val = readl(reg);
-	val = (val & ~1) | (brightness == LED_OFF);
-	writel(val, reg);
-}
-
-static enum led_brightness simatic_ipc_led_get_mem(struct led_classdev *led_cd)
-{
-	struct simatic_ipc_led *led = cdev_to_led(led_cd);
-	void __iomem *reg = simatic_ipc_led_memory + led->value;
-	u32 val;
-
-	val = readl(reg);
-	return (val & 1) ? LED_OFF : led_cd->max_brightness;
-}
-
 static int simatic_ipc_leds_probe(struct platform_device *pdev)
 {
 	const struct simatic_ipc_platform *plat = pdev->dev.platform_data;
@@ -118,9 +80,7 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 	struct simatic_ipc_led *ipcled;
 	struct led_classdev *cdev;
 	struct resource *res;
-	void __iomem *reg;
-	int err, type;
-	u32 val;
+	int err;
 
 	switch (plat->devmode) {
 	case SIMATIC_IPC_DEVICE_227D:
@@ -135,37 +95,10 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 			}
 			ipcled = simatic_ipc_leds_io;
 		}
-		type = IORESOURCE_IO;
 		if (!devm_request_region(dev, res->start, resource_size(res), KBUILD_MODNAME)) {
 			dev_err(dev, "Unable to register IO resource at %pR\n", res);
 			return -EBUSY;
 		}
-		break;
-	case SIMATIC_IPC_DEVICE_127E:
-		res = &simatic_ipc_led_mem_res;
-		ipcled = simatic_ipc_leds_mem;
-		type = IORESOURCE_MEM;
-
-		err = p2sb_bar(NULL, 0, res);
-		if (err)
-			return err;
-
-		/* do the final address calculation */
-		res->start = res->start + (0xC5 << 16);
-		res->end = res->start + SZ_4K - 1;
-
-		simatic_ipc_led_memory = devm_ioremap_resource(dev, res);
-		if (IS_ERR(simatic_ipc_led_memory))
-			return PTR_ERR(simatic_ipc_led_memory);
-
-		/* initialize power/watchdog LED */
-		reg = simatic_ipc_led_memory + 0x500 + 0x1D8; /* PM_WDT_OUT */
-		val = readl(reg);
-		writel(val & ~1, reg);
-
-		reg = simatic_ipc_led_memory + 0x500 + 0x1C0; /* PM_BIOS_BOOT_N */
-		val = readl(reg);
-		writel(val | 1, reg);
 		break;
 	default:
 		return -ENODEV;
@@ -173,13 +106,8 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 
 	while (ipcled->value) {
 		cdev = &ipcled->cdev;
-		if (type == IORESOURCE_MEM) {
-			cdev->brightness_set = simatic_ipc_led_set_mem;
-			cdev->brightness_get = simatic_ipc_led_get_mem;
-		} else {
-			cdev->brightness_set = simatic_ipc_led_set_io;
-			cdev->brightness_get = simatic_ipc_led_get_io;
-		}
+		cdev->brightness_set = simatic_ipc_led_set_io;
+		cdev->brightness_get = simatic_ipc_led_get_io;
 		cdev->max_brightness = LED_ON;
 		cdev->name = ipcled->name;
 
