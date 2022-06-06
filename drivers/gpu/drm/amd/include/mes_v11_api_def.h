@@ -508,25 +508,38 @@ union MESAPI__SET_DEBUG_VMID {
 };
 
 enum MESAPI_MISC_OPCODE {
-	MESAPI_MISC__MODIFY_REG,
+	MESAPI_MISC__WRITE_REG,
 	MESAPI_MISC__INV_GART,
 	MESAPI_MISC__QUERY_STATUS,
+	MESAPI_MISC__READ_REG,
+	MESAPI_MISC__WAIT_REG_MEM,
 	MESAPI_MISC__MAX,
-};
-
-enum MODIFY_REG_SUBCODE {
-	MODIFY_REG__OVERWRITE,
-	MODIFY_REG__RMW_OR,
-	MODIFY_REG__RMW_AND,
-	MODIFY_REG__MAX,
 };
 
 enum { MISC_DATA_MAX_SIZE_IN_DWORDS = 20 };
 
-struct MODIFY_REG {
-	enum MODIFY_REG_SUBCODE   subcode;
+struct WRITE_REG {
 	uint32_t                  reg_offset;
 	uint32_t                  reg_value;
+};
+
+struct READ_REG {
+	uint32_t                  reg_offset;
+	uint64_t                  buffer_addr;
+};
+
+enum WRM_OPERATION {
+	WRM_OPERATION__WAIT_REG_MEM,
+	WRM_OPERATION__WR_WAIT_WR_REG,
+	WRM_OPERATION__MAX,
+};
+
+struct WAIT_REG_MEM {
+	enum WRM_OPERATION         op;
+	uint32_t                   reference;
+	uint32_t                   mask;
+	uint32_t                   reg_offset1;
+	uint32_t                   reg_offset2;
 };
 
 struct INV_GART {
@@ -545,9 +558,11 @@ union MESAPI__MISC {
 		struct MES_API_STATUS	api_status;
 
 		union {
-			struct		MODIFY_REG modify_reg;
+			struct		WRITE_REG write_reg;
 			struct		INV_GART inv_gart;
 			struct		QUERY_STATUS query_status;
+			struct		READ_REG read_reg;
+			struct          WAIT_REG_MEM wait_reg_mem;
 			uint32_t	data[MISC_DATA_MAX_SIZE_IN_DWORDS];
 		};
 	};
