@@ -860,8 +860,8 @@ bool cros_ec_check_features(struct cros_ec_dev *ec, int feature)
 
 	if (features->flags[0] == -1U && features->flags[1] == -1U) {
 		/* features bitmap not read yet */
-		ret = cros_ec_command(ec->ec_dev, 0, EC_CMD_GET_FEATURES + ec->cmd_offset,
-				      NULL, 0, features, sizeof(*features));
+		ret = cros_ec_cmd(ec->ec_dev, 0, EC_CMD_GET_FEATURES + ec->cmd_offset,
+				  NULL, 0, features, sizeof(*features));
 		if (ret < 0) {
 			dev_warn(ec->dev, "cannot get EC features: %d\n", ret);
 			memset(features, 0, sizeof(*features));
@@ -942,7 +942,7 @@ int cros_ec_get_sensor_count(struct cros_ec_dev *ec)
 EXPORT_SYMBOL_GPL(cros_ec_get_sensor_count);
 
 /**
- * cros_ec_command - Send a command to the EC.
+ * cros_ec_cmd - Send a command to the EC.
  *
  * @ec_dev: EC device
  * @version: EC command version
@@ -954,13 +954,13 @@ EXPORT_SYMBOL_GPL(cros_ec_get_sensor_count);
  *
  * Return: >= 0 on success, negative error number on failure.
  */
-int cros_ec_command(struct cros_ec_device *ec_dev,
-		    unsigned int version,
-		    int command,
-		    void *outdata,
-		    int outsize,
-		    void *indata,
-		    int insize)
+int cros_ec_cmd(struct cros_ec_device *ec_dev,
+		unsigned int version,
+		int command,
+		void *outdata,
+		int outsize,
+		void *indata,
+		int insize)
 {
 	struct cros_ec_command *msg;
 	int ret;
@@ -987,4 +987,4 @@ error:
 	kfree(msg);
 	return ret;
 }
-EXPORT_SYMBOL_GPL(cros_ec_command);
+EXPORT_SYMBOL_GPL(cros_ec_cmd);
