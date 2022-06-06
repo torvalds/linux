@@ -40,14 +40,6 @@ static int lpc18xx_rs485_config(struct uart_port *port,
 	u32 rs485_dly_reg = 0;
 	unsigned baud_clk;
 
-	if (rs485->flags & SER_RS485_ENABLED)
-		memset(rs485->padding, 0, sizeof(rs485->padding));
-	else
-		memset(rs485, 0, sizeof(*rs485));
-
-	rs485->flags &= SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
-			SER_RS485_RTS_AFTER_SEND;
-
 	if (rs485->flags & SER_RS485_ENABLED) {
 		rs485_ctrl_reg |= LPC18XX_UART_RS485CTRL_NMMEN |
 				  LPC18XX_UART_RS485CTRL_DCTRL;
@@ -73,13 +65,8 @@ static int lpc18xx_rs485_config(struct uart_port *port,
 						/ baud_clk;
 	}
 
-	/* Delay RTS before send not supported */
-	rs485->delay_rts_before_send = 0;
-
 	serial_out(up, LPC18XX_UART_RS485CTRL, rs485_ctrl_reg);
 	serial_out(up, LPC18XX_UART_RS485DLY, rs485_dly_reg);
-
-	port->rs485 = *rs485;
 
 	return 0;
 }
