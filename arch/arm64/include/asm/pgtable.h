@@ -1001,7 +1001,8 @@ static inline void update_mmu_cache(struct vm_area_struct *vma,
  */
 static inline bool arch_faults_on_old_pte(void)
 {
-	WARN_ON(preemptible());
+	/* The register read below requires a stable CPU to make any sense */
+	cant_migrate();
 
 	return !cpu_has_hw_af();
 }
