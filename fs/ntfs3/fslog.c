@@ -3843,6 +3843,8 @@ int log_replay(struct ntfs_inode *ni, bool *initialized)
 
 	memset(&rst_info2, 0, sizeof(struct restart_info));
 	err = log_read_rst(log, l_size, false, &rst_info2);
+	if (err)
+		goto out;
 
 	/* Determine which restart area to use. */
 	if (!rst_info2.restart || rst_info2.last_lsn <= rst_info.last_lsn)
