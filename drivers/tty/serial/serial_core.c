@@ -1280,6 +1280,11 @@ static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs4
 {
 	u32 supported_flags = port->rs485_supported->flags;
 
+	if (!(rs485->flags & SER_RS485_ENABLED)) {
+		memset(rs485, 0, sizeof(*rs485));
+		return;
+	}
+
 	/* pick sane settings if the user hasn't */
 	if ((supported_flags & (SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND)) &&
 	    !(rs485->flags & SER_RS485_RTS_ON_SEND) ==
@@ -1329,10 +1334,15 @@ static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs4
 int uart_rs485_config(struct uart_port *port)
 {
 	struct serial_rs485 *rs485 = &port->rs485;
+	int ret;
 
 	uart_sanitize_serial_rs485(port, rs485);
 
-	return port->rs485_config(port, rs485);
+	ret = port->rs485_config(port, rs485);
+	if (ret)
+		memset(rs485, 0, sizeof(*rs485));
+
+	return ret;
 }
 EXPORT_SYMBOL_GPL(uart_rs485_config);
 
