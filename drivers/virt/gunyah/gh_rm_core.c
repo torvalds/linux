@@ -695,6 +695,10 @@ void *gh_rm_call(gh_rm_msgid_t message_id,
 	/* Wait for response */
 	wait_for_completion(&connection->seq_done);
 
+	mutex_lock(&gh_rm_call_idr_lock);
+	idr_remove(&gh_rm_call_idr, connection->seq);
+	mutex_unlock(&gh_rm_call_idr_lock);
+
 	*rm_error = connection->rm_error;
 	if (connection->rm_error) {
 		pr_err("%s: Reply for seq:%d failed with RM err: %d\n",
@@ -713,10 +717,6 @@ void *gh_rm_call(gh_rm_msgid_t message_id,
 	print_hex_dump_debug("@"__stringify(__func__)" RX: ", DUMP_PREFIX_OFFSET, 4, 1,
 			     connection->payload, connection->size,
 			     false);
-
-	mutex_lock(&gh_rm_call_idr_lock);
-	idr_remove(&gh_rm_call_idr, connection->seq);
-	mutex_unlock(&gh_rm_call_idr_lock);
 
 	ret = connection->payload;
 	*resp_buff_size = connection->size;
