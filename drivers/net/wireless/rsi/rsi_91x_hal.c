@@ -443,7 +443,7 @@ int rsi_prepare_beacon(struct rsi_common *common, struct sk_buff *skb)
 		return -EINVAL;
 	mac_bcn = ieee80211_beacon_get_tim(adapter->hw,
 					   vif,
-					   &tim_offset, NULL);
+					   &tim_offset, NULL, 0);
 	if (!mac_bcn) {
 		rsi_dbg(ERR_ZONE, "Failed to get beacon from mac80211\n");
 		return -EINVAL;

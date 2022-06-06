@@ -1010,7 +1010,7 @@ static void wcn36xx_bss_info_changed(struct ieee80211_hw *hw,
 			wcn36xx_smd_config_bss(wcn, vif, NULL,
 					       vif->addr, false);
 			skb = ieee80211_beacon_get_tim(hw, vif, &tim_off,
-						       &tim_len);
+						       &tim_len, 0);
 			if (!skb) {
 				wcn36xx_err("failed to alloc beacon skb\n");
 				goto out;

@@ -1908,7 +1908,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	    vif->type != NL80211_IFTYPE_OCB)
 		return;
 
-	skb = ieee80211_beacon_get(hw, vif);
+	skb = ieee80211_beacon_get(hw, vif, 0);
 	if (skb == NULL)
 		return;
 	info = IEEE80211_SKB_CB(skb);

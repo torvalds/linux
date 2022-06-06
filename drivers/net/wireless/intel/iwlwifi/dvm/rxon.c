@@ -183,7 +183,7 @@ static int iwlagn_update_beacon(struct iwl_priv *priv,
 	lockdep_assert_held(&priv->mutex);
 
 	dev_kfree_skb(priv->beacon_skb);
-	priv->beacon_skb = ieee80211_beacon_get(priv->hw, vif);
+	priv->beacon_skb = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!priv->beacon_skb)
 		return -ENOMEM;
 	return iwlagn_send_beacon_cmd(priv);

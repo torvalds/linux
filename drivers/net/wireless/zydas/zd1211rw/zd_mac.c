@@ -398,7 +398,7 @@ int zd_restore_settings(struct zd_mac *mac)
 	    mac->type == NL80211_IFTYPE_ADHOC ||
 	    mac->type == NL80211_IFTYPE_AP) {
 		if (mac->vif != NULL) {
-			beacon = ieee80211_beacon_get(mac->hw, mac->vif);
+			beacon = ieee80211_beacon_get(mac->hw, mac->vif, 0);
 			if (beacon)
 				zd_mac_config_beacon(mac->hw, beacon, false);
 		}
@@ -1167,7 +1167,7 @@ static void zd_beacon_done(struct zd_mac *mac)
 	/*
 	 * Fetch next beacon so that tim_count is updated.
 	 */
-	beacon = ieee80211_beacon_get(mac->hw, mac->vif);
+	beacon = ieee80211_beacon_get(mac->hw, mac->vif, 0);
 	if (beacon)
 		zd_mac_config_beacon(mac->hw, beacon, true);
 
@@ -1290,7 +1290,8 @@ static void zd_op_bss_info_changed(struct ieee80211_hw *hw,
 	    mac->type == NL80211_IFTYPE_AP) {
 		associated = true;
 		if (changes & BSS_CHANGED_BEACON) {
-			struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+			struct sk_buff *beacon = ieee80211_beacon_get(hw, vif,
+								      0);
 
 			if (beacon) {
 				zd_chip_disable_hwint(&mac->chip);
@@ -1447,7 +1448,7 @@ static void beacon_watchdog_handler(struct work_struct *work)
 
 		zd_chip_disable_hwint(&mac->chip);
 
-		beacon = ieee80211_beacon_get(mac->hw, mac->vif);
+		beacon = ieee80211_beacon_get(mac->hw, mac->vif, 0);
 		if (beacon) {
 			zd_mac_free_cur_beacon(mac);
 

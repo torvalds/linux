@@ -1630,7 +1630,7 @@ static int ath10k_mac_setup_bcn_tmpl(struct ath10k_vif *arvif)
 	    arvif->vdev_type != WMI_VDEV_TYPE_IBSS)
 		return 0;
 
-	bcn = ieee80211_beacon_get_template(hw, vif, &offs);
+	bcn = ieee80211_beacon_get_template(hw, vif, &offs, 0);
 	if (!bcn) {
 		ath10k_warn(ar, "failed to get beacon template from mac80211\n");
 		return -EPERM;

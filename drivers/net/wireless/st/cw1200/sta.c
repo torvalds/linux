@@ -1671,7 +1671,7 @@ static int cw1200_set_tim_impl(struct cw1200_common *priv, bool aid0_bit_set)
 	pr_debug("[AP] mcast: %s.\n", aid0_bit_set ? "ena" : "dis");
 
 	skb = ieee80211_beacon_get_tim(priv->hw, priv->vif,
-			&tim_offset, &tim_length);
+				       &tim_offset, &tim_length, 0);
 	if (!skb) {
 		if (!__cw1200_flush(priv, true))
 			wsm_unlock_tx(priv);
@@ -2203,7 +2203,7 @@ static int cw1200_upload_beacon(struct cw1200_common *priv)
 		frame.rate = WSM_TRANSMIT_RATE_6;
 
 	frame.skb = ieee80211_beacon_get_tim(priv->hw, priv->vif,
-					     &tim_offset, &tim_len);
+					     &tim_offset, &tim_len, 0);
 	if (!frame.skb)
 		return -ENOMEM;
 

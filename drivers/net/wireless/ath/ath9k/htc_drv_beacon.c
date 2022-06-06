@@ -215,7 +215,7 @@ static void ath9k_htc_send_beacon(struct ath9k_htc_priv *priv,
 	}
 
 	/* Get a new beacon */
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon) {
 		spin_unlock_bh(&priv->beacon_lock);
 		return;

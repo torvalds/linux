@@ -1186,7 +1186,7 @@ static void wl1251_op_bss_info_changed(struct ieee80211_hw *hw,
 	}
 
 	if (changed & BSS_CHANGED_BEACON) {
-		beacon = ieee80211_beacon_get(hw, vif);
+		beacon = ieee80211_beacon_get(hw, vif, 0);
 		if (!beacon)
 			goto out_sleep;
 

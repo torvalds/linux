@@ -1628,7 +1628,7 @@ int carl9170_update_beacon(struct ar9170 *ar, const bool submit)
 		goto out_unlock;
 
 	skb = ieee80211_beacon_get_tim(ar->hw, carl9170_get_vif(cvif),
-		NULL, NULL);
+				       NULL, NULL, 0);
 
 	if (!skb) {
 		err = -ENOMEM;

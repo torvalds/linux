@@ -1241,7 +1241,7 @@ static void b43legacy_update_templates(struct b43legacy_wl *wl)
 	 * field, but that would probably require resizing and moving of data
 	 * within the beacon template. Simply request a new beacon and let
 	 * mac80211 do the hard work. */
-	beacon = ieee80211_beacon_get(wl->hw, wl->vif);
+	beacon = ieee80211_beacon_get(wl->hw, wl->vif, 0);
 	if (unlikely(!beacon))
 		return;
 

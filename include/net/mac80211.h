@@ -5069,6 +5069,7 @@ struct ieee80211_mutable_offsets {
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
  * @offs: &struct ieee80211_mutable_offsets pointer to struct that will
  *	receive the offsets that may be updated by the driver.
+ * @link_id: the link id to which the beacon belongs (or 0 for a non-MLD AP)
  *
  * If the driver implements beaconing modes, it must use this function to
  * obtain the beacon template.
@@ -5085,7 +5086,8 @@ struct ieee80211_mutable_offsets {
 struct sk_buff *
 ieee80211_beacon_get_template(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif,
-			      struct ieee80211_mutable_offsets *offs);
+			      struct ieee80211_mutable_offsets *offs,
+			      unsigned int link_id);
 
 /**
  * ieee80211_beacon_get_tim - beacon generation function
@@ -5096,6 +5098,7 @@ ieee80211_beacon_get_template(struct ieee80211_hw *hw,
  * @tim_length: pointer to variable that will receive the TIM IE length,
  *	(including the ID and length bytes!).
  *	Set to 0 if invalid (in non-AP modes).
+ * @link_id: the link id to which the beacon belongs (or 0 for a non-MLD AP)
  *
  * If the driver implements beaconing modes, it must use this function to
  * obtain the beacon frame.
@@ -5111,21 +5114,24 @@ ieee80211_beacon_get_template(struct ieee80211_hw *hw,
  */
 struct sk_buff *ieee80211_beacon_get_tim(struct ieee80211_hw *hw,
 					 struct ieee80211_vif *vif,
-					 u16 *tim_offset, u16 *tim_length);
+					 u16 *tim_offset, u16 *tim_length,
+					 unsigned int link_id);
 
 /**
  * ieee80211_beacon_get - beacon generation function
  * @hw: pointer obtained from ieee80211_alloc_hw().
  * @vif: &struct ieee80211_vif pointer from the add_interface callback.
+ * @link_id: the link id to which the beacon belongs (or 0 for a non-MLD AP)
  *
  * See ieee80211_beacon_get_tim().
  *
  * Return: See ieee80211_beacon_get_tim().
  */
 static inline struct sk_buff *ieee80211_beacon_get(struct ieee80211_hw *hw,
-						   struct ieee80211_vif *vif)
+						   struct ieee80211_vif *vif,
+						   unsigned int link_id)
 {
-	return ieee80211_beacon_get_tim(hw, vif, NULL, NULL);
+	return ieee80211_beacon_get_tim(hw, vif, NULL, NULL, link_id);
 }
 
 /**

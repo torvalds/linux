@@ -678,7 +678,7 @@ brcms_ops_bss_info_changed(struct ieee80211_hw *hw,
 		u16 tim_offset = 0;
 
 		spin_lock_bh(&wl->lock);
-		beacon = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL);
+		beacon = ieee80211_beacon_get_tim(hw, vif, &tim_offset, NULL, 0);
 		brcms_c_set_new_beacon(wl->wlc, beacon, tim_offset,
 				       info->dtim_period);
 		spin_unlock_bh(&wl->lock);
@@ -950,7 +950,7 @@ static int brcms_ops_beacon_set_tim(struct ieee80211_hw *hw,
 	spin_lock_bh(&wl->lock);
 	if (wl->wlc->vif)
 		beacon = ieee80211_beacon_get_tim(hw, wl->wlc->vif,
-						  &tim_offset, NULL);
+						  &tim_offset, NULL, 0);
 	if (beacon)
 		brcms_c_set_new_beacon(wl->wlc, beacon, tim_offset,
 				       wl->wlc->vif->bss_conf.dtim_period);

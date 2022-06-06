@@ -339,7 +339,7 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 	struct ieee80211_vif *vif = wvif_to_vif(wvif);
 	struct sk_buff *skb;
 
-	skb = ieee80211_beacon_get(wvif->wdev->hw, vif);
+	skb = ieee80211_beacon_get(wvif->wdev->hw, vif, 0);
 	if (!skb)
 		return -ENOMEM;
 	wfx_hif_set_template_frame(wvif, skb, HIF_TMPLT_BCN, API_RATE_INDEX_B_1MBPS);
@@ -356,7 +356,7 @@ static int wfx_upload_ap_templates(struct wfx_vif *wvif)
 static void wfx_set_mfp_ap(struct wfx_vif *wvif)
 {
 	struct ieee80211_vif *vif = wvif_to_vif(wvif);
-	struct sk_buff *skb = ieee80211_beacon_get(wvif->wdev->hw, vif);
+	struct sk_buff *skb = ieee80211_beacon_get(wvif->wdev->hw, vif, 0);
 	const int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	const u16 *ptr = (u16 *)cfg80211_find_ie(WLAN_EID_RSN, skb->data + ieoffset,
 						 skb->len - ieoffset);
@@ -588,7 +588,7 @@ static int wfx_update_tim(struct wfx_vif *wvif)
 	u8 *tim_ptr;
 
 	skb = ieee80211_beacon_get_tim(wvif->wdev->hw, vif, &tim_offset,
-				       &tim_length);
+				       &tim_length, 0);
 	if (!skb)
 		return -ENOENT;
 	tim_ptr = skb->data + tim_offset;

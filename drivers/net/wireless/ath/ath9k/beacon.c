@@ -135,7 +135,7 @@ static struct ath_buf *ath9k_beacon_generate(struct ieee80211_hw *hw,
 		bf->bf_mpdu = NULL;
 	}
 
-	skb = ieee80211_beacon_get(hw, vif);
+	skb = ieee80211_beacon_get(hw, vif, 0);
 	if (skb == NULL)
 		return NULL;
 

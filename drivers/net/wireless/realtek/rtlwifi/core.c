@@ -1009,7 +1009,7 @@ static void send_beacon_frame(struct ieee80211_hw *hw,
 			      struct ieee80211_vif *vif)
 {
 	struct rtl_priv *rtlpriv = rtl_priv(hw);
-	struct sk_buff *skb = ieee80211_beacon_get(hw, vif);
+	struct sk_buff *skb = ieee80211_beacon_get(hw, vif, 0);
 	struct rtl_tcb_desc tcb_desc;
 
 	if (skb) {

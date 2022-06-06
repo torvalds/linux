@@ -4039,7 +4039,7 @@ static int wlcore_set_beacon_template(struct wl1271 *wl,
 	u32 min_rate;
 	int ret;
 	int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
-	struct sk_buff *beacon = ieee80211_beacon_get(wl->hw, vif);
+	struct sk_buff *beacon = ieee80211_beacon_get(wl->hw, vif, 0);
 	u16 tmpl_id;
 
 	if (!beacon) {
@@ -5493,7 +5493,7 @@ static const void *wlcore_get_beacon_ie(struct wl1271 *wl,
 {
 	int ieoffset = offsetof(struct ieee80211_mgmt, u.beacon.variable);
 	struct sk_buff *beacon =
-		ieee80211_beacon_get(wl->hw, wl12xx_wlvif_to_vif(wlvif));
+		ieee80211_beacon_get(wl->hw, wl12xx_wlvif_to_vif(wlvif), 0);
 
 	if (!beacon)
 		return NULL;

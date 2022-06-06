@@ -139,7 +139,7 @@ static int p54_beacon_update(struct p54_common *priv,
 	struct sk_buff *beacon;
 	int ret;
 
-	beacon = ieee80211_beacon_get(priv->hw, vif);
+	beacon = ieee80211_beacon_get(priv->hw, vif, 0);
 	if (!beacon)
 		return -ENOMEM;
 	ret = p54_beacon_format_ie_tim(beacon);

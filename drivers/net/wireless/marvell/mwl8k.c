@@ -5147,7 +5147,7 @@ mwl8k_bss_info_changed_ap(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (changed & (BSS_CHANGED_BEACON_INT | BSS_CHANGED_BEACON)) {
 		struct sk_buff *skb;
 
-		skb = ieee80211_beacon_get(hw, vif);
+		skb = ieee80211_beacon_get(hw, vif, 0);
 		if (skb != NULL) {
 			mwl8k_cmd_set_beacon(hw, vif, skb->data, skb->len);
 			kfree_skb(skb);

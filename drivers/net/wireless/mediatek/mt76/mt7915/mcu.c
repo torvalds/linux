@@ -2086,7 +2086,7 @@ int mt7915_mcu_add_beacon(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 	if (!en)
 		goto out;
 
-	skb = ieee80211_beacon_get_template(hw, vif, &offs);
+	skb = ieee80211_beacon_get_template(hw, vif, &offs, 0);
 	if (!skb)
 		return -EINVAL;
 

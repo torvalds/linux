@@ -133,7 +133,7 @@ int plfxlc_restore_settings(struct plfxlc_mac *mac)
 		return 0;
 
 	if (mac->vif) {
-		beacon = ieee80211_beacon_get(mac->hw, mac->vif);
+		beacon = ieee80211_beacon_get(mac->hw, mac->vif, 0);
 		if (beacon) {
 			/*beacon is hardcoded in firmware */
 			kfree_skb(beacon);
@@ -601,7 +601,7 @@ static void plfxlc_op_bss_info_changed(struct ieee80211_hw *hw,
 	/* for ADHOC */
 	associated = true;
 	if (changes & BSS_CHANGED_BEACON) {
-		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif);
+		struct sk_buff *beacon = ieee80211_beacon_get(hw, vif, 0);
 
 		if (beacon) {
 			/*beacon is hardcoded in firmware */
