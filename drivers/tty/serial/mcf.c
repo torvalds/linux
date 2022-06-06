@@ -448,7 +448,6 @@ static int mcf_config_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 	}
 	writeb(mr1, port->membase + MCFUART_UMR);
 	writeb(mr2, port->membase + MCFUART_UMR);
-	port->rs485 = *rs485;
 
 	return 0;
 }
