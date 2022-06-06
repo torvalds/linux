@@ -675,16 +675,10 @@ static int dmatest_func(void *data)
 	/*
 	 * src and dst buffers are freed by ourselves below
 	 */
-	if (params->polled) {
+	if (params->polled)
 		flags = DMA_CTRL_ACK;
-	} else {
-		if (dma_has_cap(DMA_INTERRUPT, dev->cap_mask)) {
-			flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
-		} else {
-			pr_err("Channel does not support interrupt!\n");
-			goto err_pq_array;
-		}
-	}
+	else
+		flags = DMA_CTRL_ACK | DMA_PREP_INTERRUPT;
 
 	ktime = ktime_get();
 	while (!(kthread_should_stop() ||
@@ -912,7 +906,6 @@ error_unmap_continue:
 	runtime = ktime_to_us(ktime);
 
 	ret = 0;
-err_pq_array:
 	kfree(dma_pq);
 err_srcs_array:
 	kfree(srcs);
