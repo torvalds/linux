@@ -671,7 +671,7 @@ out:
 	return rc;
 }
 
-static int
+int
 SMB3_request_interfaces(const unsigned int xid, struct cifs_tcon *tcon)
 {
 	int rc;
