@@ -450,16 +450,26 @@ static int rt711_set_jack_detect(struct snd_soc_component *component,
 	struct snd_soc_jack *hs_jack, void *data)
 {
 	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
+	int ret;
 
 	rt711->hs_jack = hs_jack;
 
-	if (!rt711->hw_init) {
-		dev_dbg(&rt711->slave->dev,
-			"%s hw_init not ready yet\n", __func__);
+	ret = pm_runtime_resume_and_get(component->dev);
+	if (ret < 0) {
+		if (ret != -EACCES) {
+			dev_err(component->dev, "%s: failed to resume %d\n", __func__, ret);
+			return ret;
+		}
+
+		/* pm_runtime not enabled yet */
+		dev_dbg(component->dev,	"%s: skipping jack init for now\n", __func__);
 		return 0;
 	}
 
 	rt711_jack_init(rt711);
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 
 	return 0;
 }
@@ -925,13 +935,6 @@ static int rt711_probe(struct snd_soc_component *component)
 	return 0;
 }
 
-static void rt711_remove(struct snd_soc_component *component)
-{
-	struct rt711_priv *rt711 = snd_soc_component_get_drvdata(component);
-
-	regcache_cache_only(rt711->regmap, true);
-}
-
 static const struct snd_soc_component_driver soc_codec_dev_rt711 = {
 	.probe = rt711_probe,
 	.set_bias_level = rt711_set_bias_level,
@@ -942,7 +945,6 @@ static const struct snd_soc_component_driver soc_codec_dev_rt711 = {
 	.dapm_routes = rt711_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt711_audio_map),
 	.set_jack = rt711_set_jack_detect,
-	.remove = rt711_remove,
 	.endianness = 1,
 };
 
