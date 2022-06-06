@@ -149,6 +149,11 @@ static bool dw8250_detect_rs485_hw(struct uart_port *p)
 	return reg;
 }
 
+static const struct serial_rs485 dw8250_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RX_DURING_TX | SER_RS485_RTS_ON_SEND |
+		 SER_RS485_RTS_AFTER_SEND,
+};
+
 void dw8250_setup_port(struct uart_port *p)
 {
 	struct dw8250_port_data *pd = p->private_data;
@@ -159,8 +164,10 @@ void dw8250_setup_port(struct uart_port *p)
 	pd->hw_rs485_support = dw8250_detect_rs485_hw(p);
 	if (pd->hw_rs485_support) {
 		p->rs485_config = dw8250_rs485_config;
+		p->rs485_supported = &dw8250_rs485_supported;
 	} else {
 		p->rs485_config = serial8250_em485_config;
+		p->rs485_supported = &serial8250_em485_supported;
 		up->rs485_start_tx = serial8250_em485_start_tx;
 		up->rs485_stop_tx = serial8250_em485_stop_tx;
 	}
