@@ -38,10 +38,14 @@ RS485 Serial Communications
    the values given by the device tree.
 
    Any driver for devices capable of working both as RS232 and RS485 should
-   implement the rs485_config callback in the uart_port structure. The
-   serial_core calls rs485_config to do the device specific part in response
-   to TIOCSRS485 and TIOCGRS485 ioctls (see below). The rs485_config callback
-   receives a pointer to struct serial_rs485.
+   implement the rs485_config callback and provide rs485_supported in the
+   uart_port structure. The serial core calls rs485_config to do the device
+   specific part in response to TIOCSRS485 ioctl (see below). The rs485_config
+   callback receives a pointer to a sanitizated serial_rs485 structure. The
+   serial_rs485 userspace provides is sanitized before calling rs485_config
+   using rs485_supported that indicates what RS485 features the driver supports
+   for the uart_port. TIOCGRS485 ioctl can be used to read back the
+   serial_rs485 structure matching to the current configuration.
 
 4. Usage from user-level
 ========================

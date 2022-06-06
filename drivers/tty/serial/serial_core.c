@@ -1278,36 +1278,61 @@ static int uart_get_icount(struct tty_struct *tty,
 
 static void uart_sanitize_serial_rs485(struct uart_port *port, struct serial_rs485 *rs485)
 {
+	u32 supported_flags = port->rs485_supported->flags;
+
 	/* pick sane settings if the user hasn't */
-	if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
+	if ((supported_flags & (SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND)) &&
+	    !(rs485->flags & SER_RS485_RTS_ON_SEND) ==
 	    !(rs485->flags & SER_RS485_RTS_AFTER_SEND)) {
 		dev_warn_ratelimited(port->dev,
 			"%s (%d): invalid RTS setting, using RTS_ON_SEND instead\n",
 			port->name, port->line);
 		rs485->flags |= SER_RS485_RTS_ON_SEND;
 		rs485->flags &= ~SER_RS485_RTS_AFTER_SEND;
+		supported_flags |= SER_RS485_RTS_ON_SEND|SER_RS485_RTS_AFTER_SEND;
 	}
 
-	if (rs485->delay_rts_before_send > RS485_MAX_RTS_DELAY) {
+	if (!port->rs485_supported->delay_rts_before_send) {
+		if (rs485->delay_rts_before_send) {
+			dev_warn_ratelimited(port->dev,
+				"%s (%d): RTS delay before sending not supported\n",
+				port->name, port->line);
+		}
+		rs485->delay_rts_before_send = 0;
+	} else if (rs485->delay_rts_before_send > RS485_MAX_RTS_DELAY) {
 		rs485->delay_rts_before_send = RS485_MAX_RTS_DELAY;
 		dev_warn_ratelimited(port->dev,
 			"%s (%d): RTS delay before sending clamped to %u ms\n",
 			port->name, port->line, rs485->delay_rts_before_send);
 	}
 
-	if (rs485->delay_rts_after_send > RS485_MAX_RTS_DELAY) {
+	if (!port->rs485_supported->delay_rts_after_send) {
+		if (rs485->delay_rts_after_send) {
+			dev_warn_ratelimited(port->dev,
+				"%s (%d): RTS delay after sending not supported\n",
+				port->name, port->line);
+		}
+		rs485->delay_rts_after_send = 0;
+	} else if (rs485->delay_rts_after_send > RS485_MAX_RTS_DELAY) {
 		rs485->delay_rts_after_send = RS485_MAX_RTS_DELAY;
 		dev_warn_ratelimited(port->dev,
 			"%s (%d): RTS delay after sending clamped to %u ms\n",
 			port->name, port->line, rs485->delay_rts_after_send);
 	}
+
+	rs485->flags &= supported_flags;
+
 	/* Return clean padding area to userspace */
 	memset(rs485->padding, 0, sizeof(rs485->padding));
 }
 
 int uart_rs485_config(struct uart_port *port)
 {
-	return port->rs485_config(port, &port->rs485);
+	struct serial_rs485 *rs485 = &port->rs485;
+
+	uart_sanitize_serial_rs485(port, rs485);
+
+	return port->rs485_config(port, rs485);
 }
 EXPORT_SYMBOL_GPL(uart_rs485_config);
 
