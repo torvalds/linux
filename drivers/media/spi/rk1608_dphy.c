@@ -235,6 +235,10 @@ static int rk1608_g_frame_interval(struct v4l2_subdev *sd,
 {
 	struct rk1608_dphy *pdata = to_state(sd);
 
+	if (!(pdata->rk1608_sd)) {
+		dev_info(pdata->dev, "pdata->rk1608_sd NULL\n");
+		return -EFAULT;
+	}
 	pdata->rk1608_sd->grp_id = sd->grp_id;
 	v4l2_subdev_call(pdata->rk1608_sd,
 			 video,
@@ -597,6 +601,7 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 	struct device_node *parent_node = of_node_get(node);
 	struct device_node *prev_node = NULL;
 	u32 idx = 0;
+	u32 sub_idx = 0;
 
 	ret = of_property_read_u32(node, "id", &dphy->sd.grp_id);
 	if (ret)
@@ -753,6 +758,53 @@ static int rk1608_dphy_dt_property(struct rk1608_dphy *dphy)
 		prev_node = node;
 	}
 	dphy->fmt_inf_num = idx;
+
+	prev_node = NULL;
+	/* get virtual sub sensor */
+	node = NULL;
+	while (!IS_ERR_OR_NULL(node =
+				of_get_next_child(parent_node, prev_node))) {
+		if (!strncasecmp(node->name,
+				 "virtual-sub-sensor-config",
+				 strlen("virtual-sub-sensor-config"))) {
+
+			if (sub_idx >= 4) {
+				dev_err(dphy->dev, "get too mach sub_sensor node, max 4.\n");
+				break;
+			}
+
+			ret = of_property_read_u32(node, "id",
+				&dphy->sub_sensor[sub_idx].id);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get sub sensor id!");
+			else
+				dev_info(dphy->dev, "get sub sensor id:%d",
+						dphy->sub_sensor[sub_idx].id);
+
+			ret = of_property_read_u32(node, "in_mipi",
+				&dphy->sub_sensor[sub_idx].in_mipi);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get sub sensor in_mipi!");
+			else
+				dev_info(dphy->dev, "get sub sensor in_mipi:%d",
+						dphy->sub_sensor[sub_idx].in_mipi);
+
+			ret = of_property_read_u32(node, "out_mipi",
+				&dphy->sub_sensor[sub_idx].out_mipi);
+			if (ret)
+				dev_warn(dphy->dev, "Can not get sub sensor out_mipi!");
+			else
+				dev_info(dphy->dev, "get sub sensor out_mipi:%d",
+						dphy->sub_sensor[sub_idx].out_mipi);
+
+			sub_idx++;
+		}
+
+		of_node_put(prev_node);
+		prev_node = node;
+	}
+	dphy->sub_sensor_num = sub_idx;
+	/* get virtual sub sensor end */
 
 	of_node_put(prev_node);
 	of_node_put(parent_node);

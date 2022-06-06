@@ -28,6 +28,13 @@ struct rk1608_fmt_inf {
 	u32 vcrop;
 };
 
+struct rk1608_sub_sensor_cfg {
+	u32 id;
+	u32 in_mipi;
+	u32 out_mipi;
+	u32 reserved;
+};
+
 struct rk1608_dphy {
 	struct v4l2_subdev sd;
 	struct v4l2_subdev *rk1608_sd;
@@ -63,6 +70,10 @@ struct rk1608_dphy {
 	struct rk1608_fmt_inf fmt_inf[RK1608_MAX_FMTINF];
 
 	bool first_stream;
+
+	/* for virtual sub sensor */
+	u32 sub_sensor_num;
+	struct rk1608_sub_sensor_cfg sub_sensor[4];
 };
 
 #endif

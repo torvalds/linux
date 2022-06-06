@@ -556,16 +556,17 @@ static int rk1608_lsb_w32(struct spi_device *spi, s32 addr, s32 data)
 }
 
 static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
-				  struct msg_init *msg, int id)
+		struct msg_init *msg, int in_mipi, int out_mipi,
+		int id, int cam_id)
 {
 	u32 idx = pdata->dphy[id]->fmt_inf_idx;
 
 	msg->msg_head.size = sizeof(struct msg_init);
 	msg->msg_head.type = id_msg_init_sensor_t;
-	msg->msg_head.id.camera_id = id;
+	msg->msg_head.id.camera_id = cam_id;
 	msg->msg_head.mux.sync = 1;
-	msg->in_mipi_phy = pdata->dphy[id]->in_mipi;
-	msg->out_mipi_phy = pdata->dphy[id]->out_mipi;
+	msg->in_mipi_phy = in_mipi;
+	msg->out_mipi_phy = out_mipi;
 	msg->mipi_lane = pdata->dphy[id]->fmt_inf[idx].mipi_lane;
 	msg->bayer = 0;
 	memcpy(msg->sensor_name, pdata->dphy[id]->sensor_name,
@@ -573,6 +574,7 @@ static int rk1608_msg_init_sensor(struct rk1608_state *pdata,
 
 	msg->i2c_slave_addr = pdata->dphy[id]->i2c_addr;
 	msg->i2c_bus = pdata->dphy[id]->i2c_bus;
+	msg->sub_sensor_num = pdata->dphy[id]->sub_sensor_num;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
 }
@@ -598,7 +600,7 @@ static int rk1608_msg_init_dsp_time(struct rk1608_state *pdata,
 }
 
 static int rk1608_msg_set_input_size(struct rk1608_state *pdata,
-				     struct msg_in_size *msg, int id)
+				     struct msg_in_size *msg, int id, int cam_id)
 {
 	u32 i;
 	u32 msg_size = sizeof(struct msg);
@@ -620,14 +622,14 @@ static int rk1608_msg_set_input_size(struct rk1608_state *pdata,
 
 	msg->msg_head.size = msg_size / sizeof(int);
 	msg->msg_head.type = id_msg_set_input_size_t;
-	msg->msg_head.id.camera_id = id;
+	msg->msg_head.id.camera_id = cam_id;
 	msg->msg_head.mux.sync = 1;
 
 	return rk1608_send_msg_to_dsp(pdata, &msg->msg_head);
 }
 
 static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
-				      struct msg_set_output_size *msg, int id)
+		struct msg_set_output_size *msg, int id, int cam_id)
 {
 	u32 i;
 	u32 msg_size = sizeof(struct msg_out_size_head);
@@ -649,7 +651,7 @@ static int rk1608_msg_set_output_size(struct rk1608_state *pdata,
 
 	msg->head.msg_head.size = msg_size / sizeof(int);
 	msg->head.msg_head.type = id_msg_set_output_size_t;
-	msg->head.msg_head.id.camera_id = id;
+	msg->head.msg_head.id.camera_id = cam_id;
 	msg->head.msg_head.mux.sync = 1;
 	msg->head.width = fmt_inf->hactive;
 	msg->head.height = fmt_inf->vactive;
@@ -933,6 +935,54 @@ static int rk1608_disp_read_eeprom_request(struct rk1608_state *pdata)
 	return ret;
 }
 
+static int rk1608_init_virtual_sub_sensor(
+		struct rk1608_state *pdata, int id, int index)
+{
+	struct msg *msg = NULL;
+	struct msg_init *msg_init = NULL;
+	struct msg_in_size *msg_in_size = NULL;
+	struct msg_set_output_size *msg_out_size = NULL;
+	int cam_id = pdata->dphy[id]->sub_sensor[index].id;
+	int in_mipi = pdata->dphy[id]->sub_sensor[index].in_mipi;
+	int out_mipi = pdata->dphy[id]->sub_sensor[index].out_mipi;
+	int ret = 0;
+
+	msg = kzalloc(sizeof(*msg), GFP_KERNEL);
+	if (!msg) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	msg_init = kzalloc(sizeof(*msg_init), GFP_KERNEL);
+	if (!msg_init) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	msg_in_size = kzalloc(sizeof(*msg_in_size), GFP_KERNEL);
+	if (!msg_in_size) {
+		ret = -ENOMEM;
+		goto err;
+	}
+	msg_out_size = kzalloc(sizeof(*msg_out_size), GFP_KERNEL);
+	if (!msg_out_size) {
+		ret = -ENOMEM;
+		goto err;
+	}
+
+	ret = rk1608_msg_init_sensor(pdata, msg_init, in_mipi, out_mipi, id, cam_id);
+	ret |= rk1608_msg_set_input_size(pdata, msg_in_size, id, cam_id);
+	ret |= rk1608_msg_set_output_size(pdata, msg_out_size, id, cam_id);
+	ret |= rk1608_msg_set_stream_in_on(pdata, msg, cam_id);
+
+err:
+	kfree(msg_init);
+	kfree(msg_in_size);
+	kfree(msg_out_size);
+	kfree(msg);
+
+	return ret;
+}
+
 static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 {
 	struct msg *msg = NULL;
@@ -940,6 +990,9 @@ static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 	struct msg_in_size *msg_in_size = NULL;
 	struct msg_set_output_size *msg_out_size = NULL;
 	struct msg_init_dsp_time *msg_init_time = NULL;
+	int in_mipi = pdata->dphy[id]->in_mipi;
+	int out_mipi = pdata->dphy[id]->out_mipi;
+	int cam_id = id;
 	int ret = 0;
 
 	if (!pdata->sensor[id]) {
@@ -975,12 +1028,13 @@ static int rk1608_init_sensor(struct rk1608_state *pdata, int id)
 		goto err;
 	}
 
-	ret = rk1608_msg_init_sensor(pdata, msg_init, id);
+
+	ret = rk1608_msg_init_sensor(pdata, msg_init, in_mipi, out_mipi, id, cam_id);
 	ret |= rk1608_msg_init_dsp_time(pdata, msg_init_time, id);
-	ret |= rk1608_msg_set_input_size(pdata, msg_in_size, id);
-	ret |= rk1608_msg_set_output_size(pdata, msg_out_size, id);
-	ret |= rk1608_msg_set_stream_in_on(pdata, msg, id);
-	ret |= rk1608_msg_set_stream_out_on(pdata, msg, id);
+	ret |= rk1608_msg_set_input_size(pdata, msg_in_size, id, cam_id);
+	ret |= rk1608_msg_set_output_size(pdata, msg_out_size, id, cam_id);
+	ret |= rk1608_msg_set_stream_in_on(pdata, msg, cam_id);
+	ret |= rk1608_msg_set_stream_out_on(pdata, msg, cam_id);
 
 err:
 	kfree(msg_init);
@@ -1175,11 +1229,25 @@ static int rk1608_sensor_power(struct v4l2_subdev *sd, int on)
 static int rk1608_stream_on(struct rk1608_state *pdata)
 {
 	int id = 0, cnt = 0, ret = 0;
+	int sub_sensor_num = 0, index = 0;
 
 	mutex_lock(&pdata->lock);
 	id = pdata->sd.grp_id;
 	pdata->sensor_cnt = 0;
 	pdata->set_exp_cnt = 1;
+
+	sub_sensor_num = pdata->dphy[id]->sub_sensor_num;
+	for (index = 0; index < sub_sensor_num; index++) {
+		ret = rk1608_init_virtual_sub_sensor(pdata, id, index);
+		if (ret) {
+			dev_err(pdata->dev, "Init rk1608[%d] sub[%d] is failed!",
+					id,
+					index);
+			mutex_unlock(&pdata->lock);
+			return ret;
+		}
+	}
+
 	ret = rk1608_init_sensor(pdata, id);
 	if (ret) {
 		dev_err(pdata->dev, "Init rk1608[%d] is failed!",
@@ -1221,9 +1289,18 @@ static int rk1608_stream_on(struct rk1608_state *pdata)
 
 static int rk1608_stream_off(struct rk1608_state *pdata)
 {
+	u32 sub_sensor_num = 0, index = 0, sub_id = 0;
+
 	mutex_lock(&pdata->sensor_lock);
 	pdata->sensor_cnt = 0;
 	mutex_unlock(&pdata->sensor_lock);
+
+	sub_sensor_num = pdata->dphy[pdata->sd.grp_id]->sub_sensor_num;
+	for (index = 0; index < sub_sensor_num; index++) {
+		sub_id = pdata->dphy[pdata->sd.grp_id]->sub_sensor[index].id;
+		rk1608_deinit(pdata, sub_id);
+	}
+
 	rk1608_deinit(pdata, pdata->sd.grp_id);
 
 	return 0;
@@ -2096,7 +2173,7 @@ static int rk1608_get_calib_version_temperature_sn(struct rk1608_state *pdata,
 		goto err;
 	}
 
-	if (head->item[i].size > 128) {
+	if (head->item[i].size > sizeof(calibdata_->calib_sn_code)) {
 		dev_err(pdata->dev, "%s: %s size:%d error!\n",
 			__func__, head->item[i].name, head->item[i].size);
 		goto err;
@@ -2113,7 +2190,7 @@ static int rk1608_get_calib_version_temperature_sn(struct rk1608_state *pdata,
 
 	pos = head->item[i].offset;
 
-	ret = kernel_read(fp, (char *)&calibdata_->calib_sn_code, head->item[i].size, &pos);
+	ret = kernel_read(fp, (char *)calibdata_->calib_sn_code, head->item[i].size, &pos);
 	if (ret <= 0) {
 		dev_err(pdata->dev, "%s: read error: ret=%d\n", __func__, ret);
 		goto err;
