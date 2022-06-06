@@ -45,6 +45,7 @@
 #include <linux/mfd/core.h>
 #include <linux/mfd/lpc_ich.h>
 #include <linux/platform_data/itco_wdt.h>
+#include <linux/platform_data/x86/p2sb.h>
 
 #define ACPIBASE		0x40
 #define ACPIBASE_GPE_OFF	0x28
@@ -70,8 +71,6 @@
 #define SPIBASE_LPT_SZ		512
 #define BCR			0xdc
 #define BCR_WPD			BIT(0)
-
-#define SPIBASE_APL_SZ		4096
 
 #define GPIOBASE_ICH0		0x58
 #define GPIOCTRL_ICH0		0x5C
@@ -1134,6 +1133,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 	struct resource *res = &intel_spi_res[0];
 	struct intel_spi_boardinfo *info;
 	u32 spi_base, rcba;
+	int ret;
 
 	info = devm_kzalloc(&dev->dev, sizeof(*info), GFP_KERNEL);
 	if (!info)
@@ -1164,30 +1164,19 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 		}
 		break;
 
-	case INTEL_SPI_BXT: {
-		unsigned int p2sb = PCI_DEVFN(13, 0);
-		unsigned int spi = PCI_DEVFN(13, 2);
-		struct pci_bus *bus = dev->bus;
-
+	case INTEL_SPI_BXT:
 		/*
 		 * The P2SB is hidden by BIOS and we need to unhide it in
 		 * order to read BAR of the SPI flash device. Once that is
 		 * done we hide it again.
 		 */
-		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x0);
-		pci_bus_read_config_dword(bus, spi, PCI_BASE_ADDRESS_0,
-					  &spi_base);
-		if (spi_base != ~0) {
-			res->start = spi_base & 0xfffffff0;
-			res->end = res->start + SPIBASE_APL_SZ - 1;
+		ret = p2sb_bar(dev->bus, PCI_DEVFN(13, 2), res);
+		if (ret)
+			return ret;
 
-			info->set_writeable = lpc_ich_bxt_set_writeable;
-			info->data = dev;
-		}
-
-		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x1);
+		info->set_writeable = lpc_ich_bxt_set_writeable;
+		info->data = dev;
 		break;
-	}
 
 	default:
 		return -EINVAL;
