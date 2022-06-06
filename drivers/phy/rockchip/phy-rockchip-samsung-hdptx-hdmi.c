@@ -2293,6 +2293,7 @@ static int rockchip_hdptx_phy_probe(struct platform_device *pdev)
 
 	hdptx->grf = syscon_regmap_lookup_by_phandle(np, "rockchip,grf");
 	if (IS_ERR(hdptx->grf)) {
+		ret = PTR_ERR(hdptx->grf);
 		dev_err(hdptx->dev, "Unable to get rockchip,grf\n");
 		goto err_regsmap;
 	}
