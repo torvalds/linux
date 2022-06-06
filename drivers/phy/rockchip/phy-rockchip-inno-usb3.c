@@ -933,8 +933,10 @@ static int rockchip_u3phy_probe(struct platform_device *pdev)
 	}
 
 	provider = devm_of_phy_provider_register(dev, of_phy_simple_xlate);
-	if (IS_ERR_OR_NULL(provider))
+	if (IS_ERR(provider)) {
+		ret = PTR_ERR(provider);
 		goto put_child;
+	}
 
 	rockchip_u3phy_rest_deassert(u3phy, U3PHY_MAC_RST);
 	rockchip_u3phy_clk_disable(u3phy);
