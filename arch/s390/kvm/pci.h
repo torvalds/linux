@@ -12,10 +12,59 @@
 
 #include <linux/kvm_host.h>
 #include <linux/pci.h>
+#include <linux/mutex.h>
+#include <asm/airq.h>
+#include <asm/cpu.h>
 
 struct kvm_zdev {
 	struct zpci_dev *zdev;
 	struct kvm *kvm;
 };
+
+struct zpci_gaite {
+	u32 gisa;
+	u8 gisc;
+	u8 count;
+	u8 reserved;
+	u8 aisbo;
+	u64 aisb;
+};
+
+struct zpci_aift {
+	struct zpci_gaite *gait;
+	struct airq_iv *sbv;
+	struct kvm_zdev **kzdev;
+	spinlock_t gait_lock; /* Protects the gait, used during AEN forward */
+	struct mutex aift_lock; /* Protects the other structures in aift */
+};
+
+extern struct zpci_aift *aift;
+
+int kvm_s390_pci_aen_init(u8 nisc);
+void kvm_s390_pci_aen_exit(void);
+
+int kvm_s390_pci_init(void);
+void kvm_s390_pci_exit(void);
+
+static inline bool kvm_s390_pci_interp_allowed(void)
+{
+	struct cpuid cpu_id;
+
+	get_cpu_id(&cpu_id);
+	switch (cpu_id.machine) {
+	case 0x2817:
+	case 0x2818:
+	case 0x2827:
+	case 0x2828:
+	case 0x2964:
+	case 0x2965:
+		/* No SHM on certain machines */
+		return false;
+	default:
+		return (IS_ENABLED(CONFIG_VFIO_PCI_ZDEV_KVM) &&
+			sclp.has_zpci_lsi && sclp.has_aeni && sclp.has_aisi &&
+			sclp.has_aisii);
+	}
+}
 
 #endif /* __KVM_S390_PCI_H */
