@@ -2473,6 +2473,12 @@ static const struct uart_ops atmel_pops = {
 #endif
 };
 
+static const struct serial_rs485 atmel_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_AFTER_SEND | SER_RS485_RX_DURING_TX,
+	.delay_rts_before_send = 1,
+	.delay_rts_after_send = 1,
+};
+
 /*
  * Configure the port from the platform device resource info.
  */
@@ -2494,6 +2500,7 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	port->mapbase		= mpdev->resource[0].start;
 	port->irq		= platform_get_irq(mpdev, 0);
 	port->rs485_config	= atmel_config_rs485;
+	port->rs485_supported	= &atmel_rs485_supported;
 	port->iso7816_config	= atmel_config_iso7816;
 	port->membase		= NULL;
 
