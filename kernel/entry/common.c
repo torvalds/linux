@@ -17,7 +17,7 @@
 /* See comment for enter_from_user_mode() in entry-common.h */
 static __always_inline void __enter_from_user_mode(struct pt_regs *regs)
 {
-	arch_check_user_regs(regs);
+	arch_enter_from_user_mode(regs);
 	lockdep_hardirqs_off(CALLER_ADDR0);
 
 	CT_WARN_ON(ct_state() != CONTEXT_USER);
