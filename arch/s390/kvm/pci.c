@@ -12,7 +12,9 @@
 #include <asm/pci.h>
 #include <asm/pci_insn.h>
 #include <asm/pci_io.h>
+#include <asm/sclp.h>
 #include "pci.h"
+#include "kvm-s390.h"
 
 struct zpci_aift *aift;
 
@@ -421,6 +423,166 @@ static void kvm_s390_pci_dev_release(struct zpci_dev *zdev)
 	WARN_ON(kzdev->zdev != zdev);
 	zdev->kzdev = NULL;
 	kfree(kzdev);
+}
+
+
+/*
+ * Register device with the specified KVM. If interpetation facilities are
+ * available, enable them and let userspace indicate whether or not they will
+ * be used (specify SHM bit to disable).
+ */
+int kvm_s390_pci_register_kvm(struct zpci_dev *zdev, struct kvm *kvm)
+{
+	int rc;
+
+	if (!zdev)
+		return -EINVAL;
+
+	mutex_lock(&zdev->kzdev_lock);
+
+	if (zdev->kzdev || zdev->gisa != 0 || !kvm) {
+		mutex_unlock(&zdev->kzdev_lock);
+		return -EINVAL;
+	}
+
+	kvm_get_kvm(kvm);
+
+	mutex_lock(&kvm->lock);
+
+	rc = kvm_s390_pci_dev_open(zdev);
+	if (rc)
+		goto err;
+
+	/*
+	 * If interpretation facilities aren't available, add the device to
+	 * the kzdev list but don't enable for interpretation.
+	 */
+	if (!kvm_s390_pci_interp_allowed())
+		goto out;
+
+	/*
+	 * If this is the first request to use an interpreted device, make the
+	 * necessary vcpu changes
+	 */
+	if (!kvm->arch.use_zpci_interp)
+		kvm_s390_vcpu_pci_enable_interp(kvm);
+
+	if (zdev_enabled(zdev)) {
+		rc = zpci_disable_device(zdev);
+		if (rc)
+			goto err;
+	}
+
+	/*
+	 * Store information about the identity of the kvm guest allowed to
+	 * access this device via interpretation to be used by host CLP
+	 */
+	zdev->gisa = (u32)virt_to_phys(&kvm->arch.sie_page2->gisa);
+
+	rc = zpci_enable_device(zdev);
+	if (rc)
+		goto clear_gisa;
+
+	/* Re-register the IOMMU that was already created */
+	rc = zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+				virt_to_phys(zdev->dma_table));
+	if (rc)
+		goto clear_gisa;
+
+out:
+	zdev->kzdev->kvm = kvm;
+
+	spin_lock(&kvm->arch.kzdev_list_lock);
+	list_add_tail(&zdev->kzdev->entry, &kvm->arch.kzdev_list);
+	spin_unlock(&kvm->arch.kzdev_list_lock);
+
+	mutex_unlock(&kvm->lock);
+	mutex_unlock(&zdev->kzdev_lock);
+	return 0;
+
+clear_gisa:
+	zdev->gisa = 0;
+err:
+	if (zdev->kzdev)
+		kvm_s390_pci_dev_release(zdev);
+	mutex_unlock(&kvm->lock);
+	mutex_unlock(&zdev->kzdev_lock);
+	kvm_put_kvm(kvm);
+	return rc;
+}
+EXPORT_SYMBOL_GPL(kvm_s390_pci_register_kvm);
+
+void kvm_s390_pci_unregister_kvm(struct zpci_dev *zdev)
+{
+	struct kvm *kvm;
+
+	if (!zdev)
+		return;
+
+	mutex_lock(&zdev->kzdev_lock);
+
+	if (WARN_ON(!zdev->kzdev)) {
+		mutex_unlock(&zdev->kzdev_lock);
+		return;
+	}
+
+	kvm = zdev->kzdev->kvm;
+	mutex_lock(&kvm->lock);
+
+	/*
+	 * A 0 gisa means interpretation was never enabled, just remove the
+	 * device from the list.
+	 */
+	if (zdev->gisa == 0)
+		goto out;
+
+	/* Forwarding must be turned off before interpretation */
+	if (zdev->kzdev->fib.fmt0.aibv != 0)
+		kvm_s390_pci_aif_disable(zdev, true);
+
+	/* Remove the host CLP guest designation */
+	zdev->gisa = 0;
+
+	if (zdev_enabled(zdev)) {
+		if (zpci_disable_device(zdev))
+			goto out;
+	}
+
+	if (zpci_enable_device(zdev))
+		goto out;
+
+	/* Re-register the IOMMU that was already created */
+	zpci_register_ioat(zdev, 0, zdev->start_dma, zdev->end_dma,
+			   virt_to_phys(zdev->dma_table));
+
+out:
+	spin_lock(&kvm->arch.kzdev_list_lock);
+	list_del(&zdev->kzdev->entry);
+	spin_unlock(&kvm->arch.kzdev_list_lock);
+	kvm_s390_pci_dev_release(zdev);
+
+	mutex_unlock(&kvm->lock);
+	mutex_unlock(&zdev->kzdev_lock);
+
+	kvm_put_kvm(kvm);
+}
+EXPORT_SYMBOL_GPL(kvm_s390_pci_unregister_kvm);
+
+void kvm_s390_pci_init_list(struct kvm *kvm)
+{
+	spin_lock_init(&kvm->arch.kzdev_list_lock);
+	INIT_LIST_HEAD(&kvm->arch.kzdev_list);
+}
+
+void kvm_s390_pci_clear_list(struct kvm *kvm)
+{
+	/*
+	 * This list should already be empty, either via vfio device closures
+	 * or kvm fd cleanup.
+	 */
+	spin_lock(&kvm->arch.kzdev_list_lock);
+	WARN_ON_ONCE(!list_empty(&kvm->arch.kzdev_list));
+	spin_unlock(&kvm->arch.kzdev_list_lock);
 }
 
 int kvm_s390_pci_init(void)
