@@ -530,6 +530,7 @@ static int rga_mm_map_virt_addr(struct rga_external_buffer *external_buffer,
 				       __func__, scheduler->core,
 				       (unsigned long)internal_buffer->virt_addr->addr,
 				       internal_buffer->dma_buffer[i].sgt->orig_nents);
+				ret = -EINVAL;
 				goto unmap_virt_addr;
 			}
 		}
