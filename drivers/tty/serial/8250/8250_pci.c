@@ -1597,6 +1597,11 @@ static int pci_fintek_rs485_config(struct uart_port *port,
 	return 0;
 }
 
+static const struct serial_rs485 pci_fintek_rs485_supported = {
+	.flags = SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND,
+	/* F81504/508/512 does not support RTS delay before or after send */
+};
+
 static int pci_fintek_setup(struct serial_private *priv,
 			    const struct pciserial_board *board,
 			    struct uart_8250_port *port, int idx)
@@ -1616,6 +1621,7 @@ static int pci_fintek_setup(struct serial_private *priv,
 	port->port.iotype = UPIO_PORT;
 	port->port.iobase = iobase;
 	port->port.rs485_config = pci_fintek_rs485_config;
+	port->port.rs485_supported = &pci_fintek_rs485_supported;
 
 	data = devm_kzalloc(&pdev->dev, sizeof(u8), GFP_KERNEL);
 	if (!data)
