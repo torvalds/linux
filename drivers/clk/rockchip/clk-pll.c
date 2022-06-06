@@ -1373,22 +1373,22 @@ static int rockchip_rk3588_pll_set_params(struct rockchip_clk_pll *pll,
 	/* set pll power down */
 	writel(HIWORD_UPDATE(RK3588_PLLCON1_PWRDOWN,
 			     RK3588_PLLCON1_PWRDOWN, 0),
-	       pll->reg_base + RK3399_PLLCON(1));
+	       pll->reg_base + RK3588_PLLCON(1));
 
 	/* update pll values */
 	writel_relaxed(HIWORD_UPDATE(rate->m, RK3588_PLLCON0_M_MASK,
 						  RK3588_PLLCON0_M_SHIFT),
-		       pll->reg_base + RK3399_PLLCON(0));
+		       pll->reg_base + RK3588_PLLCON(0));
 
 	writel_relaxed(HIWORD_UPDATE(rate->p, RK3588_PLLCON1_P_MASK,
 						   RK3588_PLLCON1_P_SHIFT) |
 		       HIWORD_UPDATE(rate->s, RK3588_PLLCON1_S_MASK,
 						     RK3588_PLLCON1_S_SHIFT),
-		       pll->reg_base + RK3399_PLLCON(1));
+		       pll->reg_base + RK3588_PLLCON(1));
 
 	writel_relaxed(HIWORD_UPDATE(rate->k, RK3588_PLLCON2_K_MASK,
 				     RK3588_PLLCON2_K_SHIFT),
-		       pll->reg_base + RK3399_PLLCON(2));
+		       pll->reg_base + RK3588_PLLCON(2));
 
 	/* set pll power up */
 	writel(HIWORD_UPDATE(0,
