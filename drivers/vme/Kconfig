@@ -13,6 +13,4 @@ if VME_BUS
 
 source "drivers/vme/bridges/Kconfig"
 
-source "drivers/vme/boards/Kconfig"
-
 endif # VME
