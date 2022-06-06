@@ -291,58 +291,91 @@ void avic_ring_doorbell(struct kvm_vcpu *vcpu)
 static int avic_kick_target_vcpus_fast(struct kvm *kvm, struct kvm_lapic *source,
 				       u32 icrl, u32 icrh, u32 index)
 {
-	u32 dest, apic_id;
-	struct kvm_vcpu *vcpu;
+	u32 l1_physical_id, dest;
+	struct kvm_vcpu *target_vcpu;
 	int dest_mode = icrl & APIC_DEST_MASK;
 	int shorthand = icrl & APIC_SHORT_MASK;
 	struct kvm_svm *kvm_svm = to_kvm_svm(kvm);
-	u32 *avic_logical_id_table = page_address(kvm_svm->avic_logical_id_table_page);
 
 	if (shorthand != APIC_DEST_NOSHORT)
 		return -EINVAL;
 
-	/*
-	 * The AVIC incomplete IPI #vmexit info provides index into
-	 * the physical APIC ID table, which can be used to derive
-	 * guest physical APIC ID.
-	 */
-	if (dest_mode == APIC_DEST_PHYSICAL) {
-		apic_id = index;
-	} else {
-		if (!apic_x2apic_mode(source)) {
-			/* For xAPIC logical mode, the index is for logical APIC table. */
-			apic_id = avic_logical_id_table[index] & 0x1ff;
-		} else {
-			return -EINVAL;
-		}
-	}
-
-	/*
-	 * Assuming vcpu ID is the same as physical apic ID,
-	 * and use it to retrieve the target vCPU.
-	 */
-	vcpu = kvm_get_vcpu_by_id(kvm, apic_id);
-	if (!vcpu)
-		return -EINVAL;
-
-	if (apic_x2apic_mode(vcpu->arch.apic))
+	if (apic_x2apic_mode(source))
 		dest = icrh;
 	else
 		dest = GET_APIC_DEST_FIELD(icrh);
 
-	/*
-	 * Try matching the destination APIC ID with the vCPU.
-	 */
-	if (kvm_apic_match_dest(vcpu, source, shorthand, dest, dest_mode)) {
-		vcpu->arch.apic->irr_pending = true;
-		svm_complete_interrupt_delivery(vcpu,
-						icrl & APIC_MODE_MASK,
-						icrl & APIC_INT_LEVELTRIG,
-						icrl & APIC_VECTOR_MASK);
-		return 0;
+	if (dest_mode == APIC_DEST_PHYSICAL) {
+		/* broadcast destination, use slow path */
+		if (apic_x2apic_mode(source) && dest == X2APIC_BROADCAST)
+			return -EINVAL;
+		if (!apic_x2apic_mode(source) && dest == APIC_BROADCAST)
+			return -EINVAL;
+
+		l1_physical_id = dest;
+
+		if (WARN_ON_ONCE(l1_physical_id != index))
+			return -EINVAL;
+
+	} else {
+		u32 bitmap, cluster;
+		int logid_index;
+
+		if (apic_x2apic_mode(source)) {
+			/* 16 bit dest mask, 16 bit cluster id */
+			bitmap = dest & 0xFFFF0000;
+			cluster = (dest >> 16) << 4;
+		} else if (kvm_lapic_get_reg(source, APIC_DFR) == APIC_DFR_FLAT) {
+			/* 8 bit dest mask*/
+			bitmap = dest;
+			cluster = 0;
+		} else {
+			/* 4 bit desk mask, 4 bit cluster id */
+			bitmap = dest & 0xF;
+			cluster = (dest >> 4) << 2;
+		}
+
+		if (unlikely(!bitmap))
+			/* guest bug: nobody to send the logical interrupt to */
+			return 0;
+
+		if (!is_power_of_2(bitmap))
+			/* multiple logical destinations, use slow path */
+			return -EINVAL;
+
+		logid_index = cluster + __ffs(bitmap);
+
+		if (apic_x2apic_mode(source)) {
+			l1_physical_id = logid_index;
+		} else {
+			u32 *avic_logical_id_table =
+				page_address(kvm_svm->avic_logical_id_table_page);
+
+			u32 logid_entry = avic_logical_id_table[logid_index];
+
+			if (WARN_ON_ONCE(index != logid_index))
+				return -EINVAL;
+
+			/* guest bug: non existing/reserved logical destination */
+			if (unlikely(!(logid_entry & AVIC_LOGICAL_ID_ENTRY_VALID_MASK)))
+				return 0;
+
+			l1_physical_id = logid_entry &
+					 AVIC_LOGICAL_ID_ENTRY_GUEST_PHYSICAL_ID_MASK;
+		}
 	}
 
-	return -EINVAL;
+	target_vcpu = kvm_get_vcpu_by_id(kvm, l1_physical_id);
+	if (unlikely(!target_vcpu))
+		/* guest bug: non existing vCPU is a target of this IPI*/
+		return 0;
+
+	target_vcpu->arch.apic->irr_pending = true;
+	svm_complete_interrupt_delivery(target_vcpu,
+					icrl & APIC_MODE_MASK,
+					icrl & APIC_INT_LEVELTRIG,
+					icrl & APIC_VECTOR_MASK);
+	return 0;
 }
 
 static void avic_kick_target_vcpus(struct kvm *kvm, struct kvm_lapic *source,
