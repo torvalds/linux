@@ -101,44 +101,6 @@ static int register_platform_devices(u32 station_id)
 	return 0;
 }
 
-/* FIXME: this should eventually be done with generic P2SB discovery code
- * the individual drivers for watchdogs and LEDs access memory that implements
- * GPIO, but pinctrl will not come up because of missing ACPI entries
- *
- * While there is no conflict a cleaner solution would be to somehow bring up
- * pinctrl even with these ACPI entries missing, and base the drivers on pinctrl.
- * After which the following function could be dropped, together with the code
- * poking the memory.
- */
-/*
- * Get membase address from PCI, used in leds and wdt module. Here we read
- * the bar0. The final address calculation is done in the appropriate modules
- */
-u32 simatic_ipc_get_membase0(unsigned int p2sb)
-{
-	struct pci_bus *bus;
-	u32 bar0 = 0;
-	/*
-	 * The GPIO memory is in bar0 of the hidden P2SB device.
-	 * Unhide the device to have a quick look at it, before we hide it
-	 * again.
-	 * Also grab the pci rescan lock so that device does not get discovered
-	 * and remapped while it is visible.
-	 * This code is inspired by drivers/mfd/lpc_ich.c
-	 */
-	bus = pci_find_bus(0, 0);
-	pci_lock_rescan_remove();
-	pci_bus_write_config_byte(bus, p2sb, 0xE1, 0x0);
-	pci_bus_read_config_dword(bus, p2sb, PCI_BASE_ADDRESS_0, &bar0);
-
-	bar0 &= ~0xf;
-	pci_bus_write_config_byte(bus, p2sb, 0xE1, 0x1);
-	pci_unlock_rescan_remove();
-
-	return bar0;
-}
-EXPORT_SYMBOL(simatic_ipc_get_membase0);
-
 static int __init simatic_ipc_init_module(void)
 {
 	const struct dmi_system_id *match;
