@@ -1017,38 +1017,49 @@ err1:
 	return err;
 }
 
-static int send_atomic_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
+static struct resp_res *rxe_prepare_atomic_res(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
 {
-	int rc = 0;
+	struct resp_res *res;
+
+	res = &qp->resp.resources[qp->resp.res_head];
+	rxe_advance_resp_resource(qp);
+	free_rd_atomic_resource(qp, res);
+
+	res->type = RXE_ATOMIC_MASK;
+	res->first_psn = pkt->psn;
+	res->last_psn = pkt->psn;
+	res->cur_psn = pkt->psn;
+
+	return res;
+}
+
+static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
+			   u8 syndrome)
+{
+	int err = 0;
 	struct rxe_pkt_info ack_pkt;
 	struct sk_buff *skb;
 	struct resp_res *res;
 
 	skb = prepare_ack_packet(qp, &ack_pkt, IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE,
-				 0, psn, syndrome);
+				 0, pkt->psn, syndrome);
 	if (!skb) {
-		rc = -ENOMEM;
+		err = -ENOMEM;
 		goto out;
 	}
 
-	res = &qp->resp.resources[qp->resp.res_head];
-	free_rd_atomic_resource(qp, res);
-	rxe_advance_resp_resource(qp);
-
 	skb_get(skb);
-	res->type = RXE_ATOMIC_MASK;
-	res->atomic.skb = skb;
-	res->first_psn = ack_pkt.psn;
-	res->last_psn  = ack_pkt.psn;
-	res->cur_psn   = ack_pkt.psn;
 
-	rc = rxe_xmit_packet(qp, &ack_pkt, skb);
-	if (rc) {
+	res = rxe_prepare_atomic_res(qp, pkt);
+	res->atomic.skb = skb;
+
+	err = rxe_xmit_packet(qp, &ack_pkt, skb);
+	if (err) {
 		pr_err_ratelimited("Failed sending ack\n");
 		rxe_put(qp);
 	}
 out:
-	return rc;
+	return err;
 }
 
 static enum resp_states acknowledge(struct rxe_qp *qp,
@@ -1060,7 +1071,7 @@ static enum resp_states acknowledge(struct rxe_qp *qp,
 	if (qp->resp.aeth_syndrome != AETH_ACK_UNLIMITED)
 		send_ack(qp, qp->resp.aeth_syndrome, pkt->psn);
 	else if (pkt->mask & RXE_ATOMIC_MASK)
-		send_atomic_ack(qp, AETH_ACK_UNLIMITED, pkt->psn);
+		send_atomic_ack(qp, pkt, AETH_ACK_UNLIMITED);
 	else if (bth_ack(pkt))
 		send_ack(qp, AETH_ACK_UNLIMITED, pkt->psn);
 
