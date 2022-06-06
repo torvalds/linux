@@ -257,29 +257,23 @@ related to the Hexagon.  See ../soc/qcom/qcom,smd.yaml and
 The following example describes the resources needed to boot control the
 Hexagon, as it is found on MSM8974 boards.
 
-	modem-rproc@fc880000 {
-		compatible = "qcom,q6v5-pil";
-		reg = <0xfc880000 0x100>,
-		      <0xfc820000 0x020>;
+	remoteproc@fc880000 {
+		compatible = "qcom,msm8974-mss-pil";
+		reg = <0xfc880000 0x100>, <0xfc820000 0x020>;
 		reg-names = "qdsp6", "rmb";
 
-		interrupts-extended = <&intc 0 24 1>,
-				      <&modem_smp2p_in 0 0>,
-				      <&modem_smp2p_in 1 0>,
-				      <&modem_smp2p_in 2 0>,
-				      <&modem_smp2p_in 3 0>;
-		interrupt-names = "wdog",
-				  "fatal",
-				  "ready",
-				  "handover",
-				  "stop-ack";
+		interrupts-extended = <&intc GIC_SPI 24 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 0 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 1 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 2 IRQ_TYPE_EDGE_RISING>,
+				      <&modem_smp2p_in 3 IRQ_TYPE_EDGE_RISING>;
+		interrupt-names = "wdog", "fatal", "ready", "handover", "stop-ack";
 
 		clocks = <&gcc GCC_MSS_Q6_BIMC_AXI_CLK>,
 			 <&gcc GCC_MSS_CFG_AHB_CLK>,
-			 <&gcc GCC_BOOT_ROM_AHB_CLK>;
-		clock-names = "iface", "bus", "mem";
-
-		qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
+			 <&gcc GCC_BOOT_ROM_AHB_CLK>,
+			 <&xo_board>;
+		clock-names = "iface", "bus", "mem", "xo";
 
 		resets = <&gcc GCC_MSS_RESTART>;
 		reset-names = "mss_restart";
@@ -288,6 +282,8 @@ Hexagon, as it is found on MSM8974 boards.
 		mss-supply = <&pm8841_s3>;
 		mx-supply = <&pm8841_s1>;
 		pll-supply = <&pm8941_l12>;
+
+		qcom,halt-regs = <&tcsr_mutex_block 0x1180 0x1200 0x1280>;
 
 		qcom,smem-states = <&modem_smp2p_out 0>;
 		qcom,smem-state-names = "stop";
@@ -298,5 +294,14 @@ Hexagon, as it is found on MSM8974 boards.
 
 		mpss {
 			memory-region = <&mpss_region>;
+		};
+
+		smd-edge {
+			interrupts = <GIC_SPI 25 IRQ_TYPE_EDGE_RISING>;
+
+			qcom,ipc = <&apcs 8 12>;
+			qcom,smd-edge = <0>;
+
+			label = "modem";
 		};
 	};
