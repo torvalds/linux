@@ -219,15 +219,10 @@ static int smu_v13_0_4_system_features_control(struct smu_context *smu, bool en)
 {
 	struct amdgpu_device *adev = smu->adev;
 	int ret = 0;
-	/* SMU fw need this message to trigger IMU to complete the initialization */
-	if (en)
-		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_EnableGfxImu, NULL);
-	else {
-		if (!adev->in_s0ix)
-			ret = smu_cmn_send_smc_msg(smu,
-						   SMU_MSG_PrepareMp1ForUnload,
-						   NULL);
-	}
+
+	if (!en && !adev->in_s0ix)
+		ret = smu_cmn_send_smc_msg(smu, SMU_MSG_PrepareMp1ForUnload, NULL);
+
 	return ret;
 }
 
