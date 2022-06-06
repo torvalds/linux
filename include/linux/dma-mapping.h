@@ -62,14 +62,6 @@
 #define DMA_ATTR_PRIVILEGED		(1UL << 9)
 
 /*
- * This is a hint to the DMA-mapping subsystem that the device is expected
- * to overwrite the entire mapped size, thus the caller does not require any
- * of the previous buffer contents to be preserved. This allows
- * bounce-buffering implementations to optimise DMA_FROM_DEVICE transfers.
- */
-#define DMA_ATTR_OVERWRITE		(1UL << 10)
-
-/*
  * DMA_ATTR_SYS_CACHE_ONLY: used to indicate that the buffer should be mapped
  * with the correct memory attributes so that it can be cached in the system
  * or last level cache. This is useful for buffers that are being mapped for
