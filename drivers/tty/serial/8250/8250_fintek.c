@@ -206,19 +206,7 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 		if (!(rs485->flags & SER_RS485_RTS_ON_SEND) ==
 		    !(rs485->flags & SER_RS485_RTS_AFTER_SEND))
 			return -EINVAL;
-		memset(rs485->padding, 0, sizeof(rs485->padding));
 		config |= RS485_URA;
-	} else {
-		memset(rs485, 0, sizeof(*rs485));
-	}
-
-	rs485->flags &= SER_RS485_ENABLED | SER_RS485_RTS_ON_SEND |
-			SER_RS485_RTS_AFTER_SEND;
-
-	/* Only the first port supports delays */
-	if (pdata->index) {
-		rs485->delay_rts_before_send = 0;
-		rs485->delay_rts_after_send = 0;
 	}
 
 	if (rs485->delay_rts_before_send) {
@@ -240,8 +228,6 @@ static int fintek_8250_rs485_config(struct uart_port *port,
 	sio_write_reg(pdata, LDN, pdata->index);
 	sio_write_reg(pdata, RS485, config);
 	fintek_8250_exit_key(pdata->base_port);
-
-	port->rs485 = *rs485;
 
 	return 0;
 }
