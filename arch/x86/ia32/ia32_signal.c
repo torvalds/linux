@@ -230,7 +230,7 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 	return (void __user *) sp;
 }
 
-int ia32_setup_frame(int sig, struct ksignal *ksig,
+int ia32_setup_frame(struct ksignal *ksig,
 		     compat_sigset_t *set, struct pt_regs *regs)
 {
 	struct sigframe_ia32 __user *frame;
@@ -264,7 +264,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
-	unsafe_put_user(sig, &frame->sig, Efault);
+	unsafe_put_user(ksig->sig, &frame->sig, Efault);
 	unsafe_put_sigcontext32(&frame->sc, fp, regs, set, Efault);
 	unsafe_put_user(set->sig[1], &frame->extramask[0], Efault);
 	unsafe_put_user(ptr_to_compat(restorer), &frame->pretcode, Efault);
@@ -280,7 +280,7 @@ int ia32_setup_frame(int sig, struct ksignal *ksig,
 	regs->ip = (unsigned long) ksig->ka.sa.sa_handler;
 
 	/* Make -mregparm=3 work */
-	regs->ax = sig;
+	regs->ax = ksig->sig;
 	regs->dx = 0;
 	regs->cx = 0;
 
@@ -296,7 +296,7 @@ Efault:
 	return -EFAULT;
 }
 
-int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
+int ia32_setup_rt_frame(struct ksignal *ksig,
 			compat_sigset_t *set, struct pt_regs *regs)
 {
 	struct rt_sigframe_ia32 __user *frame;
@@ -321,7 +321,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 	if (!user_access_begin(frame, sizeof(*frame)))
 		return -EFAULT;
 
-	unsafe_put_user(sig, &frame->sig, Efault);
+	unsafe_put_user(ksig->sig, &frame->sig, Efault);
 	unsafe_put_user(ptr_to_compat(&frame->info), &frame->pinfo, Efault);
 	unsafe_put_user(ptr_to_compat(&frame->uc), &frame->puc, Efault);
 
@@ -357,7 +357,7 @@ int ia32_setup_rt_frame(int sig, struct ksignal *ksig,
 	regs->ip = (unsigned long) ksig->ka.sa.sa_handler;
 
 	/* Make -mregparm=3 work */
-	regs->ax = sig;
+	regs->ax = ksig->sig;
 	regs->dx = (unsigned long) &frame->info;
 	regs->cx = (unsigned long) &frame->uc;
 
