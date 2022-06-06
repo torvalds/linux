@@ -958,9 +958,9 @@ int cros_ec_cmd(struct cros_ec_device *ec_dev,
 		unsigned int version,
 		int command,
 		void *outdata,
-		int outsize,
+		size_t outsize,
 		void *indata,
-		int insize)
+		size_t insize)
 {
 	struct cros_ec_command *msg;
 	int ret;
