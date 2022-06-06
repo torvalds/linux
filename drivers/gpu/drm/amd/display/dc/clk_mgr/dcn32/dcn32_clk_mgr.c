@@ -487,7 +487,7 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 }
 
-void dcn32_clock_read_ss_info(struct clk_mgr_internal *clk_mgr)
+static void dcn32_clock_read_ss_info(struct clk_mgr_internal *clk_mgr)
 {
 	struct dc_bios *bp = clk_mgr->base.ctx->dc_bios;
 	int ss_info_num = bp->funcs->get_ss_entry_number(

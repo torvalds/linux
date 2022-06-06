@@ -662,8 +662,8 @@ void dccg31_init(struct dccg *dccg)
 	}
 }
 
-void dccg31_otg_add_pixel(struct dccg *dccg,
-		uint32_t otg_inst)
+static void dccg31_otg_add_pixel(struct dccg *dccg,
+				 uint32_t otg_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -671,8 +671,8 @@ void dccg31_otg_add_pixel(struct dccg *dccg,
 			OTG_ADD_PIXEL[otg_inst], 1);
 }
 
-void dccg31_otg_drop_pixel(struct dccg *dccg,
-		uint32_t otg_inst)
+static void dccg31_otg_drop_pixel(struct dccg *dccg,
+				  uint32_t otg_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 

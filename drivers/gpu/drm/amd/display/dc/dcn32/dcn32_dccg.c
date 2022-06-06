@@ -177,7 +177,7 @@ void dccg32_set_dtbclk_dto(
 	}
 }
 
-void dccg32_set_valid_pixel_rate(
+static void dccg32_set_valid_pixel_rate(
 		struct dccg *dccg,
 		int ref_dtbclk_khz,
 		int otg_inst,
