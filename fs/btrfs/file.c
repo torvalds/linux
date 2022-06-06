@@ -2802,6 +2802,25 @@ int btrfs_replace_file_extents(struct btrfs_inode *inode,
 			extent_info->file_offset += replace_len;
 		}
 
+		/*
+		 * We are releasing our handle on the transaction, balance the
+		 * dirty pages of the btree inode and flush delayed items, and
+		 * then get a new transaction handle, which may now point to a
+		 * new transaction in case someone else may have committed the
+		 * transaction we used to replace/drop file extent items. So
+		 * bump the inode's iversion and update mtime and ctime except
+		 * if we are called from a dedupe context. This is because a
+		 * power failure/crash may happen after the transaction is
+		 * committed and before we finish replacing/dropping all the
+		 * file extent items we need.
+		 */
+		inode_inc_iversion(&inode->vfs_inode);
+
+		if (!extent_info || extent_info->update_times) {
+			inode->vfs_inode.i_mtime = current_time(&inode->vfs_inode);
+			inode->vfs_inode.i_ctime = inode->vfs_inode.i_mtime;
+		}
+
 		ret = btrfs_update_inode(trans, root, inode);
 		if (ret)
 			break;
