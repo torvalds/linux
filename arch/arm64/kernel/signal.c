@@ -288,7 +288,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 
 	if (sve.head.size <= sizeof(*user->sve)) {
 		clear_thread_flag(TIF_SVE);
-		current->thread.svcr &= ~SYS_SVCR_EL0_SM_MASK;
+		current->thread.svcr &= ~SVCR_SM_MASK;
 		goto fpsimd_only;
 	}
 
@@ -321,7 +321,7 @@ static int restore_sve_fpsimd_context(struct user_ctxs *user)
 		return -EFAULT;
 
 	if (sve.flags & SVE_SIG_FLAG_SM)
-		current->thread.svcr |= SYS_SVCR_EL0_SM_MASK;
+		current->thread.svcr |= SVCR_SM_MASK;
 	else
 		set_thread_flag(TIF_SVE);
 
@@ -398,7 +398,7 @@ static int restore_za_context(struct user_ctxs __user *user)
 		return -EINVAL;
 
 	if (za.head.size <= sizeof(*user->za)) {
-		current->thread.svcr &= ~SYS_SVCR_EL0_ZA_MASK;
+		current->thread.svcr &= ~SVCR_ZA_MASK;
 		return 0;
 	}
 
@@ -419,7 +419,7 @@ static int restore_za_context(struct user_ctxs __user *user)
 
 	sme_alloc(current);
 	if (!current->thread.za_state) {
-		current->thread.svcr &= ~SYS_SVCR_EL0_ZA_MASK;
+		current->thread.svcr &= ~SVCR_ZA_MASK;
 		clear_thread_flag(TIF_SME);
 		return -ENOMEM;
 	}
@@ -432,7 +432,7 @@ static int restore_za_context(struct user_ctxs __user *user)
 		return -EFAULT;
 
 	set_thread_flag(TIF_SME);
-	current->thread.svcr |= SYS_SVCR_EL0_ZA_MASK;
+	current->thread.svcr |= SVCR_ZA_MASK;
 
 	return 0;
 }
@@ -922,8 +922,8 @@ static void setup_return(struct pt_regs *regs, struct k_sigaction *ka,
 
 	/* Signal handlers are invoked with ZA and streaming mode disabled */
 	if (system_supports_sme()) {
-		current->thread.svcr &= ~(SYS_SVCR_EL0_ZA_MASK |
-					  SYS_SVCR_EL0_SM_MASK);
+		current->thread.svcr &= ~(SVCR_ZA_MASK |
+					  SVCR_SM_MASK);
 		sme_smstop();
 	}
 
