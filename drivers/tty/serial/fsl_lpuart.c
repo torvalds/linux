@@ -1365,11 +1365,6 @@ static int lpuart_config_rs485(struct uart_port *port,
 		~(UARTMODEM_TXRTSPOL | UARTMODEM_TXRTSE);
 	writeb(modem, sport->port.membase + UARTMODEM);
 
-	/* clear unsupported configurations */
-	rs485->delay_rts_before_send = 0;
-	rs485->delay_rts_after_send = 0;
-	rs485->flags &= ~SER_RS485_RX_DURING_TX;
-
 	if (rs485->flags & SER_RS485_ENABLED) {
 		/* Enable auto RS-485 RTS mode */
 		modem |= UARTMODEM_TXRTSE;
@@ -1399,11 +1394,6 @@ static int lpuart32_config_rs485(struct uart_port *port,
 	unsigned long modem = lpuart32_read(&sport->port, UARTMODIR)
 				& ~(UARTMODEM_TXRTSPOL | UARTMODEM_TXRTSE);
 	lpuart32_write(&sport->port, modem, UARTMODIR);
-
-	/* clear unsupported configurations */
-	rs485->delay_rts_before_send = 0;
-	rs485->delay_rts_after_send = 0;
-	rs485->flags &= ~SER_RS485_RX_DURING_TX;
 
 	if (rs485->flags & SER_RS485_ENABLED) {
 		/* Enable auto RS-485 RTS mode */
@@ -2722,13 +2712,6 @@ static int lpuart_probe(struct platform_device *pdev)
 	ret = uart_get_rs485_mode(&sport->port);
 	if (ret)
 		goto failed_get_rs485;
-
-	if (sport->port.rs485.flags & SER_RS485_RX_DURING_TX)
-		dev_err(&pdev->dev, "driver doesn't support RX during TX\n");
-
-	if (sport->port.rs485.delay_rts_before_send ||
-	    sport->port.rs485.delay_rts_after_send)
-		dev_err(&pdev->dev, "driver doesn't support RTS delays\n");
 
 	uart_rs485_config(&sport->port);
 
