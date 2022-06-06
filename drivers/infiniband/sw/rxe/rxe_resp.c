@@ -554,12 +554,36 @@ out:
 /* Guarantee atomicity of atomic operations at the machine level. */
 static DEFINE_SPINLOCK(atomic_ops_lock);
 
+static struct resp_res *rxe_prepare_atomic_res(struct rxe_qp *qp,
+					       struct rxe_pkt_info *pkt)
+{
+	struct resp_res *res;
+
+	res = &qp->resp.resources[qp->resp.res_head];
+	rxe_advance_resp_resource(qp);
+	free_rd_atomic_resource(qp, res);
+
+	res->type = RXE_ATOMIC_MASK;
+	res->first_psn = pkt->psn;
+	res->last_psn = pkt->psn;
+	res->cur_psn = pkt->psn;
+	res->replay = 0;
+
+	return res;
+}
+
 static enum resp_states rxe_atomic_reply(struct rxe_qp *qp,
 					 struct rxe_pkt_info *pkt)
 {
 	u64 *vaddr;
 	enum resp_states ret;
 	struct rxe_mr *mr = qp->resp.mr;
+	struct resp_res *res = qp->resp.res;
+
+	if (!res) {
+		res = rxe_prepare_atomic_res(qp, pkt);
+		qp->resp.res = res;
+	}
 
 	if (mr->state != RXE_MR_STATE_VALID) {
 		ret = RESPST_ERR_RKEY_VIOLATION;
@@ -1026,32 +1050,15 @@ err1:
 	return err;
 }
 
-static struct resp_res *rxe_prepare_atomic_res(struct rxe_qp *qp, struct rxe_pkt_info *pkt)
-{
-	struct resp_res *res;
-
-	res = &qp->resp.resources[qp->resp.res_head];
-	rxe_advance_resp_resource(qp);
-	free_rd_atomic_resource(qp, res);
-
-	res->type = RXE_ATOMIC_MASK;
-	res->first_psn = pkt->psn;
-	res->last_psn = pkt->psn;
-	res->cur_psn = pkt->psn;
-
-	return res;
-}
-
-static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
-			   u8 syndrome)
+static int send_atomic_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 {
 	int err = 0;
 	struct rxe_pkt_info ack_pkt;
 	struct sk_buff *skb;
-	struct resp_res *res;
+	struct resp_res *res = qp->resp.res;
 
 	skb = prepare_ack_packet(qp, &ack_pkt, IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE,
-				 0, pkt->psn, syndrome);
+				 0, psn, syndrome);
 	if (!skb) {
 		err = -ENOMEM;
 		goto out;
@@ -1059,7 +1066,6 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 
 	skb_get(skb);
 
-	res = rxe_prepare_atomic_res(qp, pkt);
 	res->atomic.skb = skb;
 
 	err = rxe_xmit_packet(qp, &ack_pkt, skb);
@@ -1067,6 +1073,11 @@ static int send_atomic_ack(struct rxe_qp *qp, struct rxe_pkt_info *pkt,
 		pr_err_ratelimited("Failed sending ack\n");
 		rxe_put(qp);
 	}
+
+	/* have to clear this since it is used to trigger
+	 * long read replies
+	 */
+	qp->resp.res = NULL;
 out:
 	return err;
 }
@@ -1080,7 +1091,7 @@ static enum resp_states acknowledge(struct rxe_qp *qp,
 	if (qp->resp.aeth_syndrome != AETH_ACK_UNLIMITED)
 		send_ack(qp, qp->resp.aeth_syndrome, pkt->psn);
 	else if (pkt->mask & RXE_ATOMIC_MASK)
-		send_atomic_ack(qp, pkt, AETH_ACK_UNLIMITED);
+		send_atomic_ack(qp, AETH_ACK_UNLIMITED, pkt->psn);
 	else if (bth_ack(pkt))
 		send_ack(qp, AETH_ACK_UNLIMITED, pkt->psn);
 
