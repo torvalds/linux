@@ -2681,16 +2681,11 @@ static int pl011_find_free_port(void)
 static int pl011_get_rs485_mode(struct uart_amba_port *uap)
 {
 	struct uart_port *port = &uap->port;
-	struct serial_rs485 *rs485 = &port->rs485;
 	int ret;
 
 	ret = uart_get_rs485_mode(port);
 	if (ret)
 		return ret;
-
-	/* clamp the delays to [0, 100ms] */
-	rs485->delay_rts_before_send = min(rs485->delay_rts_before_send, 100U);
-	rs485->delay_rts_after_send = min(rs485->delay_rts_after_send, 100U);
 
 	return 0;
 }
