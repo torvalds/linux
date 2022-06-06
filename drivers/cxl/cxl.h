@@ -491,6 +491,7 @@ struct cxl_ep {
  * @decoder: decoder assigned for @region in @port
  * @region: region for this reference
  * @endpoints: cxl_ep references for region members beneath @port
+ * @nr_targets_set: track how many targets have been programmed during setup
  * @nr_eps: number of endpoints beneath @port
  * @nr_targets: number of distinct targets needed to reach @nr_eps
  */
@@ -499,6 +500,7 @@ struct cxl_region_ref {
 	struct cxl_decoder *decoder;
 	struct cxl_region *region;
 	struct xarray endpoints;
+	int nr_targets_set;
 	int nr_eps;
 	int nr_targets;
 };

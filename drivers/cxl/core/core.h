@@ -42,9 +42,13 @@ resource_size_t cxl_dpa_resource_start(struct cxl_endpoint_decoder *cxled);
 extern struct rw_semaphore cxl_dpa_rwsem;
 
 bool is_switch_decoder(struct device *dev);
+struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev);
 static inline struct cxl_ep *cxl_ep_load(struct cxl_port *port,
 					 struct cxl_memdev *cxlmd)
 {
+	if (!port)
+		return NULL;
+
 	return xa_load(&port->endpoints, (unsigned long)&cxlmd->dev);
 }
 

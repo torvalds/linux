@@ -146,8 +146,6 @@ static ssize_t emit_target_list(struct cxl_switch_decoder *cxlsd, char *buf)
 	return offset;
 }
 
-static struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev);
-
 static ssize_t target_list_show(struct device *dev,
 				struct device_attribute *attr, char *buf)
 {
@@ -472,7 +470,7 @@ struct cxl_endpoint_decoder *to_cxl_endpoint_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(to_cxl_endpoint_decoder, CXL);
 
-static struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
+struct cxl_switch_decoder *to_cxl_switch_decoder(struct device *dev)
 {
 	if (dev_WARN_ONCE(dev, !is_switch_decoder(dev),
 			  "not a cxl_switch_decoder device\n"))
