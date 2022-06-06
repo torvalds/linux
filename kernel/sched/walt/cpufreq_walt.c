@@ -247,7 +247,7 @@ static unsigned int get_next_freq(struct waltgov_policy *wg_policy,
 	unsigned int freq, raw_freq, final_freq;
 	struct waltgov_cpu *wg_driv_cpu = &per_cpu(waltgov_cpu, wg_policy->driving_cpu);
 
-	raw_freq = walt_map_util_freq(util, wg_policy, max, wg_cpu->cpu);
+	raw_freq = walt_map_util_freq(util, wg_policy, max, wg_driv_cpu->cpu);
 	freq = raw_freq;
 
 	if (wg_policy->tunables->adaptive_high_freq) {
