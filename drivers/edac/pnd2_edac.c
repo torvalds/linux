@@ -265,7 +265,7 @@ static u64 get_sideband_reg_base_addr(void)
 static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *name)
 {
 	struct pci_dev *pdev;
-	char *base;
+	void __iomem *base;
 	u64 addr;
 	unsigned long size;
 
@@ -297,8 +297,9 @@ static int dnv_rd_reg(int port, int off, int op, void *data, size_t sz, char *na
 			return -ENODEV;
 
 		if (sz == 8)
-			*(u32 *)(data + 4) = *(u32 *)(base + off + 4);
-		*(u32 *)data = *(u32 *)(base + off);
+			*(u64 *)data = readq(base + off);
+		else
+			*(u32 *)data = readl(base + off);
 
 		iounmap(base);
 	}
