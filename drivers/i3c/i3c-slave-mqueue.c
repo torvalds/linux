@@ -98,16 +98,13 @@ static ssize_t i3c_slave_mqueue_bin_write(struct file *filp,
 					  loff_t pos, size_t count)
 {
 	struct mq_queue *mq;
-	unsigned long flags;
 	struct i3c_slave_payload payload;
 
 	payload.data = buf;
 	payload.len = count;
 	mq = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
-	spin_lock_irqsave(&mq->lock, flags);
 	i3c_master_send_sir(mq->i3c_controller, &payload);
-	spin_unlock_irqrestore(&mq->lock, flags);
 
 	return count;
 }
