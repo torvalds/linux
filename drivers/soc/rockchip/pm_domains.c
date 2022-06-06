@@ -984,8 +984,10 @@ static int rockchip_pm_add_one_domain(struct rockchip_pmu *pmu,
 				num_qos_reg++;
 			}
 			of_node_put(qos_node);
-			if (num_qos_reg > pd->num_qos)
+			if (num_qos_reg > pd->num_qos) {
+				error = -EINVAL;
 				goto err_unprepare_clocks;
+			}
 		}
 	}
 
