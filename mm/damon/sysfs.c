@@ -2136,8 +2136,7 @@ static void damon_sysfs_destroy_targets(struct damon_ctx *ctx)
 	struct damon_target *t, *next;
 
 	damon_for_each_target_safe(t, next, ctx) {
-		if (ctx->ops.id == DAMON_OPS_VADDR ||
-				ctx->ops.id == DAMON_OPS_FVADDR)
+		if (damon_target_has_pid(ctx))
 			put_pid(t->pid);
 		damon_destroy_target(t);
 	}
@@ -2181,8 +2180,7 @@ static int damon_sysfs_add_target(struct damon_sysfs_target *sys_target,
 
 	if (!t)
 		return -ENOMEM;
-	if (ctx->ops.id == DAMON_OPS_VADDR ||
-			ctx->ops.id == DAMON_OPS_FVADDR) {
+	if (damon_target_has_pid(ctx)) {
 		t->pid = find_get_pid(sys_target->pid);
 		if (!t->pid)
 			goto destroy_targets_out;
@@ -2210,7 +2208,7 @@ static struct damon_target *damon_sysfs_existing_target(
 	struct pid *pid;
 	struct damon_target *t;
 
-	if (ctx->ops.id == DAMON_OPS_PADDR) {
+	if (!damon_target_has_pid(ctx)) {
 		/* Up to only one target for paddr could exist */
 		damon_for_each_target(t, ctx)
 			return t;

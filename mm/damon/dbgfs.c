@@ -275,11 +275,6 @@ out:
 	return ret;
 }
 
-static inline bool target_has_pid(const struct damon_ctx *ctx)
-{
-	return ctx->ops.id == DAMON_OPS_VADDR;
-}
-
 static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
 {
 	struct damon_target *t;
@@ -288,7 +283,7 @@ static ssize_t sprint_target_ids(struct damon_ctx *ctx, char *buf, ssize_t len)
 	int rc;
 
 	damon_for_each_target(t, ctx) {
-		if (target_has_pid(ctx))
+		if (damon_target_has_pid(ctx))
 			/* Show pid numbers to debugfs users */
 			id = pid_vnr(t->pid);
 		else
@@ -415,7 +410,7 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
 	struct damon_target *t, *next;
 
 	damon_for_each_target_safe(t, next, ctx) {
-		if (target_has_pid(ctx))
+		if (damon_target_has_pid(ctx))
 			put_pid(t->pid);
 		damon_destroy_target(t);
 	}
@@ -425,11 +420,11 @@ static int dbgfs_set_targets(struct damon_ctx *ctx, ssize_t nr_targets,
 		if (!t) {
 			damon_for_each_target_safe(t, next, ctx)
 				damon_destroy_target(t);
-			if (target_has_pid(ctx))
+			if (damon_target_has_pid(ctx))
 				dbgfs_put_pids(pids, nr_targets);
 			return -ENOMEM;
 		}
-		if (target_has_pid(ctx))
+		if (damon_target_has_pid(ctx))
 			t->pid = pids[i];
 		damon_add_target(ctx, t);
 	}
@@ -722,7 +717,7 @@ static void dbgfs_before_terminate(struct damon_ctx *ctx)
 {
 	struct damon_target *t, *next;
 
-	if (!target_has_pid(ctx))
+	if (!damon_target_has_pid(ctx))
 		return;
 
 	mutex_lock(&ctx->kdamond_lock);
