@@ -46,10 +46,12 @@
  * messages of specified MCTP type or PCI vendor defined type
  * @ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER Unregister client as handler
  * for specified MCTP type or PCI vendor defined message type
- * @ASPEED_MCTP_GET_EID_INFO: read list of existing endpoint mappings
- * returns count which is less of the two requested count and existing count
- * @ASPEED_MCTP_SET_EID_INFO: write list of endpoint mappings
- * overwrites already existing endpoint mappings
+ * @ASPEED_MCTP_GET_EID_INFO - deprecated, use ASPEED_MCTP_GET_EID_EXT instead
+ * @ASPEED_MCTP_SET_EID_INFO - deprecated, use ASPEED_MCTP_SET_EID_EXT instead
+ * @ASPEED_MCTP_GET_EID_EXT_INFO: read list of existing CPU EID and Domain ID
+ * mappings and return count which is lesser of the two: requested count and existing count
+ * @ASPEED_MCTP_SET_EID_EXT_INFO: write or overwrite already existing list of
+ * CPU EID and Domain ID mappings
  */
 
 struct aspeed_mctp_filter_eid {
@@ -116,9 +118,9 @@ struct aspeed_mctp_set_eid_info {
 #define ASPEED_MCTP_IOCTL_UNREGISTER_TYPE_HANDLER \
 	_IOW(ASPEED_MCTP_IOCTL_BASE, 7, struct aspeed_mctp_type_handler_ioctl)
 #define ASPEED_MCTP_IOCTL_GET_EID_INFO \
-	_IOWR(ASPEED_MCTP_IOCTL_BASE, 8, struct aspeed_mctp_get_eid_info)
+	_IOWR(ASPEED_MCTP_IOCTL_BASE, 8, struct aspeed_mctp_get_eid_info) /* deprecated */
 #define ASPEED_MCTP_IOCTL_SET_EID_INFO \
-	_IOW(ASPEED_MCTP_IOCTL_BASE, 9, struct aspeed_mctp_set_eid_info)
+	_IOW(ASPEED_MCTP_IOCTL_BASE, 9, struct aspeed_mctp_set_eid_info) /* deprecated */
 #define ASPEED_MCTP_IOCTL_GET_EID_EXT_INFO \
 	_IOW(ASPEED_MCTP_IOCTL_BASE, 10, struct aspeed_mctp_get_eid_info)
 #define ASPEED_MCTP_IOCTL_SET_EID_EXT_INFO \
