@@ -1100,35 +1100,32 @@ static bool lpc_ich_byt_set_writeable(void __iomem *base, void *data)
 	return val & BYT_BCR_WPD;
 }
 
-static bool lpc_ich_lpt_set_writeable(void __iomem *base, void *data)
+static bool lpc_ich_set_writeable(struct pci_bus *bus, unsigned int devfn)
 {
-	struct pci_dev *pdev = data;
 	u32 bcr;
 
-	pci_read_config_dword(pdev, BCR, &bcr);
+	pci_bus_read_config_dword(bus, devfn, BCR, &bcr);
 	if (!(bcr & BCR_WPD)) {
 		bcr |= BCR_WPD;
-		pci_write_config_dword(pdev, BCR, bcr);
-		pci_read_config_dword(pdev, BCR, &bcr);
+		pci_bus_write_config_dword(bus, devfn, BCR, bcr);
+		pci_bus_read_config_dword(bus, devfn, BCR, &bcr);
 	}
 
 	return bcr & BCR_WPD;
 }
 
+static bool lpc_ich_lpt_set_writeable(void __iomem *base, void *data)
+{
+	struct pci_dev *pdev = data;
+
+	return lpc_ich_set_writeable(pdev->bus, pdev->devfn);
+}
+
 static bool lpc_ich_bxt_set_writeable(void __iomem *base, void *data)
 {
-	unsigned int spi = PCI_DEVFN(13, 2);
-	struct pci_bus *bus = data;
-	u32 bcr;
+	struct pci_dev *pdev = data;
 
-	pci_bus_read_config_dword(bus, spi, BCR, &bcr);
-	if (!(bcr & BCR_WPD)) {
-		bcr |= BCR_WPD;
-		pci_bus_write_config_dword(bus, spi, BCR, bcr);
-		pci_bus_read_config_dword(bus, spi, BCR, &bcr);
-	}
-
-	return bcr & BCR_WPD;
+	return lpc_ich_set_writeable(pdev->bus, PCI_DEVFN(13, 2));
 }
 
 static int lpc_ich_init_spi(struct pci_dev *dev)
@@ -1185,7 +1182,7 @@ static int lpc_ich_init_spi(struct pci_dev *dev)
 			res->end = res->start + SPIBASE_APL_SZ - 1;
 
 			info->set_writeable = lpc_ich_bxt_set_writeable;
-			info->data = bus;
+			info->data = dev;
 		}
 
 		pci_bus_write_config_byte(bus, p2sb, 0xe1, 0x1);
