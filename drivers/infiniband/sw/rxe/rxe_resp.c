@@ -579,6 +579,7 @@ static enum resp_states rxe_atomic_reply(struct rxe_qp *qp,
 	enum resp_states ret;
 	struct rxe_mr *mr = qp->resp.mr;
 	struct resp_res *res = qp->resp.res;
+	u64 value;
 
 	if (!res) {
 		res = rxe_prepare_atomic_res(qp, pkt);
@@ -599,16 +600,16 @@ static enum resp_states rxe_atomic_reply(struct rxe_qp *qp,
 	}
 
 	spin_lock_bh(&atomic_ops_lock);
-
-	qp->resp.atomic_orig = *vaddr;
+	res->atomic.orig_val = value = *vaddr;
 
 	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP) {
-		if (*vaddr == atmeth_comp(pkt))
-			*vaddr = atmeth_swap_add(pkt);
+		if (value == atmeth_comp(pkt))
+			value = atmeth_swap_add(pkt);
 	} else {
-		*vaddr += atmeth_swap_add(pkt);
+		value += atmeth_swap_add(pkt);
 	}
 
+	*vaddr = value;
 	spin_unlock_bh(&atomic_ops_lock);
 
 	qp->resp.msn++;
@@ -663,7 +664,7 @@ static struct sk_buff *prepare_ack_packet(struct rxe_qp *qp,
 	}
 
 	if (ack->mask & RXE_ATMACK_MASK)
-		atmack_set_orig(ack, qp->resp.atomic_orig);
+		atmack_set_orig(ack, qp->resp.res->atomic.orig_val);
 
 	err = rxe_prepare(&qp->pri_av, ack, skb);
 	if (err) {
