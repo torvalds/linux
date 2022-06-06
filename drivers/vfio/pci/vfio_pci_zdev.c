@@ -24,14 +24,15 @@ static int zpci_base_cap(struct zpci_dev *zdev, struct vfio_info_cap *caps)
 {
 	struct vfio_device_info_cap_zpci_base cap = {
 		.header.id = VFIO_DEVICE_INFO_CAP_ZPCI_BASE,
-		.header.version = 1,
+		.header.version = 2,
 		.start_dma = zdev->start_dma,
 		.end_dma = zdev->end_dma,
 		.pchid = zdev->pchid,
 		.vfn = zdev->vfn,
 		.fmb_length = zdev->fmb_length,
 		.pft = zdev->pft,
-		.gid = zdev->pfgid
+		.gid = zdev->pfgid,
+		.fh = zdev->fh
 	};
 
 	return vfio_info_add_capability(caps, &cap.header, sizeof(cap));
