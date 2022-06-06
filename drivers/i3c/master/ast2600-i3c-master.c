@@ -28,6 +28,8 @@
 #define DEV_CTRL_ENABLE			BIT(31)
 #define DEV_CTRL_RESUME			BIT(30)
 #define DEV_CTRL_AUTO_HJ_DISABLE	BIT(27)
+#define DEV_CTRL_SLAVE_MDB		GENMASK(23, 16)
+#define DEV_CTRL_SLAVE_PEC_EN		BIT(10)
 #define DEV_CRTL_IBI_PAYLOAD_EN		BIT(9)
 #define DEV_CTRL_HOT_JOIN_NACK		BIT(8)
 #define DEV_CTRL_I2C_SLAVE_PRESENT	BIT(7)
@@ -54,6 +56,9 @@
 #define COMMAND_PORT_ARG_DATA_LEN(x)	(((x) << 16) & GENMASK(31, 16))
 #define COMMAND_PORT_ARG_DATA_LEN_MAX	65536
 #define COMMAND_PORT_TRANSFER_ARG	0x01
+
+#define COMMAND_ATTR_SLAVE_DATA		0x0
+#define COMMAND_PORT_SLAVE_DATA_LEN	GENMASK(31, 16)
 
 #define COMMAND_PORT_SDA_DATA_BYTE_3(x)	(((x) << 24) & GENMASK(31, 24))
 #define COMMAND_PORT_SDA_DATA_BYTE_2(x)	(((x) << 16) & GENMASK(23, 16))
@@ -303,7 +308,7 @@
 #define I3C_BUS_EXT_TERMN_CNT		4
 #define JESD403_TIMED_RESET_NS_DEF	52428800
 
-#define XFER_TIMEOUT (msecs_to_jiffies(1000))
+#define XFER_TIMEOUT			(msecs_to_jiffies(1000))
 
 #define ast_setbits(x, set)		writel(readl(x) | (set), x)
 #define ast_clrsetbits(x, clr, set)	writel((readl(x) & ~(clr)) | (set), x)
@@ -1137,7 +1142,13 @@ static int aspeed_i3c_master_bus_init(struct i3c_master_controller *m)
 	writel(INTR_ALL, master->regs + INTR_STATUS);
 	if (master->secondary) {
 		writel(INTR_2ND_MASTER_MASK, master->regs + INTR_STATUS_EN);
-		writel(INTR_2ND_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
+		/*
+		 * No need for INTR_IBI_UPDATED_STAT signal, check this bit
+		 * when INTR_RESP_READY_STAT signal is up.  This can guarantee
+		 * the SIR payload is ACKed by the master.
+		 */
+		writel(INTR_2ND_MASTER_MASK & ~INTR_IBI_UPDATED_STAT,
+		       master->regs + INTR_SIGNAL_EN);
 	} else {
 		writel(INTR_MASTER_MASK, master->regs + INTR_STATUS_EN);
 		writel(INTR_MASTER_MASK, master->regs + INTR_SIGNAL_EN);
@@ -1813,8 +1824,6 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
 	spin_unlock(&master->xferqueue.lock);
 
-	if (status & INTR_IBI_UPDATED_STAT)
-		complete(&master->sir_complete);
 
 	if (master->secondary && (status & INTR_RESP_READY_STAT)) {
 		int i, j;
@@ -1837,6 +1846,9 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 				master->slave_data.callback(&master->base,
 							    &payload);
 		}
+
+		if (status & INTR_IBI_UPDATED_STAT)
+			complete(&master->sir_complete);
 	}
 
 	if (status & INTR_IBI_THLD_STAT)
@@ -1950,6 +1962,8 @@ static int aspeed_i3c_master_enable_ibi(struct i3c_dev_desc *dev)
 
 	dev_grp->mask.clr |= DEV_ADDR_TABLE_SIR_REJECT;
 	dev_grp->mask.set &= ~DEV_ADDR_TABLE_SIR_REJECT;
+	if (IS_MANUF_ID_ASPEED(dev->info.pid))
+		dev_grp->mask.set |= DEV_ADDR_TABLE_IBI_PEC_EN;
 	if (dev->info.bcr & I3C_BCR_IBI_PAYLOAD)
 		dev_grp->mask.set |= DEV_ADDR_TABLE_IBI_WITH_DATA;
 
@@ -2068,42 +2082,52 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 				      struct i3c_slave_payload *payload)
 {
 	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
-	uint32_t slv_event, intr_req, act_len;
-	void *buf;
+	uint32_t slv_event, intr_req, reg, thld_ctrl;
+	uint8_t *data = (uint8_t *)payload->data;
 
 	slv_event = readl(master->regs + SLV_EVENT_CTRL);
 	if ((slv_event & SLV_EVENT_CTRL_SIR_EN) == 0)
 		return -EPERM;
 
-	if (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD) {
-		buf = kzalloc(CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD, GFP_KERNEL);
-		if (!buf)
-			return -ENOMEM;
+	if (!payload)
+		return -ENXIO;
 
-		memcpy(buf, payload->data, payload->len);
-		act_len = payload->len;
-		/*
-		 * AST2600 HW does not export the max ibi payload length to the
-		 * software interface, so we can only send fixed length SIR.
-		 *
-		 * Another consideration is if the bus main master is AST2600,
-		 * it cannot receive IBI with data length (4n + 1) including the
-		 * MDB.  Which means the length of the user payload must not be
-		 * 4n bytes.  Thus we pad 3 bytes for workaround.
-		 */
-		act_len = CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD;
-		if ((act_len & 0x3) == 0x0)
-			act_len += 3;
-
-		aspeed_i3c_master_wr_tx_fifo(master, buf, act_len);
+	if (payload->len > (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD + 1)) {
+		dev_err(master->dev,
+			"input length %d exceeds max ibi payload size %d\n",
+			payload->len, CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD + 1);
+		return -E2BIG;
 	}
 
 	init_completion(&master->sir_complete);
-	writel(1, master->regs + SLV_INTR_REQ);
-	wait_for_completion(&master->sir_complete);
 
-	if (CONFIG_AST2600_I3C_IBI_MAX_PAYLOAD)
-		kfree(buf);
+	reg = readl(master->regs + DEVICE_CTRL);
+	reg &= ~DEV_CTRL_SLAVE_MDB;
+	reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, data[0]) |
+	       FIELD_PREP(DEV_CTRL_SLAVE_PEC_EN, 1);
+	writel(reg, master->regs + DEVICE_CTRL);
+
+	aspeed_i3c_master_wr_tx_fifo(master, data, payload->len);
+
+	reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, payload->len);
+	writel(reg, master->regs + COMMAND_QUEUE_PORT);
+
+	thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
+	thld_ctrl &= ~QUEUE_THLD_CTRL_RESP_BUF_MASK;
+	thld_ctrl |= QUEUE_THLD_CTRL_RESP_BUF(1);
+	writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+
+	writel(1, master->regs + SLV_INTR_REQ);
+	if (!wait_for_completion_timeout(&master->sir_complete, XFER_TIMEOUT)) {
+		dev_err(master->dev, "send sir timeout\n");
+		writel(RESET_CTRL_RX_FIFO | RESET_CTRL_TX_FIFO |
+			       RESET_CTRL_RESP_QUEUE | RESET_CTRL_CMD_QUEUE,
+		       master->regs + RESET_CTRL);
+	}
+
+	reg = readl(master->regs + DEVICE_CTRL);
+	reg &= ~DEV_CTRL_SLAVE_PEC_EN;
+	writel(reg, master->regs + DEVICE_CTRL);
 
 	intr_req = readl(master->regs + SLV_INTR_REQ);
 	if (SLV_INTR_REQ_IBI_STS(intr_req) != SLV_IBI_STS_OK) {
