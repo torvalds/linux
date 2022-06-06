@@ -446,6 +446,14 @@ config QPNP_PBS
 	  the APIs to the client drivers that wants to send the PBS trigger
 	  event to the PBS RAM.
 
+config QTI_PMIC_PON_LOG
+	tristate "PMIC PON log parser driver"
+	help
+	  The PMIC PON log driver parses PMIC power-on, power-off, and fault
+	  information out of a binary log stored in the SDAM memory found on
+	  some Qualcomm Technologies, Inc. PMIC devices.  This driver is useful
+	  when debugging unexpected power-off scenarios.
+
 config MSM_BOOT_STATS
 	tristate "Use MSM boot stats reporting"
 	help
