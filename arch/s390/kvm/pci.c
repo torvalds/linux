@@ -585,6 +585,91 @@ void kvm_s390_pci_clear_list(struct kvm *kvm)
 	spin_unlock(&kvm->arch.kzdev_list_lock);
 }
 
+static struct zpci_dev *get_zdev_from_kvm_by_fh(struct kvm *kvm, u32 fh)
+{
+	struct zpci_dev *zdev = NULL;
+	struct kvm_zdev *kzdev;
+
+	spin_lock(&kvm->arch.kzdev_list_lock);
+	list_for_each_entry(kzdev, &kvm->arch.kzdev_list, entry) {
+		if (kzdev->zdev->fh == fh) {
+			zdev = kzdev->zdev;
+			break;
+		}
+	}
+	spin_unlock(&kvm->arch.kzdev_list_lock);
+
+	return zdev;
+}
+
+static int kvm_s390_pci_zpci_reg_aen(struct zpci_dev *zdev,
+				     struct kvm_s390_zpci_op *args)
+{
+	struct zpci_fib fib = {};
+	bool hostflag;
+
+	fib.fmt0.aibv = args->u.reg_aen.ibv;
+	fib.fmt0.isc = args->u.reg_aen.isc;
+	fib.fmt0.noi = args->u.reg_aen.noi;
+	if (args->u.reg_aen.sb != 0) {
+		fib.fmt0.aisb = args->u.reg_aen.sb;
+		fib.fmt0.aisbo = args->u.reg_aen.sbo;
+		fib.fmt0.sum = 1;
+	} else {
+		fib.fmt0.aisb = 0;
+		fib.fmt0.aisbo = 0;
+		fib.fmt0.sum = 0;
+	}
+
+	hostflag = !(args->u.reg_aen.flags & KVM_S390_ZPCIOP_REGAEN_HOST);
+	return kvm_s390_pci_aif_enable(zdev, &fib, hostflag);
+}
+
+int kvm_s390_pci_zpci_op(struct kvm *kvm, struct kvm_s390_zpci_op *args)
+{
+	struct kvm_zdev *kzdev;
+	struct zpci_dev *zdev;
+	int r;
+
+	zdev = get_zdev_from_kvm_by_fh(kvm, args->fh);
+	if (!zdev)
+		return -ENODEV;
+
+	mutex_lock(&zdev->kzdev_lock);
+	mutex_lock(&kvm->lock);
+
+	kzdev = zdev->kzdev;
+	if (!kzdev) {
+		r = -ENODEV;
+		goto out;
+	}
+	if (kzdev->kvm != kvm) {
+		r = -EPERM;
+		goto out;
+	}
+
+	switch (args->op) {
+	case KVM_S390_ZPCIOP_REG_AEN:
+		/* Fail on unknown flags */
+		if (args->u.reg_aen.flags & ~KVM_S390_ZPCIOP_REGAEN_HOST) {
+			r = -EINVAL;
+			break;
+		}
+		r = kvm_s390_pci_zpci_reg_aen(zdev, args);
+		break;
+	case KVM_S390_ZPCIOP_DEREG_AEN:
+		r = kvm_s390_pci_aif_disable(zdev, false);
+		break;
+	default:
+		r = -EINVAL;
+	}
+
+out:
+	mutex_unlock(&kvm->lock);
+	mutex_unlock(&zdev->kzdev_lock);
+	return r;
+}
+
 int kvm_s390_pci_init(void)
 {
 	aift = kzalloc(sizeof(struct zpci_aift), GFP_KERNEL);
