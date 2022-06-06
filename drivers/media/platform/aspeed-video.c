@@ -1309,6 +1309,22 @@ err_mem:
 		aspeed_video_free_buf(video, &video->srcs[0]);
 }
 
+/*
+ * Update relative parameters when timing changed.
+ *
+ * @video: the struct of aspeed_video
+ * @timings: the new timings
+ */
+static void aspeed_video_update_timings(struct aspeed_video *video, struct v4l2_bt_timings *timings)
+{
+	video->active_timings = *timings;
+	aspeed_video_set_resolution(video);
+
+	video->pix_fmt.width = timings->width;
+	video->pix_fmt.height = timings->height;
+	video->pix_fmt.sizeimage = video->max_compressed_size;
+}
+
 static void aspeed_video_update_regs(struct aspeed_video *video)
 {
 	u8 jpeg_hq_quality = clamp((int)video->jpeg_hq_quality - 1, 0,
@@ -1434,12 +1450,7 @@ static void aspeed_video_start(struct aspeed_video *video)
 	aspeed_video_get_resolution(video);
 
 	/* Set timings since the device is being opened for the first time */
-	video->active_timings = video->detected_timings;
-	aspeed_video_set_resolution(video);
-
-	video->pix_fmt.width = video->active_timings.width;
-	video->pix_fmt.height = video->active_timings.height;
-	video->pix_fmt.sizeimage = video->max_compressed_size;
+	aspeed_video_update_timings(video, &video->detected_timings);
 }
 
 static void aspeed_video_stop(struct aspeed_video *video)
@@ -1582,8 +1593,7 @@ static int aspeed_video_set_input(struct file *file, void *fh, unsigned int i)
 	} else {
 		aspeed_video_get_resolution(video);
 		if (!video->v4l2_input_status) {
-			video->active_timings = video->detected_timings;
-			aspeed_video_set_resolution(video);
+			aspeed_video_update_timings(video, &video->detected_timings);
 		}
 	}
 
@@ -1699,13 +1709,7 @@ static int aspeed_video_set_dv_timings(struct file *file, void *fh,
 	if (vb2_is_busy(&video->queue))
 		return -EBUSY;
 
-	video->active_timings = timings->bt;
-
-	aspeed_video_set_resolution(video);
-
-	video->pix_fmt.width = timings->bt.width;
-	video->pix_fmt.height = timings->bt.height;
-	video->pix_fmt.sizeimage = video->max_compressed_size;
+	aspeed_video_update_timings(video, &timings->bt);
 
 	timings->type = V4L2_DV_BT_656_1120;
 
@@ -1920,8 +1924,7 @@ static void aspeed_video_resolution_work(struct work_struct *work)
 
 	is_res_chg = (video->detected_timings.width != video->active_timings.width ||
 		      video->detected_timings.height != video->active_timings.height);
-	video->active_timings = video->detected_timings;
-	aspeed_video_set_resolution(video);
+	aspeed_video_update_timings(video, &video->detected_timings);
 
 	if (is_res_chg) {
 		static const struct v4l2_event ev = {
