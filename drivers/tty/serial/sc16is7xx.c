@@ -1143,7 +1143,6 @@ static int sc16is7xx_config_rs485(struct uart_port *port,
 			return -EINVAL;
 	}
 
-	port->rs485 = *rs485;
 	one->config.flags |= SC16IS7XX_RECONF_RS485;
 	kthread_queue_work(&s->kworker, &one->reg_work);
 
