@@ -2054,12 +2054,11 @@ int iterate_inodes_from_logical(u64 logical, struct btrfs_fs_info *fs_info,
 	return ret;
 }
 
-typedef int (iterate_irefs_t)(u64 parent, u32 name_len, unsigned long name_off,
-			      struct extent_buffer *eb, void *ctx);
+static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
+			 struct extent_buffer *eb, void *ctx);
 
 static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
-			      struct btrfs_path *path,
-			      iterate_irefs_t *iterate, void *ctx)
+			      struct btrfs_path *path, void *ctx)
 {
 	int ret = 0;
 	int slot;
@@ -2103,7 +2102,7 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 				"following ref at offset %u for inode %llu in tree %llu",
 				cur, found_key.objectid,
 				fs_root->root_key.objectid);
-			ret = iterate(parent, name_len,
+			ret = inode_to_path(parent, name_len,
 				      (unsigned long)(iref + 1), eb, ctx);
 			if (ret)
 				break;
@@ -2119,8 +2118,7 @@ static int iterate_inode_refs(u64 inum, struct btrfs_root *fs_root,
 }
 
 static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
-				 struct btrfs_path *path,
-				 iterate_irefs_t *iterate, void *ctx)
+				 struct btrfs_path *path, void *ctx)
 {
 	int ret;
 	int slot;
@@ -2162,7 +2160,7 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 			extref = (struct btrfs_inode_extref *)(ptr + cur_offset);
 			parent = btrfs_inode_extref_parent(eb, extref);
 			name_len = btrfs_inode_extref_name_len(eb, extref);
-			ret = iterate(parent, name_len,
+			ret = inode_to_path(parent, name_len,
 				      (unsigned long)&extref->name, eb, ctx);
 			if (ret)
 				break;
@@ -2176,26 +2174,6 @@ static int iterate_inode_extrefs(u64 inum, struct btrfs_root *fs_root,
 	}
 
 	btrfs_release_path(path);
-
-	return ret;
-}
-
-static int iterate_irefs(u64 inum, struct btrfs_root *fs_root,
-			 struct btrfs_path *path, iterate_irefs_t *iterate,
-			 void *ctx)
-{
-	int ret;
-	int found_refs = 0;
-
-	ret = iterate_inode_refs(inum, fs_root, path, iterate, ctx);
-	if (!ret)
-		++found_refs;
-	else if (ret != -ENOENT)
-		return ret;
-
-	ret = iterate_inode_extrefs(inum, fs_root, path, iterate, ctx);
-	if (ret == -ENOENT && found_refs)
-		return 0;
 
 	return ret;
 }
@@ -2248,8 +2226,20 @@ static int inode_to_path(u64 inum, u32 name_len, unsigned long name_off,
  */
 int paths_from_inode(u64 inum, struct inode_fs_paths *ipath)
 {
-	return iterate_irefs(inum, ipath->fs_root, ipath->btrfs_path,
-			     inode_to_path, ipath);
+	int ret;
+	int found_refs = 0;
+
+	ret = iterate_inode_refs(inum, ipath->fs_root, ipath->btrfs_path, ipath);
+	if (!ret)
+		++found_refs;
+	else if (ret != -ENOENT)
+		return ret;
+
+	ret = iterate_inode_extrefs(inum, ipath->fs_root, ipath->btrfs_path, ipath);
+	if (ret == -ENOENT && found_refs)
+		return 0;
+
+	return ret;
 }
 
 struct btrfs_data_container *init_data_container(u32 total_bytes)
