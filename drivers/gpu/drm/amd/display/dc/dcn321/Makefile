@@ -12,12 +12,19 @@
 
 DCN321 = dcn321_resource.o dcn321_dio_link_encoder.o
 
-CFLAGS_$(AMDDALPATH)/dc/dcn321/dcn321_resource.o := -mhard-float -msse
+ifdef CONFIG_X86
+CFLAGS_$(AMDDALPATH)/dc/dcn321/dcn321_resource.o := -msse
+endif
+
+ifdef CONFIG_PPC64
+CFLAGS_$(AMDDALPATH)/dc/dcn321/dcn321_resource.o := -mhard-float -maltivec
+endif
 
 ifdef CONFIG_CC_IS_GCC
 ifeq ($(call cc-ifversion, -lt, 0701, y), y)
 IS_OLD_GCC = 1
 endif
+CFLAGS_$(AMDDALPATH)/dc/dcn321/dcn321_resource.o += -mhard-float
 endif
 
 ifdef IS_OLD_GCC
