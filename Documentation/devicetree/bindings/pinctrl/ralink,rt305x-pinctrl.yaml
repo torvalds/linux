@@ -33,32 +33,29 @@ patternProperties:
           groups:
             description: The pin group to select.
             enum: [
+              # common
+              i2c, jtag, led, mdio, rgmii, spi, spi_cs1, uartf, uartlite,
+
               # For RT3050, RT3052 and RT3350 SoCs
-              i2c, jtag, mdio, rgmii, sdram, spi, uartf, uartlite,
+              sdram,
 
               # For RT3352 SoC
-              i2c, jtag, led, lna, mdio, pa, rgmii, spi, spi_cs1, uartf,
-              uartlite,
-
-              # For RT5350 SoC
-              i2c, jtag, led, spi, spi_cs1, uartf, uartlite,
+              lna, pa
             ]
 
           function:
             description: The mux function to select.
             enum: [
-              # For RT3050, RT3052 and RT3350 SoCs
-              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, mdio, pcm gpio,
-              pcm i2s, pcm uartf, rgmii, sdram, spi, uartf, uartlite,
-
-              # For RT3352 SoC
-              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, led, lna, mdio,
-              pa, pcm gpio, pcm i2s, pcm uartf, rgmii, spi, spi_cs1, uartf,
+              # common
+              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, led, mdio,
+              pcm gpio, pcm i2s, pcm uartf, rgmii, spi, spi_cs1, uartf,
               uartlite, wdg_cs1,
 
-              # For RT5350 SoC
-              gpio, gpio i2s, gpio uartf, i2c, i2s uartf, jtag, led, pcm gpio,
-              pcm i2s, pcm uartf, spi, spi_cs1, uartf, uartlite, wdg_cs1,
+              # For RT3050, RT3052 and RT3350 SoCs
+              sdram,
+
+              # For RT3352 SoC
+              lna, pa
             ]
 
         required:
