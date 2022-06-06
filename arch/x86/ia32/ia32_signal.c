@@ -230,9 +230,9 @@ static void __user *get_sigframe(struct ksignal *ksig, struct pt_regs *regs,
 	return (void __user *) sp;
 }
 
-int ia32_setup_frame(struct ksignal *ksig,
-		     compat_sigset_t *set, struct pt_regs *regs)
+int ia32_setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
+	compat_sigset_t *set = (compat_sigset_t *) sigmask_to_save();
 	struct sigframe_ia32 __user *frame;
 	void __user *restorer;
 	void __user *fp = NULL;
@@ -296,9 +296,9 @@ Efault:
 	return -EFAULT;
 }
 
-int ia32_setup_rt_frame(struct ksignal *ksig,
-			compat_sigset_t *set, struct pt_regs *regs)
+int ia32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
+	compat_sigset_t *set = (compat_sigset_t *) sigmask_to_save();
 	struct rt_sigframe_ia32 __user *frame;
 	void __user *restorer;
 	void __user *fp = NULL;

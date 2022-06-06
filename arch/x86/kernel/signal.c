@@ -324,9 +324,9 @@ static const struct {
 };
 
 static int
-__setup_frame(struct ksignal *ksig, sigset_t *set,
-	      struct pt_regs *regs)
+__setup_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
+	sigset_t *set = sigmask_to_save();
 	struct sigframe __user *frame;
 	void __user *restorer;
 	void __user *fp = NULL;
@@ -379,9 +379,9 @@ Efault:
 	return -EFAULT;
 }
 
-static int __setup_rt_frame(struct ksignal *ksig,
-			    sigset_t *set, struct pt_regs *regs)
+static int __setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
+	sigset_t *set = sigmask_to_save();
 	struct rt_sigframe __user *frame;
 	void __user *restorer;
 	void __user *fp = NULL;
@@ -458,9 +458,9 @@ static unsigned long frame_uc_flags(struct pt_regs *regs)
 	return flags;
 }
 
-static int __setup_rt_frame(struct ksignal *ksig,
-			    sigset_t *set, struct pt_regs *regs)
+static int __setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
+	sigset_t *set = sigmask_to_save();
 	struct rt_sigframe __user *frame;
 	void __user *fp = NULL;
 	unsigned long uc_flags;
@@ -560,11 +560,10 @@ int copy_siginfo_to_user32(struct compat_siginfo __user *to,
 }
 #endif /* CONFIG_X86_X32_ABI */
 
-static int x32_setup_rt_frame(struct ksignal *ksig,
-			      compat_sigset_t *set,
-			      struct pt_regs *regs)
+static int x32_setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
 #ifdef CONFIG_X86_X32_ABI
+	compat_sigset_t *set = (compat_sigset_t *) sigmask_to_save();
 	struct rt_sigframe_x32 __user *frame;
 	unsigned long uc_flags;
 	void __user *restorer;
@@ -763,22 +762,19 @@ static inline int is_x32_frame(struct ksignal *ksig)
 static int
 setup_rt_frame(struct ksignal *ksig, struct pt_regs *regs)
 {
-	sigset_t *set = sigmask_to_save();
-	compat_sigset_t *cset = (compat_sigset_t *) set;
-
 	/* Perform fixup for the pre-signal frame. */
 	rseq_signal_deliver(ksig, regs);
 
 	/* Set up the stack frame */
 	if (is_ia32_frame(ksig)) {
 		if (ksig->ka.sa.sa_flags & SA_SIGINFO)
-			return ia32_setup_rt_frame(ksig, cset, regs);
+			return ia32_setup_rt_frame(ksig, regs);
 		else
-			return ia32_setup_frame(ksig, cset, regs);
+			return ia32_setup_frame(ksig, regs);
 	} else if (is_x32_frame(ksig)) {
-		return x32_setup_rt_frame(ksig, cset, regs);
+		return x32_setup_rt_frame(ksig, regs);
 	} else {
-		return __setup_rt_frame(ksig, set, regs);
+		return __setup_rt_frame(ksig, regs);
 	}
 }
 
