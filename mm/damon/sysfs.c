@@ -2357,25 +2357,10 @@ static inline bool damon_sysfs_kdamond_running(
 		damon_sysfs_ctx_running(kdamond->damon_ctx);
 }
 
-/*
- * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
- * @kdamond:	The kobject wrapper for the associated kdamond.
- *
- * If the sysfs input is wrong, the kdamond will be terminated.
- */
-static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
+static int damon_sysfs_apply_inputs(struct damon_ctx *ctx,
+		struct damon_sysfs_context *sys_ctx)
 {
-	struct damon_ctx *ctx = kdamond->damon_ctx;
-	struct damon_sysfs_context *sys_ctx;
-	int err = 0;
-
-	if (!damon_sysfs_kdamond_running(kdamond))
-		return -EINVAL;
-	/* TODO: Support multiple contexts per kdamond */
-	if (kdamond->contexts->nr != 1)
-		return -EINVAL;
-
-	sys_ctx = kdamond->contexts->contexts_arr[0];
+	int err;
 
 	err = damon_select_ops(ctx, sys_ctx->ops_id);
 	if (err)
@@ -2386,10 +2371,25 @@ static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
 	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
 	if (err)
 		return err;
-	err = damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
-	if (err)
-		return err;
-	return err;
+	return damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
+}
+
+/*
+ * damon_sysfs_commit_input() - Commit user inputs to a running kdamond.
+ * @kdamond:	The kobject wrapper for the associated kdamond.
+ *
+ * If the sysfs input is wrong, the kdamond will be terminated.
+ */
+static int damon_sysfs_commit_input(struct damon_sysfs_kdamond *kdamond)
+{
+	if (!damon_sysfs_kdamond_running(kdamond))
+		return -EINVAL;
+	/* TODO: Support multiple contexts per kdamond */
+	if (kdamond->contexts->nr != 1)
+		return -EINVAL;
+
+	return damon_sysfs_apply_inputs(kdamond->damon_ctx,
+			kdamond->contexts->contexts_arr[0]);
 }
 
 /*
@@ -2436,27 +2436,16 @@ static struct damon_ctx *damon_sysfs_build_ctx(
 	if (!ctx)
 		return ERR_PTR(-ENOMEM);
 
-	err = damon_select_ops(ctx, sys_ctx->ops_id);
-	if (err)
-		goto out;
-	err = damon_sysfs_set_attrs(ctx, sys_ctx->attrs);
-	if (err)
-		goto out;
-	err = damon_sysfs_set_targets(ctx, sys_ctx->targets);
-	if (err)
-		goto out;
-	err = damon_sysfs_set_schemes(ctx, sys_ctx->schemes);
-	if (err)
-		goto out;
+	err = damon_sysfs_apply_inputs(ctx, sys_ctx);
+	if (err) {
+		damon_destroy_ctx(ctx);
+		return ERR_PTR(err);
+	}
 
 	ctx->callback.after_wmarks_check = damon_sysfs_cmd_request_callback;
 	ctx->callback.after_aggregation = damon_sysfs_cmd_request_callback;
 	ctx->callback.before_terminate = damon_sysfs_before_terminate;
 	return ctx;
-
-out:
-	damon_destroy_ctx(ctx);
-	return ERR_PTR(err);
 }
 
 static int damon_sysfs_turn_damon_on(struct damon_sysfs_kdamond *kdamond)
