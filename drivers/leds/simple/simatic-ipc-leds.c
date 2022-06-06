@@ -15,6 +15,7 @@
 #include <linux/leds.h>
 #include <linux/module.h>
 #include <linux/pci.h>
+#include <linux/platform_data/x86/p2sb.h>
 #include <linux/platform_data/x86/simatic-ipc-base.h>
 #include <linux/platform_device.h>
 #include <linux/sizes.h>
@@ -38,8 +39,8 @@ static struct simatic_ipc_led simatic_ipc_leds_io[] = {
 	{ }
 };
 
-/* the actual start will be discovered with PCI, 0 is a placeholder */
-static struct resource simatic_ipc_led_mem_res = DEFINE_RES_MEM_NAMED(0, SZ_4K, KBUILD_MODNAME);
+/* the actual start will be discovered with p2sb, 0 is a placeholder */
+static struct resource simatic_ipc_led_mem_res = DEFINE_RES_MEM_NAMED(0, 0, KBUILD_MODNAME);
 
 static void __iomem *simatic_ipc_led_memory;
 
@@ -145,14 +146,13 @@ static int simatic_ipc_leds_probe(struct platform_device *pdev)
 		ipcled = simatic_ipc_leds_mem;
 		type = IORESOURCE_MEM;
 
-		/* get GPIO base from PCI */
-		res->start = simatic_ipc_get_membase0(PCI_DEVFN(13, 0));
-		if (res->start == 0)
-			return -ENODEV;
+		err = p2sb_bar(NULL, 0, res);
+		if (err)
+			return err;
 
 		/* do the final address calculation */
 		res->start = res->start + (0xC5 << 16);
-		res->end += res->start;
+		res->end = res->start + SZ_4K - 1;
 
 		simatic_ipc_led_memory = devm_ioremap_resource(dev, res);
 		if (IS_ERR(simatic_ipc_led_memory))
