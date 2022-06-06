@@ -9,3 +9,8 @@ CONFIG_DRM_LEGACY=y
 
 notes:
 1、DC8200 rgbpad GPIO 和其他模块存在大规模冲突，需要等evb板子做进一步确认
+
+2、evb板子当前与hdmi冲突的gpio有
+i2c0 i2c1 i2c2 i2c3 sdio1 tdm
+调试hdmi的时候建议在jh7100-common.dtsi文件
+将这些模块的pin的结点进行注释或者将node disabled

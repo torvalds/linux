@@ -353,4 +353,25 @@ enum {
 #define HDMI_CEC_BUSFREETIME_H		0xdd
 #define HDMI_CEC_LOGICADDR		0xde
 
+
+#define HDMI_ESD_STATUS			0x1ce
+
+#define HDMI_REG_1A0			0x1a0
+#define m_PLL_CTRL				(1 << 4)
+#define m_VCO_CTRL				(1 << 3)
+#define m_OUTPUT_CLK			(1 << 2)
+#define m_PIX_DIV				(1 << 1)
+#define m_PRE_PLL_POWER			(1 << 0)
+
+typedef enum {
+	VIC_1440x480i60 = 6,
+	VIC_640x480p60 = 1,
+	VIC_720x480p60 = 2,
+	VIC_1280x720p60 = 4,
+	VIC_1920x1080p60 = 16,
+	VIC_4096x2160p30 = 95,
+	VIC_4096x2160p60 = 97,
+} vic_code_t;
+
+
 #endif /* __INNO_HDMI_H__ */

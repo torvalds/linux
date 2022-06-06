@@ -264,7 +264,7 @@ static inline u8 to_vs_display_id(struct vs_dc *dc, struct drm_crtc *crtc)
 
 	return 0;
 }
-
+#if 0
 static int plda_clk_rst_init(struct device *dev)
 {
 	int ret;
@@ -296,7 +296,7 @@ err_clk_init:
 exit:
 	return ret;
 }
-#if 0
+
 static void plda_clk_rst_deinit(struct device *dev)
 {
 	struct vs_dc *dc = dev_get_drvdata(dev);
@@ -305,78 +305,505 @@ static void plda_clk_rst_deinit(struct device *dev)
 	clk_bulk_disable_unprepare(dc->num_clks, dc->clks);
 }
 #endif
-static void dc_deinit(struct device *dev)
+
+
+static int vs_dc_get_clock(struct device *dev, struct vs_dc *dc)
 {
-	struct vs_dc *dc = dev_get_drvdata(dev);
+	int ret;
+	dc->cpu_axi = devm_clk_get(dev, "noc_cpu");
+	if (IS_ERR(dc->cpu_axi)) {
+		dev_err(dev, "---cpu_axi get error\n");
+		return PTR_ERR(dc->cpu_axi);
+	}
 
-	dc_hw_enable_interrupt(&dc->hw, 0);
-	dc_hw_deinit(&dc->hw);
-	//plda_clk_rst_deinit(dev);
-	starfive_power_domain_set(POWER_DOMAIN_VOUT, 0);
+	dc->axicfg0_axi = devm_clk_get(dev, "noc_cfg0");
+	if (IS_ERR(dc->axicfg0_axi)) {
+		dev_err(dev, "---axicfg0_axi get error\n");
+		return PTR_ERR(dc->axicfg0_axi);
+	}
+
+	dc->disp_axi = devm_clk_get(dev, "noc_disp");
+	if (IS_ERR(dc->disp_axi)) {
+		dev_err(dev, "---disp_axi get error\n");
+		return PTR_ERR(dc->disp_axi);
+	}
+
+	dc->stg_axi = devm_clk_get(dev, "noc_stg");
+	if (IS_ERR(dc->stg_axi)) {
+		dev_err(dev, "---stg_axi get error\n");
+		return PTR_ERR(dc->stg_axi);
+	}
+	return ret;
 }
+//noc bus clk get
 
-void u0_sft7110_noc_bus_enable(void){
-	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_CPU_AXI_;
-	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_AXICFG0_AXI_;
-	//_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_GPU_AXI_;
-	//_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_VDEC_AXI_;
-	//_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_VENC_AXI_;
-	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_DISP_AXI_;
-	//_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_ISP_AXI_;
-	_ENABLE_CLOCK_CLK_U0_SFT7110_NOC_BUS_CLK_STG_AXI_;
 
-	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_CPU_AXI_N_;
-	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_AXICFG0_AXI_N_;
-	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_APB_BUS_N_;
-	//_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_GPU_AXI_N_;
-	//_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_VDEC_AXI_N_;
-	//_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_VENC_AXI_N_;
-	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_DISP_AXI_N_;
-	//_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_ISP_AXI_N_;
-	_CLEAR_RESET_RSTGEN_RSTN_U0_SFT7110_NOC_BUS_RESET_STG_AXI_N_;
-
-}
-
-void u0_dom_vout_top_enable(void){
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_src:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_src', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_src_icg', 'clk_vout_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_vout_src']
-	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_VOUT_SRC_;
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_axi_icg', 'clk_vout_axi', 'clk_vout_axi_div', 'clk_vout_root', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_vout_axi']
-	//default:_DIVIDE_CLOCK_CLK_VOUT_AXI_(2);
-	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_VOUT_AXI_;
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_vout_ahb_icg', 'clk_ahb1', 'clk_ahb1_icg', 'clk_stg_axiahb', 'clk_stg_axiahb_div', 'clk_axi_cfg0', 'clk_axi_cfg0_div', 'clk_bus_root', 'clk_bus_root_mux', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_vout_ahb']
-	//default:_SWITCH_CLOCK_CLK_BUS_ROOT_SOURCE_CLK_OSC_;
-	//default:_DIVIDE_CLOCK_CLK_AXI_CFG0_(3);
-	//default:_DIVIDE_CLOCK_CLK_STG_AXIAHB_(2);
-	_ENABLE_CLOCK_CLK_AHB1_;
-	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_VOUT_AHB_;
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmiphy_ref:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmiphy_ref', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_hdmiphy_ref']
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_mclk_icg', 'clk_mclk', 'clk_mclk_mux', 'clk_mclk_inner', 'clk_mclk_inner_div', 'clk_audio_root', 'clk_audio_root_div', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_hdmitx0_mclk']
-	//default:_SWITCH_CLOCK_CLK_MCLK_SOURCE_CLK_MCLK_INNER_;
-	//default:_DIVIDE_CLOCK_CLK_AUDIO_ROOT_(2);
-	//default:_DIVIDE_CLOCK_CLK_MCLK_INNER_(12);
-	_ENABLE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_HDMITX0_MCLK_;
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_hdmitx0_bclk', 'clk_u0_i2stx_4ch_bclk', 'clk_u0_i2stx_4ch_bclk_mux', 'clk_i2stx_4ch0_bclk_mst', 'clk_i2stx_4ch0_bclk_mst_icg', 'clk_i2stx_4ch0_bclk_mst_div', 'clk_mclk', 'clk_mclk_mux', 'clk_mclk_inner', 'clk_mclk_inner_div', 'clk_audio_root', 'clk_audio_root_div', 'clk_pll2', 'clk_u0_pll_wrap_clk_pll2_o1'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_hdmitx0_bclk']
-	//default:_SWITCH_CLOCK_CLK_U0_I2STX_4CH_BCLK_SOURCE_CLK_I2STX_4CH0_BCLK_MST_;
-	//default:_DIVIDE_CLOCK_CLK_I2STX_4CH0_BCLK_MST_(4);
-	_ENABLE_CLOCK_CLK_I2STX_4CH0_BCLK_MST_;
-	//clk_u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref:['clk_u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref', 'clk_u0_dom_vout_top_clk_dom_vout_top_clk_mipiphy_ref_div', 'clk_osc', 'clk_u0_clkrst_src_bypass_clk_24m'],dst:['u0_dom_vout_top.clk_dom_vout_top_clk_mipiphy_ref']
-	//default:_DIVIDE_CLOCK_CLK_U0_DOM_VOUT_TOP_CLK_DOM_VOUT_TOP_CLK_MIPIPHY_REF_(2);
-	//clk_u0_dom_vout_top_clk_dom_vout_top_bist_pclk:['clk_u0_dom_vout_top_clk_dom_vout_top_bist_pclk', 'clk_bist_apb', 'clk_u0_clkrst_src_bypass_clk_bist_apb'],dst:['u0_dom_vout_top.clk_dom_vout_top_bist_pclk']
-
-	//rstn_u0_dom_vout_top_rstn_dom_vout_top_rstn_vout_src:['rstn_u0_dom_vout_top_rstn_dom_vout_top_rstn_vout_src'],dst:['u0_dom_vout_top.rstn_dom_vout_top_rstn_vout_src']
-	_CLEAR_RESET_RSTGEN_RSTN_U0_DOM_VOUT_TOP_RSTN_DOM_VOUT_TOP_RSTN_VOUT_SRC_;
-
-}
-
-int sys_vout_common_init(void)
+//noc bus clk enable
+static int  vs_dc_clock_enable(struct device *dev, struct vs_dc *dc)
 {
-    int ret = 0;
+	int ret;
+	/*clk_prepare_enable(dc->sys_clk);*/
+	ret = clk_prepare_enable(dc->cpu_axi);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable cpu_axi\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->axicfg0_axi);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable axicfg0_axi\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->disp_axi);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable disp_axi\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->stg_axi);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable stg_axi\n");
+		return ret;
+	}
 
-    //config common feature for all/multiple sub-modules
-    u0_sft7110_noc_bus_enable();
-    u0_dom_vout_top_enable();
+	return ret;
+}
 
-    return ret;
+static void  vs_dc_clock_disable(struct vs_dc *dc)
+{
+	clk_disable_unprepare(dc->cpu_axi);
+	clk_disable_unprepare(dc->axicfg0_axi);
+	clk_disable_unprepare(dc->disp_axi);
+	clk_disable_unprepare(dc->stg_axi);
+}
+
+static int vs_dc_get_reset(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+
+	dc->cpu_axi_n = reset_control_get_exclusive(dev, "rst_noc_cpu");
+	if (IS_ERR(dc->cpu_axi_n)) {
+		dev_err(dev, "failed to get cpu_axi_n\n");
+		return PTR_ERR(dc->cpu_axi_n);
+	}
+	dc->axicfg0_axi_n = reset_control_get_exclusive(dev, "rst_noc_axicfg0");
+	if (IS_ERR(dc->axicfg0_axi_n)) {
+		dev_err(dev, "failed to get axicfg0_axi_n\n");
+		return PTR_ERR(dc->axicfg0_axi_n);
+	}
+	dc->apb_bus_n = reset_control_get_exclusive(dev, "rst_noc_apb");
+	if (IS_ERR(dc->apb_bus_n)) {
+		dev_err(dev, "failed to get apb_bus_n\n");
+		return PTR_ERR(dc->apb_bus_n);
+	}
+	dc->disp_axi_n = reset_control_get_exclusive(dev, "rst_noc_disp");
+	if (IS_ERR(dc->disp_axi_n)) {
+		dev_err(dev, "failed to get disp_axi_n\n");
+		return PTR_ERR(dc->disp_axi_n);
+	}
+	dc->stg_axi_n = reset_control_get_exclusive(dev, "rst_noc_stg");
+	if (IS_ERR(dc->stg_axi_n)) {
+		dev_err(dev, "failed to get stg_axi_n\n");
+		return PTR_ERR(dc->stg_axi_n);
+	}
+
+	return ret;
+}
+
+static int vs_dc_resets_deassert(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+
+	ret = reset_control_deassert(dc->cpu_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert cpu_axi_n\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dc->axicfg0_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert axicfg0_axi_n\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dc->apb_bus_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert apb_bus_n\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dc->disp_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert disp_axi_n\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dc->stg_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert stg_axi_n\n");
+		return ret;
+	}
+	return ret;
+}
+
+static int vs_dc_resets_assert(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+
+	ret = reset_control_assert(dc->cpu_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert cpu_axi_n\n");
+		return ret;
+	}
+	ret = reset_control_assert(dc->axicfg0_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert axicfg0_axi_n\n");
+		return ret;
+	}
+	ret = reset_control_assert(dc->apb_bus_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert apb_bus_n\n");
+		return ret;
+	}
+	ret = reset_control_assert(dc->disp_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert disp_axi_n\n");
+		return ret;
+	}
+	ret = reset_control_assert(dc->stg_axi_n);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert stg_axi_n\n");
+		return ret;
+	}
+	return ret;
+}
+
+static int vs_dc_vouttop_get_clock(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+
+	dc->vout_src = devm_clk_get(dev, "vout_src");
+	if (IS_ERR(dc->vout_src)) {
+		dev_err(dev, "failed to get vout_src\n");
+		return PTR_ERR(dc->vout_src);
+	}
+
+	dc->vout_axi = devm_clk_get(dev, "top_vout_axi");
+	if (IS_ERR(dc->vout_axi)) {
+		dev_err(dev, "failed to get vout_axi\n");
+		return PTR_ERR(dc->vout_axi);
+	}
+
+	dc->ahb1 = devm_clk_get(dev, "ahb1");
+	if (IS_ERR(dc->ahb1)) {
+		dev_err(dev, "failed to get ahb1\n");
+		return PTR_ERR(dc->ahb1);
+	}
+
+	dc->vout_ahb = devm_clk_get(dev, "top_vout_ahb");
+	if (IS_ERR(dc->vout_ahb)) {
+		dev_err(dev, "failed to get vout_ahb\n");
+		return PTR_ERR(dc->vout_ahb);
+	}
+
+	dc->hdmitx0_mclk = devm_clk_get(dev, "top_vout_hdmiTX0");
+	if (IS_ERR(dc->hdmitx0_mclk)) {
+		dev_err(dev, "failed to get hdmitx0_mclk\n");
+		return PTR_ERR(dc->hdmitx0_mclk);
+	}
+
+	dc->bclk_mst = devm_clk_get(dev, "i2stx");
+	if (IS_ERR(dc->bclk_mst)) {
+		dev_err(dev, "failed to get bclk_mst\n");
+		return PTR_ERR(dc->bclk_mst);
+	}
+
+	return ret;
+}
+
+static int  vs_dc_vouttop_clock_enable(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	/*clk_prepare_enable(dc->sys_clk);*/
+	ret = clk_prepare_enable(dc->vout_src);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable vout_src\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->vout_axi);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable vout_axi\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->ahb1);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable ahb1\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->hdmitx0_mclk);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable hdmitx0_mclk\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->bclk_mst);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable bclk_mst\n");
+		return ret;
+	}
+	return ret;
+}
+
+static void  vs_dc_vouttop_clock_disable(struct vs_dc *dc)
+{
+	clk_disable_unprepare(dc->vout_src);
+	clk_disable_unprepare(dc->vout_axi);
+	clk_disable_unprepare(dc->ahb1);
+	clk_disable_unprepare(dc->hdmitx0_mclk);
+	clk_disable_unprepare(dc->bclk_mst);
+}
+
+static int vs_dc_vouttop_get_reset(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+
+	dc->rstn_vout_src = reset_control_get_exclusive(dev, "rst_vout_src");
+	if (IS_ERR(dc->rstn_vout_src)) {
+		dev_err(dev, "failed to get rstn_vout_src\n");
+		return PTR_ERR(dc->rstn_vout_src);
+	}
+	return ret;
+}
+
+static int vs_dc_vouttop_resets_deassert(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	ret = reset_control_deassert(dc->rstn_vout_src);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rstn_vout_src\n");
+		return ret;
+	}
+	return ret;
+}
+
+static int vs_dc_vouttop_resets_assert(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	ret = reset_control_assert(dc->rstn_vout_src);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rstn_vout_src\n");
+		return ret;
+	}
+	return ret;
+}
+
+static int vs_dc_dc8200_get_clock(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	dc->dc8200_pix0 = devm_clk_get(dev, "pix_clk");
+	if (IS_ERR(dc->dc8200_pix0)) {
+		dev_err(dev, "---dc8200_pix0 get error\n");
+		return PTR_ERR(dc->dc8200_pix0);
+	}
+
+	dc->dc8200_pix1 = devm_clk_get(dev, "vout_pix1");
+	if (IS_ERR(dc->dc8200_pix1)) {
+		dev_err(dev, "---dc8200_pix1 get error\n");
+		return PTR_ERR(dc->dc8200_pix1);
+	}
+
+	dc->dc8200_axi = devm_clk_get(dev, "axi_clk");
+	if (IS_ERR(dc->dc8200_axi)) {
+		dev_err(dev, "---dc8200_axi get error\n");
+		return PTR_ERR(dc->dc8200_axi);
+	}
+
+	dc->dc8200_core = devm_clk_get(dev, "core_clk");
+	if (IS_ERR(dc->dc8200_core)) {
+		dev_err(dev, "---dc8200_core get error\n");
+		return PTR_ERR(dc->dc8200_core);
+	}
+
+	dc->dc8200_ahb = devm_clk_get(dev, "vout_ahb");
+	if (IS_ERR(dc->dc8200_ahb)) {
+		dev_err(dev, "---dc8200_ahb get error\n");
+		return PTR_ERR(dc->dc8200_ahb);
+	}
+	return ret;
+}
+
+static int  vs_dc_dc8200_clock_enable(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	/*clk_prepare_enable(dc->sys_clk);*/
+	ret = clk_prepare_enable(dc->dc8200_pix0);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dc8200_pix0\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->dc8200_pix1);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dc8200_pix1\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->dc8200_axi);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dc8200_axi\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->dc8200_core);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dc8200_core\n");
+		return ret;
+	}
+	ret = clk_prepare_enable(dc->dc8200_ahb);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable dc8200_ahb\n");
+		return ret;
+	}
+
+	return ret;
+}
+
+static void  vs_dc_dc8200_clock_disable(struct vs_dc *dc)
+{
+	clk_disable_unprepare(dc->dc8200_pix0);
+	clk_disable_unprepare(dc->dc8200_pix1);
+	clk_disable_unprepare(dc->dc8200_axi);
+	clk_disable_unprepare(dc->dc8200_core);
+	clk_disable_unprepare(dc->dc8200_ahb);
+}
+
+static int vs_dc_dc8200_get_reset(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+
+	dc->rstn_dc8200_axi = reset_control_get_exclusive(dev, "rst_axi");
+	if (IS_ERR(dc->rstn_dc8200_axi)) {
+		dev_err(dev, "failed to get rstn_dc8200_axi\n");
+		return PTR_ERR(dc->rstn_dc8200_axi);
+	}
+	dc->rstn_dc8200_core = reset_control_get_exclusive(dev, "rst_core");
+	if (IS_ERR(dc->rstn_dc8200_core)) {
+		dev_err(dev, "failed to get rstn_dc8200_core\n");
+		return PTR_ERR(dc->rstn_dc8200_core);
+	}
+	dc->rstn_dc8200_ahb = reset_control_get_exclusive(dev, "rst_ahb");
+	if (IS_ERR(dc->rstn_dc8200_ahb)) {
+		dev_err(dev, "failed to get rstn_dc8200_ahb\n");
+		return PTR_ERR(dc->rstn_dc8200_ahb);
+	}
+	return ret;
+}
+
+static int vs_dc_dc8200_resets_deassert(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	ret = reset_control_deassert(dc->rstn_dc8200_axi);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rstn_dc8200_axi\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dc->rstn_dc8200_core);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rstn_dc8200_core\n");
+		return ret;
+	}
+	ret = reset_control_deassert(dc->rstn_dc8200_ahb);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert rstn_dc8200_ahb\n");
+		return ret;
+	}
+	return ret;
+}
+
+static int vs_dc_dc8200_resets_assert(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	ret = reset_control_assert(dc->rstn_dc8200_axi);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert rstn_dc8200_axi\n");
+		return ret;
+	}
+	ret = reset_control_assert(dc->rstn_dc8200_core);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert rstn_dc8200_core\n");
+		return ret;
+	}
+	ret = reset_control_assert(dc->rstn_dc8200_ahb);
+	if (ret < 0) {
+		dev_err(dev, "failed to assert rstn_dc8200_ahb\n");
+		return ret;
+	}
+	return ret;
+}
+
+static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
+{
+	int ret;
+	#if 1	//noc bus
+	ret = vs_dc_get_clock(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get clock\n");
+		return ret;
+	}
+	ret = vs_dc_get_reset(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get reset\n");
+		return ret;
+	}
+	ret = vs_dc_clock_enable(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		return ret;
+	}
+	ret = vs_dc_resets_deassert(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset\n");
+		return ret;
+	}
+	#endif
+
+	#if 1	//vout top
+	ret = vs_dc_vouttop_get_clock(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get clock\n");
+		return ret;
+	}
+	ret = vs_dc_vouttop_get_reset(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get reset\n");
+		return ret;
+	}
+	ret = vs_dc_vouttop_clock_enable(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		return ret;
+	}
+	ret = vs_dc_vouttop_resets_deassert(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset\n");
+		return ret;
+	}
+	#endif
+
+	#if 1	//dc8200
+	ret = vs_dc_dc8200_get_clock(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get clock\n");
+		return ret;
+	}
+	ret = vs_dc_dc8200_get_reset(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to get reset\n");
+		return ret;
+	}
+	ret = vs_dc_dc8200_clock_enable(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to enable clock\n");
+		return ret;
+	}
+	ret = vs_dc_dc8200_resets_deassert(dev, dc);
+	if (ret) {
+		dev_err(dev, "failed to deassert reset\n");
+		return ret;
+	}
+	#endif
+
+	return ret;
 }
 
 int sys_vout_mux_config(void)
@@ -387,11 +814,6 @@ int sys_vout_mux_config(void)
 		SET_U0_HDMI_DATA_MAPPING_DP_BIT_DEPTH(0);
 		SET_U0_HDMI_DATA_MAPPING_DP_YUV_MODE(0);
 		SET_U2_DISPLAY_PANEL_MUX_PANEL_SEL(0);
-
-		_SWITCH_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_SOURCE_CLK_U0_DC8200_CLK_PIX0_OUT_;
-		_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;
-		SET_U0_DISPLAY_PANEL_MUX_PANEL_SEL(0);
-		SET_U0_LCD_DATA_MAPPING_DPI_DP_SEL(0);
 
     }
     return 0;
@@ -405,47 +827,32 @@ int sys_dispctrl_clk(void)
     return 0;
 }
 
-void u0_dc8200_enable(void){
-  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_PIX0_;
-  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_PIX1_;
-  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_AXI_;
-  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_CORE_;
-  _ENABLE_CLOCK_CLK_U0_DC8200_CLK_AHB_;
-
-  _CLEAR_RESET_RSTGEN_RSTN_U0_DC8200_RSTN_AXI_;
-  _CLEAR_RESET_RSTGEN_RSTN_U0_DC8200_RSTN_CORE_;
-  _CLEAR_RESET_RSTGEN_RSTN_U0_DC8200_RSTN_AHB_;
-
-}
-
-void u0_hdmi_tx_enable(void){
-
-	//clk_u0_hdmi_tx_clk_sys:['clk_u0_hdmi_tx_clk_sys', 'clk_u0_hdmi_tx_clk_sys_icg', 'clk_disp_apb', 'clk_u0_pclk_mux_pclk'],dst:['u0_hdmi_tx.pin_sys_clk']
-	_ENABLE_CLOCK_CLK_U0_HDMI_TX_CLK_SYS_;
-	//clk_u0_hdmi_tx_clk_ref:['clk_u0_hdmi_tx_clk_ref', 'clk_hdmi_phy_ref', 'clk_dom_vout_top_clk_hdmiphy_ref'],dst:['u0_hdmi_tx.pin_ref_clk']
-	//clk_u0_hdmi_tx_clk_mclk:['clk_u0_hdmi_tx_clk_mclk', 'clk_u0_hdmi_tx_clk_mclk_icg', 'clk_hdmitx0_mclk', 'clk_dom_vout_top_clk_hdmitx0_mclk'],dst:['u0_hdmi_tx.pin_mclk']
-	_ENABLE_CLOCK_CLK_U0_HDMI_TX_CLK_MCLK_;
-	//clk_u0_hdmi_tx_clk_bclk:['clk_u0_hdmi_tx_clk_bclk', 'clk_u0_hdmi_tx_clk_bclk_icg', 'clk_hdmitx0_sck', 'clk_dom_vout_top_clk_hdmitx0_bclk'],dst:['u0_hdmi_tx.pin_sck']
-	_ENABLE_CLOCK_CLK_U0_HDMI_TX_CLK_BCLK_;
-
-	//rstn_u0_hdmi_tx_rstn_hdmi:['rstn_u0_hdmi_tx_rstn_hdmi'],dst:['u0_hdmi_tx.pin_func_rst_n']
-	_CLEAR_RESET_RSTGEN_RSTN_U0_HDMI_TX_RSTN_HDMI_;
-
-}
 
 int sys_dispctrl_init(void)
 {
-    sys_vout_common_init();
-	u0_hdmi_tx_enable();
-	//inno_hdmi_set_pinmux();//20220523
     sys_vout_mux_config();
     sys_dispctrl_clk();
 
-    //SET_U0_DC8200_CSYSREQ(1);
-    u0_dc8200_enable();
 	mdelay(1);    
     return 0;
 }
+
+static void dc_deinit(struct device *dev)
+{
+	struct vs_dc *dc = dev_get_drvdata(dev);
+
+	dc_hw_enable_interrupt(&dc->hw, 0);
+	dc_hw_deinit(&dc->hw);
+	vs_dc_dc8200_clock_disable(dc);
+	vs_dc_vouttop_clock_disable(dc);
+	vs_dc_clock_disable(dc);
+	vs_dc_dc8200_resets_assert(dev, dc);
+	vs_dc_vouttop_resets_assert(dev, dc);
+	vs_dc_resets_assert(dev, dc);
+	//plda_clk_rst_deinit(dev);
+	starfive_power_domain_set(POWER_DOMAIN_VOUT, 0);
+}
+
 
 ///////////////////////////////////////////////////////////
 static int dc_init(struct device *dev)
@@ -456,9 +863,12 @@ static int dc_init(struct device *dev)
 	dc->first_frame = true;
 
 	//power_set(dev, 1);
+
 	starfive_power_domain_set(POWER_DOMAIN_VOUT, 1);
 
 	//ret = plda_clk_rst_init(dev);
+	ret = dc_vout_clk_rst_init(dev, dc);
+
 	ret = sys_dispctrl_init();
 	if (ret < 0) {
 		dev_err(dev, "failed to init vout clk reset: %d\n", ret);

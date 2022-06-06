@@ -612,6 +612,9 @@
 
 &hdmi {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&inno_hdmi_pins>;
+
 	hdmi_in: port {
 		#address-cells = <1>;
 		#size-cells = <0>;

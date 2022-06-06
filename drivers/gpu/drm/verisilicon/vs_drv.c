@@ -37,7 +37,7 @@
 
 extern struct platform_driver starfive_encoder_driver;
 
-#define DRV_NAME	"vs-drm"
+#define DRV_NAME	"starfive"
 #define DRV_DESC	"VeriSilicon DRM driver"
 #define DRV_DATE	"20191101"
 #define DRV_MAJOR	1
