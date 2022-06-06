@@ -155,7 +155,6 @@ struct resp_res {
 
 	union {
 		struct {
-			struct sk_buff	*skb;
 			u64		orig_val;
 		} atomic;
 		struct {

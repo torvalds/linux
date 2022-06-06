@@ -586,40 +586,43 @@ static enum resp_states rxe_atomic_reply(struct rxe_qp *qp,
 		qp->resp.res = res;
 	}
 
-	if (mr->state != RXE_MR_STATE_VALID) {
-		ret = RESPST_ERR_RKEY_VIOLATION;
-		goto out;
+	if (!res->replay) {
+		if (mr->state != RXE_MR_STATE_VALID) {
+			ret = RESPST_ERR_RKEY_VIOLATION;
+			goto out;
+		}
+
+		vaddr = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset,
+					sizeof(u64));
+
+		/* check vaddr is 8 bytes aligned. */
+		if (!vaddr || (uintptr_t)vaddr & 7) {
+			ret = RESPST_ERR_MISALIGNED_ATOMIC;
+			goto out;
+		}
+
+		spin_lock_bh(&atomic_ops_lock);
+		res->atomic.orig_val = value = *vaddr;
+
+		if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP) {
+			if (value == atmeth_comp(pkt))
+				value = atmeth_swap_add(pkt);
+		} else {
+			value += atmeth_swap_add(pkt);
+		}
+
+		*vaddr = value;
+		spin_unlock_bh(&atomic_ops_lock);
+
+		qp->resp.msn++;
+
+		/* next expected psn, read handles this separately */
+		qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
+		qp->resp.ack_psn = qp->resp.psn;
+
+		qp->resp.opcode = pkt->opcode;
+		qp->resp.status = IB_WC_SUCCESS;
 	}
-
-	vaddr = iova_to_vaddr(mr, qp->resp.va + qp->resp.offset, sizeof(u64));
-
-	/* check vaddr is 8 bytes aligned. */
-	if (!vaddr || (uintptr_t)vaddr & 7) {
-		ret = RESPST_ERR_MISALIGNED_ATOMIC;
-		goto out;
-	}
-
-	spin_lock_bh(&atomic_ops_lock);
-	res->atomic.orig_val = value = *vaddr;
-
-	if (pkt->opcode == IB_OPCODE_RC_COMPARE_SWAP) {
-		if (value == atmeth_comp(pkt))
-			value = atmeth_swap_add(pkt);
-	} else {
-		value += atmeth_swap_add(pkt);
-	}
-
-	*vaddr = value;
-	spin_unlock_bh(&atomic_ops_lock);
-
-	qp->resp.msn++;
-
-	/* next expected psn, read handles this separately */
-	qp->resp.psn = (pkt->psn + 1) & BTH_PSN_MASK;
-	qp->resp.ack_psn = qp->resp.psn;
-
-	qp->resp.opcode = pkt->opcode;
-	qp->resp.status = IB_WC_SUCCESS;
 
 	ret = RESPST_ACKNOWLEDGE;
 out:
@@ -1056,7 +1059,6 @@ static int send_atomic_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 	int err = 0;
 	struct rxe_pkt_info ack_pkt;
 	struct sk_buff *skb;
-	struct resp_res *res = qp->resp.res;
 
 	skb = prepare_ack_packet(qp, &ack_pkt, IB_OPCODE_RC_ATOMIC_ACKNOWLEDGE,
 				 0, psn, syndrome);
@@ -1065,15 +1067,9 @@ static int send_atomic_ack(struct rxe_qp *qp, u8 syndrome, u32 psn)
 		goto out;
 	}
 
-	skb_get(skb);
-
-	res->atomic.skb = skb;
-
 	err = rxe_xmit_packet(qp, &ack_pkt, skb);
-	if (err) {
-		pr_err_ratelimited("Failed sending ack\n");
-		rxe_put(qp);
-	}
+	if (err)
+		pr_err_ratelimited("Failed sending atomic ack\n");
 
 	/* have to clear this since it is used to trigger
 	 * long read replies
@@ -1201,14 +1197,11 @@ static enum resp_states duplicate_request(struct rxe_qp *qp,
 		/* Find the operation in our list of responder resources. */
 		res = find_resource(qp, pkt->psn);
 		if (res) {
-			skb_get(res->atomic.skb);
-			/* Resend the result. */
-			rc = rxe_xmit_packet(qp, pkt, res->atomic.skb);
-			if (rc) {
-				pr_err("Failed resending result. This flow is not handled - skb ignored\n");
-				rc = RESPST_CLEANUP;
-				goto out;
-			}
+			res->replay = 1;
+			res->cur_psn = pkt->psn;
+			qp->resp.res = res;
+			rc = RESPST_ATOMIC_REPLY;
+			goto out;
 		}
 
 		/* Resource not found. Class D error. Drop the request. */
