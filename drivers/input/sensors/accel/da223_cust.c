@@ -39,7 +39,7 @@
 /******************************************************************************/
 #define GSENSOR_MIN        					2
 #define MIR3DA_PRECISION           				11
-#define MIR3DA_RANGE               				1000000
+#define MIR3DA_RANGE						16384
 #define DA311_BOUNDARY            				(0x1 << (MIR3DA_PRECISION - 1))
 #define DA311_GRAVITY_STEP        			(MIR3DA_RANGE/DA311_BOUNDARY)
 /******************************************************************************/
@@ -775,9 +775,9 @@ static int sensor_report_value(struct i2c_client *client)
 	input_report_abs(sensor->input_dev, ABS_Y, (axis.y/64));
 	input_report_abs(sensor->input_dev, ABS_Z, -(axis.z/64));
 #else
-	input_report_abs(sensor->input_dev, ABS_X, -(axis.x/64));
-	input_report_abs(sensor->input_dev, ABS_Y, (axis.y/64));
-	input_report_abs(sensor->input_dev, ABS_Z, -(axis.z/64));
+	input_report_abs(sensor->input_dev, ABS_X, -(axis.x));
+	input_report_abs(sensor->input_dev, ABS_Y, (axis.y));
+	input_report_abs(sensor->input_dev, ABS_Z, -(axis.z));
 #endif
 
 	input_sync(sensor->input_dev);
