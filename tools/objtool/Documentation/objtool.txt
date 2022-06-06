@@ -1,15 +1,103 @@
-Compile-time stack metadata validation
-======================================
+Objtool
+=======
+
+The kernel CONFIG_OBJTOOL option enables a host tool named 'objtool'
+which runs at compile time.  It can do various validations and
+transformations on .o files.
+
+Objtool has become an integral part of the x86-64 kernel toolchain.  The
+kernel depends on it for a variety of security and performance features
+(and other types of features as well).
 
 
-Overview
+Features
 --------
 
-The kernel CONFIG_STACK_VALIDATION option enables a host tool named
-objtool which runs at compile time.  It has a "check" subcommand which
-analyzes every .o file and ensures the validity of its stack metadata.
-It enforces a set of rules on asm code and C inline assembly code so
-that stack traces can be reliable.
+Objtool has the following features:
+
+- Stack unwinding metadata validation -- useful for helping to ensure
+  stack traces are reliable for live patching
+
+- ORC unwinder metadata generation -- a faster and more precise
+  alternative to frame pointer based unwinding
+
+- Retpoline validation -- ensures that all indirect calls go through
+  retpoline thunks, for Spectre v2 mitigations
+
+- Retpoline call site annotation -- annotates all retpoline thunk call
+  sites, enabling the kernel to patch them inline, to prevent "thunk
+  funneling" for both security and performance reasons
+
+- Non-instrumentation validation -- validates non-instrumentable
+  ("noinstr") code rules, preventing instrumentation in low-level C
+  entry code
+
+- Static call annotation -- annotates static call sites, enabling the
+  kernel to implement inline static calls, a faster alternative to some
+  indirect branches
+
+- Uaccess validation -- validates uaccess rules for a proper
+  implementation of Supervisor Mode Access Protection (SMAP)
+
+- Straight Line Speculation validation -- validates certain SLS
+  mitigations
+
+- Indirect Branch Tracking validation -- validates Intel CET IBT rules
+  to ensure that all functions referenced by function pointers have
+  corresponding ENDBR instructions
+
+- Indirect Branch Tracking annotation -- annotates unused ENDBR
+  instruction sites, enabling the kernel to "seal" them (replace them
+  with NOPs) to further harden IBT
+
+- Function entry annotation -- annotates function entries, enabling
+  kernel function tracing
+
+- Other toolchain hacks which will go unmentioned at this time...
+
+Each feature can be enabled individually or in combination using the
+objtool cmdline.
+
+
+Objects
+-------
+
+Typically, objtool runs on every translation unit (TU, aka ".o file") in
+the kernel.  If a TU is part of a kernel module, the '--module' option
+is added.
+
+However:
+
+- If noinstr validation is enabled, it also runs on vmlinux.o, with all
+  options removed and '--noinstr' added.
+
+- If IBT or LTO is enabled, it doesn't run on TUs at all.  Instead it
+  runs on vmlinux.o and linked modules, with all options.
+
+In summary:
+
+  A) Legacy mode:
+             TU: objtool [--module] <options>
+        vmlinux: N/A
+         module: N/A
+
+  B) CONFIG_NOINSTR_VALIDATION=y && !(CONFIG_X86_KERNEL_IBT=y || CONFIG_LTO=y):
+             TU: objtool [--module] <options>	// no --noinstr
+        vmlinux: objtool --noinstr		// other options removed
+         module: N/A
+
+  C) CONFIG_X86_KERNEL_IBT=y || CONFIG_LTO=y:
+             TU: N/A
+        vmlinux: objtool --noinstr <options>
+         module: objtool --module --noinstr <options>
+
+
+Stack validation
+----------------
+
+Objtool's stack validation feature analyzes every .o file and ensures
+the validity of its stack metadata.  It enforces a set of rules on asm
+code and C inline assembly code so that stack traces can be reliable.
 
 For each function, it recursively follows all possible code paths and
 validates the correct frame pointer state at each instruction.
@@ -19,14 +107,6 @@ It also follows code paths involving special sections, like
 alternative execution paths to a given instruction (or set of
 instructions).  Similarly, it knows how to follow switch statements, for
 which gcc sometimes uses jump tables.
-
-(Objtool also has an 'orc generate' subcommand which generates debuginfo
-for the ORC unwinder.  See Documentation/x86/orc-unwinder.rst in the
-kernel tree for more details.)
-
-
-Why do we need stack metadata validation?
------------------------------------------
 
 Here are some of the benefits of validating stack metadata:
 
@@ -113,9 +193,6 @@ c) Higher live patching compatibility rate
    For more details, see the livepatch documentation in the Linux kernel
    source tree at Documentation/livepatch/livepatch.rst.
 
-Rules
------
-
 To achieve the validation, objtool enforces the following rules:
 
 1. Each callable function must be annotated as such with the ELF
@@ -177,7 +254,8 @@ Another possible cause for errors in C code is if the Makefile removes
 -fno-omit-frame-pointer or adds -fomit-frame-pointer to the gcc options.
 
 Here are some examples of common warnings reported by objtool, what
-they mean, and suggestions for how to fix them.
+they mean, and suggestions for how to fix them.  When in doubt, ping
+the objtool maintainers.
 
 
 1. file.o: warning: objtool: func()+0x128: call without frame pointer save/setup
@@ -358,3 +436,7 @@ ignore it:
     OBJECT_FILES_NON_STANDARD := y
 
   to the Makefile.
+
+NOTE: OBJECT_FILES_NON_STANDARD doesn't work for link time validation of
+vmlinux.o or a linked module.  So it should only be used for files which
+aren't linked into vmlinux or a module.
