@@ -66,6 +66,7 @@ struct rkcif_multi_sync_config {
 	u32 sync_mask;
 	u32 update_code;
 	u32 update_cache;
+	u32 frame_idx;
 	bool is_attach;
 };
 

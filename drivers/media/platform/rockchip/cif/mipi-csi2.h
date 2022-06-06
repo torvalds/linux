@@ -166,5 +166,6 @@ int __init rkcif_csi2_plat_drv_init(void);
 void __exit rkcif_csi2_plat_drv_exit(void);
 int rkcif_csi2_register_notifier(struct notifier_block *nb);
 int rkcif_csi2_unregister_notifier(struct notifier_block *nb);
+void rkcif_csi2_event_reset_pipe(struct csi2_dev *csi2_dev, int reset_src);
 
 #endif

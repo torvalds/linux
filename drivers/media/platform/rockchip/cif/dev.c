@@ -1016,9 +1016,9 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 			cif_dev->irq_stats.all_frm_end_cnt = 0;
 			cif_dev->reset_watchdog_timer.is_triggered = false;
 			cif_dev->reset_watchdog_timer.is_running = false;
-			cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt = 0;
+			for (i = 0; i < cif_dev->num_channels; i++)
+				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 			cif_dev->reset_watchdog_timer.run_cnt = 0;
-			cif_dev->buf_wake_up_cnt = 0;
 		}
 
 		/* phy -> sensor */
@@ -1080,9 +1080,9 @@ static int rkcif_pipeline_set_stream(struct rkcif_pipeline *p, bool on)
 				cif_dev->is_start_hdr = true;
 				cif_dev->reset_watchdog_timer.is_triggered = false;
 				cif_dev->reset_watchdog_timer.is_running = false;
-				cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt = 0;
+				for (i = 0; i < cif_dev->num_channels; i++)
+					cif_dev->reset_watchdog_timer.last_buf_wakeup_cnt[i] = 0;
 				cif_dev->reset_watchdog_timer.run_cnt = 0;
-				cif_dev->buf_wake_up_cnt = 0;
 			}
 
 			/* phy -> sensor */
@@ -1679,78 +1679,29 @@ static int rkcif_detach_hw(struct rkcif_device *cif_dev)
 	return 0;
 }
 
-static char *rkcif_get_monitor_mode(enum rkcif_monitor_mode mode)
-{
-	switch (mode) {
-	case RKCIF_MONITOR_MODE_IDLE:
-		return "idle";
-	case RKCIF_MONITOR_MODE_CONTINUE:
-		return "continue";
-	case RKCIF_MONITOR_MODE_TRIGGER:
-		return "trigger";
-	case RKCIF_MONITOR_MODE_HOTPLUG:
-		return "hotplug";
-	default:
-		return "unknown";
-	}
-}
-
 static void rkcif_init_reset_monitor(struct rkcif_device *dev)
 {
-	struct device_node *node = dev->dev->of_node;
 	struct rkcif_timer *timer = &dev->reset_watchdog_timer;
 	struct notifier_block *notifier = &dev->reset_notifier;
-	u32 para[8];
-	int i;
 
-	if (!of_property_read_u32_array(node,
-					OF_CIF_MONITOR_PARA,
-					para,
-					CIF_MONITOR_PARA_NUM)) {
-		for (i = 0; i < CIF_MONITOR_PARA_NUM; i++) {
-			if (i == 0) {
-				timer->monitor_mode = para[0];
-				v4l2_info(&dev->v4l2_dev,
-					  "%s: timer monitor mode:%s\n",
-					  __func__, rkcif_get_monitor_mode(timer->monitor_mode));
-			}
-
-			if (i == 1) {
-				timer->triggered_frame_num = para[1];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer triggered frm num:%d\n",
-					  timer->triggered_frame_num);
-			}
-
-			if (i == 2) {
-				timer->frm_num_of_monitor_cycle = para[2];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer frm num of monitor cycle:%d\n",
-					  timer->frm_num_of_monitor_cycle);
-			}
-
-			if (i == 3) {
-				timer->err_time_interval = para[3];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer err time for keeping:%d ms\n",
-					  timer->err_time_interval);
-			}
-
-			if (i == 4) {
-				timer->csi2_err_ref_cnt = para[4];
-				v4l2_info(&dev->v4l2_dev,
-					  "timer csi2 err ref val for resetting:%d\n",
-					  timer->csi2_err_ref_cnt);
-			}
-		}
-	} else {
-		timer->monitor_mode = RKCIF_MONITOR_MODE_IDLE;
-		timer->err_time_interval = 0xffffffff;
-		timer->frm_num_of_monitor_cycle = 0xffffffff;
-		timer->triggered_frame_num =  0xffffffff;
-		timer->csi2_err_ref_cnt = 0xffffffff;
-	}
-
+#if defined(CONFIG_ROCKCHIP_CIF_USE_MONITOR)
+	timer->monitor_mode = CONFIG_ROCKCHIP_CIF_MONITOR_MODE;
+	timer->err_time_interval = CONFIG_ROCKCHIP_CIF_MONITOR_KEEP_TIME;
+	timer->frm_num_of_monitor_cycle = CONFIG_ROCKCHIP_CIF_MONITOR_CYCLE;
+	timer->triggered_frame_num =  CONFIG_ROCKCHIP_CIF_MONITOR_START_FRAME;
+	timer->csi2_err_ref_cnt = CONFIG_ROCKCHIP_CIF_MONITOR_ERR_CNT;
+	#if defined(CONFIG_ROCKCHIP_CIF_RESET_BY_USER)
+	timer->is_ctrl_by_user = true;
+	#else
+	timer->is_ctrl_by_user = false;
+	#endif
+#else
+	timer->monitor_mode = RKCIF_MONITOR_MODE_IDLE;
+	timer->err_time_interval = 0xffffffff;
+	timer->frm_num_of_monitor_cycle = 0xffffffff;
+	timer->triggered_frame_num =  0xffffffff;
+	timer->csi2_err_ref_cnt = 0xffffffff;
+#endif
 	timer->is_running = false;
 	timer->is_triggered = false;
 	timer->is_buf_stop_update = false;

@@ -18,6 +18,7 @@
 #include <linux/rk-camera-module.h>
 #include <media/v4l2-ioctl.h>
 #include "mipi-csi2.h"
+#include <linux/rkcif-config.h>
 
 static int csi2_debug;
 module_param_named(debug_csi2, csi2_debug, int, 0644);
@@ -509,6 +510,17 @@ static const struct media_entity_operations csi2_entity_ops = {
 	.link_validate = v4l2_subdev_link_validate,
 };
 
+void rkcif_csi2_event_reset_pipe(struct csi2_dev *csi2_dev, int reset_src)
+{
+	if (csi2_dev) {
+		struct v4l2_event event = {
+			.type = V4L2_EVENT_RESET_DEV,
+			.reserved[0] = reset_src,
+		};
+		v4l2_event_queue(csi2_dev->sd.devnode, &event);
+	}
+}
+
 void rkcif_csi2_event_inc_sof(struct csi2_dev *csi2_dev)
 {
 	if (csi2_dev) {
@@ -538,10 +550,11 @@ void rkcif_csi2_set_sof(struct csi2_dev *csi2_dev, u32 seq)
 static int rkcif_csi2_subscribe_event(struct v4l2_subdev *sd, struct v4l2_fh *fh,
 					     struct v4l2_event_subscription *sub)
 {
-	if (sub->type != V4L2_EVENT_FRAME_SYNC)
+	if (sub->type == V4L2_EVENT_FRAME_SYNC ||
+	    sub->type == V4L2_EVENT_RESET_DEV)
+		return v4l2_event_subscribe(fh, sub, RKCIF_V4L2_EVENT_ELEMS, NULL);
+	else
 		return -EINVAL;
-
-	return v4l2_event_subscribe(fh, sub, RKCIF_V4L2_EVENT_ELEMS, NULL);
 }
 
 static int rkcif_csi2_s_power(struct v4l2_subdev *sd, int on)
