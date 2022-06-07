@@ -241,7 +241,7 @@ void amdgpu_gfx_graphics_queue_acquire(struct amdgpu_device *adev)
 				adev->gfx.me.num_queue_per_pipe;
 
 			set_bit(pipe * adev->gfx.me.num_queue_per_pipe + queue,
-					adev->gfx.me.queue_bitmap);
+				adev->gfx.me.queue_bitmap);
 		}
 	} else {
 		for (i = 0; i < max_queues_per_me; ++i)
