@@ -2819,7 +2819,7 @@ qla24xx_els_logo_iocb(srb_t *sp, struct els_entry_24xx *els_iocb)
 	sp->vha->qla_stats.control_requests++;
 }
 
-static void
+void
 qla2x00_els_dcmd2_iocb_timeout(void *data)
 {
 	srb_t *sp = data;

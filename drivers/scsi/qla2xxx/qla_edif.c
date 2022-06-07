@@ -517,16 +517,28 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 			if (atomic_read(&vha->loop_state) == LOOP_DOWN)
 				break;
 
-			fcport->edif.app_started = 1;
 			fcport->login_retry = vha->hw->login_retry_count;
 
-			/* no activity */
 			fcport->edif.app_stop = 0;
+			fcport->edif.app_sess_online = 0;
+			fcport->edif.app_started = 1;
+
+			if (fcport->scan_state != QLA_FCPORT_FOUND)
+				continue;
+
+			if (fcport->port_type == FCT_UNKNOWN &&
+			    !fcport->fc4_features)
+				rval = qla24xx_async_gffid(vha, fcport, true);
+
+			if (!rval && !(fcport->fc4_features & FC4_FF_TARGET ||
+			    fcport->port_type & (FCT_TARGET|FCT_NVME_TARGET)))
+				continue;
+
+			rval = 0;
 
 			ql_dbg(ql_dbg_edif, vha, 0x911e,
 			       "%s wwpn %8phC calling qla_edif_reset_auth_wait\n",
 			       __func__, fcport->port_name);
-			fcport->edif.app_sess_online = 0;
 			qlt_schedule_sess_for_deletion(fcport);
 			qla_edif_sa_ctl_init(vha, fcport);
 		}
@@ -882,6 +894,20 @@ qla_edif_app_getfcinfo(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			app_reply->ports[pcnt].rekey_count =
 				fcport->edif.rekey_cnt;
+
+			if (fcport->scan_state != QLA_FCPORT_FOUND)
+				continue;
+
+			if (fcport->port_type == FCT_UNKNOWN && !fcport->fc4_features)
+				rval = qla24xx_async_gffid(vha, fcport, true);
+
+			if (!rval &&
+			    !(fcport->fc4_features & FC4_FF_TARGET ||
+			      fcport->port_type &
+			      (FCT_TARGET | FCT_NVME_TARGET)))
+				continue;
+
+			rval = 0;
 
 			app_reply->ports[pcnt].remote_type =
 				VND_CMD_RTYPE_UNKNOWN;
