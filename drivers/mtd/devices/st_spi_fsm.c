@@ -2084,15 +2084,12 @@ static int stfsm_probe(struct platform_device *pdev)
 	 * Configure READ/WRITE/ERASE sequences according to platform and
 	 * device flags.
 	 */
-	if (info->config) {
+	if (info->config)
 		ret = info->config(fsm);
-		if (ret)
-			goto err_clk_unprepare;
-	} else {
+	else
 		ret = stfsm_prepare_rwe_seqs_default(fsm);
-		if (ret)
-			goto err_clk_unprepare;
-	}
+	if (ret)
+		goto err_clk_unprepare;
 
 	fsm->mtd.name		= info->name;
 	fsm->mtd.dev.parent	= &pdev->dev;
