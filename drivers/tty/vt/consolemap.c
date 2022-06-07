@@ -580,14 +580,10 @@ static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
 	int ret;
 	u16 uni = 0;
 
-	ret = con_do_clear_unimap(vc);
+	ret = con_allocate_new(vc);
 	if (ret)
 		return ERR_PTR(ret);
 
-	/*
-	 * Since refcount was > 1, con_clear_unimap() allocated a new
-	 * uni_pagedict for this vc.  Re: old != new
-	 */
 	new = *vc->vc_uni_pagedir_loc;
 
 	/*
