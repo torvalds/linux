@@ -305,11 +305,13 @@ static int video_buf_init(struct vb2_buffer *vb)
 	//struct sg_table *sgt;
 	dma_addr_t *paddr;
 	unsigned int i;
+	buffer->sizeimage = 0;
 
 	if (video->is_mp) {
 		for (i = 0; i < fmt_mp->num_planes; i++) {
 			paddr = vb2_plane_cookie(vb, i);
 			buffer->addr[i] = *paddr;
+		buffer->sizeimage += vb2_plane_size(vb, i);
 		}
 
 		if (fmt_mp->num_planes == 1
@@ -322,6 +324,7 @@ static int video_buf_init(struct vb2_buffer *vb)
 					fmt_mp->height;
 	} else {
 		paddr = vb2_plane_cookie(vb, 0);
+		buffer->sizeimage = vb2_plane_size(vb, 0);
 		buffer->addr[0] = *paddr;
 		if (fmt->pixelformat == V4L2_PIX_FMT_NV12
 			|| fmt->pixelformat == V4L2_PIX_FMT_NV21

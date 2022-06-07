@@ -1210,6 +1210,7 @@ static void vin_buf_flush(struct vin_output *output,
 	}
 }
 
+extern void sifive_l2_flush64_range(unsigned long start, unsigned long len);
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 {
 	struct stfcamss_buffer *ready_buf;
@@ -1226,6 +1227,14 @@ static void vin_buffer_done(struct vin_line *line, struct vin_params *params)
 	while ((ready_buf = vin_buf_get_ready(output))) {
 		ready_buf->vb.vb2_buf.timestamp = ts;
 		ready_buf->vb.sequence = output->sequence++;
+
+		/* The stf_isp_ctrl currently buffered with mmap,
+		 * which will not update cache by default.
+		 * Flush L2 cache to make sure data is updated.
+		 */
+		if (ready_buf->vb.vb2_buf.memory == VB2_MEMORY_MMAP)
+			sifive_l2_flush64_range(ready_buf->addr[0], ready_buf->sizeimage);
+
 		vb2_buffer_done(&ready_buf->vb.vb2_buf, VB2_BUF_STATE_DONE);
 	}
 

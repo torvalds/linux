@@ -25,6 +25,7 @@ struct stfcamss_buffer {
 	struct vb2_v4l2_buffer vb;
 	dma_addr_t addr[3];
 	struct list_head queue;
+	int sizeimage;
 };
 
 struct stfcamss_video;
