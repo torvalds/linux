@@ -1486,6 +1486,9 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 	 * performance guide section.
 	 */
 	wa_write_or(wal, GEN12_SQCM, EN_32B_ACCESS);
+
+	/* Wa_14015795083 */
+	wa_write_clr(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
 }
 
 static void
