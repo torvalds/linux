@@ -1104,8 +1104,12 @@ static bool detect_link_and_local_sink(struct dc_link *link,
 				dc_ctx->dce_version == DCN_VERSION_3_01 &&
 				link->dpcd_caps.sink_dev_id == DP_BRANCH_DEVICE_ID_0022B9 &&
 				memcmp(&link->dpcd_caps.branch_dev_name, DP_SINK_BRANCH_DEV_NAME_7580,
-					sizeof(link->dpcd_caps.branch_dev_name)) == 0)
+					sizeof(link->dpcd_caps.branch_dev_name)) == 0) {
 				dc->config.edp_no_power_sequencing = true;
+
+				if (!link->dpcd_caps.set_power_state_capable_edp)
+					link->wa_flags.dp_keep_receiver_powered = true;
+			}
 
 			sink_caps.transaction_type = DDC_TRANSACTION_TYPE_I2C_OVER_AUX;
 			sink_caps.signal = SIGNAL_TYPE_EDP;
