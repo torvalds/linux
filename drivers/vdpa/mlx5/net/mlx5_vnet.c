@@ -1814,6 +1814,7 @@ static virtio_net_ctrl_ack handle_ctrl_vlan(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 
 		id = mlx5vdpa16_to_cpu(mvdev, vlan);
 		mac_vlan_del(ndev, ndev->config.mac, id, true);
+		status = VIRTIO_NET_OK;
 		break;
 	default:
 	break;
