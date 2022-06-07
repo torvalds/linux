@@ -627,7 +627,7 @@ static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 {
 	int err = 0, err1;
-	struct uni_pagedict *p;
+	struct uni_pagedict *dict;
 	struct unipair *unilist, *plist;
 
 	if (!ct)
@@ -640,19 +640,19 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	console_lock();
 
 	/* Save original vc_unipagdir_loc in case we allocate a new one */
-	p = *vc->vc_uni_pagedir_loc;
-	if (!p) {
+	dict = *vc->vc_uni_pagedir_loc;
+	if (!dict) {
 		err = -EINVAL;
 		goto out_unlock;
 	}
 
-	if (p->refcount > 1) {
-		p = con_unshare_unimap(vc, p);
-		if (IS_ERR(p)) {
-			err = PTR_ERR(p);
+	if (dict->refcount > 1) {
+		dict = con_unshare_unimap(vc, dict);
+		if (IS_ERR(dict)) {
+			err = PTR_ERR(dict);
 			goto out_unlock;
 		}
-	} else if (p == dflt) {
+	} else if (dict == dflt) {
 		dflt = NULL;
 	}
 
@@ -660,7 +660,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	 * Insert user specified unicode pairs into new table.
 	 */
 	for (plist = unilist; ct; ct--, plist++) {
-		err1 = con_insert_unipair(p, plist->unicode, plist->fontpos);
+		err1 = con_insert_unipair(dict, plist->unicode, plist->fontpos);
 		if (err1)
 			err = err1;
 	}
@@ -668,12 +668,12 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	/*
 	 * Merge with fontmaps of any other virtual consoles.
 	 */
-	if (con_unify_unimap(vc, p))
+	if (con_unify_unimap(vc, dict))
 		goto out_unlock;
 
 	for (enum translation_map m = FIRST_MAP; m <= LAST_MAP; m++)
-		set_inverse_transl(vc, p, m); /* Update inverse translations */
-	set_inverse_trans_unicode(vc, p);
+		set_inverse_transl(vc, dict, m);
+	set_inverse_trans_unicode(vc, dict);
 
 out_unlock:
 	console_unlock();
