@@ -186,6 +186,17 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 		cxld->flags |= CXL_DECODER_F_ENABLE;
 		if (ctrl & CXL_HDM_DECODER0_CTRL_LOCK)
 			cxld->flags |= CXL_DECODER_F_LOCK;
+		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl))
+			cxld->target_type = CXL_DECODER_EXPANDER;
+		else
+			cxld->target_type = CXL_DECODER_ACCELERATOR;
+	} else {
+		/* unless / until type-2 drivers arrive, assume type-3 */
+		if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl) == 0) {
+			ctrl |= CXL_HDM_DECODER0_CTRL_TYPE;
+			writel(ctrl, hdm + CXL_HDM_DECODER0_CTRL_OFFSET(which));
+		}
+		cxld->target_type = CXL_DECODER_EXPANDER;
 	}
 	rc = cxl_to_ways(FIELD_GET(CXL_HDM_DECODER0_CTRL_IW_MASK, ctrl),
 			 &cxld->interleave_ways);
@@ -199,11 +210,6 @@ static int init_hdm_decoder(struct cxl_port *port, struct cxl_decoder *cxld,
 				&cxld->interleave_granularity);
 	if (rc)
 		return rc;
-
-	if (FIELD_GET(CXL_HDM_DECODER0_CTRL_TYPE, ctrl))
-		cxld->target_type = CXL_DECODER_EXPANDER;
-	else
-		cxld->target_type = CXL_DECODER_ACCELERATOR;
 
 	if (is_endpoint_decoder(&cxld->dev))
 		return 0;
