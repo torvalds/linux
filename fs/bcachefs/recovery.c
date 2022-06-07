@@ -1175,9 +1175,6 @@ use_clean:
 		blacklist_seq = journal_seq = le64_to_cpu(clean->journal_seq) + 1;
 	}
 
-	if (c->opts.read_journal_only)
-		goto out;
-
 	if (c->opts.reconstruct_alloc) {
 		c->sb.compat &= ~(1ULL << BCH_COMPAT_alloc_info);
 		drop_alloc_keys(&c->journal_keys);
@@ -1207,6 +1204,13 @@ use_clean:
 			goto err;
 		}
 	}
+
+	/*
+	 * note: cmd_list_journal needs the blacklist table fully up to date so
+	 * it can asterisk ignored journal entries:
+	 */
+	if (c->opts.read_journal_only)
+		goto out;
 
 	ret = bch2_fs_journal_start(&c->journal, journal_seq);
 	if (ret)
