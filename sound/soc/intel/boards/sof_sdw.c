@@ -1127,10 +1127,14 @@ static int sof_card_dai_links_create(struct device *dev,
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++)
 		codec_info_list[i].amp_num = 0;
 
-	if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
-		hdmi_num = SOF_TGL_HDMI_COUNT;
-	else
-		hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
+	if (mach_params->codec_mask & IDISP_CODEC_MASK) {
+		ctx->idisp_codec = true;
+
+		if (sof_sdw_quirk & SOF_SDW_TGL_HDMI)
+			hdmi_num = SOF_TGL_HDMI_COUNT;
+		else
+			hdmi_num = SOF_PRE_TGL_HDMI_COUNT;
+	}
 
 	ssp_mask = SOF_SSP_GET_PORT(sof_sdw_quirk);
 	/*
@@ -1149,9 +1153,6 @@ static int sof_card_dai_links_create(struct device *dev,
 		dev_err(dev, "failed to get sdw link info %d", ret);
 		return ret;
 	}
-
-	if (mach_params->codec_mask & IDISP_CODEC_MASK)
-		ctx->idisp_codec = true;
 
 	/* enable dmic01 & dmic16k */
 	dmic_num = (sof_sdw_quirk & SOF_SDW_PCH_DMIC || mach_params->dmic_num) ? 2 : 0;
@@ -1375,7 +1376,9 @@ HDMI:
 
 static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 {
-	int i, ret;
+	struct mc_private *ctx = snd_soc_card_get_drvdata(card);
+	int ret = 0;
+	int i;
 
 	for (i = 0; i < ARRAY_SIZE(codec_info_list); i++) {
 		if (!codec_info_list[i].late_probe)
@@ -1386,7 +1389,10 @@ static int sof_sdw_card_late_probe(struct snd_soc_card *card)
 			return ret;
 	}
 
-	return sof_sdw_hdmi_card_late_probe(card);
+	if (ctx->idisp_codec)
+		ret = sof_sdw_hdmi_card_late_probe(card);
+
+	return ret;
 }
 
 /* SoC card */
