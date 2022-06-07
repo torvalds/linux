@@ -531,24 +531,23 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 /* Caller must hold the lock */
 static int con_do_clear_unimap(struct vc_data *vc)
 {
-	struct uni_pagedict *p, *q;
+	struct uni_pagedict *old = *vc->vc_uni_pagedir_loc;
 
-	p = *vc->vc_uni_pagedir_loc;
-	if (!p || --p->refcount) {
-		q = kzalloc(sizeof(*p), GFP_KERNEL);
-		if (!q) {
-			if (p)
-				p->refcount++;
+	if (!old || --old->refcount) {
+		struct uni_pagedict *new = kzalloc(sizeof(*new), GFP_KERNEL);
+		if (!new) {
+			if (old)
+				old->refcount++;
 			return -ENOMEM;
 		}
-		q->refcount=1;
-		*vc->vc_uni_pagedir_loc = q;
+		new->refcount = 1;
+		*vc->vc_uni_pagedir_loc = new;
 	} else {
-		if (p == dflt)
+		if (old == dflt)
 			dflt = NULL;
-		p->refcount++;
-		p->sum = 0;
-		con_release_unimap(p);
+		old->refcount++;
+		old->sum = 0;
+		con_release_unimap(old);
 	}
 	return 0;
 }
