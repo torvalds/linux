@@ -215,12 +215,14 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p, int
 	unsigned short *t = translations[i];
 	unsigned char *q;
 	
-	if (!p) return;
+	if (!p)
+		return;
 	q = p->inverse_translations[i];
 
 	if (!q) {
 		q = p->inverse_translations[i] = kmalloc(MAX_GLYPH, GFP_KERNEL);
-		if (!q) return;
+		if (!q)
+			return;
 	}
 	memset(q, 0, MAX_GLYPH);
 
@@ -240,7 +242,8 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 	u16 **p1, *p2;
 	u16 *q;
 
-	if (!p) return;
+	if (!p)
+		return;
 	q = p->inverse_trans_unicode;
 	if (!q) {
 		q = p->inverse_trans_unicode =
@@ -412,7 +415,8 @@ static void con_release_unimap(struct uni_pagedict *p)
 	u16 **p1;
 	int i, j;
 
-	if (p == dflt) dflt = NULL;  
+	if (p == dflt)
+		dflt = NULL;
 	for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
 		if (p1 != NULL) {
@@ -458,7 +462,8 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *p)
 			continue;
 		for (j = 0; j < UNI_DIRS; j++) {
 			u16 **p1, **q1;
-			p1 = p->uni_pgdir[j]; q1 = q->uni_pgdir[j];
+			p1 = p->uni_pgdir[j];
+			q1 = q->uni_pgdir[j];
 			if (!p1 && !q1)
 				continue;
 			if (!p1 || !q1)
@@ -492,19 +497,23 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 	int i, n;
 	u16 **p1, *p2;
 
-	p1 = p->uni_pgdir[n = unicode >> 11];
+	n = unicode >> 11;
+	p1 = p->uni_pgdir[n];
 	if (!p1) {
 		p1 = p->uni_pgdir[n] = kmalloc_array(UNI_DIR_ROWS,
 						     sizeof(u16 *), GFP_KERNEL);
-		if (!p1) return -ENOMEM;
+		if (!p1)
+			return -ENOMEM;
 		for (i = 0; i < UNI_DIR_ROWS; i++)
 			p1[i] = NULL;
 	}
 
-	p2 = p1[n = (unicode >> 6) & 0x1f];
+	n = (unicode >> 6) & 0x1f;
+	p2 = p1[n];
 	if (!p2) {
 		p2 = p1[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(u16), GFP_KERNEL);
-		if (!p2) return -ENOMEM;
+		if (!p2)
+			return -ENOMEM;
 		/* No glyphs for the characters (yet) */
 		memset(p2, 0xff, UNI_ROW_GLYPHS * sizeof(u16));
 	}
@@ -532,7 +541,8 @@ static int con_do_clear_unimap(struct vc_data *vc)
 		q->refcount=1;
 		*vc->vc_uni_pagedir_loc = q;
 	} else {
-		if (p == dflt) dflt = NULL;
+		if (p == dflt)
+			dflt = NULL;
 		p->refcount++;
 		p->sum = 0;
 		con_release_unimap(p);
