@@ -159,21 +159,17 @@ static void journal_iters_fix(struct bch_fs *c)
 {
 	struct journal_keys *keys = &c->journal_keys;
 	/* The key we just inserted is immediately before the gap: */
-	struct journal_key *n = &keys->d[keys->gap - 1];
 	size_t gap_end = keys->gap + (keys->size - keys->nr);
 	struct btree_and_journal_iter *iter;
 
 	/*
-	 * If an iterator points one after the key we just inserted,
-	 * and the key we just inserted compares > the iterator's position,
-	 * decrement the iterator so it points at the key we just inserted:
+	 * If an iterator points one after the key we just inserted, decrement
+	 * the iterator so it points at the key we just inserted - if the
+	 * decrement was unnecessary, bch2_btree_and_journal_iter_peek() will
+	 * handle that:
 	 */
 	list_for_each_entry(iter, &c->journal_iters, journal.list)
-		if (iter->journal.idx == gap_end &&
-		    iter->last &&
-		    iter->b->c.btree_id == n->btree_id &&
-		    iter->b->c.level	== n->level &&
-		    bpos_cmp(n->k->k.p, iter->unpacked.p) > 0)
+		if (iter->journal.idx == gap_end)
 			iter->journal.idx = keys->gap - 1;
 }
 
@@ -312,7 +308,7 @@ static void bch2_journal_iter_advance(struct journal_iter *iter)
 	}
 }
 
-struct bkey_i *bch2_journal_iter_peek(struct journal_iter *iter)
+struct bkey_s_c bch2_journal_iter_peek(struct journal_iter *iter)
 {
 	struct journal_key *k = iter->keys->d + iter->idx;
 
@@ -320,13 +316,13 @@ struct bkey_i *bch2_journal_iter_peek(struct journal_iter *iter)
 	       k->btree_id	== iter->btree_id &&
 	       k->level		== iter->level) {
 		if (!k->overwritten)
-			return k->k;
+			return bkey_i_to_s_c(k->k);
 
 		bch2_journal_iter_advance(iter);
 		k = iter->keys->d + iter->idx;
 	}
 
-	return NULL;
+	return bkey_s_c_null;
 }
 
 static void bch2_journal_iter_exit(struct journal_iter *iter)
@@ -358,69 +354,47 @@ static void bch2_journal_iter_advance_btree(struct btree_and_journal_iter *iter)
 
 void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *iter)
 {
-	switch (iter->last) {
-	case none:
-		break;
-	case btree:
-		bch2_journal_iter_advance_btree(iter);
-		break;
-	case journal:
-		bch2_journal_iter_advance(&iter->journal);
-		break;
-	}
-
-	iter->last = none;
+	if (!bpos_cmp(iter->pos, SPOS_MAX))
+		iter->at_end = true;
+	else
+		iter->pos = bpos_successor(iter->pos);
 }
 
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *iter)
 {
-	struct bkey_s_c ret;
+	struct bkey_s_c btree_k, journal_k, ret;
+again:
+	if (iter->at_end)
+		return bkey_s_c_null;
 
-	while (1) {
-		struct bkey_s_c btree_k		=
-			bch2_journal_iter_peek_btree(iter);
-		struct bkey_s_c journal_k	=
-			bkey_i_to_s_c(bch2_journal_iter_peek(&iter->journal));
+	while ((btree_k = bch2_journal_iter_peek_btree(iter)).k &&
+	       bpos_cmp(btree_k.k->p, iter->pos) < 0)
+		bch2_journal_iter_advance_btree(iter);
 
-		if (btree_k.k && journal_k.k) {
-			int cmp = bpos_cmp(btree_k.k->p, journal_k.k->p);
+	while ((journal_k = bch2_journal_iter_peek(&iter->journal)).k &&
+	       bpos_cmp(journal_k.k->p, iter->pos) < 0)
+		bch2_journal_iter_advance(&iter->journal);
 
-			if (!cmp)
-				bch2_journal_iter_advance_btree(iter);
+	ret = journal_k.k &&
+		(!btree_k.k || bpos_cmp(journal_k.k->p, btree_k.k->p) <= 0)
+		? journal_k
+		: btree_k;
 
-			iter->last = cmp < 0 ? btree : journal;
-		} else if (btree_k.k) {
-			iter->last = btree;
-		} else if (journal_k.k) {
-			iter->last = journal;
-		} else {
-			iter->last = none;
-			return bkey_s_c_null;
+	if (ret.k && iter->b && bpos_cmp(ret.k->p, iter->b->data->max_key) > 0)
+		ret = bkey_s_c_null;
+
+	if (ret.k) {
+		iter->pos = ret.k->p;
+		if (bkey_deleted(ret.k)) {
+			bch2_btree_and_journal_iter_advance(iter);
+			goto again;
 		}
-
-		ret = iter->last == journal ? journal_k : btree_k;
-
-		if (iter->b &&
-		    bpos_cmp(ret.k->p, iter->b->data->max_key) > 0) {
-			iter->journal.idx = iter->journal.keys->nr;
-			iter->last = none;
-			return bkey_s_c_null;
-		}
-
-		if (!bkey_deleted(ret.k))
-			break;
-
-		bch2_btree_and_journal_iter_advance(iter);
+	} else {
+		iter->pos = SPOS_MAX;
+		iter->at_end = true;
 	}
 
 	return ret;
-}
-
-struct bkey_s_c bch2_btree_and_journal_iter_next(struct btree_and_journal_iter *iter)
-{
-	bch2_btree_and_journal_iter_advance(iter);
-
-	return bch2_btree_and_journal_iter_peek(iter);
 }
 
 void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *iter)
@@ -440,6 +414,8 @@ void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter 
 	iter->node_iter = node_iter;
 	bch2_journal_iter_init(c, &iter->journal, b->c.btree_id, b->c.level, pos);
 	INIT_LIST_HEAD(&iter->journal.list);
+	iter->pos = b->data->min_key;
+	iter->at_end = false;
 }
 
 /*

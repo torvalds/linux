@@ -20,12 +20,8 @@ struct btree_and_journal_iter {
 	struct bkey		unpacked;
 
 	struct journal_iter	journal;
-
-	enum last_key_returned {
-		none,
-		btree,
-		journal,
-	}			last;
+	struct bpos		pos;
+	bool			at_end;
 };
 
 struct bkey_i *bch2_journal_keys_peek_upto(struct bch_fs *, enum btree_id,
@@ -44,7 +40,6 @@ void bch2_journal_key_overwritten(struct bch_fs *, enum btree_id,
 
 void bch2_btree_and_journal_iter_advance(struct btree_and_journal_iter *);
 struct bkey_s_c bch2_btree_and_journal_iter_peek(struct btree_and_journal_iter *);
-struct bkey_s_c bch2_btree_and_journal_iter_next(struct btree_and_journal_iter *);
 
 void bch2_btree_and_journal_iter_exit(struct btree_and_journal_iter *);
 void __bch2_btree_and_journal_iter_init_node_iter(struct btree_and_journal_iter *,
