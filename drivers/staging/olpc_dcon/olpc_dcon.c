@@ -517,10 +517,7 @@ static struct device_attribute dcon_device_files[] = {
 static int dcon_bl_update(struct backlight_device *dev)
 {
 	struct dcon_priv *dcon = bl_get_data(dev);
-	u8 level = dev->props.brightness & 0x0F;
-
-	if (dev->props.power != FB_BLANK_UNBLANK)
-		level = 0;
+	u8 level = backlight_get_brightness(dev) & 0x0F;
 
 	if (level != dcon->bl_val)
 		dcon_set_backlight(dcon, level);
