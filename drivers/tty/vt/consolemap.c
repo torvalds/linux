@@ -852,10 +852,9 @@ int conv_uni_to_8bit(u32 uni)
 int
 conv_uni_to_pc(struct vc_data *conp, long ucs) 
 {
-	int h;
-	u16 **p1, *p2;
-	struct uni_pagedict *p;
-  
+	struct uni_pagedict *dict;
+	u16 **dir, *row, glyph;
+
 	/* Only 16-bit codes supported at this time */
 	if (ucs > 0xffff)
 		return -4;		/* Not found */
@@ -874,11 +873,11 @@ conv_uni_to_pc(struct vc_data *conp, long ucs)
 	if (!*conp->vc_uni_pagedir_loc)
 		return -3;
 
-	p = *conp->vc_uni_pagedir_loc;
-	if ((p1 = p->uni_pgdir[UNI_DIR(ucs)]) &&
-	    (p2 = p1[UNI_ROW(ucs)]) &&
-	    (h = p2[UNI_GLYPH(ucs)]) < MAX_GLYPH)
-		return h;
+	dict = *conp->vc_uni_pagedir_loc;
+	if ((dir = dict->uni_pgdir[UNI_DIR(ucs)]) &&
+	    (row = dir[UNI_ROW(ucs)]) &&
+	    (glyph = row[UNI_GLYPH(ucs)]) < MAX_GLYPH)
+		return glyph;
 
 	return -4;		/* not found */
 }
