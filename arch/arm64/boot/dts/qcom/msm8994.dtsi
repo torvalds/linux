@@ -1069,7 +1069,7 @@
 					       <600000000>;
 		};
 
-		ocmem: ocmem@fdd00000 {
+		ocmem: sram@fdd00000 {
 			compatible = "qcom,msm8974-ocmem";
 			reg = <0xfdd00000 0x2000>,
 			      <0xfec00000 0x200000>;

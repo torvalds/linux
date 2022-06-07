@@ -1119,7 +1119,7 @@
 			status = "disabled";
 		};
 
-		imem@8600000 {
+		sram@8600000 {
 			compatible = "simple-mfd";
 			reg = <0x08600000 0x1000>;
 

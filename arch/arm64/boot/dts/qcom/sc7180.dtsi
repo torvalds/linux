@@ -3242,7 +3242,7 @@
 			cell-index = <0>;
 		};
 
-		imem@146aa000 {
+		sram@146aa000 {
 			compatible = "simple-mfd";
 			reg = <0 0x146aa000 0 0x2000>;
 

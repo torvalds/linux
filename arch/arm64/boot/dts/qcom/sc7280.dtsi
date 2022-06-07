@@ -4766,7 +4766,7 @@
 			};
 		};
 
-		imem@146a5000 {
+		sram@146a5000 {
 			compatible = "qcom,sc7280-imem", "syscon";
 			reg = <0 0x146a5000 0 0x6000>;
 
