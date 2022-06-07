@@ -7,7 +7,6 @@
  */
 #include "stfcamss.h"
 #include <linux/regmap.h>
-#include <soc/starfive/jh7110_pmic.h>
 
 #define CSI2RX_DEVICE_CFG_REG			0x000
 
@@ -40,9 +39,6 @@
 static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 {
 	void __iomem *aon_syscon;
-
-	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD18_MIPIRX, on);
-	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD09_MIPIRX, on);
 
 	aon_syscon = ioremap(0x17010000, 0x4);
 	reg_write(aon_syscon, 0x00, 0x80000000);

@@ -22,7 +22,6 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
-#include <soc/starfive/jh7110_pmic.h>//20220520 pmic support
 #include "vs_clock.h"
 
 #include "vs_drv.h"
@@ -1108,9 +1107,7 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 		return PTR_ERR(hdmi->regs);
 
 	//pmic turn on
-	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD18_HDMI, 1);
 	udelay(100);
-	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD09_HDMI, 1);
 	udelay(100);
 
 //20220531 clk rst interface support
@@ -1197,9 +1194,7 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 
 	//pmic turn off
 	#if 1
-	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD18_HDMI, 0);
 	udelay(100);
-	pmic_set_domain(POWER_SW_0_REG, POWER_SW_0_VDD09_HDMI, 0);
 	#endif
 	//pmic turn off
 
