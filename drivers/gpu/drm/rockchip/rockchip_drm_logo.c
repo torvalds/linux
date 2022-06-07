@@ -644,6 +644,8 @@ static int setup_initial_state(struct drm_device *drm_dev,
 	if (!set->hdisplay || !set->vdisplay || !set->vrefresh)
 		is_crtc_enabled = false;
 
+	crtc->state->state = state;
+
 	conn_state = drm_atomic_get_connector_state(state, connector);
 	if (IS_ERR(conn_state))
 		return PTR_ERR(conn_state);
@@ -709,7 +711,6 @@ static int setup_initial_state(struct drm_device *drm_dev,
 		goto error_conn;
 	}
 
-	crtc->state->state = state;
 	drm_mode_copy(&crtc_state->adjusted_mode, mode);
 	if (!match || !is_crtc_enabled) {
 		set->mode_changed = true;
