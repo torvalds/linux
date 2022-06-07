@@ -145,6 +145,7 @@ static int rcu_task_ipi_delay __read_mostly = RCU_TASK_IPI_DELAY;
 module_param(rcu_task_ipi_delay, int, 0644);
 
 /* Control stall timeouts.  Disable with <= 0, otherwise jiffies till stall. */
+#define RCU_TASK_BOOT_STALL_TIMEOUT (HZ * 30)
 #define RCU_TASK_STALL_TIMEOUT (HZ * 60 * 10)
 static int rcu_task_stall_timeout __read_mostly = RCU_TASK_STALL_TIMEOUT;
 module_param(rcu_task_stall_timeout, int, 0644);
@@ -1776,23 +1777,24 @@ struct rcu_tasks_test_desc {
 	struct rcu_head rh;
 	const char *name;
 	bool notrun;
+	unsigned long runstart;
 };
 
 static struct rcu_tasks_test_desc tests[] = {
 	{
 		.name = "call_rcu_tasks()",
 		/* If not defined, the test is skipped. */
-		.notrun = !IS_ENABLED(CONFIG_TASKS_RCU),
+		.notrun = IS_ENABLED(CONFIG_TASKS_RCU),
 	},
 	{
 		.name = "call_rcu_tasks_rude()",
 		/* If not defined, the test is skipped. */
-		.notrun = !IS_ENABLED(CONFIG_TASKS_RUDE_RCU),
+		.notrun = IS_ENABLED(CONFIG_TASKS_RUDE_RCU),
 	},
 	{
 		.name = "call_rcu_tasks_trace()",
 		/* If not defined, the test is skipped. */
-		.notrun = !IS_ENABLED(CONFIG_TASKS_TRACE_RCU)
+		.notrun = IS_ENABLED(CONFIG_TASKS_TRACE_RCU)
 	}
 };
 
@@ -1803,23 +1805,28 @@ static void test_rcu_tasks_callback(struct rcu_head *rhp)
 
 	pr_info("Callback from %s invoked.\n", rttd->name);
 
-	rttd->notrun = true;
+	rttd->notrun = false;
 }
 
 static void rcu_tasks_initiate_self_tests(void)
 {
+	unsigned long j = jiffies;
+
 	pr_info("Running RCU-tasks wait API self tests\n");
 #ifdef CONFIG_TASKS_RCU
+	tests[0].runstart = j;
 	synchronize_rcu_tasks();
 	call_rcu_tasks(&tests[0].rh, test_rcu_tasks_callback);
 #endif
 
 #ifdef CONFIG_TASKS_RUDE_RCU
+	tests[1].runstart = j;
 	synchronize_rcu_tasks_rude();
 	call_rcu_tasks_rude(&tests[1].rh, test_rcu_tasks_callback);
 #endif
 
 #ifdef CONFIG_TASKS_TRACE_RCU
+	tests[2].runstart = j;
 	synchronize_rcu_tasks_trace();
 	call_rcu_tasks_trace(&tests[2].rh, test_rcu_tasks_callback);
 #endif
@@ -1829,11 +1836,18 @@ static int rcu_tasks_verify_self_tests(void)
 {
 	int ret = 0;
 	int i;
+	unsigned long bst = rcu_task_stall_timeout;
 
+	if (bst <= 0 || bst > RCU_TASK_BOOT_STALL_TIMEOUT)
+		bst = RCU_TASK_BOOT_STALL_TIMEOUT;
 	for (i = 0; i < ARRAY_SIZE(tests); i++) {
-		if (!tests[i].notrun) {		// still hanging.
-			pr_err("%s has been failed.\n", tests[i].name);
-			ret = -1;
+		while (tests[i].notrun) {		// still hanging.
+			if (time_after(jiffies, tests[i].runstart + bst)) {
+				pr_err("%s has failed boot-time tests.\n", tests[i].name);
+				ret = -1;
+				break;
+			}
+			schedule_timeout_uninterruptible(1);
 		}
 	}
 
