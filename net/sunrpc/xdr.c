@@ -967,6 +967,7 @@ static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 		xdr->buf->page_len += frag1bytes;
 	xdr->page_ptr++;
 	xdr->iov = NULL;
+
 	/*
 	 * If the last encode didn't end exactly on a page boundary, the
 	 * next one will straddle boundaries.  Encode into the next
@@ -975,11 +976,12 @@ static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 	 * space at the end of the previous buffer:
 	 */
 	xdr_set_scratch_buffer(xdr, xdr->p, frag1bytes);
-	p = page_address(*xdr->page_ptr);
+
 	/*
-	 * Note this is where the next encode will start after we've
-	 * shifted this one back:
+	 * xdr->p is where the next encode will start after
+	 * xdr_commit_encode() has shifted this one back:
 	 */
+	p = page_address(*xdr->page_ptr);
 	xdr->p = (void *)p + frag2bytes;
 	space_left = xdr->buf->buflen - xdr->buf->len;
 	if (space_left - nbytes >= PAGE_SIZE)
