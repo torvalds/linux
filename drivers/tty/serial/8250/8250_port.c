@@ -1503,12 +1503,6 @@ static void __stop_tx_rs485(struct uart_8250_port *p, u64 stop_delay)
 	}
 }
 
-static inline void __do_stop_tx(struct uart_8250_port *p)
-{
-	if (serial8250_clear_THRI(p))
-		serial8250_rpm_put_tx(p);
-}
-
 static inline void __stop_tx(struct uart_8250_port *p)
 {
 	struct uart_8250_em485 *em485 = p->em485;
@@ -1542,7 +1536,9 @@ static inline void __stop_tx(struct uart_8250_port *p)
 
 		__stop_tx_rs485(p, stop_delay);
 	}
-	__do_stop_tx(p);
+
+	if (serial8250_clear_THRI(p))
+		serial8250_rpm_put_tx(p);
 }
 
 static void serial8250_stop_tx(struct uart_port *port)
