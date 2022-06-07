@@ -562,7 +562,7 @@
 		};
 
 		sram@1468f000 {
-			compatible = "simple-mfd";
+			compatible = "qcom,sdx55-imem", "syscon", "simple-mfd";
 			reg = <0x1468f000 0x1000>;
 
 			#address-cells = <1>;
