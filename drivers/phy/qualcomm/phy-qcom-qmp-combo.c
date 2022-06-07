@@ -1887,13 +1887,6 @@ static int qcom_qmp_phy_combo_power_on(struct phy *phy)
 		qcom_qmp_phy_combo_configure(pcs_misc, cfg->regs, cfg->pcs_misc_tbl_sec,
 				       cfg->pcs_misc_tbl_num_sec);
 
-	/*
-	 * Pull out PHY from POWER DOWN state.
-	 * This is active low enable signal to power-down PHY.
-	 */
-	if(cfg->type == PHY_TYPE_PCIE)
-		qphy_setbits(pcs, QPHY_POWER_DOWN_CONTROL, cfg->pwrdn_ctrl);
-
 	if (cfg->has_pwrdn_delay)
 		usleep_range(cfg->pwrdn_delay_min, cfg->pwrdn_delay_max);
 
@@ -1904,15 +1897,9 @@ static int qcom_qmp_phy_combo_power_on(struct phy *phy)
 		/* start SerDes and Phy-Coding-Sublayer */
 		qphy_setbits(pcs, cfg->regs[QPHY_START_CTRL], cfg->start_ctrl);
 
-		if (cfg->type == PHY_TYPE_UFS) {
-			status = pcs + cfg->regs[QPHY_PCS_READY_STATUS];
-			mask = PCS_READY;
-			ready = PCS_READY;
-		} else {
-			status = pcs + cfg->regs[QPHY_PCS_STATUS];
-			mask = cfg->phy_status;
-			ready = 0;
-		}
+		status = pcs + cfg->regs[QPHY_PCS_STATUS];
+		mask = cfg->phy_status;
+		ready = 0;
 
 		ret = readl_poll_timeout(status, val, (val & mask) == ready, 10,
 					 PHY_INIT_COMPLETE_TIMEOUT);
@@ -2426,7 +2413,7 @@ static int phy_dp_clks_register(struct qcom_qmp *qmp, struct qmp_phy *qphy,
 	return devm_add_action_or_reset(qmp->dev, phy_clk_release_provider, np);
 }
 
-static const struct phy_ops qcom_qmp_phy_combo_gen_ops = {
+static const struct phy_ops qcom_qmp_phy_combo_usb_ops = {
 	.init		= qcom_qmp_phy_combo_enable,
 	.exit		= qcom_qmp_phy_combo_disable,
 	.set_mode	= qcom_qmp_phy_combo_set_mode,
@@ -2440,13 +2427,6 @@ static const struct phy_ops qcom_qmp_phy_combo_dp_ops = {
 	.calibrate	= qcom_qmp_dp_phy_calibrate,
 	.power_off	= qcom_qmp_phy_combo_power_off,
 	.exit		= qcom_qmp_phy_combo_exit,
-	.set_mode	= qcom_qmp_phy_combo_set_mode,
-	.owner		= THIS_MODULE,
-};
-
-static const struct phy_ops qcom_qmp_pcie_ufs_ops = {
-	.power_on	= qcom_qmp_phy_combo_enable,
-	.power_off	= qcom_qmp_phy_combo_disable,
 	.set_mode	= qcom_qmp_phy_combo_set_mode,
 	.owner		= THIS_MODULE,
 };
@@ -2530,8 +2510,7 @@ int qcom_qmp_phy_combo_create(struct device *dev, struct device_node *np, int id
 	snprintf(prop_name, sizeof(prop_name), "pipe%d", id);
 	qphy->pipe_clk = devm_get_clk_from_child(dev, np, prop_name);
 	if (IS_ERR(qphy->pipe_clk)) {
-		if (cfg->type == PHY_TYPE_PCIE ||
-		    cfg->type == PHY_TYPE_USB3) {
+		if (cfg->type == PHY_TYPE_USB3) {
 			ret = PTR_ERR(qphy->pipe_clk);
 			if (ret != -EPROBE_DEFER)
 				dev_err(dev,
@@ -2556,12 +2535,10 @@ int qcom_qmp_phy_combo_create(struct device *dev, struct device_node *np, int id
 			return ret;
 	}
 
-	if (cfg->type == PHY_TYPE_UFS || cfg->type == PHY_TYPE_PCIE)
-		ops = &qcom_qmp_pcie_ufs_ops;
-	else if (cfg->type == PHY_TYPE_DP)
+	if (cfg->type == PHY_TYPE_DP)
 		ops = &qcom_qmp_phy_combo_dp_ops;
 	else
-		ops = &qcom_qmp_phy_combo_gen_ops;
+		ops = &qcom_qmp_phy_combo_usb_ops;
 
 	generic_phy = devm_phy_create(dev, np, ops);
 	if (IS_ERR(generic_phy)) {
@@ -2638,23 +2615,19 @@ static int qcom_qmp_phy_combo_probe(struct platform_device *pdev)
 		return PTR_ERR(serdes);
 
 	/* per PHY dp_com; if PHY has dp_com control block */
-	if (combo_cfg || cfg->has_phy_dp_com_ctrl) {
+	if (cfg->has_phy_dp_com_ctrl) {
 		qmp->dp_com = devm_platform_ioremap_resource(pdev, 1);
 		if (IS_ERR(qmp->dp_com))
 			return PTR_ERR(qmp->dp_com);
 	}
 
-	if (combo_cfg) {
-		/* Only two serdes for combo PHY */
-		dp_serdes = devm_platform_ioremap_resource(pdev, 2);
-		if (IS_ERR(dp_serdes))
-			return PTR_ERR(dp_serdes);
+	/* Only two serdes for combo PHY */
+	dp_serdes = devm_platform_ioremap_resource(pdev, 2);
+	if (IS_ERR(dp_serdes))
+		return PTR_ERR(dp_serdes);
 
-		dp_cfg = combo_cfg->dp_cfg;
-		expected_phys = 2;
-	} else {
-		expected_phys = cfg->nlanes;
-	}
+	dp_cfg = combo_cfg->dp_cfg;
+	expected_phys = 2;
 
 	mutex_init(&qmp->phy_mutex);
 
@@ -2696,38 +2669,45 @@ static int qcom_qmp_phy_combo_probe(struct platform_device *pdev)
 		if (of_node_name_eq(child, "dp-phy")) {
 			cfg = dp_cfg;
 			serdes = dp_serdes;
-		} else if (of_node_name_eq(child, "usb3-phy")) {
-			cfg = usb_cfg;
-			serdes = usb_serdes;
-		}
 
-		/* Create per-lane phy */
-		ret = qcom_qmp_phy_combo_create(dev, child, id, serdes, cfg);
-		if (ret) {
-			dev_err(dev, "failed to create lane%d phy, %d\n",
-				id, ret);
-			goto err_node_put;
-		}
-
-		/*
-		 * Register the pipe clock provided by phy.
-		 * See function description to see details of this pipe clock.
-		 */
-		if (cfg->type == PHY_TYPE_USB3 || cfg->type == PHY_TYPE_PCIE) {
-			ret = phy_pipe_clk_register(qmp, child);
+			/* Create per-lane phy */
+			ret = qcom_qmp_phy_combo_create(dev, child, id, serdes, cfg);
 			if (ret) {
-				dev_err(qmp->dev,
-					"failed to register pipe clock source\n");
+				dev_err(dev, "failed to create lane%d phy, %d\n",
+					id, ret);
 				goto err_node_put;
 			}
-		} else if (cfg->type == PHY_TYPE_DP) {
+
 			ret = phy_dp_clks_register(qmp, qmp->phys[id], child);
 			if (ret) {
 				dev_err(qmp->dev,
 					"failed to register DP clock source\n");
 				goto err_node_put;
 			}
+		} else if (of_node_name_eq(child, "usb3-phy")) {
+			cfg = usb_cfg;
+			serdes = usb_serdes;
+
+			/* Create per-lane phy */
+			ret = qcom_qmp_phy_combo_create(dev, child, id, serdes, cfg);
+			if (ret) {
+				dev_err(dev, "failed to create lane%d phy, %d\n",
+					id, ret);
+				goto err_node_put;
+			}
+
+			/*
+			 * Register the pipe clock provided by phy.
+			 * See function description to see details of this pipe clock.
+			 */
+			ret = phy_pipe_clk_register(qmp, child);
+			if (ret) {
+				dev_err(qmp->dev,
+					"failed to register pipe clock source\n");
+				goto err_node_put;
+			}
 		}
+
 		id++;
 	}
 
