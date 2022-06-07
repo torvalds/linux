@@ -531,6 +531,11 @@ static inline bool btf_is_type_tag(const struct btf_type *t)
 	return btf_kind(t) == BTF_KIND_TYPE_TAG;
 }
 
+static inline bool btf_is_any_enum(const struct btf_type *t)
+{
+	return btf_is_enum(t) || btf_is_enum64(t);
+}
+
 static inline __u8 btf_int_encoding(const struct btf_type *t)
 {
 	return BTF_INT_ENCODING(*(__u32 *)(t + 1));
