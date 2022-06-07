@@ -117,5 +117,6 @@ properties:
 allOf:
   - $ref: cdns,qspi-nor-peripheral-props.yaml#
   - $ref: samsung,spi-peripheral-props.yaml#
+  - $ref: nvidia,tegra210-quad-peripheral-props.yaml#
 
 additionalProperties: true
