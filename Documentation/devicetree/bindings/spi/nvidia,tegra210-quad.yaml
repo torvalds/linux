@@ -20,6 +20,7 @@ properties:
       - nvidia,tegra186-qspi
       - nvidia,tegra194-qspi
       - nvidia,tegra234-qspi
+      - nvidia,tegra241-qspi
 
   reg:
     maxItems: 1
