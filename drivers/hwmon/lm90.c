@@ -672,6 +672,7 @@ enum lm90_temp_reg_index {
 	REMOTE2_TEMP,	/* max6695/96 only */
 	REMOTE2_LOW,	/* max6695/96 only */
 	REMOTE2_HIGH,	/* max6695/96 only */
+	REMOTE2_OFFSET,
 
 	TEMP_REG_NUM
 };
@@ -1028,6 +1029,14 @@ static int lm90_update_limits(struct device *dev)
 			return val;
 		data->temp[REMOTE2_HIGH] = val << 8;
 
+		if (data->flags & LM90_HAVE_OFFSET) {
+			val = lm90_read16(client, LM90_REG_REMOTE_OFFSH,
+					  LM90_REG_REMOTE_OFFSL, false);
+			if (val < 0)
+				return val;
+			data->temp[REMOTE2_OFFSET] = val;
+		}
+
 		lm90_select_remote_channel(data, false);
 	}
 
@@ -1298,6 +1307,7 @@ static int lm90_temp_get_resolution(struct lm90_data *data, int index)
 			return data->resolution;
 		return 8;
 	case REMOTE_OFFSET:
+	case REMOTE2_OFFSET:
 	case REMOTE2_TEMP:
 		return data->resolution;
 	case LOCAL_TEMP:
@@ -1428,6 +1438,36 @@ static int lm90_set_temphyst(struct lm90_data *data, long val)
 	return lm90_write_reg(data->client, LM90_REG_TCRIT_HYST, data->temp_hyst);
 }
 
+static int lm90_get_temp_offset(struct lm90_data *data, int index)
+{
+	int res = lm90_temp_get_resolution(data, index);
+
+	return lm90_temp_from_reg(0, data->temp[index], res);
+}
+
+static int lm90_set_temp_offset(struct lm90_data *data, int index, int channel, long val)
+{
+	int err;
+
+	val = lm90_temp_to_reg(0, val, lm90_temp_get_resolution(data, index));
+
+	/* For ADT7481 we can use the same registers for remote channel 1 and 2 */
+	if (channel > 1)
+		lm90_select_remote_channel(data, true);
+
+	err = lm90_write16(data->client, LM90_REG_REMOTE_OFFSH, LM90_REG_REMOTE_OFFSL, val);
+
+	if (channel > 1)
+		lm90_select_remote_channel(data, false);
+
+	if (err)
+		return err;
+
+	data->temp[index] = val;
+
+	return 0;
+}
+
 static const u8 lm90_temp_index[MAX_CHANNELS] = {
 	LOCAL_TEMP, REMOTE_TEMP, REMOTE2_TEMP
 };
@@ -1446,6 +1486,10 @@ static const u8 lm90_temp_crit_index[MAX_CHANNELS] = {
 
 static const u8 lm90_temp_emerg_index[MAX_CHANNELS] = {
 	LOCAL_EMERG, REMOTE_EMERG, REMOTE2_EMERG
+};
+
+static const s8 lm90_temp_offset_index[MAX_CHANNELS] = {
+	-1, REMOTE_OFFSET, REMOTE2_OFFSET
 };
 
 static const u16 lm90_min_alarm_bits[MAX_CHANNELS] = { BIT(5), BIT(3), BIT(11) };
@@ -1519,8 +1563,7 @@ static int lm90_temp_read(struct device *dev, u32 attr, int channel, long *val)
 		*val = lm90_get_temphyst(data, lm90_temp_emerg_index[channel], channel);
 		break;
 	case hwmon_temp_offset:
-		*val = lm90_temp_from_reg(0, data->temp[REMOTE_OFFSET],
-					  lm90_temp_get_resolution(data, REMOTE_OFFSET));
+		*val = lm90_get_temp_offset(data, lm90_temp_offset_index[channel]);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1560,13 +1603,8 @@ static int lm90_temp_write(struct device *dev, u32 attr, int channel, long val)
 				    channel, val);
 		break;
 	case hwmon_temp_offset:
-		val = lm90_temp_to_reg(0, val,
-				       lm90_temp_get_resolution(data, REMOTE_OFFSET));
-		err = lm90_write16(data->client, LM90_REG_REMOTE_OFFSH,
-				   LM90_REG_REMOTE_OFFSL, val);
-		if (err)
-			break;
-		data->temp[REMOTE_OFFSET] = val;
+		err = lm90_set_temp_offset(data, lm90_temp_offset_index[channel],
+					   channel, val);
 		break;
 	default:
 		err = -EOPNOTSUPP;
@@ -2803,6 +2841,8 @@ static int lm90_probe(struct i2c_client *client)
 		}
 		if (data->flags & LM90_HAVE_EMERGENCY_ALARM)
 			data->channel_config[2] |= HWMON_T_EMERGENCY_ALARM;
+		if (data->flags & LM90_HAVE_OFFSET)
+			data->channel_config[2] |= HWMON_T_OFFSET;
 	}
 
 	data->faultqueue_mask = lm90_params[data->kind].faultqueue_mask;
