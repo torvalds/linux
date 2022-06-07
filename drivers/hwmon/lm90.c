@@ -2666,6 +2666,7 @@ static int lm90_probe_channel_from_dt(struct i2c_client *client,
 				      struct lm90_data *data)
 {
 	u32 id;
+	s32 val;
 	int err;
 	struct device *dev = &client->dev;
 
@@ -2688,6 +2689,21 @@ static int lm90_probe_channel_from_dt(struct i2c_client *client,
 
 	if (data->channel_label[id])
 		data->channel_config[id] |= HWMON_T_LABEL;
+
+	err = of_property_read_s32(child, "temperature-offset-millicelsius", &val);
+	if (!err) {
+		if (id == 0) {
+			dev_err(dev, "temperature-offset-millicelsius can't be set for internal channel\n");
+			return -EINVAL;
+		}
+
+		err = lm90_set_temp_offset(data, lm90_temp_offset_index[id], id, val);
+		if (err) {
+			dev_err(dev, "can't set temperature offset %d for channel %d (%d)\n",
+				val, id, err);
+			return err;
+		}
+	}
 
 	return 0;
 }
