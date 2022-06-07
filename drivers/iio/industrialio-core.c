@@ -87,6 +87,16 @@ static const char * const iio_chan_type_name_spec[] = {
 	[IIO_POSITIONRELATIVE]  = "positionrelative",
 	[IIO_PHASE] = "phase",
 	[IIO_MASSCONCENTRATION] = "massconcentration",
+#ifdef CONFIG_NO_GKI
+	[IIO_SIGN_MOTION] = "signmotion",
+	[IIO_STEP_DETECTOR] = "stepdetector",
+	[IIO_STEP_COUNTER] = "stepcounter",
+	[IIO_TILT] = "tilt",
+	[IIO_TAP] = "tap",
+	[IIO_TAP_TAP] = "taptap",
+	[IIO_WRIST_TILT_GESTURE] = "wristtiltgesture",
+	[IIO_GESTURE] = "gesture",
+#endif
 };
 
 static const char * const iio_modifier_names[] = {
