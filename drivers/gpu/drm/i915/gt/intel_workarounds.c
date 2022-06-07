@@ -2062,7 +2062,7 @@ engine_fake_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 
 static bool needs_wa_1308578152(struct intel_engine_cs *engine)
 {
-	return intel_sseu_find_first_xehp_dss(&engine->gt->info.sseu, 0, 0) >
+	return intel_sseu_find_first_xehp_dss(&engine->gt->info.sseu, 0, 0) >=
 		GEN_DSS_PER_GSLICE;
 }
 
