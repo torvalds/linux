@@ -1610,7 +1610,8 @@ void serial8250_em485_start_tx(struct uart_8250_port *up)
 }
 EXPORT_SYMBOL_GPL(serial8250_em485_start_tx);
 
-static inline void start_tx_rs485(struct uart_port *port)
+/* Returns false, if start_tx_timer was setup to defer TX start */
+static bool start_tx_rs485(struct uart_port *port)
 {
 	struct uart_8250_port *up = up_to_u8250p(port);
 	struct uart_8250_em485 *em485 = up->em485;
@@ -1638,11 +1639,11 @@ static inline void start_tx_rs485(struct uart_port *port)
 			em485->active_timer = &em485->start_tx_timer;
 			start_hrtimer_ms(&em485->start_tx_timer,
 					 up->port.rs485.delay_rts_before_send);
-			return;
+			return false;
 		}
 	}
 
-	__start_tx(port);
+	return true;
 }
 
 static enum hrtimer_restart serial8250_em485_handle_start_tx(struct hrtimer *t)
@@ -1672,14 +1673,12 @@ static void serial8250_start_tx(struct uart_port *port)
 
 	serial8250_rpm_get_tx(up);
 
-	if (em485 &&
-	    em485->active_timer == &em485->start_tx_timer)
-		return;
-
-	if (em485)
-		start_tx_rs485(port);
-	else
-		__start_tx(port);
+	if (em485) {
+		if ((em485->active_timer == &em485->start_tx_timer) ||
+		    !start_tx_rs485(port))
+			return;
+	}
+	__start_tx(port);
 }
 
 static void serial8250_throttle(struct uart_port *port)
