@@ -535,22 +535,23 @@ static int con_do_clear_unimap(struct vc_data *vc)
 {
 	struct uni_pagedict *old = *vc->vc_uni_pagedir_loc;
 
-	if (!old || --old->refcount) {
+	if (!old || old->refcount > 1) {
 		struct uni_pagedict *new = kzalloc(sizeof(*new), GFP_KERNEL);
-		if (!new) {
-			if (old)
-				old->refcount++;
+		if (!new)
 			return -ENOMEM;
-		}
+
 		new->refcount = 1;
 		*vc->vc_uni_pagedir_loc = new;
+
+		if (old)
+			old->refcount--;
 	} else {
 		if (old == dflt)
 			dflt = NULL;
-		old->refcount++;
 		old->sum = 0;
 		con_release_unimap(old);
 	}
+
 	return 0;
 }
 
