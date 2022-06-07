@@ -75,7 +75,7 @@ static void vgacon_scrolldelta(struct vc_data *c, int lines);
 static int vgacon_set_origin(struct vc_data *c);
 static void vgacon_save_screen(struct vc_data *c);
 static void vgacon_invert_region(struct vc_data *c, u16 * p, int count);
-static struct uni_pagedir *vgacon_uni_pagedir;
+static struct uni_pagedict *vgacon_uni_pagedir;
 static int vgacon_refcount;
 
 /* Description of the hardware situation */
@@ -342,7 +342,7 @@ static const char *vgacon_startup(void)
 
 static void vgacon_init(struct vc_data *c, int init)
 {
-	struct uni_pagedir *p;
+	struct uni_pagedict *p;
 
 	/*
 	 * We cannot be loaded as a module, therefore init will be 1
