@@ -251,12 +251,12 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 		return;
 	q = p->inverse_trans_unicode;
 	if (!q) {
-		q = p->inverse_trans_unicode =
-			kmalloc_array(MAX_GLYPH, sizeof(u16), GFP_KERNEL);
+		q = p->inverse_trans_unicode = kmalloc_array(MAX_GLYPH,
+				sizeof(*q), GFP_KERNEL);
 		if (!q)
 			return;
 	}
-	memset(q, 0, MAX_GLYPH * sizeof(u16));
+	memset(q, 0, MAX_GLYPH * sizeof(*q));
 
 	for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
@@ -478,8 +478,8 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *p)
 					continue;
 				if (!p1[k] || !q1[k])
 					break;
-				if (memcmp(p1[k], q1[k],
-						UNI_ROW_GLYPHS * sizeof(u16)))
+				if (memcmp(p1[k], q1[k], UNI_ROW_GLYPHS *
+							sizeof(*p1[k])))
 					break;
 			}
 			if (k < UNI_DIR_ROWS)
@@ -505,7 +505,7 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 	n = UNI_DIR(unicode);
 	p1 = p->uni_pgdir[n];
 	if (!p1) {
-		p1 = p->uni_pgdir[n] = kcalloc(UNI_DIR_ROWS, sizeof(u16 *),
+		p1 = p->uni_pgdir[n] = kcalloc(UNI_DIR_ROWS, sizeof(*p1),
 				GFP_KERNEL);
 		if (!p1)
 			return -ENOMEM;
@@ -514,11 +514,12 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 	n = UNI_ROW(unicode);
 	p2 = p1[n];
 	if (!p2) {
-		p2 = p1[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(u16), GFP_KERNEL);
+		p2 = p1[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(*p2),
+				GFP_KERNEL);
 		if (!p2)
 			return -ENOMEM;
 		/* No glyphs for the characters (yet) */
-		memset(p2, 0xff, UNI_ROW_GLYPHS * sizeof(u16));
+		memset(p2, 0xff, UNI_ROW_GLYPHS * sizeof(*p2));
 	}
 
 	p2[UNI_GLYPH(unicode)] = fontpos;
@@ -571,7 +572,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	if (!ct)
 		return 0;
 
-	unilist = vmemdup_user(list, array_size(sizeof(struct unipair), ct));
+	unilist = vmemdup_user(list, array_size(sizeof(*unilist), ct));
 	if (IS_ERR(unilist))
 		return PTR_ERR(unilist);
 
@@ -771,7 +772,7 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 	struct uni_pagedict *p;
 	struct unipair *unilist;
 
-	unilist = kvmalloc_array(ct, sizeof(struct unipair), GFP_KERNEL);
+	unilist = kvmalloc_array(ct, sizeof(*unilist), GFP_KERNEL);
 	if (!unilist)
 		return -ENOMEM;
 
@@ -800,7 +801,7 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 		}
 	}
 	console_unlock();
-	if (copy_to_user(list, unilist, min(ect, ct) * sizeof(struct unipair)))
+	if (copy_to_user(list, unilist, min(ect, ct) * sizeof(*unilist)))
 		ret = -EFAULT;
 	put_user(ect, uct);
 	kvfree(unilist);
