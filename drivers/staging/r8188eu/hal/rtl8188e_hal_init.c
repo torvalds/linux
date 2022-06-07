@@ -13,10 +13,14 @@
 static void iol_mode_enable(struct adapter *padapter, u8 enable)
 {
 	u8 reg_0xf0 = 0;
+	int res;
 
 	if (enable) {
 		/* Enable initial offload */
-		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
+		res = rtw_read8(padapter, REG_SYS_CFG, &reg_0xf0);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_SYS_CFG, reg_0xf0 | SW_OFFLOAD_EN);
 
 		if (!padapter->bFWReady)
@@ -24,7 +28,10 @@ static void iol_mode_enable(struct adapter *padapter, u8 enable)
 
 	} else {
 		/* disable initial offload */
-		reg_0xf0 = rtw_read8(padapter, REG_SYS_CFG);
+		res = rtw_read8(padapter, REG_SYS_CFG, &reg_0xf0);
+		if (res)
+			return;
+
 		rtw_write8(padapter, REG_SYS_CFG, reg_0xf0 & ~SW_OFFLOAD_EN);
 	}
 }
@@ -34,17 +41,31 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 	s32 status = _FAIL;
 	u8 reg_0x88 = 0;
 	unsigned long timeout;
+	int res;
 
 	control = control & 0x0f;
-	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
+	res = rtw_read8(padapter, REG_HMEBOX_E0, &reg_0x88);
+	if (res)
+		return _FAIL;
+
 	rtw_write8(padapter, REG_HMEBOX_E0,  reg_0x88 | control);
 
 	timeout = jiffies + msecs_to_jiffies(1000);
-	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
-		time_before(jiffies, timeout))
-		;
 
-	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
+	do {
+		res = rtw_read8(padapter, REG_HMEBOX_E0, &reg_0x88);
+		if (res)
+			continue;
+
+		if (!(reg_0x88 & control))
+			break;
+
+	} while (time_before(jiffies, timeout));
+
+	res = rtw_read8(padapter, REG_HMEBOX_E0, &reg_0x88);
+	if (res)
+		return _FAIL;
+
 	status = (reg_0x88 & control) ? _FAIL : _SUCCESS;
 	if (reg_0x88 & control << 4)
 		status = _FAIL;
@@ -190,13 +211,18 @@ static void efuse_read_phymap_from_txpktbuf(
 	u16 dbg_addr = 0;
 	__le32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
-	int i = 0;
+	int i = 0, res;
 	u16 limit = *size;
-
+	u8 reg;
 	u8 *pos = content;
 
-	if (bcnhead < 0) /* if not valid */
-		bcnhead = rtw_read8(adapter, REG_TDECTRL + 1);
+	if (bcnhead < 0) { /* if not valid */
+		res = rtw_read8(adapter, REG_TDECTRL + 1, &reg);
+		if (res)
+			return;
+
+		bcnhead = reg;
+	}
 
 	rtw_write8(adapter, REG_PKT_BUFF_ACCESS_CTRL, TXPKT_BUF_SELECT);
 
@@ -207,8 +233,16 @@ static void efuse_read_phymap_from_txpktbuf(
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
 		timeout = jiffies + msecs_to_jiffies(1000);
-		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) && time_before(jiffies, timeout))
+		do {
+			res = rtw_read8(adapter, REG_TXPKTBUF_DBG, &reg);
+			if (res)
+				continue;
+
+			if (reg)
+				break;
+
 			rtw_usleep_os(100);
+		} while (time_before(jiffies, timeout));
 
 		/* data from EEPROM needs to be in LE */
 		lo32 = cpu_to_le32(rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L));
@@ -525,10 +559,17 @@ void rtl8188e_SetHalODMVar(struct adapter *Adapter, void *pValue1, bool bSet)
 
 void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 {
+	int res;
+	u8 reg;
+
+	res = rtw_read8(adapter, rOFDM0_RxDSP + 1, &reg);
+	if (res)
+		return;
+
 	if (enable)
-		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) | BIT(1));
+		rtw_write8(adapter, rOFDM0_RxDSP + 1, reg | BIT(1));
 	else
-		rtw_write8(adapter, rOFDM0_RxDSP + 1, rtw_read8(adapter, rOFDM0_RxDSP + 1) & ~BIT(1));
+		rtw_write8(adapter, rOFDM0_RxDSP + 1, reg & ~BIT(1));
 }
 
 /*  */

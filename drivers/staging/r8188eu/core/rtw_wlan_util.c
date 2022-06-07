@@ -279,8 +279,13 @@ void Restore_DM_Func_Flag(struct adapter *padapter)
 void Set_MSR(struct adapter *padapter, u8 type)
 {
 	u8 val8;
+	int res;
 
-	val8 = rtw_read8(padapter, MSR) & 0x0c;
+	res = rtw_read8(padapter, MSR, &val8);
+	if (res)
+		return;
+
+	val8 &= 0x0c;
 	val8 |= type;
 	rtw_write8(padapter, MSR, val8);
 }
@@ -505,7 +510,11 @@ int WMM_param_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 
 static void set_acm_ctrl(struct adapter *adapter, u8 acm_mask)
 {
-	u8 acmctrl = rtw_read8(adapter, REG_ACMHWCTRL);
+	u8 acmctrl;
+	int res = rtw_read8(adapter, REG_ACMHWCTRL, &acmctrl);
+
+	if (res)
+		return;
 
 	if (acm_mask > 1)
 		acmctrl = acmctrl | 0x1;
@@ -765,6 +774,7 @@ void HT_info_handler(struct adapter *padapter, struct ndis_802_11_var_ie *pIE)
 static void set_min_ampdu_spacing(struct adapter *adapter, u8 spacing)
 {
 	u8 sec_spacing;
+	int res;
 
 	if (spacing <= 7) {
 		switch (adapter->securitypriv.dot11PrivacyAlgrthm) {
@@ -786,8 +796,12 @@ static void set_min_ampdu_spacing(struct adapter *adapter, u8 spacing)
 		if (spacing < sec_spacing)
 			spacing = sec_spacing;
 
+		res = rtw_read8(adapter, REG_AMPDU_MIN_SPACE, &sec_spacing);
+		if (res)
+			return;
+
 		rtw_write8(adapter, REG_AMPDU_MIN_SPACE,
-			   (rtw_read8(adapter, REG_AMPDU_MIN_SPACE) & 0xf8) | spacing);
+			   (sec_spacing & 0xf8) | spacing);
 	}
 }
 

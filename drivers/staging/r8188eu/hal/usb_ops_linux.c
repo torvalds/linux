@@ -94,16 +94,13 @@ static int usb_write(struct intf_hdl *intf, u16 value, void *data, u8 size)
 	return status;
 }
 
-u8 rtw_read8(struct adapter *adapter, u32 addr)
+int __must_check rtw_read8(struct adapter *adapter, u32 addr, u8 *data)
 {
 	struct io_priv *io_priv = &adapter->iopriv;
 	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	u8 data;
 
-	usb_read(intf, value, &data, 1);
-
-	return data;
+	return usb_read(intf, value, data, 1);
 }
 
 u16 rtw_read16(struct adapter *adapter, u32 addr)

@@ -3178,6 +3178,7 @@ static void rtw_set_dynamic_functions(struct adapter *adapter, u8 dm_func)
 {
 	struct hal_data_8188e *haldata = &adapter->haldata;
 	struct odm_dm_struct *odmpriv = &haldata->odmpriv;
+	int res;
 
 	switch (dm_func) {
 	case 0:
@@ -3193,7 +3194,9 @@ static void rtw_set_dynamic_functions(struct adapter *adapter, u8 dm_func)
 		if (!(odmpriv->SupportAbility & DYNAMIC_BB_DIG)) {
 			struct rtw_dig *digtable = &odmpriv->DM_DigTable;
 
-			digtable->CurIGValue = rtw_read8(adapter, 0xc50);
+			res = rtw_read8(adapter, 0xc50, &digtable->CurIGValue);
+			(void)res;
+			/* FIXME: return an error to caller */
 		}
 		odmpriv->SupportAbility = DYNAMIC_ALL_FUNC_ENABLE;
 		break;
@@ -3329,8 +3332,9 @@ static int rtw_dbg_port(struct net_device *dev,
 			u16 reg = arg;
 			u16 start_value = 0;
 			u32 write_num = extra_arg;
-			int i;
+			int i, res;
 			struct xmit_frame	*xmit_frame;
+			u8 val8;
 
 			xmit_frame = rtw_IOL_accquire_xmit_frame(padapter);
 			if (!xmit_frame) {
@@ -3343,7 +3347,8 @@ static int rtw_dbg_port(struct net_device *dev,
 			if (rtl8188e_IOL_exec_cmds_sync(padapter, xmit_frame, 5000, 0) != _SUCCESS)
 				ret = -EPERM;
 
-			rtw_read8(padapter, reg);
+			/* FIXME: is this read necessary? */
+			res = rtw_read8(padapter, reg, &val8);
 		}
 			break;
 

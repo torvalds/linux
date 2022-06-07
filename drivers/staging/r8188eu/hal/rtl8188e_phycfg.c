@@ -594,6 +594,7 @@ _PHY_SetBWMode92C(
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
 	u8 regBwOpMode;
 	u8 regRRSR_RSC;
+	int res;
 
 	if (Adapter->bDriverStopped)
 		return;
@@ -602,8 +603,13 @@ _PHY_SetBWMode92C(
 	/* 3<1>Set MAC register */
 	/* 3 */
 
-	regBwOpMode = rtw_read8(Adapter, REG_BWOPMODE);
-	regRRSR_RSC = rtw_read8(Adapter, REG_RRSR + 2);
+	res = rtw_read8(Adapter, REG_BWOPMODE, &regBwOpMode);
+	if (res)
+		return;
+
+	res = rtw_read8(Adapter, REG_RRSR + 2, &regRRSR_RSC);
+	if (res)
+		return;
 
 	switch (pHalData->CurrentChannelBW) {
 	case HT_CHANNEL_WIDTH_20:

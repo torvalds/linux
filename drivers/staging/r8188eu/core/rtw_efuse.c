@@ -28,14 +28,21 @@ ReadEFuseByte(
 	u32 value32;
 	u8 readbyte;
 	u16 retry;
+	int res;
 
 	/* Write Address */
 	rtw_write8(Adapter, EFUSE_CTRL + 1, (_offset & 0xff));
-	readbyte = rtw_read8(Adapter, EFUSE_CTRL + 2);
+	res = rtw_read8(Adapter, EFUSE_CTRL + 2, &readbyte);
+	if (res)
+		return;
+
 	rtw_write8(Adapter, EFUSE_CTRL + 2, ((_offset >> 8) & 0x03) | (readbyte & 0xfc));
 
 	/* Write bit 32 0 */
-	readbyte = rtw_read8(Adapter, EFUSE_CTRL + 3);
+	res = rtw_read8(Adapter, EFUSE_CTRL + 3, &readbyte);
+	if (res)
+		return;
+
 	rtw_write8(Adapter, EFUSE_CTRL + 3, (readbyte & 0x7f));
 
 	/* Check bit 32 read-ready */
@@ -54,6 +61,8 @@ ReadEFuseByte(
 	value32 = rtw_read32(Adapter, EFUSE_CTRL);
 
 	*pbuf = (u8)(value32 & 0xff);
+
+	/* FIXME: return an error to caller */
 }
 
 /*-----------------------------------------------------------------------------
