@@ -768,7 +768,8 @@ EXPORT_SYMBOL(con_copy_unimap);
  *	Read the console unicode data for this console. Called from the ioctl
  *	handlers.
  */
-int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct unipair __user *list)
+int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
+		struct unipair __user *list)
 {
 	int i, j, k, ret = 0;
 	ushort ect;
@@ -783,27 +784,32 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 	console_lock();
 
 	ect = 0;
-	if (*vc->vc_uni_pagedir_loc) {
-		p = *vc->vc_uni_pagedir_loc;
-		for (i = 0; i < UNI_DIRS; i++) {
+	p = *vc->vc_uni_pagedir_loc;
+	if (!p)
+		goto unlock;
+
+	for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
-		if (p1)
-			for (j = 0; j < UNI_DIR_ROWS; j++) {
+		if (!p1)
+			continue;
+
+		for (j = 0; j < UNI_DIR_ROWS; j++) {
 			p2 = *(p1++);
-			if (p2)
-				for (k = 0; k < UNI_ROW_GLYPHS; k++, p2++) {
-					if (*p2 >= MAX_GLYPH)
-						continue;
-					if (ect < ct) {
-						unilist[ect].unicode =
-							UNI(i, j, k);
-						unilist[ect].fontpos = *p2;
-					}
-					ect++;
+			if (!p2)
+				continue;
+
+			for (k = 0; k < UNI_ROW_GLYPHS; k++, p2++) {
+				if (*p2 >= MAX_GLYPH)
+					continue;
+				if (ect < ct) {
+					unilist[ect].unicode = UNI(i, j, k);
+					unilist[ect].fontpos = *p2;
 				}
+				ect++;
 			}
 		}
 	}
+unlock:
 	console_unlock();
 	if (copy_to_user(list, unilist, min(ect, ct) * sizeof(*unilist)))
 		ret = -EFAULT;
