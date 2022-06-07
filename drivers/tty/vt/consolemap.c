@@ -694,49 +694,50 @@ out_unlock:
  */
 int con_set_default_unimap(struct vc_data *vc)
 {
-	int i, j, err = 0, err1;
-	u16 *q;
-	struct uni_pagedict *p;
+	struct uni_pagedict *dict;
+	unsigned int fontpos, count;
+	int err = 0, err1;
+	u16 *dfont;
 
 	if (dflt) {
-		p = *vc->vc_uni_pagedir_loc;
-		if (p == dflt)
+		dict = *vc->vc_uni_pagedir_loc;
+		if (dict == dflt)
 			return 0;
 
 		dflt->refcount++;
 		*vc->vc_uni_pagedir_loc = dflt;
-		if (p && !--p->refcount) {
-			con_release_unimap(p);
-			kfree(p);
+		if (dict && !--dict->refcount) {
+			con_release_unimap(dict);
+			kfree(dict);
 		}
 		return 0;
 	}
-	
+
 	/* The default font is always 256 characters */
 
 	err = con_do_clear_unimap(vc);
 	if (err)
 		return err;
-    
-	p = *vc->vc_uni_pagedir_loc;
-	q = dfont_unitable;
-	
-	for (i = 0; i < 256; i++)
-		for (j = dfont_unicount[i]; j; j--) {
-			err1 = con_insert_unipair(p, *(q++), i);
+
+	dict = *vc->vc_uni_pagedir_loc;
+	dfont = dfont_unitable;
+
+	for (fontpos = 0; fontpos < 256U; fontpos++)
+		for (count = dfont_unicount[fontpos]; count; count--) {
+			err1 = con_insert_unipair(dict, *(dfont++), fontpos);
 			if (err1)
 				err = err1;
 		}
-			
-	if (con_unify_unimap(vc, p)) {
+
+	if (con_unify_unimap(vc, dict)) {
 		dflt = *vc->vc_uni_pagedir_loc;
 		return err;
 	}
 
 	for (enum translation_map m = FIRST_MAP; m <= LAST_MAP; m++)
-		set_inverse_transl(vc, p, m);	/* Update all inverse translations */
-	set_inverse_trans_unicode(vc, p);
-	dflt = p;
+		set_inverse_transl(vc, dict, m);
+	set_inverse_trans_unicode(vc, dict);
+	dflt = dict;
 	return err;
 }
 EXPORT_SYMBOL(con_set_default_unimap);
