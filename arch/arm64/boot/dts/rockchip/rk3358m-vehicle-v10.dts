@@ -1,0 +1,40 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2022 Rockchip Electronics Co., Ltd.
+ *
+ */
+
+/dts-v1/;
+
+#include "rk3358m-vehicle-ddr3.dtsi"
+#include "rk3358-linux.dtsi"
+
+/ {
+	model = "Rockchip linux RK3358M VEHICLE DDR3 board";
+	compatible = "rockchip,rk3358m-vehicle-ddr3-v10-linux", "rockchip,px30", "rockchip,rk3358";
+
+	memory: memory {
+		device_type = "memory";
+		reg = <0x00000000 0x0 0x0 0x20000000>;
+	};
+
+	ramdisk: ramdisk {
+		compatible = "rockchip,ramdisk";
+		memory-region = <&ramdisk_r>;
+	};
+
+	reserved-memory {
+		#address-cells = <2>;
+		#size-cells = <2>;
+		ranges;
+		atf: atf@40000 {
+			reg = <0x0 0x00000 0x0 0x200000>;
+			no-map;
+		};
+
+		ramdisk_r: ramdisk_r@4000000 {
+			// Do not exceed 132MB which used by TEE
+			reg = <0x0 0x4000000 0x0 0x4000000>;
+		};
+	};
+};
