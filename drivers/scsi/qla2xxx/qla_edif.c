@@ -515,6 +515,9 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	}
 
 	if (N2N_TOPO(vha->hw)) {
+		list_for_each_entry_safe(fcport, tf, &vha->vp_fcports, list)
+			fcport->n2n_link_reset_cnt = 0;
+
 		if (vha->hw->flags.n2n_fw_acc_sec)
 			set_bit(N2N_LINK_RESET, &vha->dpc_flags);
 		else
