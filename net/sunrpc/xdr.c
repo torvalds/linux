@@ -951,9 +951,9 @@ EXPORT_SYMBOL_GPL(__xdr_commit_encode);
 static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 						   size_t nbytes)
 {
-	__be32 *p;
 	int space_left;
 	int frag1bytes, frag2bytes;
+	void *p;
 
 	if (nbytes > PAGE_SIZE)
 		goto out_overflow; /* Bigger buffers require special handling */
@@ -982,12 +982,12 @@ static noinline __be32 *xdr_get_next_encode_buffer(struct xdr_stream *xdr,
 	 * xdr_commit_encode() has shifted this one back:
 	 */
 	p = page_address(*xdr->page_ptr);
-	xdr->p = (void *)p + frag2bytes;
+	xdr->p = p + frag2bytes;
 	space_left = xdr->buf->buflen - xdr->buf->len;
 	if (space_left - nbytes >= PAGE_SIZE)
-		xdr->end = (void *)p + PAGE_SIZE;
+		xdr->end = p + PAGE_SIZE;
 	else
-		xdr->end = (void *)p + space_left - frag1bytes;
+		xdr->end = p + space_left - frag1bytes;
 
 	xdr->buf->page_len += frag2bytes;
 	xdr->buf->len += nbytes;
