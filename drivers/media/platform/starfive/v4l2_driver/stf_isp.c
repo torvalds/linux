@@ -47,10 +47,10 @@ static const struct isp_format isp_formats_st7110_sink[] = {
 };
 
 static const struct isp_format isp_formats_st7110_raw[] = {
+	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
 	{ MEDIA_BUS_FMT_SRGGB12_1X12, 12},
 	{ MEDIA_BUS_FMT_SGRBG12_1X12, 12},
 	{ MEDIA_BUS_FMT_SGBRG12_1X12, 12},
-	{ MEDIA_BUS_FMT_SBGGR12_1X12, 12},
 };
 
 static const struct isp_format isp_formats_st7110_uo[] = {
