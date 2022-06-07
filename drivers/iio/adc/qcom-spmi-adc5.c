@@ -15,6 +15,7 @@
 #include <linux/math64.h>
 #include <linux/module.h>
 #include <linux/of.h>
+#include <linux/of_address.h>
 #include <linux/of_device.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
@@ -90,6 +91,23 @@
 #define ADC_APP_SID_MASK			GENMASK(3, 0)
 #define ADC7_CONV_TIMEOUT_MS			501
 
+/* For ADC_PBS on PMIC7 with SW calibration */
+#define ADC7_SW_CALIB_PBS_CALREF_FLAG		0x57
+#define ADC7_SW_CALIB_PBS_CALREF_RDY		BIT(7)
+
+#define ADC7_SW_CALIB_PBS_GND_REF_D0		0x58
+#define ADC7_SW_CALIB_PBS_GND_REF_D1		0x59
+#define ADC7_SW_CALIB_PBS_VREF_VADC_DELTA_D0	0x5a
+#define ADC7_SW_CALIB_PBS_VREF_VADC_DELTA_D1	0x5b
+#define ADC7_SW_CALIB_PBS_VREF_MBG_DELTA_D0	0x5c
+#define ADC7_SW_CALIB_PBS_VREF_MBG_DELTA_D1	0x5d
+
+/* For ADC_CMN on PMIC7 with SW calibration  */
+#define ADC7_SW_CALIB_CMN_PBUS_WRITE_SYNC_CTL	0x4e
+#define ADC7_PBUS_WRITE_SYNC_SW_CLK_REQ		BIT(2)
+#define ADC7_PBUS_WRITE_SYNC_SW_CLK_REQ_MODE	BIT(1)
+#define ADC7_PBUS_WRITE_SYNC_BYPASS		BIT(0)
+
 enum adc5_cal_method {
 	ADC5_NO_CAL = 0,
 	ADC5_RATIOMETRIC_CAL,
@@ -135,6 +153,8 @@ struct adc5_channel_prop {
  * @regmap: SPMI ADC5 peripheral register map field.
  * @dev: SPMI ADC5 device.
  * @base: base address for the ADC peripheral.
+ * @cmn_base: base address for the ADC_CMN peripheral, needed
+ *	for SW calibrated ADC.
  * @nchannels: number of ADC channels.
  * @chan_props: array of ADC channel properties.
  * @iio_chans: array of IIO channels specification.
@@ -147,6 +167,7 @@ struct adc5_chip {
 	struct regmap		*regmap;
 	struct device		*dev;
 	u16			base;
+	u16			cmn_base;
 	unsigned int		nchannels;
 	struct adc5_channel_prop	*chan_props;
 	struct iio_chan_spec	*iio_chans;
@@ -154,21 +175,55 @@ struct adc5_chip {
 	struct completion	complete;
 	struct mutex		lock;
 	const struct adc5_data	*data;
+	int			irq_eoc;
 };
 
 static int adc5_read(struct adc5_chip *adc, u16 offset, u8 *data, int len)
 {
-	return regmap_bulk_read(adc->regmap, adc->base + offset, data, len);
+	int ret;
+
+	ret = regmap_bulk_read(adc->regmap, adc->base + offset, data, len);
+	if (ret)
+		pr_err("adc read to register %#x of length:%d failed, ret=%d\n",
+			offset, len, ret);
+
+	return ret;
 }
 
 static int adc5_write(struct adc5_chip *adc, u16 offset, u8 *data, int len)
 {
-	return regmap_bulk_write(adc->regmap, adc->base + offset, data, len);
+	int ret;
+
+	ret = regmap_bulk_write(adc->regmap, adc->base + offset, data, len);
+	if (ret)
+		pr_err("adc write to register %#x of length:%d failed, ret=%d\n",
+			offset, len, ret);
+
+	return ret;
 }
 
 static int adc5_masked_write(struct adc5_chip *adc, u16 offset, u8 mask, u8 val)
 {
-	return regmap_update_bits(adc->regmap, adc->base + offset, mask, val);
+	int ret;
+
+	ret = regmap_update_bits(adc->regmap, adc->base + offset, mask, val);
+	if (ret)
+		pr_err("adc masked write to register %#x with mask:0x%x failed, ret=%d\n",
+			offset, mask, ret);
+
+	return ret;
+}
+
+static int adc5_cmn_write(struct adc5_chip *adc, u16 offset, u8 *data, int len)
+{
+	int ret;
+
+	ret = regmap_bulk_write(adc->regmap, adc->cmn_base + offset, data, len);
+	if (ret)
+		pr_err("adc_cmn write to register %#x of length:%d failed, ret=%d\n",
+			offset, len, ret);
+
+	return ret;
 }
 
 static int adc5_read_voltage_data(struct adc5_chip *adc, u16 *data)
@@ -176,11 +231,11 @@ static int adc5_read_voltage_data(struct adc5_chip *adc, u16 *data)
 	int ret;
 	u8 rslt_lsb, rslt_msb;
 
-	ret = adc5_read(adc, ADC5_USR_DATA0, &rslt_lsb, sizeof(rslt_lsb));
+	ret = adc5_read(adc, ADC5_USR_DATA0, &rslt_lsb, 1);
 	if (ret)
 		return ret;
 
-	ret = adc5_read(adc, ADC5_USR_DATA1, &rslt_msb, sizeof(rslt_lsb));
+	ret = adc5_read(adc, ADC5_USR_DATA1, &rslt_msb, 1);
 	if (ret)
 		return ret;
 
@@ -317,6 +372,52 @@ static int adc7_configure(struct adc5_chip *adc,
 	return adc5_write(adc, ADC5_USR_CONV_REQ, &conv_req, 1);
 }
 
+static int adc7_sw_calib_configure(struct adc5_chip *adc,
+			struct adc5_channel_prop *prop)
+{
+	int ret;
+	u8 buf[5], val = 0;
+
+	/* Read registers 0x42 through 0x46 */
+	ret = adc5_read(adc, ADC5_USR_DIG_PARAM, buf, sizeof(buf));
+	if (ret < 0)
+		return ret;
+
+	/* Digital param selection */
+	adc5_update_dig_param(adc, prop, &buf[0]);
+
+	/* Update fast average sample value */
+	buf[1] &= (u8) ~ADC5_USR_FAST_AVG_CTL_SAMPLES_MASK;
+	buf[1] |= prop->avg_samples | ADC5_USR_FAST_AVG_CTL_EN;
+
+	/* Select ADC channel */
+	buf[2] = prop->channel;
+
+	/* Select HW settle delay for channel */
+	buf[3] &= (u8) ~ADC5_USR_HW_SETTLE_DELAY_MASK;
+	buf[3] |= prop->hw_settle_time;
+
+	/* Select ADC enable */
+	buf[4] |= ADC5_USR_EN_CTL1_ADC_EN;
+
+	if (!adc->poll_eoc)
+		reinit_completion(&adc->complete);
+
+	ret = adc5_write(adc, ADC5_USR_DIG_PARAM, buf, sizeof(buf));
+	if (ret < 0)
+		return ret;
+
+	val = ADC7_PBUS_WRITE_SYNC_SW_CLK_REQ | ADC7_PBUS_WRITE_SYNC_SW_CLK_REQ_MODE;
+
+	ret = adc5_cmn_write(adc, ADC7_SW_CALIB_CMN_PBUS_WRITE_SYNC_CTL, &val, 1);
+	if (ret < 0)
+		return ret;
+
+	/* Select CONV request */
+	val = ADC5_USR_CONV_REQ_REQ;
+	return adc5_write(adc, ADC5_USR_CONV_REQ, &val, 1);
+}
+
 static int adc5_do_conversion(struct adc5_chip *adc,
 			struct adc5_channel_prop *prop,
 			struct iio_chan_spec const *chan,
@@ -427,6 +528,59 @@ unlock:
 	return ret;
 }
 
+#define ADC7_SW_CALIB_CONV_TIMEOUT_MS			150
+static int adc7_sw_calib_do_conversion(struct adc5_chip *adc,
+			struct adc5_channel_prop *prop, u16 *adc_code_volt)
+{
+	int ret;
+	unsigned long rc;
+	u8 status = 0, val;
+
+	mutex_lock(&adc->lock);
+
+	ret = adc7_sw_calib_configure(adc, prop);
+	if (ret) {
+		pr_err("ADC configure failed with %d\n", ret);
+		goto unlock;
+	}
+
+	/* No support for polling mode at present*/
+	rc = wait_for_completion_timeout(&adc->complete,
+					msecs_to_jiffies(ADC7_SW_CALIB_CONV_TIMEOUT_MS));
+	if (!rc) {
+		pr_err("Reading ADC channel %s timed out\n",
+			prop->datasheet_name);
+		ret = -ETIMEDOUT;
+		goto unlock;
+	}
+
+	ret = adc5_read(adc, ADC5_USR_STATUS1, &status, 1);
+	if (ret < 0)
+		goto unlock;
+
+	if (!(status & ADC5_USR_STATUS1_EOC)) {
+		pr_err("ADC channel %s EOC bit not set, status=%#x\n",
+			prop->datasheet_name, status);
+		ret = -EIO;
+		goto unlock;
+	}
+
+	ret = adc5_read_voltage_data(adc, adc_code_volt);
+	if (ret < 0)
+		goto unlock;
+
+	val = 0;
+	ret = adc5_write(adc, ADC5_USR_EN_CTL1, &val, 1);
+	if (ret < 0)
+		goto unlock;
+
+	ret = adc5_cmn_write(adc, ADC7_SW_CALIB_CMN_PBUS_WRITE_SYNC_CTL, &val, 1);
+unlock:
+	mutex_unlock(&adc->lock);
+
+	return ret;
+}
+
 typedef int (*adc_do_conversion)(struct adc5_chip *adc,
 			struct adc5_channel_prop *prop,
 			struct iio_chan_spec const *chan,
@@ -439,6 +593,21 @@ static irqreturn_t adc5_isr(int irq, void *dev_id)
 	complete(&adc->complete);
 
 	return IRQ_HANDLED;
+}
+
+static struct adc5_channel_prop *adc7_get_channel(struct adc5_chip *adc,
+						  unsigned int num)
+{
+	unsigned int i;
+
+	for (i = 0; i < adc->nchannels; i++) {
+		if (adc->chan_props[i].channel == num)
+			return &adc->chan_props[i];
+	}
+
+	pr_err("Invalid channel %02x\n", num);
+
+	return NULL;
 }
 
 static int adc5_of_xlate(struct iio_dev *indio_dev,
@@ -517,6 +686,118 @@ static int adc7_read_raw(struct iio_dev *indio_dev,
 				mask, adc7_do_conversion);
 }
 
+static int adc7_calib(struct adc5_chip *adc)
+{
+	int ret = 0;
+	u16 gnd, vref_1p25, vref_vdd;
+	u8 buf[2];
+	struct adc5_channel_prop *gnd_prop, *vref_1p25_prop, *vref_vdd_prop;
+
+	/* These channels are mandatory, they are used as reference points */
+	gnd_prop = adc7_get_channel(adc, ADC7_REF_GND);
+	if (!gnd_prop) {
+		dev_err(adc->dev, "GND channel not defined for SW calibration\n");
+		return -ENODEV;
+	}
+
+	vref_1p25_prop = adc7_get_channel(adc, ADC7_1P25VREF);
+	if (!vref_1p25_prop) {
+		dev_err(adc->dev, "1.25VREF channel not defined for SW calibration\n");
+		return -ENODEV;
+	}
+
+	vref_vdd_prop = adc7_get_channel(adc, ADC7_VREF_VADC);
+	if (!vref_vdd_prop) {
+		dev_err(adc->dev, "VDD channel not defined for SW calibration\n");
+		return -ENODEV;
+	}
+
+	ret = adc7_sw_calib_do_conversion(adc, gnd_prop, &gnd);
+	if (ret) {
+		dev_err(adc->dev, "Failed to read GND channel, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = adc7_sw_calib_do_conversion(adc, vref_1p25_prop, &vref_1p25);
+	if (ret) {
+		dev_err(adc->dev, "Failed to read 1.25VREF channel, ret = %d\n", ret);
+		return ret;
+	}
+
+	ret = adc7_sw_calib_do_conversion(adc, vref_vdd_prop, &vref_vdd);
+	if (ret) {
+		dev_err(adc->dev, "Failed to read VDD channel, ret = %d\n", ret);
+		return ret;
+	}
+
+	buf[0] = gnd & 0xff;
+	buf[1] = gnd >> 8;
+	ret = adc5_write(adc, ADC7_SW_CALIB_PBS_GND_REF_D0, buf, sizeof(buf));
+	if (ret)
+		return ret;
+
+	vref_vdd -= gnd;
+	buf[0] = vref_vdd & 0xff;
+	buf[1] = vref_vdd >> 8;
+	ret = adc5_write(adc, ADC7_SW_CALIB_PBS_VREF_VADC_DELTA_D0, buf, sizeof(buf));
+	if (ret)
+		return ret;
+
+	vref_1p25 -= gnd;
+	buf[0] = vref_1p25 & 0xff;
+	buf[1] = vref_1p25 >> 8;
+	ret = adc5_write(adc, ADC7_SW_CALIB_PBS_VREF_MBG_DELTA_D0, buf, sizeof(buf));
+
+	if (!ret)
+		dev_dbg(adc->dev, "SW calibration done, gnd:0x%x vref_vdd:0x%x vref_1p25:0x%x\n",
+			gnd, vref_vdd, vref_1p25);
+
+	return ret;
+}
+
+static int adc7_sw_calib_conv(struct adc5_chip *adc, struct adc5_channel_prop *prop, int *val)
+{
+	int ret = 0;
+	u16 adc_code_volt;
+
+	ret = adc7_calib(adc);
+	if (ret)
+		return ret;
+
+	ret = adc7_sw_calib_do_conversion(adc, prop, &adc_code_volt);
+	if (ret)
+		return ret;
+
+	return qcom_adc5_hw_scale(prop->scale_fn_type,
+		prop->prescale,
+		adc->data,
+		adc_code_volt, val);
+}
+
+static int adc7_sw_calib_read_raw(struct iio_dev *indio_dev,
+			 struct iio_chan_spec const *chan, int *val, int *val2,
+			 long mask)
+{
+	struct adc5_chip *adc = iio_priv(indio_dev);
+	struct adc5_channel_prop *prop;
+	int ret;
+
+	prop = &adc->chan_props[chan->address];
+
+	switch (mask) {
+	case IIO_CHAN_INFO_PROCESSED:
+		ret = adc7_sw_calib_conv(adc, prop, val);
+		if (ret)
+			return ret;
+
+		return IIO_VAL_INT;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static const struct iio_info adc5_info = {
 	.read_raw = adc5_read_raw,
 	.of_xlate = adc5_of_xlate,
@@ -525,6 +806,11 @@ static const struct iio_info adc5_info = {
 static const struct iio_info adc7_info = {
 	.read_raw = adc7_read_raw,
 	.of_xlate = adc7_of_xlate,
+};
+
+static const struct iio_info adc7_sw_calib_info = {
+	.read_raw = adc7_sw_calib_read_raw,
+	.of_xlate = adc5_of_xlate,
 };
 
 struct adc5_channels {
@@ -602,6 +888,8 @@ static const struct adc5_channels adc5_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_AMUX_THM2]	= ADC5_CHAN_TEMP("amux_thm2", 0,
 					SCALE_HW_CALIB_PM5_SMB_TEMP)
+	[ADC5_PARALLEL_ISENSE]	= ADC5_CHAN_VOLT("parallel_isense", 0,
+					SCALE_HW_CALIB_PM5_CUR)
 	[ADC5_GPIO1_100K_PU]	= ADC5_CHAN_TEMP("gpio1_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
@@ -617,21 +905,25 @@ static const struct adc5_channels adc7_chans_pmic[ADC5_MAX_CHANNEL] = {
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC7_1P25VREF]		= ADC5_CHAN_VOLT("vref_1p25", 0,
 					SCALE_HW_CALIB_DEFAULT)
+	[ADC7_VREF_VADC]	= ADC5_CHAN_VOLT("vref_vadc", 0,
+					SCALE_HW_CALIB_DEFAULT)
 	[ADC7_VPH_PWR]		= ADC5_CHAN_VOLT("vph_pwr", 1,
 					SCALE_HW_CALIB_DEFAULT)
 	[ADC7_VBAT_SNS]		= ADC5_CHAN_VOLT("vbat_sns", 3,
 					SCALE_HW_CALIB_DEFAULT)
-	[ADC7_AMUX_THM3]	= ADC5_CHAN_TEMP("smb_temp", 0,
+	[ADC7_USB_IN_V_16]	= ADC5_CHAN_VOLT("usb_in_v_div_16", 8,
+					SCALE_HW_CALIB_DEFAULT)
+	[ADC7_AMUX_THM3]	= ADC5_CHAN_TEMP("smb_temp", 9,
 					SCALE_HW_CALIB_PM7_SMB_TEMP)
 	[ADC7_CHG_TEMP]		= ADC5_CHAN_TEMP("chg_temp", 0,
 					SCALE_HW_CALIB_PM7_CHG_TEMP)
-	[ADC7_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 9,
+	[ADC7_IIN_FB]		= ADC5_CHAN_CUR("iin_fb", 10,
 					SCALE_HW_CALIB_CUR)
-	[ADC7_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 10,
+	[ADC7_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 12,
 					SCALE_HW_CALIB_CUR)
-	[ADC7_IIN_SMB]		= ADC5_CHAN_CUR("iin_smb", 11,
+	[ADC7_ICHG_SMB]		= ADC5_CHAN_CUR("ichg_smb", 13,
 					SCALE_HW_CALIB_CUR)
-	[ADC7_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 12,
+	[ADC7_ICHG_FB]		= ADC5_CHAN_CUR("ichg_fb", 14,
 					SCALE_HW_CALIB_CUR_RAW)
 	[ADC7_DIE_TEMP]		= ADC5_CHAN_TEMP("die_temp", 0,
 					SCALE_HW_CALIB_PMIC_THERM_PM7)
@@ -681,6 +973,8 @@ static const struct adc5_channels adc5_chans_rev2[ADC5_MAX_CHANNEL] = {
 	[ADC5_AMUX_THM5_100K_PU] = ADC5_CHAN_TEMP("amux_thm5_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 	[ADC5_XO_THERM_100K_PU]	= ADC5_CHAN_TEMP("xo_therm_100k_pu", 0,
+					SCALE_HW_CALIB_THERM_100K_PULLUP)
+	[ADC5_GPIO2_100K_PU]	= ADC5_CHAN_TEMP("gpio2_100k_pu", 0,
 					SCALE_HW_CALIB_THERM_100K_PULLUP)
 };
 
@@ -801,6 +1095,8 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 
 	if (of_property_read_bool(node, "qcom,ratiometric"))
 		prop->cal_method = ADC5_RATIOMETRIC_CAL;
+	else if (of_property_read_bool(node, "qcom,no-cal"))
+		prop->cal_method = ADC5_NO_CAL;
 	else
 		prop->cal_method = ADC5_ABSOLUTE_CAL;
 
@@ -816,6 +1112,7 @@ static int adc5_get_dt_channel_data(struct adc5_chip *adc,
 }
 
 static const struct adc5_data adc5_data_pmic = {
+	.name = "pm-adc5",
 	.full_scale_code_volt = 0x70e4,
 	.full_scale_code_cur = 0x2710,
 	.adc_chans = adc5_chans_pmic,
@@ -831,6 +1128,7 @@ static const struct adc5_data adc5_data_pmic = {
 };
 
 static const struct adc5_data adc7_data_pmic = {
+	.name = "pm-adc7",
 	.full_scale_code_volt = 0x70e4,
 	.adc_chans = adc7_chans_pmic,
 	.info = &adc7_info,
@@ -842,7 +1140,19 @@ static const struct adc5_data adc7_data_pmic = {
 				64000, 128000},
 };
 
+static const struct adc5_data adc5_data_pmic5_lite = {
+	.name = "pm-adc5-lite",
+	.full_scale_code_volt = 0x70e4,
+	/* On PMI632, IBAT LSB = 5A/32767 */
+	.full_scale_code_cur = 5000,
+	.adc_chans = adc5_chans_pmic,
+	.decimation = (unsigned int []) {250, 420, 840},
+	.hw_settle_1 = (unsigned int []) {15, 100, 200, 300, 400, 500, 600, 700,
+					800, 900, 1, 2, 4, 6, 8, 10},
+};
+
 static const struct adc5_data adc5_data_pmic_rev2 = {
+	.name = "pm-adc4-rev2",
 	.full_scale_code_volt = 0x4000,
 	.full_scale_code_cur = 0x1800,
 	.adc_chans = adc5_chans_rev2,
@@ -867,8 +1177,16 @@ static const struct of_device_id adc5_match_table[] = {
 		.data = &adc7_data_pmic,
 	},
 	{
+		.compatible = "qcom,spmi-adc7-sw-calib",
+		.data = &adc7_data_pmic,
+	},
+	{
 		.compatible = "qcom,spmi-adc-rev2",
 		.data = &adc5_data_pmic_rev2,
+	},
+	{
+		.compatible = "qcom,spmi-adc5-lite",
+		.data = &adc5_data_pmic5_lite,
 	},
 	{ }
 };
@@ -936,8 +1254,11 @@ static int adc5_probe(struct platform_device *pdev)
 	struct iio_dev *indio_dev;
 	struct adc5_chip *adc;
 	struct regmap *regmap;
-	int ret, irq_eoc;
+	const char *irq_name;
+	const __be32 *prop_addr;
+	int ret;
 	u32 reg;
+	u8 val;
 
 	regmap = dev_get_regmap(dev->parent, NULL);
 	if (!regmap)
@@ -954,7 +1275,27 @@ static int adc5_probe(struct platform_device *pdev)
 	adc = iio_priv(indio_dev);
 	adc->regmap = regmap;
 	adc->dev = dev;
-	adc->base = reg;
+
+	prop_addr = of_get_address(dev->of_node, 0, NULL, NULL);
+	if (!prop_addr) {
+		pr_err("invalid IO resource\n");
+		return -EINVAL;
+	}
+	adc->base = be32_to_cpu(*prop_addr);
+
+	prop_addr = of_get_address(dev->of_node, 1, NULL, NULL);
+	if (!prop_addr)
+		pr_debug("invalid cmn resource\n");
+	else
+		adc->cmn_base = be32_to_cpu(*prop_addr);
+
+
+	if (of_device_is_compatible(node, "qcom,spmi-adc7-sw-calib")) {
+		if (!adc->cmn_base) {
+			pr_err("ADC_CMN undefined\n");
+			return -ENODEV;
+		}
+	}
 
 	init_completion(&adc->complete);
 	mutex_init(&adc->lock);
@@ -965,15 +1306,30 @@ static int adc5_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	irq_eoc = platform_get_irq(pdev, 0);
-	if (irq_eoc < 0) {
-		if (irq_eoc == -EPROBE_DEFER || irq_eoc == -EINVAL)
-			return irq_eoc;
+	adc->irq_eoc = platform_get_irq(pdev, 0);
+	if (adc->irq_eoc < 0) {
+		if (adc->irq_eoc == -EPROBE_DEFER || adc->irq_eoc == -EINVAL)
+			return adc->irq_eoc;
 		adc->poll_eoc = true;
 	} else {
-		ret = devm_request_irq(dev, irq_eoc, adc5_isr, 0,
-				       "pm-adc5", adc);
+		irq_name = "pm-adc5";
+		if (adc->data->name)
+			irq_name = adc->data->name;
+
+		ret = devm_request_irq(dev, adc->irq_eoc, adc5_isr, 0,
+				       irq_name, adc);
 		if (ret)
+			return ret;
+	}
+
+	if (of_device_is_compatible(node, "qcom,spmi-adc7-sw-calib")) {
+		ret = adc7_calib(adc);
+		if (ret)
+			return ret;
+
+		val = ADC7_SW_CALIB_PBS_CALREF_RDY;
+		ret = adc5_write(adc, ADC7_SW_CALIB_PBS_CALREF_FLAG, &val, 1);
+		if (ret < 0)
 			return ret;
 	}
 
@@ -986,10 +1342,39 @@ static int adc5_probe(struct platform_device *pdev)
 	return devm_iio_device_register(dev, indio_dev);
 }
 
+static int adc_restore(struct device *dev)
+{
+	int ret = 0;
+	struct adc5_chip *adc = dev_get_drvdata(dev);
+
+	if (adc->irq_eoc > 0)
+		ret = devm_request_irq(dev, adc->irq_eoc, adc5_isr, 0,
+				       "pm-adc5", adc);
+
+	return ret;
+}
+
+static int adc_freeze(struct device *dev)
+{
+	struct adc5_chip *adc = dev_get_drvdata(dev);
+
+	if (adc->irq_eoc > 0)
+		devm_free_irq(dev, adc->irq_eoc, adc);
+
+	return 0;
+}
+
+static const struct dev_pm_ops adc_pm_ops = {
+	.freeze = adc_freeze,
+	.thaw = adc_restore,
+	.restore = adc_restore,
+};
+
 static struct platform_driver adc5_driver = {
 	.driver = {
 		.name = "qcom-spmi-adc5",
 		.of_match_table = adc5_match_table,
+		.pm = &adc_pm_ops,
 	},
 	.probe = adc5_probe,
 };
