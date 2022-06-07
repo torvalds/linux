@@ -190,6 +190,11 @@ static int inv_translate[MAX_NR_CONSOLES];
 #define UNI_DIR_ROWS	32U
 #define UNI_ROW_GLYPHS	64U
 
+#define UNI_DIR(uni)		( (uni)                   >> 11)
+#define UNI_ROW(uni)		(((uni) & GENMASK(10, 6)) >>  6)
+#define UNI_GLYPH(uni)		( (uni) & GENMASK( 5, 0))
+#define UNI(dir, row, glyph)	(((dir) << 11) | ((row) << 6) | (glyph))
+
 /**
  * struct uni_pagedict -- unicode directory
  *
@@ -265,7 +270,7 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 				glyph = p2[k];
 				if (glyph >= 0 && glyph < MAX_GLYPH
 					       && q[glyph] < 32)
-					q[glyph] = (i << 11) | (j << 6) | k;
+					q[glyph] = UNI(i, j, k);
 			}
 		}
 	}
@@ -497,7 +502,7 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 	int i, n;
 	u16 **p1, *p2;
 
-	n = unicode >> 11;
+	n = UNI_DIR(unicode);
 	p1 = p->uni_pgdir[n];
 	if (!p1) {
 		p1 = p->uni_pgdir[n] = kmalloc_array(UNI_DIR_ROWS,
@@ -508,7 +513,7 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 			p1[i] = NULL;
 	}
 
-	n = (unicode >> 6) & 0x1f;
+	n = UNI_ROW(unicode);
 	p2 = p1[n];
 	if (!p2) {
 		p2 = p1[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(u16), GFP_KERNEL);
@@ -518,7 +523,7 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 		memset(p2, 0xff, UNI_ROW_GLYPHS * sizeof(u16));
 	}
 
-	p2[unicode & 0x3f] = fontpos;
+	p2[UNI_GLYPH(unicode)] = fontpos;
 	
 	p->sum += (fontpos << 20U) + unicode;
 
@@ -788,7 +793,7 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 						continue;
 					if (ect < ct) {
 						unilist[ect].unicode =
-							(i<<11) | (j<<6) | k;
+							UNI(i, j, k);
 						unilist[ect].fontpos = *p2;
 					}
 					ect++;
@@ -857,9 +862,9 @@ conv_uni_to_pc(struct vc_data *conp, long ucs)
 		return -3;
 
 	p = *conp->vc_uni_pagedir_loc;
-	if ((p1 = p->uni_pgdir[ucs >> 11]) &&
-	    (p2 = p1[(ucs >> 6) & 0x1f]) &&
-	    (h = p2[ucs & 0x3f]) < MAX_GLYPH)
+	if ((p1 = p->uni_pgdir[UNI_DIR(ucs)]) &&
+	    (p2 = p1[UNI_ROW(ucs)]) &&
+	    (h = p2[UNI_GLYPH(ucs)]) < MAX_GLYPH)
 		return h;
 
 	return -4;		/* not found */
