@@ -613,7 +613,7 @@ static int hub_ext_port_status(struct usb_hub *hub, int port1, int type,
 	return ret;
 }
 
-static int hub_port_status(struct usb_hub *hub, int port1,
+int usb_hub_port_status(struct usb_hub *hub, int port1,
 		u16 *status, u16 *change)
 {
 	return hub_ext_port_status(hub, port1, HUB_PORT_STATUS,
@@ -1126,7 +1126,7 @@ static void hub_activate(struct usb_hub *hub, enum hub_activation_type type)
 		u16 portstatus, portchange;
 
 		portstatus = portchange = 0;
-		status = hub_port_status(hub, port1, &portstatus, &portchange);
+		status = usb_hub_port_status(hub, port1, &portstatus, &portchange);
 		if (status)
 			goto abort;
 
@@ -2855,7 +2855,7 @@ static int hub_port_wait_reset(struct usb_hub *hub, int port1,
 						  &portstatus, &portchange,
 						  &ext_portstatus);
 		else
-			ret = hub_port_status(hub, port1, &portstatus,
+			ret = usb_hub_port_status(hub, port1, &portstatus,
 					      &portchange);
 		if (ret < 0)
 			return ret;
@@ -2956,7 +2956,8 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 		 * If the caller hasn't explicitly requested a warm reset,
 		 * double check and see if one is needed.
 		 */
-		if (hub_port_status(hub, port1, &portstatus, &portchange) == 0)
+		if (usb_hub_port_status(hub, port1, &portstatus,
+					&portchange) == 0)
 			if (hub_port_warm_reset_required(hub, port1,
 							portstatus))
 				warm = true;
@@ -3008,7 +3009,7 @@ static int hub_port_reset(struct usb_hub *hub, int port1,
 			 * If a USB 3.0 device migrates from reset to an error
 			 * state, re-issue the warm reset.
 			 */
-			if (hub_port_status(hub, port1,
+			if (usb_hub_port_status(hub, port1,
 					&portstatus, &portchange) < 0)
 				goto done;
 
@@ -3074,7 +3075,7 @@ done:
 }
 
 /* Check if a port is power on */
-static int port_is_power_on(struct usb_hub *hub, unsigned portstatus)
+int usb_port_is_power_on(struct usb_hub *hub, unsigned int portstatus)
 {
 	int ret = 0;
 
@@ -3140,13 +3141,13 @@ static int check_port_resume_type(struct usb_device *udev,
 	}
 	/* Is the device still present? */
 	else if (status || port_is_suspended(hub, portstatus) ||
-			!port_is_power_on(hub, portstatus)) {
+			!usb_port_is_power_on(hub, portstatus)) {
 		if (status >= 0)
 			status = -ENODEV;
 	} else if (!(portstatus & USB_PORT_STAT_CONNECTION)) {
 		if (retries--) {
 			usleep_range(200, 300);
-			status = hub_port_status(hub, port1, &portstatus,
+			status = usb_hub_port_status(hub, port1, &portstatus,
 							     &portchange);
 			goto retry;
 		}
@@ -3409,7 +3410,7 @@ int usb_port_suspend(struct usb_device *udev, pm_message_t msg)
 			u16 portstatus, portchange;
 
 			portstatus = portchange = 0;
-			ret = hub_port_status(hub, port1, &portstatus,
+			ret = usb_hub_port_status(hub, port1, &portstatus,
 					&portchange);
 
 			dev_dbg(&port_dev->dev,
@@ -3587,13 +3588,13 @@ static int wait_for_connected(struct usb_device *udev,
 	while (delay_ms < 2000) {
 		if (status || *portstatus & USB_PORT_STAT_CONNECTION)
 			break;
-		if (!port_is_power_on(hub, *portstatus)) {
+		if (!usb_port_is_power_on(hub, *portstatus)) {
 			status = -ENODEV;
 			break;
 		}
 		msleep(20);
 		delay_ms += 20;
-		status = hub_port_status(hub, port1, portstatus, portchange);
+		status = usb_hub_port_status(hub, port1, portstatus, portchange);
 	}
 	dev_dbg(&udev->dev, "Waited %dms for CONNECT\n", delay_ms);
 	return status;
@@ -3653,7 +3654,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 	usb_lock_port(port_dev);
 
 	/* Skip the initial Clear-Suspend step for a remote wakeup */
-	status = hub_port_status(hub, port1, &portstatus, &portchange);
+	status = usb_hub_port_status(hub, port1, &portstatus, &portchange);
 	if (status == 0 && !port_is_suspended(hub, portstatus)) {
 		if (portchange & USB_PORT_STAT_C_SUSPEND)
 			pm_wakeup_event(&udev->dev, 0);
@@ -3678,7 +3679,7 @@ int usb_port_resume(struct usb_device *udev, pm_message_t msg)
 		 * stop resume signaling.  Then finish the resume
 		 * sequence.
 		 */
-		status = hub_port_status(hub, port1, &portstatus, &portchange);
+		status = usb_hub_port_status(hub, port1, &portstatus, &portchange);
 	}
 
  SuspendCleared:
@@ -3791,7 +3792,7 @@ static int check_ports_changed(struct usb_hub *hub)
 		u16 portstatus, portchange;
 		int status;
 
-		status = hub_port_status(hub, port1, &portstatus, &portchange);
+		status = usb_hub_port_status(hub, port1, &portstatus, &portchange);
 		if (!status && portchange)
 			return 1;
 	}
@@ -4554,7 +4555,7 @@ int hub_port_debounce(struct usb_hub *hub, int port1, bool must_be_connected)
 	struct usb_port *port_dev = hub->ports[port1 - 1];
 
 	for (total_time = 0; ; total_time += HUB_DEBOUNCE_STEP) {
-		ret = hub_port_status(hub, port1, &portstatus, &portchange);
+		ret = usb_hub_port_status(hub, port1, &portstatus, &portchange);
 		if (ret < 0)
 			return ret;
 
@@ -5240,7 +5241,7 @@ static void hub_port_connect(struct usb_hub *hub, int port1, u16 portstatus,
 		 * but only if the port isn't owned by someone else.
 		 */
 		if (hub_is_port_power_switchable(hub)
-				&& !port_is_power_on(hub, portstatus)
+				&& !usb_port_is_power_on(hub, portstatus)
 				&& !port_dev->port_owner)
 			set_port_feature(hdev, port1, USB_PORT_FEAT_POWER);
 
@@ -5557,7 +5558,7 @@ static void port_event(struct usb_hub *hub, int port1)
 	clear_bit(port1, hub->event_bits);
 	clear_bit(port1, hub->wakeup_bits);
 
-	if (hub_port_status(hub, port1, &portstatus, &portchange) < 0)
+	if (usb_hub_port_status(hub, port1, &portstatus, &portchange) < 0)
 		return;
 
 	if (portchange & USB_PORT_STAT_C_CONNECTION) {
@@ -5594,7 +5595,7 @@ static void port_event(struct usb_hub *hub, int port1)
 				USB_PORT_FEAT_C_OVER_CURRENT);
 		msleep(100);	/* Cool down */
 		hub_power_on(hub, true);
-		hub_port_status(hub, port1, &status, &unused);
+		usb_hub_port_status(hub, port1, &status, &unused);
 		if (status & USB_PORT_STAT_OVERCURRENT)
 			dev_err(&port_dev->dev, "over-current condition\n");
 	}
@@ -5638,7 +5639,7 @@ static void port_event(struct usb_hub *hub, int port1)
 			u16 unused;
 
 			msleep(20);
-			hub_port_status(hub, port1, &portstatus, &unused);
+			usb_hub_port_status(hub, port1, &portstatus, &unused);
 			dev_dbg(&port_dev->dev, "Wait for inactive link disconnect detect\n");
 			continue;
 		} else if (!udev || !(portstatus & USB_PORT_STAT_CONNECTION)
