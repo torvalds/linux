@@ -395,31 +395,6 @@ static inline bool btrfs_inode_can_compress(const struct btrfs_inode *inode)
 	return true;
 }
 
-struct btrfs_dio_private {
-	struct inode *inode;
-
-	/*
-	 * Since DIO can use anonymous page, we cannot use page_offset() to
-	 * grab the file offset, thus need a dedicated member for file offset.
-	 */
-	u64 file_offset;
-	u64 disk_bytenr;
-	/* Used for bio::bi_size */
-	u32 bytes;
-
-	/*
-	 * References to this structure. There is one reference per in-flight
-	 * bio plus one while we're still setting up.
-	 */
-	refcount_t refs;
-
-	/* dio_bio came from fs/direct-io.c */
-	struct bio *dio_bio;
-
-	/* Array of checksums */
-	u8 csums[];
-};
-
 /*
  * btrfs_inode_item stores flags in a u64, btrfs_inode stores them in two
  * separate u32s. These two functions convert between the two representations.

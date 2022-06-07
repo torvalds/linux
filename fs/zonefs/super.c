@@ -900,7 +900,7 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 		ret = zonefs_file_dio_append(iocb, from);
 	else
 		ret = iomap_dio_rw(iocb, from, &zonefs_iomap_ops,
-				   &zonefs_write_dio_ops, 0, 0);
+				   &zonefs_write_dio_ops, 0, NULL, 0);
 	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ &&
 	    (ret > 0 || ret == -EIOCBQUEUED)) {
 		if (ret > 0)
@@ -1042,7 +1042,7 @@ static ssize_t zonefs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		}
 		file_accessed(iocb->ki_filp);
 		ret = iomap_dio_rw(iocb, to, &zonefs_iomap_ops,
-				   &zonefs_read_dio_ops, 0, 0);
+				   &zonefs_read_dio_ops, 0, NULL, 0);
 	} else {
 		ret = generic_file_read_iter(iocb, to);
 		if (ret == -EIO)
@@ -1373,7 +1373,7 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 	struct super_block *sb = inode->i_sb;
 	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	int ret;
+	int ret = 0;
 
 	inode->i_ino = zone->start >> sbi->s_zone_sectors_shift;
 	inode->i_mode = S_IFREG | sbi->s_perm;
@@ -1420,7 +1420,7 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
 
-	return 0;
+	return ret;
 }
 
 static struct dentry *zonefs_create_inode(struct dentry *parent,

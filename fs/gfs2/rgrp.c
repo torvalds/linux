@@ -1315,7 +1315,7 @@ int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 	u64 blk;
 	sector_t start = 0;
 	sector_t nr_blks = 0;
-	int rv;
+	int rv = -EIO;
 	unsigned int x;
 	u32 trimmed = 0;
 	u8 diff;
@@ -1371,7 +1371,7 @@ fail:
 	if (sdp->sd_args.ar_discard)
 		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem\n", rv);
 	sdp->sd_args.ar_discard = 0;
-	return -EIO;
+	return rv;
 }
 
 /**

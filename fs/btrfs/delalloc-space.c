@@ -289,7 +289,7 @@ static void calc_inode_reservations(struct btrfs_fs_info *fs_info,
 }
 
 int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes,
-				    u64 disk_num_bytes)
+				    u64 disk_num_bytes, bool noflush)
 {
 	struct btrfs_root *root = inode->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -308,7 +308,7 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes,
 	 * If we have a transaction open (can happen if we call truncate_block
 	 * from truncate), then we need FLUSH_LIMIT so we don't deadlock.
 	 */
-	if (btrfs_is_free_space_inode(inode)) {
+	if (noflush || btrfs_is_free_space_inode(inode)) {
 		flush = BTRFS_RESERVE_NO_FLUSH;
 	} else {
 		if (current->journal_info)
@@ -333,7 +333,8 @@ int btrfs_delalloc_reserve_metadata(struct btrfs_inode *inode, u64 num_bytes,
 	 */
 	calc_inode_reservations(fs_info, num_bytes, disk_num_bytes,
 				&meta_reserve, &qgroup_reserve);
-	ret = btrfs_qgroup_reserve_meta_prealloc(root, qgroup_reserve, true);
+	ret = btrfs_qgroup_reserve_meta_prealloc(root, qgroup_reserve, true,
+						 noflush);
 	if (ret)
 		return ret;
 	ret = btrfs_reserve_metadata_bytes(fs_info, block_rsv, meta_reserve, flush);
@@ -456,7 +457,7 @@ int btrfs_delalloc_reserve_space(struct btrfs_inode *inode,
 	ret = btrfs_check_data_free_space(inode, reserved, start, len);
 	if (ret < 0)
 		return ret;
-	ret = btrfs_delalloc_reserve_metadata(inode, len, len);
+	ret = btrfs_delalloc_reserve_metadata(inode, len, len, false);
 	if (ret < 0) {
 		btrfs_free_reserved_data_space(inode, *reserved, start, len);
 		extent_changeset_free(*reserved);

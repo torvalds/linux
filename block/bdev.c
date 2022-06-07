@@ -200,6 +200,13 @@ int sync_blockdev(struct block_device *bdev)
 }
 EXPORT_SYMBOL(sync_blockdev);
 
+int sync_blockdev_range(struct block_device *bdev, loff_t lstart, loff_t lend)
+{
+	return filemap_write_and_wait_range(bdev->bd_inode->i_mapping,
+			lstart, lend);
+}
+EXPORT_SYMBOL(sync_blockdev_range);
+
 /*
  * Write out and wait upon all dirty data associated with this
  * device.   Filesystem data as well as the underlying block

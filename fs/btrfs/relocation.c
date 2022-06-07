@@ -362,7 +362,7 @@ struct btrfs_root *find_reloc_root(struct btrfs_fs_info *fs_info, u64 bytenr)
 	rb_node = rb_simple_search(&rc->reloc_root_tree.rb_root, bytenr);
 	if (rb_node) {
 		node = rb_entry(rb_node, struct mapping_node, rb_node);
-		root = (struct btrfs_root *)node->data;
+		root = node->data;
 	}
 	spin_unlock(&rc->reloc_root_tree.lock);
 	return btrfs_grab_root(root);
@@ -2997,7 +2997,8 @@ static int relocate_one_page(struct inode *inode, struct file_ra_state *ra,
 
 		/* Reserve metadata for this range */
 		ret = btrfs_delalloc_reserve_metadata(BTRFS_I(inode),
-						      clamped_len, clamped_len);
+						      clamped_len, clamped_len,
+						      false);
 		if (ret)
 			goto release_page;
 
@@ -3845,8 +3846,7 @@ out:
 	btrfs_end_transaction(trans);
 	btrfs_btree_balance_dirty(fs_info);
 	if (err) {
-		if (inode)
-			iput(inode);
+		iput(inode);
 		inode = ERR_PTR(err);
 	}
 	return inode;
@@ -3976,6 +3976,17 @@ int btrfs_relocate_block_group(struct btrfs_fs_info *fs_info, u64 group_start)
 	bg = btrfs_lookup_block_group(fs_info, group_start);
 	if (!bg)
 		return -ENOENT;
+
+	/*
+	 * Relocation of a data block group creates ordered extents.  Without
+	 * sb_start_write(), we can freeze the filesystem while unfinished
+	 * ordered extents are left. Such ordered extents can cause a deadlock
+	 * e.g. when syncfs() is waiting for their completion but they can't
+	 * finish because they block when joining a transaction, due to the
+	 * fact that the freeze locks are being held in write mode.
+	 */
+	if (bg->flags & BTRFS_BLOCK_GROUP_DATA)
+		ASSERT(sb_write_started(fs_info->sb));
 
 	if (btrfs_pinned_by_swapfile(fs_info, bg)) {
 		btrfs_put_block_group(bg);

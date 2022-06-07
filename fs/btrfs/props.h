@@ -23,8 +23,4 @@ int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
 			      struct inode *inode,
 			      struct inode *dir);
 
-int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       struct btrfs_root *parent_root);
-
 #endif
