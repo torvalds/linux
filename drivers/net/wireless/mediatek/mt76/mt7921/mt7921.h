@@ -251,16 +251,6 @@ struct mt7921_txpwr {
 	} data[TXPWR_MAX_NUM];
 };
 
-enum {
-	MT_LMAC_AC00,
-	MT_LMAC_AC01,
-	MT_LMAC_AC02,
-	MT_LMAC_AC03,
-	MT_LMAC_ALTX0 = 0x10,
-	MT_LMAC_BMC0,
-	MT_LMAC_BCN0,
-};
-
 static inline struct mt7921_phy *
 mt7921_hw_phy(struct ieee80211_hw *hw)
 {
