@@ -499,31 +499,31 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *p)
 static int
 con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 {
-	int n;
-	u16 **p1, *p2;
+	u16 **dir, *row;
+	unsigned int n;
 
 	n = UNI_DIR(unicode);
-	p1 = p->uni_pgdir[n];
-	if (!p1) {
-		p1 = p->uni_pgdir[n] = kcalloc(UNI_DIR_ROWS, sizeof(*p1),
+	dir = p->uni_pgdir[n];
+	if (!dir) {
+		dir = p->uni_pgdir[n] = kcalloc(UNI_DIR_ROWS, sizeof(*dir),
 				GFP_KERNEL);
-		if (!p1)
+		if (!dir)
 			return -ENOMEM;
 	}
 
 	n = UNI_ROW(unicode);
-	p2 = p1[n];
-	if (!p2) {
-		p2 = p1[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(*p2),
+	row = dir[n];
+	if (!row) {
+		row = dir[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(*row),
 				GFP_KERNEL);
-		if (!p2)
+		if (!row)
 			return -ENOMEM;
 		/* No glyphs for the characters (yet) */
-		memset(p2, 0xff, UNI_ROW_GLYPHS * sizeof(*p2));
+		memset(row, 0xff, UNI_ROW_GLYPHS * sizeof(*row));
 	}
 
-	p2[UNI_GLYPH(unicode)] = fontpos;
-	
+	row[UNI_GLYPH(unicode)] = fontpos;
+
 	p->sum += (fontpos << 20U) + unicode;
 
 	return 0;
