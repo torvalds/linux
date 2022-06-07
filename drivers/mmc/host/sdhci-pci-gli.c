@@ -982,6 +982,9 @@ static int gl9763e_runtime_resume(struct sdhci_pci_chip *chip)
 	struct sdhci_host *host = slot->host;
 	u16 clock;
 
+	if (host->mmc->ios.power_mode != MMC_POWER_ON)
+		return 0;
+
 	clock = sdhci_readw(host, SDHCI_CLOCK_CONTROL);
 
 	clock |= SDHCI_CLOCK_PLL_EN;
