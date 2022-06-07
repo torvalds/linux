@@ -849,8 +849,7 @@ int conv_uni_to_8bit(u32 uni)
 	return -1;
 }
 
-int
-conv_uni_to_pc(struct vc_data *conp, long ucs) 
+int conv_uni_to_pc(struct vc_data *conp, long ucs)
 {
 	struct uni_pagedict *dict;
 	u16 **dir, *row, glyph;
@@ -869,17 +868,24 @@ conv_uni_to_pc(struct vc_data *conp, long ucs)
 	 */
 	else if ((ucs & ~UNI_DIRECT_MASK) == UNI_DIRECT_BASE)
 		return ucs & UNI_DIRECT_MASK;
-  
-	if (!*conp->vc_uni_pagedir_loc)
-		return -3;
 
 	dict = *conp->vc_uni_pagedir_loc;
-	if ((dir = dict->uni_pgdir[UNI_DIR(ucs)]) &&
-	    (row = dir[UNI_ROW(ucs)]) &&
-	    (glyph = row[UNI_GLYPH(ucs)]) < MAX_GLYPH)
-		return glyph;
+	if (!dict)
+		return -3;
 
-	return -4;		/* not found */
+	dir = dict->uni_pgdir[UNI_DIR(ucs)];
+	if (!dir)
+		return -4;
+
+	row = dir[UNI_ROW(ucs)];
+	if (!row)
+		return -4;
+
+	glyph = row[UNI_GLYPH(ucs)];
+	if (glyph >= MAX_GLYPH)
+		return -4;
+
+	return glyph;
 }
 
 /*
