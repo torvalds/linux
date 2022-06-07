@@ -1939,57 +1939,15 @@ out_unlocked:
  */
 static loff_t ceph_llseek(struct file *file, loff_t offset, int whence)
 {
-	struct inode *inode = file->f_mapping->host;
-	struct ceph_fs_client *fsc = ceph_inode_to_client(inode);
-	loff_t i_size;
-	loff_t ret;
-
-	inode_lock(inode);
-
 	if (whence == SEEK_END || whence == SEEK_DATA || whence == SEEK_HOLE) {
+		struct inode *inode = file_inode(file);
+		int ret;
+
 		ret = ceph_do_getattr(inode, CEPH_STAT_CAP_SIZE, false);
 		if (ret < 0)
-			goto out;
+			return ret;
 	}
-
-	i_size = i_size_read(inode);
-	switch (whence) {
-	case SEEK_END:
-		offset += i_size;
-		break;
-	case SEEK_CUR:
-		/*
-		 * Here we special-case the lseek(fd, 0, SEEK_CUR)
-		 * position-querying operation.  Avoid rewriting the "same"
-		 * f_pos value back to the file because a concurrent read(),
-		 * write() or lseek() might have altered it
-		 */
-		if (offset == 0) {
-			ret = file->f_pos;
-			goto out;
-		}
-		offset += file->f_pos;
-		break;
-	case SEEK_DATA:
-		if (offset < 0 || offset >= i_size) {
-			ret = -ENXIO;
-			goto out;
-		}
-		break;
-	case SEEK_HOLE:
-		if (offset < 0 || offset >= i_size) {
-			ret = -ENXIO;
-			goto out;
-		}
-		offset = i_size;
-		break;
-	}
-
-	ret = vfs_setpos(file, offset, max(i_size, fsc->max_file_size));
-
-out:
-	inode_unlock(inode);
-	return ret;
+	return generic_file_llseek(file, offset, whence);
 }
 
 static inline void ceph_zero_partial_page(
