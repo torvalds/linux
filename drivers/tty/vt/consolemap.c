@@ -415,28 +415,30 @@ int con_get_trans_new(ushort __user * arg)
 extern u8 dfont_unicount[];	/* Defined in console_defmap.c */
 extern u16 dfont_unitable[];
 
-static void con_release_unimap(struct uni_pagedict *p)
+static void con_release_unimap(struct uni_pagedict *dict)
 {
-	u16 **p1;
-	int i, j;
+	unsigned int d, r;
 
-	if (p == dflt)
+	if (dict == dflt)
 		dflt = NULL;
-	for (i = 0; i < UNI_DIRS; i++) {
-		p1 = p->uni_pgdir[i];
-		if (p1 != NULL) {
-			for (j = 0; j < UNI_DIR_ROWS; j++)
-				kfree(p1[j]);
-			kfree(p1);
+
+	for (d = 0; d < UNI_DIRS; d++) {
+		u16 **dir = dict->uni_pgdir[d];
+		if (dir != NULL) {
+			for (r = 0; r < UNI_DIR_ROWS; r++)
+				kfree(dir[r]);
+			kfree(dir);
 		}
-		p->uni_pgdir[i] = NULL;
+		dict->uni_pgdir[d] = NULL;
 	}
-	for (i = 0; i < ARRAY_SIZE(p->inverse_translations); i++) {
-		kfree(p->inverse_translations[i]);
-		p->inverse_translations[i] = NULL;
+
+	for (r = 0; r < ARRAY_SIZE(dict->inverse_translations); r++) {
+		kfree(dict->inverse_translations[r]);
+		dict->inverse_translations[r] = NULL;
 	}
-	kfree(p->inverse_trans_unicode);
-	p->inverse_trans_unicode = NULL;
+
+	kfree(dict->inverse_trans_unicode);
+	dict->inverse_trans_unicode = NULL;
 }
 
 /* Caller must hold the console lock */
