@@ -793,8 +793,8 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
 		if (!p1)
 			continue;
 
-		for (j = 0; j < UNI_DIR_ROWS; j++) {
-			p2 = *(p1++);
+		for (j = 0; j < UNI_DIR_ROWS; j++, p1++) {
+			p2 = *p1;
 			if (!p2)
 				continue;
 
