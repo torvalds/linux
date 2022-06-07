@@ -237,7 +237,7 @@ static void finish_netfs_read(struct ceph_osd_request *req)
 	if (err >= 0 && err < subreq->len)
 		__set_bit(NETFS_SREQ_CLEAR_TAIL, &subreq->flags);
 
-	netfs_subreq_terminated(subreq, err, true);
+	netfs_subreq_terminated(subreq, err, false);
 
 	num_pages = calc_pages_for(osd_data->alignment, osd_data->length);
 	ceph_put_page_vector(osd_data->pages, num_pages, false);
