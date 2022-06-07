@@ -650,7 +650,8 @@ static void __cold _credit_init_bits(size_t bits)
 
 	if (orig < POOL_READY_BITS && new >= POOL_READY_BITS) {
 		crng_reseed(); /* Sets crng_init to CRNG_READY under base_crng.lock. */
-		execute_in_process_context(crng_set_ready, &set_ready);
+		if (static_key_initialized)
+			execute_in_process_context(crng_set_ready, &set_ready);
 		wake_up_interruptible(&crng_init_wait);
 		kill_fasync(&fasync, SIGIO, POLL_IN);
 		pr_notice("crng init done\n");
@@ -797,6 +798,14 @@ int __init random_init(const char *command_line)
 	_mix_pool_bytes(utsname(), sizeof(*(utsname())));
 	_mix_pool_bytes(command_line, strlen(command_line));
 	add_latent_entropy();
+
+	/*
+	 * If we were initialized by the bootloader before jump labels are
+	 * initialized, then we should enable the static branch here, where
+	 * it's guaranteed that jump labels have been initialized.
+	 */
+	if (!static_branch_likely(&crng_is_ready) && crng_init >= CRNG_READY)
+		crng_set_ready(NULL);
 
 	if (crng_ready())
 		crng_reseed();
