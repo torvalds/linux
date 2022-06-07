@@ -1,0 +1,33 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config IIO_ST_LSM6DSR
+	tristate "STMicroelectronics LSM6DSR sensor"
+	depends on (I2C || SPI)
+	select IIO_BUFFER
+	select IIO_TRIGGERED_BUFFER
+	select IIO_ST_LSM6DSR_I2C if (I2C)
+	select IIO_ST_LSM6DSR_SPI if (SPI_MASTER)
+	help
+	  Say yes here to build support for STMicroelectronics LSM6DSR imu
+	  sensor.
+
+	  To compile this driver as a module, choose M here: the module
+	  will be called st_lsm6dsr.
+
+config IIO_ST_LSM6DSR_I2C
+	tristate
+	depends on IIO_ST_LSM6DSR
+
+config IIO_ST_LSM6DSR_SPI
+	tristate
+	depends on IIO_ST_LSM6DSR
+
+config IIO_ST_LSM6DSR_MAY_WAKEUP
+	bool "Enable wake-up irq"
+	depends on IIO_ST_LSM6DSR
+	help
+	  Say 'Y' to enable wake-up irq on interrupt line, this is for the
+	  Power Management.
+
+	  But this feature has not been fully implemented yet.
+
+	  If unsure, say 'N'.
