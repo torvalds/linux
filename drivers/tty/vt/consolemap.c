@@ -38,7 +38,7 @@
 
 static unsigned short translations[][256] = {
   /* 8-bit Latin-1 mapped to Unicode -- trivial mapping */
-  {
+  [LAT1_MAP] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
     0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f,
     0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017,
@@ -71,9 +71,9 @@ static unsigned short translations[][256] = {
     0x00e8, 0x00e9, 0x00ea, 0x00eb, 0x00ec, 0x00ed, 0x00ee, 0x00ef,
     0x00f0, 0x00f1, 0x00f2, 0x00f3, 0x00f4, 0x00f5, 0x00f6, 0x00f7,
     0x00f8, 0x00f9, 0x00fa, 0x00fb, 0x00fc, 0x00fd, 0x00fe, 0x00ff
-  }, 
+  },
   /* VT100 graphics mapped to Unicode */
-  {
+  [GRAF_MAP] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
     0x0008, 0x0009, 0x000a, 0x000b, 0x000c, 0x000d, 0x000e, 0x000f,
     0x0010, 0x0011, 0x0012, 0x0013, 0x0014, 0x0015, 0x0016, 0x0017,
@@ -108,8 +108,8 @@ static unsigned short translations[][256] = {
     0x00f8, 0x00f9, 0x00fa, 0x00fb, 0x00fc, 0x00fd, 0x00fe, 0x00ff
   },
   /* IBM Codepage 437 mapped to Unicode */
-  {
-    0x0000, 0x263a, 0x263b, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022, 
+  [IBMPC_MAP] = {
+    0x0000, 0x263a, 0x263b, 0x2665, 0x2666, 0x2663, 0x2660, 0x2022,
     0x25d8, 0x25cb, 0x25d9, 0x2642, 0x2640, 0x266a, 0x266b, 0x263c,
     0x25b6, 0x25c0, 0x2195, 0x203c, 0x00b6, 0x00a7, 0x25ac, 0x21a8,
     0x2191, 0x2193, 0x2192, 0x2190, 0x221f, 0x2194, 0x25b2, 0x25bc,
@@ -141,9 +141,9 @@ static unsigned short translations[][256] = {
     0x03a6, 0x0398, 0x03a9, 0x03b4, 0x221e, 0x03c6, 0x03b5, 0x2229,
     0x2261, 0x00b1, 0x2265, 0x2264, 0x2320, 0x2321, 0x00f7, 0x2248,
     0x00b0, 0x2219, 0x00b7, 0x221a, 0x207f, 0x00b2, 0x25a0, 0x00a0
-  }, 
+  },
   /* User mapping -- default to codes for direct font mapping */
-  {
+  [USER_MAP] = {
     0xf000, 0xf001, 0xf002, 0xf003, 0xf004, 0xf005, 0xf006, 0xf007,
     0xf008, 0xf009, 0xf00a, 0xf00b, 0xf00c, 0xf00d, 0xf00e, 0xf00f,
     0xf010, 0xf011, 0xf012, 0xf013, 0xf014, 0xf015, 0xf016, 0xf017,
@@ -184,7 +184,7 @@ static unsigned short translations[][256] = {
 
 #define MAX_GLYPH 512		/* Max possible glyph value */
 
-static int inv_translate[MAX_NR_CONSOLES];
+static enum translation_map inv_translate[MAX_NR_CONSOLES];
 
 #define UNI_DIRS	32U
 #define UNI_DIR_ROWS	32U
@@ -208,24 +208,25 @@ struct uni_pagedict {
 	u16		**uni_pgdir[UNI_DIRS];
 	unsigned long	refcount;
 	unsigned long	sum;
-	unsigned char	*inverse_translations[4];
+	unsigned char	*inverse_translations[LAST_MAP + 1];
 	u16		*inverse_trans_unicode;
 };
 
 static struct uni_pagedict *dflt;
 
-static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p, int i)
+static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
+	       enum translation_map m)
 {
 	int j, glyph;
-	unsigned short *t = translations[i];
+	unsigned short *t = translations[m];
 	unsigned char *q;
 	
 	if (!p)
 		return;
-	q = p->inverse_translations[i];
+	q = p->inverse_translations[m];
 
 	if (!q) {
-		q = p->inverse_translations[i] = kmalloc(MAX_GLYPH, GFP_KERNEL);
+		q = p->inverse_translations[m] = kmalloc(MAX_GLYPH, GFP_KERNEL);
 		if (!q)
 			return;
 	}
@@ -276,7 +277,7 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 	}
 }
 
-unsigned short *set_translate(int m, struct vc_data *vc)
+unsigned short *set_translate(enum translation_map m, struct vc_data *vc)
 {
 	inv_translate[vc->vc_num] = m;
 	return translations[m];
@@ -292,7 +293,7 @@ unsigned short *set_translate(int m, struct vc_data *vc)
 u16 inverse_translate(const struct vc_data *conp, u16 glyph, bool use_unicode)
 {
 	struct uni_pagedict *p;
-	int m;
+	enum translation_map m;
 
 	if (glyph >= MAX_GLYPH)
 		return 0;
@@ -669,8 +670,8 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	if (con_unify_unimap(vc, p))
 		goto out_unlock;
 
-	for (i = 0; i <= 3; i++)
-		set_inverse_transl(vc, p, i); /* Update inverse translations */
+	for (enum translation_map m = FIRST_MAP; m <= LAST_MAP; m++)
+		set_inverse_transl(vc, p, m); /* Update inverse translations */
 	set_inverse_trans_unicode(vc, p);
 
 out_unlock:
@@ -731,8 +732,8 @@ int con_set_default_unimap(struct vc_data *vc)
 		return err;
 	}
 
-	for (i = 0; i <= 3; i++)
-		set_inverse_transl(vc, p, i);	/* Update all inverse translations */
+	for (enum translation_map m = FIRST_MAP; m <= LAST_MAP; m++)
+		set_inverse_transl(vc, p, m);	/* Update all inverse translations */
 	set_inverse_trans_unicode(vc, p);
 	dflt = p;
 	return err;
