@@ -265,7 +265,7 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 				glyph = p2[k];
 				if (glyph >= 0 && glyph < MAX_GLYPH
 					       && q[glyph] < 32)
-		  			q[glyph] = (i << 11) + (j << 6) + k;
+					q[glyph] = (i << 11) | (j << 6) | k;
 			}
 		}
 	}
@@ -788,7 +788,7 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 						continue;
 					if (ect < ct) {
 						unilist[ect].unicode =
-							(i<<11)+(j<<6)+k;
+							(i<<11) | (j<<6) | k;
 						unilist[ect].fontpos = *p2;
 					}
 					ect++;
