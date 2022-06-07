@@ -160,13 +160,12 @@ void ast_dp_launch(struct drm_device *dev, u8 bPower)
 		}
 
 		if (bDPExecute)
-			ast->tx_chip_type = AST_TX_ASTDP;
+			ast->tx_chip_types |= BIT(AST_TX_ASTDP);
 
 		ast_set_index_reg_mask(ast, AST_IO_CRTC_PORT, 0xE5,
 							(u8) ~ASTDP_HOST_EDID_READ_DONE_MASK,
 							ASTDP_HOST_EDID_READ_DONE);
-	} else
-		ast->tx_chip_type = AST_TX_NONE;
+	}
 }
 
 
