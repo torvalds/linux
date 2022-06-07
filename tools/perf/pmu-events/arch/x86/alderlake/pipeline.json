@@ -23,7 +23,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of far branch instructions retired, includes far jump, far call and return, and Interrupt call and return.",
+        "BriefDescription": "Counts the number of far branch instructions retired, includes far jump, far call and return, and interrupt call and return.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc4",
@@ -64,6 +64,7 @@
         "EventName": "CPU_CLK_UNHALTED.CORE",
         "PEBScounters": "33",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -75,6 +76,7 @@
         "EventName": "CPU_CLK_UNHALTED.CORE_P",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "Unit": "cpu_atom"
     },
     {
@@ -84,6 +86,7 @@
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "PEBScounters": "34",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x3",
         "Unit": "cpu_atom"
     },
@@ -94,6 +97,7 @@
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "PEBScounters": "33",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -105,10 +109,11 @@
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of instructions retired. (Fixed event)",
+        "BriefDescription": "Counts the total number of instructions retired. (Fixed event)",
         "CollectPEBSRecord": "2",
         "Counter": "32",
         "EventName": "INST_RETIRED.ANY",
@@ -162,6 +167,7 @@
         "EventName": "MACHINE_CLEARS.DISAMBIGUATION",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_atom"
     },
@@ -173,6 +179,7 @@
         "EventName": "MACHINE_CLEARS.MRN_NUKE",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x80",
         "Unit": "cpu_atom"
     },
@@ -182,9 +189,9 @@
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.PAGE_FAULT",
-        "PEBS": "1",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_atom"
     },
@@ -196,6 +203,7 @@
         "EventName": "MACHINE_CLEARS.SLOW",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x6f",
         "Unit": "cpu_atom"
     },
@@ -207,17 +215,19 @@
         "EventName": "MACHINE_CLEARS.SMC",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots not consumed due to a micro-sequencer (MS) scoreboard, which stalls the front-end from issuing uops from the UROM until a specified older uop retires.",
+        "BriefDescription": "Counts the number of issue slots not consumed by the backend due to a micro-sequencer (MS) scoreboard, which stalls the front-end from issuing from the UROM until a specified older uop retires.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x75",
         "EventName": "SERIALIZATION.NON_C01_MS_SCB",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -229,6 +239,7 @@
         "EventName": "TOPDOWN_BAD_SPECULATION.ALL",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "Unit": "cpu_atom"
     },
     {
@@ -239,6 +250,7 @@
         "EventName": "TOPDOWN_BAD_SPECULATION.FASTNUKE",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -250,6 +262,7 @@
         "EventName": "TOPDOWN_BAD_SPECULATION.MACHINE_CLEARS",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x3",
         "Unit": "cpu_atom"
     },
@@ -261,6 +274,7 @@
         "EventName": "TOPDOWN_BAD_SPECULATION.MISPREDICT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_atom"
     },
@@ -272,6 +286,7 @@
         "EventName": "TOPDOWN_BAD_SPECULATION.NUKE",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
@@ -283,6 +298,7 @@
         "EventName": "TOPDOWN_BE_BOUND.ALL",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "Unit": "cpu_atom"
     },
     {
@@ -293,6 +309,7 @@
         "EventName": "TOPDOWN_BE_BOUND.ALLOC_RESTRICTIONS",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
@@ -304,6 +321,7 @@
         "EventName": "TOPDOWN_BE_BOUND.MEM_SCHEDULER",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -315,6 +333,7 @@
         "EventName": "TOPDOWN_BE_BOUND.NON_MEM_SCHEDULER",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_atom"
     },
@@ -326,6 +345,7 @@
         "EventName": "TOPDOWN_BE_BOUND.REGISTER",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_atom"
     },
@@ -337,6 +357,7 @@
         "EventName": "TOPDOWN_BE_BOUND.REORDER_BUFFER",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x40",
         "Unit": "cpu_atom"
     },
@@ -348,6 +369,7 @@
         "EventName": "TOPDOWN_BE_BOUND.SERIALIZATION",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_atom"
     },
@@ -359,6 +381,7 @@
         "EventName": "TOPDOWN_FE_BOUND.ALL",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "Unit": "cpu_atom"
     },
     {
@@ -369,6 +392,7 @@
         "EventName": "TOPDOWN_FE_BOUND.BRANCH_DETECT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -380,6 +404,7 @@
         "EventName": "TOPDOWN_FE_BOUND.BRANCH_RESTEER",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x40",
         "Unit": "cpu_atom"
     },
@@ -391,6 +416,7 @@
         "EventName": "TOPDOWN_FE_BOUND.CISC",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
@@ -402,6 +428,7 @@
         "EventName": "TOPDOWN_FE_BOUND.DECODE",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_atom"
     },
@@ -413,17 +440,19 @@
         "EventName": "TOPDOWN_FE_BOUND.FRONTEND_BANDWIDTH",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8d",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to latency related stalls including BACLEARs, BTCLEARs, ITLB misses, and ICache misses.",
+        "BriefDescription": "Counts the number of issue slots every cycle that were not delivered by the frontend due to a latency related stalls including BACLEARs, BTCLEARs, ITLB misses, and ICache misses.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x71",
         "EventName": "TOPDOWN_FE_BOUND.FRONTEND_LATENCY",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x72",
         "Unit": "cpu_atom"
     },
@@ -435,6 +464,7 @@
         "EventName": "TOPDOWN_FE_BOUND.ITLB",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_atom"
     },
@@ -446,6 +476,7 @@
         "EventName": "TOPDOWN_FE_BOUND.OTHER",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x80",
         "Unit": "cpu_atom"
     },
@@ -457,6 +488,7 @@
         "EventName": "TOPDOWN_FE_BOUND.PREDECODE",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_atom"
     },
@@ -527,6 +559,7 @@
         "EventName": "ARITH.DIVIDER_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x9",
         "Unit": "cpu_core"
     },
@@ -539,6 +572,7 @@
         "EventName": "ARITH.DIV_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x9",
         "Unit": "cpu_core"
     },
@@ -551,11 +585,24 @@
         "EventName": "ARITH.FP_DIVIDER_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "This event counts the cycles the integer divider is busy.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xb0",
+        "EventName": "ARITH.IDIV_ACTIVE",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "1000003",
+        "Speculative": "1",
+        "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "This event is deprecated. Refer to new event ARITH.IDIV_ACTIVE",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
@@ -563,7 +610,20 @@
         "EventName": "ARITH.INT_DIVIDER_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Number of occurrences where a microcode assist is invoked by hardware.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xc1",
+        "EventName": "ASSISTS.ANY",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "100003",
+        "Speculative": "1",
+        "UMask": "0x1f",
         "Unit": "cpu_core"
     },
     {
@@ -757,6 +817,42 @@
         "Unit": "cpu_core"
     },
     {
+        "BriefDescription": "Core clocks when the thread is in the C0.1 light-weight slower wakeup time but more power saving optimized state.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xec",
+        "EventName": "CPU_CLK_UNHALTED.C01",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "Speculative": "1",
+        "UMask": "0x10",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Core clocks when the thread is in the C0.2 light-weight faster wakeup time but less power saving optimized state.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xec",
+        "EventName": "CPU_CLK_UNHALTED.C02",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "Speculative": "1",
+        "UMask": "0x20",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Core clocks when the thread is in the C0.1 or C0.2 or running a PAUSE in C0 ACPI state.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xec",
+        "EventName": "CPU_CLK_UNHALTED.C0_WAIT",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "2000003",
+        "Speculative": "1",
+        "UMask": "0x70",
+        "Unit": "cpu_core"
+    },
+    {
         "BriefDescription": "Cycle counts are evenly distributed between active threads in the Core.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
@@ -764,6 +860,7 @@
         "EventName": "CPU_CLK_UNHALTED.DISTRIBUTED",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -775,22 +872,24 @@
         "EventName": "CPU_CLK_UNHALTED.ONE_THREAD_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "25003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "CPU_CLK_UNHALTED.PAUSE",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xec",
         "EventName": "CPU_CLK_UNHALTED.PAUSE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x40",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "CPU_CLK_UNHALTED.PAUSE_INST",
         "Counter": "0,1,2,3,4,5,6,7",
         "CounterMask": "1",
         "EdgeDetect": "1",
@@ -798,6 +897,7 @@
         "EventName": "CPU_CLK_UNHALTED.PAUSE_INST",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x40",
         "Unit": "cpu_core"
     },
@@ -808,6 +908,7 @@
         "EventName": "CPU_CLK_UNHALTED.REF_DISTRIBUTED",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -818,6 +919,7 @@
         "EventName": "CPU_CLK_UNHALTED.REF_TSC",
         "PEBScounters": "34",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x3",
         "Unit": "cpu_core"
     },
@@ -828,6 +930,7 @@
         "EventName": "CPU_CLK_UNHALTED.THREAD",
         "PEBScounters": "33",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -839,6 +942,7 @@
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "Unit": "cpu_core"
     },
     {
@@ -850,6 +954,7 @@
         "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -862,6 +967,7 @@
         "EventName": "CYCLE_ACTIVITY.CYCLES_L2_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -874,6 +980,7 @@
         "EventName": "CYCLE_ACTIVITY.CYCLES_MEM_ANY",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
@@ -886,6 +993,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xc",
         "Unit": "cpu_core"
     },
@@ -898,6 +1006,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x5",
         "Unit": "cpu_core"
     },
@@ -910,6 +1019,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_TOTAL",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -921,6 +1031,7 @@
         "EventName": "EXE_ACTIVITY.1_PORTS_UTIL",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -932,6 +1043,7 @@
         "EventName": "EXE_ACTIVITY.2_PORTS_UTIL",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -943,6 +1055,7 @@
         "EventName": "EXE_ACTIVITY.3_PORTS_UTIL",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -954,6 +1067,7 @@
         "EventName": "EXE_ACTIVITY.4_PORTS_UTIL",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
@@ -966,6 +1080,7 @@
         "EventName": "EXE_ACTIVITY.BOUND_ON_LOADS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x21",
         "Unit": "cpu_core"
     },
@@ -978,7 +1093,20 @@
         "EventName": "EXE_ACTIVITY.BOUND_ON_STORES",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x40",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "Cycles no uop executed while RS was not empty, the SB was not full and there was no outstanding load.",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3,4,5,6,7",
+        "EventCode": "0xa6",
+        "EventName": "EXE_ACTIVITY.EXE_BOUND_0_PORTS",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
+        "SampleAfterValue": "1000003",
+        "Speculative": "1",
+        "UMask": "0x80",
         "Unit": "cpu_core"
     },
     {
@@ -989,6 +1117,7 @@
         "EventName": "INST_DECODED.DECODERS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1015,7 +1144,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INST_RETIRED.MACRO_FUSED",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
@@ -1048,7 +1177,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INST_RETIRED.REP_ITERATION",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc0",
@@ -1066,6 +1195,7 @@
         "EventName": "INT_MISC.CLEAR_RESTEER_CYCLES",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x80",
         "Unit": "cpu_core"
     },
@@ -1077,11 +1207,12 @@
         "EventName": "INT_MISC.RECOVERY_CYCLES",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_MISC.UNKNOWN_BRANCH_CYCLES",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xad",
@@ -1090,6 +1221,7 @@
         "MSRValue": "0x7",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "TakenAlone": "1",
         "UMask": "0x40",
         "Unit": "cpu_core"
@@ -1102,11 +1234,12 @@
         "EventName": "INT_MISC.UOP_DROPPING",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.128BIT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -1117,7 +1250,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.256BIT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -1150,7 +1283,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.MUL_256",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -1161,7 +1294,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.SHUFFLES",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -1172,7 +1305,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.VNNI_128",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -1183,7 +1316,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "INT_VEC_RETIRED.VNNI_256",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe7",
@@ -1201,6 +1334,7 @@
         "EventName": "LD_BLOCKS.ADDRESS_ALIAS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -1212,6 +1346,7 @@
         "EventName": "LD_BLOCKS.NO_SR",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x88",
         "Unit": "cpu_core"
     },
@@ -1223,6 +1358,7 @@
         "EventName": "LD_BLOCKS.STORE_FORWARD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x82",
         "Unit": "cpu_core"
     },
@@ -1234,6 +1370,7 @@
         "EventName": "LOAD_HIT_PREFETCH.SWPF",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1244,8 +1381,9 @@
         "CounterMask": "1",
         "EventCode": "0xa8",
         "EventName": "LSD.CYCLES_ACTIVE",
-        "PEBScounters": "0,1,2,3",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1256,8 +1394,9 @@
         "CounterMask": "6",
         "EventCode": "0xa8",
         "EventName": "LSD.CYCLES_OK",
-        "PEBScounters": "0,1,2,3",
+        "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1269,6 +1408,7 @@
         "EventName": "LSD.UOPS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1282,6 +1422,7 @@
         "EventName": "MACHINE_CLEARS.COUNT",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1293,17 +1434,19 @@
         "EventName": "MACHINE_CLEARS.SMC",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MISC2_RETIRED.LFENCE",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xe0",
         "EventName": "MISC2_RETIRED.LFENCE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "400009",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_core"
     },
@@ -1326,6 +1469,7 @@
         "EventName": "RESOURCE_STALLS.SB",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -1337,6 +1481,7 @@
         "EventName": "RESOURCE_STALLS.SCOREBOARD",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1348,6 +1493,7 @@
         "EventName": "TOPDOWN.BACKEND_BOUND_SLOTS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1357,6 +1503,7 @@
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BAD_SPEC_SLOTS",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -1366,17 +1513,19 @@
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.BR_MISPREDICT_SLOTS",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "TOPDOWN.MEMORY_BOUND_SLOTS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xa4",
         "EventName": "TOPDOWN.MEMORY_BOUND_SLOTS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
@@ -1387,6 +1536,7 @@
         "EventName": "TOPDOWN.SLOTS",
         "PEBScounters": "35",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -1398,17 +1548,19 @@
         "EventName": "TOPDOWN.SLOTS_P",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "UOPS_DECODED.DEC0_UOPS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x76",
         "EventName": "UOPS_DECODED.DEC0_UOPS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1420,6 +1572,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_0",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1431,6 +1584,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1442,6 +1596,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_2_3_10",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -1453,6 +1608,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_4_9",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
@@ -1464,6 +1620,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_5_11",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_core"
     },
@@ -1475,6 +1632,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_6",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x40",
         "Unit": "cpu_core"
     },
@@ -1486,6 +1644,7 @@
         "EventName": "UOPS_DISPATCHED.PORT_7_8",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x80",
         "Unit": "cpu_core"
     },
@@ -1498,6 +1657,7 @@
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1510,6 +1670,7 @@
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_2",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1522,6 +1683,7 @@
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_3",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1534,6 +1696,7 @@
         "EventName": "UOPS_EXECUTED.CORE_CYCLES_GE_4",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1546,6 +1709,7 @@
         "EventName": "UOPS_EXECUTED.CYCLES_GE_1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1558,6 +1722,7 @@
         "EventName": "UOPS_EXECUTED.CYCLES_GE_2",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1570,6 +1735,7 @@
         "EventName": "UOPS_EXECUTED.CYCLES_GE_3",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1582,6 +1748,7 @@
         "EventName": "UOPS_EXECUTED.CYCLES_GE_4",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1595,6 +1762,7 @@
         "Invert": "1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1608,6 +1776,7 @@
         "Invert": "1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1619,6 +1788,7 @@
         "EventName": "UOPS_EXECUTED.THREAD",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1630,6 +1800,7 @@
         "EventName": "UOPS_EXECUTED.X87",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_core"
     },
@@ -1641,6 +1812,7 @@
         "EventName": "UOPS_ISSUED.ANY",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1657,7 +1829,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "Retired uops except the last uop of each instruction.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
@@ -1668,7 +1840,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "UOPS_RETIRED.MS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",

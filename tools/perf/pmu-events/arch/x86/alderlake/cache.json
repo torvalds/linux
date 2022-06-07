@@ -1,45 +1,49 @@
 [
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or tlb miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the L2, LLC, DRAM or MMIO (Non-DRAM).",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x38",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or tlb miss which hit in DRAM or MMIO (Non-DRAM).",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in DRAM or MMIO (Non-DRAM).",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH_DRAM_HIT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or tlb miss which hit in the L2 cache.",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the L2 cache.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH_L2_HIT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or tlb miss which hit in the last level cache or other core with HITE/F/M.",
+        "BriefDescription": "Counts the number of cycles the core is stalled due to an instruction cache or TLB miss which hit in the LLC or other core with HITE/F/M.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "EventCode": "0x34",
         "EventName": "MEM_BOUND_STALLS.IFETCH_LLC_HIT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x10",
         "Unit": "cpu_atom"
     },
@@ -51,6 +55,7 @@
         "EventName": "MEM_BOUND_STALLS.LOAD",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x7",
         "Unit": "cpu_atom"
     },
@@ -62,6 +67,7 @@
         "EventName": "MEM_BOUND_STALLS.LOAD_DRAM_HIT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_atom"
     },
@@ -73,6 +79,7 @@
         "EventName": "MEM_BOUND_STALLS.LOAD_L2_HIT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
@@ -84,11 +91,12 @@
         "EventName": "MEM_BOUND_STALLS.LOAD_LLC_HIT",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of load ops retired that hit in DRAM.",
+        "BriefDescription": "Counts the number of load uops retired that hit in DRAM.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "Data_LA": "1",
@@ -101,7 +109,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of load ops retired that hit in the L2 cache.",
+        "BriefDescription": "Counts the number of load uops retired that hit in the L2 cache.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "Data_LA": "1",
@@ -114,9 +122,10 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts the number of load ops retired that hit in the L3 cache.",
+        "BriefDescription": "Counts the number of load uops retired that hit in the L3 cache.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
         "EventCode": "0xd1",
         "EventName": "MEM_LOAD_UOPS_RETIRED.L3_HIT",
         "PEBS": "1",
@@ -133,6 +142,7 @@
         "EventName": "MEM_SCHEDULER_BLOCK.ALL",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x7",
         "Unit": "cpu_atom"
     },
@@ -144,6 +154,7 @@
         "EventName": "MEM_SCHEDULER_BLOCK.LD_BUF",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_atom"
     },
@@ -155,6 +166,7 @@
         "EventName": "MEM_SCHEDULER_BLOCK.RSV",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_atom"
     },
@@ -166,6 +178,7 @@
         "EventName": "MEM_SCHEDULER_BLOCK.ST_BUF",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "20003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_atom"
     },
@@ -202,6 +215,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_128",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x80",
         "PEBS": "2",
@@ -218,6 +232,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_16",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x10",
         "PEBS": "2",
@@ -234,6 +249,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_256",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x100",
         "PEBS": "2",
@@ -250,6 +266,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_32",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x20",
         "PEBS": "2",
@@ -266,6 +283,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_4",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x4",
         "PEBS": "2",
@@ -282,6 +300,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_512",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x200",
         "PEBS": "2",
@@ -298,6 +317,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_64",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x40",
         "PEBS": "2",
@@ -314,6 +334,7 @@
         "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.LOAD_LATENCY_GT_8",
+        "L1_Hit_Indication": "1",
         "MSRIndex": "0x3F6",
         "MSRValue": "0x8",
         "PEBS": "2",
@@ -324,7 +345,7 @@
         "Unit": "cpu_atom"
     },
     {
-        "BriefDescription": "Counts all the retired split loads.",
+        "BriefDescription": "Counts the number of retired split load uops.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5",
         "Data_LA": "1",
@@ -338,11 +359,13 @@
     },
     {
         "BriefDescription": "Counts the number of stores uops retired. Counts with or without PEBS enabled.",
-        "CollectPEBSRecord": "2",
+        "CollectPEBSRecord": "3",
         "Counter": "0,1,2,3,4,5",
+        "Data_LA": "1",
         "EventCode": "0xd0",
         "EventName": "MEM_UOPS_RETIRED.STORE_LATENCY",
-        "PEBS": "1",
+        "L1_Hit_Indication": "1",
+        "PEBS": "2",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
         "UMask": "0x6",
@@ -350,7 +373,7 @@
     },
     {
         "BriefDescription": "Counts demand reads for ownership (RFO) and software prefetches for exclusive ownership (PREFETCHW) that were supplied by the L3 cache where a snoop was sent, the snoop hit, and modified data was forwarded.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5",
         "EventCode": "0xB7",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -367,8 +390,21 @@
         "EventName": "TOPDOWN_FE_BOUND.ICACHE",
         "PEBScounters": "0,1,2,3,4,5",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x20",
         "Unit": "cpu_atom"
+    },
+    {
+        "BriefDescription": "L1D.HWPF_MISS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x51",
+        "EventName": "L1D.HWPF_MISS",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "Speculative": "1",
+        "UMask": "0x20",
+        "Unit": "cpu_core"
     },
     {
         "BriefDescription": "Counts the number of cache lines replaced in L1 data cache.",
@@ -378,6 +414,7 @@
         "EventName": "L1D.REPLACEMENT",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -389,6 +426,7 @@
         "EventName": "L1D_PEND_MISS.FB_FULL",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -402,6 +440,7 @@
         "EventName": "L1D_PEND_MISS.FB_FULL_PERIODS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -413,6 +452,7 @@
         "EventName": "L1D_PEND_MISS.L2_STALL",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -424,6 +464,7 @@
         "EventName": "L1D_PEND_MISS.L2_STALLS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
@@ -435,6 +476,7 @@
         "EventName": "L1D_PEND_MISS.PENDING",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -447,6 +489,7 @@
         "EventName": "L1D_PEND_MISS.PENDING_CYCLES",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -458,17 +501,19 @@
         "EventName": "L2_LINES_IN.ALL",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1f",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "All L2 requests.[This event is alias to L2_RQSTS.REFERENCES]",
+        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_RQSTS.REFERENCES]",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.ALL",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xff",
         "Unit": "cpu_core"
     },
@@ -480,6 +525,7 @@
         "EventName": "L2_REQUEST.MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x3f",
         "Unit": "cpu_core"
     },
@@ -491,17 +537,19 @@
         "EventName": "L2_RQSTS.ALL_CODE_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe4",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Demand Data Read requests",
+        "BriefDescription": "Demand Data Read access L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe1",
         "Unit": "cpu_core"
     },
@@ -513,7 +561,20 @@
         "EventName": "L2_RQSTS.ALL_DEMAND_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x27",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "L2_RQSTS.ALL_HWPF",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.ALL_HWPF",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "Speculative": "1",
+        "UMask": "0xf0",
         "Unit": "cpu_core"
     },
     {
@@ -524,6 +585,7 @@
         "EventName": "L2_RQSTS.ALL_RFO",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe2",
         "Unit": "cpu_core"
     },
@@ -535,6 +597,7 @@
         "EventName": "L2_RQSTS.CODE_RD_HIT",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc4",
         "Unit": "cpu_core"
     },
@@ -546,6 +609,7 @@
         "EventName": "L2_RQSTS.CODE_RD_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x24",
         "Unit": "cpu_core"
     },
@@ -557,18 +621,32 @@
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_HIT",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc1",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "BriefDescription": "Demand Data Read miss L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x21",
+        "Unit": "cpu_core"
+    },
+    {
+        "BriefDescription": "L2_RQSTS.HWPF_MISS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.HWPF_MISS",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "Speculative": "1",
+        "UMask": "0x30",
         "Unit": "cpu_core"
     },
     {
@@ -579,17 +657,19 @@
         "EventName": "L2_RQSTS.MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x3f",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "All L2 requests.[This event is alias to L2_REQUEST.ALL]",
+        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_REQUEST.ALL]",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xff",
         "Unit": "cpu_core"
     },
@@ -601,6 +681,7 @@
         "EventName": "L2_RQSTS.RFO_HIT",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc2",
         "Unit": "cpu_core"
     },
@@ -612,6 +693,7 @@
         "EventName": "L2_RQSTS.RFO_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x22",
         "Unit": "cpu_core"
     },
@@ -623,6 +705,7 @@
         "EventName": "L2_RQSTS.SWPF_HIT",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc8",
         "Unit": "cpu_core"
     },
@@ -634,17 +717,19 @@
         "EventName": "L2_RQSTS.SWPF_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x28",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "LONGEST_LAT_CACHE.MISS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2e",
         "EventName": "LONGEST_LAT_CACHE.MISS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x41",
         "Unit": "cpu_core"
     },
@@ -764,6 +849,7 @@
         "EventName": "MEM_LOAD_COMPLETED.L1_MISS_ANY",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xfd",
         "Unit": "cpu_core"
     },
@@ -961,7 +1047,7 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "MEM_STORE_RETIRED.L2_HIT",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x44",
@@ -983,7 +1069,7 @@
     },
     {
         "BriefDescription": "Counts demand data reads that resulted in a snoop hit in another cores caches, data forwarding is required as the data is modified.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -993,8 +1079,8 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "DEMAND_DATA_RD & L3_HIT & SNOOP_HIT_WITH_FWD",
-        "Counter": "0,1,2,3",
+        "BriefDescription": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_DATA_RD.L3_HIT.SNOOP_HIT_WITH_FWD",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1005,7 +1091,7 @@
     },
     {
         "BriefDescription": "Counts demand read for ownership (RFO) requests and software prefetches for exclusive ownership (PREFETCHW) that resulted in a snoop hit in another cores caches, data forwarding is required as the data is modified.",
-        "Counter": "0,1,2,3",
+        "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0x2A,0x2B",
         "EventName": "OCR.DEMAND_RFO.L3_HIT.SNOOP_HITM",
         "MSRIndex": "0x1a6,0x1a7",
@@ -1015,13 +1101,14 @@
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS.ALL_REQUESTS",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x21",
         "EventName": "OFFCORE_REQUESTS.ALL_REQUESTS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x80",
         "Unit": "cpu_core"
     },
@@ -1033,6 +1120,7 @@
         "EventName": "OFFCORE_REQUESTS.DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -1044,6 +1132,7 @@
         "EventName": "OFFCORE_REQUESTS.DEMAND_DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1055,11 +1144,12 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "CounterMask": "1",
@@ -1067,6 +1157,7 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -1079,17 +1170,19 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     },
     {
-        "BriefDescription": "TBD",
+        "BriefDescription": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x20",
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -1101,6 +1194,7 @@
         "EventName": "SW_PREFETCH_ACCESS.NTA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1",
         "Unit": "cpu_core"
     },
@@ -1112,6 +1206,7 @@
         "EventName": "SW_PREFETCH_ACCESS.PREFETCHW",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8",
         "Unit": "cpu_core"
     },
@@ -1123,6 +1218,7 @@
         "EventName": "SW_PREFETCH_ACCESS.T0",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2",
         "Unit": "cpu_core"
     },
@@ -1134,6 +1230,7 @@
         "EventName": "SW_PREFETCH_ACCESS.T1_T2",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4",
         "Unit": "cpu_core"
     }
