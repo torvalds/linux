@@ -421,6 +421,7 @@ struct cxl_nvdimm {
  * @id: id for port device-name
  * @dports: cxl_dport instances referenced by decoders
  * @endpoints: cxl_ep instances, endpoints that are a descendant of this port
+ * @regions: cxl_region_ref instances, regions mapped by this port
  * @parent_dport: dport that points to this port in the parent
  * @decoder_ida: allocator for decoder ids
  * @hdm_end: track last allocated HDM decoder instance for allocation ordering
@@ -437,6 +438,7 @@ struct cxl_port {
 	int id;
 	struct xarray dports;
 	struct xarray endpoints;
+	struct xarray regions;
 	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
 	int hdm_end;
@@ -481,6 +483,24 @@ struct cxl_ep {
 	struct device *ep;
 	struct cxl_dport *dport;
 	struct cxl_port *next;
+};
+
+/**
+ * struct cxl_region_ref - track a region's interest in a port
+ * @port: point in topology to install this reference
+ * @decoder: decoder assigned for @region in @port
+ * @region: region for this reference
+ * @endpoints: cxl_ep references for region members beneath @port
+ * @nr_eps: number of endpoints beneath @port
+ * @nr_targets: number of distinct targets needed to reach @nr_eps
+ */
+struct cxl_region_ref {
+	struct cxl_port *port;
+	struct cxl_decoder *decoder;
+	struct cxl_region *region;
+	struct xarray endpoints;
+	int nr_eps;
+	int nr_targets;
 };
 
 /*

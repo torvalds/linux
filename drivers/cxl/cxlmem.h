@@ -55,6 +55,11 @@ static inline struct cxl_port *cxled_to_port(struct cxl_endpoint_decoder *cxled)
 	return to_cxl_port(cxled->cxld.dev.parent);
 }
 
+static inline struct cxl_port *cxlrd_to_port(struct cxl_root_decoder *cxlrd)
+{
+	return to_cxl_port(cxlrd->cxlsd.cxld.dev.parent);
+}
+
 static inline struct cxl_memdev *
 cxled_to_memdev(struct cxl_endpoint_decoder *cxled)
 {

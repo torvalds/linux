@@ -448,7 +448,7 @@ bool is_root_decoder(struct device *dev)
 }
 EXPORT_SYMBOL_NS_GPL(is_root_decoder, CXL);
 
-static bool is_switch_decoder(struct device *dev)
+bool is_switch_decoder(struct device *dev)
 {
 	return is_root_decoder(dev) || dev->type == &cxl_decoder_switch_type;
 }
@@ -504,6 +504,7 @@ static void cxl_port_release(struct device *dev)
 		cxl_ep_remove(port, ep);
 	xa_destroy(&port->endpoints);
 	xa_destroy(&port->dports);
+	xa_destroy(&port->regions);
 	ida_free(&cxl_port_ida, port->id);
 	kfree(port);
 }
@@ -635,6 +636,7 @@ static struct cxl_port *cxl_port_alloc(struct device *uport,
 	port->hdm_end = -1;
 	xa_init(&port->dports);
 	xa_init(&port->endpoints);
+	xa_init(&port->regions);
 
 	device_initialize(dev);
 	lockdep_set_class_and_subclass(&dev->mutex, &cxl_port_key, port->depth);
@@ -1107,12 +1109,6 @@ static void reap_dports(struct cxl_port *port)
 		devm_release_action(&port->dev, cxl_dport_remove, dport);
 		devm_kfree(&port->dev, dport);
 	}
-}
-
-static struct cxl_ep *cxl_ep_load(struct cxl_port *port,
-				  struct cxl_memdev *cxlmd)
-{
-	return xa_load(&port->endpoints, (unsigned long)&cxlmd->dev);
 }
 
 int devm_cxl_add_endpoint(struct cxl_memdev *cxlmd,
