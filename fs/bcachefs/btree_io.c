@@ -1483,23 +1483,32 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 	struct btree_read_bio *rb;
 	struct bch_dev *ca;
 	struct bio *bio;
-	struct printbuf buf = PRINTBUF;
 	int ret;
 
-	btree_pos_to_text(&buf, c, b);
 	trace_btree_read(c, b);
 
 	if (bch2_verify_all_btree_replicas &&
 	    !btree_node_read_all_replicas(c, b, sync))
-		goto out;
+		return;
 
 	ret = bch2_bkey_pick_read_device(c, bkey_i_to_s_c(&b->key),
 					 NULL, &pick);
-	if (bch2_fs_fatal_err_on(ret <= 0, c,
-			"btree node read error: no device to read from\n"
-			" at %s", buf.buf)) {
+
+	if (ret <= 0) {
+		struct printbuf buf = PRINTBUF;
+
+		pr_buf(&buf, "btree node read error: no device to read from\n at ");
+		btree_pos_to_text(&buf, c, b);
+		bch_err(c, "%s", buf.buf);
+
+		if (test_bit(BCH_FS_TOPOLOGY_REPAIR_DONE, &c->flags))
+			bch2_fatal_error(c);
+
 		set_btree_node_read_error(b);
-		goto out;
+		clear_btree_node_read_in_flight(b);
+		wake_up_bit(&b->flags, BTREE_NODE_read_in_flight);
+		printbuf_exit(&buf);
+		return;
 	}
 
 	ca = bch_dev_bkey_exists(c, pick.ptr.dev);
@@ -1541,8 +1550,6 @@ void bch2_btree_node_read(struct bch_fs *c, struct btree *b,
 		else
 			queue_work(c->io_complete_wq, &rb->work);
 	}
-out:
-	printbuf_exit(&buf);
 }
 
 int bch2_btree_root_read(struct bch_fs *c, enum btree_id id,
