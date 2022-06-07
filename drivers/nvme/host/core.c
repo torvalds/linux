@@ -3863,6 +3863,7 @@ static int nvme_init_ns_head(struct nvme_ns *ns, unsigned nsid,
 	if (ret) {
 		dev_err(ctrl->device,
 			"globally duplicate IDs for nsid %d\n", nsid);
+		nvme_print_device_info(ctrl);
 		return ret;
 	}
 
