@@ -1,10 +1,7 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Address map functions for Marvell EBU SoCs (Kirkwood, Armada
  * 370/XP, Dove, Orion5x and MV78xx0)
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2.  This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  *
  * The Marvell EBU SoCs have a configurable physical address space:
  * the physical address at which certain devices (PCIe, NOR, NAND,

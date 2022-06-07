@@ -1,11 +1,8 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * RSB (Reduced Serial Bus) driver.
  *
  * Author: Chen-Yu Tsai <wens@csie.org>
- *
- * This file is licensed under the terms of the GNU General Public License
- * version 2.  This program is licensed "as is" without any warranty of any
- * kind, whether express or implied.
  *
  * The RSB controller looks like an SMBus controller which only supports
  * byte and word data transfers. But, it differs from standard SMBus
@@ -31,7 +28,6 @@
  * This document is officially released by Allwinner.
  *
  * This driver is based on i2c-sun6i-p2wi.c, the P2WI bus driver.
- *
  */
 
 #include <linux/clk.h>
