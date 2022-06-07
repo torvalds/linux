@@ -561,7 +561,7 @@
 			#interrupt-cells = <2>;
 		};
 
-		imem@1468f000 {
+		sram@1468f000 {
 			compatible = "simple-mfd";
 			reg = <0x1468f000 0x1000>;
 
