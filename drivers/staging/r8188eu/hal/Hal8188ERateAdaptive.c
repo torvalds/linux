@@ -279,6 +279,7 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 {  /*  Wilson 2011/10/26 */
 	u32 MaskFromReg;
 	s8 i;
+	int res;
 
 	switch (pRaInfo->RateID) {
 	case RATR_INX_WIRELESS_NGB:
@@ -303,19 +304,31 @@ static int odm_ARFBRefresh_8188E(struct odm_dm_struct *dm_odm, struct odm_ra_inf
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & 0x0000000d;
 		break;
 	case 12:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR0);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR0, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 13:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR1);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR1, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 14:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR2);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR2, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	case 15:
-		MaskFromReg = rtw_read32(dm_odm->Adapter, REG_ARFR3);
+		res = rtw_read32(dm_odm->Adapter, REG_ARFR3, &MaskFromReg);
+		if (res)
+			return res;
+
 		pRaInfo->RAUseRate = (pRaInfo->RateMask) & MaskFromReg;
 		break;
 	default:

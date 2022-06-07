@@ -297,8 +297,12 @@ static void _InitQueuePriority(struct adapter *Adapter)
 static void _InitNetworkType(struct adapter *Adapter)
 {
 	u32 value32;
+	int res;
 
-	value32 = rtw_read32(Adapter, REG_CR);
+	res = rtw_read32(Adapter, REG_CR, &value32);
+	if (res)
+		return;
+
 	/*  TODO: use the other function to set network type */
 	value32 = (value32 & ~MASK_NETTYPE) | _NETTYPE(NT_LINK_AP);
 
@@ -338,9 +342,13 @@ static void _InitAdaptiveCtrl(struct adapter *Adapter)
 {
 	u16 value16;
 	u32 value32;
+	int res;
 
 	/*  Response Rate Set */
-	value32 = rtw_read32(Adapter, REG_RRSR);
+	res = rtw_read32(Adapter, REG_RRSR, &value32);
+	if (res)
+		return;
+
 	value32 &= ~RATE_BITMAP_ALL;
 	value32 |= RATE_RRSR_CCK_ONLY_1M;
 	rtw_write32(Adapter, REG_RRSR, value32);
@@ -409,11 +417,15 @@ static void _InitRetryFunction(struct adapter *Adapter)
 static void usb_AggSettingTxUpdate(struct adapter *Adapter)
 {
 	u32 value32;
+	int res;
 
 	if (Adapter->registrypriv.wifi_spec)
 		return;
 
-	value32 = rtw_read32(Adapter, REG_TDECTRL);
+	res = rtw_read32(Adapter, REG_TDECTRL, &value32);
+	if (res)
+		return;
+
 	value32 = value32 & ~(BLK_DESC_NUM_MASK << BLK_DESC_NUM_SHIFT);
 	value32 |= ((USB_TXAGG_DESC_NUM & BLK_DESC_NUM_MASK) << BLK_DESC_NUM_SHIFT);
 
@@ -521,11 +533,17 @@ static void _BBTurnOnBlock(struct adapter *Adapter)
 static void _InitAntenna_Selection(struct adapter *Adapter)
 {
 	struct hal_data_8188e *haldata = &Adapter->haldata;
+	int res;
+	u32 reg;
 
 	if (haldata->AntDivCfg == 0)
 		return;
 
-	rtw_write32(Adapter, REG_LEDCFG0, rtw_read32(Adapter, REG_LEDCFG0) | BIT(23));
+	res = rtw_read32(Adapter, REG_LEDCFG0, &reg);
+	if (res)
+		return;
+
+	rtw_write32(Adapter, REG_LEDCFG0, reg | BIT(23));
 	rtl8188e_PHY_SetBBReg(Adapter, rFPGA0_XAB_RFParameter, BIT(13), 0x01);
 
 	if (rtl8188e_PHY_QueryBBReg(Adapter, rFPGA0_XA_RFInterfaceOE, 0x300) == Antenna_A)
@@ -555,6 +573,7 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	struct hal_data_8188e *haldata = &Adapter->haldata;
 	struct pwrctrl_priv		*pwrctrlpriv = &Adapter->pwrctrlpriv;
 	struct registry_priv	*pregistrypriv = &Adapter->registrypriv;
+	u32 reg;
 
 	if (Adapter->pwrctrlpriv.bkeepfwalive) {
 		if (haldata->odmpriv.RFCalibrateInfo.bIQKInitialized) {
@@ -752,7 +771,11 @@ u32 rtl8188eu_hal_init(struct adapter *Adapter)
 	rtw_write8(Adapter, REG_USB_HRPWM, 0);
 
 	/* ack for xmit mgmt frames. */
-	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, rtw_read32(Adapter, REG_FWHW_TXQ_CTRL) | BIT(12));
+	res = rtw_read32(Adapter, REG_FWHW_TXQ_CTRL, &reg);
+	if (res)
+		return _FAIL;
+
+	rtw_write32(Adapter, REG_FWHW_TXQ_CTRL, reg | BIT(12));
 
 exit:
 	return status;
@@ -1121,7 +1144,12 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 	case HW_VAR_MLME_SITESURVEY:
 		if (*((u8 *)val)) { /* under sitesurvey */
 			/* config RCR to receive different BSSID & not to receive data frame */
-			u32 v = rtw_read32(Adapter, REG_RCR);
+			u32 v;
+
+			res = rtw_read32(Adapter, REG_RCR, &v);
+			if (res)
+				return;
+
 			v &= ~(RCR_CBSSID_BCN);
 			rtw_write32(Adapter, REG_RCR, v);
 			/* reject all data frame */
@@ -1136,6 +1164,7 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 		} else { /* sitesurvey done */
 			struct mlme_ext_priv	*pmlmeext = &Adapter->mlmeextpriv;
 			struct mlme_ext_info	*pmlmeinfo = &pmlmeext->mlmext_info;
+			u32 reg32;
 
 			if ((is_client_associated_to_ap(Adapter)) ||
 			    ((pmlmeinfo->state & 0x03) == WIFI_FW_ADHOC_STATE)) {
@@ -1157,7 +1186,12 @@ void SetHwReg8188EU(struct adapter *Adapter, u8 variable, u8 *val)
 
 				rtw_write8(Adapter, REG_BCN_CTRL, reg & (~BIT(4)));
 			}
-			rtw_write32(Adapter, REG_RCR, rtw_read32(Adapter, REG_RCR) | RCR_CBSSID_BCN);
+
+			res = rtw_read32(Adapter, REG_RCR, &reg32);
+			if (res)
+				return;
+
+			rtw_write32(Adapter, REG_RCR, reg32 | RCR_CBSSID_BCN);
 		}
 		break;
 	case HW_VAR_DM_FLAG:
@@ -1302,7 +1336,10 @@ void SetBeaconRelatedRegisters8188EUsb(struct adapter *adapt)
 
 	rtw_write8(adapt, REG_SLOT, 0x09);
 
-	value32 = rtw_read32(adapt, REG_TCR);
+	res = rtw_read32(adapt, REG_TCR, &value32);
+	if (res)
+		return;
+
 	value32 &= ~TSFRST;
 	rtw_write32(adapt,  REG_TCR, value32);
 

@@ -46,11 +46,17 @@ ReadEFuseByte(
 	rtw_write8(Adapter, EFUSE_CTRL + 3, (readbyte & 0x7f));
 
 	/* Check bit 32 read-ready */
-	retry = 0;
-	value32 = rtw_read32(Adapter, EFUSE_CTRL);
-	while (!(((value32 >> 24) & 0xff) & 0x80)  && (retry < 10000)) {
-		value32 = rtw_read32(Adapter, EFUSE_CTRL);
-		retry++;
+	res = rtw_read32(Adapter, EFUSE_CTRL, &value32);
+	if (res)
+		return;
+
+	for (retry = 0; retry < 10000; retry++) {
+		res = rtw_read32(Adapter, EFUSE_CTRL, &value32);
+		if (res)
+			continue;
+
+		if (((value32 >> 24) & 0xff) & 0x80)
+			break;
 	}
 
 	/*  20100205 Joseph: Add delay suggested by SD1 Victor. */
@@ -58,7 +64,9 @@ ReadEFuseByte(
 	/*  Designer says that there shall be some delay after ready bit is set, or the */
 	/*  result will always stay on last data we read. */
 	udelay(50);
-	value32 = rtw_read32(Adapter, EFUSE_CTRL);
+	res = rtw_read32(Adapter, EFUSE_CTRL, &value32);
+	if (res)
+		return;
 
 	*pbuf = (u8)(value32 & 0xff);
 

@@ -229,6 +229,9 @@ void rtw_set_ps_mode(struct adapter *padapter, u8 ps_mode, u8 smart_ps, u8 bcn_a
 
 static bool lps_rf_on(struct adapter *adapter)
 {
+	int res;
+	u32 reg;
+
 	/* When we halt NIC, we should check if FW LPS is leave. */
 	if (adapter->pwrctrlpriv.rf_pwrstate == rf_off) {
 		/*  If it is in HW/SW Radio OFF or IPS state, we do not check Fw LPS Leave, */
@@ -236,7 +239,11 @@ static bool lps_rf_on(struct adapter *adapter)
 		return true;
 	}
 
-	if (rtw_read32(adapter, REG_RCR) & 0x00070000)
+	res = rtw_read32(adapter, REG_RCR, &reg);
+	if (res)
+		return false;
+
+	if (reg & 0x00070000)
 		return false;
 
 	return true;

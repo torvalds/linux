@@ -194,10 +194,14 @@ static int fw_free_to_go(struct adapter *padapter)
 {
 	u32	counter = 0;
 	u32	value32;
+	int res;
 
 	/*  polling CheckSum report */
 	do {
-		value32 = rtw_read32(padapter, REG_MCUFWDL);
+		res = rtw_read32(padapter, REG_MCUFWDL, &value32);
+		if (res)
+			continue;
+
 		if (value32 & FWDL_CHKSUM_RPT)
 			break;
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
@@ -205,7 +209,10 @@ static int fw_free_to_go(struct adapter *padapter)
 	if (counter >= POLLING_READY_TIMEOUT_COUNT)
 		return _FAIL;
 
-	value32 = rtw_read32(padapter, REG_MCUFWDL);
+	res = rtw_read32(padapter, REG_MCUFWDL, &value32);
+	if (res)
+		return _FAIL;
+
 	value32 |= MCUFWDL_RDY;
 	value32 &= ~WINTINI_RDY;
 	rtw_write32(padapter, REG_MCUFWDL, value32);
@@ -215,9 +222,10 @@ static int fw_free_to_go(struct adapter *padapter)
 	/*  polling for FW ready */
 	counter = 0;
 	do {
-		value32 = rtw_read32(padapter, REG_MCUFWDL);
-		if (value32 & WINTINI_RDY)
+		res = rtw_read32(padapter, REG_MCUFWDL, &value32);
+		if (!res && value32 & WINTINI_RDY)
 			return _SUCCESS;
+
 		udelay(5);
 	} while (counter++ < POLLING_READY_TIMEOUT_COUNT);
 

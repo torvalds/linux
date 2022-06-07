@@ -6000,6 +6000,7 @@ static void mlme_join(struct adapter *adapter, int type)
 {
 	struct mlme_priv *mlmepriv = &adapter->mlmepriv;
 	u8 retry_limit = 0x30, reg;
+	u32 reg32;
 	int res;
 
 	switch (type) {
@@ -6008,8 +6009,12 @@ static void mlme_join(struct adapter *adapter, int type)
 		/* enable to rx data frame, accept all data frame */
 		rtw_write16(adapter, REG_RXFLTMAP2, 0xFFFF);
 
+		res = rtw_read32(adapter, REG_RCR, &reg32);
+		if (res)
+			return;
+
 		rtw_write32(adapter, REG_RCR,
-			    rtw_read32(adapter, REG_RCR) | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
+			    reg32 | RCR_CBSSID_DATA | RCR_CBSSID_BCN);
 
 		if (check_fwstate(mlmepriv, WIFI_STATION_STATE)) {
 			retry_limit = 48;
@@ -6822,8 +6827,13 @@ static u8 chk_ap_is_alive(struct sta_info *psta)
 
 static int rtl8188e_sreset_linked_status_check(struct adapter *padapter)
 {
-	u32 rx_dma_status =  rtw_read32(padapter, REG_RXDMA_STATUS);
+	u32 rx_dma_status;
+	int res;
 	u8 reg;
+
+	res = rtw_read32(padapter, REG_RXDMA_STATUS, &rx_dma_status);
+	if (res)
+		return res;
 
 	if (rx_dma_status != 0x00)
 		rtw_write32(padapter, REG_RXDMA_STATUS, rx_dma_status);

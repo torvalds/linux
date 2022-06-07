@@ -216,6 +216,7 @@ static int efuse_read_phymap_from_txpktbuf(
 	u16 limit = *size;
 	u8 reg;
 	u8 *pos = content;
+	u32 reg32;
 
 	if (bcnhead < 0) { /* if not valid */
 		res = rtw_read8(adapter, REG_TDECTRL + 1, &reg);
@@ -246,8 +247,17 @@ static int efuse_read_phymap_from_txpktbuf(
 		} while (time_before(jiffies, timeout));
 
 		/* data from EEPROM needs to be in LE */
-		lo32 = cpu_to_le32(rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L));
-		hi32 = cpu_to_le32(rtw_read32(adapter, REG_PKTBUF_DBG_DATA_H));
+		res = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_L, &reg32);
+		if (res)
+			return res;
+
+		lo32 = cpu_to_le32(reg32);
+
+		res = rtw_read32(adapter, REG_PKTBUF_DBG_DATA_H, &reg32);
+		if (res)
+			return res;
+
+		hi32 = cpu_to_le32(reg32);
 
 		if (i == 0) {
 			u16 reg;
@@ -548,8 +558,12 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 	u32				value32;
 	struct HAL_VERSION		ChipVersion;
 	struct hal_data_8188e *pHalData = &padapter->haldata;
+	int res;
 
-	value32 = rtw_read32(padapter, REG_SYS_CFG);
+	res = rtw_read32(padapter, REG_SYS_CFG, &value32);
+	if (res)
+		return;
+
 	ChipVersion.ChipType = ((value32 & RTL_ID) ? TEST_CHIP : NORMAL_CHIP);
 
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
@@ -596,26 +610,24 @@ void hal_notch_filter_8188e(struct adapter *adapter, bool enable)
 /*  */
 static s32 _LLTWrite(struct adapter *padapter, u32 address, u32 data)
 {
-	s32	status = _SUCCESS;
-	s32	count = 0;
+	s32	count;
 	u32	value = _LLT_INIT_ADDR(address) | _LLT_INIT_DATA(data) | _LLT_OP(_LLT_WRITE_ACCESS);
 	u16	LLTReg = REG_LLT_INIT;
+	int res;
 
 	rtw_write32(padapter, LLTReg, value);
 
 	/* polling */
-	do {
-		value = rtw_read32(padapter, LLTReg);
+	for (count = 0; count <= POLLING_LLT_THRESHOLD; count++) {
+		res = rtw_read32(padapter, LLTReg, &value);
+		if (res)
+			continue;
+
 		if (_LLT_NO_ACTIVE == _LLT_OP_VALUE(value))
 			break;
+	}
 
-		if (count > POLLING_LLT_THRESHOLD) {
-			status = _FAIL;
-			break;
-		}
-	} while (count++);
-
-	return status;
+	return count > POLLING_LLT_THRESHOLD ? _FAIL : _SUCCESS;
 }
 
 s32 InitLLTTable(struct adapter *padapter, u8 txpktbuf_bndy)

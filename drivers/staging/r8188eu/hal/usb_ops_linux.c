@@ -120,16 +120,21 @@ int __must_check rtw_read16(struct adapter *adapter, u32 addr, u16 *data)
 	return 0;
 }
 
-u32 rtw_read32(struct adapter *adapter, u32 addr)
+int __must_check rtw_read32(struct adapter *adapter, u32 addr, u32 *data)
 {
 	struct io_priv *io_priv = &adapter->iopriv;
 	struct intf_hdl *intf = &io_priv->intf;
 	u16 value = addr & 0xffff;
-	__le32 data;
+	__le32 le_data;
+	int res;
 
-	usb_read(intf, value, &data, 4);
+	res = usb_read(intf, value, &le_data, 4);
+	if (res)
+		return res;
 
-	return le32_to_cpu(data);
+	*data = le32_to_cpu(le_data);
+
+	return 0;
 }
 
 int rtw_write8(struct adapter *adapter, u32 addr, u8 val)
