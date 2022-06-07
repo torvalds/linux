@@ -999,7 +999,7 @@ int __nvme_submit_sync_cmd(struct request_queue *q, struct nvme_command *cmd,
 		req = blk_mq_alloc_request(q, nvme_req_op(cmd), flags);
 	else
 		req = blk_mq_alloc_request_hctx(q, nvme_req_op(cmd), flags,
-						qid ? qid - 1 : 0);
+						qid - 1);
 
 	if (IS_ERR(req))
 		return PTR_ERR(req);
