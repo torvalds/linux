@@ -401,21 +401,7 @@ static int vm_validate_pt_pd_bos(struct amdgpu_vm *vm)
 		return ret;
 	}
 
-	ret = amdgpu_amdkfd_validate_vm_bo(NULL, pd);
-	if (ret) {
-		pr_err("failed to validate PD\n");
-		return ret;
-	}
-
 	vm->pd_phys_addr = amdgpu_gmc_pd_addr(vm->root.bo);
-
-	if (vm->use_cpu_for_update) {
-		ret = amdgpu_bo_kmap(pd, NULL);
-		if (ret) {
-			pr_err("failed to kmap PD, ret=%d\n", ret);
-			return ret;
-		}
-	}
 
 	return 0;
 }
