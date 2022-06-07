@@ -253,4 +253,6 @@ struct aen_complete_cmd {
 
 #define RX_DELAY_DELETE_TIMEOUT 20
 
+#define FCH_EVT_VENDOR_UNIQUE_VPORT_DOWN  1
+
 #endif	/* QLA_EDIF_BSG_H */
