@@ -120,6 +120,9 @@ struct gh_vm_property {
 /* Message IDs: VM-Host Query */
 #define GH_RM_RPC_MSG_ID_CALL_VM_HOST_GET_TYPE		0x560000A0
 
+/* Message IDS: VM IPA Management */
+#define GH_RM_RPC_MSG_ID_CALL_IPA_RESERVE		0x560000B0
+
 /* End Call type Message IDs */
 /* End RPC Message IDs */
 
@@ -468,7 +471,24 @@ struct gh_mem_notify_req_payload {
 	gh_label_t mem_info_tag;
 } __packed;
 
-/* End Message ID headers */
+/* Call: IPA_RESERVE */
+#define GH_RM_IPA_RESERVE_ALLOC_TYPE (1)
+struct gh_ipa_reserve_payload {
+	u8 alloc_type; /* We only support type=1 */
+	u8 res[3];
+	u32 generic_constraints;
+	u32 platform_constraints;
+	u32 nr_ranges; /* We only support 1 range per call. */
+	u64 region_base;
+	u64 region_size;
+	u64 size;
+	u64 align;
+} __packed;
+
+struct gh_ipa_reserve_resp_payload {
+	u32 n_entries; /* Should always be 1 */
+	u64 ipa;
+} __packed;
 
 /* Call: MINIDUMP_REGISTER_RANGE */
 struct gh_minidump_get_info_req_payload {
