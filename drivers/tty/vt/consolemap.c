@@ -750,16 +750,16 @@ EXPORT_SYMBOL(con_set_default_unimap);
  */
 int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 {
-	struct uni_pagedict *q;
+	struct uni_pagedict *src;
 
 	if (!*src_vc->vc_uni_pagedir_loc)
 		return -EINVAL;
 	if (*dst_vc->vc_uni_pagedir_loc == *src_vc->vc_uni_pagedir_loc)
 		return 0;
 	con_free_unimap(dst_vc);
-	q = *src_vc->vc_uni_pagedir_loc;
-	q->refcount++;
-	*dst_vc->vc_uni_pagedir_loc = q;
+	src = *src_vc->vc_uni_pagedir_loc;
+	src->refcount++;
+	*dst_vc->vc_uni_pagedir_loc = src;
 	return 0;
 }
 EXPORT_SYMBOL(con_copy_unimap);
