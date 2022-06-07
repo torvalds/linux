@@ -8,6 +8,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles that the Instruction Length decoder (ILD) stalls occurred due to dynamically changing prefix length of the decoded instruction (by operand size prefix instruction 0x66, address size prefix instruction 0x67 or REX.W for Intel64). Count is proportional to the number of prefixes in a 16B-line. This may result in a three-cycle penalty for each LCP (Length changing prefix) in a 16-byte chunk.",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -19,6 +20,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Decode Stream Buffer (DSB) is a Uop-cache that holds translations of previously fetched instructions that were decoded by the legacy x86 decode pipeline (MITE). This event counts fetch penalty cycles when a transition occurs from DSB to MITE.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -313,6 +315,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles where a code line fetch is stalled due to an L1 instruction cache miss. The decode pipeline works at a 32 Byte granularity.",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -324,6 +327,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles where a code fetch is stalled due to L1 instruction cache tag miss.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -336,6 +340,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of cycles uops were delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -348,6 +353,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of cycles where optimal number of uops was delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -359,6 +365,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of uops delivered to Instruction Decode Queue (IDQ) from the Decode Stream Buffer (DSB) path.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -371,6 +378,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of cycles uops were delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -383,6 +391,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of cycles where optimal number of uops was delivered to the Instruction Decode Queue (IDQ) from the MITE (legacy decode pipeline) path. During these cycles uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -394,6 +403,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of uops delivered to Instruction Decode Queue (IDQ) from the MITE path. This also means that uops are not being delivered from the Decode Stream Buffer (DSB).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -406,6 +416,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles during which uops are being delivered to Instruction Decode Queue (IDQ) while the Microcode Sequencer (MS) is busy. Uops maybe initiated by Decode Stream Buffer (DSB) or MITE.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -419,6 +430,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Number of switches from DSB (Decode Stream Buffer) or MITE (legacy decode pipeline) to the Microcode Sequencer.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -430,6 +442,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the total number of uops delivered by the Microcode Sequencer (MS).",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -441,6 +454,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of uops not delivered to by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -453,6 +467,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of cycles when no uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -466,6 +481,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of cycles when the optimal number of uops were delivered by the Instruction Decode Queue (IDQ) to the back-end of the pipeline when there was no back-end stalls. This event counts for one SMT thread in a given cycle.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     }
 ]

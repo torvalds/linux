@@ -7,6 +7,7 @@
         "EventName": "ASSISTS.PAGE_FAULT",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -16,6 +17,7 @@
         "EventName": "EXE.AMX_BUSY",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -346,6 +348,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles during which the reservation station (RS) is empty for this logical processor.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x7"
     },
     {
@@ -357,6 +360,7 @@
         "EventName": "XQ.FULL_CYCLES",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     }
 ]

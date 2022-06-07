@@ -22,6 +22,7 @@
         "EventName": "ARITH.DIVIDER_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x9"
     },
     {
@@ -34,6 +35,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles when divide unit is busy executing divide or square root operations. Accounts for integer and floating-point operations.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x9"
     },
     {
@@ -45,6 +47,7 @@
         "EventName": "ARITH.FP_DIVIDER_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -56,6 +59,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "ARITH.IDIV_ACTIVE",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -67,6 +71,7 @@
         "EventName": "ARITH.INT_DIVIDER_ACTIVE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -78,6 +83,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of occurrences where a microcode assist is invoked by hardware Examples include AD (page Access Dirty), FP and AVX related assists.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1f"
     },
     {
@@ -291,6 +297,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts core clocks when the thread is in the C0.1 light-weight slower wakeup time but more power saving optimized state.  This state can be entered via the TPAUSE or UMWAIT instructions.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -302,6 +309,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts core clocks when the thread is in the C0.2 light-weight faster wakeup time but less power saving optimized state.  This state can be entered via the TPAUSE or UMWAIT instructions.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -313,6 +321,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts core clocks when the thread is in the C0.1 or C0.2 power saving optimized states (TPAUSE or UMWAIT instructions) or running the PAUSE instruction.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x70"
     },
     {
@@ -324,6 +333,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "This event distributes cycle counts between active hyperthreads, i.e., those in C0.  A hyperthread becomes inactive when it executes the HLT or MWAIT instructions.  If all other hyperthreads are inactive (or disabled or do not exist), all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -335,6 +345,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts Core crystal clock cycles when current thread is unhalted and the other thread is halted.",
         "SampleAfterValue": "25003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -345,6 +356,7 @@
         "EventName": "CPU_CLK_UNHALTED.PAUSE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x40"
     },
     {
@@ -356,6 +368,7 @@
         "EventName": "CPU_CLK_UNHALTED.PAUSE_INST",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x40"
     },
     {
@@ -366,6 +379,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "This event distributes Core crystal clock cycle counts between active hyperthreads, i.e., those in C0 sleep-state. A hyperthread becomes inactive when it executes the HLT or MWAIT instructions. If one thread is active in a core, all counts are attributed to this hyperthread. To obtain the full count when the Core is active, sum the counts from each hyperthread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -376,6 +390,7 @@
         "PEBScounters": "34",
         "PublicDescription": "Counts the number of reference cycles when the core is not in a halt state. The core enters the halt state when it is running the HLT instruction or the MWAIT instruction. This event is not affected by core frequency changes (for example, P states, TM2 transitions) but has the same incrementing frequency as the time stamp counter. This event can approximate elapsed time while the core was not in a halt state. It is counted on a dedicated fixed counter, leaving the eight programmable counters available for other events. Note: On all current platforms this event stops counting during 'throttling (TM)' states duty off periods the processor is 'halted'.  The counter update is done at a lower clock rate then the core clock the overflow status bit for this counter may appear 'sticky'.  After the counter has overflowed and software clears the overflow status bit and resets the counter to less than MAX. The reset value to the counter is not clocked immediately so the overflow status bit will flip 'high (1)' and generate another PMI (if enabled) after which the reset value gets clocked into the counter. Therefore, software will get the interrupt, read the overflow status bit '1 for bit 34 while the counter value is less than MAX. Software should ignore this case.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x3"
     },
     {
@@ -386,6 +401,7 @@
         "PEBScounters": "33",
         "PublicDescription": "Counts the number of core cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. This event is a component in many key event ratios. The core frequency may change from time to time due to transitions associated with Enhanced Intel SpeedStep Technology or TM2. For this reason this event may have a changing ratio with regards to time. When the core frequency is constant, this event can approximate elapsed time while the core was not in the halt state. It is counted on a dedicated fixed counter, leaving the eight programmable counters available for other events.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -396,7 +412,8 @@
         "EventName": "CPU_CLK_UNHALTED.THREAD_P",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "This is an architectural event that counts the number of thread cycles while the thread is not in a halt state. The thread enters the halt state when it is running the HLT instruction. The core frequency may change from time to time due to power or thermal throttling. For this reason, this event may have a changing ratio with regards to wall clock time.",
-        "SampleAfterValue": "2000003"
+        "SampleAfterValue": "2000003",
+        "Speculative": "1"
     },
     {
         "BriefDescription": "Cycles while L1 cache miss demand load is outstanding.",
@@ -407,6 +424,7 @@
         "EventName": "CYCLE_ACTIVITY.CYCLES_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -418,6 +436,7 @@
         "EventName": "CYCLE_ACTIVITY.CYCLES_L2_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -429,6 +448,7 @@
         "EventName": "CYCLE_ACTIVITY.CYCLES_MEM_ANY",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -440,6 +460,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_L1D_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xc"
     },
     {
@@ -451,6 +472,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_L2_MISS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x5"
     },
     {
@@ -462,6 +484,7 @@
         "EventName": "CYCLE_ACTIVITY.STALLS_TOTAL",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -473,6 +496,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles during which a total of 1 uop was executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -484,6 +508,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles during which a total of 2 uops were executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -495,6 +520,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles total of 3 uops are executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -506,6 +532,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles total of 4 uops are executed on all ports and Reservation Station (RS) was not empty.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -517,6 +544,7 @@
         "EventName": "EXE_ACTIVITY.BOUND_ON_LOADS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x21"
     },
     {
@@ -529,6 +557,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles where the Store Buffer was full and no loads caused an execution stall.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x40"
     },
     {
@@ -540,6 +569,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of cycles total of 0 uops executed on all ports, Reservation Station (RS) was not empty, the Store Buffer (SB) was not full and there was no outstanding load.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x80"
     },
     {
@@ -551,6 +581,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Number of decoders utilized in a cycle when the MITE (legacy decode pipeline) fetches instructions.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -625,6 +656,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles after recovery from a branch misprediction or machine clear till the first uop is issued from the resteered path.",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x80"
     },
     {
@@ -634,6 +666,7 @@
         "EventName": "INT_MISC.MBA_STALLS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -645,6 +678,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts core cycles when the Resource allocator was stalled due to recovery from an earlier branch misprediction or machine clear event.",
         "SampleAfterValue": "500009",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -657,6 +691,7 @@
         "MSRValue": "0x7",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "TakenAlone": "1",
         "UMask": "0x40"
     },
@@ -669,6 +704,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Estimated number of Top-down Microarchitecture Analysis slots that got dropped due to non front-end reasons",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -762,6 +798,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of times a load got blocked due to false dependencies in MOB due to partial compare on address.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -773,6 +810,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of times that split load operations are temporarily blocked because all resources for handling the split accesses are in use.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x88"
     },
     {
@@ -784,6 +822,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of times where store forwarding was prevented for a load operation. The most common case is a load blocked due to the address of memory access (partially) overlapping with a preceding uncompleted store. Note: See the table of not supported store forwards in the Optimization Guide.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x82"
     },
     {
@@ -795,6 +834,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts all not software-prefetch load dispatches that hit the fill buffer (FB) allocated for the software prefetch. It can also be incremented by some lock instructions. So it should only be used with profiling so that the locks can be excluded by ASM (Assembly File) inspection of the nearby instructions.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -807,6 +847,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the cycles when at least one uop is delivered by the LSD (Loop-stream detector).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -819,6 +860,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the cycles when optimal number of uops is delivered by the LSD (Loop-stream detector).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -830,6 +872,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of uops delivered to the back-end by the LSD(Loop Stream Detector).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -843,6 +886,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of machine clears (nukes) of any type.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -854,6 +898,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts self-modifying code (SMC) detected, which causes a machine clear.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -864,6 +909,7 @@
         "EventName": "MISC2_RETIRED.LFENCE",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "400009",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -886,6 +932,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts allocation stall cycles caused by the store buffer (SB) being full. This counts cycles that the pipeline back-end blocked uop delivery from the front-end.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -896,6 +943,7 @@
         "EventName": "RESOURCE_STALLS.SCOREBOARD",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -907,6 +955,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of slots in TMA method where no micro-operations were being issued from front-end to back-end of the machine due to lack of back-end resources.",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -916,6 +965,7 @@
         "EventName": "TOPDOWN.BAD_SPEC_SLOTS",
         "PublicDescription": "Number of slots of TMA method that were wasted due to incorrect speculation. It covers all types of control-flow or data-related mis-speculations.",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -925,6 +975,7 @@
         "EventName": "TOPDOWN.BR_MISPREDICT_SLOTS",
         "PublicDescription": "Number of TMA slots that were wasted due to incorrect speculation by (any type of) branch mispredictions. This event estimates number of specualtive operations that were issued but not retired as well as the out-of-order engine recovery past a branch misprediction.",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -935,6 +986,7 @@
         "EventName": "TOPDOWN.MEMORY_BOUND_SLOTS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -945,6 +997,7 @@
         "PEBScounters": "35",
         "PublicDescription": "Number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method (TMA). The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core. Software can use this event as the denominator for the top-level metrics of the TMA method. This architectural event is counted on a designated fixed counter (Fixed Counter 3).",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -956,6 +1009,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of available slots for an unhalted logical processor. The event increments by machine-width of the narrowest pipeline as employed by the Top-down Microarchitecture Analysis method. The count is distributed among unhalted logical processors (hyper-threads) who share the same physical core.",
         "SampleAfterValue": "10000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -966,6 +1020,7 @@
         "EventName": "UOPS_DECODED.DEC0_UOPS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -977,6 +1032,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution  port 0.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -988,6 +1044,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution  port 1.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -999,6 +1056,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution ports 2, 3 and 10",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -1010,6 +1068,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution ports 4 and 9",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -1021,6 +1080,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution ports 5 and 11",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -1032,6 +1092,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution  port 6.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x40"
     },
     {
@@ -1043,6 +1104,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Number of uops dispatch to execution  ports 7 and 8.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x80"
     },
     {
@@ -1054,6 +1116,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of uops executed from any thread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -1066,6 +1129,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles when at least 1 micro-op is executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -1078,6 +1142,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles when at least 2 micro-ops are executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -1090,6 +1155,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles when at least 3 micro-ops are executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -1102,6 +1168,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles when at least 4 micro-ops are executed from any thread on physical core.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -1114,6 +1181,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles where at least 1 uop was executed per-thread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1126,6 +1194,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles where at least 2 uops were executed per-thread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1138,6 +1207,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles where at least 3 uops were executed per-thread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1150,6 +1220,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Cycles where at least 4 uops were executed per-thread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1163,6 +1234,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts cycles during which no uops were dispatched from the Reservation Station (RS) per thread.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1175,6 +1247,7 @@
         "Invert": "1",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1185,6 +1258,7 @@
         "EventName": "UOPS_EXECUTED.THREAD",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1196,6 +1270,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of x87 uops executed.",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -1207,6 +1282,7 @@
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "PublicDescription": "Counts the number of uops that the Resource Allocation Table (RAT) issues to the Reservation Station (RS).",
         "SampleAfterValue": "2000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1222,12 +1298,13 @@
         "UMask": "0x2"
     },
     {
-        "BriefDescription": "UOPS_RETIRED.HEAVY",
+        "BriefDescription": "Retired uops except the last uop of each instruction.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3,4,5,6,7",
         "EventCode": "0xc2",
         "EventName": "UOPS_RETIRED.HEAVY",
         "PEBScounters": "0,1,2,3,4,5,6,7",
+        "PublicDescription": "Counts the number of retired micro-operations (uops) except the last uop of each instruction. An instruction that is decoded into less than two uops does not contribute to the count.",
         "SampleAfterValue": "2000003",
         "UMask": "0x1"
     },

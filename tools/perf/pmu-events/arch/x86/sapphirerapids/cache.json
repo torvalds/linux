@@ -1,5 +1,16 @@
 [
     {
+        "BriefDescription": "L1D.HWPF_MISS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x51",
+        "EventName": "L1D.HWPF_MISS",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "1000003",
+        "Speculative": "1",
+        "UMask": "0x20"
+    },
+    {
         "BriefDescription": "Counts the number of cache lines replaced in L1 data cache.",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
@@ -8,6 +19,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts L1D data line replacements including opportunistic replacements, and replacements that require stall-for-replace or block-for-replace.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -19,6 +31,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts number of cycles a demand request has waited due to L1D Fill Buffer (FB) unavailablability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -32,6 +45,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts number of phases a demand request has waited due to L1D Fill Buffer (FB) unavailablability. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -42,6 +56,7 @@
         "EventName": "L1D_PEND_MISS.L2_STALL",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -53,6 +68,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts number of cycles a demand request has waited due to L1D due to lack of L2 resources. Demand requests include cacheable/uncacheable demand load, store, lock or SW prefetch accesses.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -64,6 +80,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts number of L1D misses that are outstanding in each cycle, that is each cycle the number of Fill Buffers (FB) outstanding required by Demand Reads. FB either is held by demand loads, or it is held by non-demand loads and gets hit at least once by demand. The valid outstanding interval is defined until the FB deallocation by one of the following ways: from FB allocation, if FB is allocated by demand from the demand Hit FB, if it is allocated by hardware or software prefetch. Note: In the L1D, a Demand Read contains cacheable or noncacheable demand loads, including ones causing cache-line splits and reads due to page walks resulted from any request type.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -76,6 +93,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts duration of L1D miss outstanding in cycles.",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -87,6 +105,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of L2 cache lines filling the L2. Counting does not cover rejects.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1f"
     },
     {
@@ -97,6 +116,7 @@
         "EventName": "L2_LINES_OUT.NON_SILENT",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -108,17 +128,19 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of lines that are silently dropped by L2 cache when triggered by an L2 cache fill. These lines are typically in Shared or Exclusive state. A non-threaded event.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
-        "BriefDescription": "All L2 requests.[This event is alias to L2_RQSTS.REFERENCES]",
+        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_RQSTS.REFERENCES]",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_REQUEST.ALL",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts all L2 requests.[This event is alias to L2_RQSTS.REFERENCES]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.[This event is alias to L2_RQSTS.REFERENCES]",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xff"
     },
     {
@@ -130,6 +152,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.[This event is alias to L2_RQSTS.MISS]",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x3f"
     },
     {
@@ -141,17 +164,19 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the total number of L2 code requests.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe4"
     },
     {
-        "BriefDescription": "Demand Data Read requests",
+        "BriefDescription": "Demand Data Read access L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.ALL_DEMAND_DATA_RD",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts the number of demand Data Read requests (including requests from L1D hardware prefetchers). These loads may hit or miss L2 cache. Only non rejected loads are counted.",
+        "PublicDescription": "Counts Demand Data Read requests accessing the L2 cache. These requests may hit or miss L2 cache. True-miss exclude misses that were merged with ongoing L2 misses. An access is counted once.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe1"
     },
     {
@@ -163,6 +188,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts demand requests that miss L2 cache.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x27"
     },
     {
@@ -174,7 +200,19 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts demand requests to L2 cache.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe7"
+    },
+    {
+        "BriefDescription": "L2_RQSTS.ALL_HWPF",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.ALL_HWPF",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "Speculative": "1",
+        "UMask": "0xf0"
     },
     {
         "BriefDescription": "RFO requests to L2 cache",
@@ -185,6 +223,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the total number of RFO (read for ownership) requests to L2 cache. L2 RFO requests include both L1D demand RFO misses as well as L1D RFO prefetches.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xe2"
     },
     {
@@ -196,6 +235,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts L2 cache hits when fetching instructions, code reads.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc4"
     },
     {
@@ -207,6 +247,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts L2 cache misses when fetching instructions.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x24"
     },
     {
@@ -218,18 +259,31 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of demand Data Read requests initiated by load instructions that hit L2 cache.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc1"
     },
     {
-        "BriefDescription": "Demand Data Read miss L2, no rejects",
+        "BriefDescription": "Demand Data Read miss L2 cache",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.DEMAND_DATA_RD_MISS",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts the number of demand Data Read requests that miss L2 cache. Only not rejected loads are counted.",
+        "PublicDescription": "Counts demand Data Read requests with true-miss in the L2 cache. True-miss excludes misses that were merged with ongoing L2 misses. An access is counted once.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x21"
+    },
+    {
+        "BriefDescription": "L2_RQSTS.HWPF_MISS",
+        "CollectPEBSRecord": "2",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x24",
+        "EventName": "L2_RQSTS.HWPF_MISS",
+        "PEBScounters": "0,1,2,3",
+        "SampleAfterValue": "200003",
+        "Speculative": "1",
+        "UMask": "0x30"
     },
     {
         "BriefDescription": "Read requests with true-miss in L2 cache.[This event is alias to L2_REQUEST.MISS]",
@@ -240,17 +294,19 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts read requests of any type with true-miss in the L2 cache. True-miss excludes L2 misses that were merged with ongoing L2 misses.[This event is alias to L2_REQUEST.MISS]",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x3f"
     },
     {
-        "BriefDescription": "All L2 requests.[This event is alias to L2_REQUEST.ALL]",
+        "BriefDescription": "All accesses to L2 cache[This event is alias to L2_REQUEST.ALL]",
         "CollectPEBSRecord": "2",
         "Counter": "0,1,2,3",
         "EventCode": "0x24",
         "EventName": "L2_RQSTS.REFERENCES",
         "PEBScounters": "0,1,2,3",
-        "PublicDescription": "Counts all L2 requests.[This event is alias to L2_REQUEST.ALL]",
+        "PublicDescription": "Counts all requests that were hit or true misses in L2 cache. True-miss excludes misses that were merged with ongoing L2 misses.[This event is alias to L2_REQUEST.ALL]",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xff"
     },
     {
@@ -262,6 +318,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that hit L2 cache.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc2"
     },
     {
@@ -273,6 +330,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the RFO (Read-for-Ownership) requests that miss L2 cache.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x22"
     },
     {
@@ -284,6 +342,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts Software prefetch requests that hit the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0xc8"
     },
     {
@@ -295,6 +354,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts Software prefetch requests that miss the L2 cache. Accounts for PREFETCHNTA and PREFETCHT0/1/2 instructions when FB is not full.",
         "SampleAfterValue": "200003",
+        "Speculative": "1",
         "UMask": "0x28"
     },
     {
@@ -305,6 +365,7 @@
         "EventName": "LONGEST_LAT_CACHE.MISS",
         "PEBScounters": "0,1,2,3,4,5,6,7",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x41"
     },
     {
@@ -424,6 +485,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Number of completed demand load requests that missed the L1 data cache including shadow misses (FB hits, merge to an ongoing L1D miss)",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0xfd"
     },
     {
@@ -970,6 +1032,7 @@
         "EventName": "OFFCORE_REQUESTS.ALL_REQUESTS",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x80"
     },
     {
@@ -981,6 +1044,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the demand and prefetch data reads. All Core Data Reads include cacheable 'Demands' and L2 prefetchers (not L3 prefetchers). Counting also covers reads due to page walks resulted from any request type.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -992,6 +1056,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the Demand Data Read requests sent to uncore. Use it in conjunction with OFFCORE_REQUESTS_OUTSTANDING to determine average latency in the uncore.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1002,6 +1067,7 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.ALL_DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -1013,6 +1079,7 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -1024,6 +1091,7 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.CYCLES_WITH_DEMAND_RFO",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -1034,6 +1102,7 @@
         "EventName": "OFFCORE_REQUESTS_OUTSTANDING.DATA_RD",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "1000003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -1045,6 +1114,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of PREFETCHNTA instructions executed.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x1"
     },
     {
@@ -1056,6 +1126,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of PREFETCHW instructions executed.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -1067,6 +1138,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of PREFETCHT0 instructions executed.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -1078,6 +1150,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of PREFETCHT1 or PREFETCHT2 instructions executed.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4"
     }
 ]

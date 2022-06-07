@@ -8,6 +8,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts loads that miss the DTLB (Data TLB) and hit the STLB (Second level TLB).",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -20,6 +21,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a demand load.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -31,6 +33,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (all page sizes) caused by demand data loads. This implies it missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0xe"
     },
     {
@@ -42,6 +45,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (1G sizes) caused by demand data loads. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -53,6 +57,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (2M/4M sizes) caused by demand data loads. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -64,6 +69,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (4K sizes) caused by demand data loads. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -75,6 +81,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of page walks outstanding for a demand load in the PMH (Page Miss Handler) each cycle.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -86,6 +93,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts stores that miss the DTLB (Data TLB) and hit the STLB (2nd Level TLB).",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -98,6 +106,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a store.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -109,6 +118,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (all page sizes) caused by demand data stores. This implies it missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0xe"
     },
     {
@@ -120,6 +130,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (1G sizes) caused by demand data stores. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x8"
     },
     {
@@ -131,6 +142,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (2M/4M sizes) caused by demand data stores. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -142,6 +154,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks  (4K sizes) caused by demand data stores. This implies address translations missed in the DTLB and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -153,6 +166,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of page walks outstanding for a store in the PMH (Page Miss Handler) each cycle.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -164,6 +178,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts instruction fetch requests that miss the ITLB (Instruction TLB) and hit the STLB (Second-level TLB).",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x20"
     },
     {
@@ -176,6 +191,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts cycles when at least one PMH (Page Miss Handler) is busy with a page walk for a code (instruction fetch) request.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x10"
     },
     {
@@ -187,6 +203,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks (all page sizes) caused by a code fetch. This implies it missed in the ITLB (Instruction TLB) and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0xe"
     },
     {
@@ -198,6 +215,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks (2M/4M page sizes) caused by a code fetch. This implies it missed in the ITLB (Instruction TLB) and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x4"
     },
     {
@@ -209,6 +227,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts completed page walks (4K page sizes) caused by a code fetch. This implies it missed in the ITLB (Instruction TLB) and further levels of TLB. The page walk can end with or without a fault.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x2"
     },
     {
@@ -220,6 +239,7 @@
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of page walks outstanding for an outstanding code (instruction fetch) request in the PMH (Page Miss Handler) each cycle.",
         "SampleAfterValue": "100003",
+        "Speculative": "1",
         "UMask": "0x10"
     }
 ]
