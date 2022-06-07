@@ -72,7 +72,7 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	}
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
-	mt7921_mac_write_txwi(dev, txwi_ptr, tx_info->skb, wcid, key,
+	mt7921_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, key,
 			      pid, false);
 
 	txp = (struct mt7921_txp_common *)(txwi + MT_TXD_SIZE);

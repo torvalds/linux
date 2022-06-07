@@ -809,8 +809,8 @@ mt7921_mac_fill_rx(struct mt7921_dev *dev, struct sk_buff *skb)
 }
 
 static void
-mt7921_mac_write_txwi_8023(struct mt7921_dev *dev, __le32 *txwi,
-			   struct sk_buff *skb, struct mt76_wcid *wcid)
+mt7921_mac_write_txwi_8023(__le32 *txwi, struct sk_buff *skb,
+			   struct mt76_wcid *wcid)
 {
 	u8 tid = skb->priority & IEEE80211_QOS_CTL_TID_MASK;
 	u8 fc_type, fc_stype;
@@ -848,7 +848,7 @@ mt7921_mac_write_txwi_8023(struct mt7921_dev *dev, __le32 *txwi,
 }
 
 static void
-mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
+mt7921_mac_write_txwi_80211(struct mt76_dev *dev, __le32 *txwi,
 			    struct sk_buff *skb, struct ieee80211_key_conf *key)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
@@ -920,7 +920,7 @@ mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
 		txwi[7] &= ~cpu_to_le32(MT_TXD7_HW_AMSDU);
 	}
 
-	if (mt76_is_mmio(&dev->mt76)) {
+	if (mt76_is_mmio(dev)) {
 		val = FIELD_PREP(MT_TXD7_TYPE, fc_type) |
 		      FIELD_PREP(MT_TXD7_SUB_TYPE, fc_stype);
 		txwi[7] |= cpu_to_le32(val);
@@ -931,17 +931,16 @@ mt7921_mac_write_txwi_80211(struct mt7921_dev *dev, __le32 *txwi,
 	}
 }
 
-void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
+void mt7921_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 			   struct sk_buff *skb, struct mt76_wcid *wcid,
 			   struct ieee80211_key_conf *key, int pid,
 			   bool beacon)
 {
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(skb);
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt76_phy *mphy = &dev->mphy;
+	struct mt76_phy *mphy = &dev->phy;
 	u8 p_fmt, q_idx, omac_idx = 0, wmm_idx = 0;
-	bool is_mmio = mt76_is_mmio(&dev->mt76);
-	u32 sz_txd = is_mmio ? MT_TXD_SIZE : MT_SDIO_TXD_SIZE;
+	u32 sz_txd = mt76_is_mmio(dev) ? MT_TXD_SIZE : MT_SDIO_TXD_SIZE;
 	bool is_8023 = info->flags & IEEE80211_TX_CTL_HW_80211_ENCAP;
 	u16 tx_count = 15;
 	u32 val;
@@ -957,10 +956,10 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 		p_fmt = MT_TX_TYPE_FW;
 		q_idx = MT_LMAC_BCN0;
 	} else if (skb_get_queue_mapping(skb) >= MT_TXQ_PSD) {
-		p_fmt = is_mmio ? MT_TX_TYPE_CT : MT_TX_TYPE_SF;
+		p_fmt = mt76_is_mmio(dev) ? MT_TX_TYPE_CT : MT_TX_TYPE_SF;
 		q_idx = MT_LMAC_ALTX0;
 	} else {
-		p_fmt = is_mmio ? MT_TX_TYPE_CT : MT_TX_TYPE_SF;
+		p_fmt = mt76_is_mmio(dev) ? MT_TX_TYPE_CT : MT_TX_TYPE_SF;
 		q_idx = wmm_idx * MT7921_MAX_WMM_SETS +
 			mt76_connac_lmac_mapping(skb_get_queue_mapping(skb));
 	}
@@ -995,7 +994,7 @@ void mt7921_mac_write_txwi(struct mt7921_dev *dev, __le32 *txwi,
 	txwi[7] = wcid->amsdu ? cpu_to_le32(MT_TXD7_HW_AMSDU) : 0;
 
 	if (is_8023)
-		mt7921_mac_write_txwi_8023(dev, txwi, skb, wcid);
+		mt7921_mac_write_txwi_8023(txwi, skb, wcid);
 	else
 		mt7921_mac_write_txwi_80211(dev, txwi, skb, key);
 
@@ -1648,7 +1647,7 @@ mt7921_usb_sdio_write_txwi(struct mt7921_dev *dev, struct mt76_wcid *wcid,
 	__le32 *txwi = (__le32 *)(skb->data - MT_SDIO_TXD_SIZE);
 
 	memset(txwi, 0, MT_SDIO_TXD_SIZE);
-	mt7921_mac_write_txwi(dev, txwi, skb, wcid, key, pid, false);
+	mt7921_mac_write_txwi(&dev->mt76, txwi, skb, wcid, key, pid, false);
 	skb_push(skb, MT_SDIO_TXD_SIZE);
 }
 
