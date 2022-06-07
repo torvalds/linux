@@ -342,7 +342,7 @@
 		};
 
 		sram@2a03f000 {
-			compatible = "syscon", "simple-mfd";
+			compatible = "qcom,apq8064-imem", "syscon", "simple-mfd";
 			reg = <0x2a03f000 0x1000>;
 
 			reboot-mode {
