@@ -395,9 +395,10 @@ btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 #ifndef BTF_KIND_FLOAT
 #define BTF_KIND_FLOAT		16	/* Floating point	*/
 #endif
-/* The kernel header switched to enums, so these two were never #defined */
+/* The kernel header switched to enums, so the following were never #defined */
 #define BTF_KIND_DECL_TAG	17	/* Decl Tag */
 #define BTF_KIND_TYPE_TAG	18	/* Type Tag */
+#define BTF_KIND_ENUM64		19	/* Enum for up-to 64bit values */
 
 static inline __u16 btf_kind(const struct btf_type *t)
 {

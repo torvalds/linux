@@ -2242,6 +2242,7 @@ static const char *__btf_kind_str(__u16 kind)
 	case BTF_KIND_FLOAT: return "float";
 	case BTF_KIND_DECL_TAG: return "decl_tag";
 	case BTF_KIND_TYPE_TAG: return "type_tag";
+	case BTF_KIND_ENUM64: return "enum64";
 	default: return "unknown";
 	}
 }
@@ -2770,12 +2771,13 @@ static bool btf_needs_sanitization(struct bpf_object *obj)
 	bool has_func = kernel_supports(obj, FEAT_BTF_FUNC);
 	bool has_decl_tag = kernel_supports(obj, FEAT_BTF_DECL_TAG);
 	bool has_type_tag = kernel_supports(obj, FEAT_BTF_TYPE_TAG);
+	bool has_enum64 = kernel_supports(obj, FEAT_BTF_ENUM64);
 
 	return !has_func || !has_datasec || !has_func_global || !has_float ||
-	       !has_decl_tag || !has_type_tag;
+	       !has_decl_tag || !has_type_tag || !has_enum64;
 }
 
-static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
+static int bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 {
 	bool has_func_global = kernel_supports(obj, FEAT_BTF_GLOBAL_FUNC);
 	bool has_datasec = kernel_supports(obj, FEAT_BTF_DATASEC);
@@ -2783,6 +2785,8 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 	bool has_func = kernel_supports(obj, FEAT_BTF_FUNC);
 	bool has_decl_tag = kernel_supports(obj, FEAT_BTF_DECL_TAG);
 	bool has_type_tag = kernel_supports(obj, FEAT_BTF_TYPE_TAG);
+	bool has_enum64 = kernel_supports(obj, FEAT_BTF_ENUM64);
+	__u32 enum64_placeholder_id = 0;
 	struct btf_type *t;
 	int i, j, vlen;
 
@@ -2845,8 +2849,32 @@ static void bpf_object__sanitize_btf(struct bpf_object *obj, struct btf *btf)
 			/* replace TYPE_TAG with a CONST */
 			t->name_off = 0;
 			t->info = BTF_INFO_ENC(BTF_KIND_CONST, 0, 0);
-		}
+		} else if (!has_enum64 && btf_is_enum(t)) {
+			/* clear the kflag */
+			t->info = btf_type_info(btf_kind(t), btf_vlen(t), false);
+		} else if (!has_enum64 && btf_is_enum64(t)) {
+			/* replace ENUM64 with a union */
+			struct btf_member *m;
+
+			if (enum64_placeholder_id == 0) {
+				enum64_placeholder_id = btf__add_int(btf, "enum64_placeholder", 1, 0);
+				if (enum64_placeholder_id < 0)
+					return enum64_placeholder_id;
+
+				t = (struct btf_type *)btf__type_by_id(btf, i);
+			}
+
+			m = btf_members(t);
+			vlen = btf_vlen(t);
+			t->info = BTF_INFO_ENC(BTF_KIND_UNION, 0, vlen);
+			for (j = 0; j < vlen; j++, m++) {
+				m->type = enum64_placeholder_id;
+				m->offset = 0;
+			}
+                }
 	}
+
+	return 0;
 }
 
 static bool libbpf_needs_btf(const struct bpf_object *obj)
@@ -3184,7 +3212,9 @@ static int bpf_object__sanitize_and_load_btf(struct bpf_object *obj)
 
 		/* enforce 8-byte pointers for BPF-targeted BTFs */
 		btf__set_pointer_size(obj->btf, 8);
-		bpf_object__sanitize_btf(obj, kern_btf);
+		err = bpf_object__sanitize_btf(obj, kern_btf);
+		if (err)
+			return err;
 	}
 
 	if (obj->gen_loader) {
@@ -3688,6 +3718,10 @@ static enum kcfg_type find_kcfg_type(const struct btf *btf, int id,
 	case BTF_KIND_ENUM:
 		if (t->size != 4)
 			return KCFG_UNKNOWN;
+		if (strcmp(name, "libbpf_tristate"))
+			return KCFG_UNKNOWN;
+		return KCFG_TRISTATE;
+	case BTF_KIND_ENUM64:
 		if (strcmp(name, "libbpf_tristate"))
 			return KCFG_UNKNOWN;
 		return KCFG_TRISTATE;
@@ -4874,6 +4908,17 @@ static int probe_kern_bpf_cookie(void)
 	return probe_fd(ret);
 }
 
+static int probe_kern_btf_enum64(void)
+{
+	static const char strs[] = "\0enum64";
+	__u32 types[] = {
+		BTF_TYPE_ENC(1, BTF_INFO_ENC(BTF_KIND_ENUM64, 0, 0), 8),
+	};
+
+	return probe_fd(libbpf__load_raw_btf((char *)types, sizeof(types),
+					     strs, sizeof(strs)));
+}
+
 enum kern_feature_result {
 	FEAT_UNKNOWN = 0,
 	FEAT_SUPPORTED = 1,
@@ -4938,6 +4983,9 @@ static struct kern_feature_desc {
 	},
 	[FEAT_BPF_COOKIE] = {
 		"BPF cookie support", probe_kern_bpf_cookie,
+	},
+	[FEAT_BTF_ENUM64] = {
+		"BTF_KIND_ENUM64 support", probe_kern_btf_enum64,
 	},
 };
 
