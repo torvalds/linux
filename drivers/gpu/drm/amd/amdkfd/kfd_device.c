@@ -743,6 +743,8 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 	node->max_proc_per_quantum = max_proc_per_quantum;
 	atomic_set(&node->sram_ecc_flag, 0);
 
+	amdgpu_amdkfd_get_local_mem_info(kfd->adev, &kfd->local_mem_info);
+
 	dev_info(kfd_device, "Total number of KFD nodes to be created: %d\n",
 				kfd->num_nodes);
 	for (i = 0; i < kfd->num_nodes; i++) {
@@ -792,8 +794,6 @@ bool kgd2kfd_device_init(struct kfd_dev *kfd,
 
 	if (kfd_resume_iommu(kfd))
 		goto kfd_resume_iommu_error;
-
-	amdgpu_amdkfd_get_local_mem_info(kfd->adev, &kfd->local_mem_info);
 
 	kfd->init_complete = true;
 	dev_info(kfd_device, "added device %x:%x\n", kfd->adev->pdev->vendor,
