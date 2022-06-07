@@ -562,11 +562,73 @@ int con_clear_unimap(struct vc_data *vc)
 	console_unlock();
 	return ret;
 }
-	
+
+static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
+		struct uni_pagedict *p)
+{
+	struct uni_pagedict *q;
+	u16 **p1, *p2, l;
+	int ret;
+	int i, j, k;
+
+	ret = con_do_clear_unimap(vc);
+	if (ret)
+		return ERR_PTR(ret);
+
+	/*
+	 * Since refcount was > 1, con_clear_unimap() allocated a new
+	 * uni_pagedict for this vc.  Re: p != q
+	 */
+	q = *vc->vc_uni_pagedir_loc;
+
+	/*
+	 * uni_pgdir is a 32*32*64 table with rows allocated when its first
+	 * entry is added. The unicode value must still be incremented for
+	 * empty rows. We are copying entries from "p" (old) to "q" (new).
+	 */
+	l = 0;		/* unicode value */
+	for (i = 0; i < UNI_DIRS; i++) {
+		p1 = p->uni_pgdir[i];
+		if (!p1) {
+			/* Account for empty table */
+			l += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
+			continue;
+		}
+
+		for (j = 0; j < UNI_DIR_ROWS; j++) {
+			p2 = p1[j];
+			if (!p2) {
+				/* Account for row of 64 empty entries */
+				l += UNI_ROW_GLYPHS;
+				continue;
+			}
+
+			for (k = 0; k < UNI_ROW_GLYPHS; k++, l++) {
+				if (p2[k] == 0xffff)
+					continue;
+				/*
+				 * Found one, copy entry for unicode l with
+				 * fontpos value p2[k].
+				 */
+				ret = con_insert_unipair(q, l, p2[k]);
+				if (ret) {
+					p->refcount++;
+					*vc->vc_uni_pagedir_loc = p;
+					con_release_unimap(q);
+					kfree(q);
+					return ERR_PTR(ret);
+				}
+			}
+		}
+	}
+
+	return q;
+}
+
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 {
-	int err = 0, err1, i;
-	struct uni_pagedict *p, *q;
+	int err = 0, err1;
+	struct uni_pagedict *p;
 	struct unipair *unilist, *plist;
 
 	if (!ct)
@@ -586,70 +648,11 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	}
 
 	if (p->refcount > 1) {
-		int j, k;
-		u16 **p1, *p2, l;
-
-		err1 = con_do_clear_unimap(vc);
-		if (err1) {
-			err = err1;
+		p = con_unshare_unimap(vc, p);
+		if (IS_ERR(p)) {
+			err = PTR_ERR(p);
 			goto out_unlock;
 		}
-
-		/*
-		 * Since refcount was > 1, con_clear_unimap() allocated a
-		 * a new uni_pagedict for this vc.  Re: p != q
-		 */
-		q = *vc->vc_uni_pagedir_loc;
-
-		/*
-		 * uni_pgdir is a 32*32*64 table with rows allocated
-		 * when its first entry is added.  The unicode value must
-		 * still be incremented for empty rows.  We are copying
-		 * entries from "p" (old) to "q" (new).
-		 */
-		l = 0;		/* unicode value */
-		for (i = 0; i < UNI_DIRS; i++) {
-			p1 = p->uni_pgdir[i];
-			if (!p1) {
-				/* Account for empty table */
-				l += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
-				continue;
-			}
-
-			for (j = 0; j < UNI_DIR_ROWS; j++) {
-				p2 = p1[j];
-				if (!p2) {
-					/*
-					 * Account for row of 64 empty entries
-					 */
-					l += UNI_ROW_GLYPHS;
-					continue;
-				}
-
-				for (k = 0; k < UNI_ROW_GLYPHS; k++, l++) {
-					if (p2[k] == 0xffff)
-						continue;
-					/*
-					 * Found one, copy entry for unicode
-					 * l with fontpos value p2[k].
-					 */
-					err1 = con_insert_unipair(q, l, p2[k]);
-					if (err1) {
-						p->refcount++;
-						*vc->vc_uni_pagedir_loc = p;
-						con_release_unimap(q);
-						kfree(q);
-						err = err1;
-						goto out_unlock;
-					}
-				}
-			}
-		}
-
-		/*
-		 * Finished copying font table, set vc_uni_pagedir to new table
-		 */
-		p = q;
 	} else if (p == dflt) {
 		dflt = NULL;
 	}
