@@ -186,6 +186,10 @@ static unsigned short translations[][256] = {
 
 static int inv_translate[MAX_NR_CONSOLES];
 
+#define UNI_DIRS	32U
+#define UNI_DIR_ROWS	32U
+#define UNI_ROW_GLYPHS	64U
+
 /**
  * struct uni_pagedict -- unicode directory
  *
@@ -196,7 +200,7 @@ static int inv_translate[MAX_NR_CONSOLES];
  * @inverse_trans_unicode: best-effort inverse mapping to unicode
  */
 struct uni_pagedict {
-	u16		**uni_pgdir[32];
+	u16		**uni_pgdir[UNI_DIRS];
 	unsigned long	refcount;
 	unsigned long	sum;
 	unsigned char	*inverse_translations[4];
@@ -246,15 +250,15 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 	}
 	memset(q, 0, MAX_GLYPH * sizeof(u16));
 
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
 		if (!p1)
 			continue;
-		for (j = 0; j < 32; j++) {
+		for (j = 0; j < UNI_DIR_ROWS; j++) {
 			p2 = p1[j];
 			if (!p2)
 				continue;
-			for (k = 0; k < 64; k++) {
+			for (k = 0; k < UNI_ROW_GLYPHS; k++) {
 				glyph = p2[k];
 				if (glyph >= 0 && glyph < MAX_GLYPH
 					       && q[glyph] < 32)
@@ -408,10 +412,10 @@ static void con_release_unimap(struct uni_pagedict *p)
 	int i, j;
 
 	if (p == dflt) dflt = NULL;  
-	for (i = 0; i < 32; i++) {
+	for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
 		if (p1 != NULL) {
-			for (j = 0; j < 32; j++)
+			for (j = 0; j < UNI_DIR_ROWS; j++)
 				kfree(p1[j]);
 			kfree(p1);
 		}
@@ -451,25 +455,26 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *p)
 		q = *vc_cons[i].d->vc_uni_pagedir_loc;
 		if (!q || q == p || q->sum != p->sum)
 			continue;
-		for (j = 0; j < 32; j++) {
+		for (j = 0; j < UNI_DIRS; j++) {
 			u16 **p1, **q1;
 			p1 = p->uni_pgdir[j]; q1 = q->uni_pgdir[j];
 			if (!p1 && !q1)
 				continue;
 			if (!p1 || !q1)
 				break;
-			for (k = 0; k < 32; k++) {
+			for (k = 0; k < UNI_DIR_ROWS; k++) {
 				if (!p1[k] && !q1[k])
 					continue;
 				if (!p1[k] || !q1[k])
 					break;
-				if (memcmp(p1[k], q1[k], 64*sizeof(u16)))
+				if (memcmp(p1[k], q1[k],
+						UNI_ROW_GLYPHS * sizeof(u16)))
 					break;
 			}
-			if (k < 32)
+			if (k < UNI_DIR_ROWS)
 				break;
 		}
-		if (j == 32) {
+		if (j == UNI_DIRS) {
 			q->refcount++;
 			*conp->vc_uni_pagedir_loc = q;
 			con_release_unimap(p);
@@ -488,18 +493,19 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 
 	p1 = p->uni_pgdir[n = unicode >> 11];
 	if (!p1) {
-		p1 = p->uni_pgdir[n] = kmalloc_array(32, sizeof(u16 *),
-						     GFP_KERNEL);
+		p1 = p->uni_pgdir[n] = kmalloc_array(UNI_DIR_ROWS,
+						     sizeof(u16 *), GFP_KERNEL);
 		if (!p1) return -ENOMEM;
-		for (i = 0; i < 32; i++)
+		for (i = 0; i < UNI_DIR_ROWS; i++)
 			p1[i] = NULL;
 	}
 
 	p2 = p1[n = (unicode >> 6) & 0x1f];
 	if (!p2) {
-		p2 = p1[n] = kmalloc_array(64, sizeof(u16), GFP_KERNEL);
+		p2 = p1[n] = kmalloc_array(UNI_ROW_GLYPHS, sizeof(u16), GFP_KERNEL);
 		if (!p2) return -ENOMEM;
-		memset(p2, 0xff, 64*sizeof(u16)); /* No glyphs for the characters (yet) */
+		/* No glyphs for the characters (yet) */
+		memset(p2, 0xff, UNI_ROW_GLYPHS * sizeof(u16));
 	}
 
 	p2[unicode & 0x3f] = fontpos;
@@ -589,13 +595,13 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 		 * entries from "p" (old) to "q" (new).
 		 */
 		l = 0;		/* unicode value */
-		for (i = 0; i < 32; i++) {
+		for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
 		if (p1)
-			for (j = 0; j < 32; j++) {
+			for (j = 0; j < UNI_DIR_ROWS; j++) {
 			p2 = p1[j];
 			if (p2) {
-				for (k = 0; k < 64; k++, l++)
+				for (k = 0; k < UNI_ROW_GLYPHS; k++, l++)
 				if (p2[k] != 0xffff) {
 					/*
 					 * Found one, copy entry for unicode
@@ -613,12 +619,12 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 				}
 			} else {
 				/* Account for row of 64 empty entries */
-				l += 64;
+				l += UNI_ROW_GLYPHS;
 			}
 		}
 		else
 			/* Account for empty table */
-			l += 32 * 64;
+			l += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
 		}
 
 		/*
@@ -760,13 +766,13 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct, struct uni
 	ect = 0;
 	if (*vc->vc_uni_pagedir_loc) {
 		p = *vc->vc_uni_pagedir_loc;
-		for (i = 0; i < 32; i++) {
+		for (i = 0; i < UNI_DIRS; i++) {
 		p1 = p->uni_pgdir[i];
 		if (p1)
-			for (j = 0; j < 32; j++) {
+			for (j = 0; j < UNI_DIR_ROWS; j++) {
 			p2 = *(p1++);
 			if (p2)
-				for (k = 0; k < 64; k++, p2++) {
+				for (k = 0; k < UNI_ROW_GLYPHS; k++, p2++) {
 					if (*p2 >= MAX_GLYPH)
 						continue;
 					if (ect < ct) {
