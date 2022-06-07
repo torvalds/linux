@@ -91,6 +91,18 @@ config EFI_SOFT_RESERVE
 
 	  If unsure, say Y.
 
+config EFI_DXE_MEM_ATTRIBUTES
+	bool "Adjust memory attributes in EFISTUB"
+	depends on EFI && EFI_STUB && X86
+	default y
+	help
+	  UEFI specification does not guarantee all memory to be
+	  accessible for both write and execute as the kernel expects
+	  it to be.
+	  Use DXE services to check and alter memory protection
+	  attributes during boot via EFISTUB to ensure that memory
+	  ranges used by the kernel are writable and executable.
+
 config EFI_PARAMS_FROM_FDT
 	bool
 	help
@@ -284,3 +296,34 @@ config EFI_CUSTOM_SSDT_OVERLAYS
 
 	  See Documentation/admin-guide/acpi/ssdt-overlays.rst for more
 	  information.
+
+config EFI_DISABLE_RUNTIME
+	bool "Disable EFI runtime services support by default"
+	default y if PREEMPT_RT
+	help
+	  Allow to disable the EFI runtime services support by default. This can
+	  already be achieved by using the efi=noruntime option, but it could be
+	  useful to have this default without any kernel command line parameter.
+
+	  The EFI runtime services are disabled by default when PREEMPT_RT is
+	  enabled, because measurements have shown that some EFI functions calls
+	  might take too much time to complete, causing large latencies which is
+	  an issue for Real-Time kernels.
+
+	  This default can be overridden by using the efi=runtime option.
+
+config EFI_COCO_SECRET
+	bool "EFI Confidential Computing Secret Area Support"
+	depends on EFI
+	help
+	  Confidential Computing platforms (such as AMD SEV) allow the
+	  Guest Owner to securely inject secrets during guest VM launch.
+	  The secrets are placed in a designated EFI reserved memory area.
+
+	  In order to use the secrets in the kernel, the location of the secret
+	  area (as published in the EFI config table) must be kept.
+
+	  If you say Y here, the address of the EFI secret area will be kept
+	  for usage inside the kernel.  This will allow the
+	  virt/coco/efi_secret module to access the secrets, which in turn
+	  allows userspace programs to access the injected secrets.

@@ -155,6 +155,7 @@ struct io_wq_work_node *wq_stack_extract(struct io_wq_work_node *stack)
 struct io_wq_work {
 	struct io_wq_work_node list;
 	unsigned flags;
+	int cancel_seq;
 };
 
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)

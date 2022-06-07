@@ -24,6 +24,7 @@ help:
 	@echo '  intel-speed-select     - Intel Speed Select tool'
 	@echo '  kvm_stat               - top-like utility for displaying kvm statistics'
 	@echo '  leds                   - LEDs  tools'
+	@echo '  nolibc                 - nolibc headers testing and installation'
 	@echo '  objtool                - an ELF object analysis tool'
 	@echo '  pci                    - PCI tools'
 	@echo '  perf                   - Linux performance measurement and analysis tool'
@@ -73,6 +74,9 @@ bpf/%: FORCE
 
 libapi: FORCE
 	$(call descend,lib/api)
+
+nolibc_%: FORCE
+	$(call descend,include/nolibc,$(patsubst nolibc_%,%,$@))
 
 # The perf build does not follow the descend function setup,
 # invoking it via it's own make rule.

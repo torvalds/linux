@@ -200,7 +200,10 @@ struct lowcore {
 	__u64	last_break_save_area;		/* 0x1338 */
 	__u32	access_regs_save_area[16];	/* 0x1340 */
 	__u64	cregs_save_area[16];		/* 0x1380 */
-	__u8	pad_0x1400[0x1800-0x1400];	/* 0x1400 */
+	__u8	pad_0x1400[0x1500-0x1400];	/* 0x1400 */
+	/* Cryptography-counter designation */
+	__u64	ccd;				/* 0x1500 */
+	__u8	pad_0x1508[0x1800-0x1508];	/* 0x1508 */
 
 	/* Transaction abort diagnostic block */
 	struct pgm_tdb pgm_tdb;			/* 0x1800 */

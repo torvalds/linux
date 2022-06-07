@@ -192,26 +192,6 @@ struct smu_metrics {
 	u64 timecondition_notmet_totaltime[SOC_SUBSYSTEM_IP_MAX];
 } __packed;
 
-static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
-{
-	int rc;
-	u32 val;
-
-	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
-	if (rc)
-		return rc;
-
-	dev->smu_program = (val >> 24) & GENMASK(7, 0);
-	dev->major = (val >> 16) & GENMASK(7, 0);
-	dev->minor = (val >> 8) & GENMASK(7, 0);
-	dev->rev = (val >> 0) & GENMASK(7, 0);
-
-	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
-		dev->smu_program, dev->major, dev->minor, dev->rev);
-
-	return 0;
-}
-
 static int amd_pmc_stb_debugfs_open(struct inode *inode, struct file *filp)
 {
 	struct amd_pmc_dev *dev = filp->f_inode->i_private;
@@ -294,6 +274,40 @@ static const struct file_operations amd_pmc_stb_debugfs_fops_v2 = {
 	.release = amd_pmc_stb_debugfs_release_v2,
 };
 
+#if defined(CONFIG_SUSPEND) || defined(CONFIG_DEBUG_FS)
+static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
+{
+	if (dev->cpu_id == AMD_CPU_ID_PCO) {
+		dev_warn_once(dev->dev, "SMU debugging info not supported on this platform\n");
+		return -EINVAL;
+	}
+
+	/* Get Active devices list from SMU */
+	if (!dev->active_ips)
+		amd_pmc_send_cmd(dev, 0, &dev->active_ips, SMU_MSG_GET_SUP_CONSTRAINTS, 1);
+
+	/* Get dram address */
+	if (!dev->smu_virt_addr) {
+		u32 phys_addr_low, phys_addr_hi;
+		u64 smu_phys_addr;
+
+		amd_pmc_send_cmd(dev, 0, &phys_addr_low, SMU_MSG_LOG_GETDRAM_ADDR_LO, 1);
+		amd_pmc_send_cmd(dev, 0, &phys_addr_hi, SMU_MSG_LOG_GETDRAM_ADDR_HI, 1);
+		smu_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
+
+		dev->smu_virt_addr = devm_ioremap(dev->dev, smu_phys_addr,
+						  sizeof(struct smu_metrics));
+		if (!dev->smu_virt_addr)
+			return -ENOMEM;
+	}
+
+	/* Start the logging */
+	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_RESET, 0);
+	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_START, 0);
+
+	return 0;
+}
+
 static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 				 struct seq_file *s)
 {
@@ -321,11 +335,19 @@ static int amd_pmc_idlemask_read(struct amd_pmc_dev *pdev, struct device *dev,
 
 static int get_metrics_table(struct amd_pmc_dev *pdev, struct smu_metrics *table)
 {
+	if (!pdev->smu_virt_addr) {
+		int ret = amd_pmc_setup_smu_logging(pdev);
+
+		if (ret)
+			return ret;
+	}
+
 	if (pdev->cpu_id == AMD_CPU_ID_PCO)
 		return -ENODEV;
 	memcpy_fromio(table, pdev->smu_virt_addr, sizeof(struct smu_metrics));
 	return 0;
 }
+#endif /* CONFIG_SUSPEND || CONFIG_DEBUG_FS */
 
 #ifdef CONFIG_SUSPEND
 static void amd_pmc_validate_deepest(struct amd_pmc_dev *pdev)
@@ -379,6 +401,17 @@ static int s0ix_stats_show(struct seq_file *s, void *unused)
 	struct amd_pmc_dev *dev = s->private;
 	u64 entry_time, exit_time, residency;
 
+	/* Use FCH registers to get the S0ix stats */
+	if (!dev->fch_virt_addr) {
+		u32 base_addr_lo = FCH_BASE_PHY_ADDR_LOW;
+		u32 base_addr_hi = FCH_BASE_PHY_ADDR_HIGH;
+		u64 fch_phys_addr = ((u64)base_addr_hi << 32 | base_addr_lo);
+
+		dev->fch_virt_addr = devm_ioremap(dev->dev, fch_phys_addr, FCH_SSC_MAPPING_SIZE);
+		if (!dev->fch_virt_addr)
+			return -ENOMEM;
+	}
+
 	entry_time = ioread32(dev->fch_virt_addr + FCH_S0I3_ENTRY_TIME_H_OFFSET);
 	entry_time = entry_time << 32 | ioread32(dev->fch_virt_addr + FCH_S0I3_ENTRY_TIME_L_OFFSET);
 
@@ -398,10 +431,37 @@ static int s0ix_stats_show(struct seq_file *s, void *unused)
 }
 DEFINE_SHOW_ATTRIBUTE(s0ix_stats);
 
+static int amd_pmc_get_smu_version(struct amd_pmc_dev *dev)
+{
+	int rc;
+	u32 val;
+
+	rc = amd_pmc_send_cmd(dev, 0, &val, SMU_MSG_GETSMUVERSION, 1);
+	if (rc)
+		return rc;
+
+	dev->smu_program = (val >> 24) & GENMASK(7, 0);
+	dev->major = (val >> 16) & GENMASK(7, 0);
+	dev->minor = (val >> 8) & GENMASK(7, 0);
+	dev->rev = (val >> 0) & GENMASK(7, 0);
+
+	dev_dbg(dev->dev, "SMU program %u version is %u.%u.%u\n",
+		dev->smu_program, dev->major, dev->minor, dev->rev);
+
+	return 0;
+}
+
 static int amd_pmc_idlemask_show(struct seq_file *s, void *unused)
 {
 	struct amd_pmc_dev *dev = s->private;
 	int rc;
+
+	/* we haven't yet read SMU version */
+	if (!dev->major) {
+		rc = amd_pmc_get_smu_version(dev);
+		if (rc)
+			return rc;
+	}
 
 	if (dev->major > 56 || (dev->major >= 55 && dev->minor >= 37)) {
 		rc = amd_pmc_idlemask_read(dev, NULL, s);
@@ -448,32 +508,6 @@ static inline void amd_pmc_dbgfs_unregister(struct amd_pmc_dev *dev)
 {
 }
 #endif /* CONFIG_DEBUG_FS */
-
-static int amd_pmc_setup_smu_logging(struct amd_pmc_dev *dev)
-{
-	u32 phys_addr_low, phys_addr_hi;
-	u64 smu_phys_addr;
-
-	if (dev->cpu_id == AMD_CPU_ID_PCO)
-		return -EINVAL;
-
-	/* Get Active devices list from SMU */
-	amd_pmc_send_cmd(dev, 0, &dev->active_ips, SMU_MSG_GET_SUP_CONSTRAINTS, 1);
-
-	/* Get dram address */
-	amd_pmc_send_cmd(dev, 0, &phys_addr_low, SMU_MSG_LOG_GETDRAM_ADDR_LO, 1);
-	amd_pmc_send_cmd(dev, 0, &phys_addr_hi, SMU_MSG_LOG_GETDRAM_ADDR_HI, 1);
-	smu_phys_addr = ((u64)phys_addr_hi << 32 | phys_addr_low);
-
-	dev->smu_virt_addr = devm_ioremap(dev->dev, smu_phys_addr, sizeof(struct smu_metrics));
-	if (!dev->smu_virt_addr)
-		return -ENOMEM;
-
-	/* Start the logging */
-	amd_pmc_send_cmd(dev, 0, NULL, SMU_MSG_LOG_START, 0);
-
-	return 0;
-}
 
 static void amd_pmc_dump_registers(struct amd_pmc_dev *dev)
 {
@@ -639,8 +673,7 @@ static void amd_pmc_s2idle_prepare(void)
 	u32 arg = 1;
 
 	/* Reset and Start SMU logging - to monitor the s0i3 stats */
-	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_RESET, 0);
-	amd_pmc_send_cmd(pdev, 0, NULL, SMU_MSG_LOG_START, 0);
+	amd_pmc_setup_smu_logging(pdev);
 
 	/* Activate CZN specific RTC functionality */
 	if (pdev->cpu_id == AMD_CPU_ID_CZN) {
@@ -790,7 +823,7 @@ static int amd_pmc_probe(struct platform_device *pdev)
 	struct amd_pmc_dev *dev = &pmc;
 	struct pci_dev *rdev;
 	u32 base_addr_lo, base_addr_hi;
-	u64 base_addr, fch_phys_addr;
+	u64 base_addr;
 	int err;
 	u32 val;
 
@@ -844,28 +877,12 @@ static int amd_pmc_probe(struct platform_device *pdev)
 
 	mutex_init(&dev->lock);
 
-	/* Use FCH registers to get the S0ix stats */
-	base_addr_lo = FCH_BASE_PHY_ADDR_LOW;
-	base_addr_hi = FCH_BASE_PHY_ADDR_HIGH;
-	fch_phys_addr = ((u64)base_addr_hi << 32 | base_addr_lo);
-	dev->fch_virt_addr = devm_ioremap(dev->dev, fch_phys_addr, FCH_SSC_MAPPING_SIZE);
-	if (!dev->fch_virt_addr) {
-		err = -ENOMEM;
-		goto err_pci_dev_put;
-	}
-
-	/* Use SMU to get the s0i3 debug stats */
-	err = amd_pmc_setup_smu_logging(dev);
-	if (err)
-		dev_err(dev->dev, "SMU debugging info not supported on this platform\n");
-
 	if (enable_stb && dev->cpu_id == AMD_CPU_ID_YC) {
 		err = amd_pmc_s2d_init(dev);
 		if (err)
 			return err;
 	}
 
-	amd_pmc_get_smu_version(dev);
 	platform_set_drvdata(pdev, dev);
 #ifdef CONFIG_SUSPEND
 	err = acpi_register_lps0_dev(&amd_pmc_s2idle_dev_ops);
