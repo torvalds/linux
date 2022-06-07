@@ -773,11 +773,11 @@ EXPORT_SYMBOL(con_copy_unimap);
 int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
 		struct unipair __user *list)
 {
-	int i, j, k, ret = 0;
 	ushort ect;
-	u16 **p1, *p2;
-	struct uni_pagedict *p;
+	struct uni_pagedict *dict;
 	struct unipair *unilist;
+	unsigned int d, r, g;
+	int ret = 0;
 
 	unilist = kvmalloc_array(ct, sizeof(*unilist), GFP_KERNEL);
 	if (!unilist)
@@ -786,26 +786,26 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
 	console_lock();
 
 	ect = 0;
-	p = *vc->vc_uni_pagedir_loc;
-	if (!p)
+	dict = *vc->vc_uni_pagedir_loc;
+	if (!dict)
 		goto unlock;
 
-	for (i = 0; i < UNI_DIRS; i++) {
-		p1 = p->uni_pgdir[i];
-		if (!p1)
+	for (d = 0; d < UNI_DIRS; d++) {
+		u16 **dir = dict->uni_pgdir[d];
+		if (!dir)
 			continue;
 
-		for (j = 0; j < UNI_DIR_ROWS; j++, p1++) {
-			p2 = *p1;
-			if (!p2)
+		for (r = 0; r < UNI_DIR_ROWS; r++) {
+			u16 *row = dir[r];
+			if (!row)
 				continue;
 
-			for (k = 0; k < UNI_ROW_GLYPHS; k++, p2++) {
-				if (*p2 >= MAX_GLYPH)
+			for (g = 0; g < UNI_ROW_GLYPHS; g++, row++) {
+				if (*row >= MAX_GLYPH)
 					continue;
 				if (ect < ct) {
-					unilist[ect].unicode = UNI(i, j, k);
-					unilist[ect].fontpos = *p2;
+					unilist[ect].unicode = UNI(d, r, g);
+					unilist[ect].fontpos = *row;
 				}
 				ect++;
 			}
