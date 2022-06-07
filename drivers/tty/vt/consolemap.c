@@ -530,27 +530,35 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 	return 0;
 }
 
+static int con_allocate_new(struct vc_data *vc)
+{
+	struct uni_pagedict *new, *old = *vc->vc_uni_pagedir_loc;
+
+	new = kzalloc(sizeof(*new), GFP_KERNEL);
+	if (!new)
+		return -ENOMEM;
+
+	new->refcount = 1;
+	*vc->vc_uni_pagedir_loc = new;
+
+	if (old)
+		old->refcount--;
+
+	return 0;
+}
+
 /* Caller must hold the lock */
 static int con_do_clear_unimap(struct vc_data *vc)
 {
 	struct uni_pagedict *old = *vc->vc_uni_pagedir_loc;
 
-	if (!old || old->refcount > 1) {
-		struct uni_pagedict *new = kzalloc(sizeof(*new), GFP_KERNEL);
-		if (!new)
-			return -ENOMEM;
+	if (!old || old->refcount > 1)
+		return con_allocate_new(vc);
 
-		new->refcount = 1;
-		*vc->vc_uni_pagedir_loc = new;
-
-		if (old)
-			old->refcount--;
-	} else {
-		if (old == dflt)
-			dflt = NULL;
-		old->sum = 0;
-		con_release_unimap(old);
-	}
+	if (old == dflt)
+		dflt = NULL;
+	old->sum = 0;
+	con_release_unimap(old);
 
 	return 0;
 }
