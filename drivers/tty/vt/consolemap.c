@@ -499,18 +499,16 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *p)
 static int
 con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 {
-	int i, n;
+	int n;
 	u16 **p1, *p2;
 
 	n = UNI_DIR(unicode);
 	p1 = p->uni_pgdir[n];
 	if (!p1) {
-		p1 = p->uni_pgdir[n] = kmalloc_array(UNI_DIR_ROWS,
-						     sizeof(u16 *), GFP_KERNEL);
+		p1 = p->uni_pgdir[n] = kcalloc(UNI_DIR_ROWS, sizeof(u16 *),
+				GFP_KERNEL);
 		if (!p1)
 			return -ENOMEM;
-		for (i = 0; i < UNI_DIR_ROWS; i++)
-			p1[i] = NULL;
 	}
 
 	n = UNI_ROW(unicode);
