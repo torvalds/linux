@@ -3201,6 +3201,8 @@ struct ct_sns_rsp {
 #define GFF_NVME_OFFSET		23 /* type = 28h */
 		struct {
 			uint8_t fc4_features[128];
+#define FC4_FF_TARGET    BIT_0
+#define FC4_FF_INITIATOR BIT_1
 		} gff_id;
 		struct {
 			uint8_t reserved;
