@@ -22,6 +22,7 @@
 #include <drm/drm_of.h>
 #include <drm/drm_probe_helper.h>
 #include <drm/drm_simple_kms_helper.h>
+#include <linux/regulator/consumer.h>
 #include "vs_clock.h"
 
 #include "vs_drv.h"
@@ -74,6 +75,8 @@ struct inno_hdmi {
 
 	struct hdmi_data_info	hdmi_data;
 	struct drm_display_mode previous_mode;
+	struct regulator *hdmi_1p8;
+	struct regulator *hdmi_0p9;
 };
 
 enum {
@@ -1106,8 +1109,26 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 	if (IS_ERR(hdmi->regs))
 		return PTR_ERR(hdmi->regs);
 
+	hdmi->hdmi_1p8 = devm_regulator_get(dev, "hdmi_1p8");
+	if (IS_ERR(hdmi->hdmi_1p8))
+		return PTR_ERR(hdmi->hdmi_1p8);
+
+	hdmi->hdmi_0p9 = devm_regulator_get(dev, "hdmi_0p9");
+	if (IS_ERR(hdmi->hdmi_0p9))
+		return PTR_ERR(hdmi->hdmi_0p9);
+
 	//pmic turn on
+	ret = regulator_enable(hdmi->hdmi_1p8);
+	if (ret) {
+		dev_err(dev, "Cannot enable hdmi_1p8 regulator\n");
+		goto err_reg_1p8;
+	}
 	udelay(100);
+	ret = regulator_enable(hdmi->hdmi_0p9);
+	if (ret) {
+		dev_err(dev, "Cannot enable hdmi_0p9 regulator\n");
+		goto err_reg_0p9;
+	}
 	udelay(100);
 
 //20220531 clk rst interface support
@@ -1170,6 +1191,9 @@ err_put_adapter:
 	i2c_put_adapter(hdmi->ddc);
 err_disable_clk:
 	//clk_disable_unprepare(hdmi->pclk);
+err_reg_0p9:
+	regulator_disable(hdmi->hdmi_1p8);
+err_reg_1p8:
 	return ret;
 }
 
@@ -1194,7 +1218,9 @@ static void inno_hdmi_unbind(struct device *dev, struct device *master,
 
 	//pmic turn off
 	#if 1
+	regulator_disable(hdmi->hdmi_1p8);
 	udelay(100);
+	regulator_disable(hdmi->hdmi_0p9);
 	#endif
 	//pmic turn off
 

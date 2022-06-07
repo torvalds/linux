@@ -5,6 +5,7 @@
 #ifndef STF_CSI_H
 #define STF_CSI_H
 
+#include <linux/regulator/consumer.h>
 #include <media/v4l2-subdev.h>
 #include <media/v4l2-device.h>
 #include <media/media-entity.h>
@@ -44,6 +45,8 @@ struct stf_csi_dev {
 	struct csi_hw_ops *hw_ops;
 	struct mutex stream_lock;
 	int stream_count;
+	struct regulator *mipirx_1p8;
+	struct regulator *mipirx_0p9;
 };
 
 extern int stf_csi_subdev_init(struct stfcamss *stfcamss, int id);

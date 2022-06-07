@@ -39,11 +39,37 @@
 static int stf_csi_power_on(struct stf_csi_dev *csi_dev, u8 on)
 {
 	void __iomem *aon_syscon;
+	int ret;
+
+	if (on) {
+		ret = regulator_enable(csi_dev->mipirx_1p8);
+		if (ret) {
+			st_err(ST_CSI, "Cannot enable mipirx_1p8 regulator\n");
+			goto err_1p8;
+		}
+
+		ret = regulator_enable(csi_dev->mipirx_0p9);
+		if (ret) {
+			st_err(ST_CSI, "Cannot enable mipirx_0p9 regulator\n");
+			goto err_0p9;
+		}
+	}
+	else
+	{
+		regulator_disable(csi_dev->mipirx_1p8);
+		regulator_disable(csi_dev->mipirx_0p9);
+	}
 
 	aon_syscon = ioremap(0x17010000, 0x4);
 	reg_write(aon_syscon, 0x00, 0x80000000);
 
 	return 0;
+
+err_0p9:
+	regulator_disable(csi_dev->mipirx_1p8);
+err_1p8:
+	return ret;
+
 }
 
 static int stf_csi_clk_enable(struct stf_csi_dev *csi_dev)
