@@ -101,13 +101,15 @@ struct samsung_ufs_phy_cfg {
 	u8 id;
 };
 
+struct samsung_ufs_phy_pmu_isol {
+	u32 offset;
+	u32 mask;
+	u32 en;
+};
+
 struct samsung_ufs_phy_drvdata {
 	const struct samsung_ufs_phy_cfg **cfgs;
-	struct pmu_isol {
-		u32 offset;
-		u32 mask;
-		u32 en;
-	} isol;
+	struct samsung_ufs_phy_pmu_isol isol;
 	bool has_symbol_clk;
 };
 
@@ -122,7 +124,8 @@ struct samsung_ufs_phy {
 	struct clk *rx1_symbol_clk;
 	const struct samsung_ufs_phy_drvdata *drvdata;
 	const struct samsung_ufs_phy_cfg * const *cfgs;
-	const struct pmu_isol *isol;
+	struct samsung_ufs_phy_pmu_isol isol;
+	bool has_symbol_clk;
 	u8 lane_cnt;
 	int ufs_phy_state;
 	enum phy_mode mode;
@@ -136,8 +139,8 @@ static inline struct samsung_ufs_phy *get_samsung_ufs_phy(struct phy *phy)
 static inline void samsung_ufs_phy_ctrl_isol(
 		struct samsung_ufs_phy *phy, u32 isol)
 {
-	regmap_update_bits(phy->reg_pmu, phy->isol->offset,
-			   phy->isol->mask, isol ? 0 : phy->isol->en);
+	regmap_update_bits(phy->reg_pmu, phy->isol.offset,
+			   phy->isol.mask, isol ? 0 : phy->isol.en);
 }
 
 extern const struct samsung_ufs_phy_drvdata exynos7_ufs_phy;
