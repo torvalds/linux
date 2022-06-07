@@ -1850,8 +1850,8 @@ bool nested_vmx_allowed(struct kvm_vcpu *vcpu)
 					FEAT_CTL_SGX_ENABLED		 | \
 					FEAT_CTL_LMCE_ENABLED)
 
-static inline bool vmx_feature_control_msr_valid(struct vcpu_vmx *vmx,
-						 struct msr_data *msr)
+static inline bool is_vmx_feature_control_msr_valid(struct vcpu_vmx *vmx,
+						    struct msr_data *msr)
 {
 	uint64_t valid_bits;
 
@@ -1861,6 +1861,10 @@ static inline bool vmx_feature_control_msr_valid(struct vcpu_vmx *vmx,
 	 */
 	WARN_ON_ONCE(vmx->msr_ia32_feature_control_valid_bits &
 		     ~KVM_SUPPORTED_FEATURE_CONTROL);
+
+	if (!msr->host_initiated &&
+	    (vmx->msr_ia32_feature_control & FEAT_CTL_LOCKED))
+		return false;
 
 	if (msr->host_initiated)
 		valid_bits = KVM_SUPPORTED_FEATURE_CONTROL;
@@ -2266,10 +2270,9 @@ static int vmx_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vcpu->arch.mcg_ext_ctl = data;
 		break;
 	case MSR_IA32_FEAT_CTL:
-		if (!vmx_feature_control_msr_valid(vmx, msr_info) ||
-		    (to_vmx(vcpu)->msr_ia32_feature_control &
-		     FEAT_CTL_LOCKED && !msr_info->host_initiated))
+		if (!is_vmx_feature_control_msr_valid(vmx, msr_info))
 			return 1;
+
 		vmx->msr_ia32_feature_control = data;
 		if (msr_info->host_initiated && data == 0)
 			vmx_leave_nested(vcpu);
