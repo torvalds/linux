@@ -3243,7 +3243,7 @@
 		};
 
 		sram@146aa000 {
-			compatible = "simple-mfd";
+			compatible = "qcom,sc7180-imem", "syscon", "simple-mfd";
 			reg = <0 0x146aa000 0 0x2000>;
 
 			#address-cells = <1>;
