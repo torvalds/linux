@@ -41,12 +41,14 @@
 #define ISTATUS_MSI			0x194
 #define CFG_SPACE			0x1000
 #define GEN_SETTINGS			0x80
+#define PMSG_SUPPORT_RX			0x3F0
 
 #define PCI_MISC			0xB4
 
 #define PLDA_EP_ENABLE			0
 #define PLDA_RP_ENABLE			1
 
+#define PMSG_LTR_SUPPORT		BIT(2)
 #define PDLA_LINK_SPEED_GEN2		BIT(12)
 #define PLDA_FUNCTION_DIS		BIT(15)
 #define PLDA_FUNC_NUM			4
@@ -581,7 +583,7 @@ static int plda_pcie_parse_dt(struct plda_pcie *pcie)
 		dev_err(&pdev->dev, "Failed to map config memory\n");
 		return PTR_ERR(pcie->config_base);
 	}
-	
+
 	pcie->irq = platform_get_irq(pdev, 0);
 	if (pcie->irq <= 0) {
 		dev_err(&pdev->dev, "Failed to get IRQ: %d\n", pcie->irq);
@@ -788,6 +790,17 @@ static void plda_pcie_hw_init(struct plda_pcie *pcie)
 	value = readl(pcie->reg_base + GEN_SETTINGS);
 	value |= PLDA_RP_ENABLE;
 	writel(value, pcie->reg_base + GEN_SETTINGS);
+
+	/* The LTR message forwarding of PCIe Message Reception was set by core
+	 * as default, but the forward id & addr are also need to be reset.
+	 * If we do not disable LTR message forwarding here, or set a legal
+	 * forwarding address, the kernel will get stuck after this driver probe.
+	 * To workaround, disable the LTR message forwarding support on
+	 * PCIe Message Reception.
+	 */
+	value = readl(pcie->reg_base + PMSG_SUPPORT_RX);
+	value &= ~PMSG_LTR_SUPPORT;
+	writel(value, pcie->reg_base + PMSG_SUPPORT_RX);
 
 	/* As the two host bridges in JH7110 soc have the same default
 	 * address translation table, this cause the second root port can't
