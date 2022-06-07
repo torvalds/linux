@@ -562,12 +562,12 @@ int con_clear_unimap(struct vc_data *vc)
 }
 
 static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
-		struct uni_pagedict *p)
+		struct uni_pagedict *old)
 {
-	struct uni_pagedict *q;
-	u16 **p1, *p2, l;
+	struct uni_pagedict *new;
+	unsigned int d, r, g;
 	int ret;
-	int i, j, k;
+	u16 uni = 0;
 
 	ret = con_do_clear_unimap(vc);
 	if (ret)
@@ -575,52 +575,51 @@ static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
 
 	/*
 	 * Since refcount was > 1, con_clear_unimap() allocated a new
-	 * uni_pagedict for this vc.  Re: p != q
+	 * uni_pagedict for this vc.  Re: old != new
 	 */
-	q = *vc->vc_uni_pagedir_loc;
+	new = *vc->vc_uni_pagedir_loc;
 
 	/*
 	 * uni_pgdir is a 32*32*64 table with rows allocated when its first
 	 * entry is added. The unicode value must still be incremented for
-	 * empty rows. We are copying entries from "p" (old) to "q" (new).
+	 * empty rows. We are copying entries from "old" to "new".
 	 */
-	l = 0;		/* unicode value */
-	for (i = 0; i < UNI_DIRS; i++) {
-		p1 = p->uni_pgdir[i];
-		if (!p1) {
+	for (d = 0; d < UNI_DIRS; d++) {
+		u16 **dir = old->uni_pgdir[d];
+		if (!dir) {
 			/* Account for empty table */
-			l += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
+			uni += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
 			continue;
 		}
 
-		for (j = 0; j < UNI_DIR_ROWS; j++) {
-			p2 = p1[j];
-			if (!p2) {
+		for (r = 0; r < UNI_DIR_ROWS; r++) {
+			u16 *row = dir[r];
+			if (!row) {
 				/* Account for row of 64 empty entries */
-				l += UNI_ROW_GLYPHS;
+				uni += UNI_ROW_GLYPHS;
 				continue;
 			}
 
-			for (k = 0; k < UNI_ROW_GLYPHS; k++, l++) {
-				if (p2[k] == 0xffff)
+			for (g = 0; g < UNI_ROW_GLYPHS; g++, uni++) {
+				if (row[g] == 0xffff)
 					continue;
 				/*
-				 * Found one, copy entry for unicode l with
-				 * fontpos value p2[k].
+				 * Found one, copy entry for unicode uni with
+				 * fontpos value row[g].
 				 */
-				ret = con_insert_unipair(q, l, p2[k]);
+				ret = con_insert_unipair(new, uni, row[g]);
 				if (ret) {
-					p->refcount++;
-					*vc->vc_uni_pagedir_loc = p;
-					con_release_unimap(q);
-					kfree(q);
+					old->refcount++;
+					*vc->vc_uni_pagedir_loc = old;
+					con_release_unimap(new);
+					kfree(new);
 					return ERR_PTR(ret);
 				}
 			}
 		}
 	}
 
-	return q;
+	return new;
 }
 
 int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
