@@ -170,15 +170,12 @@ EXPORT_SYMBOL(nvdimm_namespace_disk_name);
 
 const uuid_t *nd_dev_to_uuid(struct device *dev)
 {
-	if (!dev)
-		return &uuid_null;
-
-	if (is_namespace_pmem(dev)) {
+	if (dev && is_namespace_pmem(dev)) {
 		struct nd_namespace_pmem *nspm = to_nd_namespace_pmem(dev);
 
 		return nspm->uuid;
-	} else
-		return &uuid_null;
+	}
+	return &uuid_null;
 }
 EXPORT_SYMBOL(nd_dev_to_uuid);
 
