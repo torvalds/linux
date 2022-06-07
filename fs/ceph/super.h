@@ -1231,6 +1231,14 @@ extern int ceph_pool_perm_check(struct inode *inode, int need);
 extern void ceph_pool_perm_destroy(struct ceph_mds_client* mdsc);
 int ceph_purge_inode_cap(struct inode *inode, struct ceph_cap *cap, bool *invalidate);
 
+static inline bool ceph_has_inline_data(struct ceph_inode_info *ci)
+{
+	if (ci->i_inline_version == CEPH_INLINE_NONE ||
+	    ci->i_inline_version == 1) /* initial version, no data */
+		return false;
+	return true;
+}
+
 /* file.c */
 extern const struct file_operations ceph_file_fops;
 

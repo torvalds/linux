@@ -1049,7 +1049,7 @@ int ceph_fill_inode(struct inode *inode, struct page *locked_page,
 	    iinfo->inline_version >= ci->i_inline_version) {
 		int cache_caps = CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO;
 		ci->i_inline_version = iinfo->inline_version;
-		if (ci->i_inline_version != CEPH_INLINE_NONE &&
+		if (ceph_has_inline_data(ci) &&
 		    (locked_page || (info_caps & cache_caps)))
 			fill_inline = true;
 	}
@@ -2327,7 +2327,8 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 		if (inline_version == 0) {
 			/* the reply is supposed to contain inline data */
 			err = -EINVAL;
-		} else if (inline_version == CEPH_INLINE_NONE) {
+		} else if (inline_version == CEPH_INLINE_NONE ||
+			   inline_version == 1) {
 			err = -ENODATA;
 		} else {
 			err = req->r_reply_info.targeti.inline_len;

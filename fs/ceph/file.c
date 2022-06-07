@@ -241,8 +241,7 @@ static int ceph_init_file_info(struct inode *inode, struct file *file,
 	INIT_LIST_HEAD(&fi->rw_contexts);
 	fi->filp_gen = READ_ONCE(ceph_inode_to_client(inode)->filp_gen);
 
-	if ((file->f_mode & FMODE_WRITE) &&
-	    ci->i_inline_version != CEPH_INLINE_NONE) {
+	if ((file->f_mode & FMODE_WRITE) && ceph_has_inline_data(ci)) {
 		ret = ceph_uninline_data(file);
 		if (ret < 0)
 			goto error;
@@ -1650,7 +1649,7 @@ again:
 		     inode, ceph_vinop(inode), iocb->ki_pos, (unsigned)len,
 		     ceph_cap_string(got));
 
-		if (ci->i_inline_version == CEPH_INLINE_NONE) {
+		if (!ceph_has_inline_data(ci)) {
 			if (!retry_op && (iocb->ki_flags & IOCB_DIRECT)) {
 				ret = ceph_direct_read_write(iocb, to,
 							     NULL, NULL);

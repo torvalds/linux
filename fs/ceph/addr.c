@@ -313,8 +313,7 @@ static void ceph_netfs_issue_read(struct netfs_io_subrequest *subreq)
 	int err = 0;
 	u64 len = subreq->len;
 
-	if (ci->i_inline_version != CEPH_INLINE_NONE &&
-	    ceph_netfs_issue_op_inline(subreq))
+	if (ceph_has_inline_data(ci) && ceph_netfs_issue_op_inline(subreq))
 		return;
 
 	req = ceph_osdc_new_request(&fsc->client->osdc, &ci->i_layout, vino, subreq->start, &len,
@@ -1439,7 +1438,7 @@ static vm_fault_t ceph_filemap_fault(struct vm_fault *vmf)
 	     inode, off, ceph_cap_string(got));
 
 	if ((got & (CEPH_CAP_FILE_CACHE | CEPH_CAP_FILE_LAZYIO)) ||
-	    ci->i_inline_version == CEPH_INLINE_NONE) {
+	    !ceph_has_inline_data(ci)) {
 		CEPH_DEFINE_RW_CONTEXT(rw_ctx, got);
 		ceph_add_rw_context(fi, &rw_ctx);
 		ret = filemap_fault(vmf);
