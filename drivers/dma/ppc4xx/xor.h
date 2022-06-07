@@ -1,13 +1,10 @@
+/* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * 440SPe's XOR engines support header file
  *
  * 2006-2009 (C) DENX Software Engineering.
  *
  * Author: Yuri Tikhonov <yur@emcraft.com>
- *
- * This file is licensed under the term of  the GNU General Public License
- * version 2. The program licensed "as is" without any warranty of any
- * kind, whether express or implied.
  */
 
 #ifndef _PPC440SPE_XOR_H
