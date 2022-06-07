@@ -7,7 +7,7 @@
 /dts-v1/;
 
 #include "rk3588-vehicle-evb.dtsi"
-#include "rk3588-evb7-imx415.dtsi"
+#include "rk3588-vehicle-evb-mipi-nvp6188.dtsi"
 #include "rk3588-vehicle-serdes-display.dtsi"
 #include "rk3588-android.dtsi"
 
