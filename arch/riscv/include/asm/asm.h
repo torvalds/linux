@@ -67,4 +67,19 @@
 #error "Unexpected __SIZEOF_SHORT__"
 #endif
 
+#ifdef __ASSEMBLY__
+
+/* Common assembly source macros */
+
+/*
+ * NOP sequence
+ */
+.macro	nops, num
+	.rept	\num
+	nop
+	.endr
+.endm
+
+#endif /* __ASSEMBLY__ */
+
 #endif /* _ASM_RISCV_ASM_H */
