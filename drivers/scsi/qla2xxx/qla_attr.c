@@ -2476,7 +2476,6 @@ static DEVICE_ATTR(port_speed, 0644, qla2x00_port_speed_show,
     qla2x00_port_speed_store);
 static DEVICE_ATTR(port_no, 0444, qla2x00_port_no_show, NULL);
 static DEVICE_ATTR(fw_attr, 0444, qla2x00_fw_attr_show, NULL);
-static DEVICE_ATTR_RO(edif_doorbell);
 
 static struct attribute *qla2x00_host_attrs[] = {
 	&dev_attr_driver_version.attr,
@@ -2521,7 +2520,6 @@ static struct attribute *qla2x00_host_attrs[] = {
 	&dev_attr_port_no.attr,
 	&dev_attr_fw_attr.attr,
 	&dev_attr_dport_diagnostics.attr,
-	&dev_attr_edif_doorbell.attr,
 	&dev_attr_mpi_pause.attr,
 	&dev_attr_qlini_mode.attr,
 	&dev_attr_ql2xiniexchg.attr,

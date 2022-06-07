@@ -990,7 +990,6 @@ fc_port_t *qla2x00_find_fcport_by_pid(scsi_qla_host_t *vha, port_id_t *id);
 void qla_edb_eventcreate(scsi_qla_host_t *vha, uint32_t dbtype, uint32_t data, uint32_t data2,
 		fc_port_t *fcport);
 void qla_edb_stop(scsi_qla_host_t *vha);
-ssize_t edif_doorbell_show(struct device *dev, struct device_attribute *attr, char *buf);
 int32_t qla_edif_app_mgmt(struct bsg_job *bsg_job);
 void qla_enode_init(scsi_qla_host_t *vha);
 void qla_enode_stop(scsi_qla_host_t *vha);
