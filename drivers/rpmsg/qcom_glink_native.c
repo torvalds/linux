@@ -1672,7 +1672,7 @@ static ssize_t rpmsg_name_show(struct device *dev,
 	if (ret < 0)
 		name = dev->of_node->name;
 
-	return snprintf(buf, RPMSG_NAME_SIZE, "%s\n", name);
+	return sysfs_emit(buf, "%s\n", name);
 }
 static DEVICE_ATTR_RO(rpmsg_name);
 
