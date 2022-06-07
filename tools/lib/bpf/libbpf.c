@@ -5524,7 +5524,7 @@ int bpf_core_add_cands(struct bpf_core_cand *local_cand,
 	n = btf__type_cnt(targ_btf);
 	for (i = targ_start_id; i < n; i++) {
 		t = btf__type_by_id(targ_btf, i);
-		if (btf_kind(t) != btf_kind(local_t))
+		if (!btf_kind_core_compat(t, local_t))
 			continue;
 
 		targ_name = btf__name_by_offset(targ_btf, t->name_off);
@@ -5738,7 +5738,7 @@ int bpf_core_types_are_compat(const struct btf *local_btf, __u32 local_id,
 	/* caller made sure that names match (ignoring flavor suffix) */
 	local_type = btf__type_by_id(local_btf, local_id);
 	targ_type = btf__type_by_id(targ_btf, targ_id);
-	if (btf_kind(local_type) != btf_kind(targ_type))
+	if (!btf_kind_core_compat(local_type, targ_type))
 		return 0;
 
 recur:
@@ -5751,7 +5751,7 @@ recur:
 	if (!local_type || !targ_type)
 		return -EINVAL;
 
-	if (btf_kind(local_type) != btf_kind(targ_type))
+	if (!btf_kind_core_compat(local_type, targ_type))
 		return 0;
 
 	switch (btf_kind(local_type)) {
@@ -5759,6 +5759,7 @@ recur:
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION:
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 	case BTF_KIND_FWD:
 		return 1;
 	case BTF_KIND_INT:

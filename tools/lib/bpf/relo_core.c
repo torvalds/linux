@@ -186,7 +186,7 @@ int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 	struct bpf_core_accessor *acc;
 	const struct btf_type *t;
 	const char *name, *spec_str;
-	__u32 id;
+	__u32 id, name_off;
 	__s64 sz;
 
 	spec_str = btf__name_by_offset(btf, relo->access_str_off);
@@ -231,11 +231,13 @@ int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 	spec->len++;
 
 	if (core_relo_is_enumval_based(relo->kind)) {
-		if (!btf_is_enum(t) || spec->raw_len > 1 || access_idx >= btf_vlen(t))
+		if (!btf_is_any_enum(t) || spec->raw_len > 1 || access_idx >= btf_vlen(t))
 			return -EINVAL;
 
 		/* record enumerator name in a first accessor */
-		acc->name = btf__name_by_offset(btf, btf_enum(t)[access_idx].name_off);
+		name_off = btf_is_enum(t) ? btf_enum(t)[access_idx].name_off
+					  : btf_enum64(t)[access_idx].name_off;
+		acc->name = btf__name_by_offset(btf, name_off);
 		return 0;
 	}
 
@@ -340,7 +342,7 @@ recur:
 
 	if (btf_is_composite(local_type) && btf_is_composite(targ_type))
 		return 1;
-	if (btf_kind(local_type) != btf_kind(targ_type))
+	if (!btf_kind_core_compat(local_type, targ_type))
 		return 0;
 
 	switch (btf_kind(local_type)) {
@@ -348,6 +350,7 @@ recur:
 	case BTF_KIND_FLOAT:
 		return 1;
 	case BTF_KIND_FWD:
+	case BTF_KIND_ENUM64:
 	case BTF_KIND_ENUM: {
 		const char *local_name, *targ_name;
 		size_t local_len, targ_len;
@@ -477,6 +480,7 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 	const struct bpf_core_accessor *local_acc;
 	struct bpf_core_accessor *targ_acc;
 	int i, sz, matched;
+	__u32 name_off;
 
 	memset(targ_spec, 0, sizeof(*targ_spec));
 	targ_spec->btf = targ_btf;
@@ -494,18 +498,22 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 
 	if (core_relo_is_enumval_based(local_spec->relo_kind)) {
 		size_t local_essent_len, targ_essent_len;
-		const struct btf_enum *e;
 		const char *targ_name;
 
 		/* has to resolve to an enum */
 		targ_type = skip_mods_and_typedefs(targ_spec->btf, targ_id, &targ_id);
-		if (!btf_is_enum(targ_type))
+		if (!btf_is_any_enum(targ_type))
 			return 0;
 
 		local_essent_len = bpf_core_essential_name_len(local_acc->name);
 
-		for (i = 0, e = btf_enum(targ_type); i < btf_vlen(targ_type); i++, e++) {
-			targ_name = btf__name_by_offset(targ_spec->btf, e->name_off);
+		for (i = 0; i < btf_vlen(targ_type); i++) {
+			if (btf_is_enum(targ_type))
+				name_off = btf_enum(targ_type)[i].name_off;
+			else
+				name_off = btf_enum64(targ_type)[i].name_off;
+
+			targ_name = btf__name_by_offset(targ_spec->btf, name_off);
 			targ_essent_len = bpf_core_essential_name_len(targ_name);
 			if (targ_essent_len != local_essent_len)
 				continue;
@@ -680,8 +688,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 		*val = byte_sz;
 		break;
 	case BPF_CORE_FIELD_SIGNED:
-		/* enums will be assumed unsigned */
-		*val = btf_is_enum(mt) ||
+		*val = (btf_is_any_enum(mt) && BTF_INFO_KFLAG(mt->info)) ||
 		       (btf_int_encoding(mt) & BTF_INT_SIGNED);
 		if (validate)
 			*validate = true; /* signedness is never ambiguous */
@@ -754,7 +761,6 @@ static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
 				      __u64 *val)
 {
 	const struct btf_type *t;
-	const struct btf_enum *e;
 
 	switch (relo->kind) {
 	case BPF_CORE_ENUMVAL_EXISTS:
@@ -764,8 +770,10 @@ static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
 		if (!spec)
 			return -EUCLEAN; /* request instruction poisoning */
 		t = btf_type_by_id(spec->btf, spec->spec[0].type_id);
-		e = btf_enum(t) + spec->spec[0].idx;
-		*val = e->val;
+		if (btf_is_enum(t))
+			*val = btf_enum(t)[spec->spec[0].idx].val;
+		else
+			*val = btf_enum64_value(btf_enum64(t) + spec->spec[0].idx);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -1060,7 +1068,6 @@ poison:
 int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec)
 {
 	const struct btf_type *t;
-	const struct btf_enum *e;
 	const char *s;
 	__u32 type_id;
 	int i, len = 0;
@@ -1089,10 +1096,23 @@ int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *s
 
 	if (core_relo_is_enumval_based(spec->relo_kind)) {
 		t = skip_mods_and_typedefs(spec->btf, type_id, NULL);
-		e = btf_enum(t) + spec->raw_spec[0];
-		s = btf__name_by_offset(spec->btf, e->name_off);
+		if (btf_is_enum(t)) {
+			const struct btf_enum *e;
+			const char *fmt_str;
 
-		append_buf("::%s = %u", s, e->val);
+			e = btf_enum(t) + spec->raw_spec[0];
+			s = btf__name_by_offset(spec->btf, e->name_off);
+			fmt_str = BTF_INFO_KFLAG(t->info) ? "::%s = %d" : "::%s = %u";
+			append_buf(fmt_str, s, e->val);
+		} else {
+			const struct btf_enum64 *e;
+			const char *fmt_str;
+
+			e = btf_enum64(t) + spec->raw_spec[0];
+			s = btf__name_by_offset(spec->btf, e->name_off);
+			fmt_str = BTF_INFO_KFLAG(t->info) ? "::%s = %lld" : "::%s = %llu";
+			append_buf(fmt_str, s, (unsigned long long)btf_enum64_value(e));
+		}
 		return len;
 	}
 

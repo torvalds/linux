@@ -537,6 +537,13 @@ static inline bool btf_is_any_enum(const struct btf_type *t)
 	return btf_is_enum(t) || btf_is_enum64(t);
 }
 
+static inline bool btf_kind_core_compat(const struct btf_type *t1,
+					const struct btf_type *t2)
+{
+	return btf_kind(t1) == btf_kind(t2) ||
+	       (btf_is_any_enum(t1) && btf_is_any_enum(t2));
+}
+
 static inline __u8 btf_int_encoding(const struct btf_type *t)
 {
 	return BTF_INT_ENCODING(*(__u32 *)(t + 1));
