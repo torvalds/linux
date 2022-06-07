@@ -1074,6 +1074,7 @@
 			reg = <0xfdd00000 0x2000>,
 			      <0xfec00000 0x200000>;
 			reg-names = "ctrl", "mem";
+			ranges = <0 0xfec00000 0x200000>;
 			clocks = <&rpmcc RPM_SMD_OCMEMGX_CLK>,
 				 <&mmcc OCMEMCX_OCMEMNOC_CLK>;
 			clock-names = "core", "iface";
