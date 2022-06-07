@@ -325,6 +325,9 @@ static int smu_v13_0_0_check_powerplay_table(struct smu_context *smu)
 	    powerplay_table->platform_caps & SMU_13_0_0_PP_PLATFORM_CAP_MACO)
 		smu_baco->platform_support = true;
 
+	if (powerplay_table->platform_caps & SMU_13_0_0_PP_PLATFORM_CAP_MACO)
+		smu_baco->maco_support = true;
+
 	table_context->thermal_controller_type =
 		powerplay_table->thermal_controller_type;
 

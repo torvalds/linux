@@ -1543,54 +1543,6 @@ static int smu_v13_0_7_set_power_profile_mode(struct smu_context *smu, long *inp
 	return ret;
 }
 
-static int smu_v13_0_7_baco_set_state(struct smu_context *smu,
-			     enum smu_baco_state state)
-{
-	struct smu_baco_context *smu_baco = &smu->smu_baco;
-	struct amdgpu_device *adev = smu->adev;
-	bool is_maco_support = smu_baco->maco_support;
-	int ret;
-
-	if (smu_v13_0_baco_get_state(smu) == state)
-		return 0;
-
-	if (state == SMU_BACO_STATE_ENTER) {
-		ret = smu_cmn_send_smc_msg_with_param(smu,
-						      SMU_MSG_EnterBaco,
-						      (is_maco_support ? 2 : 0),
-						      NULL);
-	} else {
-		ret = smu_cmn_send_smc_msg(smu,
-					   SMU_MSG_ExitBaco,
-					   NULL);
-		if (ret)
-			return ret;
-
-		/* clear vbios scratch 6 and 7 for coming asic reinit */
-		WREG32(adev->bios_scratch_reg_offset + 6, 0);
-		WREG32(adev->bios_scratch_reg_offset + 7, 0);
-	}
-
-	if (!ret)
-		smu_baco->state = state;
-
-	return ret;
-}
-
-static int smu_v13_0_7_baco_enter(struct smu_context *smu)
-{
-	int ret = 0;
-
-	ret = smu_v13_0_7_baco_set_state(smu,
-				       SMU_BACO_STATE_ENTER);
-	if (ret)
-		return ret;
-
-	msleep(10);
-
-	return ret;
-}
-
 static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.get_allowed_feature_mask = smu_v13_0_7_get_allowed_feature_mask,
 	.set_default_dpm_table = smu_v13_0_7_set_default_dpm_table,
@@ -1645,8 +1597,8 @@ static const struct pptable_funcs smu_v13_0_7_ppt_funcs = {
 	.set_pp_feature_mask = smu_cmn_set_pp_feature_mask,
 	.baco_is_support = smu_v13_0_baco_is_support,
 	.baco_get_state = smu_v13_0_baco_get_state,
-	.baco_set_state = smu_v13_0_7_baco_set_state,
-	.baco_enter = smu_v13_0_7_baco_enter,
+	.baco_set_state = smu_v13_0_baco_set_state,
+	.baco_enter = smu_v13_0_baco_enter,
 	.baco_exit = smu_v13_0_baco_exit,
 	.set_mp1_state = smu_cmn_set_mp1_state,
 };
