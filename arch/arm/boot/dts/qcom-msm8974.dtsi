@@ -1677,7 +1677,7 @@
 		};
 
 		imem: sram@fe805000 {
-			compatible = "syscon", "simple-mfd";
+			compatible = "qcom,msm8974-imem", "syscon", "simple-mfd";
 			reg = <0xfe805000 0x1000>;
 
 			reboot-mode {
