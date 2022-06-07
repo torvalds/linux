@@ -933,7 +933,7 @@ EXPORT_SYMBOL_GPL(xdr_init_encode);
  */
 void __xdr_commit_encode(struct xdr_stream *xdr)
 {
-	int shift = xdr->scratch.iov_len;
+	size_t shift = xdr->scratch.iov_len;
 	void *page;
 
 	page = page_address(*xdr->page_ptr);
