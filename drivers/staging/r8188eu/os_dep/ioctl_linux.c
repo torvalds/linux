@@ -3349,6 +3349,7 @@ static int rtw_dbg_port(struct net_device *dev,
 
 			/* FIXME: is this read necessary? */
 			res = rtw_read8(padapter, reg, &val8);
+			(void)res;
 		}
 			break;
 
@@ -3357,8 +3358,8 @@ static int rtw_dbg_port(struct net_device *dev,
 			u16 reg = arg;
 			u16 start_value = 200;
 			u32 write_num = extra_arg;
-
-			int i;
+			u16 val16;
+			int i, res;
 			struct xmit_frame	*xmit_frame;
 
 			xmit_frame = rtw_IOL_accquire_xmit_frame(padapter);
@@ -3372,7 +3373,9 @@ static int rtw_dbg_port(struct net_device *dev,
 			if (rtl8188e_IOL_exec_cmds_sync(padapter, xmit_frame, 5000, 0) != _SUCCESS)
 				ret = -EPERM;
 
-			rtw_read16(padapter, reg);
+			/* FIXME: is this read necessary? */
+			res = rtw_read16(padapter, reg, &val16);
+			(void)res;
 		}
 			break;
 		case 0x08: /* continuous write dword test */

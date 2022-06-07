@@ -484,13 +484,17 @@ PHY_BBConfig8188E(
 {
 	int	rtStatus = _SUCCESS;
 	struct hal_data_8188e *pHalData = &Adapter->haldata;
-	u32 RegVal;
+	u16 RegVal;
 	u8 CrystalCap;
+	int res;
 
 	phy_InitBBRFRegisterDefinition(Adapter);
 
 	/*  Enable BB and RF */
-	RegVal = rtw_read16(Adapter, REG_SYS_FUNC_EN);
+	res = rtw_read16(Adapter, REG_SYS_FUNC_EN, &RegVal);
+	if (res)
+		return _FAIL;
+
 	rtw_write16(Adapter, REG_SYS_FUNC_EN, (u16)(RegVal | BIT(13) | BIT(0) | BIT(1)));
 
 	/*  20090923 Joseph: Advised by Steven and Jenyu. Power sequence before init RF. */
