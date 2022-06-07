@@ -215,6 +215,8 @@ LIBBPF_API int btf__add_field(struct btf *btf, const char *name, int field_type_
 /* enum construction APIs */
 LIBBPF_API int btf__add_enum(struct btf *btf, const char *name, __u32 bytes_sz);
 LIBBPF_API int btf__add_enum_value(struct btf *btf, const char *name, __s64 value);
+LIBBPF_API int btf__add_enum64(struct btf *btf, const char *name, __u32 bytes_sz, bool is_signed);
+LIBBPF_API int btf__add_enum64_value(struct btf *btf, const char *name, __u64 value);
 
 enum btf_fwd_kind {
 	BTF_FWD_STRUCT = 0,
@@ -393,9 +395,10 @@ btf_dump__dump_type_data(struct btf_dump *d, __u32 id,
 #ifndef BTF_KIND_FLOAT
 #define BTF_KIND_FLOAT		16	/* Floating point	*/
 #endif
-/* The kernel header switched to enums, so these two were never #defined */
+/* The kernel header switched to enums, so the following were never #defined */
 #define BTF_KIND_DECL_TAG	17	/* Decl Tag */
 #define BTF_KIND_TYPE_TAG	18	/* Type Tag */
+#define BTF_KIND_ENUM64		19	/* Enum for up-to 64bit values */
 
 static inline __u16 btf_kind(const struct btf_type *t)
 {
@@ -452,6 +455,11 @@ static inline bool btf_is_composite(const struct btf_type *t)
 static inline bool btf_is_enum(const struct btf_type *t)
 {
 	return btf_kind(t) == BTF_KIND_ENUM;
+}
+
+static inline bool btf_is_enum64(const struct btf_type *t)
+{
+	return btf_kind(t) == BTF_KIND_ENUM64;
 }
 
 static inline bool btf_is_fwd(const struct btf_type *t)
@@ -524,6 +532,18 @@ static inline bool btf_is_type_tag(const struct btf_type *t)
 	return btf_kind(t) == BTF_KIND_TYPE_TAG;
 }
 
+static inline bool btf_is_any_enum(const struct btf_type *t)
+{
+	return btf_is_enum(t) || btf_is_enum64(t);
+}
+
+static inline bool btf_kind_core_compat(const struct btf_type *t1,
+					const struct btf_type *t2)
+{
+	return btf_kind(t1) == btf_kind(t2) ||
+	       (btf_is_any_enum(t1) && btf_is_any_enum(t2));
+}
+
 static inline __u8 btf_int_encoding(const struct btf_type *t)
 {
 	return BTF_INT_ENCODING(*(__u32 *)(t + 1));
@@ -547,6 +567,16 @@ static inline struct btf_array *btf_array(const struct btf_type *t)
 static inline struct btf_enum *btf_enum(const struct btf_type *t)
 {
 	return (struct btf_enum *)(t + 1);
+}
+
+static inline struct btf_enum64 *btf_enum64(const struct btf_type *t)
+{
+	return (struct btf_enum64 *)(t + 1);
+}
+
+static inline __u64 btf_enum64_value(const struct btf_enum64 *e)
+{
+	return ((__u64)e->val_hi32 << 32) | e->val_lo32;
 }
 
 static inline struct btf_member *btf_members(const struct btf_type *t)

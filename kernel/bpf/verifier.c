@@ -10901,7 +10901,7 @@ static int check_btf_func(struct bpf_verifier_env *env,
 			goto err_free;
 		ret_type = btf_type_skip_modifiers(btf, func_proto->type, NULL);
 		scalar_return =
-			btf_type_is_small_int(ret_type) || btf_type_is_enum(ret_type);
+			btf_type_is_small_int(ret_type) || btf_is_any_enum(ret_type);
 		if (i && !scalar_return && env->subprog_info[i].has_ld_abs) {
 			verbose(env, "LD_ABS is only allowed in functions that return 'int'.\n");
 			goto err_free;

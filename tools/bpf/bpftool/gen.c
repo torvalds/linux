@@ -1750,6 +1750,7 @@ btfgen_mark_type(struct btfgen_info *info, unsigned int type_id, bool follow_poi
 	case BTF_KIND_INT:
 	case BTF_KIND_FLOAT:
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION:
 		break;
