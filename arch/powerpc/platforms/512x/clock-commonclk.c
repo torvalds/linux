@@ -663,7 +663,7 @@ static void __init mpc512x_clk_setup_mclk(struct mclk_setup_data *entry, size_t 
 	 *   the PSC/MSCAN/SPDIF (serial drivers et al) need the MCLK
 	 *   for their bitrate
 	 * - in the absence of "aliases" for clocks we need to create
-	 *   individial 'struct clk' items for whatever might get
+	 *   individual 'struct clk' items for whatever might get
 	 *   referenced or looked up, even if several of those items are
 	 *   identical from the logical POV (their rate value)
 	 * - for easier future maintenance and for better reflection of

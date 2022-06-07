@@ -397,7 +397,7 @@ static inline void _tlbie_pid(unsigned long pid, unsigned long ric)
 
 	/*
 	 * Workaround the fact that the "ric" argument to __tlbie_pid
-	 * must be a compile-time contraint to match the "i" constraint
+	 * must be a compile-time constraint to match the "i" constraint
 	 * in the asm statement.
 	 */
 	switch (ric) {

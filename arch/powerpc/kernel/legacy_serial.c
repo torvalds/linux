@@ -7,10 +7,10 @@
 #include <linux/pci.h>
 #include <linux/of_address.h>
 #include <linux/of_device.h>
+#include <linux/of_irq.h>
 #include <linux/serial_reg.h>
 #include <asm/io.h>
 #include <asm/mmu.h>
-#include <asm/prom.h>
 #include <asm/serial.h>
 #include <asm/udbg.h>
 #include <asm/pci-bridge.h>

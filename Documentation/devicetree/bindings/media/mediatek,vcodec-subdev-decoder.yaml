@@ -47,7 +47,9 @@ description: |
 
 properties:
   compatible:
-    const: mediatek,mt8192-vcodec-dec
+    enum:
+      - mediatek,mt8192-vcodec-dec
+      - mediatek,mt8186-vcodec-dec
 
   reg:
     maxItems: 1
@@ -61,7 +63,6 @@ properties:
 
   mediatek,scp:
     $ref: /schemas/types.yaml#/definitions/phandle
-    maxItems: 1
     description: |
       The node of system control processor (SCP), using
       the remoteproc & rpmsg framework.

@@ -124,7 +124,7 @@ END_FTR_SECTION_IFSET(CPU_FTR_HAS_PPR)
 
 /*
  * "Skip" interrupts are part of a trick KVM uses a with hash guests to load
- * the faulting instruction in guest memory from the the hypervisor without
+ * the faulting instruction in guest memory from the hypervisor without
  * walking page tables.
  *
  * When the guest takes a fault that requires the hypervisor to load the
@@ -414,10 +414,16 @@ END_FTR_SECTION_IFSET(CPU_FTR_DAWR1)
 	 */
 	ld	r10,HSTATE_SCRATCH0(r13)
 	cmpwi	r10,BOOK3S_INTERRUPT_MACHINE_CHECK
-	beq	machine_check_common
+	beq	.Lcall_machine_check_common
 
 	cmpwi	r10,BOOK3S_INTERRUPT_SYSTEM_RESET
-	beq	system_reset_common
+	beq	.Lcall_system_reset_common
 
 	b	.
+
+.Lcall_machine_check_common:
+	b	machine_check_common
+
+.Lcall_system_reset_common:
+	b	system_reset_common
 #endif

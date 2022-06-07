@@ -79,16 +79,14 @@ static unsigned long __ref adjust_address(struct dyn_ftrace *rec,
 	return (unsigned long)&ftrace_regs_caller_from_init;
 }
 
-int ftrace_arch_code_modify_prepare(void)
+void ftrace_arch_code_modify_prepare(void)
 {
-	return 0;
 }
 
-int ftrace_arch_code_modify_post_process(void)
+void ftrace_arch_code_modify_post_process(void)
 {
 	/* Make sure any TLB misses during machine stop are cleared. */
 	flush_tlb_all();
-	return 0;
 }
 
 static unsigned long ftrace_call_replace(unsigned long pc, unsigned long addr,

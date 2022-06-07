@@ -197,25 +197,22 @@ allOf:
               - nvidia,tegra30-sdhci
               - nvidia,tegra114-sdhci
               - nvidia,tegra124-sdhci
+    then:
+      properties:
         clocks:
           items:
             - description: module clock
-          minItems: 1
-          maxItems: 1
     else:
       properties:
         clocks:
           items:
             - description: module clock
             - description: timeout clock
-          minItems: 2
-          maxItems: 2
+
         clock-names:
           items:
             - const: sdhci
             - const: tmclk
-          minItems: 2
-          maxItems: 2
       required:
         - clock-names
 

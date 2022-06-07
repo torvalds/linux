@@ -13,5 +13,3 @@ jfs-y    := super.o file.o inode.o namei.o jfs_mount.o jfs_umount.o \
 	    resize.o xattr.o ioctl.o
 
 jfs-$(CONFIG_JFS_POSIX_ACL) += acl.o
-
-ccflags-y := -D_JFS_4K

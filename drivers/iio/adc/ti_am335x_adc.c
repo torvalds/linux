@@ -376,9 +376,7 @@ static int tiadc_iio_buffered_hardware_setup(struct device *dev,
 {
 	int ret;
 
-	ret = devm_iio_kfifo_buffer_setup(dev, indio_dev,
-					  INDIO_BUFFER_SOFTWARE,
-					  setup_ops);
+	ret = devm_iio_kfifo_buffer_setup(dev, indio_dev, setup_ops);
 	if (ret)
 		return ret;
 

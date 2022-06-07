@@ -17,12 +17,13 @@
 #include <linux/io.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include <sound/pxa2xx-lib.h>
 
-#include <mach/irqs.h>
-#include <mach/regs-ac97.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
+
+#include "pxa2xx-ac97-regs.h"
 
 static DEFINE_MUTEX(car_mutex);
 static DECLARE_WAIT_QUEUE_HEAD(gsr_wq);
@@ -30,6 +31,7 @@ static volatile long gsr_bits;
 static struct clk *ac97_clk;
 static struct clk *ac97conf_clk;
 static int reset_gpio;
+static void __iomem *ac97_reg_base;
 
 extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
 
@@ -46,7 +48,7 @@ extern void pxa27x_configure_ac97reset(int reset_gpio, bool to_gpio);
 int pxa2xx_ac97_read(int slot, unsigned short reg)
 {
 	int val = -ENODEV;
-	volatile u32 *reg_addr;
+	u32 __iomem *reg_addr;
 
 	if (slot > 0)
 		return -ENODEV;
@@ -55,31 +57,33 @@ int pxa2xx_ac97_read(int slot, unsigned short reg)
 
 	/* set up primary or secondary codec space */
 	if (cpu_is_pxa25x() && reg == AC97_GPIO_STATUS)
-		reg_addr = slot ? &SMC_REG_BASE : &PMC_REG_BASE;
+		reg_addr = ac97_reg_base +
+			   (slot ? SMC_REG_BASE : PMC_REG_BASE);
 	else
-		reg_addr = slot ? &SAC_REG_BASE : &PAC_REG_BASE;
+		reg_addr = ac97_reg_base +
+			   (slot ? SAC_REG_BASE : PAC_REG_BASE);
 	reg_addr += (reg >> 1);
 
 	/* start read access across the ac97 link */
-	GSR = GSR_CDONE | GSR_SDONE;
+	writel(GSR_CDONE | GSR_SDONE, ac97_reg_base + GSR);
 	gsr_bits = 0;
-	val = (*reg_addr & 0xffff);
+	val = (readl(reg_addr) & 0xffff);
 	if (reg == AC97_GPIO_STATUS)
 		goto out;
-	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1) <= 0 &&
-	    !((GSR | gsr_bits) & GSR_SDONE)) {
+	if (wait_event_timeout(gsr_wq, (readl(ac97_reg_base + GSR) | gsr_bits) & GSR_SDONE, 1) <= 0 &&
+	    !((readl(ac97_reg_base + GSR) | gsr_bits) & GSR_SDONE)) {
 		printk(KERN_ERR "%s: read error (ac97_reg=%d GSR=%#lx)\n",
-				__func__, reg, GSR | gsr_bits);
+				__func__, reg, readl(ac97_reg_base + GSR) | gsr_bits);
 		val = -ETIMEDOUT;
 		goto out;
 	}
 
 	/* valid data now */
-	GSR = GSR_CDONE | GSR_SDONE;
+	writel(GSR_CDONE | GSR_SDONE, ac97_reg_base + GSR);
 	gsr_bits = 0;
-	val = (*reg_addr & 0xffff);
+	val = (readl(reg_addr) & 0xffff);
 	/* but we've just started another cycle... */
-	wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_SDONE, 1);
+	wait_event_timeout(gsr_wq, (readl(ac97_reg_base + GSR) | gsr_bits) & GSR_SDONE, 1);
 
 out:	mutex_unlock(&car_mutex);
 	return val;
@@ -88,25 +92,27 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_read);
 
 int pxa2xx_ac97_write(int slot, unsigned short reg, unsigned short val)
 {
-	volatile u32 *reg_addr;
+	u32 __iomem *reg_addr;
 	int ret = 0;
 
 	mutex_lock(&car_mutex);
 
 	/* set up primary or secondary codec space */
 	if (cpu_is_pxa25x() && reg == AC97_GPIO_STATUS)
-		reg_addr = slot ? &SMC_REG_BASE : &PMC_REG_BASE;
+		reg_addr = ac97_reg_base +
+			   (slot ? SMC_REG_BASE : PMC_REG_BASE);
 	else
-		reg_addr = slot ? &SAC_REG_BASE : &PAC_REG_BASE;
+		reg_addr = ac97_reg_base +
+			   (slot ? SAC_REG_BASE : PAC_REG_BASE);
 	reg_addr += (reg >> 1);
 
-	GSR = GSR_CDONE | GSR_SDONE;
+	writel(GSR_CDONE | GSR_SDONE, ac97_reg_base + GSR);
 	gsr_bits = 0;
-	*reg_addr = val;
-	if (wait_event_timeout(gsr_wq, (GSR | gsr_bits) & GSR_CDONE, 1) <= 0 &&
-	    !((GSR | gsr_bits) & GSR_CDONE)) {
+	writel(val, reg_addr);
+	if (wait_event_timeout(gsr_wq, (readl(ac97_reg_base + GSR) | gsr_bits) & GSR_CDONE, 1) <= 0 &&
+	    !((readl(ac97_reg_base + GSR) | gsr_bits) & GSR_CDONE)) {
 		printk(KERN_ERR "%s: write error (ac97_reg=%d GSR=%#lx)\n",
-				__func__, reg, GSR | gsr_bits);
+				__func__, reg, readl(ac97_reg_base + GSR) | gsr_bits);
 		ret = -EIO;
 	}
 
@@ -120,17 +126,17 @@ static inline void pxa_ac97_warm_pxa25x(void)
 {
 	gsr_bits = 0;
 
-	GCR |= GCR_WARM_RST;
+	writel(readl(ac97_reg_base + GCR) | (GCR_WARM_RST), ac97_reg_base + GCR);
 }
 
 static inline void pxa_ac97_cold_pxa25x(void)
 {
-	GCR &=  GCR_COLD_RST;  /* clear everything but nCRST */
-	GCR &= ~GCR_COLD_RST;  /* then assert nCRST */
+	writel(readl(ac97_reg_base + GCR) & ( GCR_COLD_RST), ac97_reg_base + GCR);  /* clear everything but nCRST */
+	writel(readl(ac97_reg_base + GCR) & (~GCR_COLD_RST), ac97_reg_base + GCR);  /* then assert nCRST */
 
 	gsr_bits = 0;
 
-	GCR = GCR_COLD_RST;
+	writel(GCR_COLD_RST, ac97_reg_base + GCR);
 }
 #endif
 
@@ -142,15 +148,15 @@ static inline void pxa_ac97_warm_pxa27x(void)
 	/* warm reset broken on Bulverde, so manually keep AC97 reset high */
 	pxa27x_configure_ac97reset(reset_gpio, true);
 	udelay(10);
-	GCR |= GCR_WARM_RST;
+	writel(readl(ac97_reg_base + GCR) | (GCR_WARM_RST), ac97_reg_base + GCR);
 	pxa27x_configure_ac97reset(reset_gpio, false);
 	udelay(500);
 }
 
 static inline void pxa_ac97_cold_pxa27x(void)
 {
-	GCR &=  GCR_COLD_RST;  /* clear everything but nCRST */
-	GCR &= ~GCR_COLD_RST;  /* then assert nCRST */
+	writel(readl(ac97_reg_base + GCR) & ( GCR_COLD_RST), ac97_reg_base + GCR);  /* clear everything but nCRST */
+	writel(readl(ac97_reg_base + GCR) & (~GCR_COLD_RST), ac97_reg_base + GCR);  /* then assert nCRST */
 
 	gsr_bits = 0;
 
@@ -158,7 +164,7 @@ static inline void pxa_ac97_cold_pxa27x(void)
 	clk_prepare_enable(ac97conf_clk);
 	udelay(5);
 	clk_disable_unprepare(ac97conf_clk);
-	GCR = GCR_COLD_RST | GCR_WARM_RST;
+	writel(GCR_COLD_RST | GCR_WARM_RST, ac97_reg_base + GCR);
 }
 #endif
 
@@ -168,26 +174,26 @@ static inline void pxa_ac97_warm_pxa3xx(void)
 	gsr_bits = 0;
 
 	/* Can't use interrupts */
-	GCR |= GCR_WARM_RST;
+	writel(readl(ac97_reg_base + GCR) | (GCR_WARM_RST), ac97_reg_base + GCR);
 }
 
 static inline void pxa_ac97_cold_pxa3xx(void)
 {
 	/* Hold CLKBPB for 100us */
-	GCR = 0;
-	GCR = GCR_CLKBPB;
+	writel(0, ac97_reg_base + GCR);
+	writel(GCR_CLKBPB, ac97_reg_base + GCR);
 	udelay(100);
-	GCR = 0;
+	writel(0, ac97_reg_base + GCR);
 
-	GCR &=  GCR_COLD_RST;  /* clear everything but nCRST */
-	GCR &= ~GCR_COLD_RST;  /* then assert nCRST */
+	writel(readl(ac97_reg_base + GCR) & ( GCR_COLD_RST), ac97_reg_base + GCR);  /* clear everything but nCRST */
+	writel(readl(ac97_reg_base + GCR) & (~GCR_COLD_RST), ac97_reg_base + GCR);  /* then assert nCRST */
 
 	gsr_bits = 0;
 
 	/* Can't use interrupts on PXA3xx */
-	GCR &= ~(GCR_PRIRDY_IEN|GCR_SECRDY_IEN);
+	writel(readl(ac97_reg_base + GCR) & (~(GCR_PRIRDY_IEN|GCR_SECRDY_IEN)), ac97_reg_base + GCR);
 
-	GCR = GCR_WARM_RST | GCR_COLD_RST;
+	writel(GCR_WARM_RST | GCR_COLD_RST, ac97_reg_base + GCR);
 }
 #endif
 
@@ -213,10 +219,10 @@ bool pxa2xx_ac97_try_warm_reset(void)
 #endif
 		snd_BUG();
 
-	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
+	while (!((readl(ac97_reg_base + GSR) | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
 		mdelay(1);
 
-	gsr = GSR | gsr_bits;
+	gsr = readl(ac97_reg_base + GSR) | gsr_bits;
 	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: warm reset timeout (GSR=%#lx)\n",
 				 __func__, gsr);
@@ -250,10 +256,10 @@ bool pxa2xx_ac97_try_cold_reset(void)
 #endif
 		snd_BUG();
 
-	while (!((GSR | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
+	while (!((readl(ac97_reg_base + GSR) | gsr_bits) & (GSR_PCR | GSR_SCR)) && timeout--)
 		mdelay(1);
 
-	gsr = GSR | gsr_bits;
+	gsr = readl(ac97_reg_base + GSR) | gsr_bits;
 	if (!(gsr & (GSR_PCR | GSR_SCR))) {
 		printk(KERN_INFO "%s: cold reset timeout (GSR=%#lx)\n",
 				 __func__, gsr);
@@ -268,8 +274,10 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_try_cold_reset);
 
 void pxa2xx_ac97_finish_reset(void)
 {
-	GCR &= ~(GCR_PRIRDY_IEN|GCR_SECRDY_IEN);
-	GCR |= GCR_SDONE_IE|GCR_CDONE_IE;
+	u32 gcr = readl(ac97_reg_base + GCR);
+	gcr &= ~(GCR_PRIRDY_IEN|GCR_SECRDY_IEN);
+	gcr |= GCR_SDONE_IE|GCR_CDONE_IE;
+	writel(gcr, ac97_reg_base + GCR);
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_finish_reset);
 
@@ -277,9 +285,9 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 {
 	long status;
 
-	status = GSR;
+	status = readl(ac97_reg_base + GSR);
 	if (status) {
-		GSR = status;
+		writel(status, ac97_reg_base + GSR);
 		gsr_bits |= status;
 		wake_up(&gsr_wq);
 
@@ -287,9 +295,9 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 		   since they tend to spuriously trigger when MMC is used
 		   (hardware bug? go figure)... */
 		if (cpu_is_pxa27x()) {
-			MISR = MISR_EOC;
-			PISR = PISR_EOC;
-			MCSR = MCSR_EOC;
+			writel(MISR_EOC, ac97_reg_base + MISR);
+			writel(PISR_EOC, ac97_reg_base + PISR);
+			writel(MCSR_EOC, ac97_reg_base + MCSR);
 		}
 
 		return IRQ_HANDLED;
@@ -301,7 +309,7 @@ static irqreturn_t pxa2xx_ac97_irq(int irq, void *dev_id)
 #ifdef CONFIG_PM
 int pxa2xx_ac97_hw_suspend(void)
 {
-	GCR |= GCR_ACLINK_OFF;
+	writel(readl(ac97_reg_base + GCR) | (GCR_ACLINK_OFF), ac97_reg_base + GCR);
 	clk_disable_unprepare(ac97_clk);
 	return 0;
 }
@@ -318,7 +326,14 @@ EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_resume);
 int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 {
 	int ret;
+	int irq;
 	pxa2xx_audio_ops_t *pdata = dev->dev.platform_data;
+
+	ac97_reg_base = devm_platform_ioremap_resource(dev, 0);
+	if (IS_ERR(ac97_reg_base)) {
+		dev_err(&dev->dev, "Missing MMIO resource\n");
+		return PTR_ERR(ac97_reg_base);
+	}
 
 	if (pdata) {
 		switch (pdata->reset_gpio) {
@@ -386,14 +401,18 @@ int pxa2xx_ac97_hw_probe(struct platform_device *dev)
 	if (ret)
 		goto err_clk2;
 
-	ret = request_irq(IRQ_AC97, pxa2xx_ac97_irq, 0, "AC97", NULL);
+	irq = platform_get_irq(dev, 0);
+	if (!irq)
+		goto err_irq;
+
+	ret = request_irq(irq, pxa2xx_ac97_irq, 0, "AC97", NULL);
 	if (ret < 0)
 		goto err_irq;
 
 	return 0;
 
 err_irq:
-	GCR |= GCR_ACLINK_OFF;
+	writel(readl(ac97_reg_base + GCR) | (GCR_ACLINK_OFF), ac97_reg_base + GCR);
 err_clk2:
 	clk_put(ac97_clk);
 	ac97_clk = NULL;
@@ -411,8 +430,8 @@ void pxa2xx_ac97_hw_remove(struct platform_device *dev)
 {
 	if (cpu_is_pxa27x())
 		gpio_free(reset_gpio);
-	GCR |= GCR_ACLINK_OFF;
-	free_irq(IRQ_AC97, NULL);
+	writel(readl(ac97_reg_base + GCR) | (GCR_ACLINK_OFF), ac97_reg_base + GCR);
+	free_irq(platform_get_irq(dev, 0), NULL);
 	if (ac97conf_clk) {
 		clk_put(ac97conf_clk);
 		ac97conf_clk = NULL;
@@ -422,6 +441,24 @@ void pxa2xx_ac97_hw_remove(struct platform_device *dev)
 	ac97_clk = NULL;
 }
 EXPORT_SYMBOL_GPL(pxa2xx_ac97_hw_remove);
+
+u32 pxa2xx_ac97_read_modr(void)
+{
+	if (!ac97_reg_base)
+		return 0;
+
+	return readl(ac97_reg_base + MODR);
+}
+EXPORT_SYMBOL_GPL(pxa2xx_ac97_read_modr);
+
+u32 pxa2xx_ac97_read_misr(void)
+{
+	if (!ac97_reg_base)
+		return 0;
+
+	return readl(ac97_reg_base + MISR);
+}
+EXPORT_SYMBOL_GPL(pxa2xx_ac97_read_misr);
 
 MODULE_AUTHOR("Nicolas Pitre");
 MODULE_DESCRIPTION("Intel/Marvell PXA sound library");

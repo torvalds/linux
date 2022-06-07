@@ -553,7 +553,7 @@ static int mctp_i2c_header_create(struct sk_buff *skb, struct net_device *dev,
 	hdr->source_slave = ((llsrc << 1) & 0xff) | 0x01;
 	mhdr->ver = 0x01;
 
-	return 0;
+	return sizeof(struct mctp_i2c_hdr);
 }
 
 static int mctp_i2c_tx_thread(void *data)

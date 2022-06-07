@@ -26,7 +26,6 @@
 #include "rtw_eeprom.h"
 #include "sta_info.h"
 #include "rtw_mlme.h"
-#include "rtw_debug.h"
 #include "rtw_rf.h"
 #include "rtw_event.h"
 #include "rtw_led.h"
@@ -35,6 +34,7 @@
 #include "rtw_ap.h"
 #include "rtw_br_ext.h"
 #include "rtl8188e_hal.h"
+#include "rtw_fw.h"
 
 #define DRIVERVERSION	"v4.1.4_6773.20130222"
 
@@ -115,11 +115,6 @@ struct registry_priv {
 };
 
 #define MAX_CONTINUAL_URB_ERR		4
-
-struct rt_firmware {
-	u8 *data;
-	u32 size;
-};
 
 struct dvobj_priv {
 	struct adapter *if1;

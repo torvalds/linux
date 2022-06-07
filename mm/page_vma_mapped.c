@@ -163,7 +163,8 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 		return not_found(pvmw);
 
 	if (unlikely(is_vm_hugetlb_page(vma))) {
-		unsigned long size = pvmw->nr_pages * PAGE_SIZE;
+		struct hstate *hstate = hstate_vma(vma);
+		unsigned long size = huge_page_size(hstate);
 		/* The only possible mapping was handled on last iteration */
 		if (pvmw->pte)
 			return not_found(pvmw);
@@ -173,8 +174,7 @@ bool page_vma_mapped_walk(struct page_vma_mapped_walk *pvmw)
 		if (!pvmw->pte)
 			return false;
 
-		pvmw->ptl = huge_pte_lockptr(size_to_hstate(size), mm,
-						pvmw->pte);
+		pvmw->ptl = huge_pte_lockptr(hstate, mm, pvmw->pte);
 		spin_lock(pvmw->ptl);
 		if (!check_pte(pvmw))
 			return not_found(pvmw);
@@ -210,16 +210,10 @@ restart:
 		 */
 		pmde = READ_ONCE(*pvmw->pmd);
 
-		if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde)) {
+		if (pmd_trans_huge(pmde) || is_pmd_migration_entry(pmde) ||
+		    (pmd_present(pmde) && pmd_devmap(pmde))) {
 			pvmw->ptl = pmd_lock(mm, pvmw->pmd);
 			pmde = *pvmw->pmd;
-			if (likely(pmd_trans_huge(pmde))) {
-				if (pvmw->flags & PVMW_MIGRATION)
-					return not_found(pvmw);
-				if (!check_pmd(pmd_pfn(pmde), pvmw))
-					return not_found(pvmw);
-				return true;
-			}
 			if (!pmd_present(pmde)) {
 				swp_entry_t entry;
 
@@ -229,6 +223,13 @@ restart:
 				entry = pmd_to_swp_entry(pmde);
 				if (!is_migration_entry(entry) ||
 				    !check_pmd(swp_offset(entry), pvmw))
+					return not_found(pvmw);
+				return true;
+			}
+			if (likely(pmd_trans_huge(pmde) || pmd_devmap(pmde))) {
+				if (pvmw->flags & PVMW_MIGRATION)
+					return not_found(pvmw);
+				if (!check_pmd(pmd_pfn(pmde), pvmw))
 					return not_found(pvmw);
 				return true;
 			}

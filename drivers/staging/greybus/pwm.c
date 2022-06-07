@@ -297,7 +297,6 @@ static int gb_pwm_probe(struct gbphy_device *gbphy_dev,
 
 	pwm->dev = &gbphy_dev->dev;
 	pwm->ops = &gb_pwm_ops;
-	pwm->base = -1;			/* Allocate base dynamically */
 	pwm->npwm = pwmc->pwm_max + 1;
 
 	ret = pwmchip_add(pwm);

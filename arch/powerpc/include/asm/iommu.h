@@ -51,13 +51,11 @@ struct iommu_table_ops {
 	int (*xchg_no_kill)(struct iommu_table *tbl,
 			long index,
 			unsigned long *hpa,
-			enum dma_data_direction *direction,
-			bool realmode);
+			enum dma_data_direction *direction);
 
 	void (*tce_kill)(struct iommu_table *tbl,
 			unsigned long index,
-			unsigned long pages,
-			bool realmode);
+			unsigned long pages);
 
 	__be64 *(*useraddrptr)(struct iommu_table *tbl, long index, bool alloc);
 #endif

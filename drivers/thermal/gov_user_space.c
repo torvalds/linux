@@ -17,8 +17,7 @@
 
 static int user_space_bind(struct thermal_zone_device *tz)
 {
-	pr_warn_once("Userspace governor deprecated: use thermal netlink " \
-		     "notification instead\n");
+	pr_info_once("Consider using thermal netlink events interface\n");
 
 	return 0;
 }

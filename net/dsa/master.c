@@ -335,11 +335,24 @@ static const struct attribute_group dsa_group = {
 	.attrs	= dsa_slave_attrs,
 };
 
+static void dsa_master_reset_mtu(struct net_device *dev)
+{
+	int err;
+
+	err = dev_set_mtu(dev, ETH_DATA_LEN);
+	if (err)
+		netdev_dbg(dev,
+			   "Unable to reset MTU to exclude DSA overheads\n");
+}
+
 int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 {
+	const struct dsa_device_ops *tag_ops = cpu_dp->tag_ops;
 	struct dsa_switch *ds = cpu_dp->ds;
 	struct device_link *consumer_link;
-	int ret;
+	int mtu, ret;
+
+	mtu = ETH_DATA_LEN + dsa_tag_protocol_overhead(tag_ops);
 
 	/* The DSA master must use SET_NETDEV_DEV for this to work. */
 	consumer_link = device_link_add(ds->dev, dev->dev.parent,
@@ -348,6 +361,15 @@ int dsa_master_setup(struct net_device *dev, struct dsa_port *cpu_dp)
 		netdev_err(dev,
 			   "Failed to create a device link to DSA switch %s\n",
 			   dev_name(ds->dev));
+
+	/* The switch driver may not implement ->port_change_mtu(), case in
+	 * which dsa_slave_change_mtu() will not update the master MTU either,
+	 * so we need to do that here.
+	 */
+	ret = dev_set_mtu(dev, mtu);
+	if (ret)
+		netdev_warn(dev, "error %d setting MTU to %d to include DSA overhead\n",
+			    ret, mtu);
 
 	/* If we use a tagging format that doesn't have an ethertype
 	 * field, make sure that all packets from this point on get
@@ -384,6 +406,7 @@ void dsa_master_teardown(struct net_device *dev)
 	sysfs_remove_group(&dev->dev.kobj, &dsa_group);
 	dsa_netdev_ops_set(dev, NULL);
 	dsa_master_ethtool_teardown(dev);
+	dsa_master_reset_mtu(dev);
 	dsa_master_set_promiscuity(dev, -1);
 
 	dev->dsa_ptr = NULL;

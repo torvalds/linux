@@ -80,6 +80,9 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 	unsigned long flags;
 	struct list_head del_list;
 
+	/* Prevent freeing of mm until we are completely finished. */
+	mmgrab(handler->mn.mm);
+
 	/* Unregister first so we don't get any more notifications. */
 	mmu_notifier_unregister(&handler->mn, handler->mn.mm);
 
@@ -101,6 +104,9 @@ void hfi1_mmu_rb_unregister(struct mmu_rb_handler *handler)
 	spin_unlock_irqrestore(&handler->lock, flags);
 
 	do_remove(handler, &del_list);
+
+	/* Now the mm may be freed. */
+	mmdrop(handler->mn.mm);
 
 	kfree(handler);
 }

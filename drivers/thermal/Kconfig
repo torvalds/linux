@@ -113,8 +113,10 @@ config THERMAL_DEFAULT_GOV_USER_SPACE
 	bool "user_space"
 	select THERMAL_GOV_USER_SPACE
 	help
-	  Select this if you want to let the user space manage the
-	  platform thermals.
+	  The Userspace governor allows to get trip point crossed
+	  notification from the kernel via uevents. It is recommended
+	  to use the netlink interface instead which gives richer
+	  information about the thermal framework events.
 
 config THERMAL_DEFAULT_GOV_POWER_ALLOCATOR
 	bool "power_allocator"

@@ -576,16 +576,12 @@ clear_cpu_sibling_map(int cpu)
 static void
 remove_siblinginfo(int cpu)
 {
-	int last = 0;
-
 	if (cpu_data(cpu)->threads_per_core == 1 &&
 	    cpu_data(cpu)->cores_per_socket == 1) {
 		cpumask_clear_cpu(cpu, &cpu_core_map[cpu]);
 		cpumask_clear_cpu(cpu, &per_cpu(cpu_sibling_map, cpu));
 		return;
 	}
-
-	last = (cpumask_weight(&cpu_core_map[cpu]) == 1 ? 1 : 0);
 
 	/* remove it from all sibling map's */
 	clear_cpu_sibling_map(cpu);

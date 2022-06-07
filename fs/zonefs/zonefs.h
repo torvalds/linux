@@ -12,6 +12,7 @@
 #include <linux/uuid.h>
 #include <linux/mutex.h>
 #include <linux/rwsem.h>
+#include <linux/kobject.h>
 
 /*
  * Maximum length of file names: this only needs to be large enough to fit
@@ -39,6 +40,7 @@ static inline enum zonefs_ztype zonefs_zone_type(struct blk_zone *zone)
 }
 
 #define ZONEFS_ZONE_OPEN	(1 << 0)
+#define ZONEFS_ZONE_ACTIVE	(1 << 1)
 
 /*
  * In-memory inode data.
@@ -182,8 +184,15 @@ struct zonefs_sb_info {
 	loff_t			s_blocks;
 	loff_t			s_used_blocks;
 
-	unsigned int		s_max_open_zones;
-	atomic_t		s_open_zones;
+	unsigned int		s_max_wro_seq_files;
+	atomic_t		s_wro_seq_files;
+
+	unsigned int		s_max_active_seq_files;
+	atomic_t		s_active_seq_files;
+
+	bool			s_sysfs_registered;
+	struct kobject		s_kobj;
+	struct completion	s_kobj_unregister;
 };
 
 static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
@@ -197,5 +206,10 @@ static inline struct zonefs_sb_info *ZONEFS_SB(struct super_block *sb)
 	pr_err("zonefs (%s) ERROR: " format, sb->s_id, ## args)
 #define zonefs_warn(sb, format, args...)	\
 	pr_warn("zonefs (%s) WARNING: " format, sb->s_id, ## args)
+
+int zonefs_sysfs_register(struct super_block *sb);
+void zonefs_sysfs_unregister(struct super_block *sb);
+int zonefs_sysfs_init(void);
+void zonefs_sysfs_exit(void);
 
 #endif

@@ -66,8 +66,6 @@
 
 #include <asm/sync_bitops.h>
 
-/* External tools reserve first few grant table entries. */
-#define NR_RESERVED_ENTRIES 8
 #define GNTTAB_LIST_END 0xffffffff
 
 static grant_ref_t **gnttab_list;
@@ -209,6 +207,10 @@ static inline void check_free_callbacks(void)
 static void put_free_entry(grant_ref_t ref)
 {
 	unsigned long flags;
+
+	if (unlikely(ref < GNTTAB_NR_RESERVED_ENTRIES))
+		return;
+
 	spin_lock_irqsave(&gnttab_list_lock, flags);
 	gnttab_entry(ref) = gnttab_free_head;
 	gnttab_free_head = ref;
@@ -428,13 +430,13 @@ int gnttab_try_end_foreign_access(grant_ref_t ref)
 }
 EXPORT_SYMBOL_GPL(gnttab_try_end_foreign_access);
 
-void gnttab_end_foreign_access(grant_ref_t ref, unsigned long page)
+void gnttab_end_foreign_access(grant_ref_t ref, struct page *page)
 {
 	if (gnttab_try_end_foreign_access(ref)) {
-		if (page != 0)
-			put_page(virt_to_page(page));
+		if (page)
+			put_page(page);
 	} else
-		gnttab_add_deferred(ref, page ? virt_to_page(page) : NULL);
+		gnttab_add_deferred(ref, page);
 }
 EXPORT_SYMBOL_GPL(gnttab_end_foreign_access);
 
@@ -630,7 +632,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 	if (xen_auto_xlat_grant_frames.count)
 		return -EINVAL;
 
-	vaddr = xen_remap(addr, XEN_PAGE_SIZE * max_nr_gframes);
+	vaddr = memremap(addr, XEN_PAGE_SIZE * max_nr_gframes, MEMREMAP_WB);
 	if (vaddr == NULL) {
 		pr_warn("Failed to ioremap gnttab share frames (addr=%pa)!\n",
 			&addr);
@@ -638,7 +640,7 @@ int gnttab_setup_auto_xlat_frames(phys_addr_t addr)
 	}
 	pfn = kcalloc(max_nr_gframes, sizeof(pfn[0]), GFP_KERNEL);
 	if (!pfn) {
-		xen_unmap(vaddr);
+		memunmap(vaddr);
 		return -ENOMEM;
 	}
 	for (i = 0; i < max_nr_gframes; i++)
@@ -657,7 +659,7 @@ void gnttab_free_auto_xlat_frames(void)
 	if (!xen_auto_xlat_grant_frames.count)
 		return;
 	kfree(xen_auto_xlat_grant_frames.pfn);
-	xen_unmap(xen_auto_xlat_grant_frames.vaddr);
+	memunmap(xen_auto_xlat_grant_frames.vaddr);
 
 	xen_auto_xlat_grant_frames.pfn = NULL;
 	xen_auto_xlat_grant_frames.count = 0;
@@ -1465,12 +1467,12 @@ int gnttab_init(void)
 	nr_init_grefs = nr_grant_frames *
 			gnttab_interface->grefs_per_grant_frame;
 
-	for (i = NR_RESERVED_ENTRIES; i < nr_init_grefs - 1; i++)
+	for (i = GNTTAB_NR_RESERVED_ENTRIES; i < nr_init_grefs - 1; i++)
 		gnttab_entry(i) = i + 1;
 
 	gnttab_entry(nr_init_grefs - 1) = GNTTAB_LIST_END;
-	gnttab_free_count = nr_init_grefs - NR_RESERVED_ENTRIES;
-	gnttab_free_head  = NR_RESERVED_ENTRIES;
+	gnttab_free_count = nr_init_grefs - GNTTAB_NR_RESERVED_ENTRIES;
+	gnttab_free_head  = GNTTAB_NR_RESERVED_ENTRIES;
 
 	printk("Grant table initialized\n");
 	return 0;

@@ -27,21 +27,30 @@ struct vas_caps_entry {
 
 /*
  * This function is used to get the notification from the drmgr when
- * QoS credits are changed. Though receiving the target total QoS
- * credits here, get the official QoS capabilities from the hypervisor.
+ * QoS credits are changed.
  */
-static ssize_t update_total_credits_trigger(struct vas_cop_feat_caps *caps,
+static ssize_t update_total_credits_store(struct vas_cop_feat_caps *caps,
 						const char *buf, size_t count)
 {
 	int err;
 	u16 creds;
 
 	err = kstrtou16(buf, 0, &creds);
+	/*
+	 * The user space interface from the management console
+	 * notifies OS with the new QoS credits and then the
+	 * hypervisor. So OS has to use this new credits value
+	 * and reconfigure VAS windows (close or reopen depends
+	 * on the credits available) instead of depending on VAS
+	 * QoS capabilities from the hypervisor.
+	 */
 	if (!err)
-		err = vas_reconfig_capabilties(caps->win_type);
+		err = vas_reconfig_capabilties(caps->win_type, creds);
 
 	if (err)
 		return -EINVAL;
+
+	pr_info("Set QoS total credits %u\n", creds);
 
 	return count;
 }
@@ -65,26 +74,26 @@ struct vas_sysfs_entry {
 
 /*
  * Create sysfs interface:
- * /sys/devices/vas/vas0/gzip/default_capabilities
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities
  *	This directory contains the following VAS GZIP capabilities
- *	for the defaule credit type.
- * /sys/devices/vas/vas0/gzip/default_capabilities/nr_total_credits
+ *	for the default credit type.
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities/nr_total_credits
  *	Total number of default credits assigned to the LPAR which
  *	can be changed with DLPAR operation.
- * /sys/devices/vas/vas0/gzip/default_capabilities/nr_used_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/default_capabilities/nr_used_credits
  *	Number of credits used by the user space. One credit will
  *	be assigned for each window open.
  *
- * /sys/devices/vas/vas0/gzip/qos_capabilities
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities
  *	This directory contains the following VAS GZIP capabilities
  *	for the Quality of Service (QoS) credit type.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/nr_total_credits
  *	Total number of QoS credits assigned to the LPAR. The user
  *	has to define this value using HMC interface. It can be
  *	changed dynamically by the user.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/nr_used_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/nr_used_credits
  *	Number of credits used by the user space.
- * /sys/devices/vas/vas0/gzip/qos_capabilities/update_total_credits
+ * /sys/devices/virtual/misc/vas/vas0/gzip/qos_capabilities/update_total_credits
  *	Update total QoS credits dynamically
  */
 
@@ -92,13 +101,14 @@ VAS_ATTR_RO(nr_total_credits);
 VAS_ATTR_RO(nr_used_credits);
 
 static struct vas_sysfs_entry update_total_credits_attribute =
-	__ATTR(update_total_credits, 0200, NULL, update_total_credits_trigger);
+	__ATTR(update_total_credits, 0200, NULL, update_total_credits_store);
 
 static struct attribute *vas_def_capab_attrs[] = {
 	&nr_total_credits_attribute.attr,
 	&nr_used_credits_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(vas_def_capab);
 
 static struct attribute *vas_qos_capab_attrs[] = {
 	&nr_total_credits_attribute.attr,
@@ -106,6 +116,7 @@ static struct attribute *vas_qos_capab_attrs[] = {
 	&update_total_credits_attribute.attr,
 	NULL,
 };
+ATTRIBUTE_GROUPS(vas_qos_capab);
 
 static ssize_t vas_type_show(struct kobject *kobj, struct attribute *attr,
 			     char *buf)
@@ -154,13 +165,13 @@ static const struct sysfs_ops vas_sysfs_ops = {
 static struct kobj_type vas_def_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops      =       &vas_sysfs_ops,
-		.default_attrs  =       vas_def_capab_attrs,
+		.default_groups	=	vas_def_capab_groups,
 };
 
 static struct kobj_type vas_qos_attr_type = {
 		.release	=	vas_type_release,
 		.sysfs_ops	=	&vas_sysfs_ops,
-		.default_attrs	=	vas_qos_capab_attrs,
+		.default_groups	=	vas_qos_capab_groups,
 };
 
 static char *vas_caps_kobj_name(struct vas_caps_entry *centry,
@@ -237,6 +248,7 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps)
 	pseries_vas_kobj = kobject_create_and_add("vas0",
 					&vas_miscdev.this_device->kobj);
 	if (!pseries_vas_kobj) {
+		misc_deregister(&vas_miscdev);
 		pr_err("Failed to create VAS sysfs entry\n");
 		return -ENOMEM;
 	}
@@ -248,6 +260,7 @@ int __init sysfs_pseries_vas_init(struct vas_all_caps *vas_caps)
 		if (!gzip_caps_kobj) {
 			pr_err("Failed to create VAS GZIP capability entry\n");
 			kobject_put(pseries_vas_kobj);
+			misc_deregister(&vas_miscdev);
 			return -ENOMEM;
 		}
 	}

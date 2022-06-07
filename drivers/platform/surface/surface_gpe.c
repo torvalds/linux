@@ -100,6 +100,14 @@ static const struct dmi_system_id dmi_lid_device_table[] = {
 		.driver_data = (void *)lid_device_props_l4D,
 	},
 	{
+		.ident = "Surface Pro 8",
+		.matches = {
+			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "Surface Pro 8"),
+		},
+		.driver_data = (void *)lid_device_props_l4B,
+	},
+	{
 		.ident = "Surface Book 1",
 		.matches = {
 			DMI_EXACT_MATCH(DMI_SYS_VENDOR, "Microsoft Corporation"),

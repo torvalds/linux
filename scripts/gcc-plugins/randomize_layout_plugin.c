@@ -34,27 +34,9 @@ __visible int plugin_is_GPL_compatible;
 static int performance_mode;
 
 static struct plugin_info randomize_layout_plugin_info = {
-	.version	= "201402201816vanilla",
+	.version	= PLUGIN_VERSION,
 	.help		= "disable\t\t\tdo not activate plugin\n"
 			  "performance-mode\tenable cacheline-aware layout randomization\n"
-};
-
-struct whitelist_entry {
-	const char *pathname;
-	const char *lhs;
-	const char *rhs;
-};
-
-static const struct whitelist_entry whitelist[] = {
-	/* NIU overloads mapping with page struct */
-	{ "drivers/net/ethernet/sun/niu.c", "page", "address_space" },
-	/* unix_skb_parms via UNIXCB() buffer */
-	{ "net/unix/af_unix.c", "unix_skb_parms", "char" },
-	/* big_key payload.data struct splashing */
-	{ "security/keys/big_key.c", "path", "void *" },
-	/* walk struct security_hook_heads as an array of struct hlist_head */
-	{ "security/security.c", "hlist_head", "security_hook_heads" },
-	{ }
 };
 
 /* from old Linux dcache.h */
@@ -742,60 +724,6 @@ static void handle_local_var_initializers(void)
 	}
 }
 
-static bool type_name_eq(gimple stmt, const_tree type_tree, const char *wanted_name)
-{
-	const char *type_name;
-
-	if (type_tree == NULL_TREE)
-		return false;
-
-	switch (TREE_CODE(type_tree)) {
-	case RECORD_TYPE:
-		type_name = TYPE_NAME_POINTER(type_tree);
-		break;
-	case INTEGER_TYPE:
-		if (TYPE_PRECISION(type_tree) == CHAR_TYPE_SIZE)
-			type_name = "char";
-		else {
-			INFORM(gimple_location(stmt), "found non-char INTEGER_TYPE cast comparison: %qT\n", type_tree);
-			debug_tree(type_tree);
-			return false;
-		}
-		break;
-	case POINTER_TYPE:
-		if (TREE_CODE(TREE_TYPE(type_tree)) == VOID_TYPE) {
-			type_name = "void *";
-			break;
-		} else {
-			INFORM(gimple_location(stmt), "found non-void POINTER_TYPE cast comparison %qT\n", type_tree);
-			debug_tree(type_tree);
-			return false;
-		}
-	default:
-		INFORM(gimple_location(stmt), "unhandled cast comparison: %qT\n", type_tree);
-		debug_tree(type_tree);
-		return false;
-	}
-
-	return strcmp(type_name, wanted_name) == 0;
-}
-
-static bool whitelisted_cast(gimple stmt, const_tree lhs_tree, const_tree rhs_tree)
-{
-	const struct whitelist_entry *entry;
-	expanded_location xloc = expand_location(gimple_location(stmt));
-
-	for (entry = whitelist; entry->pathname; entry++) {
-		if (!strstr(xloc.file, entry->pathname))
-			continue;
-
-		if (type_name_eq(stmt, lhs_tree, entry->lhs) && type_name_eq(stmt, rhs_tree, entry->rhs))
-			return true;
-	}
-
-	return false;
-}
-
 /*
  * iterate over all statements to find "bad" casts:
  * those where the address of the start of a structure is cast
@@ -872,10 +800,7 @@ static unsigned int find_bad_casts_execute(void)
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_lhs_type)))
 #endif
-				{
-					if (!whitelisted_cast(stmt, ptr_lhs_type, ptr_rhs_type))
-						MISMATCH(gimple_location(stmt), "rhs", ptr_lhs_type, ptr_rhs_type);
-				}
+				MISMATCH(gimple_location(stmt), "rhs", ptr_lhs_type, ptr_rhs_type);
 				continue;
 			}
 
@@ -898,10 +823,7 @@ static unsigned int find_bad_casts_execute(void)
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(op0_type)))
 #endif
-				{
-					if (!whitelisted_cast(stmt, ptr_lhs_type, op0_type))
-						MISMATCH(gimple_location(stmt), "op0", ptr_lhs_type, op0_type);
-				}
+				MISMATCH(gimple_location(stmt), "op0", ptr_lhs_type, op0_type);
 			} else {
 				const_tree ssa_name_var = SSA_NAME_VAR(rhs1);
 				/* skip bogus type casts introduced by container_of */
@@ -911,10 +833,7 @@ static unsigned int find_bad_casts_execute(void)
 #ifndef __DEBUG_PLUGIN
 				if (lookup_attribute("randomize_performed", TYPE_ATTRIBUTES(ptr_rhs_type)))
 #endif
-				{
-					if (!whitelisted_cast(stmt, ptr_lhs_type, ptr_rhs_type))
-						MISMATCH(gimple_location(stmt), "ssa", ptr_lhs_type, ptr_rhs_type);
-				}
+				MISMATCH(gimple_location(stmt), "ssa", ptr_lhs_type, ptr_rhs_type);
 			}
 
 		}

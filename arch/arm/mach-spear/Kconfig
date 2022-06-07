@@ -5,7 +5,7 @@
 
 menuconfig PLAT_SPEAR
 	bool "ST SPEAr Family"
-	depends on ARCH_MULTI_V7 || ARCH_MULTI_V5
+	depends on ARCH_MULTI_V7 || (ARCH_MULTI_V5 && CPU_LITTLE_ENDIAN)
 	select ARM_AMBA
 	select CLKSRC_MMIO
 	select GPIOLIB

@@ -33,7 +33,7 @@ static int cs35l41_i2c_probe(struct i2c_client *client)
 {
 	struct cs35l41_private *cs35l41;
 	struct device *dev = &client->dev;
-	struct cs35l41_platform_data *pdata = dev_get_platdata(dev);
+	struct cs35l41_hw_cfg *hw_cfg = dev_get_platdata(dev);
 	const struct regmap_config *regmap_config = &cs35l41_regmap_i2c;
 	int ret;
 
@@ -53,7 +53,7 @@ static int cs35l41_i2c_probe(struct i2c_client *client)
 		return ret;
 	}
 
-	return cs35l41_probe(cs35l41, pdata);
+	return cs35l41_probe(cs35l41, hw_cfg);
 }
 
 static int cs35l41_i2c_remove(struct i2c_client *client)

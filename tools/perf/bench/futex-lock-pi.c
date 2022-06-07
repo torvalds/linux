@@ -120,10 +120,16 @@ static void *workerfn(void *arg)
 static void create_threads(struct worker *w, pthread_attr_t thread_attr,
 			   struct perf_cpu_map *cpu)
 {
-	cpu_set_t cpuset;
+	cpu_set_t *cpuset;
 	unsigned int i;
+	int nrcpus =  perf_cpu_map__nr(cpu);
+	size_t size;
 
 	threads_starting = params.nthreads;
+
+	cpuset = CPU_ALLOC(nrcpus);
+	BUG_ON(!cpuset);
+	size = CPU_ALLOC_SIZE(nrcpus);
 
 	for (i = 0; i < params.nthreads; i++) {
 		worker[i].tid = i;
@@ -135,15 +141,20 @@ static void create_threads(struct worker *w, pthread_attr_t thread_attr,
 		} else
 			worker[i].futex = &global_futex;
 
-		CPU_ZERO(&cpuset);
-		CPU_SET(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu, &cpuset);
+		CPU_ZERO_S(size, cpuset);
+		CPU_SET_S(perf_cpu_map__cpu(cpu, i % perf_cpu_map__nr(cpu)).cpu, size, cpuset);
 
-		if (pthread_attr_setaffinity_np(&thread_attr, sizeof(cpu_set_t), &cpuset))
+		if (pthread_attr_setaffinity_np(&thread_attr, size, cpuset)) {
+			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_attr_setaffinity_np");
+		}
 
-		if (pthread_create(&w[i].thread, &thread_attr, workerfn, &worker[i]))
+		if (pthread_create(&w[i].thread, &thread_attr, workerfn, &worker[i])) {
+			CPU_FREE(cpuset);
 			err(EXIT_FAILURE, "pthread_create");
+		}
 	}
+	CPU_FREE(cpuset);
 }
 
 int bench_futex_lock_pi(int argc, const char **argv)

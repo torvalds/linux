@@ -38,9 +38,12 @@
 			compatible = "marvell,pdma-1.0";
 			reg = <0x40000000 0x10000>;
 			interrupts = <25>;
-			#dma-channels = <16>;
 			#dma-cells = <2>;
+			/* For backwards compatibility: */
+			#dma-channels = <16>;
+			dma-channels = <16>;
 			#dma-requests = <40>;
+			dma-requests = <40>;
 			status = "okay";
 		};
 

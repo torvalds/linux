@@ -152,7 +152,7 @@ int __kprobes parisc_kprobe_ss_handler(struct pt_regs *regs)
 	/* for absolute branch instructions we can copy iaoq_b. for relative
 	 * branch instructions we need to calculate the new address based on the
 	 * difference between iaoq_f and iaoq_b. We cannot use iaoq_b without
-	 * modificationt because it's based on our ainsn.insn address.
+	 * modifications because it's based on our ainsn.insn address.
 	 */
 
 	if (p->post_handler)

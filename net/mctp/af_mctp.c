@@ -93,13 +93,13 @@ out_release:
 static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 {
 	DECLARE_SOCKADDR(struct sockaddr_mctp *, addr, msg->msg_name);
-	const int hlen = MCTP_HEADER_MAXLEN + sizeof(struct mctp_hdr);
 	int rc, addrlen = msg->msg_namelen;
 	struct sock *sk = sock->sk;
 	struct mctp_sock *msk = container_of(sk, struct mctp_sock, sk);
 	struct mctp_skb_cb *cb;
 	struct mctp_route *rt;
-	struct sk_buff *skb;
+	struct sk_buff *skb = NULL;
+	int hlen;
 
 	if (addr) {
 		const u8 tagbits = MCTP_TAG_MASK | MCTP_TAG_OWNER |
@@ -129,6 +129,34 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	if (addr->smctp_network == MCTP_NET_ANY)
 		addr->smctp_network = mctp_default_net(sock_net(sk));
 
+	/* direct addressing */
+	if (msk->addr_ext && addrlen >= sizeof(struct sockaddr_mctp_ext)) {
+		DECLARE_SOCKADDR(struct sockaddr_mctp_ext *,
+				 extaddr, msg->msg_name);
+		struct net_device *dev;
+
+		rc = -EINVAL;
+		rcu_read_lock();
+		dev = dev_get_by_index_rcu(sock_net(sk), extaddr->smctp_ifindex);
+		/* check for correct halen */
+		if (dev && extaddr->smctp_halen == dev->addr_len) {
+			hlen = LL_RESERVED_SPACE(dev) + sizeof(struct mctp_hdr);
+			rc = 0;
+		}
+		rcu_read_unlock();
+		if (rc)
+			goto err_free;
+		rt = NULL;
+	} else {
+		rt = mctp_route_lookup(sock_net(sk), addr->smctp_network,
+				       addr->smctp_addr.s_addr);
+		if (!rt) {
+			rc = -EHOSTUNREACH;
+			goto err_free;
+		}
+		hlen = LL_RESERVED_SPACE(rt->dev->dev) + sizeof(struct mctp_hdr);
+	}
+
 	skb = sock_alloc_send_skb(sk, hlen + 1 + len,
 				  msg->msg_flags & MSG_DONTWAIT, &rc);
 	if (!skb)
@@ -147,8 +175,8 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 	cb = __mctp_cb(skb);
 	cb->net = addr->smctp_network;
 
-	/* direct addressing */
-	if (msk->addr_ext && addrlen >= sizeof(struct sockaddr_mctp_ext)) {
+	if (!rt) {
+		/* fill extended address in cb */
 		DECLARE_SOCKADDR(struct sockaddr_mctp_ext *,
 				 extaddr, msg->msg_name);
 
@@ -159,17 +187,9 @@ static int mctp_sendmsg(struct socket *sock, struct msghdr *msg, size_t len)
 		}
 
 		cb->ifindex = extaddr->smctp_ifindex;
+		/* smctp_halen is checked above */
 		cb->halen = extaddr->smctp_halen;
 		memcpy(cb->haddr, extaddr->smctp_haddr, cb->halen);
-
-		rt = NULL;
-	} else {
-		rt = mctp_route_lookup(sock_net(sk), addr->smctp_network,
-				       addr->smctp_addr.s_addr);
-		if (!rt) {
-			rc = -EHOSTUNREACH;
-			goto err_free;
-		}
 	}
 
 	rc = mctp_local_output(sk, rt, skb, addr->smctp_addr.s_addr,
@@ -196,7 +216,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (flags & ~(MSG_DONTWAIT | MSG_TRUNC | MSG_PEEK))
 		return -EOPNOTSUPP;
 
-	skb = skb_recv_datagram(sk, flags, flags & MSG_DONTWAIT, &rc);
+	skb = skb_recv_datagram(sk, flags, &rc);
 	if (!skb)
 		return rc;
 
@@ -218,7 +238,7 @@ static int mctp_recvmsg(struct socket *sock, struct msghdr *msg, size_t len,
 	if (rc < 0)
 		goto out_free;
 
-	sock_recv_ts_and_drops(msg, sk, skb);
+	sock_recv_cmsgs(msg, sk, skb);
 
 	if (addr) {
 		struct mctp_skb_cb *cb = mctp_cb(skb);

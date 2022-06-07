@@ -1035,6 +1035,9 @@ static void __arm_spe_pmu_dev_probe(void *info)
 		fallthrough;
 	case 2:
 		spe_pmu->counter_sz = 12;
+		break;
+	case 3:
+		spe_pmu->counter_sz = 16;
 	}
 
 	dev_info(dev,

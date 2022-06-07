@@ -10,8 +10,30 @@
 /delete-node/ &cpu6_map;
 /delete-node/ &cpu7_map;
 
+&gcc {
+	compatible = "qcom,gcc-msm8992";
+};
+
+&mmcc {
+	compatible = "qcom,mmcc-msm8992";
+
+	assigned-clock-rates = <800000000>,
+			       <808000000>,
+			       <1020000000>,
+			       <960000000>,
+			       <800000000>;
+};
+
+&ocmem {
+	reg = <0xfdd00000 0x2000>, <0xfec00000 0x100000>;
+
+	gmu-sram@0 {
+		reg = <0x0 0x80000>;
+	};
+};
+
 &rpmcc {
-	compatible = "qcom,rpmcc-msm8992";
+	compatible = "qcom,rpmcc-msm8992", "qcom,rpmcc";
 };
 
 &tcsr_mutex {

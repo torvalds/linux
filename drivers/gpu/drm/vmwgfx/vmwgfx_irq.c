@@ -32,6 +32,14 @@
 
 #define VMW_FENCE_WRAP (1 << 24)
 
+static u32 vmw_irqflag_fence_goal(struct vmw_private *vmw)
+{
+	if ((vmw->capabilities2 & SVGA_CAP2_EXTRA_REGS) != 0)
+		return SVGA_IRQFLAG_REG_FENCE_GOAL;
+	else
+		return SVGA_IRQFLAG_FENCE_GOAL;
+}
+
 /**
  * vmw_thread_fn - Deferred (process context) irq handler
  *
@@ -96,7 +104,7 @@ static irqreturn_t vmw_irq_handler(int irq, void *arg)
 		wake_up_all(&dev_priv->fifo_queue);
 
 	if ((masked_status & (SVGA_IRQFLAG_ANY_FENCE |
-			      SVGA_IRQFLAG_FENCE_GOAL)) &&
+			      vmw_irqflag_fence_goal(dev_priv))) &&
 	    !test_and_set_bit(VMW_IRQTHREAD_FENCE, dev_priv->irqthread_pending))
 		ret = IRQ_WAKE_THREAD;
 
@@ -137,8 +145,7 @@ bool vmw_seqno_passed(struct vmw_private *dev_priv,
 	if (likely(dev_priv->last_read_seqno - seqno < VMW_FENCE_WRAP))
 		return true;
 
-	if (!(vmw_fifo_caps(dev_priv) & SVGA_FIFO_CAP_FENCE) &&
-	    vmw_fifo_idle(dev_priv, seqno))
+	if (!vmw_has_fences(dev_priv) && vmw_fifo_idle(dev_priv, seqno))
 		return true;
 
 	/**
@@ -160,6 +167,7 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 		      unsigned long timeout)
 {
 	struct vmw_fifo_state *fifo_state = dev_priv->fifo;
+	bool fifo_down = false;
 
 	uint32_t count = 0;
 	uint32_t signal_seq;
@@ -176,12 +184,14 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 	 */
 
 	if (fifo_idle) {
-		down_read(&fifo_state->rwsem);
 		if (dev_priv->cman) {
 			ret = vmw_cmdbuf_idle(dev_priv->cman, interruptible,
 					      10*HZ);
 			if (ret)
 				goto out_err;
+		} else if (fifo_state) {
+			down_read(&fifo_state->rwsem);
+			fifo_down = true;
 		}
 	}
 
@@ -218,12 +228,12 @@ int vmw_fallback_wait(struct vmw_private *dev_priv,
 		}
 	}
 	finish_wait(&dev_priv->fence_queue, &__wait);
-	if (ret == 0 && fifo_idle)
+	if (ret == 0 && fifo_idle && fifo_state)
 		vmw_fence_write(dev_priv, signal_seq);
 
 	wake_up_all(&dev_priv->fence_queue);
 out_err:
-	if (fifo_idle)
+	if (fifo_down)
 		up_read(&fifo_state->rwsem);
 
 	return ret;
@@ -266,13 +276,13 @@ void vmw_seqno_waiter_remove(struct vmw_private *dev_priv)
 
 void vmw_goal_waiter_add(struct vmw_private *dev_priv)
 {
-	vmw_generic_waiter_add(dev_priv, SVGA_IRQFLAG_FENCE_GOAL,
+	vmw_generic_waiter_add(dev_priv, vmw_irqflag_fence_goal(dev_priv),
 			       &dev_priv->goal_queue_waiters);
 }
 
 void vmw_goal_waiter_remove(struct vmw_private *dev_priv)
 {
-	vmw_generic_waiter_remove(dev_priv, SVGA_IRQFLAG_FENCE_GOAL,
+	vmw_generic_waiter_remove(dev_priv, vmw_irqflag_fence_goal(dev_priv),
 				  &dev_priv->goal_queue_waiters);
 }
 
@@ -290,6 +300,7 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	struct vmw_private *dev_priv = vmw_priv(dev);
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	uint32_t status;
+	u32 i;
 
 	if (!(dev_priv->capabilities & SVGA_CAP_IRQMASK))
 		return;
@@ -299,20 +310,62 @@ void vmw_irq_uninstall(struct drm_device *dev)
 	status = vmw_irq_status_read(dev_priv);
 	vmw_irq_status_write(dev_priv, status);
 
-	free_irq(pdev->irq, dev);
+	for (i = 0; i < dev_priv->num_irq_vectors; ++i)
+		free_irq(dev_priv->irqs[i], dev);
+
+	pci_free_irq_vectors(pdev);
+	dev_priv->num_irq_vectors = 0;
 }
 
 /**
  * vmw_irq_install - Install the irq handlers
  *
- * @dev:  Pointer to the drm device.
- * @irq:  The irq number.
+ * @dev_priv:  Pointer to the vmw_private device.
  * Return:  Zero if successful. Negative number otherwise.
  */
-int vmw_irq_install(struct drm_device *dev, int irq)
+int vmw_irq_install(struct vmw_private *dev_priv)
 {
+	struct pci_dev *pdev = to_pci_dev(dev_priv->drm.dev);
+	struct drm_device *dev = &dev_priv->drm;
+	int ret;
+	int nvec;
+	int i = 0;
+
+	BUILD_BUG_ON((SVGA_IRQFLAG_MAX >> VMWGFX_MAX_NUM_IRQS) != 1);
+	BUG_ON(VMWGFX_MAX_NUM_IRQS != get_count_order(SVGA_IRQFLAG_MAX));
+
+	nvec = pci_alloc_irq_vectors(pdev, 1, VMWGFX_MAX_NUM_IRQS,
+				     PCI_IRQ_ALL_TYPES);
+
+	if (nvec <= 0) {
+		drm_err(&dev_priv->drm,
+			"IRQ's are unavailable, nvec: %d\n", nvec);
+		ret = nvec;
+		goto done;
+	}
+
 	vmw_irq_preinstall(dev);
 
-	return request_threaded_irq(irq, vmw_irq_handler, vmw_thread_fn,
-				    IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
+	for (i = 0; i < nvec; ++i) {
+		ret = pci_irq_vector(pdev, i);
+		if (ret < 0) {
+			drm_err(&dev_priv->drm,
+				"failed getting irq vector: %d\n", ret);
+			goto done;
+		}
+		dev_priv->irqs[i] = ret;
+
+		ret = request_threaded_irq(dev_priv->irqs[i], vmw_irq_handler, vmw_thread_fn,
+					   IRQF_SHARED, VMWGFX_DRIVER_NAME, dev);
+		if (ret != 0) {
+			drm_err(&dev_priv->drm,
+				"Failed installing irq(%d): %d\n",
+				dev_priv->irqs[i], ret);
+			goto done;
+		}
+	}
+
+done:
+	dev_priv->num_irq_vectors = i;
+	return ret;
 }

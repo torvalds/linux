@@ -131,6 +131,7 @@ config EXTCON_PALMAS
 config EXTCON_PTN5150
 	tristate "NXP PTN5150 CC LOGIC USB EXTCON support"
 	depends on I2C && (GPIOLIB || COMPILE_TEST)
+	depends on USB_ROLE_SWITCH || !USB_ROLE_SWITCH
 	select REGMAP_I2C
 	help
 	  Say Y here to enable support for USB peripheral and USB host
@@ -156,7 +157,7 @@ config EXTCON_RT8973A
 	  from abnormal high input voltage (up to 28V).
 
 config EXTCON_SM5502
-	tristate "Silicon Mitus SM5502/SM5504 EXTCON support"
+	tristate "Silicon Mitus SM5502/SM5504/SM5703 EXTCON support"
 	depends on I2C
 	select IRQ_DOMAIN
 	select REGMAP_I2C

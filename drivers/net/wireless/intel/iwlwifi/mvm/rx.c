@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0 OR BSD-3-Clause
 /*
- * Copyright (C) 2012-2014, 2018-2021 Intel Corporation
+ * Copyright (C) 2012-2014, 2018-2022 Intel Corporation
  * Copyright (C) 2013-2015 Intel Mobile Communications GmbH
  * Copyright (C) 2016-2017 Intel Deutschland GmbH
  */
@@ -327,17 +327,6 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 	rx_status = IEEE80211_SKB_RXCB(skb);
 
 	/*
-	 * drop the packet if it has failed being decrypted by HW
-	 */
-	if (iwl_mvm_set_mac80211_rx_flag(mvm, hdr, rx_status, rx_pkt_status,
-					 &crypt_len)) {
-		IWL_DEBUG_DROP(mvm, "Bad decryption results 0x%08x\n",
-			       rx_pkt_status);
-		kfree_skb(skb);
-		return;
-	}
-
-	/*
 	 * Keep packets with CRC errors (and with overrun) for monitor mode
 	 * (otherwise the firmware discards them) but mark them as bad.
 	 */
@@ -384,6 +373,37 @@ void iwl_mvm_rx_rx_mpdu(struct iwl_mvm *mvm, struct napi_struct *napi,
 		 * address from being added.
 		 */
 		sta = ieee80211_find_sta_by_ifaddr(mvm->hw, hdr->addr2, NULL);
+	}
+
+	if (sta) {
+		struct iwl_mvm_sta *mvmsta = iwl_mvm_sta_from_mac80211(sta);
+		struct ieee80211_vif *vif = mvmsta->vif;
+		struct iwl_mvm_vif *mvmvif = iwl_mvm_vif_from_mac80211(vif);
+
+		/*
+		 * Don't even try to decrypt a MCAST frame that was received
+		 * before the managed vif is authorized, we'd fail anyway.
+		 */
+		if (vif->type == NL80211_IFTYPE_STATION &&
+		    !mvmvif->authorized &&
+		    is_multicast_ether_addr(hdr->addr1)) {
+			IWL_DEBUG_DROP(mvm, "MCAST before the vif is authorized\n");
+			kfree_skb(skb);
+			rcu_read_unlock();
+			return;
+		}
+	}
+
+	/*
+	 * drop the packet if it has failed being decrypted by HW
+	 */
+	if (iwl_mvm_set_mac80211_rx_flag(mvm, hdr, rx_status, rx_pkt_status,
+					 &crypt_len)) {
+		IWL_DEBUG_DROP(mvm, "Bad decryption results 0x%08x\n",
+			       rx_pkt_status);
+		kfree_skb(skb);
+		rcu_read_unlock();
+		return;
 	}
 
 	if (sta) {

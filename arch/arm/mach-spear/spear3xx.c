@@ -20,8 +20,8 @@
 #include <asm/mach/map.h>
 #include "pl080.h"
 #include "generic.h"
-#include <mach/spear.h>
-#include <mach/misc_regs.h>
+#include "spear.h"
+#include "misc_regs.h"
 
 /* ssp device registration */
 struct pl022_ssp_controller pl022_plat_data = {

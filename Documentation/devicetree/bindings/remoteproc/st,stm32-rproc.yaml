@@ -43,8 +43,8 @@ properties:
     items:
       - items:
           - description: Phandle of syscon block
-          - description: FIXME
-          - description: FIXME
+          - description: The offset of the trust zone setting register
+          - description: The field mask of the trust zone state
 
   interrupts:
     description: Should contain the WWDG1 watchdog reset interrupt
@@ -101,8 +101,8 @@ properties:
     items:
       - items:
           - description: Phandle of syscon block
-          - description: FIXME
-          - description: FIXME
+          - description: The offset of the power setting register
+          - description: The field mask of the PDDS selection
 
   st,syscfg-m4-state:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
@@ -111,8 +111,8 @@ properties:
     items:
       - items:
           - description: Phandle of syscon block with the tamp register
-          - description: FIXME
-          - description: FIXME
+          - description: The offset of the tamp register
+          - description: The field mask of the Cortex-M4 state
 
   st,syscfg-rsc-tbl:
     $ref: "/schemas/types.yaml#/definitions/phandle-array"
@@ -122,8 +122,8 @@ properties:
     items:
       - items:
           - description: Phandle of syscon block with the tamp register
-          - description: FIXME
-          - description: FIXME
+          - description: The offset of the tamp register
+          - description: The field mask of the Cortex-M4 resource table address
 
   st,auto-boot:
     $ref: /schemas/types.yaml#/definitions/flag

@@ -13,7 +13,7 @@
 #include <dt-bindings/leds/common.h>
 
 / {
-	compatible = "meraki,mr32", "brcm,brcm53016", "brcm,bcm4708";
+	compatible = "meraki,mr32", "brcm,bcm53016", "brcm,bcm4708";
 	model = "Meraki MR32";
 
 	chosen {

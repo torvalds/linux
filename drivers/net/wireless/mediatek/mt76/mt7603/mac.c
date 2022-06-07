@@ -326,19 +326,21 @@ void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta)
 
 	addr = mt7603_wtbl1_addr(idx);
 
-	ampdu_density = sta->ht_cap.ampdu_density;
+	ampdu_density = sta->deflink.ht_cap.ampdu_density;
 	if (ampdu_density < IEEE80211_HT_MPDU_DENSITY_4)
 		ampdu_density = IEEE80211_HT_MPDU_DENSITY_4;
 
 	val = mt76_rr(dev, addr + 2 * 4);
 	val &= MT_WTBL1_W2_KEY_TYPE | MT_WTBL1_W2_ADMISSION_CONTROL;
-	val |= FIELD_PREP(MT_WTBL1_W2_AMPDU_FACTOR, sta->ht_cap.ampdu_factor) |
-	       FIELD_PREP(MT_WTBL1_W2_MPDU_DENSITY, sta->ht_cap.ampdu_density) |
+	val |= FIELD_PREP(MT_WTBL1_W2_AMPDU_FACTOR,
+			  sta->deflink.ht_cap.ampdu_factor) |
+	       FIELD_PREP(MT_WTBL1_W2_MPDU_DENSITY,
+			  sta->deflink.ht_cap.ampdu_density) |
 	       MT_WTBL1_W2_TXS_BAF_REPORT;
 
-	if (sta->ht_cap.cap)
+	if (sta->deflink.ht_cap.cap)
 		val |= MT_WTBL1_W2_HT;
-	if (sta->vht_cap.cap)
+	if (sta->deflink.vht_cap.cap)
 		val |= MT_WTBL1_W2_VHT;
 
 	mt76_wr(dev, addr + 2 * 4, val);
@@ -347,9 +349,9 @@ void mt7603_wtbl_update_cap(struct mt7603_dev *dev, struct ieee80211_sta *sta)
 	val = mt76_rr(dev, addr + 9 * 4);
 	val &= ~(MT_WTBL2_W9_SHORT_GI_20 | MT_WTBL2_W9_SHORT_GI_40 |
 		 MT_WTBL2_W9_SHORT_GI_80);
-	if (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_20)
+	if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_20)
 		val |= MT_WTBL2_W9_SHORT_GI_20;
-	if (sta->ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
+	if (sta->deflink.ht_cap.cap & IEEE80211_HT_CAP_SGI_40)
 		val |= MT_WTBL2_W9_SHORT_GI_40;
 	mt76_wr(dev, addr + 9 * 4, val);
 }

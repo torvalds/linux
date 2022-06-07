@@ -42,7 +42,6 @@ properties:
     description:
       Specifying the interrupt-controller used to wake up the system when the
       TLMM block has been powered down.
-    maxItems: 1
 
   gpio-reserved-ranges:
     description:

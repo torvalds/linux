@@ -31,7 +31,6 @@
 #include <asm/io.h>
 #include <asm/irq.h>
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <sysdev/fsl_soc.h>
 #include <mm/mmu_decl.h>

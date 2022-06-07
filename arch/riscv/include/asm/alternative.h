@@ -12,12 +12,20 @@
 
 #ifndef __ASSEMBLY__
 
+#ifdef CONFIG_RISCV_ALTERNATIVE
+
 #include <linux/init.h>
 #include <linux/types.h>
 #include <linux/stddef.h>
 #include <asm/hwcap.h>
 
+#define RISCV_ALTERNATIVES_BOOT		0 /* alternatives applied during regular boot */
+#define RISCV_ALTERNATIVES_MODULE	1 /* alternatives applied during module-init */
+#define RISCV_ALTERNATIVES_EARLY_BOOT	2 /* alternatives applied before mmu start */
+
 void __init apply_boot_alternatives(void);
+void __init apply_early_boot_alternatives(void);
+void apply_module_alternatives(void *start, size_t length);
 
 struct alt_entry {
 	void *old_ptr;		 /* address of original instruciton or data  */
@@ -33,7 +41,22 @@ struct errata_checkfunc_id {
 };
 
 void sifive_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
-			      unsigned long archid, unsigned long impid);
+			      unsigned long archid, unsigned long impid,
+			      unsigned int stage);
+void thead_errata_patch_func(struct alt_entry *begin, struct alt_entry *end,
+			     unsigned long archid, unsigned long impid,
+			     unsigned int stage);
+
+void riscv_cpufeature_patch_func(struct alt_entry *begin, struct alt_entry *end,
+				 unsigned int stage);
+
+#else /* CONFIG_RISCV_ALTERNATIVE */
+
+static inline void apply_boot_alternatives(void) { }
+static inline void apply_early_boot_alternatives(void) { }
+static inline void apply_module_alternatives(void *start, size_t length) { }
+
+#endif /* CONFIG_RISCV_ALTERNATIVE */
 
 #endif
 #endif

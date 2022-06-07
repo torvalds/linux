@@ -40,6 +40,7 @@
 #include "ib_rep.h"
 #include "counters.h"
 #include "cmd.h"
+#include "umr.h"
 #include "qp.h"
 #include "wr.h"
 
@@ -3907,7 +3908,7 @@ static unsigned int get_tx_affinity_rr(struct mlx5_ib_dev *dev,
 		tx_port_affinity = &dev->port[port_num].roce.tx_port_affinity;
 
 	return (unsigned int)atomic_add_return(1, tx_port_affinity) %
-		MLX5_MAX_PORTS + 1;
+		(dev->lag_active ? dev->lag_ports : MLX5_CAP_GEN(dev->mdev, num_lag_ports)) + 1;
 }
 
 static bool qp_supports_affinity(struct mlx5_ib_qp *qp)

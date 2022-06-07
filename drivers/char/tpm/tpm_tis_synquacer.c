@@ -35,72 +35,53 @@ static inline struct tpm_tis_synquacer_phy *to_tpm_tis_tcg_phy(struct tpm_tis_da
 }
 
 static int tpm_tis_synquacer_read_bytes(struct tpm_tis_data *data, u32 addr,
-					u16 len, u8 *result)
+					u16 len, u8 *result,
+					enum tpm_tis_io_mode io_mode)
 {
 	struct tpm_tis_synquacer_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	while (len--)
-		*result++ = ioread8(phy->iobase + addr);
+	switch (io_mode) {
+	case TPM_TIS_PHYS_8:
+		while (len--)
+			*result++ = ioread8(phy->iobase + addr);
+		break;
+	case TPM_TIS_PHYS_16:
+		result[1] = ioread8(phy->iobase + addr + 1);
+		result[0] = ioread8(phy->iobase + addr);
+		break;
+	case TPM_TIS_PHYS_32:
+		result[3] = ioread8(phy->iobase + addr + 3);
+		result[2] = ioread8(phy->iobase + addr + 2);
+		result[1] = ioread8(phy->iobase + addr + 1);
+		result[0] = ioread8(phy->iobase + addr);
+		break;
+	}
 
 	return 0;
 }
 
 static int tpm_tis_synquacer_write_bytes(struct tpm_tis_data *data, u32 addr,
-					 u16 len, const u8 *value)
+					 u16 len, const u8 *value,
+					 enum tpm_tis_io_mode io_mode)
 {
 	struct tpm_tis_synquacer_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	while (len--)
-		iowrite8(*value++, phy->iobase + addr);
-
-	return 0;
-}
-
-static int tpm_tis_synquacer_read16_bw(struct tpm_tis_data *data,
-				       u32 addr, u16 *result)
-{
-	struct tpm_tis_synquacer_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	/*
-	 * Due to the limitation of SPI controller on SynQuacer,
-	 * 16/32 bits access must be done in byte-wise and descending order.
-	 */
-	*result = (ioread8(phy->iobase + addr + 1) << 8) |
-		  (ioread8(phy->iobase + addr));
-
-	return 0;
-}
-
-static int tpm_tis_synquacer_read32_bw(struct tpm_tis_data *data,
-				       u32 addr, u32 *result)
-{
-	struct tpm_tis_synquacer_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	/*
-	 * Due to the limitation of SPI controller on SynQuacer,
-	 * 16/32 bits access must be done in byte-wise and descending order.
-	 */
-	*result = (ioread8(phy->iobase + addr + 3) << 24) |
-		  (ioread8(phy->iobase + addr + 2) << 16) |
-		  (ioread8(phy->iobase + addr + 1) << 8) |
-		  (ioread8(phy->iobase + addr));
-
-	return 0;
-}
-
-static int tpm_tis_synquacer_write32_bw(struct tpm_tis_data *data,
-					u32 addr, u32 value)
-{
-	struct tpm_tis_synquacer_phy *phy = to_tpm_tis_tcg_phy(data);
-
-	/*
-	 * Due to the limitation of SPI controller on SynQuacer,
-	 * 16/32 bits access must be done in byte-wise and descending order.
-	 */
-	iowrite8(value >> 24, phy->iobase + addr + 3);
-	iowrite8(value >> 16, phy->iobase + addr + 2);
-	iowrite8(value >> 8, phy->iobase + addr + 1);
-	iowrite8(value, phy->iobase + addr);
+	switch (io_mode) {
+	case TPM_TIS_PHYS_8:
+		while (len--)
+			iowrite8(*value++, phy->iobase + addr);
+		break;
+	case TPM_TIS_PHYS_16:
+		return -EINVAL;
+	case TPM_TIS_PHYS_32:
+		/*
+		 * Due to the limitation of SPI controller on SynQuacer,
+		 * 16/32 bits access must be done in byte-wise and descending order.
+		 */
+		iowrite8(value[3], phy->iobase + addr + 3);
+		iowrite8(value[2], phy->iobase + addr + 2);
+		iowrite8(value[1], phy->iobase + addr + 1);
+		iowrite8(value[0], phy->iobase + addr);
+		break;
+	}
 
 	return 0;
 }
@@ -108,9 +89,6 @@ static int tpm_tis_synquacer_write32_bw(struct tpm_tis_data *data,
 static const struct tpm_tis_phy_ops tpm_tcg_bw = {
 	.read_bytes	= tpm_tis_synquacer_read_bytes,
 	.write_bytes	= tpm_tis_synquacer_write_bytes,
-	.read16		= tpm_tis_synquacer_read16_bw,
-	.read32		= tpm_tis_synquacer_read32_bw,
-	.write32	= tpm_tis_synquacer_write32_bw,
 };
 
 static int tpm_tis_synquacer_init(struct device *dev,

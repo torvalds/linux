@@ -17,8 +17,11 @@
 #include <linux/io.h>
 #include <linux/omapfb.h>
 #include <linux/dma-mapping.h>
+#include <linux/irq.h>
 
 #include <asm/mach/map.h>
+
+#include "irqs.h"
 
 #if IS_ENABLED(CONFIG_FB_OMAP)
 
@@ -26,6 +29,19 @@ static bool omapfb_lcd_configured;
 static struct omapfb_platform_data omapfb_config;
 
 static u64 omap_fb_dma_mask = ~(u32)0;
+
+static struct resource omap_fb_resources[] = {
+	{
+		.name  = "irq",
+		.start = INT_LCD_CTRL,
+		.flags = IORESOURCE_IRQ,
+	},
+	{
+		.name  = "irq",
+		.start = INT_SOSSI_MATCH,
+		.flags = IORESOURCE_IRQ,
+	},
+};
 
 static struct platform_device omap_fb_device = {
 	.name		= "omapfb",
@@ -35,7 +51,8 @@ static struct platform_device omap_fb_device = {
 		.coherent_dma_mask	= DMA_BIT_MASK(32),
 		.platform_data		= &omapfb_config,
 	},
-	.num_resources = 0,
+	.num_resources = ARRAY_SIZE(omap_fb_resources),
+	.resource = omap_fb_resources,
 };
 
 void __init omapfb_set_lcd_config(const struct omap_lcd_config *config)

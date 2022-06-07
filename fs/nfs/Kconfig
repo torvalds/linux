@@ -4,10 +4,6 @@ config NFS_FS
 	depends on INET && FILE_LOCKING && MULTIUSER
 	select LOCKD
 	select SUNRPC
-	select CRYPTO
-	select CRYPTO_HASH
-	select XXHASH
-	select CRYPTO_XXHASH
 	select NFS_ACL_SUPPORT if NFS_V3_ACL
 	help
 	  Choose Y here if you want to access files residing on other

@@ -39,7 +39,7 @@
 #include <linux/sched.h>
 #include <linux/kmemleak.h>
 #include <linux/xattr.h>
-#include <linux/xxhash.h>
+#include <linux/hash.h>
 
 #include "delegation.h"
 #include "iostat.h"
@@ -55,7 +55,7 @@ static int nfs_closedir(struct inode *, struct file *);
 static int nfs_readdir(struct file *, struct dir_context *);
 static int nfs_fsync_dir(struct file *, loff_t, loff_t, int);
 static loff_t nfs_llseek_dir(struct file *, loff_t, int);
-static void nfs_readdir_clear_array(struct page*);
+static void nfs_readdir_free_folio(struct folio *);
 
 const struct file_operations nfs_dir_operations = {
 	.llseek		= nfs_llseek_dir,
@@ -67,7 +67,7 @@ const struct file_operations nfs_dir_operations = {
 };
 
 const struct address_space_operations nfs_dir_aops = {
-	.freepage = nfs_readdir_clear_array,
+	.free_folio = nfs_readdir_free_folio,
 };
 
 #define NFS_INIT_DTSIZE PAGE_SIZE
@@ -228,6 +228,11 @@ static void nfs_readdir_clear_array(struct page *page)
 	kunmap_atomic(array);
 }
 
+static void nfs_readdir_free_folio(struct folio *folio)
+{
+	nfs_readdir_clear_array(&folio->page);
+}
+
 static void nfs_readdir_page_reinit_array(struct page *page, u64 last_cookie,
 					  u64 change_attr)
 {
@@ -350,10 +355,7 @@ out:
  * of directory cookies. Content is addressed by the value of the
  * cookie index of the first readdir entry in a page.
  *
- * The xxhash algorithm is chosen because it is fast, and is supposed
- * to result in a decent flat distribution of hashes.
- *
- * We then select only the first 18 bits to avoid issues with excessive
+ * We select only the first 18 bits to avoid issues with excessive
  * memory use for the page cache XArray. 18 bits should allow the caching
  * of 262144 pages of sequences of readdir entries. Since each page holds
  * 127 readdir entries for a typical 64-bit system, that works out to a
@@ -363,7 +365,7 @@ static pgoff_t nfs_readdir_page_cookie_hash(u64 cookie)
 {
 	if (cookie == 0)
 		return 0;
-	return xxhash(&cookie, sizeof(cookie), 0) & NFS_READDIR_COOKIE_MASK;
+	return hash_64(cookie, 18);
 }
 
 static bool nfs_readdir_page_validate(struct page *page, u64 last_cookie,
@@ -1990,16 +1992,6 @@ const struct dentry_operations nfs4_dentry_operations = {
 	.d_release	= nfs_d_release,
 };
 EXPORT_SYMBOL_GPL(nfs4_dentry_operations);
-
-static fmode_t flags_to_mode(int flags)
-{
-	fmode_t res = (__force fmode_t)flags & FMODE_EXEC;
-	if ((flags & O_ACCMODE) != O_WRONLY)
-		res |= FMODE_READ;
-	if ((flags & O_ACCMODE) != O_RDONLY)
-		res |= FMODE_WRITE;
-	return res;
-}
 
 static struct nfs_open_context *create_nfs_open_context(struct dentry *dentry, int open_flags, struct file *filp)
 {

@@ -981,7 +981,8 @@ int arc_emac_probe(struct net_device *ndev, int interface)
 	dev_info(dev, "connected to %s phy with id 0x%x\n",
 		 phydev->drv->name, phydev->phy_id);
 
-	netif_napi_add(ndev, &priv->napi, arc_emac_poll, ARC_EMAC_NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &priv->napi, arc_emac_poll,
+			      ARC_EMAC_NAPI_WEIGHT);
 
 	err = register_netdev(ndev);
 	if (err) {

@@ -136,7 +136,7 @@ static inline u16 Hi16(u32 val)
 
 static inline u16 Mk16(u8 hi, u8 lo)
 {
-	return lo | (((u16) hi) << 8);
+	return lo | (hi << 8);
 }
 
 
@@ -220,7 +220,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	/* Make temporary area overlap WEP seed so that the final copy can be
 	 * avoided on little endian hosts.
 	 */
-	u16 *PPK = (u16 *) &WEPSeed[4];
+	u16 *PPK = (u16 *)&WEPSeed[4];
 
 	/* Step 1 - make copy of TTAK and bring in TSC */
 	PPK[0] = TTAK[0];
@@ -231,15 +231,15 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	PPK[5] = TTAK[4] + IV16;
 
 	/* Step 2 - 96-bit bijective mixing using S-box */
-	PPK[0] += _S_(PPK[5] ^ Mk16_le((u16 *) &TK[0]));
-	PPK[1] += _S_(PPK[0] ^ Mk16_le((u16 *) &TK[2]));
-	PPK[2] += _S_(PPK[1] ^ Mk16_le((u16 *) &TK[4]));
-	PPK[3] += _S_(PPK[2] ^ Mk16_le((u16 *) &TK[6]));
-	PPK[4] += _S_(PPK[3] ^ Mk16_le((u16 *) &TK[8]));
-	PPK[5] += _S_(PPK[4] ^ Mk16_le((u16 *) &TK[10]));
+	PPK[0] += _S_(PPK[5] ^ Mk16_le((u16 *)&TK[0]));
+	PPK[1] += _S_(PPK[0] ^ Mk16_le((u16 *)&TK[2]));
+	PPK[2] += _S_(PPK[1] ^ Mk16_le((u16 *)&TK[4]));
+	PPK[3] += _S_(PPK[2] ^ Mk16_le((u16 *)&TK[6]));
+	PPK[4] += _S_(PPK[3] ^ Mk16_le((u16 *)&TK[8]));
+	PPK[5] += _S_(PPK[4] ^ Mk16_le((u16 *)&TK[10]));
 
-	PPK[0] += RotR1(PPK[5] ^ Mk16_le((u16 *) &TK[12]));
-	PPK[1] += RotR1(PPK[0] ^ Mk16_le((u16 *) &TK[14]));
+	PPK[0] += RotR1(PPK[5] ^ Mk16_le((u16 *)&TK[12]));
+	PPK[1] += RotR1(PPK[0] ^ Mk16_le((u16 *)&TK[14]));
 	PPK[2] += RotR1(PPK[1]);
 	PPK[3] += RotR1(PPK[2]);
 	PPK[4] += RotR1(PPK[3]);
@@ -251,7 +251,7 @@ static void tkip_mixing_phase2(u8 *WEPSeed, const u8 *TK, const u16 *TTAK,
 	WEPSeed[0] = Hi8(IV16);
 	WEPSeed[1] = (Hi8(IV16) | 0x20) & 0x7F;
 	WEPSeed[2] = Lo8(IV16);
-	WEPSeed[3] = Lo8((PPK[5] ^ Mk16_le((u16 *) &TK[0])) >> 1);
+	WEPSeed[3] = Lo8((PPK[5] ^ Mk16_le((u16 *)&TK[0])) >> 1);
 
 #ifdef __BIG_ENDIAN
 	{
@@ -280,7 +280,7 @@ static int rtllib_tkip_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	    skb->len < hdr_len)
 		return -1;
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 
 	if (!tcb_desc->bHwSec) {
 		if (!tkey->tx_phase1_done) {
@@ -357,7 +357,7 @@ static int rtllib_tkip_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	if (skb->len < hdr_len + 8 + 4)
 		return -1;
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {
@@ -485,7 +485,7 @@ static void michael_mic_hdr(struct sk_buff *skb, u8 *hdr)
 {
 	struct rtllib_hdr_4addr *hdr11;
 
-	hdr11 = (struct rtllib_hdr_4addr *) skb->data;
+	hdr11 = (struct rtllib_hdr_4addr *)skb->data;
 	switch (le16_to_cpu(hdr11->frame_ctl) &
 		(RTLLIB_FCTL_FROMDS | RTLLIB_FCTL_TODS)) {
 	case RTLLIB_FCTL_TODS:
@@ -518,7 +518,7 @@ static int rtllib_michael_mic_add(struct sk_buff *skb, int hdr_len, void *priv)
 	u8 *pos;
 	struct rtllib_hdr_4addr *hdr;
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 
 	if (skb_tailroom(skb) < 8 || skb->len < hdr_len) {
 		netdev_dbg(skb->dev,
@@ -558,7 +558,7 @@ static void rtllib_michael_mic_failure(struct net_device *dev,
 	ether_addr_copy(ev.src_addr.sa_data, hdr->addr2);
 	memset(&wrqu, 0, sizeof(wrqu));
 	wrqu.data.length = sizeof(ev);
-	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *) &ev);
+	wireless_send_event(dev, IWEVMICHAELMICFAILURE, &wrqu, (char *)&ev);
 }
 
 static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
@@ -568,7 +568,7 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	u8 mic[8];
 	struct rtllib_hdr_4addr *hdr;
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 
 	if (!tkey->key_set)
 		return -1;
@@ -584,7 +584,7 @@ static int rtllib_michael_mic_verify(struct sk_buff *skb, int keyidx,
 	if (memcmp(mic, skb->data + skb->len - 8, 8) != 0) {
 		struct rtllib_hdr_4addr *hdr;
 
-		hdr = (struct rtllib_hdr_4addr *) skb->data;
+		hdr = (struct rtllib_hdr_4addr *)skb->data;
 		netdev_dbg(skb->dev,
 			   "Michael MIC verification failed for MSDU from %pM keyidx=%d\n",
 			   hdr->addr2, keyidx);

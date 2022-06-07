@@ -9,6 +9,7 @@
 #define pr_fmt(fmt) "ACPI: AGDI: " fmt
 
 #include <linux/acpi.h>
+#include <linux/acpi_agdi.h>
 #include <linux/arm_sdei.h>
 #include <linux/io.h>
 #include <linux/kernel.h>

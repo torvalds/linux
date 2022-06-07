@@ -1970,8 +1970,8 @@ static int snd_echo_create(struct snd_card *card,
 }
 
 /* constructor */
-static int snd_echo_probe(struct pci_dev *pci,
-			  const struct pci_device_id *pci_id)
+static int __snd_echo_probe(struct pci_dev *pci,
+			    const struct pci_device_id *pci_id)
 {
 	static int dev;
 	struct snd_card *card;
@@ -2139,6 +2139,11 @@ static int snd_echo_probe(struct pci_dev *pci,
 	return 0;
 }
 
+static int snd_echo_probe(struct pci_dev *pci,
+			  const struct pci_device_id *pci_id)
+{
+	return snd_card_free_on_error(&pci->dev, __snd_echo_probe(pci, pci_id));
+}
 
 
 #if defined(CONFIG_PM_SLEEP)

@@ -11,7 +11,6 @@
 #include <string.h>
 #include <unistd.h>
 #include <libgen.h>
-#include <sys/resource.h>
 #include <net/if.h>
 
 #include "bpf_util.h"
@@ -161,7 +160,7 @@ int main(int argc, char **argv)
 	}
 	prog_id = info.id;
 
-	poll_stats(map_fd, 2);
+	poll_stats(map_fd, 1);
 
 	return 0;
 }

@@ -68,12 +68,8 @@ static const struct cpg_core_clk r8a774e1_core_clks[] __initconst = {
 	DEF_FIXED(".s2",        CLK_S2,            CLK_PLL1_DIV2,  4, 1),
 	DEF_FIXED(".s3",        CLK_S3,            CLK_PLL1_DIV2,  6, 1),
 	DEF_FIXED(".sdsrc",     CLK_SDSRC,         CLK_PLL1_DIV2,  2, 1),
-	DEF_BASE(".rpcsrc",	CLK_RPCSRC, CLK_TYPE_GEN3_RPCSRC, CLK_PLL1),
 
-	DEF_BASE("rpc",		R8A774E1_CLK_RPC, CLK_TYPE_GEN3_RPC,
-		 CLK_RPCSRC),
-	DEF_BASE("rpcd2",	R8A774E1_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2,
-		 R8A774E1_CLK_RPC),
+	DEF_BASE(".rpcsrc",     CLK_RPCSRC, CLK_TYPE_GEN3_RPCSRC, CLK_PLL1),
 
 	DEF_GEN3_OSC(".r",      CLK_RINT,          CLK_EXTAL,      32),
 
@@ -108,6 +104,9 @@ static const struct cpg_core_clk r8a774e1_core_clks[] __initconst = {
 	DEF_GEN3_SD("sd1",      R8A774E1_CLK_SD1,   R8A774E1_CLK_SD1H, 0x078),
 	DEF_GEN3_SD("sd2",      R8A774E1_CLK_SD2,   R8A774E1_CLK_SD2H, 0x268),
 	DEF_GEN3_SD("sd3",      R8A774E1_CLK_SD3,   R8A774E1_CLK_SD3H, 0x26c),
+
+	DEF_BASE("rpc",         R8A774E1_CLK_RPC,   CLK_TYPE_GEN3_RPC,   CLK_RPCSRC),
+	DEF_BASE("rpcd2",       R8A774E1_CLK_RPCD2, CLK_TYPE_GEN3_RPCD2, R8A774E1_CLK_RPC),
 
 	DEF_FIXED("cl",         R8A774E1_CLK_CL,    CLK_PLL1_DIV2, 48, 1),
 	DEF_FIXED("cr",         R8A774E1_CLK_CR,    CLK_PLL1_DIV4,  2, 1),

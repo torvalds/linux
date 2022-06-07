@@ -251,12 +251,18 @@ struct cca_info {
 	char new_apka_mk_state; /* '1' empty, '2' partially full, '3' full */
 	char cur_apka_mk_state; /* '1' invalid, '2' valid */
 	char old_apka_mk_state; /* '1' invalid, '2' valid */
+	char new_asym_mk_state;	/* '1' empty, '2' partially full, '3' full */
+	char cur_asym_mk_state;	/* '1' invalid, '2' valid */
+	char old_asym_mk_state;	/* '1' invalid, '2' valid */
 	u64  new_aes_mkvp;	/* truncated sha256 of new aes master key */
 	u64  cur_aes_mkvp;	/* truncated sha256 of current aes master key */
 	u64  old_aes_mkvp;	/* truncated sha256 of old aes master key */
 	u64  new_apka_mkvp;	/* truncated sha256 of new apka master key */
 	u64  cur_apka_mkvp;	/* truncated sha256 of current apka mk */
 	u64  old_apka_mkvp;	/* truncated sha256 of old apka mk */
+	u8   new_asym_mkvp[16];	/* verify pattern of new asym master key */
+	u8   cur_asym_mkvp[16];	/* verify pattern of current asym master key */
+	u8   old_asym_mkvp[16];	/* verify pattern of old asym master key */
 	char serial[9];		/* serial number (8 ascii numbers + 0x00) */
 };
 
