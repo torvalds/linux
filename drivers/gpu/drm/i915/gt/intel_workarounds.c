@@ -1177,8 +1177,8 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 	}
 
 	slice = __ffs(slice_mask);
-	subslice = intel_sseu_find_first_xehp_dss(sseu, GEN_DSS_PER_GSLICE, slice);
-	WARN_ON(subslice > GEN_DSS_PER_GSLICE);
+	subslice = intel_sseu_find_first_xehp_dss(sseu, GEN_DSS_PER_GSLICE, slice) %
+		GEN_DSS_PER_GSLICE;
 
 	__add_mcr_wa(gt, wal, slice, subslice);
 
