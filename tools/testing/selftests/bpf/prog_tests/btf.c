@@ -2897,26 +2897,6 @@ static struct btf_raw_test raw_tests[] = {
 },
 
 {
-	.descr = "invalid enum kind_flag",
-	.raw_types = {
-		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
-		BTF_TYPE_ENC(0, BTF_INFO_ENC(BTF_KIND_ENUM, 1, 1), 4),	/* [2] */
-		BTF_ENUM_ENC(NAME_TBD, 0),
-		BTF_END_RAW,
-	},
-	BTF_STR_SEC("\0A"),
-	.map_type = BPF_MAP_TYPE_ARRAY,
-	.map_name = "enum_type_check_btf",
-	.key_size = sizeof(int),
-	.value_size = sizeof(int),
-	.key_type_id = 1,
-	.value_type_id = 1,
-	.max_entries = 4,
-	.btf_load_err = true,
-	.err_str = "Invalid btf_info kind_flag",
-},
-
-{
 	.descr = "valid fwd kind_flag",
 	.raw_types = {
 		BTF_TYPE_INT_ENC(0, BTF_INT_SIGNED, 0, 32, 4),		/* [1] */
