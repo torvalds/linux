@@ -257,14 +257,8 @@ qla2x00_find_fcport_by_pid(scsi_qla_host_t *vha, port_id_t *id)
 
 	f = NULL;
 	list_for_each_entry_safe(f, tf, &vha->vp_fcports, list) {
-		if ((f->flags & FCF_FCSP_DEVICE)) {
-			ql_dbg(ql_dbg_edif + ql_dbg_verbose, vha, 0x2058,
-			    "Found secure fcport - nn %8phN pn %8phN portid=0x%x, 0x%x.\n",
-			    f->node_name, f->port_name,
-			    f->d_id.b24, id->b24);
-			if (f->d_id.b24 == id->b24)
-				return f;
-		}
+		if (f->d_id.b24 == id->b24)
+			return f;
 	}
 	return NULL;
 }
@@ -526,7 +520,6 @@ qla_edif_app_start(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			fcport->edif.app_stop = 0;
 			fcport->edif.app_sess_online = 0;
-			fcport->edif.app_started = 1;
 
 			if (fcport->scan_state != QLA_FCPORT_FOUND)
 				continue;
@@ -628,9 +621,6 @@ qla_edif_app_stop(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 
 			fcport->send_els_logo = 1;
 			qlt_schedule_sess_for_deletion(fcport);
-
-			/* qla_edif_flush_sa_ctl_lists(fcport); */
-			fcport->edif.app_started = 0;
 		}
 	}
 
@@ -1047,6 +1037,40 @@ qla_edif_app_getstats(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	return rval;
 }
 
+static int32_t
+qla_edif_ack(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
+{
+	struct fc_port *fcport;
+	struct aen_complete_cmd ack;
+	struct fc_bsg_reply     *bsg_reply = bsg_job->reply;
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+			  bsg_job->request_payload.sg_cnt, &ack, sizeof(ack));
+
+	ql_dbg(ql_dbg_edif, vha, 0x70cf,
+	       "%s: %06x event_code %x\n",
+	       __func__, ack.port_id.b24, ack.event_code);
+
+	fcport = qla2x00_find_fcport_by_pid(vha, &ack.port_id);
+	SET_DID_STATUS(bsg_reply->result, DID_OK);
+
+	if (!fcport) {
+		ql_dbg(ql_dbg_edif, vha, 0x70cf,
+		       "%s: unable to find fcport %06x \n",
+		       __func__, ack.port_id.b24);
+		return 0;
+	}
+
+	switch (ack.event_code) {
+	case VND_CMD_AUTH_STATE_SESSION_SHUTDOWN:
+		fcport->edif.sess_down_acked = 1;
+		break;
+	default:
+		break;
+	}
+	return 0;
+}
+
 int32_t
 qla_edif_app_mgmt(struct bsg_job *bsg_job)
 {
@@ -1108,6 +1132,9 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 		break;
 	case QL_VND_SC_GET_STATS:
 		rval = qla_edif_app_getstats(vha, bsg_job);
+		break;
+	case QL_VND_SC_AEN_COMPLETE:
+		rval = qla_edif_ack(vha, bsg_job);
 		break;
 	default:
 		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s unknown cmd=%x\n",
@@ -3512,14 +3539,29 @@ done:
 
 void qla_edif_sess_down(struct scsi_qla_host *vha, struct fc_port *sess)
 {
+	u16 cnt = 0;
+
 	if (sess->edif.app_sess_online && DBELL_ACTIVE(vha)) {
 		ql_dbg(ql_dbg_disc, vha, 0xf09c,
 			"%s: sess %8phN send port_offline event\n",
 			__func__, sess->port_name);
 		sess->edif.app_sess_online = 0;
+		sess->edif.sess_down_acked = 0;
 		qla_edb_eventcreate(vha, VND_CMD_AUTH_STATE_SESSION_SHUTDOWN,
 		    sess->d_id.b24, 0, sess);
 		qla2x00_post_aen_work(vha, FCH_EVT_PORT_OFFLINE, sess->d_id.b24);
+
+		while (!READ_ONCE(sess->edif.sess_down_acked) &&
+		       !test_bit(VPORT_DELETE, &vha->dpc_flags)) {
+			msleep(100);
+			cnt++;
+			if (cnt > 100)
+				break;
+		}
+		sess->edif.sess_down_acked = 0;
+		ql_dbg(ql_dbg_disc, vha, 0xf09c,
+		       "%s: sess %8phN port_offline event completed\n",
+		       __func__, sess->port_name);
 	}
 }
 
