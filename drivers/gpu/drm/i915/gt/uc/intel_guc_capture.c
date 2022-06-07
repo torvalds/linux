@@ -1261,7 +1261,8 @@ static int __guc_capture_flushlog_complete(struct intel_guc *guc)
 		GUC_CAPTURE_LOG_BUFFER
 	};
 
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return intel_guc_send_nb(guc, action, ARRAY_SIZE(action), 0);
+
 }
 
 static void __guc_capture_process_output(struct intel_guc *guc)

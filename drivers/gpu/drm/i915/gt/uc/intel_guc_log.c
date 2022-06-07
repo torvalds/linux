@@ -31,7 +31,7 @@ static int guc_action_flush_log_complete(struct intel_guc *guc)
 		GUC_DEBUG_LOG_BUFFER
 	};
 
-	return intel_guc_send(guc, action, ARRAY_SIZE(action));
+	return intel_guc_send_nb(guc, action, ARRAY_SIZE(action), 0);
 }
 
 static int guc_action_flush_log(struct intel_guc *guc)
