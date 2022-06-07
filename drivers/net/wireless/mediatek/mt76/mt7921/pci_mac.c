@@ -72,8 +72,8 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	}
 
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
-	mt7921_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, key,
-			      pid, false);
+	mt76_connac2_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, key,
+				    pid, 0);
 
 	txp = (struct mt7921_txp_common *)(txwi + MT_TXD_SIZE);
 	memset(txp, 0, sizeof(struct mt7921_txp_common));

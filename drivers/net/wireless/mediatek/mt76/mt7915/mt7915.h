@@ -10,7 +10,6 @@
 #include "regs.h"
 
 #define MT7915_MAX_INTERFACES		19
-#define MT7915_MAX_WMM_SETS		4
 #define MT7915_WTBL_SIZE		288
 #define MT7916_WTBL_SIZE		544
 #define MT7915_WTBL_RESERVED		(mt7915_wtbl_size(dev) - 1)

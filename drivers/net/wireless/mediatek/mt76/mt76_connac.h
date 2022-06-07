@@ -12,6 +12,8 @@
 #define MT76_CONNAC_MAX_SCHED_SCAN_SSID		10
 #define MT76_CONNAC_MAX_SCAN_MATCH		16
 
+#define MT76_CONNAC_MAX_WMM_SETS		4
+
 #define MT76_CONNAC_COREDUMP_TIMEOUT		(HZ / 20)
 #define MT76_CONNAC_COREDUMP_SZ			(1300 * 1024)
 
@@ -244,5 +246,9 @@ void mt76_connac_pm_queue_skb(struct ieee80211_hw *hw,
 			      struct sk_buff *skb);
 void mt76_connac_pm_dequeue_skbs(struct mt76_phy *phy,
 				 struct mt76_connac_pm *pm);
+void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
+				 struct sk_buff *skb, struct mt76_wcid *wcid,
+				 struct ieee80211_key_conf *key, int pid,
+				 u32 changed);
 
 #endif /* __MT76_CONNAC_H */

@@ -11,7 +11,6 @@
 #include "acpi_sar.h"
 
 #define MT7921_MAX_INTERFACES		4
-#define MT7921_MAX_WMM_SETS		4
 #define MT7921_WTBL_SIZE		20
 #define MT7921_WTBL_RESERVED		(MT7921_WTBL_SIZE - 1)
 #define MT7921_WTBL_STA			(MT7921_WTBL_RESERVED - \
@@ -417,10 +416,6 @@ int mt7921_testmode_cmd(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			void *data, int len);
 int mt7921_testmode_dump(struct ieee80211_hw *hw, struct sk_buff *msg,
 			 struct netlink_callback *cb, void *data, int len);
-void mt7921_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
-			   struct sk_buff *skb, struct mt76_wcid *wcid,
-			   struct ieee80211_key_conf *key, int pid,
-			   bool beacon);
 void mt7921_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi);
 void mt7921_mac_sta_poll(struct mt7921_dev *dev);
 int mt7921_mcu_fill_message(struct mt76_dev *mdev, struct sk_buff *skb,
