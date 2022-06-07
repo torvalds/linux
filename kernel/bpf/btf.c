@@ -309,6 +309,7 @@ static const char * const btf_kind_str[NR_BTF_KINDS] = {
 	[BTF_KIND_FLOAT]	= "FLOAT",
 	[BTF_KIND_DECL_TAG]	= "DECL_TAG",
 	[BTF_KIND_TYPE_TAG]	= "TYPE_TAG",
+	[BTF_KIND_ENUM64]	= "ENUM64",
 };
 
 const char *btf_type_str(const struct btf_type *t)
@@ -666,6 +667,7 @@ static bool btf_type_has_size(const struct btf_type *t)
 	case BTF_KIND_ENUM:
 	case BTF_KIND_DATASEC:
 	case BTF_KIND_FLOAT:
+	case BTF_KIND_ENUM64:
 		return true;
 	}
 
@@ -709,6 +711,11 @@ static const struct btf_var *btf_type_var(const struct btf_type *t)
 static const struct btf_decl_tag *btf_type_decl_tag(const struct btf_type *t)
 {
 	return (const struct btf_decl_tag *)(t + 1);
+}
+
+static const struct btf_enum64 *btf_type_enum64(const struct btf_type *t)
+{
+	return (const struct btf_enum64 *)(t + 1);
 }
 
 static const struct btf_kind_operations *btf_type_ops(const struct btf_type *t)
@@ -1019,6 +1026,7 @@ static const char *btf_show_name(struct btf_show *show)
 			parens = "{";
 		break;
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 		prefix = "enum";
 		break;
 	default:
@@ -1834,6 +1842,7 @@ __btf_resolve_size(const struct btf *btf, const struct btf_type *type,
 		case BTF_KIND_UNION:
 		case BTF_KIND_ENUM:
 		case BTF_KIND_FLOAT:
+		case BTF_KIND_ENUM64:
 			size = type->size;
 			goto resolved;
 
@@ -3670,6 +3679,7 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 {
 	const struct btf_enum *enums = btf_type_enum(t);
 	struct btf *btf = env->btf;
+	const char *fmt_str;
 	u16 i, nr_enums;
 	u32 meta_needed;
 
@@ -3680,11 +3690,6 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 		btf_verifier_log_basic(env, t,
 				       "meta_left:%u meta_needed:%u",
 				       meta_left, meta_needed);
-		return -EINVAL;
-	}
-
-	if (btf_type_kflag(t)) {
-		btf_verifier_log_type(env, t, "Invalid btf_info kind_flag");
 		return -EINVAL;
 	}
 
@@ -3718,7 +3723,8 @@ static s32 btf_enum_check_meta(struct btf_verifier_env *env,
 
 		if (env->log.level == BPF_LOG_KERNEL)
 			continue;
-		btf_verifier_log(env, "\t%s val=%d\n",
+		fmt_str = btf_type_kflag(t) ? "\t%s val=%d\n" : "\t%s val=%u\n";
+		btf_verifier_log(env, fmt_str,
 				 __btf_name_by_offset(btf, enums[i].name_off),
 				 enums[i].val);
 	}
@@ -3759,7 +3765,10 @@ static void btf_enum_show(const struct btf *btf, const struct btf_type *t,
 		return;
 	}
 
-	btf_show_type_value(show, "%d", v);
+	if (btf_type_kflag(t))
+		btf_show_type_value(show, "%d", v);
+	else
+		btf_show_type_value(show, "%u", v);
 	btf_show_end_type(show);
 }
 
@@ -3770,6 +3779,109 @@ static struct btf_kind_operations enum_ops = {
 	.check_kflag_member = btf_enum_check_kflag_member,
 	.log_details = btf_enum_log,
 	.show = btf_enum_show,
+};
+
+static s32 btf_enum64_check_meta(struct btf_verifier_env *env,
+				 const struct btf_type *t,
+				 u32 meta_left)
+{
+	const struct btf_enum64 *enums = btf_type_enum64(t);
+	struct btf *btf = env->btf;
+	const char *fmt_str;
+	u16 i, nr_enums;
+	u32 meta_needed;
+
+	nr_enums = btf_type_vlen(t);
+	meta_needed = nr_enums * sizeof(*enums);
+
+	if (meta_left < meta_needed) {
+		btf_verifier_log_basic(env, t,
+				       "meta_left:%u meta_needed:%u",
+				       meta_left, meta_needed);
+		return -EINVAL;
+	}
+
+	if (t->size > 8 || !is_power_of_2(t->size)) {
+		btf_verifier_log_type(env, t, "Unexpected size");
+		return -EINVAL;
+	}
+
+	/* enum type either no name or a valid one */
+	if (t->name_off &&
+	    !btf_name_valid_identifier(env->btf, t->name_off)) {
+		btf_verifier_log_type(env, t, "Invalid name");
+		return -EINVAL;
+	}
+
+	btf_verifier_log_type(env, t, NULL);
+
+	for (i = 0; i < nr_enums; i++) {
+		if (!btf_name_offset_valid(btf, enums[i].name_off)) {
+			btf_verifier_log(env, "\tInvalid name_offset:%u",
+					 enums[i].name_off);
+			return -EINVAL;
+		}
+
+		/* enum member must have a valid name */
+		if (!enums[i].name_off ||
+		    !btf_name_valid_identifier(btf, enums[i].name_off)) {
+			btf_verifier_log_type(env, t, "Invalid name");
+			return -EINVAL;
+		}
+
+		if (env->log.level == BPF_LOG_KERNEL)
+			continue;
+
+		fmt_str = btf_type_kflag(t) ? "\t%s val=%lld\n" : "\t%s val=%llu\n";
+		btf_verifier_log(env, fmt_str,
+				 __btf_name_by_offset(btf, enums[i].name_off),
+				 btf_enum64_value(enums + i));
+	}
+
+	return meta_needed;
+}
+
+static void btf_enum64_show(const struct btf *btf, const struct btf_type *t,
+			    u32 type_id, void *data, u8 bits_offset,
+			    struct btf_show *show)
+{
+	const struct btf_enum64 *enums = btf_type_enum64(t);
+	u32 i, nr_enums = btf_type_vlen(t);
+	void *safe_data;
+	s64 v;
+
+	safe_data = btf_show_start_type(show, t, type_id, data);
+	if (!safe_data)
+		return;
+
+	v = *(u64 *)safe_data;
+
+	for (i = 0; i < nr_enums; i++) {
+		if (v != btf_enum64_value(enums + i))
+			continue;
+
+		btf_show_type_value(show, "%s",
+				    __btf_name_by_offset(btf,
+							 enums[i].name_off));
+
+		btf_show_end_type(show);
+		return;
+	}
+
+	if (btf_type_kflag(t))
+		btf_show_type_value(show, "%lld", v);
+	else
+		btf_show_type_value(show, "%llu", v);
+	btf_show_end_type(show);
+}
+
+static struct btf_kind_operations enum64_ops = {
+	.check_meta = btf_enum64_check_meta,
+	.resolve = btf_df_resolve,
+	.check_member = btf_enum_check_member,
+	.check_kflag_member = btf_enum_check_kflag_member,
+	.log_details = btf_enum_log,
+	.show = btf_enum64_show,
 };
 
 static s32 btf_func_proto_check_meta(struct btf_verifier_env *env,
@@ -4438,6 +4550,7 @@ static const struct btf_kind_operations * const kind_ops[NR_BTF_KINDS] = {
 	[BTF_KIND_FLOAT] = &float_ops,
 	[BTF_KIND_DECL_TAG] = &decl_tag_ops,
 	[BTF_KIND_TYPE_TAG] = &modifier_ops,
+	[BTF_KIND_ENUM64] = &enum64_ops,
 };
 
 static s32 btf_check_meta(struct btf_verifier_env *env,
@@ -5299,7 +5412,7 @@ bool btf_ctx_access(int off, int size, enum bpf_access_type type,
 	/* skip modifiers */
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (btf_type_is_small_int(t) || btf_type_is_enum(t))
+	if (btf_type_is_small_int(t) || btf_is_any_enum(t))
 		/* accessing a scalar */
 		return true;
 	if (!btf_type_is_ptr(t)) {
@@ -5763,7 +5876,7 @@ static int __get_type_size(struct btf *btf, u32 btf_id,
 	if (btf_type_is_ptr(t))
 		/* kernel size of pointer. Not BPF's size of pointer*/
 		return sizeof(void *);
-	if (btf_type_is_int(t) || btf_type_is_enum(t))
+	if (btf_type_is_int(t) || btf_is_any_enum(t))
 		return t->size;
 	*bad_type = t;
 	return -EINVAL;
@@ -5911,7 +6024,7 @@ static int btf_check_func_type_match(struct bpf_verifier_log *log,
 		 * to context only. And only global functions can be replaced.
 		 * Hence type check only those types.
 		 */
-		if (btf_type_is_int(t1) || btf_type_is_enum(t1))
+		if (btf_type_is_int(t1) || btf_is_any_enum(t1))
 			continue;
 		if (!btf_type_is_ptr(t1)) {
 			bpf_log(log,
@@ -6408,7 +6521,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 	t = btf_type_by_id(btf, t->type);
 	while (btf_type_is_modifier(t))
 		t = btf_type_by_id(btf, t->type);
-	if (!btf_type_is_int(t) && !btf_type_is_enum(t)) {
+	if (!btf_type_is_int(t) && !btf_is_any_enum(t)) {
 		bpf_log(log,
 			"Global function %s() doesn't return scalar. Only those are supported.\n",
 			tname);
@@ -6423,7 +6536,7 @@ int btf_prepare_func_args(struct bpf_verifier_env *env, int subprog,
 		t = btf_type_by_id(btf, args[i].type);
 		while (btf_type_is_modifier(t))
 			t = btf_type_by_id(btf, t->type);
-		if (btf_type_is_int(t) || btf_type_is_enum(t)) {
+		if (btf_type_is_int(t) || btf_is_any_enum(t)) {
 			reg->type = SCALAR_VALUE;
 			continue;
 		}
@@ -7335,6 +7448,7 @@ recur:
 	case BTF_KIND_UNION:
 	case BTF_KIND_ENUM:
 	case BTF_KIND_FWD:
+	case BTF_KIND_ENUM64:
 		return 1;
 	case BTF_KIND_INT:
 		/* just reject deprecated bitfield-like integers; all other
@@ -7387,10 +7501,10 @@ recur:
  * field-based relocations. This function assumes that root types were already
  * checked for name match. Beyond that initial root-level name check, names
  * are completely ignored. Compatibility rules are as follows:
- *   - any two STRUCTs/UNIONs/FWDs/ENUMs/INTs are considered compatible, but
+ *   - any two STRUCTs/UNIONs/FWDs/ENUMs/INTs/ENUM64s are considered compatible, but
  *     kind should match for local and target types (i.e., STRUCT is not
  *     compatible with UNION);
- *   - for ENUMs, the size is ignored;
+ *   - for ENUMs/ENUM64s, the size is ignored;
  *   - for INT, size and signedness are ignored;
  *   - for ARRAY, dimensionality is ignored, element types are checked for
  *     compatibility recursively;
