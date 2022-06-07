@@ -1117,6 +1117,20 @@ struct core_reloc_enumval_output {
 	int anon_val2;
 };
 
+struct core_reloc_enum64val_output {
+	bool unsigned_val1_exists;
+	bool unsigned_val2_exists;
+	bool unsigned_val3_exists;
+	bool signed_val1_exists;
+	bool signed_val2_exists;
+	bool signed_val3_exists;
+
+	long unsigned_val1;
+	long unsigned_val2;
+	long signed_val1;
+	long signed_val2;
+};
+
 enum named_enum {
 	NAMED_ENUM_VAL1 = 1,
 	NAMED_ENUM_VAL2 = 2,
@@ -1132,6 +1146,23 @@ typedef enum {
 struct core_reloc_enumval {
 	enum named_enum f1;
 	anon_enum f2;
+};
+
+enum named_unsigned_enum64 {
+	UNSIGNED_ENUM64_VAL1 = 0x1ffffffffULL,
+	UNSIGNED_ENUM64_VAL2 = 0x2,
+	UNSIGNED_ENUM64_VAL3 = 0x3ffffffffULL,
+};
+
+enum named_signed_enum64 {
+	SIGNED_ENUM64_VAL1 = 0x1ffffffffLL,
+	SIGNED_ENUM64_VAL2 = -2,
+	SIGNED_ENUM64_VAL3 = 0x3ffffffffLL,
+};
+
+struct core_reloc_enum64val {
+	enum named_unsigned_enum64 f1;
+	enum named_signed_enum64 f2;
 };
 
 /* differing enumerator values */
@@ -1152,6 +1183,23 @@ struct core_reloc_enumval___diff {
 	anon_enum___diff f2;
 };
 
+enum named_unsigned_enum64___diff {
+	UNSIGNED_ENUM64_VAL1___diff = 0x101ffffffffULL,
+	UNSIGNED_ENUM64_VAL2___diff = 0x202ffffffffULL,
+	UNSIGNED_ENUM64_VAL3___diff = 0x303ffffffffULL,
+};
+
+enum named_signed_enum64___diff {
+	SIGNED_ENUM64_VAL1___diff = -101,
+	SIGNED_ENUM64_VAL2___diff = -202,
+	SIGNED_ENUM64_VAL3___diff = -303,
+};
+
+struct core_reloc_enum64val___diff {
+	enum named_unsigned_enum64___diff f1;
+	enum named_signed_enum64___diff f2;
+};
+
 /* missing (optional) third enum value */
 enum named_enum___val3_missing {
 	NAMED_ENUM_VAL1___val3_missing = 111,
@@ -1168,6 +1216,21 @@ struct core_reloc_enumval___val3_missing {
 	anon_enum___val3_missing f2;
 };
 
+enum named_unsigned_enum64___val3_missing {
+	UNSIGNED_ENUM64_VAL1___val3_missing = 0x111ffffffffULL,
+	UNSIGNED_ENUM64_VAL2___val3_missing = 0x222,
+};
+
+enum named_signed_enum64___val3_missing {
+	SIGNED_ENUM64_VAL1___val3_missing = 0x111ffffffffLL,
+	SIGNED_ENUM64_VAL2___val3_missing = -222,
+};
+
+struct core_reloc_enum64val___val3_missing {
+	enum named_unsigned_enum64___val3_missing f1;
+	enum named_signed_enum64___val3_missing f2;
+};
+
 /* missing (mandatory) second enum value, should fail */
 enum named_enum___err_missing {
 	NAMED_ENUM_VAL1___err_missing = 1,
@@ -1182,4 +1245,19 @@ typedef enum {
 struct core_reloc_enumval___err_missing {
 	enum named_enum___err_missing f1;
 	anon_enum___err_missing f2;
+};
+
+enum named_unsigned_enum64___err_missing {
+	UNSIGNED_ENUM64_VAL1___err_missing = 0x1ffffffffULL,
+	UNSIGNED_ENUM64_VAL3___err_missing = 0x3ffffffffULL,
+};
+
+enum named_signed_enum64___err_missing {
+	SIGNED_ENUM64_VAL1___err_missing = 0x1ffffffffLL,
+	SIGNED_ENUM64_VAL3___err_missing = -3,
+};
+
+struct core_reloc_enum64val___err_missing {
+	enum named_unsigned_enum64___err_missing f1;
+	enum named_signed_enum64___err_missing f2;
 };
