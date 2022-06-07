@@ -413,9 +413,45 @@ static int acp_init(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "ACP power on failed\n");
 		return ret;
 	}
+
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CONTROL, 0x01);
 	/* Reset */
 	return acp_reset(sdev);
 }
+
+int amd_sof_acp_suspend(struct snd_sof_dev *sdev, u32 target_state)
+{
+	int ret;
+
+	ret = acp_reset(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "ACP Reset failed\n");
+		return ret;
+	}
+
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CONTROL, 0x00);
+
+	return 0;
+}
+EXPORT_SYMBOL_NS(amd_sof_acp_suspend, SND_SOC_SOF_AMD_COMMON);
+
+int amd_sof_acp_resume(struct snd_sof_dev *sdev)
+{
+	int ret;
+
+	ret = acp_init(sdev);
+	if (ret) {
+		dev_err(sdev->dev, "ACP Init failed\n");
+		return ret;
+	}
+
+	snd_sof_dsp_write(sdev, ACP_DSP_BAR, ACP_CLKMUX_SEL, 0x03);
+
+	ret = acp_memory_init(sdev);
+
+	return ret;
+}
+EXPORT_SYMBOL_NS(amd_sof_acp_resume, SND_SOC_SOF_AMD_COMMON);
 
 int amd_sof_acp_probe(struct snd_sof_dev *sdev)
 {
