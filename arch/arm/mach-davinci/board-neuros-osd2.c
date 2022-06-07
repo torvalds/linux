@@ -1,3 +1,4 @@
+// SPDX-License-Identifier: GPL-2.0-only
 /*
  * Neuros Technologies OSD2 board support
  *
@@ -18,10 +19,6 @@
  *
  * For more information please refer to
  * 		http://wiki.neurostechnology.com/index.php/OSD_2.0_HD
- *
- * This file is licensed under the terms of the GNU General Public
- * License version 2. This program is licensed "as is" without any
- * warranty of any kind, whether express or implied.
  */
 #include <linux/platform_device.h>
 #include <linux/gpio.h>
