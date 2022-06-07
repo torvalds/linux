@@ -51,6 +51,7 @@ Linux内存管理文档
    numa
    overcommit-accounting
    page_frags
+   page_migration
    page_owner
    page_table_check
    remap_file_pages
@@ -62,7 +63,6 @@ TODOLIST:
 * arch_pgtable_helpers
 * free_page_reporting
 * hugetlbfs_reserv
-* page_migration
 * slub
 * transhuge
 * unevictable-lru
