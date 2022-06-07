@@ -1822,10 +1822,7 @@ struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
 			goto out_free;
 		list_add(&req->rq_list, &xprt->free);
 	}
-	if (max_alloc > num_prealloc)
-		xprt->max_reqs = max_alloc;
-	else
-		xprt->max_reqs = num_prealloc;
+	xprt->max_reqs = max_t(unsigned int, max_alloc, num_prealloc);
 	xprt->min_reqs = num_prealloc;
 	xprt->num_reqs = num_prealloc;
 
