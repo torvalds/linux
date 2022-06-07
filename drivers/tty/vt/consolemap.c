@@ -244,7 +244,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 static void set_inverse_trans_unicode(struct vc_data *conp,
 				      struct uni_pagedict *p)
 {
-	int i, j, k, glyph;
+	int i, j, k;
 	u16 **p1, *p2;
 	u16 *q;
 
@@ -268,9 +268,8 @@ static void set_inverse_trans_unicode(struct vc_data *conp,
 			if (!p2)
 				continue;
 			for (k = 0; k < UNI_ROW_GLYPHS; k++) {
-				glyph = p2[k];
-				if (glyph >= 0 && glyph < MAX_GLYPH
-					       && q[glyph] < 32)
+				u16 glyph = p2[k];
+				if (glyph < MAX_GLYPH && q[glyph] < 32)
 					q[glyph] = UNI(i, j, k);
 			}
 		}
