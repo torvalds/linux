@@ -220,7 +220,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 	int j, glyph;
 	unsigned short *t = translations[m];
 	unsigned char *q;
-	
+
 	if (!p)
 		return;
 	q = p->inverse_translations[m];
@@ -236,7 +236,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 		glyph = conv_uni_to_pc(conp, t[j]);
 		if (glyph >= 0 && glyph < MAX_GLYPH && q[glyph] < 32) {
 			/* prefer '-' above SHY etc. */
-		  	q[glyph] = j;
+			q[glyph] = j;
 		}
 	}
 }
@@ -320,7 +320,7 @@ static void update_user_maps(void)
 {
 	int i;
 	struct uni_pagedict *p, *q = NULL;
-	
+
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		if (!vc_cons_allocated(i))
 			continue;
@@ -403,7 +403,7 @@ int con_get_trans_new(ushort __user * arg)
 }
 
 /*
- * Unicode -> current font conversion 
+ * Unicode -> current font conversion
  *
  * A font has at most 512 chars, usually 256.
  * But one font position may represent several Unicode chars.
@@ -455,7 +455,7 @@ void con_free_unimap(struct vc_data *vc)
 	con_release_unimap(p);
 	kfree(p);
 }
-  
+
 static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *dict1)
 {
 	struct uni_pagedict *dict2;
@@ -688,7 +688,7 @@ out_unlock:
  *	Loads the unimap for the hardware font, as defined in uni_hash.tbl.
  *	The representation used was the most compact I could come up
  *	with.  This routine is executed at video setup, and when the
- *	PIO_FONTRESET ioctl is called. 
+ *	PIO_FONTRESET ioctl is called.
  *
  *	The caller must hold the console lock
  */
@@ -893,11 +893,11 @@ int conv_uni_to_pc(struct vc_data *conp, long ucs)
  * initialized.  It must be possible to call kmalloc(..., GFP_KERNEL)
  * from this function, hence the call from sys_setup.
  */
-void __init 
+void __init
 console_map_init(void)
 {
 	int i;
-	
+
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
 		if (vc_cons_allocated(i) && !*vc_cons[i].d->vc_uni_pagedir_loc)
 			con_set_default_unimap(vc_cons[i].d);
