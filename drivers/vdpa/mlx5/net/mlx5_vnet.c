@@ -1817,10 +1817,10 @@ static virtio_net_ctrl_ack handle_ctrl_vlan(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 		status = VIRTIO_NET_OK;
 		break;
 	default:
-	break;
-}
+		break;
+	}
 
-return status;
+	return status;
 }
 
 static void mlx5_cvq_kick_handler(struct work_struct *work)
