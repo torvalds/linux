@@ -1766,12 +1766,10 @@ static int aty128_bl_update_status(struct backlight_device *bd)
 	unsigned int reg = aty_ld_le32(LVDS_GEN_CNTL);
 	int level;
 
-	if (bd->props.power != FB_BLANK_UNBLANK ||
-	    bd->props.fb_blank != FB_BLANK_UNBLANK ||
-	    !par->lcd_on)
+	if (!par->lcd_on)
 		level = 0;
 	else
-		level = bd->props.brightness;
+		level = backlight_get_brightness(bd);
 
 	reg |= LVDS_BL_MOD_EN | LVDS_BLON;
 	if (level > 0) {
