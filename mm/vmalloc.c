@@ -977,7 +977,7 @@ __unlink_va(struct vmap_area *va, struct rb_root *root, bool augment)
 	else
 		rb_erase(&va->rb_node, root);
 
-	list_del(&va->list);
+	list_del_init(&va->list);
 	RB_CLEAR_NODE(&va->rb_node);
 }
 
