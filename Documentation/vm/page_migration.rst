@@ -152,110 +152,15 @@ Steps:
 Non-LRU page migration
 ======================
 
-Although migration originally aimed for reducing the latency of memory accesses
-for NUMA, compaction also uses migration to create high-order pages.
+Although migration originally aimed for reducing the latency of memory
+accesses for NUMA, compaction also uses migration to create high-order
+pages.  For compaction purposes, it is also useful to be able to move
+non-LRU pages, such as zsmalloc and virtio-balloon pages.
 
-Current problem of the implementation is that it is designed to migrate only
-*LRU* pages. However, there are potential non-LRU pages which can be migrated
-in drivers, for example, zsmalloc, virtio-balloon pages.
-
-For virtio-balloon pages, some parts of migration code path have been hooked
-up and added virtio-balloon specific functions to intercept migration logics.
-It's too specific to a driver so other drivers who want to make their pages
-movable would have to add their own specific hooks in the migration path.
-
-To overcome the problem, VM supports non-LRU page migration which provides
-generic functions for non-LRU movable pages without driver specific hooks
-in the migration path.
-
-If a driver wants to make its pages movable, it should define three functions
-which are function pointers of struct address_space_operations.
-
-1. ``bool (*isolate_page) (struct page *page, isolate_mode_t mode);``
-
-   What VM expects from isolate_page() function of driver is to return *true*
-   if driver isolates the page successfully. On returning true, VM marks the page
-   as PG_isolated so concurrent isolation in several CPUs skip the page
-   for isolation. If a driver cannot isolate the page, it should return *false*.
-
-   Once page is successfully isolated, VM uses page.lru fields so driver
-   shouldn't expect to preserve values in those fields.
-
-2. ``int (*migratepage) (struct address_space *mapping,``
-|	``struct page *newpage, struct page *oldpage, enum migrate_mode);``
-
-   After isolation, VM calls migratepage() of driver with the isolated page.
-   The function of migratepage() is to move the contents of the old page to the
-   new page
-   and set up fields of struct page newpage. Keep in mind that you should
-   indicate to the VM the oldpage is no longer movable via __ClearPageMovable()
-   under page_lock if you migrated the oldpage successfully and returned
-   MIGRATEPAGE_SUCCESS. If driver cannot migrate the page at the moment, driver
-   can return -EAGAIN. On -EAGAIN, VM will retry page migration in a short time
-   because VM interprets -EAGAIN as "temporary migration failure". On returning
-   any error except -EAGAIN, VM will give up the page migration without
-   retrying.
-
-   Driver shouldn't touch the page.lru field while in the migratepage() function.
-
-3. ``void (*putback_page)(struct page *);``
-
-   If migration fails on the isolated page, VM should return the isolated page
-   to the driver so VM calls the driver's putback_page() with the isolated page.
-   In this function, the driver should put the isolated page back into its own data
-   structure.
-
-Non-LRU movable page flags
-
-   There are two page flags for supporting non-LRU movable page.
-
-   * PG_movable
-
-     Driver should use the function below to make page movable under page_lock::
-
-	void __SetPageMovable(struct page *page, struct address_space *mapping)
-
-     It needs argument of address_space for registering migration
-     family functions which will be called by VM. Exactly speaking,
-     PG_movable is not a real flag of struct page. Rather, VM
-     reuses the page->mapping's lower bits to represent it::
-
-	#define PAGE_MAPPING_MOVABLE 0x2
-	page->mapping = page->mapping | PAGE_MAPPING_MOVABLE;
-
-     so driver shouldn't access page->mapping directly. Instead, driver should
-     use page_mapping() which masks off the low two bits of page->mapping under
-     page lock so it can get the right struct address_space.
-
-     For testing of non-LRU movable pages, VM supports __PageMovable() function.
-     However, it doesn't guarantee to identify non-LRU movable pages because
-     the page->mapping field is unified with other variables in struct page.
-     If the driver releases the page after isolation by VM, page->mapping
-     doesn't have a stable value although it has PAGE_MAPPING_MOVABLE set
-     (look at __ClearPageMovable). But __PageMovable() is cheap to call whether
-     page is LRU or non-LRU movable once the page has been isolated because LRU
-     pages can never have PAGE_MAPPING_MOVABLE set in page->mapping. It is also
-     good for just peeking to test non-LRU movable pages before more expensive
-     checking with lock_page() in pfn scanning to select a victim.
-
-     For guaranteeing non-LRU movable page, VM provides PageMovable() function.
-     Unlike __PageMovable(), PageMovable() validates page->mapping and
-     mapping->a_ops->isolate_page under lock_page(). The lock_page() prevents
-     sudden destroying of page->mapping.
-
-     Drivers using __SetPageMovable() should clear the flag via
-     __ClearMovablePage() under page_lock() before the releasing the page.
-
-   * PG_isolated
-
-     To prevent concurrent isolation among several CPUs, VM marks isolated page
-     as PG_isolated under lock_page(). So if a CPU encounters PG_isolated
-     non-LRU movable page, it can skip it. Driver doesn't need to manipulate the
-     flag because VM will set/clear it automatically. Keep in mind that if the
-     driver sees a PG_isolated page, it means the page has been isolated by the
-     VM so it shouldn't touch the page.lru field.
-     The PG_isolated flag is aliased with the PG_reclaim flag so drivers
-     shouldn't use PG_isolated for its own purposes.
+If a driver wants to make its pages movable, it should define a struct
+movable_operations.  It then needs to call __SetPageMovable() on each
+page that it may be able to move.  This uses the ``page->mapping`` field,
+so this field is not available for the driver to use for other purposes.
 
 Monitoring Migration
 =====================
@@ -286,3 +191,5 @@ THP_MIGRATION_FAIL and PGMIGRATE_FAIL to increase.
 
 Christoph Lameter, May 8, 2006.
 Minchan Kim, Mar 28, 2016.
+
+.. kernel-doc:: include/linux/migrate.h

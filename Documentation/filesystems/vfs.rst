@@ -737,12 +737,8 @@ cache in your filesystem.  The following members are defined:
 		bool (*release_folio)(struct folio *, gfp_t);
 		void (*free_folio)(struct folio *);
 		ssize_t (*direct_IO)(struct kiocb *, struct iov_iter *iter);
-		/* isolate a page for migration */
-		bool (*isolate_page) (struct page *, isolate_mode_t);
 		/* migrate the contents of a page to the specified target */
 		int (*migratepage) (struct page *, struct page *);
-		/* put migration-failed page back to right list */
-		void (*putback_page) (struct page *);
 		int (*launder_folio) (struct folio *);
 
 		bool (*is_partially_uptodate) (struct folio *, size_t from,
@@ -930,20 +926,12 @@ cache in your filesystem.  The following members are defined:
 	data directly between the storage and the application's address
 	space.
 
-``isolate_page``
-	Called by the VM when isolating a movable non-lru page.  If page
-	is successfully isolated, VM marks the page as PG_isolated via
-	__SetPageIsolated.
-
 ``migrate_page``
 	This is used to compact the physical memory usage.  If the VM
 	wants to relocate a page (maybe off a memory card that is
 	signalling imminent failure) it will pass a new page and an old
 	page to this function.  migrate_page should transfer any private
 	data across and update any references that it has to the page.
-
-``putback_page``
-	Called by the VM when isolated page's migration fails.
 
 ``launder_folio``
 	Called before freeing a folio - it writes back the dirty folio.
