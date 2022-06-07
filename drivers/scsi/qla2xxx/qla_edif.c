@@ -52,6 +52,31 @@ const char *sc_to_str(uint16_t cmd)
 	return "unknown";
 }
 
+static struct edb_node *qla_edb_getnext(scsi_qla_host_t *vha)
+{
+	unsigned long   flags;
+	struct edb_node *edbnode = NULL;
+
+	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
+
+	/* db nodes are fifo - no qualifications done */
+	if (!list_empty(&vha->e_dbell.head)) {
+		edbnode = list_first_entry(&vha->e_dbell.head,
+					   struct edb_node, list);
+		list_del_init(&edbnode->list);
+	}
+
+	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
+
+	return edbnode;
+}
+
+static void qla_edb_node_free(scsi_qla_host_t *vha, struct edb_node *node)
+{
+	list_del_init(&node->list);
+	kfree(node);
+}
+
 static struct edif_list_entry *qla_edif_list_find_sa_index(fc_port_t *fcport,
 		uint16_t handle)
 {
@@ -1071,6 +1096,130 @@ qla_edif_ack(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
 	return 0;
 }
 
+static int qla_edif_consume_dbell(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
+{
+	struct fc_bsg_reply	*bsg_reply = bsg_job->reply;
+	u32 sg_skip, reply_payload_len;
+	bool keep;
+	struct edb_node *dbnode = NULL;
+	struct edif_app_dbell ap;
+	int dat_size = 0;
+
+	sg_skip = 0;
+	reply_payload_len = bsg_job->reply_payload.payload_len;
+
+	while ((reply_payload_len - sg_skip) >= sizeof(struct edb_node)) {
+		dbnode = qla_edb_getnext(vha);
+		if (dbnode) {
+			keep = true;
+			dat_size = 0;
+			ap.event_code = dbnode->ntype;
+			switch (dbnode->ntype) {
+			case VND_CMD_AUTH_STATE_SESSION_SHUTDOWN:
+			case VND_CMD_AUTH_STATE_NEEDED:
+				ap.port_id = dbnode->u.plogi_did;
+				dat_size += sizeof(ap.port_id);
+				break;
+			case VND_CMD_AUTH_STATE_ELS_RCVD:
+				ap.port_id = dbnode->u.els_sid;
+				dat_size += sizeof(ap.port_id);
+				break;
+			case VND_CMD_AUTH_STATE_SAUPDATE_COMPL:
+				ap.port_id = dbnode->u.sa_aen.port_id;
+				memcpy(&ap.event_data, &dbnode->u,
+				    sizeof(struct edif_sa_update_aen));
+				dat_size += sizeof(struct edif_sa_update_aen);
+				break;
+			default:
+				keep = false;
+				ql_log(ql_log_warn, vha, 0x09102,
+					"%s unknown DB type=%d %p\n",
+					__func__, dbnode->ntype, dbnode);
+				break;
+			}
+			ap.event_data_size = dat_size;
+			/* 8 = sizeof(ap.event_code + ap.event_data_size) */
+			dat_size += 8;
+			if (keep)
+				sg_skip += sg_copy_buffer(bsg_job->reply_payload.sg_list,
+						bsg_job->reply_payload.sg_cnt,
+						&ap, dat_size, sg_skip, false);
+
+			ql_dbg(ql_dbg_edif, vha, 0x09102,
+				"%s Doorbell consumed : type=%d %p\n",
+				__func__, dbnode->ntype, dbnode);
+
+			kfree(dbnode);
+		} else {
+			break;
+		}
+	}
+
+	SET_DID_STATUS(bsg_reply->result, DID_OK);
+	bsg_reply->reply_payload_rcv_len = sg_skip;
+	bsg_job->reply_len = sizeof(struct fc_bsg_reply);
+
+	return 0;
+}
+
+static void __qla_edif_dbell_bsg_done(scsi_qla_host_t *vha, struct bsg_job *bsg_job,
+	u32 delay)
+{
+	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
+
+	/* small sleep for doorbell events to accumulate */
+	if (delay)
+		msleep(delay);
+
+	qla_edif_consume_dbell(vha, bsg_job);
+
+	bsg_job_done(bsg_job, bsg_reply->result, bsg_reply->reply_payload_rcv_len);
+}
+
+static void qla_edif_dbell_bsg_done(scsi_qla_host_t *vha)
+{
+	unsigned long flags;
+	struct bsg_job *prev_bsg_job = NULL;
+
+	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
+	if (vha->e_dbell.dbell_bsg_job) {
+		prev_bsg_job = vha->e_dbell.dbell_bsg_job;
+		vha->e_dbell.dbell_bsg_job = NULL;
+	}
+	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
+
+	if (prev_bsg_job)
+		__qla_edif_dbell_bsg_done(vha, prev_bsg_job, 0);
+}
+
+static int
+qla_edif_dbell_bsg(scsi_qla_host_t *vha, struct bsg_job *bsg_job)
+{
+	unsigned long flags;
+	bool return_bsg = false;
+
+	/* flush previous dbell bsg */
+	qla_edif_dbell_bsg_done(vha);
+
+	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
+	if (list_empty(&vha->e_dbell.head) && DBELL_ACTIVE(vha)) {
+		/*
+		 * when the next db event happens, bsg_job will return.
+		 * Otherwise, timer will return it.
+		 */
+		vha->e_dbell.dbell_bsg_job = bsg_job;
+		vha->e_dbell.bsg_expire = jiffies + 10 * HZ;
+	} else {
+		return_bsg = true;
+	}
+	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
+
+	if (return_bsg)
+		__qla_edif_dbell_bsg_done(vha, bsg_job, 1);
+
+	return 0;
+}
+
 int32_t
 qla_edif_app_mgmt(struct bsg_job *bsg_job)
 {
@@ -1082,8 +1231,13 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 	bool done = true;
 	int32_t         rval = 0;
 	uint32_t	vnd_sc = bsg_request->rqst_data.h_vendor.vendor_cmd[1];
+	u32 level = ql_dbg_edif;
 
-	ql_dbg(ql_dbg_edif, vha, 0x911d, "%s vnd subcmd=%x\n",
+	/* doorbell is high traffic */
+	if (vnd_sc == QL_VND_SC_READ_DBELL)
+		level = 0;
+
+	ql_dbg(level, vha, 0x911d, "%s vnd subcmd=%x\n",
 	    __func__, vnd_sc);
 
 	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
@@ -1092,7 +1246,7 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 
 	if (!vha->hw->flags.edif_enabled ||
 		test_bit(VPORT_DELETE, &vha->dpc_flags)) {
-		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		ql_dbg(level, vha, 0x911d,
 		    "%s edif not enabled or vp delete. bsg ptr done %p. dpc_flags %lx\n",
 		    __func__, bsg_job, vha->dpc_flags);
 
@@ -1101,7 +1255,7 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 	}
 
 	if (!qla_edif_app_check(vha, appcheck)) {
-		ql_dbg(ql_dbg_edif, vha, 0x911d,
+		ql_dbg(level, vha, 0x911d,
 		    "%s app checked failed.\n",
 		    __func__);
 
@@ -1136,6 +1290,10 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 	case QL_VND_SC_AEN_COMPLETE:
 		rval = qla_edif_ack(vha, bsg_job);
 		break;
+	case QL_VND_SC_READ_DBELL:
+		rval = qla_edif_dbell_bsg(vha, bsg_job);
+		done = false;
+		break;
 	default:
 		ql_dbg(ql_dbg_edif, vha, 0x911d, "%s unknown cmd=%x\n",
 		    __func__,
@@ -1147,7 +1305,7 @@ qla_edif_app_mgmt(struct bsg_job *bsg_job)
 
 done:
 	if (done) {
-		ql_dbg(ql_dbg_user, vha, 0x7009,
+		ql_dbg(level, vha, 0x7009,
 		    "%s: %d  bsg ptr done %p\n", __func__, __LINE__, bsg_job);
 		bsg_job_done(bsg_job, bsg_reply->result,
 		    bsg_reply->reply_payload_rcv_len);
@@ -1859,30 +2017,6 @@ qla_edb_init(scsi_qla_host_t *vha)
 	/* initialize lock which protects doorbell & init list */
 	spin_lock_init(&vha->e_dbell.db_lock);
 	INIT_LIST_HEAD(&vha->e_dbell.head);
-
-	/* create and initialize doorbell */
-	init_completion(&vha->e_dbell.dbell);
-}
-
-static void
-qla_edb_node_free(scsi_qla_host_t *vha, struct edb_node *node)
-{
-	/*
-	 * releases the space held by this edb node entry
-	 * this function does _not_ free the edb node itself
-	 * NB: the edb node entry passed should not be on any list
-	 *
-	 * currently for doorbell there's no additional cleanup
-	 * needed, but here as a placeholder for furture use.
-	 */
-
-	if (!node) {
-		ql_dbg(ql_dbg_edif, vha, 0x09122,
-		    "%s error - no valid node passed\n", __func__);
-		return;
-	}
-
-	node->ntype = N_UNDEF;
 }
 
 static void qla_edb_clear(scsi_qla_host_t *vha, port_id_t portid)
@@ -1929,11 +2063,8 @@ static void qla_edb_clear(scsi_qla_host_t *vha, port_id_t portid)
 	}
 	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
 
-	list_for_each_entry_safe(e, tmp, &edb_list, list) {
+	list_for_each_entry_safe(e, tmp, &edb_list, list)
 		qla_edb_node_free(vha, e);
-		list_del_init(&e->list);
-		kfree(e);
-	}
 }
 
 /* function called when app is stopping */
@@ -1961,14 +2092,10 @@ qla_edb_stop(scsi_qla_host_t *vha)
 		    "%s freeing edb_node type=%x\n",
 		    __func__, node->ntype);
 		qla_edb_node_free(vha, node);
-		list_del(&node->list);
-
-		kfree(node);
 	}
 	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
 
-	/* wake up doorbell waiters - they'll be dismissed with error code */
-	complete_all(&vha->e_dbell.dbell);
+	qla_edif_dbell_bsg_done(vha);
 }
 
 static struct edb_node *
@@ -2005,9 +2132,6 @@ qla_edb_node_add(scsi_qla_host_t *vha, struct edb_node *ptr)
 	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
 	list_add_tail(&ptr->list, &vha->e_dbell.head);
 	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
-
-	/* ring doorbell for waiters */
-	complete(&vha->e_dbell.dbell);
 
 	return true;
 }
@@ -2077,43 +2201,24 @@ qla_edb_eventcreate(scsi_qla_host_t *vha, uint32_t dbtype,
 	default:
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
 			"%s unknown type: %x\n", __func__, dbtype);
-		qla_edb_node_free(vha, edbnode);
 		kfree(edbnode);
 		edbnode = NULL;
 		break;
 	}
 
-	if (edbnode && (!qla_edb_node_add(vha, edbnode))) {
+	if (edbnode) {
+		if (!qla_edb_node_add(vha, edbnode)) {
+			ql_dbg(ql_dbg_edif, vha, 0x09102,
+			    "%s unable to add dbnode\n", __func__);
+			kfree(edbnode);
+			return;
+		}
 		ql_dbg(ql_dbg_edif, vha, 0x09102,
-		    "%s unable to add dbnode\n", __func__);
-		qla_edb_node_free(vha, edbnode);
-		kfree(edbnode);
-		return;
+		    "%s Doorbell produced : type=%d %p\n", __func__, dbtype, edbnode);
+		qla_edif_dbell_bsg_done(vha);
+		if (fcport)
+			fcport->edif.auth_state = dbtype;
 	}
-	if (edbnode && fcport)
-		fcport->edif.auth_state = dbtype;
-	ql_dbg(ql_dbg_edif, vha, 0x09102,
-	    "%s Doorbell produced : type=%d %p\n", __func__, dbtype, edbnode);
-}
-
-static struct edb_node *
-qla_edb_getnext(scsi_qla_host_t *vha)
-{
-	unsigned long	flags;
-	struct edb_node	*edbnode = NULL;
-
-	spin_lock_irqsave(&vha->e_dbell.db_lock, flags);
-
-	/* db nodes are fifo - no qualifications done */
-	if (!list_empty(&vha->e_dbell.head)) {
-		edbnode = list_first_entry(&vha->e_dbell.head,
-		    struct edb_node, list);
-		list_del(&edbnode->list);
-	}
-
-	spin_unlock_irqrestore(&vha->e_dbell.db_lock, flags);
-
-	return edbnode;
 }
 
 void
@@ -2141,6 +2246,9 @@ qla_edif_timer(scsi_qla_host_t *vha)
 			ha->edif_post_stop_cnt_down = 60;
 		}
 	}
+
+	if (vha->e_dbell.dbell_bsg_job && time_after_eq(jiffies, vha->e_dbell.bsg_expire))
+		qla_edif_dbell_bsg_done(vha);
 }
 
 /*
@@ -2208,7 +2316,6 @@ edif_doorbell_show(struct device *dev, struct device_attribute *attr,
 				"%s Doorbell consumed : type=%d %p\n",
 				__func__, dbnode->ntype, dbnode);
 			/* we're done with the db node, so free it up */
-			qla_edb_node_free(vha, dbnode);
 			kfree(dbnode);
 		} else {
 			break;

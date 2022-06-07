@@ -183,6 +183,20 @@ struct qla_sa_update_frame {
 #define	QL_VND_SC_GET_FCINFO	7
 #define	QL_VND_SC_GET_STATS	8
 #define QL_VND_SC_AEN_COMPLETE  9
+#define QL_VND_SC_READ_DBELL	10
+
+/*
+ * bsg caller to provide empty buffer for doorbell events.
+ *
+ * sg_io_v4.din_xferp  = empty buffer for door bell events
+ * sg_io_v4.dout_xferp = struct edif_read_dbell *buf
+ */
+struct edif_read_dbell {
+	struct app_id app_info;
+	uint8_t version;
+	uint8_t pad[VND_CMD_PAD_SIZE];
+	uint8_t reserved[VND_CMD_APP_RESERVED_SIZE];
+};
 
 
 /* Application interface data structure for rtn data */
