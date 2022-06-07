@@ -576,6 +576,8 @@ struct iio_trigger *viio_trigger_alloc(struct device *parent,
 	if (trig->name == NULL)
 		goto free_descs;
 
+	INIT_LIST_HEAD(&trig->list);
+
 	trig->subirq_chip.name = trig->name;
 	trig->subirq_chip.irq_mask = &iio_trig_subirqmask;
 	trig->subirq_chip.irq_unmask = &iio_trig_subirqunmask;
