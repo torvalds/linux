@@ -1701,8 +1701,7 @@ static irqreturn_t cs42l42_irq_thread(int irq, void *data)
 			break;
 
 		default:
-			if (cs42l42->plug_state != CS42L42_TS_TRANS)
-				cs42l42->plug_state = CS42L42_TS_TRANS;
+			cs42l42->plug_state = CS42L42_TS_TRANS;
 		}
 	}
 
