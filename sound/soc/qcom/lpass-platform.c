@@ -1160,7 +1160,7 @@ static int lpass_platform_prealloc_cdc_dma_buffer(struct snd_soc_component *comp
 		break;
 	}
 
-	buf->area = (unsigned char * __force)memremap(buf->addr, buf->bytes, MEMREMAP_WT);
+	buf->area = (unsigned char * __force)memremap(buf->addr, buf->bytes, MEMREMAP_WC);
 
 	return 0;
 }

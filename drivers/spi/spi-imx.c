@@ -23,7 +23,7 @@
 #include <linux/of_device.h>
 #include <linux/property.h>
 
-#include <linux/platform_data/dma-imx.h>
+#include <linux/dma/imx-dma.h>
 
 #define DRIVER_NAME "spi_imx"
 
