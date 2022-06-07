@@ -566,6 +566,11 @@ static inline struct btf_enum64 *btf_enum64(const struct btf_type *t)
 	return (struct btf_enum64 *)(t + 1);
 }
 
+static inline __u64 btf_enum64_value(const struct btf_enum64 *e)
+{
+	return ((__u64)e->val_hi32 << 32) | e->val_lo32;
+}
+
 static inline struct btf_member *btf_members(const struct btf_type *t)
 {
 	return (struct btf_member *)(t + 1);
