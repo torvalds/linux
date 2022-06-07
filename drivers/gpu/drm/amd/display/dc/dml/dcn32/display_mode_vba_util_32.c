@@ -5314,9 +5314,15 @@ void dml32_CalculateDCCConfiguration(
 		unsigned int        *IndependentBlockLuma,
 		unsigned int        *IndependentBlockChroma)
 {
+	typedef enum {
+		REQ_256Bytes,
+		REQ_128BytesNonContiguous,
+		REQ_128BytesContiguous,
+		REQ_NA
+	} RequestType;
 
-	enum RequestType   RequestLuma;
-	enum RequestType   RequestChroma;
+	RequestType   RequestLuma;
+	RequestType   RequestChroma;
 
 	unsigned int   segment_order_horz_contiguous_luma;
 	unsigned int   segment_order_horz_contiguous_chroma;
@@ -5349,13 +5355,6 @@ void dml32_CalculateDCCConfiguration(
 	unsigned int     swath_buf_size;
 	double   detile_buf_vp_horz_limit;
 	double   detile_buf_vp_vert_limit;
-
-	typedef enum {
-		REQ_256Bytes,
-		REQ_128BytesNonContiguous,
-		REQ_128BytesContiguous,
-		REQ_NA
-	} RequestType;
 
 	yuv420 = ((SourcePixelFormat == dm_420_8 || SourcePixelFormat == dm_420_10 ||
 			SourcePixelFormat == dm_420_12) ? 1 : 0);
@@ -5527,11 +5526,11 @@ void dml32_CalculateDCCConfiguration(
 			RequestChroma = REQ_128BytesContiguous;
 	}
 
-	if (RequestLuma == (enum RequestType) REQ_256Bytes) {
+	if (RequestLuma == REQ_256Bytes) {
 		*MaxUncompressedBlockLuma = 256;
 		*MaxCompressedBlockLuma = 256;
 		*IndependentBlockLuma = 0;
-	} else if (RequestLuma == (enum RequestType) REQ_128BytesContiguous) {
+	} else if (RequestLuma == REQ_128BytesContiguous) {
 		*MaxUncompressedBlockLuma = 256;
 		*MaxCompressedBlockLuma = 128;
 		*IndependentBlockLuma = 128;
@@ -5541,11 +5540,11 @@ void dml32_CalculateDCCConfiguration(
 		*IndependentBlockLuma = 64;
 	}
 
-	if (RequestChroma == (enum RequestType) REQ_256Bytes) {
+	if (RequestChroma == REQ_256Bytes) {
 		*MaxUncompressedBlockChroma = 256;
 		*MaxCompressedBlockChroma = 256;
 		*IndependentBlockChroma = 0;
-	} else if (RequestChroma == (enum RequestType) REQ_128BytesContiguous) {
+	} else if (RequestChroma == REQ_128BytesContiguous) {
 		*MaxUncompressedBlockChroma = 256;
 		*MaxCompressedBlockChroma = 128;
 		*IndependentBlockChroma = 128;

@@ -1411,7 +1411,7 @@ static void DISPCLKDPPCLKDCFCLKDeepSleepPrefetchParametersWatermarksAndPerforman
 				v->BytePerPixelC[k],
 				v->BytePerPixelDETY[k],
 				v->BytePerPixelDETC[k],
-				mode_lib->vba.SourceScan[k],
+				(enum dm_rotation_angle) mode_lib->vba.SourceScan[k],
 				/* Output */
 				&v->DCCYMaxUncompressedBlock[k],
 				&v->DCCCMaxUncompressedBlock[k],
@@ -1741,7 +1741,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	mode_lib->vba.SourceFormatPixelAndScanSupport = true;
 	for (k = 0; k <= mode_lib->vba.NumberOfActiveSurfaces - 1; k++) {
 		if (mode_lib->vba.SurfaceTiling[k] == dm_sw_linear
-			&& (!(!IsVertical(mode_lib->vba.SourceScan[k])) || mode_lib->vba.DCCEnable[k] == true)) {
+			&& (!(!IsVertical((enum dm_rotation_angle) mode_lib->vba.SourceScan[k]))
+				|| mode_lib->vba.DCCEnable[k] == true)) {
 			mode_lib->vba.SourceFormatPixelAndScanSupport = false;
 		}
 	}
