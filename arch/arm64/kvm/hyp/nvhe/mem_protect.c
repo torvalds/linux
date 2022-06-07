@@ -513,7 +513,8 @@ static bool range_is_memory(u64 start, u64 end)
 }
 
 static inline int __host_stage2_idmap(u64 start, u64 end,
-				      enum kvm_pgtable_prot prot)
+				      enum kvm_pgtable_prot prot,
+				      bool update_iommu)
 {
 	int ret;
 
@@ -522,7 +523,8 @@ static inline int __host_stage2_idmap(u64 start, u64 end,
 	if (ret)
 		return ret;
 
-	pkvm_iommu_host_stage2_idmap(start, end, prot);
+	if (update_iommu)
+		pkvm_iommu_host_stage2_idmap(start, end, prot);
 	return 0;
 }
 
@@ -584,9 +586,9 @@ static int host_stage2_adjust_range(u64 addr, struct kvm_mem_range *range)
 }
 
 int host_stage2_idmap_locked(phys_addr_t addr, u64 size,
-			     enum kvm_pgtable_prot prot)
+			     enum kvm_pgtable_prot prot, bool update_iommu)
 {
-	return host_stage2_try(__host_stage2_idmap, addr, addr + size, prot);
+	return host_stage2_try(__host_stage2_idmap, addr, addr + size, prot, update_iommu);
 }
 
 #define KVM_INVALID_PTE_OWNER_MASK	GENMASK(9, 2)
@@ -664,7 +666,7 @@ static int host_stage2_idmap(u64 addr)
 	if (ret)
 		return ret;
 
-	return host_stage2_idmap_locked(range.start, range.end - range.start, prot);
+	return host_stage2_idmap_locked(range.start, range.end - range.start, prot, false);
 }
 
 static void host_inject_abort(struct kvm_cpu_context *host_ctxt)
@@ -846,7 +848,7 @@ static int __host_set_page_state_range(u64 addr, u64 size,
 {
 	enum kvm_pgtable_prot prot = pkvm_mkstate(PKVM_HOST_MEM_PROT, state);
 
-	return host_stage2_idmap_locked(addr, size, prot);
+	return host_stage2_idmap_locked(addr, size, prot, true);
 }
 
 static int host_request_owned_transition(u64 *completer_addr,
