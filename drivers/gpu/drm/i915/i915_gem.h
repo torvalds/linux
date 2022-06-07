@@ -26,7 +26,6 @@
 #define __I915_GEM_H__
 
 #include <linux/bug.h>
-#include <linux/interrupt.h>
 
 #include <drm/drm_drv.h>
 
@@ -84,37 +83,5 @@ struct drm_i915_private;
 #endif
 
 #define I915_GEM_IDLE_TIMEOUT (HZ / 5)
-
-static inline void tasklet_lock(struct tasklet_struct *t)
-{
-	while (!tasklet_trylock(t))
-		cpu_relax();
-}
-
-static inline bool tasklet_is_locked(const struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_RUN, &t->state);
-}
-
-static inline void __tasklet_disable_sync_once(struct tasklet_struct *t)
-{
-	if (!atomic_fetch_inc(&t->count))
-		tasklet_unlock_spin_wait(t);
-}
-
-static inline bool __tasklet_is_enabled(const struct tasklet_struct *t)
-{
-	return !atomic_read(&t->count);
-}
-
-static inline bool __tasklet_enable(struct tasklet_struct *t)
-{
-	return atomic_dec_and_test(&t->count);
-}
-
-static inline bool __tasklet_is_scheduled(struct tasklet_struct *t)
-{
-	return test_bit(TASKLET_STATE_SCHED, &t->state);
-}
 
 #endif /* __I915_GEM_H__ */
