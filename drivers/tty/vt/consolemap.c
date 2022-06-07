@@ -580,23 +580,21 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 
 	/* Save original vc_unipagdir_loc in case we allocate a new one */
 	p = *vc->vc_uni_pagedir_loc;
-
 	if (!p) {
 		err = -EINVAL;
-
 		goto out_unlock;
 	}
-	
+
 	if (p->refcount > 1) {
 		int j, k;
 		u16 **p1, *p2, l;
-		
+
 		err1 = con_do_clear_unimap(vc);
 		if (err1) {
 			err = err1;
 			goto out_unlock;
 		}
-		
+
 		/*
 		 * Since refcount was > 1, con_clear_unimap() allocated a
 		 * a new uni_pagedict for this vc.  Re: p != q
@@ -611,13 +609,26 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 		 */
 		l = 0;		/* unicode value */
 		for (i = 0; i < UNI_DIRS; i++) {
-		p1 = p->uni_pgdir[i];
-		if (p1)
+			p1 = p->uni_pgdir[i];
+			if (!p1) {
+				/* Account for empty table */
+				l += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
+				continue;
+			}
+
 			for (j = 0; j < UNI_DIR_ROWS; j++) {
-			p2 = p1[j];
-			if (p2) {
-				for (k = 0; k < UNI_ROW_GLYPHS; k++, l++)
-				if (p2[k] != 0xffff) {
+				p2 = p1[j];
+				if (!p2) {
+					/*
+					 * Account for row of 64 empty entries
+					 */
+					l += UNI_ROW_GLYPHS;
+					continue;
+				}
+
+				for (k = 0; k < UNI_ROW_GLYPHS; k++, l++) {
+					if (p2[k] == 0xffff)
+						continue;
 					/*
 					 * Found one, copy entry for unicode
 					 * l with fontpos value p2[k].
@@ -632,14 +643,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 						goto out_unlock;
 					}
 				}
-			} else {
-				/* Account for row of 64 empty entries */
-				l += UNI_ROW_GLYPHS;
 			}
-		}
-		else
-			/* Account for empty table */
-			l += UNI_DIR_ROWS * UNI_ROW_GLYPHS;
 		}
 
 		/*
@@ -658,7 +662,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 		if (err1)
 			err = err1;
 	}
-	
+
 	/*
 	 * Merge with fontmaps of any other virtual consoles.
 	 */
