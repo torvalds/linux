@@ -52,27 +52,26 @@ static inline void _devcd_free_sgtable(struct scatterlist *table)
 
 
 #ifdef CONFIG_DEV_COREDUMP
-void dev_coredumpv(struct device *dev, void *data, size_t datalen,
-		   gfp_t gfp);
+void dev_coredumpv(struct device *dev, void *data, size_t datalen);
 
 void dev_coredumpm(struct device *dev, struct module *owner,
-		   void *data, size_t datalen, gfp_t gfp,
+		   void *data, size_t datalen,
 		   ssize_t (*read)(char *buffer, loff_t offset, size_t count,
 				   void *data, size_t datalen),
 		   void (*free)(void *data));
 
 void dev_coredumpsg(struct device *dev, struct scatterlist *table,
-		    size_t datalen, gfp_t gfp);
+		    size_t datalen);
 #else
 static inline void dev_coredumpv(struct device *dev, void *data,
-				 size_t datalen, gfp_t gfp)
+				 size_t datalen)
 {
 	vfree(data);
 }
 
 static inline void
 dev_coredumpm(struct device *dev, struct module *owner,
-	      void *data, size_t datalen, gfp_t gfp,
+	      void *data, size_t datalen,
 	      ssize_t (*read)(char *buffer, loff_t offset, size_t count,
 			      void *data, size_t datalen),
 	      void (*free)(void *data))
@@ -81,7 +80,7 @@ dev_coredumpm(struct device *dev, struct module *owner,
 }
 
 static inline void dev_coredumpsg(struct device *dev, struct scatterlist *table,
-				  size_t datalen, gfp_t gfp)
+				  size_t datalen)
 {
 	_devcd_free_sgtable(table);
 }

@@ -1630,8 +1630,7 @@ void mt7921_coredump_work(struct work_struct *work)
 	}
 
 	if (dump)
-		dev_coredumpv(dev->mt76.dev, dump, MT76_CONNAC_COREDUMP_SZ,
-			      GFP_KERNEL);
+		dev_coredumpv(dev->mt76.dev, dump, MT76_CONNAC_COREDUMP_SZ);
 
 	mt7921_reset(&dev->mt76);
 }

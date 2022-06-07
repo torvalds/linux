@@ -37,7 +37,7 @@ int brcmf_debug_create_memdump(struct brcmf_bus *bus, const void *data,
 		return err;
 	}
 
-	dev_coredumpv(bus->dev, dump, len + ramsize, GFP_KERNEL);
+	dev_coredumpv(bus->dev, dump, len + ramsize);
 
 	return 0;
 }

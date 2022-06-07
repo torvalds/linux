@@ -162,7 +162,7 @@ struct drm_print_iterator {
  *	void makecoredump(...)
  *	{
  *		...
- *		dev_coredumpm(dev, THIS_MODULE, data, 0, GFP_KERNEL,
+ *		dev_coredumpm(dev, THIS_MODULE, data, 0,
  *			coredump_read, ...)
  *	}
  *
