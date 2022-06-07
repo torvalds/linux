@@ -244,33 +244,33 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 static void set_inverse_trans_unicode(struct vc_data *conp,
 				      struct uni_pagedict *p)
 {
-	int i, j, k;
-	u16 **p1, *p2;
-	u16 *q;
+	unsigned int d, r, g;
+	u16 *inv;
 
 	if (!p)
 		return;
-	q = p->inverse_trans_unicode;
-	if (!q) {
-		q = p->inverse_trans_unicode = kmalloc_array(MAX_GLYPH,
-				sizeof(*q), GFP_KERNEL);
-		if (!q)
+
+	inv = p->inverse_trans_unicode;
+	if (!inv) {
+		inv = p->inverse_trans_unicode = kmalloc_array(MAX_GLYPH,
+				sizeof(*inv), GFP_KERNEL);
+		if (!inv)
 			return;
 	}
-	memset(q, 0, MAX_GLYPH * sizeof(*q));
+	memset(inv, 0, MAX_GLYPH * sizeof(*inv));
 
-	for (i = 0; i < UNI_DIRS; i++) {
-		p1 = p->uni_pgdir[i];
-		if (!p1)
+	for (d = 0; d < UNI_DIRS; d++) {
+		u16 **dir = p->uni_pgdir[d];
+		if (!dir)
 			continue;
-		for (j = 0; j < UNI_DIR_ROWS; j++) {
-			p2 = p1[j];
-			if (!p2)
+		for (r = 0; r < UNI_DIR_ROWS; r++) {
+			u16 *row = dir[r];
+			if (!row)
 				continue;
-			for (k = 0; k < UNI_ROW_GLYPHS; k++) {
-				u16 glyph = p2[k];
-				if (glyph < MAX_GLYPH && q[glyph] < 32)
-					q[glyph] = UNI(i, j, k);
+			for (g = 0; g < UNI_ROW_GLYPHS; g++) {
+				u16 glyph = row[g];
+				if (glyph < MAX_GLYPH && inv[glyph] < 32)
+					inv[glyph] = UNI(d, r, g);
 			}
 		}
 	}
