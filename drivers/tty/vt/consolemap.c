@@ -343,15 +343,15 @@ static void update_user_maps(void)
  */
 int con_set_trans_old(unsigned char __user * arg)
 {
-	int i;
 	unsigned short inbuf[E_TABSZ];
-	unsigned char ubuf[E_TABSZ];
+	unsigned int i;
+	unsigned char ch;
 
-	if (copy_from_user(ubuf, arg, E_TABSZ))
-		return -EFAULT;
-
-	for (i = 0; i < E_TABSZ ; i++)
-		inbuf[i] = UNI_DIRECT_BASE | ubuf[i];
+	for (i = 0; i < ARRAY_SIZE(inbuf); i++) {
+		if (get_user(ch, &arg[i]))
+			return -EFAULT;
+		inbuf[i] = UNI_DIRECT_BASE | ch;
+	}
 
 	console_lock();
 	memcpy(translations[USER_MAP], inbuf, sizeof(inbuf));
