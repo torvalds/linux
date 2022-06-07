@@ -279,8 +279,8 @@ err_pfn_remap:
 
 
 /*
- * Not device managed version of dev_memremap_pages, undone by
- * memunmap_pages().  Please use dev_memremap_pages if you have a struct
+ * Not device managed version of devm_memremap_pages, undone by
+ * memunmap_pages().  Please use devm_memremap_pages if you have a struct
  * device available.
  */
 void *memremap_pages(struct dev_pagemap *pgmap, int nid)
