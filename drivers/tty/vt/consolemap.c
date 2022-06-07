@@ -281,12 +281,12 @@ unsigned short *set_translate(int m, struct vc_data *vc)
  *    was active.
  * Still, it is now possible to a certain extent to cut and paste non-ASCII.
  */
-u16 inverse_translate(const struct vc_data *conp, int glyph, int use_unicode)
+u16 inverse_translate(const struct vc_data *conp, u16 glyph, bool use_unicode)
 {
 	struct uni_pagedict *p;
 	int m;
 
-	if (glyph < 0 || glyph >= MAX_GLYPH)
+	if (glyph >= MAX_GLYPH)
 		return 0;
 
 	p = *conp->vc_uni_pagedir_loc;

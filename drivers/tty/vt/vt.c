@@ -4741,7 +4741,7 @@ u32 screen_glyph_unicode(const struct vc_data *vc, int n)
 
 	if (uniscr)
 		return uniscr->lines[n / vc->vc_cols][n % vc->vc_cols];
-	return inverse_translate(vc, screen_glyph(vc, n * 2), 1);
+	return inverse_translate(vc, screen_glyph(vc, n * 2), true);
 }
 EXPORT_SYMBOL_GPL(screen_glyph_unicode);
 
