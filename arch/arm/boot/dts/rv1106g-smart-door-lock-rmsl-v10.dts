@@ -61,13 +61,12 @@
 		regulator-settling-time-up-us = <250>;
 	};
 
-	vcc_wlan: vcc-wlan {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_wlan_regulator";
-		regulator-always-on;
-		regulator-boot-on;
-		gpio = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
-		enable-active-high;
+	wireless_wlan: wireless-wlan {
+		compatible = "wlan-platdata";
+		wifi_chip_type = "Hi3861L";
+		WIFI,host_wake_irq = <&gpio3 RK_PA1 GPIO_ACTIVE_HIGH>;
+		WIFI,poweren_gpio = <&gpio2 RK_PA5 GPIO_ACTIVE_HIGH>;
+		status = "okay";
 	};
 };
 
