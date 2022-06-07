@@ -408,7 +408,7 @@ static void con_release_unimap(struct uni_pagedir *p)
 		}
 		p->uni_pgdir[i] = NULL;
 	}
-	for (i = 0; i < 4; i++) {
+	for (i = 0; i < ARRAY_SIZE(p->inverse_translations); i++) {
 		kfree(p->inverse_translations[i]);
 		p->inverse_translations[i] = NULL;
 	}
@@ -798,7 +798,7 @@ u32 conv_8bit_to_uni(unsigned char c)
 int conv_uni_to_8bit(u32 uni)
 {
 	int c;
-	for (c = 0; c < 0x100; c++)
+	for (c = 0; c < ARRAY_SIZE(translations[USER_MAP]); c++)
 		if (translations[USER_MAP][c] == uni ||
 		   (translations[USER_MAP][c] == (c | 0xf000) && uni == c))
 			return c;
