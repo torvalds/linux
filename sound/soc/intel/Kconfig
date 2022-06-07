@@ -226,5 +226,8 @@ config SND_SOC_INTEL_AVS
 	  capabilities. This includes Skylake, Kabylake, Amberlake and
 	  Apollolake.
 
+# Machine board drivers
+source "sound/soc/intel/avs/boards/Kconfig"
+
 # ASoC codec drivers
 source "sound/soc/intel/boards/Kconfig"

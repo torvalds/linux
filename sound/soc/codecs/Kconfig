@@ -937,6 +937,16 @@ config SND_SOC_HDAC_HDA
 	tristate
 	select SND_HDA
 
+config SND_SOC_HDA
+	tristate "HD-Audio codec driver"
+	select SND_HDA_EXT_CORE
+	select SND_HDA
+	help
+	  This enables HD-Audio codec support in ASoC subsystem. Compared
+	  to SND_SOC_HDAC_HDA, driver's behavior is identical to HD-Audio
+	  legacy solution - including the dynamic resource allocation
+	  based on actual codec capabilities.
+
 config SND_SOC_ICS43432
 	tristate "ICS43423 and compatible i2s microphones"
 
