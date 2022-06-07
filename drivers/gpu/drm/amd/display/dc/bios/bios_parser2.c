@@ -1415,7 +1415,7 @@ static enum bp_result bios_parser_get_lttpr_caps(
 		case 5:
 			result = get_disp_caps_v4_5(bp, dce_caps);
 			*dce_caps = !!(*dce_caps & DCE_INFO_CAPS_LTTPR_SUPPORT_ENABLE);
-
+			break;
 		default:
 			break;
 		}
@@ -1532,6 +1532,7 @@ static enum bp_result bios_parser_get_embedded_panel_info(
 		default:
 			break;
 		}
+		break;
 	default:
 		break;
 	}
@@ -3251,7 +3252,7 @@ static enum bp_result get_bracket_layout_record(
 	static enum bp_result result;
 	struct object_info_table *tbl;
 	struct display_object_info_table_v1_4 *v1_4;
-    struct display_object_info_table_v1_5 *v1_5;
+	struct display_object_info_table_v1_5 *v1_5;
 
 	if (slot_layout_info == NULL) {
 		DC_LOG_DETECTION_EDID_PARSER("Invalid slot_layout_info\n");
@@ -3259,6 +3260,7 @@ static enum bp_result get_bracket_layout_record(
 	}
 	tbl = &bp->object_info_tbl;
 	v1_4 = tbl->v1_4;
+	v1_5 = tbl->v1_5;
 
 	result = BP_RESULT_NORECORD;
 	switch (bp->object_info_tbl.revision.minor) {
