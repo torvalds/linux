@@ -454,42 +454,41 @@ void con_free_unimap(struct vc_data *vc)
 	kfree(p);
 }
   
-static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *p)
+static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *dict1)
 {
-	int i, j, k;
-	struct uni_pagedict *q;
-	
-	for (i = 0; i < MAX_NR_CONSOLES; i++) {
-		if (!vc_cons_allocated(i))
+	struct uni_pagedict *dict2;
+	unsigned int cons, d, r;
+
+	for (cons = 0; cons < MAX_NR_CONSOLES; cons++) {
+		if (!vc_cons_allocated(cons))
 			continue;
-		q = *vc_cons[i].d->vc_uni_pagedir_loc;
-		if (!q || q == p || q->sum != p->sum)
+		dict2 = *vc_cons[cons].d->vc_uni_pagedir_loc;
+		if (!dict2 || dict2 == dict1 || dict2->sum != dict1->sum)
 			continue;
-		for (j = 0; j < UNI_DIRS; j++) {
-			u16 **p1, **q1;
-			p1 = p->uni_pgdir[j];
-			q1 = q->uni_pgdir[j];
-			if (!p1 && !q1)
+		for (d = 0; d < UNI_DIRS; d++) {
+			u16 **dir1 = dict1->uni_pgdir[d];
+			u16 **dir2 = dict2->uni_pgdir[d];
+			if (!dir1 && !dir2)
 				continue;
-			if (!p1 || !q1)
+			if (!dir1 || !dir2)
 				break;
-			for (k = 0; k < UNI_DIR_ROWS; k++) {
-				if (!p1[k] && !q1[k])
+			for (r = 0; r < UNI_DIR_ROWS; r++) {
+				if (!dir1[r] && !dir2[r])
 					continue;
-				if (!p1[k] || !q1[k])
+				if (!dir1[r] || !dir2[r])
 					break;
-				if (memcmp(p1[k], q1[k], UNI_ROW_GLYPHS *
-							sizeof(*p1[k])))
+				if (memcmp(dir1[r], dir2[r], UNI_ROW_GLYPHS *
+							sizeof(*dir1[r])))
 					break;
 			}
-			if (k < UNI_DIR_ROWS)
+			if (r < UNI_DIR_ROWS)
 				break;
 		}
-		if (j == UNI_DIRS) {
-			q->refcount++;
-			*conp->vc_uni_pagedir_loc = q;
-			con_release_unimap(p);
-			kfree(p);
+		if (d == UNI_DIRS) {
+			dict2->refcount++;
+			*conp->vc_uni_pagedir_loc = dict2;
+			con_release_unimap(dict1);
+			kfree(dict1);
 			return 1;
 		}
 	}
