@@ -121,7 +121,7 @@ struct samsung_ufs_phy {
 	struct clk *rx0_symbol_clk;
 	struct clk *rx1_symbol_clk;
 	const struct samsung_ufs_phy_drvdata *drvdata;
-	struct samsung_ufs_phy_cfg **cfgs;
+	const struct samsung_ufs_phy_cfg * const *cfgs;
 	const struct pmu_isol *isol;
 	u8 lane_cnt;
 	int ufs_phy_state;
