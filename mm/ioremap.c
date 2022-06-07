@@ -33,6 +33,7 @@ void __iomem *ioremap_prot(phys_addr_t phys_addr, size_t size,
 	if (!area)
 		return NULL;
 	vaddr = (unsigned long)area->addr;
+	area->phys_addr = phys_addr;
 
 	if (ioremap_page_range(vaddr, vaddr + size, phys_addr,
 			       __pgprot(prot))) {
