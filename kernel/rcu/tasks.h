@@ -1138,11 +1138,10 @@ EXPORT_SYMBOL_GPL(show_rcu_tasks_rude_gp_kthread);
 // 3.	Avoids expensive read-side instructions, having overhead similar
 //	to that of Preemptible RCU.
 //
-// There are of course downsides.  The grace-period code can send IPIs to
-// CPUs, even when those CPUs are in the idle loop or in nohz_full userspace.
-// It is necessary to scan the full tasklist, much as for Tasks RCU.  There
-// is a single callback queue guarded by a single lock, again, much as for
-// Tasks RCU.  If needed, these downsides can be at least partially remedied.
+// There are of course downsides.  For example, the grace-period code
+// can send IPIs to CPUs, even when those CPUs are in the idle loop or
+// in nohz_full userspace.  If needed, these downsides can be at least
+// partially remedied.
 //
 // Perhaps most important, this variant of RCU does not affect the vanilla
 // flavors, rcu_preempt and rcu_sched.  The fact that RCU Tasks Trace
@@ -1155,38 +1154,30 @@ EXPORT_SYMBOL_GPL(show_rcu_tasks_rude_gp_kthread);
 // invokes these functions in this order:
 //
 // rcu_tasks_trace_pregp_step():
-//	Initialize the count of readers and block CPU-hotplug operations.
-// rcu_tasks_trace_pertask(), invoked on every non-idle task:
-//	Initialize per-task state and attempt to identify an immediate
-//	quiescent state for that task, or, failing that, attempt to
-//	set that task's .need_qs flag so that task's next outermost
-//	rcu_read_unlock_trace() will report the quiescent state (in which
-//	case the count of readers is incremented).  If both attempts fail,
-//	the task is added to a "holdout" list.  Note that IPIs are used
-//	to invoke trc_read_check_handler() in the context of running tasks
-//	in order to avoid ordering overhead on common-case shared-variable
-//	accessses.
+//	Disables CPU hotplug, adds all currently executing tasks to the
+//	holdout list, then checks the state of all tasks that blocked
+//	or were preempted within their current RCU Tasks Trace read-side
+//	critical section, adding them to the holdout list if appropriate.
+//	Finally, this function re-enables CPU hotplug.
+// The ->pertask_func() pointer is NULL, so there is no per-task processing.
 // rcu_tasks_trace_postscan():
-//	Initialize state and attempt to identify an immediate quiescent
-//	state as above (but only for idle tasks), unblock CPU-hotplug
-//	operations, and wait for an RCU grace period to avoid races with
-//	tasks that are in the process of exiting.
+//	Invokes synchronize_rcu() to wait for late-stage exiting tasks
+//	to finish exiting.
 // check_all_holdout_tasks_trace(), repeatedly until holdout list is empty:
 //	Scans the holdout list, attempting to identify a quiescent state
 //	for each task on the list.  If there is a quiescent state, the
-//	corresponding task is removed from the holdout list.
+//	corresponding task is removed from the holdout list.  Once this
+//	list is empty, the grace period has completed.
 // rcu_tasks_trace_postgp():
-//	Wait for the count of readers do drop to zero, reporting any stalls.
-//	Also execute full memory barriers to maintain ordering with code
-//	executing after the grace period.
+//	Provides the needed full memory barrier and does debug checks.
 //
 // The exit_tasks_rcu_finish_trace() synchronizes with exiting tasks.
 //
-// Pre-grace-period update-side code is ordered before the grace
-// period via the ->cbs_lock and barriers in rcu_tasks_kthread().
-// Pre-grace-period read-side code is ordered before the grace period by
-// atomic_dec_and_test() of the count of readers (for IPIed readers) and by
-// scheduler context-switch ordering (for locked-down non-running readers).
+// Pre-grace-period update-side code is ordered before the grace period
+// via the ->cbs_lock and barriers in rcu_tasks_kthread().  Pre-grace-period
+// read-side code is ordered before the grace period by atomic operations
+// on .b.need_qs flag of each task involved in this process, or by scheduler
+// context-switch ordering (for locked-down non-running readers).
 
 // The lockdep state must be outside of #ifdef to be useful.
 #ifdef CONFIG_DEBUG_LOCK_ALLOC
@@ -1245,7 +1236,10 @@ u8 rcu_trc_cmpxchg_need_qs(struct task_struct *t, u8 old, u8 new)
 }
 EXPORT_SYMBOL_GPL(rcu_trc_cmpxchg_need_qs);
 
-/* If we are the last reader, wake up the grace-period kthread. */
+/*
+ * If we are the last reader, signal the grace-period kthread.
+ * Also remove from the per-CPU list of blocked tasks.
+ */
 void rcu_read_unlock_trace_special(struct task_struct *t)
 {
 	unsigned long flags;
@@ -1336,9 +1330,9 @@ static void trc_read_check_handler(void *t_in)
 	if (unlikely(nesting < 0))
 		goto reset_ipi;
 
-	// Get here if the task is in a read-side critical section.  Set
-	// its state so that it will awaken the grace-period kthread upon
-	// exit from that critical section.
+	// Get here if the task is in a read-side critical section.
+	// Set its state so that it will update state for the grace-period
+	// kthread upon exit from that critical section.
 	rcu_trc_cmpxchg_need_qs(t, 0, TRC_NEED_QS | TRC_NEED_QS_CHECKED);
 
 reset_ipi:
@@ -1387,7 +1381,7 @@ static int trc_inspect_reader(struct task_struct *t, void *bhp_in)
 		return 0;  // In QS, so done.
 	}
 	if (nesting < 0)
-		return -EINVAL; //  QS transitioning, try again later.
+		return -EINVAL; // Reader transitioning, try again later.
 
 	// The task is in a read-side critical section, so set up its
 	// state so that it will update state upon exit from that critical
@@ -1492,11 +1486,12 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 	for_each_possible_cpu(cpu)
 		WARN_ON_ONCE(per_cpu(trc_ipi_to_cpu, cpu));
 
-	// Disable CPU hotplug across the CPU scan.
-	// This also waits for all readers in CPU-hotplug code paths.
+	// Disable CPU hotplug across the CPU scan for the benefit of
+	// any IPIs that might be needed.  This also waits for all readers
+	// in CPU-hotplug code paths.
 	cpus_read_lock();
 
-	// These smp_call_function_single() calls are serialized to
+	// These rcu_tasks_trace_pertask_prep() calls are serialized to
 	// allow safe access to the hop list.
 	for_each_online_cpu(cpu) {
 		rcu_read_lock();
@@ -1608,7 +1603,7 @@ static void check_all_holdout_tasks_trace(struct list_head *hop,
 {
 	struct task_struct *g, *t;
 
-	// Disable CPU hotplug across the holdout list scan.
+	// Disable CPU hotplug across the holdout list scan for IPIs.
 	cpus_read_lock();
 
 	list_for_each_entry_safe(t, g, hop, trc_holdout_list) {
