@@ -56,6 +56,7 @@ Linux内存管理文档
    page_table_check
    remap_file_pages
    split_page_table_lock
+   vmalloced-kernel-stacks
    z3fold
    zsmalloc
 
@@ -66,4 +67,3 @@ TODOLIST:
 * slub
 * transhuge
 * unevictable-lru
-* vmalloced-kernel-stacks
