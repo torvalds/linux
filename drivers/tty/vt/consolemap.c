@@ -813,7 +813,8 @@ unlock:
 	console_unlock();
 	if (copy_to_user(list, unilist, min(ect, ct) * sizeof(*unilist)))
 		ret = -EFAULT;
-	put_user(ect, uct);
+	if (put_user(ect, uct))
+		ret = -EFAULT;
 	kvfree(unilist);
 	return ret ? ret : (ect <= ct) ? 0 : -ENOMEM;
 }
