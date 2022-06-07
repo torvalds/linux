@@ -352,8 +352,6 @@
 			clocks = <&clocks BCM2835_CLOCK_VPU>,
 				 <&clocks BCM2835_CLOCK_DPI>;
 			clock-names = "core", "pixel";
-			#address-cells = <1>;
-			#size-cells = <0>;
 			status = "disabled";
 		};
 
