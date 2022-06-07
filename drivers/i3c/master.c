@@ -2899,6 +2899,22 @@ int i3c_master_send_sir(struct i3c_master_controller *master,
 	return ret;
 }
 
+int i3c_master_put_read_data(struct i3c_master_controller *master,
+			     struct i3c_slave_payload *data,
+			     struct i3c_slave_payload *ibi_notify)
+{
+	int ret;
+
+	if (!master->ops->put_read_data)
+		return -ENOTSUPP;
+
+	i3c_bus_normaluse_lock(&master->bus);
+	ret = master->ops->put_read_data(master, data, ibi_notify);
+	i3c_bus_normaluse_unlock(&master->bus);
+
+	return ret;
+}
+
 int i3c_for_each_dev(void *data, int (*fn)(struct device *, void *))
 {
 	int res;

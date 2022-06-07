@@ -462,6 +462,9 @@ struct i3c_master_controller_ops {
 	int (*unregister_slave)(struct i3c_master_controller *master);
 	int (*send_sir)(struct i3c_master_controller *master,
 			struct i3c_slave_payload *payload);
+	int (*put_read_data)(struct i3c_master_controller *master,
+			     struct i3c_slave_payload *data,
+			     struct i3c_slave_payload *ibi_notify);
 };
 
 /**
@@ -683,6 +686,15 @@ int i3c_master_register_slave(struct i3c_master_controller *master,
 int i3c_master_unregister_slave(struct i3c_master_controller *master);
 int i3c_master_send_sir(struct i3c_master_controller *master,
 			struct i3c_slave_payload *payload);
+/**
+ * i3c_master_put_read_data() - put read data and optionally notify primary master
+ * @master: master object in slave mode
+ * @data: data structure to be read
+ * @ibi_notify: IBI data (including MDB) to notify primary master device
+ */
+int i3c_master_put_read_data(struct i3c_master_controller *master,
+			     struct i3c_slave_payload *data,
+			     struct i3c_slave_payload *ibi_notify);
 /*
  * Slave message queue driver API
  */
