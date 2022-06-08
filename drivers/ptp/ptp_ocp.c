@@ -2155,7 +2155,7 @@ ptp_ocp_fb_set_pins(struct ptp_ocp *bp)
 	struct ptp_pin_desc *config;
 	int i;
 
-	config = kzalloc(sizeof(*config) * 4, GFP_KERNEL);
+	config = kcalloc(4, sizeof(*config), GFP_KERNEL);
 	if (!config)
 		return -ENOMEM;
 
