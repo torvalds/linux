@@ -416,17 +416,17 @@
 &can0 {
 	pinctrl-names = "default";
 	pinctrl-0 = <&can0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &can1 {
-	status = "okay";
+	status = "disabled";
 };
 
 &tdm {
 	pinctrl-names = "default";
 	pinctrl-0 = <&tdm0_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &spdif0 {
