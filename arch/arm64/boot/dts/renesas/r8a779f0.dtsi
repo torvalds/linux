@@ -18,17 +18,140 @@
 		#address-cells = <1>;
 		#size-cells = <0>;
 
+		cpu-map {
+			cluster0 {
+				core0 {
+					cpu = <&a55_0>;
+				};
+				core1 {
+					cpu = <&a55_1>;
+				};
+			};
+
+			cluster1 {
+				core0 {
+					cpu = <&a55_2>;
+				};
+				core1 {
+					cpu = <&a55_3>;
+				};
+			};
+
+			cluster2 {
+				core0 {
+					cpu = <&a55_4>;
+				};
+				core1 {
+					cpu = <&a55_5>;
+				};
+			};
+
+			cluster3 {
+				core0 {
+					cpu = <&a55_6>;
+				};
+				core1 {
+					cpu = <&a55_7>;
+				};
+			};
+		};
+
 		a55_0: cpu@0 {
 			compatible = "arm,cortex-a55";
 			reg = <0>;
 			device_type = "cpu";
 			power-domains = <&sysc R8A779F0_PD_A1E0D0C0>;
 			next-level-cache = <&L3_CA55_0>;
+			enable-method = "psci";
+		};
+
+		a55_1: cpu@100 {
+			compatible = "arm,cortex-a55";
+			reg = <0x100>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E0D0C1>;
+			next-level-cache = <&L3_CA55_0>;
+			enable-method = "psci";
+		};
+
+		a55_2: cpu@10000 {
+			compatible = "arm,cortex-a55";
+			reg = <0x10000>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E0D1C0>;
+			next-level-cache = <&L3_CA55_1>;
+			enable-method = "psci";
+		};
+
+		a55_3: cpu@10100 {
+			compatible = "arm,cortex-a55";
+			reg = <0x10100>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E0D1C1>;
+			next-level-cache = <&L3_CA55_1>;
+			enable-method = "psci";
+		};
+
+		a55_4: cpu@20000 {
+			compatible = "arm,cortex-a55";
+			reg = <0x20000>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E1D0C0>;
+			next-level-cache = <&L3_CA55_2>;
+			enable-method = "psci";
+		};
+
+		a55_5: cpu@20100 {
+			compatible = "arm,cortex-a55";
+			reg = <0x20100>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E1D0C1>;
+			next-level-cache = <&L3_CA55_2>;
+			enable-method = "psci";
+		};
+
+		a55_6: cpu@30000 {
+			compatible = "arm,cortex-a55";
+			reg = <0x30000>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E1D1C0>;
+			next-level-cache = <&L3_CA55_3>;
+			enable-method = "psci";
+		};
+
+		a55_7: cpu@30100 {
+			compatible = "arm,cortex-a55";
+			reg = <0x30100>;
+			device_type = "cpu";
+			power-domains = <&sysc R8A779F0_PD_A1E1D1C1>;
+			next-level-cache = <&L3_CA55_3>;
+			enable-method = "psci";
 		};
 
 		L3_CA55_0: cache-controller-0 {
 			compatible = "cache";
 			power-domains = <&sysc R8A779F0_PD_A2E0D0>;
+			cache-unified;
+			cache-level = <3>;
+		};
+
+		L3_CA55_1: cache-controller-1 {
+			compatible = "cache";
+			power-domains = <&sysc R8A779F0_PD_A2E0D1>;
+			cache-unified;
+			cache-level = <3>;
+		};
+
+		L3_CA55_2: cache-controller-2 {
+			compatible = "cache";
+			power-domains = <&sysc R8A779F0_PD_A2E1D0>;
+			cache-unified;
+			cache-level = <3>;
+		};
+
+		L3_CA55_3: cache-controller-3 {
+			compatible = "cache";
+			power-domains = <&sysc R8A779F0_PD_A2E1D1>;
 			cache-unified;
 			cache-level = <3>;
 		};
@@ -51,6 +174,11 @@
 	pmu_a55 {
 		compatible = "arm,cortex-a55-pmu";
 		interrupts-extended = <&gic GIC_PPI 7 IRQ_TYPE_LEVEL_LOW>;
+	};
+
+	psci {
+		compatible = "arm,psci-1.0", "arm,psci-0.2";
+		method = "smc";
 	};
 
 	/* External SCIF clock - to be overridden by boards that provide it */
@@ -445,7 +573,7 @@
 			reg = <0x0 0xf1000000 0 0x20000>,
 			      <0x0 0xf1060000 0 0x110000>;
 			interrupts = <GIC_PPI 9
-				      (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_HIGH)>;
+				      (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		prr: chipid@fff00044 {
@@ -500,10 +628,10 @@
 
 	timer {
 		compatible = "arm,armv8-timer";
-		interrupts-extended = <&gic GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
-				      <&gic GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
-				      <&gic GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>,
-				      <&gic GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(1) | IRQ_TYPE_LEVEL_LOW)>;
+		interrupts-extended = <&gic GIC_PPI 13 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+				      <&gic GIC_PPI 14 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+				      <&gic GIC_PPI 11 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>,
+				      <&gic GIC_PPI 10 (GIC_CPU_MASK_SIMPLE(8) | IRQ_TYPE_LEVEL_LOW)>;
 	};
 
 	ufs30_clk: ufs30-clk {
