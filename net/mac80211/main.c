@@ -175,7 +175,8 @@ int ieee80211_hw_config(struct ieee80211_local *local, u32 changed)
 		changed |= ieee80211_hw_conf_chan(local);
 	else
 		changed &= ~(IEEE80211_CONF_CHANGE_CHANNEL |
-			     IEEE80211_CONF_CHANGE_POWER);
+			     IEEE80211_CONF_CHANGE_POWER |
+			     IEEE80211_CONF_CHANGE_SMPS);
 
 	if (changed && local->open_count) {
 		ret = drv_config(local, changed);
