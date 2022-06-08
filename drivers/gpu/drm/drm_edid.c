@@ -2226,29 +2226,9 @@ static enum edid_block_status edid_block_read(void *block, unsigned int block_nu
 	return status;
 }
 
-/**
- * drm_do_get_edid - get EDID data using a custom EDID block read function
- * @connector: connector we're probing
- * @read_block: EDID block read function
- * @context: private data passed to the block read function
- *
- * When the I2C adapter connected to the DDC bus is hidden behind a device that
- * exposes a different interface to read EDID blocks this function can be used
- * to get EDID data using a custom block read function.
- *
- * As in the general case the DDC bus is accessible by the kernel at the I2C
- * level, drivers must make all reasonable efforts to expose it as an I2C
- * adapter and use drm_get_edid() instead of abusing this function.
- *
- * The EDID may be overridden using debugfs override_edid or firmware EDID
- * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
- * order. Having either of them bypasses actual EDID reads.
- *
- * Return: Pointer to valid EDID or NULL if we couldn't find any.
- */
-struct edid *drm_do_get_edid(struct drm_connector *connector,
-			     read_block_fn read_block,
-			     void *context)
+static struct edid *_drm_do_get_edid(struct drm_connector *connector,
+				     read_block_fn read_block, void *context,
+				     size_t *size)
 {
 	enum edid_block_status status;
 	int i, invalid_blocks = 0;
@@ -2315,13 +2295,124 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	}
 
 ok:
+	if (size)
+		*size = alloc_size;
+
 	return edid;
 
 fail:
 	kfree(edid);
 	return NULL;
 }
+
+/**
+ * drm_do_get_edid - get EDID data using a custom EDID block read function
+ * @connector: connector we're probing
+ * @read_block: EDID block read function
+ * @context: private data passed to the block read function
+ *
+ * When the I2C adapter connected to the DDC bus is hidden behind a device that
+ * exposes a different interface to read EDID blocks this function can be used
+ * to get EDID data using a custom block read function.
+ *
+ * As in the general case the DDC bus is accessible by the kernel at the I2C
+ * level, drivers must make all reasonable efforts to expose it as an I2C
+ * adapter and use drm_get_edid() instead of abusing this function.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * Return: Pointer to valid EDID or NULL if we couldn't find any.
+ */
+struct edid *drm_do_get_edid(struct drm_connector *connector,
+			     read_block_fn read_block,
+			     void *context)
+{
+	return _drm_do_get_edid(connector, read_block, context, NULL);
+}
 EXPORT_SYMBOL_GPL(drm_do_get_edid);
+
+/* Allocate struct drm_edid container *without* duplicating the edid data */
+static const struct drm_edid *_drm_edid_alloc(const void *edid, size_t size)
+{
+	struct drm_edid *drm_edid;
+
+	if (!edid || !size || size < EDID_LENGTH)
+		return NULL;
+
+	drm_edid = kzalloc(sizeof(*drm_edid), GFP_KERNEL);
+	if (drm_edid) {
+		drm_edid->edid = edid;
+		drm_edid->size = size;
+	}
+
+	return drm_edid;
+}
+
+/**
+ * drm_edid_alloc - Allocate a new drm_edid container
+ * @edid: Pointer to raw EDID data
+ * @size: Size of memory allocated for EDID
+ *
+ * Allocate a new drm_edid container. Do not calculate edid size from edid, pass
+ * the actual size that has been allocated for the data. There is no validation
+ * of the raw EDID data against the size, but at least the EDID base block must
+ * fit in the buffer.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: drm_edid container, or NULL on errors
+ */
+const struct drm_edid *drm_edid_alloc(const void *edid, size_t size)
+{
+	const struct drm_edid *drm_edid;
+
+	if (!edid || !size || size < EDID_LENGTH)
+		return NULL;
+
+	edid = kmemdup(edid, size, GFP_KERNEL);
+	if (!edid)
+		return NULL;
+
+	drm_edid = _drm_edid_alloc(edid, size);
+	if (!drm_edid)
+		kfree(edid);
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_alloc);
+
+/**
+ * drm_edid_dup - Duplicate a drm_edid container
+ * @drm_edid: EDID to duplicate
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Returns: drm_edid container copy, or NULL on errors
+ */
+const struct drm_edid *drm_edid_dup(const struct drm_edid *drm_edid)
+{
+	if (!drm_edid)
+		return NULL;
+
+	return drm_edid_alloc(drm_edid->edid, drm_edid->size);
+}
+EXPORT_SYMBOL(drm_edid_dup);
+
+/**
+ * drm_edid_free - Free the drm_edid container
+ * @drm_edid: EDID to free
+ */
+void drm_edid_free(const struct drm_edid *drm_edid)
+{
+	if (!drm_edid)
+		return;
+
+	kfree(drm_edid->edid);
+	kfree(drm_edid);
+}
+EXPORT_SYMBOL(drm_edid_free);
 
 /**
  * drm_probe_ddc() - probe DDC presence
@@ -2359,11 +2450,117 @@ struct edid *drm_get_edid(struct drm_connector *connector,
 	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
 		return NULL;
 
-	edid = drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter);
+	edid = _drm_do_get_edid(connector, drm_do_probe_ddc_edid, adapter, NULL);
 	drm_connector_update_edid_property(connector, edid);
 	return edid;
 }
 EXPORT_SYMBOL(drm_get_edid);
+
+/**
+ * drm_edid_read_custom - Read EDID data using given EDID block read function
+ * @connector: Connector to use
+ * @read_block: EDID block read function
+ * @context: Private data passed to the block read function
+ *
+ * When the I2C adapter connected to the DDC bus is hidden behind a device that
+ * exposes a different interface to read EDID blocks this function can be used
+ * to get EDID data using a custom block read function.
+ *
+ * As in the general case the DDC bus is accessible by the kernel at the I2C
+ * level, drivers must make all reasonable efforts to expose it as an I2C
+ * adapter and use drm_edid_read() or drm_edid_read_ddc() instead of abusing
+ * this function.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: Pointer to EDID, or NULL if probe/read failed.
+ */
+const struct drm_edid *drm_edid_read_custom(struct drm_connector *connector,
+					    read_block_fn read_block,
+					    void *context)
+{
+	const struct drm_edid *drm_edid;
+	struct edid *edid;
+	size_t size = 0;
+
+	edid = _drm_do_get_edid(connector, read_block, context, &size);
+	if (!edid)
+		return NULL;
+
+	/* Sanity check for now */
+	drm_WARN_ON(connector->dev, !size);
+
+	drm_edid = _drm_edid_alloc(edid, size);
+	if (!drm_edid)
+		kfree(edid);
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_read_custom);
+
+/**
+ * drm_edid_read_ddc - Read EDID data using given I2C adapter
+ * @connector: Connector to use
+ * @adapter: I2C adapter to use for DDC
+ *
+ * Read EDID using the given I2C adapter.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * Prefer initializing connector->ddc with drm_connector_init_with_ddc() and
+ * using drm_edid_read() instead of this function.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: Pointer to EDID, or NULL if probe/read failed.
+ */
+const struct drm_edid *drm_edid_read_ddc(struct drm_connector *connector,
+					 struct i2c_adapter *adapter)
+{
+	const struct drm_edid *drm_edid;
+
+	if (connector->force == DRM_FORCE_OFF)
+		return NULL;
+
+	if (connector->force == DRM_FORCE_UNSPECIFIED && !drm_probe_ddc(adapter))
+		return NULL;
+
+	drm_edid = drm_edid_read_custom(connector, drm_do_probe_ddc_edid, adapter);
+
+	/* Note: Do *not* call connector updates here. */
+
+	return drm_edid;
+}
+EXPORT_SYMBOL(drm_edid_read_ddc);
+
+/**
+ * drm_edid_read - Read EDID data using connector's I2C adapter
+ * @connector: Connector to use
+ *
+ * Read EDID using the connector's I2C adapter.
+ *
+ * The EDID may be overridden using debugfs override_edid or firmware EDID
+ * (drm_load_edid_firmware() and drm.edid_firmware parameter), in this priority
+ * order. Having either of them bypasses actual EDID reads.
+ *
+ * The returned pointer must be freed using drm_edid_free().
+ *
+ * Return: Pointer to EDID, or NULL if probe/read failed.
+ */
+const struct drm_edid *drm_edid_read(struct drm_connector *connector)
+{
+	if (drm_WARN_ON(connector->dev, !connector->ddc))
+		return NULL;
+
+	return drm_edid_read_ddc(connector, connector->ddc);
+}
+EXPORT_SYMBOL(drm_edid_read);
 
 static u32 edid_extract_panel_id(const struct edid *edid)
 {
