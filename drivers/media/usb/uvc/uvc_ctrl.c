@@ -749,7 +749,8 @@ static inline void uvc_clear_bit(u8 *data, int bit)
 	data[bit >> 3] &= ~(1 << (bit & 7));
 }
 
-/* Extract the bit string specified by mapping->offset and mapping->size
+/*
+ * Extract the bit string specified by mapping->offset and mapping->size
  * from the little-endian data stored at 'data' and return the result as
  * a signed 32bit integer. Sign extension will be performed if the mapping
  * references a signed data type.
@@ -785,7 +786,8 @@ static s32 uvc_get_le_value(struct uvc_control_mapping *mapping,
 	return value;
 }
 
-/* Set the bit string specified by mapping->offset and mapping->size
+/*
+ * Set the bit string specified by mapping->offset and mapping->size
  * in the little-endian data stored at 'data' to the value 'value'.
  */
 static void uvc_set_le_value(struct uvc_control_mapping *mapping,
@@ -795,7 +797,8 @@ static void uvc_set_le_value(struct uvc_control_mapping *mapping,
 	int offset = mapping->offset;
 	u8 mask;
 
-	/* According to the v4l2 spec, writing any value to a button control
+	/*
+	 * According to the v4l2 spec, writing any value to a button control
 	 * should result in the action belonging to the button control being
 	 * triggered. UVC devices however want to see a 1 written -> override
 	 * value.
@@ -927,7 +930,8 @@ static int uvc_ctrl_populate_cache(struct uvc_video_chain *chain,
 			    UVC_VC_EXTENSION_UNIT)
 				return ret;
 
-			/* GET_RES is mandatory for XU controls, but some
+			/*
+			 * GET_RES is mandatory for XU controls, but some
 			 * cameras still choke on it. Ignore errors and set the
 			 * resolution value to zero.
 			 */
@@ -1522,8 +1526,10 @@ static int uvc_ctrl_add_event(struct v4l2_subscribed_event *sev, unsigned elems)
 
 		uvc_ctrl_fill_event(handle->chain, &ev, ctrl, mapping, val,
 				    changes);
-		/* Mark the queue as active, allowing this initial
-		   event to be accepted. */
+		/*
+		 * Mark the queue as active, allowing this initial event to be
+		 * accepted.
+		 */
 		sev->elems = elems;
 		v4l2_event_queue_fh(sev->fh, &ev);
 	}
@@ -1596,7 +1602,8 @@ static int uvc_ctrl_commit_entity(struct uvc_device *dev,
 		if (!ctrl->initialized)
 			continue;
 
-		/* Reset the loaded flag for auto-update controls that were
+		/*
+		 * Reset the loaded flag for auto-update controls that were
 		 * marked as loaded in uvc_ctrl_get/uvc_ctrl_set to prevent
 		 * uvc_ctrl_get from using the cached value, and for write-only
 		 * controls to prevent uvc_ctrl_set from setting bits not
@@ -1755,7 +1762,8 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 			return -ERANGE;
 		value = mapping->menu_info[xctrl->value].value;
 
-		/* Valid menu indices are reported by the GET_RES request for
+		/*
+		 * Valid menu indices are reported by the GET_RES request for
 		 * UVC controls that support it.
 		 */
 		if (mapping->data_type == UVC_CTRL_DATA_TYPE_BITMASK &&
@@ -1779,7 +1787,8 @@ int uvc_ctrl_set(struct uvc_fh *handle,
 		break;
 	}
 
-	/* If the mapping doesn't span the whole UVC control, the current value
+	/*
+	 * If the mapping doesn't span the whole UVC control, the current value
 	 * needs to be loaded from the device to perform the read-modify-write
 	 * operation.
 	 */
@@ -2180,7 +2189,8 @@ static int __uvc_ctrl_add_mapping(struct uvc_video_chain *chain,
 	unsigned int size;
 	unsigned int i;
 
-	/* Most mappings come from static kernel data and need to be duplicated.
+	/*
+	 * Most mappings come from static kernel data and need to be duplicated.
 	 * Mappings that come from userspace will be unnecessarily duplicated,
 	 * this could be optimized.
 	 */
@@ -2389,7 +2399,8 @@ static void uvc_ctrl_init_ctrl(struct uvc_video_chain *chain,
 	const struct uvc_control_mapping *mend =
 		mapping + ARRAY_SIZE(uvc_ctrl_mappings);
 
-	/* XU controls initialization requires querying the device for control
+	/*
+	 * XU controls initialization requires querying the device for control
 	 * information. As some buggy UVC devices will crash when queried
 	 * repeatedly in a tight loop, delay XU controls initialization until
 	 * first use.
