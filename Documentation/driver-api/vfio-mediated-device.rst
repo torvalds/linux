@@ -114,11 +114,11 @@ to register and unregister itself with the core driver:
 
 * Register::
 
-    extern int  mdev_register_driver(struct mdev_driver *drv);
+    int mdev_register_driver(struct mdev_driver *drv);
 
 * Unregister::
 
-    extern void mdev_unregister_driver(struct mdev_driver *drv);
+    void mdev_unregister_driver(struct mdev_driver *drv);
 
 The mediated bus driver's probe function should create a vfio_device on top of
 the mdev_device and connect it to an appropriate implementation of
@@ -127,8 +127,8 @@ vfio_device_ops.
 When a driver wants to add the GUID creation sysfs to an existing device it has
 probe'd to then it should call::
 
-	extern int  mdev_register_device(struct device *dev,
-	                                 struct mdev_driver *mdev_driver);
+    int mdev_register_device(struct device *dev,
+                             struct mdev_driver *mdev_driver);
 
 This will provide the 'mdev_supported_types/XX/create' files which can then be
 used to trigger the creation of a mdev_device. The created mdev_device will be
@@ -136,7 +136,7 @@ attached to the specified driver.
 
 When the driver needs to remove itself it calls::
 
-	extern void mdev_unregister_device(struct device *dev);
+    void mdev_unregister_device(struct device *dev);
 
 Which will unbind and destroy all the created mdevs and remove the sysfs files.
 
