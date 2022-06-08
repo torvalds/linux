@@ -288,6 +288,21 @@ struct serial_info {
 	sector_t _subtree_last; /* highest sector in subtree of rb node */
 };
 
+/*
+ * mddev->curr_resync stores the current sector of the resync but
+ * also has some overloaded values.
+ */
+enum {
+	/* No resync in progress */
+	MD_RESYNC_NONE = 0,
+	/* Yielded to allow another conflicting resync to commence */
+	MD_RESYNC_YIELDED = 1,
+	/* Delayed to check that there is no conflict with another sync */
+	MD_RESYNC_DELAYED = 2,
+	/* Any value greater than or equal to this is in an active resync */
+	MD_RESYNC_ACTIVE = 3,
+};
+
 struct mddev {
 	void				*private;
 	struct md_personality		*pers;
