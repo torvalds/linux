@@ -2036,13 +2036,6 @@ int kvm_emulate_invd(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_invd);
 
-int kvm_emulate_mwait(struct kvm_vcpu *vcpu)
-{
-	pr_warn_once("kvm: MWAIT instruction emulated as NOP!\n");
-	return kvm_emulate_as_nop(vcpu);
-}
-EXPORT_SYMBOL_GPL(kvm_emulate_mwait);
-
 int kvm_handle_invalid_op(struct kvm_vcpu *vcpu)
 {
 	kvm_queue_exception(vcpu, UD_VECTOR);
@@ -2050,10 +2043,25 @@ int kvm_handle_invalid_op(struct kvm_vcpu *vcpu)
 }
 EXPORT_SYMBOL_GPL(kvm_handle_invalid_op);
 
+
+static int kvm_emulate_monitor_mwait(struct kvm_vcpu *vcpu, const char *insn)
+{
+	if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_MWAIT_NEVER_FAULTS) &&
+	    !guest_cpuid_has(vcpu, X86_FEATURE_MWAIT))
+		return kvm_handle_invalid_op(vcpu);
+
+	pr_warn_once("kvm: %s instruction emulated as NOP!\n", insn);
+	return kvm_emulate_as_nop(vcpu);
+}
+int kvm_emulate_mwait(struct kvm_vcpu *vcpu)
+{
+	return kvm_emulate_monitor_mwait(vcpu, "MWAIT");
+}
+EXPORT_SYMBOL_GPL(kvm_emulate_mwait);
+
 int kvm_emulate_monitor(struct kvm_vcpu *vcpu)
 {
-	pr_warn_once("kvm: MONITOR instruction emulated as NOP!\n");
-	return kvm_emulate_as_nop(vcpu);
+	return kvm_emulate_monitor_mwait(vcpu, "MONITOR");
 }
 EXPORT_SYMBOL_GPL(kvm_emulate_monitor);
 
@@ -3884,8 +3892,8 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
 			return kvm_pmu_get_msr(vcpu, msr_info);
 		/*
-		 * Userspace is allowed to read MSRs that KVM reports in
-		 * KVM_GET_MSR_INDEX_LIST, even if an MSR isn't fully supported.
+		 * Userspace is allowed to read MSRs that KVM reports as
+		 * to-be-saved, even if an MSR isn't fully supported.
 		 */
 		if (!msr_info->host_initiated)
 			return 1;

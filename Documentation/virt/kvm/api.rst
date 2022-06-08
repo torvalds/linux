@@ -7522,6 +7522,19 @@ The valid bits in cap.args[0] are:
                                     hypercall instructions. Executing the
                                     incorrect hypercall instruction will
                                     generate a #UD within the guest.
+
+KVM_X86_QUIRK_MWAIT_NEVER_FAULTS    By default, KVM emulates MONITOR/MWAIT (if
+                                    they are intercepted) as NOPs regardless of
+                                    whether or not MONITOR/MWAIT are supported
+                                    according to guest CPUID.  When this quirk
+                                    is disabled and KVM_X86_DISABLE_EXITS_MWAIT
+                                    is not set (MONITOR/MWAIT are intercepted),
+                                    KVM will inject a #UD on MONITOR/MWAIT if
+                                    they're unsupported per guest CPUID.  Note,
+                                    KVM will modify MONITOR/MWAIT support in
+                                    guest CPUID on writes to MISC_ENABLE if
+                                    KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT is
+                                    disabled.
 =================================== ============================================
 
 7.32 KVM_CAP_MAX_VCPU_ID
