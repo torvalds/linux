@@ -360,7 +360,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 
 	sdd->tx_dma.ch = dma_request_chan(&sdd->pdev->dev, "tx");
 	if (IS_ERR(sdd->tx_dma.ch)) {
-		dev_err(&sdd->pdev->dev, "Failed to get TX DMA hannel\n");
+		dev_err(&sdd->pdev->dev, "Failed to get TX DMA channel\n");
 		dma_release_channel(sdd->rx_dma.ch);
 		sdd->tx_dma.ch = 0;
 		sdd->rx_dma.ch = 0;
