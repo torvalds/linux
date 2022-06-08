@@ -1456,6 +1456,7 @@ static int smu_disable_dpms(struct smu_context *smu)
 		case IP_VERSION(11, 0, 0):
 		case IP_VERSION(11, 0, 5):
 		case IP_VERSION(11, 0, 9):
+		case IP_VERSION(13, 0, 7):
 			return 0;
 		default:
 			break;
