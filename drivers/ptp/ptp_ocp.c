@@ -3701,10 +3701,8 @@ ptp_ocp_detach(struct ptp_ocp *bp)
 		serial8250_unregister_port(bp->mac_port);
 	if (bp->nmea_port != -1)
 		serial8250_unregister_port(bp->nmea_port);
-	if (bp->spi_flash)
-		platform_device_unregister(bp->spi_flash);
-	if (bp->i2c_ctrl)
-		platform_device_unregister(bp->i2c_ctrl);
+	platform_device_unregister(bp->spi_flash);
+	platform_device_unregister(bp->i2c_ctrl);
 	if (bp->i2c_clk)
 		clk_hw_unregister_fixed_rate(bp->i2c_clk);
 	if (bp->n_irqs)
