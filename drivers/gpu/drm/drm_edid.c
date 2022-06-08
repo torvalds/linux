@@ -4484,6 +4484,20 @@ __cea_db_iter_current_block(const struct cea_db_iter *iter)
 
 /*
  * References:
+ * - CTA-861-H section 7.3.3 CTA Extension Version 3
+ */
+static int cea_db_collection_size(const u8 *cta)
+{
+	u8 d = cta[2];
+
+	if (d < 4 || d > 127)
+		return 0;
+
+	return d - 4;
+}
+
+/*
+ * References:
  * - VESA E-EDID v1.4
  * - CTA-861-H section 7.3.3 CTA Extension Version 3
  */
@@ -4492,14 +4506,18 @@ static const void *__cea_db_iter_edid_next(struct cea_db_iter *iter)
 	const u8 *ext;
 
 	drm_edid_iter_for_each(ext, &iter->edid_iter) {
+		int size;
+
 		/* Only support CTA Extension revision 3+ */
 		if (ext[0] != CEA_EXT || cea_revision(ext) < 3)
 			continue;
 
-		iter->index = 4;
-		iter->end = ext[2];
-		if (iter->end < 4 || iter->end > 127)
+		size = cea_db_collection_size(ext);
+		if (!size)
 			continue;
+
+		iter->index = 4;
+		iter->end = iter->index + size;
 
 		return ext;
 	}
