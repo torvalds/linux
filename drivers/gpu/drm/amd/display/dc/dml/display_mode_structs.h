@@ -161,6 +161,11 @@ struct _vcs_dpi_voltage_scaling_st {
 
 struct _vcs_dpi_soc_bounding_box_st {
 	struct _vcs_dpi_voltage_scaling_st clock_limits[DC__VOLTAGE_STATES];
+	/*
+	 * This is a temporary stash for updating @clock_limits with the PMFW
+	 * clock table. Do not use outside of *update_bw_boudning_box functions.
+	 */
+	struct _vcs_dpi_voltage_scaling_st _clock_tmp[DC__VOLTAGE_STATES];
 	unsigned int num_states;
 	double sr_exit_time_us;
 	double sr_enter_plus_exit_time_us;
