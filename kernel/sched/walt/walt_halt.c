@@ -184,7 +184,7 @@ static int drain_rq_cpu_stop(void *data)
 {
 	struct rq *rq = this_rq();
 	struct rq_flags rf;
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu_of(rq));
 
 	rq_lock_irqsave(rq, &rf);
 	migrate_tasks(rq, &rf);

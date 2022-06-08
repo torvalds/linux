@@ -134,6 +134,8 @@ struct walt_rq {
 	u32			enqueue_counter;
 };
 
+DECLARE_PER_CPU(struct walt_rq, walt_rq);
+
 struct walt_sched_cluster {
 	raw_spinlock_t		load_lock;
 	struct list_head	list;
@@ -250,7 +252,7 @@ extern struct list_head cluster_head;
 
 static inline struct walt_sched_cluster *cpu_cluster(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->cluster;
 }
@@ -263,7 +265,7 @@ static inline u32 cpu_cycles_to_freq(u64 cycles, u64 period)
 static inline unsigned int sched_cpu_legacy_freq(int cpu)
 {
 	unsigned long curr_cap = arch_scale_freq_capacity(cpu);
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return (curr_cap * (u64) wrq->cluster->max_possible_freq) >>
 		SCHED_CAPACITY_SHIFT;
@@ -431,7 +433,7 @@ static inline unsigned long task_util(struct task_struct *p)
 
 static inline unsigned long cpu_util(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 	u64 walt_cpu_util = wrq->walt_stats.cumulative_runnable_avg_scaled;
 
 	return min_t(unsigned long, walt_cpu_util, capacity_orig_of(cpu));
@@ -609,7 +611,7 @@ static inline bool asym_cap_sibling_group_has_capacity(int dst_cpu, int margin)
 /* Is frequency of two cpus synchronized with each other? */
 static inline int same_freq_domain(int src_cpu, int dst_cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(src_cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, src_cpu);
 
 	if (src_cpu == dst_cpu)
 		return 1;
@@ -667,14 +669,14 @@ static inline bool hmp_capable(void)
 
 static inline bool is_max_cluster_cpu(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->cluster->id == max_possible_cluster_id;
 }
 
 static inline bool is_min_cluster_cpu(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->cluster->id == min_possible_cluster_id;
 }
@@ -692,7 +694,7 @@ static inline bool is_min_capacity_cluster(struct walt_sched_cluster *cluster)
 static inline u64 sched_irqload(int cpu)
 {
 	s64 delta;
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	delta = wrq->window_start - wrq->last_irq_window;
 	if (delta < SCHED_HIGH_IRQ_TIMEOUT)
@@ -703,7 +705,7 @@ static inline u64 sched_irqload(int cpu)
 
 static inline int sched_cpu_high_irqload(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->high_irqload;
 }
@@ -721,8 +723,8 @@ static inline unsigned int max_task_load(void)
 
 static inline int same_cluster(int src_cpu, int dst_cpu)
 {
-	struct walt_rq *src_wrq = (struct walt_rq *) cpu_rq(src_cpu)->android_vendor_data1;
-	struct walt_rq *dest_wrq = (struct walt_rq *) cpu_rq(dst_cpu)->android_vendor_data1;
+	struct walt_rq *src_wrq = &per_cpu(walt_rq, src_cpu);
+	struct walt_rq *dest_wrq = &per_cpu(walt_rq, dst_cpu);
 
 	return src_wrq->cluster == dest_wrq->cluster;
 }
@@ -750,7 +752,7 @@ extern u64 get_rtgb_active_time(void);
 
 static inline unsigned int walt_nr_rtg_high_prio(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->walt_stats.nr_rtg_high_prio_tasks;
 }
@@ -769,8 +771,8 @@ static inline bool task_fits_capacity(struct task_struct *p,
 					int cpu)
 {
 	unsigned int margin;
-	struct walt_rq *src_wrq = (struct walt_rq *) cpu_rq(task_cpu(p))->android_vendor_data1;
-	struct walt_rq *dst_wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *src_wrq = &per_cpu(walt_rq, task_cpu(p));
+	struct walt_rq *dst_wrq = &per_cpu(walt_rq, cpu);
 
 	/*
 	 * Derive upmigration/downmigrate margin wrt the src/dest CPU.
@@ -836,7 +838,7 @@ extern bool walt_choose_packing_cpu(int packing_cpu, struct task_struct *p);
 
 static inline unsigned int cpu_max_possible_freq(int cpu)
 {
-	struct walt_rq *wrq = (struct walt_rq *) cpu_rq(cpu)->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return wrq->cluster->max_possible_freq;
 }
@@ -887,24 +889,21 @@ static inline bool walt_get_rtg_status(struct task_struct *p)
 #define CPU_RESERVED 1
 static inline int is_reserved(int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return test_bit(CPU_RESERVED, &wrq->walt_flags);
 }
 
 static inline int mark_reserved(int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	return test_and_set_bit(CPU_RESERVED, &wrq->walt_flags);
 }
 
 static inline void clear_reserved(int cpu)
 {
-	struct rq *rq = cpu_rq(cpu);
-	struct walt_rq *wrq = (struct walt_rq *) rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, cpu);
 
 	clear_bit(CPU_RESERVED, &wrq->walt_flags);
 }
@@ -1011,8 +1010,7 @@ extern struct cpumask __cpu_halt_mask;
  */
 static inline int walt_find_and_choose_cluster_packing_cpu(int start_cpu, struct task_struct *p)
 {
-	struct rq *rq = cpu_rq(start_cpu);
-	struct walt_rq *wrq = (struct walt_rq *)rq->android_vendor_data1;
+	struct walt_rq *wrq = &per_cpu(walt_rq, start_cpu);
 	struct walt_sched_cluster *cluster = wrq->cluster;
 	cpumask_t unhalted_cpus;
 	int packing_cpu;
