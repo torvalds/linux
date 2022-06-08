@@ -295,6 +295,7 @@ static const struct file_operations mmc_err_stats_fops = {
 	.open	= mmc_err_stats_open,
 	.read	= seq_read,
 	.write	= mmc_err_stats_write,
+	.release = single_release,
 };
 
 void mmc_add_host_debugfs(struct mmc_host *host)
