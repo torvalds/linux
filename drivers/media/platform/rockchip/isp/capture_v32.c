@@ -763,11 +763,11 @@ static void update_mi(struct rkisp_stream *stream)
 				if (!ISP3X_ISP_OUT_LINE(rkisp_read(dev, ISP3X_ISP_DEBUG2, true))) {
 					stream->ops->enable_mi(stream);
 					stream->is_pause = false;
-				}
-				stream_self_update(stream);
-				if (!stream->curr_buf) {
-					stream->curr_buf = stream->next_buf;
-					stream->next_buf = NULL;
+					stream_self_update(stream);
+					if (!stream->curr_buf) {
+						stream->curr_buf = stream->next_buf;
+						stream->next_buf = NULL;
+					}
 				}
 			}
 			if (stream->is_pause) {
