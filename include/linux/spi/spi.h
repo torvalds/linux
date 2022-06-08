@@ -35,7 +35,8 @@ extern struct bus_type spi_bus_type;
 
 /**
  * struct spi_statistics - statistics for spi transfers
- * @lock:          lock protecting this structure
+ * @syncp:         seqcount to protect members in this struct for per-cpu udate
+ *                 on 32-bit systems
  *
  * @messages:      number of spi-messages handled
  * @transfers:     number of spi_transfers handled
@@ -155,7 +156,7 @@ extern int spi_delay_exec(struct spi_delay *_delay, struct spi_transfer *xfer);
  * @cs_inactive: delay to be introduced by the controller after CS is
  *	deasserted. If @cs_change_delay is used from @spi_transfer, then the
  *	two delays will be added up.
- * @statistics: statistics for the spi_device
+ * @pcpu_statistics: statistics for the spi_device
  *
  * A @spi_device is used to interchange data between an SPI slave
  * (usually a discrete chip) and CPU memory.
@@ -439,7 +440,7 @@ extern struct spi_device *spi_new_ancillary_device(struct spi_device *spi, u8 ch
  * @max_native_cs: When cs_gpiods is used, and this field is filled in,
  *	spi_register_controller() will validate all native CS (including the
  *	unused native CS) against this value.
- * @statistics: statistics for the spi_controller
+ * @pcpu_statistics: statistics for the spi_controller
  * @dma_tx: DMA transmit channel
  * @dma_rx: DMA receive channel
  * @dummy_rx: dummy receive buffer for full-duplex devices
