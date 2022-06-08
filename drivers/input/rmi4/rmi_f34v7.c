@@ -1146,6 +1146,14 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 		goto fail;
 	dev_info(&f34->fn->dev, "%s: Partition table programmed\n", __func__);
 
+	/*
+	 * Reset to reload partition table - as the previous firmware has been
+	 * erased, we remain in bootloader mode.
+	 */
+	ret = rmi_scan_pdt(f34->fn->rmi_dev, NULL, rmi_initial_reset);
+	if (ret < 0)
+		dev_warn(&f34->fn->dev, "RMI reset failed!\n");
+
 	dev_info(&f34->fn->dev, "Writing firmware (%d bytes)...\n",
 		 f34->v7.img.ui_firmware.size);
 
