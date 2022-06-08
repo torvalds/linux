@@ -406,6 +406,9 @@ struct vmxnet3_adapter {
 	u32    devcap_supported[8];
 	u32    ptcap_supported[8];
 	u32    dev_caps[8];
+	u16    tx_prod_offset;
+	u16    rx_prod_offset;
+	u16    rx_prod2_offset;
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \

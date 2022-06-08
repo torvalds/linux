@@ -520,7 +520,7 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	for (i = 0; i < adapter->num_tx_queues; i++) {
 		struct vmxnet3_tx_queue *tq = &adapter->tx_queue[i];
 
-		buf[j++] = VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_TXPROD +
+		buf[j++] = VMXNET3_READ_BAR0_REG(adapter, adapter->tx_prod_offset +
 						 i * VMXNET3_REG_ALIGN);
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(tq->tx_ring.basePA);
@@ -548,9 +548,9 @@ vmxnet3_get_regs(struct net_device *netdev, struct ethtool_regs *regs, void *p)
 	for (i = 0; i < adapter->num_rx_queues; i++) {
 		struct vmxnet3_rx_queue *rq = &adapter->rx_queue[i];
 
-		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_RXPROD +
+		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, adapter->rx_prod_offset +
 						  i * VMXNET3_REG_ALIGN);
-		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, VMXNET3_REG_RXPROD2 +
+		buf[j++] =  VMXNET3_READ_BAR0_REG(adapter, adapter->rx_prod2_offset +
 						  i * VMXNET3_REG_ALIGN);
 
 		buf[j++] = VMXNET3_GET_ADDR_LO(rq->rx_ring[0].basePA);
