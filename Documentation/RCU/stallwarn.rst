@@ -98,11 +98,11 @@ warnings:
 
 -	A low-level kernel issue that either fails to invoke one of the
 	variants of rcu_user_enter(), rcu_user_exit(), ct_idle_enter(),
-	ct_idle_exit(), rcu_irq_enter(), or rcu_irq_exit() on the one
+	ct_idle_exit(), ct_irq_enter(), or ct_irq_exit() on the one
 	hand, or that invokes one of them too many times on the other.
 	Historically, the most frequent issue has been an omission
 	of either irq_enter() or irq_exit(), which in turn invoke
-	rcu_irq_enter() or rcu_irq_exit(), respectively.  Building your
+	ct_irq_enter() or ct_irq_exit(), respectively.  Building your
 	kernel with CONFIG_RCU_EQS_DEBUG=y can help track down these types
 	of issues, which sometimes arise in architecture-specific code.
 

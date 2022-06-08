@@ -35,6 +35,26 @@ void ct_idle_exit(void)
 	rcu_idle_exit();
 }
 EXPORT_SYMBOL_GPL(ct_idle_exit);
+
+noinstr void ct_irq_enter(void)
+{
+	rcu_irq_enter();
+}
+
+noinstr void ct_irq_exit(void)
+{
+	rcu_irq_exit();
+}
+
+void ct_irq_enter_irqson(void)
+{
+	rcu_irq_enter_irqson();
+}
+
+void ct_irq_exit_irqson(void)
+{
+	rcu_irq_exit_irqson();
+}
 #endif /* #ifdef CONFIG_CONTEXT_TRACKING_IDLE */
 
 #ifdef CONFIG_CONTEXT_TRACKING_USER
@@ -90,7 +110,7 @@ void noinstr __ct_user_enter(enum ctx_state state)
 			 * At this stage, only low level arch entry code remains and
 			 * then we'll run in userspace. We can assume there won't be
 			 * any RCU read-side critical section until the next call to
-			 * user_exit() or rcu_irq_enter(). Let's remove RCU's dependency
+			 * user_exit() or ct_irq_enter(). Let's remove RCU's dependency
 			 * on the tick.
 			 */
 			if (state == CONTEXT_USER) {
@@ -136,7 +156,7 @@ void ct_user_enter(enum ctx_state state)
 	/*
 	 * Some contexts may involve an exception occuring in an irq,
 	 * leading to that nesting:
-	 * rcu_irq_enter() rcu_user_exit() rcu_user_exit() rcu_irq_exit()
+	 * ct_irq_enter() rcu_user_exit() rcu_user_exit() ct_irq_exit()
 	 * This would mess up the dyntick_nesting count though. And rcu_irq_*()
 	 * helpers are enough to protect RCU uses inside the exception. So
 	 * just return immediately if we detect we are in an IRQ.

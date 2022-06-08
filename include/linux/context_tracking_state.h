@@ -4,6 +4,7 @@
 
 #include <linux/percpu.h>
 #include <linux/static_key.h>
+#include <linux/context_tracking_irq.h>
 
 struct context_tracking {
 	/*
