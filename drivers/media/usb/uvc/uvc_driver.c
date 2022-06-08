@@ -350,7 +350,7 @@ void uvc_simplify_fraction(u32 *numerator, u32 *denominator,
 
 	/*
 	 * Convert the fraction to a simple continued fraction. See
-	 * https://mathforum.org/dr.math/faq/faq.fractions.html
+	 * https://en.wikipedia.org/wiki/Continued_fraction
 	 * Stop if the current term is bigger than or equal to the given
 	 * threshold.
 	 */
