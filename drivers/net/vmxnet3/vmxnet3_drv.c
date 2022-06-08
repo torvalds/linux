@@ -130,6 +130,20 @@ vmxnet3_tq_stop(struct vmxnet3_tx_queue *tq, struct vmxnet3_adapter *adapter)
 	netif_stop_subqueue(adapter->netdev, (tq - adapter->tx_queue));
 }
 
+/* Check if capability is supported by UPT device or
+ * UPT is even requested
+ */
+bool
+vmxnet3_check_ptcapability(u32 cap_supported, u32 cap)
+{
+	if (cap_supported & (1UL << VMXNET3_DCR_ERROR) ||
+	    cap_supported & (1UL << cap)) {
+		return true;
+	}
+
+	return false;
+}
+
 
 /*
  * Check the link state. This may start or stop the tx queue.
@@ -2671,6 +2685,36 @@ vmxnet3_init_rssfields(struct vmxnet3_adapter *adapter)
 		adapter->rss_fields =
 			VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
 	} else {
+		if (VMXNET3_VERSION_GE_7(adapter)) {
+			if ((adapter->rss_fields & VMXNET3_RSS_FIELDS_UDPIP4 ||
+			     adapter->rss_fields & VMXNET3_RSS_FIELDS_UDPIP6) &&
+			    vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+						       VMXNET3_CAP_UDP_RSS)) {
+				adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_UDP_RSS;
+			} else {
+				adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_UDP_RSS);
+			}
+
+			if ((adapter->rss_fields & VMXNET3_RSS_FIELDS_ESPIP4) &&
+			    vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+						       VMXNET3_CAP_ESP_RSS_IPV4)) {
+				adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_ESP_RSS_IPV4;
+			} else {
+				adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_ESP_RSS_IPV4);
+			}
+
+			if ((adapter->rss_fields & VMXNET3_RSS_FIELDS_ESPIP6) &&
+			    vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+						       VMXNET3_CAP_ESP_RSS_IPV6)) {
+				adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_ESP_RSS_IPV6;
+			} else {
+				adapter->dev_caps[0] &= ~(1UL << VMXNET3_CAP_ESP_RSS_IPV6);
+			}
+
+			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DCR, adapter->dev_caps[0]);
+			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_DCR0_REG);
+			adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+		}
 		cmdInfo->setRssFields = adapter->rss_fields;
 		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
 				       VMXNET3_CMD_SET_RSS_FIELDS);
@@ -3185,6 +3229,47 @@ vmxnet3_declare_features(struct vmxnet3_adapter *adapter)
 			NETIF_F_GSO_UDP_TUNNEL_CSUM;
 	}
 
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		unsigned long flags;
+
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_GENEVE_CHECKSUM_OFFLOAD;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_VXLAN_CHECKSUM_OFFLOAD;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_GENEVE_TSO)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_GENEVE_TSO;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_VXLAN_TSO)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_VXLAN_TSO;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD;
+		}
+		if (vmxnet3_check_ptcapability(adapter->ptcap_supported[0],
+					       VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD)) {
+			adapter->dev_caps[0] |= 1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD;
+		}
+
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DCR, adapter->dev_caps[0]);
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_DCR0_REG);
+		adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+
+		if (!(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_GENEVE_OUTER_CHECKSUM_OFFLOAD)) &&
+		    !(adapter->dev_caps[0] & (1UL << VMXNET3_CAP_VXLAN_OUTER_CHECKSUM_OFFLOAD))) {
+			netdev->hw_enc_features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
+			netdev->features &= ~NETIF_F_GSO_UDP_TUNNEL_CSUM;
+		}
+	}
+
 	netdev->vlan_features = netdev->hw_features &
 				~(NETIF_F_HW_VLAN_CTAG_TX |
 				  NETIF_F_HW_VLAN_CTAG_RX);
@@ -3518,6 +3603,18 @@ vmxnet3_probe_device(struct pci_dev *pdev,
 			"Incompatible upt version (0x%x) for adapter\n", ver);
 		err = -EBUSY;
 		goto err_ver;
+	}
+
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		adapter->devcap_supported[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_DCR);
+		adapter->ptcap_supported[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_PTCR);
+		if (adapter->dev_caps[0])
+			VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_DCR, adapter->dev_caps[0]);
+
+		spin_lock_irqsave(&adapter->cmd_lock, flags);
+		VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD, VMXNET3_CMD_GET_DCR0_REG);
+		adapter->dev_caps[0] = VMXNET3_READ_BAR1_REG(adapter, VMXNET3_REG_CMD);
+		spin_unlock_irqrestore(&adapter->cmd_lock, flags);
 	}
 
 	if (VMXNET3_VERSION_GE_6(adapter)) {

@@ -403,6 +403,9 @@ struct vmxnet3_adapter {
 	dma_addr_t pm_conf_pa;
 	dma_addr_t rss_conf_pa;
 	bool   queuesExtEnabled;
+	u32    devcap_supported[8];
+	u32    ptcap_supported[8];
+	u32    dev_caps[8];
 };
 
 #define VMXNET3_WRITE_BAR0_REG(adapter, reg, val)  \
@@ -497,6 +500,7 @@ void vmxnet3_set_ethtool_ops(struct net_device *netdev);
 
 void vmxnet3_get_stats64(struct net_device *dev,
 			 struct rtnl_link_stats64 *stats);
+bool vmxnet3_check_ptcapability(u32 cap_supported, u32 cap);
 
 extern char vmxnet3_driver_name[];
 #endif
