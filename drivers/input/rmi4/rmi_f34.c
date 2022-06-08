@@ -370,7 +370,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 
 	f34 = dev_get_drvdata(&data->f34_container->dev);
 
-	if (f34->bl_version == 7) {
+	if (f34->bl_version >= 7) {
 		if (data->pdt_props & HAS_BSR) {
 			dev_err(dev, "%s: LTS not supported\n", __func__);
 			return -ENODEV;
@@ -382,7 +382,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	}
 
 	/* Enter flash mode */
-	if (f34->bl_version == 7)
+	if (f34->bl_version >= 7)
 		ret = rmi_f34v7_start_reflash(f34, fw);
 	else
 		ret = rmi_f34_enable_flash(f34);
@@ -413,7 +413,7 @@ static int rmi_firmware_update(struct rmi_driver_data *data,
 	f34 = dev_get_drvdata(&data->f34_container->dev);
 
 	/* Perform firmware update */
-	if (f34->bl_version == 7)
+	if (f34->bl_version >= 7)
 		ret = rmi_f34v7_do_reflash(f34, fw);
 	else
 		ret = rmi_f34_update_firmware(f34, fw);
