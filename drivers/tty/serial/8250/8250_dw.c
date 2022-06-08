@@ -558,7 +558,7 @@ static int dw8250_probe(struct platform_device *pdev)
 		goto err_clk;
 	}
 
-	data->rst = devm_reset_control_get_optional_exclusive(dev, NULL);
+	data->rst = devm_reset_control_array_get_exclusive(dev);
 	if (IS_ERR(data->rst)) {
 		err = PTR_ERR(data->rst);
 		goto err_pclk;
