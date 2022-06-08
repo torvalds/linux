@@ -243,8 +243,10 @@ struct adv_info {
 	__u16	duration;
 	__u16	adv_data_len;
 	__u8	adv_data[HCI_MAX_EXT_AD_LENGTH];
+	bool	adv_data_changed;
 	__u16	scan_rsp_len;
 	__u8	scan_rsp_data[HCI_MAX_EXT_AD_LENGTH];
+	bool	scan_rsp_changed;
 	__s8	tx_power;
 	__u32   min_interval;
 	__u32   max_interval;
@@ -257,6 +259,15 @@ struct adv_info {
 #define HCI_DEFAULT_ADV_DURATION	2
 
 #define HCI_ADV_TX_POWER_NO_PREFERENCE 0x7F
+
+#define DATA_CMP(_d1, _l1, _d2, _l2) \
+	(_l1 == _l2 ? memcmp(_d1, _d2, _l1) : _l1 - _l2)
+
+#define ADV_DATA_CMP(_adv, _data, _len) \
+	DATA_CMP((_adv)->adv_data, (_adv)->adv_data_len, _data, _len)
+
+#define SCAN_RSP_CMP(_adv, _data, _len) \
+	DATA_CMP((_adv)->scan_rsp_data, (_adv)->scan_rsp_len, _data, _len)
 
 struct monitored_device {
 	struct list_head list;
