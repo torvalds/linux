@@ -417,7 +417,8 @@
 			clocks = <&clkgen JH7110_UART0_CLK_CORE>,
 				 <&clkgen JH7110_UART0_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&rstgen RSTN_U0_DW_UART_APB>;
+			resets = <&rstgen RSTN_U0_DW_UART_APB>,
+				<&rstgen RSTN_U0_DW_UART_CORE>;
 			interrupts = <32>;
 			status = "disabled";
 		};
@@ -430,7 +431,8 @@
 			clocks = <&clkgen JH7110_UART1_CLK_CORE>,
 				 <&clkgen JH7110_UART1_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&rstgen RSTN_U1_DW_UART_APB>;
+			resets = <&rstgen RSTN_U1_DW_UART_APB>,
+				<&rstgen RSTN_U1_DW_UART_CORE>;
 			interrupts = <33>;
 			status = "disabled";
 		};
@@ -443,7 +445,8 @@
 			clocks = <&clkgen JH7110_UART2_CLK_CORE>,
 				 <&clkgen JH7110_UART2_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&rstgen RSTN_U2_DW_UART_APB>;
+			resets = <&rstgen RSTN_U2_DW_UART_APB>,
+				<&rstgen RSTN_U2_DW_UART_CORE>;
 			interrupts = <34>;
 			status = "disabled";
 		};
@@ -456,7 +459,8 @@
 			clocks = <&clkgen JH7110_UART3_CLK_CORE>,
 				 <&clkgen JH7110_UART3_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&rstgen RSTN_U3_DW_UART_APB>;
+			resets = <&rstgen RSTN_U3_DW_UART_APB>,
+				<&rstgen RSTN_U3_DW_UART_CORE>;
 			interrupts = <45>;
 			status = "disabled";
 		};
@@ -469,7 +473,8 @@
 			clocks = <&clkgen JH7110_UART4_CLK_CORE>,
 				 <&clkgen JH7110_UART4_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&rstgen RSTN_U4_DW_UART_APB>;
+			resets = <&rstgen RSTN_U4_DW_UART_APB>,
+				<&rstgen RSTN_U4_DW_UART_CORE>;
 			interrupts = <46>;
 			status = "disabled";
 		};
@@ -482,7 +487,8 @@
 			clocks = <&clkgen JH7110_UART5_CLK_CORE>,
 				 <&clkgen JH7110_UART5_CLK_APB>;
 			clock-names = "baudclk", "apb_pclk";
-			resets = <&rstgen RSTN_U5_DW_UART_APB>;
+			resets = <&rstgen RSTN_U5_DW_UART_APB>,
+				<&rstgen RSTN_U5_DW_UART_CORE>;
 			interrupts = <47>;
 			status = "disabled";
 		};
