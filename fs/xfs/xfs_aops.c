@@ -464,7 +464,7 @@ xfs_discard_folio(
 	int			error;
 
 	if (xfs_is_shutdown(mp))
-		goto out_invalidate;
+		return;
 
 	xfs_alert_ratelimited(mp,
 		"page discard on page "PTR_FMT", inode 0x%llx, pos %llu.",
@@ -474,8 +474,6 @@ xfs_discard_folio(
 			i_blocks_per_folio(inode, folio) - pageoff_fsb);
 	if (error && !xfs_is_shutdown(mp))
 		xfs_alert(mp, "page discard unable to remove delalloc mapping.");
-out_invalidate:
-	iomap_invalidate_folio(folio, offset, folio_size(folio) - offset);
 }
 
 static const struct iomap_writeback_ops xfs_writeback_ops = {
