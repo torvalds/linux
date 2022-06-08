@@ -102,7 +102,7 @@ static unsigned long ttm_bo_io_mem_pfn(struct ttm_buffer_object *bo,
  * @bo: The buffer object
  * @vmf: The fault structure handed to the callback
  *
- * vm callbacks like fault() and *_mkwrite() allow for the mm_sem to be dropped
+ * vm callbacks like fault() and *_mkwrite() allow for the mmap_lock to be dropped
  * during long waits, and after the wait the callback will be restarted. This
  * is to allow other threads using the same virtual memory space concurrent
  * access to map(), unmap() completely unrelated buffer objects. TTM buffer

@@ -80,9 +80,10 @@
 #define KPF_SOFTDIRTY		40
 #define KPF_ARCH_2		41
 
-/* [48-] take some arbitrary free slots for expanding overloaded flags
+/* [47-] take some arbitrary free slots for expanding overloaded flags
  * not part of kernel API
  */
+#define KPF_ANON_EXCLUSIVE	47
 #define KPF_READAHEAD		48
 #define KPF_SLOB_FREE		49
 #define KPF_SLUB_FROZEN		50
@@ -138,6 +139,7 @@ static const char * const page_flag_names[] = {
 	[KPF_SOFTDIRTY]		= "f:softdirty",
 	[KPF_ARCH_2]		= "H:arch_2",
 
+	[KPF_ANON_EXCLUSIVE]	= "d:anon_exclusive",
 	[KPF_READAHEAD]		= "I:readahead",
 	[KPF_SLOB_FREE]		= "P:slob_free",
 	[KPF_SLUB_FROZEN]	= "A:slub_frozen",
@@ -472,6 +474,10 @@ static int bit_mask_ok(uint64_t flags)
 
 static uint64_t expand_overloaded_flags(uint64_t flags, uint64_t pme)
 {
+	/* Anonymous pages overload PG_mappedtodisk */
+	if ((flags & BIT(ANON)) && (flags & BIT(MAPPEDTODISK)))
+		flags ^= BIT(MAPPEDTODISK) | BIT(ANON_EXCLUSIVE);
+
 	/* SLOB/SLUB overload several page flags */
 	if (flags & BIT(SLAB)) {
 		if (flags & BIT(PRIVATE))

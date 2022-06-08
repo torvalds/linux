@@ -30,13 +30,31 @@ static DEFINE_MUTEX(damon_ops_lock);
 static struct damon_operations damon_registered_ops[NR_DAMON_OPS];
 
 /* Should be called under damon_ops_lock with id smaller than NR_DAMON_OPS */
-static bool damon_registered_ops_id(enum damon_ops_id id)
+static bool __damon_is_registered_ops(enum damon_ops_id id)
 {
 	struct damon_operations empty_ops = {};
 
 	if (!memcmp(&empty_ops, &damon_registered_ops[id], sizeof(empty_ops)))
 		return false;
 	return true;
+}
+
+/**
+ * damon_is_registered_ops() - Check if a given damon_operations is registered.
+ * @id:	Id of the damon_operations to check if registered.
+ *
+ * Return: true if the ops is set, false otherwise.
+ */
+bool damon_is_registered_ops(enum damon_ops_id id)
+{
+	bool registered;
+
+	if (id >= NR_DAMON_OPS)
+		return false;
+	mutex_lock(&damon_ops_lock);
+	registered = __damon_is_registered_ops(id);
+	mutex_unlock(&damon_ops_lock);
+	return registered;
 }
 
 /**
@@ -56,7 +74,7 @@ int damon_register_ops(struct damon_operations *ops)
 		return -EINVAL;
 	mutex_lock(&damon_ops_lock);
 	/* Fail for already registered ops */
-	if (damon_registered_ops_id(ops->id)) {
+	if (__damon_is_registered_ops(ops->id)) {
 		err = -EINVAL;
 		goto out;
 	}
@@ -84,7 +102,7 @@ int damon_select_ops(struct damon_ctx *ctx, enum damon_ops_id id)
 		return -EINVAL;
 
 	mutex_lock(&damon_ops_lock);
-	if (!damon_registered_ops_id(id))
+	if (!__damon_is_registered_ops(id))
 		err = -EINVAL;
 	else
 		ctx->ops = damon_registered_ops[id];
@@ -137,6 +155,79 @@ void damon_destroy_region(struct damon_region *r, struct damon_target *t)
 {
 	damon_del_region(r, t);
 	damon_free_region(r);
+}
+
+/*
+ * Check whether a region is intersecting an address range
+ *
+ * Returns true if it is.
+ */
+static bool damon_intersect(struct damon_region *r,
+		struct damon_addr_range *re)
+{
+	return !(r->ar.end <= re->start || re->end <= r->ar.start);
+}
+
+/*
+ * damon_set_regions() - Set regions of a target for given address ranges.
+ * @t:		the given target.
+ * @ranges:	array of new monitoring target ranges.
+ * @nr_ranges:	length of @ranges.
+ *
+ * This function adds new regions to, or modify existing regions of a
+ * monitoring target to fit in specific ranges.
+ *
+ * Return: 0 if success, or negative error code otherwise.
+ */
+int damon_set_regions(struct damon_target *t, struct damon_addr_range *ranges,
+		unsigned int nr_ranges)
+{
+	struct damon_region *r, *next;
+	unsigned int i;
+
+	/* Remove regions which are not in the new ranges */
+	damon_for_each_region_safe(r, next, t) {
+		for (i = 0; i < nr_ranges; i++) {
+			if (damon_intersect(r, &ranges[i]))
+				break;
+		}
+		if (i == nr_ranges)
+			damon_destroy_region(r, t);
+	}
+
+	/* Add new regions or resize existing regions to fit in the ranges */
+	for (i = 0; i < nr_ranges; i++) {
+		struct damon_region *first = NULL, *last, *newr;
+		struct damon_addr_range *range;
+
+		range = &ranges[i];
+		/* Get the first/last regions intersecting with the range */
+		damon_for_each_region(r, t) {
+			if (damon_intersect(r, range)) {
+				if (!first)
+					first = r;
+				last = r;
+			}
+			if (r->ar.start >= range->end)
+				break;
+		}
+		if (!first) {
+			/* no region intersects with this range */
+			newr = damon_new_region(
+					ALIGN_DOWN(range->start,
+						DAMON_MIN_REGION),
+					ALIGN(range->end, DAMON_MIN_REGION));
+			if (!newr)
+				return -ENOMEM;
+			damon_insert_region(newr, damon_prev_region(r), r, t);
+		} else {
+			/* resize intersecting regions to fit in this range */
+			first->ar.start = ALIGN_DOWN(range->start,
+					DAMON_MIN_REGION);
+			last->ar.end = ALIGN(range->end, DAMON_MIN_REGION);
+		}
+	}
+	return 0;
 }
 
 struct damos *damon_new_scheme(
@@ -1033,6 +1124,10 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
 			return 0;
 
 		kdamond_usleep(min_wait_time);
+
+		if (ctx->callback.after_wmarks_check &&
+				ctx->callback.after_wmarks_check(ctx))
+			break;
 	}
 	return -EBUSY;
 }
@@ -1042,7 +1137,7 @@ static int kdamond_wait_activation(struct damon_ctx *ctx)
  */
 static int kdamond_fn(void *data)
 {
-	struct damon_ctx *ctx = (struct damon_ctx *)data;
+	struct damon_ctx *ctx = data;
 	struct damon_target *t;
 	struct damon_region *r, *next;
 	unsigned int max_nr_accesses = 0;
@@ -1059,14 +1154,18 @@ static int kdamond_fn(void *data)
 	sz_limit = damon_region_sz_limit(ctx);
 
 	while (!kdamond_need_stop(ctx) && !done) {
-		if (kdamond_wait_activation(ctx))
+		if (kdamond_wait_activation(ctx)) {
+			done = true;
 			continue;
+		}
 
 		if (ctx->ops.prepare_access_checks)
 			ctx->ops.prepare_access_checks(ctx);
 		if (ctx->callback.after_sampling &&
-				ctx->callback.after_sampling(ctx))
+				ctx->callback.after_sampling(ctx)) {
 			done = true;
+			continue;
+		}
 
 		kdamond_usleep(ctx->sample_interval);
 
@@ -1078,8 +1177,10 @@ static int kdamond_fn(void *data)
 					max_nr_accesses / 10,
 					sz_limit);
 			if (ctx->callback.after_aggregation &&
-					ctx->callback.after_aggregation(ctx))
+					ctx->callback.after_aggregation(ctx)) {
 				done = true;
+				continue;
+			}
 			kdamond_apply_schemes(ctx);
 			kdamond_reset_aggregated(ctx);
 			kdamond_split_regions(ctx);

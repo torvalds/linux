@@ -259,6 +259,103 @@ static inline void arch_tlbbatch_add_mm(struct arch_tlbflush_unmap_batch *batch,
 
 extern void arch_tlbbatch_flush(struct arch_tlbflush_unmap_batch *batch);
 
+static inline bool pte_flags_need_flush(unsigned long oldflags,
+					unsigned long newflags,
+					bool ignore_access)
+{
+	/*
+	 * Flags that require a flush when cleared but not when they are set.
+	 * Only include flags that would not trigger spurious page-faults.
+	 * Non-present entries are not cached. Hardware would set the
+	 * dirty/access bit if needed without a fault.
+	 */
+	const pteval_t flush_on_clear = _PAGE_DIRTY | _PAGE_PRESENT |
+					_PAGE_ACCESSED;
+	const pteval_t software_flags = _PAGE_SOFTW1 | _PAGE_SOFTW2 |
+					_PAGE_SOFTW3 | _PAGE_SOFTW4;
+	const pteval_t flush_on_change = _PAGE_RW | _PAGE_USER | _PAGE_PWT |
+			  _PAGE_PCD | _PAGE_PSE | _PAGE_GLOBAL | _PAGE_PAT |
+			  _PAGE_PAT_LARGE | _PAGE_PKEY_BIT0 | _PAGE_PKEY_BIT1 |
+			  _PAGE_PKEY_BIT2 | _PAGE_PKEY_BIT3 | _PAGE_NX;
+	unsigned long diff = oldflags ^ newflags;
+
+	BUILD_BUG_ON(flush_on_clear & software_flags);
+	BUILD_BUG_ON(flush_on_clear & flush_on_change);
+	BUILD_BUG_ON(flush_on_change & software_flags);
+
+	/* Ignore software flags */
+	diff &= ~software_flags;
+
+	if (ignore_access)
+		diff &= ~_PAGE_ACCESSED;
+
+	/*
+	 * Did any of the 'flush_on_clear' flags was clleared set from between
+	 * 'oldflags' and 'newflags'?
+	 */
+	if (diff & oldflags & flush_on_clear)
+		return true;
+
+	/* Flush on modified flags. */
+	if (diff & flush_on_change)
+		return true;
+
+	/* Ensure there are no flags that were left behind */
+	if (IS_ENABLED(CONFIG_DEBUG_VM) &&
+	    (diff & ~(flush_on_clear | software_flags | flush_on_change))) {
+		VM_WARN_ON_ONCE(1);
+		return true;
+	}
+
+	return false;
+}
+
+/*
+ * pte_needs_flush() checks whether permissions were demoted and require a
+ * flush. It should only be used for userspace PTEs.
+ */
+static inline bool pte_needs_flush(pte_t oldpte, pte_t newpte)
+{
+	/* !PRESENT -> * ; no need for flush */
+	if (!(pte_flags(oldpte) & _PAGE_PRESENT))
+		return false;
+
+	/* PFN changed ; needs flush */
+	if (pte_pfn(oldpte) != pte_pfn(newpte))
+		return true;
+
+	/*
+	 * check PTE flags; ignore access-bit; see comment in
+	 * ptep_clear_flush_young().
+	 */
+	return pte_flags_need_flush(pte_flags(oldpte), pte_flags(newpte),
+				    true);
+}
+#define pte_needs_flush pte_needs_flush
+
+/*
+ * huge_pmd_needs_flush() checks whether permissions were demoted and require a
+ * flush. It should only be used for userspace huge PMDs.
+ */
+static inline bool huge_pmd_needs_flush(pmd_t oldpmd, pmd_t newpmd)
+{
+	/* !PRESENT -> * ; no need for flush */
+	if (!(pmd_flags(oldpmd) & _PAGE_PRESENT))
+		return false;
+
+	/* PFN changed ; needs flush */
+	if (pmd_pfn(oldpmd) != pmd_pfn(newpmd))
+		return true;
+
+	/*
+	 * check PMD flags; do not ignore access-bit; see
+	 * pmdp_clear_flush_young().
+	 */
+	return pte_flags_need_flush(pmd_flags(oldpmd), pmd_flags(newpmd),
+				    false);
+}
+#define huge_pmd_needs_flush huge_pmd_needs_flush
+
 #endif /* !MODULE */
 
 static inline void __native_tlb_flush_global(unsigned long cr4)

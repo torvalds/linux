@@ -63,5 +63,6 @@ above structured documentation, or deleted if it has served its purpose.
    transhuge
    unevictable-lru
    vmalloced-kernel-stacks
+   vmemmap_dedup
    z3fold
    zsmalloc
