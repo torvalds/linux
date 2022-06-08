@@ -77,6 +77,9 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
 	BUG_ON(!current->mm);
 	BUG_ON(test_thread_flag(TIF_SVE));
 
+	if (!system_supports_fpsimd())
+		return;
+
 	vcpu->arch.fp_state = FP_STATE_HOST_OWNED;
 
 	vcpu_clear_flag(vcpu, HOST_SVE_ENABLED);
@@ -110,13 +113,10 @@ void kvm_arch_vcpu_load_fp(struct kvm_vcpu *vcpu)
  * FP while we were preemptible (such as off the back of an interrupt),
  * then neither the host nor the guest own the FP hardware (and it was the
  * responsibility of the code that used FP to save the existing state).
- *
- * Note that not supporting FP is basically the same thing as far as the
- * hypervisor is concerned (nothing to save).
  */
 void kvm_arch_vcpu_ctxflush_fp(struct kvm_vcpu *vcpu)
 {
-	if (!system_supports_fpsimd() || test_thread_flag(TIF_FOREIGN_FPSTATE))
+	if (test_thread_flag(TIF_FOREIGN_FPSTATE))
 		vcpu->arch.fp_state = FP_STATE_FREE;
 }
 
