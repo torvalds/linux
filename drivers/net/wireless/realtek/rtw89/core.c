@@ -1343,6 +1343,47 @@ struct rtw89_vif_rx_stats_iter_data {
 	const u8 *bssid;
 };
 
+static void rtw89_stats_trigger_frame(struct rtw89_dev *rtwdev,
+				      struct ieee80211_vif *vif,
+				      struct sk_buff *skb)
+{
+	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
+	struct ieee80211_trigger *tf = (struct ieee80211_trigger *)skb->data;
+	u8 *pos, *end, type;
+	u16 aid;
+
+	if (!ether_addr_equal(vif->bss_conf.bssid, tf->ta) ||
+	    rtwvif->wifi_role != RTW89_WIFI_ROLE_STATION ||
+	    rtwvif->net_type == RTW89_NET_TYPE_NO_LINK)
+		return;
+
+	type = le64_get_bits(tf->common_info, IEEE80211_TRIGGER_TYPE_MASK);
+	if (type != IEEE80211_TRIGGER_TYPE_BASIC)
+		return;
+
+	end = (u8 *)tf + skb->len;
+	pos = tf->variable;
+
+	while (end - pos >= RTW89_TF_BASIC_USER_INFO_SZ) {
+		aid = RTW89_GET_TF_USER_INFO_AID12(pos);
+		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
+			    "[TF] aid: %d, ul_mcs: %d, rua: %d\n",
+			    aid, RTW89_GET_TF_USER_INFO_UL_MCS(pos),
+			    RTW89_GET_TF_USER_INFO_RUA(pos));
+
+		if (aid == RTW89_TF_PAD)
+			break;
+
+		if (aid == vif->bss_conf.aid) {
+			rtwvif->stats.rx_tf_acc++;
+			rtwdev->stats.rx_tf_acc++;
+			break;
+		}
+
+		pos += RTW89_TF_BASIC_USER_INFO_SZ;
+	}
+}
+
 static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 				    struct ieee80211_vif *vif)
 {
@@ -1354,6 +1395,11 @@ static void rtw89_vif_rx_stats_iter(void *data, u8 *mac,
 	struct sk_buff *skb = iter_data->skb;
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
 	const u8 *bssid = iter_data->bssid;
+
+	if (ieee80211_is_trigger(hdr->frame_control)) {
+		rtw89_stats_trigger_frame(rtwdev, vif, skb);
+		return;
+	}
 
 	if (!ether_addr_equal(vif->bss_conf.bssid, bssid))
 		return;
@@ -2023,6 +2069,8 @@ static bool rtw89_traffic_stats_calc(struct rtw89_dev *rtwdev,
 	stats->rx_unicast = 0;
 	stats->tx_cnt = 0;
 	stats->rx_cnt = 0;
+	stats->rx_tf_periodic = stats->rx_tf_acc;
+	stats->rx_tf_acc = 0;
 
 	if (tx_tfc_lv != stats->tx_tfc_lv || rx_tfc_lv != stats->rx_tfc_lv)
 		return true;

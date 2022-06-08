@@ -55,6 +55,16 @@ enum htc_om_channel_width {
 #define RTW89_HTC_MASK_HTC_OM_DL_MU_MIMO_RR BIT(16)
 #define RTW89_HTC_MASK_HTC_OM_UL_MU_DATA_DIS BIT(17)
 
+#define RTW89_TF_PAD GENMASK(11, 0)
+#define RTW89_TF_BASIC_USER_INFO_SZ 6
+
+#define RTW89_GET_TF_USER_INFO_AID12(data)	\
+	le32_get_bits(*((const __le32 *)(data)), GENMASK(11, 0))
+#define RTW89_GET_TF_USER_INFO_RUA(data)	\
+	le32_get_bits(*((const __le32 *)(data)), GENMASK(19, 12))
+#define RTW89_GET_TF_USER_INFO_UL_MCS(data)	\
+	le32_get_bits(*((const __le32 *)(data)), GENMASK(24, 21))
+
 enum rtw89_subband {
 	RTW89_CH_2G = 0,
 	RTW89_CH_5G_BAND_1 = 1,
@@ -943,6 +953,10 @@ struct rtw89_traffic_stats {
 	u32 rx_throughput;
 	u32 tx_throughput_raw;
 	u32 rx_throughput_raw;
+
+	u32 rx_tf_acc;
+	u32 rx_tf_periodic;
+
 	enum rtw89_tfc_lv tx_tfc_lv;
 	enum rtw89_tfc_lv rx_tfc_lv;
 	struct ewma_tp tx_ewma_tp;
