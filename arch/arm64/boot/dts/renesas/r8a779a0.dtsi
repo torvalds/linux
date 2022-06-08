@@ -41,6 +41,7 @@
 			device_type = "cpu";
 			power-domains = <&sysc R8A779A0_PD_A1E0D0C0>;
 			next-level-cache = <&L3_CA76_0>;
+			clocks = <&cpg CPG_CORE R8A779A0_CLK_Z0>;
 		};
 
 		L3_CA76_0: cache-controller-0 {
