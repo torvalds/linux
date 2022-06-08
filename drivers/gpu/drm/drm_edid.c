@@ -2021,13 +2021,16 @@ bool drm_edid_is_valid(struct edid *edid)
 EXPORT_SYMBOL(drm_edid_is_valid);
 
 static struct edid *edid_filter_invalid_blocks(const struct edid *edid,
-					       int invalid_blocks)
+					       int invalid_blocks,
+					       size_t *alloc_size)
 {
 	struct edid *new, *dest_block;
 	int valid_extensions = edid->extensions - invalid_blocks;
 	int i;
 
-	new = kmalloc(edid_size_by_blocks(valid_extensions + 1), GFP_KERNEL);
+	*alloc_size = edid_size_by_blocks(valid_extensions + 1);
+
+	new = kmalloc(*alloc_size, GFP_KERNEL);
 	if (!new)
 		goto out;
 
@@ -2140,7 +2143,8 @@ static void connector_bad_edid(struct drm_connector *connector,
 }
 
 /* Get override or firmware EDID */
-static struct edid *drm_get_override_edid(struct drm_connector *connector)
+static struct edid *drm_get_override_edid(struct drm_connector *connector,
+					  size_t *alloc_size)
 {
 	struct edid *override = NULL;
 
@@ -2149,6 +2153,10 @@ static struct edid *drm_get_override_edid(struct drm_connector *connector)
 
 	if (!override)
 		override = drm_load_edid_firmware(connector);
+
+	/* FIXME: Get alloc size from deeper down the stack */
+	if (!IS_ERR_OR_NULL(override) && alloc_size)
+		*alloc_size = edid_size(override);
 
 	return IS_ERR(override) ? NULL : override;
 }
@@ -2169,7 +2177,7 @@ int drm_add_override_edid_modes(struct drm_connector *connector)
 	struct edid *override;
 	int num_modes = 0;
 
-	override = drm_get_override_edid(connector);
+	override = drm_get_override_edid(connector, NULL);
 	if (override) {
 		drm_connector_update_edid_property(connector, override);
 		num_modes = drm_add_edid_modes(connector, override);
@@ -2245,12 +2253,13 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	enum edid_block_status status;
 	int i, invalid_blocks = 0;
 	struct edid *edid, *new;
+	size_t alloc_size = EDID_LENGTH;
 
-	edid = drm_get_override_edid(connector);
+	edid = drm_get_override_edid(connector, &alloc_size);
 	if (edid)
 		goto ok;
 
-	edid = kmalloc(EDID_LENGTH, GFP_KERNEL);
+	edid = kmalloc(alloc_size, GFP_KERNEL);
 	if (!edid)
 		return NULL;
 
@@ -2278,7 +2287,8 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (!edid_extension_block_count(edid))
 		goto ok;
 
-	new = krealloc(edid, edid_size(edid), GFP_KERNEL);
+	alloc_size = edid_size(edid);
+	new = krealloc(edid, alloc_size, GFP_KERNEL);
 	if (!new)
 		goto fail;
 	edid = new;
@@ -2300,7 +2310,8 @@ struct edid *drm_do_get_edid(struct drm_connector *connector,
 	if (invalid_blocks) {
 		connector_bad_edid(connector, edid, edid_block_count(edid));
 
-		edid = edid_filter_invalid_blocks(edid, invalid_blocks);
+		edid = edid_filter_invalid_blocks(edid, invalid_blocks,
+						  &alloc_size);
 	}
 
 ok:
