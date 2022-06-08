@@ -780,12 +780,12 @@ lock_retry_remap:
 		/* Uncompressed cb, copy it to the destination pages. */
 		/*
 		 * TODO: As a big optimization, we could detect this case
-		 * before we read all the pages and use block_read_full_page()
+		 * before we read all the pages and use block_read_full_folio()
 		 * on all full pages instead (we still have to treat partial
 		 * pages especially but at least we are getting rid of the
 		 * synchronous io for the majority of pages.
 		 * Or if we choose not to do the read-ahead/-behind stuff, we
-		 * could just return block_read_full_page(pages[xpage]) as long
+		 * could just return block_read_full_folio(pages[xpage]) as long
 		 * as PAGE_SIZE <= cb_size.
 		 */
 		if (cb_max_ofs)

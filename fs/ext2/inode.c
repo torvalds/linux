@@ -875,9 +875,9 @@ static int ext2_writepage(struct page *page, struct writeback_control *wbc)
 	return block_write_full_page(page, ext2_get_block, wbc);
 }
 
-static int ext2_readpage(struct file *file, struct page *page)
+static int ext2_read_folio(struct file *file, struct folio *folio)
 {
-	return mpage_readpage(page, ext2_get_block);
+	return mpage_read_folio(folio, ext2_get_block);
 }
 
 static void ext2_readahead(struct readahead_control *rac)
@@ -887,13 +887,11 @@ static void ext2_readahead(struct readahead_control *rac)
 
 static int
 ext2_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags,
-		struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = block_write_begin(mapping, pos, len, flags, pagep,
-				ext2_get_block);
+	ret = block_write_begin(mapping, pos, len, pagep, ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
 	return ret;
@@ -913,12 +911,11 @@ static int ext2_write_end(struct file *file, struct address_space *mapping,
 
 static int
 ext2_nobh_write_begin(struct file *file, struct address_space *mapping,
-		loff_t pos, unsigned len, unsigned flags,
-		struct page **pagep, void **fsdata)
+		loff_t pos, unsigned len, struct page **pagep, void **fsdata)
 {
 	int ret;
 
-	ret = nobh_write_begin(mapping, pos, len, flags, pagep, fsdata,
+	ret = nobh_write_begin(mapping, pos, len, pagep, fsdata,
 			       ext2_get_block);
 	if (ret < 0)
 		ext2_write_failed(mapping, pos + len);
@@ -969,7 +966,7 @@ ext2_dax_writepages(struct address_space *mapping, struct writeback_control *wbc
 const struct address_space_operations ext2_aops = {
 	.dirty_folio		= block_dirty_folio,
 	.invalidate_folio	= block_invalidate_folio,
-	.readpage		= ext2_readpage,
+	.read_folio		= ext2_read_folio,
 	.readahead		= ext2_readahead,
 	.writepage		= ext2_writepage,
 	.write_begin		= ext2_write_begin,
@@ -985,7 +982,7 @@ const struct address_space_operations ext2_aops = {
 const struct address_space_operations ext2_nobh_aops = {
 	.dirty_folio		= block_dirty_folio,
 	.invalidate_folio	= block_invalidate_folio,
-	.readpage		= ext2_readpage,
+	.read_folio		= ext2_read_folio,
 	.readahead		= ext2_readahead,
 	.writepage		= ext2_nobh_writepage,
 	.write_begin		= ext2_nobh_write_begin,

@@ -205,10 +205,9 @@ out:
 	return ret;
 }
 
-static int erofs_fscache_meta_readpage(struct file *data, struct page *page)
+static int erofs_fscache_meta_read_folio(struct file *data, struct folio *folio)
 {
 	int ret;
-	struct folio *folio = page_folio(page);
 	struct super_block *sb = folio_mapping(folio)->host->i_sb;
 	struct netfs_io_request *rreq;
 	struct erofs_map_dev mdev = {
@@ -232,7 +231,7 @@ out:
 	return ret;
 }
 
-static int erofs_fscache_readpage_inline(struct folio *folio,
+static int erofs_fscache_read_folio_inline(struct folio *folio,
 					 struct erofs_map_blocks *map)
 {
 	struct super_block *sb = folio_mapping(folio)->host->i_sb;
@@ -259,9 +258,8 @@ static int erofs_fscache_readpage_inline(struct folio *folio,
 	return 0;
 }
 
-static int erofs_fscache_readpage(struct file *file, struct page *page)
+static int erofs_fscache_read_folio(struct file *file, struct folio *folio)
 {
-	struct folio *folio = page_folio(page);
 	struct inode *inode = folio_mapping(folio)->host;
 	struct super_block *sb = inode->i_sb;
 	struct erofs_map_blocks map;
@@ -286,7 +284,7 @@ static int erofs_fscache_readpage(struct file *file, struct page *page)
 	}
 
 	if (map.m_flags & EROFS_MAP_META) {
-		ret = erofs_fscache_readpage_inline(folio, &map);
+		ret = erofs_fscache_read_folio_inline(folio, &map);
 		goto out_uptodate;
 	}
 
@@ -376,7 +374,7 @@ static void erofs_fscache_readahead(struct readahead_control *rac)
 		if (map.m_flags & EROFS_MAP_META) {
 			struct folio *folio = readahead_folio(rac);
 
-			ret = erofs_fscache_readpage_inline(folio, &map);
+			ret = erofs_fscache_read_folio_inline(folio, &map);
 			if (!ret) {
 				folio_mark_uptodate(folio);
 				ret = folio_size(folio);
@@ -410,11 +408,11 @@ static void erofs_fscache_readahead(struct readahead_control *rac)
 }
 
 static const struct address_space_operations erofs_fscache_meta_aops = {
-	.readpage = erofs_fscache_meta_readpage,
+	.read_folio = erofs_fscache_meta_read_folio,
 };
 
 const struct address_space_operations erofs_fscache_access_aops = {
-	.readpage = erofs_fscache_readpage,
+	.read_folio = erofs_fscache_read_folio,
 	.readahead = erofs_fscache_readahead,
 };
 

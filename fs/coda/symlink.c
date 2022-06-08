@@ -20,9 +20,10 @@
 #include "coda_psdev.h"
 #include "coda_linux.h"
 
-static int coda_symlink_filler(struct file *file, struct page *page)
+static int coda_symlink_filler(struct file *file, struct folio *folio)
 {
-	struct inode *inode = page->mapping->host;
+	struct page *page = &folio->page;
+	struct inode *inode = folio->mapping->host;
 	int error;
 	struct coda_inode_info *cii;
 	unsigned int len = PAGE_SIZE;
@@ -44,5 +45,5 @@ fail:
 }
 
 const struct address_space_operations coda_symlink_aops = {
-	.readpage	= coda_symlink_filler,
+	.read_folio	= coda_symlink_filler,
 };
