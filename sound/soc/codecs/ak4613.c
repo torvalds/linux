@@ -868,10 +868,12 @@ static void ak4613_parse_of(struct ak4613_priv *priv,
 
 	/*
 	 * connected STDI
+	 * TDM support is assuming it is probed via Audio-Graph-Card style here.
+	 * Default is SDTIx1 if it was probed via Simple-Audio-Card for now.
 	 */
 	sdti_num = of_graph_get_endpoint_count(np);
-	if (WARN_ON((sdti_num > 3) || (sdti_num < 1)))
-		return;
+	if ((sdti_num >= SDTx_MAX) || (sdti_num < 1))
+		sdti_num = 1;
 
 	AK4613_CONFIG_SDTI_set(priv, sdti_num);
 }
