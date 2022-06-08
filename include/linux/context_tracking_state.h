@@ -13,6 +13,9 @@ enum ctx_state {
 	CONTEXT_GUEST,
 };
 
+/* Offset to allow distinguishing irq vs. task-based idle entry/exit. */
+#define DYNTICK_IRQ_NONIDLE	((LONG_MAX / 2) + 1)
+
 struct context_tracking {
 #ifdef CONFIG_CONTEXT_TRACKING_USER
 	/*
@@ -28,6 +31,7 @@ struct context_tracking {
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
 	atomic_t dynticks;		/* Even value for idle, else odd. */
 	long dynticks_nesting;		/* Track process nesting level. */
+	long dynticks_nmi_nesting;	/* Track irq/NMI nesting level. */
 #endif
 };
 
@@ -65,6 +69,18 @@ static __always_inline long ct_dynticks_nesting_cpu(int cpu)
 	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
 
 	return ct->dynticks_nesting;
+}
+
+static __always_inline long ct_dynticks_nmi_nesting(void)
+{
+	return __this_cpu_read(context_tracking.dynticks_nmi_nesting);
+}
+
+static __always_inline long ct_dynticks_nmi_nesting_cpu(int cpu)
+{
+	struct context_tracking *ct = per_cpu_ptr(&context_tracking, cpu);
+
+	return ct->dynticks_nmi_nesting;
 }
 #endif /* #ifdef CONFIG_CONTEXT_TRACKING_IDLE */
 
