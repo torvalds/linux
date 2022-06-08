@@ -123,6 +123,26 @@ static inline void serial_out(struct uart_8250_port *up, int offset, int value)
 	up->port.serial_out(&up->port, offset, value);
 }
 
+/**
+ *	serial_lsr_in - Read LSR register and preserve flags across reads
+ *	@up:	uart 8250 port
+ *
+ *	Read LSR register and handle saving non-preserved flags across reads.
+ *	The flags that are not preserved across reads are stored into
+ *	up->lsr_saved_flags.
+ *
+ *	Returns LSR value or'ed with the preserved flags (if any).
+ */
+static inline unsigned int serial_lsr_in(struct uart_8250_port *up)
+{
+	unsigned int lsr = up->lsr_saved_flags;
+
+	lsr |= serial_in(up, UART_LSR);
+	up->lsr_saved_flags = lsr & LSR_SAVE_FLAGS;
+
+	return lsr;
+}
+
 /*
  * For the 16C950
  */
