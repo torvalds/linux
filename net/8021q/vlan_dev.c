@@ -128,8 +128,8 @@ static netdev_tx_t vlan_dev_hard_start_xmit(struct sk_buff *skb,
 
 		stats = this_cpu_ptr(vlan->vlan_pcpu_stats);
 		u64_stats_update_begin(&stats->syncp);
-		stats->tx_packets++;
-		stats->tx_bytes += len;
+		u64_stats_inc(&stats->tx_packets);
+		u64_stats_add(&stats->tx_bytes, len);
 		u64_stats_update_end(&stats->syncp);
 	} else {
 		this_cpu_inc(vlan->vlan_pcpu_stats->tx_dropped);
@@ -713,11 +713,11 @@ static void vlan_dev_get_stats64(struct net_device *dev,
 		p = per_cpu_ptr(vlan_dev_priv(dev)->vlan_pcpu_stats, i);
 		do {
 			start = u64_stats_fetch_begin_irq(&p->syncp);
-			rxpackets	= p->rx_packets;
-			rxbytes		= p->rx_bytes;
-			rxmulticast	= p->rx_multicast;
-			txpackets	= p->tx_packets;
-			txbytes		= p->tx_bytes;
+			rxpackets	= u64_stats_read(&p->rx_packets);
+			rxbytes		= u64_stats_read(&p->rx_bytes);
+			rxmulticast	= u64_stats_read(&p->rx_multicast);
+			txpackets	= u64_stats_read(&p->tx_packets);
+			txbytes		= u64_stats_read(&p->tx_bytes);
 		} while (u64_stats_fetch_retry_irq(&p->syncp, start));
 
 		stats->rx_packets	+= rxpackets;
@@ -726,8 +726,8 @@ static void vlan_dev_get_stats64(struct net_device *dev,
 		stats->tx_packets	+= txpackets;
 		stats->tx_bytes		+= txbytes;
 		/* rx_errors & tx_dropped are u32 */
-		rx_errors	+= p->rx_errors;
-		tx_dropped	+= p->tx_dropped;
+		rx_errors	+= READ_ONCE(p->rx_errors);
+		tx_dropped	+= READ_ONCE(p->tx_dropped);
 	}
 	stats->rx_errors  = rx_errors;
 	stats->tx_dropped = tx_dropped;
