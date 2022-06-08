@@ -2565,14 +2565,29 @@ void qla24xx_auth_els(scsi_qla_host_t *vha, void **pkt, struct rsp_que **rsp)
 
 	fcport = qla2x00_find_fcport_by_pid(host, &purex->pur_info.pur_sid);
 
-	if (DBELL_INACTIVE(vha) ||
-	    (fcport && EDIF_SESSION_DOWN(fcport))) {
+	if (DBELL_INACTIVE(vha)) {
 		ql_dbg(ql_dbg_edif, host, 0x0910c, "%s e_dbell.db_flags =%x %06x\n",
 		    __func__, host->e_dbell.db_flags,
 		    fcport ? fcport->d_id.b24 : 0);
 
 		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
 		qla_enode_free(host, ptr);
+		return;
+	}
+
+	if (fcport && EDIF_SESSION_DOWN(fcport)) {
+		ql_dbg(ql_dbg_edif, host, 0x13b6,
+		    "%s terminate exchange. Send logo to 0x%x\n",
+		    __func__, a.did.b24);
+
+		a.tx_byte_count = a.tx_len = 0;
+		a.tx_addr = 0;
+		a.control_flags = EPD_RX_XCHG;  /* EPD_RX_XCHG = terminate cmd */
+		qla_els_reject_iocb(host, (*rsp)->qpair, &a);
+		qla_enode_free(host, ptr);
+		/* send logo to let remote port knows to tear down session */
+		fcport->send_els_logo = 1;
+		qlt_schedule_sess_for_deletion(fcport);
 		return;
 	}
 
