@@ -258,5 +258,9 @@ void mt76_connac2_mac_decode_he_radiotap(struct mt76_dev *dev,
 					 __le32 *rxv, u32 mode);
 int mt76_connac2_reverse_frag0_hdr_trans(struct ieee80211_vif *vif,
 					 struct sk_buff *skb, u16 hdr_offset);
+int mt76_connac2_mac_fill_rx_rate(struct mt76_dev *dev,
+				  struct mt76_rx_status *status,
+				  struct ieee80211_supported_band *sband,
+				  __le32 *rxv, u8 *mode);
 
 #endif /* __MT76_CONNAC_H */
