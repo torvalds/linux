@@ -7946,8 +7946,8 @@ static int devlink_nl_cmd_health_reporter_test_doit(struct sk_buff *skb,
 }
 
 struct devlink_stats {
-	u64 rx_bytes;
-	u64 rx_packets;
+	u64_stats_t rx_bytes;
+	u64_stats_t rx_packets;
 	struct u64_stats_sync syncp;
 };
 
@@ -8104,12 +8104,12 @@ static void devlink_trap_stats_read(struct devlink_stats __percpu *trap_stats,
 		cpu_stats = per_cpu_ptr(trap_stats, i);
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			rx_packets = cpu_stats->rx_packets;
-			rx_bytes = cpu_stats->rx_bytes;
+			rx_packets = u64_stats_read(&cpu_stats->rx_packets);
+			rx_bytes = u64_stats_read(&cpu_stats->rx_bytes);
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		stats->rx_packets += rx_packets;
-		stats->rx_bytes += rx_bytes;
+		u64_stats_add(&stats->rx_packets, rx_packets);
+		u64_stats_add(&stats->rx_bytes, rx_bytes);
 	}
 }
 
@@ -8127,11 +8127,13 @@ devlink_trap_group_stats_put(struct sk_buff *msg,
 		return -EMSGSIZE;
 
 	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_STATS_RX_PACKETS,
-			      stats.rx_packets, DEVLINK_ATTR_PAD))
+			      u64_stats_read(&stats.rx_packets),
+			      DEVLINK_ATTR_PAD))
 		goto nla_put_failure;
 
 	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_STATS_RX_BYTES,
-			      stats.rx_bytes, DEVLINK_ATTR_PAD))
+			      u64_stats_read(&stats.rx_bytes),
+			      DEVLINK_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
@@ -8171,11 +8173,13 @@ static int devlink_trap_stats_put(struct sk_buff *msg, struct devlink *devlink,
 		goto nla_put_failure;
 
 	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_STATS_RX_PACKETS,
-			      stats.rx_packets, DEVLINK_ATTR_PAD))
+			      u64_stats_read(&stats.rx_packets),
+			      DEVLINK_ATTR_PAD))
 		goto nla_put_failure;
 
 	if (nla_put_u64_64bit(msg, DEVLINK_ATTR_STATS_RX_BYTES,
-			      stats.rx_bytes, DEVLINK_ATTR_PAD))
+			      u64_stats_read(&stats.rx_bytes),
+			      DEVLINK_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
@@ -11641,8 +11645,8 @@ devlink_trap_stats_update(struct devlink_stats __percpu *trap_stats,
 
 	stats = this_cpu_ptr(trap_stats);
 	u64_stats_update_begin(&stats->syncp);
-	stats->rx_bytes += skb_len;
-	stats->rx_packets++;
+	u64_stats_add(&stats->rx_bytes, skb_len);
+	u64_stats_inc(&stats->rx_packets);
 	u64_stats_update_end(&stats->syncp);
 }
 
