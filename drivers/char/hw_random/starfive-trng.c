@@ -323,7 +323,7 @@ static int trng_probe(struct platform_device *pdev)
 		return ret;
 	}
 
-	rng->rst = devm_reset_control_get_exclusive(&pdev->dev, NULL);
+	rng->rst = devm_reset_control_get_shared(&pdev->dev, NULL);
 	if (IS_ERR(rng->rst)) {
 		ret = PTR_ERR(rng->rst);
 		dev_err(&pdev->dev,
