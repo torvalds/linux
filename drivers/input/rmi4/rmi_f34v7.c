@@ -25,7 +25,7 @@ static int rmi_f34v7_read_flash_status(struct f34_data *f34)
 	int ret;
 
 	ret = rmi_read_block(f34->fn->rmi_dev,
-			f34->fn->fd.data_base_addr + f34->v7.off.flash_status,
+			f34->fn->fd.data_base_addr + V7_FLASH_STATUS_OFFSET,
 			&status,
 			sizeof(status));
 	if (ret < 0) {
@@ -43,7 +43,7 @@ static int rmi_f34v7_read_flash_status(struct f34_data *f34)
 	}
 
 	ret = rmi_read_block(f34->fn->rmi_dev,
-			f34->fn->fd.data_base_addr + f34->v7.off.flash_cmd,
+			f34->fn->fd.data_base_addr + V7_COMMAND_OFFSET,
 			&command,
 			sizeof(command));
 	if (ret < 0) {
@@ -140,7 +140,7 @@ static int rmi_f34v7_write_command_single_transaction(struct f34_data *f34,
 	data_1_5.payload[1] = f34->bootloader_id[1];
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.partition_id,
+			base + V7_PARTITION_ID_OFFSET,
 			&data_1_5, sizeof(data_1_5));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev,
@@ -213,7 +213,7 @@ static int rmi_f34v7_write_command(struct f34_data *f34, u8 cmd)
 		__func__, command);
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.flash_cmd,
+			base + V7_COMMAND_OFFSET,
 			&command, sizeof(command));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write flash command\n",
@@ -280,7 +280,7 @@ static int rmi_f34v7_write_partition_id(struct f34_data *f34, u8 cmd)
 	}
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.partition_id,
+			base + V7_PARTITION_ID_OFFSET,
 			&partition, sizeof(partition));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write partition ID\n",
@@ -308,7 +308,7 @@ static int rmi_f34v7_read_partition_table(struct f34_data *f34)
 		return ret;
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.block_number,
+			base + V7_BLOCK_NUMBER_OFFSET,
 			&block_number, sizeof(block_number));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write block number\n",
@@ -319,7 +319,7 @@ static int rmi_f34v7_read_partition_table(struct f34_data *f34)
 	put_unaligned_le16(f34->v7.flash_config_length, &length);
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.transfer_length,
+			base + V7_TRANSFER_LENGTH_OFFSET,
 			&length, sizeof(length));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write transfer length\n",
@@ -352,7 +352,7 @@ static int rmi_f34v7_read_partition_table(struct f34_data *f34)
 	}
 
 	ret = rmi_read_block(f34->fn->rmi_dev,
-			base + f34->v7.off.payload,
+			base + V7_PAYLOAD_OFFSET,
 			f34->v7.read_config_buf,
 			f34->v7.partition_table_bytes);
 	if (ret < 0) {
@@ -526,13 +526,6 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: f34->v7.block_size = %d\n",
 		 __func__, f34->v7.block_size);
 
-	f34->v7.off.flash_status = V7_FLASH_STATUS_OFFSET;
-	f34->v7.off.partition_id = V7_PARTITION_ID_OFFSET;
-	f34->v7.off.block_number = V7_BLOCK_NUMBER_OFFSET;
-	f34->v7.off.transfer_length = V7_TRANSFER_LENGTH_OFFSET;
-	f34->v7.off.flash_cmd = V7_COMMAND_OFFSET;
-	f34->v7.off.payload = V7_PAYLOAD_OFFSET;
-
 	f34->v7.has_display_cfg = query_1_7.partition_support[1] & HAS_DISP_CFG;
 	f34->v7.has_guest_code =
 			query_1_7.partition_support[1] & HAS_GUEST_CODE;
@@ -646,7 +639,7 @@ static int rmi_f34v7_read_blocks(struct f34_data *f34,
 		return ret;
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.block_number,
+			base + V7_BLOCK_NUMBER_OFFSET,
 			&block_number, sizeof(block_number));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write block number\n",
@@ -662,7 +655,7 @@ static int rmi_f34v7_read_blocks(struct f34_data *f34,
 		put_unaligned_le16(transfer, &length);
 
 		ret = rmi_write_block(f34->fn->rmi_dev,
-				base + f34->v7.off.transfer_length,
+				base + V7_TRANSFER_LENGTH_OFFSET,
 				&length, sizeof(length));
 		if (ret < 0) {
 			dev_err(&f34->fn->dev,
@@ -682,7 +675,7 @@ static int rmi_f34v7_read_blocks(struct f34_data *f34,
 			return ret;
 
 		ret = rmi_read_block(f34->fn->rmi_dev,
-				base + f34->v7.off.payload,
+				base + V7_PAYLOAD_OFFSET,
 				&f34->v7.read_config_buf[index],
 				transfer * f34->v7.block_size);
 		if (ret < 0) {
@@ -718,7 +711,7 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 		return ret;
 
 	ret = rmi_write_block(f34->fn->rmi_dev,
-			base + f34->v7.off.block_number,
+			base + V7_BLOCK_NUMBER_OFFSET,
 			&block_number, sizeof(block_number));
 	if (ret < 0) {
 		dev_err(&f34->fn->dev, "%s: Failed to write block number\n",
@@ -738,7 +731,7 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 		init_completion(&f34->v7.cmd_done);
 
 		ret = rmi_write_block(f34->fn->rmi_dev,
-				base + f34->v7.off.transfer_length,
+				base + V7_TRANSFER_LENGTH_OFFSET,
 				&length, sizeof(length));
 		if (ret < 0) {
 			dev_err(&f34->fn->dev,
@@ -752,7 +745,7 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 			return ret;
 
 		ret = rmi_write_block(f34->fn->rmi_dev,
-				base + f34->v7.off.payload,
+				base + V7_PAYLOAD_OFFSET,
 				block_ptr, transfer * f34->v7.block_size);
 		if (ret < 0) {
 			dev_err(&f34->fn->dev,

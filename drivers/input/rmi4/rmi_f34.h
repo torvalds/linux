@@ -222,20 +222,6 @@ struct image_metadata {
 	struct physical_address phyaddr;
 };
 
-struct register_offset {
-	u8 properties;
-	u8 properties_2;
-	u8 block_size;
-	u8 block_count;
-	u8 gc_block_count;
-	u8 flash_status;
-	u8 partition_id;
-	u8 block_number;
-	u8 transfer_length;
-	u8 flash_cmd;
-	u8 payload;
-};
-
 struct rmi_f34_firmware {
 	__le32 checksum;
 	u8 pad1[3];
@@ -276,7 +262,6 @@ struct f34v7_data {
 	u8 partitions;
 	u16 partition_table_bytes;
 
-	struct register_offset off;
 	struct block_count blkcount;
 	struct physical_address phyaddr;
 	struct image_metadata img;

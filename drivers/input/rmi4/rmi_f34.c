@@ -115,7 +115,7 @@ static irqreturn_t rmi_f34_attention(int irq, void *ctx)
 	} else {
 		ret = rmi_read_block(f34->fn->rmi_dev,
 					f34->fn->fd.data_base_addr +
-						f34->v7.off.flash_cmd,
+						V7_COMMAND_OFFSET,
 					&status, sizeof(status));
 		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: cmd: %#02x, ret: %d\n",
 			__func__, status, ret);
