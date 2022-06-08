@@ -234,7 +234,7 @@ static int jh7110_cryp_probe(struct platform_device *pdev)
 		return PTR_ERR(sdev->sec_ahb);
 	}
 
-	sdev->rst_hresetn = devm_reset_control_get_exclusive(sdev->dev, "sec_hre");
+	sdev->rst_hresetn = devm_reset_control_get_shared(sdev->dev, "sec_hre");
 	if (IS_ERR(sdev->rst_hresetn)) {
 		dev_err(sdev->dev, "failed to get sec reset\n");
 		return PTR_ERR(sdev->rst_hresetn);
