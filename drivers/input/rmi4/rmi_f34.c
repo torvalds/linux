@@ -114,13 +114,13 @@ static irqreturn_t rmi_f34_attention(int irq, void *ctx)
 			complete(&f34->v5.cmd_done);
 	} else {
 		ret = rmi_read_block(f34->fn->rmi_dev,
-				     f34->fn->fd.data_base_addr +
-						f34->v7.off.flash_status,
-				     &status, sizeof(status));
-		rmi_dbg(RMI_DEBUG_FN, &fn->dev, "%s: status: %#02x, ret: %d\n",
+					f34->fn->fd.data_base_addr +
+						f34->v7.off.flash_cmd,
+					&status, sizeof(status));
+		rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev, "%s: cmd: %#02x, ret: %d\n",
 			__func__, status, ret);
 
-		if (!ret && !(status & 0x1f))
+		if (!ret && status == CMD_V7_IDLE)
 			complete(&f34->v7.cmd_done);
 	}
 
