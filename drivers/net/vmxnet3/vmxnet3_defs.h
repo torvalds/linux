@@ -400,6 +400,8 @@ union Vmxnet3_GenericDesc {
 
 /* max # of tx descs for a non-tso pkt */
 #define VMXNET3_MAX_TXD_PER_PKT 16
+/* max # of tx descs for a tso pkt */
+#define VMXNET3_MAX_TSO_TXD_PER_PKT 24
 
 /* Max size of a single rx buffer */
 #define VMXNET3_MAX_RX_BUF_SIZE  ((1 << 14) - 1)
