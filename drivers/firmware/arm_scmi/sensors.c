@@ -412,7 +412,7 @@ iter_axes_desc_process_response(const struct scmi_protocol_handle *ph,
 	attrh = le32_to_cpu(adesc->attributes_high);
 	a->scale = S32_EXT(SENSOR_SCALE(attrh));
 	a->type = SENSOR_TYPE(attrh);
-	strscpy(a->name, adesc->name, SCMI_MAX_STR_SIZE);
+	strscpy(a->name, adesc->name, SCMI_SHORT_NAME_MAX_SIZE);
 
 	if (a->extended_attrs) {
 		unsigned int ares = le32_to_cpu(adesc->resolution);
@@ -634,7 +634,7 @@ iter_sens_descr_process_response(const struct scmi_protocol_handle *ph,
 			    SUPPORTS_AXIS(attrh) ?
 			    SENSOR_AXIS_NUMBER(attrh) : 0,
 			    SCMI_MAX_NUM_SENSOR_AXIS);
-	strscpy(s->name, sdesc->name, SCMI_MAX_STR_SIZE);
+	strscpy(s->name, sdesc->name, SCMI_SHORT_NAME_MAX_SIZE);
 
 	/*
 	 * If supported overwrite short name with the extended

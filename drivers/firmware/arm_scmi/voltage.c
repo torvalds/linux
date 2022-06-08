@@ -233,7 +233,7 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 		v = vinfo->domains + dom;
 		v->id = dom;
 		attributes = le32_to_cpu(resp_dom->attr);
-		strlcpy(v->name, resp_dom->name, SCMI_MAX_STR_SIZE);
+		strscpy(v->name, resp_dom->name, SCMI_SHORT_NAME_MAX_SIZE);
 
 		/*
 		 * If supported overwrite short name with the extended one;

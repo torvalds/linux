@@ -13,8 +13,9 @@
 #include <linux/notifier.h>
 #include <linux/types.h>
 
-#define SCMI_MAX_STR_SIZE	64
-#define SCMI_MAX_NUM_RATES	16
+#define SCMI_MAX_STR_SIZE		64
+#define SCMI_SHORT_NAME_MAX_SIZE	16
+#define SCMI_MAX_NUM_RATES		16
 
 /**
  * struct scmi_revision_info - version information structure
@@ -36,8 +37,8 @@ struct scmi_revision_info {
 	u8 num_protocols;
 	u8 num_agents;
 	u32 impl_ver;
-	char vendor_id[SCMI_MAX_STR_SIZE];
-	char sub_vendor_id[SCMI_MAX_STR_SIZE];
+	char vendor_id[SCMI_SHORT_NAME_MAX_SIZE];
+	char sub_vendor_id[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 struct scmi_clock_info {

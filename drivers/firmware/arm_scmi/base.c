@@ -36,7 +36,7 @@ struct scmi_msg_resp_base_attributes {
 
 struct scmi_msg_resp_base_discover_agent {
 	__le32 agent_id;
-	u8 name[SCMI_MAX_STR_SIZE];
+	u8 name[SCMI_SHORT_NAME_MAX_SIZE];
 };
 
 
@@ -119,7 +119,7 @@ scmi_base_vendor_id_get(const struct scmi_protocol_handle *ph, bool sub_vendor)
 
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret)
-		memcpy(vendor_id, t->rx.buf, size);
+		strscpy(vendor_id, t->rx.buf, size);
 
 	ph->xops->xfer_put(ph, t);
 
@@ -276,7 +276,7 @@ static int scmi_base_discover_agent_get(const struct scmi_protocol_handle *ph,
 	ret = ph->xops->do_xfer(ph, t);
 	if (!ret) {
 		agent_info = t->rx.buf;
-		strlcpy(name, agent_info->name, SCMI_MAX_STR_SIZE);
+		strscpy(name, agent_info->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
@@ -375,7 +375,7 @@ static int scmi_base_protocol_init(const struct scmi_protocol_handle *ph)
 	int id, ret;
 	u8 *prot_imp;
 	u32 version;
-	char name[SCMI_MAX_STR_SIZE];
+	char name[SCMI_SHORT_NAME_MAX_SIZE];
 	struct device *dev = ph->dev;
 	struct scmi_revision_info *rev = scmi_revision_area_get(ph);
 
