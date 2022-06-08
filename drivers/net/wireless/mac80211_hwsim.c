@@ -65,6 +65,10 @@ static bool support_p2p_device = true;
 module_param(support_p2p_device, bool, 0444);
 MODULE_PARM_DESC(support_p2p_device, "Support P2P-Device interface type");
 
+static bool mlo;
+module_param(mlo, bool, 0444);
+MODULE_PARM_DESC(mlo, "Support MLO");
+
 /**
  * enum hwsim_regtest - the type of regulatory tests we offer
  *
@@ -782,6 +786,7 @@ static const struct nla_policy hwsim_genl_policy[HWSIM_ATTR_MAX + 1] = {
 	[HWSIM_ATTR_PERM_ADDR] = NLA_POLICY_ETH_ADDR_COMPAT,
 	[HWSIM_ATTR_IFTYPE_SUPPORT] = { .type = NLA_U32 },
 	[HWSIM_ATTR_CIPHER_SUPPORT] = { .type = NLA_BINARY },
+	[HWSIM_ATTR_MLO_SUPPORT] = { .type = NLA_FLAG },
 };
 
 #if IS_REACHABLE(CONFIG_VIRTIO)
@@ -2831,6 +2836,27 @@ static int mac80211_hwsim_tx_last_beacon(struct ieee80211_hw *hw)
 	return 1;
 }
 
+static int mac80211_hwsim_set_rts_threshold(struct ieee80211_hw *hw, u32 value)
+{
+	return -EOPNOTSUPP;
+}
+
+static int mac80211_hwsim_change_vif_links(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   u16 old_links, u16 new_links,
+					   struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS])
+{
+	return 0;
+}
+
+static int mac80211_hwsim_change_sta_links(struct ieee80211_hw *hw,
+					   struct ieee80211_vif *vif,
+					   struct ieee80211_sta *sta,
+					   u16 old_links, u16 new_links)
+{
+	return 0;
+}
+
 #define HWSIM_COMMON_OPS					\
 	.tx = mac80211_hwsim_tx,				\
 	.start = mac80211_hwsim_start,				\
@@ -2847,37 +2873,50 @@ static int mac80211_hwsim_tx_last_beacon(struct ieee80211_hw *hw)
 	.sta_remove = mac80211_hwsim_sta_remove,		\
 	.sta_notify = mac80211_hwsim_sta_notify,		\
 	.sta_rc_update = mac80211_hwsim_sta_rc_update,		\
-	.set_tim = mac80211_hwsim_set_tim,			\
 	.conf_tx = mac80211_hwsim_conf_tx,			\
 	.get_survey = mac80211_hwsim_get_survey,		\
 	CFG80211_TESTMODE_CMD(mac80211_hwsim_testmode_cmd)	\
 	.ampdu_action = mac80211_hwsim_ampdu_action,		\
 	.flush = mac80211_hwsim_flush,				\
-	.get_tsf = mac80211_hwsim_get_tsf,			\
-	.set_tsf = mac80211_hwsim_set_tsf,			\
 	.get_et_sset_count = mac80211_hwsim_get_et_sset_count,	\
 	.get_et_stats = mac80211_hwsim_get_et_stats,		\
 	.get_et_strings = mac80211_hwsim_get_et_strings,
 
+#define HWSIM_NON_MLO_OPS					\
+	.set_tim = mac80211_hwsim_set_tim,			\
+	.get_tsf = mac80211_hwsim_get_tsf,			\
+	.set_tsf = mac80211_hwsim_set_tsf,
+
 static const struct ieee80211_ops mac80211_hwsim_ops = {
 	HWSIM_COMMON_OPS
+	HWSIM_NON_MLO_OPS
 	.sw_scan_start = mac80211_hwsim_sw_scan,
 	.sw_scan_complete = mac80211_hwsim_sw_scan_complete,
 };
 
+#define HWSIM_CHANCTX_OPS					\
+	.hw_scan = mac80211_hwsim_hw_scan,			\
+	.cancel_hw_scan = mac80211_hwsim_cancel_hw_scan,	\
+	.remain_on_channel = mac80211_hwsim_roc,		\
+	.cancel_remain_on_channel = mac80211_hwsim_croc,	\
+	.add_chanctx = mac80211_hwsim_add_chanctx,		\
+	.remove_chanctx = mac80211_hwsim_remove_chanctx,	\
+	.change_chanctx = mac80211_hwsim_change_chanctx,	\
+	.assign_vif_chanctx = mac80211_hwsim_assign_vif_chanctx,\
+	.unassign_vif_chanctx = mac80211_hwsim_unassign_vif_chanctx,
+
 static const struct ieee80211_ops mac80211_hwsim_mchan_ops = {
 	HWSIM_COMMON_OPS
-	.hw_scan = mac80211_hwsim_hw_scan,
-	.cancel_hw_scan = mac80211_hwsim_cancel_hw_scan,
-	.sw_scan_start = NULL,
-	.sw_scan_complete = NULL,
-	.remain_on_channel = mac80211_hwsim_roc,
-	.cancel_remain_on_channel = mac80211_hwsim_croc,
-	.add_chanctx = mac80211_hwsim_add_chanctx,
-	.remove_chanctx = mac80211_hwsim_remove_chanctx,
-	.change_chanctx = mac80211_hwsim_change_chanctx,
-	.assign_vif_chanctx = mac80211_hwsim_assign_vif_chanctx,
-	.unassign_vif_chanctx = mac80211_hwsim_unassign_vif_chanctx,
+	HWSIM_NON_MLO_OPS
+	HWSIM_CHANCTX_OPS
+};
+
+static const struct ieee80211_ops mac80211_hwsim_mlo_ops = {
+	HWSIM_COMMON_OPS
+	HWSIM_CHANCTX_OPS
+	.set_rts_threshold = mac80211_hwsim_set_rts_threshold,
+	.change_vif_links = mac80211_hwsim_change_vif_links,
+	.change_sta_links = mac80211_hwsim_change_sta_links,
 };
 
 struct hwsim_new_radio_params {
@@ -2894,6 +2933,7 @@ struct hwsim_new_radio_params {
 	u32 iftypes;
 	u32 *ciphers;
 	u8 n_ciphers;
+	bool mlo;
 };
 
 static void hwsim_mcast_config_msg(struct sk_buff *mcast_skb,
@@ -3587,7 +3627,9 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	idx = hwsim_radio_idx++;
 	spin_unlock_bh(&hwsim_radio_lock);
 
-	if (param->use_chanctx)
+	if (param->mlo)
+		ops = &mac80211_hwsim_mlo_ops;
+	else if (param->use_chanctx)
 		ops = &mac80211_hwsim_mchan_ops;
 	hw = ieee80211_alloc_hw_nm(sizeof(*data), ops, param->hwname);
 	if (!hw) {
@@ -3748,12 +3790,21 @@ static int mac80211_hwsim_new_radio(struct genl_info *info,
 	ieee80211_hw_set(hw, SIGNAL_DBM);
 	ieee80211_hw_set(hw, SUPPORTS_PS);
 	ieee80211_hw_set(hw, REPORTS_TX_ACK_STATUS);
-	ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
-	ieee80211_hw_set(hw, PS_NULLFUNC_STACK);
 	ieee80211_hw_set(hw, TDLS_WIDER_BW);
-	if (rctbl)
-		ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
 	ieee80211_hw_set(hw, SUPPORTS_MULTI_BSSID);
+
+	if (param->mlo) {
+		hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_MLO;
+		ieee80211_hw_set(hw, HAS_RATE_CONTROL);
+		ieee80211_hw_set(hw, SUPPORTS_DYNAMIC_PS);
+		ieee80211_hw_set(hw, CONNECTION_MONITOR);
+		ieee80211_hw_set(hw, AP_LINK_PS);
+	} else {
+		ieee80211_hw_set(hw, HOST_BROADCAST_PS_BUFFERING);
+		ieee80211_hw_set(hw, PS_NULLFUNC_STACK);
+		if (rctbl)
+			ieee80211_hw_set(hw, SUPPORTS_RC_TABLE);
+	}
 
 	hw->wiphy->flags &= ~WIPHY_FLAG_PS_ON_BY_DEFAULT;
 	hw->wiphy->flags |= WIPHY_FLAG_SUPPORTS_TDLS |
@@ -4473,6 +4524,11 @@ static int hwsim_new_radio_nl(struct sk_buff *msg, struct genl_info *info)
 		}
 	}
 
+	param.mlo = info->attrs[HWSIM_ATTR_MLO_SUPPORT];
+
+	if (param.mlo)
+		param.use_chanctx = true;
+
 	if (info->attrs[HWSIM_ATTR_RADIO_NAME]) {
 		hwname = kstrndup((char *)nla_data(info->attrs[HWSIM_ATTR_RADIO_NAME]),
 				  nla_len(info->attrs[HWSIM_ATTR_RADIO_NAME]),
@@ -5129,7 +5185,8 @@ static int __init init_mac80211_hwsim(void)
 		}
 
 		param.p2p_device = support_p2p_device;
-		param.use_chanctx = channels > 1;
+		param.mlo = mlo;
+		param.use_chanctx = channels > 1 || mlo;
 		param.iftypes = HWSIM_IFTYPE_SUPPORT_MASK;
 		if (param.p2p_device)
 			param.iftypes |= BIT(NL80211_IFTYPE_P2P_DEVICE);
