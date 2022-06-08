@@ -35,7 +35,7 @@
 #include <linux/percpu-rwsem.h>
 #include <linux/cpuset.h>
 #include <linux/random.h>
-#include <uapi/linux/sched/types.h>
+#include <linux/cc_platform.h>
 
 #include <trace/events/power.h>
 #define CREATE_TRACE_POINTS
@@ -717,14 +717,6 @@ static int cpuhp_up_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
 /*
  * The cpu hotplug threads manage the bringup and teardown of the cpus
  */
-static void cpuhp_create(unsigned int cpu)
-{
-	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
-
-	init_completion(&st->done_up);
-	init_completion(&st->done_down);
-}
-
 static int cpuhp_should_run(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
@@ -884,15 +876,27 @@ static int cpuhp_kick_ap_work(unsigned int cpu)
 
 static struct smp_hotplug_thread cpuhp_threads = {
 	.store			= &cpuhp_state.thread,
-	.create			= &cpuhp_create,
 	.thread_should_run	= cpuhp_should_run,
 	.thread_fn		= cpuhp_thread_fun,
 	.thread_comm		= "cpuhp/%u",
 	.selfparking		= true,
 };
 
+static __init void cpuhp_init_state(void)
+{
+	struct cpuhp_cpu_state *st;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		init_completion(&st->done_up);
+		init_completion(&st->done_down);
+	}
+}
+
 void __init cpuhp_threads_init(void)
 {
+	cpuhp_init_state();
 	BUG_ON(smpboot_register_percpu_thread(&cpuhp_threads));
 	kthread_unpark(this_cpu_read(cpuhp_state.thread));
 }
@@ -1187,6 +1191,12 @@ out:
 
 static int cpu_down_maps_locked(unsigned int cpu, enum cpuhp_state target)
 {
+	/*
+	 * If the platform does not support hotplug, report it explicitly to
+	 * differentiate it from a transient offlining failure.
+	 */
+	if (cc_platform_has(CC_ATTR_HOTPLUG_DISABLED))
+		return -EOPNOTSUPP;
 	if (cpu_hotplug_disabled)
 		return -EBUSY;
 	return _cpu_down(cpu, 0, target);
@@ -1321,25 +1331,6 @@ void cpuhp_online_idle(enum cpuhp_state state)
 	complete_ap_thread(st, true);
 }
 
-static int switch_to_rt_policy(void)
-{
-	struct sched_param param = { .sched_priority = MAX_RT_PRIO - 1 };
-	unsigned int policy = current->policy;
-
-	if (policy == SCHED_NORMAL)
-		/* Switch to SCHED_FIFO from SCHED_NORMAL. */
-		return sched_setscheduler_nocheck(current, SCHED_FIFO, &param);
-	else
-		return 1;
-}
-
-static int switch_to_fair_policy(void)
-{
-	struct sched_param param = { .sched_priority = 0 };
-
-	return sched_setscheduler_nocheck(current, SCHED_NORMAL, &param);
-}
-
 /* Requires cpu_add_remove_lock to be held */
 static int _cpu_up(unsigned int cpu, int tasks_frozen, enum cpuhp_state target)
 {
@@ -1404,7 +1395,6 @@ out:
 static int cpu_up(unsigned int cpu, enum cpuhp_state target)
 {
 	int err = 0;
-	int switch_err;
 
 	if (!cpu_possible(cpu)) {
 		pr_err("can't online cpu %d because it is not configured as may-hotadd at boot time\n",
@@ -1415,21 +1405,9 @@ static int cpu_up(unsigned int cpu, enum cpuhp_state target)
 		return -EINVAL;
 	}
 
-	/*
-	 * CPU hotplug operations consists of many steps and each step
-	 * calls a callback of core kernel subsystem. CPU hotplug-in
-	 * operation may get preempted by other CFS tasks and whole
-	 * operation of cpu hotplug in CPU gets delayed. Switch the
-	 * current task to SCHED_FIFO from SCHED_NORMAL, so that
-	 * hotplug in operation may complete quickly in heavy loaded
-	 * conditions and new CPU will start handle the workload.
-	 */
-
-	switch_err = switch_to_rt_policy();
-
 	err = try_online_node(cpu_to_node(cpu));
 	if (err)
-		goto switch_out;
+		return err;
 
 	cpu_maps_update_begin();
 
@@ -1445,14 +1423,6 @@ static int cpu_up(unsigned int cpu, enum cpuhp_state target)
 	err = _cpu_up(cpu, 0, target);
 out:
 	cpu_maps_update_done();
-switch_out:
-	if (!switch_err) {
-		switch_err = switch_to_fair_policy();
-		if (switch_err)
-			pr_err("Hotplug policy switch err=%d Task %s pid=%d\n",
-				switch_err, current->comm, current->pid);
-	}
-
 	return err;
 }
 

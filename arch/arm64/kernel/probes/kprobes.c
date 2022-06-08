@@ -335,7 +335,7 @@ static void __kprobes kprobe_handler(struct pt_regs *regs)
 }
 
 static int __kprobes
-kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned int esr)
+kprobe_breakpoint_ss_handler(struct pt_regs *regs, unsigned long esr)
 {
 	struct kprobe_ctlblk *kcb = get_kprobe_ctlblk();
 	unsigned long addr = instruction_pointer(regs);
@@ -359,7 +359,7 @@ static struct break_hook kprobes_break_ss_hook = {
 };
 
 static int __kprobes
-kprobe_breakpoint_handler(struct pt_regs *regs, unsigned int esr)
+kprobe_breakpoint_handler(struct pt_regs *regs, unsigned long esr)
 {
 	kprobe_handler(regs);
 	return DBG_HOOK_HANDLED;

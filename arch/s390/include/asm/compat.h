@@ -8,6 +8,7 @@
 #include <linux/sched.h>
 #include <linux/sched/task_stack.h>
 #include <linux/thread_info.h>
+#include <asm/ptrace.h>
 
 #define compat_mode_t	compat_mode_t
 typedef u16		compat_mode_t;
@@ -22,31 +23,7 @@ typedef u16		compat_mode_t;
 	(__force t)(__TYPE_IS_PTR(t) ? ((v) & 0x7fffffff) : (v)); \
 })
 
-#define PSW32_MASK_PER		0x40000000UL
-#define PSW32_MASK_DAT		0x04000000UL
-#define PSW32_MASK_IO		0x02000000UL
-#define PSW32_MASK_EXT		0x01000000UL
-#define PSW32_MASK_KEY		0x00F00000UL
-#define PSW32_MASK_BASE		0x00080000UL	/* Always one */
-#define PSW32_MASK_MCHECK	0x00040000UL
-#define PSW32_MASK_WAIT		0x00020000UL
-#define PSW32_MASK_PSTATE	0x00010000UL
-#define PSW32_MASK_ASC		0x0000C000UL
-#define PSW32_MASK_CC		0x00003000UL
-#define PSW32_MASK_PM		0x00000f00UL
-#define PSW32_MASK_RI		0x00000080UL
-
 #define PSW32_MASK_USER		0x0000FF00UL
-
-#define PSW32_ADDR_AMODE	0x80000000UL
-#define PSW32_ADDR_INSN		0x7FFFFFFFUL
-
-#define PSW32_DEFAULT_KEY	(((u32) PAGE_DEFAULT_ACC) << 20)
-
-#define PSW32_ASC_PRIMARY	0x00000000UL
-#define PSW32_ASC_ACCREG	0x00004000UL
-#define PSW32_ASC_SECONDARY	0x00008000UL
-#define PSW32_ASC_HOME		0x0000C000UL
 
 #define PSW32_USER_BITS (PSW32_MASK_DAT | PSW32_MASK_IO | PSW32_MASK_EXT | \
 			 PSW32_DEFAULT_KEY | PSW32_MASK_BASE | \

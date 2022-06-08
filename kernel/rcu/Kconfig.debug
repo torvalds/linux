@@ -28,9 +28,6 @@ config RCU_SCALE_TEST
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
-	select TASKS_RCU
-	select TASKS_RUDE_RCU
-	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs performance
@@ -47,9 +44,6 @@ config RCU_TORTURE_TEST
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
-	select TASKS_RCU
-	select TASKS_RUDE_RCU
-	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs torture tests
@@ -66,9 +60,6 @@ config RCU_REF_SCALE_TEST
 	depends on DEBUG_KERNEL
 	select TORTURE_TEST
 	select SRCU
-	select TASKS_RCU
-	select TASKS_RUDE_RCU
-	select TASKS_TRACE_RCU
 	default n
 	help
 	  This option provides a kernel module that runs performance tests
@@ -90,6 +81,20 @@ config RCU_CPU_STALL_TIMEOUT
 	  number of seconds, a CPU stall warning is printed.  If the
 	  RCU grace period persists, additional CPU stall warnings are
 	  printed at more widely spaced intervals.
+
+config RCU_EXP_CPU_STALL_TIMEOUT
+	int "Expedited RCU CPU stall timeout in milliseconds"
+	depends on RCU_STALL_COMMON
+	range 0 21000
+	default 20 if ANDROID
+	default 0 if !ANDROID
+	help
+	  If a given expedited RCU grace period extends more than the
+	  specified number of milliseconds, a CPU stall warning is printed.
+	  If the RCU grace period persists, additional CPU stall warnings
+	  are printed at more widely spaced intervals.  A value of zero
+	  says to use the RCU_CPU_STALL_TIMEOUT value converted from
+	  seconds to milliseconds.
 
 config RCU_TRACE
 	bool "Enable tracing for RCU"

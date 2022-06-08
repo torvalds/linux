@@ -145,15 +145,17 @@ static void * r10buf_pool_alloc(gfp_t gfp_flags, void *data)
 	 * Allocate bios.
 	 */
 	for (j = nalloc ; j-- ; ) {
-		bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
+		bio = bio_kmalloc(RESYNC_PAGES, gfp_flags);
 		if (!bio)
 			goto out_free_bio;
+		bio_init(bio, NULL, bio->bi_inline_vecs, RESYNC_PAGES, 0);
 		r10_bio->devs[j].bio = bio;
 		if (!conf->have_replacement)
 			continue;
-		bio = bio_kmalloc(gfp_flags, RESYNC_PAGES);
+		bio = bio_kmalloc(RESYNC_PAGES, gfp_flags);
 		if (!bio)
 			goto out_free_bio;
+		bio_init(bio, NULL, bio->bi_inline_vecs, RESYNC_PAGES, 0);
 		r10_bio->devs[j].repl_bio = bio;
 	}
 	/*
@@ -197,9 +199,11 @@ out_free_pages:
 out_free_bio:
 	for ( ; j < nalloc; j++) {
 		if (r10_bio->devs[j].bio)
-			bio_put(r10_bio->devs[j].bio);
+			bio_uninit(r10_bio->devs[j].bio);
+		kfree(r10_bio->devs[j].bio);
 		if (r10_bio->devs[j].repl_bio)
-			bio_put(r10_bio->devs[j].repl_bio);
+			bio_uninit(r10_bio->devs[j].repl_bio);
+		kfree(r10_bio->devs[j].repl_bio);
 	}
 	kfree(rps);
 out_free_r10bio:
@@ -220,12 +224,15 @@ static void r10buf_pool_free(void *__r10_bio, void *data)
 		if (bio) {
 			rp = get_resync_pages(bio);
 			resync_free_pages(rp);
-			bio_put(bio);
+			bio_uninit(bio);
+			kfree(bio);
 		}
 
 		bio = r10bio->devs[j].repl_bio;
-		if (bio)
-			bio_put(bio);
+		if (bio) {
+			bio_uninit(bio);
+			kfree(bio);
+		}
 	}
 
 	/* resync pages array stored in the 1st bio's .bi_private */
@@ -796,7 +803,7 @@ static struct md_rdev *read_balance(struct r10conf *conf,
 		if (!do_balance)
 			break;
 
-		nonrot = blk_queue_nonrot(bdev_get_queue(rdev->bdev));
+		nonrot = bdev_nonrot(rdev->bdev);
 		has_nonrot_disk |= nonrot;
 		pending = atomic_read(&rdev->nr_pending);
 		if (min_pending > pending && nonrot) {
@@ -888,7 +895,7 @@ static void flush_pending_writes(struct r10conf *conf)
 			if (test_bit(Faulty, &rdev->flags)) {
 				bio_io_error(bio);
 			} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
-					    !blk_queue_discard(bio->bi_bdev->bd_disk->queue)))
+					    !bdev_max_discard_sectors(bio->bi_bdev)))
 				/* Just ignore it */
 				bio_endio(bio);
 			else
@@ -1083,7 +1090,7 @@ static void raid10_unplug(struct blk_plug_cb *cb, bool from_schedule)
 		if (test_bit(Faulty, &rdev->flags)) {
 			bio_io_error(bio);
 		} else if (unlikely((bio_op(bio) ==  REQ_OP_DISCARD) &&
-				    !blk_queue_discard(bio->bi_bdev->bd_disk->queue)))
+				    !bdev_max_discard_sectors(bio->bi_bdev)))
 			/* Just ignore it */
 			bio_endio(bio);
 		else
@@ -1963,32 +1970,40 @@ static int enough(struct r10conf *conf, int ignore)
 		_enough(conf, 1, ignore);
 }
 
+/**
+ * raid10_error() - RAID10 error handler.
+ * @mddev: affected md device.
+ * @rdev: member device to fail.
+ *
+ * The routine acknowledges &rdev failure and determines new @mddev state.
+ * If it failed, then:
+ *	- &MD_BROKEN flag is set in &mddev->flags.
+ * Otherwise, it must be degraded:
+ *	- recovery is interrupted.
+ *	- &mddev->degraded is bumped.
+
+ * @rdev is marked as &Faulty excluding case when array is failed and
+ * &mddev->fail_last_dev is off.
+ */
 static void raid10_error(struct mddev *mddev, struct md_rdev *rdev)
 {
 	char b[BDEVNAME_SIZE];
 	struct r10conf *conf = mddev->private;
 	unsigned long flags;
 
-	/*
-	 * If it is not operational, then we have already marked it as dead
-	 * else if it is the last working disks with "fail_last_dev == false",
-	 * ignore the error, let the next level up know.
-	 * else mark the drive as failed
-	 */
 	spin_lock_irqsave(&conf->device_lock, flags);
-	if (test_bit(In_sync, &rdev->flags) && !mddev->fail_last_dev
-	    && !enough(conf, rdev->raid_disk)) {
-		/*
-		 * Don't fail the drive, just return an IO error.
-		 */
-		spin_unlock_irqrestore(&conf->device_lock, flags);
-		return;
+
+	if (test_bit(In_sync, &rdev->flags) && !enough(conf, rdev->raid_disk)) {
+		set_bit(MD_BROKEN, &mddev->flags);
+
+		if (!mddev->fail_last_dev) {
+			spin_unlock_irqrestore(&conf->device_lock, flags);
+			return;
+		}
 	}
 	if (test_and_clear_bit(In_sync, &rdev->flags))
 		mddev->degraded++;
-	/*
-	 * If recovery is running, make sure it aborts.
-	 */
+
 	set_bit(MD_RECOVERY_INTR, &mddev->recovery);
 	set_bit(Blocked, &rdev->flags);
 	set_bit(Faulty, &rdev->flags);
@@ -2144,8 +2159,6 @@ static int raid10_add_disk(struct mddev *mddev, struct md_rdev *rdev)
 		rcu_assign_pointer(p->rdev, rdev);
 		break;
 	}
-	if (mddev->queue && blk_queue_discard(bdev_get_queue(rdev->bdev)))
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, mddev->queue);
 
 	print_conf(conf);
 	return err;
@@ -4069,7 +4082,6 @@ static int raid10_run(struct mddev *mddev)
 	sector_t size;
 	sector_t min_offset_diff = 0;
 	int first = 1;
-	bool discard_supported = false;
 
 	if (mddev_init_writes_pending(mddev) < 0)
 		return -ENOMEM;
@@ -4140,20 +4152,9 @@ static int raid10_run(struct mddev *mddev)
 					  rdev->data_offset << 9);
 
 		disk->head_position = 0;
-
-		if (blk_queue_discard(bdev_get_queue(rdev->bdev)))
-			discard_supported = true;
 		first = 0;
 	}
 
-	if (mddev->queue) {
-		if (discard_supported)
-			blk_queue_flag_set(QUEUE_FLAG_DISCARD,
-						mddev->queue);
-		else
-			blk_queue_flag_clear(QUEUE_FLAG_DISCARD,
-						  mddev->queue);
-	}
 	/* need to check that every block has at least one working mirror */
 	if (!enough(conf, -1)) {
 		pr_err("md/raid10:%s: not enough operational mirrors.\n",
