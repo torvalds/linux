@@ -106,6 +106,7 @@ static const char * const intel_steering_types[] = {
 	"L3BANK",
 	"MSLICE",
 	"LNCF",
+	"INSTANCE 0",
 };
 
 static const struct intel_mmio_range icl_l3bank_steering_table[] = {
@@ -133,6 +134,27 @@ static const struct intel_mmio_range dg2_lncf_steering_table[] = {
 	{},
 };
 
+/*
+ * We have several types of MCR registers on PVC where steering to (0,0)
+ * will always provide us with a non-terminated value.  We'll stick them
+ * all in the same table for simplicity.
+ */
+static const struct intel_mmio_range pvc_instance0_steering_table[] = {
+	{ 0x004000, 0x004AFF },		/* HALF-BSLICE */
+	{ 0x008800, 0x00887F },		/* CC */
+	{ 0x008A80, 0x008AFF },		/* TILEPSMI */
+	{ 0x00B000, 0x00B0FF },		/* HALF-BSLICE */
+	{ 0x00B100, 0x00B3FF },		/* L3BANK */
+	{ 0x00C800, 0x00CFFF },		/* HALF-BSLICE */
+	{ 0x00D800, 0x00D8FF },		/* HALF-BSLICE */
+	{ 0x00DD00, 0x00DDFF },		/* BSLICE */
+	{ 0x00E900, 0x00E9FF },		/* HALF-BSLICE */
+	{ 0x00EC00, 0x00EEFF },		/* HALF-BSLICE */
+	{ 0x00F000, 0x00FFFF },		/* HALF-BSLICE */
+	{ 0x024180, 0x0241FF },		/* HALF-BSLICE */
+	{},
+};
+
 int intel_gt_init_mmio(struct intel_gt *gt)
 {
 	struct drm_i915_private *i915 = gt->i915;
@@ -146,7 +168,7 @@ int intel_gt_init_mmio(struct intel_gt *gt)
 	 * An mslice is unavailable only if both the meml3 for the slice is
 	 * disabled *and* all of the DSS in the slice (quadrant) are disabled.
 	 */
-	if (HAS_MSLICES(i915)) {
+	if (HAS_MSLICE_STEERING(i915)) {
 		gt->info.mslice_mask =
 			intel_slicemask_from_xehp_dssmask(gt->info.sseu.subslice_mask,
 							  GEN_DSS_PER_MSLICE);
@@ -158,7 +180,9 @@ int intel_gt_init_mmio(struct intel_gt *gt)
 			drm_warn(&i915->drm, "mslice mask all zero!\n");
 	}
 
-	if (IS_DG2(i915)) {
+	if (IS_PONTEVECCHIO(i915)) {
+		gt->steering_table[INSTANCE0] = pvc_instance0_steering_table;
+	} else if (IS_DG2(i915)) {
 		gt->steering_table[MSLICE] = xehpsdv_mslice_steering_table;
 		gt->steering_table[LNCF] = dg2_lncf_steering_table;
 	} else if (IS_XEHPSDV(i915)) {
@@ -172,7 +196,11 @@ int intel_gt_init_mmio(struct intel_gt *gt)
 			GEN10_L3BANK_MASK;
 		if (!gt->info.l3bank_mask) /* should be impossible! */
 			drm_warn(&i915->drm, "L3 bank mask is all zero!\n");
-	} else if (HAS_MSLICES(i915)) {
+	} else if (GRAPHICS_VER(i915) >= 11) {
+		/*
+		 * We expect all modern platforms to have at least some
+		 * type of steering that needs to be initialized.
+		 */
 		MISSING_CASE(INTEL_INFO(i915)->platform);
 	}
 
@@ -888,7 +916,7 @@ static void intel_gt_get_valid_steering(struct intel_gt *gt,
 		*subsliceid = __ffs(gt->info.l3bank_mask);
 		break;
 	case MSLICE:
-		GEM_WARN_ON(!HAS_MSLICES(gt->i915));
+		GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
 		*sliceid = __ffs(gt->info.mslice_mask);
 		*subsliceid = 0;	/* unused */
 		break;
@@ -897,9 +925,17 @@ static void intel_gt_get_valid_steering(struct intel_gt *gt,
 		 * An LNCF is always present if its mslice is present, so we
 		 * can safely just steer to LNCF 0 in all cases.
 		 */
-		GEM_WARN_ON(!HAS_MSLICES(gt->i915));
+		GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
 		*sliceid = __ffs(gt->info.mslice_mask) << 1;
 		*subsliceid = 0;	/* unused */
+		break;
+	case INSTANCE0:
+		/*
+		 * There are a lot of MCR types for which instance (0, 0)
+		 * will always provide a non-terminated value.
+		 */
+		*sliceid = 0;
+		*subsliceid = 0;
 		break;
 	default:
 		MISSING_CASE(type);
@@ -1020,7 +1056,9 @@ void intel_gt_report_steering(struct drm_printer *p, struct intel_gt *gt,
 		   gt->default_steering.groupid,
 		   gt->default_steering.instanceid);
 
-	if (HAS_MSLICES(gt->i915)) {
+	if (IS_PONTEVECCHIO(gt->i915)) {
+		report_steering_type(p, gt, INSTANCE0, dump_table);
+	} else if (HAS_MSLICE_STEERING(gt->i915)) {
 		report_steering_type(p, gt, MSLICE, dump_table);
 		report_steering_type(p, gt, LNCF, dump_table);
 	}

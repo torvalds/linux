@@ -1196,6 +1196,20 @@ xehp_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
+pvc_init_mcr(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	unsigned int dss;
+
+	/*
+	 * Setup implicit steering for COMPUTE and DSS ranges to the first
+	 * non-fused-off DSS.  All other types of MCR registers will be
+	 * explicitly steered.
+	 */
+	dss = intel_sseu_find_first_xehp_dss(&gt->info.sseu, 0, 0);
+	__add_mcr_wa(gt, wal, dss / GEN_DSS_PER_CSLICE, dss % GEN_DSS_PER_CSLICE);
+}
+
+static void
 icl_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
@@ -1494,6 +1508,8 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 static void
 pvc_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 {
+	pvc_init_mcr(gt, wal);
+
 	/* Wa_14015795083 */
 	wa_write_clr(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
 }

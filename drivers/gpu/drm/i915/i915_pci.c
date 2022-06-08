@@ -1021,7 +1021,7 @@ static const struct intel_device_info adl_p_info = {
 	.has_llc = 1, \
 	.has_logical_ring_contexts = 1, \
 	.has_logical_ring_elsq = 1, \
-	.has_mslices = 1, \
+	.has_mslice_steering = 1, \
 	.has_rc6 = 1, \
 	.has_reset_engine = 1, \
 	.has_rps = 1, \
@@ -1092,6 +1092,7 @@ static const struct intel_device_info ats_m_info = {
 	.has_3d_pipeline = 0, \
 	.has_guc_deprivilege = 1, \
 	.has_l3_ccs_read = 1, \
+	.has_mslice_steering = 0, \
 	.has_one_eu_per_fuse_bit = 1
 
 __maybe_unused

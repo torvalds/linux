@@ -59,6 +59,13 @@ enum intel_steering_type {
 	MSLICE,
 	LNCF,
 
+	/*
+	 * On some platforms there are multiple types of MCR registers that
+	 * will always return a non-terminated value at instance (0, 0).  We'll
+	 * lump those all into a single category to keep things simple.
+	 */
+	INSTANCE0,
+
 	NUM_STEERING_TYPES
 };
 
