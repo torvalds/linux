@@ -579,10 +579,10 @@ static int dmatest_func(void *data)
 	unsigned int		total_tests = 0;
 	dma_cookie_t		cookie;
 	enum dma_status		status;
-	enum dma_ctrl_flags 	flags;
+	enum dma_ctrl_flags	flags;
 	u8			*pq_coefs = NULL;
 	int			ret;
-	unsigned int 		buf_size;
+	unsigned int		buf_size;
 	struct dmatest_data	*src;
 	struct dmatest_data	*dst;
 	int			i;
