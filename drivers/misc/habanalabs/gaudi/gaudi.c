@@ -8054,13 +8054,20 @@ static void gaudi_handle_eqe(struct hl_device *hdev,
 reset_device:
 	reset_required = true;
 
-	if (hdev->asic_prop.fw_security_enabled && !reset_direct)
+	if (hdev->asic_prop.fw_security_enabled && !reset_direct) {
 		flags = HL_DRV_RESET_HARD | HL_DRV_RESET_BYPASS_REQ_TO_FW | fw_fatal_err_flag;
-	else if (hdev->hard_reset_on_fw_events)
+		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+	} else if (hdev->hard_reset_on_fw_events) {
 		flags = HL_DRV_RESET_HARD | HL_DRV_RESET_DELAY | fw_fatal_err_flag;
-	else
+		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+	} else {
 		reset_required = false;
+	}
 
+	/* despite reset doesn't execute. a notification on
+	 * occurred event needs to be sent here
+	 */
+	hl_notifier_event_send_all(hdev, event_mask);
 	if (reset_required)
 		hl_device_reset(hdev, flags);
 	else
