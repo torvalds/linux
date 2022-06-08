@@ -2245,9 +2245,9 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 				res = DID_ERROR << 16;
 			}
 
-			if (logit) {
-				if (sp->remap.remapped &&
-				    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_RJT) {
+			if (sp->remap.remapped &&
+			    ((u8 *)sp->remap.rsp.buf)[0] == ELS_LS_RJT) {
+				if (logit) {
 					ql_dbg(ql_dbg_user, vha, 0x503f,
 					    "%s IOCB Done LS_RJT hdl=%x comp_status=0x%x\n",
 					    type, sp->handle, comp_status);
@@ -2259,18 +2259,24 @@ qla24xx_els_ct_entry(scsi_qla_host_t *v, struct req_que *req,
 						pkt)->total_byte_count),
 					    e->s_id[0], e->s_id[2], e->s_id[1],
 					    e->d_id[2], e->d_id[1], e->d_id[0]);
-				} else {
-					ql_log(ql_log_info, vha, 0x503f,
-					    "%s IOCB Done hdl=%x comp_status=0x%x\n",
-					    type, sp->handle, comp_status);
-					ql_log(ql_log_info, vha, 0x503f,
-					    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
-					    fw_status[1], fw_status[2],
-					    le32_to_cpu(((struct els_sts_entry_24xx *)
-						pkt)->total_byte_count),
-					    e->s_id[0], e->s_id[2], e->s_id[1],
-					    e->d_id[2], e->d_id[1], e->d_id[0]);
 				}
+				if (sp->fcport && sp->fcport->flags & FCF_FCSP_DEVICE &&
+				    sp->type == SRB_ELS_CMD_HST_NOLOGIN) {
+					ql_dbg(ql_dbg_edif, vha, 0x911e,
+					    "%s rcv reject. Sched delete\n", __func__);
+					qlt_schedule_sess_for_deletion(sp->fcport);
+				}
+			} else if (logit) {
+				ql_log(ql_log_info, vha, 0x503f,
+				    "%s IOCB Done hdl=%x comp_status=0x%x\n",
+				    type, sp->handle, comp_status);
+				ql_log(ql_log_info, vha, 0x503f,
+				    "subcode 1=0x%x subcode 2=0x%x bytes=0x%x %02x%02x%02x -> %02x%02x%02x\n",
+				    fw_status[1], fw_status[2],
+				    le32_to_cpu(((struct els_sts_entry_24xx *)
+				    pkt)->total_byte_count),
+				    e->s_id[0], e->s_id[2], e->s_id[1],
+				    e->d_id[2], e->d_id[1], e->d_id[0]);
 			}
 		}
 		goto els_ct_done;
