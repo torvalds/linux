@@ -66,36 +66,20 @@ static const struct vin2_format isp_formats_st7110_iti[] = {
 static const struct vin2_format_table vin2_formats_table[] = {
 	/* VIN_LINE_WR */
 	{ vin2_formats_st7110, ARRAY_SIZE(vin2_formats_st7110) },
-	/* VIN_LINE_ISP0 */
+	/* VIN_LINE_ISP */
 	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
-	/* VIN_LINE_ISP0_SS0 */
+	/* VIN_LINE_ISP_SS0 */
 	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
-	/* VIN_LINE_ISP0_SS1 */
+	/* VIN_LINE_ISP_SS1 */
 	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
-	/* VIN_LINE_ISP0_ITIW */
+	/* VIN_LINE_ISP_ITIW */
 	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
-	/* VIN_LINE_ISP0_ITIR */
+	/* VIN_LINE_ISP_ITIR */
 	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
-	/* VIN_LINE_ISP0_RAW */
+	/* VIN_LINE_ISP_RAW */
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
-	/* VIN_LINE_ISP0_SCD_Y */
+	/* VIN_LINE_ISP_SCD_Y */
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
-#ifdef CONFIG_STF_DUAL_ISP
-	/* VIN_LINE_ISP1 */
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
-	/* VIN_LINE_ISP1_SS0 */
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
-	/* VIN_LINE_ISP1_SS1 */
-	{ isp_formats_st7110_uo, ARRAY_SIZE(isp_formats_st7110_uo) },
-	/* VIN_LINE_ISP1_ITIW */
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
-	/* VIN_LINE_ISP1_ITIR */
-	{ isp_formats_st7110_iti, ARRAY_SIZE(isp_formats_st7110_iti) },
-	/* VIN_LINE_ISP1_RAW */
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
-	/* VIN_LINE_ISP1_SCD_Y */
-	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },
-#endif
 };
 
 static void vin_buffer_done(struct vin_line *line, struct vin_params *params);
@@ -117,50 +101,27 @@ static char *get_line_subdevname(int line_id)
 	case VIN_LINE_WR:
 		name = "wr";
 		break;
-	case VIN_LINE_ISP0:
+	case VIN_LINE_ISP:
 		name = "isp0";
 		break;
-	case VIN_LINE_ISP0_SS0:
+	case VIN_LINE_ISP_SS0:
 		name = "isp0_ss0";
 		break;
-	case VIN_LINE_ISP0_SS1:
+	case VIN_LINE_ISP_SS1:
 		name = "isp0_ss1";
 		break;
-	case VIN_LINE_ISP0_ITIW:
+	case VIN_LINE_ISP_ITIW:
 		name = "isp0_itiw";
 		break;
-	case VIN_LINE_ISP0_ITIR:
+	case VIN_LINE_ISP_ITIR:
 		name = "isp0_itir";
 		break;
-	case VIN_LINE_ISP0_RAW:
+	case VIN_LINE_ISP_RAW:
 		name = "isp0_raw";
 		break;
-	case VIN_LINE_ISP0_SCD_Y:
+	case VIN_LINE_ISP_SCD_Y:
 		name = "isp0_scd_y";
 		break;
-#ifdef CONFIG_STF_DUAL_ISP
-	case VIN_LINE_ISP1:
-		name = "isp1";
-		break;
-	case VIN_LINE_ISP1_SS0:
-		name = "isp1_ss0";
-		break;
-	case VIN_LINE_ISP1_SS1:
-		name = "isp1_ss1";
-		break;
-	case VIN_LINE_ISP1_ITIW:
-		name = "isp1_itiw";
-		break;
-	case VIN_LINE_ISP1_ITIR:
-		name = "isp1_itir";
-		break;
-	case VIN_LINE_ISP1_RAW:
-		name = "isp1_raw";
-		break;
-	case VIN_LINE_ISP1_SCD_Y:
-		name = "isp1_scd_y";
-		break;
-#endif
 	default:
 		name = "unknow";
 		break;
@@ -220,76 +181,39 @@ int stf_vin_subdev_init(struct stfcamss *stfcamss)
 	}
 
 	ret = devm_request_irq(dev,
-			vin->isp0_irq, vin_dev->hw_ops->vin_isp_irq_handler,
-			0, "vin_isp0_irq", vin_dev);
+			vin->isp_irq, vin_dev->hw_ops->vin_isp_irq_handler,
+			0, "vin_isp_irq", vin_dev);
 	if (ret) {
-		st_err(ST_VIN, "failed to request isp0 irq\n");
+		st_err(ST_VIN, "failed to request isp irq\n");
 		goto out;
 	}
 
 	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
 #ifdef ISP_USE_CSI_AND_SC_DONE_INTERRUPT
 	ret = devm_request_irq(dev,
-			vin->isp0_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
-			0, "vin_isp0_csi_irq", vin_dev);
+			vin->isp_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
+			0, "vin_isp_csi_irq", vin_dev);
 	if (ret) {
-		st_err(ST_VIN, "failed to request isp0 raw irq\n");
+		st_err(ST_VIN, "failed to request isp raw irq\n");
 		goto out;
 	}
 
 	ret = devm_request_irq(dev,
-			vin->isp0_scd_irq, vin_dev->hw_ops->vin_isp_scd_irq_handler,
-			0, "vin_isp0_scd_irq", vin_dev);
+			vin->isp_scd_irq, vin_dev->hw_ops->vin_isp_scd_irq_handler,
+			0, "vin_isp_scd_irq", vin_dev);
 	if (ret) {
-		st_err(ST_VIN, "failed to request isp0 scd irq\n");
+		st_err(ST_VIN, "failed to request isp scd irq\n");
 		goto out;
 	}
 #endif
 
 	ret = devm_request_irq(dev,
-			vin->isp0_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
-			0, "vin_isp0_irq_csiline", vin_dev);
+			vin->isp_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
+			0, "vin_isp_irq_csiline", vin_dev);
 	if (ret) {
-		st_err(ST_VIN, "failed to request isp0 irq csiline\n");
+		st_err(ST_VIN, "failed to request isp irq csiline\n");
 		goto out;
 	}
-#ifdef CONFIG_STF_DUAL_ISP
-	ret = devm_request_irq(dev,
-			vin->isp1_irq, vin_dev->hw_ops->vin_isp_irq_handler,
-			0, "vin_isp1_irq", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp1 irq\n");
-		goto out;
-	}
-#ifdef ISP_USE_CSI_AND_SC_DONE_INTERRUPT
-
-	ret = devm_request_irq(dev,
-			vin->isp1_csi_irq, vin_dev->hw_ops->vin_isp_csi_irq_handler,
-			0, "vin_isp1_csi_irq", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp1 raw irq\n");
-		goto out;
-	}
-
-	ret = devm_request_irq(dev,
-			vin->isp1_scd_irq, vin_dev->hw_ops->vin_isp_scd_irq_handler,
-			0, "vin_isp1_scd_irq", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp1 scd irq\n");
-		goto out;
-	}
-
-#endif
-
-	st_info(ST_CAMSS, "%s, %d!\n", __func__, __LINE__);
-	ret = devm_request_irq(dev,
-			vin->isp1_irq_csiline, vin_dev->hw_ops->vin_isp_irq_csiline_handler,
-			0, "vin_isp1_irq_csiline", vin_dev);
-	if (ret) {
-		st_err(ST_VIN, "failed to request isp1 irq csiline\n");
-		goto out;
-	}
-#endif
 
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 1);
 	vin_dev->hw_ops->vin_wr_irq_enable(vin_dev, 0);
@@ -477,26 +401,15 @@ static u32 line_to_dummy_module(struct vin_line *line)
 	case VIN_LINE_WR:
 		dummy_module = STF_DUMMY_VIN;
 		break;
-	case VIN_LINE_ISP0:
-	case VIN_LINE_ISP0_SS0:
-	case VIN_LINE_ISP0_SS1:
-	case VIN_LINE_ISP0_ITIW:
-	case VIN_LINE_ISP0_ITIR:
-	case VIN_LINE_ISP0_RAW:
-	case VIN_LINE_ISP0_SCD_Y:
-		dummy_module = STF_DUMMY_ISP0;
+	case VIN_LINE_ISP:
+	case VIN_LINE_ISP_SS0:
+	case VIN_LINE_ISP_SS1:
+	case VIN_LINE_ISP_ITIW:
+	case VIN_LINE_ISP_ITIR:
+	case VIN_LINE_ISP_RAW:
+	case VIN_LINE_ISP_SCD_Y:
+		dummy_module = STF_DUMMY_ISP;
 		break;
-#ifdef CONFIG_STF_DUAL_ISP
-	case VIN_LINE_ISP1:
-	case VIN_LINE_ISP1_SS0:
-	case VIN_LINE_ISP1_SS1:
-	case VIN_LINE_ISP1_ITIW:
-	case VIN_LINE_ISP1_ITIR:
-	case VIN_LINE_ISP1_RAW:
-	case VIN_LINE_ISP1_SCD_Y:
-		dummy_module = STF_DUMMY_ISP1;
-		break;
-#endif
 	default:
 		dummy_module = STF_DUMMY_VIN;
 		break;
@@ -616,79 +529,79 @@ static void vin_set_dummy_buffer(struct vin_line *line, u32 pad)
 		} else {
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC];
 			vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
-				line->id - VIN_LINE_ISP0,
+				line->id - VIN_LINE_ISP,
 				buffer->paddr[0], buffer->paddr[1]);
 
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS0];
 			vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_SS0,
+				line->id - VIN_LINE_ISP_SS0,
 				buffer->paddr[0], buffer->paddr[1]);
 
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS1];
 			vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_SS1,
+				line->id - VIN_LINE_ISP_SS1,
 				buffer->paddr[0], buffer->paddr[1]);
 
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIW];
 			vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_ITIW,
+				line->id - VIN_LINE_ISP_ITIW,
 				buffer->paddr[0], buffer->paddr[1]);
 
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIR];
 			vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_ITIR,
+				line->id - VIN_LINE_ISP_ITIR,
 				buffer->paddr[0], buffer->paddr[1]);
 
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_RAW];
 			vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_RAW, buffer->paddr[0]);
+				line->id - VIN_LINE_ISP_RAW, buffer->paddr[0]);
 
 			buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SCD_Y];
 			vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_SCD_Y,
+				line->id - VIN_LINE_ISP_SCD_Y,
 				buffer->paddr[0], buffer->paddr[1], AWB_TYPE);
 		}
 		break;
 	case STF_ISP_PAD_SRC:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC];
 		vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
-			line->id - VIN_LINE_ISP0,
+			line->id - VIN_LINE_ISP,
 			buffer->paddr[0], buffer->paddr[1]);
 		break;
 	case STF_ISP_PAD_SRC_SS0:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS0];
 		vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_SS0,
+			line->id - VIN_LINE_ISP_SS0,
 			buffer->paddr[0], buffer->paddr[1]);
 		break;
 	case STF_ISP_PAD_SRC_SS1:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SS1];
 		vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_SS1,
+			line->id - VIN_LINE_ISP_SS1,
 			buffer->paddr[0], buffer->paddr[1]);
 		break;
 	case STF_ISP_PAD_SRC_ITIW:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIW];
 		vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_ITIW,
+			line->id - VIN_LINE_ISP_ITIW,
 			buffer->paddr[0], buffer->paddr[1]);
 		break;
 	case STF_ISP_PAD_SRC_ITIR:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_ITIR];
 		vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_ITIR,
+			line->id - VIN_LINE_ISP_ITIR,
 			buffer->paddr[0], buffer->paddr[1]);
 		break;
 	case STF_ISP_PAD_SRC_RAW:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_RAW];
 		vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_RAW,
+			line->id - VIN_LINE_ISP_RAW,
 			buffer->paddr[0]);
 		break;
 	case STF_ISP_PAD_SRC_SCD_Y:
 		buffer = &dummy_buffer->buffer[STF_ISP_PAD_SRC_SCD_Y];
 		vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_SCD_Y,
+			line->id - VIN_LINE_ISP_SCD_Y,
 			buffer->paddr[0], buffer->paddr[1], AWB_TYPE);
 		break;
 	default:
@@ -953,37 +866,37 @@ static void vin_output_init_addrs(struct vin_line *line)
 	switch (stf_vin_map_isp_line(line->id)) {
 	case STF_ISP_LINE_SRC:
 		vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
-			line->id - VIN_LINE_ISP0,
+			line->id - VIN_LINE_ISP,
 			y_addr, uv_addr);
 		break;
 	case STF_ISP_LINE_SRC_SS0:
 		vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_SS0,
+			line->id - VIN_LINE_ISP_SS0,
 			y_addr, uv_addr);
 		break;
 	case STF_ISP_LINE_SRC_SS1:
 		vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_SS1,
+			line->id - VIN_LINE_ISP_SS1,
 			y_addr, uv_addr);
 		break;
 	case STF_ISP_LINE_SRC_ITIW:
 		vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_ITIW,
+			line->id - VIN_LINE_ISP_ITIW,
 			y_addr, uv_addr);
 		break;
 	case STF_ISP_LINE_SRC_ITIR:
 		vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_ITIR,
+			line->id - VIN_LINE_ISP_ITIR,
 			y_addr, uv_addr);
 		break;
 	case STF_ISP_LINE_SRC_RAW:
 		vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_RAW, y_addr);
+			line->id - VIN_LINE_ISP_RAW, y_addr);
 		break;
 	case STF_ISP_LINE_SRC_SCD_Y:
 		output->frame_skip = ISP_AWB_OECF_SKIP_FRAME;
 		vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
-			line->id - VIN_LINE_ISP0_SCD_Y, y_addr, uv_addr,
+			line->id - VIN_LINE_ISP_SCD_Y, y_addr, uv_addr,
 			AWB_TYPE);
 		break;
 	default:
@@ -1297,36 +1210,36 @@ static void vin_change_buffer(struct vin_line *line)
 		switch (stf_vin_map_isp_line(line->id)) {
 		case STF_ISP_LINE_SRC:
 			vin_dev->hw_ops->vin_isp_set_yuv_addr(vin_dev,
-				line->id - VIN_LINE_ISP0,
+				line->id - VIN_LINE_ISP,
 				new_addr[0], new_addr[1]);
 			break;
 		case STF_ISP_LINE_SRC_SS0:
 			vin_dev->hw_ops->vin_isp_set_ss0_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_SS0,
+				line->id - VIN_LINE_ISP_SS0,
 				new_addr[0], new_addr[1]);
 			break;
 		case STF_ISP_LINE_SRC_SS1:
 			vin_dev->hw_ops->vin_isp_set_ss1_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_SS1,
+				line->id - VIN_LINE_ISP_SS1,
 				new_addr[0], new_addr[1]);
 			break;
 		case STF_ISP_LINE_SRC_ITIW:
 			vin_dev->hw_ops->vin_isp_set_itiw_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_ITIW,
+				line->id - VIN_LINE_ISP_ITIW,
 				new_addr[0], new_addr[1]);
 			break;
 		case STF_ISP_LINE_SRC_ITIR:
 			vin_dev->hw_ops->vin_isp_set_itir_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_ITIR,
+				line->id - VIN_LINE_ISP_ITIR,
 				new_addr[0], new_addr[1]);
 			break;
 		case STF_ISP_LINE_SRC_RAW:
 			vin_dev->hw_ops->vin_isp_set_raw_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_RAW, new_addr[0]);
+				line->id - VIN_LINE_ISP_RAW, new_addr[0]);
 			break;
 		case STF_ISP_LINE_SRC_SCD_Y:
 			scd_type = vin_dev->hw_ops->vin_isp_get_scd_type(vin_dev,
-					line->id - VIN_LINE_ISP0_SCD_Y);
+					line->id - VIN_LINE_ISP_SCD_Y);
 			ready_buf->vb.flags &= ~(V4L2_BUF_FLAG_PFRAME | V4L2_BUF_FLAG_BFRAME);
 			if (scd_type == AWB_TYPE)
 				ready_buf->vb.flags |= V4L2_BUF_FLAG_PFRAME;
@@ -1340,7 +1253,7 @@ static void vin_change_buffer(struct vin_line *line)
 				scd_type = scd_type == AWB_TYPE ? AWB_TYPE : OECF_TYPE;
 			}
 			vin_dev->hw_ops->vin_isp_set_scd_addr(vin_dev,
-				line->id - VIN_LINE_ISP0_SCD_Y, new_addr[0], new_addr[1],
+				line->id - VIN_LINE_ISP_SCD_Y, new_addr[0], new_addr[1],
 				scd_type);
 			break;
 		default:

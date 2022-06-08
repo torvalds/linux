@@ -389,18 +389,18 @@ static int stf_csi_config_set(struct stf_csiphy_dev *csiphy_dev, int is_raw10)
 {
 	struct stf_vin_dev *vin = csiphy_dev->stfcamss->vin;
 	u32 mipi_channel_sel, mipi_vc = 0;
-	enum sensor_type s_type = SENSOR_ISP0;
+	enum sensor_type s_type = SENSOR_ISP;
 
 	switch (s_type) {
 	case SENSOR_VIN:
 		break;
-	case SENSOR_ISP0:
+	case SENSOR_ISP:
 		reg_set_bit(vin->clkgen_base,
-				CLK_ISP0_MIPI_CTRL,
+				CLK_ISP_MIPI_CTRL,
 				BIT(24), csiphy_dev->id << 24);
 
 		reg_set_bit(vin->clkgen_base,
-				CLK_C_ISP0_CTRL,
+				CLK_C_ISP_CTRL,
 				BIT(25) | BIT(24),
 				csiphy_dev->id << 24);
 

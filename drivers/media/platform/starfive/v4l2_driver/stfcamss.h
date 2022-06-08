@@ -13,18 +13,12 @@
 enum sensor_type {
 	SENSOR_VIN,
 	/* need replace sensor */
-	SENSOR_ISP0,
-#ifdef CONFIG_STF_DUAL_ISP
-	SENSOR_ISP1,
-#endif
+	SENSOR_ISP,
 };
 
 enum subdev_type {
 	VIN_DEV_TYPE,
-	ISP0_DEV_TYPE,
-#ifdef CONFIG_STF_DUAL_ISP
-	ISP1_DEV_TYPE,
-#endif
+	ISP_DEV_TYPE,
 };
 
 #include "stf_common.h"

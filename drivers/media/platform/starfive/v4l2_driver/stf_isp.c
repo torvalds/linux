@@ -85,11 +85,8 @@ static const struct isp_format_table isp_formats_st7110[] = {
 int stf_isp_subdev_init(struct stfcamss *stfcamss, int id)
 {
 	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[id];
-#ifdef CONFIG_STF_DUAL_ISP
-	isp_dev->sdev_type = id == 0 ? ISP0_DEV_TYPE : ISP1_DEV_TYPE;
-#else
-	isp_dev->sdev_type = ISP0_DEV_TYPE;
-#endif
+
+	isp_dev->sdev_type = ISP_DEV_TYPE;
 	isp_dev->id = id;
 	isp_dev->hw_ops = &isp_ops;
 	isp_dev->stfcamss = stfcamss;

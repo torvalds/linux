@@ -793,12 +793,8 @@ static int stf_isp_clk_disable(struct stf_isp_dev *isp_dev)
 static  void __iomem *stf_isp_get_ispbase(
 		unsigned int isp_id, struct stf_vin_dev *vin)
 {
-	void __iomem *base = vin->isp_isp0_base;
+	void __iomem *base = vin->isp_base;
 
-#ifdef CONFIG_STF_DUAL_ISP
-	if (isp_id == 1)
-		base = vin->isp_isp1_base;
-#endif
 	return base;
 }
 

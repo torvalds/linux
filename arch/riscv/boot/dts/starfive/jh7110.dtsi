@@ -765,12 +765,11 @@
 				<0x0 0x19830000 0x0 0x10000>,
 				<0x0 0x19840000 0x0 0x10000>,
 				<0x0 0x19870000 0x0 0x30000>,
-				<0x0 0x198a0000 0x0 0x30000>,
 				<0x0 0x11840000 0x0 0x10000>,
 				<0x0 0x17030000 0x0 0x10000>,
 				<0x0 0x13020000 0x0 0x10000>;
 			reg-names = "mipi0", "vclk", "vrst", "mipi1", "sctrl",
-				"isp0", "isp1", "trst", "pmu", "syscrg";
+				"isp", "trst", "pmu", "syscrg";
 			clocks = <&clkisp JH7110_DOM4_APB_FUNC>,
 				 <&clkisp JH7110_U0_VIN_PCLK>,
 				 <&clkisp JH7110_U0_VIN_SYS_CLK>,
@@ -815,8 +814,8 @@
 				"rst_m31dphy_hw", "rst_m31dphy_b09_always_on",
 				"rst_isp_top_n", "rst_isp_top_axi";
 			power-domains = <&pwrc JH7110_PD_ISP>;
-			/* jh7110 hasn't isp1, duplicate isp0 irq nr, will remove it later */
-			interrupts = <92 87 88 89 87 88 89 90 90>;
+			/* irq nr: vin, isp, isp_csi, isp_scd, isp_csiline */
+			interrupts = <92 87 88 89 90>;
 			status = "disabled";
 		};
 

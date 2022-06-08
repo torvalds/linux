@@ -2,15 +2,6 @@
 # VIN sensor driver configuration
 #
 
-
-config STF_DUAL_ISP
-	bool "Starfive platform supports dual isp"
-	depends on VIDEO_STF_VIN
-	default n
-	help
-	  Say Y here if you want to have support for dual isp
-	  for Starfive Soc.
-
 config VIN_SENSOR_OV5640
 	bool "VIN SENSOR support OV5640"
 	depends on VIDEO_STF_VIN

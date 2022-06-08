@@ -49,10 +49,7 @@ static const struct reg_name mem_reg_name[] = {
 	{"vrst"},
 	{"mipi1"},
 	{"sctrl"},
-	{"isp0"},
-#ifdef CONFIG_STF_DUAL_ISP
-	{"isp1"},
-#endif
+	{"isp"},
 	{"trst"},
 	{"pmu"},
 	{"syscrg"},
@@ -129,16 +126,10 @@ int stfcamss_get_mem_res(struct platform_device *pdev, struct stf_vin_dev *vin)
 			vin->sysctrl_base = devm_ioremap_resource(dev, res);
 			if (IS_ERR(vin->sysctrl_base))
 				return PTR_ERR(vin->sysctrl_base);
-		} else if (!strcmp(name, "isp0")) {
-			vin->isp_isp0_base = devm_ioremap_resource(dev, res);
-			if (IS_ERR(vin->isp_isp0_base))
-				return PTR_ERR(vin->isp_isp0_base);
-#ifdef CONFIG_STF_DUAL_ISP
-		} else if (!strcmp(name, "isp1")) {
-			vin->isp_isp1_base = devm_ioremap_resource(dev, res);
-			if (IS_ERR(vin->isp_isp1_base))
-				return PTR_ERR(vin->isp_isp1_base);
-#endif
+		} else if (!strcmp(name, "isp")) {
+			vin->isp_base = devm_ioremap_resource(dev, res);
+			if (IS_ERR(vin->isp_base))
+				return PTR_ERR(vin->isp_base);
 		} else if (!strcmp(name, "trst")) {
 			vin->vin_top_rstgen_base = devm_ioremap_resource(dev, res);
 			if (IS_ERR(vin->vin_top_rstgen_base))
@@ -446,14 +437,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP0]
+				vin_dev->line[i + VIN_LINE_ISP]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -462,14 +453,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC_SS0,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_SS0].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SS0].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP0_SS0]
+				vin_dev->line[i + VIN_LINE_ISP_SS0]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -477,14 +468,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC_SS1,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_SS1].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SS1].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_SS1]
+				vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SS1]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -492,14 +483,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC_ITIW,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_ITIW].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_ITIW].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP0_ITIW]
+				vin_dev->line[i + VIN_LINE_ISP_ITIW]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -507,14 +498,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC_ITIR,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_ITIR].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_ITIR].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP0_ITIR]
+				vin_dev->line[i + VIN_LINE_ISP_ITIR]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -522,14 +513,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC_RAW,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_RAW].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_RAW].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP0_RAW]
+				vin_dev->line[i + VIN_LINE_ISP_RAW]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -537,14 +528,14 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		ret = media_create_pad_link(
 			&isp_dev[i].subdev.entity,
 			STF_ISP_PAD_SRC_SCD_Y,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP0_SCD_Y].subdev.entity,
+			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SCD_Y].subdev.entity,
 			STF_VIN_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
 				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP0_SCD_Y]
+				vin_dev->line[i + VIN_LINE_ISP_SCD_Y]
 				.subdev.entity.name,
 				ret);
 			goto err_link;
@@ -777,10 +768,7 @@ static const struct media_device_ops stfcamss_media_ops = {
 #ifdef CONFIG_DEBUG_FS
 enum module_id {
 	VIN_MODULE = 0,
-	ISP0_MODULE,
-#ifdef CONFIG_STF_DUAL_ISP
-	ISP1_MODULE,
-#endif
+	ISP_MODULE,
 	CSI0_MODULE,
 	CSI1_MODULE,
 	CSIPHY_MODULE,
@@ -788,14 +776,14 @@ enum module_id {
 	CLK_MODULE,
 };
 
-static enum module_id id_num = ISP0_MODULE;
+static enum module_id id_num = ISP_MODULE;
 
 void dump_clk_reg(void __iomem *reg_base)
 {
 	int i;
 
 	st_info(ST_CAMSS, "DUMP Clk register:\n");
-	for (i = 0; i <= CLK_C_ISP1_CTRL; i += 4)
+	for (i = 0; i <= CLK_C_ISP_CTRL; i += 4)
 		print_reg(ST_CAMSS, reg_base, i);
 }
 
@@ -807,10 +795,7 @@ static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 	struct stfcamss *stfcamss = dev_get_drvdata(dev);
 	struct stf_vin_dev *vin = stfcamss->vin;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
-	struct stf_isp_dev *isp0_dev = &stfcamss->isp_dev[0];
-#ifdef CONFIG_STF_DUAL_ISP
-	struct stf_isp_dev *isp1_dev = &stfcamss->isp_dev[1];
-#endif
+	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[0];
 	struct stf_csi_dev *csi0_dev = &stfcamss->csi_dev[0];
 	struct stf_csi_dev *csi1_dev = &stfcamss->csi_dev[1];
 
@@ -825,24 +810,14 @@ static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 		}
 		mutex_unlock(&vin_dev->power_lock);
 		break;
-	case ISP0_MODULE:
-		mutex_lock(&isp0_dev->stream_lock);
-		if (isp0_dev->stream_count > 0) {
-			reg_base = vin->isp_isp0_base;
+	case ISP_MODULE:
+		mutex_lock(&isp_dev->stream_lock);
+		if (isp_dev->stream_count > 0) {
+			reg_base = vin->isp_base;
 			dump_isp_reg(reg_base, 0);
 		}
-		mutex_unlock(&isp0_dev->stream_lock);
+		mutex_unlock(&isp_dev->stream_lock);
 		break;
-#ifdef CONFIG_STF_DUAL_ISP
-	case ISP1_MODULE:
-		mutex_lock(&isp1_dev->stream_lock);
-		if (isp1_dev->stream_count > 0) {
-			reg_base = vin->isp_isp1_base;
-			dump_isp_reg(reg_base, 1);
-		}
-		mutex_unlock(&isp1_dev->stream_lock);
-		break;
-#endif
 	case CSI0_MODULE:
 		mutex_lock(&csi0_dev->stream_lock);
 		if (csi0_dev->stream_count > 0) {
@@ -878,10 +853,7 @@ static void set_reg_val(struct stfcamss *stfcamss, int id, u32 offset, u32 val)
 {
 	struct stf_vin_dev *vin = stfcamss->vin;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
-	struct stf_isp_dev *isp0_dev = &stfcamss->isp_dev[0];
-#ifdef CONFIG_STF_DUAL_ISP
-	struct stf_isp_dev *isp1_dev = &stfcamss->isp_dev[1];
-#endif
+	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[0];
 	struct stf_csi_dev *csi0_dev = &stfcamss->csi_dev[0];
 	struct stf_csi_dev *csi1_dev = &stfcamss->csi_dev[1];
 	void __iomem *reg_base;
@@ -899,28 +871,16 @@ static void set_reg_val(struct stfcamss *stfcamss, int id, u32 offset, u32 val)
 		}
 		mutex_unlock(&vin_dev->power_lock);
 		break;
-	case ISP0_MODULE:
-		mutex_lock(&isp0_dev->stream_lock);
-		if (isp0_dev->stream_count > 0) {
-			reg_base = vin->isp_isp0_base;
+	case ISP_MODULE:
+		mutex_lock(&isp_dev->stream_lock);
+		if (isp_dev->stream_count > 0) {
+			reg_base = vin->isp_base;
 			print_reg(ST_ISP, reg_base, offset);
 			reg_write(reg_base, offset, val);
 			print_reg(ST_ISP, reg_base, offset);
 		}
-		mutex_unlock(&isp0_dev->stream_lock);
+		mutex_unlock(&isp_dev->stream_lock);
 		break;
-#ifdef CONFIG_STF_DUAL_ISP
-	case ISP1_MODULE:
-		mutex_lock(&isp1_dev->stream_lock);
-		if (isp1_dev->stream_count > 0) {
-			reg_base = vin->isp_isp1_base;
-			print_reg(ST_ISP, reg_base, offset);
-			reg_write(reg_base, offset, val);
-			print_reg(ST_ISP, reg_base, offset);
-		}
-		mutex_unlock(&isp1_dev->stream_lock);
-		break;
-#endif
 	case CSI0_MODULE:
 		mutex_lock(&csi0_dev->stream_lock);
 		if (csi0_dev->stream_count > 0) {
@@ -1056,11 +1016,8 @@ static int stfcamss_probe(struct platform_device *pdev)
 	stfcamss = devm_kzalloc(dev, sizeof(struct stfcamss), GFP_KERNEL);
 	if (!stfcamss)
 		return -ENOMEM;
-#ifdef CONFIG_STF_DUAL_ISP
-	stfcamss->isp_num = 2;
-#else
+
 	stfcamss->isp_num = 1;
-#endif
 	stfcamss->csi_num = 2;
 #ifndef CONFIG_VIDEO_CADENCE_CSI2RX
 	stfcamss->csiphy_num = 2;
@@ -1123,55 +1080,29 @@ static int stfcamss_probe(struct platform_device *pdev)
 		goto err_cam;
 	}
 
-	vin->isp0_irq = platform_get_irq(pdev, 1);
-	if (vin->isp0_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp0 irq\n");
+	vin->isp_irq = platform_get_irq(pdev, 1);
+	if (vin->isp_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp irq\n");
 		goto err_cam;
 	}
 
-	vin->isp0_csi_irq = platform_get_irq(pdev, 2);
-	if (vin->isp0_csi_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp0 csi irq\n");
+	vin->isp_csi_irq = platform_get_irq(pdev, 2);
+	if (vin->isp_csi_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp csi irq\n");
 		goto err_cam;
 	}
 
-	vin->isp0_scd_irq = platform_get_irq(pdev, 3);
-	if (vin->isp0_scd_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp0 scd irq\n");
+	vin->isp_scd_irq = platform_get_irq(pdev, 3);
+	if (vin->isp_scd_irq <= 0) {
+		st_err(ST_CAMSS, "Could not get isp scd irq\n");
 		goto err_cam;
 	}
 
-	vin->isp0_irq_csiline = platform_get_irq(pdev, 7);
-	if (vin->isp0_irq_csiline <= 0) {
-		st_err(ST_CAMSS, "Could not get isp0 irq csiline\n");
+	vin->isp_irq_csiline = platform_get_irq(pdev, 4);
+	if (vin->isp_irq_csiline <= 0) {
+		st_err(ST_CAMSS, "Could not get isp irq csiline\n");
 		goto err_cam;
 	}
-
-#ifdef CONFIG_STF_DUAL_ISP
-	vin->isp1_irq = platform_get_irq(pdev, 4);
-	if (vin->isp1_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp1 irq\n");
-		goto err_cam;
-	}
-
-	vin->isp1_csi_irq = platform_get_irq(pdev, 5);
-	if (vin->isp1_csi_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp1 csi irq\n");
-		goto err_cam;
-	}
-
-	vin->isp1_scd_irq = platform_get_irq(pdev, 6);
-	if (vin->isp1_scd_irq <= 0) {
-		st_err(ST_CAMSS, "Could not get isp1 scd irq\n");
-		goto err_cam;
-	}
-
-	vin->isp1_irq_csiline = platform_get_irq(pdev, 8);
-	if (vin->isp1_irq_csiline <= 0) {
-		st_err(ST_CAMSS, "Could not get isp1 irq csiline\n");
-		goto err_cam;
-	}
-#endif
 
 	stfcamss->nclks = ARRAY_SIZE(stfcamss_clocks);
 	stfcamss->sys_clk = stfcamss_clocks;

@@ -12,13 +12,7 @@
 #include <video/stf-vin.h>
 
 #define STF_ISP_NAME "stf_isp"
-
-//#define ISP_USE_CSI_AND_SC_DONE_INTERRUPT  1
-
-#define STF_ISP0_SETFILE     "stf_isp0_fw.bin"
-#ifdef CONFIG_STF_DUAL_ISP
-#define STF_ISP1_SETFILE     "stf_isp1_fw.bin"
-#endif
+#define STF_ISP_SETFILE     "stf_isp0_fw.bin"
 
 #define ISP_SCD_BUFFER_SIZE     (19 * 256 * 4)  // align 128
 #define ISP_YHIST_BUFFER_SIZE   (64 * 4)
