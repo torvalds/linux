@@ -253,5 +253,8 @@ void mt76_connac2_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 bool mt76_connac2_mac_add_txs_skb(struct mt76_dev *dev, struct mt76_wcid *wcid,
 				  int pid, __le32 *txs_data,
 				  struct mt76_sta_stats *stats);
+void mt76_connac2_mac_decode_he_radiotap(struct mt76_dev *dev,
+					 struct sk_buff *skb,
+					 __le32 *rxv, u32 mode);
 
 #endif /* __MT76_CONNAC_H */
