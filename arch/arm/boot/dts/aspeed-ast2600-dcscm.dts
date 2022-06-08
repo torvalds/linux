@@ -64,19 +64,19 @@
 				label = "rofs";
 			};
 
-			image-stging@4220000 {
+			rc-image@4220000 {
 				reg = <0x4220000 0x3de0000>; // 63360KB
-				label = "img-stg";
-			};
-
-			rc-image@8000000 {
-				reg = <0x8000000 0x3de0000>; // 63360KB
 				label = "rc-image";
 			};
 
-			image-stging-2@bde0000 {
+			img-stg@8000000 {
+				reg = <0x8000000 0x3de0000>; // 63360KB
+				label = "img-stg";
+			};
+
+			pch-stg@bde0000 {
 				reg = <0xbde0000 0x1000000>; // 16384KB
-				label = "img-stg-2";
+				label = "pch-stg";
 			};
 
 			afm-active@cde0000 {
