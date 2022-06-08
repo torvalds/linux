@@ -822,7 +822,10 @@ struct mlx5_cqe64 {
 	__be32		timestamp_l;
 	__be32		sop_drop_qpn;
 	__be16		wqe_counter;
-	u8		signature;
+	union {
+		u8	signature;
+		u8	validity_iteration_count;
+	};
 	u8		op_own;
 };
 
@@ -854,6 +857,11 @@ enum {
 	MLX5_CQE_FORMAT_CSUM_STRIDX = 0x3,
 };
 
+enum {
+	MLX5_CQE_COMPRESS_LAYOUT_BASIC = 0,
+	MLX5_CQE_COMPRESS_LAYOUT_ENHANCED = 1,
+};
+
 #define MLX5_MINI_CQE_ARRAY_SIZE 8
 
 static inline u8 mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
@@ -864,6 +872,12 @@ static inline u8 mlx5_get_cqe_format(struct mlx5_cqe64 *cqe)
 static inline u8 get_cqe_opcode(struct mlx5_cqe64 *cqe)
 {
 	return cqe->op_own >> 4;
+}
+
+static inline u8 get_cqe_enhanced_num_mini_cqes(struct mlx5_cqe64 *cqe)
+{
+	/* num_of_mini_cqes is zero based */
+	return get_cqe_opcode(cqe) + 1;
 }
 
 static inline u8 get_cqe_lro_tcppsh(struct mlx5_cqe64 *cqe)

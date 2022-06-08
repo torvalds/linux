@@ -1739,7 +1739,9 @@ struct mlx5_ifc_cmd_hca_cap_bits {
 	u8	   log_max_dci_errored_streams[0x5];
 	u8	   reserved_at_598[0x8];
 
-	u8         reserved_at_5a0[0x13];
+	u8         reserved_at_5a0[0x10];
+	u8         enhanced_cqe_compression[0x1];
+	u8         reserved_at_5b1[0x2];
 	u8         log_max_dek[0x5];
 	u8         reserved_at_5b8[0x4];
 	u8         mini_cqe_resp_stride_index[0x1];
@@ -4139,7 +4141,8 @@ struct mlx5_ifc_cqc_bits {
 	u8         cqe_comp_en[0x1];
 	u8         mini_cqe_res_format[0x2];
 	u8         st[0x4];
-	u8         reserved_at_18[0x8];
+	u8         reserved_at_18[0x6];
+	u8         cqe_compression_layout[0x2];
 
 	u8         reserved_at_20[0x20];
 
