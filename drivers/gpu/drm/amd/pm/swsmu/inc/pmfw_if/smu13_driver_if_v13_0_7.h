@@ -25,10 +25,10 @@
 
 // *** IMPORTANT ***
 // PMFW TEAM: Always increment the interface version on any change to this file
-#define SMU13_DRIVER_IF_VERSION  0x28
+#define SMU13_DRIVER_IF_VERSION  0x2A
 
 //Increment this version if SkuTable_t or BoardTable_t change
-#define PPTABLE_VERSION 0x1D
+#define PPTABLE_VERSION 0x1E
 
 #define NUM_GFXCLK_DPM_LEVELS    16
 #define NUM_SOCCLK_DPM_LEVELS    8
@@ -111,6 +111,22 @@
 #define FEATURE_SPARE_62_BIT                  62
 #define FEATURE_SPARE_63_BIT                  63
 #define NUM_FEATURES                          64
+
+#define ALLOWED_FEATURE_CTRL_DEFAULT 0xFFFFFFFFFFFFFFFFULL
+#define ALLOWED_FEATURE_CTRL_SCPM        (1 << FEATURE_DPM_GFXCLK_BIT) | \
+                                         (1 << FEATURE_DPM_GFX_POWER_OPTIMIZER_BIT) | \
+                                         (1 << FEATURE_DPM_UCLK_BIT) | \
+                                         (1 << FEATURE_DPM_FCLK_BIT) | \
+                                         (1 << FEATURE_DPM_SOCCLK_BIT) | \
+                                         (1 << FEATURE_DPM_MP0CLK_BIT) | \
+                                         (1 << FEATURE_DPM_LINK_BIT) | \
+                                         (1 << FEATURE_DPM_DCN_BIT) | \
+                                         (1 << FEATURE_DS_GFXCLK_BIT) | \
+                                         (1 << FEATURE_DS_SOCCLK_BIT) | \
+                                         (1 << FEATURE_DS_FCLK_BIT) | \
+                                         (1 << FEATURE_DS_LCLK_BIT) | \
+                                         (1 << FEATURE_DS_DCFCLK_BIT) | \
+                                         (1 << FEATURE_DS_UCLK_BIT)
 
 //For use with feature control messages
 typedef enum {
@@ -662,7 +678,7 @@ typedef struct {
 #define PP_NUM_OD_VF_CURVE_POINTS PP_NUM_RTAVFS_PWL_ZONES + 1
 
 
-#define PP_OD_FEATURE_VF_CURVE_BIT  0
+#define PP_OD_FEATURE_GFX_VF_CURVE_BIT  0
 #define PP_OD_FEATURE_VMAX_BIT      1
 #define PP_OD_FEATURE_PPT_BIT       2
 #define PP_OD_FEATURE_FAN_CURVE_BIT 3
@@ -671,6 +687,8 @@ typedef struct {
 #define PP_OD_FEATURE_TDC_BIT      6
 #define PP_OD_FEATURE_GFXCLK_BIT      7
 #define PP_OD_FEATURE_UCLK_BIT      8
+#define PP_OD_FEATURE_ZERO_FAN_BIT      9
+#define PP_OD_FEATURE_TEMPERATURE_BIT 10
 
 typedef enum {
   PP_OD_POWER_FEATURE_ALWAYS_ENABLED,
@@ -689,8 +707,8 @@ typedef struct {
   uint8_t                RuntimePwrSavingFeaturesCtrl;
 
   //Frequency changes
-  uint16_t               GfxclkFmin;           // MHz
-  uint16_t               GfxclkFmax;           // MHz
+  int16_t               GfxclkFmin;           // MHz
+  int16_t               GfxclkFmax;           // MHz
   uint16_t               UclkFmin;             // MHz
   uint16_t               UclkFmax;             // MHz
 
@@ -701,17 +719,17 @@ typedef struct {
   //Fan control
   uint8_t                FanLinearPwmPoints[NUM_OD_FAN_MAX_POINTS];
   uint8_t                FanLinearTempPoints[NUM_OD_FAN_MAX_POINTS];
-  uint16_t               FanMaximumRpm;
   uint16_t               FanMinimumPwm;
-  uint16_t               FanAcousticLimitRpm;
+  uint16_t               AcousticTargetRpmThreshold;
+  uint16_t               AcousticLimitRpmThreshold;
   uint16_t               FanTargetTemperature; // Degree Celcius
   uint8_t                FanZeroRpmEnable;
   uint8_t                FanZeroRpmStopTemp;
   uint8_t                FanMode;
-  uint8_t                Padding[1];
+  uint8_t                MaxOpTemp;
+  uint8_t                Padding[4];
 
-
-  uint32_t               Spare[13];
+  uint32_t               Spare[12];
   uint32_t               MmHubPadding[8]; // SMU internal use. Adding here instead of external as a workaround
 } OverDriveTable_t;
 
@@ -740,17 +758,17 @@ typedef struct {
 
   uint8_t                FanLinearPwmPoints;
   uint8_t                FanLinearTempPoints;
-  uint16_t               FanMaximumRpm;
   uint16_t               FanMinimumPwm;
-  uint16_t               FanAcousticLimitRpm;
+  uint16_t               AcousticTargetRpmThreshold;
+  uint16_t               AcousticLimitRpmThreshold;
   uint16_t               FanTargetTemperature; // Degree Celcius
   uint8_t                FanZeroRpmEnable;
   uint8_t                FanZeroRpmStopTemp;
   uint8_t                FanMode;
-  uint8_t                Padding[1];
+  uint8_t                MaxOpTemp;
+  uint8_t                Padding[4];
 
-
-  uint32_t               Spare[13];
+  uint32_t               Spare[12];
 
 } OverDriveLimits_t;
 
@@ -1018,7 +1036,8 @@ typedef struct {
   uint16_t SocketPowerLimitAcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF in ms
   uint16_t SocketPowerLimitDcTau[PPT_THROTTLER_COUNT]; // Time constant of LPF in ms
 
-  uint32_t       SpareVmin[12];
+  QuadraticInt_t Vmin_droop;
+  uint32_t       SpareVmin[9];
 
 
   //SECTION: DPM Configuration 1
@@ -1307,7 +1326,6 @@ typedef struct {
   uint32_t    PostVoltageSetBacoDelay; // in microseconds. Amount of time FW will wait after power good is established or PSI0 command is issued
   uint32_t    BacoEntryDelay; // in milliseconds. Amount of time FW will wait to trigger BACO entry after receiving entry notification from OS
 
-
   // SECTION: Board Reserved
   uint32_t     BoardSpare[64];
 
@@ -1382,8 +1400,14 @@ typedef struct {
   uint16_t AverageDclk0Frequency  ;
   uint16_t AverageVclk1Frequency  ;
   uint16_t AverageDclk1Frequency  ;
+  uint16_t PCIeBusy               ;
+  uint16_t dGPU_W_MAX             ;
+  uint16_t padding                ;
+
+  uint32_t MetricsCounter         ;
 
   uint16_t AvgVoltage[SVI_PLANE_COUNT];
+  uint16_t AvgCurrent[SVI_PLANE_COUNT];
 
   uint16_t AverageGfxActivity    ;
   uint16_t AverageUclkActivity   ;
@@ -1415,11 +1439,13 @@ typedef struct {
 
   uint16_t AverageUclkActivity_MAX;
 
+  uint32_t PublicSerialNumberLower;
+  uint32_t PublicSerialNumberUpper;
 } SmuMetrics_t;
 
 typedef struct {
   SmuMetrics_t SmuMetrics;
-  uint32_t Spare[32];
+  uint32_t Spare[30];
 
   // Padding - ignore
   uint32_t     MmHubPadding[8]; // SMU internal use
