@@ -148,17 +148,17 @@ struct Vmxnet3_TxDesc {
 
 #ifdef __BIG_ENDIAN_BITFIELD
 	u32 msscof:14;  /* MSS, checksum offset, flags */
-	u32 ext1:1;
+	u32 ext1:1;     /* set to 1 to indicate inner csum/tso, vmxnet3 v7 */
 	u32 dtype:1;    /* descriptor type */
-	u32 oco:1;
+	u32 oco:1;      /* Outer csum offload */
 	u32 gen:1;      /* generation bit */
 	u32 len:14;
 #else
 	u32 len:14;
 	u32 gen:1;      /* generation bit */
-	u32 oco:1;
+	u32 oco:1;      /* Outer csum offload */
 	u32 dtype:1;    /* descriptor type */
-	u32 ext1:1;
+	u32 ext1:1;     /* set to 1 to indicate inner csum/tso, vmxnet3 v7 */
 	u32 msscof:14;  /* MSS, checksum offset, flags */
 #endif  /* __BIG_ENDIAN_BITFIELD */
 
@@ -262,11 +262,13 @@ struct Vmxnet3_RxCompDesc {
 	u32		rqID:10;      /* rx queue/ring ID */
 	u32		sop:1;        /* Start of Packet */
 	u32		eop:1;        /* End of Packet */
-	u32		ext1:2;
+	u32		ext1:2;       /* bit 0: indicating v4/v6/.. is for inner header */
+				      /* bit 1: indicating rssType is based on inner header */
 	u32		rxdIdx:12;    /* Index of the RxDesc */
 #else
 	u32		rxdIdx:12;    /* Index of the RxDesc */
-	u32		ext1:2;
+	u32		ext1:2;       /* bit 0: indicating v4/v6/.. is for inner header */
+				      /* bit 1: indicating rssType is based on inner header */
 	u32		eop:1;        /* End of Packet */
 	u32		sop:1;        /* Start of Packet */
 	u32		rqID:10;      /* rx queue/ring ID */
