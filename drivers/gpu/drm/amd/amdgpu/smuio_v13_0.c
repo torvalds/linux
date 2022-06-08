@@ -58,7 +58,7 @@ static void smuio_v13_0_update_rom_clock_gating(struct amdgpu_device *adev, bool
 		WREG32_SOC15(SMUIO, 0, regCGTT_ROM_CLK_CTRL0, data);
 }
 
-static void smuio_v13_0_get_clock_gating_state(struct amdgpu_device *adev, u32 *flags)
+static void smuio_v13_0_get_clock_gating_state(struct amdgpu_device *adev, u64 *flags)
 {
 	u32 data;
 

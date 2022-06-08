@@ -9,6 +9,7 @@
 
 #include <linux/devfreq.h>
 #include <linux/devfreq_cooling.h>
+#include <linux/math64.h>
 #include <linux/units.h>
 
 /*
@@ -49,18 +50,95 @@ static unsigned long get_freq(struct msm_gpu *gpu)
 	return clk_get_rate(gpu->core_clk);
 }
 
+static void get_raw_dev_status(struct msm_gpu *gpu,
+		struct devfreq_dev_status *status)
+{
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	u64 busy_cycles, busy_time;
+	unsigned long sample_rate;
+	ktime_t time;
+
+	status->current_frequency = get_freq(gpu);
+	busy_cycles = gpu->funcs->gpu_busy(gpu, &sample_rate);
+	time = ktime_get();
+
+	busy_time = busy_cycles - df->busy_cycles;
+	status->total_time = ktime_us_delta(time, df->time);
+
+	df->busy_cycles = busy_cycles;
+	df->time = time;
+
+	busy_time *= USEC_PER_SEC;
+	do_div(busy_time, sample_rate);
+	if (WARN_ON(busy_time > ~0LU))
+		busy_time = ~0LU;
+
+	status->busy_time = busy_time;
+}
+
+static void update_average_dev_status(struct msm_gpu *gpu,
+		const struct devfreq_dev_status *raw)
+{
+	struct msm_gpu_devfreq *df = &gpu->devfreq;
+	const u32 polling_ms = df->devfreq->profile->polling_ms;
+	const u32 max_history_ms = polling_ms * 11 / 10;
+	struct devfreq_dev_status *avg = &df->average_status;
+	u64 avg_freq;
+
+	/* simple_ondemand governor interacts poorly with gpu->clamp_to_idle.
+	 * When we enforce the constraint on idle, it calls get_dev_status
+	 * which would normally reset the stats.  When we remove the
+	 * constraint on active, it calls get_dev_status again where busy_time
+	 * would be 0.
+	 *
+	 * To remedy this, we always return the average load over the past
+	 * polling_ms.
+	 */
+
+	/* raw is longer than polling_ms or avg has no history */
+	if (div_u64(raw->total_time, USEC_PER_MSEC) >= polling_ms ||
+	    !avg->total_time) {
+		*avg = *raw;
+		return;
+	}
+
+	/* Truncate the oldest history first.
+	 *
+	 * Because we keep the history with a single devfreq_dev_status,
+	 * rather than a list of devfreq_dev_status, we have to assume freq
+	 * and load are the same over avg->total_time.  We can scale down
+	 * avg->busy_time and avg->total_time by the same factor to drop
+	 * history.
+	 */
+	if (div_u64(avg->total_time + raw->total_time, USEC_PER_MSEC) >=
+			max_history_ms) {
+		const u32 new_total_time = polling_ms * USEC_PER_MSEC -
+			raw->total_time;
+		avg->busy_time = div_u64(
+				mul_u32_u32(avg->busy_time, new_total_time),
+				avg->total_time);
+		avg->total_time = new_total_time;
+	}
+
+	/* compute the average freq over avg->total_time + raw->total_time */
+	avg_freq = mul_u32_u32(avg->current_frequency, avg->total_time);
+	avg_freq += mul_u32_u32(raw->current_frequency, raw->total_time);
+	do_div(avg_freq, avg->total_time + raw->total_time);
+
+	avg->current_frequency = avg_freq;
+	avg->busy_time += raw->busy_time;
+	avg->total_time += raw->total_time;
+}
+
 static int msm_devfreq_get_dev_status(struct device *dev,
 		struct devfreq_dev_status *status)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
-	ktime_t time;
+	struct devfreq_dev_status raw;
 
-	status->current_frequency = get_freq(gpu);
-	status->busy_time = gpu->funcs->gpu_busy(gpu);
-
-	time = ktime_get();
-	status->total_time = ktime_us_delta(time, gpu->devfreq.time);
-	gpu->devfreq.time = time;
+	get_raw_dev_status(gpu, &raw);
+	update_average_dev_status(gpu, &raw);
+	*status = gpu->devfreq.average_status;
 
 	return 0;
 }
@@ -224,7 +302,6 @@ void msm_devfreq_boost(struct msm_gpu *gpu, unsigned factor)
 void msm_devfreq_active(struct msm_gpu *gpu)
 {
 	struct msm_gpu_devfreq *df = &gpu->devfreq;
-	struct devfreq_dev_status status;
 	unsigned int idle_time;
 
 	if (!has_devfreq(gpu))
@@ -248,12 +325,6 @@ void msm_devfreq_active(struct msm_gpu *gpu)
 
 	dev_pm_qos_update_request(&df->idle_freq,
 				  PM_QOS_MAX_FREQUENCY_DEFAULT_VALUE);
-
-	/*
-	 * Reset the polling interval so we aren't inconsistent
-	 * about freq vs busy/total cycles
-	 */
-	msm_devfreq_get_dev_status(&gpu->pdev->dev, &status);
 }
 
 

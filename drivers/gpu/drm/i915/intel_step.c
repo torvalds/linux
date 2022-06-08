@@ -131,6 +131,10 @@ static const struct intel_step_info adls_rpls_revids[] = {
 	[0xC] = { COMMON_GT_MEDIA_STEP(D0), .display_step = STEP_C0 },
 };
 
+static const struct intel_step_info adlp_n_revids[] = {
+	[0x0] = { COMMON_GT_MEDIA_STEP(A0), .display_step = STEP_D0 },
+};
+
 void intel_step_init(struct drm_i915_private *i915)
 {
 	const struct intel_step_info *revids = NULL;
@@ -150,6 +154,9 @@ void intel_step_init(struct drm_i915_private *i915)
 	} else if (IS_XEHPSDV(i915)) {
 		revids = xehpsdv_revids;
 		size = ARRAY_SIZE(xehpsdv_revids);
+	} else if (IS_ADLP_N(i915)) {
+		revids = adlp_n_revids;
+		size = ARRAY_SIZE(adlp_n_revids);
 	} else if (IS_ALDERLAKE_P(i915)) {
 		revids = adlp_revids;
 		size = ARRAY_SIZE(adlp_revids);
