@@ -290,14 +290,16 @@ static int hp_wmi_perform_query(int query, enum hp_wmi_command command,
 	struct bios_return *bios_return;
 	union acpi_object *obj = NULL;
 	struct bios_args *args = NULL;
-	int mid, actual_outsize, ret;
+	int mid, actual_insize, actual_outsize;
 	size_t bios_args_size;
+	int ret;
 
 	mid = encode_outsize_for_pvsz(outsize);
 	if (WARN_ON(mid < 0))
 		return mid;
 
-	bios_args_size = struct_size(args, data, insize);
+	actual_insize = max(insize, 128);
+	bios_args_size = struct_size(args, data, actual_insize);
 	args = kmalloc(bios_args_size, GFP_KERNEL);
 	if (!args)
 		return -ENOMEM;
