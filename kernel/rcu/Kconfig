@@ -8,6 +8,8 @@ menu "RCU Subsystem"
 config TREE_RCU
 	bool
 	default y if SMP
+	# Dynticks-idle tracking
+	select CONTEXT_TRACKING_IDLE
 	help
 	  This option selects the RCU implementation that is
 	  designed for very large SMP system with hundreds or

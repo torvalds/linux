@@ -53,14 +53,14 @@ static noinline int __cpuidle cpu_idle_poll(void)
 {
 	trace_cpu_idle(0, smp_processor_id());
 	stop_critical_timings();
-	rcu_idle_enter();
+	ct_idle_enter();
 	local_irq_enable();
 
 	while (!tif_need_resched() &&
 	       (cpu_idle_force_poll || tick_check_broadcast_expired()))
 		cpu_relax();
 
-	rcu_idle_exit();
+	ct_idle_exit();
 	start_critical_timings();
 	trace_cpu_idle(PWR_EVENT_EXIT, smp_processor_id());
 
@@ -98,12 +98,12 @@ void __cpuidle default_idle_call(void)
 		 *
 		 * Trace IRQs enable here, then switch off RCU, and have
 		 * arch_cpu_idle() use raw_local_irq_enable(). Note that
-		 * rcu_idle_enter() relies on lockdep IRQ state, so switch that
+		 * ct_idle_enter() relies on lockdep IRQ state, so switch that
 		 * last -- this is very similar to the entry code.
 		 */
 		trace_hardirqs_on_prepare();
 		lockdep_hardirqs_on_prepare();
-		rcu_idle_enter();
+		ct_idle_enter();
 		lockdep_hardirqs_on(_THIS_IP_);
 
 		arch_cpu_idle();
@@ -116,7 +116,7 @@ void __cpuidle default_idle_call(void)
 		 */
 		raw_local_irq_disable();
 		lockdep_hardirqs_off(_THIS_IP_);
-		rcu_idle_exit();
+		ct_idle_exit();
 		lockdep_hardirqs_on(_THIS_IP_);
 		raw_local_irq_enable();
 

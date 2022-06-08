@@ -76,6 +76,12 @@ config TIME_KUNIT_TEST
 config CONTEXT_TRACKING
 	bool
 
+config CONTEXT_TRACKING_IDLE
+	bool
+	select CONTEXT_TRACKING
+	help
+	  Tracks idle state on behalf of RCU.
+
 if GENERIC_CLOCKEVENTS
 menu "Timers subsystem"
 

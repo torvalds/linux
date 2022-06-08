@@ -22,6 +22,21 @@
 #include <linux/export.h>
 #include <linux/kprobes.h>
 
+
+#ifdef CONFIG_CONTEXT_TRACKING_IDLE
+noinstr void ct_idle_enter(void)
+{
+	rcu_idle_enter();
+}
+EXPORT_SYMBOL_GPL(ct_idle_enter);
+
+void ct_idle_exit(void)
+{
+	rcu_idle_exit();
+}
+EXPORT_SYMBOL_GPL(ct_idle_exit);
+#endif /* #ifdef CONFIG_CONTEXT_TRACKING_IDLE */
+
 #ifdef CONFIG_CONTEXT_TRACKING_USER
 
 #define CREATE_TRACE_POINTS

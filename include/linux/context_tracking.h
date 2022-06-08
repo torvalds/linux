@@ -119,4 +119,12 @@ extern void context_tracking_init(void);
 static inline void context_tracking_init(void) { }
 #endif /* CONFIG_CONTEXT_TRACKING_USER_FORCE */
 
+#ifdef CONFIG_CONTEXT_TRACKING_IDLE
+extern void ct_idle_enter(void);
+extern void ct_idle_exit(void);
+#else
+static inline void ct_idle_enter(void) { }
+static inline void ct_idle_exit(void) { }
+#endif /* !CONFIG_CONTEXT_TRACKING_IDLE */
+
 #endif
