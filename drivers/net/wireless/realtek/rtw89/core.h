@@ -2809,13 +2809,20 @@ enum rtw89_multi_cfo_mode {
 enum rtw89_phy_cfo_status {
 	RTW89_PHY_DCFO_STATE_NORMAL = 0,
 	RTW89_PHY_DCFO_STATE_ENHANCE = 1,
+	RTW89_PHY_DCFO_STATE_HOLD = 2,
 	RTW89_PHY_DCFO_STATE_MAX
+};
+
+enum rtw89_phy_cfo_ul_ofdma_acc_mode {
+	RTW89_CFO_UL_OFDMA_ACC_DISABLE = 0,
+	RTW89_CFO_UL_OFDMA_ACC_ENABLE = 1
 };
 
 struct rtw89_cfo_tracking_info {
 	u16 cfo_timer_ms;
 	bool cfo_trig_by_timer_en;
 	enum rtw89_phy_cfo_status phy_cfo_status;
+	enum rtw89_phy_cfo_ul_ofdma_acc_mode cfo_ul_ofdma_acc_mode;
 	u8 phy_cfo_trk_cnt;
 	bool is_adjust;
 	enum rtw89_multi_cfo_mode rtw89_multi_cfo_mode;

@@ -2151,6 +2151,7 @@ static void rtw89_phy_cfo_init(struct rtw89_dev *rtwdev)
 	cfo->cfo_trig_by_timer_en = false;
 	cfo->phy_cfo_trk_cnt = 0;
 	cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_NORMAL;
+	cfo->cfo_ul_ofdma_acc_mode = RTW89_CFO_UL_OFDMA_ACC_ENABLE;
 }
 
 static void rtw89_phy_cfo_crystal_cap_adjust(struct rtw89_dev *rtwdev,
@@ -2419,6 +2420,13 @@ void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev)
 {
 	struct rtw89_cfo_tracking_info *cfo = &rtwdev->cfo_tracking;
 	struct rtw89_traffic_stats *stats = &rtwdev->stats;
+	bool is_ul_ofdma = false, ofdma_acc_en = false;
+
+	if (stats->rx_tf_periodic > CFO_TF_CNT_TH)
+		is_ul_ofdma = true;
+	if (cfo->cfo_ul_ofdma_acc_mode == RTW89_CFO_UL_OFDMA_ACC_ENABLE &&
+	    is_ul_ofdma)
+		ofdma_acc_en = true;
 
 	switch (cfo->phy_cfo_status) {
 	case RTW89_PHY_DCFO_STATE_NORMAL:
@@ -2430,16 +2438,26 @@ void rtw89_phy_cfo_track(struct rtw89_dev *rtwdev)
 		}
 		break;
 	case RTW89_PHY_DCFO_STATE_ENHANCE:
-		if (cfo->phy_cfo_trk_cnt >= CFO_PERIOD_CNT) {
+		if (stats->tx_throughput <= CFO_TP_LOWER)
+			cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_NORMAL;
+		else if (ofdma_acc_en &&
+			 cfo->phy_cfo_trk_cnt >= CFO_PERIOD_CNT)
+			cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_HOLD;
+		else
+			cfo->phy_cfo_trk_cnt++;
+
+		if (cfo->phy_cfo_status == RTW89_PHY_DCFO_STATE_NORMAL) {
 			cfo->phy_cfo_trk_cnt = 0;
 			cfo->cfo_trig_by_timer_en = false;
 		}
-		if (cfo->cfo_trig_by_timer_en == 1)
-			cfo->phy_cfo_trk_cnt++;
+		break;
+	case RTW89_PHY_DCFO_STATE_HOLD:
 		if (stats->tx_throughput <= CFO_TP_LOWER) {
 			cfo->phy_cfo_status = RTW89_PHY_DCFO_STATE_NORMAL;
 			cfo->phy_cfo_trk_cnt = 0;
 			cfo->cfo_trig_by_timer_en = false;
+		} else {
+			cfo->phy_cfo_trk_cnt++;
 		}
 		break;
 	default:
