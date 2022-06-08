@@ -585,28 +585,34 @@
 				label = "rc-image";
 			};
 
-			image-stging@4a00000 {
-				reg = <0x4a00000 0x3400000>; // 53248KB
+			image-stg@4a00000 {
+				reg = <0x4a00000 0x2000000>; // 53248KB
 				label = "img-stg";
 			};
-			afm-active@7e00000 {
-				reg = <0x7e00000 0x20000>;
-				label = "afm-active";
+
+			pch-stg@6a00000 {
+				reg = <0x6a00000 0x1000000>; // 16384KB
+				label = "pch-stg";
 			};
 
-			afm-recovery@7e20000 {
-				reg = <0x7e20000 0x20000>;
-				label = "afm-rcvr";
+			pfr-stg@7a00000 {
+				reg = <0x7a00000 0x500000>; // 5120KB
+				label = "pfr-stg";
 			};
 
-			reserved@7e40000 {
-				reg = <0x7e40000 0xc0000>;
-				label = "rsvrd";
+			afm-act@7f00000 {
+				reg = <0x7f00000 0x20000>; // 128KB
+				label = "afm-act";
 			};
 
-			cpld-gold@7f00000 {
-				reg = <0x7f00000 0x100000>;
-				label = "cpld-gold";
+			afm-rc@7f20000 {
+				reg = <0x7f20000 0x20000>; // 128KB
+				label = "afm-rc";
+			};
+
+			reserved@7f40000 {
+				reg = <0x7f40000 0xc0000>; // 768KB
+				label = "reserved";
 			};
 		};
 	};

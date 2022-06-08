@@ -69,7 +69,7 @@
 				label = "rc-image";
 			};
 
-			img-stg@8000000 {
+			image-stg@8000000 {
 				reg = <0x8000000 0x3de0000>; // 63360KB
 				label = "img-stg";
 			};
@@ -79,24 +79,24 @@
 				label = "pch-stg";
 			};
 
-			afm-active@cde0000 {
+			pfr-stg@cde0000 {
 				reg = <0xcde0000 0x500000>; // 5120KB
-				label = "afm-active";
+				label = "pfr-stg";
 			};
 
-			afm-recovery@d2e0000 {
-				reg = <0xd2e0000 0x100000>; // 1024KB
-				label = "afm-rcvr";
+			afm-act@d2e0000 {
+				reg = <0xd2e0000 0x20000>; // 128KB
+				label = "afm-act";
 			};
 
-			reserved@d3e0000 {
-				reg = <0xd3e0000 0x2b20000>; // 44160KB
-				label = "rsvrd";
+			afm-rc@d300000 {
+				reg = <0xd300000 0x20000>; // 128KB
+				label = "afm-rc";
 			};
 
-			cpld-gold@ff00000 {
-				reg = <0xff00000 0x100000>; // 1024KB
-				label = "cpld-gold";
+			reserved@d320000 {
+				reg = <0xd320000 0x2ce0000>; // 45952KB
+				label = "reserved";
 			};
 		};
 	};
