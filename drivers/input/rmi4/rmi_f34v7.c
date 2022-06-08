@@ -72,6 +72,24 @@ static int rmi_f34v7_wait_for_idle(struct f34_data *f34, int timeout_ms)
 	return 0;
 }
 
+static int rmi_f34v7_check_command_status(struct f34_data *f34, int timeout_ms)
+{
+	int ret;
+
+	ret = rmi_f34v7_wait_for_idle(f34, timeout_ms);
+	if (ret < 0)
+		return ret;
+
+	ret = rmi_f34v7_read_flash_status(f34);
+	if (ret < 0)
+		return ret;
+
+	if (f34->v7.flash_status != 0x00)
+		return -EIO;
+
+	return 0;
+}
+
 static int rmi_f34v7_write_command_single_transaction(struct f34_data *f34,
 						      u8 cmd)
 {
@@ -318,6 +336,10 @@ static int rmi_f34v7_read_partition_table(struct f34_data *f34)
 		return ret;
 	}
 
+	/*
+	 * rmi_f34v7_check_command_status() can't be used here, as this
+	 * function is called before IRQs are available
+	 */
 	timeout = msecs_to_jiffies(F34_WRITE_WAIT_MS);
 	while (time_before(jiffies, timeout)) {
 		usleep_range(5000, 6000);
@@ -674,7 +696,7 @@ static int rmi_f34v7_erase_config(struct f34_data *f34)
 		break;
 	}
 
-	ret = rmi_f34v7_wait_for_idle(f34, F34_ERASE_WAIT_MS);
+	ret = rmi_f34v7_check_command_status(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -693,7 +715,7 @@ static int rmi_f34v7_erase_guest_code(struct f34_data *f34)
 	if (ret < 0)
 		return ret;
 
-	ret = rmi_f34v7_wait_for_idle(f34, F34_ERASE_WAIT_MS);
+	ret = rmi_f34v7_check_command_status(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -712,7 +734,7 @@ static int rmi_f34v7_erase_all(struct f34_data *f34)
 	if (ret < 0)
 		return ret;
 
-	ret = rmi_f34v7_wait_for_idle(f34, F34_ERASE_WAIT_MS);
+	ret = rmi_f34v7_check_command_status(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -787,7 +809,7 @@ static int rmi_f34v7_read_blocks(struct f34_data *f34,
 		if (ret < 0)
 			return ret;
 
-		ret = rmi_f34v7_wait_for_idle(f34, F34_ENABLE_WAIT_MS);
+		ret = rmi_f34v7_check_command_status(f34, F34_ENABLE_WAIT_MS);
 		if (ret < 0)
 			return ret;
 
@@ -871,7 +893,7 @@ static int rmi_f34v7_write_f34v7_blocks(struct f34_data *f34,
 			return ret;
 		}
 
-		ret = rmi_f34v7_wait_for_idle(f34, F34_ENABLE_WAIT_MS);
+		ret = rmi_f34v7_check_command_status(f34, F34_ENABLE_WAIT_MS);
 		if (ret < 0)
 			return ret;
 
@@ -944,7 +966,7 @@ static int rmi_f34v7_write_flash_config(struct f34_data *f34)
 	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
 		"%s: Erase flash config command written\n", __func__);
 
-	ret = rmi_f34v7_wait_for_idle(f34, F34_WRITE_WAIT_MS);
+	ret = rmi_f34v7_check_command_status(f34, F34_WRITE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
@@ -1297,7 +1319,7 @@ static int rmi_f34v7_enter_flash_prog(struct f34_data *f34)
 	if (ret < 0)
 		return ret;
 
-	ret = rmi_f34v7_wait_for_idle(f34, F34_ENABLE_WAIT_MS);
+	ret = rmi_f34v7_check_command_status(f34, F34_ENABLE_WAIT_MS);
 	if (ret < 0)
 		return ret;
 
