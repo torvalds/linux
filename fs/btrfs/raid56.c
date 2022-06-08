@@ -1547,9 +1547,9 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 {
 	int bios_to_read = 0;
 	struct bio_list bio_list;
+	const int nr_data_sectors = rbio->stripe_nsectors * rbio->nr_data;
 	int ret;
-	int sectornr;
-	int stripe;
+	int total_sector_nr;
 	struct bio *bio;
 
 	bio_list_init(&bio_list);
@@ -1561,38 +1561,35 @@ static int raid56_rmw_stripe(struct btrfs_raid_bio *rbio)
 	index_rbio_pages(rbio);
 
 	atomic_set(&rbio->error, 0);
-	/*
-	 * build a list of bios to read all the missing parts of this
-	 * stripe
-	 */
-	for (stripe = 0; stripe < rbio->nr_data; stripe++) {
-		for (sectornr = 0; sectornr < rbio->stripe_nsectors; sectornr++) {
-			struct sector_ptr *sector;
+	/* Build a list of bios to read all the missing data sectors. */
+	for (total_sector_nr = 0; total_sector_nr < nr_data_sectors;
+	     total_sector_nr++) {
+		struct sector_ptr *sector;
+		int stripe = total_sector_nr / rbio->stripe_nsectors;
+		int sectornr = total_sector_nr % rbio->stripe_nsectors;
 
-			/*
-			 * We want to find all the sectors missing from the
-			 * rbio and read them from the disk.  If * sector_in_rbio()
-			 * finds a page in the bio list we don't need to read
-			 * it off the stripe.
-			 */
-			sector = sector_in_rbio(rbio, stripe, sectornr, 1);
-			if (sector)
-				continue;
+		/*
+		 * We want to find all the sectors missing from the rbio and
+		 * read them from the disk.  If sector_in_rbio() finds a page
+		 * in the bio list we don't need to read it off the stripe.
+		 */
+		sector = sector_in_rbio(rbio, stripe, sectornr, 1);
+		if (sector)
+			continue;
 
-			sector = rbio_stripe_sector(rbio, stripe, sectornr);
-			/*
-			 * The bio cache may have handed us an uptodate page.
-			 * If so, be happy and use it.
-			 */
-			if (sector->uptodate)
-				continue;
+		sector = rbio_stripe_sector(rbio, stripe, sectornr);
+		/*
+		 * The bio cache may have handed us an uptodate page.  If so,
+		 * use it.
+		 */
+		if (sector->uptodate)
+			continue;
 
-			ret = rbio_add_io_sector(rbio, &bio_list, sector,
-				       stripe, sectornr, rbio->stripe_len,
-				       REQ_OP_READ);
-			if (ret)
-				goto cleanup;
-		}
+		ret = rbio_add_io_sector(rbio, &bio_list, sector,
+			       stripe, sectornr, rbio->stripe_len,
+			       REQ_OP_READ);
+		if (ret)
+			goto cleanup;
 	}
 
 	bios_to_read = bio_list_size(&bio_list);
