@@ -63,6 +63,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E0D0C0>;
 			next-level-cache = <&L3_CA55_0>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_1: cpu@100 {
@@ -72,6 +73,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E0D0C1>;
 			next-level-cache = <&L3_CA55_0>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_2: cpu@10000 {
@@ -81,6 +83,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E0D1C0>;
 			next-level-cache = <&L3_CA55_1>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_3: cpu@10100 {
@@ -90,6 +93,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E0D1C1>;
 			next-level-cache = <&L3_CA55_1>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_4: cpu@20000 {
@@ -99,6 +103,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E1D0C0>;
 			next-level-cache = <&L3_CA55_2>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_5: cpu@20100 {
@@ -108,6 +113,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E1D0C1>;
 			next-level-cache = <&L3_CA55_2>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_6: cpu@30000 {
@@ -117,6 +123,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E1D1C0>;
 			next-level-cache = <&L3_CA55_3>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		a55_7: cpu@30100 {
@@ -126,6 +133,7 @@
 			power-domains = <&sysc R8A779F0_PD_A1E1D1C1>;
 			next-level-cache = <&L3_CA55_3>;
 			enable-method = "psci";
+			cpu-idle-states = <&CPU_SLEEP_0>;
 		};
 
 		L3_CA55_0: cache-controller-0 {
@@ -154,6 +162,19 @@
 			power-domains = <&sysc R8A779F0_PD_A2E1D1>;
 			cache-unified;
 			cache-level = <3>;
+		};
+
+		idle-states {
+			entry-method = "psci";
+
+			CPU_SLEEP_0: cpu-sleep-0 {
+				compatible = "arm,idle-state";
+				arm,psci-suspend-param = <0x0010000>;
+				local-timer-stop;
+				entry-latency-us = <400>;
+				exit-latency-us = <500>;
+				min-residency-us = <4000>;
+			};
 		};
 	};
 
