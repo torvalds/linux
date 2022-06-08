@@ -2158,6 +2158,11 @@ typedef struct {
 #define CS_IOCB_ERROR		0x31	/* Generic error for IOCB request
 					   failure */
 #define CS_REJECT_RECEIVED	0x4E	/* Reject received */
+#define CS_EDIF_AUTH_ERROR	0x63	/* decrypt error */
+#define CS_EDIF_PAD_LEN_ERROR	0x65	/* pad > frame size, not 4byte align */
+#define CS_EDIF_INV_REQ		0x66	/* invalid request */
+#define CS_EDIF_SPI_ERROR	0x67	/* rx frame unable to locate sa */
+#define CS_EDIF_HDR_ERROR	0x69	/* data frame != expected len */
 #define CS_BAD_PAYLOAD		0x80	/* Driver defined */
 #define CS_UNKNOWN		0x81	/* Driver defined */
 #define CS_RETRY		0x82	/* Driver defined */
