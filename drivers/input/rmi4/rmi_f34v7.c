@@ -1107,8 +1107,11 @@ static int rmi_f34v7_enter_flash_prog(struct f34_data *f34)
 	if (ret < 0)
 		return ret;
 
-	if (f34->v7.in_bl_mode)
+	if (f34->v7.in_bl_mode) {
+		dev_info(&f34->fn->dev, "%s: Device in bootloader mode\n",
+			 __func__);
 		return 0;
+	}
 
 	init_completion(&f34->v7.cmd_done);
 
@@ -1127,32 +1130,16 @@ int rmi_f34v7_start_reflash(struct f34_data *f34, const struct firmware *fw)
 {
 	int ret = 0;
 
-	f34->fn->rmi_dev->driver->set_irq_bits(f34->fn->rmi_dev, f34->fn->irq_mask);
-
 	f34->v7.config_area = v7_UI_CONFIG_AREA;
 	f34->v7.image = fw->data;
 
 	ret = rmi_f34v7_parse_image_info(f34);
 	if (ret < 0)
-		goto exit;
+		return ret;
 
 	dev_info(&f34->fn->dev, "Firmware image OK\n");
 
-	ret = rmi_f34v7_read_flash_status(f34);
-	if (ret < 0)
-		goto exit;
-
-	if (f34->v7.in_bl_mode) {
-		dev_info(&f34->fn->dev, "%s: Device in bootloader mode\n",
-				__func__);
-	}
-
-	rmi_f34v7_enter_flash_prog(f34);
-
-	return 0;
-
-exit:
-	return ret;
+	return rmi_f34v7_enter_flash_prog(f34);
 }
 
 int rmi_f34v7_probe(struct f34_data *f34)
