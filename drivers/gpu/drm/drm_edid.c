@@ -4498,8 +4498,6 @@ static const void *__cea_db_iter_edid_next(struct cea_db_iter *iter)
 
 		iter->index = 4;
 		iter->end = ext[2];
-		if (iter->end == 0)
-			iter->end = 127;
 		if (iter->end < 4 || iter->end > 127)
 			continue;
 
