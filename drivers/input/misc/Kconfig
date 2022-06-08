@@ -186,6 +186,17 @@ config INPUT_PMIC8XXX_PWRKEY
 	  To compile this driver as a module, choose M here: the
 	  module will be called pmic8xxx-pwrkey.
 
+config INPUT_QCOM_HV_HAPTICS
+	tristate "QTI High Voltage Haptics support"
+	depends on MFD_SPMI_PMIC
+	help
+	  This option enables device driver support for the high voltage haptics
+	  peripheral found on Qualcomm Technologies, Inc. PMICs.  The high voltage
+	  haptics peripheral is capable of driving either LRA or ERM vibrators with
+	  drive voltage up to 10 V, and its 5 integrated pattern sources can be used
+	  for playing different vibration effects. To compile this driver as a module,
+	  choose M here: the module will be called qcom-hv-haptics.
+
 config INPUT_SPARCSPKR
 	tristate "SPARC Speaker support"
 	depends on PCI && SPARC64
