@@ -455,6 +455,7 @@ enum {
 
 	MLX5_OPCODE_UMR			= 0x25,
 
+	MLX5_OPCODE_ACCESS_ASO		= 0x2d,
 };
 
 enum {
