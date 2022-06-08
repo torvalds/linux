@@ -1,18 +1,20 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Context tracking: Probe on high level context boundaries such as kernel
- * and userspace. This includes syscalls and exceptions entry/exit.
+ * Context tracking: Probe on high level context boundaries such as kernel,
+ * userspace, guest or idle.
  *
  * This is used by RCU to remove its dependency on the timer tick while a CPU
- * runs in userspace.
+ * runs in idle, userspace or guest mode.
  *
- *  Started by Frederic Weisbecker:
+ * User/guest tracking started by Frederic Weisbecker:
  *
- * Copyright (C) 2012 Red Hat, Inc., Frederic Weisbecker <fweisbec@redhat.com>
+ * Copyright (C) 2012 Red Hat, Inc., Frederic Weisbecker
  *
  * Many thanks to Gilad Ben-Yossef, Paul McKenney, Ingo Molnar, Andrew Morton,
  * Steven Rostedt, Peter Zijlstra for suggestions and improvements.
  *
+ * RCU extended quiescent state bits imported from kernel/rcu/tree.c
+ * where the relevant authorship may be found.
  */
 
 #include <linux/context_tracking.h>
