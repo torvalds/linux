@@ -1525,6 +1525,9 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
 		}
 		raw_spin_unlock_irqrestore_rcu_node(rtpcp, flags);
 	}
+
+	// Re-enable CPU hotplug now that the holdout list is populated.
+	cpus_read_unlock();
 }
 
 /*
@@ -1532,9 +1535,6 @@ static void rcu_tasks_trace_pregp_step(struct list_head *hop)
  */
 static void rcu_tasks_trace_postscan(struct list_head *hop)
 {
-	// Re-enable CPU hotplug now that the tasklist scan has completed.
-	cpus_read_unlock();
-
 	// Wait for late-stage exiting tasks to finish exiting.
 	// These might have passed the call to exit_tasks_rcu_finish().
 	synchronize_rcu();
