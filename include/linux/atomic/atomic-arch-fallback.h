@@ -147,6 +147,76 @@
 
 #endif /* arch_try_cmpxchg_relaxed */
 
+#ifndef arch_try_cmpxchg64_relaxed
+#ifdef arch_try_cmpxchg64
+#define arch_try_cmpxchg64_acquire arch_try_cmpxchg64
+#define arch_try_cmpxchg64_release arch_try_cmpxchg64
+#define arch_try_cmpxchg64_relaxed arch_try_cmpxchg64
+#endif /* arch_try_cmpxchg64 */
+
+#ifndef arch_try_cmpxchg64
+#define arch_try_cmpxchg64(_ptr, _oldp, _new) \
+({ \
+	typeof(*(_ptr)) *___op = (_oldp), ___o = *___op, ___r; \
+	___r = arch_cmpxchg64((_ptr), ___o, (_new)); \
+	if (unlikely(___r != ___o)) \
+		*___op = ___r; \
+	likely(___r == ___o); \
+})
+#endif /* arch_try_cmpxchg64 */
+
+#ifndef arch_try_cmpxchg64_acquire
+#define arch_try_cmpxchg64_acquire(_ptr, _oldp, _new) \
+({ \
+	typeof(*(_ptr)) *___op = (_oldp), ___o = *___op, ___r; \
+	___r = arch_cmpxchg64_acquire((_ptr), ___o, (_new)); \
+	if (unlikely(___r != ___o)) \
+		*___op = ___r; \
+	likely(___r == ___o); \
+})
+#endif /* arch_try_cmpxchg64_acquire */
+
+#ifndef arch_try_cmpxchg64_release
+#define arch_try_cmpxchg64_release(_ptr, _oldp, _new) \
+({ \
+	typeof(*(_ptr)) *___op = (_oldp), ___o = *___op, ___r; \
+	___r = arch_cmpxchg64_release((_ptr), ___o, (_new)); \
+	if (unlikely(___r != ___o)) \
+		*___op = ___r; \
+	likely(___r == ___o); \
+})
+#endif /* arch_try_cmpxchg64_release */
+
+#ifndef arch_try_cmpxchg64_relaxed
+#define arch_try_cmpxchg64_relaxed(_ptr, _oldp, _new) \
+({ \
+	typeof(*(_ptr)) *___op = (_oldp), ___o = *___op, ___r; \
+	___r = arch_cmpxchg64_relaxed((_ptr), ___o, (_new)); \
+	if (unlikely(___r != ___o)) \
+		*___op = ___r; \
+	likely(___r == ___o); \
+})
+#endif /* arch_try_cmpxchg64_relaxed */
+
+#else /* arch_try_cmpxchg64_relaxed */
+
+#ifndef arch_try_cmpxchg64_acquire
+#define arch_try_cmpxchg64_acquire(...) \
+	__atomic_op_acquire(arch_try_cmpxchg64, __VA_ARGS__)
+#endif
+
+#ifndef arch_try_cmpxchg64_release
+#define arch_try_cmpxchg64_release(...) \
+	__atomic_op_release(arch_try_cmpxchg64, __VA_ARGS__)
+#endif
+
+#ifndef arch_try_cmpxchg64
+#define arch_try_cmpxchg64(...) \
+	__atomic_op_fence(arch_try_cmpxchg64, __VA_ARGS__)
+#endif
+
+#endif /* arch_try_cmpxchg64_relaxed */
+
 #ifndef arch_atomic_read_acquire
 static __always_inline int
 arch_atomic_read_acquire(const atomic_t *v)
@@ -2386,4 +2456,4 @@ arch_atomic64_dec_if_positive(atomic64_t *v)
 #endif
 
 #endif /* _LINUX_ATOMIC_FALLBACK_H */
-// 8e2cc06bc0d2c0967d2f8424762bd48555ee40ae
+// b5e87bdd5ede61470c29f7a7e4de781af3770f09

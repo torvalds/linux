@@ -9,12 +9,27 @@
  *
  * All of the values in this file must be <4GB (because of assembly
  * loading restrictions).  If you place this region anywhere above
- * __PAGE_OFFSET, you must adjust the memory map accordingly */
+ * __PAGE_OFFSET, you must adjust the memory map accordingly
+ */
 
-/* The alias region is used in kernel space to do copy/clear to or
- * from areas congruently mapped with user space.  It is 8MB large
- * and must be 16MB aligned */
-#define TMPALIAS_MAP_START	((__PAGE_OFFSET) - 16*1024*1024)
+/*
+ * The tmpalias region is used in kernel space to copy/clear/flush data
+ * from pages congruently mapped with user space. It is comprised of
+ * a pair regions. The size of these regions is determined by the largest
+ * cache aliasing boundary for machines that support equivalent aliasing.
+ *
+ * The c3750 with PA8700 processor returns an alias value of 11. This
+ * indicates that it has an alias boundary of 4 MB. It also supports
+ * non-equivalent aliasing without a performance penalty.
+ *
+ * Machines with PA8800/PA8900 processors return an alias value of 0.
+ * This indicates the alias boundary is unknown and may be larger than
+ * 16 MB. Non-equivalent aliasing is not supported.
+ *
+ * Here we assume the maximum alias boundary is 4 MB.
+ */
+#define TMPALIAS_SIZE_BITS	22	/* 4 MB */
+#define TMPALIAS_MAP_START	((__PAGE_OFFSET) - (2 << TMPALIAS_SIZE_BITS))
 
 #define FIXMAP_SIZE		(FIX_BITMAP_COUNT << PAGE_SHIFT)
 #define FIXMAP_START		(TMPALIAS_MAP_START - FIXMAP_SIZE)

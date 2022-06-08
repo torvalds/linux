@@ -172,17 +172,17 @@ static int w1_reg_a16_v16_write(void *context, unsigned int reg,
  * Various types of supported bus addressing
  */
 
-static struct regmap_bus regmap_w1_bus_a8_v8 = {
+static const struct regmap_bus regmap_w1_bus_a8_v8 = {
 	.reg_read = w1_reg_a8_v8_read,
 	.reg_write = w1_reg_a8_v8_write,
 };
 
-static struct regmap_bus regmap_w1_bus_a8_v16 = {
+static const struct regmap_bus regmap_w1_bus_a8_v16 = {
 	.reg_read = w1_reg_a8_v16_read,
 	.reg_write = w1_reg_a8_v16_write,
 };
 
-static struct regmap_bus regmap_w1_bus_a16_v16 = {
+static const struct regmap_bus regmap_w1_bus_a16_v16 = {
 	.reg_read = w1_reg_a16_v16_read,
 	.reg_write = w1_reg_a16_v16_write,
 };

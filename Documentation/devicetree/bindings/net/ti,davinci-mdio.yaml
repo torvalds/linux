@@ -34,6 +34,7 @@ properties:
     maxItems: 1
 
   bus_freq:
+    $ref: /schemas/types.yaml#/definitions/uint32
     maximum: 2500000
     description: MDIO Bus frequency
 

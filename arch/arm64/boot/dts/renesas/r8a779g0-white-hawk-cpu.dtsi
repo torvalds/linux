@@ -1,0 +1,45 @@
+// SPDX-License-Identifier: (GPL-2.0-only OR BSD-2-Clause)
+/*
+ * Device Tree Source for the White Hawk CPU board
+ *
+ * Copyright (C) 2022 Renesas Electronics Corp.
+ */
+
+#include "r8a779g0.dtsi"
+
+/ {
+	model = "Renesas White Hawk CPU board";
+	compatible = "renesas,white-hawk-cpu", "renesas,r8a779g0";
+
+	memory@48000000 {
+		device_type = "memory";
+		/* first 128MB is reserved for secure area. */
+		reg = <0x0 0x48000000 0x0 0x78000000>;
+	};
+
+	memory@480000000 {
+		device_type = "memory";
+		reg = <0x4 0x80000000 0x0 0x80000000>;
+	};
+
+	memory@600000000 {
+		device_type = "memory";
+		reg = <0x6 0x00000000 0x1 0x00000000>;
+	};
+};
+
+&extal_clk {
+	clock-frequency = <16666666>;
+};
+
+&extalr_clk {
+	clock-frequency = <32768>;
+};
+
+&hscif0 {
+	status = "okay";
+};
+
+&scif_clk {
+	clock-frequency = <24000000>;
+};

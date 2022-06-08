@@ -677,7 +677,7 @@ static void __init jive_machine_init(void)
 MACHINE_START(JIVE, "JIVE")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
-
+	.nr_irqs	= NR_IRQS_S3C2412,
 	.init_irq	= s3c2412_init_irq,
 	.map_io		= jive_map_io,
 	.init_machine	= jive_machine_init,

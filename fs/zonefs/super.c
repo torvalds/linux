@@ -27,6 +27,39 @@
 #define CREATE_TRACE_POINTS
 #include "trace.h"
 
+/*
+ * Manage the active zone count. Called with zi->i_truncate_mutex held.
+ */
+static void zonefs_account_active(struct inode *inode)
+{
+	struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
+	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+
+	lockdep_assert_held(&zi->i_truncate_mutex);
+
+	if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
+		return;
+
+	/*
+	 * If the zone is active, that is, if it is explicitly open or
+	 * partially written, check if it was already accounted as active.
+	 */
+	if ((zi->i_flags & ZONEFS_ZONE_OPEN) ||
+	    (zi->i_wpoffset > 0 && zi->i_wpoffset < zi->i_max_size)) {
+		if (!(zi->i_flags & ZONEFS_ZONE_ACTIVE)) {
+			zi->i_flags |= ZONEFS_ZONE_ACTIVE;
+			atomic_inc(&sbi->s_active_seq_files);
+		}
+		return;
+	}
+
+	/* The zone is not active. If it was, update the active count */
+	if (zi->i_flags & ZONEFS_ZONE_ACTIVE) {
+		zi->i_flags &= ~ZONEFS_ZONE_ACTIVE;
+		atomic_dec(&sbi->s_active_seq_files);
+	}
+}
+
 static inline int zonefs_zone_mgmt(struct inode *inode,
 				   enum req_opf op)
 {
@@ -68,8 +101,13 @@ static inline void zonefs_i_size_write(struct inode *inode, loff_t isize)
 	 * A full zone is no longer open/active and does not need
 	 * explicit closing.
 	 */
-	if (isize >= zi->i_max_size)
-		zi->i_flags &= ~ZONEFS_ZONE_OPEN;
+	if (isize >= zi->i_max_size) {
+		struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
+
+		if (zi->i_flags & ZONEFS_ZONE_ACTIVE)
+			atomic_dec(&sbi->s_active_seq_files);
+		zi->i_flags &= ~(ZONEFS_ZONE_OPEN | ZONEFS_ZONE_ACTIVE);
+	}
 }
 
 static int zonefs_iomap_begin(struct inode *inode, loff_t offset, loff_t length,
@@ -124,9 +162,9 @@ static const struct iomap_ops zonefs_iomap_ops = {
 	.iomap_begin	= zonefs_iomap_begin,
 };
 
-static int zonefs_readpage(struct file *unused, struct page *page)
+static int zonefs_read_folio(struct file *unused, struct folio *folio)
 {
-	return iomap_readpage(page, &zonefs_iomap_ops);
+	return iomap_read_folio(folio, &zonefs_iomap_ops);
 }
 
 static void zonefs_readahead(struct readahead_control *rac)
@@ -192,12 +230,12 @@ static int zonefs_swap_activate(struct swap_info_struct *sis,
 }
 
 static const struct address_space_operations zonefs_file_aops = {
-	.readpage		= zonefs_readpage,
+	.read_folio		= zonefs_read_folio,
 	.readahead		= zonefs_readahead,
 	.writepage		= zonefs_writepage,
 	.writepages		= zonefs_writepages,
 	.dirty_folio		= filemap_dirty_folio,
-	.releasepage		= iomap_releasepage,
+	.release_folio		= iomap_release_folio,
 	.invalidate_folio	= iomap_invalidate_folio,
 	.migratepage		= iomap_migrate_page,
 	.is_partially_uptodate	= iomap_is_partially_uptodate,
@@ -397,6 +435,7 @@ static int zonefs_io_error_cb(struct blk_zone *zone, unsigned int idx,
 	zonefs_update_stats(inode, data_size);
 	zonefs_i_size_write(inode, data_size);
 	zi->i_wpoffset = data_size;
+	zonefs_account_active(inode);
 
 	return 0;
 }
@@ -508,6 +547,7 @@ static int zonefs_file_truncate(struct inode *inode, loff_t isize)
 	zonefs_update_stats(inode, isize);
 	truncate_setsize(inode, isize);
 	zi->i_wpoffset = isize;
+	zonefs_account_active(inode);
 
 unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
@@ -689,13 +729,12 @@ static ssize_t zonefs_file_dio_append(struct kiocb *iocb, struct iov_iter *from)
 	struct inode *inode = file_inode(iocb->ki_filp);
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
 	struct block_device *bdev = inode->i_sb->s_bdev;
-	unsigned int max;
+	unsigned int max = bdev_max_zone_append_sectors(bdev);
 	struct bio *bio;
 	ssize_t size;
 	int nr_pages;
 	ssize_t ret;
 
-	max = queue_max_zone_append_sectors(bdev_get_queue(bdev));
 	max = ALIGN_DOWN(max << SECTOR_SHIFT, inode->i_sb->s_blocksize);
 	iov_iter_truncate(from, max);
 
@@ -861,13 +900,20 @@ static ssize_t zonefs_file_dio_write(struct kiocb *iocb, struct iov_iter *from)
 		ret = zonefs_file_dio_append(iocb, from);
 	else
 		ret = iomap_dio_rw(iocb, from, &zonefs_iomap_ops,
-				   &zonefs_write_dio_ops, 0, 0);
+				   &zonefs_write_dio_ops, 0, NULL, 0);
 	if (zi->i_ztype == ZONEFS_ZTYPE_SEQ &&
 	    (ret > 0 || ret == -EIOCBQUEUED)) {
 		if (ret > 0)
 			count = ret;
+
+		/*
+		 * Update the zone write pointer offset assuming the write
+		 * operation succeeded. If it did not, the error recovery path
+		 * will correct it. Also do active seq file accounting.
+		 */
 		mutex_lock(&zi->i_truncate_mutex);
 		zi->i_wpoffset += count;
+		zonefs_account_active(inode);
 		mutex_unlock(&zi->i_truncate_mutex);
 	}
 
@@ -996,7 +1042,7 @@ static ssize_t zonefs_file_read_iter(struct kiocb *iocb, struct iov_iter *to)
 		}
 		file_accessed(iocb->ki_filp);
 		ret = iomap_dio_rw(iocb, to, &zonefs_iomap_ops,
-				   &zonefs_read_dio_ops, 0, 0);
+				   &zonefs_read_dio_ops, 0, NULL, 0);
 	} else {
 		ret = generic_file_read_iter(iocb, to);
 		if (ret == -EIO)
@@ -1009,13 +1055,13 @@ inode_unlock:
 	return ret;
 }
 
-static inline bool zonefs_file_use_exp_open(struct inode *inode, struct file *file)
+/*
+ * Write open accounting is done only for sequential files.
+ */
+static inline bool zonefs_seq_file_need_wro(struct inode *inode,
+					    struct file *file)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
-
-	if (!(sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN))
-		return false;
 
 	if (zi->i_ztype != ZONEFS_ZTYPE_SEQ)
 		return false;
@@ -1026,28 +1072,34 @@ static inline bool zonefs_file_use_exp_open(struct inode *inode, struct file *fi
 	return true;
 }
 
-static int zonefs_open_zone(struct inode *inode)
+static int zonefs_seq_file_write_open(struct inode *inode)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
-	struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
 	int ret = 0;
 
 	mutex_lock(&zi->i_truncate_mutex);
 
 	if (!zi->i_wr_refcnt) {
-		if (atomic_inc_return(&sbi->s_open_zones) > sbi->s_max_open_zones) {
-			atomic_dec(&sbi->s_open_zones);
-			ret = -EBUSY;
-			goto unlock;
-		}
+		struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
+		unsigned int wro = atomic_inc_return(&sbi->s_wro_seq_files);
 
-		if (i_size_read(inode) < zi->i_max_size) {
-			ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_OPEN);
-			if (ret) {
-				atomic_dec(&sbi->s_open_zones);
+		if (sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) {
+
+			if (wro > sbi->s_max_wro_seq_files) {
+				atomic_dec(&sbi->s_wro_seq_files);
+				ret = -EBUSY;
 				goto unlock;
 			}
-			zi->i_flags |= ZONEFS_ZONE_OPEN;
+
+			if (i_size_read(inode) < zi->i_max_size) {
+				ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_OPEN);
+				if (ret) {
+					atomic_dec(&sbi->s_wro_seq_files);
+					goto unlock;
+				}
+				zi->i_flags |= ZONEFS_ZONE_OPEN;
+				zonefs_account_active(inode);
+			}
 		}
 	}
 
@@ -1067,30 +1119,31 @@ static int zonefs_file_open(struct inode *inode, struct file *file)
 	if (ret)
 		return ret;
 
-	if (zonefs_file_use_exp_open(inode, file))
-		return zonefs_open_zone(inode);
+	if (zonefs_seq_file_need_wro(inode, file))
+		return zonefs_seq_file_write_open(inode);
 
 	return 0;
 }
 
-static void zonefs_close_zone(struct inode *inode)
+static void zonefs_seq_file_write_close(struct inode *inode)
 {
 	struct zonefs_inode_info *zi = ZONEFS_I(inode);
+	struct super_block *sb = inode->i_sb;
+	struct zonefs_sb_info *sbi = ZONEFS_SB(sb);
 	int ret = 0;
 
 	mutex_lock(&zi->i_truncate_mutex);
+
 	zi->i_wr_refcnt--;
-	if (!zi->i_wr_refcnt) {
-		struct zonefs_sb_info *sbi = ZONEFS_SB(inode->i_sb);
-		struct super_block *sb = inode->i_sb;
+	if (zi->i_wr_refcnt)
+		goto unlock;
 
-		/*
-		 * If the file zone is full, it is not open anymore and we only
-		 * need to decrement the open count.
-		 */
-		if (!(zi->i_flags & ZONEFS_ZONE_OPEN))
-			goto dec;
-
+	/*
+	 * The file zone may not be open anymore (e.g. the file was truncated to
+	 * its maximum size or it was fully written). For this case, we only
+	 * need to decrement the write open count.
+	 */
+	if (zi->i_flags & ZONEFS_ZONE_OPEN) {
 		ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_CLOSE);
 		if (ret) {
 			__zonefs_io_error(inode, false);
@@ -1102,14 +1155,23 @@ static void zonefs_close_zone(struct inode *inode)
 			 */
 			if (zi->i_flags & ZONEFS_ZONE_OPEN &&
 			    !(sb->s_flags & SB_RDONLY)) {
-				zonefs_warn(sb, "closing zone failed, remounting filesystem read-only\n");
+				zonefs_warn(sb,
+					"closing zone at %llu failed %d\n",
+					zi->i_zsector, ret);
+				zonefs_warn(sb,
+					"remounting filesystem read-only\n");
 				sb->s_flags |= SB_RDONLY;
 			}
+			goto unlock;
 		}
+
 		zi->i_flags &= ~ZONEFS_ZONE_OPEN;
-dec:
-		atomic_dec(&sbi->s_open_zones);
+		zonefs_account_active(inode);
 	}
+
+	atomic_dec(&sbi->s_wro_seq_files);
+
+unlock:
 	mutex_unlock(&zi->i_truncate_mutex);
 }
 
@@ -1121,8 +1183,8 @@ static int zonefs_file_release(struct inode *inode, struct file *file)
 	 * the zone has gone offline or read-only). Make sure we don't fail the
 	 * close(2) for user-space.
 	 */
-	if (zonefs_file_use_exp_open(inode, file))
-		zonefs_close_zone(inode);
+	if (zonefs_seq_file_need_wro(inode, file))
+		zonefs_seq_file_write_close(inode);
 
 	return 0;
 }
@@ -1337,6 +1399,8 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 	sbi->s_blocks += zi->i_max_size >> sb->s_blocksize_bits;
 	sbi->s_used_blocks += zi->i_wpoffset >> sb->s_blocksize_bits;
 
+	mutex_lock(&zi->i_truncate_mutex);
+
 	/*
 	 * For sequential zones, make sure that any open zone is closed first
 	 * to ensure that the initial number of open zones is 0, in sync with
@@ -1346,10 +1410,15 @@ static int zonefs_init_file_inode(struct inode *inode, struct blk_zone *zone,
 	if (type == ZONEFS_ZTYPE_SEQ &&
 	    (zone->cond == BLK_ZONE_COND_IMP_OPEN ||
 	     zone->cond == BLK_ZONE_COND_EXP_OPEN)) {
-		mutex_lock(&zi->i_truncate_mutex);
 		ret = zonefs_zone_mgmt(inode, REQ_OP_ZONE_CLOSE);
-		mutex_unlock(&zi->i_truncate_mutex);
+		if (ret)
+			goto unlock;
 	}
+
+	zonefs_account_active(inode);
+
+unlock:
+	mutex_unlock(&zi->i_truncate_mutex);
 
 	return ret;
 }
@@ -1688,13 +1757,17 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	sbi->s_gid = GLOBAL_ROOT_GID;
 	sbi->s_perm = 0640;
 	sbi->s_mount_opts = ZONEFS_MNTOPT_ERRORS_RO;
-	sbi->s_max_open_zones = bdev_max_open_zones(sb->s_bdev);
-	atomic_set(&sbi->s_open_zones, 0);
-	if (!sbi->s_max_open_zones &&
+
+	atomic_set(&sbi->s_wro_seq_files, 0);
+	sbi->s_max_wro_seq_files = bdev_max_open_zones(sb->s_bdev);
+	if (!sbi->s_max_wro_seq_files &&
 	    sbi->s_mount_opts & ZONEFS_MNTOPT_EXPLICIT_OPEN) {
 		zonefs_info(sb, "No open zones limit. Ignoring explicit_open mount option\n");
 		sbi->s_mount_opts &= ~ZONEFS_MNTOPT_EXPLICIT_OPEN;
 	}
+
+	atomic_set(&sbi->s_active_seq_files, 0);
+	sbi->s_max_active_seq_files = bdev_max_active_zones(sb->s_bdev);
 
 	ret = zonefs_read_super(sb);
 	if (ret)
@@ -1707,6 +1780,10 @@ static int zonefs_fill_super(struct super_block *sb, void *data, int silent)
 	memset(&zd, 0, sizeof(struct zonefs_zone_data));
 	zd.sb = sb;
 	ret = zonefs_get_zone_info(&zd);
+	if (ret)
+		goto cleanup;
+
+	ret = zonefs_sysfs_register(sb);
 	if (ret)
 		goto cleanup;
 
@@ -1755,6 +1832,8 @@ static void zonefs_kill_super(struct super_block *sb)
 
 	if (sb->s_root)
 		d_genocide(sb->s_root);
+
+	zonefs_sysfs_unregister(sb);
 	kill_block_super(sb);
 	kfree(sbi);
 }
@@ -1802,16 +1881,26 @@ static int __init zonefs_init(void)
 		return ret;
 
 	ret = register_filesystem(&zonefs_type);
-	if (ret) {
-		zonefs_destroy_inodecache();
-		return ret;
-	}
+	if (ret)
+		goto destroy_inodecache;
+
+	ret = zonefs_sysfs_init();
+	if (ret)
+		goto unregister_fs;
 
 	return 0;
+
+unregister_fs:
+	unregister_filesystem(&zonefs_type);
+destroy_inodecache:
+	zonefs_destroy_inodecache();
+
+	return ret;
 }
 
 static void __exit zonefs_exit(void)
 {
+	zonefs_sysfs_exit();
 	zonefs_destroy_inodecache();
 	unregister_filesystem(&zonefs_type);
 }

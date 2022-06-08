@@ -747,7 +747,7 @@ void smt_received_pack(struct s_smc *smc, SMbuf *mb, int fs)
 #endif
 
 #ifdef	SBA
-		DB_SBAN(2,"SBA: RAF frame received\n",0,0) ;
+		DB_SBAN(2, "SBA: RAF frame received") ;
 		sba_raf_received_pack(smc,sm,fs) ;
 #endif
 		break ;

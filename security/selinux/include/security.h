@@ -16,6 +16,8 @@
 #include <linux/rcupdate.h>
 #include <linux/refcount.h>
 #include <linux/workqueue.h>
+#include <linux/delay.h>
+#include <linux/printk.h>
 #include "flask.h"
 #include "policycap.h"
 
@@ -150,6 +152,8 @@ static inline bool checkreqprot_get(const struct selinux_state *state)
 
 static inline void checkreqprot_set(struct selinux_state *state, bool value)
 {
+	if (value)
+		pr_err("SELinux: https://github.com/SELinuxProject/selinux-kernel/wiki/DEPRECATE-checkreqprot\n");
 	WRITE_ONCE(state->checkreqprot, value);
 }
 

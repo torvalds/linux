@@ -510,7 +510,7 @@ static void setexposure(struct gspca_dev *gspca_dev, s32 val)
 	/* We choose to use the high bits setting the fixed framerate divisor
 	   asap, as setting high basic exposure setting without the fixed
 	   divider in combination with high gains makes the cam stop */
-	int table[] =  { 0, 450, 550, 625, EXPOSURE_MAX };
+	static const int table[] =  { 0, 450, 550, 625, EXPOSURE_MAX };
 
 	for (i = 0; i < ARRAY_SIZE(table) - 1; i++) {
 		if (val <= table[i + 1]) {

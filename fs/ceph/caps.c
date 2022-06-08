@@ -1577,7 +1577,7 @@ static void __ceph_flush_snaps(struct ceph_inode_info *ci,
 
 	while (first_tid <= last_tid) {
 		struct ceph_cap *cap = ci->i_auth_cap;
-		struct ceph_cap_flush *cf;
+		struct ceph_cap_flush *cf = NULL, *iter;
 		int ret;
 
 		if (!(cap && cap->session == session)) {
@@ -1587,8 +1587,9 @@ static void __ceph_flush_snaps(struct ceph_inode_info *ci,
 		}
 
 		ret = -ENOENT;
-		list_for_each_entry(cf, &ci->i_cap_flush_list, i_list) {
-			if (cf->tid >= first_tid) {
+		list_for_each_entry(iter, &ci->i_cap_flush_list, i_list) {
+			if (iter->tid >= first_tid) {
+				cf = iter;
 				ret = 0;
 				break;
 			}
@@ -1910,6 +1911,7 @@ void ceph_check_caps(struct ceph_inode_info *ci, int flags,
 	struct rb_node *p;
 	bool queue_invalidate = false;
 	bool tried_invalidate = false;
+	bool queue_writeback = false;
 
 	if (session)
 		ceph_get_mds_session(session);
@@ -2062,10 +2064,27 @@ retry:
 		}
 
 		/* completed revocation? going down and there are no caps? */
-		if (revoking && (revoking & cap_used) == 0) {
-			dout("completed revocation of %s\n",
-			     ceph_cap_string(cap->implemented & ~cap->issued));
-			goto ack;
+		if (revoking) {
+			if ((revoking & cap_used) == 0) {
+				dout("completed revocation of %s\n",
+				      ceph_cap_string(cap->implemented & ~cap->issued));
+				goto ack;
+			}
+
+			/*
+			 * If the "i_wrbuffer_ref" was increased by mmap or generic
+			 * cache write just before the ceph_check_caps() is called,
+			 * the Fb capability revoking will fail this time. Then we
+			 * must wait for the BDI's delayed work to flush the dirty
+			 * pages and to release the "i_wrbuffer_ref", which will cost
+			 * at most 5 seconds. That means the MDS needs to wait at
+			 * most 5 seconds to finished the Fb capability's revocation.
+			 *
+			 * Let's queue a writeback for it.
+			 */
+			if (S_ISREG(inode->i_mode) && ci->i_wrbuffer_ref &&
+			    (revoking & CEPH_CAP_FILE_BUFFER))
+				queue_writeback = true;
 		}
 
 		/* want more caps from mds? */
@@ -2135,6 +2154,8 @@ ack:
 	spin_unlock(&ci->i_ceph_lock);
 
 	ceph_put_mds_session(session);
+	if (queue_writeback)
+		ceph_queue_writeback(inode);
 	if (queue_invalidate)
 		ceph_queue_invalidate(inode);
 }
@@ -2218,9 +2239,9 @@ static int caps_are_flushed(struct inode *inode, u64 flush_tid)
 }
 
 /*
- * wait for any unsafe requests to complete.
+ * flush the mdlog and wait for any unsafe requests to complete.
  */
-static int unsafe_request_wait(struct inode *inode)
+static int flush_mdlog_and_wait_inode_unsafe_requests(struct inode *inode)
 {
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	struct ceph_inode_info *ci = ceph_inode(inode);
@@ -2336,7 +2357,7 @@ retry:
 		kfree(sessions);
 	}
 
-	dout("unsafe_request_wait %p wait on tid %llu %llu\n",
+	dout("%s %p wait on tid %llu %llu\n", __func__,
 	     inode, req1 ? req1->r_tid : 0ULL, req2 ? req2->r_tid : 0ULL);
 	if (req1) {
 		ret = !wait_for_completion_timeout(&req1->r_safe_completion,
@@ -2380,7 +2401,7 @@ int ceph_fsync(struct file *file, loff_t start, loff_t end, int datasync)
 	dirty = try_flush_caps(inode, &flush_tid);
 	dout("fsync dirty caps are %s\n", ceph_cap_string(dirty));
 
-	err = unsafe_request_wait(inode);
+	err = flush_mdlog_and_wait_inode_unsafe_requests(inode);
 
 	/*
 	 * only wait on non-file metadata writeback (the mds
@@ -3182,10 +3203,9 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 				struct ceph_snap_context *snapc)
 {
 	struct inode *inode = &ci->vfs_inode;
-	struct ceph_cap_snap *capsnap = NULL;
+	struct ceph_cap_snap *capsnap = NULL, *iter;
 	int put = 0;
 	bool last = false;
-	bool found = false;
 	bool flush_snaps = false;
 	bool complete_capsnap = false;
 
@@ -3212,14 +3232,14 @@ void ceph_put_wrbuffer_cap_refs(struct ceph_inode_info *ci, int nr,
 		     ci->i_wrbuffer_ref, ci->i_wrbuffer_ref_head,
 		     last ? " LAST" : "");
 	} else {
-		list_for_each_entry(capsnap, &ci->i_cap_snaps, ci_item) {
-			if (capsnap->context == snapc) {
-				found = true;
+		list_for_each_entry(iter, &ci->i_cap_snaps, ci_item) {
+			if (iter->context == snapc) {
+				capsnap = iter;
 				break;
 			}
 		}
 
-		if (!found) {
+		if (!capsnap) {
 			/*
 			 * The capsnap should already be removed when removing
 			 * auth cap in the case of a forced unmount.
@@ -3769,8 +3789,7 @@ static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 	struct ceph_inode_info *ci = ceph_inode(inode);
 	struct ceph_mds_client *mdsc = ceph_sb_to_client(inode->i_sb)->mdsc;
 	u64 follows = le64_to_cpu(m->snap_follows);
-	struct ceph_cap_snap *capsnap;
-	bool flushed = false;
+	struct ceph_cap_snap *capsnap = NULL, *iter;
 	bool wake_ci = false;
 	bool wake_mdsc = false;
 
@@ -3778,26 +3797,26 @@ static void handle_cap_flushsnap_ack(struct inode *inode, u64 flush_tid,
 	     inode, ci, session->s_mds, follows);
 
 	spin_lock(&ci->i_ceph_lock);
-	list_for_each_entry(capsnap, &ci->i_cap_snaps, ci_item) {
-		if (capsnap->follows == follows) {
-			if (capsnap->cap_flush.tid != flush_tid) {
+	list_for_each_entry(iter, &ci->i_cap_snaps, ci_item) {
+		if (iter->follows == follows) {
+			if (iter->cap_flush.tid != flush_tid) {
 				dout(" cap_snap %p follows %lld tid %lld !="
-				     " %lld\n", capsnap, follows,
-				     flush_tid, capsnap->cap_flush.tid);
+				     " %lld\n", iter, follows,
+				     flush_tid, iter->cap_flush.tid);
 				break;
 			}
-			flushed = true;
+			capsnap = iter;
 			break;
 		} else {
 			dout(" skipping cap_snap %p follows %lld\n",
-			     capsnap, capsnap->follows);
+			     iter, iter->follows);
 		}
 	}
-	if (flushed)
+	if (capsnap)
 		ceph_remove_capsnap(inode, capsnap, &wake_ci, &wake_mdsc);
 	spin_unlock(&ci->i_ceph_lock);
 
-	if (flushed) {
+	if (capsnap) {
 		ceph_put_snap_context(capsnap->context);
 		ceph_put_cap_snap(capsnap);
 		if (wake_ci)

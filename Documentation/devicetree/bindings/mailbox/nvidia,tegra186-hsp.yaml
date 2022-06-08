@@ -26,6 +26,15 @@ description: |
   second cell is used to identify the mailbox that the client is going
   to use.
 
+  For shared mailboxes, the first cell composed of two fields:
+    - bits 15..8:
+        A bit mask of flags that further specifies the type of shared
+        mailbox to be used (based on the data size). If no flag is
+        specified then, 32-bit shared mailbox is used.
+    - bits 7..0:
+        Defines the type of the mailbox to be used. This field should be
+        TEGRA_HSP_MBOX_TYPE_SM for shared mailboxes.
+
   For doorbells, the second cell specifies the index of the doorbell to
   use.
 

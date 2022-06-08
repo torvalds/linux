@@ -118,9 +118,9 @@ static inline unsigned int pid_join(unsigned int upper1,
 /**
  * trace_pid_list_is_set - test if the pid is set in the list
  * @pid_list: The pid list to test
- * @pid: The pid to to see if set in the list.
+ * @pid: The pid to see if set in the list.
  *
- * Tests if @pid is is set in the @pid_list. This is usually called
+ * Tests if @pid is set in the @pid_list. This is usually called
  * from the scheduler when a task is scheduled. Its pid is checked
  * if it should be traced or not.
  *

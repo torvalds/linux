@@ -287,8 +287,8 @@ static void ieee80211_restart_work(struct work_struct *work)
 			if (sdata->vif.csa_active) {
 				sdata_lock(sdata);
 				ieee80211_sta_connection_lost(sdata,
-							      sdata->u.mgd.associated->bssid,
-							      WLAN_REASON_UNSPECIFIED, false);
+							      WLAN_REASON_UNSPECIFIED,
+							      false);
 				sdata_unlock(sdata);
 			}
 		}

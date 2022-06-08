@@ -87,7 +87,7 @@ int athub_v1_0_set_clockgating(struct amdgpu_device *adev,
 	return 0;
 }
 
-void athub_v1_0_get_clockgating(struct amdgpu_device *adev, u32 *flags)
+void athub_v1_0_get_clockgating(struct amdgpu_device *adev, u64 *flags)
 {
 	int data;
 

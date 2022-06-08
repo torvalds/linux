@@ -491,7 +491,7 @@
 
 	spi-max-frequency = <48000000>;
 
-	spi_flash: spi_flash@0 {
+	spi_flash: flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "spansion,m25p80", "jedec,spi-nor";

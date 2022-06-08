@@ -226,7 +226,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 
 	pm_runtime_enable(dev);
 	ret = pm_runtime_get_sync(dev);
-	if (ret) {
+	if (ret < 0) {
 		pm_runtime_put_noidle(dev);
 		pm_runtime_disable(&pdev->dev);
 		return dev_err_probe(dev, ret, "runtime pm failed\n");
@@ -253,6 +253,7 @@ static int rti_wdt_probe(struct platform_device *pdev)
 	}
 
 	if (readl(wdt->base + RTIDWDCTRL) == WDENABLE_KEY) {
+		int preset_heartbeat;
 		u32 time_left_ms;
 		u64 heartbeat_ms;
 		u32 wsize;
@@ -263,11 +264,12 @@ static int rti_wdt_probe(struct platform_device *pdev)
 		heartbeat_ms <<= WDT_PRELOAD_SHIFT;
 		heartbeat_ms *= 1000;
 		do_div(heartbeat_ms, wdt->freq);
-		if (heartbeat_ms != heartbeat * 1000)
+		preset_heartbeat = heartbeat_ms + 500;
+		preset_heartbeat /= 1000;
+		if (preset_heartbeat != heartbeat)
 			dev_warn(dev, "watchdog already running, ignoring heartbeat config!\n");
 
-		heartbeat = heartbeat_ms;
-		heartbeat /= 1000;
+		heartbeat = preset_heartbeat;
 
 		wsize = readl(wdt->base + RTIWWDSIZECTRL);
 		ret = rti_wdt_setup_hw_hb(wdd, wsize);

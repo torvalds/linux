@@ -834,8 +834,8 @@
 	 ((_ah)->hw_version.macRev >= AR_SREV_REVISION_5416_22)) || \
 	 ((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9100))
 
-#define AR_SREV_9100(ah) \
-	((ah->hw_version.macVersion) == AR_SREV_VERSION_9100)
+#define AR_SREV_9100(_ah) \
+	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9100))
 #define AR_SREV_9100_OR_LATER(_ah) \
 	(((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9100))
 
@@ -891,7 +891,7 @@
 #define AR_SREV_9300_20_OR_LATER(_ah) \
 	((_ah)->hw_version.macVersion >= AR_SREV_VERSION_9300)
 #define AR_SREV_9300_22(_ah) \
-	(AR_SREV_9300(ah) && \
+	(AR_SREV_9300((_ah)) && \
 	 ((_ah)->hw_version.macRev == AR_SREV_REVISION_9300_22))
 
 #define AR_SREV_9330(_ah) \
@@ -994,8 +994,8 @@
 	(((_ah)->hw_version.macVersion == AR_SREV_VERSION_9561))
 
 #define AR_SREV_SOC(_ah) \
-	(AR_SREV_9340(_ah) || AR_SREV_9531(_ah) || AR_SREV_9550(ah) || \
-	 AR_SREV_9561(ah))
+	(AR_SREV_9340(_ah) || AR_SREV_9531(_ah) || AR_SREV_9550(_ah) || \
+	 AR_SREV_9561(_ah))
 
 /* NOTE: When adding chips newer than Peacock, add chip check here */
 #define AR_SREV_9580_10_OR_LATER(_ah) \

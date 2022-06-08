@@ -460,8 +460,14 @@ static int is31fl32xx_probe(struct i2c_client *client,
 static int is31fl32xx_remove(struct i2c_client *client)
 {
 	struct is31fl32xx_priv *priv = i2c_get_clientdata(client);
+	int ret;
 
-	return is31fl32xx_reset_regs(priv);
+	ret = is31fl32xx_reset_regs(priv);
+	if (ret)
+		dev_err(&client->dev, "Failed to reset registers on removal (%pe)\n",
+			ERR_PTR(ret));
+
+	return 0;
 }
 
 /*

@@ -26,8 +26,10 @@
 #include <asm/stacktrace.h>
 #include <asm/switch_to.h>
 #include <asm/nmi.h>
+#include <asm/sclp.h>
 
-typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long);
+typedef void (*relocate_kernel_t)(kimage_entry_t *, unsigned long,
+				  unsigned long);
 
 extern const unsigned char relocate_kernel[];
 extern const unsigned long long relocate_kernel_len;
@@ -243,6 +245,7 @@ void machine_crash_shutdown(struct pt_regs *regs)
  */
 static void __do_machine_kexec(void *data)
 {
+	unsigned long diag308_subcode;
 	relocate_kernel_t data_mover;
 	struct kimage *image = data;
 
@@ -251,7 +254,10 @@ static void __do_machine_kexec(void *data)
 
 	__arch_local_irq_stnsm(0xfb); /* disable DAT - avoid no-execute */
 	/* Call the moving routine */
-	(*data_mover)(&image->head, image->start);
+	diag308_subcode = DIAG308_CLEAR_RESET;
+	if (sclp.has_iplcc)
+		diag308_subcode |= DIAG308_FLAG_EI;
+	(*data_mover)(&image->head, image->start, diag308_subcode);
 
 	/* Die if kexec returns */
 	disabled_wait();

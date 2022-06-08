@@ -125,8 +125,8 @@ struct papr_scm_priv {
 	/* The bits which needs to be overridden */
 	u64 health_bitmap_inject_mask;
 
-	 /* array to have event_code and stat_id mappings */
-	char **nvdimm_events_map;
+	/* array to have event_code and stat_id mappings */
+	u8 *nvdimm_events_map;
 };
 
 static int papr_scm_pmem_flush(struct nd_region *nd_region,
@@ -370,7 +370,7 @@ static int papr_scm_pmu_get_value(struct perf_event *event, struct device *dev, 
 
 	stat = &stats->scm_statistic[0];
 	memcpy(&stat->stat_id,
-	       p->nvdimm_events_map[event->attr.config],
+	       &p->nvdimm_events_map[event->attr.config * sizeof(stat->stat_id)],
 		sizeof(stat->stat_id));
 	stat->stat_val = 0;
 
@@ -462,14 +462,13 @@ static int papr_scm_pmu_check_events(struct papr_scm_priv *p, struct nvdimm_pmu 
 {
 	struct papr_scm_perf_stat *stat;
 	struct papr_scm_perf_stats *stats;
-	int index, rc, count;
 	u32 available_events;
-
-	if (!p->stat_buffer_len)
-		return -ENOENT;
+	int index, rc = 0;
 
 	available_events = (p->stat_buffer_len  - sizeof(struct papr_scm_perf_stats))
 			/ sizeof(struct papr_scm_perf_stat);
+	if (available_events == 0)
+		return -EOPNOTSUPP;
 
 	/* Allocate the buffer for phyp where stats are written */
 	stats = kzalloc(p->stat_buffer_len, GFP_KERNEL);
@@ -478,35 +477,30 @@ static int papr_scm_pmu_check_events(struct papr_scm_priv *p, struct nvdimm_pmu 
 		return rc;
 	}
 
-	/* Allocate memory to nvdimm_event_map */
-	p->nvdimm_events_map = kcalloc(available_events, sizeof(char *), GFP_KERNEL);
-	if (!p->nvdimm_events_map) {
-		rc = -ENOMEM;
-		goto out_stats;
-	}
-
 	/* Called to get list of events supported */
 	rc = drc_pmem_query_stats(p, stats, 0);
 	if (rc)
-		goto out_nvdimm_events_map;
+		goto out;
 
-	for (index = 0, stat = stats->scm_statistic, count = 0;
-		     index < available_events; index++, ++stat) {
-		p->nvdimm_events_map[count] = kmemdup_nul(stat->stat_id, 8, GFP_KERNEL);
-		if (!p->nvdimm_events_map[count]) {
-			rc = -ENOMEM;
-			goto out_nvdimm_events_map;
-		}
-
-		count++;
+	/*
+	 * Allocate memory and populate nvdimm_event_map.
+	 * Allocate an extra element for NULL entry
+	 */
+	p->nvdimm_events_map = kcalloc(available_events + 1,
+				       sizeof(stat->stat_id),
+				       GFP_KERNEL);
+	if (!p->nvdimm_events_map) {
+		rc = -ENOMEM;
+		goto out;
 	}
-	p->nvdimm_events_map[count] = NULL;
-	kfree(stats);
-	return 0;
 
-out_nvdimm_events_map:
-	kfree(p->nvdimm_events_map);
-out_stats:
+	/* Copy all stat_ids to event map */
+	for (index = 0, stat = stats->scm_statistic;
+	     index < available_events; index++, ++stat) {
+		memcpy(&p->nvdimm_events_map[index * sizeof(stat->stat_id)],
+		       &stat->stat_id, sizeof(stat->stat_id));
+	}
+out:
 	kfree(stats);
 	return rc;
 }

@@ -2,12 +2,18 @@
 #include <errno.h>
 #include <regex.h>
 #include <string.h>
+#include <sys/auxv.h>
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 
+#include "../../../perf-sys.h"
 #include "../../../util/debug.h"
 #include "../../../util/event.h"
 #include "../../../util/perf_regs.h"
+
+#ifndef HWCAP_SVE
+#define HWCAP_SVE	(1 << 22)
+#endif
 
 const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(x0, PERF_REG_ARM64_X0),
@@ -43,6 +49,7 @@ const struct sample_reg sample_reg_masks[] = {
 	SMPL_REG(lr, PERF_REG_ARM64_LR),
 	SMPL_REG(sp, PERF_REG_ARM64_SP),
 	SMPL_REG(pc, PERF_REG_ARM64_PC),
+	SMPL_REG(vg, PERF_REG_ARM64_VG),
 	SMPL_REG_END
 };
 
@@ -130,4 +137,35 @@ int arch_sdt_arg_parse_op(char *old_op, char **new_op)
 	}
 
 	return SDT_ARG_VALID;
+}
+
+uint64_t arch__user_reg_mask(void)
+{
+	struct perf_event_attr attr = {
+		.type                   = PERF_TYPE_HARDWARE,
+		.config                 = PERF_COUNT_HW_CPU_CYCLES,
+		.sample_type            = PERF_SAMPLE_REGS_USER,
+		.disabled               = 1,
+		.exclude_kernel         = 1,
+		.sample_period		= 1,
+		.sample_regs_user	= PERF_REGS_MASK
+	};
+	int fd;
+
+	if (getauxval(AT_HWCAP) & HWCAP_SVE)
+		attr.sample_regs_user |= SMPL_REG_MASK(PERF_REG_ARM64_VG);
+
+	/*
+	 * Check if the pmu supports perf extended regs, before
+	 * returning the register mask to sample.
+	 */
+	if (attr.sample_regs_user != PERF_REGS_MASK) {
+		event_attr_init(&attr);
+		fd = sys_perf_event_open(&attr, 0, -1, -1, 0);
+		if (fd != -1) {
+			close(fd);
+			return attr.sample_regs_user;
+		}
+	}
+	return PERF_REGS_MASK;
 }

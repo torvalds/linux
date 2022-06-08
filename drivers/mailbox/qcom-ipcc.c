@@ -41,9 +41,10 @@ struct qcom_ipcc_chan_info {
  * @dev:		Device associated with this instance
  * @base:		Base address of the IPCC frame associated to APSS
  * @irq_domain:		The irq_domain associated with this instance
- * @chan:		The mailbox channels array
+ * @chans:		The mailbox channels array
  * @mchan:		The per-mailbox channel info array
  * @mbox:		The mailbox controller
+ * @num_chans:		Number of @chans elements
  * @irq:		Summary irq
  */
 struct qcom_ipcc {
@@ -254,6 +255,24 @@ static int qcom_ipcc_setup_mbox(struct qcom_ipcc *ipcc,
 	return devm_mbox_controller_register(dev, mbox);
 }
 
+static int qcom_ipcc_pm_resume(struct device *dev)
+{
+	struct qcom_ipcc *ipcc = dev_get_drvdata(dev);
+	u32 hwirq;
+	int virq;
+
+	hwirq = readl(ipcc->base + IPCC_REG_RECV_ID);
+	if (hwirq == IPCC_NO_PENDING_IRQ)
+		return 0;
+
+	virq = irq_find_mapping(ipcc->irq_domain, hwirq);
+
+	dev_dbg(dev, "virq: %d triggered client-id: %ld; signal-id: %ld\n", virq,
+		FIELD_GET(IPCC_CLIENT_ID_MASK, hwirq), FIELD_GET(IPCC_SIGNAL_ID_MASK, hwirq));
+
+	return 0;
+}
+
 static int qcom_ipcc_probe(struct platform_device *pdev)
 {
 	struct qcom_ipcc *ipcc;
@@ -324,6 +343,10 @@ static const struct of_device_id qcom_ipcc_of_match[] = {
 };
 MODULE_DEVICE_TABLE(of, qcom_ipcc_of_match);
 
+static const struct dev_pm_ops qcom_ipcc_dev_pm_ops = {
+	NOIRQ_SYSTEM_SLEEP_PM_OPS(NULL, qcom_ipcc_pm_resume)
+};
+
 static struct platform_driver qcom_ipcc_driver = {
 	.probe = qcom_ipcc_probe,
 	.remove = qcom_ipcc_remove,
@@ -331,6 +354,7 @@ static struct platform_driver qcom_ipcc_driver = {
 		.name = "qcom-ipcc",
 		.of_match_table = qcom_ipcc_of_match,
 		.suppress_bind_attrs = true,
+		.pm = pm_sleep_ptr(&qcom_ipcc_dev_pm_ops),
 	},
 };
 

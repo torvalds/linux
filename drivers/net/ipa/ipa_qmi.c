@@ -125,7 +125,7 @@ static void ipa_qmi_indication(struct ipa_qmi *ipa_qmi)
  */
 static void ipa_qmi_ready(struct ipa_qmi *ipa_qmi)
 {
-	struct ipa *ipa = container_of(ipa_qmi, struct ipa, qmi);
+	struct ipa *ipa;
 	int ret;
 
 	/* We aren't ready until the modem and microcontroller are */

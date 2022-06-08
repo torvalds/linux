@@ -218,6 +218,7 @@ static SIMPLE_DEV_PM_OPS(bcm7038_wdt_pm_ops, bcm7038_wdt_suspend,
 			 bcm7038_wdt_resume);
 
 static const struct of_device_id bcm7038_wdt_match[] = {
+	{ .compatible = "brcm,bcm6345-wdt" },
 	{ .compatible = "brcm,bcm7038-wdt" },
 	{},
 };

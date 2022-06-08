@@ -35,6 +35,7 @@
 #include <sys/time.h>
 #include <sys/resource.h>
 #include <sys/stat.h>
+#include <sys/param.h>
 #include <mqueue.h>
 #include <popt.h>
 #include <error.h>
@@ -73,7 +74,6 @@ static char *usage =
 char *MAX_MSGS = "/proc/sys/fs/mqueue/msg_max";
 char *MAX_MSGSIZE = "/proc/sys/fs/mqueue/msgsize_max";
 
-#define min(a, b) ((a) < (b) ? (a) : (b))
 #define MAX_CPUS 64
 char *cpu_option_string;
 int cpus_to_pin[MAX_CPUS];
@@ -560,7 +560,7 @@ int main(int argc, char *argv[])
 			"require root in order to modify\nsystem settings.  "
 			"Exiting.\n");
 
-	cpus_online = min(MAX_CPUS, sysconf(_SC_NPROCESSORS_ONLN));
+	cpus_online = MIN(MAX_CPUS, sysconf(_SC_NPROCESSORS_ONLN));
 	cpu_set = CPU_ALLOC(cpus_online);
 	if (cpu_set == NULL) {
 		perror("CPU_ALLOC()");

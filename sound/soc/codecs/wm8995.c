@@ -2231,8 +2231,7 @@ static struct spi_driver wm8995_spi_driver = {
 #endif
 
 #if IS_ENABLED(CONFIG_I2C)
-static int wm8995_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int wm8995_i2c_probe(struct i2c_client *i2c)
 {
 	struct wm8995_priv *wm8995;
 	int ret;
@@ -2270,7 +2269,7 @@ static struct i2c_driver wm8995_i2c_driver = {
 	.driver = {
 		.name = "wm8995",
 	},
-	.probe = wm8995_i2c_probe,
+	.probe_new = wm8995_i2c_probe,
 	.id_table = wm8995_i2c_id
 };
 #endif

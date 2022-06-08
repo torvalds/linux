@@ -7,6 +7,9 @@
  * struct iio_dev_opaque - industrial I/O device opaque information
  * @indio_dev:			public industrial I/O device information
  * @id:			used to identify device internally
+ * @currentmode:		operating mode currently in use, may be eventually
+ *				checked by device drivers but should be considered
+ *				read-only as this is a core internal bit
  * @driver_module:		used to make it harder to undercut users
  * @info_exist_lock:		lock to prevent use during removal
  * @trig_readonly:		mark the current trigger immutable
@@ -36,6 +39,7 @@
  */
 struct iio_dev_opaque {
 	struct iio_dev			indio_dev;
+	int				currentmode;
 	int				id;
 	struct module			*driver_module;
 	struct mutex			info_exist_lock;

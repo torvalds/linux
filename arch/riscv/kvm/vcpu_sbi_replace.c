@@ -81,43 +81,41 @@ static int kvm_sbi_ext_rfence_handler(struct kvm_vcpu *vcpu, struct kvm_run *run
 				      struct kvm_cpu_trap *utrap, bool *exit)
 {
 	int ret = 0;
-	unsigned long i;
-	struct cpumask cm;
-	struct kvm_vcpu *tmp;
 	struct kvm_cpu_context *cp = &vcpu->arch.guest_context;
 	unsigned long hmask = cp->a0;
 	unsigned long hbase = cp->a1;
 	unsigned long funcid = cp->a6;
 
-	cpumask_clear(&cm);
-	kvm_for_each_vcpu(i, tmp, vcpu->kvm) {
-		if (hbase != -1UL) {
-			if (tmp->vcpu_id < hbase)
-				continue;
-			if (!(hmask & (1UL << (tmp->vcpu_id - hbase))))
-				continue;
-		}
-		if (tmp->cpu < 0)
-			continue;
-		cpumask_set_cpu(tmp->cpu, &cm);
-	}
-
 	switch (funcid) {
 	case SBI_EXT_RFENCE_REMOTE_FENCE_I:
-		ret = sbi_remote_fence_i(&cm);
+		kvm_riscv_fence_i(vcpu->kvm, hbase, hmask);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA:
-		ret = sbi_remote_hfence_vvma(&cm, cp->a2, cp->a3);
+		if (cp->a2 == 0 && cp->a3 == 0)
+			kvm_riscv_hfence_vvma_all(vcpu->kvm, hbase, hmask);
+		else
+			kvm_riscv_hfence_vvma_gva(vcpu->kvm, hbase, hmask,
+						  cp->a2, cp->a3, PAGE_SHIFT);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_SFENCE_VMA_ASID:
-		ret = sbi_remote_hfence_vvma_asid(&cm, cp->a2,
-						  cp->a3, cp->a4);
+		if (cp->a2 == 0 && cp->a3 == 0)
+			kvm_riscv_hfence_vvma_asid_all(vcpu->kvm,
+						       hbase, hmask, cp->a4);
+		else
+			kvm_riscv_hfence_vvma_asid_gva(vcpu->kvm,
+						       hbase, hmask,
+						       cp->a2, cp->a3,
+						       PAGE_SHIFT, cp->a4);
 		break;
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA:
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_GVMA_VMID:
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA:
 	case SBI_EXT_RFENCE_REMOTE_HFENCE_VVMA_ASID:
-	/* TODO: implement for nested hypervisor case */
+		/*
+		 * Until nested virtualization is implemented, the
+		 * SBI HFENCE calls should be treated as NOPs
+		 */
+		break;
 	default:
 		ret = -EOPNOTSUPP;
 	}

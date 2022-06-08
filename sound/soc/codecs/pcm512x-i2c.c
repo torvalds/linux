@@ -13,8 +13,7 @@
 
 #include "pcm512x.h"
 
-static int pcm512x_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int pcm512x_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 	struct regmap_config config = pcm512x_regmap;
@@ -68,7 +67,7 @@ MODULE_DEVICE_TABLE(acpi, pcm512x_acpi_match);
 #endif
 
 static struct i2c_driver pcm512x_i2c_driver = {
-	.probe 		= pcm512x_i2c_probe,
+	.probe_new	= pcm512x_i2c_probe,
 	.remove 	= pcm512x_i2c_remove,
 	.id_table	= pcm512x_i2c_id,
 	.driver		= {

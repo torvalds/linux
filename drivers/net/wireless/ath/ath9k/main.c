@@ -2048,7 +2048,7 @@ static int ath9k_ampdu_action(struct ieee80211_hw *hw,
 	case IEEE80211_AMPDU_TX_OPERATIONAL:
 		atid = ath_node_to_tid(an, tid);
 		atid->baw_size = IEEE80211_MIN_AMPDU_BUF <<
-			        sta->ht_cap.ampdu_factor;
+					sta->deflink.ht_cap.ampdu_factor;
 		break;
 	default:
 		ath_err(ath9k_hw_common(sc->sc_ah), "Unknown AMPDU action\n");

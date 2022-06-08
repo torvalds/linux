@@ -14,6 +14,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/gpio.h>
+#include <linux/soc/pxa/cpu.h>
 
 #include "pxa320.h"
 #include "zylonite.h"

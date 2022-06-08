@@ -726,7 +726,7 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 			struct mid_q_entry **ppmidQ)
 {
 	spin_lock(&cifs_tcp_ses_lock);
-	if (ses->status == CifsNew) {
+	if (ses->ses_status == SES_NEW) {
 		if ((in_buf->Command != SMB_COM_SESSION_SETUP_ANDX) &&
 			(in_buf->Command != SMB_COM_NEGOTIATE)) {
 			spin_unlock(&cifs_tcp_ses_lock);
@@ -735,7 +735,7 @@ static int allocate_mid(struct cifs_ses *ses, struct smb_hdr *in_buf,
 		/* else ok - we are setting up session */
 	}
 
-	if (ses->status == CifsExiting) {
+	if (ses->ses_status == SES_EXITING) {
 		/* check if SMB session is bad because we are setting it up */
 		if (in_buf->Command != SMB_COM_LOGOFF_ANDX) {
 			spin_unlock(&cifs_tcp_ses_lock);
@@ -822,7 +822,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	} else
 		instance = exist_credits->instance;
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 
 	/*
 	 * We can't use credits obtained from the previous session to send this
@@ -830,14 +830,14 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 	 * return -EAGAIN in such cases to let callers handle it.
 	 */
 	if (instance != server->reconnect_instance) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		add_credits_and_wake_if(server, &credits, optype);
 		return -EAGAIN;
 	}
 
 	mid = server->ops->setup_async_request(server, rqst);
 	if (IS_ERR(mid)) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		add_credits_and_wake_if(server, &credits, optype);
 		return PTR_ERR(mid);
 	}
@@ -868,7 +868,7 @@ cifs_call_async(struct TCP_Server_Info *server, struct smb_rqst *rqst,
 		cifs_delete_mid(mid);
 	}
 
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	if (rc == 0)
 		return 0;
@@ -1109,7 +1109,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * of smb data.
 	 */
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 
 	/*
 	 * All the parts of the compound chain belong obtained credits from the
@@ -1119,7 +1119,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * handle it.
 	 */
 	if (instance != server->reconnect_instance) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		for (j = 0; j < num_rqst; j++)
 			add_credits(server, &credits[j], optype);
 		return -EAGAIN;
@@ -1131,7 +1131,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 			revert_current_mid(server, i);
 			for (j = 0; j < i; j++)
 				cifs_delete_mid(midQ[j]);
-			mutex_unlock(&server->srv_mutex);
+			cifs_server_unlock(server);
 
 			/* Update # of requests on wire to server */
 			for (j = 0; j < num_rqst; j++)
@@ -1163,7 +1163,7 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 		server->sequence_number -= 2;
 	}
 
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	/*
 	 * If sending failed for some reason or it is an oplock break that we
@@ -1187,12 +1187,12 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * Compounding is never used during session establish.
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((ses->ses_status == SES_NEW) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 		smb311_update_preauth_hash(ses, server, rqst[0].rq_iov, rqst[0].rq_nvec);
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 
 		spin_lock(&cifs_tcp_ses_lock);
 	}
@@ -1260,15 +1260,15 @@ compound_send_recv(const unsigned int xid, struct cifs_ses *ses,
 	 * Compounding is never used during session establish.
 	 */
 	spin_lock(&cifs_tcp_ses_lock);
-	if ((ses->status == CifsNew) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
+	if ((ses->ses_status == SES_NEW) || (optype & CIFS_NEG_OP) || (optype & CIFS_SESS_OP)) {
 		struct kvec iov = {
 			.iov_base = resp_iov[0].iov_base,
 			.iov_len = resp_iov[0].iov_len
 		};
 		spin_unlock(&cifs_tcp_ses_lock);
-		mutex_lock(&server->srv_mutex);
+		cifs_server_lock(server);
 		smb311_update_preauth_hash(ses, server, &iov, 1);
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		spin_lock(&cifs_tcp_ses_lock);
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
@@ -1385,11 +1385,11 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	   and avoid races inside tcp sendmsg code that could cause corruption
 	   of smb data */
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 
 	rc = allocate_mid(ses, in_buf, &midQ);
 	if (rc) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		/* Update # of requests on wire to server */
 		add_credits(server, &credits, 0);
 		return rc;
@@ -1397,7 +1397,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 
 	rc = cifs_sign_smb(in_buf, server, &midQ->sequence_number);
 	if (rc) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		goto out;
 	}
 
@@ -1411,7 +1411,7 @@ SendReceive(const unsigned int xid, struct cifs_ses *ses,
 	if (rc < 0)
 		server->sequence_number -= 2;
 
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	if (rc < 0)
 		goto out;
@@ -1530,18 +1530,18 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	   and avoid races inside tcp sendmsg code that could cause corruption
 	   of smb data */
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 
 	rc = allocate_mid(ses, in_buf, &midQ);
 	if (rc) {
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		return rc;
 	}
 
 	rc = cifs_sign_smb(in_buf, server, &midQ->sequence_number);
 	if (rc) {
 		cifs_delete_mid(midQ);
-		mutex_unlock(&server->srv_mutex);
+		cifs_server_unlock(server);
 		return rc;
 	}
 
@@ -1554,7 +1554,7 @@ SendReceiveBlockingLock(const unsigned int xid, struct cifs_tcon *tcon,
 	if (rc < 0)
 		server->sequence_number -= 2;
 
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	if (rc < 0) {
 		cifs_delete_mid(midQ);

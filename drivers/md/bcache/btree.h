@@ -226,7 +226,7 @@ struct btree_check_info {
 	int				result;
 };
 
-#define BCH_BTR_CHKTHREAD_MAX	64
+#define BCH_BTR_CHKTHREAD_MAX	12
 struct btree_check_state {
 	struct cache_set		*c;
 	int				total_threads;

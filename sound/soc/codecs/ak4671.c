@@ -629,8 +629,7 @@ static const struct regmap_config ak4671_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int ak4671_i2c_probe(struct i2c_client *client,
-			    const struct i2c_device_id *id)
+static int ak4671_i2c_probe(struct i2c_client *client)
 {
 	struct regmap *regmap;
 	int ret;
@@ -657,7 +656,7 @@ static struct i2c_driver ak4671_i2c_driver = {
 	.driver = {
 		.name = "ak4671-codec",
 	},
-	.probe = ak4671_i2c_probe,
+	.probe_new = ak4671_i2c_probe,
 	.id_table = ak4671_i2c_id,
 };
 

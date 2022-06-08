@@ -37,7 +37,6 @@
 	__a > __b ? (__a - __b) : (__b - __a); })
 
 enum tc_port;
-struct drm_device;
 struct drm_i915_private;
 struct intel_atomic_state;
 struct intel_crtc;
@@ -337,9 +336,9 @@ void assert_shared_dpll(struct drm_i915_private *dev_priv,
 			bool state);
 #define assert_shared_dpll_enabled(d, p) assert_shared_dpll(d, p, true)
 #define assert_shared_dpll_disabled(d, p) assert_shared_dpll(d, p, false)
-bool intel_reserve_shared_dplls(struct intel_atomic_state *state,
-				struct intel_crtc *crtc,
-				struct intel_encoder *encoder);
+int intel_reserve_shared_dplls(struct intel_atomic_state *state,
+			       struct intel_crtc *crtc,
+			       struct intel_encoder *encoder);
 void intel_release_shared_dplls(struct intel_atomic_state *state,
 				struct intel_crtc *crtc);
 void icl_set_active_port_dpll(struct intel_crtc_state *crtc_state,
@@ -356,7 +355,7 @@ bool intel_dpll_get_hw_state(struct drm_i915_private *i915,
 void intel_enable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_disable_shared_dpll(const struct intel_crtc_state *crtc_state);
 void intel_shared_dpll_swap_state(struct intel_atomic_state *state);
-void intel_shared_dpll_init(struct drm_device *dev);
+void intel_shared_dpll_init(struct drm_i915_private *dev_priv);
 void intel_dpll_update_ref_clks(struct drm_i915_private *dev_priv);
 void intel_dpll_readout_hw_state(struct drm_i915_private *dev_priv);
 void intel_dpll_sanitize_state(struct drm_i915_private *dev_priv);

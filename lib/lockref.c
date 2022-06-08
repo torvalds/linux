@@ -14,12 +14,11 @@
 	BUILD_BUG_ON(sizeof(old) != 8);						\
 	old.lock_count = READ_ONCE(lockref->lock_count);			\
 	while (likely(arch_spin_value_unlocked(old.lock.rlock.raw_lock))) {  	\
-		struct lockref new = old, prev = old;				\
+		struct lockref new = old;					\
 		CODE								\
-		old.lock_count = cmpxchg64_relaxed(&lockref->lock_count,	\
-						   old.lock_count,		\
-						   new.lock_count);		\
-		if (likely(old.lock_count == prev.lock_count)) {		\
+		if (likely(try_cmpxchg64_relaxed(&lockref->lock_count,		\
+						 &old.lock_count,		\
+						 new.lock_count))) {		\
 			SUCCESS;						\
 		}								\
 		if (!--retry)							\

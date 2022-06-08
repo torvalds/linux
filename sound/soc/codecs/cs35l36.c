@@ -1700,8 +1700,7 @@ static const struct reg_sequence cs35l36_revb0_errata_patch[] = {
 	{ CS35L36_TESTKEY_CTRL, CS35L36_TEST_LOCK2 },
 };
 
-static int cs35l36_i2c_probe(struct i2c_client *i2c_client,
-			      const struct i2c_device_id *id)
+static int cs35l36_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs35l36_private *cs35l36;
 	struct device *dev = &i2c_client->dev;
@@ -1804,7 +1803,7 @@ static int cs35l36_i2c_probe(struct i2c_client *i2c_client,
 	if (ret < 0) {
 		dev_err(&i2c_client->dev, "Failed to read otp_id Register %d\n",
 			ret);
-		return ret;
+		goto err;
 	}
 
 	if ((l37_id_reg & CS35L36_OTP_REV_MASK) == CS35L36_OTP_REV_L37)
@@ -1947,7 +1946,7 @@ static struct i2c_driver cs35l36_i2c_driver = {
 		.of_match_table = cs35l36_of_match,
 	},
 	.id_table = cs35l36_id,
-	.probe = cs35l36_i2c_probe,
+	.probe_new = cs35l36_i2c_probe,
 	.remove = cs35l36_i2c_remove,
 };
 module_i2c_driver(cs35l36_i2c_driver);

@@ -214,6 +214,7 @@ extern int usbnet_ether_cdc_bind(struct usbnet *dev, struct usb_interface *intf)
 extern int usbnet_cdc_bind(struct usbnet *, struct usb_interface *);
 extern void usbnet_cdc_unbind(struct usbnet *, struct usb_interface *);
 extern void usbnet_cdc_status(struct usbnet *, struct urb *);
+extern int usbnet_cdc_zte_rx_fixup(struct usbnet *dev, struct sk_buff *skb);
 
 /* CDC and RNDIS support the same host-chosen packet filters for IN transfers */
 #define	DEFAULT_FILTER	(USB_CDC_PACKET_TYPE_BROADCAST \
