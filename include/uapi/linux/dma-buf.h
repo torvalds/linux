@@ -96,6 +96,24 @@ struct dma_buf_sync {
  * dma-buf for waiting later instead of waiting immediately.  This is
  * useful for modern graphics APIs such as Vulkan which assume an explicit
  * synchronization model but still need to inter-operate with dma-buf.
+ *
+ * The intended usage pattern is the following:
+ *
+ *  1. Export a sync_file with flags corresponding to the expected GPU usage
+ *     via DMA_BUF_IOCTL_EXPORT_SYNC_FILE.
+ *
+ *  2. Submit rendering work which uses the dma-buf.  The work should wait on
+ *     the exported sync file before rendering and produce another sync_file
+ *     when complete.
+ *
+ *  3. Import the rendering-complete sync_file into the dma-buf with flags
+ *     corresponding to the GPU usage via DMA_BUF_IOCTL_IMPORT_SYNC_FILE.
+ *
+ * Unlike doing implicit synchronization via a GPU kernel driver's exec ioctl,
+ * the above is not a single atomic operation.  If userspace wants to ensure
+ * ordering via these fences, it is the respnosibility of userspace to use
+ * locks or other mechanisms to ensure that no other context adds fences or
+ * submits work between steps 1 and 3 above.
  */
 struct dma_buf_export_sync_file {
 	/**
@@ -119,6 +137,36 @@ struct dma_buf_export_sync_file {
 	__s32 fd;
 };
 
+/**
+ * struct dma_buf_import_sync_file - Insert a sync_file into a dma-buf
+ *
+ * Userspace can perform a DMA_BUF_IOCTL_IMPORT_SYNC_FILE to insert a
+ * sync_file into a dma-buf for the purposes of implicit synchronization
+ * with other dma-buf consumers.  This allows clients using explicitly
+ * synchronized APIs such as Vulkan to inter-op with dma-buf consumers
+ * which expect implicit synchronization such as OpenGL or most media
+ * drivers/video.
+ */
+struct dma_buf_import_sync_file {
+	/**
+	 * @flags: Read/write flags
+	 *
+	 * Must be DMA_BUF_SYNC_READ, DMA_BUF_SYNC_WRITE, or both.
+	 *
+	 * If DMA_BUF_SYNC_READ is set and DMA_BUF_SYNC_WRITE is not set,
+	 * this inserts the sync_file as a read-only fence.  Any subsequent
+	 * implicitly synchronized writes to this dma-buf will wait on this
+	 * fence but reads will not.
+	 *
+	 * If DMA_BUF_SYNC_WRITE is set, this inserts the sync_file as a
+	 * write fence.  All subsequent implicitly synchronized access to
+	 * this dma-buf will wait on this fence.
+	 */
+	__u32 flags;
+	/** @fd: Sync file descriptor */
+	__s32 fd;
+};
+
 #define DMA_BUF_BASE		'b'
 #define DMA_BUF_IOCTL_SYNC	_IOW(DMA_BUF_BASE, 0, struct dma_buf_sync)
 
@@ -129,5 +177,6 @@ struct dma_buf_export_sync_file {
 #define DMA_BUF_SET_NAME_A	_IOW(DMA_BUF_BASE, 1, u32)
 #define DMA_BUF_SET_NAME_B	_IOW(DMA_BUF_BASE, 1, u64)
 #define DMA_BUF_IOCTL_EXPORT_SYNC_FILE	_IOWR(DMA_BUF_BASE, 2, struct dma_buf_export_sync_file)
+#define DMA_BUF_IOCTL_IMPORT_SYNC_FILE	_IOW(DMA_BUF_BASE, 3, struct dma_buf_import_sync_file)
 
 #endif
