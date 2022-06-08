@@ -15,75 +15,20 @@
 
 #define LINUX_OS_ID ((u64)0x8100 << 48)
 
-extern unsigned char rdmsr_start;
-extern unsigned char rdmsr_end;
-
-static u64 do_rdmsr(u32 idx)
+static inline uint8_t hypercall(u64 control, vm_vaddr_t input_address,
+				vm_vaddr_t output_address, uint64_t *hv_status)
 {
-	u32 lo, hi;
+	uint8_t vector;
 
-	asm volatile("rdmsr_start: rdmsr;"
-		     "rdmsr_end:"
-		     : "=a"(lo), "=c"(hi)
-		     : "c"(idx));
-
-	return (((u64) hi) << 32) | lo;
-}
-
-extern unsigned char wrmsr_start;
-extern unsigned char wrmsr_end;
-
-static void do_wrmsr(u32 idx, u64 val)
-{
-	u32 lo, hi;
-
-	lo = val;
-	hi = val >> 32;
-
-	asm volatile("wrmsr_start: wrmsr;"
-		     "wrmsr_end:"
-		     : : "a"(lo), "c"(idx), "d"(hi));
-}
-
-static int nr_gp;
-static int nr_ud;
-
-static inline u64 hypercall(u64 control, vm_vaddr_t input_address,
-			    vm_vaddr_t output_address)
-{
-	u64 hv_status;
-
-	asm volatile("mov %3, %%r8\n"
-		     "vmcall"
-		     : "=a" (hv_status),
-		       "+c" (control), "+d" (input_address)
-		     :  "r" (output_address)
-		     : "cc", "memory", "r8", "r9", "r10", "r11");
-
-	return hv_status;
-}
-
-static void guest_gp_handler(struct ex_regs *regs)
-{
-	unsigned char *rip = (unsigned char *)regs->rip;
-	bool r, w;
-
-	r = rip == &rdmsr_start;
-	w = rip == &wrmsr_start;
-	GUEST_ASSERT(r || w);
-
-	nr_gp++;
-
-	if (r)
-		regs->rip = (uint64_t)&rdmsr_end;
-	else
-		regs->rip = (uint64_t)&wrmsr_end;
-}
-
-static void guest_ud_handler(struct ex_regs *regs)
-{
-	nr_ud++;
-	regs->rip += 3;
+	/* Note both the hypercall and the "asm safe" clobber r9-r11. */
+	asm volatile("mov %[output_address], %%r8\n\t"
+		     KVM_ASM_SAFE("vmcall")
+		     : "=a" (*hv_status),
+		       "+c" (control), "+d" (input_address),
+		       KVM_ASM_SAFE_OUTPUTS(vector)
+		     : [output_address] "r"(output_address)
+		     : "cc", "memory", "r8", KVM_ASM_SAFE_CLOBBERS);
+	return vector;
 }
 
 struct msr_data {
@@ -101,31 +46,33 @@ struct hcall_data {
 
 static void guest_msr(struct msr_data *msr)
 {
+	uint64_t ignored;
+	uint8_t vector;
+
 	GUEST_ASSERT(msr->idx);
 
-	WRITE_ONCE(nr_gp, 0);
 	if (!msr->write)
-		do_rdmsr(msr->idx);
+		vector = rdmsr_safe(msr->idx, &ignored);
 	else
-		do_wrmsr(msr->idx, msr->write_val);
+		vector = wrmsr_safe(msr->idx, msr->write_val);
 
 	if (msr->available)
-		GUEST_ASSERT(READ_ONCE(nr_gp) == 0);
+		GUEST_ASSERT_2(!vector, msr->idx, vector);
 	else
-		GUEST_ASSERT(READ_ONCE(nr_gp) == 1);
+		GUEST_ASSERT_2(vector == GP_VECTOR, msr->idx, vector);
 	GUEST_DONE();
 }
 
 static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 {
 	u64 res, input, output;
+	uint8_t vector;
 
 	GUEST_ASSERT(hcall->control);
 
 	wrmsr(HV_X64_MSR_GUEST_OS_ID, LINUX_OS_ID);
 	wrmsr(HV_X64_MSR_HYPERCALL, pgs_gpa);
 
-	nr_ud = 0;
 	if (!(hcall->control & HV_HYPERCALL_FAST_BIT)) {
 		input = pgs_gpa;
 		output = pgs_gpa + 4096;
@@ -133,12 +80,14 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 		input = output = 0;
 	}
 
-	res = hypercall(hcall->control, input, output);
+	vector = hypercall(hcall->control, input, output, &res);
 	if (hcall->ud_expected)
-		GUEST_ASSERT(nr_ud == 1);
+		GUEST_ASSERT_2(vector == UD_VECTOR, hcall->control, vector);
 	else
-		GUEST_ASSERT(res == hcall->expect);
+		GUEST_ASSERT_2(!vector, hcall->control, vector);
 
+	GUEST_ASSERT_2(!hcall->ud_expected || res == hcall->expect,
+			hcall->expect, res);
 	GUEST_DONE();
 }
 
@@ -192,7 +141,6 @@ static void guest_test_msrs_access(void)
 
 		vm_init_descriptor_tables(vm);
 		vcpu_init_descriptor_tables(vcpu);
-		vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
 
 		run = vcpu->run;
 
@@ -499,8 +447,9 @@ static void guest_test_msrs_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
-				  __FILE__, uc.args[1]);
+			TEST_FAIL("%s at %s:%ld, MSR = %lx, vector = %lx",
+				  (const char *)uc.args[0], __FILE__,
+				  uc.args[1], uc.args[2], uc.args[3]);
 			return;
 		case UCALL_DONE:
 			break;
@@ -540,7 +489,6 @@ static void guest_test_hcalls_access(void)
 
 		vm_init_descriptor_tables(vm);
 		vcpu_init_descriptor_tables(vcpu);
-		vm_install_exception_handler(vm, UD_VECTOR, guest_ud_handler);
 
 		/* Hypercall input/output */
 		hcall_page = vm_vaddr_alloc_pages(vm, 2);
@@ -670,8 +618,9 @@ static void guest_test_hcalls_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
-				  __FILE__, uc.args[1]);
+			TEST_FAIL("%s at %s:%ld, arg1 = %lx, arg2 = %lx",
+				  (const char *)uc.args[0], __FILE__,
+				  uc.args[1], uc.args[2], uc.args[3]);
 			return;
 		case UCALL_DONE:
 			break;
