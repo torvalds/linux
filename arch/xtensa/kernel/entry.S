@@ -455,7 +455,7 @@ KABI_W	or	a3, a3, a2
 	abi_call	trace_hardirqs_off
 1:
 #endif
-#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef CONFIG_CONTEXT_TRACKING_USER
 	l32i		abi_tmp0, a1, PT_PS
 	bbci.l		abi_tmp0, PS_UM_BIT, 1f
 	abi_call	user_exit_callable
@@ -544,7 +544,7 @@ common_exception_return:
 	j		.Lrestore_state
 
 .Lexit_tif_loop_user:
-#ifdef CONFIG_CONTEXT_TRACKING
+#ifdef CONFIG_CONTEXT_TRACKING_USER
 	abi_call	user_enter_callable
 #endif
 #ifdef CONFIG_HAVE_HW_BREAKPOINT

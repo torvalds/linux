@@ -6559,7 +6559,7 @@ void __sched schedule_idle(void)
 	} while (need_resched());
 }
 
-#if defined(CONFIG_CONTEXT_TRACKING) && !defined(CONFIG_HAVE_CONTEXT_TRACKING_OFFSTACK)
+#if defined(CONFIG_CONTEXT_TRACKING_USER) && !defined(CONFIG_HAVE_CONTEXT_TRACKING_USER_OFFSTACK)
 asmlinkage __visible void __sched schedule_user(void)
 {
 	/*
