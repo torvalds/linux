@@ -1492,12 +1492,19 @@ dg2_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
 }
 
 static void
+pvc_gt_workarounds_init(struct intel_gt *gt, struct i915_wa_list *wal)
+{
+	/* Wa_14015795083 */
+	wa_write_clr(wal, GEN7_MISCCPCTL, GEN12_DOP_CLOCK_GATE_RENDER_ENABLE);
+}
+
+static void
 gt_init_workarounds(struct intel_gt *gt, struct i915_wa_list *wal)
 {
 	struct drm_i915_private *i915 = gt->i915;
 
 	if (IS_PONTEVECCHIO(i915))
-		; /* none yet */
+		pvc_gt_workarounds_init(gt, wal);
 	else if (IS_DG2(i915))
 		dg2_gt_workarounds_init(gt, wal);
 	else if (IS_XEHPSDV(i915))
@@ -2082,12 +2089,6 @@ rcs_engine_wa_init(struct intel_engine_cs *engine, struct i915_wa_list *wal)
 		 * performance guide section.
 		 */
 		wa_write_or(wal, XEHP_L3SCQREG7, BLEND_FILL_CACHING_OPT_DIS);
-
-		/* Wa_18018781329:dg2 */
-		wa_write_or(wal, RENDER_MOD_CTRL, FORCE_MISS_FTLB);
-		wa_write_or(wal, COMP_MOD_CTRL, FORCE_MISS_FTLB);
-		wa_write_or(wal, VDBX_MOD_CTRL, FORCE_MISS_FTLB);
-		wa_write_or(wal, VEBX_MOD_CTRL, FORCE_MISS_FTLB);
 	}
 
 	if (IS_DG2_GRAPHICS_STEP(i915, G11, STEP_A0, STEP_B0)) {
@@ -2700,6 +2701,15 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 
 		/* Wa_22014226127:dg2,pvc */
 		wa_write_or(wal, LSC_CHICKEN_BIT_0, DISABLE_D8_D16_COASLESCE);
+
+		/* Wa_16015675438:dg2,pvc */
+		wa_masked_en(wal, FF_SLICE_CS_CHICKEN2, GEN12_PERF_FIX_BALANCING_CFE_DISABLE);
+
+		/* Wa_18018781329:dg2,pvc */
+		wa_write_or(wal, RENDER_MOD_CTRL, FORCE_MISS_FTLB);
+		wa_write_or(wal, COMP_MOD_CTRL, FORCE_MISS_FTLB);
+		wa_write_or(wal, VDBX_MOD_CTRL, FORCE_MISS_FTLB);
+		wa_write_or(wal, VEBX_MOD_CTRL, FORCE_MISS_FTLB);
 	}
 }
 
