@@ -341,7 +341,7 @@ static int mtk_adda_mtkaif_cfg_event(struct snd_soc_dapm_widget *w,
 				if (afe_priv->mtkaif_chosen_phase[0] < 0 ||
 				    afe_priv->mtkaif_chosen_phase[1] < 0) {
 					dev_err(afe->dev,
-						"%s(), skip dealy setting mtkaif_chosen_phase[0/1]:%d/%d\n",
+						"%s(), skip delay setting mtkaif_chosen_phase[0/1]:%d/%d\n",
 						__func__,
 						afe_priv->mtkaif_chosen_phase[0],
 						afe_priv->mtkaif_chosen_phase[1]);
