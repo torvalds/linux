@@ -20,6 +20,7 @@
 #include <linux/vmalloc.h>
 #include <linux/rtnetlink.h>
 #include <linux/prefetch.h>
+#include <linux/filter.h>
 
 #include <asm/sync_bitops.h>
 #include <asm/mshyperv.h>
@@ -792,9 +793,9 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 	int queue_sends;
 	u64 cmd_rqst;
 
-	cmd_rqst = channel->request_addr_callback(channel, (u64)desc->trans_id);
+	cmd_rqst = channel->request_addr_callback(channel, desc->trans_id);
 	if (cmd_rqst == VMBUS_RQST_ERROR) {
-		netdev_err(ndev, "Incorrect transaction id\n");
+		netdev_err(ndev, "Invalid transaction ID %llx\n", desc->trans_id);
 		return;
 	}
 
@@ -805,7 +806,7 @@ static void netvsc_send_tx_complete(struct net_device *ndev,
 		struct hv_netvsc_packet *packet
 			= (struct hv_netvsc_packet *)skb->cb;
 		u32 send_index = packet->send_buf_index;
-		struct netvsc_stats *tx_stats;
+		struct netvsc_stats_tx *tx_stats;
 
 		if (send_index != NETVSC_INVALID_INDEX)
 			netvsc_free_send_slot(net_device, send_index);
@@ -854,9 +855,9 @@ static void netvsc_send_completion(struct net_device *ndev,
 	/* First check if this is a VMBUS completion without data payload */
 	if (!msglen) {
 		cmd_rqst = incoming_channel->request_addr_callback(incoming_channel,
-								   (u64)desc->trans_id);
+								   desc->trans_id);
 		if (cmd_rqst == VMBUS_RQST_ERROR) {
-			netdev_err(ndev, "Invalid transaction id\n");
+			netdev_err(ndev, "Invalid transaction ID %llx\n", desc->trans_id);
 			return;
 		}
 
@@ -1670,11 +1671,16 @@ int netvsc_poll(struct napi_struct *napi, int budget)
 	if (!nvchan->desc)
 		nvchan->desc = hv_pkt_iter_first(channel);
 
+	nvchan->xdp_flush = false;
+
 	while (nvchan->desc && work_done < budget) {
 		work_done += netvsc_process_raw_pkt(device, nvchan, net_device,
 						    ndev, nvchan->desc, budget);
 		nvchan->desc = hv_pkt_iter_next(channel, nvchan->desc);
 	}
+
+	if (nvchan->xdp_flush)
+		xdp_do_flush();
 
 	/* Send any pending receive completions */
 	ret = send_recv_completions(ndev, net_device, nvchan);

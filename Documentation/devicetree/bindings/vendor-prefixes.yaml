@@ -283,6 +283,8 @@ patternProperties:
     description: Shenzen Chuangsiqi Technology Co.,Ltd.
   "^ctera,.*":
     description: CTERA Networks Intl.
+  "^ctu,.*":
+    description: Czech Technical University in Prague
   "^cubietech,.*":
     description: Cubietech, Ltd.
   "^cui,.*":
@@ -383,6 +385,8 @@ patternProperties:
     description: Empire Electronix
   "^emtrion,.*":
     description: emtrion GmbH
+  "^enclustra,.*":
+    description: Enclustra GmbH
   "^endless,.*":
     description: Endless Mobile, Inc.
   "^ene,.*":

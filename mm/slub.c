@@ -26,6 +26,7 @@
 #include <linux/cpuset.h>
 #include <linux/mempolicy.h>
 #include <linux/ctype.h>
+#include <linux/stackdepot.h>
 #include <linux/debugobjects.h>
 #include <linux/kallsyms.h>
 #include <linux/kfence.h>
@@ -37,6 +38,7 @@
 #include <linux/memcontrol.h>
 #include <linux/random.h>
 #include <kunit/test.h>
+#include <linux/sort.h>
 
 #include <linux/debugfs.h>
 #include <trace/events/kmem.h>
@@ -264,8 +266,8 @@ static inline bool kmem_cache_has_cpu_partial(struct kmem_cache *s)
 #define TRACK_ADDRS_COUNT 16
 struct track {
 	unsigned long addr;	/* Called from address */
-#ifdef CONFIG_STACKTRACE
-	unsigned long addrs[TRACK_ADDRS_COUNT];	/* Called from address */
+#ifdef CONFIG_STACKDEPOT
+	depot_stack_handle_t handle;
 #endif
 	int cpu;		/* Was running on cpu */
 	int pid;		/* Pid context */
@@ -724,57 +726,51 @@ static struct track *get_track(struct kmem_cache *s, void *object,
 	return kasan_reset_tag(p + alloc);
 }
 
-static void set_track(struct kmem_cache *s, void *object,
+static void noinline set_track(struct kmem_cache *s, void *object,
 			enum track_item alloc, unsigned long addr)
 {
 	struct track *p = get_track(s, object, alloc);
 
-	if (addr) {
-#ifdef CONFIG_STACKTRACE
-		unsigned int nr_entries;
+#ifdef CONFIG_STACKDEPOT
+	unsigned long entries[TRACK_ADDRS_COUNT];
+	unsigned int nr_entries;
 
-		metadata_access_enable();
-		nr_entries = stack_trace_save(kasan_reset_tag(p->addrs),
-					      TRACK_ADDRS_COUNT, 3);
-		metadata_access_disable();
-
-		if (nr_entries < TRACK_ADDRS_COUNT)
-			p->addrs[nr_entries] = 0;
+	nr_entries = stack_trace_save(entries, ARRAY_SIZE(entries), 3);
+	p->handle = stack_depot_save(entries, nr_entries, GFP_NOWAIT);
 #endif
-		p->addr = addr;
-		p->cpu = smp_processor_id();
-		p->pid = current->pid;
-		p->when = jiffies;
-	} else {
-		memset(p, 0, sizeof(struct track));
-	}
+
+	p->addr = addr;
+	p->cpu = smp_processor_id();
+	p->pid = current->pid;
+	p->when = jiffies;
 }
 
 static void init_tracking(struct kmem_cache *s, void *object)
 {
+	struct track *p;
+
 	if (!(s->flags & SLAB_STORE_USER))
 		return;
 
-	set_track(s, object, TRACK_FREE, 0UL);
-	set_track(s, object, TRACK_ALLOC, 0UL);
+	p = get_track(s, object, TRACK_ALLOC);
+	memset(p, 0, 2*sizeof(struct track));
 }
 
 static void print_track(const char *s, struct track *t, unsigned long pr_time)
 {
+	depot_stack_handle_t handle __maybe_unused;
+
 	if (!t->addr)
 		return;
 
 	pr_err("%s in %pS age=%lu cpu=%u pid=%d\n",
 	       s, (void *)t->addr, pr_time - t->when, t->cpu, t->pid);
-#ifdef CONFIG_STACKTRACE
-	{
-		int i;
-		for (i = 0; i < TRACK_ADDRS_COUNT; i++)
-			if (t->addrs[i])
-				pr_err("\t%pS\n", (void *)t->addrs[i]);
-			else
-				break;
-	}
+#ifdef CONFIG_STACKDEPOT
+	handle = READ_ONCE(t->handle);
+	if (handle)
+		stack_depot_print(handle);
+	else
+		pr_err("object allocation/free stack trace missing\n");
 #endif
 }
 
@@ -1021,7 +1017,7 @@ static int check_pad_bytes(struct kmem_cache *s, struct slab *slab, u8 *p)
 }
 
 /* Check the pad bytes at the end of a slab page */
-static int slab_pad_check(struct kmem_cache *s, struct slab *slab)
+static void slab_pad_check(struct kmem_cache *s, struct slab *slab)
 {
 	u8 *start;
 	u8 *fault;
@@ -1031,21 +1027,21 @@ static int slab_pad_check(struct kmem_cache *s, struct slab *slab)
 	int remainder;
 
 	if (!(s->flags & SLAB_POISON))
-		return 1;
+		return;
 
 	start = slab_address(slab);
 	length = slab_size(slab);
 	end = start + length;
 	remainder = length % s->size;
 	if (!remainder)
-		return 1;
+		return;
 
 	pad = end - remainder;
 	metadata_access_enable();
 	fault = memchr_inv(kasan_reset_tag(pad), POISON_INUSE, remainder);
 	metadata_access_disable();
 	if (!fault)
-		return 1;
+		return;
 	while (end > fault && end[-1] == POISON_INUSE)
 		end--;
 
@@ -1054,7 +1050,6 @@ static int slab_pad_check(struct kmem_cache *s, struct slab *slab)
 	print_section(KERN_ERR, "Padding ", pad, remainder);
 
 	restore_bytes(s, "slab padding", POISON_INUSE, fault, end);
-	return 0;
 }
 
 static int check_object(struct kmem_cache *s, struct slab *slab,
@@ -1268,8 +1263,7 @@ static inline void dec_slabs_node(struct kmem_cache *s, int node, int objects)
 }
 
 /* Object debug checks for alloc/free paths */
-static void setup_object_debug(struct kmem_cache *s, struct slab *slab,
-								void *object)
+static void setup_object_debug(struct kmem_cache *s, void *object)
 {
 	if (!kmem_cache_debug_flags(s, SLAB_STORE_USER|SLAB_RED_ZONE|__OBJECT_POISON))
 		return;
@@ -1534,6 +1528,8 @@ static int __init setup_slub_debug(char *str)
 			global_slub_debug_changed = true;
 		} else {
 			slab_list_specified = true;
+			if (flags & SLAB_STORE_USER)
+				stack_depot_want_early_init();
 		}
 	}
 
@@ -1551,6 +1547,8 @@ static int __init setup_slub_debug(char *str)
 	}
 out:
 	slub_debug = global_flags;
+	if (slub_debug & SLAB_STORE_USER)
+		stack_depot_want_early_init();
 	if (slub_debug != 0 || slub_debug_string)
 		static_branch_enable(&slub_debug_enabled);
 	else
@@ -1583,6 +1581,9 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 	char *next_block;
 	slab_flags_t block_flags;
 	slab_flags_t slub_debug_local = slub_debug;
+
+	if (flags & SLAB_NO_USER_FLAGS)
+		return flags;
 
 	/*
 	 * If the slab cache is for debugging (e.g. kmemleak) then
@@ -1628,8 +1629,7 @@ slab_flags_t kmem_cache_flags(unsigned int object_size,
 	return flags | slub_debug_local;
 }
 #else /* !CONFIG_SLUB_DEBUG */
-static inline void setup_object_debug(struct kmem_cache *s,
-			struct slab *slab, void *object) {}
+static inline void setup_object_debug(struct kmem_cache *s, void *object) {}
 static inline
 void setup_slab_debug(struct kmem_cache *s, struct slab *slab, void *addr) {}
 
@@ -1641,8 +1641,7 @@ static inline int free_debug_processing(
 	void *head, void *tail, int bulk_cnt,
 	unsigned long addr) { return 0; }
 
-static inline int slab_pad_check(struct kmem_cache *s, struct slab *slab)
-			{ return 1; }
+static inline void slab_pad_check(struct kmem_cache *s, struct slab *slab) {}
 static inline int check_object(struct kmem_cache *s, struct slab *slab,
 			void *object, u8 val) { return 1; }
 static inline void add_full(struct kmem_cache *s, struct kmem_cache_node *n,
@@ -1772,10 +1771,9 @@ static inline bool slab_free_freelist_hook(struct kmem_cache *s,
 	return *head != NULL;
 }
 
-static void *setup_object(struct kmem_cache *s, struct slab *slab,
-				void *object)
+static void *setup_object(struct kmem_cache *s, void *object)
 {
-	setup_object_debug(s, slab, object);
+	setup_object_debug(s, object);
 	object = kasan_init_slab_obj(s, object);
 	if (unlikely(s->ctor)) {
 		kasan_unpoison_object_data(s, object);
@@ -1894,13 +1892,13 @@ static bool shuffle_freelist(struct kmem_cache *s, struct slab *slab)
 	/* First entry is used as the base of the freelist */
 	cur = next_freelist_entry(s, slab, &pos, start, page_limit,
 				freelist_count);
-	cur = setup_object(s, slab, cur);
+	cur = setup_object(s, cur);
 	slab->freelist = cur;
 
 	for (idx = 1; idx < slab->objects; idx++) {
 		next = next_freelist_entry(s, slab, &pos, start, page_limit,
 			freelist_count);
-		next = setup_object(s, slab, next);
+		next = setup_object(s, next);
 		set_freepointer(s, cur, next);
 		cur = next;
 	}
@@ -1939,7 +1937,7 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 	 */
 	alloc_gfp = (flags | __GFP_NOWARN | __GFP_NORETRY) & ~__GFP_NOFAIL;
 	if ((alloc_gfp & __GFP_DIRECT_RECLAIM) && oo_order(oo) > oo_order(s->min))
-		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~(__GFP_RECLAIM|__GFP_NOFAIL);
+		alloc_gfp = (alloc_gfp | __GFP_NOMEMALLOC) & ~__GFP_RECLAIM;
 
 	slab = alloc_slab_page(alloc_gfp, node, oo);
 	if (unlikely(!slab)) {
@@ -1971,11 +1969,11 @@ static struct slab *allocate_slab(struct kmem_cache *s, gfp_t flags, int node)
 
 	if (!shuffle) {
 		start = fixup_red_left(s, start);
-		start = setup_object(s, slab, start);
+		start = setup_object(s, start);
 		slab->freelist = start;
 		for (idx = 0, p = start; idx < slab->objects - 1; idx++) {
 			next = p + s->size;
-			next = setup_object(s, slab, next);
+			next = setup_object(s, next);
 			set_freepointer(s, p, next);
 			p = next;
 		}
@@ -2910,7 +2908,6 @@ redo:
 		 */
 		if (!node_isset(node, slab_nodes)) {
 			node = NUMA_NO_NODE;
-			goto redo;
 		} else {
 			stat(s, ALLOC_NODE_MISMATCH);
 			goto deactivate_slab;
@@ -4165,8 +4162,6 @@ static int calculate_sizes(struct kmem_cache *s)
 	 */
 	s->oo = oo_make(order, size);
 	s->min = oo_make(get_order(size), size);
-	if (oo_objects(s->oo) > oo_objects(s->max))
-		s->max = s->oo;
 
 	return !!oo_objects(s->oo);
 }
@@ -4344,18 +4339,26 @@ void __kmem_obj_info(struct kmem_obj_info *kpp, void *object, struct slab *slab)
 	objp = fixup_red_left(s, objp);
 	trackp = get_track(s, objp, TRACK_ALLOC);
 	kpp->kp_ret = (void *)trackp->addr;
-#ifdef CONFIG_STACKTRACE
-	for (i = 0; i < KS_ADDRS_COUNT && i < TRACK_ADDRS_COUNT; i++) {
-		kpp->kp_stack[i] = (void *)trackp->addrs[i];
-		if (!kpp->kp_stack[i])
-			break;
-	}
+#ifdef CONFIG_STACKDEPOT
+	{
+		depot_stack_handle_t handle;
+		unsigned long *entries;
+		unsigned int nr_entries;
 
-	trackp = get_track(s, objp, TRACK_FREE);
-	for (i = 0; i < KS_ADDRS_COUNT && i < TRACK_ADDRS_COUNT; i++) {
-		kpp->kp_free_stack[i] = (void *)trackp->addrs[i];
-		if (!kpp->kp_free_stack[i])
-			break;
+		handle = READ_ONCE(trackp->handle);
+		if (handle) {
+			nr_entries = stack_depot_fetch(handle, &entries);
+			for (i = 0; i < KS_ADDRS_COUNT && i < nr_entries; i++)
+				kpp->kp_stack[i] = (void *)entries[i];
+		}
+
+		trackp = get_track(s, objp, TRACK_FREE);
+		handle = READ_ONCE(trackp->handle);
+		if (handle) {
+			nr_entries = stack_depot_fetch(handle, &entries);
+			for (i = 0; i < KS_ADDRS_COUNT && i < nr_entries; i++)
+				kpp->kp_free_stack[i] = (void *)entries[i];
+		}
 	}
 #endif
 #endif
@@ -5057,6 +5060,7 @@ EXPORT_SYMBOL(validate_slab_cache);
  */
 
 struct location {
+	depot_stack_handle_t handle;
 	unsigned long count;
 	unsigned long addr;
 	long long sum_time;
@@ -5109,9 +5113,13 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 {
 	long start, end, pos;
 	struct location *l;
-	unsigned long caddr;
+	unsigned long caddr, chandle;
 	unsigned long age = jiffies - track->when;
+	depot_stack_handle_t handle = 0;
 
+#ifdef CONFIG_STACKDEPOT
+	handle = READ_ONCE(track->handle);
+#endif
 	start = -1;
 	end = t->count;
 
@@ -5126,7 +5134,8 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 			break;
 
 		caddr = t->loc[pos].addr;
-		if (track->addr == caddr) {
+		chandle = t->loc[pos].handle;
+		if ((track->addr == caddr) && (handle == chandle)) {
 
 			l = &t->loc[pos];
 			l->count++;
@@ -5151,6 +5160,8 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 
 		if (track->addr < caddr)
 			end = pos;
+		else if (track->addr == caddr && handle < chandle)
+			end = pos;
 		else
 			start = pos;
 	}
@@ -5173,6 +5184,7 @@ static int add_location(struct loc_track *t, struct kmem_cache *s,
 	l->max_time = age;
 	l->min_pid = track->pid;
 	l->max_pid = track->pid;
+	l->handle = handle;
 	cpumask_clear(to_cpumask(l->cpus));
 	cpumask_set_cpu(track->cpu, to_cpumask(l->cpus));
 	nodes_clear(l->nodes);
@@ -6082,6 +6094,21 @@ static int slab_debugfs_show(struct seq_file *seq, void *v)
 			seq_printf(seq, " nodes=%*pbl",
 				 nodemask_pr_args(&l->nodes));
 
+#ifdef CONFIG_STACKDEPOT
+		{
+			depot_stack_handle_t handle;
+			unsigned long *entries;
+			unsigned int nr_entries, j;
+
+			handle = READ_ONCE(l->handle);
+			if (handle) {
+				nr_entries = stack_depot_fetch(handle, &entries);
+				seq_puts(seq, "\n");
+				for (j = 0; j < nr_entries; j++)
+					seq_printf(seq, "        %pS\n", (void *)entries[j]);
+			}
+		}
+#endif
 		seq_puts(seq, "\n");
 	}
 
@@ -6104,6 +6131,17 @@ static void *slab_debugfs_next(struct seq_file *seq, void *v, loff_t *ppos)
 		return ppos;
 
 	return NULL;
+}
+
+static int cmp_loc_by_count(const void *a, const void *b, const void *data)
+{
+	struct location *loc1 = (struct location *)a;
+	struct location *loc2 = (struct location *)b;
+
+	if (loc1->count > loc2->count)
+		return -1;
+	else
+		return 1;
 }
 
 static void *slab_debugfs_start(struct seq_file *seq, loff_t *ppos)
@@ -6166,6 +6204,10 @@ static int slab_debug_trace_open(struct inode *inode, struct file *filep)
 			process_slab(t, s, slab, alloc, obj_map);
 		spin_unlock_irqrestore(&n->list_lock, flags);
 	}
+
+	/* Sort locations by count */
+	sort_r(t->loc, t->count, sizeof(struct location),
+		cmp_loc_by_count, NULL, NULL);
 
 	bitmap_free(obj_map);
 	return 0;

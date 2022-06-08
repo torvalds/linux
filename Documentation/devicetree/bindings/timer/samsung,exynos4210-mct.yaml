@@ -24,13 +24,12 @@ properties:
       - samsung,exynos4412-mct
 
   clocks:
-    minItems: 2
     maxItems: 2
 
   clock-names:
     items:
-      - pattern: "^(fin_pll|mct)$"
-      - pattern: "^(fin_pll|mct)$"
+      - const: fin_pll
+      - const: mct
 
   reg:
     maxItems: 1

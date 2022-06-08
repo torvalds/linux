@@ -432,6 +432,9 @@ EXPORT_SYMBOL_GPL(of_property_read_variable_u64_array);
  * property does not have a value, and -EILSEQ if the string is not
  * null-terminated within the length of the property data.
  *
+ * Note that the empty string "" has length of 1, thus -ENODATA cannot
+ * be interpreted as an empty string.
+ *
  * The out_string pointer is modified only if a valid string can be decoded.
  */
 int of_property_read_string(const struct device_node *np, const char *propname,
@@ -440,7 +443,7 @@ int of_property_read_string(const struct device_node *np, const char *propname,
 	const struct property *prop = of_find_property(np, propname, NULL);
 	if (!prop)
 		return -EINVAL;
-	if (!prop->value)
+	if (!prop->length)
 		return -ENODATA;
 	if (strnlen(prop->value, prop->length) >= prop->length)
 		return -EILSEQ;

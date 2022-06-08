@@ -15,6 +15,7 @@
 #include <linux/refcount.h>
 #include <linux/xarray.h>
 #include <linux/if_macvlan.h>
+#include <linux/debugfs.h>
 
 #include "lib/fs_chains.h"
 #include "en/tc_ct.h"
@@ -47,6 +48,15 @@
 #define ct_dbg(fmt, args...)\
 	netdev_dbg(ct_priv->netdev, "ct_debug: " fmt "\n", ##args)
 
+struct mlx5_tc_ct_debugfs {
+	struct {
+		atomic_t offloaded;
+		atomic_t rx_dropped;
+	} stats;
+
+	struct dentry *root;
+};
+
 struct mlx5_tc_ct_priv {
 	struct mlx5_core_dev *dev;
 	const struct net_device *netdev;
@@ -66,6 +76,8 @@ struct mlx5_tc_ct_priv {
 	struct mlx5_ct_fs *fs;
 	struct mlx5_ct_fs_ops *fs_ops;
 	spinlock_t ht_lock; /* protects ft entries */
+
+	struct mlx5_tc_ct_debugfs debugfs;
 };
 
 struct mlx5_ct_flow {
@@ -520,6 +532,8 @@ mlx5_tc_ct_entry_del_rules(struct mlx5_tc_ct_priv *ct_priv,
 {
 	mlx5_tc_ct_entry_del_rule(ct_priv, entry, true);
 	mlx5_tc_ct_entry_del_rule(ct_priv, entry, false);
+
+	atomic_dec(&ct_priv->debugfs.stats.offloaded);
 }
 
 static struct flow_action_entry *
@@ -1040,6 +1054,7 @@ mlx5_tc_ct_entry_add_rules(struct mlx5_tc_ct_priv *ct_priv,
 	if (err)
 		goto err_nat;
 
+	atomic_inc(&ct_priv->debugfs.stats.offloaded);
 	return 0;
 
 err_nat:
@@ -1808,7 +1823,6 @@ __mlx5_tc_ct_flow_offload(struct mlx5_tc_ct_priv *ct_priv,
 
 	ct_flow = kzalloc(sizeof(*ct_flow), GFP_KERNEL);
 	if (!ct_flow) {
-		kfree(ct_flow);
 		return ERR_PTR(-ENOMEM);
 	}
 
@@ -2065,6 +2079,29 @@ out_err:
 	return err;
 }
 
+static void
+mlx5_ct_tc_create_dbgfs(struct mlx5_tc_ct_priv *ct_priv)
+{
+	bool is_fdb = ct_priv->ns_type == MLX5_FLOW_NAMESPACE_FDB;
+	struct mlx5_tc_ct_debugfs *ct_dbgfs = &ct_priv->debugfs;
+	char dirname[16] = {};
+
+	if (sscanf(dirname, "ct_%s", is_fdb ? "fdb" : "nic") < 0)
+		return;
+
+	ct_dbgfs->root = debugfs_create_dir(dirname, mlx5_debugfs_get_dev_root(ct_priv->dev));
+	debugfs_create_atomic_t("offloaded", 0400, ct_dbgfs->root,
+				&ct_dbgfs->stats.offloaded);
+	debugfs_create_atomic_t("rx_dropped", 0400, ct_dbgfs->root,
+				&ct_dbgfs->stats.rx_dropped);
+}
+
+static void
+mlx5_ct_tc_remove_dbgfs(struct mlx5_tc_ct_priv *ct_priv)
+{
+	debugfs_remove_recursive(ct_priv->debugfs.root);
+}
+
 #define INIT_ERR_PREFIX "tc ct offload init failed"
 
 struct mlx5_tc_ct_priv *
@@ -2140,6 +2177,7 @@ mlx5_tc_ct_init(struct mlx5e_priv *priv, struct mlx5_fs_chains *chains,
 	if (err)
 		goto err_init_fs;
 
+	mlx5_ct_tc_create_dbgfs(ct_priv);
 	return ct_priv;
 
 err_init_fs:
@@ -2172,6 +2210,7 @@ mlx5_tc_ct_clean(struct mlx5_tc_ct_priv *ct_priv)
 	if (!ct_priv)
 		return;
 
+	mlx5_ct_tc_remove_dbgfs(ct_priv);
 	chains = ct_priv->chains;
 
 	ct_priv->fs_ops->destroy(ct_priv->fs);
@@ -2201,22 +2240,22 @@ mlx5e_tc_ct_restore_flow(struct mlx5_tc_ct_priv *ct_priv,
 		return true;
 
 	if (mapping_find(ct_priv->zone_mapping, zone_restore_id, &zone))
-		return false;
+		goto out_inc_drop;
 
 	if (!mlx5_tc_ct_skb_to_tuple(skb, &tuple, zone))
-		return false;
+		goto out_inc_drop;
 
 	spin_lock(&ct_priv->ht_lock);
 
 	entry = mlx5_tc_ct_entry_get(ct_priv, &tuple);
 	if (!entry) {
 		spin_unlock(&ct_priv->ht_lock);
-		return false;
+		goto out_inc_drop;
 	}
 
 	if (IS_ERR(entry)) {
 		spin_unlock(&ct_priv->ht_lock);
-		return false;
+		goto out_inc_drop;
 	}
 	spin_unlock(&ct_priv->ht_lock);
 
@@ -2224,4 +2263,8 @@ mlx5e_tc_ct_restore_flow(struct mlx5_tc_ct_priv *ct_priv,
 	__mlx5_tc_ct_entry_put(entry);
 
 	return true;
+
+out_inc_drop:
+	atomic_inc(&ct_priv->debugfs.stats.rx_dropped);
+	return false;
 }

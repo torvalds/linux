@@ -103,4 +103,3 @@ examples:
         adi,pin14-function = "tach4";
       };
     };
-

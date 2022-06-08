@@ -7,6 +7,7 @@
 enum mlx5_timeouts_types {
 	/* pre init timeouts (not read from FW) */
 	MLX5_TO_FW_PRE_INIT_TIMEOUT_MS,
+	MLX5_TO_FW_PRE_INIT_ON_RECOVERY_TIMEOUT_MS,
 	MLX5_TO_FW_PRE_INIT_WARN_MESSAGE_INTERVAL_MS,
 	MLX5_TO_FW_PRE_INIT_WAIT_MS,
 

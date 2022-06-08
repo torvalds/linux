@@ -107,6 +107,11 @@ enum {
 	PRESTERA_STP_FORWARD,
 };
 
+enum {
+	PRESTERA_POLICER_TYPE_INGRESS,
+	PRESTERA_POLICER_TYPE_EGRESS
+};
+
 enum prestera_hw_cpu_code_cnt_t {
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_DROP = 0,
 	PRESTERA_HW_CPU_CODE_CNT_TYPE_TRAP = 1,
@@ -287,5 +292,13 @@ int
 prestera_hw_cpu_code_counters_get(struct prestera_switch *sw, u8 code,
 				  enum prestera_hw_cpu_code_cnt_t counter_type,
 				  u64 *packet_count);
+
+/* Policer API */
+int prestera_hw_policer_create(struct prestera_switch *sw, u8 type,
+			       u32 *policer_id);
+int prestera_hw_policer_release(struct prestera_switch *sw,
+				u32 policer_id);
+int prestera_hw_policer_sr_tcm_set(struct prestera_switch *sw,
+				   u32 policer_id, u64 cir, u32 cbs);
 
 #endif /* _PRESTERA_HW_H_ */

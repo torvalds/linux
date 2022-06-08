@@ -10,9 +10,11 @@ maintainers:
   - Geert Uytterhoeven <geert+renesas@glider.be>
   - Magnus Damm <magnus.damm@gmail.com>
 
-description:
+description: |
   The R-Car (RZ/G) System Controller provides power management for the CPU
   cores and various coprocessors.
+  The power domain IDs for consumers are defined in header files::
+  include/dt-bindings/power/r8*-sysc.h
 
 properties:
   compatible:
@@ -63,15 +65,4 @@ examples:
             compatible = "renesas,r8a7791-sysc";
             reg = <0xe6180000 0x0200>;
             #power-domain-cells = <1>;
-    };
-
-  - |
-    // Power Domain consumers
-    #include <dt-bindings/power/r8a7791-sysc.h>
-
-    cache-controller-0 {
-            compatible = "cache";
-            power-domains = <&sysc R8A7791_PD_CA15_SCU>;
-            cache-unified;
-            cache-level = <2>;
     };

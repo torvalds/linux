@@ -45,7 +45,12 @@ static void init_early_allocated_pages(void);
 
 static int __init early_page_owner_param(char *buf)
 {
-	return kstrtobool(buf, &page_owner_enabled);
+	int ret = kstrtobool(buf, &page_owner_enabled);
+
+	if (page_owner_enabled)
+		stack_depot_want_early_init();
+
+	return ret;
 }
 early_param("page_owner", early_page_owner_param);
 
@@ -82,8 +87,6 @@ static __init void init_page_owner(void)
 {
 	if (!page_owner_enabled)
 		return;
-
-	stack_depot_init();
 
 	register_dummy_stack();
 	register_failure_stack();

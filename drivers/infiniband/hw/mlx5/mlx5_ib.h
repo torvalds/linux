@@ -1131,6 +1131,7 @@ struct mlx5_ib_dev {
 	struct xarray sig_mrs;
 	struct mlx5_port_caps port_caps[MLX5_MAX_PORTS];
 	u16 pkey_table_len;
+	u8 lag_ports;
 };
 
 static inline struct mlx5_ib_cq *to_mibcq(struct mlx5_core_cq *mcq)

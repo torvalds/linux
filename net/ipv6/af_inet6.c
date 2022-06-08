@@ -318,7 +318,7 @@ static int __inet6_bind(struct sock *sk, struct sockaddr *uaddr, int addr_len,
 		/* Binding to v4-mapped address on a v6-only socket
 		 * makes no sense
 		 */
-		if (sk->sk_ipv6only) {
+		if (ipv6_only_sock(sk)) {
 			err = -EINVAL;
 			goto out;
 		}
@@ -654,7 +654,7 @@ int inet6_sendmsg(struct socket *sock, struct msghdr *msg, size_t size)
 }
 
 INDIRECT_CALLABLE_DECLARE(int udpv6_recvmsg(struct sock *, struct msghdr *,
-					    size_t, int, int, int *));
+					    size_t, int, int *));
 int inet6_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 		  int flags)
 {
@@ -669,8 +669,7 @@ int inet6_recvmsg(struct socket *sock, struct msghdr *msg, size_t size,
 	/* IPV6_ADDRFORM can change sk->sk_prot under us. */
 	prot = READ_ONCE(sk->sk_prot);
 	err = INDIRECT_CALL_2(prot->recvmsg, tcp_recvmsg, udpv6_recvmsg,
-			      sk, msg, size, flags & MSG_DONTWAIT,
-			      flags & ~MSG_DONTWAIT, &addr_len);
+			      sk, msg, size, flags, &addr_len);
 	if (err >= 0)
 		msg->msg_namelen = addr_len;
 	return err;
