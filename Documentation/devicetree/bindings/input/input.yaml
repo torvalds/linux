@@ -21,7 +21,7 @@ properties:
     $ref: /schemas/types.yaml#/definitions/uint32-array
     items:
       minimum: 0
-      maximum: 0xff
+      maximum: 0x2ff
 
   poll-interval:
     description: Poll interval time in milliseconds.
