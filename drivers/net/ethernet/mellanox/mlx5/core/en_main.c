@@ -4350,14 +4350,6 @@ void mlx5e_build_nic_params(struct mlx5e_priv *priv, struct mlx5e_xsk *xsk, u16 
 	/* RQ */
 	mlx5e_build_rq_params(mdev, params);
 
-	/* HW LRO */
-	if (MLX5_CAP_ETH(mdev, lro_cap) &&
-	    params->rq_wq_type == MLX5_WQ_TYPE_LINKED_LIST_STRIDING_RQ) {
-		/* No XSK params: checking the availability of striding RQ in general. */
-		if (!mlx5e_rx_mpwqe_is_linear_skb(mdev, params, NULL))
-			params->packet_merge.type = slow_pci_heuristic(mdev) ?
-				MLX5E_PACKET_MERGE_NONE : MLX5E_PACKET_MERGE_LRO;
-	}
 	params->packet_merge.timeout = mlx5e_choose_lro_timeout(mdev, MLX5E_DEFAULT_LRO_TIMEOUT);
 
 	/* CQ moderation params */
