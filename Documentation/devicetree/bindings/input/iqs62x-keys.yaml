@@ -89,15 +89,14 @@ properties:
 patternProperties:
   "^hall-switch-(north|south)$":
     type: object
+    $ref: input.yaml#
     description:
       Represents north/south-field Hall-effect sensor touch or proximity
       events. Note that north/south-field orientation is reversed on the
       IQS620AXzCSR device due to its flip-chip package.
 
     properties:
-      linux,code:
-        $ref: /schemas/types.yaml#/definitions/uint32
-        description: Numeric switch code associated with the event.
+      linux,code: true
 
       azoteq,use-prox:
         $ref: /schemas/types.yaml#/definitions/flag

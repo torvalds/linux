@@ -23,6 +23,14 @@ properties:
       minimum: 0
       maximum: 0x2ff
 
+  linux,code:
+    description:
+      Specifies a single numeric keycode value to be used for reporting
+      button/switch events. Specify KEY_RESERVED (0) to opt out of event
+      reporting.
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 0x2ff
+
   poll-interval:
     description: Poll interval time in milliseconds.
     $ref: /schemas/types.yaml#/definitions/uint32

@@ -417,6 +417,7 @@ patternProperties:
     patternProperties:
       "^event-(prox|touch)$":
         type: object
+        $ref: input.yaml#
         description:
           Represents a proximity or touch event reported by the channel.
 
@@ -463,11 +464,7 @@ patternProperties:
               The IQS7222B does not feature channel-specific timeouts; the time-
               out specified for any one channel applies to all channels.
 
-          linux,code:
-            $ref: /schemas/types.yaml#/definitions/uint32
-            description:
-              Numeric key or switch code associated with the event. Specify
-              KEY_RESERVED (0) to opt out of event reporting.
+          linux,code: true
 
           linux,input-type:
             $ref: /schemas/types.yaml#/definitions/uint32

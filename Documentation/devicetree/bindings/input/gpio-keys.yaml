@@ -34,7 +34,6 @@ patternProperties:
 
         linux,code:
           description: Key / Axis code to emit.
-          $ref: /schemas/types.yaml#/definitions/uint32
 
         linux,input-type:
           description:

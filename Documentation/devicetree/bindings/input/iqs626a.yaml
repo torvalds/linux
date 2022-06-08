@@ -449,6 +449,7 @@ patternProperties:
     patternProperties:
       "^event-(prox|touch|deep)(-alt)?$":
         type: object
+        $ref: input.yaml#
         description:
           Represents a proximity, touch or deep-touch event reported by the
           channel in response to a decrease in counts. Node names suffixed with
@@ -487,9 +488,7 @@ patternProperties:
               Specifies the hysteresis for the event (touch and deep-touch
               events only).
 
-          linux,code:
-            $ref: /schemas/types.yaml#/definitions/uint32
-            description: Numeric key or switch code associated with the event.
+          linux,code: true
 
           linux,input-type:
             $ref: /schemas/types.yaml#/definitions/uint32
