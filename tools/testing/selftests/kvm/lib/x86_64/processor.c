@@ -1127,6 +1127,20 @@ static void set_idt_entry(struct kvm_vm *vm, int vector, unsigned long addr,
 	e->offset2 = addr >> 32;
 }
 
+
+static bool kvm_fixup_exception(struct ex_regs *regs)
+{
+	if (regs->r9 != KVM_EXCEPTION_MAGIC || regs->rip != regs->r10)
+		return false;
+
+	if (regs->vector == DE_VECTOR)
+		return false;
+
+	regs->rip = regs->r11;
+	regs->r9 = regs->vector;
+	return true;
+}
+
 void kvm_exit_unexpected_vector(uint32_t value)
 {
 	ucall(UCALL_UNHANDLED, 1, value);
@@ -1141,6 +1155,9 @@ void route_exception(struct ex_regs *regs)
 		handlers[regs->vector](regs);
 		return;
 	}
+
+	if (kvm_fixup_exception(regs))
+		return;
 
 	kvm_exit_unexpected_vector(regs->vector);
 }

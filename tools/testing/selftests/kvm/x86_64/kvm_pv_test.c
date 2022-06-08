@@ -12,55 +12,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-extern unsigned char rdmsr_start;
-extern unsigned char rdmsr_end;
-
-static u64 do_rdmsr(u32 idx)
-{
-	u32 lo, hi;
-
-	asm volatile("rdmsr_start: rdmsr;"
-		     "rdmsr_end:"
-		     : "=a"(lo), "=c"(hi)
-		     : "c"(idx));
-
-	return (((u64) hi) << 32) | lo;
-}
-
-extern unsigned char wrmsr_start;
-extern unsigned char wrmsr_end;
-
-static void do_wrmsr(u32 idx, u64 val)
-{
-	u32 lo, hi;
-
-	lo = val;
-	hi = val >> 32;
-
-	asm volatile("wrmsr_start: wrmsr;"
-		     "wrmsr_end:"
-		     : : "a"(lo), "c"(idx), "d"(hi));
-}
-
-static int nr_gp;
-
-static void guest_gp_handler(struct ex_regs *regs)
-{
-	unsigned char *rip = (unsigned char *)regs->rip;
-	bool r, w;
-
-	r = rip == &rdmsr_start;
-	w = rip == &wrmsr_start;
-	GUEST_ASSERT(r || w);
-
-	nr_gp++;
-
-	if (r)
-		regs->rip = (uint64_t)&rdmsr_end;
-	else
-		regs->rip = (uint64_t)&wrmsr_end;
-}
-
 struct msr_data {
 	uint32_t idx;
 	const char *name;
@@ -89,14 +40,16 @@ static struct msr_data msrs_to_test[] = {
 
 static void test_msr(struct msr_data *msr)
 {
-	PR_MSR(msr);
-	do_rdmsr(msr->idx);
-	GUEST_ASSERT(READ_ONCE(nr_gp) == 1);
+	uint64_t ignored;
+	uint8_t vector;
 
-	nr_gp = 0;
-	do_wrmsr(msr->idx, 0);
-	GUEST_ASSERT(READ_ONCE(nr_gp) == 1);
-	nr_gp = 0;
+	PR_MSR(msr);
+
+	vector = rdmsr_safe(msr->idx, &ignored);
+	GUEST_ASSERT_1(vector == GP_VECTOR, vector);
+
+	vector = wrmsr_safe(msr->idx, 0);
+	GUEST_ASSERT_1(vector == GP_VECTOR, vector);
 }
 
 struct hcall_data {
@@ -165,12 +118,6 @@ static void pr_hcall(struct ucall *uc)
 	pr_info("testing hcall: %s (%lu)\n", hc->name, hc->nr);
 }
 
-static void handle_abort(struct ucall *uc)
-{
-	TEST_FAIL("%s at %s:%ld", (const char *)uc->args[0],
-		  __FILE__, uc->args[1]);
-}
-
 static void enter_guest(struct kvm_vcpu *vcpu)
 {
 	struct kvm_run *run = vcpu->run;
@@ -190,7 +137,9 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 			pr_hcall(&uc);
 			break;
 		case UCALL_ABORT:
-			handle_abort(&uc);
+			TEST_FAIL("%s at %s:%ld, vector = %lu",
+				  (const char *)uc.args[0], __FILE__,
+				  uc.args[1], uc.args[2]);
 			return;
 		case UCALL_DONE:
 			return;
@@ -216,7 +165,6 @@ int main(void)
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
-	vm_install_exception_handler(vm, GP_VECTOR, guest_gp_handler);
 
 	enter_guest(vcpu);
 	kvm_vm_free(vm);

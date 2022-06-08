@@ -15,6 +15,8 @@
 #include <asm/msr-index.h>
 #include <asm/prctl.h>
 
+#include <linux/stringify.h>
+
 #include "../kvm_util.h"
 
 #define NMI_VECTOR		0x02
@@ -540,6 +542,78 @@ void vm_init_descriptor_tables(struct kvm_vm *vm);
 void vcpu_init_descriptor_tables(struct kvm_vcpu *vcpu);
 void vm_install_exception_handler(struct kvm_vm *vm, int vector,
 			void (*handler)(struct ex_regs *));
+
+/* If a toddler were to say "abracadabra". */
+#define KVM_EXCEPTION_MAGIC 0xabacadabaull
+
+/*
+ * KVM selftest exception fixup uses registers to coordinate with the exception
+ * handler, versus the kernel's in-memory tables and KVM-Unit-Tests's in-memory
+ * per-CPU data.  Using only registers avoids having to map memory into the
+ * guest, doesn't require a valid, stable GS.base, and reduces the risk of
+ * for recursive faults when accessing memory in the handler.  The downside to
+ * using registers is that it restricts what registers can be used by the actual
+ * instruction.  But, selftests are 64-bit only, making register* pressure a
+ * minor concern.  Use r9-r11 as they are volatile, i.e. don't need* to be saved
+ * by the callee, and except for r11 are not implicit parameters to any
+ * instructions.  Ideally, fixup would use r8-r10 and thus avoid implicit
+ * parameters entirely, but Hyper-V's hypercall ABI uses r8 and testing Hyper-V
+ * is higher priority than testing non-faulting SYSCALL/SYSRET.
+ *
+ * Note, the fixup handler deliberately does not handle #DE, i.e. the vector
+ * is guaranteed to be non-zero on fault.
+ *
+ * REGISTER INPUTS:
+ * r9  = MAGIC
+ * r10 = RIP
+ * r11 = new RIP on fault
+ *
+ * REGISTER OUTPUTS:
+ * r9  = exception vector (non-zero)
+ */
+#define KVM_ASM_SAFE(insn)					\
+	"mov $" __stringify(KVM_EXCEPTION_MAGIC) ", %%r9\n\t"	\
+	"lea 1f(%%rip), %%r10\n\t"				\
+	"lea 2f(%%rip), %%r11\n\t"				\
+	"1: " insn "\n\t"					\
+	"mov $0, %[vector]\n\t"					\
+	"jmp 3f\n\t"						\
+	"2:\n\t"						\
+	"mov  %%r9b, %[vector]\n\t"				\
+	"3:\n\t"
+
+#define KVM_ASM_SAFE_OUTPUTS(v)	[vector] "=qm"(v)
+#define KVM_ASM_SAFE_CLOBBERS	"r9", "r10", "r11"
+
+#define kvm_asm_safe(insn, inputs...)			\
+({							\
+	uint8_t vector;					\
+							\
+	asm volatile(KVM_ASM_SAFE(insn)			\
+		     : KVM_ASM_SAFE_OUTPUTS(vector)	\
+		     : inputs				\
+		     : KVM_ASM_SAFE_CLOBBERS);		\
+	vector;						\
+})
+
+static inline uint8_t rdmsr_safe(uint32_t msr, uint64_t *val)
+{
+	uint8_t vector;
+	uint32_t a, d;
+
+	asm volatile(KVM_ASM_SAFE("rdmsr")
+		     : "=a"(a), "=d"(d), KVM_ASM_SAFE_OUTPUTS(vector)
+		     : "c"(msr)
+		     : KVM_ASM_SAFE_CLOBBERS);
+
+	*val = (uint64_t)a | ((uint64_t)d << 32);
+	return vector;
+}
+
+static inline uint8_t wrmsr_safe(uint32_t msr, uint64_t val)
+{
+	return kvm_asm_safe("wrmsr", "A"(val), "c"(msr));
+}
 
 uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 				 uint64_t vaddr);
