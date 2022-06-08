@@ -491,15 +491,11 @@ patternProperties:
           linux,code: true
 
           linux,input-type:
-            $ref: /schemas/types.yaml#/definitions/uint32
             enum: [1, 5]
             description:
               Specifies whether the event is to be interpreted as a key (1) or
               a switch (5). By default, Hall-channel events are interpreted as
               switches and all others are interpreted as keys.
-
-        dependencies:
-          linux,input-type: ["linux,code"]
 
         additionalProperties: false
 

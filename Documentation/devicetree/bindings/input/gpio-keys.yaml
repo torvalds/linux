@@ -36,12 +36,7 @@ patternProperties:
           description: Key / Axis code to emit.
 
         linux,input-type:
-          description:
-            Specify event type this button/key generates. If not specified defaults to
-            <1> == EV_KEY.
-          $ref: /schemas/types.yaml#/definitions/uint32
-
-          default: 1
+          default: 1  # EV_KEY
 
         linux,input-value:
           description: |
