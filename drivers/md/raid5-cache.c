@@ -1590,18 +1590,13 @@ void r5l_quiesce(struct r5l_log *log, int quiesce)
 
 bool r5l_log_disk_error(struct r5conf *conf)
 {
-	struct r5l_log *log;
-	bool ret;
-	/* don't allow write if journal disk is missing */
-	rcu_read_lock();
-	log = rcu_dereference(conf->log);
+	struct r5l_log *log = conf->log;
 
+	/* don't allow write if journal disk is missing */
 	if (!log)
-		ret = test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
+		return test_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	else
-		ret = test_bit(Faulty, &log->rdev->flags);
-	rcu_read_unlock();
-	return ret;
+		return test_bit(Faulty, &log->rdev->flags);
 }
 
 #define R5L_RECOVERY_PAGE_POOL_SIZE 256
@@ -3148,7 +3143,7 @@ int r5l_init_log(struct r5conf *conf, struct md_rdev *rdev)
 	spin_lock_init(&log->stripe_in_journal_lock);
 	atomic_set(&log->stripe_in_journal_count, 0);
 
-	rcu_assign_pointer(conf->log, log);
+	conf->log = log;
 
 	set_bit(MD_HAS_JOURNAL, &conf->mddev->flags);
 	return 0;
@@ -3171,7 +3166,6 @@ void r5l_exit_log(struct r5conf *conf)
 	struct r5l_log *log = conf->log;
 
 	conf->log = NULL;
-	synchronize_rcu();
 
 	/* Ensure disable_writeback_work wakes up and exits */
 	wake_up(&conf->mddev->sb_wait);
