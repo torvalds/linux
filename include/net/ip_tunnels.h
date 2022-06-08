@@ -456,8 +456,8 @@ static inline void iptunnel_xmit_stats(struct net_device *dev, int pkt_len)
 		struct pcpu_sw_netstats *tstats = get_cpu_ptr(dev->tstats);
 
 		u64_stats_update_begin(&tstats->syncp);
-		tstats->tx_bytes += pkt_len;
-		tstats->tx_packets++;
+		u64_stats_add(&tstats->tx_bytes, pkt_len);
+		u64_stats_inc(&tstats->tx_packets);
 		u64_stats_update_end(&tstats->syncp);
 		put_cpu_ptr(tstats);
 	} else {

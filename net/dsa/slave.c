@@ -935,10 +935,10 @@ static void dsa_slave_get_ethtool_stats(struct net_device *dev,
 		s = per_cpu_ptr(dev->tstats, i);
 		do {
 			start = u64_stats_fetch_begin_irq(&s->syncp);
-			tx_packets = s->tx_packets;
-			tx_bytes = s->tx_bytes;
-			rx_packets = s->rx_packets;
-			rx_bytes = s->rx_bytes;
+			tx_packets = u64_stats_read(&s->tx_packets);
+			tx_bytes = u64_stats_read(&s->tx_bytes);
+			rx_packets = u64_stats_read(&s->rx_packets);
+			rx_bytes = u64_stats_read(&s->rx_bytes);
 		} while (u64_stats_fetch_retry_irq(&s->syncp, start));
 		data[0] += tx_packets;
 		data[1] += tx_bytes;
