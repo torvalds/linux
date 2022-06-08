@@ -23,6 +23,13 @@
 #include <linux/kprobes.h>
 
 
+DEFINE_PER_CPU(struct context_tracking, context_tracking) = {
+#ifdef CONFIG_CONTEXT_TRACKING_IDLE
+	.dynticks = ATOMIC_INIT(1),
+#endif
+};
+EXPORT_SYMBOL_GPL(context_tracking);
+
 #ifdef CONFIG_CONTEXT_TRACKING_IDLE
 noinstr void ct_idle_enter(void)
 {
@@ -137,9 +144,6 @@ noinstr void ct_nmi_exit(void)
 
 DEFINE_STATIC_KEY_FALSE(context_tracking_key);
 EXPORT_SYMBOL_GPL(context_tracking_key);
-
-DEFINE_PER_CPU(struct context_tracking, context_tracking);
-EXPORT_SYMBOL_GPL(context_tracking);
 
 static noinstr bool context_tracking_recursion_enter(void)
 {
