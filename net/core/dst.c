@@ -49,7 +49,7 @@ void dst_init(struct dst_entry *dst, struct dst_ops *ops,
 	      unsigned short flags)
 {
 	dst->dev = dev;
-	dev_hold_track(dev, &dst->dev_tracker, GFP_ATOMIC);
+	netdev_hold(dev, &dst->dev_tracker, GFP_ATOMIC);
 	dst->ops = ops;
 	dst_init_metrics(dst, dst_default_metrics.metrics, true);
 	dst->expires = 0UL;
@@ -117,7 +117,7 @@ struct dst_entry *dst_destroy(struct dst_entry * dst)
 
 	if (dst->ops->destroy)
 		dst->ops->destroy(dst);
-	dev_put_track(dst->dev, &dst->dev_tracker);
+	netdev_put(dst->dev, &dst->dev_tracker);
 
 	lwtstate_put(dst->lwtstate);
 
@@ -159,8 +159,8 @@ void dst_dev_put(struct dst_entry *dst)
 	dst->input = dst_discard;
 	dst->output = dst_discard_out;
 	dst->dev = blackhole_netdev;
-	dev_replace_track(dev, blackhole_netdev, &dst->dev_tracker,
-			  GFP_ATOMIC);
+	netdev_ref_replace(dev, blackhole_netdev, &dst->dev_tracker,
+			   GFP_ATOMIC);
 }
 EXPORT_SYMBOL(dst_dev_put);
 

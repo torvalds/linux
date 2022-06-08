@@ -3462,7 +3462,7 @@ static int macsec_dev_init(struct net_device *dev)
 		memcpy(dev->broadcast, real_dev->broadcast, dev->addr_len);
 
 	/* Get macsec's reference to real_dev */
-	dev_hold_track(real_dev, &macsec->dev_tracker, GFP_KERNEL);
+	netdev_hold(real_dev, &macsec->dev_tracker, GFP_KERNEL);
 
 	return 0;
 }
@@ -3710,7 +3710,7 @@ static void macsec_free_netdev(struct net_device *dev)
 	free_percpu(macsec->secy.tx_sc.stats);
 
 	/* Get rid of the macsec's reference to real_dev */
-	dev_put_track(macsec->real_dev, &macsec->dev_tracker);
+	netdev_put(macsec->real_dev, &macsec->dev_tracker);
 }
 
 static void macsec_setup(struct net_device *dev)

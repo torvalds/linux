@@ -381,7 +381,7 @@ ip6_tnl_dev_uninit(struct net_device *dev)
 	else
 		ip6_tnl_unlink(ip6n, t);
 	dst_cache_reset(&t->dst_cache);
-	dev_put_track(dev, &t->dev_tracker);
+	netdev_put(dev, &t->dev_tracker);
 }
 
 /**
@@ -1889,7 +1889,7 @@ ip6_tnl_dev_init_gen(struct net_device *dev)
 	dev->min_mtu = ETH_MIN_MTU;
 	dev->max_mtu = IP6_MAX_MTU - dev->hard_header_len;
 
-	dev_hold_track(dev, &t->dev_tracker, GFP_KERNEL);
+	netdev_hold(dev, &t->dev_tracker, GFP_KERNEL);
 	return 0;
 
 destroy_dst:

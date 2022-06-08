@@ -691,7 +691,7 @@ static int vif_delete(struct mr_table *mrt, int vifi, int notify,
 	if (v->flags & (VIFF_TUNNEL | VIFF_REGISTER) && !notify)
 		unregister_netdevice_queue(dev, head);
 
-	dev_put_track(dev, &v->dev_tracker);
+	netdev_put(dev, &v->dev_tracker);
 	return 0;
 }
 

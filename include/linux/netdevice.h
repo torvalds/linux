@@ -3981,8 +3981,8 @@ static inline void netdev_tracker_free(struct net_device *dev,
 #endif
 }
 
-static inline void dev_hold_track(struct net_device *dev,
-				  netdevice_tracker *tracker, gfp_t gfp)
+static inline void netdev_hold(struct net_device *dev,
+			       netdevice_tracker *tracker, gfp_t gfp)
 {
 	if (dev) {
 		__dev_hold(dev);
@@ -3990,8 +3990,8 @@ static inline void dev_hold_track(struct net_device *dev,
 	}
 }
 
-static inline void dev_put_track(struct net_device *dev,
-				 netdevice_tracker *tracker)
+static inline void netdev_put(struct net_device *dev,
+			      netdevice_tracker *tracker)
 {
 	if (dev) {
 		netdev_tracker_free(dev, tracker);
@@ -4004,11 +4004,11 @@ static inline void dev_put_track(struct net_device *dev,
  *	@dev: network device
  *
  * Hold reference to device to keep it from being freed.
- * Try using dev_hold_track() instead.
+ * Try using netdev_hold() instead.
  */
 static inline void dev_hold(struct net_device *dev)
 {
-	dev_hold_track(dev, NULL, GFP_ATOMIC);
+	netdev_hold(dev, NULL, GFP_ATOMIC);
 }
 
 /**
@@ -4016,17 +4016,17 @@ static inline void dev_hold(struct net_device *dev)
  *	@dev: network device
  *
  * Release reference to device to allow it to be freed.
- * Try using dev_put_track() instead.
+ * Try using netdev_put() instead.
  */
 static inline void dev_put(struct net_device *dev)
 {
-	dev_put_track(dev, NULL);
+	netdev_put(dev, NULL);
 }
 
-static inline void dev_replace_track(struct net_device *odev,
-				     struct net_device *ndev,
-				     netdevice_tracker *tracker,
-				     gfp_t gfp)
+static inline void netdev_ref_replace(struct net_device *odev,
+				      struct net_device *ndev,
+				      netdevice_tracker *tracker,
+				      gfp_t gfp)
 {
 	if (odev)
 		netdev_tracker_free(odev, tracker);
