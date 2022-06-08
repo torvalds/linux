@@ -608,58 +608,6 @@ static int rmi_f34v7_check_bl_config_size(struct f34_data *f34)
 	return 0;
 }
 
-static int rmi_f34v7_erase_config(struct f34_data *f34)
-{
-	int ret;
-
-	dev_info(&f34->fn->dev, "Erasing config...\n");
-
-	init_completion(&f34->v7.cmd_done);
-
-	switch (f34->v7.config_area) {
-	case v7_UI_CONFIG_AREA:
-		ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_UI_CONFIG);
-		if (ret < 0)
-			return ret;
-		break;
-	case v7_DP_CONFIG_AREA:
-		ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_DISP_CONFIG);
-		if (ret < 0)
-			return ret;
-		break;
-	case v7_BL_CONFIG_AREA:
-		ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_BL_CONFIG);
-		if (ret < 0)
-			return ret;
-		break;
-	}
-
-	ret = rmi_f34v7_check_command_status(f34, F34_ERASE_WAIT_MS);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
-static int rmi_f34v7_erase_guest_code(struct f34_data *f34)
-{
-	int ret;
-
-	dev_info(&f34->fn->dev, "Erasing guest code...\n");
-
-	init_completion(&f34->v7.cmd_done);
-
-	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_GUEST_CODE);
-	if (ret < 0)
-		return ret;
-
-	ret = rmi_f34v7_check_command_status(f34, F34_ERASE_WAIT_MS);
-	if (ret < 0)
-		return ret;
-
-	return 0;
-}
-
 static int rmi_f34v7_erase_all(struct f34_data *f34)
 {
 	int ret;
@@ -668,31 +616,13 @@ static int rmi_f34v7_erase_all(struct f34_data *f34)
 
 	init_completion(&f34->v7.cmd_done);
 
-	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_UI_FIRMWARE);
+	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_ALL);
 	if (ret < 0)
 		return ret;
 
 	ret = rmi_f34v7_check_command_status(f34, F34_ERASE_WAIT_MS);
 	if (ret < 0)
 		return ret;
-
-	f34->v7.config_area = v7_UI_CONFIG_AREA;
-	ret = rmi_f34v7_erase_config(f34);
-	if (ret < 0)
-		return ret;
-
-	if (f34->v7.has_display_cfg) {
-		f34->v7.config_area = v7_DP_CONFIG_AREA;
-		ret = rmi_f34v7_erase_config(f34);
-		if (ret < 0)
-			return ret;
-	}
-
-	if (f34->v7.has_guest_code) {
-		ret = rmi_f34v7_erase_guest_code(f34);
-		if (ret < 0)
-			return ret;
-	}
 
 	return 0;
 }
@@ -897,17 +827,6 @@ static int rmi_f34v7_write_flash_config(struct f34_data *f34)
 
 	init_completion(&f34->v7.cmd_done);
 
-	ret = rmi_f34v7_write_command(f34, v7_CMD_ERASE_FLASH_CONFIG);
-	if (ret < 0)
-		return ret;
-
-	rmi_dbg(RMI_DEBUG_FN, &f34->fn->dev,
-		"%s: Erase flash config command written\n", __func__);
-
-	ret = rmi_f34v7_check_command_status(f34, F34_WRITE_WAIT_MS);
-	if (ret < 0)
-		return ret;
-
 	ret = rmi_f34v7_write_config(f34);
 	if (ret < 0)
 		return ret;
@@ -934,10 +853,6 @@ static int rmi_f34v7_write_partition_table(struct f34_data *f34)
 	f34->v7.read_config_buf_size = f34->v7.config_size;
 
 	ret = rmi_f34v7_read_blocks(f34, block_count, v7_CMD_READ_CONFIG);
-	if (ret < 0)
-		return ret;
-
-	ret = rmi_f34v7_erase_config(f34);
 	if (ret < 0)
 		return ret;
 
