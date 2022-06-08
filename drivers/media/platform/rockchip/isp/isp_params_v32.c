@@ -540,16 +540,10 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	u32 data, lsc_ctrl;
 	int i;
 
-	/* To config must be off , store the current status firstly */
 	lsc_ctrl = isp3_param_read(params_vdev, ISP3X_LSC_CTRL);
-	isp3_param_clear_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN | BIT(2));
 	params_rec->others.lsc_cfg = *arg;
-	if (dev->hw_dev->is_single) {
-		if (lsc_ctrl & ISP_LSC_EN)
-			tasklet_schedule(&priv_val->lsc_tasklet);
-		else
-			isp_lsc_matrix_cfg_sram(params_vdev, arg, false);
-	}
+	if (dev->hw_dev->is_single && (lsc_ctrl & ISP_LSC_EN))
+		tasklet_schedule(&priv_val->lsc_tasklet);
 
 	for (i = 0; i < ISP32_LSC_SIZE_TBL_SIZE / 4; i++) {
 		/* program x size tables */
@@ -578,17 +572,24 @@ isp_lsc_config(struct rkisp_isp_params_vdev *params_vdev,
 	}
 
 	if (arg->sector_16x16)
-		lsc_ctrl |= BIT(2);
-	isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, lsc_ctrl);
+		lsc_ctrl |= ISP3X_LSC_SECTOR_16X16;
+	else
+		lsc_ctrl &= ~ISP3X_LSC_SECTOR_16X16;
+	isp3_param_write(params_vdev, lsc_ctrl, ISP3X_LSC_CTRL);
 }
 
 static void
 isp_lsc_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 {
-	u32 val = ISP_LSC_EN;
+	struct isp32_isp_params_cfg *params_rec = params_vdev->isp32_params;
+	u32 val;
 
 	if (en) {
+		val = ISP_LSC_EN | ISP32_SELF_FORCE_UPD;
 		isp3_param_set_bits(params_vdev, ISP3X_LSC_CTRL, val);
+		if (params_vdev->dev->hw_dev->is_single)
+			isp_lsc_matrix_cfg_sram(params_vdev,
+						&params_rec->others.lsc_cfg, false);
 	} else {
 		isp3_param_clear_bits(params_vdev, ISP3X_LSC_CTRL, ISP_LSC_EN);
 		isp3_param_clear_bits(params_vdev, ISP3X_GAIN_CTRL, BIT(8));
