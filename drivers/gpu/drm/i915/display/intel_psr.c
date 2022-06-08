@@ -86,10 +86,13 @@
 
 static bool psr_global_enabled(struct intel_dp *intel_dp)
 {
+	struct intel_connector *connector = intel_dp->attached_connector;
 	struct drm_i915_private *i915 = dp_to_i915(intel_dp);
 
 	switch (intel_dp->psr.debug & I915_PSR_DEBUG_MODE_MASK) {
 	case I915_PSR_DEBUG_DEFAULT:
+		if (i915->params.enable_psr == -1)
+			return connector->panel.vbt.psr.enable;
 		return i915->params.enable_psr;
 	case I915_PSR_DEBUG_DISABLE:
 		return false;
@@ -2393,10 +2396,6 @@ void intel_psr_init(struct intel_dp *intel_dp)
 	}
 
 	intel_dp->psr.source_support = true;
-
-	if (dev_priv->params.enable_psr == -1)
-		if (!connector->panel.vbt.psr.enable)
-			dev_priv->params.enable_psr = 0;
 
 	/* Set link_standby x link_off defaults */
 	if (DISPLAY_VER(dev_priv) < 12)
