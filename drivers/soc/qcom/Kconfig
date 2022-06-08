@@ -42,6 +42,15 @@ config QCOM_CPR
 	  To compile this driver as a module, choose M here: the module will
 	  be called qcom-cpr
 
+config QCOM_CPUSS_SLEEP_STATS
+	tristate "Qualcomm Technologies, Inc. (QTI) CPUSS sleep stats driver"
+	depends on DEBUG_FS
+	help
+	 Qualcomm Technologies, Inc. (QTI) CPUSS sleep stats driver to get
+	 hardware LPM counts and residency for particular core/cluster
+	 low power modes. This driver creates debugfs entry which provide
+	 provision to read those counters.
+
 config QCOM_GENI_SE
 	tristate "QCOM GENI Serial Engine Driver"
 	depends on ARCH_QCOM || COMPILE_TEST
