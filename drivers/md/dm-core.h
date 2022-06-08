@@ -230,6 +230,9 @@ struct dm_target_io {
 	sector_t old_sector;
 	struct bio clone;
 };
+#define DM_TARGET_IO_BIO_OFFSET (offsetof(struct dm_target_io, clone))
+#define DM_IO_BIO_OFFSET \
+	(offsetof(struct dm_target_io, clone) + offsetof(struct dm_io, tio))
 
 /*
  * dm_target_io flags

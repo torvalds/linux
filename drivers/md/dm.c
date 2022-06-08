@@ -88,10 +88,6 @@ struct clone_info {
 	bool submit_as_polled:1;
 };
 
-#define DM_TARGET_IO_BIO_OFFSET (offsetof(struct dm_target_io, clone))
-#define DM_IO_BIO_OFFSET \
-	(offsetof(struct dm_target_io, clone) + offsetof(struct dm_io, tio))
-
 static inline struct dm_target_io *clone_to_tio(struct bio *clone)
 {
 	return container_of(clone, struct dm_target_io, clone);
@@ -2977,54 +2973,6 @@ int dm_noflush_suspending(struct dm_target *ti)
 	return __noflush_suspending(ti->table->md);
 }
 EXPORT_SYMBOL_GPL(dm_noflush_suspending);
-
-struct dm_md_mempools *dm_alloc_md_mempools(struct mapped_device *md, enum dm_queue_mode type,
-					    unsigned per_io_data_size, unsigned min_pool_size,
-					    bool integrity, bool poll)
-{
-	struct dm_md_mempools *pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
-	unsigned int pool_size = 0;
-	unsigned int front_pad, io_front_pad;
-	int ret;
-
-	if (!pools)
-		return NULL;
-
-	switch (type) {
-	case DM_TYPE_BIO_BASED:
-	case DM_TYPE_DAX_BIO_BASED:
-		pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
-		front_pad = roundup(per_io_data_size, __alignof__(struct dm_target_io)) + DM_TARGET_IO_BIO_OFFSET;
-		io_front_pad = roundup(per_io_data_size,  __alignof__(struct dm_io)) + DM_IO_BIO_OFFSET;
-		ret = bioset_init(&pools->io_bs, pool_size, io_front_pad, poll ? BIOSET_PERCPU_CACHE : 0);
-		if (ret)
-			goto out;
-		if (integrity && bioset_integrity_create(&pools->io_bs, pool_size))
-			goto out;
-		break;
-	case DM_TYPE_REQUEST_BASED:
-		pool_size = max(dm_get_reserved_rq_based_ios(), min_pool_size);
-		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
-		/* per_io_data_size is used for blk-mq pdu at queue allocation */
-		break;
-	default:
-		BUG();
-	}
-
-	ret = bioset_init(&pools->bs, pool_size, front_pad, 0);
-	if (ret)
-		goto out;
-
-	if (integrity && bioset_integrity_create(&pools->bs, pool_size))
-		goto out;
-
-	return pools;
-
-out:
-	dm_free_md_mempools(pools);
-
-	return NULL;
-}
 
 void dm_free_md_mempools(struct dm_md_mempools *pools)
 {

@@ -6,6 +6,7 @@
  */
 
 #include "dm-core.h"
+#include "dm-rq.h"
 
 #include <linux/module.h>
 #include <linux/vmalloc.h>
@@ -1010,32 +1011,56 @@ static bool dm_table_supports_poll(struct dm_table *t);
 static int dm_table_alloc_md_mempools(struct dm_table *t, struct mapped_device *md)
 {
 	enum dm_queue_mode type = dm_table_get_type(t);
-	unsigned per_io_data_size = 0;
-	unsigned min_pool_size = 0;
-	struct dm_target *ti;
-	unsigned i;
-	bool poll_supported = false;
+	unsigned int per_io_data_size = 0, front_pad, io_front_pad;
+	unsigned int min_pool_size = 0, pool_size;
+	struct dm_md_mempools *pools;
 
 	if (unlikely(type == DM_TYPE_NONE)) {
 		DMWARN("no table type is set, can't allocate mempools");
 		return -EINVAL;
 	}
 
-	if (__table_type_bio_based(type)) {
-		for (i = 0; i < t->num_targets; i++) {
-			ti = t->targets + i;
-			per_io_data_size = max(per_io_data_size, ti->per_io_data_size);
-			min_pool_size = max(min_pool_size, ti->num_flush_bios);
-		}
-		poll_supported = dm_table_supports_poll(t);
-	}
-
-	t->mempools = dm_alloc_md_mempools(md, type, per_io_data_size, min_pool_size,
-					   t->integrity_supported, poll_supported);
-	if (!t->mempools)
+	pools = kzalloc_node(sizeof(*pools), GFP_KERNEL, md->numa_node_id);
+	if (!pools)
 		return -ENOMEM;
 
+	if (type == DM_TYPE_REQUEST_BASED) {
+		pool_size = dm_get_reserved_rq_based_ios();
+		front_pad = offsetof(struct dm_rq_clone_bio_info, clone);
+		goto init_bs;
+	}
+
+	for (unsigned int i = 0; i < t->num_targets; i++) {
+		struct dm_target *ti = t->targets + i;
+
+		per_io_data_size = max(per_io_data_size, ti->per_io_data_size);
+		min_pool_size = max(min_pool_size, ti->num_flush_bios);
+	}
+	pool_size = max(dm_get_reserved_bio_based_ios(), min_pool_size);
+	front_pad = roundup(per_io_data_size,
+		__alignof__(struct dm_target_io)) + DM_TARGET_IO_BIO_OFFSET;
+
+	io_front_pad = roundup(per_io_data_size,
+		__alignof__(struct dm_io)) + DM_IO_BIO_OFFSET;
+	if (bioset_init(&pools->io_bs, pool_size, io_front_pad,
+			dm_table_supports_poll(t) ? BIOSET_PERCPU_CACHE : 0))
+		goto out_free_pools;
+	if (t->integrity_supported &&
+	    bioset_integrity_create(&pools->io_bs, pool_size))
+		goto out_free_pools;
+init_bs:
+	if (bioset_init(&pools->bs, pool_size, front_pad, 0))
+		goto out_free_pools;
+	if (t->integrity_supported &&
+	    bioset_integrity_create(&pools->bs, pool_size))
+		goto out_free_pools;
+
+	t->mempools = pools;
 	return 0;
+
+out_free_pools:
+	dm_free_md_mempools(pools);
+	return -ENOMEM;
 }
 
 static int setup_indexes(struct dm_table *t)
