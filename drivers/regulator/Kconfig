@@ -46,6 +46,15 @@ config REGULATOR_FIXED_VOLTAGE
 	  useful for systems which use a combination of software
 	  managed regulators and simple non-configurable regulators.
 
+config REGULATOR_QTI_FIXED_VOLTAGE
+	tristate "QTI fixed voltage regulator support"
+	help
+	  This driver provides support for fixed voltage regulators which are
+	  controlled via a GPIO.  It also supports proxy consumer voting and
+	  debug features utilized on Qualcomm Technologies, Inc. boards.  Use
+	  this driver in place of the fixed voltage regulator driver if these
+	  additional features are required.
+
 config REGULATOR_VIRTUAL_CONSUMER
 	tristate "Virtual regulator consumer support"
 	help
@@ -1499,5 +1508,14 @@ config REGULATOR_STUB
 	  the real hardware based regulator implementation is not yet available.
 	  Consumers can use stub regulator device with proper constraint
 	  checking while the real regulator driver is being developed.
+
+config REGULATOR_QTI_OCP_NOTIFIER
+	tristate "Qualcomm Technologies, Inc. Regulator OCP Notifier Driver"
+	help
+	  This driver provides support for logging and notifying consumers about
+	  regulator over-current (OCP) events on certain Qualcomm Technologies,
+	  Inc. PMIC devices.  This is useful for debugging as well as for
+	  providing a more graceful recovery mechanism than resetting the entire
+	  system.
 
 endif
