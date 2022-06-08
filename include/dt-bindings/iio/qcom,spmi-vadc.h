@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 /*
  * Copyright (c) 2012-2014,2018-2021 The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _DT_BINDINGS_QCOM_SPMI_VADC_H
@@ -323,8 +324,9 @@
 #define ADC5_GEN3_VIN_DIV16_MUX			0x12
 #define ADC5_GEN3_VREF_BAT_THERM		0x15
 #define ADC5_GEN3_IIN_FB			0x17
-#define ADC5_GEN3_ICHG_SMB			0x18
+#define ADC5_GEN3_TEMP_ALARM_LITE		0x18
 #define ADC5_GEN3_IIN_SMB			0x19
+#define ADC5_GEN3_ICHG_SMB			0x1b
 #define ADC5_GEN3_ICHG_FB			0xa1
 
 /* 30k pull-up1 */

@@ -614,6 +614,8 @@ static const struct u32_fract adc5_prescale_ratios[] = {
 	{ .numerator = 640, .denominator = 4100 },	/* ICHG_SMB_new */
 	{ .numerator = 1000, .denominator = 305185 },	/* ICHG_FB */
 	{ .numerator = 1000, .denominator = 610370 },	/* ICHG_FB_2X */
+	{ .numerator = 1000, .denominator = 366220 },	/* ICHG_FB ADC5_GEN3 */
+	{ .numerator = 1000, .denominator = 732440 },	/* ICHG_FB_2X ADC5_GEN3 */
 };
 
 static int qcom_vadc_scale_hw_calib_volt(
