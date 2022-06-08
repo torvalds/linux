@@ -450,8 +450,8 @@ check_bss:
 
 		notify_channel = ieee80211_get_channel(wiphy, freq);
 
-		roam_info.channel = notify_channel;
-		roam_info.bssid = cur_network->network.mac_address;
+		roam_info.links[0].channel = notify_channel;
+		roam_info.links[0].bssid = cur_network->network.mac_address;
 		roam_info.req_ie =
 			pmlmepriv->assoc_req+sizeof(struct ieee80211_hdr_3addr)+2;
 		roam_info.req_ie_len =

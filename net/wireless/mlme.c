@@ -42,8 +42,8 @@ void cfg80211_rx_assoc_resp(struct net_device *dev, struct cfg80211_bss *bss,
 
 	memset(&cr, 0, sizeof(cr));
 	cr.status = (int)le16_to_cpu(mgmt->u.assoc_resp.status_code);
-	cr.bssid = mgmt->bssid;
-	cr.bss = bss;
+	cr.links[0].bssid = mgmt->bssid;
+	cr.links[0].bss = bss;
 	cr.req_ie = req_ies;
 	cr.req_ie_len = req_ies_len;
 	cr.resp_ie = resp_ie;

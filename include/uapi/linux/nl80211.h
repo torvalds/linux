@@ -2690,6 +2690,10 @@ enum nl80211_commands {
  * @NL80211_ATTR_MLD_ADDR: An MLD address, used with various commands such as
  *	authenticate/associate.
  *
+ * @NL80211_ATTR_MLO_SUPPORT: Flag attribute to indicate user space supports MLO
+ *	connection. Used with %NL80211_CMD_CONNECT. If this attribute is not
+ *	included in NL80211_CMD_CONNECT drivers must not perform MLO connection.
+ *
  * @NUM_NL80211_ATTR: total number of nl80211_attrs available
  * @NL80211_ATTR_MAX: highest attribute number currently defined
  * @__NL80211_ATTR_AFTER_LAST: internal use
@@ -3207,6 +3211,8 @@ enum nl80211_attrs {
 	NL80211_ATTR_MLO_LINKS,
 	NL80211_ATTR_MLO_LINK_ID,
 	NL80211_ATTR_MLD_ADDR,
+
+	NL80211_ATTR_MLO_SUPPORT,
 
 	/* add attributes here, update the policy in nl80211.c */
 
