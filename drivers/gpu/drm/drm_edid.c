@@ -1613,6 +1613,35 @@ static const void *edid_extension_block_data(const struct edid *edid, int index)
 	return edid_block_data(edid, index + 1);
 }
 
+static int drm_edid_block_count(const struct drm_edid *drm_edid)
+{
+	int num_blocks;
+
+	/* Starting point */
+	num_blocks = edid_block_count(drm_edid->edid);
+
+	/* Limit by allocated size */
+	num_blocks = min(num_blocks, (int)drm_edid->size / EDID_LENGTH);
+
+	return num_blocks;
+}
+
+static int drm_edid_extension_block_count(const struct drm_edid *drm_edid)
+{
+	return drm_edid_block_count(drm_edid) - 1;
+}
+
+static const void *drm_edid_block_data(const struct drm_edid *drm_edid, int index)
+{
+	return edid_block_data(drm_edid->edid, index);
+}
+
+static const void *drm_edid_extension_block_data(const struct drm_edid *drm_edid,
+						 int index)
+{
+	return edid_extension_block_data(drm_edid->edid, index);
+}
+
 /*
  * Initializer helper for legacy interfaces, where we have no choice but to
  * trust edid size. Not for general purpose use.
@@ -1665,8 +1694,8 @@ static const void *__drm_edid_iter_next(struct drm_edid_iter *iter)
 	if (!iter->drm_edid)
 		return NULL;
 
-	if (iter->index < edid_block_count(iter->drm_edid->edid))
-		block = edid_block_data(iter->drm_edid->edid, iter->index++);
+	if (iter->index < drm_edid_block_count(iter->drm_edid))
+		block = drm_edid_block_data(iter->drm_edid, iter->index++);
 
 	return block;
 }
@@ -3574,22 +3603,21 @@ static int add_detailed_modes(struct drm_connector *connector,
 const u8 *drm_find_edid_extension(const struct drm_edid *drm_edid,
 				  int ext_id, int *ext_index)
 {
-	const struct edid *edid = drm_edid ? drm_edid->edid : NULL;
 	const u8 *edid_ext = NULL;
 	int i;
 
 	/* No EDID or EDID extensions */
-	if (!edid || !edid_extension_block_count(edid))
+	if (!drm_edid || !drm_edid_extension_block_count(drm_edid))
 		return NULL;
 
 	/* Find CEA extension */
-	for (i = *ext_index; i < edid_extension_block_count(edid); i++) {
-		edid_ext = edid_extension_block_data(edid, i);
+	for (i = *ext_index; i < drm_edid_extension_block_count(drm_edid); i++) {
+		edid_ext = drm_edid_extension_block_data(drm_edid, i);
 		if (edid_block_tag(edid_ext) == ext_id)
 			break;
 	}
 
-	if (i >= edid_extension_block_count(edid))
+	if (i >= drm_edid_extension_block_count(drm_edid))
 		return NULL;
 
 	*ext_index = i + 1;
