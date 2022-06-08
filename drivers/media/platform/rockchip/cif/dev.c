@@ -26,6 +26,7 @@
 #include <linux/mfd/syscon.h>
 #include "dev.h"
 #include "procfs.h"
+#include <linux/kthread.h>
 
 #define RKCIF_VERNO_LEN		10
 
@@ -1310,7 +1311,6 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 {
 	struct sditf_priv *sditf = NULL;
 	int ret = 0;
-	int i = 0;
 
 	ret = rkcif_update_sensor_info(&dev->stream[0]);
 	if (ret) {
@@ -1318,11 +1318,10 @@ static int subdev_asyn_register_itf(struct rkcif_device *dev)
 			 "There is not terminal subdev, not synchronized with ISP\n");
 		return 0;
 	}
-
-	for (i = 0; i < dev->sditf_cnt; i++) {
-		sditf = dev->sditf[i];
-		if (sditf && (!sditf->is_combine_mode))
-			ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+	sditf = dev->sditf[0];
+	if (sditf && (!sditf->is_combine_mode) && (!dev->is_notifier_isp)) {
+		ret = v4l2_async_register_subdev_sensor_common(&sditf->sd);
+		dev->is_notifier_isp = true;
 	}
 
 	return ret;
@@ -1414,6 +1413,8 @@ static int subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	if (ret < 0)
 		goto unregister_lvds;
 
+	if (!completion_done(&dev->cmpl_ntf))
+		complete(&dev->cmpl_ntf);
 	v4l2_info(&dev->v4l2_dev, "Async subdev notifier completed\n");
 
 	return ret;
@@ -1516,6 +1517,20 @@ static int cif_subdev_notifier(struct rkcif_device *cif_dev)
 	return ret;
 }
 
+static int notifier_isp_thread(void *data)
+{
+	struct rkcif_device *dev = data;
+	int ret = 0;
+
+	ret = wait_for_completion_timeout(&dev->cmpl_ntf, msecs_to_jiffies(5000));
+	if (ret) {
+		mutex_lock(&rkcif_dev_mutex);
+		subdev_asyn_register_itf(dev);
+		mutex_unlock(&rkcif_dev_mutex);
+	}
+	return 0;
+}
+
 /***************************** platform deive *******************************/
 
 static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
@@ -1551,6 +1566,8 @@ static int rkcif_register_platform_subdevs(struct rkcif_device *cif_dev)
 			goto err_unreg_stream_vdev;
 		}
 	}
+	init_completion(&cif_dev->cmpl_ntf);
+	kthread_run(notifier_isp_thread, cif_dev, "notifier isp");
 	ret = cif_subdev_notifier(cif_dev);
 	if (ret < 0) {
 		v4l2_err(&cif_dev->v4l2_dev,
@@ -1764,6 +1781,7 @@ int rkcif_plat_init(struct rkcif_device *cif_dev, struct device_node *node, int 
 	cif_dev->id_use_cnt = 0;
 	cif_dev->sync_type = NO_SYNC_MODE;
 	cif_dev->sditf_cnt = 0;
+	cif_dev->is_notifier_isp = false;
 	if (cif_dev->chip_id == CHIP_RV1126_CIF_LITE)
 		cif_dev->isr_hdl = rkcif_irq_lite_handler;
 

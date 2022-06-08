@@ -730,10 +730,12 @@ struct rkcif_device {
 	unsigned int			wait_line_bak;
 	unsigned int			wait_line_cache;
 	struct rkcif_dummy_buffer	dummy_buf;
+	struct completion		cmpl_ntf;
 	bool				is_start_hdr;
 	bool				reset_work_cancel;
 	bool				iommu_en;
 	bool				is_use_dummybuf;
+	bool				is_notifier_isp;
 	int				sync_type;
 	int				sditf_cnt;
 };
