@@ -13,9 +13,12 @@
  * 1. add 2lane support.
  * 2. add some debug info.
  * 3. adjust gc8034_g_mbus_config function.
- * V0.0X01.0X06 support get channel info
+ * V0.0X01.0X07 support get channel info
+ * V0.0X01.0X08
+ * 1. default support 2lane full 30fps.
+ * 2. default support rk otp spec.
  */
-
+//#define DEBUG
 #include <linux/clk.h>
 #include <linux/device.h>
 #include <linux/delay.h>
@@ -40,8 +43,10 @@
 #include <media/v4l2-subdev.h>
 #include <linux/pinctrl/consumer.h>
 #include <linux/slab.h>
+#include <linux/of_graph.h>
+#include "otp_eeprom.h"
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x07)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x08)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
@@ -50,6 +55,7 @@
 #define GC8034_LANES			4
 #define GC8034_BITS_PER_SAMPLE		10
 #define GC8034_MIPI_FREQ_336MHZ		336000000U
+#define GC8034_MIPI_FREQ_634MHZ		634000000U
 
 /* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 #define GC8034_PIXEL_RATE		288000000
@@ -93,15 +99,20 @@
 #define GC8034_NAME			"gc8034"
 #define GC8034_MEDIA_BUS_FMT		MEDIA_BUS_FMT_SRGGB10_1X10
 
+/* use RK_OTP or old mode */
+#define RK_OTP
+/* choose 2lane support full 30fps or 15fps */
+#define GC8034_2LANE_30FPS
+
 static const char * const gc8034_supply_names[] = {
 	"avdd",		/* Analog power */
 	"dovdd",	/* Digital I/O power */
 	"dvdd",		/* Digital core power */
 };
 
-static const struct regval *gc8034_global_regs;
 #define GC8034_NUM_SUPPLIES ARRAY_SIZE(gc8034_supply_names)
 
+#ifndef RK_OTP
 struct gc8034_dd {
 	u16 x;
 	u16 y;
@@ -146,6 +157,7 @@ static const struct gc8034_id_name gc8034_lens_info[] = {
 	{0xd0, "CK8401"},
 	{0x00, "Unknown"}
 };
+#endif
 
 struct regval {
 	u8 addr;
@@ -159,6 +171,8 @@ struct gc8034_mode {
 	u32 hts_def;
 	u32 vts_def;
 	u32 exp_def;
+	u32 mipi_freq_idx;
+	const struct regval *global_reg_list;
 	const struct regval *reg_list;
 	u32 vc[PAD_MAX];
 };
@@ -194,7 +208,11 @@ struct gc8034 {
 	const char		*module_name;
 	const char		*len_name;
 	u32 Dgain_ratio;
+#ifdef RK_OTP
+	struct otp_info		*otp;
+#else
 	struct gc8034_otp_info *otp;
+#endif
 	struct rkmodule_inf	module_inf;
 	struct rkmodule_awb_cfg	awb_cfg;
 };
@@ -246,6 +264,217 @@ struct gc8034 {
  * Xclk 24Mhz
  */
 static const struct regval gc8034_global_regs_2lane[] = {
+#ifdef GC8034_2LANE_30FPS
+	/* SYS */
+	{0xf2, 0x00},
+	{0xf4, 0x90},
+	{0xf5, 0x3d},
+	{0xf6, 0x44},
+	{0xf8, 0x63},
+	{0xfa, 0x42},
+	{0xf9, 0x00},
+	{0xf7, 0x95},
+	{0xfc, 0x00},
+	{0xfc, 0x00},
+	{0xfc, 0xea},
+	{0xfe, 0x03},
+	{0x03, 0x9a},
+	{0xfc, 0xee},
+	{0xfe, 0x00},
+	{0x88, 0x03},
+
+	/*Cisctl&Analog*/
+	{0xfe, 0x00},
+	{0x03, 0x08},
+	{0x04, 0xc6},
+	{0x05, 0x02},
+	{0x06, 0x16},
+	{0x07, 0x00},
+	{0x08, 0x10},
+	{0x0a, 0x3a}, //row start
+	{0x0b, 0x00},
+	{0x0c, 0x04}, //col start
+	{0x0d, 0x09},
+	{0x0e, 0xa0}, //win_height 2464
+	{0x0f, 0x0c},
+	{0x10, 0xd4}, //win_width 3284
+	{0x17, GC8034_MIRROR},
+	{0x18, 0x02},
+	{0x19, 0x17},
+	{0x1e, 0x50},
+	{0x1f, 0x80},
+	{0x21, 0x4c},
+	{0x25, 0x00},
+	{0x28, 0x4a},
+	{0x2d, 0x89},
+	{0xca, 0x02},
+	{0xcb, 0x00},
+	{0xcc, 0x39},
+	{0xce, 0xd0},
+	{0xcf, 0x93},
+	{0xd0, 0x1b},
+	{0xd1, 0xaa},
+	{0xd2, 0xcb},
+	{0xd8, 0x40},
+	{0xd9, 0xff},
+	{0xda, 0x0e},
+	{0xdb, 0xb0},
+	{0xdc, 0x0e},
+	{0xde, 0x08},
+	{0xe4, 0xc6},
+	{0xe5, 0x08},
+	{0xe6, 0x10},
+	{0xed, 0x2a},
+	{0xfe, 0x02},
+	{0x59, 0x02},
+	{0x5a, 0x04},
+	{0x5b, 0x08},
+	{0x5c, 0x20},
+	{0xfe, 0x00},
+	{0x1a, 0x09},
+	{0x1d, 0x13},
+	{0xfe, 0x10},
+	{0xfe, 0x00},
+	{0xfe, 0x10},
+	{0xfe, 0x00},
+
+	/* Gamma */
+	{0xfe, 0x00},
+	{0x20, 0x54},
+	{0x33, 0x82},
+	{0xfe, 0x01},
+	{0xdf, 0x06},
+	{0xe7, 0x18},
+	{0xe8, 0x20},
+	{0xe9, 0x16},
+	{0xea, 0x17},
+	{0xeb, 0x50},
+	{0xec, 0x6c},
+	{0xed, 0x9b},
+	{0xee, 0xd8},
+
+	/*ISP*/
+	{0xfe, 0x00},
+	{0x80, 0x13},
+	{0x84, 0x01},
+	{0x89, 0x03},
+	{0x8d, 0x03},
+	{0x8f, 0x14},
+	{0xad, 0x00},
+	{0x66, 0x0c},
+	{0xbc, 0x09},
+	{0xc2, 0x7f},
+	{0xc3, 0xff},
+
+	/*Crop window*/
+	{0x90, 0x01},
+	{0x92, FULL_STARTY},
+	{0x94, FULL_STARTX},
+	{0x95, 0x09},
+	{0x96, 0x90},
+	{0x97, 0x0c},
+	{0x98, 0xc0},
+
+	/*Gain*/
+	{0xb0, 0x90},
+	{0xb1, 0x01},
+	{0xb2, 0x00},
+	{0xb6, 0x00},
+
+	/*BLK*/
+	{0xfe, 0x00},
+	{0x40, 0x22},
+	{0x41, 0x20},
+	{0x42, 0x02},
+	{0x43, 0x08},
+	{0x4e, 0x0f},
+	{0x4f, 0xf0},
+	{0x58, 0x80},
+	{0x59, 0x80},
+	{0x5a, 0x80},
+	{0x5b, 0x80},
+	{0x5c, 0x00},
+	{0x5d, 0x00},
+	{0x5e, 0x00},
+	{0x5f, 0x00},
+	{0x6b, 0x01},
+	{0x6c, 0x00},
+	{0x6d, 0x0c},
+
+	/*WB offset*/
+	{0xfe, 0x01},
+	{0xbf, 0x40},
+
+	/*Dark Sun*/
+	{0xfe, 0x01},
+	{0x68, 0x77},
+
+	/*DPC*/
+	{0xfe, 0x01},
+	{0x60, 0x00},
+	{0x61, 0x10},
+	{0x62, 0x60},
+	{0x63, 0x30},
+	{0x64, 0x00},
+
+	/* LSC */
+	{0xfe, 0x01},
+	{0xa8, 0x60},
+	{0xa2, 0xd1},
+	{0xc8, 0x57},
+	{0xa1, 0xb8},
+	{0xa3, 0x91},
+	{0xc0, 0x50},
+	{0xd0, 0x05},
+	{0xd1, 0xb2},
+	{0xd2, 0x1f},
+	{0xd3, 0x00},
+	{0xd4, 0x00},
+	{0xd5, 0x00},
+	{0xd6, 0x00},
+	{0xd7, 0x00},
+	{0xd8, 0x00},
+	{0xd9, 0x00},
+	{0xa4, 0x10},
+	{0xa5, 0x20},
+	{0xa6, 0x60},
+	{0xa7, 0x80},
+	{0xab, 0x18},
+	{0xc7, 0xc0},
+
+	/*ABB*/
+	{0xfe, 0x01},
+	{0x20, 0x02},
+	{0x21, 0x02},
+	{0x23, 0x42},
+
+	/*MIPI*/
+	{0xfe, 0x03},
+	{0x01, 0x07},
+	{0x02, 0x04},
+	{0x04, 0x80},
+	{0x11, 0x2b},
+	{0x12, 0xf0}, //lwc 3264*5/4
+	{0x13, 0x0f},
+	{0x15, 0x10}, //LP
+	{0x16, 0x29},
+	{0x17, 0xff},
+	{0x18, 0x01},
+	{0x19, 0xaa},
+	{0x1a, 0x02},
+	{0x21, 0x0c},
+	{0x22, 0x0e},
+	{0x23, 0x45},
+	{0x24, 0x01},
+	{0x25, 0x1c},
+	{0x26, 0x0b},
+	{0x29, 0x0e},
+	{0x2a, 0x1d},
+	{0x2b, 0x0b},
+	{0xfe, 0x00},
+	//{0x3f, 0x91},
+	{0x3f, 0x00},
+#else
 	/*SYS*/
 	{0xf2, 0x00},
 	{0xf4, 0x80},
@@ -435,10 +664,11 @@ static const struct regval gc8034_global_regs_2lane[] = {
 	{0xfe, 0x00},
 	//{0x3f, 0x91},
 	{0x3f, 0x00},
-
+#endif
 	{REG_NULL, 0x00},
 };
 
+#ifndef GC8034_2LANE_30FPS
 /*
  * Xclk 24Mhz
  * max_framerate 30fps
@@ -509,6 +739,7 @@ static const struct regval gc8034_1632x1224_regs_2lane[] = {
 
 	{REG_NULL, 0x00},
 };
+#endif
 
 /*
  * Xclk 24Mhz
@@ -516,6 +747,72 @@ static const struct regval gc8034_1632x1224_regs_2lane[] = {
  * mipi_datarate per lane 672Mbps
  */
 static const struct regval gc8034_3264x2448_regs_2lane[] = {
+#ifdef GC8034_2LANE_30FPS
+	/* SYS */
+	{0xf2, 0x00},
+	{0xf4, 0x90},
+	{0xf5, 0x3d},
+	{0xf6, 0x44},
+	{0xf8, 0x63},
+	{0xfa, 0x42},
+	{0xf9, 0x00},
+	{0xf7, 0x95},
+	{0xfc, 0x00},
+	{0xfc, 0x00},
+	{0xfc, 0xea},
+	{0xfe, 0x03},
+	{0x03, 0x9a},
+	{0xfc, 0xee},
+	{0xfe, 0x00},
+	{0x3f, 0x00},
+	{0xfe, 0x10},
+	{0xfe, 0x00},
+	{0xfe, 0x10},
+	{0xfe, 0x00},
+
+	/* ISP */
+	{0xfe, 0x00},
+	{0x80, 0x13},
+	{0xad, 0x00},
+	{0x66, 0x0c},
+	{0xbc, 0x06},
+
+	/* Crop window */
+	{0x90, 0x01},
+	{0x92, FULL_STARTY},
+	{0x94, FULL_STARTX},
+	{0x95, 0x09},
+	{0x96, 0x90},
+	{0x97, 0x0c},
+	{0x98, 0xc0},
+
+	/* MIPI */
+	{0xfe, 0x03},
+	{0x01, 0x07},
+	{0x02, 0x04},
+	{0x04, 0x80},
+	{0x11, 0x2b},
+	{0x12, 0xf0}, //lwc 3264*5/4
+	{0x13, 0x0f},
+	{0x15, 0x10}, //LP
+	{0x16, 0x29},
+	{0x17, 0xff},
+	{0x18, 0x01},
+	{0x19, 0xaa},
+	{0x1a, 0x02},
+	{0x21, 0x0c},
+	{0x22, 0x0c},
+	{0x23, 0x56},
+	{0x24, 0x00},
+	{0x25, 0x1c},
+	{0x26, 0x0b},
+	{0x29, 0x0e},
+	{0x2a, 0x1d},
+	{0x2b, 0x0b},
+	{0xfe, 0x00},
+	//{0x3f, 0x91},
+	{0x3f, 0x00},
+#else
 	/*SYS*/
 	{0xf2, 0x00},
 	{0xf4, 0x80},
@@ -572,6 +869,7 @@ static const struct regval gc8034_3264x2448_regs_2lane[] = {
 	{0xfe, 0x00},
 	//{0x3f, 0x91},
 	{0x3f, 0x00},
+#endif
 	{REG_NULL, 0x00},
 };
 
@@ -845,6 +1143,23 @@ static const struct regval gc8034_3264x2448_regs_4lane[] = {
 };
 
 static const struct gc8034_mode supported_modes_2lane[] = {
+#ifdef GC8034_2LANE_30FPS
+	{
+		.width = 3264,
+		.height = 2448,
+		.max_fps = {
+			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0900,
+		.hts_def = 0x0858 * 2,
+		.vts_def = 0x09c0,
+		.mipi_freq_idx = 1,
+		.global_reg_list = gc8034_global_regs_2lane,
+		.reg_list = gc8034_3264x2448_regs_2lane,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+#else
 	{
 		.width = 3264,
 		.height = 2448,
@@ -855,6 +1170,8 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 		.exp_def = 0x09a0,
 		.hts_def = 0x0858 * 2,
 		.vts_def = 0x09c4,
+		.mipi_freq_idx = 0,
+		.global_reg_list = gc8034_global_regs_2lane,
 		.reg_list = gc8034_3264x2448_regs_2lane,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
@@ -868,9 +1185,12 @@ static const struct gc8034_mode supported_modes_2lane[] = {
 		.exp_def = 0x09a0,
 		.hts_def = 0x0858 * 2,
 		.vts_def = 0x09c4,
+		.mipi_freq_idx = 0,
+		.global_reg_list = gc8034_global_regs_2lane,
 		.reg_list = gc8034_1632x1224_regs_2lane,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
+#endif
 };
 
 static const struct gc8034_mode supported_modes_4lane[] = {
@@ -884,6 +1204,8 @@ static const struct gc8034_mode supported_modes_4lane[] = {
 		.exp_def = 0x08c6,
 		.hts_def = 0x10b0,
 		.vts_def = 0x09c0,
+		.mipi_freq_idx = 0,
+		.global_reg_list = gc8034_global_regs_4lane,
 		.reg_list = gc8034_3264x2448_regs_4lane,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	},
@@ -893,6 +1215,7 @@ static const struct gc8034_mode *supported_modes;
 
 static const s64 link_freq_menu_items[] = {
 	GC8034_MIPI_FREQ_336MHZ,
+	GC8034_MIPI_FREQ_634MHZ
 };
 
 /* Write registers up to 4 at a time */
@@ -1022,8 +1345,8 @@ static int gc8034_set_fmt(struct v4l2_subdev *sd,
 		__v4l2_ctrl_modify_range(gc8034->vblank, vblank_def,
 					 GC8034_VTS_MAX - mode->height,
 					 1, vblank_def);
-		__v4l2_ctrl_s_ctrl(gc8034->link_freq,
-			link_freq_menu_items[0]);
+		__v4l2_ctrl_s_ctrl(gc8034->vblank, vblank_def);
+		__v4l2_ctrl_s_ctrl(gc8034->link_freq, mode->mipi_freq_idx);
 	}
 
 	mutex_unlock(&gc8034->mutex);
@@ -1101,6 +1424,86 @@ static int gc8034_g_frame_interval(struct v4l2_subdev *sd,
 	return 0;
 }
 
+#ifdef RK_OTP
+static void gc8034_get_otp(struct otp_info *otp,
+				   struct rkmodule_inf *inf)
+{
+	u32 i, j;
+	u32 w, h;
+
+	/* awb */
+	if (otp->awb_data.flag) {
+		inf->awb.flag = 1;
+		inf->awb.r_value = otp->awb_data.r_ratio;
+		inf->awb.b_value = otp->awb_data.b_ratio;
+		inf->awb.gr_value = otp->awb_data.g_ratio;
+		inf->awb.gb_value = 0x0;
+
+		inf->awb.golden_r_value = otp->awb_data.r_golden;
+		inf->awb.golden_b_value = otp->awb_data.b_golden;
+		inf->awb.golden_gr_value = otp->awb_data.g_golden;
+		inf->awb.golden_gb_value = 0x0;
+	}
+
+	/* lsc */
+	if (otp->lsc_data.flag) {
+		inf->lsc.flag = 1;
+		inf->lsc.width = otp->basic_data.size.width;
+		inf->lsc.height = otp->basic_data.size.height;
+		inf->lsc.table_size = otp->lsc_data.table_size;
+
+		for (i = 0; i < 289; i++) {
+			inf->lsc.lsc_r[i] = (otp->lsc_data.data[i * 2] << 8) |
+						 otp->lsc_data.data[i * 2 + 1];
+			inf->lsc.lsc_gr[i] = (otp->lsc_data.data[i * 2 + 578] << 8) |
+						  otp->lsc_data.data[i * 2 + 579];
+			inf->lsc.lsc_gb[i] = (otp->lsc_data.data[i * 2 + 1156] << 8) |
+						  otp->lsc_data.data[i * 2 + 1157];
+			inf->lsc.lsc_b[i] = (otp->lsc_data.data[i * 2 + 1734] << 8) |
+						 otp->lsc_data.data[i * 2 + 1735];
+		}
+	}
+
+	/* pdaf */
+	if (otp->pdaf_data.flag) {
+		inf->pdaf.flag = 1;
+		inf->pdaf.gainmap_width = otp->pdaf_data.gainmap_width;
+		inf->pdaf.gainmap_height = otp->pdaf_data.gainmap_height;
+		inf->pdaf.dcc_mode = otp->pdaf_data.dcc_mode;
+		inf->pdaf.dcc_dir = otp->pdaf_data.dcc_dir;
+		inf->pdaf.dccmap_width = otp->pdaf_data.dccmap_width;
+		inf->pdaf.dccmap_height = otp->pdaf_data.dccmap_height;
+		w = otp->pdaf_data.gainmap_width;
+		h = otp->pdaf_data.gainmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.gainmap[i * w + j] =
+					(otp->pdaf_data.gainmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.gainmap[(i * w + j) * 2 + 1];
+			}
+		}
+		w = otp->pdaf_data.dccmap_width;
+		h = otp->pdaf_data.dccmap_height;
+		for (i = 0; i < h; i++) {
+			for (j = 0; j < w; j++) {
+				inf->pdaf.dccmap[i * w + j] =
+					(otp->pdaf_data.dccmap[(i * w + j) * 2] << 8) |
+					otp->pdaf_data.dccmap[(i * w + j) * 2 + 1];
+			}
+		}
+	}
+
+	/* af */
+	if (otp->af_data.flag) {
+		inf->af.flag = 1;
+		inf->af.dir_cnt = 1;
+		inf->af.af_otp[0].vcm_start = otp->af_data.af_inf;
+		inf->af.af_otp[0].vcm_end = otp->af_data.af_macro;
+		inf->af.af_otp[0].vcm_dir = 0;
+	}
+
+}
+#else
 #define DD_WIDTH 3284
 #define DD_HEIGHT 2464
 
@@ -1610,11 +2013,16 @@ static void gc8034_get_otp(struct gc8034_otp_info *otp,
 		inf->af.af_otp[0].vcm_dir = otp->vcm_dir;
 	}
 }
+#endif
 
 static void gc8034_get_module_inf(struct gc8034 *gc8034,
 				struct rkmodule_inf *inf)
 {
+#ifdef RK_OTP
+	struct otp_info *otp = gc8034->otp;
+#else
 	struct gc8034_otp_info *otp = gc8034->otp;
+#endif
 
 	strlcpy(inf->base.sensor,
 		GC8034_NAME,
@@ -1772,6 +2180,7 @@ static long gc8034_compat_ioctl32(struct v4l2_subdev *sd,
 }
 #endif
 
+#ifndef RK_OTP
 /*--------------------------------------------------------------------------*/
 static int gc8034_apply_otp(struct gc8034 *gc8034)
 {
@@ -1952,11 +2361,12 @@ static int gc8034_apply_otp(struct gc8034 *gc8034)
 	}
 	return 0;
 }
+#endif
 
 static int __gc8034_start_stream(struct gc8034 *gc8034)
 {
 	int ret;
-
+#ifndef RK_OTP
 	if (gc8034->otp) {
 		ret = gc8034_otp_enable(gc8034);
 		gc8034_check_prsel(gc8034);
@@ -1966,6 +2376,7 @@ static int __gc8034_start_stream(struct gc8034 *gc8034)
 		if (ret)
 			return ret;
 	}
+#endif
 	ret = gc8034_write_array(gc8034->client, gc8034->cur_mode->reg_list);
 	if (ret)
 		return ret;
@@ -2050,6 +2461,7 @@ static int gc8034_s_power(struct v4l2_subdev *sd, int on)
 {
 	struct gc8034 *gc8034 = to_gc8034(sd);
 	struct i2c_client *client = gc8034->client;
+	const struct gc8034_mode *mode = gc8034->cur_mode;
 	int ret = 0;
 
 	dev_info(&client->dev, "%s(%d) on(%d)\n", __func__, __LINE__, on);
@@ -2066,7 +2478,7 @@ static int gc8034_s_power(struct v4l2_subdev *sd, int on)
 			goto unlock_and_return;
 		}
 
-		ret = gc8034_write_array(gc8034->client, gc8034_global_regs);
+		ret = gc8034_write_array(gc8034->client, mode->global_reg_list);
 		if (ret) {
 			v4l2_err(sd, "could not set init registers\n");
 			pm_runtime_put_noidle(&client->dev);
@@ -2432,15 +2844,15 @@ static int gc8034_set_ctrl(struct v4l2_ctrl *ctrl)
 	switch (ctrl->id) {
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
-		dev_info(&client->dev, "set exposure value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set exposure value 0x%x\n", ctrl->val);
 		ret = gc8034_set_exposure_reg(gc8034, ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		dev_info(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set analog gain value 0x%x\n", ctrl->val);
 		ret = gc8034_set_gain_reg(gc8034, ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
-		dev_info(&client->dev, "set vb value 0x%x\n", ctrl->val);
+		dev_dbg(&client->dev, "set vb value 0x%x\n", ctrl->val);
 		/* VB = VTS - 2448 -36, according android8.1 driver */
 		temp = ctrl->val + gc8034->cur_mode->height - 2448 - 36;
 		ret = gc8034_write_reg(gc8034->client,
@@ -2484,8 +2896,10 @@ static int gc8034_initialize_controls(struct gc8034 *gc8034)
 	handler->lock = &gc8034->mutex;
 
 	gc8034->link_freq = v4l2_ctrl_new_int_menu(handler, NULL,
-				V4L2_CID_LINK_FREQ, 0, 0,
+				V4L2_CID_LINK_FREQ,
+				ARRAY_SIZE(link_freq_menu_items) - 1, 0,
 				link_freq_menu_items);
+	v4l2_ctrl_s_ctrl(gc8034->link_freq, mode->mipi_freq_idx);
 
 	v4l2_ctrl_new_std(handler, NULL, V4L2_CID_PIXEL_RATE,
 			0, gc8034->pixel_rate, 1, gc8034->pixel_rate);
@@ -2586,7 +3000,6 @@ static int gc8034_parse_of(struct gc8034 *gc8034)
 		gc8034->cur_mode = &supported_modes_4lane[0];
 		supported_modes = supported_modes_4lane;
 		gc8034->cfg_num = ARRAY_SIZE(supported_modes_4lane);
-		gc8034_global_regs = gc8034_global_regs_4lane;
 		/* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 		fps = DIV_ROUND_CLOSEST(gc8034->cur_mode->max_fps.denominator,
 					gc8034->cur_mode->max_fps.numerator);
@@ -2599,7 +3012,6 @@ static int gc8034_parse_of(struct gc8034 *gc8034)
 		gc8034->cur_mode = &supported_modes_2lane[0];
 		supported_modes = supported_modes_2lane;
 		gc8034->cfg_num = ARRAY_SIZE(supported_modes_2lane);
-		gc8034_global_regs = gc8034_global_regs_2lane;
 		/*pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 		fps = DIV_ROUND_CLOSEST(gc8034->cur_mode->max_fps.denominator,
 					gc8034->cur_mode->max_fps.numerator);
@@ -2624,6 +3036,10 @@ static int gc8034_probe(struct i2c_client *client,
 	struct v4l2_subdev *sd;
 	char facing[2];
 	int ret;
+	struct device_node *eeprom_ctrl_node;
+	struct i2c_client *eeprom_ctrl_client;
+	struct v4l2_subdev *eeprom_ctrl;
+	struct otp_info *otp_ptr;
 
 	dev_info(dev, "driver version: %02x.%02x.%02x",
 		DRIVER_VERSION >> 16,
@@ -2705,10 +3121,40 @@ static int gc8034_probe(struct i2c_client *client,
 	ret = gc8034_check_sensor_id(gc8034, client);
 	if (ret)
 		goto err_power_off;
-
+#ifdef RK_OTP
+	eeprom_ctrl_node = of_parse_phandle(node, "eeprom-ctrl", 0);
+	if (eeprom_ctrl_node) {
+		eeprom_ctrl_client =
+			of_find_i2c_device_by_node(eeprom_ctrl_node);
+		of_node_put(eeprom_ctrl_node);
+		if (IS_ERR_OR_NULL(eeprom_ctrl_client)) {
+			dev_err(dev, "can not get node\n");
+			goto continue_probe;
+		}
+		eeprom_ctrl = i2c_get_clientdata(eeprom_ctrl_client);
+		if (IS_ERR_OR_NULL(eeprom_ctrl)) {
+			dev_err(dev, "can not get eeprom i2c client\n");
+		} else {
+			otp_ptr = devm_kzalloc(dev, sizeof(*otp_ptr), GFP_KERNEL);
+			if (!otp_ptr)
+				return -ENOMEM;
+			ret = v4l2_subdev_call(eeprom_ctrl,
+				core, ioctl, 0, otp_ptr);
+			if (!ret) {
+				gc8034->otp = otp_ptr;
+			} else {
+				gc8034->otp = NULL;
+				devm_kfree(dev, otp_ptr);
+				dev_warn(dev, "can not get otp info, skip!\n");
+			}
+		}
+	}
+continue_probe:
+#else
 	gc8034_otp_enable(gc8034);
 	gc8034_otp_read(gc8034);
 	gc8034_otp_disable(gc8034);
+#endif
 
 #ifdef CONFIG_VIDEO_V4L2_SUBDEV_API
 	sd->internal_ops = &gc8034_internal_ops;
