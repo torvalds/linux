@@ -145,6 +145,7 @@ allOf:
               enum:
                 - renesas,rcar-gen2-sdhi
                 - renesas,rcar-gen3-sdhi
+                - renesas,rcar-gen4-sdhi
       then:
         properties:
           clocks:
