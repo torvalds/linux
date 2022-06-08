@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
- * Copyright (c) 2014-2015, 2017-2019, The Linux Foundation.
+ * Copyright (c) 2014-2015, 2017-2020, The Linux Foundation.
  * All rights reserved.
  */
 
@@ -9,6 +9,7 @@
 #include <linux/spmi.h>
 #include <linux/regmap.h>
 #include <linux/of_platform.h>
+#include <linux/qti-regmap-debugfs.h>
 
 #define PMIC_REV2		0x101
 #define PMIC_REV3		0x102
@@ -161,6 +162,8 @@ static int pmic_spmi_probe(struct spmi_device *sdev)
 		regmap = devm_regmap_init_spmi_ext(sdev, &spmi_regmap_config);
 	if (IS_ERR(regmap))
 		return PTR_ERR(regmap);
+
+	devm_regmap_qti_debugfs_register(&sdev->dev, regmap);
 
 	/* Only the first slave id for a PMIC contains this information */
 	if (sdev->usid % 2 == 0)
