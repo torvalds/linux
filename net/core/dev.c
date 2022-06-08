@@ -3925,7 +3925,7 @@ int dev_loopback_xmit(struct net *net, struct sock *sk, struct sk_buff *skb)
 	skb->pkt_type = PACKET_LOOPBACK;
 	if (skb->ip_summed == CHECKSUM_NONE)
 		skb->ip_summed = CHECKSUM_UNNECESSARY;
-	WARN_ON(!skb_dst(skb));
+	DEBUG_NET_WARN_ON_ONCE(!skb_dst(skb));
 	skb_dst_force(skb);
 	netif_rx(skb);
 	return 0;
