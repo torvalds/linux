@@ -262,7 +262,6 @@ struct f34v5_data {
 struct f34v7_data {
 	bool has_display_cfg;
 	bool has_guest_code;
-	bool force_update;
 	bool in_bl_mode;
 	u8 *read_config_buf;
 	size_t read_config_buf_size;
@@ -276,7 +275,6 @@ struct f34v7_data {
 	u16 payload_length;
 	u8 partitions;
 	u16 partition_table_bytes;
-	bool new_partition_table;
 
 	struct register_offset off;
 	struct block_count blkcount;

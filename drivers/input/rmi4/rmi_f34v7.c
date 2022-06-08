@@ -593,68 +593,6 @@ static int rmi_f34v7_read_queries(struct f34_data *f34)
 	return 0;
 }
 
-static int rmi_f34v7_check_ui_firmware_size(struct f34_data *f34)
-{
-	u16 block_count;
-
-	block_count = f34->v7.img.ui_firmware.size / f34->v7.block_size;
-	f34->update_size += block_count;
-
-	if (block_count != f34->v7.blkcount.ui_firmware) {
-		dev_err(&f34->fn->dev,
-			"UI firmware size mismatch: %d != %d\n",
-			block_count, f34->v7.blkcount.ui_firmware);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rmi_f34v7_check_ui_config_size(struct f34_data *f34)
-{
-	u16 block_count;
-
-	block_count = f34->v7.img.ui_config.size / f34->v7.block_size;
-	f34->update_size += block_count;
-
-	if (block_count != f34->v7.blkcount.ui_config) {
-		dev_err(&f34->fn->dev, "UI config size mismatch\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rmi_f34v7_check_dp_config_size(struct f34_data *f34)
-{
-	u16 block_count;
-
-	block_count = f34->v7.img.dp_config.size / f34->v7.block_size;
-	f34->update_size += block_count;
-
-	if (block_count != f34->v7.blkcount.dp_config) {
-		dev_err(&f34->fn->dev, "Display config size mismatch\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int rmi_f34v7_check_guest_code_size(struct f34_data *f34)
-{
-	u16 block_count;
-
-	block_count = f34->v7.img.guest_code.size / f34->v7.block_size;
-	f34->update_size += block_count;
-
-	if (block_count != f34->v7.blkcount.guest_code) {
-		dev_err(&f34->fn->dev, "Guest code size mismatch\n");
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
 static int rmi_f34v7_check_bl_config_size(struct f34_data *f34)
 {
 	u16 block_count;
@@ -750,7 +688,7 @@ static int rmi_f34v7_erase_all(struct f34_data *f34)
 			return ret;
 	}
 
-	if (f34->v7.new_partition_table && f34->v7.has_guest_code) {
+	if (f34->v7.has_guest_code) {
 		ret = rmi_f34v7_erase_guest_code(f34);
 		if (ret < 0)
 			return ret;
@@ -1029,33 +967,6 @@ static int rmi_f34v7_write_firmware(struct f34_data *f34)
 					    blk_count, v7_CMD_WRITE_FW);
 }
 
-static void rmi_f34v7_compare_partition_tables(struct f34_data *f34)
-{
-	if (f34->v7.phyaddr.ui_firmware != f34->v7.img.phyaddr.ui_firmware) {
-		f34->v7.new_partition_table = true;
-		return;
-	}
-
-	if (f34->v7.phyaddr.ui_config != f34->v7.img.phyaddr.ui_config) {
-		f34->v7.new_partition_table = true;
-		return;
-	}
-
-	if (f34->v7.has_display_cfg &&
-	    f34->v7.phyaddr.dp_config != f34->v7.img.phyaddr.dp_config) {
-		f34->v7.new_partition_table = true;
-		return;
-	}
-
-	if (f34->v7.has_guest_code &&
-	    f34->v7.phyaddr.guest_code != f34->v7.img.phyaddr.guest_code) {
-		f34->v7.new_partition_table = true;
-		return;
-	}
-
-	f34->v7.new_partition_table = false;
-}
-
 static void rmi_f34v7_parse_img_header_10_bl_container(struct f34_data *f34,
 						       const void *image)
 {
@@ -1202,8 +1113,6 @@ static int rmi_f34v7_parse_image_info(struct f34_data *f34)
 	rmi_f34v7_parse_partition_table(f34, f34->v7.img.fl_config.data,
 			&f34->v7.img.blkcount, &f34->v7.img.phyaddr);
 
-	rmi_f34v7_compare_partition_tables(f34);
-
 	return 0;
 }
 
@@ -1224,44 +1133,18 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 	if (ret < 0)
 		goto fail;
 
-	if (!f34->v7.new_partition_table) {
-		ret = rmi_f34v7_check_ui_firmware_size(f34);
-		if (ret < 0)
-			goto fail;
-
-		ret = rmi_f34v7_check_ui_config_size(f34);
-		if (ret < 0)
-			goto fail;
-
-		if (f34->v7.has_display_cfg &&
-		    f34->v7.img.contains_display_cfg) {
-			ret = rmi_f34v7_check_dp_config_size(f34);
-			if (ret < 0)
-				goto fail;
-		}
-
-		if (f34->v7.has_guest_code && f34->v7.img.contains_guest_code) {
-			ret = rmi_f34v7_check_guest_code_size(f34);
-			if (ret < 0)
-				goto fail;
-		}
-	} else {
-		ret = rmi_f34v7_check_bl_config_size(f34);
-		if (ret < 0)
-			goto fail;
-	}
+	ret = rmi_f34v7_check_bl_config_size(f34);
+	if (ret < 0)
+		goto fail;
 
 	ret = rmi_f34v7_erase_all(f34);
 	if (ret < 0)
 		goto fail;
 
-	if (f34->v7.new_partition_table) {
-		ret = rmi_f34v7_write_partition_table(f34);
-		if (ret < 0)
-			goto fail;
-		dev_info(&f34->fn->dev, "%s: Partition table programmed\n",
-			 __func__);
-	}
+	ret = rmi_f34v7_write_partition_table(f34);
+	if (ret < 0)
+		goto fail;
+	dev_info(&f34->fn->dev, "%s: Partition table programmed\n", __func__);
 
 	dev_info(&f34->fn->dev, "Writing firmware (%d bytes)...\n",
 		 f34->v7.img.ui_firmware.size);
@@ -1286,14 +1169,12 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 			goto fail;
 	}
 
-	if (f34->v7.new_partition_table) {
-		if (f34->v7.has_guest_code && f34->v7.img.contains_guest_code) {
-			dev_info(&f34->fn->dev, "Writing guest code...\n");
+	if (f34->v7.has_guest_code && f34->v7.img.contains_guest_code) {
+		dev_info(&f34->fn->dev, "Writing guest code...\n");
 
-			ret = rmi_f34v7_write_guest_code(f34);
-			if (ret < 0)
-				goto fail;
-		}
+		ret = rmi_f34v7_write_guest_code(f34);
+		if (ret < 0)
+			goto fail;
 	}
 
 fail:
@@ -1338,13 +1219,6 @@ int rmi_f34v7_start_reflash(struct f34_data *f34, const struct firmware *fw)
 	ret = rmi_f34v7_parse_image_info(f34);
 	if (ret < 0)
 		goto exit;
-
-	if (!f34->v7.force_update && f34->v7.new_partition_table) {
-		dev_err(&f34->fn->dev, "%s: Partition table mismatch\n",
-				__func__);
-		ret = -EINVAL;
-		goto exit;
-	}
 
 	dev_info(&f34->fn->dev, "Firmware image OK\n");
 
@@ -1406,6 +1280,5 @@ int rmi_f34v7_probe(struct f34_data *f34)
 	if (ret < 0)
 		return ret;
 
-	f34->v7.force_update = true;
 	return 0;
 }
