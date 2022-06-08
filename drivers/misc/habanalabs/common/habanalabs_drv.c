@@ -14,6 +14,9 @@
 #include <linux/aer.h>
 #include <linux/module.h>
 
+#define CREATE_TRACE_POINTS
+#include <trace/events/habanalabs.h>
+
 #define HL_DRIVER_AUTHOR	"HabanaLabs Kernel Driver Team"
 
 #define HL_DRIVER_DESC		"Driver for HabanaLabs's AI Accelerators"
