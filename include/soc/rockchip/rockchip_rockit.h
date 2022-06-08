@@ -80,7 +80,8 @@ int rkisp_rockit_get_ispdev(char **name);
 int rkisp_rockit_buf_queue(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg);
 int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg);
-int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg, int width, int height);
+int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
+				int width, int height, int wrap_line);
 
 #else
 
@@ -99,7 +100,7 @@ static inline int rkisp_rockit_resume_stream(struct rockit_cfg *input_rockit_cfg
 	return -EINVAL;
 }
 static inline int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
-					     int width, int height)
+					     int width, int height, int wrap_line)
 {
 	return -EINVAL;
 }

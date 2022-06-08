@@ -290,7 +290,8 @@ int rkisp_rockit_pause_stream(struct rockit_cfg *input_rockit_cfg)
 }
 EXPORT_SYMBOL(rkisp_rockit_pause_stream);
 
-int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg, int width, int height)
+int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg,
+				int width, int height, int wrap_line)
 {
 	struct rkisp_stream *stream = NULL;
 	struct rkisp_buffer *isp_buf;
@@ -302,7 +303,7 @@ int rkisp_rockit_config_stream(struct rockit_cfg *input_rockit_cfg, int width, i
 		pr_err("the stream is NULL");
 		return -EINVAL;
 	}
-
+	stream->ispdev->cap_dev.wrap_line = wrap_line;
 	stream->out_fmt.width = width;
 	stream->out_fmt.height = height;
 	stream->out_fmt.plane_fmt[0].bytesperline = 0;
