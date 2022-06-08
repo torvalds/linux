@@ -1713,7 +1713,7 @@ void _required_opps_available(struct dev_pm_opp *opp, int count)
  *  should be considered an error by the callers of _opp_add().
  */
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp,
-	     struct opp_table *opp_table, bool rate_not_available)
+	     struct opp_table *opp_table)
 {
 	struct list_head *head;
 	int ret;
@@ -1792,7 +1792,7 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	new_opp->available = true;
 	new_opp->dynamic = dynamic;
 
-	ret = _opp_add(dev, new_opp, opp_table, false);
+	ret = _opp_add(dev, new_opp, opp_table);
 	if (ret) {
 		/* Don't return error for duplicate OPPs */
 		if (ret == -EBUSY)
