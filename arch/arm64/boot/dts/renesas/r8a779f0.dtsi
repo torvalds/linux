@@ -64,6 +64,7 @@
 			next-level-cache = <&L3_CA55_0>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z0>;
 		};
 
 		a55_1: cpu@100 {
@@ -74,6 +75,7 @@
 			next-level-cache = <&L3_CA55_0>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z0>;
 		};
 
 		a55_2: cpu@10000 {
@@ -84,6 +86,7 @@
 			next-level-cache = <&L3_CA55_1>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z0>;
 		};
 
 		a55_3: cpu@10100 {
@@ -94,6 +97,7 @@
 			next-level-cache = <&L3_CA55_1>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z0>;
 		};
 
 		a55_4: cpu@20000 {
@@ -104,6 +108,7 @@
 			next-level-cache = <&L3_CA55_2>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z1>;
 		};
 
 		a55_5: cpu@20100 {
@@ -114,6 +119,7 @@
 			next-level-cache = <&L3_CA55_2>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z1>;
 		};
 
 		a55_6: cpu@30000 {
@@ -124,6 +130,7 @@
 			next-level-cache = <&L3_CA55_3>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z1>;
 		};
 
 		a55_7: cpu@30100 {
@@ -134,6 +141,7 @@
 			next-level-cache = <&L3_CA55_3>;
 			enable-method = "psci";
 			cpu-idle-states = <&CPU_SLEEP_0>;
+			clocks = <&cpg CPG_CORE R8A779F0_CLK_Z1>;
 		};
 
 		L3_CA55_0: cache-controller-0 {
