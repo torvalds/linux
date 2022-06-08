@@ -1,8 +1,8 @@
 .. SPDX-License-Identifier: GPL-2.0
 
-=======================
-ARM Hypercall Interface
-=======================
+=======================================
+ARM firmware pseudo-registers interface
+=======================================
 
 KVM handles the hypercall services as requested by the guests. New hypercall
 services are regularly made available by the ARM specification or by KVM (as
