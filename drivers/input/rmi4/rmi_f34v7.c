@@ -1039,19 +1039,19 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 
 	ret = rmi_f34v7_parse_image_info(f34);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	ret = rmi_f34v7_check_bl_config_size(f34);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	ret = rmi_f34v7_erase_all(f34);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	ret = rmi_f34v7_write_partition_table(f34);
 	if (ret < 0)
-		goto fail;
+		return ret;
 	dev_info(&f34->fn->dev, "%s: Partition table programmed\n", __func__);
 
 	/*
@@ -1067,7 +1067,7 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 
 	ret = rmi_f34v7_write_firmware(f34);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	dev_info(&f34->fn->dev, "Writing config (%d bytes)...\n",
 		 f34->v7.img.ui_config.size);
@@ -1075,14 +1075,14 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 	f34->v7.config_area = v7_UI_CONFIG_AREA;
 	ret = rmi_f34v7_write_ui_config(f34);
 	if (ret < 0)
-		goto fail;
+		return ret;
 
 	if (f34->v7.has_display_cfg && f34->v7.img.contains_display_cfg) {
 		dev_info(&f34->fn->dev, "Writing display config...\n");
 
 		ret = rmi_f34v7_write_dp_config(f34);
 		if (ret < 0)
-			goto fail;
+			return ret;
 	}
 
 	if (f34->v7.has_guest_code && f34->v7.img.contains_guest_code) {
@@ -1090,11 +1090,10 @@ int rmi_f34v7_do_reflash(struct f34_data *f34, const struct firmware *fw)
 
 		ret = rmi_f34v7_write_guest_code(f34);
 		if (ret < 0)
-			goto fail;
+			return ret;
 	}
 
-fail:
-	return ret;
+	return 0;
 }
 
 static int rmi_f34v7_enter_flash_prog(struct f34_data *f34)
