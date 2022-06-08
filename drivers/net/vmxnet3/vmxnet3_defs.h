@@ -99,6 +99,9 @@ enum {
 	VMXNET3_CMD_SET_COALESCE,
 	VMXNET3_CMD_REGISTER_MEMREGS,
 	VMXNET3_CMD_SET_RSS_FIELDS,
+	VMXNET3_CMD_RESERVED4,
+	VMXNET3_CMD_RESERVED5,
+	VMXNET3_CMD_SET_RING_BUFFER_SIZE,
 
 	VMXNET3_CMD_FIRST_GET = 0xF00D0000,
 	VMXNET3_CMD_GET_QUEUE_STATUS = VMXNET3_CMD_FIRST_GET,
@@ -743,6 +746,13 @@ enum Vmxnet3_RSSField {
 	VMXNET3_RSS_FIELDS_ESPIP6 = 0x0020,
 };
 
+struct Vmxnet3_RingBufferSize {
+	__le16             ring1BufSizeType0;
+	__le16             ring1BufSizeType1;
+	__le16             ring2BufSizeType1;
+	__le16             pad;
+};
+
 /* If the command data <= 16 bytes, use the shared memory directly.
  * otherwise, use variable length configuration descriptor.
  */
@@ -750,6 +760,7 @@ union Vmxnet3_CmdInfo {
 	struct Vmxnet3_VariableLenConfDesc	varConf;
 	struct Vmxnet3_SetPolling		setPolling;
 	enum   Vmxnet3_RSSField                 setRssFields;
+	struct Vmxnet3_RingBufferSize           ringBufSize;
 	__le64					data[2];
 };
 

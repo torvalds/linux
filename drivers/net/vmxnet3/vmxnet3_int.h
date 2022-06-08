@@ -408,6 +408,7 @@ struct vmxnet3_adapter {
 	dma_addr_t pm_conf_pa;
 	dma_addr_t rss_conf_pa;
 	bool   queuesExtEnabled;
+	struct Vmxnet3_RingBufferSize     ringBufSize;
 	u32    devcap_supported[8];
 	u32    ptcap_supported[8];
 	u32    dev_caps[8];
@@ -449,7 +450,7 @@ struct vmxnet3_adapter {
 /* must be a multiple of VMXNET3_RING_SIZE_ALIGN */
 #define VMXNET3_DEF_TX_RING_SIZE    512
 #define VMXNET3_DEF_RX_RING_SIZE    1024
-#define VMXNET3_DEF_RX_RING2_SIZE   256
+#define VMXNET3_DEF_RX_RING2_SIZE   512
 
 #define VMXNET3_DEF_RXDATA_DESC_SIZE 128
 

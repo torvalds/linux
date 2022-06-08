@@ -718,6 +718,13 @@ vmxnet3_set_ringparam(struct net_device *netdev,
 	new_rx_ring2_size = min_t(u32, new_rx_ring2_size,
 				  VMXNET3_RX_RING2_MAX_SIZE);
 
+	/* For v7 and later, keep ring size power of 2 for UPT */
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		new_tx_ring_size = rounddown_pow_of_two(new_tx_ring_size);
+		new_rx_ring_size = rounddown_pow_of_two(new_rx_ring_size);
+		new_rx_ring2_size = rounddown_pow_of_two(new_rx_ring2_size);
+	}
+
 	/* rx data ring buffer size has to be a multiple of
 	 * VMXNET3_RXDATA_DESC_SIZE_ALIGN
 	 */

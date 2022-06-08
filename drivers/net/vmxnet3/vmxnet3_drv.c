@@ -2681,6 +2681,23 @@ vmxnet3_setup_driver_shared(struct vmxnet3_adapter *adapter)
 }
 
 static void
+vmxnet3_init_bufsize(struct vmxnet3_adapter *adapter)
+{
+	struct Vmxnet3_DriverShared *shared = adapter->shared;
+	union Vmxnet3_CmdInfo *cmdInfo = &shared->cu.cmdInfo;
+	unsigned long flags;
+
+	if (!VMXNET3_VERSION_GE_7(adapter))
+		return;
+
+	cmdInfo->ringBufSize = adapter->ringBufSize;
+	spin_lock_irqsave(&adapter->cmd_lock, flags);
+	VMXNET3_WRITE_BAR1_REG(adapter, VMXNET3_REG_CMD,
+			       VMXNET3_CMD_SET_RING_BUFFER_SIZE);
+	spin_unlock_irqrestore(&adapter->cmd_lock, flags);
+}
+
+static void
 vmxnet3_init_coalesce(struct vmxnet3_adapter *adapter)
 {
 	struct Vmxnet3_DriverShared *shared = adapter->shared;
@@ -2818,6 +2835,7 @@ vmxnet3_activate_dev(struct vmxnet3_adapter *adapter)
 		goto activate_err;
 	}
 
+	vmxnet3_init_bufsize(adapter);
 	vmxnet3_init_coalesce(adapter);
 	vmxnet3_init_rssfields(adapter);
 
@@ -2991,19 +3009,29 @@ static void
 vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 {
 	size_t sz, i, ring0_size, ring1_size, comp_size;
-	if (adapter->netdev->mtu <= VMXNET3_MAX_SKB_BUF_SIZE -
-				    VMXNET3_MAX_ETH_HDR_SIZE) {
-		adapter->skb_buf_size = adapter->netdev->mtu +
-					VMXNET3_MAX_ETH_HDR_SIZE;
-		if (adapter->skb_buf_size < VMXNET3_MIN_T0_BUF_SIZE)
-			adapter->skb_buf_size = VMXNET3_MIN_T0_BUF_SIZE;
+	/* With version7 ring1 will have only T0 buffers */
+	if (!VMXNET3_VERSION_GE_7(adapter)) {
+		if (adapter->netdev->mtu <= VMXNET3_MAX_SKB_BUF_SIZE -
+					    VMXNET3_MAX_ETH_HDR_SIZE) {
+			adapter->skb_buf_size = adapter->netdev->mtu +
+						VMXNET3_MAX_ETH_HDR_SIZE;
+			if (adapter->skb_buf_size < VMXNET3_MIN_T0_BUF_SIZE)
+				adapter->skb_buf_size = VMXNET3_MIN_T0_BUF_SIZE;
 
-		adapter->rx_buf_per_pkt = 1;
+			adapter->rx_buf_per_pkt = 1;
+		} else {
+			adapter->skb_buf_size = VMXNET3_MAX_SKB_BUF_SIZE;
+			sz = adapter->netdev->mtu - VMXNET3_MAX_SKB_BUF_SIZE +
+						    VMXNET3_MAX_ETH_HDR_SIZE;
+			adapter->rx_buf_per_pkt = 1 + (sz + PAGE_SIZE - 1) / PAGE_SIZE;
+		}
 	} else {
-		adapter->skb_buf_size = VMXNET3_MAX_SKB_BUF_SIZE;
-		sz = adapter->netdev->mtu - VMXNET3_MAX_SKB_BUF_SIZE +
-					    VMXNET3_MAX_ETH_HDR_SIZE;
-		adapter->rx_buf_per_pkt = 1 + (sz + PAGE_SIZE - 1) / PAGE_SIZE;
+		adapter->skb_buf_size = min((int)adapter->netdev->mtu + VMXNET3_MAX_ETH_HDR_SIZE,
+					    VMXNET3_MAX_SKB_BUF_SIZE);
+		adapter->rx_buf_per_pkt = 1;
+		adapter->ringBufSize.ring1BufSizeType0 = cpu_to_le16(adapter->skb_buf_size);
+		adapter->ringBufSize.ring1BufSizeType1 = 0;
+		adapter->ringBufSize.ring2BufSizeType1 = cpu_to_le16(PAGE_SIZE);
 	}
 
 	/*
@@ -3019,6 +3047,11 @@ vmxnet3_adjust_rx_ring_size(struct vmxnet3_adapter *adapter)
 	ring1_size = (ring1_size + sz - 1) / sz * sz;
 	ring1_size = min_t(u32, ring1_size, VMXNET3_RX_RING2_MAX_SIZE /
 			   sz * sz);
+	/* For v7 and later, keep ring size power of 2 for UPT */
+	if (VMXNET3_VERSION_GE_7(adapter)) {
+		ring0_size = rounddown_pow_of_two(ring0_size);
+		ring1_size = rounddown_pow_of_two(ring1_size);
+	}
 	comp_size = ring0_size + ring1_size;
 
 	for (i = 0; i < adapter->num_rx_queues; i++) {
