@@ -407,7 +407,7 @@ PVRSRV_ERROR SysDevInit(void *pvOSDevice, PVRSRV_DEVICE_CONFIG **ppsDevConfig)
 	 * Setup RGX specific timing data
 	 */
 	gsRGXTimingInfo.ui32CoreClockSpeed	= RGX_STARFIVE_7100_CORE_CLOCK_SPEED;
-	gsRGXTimingInfo.bEnableActivePM		= IMG_TRUE;
+	gsRGXTimingInfo.bEnableActivePM		= IMG_FALSE;
 	gsRGXTimingInfo.bEnableRDPowIsland	= IMG_TRUE;
 	gsRGXTimingInfo.ui32ActivePMLatencyms	= SYS_RGX_ACTIVE_POWER_LATENCY_MS;
 
