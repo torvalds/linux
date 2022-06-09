@@ -13,7 +13,7 @@
 #include "ipc4-priv.h"
 #include "ipc4-topology.h"
 
-static int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 id, u32 state)
+int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 id, u32 state)
 {
 	struct sof_ipc4_msg msg = {{ 0 }};
 	u32 primary;
@@ -30,6 +30,7 @@ static int sof_ipc4_set_pipeline_state(struct snd_sof_dev *sdev, u32 id, u32 sta
 
 	return sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
 }
+EXPORT_SYMBOL(sof_ipc4_set_pipeline_state);
 
 static int sof_ipc4_trigger_pipelines(struct snd_soc_component *component,
 				      struct snd_pcm_substream *substream, int state)
