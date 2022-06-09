@@ -3,16 +3,15 @@
 #define RGX_FW_FILENAME "rgx.fw"
 #define RGX_SH_FILENAME "rgx.sh"
 #define PVR_BUILD_DIR "sf_7110"
-#define PVR_BUILD_TYPE "debug"
+#define PVR_BUILD_TYPE "release"
 #define PVRSRV_MODNAME "pvrsrvkm"
 #define PVRSYNC_MODNAME "pvr_sync"
 #define SUPPORT_RGX 1
 #define DISPLAY_CONTROLLER drm_nulldisp
-#define DEBUG
+#define RELEASE
 #define SUPPORT_PHYSMEM_TEST
 #define RGX_BVNC_CORE_KM_HEADER "cores/rgxcore_km_36.50.54.182.h"
 #define RGX_BNC_CONFIG_KM_HEADER "configs/rgxconfig_km_36.V.54.182.h"
-#define PVRSRV_DEBUG_HANDLE_LOCK
 #define PDUMP
 #define PVRSRV_NEED_PVR_DPF
 #define PVRSRV_NEED_PVR_ASSERT
@@ -121,7 +120,6 @@
 #define SUPPORT_TBI_INTERFACE
 #define RGXFW_SAFETY_WATCHDOG_PERIOD_IN_US 1000000
 #define PVR_ANNOTATION_MAX_LEN 96
-#define DEBUG_BRIDGE_KM
 #define SUPPORT_DI_BRG_IMPL
 #define PVR_LINUX_PHYSMEM_MAX_POOL_PAGES 10240
 #define PVR_LINUX_PHYSMEM_MAX_EXCESS_POOL_PAGES 20480
