@@ -18,11 +18,13 @@
  * @manifest_fw_hdr_offset: FW header offset in the manifest
  * @num_fw_modules : Number of modules in base FW
  * @fw_modules: Array of base FW modules
+ * @nhlt: NHLT table either from the BIOS or the topology manifest
  */
 struct sof_ipc4_fw_data {
 	u32 manifest_fw_hdr_offset;
 	int num_fw_modules;
 	void *fw_modules;
+	void *nhlt;
 };
 
 /**

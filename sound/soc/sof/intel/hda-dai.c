@@ -10,6 +10,7 @@
 
 #include <sound/pcm_params.h>
 #include <sound/hdaudio_ext.h>
+#include <sound/intel-nhlt.h>
 #include <sound/sof/ipc4/header.h>
 #include <uapi/sound/sof/header.h>
 #include "../ipc4-priv.h"
@@ -17,6 +18,14 @@
 #include "../sof-priv.h"
 #include "../sof-audio.h"
 #include "hda.h"
+
+/*
+ * The default method is to fetch NHLT from BIOS. With this parameter set
+ * it is possible to override that with NHLT in the SOF topology manifest.
+ */
+static bool hda_use_tplg_nhlt;
+module_param_named(sof_use_tplg_nhlt, hda_use_tplg_nhlt, bool, 0444);
+MODULE_PARM_DESC(sof_use_tplg_nhlt, "SOF topology nhlt override");
 
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA)
 
@@ -777,6 +786,9 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 		}
 		break;
 	case SOF_INTEL_IPC4:
+	{
+		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+
 		for (i = 0; i < ops->num_drv; i++) {
 			if (strstr(ops->drv[i].name, "DMIC")) {
 				ops->drv[i].ops = &ipc4_dmic_dai_ops;
@@ -793,11 +805,27 @@ void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops)
 				ops->drv[i].ops = &ipc4_hda_dai_ops;
 #endif
 		}
+
+		if (!hda_use_tplg_nhlt)
+			ipc4_data->nhlt = intel_nhlt_init(sdev->dev);
+
 		break;
+	}
 	default:
 		break;
 	}
 }
+
+void hda_ops_free(struct snd_sof_dev *sdev)
+{
+	if (sdev->pdata->ipc_type == SOF_INTEL_IPC4) {
+		struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+
+		if (!hda_use_tplg_nhlt)
+			intel_nhlt_free(ipc4_data->nhlt);
+	}
+}
+EXPORT_SYMBOL_NS(hda_ops_free, SND_SOC_SOF_INTEL_HDA_COMMON);
 
 /*
  * common dai driver for skl+ platforms.
