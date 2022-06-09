@@ -1337,13 +1337,11 @@ static void rkisp_stop_streaming(struct vb2_queue *queue)
 	}
 
 	rkisp_stream_stop(stream);
-	if (!dev->cap_dev.wrap_line || atomic_read(&dev->cap_dev.refcnt) == 1) {
-		/* call to the other devices */
-		media_pipeline_stop(&node->vdev.entity);
-		ret = dev->pipe.set_stream(&dev->pipe, false);
-		if (ret < 0)
-			v4l2_err(v4l2_dev, "pipeline stream-off failed:%d\n", ret);
-	}
+	/* call to the other devices */
+	media_pipeline_stop(&node->vdev.entity);
+	ret = dev->pipe.set_stream(&dev->pipe, false);
+	if (ret < 0)
+		v4l2_err(v4l2_dev, "pipeline stream-off failed:%d\n", ret);
 
 	/* release buffers */
 	destroy_buf_queue(stream, VB2_BUF_STATE_ERROR);
@@ -1400,10 +1398,6 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 	struct rkisp_device *dev = stream->ispdev;
 	struct v4l2_device *v4l2_dev = &dev->v4l2_dev;
 	int ret = -EINVAL;
-	bool is_pipe = true;
-
-	if (dev->cap_dev.wrap_line && stream->id != RKISP_STREAM_MP)
-		is_pipe = false;
 
 	mutex_lock(&dev->hw_dev->dev_lock);
 
@@ -1474,17 +1468,15 @@ rkisp_start_streaming(struct vb2_queue *queue, unsigned int count)
 		goto close_pipe;
 	}
 
-	if (is_pipe) {
-		/* start sub-devices */
-		ret = dev->pipe.set_stream(&dev->pipe, true);
-		if (ret < 0)
-			goto stop_stream;
+	/* start sub-devices */
+	ret = dev->pipe.set_stream(&dev->pipe, true);
+	if (ret < 0)
+		goto stop_stream;
 
-		ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
-		if (ret < 0) {
-			v4l2_err(v4l2_dev, "start pipeline failed %d\n", ret);
-			goto pipe_stream_off;
-		}
+	ret = media_pipeline_start(&node->vdev.entity, &dev->pipe.pipe);
+	if (ret < 0) {
+		v4l2_err(v4l2_dev, "start pipeline failed %d\n", ret);
+		goto pipe_stream_off;
 	}
 end:
 	mutex_unlock(&dev->hw_dev->dev_lock);
