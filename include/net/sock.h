@@ -1627,19 +1627,6 @@ static inline void sk_mem_reclaim_final(struct sock *sk)
 	sk_mem_reclaim(sk);
 }
 
-static inline void sk_mem_reclaim_partial(struct sock *sk)
-{
-	int reclaimable;
-
-	if (!sk_has_account(sk))
-		return;
-
-	reclaimable = sk->sk_forward_alloc - sk_unused_reserved_mem(sk);
-
-	if (reclaimable > (int)PAGE_SIZE)
-		__sk_mem_reclaim(sk, reclaimable - 1);
-}
-
 static inline void sk_mem_charge(struct sock *sk, int size)
 {
 	if (!sk_has_account(sk))
@@ -1647,29 +1634,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
 	sk->sk_forward_alloc -= size;
 }
 
-/* the following macros control memory reclaiming in sk_mem_uncharge()
+/* the following macros control memory reclaiming in mptcp_rmem_uncharge()
  */
 #define SK_RECLAIM_THRESHOLD	(1 << 21)
 #define SK_RECLAIM_CHUNK	(1 << 20)
 
 static inline void sk_mem_uncharge(struct sock *sk, int size)
 {
-	int reclaimable;
-
 	if (!sk_has_account(sk))
 		return;
 	sk->sk_forward_alloc += size;
-	reclaimable = sk->sk_forward_alloc - sk_unused_reserved_mem(sk);
-
-	/* Avoid a possible overflow.
-	 * TCP send queues can make this happen, if sk_mem_reclaim()
-	 * is not called and more than 2 GBytes are released at once.
-	 *
-	 * If we reach 2 MBytes, reclaim 1 MBytes right now, there is
-	 * no need to hold that much forward allocation anyway.
-	 */
-	if (unlikely(reclaimable >= SK_RECLAIM_THRESHOLD))
-		__sk_mem_reclaim(sk, SK_RECLAIM_CHUNK);
+	sk_mem_reclaim(sk);
 }
 
 /*
