@@ -363,11 +363,6 @@ struct kvm_vcpu_arch {
 	struct kvm_pmu pmu;
 
 	/*
-	 * Anything that is not used directly from assembly code goes
-	 * here.
-	 */
-
-	/*
 	 * Guest registers we preserve during guest debugging.
 	 *
 	 * These shadow registers are updated by the kvm_handle_sys_reg
