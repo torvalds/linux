@@ -18,6 +18,8 @@
 #define RKISP1_ISP_PARAMS_REQ_BUFS_MIN	2
 #define RKISP1_ISP_PARAMS_REQ_BUFS_MAX	8
 
+#define RKISP1_ISP_DPCC_METHODS_SET(n) \
+			(RKISP1_CIF_ISP_DPCC_METHODS_SET_1 + 0x4 * (n))
 #define RKISP1_ISP_DPCC_LINE_THRESH(n) \
 			(RKISP1_CIF_ISP_DPCC_LINE_THRESH_1 + 0x14 * (n))
 #define RKISP1_ISP_DPCC_LINE_MAD_FAC(n) \
@@ -66,13 +68,9 @@ static void rkisp1_dpcc_config(struct rkisp1_params *params,
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_SET_USE,
 		     arg->set_use);
 
-	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_METHODS_SET_1,
-		     arg->methods[0].method);
-	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_METHODS_SET_2,
-		     arg->methods[1].method);
-	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_METHODS_SET_3,
-		     arg->methods[2].method);
 	for (i = 0; i < RKISP1_CIF_ISP_DPCC_METHODS_MAX; i++) {
+		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_METHODS_SET(i),
+			     arg->methods[i].method);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_LINE_THRESH(i),
 			     arg->methods[i].line_thresh);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_LINE_MAD_FAC(i),
