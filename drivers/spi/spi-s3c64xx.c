@@ -382,7 +382,7 @@ static bool s3c64xx_spi_can_dma(struct spi_master *master,
 	if (sdd->rx_dma.ch && sdd->tx_dma.ch) {
 		return xfer->len > (FIFO_LVL_MASK(sdd) >> 1) + 1;
 	} else {
-		return 0;
+		return false;
 	}
 
 }
