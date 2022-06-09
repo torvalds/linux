@@ -1511,6 +1511,63 @@ static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
 	return 0;
 }
 
+static int sof_ipc4_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *dai, int clk_type)
+{
+	struct sof_ipc4_copier *ipc4_copier = dai->private;
+	struct snd_soc_tplg_hw_config *hw_config;
+	struct snd_sof_dai_link *slink;
+	bool dai_link_found = false;
+	bool hw_cfg_found = false;
+	int i;
+
+	if (!ipc4_copier)
+		return 0;
+
+	list_for_each_entry(slink, &sdev->dai_link_list, list) {
+		if (!strcmp(slink->link->name, dai->name)) {
+			dai_link_found = true;
+			break;
+		}
+	}
+
+	if (!dai_link_found) {
+		dev_err(sdev->dev, "no DAI link found for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	for (i = 0; i < slink->num_hw_configs; i++) {
+		hw_config = &slink->hw_configs[i];
+		if (dai->current_config == le32_to_cpu(hw_config->id)) {
+			hw_cfg_found = true;
+			break;
+		}
+	}
+
+	if (!hw_cfg_found) {
+		dev_err(sdev->dev, "no matching hw_config found for DAI %s\n", dai->name);
+		return -EINVAL;
+	}
+
+	switch (ipc4_copier->dai_type) {
+	case SOF_DAI_INTEL_SSP:
+		switch (clk_type) {
+		case SOF_DAI_CLK_INTEL_SSP_MCLK:
+			return le32_to_cpu(hw_config->mclk_rate);
+		case SOF_DAI_CLK_INTEL_SSP_BCLK:
+			return le32_to_cpu(hw_config->bclk_rate);
+		default:
+			dev_err(sdev->dev, "Invalid clk type for SSP %d\n", clk_type);
+			break;
+		}
+		break;
+	default:
+		dev_err(sdev->dev, "DAI type %d not supported yet!\n", ipc4_copier->dai_type);
+		break;
+	}
+
+	return -EINVAL;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1597,4 +1654,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.route_free = sof_ipc4_route_free,
 	.dai_config = sof_ipc4_dai_config,
 	.parse_manifest = sof_ipc4_parse_manifest,
+	.dai_get_clk = sof_ipc4_dai_get_clk,
 };
