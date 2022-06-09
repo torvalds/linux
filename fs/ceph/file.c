@@ -95,12 +95,11 @@ static ssize_t __iter_get_bvecs(struct iov_iter *iter, size_t maxsize,
 		size_t start;
 		int idx = 0;
 
-		bytes = iov_iter_get_pages(iter, pages, maxsize - size,
+		bytes = iov_iter_get_pages2(iter, pages, maxsize - size,
 					   ITER_GET_BVECS_PAGES, &start);
 		if (bytes < 0)
 			return size ?: bytes;
 
-		iov_iter_advance(iter, bytes);
 		size += bytes;
 
 		for ( ; bytes; idx++, bvec_idx++) {

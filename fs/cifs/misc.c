@@ -1029,7 +1029,7 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 	saved_len = count;
 
 	while (count && npages < max_pages) {
-		rc = iov_iter_get_pages(iter, pages, count, max_pages, &start);
+		rc = iov_iter_get_pages2(iter, pages, count, max_pages, &start);
 		if (rc < 0) {
 			cifs_dbg(VFS, "Couldn't get user pages (rc=%zd)\n", rc);
 			break;
@@ -1041,7 +1041,6 @@ setup_aio_ctx_iter(struct cifs_aio_ctx *ctx, struct iov_iter *iter, int rw)
 			break;
 		}
 
-		iov_iter_advance(iter, rc);
 		count -= rc;
 		rc += start;
 		cur_npages = DIV_ROUND_UP(rc, PAGE_SIZE);
