@@ -1585,15 +1585,16 @@ void dev_pm_opp_remove_all_dynamic(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_remove_all_dynamic);
 
-struct dev_pm_opp *_opp_allocate(struct opp_table *table)
+struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table)
 {
 	struct dev_pm_opp *opp;
 	int supply_count, supply_size, icc_size;
 
 	/* Allocate space for at least one supply */
-	supply_count = table->regulator_count > 0 ? table->regulator_count : 1;
+	supply_count = opp_table->regulator_count > 0 ?
+			opp_table->regulator_count : 1;
 	supply_size = sizeof(*opp->supplies) * supply_count;
-	icc_size = sizeof(*opp->bandwidth) * table->path_count;
+	icc_size = sizeof(*opp->bandwidth) * opp_table->path_count;
 
 	/* allocate new OPP node and supplies structures */
 	opp = kzalloc(sizeof(*opp) + supply_size + icc_size, GFP_KERNEL);

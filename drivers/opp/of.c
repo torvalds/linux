@@ -767,7 +767,7 @@ void dev_pm_opp_of_remove_table(struct device *dev)
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_of_remove_table);
 
-static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
+static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *opp_table,
 		    struct device_node *np, bool peak)
 {
 	const char *name = peak ? "opp-peak-kBps" : "opp-avg-kBps";
@@ -780,9 +780,9 @@ static int _read_bw(struct dev_pm_opp *new_opp, struct opp_table *table,
 		return -ENODEV;
 
 	count = prop->length / sizeof(u32);
-	if (table->path_count != count) {
+	if (opp_table->path_count != count) {
 		pr_err("%s: Mismatch between %s and paths (%d %d)\n",
-				__func__, name, count, table->path_count);
+				__func__, name, count, opp_table->path_count);
 		return -EINVAL;
 	}
 
@@ -808,7 +808,7 @@ out:
 	return ret;
 }
 
-static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *table,
+static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *opp_table,
 			 struct device_node *np, bool *rate_not_available)
 {
 	bool found = false;
@@ -832,10 +832,10 @@ static int _read_opp_key(struct dev_pm_opp *new_opp, struct opp_table *table,
 	 * opp-peak-kBps = <path1_value path2_value>;
 	 * opp-avg-kBps = <path1_value path2_value>;
 	 */
-	ret = _read_bw(new_opp, table, np, true);
+	ret = _read_bw(new_opp, opp_table, np, true);
 	if (!ret) {
 		found = true;
-		ret = _read_bw(new_opp, table, np, false);
+		ret = _read_bw(new_opp, opp_table, np, false);
 	}
 
 	/* The properties were found but we failed to parse them */
