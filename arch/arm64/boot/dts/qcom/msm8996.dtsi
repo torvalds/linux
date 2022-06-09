@@ -941,7 +941,6 @@
 					"extp";
 
 				phys = <&hdmi_phy>;
-				phy-names = "hdmi_phy";
 				#sound-dai-cells = <1>;
 
 				status = "disabled";
