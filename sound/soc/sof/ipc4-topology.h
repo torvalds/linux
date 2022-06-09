@@ -40,6 +40,8 @@
 #define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
 #define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
 
+#define ALH_MAX_NUMBER_OF_GTW   16
+
 /**
  * struct sof_ipc4_pipeline - pipeline config data
  * @priority: Priority of this pipeline
@@ -110,6 +112,29 @@ struct sof_ipc4_gtw_attributes {
 	uint32_t lp_buffer_alloc : 1;
 	uint32_t alloc_from_reg_file : 1;
 	uint32_t rsvd : 30;
+};
+
+/** struct sof_ipc4_alh_multi_gtw_cfg: ALH gateway cfg data
+ * @count: Number of streams (valid items in mapping array)
+ * @alh_id: ALH stream id of a single ALH stream aggregated
+ * @channel_mask: Channel mask
+ * @mapping: ALH streams
+ */
+struct sof_ipc4_alh_multi_gtw_cfg {
+	uint32_t count;
+	struct {
+		uint32_t alh_id;
+		uint32_t channel_mask;
+	} mapping[ALH_MAX_NUMBER_OF_GTW];
+} __packed;
+
+/** struct sof_ipc4_alh_configuration_blob: ALH blob
+ * @gw_attr: Gateway attributes
+ * @alh_cfg: ALH configuration data
+ */
+struct sof_ipc4_alh_configuration_blob {
+	struct sof_ipc4_gtw_attributes gw_attr;
+	struct sof_ipc4_alh_multi_gtw_cfg alh_cfg;
 };
 
 /**
