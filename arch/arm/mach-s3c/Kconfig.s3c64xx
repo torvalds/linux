@@ -104,7 +104,7 @@ config S3C64XX_SETUP_SDHCI_GPIO
 config S3C64XX_SETUP_SPI
 	bool
 	help
-	 Common setup code for SPI GPIO configurations
+	  Common setup code for SPI GPIO configurations
 
 config S3C64XX_SETUP_USB_PHY
 	bool
@@ -114,7 +114,7 @@ config S3C64XX_SETUP_USB_PHY
 # S36400 Macchine support
 
 config MACH_SMDK6400
-       bool "SMDK6400"
+	bool "SMDK6400"
 	depends on ATAGS
 	select CPU_S3C6400
 	select S3C64XX_SETUP_SDHCI
@@ -205,7 +205,7 @@ config SMDK6410_SD_CH0
 	bool "Use channel 0 only"
 	depends on MACH_SMDK6410
 	help
-          Select CON7 (channel 0) as the MMC/SD slot, as
+	  Select CON7 (channel 0) as the MMC/SD slot, as
 	  at least some SMDK6410 boards come with the
 	  resistors fitted so that the card detects for
 	  channels 0 and 1 are the same.
@@ -214,7 +214,7 @@ config SMDK6410_SD_CH1
 	bool "Use channel 1 only"
 	depends on MACH_SMDK6410
 	help
-          Select CON6 (channel 1) as the MMC/SD slot, as
+	  Select CON6 (channel 1) as the MMC/SD slot, as
 	  at least some SMDK6410 boards come with the
 	  resistors fitted so that the card detects for
 	  channels 0 and 1 are the same.
@@ -260,7 +260,7 @@ config MACH_NCP
 	select S3C_DEV_HSMMC1
 	select S3C_DEV_I2C1
 	help
-          Machine support for the Samsung NCP
+	  Machine support for the Samsung NCP
 
 config MACH_HMT
 	bool "Airgoo HMT"
@@ -292,21 +292,21 @@ config MACH_SMARTQ
 	select SAMSUNG_DEV_PWM
 	select SAMSUNG_DEV_TS
 	help
-	    Shared machine support for SmartQ 5/7
+	  Shared machine support for SmartQ 5/7
 
 config MACH_SMARTQ5
 	bool "SmartQ 5"
 	depends on ATAGS
 	select MACH_SMARTQ
 	help
-	    Machine support for the SmartQ 5
+	  Machine support for the SmartQ 5
 
 config MACH_SMARTQ7
 	bool "SmartQ 7"
 	depends on ATAGS
 	select MACH_SMARTQ
 	help
-	    Machine support for the SmartQ 7
+	  Machine support for the SmartQ 7
 
 config MACH_WLF_CRAGG_6410
 	bool "Wolfson Cragganmore 6410"
