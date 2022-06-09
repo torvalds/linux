@@ -51,7 +51,7 @@ enum xcan_reg {
 
 	/* only on CAN FD cores */
 	XCAN_F_BRPR_OFFSET	= 0x088, /* Data Phase Baud Rate
-					  * Prescalar
+					  * Prescaler
 					  */
 	XCAN_F_BTR_OFFSET	= 0x08C, /* Data Phase Bit Timing */
 	XCAN_TRR_OFFSET		= 0x0090, /* TX Buffer Ready Request */
@@ -430,7 +430,7 @@ static int xcan_set_bittiming(struct net_device *ndev)
 		return -EPERM;
 	}
 
-	/* Setting Baud Rate prescalar value in BRPR Register */
+	/* Setting Baud Rate prescaler value in BRPR Register */
 	btr0 = (bt->brp - 1);
 
 	/* Setting Time Segment 1 in BTR Register */
@@ -447,7 +447,7 @@ static int xcan_set_bittiming(struct net_device *ndev)
 
 	if (priv->devtype.cantype == XAXI_CANFD ||
 	    priv->devtype.cantype == XAXI_CANFD_2_0) {
-		/* Setting Baud Rate prescalar value in F_BRPR Register */
+		/* Setting Baud Rate prescaler value in F_BRPR Register */
 		btr0 = dbt->brp - 1;
 		if (can_tdc_is_enabled(&priv->can)) {
 			if (priv->devtype.cantype == XAXI_CANFD)
