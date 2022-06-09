@@ -66,6 +66,7 @@ static int smu_set_fan_control_mode(void *handle, u32 value);
 static int smu_set_power_limit(void *handle, uint32_t limit);
 static int smu_set_fan_speed_rpm(void *handle, uint32_t speed);
 static int smu_set_gfx_cgpg(struct smu_context *smu, bool enabled);
+static int smu_set_mp1_state(void *handle, enum pp_mp1_state mp1_state);
 
 static int smu_sys_get_pp_feature_mask(void *handle,
 				       char *buf)
@@ -1414,6 +1415,12 @@ static int smu_disable_dpms(struct smu_context *smu)
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
+		ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
+		if (ret) {
+			dev_err(adev->dev, "Fail set mp1 state to UNLOAD!\n");
+			return ret;
+		}
+
 		return 0;
 	default:
 		break;
