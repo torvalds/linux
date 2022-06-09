@@ -1532,25 +1532,15 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind);
 void __sk_mem_reduce_allocated(struct sock *sk, int amount);
 void __sk_mem_reclaim(struct sock *sk, int amount);
 
-/* We used to have PAGE_SIZE here, but systems with 64KB pages
- * do not necessarily have 16x time more memory than 4KB ones.
- */
-#define SK_MEM_QUANTUM 4096
+#define SK_MEM_QUANTUM ((int)PAGE_SIZE)
 #define SK_MEM_QUANTUM_SHIFT ilog2(SK_MEM_QUANTUM)
 #define SK_MEM_SEND	0
 #define SK_MEM_RECV	1
 
-/* sysctl_mem values are in pages, we convert them in SK_MEM_QUANTUM units */
+/* sysctl_mem values are in pages */
 static inline long sk_prot_mem_limits(const struct sock *sk, int index)
 {
-	long val = sk->sk_prot->sysctl_mem[index];
-
-#if PAGE_SIZE > SK_MEM_QUANTUM
-	val <<= PAGE_SHIFT - SK_MEM_QUANTUM_SHIFT;
-#elif PAGE_SIZE < SK_MEM_QUANTUM
-	val >>= SK_MEM_QUANTUM_SHIFT - PAGE_SHIFT;
-#endif
-	return val;
+	return sk->sk_prot->sysctl_mem[index];
 }
 
 static inline int sk_mem_pages(int amt)
