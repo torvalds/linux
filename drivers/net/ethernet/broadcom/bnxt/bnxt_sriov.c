@@ -307,7 +307,7 @@ int bnxt_set_vf_bw(struct net_device *dev, int vf_id, int min_tx_rate,
 		return -EINVAL;
 	}
 
-	if (min_tx_rate > pf_link_speed || min_tx_rate > max_tx_rate) {
+	if (min_tx_rate > pf_link_speed) {
 		netdev_info(bp->dev, "min tx rate %d is invalid for VF %d\n",
 			    min_tx_rate, vf_id);
 		return -EINVAL;

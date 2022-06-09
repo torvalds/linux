@@ -852,12 +852,6 @@ int hinic_ndo_set_vf_bw(struct net_device *netdev,
 		return -EINVAL;
 	}
 
-	if (max_tx_rate < min_tx_rate) {
-		netif_err(nic_dev, drv, netdev, "Max rate %d must be greater than or equal to min rate %d\n",
-			  max_tx_rate, min_tx_rate);
-		return -EINVAL;
-	}
-
 	err = hinic_port_link_state(nic_dev, &link_state);
 	if (err) {
 		netif_err(nic_dev, drv, netdev,
