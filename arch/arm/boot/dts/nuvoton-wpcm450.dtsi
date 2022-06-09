@@ -98,7 +98,6 @@
 			interrupts = <1 IRQ_TYPE_LEVEL_HIGH>;
 			reg = <0xb800101c 0x4>;
 			clocks = <&clk24m>;
-			status = "disabled";
 		};
 
 		aic: interrupt-controller@b8002000 {

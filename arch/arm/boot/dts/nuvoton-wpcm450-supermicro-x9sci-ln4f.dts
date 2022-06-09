@@ -104,7 +104,3 @@
 	/* "Serial over LAN" port. Connected to ttyS2 of the host system. */
 	status = "okay";
 };
-
-&watchdog0 {
-	status = "okay";
-};
