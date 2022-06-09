@@ -786,7 +786,7 @@ static struct platform_driver atmel_qspi_driver = {
 	.driver = {
 		.name	= "atmel_qspi",
 		.of_match_table	= atmel_qspi_dt_ids,
-		.pm	= &atmel_qspi_pm_ops,
+		.pm	= pm_ptr(&atmel_qspi_pm_ops),
 	},
 	.probe		= atmel_qspi_probe,
 	.remove		= atmel_qspi_remove,
