@@ -4563,6 +4563,9 @@ static int gfx_v11_0_hw_init(void *handle)
 				if (adev->gfx.imu.funcs->start_imu)
 					adev->gfx.imu.funcs->start_imu(adev);
 			}
+
+			/* disable gpa mode in backdoor loading */
+			gfx_v11_0_disable_gpa_mode(adev);
 		}
 	}
 
