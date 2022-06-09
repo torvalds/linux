@@ -38,6 +38,9 @@ DECLARE_HOOK(android_vh_inactive_is_low,
 	TP_PROTO(unsigned long gb, unsigned long *inactive_ratio,
 		enum lru_list inactive_lru, bool *skip),
 	TP_ARGS(gb, inactive_ratio, inactive_lru, skip));
+DECLARE_HOOK(android_vh_snapshot_refaults,
+	TP_PROTO(struct lruvec *target_lruvec),
+	TP_ARGS(target_lruvec));
 #endif /* _TRACE_HOOK_VMSCAN_H */
 /* This part must be outside protection */
 #include <trace/define_trace.h>
