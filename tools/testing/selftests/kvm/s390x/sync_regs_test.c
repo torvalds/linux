@@ -21,6 +21,7 @@
 #include "test_util.h"
 #include "kvm_util.h"
 #include "diag318_test_handler.h"
+#include "kselftest.h"
 
 #define VCPU_ID 5
 
@@ -74,27 +75,9 @@ static void compare_sregs(struct kvm_sregs *left, struct kvm_sync_regs *right)
 #define TEST_SYNC_FIELDS   (KVM_SYNC_GPRS|KVM_SYNC_ACRS|KVM_SYNC_CRS|KVM_SYNC_DIAG318)
 #define INVALID_SYNC_FIELD 0x80000000
 
-int main(int argc, char *argv[])
+void test_read_invalid(struct kvm_vm *vm, struct kvm_run *run)
 {
-	struct kvm_vm *vm;
-	struct kvm_run *run;
-	struct kvm_regs regs;
-	struct kvm_sregs sregs;
-	int rv, cap;
-
-	/* Tell stdout not to buffer its content */
-	setbuf(stdout, NULL);
-
-	cap = kvm_check_cap(KVM_CAP_SYNC_REGS);
-	if (!cap) {
-		print_skip("CAP_SYNC_REGS not supported");
-		exit(KSFT_SKIP);
-	}
-
-	/* Create VM */
-	vm = vm_create_default(VCPU_ID, 0, guest_code);
-
-	run = vcpu_state(vm, VCPU_ID);
+	int rv;
 
 	/* Request reading invalid register set from VCPU. */
 	run->kvm_valid_regs = INVALID_SYNC_FIELD;
@@ -110,6 +93,11 @@ int main(int argc, char *argv[])
 		    "Invalid kvm_valid_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
 	vcpu_state(vm, VCPU_ID)->kvm_valid_regs = 0;
+}
+
+void test_set_invalid(struct kvm_vm *vm, struct kvm_run *run)
+{
+	int rv;
 
 	/* Request setting invalid register set into VCPU. */
 	run->kvm_dirty_regs = INVALID_SYNC_FIELD;
@@ -125,6 +113,13 @@ int main(int argc, char *argv[])
 		    "Invalid kvm_dirty_regs did not cause expected KVM_RUN error: %d\n",
 		    rv);
 	vcpu_state(vm, VCPU_ID)->kvm_dirty_regs = 0;
+}
+
+void test_req_and_verify_all_valid_regs(struct kvm_vm *vm, struct kvm_run *run)
+{
+	struct kvm_sregs sregs;
+	struct kvm_regs regs;
+	int rv;
 
 	/* Request and verify all valid register sets. */
 	run->kvm_valid_regs = TEST_SYNC_FIELDS;
@@ -146,6 +141,13 @@ int main(int argc, char *argv[])
 
 	vcpu_sregs_get(vm, VCPU_ID, &sregs);
 	compare_sregs(&sregs, &run->s.regs);
+}
+
+void test_set_and_verify_various_reg_values(struct kvm_vm *vm, struct kvm_run *run)
+{
+	struct kvm_sregs sregs;
+	struct kvm_regs regs;
+	int rv;
 
 	/* Set and verify various register values */
 	run->s.regs.gprs[11] = 0xBAD1DEA;
@@ -180,6 +182,11 @@ int main(int argc, char *argv[])
 
 	vcpu_sregs_get(vm, VCPU_ID, &sregs);
 	compare_sregs(&sregs, &run->s.regs);
+}
+
+void test_clear_kvm_dirty_regs_bits(struct kvm_vm *vm, struct kvm_run *run)
+{
+	int rv;
 
 	/* Clear kvm_dirty_regs bits, verify new s.regs values are
 	 * overwritten with existing guest values.
@@ -200,8 +207,46 @@ int main(int argc, char *argv[])
 	TEST_ASSERT(run->s.regs.diag318 != 0x4B1D,
 		    "diag318 sync regs value incorrect 0x%llx.",
 		    run->s.regs.diag318);
+}
+
+struct testdef {
+	const char *name;
+	void (*test)(struct kvm_vm *vm, struct kvm_run *run);
+} testlist[] = {
+	{ "read invalid", test_read_invalid },
+	{ "set invalid", test_set_invalid },
+	{ "request+verify all valid regs", test_req_and_verify_all_valid_regs },
+	{ "set+verify various regs", test_set_and_verify_various_reg_values },
+	{ "clear kvm_dirty_regs bits", test_clear_kvm_dirty_regs_bits },
+};
+
+int main(int argc, char *argv[])
+{
+	static struct kvm_run *run;
+	static struct kvm_vm *vm;
+	int idx;
+
+	/* Tell stdout not to buffer its content */
+	setbuf(stdout, NULL);
+
+	ksft_print_header();
+
+	if (!kvm_check_cap(KVM_CAP_SYNC_REGS))
+		ksft_exit_skip("CAP_SYNC_REGS not supported");
+
+	ksft_set_plan(ARRAY_SIZE(testlist));
+
+	/* Create VM */
+	vm = vm_create_default(VCPU_ID, 0, guest_code);
+
+	run = vcpu_state(vm, VCPU_ID);
+
+	for (idx = 0; idx < ARRAY_SIZE(testlist); idx++) {
+		testlist[idx].test(vm, run);
+		ksft_test_result_pass("%s\n", testlist[idx].name);
+	}
 
 	kvm_vm_free(vm);
 
-	return 0;
+	ksft_finished();	/* Print results and exit() accordingly */
 }

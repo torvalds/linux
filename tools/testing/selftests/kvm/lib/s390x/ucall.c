@@ -22,7 +22,7 @@ void ucall(uint64_t cmd, int nargs, ...)
 	va_list va;
 	int i;
 
-	nargs = nargs <= UCALL_MAX_ARGS ? nargs : UCALL_MAX_ARGS;
+	nargs = min(nargs, UCALL_MAX_ARGS);
 
 	va_start(va, nargs);
 	for (i = 0; i < nargs; ++i)

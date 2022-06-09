@@ -67,6 +67,7 @@ static bool lapic_timer_advance_dynamic __read_mostly;
 #define LAPIC_TIMER_ADVANCE_NS_MAX     5000
 /* step-by-step approximation to mitigate fluctuation */
 #define LAPIC_TIMER_ADVANCE_ADJUST_STEP 8
+static int kvm_lapic_msr_read(struct kvm_lapic *apic, u32 reg, u64 *data);
 
 static inline void __kvm_lapic_set_reg(char *regs, int reg_off, u32 val)
 {
@@ -1602,7 +1603,7 @@ static inline void __wait_lapic_expire(struct kvm_vcpu *vcpu, u64 guest_cycles)
 	 * that __delay() uses delay_tsc whenever the hardware has TSC, thus
 	 * always for VMX enabled hardware.
 	 */
-	if (vcpu->arch.tsc_scaling_ratio == kvm_default_tsc_scaling_ratio) {
+	if (vcpu->arch.tsc_scaling_ratio == kvm_caps.default_tsc_scaling_ratio) {
 		__delay(min(guest_cycles,
 			nsec_to_cycles(vcpu, timer_advance_ns)));
 	} else {
@@ -2246,10 +2247,27 @@ EXPORT_SYMBOL_GPL(kvm_lapic_set_eoi);
 /* emulate APIC access in a trap manner */
 void kvm_apic_write_nodecode(struct kvm_vcpu *vcpu, u32 offset)
 {
-	u32 val = kvm_lapic_get_reg(vcpu->arch.apic, offset);
+	struct kvm_lapic *apic = vcpu->arch.apic;
+	u64 val;
 
-	/* TODO: optimize to just emulate side effect w/o one more write */
-	kvm_lapic_reg_write(vcpu->arch.apic, offset, val);
+	if (apic_x2apic_mode(apic)) {
+		/*
+		 * When guest APIC is in x2APIC mode and IPI virtualization
+		 * is enabled, accessing APIC_ICR may cause trap-like VM-exit
+		 * on Intel hardware. Other offsets are not possible.
+		 */
+		if (WARN_ON_ONCE(offset != APIC_ICR))
+			return;
+
+		kvm_lapic_msr_read(apic, offset, &val);
+		kvm_apic_send_ipi(apic, (u32)val, (u32)(val >> 32));
+		trace_kvm_apic_write(APIC_ICR, val);
+	} else {
+		val = kvm_lapic_get_reg(apic, offset);
+
+		/* TODO: optimize to just emulate side effect w/o one more write */
+		kvm_lapic_reg_write(apic, offset, (u32)val);
+	}
 }
 EXPORT_SYMBOL_GPL(kvm_apic_write_nodecode);
 

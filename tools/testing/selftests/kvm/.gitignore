@@ -25,6 +25,7 @@
 /x86_64/hyperv_cpuid
 /x86_64/hyperv_features
 /x86_64/hyperv_svm_test
+/x86_64/max_vcpuid_cap_test
 /x86_64/mmio_warning_test
 /x86_64/mmu_role_test
 /x86_64/platform_info_test
@@ -36,9 +37,10 @@
 /x86_64/state_test
 /x86_64/svm_vmcall_test
 /x86_64/svm_int_ctl_test
-/x86_64/tsc_scaling_sync
+/x86_64/svm_nested_soft_inject_test
 /x86_64/sync_regs_test
 /x86_64/tsc_msrs_test
+/x86_64/tsc_scaling_sync
 /x86_64/userspace_io_test
 /x86_64/userspace_msr_exit_test
 /x86_64/vmx_apic_access_test
@@ -56,6 +58,7 @@
 /x86_64/xen_vmcall_test
 /x86_64/xss_msr_test
 /x86_64/vmx_pmu_caps_test
+/x86_64/triple_fault_event_test
 /access_tracking_perf_test
 /demand_paging_test
 /dirty_log_test
