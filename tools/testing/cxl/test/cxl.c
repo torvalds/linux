@@ -429,6 +429,50 @@ static int map_targets(struct device *dev, void *data)
 	return 0;
 }
 
+static int mock_decoder_commit(struct cxl_decoder *cxld)
+{
+	struct cxl_port *port = to_cxl_port(cxld->dev.parent);
+	int id = cxld->id;
+
+	if (cxld->flags & CXL_DECODER_F_ENABLE)
+		return 0;
+
+	dev_dbg(&port->dev, "%s commit\n", dev_name(&cxld->dev));
+	if (port->commit_end + 1 != id) {
+		dev_dbg(&port->dev,
+			"%s: out of order commit, expected decoder%d.%d\n",
+			dev_name(&cxld->dev), port->id, port->commit_end + 1);
+		return -EBUSY;
+	}
+
+	port->commit_end++;
+	cxld->flags |= CXL_DECODER_F_ENABLE;
+
+	return 0;
+}
+
+static int mock_decoder_reset(struct cxl_decoder *cxld)
+{
+	struct cxl_port *port = to_cxl_port(cxld->dev.parent);
+	int id = cxld->id;
+
+	if ((cxld->flags & CXL_DECODER_F_ENABLE) == 0)
+		return 0;
+
+	dev_dbg(&port->dev, "%s reset\n", dev_name(&cxld->dev));
+	if (port->commit_end != id) {
+		dev_dbg(&port->dev,
+			"%s: out of order reset, expected decoder%d.%d\n",
+			dev_name(&cxld->dev), port->id, port->commit_end);
+		return -EBUSY;
+	}
+
+	port->commit_end--;
+	cxld->flags &= ~CXL_DECODER_F_ENABLE;
+
+	return 0;
+}
+
 static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 {
 	struct cxl_port *port = cxlhdm->port;
@@ -482,6 +526,8 @@ static int mock_cxl_enumerate_decoders(struct cxl_hdm *cxlhdm)
 		cxld->interleave_ways = min_not_zero(target_count, 1);
 		cxld->interleave_granularity = SZ_4K;
 		cxld->target_type = CXL_DECODER_EXPANDER;
+		cxld->commit = mock_decoder_commit;
+		cxld->reset = mock_decoder_reset;
 
 		if (target_count) {
 			rc = device_for_each_child(port->uport, &ctx,

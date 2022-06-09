@@ -54,6 +54,7 @@
 #define   CXL_HDM_DECODER0_CTRL_LOCK BIT(8)
 #define   CXL_HDM_DECODER0_CTRL_COMMIT BIT(9)
 #define   CXL_HDM_DECODER0_CTRL_COMMITTED BIT(10)
+#define   CXL_HDM_DECODER0_CTRL_COMMIT_ERROR BIT(11)
 #define   CXL_HDM_DECODER0_CTRL_TYPE BIT(12)
 #define CXL_HDM_DECODER0_TL_LOW(i) (0x20 * (i) + 0x24)
 #define CXL_HDM_DECODER0_TL_HIGH(i) (0x20 * (i) + 0x28)
@@ -257,7 +258,9 @@ enum cxl_decoder_type {
  * @target_type: accelerator vs expander (type2 vs type3) selector
  * @region: currently assigned region for this decoder
  * @flags: memory type capabilities and locking
- */
+ * @commit: device/decoder-type specific callback to commit settings to hw
+ * @reset: device/decoder-type specific callback to reset hw settings
+*/
 struct cxl_decoder {
 	struct device dev;
 	int id;
@@ -267,6 +270,8 @@ struct cxl_decoder {
 	enum cxl_decoder_type target_type;
 	struct cxl_region *region;
 	unsigned long flags;
+	int (*commit)(struct cxl_decoder *cxld);
+	int (*reset)(struct cxl_decoder *cxld);
 };
 
 /*
@@ -339,11 +344,15 @@ struct cxl_root_decoder {
  * changes to interleave_ways or interleave_granularity
  * @CXL_CONFIG_ACTIVE: All targets have been added the region is now
  * active
+ * @CXL_CONFIG_RESET_PENDING: see commit_store()
+ * @CXL_CONFIG_COMMIT: Soft-config has been committed to hardware
  */
 enum cxl_config_state {
 	CXL_CONFIG_IDLE,
 	CXL_CONFIG_INTERLEAVE_ACTIVE,
 	CXL_CONFIG_ACTIVE,
+	CXL_CONFIG_RESET_PENDING,
+	CXL_CONFIG_COMMIT,
 };
 
 /**
@@ -425,6 +434,7 @@ struct cxl_nvdimm {
  * @parent_dport: dport that points to this port in the parent
  * @decoder_ida: allocator for decoder ids
  * @hdm_end: track last allocated HDM decoder instance for allocation ordering
+ * @commit_end: cursor to track highest committed decoder for commit ordering
  * @component_reg_phys: component register capability base address (optional)
  * @dead: last ep has been removed, force port re-creation
  * @depth: How deep this port is relative to the root. depth 0 is the root.
@@ -442,6 +452,7 @@ struct cxl_port {
 	struct cxl_dport *parent_dport;
 	struct ida decoder_ida;
 	int hdm_end;
+	int commit_end;
 	resource_size_t component_reg_phys;
 	bool dead;
 	unsigned int depth;

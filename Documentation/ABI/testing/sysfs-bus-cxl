@@ -372,3 +372,19 @@ Description:
 		not an endpoint decoder. Once all positions have been
 		successfully written a final validation for decode conflicts is
 		performed before activating the region.
+
+
+What:		/sys/bus/cxl/devices/regionZ/commit
+Date:		May, 2022
+KernelVersion:	v5.20
+Contact:	linux-cxl@vger.kernel.org
+Description:
+		(RW) Write a boolean 'true' string value to this attribute to
+		trigger the region to transition from the software programmed
+		state to the actively decoding in hardware state. The commit
+		operation in addition to validating that the region is in proper
+		configured state, validates that the decoders are being
+		committed in spec mandated order (last committed decoder id +
+		1), and checks that the hardware accepts the commit request.
+		Reading this value indicates whether the region is committed or
+		not.

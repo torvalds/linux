@@ -115,6 +115,173 @@ out:
 }
 static DEVICE_ATTR_RW(uuid);
 
+static struct cxl_region_ref *cxl_rr_load(struct cxl_port *port,
+					  struct cxl_region *cxlr)
+{
+	return xa_load(&port->regions, (unsigned long)cxlr);
+}
+
+static int cxl_region_decode_reset(struct cxl_region *cxlr, int count)
+{
+	struct cxl_region_params *p = &cxlr->params;
+	int i;
+
+	for (i = count - 1; i >= 0; i--) {
+		struct cxl_endpoint_decoder *cxled = p->targets[i];
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+		struct cxl_port *iter = cxled_to_port(cxled);
+		struct cxl_ep *ep;
+		int rc;
+
+		while (!is_cxl_root(to_cxl_port(iter->dev.parent)))
+			iter = to_cxl_port(iter->dev.parent);
+
+		for (ep = cxl_ep_load(iter, cxlmd); iter;
+		     iter = ep->next, ep = cxl_ep_load(iter, cxlmd)) {
+			struct cxl_region_ref *cxl_rr;
+			struct cxl_decoder *cxld;
+
+			cxl_rr = cxl_rr_load(iter, cxlr);
+			cxld = cxl_rr->decoder;
+			rc = cxld->reset(cxld);
+			if (rc)
+				return rc;
+		}
+
+		rc = cxled->cxld.reset(&cxled->cxld);
+		if (rc)
+			return rc;
+	}
+
+	return 0;
+}
+
+static int cxl_region_decode_commit(struct cxl_region *cxlr)
+{
+	struct cxl_region_params *p = &cxlr->params;
+	int i, rc;
+
+	for (i = 0; i < p->nr_targets; i++) {
+		struct cxl_endpoint_decoder *cxled = p->targets[i];
+		struct cxl_memdev *cxlmd = cxled_to_memdev(cxled);
+		struct cxl_region_ref *cxl_rr;
+		struct cxl_decoder *cxld;
+		struct cxl_port *iter;
+		struct cxl_ep *ep;
+
+		/* commit bottom up */
+		for (iter = cxled_to_port(cxled); !is_cxl_root(iter);
+		     iter = to_cxl_port(iter->dev.parent)) {
+			cxl_rr = cxl_rr_load(iter, cxlr);
+			cxld = cxl_rr->decoder;
+			rc = cxld->commit(cxld);
+			if (rc)
+				break;
+		}
+
+		/* success, all decoders up to the root are programmed */
+		if (is_cxl_root(iter))
+			continue;
+
+		/* programming @iter failed, teardown */
+		for (ep = cxl_ep_load(iter, cxlmd); ep && iter;
+		     iter = ep->next, ep = cxl_ep_load(iter, cxlmd)) {
+			cxl_rr = cxl_rr_load(iter, cxlr);
+			cxld = cxl_rr->decoder;
+			cxld->reset(cxld);
+		}
+
+		cxled->cxld.reset(&cxled->cxld);
+		if (i == 0)
+			return rc;
+		break;
+	}
+
+	if (i >= p->nr_targets)
+		return 0;
+
+	/* undo the targets that were successfully committed */
+	cxl_region_decode_reset(cxlr, i);
+	return rc;
+}
+
+static ssize_t commit_store(struct device *dev, struct device_attribute *attr,
+			    const char *buf, size_t len)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	bool commit;
+	ssize_t rc;
+
+	rc = kstrtobool(buf, &commit);
+	if (rc)
+		return rc;
+
+	rc = down_write_killable(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+
+	/* Already in the requested state? */
+	if (commit && p->state >= CXL_CONFIG_COMMIT)
+		goto out;
+	if (!commit && p->state < CXL_CONFIG_COMMIT)
+		goto out;
+
+	/* Not ready to commit? */
+	if (commit && p->state < CXL_CONFIG_ACTIVE) {
+		rc = -ENXIO;
+		goto out;
+	}
+
+	if (commit)
+		rc = cxl_region_decode_commit(cxlr);
+	else {
+		p->state = CXL_CONFIG_RESET_PENDING;
+		up_write(&cxl_region_rwsem);
+		device_release_driver(&cxlr->dev);
+		down_write(&cxl_region_rwsem);
+
+		/*
+		 * The lock was dropped, so need to revalidate that the reset is
+		 * still pending.
+		 */
+		if (p->state == CXL_CONFIG_RESET_PENDING)
+			rc = cxl_region_decode_reset(cxlr, p->interleave_ways);
+	}
+
+	if (rc)
+		goto out;
+
+	if (commit)
+		p->state = CXL_CONFIG_COMMIT;
+	else if (p->state == CXL_CONFIG_RESET_PENDING)
+		p->state = CXL_CONFIG_ACTIVE;
+
+out:
+	up_write(&cxl_region_rwsem);
+
+	if (rc)
+		return rc;
+	return len;
+}
+
+static ssize_t commit_show(struct device *dev, struct device_attribute *attr,
+			   char *buf)
+{
+	struct cxl_region *cxlr = to_cxl_region(dev);
+	struct cxl_region_params *p = &cxlr->params;
+	ssize_t rc;
+
+	rc = down_read_interruptible(&cxl_region_rwsem);
+	if (rc)
+		return rc;
+	rc = sysfs_emit(buf, "%d\n", p->state >= CXL_CONFIG_COMMIT);
+	up_read(&cxl_region_rwsem);
+
+	return rc;
+}
+static DEVICE_ATTR_RW(commit);
+
 static umode_t cxl_region_visible(struct kobject *kobj, struct attribute *a,
 				  int n)
 {
@@ -399,6 +566,7 @@ static DEVICE_ATTR_RW(size);
 
 static struct attribute *cxl_region_attrs[] = {
 	&dev_attr_uuid.attr,
+	&dev_attr_commit.attr,
 	&dev_attr_interleave_ways.attr,
 	&dev_attr_interleave_granularity.attr,
 	&dev_attr_resource.attr,
@@ -673,12 +841,6 @@ out_erase:
 	if (cxl_rr->nr_eps == 0)
 		free_region_ref(cxl_rr);
 	return rc;
-}
-
-static struct cxl_region_ref *cxl_rr_load(struct cxl_port *port,
-					  struct cxl_region *cxlr)
-{
-	return xa_load(&port->regions, (unsigned long)cxlr);
 }
 
 static void cxl_port_detach_region(struct cxl_port *port,
@@ -1068,19 +1230,31 @@ err:
 	return rc;
 }
 
-static void cxl_region_detach(struct cxl_endpoint_decoder *cxled)
+static int cxl_region_detach(struct cxl_endpoint_decoder *cxled)
 {
 	struct cxl_port *iter, *ep_port = cxled_to_port(cxled);
 	struct cxl_region *cxlr = cxled->cxld.region;
 	struct cxl_region_params *p;
+	int rc = 0;
 
 	lockdep_assert_held_write(&cxl_region_rwsem);
 
 	if (!cxlr)
-		return;
+		return 0;
 
 	p = &cxlr->params;
 	get_device(&cxlr->dev);
+
+	if (p->state > CXL_CONFIG_ACTIVE) {
+		/*
+		 * TODO: tear down all impacted regions if a device is
+		 * removed out of order
+		 */
+		rc = cxl_region_decode_reset(cxlr, p->interleave_ways);
+		if (rc)
+			goto out;
+		p->state = CXL_CONFIG_ACTIVE;
+	}
 
 	for (iter = ep_port; !is_cxl_root(iter);
 	     iter = to_cxl_port(iter->dev.parent))
@@ -1109,6 +1283,7 @@ static void cxl_region_detach(struct cxl_endpoint_decoder *cxled)
 	down_write(&cxl_region_rwsem);
 out:
 	put_device(&cxlr->dev);
+	return rc;
 }
 
 void cxl_decoder_kill_region(struct cxl_endpoint_decoder *cxled)
@@ -1166,8 +1341,7 @@ static int detach_target(struct cxl_region *cxlr, int pos)
 		goto out;
 	}
 
-	cxl_region_detach(p->targets[pos]);
-	rc = 0;
+	rc = cxl_region_detach(p->targets[pos]);
 out:
 	up_write(&cxl_region_rwsem);
 	return rc;
