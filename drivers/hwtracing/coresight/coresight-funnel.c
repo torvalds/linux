@@ -272,6 +272,7 @@ static int funnel_probe(struct device *dev, struct resource *res)
 		}
 		drvdata->base = base;
 		desc.groups = coresight_funnel_groups;
+		desc.access = CSDEV_ACCESS_IOMEM(base);
 	} else if (res) {
 		/*
 		 * Map the device base for dynamic-funnel, which has been
