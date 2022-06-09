@@ -6,7 +6,7 @@
         "EdgeDetect": "1",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.ALL",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003"
     },
@@ -27,7 +27,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.CYCLES_OTHER_BLOCK",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
@@ -38,7 +38,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x63",
         "EventName": "BUS_LOCK.CYCLES_SELF_BLOCK",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
@@ -71,7 +71,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "C0_STALLS.LOAD_DRAM_HIT",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x4"
@@ -82,7 +82,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "C0_STALLS.LOAD_L2_HIT",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x1"
@@ -93,7 +93,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0x34",
         "EventName": "C0_STALLS.LOAD_LLC_HIT",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "200003",
         "UMask": "0x2"
@@ -104,7 +104,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xcb",
         "EventName": "HW_INTERRUPTS.MASKED",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of core cycles during which interrupts are masked (disabled). Increments by 1 each core cycle that EFLAGS.IF is 0, regardless of whether interrupts are pending or not.",
         "SampleAfterValue": "200003",
@@ -116,7 +116,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xcb",
         "EventName": "HW_INTERRUPTS.PENDING_AND_MASKED",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "PublicDescription": "Counts the number of core cycles during which there are pending interrupts while interrupts are masked (disabled). Increments by 1 each core cycle that both EFLAGS.IF is 0 and an INTR is pending (which means the APIC is telling the ROB to cause an INTR). This event does not increment if EFLAGS.IF is 0 but all interrupt in the APICs Interrupt Request Register (IRR) are inhibited by the PPR (thus either by ISRV or TPR)  because in these cases the interrupts would be held up in the APIC and would not be pended to the ROB. This event does count when an interrupt is only inhibited by MOV/POP SS state machines or the STI state machine. These extra inhibits only last for a single instructions and would not be important.",
         "SampleAfterValue": "200003",
@@ -128,7 +128,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xcb",
         "EventName": "HW_INTERRUPTS.RECEIVED",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "203",
         "UMask": "0x1"

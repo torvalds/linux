@@ -5,7 +5,7 @@
         "Counter": "0,1,2,3",
         "EventCode": "0xc3",
         "EventName": "MACHINE_CLEARS.MEMORY_ORDERING",
-        "PDIR_COUNTER": "na",
+        "PDIR_COUNTER": "NA",
         "PEBScounters": "0,1,2,3",
         "SampleAfterValue": "20003",
         "UMask": "0x2"
