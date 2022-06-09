@@ -1420,7 +1420,6 @@
 				      "slave_iface";
 
 			phys = <&hdmi_phy>;
-			phy-names = "hdmi-phy";
 
 			ports {
 				#address-cells = <1>;
