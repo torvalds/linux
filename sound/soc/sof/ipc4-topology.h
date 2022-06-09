@@ -31,6 +31,9 @@
 #define SOF_IPC4_NODE_INDEX(x)	((x) & SOF_IPC4_NODE_INDEX_MASK)
 #define SOF_IPC4_NODE_TYPE(x)  ((x) << 8)
 
+#define SOF_IPC4_GAIN_ALL_CHANNELS_MASK 0xffffffff
+#define SOF_IPC4_VOL_ZERO_DB	0x7fffffff
+
 /**
  * struct sof_ipc4_pipeline - pipeline config data
  * @priority: Priority of this pipeline
@@ -126,6 +129,63 @@ struct sof_ipc4_copier {
 	struct sof_ipc4_gtw_attributes *gtw_attr;
 	u32 dai_type;
 	int dai_index;
+};
+
+/**
+ * struct sof_ipc4_ctrl_value_chan: generic channel mapped value data
+ * @channel: Channel ID
+ * @value: gain value
+ */
+struct sof_ipc4_ctrl_value_chan {
+	u32 channel;
+	u32 value;
+};
+
+/**
+ * struct sof_ipc4_control_data - IPC data for kcontrol IO
+ * @msg: message structure for kcontrol IO
+ * @index: pipeline ID
+ * @chanv: channel ID and value array used by volume type controls
+ * @data: data for binary kcontrols
+ */
+struct sof_ipc4_control_data {
+	struct sof_ipc4_msg msg;
+	int index;
+
+	union {
+		struct sof_ipc4_ctrl_value_chan chanv[0];
+		struct sof_abi_hdr data[0];
+	};
+};
+
+/**
+ * struct sof_ipc4_gain_data - IPC gain blob
+ * @channels: Channels
+ * @init_val: Initial value
+ * @curve_type: Curve type
+ * @reserved: reserved for future use
+ * @curve_duration: Curve duration
+ */
+struct sof_ipc4_gain_data {
+	uint32_t channels;
+	uint32_t init_val;
+	uint32_t curve_type;
+	uint32_t reserved;
+	uint32_t curve_duration;
+} __aligned(8);
+
+/**
+ * struct sof_ipc4_gain - gain config data
+ * @base_config: IPC base config data
+ * @data: IPC gain blob
+ * @available_fmt: Available audio format
+ * @msg: message structure for gain
+ */
+struct sof_ipc4_gain {
+	struct sof_ipc4_base_module_cfg base_config;
+	struct sof_ipc4_gain_data data;
+	struct sof_ipc4_available_audio_format available_fmt;
+	struct sof_ipc4_msg msg;
 };
 
 #endif

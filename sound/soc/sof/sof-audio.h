@@ -232,6 +232,7 @@ enum sof_tokens {
 	SOF_COPIER_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
 	SOF_COPIER_FORMAT_TOKENS,
+	SOF_GAIN_TOKENS,
 
 	/* this should be the last */
 	SOF_TOKEN_COUNT,

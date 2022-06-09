@@ -95,6 +95,16 @@ static const struct sof_topology_token comp_ext_tokens[] = {
 		offsetof(struct snd_sof_widget, uuid)},
 };
 
+static const struct sof_topology_token gain_tokens[] = {
+	{SOF_TKN_GAIN_RAMP_TYPE, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		get_token_u32, offsetof(struct sof_ipc4_gain_data, curve_type)},
+	{SOF_TKN_GAIN_RAMP_DURATION,
+		SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
+		offsetof(struct sof_ipc4_gain_data, curve_duration)},
+	{SOF_TKN_GAIN_VAL, SND_SOC_TPLG_TUPLE_TYPE_WORD,
+		get_token_u32, offsetof(struct sof_ipc4_gain_data, init_val)},
+};
+
 static const struct sof_token_info ipc4_token_list[SOF_TOKEN_COUNT] = {
 	[SOF_DAI_TOKENS] = {"DAI tokens", dai_tokens, ARRAY_SIZE(dai_tokens)},
 	[SOF_PIPELINE_TOKENS] = {"Pipeline tokens", pipeline_tokens, ARRAY_SIZE(pipeline_tokens)},
@@ -117,6 +127,7 @@ static const struct sof_token_info ipc4_token_list[SOF_TOKEN_COUNT] = {
 		ARRAY_SIZE(ipc4_copier_tokens)},
 	[SOF_AUDIO_FMT_NUM_TOKENS] = {"IPC4 Audio format number tokens",
 		ipc4_audio_fmt_num_tokens, ARRAY_SIZE(ipc4_audio_fmt_num_tokens)},
+	[SOF_GAIN_TOKENS] = {"Gain tokens", gain_tokens, ARRAY_SIZE(gain_tokens)},
 };
 
 static void sof_ipc4_dbg_audio_format(struct device *dev,
@@ -557,6 +568,62 @@ err:
 	return ret;
 }
 
+static int sof_ipc4_widget_setup_comp_pga(struct snd_sof_widget *swidget)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc4_fw_module *fw_module;
+	struct snd_sof_control *scontrol;
+	struct sof_ipc4_gain *gain;
+	int ret;
+
+	gain = kzalloc(sizeof(*gain), GFP_KERNEL);
+	if (!gain)
+		return -ENOMEM;
+
+	swidget->private = gain;
+
+	gain->data.channels = SOF_IPC4_GAIN_ALL_CHANNELS_MASK;
+	gain->data.init_val = SOF_IPC4_VOL_ZERO_DB;
+
+	/* The out_audio_fmt in topology is ignored as it is not required to be sent to the FW */
+	ret = sof_ipc4_get_audio_fmt(scomp, swidget, &gain->available_fmt, false);
+	if (ret)
+		goto err;
+
+	ret = sof_update_ipc_object(scomp, &gain->data, SOF_GAIN_TOKENS, swidget->tuples,
+				    swidget->num_tuples, sizeof(gain->data), 1);
+	if (ret) {
+		dev_err(scomp->dev, "Parsing gain tokens failed\n");
+		goto err;
+	}
+
+	dev_dbg(scomp->dev,
+		"pga widget %s: ramp type: %d, ramp duration %d, initial gain value: %#x, cpc %d\n",
+		swidget->widget->name, gain->data.curve_type, gain->data.curve_duration,
+		gain->data.init_val, gain->base_config.cpc);
+
+	ret = sof_ipc4_widget_setup_msg(swidget, &gain->msg);
+	if (ret)
+		goto err;
+
+	fw_module = swidget->module_info;
+
+	/* update module ID for all kcontrols for this widget */
+	list_for_each_entry(scontrol, &sdev->kcontrol_list, list)
+		if (scontrol->comp_id == swidget->comp_id) {
+			struct sof_ipc4_control_data *cdata = scontrol->ipc_control_data;
+			struct sof_ipc4_msg *msg = &cdata->msg;
+
+			msg->primary |= fw_module->man4_module_entry.id;
+		}
+
+	return 0;
+err:
+	kfree(gain);
+	return ret;
+}
+
 static void
 sof_ipc4_update_pipeline_mem_usage(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
 				   struct sof_ipc4_base_module_cfg *base_config)
@@ -874,6 +941,39 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	return sof_ipc4_widget_assign_instance_id(sdev, swidget);
 }
 
+static void sof_ipc4_unprepare_generic_module(struct snd_sof_widget *swidget)
+{
+	struct sof_ipc4_fw_module *fw_module = swidget->module_info;
+
+	ida_free(&fw_module->m_ida, swidget->instance_id);
+}
+
+static int sof_ipc4_prepare_gain_module(struct snd_sof_widget *swidget,
+					struct snd_pcm_hw_params *fe_params,
+					struct snd_sof_platform_stream_params *platform_params,
+					struct snd_pcm_hw_params *pipeline_params, int dir)
+{
+	struct snd_soc_component *scomp = swidget->scomp;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc4_gain *gain = swidget->private;
+	int ret;
+
+	gain->available_fmt.ref_audio_fmt = &gain->available_fmt.base_config->audio_fmt;
+
+	/* output format is not required to be sent to the FW for gain */
+	ret = sof_ipc4_init_audio_fmt(sdev, swidget, &gain->base_config,
+				      NULL, pipeline_params, &gain->available_fmt,
+				      sizeof(gain->base_config));
+	if (ret < 0)
+		return ret;
+
+	/* update pipeline memory usage */
+	sof_ipc4_update_pipeline_mem_usage(sdev, swidget, &gain->base_config);
+
+	/* assign instance ID */
+	return sof_ipc4_widget_assign_instance_id(sdev, swidget);
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -902,6 +1002,15 @@ static enum sof_tokens dai_token_list[] = {
 	SOF_COMP_EXT_TOKENS,
 };
 
+static enum sof_tokens pga_token_list[] = {
+	SOF_COMP_TOKENS,
+	SOF_GAIN_TOKENS,
+	SOF_AUDIO_FMT_NUM_TOKENS,
+	SOF_AUDIO_FORMAT_BUFFER_SIZE_TOKENS,
+	SOF_IN_AUDIO_FORMAT_TOKENS,
+	SOF_COMP_EXT_TOKENS,
+};
+
 static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TYPE_COUNT] = {
 	[snd_soc_dapm_aif_in] =  {sof_ipc4_widget_setup_pcm, sof_ipc4_widget_free_comp_pcm,
 				  host_token_list, ARRAY_SIZE(host_token_list), NULL,
@@ -922,6 +1031,10 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 	[snd_soc_dapm_scheduler] = {sof_ipc4_widget_setup_comp_pipeline, sof_ipc4_widget_free_comp,
 				    pipeline_token_list, ARRAY_SIZE(pipeline_token_list), NULL,
 				    NULL, NULL},
+	[snd_soc_dapm_pga] = {sof_ipc4_widget_setup_comp_pga, sof_ipc4_widget_free_comp,
+			      pga_token_list, ARRAY_SIZE(pga_token_list), NULL,
+			      sof_ipc4_prepare_gain_module,
+			      sof_ipc4_unprepare_generic_module},
 };
 
 const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
