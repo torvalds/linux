@@ -58,35 +58,47 @@ static void rkisp1_dpcc_config(struct rkisp1_params *params,
 	unsigned int i;
 	u32 mode;
 
-	/* avoid to override the old enable value */
+	/*
+	 * The enable bit is controlled in rkisp1_isp_isr_other_config() and
+	 * must be preserved. The grayscale mode should be configured
+	 * automatically based on the media bus code on the ISP sink pad, so
+	 * only the STAGE1_ENABLE bit can be set by userspace.
+	 */
 	mode = rkisp1_read(params->rkisp1, RKISP1_CIF_ISP_DPCC_MODE);
-	mode &= RKISP1_CIF_ISP_DPCC_ENA;
-	mode |= arg->mode & ~RKISP1_CIF_ISP_DPCC_ENA;
+	mode &= RKISP1_CIF_ISP_DPCC_MODE_DPCC_ENABLE;
+	mode |= arg->mode & RKISP1_CIF_ISP_DPCC_MODE_STAGE1_ENABLE;
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_MODE, mode);
+
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_OUTPUT_MODE,
-		     arg->output_mode);
+		     arg->output_mode & RKISP1_CIF_ISP_DPCC_OUTPUT_MODE_MASK);
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_SET_USE,
-		     arg->set_use);
+		     arg->set_use & RKISP1_CIF_ISP_DPCC_SET_USE_MASK);
 
 	for (i = 0; i < RKISP1_CIF_ISP_DPCC_METHODS_MAX; i++) {
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_METHODS_SET(i),
-			     arg->methods[i].method);
+			     arg->methods[i].method &
+			     RKISP1_CIF_ISP_DPCC_METHODS_SET_MASK);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_LINE_THRESH(i),
-			     arg->methods[i].line_thresh);
+			     arg->methods[i].line_thresh &
+			     RKISP1_CIF_ISP_DPCC_LINE_THRESH_MASK);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_LINE_MAD_FAC(i),
-			     arg->methods[i].line_mad_fac);
+			     arg->methods[i].line_mad_fac &
+			     RKISP1_CIF_ISP_DPCC_LINE_MAD_FAC_MASK);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_PG_FAC(i),
-			     arg->methods[i].pg_fac);
+			     arg->methods[i].pg_fac &
+			     RKISP1_CIF_ISP_DPCC_PG_FAC_MASK);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_RND_THRESH(i),
-			     arg->methods[i].rnd_thresh);
+			     arg->methods[i].rnd_thresh &
+			     RKISP1_CIF_ISP_DPCC_RND_THRESH_MASK);
 		rkisp1_write(params->rkisp1, RKISP1_ISP_DPCC_RG_FAC(i),
-			     arg->methods[i].rg_fac);
+			     arg->methods[i].rg_fac &
+			     RKISP1_CIF_ISP_DPCC_RG_FAC_MASK);
 	}
 
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_RND_OFFS,
-		     arg->rnd_offs);
+		     arg->rnd_offs & RKISP1_CIF_ISP_DPCC_RND_OFFS_MASK);
 	rkisp1_write(params->rkisp1, RKISP1_CIF_ISP_DPCC_RO_LIMITS,
-		     arg->ro_limits);
+		     arg->ro_limits & RKISP1_CIF_ISP_DPCC_RO_LIMIT_MASK);
 }
 
 /* ISP black level subtraction interface function */
@@ -1214,11 +1226,11 @@ rkisp1_isp_isr_other_config(struct rkisp1_params *params,
 		if (module_ens & RKISP1_CIF_ISP_MODULE_DPCC)
 			rkisp1_param_set_bits(params,
 					      RKISP1_CIF_ISP_DPCC_MODE,
-					      RKISP1_CIF_ISP_DPCC_ENA);
+					      RKISP1_CIF_ISP_DPCC_MODE_DPCC_ENABLE);
 		else
 			rkisp1_param_clear_bits(params,
 						RKISP1_CIF_ISP_DPCC_MODE,
-						RKISP1_CIF_ISP_DPCC_ENA);
+						RKISP1_CIF_ISP_DPCC_MODE_DPCC_ENABLE);
 	}
 
 	/* update bls config */
@@ -1580,7 +1592,7 @@ void rkisp1_params_configure(struct rkisp1_params *params,
 void rkisp1_params_disable(struct rkisp1_params *params)
 {
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_DPCC_MODE,
-				RKISP1_CIF_ISP_DPCC_ENA);
+				RKISP1_CIF_ISP_DPCC_MODE_DPCC_ENABLE);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_LSC_CTRL,
 				RKISP1_CIF_ISP_LSC_CTRL_ENA);
 	rkisp1_param_clear_bits(params, RKISP1_CIF_ISP_BLS_CTRL,
