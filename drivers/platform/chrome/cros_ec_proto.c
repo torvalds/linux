@@ -242,47 +242,53 @@ EXPORT_SYMBOL(cros_ec_check_result);
  * the caller has ec_dev->lock mutex, or the caller knows there is
  * no other command in progress.
  */
-static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev,
-					    struct cros_ec_command *msg,
-					    uint32_t *mask)
+static int cros_ec_get_host_event_wake_mask(struct cros_ec_device *ec_dev, uint32_t *mask)
 {
+	struct cros_ec_command *msg;
 	struct ec_response_host_event_mask *r;
 	int ret, mapped;
 
+	msg = kzalloc(sizeof(*msg) + sizeof(*r), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
 	msg->command = EC_CMD_HOST_EVENT_GET_WAKE_MASK;
-	msg->version = 0;
-	msg->outsize = 0;
 	msg->insize = sizeof(*r);
 
 	ret = send_command(ec_dev, msg);
 	if (ret >= 0) {
 		mapped = cros_ec_map_error(msg->result);
-		if (mapped)
-			return mapped;
+		if (mapped) {
+			ret = mapped;
+			goto exit;
+		}
 	}
 	if (ret > 0) {
 		r = (struct ec_response_host_event_mask *)msg->data;
 		*mask = r->mask;
 	}
 
+exit:
+	kfree(msg);
 	return ret;
 }
 
-static int cros_ec_host_command_proto_query(struct cros_ec_device *ec_dev,
-					    int devidx,
-					    struct cros_ec_command *msg)
+static int cros_ec_get_proto_info(struct cros_ec_device *ec_dev, int devidx)
 {
-	/*
-	 * Try using v3+ to query for supported protocols. If this
-	 * command fails, fall back to v2. Returns the highest protocol
-	 * supported by the EC.
-	 * Also sets the max request/response/passthru size.
-	 */
-	int ret;
+	struct cros_ec_command *msg;
+	struct ec_response_get_protocol_info *info;
+	int ret, mapped;
 
-	memset(msg, 0, sizeof(*msg));
+	ec_dev->proto_version = 3;
+	if (devidx > 0)
+		ec_dev->max_passthru = 0;
+
+	msg = kzalloc(sizeof(*msg) + sizeof(*info), GFP_KERNEL);
+	if (!msg)
+		return -ENOMEM;
+
 	msg->command = EC_CMD_PASSTHRU_OFFSET(devidx) | EC_CMD_GET_PROTOCOL_INFO;
-	msg->insize = sizeof(struct ec_response_get_protocol_info);
+	msg->insize = sizeof(*info);
 
 	ret = send_command(ec_dev, msg);
 	/*
@@ -299,15 +305,45 @@ static int cros_ec_host_command_proto_query(struct cros_ec_device *ec_dev,
 		dev_dbg(ec_dev->dev,
 			"failed to check for EC[%d] protocol version: %d\n",
 			devidx, ret);
-		return ret;
+		goto exit;
 	}
 
-	if (devidx > 0 && msg->result == EC_RES_INVALID_COMMAND)
-		return -ENODEV;
-	else if (msg->result != EC_RES_SUCCESS)
-		return msg->result;
+	mapped = cros_ec_map_error(msg->result);
+	if (mapped) {
+		ret = mapped;
+		goto exit;
+	}
 
-	return 0;
+	info = (struct ec_response_get_protocol_info *)msg->data;
+
+	switch (devidx) {
+	case CROS_EC_DEV_EC_INDEX:
+		ec_dev->max_request = info->max_request_packet_size -
+						sizeof(struct ec_host_request);
+		ec_dev->max_response = info->max_response_packet_size -
+						sizeof(struct ec_host_response);
+		ec_dev->proto_version = min(EC_HOST_REQUEST_VERSION,
+					    fls(info->protocol_versions) - 1);
+		ec_dev->din_size = info->max_response_packet_size + EC_MAX_RESPONSE_OVERHEAD;
+		ec_dev->dout_size = info->max_request_packet_size + EC_MAX_REQUEST_OVERHEAD;
+
+		dev_dbg(ec_dev->dev, "using proto v%u\n", ec_dev->proto_version);
+		break;
+	case CROS_EC_DEV_PD_INDEX:
+		ec_dev->max_passthru = info->max_request_packet_size -
+						sizeof(struct ec_host_request);
+
+		dev_dbg(ec_dev->dev, "found PD chip\n");
+		break;
+	default:
+		dev_dbg(ec_dev->dev, "unknwon passthru index: %d\n", devidx);
+		break;
+	}
+
+	ret = 0;
+exit:
+	kfree(msg);
+	return ret;
 }
 
 static int cros_ec_host_command_proto_query_v2(struct cros_ec_device *ec_dev)
@@ -417,51 +453,13 @@ static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev,
 int cros_ec_query_all(struct cros_ec_device *ec_dev)
 {
 	struct device *dev = ec_dev->dev;
-	struct cros_ec_command *proto_msg;
-	struct ec_response_get_protocol_info *proto_info;
 	u32 ver_mask = 0;
 	int ret;
 
-	proto_msg = kzalloc(sizeof(*proto_msg) + sizeof(*proto_info),
-			    GFP_KERNEL);
-	if (!proto_msg)
-		return -ENOMEM;
-
 	/* First try sending with proto v3. */
-	ec_dev->proto_version = 3;
-	ret = cros_ec_host_command_proto_query(ec_dev, CROS_EC_DEV_EC_INDEX, proto_msg);
-
-	if (ret == 0) {
-		proto_info = (struct ec_response_get_protocol_info *)
-			proto_msg->data;
-		ec_dev->max_request = proto_info->max_request_packet_size -
-			sizeof(struct ec_host_request);
-		ec_dev->max_response = proto_info->max_response_packet_size -
-			sizeof(struct ec_host_response);
-		ec_dev->proto_version =
-			min(EC_HOST_REQUEST_VERSION,
-					fls(proto_info->protocol_versions) - 1);
-		dev_dbg(ec_dev->dev,
-			"using proto v%u\n",
-			ec_dev->proto_version);
-
-		ec_dev->din_size = proto_info->max_response_packet_size + EC_MAX_RESPONSE_OVERHEAD;
-		ec_dev->dout_size = proto_info->max_request_packet_size + EC_MAX_REQUEST_OVERHEAD;
-
-		/*
-		 * Check for PD
-		 */
-		ret = cros_ec_host_command_proto_query(ec_dev, CROS_EC_DEV_PD_INDEX, proto_msg);
-
-		if (ret) {
-			dev_dbg(ec_dev->dev, "no PD chip found: %d\n", ret);
-			ec_dev->max_passthru = 0;
-		} else {
-			dev_dbg(ec_dev->dev, "found PD chip\n");
-			ec_dev->max_passthru =
-				proto_info->max_request_packet_size -
-				sizeof(struct ec_host_request);
-		}
+	if (!cros_ec_get_proto_info(ec_dev, CROS_EC_DEV_EC_INDEX)) {
+		/* Check for PD. */
+		cros_ec_get_proto_info(ec_dev, CROS_EC_DEV_PD_INDEX);
 	} else {
 		/* Try querying with a v2 hello message. */
 		ec_dev->proto_version = 2;
@@ -524,8 +522,7 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	ec_dev->host_sleep_v1 = (ret >= 0 && (ver_mask & EC_VER_MASK(1)));
 
 	/* Get host event wake mask. */
-	ret = cros_ec_get_host_event_wake_mask(ec_dev, proto_msg,
-					       &ec_dev->host_event_wake_mask);
+	ret = cros_ec_get_host_event_wake_mask(ec_dev, &ec_dev->host_event_wake_mask);
 	if (ret < 0) {
 		/*
 		 * If the EC doesn't support EC_CMD_HOST_EVENT_GET_WAKE_MASK,
@@ -556,7 +553,6 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 	ret = 0;
 
 exit:
-	kfree(proto_msg);
 	return ret;
 }
 EXPORT_SYMBOL(cros_ec_query_all);
