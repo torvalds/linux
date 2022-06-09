@@ -32,4 +32,5 @@ obj-$(CONFIG_CROS_USBPD_NOTIFY)		+= cros_usbpd_notify.o
 obj-$(CONFIG_WILCO_EC)			+= wilco_ec/
 
 # Kunit test cases
+obj-$(CONFIG_CROS_KUNIT)		+= cros_kunit_util.o
 obj-$(CONFIG_CROS_EC_PROTO_KUNIT_TEST)	+= cros_ec_proto_test.o
