@@ -102,10 +102,12 @@ free_map:
 	return ERR_PTR(ret);
 }
 
+#ifdef CONFIG_OF
 static const struct of_device_id rzn1_dmac_match[] = {
 	{ .compatible = "renesas,rzn1-dma" },
 	{}
 };
+#endif
 
 static int rzn1_dmamux_probe(struct platform_device *pdev)
 {
