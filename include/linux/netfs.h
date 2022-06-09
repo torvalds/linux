@@ -119,9 +119,10 @@ typedef void (*netfs_io_terminated_t)(void *priv, ssize_t transferred_or_error,
 				      bool was_async);
 
 /*
- * Per-inode description.  This must be directly after the inode struct.
+ * Per-inode context.  This wraps the VFS inode.
  */
-struct netfs_i_context {
+struct netfs_inode {
+	struct inode		inode;		/* The VFS inode */
 	const struct netfs_request_ops *ops;
 #if IS_ENABLED(CONFIG_FSCACHE)
 	struct fscache_cookie	*cache;
@@ -256,7 +257,7 @@ struct netfs_cache_ops {
 	 * boundary as appropriate.
 	 */
 	enum netfs_io_source (*prepare_read)(struct netfs_io_subrequest *subreq,
-					       loff_t i_size);
+					     loff_t i_size);
 
 	/* Prepare a write operation, working out what part of the write we can
 	 * actually do.
@@ -288,45 +289,35 @@ extern void netfs_put_subrequest(struct netfs_io_subrequest *subreq,
 extern void netfs_stats_show(struct seq_file *);
 
 /**
- * netfs_i_context - Get the netfs inode context from the inode
+ * netfs_inode - Get the netfs inode context from the inode
  * @inode: The inode to query
  *
  * Get the netfs lib inode context from the network filesystem's inode.  The
  * context struct is expected to directly follow on from the VFS inode struct.
  */
-static inline struct netfs_i_context *netfs_i_context(struct inode *inode)
+static inline struct netfs_inode *netfs_inode(struct inode *inode)
 {
-	return (void *)inode + sizeof(*inode);
+	return container_of(inode, struct netfs_inode, inode);
 }
 
 /**
- * netfs_inode - Get the netfs inode from the inode context
- * @ctx: The context to query
- *
- * Get the netfs inode from the netfs library's inode context.  The VFS inode
- * is expected to directly precede the context struct.
- */
-static inline struct inode *netfs_inode(struct netfs_i_context *ctx)
-{
-	return (void *)ctx - sizeof(struct inode);
-}
-
-/**
- * netfs_i_context_init - Initialise a netfs lib context
+ * netfs_inode_init - Initialise a netfslib inode context
  * @inode: The inode with which the context is associated
  * @ops: The netfs's operations list
  *
  * Initialise the netfs library context struct.  This is expected to follow on
  * directly from the VFS inode struct.
  */
-static inline void netfs_i_context_init(struct inode *inode,
-					const struct netfs_request_ops *ops)
+static inline void netfs_inode_init(struct inode *inode,
+				    const struct netfs_request_ops *ops)
 {
-	struct netfs_i_context *ctx = netfs_i_context(inode);
+	struct netfs_inode *ctx = netfs_inode(inode);
 
-	memset(ctx, 0, sizeof(*ctx));
 	ctx->ops = ops;
 	ctx->remote_i_size = i_size_read(inode);
+#if IS_ENABLED(CONFIG_FSCACHE)
+	ctx->cache = NULL;
+#endif
 }
 
 /**
@@ -338,7 +329,7 @@ static inline void netfs_i_context_init(struct inode *inode,
  */
 static inline void netfs_resize_file(struct inode *inode, loff_t new_i_size)
 {
-	struct netfs_i_context *ctx = netfs_i_context(inode);
+	struct netfs_inode *ctx = netfs_inode(inode);
 
 	ctx->remote_i_size = new_i_size;
 }
@@ -352,7 +343,7 @@ static inline void netfs_resize_file(struct inode *inode, loff_t new_i_size)
 static inline struct fscache_cookie *netfs_i_cookie(struct inode *inode)
 {
 #if IS_ENABLED(CONFIG_FSCACHE)
-	struct netfs_i_context *ctx = netfs_i_context(inode);
+	struct netfs_inode *ctx = netfs_inode(inode);
 	return ctx->cache;
 #else
 	return NULL;

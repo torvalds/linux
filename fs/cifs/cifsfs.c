@@ -377,7 +377,7 @@ cifs_alloc_inode(struct super_block *sb)
 	cifs_inode->flags = 0;
 	spin_lock_init(&cifs_inode->writers_lock);
 	cifs_inode->writers = 0;
-	cifs_inode->vfs_inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
+	cifs_inode->netfs.inode.i_blkbits = 14;  /* 2**14 = CIFS_MAX_MSGSIZE */
 	cifs_inode->server_eof = 0;
 	cifs_inode->uniqueid = 0;
 	cifs_inode->createtime = 0;
@@ -389,12 +389,12 @@ cifs_alloc_inode(struct super_block *sb)
 	 * Can not set i_flags here - they get immediately overwritten to zero
 	 * by the VFS.
 	 */
-	/* cifs_inode->vfs_inode.i_flags = S_NOATIME | S_NOCMTIME; */
+	/* cifs_inode->netfs.inode.i_flags = S_NOATIME | S_NOCMTIME; */
 	INIT_LIST_HEAD(&cifs_inode->openFileList);
 	INIT_LIST_HEAD(&cifs_inode->llist);
 	INIT_LIST_HEAD(&cifs_inode->deferred_closes);
 	spin_lock_init(&cifs_inode->deferred_lock);
-	return &cifs_inode->vfs_inode;
+	return &cifs_inode->netfs.inode;
 }
 
 static void
@@ -1418,7 +1418,7 @@ cifs_init_once(void *inode)
 {
 	struct cifsInodeInfo *cifsi = inode;
 
-	inode_init_once(&cifsi->vfs_inode);
+	inode_init_once(&cifsi->netfs.inode);
 	init_rwsem(&cifsi->lock_sem);
 }
 

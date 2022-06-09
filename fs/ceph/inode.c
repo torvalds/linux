@@ -20,9 +20,6 @@
 #include "cache.h"
 #include <linux/ceph/decode.h>
 
-// Temporary: netfs does disgusting things with inode pointers
-#pragma GCC diagnostic ignored "-Wattribute-warning"
-
 /*
  * Ceph inode operations
  *
@@ -179,7 +176,7 @@ static struct ceph_inode_frag *__get_or_create_frag(struct ceph_inode_info *ci,
 	rb_insert_color(&frag->node, &ci->i_fragtree);
 
 	dout("get_or_create_frag added %llx.%llx frag %x\n",
-	     ceph_vinop(&ci->vfs_inode), f);
+	     ceph_vinop(&ci->netfs.inode), f);
 	return frag;
 }
 
@@ -460,10 +457,10 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	if (!ci)
 		return NULL;
 
-	dout("alloc_inode %p\n", &ci->vfs_inode);
+	dout("alloc_inode %p\n", &ci->netfs.inode);
 
 	/* Set parameters for the netfs library */
-	netfs_i_context_init(&ci->vfs_inode, &ceph_netfs_ops);
+	netfs_inode_init(&ci->netfs.inode, &ceph_netfs_ops);
 
 	spin_lock_init(&ci->i_ceph_lock);
 
@@ -550,7 +547,7 @@ struct inode *ceph_alloc_inode(struct super_block *sb)
 	INIT_WORK(&ci->i_work, ceph_inode_work);
 	ci->i_work_mask = 0;
 	memset(&ci->i_btime, '\0', sizeof(ci->i_btime));
-	return &ci->vfs_inode;
+	return &ci->netfs.inode;
 }
 
 void ceph_free_inode(struct inode *inode)
@@ -1981,7 +1978,7 @@ static void ceph_inode_work(struct work_struct *work)
 {
 	struct ceph_inode_info *ci = container_of(work, struct ceph_inode_info,
 						 i_work);
-	struct inode *inode = &ci->vfs_inode;
+	struct inode *inode = &ci->netfs.inode;
 
 	if (test_and_clear_bit(CEPH_I_WORK_WRITEBACK, &ci->i_work_mask)) {
 		dout("writeback %p\n", inode);
