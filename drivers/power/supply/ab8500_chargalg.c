@@ -1769,7 +1769,6 @@ static void ab8500_chargalg_unbind(struct device *dev, struct device *master,
 
 	/* Delete the work queue */
 	destroy_workqueue(di->chargalg_wq);
-	flush_scheduled_work();
 }
 
 static const struct component_ops ab8500_chargalg_component_ops = {

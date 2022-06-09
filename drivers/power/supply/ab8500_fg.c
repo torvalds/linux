@@ -3227,7 +3227,6 @@ static int ab8500_fg_remove(struct platform_device *pdev)
 	struct ab8500_fg *di = platform_get_drvdata(pdev);
 
 	destroy_workqueue(di->fg_wq);
-	flush_scheduled_work();
 	component_del(&pdev->dev, &ab8500_fg_component_ops);
 	list_del(&di->node);
 	ab8500_fg_sysfs_exit(di);

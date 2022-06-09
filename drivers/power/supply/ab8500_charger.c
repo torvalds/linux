@@ -3377,8 +3377,6 @@ static void ab8500_charger_unbind(struct device *dev)
 	/* Delete the work queue */
 	destroy_workqueue(di->charger_wq);
 
-	flush_scheduled_work();
-
 	/* Unbind fg, btemp, algorithm */
 	component_unbind_all(dev, di);
 }
