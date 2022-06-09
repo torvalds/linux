@@ -19,9 +19,6 @@
 
 #include "cros_ec.h"
 
-#define CROS_EC_DEV_EC_INDEX 0
-#define CROS_EC_DEV_PD_INDEX 1
-
 static struct cros_ec_platform ec_p = {
 	.ec_name = CROS_EC_DEV_NAME,
 	.cmd_offset = EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_EC_INDEX),

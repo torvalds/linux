@@ -433,7 +433,7 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 
 	/* First try sending with proto v3. */
 	ec_dev->proto_version = 3;
-	ret = cros_ec_host_command_proto_query(ec_dev, 0, proto_msg);
+	ret = cros_ec_host_command_proto_query(ec_dev, CROS_EC_DEV_EC_INDEX, proto_msg);
 
 	if (ret == 0) {
 		proto_info = (struct ec_response_get_protocol_info *)
@@ -459,7 +459,7 @@ int cros_ec_query_all(struct cros_ec_device *ec_dev)
 		/*
 		 * Check for PD
 		 */
-		ret = cros_ec_host_command_proto_query(ec_dev, 1, proto_msg);
+		ret = cros_ec_host_command_proto_query(ec_dev, CROS_EC_DEV_PD_INDEX, proto_msg);
 
 		if (ret) {
 			dev_dbg(ec_dev->dev, "no PD chip found: %d\n", ret);
@@ -609,7 +609,7 @@ int cros_ec_cmd_xfer(struct cros_ec_device *ec_dev, struct cros_ec_command *msg)
 		msg->insize = ec_dev->max_response;
 	}
 
-	if (msg->command < EC_CMD_PASSTHRU_OFFSET(1)) {
+	if (msg->command < EC_CMD_PASSTHRU_OFFSET(CROS_EC_DEV_PD_INDEX)) {
 		if (msg->outsize > ec_dev->max_request) {
 			dev_err(ec_dev->dev,
 				"request of size %u is too big (max: %u)\n",
