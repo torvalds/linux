@@ -24,10 +24,8 @@
 #include <linux/cpufreq.h>
 #include <linux/err.h>
 #include <linux/regulator/consumer.h>
+#include <linux/soc/pxa/cpu.h>
 #include <linux/io.h>
-
-#include <mach/pxa2xx-regs.h>
-#include <mach/smemc.h>
 
 #ifdef DEBUG
 static unsigned int freq_debug;
@@ -105,8 +103,6 @@ static struct pxa_freqs pxa27x_freqs[] = {
 #define NUM_PXA27x_FREQS ARRAY_SIZE(pxa27x_freqs)
 static struct cpufreq_frequency_table
 	pxa27x_freq_table[NUM_PXA27x_FREQS+1];
-
-extern unsigned get_clk_frequency_khz(int info);
 
 #ifdef CONFIG_REGULATOR
 

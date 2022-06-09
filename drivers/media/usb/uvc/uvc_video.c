@@ -383,7 +383,6 @@ int uvc_probe_video(struct uvc_streaming *stream,
 	struct uvc_streaming_control *probe)
 {
 	struct uvc_streaming_control probe_min, probe_max;
-	u16 bandwidth;
 	unsigned int i;
 	int ret;
 
@@ -421,8 +420,7 @@ int uvc_probe_video(struct uvc_streaming *stream,
 		if (stream->intf->num_altsetting == 1)
 			break;
 
-		bandwidth = probe->dwMaxPayloadTransferSize;
-		if (bandwidth <= stream->maxpsize)
+		if (probe->dwMaxPayloadTransferSize <= stream->maxpsize)
 			break;
 
 		if (stream->dev->quirks & UVC_QUIRK_PROBE_MINMAX) {
@@ -1756,25 +1754,17 @@ static void uvc_video_stop_transfer(struct uvc_streaming *stream,
 /*
  * Compute the maximum number of bytes per interval for an endpoint.
  */
-static unsigned int uvc_endpoint_max_bpi(struct usb_device *dev,
-					 struct usb_host_endpoint *ep)
+u16 uvc_endpoint_max_bpi(struct usb_device *dev, struct usb_host_endpoint *ep)
 {
 	u16 psize;
-	u16 mult;
 
 	switch (dev->speed) {
 	case USB_SPEED_SUPER:
 	case USB_SPEED_SUPER_PLUS:
 		return le16_to_cpu(ep->ss_ep_comp.wBytesPerInterval);
-	case USB_SPEED_HIGH:
-		psize = usb_endpoint_maxp(&ep->desc);
-		mult = usb_endpoint_maxp_mult(&ep->desc);
-		return psize * mult;
-	case USB_SPEED_WIRELESS:
-		psize = usb_endpoint_maxp(&ep->desc);
-		return psize;
 	default:
 		psize = usb_endpoint_maxp(&ep->desc);
+		psize *= usb_endpoint_maxp_mult(&ep->desc);
 		return psize;
 	}
 }

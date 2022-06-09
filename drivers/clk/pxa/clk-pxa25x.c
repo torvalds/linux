@@ -14,11 +14,11 @@
 #include <linux/clkdev.h>
 #include <linux/io.h>
 #include <linux/of.h>
-#include <mach/pxa2xx-regs.h>
-#include <mach/smemc.h>
+#include <linux/soc/pxa/smemc.h>
 
 #include <dt-bindings/clock/pxa-clock.h>
 #include "clk-pxa.h"
+#include "clk-pxa2xx.h"
 
 #define KHz 1000
 #define MHz (1000 * 1000)
@@ -33,15 +33,13 @@ enum {
 	 ((T) ? CLKCFG_TURBO : 0))
 #define PXA25x_CCCR(N2, M, L) (N2 << 7 | M << 5 | L)
 
-#define MDCNFG_DRAC2(mdcnfg)	(((mdcnfg) >> 21) & 0x3)
-#define MDCNFG_DRAC0(mdcnfg)	(((mdcnfg) >> 5) & 0x3)
-
 /* Define the refresh period in mSec for the SDRAM and the number of rows */
 #define SDRAM_TREF	64	/* standard 64ms SDRAM */
 
 /*
  * Various clock factors driven by the CCCR register.
  */
+static void __iomem *clk_regs;
 
 /* Crystal Frequency to Memory Frequency Multiplier (L) */
 static unsigned char L_clk_mult[32] = { 0, 27, 32, 36, 40, 45, 0, };
@@ -57,30 +55,9 @@ static const char * const get_freq_khz[] = {
 	"core", "run", "cpll", "memory"
 };
 
-static int get_sdram_rows(void)
-{
-	static int sdram_rows;
-	unsigned int drac2 = 0, drac0 = 0;
-	u32 mdcnfg;
-
-	if (sdram_rows)
-		return sdram_rows;
-
-	mdcnfg = readl_relaxed(MDCNFG);
-
-	if (mdcnfg & (MDCNFG_DE2 | MDCNFG_DE3))
-		drac2 = MDCNFG_DRAC2(mdcnfg);
-
-	if (mdcnfg & (MDCNFG_DE0 | MDCNFG_DE1))
-		drac0 = MDCNFG_DRAC0(mdcnfg);
-
-	sdram_rows = 1 << (11 + max(drac0, drac2));
-	return sdram_rows;
-}
-
 static u32 mdrefr_dri(unsigned int freq_khz)
 {
-	u32 interval = freq_khz * SDRAM_TREF / get_sdram_rows();
+	u32 interval = freq_khz * SDRAM_TREF / pxa2xx_smemc_get_sdram_rows();
 
 	return interval / 32;
 }
@@ -121,7 +98,7 @@ unsigned int pxa25x_get_clk_frequency_khz(int info)
 static unsigned long clk_pxa25x_memory_get_rate(struct clk_hw *hw,
 						unsigned long parent_rate)
 {
-	unsigned long cccr = readl(CCCR);
+	unsigned long cccr = readl(clk_regs + CCCR);
 	unsigned int m = M_clk_mult[(cccr >> 5) & 0x03];
 
 	return parent_rate / m;
@@ -225,7 +202,7 @@ MUX_OPS(clk_pxa25x_core, "core", CLK_SET_RATE_PARENT);
 static unsigned long clk_pxa25x_run_get_rate(struct clk_hw *hw,
 					     unsigned long parent_rate)
 {
-	unsigned long cccr = readl(CCCR);
+	unsigned long cccr = readl(clk_regs + CCCR);
 	unsigned int n2 = N2_clk_mult[(cccr >> 7) & 0x07];
 
 	return (parent_rate / n2) * 2;
@@ -236,7 +213,7 @@ RATE_RO_OPS(clk_pxa25x_run, "run");
 static unsigned long clk_pxa25x_cpll_get_rate(struct clk_hw *hw,
 	unsigned long parent_rate)
 {
-	unsigned long clkcfg, cccr = readl(CCCR);
+	unsigned long clkcfg, cccr = readl(clk_regs + CCCR);
 	unsigned int l, m, n2, t;
 
 	asm("mrc\tp14, 0, %0, c6, c0, 0" : "=r" (clkcfg));
@@ -268,7 +245,7 @@ static int clk_pxa25x_cpll_set_rate(struct clk_hw *hw, unsigned long rate,
 	if (i >= ARRAY_SIZE(pxa25x_freqs))
 		return -EINVAL;
 
-	pxa2xx_cpll_change(&pxa25x_freqs[i], mdrefr_dri, MDREFR, CCCR);
+	pxa2xx_cpll_change(&pxa25x_freqs[i], mdrefr_dri, clk_regs + CCCR);
 
 	return 0;
 }
@@ -345,16 +322,17 @@ static void __init pxa25x_dummy_clocks_init(void)
 	}
 }
 
-int __init pxa25x_clocks_init(void)
+int __init pxa25x_clocks_init(void __iomem *regs)
 {
+	clk_regs = regs;
 	pxa25x_base_clocks_init();
 	pxa25x_dummy_clocks_init();
-	return clk_pxa_cken_init(pxa25x_clocks, ARRAY_SIZE(pxa25x_clocks));
+	return clk_pxa_cken_init(pxa25x_clocks, ARRAY_SIZE(pxa25x_clocks), clk_regs);
 }
 
 static void __init pxa25x_dt_clocks_init(struct device_node *np)
 {
-	pxa25x_clocks_init();
+	pxa25x_clocks_init(ioremap(0x41300000ul, 0x10));
 	clk_pxa_dt_common_init(np);
 }
 CLK_OF_DECLARE(pxa25x_clks, "marvell,pxa250-core-clocks",

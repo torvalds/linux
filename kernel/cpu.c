@@ -35,6 +35,7 @@
 #include <linux/percpu-rwsem.h>
 #include <linux/cpuset.h>
 #include <linux/random.h>
+#include <linux/cc_platform.h>
 
 #include <trace/events/power.h>
 #define CREATE_TRACE_POINTS
@@ -716,14 +717,6 @@ static int cpuhp_up_callbacks(unsigned int cpu, struct cpuhp_cpu_state *st,
 /*
  * The cpu hotplug threads manage the bringup and teardown of the cpus
  */
-static void cpuhp_create(unsigned int cpu)
-{
-	struct cpuhp_cpu_state *st = per_cpu_ptr(&cpuhp_state, cpu);
-
-	init_completion(&st->done_up);
-	init_completion(&st->done_down);
-}
-
 static int cpuhp_should_run(unsigned int cpu)
 {
 	struct cpuhp_cpu_state *st = this_cpu_ptr(&cpuhp_state);
@@ -883,15 +876,27 @@ static int cpuhp_kick_ap_work(unsigned int cpu)
 
 static struct smp_hotplug_thread cpuhp_threads = {
 	.store			= &cpuhp_state.thread,
-	.create			= &cpuhp_create,
 	.thread_should_run	= cpuhp_should_run,
 	.thread_fn		= cpuhp_thread_fun,
 	.thread_comm		= "cpuhp/%u",
 	.selfparking		= true,
 };
 
+static __init void cpuhp_init_state(void)
+{
+	struct cpuhp_cpu_state *st;
+	int cpu;
+
+	for_each_possible_cpu(cpu) {
+		st = per_cpu_ptr(&cpuhp_state, cpu);
+		init_completion(&st->done_up);
+		init_completion(&st->done_down);
+	}
+}
+
 void __init cpuhp_threads_init(void)
 {
+	cpuhp_init_state();
 	BUG_ON(smpboot_register_percpu_thread(&cpuhp_threads));
 	kthread_unpark(this_cpu_read(cpuhp_state.thread));
 }
@@ -1186,6 +1191,12 @@ out:
 
 static int cpu_down_maps_locked(unsigned int cpu, enum cpuhp_state target)
 {
+	/*
+	 * If the platform does not support hotplug, report it explicitly to
+	 * differentiate it from a transient offlining failure.
+	 */
+	if (cc_platform_has(CC_ATTR_HOTPLUG_DISABLED))
+		return -EOPNOTSUPP;
 	if (cpu_hotplug_disabled)
 		return -EBUSY;
 	return _cpu_down(cpu, 0, target);

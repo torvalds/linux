@@ -794,7 +794,7 @@ static void regmap_ibt_free_context(void *context)
 	kfree(context);
 }
 
-static struct regmap_bus regmap_ibt = {
+static const struct regmap_bus regmap_ibt = {
 	.read = regmap_ibt_read,
 	.write = regmap_ibt_write,
 	.gather_write = regmap_ibt_gather_write,

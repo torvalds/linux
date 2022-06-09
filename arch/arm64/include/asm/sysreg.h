@@ -115,6 +115,14 @@
 #define SYS_DC_CISW			sys_insn(1, 0, 7, 14, 2)
 
 /*
+ * Automatically generated definitions for system registers, the
+ * manual encodings below are in the process of being converted to
+ * come from here. The header relies on the definition of sys_reg()
+ * earlier in this file.
+ */
+#include "asm/sysreg-defs.h"
+
+/*
  * System registers, organised loosely by encoding but grouped together
  * where the architected name contains an index. e.g. ID_MMFR<n>_EL1.
  */
@@ -193,7 +201,6 @@
 #define SYS_ID_AA64AFR0_EL1		sys_reg(3, 0, 0, 5, 4)
 #define SYS_ID_AA64AFR1_EL1		sys_reg(3, 0, 0, 5, 5)
 
-#define SYS_ID_AA64ISAR0_EL1		sys_reg(3, 0, 0, 6, 0)
 #define SYS_ID_AA64ISAR1_EL1		sys_reg(3, 0, 0, 6, 1)
 #define SYS_ID_AA64ISAR2_EL1		sys_reg(3, 0, 0, 6, 2)
 
@@ -201,19 +208,12 @@
 #define SYS_ID_AA64MMFR1_EL1		sys_reg(3, 0, 0, 7, 1)
 #define SYS_ID_AA64MMFR2_EL1		sys_reg(3, 0, 0, 7, 2)
 
-#define SYS_SCTLR_EL1			sys_reg(3, 0, 1, 0, 0)
 #define SYS_ACTLR_EL1			sys_reg(3, 0, 1, 0, 1)
-#define SYS_CPACR_EL1			sys_reg(3, 0, 1, 0, 2)
 #define SYS_RGSR_EL1			sys_reg(3, 0, 1, 0, 5)
 #define SYS_GCR_EL1			sys_reg(3, 0, 1, 0, 6)
 
-#define SYS_ZCR_EL1			sys_reg(3, 0, 1, 2, 0)
 #define SYS_TRFCR_EL1			sys_reg(3, 0, 1, 2, 1)
-#define SYS_SMPRI_EL1			sys_reg(3, 0, 1, 2, 4)
-#define SYS_SMCR_EL1			sys_reg(3, 0, 1, 2, 6)
 
-#define SYS_TTBR0_EL1			sys_reg(3, 0, 2, 0, 0)
-#define SYS_TTBR1_EL1			sys_reg(3, 0, 2, 0, 1)
 #define SYS_TCR_EL1			sys_reg(3, 0, 2, 0, 2)
 
 #define SYS_APIAKEYLO_EL1		sys_reg(3, 0, 2, 1, 0)
@@ -249,7 +249,6 @@
 #define SYS_TFSR_EL1			sys_reg(3, 0, 5, 6, 0)
 #define SYS_TFSRE0_EL1			sys_reg(3, 0, 5, 6, 1)
 
-#define SYS_FAR_EL1			sys_reg(3, 0, 6, 0, 0)
 #define SYS_PAR_EL1			sys_reg(3, 0, 7, 4, 0)
 
 #define SYS_PAR_EL1_F			BIT(0)
@@ -403,8 +402,6 @@
 #define TRBIDR_ALIGN_MASK		GENMASK(3, 0)
 #define TRBIDR_ALIGN_SHIFT		0
 
-#define SMPRI_EL1_PRIORITY_MASK		0xf
-
 #define SYS_PMINTENSET_EL1		sys_reg(3, 0, 9, 14, 1)
 #define SYS_PMINTENCLR_EL1		sys_reg(3, 0, 9, 14, 2)
 
@@ -450,7 +447,6 @@
 #define SYS_ICC_IGRPEN0_EL1		sys_reg(3, 0, 12, 12, 6)
 #define SYS_ICC_IGRPEN1_EL1		sys_reg(3, 0, 12, 12, 7)
 
-#define SYS_CONTEXTIDR_EL1		sys_reg(3, 0, 13, 0, 1)
 #define SYS_TPIDR_EL1			sys_reg(3, 0, 13, 0, 4)
 
 #define SYS_SCXTNUM_EL1			sys_reg(3, 0, 13, 0, 7)
@@ -458,26 +454,18 @@
 #define SYS_CNTKCTL_EL1			sys_reg(3, 0, 14, 1, 0)
 
 #define SYS_CCSIDR_EL1			sys_reg(3, 1, 0, 0, 0)
-#define SYS_CLIDR_EL1			sys_reg(3, 1, 0, 0, 1)
 #define SYS_GMID_EL1			sys_reg(3, 1, 0, 0, 4)
-#define SYS_SMIDR_EL1			sys_reg(3, 1, 0, 0, 6)
 #define SYS_AIDR_EL1			sys_reg(3, 1, 0, 0, 7)
 
-#define SYS_SMIDR_EL1_IMPLEMENTER_SHIFT	24
-#define SYS_SMIDR_EL1_SMPS_SHIFT	15
-#define SYS_SMIDR_EL1_AFFINITY_SHIFT	0
-
-#define SYS_CSSELR_EL1			sys_reg(3, 2, 0, 0, 0)
+#define SMIDR_EL1_IMPLEMENTER_SHIFT	24
+#define SMIDR_EL1_SMPS_SHIFT	15
+#define SMIDR_EL1_AFFINITY_SHIFT	0
 
 #define SYS_CTR_EL0			sys_reg(3, 3, 0, 0, 1)
 #define SYS_DCZID_EL0			sys_reg(3, 3, 0, 0, 7)
 
 #define SYS_RNDR_EL0			sys_reg(3, 3, 2, 4, 0)
 #define SYS_RNDRRS_EL0			sys_reg(3, 3, 2, 4, 1)
-
-#define SYS_SVCR_EL0			sys_reg(3, 3, 4, 2, 2)
-#define SYS_SVCR_EL0_ZA_MASK		2
-#define SYS_SVCR_EL0_SM_MASK		1
 
 #define SYS_PMCR_EL0			sys_reg(3, 3, 9, 12, 0)
 #define SYS_PMCNTENSET_EL0		sys_reg(3, 3, 9, 12, 1)
@@ -563,12 +551,8 @@
 #define SYS_HFGRTR_EL2			sys_reg(3, 4, 1, 1, 4)
 #define SYS_HFGWTR_EL2			sys_reg(3, 4, 1, 1, 5)
 #define SYS_HFGITR_EL2			sys_reg(3, 4, 1, 1, 6)
-#define SYS_ZCR_EL2			sys_reg(3, 4, 1, 2, 0)
 #define SYS_TRFCR_EL2			sys_reg(3, 4, 1, 2, 1)
 #define SYS_HCRX_EL2			sys_reg(3, 4, 1, 2, 2)
-#define SYS_SMPRIMAP_EL2		sys_reg(3, 4, 1, 2, 5)
-#define SYS_SMCR_EL2			sys_reg(3, 4, 1, 2, 6)
-#define SYS_DACR32_EL2			sys_reg(3, 4, 3, 0, 0)
 #define SYS_HDFGRTR_EL2			sys_reg(3, 4, 3, 1, 4)
 #define SYS_HDFGWTR_EL2			sys_reg(3, 4, 3, 1, 5)
 #define SYS_HAFGRTR_EL2			sys_reg(3, 4, 3, 1, 6)
@@ -579,7 +563,6 @@
 #define SYS_VSESR_EL2			sys_reg(3, 4, 5, 2, 3)
 #define SYS_FPEXC32_EL2			sys_reg(3, 4, 5, 3, 0)
 #define SYS_TFSR_EL2			sys_reg(3, 4, 5, 6, 0)
-#define SYS_FAR_EL2			sys_reg(3, 4, 6, 0, 0)
 
 #define SYS_VDISR_EL2			sys_reg(3, 4, 12, 1,  1)
 #define __SYS__AP0Rx_EL2(x)		sys_reg(3, 4, 12, 8, x)
@@ -625,9 +608,6 @@
 
 /* VHE encodings for architectural EL0/1 system registers */
 #define SYS_SCTLR_EL12			sys_reg(3, 5, 1, 0, 0)
-#define SYS_CPACR_EL12			sys_reg(3, 5, 1, 0, 2)
-#define SYS_ZCR_EL12			sys_reg(3, 5, 1, 2, 0)
-#define SYS_SMCR_EL12			sys_reg(3, 5, 1, 2, 6)
 #define SYS_TTBR0_EL12			sys_reg(3, 5, 2, 0, 0)
 #define SYS_TTBR1_EL12			sys_reg(3, 5, 2, 0, 1)
 #define SYS_TCR_EL12			sys_reg(3, 5, 2, 0, 2)
@@ -637,11 +617,9 @@
 #define SYS_AFSR1_EL12			sys_reg(3, 5, 5, 1, 1)
 #define SYS_ESR_EL12			sys_reg(3, 5, 5, 2, 0)
 #define SYS_TFSR_EL12			sys_reg(3, 5, 5, 6, 0)
-#define SYS_FAR_EL12			sys_reg(3, 5, 6, 0, 0)
 #define SYS_MAIR_EL12			sys_reg(3, 5, 10, 2, 0)
 #define SYS_AMAIR_EL12			sys_reg(3, 5, 10, 3, 0)
 #define SYS_VBAR_EL12			sys_reg(3, 5, 12, 0, 0)
-#define SYS_CONTEXTIDR_EL12		sys_reg(3, 5, 13, 0, 1)
 #define SYS_CNTKCTL_EL12		sys_reg(3, 5, 14, 1, 0)
 #define SYS_CNTP_TVAL_EL02		sys_reg(3, 5, 14, 2, 0)
 #define SYS_CNTP_CTL_EL02		sys_reg(3, 5, 14, 2, 1)
@@ -655,28 +633,26 @@
 #define SCTLR_ELx_DSSBS	(BIT(44))
 #define SCTLR_ELx_ATA	(BIT(43))
 
-#define SCTLR_ELx_TCF_SHIFT	40
-#define SCTLR_ELx_TCF_NONE	(UL(0x0) << SCTLR_ELx_TCF_SHIFT)
-#define SCTLR_ELx_TCF_SYNC	(UL(0x1) << SCTLR_ELx_TCF_SHIFT)
-#define SCTLR_ELx_TCF_ASYNC	(UL(0x2) << SCTLR_ELx_TCF_SHIFT)
-#define SCTLR_ELx_TCF_ASYMM	(UL(0x3) << SCTLR_ELx_TCF_SHIFT)
-#define SCTLR_ELx_TCF_MASK	(UL(0x3) << SCTLR_ELx_TCF_SHIFT)
-
 #define SCTLR_ELx_ENIA_SHIFT	31
 
-#define SCTLR_ELx_ITFSB	(BIT(37))
-#define SCTLR_ELx_ENIA	(BIT(SCTLR_ELx_ENIA_SHIFT))
-#define SCTLR_ELx_ENIB	(BIT(30))
-#define SCTLR_ELx_ENDA	(BIT(27))
-#define SCTLR_ELx_EE    (BIT(25))
-#define SCTLR_ELx_IESB	(BIT(21))
-#define SCTLR_ELx_WXN	(BIT(19))
-#define SCTLR_ELx_ENDB	(BIT(13))
-#define SCTLR_ELx_I	(BIT(12))
-#define SCTLR_ELx_SA	(BIT(3))
-#define SCTLR_ELx_C	(BIT(2))
-#define SCTLR_ELx_A	(BIT(1))
-#define SCTLR_ELx_M	(BIT(0))
+#define SCTLR_ELx_ITFSB	 (BIT(37))
+#define SCTLR_ELx_ENIA	 (BIT(SCTLR_ELx_ENIA_SHIFT))
+#define SCTLR_ELx_ENIB	 (BIT(30))
+#define SCTLR_ELx_LSMAOE (BIT(29))
+#define SCTLR_ELx_nTLSMD (BIT(28))
+#define SCTLR_ELx_ENDA	 (BIT(27))
+#define SCTLR_ELx_EE     (BIT(25))
+#define SCTLR_ELx_EIS	 (BIT(22))
+#define SCTLR_ELx_IESB	 (BIT(21))
+#define SCTLR_ELx_TSCXT	 (BIT(20))
+#define SCTLR_ELx_WXN	 (BIT(19))
+#define SCTLR_ELx_ENDB	 (BIT(13))
+#define SCTLR_ELx_I	 (BIT(12))
+#define SCTLR_ELx_EOS	 (BIT(11))
+#define SCTLR_ELx_SA	 (BIT(3))
+#define SCTLR_ELx_C	 (BIT(2))
+#define SCTLR_ELx_A	 (BIT(1))
+#define SCTLR_ELx_M	 (BIT(0))
 
 /* SCTLR_EL2 specific flags. */
 #define SCTLR_EL2_RES1	((BIT(4))  | (BIT(5))  | (BIT(11)) | (BIT(16)) | \
@@ -698,34 +674,6 @@
 	(SCTLR_EL2_RES1 | ENDIAN_SET_EL2)
 
 /* SCTLR_EL1 specific flags. */
-#define SCTLR_EL1_EPAN		(BIT(57))
-#define SCTLR_EL1_ATA0		(BIT(42))
-
-#define SCTLR_EL1_TCF0_SHIFT	38
-#define SCTLR_EL1_TCF0_NONE	(UL(0x0) << SCTLR_EL1_TCF0_SHIFT)
-#define SCTLR_EL1_TCF0_SYNC	(UL(0x1) << SCTLR_EL1_TCF0_SHIFT)
-#define SCTLR_EL1_TCF0_ASYNC	(UL(0x2) << SCTLR_EL1_TCF0_SHIFT)
-#define SCTLR_EL1_TCF0_ASYMM	(UL(0x3) << SCTLR_EL1_TCF0_SHIFT)
-#define SCTLR_EL1_TCF0_MASK	(UL(0x3) << SCTLR_EL1_TCF0_SHIFT)
-
-#define SCTLR_EL1_BT1		(BIT(36))
-#define SCTLR_EL1_BT0		(BIT(35))
-#define SCTLR_EL1_UCI		(BIT(26))
-#define SCTLR_EL1_E0E		(BIT(24))
-#define SCTLR_EL1_SPAN		(BIT(23))
-#define SCTLR_EL1_NTWE		(BIT(18))
-#define SCTLR_EL1_NTWI		(BIT(16))
-#define SCTLR_EL1_UCT		(BIT(15))
-#define SCTLR_EL1_DZE		(BIT(14))
-#define SCTLR_EL1_UMA		(BIT(9))
-#define SCTLR_EL1_SED		(BIT(8))
-#define SCTLR_EL1_ITD		(BIT(7))
-#define SCTLR_EL1_CP15BEN	(BIT(5))
-#define SCTLR_EL1_SA0		(BIT(4))
-
-#define SCTLR_EL1_RES1	((BIT(11)) | (BIT(20)) | (BIT(22)) | (BIT(28)) | \
-			 (BIT(29)))
-
 #ifdef CONFIG_CPU_BIG_ENDIAN
 #define ENDIAN_SET_EL1		(SCTLR_EL1_E0E | SCTLR_ELx_EE)
 #else
@@ -733,13 +681,17 @@
 #endif
 
 #define INIT_SCTLR_EL1_MMU_OFF \
-	(ENDIAN_SET_EL1 | SCTLR_EL1_RES1)
+	(ENDIAN_SET_EL1 | SCTLR_EL1_LSMAOE | SCTLR_EL1_nTLSMD | \
+	 SCTLR_EL1_EIS  | SCTLR_EL1_TSCXT  | SCTLR_EL1_EOS)
 
 #define INIT_SCTLR_EL1_MMU_ON \
-	(SCTLR_ELx_M    | SCTLR_ELx_C    | SCTLR_ELx_SA   | SCTLR_EL1_SA0   | \
-	 SCTLR_EL1_SED  | SCTLR_ELx_I    | SCTLR_EL1_DZE  | SCTLR_EL1_UCT   | \
-	 SCTLR_EL1_NTWE | SCTLR_ELx_IESB | SCTLR_EL1_SPAN | SCTLR_ELx_ITFSB | \
-	 ENDIAN_SET_EL1 | SCTLR_EL1_UCI  | SCTLR_EL1_EPAN | SCTLR_EL1_RES1)
+	(SCTLR_ELx_M      | SCTLR_ELx_C      | SCTLR_ELx_SA    | \
+	 SCTLR_EL1_SA0    | SCTLR_EL1_SED    | SCTLR_ELx_I     | \
+	 SCTLR_EL1_DZE    | SCTLR_EL1_UCT    | SCTLR_EL1_nTWE  | \
+	 SCTLR_ELx_IESB   | SCTLR_EL1_SPAN   | SCTLR_ELx_ITFSB | \
+	 ENDIAN_SET_EL1   | SCTLR_EL1_UCI    | SCTLR_EL1_EPAN  | \
+	 SCTLR_EL1_LSMAOE | SCTLR_EL1_nTLSMD | SCTLR_EL1_EIS   | \
+	 SCTLR_EL1_TSCXT  | SCTLR_EL1_EOS)
 
 /* MAIR_ELx memory attributes (used by Linux) */
 #define MAIR_ATTR_DEVICE_nGnRnE		UL(0x00)
@@ -751,25 +703,6 @@
 
 /* Position the attr at the correct index */
 #define MAIR_ATTRIDX(attr, idx)		((attr) << ((idx) * 8))
-
-/* id_aa64isar0 */
-#define ID_AA64ISAR0_RNDR_SHIFT		60
-#define ID_AA64ISAR0_TLB_SHIFT		56
-#define ID_AA64ISAR0_TS_SHIFT		52
-#define ID_AA64ISAR0_FHM_SHIFT		48
-#define ID_AA64ISAR0_DP_SHIFT		44
-#define ID_AA64ISAR0_SM4_SHIFT		40
-#define ID_AA64ISAR0_SM3_SHIFT		36
-#define ID_AA64ISAR0_SHA3_SHIFT		32
-#define ID_AA64ISAR0_RDM_SHIFT		28
-#define ID_AA64ISAR0_ATOMICS_SHIFT	20
-#define ID_AA64ISAR0_CRC32_SHIFT	16
-#define ID_AA64ISAR0_SHA2_SHIFT		12
-#define ID_AA64ISAR0_SHA1_SHIFT		8
-#define ID_AA64ISAR0_AES_SHIFT		4
-
-#define ID_AA64ISAR0_TLB_RANGE_NI	0x0
-#define ID_AA64ISAR0_TLB_RANGE		0x2
 
 /* id_aa64isar1 */
 #define ID_AA64ISAR1_I8MM_SHIFT		52
@@ -1154,27 +1087,6 @@
 #define DCZID_DZP_SHIFT			4
 #define DCZID_BS_SHIFT			0
 
-/*
- * The ZCR_ELx_LEN_* definitions intentionally include bits [8:4] which
- * are reserved by the SVE architecture for future expansion of the LEN
- * field, with compatible semantics.
- */
-#define ZCR_ELx_LEN_SHIFT	0
-#define ZCR_ELx_LEN_SIZE	9
-#define ZCR_ELx_LEN_MASK	0x1ff
-
-#define SMCR_ELx_FA64_SHIFT	31
-#define SMCR_ELx_FA64_MASK	(1 << SMCR_ELx_FA64_SHIFT)
-
-/*
- * The SMCR_ELx_LEN_* definitions intentionally include bits [8:4] which
- * are reserved by the SME architecture for future expansion of the LEN
- * field, with compatible semantics.
- */
-#define SMCR_ELx_LEN_SHIFT	0
-#define SMCR_ELx_LEN_SIZE	9
-#define SMCR_ELx_LEN_MASK	0x1ff
-
 #define CPACR_EL1_FPEN_EL1EN	(BIT(20)) /* enable EL1 access */
 #define CPACR_EL1_FPEN_EL0EN	(BIT(21)) /* enable EL0 access, if EL1EN set */
 
@@ -1411,5 +1323,11 @@
 })
 
 #endif
+
+#define SYS_FIELD_PREP(reg, field, val)		\
+		 FIELD_PREP(reg##_##field##_MASK, val)
+
+#define SYS_FIELD_PREP_ENUM(reg, field, val)		\
+		 FIELD_PREP(reg##_##field##_MASK, reg##_##field##_##val)
 
 #endif	/* __ASM_SYSREG_H */

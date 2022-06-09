@@ -19,6 +19,13 @@
 #include "fscrypt_private.h"
 
 /*
+ * The minimum message length (input and output length), in bytes, for all
+ * filenames encryption modes.  Filenames shorter than this will be zero-padded
+ * before being encrypted.
+ */
+#define FSCRYPT_FNAME_MIN_MSG_LEN 16
+
+/*
  * struct fscrypt_nokey_name - identifier for directory entry when key is absent
  *
  * When userspace lists an encrypted directory without access to the key, the
@@ -267,7 +274,7 @@ bool fscrypt_fname_encrypted_size(const union fscrypt_policy *policy,
 
 	if (orig_len > max_len)
 		return false;
-	encrypted_len = max(orig_len, (u32)FS_CRYPTO_BLOCK_SIZE);
+	encrypted_len = max_t(u32, orig_len, FSCRYPT_FNAME_MIN_MSG_LEN);
 	encrypted_len = round_up(encrypted_len, padding);
 	*encrypted_len_ret = min(encrypted_len, max_len);
 	return true;
@@ -350,7 +357,7 @@ int fscrypt_fname_disk_to_usr(const struct inode *inode,
 		return 0;
 	}
 
-	if (iname->len < FS_CRYPTO_BLOCK_SIZE)
+	if (iname->len < FSCRYPT_FNAME_MIN_MSG_LEN)
 		return -EUCLEAN;
 
 	if (fscrypt_has_encryption_key(inode))

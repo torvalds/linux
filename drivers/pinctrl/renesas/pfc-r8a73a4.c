@@ -2270,15 +2270,17 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			MSEL1CR_00_0, MSEL1CR_00_1,
 		))
 	},
-	{ PINMUX_CFG_REG("MSEL3CR", 0xe6058020, 32, 1, GROUP(
+	{ PINMUX_CFG_REG_VAR("MSEL3CR", 0xe6058020, 32,
+			     GROUP(1, -2, 1, 1, 1, -2, 1, 1, 1, 1, 1, 1,
+				   1, 1, 1, -2, 1, 1, 1, 1, -2, 1, -2, 1,
+				   -1, 1, 1),
+			     GROUP(
 			MSEL3CR_31_0, MSEL3CR_31_1,
-			0, 0,
-			0, 0,
+			/* RESERVED [2] */
 			MSEL3CR_28_0, MSEL3CR_28_1,
 			MSEL3CR_27_0, MSEL3CR_27_1,
 			MSEL3CR_26_0, MSEL3CR_26_1,
-			0, 0,
-			0, 0,
+			/* RESERVED [2] */
 			MSEL3CR_23_0, MSEL3CR_23_1,
 			MSEL3CR_22_0, MSEL3CR_22_1,
 			MSEL3CR_21_0, MSEL3CR_21_1,
@@ -2288,19 +2290,16 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			MSEL3CR_17_0, MSEL3CR_17_1,
 			MSEL3CR_16_0, MSEL3CR_16_1,
 			MSEL3CR_15_0, MSEL3CR_15_1,
-			0, 0,
-			0, 0,
+			/* RESERVED [2] */
 			MSEL3CR_12_0, MSEL3CR_12_1,
 			MSEL3CR_11_0, MSEL3CR_11_1,
 			MSEL3CR_10_0, MSEL3CR_10_1,
 			MSEL3CR_09_0, MSEL3CR_09_1,
-			0, 0,
-			0, 0,
+			/* RESERVED [2] */
 			MSEL3CR_06_0, MSEL3CR_06_1,
-			0, 0,
-			0, 0,
+			/* RESERVED [2] */
 			MSEL3CR_03_0, MSEL3CR_03_1,
-			0, 0,
+			/* RESERVED [1] */
 			MSEL3CR_01_0, MSEL3CR_01_1,
 			MSEL3CR_00_0, MSEL3CR_00_1,
 			))
@@ -2375,37 +2374,12 @@ static const struct pinmux_cfg_reg pinmux_config_regs[] = {
 			0, 0,
 		))
 	},
-	{ PINMUX_CFG_REG("MSEL8CR", 0xe6058034, 32, 1, GROUP(
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
+	{ PINMUX_CFG_REG_VAR("MSEL8CR", 0xe6058034, 32,
+			     GROUP(-15, 1, -14, 1, 1),
+			     GROUP(
+			/* RESERVED [15] */
 			MSEL8CR_16_0, MSEL8CR_16_1,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
-			0, 0,
+			/* RESERVED [14] */
 			MSEL8CR_01_0, MSEL8CR_01_1,
 			MSEL8CR_00_0, MSEL8CR_00_1,
 		))

@@ -115,7 +115,7 @@ Block Size
 
 (Block size in cramfs refers to the size of input data that is
 compressed at a time.  It's intended to be somewhere around
-PAGE_SIZE for cramfs_readpage's convenience.)
+PAGE_SIZE for cramfs_read_folio's convenience.)
 
 The superblock ought to indicate the block size that the fs was
 written for, since comments in <linux/pagemap.h> indicate that
@@ -161,7 +161,7 @@ size.  The options are:
      PAGE_SIZE.
 
 It's easy enough to change the kernel to use a smaller value than
-PAGE_SIZE: just make cramfs_readpage read multiple blocks.
+PAGE_SIZE: just make cramfs_read_folio read multiple blocks.
 
 The cost of option 1 is that kernels with a larger PAGE_SIZE
 value don't get as good compression as they can.
@@ -173,9 +173,9 @@ they don't mind their cramfs being inaccessible to kernels with
 smaller PAGE_SIZE values.
 
 Option 3 is easy to implement if we don't mind being CPU-inefficient:
-e.g. get readpage to decompress to a buffer of size MAX_BLKSIZE (which
+e.g. get read_folio to decompress to a buffer of size MAX_BLKSIZE (which
 must be no larger than 32KB) and discard what it doesn't need.
-Getting readpage to read into all the covered pages is harder.
+Getting read_folio to read into all the covered pages is harder.
 
 The main advantage of option 3 over 1, 2, is better compression.  The
 cost is greater complexity.  Probably not worth it, but I hope someone

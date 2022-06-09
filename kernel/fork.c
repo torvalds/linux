@@ -612,9 +612,7 @@ static __latent_entropy int dup_mmap(struct mm_struct *mm,
 	retval = ksm_fork(mm, oldmm);
 	if (retval)
 		goto out;
-	retval = khugepaged_fork(mm, oldmm);
-	if (retval)
-		goto out;
+	khugepaged_fork(mm, oldmm);
 
 	prev = NULL;
 	for (mpnt = oldmm->mmap; mpnt; mpnt = mpnt->vm_next) {
@@ -1046,6 +1044,11 @@ static struct task_struct *dup_task_struct(struct task_struct *orig, int node)
 #ifdef CONFIG_MEMCG
 	tsk->active_memcg = NULL;
 #endif
+
+#ifdef CONFIG_CPU_SUP_INTEL
+	tsk->reported_split_lock = 0;
+#endif
+
 	return tsk;
 
 free_stack:
@@ -1979,7 +1982,7 @@ static __latent_entropy struct task_struct *copy_process(
 	struct task_struct *p;
 	struct multiprocess_signals delayed;
 	struct file *pidfile = NULL;
-	u64 clone_flags = args->flags;
+	const u64 clone_flags = args->flags;
 	struct nsproxy *nsp = current->nsproxy;
 
 	/*
@@ -2068,6 +2071,9 @@ static __latent_entropy struct task_struct *copy_process(
 	p = dup_task_struct(current, node);
 	if (!p)
 		goto fork_out;
+	p->flags &= ~PF_KTHREAD;
+	if (args->kthread)
+		p->flags |= PF_KTHREAD;
 	if (args->io_thread) {
 		/*
 		 * Mark us an IO worker, and block any signal that isn't
@@ -2157,7 +2163,7 @@ static __latent_entropy struct task_struct *copy_process(
 	p->io_context = NULL;
 	audit_set_context(p, NULL);
 	cgroup_fork(p);
-	if (p->flags & PF_KTHREAD) {
+	if (args->kthread) {
 		if (!set_kthread_struct(p))
 			goto bad_fork_cleanup_delayacct;
 	}
@@ -2240,7 +2246,7 @@ static __latent_entropy struct task_struct *copy_process(
 	retval = copy_io(clone_flags, p);
 	if (retval)
 		goto bad_fork_cleanup_namespaces;
-	retval = copy_thread(clone_flags, args->stack, args->stack_size, p, args->tls);
+	retval = copy_thread(p, args);
 	if (retval)
 		goto bad_fork_cleanup_io;
 
@@ -2544,11 +2550,21 @@ static inline void init_idle_pids(struct task_struct *idle)
 	}
 }
 
+static int idle_dummy(void *dummy)
+{
+	/* This function is never called */
+	return 0;
+}
+
 struct task_struct * __init fork_idle(int cpu)
 {
 	struct task_struct *task;
 	struct kernel_clone_args args = {
-		.flags = CLONE_VM,
+		.flags		= CLONE_VM,
+		.fn		= &idle_dummy,
+		.fn_arg		= NULL,
+		.kthread	= 1,
+		.idle		= 1,
 	};
 
 	task = copy_process(&init_struct_pid, 0, cpu_to_node(cpu), &args);
@@ -2579,8 +2595,8 @@ struct task_struct *create_io_thread(int (*fn)(void *), void *arg, int node)
 		.flags		= ((lower_32_bits(flags) | CLONE_VM |
 				    CLONE_UNTRACED) & ~CSIGNAL),
 		.exit_signal	= (lower_32_bits(flags) & CSIGNAL),
-		.stack		= (unsigned long)fn,
-		.stack_size	= (unsigned long)arg,
+		.fn		= fn,
+		.fn_arg		= arg,
 		.io_thread	= 1,
 	};
 
@@ -2684,8 +2700,25 @@ pid_t kernel_thread(int (*fn)(void *), void *arg, unsigned long flags)
 		.flags		= ((lower_32_bits(flags) | CLONE_VM |
 				    CLONE_UNTRACED) & ~CSIGNAL),
 		.exit_signal	= (lower_32_bits(flags) & CSIGNAL),
-		.stack		= (unsigned long)fn,
-		.stack_size	= (unsigned long)arg,
+		.fn		= fn,
+		.fn_arg		= arg,
+		.kthread	= 1,
+	};
+
+	return kernel_clone(&args);
+}
+
+/*
+ * Create a user mode thread.
+ */
+pid_t user_mode_thread(int (*fn)(void *), void *arg, unsigned long flags)
+{
+	struct kernel_clone_args args = {
+		.flags		= ((lower_32_bits(flags) | CLONE_VM |
+				    CLONE_UNTRACED) & ~CSIGNAL),
+		.exit_signal	= (lower_32_bits(flags) & CSIGNAL),
+		.fn		= fn,
+		.fn_arg		= arg,
 	};
 
 	return kernel_clone(&args);

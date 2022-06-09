@@ -35,6 +35,11 @@ unsigned int mlxsw_core_max_ports(const struct mlxsw_core *mlxsw_core);
 
 void *mlxsw_core_driver_priv(struct mlxsw_core *mlxsw_core);
 
+struct mlxsw_linecards *mlxsw_core_linecards(struct mlxsw_core *mlxsw_core);
+
+void mlxsw_core_linecards_set(struct mlxsw_core *mlxsw_core,
+			      struct mlxsw_linecards *linecard);
+
 bool
 mlxsw_core_fw_rev_minor_subminor_validate(const struct mlxsw_fw_rev *rev,
 					  const struct mlxsw_fw_rev *req_rev);
@@ -231,7 +236,8 @@ void mlxsw_core_lag_mapping_clear(struct mlxsw_core *mlxsw_core,
 
 void *mlxsw_core_port_driver_priv(struct mlxsw_core_port *mlxsw_core_port);
 int mlxsw_core_port_init(struct mlxsw_core *mlxsw_core, u16 local_port,
-			 u32 port_number, bool split, u32 split_port_subnumber,
+			 u8 slot_index, u32 port_number, bool split,
+			 u32 split_port_subnumber,
 			 bool splittable, u32 lanes,
 			 const unsigned char *switch_id,
 			 unsigned char switch_id_len);
@@ -252,7 +258,14 @@ enum devlink_port_type mlxsw_core_port_type_get(struct mlxsw_core *mlxsw_core,
 struct devlink_port *
 mlxsw_core_port_devlink_port_get(struct mlxsw_core *mlxsw_core,
 				 u16 local_port);
+struct mlxsw_linecard *
+mlxsw_core_port_linecard_get(struct mlxsw_core *mlxsw_core,
+			     u16 local_port);
 bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u16 local_port);
+void mlxsw_core_ports_remove_selected(struct mlxsw_core *mlxsw_core,
+				      bool (*selector)(void *priv,
+						       u16 local_port),
+				      void *priv);
 struct mlxsw_env *mlxsw_core_env(const struct mlxsw_core *mlxsw_core);
 
 int mlxsw_core_schedule_dw(struct delayed_work *dwork, unsigned long delay);
@@ -326,6 +339,10 @@ struct mlxsw_driver {
 			  unsigned int count, struct netlink_ext_ack *extack);
 	int (*port_unsplit)(struct mlxsw_core *mlxsw_core, u16 local_port,
 			    struct netlink_ext_ack *extack);
+	void (*ports_remove_selected)(struct mlxsw_core *mlxsw_core,
+				      bool (*selector)(void *priv,
+						       u16 local_port),
+				      void *priv);
 	int (*sb_pool_get)(struct mlxsw_core *mlxsw_core,
 			   unsigned int sb_index, u16 pool_index,
 			   struct devlink_sb_pool_info *pool_info);
@@ -542,5 +559,65 @@ static inline struct mlxsw_skb_cb *mlxsw_skb_cb(struct sk_buff *skb)
 	BUILD_BUG_ON(sizeof(mlxsw_skb_cb) > sizeof(skb->cb));
 	return (struct mlxsw_skb_cb *) skb->cb;
 }
+
+struct mlxsw_linecards;
+
+enum mlxsw_linecard_status_event_type {
+	MLXSW_LINECARD_STATUS_EVENT_TYPE_PROVISION,
+	MLXSW_LINECARD_STATUS_EVENT_TYPE_UNPROVISION,
+};
+
+struct mlxsw_linecard {
+	u8 slot_index;
+	struct mlxsw_linecards *linecards;
+	struct devlink_linecard *devlink_linecard;
+	struct mutex lock; /* Locks accesses to the linecard structure */
+	char name[MLXSW_REG_MDDQ_SLOT_ASCII_NAME_LEN];
+	char mbct_pl[MLXSW_REG_MBCT_LEN]; /* Too big for stack */
+	enum mlxsw_linecard_status_event_type status_event_type_to;
+	struct delayed_work status_event_to_dw;
+	u8 provisioned:1,
+	   ready:1,
+	   active:1;
+	u16 hw_revision;
+	u16 ini_version;
+};
+
+struct mlxsw_linecard_types_info;
+
+struct mlxsw_linecards {
+	struct mlxsw_core *mlxsw_core;
+	const struct mlxsw_bus_info *bus_info;
+	u8 count;
+	struct mlxsw_linecard_types_info *types_info;
+	struct list_head event_ops_list;
+	struct mutex event_ops_list_lock; /* Locks accesses to event ops list */
+	struct mlxsw_linecard linecards[];
+};
+
+static inline struct mlxsw_linecard *
+mlxsw_linecard_get(struct mlxsw_linecards *linecards, u8 slot_index)
+{
+	return &linecards->linecards[slot_index - 1];
+}
+
+int mlxsw_linecards_init(struct mlxsw_core *mlxsw_core,
+			 const struct mlxsw_bus_info *bus_info);
+void mlxsw_linecards_fini(struct mlxsw_core *mlxsw_core);
+
+typedef void mlxsw_linecards_event_op_t(struct mlxsw_core *mlxsw_core,
+					u8 slot_index, void *priv);
+
+struct mlxsw_linecards_event_ops {
+	mlxsw_linecards_event_op_t *got_active;
+	mlxsw_linecards_event_op_t *got_inactive;
+};
+
+int mlxsw_linecards_event_ops_register(struct mlxsw_core *mlxsw_core,
+				       struct mlxsw_linecards_event_ops *ops,
+				       void *priv);
+void mlxsw_linecards_event_ops_unregister(struct mlxsw_core *mlxsw_core,
+					  struct mlxsw_linecards_event_ops *ops,
+					  void *priv);
 
 #endif

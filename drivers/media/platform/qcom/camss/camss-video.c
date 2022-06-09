@@ -576,12 +576,8 @@ static const struct vb2_ops msm_video_vb2_q_ops = {
 static int video_querycap(struct file *file, void *fh,
 			  struct v4l2_capability *cap)
 {
-	struct camss_video *video = video_drvdata(file);
-
 	strscpy(cap->driver, "qcom-camss", sizeof(cap->driver));
 	strscpy(cap->card, "Qualcomm Camera Subsystem", sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(video->camss->dev));
 
 	return 0;
 }

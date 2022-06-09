@@ -15,7 +15,6 @@
 #include <linux/io.h>
 #include <linux/slab.h>
 
-#include <mach/hardware.h>
 #include <linux/platform_data/mouse-pxa930_trkball.h>
 
 /* Trackball Controller Register Definitions */

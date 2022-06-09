@@ -603,7 +603,7 @@ static int w5300_probe(struct platform_device *pdev)
 	ndev->netdev_ops = &w5300_netdev_ops;
 	ndev->ethtool_ops = &w5300_ethtool_ops;
 	ndev->watchdog_timeo = HZ;
-	netif_napi_add(ndev, &priv->napi, w5300_napi_poll, 16);
+	netif_napi_add_weight(ndev, &priv->napi, w5300_napi_poll, 16);
 
 	/* This chip doesn't support VLAN packets with normal MTU,
 	 * so disable VLAN for this device.

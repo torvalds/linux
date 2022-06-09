@@ -433,9 +433,12 @@ int kvmppc_hcall_impl_pr(unsigned long cmd)
 	case H_REMOVE:
 	case H_PROTECT:
 	case H_BULK_REMOVE:
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	case H_GET_TCE:
 	case H_PUT_TCE:
 	case H_PUT_TCE_INDIRECT:
 	case H_STUFF_TCE:
+#endif
 	case H_CEDE:
 	case H_LOGICAL_CI_LOAD:
 	case H_LOGICAL_CI_STORE:
@@ -464,7 +467,10 @@ static unsigned int default_hcall_list[] = {
 	H_REMOVE,
 	H_PROTECT,
 	H_BULK_REMOVE,
+#ifdef CONFIG_SPAPR_TCE_IOMMU
+	H_GET_TCE,
 	H_PUT_TCE,
+#endif
 	H_CEDE,
 	H_SET_MODE,
 #ifdef CONFIG_KVM_XICS

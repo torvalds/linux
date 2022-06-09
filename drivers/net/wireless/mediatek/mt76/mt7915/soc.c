@@ -12,6 +12,7 @@
 #include <linux/iopoll.h>
 #include <linux/reset.h>
 #include <linux/of_net.h>
+#include <linux/clk.h>
 
 #include "mt7915.h"
 
@@ -210,6 +211,8 @@ static int mt7986_wmac_gpio_setup(struct mt7915_dev *dev)
 		if (IS_ERR_OR_NULL(state))
 			return -EINVAL;
 		break;
+	default:
+		return -EINVAL;
 	}
 
 	ret = pinctrl_select_state(pinctrl, state);
@@ -468,17 +471,32 @@ static int mt7986_wmac_adie_xtal_trim_7976(struct mt7915_dev *dev, u8 adie)
 
 static int mt7986_wmac_adie_patch_7976(struct mt7915_dev *dev, u8 adie)
 {
+	u32 id, version, rg_xo_01, rg_xo_03;
 	int ret;
+
+	ret = mt76_wmac_spi_read(dev, adie, MT_ADIE_CHIP_ID, &id);
+	if (ret)
+		return ret;
+
+	version = FIELD_GET(MT_ADIE_VERSION_MASK, id);
 
 	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_TOP_THADC, 0x4a563b00);
 	if (ret)
 		return ret;
 
-	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, 0x1d59080f);
+	if (version == 0x8a00 || version == 0x8a10 || version == 0x8b00) {
+		rg_xo_01 = 0x1d59080f;
+		rg_xo_03 = 0x34c00fe0;
+	} else {
+		rg_xo_01 = 0x1959f80f;
+		rg_xo_03 = 0x34d00fe0;
+	}
+
+	ret = mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_01, rg_xo_01);
 	if (ret)
 		return ret;
 
-	return mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, 0x34c00fe0);
+	return mt76_wmac_spi_write(dev, adie, MT_ADIE_RG_XO_03, rg_xo_03);
 }
 
 static int
@@ -1115,6 +1133,19 @@ static int mt7986_wmac_init(struct mt7915_dev *dev)
 {
 	struct device *pdev = dev->mt76.dev;
 	struct platform_device *pfdev = to_platform_device(pdev);
+	struct clk *mcu_clk, *ap_conn_clk;
+
+	mcu_clk = devm_clk_get(pdev, "mcu");
+	if (IS_ERR(mcu_clk))
+		dev_err(pdev, "mcu clock not found\n");
+	else if (clk_prepare_enable(mcu_clk))
+		dev_err(pdev, "mcu clock configuration failed\n");
+
+	ap_conn_clk = devm_clk_get(pdev, "ap2conn");
+	if (IS_ERR(ap_conn_clk))
+		dev_err(pdev, "ap2conn clock not found\n");
+	else if (clk_prepare_enable(ap_conn_clk))
+		dev_err(pdev, "ap2conn clock configuration failed\n");
 
 	dev->dcm = devm_platform_ioremap_resource(pfdev, 1);
 	if (IS_ERR(dev->dcm))
@@ -1128,7 +1159,7 @@ static int mt7986_wmac_init(struct mt7915_dev *dev)
 	if (IS_ERR(dev->rstc))
 		return PTR_ERR(dev->rstc);
 
-	return mt7986_wmac_enable(dev);
+	return 0;
 }
 
 static int mt7986_wmac_probe(struct platform_device *pdev)
@@ -1161,11 +1192,11 @@ static int mt7986_wmac_probe(struct platform_device *pdev)
 	if (ret)
 		goto free_device;
 
-	mt76_wr(dev, MT_INT_MASK_CSR, 0);
-
 	ret = mt7986_wmac_init(dev);
 	if (ret)
 		goto free_irq;
+
+	mt7915_wfsys_reset(dev);
 
 	ret = mt7915_register_device(dev);
 	if (ret)

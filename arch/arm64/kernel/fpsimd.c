@@ -237,10 +237,19 @@ static void __get_cpu_fpsimd_context(void)
  *
  * The double-underscore version must only be called if you know the task
  * can't be preempted.
+ *
+ * On RT kernels local_bh_disable() is not sufficient because it only
+ * serializes soft interrupt related sections via a local lock, but stays
+ * preemptible. Disabling preemption is the right choice here as bottom
+ * half processing is always in thread context on RT kernels so it
+ * implicitly prevents bottom half processing as well.
  */
 static void get_cpu_fpsimd_context(void)
 {
-	local_bh_disable();
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		local_bh_disable();
+	else
+		preempt_disable();
 	__get_cpu_fpsimd_context();
 }
 
@@ -261,29 +270,15 @@ static void __put_cpu_fpsimd_context(void)
 static void put_cpu_fpsimd_context(void)
 {
 	__put_cpu_fpsimd_context();
-	local_bh_enable();
+	if (!IS_ENABLED(CONFIG_PREEMPT_RT))
+		local_bh_enable();
+	else
+		preempt_enable();
 }
 
 static bool have_cpu_fpsimd_context(void)
 {
 	return !preemptible() && __this_cpu_read(fpsimd_context_busy);
-}
-
-/*
- * Call __sve_free() directly only if you know task can't be scheduled
- * or preempted.
- */
-static void __sve_free(struct task_struct *task)
-{
-	kfree(task->thread.sve_state);
-	task->thread.sve_state = NULL;
-}
-
-static void sve_free(struct task_struct *task)
-{
-	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
-
-	__sve_free(task);
 }
 
 unsigned int task_get_vl(const struct task_struct *task, enum vec_type type)
@@ -398,7 +393,7 @@ static void task_fpsimd_load(void)
 		if (test_thread_flag(TIF_SME))
 			sme_set_vq(sve_vq_from_vl(sme_vl) - 1);
 
-		write_sysreg_s(current->thread.svcr, SYS_SVCR_EL0);
+		write_sysreg_s(current->thread.svcr, SYS_SVCR);
 
 		if (thread_za_enabled(&current->thread))
 			za_load_state(current->thread.za_state);
@@ -450,15 +445,15 @@ static void fpsimd_save(void)
 
 	if (system_supports_sme()) {
 		u64 *svcr = last->svcr;
-		*svcr = read_sysreg_s(SYS_SVCR_EL0);
+		*svcr = read_sysreg_s(SYS_SVCR);
 
-		*svcr = read_sysreg_s(SYS_SVCR_EL0);
+		*svcr = read_sysreg_s(SYS_SVCR);
 
-		if (*svcr & SYS_SVCR_EL0_ZA_MASK)
+		if (*svcr & SVCR_ZA_MASK)
 			za_save_state(last->za_state);
 
 		/* If we are in streaming mode override regular SVE. */
-		if (*svcr & SYS_SVCR_EL0_SM_MASK) {
+		if (*svcr & SVCR_SM_MASK) {
 			save_sve_regs = true;
 			save_ffr = system_supports_fa64();
 			vl = last->sme_vl;
@@ -678,6 +673,22 @@ static void sve_to_fpsimd(struct task_struct *task)
 }
 
 #ifdef CONFIG_ARM64_SVE
+/*
+ * Call __sve_free() directly only if you know task can't be scheduled
+ * or preempted.
+ */
+static void __sve_free(struct task_struct *task)
+{
+	kfree(task->thread.sve_state);
+	task->thread.sve_state = NULL;
+}
+
+static void sve_free(struct task_struct *task)
+{
+	WARN_ON(test_tsk_thread_flag(task, TIF_SVE));
+
+	__sve_free(task);
+}
 
 /*
  * Return how many bytes of memory are required to store the full SVE
@@ -840,8 +851,8 @@ int vec_set_vector_length(struct task_struct *task, enum vec_type type,
 		sve_to_fpsimd(task);
 
 	if (system_supports_sme() && type == ARM64_VEC_SME) {
-		task->thread.svcr &= ~(SYS_SVCR_EL0_SM_MASK |
-				       SYS_SVCR_EL0_ZA_MASK);
+		task->thread.svcr &= ~(SVCR_SM_MASK |
+				       SVCR_ZA_MASK);
 		clear_thread_flag(TIF_SME);
 	}
 
@@ -1370,7 +1381,7 @@ static void sve_init_regs(void)
  * would have disabled the SVE access trap for userspace during
  * ret_to_user, making an SVE access trap impossible in that case.
  */
-void do_sve_acc(unsigned int esr, struct pt_regs *regs)
+void do_sve_acc(unsigned long esr, struct pt_regs *regs)
 {
 	/* Even if we chose not to use SVE, the hardware could still trap: */
 	if (unlikely(!system_supports_sve()) || WARN_ON(is_compat_task())) {
@@ -1412,7 +1423,7 @@ void do_sve_acc(unsigned int esr, struct pt_regs *regs)
  * would have disabled the SME access trap for userspace during
  * ret_to_user, making an SVE access trap impossible in that case.
  */
-void do_sme_acc(unsigned int esr, struct pt_regs *regs)
+void do_sme_acc(unsigned long esr, struct pt_regs *regs)
 {
 	/* Even if we chose not to use SME, the hardware could still trap: */
 	if (unlikely(!system_supports_sme()) || WARN_ON(is_compat_task())) {
@@ -1467,7 +1478,7 @@ void do_sme_acc(unsigned int esr, struct pt_regs *regs)
 /*
  * Trapped FP/ASIMD access.
  */
-void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs)
+void do_fpsimd_acc(unsigned long esr, struct pt_regs *regs)
 {
 	/* TODO: implement lazy context saving/restoring */
 	WARN_ON(1);
@@ -1476,7 +1487,7 @@ void do_fpsimd_acc(unsigned int esr, struct pt_regs *regs)
 /*
  * Raise a SIGFPE for the current process.
  */
-void do_fpsimd_exc(unsigned int esr, struct pt_regs *regs)
+void do_fpsimd_exc(unsigned long esr, struct pt_regs *regs)
 {
 	unsigned int si_code = FPE_FLTUNK;
 
@@ -1562,6 +1573,9 @@ static void fpsimd_flush_thread_vl(enum vec_type type)
 
 void fpsimd_flush_thread(void)
 {
+	void *sve_state = NULL;
+	void *za_state = NULL;
+
 	if (!system_supports_fpsimd())
 		return;
 
@@ -1573,18 +1587,28 @@ void fpsimd_flush_thread(void)
 
 	if (system_supports_sve()) {
 		clear_thread_flag(TIF_SVE);
-		sve_free(current);
+
+		/* Defer kfree() while in atomic context */
+		sve_state = current->thread.sve_state;
+		current->thread.sve_state = NULL;
+
 		fpsimd_flush_thread_vl(ARM64_VEC_SVE);
 	}
 
 	if (system_supports_sme()) {
 		clear_thread_flag(TIF_SME);
-		sme_free(current);
+
+		/* Defer kfree() while in atomic context */
+		za_state = current->thread.za_state;
+		current->thread.za_state = NULL;
+
 		fpsimd_flush_thread_vl(ARM64_VEC_SME);
 		current->thread.svcr = 0;
 	}
 
 	put_cpu_fpsimd_context();
+	kfree(sve_state);
+	kfree(za_state);
 }
 
 /*
@@ -1890,10 +1914,10 @@ void __efi_fpsimd_begin(void)
 			__this_cpu_write(efi_sve_state_used, true);
 
 			if (system_supports_sme()) {
-				svcr = read_sysreg_s(SYS_SVCR_EL0);
+				svcr = read_sysreg_s(SYS_SVCR);
 
 				if (!system_supports_fa64())
-					ffr = svcr & SYS_SVCR_EL0_SM_MASK;
+					ffr = svcr & SVCR_SM_MASK;
 
 				__this_cpu_write(efi_sm_state, ffr);
 			}
@@ -1903,8 +1927,8 @@ void __efi_fpsimd_begin(void)
 				       ffr);
 
 			if (system_supports_sme())
-				sysreg_clear_set_s(SYS_SVCR_EL0,
-						   SYS_SVCR_EL0_SM_MASK, 0);
+				sysreg_clear_set_s(SYS_SVCR,
+						   SVCR_SM_MASK, 0);
 
 		} else {
 			fpsimd_save_state(this_cpu_ptr(&efi_fpsimd_state));
@@ -1937,9 +1961,9 @@ void __efi_fpsimd_end(void)
 			 */
 			if (system_supports_sme()) {
 				if (__this_cpu_read(efi_sm_state)) {
-					sysreg_clear_set_s(SYS_SVCR_EL0,
+					sysreg_clear_set_s(SYS_SVCR,
 							   0,
-							   SYS_SVCR_EL0_SM_MASK);
+							   SVCR_SM_MASK);
 					if (!system_supports_fa64())
 						ffr = efi_sm_state;
 				}

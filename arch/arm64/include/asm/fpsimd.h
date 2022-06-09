@@ -32,6 +32,18 @@
 #define VFP_STATE_SIZE		((32 * 8) + 4)
 #endif
 
+/*
+ * When we defined the maximum SVE vector length we defined the ABI so
+ * that the maximum vector length included all the reserved for future
+ * expansion bits in ZCR rather than those just currently defined by
+ * the architecture. While SME follows a similar pattern the fact that
+ * it includes a square matrix means that any allocations that attempt
+ * to cover the maximum potential vector length (such as happen with
+ * the regset used for ptrace) end up being extremely large. Define
+ * the much lower actual limit for use in such situations.
+ */
+#define SME_VQ_MAX	16
+
 struct task_struct;
 
 extern void fpsimd_save_state(struct user_fpsimd_state *state);
@@ -55,12 +67,12 @@ extern void fpsimd_save_and_flush_cpu_state(void);
 
 static inline bool thread_sm_enabled(struct thread_struct *thread)
 {
-	return system_supports_sme() && (thread->svcr & SYS_SVCR_EL0_SM_MASK);
+	return system_supports_sme() && (thread->svcr & SVCR_SM_MASK);
 }
 
 static inline bool thread_za_enabled(struct thread_struct *thread)
 {
-	return system_supports_sme() && (thread->svcr & SYS_SVCR_EL0_ZA_MASK);
+	return system_supports_sme() && (thread->svcr & SVCR_ZA_MASK);
 }
 
 /* Maximum VL that SVE/SME VL-agnostic software can transparently support */

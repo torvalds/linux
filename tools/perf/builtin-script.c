@@ -1742,16 +1742,44 @@ static int perf_sample__fprintf_pt_spacing(int len, FILE *fp)
 	return perf_sample__fprintf_spacing(len, 34, fp);
 }
 
+/* If a value contains only printable ASCII characters padded with NULLs */
+static bool ptw_is_prt(u64 val)
+{
+	char c;
+	u32 i;
+
+	for (i = 0; i < sizeof(val); i++) {
+		c = ((char *)&val)[i];
+		if (!c)
+			break;
+		if (!isprint(c) || !isascii(c))
+			return false;
+	}
+	for (; i < sizeof(val); i++) {
+		c = ((char *)&val)[i];
+		if (c)
+			return false;
+	}
+	return true;
+}
+
 static int perf_sample__fprintf_synth_ptwrite(struct perf_sample *sample, FILE *fp)
 {
 	struct perf_synth_intel_ptwrite *data = perf_sample__synth_ptr(sample);
+	char str[sizeof(u64) + 1] = "";
 	int len;
+	u64 val;
 
 	if (perf_sample__bad_synth_size(sample, *data))
 		return 0;
 
-	len = fprintf(fp, " IP: %u payload: %#" PRIx64 " ",
-		     data->ip, le64_to_cpu(data->payload));
+	val = le64_to_cpu(data->payload);
+	if (ptw_is_prt(val)) {
+		memcpy(str, &val, sizeof(val));
+		str[sizeof(val)] = 0;
+	}
+	len = fprintf(fp, " IP: %u payload: %#" PRIx64 " %s ",
+		      data->ip, val, str);
 	return len + perf_sample__fprintf_pt_spacing(len, fp);
 }
 
@@ -3884,6 +3912,8 @@ int cmd_script(int argc, const char **argv)
 		   "file", "file saving guest os /proc/kallsyms"),
 	OPT_STRING(0, "guestmodules", &symbol_conf.default_guest_modules,
 		   "file", "file saving guest os /proc/modules"),
+	OPT_BOOLEAN(0, "guest-code", &symbol_conf.guest_code,
+		    "Guest code can be found in hypervisor process"),
 	OPT_BOOLEAN('\0', "stitch-lbr", &script.stitch_lbr,
 		    "Enable LBR callgraph stitching approach"),
 	OPTS_EVSWITCH(&script.evswitch),
@@ -3909,7 +3939,8 @@ int cmd_script(int argc, const char **argv)
 	if (symbol_conf.guestmount ||
 	    symbol_conf.default_guest_vmlinux_name ||
 	    symbol_conf.default_guest_kallsyms ||
-	    symbol_conf.default_guest_modules) {
+	    symbol_conf.default_guest_modules ||
+	    symbol_conf.guest_code) {
 		/*
 		 * Enable guest sample processing.
 		 */

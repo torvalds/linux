@@ -197,7 +197,7 @@ static ssize_t lpc_debug_read(struct file *filp, char __user *ubuf,
 
 		/*
 		 * Select access size based on count and alignment and
-		 * access type. IO and MEM only support byte acceses,
+		 * access type. IO and MEM only support byte accesses,
 		 * FW supports all 3.
 		 */
 		len = 1;

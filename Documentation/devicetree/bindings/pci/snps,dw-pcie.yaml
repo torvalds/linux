@@ -68,6 +68,8 @@ properties:
       Translation Unit) registers.
 
   num-viewport:
+    $ref: /schemas/types.yaml#/definitions/uint32
+    maximum: 256
     description: |
       number of view ports configured in hardware. If a platform
       does not specify it, the driver autodetects it.

@@ -2039,12 +2039,13 @@ static void scsi_eh_lock_door(struct scsi_device *sdev)
 	scmd->cmnd[4] = SCSI_REMOVAL_PREVENT;
 	scmd->cmnd[5] = 0;
 	scmd->cmd_len = COMMAND_SIZE(scmd->cmnd[0]);
+	scmd->allowed = 5;
 
 	req->rq_flags |= RQF_QUIET;
 	req->timeout = 10 * HZ;
-	scmd->allowed = 5;
+	req->end_io = eh_lock_door_done;
 
-	blk_execute_rq_nowait(req, true, eh_lock_door_done);
+	blk_execute_rq_nowait(req, true);
 }
 
 /**

@@ -110,7 +110,7 @@
 				compatible = "simple-bus";
 				#address-cells = <1>;
 				#size-cells = <1>;
-				ranges = <0 3 0 0x200000>;
+				ranges = <0 3 0 0x210000>;
 
 				v2m_sysreg: sysreg@10000 {
 					compatible = "arm,vexpress-sysreg";
@@ -222,7 +222,7 @@
 					clock-names = "timclken1", "timclken2", "apb_pclk";
 				};
 
-				virtio-block@130000 {
+				virtio@130000 {
 					compatible = "virtio,mmio";
 					reg = <0x130000 0x200>;
 					interrupts = <42>;

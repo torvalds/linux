@@ -86,6 +86,33 @@ cifs_ses_get_chan_index(struct cifs_ses *ses,
 }
 
 void
+cifs_chan_set_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	ses->chans[chan_index].in_reconnect = true;
+}
+
+void
+cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	ses->chans[chan_index].in_reconnect = false;
+}
+
+bool
+cifs_chan_in_reconnect(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server)
+{
+	unsigned int chan_index = cifs_ses_get_chan_index(ses, server);
+
+	return CIFS_CHAN_IN_RECONNECT(ses, chan_index);
+}
+
+void
 cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server)
 {
@@ -714,9 +741,9 @@ static int size_of_ntlmssp_blob(struct cifs_ses *ses, int base_size)
 	else
 		sz += sizeof(__le16);
 
-	if (ses->workstation_name)
+	if (ses->workstation_name[0])
 		sz += sizeof(__le16) * strnlen(ses->workstation_name,
-			CIFS_MAX_WORKSTATION_LEN);
+					       ntlmssp_workstation_name_size(ses));
 	else
 		sz += sizeof(__le16);
 
@@ -960,7 +987,7 @@ int build_ntlmssp_auth_blob(unsigned char **pbuffer,
 
 	cifs_security_buffer_from_str(&sec_blob->WorkstationName,
 				      ses->workstation_name,
-				      CIFS_MAX_WORKSTATION_LEN,
+				      ntlmssp_workstation_name_size(ses),
 				      *pbuffer, &tmp,
 				      nls_cp);
 
@@ -1093,14 +1120,14 @@ sess_establish_session(struct sess_data *sess_data)
 	struct cifs_ses *ses = sess_data->ses;
 	struct TCP_Server_Info *server = sess_data->server;
 
-	mutex_lock(&server->srv_mutex);
+	cifs_server_lock(server);
 	if (!server->session_estab) {
 		if (server->sign) {
 			server->session_key.response =
 				kmemdup(ses->auth_key.response,
 				ses->auth_key.len, GFP_KERNEL);
 			if (!server->session_key.response) {
-				mutex_unlock(&server->srv_mutex);
+				cifs_server_unlock(server);
 				return -ENOMEM;
 			}
 			server->session_key.len =
@@ -1109,7 +1136,7 @@ sess_establish_session(struct sess_data *sess_data)
 		server->sequence_number = 0x2;
 		server->session_estab = true;
 	}
-	mutex_unlock(&server->srv_mutex);
+	cifs_server_unlock(server);
 
 	cifs_dbg(FYI, "CIFS session established successfully\n");
 	return 0;

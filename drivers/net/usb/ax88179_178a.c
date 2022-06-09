@@ -1382,7 +1382,7 @@ static int ax88179_bind(struct usbnet *dev, struct usb_interface *intf)
 
 	dev->net->hw_features |= dev->net->features;
 
-	netif_set_gso_max_size(dev->net, 16384);
+	netif_set_tso_max_size(dev->net, 16384);
 
 	/* Enable checksum offload */
 	*tmp = AX_RXCOE_IP | AX_RXCOE_TCP | AX_RXCOE_UDP |

@@ -80,7 +80,7 @@ static ssize_t mcp4725_store_eeprom(struct device *dev,
 	bool state;
 	int ret;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret < 0)
 		return ret;
 
@@ -178,7 +178,7 @@ static ssize_t mcp4725_write_powerdown(struct iio_dev *indio_dev,
 	bool state;
 	int ret;
 
-	ret = strtobool(buf, &state);
+	ret = kstrtobool(buf, &state);
 	if (ret)
 		return ret;
 

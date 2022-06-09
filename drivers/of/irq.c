@@ -284,7 +284,7 @@ int of_irq_parse_raw(const __be32 *addr, struct of_phandle_args *out_irq)
 		}
 
 		/*
-		 * Successfully parsed an interrrupt-map translation; copy new
+		 * Successfully parsed an interrupt-map translation; copy new
 		 * interrupt specifier into the out_irq structure
 		 */
 		match_array = imap - newaddrsize - newintsize;
@@ -550,9 +550,18 @@ void __init of_irq_init(const struct of_device_id *matches)
 
 		desc->irq_init_cb = match->data;
 		desc->dev = of_node_get(np);
-		desc->interrupt_parent = of_irq_find_parent(np);
-		if (desc->interrupt_parent == np)
+		/*
+		 * interrupts-extended can reference multiple parent domains.
+		 * Arbitrarily pick the first one; assume any other parents
+		 * are the same distance away from the root irq controller.
+		 */
+		desc->interrupt_parent = of_parse_phandle(np, "interrupts-extended", 0);
+		if (!desc->interrupt_parent)
+			desc->interrupt_parent = of_irq_find_parent(np);
+		if (desc->interrupt_parent == np) {
+			of_node_put(desc->interrupt_parent);
 			desc->interrupt_parent = NULL;
+		}
 		list_add_tail(&desc->list, &intc_desc_list);
 	}
 

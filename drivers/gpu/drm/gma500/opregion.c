@@ -23,6 +23,7 @@
  */
 #include <linux/acpi.h>
 #include "psb_drv.h"
+#include "psb_irq.h"
 #include "psb_intel_reg.h"
 
 #define PCI_ASLE 0xe4
@@ -217,8 +218,8 @@ void psb_intel_opregion_enable_asle(struct drm_device *dev)
 	if (asle && system_opregion ) {
 		/* Don't do this on Medfield or other non PC like devices, they
 		   use the bit for something different altogether */
-		psb_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
-		psb_enable_pipestat(dev_priv, 1, PIPE_LEGACY_BLC_EVENT_ENABLE);
+		gma_enable_pipestat(dev_priv, 0, PIPE_LEGACY_BLC_EVENT_ENABLE);
+		gma_enable_pipestat(dev_priv, 1, PIPE_LEGACY_BLC_EVENT_ENABLE);
 
 		asle->tche = ASLE_ALS_EN | ASLE_BLC_EN | ASLE_PFIT_EN
 								| ASLE_PFMB_EN;

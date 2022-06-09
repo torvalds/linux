@@ -867,10 +867,10 @@ static int sve_set_common(struct task_struct *target,
 
 		switch (type) {
 		case ARM64_VEC_SVE:
-			target->thread.svcr &= ~SYS_SVCR_EL0_SM_MASK;
+			target->thread.svcr &= ~SVCR_SM_MASK;
 			break;
 		case ARM64_VEC_SME:
-			target->thread.svcr |= SYS_SVCR_EL0_SM_MASK;
+			target->thread.svcr |= SVCR_SM_MASK;
 			break;
 		default:
 			WARN_ON_ONCE(1);
@@ -1100,7 +1100,7 @@ static int za_set(struct task_struct *target,
 
 	/* If there is no data then disable ZA */
 	if (!count) {
-		target->thread.svcr &= ~SYS_SVCR_EL0_ZA_MASK;
+		target->thread.svcr &= ~SVCR_ZA_MASK;
 		goto out;
 	}
 
@@ -1125,7 +1125,7 @@ static int za_set(struct task_struct *target,
 
 	/* Mark ZA as active and let userspace use it */
 	set_tsk_thread_flag(target, TIF_SME);
-	target->thread.svcr |= SYS_SVCR_EL0_ZA_MASK;
+	target->thread.svcr |= SVCR_ZA_MASK;
 
 out:
 	fpsimd_flush_task_state(target);
@@ -1438,7 +1438,7 @@ static const struct user_regset aarch64_regsets[] = {
 #ifdef CONFIG_ARM64_SME
 	[REGSET_SSVE] = { /* Streaming mode SVE */
 		.core_note_type = NT_ARM_SSVE,
-		.n = DIV_ROUND_UP(SVE_PT_SIZE(SVE_VQ_MAX, SVE_PT_REGS_SVE),
+		.n = DIV_ROUND_UP(SVE_PT_SIZE(SME_VQ_MAX, SVE_PT_REGS_SVE),
 				  SVE_VQ_BYTES),
 		.size = SVE_VQ_BYTES,
 		.align = SVE_VQ_BYTES,
@@ -1447,7 +1447,15 @@ static const struct user_regset aarch64_regsets[] = {
 	},
 	[REGSET_ZA] = { /* SME ZA */
 		.core_note_type = NT_ARM_ZA,
-		.n = DIV_ROUND_UP(ZA_PT_ZA_SIZE(SVE_VQ_MAX), SVE_VQ_BYTES),
+		/*
+		 * ZA is a single register but it's variably sized and
+		 * the ptrace core requires that the size of any data
+		 * be an exact multiple of the configured register
+		 * size so report as though we had SVE_VQ_BYTES
+		 * registers. These values aren't exposed to
+		 * userspace.
+		 */
+		.n = DIV_ROUND_UP(ZA_PT_SIZE(SME_VQ_MAX), SVE_VQ_BYTES),
 		.size = SVE_VQ_BYTES,
 		.align = SVE_VQ_BYTES,
 		.regset_get = za_get,

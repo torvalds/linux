@@ -21,7 +21,6 @@
 
 #ifdef CONFIG_BSD_PROCESS_ACCT
 struct pid_namespace;
-extern int acct_parm[]; /* for sysctl */
 extern void acct_collect(long exitcode, int group_dead);
 extern void acct_process(void);
 extern void acct_exit_ns(struct pid_namespace *);

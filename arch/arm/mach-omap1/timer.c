@@ -26,6 +26,7 @@
 #include <linux/slab.h>
 #include <linux/platform_device.h>
 #include <linux/platform_data/dmtimer-omap.h>
+#include <linux/soc/ti/omap1-io.h>
 
 #include <clocksource/timer-ti-dm.h>
 

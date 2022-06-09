@@ -428,11 +428,12 @@ static const struct fb_ops picolcdfb_ops = {
 	.fb_imageblit = picolcd_fb_imageblit,
 	.fb_check_var = picolcd_fb_check_var,
 	.fb_set_par   = picolcd_set_par,
+	.fb_mmap      = fb_deferred_io_mmap,
 };
 
 
 /* Callback from deferred IO workqueue */
-static void picolcd_fb_deferred_io(struct fb_info *info, struct list_head *pagelist)
+static void picolcd_fb_deferred_io(struct fb_info *info, struct list_head *pagereflist)
 {
 	picolcd_fb_update(info);
 }

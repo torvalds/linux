@@ -41,6 +41,17 @@ static int example_test_init(struct kunit *test)
 }
 
 /*
+ * This is run once before all test cases in the suite.
+ * See the comment on example_test_suite for more information.
+ */
+static int example_test_init_suite(struct kunit_suite *suite)
+{
+	kunit_info(suite, "initializing suite\n");
+
+	return 0;
+}
+
+/*
  * This test should always be skipped.
  */
 static void example_skip_test(struct kunit *test)
@@ -91,6 +102,8 @@ static void example_all_expect_macros_test(struct kunit *test)
 	KUNIT_EXPECT_NOT_ERR_OR_NULL(test, test);
 	KUNIT_EXPECT_PTR_EQ(test, NULL, NULL);
 	KUNIT_EXPECT_PTR_NE(test, test, NULL);
+	KUNIT_EXPECT_NULL(test, NULL);
+	KUNIT_EXPECT_NOT_NULL(test, test);
 
 	/* String assertions */
 	KUNIT_EXPECT_STREQ(test, "hi", "hi");
@@ -140,17 +153,20 @@ static struct kunit_case example_test_cases[] = {
  * may be specified which runs after every test case and can be used to for
  * cleanup. For clarity, running tests in a test suite would behave as follows:
  *
+ * suite.suite_init(suite);
  * suite.init(test);
  * suite.test_case[0](test);
  * suite.exit(test);
  * suite.init(test);
  * suite.test_case[1](test);
  * suite.exit(test);
+ * suite.suite_exit(suite);
  * ...;
  */
 static struct kunit_suite example_test_suite = {
 	.name = "example",
 	.init = example_test_init,
+	.suite_init = example_test_init_suite,
 	.test_cases = example_test_cases,
 };
 

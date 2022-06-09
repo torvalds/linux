@@ -26,6 +26,7 @@ properties:
       - items:
           - enum:
               - renesas,sata-r8a774b1     # RZ/G2N
+              - renesas,sata-r8a774e1     # RZ/G2H
               - renesas,sata-r8a7795      # R-Car H3
               - renesas,sata-r8a77965     # R-Car M3-N
           - const: renesas,rcar-gen3-sata # generic R-Car Gen3 or RZ/G2

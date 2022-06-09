@@ -155,6 +155,11 @@ static struct uvc_format_desc uvc_fmts[] = {
 		.fcc		= V4L2_PIX_FMT_H264,
 	},
 	{
+		.name		= "H.265",
+		.guid		= UVC_GUID_FORMAT_H265,
+		.fcc		= V4L2_PIX_FMT_HEVC,
+	},
+	{
 		.name		= "Greyscale 8 L/R (Y8I)",
 		.guid		= UVC_GUID_FORMAT_Y8I,
 		.fcc		= V4L2_PIX_FMT_Y8I,
@@ -1009,9 +1014,7 @@ static int uvc_parse_streaming(struct uvc_device *dev,
 				streaming->header.bEndpointAddress);
 		if (ep == NULL)
 			continue;
-
-		psize = le16_to_cpu(ep->desc.wMaxPacketSize);
-		psize = (psize & 0x07ff) * (1 + ((psize >> 11) & 3));
+		psize = uvc_endpoint_max_bpi(dev->udev, ep);
 		if (psize > streaming->maxpsize)
 			streaming->maxpsize = psize;
 	}
@@ -2443,7 +2446,7 @@ static int uvc_probe(struct usb_interface *intf,
 			 "Forcing device quirks to 0x%x by module parameter for testing purpose.\n",
 			 dev->quirks);
 		dev_info(&dev->udev->dev,
-			 "Please report required quirks to the linux-uvc-devel mailing list.\n");
+			 "Please report required quirks to the linux-media mailing list.\n");
 	}
 
 	if (dev->info->uvc_version) {

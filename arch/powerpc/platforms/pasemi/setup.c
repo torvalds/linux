@@ -18,8 +18,8 @@
 #include <linux/pci.h>
 #include <linux/of_platform.h>
 #include <linux/gfp.h>
+#include <linux/irqdomain.h>
 
-#include <asm/prom.h>
 #include <asm/iommu.h>
 #include <asm/machdep.h>
 #include <asm/i8259.h>

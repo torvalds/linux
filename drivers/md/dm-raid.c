@@ -2963,13 +2963,8 @@ static void configure_discard_support(struct raid_set *rs)
 	raid456 = rs_is_raid456(rs);
 
 	for (i = 0; i < rs->raid_disks; i++) {
-		struct request_queue *q;
-
-		if (!rs->dev[i].rdev.bdev)
-			continue;
-
-		q = bdev_get_queue(rs->dev[i].rdev.bdev);
-		if (!q || !blk_queue_discard(q))
+		if (!rs->dev[i].rdev.bdev ||
+		    !bdev_max_discard_sectors(rs->dev[i].rdev.bdev))
 			return;
 
 		if (raid456) {
@@ -3730,7 +3725,7 @@ static int raid_message(struct dm_target *ti, unsigned int argc, char **argv,
 	if (!strcasecmp(argv[0], "idle") || !strcasecmp(argv[0], "frozen")) {
 		if (mddev->sync_thread) {
 			set_bit(MD_RECOVERY_INTR, &mddev->recovery);
-			md_reap_sync_thread(mddev);
+			md_reap_sync_thread(mddev, false);
 		}
 	} else if (decipher_sync_action(mddev, mddev->recovery) != st_idle)
 		return -EBUSY;

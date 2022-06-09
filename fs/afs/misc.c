@@ -163,8 +163,11 @@ void afs_prioritise_error(struct afs_error *e, int error, u32 abort_code)
 		return;
 
 	case -ECONNABORTED:
+		error = afs_abort_to_error(abort_code);
+		fallthrough;
+	case -ENETRESET: /* Responded, but we seem to have changed address */
 		e->responded = true;
-		e->error = afs_abort_to_error(abort_code);
+		e->error = error;
 		return;
 	}
 }

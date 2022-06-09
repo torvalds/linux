@@ -578,7 +578,7 @@ void ceph_evict_inode(struct inode *inode)
 
 	__ceph_remove_caps(ci);
 
-	if (__ceph_has_any_quota(ci))
+	if (__ceph_has_quota(ci, QUOTA_GET_ANY))
 		ceph_adjust_quota_realms_count(inode, false);
 
 	/*
@@ -1466,10 +1466,12 @@ retry_lookup:
 			} else if (have_lease) {
 				if (d_unhashed(dn))
 					d_add(dn, NULL);
+			}
+
+			if (!d_unhashed(dn) && have_lease)
 				update_dentry_lease(dir, dn,
 						    rinfo->dlease, session,
 						    req->r_request_started);
-			}
 			goto done;
 		}
 
@@ -1884,7 +1886,6 @@ static void ceph_do_invalidate_pages(struct inode *inode)
 	orig_gen = ci->i_rdcache_gen;
 	spin_unlock(&ci->i_ceph_lock);
 
-	ceph_fscache_invalidate(inode, false);
 	if (invalidate_inode_pages2(inode->i_mapping) < 0) {
 		pr_err("invalidate_inode_pages2 %llx.%llx failed\n",
 		       ceph_vinop(inode));
@@ -2258,6 +2259,30 @@ int ceph_setattr(struct user_namespace *mnt_userns, struct dentry *dentry,
 	return err;
 }
 
+int ceph_try_to_choose_auth_mds(struct inode *inode, int mask)
+{
+	int issued = ceph_caps_issued(ceph_inode(inode));
+
+	/*
+	 * If any 'x' caps is issued we can just choose the auth MDS
+	 * instead of the random replica MDSes. Because only when the
+	 * Locker is in LOCK_EXEC state will the loner client could
+	 * get the 'x' caps. And if we send the getattr requests to
+	 * any replica MDS it must auth pin and tries to rdlock from
+	 * the auth MDS, and then the auth MDS need to do the Locker
+	 * state transition to LOCK_SYNC. And after that the lock state
+	 * will change back.
+	 *
+	 * This cost much when doing the Locker state transition and
+	 * usually will need to revoke caps from clients.
+	 */
+	if (((mask & CEPH_CAP_ANY_SHARED) && (issued & CEPH_CAP_ANY_EXCL))
+	    || (mask & CEPH_STAT_RSTAT))
+		return USE_AUTH_MDS;
+	else
+		return USE_ANY_MDS;
+}
+
 /*
  * Verify that we have a lease on the given mask.  If not,
  * do a getattr against an mds.
@@ -2281,7 +2306,7 @@ int __ceph_do_getattr(struct inode *inode, struct page *locked_page,
 	if (!force && ceph_caps_issued_mask_metric(ceph_inode(inode), mask, 1))
 			return 0;
 
-	mode = (mask & CEPH_STAT_RSTAT) ? USE_AUTH_MDS : USE_ANY_MDS;
+	mode = ceph_try_to_choose_auth_mds(inode, mask);
 	req = ceph_mdsc_create_request(mdsc, CEPH_MDS_OP_GETATTR, mode);
 	if (IS_ERR(req))
 		return PTR_ERR(req);
@@ -2423,7 +2448,7 @@ int ceph_getattr(struct user_namespace *mnt_userns, const struct path *path,
 		return -ESTALE;
 
 	/* Skip the getattr altogether if we're asked not to sync */
-	if (!(flags & AT_STATX_DONT_SYNC)) {
+	if ((flags & AT_STATX_SYNC_TYPE) != AT_STATX_DONT_SYNC) {
 		err = ceph_do_getattr(inode,
 				statx_to_caps(request_mask, inode->i_mode),
 				flags & AT_STATX_FORCE_SYNC);

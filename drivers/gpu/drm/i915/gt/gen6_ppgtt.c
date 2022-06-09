@@ -322,7 +322,7 @@ int gen6_ppgtt_pin(struct i915_ppgtt *base, struct i915_gem_ww_ctx *ww)
 	struct gen6_ppgtt *ppgtt = to_gen6_ppgtt(base);
 	int err;
 
-	GEM_BUG_ON(!atomic_read(&ppgtt->base.vm.open));
+	GEM_BUG_ON(!kref_read(&ppgtt->base.vm.ref));
 
 	/*
 	 * Workaround the limited maximum vma->pin_count and the aliasing_ppgtt

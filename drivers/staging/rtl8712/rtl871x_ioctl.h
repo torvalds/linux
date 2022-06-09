@@ -13,7 +13,6 @@
 	#define OID_802_11_PMKID                        0x0d010123
 #endif
 
-
 /* For DDK-defined OIDs*/
 #define OID_NDIS_SEG1	0x00010100
 #define OID_NDIS_SEG2	0x00010200

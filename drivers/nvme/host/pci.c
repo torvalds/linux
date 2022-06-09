@@ -1438,8 +1438,10 @@ static enum blk_eh_timer_return nvme_timeout(struct request *req, bool reserved)
 	}
 	nvme_init_request(abort_req, &cmd);
 
+	abort_req->end_io = abort_endio;
 	abort_req->end_io_data = NULL;
-	blk_execute_rq_nowait(abort_req, false, abort_endio);
+	abort_req->rq_flags |= RQF_QUIET;
+	blk_execute_rq_nowait(abort_req, false);
 
 	/*
 	 * The aborted req will be completed on receiving the abort req.
@@ -1775,6 +1777,7 @@ static int nvme_alloc_admin_tags(struct nvme_dev *dev)
 		dev->ctrl.admin_q = blk_mq_init_queue(&dev->admin_tagset);
 		if (IS_ERR(dev->ctrl.admin_q)) {
 			blk_mq_free_tag_set(&dev->admin_tagset);
+			dev->ctrl.admin_q = NULL;
 			return -ENOMEM;
 		}
 		if (!blk_get_queue(dev->ctrl.admin_q)) {
@@ -2483,11 +2486,15 @@ static int nvme_delete_queue(struct nvme_queue *nvmeq, u8 opcode)
 		return PTR_ERR(req);
 	nvme_init_request(req, &cmd);
 
+	if (opcode == nvme_admin_delete_cq)
+		req->end_io = nvme_del_cq_end;
+	else
+		req->end_io = nvme_del_queue_end;
 	req->end_io_data = nvmeq;
 
 	init_completion(&nvmeq->delete_done);
-	blk_execute_rq_nowait(req, false, opcode == nvme_admin_delete_cq ?
-			nvme_del_cq_end : nvme_del_queue_end);
+	req->rq_flags |= RQF_QUIET;
+	blk_execute_rq_nowait(req, false);
 	return 0;
 }
 
@@ -2675,7 +2682,7 @@ static void nvme_dev_disable(struct nvme_dev *dev, bool shutdown)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 
 	mutex_lock(&dev->shutdown_lock);
-	if (pci_is_enabled(pdev)) {
+	if (pci_device_is_present(pdev) && pci_is_enabled(pdev)) {
 		u32 csts = readl(dev->bar + NVME_REG_CSTS);
 
 		if (dev->ctrl.state == NVME_CTRL_LIVE ||
@@ -3450,6 +3457,8 @@ static const struct pci_device_id nvme_id_table[] = {
 		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
 	{ PCI_DEVICE(0x2646, 0x2263),   /* KINGSTON A2000 NVMe SSD  */
 		.driver_data = NVME_QUIRK_NO_DEEPEST_PS, },
+	{ PCI_DEVICE(0x1e4B, 0x1001),   /* MAXIO MAP1001 */
+		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1e4B, 0x1002),   /* MAXIO MAP1002 */
 		.driver_data = NVME_QUIRK_BOGUS_NID, },
 	{ PCI_DEVICE(0x1e4B, 0x1202),   /* MAXIO MAP1202 */

@@ -26,7 +26,7 @@
 #include <asm/exception.h>
 #include <asm/mach/irq.h>
 
-#include <mach/irqs.h>
+#include "irqs.h"
 #include "regs-irq.h"
 #include "regs-gpio.h"
 

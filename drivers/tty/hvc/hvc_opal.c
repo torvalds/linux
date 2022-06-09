@@ -13,12 +13,12 @@
 #include <linux/slab.h>
 #include <linux/console.h>
 #include <linux/of.h>
+#include <linux/of_irq.h>
 #include <linux/of_platform.h>
 #include <linux/export.h>
 #include <linux/interrupt.h>
 
 #include <asm/hvconsole.h>
-#include <asm/prom.h>
 #include <asm/firmware.h>
 #include <asm/hvsi.h>
 #include <asm/udbg.h>
@@ -342,9 +342,9 @@ void __init hvc_opal_init_early(void)
 		 * path, so we hard wire it
 		 */
 		opal = of_find_node_by_path("/ibm,opal/consoles");
-		if (opal)
+		if (opal) {
 			pr_devel("hvc_opal: Found consoles in new location\n");
-		if (!opal) {
+		} else {
 			opal = of_find_node_by_path("/ibm,opal");
 			if (opal)
 				pr_devel("hvc_opal: "

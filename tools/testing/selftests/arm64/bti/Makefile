@@ -10,7 +10,7 @@ PROGS := $(patsubst %,gen/%,$(TEST_GEN_PROGS))
 # cases for statically linked and dynamically lined binaries are
 # slightly different.
 
-CFLAGS_NOBTI = -DBTI=0
+CFLAGS_NOBTI = -mbranch-protection=none -DBTI=0
 CFLAGS_BTI = -mbranch-protection=standard -DBTI=1
 
 CFLAGS_COMMON = -ffreestanding -Wall -Wextra $(CFLAGS)
@@ -39,7 +39,7 @@ BTI_OBJS =                                      \
 	teststubs-bti.o                         \
 	trampoline-bti.o
 gen/btitest: $(BTI_OBJS)
-	$(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -nostdlib -o $@ $^
+	$(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -nostdlib -static -o $@ $^
 
 NOBTI_OBJS =                                    \
 	test-nobti.o                         \
@@ -50,7 +50,7 @@ NOBTI_OBJS =                                    \
 	teststubs-nobti.o                       \
 	trampoline-nobti.o
 gen/nobtitest: $(NOBTI_OBJS)
-	$(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -nostdlib -o $@ $^
+	$(CC) $(CFLAGS_BTI) $(CFLAGS_COMMON) -nostdlib -static -o $@ $^
 
 # Including KSFT lib.mk here will also mangle the TEST_GEN_PROGS list
 # to account for any OUTPUT target-dirs optionally provided by

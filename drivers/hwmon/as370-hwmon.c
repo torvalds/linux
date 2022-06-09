@@ -76,18 +76,8 @@ as370_hwmon_is_visible(const void *data, enum hwmon_sensor_types type,
 	}
 }
 
-static const u32 as370_hwmon_temp_config[] = {
-	HWMON_T_INPUT,
-	0
-};
-
-static const struct hwmon_channel_info as370_hwmon_temp = {
-	.type = hwmon_temp,
-	.config = as370_hwmon_temp_config,
-};
-
 static const struct hwmon_channel_info *as370_hwmon_info[] = {
-	&as370_hwmon_temp,
+	HWMON_CHANNEL_INFO(temp, HWMON_T_INPUT),
 	NULL
 };
 

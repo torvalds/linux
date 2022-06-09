@@ -23,6 +23,7 @@ Required properties:
         "fsl,ls1012a-pcie"
         "fsl,ls1028a-pcie"
   EP mode:
+	"fsl,ls1028a-pcie-ep", "fsl,ls-pcie-ep"
 	"fsl,ls1046a-pcie-ep", "fsl,ls-pcie-ep"
 	"fsl,ls1088a-pcie-ep", "fsl,ls-pcie-ep"
 	"fsl,ls2088a-pcie-ep", "fsl,ls-pcie-ep"
@@ -30,39 +31,49 @@ Required properties:
 - reg: base addresses and lengths of the PCIe controller register blocks.
 - interrupts: A list of interrupt outputs of the controller. Must contain an
   entry for each entry in the interrupt-names property.
-- interrupt-names: Must include the following entries:
-  "intr": The interrupt that is asserted for controller interrupts
+- interrupt-names: It could include the following entries:
+  "aer": Used for interrupt line which reports AER events when
+	 non MSI/MSI-X/INTx mode is used
+  "pme": Used for interrupt line which reports PME events when
+	 non MSI/MSI-X/INTx mode is used
+  "intr": Used for SoCs(like ls2080a, lx2160a, ls2080a, ls2088a, ls1088a)
+	  which has a single interrupt line for miscellaneous controller
+	  events(could include AER and PME events).
 - fsl,pcie-scfg: Must include two entries.
   The first entry must be a link to the SCFG device node
-  The second entry must be '0' or '1' based on physical PCIe controller index.
+  The second entry is the physical PCIe controller index starting from '0'.
   This is used to get SCFG PEXN registers
 - dma-coherent: Indicates that the hardware IP block can ensure the coherency
   of the data transferred from/to the IP block. This can avoid the software
   cache flush/invalid actions, and improve the performance significantly.
 
+Optional properties:
+- big-endian: If the PEX_LUT and PF register block is in big-endian, specify
+  this property.
+
 Example:
 
-	pcie@3400000 {
-		compatible = "fsl,ls1021a-pcie";
-		reg = <0x00 0x03400000 0x0 0x00010000   /* controller registers */
-		       0x40 0x00000000 0x0 0x00002000>; /* configuration space */
-		reg-names = "regs", "config";
-		interrupts = <GIC_SPI 177 IRQ_TYPE_LEVEL_HIGH>; /* controller interrupt */
-		interrupt-names = "intr";
-		fsl,pcie-scfg = <&scfg 0>;
-		#address-cells = <3>;
-		#size-cells = <2>;
-		device_type = "pci";
-		dma-coherent;
-		num-lanes = <4>;
-		bus-range = <0x0 0xff>;
-		ranges = <0x81000000 0x0 0x00000000 0x40 0x00010000 0x0 0x00010000   /* downstream I/O */
-			  0xc2000000 0x0 0x20000000 0x40 0x20000000 0x0 0x20000000   /* prefetchable memory */
-			  0x82000000 0x0 0x40000000 0x40 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
-		#interrupt-cells = <1>;
-		interrupt-map-mask = <0 0 0 7>;
-		interrupt-map = <0000 0 0 1 &gic GIC_SPI 91  IRQ_TYPE_LEVEL_HIGH>,
-				<0000 0 0 2 &gic GIC_SPI 188 IRQ_TYPE_LEVEL_HIGH>,
-				<0000 0 0 3 &gic GIC_SPI 190 IRQ_TYPE_LEVEL_HIGH>,
-				<0000 0 0 4 &gic GIC_SPI 192 IRQ_TYPE_LEVEL_HIGH>;
-	};
+        pcie@3400000 {
+                compatible = "fsl,ls1088a-pcie";
+                reg = <0x00 0x03400000 0x0 0x00100000>, /* controller registers */
+                      <0x20 0x00000000 0x0 0x00002000>; /* configuration space */
+                reg-names = "regs", "config";
+                interrupts = <0 108 IRQ_TYPE_LEVEL_HIGH>; /* aer interrupt */
+                interrupt-names = "aer";
+                #address-cells = <3>;
+                #size-cells = <2>;
+                device_type = "pci";
+                dma-coherent;
+                num-viewport = <256>;
+                bus-range = <0x0 0xff>;
+                ranges = <0x81000000 0x0 0x00000000 0x20 0x00010000 0x0 0x00010000   /* downstream I/O */
+                          0x82000000 0x0 0x40000000 0x20 0x40000000 0x0 0x40000000>; /* non-prefetchable memory */
+                msi-parent = <&its>;
+                #interrupt-cells = <1>;
+                interrupt-map-mask = <0 0 0 7>;
+                interrupt-map = <0000 0 0 1 &gic 0 0 0 109 IRQ_TYPE_LEVEL_HIGH>,
+                                <0000 0 0 2 &gic 0 0 0 110 IRQ_TYPE_LEVEL_HIGH>,
+                                <0000 0 0 3 &gic 0 0 0 111 IRQ_TYPE_LEVEL_HIGH>,
+                                <0000 0 0 4 &gic 0 0 0 112 IRQ_TYPE_LEVEL_HIGH>;
+                iommu-map = <0 &smmu 0 1>; /* Fixed-up by bootloader */
+        };

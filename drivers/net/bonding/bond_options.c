@@ -34,10 +34,8 @@ static int bond_option_arp_ip_target_add(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_target_rem(struct bonding *bond, __be32 target);
 static int bond_option_arp_ip_targets_set(struct bonding *bond,
 					  const struct bond_opt_value *newval);
-#if IS_ENABLED(CONFIG_IPV6)
 static int bond_option_ns_ip6_targets_set(struct bonding *bond,
 					  const struct bond_opt_value *newval);
-#endif
 static int bond_option_arp_validate_set(struct bonding *bond,
 					const struct bond_opt_value *newval);
 static int bond_option_arp_all_targets_set(struct bonding *bond,
@@ -299,7 +297,6 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_arp_ip_targets_set
 	},
-#if IS_ENABLED(CONFIG_IPV6)
 	[BOND_OPT_NS_TARGETS] = {
 		.id = BOND_OPT_NS_TARGETS,
 		.name = "ns_ip6_target",
@@ -307,7 +304,6 @@ static const struct bond_option bond_opts[BOND_OPT_LAST] = {
 		.flags = BOND_OPTFLAG_RAWVAL,
 		.set = bond_option_ns_ip6_targets_set
 	},
-#endif
 	[BOND_OPT_DOWNDELAY] = {
 		.id = BOND_OPT_DOWNDELAY,
 		.name = "downdelay",
@@ -1253,6 +1249,12 @@ static int bond_option_ns_ip6_targets_set(struct bonding *bond,
 	_bond_options_ns_ip6_target_set(bond, index, target, jiffies);
 
 	return 0;
+}
+#else
+static int bond_option_ns_ip6_targets_set(struct bonding *bond,
+					  const struct bond_opt_value *newval)
+{
+	return -EPERM;
 }
 #endif
 

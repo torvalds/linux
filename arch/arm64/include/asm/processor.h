@@ -92,8 +92,8 @@
 #endif /* CONFIG_COMPAT */
 
 #ifndef CONFIG_ARM64_FORCE_52BIT
-#define arch_get_mmap_end(addr) ((addr > DEFAULT_MAP_WINDOW) ? TASK_SIZE :\
-				DEFAULT_MAP_WINDOW)
+#define arch_get_mmap_end(addr, len, flags) \
+		(((addr) > DEFAULT_MAP_WINDOW) ? TASK_SIZE : DEFAULT_MAP_WINDOW)
 
 #define arch_get_mmap_base(addr, base) ((addr > DEFAULT_MAP_WINDOW) ? \
 					base + TASK_SIZE - DEFAULT_MAP_WINDOW :\
@@ -192,7 +192,7 @@ static inline unsigned int thread_get_sme_vl(struct thread_struct *thread)
 
 static inline unsigned int thread_get_cur_vl(struct thread_struct *thread)
 {
-	if (system_supports_sme() && (thread->svcr & SYS_SVCR_EL0_SM_MASK))
+	if (system_supports_sme() && (thread->svcr & SVCR_SM_MASK))
 		return thread_get_sme_vl(thread);
 	else
 		return thread_get_sve_vl(thread);
@@ -405,12 +405,10 @@ long get_tagged_addr_ctrl(struct task_struct *task);
  * of header definitions for the use of task_stack_page.
  */
 
-#define current_top_of_stack()								\
-({											\
-	struct stack_info _info;							\
-	BUG_ON(!on_accessible_stack(current, current_stack_pointer, 1, &_info));	\
-	_info.high;									\
-})
+/*
+ * The top of the current task's task stack
+ */
+#define current_top_of_stack()	((unsigned long)current->stack + THREAD_SIZE)
 #define on_thread_stack()	(on_task_stack(current, current_stack_pointer, 1, NULL))
 
 #endif /* __ASSEMBLY__ */

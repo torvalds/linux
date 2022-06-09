@@ -6,7 +6,7 @@
  *
  * Copyright 2009	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
- * Copyright 2018-2021	Intel Corporation
+ * Copyright 2018-2022	Intel Corporation
  */
 
 #include <linux/export.h>
@@ -1342,97 +1342,6 @@ int cfg80211_set_monitor_channel(struct cfg80211_registered_device *rdev,
 		return -EBUSY;
 
 	return rdev_set_monitor_channel(rdev, chandef);
-}
-
-void
-cfg80211_get_chan_state(struct wireless_dev *wdev,
-		        struct ieee80211_channel **chan,
-		        enum cfg80211_chan_mode *chanmode,
-		        u8 *radar_detect)
-{
-	int ret;
-
-	*chan = NULL;
-	*chanmode = CHAN_MODE_UNDEFINED;
-
-	ASSERT_WDEV_LOCK(wdev);
-
-	if (wdev->netdev && !netif_running(wdev->netdev))
-		return;
-
-	switch (wdev->iftype) {
-	case NL80211_IFTYPE_ADHOC:
-		if (wdev->current_bss) {
-			*chan = wdev->current_bss->pub.channel;
-			*chanmode = (wdev->ibss_fixed &&
-				     !wdev->ibss_dfs_possible)
-				  ? CHAN_MODE_SHARED
-				  : CHAN_MODE_EXCLUSIVE;
-
-			/* consider worst-case - IBSS can try to return to the
-			 * original user-specified channel as creator */
-			if (wdev->ibss_dfs_possible)
-				*radar_detect |= BIT(wdev->chandef.width);
-			return;
-		}
-		break;
-	case NL80211_IFTYPE_STATION:
-	case NL80211_IFTYPE_P2P_CLIENT:
-		if (wdev->current_bss) {
-			*chan = wdev->current_bss->pub.channel;
-			*chanmode = CHAN_MODE_SHARED;
-			return;
-		}
-		break;
-	case NL80211_IFTYPE_AP:
-	case NL80211_IFTYPE_P2P_GO:
-		if (wdev->cac_started) {
-			*chan = wdev->chandef.chan;
-			*chanmode = CHAN_MODE_SHARED;
-			*radar_detect |= BIT(wdev->chandef.width);
-		} else if (wdev->beacon_interval) {
-			*chan = wdev->chandef.chan;
-			*chanmode = CHAN_MODE_SHARED;
-
-			ret = cfg80211_chandef_dfs_required(wdev->wiphy,
-							    &wdev->chandef,
-							    wdev->iftype);
-			WARN_ON(ret < 0);
-			if (ret > 0)
-				*radar_detect |= BIT(wdev->chandef.width);
-		}
-		return;
-	case NL80211_IFTYPE_MESH_POINT:
-		if (wdev->mesh_id_len) {
-			*chan = wdev->chandef.chan;
-			*chanmode = CHAN_MODE_SHARED;
-
-			ret = cfg80211_chandef_dfs_required(wdev->wiphy,
-							    &wdev->chandef,
-							    wdev->iftype);
-			WARN_ON(ret < 0);
-			if (ret > 0)
-				*radar_detect |= BIT(wdev->chandef.width);
-		}
-		return;
-	case NL80211_IFTYPE_OCB:
-		if (wdev->chandef.chan) {
-			*chan = wdev->chandef.chan;
-			*chanmode = CHAN_MODE_SHARED;
-			return;
-		}
-		break;
-	case NL80211_IFTYPE_MONITOR:
-	case NL80211_IFTYPE_AP_VLAN:
-	case NL80211_IFTYPE_P2P_DEVICE:
-	case NL80211_IFTYPE_NAN:
-		/* these interface types don't really have a channel */
-		return;
-	case NL80211_IFTYPE_UNSPECIFIED:
-	case NL80211_IFTYPE_WDS:
-	case NUM_NL80211_IFTYPES:
-		WARN_ON(1);
-	}
 }
 
 bool cfg80211_any_usable_channels(struct wiphy *wiphy,

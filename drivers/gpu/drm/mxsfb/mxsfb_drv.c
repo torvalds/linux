@@ -52,6 +52,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.hs_wdth_shift	= 24,
 		.has_overlay	= false,
 		.has_ctrl2	= false,
+		.has_crc32	= false,
 	},
 	[MXSFB_V4] = {
 		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
@@ -61,6 +62,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.hs_wdth_shift	= 18,
 		.has_overlay	= false,
 		.has_ctrl2	= true,
+		.has_crc32	= true,
 	},
 	[MXSFB_V6] = {
 		.transfer_count	= LCDC_V4_TRANSFER_COUNT,
@@ -70,6 +72,7 @@ static const struct mxsfb_devdata mxsfb_devdata[] = {
 		.hs_wdth_shift	= 18,
 		.has_overlay	= true,
 		.has_ctrl2	= true,
+		.has_crc32	= true,
 	},
 };
 
@@ -157,12 +160,19 @@ static irqreturn_t mxsfb_irq_handler(int irq, void *data)
 {
 	struct drm_device *drm = data;
 	struct mxsfb_drm_private *mxsfb = drm->dev_private;
-	u32 reg;
+	u32 reg, crc;
+	u64 vbc;
 
 	reg = readl(mxsfb->base + LCDC_CTRL1);
 
-	if (reg & CTRL1_CUR_FRAME_DONE_IRQ)
+	if (reg & CTRL1_CUR_FRAME_DONE_IRQ) {
 		drm_crtc_handle_vblank(&mxsfb->crtc);
+		if (mxsfb->crc_active) {
+			crc = readl(mxsfb->base + LCDC_V4_CRC_STAT);
+			vbc = drm_crtc_accurate_vblank_count(&mxsfb->crtc);
+			drm_crtc_add_crc_entry(&mxsfb->crtc, true, vbc, &crc);
+		}
+	}
 
 	writel(CTRL1_CUR_FRAME_DONE_IRQ, mxsfb->base + LCDC_CTRL1 + REG_CLR);
 

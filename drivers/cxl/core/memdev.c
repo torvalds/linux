@@ -228,6 +228,8 @@ static void detach_memdev(struct work_struct *work)
 	put_device(&cxlmd->dev);
 }
 
+static struct lock_class_key cxl_memdev_key;
+
 static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 					   const struct file_operations *fops)
 {
@@ -247,6 +249,7 @@ static struct cxl_memdev *cxl_memdev_alloc(struct cxl_dev_state *cxlds,
 
 	dev = &cxlmd->dev;
 	device_initialize(dev);
+	lockdep_set_class(&dev->mutex, &cxl_memdev_key);
 	dev->parent = cxlds->dev;
 	dev->bus = &cxl_bus_type;
 	dev->devt = MKDEV(cxl_mem_major, cxlmd->id);

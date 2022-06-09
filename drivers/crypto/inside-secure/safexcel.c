@@ -1997,3 +1997,12 @@ MODULE_AUTHOR("Igal Liberman <igall@marvell.com>");
 MODULE_DESCRIPTION("Support for SafeXcel cryptographic engines: EIP97 & EIP197");
 MODULE_LICENSE("GPL v2");
 MODULE_IMPORT_NS(CRYPTO_INTERNAL);
+
+MODULE_FIRMWARE("ifpp.bin");
+MODULE_FIRMWARE("ipue.bin");
+MODULE_FIRMWARE("inside-secure/eip197b/ifpp.bin");
+MODULE_FIRMWARE("inside-secure/eip197b/ipue.bin");
+MODULE_FIRMWARE("inside-secure/eip197d/ifpp.bin");
+MODULE_FIRMWARE("inside-secure/eip197d/ipue.bin");
+MODULE_FIRMWARE("inside-secure/eip197_minifw/ifpp.bin");
+MODULE_FIRMWARE("inside-secure/eip197_minifw/ipue.bin");

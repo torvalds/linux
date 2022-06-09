@@ -2194,8 +2194,7 @@ static int __maybe_unused cs42l42_resume(struct device *dev)
 	return 0;
 }
 
-static int cs42l42_i2c_probe(struct i2c_client *i2c_client,
-				       const struct i2c_device_id *id)
+static int cs42l42_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l42_private *cs42l42;
 	int ret, i, devid;
@@ -2399,7 +2398,7 @@ static struct i2c_driver cs42l42_i2c_driver = {
 		.acpi_match_table = ACPI_PTR(cs42l42_acpi_match),
 		},
 	.id_table = cs42l42_id,
-	.probe = cs42l42_i2c_probe,
+	.probe_new = cs42l42_i2c_probe,
 	.remove = cs42l42_i2c_remove,
 };
 

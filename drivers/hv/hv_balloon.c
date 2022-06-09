@@ -1842,7 +1842,7 @@ static int balloon_probe(struct hv_device *dev,
 
 	ret = balloon_connect_vsp(dev);
 	if (ret != 0)
-		return ret;
+		goto connect_error;
 
 	enable_page_reporting();
 	dm_device.state = DM_INITIALIZED;
@@ -1861,6 +1861,7 @@ probe_error:
 	dm_device.thread  = NULL;
 	disable_page_reporting();
 	vmbus_close(dev->channel);
+connect_error:
 #ifdef CONFIG_MEMORY_HOTPLUG
 	unregister_memory_notifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);
@@ -1882,12 +1883,21 @@ static int balloon_remove(struct hv_device *dev)
 	cancel_work_sync(&dm->ha_wrk.wrk);
 
 	kthread_stop(dm->thread);
-	disable_page_reporting();
-	vmbus_close(dev->channel);
+
+	/*
+	 * This is to handle the case when balloon_resume()
+	 * call has failed and some cleanup has been done as
+	 * a part of the error handling.
+	 */
+	if (dm_device.state != DM_INIT_ERROR) {
+		disable_page_reporting();
+		vmbus_close(dev->channel);
 #ifdef CONFIG_MEMORY_HOTPLUG
-	unregister_memory_notifier(&hv_memory_nb);
-	restore_online_page_callback(&hv_online_page);
+		unregister_memory_notifier(&hv_memory_nb);
+		restore_online_page_callback(&hv_online_page);
 #endif
+	}
+
 	spin_lock_irqsave(&dm_device.ha_lock, flags);
 	list_for_each_entry_safe(has, tmp, &dm->ha_region_list, list) {
 		list_for_each_entry_safe(gap, tmp_gap, &has->gap_list, list) {
@@ -1948,6 +1958,7 @@ close_channel:
 	vmbus_close(dev->channel);
 out:
 	dm_device.state = DM_INIT_ERROR;
+	disable_page_reporting();
 #ifdef CONFIG_MEMORY_HOTPLUG
 	unregister_memory_notifier(&hv_memory_nb);
 	restore_online_page_callback(&hv_online_page);

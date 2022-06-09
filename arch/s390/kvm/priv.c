@@ -11,7 +11,6 @@
 #include <linux/kvm.h>
 #include <linux/gfp.h>
 #include <linux/errno.h>
-#include <linux/compat.h>
 #include <linux/mm_types.h>
 #include <linux/pgtable.h>
 

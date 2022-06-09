@@ -1315,7 +1315,7 @@ int gfs2_rgrp_send_discards(struct gfs2_sbd *sdp, u64 offset,
 	u64 blk;
 	sector_t start = 0;
 	sector_t nr_blks = 0;
-	int rv;
+	int rv = -EIO;
 	unsigned int x;
 	u32 trimmed = 0;
 	u8 diff;
@@ -1371,7 +1371,7 @@ fail:
 	if (sdp->sd_args.ar_discard)
 		fs_warn(sdp, "error %d on discard request, turning discards off for this filesystem\n", rv);
 	sdp->sd_args.ar_discard = 0;
-	return -EIO;
+	return rv;
 }
 
 /**
@@ -1386,7 +1386,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 {
 	struct inode *inode = file_inode(filp);
 	struct gfs2_sbd *sdp = GFS2_SB(inode);
-	struct request_queue *q = bdev_get_queue(sdp->sd_vfs->s_bdev);
+	struct block_device *bdev = sdp->sd_vfs->s_bdev;
 	struct buffer_head *bh;
 	struct gfs2_rgrpd *rgd;
 	struct gfs2_rgrpd *rgd_end;
@@ -1405,7 +1405,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	if (!test_bit(SDF_JOURNAL_LIVE, &sdp->sd_flags))
 		return -EROFS;
 
-	if (!blk_queue_discard(q))
+	if (!bdev_max_discard_sectors(bdev))
 		return -EOPNOTSUPP;
 
 	if (copy_from_user(&r, argp, sizeof(r)))
@@ -1418,8 +1418,7 @@ int gfs2_fitrim(struct file *filp, void __user *argp)
 	start = r.start >> bs_shift;
 	end = start + (r.len >> bs_shift);
 	minlen = max_t(u64, r.minlen, sdp->sd_sb.sb_bsize);
-	minlen = max_t(u64, minlen,
-		       q->limits.discard_granularity) >> bs_shift;
+	minlen = max_t(u64, minlen, bdev_discard_granularity(bdev)) >> bs_shift;
 
 	if (end <= start || minlen > sdp->sd_max_rg_data)
 		return -EINVAL;

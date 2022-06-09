@@ -9,6 +9,7 @@
 #if !defined(__INTEL_DISPLAY_TRACE_H__) || defined(TRACE_HEADER_MULTI_READ)
 #define __INTEL_DISPLAY_TRACE_H__
 
+#include <linux/string_helpers.h>
 #include <linux/types.h>
 #include <linux/tracepoint.h>
 
@@ -161,7 +162,7 @@ TRACE_EVENT(intel_memory_cxsr,
 			   ),
 
 	    TP_printk("%s->%s, pipe A: frame=%u, scanline=%u, pipe B: frame=%u, scanline=%u, pipe C: frame=%u, scanline=%u",
-		      onoff(__entry->old), onoff(__entry->new),
+		      str_on_off(__entry->old), str_on_off(__entry->new),
 		      __entry->frame[PIPE_A], __entry->scanline[PIPE_A],
 		      __entry->frame[PIPE_B], __entry->scanline[PIPE_B],
 		      __entry->frame[PIPE_C], __entry->scanline[PIPE_C])
@@ -210,9 +211,9 @@ TRACE_EVENT(g4x_wm,
 	    TP_printk("pipe %c, frame=%u, scanline=%u, wm %d/%d/%d, sr %s/%d/%d/%d, hpll %s/%d/%d/%d, fbc %s",
 		      pipe_name(__entry->pipe), __entry->frame, __entry->scanline,
 		      __entry->primary, __entry->sprite, __entry->cursor,
-		      yesno(__entry->cxsr), __entry->sr_plane, __entry->sr_cursor, __entry->sr_fbc,
-		      yesno(__entry->hpll), __entry->hpll_plane, __entry->hpll_cursor, __entry->hpll_fbc,
-		      yesno(__entry->fbc))
+		      str_yes_no(__entry->cxsr), __entry->sr_plane, __entry->sr_cursor, __entry->sr_fbc,
+		      str_yes_no(__entry->hpll), __entry->hpll_plane, __entry->hpll_cursor, __entry->hpll_fbc,
+		      str_yes_no(__entry->fbc))
 );
 
 TRACE_EVENT(vlv_wm,
