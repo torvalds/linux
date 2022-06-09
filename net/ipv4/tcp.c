@@ -294,6 +294,8 @@ EXPORT_SYMBOL(sysctl_tcp_mem);
 
 atomic_long_t tcp_memory_allocated ____cacheline_aligned_in_smp;	/* Current allocated memory. */
 EXPORT_SYMBOL(tcp_memory_allocated);
+DEFINE_PER_CPU(int, tcp_memory_per_cpu_fw_alloc);
+EXPORT_PER_CPU_SYMBOL_GPL(tcp_memory_per_cpu_fw_alloc);
 
 #if IS_ENABLED(CONFIG_SMC)
 DEFINE_STATIC_KEY_FALSE(tcp_have_smc);

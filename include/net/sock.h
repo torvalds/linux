@@ -1254,6 +1254,7 @@ struct proto {
 	void			(*enter_memory_pressure)(struct sock *sk);
 	void			(*leave_memory_pressure)(struct sock *sk);
 	atomic_long_t		*memory_allocated;	/* Current allocated memory. */
+	int  __percpu		*per_cpu_fw_alloc;
 	struct percpu_counter	*sockets_allocated;	/* Current number of sockets. */
 
 	/*

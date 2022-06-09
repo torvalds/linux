@@ -3045,7 +3045,10 @@ struct proto tcp_prot = {
 	.stream_memory_free	= tcp_stream_memory_free,
 	.sockets_allocated	= &tcp_sockets_allocated,
 	.orphan_count		= &tcp_orphan_count,
+
 	.memory_allocated	= &tcp_memory_allocated,
+	.per_cpu_fw_alloc	= &tcp_memory_per_cpu_fw_alloc,
+
 	.memory_pressure	= &tcp_memory_pressure,
 	.sysctl_mem		= sysctl_tcp_mem,
 	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_tcp_wmem),

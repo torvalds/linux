@@ -125,6 +125,8 @@ EXPORT_SYMBOL(sysctl_udp_mem);
 
 atomic_long_t udp_memory_allocated ____cacheline_aligned_in_smp;
 EXPORT_SYMBOL(udp_memory_allocated);
+DEFINE_PER_CPU(int, udp_memory_per_cpu_fw_alloc);
+EXPORT_PER_CPU_SYMBOL_GPL(udp_memory_per_cpu_fw_alloc);
 
 #define MAX_UDP_PORTS 65536
 #define PORTS_PER_CHAIN (MAX_UDP_PORTS / UDP_HTABLE_SIZE_MIN)
@@ -2946,6 +2948,8 @@ struct proto udp_prot = {
 	.psock_update_sk_prot	= udp_bpf_update_proto,
 #endif
 	.memory_allocated	= &udp_memory_allocated,
+	.per_cpu_fw_alloc	= &udp_memory_per_cpu_fw_alloc,
+
 	.sysctl_mem		= sysctl_udp_mem,
 	.sysctl_wmem_offset	= offsetof(struct net, ipv4.sysctl_udp_wmem_min),
 	.sysctl_rmem_offset	= offsetof(struct net, ipv4.sysctl_udp_rmem_min),

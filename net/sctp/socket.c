@@ -93,6 +93,7 @@ static int sctp_sock_migrate(struct sock *oldsk, struct sock *newsk,
 
 static unsigned long sctp_memory_pressure;
 static atomic_long_t sctp_memory_allocated;
+static DEFINE_PER_CPU(int, sctp_memory_per_cpu_fw_alloc);
 struct percpu_counter sctp_sockets_allocated;
 
 static void sctp_enter_memory_pressure(struct sock *sk)
@@ -9657,7 +9658,10 @@ struct proto sctp_prot = {
 	.sysctl_wmem =  sysctl_sctp_wmem,
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
+
 	.memory_allocated = &sctp_memory_allocated,
+	.per_cpu_fw_alloc = &sctp_memory_per_cpu_fw_alloc,
+
 	.sockets_allocated = &sctp_sockets_allocated,
 };
 
@@ -9700,7 +9704,10 @@ struct proto sctpv6_prot = {
 	.sysctl_wmem	= sysctl_sctp_wmem,
 	.memory_pressure = &sctp_memory_pressure,
 	.enter_memory_pressure = sctp_enter_memory_pressure,
+
 	.memory_allocated = &sctp_memory_allocated,
+	.per_cpu_fw_alloc = &sctp_memory_per_cpu_fw_alloc,
+
 	.sockets_allocated = &sctp_sockets_allocated,
 };
 #endif /* IS_ENABLED(CONFIG_IPV6) */
