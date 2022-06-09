@@ -167,8 +167,8 @@ static bool mptcp_ooo_try_coalesce(struct mptcp_sock *msk, struct sk_buff *to,
 
 static void __mptcp_rmem_reclaim(struct sock *sk, int amount)
 {
-	amount >>= SK_MEM_QUANTUM_SHIFT;
-	mptcp_sk(sk)->rmem_fwd_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
+	amount >>= PAGE_SHIFT;
+	mptcp_sk(sk)->rmem_fwd_alloc -= amount << PAGE_SHIFT;
 	__sk_mem_reduce_allocated(sk, amount);
 }
 
@@ -327,7 +327,7 @@ static bool mptcp_rmem_schedule(struct sock *sk, struct sock *ssk, int size)
 		return true;
 
 	amt = sk_mem_pages(size);
-	amount = amt << SK_MEM_QUANTUM_SHIFT;
+	amount = amt << PAGE_SHIFT;
 	msk->rmem_fwd_alloc += amount;
 	if (!__sk_mem_raise_allocated(sk, size, amt, SK_MEM_RECV)) {
 		if (ssk->sk_forward_alloc < amount) {
@@ -972,7 +972,7 @@ static void __mptcp_mem_reclaim_partial(struct sock *sk)
 
 	lockdep_assert_held_once(&sk->sk_lock.slock);
 
-	if (reclaimable > SK_MEM_QUANTUM)
+	if (reclaimable > (int)PAGE_SIZE)
 		__mptcp_rmem_reclaim(sk, reclaimable - 1);
 
 	sk_mem_reclaim_partial(sk);

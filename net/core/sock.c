@@ -991,7 +991,7 @@ EXPORT_SYMBOL(sock_set_mark);
 static void sock_release_reserved_memory(struct sock *sk, int bytes)
 {
 	/* Round down bytes to multiple of pages */
-	bytes &= ~(SK_MEM_QUANTUM - 1);
+	bytes = round_down(bytes, PAGE_SIZE);
 
 	WARN_ON(bytes > sk->sk_reserved_mem);
 	sk->sk_reserved_mem -= bytes;
@@ -1028,9 +1028,9 @@ static int sock_reserve_memory(struct sock *sk, int bytes)
 		mem_cgroup_uncharge_skmem(sk->sk_memcg, pages);
 		return -ENOMEM;
 	}
-	sk->sk_forward_alloc += pages << SK_MEM_QUANTUM_SHIFT;
+	sk->sk_forward_alloc += pages << PAGE_SHIFT;
 
-	sk->sk_reserved_mem += pages << SK_MEM_QUANTUM_SHIFT;
+	sk->sk_reserved_mem += pages << PAGE_SHIFT;
 
 	return 0;
 }
@@ -3003,10 +3003,10 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind)
 {
 	int ret, amt = sk_mem_pages(size);
 
-	sk->sk_forward_alloc += amt << SK_MEM_QUANTUM_SHIFT;
+	sk->sk_forward_alloc += amt << PAGE_SHIFT;
 	ret = __sk_mem_raise_allocated(sk, size, amt, kind);
 	if (!ret)
-		sk->sk_forward_alloc -= amt << SK_MEM_QUANTUM_SHIFT;
+		sk->sk_forward_alloc -= amt << PAGE_SHIFT;
 	return ret;
 }
 EXPORT_SYMBOL(__sk_mem_schedule);
@@ -3034,12 +3034,12 @@ EXPORT_SYMBOL(__sk_mem_reduce_allocated);
 /**
  *	__sk_mem_reclaim - reclaim sk_forward_alloc and memory_allocated
  *	@sk: socket
- *	@amount: number of bytes (rounded down to a SK_MEM_QUANTUM multiple)
+ *	@amount: number of bytes (rounded down to a PAGE_SIZE multiple)
  */
 void __sk_mem_reclaim(struct sock *sk, int amount)
 {
-	amount >>= SK_MEM_QUANTUM_SHIFT;
-	sk->sk_forward_alloc -= amount << SK_MEM_QUANTUM_SHIFT;
+	amount >>= PAGE_SHIFT;
+	sk->sk_forward_alloc -= amount << PAGE_SHIFT;
 	__sk_mem_reduce_allocated(sk, amount);
 }
 EXPORT_SYMBOL(__sk_mem_reclaim);
