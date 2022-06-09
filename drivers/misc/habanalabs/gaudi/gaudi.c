@@ -8063,7 +8063,10 @@ reset_device:
 
 	if (hdev->asic_prop.fw_security_enabled && !reset_direct) {
 		flags = HL_DRV_RESET_HARD | HL_DRV_RESET_BYPASS_REQ_TO_FW | fw_fatal_err_flag;
-		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;
+
+		/* notify on device unavailable while the reset triggered by fw */
+		event_mask |= (HL_NOTIFIER_EVENT_DEVICE_RESET |
+					HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE);
 	} else if (hdev->hard_reset_on_fw_events) {
 		flags = HL_DRV_RESET_HARD | HL_DRV_RESET_DELAY | fw_fatal_err_flag;
 		event_mask |= HL_NOTIFIER_EVENT_DEVICE_RESET;

@@ -1432,15 +1432,17 @@ struct hl_debug_args {
 /*
  * Notifier event values - for the notification mechanism and the HL_INFO_GET_EVENTS command
  *
- * HL_NOTIFIER_EVENT_TPC_ASSERT       - Indicates TPC assert event
- * HL_NOTIFIER_EVENT_UNDEFINED_OPCODE - Indicates undefined operation code
- * HL_NOTIFIER_EVENT_DEVICE_RESET     - Indicates device requires a reset
- * HL_NOTIFIER_EVENT_CS_TIMEOUT       - Indicates CS timeout error
+ * HL_NOTIFIER_EVENT_TPC_ASSERT		- Indicates TPC assert event
+ * HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	- Indicates undefined operation code
+ * HL_NOTIFIER_EVENT_DEVICE_RESET	- Indicates device requires a reset
+ * HL_NOTIFIER_EVENT_CS_TIMEOUT		- Indicates CS timeout error
+ * HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE	- Indicates device is unavailable
  */
 #define HL_NOTIFIER_EVENT_TPC_ASSERT		(1ULL << 0)
 #define HL_NOTIFIER_EVENT_UNDEFINED_OPCODE	(1ULL << 1)
 #define HL_NOTIFIER_EVENT_DEVICE_RESET		(1ULL << 2)
-#define HL_NOTIFIER_EVENT_CS_TIMEOUT            (1ULL << 3)
+#define HL_NOTIFIER_EVENT_CS_TIMEOUT		(1ULL << 3)
+#define HL_NOTIFIER_EVENT_DEVICE_UNAVAILABLE	(1ULL << 4)
 
 /*
  * Various information operations such as:
