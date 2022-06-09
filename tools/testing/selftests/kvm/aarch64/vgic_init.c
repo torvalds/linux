@@ -32,11 +32,28 @@ struct vm_gic {
 
 static uint64_t max_phys_size;
 
-/* helper to access a redistributor register */
-static int v3_redist_reg_get(int gicv3_fd, int vcpu, int offset, uint32_t *val)
+/*
+ * Helpers to access a redistributor register and verify the ioctl() failed or
+ * succeeded as expected, and provided the correct value on success.
+ */
+static void v3_redist_reg_get_errno(int gicv3_fd, int vcpu, int offset,
+				    int want, const char *msg)
 {
-	return __kvm_device_attr_get(gicv3_fd, KVM_DEV_ARM_VGIC_GRP_REDIST_REGS,
-				     REG_OFFSET(vcpu, offset), val);
+	uint32_t ignored_val;
+	int ret = __kvm_device_attr_get(gicv3_fd, KVM_DEV_ARM_VGIC_GRP_REDIST_REGS,
+					REG_OFFSET(vcpu, offset), &ignored_val);
+
+	TEST_ASSERT(ret && errno == want, "%s; want errno = %d", msg, want);
+}
+
+static void v3_redist_reg_get(int gicv3_fd, int vcpu, int offset, uint32_t want,
+			      const char *msg)
+{
+	uint32_t val;
+
+	kvm_device_attr_get(gicv3_fd, KVM_DEV_ARM_VGIC_GRP_REDIST_REGS,
+			    REG_OFFSET(vcpu, offset), &val);
+	TEST_ASSERT(val == want, "%s; want '0x%x', got '0x%x'", msg, want, val);
 }
 
 /* dummy guest code */
@@ -395,7 +412,6 @@ static void test_v3_typer_accesses(void)
 {
 	struct vm_gic v;
 	uint64_t addr;
-	uint32_t val;
 	int ret, i;
 
 	v.vm = vm_create_default(0, 0, guest_code);
@@ -404,13 +420,13 @@ static void test_v3_typer_accesses(void)
 
 	vm_vcpu_add_default(v.vm, 3, guest_code);
 
-	ret = v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, &val);
-	TEST_ASSERT(ret && errno == EINVAL, "attempting to read GICR_TYPER of non created vcpu");
+	v3_redist_reg_get_errno(v.gic_fd, 1, GICR_TYPER, EINVAL,
+				"attempting to read GICR_TYPER of non created vcpu");
 
 	vm_vcpu_add_default(v.vm, 1, guest_code);
 
-	ret = v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, &val);
-	TEST_ASSERT(ret && errno == EBUSY, "read GICR_TYPER before GIC initialized");
+	v3_redist_reg_get_errno(v.gic_fd, 1, GICR_TYPER, EBUSY,
+				"read GICR_TYPER before GIC initialized");
 
 	vm_vcpu_add_default(v.vm, 2, guest_code);
 
@@ -418,9 +434,8 @@ static void test_v3_typer_accesses(void)
 			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
 	for (i = 0; i < NR_VCPUS ; i++) {
-		ret = v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, &val);
-		TEST_ASSERT(!ret && val == i * 0x100,
-			    "read GICR_TYPER before rdist region setting");
+		v3_redist_reg_get(v.gic_fd, i, GICR_TYPER, i * 0x100,
+				  "read GICR_TYPER before rdist region setting");
 	}
 
 	addr = REDIST_REGION_ATTR_ADDR(2, 0x200000, 0, 0);
@@ -428,35 +443,26 @@ static void test_v3_typer_accesses(void)
 			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
 
 	/* The 2 first rdists should be put there (vcpu 0 and 3) */
-	ret = v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && !val, "read typer of rdist #0");
-
-	ret = v3_redist_reg_get(v.gic_fd, 3, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x310, "read typer of rdist #1");
+	v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, 0x0, "read typer of rdist #0");
+	v3_redist_reg_get(v.gic_fd, 3, GICR_TYPER, 0x310, "read typer of rdist #1");
 
 	addr = REDIST_REGION_ATTR_ADDR(10, 0x100000, 0, 1);
 	ret = __kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 				    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
 	TEST_ASSERT(ret && errno == EINVAL, "collision with previous rdist region");
 
-	ret = v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x100,
-		    "no redist region attached to vcpu #1 yet, last cannot be returned");
-
-	ret = v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x200,
-		    "no redist region attached to vcpu #2, last cannot be returned");
+	v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, 0x100,
+			  "no redist region attached to vcpu #1 yet, last cannot be returned");
+	v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, 0x200,
+			  "no redist region attached to vcpu #2, last cannot be returned");
 
 	addr = REDIST_REGION_ATTR_ADDR(10, 0x20000, 0, 1);
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
 
-	ret = v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x100, "read typer of rdist #1");
-
-	ret = v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x210,
-		    "read typer of rdist #1, last properly returned");
+	v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, 0x100, "read typer of rdist #1");
+	v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, 0x210,
+			  "read typer of rdist #1, last properly returned");
 
 	vm_gic_destroy(&v);
 }
@@ -476,8 +482,6 @@ static void test_v3_last_bit_redist_regions(void)
 	uint32_t vcpuids[] = { 0, 3, 5, 4, 1, 2 };
 	struct vm_gic v;
 	uint64_t addr;
-	uint32_t val;
-	int ret;
 
 	v.vm = vm_create_default_with_vcpus(6, 0, 0, guest_code, vcpuids);
 
@@ -498,23 +502,12 @@ static void test_v3_last_bit_redist_regions(void)
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &addr);
 
-	ret = v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x000, "read typer of rdist #0");
-
-	ret = v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x100, "read typer of rdist #1");
-
-	ret = v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x200, "read typer of rdist #2");
-
-	ret = v3_redist_reg_get(v.gic_fd, 3, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x310, "read typer of rdist #3");
-
-	ret = v3_redist_reg_get(v.gic_fd, 5, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x500, "read typer of rdist #5");
-
-	ret = v3_redist_reg_get(v.gic_fd, 4, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x410, "read typer of rdist #4");
+	v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, 0x000, "read typer of rdist #0");
+	v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, 0x100, "read typer of rdist #1");
+	v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, 0x200, "read typer of rdist #2");
+	v3_redist_reg_get(v.gic_fd, 3, GICR_TYPER, 0x310, "read typer of rdist #3");
+	v3_redist_reg_get(v.gic_fd, 5, GICR_TYPER, 0x500, "read typer of rdist #5");
+	v3_redist_reg_get(v.gic_fd, 4, GICR_TYPER, 0x410, "read typer of rdist #4");
 
 	vm_gic_destroy(&v);
 }
@@ -525,8 +518,6 @@ static void test_v3_last_bit_single_rdist(void)
 	uint32_t vcpuids[] = { 0, 3, 5, 4, 1, 2 };
 	struct vm_gic v;
 	uint64_t addr;
-	uint32_t val;
-	int ret;
 
 	v.vm = vm_create_default_with_vcpus(6, 0, 0, guest_code, vcpuids);
 
@@ -539,20 +530,11 @@ static void test_v3_last_bit_single_rdist(void)
 	kvm_device_attr_set(v.gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
 			    KVM_VGIC_V3_ADDR_TYPE_REDIST, &addr);
 
-	ret = v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x000, "read typer of rdist #0");
-
-	ret = v3_redist_reg_get(v.gic_fd, 3, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x300, "read typer of rdist #1");
-
-	ret = v3_redist_reg_get(v.gic_fd, 5, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x500, "read typer of rdist #2");
-
-	ret = v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x100, "read typer of rdist #3");
-
-	ret = v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, &val);
-	TEST_ASSERT(!ret && val == 0x210, "read typer of rdist #3");
+	v3_redist_reg_get(v.gic_fd, 0, GICR_TYPER, 0x000, "read typer of rdist #0");
+	v3_redist_reg_get(v.gic_fd, 3, GICR_TYPER, 0x300, "read typer of rdist #1");
+	v3_redist_reg_get(v.gic_fd, 5, GICR_TYPER, 0x500, "read typer of rdist #2");
+	v3_redist_reg_get(v.gic_fd, 1, GICR_TYPER, 0x100, "read typer of rdist #3");
+	v3_redist_reg_get(v.gic_fd, 2, GICR_TYPER, 0x210, "read typer of rdist #3");
 
 	vm_gic_destroy(&v);
 }
