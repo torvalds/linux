@@ -1157,4 +1157,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.widget = tplg_ipc4_widget_ops,
 	.token_list = ipc4_token_list,
 	.control_setup = sof_ipc4_control_setup,
+	.control = &tplg_ipc4_control_ops,
 };
