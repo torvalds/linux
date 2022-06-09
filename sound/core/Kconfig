@@ -188,6 +188,16 @@ config SND_PCM_XRUN_DEBUG
 	  sound clicking when system is loaded, it may help to determine
 	  the process or driver which causes the scheduling gaps.
 
+config SND_CTL_INPUT_VALIDATION
+	bool "Validate input data to control API"
+	help
+	  Say Y to enable the additional validation for the input data to
+	  each control element, including the value range checks.
+	  An error is returned from ALSA core for invalid inputs without
+	  passing to the driver.  This is a kind of hardening for drivers
+	  that have no proper error checks, at the cost of a slight
+	  performance overhead.
+
 config SND_CTL_DEBUG
 	bool "Enable debugging feature for control API"
 	depends on SND_DEBUG

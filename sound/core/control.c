@@ -982,7 +982,7 @@ static void fill_remaining_elem_value(struct snd_ctl_elem_value *control,
 static int sanity_check_int_value(struct snd_card *card,
 				  const struct snd_ctl_elem_value *control,
 				  const struct snd_ctl_elem_info *info,
-				  int i)
+				  int i, bool print_error)
 {
 	long long lval, lmin, lmax, lstep;
 	u64 rem;
@@ -1016,23 +1016,52 @@ static int sanity_check_int_value(struct snd_card *card,
 	}
 
 	if (lval < lmin || lval > lmax) {
-		dev_err(card->dev,
-			"control %i:%i:%i:%s:%i: value out of range %lld (%lld/%lld) at count %i\n",
-			control->id.iface, control->id.device,
-			control->id.subdevice, control->id.name,
-			control->id.index, lval, lmin, lmax, i);
+		if (print_error)
+			dev_err(card->dev,
+				"control %i:%i:%i:%s:%i: value out of range %lld (%lld/%lld) at count %i\n",
+				control->id.iface, control->id.device,
+				control->id.subdevice, control->id.name,
+				control->id.index, lval, lmin, lmax, i);
 		return -EINVAL;
 	}
 	if (lstep) {
 		div64_u64_rem(lval, lstep, &rem);
 		if (rem) {
-			dev_err(card->dev,
-				"control %i:%i:%i:%s:%i: unaligned value %lld (step %lld) at count %i\n",
-				control->id.iface, control->id.device,
-				control->id.subdevice, control->id.name,
-				control->id.index, lval, lstep, i);
+			if (print_error)
+				dev_err(card->dev,
+					"control %i:%i:%i:%s:%i: unaligned value %lld (step %lld) at count %i\n",
+					control->id.iface, control->id.device,
+					control->id.subdevice, control->id.name,
+					control->id.index, lval, lstep, i);
 			return -EINVAL;
 		}
+	}
+
+	return 0;
+}
+
+/* check whether the all input values are valid for the given elem value */
+static int sanity_check_input_values(struct snd_card *card,
+				     const struct snd_ctl_elem_value *control,
+				     const struct snd_ctl_elem_info *info,
+				     bool print_error)
+{
+	int i, ret;
+
+	switch (info->type) {
+	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:
+	case SNDRV_CTL_ELEM_TYPE_INTEGER:
+	case SNDRV_CTL_ELEM_TYPE_INTEGER64:
+	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
+		for (i = 0; i < info->count; i++) {
+			ret = sanity_check_int_value(card, control, info, i,
+						     print_error);
+			if (ret < 0)
+				return ret;
+		}
+		break;
+	default:
+		break;
 	}
 
 	return 0;
@@ -1045,23 +1074,12 @@ static int sanity_check_elem_value(struct snd_card *card,
 				   u32 pattern)
 {
 	size_t offset;
-	int i, ret = 0;
+	int ret;
 	u32 *p;
 
-	switch (info->type) {
-	case SNDRV_CTL_ELEM_TYPE_BOOLEAN:
-	case SNDRV_CTL_ELEM_TYPE_INTEGER:
-	case SNDRV_CTL_ELEM_TYPE_INTEGER64:
-	case SNDRV_CTL_ELEM_TYPE_ENUMERATED:
-		for (i = 0; i < info->count; i++) {
-			ret = sanity_check_int_value(card, control, info, i);
-			if (ret < 0)
-				return ret;
-		}
-		break;
-	default:
-		break;
-	}
+	ret = sanity_check_input_values(card, control, info, true);
+	if (ret < 0)
+		return ret;
 
 	/* check whether the remaining area kept untouched */
 	offset = value_sizes[info->type] * info->count;
@@ -1249,6 +1267,17 @@ static int snd_ctl_elem_write(struct snd_card *card, struct snd_ctl_file *file,
 
 	snd_ctl_build_ioff(&control->id, kctl, index_offset);
 	result = snd_power_ref_and_wait(card);
+	/* validate input values */
+	if (IS_ENABLED(CONFIG_SND_CTL_INPUT_VALIDATION) && !result) {
+		struct snd_ctl_elem_info info;
+
+		memset(&info, 0, sizeof(info));
+		info.id = control->id;
+		result = __snd_ctl_elem_info(card, kctl, &info, NULL);
+		if (!result)
+			result = sanity_check_input_values(card, control, &info,
+							   false);
+	}
 	if (!result)
 		result = kctl->put(kctl, control);
 	snd_power_unref(card);
