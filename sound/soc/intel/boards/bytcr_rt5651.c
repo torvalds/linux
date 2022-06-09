@@ -706,7 +706,7 @@ static int byt_rt5651_codec_fixup(struct snd_soc_pcm_runtime *rtd,
 	ret = snd_soc_dai_set_fmt(asoc_rtd_to_cpu(rtd, 0),
 				  SND_SOC_DAIFMT_I2S     |
 				  SND_SOC_DAIFMT_NB_NF   |
-				  SND_SOC_DAIFMT_CBC_CFC
+				  SND_SOC_DAIFMT_BP_FP
 				  );
 
 	if (ret < 0) {

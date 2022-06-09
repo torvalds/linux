@@ -343,7 +343,7 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 	}
 
 	switch (dev->fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FP:
 		/* codec is slave, so cpu is master */
 		mr |= ATMEL_I2SC_MR_MODE_MASTER;
 		ret = atmel_i2s_get_gck_param(dev, params_rate(params));
@@ -351,7 +351,7 @@ static int atmel_i2s_hw_params(struct snd_pcm_substream *substream,
 			return ret;
 		break;
 
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BC_FC:
 		/* codec is master, so cpu is slave */
 		mr |= ATMEL_I2SC_MR_MODE_SLAVE;
 		dev->gck_param = NULL;

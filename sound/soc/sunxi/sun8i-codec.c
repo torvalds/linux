@@ -286,11 +286,11 @@ static int sun8i_codec_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	u32 dsp_format, format, invert, value;
 
 	/* clock masters */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS: /* Codec slave, DAI master */
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BP_FP: /* Codec slave, DAI master */
 		value = 0x1;
 		break;
-	case SND_SOC_DAIFMT_CBM_CFM: /* Codec Master, DAI slave */
+	case SND_SOC_DAIFMT_BC_FC: /* Codec Master, DAI slave */
 		value = 0x0;
 		break;
 	default:

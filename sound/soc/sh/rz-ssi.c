@@ -767,7 +767,7 @@ static int rz_ssi_dai_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	struct rz_ssi_priv *ssi = snd_soc_dai_get_drvdata(dai);
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FP:
 		break;
 	default:
 		dev_err(ssi->dev, "Codec should be clk and frame consumer\n");

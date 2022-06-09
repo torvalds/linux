@@ -37,10 +37,10 @@ static int acp5x_i2s_set_fmt(struct snd_soc_dai *cpu_dai,
 	}
 	mode = fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK;
 	switch (mode) {
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FP:
 		adata->master_mode = I2S_MASTER_MODE_ENABLE;
 		break;
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BC_FC:
 		adata->master_mode = I2S_MASTER_MODE_DISABLE;
 		break;
 	}

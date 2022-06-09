@@ -497,11 +497,11 @@ static int kmb_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	int ret;
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BC_FC:
 		kmb_i2s->clock_provider = false;
 		ret = 0;
 		break;
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FP:
 		writel(CLOCK_PROVIDER_MODE, kmb_i2s->pss_base + I2S_GEN_CFG_0);
 
 		ret = clk_prepare_enable(kmb_i2s->clk_i2s);

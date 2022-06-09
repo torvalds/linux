@@ -246,12 +246,12 @@ static int ep93xx_i2s_set_dai_fmt(struct snd_soc_dai *cpu_dai,
 	}
 
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_CBC_CFC:
+	case SND_SOC_DAIFMT_BP_FP:
 		/* CPU is provider */
 		clk_cfg |= EP93XX_I2S_CLKCFG_MASTER;
 		break;
 
-	case SND_SOC_DAIFMT_CBP_CFP:
+	case SND_SOC_DAIFMT_BC_FC:
 		/* Codec is provider */
 		clk_cfg &= ~EP93XX_I2S_CLKCFG_MASTER;
 		break;

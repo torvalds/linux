@@ -317,7 +317,7 @@ static int imx_aif_hw_params(struct snd_pcm_substream *substream,
 		}
 	}
 
-	ret = snd_soc_dai_set_fmt(cpu_dai, fmt);
+	ret = snd_soc_dai_set_fmt(cpu_dai, snd_soc_daifmt_clock_provider_flipped(fmt));
 	if (ret && ret != -ENOTSUPP) {
 		dev_err(dev, "failed to set cpu dai fmt: %d\n", ret);
 		return ret;

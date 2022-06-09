@@ -492,8 +492,8 @@ static int mchp_pdmc_set_fmt(struct snd_soc_dai *dai, unsigned int fmt)
 	unsigned int fmt_format = fmt & SND_SOC_DAIFMT_FORMAT_MASK;
 
 	/* IP needs to be bitclock master */
-	if (fmt_master != SND_SOC_DAIFMT_CBS_CFS &&
-	    fmt_master != SND_SOC_DAIFMT_CBS_CFM)
+	if (fmt_master != SND_SOC_DAIFMT_BP_FP &&
+	    fmt_master != SND_SOC_DAIFMT_BP_FC)
 		return -EINVAL;
 
 	/* IP supports only PDM interface */

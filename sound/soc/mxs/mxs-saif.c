@@ -358,8 +358,8 @@ static int mxs_saif_set_dai_fmt(struct snd_soc_dai *cpu_dai, unsigned int fmt)
 	 * Saif internally could be slave when working on EXTMASTER mode.
 	 * We just hide this to machine driver.
 	 */
-	switch (fmt & SND_SOC_DAIFMT_MASTER_MASK) {
-	case SND_SOC_DAIFMT_CBS_CFS:
+	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
+	case SND_SOC_DAIFMT_BP_FP:
 		if (saif->id == saif->master_id)
 			scr &= ~BM_SAIF_CTRL_SLAVE_MODE;
 		else
