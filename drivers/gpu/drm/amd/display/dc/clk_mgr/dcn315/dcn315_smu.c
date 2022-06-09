@@ -70,6 +70,12 @@ static const struct IP_BASE NBIO_BASE = { { { { 0x00000000, 0x00000014, 0x00000D
 #define REG_NBIO(reg_name) \
 	(NBIO_BASE.instance[0].segment[regBIF_BX_PF2_ ## reg_name ## _BASE_IDX] + regBIF_BX_PF2_ ## reg_name)
 
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	CTX->logger
+#define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
+
 #define mmMP1_C2PMSG_3                            0x3B1050C
 
 #define VBIOSSMC_MSG_TestMessage                  0x01 ///< To check if PMFW is alive and responding. Requirement specified by PMFW team
@@ -131,6 +137,8 @@ static int dcn315_smu_send_msg_with_param(
 
 	result = dcn315_smu_wait_for_response(clk_mgr, 10, 200000);
 	ASSERT(result == VBIOSSMC_Result_OK);
+
+	smu_print("SMU response after wait: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;

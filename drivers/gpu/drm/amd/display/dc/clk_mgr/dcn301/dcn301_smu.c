@@ -41,6 +41,12 @@
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
 
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	CTX->logger
+#define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
+
 #define VBIOSSMC_MSG_GetSmuVersion                0x2
 #define VBIOSSMC_MSG_SetDispclkFreq               0x4
 #define VBIOSSMC_MSG_SetDprefclkFreq              0x5
@@ -95,6 +101,12 @@ static int dcn301_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 	uint32_t result;
 
 	result = dcn301_smu_wait_for_response(clk_mgr, 10, 200000);
+
+	smu_print("SMU response after wait: %d\n", result);
+
+	if (result == VBIOSSMC_Status_BUSY) {
+		return -1;
+	}
 
 	/* First clear response register */
 	REG_WRITE(MP1_SMN_C2PMSG_91, VBIOSSMC_Status_BUSY);

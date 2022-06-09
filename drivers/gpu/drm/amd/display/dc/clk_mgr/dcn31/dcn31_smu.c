@@ -40,6 +40,12 @@
 #define FN(reg_name, field) \
 	FD(reg_name##__##field)
 
+#include "logger_types.h"
+#undef DC_LOGGER
+#define DC_LOGGER \
+	CTX->logger
+#define smu_print(str, ...) {DC_LOG_SMU(str, ##__VA_ARGS__); }
+
 #define VBIOSSMC_MSG_TestMessage                  0x1
 #define VBIOSSMC_MSG_GetSmuVersion                0x2
 #define VBIOSSMC_MSG_PowerUpGfx                   0x3
@@ -103,6 +109,8 @@ static int dcn31_smu_send_msg_with_param(struct clk_mgr_internal *clk_mgr,
 
 	result = dcn31_smu_wait_for_response(clk_mgr, 10, 200000);
 	ASSERT(result == VBIOSSMC_Result_OK);
+
+	smu_print("SMU response after wait: %d\n", result);
 
 	if (result == VBIOSSMC_Status_BUSY) {
 		return -1;
