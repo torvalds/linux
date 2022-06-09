@@ -314,11 +314,13 @@ static void spi_statistics_add_transfer_stats(struct spi_statistics *pcpu_stats,
 					      struct spi_controller *ctlr)
 {
 	int l2len = min(fls(xfer->len), SPI_STATISTICS_HISTO_SIZE) - 1;
-	struct spi_statistics *stats = this_cpu_ptr(pcpu_stats);
+	struct spi_statistics *stats;
 
 	if (l2len < 0)
 		l2len = 0;
 
+	get_cpu();
+	stats = this_cpu_ptr(pcpu_stats);
 	u64_stats_update_begin(&stats->syncp);
 
 	u64_stats_inc(&stats->transfers);
@@ -333,6 +335,7 @@ static void spi_statistics_add_transfer_stats(struct spi_statistics *pcpu_stats,
 		u64_stats_add(&stats->bytes_rx, xfer->len);
 
 	u64_stats_update_end(&stats->syncp);
+	put_cpu();
 }
 
 /*

@@ -84,18 +84,24 @@ struct spi_statistics {
 
 #define SPI_STATISTICS_ADD_TO_FIELD(pcpu_stats, field, count)		\
 	do {								\
-		struct spi_statistics *__lstats = this_cpu_ptr(pcpu_stats); \
+		struct spi_statistics *__lstats;			\
+		get_cpu();						\
+		__lstats = this_cpu_ptr(pcpu_stats);			\
 		u64_stats_update_begin(&__lstats->syncp);		\
 		u64_stats_add(&__lstats->field, count);			\
 		u64_stats_update_end(&__lstats->syncp);			\
+		put_cpu();						\
 	} while (0)
 
 #define SPI_STATISTICS_INCREMENT_FIELD(pcpu_stats, field)		\
 	do {								\
-		struct spi_statistics *__lstats = this_cpu_ptr(pcpu_stats); \
+		struct spi_statistics *__lstats;			\
+		get_cpu();						\
+		__lstats = this_cpu_ptr(pcpu_stats);			\
 		u64_stats_update_begin(&__lstats->syncp);		\
 		u64_stats_inc(&__lstats->field);			\
 		u64_stats_update_end(&__lstats->syncp);			\
+		put_cpu();						\
 	} while (0)
 
 /**
