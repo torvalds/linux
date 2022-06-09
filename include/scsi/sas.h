@@ -712,16 +712,12 @@ struct smp_disc_resp {
 	struct discover_resp disc;
 } __attribute__ ((packed));
 
-struct smp_resp {
+struct smp_rps_resp {
 	u8    frame_type;
 	u8    function;
 	u8    result;
 	u8    reserved;
-	union {
-		struct report_general_resp  rg;
-		struct discover_resp        disc;
-		struct report_phy_sata_resp rps;
-	};
+	struct report_phy_sata_resp rps;
 } __attribute__ ((packed));
 
 #endif /* _SAS_H_ */

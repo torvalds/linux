@@ -676,10 +676,10 @@ int sas_smp_get_phy_events(struct sas_phy *phy)
 #ifdef CONFIG_SCSI_SAS_ATA
 
 #define RPS_REQ_SIZE  16
-#define RPS_RESP_SIZE 60
+#define RPS_RESP_SIZE sizeof(struct smp_rps_resp)
 
 int sas_get_report_phy_sata(struct domain_device *dev, int phy_id,
-			    struct smp_resp *rps_resp)
+			    struct smp_rps_resp *rps_resp)
 {
 	int res;
 	u8 *rps_req = alloc_smp_req(RPS_REQ_SIZE);
