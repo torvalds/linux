@@ -4,6 +4,7 @@
   add_cpu
   add_device_randomness
   add_memory
+  add_taint
   add_timer
   add_uevent_var
   add_wait_queue
@@ -360,6 +361,7 @@
   devm_thermal_zone_of_sensor_register
   devm_usb_get_phy_by_node
   _dev_notice
+  dev_pm_clear_wake_irq
   dev_pm_domain_attach
   dev_pm_domain_attach_by_name
   dev_pm_domain_detach
@@ -393,6 +395,7 @@
   dev_pm_qos_remove_notifier
   dev_pm_qos_remove_request
   dev_pm_qos_update_request
+  dev_pm_set_wake_irq
   devres_add
   __devres_alloc_node
   devres_free
@@ -611,6 +614,7 @@
   gpiochip_get_data
   gpiochip_line_is_valid
   gpiochip_lock_as_irq
+  gpiochip_populate_parent_fwspec_fourcell
   gpiochip_remove
   gpiochip_unlock_as_irq
   gpiod_direction_input
@@ -858,6 +862,7 @@
   kobject_put
   kobject_set_name
   kobject_uevent
+  kobject_uevent_env
   kobj_sysfs_ops
   krealloc
   kset_create_and_add
@@ -1381,20 +1386,31 @@
   regulator_bulk_disable
   regulator_count_voltages
   regulator_disable
+  regulator_disable_regmap
   regulator_enable
+  regulator_enable_regmap
   regulator_force_disable
   regulator_get
   regulator_get_mode
+  regulator_get_optional
   regulator_get_voltage
   regulator_get_voltage_rdev
+  regulator_get_voltage_sel_regmap
   regulator_is_enabled
+  regulator_is_enabled_regmap
   regulator_is_supported_voltage
+  regulator_list_voltage_linear
+  regulator_map_voltage_linear
+  regulator_notifier_call_chain
   regulator_put
   regulator_register_notifier
+  regulator_set_active_discharge_regmap
   regulator_set_current_limit
   regulator_set_load
   regulator_set_mode
+  regulator_set_pull_down_regmap
   regulator_set_voltage
+  regulator_set_voltage_sel_regmap
   regulator_unregister_notifier
   release_firmware
   __release_region
@@ -1611,6 +1627,7 @@
   strrchr
   strreplace
   strscpy
+  strscpy_pad
   strsep
   __sw_hweight32
   __sw_hweight64
