@@ -357,6 +357,7 @@ struct mtu3 {
 	unsigned delayed_status:1;
 	unsigned gen2cp:1;
 	unsigned connected:1;
+	unsigned async_callbacks:1;
 
 	u8 address;
 	u8 test_mode_nr;

@@ -66,7 +66,7 @@ __acquires(mtu->lock)
 {
 	int ret;
 
-	if (!mtu->gadget_driver)
+	if (!mtu->gadget_driver || !mtu->async_callbacks)
 		return -EOPNOTSUPP;
 
 	spin_unlock(&mtu->lock);
