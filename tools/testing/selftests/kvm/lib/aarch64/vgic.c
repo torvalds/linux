@@ -55,27 +55,26 @@ int vgic_v3_setup(struct kvm_vm *vm, unsigned int nr_vcpus, uint32_t nr_irqs,
 	if (gic_fd < 0)
 		return gic_fd;
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS,
-			0, &nr_irqs, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_NR_IRQS, 0, &nr_irqs);
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-			KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			KVM_VGIC_V3_ADDR_TYPE_DIST, &gicd_base_gpa, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			    KVM_VGIC_V3_ADDR_TYPE_DIST, &gicd_base_gpa);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode, KVM_VGIC_V3_DIST_SIZE);
 	virt_map(vm, gicd_base_gpa, gicd_base_gpa,  nr_gic_pages);
 
 	/* Redistributor setup */
 	redist_attr = REDIST_REGION_ATTR_ADDR(nr_vcpus, gicr_base_gpa, 0, 0);
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
-			KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &redist_attr, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_ADDR,
+			    KVM_VGIC_V3_ADDR_TYPE_REDIST_REGION, &redist_attr);
 	nr_gic_pages = vm_calc_num_guest_pages(vm->mode,
 						KVM_VGIC_V3_REDIST_SIZE * nr_vcpus);
 	virt_map(vm, gicr_base_gpa, gicr_base_gpa,  nr_gic_pages);
 
-	kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
-				KVM_DEV_ARM_VGIC_CTRL_INIT, NULL, true);
+	kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_CTRL,
+			    KVM_DEV_ARM_VGIC_CTRL_INIT, NULL);
 
 	return gic_fd;
 }
@@ -88,14 +87,14 @@ int _kvm_irq_set_level_info(int gic_fd, uint32_t intid, int level)
 	uint64_t val;
 	int ret;
 
-	ret = _kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
-				 attr, &val, false);
+	ret = __kvm_device_attr_get(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
+				    attr, &val);
 	if (ret != 0)
 		return ret;
 
 	val |= 1U << index;
-	ret = _kvm_device_access(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
-				 attr, &val, true);
+	ret = __kvm_device_attr_set(gic_fd, KVM_DEV_ARM_VGIC_GRP_LEVEL_INFO,
+				    attr, &val);
 	return ret;
 }
 
@@ -155,9 +154,9 @@ static void vgic_poke_irq(int gic_fd, uint32_t intid,
 	 * intid will just make the read/writes point to above the intended
 	 * register space (i.e., ICPENDR after ISPENDR).
 	 */
-	kvm_device_access(gic_fd, group, attr, &val, false);
+	kvm_device_attr_get(gic_fd, group, attr, &val);
 	val |= 1ULL << index;
-	kvm_device_access(gic_fd, group, attr, &val, true);
+	kvm_device_attr_set(gic_fd, group, attr, &val);
 }
 
 void kvm_irq_write_ispendr(int gic_fd, uint32_t intid, uint32_t vcpu)

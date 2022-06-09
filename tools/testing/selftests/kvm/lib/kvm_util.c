@@ -1645,16 +1645,7 @@ int __kvm_create_device(struct kvm_vm *vm, uint64_t type)
 	return err ? : create_dev.fd;
 }
 
-int kvm_create_device(struct kvm_vm *vm, uint64_t type)
-{
-	int fd = __kvm_create_device(vm, type);
-
-	TEST_ASSERT(fd >= 0, "KVM_CREATE_DEVICE IOCTL failed, rc: %i errno: %i", fd, errno);
-	return fd;
-}
-
-int _kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
-		      void *val, bool write)
+int __kvm_device_attr_get(int dev_fd, uint32_t group, uint64_t attr, void *val)
 {
 	struct kvm_device_attr kvmattr = {
 		.group = group,
@@ -1662,20 +1653,44 @@ int _kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
 		.flags = 0,
 		.addr = (uintptr_t)val,
 	};
-	int ret;
 
-	ret = ioctl(dev_fd, write ? KVM_SET_DEVICE_ATTR : KVM_GET_DEVICE_ATTR,
-		    &kvmattr);
-	return ret;
+	return __kvm_ioctl(dev_fd, KVM_GET_DEVICE_ATTR, &kvmattr);
 }
 
-int kvm_device_access(int dev_fd, uint32_t group, uint64_t attr,
-		      void *val, bool write)
+int __kvm_device_attr_set(int dev_fd, uint32_t group, uint64_t attr, void *val)
 {
-	int ret = _kvm_device_access(dev_fd, group, attr, val, write);
+	struct kvm_device_attr kvmattr = {
+		.group = group,
+		.attr = attr,
+		.flags = 0,
+		.addr = (uintptr_t)val,
+	};
 
-	TEST_ASSERT(!ret, "KVM_SET|GET_DEVICE_ATTR IOCTL failed, rc: %i errno: %i", ret, errno);
-	return ret;
+	return __kvm_ioctl(dev_fd, KVM_SET_DEVICE_ATTR, &kvmattr);
+}
+
+int __vcpu_device_attr_get(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
+			   uint64_t attr, void *val)
+{
+	return __kvm_device_attr_get(vcpu_get(vm, vcpuid)->fd, group, attr, val);
+}
+
+void vcpu_device_attr_get(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
+			  uint64_t attr, void *val)
+{
+	kvm_device_attr_get(vcpu_get(vm, vcpuid)->fd, group, attr, val);
+}
+
+int __vcpu_device_attr_set(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
+			   uint64_t attr, void *val)
+{
+	return __kvm_device_attr_set(vcpu_get(vm, vcpuid)->fd, group, attr, val);
+}
+
+void vcpu_device_attr_set(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
+			  uint64_t attr, void *val)
+{
+	kvm_device_attr_set(vcpu_get(vm, vcpuid)->fd, group, attr, val);
 }
 
 int __vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
@@ -1684,23 +1699,6 @@ int __vcpu_has_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
 	struct vcpu *vcpu = vcpu_get(vm, vcpuid);
 
 	return __kvm_has_device_attr(vcpu->fd, group, attr);
-}
-
-int _vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			     uint64_t attr, void *val, bool write)
-{
-	struct vcpu *vcpu = vcpu_get(vm, vcpuid);
-
-	return _kvm_device_access(vcpu->fd, group, attr, val, write);
-}
-
-int vcpu_access_device_attr(struct kvm_vm *vm, uint32_t vcpuid, uint32_t group,
-			    uint64_t attr, void *val, bool write)
-{
-	int ret = _vcpu_access_device_attr(vm, vcpuid, group, attr, val, write);
-
-	TEST_ASSERT(!ret, "KVM_SET|GET_DEVICE_ATTR IOCTL failed, rc: %i errno: %i", ret, errno);
-	return ret;
 }
 
 /*

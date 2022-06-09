@@ -66,8 +66,8 @@ void guest_modes_append_default(void)
 
 		kvm_fd = open_kvm_dev_path_or_exit();
 		vm_fd = __kvm_ioctl(kvm_fd, KVM_CREATE_VM, 0);
-		kvm_device_access(vm_fd, KVM_S390_VM_CPU_MODEL,
-				  KVM_S390_VM_CPU_PROCESSOR, &info, false);
+		kvm_device_attr_get(vm_fd, KVM_S390_VM_CPU_MODEL,
+				    KVM_S390_VM_CPU_PROCESSOR, &info);
 		close(vm_fd);
 		close(kvm_fd);
 		/* Starting with z13 we have 47bits of physical address */

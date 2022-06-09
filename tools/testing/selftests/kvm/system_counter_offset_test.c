@@ -39,8 +39,8 @@ static void check_preconditions(struct kvm_vm *vm)
 
 static void setup_system_counter(struct kvm_vm *vm, struct test_case *test)
 {
-	vcpu_access_device_attr(vm, VCPU_ID, KVM_VCPU_TSC_CTRL,
-				KVM_VCPU_TSC_OFFSET, &test->tsc_offset, true);
+	vcpu_device_attr_set(vm, VCPU_ID, KVM_VCPU_TSC_CTRL,
+			     KVM_VCPU_TSC_OFFSET, &test->tsc_offset);
 }
 
 static uint64_t guest_read_system_counter(struct test_case *test)
