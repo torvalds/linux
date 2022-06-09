@@ -696,6 +696,14 @@ struct report_phy_sata_resp {
 #error "Bitfield order not defined!"
 #endif
 
+struct smp_rg_resp {
+	u8    frame_type;
+	u8    function;
+	u8    result;
+	u8    reserved;
+	struct report_general_resp rg;
+} __attribute__ ((packed));
+
 struct smp_disc_resp {
 	u8    frame_type;
 	u8    function;

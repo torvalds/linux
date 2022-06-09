@@ -429,27 +429,14 @@ static int sas_expander_discover(struct domain_device *dev)
 
 #define MAX_EXPANDER_PHYS 128
 
-static void ex_assign_report_general(struct domain_device *dev,
-					    struct smp_resp *resp)
-{
-	struct report_general_resp *rg = &resp->rg;
-
-	dev->ex_dev.ex_change_count = be16_to_cpu(rg->change_count);
-	dev->ex_dev.max_route_indexes = be16_to_cpu(rg->route_indexes);
-	dev->ex_dev.num_phys = min(rg->num_phys, (u8)MAX_EXPANDER_PHYS);
-	dev->ex_dev.t2t_supp = rg->t2t_supp;
-	dev->ex_dev.conf_route_table = rg->conf_route_table;
-	dev->ex_dev.configuring = rg->configuring;
-	memcpy(dev->ex_dev.enclosure_logical_id, rg->enclosure_logical_id, 8);
-}
-
 #define RG_REQ_SIZE   8
-#define RG_RESP_SIZE 32
+#define RG_RESP_SIZE  sizeof(struct smp_rg_resp)
 
 static int sas_ex_general(struct domain_device *dev)
 {
 	u8 *rg_req;
-	struct smp_resp *rg_resp;
+	struct smp_rg_resp *rg_resp;
+	struct report_general_resp *rg;
 	int res;
 	int i;
 
@@ -480,7 +467,15 @@ static int sas_ex_general(struct domain_device *dev)
 			goto out;
 		}
 
-		ex_assign_report_general(dev, rg_resp);
+		rg = &rg_resp->rg;
+		dev->ex_dev.ex_change_count = be16_to_cpu(rg->change_count);
+		dev->ex_dev.max_route_indexes = be16_to_cpu(rg->route_indexes);
+		dev->ex_dev.num_phys = min(rg->num_phys, (u8)MAX_EXPANDER_PHYS);
+		dev->ex_dev.t2t_supp = rg->t2t_supp;
+		dev->ex_dev.conf_route_table = rg->conf_route_table;
+		dev->ex_dev.configuring = rg->configuring;
+		memcpy(dev->ex_dev.enclosure_logical_id,
+		       rg->enclosure_logical_id, 8);
 
 		if (dev->ex_dev.configuring) {
 			pr_debug("RG: ex %016llx self-configuring...\n",
@@ -1756,7 +1751,7 @@ static int sas_get_ex_change_count(struct domain_device *dev, int *ecc)
 {
 	int res;
 	u8  *rg_req;
-	struct smp_resp  *rg_resp;
+	struct smp_rg_resp  *rg_resp;
 
 	rg_req = alloc_smp_req(RG_REQ_SIZE);
 	if (!rg_req)
