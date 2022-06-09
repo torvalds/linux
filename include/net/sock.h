@@ -1398,21 +1398,47 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
 }
 
 static inline long
+proto_memory_allocated(const struct proto *prot)
+{
+	return max(0L, atomic_long_read(prot->memory_allocated));
+}
+
+static inline long
 sk_memory_allocated(const struct sock *sk)
 {
-	return atomic_long_read(sk->sk_prot->memory_allocated);
+	return proto_memory_allocated(sk->sk_prot);
 }
+
+/* 1 MB per cpu, in page units */
+#define SK_MEMORY_PCPU_RESERVE (1 << (20 - PAGE_SHIFT))
 
 static inline long
 sk_memory_allocated_add(struct sock *sk, int amt)
 {
-	return atomic_long_add_return(amt, sk->sk_prot->memory_allocated);
+	int local_reserve;
+
+	preempt_disable();
+	local_reserve = __this_cpu_add_return(*sk->sk_prot->per_cpu_fw_alloc, amt);
+	if (local_reserve >= SK_MEMORY_PCPU_RESERVE) {
+		__this_cpu_sub(*sk->sk_prot->per_cpu_fw_alloc, local_reserve);
+		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
+	}
+	preempt_enable();
+	return sk_memory_allocated(sk);
 }
 
 static inline void
 sk_memory_allocated_sub(struct sock *sk, int amt)
 {
-	atomic_long_sub(amt, sk->sk_prot->memory_allocated);
+	int local_reserve;
+
+	preempt_disable();
+	local_reserve = __this_cpu_sub_return(*sk->sk_prot->per_cpu_fw_alloc, amt);
+	if (local_reserve <= -SK_MEMORY_PCPU_RESERVE) {
+		__this_cpu_sub(*sk->sk_prot->per_cpu_fw_alloc, local_reserve);
+		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
+	}
+	preempt_enable();
 }
 
 #define SK_ALLOC_PERCPU_COUNTER_BATCH 16
@@ -1439,12 +1465,6 @@ static inline int
 proto_sockets_allocated_sum_positive(struct proto *prot)
 {
 	return percpu_counter_sum_positive(prot->sockets_allocated);
-}
-
-static inline long
-proto_memory_allocated(struct proto *prot)
-{
-	return atomic_long_read(prot->memory_allocated);
 }
 
 static inline bool
