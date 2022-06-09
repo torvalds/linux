@@ -1158,39 +1158,40 @@ static int iter_to_pipe(struct iov_iter *from,
 	};
 	size_t total = 0;
 	int ret = 0;
-	bool failed = false;
 
-	while (iov_iter_count(from) && !failed) {
+	while (iov_iter_count(from)) {
 		struct page *pages[16];
-		ssize_t copied;
+		ssize_t left;
 		size_t start;
-		int n;
+		int i, n;
 
-		copied = iov_iter_get_pages(from, pages, ~0UL, 16, &start);
-		if (copied <= 0) {
-			ret = copied;
+		left = iov_iter_get_pages2(from, pages, ~0UL, 16, &start);
+		if (left <= 0) {
+			ret = left;
 			break;
 		}
 
-		for (n = 0; copied; n++, start = 0) {
-			int size = min_t(int, copied, PAGE_SIZE - start);
-			if (!failed) {
-				buf.page = pages[n];
-				buf.offset = start;
-				buf.len = size;
-				ret = add_to_pipe(pipe, &buf);
-				if (unlikely(ret < 0)) {
-					failed = true;
-				} else {
-					iov_iter_advance(from, ret);
-					total += ret;
-				}
-			} else {
-				put_page(pages[n]);
+		n = DIV_ROUND_UP(left + start, PAGE_SIZE);
+		for (i = 0; i < n; i++) {
+			int size = min_t(int, left, PAGE_SIZE - start);
+
+			buf.page = pages[i];
+			buf.offset = start;
+			buf.len = size;
+			ret = add_to_pipe(pipe, &buf);
+			if (unlikely(ret < 0)) {
+				iov_iter_revert(from, left);
+				// this one got dropped by add_to_pipe()
+				while (++i < n)
+					put_page(pages[i]);
+				goto out;
 			}
-			copied -= size;
+			total += ret;
+			left -= size;
+			start = 0;
 		}
 	}
+out:
 	return total ? total : ret;
 }
 
