@@ -1355,7 +1355,6 @@ int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs)
 	struct gfs2_sbd *sdp = ghs[0].gh_gl->gl_name.ln_sbd;
 	int i, ret = 0, timeout = 0;
 	unsigned long start_time = jiffies;
-	bool keep_waiting;
 
 	might_sleep();
 	/*
@@ -1365,53 +1364,31 @@ int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs)
 	for (i = 0; i < num_gh; i++)
 		timeout += ghs[i].gh_gl->gl_hold_time << 1;
 
-wait_for_dlm:
 	if (!wait_event_timeout(sdp->sd_async_glock_wait,
-				!glocks_pending(num_gh, ghs), timeout))
+				!glocks_pending(num_gh, ghs), timeout)) {
 		ret = -ESTALE; /* request timed out. */
-
-	/*
-	 * If dlm granted all our requests, we need to adjust the glock
-	 * minimum hold time values according to how long we waited.
-	 *
-	 * If our request timed out, we need to repeatedly release any held
-	 * glocks we acquired thus far to allow dlm to acquire the remaining
-	 * glocks without deadlocking.  We cannot currently cancel outstanding
-	 * glock acquisitions.
-	 *
-	 * The HIF_WAIT bit tells us which requests still need a response from
-	 * dlm.
-	 *
-	 * If dlm sent us any errors, we return the first error we find.
-	 */
-	keep_waiting = false;
-	for (i = 0; i < num_gh; i++) {
-		/* Skip holders we have already dequeued below. */
-		if (!gfs2_holder_queued(&ghs[i]))
-			continue;
-		/* Skip holders with a pending DLM response. */
-		if (test_bit(HIF_WAIT, &ghs[i].gh_iflags)) {
-			keep_waiting = true;
-			continue;
-		}
-
-		if (test_bit(HIF_HOLDER, &ghs[i].gh_iflags)) {
-			if (ret == -ESTALE)
-				gfs2_glock_dq(&ghs[i]);
-			else
-				gfs2_glock_update_hold_time(ghs[i].gh_gl,
-							    start_time);
-		}
-		if (!ret)
-			ret = ghs[i].gh_error;
+		goto out;
 	}
 
-	if (keep_waiting)
-		goto wait_for_dlm;
+	for (i = 0; i < num_gh; i++) {
+		struct gfs2_holder *gh = &ghs[i];
 
-	/*
-	 * At this point, we've either acquired all locks or released them all.
-	 */
+		if (test_bit(HIF_HOLDER, &gh->gh_iflags)) {
+			gfs2_glock_update_hold_time(gh->gh_gl,
+						    start_time);
+		}
+		if (!ret)
+			ret = gh->gh_error;
+	}
+
+out:
+	if (ret) {
+		for (i = 0; i < num_gh; i++) {
+			struct gfs2_holder *gh = &ghs[i];
+
+			gfs2_glock_dq(gh);
+		}
+	}
 	return ret;
 }
 
