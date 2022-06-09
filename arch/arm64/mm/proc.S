@@ -202,19 +202,25 @@ SYM_FUNC_END(idmap_cpu_replace_ttbr1)
 #ifdef CONFIG_UNMAP_KERNEL_AT_EL0
 	.pushsection ".idmap.text", "awx"
 
-	.macro	__idmap_kpti_get_pgtable_ent, type
-	dc	cvac, cur_\()\type\()p		// Ensure any existing dirty
+	.macro	kpti_mk_tbl_ng, type, num_entries
+	add	end_\type\()p, cur_\type\()p, #\num_entries * 8
+.Ldo_\type:
+	dc	cvac, cur_\type\()p		// Ensure any existing dirty
 	dmb	sy				// lines are written back before
-	ldr	\type, [cur_\()\type\()p]	// loading the entry
-	tbz	\type, #0, skip_\()\type	// Skip invalid and
-	tbnz	\type, #11, skip_\()\type	// non-global entries
-	.endm
-
-	.macro __idmap_kpti_put_pgtable_ent_ng, type
+	ldr	\type, [cur_\type\()p]		// loading the entry
+	tbz	\type, #0, .Lnext_\type		// Skip invalid and
+	tbnz	\type, #11, .Lnext_\type	// non-global entries
 	orr	\type, \type, #PTE_NG		// Same bit for blocks and pages
-	str	\type, [cur_\()\type\()p]	// Update the entry and ensure
+	str	\type, [cur_\type\()p]		// Update the entry and ensure
 	dmb	sy				// that it is visible to all
 	dc	civac, cur_\()\type\()p		// CPUs.
+	.ifnc	\type, pte
+	tbnz	\type, #1, .Lderef_\type
+	.endif
+.Lnext_\type:
+	add	cur_\type\()p, cur_\type\()p, #8
+	cmp	cur_\type\()p, end_\type\()p
+	b.ne	.Ldo_\type
 	.endm
 
 /*
@@ -235,10 +241,8 @@ SYM_FUNC_START(idmap_kpti_install_ng_mappings)
 	pgd		.req	x7
 	cur_pudp	.req	x8
 	end_pudp	.req	x9
-	pud		.req	x10
 	cur_pmdp	.req	x11
 	end_pmdp	.req	x12
-	pmd		.req	x13
 	cur_ptep	.req	x14
 	end_ptep	.req	x15
 	pte		.req	x16
@@ -265,16 +269,8 @@ SYM_FUNC_START(idmap_kpti_install_ng_mappings)
 
 	/* Everybody is enjoying the idmap, so we can rewrite swapper. */
 	/* PGD */
-	mov	cur_pgdp, swapper_pa
-	add	end_pgdp, cur_pgdp, #(PTRS_PER_PGD * 8)
-do_pgd:	__idmap_kpti_get_pgtable_ent	pgd
-	tbnz	pgd, #1, walk_puds
-next_pgd:
-	__idmap_kpti_put_pgtable_ent_ng	pgd
-skip_pgd:
-	add	cur_pgdp, cur_pgdp, #8
-	cmp	cur_pgdp, end_pgdp
-	b.ne	do_pgd
+	mov		cur_pgdp, swapper_pa
+	kpti_mk_tbl_ng	pgd, PTRS_PER_PGD
 
 	/* Publish the updated tables and nuke all the TLBs */
 	dsb	sy
@@ -291,59 +287,35 @@ skip_pgd:
 	str	wzr, [flag_ptr]
 	ret
 
+.Lderef_pgd:
 	/* PUD */
-walk_puds:
-	.if CONFIG_PGTABLE_LEVELS > 3
+	.if		CONFIG_PGTABLE_LEVELS > 3
+	pud		.req	x10
 	pte_to_phys	cur_pudp, pgd
-	add	end_pudp, cur_pudp, #(PTRS_PER_PUD * 8)
-do_pud:	__idmap_kpti_get_pgtable_ent	pud
-	tbnz	pud, #1, walk_pmds
-next_pud:
-	__idmap_kpti_put_pgtable_ent_ng	pud
-skip_pud:
-	add	cur_pudp, cur_pudp, 8
-	cmp	cur_pudp, end_pudp
-	b.ne	do_pud
-	b	next_pgd
-	.else /* CONFIG_PGTABLE_LEVELS <= 3 */
-	mov	pud, pgd
-	b	walk_pmds
-next_pud:
-	b	next_pgd
+	kpti_mk_tbl_ng	pud, PTRS_PER_PUD
+	b		.Lnext_pgd
+	.else		/* CONFIG_PGTABLE_LEVELS <= 3 */
+	pud		.req	pgd
+	.set		.Lnext_pud, .Lnext_pgd
 	.endif
 
+.Lderef_pud:
 	/* PMD */
-walk_pmds:
-	.if CONFIG_PGTABLE_LEVELS > 2
+	.if		CONFIG_PGTABLE_LEVELS > 2
+	pmd		.req	x13
 	pte_to_phys	cur_pmdp, pud
-	add	end_pmdp, cur_pmdp, #(PTRS_PER_PMD * 8)
-do_pmd:	__idmap_kpti_get_pgtable_ent	pmd
-	tbnz	pmd, #1, walk_ptes
-next_pmd:
-	__idmap_kpti_put_pgtable_ent_ng	pmd
-skip_pmd:
-	add	cur_pmdp, cur_pmdp, #8
-	cmp	cur_pmdp, end_pmdp
-	b.ne	do_pmd
-	b	next_pud
-	.else /* CONFIG_PGTABLE_LEVELS <= 2 */
-	mov	pmd, pud
-	b	walk_ptes
-next_pmd:
-	b	next_pud
+	kpti_mk_tbl_ng	pmd, PTRS_PER_PMD
+	b		.Lnext_pud
+	.else		/* CONFIG_PGTABLE_LEVELS <= 2 */
+	pmd		.req	pgd
+	.set		.Lnext_pmd, .Lnext_pgd
 	.endif
 
+.Lderef_pmd:
 	/* PTE */
-walk_ptes:
 	pte_to_phys	cur_ptep, pmd
-	add	end_ptep, cur_ptep, #(PTRS_PER_PTE * 8)
-do_pte:	__idmap_kpti_get_pgtable_ent	pte
-	__idmap_kpti_put_pgtable_ent_ng	pte
-skip_pte:
-	add	cur_ptep, cur_ptep, #8
-	cmp	cur_ptep, end_ptep
-	b.ne	do_pte
-	b	next_pmd
+	kpti_mk_tbl_ng	pte, PTRS_PER_PTE
+	b		.Lnext_pmd
 
 	.unreq	cpu
 	.unreq	num_cpus
