@@ -418,7 +418,8 @@ static void run_test(struct vcpu_config *c)
 
 	vm = vm_create(DEFAULT_GUEST_PHY_PAGES);
 	prepare_vcpu_init(c, &init);
-	aarch64_vcpu_add_default(vm, 0, &init, NULL);
+	vm_vcpu_add(vm, 0);
+	aarch64_vcpu_setup(vm, 0, &init);
 	finalize_vcpu(vm, 0, c);
 
 	reg_list = vcpu_get_reg_list(vm, 0);
