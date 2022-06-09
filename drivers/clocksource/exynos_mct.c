@@ -233,9 +233,16 @@ static cycles_t exynos4_read_current_timer(void)
 }
 #endif
 
-static int __init exynos4_clocksource_init(void)
+static int __init exynos4_clocksource_init(bool frc_shared)
 {
-	exynos4_mct_frc_start();
+	/*
+	 * When the frc is shared, the main processer should have already
+	 * turned it on and we shouldn't be writing to TCON.
+	 */
+	if (frc_shared)
+		mct_frc.resume = NULL;
+	else
+		exynos4_mct_frc_start();
 
 #if defined(CONFIG_ARM)
 	exynos4_delay_timer.read_current_timer = &exynos4_read_current_timer;
@@ -605,6 +612,7 @@ out_irq:
 
 static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
 {
+	bool frc_shared = of_property_read_bool(np, "samsung,frc-shared");
 	int ret;
 
 	ret = exynos4_timer_resources(np);
@@ -615,8 +623,15 @@ static int __init mct_init_dt(struct device_node *np, unsigned int int_type)
 	if (ret)
 		return ret;
 
-	ret = exynos4_clocksource_init();
+	ret = exynos4_clocksource_init(frc_shared);
 	if (ret)
+		return ret;
+
+	/*
+	 * When the FRC is shared with a main processor, this secondary
+	 * processor cannot use the global comparator.
+	 */
+	if (frc_shared)
 		return ret;
 
 	return exynos4_clockevent_init();
