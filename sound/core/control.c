@@ -966,7 +966,6 @@ static const unsigned int value_sizes[] = {
 	[SNDRV_CTL_ELEM_TYPE_INTEGER64] = sizeof(long long),
 };
 
-#ifdef CONFIG_SND_CTL_DEBUG
 /* fill the remaining snd_ctl_elem_value data with the given pattern */
 static void fill_remaining_elem_value(struct snd_ctl_elem_value *control,
 				      struct snd_ctl_elem_info *info,
@@ -1078,21 +1077,6 @@ static int sanity_check_elem_value(struct snd_card *card,
 
 	return ret;
 }
-#else
-static inline void fill_remaining_elem_value(struct snd_ctl_elem_value *control,
-					     struct snd_ctl_elem_info *info,
-					     u32 pattern)
-{
-}
-
-static inline int sanity_check_elem_value(struct snd_card *card,
-					  struct snd_ctl_elem_value *control,
-					  struct snd_ctl_elem_info *info,
-					  u32 pattern)
-{
-	return 0;
-}
-#endif
 
 static int __snd_ctl_elem_info(struct snd_card *card,
 			       struct snd_kcontrol *kctl,
