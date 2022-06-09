@@ -590,8 +590,8 @@ bool pmbus_check_word_register(struct i2c_client *client, int page, int reg)
 }
 EXPORT_SYMBOL_NS_GPL(pmbus_check_word_register, PMBUS);
 
-static bool pmbus_check_block_register(struct i2c_client *client, int page,
-				       int reg)
+static bool __maybe_unused pmbus_check_block_register(struct i2c_client *client,
+						      int page, int reg)
 {
 	int rv;
 	struct pmbus_data *data = i2c_get_clientdata(client);
