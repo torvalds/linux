@@ -835,9 +835,7 @@ static int setup_events(void)
 		pr_err("qcom pmu driver failed to initialize hotplug: %d\n", ret);
 		goto out;
 	}
-	register_trace_android_vh_cpu_idle_enter(qcom_pmu_idle_enter_notif, NULL);
-	register_trace_android_vh_cpu_idle_exit(qcom_pmu_idle_exit_notif, NULL);
-	cpu_pm_register_notifier(&memlat_event_pm_nb);
+
 	goto out;
 
 cleanup_events:
@@ -850,6 +848,11 @@ cleanup_events:
 	}
 out:
 	cpus_read_unlock();
+	if (ret != -EPROBE_DEFER && ret != cpuhp_state) {
+		register_trace_android_vh_cpu_idle_enter(qcom_pmu_idle_enter_notif, NULL);
+		register_trace_android_vh_cpu_idle_exit(qcom_pmu_idle_exit_notif, NULL);
+		cpu_pm_register_notifier(&memlat_event_pm_nb);
+	}
 	kfree(attr);
 	return ret;
 }
