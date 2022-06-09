@@ -170,8 +170,8 @@
 
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "default";
-		rockchip,camera-module-lens-name = "default";
+		rockchip,camera-module-name = "SIDA209300461";
+		rockchip,camera-module-lens-name = "VB";
 
 		ir-cut = <&cam_ircut0>;
 
