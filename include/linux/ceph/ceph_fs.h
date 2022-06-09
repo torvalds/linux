@@ -433,9 +433,9 @@ union ceph_mds_request_args {
 		__le32 stripe_unit;          /* layout for newly created file */
 		__le32 stripe_count;         /* ... */
 		__le32 object_size;
-		__le32 file_replication;
-               __le32 mask;                 /* CEPH_CAP_* */
-               __le32 old_size;
+		__le32 pool;
+		__le32 mask;                 /* CEPH_CAP_* */
+		__le64 old_size;
 	} __attribute__ ((packed)) open;
 	struct {
 		__le32 flags;
