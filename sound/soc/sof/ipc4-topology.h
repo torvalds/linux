@@ -11,6 +11,24 @@
 
 #include <sound/sof/ipc4/header.h>
 
+#define SOF_IPC4_FW_PAGE_SIZE BIT(12)
+#define SOF_IPC4_FW_PAGE(x) ((((x) + BIT(12) - 1) & ~(BIT(12) - 1)) >> 12)
+#define SOF_IPC4_FW_ROUNDUP(x) (((x) + BIT(6) - 1) & (~(BIT(6) - 1)))
+
+#define SOF_IPC4_MODULE_LL      BIT(5)
+#define SOF_IPC4_MODULE_INSTANCE_LIST_ITEM_SIZE 12
+#define SOF_IPC4_PIPELINE_OBJECT_SIZE 448
+#define SOF_IPC4_DATA_QUEUE_OBJECT_SIZE 128
+#define SOF_IPC4_LL_TASK_OBJECT_SIZE 72
+#define SOF_IPC4_DP_TASK_OBJECT_SIZE 104
+#define SOF_IPC4_DP_TASK_LIST_SIZE (12 + 8)
+#define SOF_IPC4_LL_TASK_LIST_ITEM_SIZE 12
+#define SOF_IPC4_FW_MAX_PAGE_COUNT 20
+#define SOF_IPC4_FW_MAX_QUEUE_COUNT 8
+
+/* Node index and mask applicable for host copier */
+#define SOF_IPC4_NODE_INDEX_MASK	0xFF
+#define SOF_IPC4_NODE_INDEX(x)	((x) & SOF_IPC4_NODE_INDEX_MASK)
 #define SOF_IPC4_NODE_TYPE(x)  ((x) << 8)
 
 /**
