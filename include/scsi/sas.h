@@ -471,18 +471,6 @@ struct report_phy_sata_resp {
 	__be32 crc;
 } __attribute__ ((packed));
 
-struct smp_resp {
-	u8    frame_type;
-	u8    function;
-	u8    result;
-	u8    reserved;
-	union {
-		struct report_general_resp  rg;
-		struct discover_resp        disc;
-		struct report_phy_sata_resp rps;
-	};
-} __attribute__ ((packed));
-
 #elif defined(__BIG_ENDIAN_BITFIELD)
 struct sas_identify_frame {
 	/* Byte 0 */
@@ -704,6 +692,18 @@ struct report_phy_sata_resp {
 	__be32 crc;
 } __attribute__ ((packed));
 
+#else
+#error "Bitfield order not defined!"
+#endif
+
+struct smp_disc_resp {
+	u8    frame_type;
+	u8    function;
+	u8    result;
+	u8    reserved;
+	struct discover_resp disc;
+} __attribute__ ((packed));
+
 struct smp_resp {
 	u8    frame_type;
 	u8    function;
@@ -715,9 +715,5 @@ struct smp_resp {
 		struct report_phy_sata_resp rps;
 	};
 } __attribute__ ((packed));
-
-#else
-#error "Bitfield order not defined!"
-#endif
 
 #endif /* _SAS_H_ */
