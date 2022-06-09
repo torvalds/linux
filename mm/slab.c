@@ -3230,7 +3230,7 @@ slab_alloc_node(struct kmem_cache *cachep, gfp_t flags, int nodeid, size_t orig_
 	}
 	/* ___cache_alloc_node can fall back to other nodes */
 	ptr = ____cache_alloc_node(cachep, flags, nodeid);
-  out:
+out:
 	local_irq_restore(save_flags);
 	ptr = cache_alloc_debugcheck_after(cachep, flags, ptr, caller);
 	init = slab_want_init_on_alloc(flags, cachep);
@@ -3259,7 +3259,7 @@ __do_cache_alloc(struct kmem_cache *cache, gfp_t flags)
 	if (!objp)
 		objp = ____cache_alloc_node(cache, flags, numa_mem_id());
 
-  out:
+out:
 	return objp;
 }
 #else
