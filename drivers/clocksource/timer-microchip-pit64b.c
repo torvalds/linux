@@ -61,7 +61,7 @@ struct mchp_pit64b_timer {
 };
 
 /**
- * mchp_pit64b_clkevt - PIT64B clockevent data structure
+ * struct mchp_pit64b_clkevt - PIT64B clockevent data structure
  * @timer: PIT64B timer
  * @clkevt: clockevent
  */
@@ -75,7 +75,7 @@ struct mchp_pit64b_clkevt {
 		struct mchp_pit64b_clkevt, clkevt))
 
 /**
- * mchp_pit64b_clksrc - PIT64B clocksource data structure
+ * struct mchp_pit64b_clksrc - PIT64B clocksource data structure
  * @timer: PIT64B timer
  * @clksrc: clocksource
  */
@@ -245,8 +245,10 @@ static void __init mchp_pit64b_pres_compute(u32 *pres, u32 clk_rate,
 }
 
 /**
- * mchp_pit64b_init_mode - prepare PIT64B mode register value to be used at
- *			   runtime; this includes prescaler and SGCLK bit
+ * mchp_pit64b_init_mode() - prepare PIT64B mode register value to be used at
+ *			     runtime; this includes prescaler and SGCLK bit
+ * @timer: pointer to pit64b timer to init
+ * @max_rate: maximum rate that timer's clock could use
  *
  * PIT64B timer may be fed by gclk or pclk. When gclk is used its rate has to
  * be at least 3 times lower that pclk's rate. pclk rate is fixed, gclk rate
