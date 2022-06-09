@@ -255,7 +255,7 @@ static void vm_set_status(struct virtio_device *vdev, u8 status)
 
 	/*
 	 * Per memory-barriers.txt, wmb() is not needed to guarantee
-	 * that the the cache coherent memory writes have completed
+	 * that the cache coherent memory writes have completed
 	 * before writing to the MMIO region.
 	 */
 	writel(status, vm_dev->base + VIRTIO_MMIO_STATUS);
