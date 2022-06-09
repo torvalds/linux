@@ -17,6 +17,9 @@
 /* Full volume for default values */
 #define VOL_ZERO_DB	BIT(VOLUME_FWL)
 
+/* size of tplg ABI in bytes */
+#define SOF_IPC3_TPLG_ABI_SIZE 3
+
 struct sof_widget_data {
 	int ctrl_type;
 	int ipc_cmd;
@@ -2303,6 +2306,50 @@ static int sof_ipc3_dai_get_clk(struct snd_sof_dev *sdev, struct snd_sof_dai *da
 	return -EINVAL;
 }
 
+static int sof_ipc3_parse_manifest(struct snd_soc_component *scomp, int index,
+				   struct snd_soc_tplg_manifest *man)
+{
+	u32 size = le32_to_cpu(man->priv.size);
+	u32 abi_version;
+
+	/* backward compatible with tplg without ABI info */
+	if (!size) {
+		dev_dbg(scomp->dev, "No topology ABI info\n");
+		return 0;
+	}
+
+	if (size != SOF_IPC3_TPLG_ABI_SIZE) {
+		dev_err(scomp->dev, "%s: Invalid topology ABI size: %u\n",
+			__func__, size);
+		return -EINVAL;
+	}
+
+	dev_info(scomp->dev,
+		 "Topology: ABI %d:%d:%d Kernel ABI %hhu:%hhu:%hhu\n",
+		 man->priv.data[0], man->priv.data[1], man->priv.data[2],
+		 SOF_ABI_MAJOR, SOF_ABI_MINOR, SOF_ABI_PATCH);
+
+	abi_version = SOF_ABI_VER(man->priv.data[0], man->priv.data[1], man->priv.data[2]);
+
+	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, abi_version)) {
+		dev_err(scomp->dev, "%s: Incompatible topology ABI version\n", __func__);
+		return -EINVAL;
+	}
+
+	if (SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
+		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
+			dev_warn(scomp->dev, "%s: Topology ABI is more recent than kernel\n",
+				 __func__);
+		} else {
+			dev_err(scomp->dev, "%s: Topology ABI is more recent than kernel\n",
+				__func__);
+			return -EINVAL;
+		}
+	}
+
+	return 0;
+}
+
 /* token list for each topology object */
 static enum sof_tokens host_token_list[] = {
 	SOF_CORE_TOKENS,
@@ -2413,4 +2460,5 @@ const struct sof_ipc_tplg_ops ipc3_tplg_ops = {
 	.dai_get_clk = sof_ipc3_dai_get_clk,
 	.set_up_all_pipelines = sof_ipc3_set_up_all_pipelines,
 	.tear_down_all_pipelines = sof_ipc3_tear_down_all_pipelines,
+	.parse_manifest = sof_ipc3_parse_manifest,
 };

@@ -16,6 +16,7 @@
 #include "ops.h"
 
 #define SOF_IPC4_GAIN_PARAM_ID  0
+#define SOF_IPC4_TPLG_ABI_SIZE 6
 
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
@@ -1317,6 +1318,67 @@ static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *
 	return 0;
 }
 
+static int sof_ipc4_parse_manifest(struct snd_soc_component *scomp, int index,
+				   struct snd_soc_tplg_manifest *man)
+{
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	struct sof_ipc4_fw_data *ipc4_data = sdev->private;
+	struct sof_manifest_tlv *manifest_tlv;
+	struct sof_manifest *manifest;
+	u32 size = le32_to_cpu(man->priv.size);
+	u8 *man_ptr = man->priv.data;
+	u32 len_check;
+	int i;
+
+	if (!size || size < SOF_IPC4_TPLG_ABI_SIZE) {
+		dev_err(scomp->dev, "%s: Invalid topology ABI size: %u\n",
+			__func__, size);
+		return -EINVAL;
+	}
+
+	manifest = (struct sof_manifest *)man_ptr;
+
+	dev_info(scomp->dev,
+		 "Topology: ABI %d:%d:%d Kernel ABI %u:%u:%u\n",
+		  le16_to_cpu(manifest->abi_major), le16_to_cpu(manifest->abi_minor),
+		  le16_to_cpu(manifest->abi_patch),
+		  SOF_ABI_MAJOR, SOF_ABI_MINOR, SOF_ABI_PATCH);
+
+	/* TODO: Add ABI compatibility check */
+
+	/* no more data after the ABI version */
+	if (size <= SOF_IPC4_TPLG_ABI_SIZE)
+		return 0;
+
+	manifest_tlv = manifest->items;
+	len_check = sizeof(struct sof_manifest);
+	for (i = 0; i < le16_to_cpu(manifest->count); i++) {
+		len_check += sizeof(struct sof_manifest_tlv) + le32_to_cpu(manifest_tlv->size);
+		if (len_check > size)
+			return -EINVAL;
+
+		switch (le32_to_cpu(manifest_tlv->type)) {
+		case SOF_MANIFEST_DATA_TYPE_NHLT:
+			/* no NHLT in BIOS, so use the one from topology manifest */
+			if (ipc4_data->nhlt)
+				break;
+			ipc4_data->nhlt = devm_kmemdup(sdev->dev, manifest_tlv->data,
+						       le32_to_cpu(manifest_tlv->size), GFP_KERNEL);
+			if (!ipc4_data->nhlt)
+				return -ENOMEM;
+			break;
+		default:
+			dev_warn(scomp->dev, "Skipping unknown manifest data type %d\n",
+				 manifest_tlv->type);
+			break;
+		}
+		man_ptr += sizeof(struct sof_manifest_tlv) + le32_to_cpu(manifest_tlv->size);
+		manifest_tlv = (struct sof_manifest_tlv *)man_ptr;
+	}
+
+	return 0;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1402,4 +1464,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.route_setup = sof_ipc4_route_setup,
 	.route_free = sof_ipc4_route_free,
 	.dai_config = sof_ipc4_dai_config,
+	.parse_manifest = sof_ipc4_parse_manifest,
 };

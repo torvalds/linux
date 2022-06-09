@@ -36,9 +36,6 @@
 #define TLV_STEP	1
 #define TLV_MUTE	2
 
-/* size of tplg abi in byte */
-#define SOF_TPLG_ABI_SIZE 3
-
 /**
  * sof_update_ipc_object - Parse multiple sets of tokens within the token array associated with the
  *			    token ID.
@@ -2020,45 +2017,11 @@ static int sof_complete(struct snd_soc_component *scomp)
 static int sof_manifest(struct snd_soc_component *scomp, int index,
 			struct snd_soc_tplg_manifest *man)
 {
-	u32 size;
-	u32 abi_version;
+	struct snd_sof_dev *sdev = snd_soc_component_get_drvdata(scomp);
+	const struct sof_ipc_tplg_ops *ipc_tplg_ops = sdev->ipc->ops->tplg;
 
-	size = le32_to_cpu(man->priv.size);
-
-	/* backward compatible with tplg without ABI info */
-	if (!size) {
-		dev_dbg(scomp->dev, "No topology ABI info\n");
-		return 0;
-	}
-
-	if (size != SOF_TPLG_ABI_SIZE) {
-		dev_err(scomp->dev, "error: invalid topology ABI size\n");
-		return -EINVAL;
-	}
-
-	dev_info(scomp->dev,
-		 "Topology: ABI %d:%d:%d Kernel ABI %d:%d:%d\n",
-		 man->priv.data[0], man->priv.data[1],
-		 man->priv.data[2], SOF_ABI_MAJOR, SOF_ABI_MINOR,
-		 SOF_ABI_PATCH);
-
-	abi_version = SOF_ABI_VER(man->priv.data[0],
-				  man->priv.data[1],
-				  man->priv.data[2]);
-
-	if (SOF_ABI_VERSION_INCOMPATIBLE(SOF_ABI_VERSION, abi_version)) {
-		dev_err(scomp->dev, "error: incompatible topology ABI version\n");
-		return -EINVAL;
-	}
-
-	if (SOF_ABI_VERSION_MINOR(abi_version) > SOF_ABI_MINOR) {
-		if (!IS_ENABLED(CONFIG_SND_SOC_SOF_STRICT_ABI_CHECKS)) {
-			dev_warn(scomp->dev, "warn: topology ABI is more recent than kernel\n");
-		} else {
-			dev_err(scomp->dev, "error: topology ABI is more recent than kernel\n");
-			return -EINVAL;
-		}
-	}
+	if (ipc_tplg_ops->parse_manifest)
+		return ipc_tplg_ops->parse_manifest(scomp, index, man);
 
 	return 0;
 }
