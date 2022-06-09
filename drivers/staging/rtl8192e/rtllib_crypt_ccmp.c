@@ -103,7 +103,7 @@ static int ccmp_init_iv_and_aad(struct rtllib_hdr_4addr *hdr,
 	if (a4_included)
 		aad_len += 6;
 	if (qc_included) {
-		pos = (u8 *) &hdr->addr4;
+		pos = (u8 *)&hdr->addr4;
 		if (a4_included)
 			pos += 6;
 		qc = *pos & 0x0f;
@@ -130,13 +130,13 @@ static int ccmp_init_iv_and_aad(struct rtllib_hdr_4addr *hdr,
 	 * A4 (if present)
 	 * QC (if present)
 	 */
-	pos = (u8 *) hdr;
+	pos = (u8 *)hdr;
 	aad[0] = pos[0] & 0x8f;
 	aad[1] = pos[1] & 0xc7;
 	memcpy(&aad[2], &hdr->addr1, ETH_ALEN);
 	memcpy(&aad[8], &hdr->addr2, ETH_ALEN);
 	memcpy(&aad[14], &hdr->addr3, ETH_ALEN);
-	pos = (u8 *) &hdr->seq_ctl;
+	pos = (u8 *)&hdr->seq_ctl;
 	aad[20] = pos[0] & 0x0f;
 	aad[21] = 0; /* all bits masked */
 	memset(aad + 22, 0, 8);
@@ -186,7 +186,7 @@ static int rtllib_ccmp_encrypt(struct sk_buff *skb, int hdr_len, void *priv)
 	*pos++ = key->tx_pn[1];
 	*pos++ = key->tx_pn[0];
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	if (!tcb_desc->bHwSec) {
 		struct aead_request *req;
 		struct scatterlist sg[2];
@@ -235,7 +235,7 @@ static int rtllib_ccmp_decrypt(struct sk_buff *skb, int hdr_len, void *priv)
 		return -1;
 	}
 
-	hdr = (struct rtllib_hdr_4addr *) skb->data;
+	hdr = (struct rtllib_hdr_4addr *)skb->data;
 	pos = skb->data + hdr_len;
 	keyidx = pos[3];
 	if (!(keyidx & (1 << 5))) {

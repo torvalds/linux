@@ -304,12 +304,6 @@ static __always_inline void __noreturn disabled_wait(void)
 	while (1);
 }
 
-/*
- * Basic Program Check Handler.
- */
-extern void s390_base_pgm_handler(void);
-extern void (*s390_base_pgm_handler_fn)(struct pt_regs *regs);
-
 #define ARCH_LOW_ADDRESS_LIMIT	0x7fffffffUL
 
 extern int memcpy_real(void *, unsigned long, size_t);

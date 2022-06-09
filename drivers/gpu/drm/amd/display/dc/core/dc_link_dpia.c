@@ -34,6 +34,7 @@
 #include "dm_helpers.h"
 #include "dmub/inc/dmub_cmd.h"
 #include "inc/link_dpcd.h"
+#include "dc_dmub_srv.h"
 
 #define DC_LOGGER \
 	link->ctx->logger
@@ -67,6 +68,24 @@ enum dc_status dpcd_get_tunneling_device_data(struct dc_link *link)
 		link->dpcd_caps.usb4_dp_tun_info.usb4_topology_id[i] = dpcd_topology_data[i];
 
 	return status;
+}
+
+bool dc_link_dpia_query_hpd_status(struct dc_link *link)
+{
+	union dmub_rb_cmd cmd = {0};
+	struct dc_dmub_srv *dmub_srv = link->ctx->dmub_srv;
+	bool is_hpd_high = false;
+
+	/* prepare QUERY_HPD command */
+	cmd.query_hpd.header.type = DMUB_CMD__QUERY_HPD_STATE;
+	cmd.query_hpd.data.instance = link->link_id.enum_id - ENUM_ID_1;
+	cmd.query_hpd.data.ch_type = AUX_CHANNEL_DPIA;
+
+	/* Return HPD status reported by DMUB if query successfully executed. */
+	if (dc_dmub_srv_cmd_with_reply_data(dmub_srv, &cmd) && cmd.query_hpd.data.status == AUX_RET_SUCCESS)
+		is_hpd_high = cmd.query_hpd.data.result;
+
+	return is_hpd_high;
 }
 
 /* Configure link as prescribed in link_setting; set LTTPR mode; and

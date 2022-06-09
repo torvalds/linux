@@ -1637,7 +1637,7 @@ static int hci_le_set_privacy_mode_sync(struct hci_dev *hdev,
 	 * indicates that LL Privacy has been enabled and
 	 * HCI_OP_LE_SET_PRIVACY_MODE is supported.
 	 */
-	if (!test_bit(HCI_CONN_FLAG_DEVICE_PRIVACY, params->flags))
+	if (!(params->flags & HCI_CONN_FLAG_DEVICE_PRIVACY))
 		return 0;
 
 	irk = hci_find_irk_by_addr(hdev, &params->addr, params->addr_type);
@@ -1666,7 +1666,7 @@ static int hci_le_add_accept_list_sync(struct hci_dev *hdev,
 
 	/* During suspend, only wakeable devices can be in acceptlist */
 	if (hdev->suspended &&
-	    !test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, params->flags))
+	    !(params->flags & HCI_CONN_FLAG_REMOTE_WAKEUP))
 		return 0;
 
 	/* Select filter policy to accept all advertising */
@@ -4888,7 +4888,7 @@ static int hci_update_event_filter_sync(struct hci_dev *hdev)
 	hci_clear_event_filter_sync(hdev);
 
 	list_for_each_entry(b, &hdev->accept_list, list) {
-		if (!test_bit(HCI_CONN_FLAG_REMOTE_WAKEUP, b->flags))
+		if (!(b->flags & HCI_CONN_FLAG_REMOTE_WAKEUP))
 			continue;
 
 		bt_dev_dbg(hdev, "Adding event filters for %pMR", &b->bdaddr);

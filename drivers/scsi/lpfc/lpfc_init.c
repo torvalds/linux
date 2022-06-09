@@ -2415,6 +2415,90 @@ lpfc_parse_vpd(struct lpfc_hba *phba, uint8_t *vpd, int len)
 }
 
 /**
+ * lpfc_get_atto_model_desc - Retrieve ATTO HBA device model name and description
+ * @phba: pointer to lpfc hba data structure.
+ * @mdp: pointer to the data structure to hold the derived model name.
+ * @descp: pointer to the data structure to hold the derived description.
+ *
+ * This routine retrieves HBA's description based on its registered PCI device
+ * ID. The @descp passed into this function points to an array of 256 chars. It
+ * shall be returned with the model name, maximum speed, and the host bus type.
+ * The @mdp passed into this function points to an array of 80 chars. When the
+ * function returns, the @mdp will be filled with the model name.
+ **/
+static void
+lpfc_get_atto_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
+{
+	uint16_t sub_dev_id = phba->pcidev->subsystem_device;
+	char *model = "<Unknown>";
+	int tbolt = 0;
+
+	switch (sub_dev_id) {
+	case PCI_DEVICE_ID_CLRY_161E:
+		model = "161E";
+		break;
+	case PCI_DEVICE_ID_CLRY_162E:
+		model = "162E";
+		break;
+	case PCI_DEVICE_ID_CLRY_164E:
+		model = "164E";
+		break;
+	case PCI_DEVICE_ID_CLRY_161P:
+		model = "161P";
+		break;
+	case PCI_DEVICE_ID_CLRY_162P:
+		model = "162P";
+		break;
+	case PCI_DEVICE_ID_CLRY_164P:
+		model = "164P";
+		break;
+	case PCI_DEVICE_ID_CLRY_321E:
+		model = "321E";
+		break;
+	case PCI_DEVICE_ID_CLRY_322E:
+		model = "322E";
+		break;
+	case PCI_DEVICE_ID_CLRY_324E:
+		model = "324E";
+		break;
+	case PCI_DEVICE_ID_CLRY_321P:
+		model = "321P";
+		break;
+	case PCI_DEVICE_ID_CLRY_322P:
+		model = "322P";
+		break;
+	case PCI_DEVICE_ID_CLRY_324P:
+		model = "324P";
+		break;
+	case PCI_DEVICE_ID_TLFC_2XX2:
+		model = "2XX2";
+		tbolt = 1;
+		break;
+	case PCI_DEVICE_ID_TLFC_3162:
+		model = "3162";
+		tbolt = 1;
+		break;
+	case PCI_DEVICE_ID_TLFC_3322:
+		model = "3322";
+		tbolt = 1;
+		break;
+	default:
+		model = "Unknown";
+		break;
+	}
+
+	if (mdp && mdp[0] == '\0')
+		snprintf(mdp, 79, "%s", model);
+
+	if (descp && descp[0] == '\0')
+		snprintf(descp, 255,
+			 "ATTO %s%s, Fibre Channel Adapter Initiator, Port %s",
+			 (tbolt) ? "ThunderLink FC " : "Celerity FC-",
+			 model,
+			 phba->Port);
+}
+
+/**
  * lpfc_get_hba_model_desc - Retrieve HBA device model name and description
  * @phba: pointer to lpfc hba data structure.
  * @mdp: pointer to the data structure to hold the derived model name.
@@ -2443,6 +2527,11 @@ lpfc_get_hba_model_desc(struct lpfc_hba *phba, uint8_t *mdp, uint8_t *descp)
 	if (mdp && mdp[0] != '\0'
 		&& descp && descp[0] != '\0')
 		return;
+
+	if (phba->pcidev->vendor == PCI_VENDOR_ID_ATTO) {
+		lpfc_get_atto_model_desc(phba, mdp, descp);
+		return;
+	}
 
 	if (phba->lmt & LMT_64Gb)
 		max_speed = 64;

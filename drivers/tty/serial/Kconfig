@@ -782,7 +782,7 @@ config SERIAL_PMACZILOG_CONSOLE
 
 config SERIAL_CPM
 	tristate "CPM SCC/SMC serial port support"
-	depends on CPM2 || CPM1
+	depends on CPM2 || CPM1 || (PPC32 && COMPILE_TEST)
 	select SERIAL_CORE
 	help
 	  This driver supports the SCC and SMC serial ports on Motorola 
@@ -806,7 +806,7 @@ config SERIAL_CPM_CONSOLE
 
 config SERIAL_PIC32
 	tristate "Microchip PIC32 serial support"
-	depends on MACH_PIC32
+	depends on MACH_PIC32 || (MIPS && COMPILE_TEST)
 	select SERIAL_CORE
 	help
 	  If you have a PIC32, this driver supports the serial ports.
@@ -817,7 +817,7 @@ config SERIAL_PIC32
 
 config SERIAL_PIC32_CONSOLE
 	bool "PIC32 serial console support"
-	depends on SERIAL_PIC32
+	depends on SERIAL_PIC32=y
 	select SERIAL_CORE_CONSOLE
 	help
 	  If you have a PIC32, this driver supports the putting a console on one
@@ -1246,7 +1246,7 @@ config SERIAL_XILINX_PS_UART_CONSOLE
 
 config SERIAL_AR933X
 	tristate "AR933X serial port support"
-	depends on HAVE_CLK && ATH79
+	depends on (HAVE_CLK && ATH79) || (MIPS && COMPILE_TEST)
 	select SERIAL_CORE
 	select SERIAL_MCTRL_GPIO if GPIOLIB
 	help
@@ -1442,6 +1442,7 @@ config SERIAL_STM32_CONSOLE
 	bool "Support for console on STM32"
 	depends on SERIAL_STM32=y
 	select SERIAL_CORE_CONSOLE
+	select SERIAL_EARLYCON
 
 config SERIAL_MVEBU_UART
 	bool "Marvell EBU serial port support"

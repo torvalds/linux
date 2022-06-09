@@ -20,7 +20,7 @@
 #include <sound/jack.h>
 
 #include <asm/mach-types.h>
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/asoc-palm27x.h>
 
 static struct snd_soc_jack hs_jack;

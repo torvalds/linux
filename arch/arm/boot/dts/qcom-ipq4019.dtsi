@@ -646,7 +646,7 @@
 			clocks = <&gcc GCC_USB3_MASTER_CLK>,
 				 <&gcc GCC_USB3_SLEEP_CLK>,
 				 <&gcc GCC_USB3_MOCK_UTMI_CLK>;
-			clock-names = "master", "sleep", "mock_utmi";
+			clock-names = "core", "sleep", "mock_utmi";
 			ranges;
 			status = "disabled";
 

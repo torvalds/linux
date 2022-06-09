@@ -39,17 +39,17 @@
 
 #include "pxa27x.h"
 #include "devices.h"
-#include <mach/regs-uart.h>
+#include "regs-uart.h"
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include "pxa27x-udc.h"
 #include "udc.h"
 #include <linux/platform_data/video-pxafb.h>
 #include "pm.h"
-#include <mach/audio.h>
-#include <linux/platform_data/pcmcia-pxa2xx_viper.h>
+#include <linux/platform_data/asoc-pxa.h>
+#include "viper-pcmcia.h"
 #include "zeus.h"
-#include <mach/smemc.h>
+#include "smemc.h"
 
 #include "generic.h"
 
@@ -927,6 +927,18 @@ static struct map_desc zeus_io_desc[] __initdata = {
 		.virtual = (unsigned long)ZEUS_PC104IO,
 		.pfn     = __phys_to_pfn(ZEUS_PC104IO_PHYS),
 		.length  = 0x00800000,
+		.type    = MT_DEVICE,
+	},
+	{
+		/*
+		 * ISA I/O space mapping:
+		 * -  ports 0x0000-0x0fff are PC/104
+		 * -  ports 0x10000-0x10fff are PCMCIA slot 1
+		 * -  ports 0x11000-0x11fff are PC/104
+		 */
+		.virtual = PCI_IO_VIRT_BASE,
+		.pfn     = __phys_to_pfn(ZEUS_PC104IO_PHYS),
+		.length  = 0x1000,
 		.type    = MT_DEVICE,
 	},
 };

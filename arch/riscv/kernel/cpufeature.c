@@ -213,11 +213,10 @@ void __init riscv_fill_hwcap(void)
 		else
 			elf_hwcap = this_hwcap;
 
-		if (bitmap_weight(riscv_isa, RISCV_ISA_EXT_MAX))
-			bitmap_and(riscv_isa, riscv_isa, this_isa, RISCV_ISA_EXT_MAX);
-		else
+		if (bitmap_empty(riscv_isa, RISCV_ISA_EXT_MAX))
 			bitmap_copy(riscv_isa, this_isa, RISCV_ISA_EXT_MAX);
-
+		else
+			bitmap_and(riscv_isa, riscv_isa, this_isa, RISCV_ISA_EXT_MAX);
 	}
 
 	/* We don't support systems with F but without D, so mask those out

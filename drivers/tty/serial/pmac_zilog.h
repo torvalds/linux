@@ -43,7 +43,6 @@ struct uart_pmac_port {
 #define PMACZILOG_FLAG_TX_ACTIVE	0x00000040
 #define PMACZILOG_FLAG_IS_IRDA		0x00000100
 #define PMACZILOG_FLAG_IS_INTMODEM	0x00000200
-#define PMACZILOG_FLAG_HAS_DMA		0x00000400
 #define PMACZILOG_FLAG_RSRC_REQUESTED	0x00000800
 #define PMACZILOG_FLAG_IS_OPEN		0x00002000
 #define PMACZILOG_FLAG_IS_EXTCLK	0x00008000
@@ -55,16 +54,7 @@ struct uart_pmac_port {
 	volatile u8			__iomem *control_reg;
 	volatile u8			__iomem *data_reg;
 
-#ifdef CONFIG_PPC_PMAC
-	unsigned int			tx_dma_irq;
-	unsigned int			rx_dma_irq;
-	volatile struct dbdma_regs	__iomem *tx_dma_regs;
-	volatile struct dbdma_regs	__iomem *rx_dma_regs;
-#endif
-
 	unsigned char			irq_name[8];
-
-	struct ktermios			termios_cache;
 };
 
 #define to_pmz(p) ((struct uart_pmac_port *)(p))
@@ -377,7 +367,6 @@ static inline void zssync(struct uart_pmac_port *port)
 #define ZS_WANTS_MODEM_STATUS(UP)	((UP)->flags & PMACZILOG_FLAG_MODEM_STATUS)
 #define ZS_IS_IRDA(UP)			((UP)->flags & PMACZILOG_FLAG_IS_IRDA)
 #define ZS_IS_INTMODEM(UP)		((UP)->flags & PMACZILOG_FLAG_IS_INTMODEM)
-#define ZS_HAS_DMA(UP)			((UP)->flags & PMACZILOG_FLAG_HAS_DMA)
 #define ZS_IS_OPEN(UP)			((UP)->flags & PMACZILOG_FLAG_IS_OPEN)
 #define ZS_IS_EXTCLK(UP)		((UP)->flags & PMACZILOG_FLAG_IS_EXTCLK)
 

@@ -101,6 +101,7 @@ available subsections can be seen below.
    surface_aggregator/index
    switchtec
    sync_file
+   tty/index
    vfio-mediated-device
    vfio
    vfio-pci-device-specific-driver-acceptance

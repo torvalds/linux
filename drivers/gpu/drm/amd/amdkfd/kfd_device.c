@@ -441,10 +441,14 @@ static void kfd_cwsr_init(struct kfd_dev *kfd)
 			BUILD_BUG_ON(sizeof(cwsr_trap_nv1x_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_nv1x_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_nv1x_hex);
-		} else {
+		} else if (KFD_GC_VERSION(kfd) < IP_VERSION(11, 0, 0)) {
 			BUILD_BUG_ON(sizeof(cwsr_trap_gfx10_hex) > PAGE_SIZE);
 			kfd->cwsr_isa = cwsr_trap_gfx10_hex;
 			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx10_hex);
+		} else {
+			BUILD_BUG_ON(sizeof(cwsr_trap_gfx11_hex) > PAGE_SIZE);
+			kfd->cwsr_isa = cwsr_trap_gfx11_hex;
+			kfd->cwsr_isa_size = sizeof(cwsr_trap_gfx11_hex);
 		}
 
 		kfd->cwsr_enabled = true;

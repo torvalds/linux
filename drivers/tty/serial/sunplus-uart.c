@@ -498,7 +498,7 @@ static const struct uart_ops sunplus_uart_ops = {
 };
 
 #ifdef CONFIG_SERIAL_SUNPLUS_CONSOLE
-struct sunplus_uart_port *sunplus_console_ports[SUP_UART_NR];
+static struct sunplus_uart_port *sunplus_console_ports[SUP_UART_NR];
 
 static void sunplus_uart_console_putchar(struct uart_port *port,
 					 unsigned char ch)

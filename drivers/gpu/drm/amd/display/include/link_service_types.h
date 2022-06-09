@@ -80,12 +80,6 @@ enum link_training_result {
 	DP_128b_132b_CDS_DONE_TIMEOUT,
 };
 
-enum lttpr_support {
-	LTTPR_UNSUPPORTED,
-	LTTPR_CHECK_EXT_SUPPORT,
-	LTTPR_SUPPORTED,
-};
-
 enum lttpr_mode {
 	LTTPR_MODE_NON_LTTPR,
 	LTTPR_MODE_TRANSPARENT,

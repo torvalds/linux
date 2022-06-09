@@ -180,7 +180,7 @@ static int onetouch_connect_input(struct us_data *ss)
 		return -ENODEV;
 
 	pipe = usb_rcvintpipe(udev, endpoint->bEndpointAddress);
-	maxp = usb_maxpacket(udev, pipe, usb_pipeout(pipe));
+	maxp = usb_maxpacket(udev, pipe);
 	maxp = min(maxp, ONETOUCH_PKT_LEN);
 
 	onetouch = kzalloc(sizeof(struct usb_onetouch), GFP_KERNEL);

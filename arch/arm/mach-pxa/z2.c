@@ -34,7 +34,7 @@
 
 #include "pxa27x.h"
 #include "mfp-pxa27x.h"
-#include <mach/z2.h>
+#include "z2.h"
 #include <linux/platform_data/video-pxafb.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/keypad-pxa27x.h>
@@ -651,6 +651,15 @@ static void __init z2_spi_init(void)
 static inline void z2_spi_init(void) {}
 #endif
 
+static struct gpiod_lookup_table z2_audio_gpio_table = {
+	.dev_id = "soc-audio",
+	.table = {
+		GPIO_LOOKUP("gpio-pxa", GPIO37_ZIPITZ2_HEADSET_DETECT,
+			    "hsdet-gpio", GPIO_ACTIVE_HIGH),
+		{ },
+	},
+};
+
 /******************************************************************************
  * Core power regulator
  ******************************************************************************/
@@ -754,6 +763,8 @@ static void __init z2_init(void)
 	z2_leds_init();
 	z2_keys_init();
 	z2_pmic_init();
+
+	gpiod_add_lookup_table(&z2_audio_gpio_table);
 
 	pm_power_off = z2_power_off;
 }

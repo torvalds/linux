@@ -117,7 +117,7 @@ static void amdgpu_evict_flags(struct ttm_buffer_object *bo,
 	}
 
 	abo = ttm_to_amdgpu_bo(bo);
-	if (abo->flags & AMDGPU_AMDKFD_CREATE_SVM_BO) {
+	if (abo->flags & AMDGPU_GEM_CREATE_DISCARDABLE) {
 		placement->num_placement = 0;
 		placement->num_busy_placement = 0;
 		return;

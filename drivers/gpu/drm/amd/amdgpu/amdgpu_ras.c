@@ -726,7 +726,9 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	/* Do not enable if it is not allowed. */
 	WARN_ON(enable && !amdgpu_ras_is_feature_allowed(adev, head));
 
-	if (!amdgpu_ras_intr_triggered()) {
+	/* Only enable ras feature operation handle on host side */
+	if (!amdgpu_sriov_vf(adev) &&
+		!amdgpu_ras_intr_triggered()) {
 		ret = psp_ras_enable_features(&adev->psp, info, enable);
 		if (ret) {
 			dev_err(adev->dev, "ras %s %s failed poison:%d ret:%d\n",
@@ -1523,7 +1525,9 @@ static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
  */
 void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
 {
-	if (!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF))
+	/* Fatal error events are handled on host side */
+	if (amdgpu_sriov_vf(adev) ||
+		!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF))
 		return;
 
 	if (adev->nbio.ras &&
@@ -2270,8 +2274,12 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 {
 	adev->ras_hw_enabled = adev->ras_enabled = 0;
 
-	if (amdgpu_sriov_vf(adev) || !adev->is_atom_fw ||
+	if (!adev->is_atom_fw ||
 	    !amdgpu_ras_asic_supported(adev))
+		return;
+
+	if (!(amdgpu_sriov_vf(adev) &&
+		(adev->ip_versions[MP1_HWIP][0] == IP_VERSION(13, 0, 2))))
 		return;
 
 	if (!adev->gmc.xgmi.connected_to_cpu) {
@@ -2285,15 +2293,21 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 
 		if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
 			dev_info(adev->dev, "SRAM ECC is active.\n");
-			adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
-						    1 << AMDGPU_RAS_BLOCK__DF);
+			if (!amdgpu_sriov_vf(adev)) {
+				adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
+							    1 << AMDGPU_RAS_BLOCK__DF);
 
-			if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0))
-				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
-						1 << AMDGPU_RAS_BLOCK__JPEG);
-			else
-				adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
-						1 << AMDGPU_RAS_BLOCK__JPEG);
+				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0))
+					adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
+							1 << AMDGPU_RAS_BLOCK__JPEG);
+				else
+					adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
+							1 << AMDGPU_RAS_BLOCK__JPEG);
+			} else {
+				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__PCIE_BIF |
+								1 << AMDGPU_RAS_BLOCK__SDMA |
+								1 << AMDGPU_RAS_BLOCK__GFX);
+			}
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
@@ -2636,6 +2650,10 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	struct amdgpu_ras_block_list *node, *tmp;
 	struct amdgpu_ras_block_object *obj;
 	int r;
+
+	/* Guest side doesn't need init ras feature */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		if (!node->ras_obj) {

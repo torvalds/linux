@@ -9,7 +9,6 @@
  */
 
 #define __ARCH_WANT_SYS_CLONE
-#define __ARCH_WANT_MEMFD_SECRET
 
 #ifdef CONFIG_COMPAT
 #define __ARCH_WANT_COMPAT_TRUNCATE64

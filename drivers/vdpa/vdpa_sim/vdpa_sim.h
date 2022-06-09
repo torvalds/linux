@@ -41,6 +41,8 @@ struct vdpasim_dev_attr {
 	size_t buffer_size;
 	int nvqs;
 	u32 id;
+	u32 ngroups;
+	u32 nas;
 
 	work_func_t work_fn;
 	void (*get_config)(struct vdpasim *vdpasim, void *config);
@@ -63,6 +65,7 @@ struct vdpasim {
 	u32 status;
 	u32 generation;
 	u64 features;
+	u32 groups;
 	/* spinlock to synchronize iommu table */
 	spinlock_t iommu_lock;
 };
