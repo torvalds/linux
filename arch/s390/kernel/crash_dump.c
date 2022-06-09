@@ -233,9 +233,10 @@ ssize_t copy_oldmem_page(struct iov_iter *iter, unsigned long pfn, size_t csize,
 		rc = copy_oldmem_user(iter->iov->iov_base, src, csize);
 	else
 		rc = copy_oldmem_kernel(iter->kvec->iov_base, src, csize);
-	if (!rc)
-		iov_iter_advance(iter, csize);
-	return rc;
+	if (rc < 0)
+		return rc;
+	iov_iter_advance(iter, csize);
+	return csize;
 }
 
 /*
