@@ -160,6 +160,37 @@ void optc314_phantom_crtc_post_enable(struct timing_generator *optc)
 	REG_WAIT(OTG_CLOCK_CONTROL, OTG_BUSY, 0, 1, 100000);
 }
 
+static void optc314_set_odm_bypass(struct timing_generator *optc,
+		const struct dc_crtc_timing *dc_crtc_timing)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+	enum h_timing_div_mode h_div = H_TIMING_NO_DIV;
+
+	REG_SET_5(OPTC_DATA_SOURCE_SELECT, 0,
+			OPTC_NUM_OF_INPUT_SEGMENT, 0,
+			OPTC_SEG0_SRC_SEL, optc->inst,
+			OPTC_SEG1_SRC_SEL, 0xf,
+			OPTC_SEG2_SRC_SEL, 0xf,
+			OPTC_SEG3_SRC_SEL, 0xf
+			);
+
+	h_div = optc1_is_two_pixels_per_containter(dc_crtc_timing);
+	REG_UPDATE(OTG_H_TIMING_CNTL,
+			OTG_H_TIMING_DIV_MODE, h_div);
+
+	REG_SET(OPTC_MEMORY_CONFIG, 0,
+			OPTC_MEM_SEL, 0);
+	optc1->opp_count = 1;
+}
+
+static void optc314_set_h_timing_div_manual_mode(struct timing_generator *optc, bool manual_mode)
+{
+	struct optc *optc1 = DCN10TG_FROM_TG(optc);
+
+	REG_UPDATE(OTG_H_TIMING_CNTL,
+			OTG_H_TIMING_DIV_MODE_MANUAL, manual_mode ? 1 : 0);
+}
+
 
 static struct timing_generator_funcs dcn314_tg_funcs = {
 		.validate_timing = optc1_validate_timing,
@@ -222,6 +253,9 @@ static struct timing_generator_funcs dcn314_tg_funcs = {
 		.setup_manual_trigger = optc2_setup_manual_trigger,
 		.get_hw_timing = optc1_get_hw_timing,
 		.init_odm = optc3_init_odm,
+		.set_odm_bypass = optc314_set_odm_bypass,
+		.set_odm_combine = optc314_set_odm_combine,
+		.set_h_timing_div_manual_mode = optc314_set_h_timing_div_manual_mode,
 };
 
 void dcn314_timing_generator_init(struct optc *optc1)
