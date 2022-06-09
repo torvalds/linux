@@ -867,6 +867,10 @@ enum mac80211_tx_info_flags {
  * @IEEE80211_TX_CTRL_DONT_REORDER: This frame should not be reordered
  *	relative to other frames that have this flag set, independent
  *	of their QoS TID or other priority field values.
+ * @IEEE80211_TX_CTRL_MLO_LINK: If not @IEEE80211_LINK_UNSPECIFIED, this
+ *	frame should be transmitted on the specific link. This really is
+ *	only relevant for frames that do not have data present, and is
+ *	also not used for 802.3 format frames.
  *
  * These flags are used in tx_info->control.flags.
  */
@@ -880,7 +884,10 @@ enum mac80211_tx_control_flags {
 	IEEE80211_TX_INTCFL_NEED_TXPROCESSING	= BIT(6),
 	IEEE80211_TX_CTRL_NO_SEQNO		= BIT(7),
 	IEEE80211_TX_CTRL_DONT_REORDER		= BIT(8),
+	IEEE80211_TX_CTRL_MLO_LINK		= 0xf0000000,
 };
+
+#define IEEE80211_LINK_UNSPECIFIED	0xf
 
 /**
  * enum mac80211_tx_status_flags - flags to describe transmit status

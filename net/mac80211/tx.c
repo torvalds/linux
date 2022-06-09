@@ -2889,7 +2889,9 @@ static struct sk_buff *ieee80211_build_hdr(struct ieee80211_sub_if_data *sdata,
 	info->flags = info_flags;
 	info->ack_frame_id = info_id;
 	info->band = band;
-	info->control.flags = ctrl_flags;
+	info->control.flags = ctrl_flags |
+			      u32_encode_bits(IEEE80211_LINK_UNSPECIFIED,
+					      IEEE80211_TX_CTRL_MLO_LINK);
 
 	return skb;
  free:
@@ -3558,7 +3560,9 @@ static bool ieee80211_xmit_fast(struct ieee80211_sub_if_data *sdata,
 	info->flags = IEEE80211_TX_CTL_FIRST_FRAGMENT |
 		      IEEE80211_TX_CTL_DONTFRAG |
 		      (tid_tx ? IEEE80211_TX_CTL_AMPDU : 0);
-	info->control.flags = IEEE80211_TX_CTRL_FAST_XMIT;
+	info->control.flags = IEEE80211_TX_CTRL_FAST_XMIT |
+			      u32_encode_bits(IEEE80211_LINK_UNSPECIFIED,
+					      IEEE80211_TX_CTRL_MLO_LINK);
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	if (local->force_tx_status)
@@ -5668,13 +5672,39 @@ void __ieee80211_tx_skb_tid_band(struct ieee80211_sub_if_data *sdata,
 				 struct sk_buff *skb, int tid,
 				 enum nl80211_band band)
 {
+	const struct ieee80211_hdr *hdr = (void *)skb->data;
 	int ac = ieee80211_ac_from_tid(tid);
+	unsigned int link;
 
 	skb_reset_mac_header(skb);
 	skb_set_queue_mapping(skb, ac);
 	skb->priority = tid;
 
 	skb->dev = sdata->dev;
+
+	BUILD_BUG_ON(IEEE80211_LINK_UNSPECIFIED < IEEE80211_MLD_MAX_NUM_LINKS);
+	BUILD_BUG_ON(!FIELD_FIT(IEEE80211_TX_CTRL_MLO_LINK,
+				IEEE80211_LINK_UNSPECIFIED));
+
+	if (!sdata->vif.valid_links) {
+		link = 0;
+	} else if (memcmp(sdata->vif.addr, hdr->addr2, ETH_ALEN) == 0) {
+		/* address from the MLD */
+		link = IEEE80211_LINK_UNSPECIFIED;
+	} else {
+		/* otherwise must be addressed from a link */
+		for (link = 0; link < ARRAY_SIZE(sdata->vif.link_conf); link++) {
+			if (memcmp(sdata->vif.link_conf[link]->addr,
+				   hdr->addr2, ETH_ALEN) == 0)
+				break;
+		}
+
+		if (WARN_ON_ONCE(link == ARRAY_SIZE(sdata->vif.link_conf)))
+			link = ffs(sdata->vif.valid_links) - 1;
+	}
+
+	IEEE80211_SKB_CB(skb)->control.flags |=
+		u32_encode_bits(link, IEEE80211_TX_CTRL_MLO_LINK);
 
 	/*
 	 * The other path calling ieee80211_xmit is from the tasklet,
