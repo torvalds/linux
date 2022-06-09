@@ -3672,6 +3672,21 @@ static void qm_last_regs_uninit(struct hisi_qm *qm)
 	debug->qm_last_words = NULL;
 }
 
+static void hisi_qm_memory_uninit(struct hisi_qm *qm)
+{
+	struct device *dev = &qm->pdev->dev;
+
+	hisi_qp_memory_uninit(qm, qm->qp_num);
+	if (qm->qdma.va) {
+		hisi_qm_cache_wb(qm);
+		dma_free_coherent(dev, qm->qdma.size,
+				  qm->qdma.va, qm->qdma.dma);
+	}
+
+	idr_destroy(&qm->qp_idr);
+	kfree(qm->factor);
+}
+
 /**
  * hisi_qm_uninit() - Uninitialize qm.
  * @qm: The qm needed uninit.
@@ -3680,13 +3695,9 @@ static void qm_last_regs_uninit(struct hisi_qm *qm)
  */
 void hisi_qm_uninit(struct hisi_qm *qm)
 {
-	struct pci_dev *pdev = qm->pdev;
-	struct device *dev = &pdev->dev;
-
 	qm_last_regs_uninit(qm);
 
 	qm_cmd_uninit(qm);
-	kfree(qm->factor);
 	down_write(&qm->qps_lock);
 
 	if (!qm_avail_state(qm, QM_CLOSE)) {
@@ -3694,14 +3705,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 		return;
 	}
 
-	hisi_qp_memory_uninit(qm, qm->qp_num);
-	idr_destroy(&qm->qp_idr);
-
-	if (qm->qdma.va) {
-		hisi_qm_cache_wb(qm);
-		dma_free_coherent(dev, qm->qdma.size,
-				  qm->qdma.va, qm->qdma.dma);
-	}
+	hisi_qm_memory_uninit(qm);
 	hisi_qm_set_state(qm, QM_NOT_READY);
 	up_write(&qm->qps_lock);
 
