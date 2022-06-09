@@ -286,7 +286,7 @@ static bool atmel_qspi_supports_op(struct spi_mem *mem,
 
 	/* special case not supported by hardware */
 	if (op->addr.nbytes == 2 && op->cmd.buswidth != op->addr.buswidth &&
-		op->dummy.nbytes == 0)
+	    op->dummy.nbytes == 0)
 		return false;
 
 	return true;
