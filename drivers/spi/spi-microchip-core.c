@@ -621,7 +621,6 @@ static struct platform_driver mchp_corespi_driver = {
 		.name = "microchip-corespi",
 		.pm = MICROCHIP_SPI_PM_OPS,
 		.of_match_table = of_match_ptr(mchp_corespi_dt_ids),
-		.owner = THIS_MODULE,
 	},
 	.remove = mchp_corespi_remove,
 };
