@@ -603,4 +603,5 @@ const struct sof_ipc_ops ipc4_ops = {
 	.set_get_data = sof_ipc4_set_get_data,
 	.get_reply = sof_ipc4_get_reply,
 	.fw_loader = &ipc4_loader_ops,
+	.tplg = &ipc4_tplg_ops,
 };

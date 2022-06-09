@@ -40,5 +40,6 @@ struct sof_ipc4_fw_module {
 };
 
 extern const struct sof_ipc_fw_loader_ops ipc4_loader_ops;
+extern const struct sof_ipc_tplg_ops ipc4_tplg_ops;
 
 #endif
