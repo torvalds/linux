@@ -246,6 +246,8 @@
 			      <0 0x10222000 0 0x2000>,
 			      <0 0x10224000 0 0x2000>,
 			      <0 0x10226000 0 0x2000>;
+			interrupts = <GIC_PPI 9
+				(GIC_CPU_MASK_SIMPLE(4) | IRQ_TYPE_LEVEL_HIGH)>;
 		};
 
 		cci: cci@10390000 {
