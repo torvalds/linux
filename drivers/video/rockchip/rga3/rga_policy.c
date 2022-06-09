@@ -214,7 +214,7 @@ int rga_job_assign(struct rga_job *job)
 	int optional_cores = RGA_NONE_CORE;
 	int specified_cores = RGA_NONE_CORE;
 	int i;
-	int min_of_job_count = 0;
+	int min_of_job_count = -1;
 	unsigned long flags;
 
 	/* assigned by userspace */
@@ -333,8 +333,8 @@ int rga_job_assign(struct rga_job *job)
 							 flags);
 				break;
 			} else {
-				if ((min_of_job_count > scheduler->job_count) ||
-					(min_of_job_count == 0)) {
+				if ((min_of_job_count == -1) ||
+				    (min_of_job_count > scheduler->job_count)) {
 					min_of_job_count = scheduler->job_count;
 					core = scheduler->core;
 					job->scheduler = scheduler;
