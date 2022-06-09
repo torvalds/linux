@@ -144,6 +144,32 @@ config IOMMU_DMA
 	select IRQ_MSI_IOMMU
 	select NEED_SG_DMA_LENGTH
 
+config IOMMU_DMA_PCI_SAC
+	bool "Enable 64-bit legacy PCI optimisation by default"
+	depends on IOMMU_DMA
+	help
+	  Enable by default an IOMMU optimisation for 64-bit legacy PCI devices,
+	  wherein the DMA API layer will always first try to allocate a 32-bit
+	  DMA address suitable for a single address cycle, before falling back
+	  to allocating from the device's full usable address range. If your
+	  system has 64-bit legacy PCI devices in 32-bit slots where using dual
+	  address cycles reduces DMA throughput significantly, this may be
+	  beneficial to overall performance.
+
+	  If you have a modern PCI Express based system, this feature mostly just
+	  represents extra overhead in the allocation path for no practical
+	  benefit, and it should usually be preferable to say "n" here.
+
+	  However, beware that this feature has also historically papered over
+	  bugs where the IOMMU address width and/or device DMA mask is not set
+	  correctly. If device DMA problems and IOMMU faults start occurring
+	  after disabling this option, it is almost certainly indicative of a
+	  latent driver or firmware/BIOS bug, which would previously have only
+	  manifested with several gigabytes worth of concurrent DMA mappings.
+
+	  If this option is not set, the feature can still be re-enabled at
+	  boot time with the "iommu.forcedac=0" command-line argument.
+
 # Shared Virtual Addressing
 config IOMMU_SVA
 	bool
