@@ -19,16 +19,8 @@
 #include "msm_drv.h"
 #include "hdmi.xml.h"
 
-#define HDMI_MAX_NUM_GPIO	6
-
 struct hdmi_phy;
 struct hdmi_platform_config;
-
-struct hdmi_gpio_data {
-	struct gpio_desc *gpiod;
-	bool output;
-	int value;
-};
 
 struct hdmi_audio {
 	bool enabled;
@@ -60,6 +52,8 @@ struct hdmi {
 	struct regulator **pwr_regs;
 	struct clk **hpd_clks;
 	struct clk **pwr_clks;
+
+	struct gpio_desc *hpd_gpiod;
 
 	struct hdmi_phy *phy;
 	struct device *phy_dev;
@@ -109,9 +103,6 @@ struct hdmi_platform_config {
 	/* clks that need to be on for screen pwr (ie pixel clk): */
 	const char **pwr_clk_names;
 	int pwr_clk_cnt;
-
-	/* gpio's: */
-	struct hdmi_gpio_data gpios[HDMI_MAX_NUM_GPIO];
 };
 
 struct hdmi_bridge {
