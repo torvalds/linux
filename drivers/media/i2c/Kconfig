@@ -594,6 +594,7 @@ config VIDEO_SAA717X
 	  module will be called saa717x.
 
 source "drivers/media/i2c/cx25840/Kconfig"
+source "drivers/media/i2c/it66353/Kconfig"
 
 endmenu
 

@@ -1,0 +1,10 @@
+# SPDX-License-Identifier: GPL-2.0-only
+config VIDEO_IT66353
+	tristate "ITE IT66353 decoder"
+	depends on I2C
+	select HDMI
+	help
+	  Support for the ITE IT66353 3 in 1 out HDMI switch.
+
+	  To compile this driver as a module, choose M here: the
+	  module will be called it66353.
