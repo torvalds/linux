@@ -1273,6 +1273,50 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	return ret;
 }
 
+static int sof_ipc4_dai_config(struct snd_sof_dev *sdev, struct snd_sof_widget *swidget,
+			       unsigned int flags, struct snd_sof_dai_config_data *data)
+{
+	struct snd_sof_widget *pipe_widget = swidget->pipe_widget;
+	struct sof_ipc4_pipeline *pipeline = pipe_widget->private;
+	struct snd_sof_dai *dai = swidget->private;
+	struct sof_ipc4_gtw_attributes *gtw_attr;
+	struct sof_ipc4_copier_data *copier_data;
+	struct sof_ipc4_copier *ipc4_copier;
+
+	if (!dai || !dai->private) {
+		dev_err(sdev->dev, "Invalid DAI or DAI private data for %s\n",
+			swidget->widget->name);
+		return -EINVAL;
+	}
+
+	ipc4_copier = (struct sof_ipc4_copier *)dai->private;
+	copier_data = &ipc4_copier->data;
+
+	if (!data)
+		return 0;
+
+	switch (ipc4_copier->dai_type) {
+	case SOF_DAI_INTEL_HDA:
+		gtw_attr = ipc4_copier->gtw_attr;
+		gtw_attr->lp_buffer_alloc = pipeline->lp_mode;
+		fallthrough;
+	case SOF_DAI_INTEL_ALH:
+		copier_data->gtw_cfg.node_id &= ~SOF_IPC4_NODE_INDEX_MASK;
+		copier_data->gtw_cfg.node_id |= SOF_IPC4_NODE_INDEX(data->dai_data);
+		break;
+	case SOF_DAI_INTEL_DMIC:
+	case SOF_DAI_INTEL_SSP:
+		/* nothing to do for SSP/DMIC */
+		break;
+	default:
+		dev_err(sdev->dev, "%s: unsupported dai type %d\n", __func__,
+			ipc4_copier->dai_type);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1357,4 +1401,5 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.widget_free = sof_ipc4_widget_free,
 	.route_setup = sof_ipc4_route_setup,
 	.route_free = sof_ipc4_route_free,
+	.dai_config = sof_ipc4_dai_config,
 };
