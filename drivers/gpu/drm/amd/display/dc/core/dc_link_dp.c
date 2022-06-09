@@ -7064,6 +7064,7 @@ void dp_enable_link_phy(
 				pipes[i].clock_source->funcs->program_pix_clk(
 							pipes[i].clock_source,
 							&pipes[i].stream_res.pix_clk_params,
+							dp_get_link_encoding_format(link_settings),
 							&pipes[i].pll_settings);
 			}
 		}

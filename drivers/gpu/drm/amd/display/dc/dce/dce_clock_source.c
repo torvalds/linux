@@ -838,6 +838,7 @@ static void dce112_program_pixel_clk_resync(
 static bool dce110_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
+		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
@@ -911,6 +912,7 @@ static bool dce110_program_pix_clk(
 static bool dce112_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
+		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
@@ -970,6 +972,7 @@ static bool dce112_program_pix_clk(
 static bool dcn31_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
+		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
@@ -993,9 +996,14 @@ static bool dcn31_program_pix_clk(
 #if defined(CONFIG_DRM_AMD_DC_DCN)
 		/* Enable DTO */
 		if (clk_src->cs_mask->PIPE0_DTO_SRC_SEL)
-			REG_UPDATE_2(PIXEL_RATE_CNTL[inst],
-					DP_DTO0_ENABLE, 1,
-					PIPE0_DTO_SRC_SEL, 1);
+			if (encoding == DP_128b_132b_ENCODING)
+				REG_UPDATE_2(PIXEL_RATE_CNTL[inst],
+						DP_DTO0_ENABLE, 1,
+						PIPE0_DTO_SRC_SEL, 2);
+			else
+				REG_UPDATE_2(PIXEL_RATE_CNTL[inst],
+						DP_DTO0_ENABLE, 1,
+						PIPE0_DTO_SRC_SEL, 1);
 		else
 			REG_UPDATE(PIXEL_RATE_CNTL[inst],
 					DP_DTO0_ENABLE, 1);
@@ -1198,12 +1206,13 @@ const struct pixel_rate_range_table_entry *look_up_in_video_optimized_rate_tlb(
 static bool dcn20_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
+		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 
-	dce112_program_pix_clk(clock_source, pix_clk_params, pll_settings);
+	dce112_program_pix_clk(clock_source, pix_clk_params, encoding, pll_settings);
 
 	if (clock_source->ctx->dc->hwss.enable_vblanks_synchronization &&
 			clock_source->ctx->dc->config.vblank_alignment_max_frame_time_diff > 0) {
@@ -1243,6 +1252,7 @@ static const struct clock_source_funcs dcn20_clk_src_funcs = {
 static bool dcn3_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
+		enum dp_link_encoding encoding,
 		struct pll_settings *pll_settings)
 {
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
@@ -1265,7 +1275,7 @@ static bool dcn3_program_pix_clk(
 		REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
 	} else
 		// For other signal types(HDMI_TYPE_A, DVI) Driver still to call VBIOS Command table
-		dce112_program_pix_clk(clock_source, pix_clk_params, pll_settings);
+		dce112_program_pix_clk(clock_source, pix_clk_params, encoding, pll_settings);
 
 	return true;
 }
