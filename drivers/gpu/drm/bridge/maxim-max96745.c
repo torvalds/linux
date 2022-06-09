@@ -52,8 +52,13 @@ static enum drm_connector_status
 max96745_bridge_connector_detect(struct drm_connector *connector, bool force)
 {
 	struct max96745_bridge *ser = to_max96745_bridge(connector);
+	struct drm_bridge *bridge = &ser->bridge;
+	struct drm_bridge *prev_bridge = drm_bridge_get_prev_bridge(bridge);
 
-	return drm_bridge_detect(&ser->bridge);
+	if (prev_bridge && (prev_bridge->ops & DRM_BRIDGE_OP_DETECT))
+		return drm_bridge_detect(prev_bridge);
+
+	return drm_bridge_detect(bridge);
 }
 
 static const struct drm_connector_funcs max96745_bridge_connector_funcs = {
@@ -152,6 +157,9 @@ max96745_bridge_detect(struct drm_bridge *bridge)
 
 	if (!FIELD_GET(LINK_LOCKED, val))
 		return connector_status_disconnected;
+
+	if (ser->next_bridge && (ser->next_bridge->ops & DRM_BRIDGE_OP_DETECT))
+		return drm_bridge_detect(ser->next_bridge);
 
 	return connector_status_connected;
 }
