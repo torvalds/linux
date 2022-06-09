@@ -3508,7 +3508,7 @@ isp_cac_config(struct rkisp_isp_params_vdev *params_vdev,
 	isp3_param_write(params_vdev, arg->hsize, ISP3X_MI_LUT_CAC_RD_H_WSIZE);
 	isp3_param_write(params_vdev, arg->vsize, ISP3X_MI_LUT_CAC_RD_V_SIZE);
 	if (ctrl & ISP3X_CAC_EN)
-		ctrl |= ISP3X_CAC_LUT_EN;
+		ctrl |= ISP3X_CAC_LUT_EN | ISP32_SELF_FORCE_UPD | ISP3X_CAC_LUT_MODE(3);
 	isp3_param_write(params_vdev, ctrl, ISP3X_CAC_CTRL);
 }
 
@@ -3518,9 +3518,10 @@ isp_cac_enable(struct rkisp_isp_params_vdev *params_vdev, bool en)
 	u32 val;
 
 	val = isp3_param_read(params_vdev, ISP3X_CAC_CTRL);
-	val &= ~ISP3X_CAC_EN;
+	val &= ~(ISP3X_CAC_EN | ISP3X_CAC_LUT_EN | ISP32_SELF_FORCE_UPD);
 	if (en)
-		val |= ISP3X_CAC_EN | ISP3X_CAC_LUT_EN;
+		val |= ISP3X_CAC_EN | ISP3X_CAC_LUT_EN |
+		       ISP32_SELF_FORCE_UPD | ISP3X_CAC_LUT_MODE(3);
 	isp3_param_write(params_vdev, val, ISP3X_CAC_CTRL);
 }
 
