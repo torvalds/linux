@@ -82,6 +82,12 @@ struct mem_buf_vm *pdata_array[] = {
 	NULL,
 };
 
+int mem_buf_current_vmid(void)
+{
+	return current_vmid;
+}
+EXPORT_SYMBOL(mem_buf_current_vmid);
+
 /*
  * Opening this file acquires a refcount on vm->dev's kobject - see
  * chrdev_open(). So private data won't be free'd out from

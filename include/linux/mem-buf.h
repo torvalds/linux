@@ -104,6 +104,7 @@ int mem_buf_reclaim(struct dma_buf *dmabuf);
 void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data);
 void mem_buf_free(void *membuf);
 struct gh_sgl_desc *mem_buf_get_sgl(void *membuf);
+int mem_buf_current_vmid(void);
 #else
 
 static inline void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
@@ -114,6 +115,10 @@ static inline void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 static inline void mem_buf_free(void *membuf) {}
 
 static inline struct gh_sgl_desc *mem_buf_get_sgl(void *membuf)
+{
+	return ERR_PTR(-EINVAL);
+}
+static inline int mem_buf_current_vmid(void)
 {
 	return ERR_PTR(-EINVAL);
 }
