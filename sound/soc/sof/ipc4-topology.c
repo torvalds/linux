@@ -1199,6 +1199,80 @@ static int sof_ipc4_widget_free(struct snd_sof_dev *sdev, struct snd_sof_widget 
 	return ret;
 }
 
+static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
+{
+	struct snd_sof_widget *src_widget = sroute->src_widget;
+	struct snd_sof_widget *sink_widget = sroute->sink_widget;
+	struct sof_ipc4_fw_module *src_fw_module = src_widget->module_info;
+	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
+	struct sof_ipc4_msg msg = {{ 0 }};
+	u32 header, extension;
+	int src_queue = 0;
+	int dst_queue = 0;
+	int ret;
+
+	dev_dbg(sdev->dev, "%s: bind %s -> %s\n", __func__,
+		src_widget->widget->name, sink_widget->widget->name);
+
+	header = src_fw_module->man4_module_entry.id;
+	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
+	header |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_BIND);
+	header |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	header |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+
+	extension = sink_fw_module->man4_module_entry.id;
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_INSTANCE(sink_widget->instance_id);
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(dst_queue);
+	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(src_queue);
+
+	msg.primary = header;
+	msg.extension = extension;
+
+	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
+	if (ret < 0)
+		dev_err(sdev->dev, "%s: failed to bind modules %s -> %s\n",
+			__func__, src_widget->widget->name, sink_widget->widget->name);
+
+	return ret;
+}
+
+static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *sroute)
+{
+	struct snd_sof_widget *src_widget = sroute->src_widget;
+	struct snd_sof_widget *sink_widget = sroute->sink_widget;
+	struct sof_ipc4_fw_module *src_fw_module = src_widget->module_info;
+	struct sof_ipc4_fw_module *sink_fw_module = sink_widget->module_info;
+	struct sof_ipc4_msg msg = {{ 0 }};
+	u32 header, extension;
+	int src_queue = 0;
+	int dst_queue = 0;
+	int ret;
+
+	dev_dbg(sdev->dev, "%s: unbind modules %s -> %s\n", __func__,
+		src_widget->widget->name, sink_widget->widget->name);
+
+	header = src_fw_module->man4_module_entry.id;
+	header |= SOF_IPC4_MOD_INSTANCE(src_widget->instance_id);
+	header |= SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_UNBIND);
+	header |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	header |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+
+	extension = sink_fw_module->man4_module_entry.id;
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_INSTANCE(sink_widget->instance_id);
+	extension |= SOF_IPC4_MOD_EXT_DST_MOD_QUEUE_ID(dst_queue);
+	extension |= SOF_IPC4_MOD_EXT_SRC_MOD_QUEUE_ID(src_queue);
+
+	msg.primary = header;
+	msg.extension = extension;
+
+	ret = sof_ipc_tx_message(sdev->ipc, &msg, 0, NULL, 0);
+	if (ret < 0)
+		dev_err(sdev->dev, "failed to unbind modules %s -> %s\n",
+			src_widget->widget->name, sink_widget->widget->name);
+
+	return ret;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1281,4 +1355,6 @@ const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.control = &tplg_ipc4_control_ops,
 	.widget_setup = sof_ipc4_widget_setup,
 	.widget_free = sof_ipc4_widget_free,
+	.route_setup = sof_ipc4_route_setup,
+	.route_free = sof_ipc4_route_free,
 };
