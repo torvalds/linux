@@ -959,10 +959,7 @@ static irqreturn_t do_qm_irq(int irq, void *data)
 	struct hisi_qm *qm = (struct hisi_qm *)data;
 
 	/* the workqueue created by device driver of QM */
-	if (qm->wq)
-		queue_work(qm->wq, &qm->work);
-	else
-		schedule_work(&qm->work);
+	queue_work(qm->wq, &qm->work);
 
 	return IRQ_HANDLED;
 }
@@ -3134,11 +3131,8 @@ static int qm_stop_qp_nolock(struct hisi_qp *qp)
 	if (ret)
 		dev_err(dev, "Failed to drain out data for stopping!\n");
 
-	if (qp->qm->wq)
-		flush_workqueue(qp->qm->wq);
-	else
-		flush_work(&qp->qm->work);
 
+	flush_workqueue(qp->qm->wq);
 	if (unlikely(qp->is_resetting && atomic_read(&qp->qp_status.used)))
 		qp_stop_fail_cb(qp);
 
@@ -3672,6 +3666,11 @@ static void qm_last_regs_uninit(struct hisi_qm *qm)
 	debug->qm_last_words = NULL;
 }
 
+static void hisi_qm_unint_work(struct hisi_qm *qm)
+{
+	destroy_workqueue(qm->wq);
+}
+
 static void hisi_qm_memory_uninit(struct hisi_qm *qm)
 {
 	struct device *dev = &qm->pdev->dev;
@@ -3698,6 +3697,7 @@ void hisi_qm_uninit(struct hisi_qm *qm)
 	qm_last_regs_uninit(qm);
 
 	qm_cmd_uninit(qm);
+	hisi_qm_unint_work(qm);
 	down_write(&qm->qps_lock);
 
 	if (!qm_avail_state(qm, QM_CLOSE)) {
@@ -6022,7 +6022,7 @@ err_disable_pcidev:
 	return ret;
 }
 
-static void hisi_qm_init_work(struct hisi_qm *qm)
+static int hisi_qm_init_work(struct hisi_qm *qm)
 {
 	INIT_WORK(&qm->work, qm_work_process);
 	if (qm->fun_type == QM_HW_PF)
@@ -6030,6 +6030,16 @@ static void hisi_qm_init_work(struct hisi_qm *qm)
 
 	if (qm->ver > QM_HW_V2)
 		INIT_WORK(&qm->cmd_process, qm_cmd_process);
+
+	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_MEM_RECLAIM |
+				 WQ_UNBOUND, num_online_cpus(),
+				 pci_name(qm->pdev));
+	if (!qm->wq) {
+		pci_err(qm->pdev, "failed to alloc workqueue!\n");
+		return -ENOMEM;
+	}
+
+	return 0;
 }
 
 static int hisi_qp_alloc_memory(struct hisi_qm *qm)
@@ -6180,7 +6190,10 @@ int hisi_qm_init(struct hisi_qm *qm)
 	if (ret)
 		goto err_alloc_uacce;
 
-	hisi_qm_init_work(qm);
+	ret = hisi_qm_init_work(qm);
+	if (ret)
+		goto err_free_qm_memory;
+
 	qm_cmd_init(qm);
 	atomic_set(&qm->status.flags, QM_INIT);
 
@@ -6188,6 +6201,8 @@ int hisi_qm_init(struct hisi_qm *qm)
 
 	return 0;
 
+err_free_qm_memory:
+	hisi_qm_memory_uninit(qm);
 err_alloc_uacce:
 	if (qm->use_sva) {
 		uacce_remove(qm->uacce);

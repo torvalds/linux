@@ -1002,8 +1002,6 @@ static int sec_pf_probe_init(struct sec_dev *sec)
 
 static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 {
-	int ret;
-
 	qm->pdev = pdev;
 	qm->ver = pdev->revision;
 	qm->algs = "cipher\ndigest\naead";
@@ -1029,25 +1027,7 @@ static int sec_qm_init(struct hisi_qm *qm, struct pci_dev *pdev)
 		qm->qp_num = SEC_QUEUE_NUM_V1 - SEC_PF_DEF_Q_NUM;
 	}
 
-	/*
-	 * WQ_HIGHPRI: SEC request must be low delayed,
-	 * so need a high priority workqueue.
-	 * WQ_UNBOUND: SEC task is likely with long
-	 * running CPU intensive workloads.
-	 */
-	qm->wq = alloc_workqueue("%s", WQ_HIGHPRI | WQ_MEM_RECLAIM |
-				 WQ_UNBOUND, num_online_cpus(),
-				 pci_name(qm->pdev));
-	if (!qm->wq) {
-		pci_err(qm->pdev, "fail to alloc workqueue\n");
-		return -ENOMEM;
-	}
-
-	ret = hisi_qm_init(qm);
-	if (ret)
-		destroy_workqueue(qm->wq);
-
-	return ret;
+	return hisi_qm_init(qm);
 }
 
 static void sec_qm_uninit(struct hisi_qm *qm)
@@ -1078,8 +1058,6 @@ static int sec_probe_init(struct sec_dev *sec)
 static void sec_probe_uninit(struct hisi_qm *qm)
 {
 	hisi_qm_dev_err_uninit(qm);
-
-	destroy_workqueue(qm->wq);
 }
 
 static void sec_iommu_used_check(struct sec_dev *sec)
