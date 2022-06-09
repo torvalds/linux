@@ -15,6 +15,8 @@
 #include "ipc4-topology.h"
 #include "ops.h"
 
+#define SOF_IPC4_GAIN_PARAM_ID  0
+
 static const struct sof_topology_token ipc4_sched_tokens[] = {
 	{SOF_TKN_SCHED_LP_MODE, SND_SOC_TPLG_TUPLE_TYPE_WORD, get_token_u32,
 		offsetof(struct sof_ipc4_pipeline, lp_mode)}
@@ -1030,6 +1032,52 @@ static int sof_ipc4_prepare_mixer_module(struct snd_sof_widget *swidget,
 	return sof_ipc4_widget_assign_instance_id(sdev, swidget);
 }
 
+static int sof_ipc4_control_load_volume(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	struct sof_ipc4_control_data *control_data;
+	struct sof_ipc4_msg *msg;
+	int i;
+
+	scontrol->size = struct_size(control_data, chanv, scontrol->num_channels);
+
+	/* scontrol->ipc_control_data will be freed in sof_control_unload */
+	scontrol->ipc_control_data = kzalloc(scontrol->size, GFP_KERNEL);
+	if (!scontrol->ipc_control_data)
+		return -ENOMEM;
+
+	control_data = scontrol->ipc_control_data;
+	control_data->index = scontrol->index;
+
+	msg = &control_data->msg;
+	msg->primary = SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_LARGE_CONFIG_SET);
+	msg->primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg->primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+
+	msg->extension = SOF_IPC4_MOD_EXT_MSG_PARAM_ID(SOF_IPC4_GAIN_PARAM_ID);
+
+	/* set default volume values to 0dB in control */
+	for (i = 0; i < scontrol->num_channels; i++) {
+		control_data->chanv[i].channel = i;
+		control_data->chanv[i].value = SOF_IPC4_VOL_ZERO_DB;
+	}
+
+	return 0;
+}
+
+static int sof_ipc4_control_setup(struct snd_sof_dev *sdev, struct snd_sof_control *scontrol)
+{
+	switch (scontrol->info_type) {
+	case SND_SOC_TPLG_CTL_VOLSW:
+	case SND_SOC_TPLG_CTL_VOLSW_SX:
+	case SND_SOC_TPLG_CTL_VOLSW_XR_SX:
+		return sof_ipc4_control_load_volume(sdev, scontrol);
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static enum sof_tokens host_token_list[] = {
 	SOF_COMP_TOKENS,
 	SOF_AUDIO_FMT_NUM_TOKENS,
@@ -1108,4 +1156,5 @@ static const struct sof_ipc_tplg_widget_ops tplg_ipc4_widget_ops[SND_SOC_DAPM_TY
 const struct sof_ipc_tplg_ops ipc4_tplg_ops = {
 	.widget = tplg_ipc4_widget_ops,
 	.token_list = ipc4_token_list,
+	.control_setup = sof_ipc4_control_setup,
 };
