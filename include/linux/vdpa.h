@@ -178,7 +178,8 @@ struct vdpa_map_file {
  *				for the device
  *				@vdev: vdpa device
  *				Returns virtqueue algin requirement
- * @get_vq_group:		Get the group id for a specific virtqueue
+ * @get_vq_group:		Get the group id for a specific
+ *				virtqueue (optional)
  *				@vdev: vdpa device
  *				@idx: virtqueue index
  *				Returns u32: group id for this virtqueue
@@ -243,7 +244,7 @@ struct vdpa_map_file {
  *				Returns the iova range supported by
  *				the device.
  * @set_group_asid:		Set address space identifier for a
- *				virtqueue group
+ *				virtqueue group (optional)
  *				@vdev: vdpa device
  *				@group: virtqueue group
  *				@asid: address space id for this group
