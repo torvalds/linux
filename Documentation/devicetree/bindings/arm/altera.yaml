@@ -54,6 +54,7 @@ properties:
         items:
           - enum:
               - altr,socfpga-stratix10-socdk
+              - altr,socfpga-stratix10-swvp
           - const: altr,socfpga-stratix10
 
       - description: SoCFPGA VT
