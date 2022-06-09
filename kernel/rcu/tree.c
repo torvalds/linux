@@ -2005,7 +2005,15 @@ static noinline_for_stack void rcu_gp_fqs_loop(void)
 		rcu_gp_torture_wait();
 		WRITE_ONCE(rcu_state.gp_state, RCU_GP_DOING_FQS);
 		/* Locking provides needed memory barriers. */
-		/* If grace period done, leave loop. */
+		/*
+		 * Exit the loop if the root rcu_node structure indicates that the grace period
+		 * has ended, leave the loop.  The rcu_preempt_blocked_readers_cgp(rnp) check
+		 * is required only for single-node rcu_node trees because readers blocking
+		 * the current grace period are queued only on leaf rcu_node structures.
+		 * For multi-node trees, checking the root node's ->qsmask suffices, because a
+		 * given root node's ->qsmask bit is cleared only when all CPUs and tasks from
+		 * the corresponding leaf nodes have passed through their quiescent state.
+		 */
 		if (!READ_ONCE(rnp->qsmask) &&
 		    !rcu_preempt_blocked_readers_cgp(rnp))
 			break;
