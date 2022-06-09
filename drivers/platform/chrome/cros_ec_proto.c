@@ -458,6 +458,11 @@ static int cros_ec_get_host_command_version_mask(struct cros_ec_device *ec_dev, 
 		goto exit;
 	}
 
+	if (ret == 0) {
+		ret = -EPROTO;
+		goto exit;
+	}
+
 	rver = (struct ec_response_get_cmd_versions *)msg->data;
 	*mask = rver->version_mask;
 	ret = 0;
