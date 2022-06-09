@@ -1246,10 +1246,9 @@ static void get_pixel_clock_parameters(
 	pixel_clk_params->requested_pix_clk_100hz = stream->timing.pix_clk_100hz;
 
 	link_enc = link_enc_cfg_get_link_enc(link);
-	ASSERT(link_enc);
-
 	if (link_enc)
 		pixel_clk_params->encoder_object_id = link_enc->id;
+
 	pixel_clk_params->signal_type = pipe_ctx->stream->signal;
 	pixel_clk_params->controller_id = pipe_ctx->stream_res.tg->inst + 1;
 	/* TODO: un-hardcode*/
