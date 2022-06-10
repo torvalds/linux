@@ -675,7 +675,7 @@ static void gfx_v9_4_3_select_me_pipe_q(struct amdgpu_device *adev,
 static enum amdgpu_gfx_partition
 gfx_v9_4_3_query_compute_partition(struct amdgpu_device *adev)
 {
-	enum amdgpu_gfx_partition mode = AMDGPU_UNKNOWN_COMPUTE_PARTITION_MODE;
+	enum amdgpu_gfx_partition mode = adev->gfx.partition_mode;
 
 	if (adev->nbio.funcs->get_compute_partition_mode)
 		mode = adev->nbio.funcs->get_compute_partition_mode(adev);
@@ -688,9 +688,6 @@ static int gfx_v9_4_3_switch_compute_partition(struct amdgpu_device *adev,
 {
 	u32 tmp = 0;
 	int num_xcc_per_partition, i, num_xcc;
-
-	if (mode == adev->gfx.partition_mode)
-		return mode;
 
 	num_xcc = NUM_XCC(adev->gfx.xcc_mask);
 	switch (mode) {

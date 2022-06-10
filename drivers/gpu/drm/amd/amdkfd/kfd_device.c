@@ -1356,6 +1356,27 @@ unsigned int kfd_get_num_xgmi_sdma_engines(struct kfd_node *node)
 		kfd_get_num_sdma_engines(node);
 }
 
+int kgd2kfd_check_and_lock_kfd(void)
+{
+	mutex_lock(&kfd_processes_mutex);
+	if (!hash_empty(kfd_processes_table) || kfd_is_locked()) {
+		mutex_unlock(&kfd_processes_mutex);
+		return -EBUSY;
+	}
+
+	++kfd_locked;
+	mutex_unlock(&kfd_processes_mutex);
+
+	return 0;
+}
+
+void kgd2kfd_unlock_kfd(void)
+{
+	mutex_lock(&kfd_processes_mutex);
+	--kfd_locked;
+	mutex_unlock(&kfd_processes_mutex);
+}
+
 #if defined(CONFIG_DEBUG_FS)
 
 /* This function will send a package to HIQ to hang the HWS

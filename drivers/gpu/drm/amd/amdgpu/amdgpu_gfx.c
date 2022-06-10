@@ -1233,10 +1233,30 @@ static ssize_t amdgpu_gfx_set_compute_partition(struct device *dev,
 		return -EINVAL;
 	}
 
+	if (!adev->kfd.init_complete)
+		return -EPERM;
+
 	mutex_lock(&adev->gfx.partition_mutex);
 
-	ret = adev->gfx.funcs->switch_partition_mode(adev, mode);
+	if (mode == adev->gfx.funcs->query_partition_mode(adev))
+		goto out;
 
+	ret = amdgpu_amdkfd_check_and_lock_kfd(adev);
+	if (ret)
+		goto out;
+
+	amdgpu_amdkfd_device_fini_sw(adev);
+
+	adev->gfx.funcs->switch_partition_mode(adev, mode);
+
+	amdgpu_amdkfd_device_probe(adev);
+	amdgpu_amdkfd_device_init(adev);
+	/* If KFD init failed, return failure */
+	if (!adev->kfd.init_complete)
+		ret = -EIO;
+
+	amdgpu_amdkfd_unlock_kfd(adev);
+out:
 	mutex_unlock(&adev->gfx.partition_mutex);
 
 	if (ret)

@@ -151,6 +151,8 @@ void amdgpu_amdkfd_interrupt(struct amdgpu_device *adev,
 void amdgpu_amdkfd_device_probe(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_init(struct amdgpu_device *adev);
 void amdgpu_amdkfd_device_fini_sw(struct amdgpu_device *adev);
+int amdgpu_amdkfd_check_and_lock_kfd(struct amdgpu_device *adev);
+void amdgpu_amdkfd_unlock_kfd(struct amdgpu_device *adev);
 int amdgpu_amdkfd_submit_ib(struct amdgpu_device *adev,
 				enum kgd_engine_type engine,
 				uint32_t vmid, uint64_t gpu_addr,
@@ -373,6 +375,8 @@ int kgd2kfd_post_reset(struct kfd_dev *kfd);
 void kgd2kfd_interrupt(struct kfd_dev *kfd, const void *ih_ring_entry);
 void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd);
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask);
+int kgd2kfd_check_and_lock_kfd(void);
+void kgd2kfd_unlock_kfd(void);
 #else
 static inline int kgd2kfd_init(void)
 {
@@ -436,6 +440,15 @@ void kgd2kfd_set_sram_ecc_flag(struct kfd_dev *kfd)
 
 static inline
 void kgd2kfd_smi_event_throttle(struct kfd_dev *kfd, uint64_t throttle_bitmask)
+{
+}
+
+static inline int kgd2kfd_check_and_lock_kfd(void)
+{
+	return 0;
+}
+
+static inline void kgd2kfd_unlock_kfd(void)
 {
 }
 #endif
