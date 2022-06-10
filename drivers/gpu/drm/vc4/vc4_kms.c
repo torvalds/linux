@@ -997,6 +997,12 @@ static const struct drm_mode_config_funcs vc4_mode_funcs = {
 	.fb_create = vc4_fb_create,
 };
 
+static const struct drm_mode_config_funcs vc5_mode_funcs = {
+	.atomic_check = vc4_atomic_check,
+	.atomic_commit = drm_atomic_helper_commit,
+	.fb_create = drm_gem_fb_create,
+};
+
 int vc4_kms_load(struct drm_device *dev)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
@@ -1031,7 +1037,7 @@ int vc4_kms_load(struct drm_device *dev)
 		dev->mode_config.max_height = 2048;
 	}
 
-	dev->mode_config.funcs = &vc4_mode_funcs;
+	dev->mode_config.funcs = vc4->is_vc5 ? &vc5_mode_funcs : &vc4_mode_funcs;
 	dev->mode_config.helper_private = &vc4_mode_config_helpers;
 	dev->mode_config.preferred_depth = 24;
 	dev->mode_config.async_page_flip = true;
