@@ -389,6 +389,7 @@ enum perf_user_event_type { /* above any possible kernel type */
 	PERF_RECORD_TIME_CONV			= 79,
 	PERF_RECORD_HEADER_FEATURE		= 80,
 	PERF_RECORD_COMPRESSED			= 81,
+	PERF_RECORD_FINISHED_INIT		= 82,
 	PERF_RECORD_HEADER_MAX
 };
 

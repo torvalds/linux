@@ -607,6 +607,16 @@ struct compressed_event {
 	char				data[];
 };
 
+	PERF_RECORD_FINISHED_INIT			= 82,
+
+Marks the end of records for the system, pre-existing threads in system wide
+sessions, etc. Those are the ones prefixed PERF_RECORD_USER_*.
+
+This is used, for instance, to 'perf inject' events after init and before
+regular events, those emitted by the kernel, to support combining guest and
+host records.
+
+
 The header is followed by compressed data frame that can be decompressed
 into array of perf trace records. The size of the entire compressed event
 record including the header is limited by the max value of header.size.

@@ -1388,6 +1388,11 @@ static struct perf_event_header finished_round_event = {
 	.type = PERF_RECORD_FINISHED_ROUND,
 };
 
+static struct perf_event_header finished_init_event = {
+	.size = sizeof(struct perf_event_header),
+	.type = PERF_RECORD_FINISHED_INIT,
+};
+
 static void record__adjust_affinity(struct record *rec, struct mmap *map)
 {
 	if (rec->opts.affinity != PERF_AFFINITY_SYS &&
@@ -1696,6 +1701,14 @@ static int record__synthesize_workload(struct record *rec, bool tail)
 	return err;
 }
 
+static int write_finished_init(struct record *rec, bool tail)
+{
+	if (rec->opts.tail_synthesize != tail)
+		return 0;
+
+	return record__write(rec, NULL, &finished_init_event, sizeof(finished_init_event));
+}
+
 static int record__synthesize(struct record *rec, bool tail);
 
 static int
@@ -1709,6 +1722,8 @@ record__switch_output(struct record *rec, bool at_exit)
 	char timestamp[] = "InvalidTimestamp";
 
 	record__aio_mmap_read_sync(rec);
+
+	write_finished_init(rec, true);
 
 	record__synthesize(rec, true);
 	if (target__none(&rec->opts.target))
@@ -1764,6 +1779,7 @@ record__switch_output(struct record *rec, bool at_exit)
 		 */
 		if (target__none(&rec->opts.target))
 			record__synthesize_workload(rec, false);
+		write_finished_init(rec, false);
 	}
 	return fd;
 }
@@ -2419,6 +2435,15 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	trigger_ready(&auxtrace_snapshot_trigger);
 	trigger_ready(&switch_output_trigger);
 	perf_hooks__invoke_record_start();
+
+	/*
+	 * Must write FINISHED_INIT so it will be seen after all other
+	 * synthesized user events, but before any regular events.
+	 */
+	err = write_finished_init(rec, false);
+	if (err < 0)
+		goto out_child;
+
 	for (;;) {
 		unsigned long long hits = thread->samples;
 
@@ -2562,6 +2587,8 @@ static int __cmd_record(struct record *rec, int argc, const char **argv)
 	if (!quiet)
 		fprintf(stderr, "[ perf record: Woken up %ld times to write data ]\n",
 			record__waking(rec));
+
+	write_finished_init(rec, true);
 
 	if (target__none(&rec->opts.target))
 		record__synthesize_workload(rec, true);

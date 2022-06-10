@@ -1059,6 +1059,7 @@ int cmd_inject(int argc, const char **argv)
 			.stat		= perf_event__repipe_op2_synth,
 			.stat_round	= perf_event__repipe_op2_synth,
 			.feature	= perf_event__repipe_op2_synth,
+			.finished_init	= perf_event__repipe_op2_synth,
 			.compressed	= perf_event__repipe_op4_synth,
 			.auxtrace	= perf_event__repipe_auxtrace,
 		},
