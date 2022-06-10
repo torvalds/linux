@@ -823,7 +823,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Now update the scratch registers for GPI protocol */
 	gpi = &scr.gpi;
-	gpi->max_outstanding_tre = gsi_channel_trans_tre_max(gsi, channel_id) *
+	gpi->max_outstanding_tre = channel->trans_tre_max *
 					GSI_RING_ELEMENT_SIZE;
 	gpi->outstanding_threshold = 2 * GSI_RING_ELEMENT_SIZE;
 
@@ -2095,7 +2095,7 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	channel->gsi = gsi;
 	channel->toward_ipa = data->toward_ipa;
 	channel->command = command;
-	channel->tlv_count = data->channel.tlv_count;
+	channel->trans_tre_max = data->channel.tlv_count;
 	channel->tre_count = tre_count;
 	channel->event_count = data->channel.event_count;
 
@@ -2310,13 +2310,5 @@ u32 gsi_channel_tre_max(struct gsi *gsi, u32 channel_id)
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
 	/* Hardware limit is channel->tre_count - 1 */
-	return channel->tre_count - (channel->tlv_count - 1);
-}
-
-/* Returns the maximum number of TREs in a single transaction for a channel */
-u32 gsi_channel_trans_tre_max(struct gsi *gsi, u32 channel_id)
-{
-	struct gsi_channel *channel = &gsi->channel[channel_id];
-
-	return channel->tlv_count;
+	return channel->tre_count - (channel->trans_tre_max - 1);
 }

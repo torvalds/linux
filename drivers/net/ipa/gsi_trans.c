@@ -340,7 +340,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	struct gsi_trans_info *trans_info;
 	struct gsi_trans *trans;
 
-	if (WARN_ON(tre_count > gsi_channel_trans_tre_max(gsi, channel_id)))
+	if (WARN_ON(tre_count > channel->trans_tre_max))
 		return NULL;
 
 	trans_info = &channel->trans_info;
@@ -745,14 +745,10 @@ int gsi_channel_trans_init(struct gsi *gsi, u32 channel_id)
 	 * element is used to fill a single TRE when the transaction is
 	 * committed.  So we need as many scatterlist elements as the
 	 * maximum number of TREs that can be outstanding.
-	 *
-	 * All TREs in a transaction must fit within the channel's TLV FIFO.
-	 * A transaction on a channel can allocate as many TREs as that but
-	 * no more.
 	 */
 	ret = gsi_trans_pool_init(&trans_info->sg_pool,
 				  sizeof(struct scatterlist),
-				  tre_max, channel->tlv_count);
+				  tre_max, channel->trans_tre_max);
 	if (ret)
 		goto err_trans_pool_exit;
 
