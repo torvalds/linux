@@ -21,6 +21,7 @@
 #include <linux/dma-mapping.h>
 #include <linux/virtio_config.h>
 #include <linux/cc_platform.h>
+#include <linux/platform-feature.h>
 
 #include <asm/tlbflush.h>
 #include <asm/fixmap.h>
@@ -242,6 +243,9 @@ void __init sev_setup_arch(void)
 	size = total_mem * 6 / 100;
 	size = clamp_val(size, IO_TLB_DEFAULT_SIZE, SZ_1G);
 	swiotlb_adjust_size(size);
+
+	/* Set restricted memory access for virtio. */
+	platform_set(PLATFORM_VIRTIO_RESTRICTED_MEM_ACCESS);
 }
 
 static unsigned long pg_level_to_pfn(int level, pte_t *kpte, pgprot_t *ret_prot)
