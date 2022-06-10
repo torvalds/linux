@@ -290,7 +290,7 @@ static int ipc3_wait_tx_done(struct snd_sof_ipc *ipc, void *reply_data)
 		dev_err(sdev->dev,
 			"ipc tx timed out for %#x (msg/reply size: %d/%zu)\n",
 			hdr->cmd, hdr->size, msg->reply_size);
-		snd_sof_handle_fw_exception(ipc->sdev);
+		snd_sof_handle_fw_exception(ipc->sdev, "IPC timeout");
 		ret = -ETIMEDOUT;
 	} else {
 		ret = msg->reply_error;
