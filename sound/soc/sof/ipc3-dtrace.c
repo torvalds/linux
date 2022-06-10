@@ -18,6 +18,7 @@
 enum sof_dtrace_state {
 	SOF_DTRACE_DISABLED,
 	SOF_DTRACE_STOPPED,
+	SOF_DTRACE_INITIALIZING,
 	SOF_DTRACE_ENABLED,
 };
 
@@ -31,6 +32,15 @@ struct sof_dtrace_priv {
 	bool dtrace_draining;
 	enum sof_dtrace_state dtrace_state;
 };
+
+static bool trace_pos_update_expected(struct sof_dtrace_priv *priv)
+{
+	if (priv->dtrace_state == SOF_DTRACE_ENABLED ||
+	    priv->dtrace_state == SOF_DTRACE_INITIALIZING)
+		return true;
+
+	return false;
+}
 
 static int trace_filter_append_elem(struct snd_sof_dev *sdev, u32 key, u32 value,
 				    struct sof_ipc_trace_filter_elem *elem_list,
@@ -241,6 +251,21 @@ static int debugfs_create_trace_filter(struct snd_sof_dev *sdev)
 	return 0;
 }
 
+static bool sof_dtrace_set_host_offset(struct sof_dtrace_priv *priv, u32 new_offset)
+{
+	u32 host_offset = READ_ONCE(priv->host_offset);
+
+	if (host_offset != new_offset) {
+		/* This is a bit paranoid and unlikely that it is needed */
+		u32 ret = cmpxchg(&priv->host_offset, host_offset, new_offset);
+
+		if (ret == host_offset)
+			return true;
+	}
+
+	return false;
+}
+
 static size_t sof_dtrace_avail(struct snd_sof_dev *sdev,
 			       loff_t pos, size_t buffer_size)
 {
@@ -273,7 +298,7 @@ static size_t sof_wait_dtrace_avail(struct snd_sof_dev *sdev, loff_t pos,
 	if (ret)
 		return ret;
 
-	if (priv->dtrace_state != SOF_DTRACE_ENABLED && priv->dtrace_draining) {
+	if (priv->dtrace_draining && !trace_pos_update_expected(priv)) {
 		/*
 		 * tracing has ended and all traces have been
 		 * read by client, return EOF
@@ -327,6 +352,10 @@ static ssize_t dfsentry_dtrace_read(struct file *file, char __user *buffer,
 		return -EIO;
 	}
 
+	/* no new trace data */
+	if (!avail)
+		return 0;
+
 	/* make sure count is <= avail */
 	if (count > avail)
 		count = avail;
@@ -357,7 +386,7 @@ static int dfsentry_dtrace_release(struct inode *inode, struct file *file)
 
 	/* avoid duplicate traces at next open */
 	if (priv->dtrace_state != SOF_DTRACE_ENABLED)
-		priv->host_offset = 0;
+		sof_dtrace_set_host_offset(priv, 0);
 
 	return 0;
 }
@@ -433,7 +462,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	params.buffer.pages = priv->dma_trace_pages;
 	params.stream_tag = 0;
 
-	priv->host_offset = 0;
+	sof_dtrace_set_host_offset(priv, 0);
 	priv->dtrace_draining = false;
 
 	ret = sof_dtrace_host_init(sdev, &priv->dmatb, &params);
@@ -444,6 +473,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	dev_dbg(sdev->dev, "%s: stream_tag: %d\n", __func__, params.stream_tag);
 
 	/* send IPC to the DSP */
+	priv->dtrace_state = SOF_DTRACE_INITIALIZING;
 	ret = sof_ipc_tx_message(sdev->ipc, &params, sizeof(params), &ipc_reply, sizeof(ipc_reply));
 	if (ret < 0) {
 		dev_err(sdev->dev, "can't set params for DMA for trace %d\n", ret);
@@ -451,17 +481,18 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 	}
 
 start:
+	priv->dtrace_state = SOF_DTRACE_ENABLED;
+
 	ret = sof_dtrace_host_trigger(sdev, SNDRV_PCM_TRIGGER_START);
 	if (ret < 0) {
 		dev_err(sdev->dev, "Host dtrace trigger start failed: %d\n", ret);
 		goto trace_release;
 	}
 
-	priv->dtrace_state = SOF_DTRACE_ENABLED;
-
 	return 0;
 
 trace_release:
+	priv->dtrace_state = SOF_DTRACE_DISABLED;
 	sof_dtrace_host_release(sdev);
 	return ret;
 }
@@ -545,11 +576,9 @@ int ipc3_dtrace_posn_update(struct snd_sof_dev *sdev,
 	if (!sdev->fw_trace_is_supported)
 		return 0;
 
-	if (priv->dtrace_state == SOF_DTRACE_ENABLED &&
-	    priv->host_offset != posn->host_offset) {
-		priv->host_offset = posn->host_offset;
+	if (trace_pos_update_expected(priv) &&
+	    sof_dtrace_set_host_offset(priv, posn->host_offset))
 		wake_up(&priv->trace_sleep);
-	}
 
 	if (posn->overflow != 0)
 		dev_err(sdev->dev,
