@@ -11,12 +11,13 @@
 #include <linux/cdev.h>
 #include <linux/slab.h>
 #include <linux/iio/types.h>
-#include <linux/of.h>
 /* IIO TODO LIST */
 /*
  * Provide means of adjusting timer accuracy.
  * Currently assumes nano seconds.
  */
+
+struct of_phandle_args;
 
 enum iio_shared_by {
 	IIO_SEPARATE,
