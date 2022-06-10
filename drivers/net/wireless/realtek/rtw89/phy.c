@@ -3125,11 +3125,9 @@ static void rtw89_physts_enable_fail_report(struct rtw89_dev *rtwdev,
 
 static void rtw89_physts_parsing_init(struct rtw89_dev *rtwdev)
 {
-	const struct rtw89_chip_info *chip = rtwdev->chip;
 	u8 i;
 
-	if (chip->chip_id == RTL8852A && rtwdev->hal.cv == CHIP_CBV)
-		rtw89_physts_enable_fail_report(rtwdev, false, RTW89_PHY_0);
+	rtw89_physts_enable_fail_report(rtwdev, false, RTW89_PHY_0);
 
 	for (i = 0; i < RTW89_PHYSTS_BITMAP_NUM; i++) {
 		if (i >= RTW89_CCK_PKT)
