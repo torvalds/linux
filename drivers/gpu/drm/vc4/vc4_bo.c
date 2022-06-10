@@ -471,9 +471,9 @@ struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t unaligned_size,
 	return bo;
 }
 
-int vc4_dumb_create(struct drm_file *file_priv,
-		    struct drm_device *dev,
-		    struct drm_mode_create_dumb *args)
+int vc4_bo_dumb_create(struct drm_file *file_priv,
+		       struct drm_device *dev,
+		       struct drm_mode_create_dumb *args)
 {
 	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 	struct vc4_bo *bo = NULL;

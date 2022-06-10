@@ -814,9 +814,9 @@ struct vc4_validated_shader_info {
 struct drm_gem_object *vc4_create_object(struct drm_device *dev, size_t size);
 struct vc4_bo *vc4_bo_create(struct drm_device *dev, size_t size,
 			     bool from_cache, enum vc4_kernel_bo_type type);
-int vc4_dumb_create(struct drm_file *file_priv,
-		    struct drm_device *dev,
-		    struct drm_mode_create_dumb *args);
+int vc4_bo_dumb_create(struct drm_file *file_priv,
+		       struct drm_device *dev,
+		       struct drm_mode_create_dumb *args);
 int vc4_create_bo_ioctl(struct drm_device *dev, void *data,
 			struct drm_file *file_priv);
 int vc4_create_shader_bo_ioctl(struct drm_device *dev, void *data,
