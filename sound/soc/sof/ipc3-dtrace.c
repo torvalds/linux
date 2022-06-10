@@ -157,9 +157,8 @@ static int ipc3_trace_update_filter(struct snd_sof_dev *sdev, int num_elems,
 	msg->elem_cnt = num_elems;
 	memcpy(&msg->elems[0], elems, num_elems * sizeof(*elems));
 
-	ret = pm_runtime_get_sync(sdev->dev);
+	ret = pm_runtime_resume_and_get(sdev->dev);
 	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(sdev->dev);
 		dev_err(sdev->dev, "enabling device failed: %d\n", ret);
 		goto error;
 	}
