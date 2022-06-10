@@ -154,6 +154,7 @@ static const struct cif_output_fmt out_fmts[] = {
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 16 },
+		.csi_fmt_val = CSI_WRDDR_TYPE_RGB565,
 		.fmt_type = CIF_FMT_TYPE_RAW,
 	}, {
 		.fourcc = V4L2_PIX_FMT_BGR666,
@@ -476,6 +477,10 @@ static const struct cif_input_fmt in_fmts[] = {
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB888,
 		.field		= V4L2_FIELD_NONE,
 	}, {
+		.mbus_code	= MEDIA_BUS_FMT_RGB565_1X16,
+		.csi_fmt_val	= CSI_WRDDR_TYPE_RGB565,
+		.field		= V4L2_FIELD_NONE,
+	}, {
 		.mbus_code	= MEDIA_BUS_FMT_Y8_1X8,
 		.dvp_fmt_val	= INPUT_MODE_RAW | RAW_DATA_WIDTH_8,
 		.csi_fmt_val	= CSI_WRDDR_TYPE_RAW8,
@@ -631,6 +636,15 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input
 		} else {
 			return 0x24;
 		}
+	case MEDIA_BUS_FMT_RGB565_1X16:
+		if (dsi_input) {
+			if (cmd_mode_en) /* dsi command mode*/
+				return 0x39;
+			else /* dsi video mode */
+				return 0x0e;
+		} else {
+			return 0x22;
+		}
 	case MEDIA_BUS_FMT_EBD_1X8:
 		return 0x12;
 	case MEDIA_BUS_FMT_SPD_2X8:
@@ -646,6 +660,8 @@ static int get_csi_crop_align(const struct cif_input_fmt *fmt_in)
 	switch (fmt_in->csi_fmt_val) {
 	case CSI_WRDDR_TYPE_RGB888:
 		return 24;
+	case CSI_WRDDR_TYPE_RGB565:
+		return 16;
 	case CSI_WRDDR_TYPE_RAW10:
 	case CSI_WRDDR_TYPE_RAW12:
 		return 4;
@@ -2069,7 +2085,8 @@ static unsigned char get_csi_fmt_val(const struct cif_input_fmt	*cif_fmt_in,
 			csi_fmt_val = CSI_WRDDR_TYPE_RAW12;
 			break;
 		}
-	} else if (cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888) {
+	} else if (cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB888 ||
+		   cif_fmt_in->csi_fmt_val == CSI_WRDDR_TYPE_RGB565) {
 		csi_fmt_val = CSI_WRDDR_TYPE_RAW8;
 	} else {
 		csi_fmt_val = cif_fmt_in->csi_fmt_val;
@@ -2099,6 +2116,8 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
 			channel->crop_st_x = 3 * stream->crop[CROP_SRC_ACT].left;
+		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
+			channel->crop_st_x = 2 * stream->crop[CROP_SRC_ACT].left;
 		else
 			channel->crop_st_x = stream->crop[CROP_SRC_ACT].left;
 
@@ -2130,13 +2149,14 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	 * writing of ddr, aliged with 256
 	 */
 	if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
-	    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888) {
+	    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888 &&
+	    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB565) {
 		channel->virtual_width = ALIGN(channel->width * fmt->raw_bpp / 8, 256);
 	} else {
 		channel->virtual_width = ALIGN(channel->width * fmt->bpp[0] / 8, 8);
 	}
 
-	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 || channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 		channel->width = channel->width * fmt->bpp[0] / 8;
 	/*
 	 * rk cif don't support output yuyv fmt data
@@ -4660,11 +4680,13 @@ int rkcif_set_fmt(struct rkcif_stream *stream,
 		    (dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_DPHY ||
 		     dev->active_sensor->mbus.type == V4L2_MBUS_CSI2_CPHY ||
 		     dev->active_sensor->mbus.type == V4L2_MBUS_CCP2) &&
-		     fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888) {
+		     fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888 &&
+		     fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB565) {
 			bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
 		} else {
 			if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
 			    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888 &&
+			    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB565 &&
 			    dev->chip_id >= CHIP_RK3588_CIF) {
 				bpl = ALIGN(width * fmt->raw_bpp / 8, 256);
 			} else {
@@ -6222,13 +6244,14 @@ static void rkcif_cal_csi_crop_width_vwidth(struct rkcif_stream *stream,
 	 * writing of ddr, aliged with 256
 	 */
 	if (fmt->fmt_type == CIF_FMT_TYPE_RAW && stream->is_compact &&
-	    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888) {
+	    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB888 &&
+	    fmt->csi_fmt_val != CSI_WRDDR_TYPE_RGB565) {
 		*crop_vwidth = ALIGN(raw_width * fmt->raw_bpp / 8, 256);
 	} else {
 		*crop_vwidth = ALIGN(raw_width * fmt->bpp[0] / 8, 8);
 	}
 
-	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
+	if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888 || channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
 		*crop_width = raw_width * fmt->bpp[0] / 8;
 	/*
 	 * rk cif don't support output yuyv fmt data
@@ -6263,6 +6286,8 @@ static void rkcif_dynamic_crop(struct rkcif_stream *stream)
 
 		if (channel->fmt_val == CSI_WRDDR_TYPE_RGB888)
 			crop_x = 3 * stream->crop[CROP_SRC_ACT].left;
+		else if (channel->fmt_val == CSI_WRDDR_TYPE_RGB565)
+			crop_x = 2 * stream->crop[CROP_SRC_ACT].left;
 		else
 			crop_x = stream->crop[CROP_SRC_ACT].left;
 
