@@ -99,6 +99,9 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 	if (args->pad != 0)
 		return -EINVAL;
 
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
+
 	if (!vc4->v3d)
 		return -ENODEV;
 
@@ -142,11 +145,16 @@ static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 
 static int vc4_open(struct drm_device *dev, struct drm_file *file)
 {
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return -ENODEV;
 
 	vc4file = kzalloc(sizeof(*vc4file), GFP_KERNEL);
 	if (!vc4file)
 		return -ENOMEM;
+	vc4file->dev = vc4;
 
 	vc4_perfmon_open_file(vc4file);
 	file->driver_priv = vc4file;
@@ -157,6 +165,9 @@ static void vc4_close(struct drm_device *dev, struct drm_file *file)
 {
 	struct vc4_dev *vc4 = to_vc4_dev(dev);
 	struct vc4_file *vc4file = file->driver_priv;
+
+	if (WARN_ON_ONCE(vc4->is_vc5))
+		return;
 
 	if (vc4file->bin_bo_used)
 		vc4_v3d_bin_bo_put(vc4);

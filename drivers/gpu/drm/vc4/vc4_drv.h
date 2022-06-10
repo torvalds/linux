@@ -48,6 +48,8 @@ enum vc4_kernel_bo_type {
  * done. This way, only events related to a specific job will be counted.
  */
 struct vc4_perfmon {
+	struct vc4_dev *dev;
+
 	/* Tracks the number of users of the perfmon, when this counter reaches
 	 * zero the perfmon is destroyed.
 	 */
@@ -580,6 +582,8 @@ to_vc4_crtc_state(struct drm_crtc_state *crtc_state)
 #define VC4_REG32(reg) { .name = #reg, .offset = reg }
 
 struct vc4_exec_info {
+	struct vc4_dev *dev;
+
 	/* Sequence number for this bin/render job. */
 	uint64_t seqno;
 
@@ -701,6 +705,8 @@ struct vc4_exec_info {
  * released when the DRM file is closed should be placed here.
  */
 struct vc4_file {
+	struct vc4_dev *dev;
+
 	struct {
 		struct idr idr;
 		struct mutex lock;
