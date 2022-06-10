@@ -428,10 +428,6 @@ extern int __sys_recvfrom(int fd, void __user *ubuf, size_t size,
 extern int __sys_sendto(int fd, void __user *buff, size_t len,
 			unsigned int flags, struct sockaddr __user *addr,
 			int addr_len);
-extern int __sys_accept4_file(struct file *file, unsigned file_flags,
-			struct sockaddr __user *upeer_sockaddr,
-			 int __user *upeer_addrlen, int flags,
-			 unsigned long nofile);
 extern struct file *do_accept(struct file *file, unsigned file_flags,
 			      struct sockaddr __user *upeer_sockaddr,
 			      int __user *upeer_addrlen, int flags);
