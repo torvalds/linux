@@ -229,7 +229,7 @@ static void xehp_sseu_info_init(struct intel_gt *gt)
 	 */
 	intel_sseu_set_info(sseu, 1,
 			    32 * max(num_geometry_regs, num_compute_regs),
-			    16);
+			    HAS_ONE_EU_PER_FUSE_BIT(gt->i915) ? 8 : 16);
 	sseu->has_xehp_dss = 1;
 
 	xehp_load_dss_mask(uncore, &sseu->geometry_subslice_mask,
