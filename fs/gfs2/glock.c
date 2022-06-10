@@ -405,10 +405,13 @@ static void do_error(struct gfs2_glock *gl, const int ret)
 /**
  * demote_incompat_holders - demote incompatible demoteable holders
  * @gl: the glock we want to promote
- * @new_gh: the new holder to be promoted
+ * @current_gh: the newly promoted holder
+ *
+ * We're passing the newly promoted holder in @current_gh, but actually, any of
+ * the strong holders would do.
  */
 static void demote_incompat_holders(struct gfs2_glock *gl,
-				    struct gfs2_holder *new_gh)
+				    struct gfs2_holder *current_gh)
 {
 	struct gfs2_holder *gh, *tmp;
 
@@ -424,8 +427,10 @@ static void demote_incompat_holders(struct gfs2_glock *gl,
 		 */
 		if (!test_bit(HIF_HOLDER, &gh->gh_iflags))
 			return;
+		if (gh == current_gh)
+			continue;
 		if (test_bit(HIF_MAY_DEMOTE, &gh->gh_iflags) &&
-		    !may_grant(gl, new_gh, gh)) {
+		    !may_grant(gl, current_gh, gh)) {
 			/*
 			 * We should not recurse into do_promote because
 			 * __gfs2_glock_dq only calls handle_callback,
@@ -547,14 +552,14 @@ static int do_promote(struct gfs2_glock *gl)
 			do_error(gl, 0);
 			break;
 		}
-		if (!incompat_holders_demoted) {
-			demote_incompat_holders(gl, current_gh);
-			incompat_holders_demoted = true;
-			current_gh = gh;
-		}
 		set_bit(HIF_HOLDER, &gh->gh_iflags);
 		trace_gfs2_promote(gh);
 		gfs2_holder_wake(gh);
+		if (!incompat_holders_demoted) {
+			current_gh = gh;
+			demote_incompat_holders(gl, current_gh);
+			incompat_holders_demoted = true;
+		}
 	}
 	return 0;
 }
