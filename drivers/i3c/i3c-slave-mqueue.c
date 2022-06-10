@@ -16,6 +16,7 @@
 #define MQ_QUEUE_NEXT(x)	(((x) + 1) & (MQ_QUEUE_SIZE - 1))
 
 #define IBI_STATUS_LAST_FRAG	BIT(24)
+#define MQ_MDB			IBI_MDB_ID(0b101, 0x1f)
 
 struct mq_msg {
 	int len;
@@ -35,6 +36,7 @@ struct mq_queue {
 	struct mq_msg queue[MQ_QUEUE_SIZE];
 
 	struct i3c_master_controller *i3c_controller;
+	u8 mdb;
 };
 
 static void i3c_slave_mqueue_callback(struct i3c_master_controller *master,
@@ -98,13 +100,30 @@ static ssize_t i3c_slave_mqueue_bin_write(struct file *filp,
 					  loff_t pos, size_t count)
 {
 	struct mq_queue *mq;
-	struct i3c_slave_payload payload;
+	struct i3c_slave_payload payload, ibi;
+	u8 *data;
 
-	payload.data = buf;
-	payload.len = count;
 	mq = dev_get_drvdata(container_of(kobj, struct device, kobj));
 
-	i3c_master_send_sir(mq->i3c_controller, &payload);
+	if (IS_MDB_PENDING_READ_NOTIFY(mq->mdb)) {
+		ibi.data = &mq->mdb;
+		ibi.len = 1;
+		payload.data = buf;
+		payload.len = count;
+		i3c_master_put_read_data(mq->i3c_controller, &payload, &ibi);
+	} else {
+		data = kmalloc(count + 1, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
+		data[0] = mq->mdb;
+		memcpy(&data[1], buf, count);
+
+		payload.data = data;
+		payload.len = count + 1;
+		i3c_master_send_sir(mq->i3c_controller, &payload);
+		kfree(data);
+	}
 
 	return count;
 }
@@ -146,6 +165,7 @@ int i3c_slave_mqueue_probe(struct i3c_master_controller *master)
 	mq->bin.size = MQ_MSGBUF_SIZE * MQ_QUEUE_SIZE;
 
 	mq->i3c_controller = master;
+	mq->mdb = MQ_MDB;
 
 	ret = sysfs_create_bin_file(&dev->kobj, &mq->bin);
 	if (ret)
