@@ -4549,6 +4549,24 @@ ieee80211_set_radar_background(struct wiphy *wiphy,
 	return local->ops->set_radar_background(&local->hw, chandef);
 }
 
+static int ieee80211_add_intf_link(struct wiphy *wiphy,
+				   struct wireless_dev *wdev,
+				   unsigned int link_id)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	return ieee80211_vif_set_links(sdata, wdev->valid_links);
+}
+
+static void ieee80211_del_intf_link(struct wiphy *wiphy,
+				    struct wireless_dev *wdev,
+				    unsigned int link_id)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_WDEV_TO_SUB_IF(wdev);
+
+	ieee80211_vif_set_links(sdata, wdev->valid_links);
+}
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -4654,4 +4672,6 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.set_sar_specs = ieee80211_set_sar_specs,
 	.color_change = ieee80211_color_change,
 	.set_radar_background = ieee80211_set_radar_background,
+	.add_intf_link = ieee80211_add_intf_link,
+	.del_intf_link = ieee80211_del_intf_link,
 };
