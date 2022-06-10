@@ -359,6 +359,12 @@ int rtw89_cam_init_addr_cam(struct rtw89_dev *rtwdev,
 			    const struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_deinit_addr_cam(struct rtw89_dev *rtwdev,
 			       struct rtw89_addr_cam_entry *addr_cam);
+int rtw89_cam_init_bssid_cam(struct rtw89_dev *rtwdev,
+			     struct rtw89_vif *rtwvif,
+			     struct rtw89_bssid_cam_entry *bssid_cam,
+			     const u8 *bssid);
+void rtw89_cam_deinit_bssid_cam(struct rtw89_dev *rtwdev,
+				struct rtw89_bssid_cam_entry *bssid_cam);
 void rtw89_cam_fill_addr_cam_info(struct rtw89_dev *rtwdev,
 				  struct rtw89_vif *vif,
 				  struct rtw89_sta *rtwsta,
