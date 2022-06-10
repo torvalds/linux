@@ -302,6 +302,8 @@ struct ceph_dentry_info {
 #define CEPH_DENTRY_PRIMARY_LINK	(1 << 3)
 #define CEPH_DENTRY_ASYNC_UNLINK_BIT	(4)
 #define CEPH_DENTRY_ASYNC_UNLINK	(1 << CEPH_DENTRY_ASYNC_UNLINK_BIT)
+#define CEPH_DENTRY_ASYNC_CREATE_BIT	(5)
+#define CEPH_DENTRY_ASYNC_CREATE	(1 << CEPH_DENTRY_ASYNC_CREATE_BIT)
 
 struct ceph_inode_xattrs_info {
 	/*

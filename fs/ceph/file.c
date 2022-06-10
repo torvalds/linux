@@ -612,6 +612,7 @@ static int ceph_finish_async_create(struct inode *dir, struct dentry *dentry,
 	struct ceph_mds_reply_inode in = { };
 	struct ceph_mds_reply_info_in iinfo = { .in = &in };
 	struct ceph_inode_info *ci = ceph_inode(dir);
+	struct ceph_dentry_info *di = ceph_dentry(dentry);
 	struct inode *inode;
 	struct timespec64 now;
 	struct ceph_string *pool_ns;
@@ -714,6 +715,12 @@ static int ceph_finish_async_create(struct inode *dir, struct dentry *dentry,
 		file->f_mode |= FMODE_CREATED;
 		ret = finish_open(file, dentry, ceph_open);
 	}
+
+	spin_lock(&dentry->d_lock);
+	di->flags &= ~CEPH_DENTRY_ASYNC_CREATE;
+	wake_up_bit(&di->flags, CEPH_DENTRY_ASYNC_CREATE_BIT);
+	spin_unlock(&dentry->d_lock);
+
 	return ret;
 }
 
@@ -790,9 +797,16 @@ retry:
 		    (req->r_dir_caps =
 		      try_prep_async_create(dir, dentry, &lo,
 					    &req->r_deleg_ino))) {
+			struct ceph_dentry_info *di = ceph_dentry(dentry);
+
 			set_bit(CEPH_MDS_R_ASYNC, &req->r_req_flags);
 			req->r_args.open.flags |= cpu_to_le32(CEPH_O_EXCL);
 			req->r_callback = ceph_async_create_cb;
+
+			spin_lock(&dentry->d_lock);
+			di->flags |= CEPH_DENTRY_ASYNC_CREATE;
+			spin_unlock(&dentry->d_lock);
+
 			err = ceph_mdsc_submit_request(mdsc, dir, req);
 			if (!err) {
 				err = ceph_finish_async_create(dir, dentry,
