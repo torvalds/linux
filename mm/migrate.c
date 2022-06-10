@@ -587,6 +587,8 @@ void migrate_page_states(struct page *newpage, struct page *page)
 {
 	int cpupid;
 
+	trace_android_vh_migrate_page_states(page, newpage);
+
 	if (PageError(page))
 		SetPageError(newpage);
 	if (PageReferenced(page))
