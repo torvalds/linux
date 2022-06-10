@@ -24,40 +24,30 @@ static const struct snd_sof_debugfs_map tgl_dsp_debugfs[] = {
 
 static int tgl_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
-	struct sof_ipc_pm_core_config pm_core_config = {
-		.hdr = {
-			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
-			.size = sizeof(pm_core_config),
-		},
-		.enable_mask = sdev->enabled_cores_mask | BIT(core),
-	};
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 
 	/* power up primary core if not already powered up and return */
 	if (core == SOF_DSP_PRIMARY_CORE)
 		return hda_dsp_enable_core(sdev, BIT(core));
 
-	/* notify DSP for secondary cores */
-	return sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
-				 &pm_core_config, sizeof(pm_core_config));
+	if (pm_ops->set_core_state)
+		return pm_ops->set_core_state(sdev, core, true);
+
+	return 0;
 }
 
 static int tgl_dsp_core_put(struct snd_sof_dev *sdev, int core)
 {
-	struct sof_ipc_pm_core_config pm_core_config = {
-		.hdr = {
-			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
-			.size = sizeof(pm_core_config),
-		},
-		.enable_mask = sdev->enabled_cores_mask & ~BIT(core),
-	};
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 
 	/* power down primary core and return */
 	if (core == SOF_DSP_PRIMARY_CORE)
 		return hda_dsp_core_reset_power_down(sdev, BIT(core));
 
-	/* notify DSP for secondary cores */
-	return sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
-				 &pm_core_config, sizeof(pm_core_config));
+	if (pm_ops->set_core_state)
+		return pm_ops->set_core_state(sdev, core, false);
+
+	return 0;
 }
 
 /* Tigerlake ops */

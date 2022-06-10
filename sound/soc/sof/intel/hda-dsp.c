@@ -932,13 +932,7 @@ void hda_dsp_d0i3_work(struct work_struct *work)
 
 int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 {
-	struct sof_ipc_pm_core_config pm_core_config = {
-		.hdr = {
-			.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
-			.size = sizeof(pm_core_config),
-		},
-		.enable_mask = sdev->enabled_cores_mask | BIT(core),
-	};
+	const struct sof_ipc_pm_ops *pm_ops = sdev->ipc->ops->pm;
 	int ret, ret1;
 
 	/* power up core */
@@ -953,9 +947,12 @@ int hda_dsp_core_get(struct snd_sof_dev *sdev, int core)
 	if (sdev->fw_state != SOF_FW_BOOT_COMPLETE || core == SOF_DSP_PRIMARY_CORE)
 		return 0;
 
+	/* No need to continue the set_core_state ops is not available */
+	if (!pm_ops->set_core_state)
+		return 0;
+
 	/* Now notify DSP for secondary cores */
-	ret = sof_ipc_tx_message(sdev->ipc, &pm_core_config, sizeof(pm_core_config),
-				 &pm_core_config, sizeof(pm_core_config));
+	ret = pm_ops->set_core_state(sdev, core, true);
 	if (ret < 0) {
 		dev_err(sdev->dev, "failed to enable secondary core '%d' failed with %d\n",
 			core, ret);
