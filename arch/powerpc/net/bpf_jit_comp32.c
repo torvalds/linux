@@ -294,6 +294,7 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 		u32 dst_reg_h = dst_reg - 1;
 		u32 src_reg = bpf_to_ppc(insn[i].src_reg);
 		u32 src_reg_h = src_reg - 1;
+		u32 ax_reg = bpf_to_ppc(BPF_REG_AX);
 		u32 tmp_reg = bpf_to_ppc(TMP_REG);
 		u32 size = BPF_SIZE(code);
 		s16 off = insn[i].off;
@@ -798,25 +799,53 @@ int bpf_jit_build_body(struct bpf_prog *fp, u32 *image, struct codegen_context *
 		 * BPF_STX ATOMIC (atomic ops)
 		 */
 		case BPF_STX | BPF_ATOMIC | BPF_W:
-			if (imm != BPF_ADD) {
-				pr_err_ratelimited("eBPF filter atomic op code %02x (@%d) unsupported\n",
-						   code, i);
-				return -ENOTSUPP;
-			}
-
-			/* *(u32 *)(dst + off) += src */
-
 			bpf_set_seen_register(ctx, tmp_reg);
+			bpf_set_seen_register(ctx, ax_reg);
+
 			/* Get offset into TMP_REG */
 			EMIT(PPC_RAW_LI(tmp_reg, off));
+			tmp_idx = ctx->idx * 4;
 			/* load value from memory into r0 */
 			EMIT(PPC_RAW_LWARX(_R0, tmp_reg, dst_reg, 0));
-			/* add value from src_reg into this */
-			EMIT(PPC_RAW_ADD(_R0, _R0, src_reg));
-			/* store result back */
+
+			/* Save old value in BPF_REG_AX */
+			if (imm & BPF_FETCH)
+				EMIT(PPC_RAW_MR(ax_reg, _R0));
+
+			switch (imm) {
+			case BPF_ADD:
+			case BPF_ADD | BPF_FETCH:
+				EMIT(PPC_RAW_ADD(_R0, _R0, src_reg));
+				break;
+			case BPF_AND:
+			case BPF_AND | BPF_FETCH:
+				EMIT(PPC_RAW_AND(_R0, _R0, src_reg));
+				break;
+			case BPF_OR:
+			case BPF_OR | BPF_FETCH:
+				EMIT(PPC_RAW_OR(_R0, _R0, src_reg));
+				break;
+			case BPF_XOR:
+			case BPF_XOR | BPF_FETCH:
+				EMIT(PPC_RAW_XOR(_R0, _R0, src_reg));
+				break;
+			default:
+				pr_err_ratelimited("eBPF filter atomic op code %02x (@%d) unsupported\n",
+						   code, i);
+				return -EOPNOTSUPP;
+			}
+
+			/* store new value */
 			EMIT(PPC_RAW_STWCX(_R0, tmp_reg, dst_reg));
 			/* we're done if this succeeded */
-			PPC_BCC_SHORT(COND_NE, (ctx->idx - 3) * 4);
+			PPC_BCC_SHORT(COND_NE, tmp_idx);
+
+			/* For the BPF_FETCH variant, get old data into src_reg */
+			if (imm & BPF_FETCH) {
+				EMIT(PPC_RAW_MR(src_reg, ax_reg));
+				if (!fp->aux->verifier_zext)
+					EMIT(PPC_RAW_LI(src_reg_h, 0));
+			}
 			break;
 
 		case BPF_STX | BPF_ATOMIC | BPF_DW: /* *(u64 *)(dst + off) += src */
