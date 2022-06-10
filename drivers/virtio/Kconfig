@@ -123,9 +123,11 @@ config VIRTIO_MEM
 	 This driver provides access to virtio-mem paravirtualized memory
 	 devices, allowing to hotplug and hotunplug memory.
 
-	 This driver was only tested under x86-64 and arm64, but should
-	 theoretically work on all architectures that support memory hotplug
-	 and hotremove.
+	 This driver currently only supports x86-64 and arm64. Although it
+	 should compile on other architectures that implement memory
+	 hot(un)plug, architecture-specific and/or common
+	 code changes may be required for virtio-mem, kdump and kexec to work as
+	 expected.
 
 	 If unsure, say M.
 
