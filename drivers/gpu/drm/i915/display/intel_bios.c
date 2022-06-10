@@ -2471,10 +2471,10 @@ static void sanitize_device_type(struct intel_bios_encoder_data *devdata,
 	if (port != PORT_A || DISPLAY_VER(i915) >= 12)
 		return;
 
-	if (!(devdata->child.device_type & DEVICE_TYPE_TMDS_DVI_SIGNALING))
+	if (!intel_bios_encoder_supports_dvi(devdata))
 		return;
 
-	is_hdmi = !(devdata->child.device_type & DEVICE_TYPE_NOT_HDMI_OUTPUT);
+	is_hdmi = intel_bios_encoder_supports_hdmi(devdata);
 
 	drm_dbg_kms(&i915->drm, "VBT claims port A supports DVI%s, ignoring\n",
 		    is_hdmi ? "/HDMI" : "");
