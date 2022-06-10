@@ -188,6 +188,12 @@ DECLARE_HOOK(android_vh_account_swap_pages,
 DECLARE_HOOK(android_vh_unuse_swap_page,
 	TP_PROTO(struct swap_info_struct *si, struct page *page),
 	TP_ARGS(si, page));
+DECLARE_HOOK(android_vh_init_swap_info_struct,
+	TP_PROTO(struct swap_info_struct *p, struct plist_head *swap_avail_heads),
+	TP_ARGS(p, swap_avail_heads));
+DECLARE_HOOK(android_vh_alloc_si,
+	TP_PROTO(struct swap_info_struct **p, bool *skip),
+	TP_ARGS(p, skip));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */

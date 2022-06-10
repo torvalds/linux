@@ -422,3 +422,5 @@ EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_inactive_is_low);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_snapshot_refaults);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_account_swap_pages);
 EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_unuse_swap_page);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_init_swap_info_struct);
+EXPORT_TRACEPOINT_SYMBOL_GPL(android_vh_alloc_si);
