@@ -154,6 +154,16 @@ config SND_VERBOSE_PRINTK
 
 	  You don't need this unless you're debugging ALSA.
 
+config SND_CTL_FAST_LOOKUP
+	bool "Fast lookup of control elements" if EXPERT
+	default y
+	select XARRAY_MULTI
+	help
+	  This option enables the faster lookup of control elements.
+	  It will consume more memory because of the additional Xarray.
+	  If you want to choose the memory footprint over the performance
+	  inevitably, turn this off.
+
 config SND_DEBUG
 	bool "Debug"
 	help
