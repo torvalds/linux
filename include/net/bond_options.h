@@ -107,7 +107,8 @@ struct bond_option {
 };
 
 int __bond_opt_set(struct bonding *bond, unsigned int option,
-		   struct bond_opt_value *val);
+		   struct bond_opt_value *val,
+		   struct nlattr *bad_attr, struct netlink_ext_ack *extack);
 int __bond_opt_set_notify(struct bonding *bond, unsigned int option,
 			  struct bond_opt_value *val);
 int bond_opt_tryset_rtnl(struct bonding *bond, unsigned int option, char *buf);
