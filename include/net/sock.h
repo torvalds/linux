@@ -1254,6 +1254,7 @@ struct proto {
 	void			(*enter_memory_pressure)(struct sock *sk);
 	void			(*leave_memory_pressure)(struct sock *sk);
 	atomic_long_t		*memory_allocated;	/* Current allocated memory. */
+	int  __percpu		*per_cpu_fw_alloc;
 	struct percpu_counter	*sockets_allocated;	/* Current number of sockets. */
 
 	/*
@@ -1397,21 +1398,47 @@ static inline bool sk_under_memory_pressure(const struct sock *sk)
 }
 
 static inline long
+proto_memory_allocated(const struct proto *prot)
+{
+	return max(0L, atomic_long_read(prot->memory_allocated));
+}
+
+static inline long
 sk_memory_allocated(const struct sock *sk)
 {
-	return atomic_long_read(sk->sk_prot->memory_allocated);
+	return proto_memory_allocated(sk->sk_prot);
 }
+
+/* 1 MB per cpu, in page units */
+#define SK_MEMORY_PCPU_RESERVE (1 << (20 - PAGE_SHIFT))
 
 static inline long
 sk_memory_allocated_add(struct sock *sk, int amt)
 {
-	return atomic_long_add_return(amt, sk->sk_prot->memory_allocated);
+	int local_reserve;
+
+	preempt_disable();
+	local_reserve = __this_cpu_add_return(*sk->sk_prot->per_cpu_fw_alloc, amt);
+	if (local_reserve >= SK_MEMORY_PCPU_RESERVE) {
+		__this_cpu_sub(*sk->sk_prot->per_cpu_fw_alloc, local_reserve);
+		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
+	}
+	preempt_enable();
+	return sk_memory_allocated(sk);
 }
 
 static inline void
 sk_memory_allocated_sub(struct sock *sk, int amt)
 {
-	atomic_long_sub(amt, sk->sk_prot->memory_allocated);
+	int local_reserve;
+
+	preempt_disable();
+	local_reserve = __this_cpu_sub_return(*sk->sk_prot->per_cpu_fw_alloc, amt);
+	if (local_reserve <= -SK_MEMORY_PCPU_RESERVE) {
+		__this_cpu_sub(*sk->sk_prot->per_cpu_fw_alloc, local_reserve);
+		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
+	}
+	preempt_enable();
 }
 
 #define SK_ALLOC_PERCPU_COUNTER_BATCH 16
@@ -1438,12 +1465,6 @@ static inline int
 proto_sockets_allocated_sum_positive(struct proto *prot)
 {
 	return percpu_counter_sum_positive(prot->sockets_allocated);
-}
-
-static inline long
-proto_memory_allocated(struct proto *prot)
-{
-	return atomic_long_read(prot->memory_allocated);
 }
 
 static inline bool
@@ -1532,30 +1553,18 @@ int __sk_mem_schedule(struct sock *sk, int size, int kind);
 void __sk_mem_reduce_allocated(struct sock *sk, int amount);
 void __sk_mem_reclaim(struct sock *sk, int amount);
 
-/* We used to have PAGE_SIZE here, but systems with 64KB pages
- * do not necessarily have 16x time more memory than 4KB ones.
- */
-#define SK_MEM_QUANTUM 4096
-#define SK_MEM_QUANTUM_SHIFT ilog2(SK_MEM_QUANTUM)
 #define SK_MEM_SEND	0
 #define SK_MEM_RECV	1
 
-/* sysctl_mem values are in pages, we convert them in SK_MEM_QUANTUM units */
+/* sysctl_mem values are in pages */
 static inline long sk_prot_mem_limits(const struct sock *sk, int index)
 {
-	long val = sk->sk_prot->sysctl_mem[index];
-
-#if PAGE_SIZE > SK_MEM_QUANTUM
-	val <<= PAGE_SHIFT - SK_MEM_QUANTUM_SHIFT;
-#elif PAGE_SIZE < SK_MEM_QUANTUM
-	val >>= SK_MEM_QUANTUM_SHIFT - PAGE_SHIFT;
-#endif
-	return val;
+	return sk->sk_prot->sysctl_mem[index];
 }
 
 static inline int sk_mem_pages(int amt)
 {
-	return (amt + SK_MEM_QUANTUM - 1) >> SK_MEM_QUANTUM_SHIFT;
+	return (amt + PAGE_SIZE - 1) >> PAGE_SHIFT;
 }
 
 static inline bool sk_has_account(struct sock *sk)
@@ -1566,19 +1575,23 @@ static inline bool sk_has_account(struct sock *sk)
 
 static inline bool sk_wmem_schedule(struct sock *sk, int size)
 {
+	int delta;
+
 	if (!sk_has_account(sk))
 		return true;
-	return size <= sk->sk_forward_alloc ||
-		__sk_mem_schedule(sk, size, SK_MEM_SEND);
+	delta = size - sk->sk_forward_alloc;
+	return delta <= 0 || __sk_mem_schedule(sk, delta, SK_MEM_SEND);
 }
 
 static inline bool
 sk_rmem_schedule(struct sock *sk, struct sk_buff *skb, int size)
 {
+	int delta;
+
 	if (!sk_has_account(sk))
 		return true;
-	return size <= sk->sk_forward_alloc ||
-		__sk_mem_schedule(sk, size, SK_MEM_RECV) ||
+	delta = size - sk->sk_forward_alloc;
+	return delta <= 0 || __sk_mem_schedule(sk, delta, SK_MEM_RECV) ||
 		skb_pfmemalloc(skb);
 }
 
@@ -1604,7 +1617,7 @@ static inline void sk_mem_reclaim(struct sock *sk)
 
 	reclaimable = sk->sk_forward_alloc - sk_unused_reserved_mem(sk);
 
-	if (reclaimable >= SK_MEM_QUANTUM)
+	if (reclaimable >= (int)PAGE_SIZE)
 		__sk_mem_reclaim(sk, reclaimable);
 }
 
@@ -1614,19 +1627,6 @@ static inline void sk_mem_reclaim_final(struct sock *sk)
 	sk_mem_reclaim(sk);
 }
 
-static inline void sk_mem_reclaim_partial(struct sock *sk)
-{
-	int reclaimable;
-
-	if (!sk_has_account(sk))
-		return;
-
-	reclaimable = sk->sk_forward_alloc - sk_unused_reserved_mem(sk);
-
-	if (reclaimable > SK_MEM_QUANTUM)
-		__sk_mem_reclaim(sk, reclaimable - 1);
-}
-
 static inline void sk_mem_charge(struct sock *sk, int size)
 {
 	if (!sk_has_account(sk))
@@ -1634,29 +1634,17 @@ static inline void sk_mem_charge(struct sock *sk, int size)
 	sk->sk_forward_alloc -= size;
 }
 
-/* the following macros control memory reclaiming in sk_mem_uncharge()
+/* the following macros control memory reclaiming in mptcp_rmem_uncharge()
  */
 #define SK_RECLAIM_THRESHOLD	(1 << 21)
 #define SK_RECLAIM_CHUNK	(1 << 20)
 
 static inline void sk_mem_uncharge(struct sock *sk, int size)
 {
-	int reclaimable;
-
 	if (!sk_has_account(sk))
 		return;
 	sk->sk_forward_alloc += size;
-	reclaimable = sk->sk_forward_alloc - sk_unused_reserved_mem(sk);
-
-	/* Avoid a possible overflow.
-	 * TCP send queues can make this happen, if sk_mem_reclaim()
-	 * is not called and more than 2 GBytes are released at once.
-	 *
-	 * If we reach 2 MBytes, reclaim 1 MBytes right now, there is
-	 * no need to hold that much forward allocation anyway.
-	 */
-	if (unlikely(reclaimable >= SK_RECLAIM_THRESHOLD))
-		__sk_mem_reclaim(sk, SK_RECLAIM_CHUNK);
+	sk_mem_reclaim(sk);
 }
 
 /*
