@@ -952,9 +952,10 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 
 	if (wd_cnt == 0 || bd_cnt == 0) {
 		cnt = rtw89_pci_rxbd_recalc(rtwdev, rx_ring);
-		if (!cnt)
+		if (cnt)
+			rtw89_pci_release_tx(rtwdev, rx_ring, cnt);
+		else if (wd_cnt == 0)
 			goto out_unlock;
-		rtw89_pci_release_tx(rtwdev, rx_ring, cnt);
 
 		bd_cnt = rtw89_pci_get_avail_txbd_num(tx_ring);
 		if (bd_cnt == 0)
@@ -965,7 +966,9 @@ static u32 __rtw89_pci_check_and_reclaim_tx_resource(struct rtw89_dev *rtwdev,
 	wd_cnt = wd_ring->curr_num;
 	min_cnt = min(bd_cnt, wd_cnt);
 	if (min_cnt == 0)
-		rtw89_warn(rtwdev, "still no tx resource after reclaim\n");
+		rtw89_debug(rtwdev, rtwpci->low_power ? RTW89_DBG_TXRX : RTW89_DBG_UNEXP,
+			    "still no tx resource after reclaim: wd_cnt=%d bd_cnt=%d\n",
+			    wd_cnt, bd_cnt);
 
 out_unlock:
 	spin_unlock_bh(&rtwpci->trx_lock);
