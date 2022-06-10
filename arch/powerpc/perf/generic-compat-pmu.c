@@ -292,7 +292,7 @@ static int generic_compute_mmcr(u64 event[], int n_ev,
 }
 
 static struct power_pmu generic_compat_pmu = {
-	.name			= "GENERIC_COMPAT",
+	.name			= "ISAv3",
 	.n_counter		= MAX_PMU_COUNTERS,
 	.add_fields		= ISA207_ADD_FIELDS,
 	.test_adder		= ISA207_TEST_ADDER,
