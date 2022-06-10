@@ -76,6 +76,19 @@ int vc4_dumb_fixup_args(struct drm_mode_create_dumb *args)
 	return 0;
 }
 
+static int vc5_dumb_create(struct drm_file *file_priv,
+			   struct drm_device *dev,
+			   struct drm_mode_create_dumb *args)
+{
+	int ret;
+
+	ret = vc4_dumb_fixup_args(args);
+	if (ret)
+		return ret;
+
+	return drm_gem_cma_dumb_create_internal(file_priv, dev, args);
+}
+
 static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
 {
@@ -173,7 +186,7 @@ static const struct drm_ioctl_desc vc4_drm_ioctls[] = {
 	DRM_IOCTL_DEF_DRV(VC4_PERFMON_GET_VALUES, vc4_perfmon_get_values_ioctl, DRM_RENDER_ALLOW),
 };
 
-static struct drm_driver vc4_drm_driver = {
+static const struct drm_driver vc4_drm_driver = {
 	.driver_features = (DRIVER_MODESET |
 			    DRIVER_ATOMIC |
 			    DRIVER_GEM |
@@ -192,6 +205,27 @@ static struct drm_driver vc4_drm_driver = {
 
 	.ioctls = vc4_drm_ioctls,
 	.num_ioctls = ARRAY_SIZE(vc4_drm_ioctls),
+	.fops = &vc4_drm_fops,
+
+	.name = DRIVER_NAME,
+	.desc = DRIVER_DESC,
+	.date = DRIVER_DATE,
+	.major = DRIVER_MAJOR,
+	.minor = DRIVER_MINOR,
+	.patchlevel = DRIVER_PATCHLEVEL,
+};
+
+static const struct drm_driver vc5_drm_driver = {
+	.driver_features = (DRIVER_MODESET |
+			    DRIVER_ATOMIC |
+			    DRIVER_GEM),
+
+#if defined(CONFIG_DEBUG_FS)
+	.debugfs_init = vc4_debugfs_init,
+#endif
+
+	DRM_GEM_CMA_DRIVER_OPS_WITH_DUMB_CREATE(vc5_dumb_create),
+
 	.fops = &vc4_drm_fops,
 
 	.name = DRIVER_NAME,
@@ -225,6 +259,7 @@ static void vc4_match_add_drivers(struct device *dev,
 static int vc4_drm_bind(struct device *dev)
 {
 	struct platform_device *pdev = to_platform_device(dev);
+	const struct drm_driver *driver;
 	struct rpi_firmware *firmware = NULL;
 	struct drm_device *drm;
 	struct vc4_dev *vc4;
@@ -236,14 +271,12 @@ static int vc4_drm_bind(struct device *dev)
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
 
 	is_vc5 = of_device_is_compatible(dev->of_node, "brcm,bcm2711-vc5");
+	if (is_vc5)
+		driver = &vc5_drm_driver;
+	else
+		driver = &vc4_drm_driver;
 
-	/* If VC4 V3D is missing, don't advertise render nodes. */
-	node = of_find_matching_node_and_match(NULL, vc4_v3d_dt_match, NULL);
-	if (!node || !of_device_is_available(node))
-		vc4_drm_driver.driver_features &= ~DRIVER_RENDER;
-	of_node_put(node);
-
-	vc4 = devm_drm_dev_alloc(dev, &vc4_drm_driver, struct vc4_dev, base);
+	vc4 = devm_drm_dev_alloc(dev, driver, struct vc4_dev, base);
 	if (IS_ERR(vc4))
 		return PTR_ERR(vc4);
 	vc4->is_vc5 = is_vc5;
@@ -275,7 +308,7 @@ static int vc4_drm_bind(struct device *dev)
 			return -EPROBE_DEFER;
 	}
 
-	ret = drm_aperture_remove_framebuffers(false, &vc4_drm_driver);
+	ret = drm_aperture_remove_framebuffers(false, driver);
 	if (ret)
 		return ret;
 
