@@ -1907,9 +1907,11 @@ struct dma_fence *__i915_vma_evict(struct i915_vma *vma, bool async)
 		/* release the fence reg _after_ flushing */
 		i915_vma_revoke_fence(vma);
 
-		__i915_vma_iounmap(vma);
 		clear_bit(I915_VMA_CAN_FENCE_BIT, __i915_vma_flags(vma));
 	}
+
+	__i915_vma_iounmap(vma);
+
 	GEM_BUG_ON(vma->fence);
 	GEM_BUG_ON(i915_vma_has_userfault(vma));
 
