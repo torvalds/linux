@@ -2325,6 +2325,8 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 	rtw89_core_free_sta_pending_ba(rtwdev, sta);
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls)
 		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
+	if (sta->tdls)
+		rtw89_cam_deinit_bssid_cam(rtwdev, &rtwsta->bssid_cam);
 
 	if (vif->type == NL80211_IFTYPE_STATION && !sta->tdls)
 		rtw89_vif_type_mapping(vif, false);
@@ -2365,6 +2367,7 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 {
 	struct rtw89_vif *rtwvif = (struct rtw89_vif *)vif->drv_priv;
 	struct rtw89_sta *rtwsta = (struct rtw89_sta *)sta->drv_priv;
+	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif, rtwsta);
 	int ret;
 
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls) {
@@ -2380,7 +2383,15 @@ int rtw89_core_sta_assoc(struct rtw89_dev *rtwdev,
 			return ret;
 		}
 
-		ret = rtw89_cam_init_addr_cam(rtwdev, &rtwsta->addr_cam, &rtwvif->bssid_cam);
+		if (sta->tdls) {
+			ret = rtw89_cam_init_bssid_cam(rtwdev, rtwvif, bssid_cam, sta->addr);
+			if (ret) {
+				rtw89_warn(rtwdev, "failed to send h2c init bssid cam for TDLS\n");
+				return ret;
+			}
+		}
+
+		ret = rtw89_cam_init_addr_cam(rtwdev, &rtwsta->addr_cam, bssid_cam);
 		if (ret) {
 			rtw89_warn(rtwdev, "failed to send h2c init addr cam\n");
 			return ret;

@@ -1976,6 +1976,7 @@ struct rtw89_sta {
 	u16 rx_hw_rate;
 	__le32 htc_template;
 	struct rtw89_addr_cam_entry addr_cam; /* AP mode or TDLS peer only */
+	struct rtw89_bssid_cam_entry bssid_cam; /* TDLS peer only */
 
 	bool use_cfg_mask;
 	struct cfg80211_bitrate_mask mask;
@@ -3565,6 +3566,19 @@ struct rtw89_addr_cam_entry *rtw89_get_addr_cam_of(struct rtw89_vif *rtwvif,
 			return &rtwsta->addr_cam;
 	}
 	return &rtwvif->addr_cam;
+}
+
+static inline
+struct rtw89_bssid_cam_entry *rtw89_get_bssid_cam_of(struct rtw89_vif *rtwvif,
+						     struct rtw89_sta *rtwsta)
+{
+	if (rtwsta) {
+		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
+
+		if (sta->tdls)
+			return &rtwsta->bssid_cam;
+	}
+	return &rtwvif->bssid_cam;
 }
 
 static inline

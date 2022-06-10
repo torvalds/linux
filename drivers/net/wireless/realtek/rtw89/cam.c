@@ -605,10 +605,11 @@ int rtw89_cam_init(struct rtw89_dev *rtwdev, struct rtw89_vif *rtwvif)
 }
 
 int rtw89_cam_fill_bssid_cam_info(struct rtw89_dev *rtwdev,
-				  struct rtw89_vif *rtwvif, u8 *cmd)
+				  struct rtw89_vif *rtwvif,
+				  struct rtw89_sta *rtwsta, u8 *cmd)
 {
 	struct ieee80211_vif *vif = rtwvif_to_vif(rtwvif);
-	struct rtw89_bssid_cam_entry *bssid_cam = &rtwvif->bssid_cam;
+	struct rtw89_bssid_cam_entry *bssid_cam = rtw89_get_bssid_cam_of(rtwvif, rtwsta);
 	u8 bss_color = vif->bss_conf.he_bss_color.color;
 	u8 bss_mask;
 
