@@ -225,9 +225,8 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 
 		/* Retrieve domain attributes at first ... */
 		put_unaligned_le32(dom, td->tx.buf);
-		ret = ph->xops->do_xfer(ph, td);
 		/* Skip domain on comms error */
-		if (ret)
+		if (ph->xops->do_xfer(ph, td))
 			continue;
 
 		v = vinfo->domains + dom;
@@ -249,12 +248,8 @@ static int scmi_voltage_descriptors_get(const struct scmi_protocol_handle *ph,
 				v->async_level_set = true;
 		}
 
-		ret = scmi_voltage_levels_get(ph, v);
 		/* Skip invalid voltage descriptors */
-		if (ret)
-			continue;
-
-		ph->xops->reset_rx_to_maxsz(ph, td);
+		scmi_voltage_levels_get(ph, v);
 	}
 
 	ph->xops->xfer_put(ph, td);
