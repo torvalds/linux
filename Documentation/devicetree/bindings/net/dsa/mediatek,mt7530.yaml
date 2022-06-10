@@ -55,6 +55,7 @@ description: |
     On mt7531:
       - "1000base-x"
       - "2500base-x"
+      - "rgmii"
       - "sgmii"
 
 
@@ -124,8 +125,8 @@ patternProperties:
         properties:
           reg:
             description:
-              Port address described must be 6 for CPU port and from 0 to
-              5 for user ports.
+              Port address described must be 5 or 6 for CPU port and from 0
+              to 5 for user ports.
 
         allOf:
           - $ref: dsa-port.yaml#
@@ -152,9 +153,6 @@ allOf:
       required:
         - resets
         - reset-names
-    else:
-      required:
-        - reset-gpios
 
   - dependencies:
       interrupt-controller: [ interrupts ]
