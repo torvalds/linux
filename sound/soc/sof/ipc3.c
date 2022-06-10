@@ -1037,6 +1037,23 @@ static void sof_ipc3_rx_msg(struct snd_sof_dev *sdev)
 	ipc3_log_header(sdev->dev, "ipc rx done", hdr.cmd);
 }
 
+static int sof_ipc3_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool on)
+{
+	struct sof_ipc_pm_core_config core_cfg = {
+		.hdr.size = sizeof(core_cfg),
+		.hdr.cmd = SOF_IPC_GLB_PM_MSG | SOF_IPC_PM_CORE_ENABLE,
+	};
+	struct sof_ipc_reply reply;
+
+	if (on)
+		core_cfg.enable_mask = sdev->enabled_cores_mask | BIT(core_idx);
+	else
+		core_cfg.enable_mask = sdev->enabled_cores_mask & ~BIT(core_idx);
+
+	return sof_ipc3_tx_msg(sdev, &core_cfg, sizeof(core_cfg),
+			       &reply, sizeof(reply), false);
+}
+
 static int sof_ipc3_ctx_ipc(struct snd_sof_dev *sdev, int cmd)
 {
 	struct sof_ipc_pm_ctx pm_ctx = {
@@ -1063,6 +1080,7 @@ static int sof_ipc3_ctx_restore(struct snd_sof_dev *sdev)
 static const struct sof_ipc_pm_ops ipc3_pm_ops = {
 	.ctx_save = sof_ipc3_ctx_save,
 	.ctx_restore = sof_ipc3_ctx_restore,
+	.set_core_state = sof_ipc3_set_core_state,
 };
 
 const struct sof_ipc_ops ipc3_ops = {
