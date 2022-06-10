@@ -529,14 +529,14 @@ done:
 
 static int do_promote(struct gfs2_glock *gl)
 {
-	struct gfs2_holder *gh, *tmp, *first_gh;
+	struct gfs2_holder *gh, *tmp, *current_gh;
 	bool incompat_holders_demoted = false;
 
-	first_gh = find_first_strong_holder(gl);
+	current_gh = find_first_strong_holder(gl);
 	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
-		if (!may_grant(gl, first_gh, gh)) {
+		if (!may_grant(gl, current_gh, gh)) {
 			/*
 			 * If we get here, it means we may not grant this holder for
 			 * some reason. If this holder is the head of the list, it
@@ -548,9 +548,9 @@ static int do_promote(struct gfs2_glock *gl)
 			break;
 		}
 		if (!incompat_holders_demoted) {
-			demote_incompat_holders(gl, first_gh);
+			demote_incompat_holders(gl, current_gh);
 			incompat_holders_demoted = true;
-			first_gh = gh;
+			current_gh = gh;
 		}
 		set_bit(HIF_HOLDER, &gh->gh_iflags);
 		trace_gfs2_promote(gh);
@@ -1456,10 +1456,10 @@ __acquires(&gl->gl_lockref.lock)
 
 	if (gh->gh_flags & (LM_FLAG_TRY | LM_FLAG_TRY_1CB)) {
 		if (test_bit(GLF_LOCK, &gl->gl_flags)) {
-			struct gfs2_holder *first_gh;
+			struct gfs2_holder *current_gh;
 
-			first_gh = find_first_strong_holder(gl);
-			try_futile = !may_grant(gl, first_gh, gh);
+			current_gh = find_first_strong_holder(gl);
+			try_futile = !may_grant(gl, current_gh, gh);
 		}
 		if (test_bit(GLF_INVALIDATE_IN_PROGRESS, &gl->gl_flags))
 			goto fail;
