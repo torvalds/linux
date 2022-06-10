@@ -1101,36 +1101,6 @@
 			sf,pin-gpio-doen = <OEN_HIGH>;
 			sf,pin-gpio-din =  <GPI_HDMI0_HPD>;
 		};
-		inno_hdmi-0-pins {
-			sf,pins = <PAD_GPIO36>;
-			sf,pinmux = <PAD_GPIO36_FUNC_SEL 1>;
-			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		};
-		inno_hdmi-1-pins {
-			sf,pins = <PAD_GPIO37>;
-			sf,pinmux = <PAD_GPIO37_FUNC_SEL 1>;
-			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		};
-		inno_hdmi-2-pins {
-			sf,pins = <PAD_GPIO38>;
-			sf,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
-			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		};
-		inno_hdmi-3-pins {
-			sf,pins = <PAD_GPIO39>;
-			sf,pinmux = <PAD_GPIO39_FUNC_SEL 1>;
-			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		};
-		inno_hdmi-4-pins {
-			sf,pins = <PAD_GPIO40>;
-			sf,pinmux = <PAD_GPIO40_FUNC_SEL 1>;
-			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		};
-		inno_hdmi-5-pins {
-			sf,pins = <PAD_GPIO61>;
-			sf,pinmux = <PAD_GPIO61_FUNC_SEL 3>;
-			//sf,pin-ioconfig = <IO(GPIO_IE(0))>;
-		};
 	};
 
 	pcie0_perst_default: pcie0_perst_default {
