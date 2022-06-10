@@ -741,8 +741,7 @@ out:
 }
 
 /* Free virtqueues (device must already be reset) */
-static void virtio_fs_cleanup_vqs(struct virtio_device *vdev,
-				  struct virtio_fs *fs)
+static void virtio_fs_cleanup_vqs(struct virtio_device *vdev)
 {
 	vdev->config->del_vqs(vdev);
 }
@@ -895,7 +894,7 @@ static int virtio_fs_probe(struct virtio_device *vdev)
 
 out_vqs:
 	virtio_reset_device(vdev);
-	virtio_fs_cleanup_vqs(vdev, fs);
+	virtio_fs_cleanup_vqs(vdev);
 	kfree(fs->vqs);
 
 out:
@@ -927,7 +926,7 @@ static void virtio_fs_remove(struct virtio_device *vdev)
 	virtio_fs_stop_all_queues(fs);
 	virtio_fs_drain_all_queues_locked(fs);
 	virtio_reset_device(vdev);
-	virtio_fs_cleanup_vqs(vdev, fs);
+	virtio_fs_cleanup_vqs(vdev);
 
 	vdev->priv = NULL;
 	/* Put device reference on virtio_fs object */
