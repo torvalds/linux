@@ -61,9 +61,13 @@ typedef int (*config_regulators_t)(struct device *dev,
 			struct dev_pm_opp *old_opp, struct dev_pm_opp *new_opp,
 			struct regulator **regulators, unsigned int count);
 
+typedef int (*config_clks_t)(struct device *dev, struct opp_table *opp_table,
+			struct dev_pm_opp *opp, void *data, bool scaling_down);
+
 /**
  * struct dev_pm_opp_config - Device OPP configuration values
- * @clk_names: Clk names, NULL terminated array, max 1 clock for now.
+ * @clk_names: Clk names, NULL terminated array.
+ * @config_clks: Custom set clk helper.
  * @prop_name: Name to postfix to properties.
  * @config_regulators: Custom set regulator helper.
  * @supported_hw: Array of hierarchy of versions to match.
@@ -78,6 +82,7 @@ typedef int (*config_regulators_t)(struct device *dev,
 struct dev_pm_opp_config {
 	/* NULL terminated */
 	const char * const *clk_names;
+	config_clks_t config_clks;
 	const char *prop_name;
 	config_regulators_t config_regulators;
 	const unsigned int *supported_hw;

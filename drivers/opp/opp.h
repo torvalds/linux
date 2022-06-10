@@ -79,7 +79,7 @@ struct opp_config_data {
  * @suspend:	true if suspend OPP
  * @removed:	flag indicating that OPP's reference is dropped by OPP core.
  * @pstate: Device's power domain's performance state.
- * @rate:	Frequency in hertz
+ * @rates:	Frequencies in hertz
  * @level:	Performance level
  * @supplies:	Power supplies voltage/current values
  * @bandwidth:	Interconnect bandwidth values
@@ -102,7 +102,7 @@ struct dev_pm_opp {
 	bool suspend;
 	bool removed;
 	unsigned int pstate;
-	unsigned long rate;
+	unsigned long *rates;
 	unsigned int level;
 
 	struct dev_pm_opp_supply *supplies;
@@ -170,8 +170,10 @@ enum opp_table_access {
  * @supported_hw: Array of version number to support.
  * @supported_hw_count: Number of elements in supported_hw array.
  * @prop_name: A name to postfix to many DT properties, while parsing them.
- * @clk_configured: Clock name is configured by the platform.
- * @clk: Device's clock handle
+ * @config_clks: Platform specific config_clks() callback.
+ * @clks: Device's clock handles, for multiple clocks.
+ * @clk: Device's clock handle, for single clock.
+ * @clk_count: Number of clocks.
  * @config_regulators: Platform specific config_regulators() callback.
  * @regulators: Supply regulators
  * @regulator_count: Number of power supply regulators. Its value can be -1
@@ -220,8 +222,10 @@ struct opp_table {
 	unsigned int *supported_hw;
 	unsigned int supported_hw_count;
 	const char *prop_name;
-	bool clk_configured;
+	config_clks_t config_clks;
+	struct clk **clks;
 	struct clk *clk;
+	int clk_count;
 	config_regulators_t config_regulators;
 	struct regulator **regulators;
 	int regulator_count;
@@ -246,7 +250,7 @@ struct opp_table *_find_opp_table(struct device *dev);
 struct opp_device *_add_opp_dev(const struct device *dev, struct opp_table *opp_table);
 struct dev_pm_opp *_opp_allocate(struct opp_table *opp_table);
 void _opp_free(struct dev_pm_opp *opp);
-int _opp_compare_key(struct dev_pm_opp *opp1, struct dev_pm_opp *opp2);
+int _opp_compare_key(struct opp_table *opp_table, struct dev_pm_opp *opp1, struct dev_pm_opp *opp2);
 int _opp_add(struct device *dev, struct dev_pm_opp *new_opp, struct opp_table *opp_table);
 int _opp_add_v1(struct opp_table *opp_table, struct device *dev, unsigned long freq, long u_volt, bool dynamic);
 void _dev_pm_opp_cpumask_remove_table(const struct cpumask *cpumask, int last_cpu);
