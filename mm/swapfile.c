@@ -99,7 +99,7 @@ static atomic_t proc_poll_event = ATOMIC_INIT(0);
 
 atomic_t nr_rotate_swap = ATOMIC_INIT(0);
 
-static struct swap_info_struct *swap_type_to_swap_info(int type)
+struct swap_info_struct *swap_type_to_swap_info(int type)
 {
 	if (type >= READ_ONCE(nr_swapfiles))
 		return NULL;
@@ -107,6 +107,7 @@ static struct swap_info_struct *swap_type_to_swap_info(int type)
 	smp_rmb();	/* Pairs with smp_wmb in alloc_swap_info. */
 	return READ_ONCE(swap_info[type]);
 }
+EXPORT_SYMBOL_GPL(swap_type_to_swap_info);
 
 static inline unsigned char swap_count(unsigned char ent)
 {
