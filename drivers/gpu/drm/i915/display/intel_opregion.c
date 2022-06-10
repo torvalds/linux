@@ -53,6 +53,8 @@
 #define MBOX_ASLE_EXT		BIT(4)	/* Mailbox #5 */
 #define MBOX_BACKLIGHT		BIT(5)	/* Mailbox #2 (valid from v3.x) */
 
+#define PCON_HEADLESS_SKU	BIT(13)
+
 struct opregion_header {
 	u8 signature[16];
 	u32 size;
@@ -1133,6 +1135,18 @@ struct edid *intel_opregion_get_edid(struct intel_connector *intel_connector)
 		return NULL;
 	}
 	return new_edid;
+}
+
+bool intel_opregion_headless_sku(struct drm_i915_private *i915)
+{
+	struct intel_opregion *opregion = &i915->opregion;
+	struct opregion_header *header = opregion->header;
+
+	if (!header || header->over.major < 2 ||
+	    (header->over.major == 2 && header->over.minor < 3))
+		return false;
+
+	return opregion->header->pcon & PCON_HEADLESS_SKU;
 }
 
 void intel_opregion_register(struct drm_i915_private *i915)
