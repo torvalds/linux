@@ -155,18 +155,19 @@ static struct ieee80211_rate rtw89_bitrates[] = {
 	{ .bitrate = 540, .hw_value = 0x0b, },
 };
 
-u16 rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate)
+bool rtw89_ra_report_to_bitrate(struct rtw89_dev *rtwdev, u8 rpt_rate, u16 *bitrate)
 {
 	struct ieee80211_rate rate;
 
 	if (unlikely(rpt_rate >= ARRAY_SIZE(rtw89_bitrates))) {
-		rtw89_info(rtwdev, "invalid rpt rate %d\n", rpt_rate);
-		return 0;
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "invalid rpt rate %d\n", rpt_rate);
+		return false;
 	}
 
 	rate = rtw89_bitrates[rpt_rate];
+	*bitrate = rate.bitrate;
 
-	return rate.bitrate;
+	return true;
 }
 
 static struct ieee80211_supported_band rtw89_sband_2ghz = {

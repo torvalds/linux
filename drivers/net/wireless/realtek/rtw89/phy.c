@@ -1918,21 +1918,29 @@ static void rtw89_phy_c2h_ra_rpt_iter(void *data, struct ieee80211_sta *sta)
 	struct rtw89_ra_report *ra_report = &rtwsta->ra_report;
 	struct sk_buff *c2h = ra_data->c2h;
 	u8 mode, rate, bw, giltf, mac_id;
+	u16 legacy_bitrate;
+	bool valid;
 
 	mac_id = RTW89_GET_PHY_C2H_RA_RPT_MACID(c2h->data);
 	if (mac_id != rtwsta->mac_id)
 		return;
-
-	memset(ra_report, 0, sizeof(*ra_report));
 
 	rate = RTW89_GET_PHY_C2H_RA_RPT_MCSNSS(c2h->data);
 	bw = RTW89_GET_PHY_C2H_RA_RPT_BW(c2h->data);
 	giltf = RTW89_GET_PHY_C2H_RA_RPT_GILTF(c2h->data);
 	mode = RTW89_GET_PHY_C2H_RA_RPT_MD_SEL(c2h->data);
 
+	if (mode == RTW89_RA_RPT_MODE_LEGACY) {
+		valid = rtw89_ra_report_to_bitrate(rtwdev, rate, &legacy_bitrate);
+		if (!valid)
+			return;
+	}
+
+	memset(ra_report, 0, sizeof(*ra_report));
+
 	switch (mode) {
 	case RTW89_RA_RPT_MODE_LEGACY:
-		ra_report->txrate.legacy = rtw89_ra_report_to_bitrate(rtwdev, rate);
+		ra_report->txrate.legacy = legacy_bitrate;
 		break;
 	case RTW89_RA_RPT_MODE_HT:
 		ra_report->txrate.flags |= RATE_INFO_FLAGS_MCS;
