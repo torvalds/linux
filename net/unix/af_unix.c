@@ -302,7 +302,7 @@ static void __unix_remove_socket(struct sock *sk)
 
 static void __unix_insert_socket(struct sock *sk)
 {
-	WARN_ON(!sk_unhashed(sk));
+	DEBUG_NET_WARN_ON_ONCE(!sk_unhashed(sk));
 	sk_add_node(sk, &unix_socket_table[sk->sk_hash]);
 }
 
@@ -554,9 +554,9 @@ static void unix_sock_destructor(struct sock *sk)
 		u->oob_skb = NULL;
 	}
 #endif
-	WARN_ON(refcount_read(&sk->sk_wmem_alloc));
-	WARN_ON(!sk_unhashed(sk));
-	WARN_ON(sk->sk_socket);
+	DEBUG_NET_WARN_ON_ONCE(refcount_read(&sk->sk_wmem_alloc));
+	DEBUG_NET_WARN_ON_ONCE(!sk_unhashed(sk));
+	DEBUG_NET_WARN_ON_ONCE(sk->sk_socket);
 	if (!sock_flag(sk, SOCK_DEAD)) {
 		pr_info("Attempt to release alive unix socket: %p\n", sk);
 		return;
