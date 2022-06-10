@@ -183,6 +183,7 @@ dtb-$(CONFIG_ARCH_BRCMSTB) += \
 	bcm7445-bcm97445svmb.dtb
 dtb-$(CONFIG_ARCH_BCMBCA) += \
 	bcm947622.dtb \
+	bcm963148.dtb \
 	bcm963178.dtb \
 	bcm96756.dtb \
 	bcm96846.dtb \
