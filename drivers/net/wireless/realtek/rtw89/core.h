@@ -1975,7 +1975,7 @@ struct rtw89_sta {
 	struct ieee80211_rx_status rx_status;
 	u16 rx_hw_rate;
 	__le32 htc_template;
-	struct rtw89_addr_cam_entry addr_cam; /* AP mode only */
+	struct rtw89_addr_cam_entry addr_cam; /* AP mode or TDLS peer only */
 
 	bool use_cfg_mask;
 	struct cfg80211_bitrate_mask mask;
@@ -3558,8 +3558,12 @@ static inline
 struct rtw89_addr_cam_entry *rtw89_get_addr_cam_of(struct rtw89_vif *rtwvif,
 						   struct rtw89_sta *rtwsta)
 {
-	if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE && rtwsta)
-		return &rtwsta->addr_cam;
+	if (rtwsta) {
+		struct ieee80211_sta *sta = rtwsta_to_sta(rtwsta);
+
+		if (rtwvif->net_type == RTW89_NET_TYPE_AP_MODE || sta->tdls)
+			return &rtwsta->addr_cam;
+	}
 	return &rtwvif->addr_cam;
 }
 
