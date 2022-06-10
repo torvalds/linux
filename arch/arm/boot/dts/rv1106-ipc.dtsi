@@ -22,15 +22,6 @@
 		};
 	};
 
-	cam_ircut0: cam_ircut {
-		status = "okay";
-		compatible = "rockchip,ircut";
-		ircut-open-gpios = <&gpio1 RK_PC7 GPIO_ACTIVE_HIGH>;
-		ircut-close-gpios  = <&gpio1 RK_PC6 GPIO_ACTIVE_HIGH>;
-		rockchip,camera-module-index = <0>;
-		rockchip,camera-module-facing = "back";
-	};
-
 	vcc_1v8: vcc-1v8 {
 		compatible = "regulator-fixed";
 		regulator-name = "vcc_1v8";
@@ -156,7 +147,6 @@
 		pwdn-gpios = <&gpio3 RK_PC5 GPIO_ACTIVE_HIGH>;
 		pinctrl-names = "default";
 		pinctrl-0 = <&mipi_refclk_out0>;
-		lens-focus = <&cam_ircut0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "OT01";
