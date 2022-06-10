@@ -11,6 +11,7 @@
 #include <linux/device.h>
 #include <linux/interrupt.h>
 #include <linux/irqreturn.h>
+#include <linux/property.h>
 #include <linux/regmap.h>
 #include <linux/bitfield.h>
 
