@@ -55,7 +55,7 @@ static bool monitor_hw;
 static DEFINE_MUTEX(net_dm_mutex);
 
 struct net_dm_stats {
-	u64 dropped;
+	u64_stats_t dropped;
 	struct u64_stats_sync syncp;
 };
 
@@ -530,7 +530,7 @@ static void net_dm_packet_trace_kfree_skb_hit(void *ignore,
 unlock_free:
 	spin_unlock_irqrestore(&data->drop_queue.lock, flags);
 	u64_stats_update_begin(&data->stats.syncp);
-	data->stats.dropped++;
+	u64_stats_inc(&data->stats.dropped);
 	u64_stats_update_end(&data->stats.syncp);
 	consume_skb(nskb);
 }
@@ -986,7 +986,7 @@ net_dm_hw_trap_packet_probe(void *ignore, const struct devlink *devlink,
 unlock_free:
 	spin_unlock_irqrestore(&hw_data->drop_queue.lock, flags);
 	u64_stats_update_begin(&hw_data->stats.syncp);
-	hw_data->stats.dropped++;
+	u64_stats_inc(&hw_data->stats.dropped);
 	u64_stats_update_end(&hw_data->stats.syncp);
 	net_dm_hw_metadata_free(n_hw_metadata);
 free:
@@ -1433,10 +1433,10 @@ static void net_dm_stats_read(struct net_dm_stats *stats)
 
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			dropped = cpu_stats->dropped;
+			dropped = u64_stats_read(&cpu_stats->dropped);
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		stats->dropped += dropped;
+		u64_stats_add(&stats->dropped, dropped);
 	}
 }
 
@@ -1452,7 +1452,7 @@ static int net_dm_stats_put(struct sk_buff *msg)
 		return -EMSGSIZE;
 
 	if (nla_put_u64_64bit(msg, NET_DM_ATTR_STATS_DROPPED,
-			      stats.dropped, NET_DM_ATTR_PAD))
+			      u64_stats_read(&stats.dropped), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
@@ -1477,10 +1477,10 @@ static void net_dm_hw_stats_read(struct net_dm_stats *stats)
 
 		do {
 			start = u64_stats_fetch_begin_irq(&cpu_stats->syncp);
-			dropped = cpu_stats->dropped;
+			dropped = u64_stats_read(&cpu_stats->dropped);
 		} while (u64_stats_fetch_retry_irq(&cpu_stats->syncp, start));
 
-		stats->dropped += dropped;
+		u64_stats_add(&stats->dropped, dropped);
 	}
 }
 
@@ -1496,7 +1496,7 @@ static int net_dm_hw_stats_put(struct sk_buff *msg)
 		return -EMSGSIZE;
 
 	if (nla_put_u64_64bit(msg, NET_DM_ATTR_STATS_DROPPED,
-			      stats.dropped, NET_DM_ATTR_PAD))
+			      u64_stats_read(&stats.dropped), NET_DM_ATTR_PAD))
 		goto nla_put_failure;
 
 	nla_nest_end(msg, attr);
