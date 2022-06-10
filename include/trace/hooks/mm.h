@@ -176,6 +176,9 @@ DECLARE_HOOK(android_vh_count_pswpout,
 DECLARE_HOOK(android_vh_count_swpout_vm_event,
 	TP_PROTO(struct swap_info_struct *sis, struct page *page, bool *skip),
 	TP_ARGS(sis, page, skip));
+DECLARE_HOOK(android_vh_free_swap_slot,
+	TP_PROTO(swp_entry_t entry, struct swap_slots_cache *cache, bool *skip),
+	TP_ARGS(entry, cache, skip));
 DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 	TP_PROTO(struct mm_struct *mm, struct page *page),
 	TP_ARGS(mm, page));

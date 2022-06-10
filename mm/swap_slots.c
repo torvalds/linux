@@ -274,8 +274,12 @@ static int refill_swap_slots_cache(struct swap_slots_cache *cache)
 int free_swap_slot(swp_entry_t entry)
 {
 	struct swap_slots_cache *cache;
+	bool skip = false;
 
 	cache = raw_cpu_ptr(&swp_slots);
+	trace_android_vh_free_swap_slot(entry, cache, &skip);
+	if (skip)
+		return 0;
 	if (likely(use_swap_slot_cache && cache->slots_ret)) {
 		spin_lock_irq(&cache->free_lock);
 		/* Swap slots cache may be deactivated before acquiring lock */
