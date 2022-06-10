@@ -204,6 +204,9 @@ struct dml32_ModeSupportAndSystemConfigurationFull {
 	SOCParametersList mSOCParameters;
 	unsigned int MaximumSwathWidthSupportLuma;
 	unsigned int MaximumSwathWidthSupportChroma;
+	double DSTYAfterScaler[DC__NUM_DPP__MAX];
+	double DSTXAfterScaler[DC__NUM_DPP__MAX];
+	double MaxTotalVActiveRDBandwidth;
 };
 
 struct dummy_vars {

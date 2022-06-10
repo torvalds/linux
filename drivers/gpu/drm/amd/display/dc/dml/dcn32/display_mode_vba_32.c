@@ -1675,9 +1675,6 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	bool FullFrameMALLPStateMethod;
 	bool SubViewportMALLPStateMethod;
 	bool PhantomPipeMALLPStateMethod;
-	double MaxTotalVActiveRDBandwidth;
-	double DSTYAfterScaler[DC__NUM_DPP__MAX];
-	double DSTXAfterScaler[DC__NUM_DPP__MAX];
 	unsigned int MaximumMPCCombine;
 
 #ifdef __DML_VBA_DEBUG__
@@ -3095,10 +3092,10 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 	}
 
 	//Vertical Active BW support check
-	MaxTotalVActiveRDBandwidth = 0;
+	v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaxTotalVActiveRDBandwidth = 0;
 
 	for (k = 0; k < mode_lib->vba.NumberOfActiveSurfaces; ++k) {
-		MaxTotalVActiveRDBandwidth = MaxTotalVActiveRDBandwidth + mode_lib->vba.ReadBandwidthLuma[k]
+		v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaxTotalVActiveRDBandwidth += mode_lib->vba.ReadBandwidthLuma[k]
 				+ mode_lib->vba.ReadBandwidthChroma[k];
 	}
 
@@ -3115,7 +3112,7 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 					* mode_lib->vba.DRAMChannelWidth
 					* (i < 2 ? mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperationSTROBE : mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperation) / 100);
 
-			if (MaxTotalVActiveRDBandwidth
+			if (v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.MaxTotalVActiveRDBandwidth
 					<= mode_lib->vba.MaxTotalVerticalActiveAvailableBandwidth[i][j]) {
 				mode_lib->vba.TotalVerticalActiveBandwidthSupport[i][j] = true;
 			} else {
@@ -3281,8 +3278,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 							mode_lib->vba.SwathHeightCThisState[k], mode_lib->vba.TWait,
 
 							/* Output */
-							&DSTXAfterScaler[k],
-							&DSTYAfterScaler[k],
+							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.DSTXAfterScaler[k],
+							&v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.DSTYAfterScaler[k],
 							&mode_lib->vba.LineTimesForPrefetch[k],
 							&mode_lib->vba.PrefetchBW[k],
 							&mode_lib->vba.LinesForMetaPTE[k],
@@ -3579,8 +3576,8 @@ void dml32_ModeSupportAndSystemConfigurationFull(struct display_mode_lib *mode_l
 						mode_lib->vba.NoOfDPPThisState,
 						mode_lib->vba.BytePerPixelInDETY,
 						mode_lib->vba.BytePerPixelInDETC,
-						DSTXAfterScaler,
-						DSTYAfterScaler,
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.DSTXAfterScaler,
+						v->dummy_vars.dml32_ModeSupportAndSystemConfigurationFull.DSTYAfterScaler,
 						mode_lib->vba.WritebackEnable,
 						mode_lib->vba.WritebackPixelFormat,
 						mode_lib->vba.WritebackDestinationWidth,
