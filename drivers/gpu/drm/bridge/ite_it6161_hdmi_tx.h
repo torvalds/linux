@@ -1287,11 +1287,11 @@ void setHDMITX_ColorDepthPhase(u8 ColorDepth,u8 bPhase);
 #ifdef SUPPORT_AUDIO_MONITOR
 //void setHDMITX_AudioChannelEnable(bool EnableAudio_b);
 #endif //#ifdef SUPPORT_AUDIO_MONITOR
-void setHDMITX_DSDAudio(void);
-void setHDMITX_HBRAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/);
-void setHDMITX_LPCMAudio(u8 AudioSrcNum, u8 AudSWL, u8 bAudInterface /*I2S/SPDIF/TDM*/);
-void setHDMITX_NCTS(u8 Fs);
-void setHDMITX_NLPCMAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/);
+static void setHDMITX_DSDAudio(void);
+static void setHDMITX_HBRAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/);
+static void setHDMITX_LPCMAudio(u8 AudioSrcNum, u8 AudSWL, u8 bAudInterface /*I2S/SPDIF/TDM*/);
+static void setHDMITX_NCTS(u8 Fs);
+static void setHDMITX_NLPCMAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/);
 //void setHDMITX_UpdateChStatFs(u32 Fs);
 #ifdef SUPPORT_AUDIO_MONITOR
 bool hdmitx_IsAudioChang(void);
@@ -1627,7 +1627,7 @@ void HDMITX_DevLoopProc(void);
 
 #if (defined (SUPPORT_OUTPUTYUV)) && (defined (SUPPORT_INPUTRGB))
 
-    u8 bCSCMtx_RGB2YUV_ITU601_16_235[] =
+    static u8 bCSCMtx_RGB2YUV_ITU601_16_235[] =
     {
         0x00,0x80,0x00,
         0xB2,0x04,0x65,0x02,0xE9,0x00,
@@ -1635,7 +1635,7 @@ void HDMITX_DevLoopProc(void);
         0x49,0x3D,0x9F,0x3E,0x18,0x04
     } ;
 
-    u8 bCSCMtx_RGB2YUV_ITU601_0_255[] =
+    static u8 bCSCMtx_RGB2YUV_ITU601_0_255[] =
     {
         0x10,0x80,0x10,
         0x09,0x04,0x0E,0x02,0xC9,0x00,
@@ -1643,7 +1643,7 @@ void HDMITX_DevLoopProc(void);
         0xAB,0x3D,0xD1,0x3E,0x84,0x03
     } ;
 
-    u8 bCSCMtx_RGB2YUV_ITU709_16_235[] =
+    static u8 bCSCMtx_RGB2YUV_ITU709_16_235[] =
     {
         0x00,0x80,0x00,
         0xB8,0x05,0xB4,0x01,0x94,0x00,
@@ -1651,7 +1651,7 @@ void HDMITX_DevLoopProc(void);
         0xD9,0x3C,0x10,0x3F,0x17,0x04
     } ;
 
-    u8 bCSCMtx_RGB2YUV_ITU709_0_255[] =
+    static u8 bCSCMtx_RGB2YUV_ITU709_0_255[] =
     {
         0x10,0x80,0x10,
         0xEa,0x04,0x77,0x01,0x7F,0x00,
@@ -1662,7 +1662,7 @@ void HDMITX_DevLoopProc(void);
 
 #if (defined (SUPPORT_OUTPUTRGB)) && (defined (SUPPORT_INPUTYUV))
 
-    u8 bCSCMtx_YUV2RGB_ITU601_16_235[] =
+    static u8 bCSCMtx_YUV2RGB_ITU601_16_235[] =
     {
         0x00,0x00,0x00,
         0x00,0x08,0x6B,0x3A,0x50,0x3D,
@@ -1670,7 +1670,7 @@ void HDMITX_DevLoopProc(void);
         0x00,0x08,0xFD,0x3F,0xDA,0x0D
     } ;
 
-    u8 bCSCMtx_YUV2RGB_ITU601_0_255[] =
+    static u8 bCSCMtx_YUV2RGB_ITU601_0_255[] =
     {
         0x04,0x00,0xA7,
         0x4F,0x09,0x81,0x39,0xDD,0x3C,
@@ -1678,7 +1678,7 @@ void HDMITX_DevLoopProc(void);
         0x4F,0x09,0xFD,0x3F,0x1F,0x10
     } ;
 
-    u8 bCSCMtx_YUV2RGB_ITU709_16_235[] =
+    static u8 bCSCMtx_YUV2RGB_ITU709_16_235[] =
     {
         0x00,0x00,0x00,
         0x00,0x08,0x55,0x3C,0x88,0x3E,
@@ -1686,7 +1686,7 @@ void HDMITX_DevLoopProc(void);
         0x00,0x08,0x00,0x00,0x84,0x0E
     } ;
 
-    u8 bCSCMtx_YUV2RGB_ITU709_0_255[] =
+    static u8 bCSCMtx_YUV2RGB_ITU709_0_255[] =
     {
         0x04,0x00,0xA7,
         0x4F,0x09,0xBA,0x3B,0x4B,0x3E,

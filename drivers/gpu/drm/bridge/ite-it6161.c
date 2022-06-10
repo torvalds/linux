@@ -325,24 +325,24 @@ static HDMI_VTiming const s_VMTable[] = {
 #define DIFF(a,b) (((a)>(b))?((a)-(b)):((b)-(a)))
 
 static bool bChangeMode = false ;
-unsigned char CommunBuff[128] ;
+static unsigned char CommunBuff[128] ;
 
-const u8 CA[] = { 0,0,0, 02, 0x3, 0x7, 0xB, 0xF, 0x1F } ;
+static const u8 CA[] = { 0,0,0, 02, 0x3, 0x7, 0xB, 0xF, 0x1F } ;
 
-u32 VideoPixelClock ;
-u8 pixelrep ; // no pixelrepeating
-HDMI_Aspec aspec ;
-HDMI_Colorimetry Colorimetry ;
+static u32 VideoPixelClock ;
+static u8 pixelrep ; // no pixelrepeating
+// static HDMI_Aspec aspec ;
+// static HDMI_Colorimetry Colorimetry ;
 
-u32 ulAudioSampleFS = INPUT_SAMPLE_FREQ_HZ;
+static u32 ulAudioSampleFS = INPUT_SAMPLE_FREQ_HZ;
 // u8 bAudioSampleFreq = INPUT_SAMPLE_FREQ ;
-u8 bOutputAudioChannel = OUTPUT_CHANNEL;
-u8 bOutputAudioType=CNOFIG_INPUT_AUDIO_TYPE;
+static u8 bOutputAudioChannel = OUTPUT_CHANNEL;
+static u8 bOutputAudioType=CNOFIG_INPUT_AUDIO_TYPE;
 
 #define MSCOUNT 1000
 #define LOADING_UPDATE_TIMEOUT (3000/32)    // 3sec
 
-HDMITXDEV hdmiTxDev[HDMITX_MAX_DEV_COUNT];
+static HDMITXDEV hdmiTxDev[HDMITX_MAX_DEV_COUNT];
 
 /* configuration */
 //#define ENABLE_HDCP
@@ -456,7 +456,7 @@ HDMITXDEV hdmiTxDev[HDMITX_MAX_DEV_COUNT];
 // #else
 	#define ForceTxCLKStb true //20200220 C code set true-> false
 // #endif //#ifdef REDUCE_HDMITX_SRC_JITTER
-const RegSetEntry HDMITX_Init_Table[] = {
+static const RegSetEntry HDMITX_Init_Table[] = {
     {0x0F, 0x40, 0x00},
 	//PLL Reset
     {0x62, 0x08, 0x00}, // XP_RESETB
@@ -537,7 +537,7 @@ const RegSetEntry HDMITX_Init_Table[] = {
     {0x20,0x01,0x00}
 };
 
-const RegSetEntry HDMITX_DefaultVideo_Table[] = {
+static const RegSetEntry HDMITX_DefaultVideo_Table[] = {
 
     ////////////////////////////////////////////////////
     // Config default output format.
@@ -597,7 +597,7 @@ const RegSetEntry HDMITX_DefaultVideo_Table[] = {
     // 2012/12/20 added by Keming's suggestion test
     {0x88, 0xF0, 0x00},
 };
-const RegSetEntry HDMITX_SetHDMI_Table[] = {
+static const RegSetEntry HDMITX_SetHDMI_Table[] = {
 
     ////////////////////////////////////////////////////
     // Config default HDMI Mode
@@ -607,7 +607,7 @@ const RegSetEntry HDMITX_SetHDMI_Table[] = {
     {0xC6, 0x03, 0x03}
 };
 
-const RegSetEntry HDMITX_SetDVI_Table[] = {
+static const RegSetEntry HDMITX_SetDVI_Table[] = {
 
     ////////////////////////////////////////////////////
     // Config default HDMI Mode
@@ -620,7 +620,7 @@ const RegSetEntry HDMITX_SetDVI_Table[] = {
     {0xC6, 0x03, 0x00}
 };
 
-const RegSetEntry HDMITX_DefaultAVIInfo_Table[] = {
+static const RegSetEntry HDMITX_DefaultAVIInfo_Table[] = {
 
     ////////////////////////////////////////////////////
     // Config default avi infoframe
@@ -643,7 +643,7 @@ const RegSetEntry HDMITX_DefaultAVIInfo_Table[] = {
     {0x0F, 0x01, 0x00},
     {0xCD, 0x03, 0x03}
 };
-const RegSetEntry HDMITX_DeaultAudioInfo_Table[] = {
+static const RegSetEntry HDMITX_DeaultAudioInfo_Table[] = {
 
     ////////////////////////////////////////////////////
     // Config default audio infoframe
@@ -659,7 +659,7 @@ const RegSetEntry HDMITX_DeaultAudioInfo_Table[] = {
     {0xCE, 0x03, 0x03}
 };
 
-const RegSetEntry HDMITX_Aud_CHStatus_LPCM_20bit_48Khz[] =
+static const RegSetEntry HDMITX_Aud_CHStatus_LPCM_20bit_48Khz[] =
 {
     {0x0F, 0x01, 0x01},
     {0x33, 0xFF, 0x00},
@@ -674,7 +674,7 @@ const RegSetEntry HDMITX_Aud_CHStatus_LPCM_20bit_48Khz[] =
     {0x0F, 0x01, 0x00}
 } ;
 
-const RegSetEntry HDMITX_AUD_SPDIF_2ch_24bit[] =
+static const RegSetEntry HDMITX_AUD_SPDIF_2ch_24bit[] =
 {
     {0x0F, 0x11, 0x00},
     {0x04, 0x14, 0x04},
@@ -687,7 +687,7 @@ const RegSetEntry HDMITX_AUD_SPDIF_2ch_24bit[] =
     {0x04, 0x14, 0x00}
 } ;
 
-const RegSetEntry HDMITX_AUD_I2S_2ch_24bit[] =
+static const RegSetEntry HDMITX_AUD_I2S_2ch_24bit[] =
 {
     {0x0F, 0x11, 0x00},
     {0x04, 0x14, 0x04},
@@ -705,7 +705,7 @@ const RegSetEntry HDMITX_AUD_I2S_2ch_24bit[] =
     {0x04, 0x14, 0x00}
 } ;
 
-const RegSetEntry HDMITX_DefaultAudio_Table[] = {
+static const RegSetEntry HDMITX_DefaultAudio_Table[] = {
 
     ////////////////////////////////////////////////////
     // Config default audio output format.
@@ -736,7 +736,7 @@ const RegSetEntry HDMITX_DefaultAudio_Table[] = {
     {0x04, 0x14, 0x00}
 } ;
 
-const RegSetEntry HDMITX_PwrDown_Table[] = {
+static const RegSetEntry HDMITX_PwrDown_Table[] = {
 	{0x05, 0x60, 0x60},
 	 {0xf8, 0xc3},
      {0xf8, 0xa5},
@@ -770,7 +770,7 @@ const RegSetEntry HDMITX_PwrDown_Table[] = {
 	 {0x0F, 0x70, 0x70}//Gate RCLK IACLK TXCLK
 };
 
-const RegSetEntry HDMITX_PwrOn_Table[] = {
+static const RegSetEntry HDMITX_PwrOn_Table[] = {
     {0x0F, 0x70, 0x00},   // // PwrOn RCLK , IACLK ,TXCLK
 	// {0x0F, 0x78, 0x38},   // PwrOn GRCLK
     // {0x05, 0x01, 0x00},   // PwrOn PCLK
@@ -787,7 +787,7 @@ const RegSetEntry HDMITX_PwrOn_Table[] = {
     // {0x0F, 0x78, 0x08},   // PwrOn IACLK
 };
 
-const RegSetEntry hdmi_tx_pg_1080p60_table[] = {
+static const RegSetEntry hdmi_tx_pg_1080p60_table[] = {
 // 1920x1080@60.00Hz VIC = 16
 	{0x0F, 0xFF, 0x00},
 	{0x90, 0xFF, 0x76},
@@ -823,7 +823,7 @@ const RegSetEntry hdmi_tx_pg_1080p60_table[] = {
 	{0xB0, 0xFF, 0x00}
 };
 
-const RegSetEntry hdmi_tx_pg_720p60_table[] = {
+static const RegSetEntry hdmi_tx_pg_720p60_table[] = {
 // PatGen\fmt4_PatGen.c
 // 1280x720@60.00Hz VIC = 4
     {0x0F, 0x01, 0x00},
@@ -859,7 +859,7 @@ const RegSetEntry hdmi_tx_pg_720p60_table[] = {
 	{0xAF, 0xFF, 0x00},
 	{0xB0, 0xFF, 0x00}
 };
-const RegSetEntry hdmi_tx_pg_480p60_table[] = {
+static const RegSetEntry hdmi_tx_pg_480p60_table[] = {
 // PatGen\fmt2_PatGen.c
 // 720x480@59.94Hz VIC = 2
     {0x0F, 0x01, 0x00},
@@ -898,7 +898,7 @@ const RegSetEntry hdmi_tx_pg_480p60_table[] = {
 };
 
 #ifdef DETECT_VSYNC_CHG_IN_SAV
-bool EnSavVSync = false ;
+static bool EnSavVSync = false ;
 #endif
 
 /* Period of hdcp checks (to ensure we're still authenticated) */
@@ -1013,10 +1013,12 @@ struct it6161 {
 	struct gpio_desc *test_gpio;
 
 	struct timer_list timer;
+	struct delayed_work	restart;
 };
 
 static struct it6161 *it6161;
 //static struct it6161 *it6161_dump;
+static struct drm_bridge *it6161_bridge;
 
 static const struct regmap_range it6161_mipi_rx_bridge_volatile_ranges[] = {
 	{ .range_min = 0, .range_max = 0xFF },
@@ -1763,7 +1765,7 @@ static void hdmi_tx_generate_blank_timing(struct it6161 *it6161)
 	bool force_hdmi_tx_clock_stable = true, force_hdmi_tx_video_stable = true, hdmi_tx_by_pass_mode = false, de_generation = false, enable_de_only = true;
 	u8 polarity;
 	u16 hsync_start, hsync_end, vsync_start, vsync_end, htotal, hde_start, vtotal;
-	u16 vsync_start_2nd, vsync_end_2nd, vsync_rising_at_h_2nd;
+	u16 vsync_start_2nd = 0, vsync_end_2nd = 0, vsync_rising_at_h_2nd;
 
 	it6161_debug("start %s", __func__);
 	polarity = ((display_mode->flags & DRM_MODE_FLAG_PHSYNC) == DRM_MODE_FLAG_PHSYNC) ? 0x02 : 0x00;
@@ -2024,7 +2026,6 @@ static void it6161_variable_config(struct it6161 *it6161)
 {
     it6161->hdmi_tx_hdcp_retry = HDMI_TX_HDCP_RETRY;
     it6161->hdmi_tx_mode = HDMI_TX_MODE;
-    //it6161->hdmi_tx_mode = HDMI_TX_BY_PASS;
     it6161->mipi_rx_lane_count = MIPI_RX_LANE_COUNT;
 }
 
@@ -2224,10 +2225,13 @@ it6161_bridge_mode_valid(struct drm_bridge *bridge,
 
 	// if (mode->flags & DRM_MODE_FLAG_INTERLACE)
 	// 	return MODE_NO_INTERLACE;
-	it6161_debug("%s", __func__);
+	it6161_debug("%s\n", __func__);
 	// /* Max 1200p at 5.4 Ghz, one lane */
 	// if (mode->clock > MAX_PIXEL_CLK)
 	// 	return MODE_CLOCK_HIGH;
+
+	if (mode->clock == 27027)
+		return MODE_BAD;
 
 	if (mode->clock > 165000)
 		return MODE_CLOCK_HIGH;
@@ -2323,6 +2327,7 @@ unlock:
 static void it6161_bridge_enable(struct drm_bridge *bridge)
 {
 	struct it6161 *it6161 = bridge_to_it6161(bridge);
+	it6161_bridge = bridge;
 
 	it6161_debug("%s start", __func__);
 	mipi_rx_init(it6161);//allen
@@ -2330,6 +2335,9 @@ static void it6161_bridge_enable(struct drm_bridge *bridge)
 	it6161_set_interrupts_active_level(HIGH);
 	it6161_mipi_rx_int_mask_enable(it6161);
 	it6161_hdmi_tx_int_mask_enable(it6161);
+
+	it6161_debug("%s start restart delayed work\n", __func__);
+	schedule_delayed_work(&it6161->restart, msecs_to_jiffies(2000));
 
 	//if (enable_de_only)
 	//			hdmi_tx_generate_blank_timing(it6161);
@@ -2578,15 +2586,15 @@ static void it6161_hdmi_tx_set_av_mute(struct it6161 *it6161, u8 bEnable)
     it6161_hdmi_tx_write(it6161, REG_TX_PKT_GENERAL_CTRL,B_TX_ENABLE_PKT|B_TX_REPEAT_PKT);
 }
 
+#ifdef HDCP
 #ifdef SUPPORT_SHA
-u8 SHABuff[64] ;
-u8 V[20] ;
-u8 KSVList[32] ;
-u8 Vr[20] ;
-u8 M0[8] ;
+static u8 SHABuff[64] ;
+static u8 V[20] ;
+static u8 KSVList[32] ;
+static u8 Vr[20] ;
+static u8 M0[8] ;
 #endif
 
-#ifdef HDCP
 static bool hdmi_tx_hdcp_auth_status(struct it6161 *it6161)
 {
 	return !!(it6161_hdmi_tx_read(it6161, REG_TX_AUTH_STAT) & B_TX_AUTH_DONE);
@@ -4037,10 +4045,10 @@ it6161_debug("%s reg0E:0x%02x reg0x61:0x%02x", __func__, it6161_hdmi_tx_read(it6
     return false;
 }
 
-void HDMITX_PowerDown()
-{
-    it6161_hdmi_tx_write_table(it6161, HDMITX_PwrDown_Table, ARRAY_SIZE(HDMITX_PwrDown_Table));
-}
+// static void HDMITX_PowerDown()
+// {
+//     it6161_hdmi_tx_write_table(it6161, HDMITX_PwrDown_Table, ARRAY_SIZE(HDMITX_PwrDown_Table));
+// }
 
 static void hdmi_tx_setup_pclk_div2(struct it6161 *it6161)
 {
@@ -4362,9 +4370,9 @@ static void hdmi_tx_enable_video_output(struct it6161 *it6161, VIDEOPCLKLEVEL le
 	hdmi_tx_fire_afe(it6161);
 }
 
-u8 AudioDelayCnt=0;
-u8 LastRefaudfreqnum=0;
-bool bForceCTS = false;
+static u8 AudioDelayCnt=0;
+static u8 LastRefaudfreqnum=0;
+static bool bForceCTS = false;
 
 static void setHDMITX_ChStat(struct it6161 *it6161, u8 ucIEC60958ChStat[])
 {
@@ -4417,7 +4425,7 @@ void setHDMITX_UpdateChStatFs(u32 Fs)
     it6161_hdmi_tx_change_bank(it6161, 0);
 }
 */
-void setHDMITX_LPCMAudio(u8 AudioSrcNum, u8 AudSWL, u8 bAudInterface /*I2S/SPDIF/TDM*/)
+static void setHDMITX_LPCMAudio(u8 AudioSrcNum, u8 AudSWL, u8 bAudInterface /*I2S/SPDIF/TDM*/)
 {
 
     u8 AudioEnable, AudioFormat ;
@@ -4537,7 +4545,7 @@ void setHDMITX_LPCMAudio(u8 AudioSrcNum, u8 AudSWL, u8 bAudInterface /*I2S/SPDIF
     }
 }
 
-void setHDMITX_NLPCMAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/) // no Source Num, no I2S.
+static void setHDMITX_NLPCMAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/) // no Source Num, no I2S.
 {
     u8 AudioEnable, AudioFormat ;
     u8 i ;
@@ -4599,7 +4607,7 @@ void setHDMITX_NLPCMAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/) // no Source Num, 
     it6161_hdmi_tx_write(it6161, REG_TX_AUDIO_CTRL0, AudioEnable|B_TX_AUD_EN_I2S0);
 }
 
-void setHDMITX_HBRAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/)
+static void setHDMITX_HBRAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/)
 {
     // u8 rst;
     it6161_hdmi_tx_change_bank(it6161, 0);
@@ -4661,7 +4669,7 @@ void setHDMITX_HBRAudio(u8 bAudInterface /*I2S/SPDIF/TDM*/)
     // it6161_hdmi_tx_write(it6161, REG_TX_SW_RST, rst  );
 }
 
-void setHDMITX_DSDAudio()
+static void setHDMITX_DSDAudio()
 {
     // to be continue
     // u8 rst;
@@ -5002,7 +5010,7 @@ void setHDMITX_AudioChannelEnable(bool EnableAudio_b)
 // Side-Effect: register bank will reset to bank 0.
 //////////////////////////////////////////////////////////////////////
 
-void setHDMITX_NCTS(u8 Fs)
+static void setHDMITX_NCTS(u8 Fs)
 {
     u32 n;
     u8 LoopCnt=255,CTSStableCnt=0;
@@ -6035,6 +6043,8 @@ static void it6161_mipi_rx_interrupt_reg06_process(struct it6161 *it6161, u8 reg
     if (reg06 & 0x10) {
     	p_video_stable = mipi_rx_get_p_video_stable(it6161);
         DRM_INFO("PPS P video stable Change Interrupt, %sstable",  p_video_stable ? "" : "un");
+		it6161_debug("cancel restart work\n");
+		cancel_delayed_work(&it6161->restart);
 
         if (p_video_stable) {
             DRM_INFO("PVidStb Change to HIGH");
@@ -6416,6 +6426,12 @@ unlock:
 	return IRQ_HANDLED;
 }
 
+static void mipirx_restart(struct work_struct *work)
+{
+	it6161_debug("****it6161: %s\n", __func__);
+	it6161_bridge_enable(it6161_bridge);
+}
+
 #if 0
 static ssize_t enable_drv_hold_show(struct device *dev,
 				    struct device_attribute *attr, char *buf)
@@ -6680,12 +6696,9 @@ static int it6161_gpio_init(struct it6161 *it6161)
 	if (IS_ERR(it6161->test_gpio)) {
 		dev_info(dev, "failed to acquire test gpio\n");
 	}
-	msleep(20);
-	gpiod_set_value_cansleep(it6161->enable_gpio, 1);
-	msleep(20);
 
 	msleep(20);
-	gpiod_set_value_cansleep(it6161->test_gpio, 0);
+	gpiod_set_value_cansleep(it6161->enable_gpio, 1);
 	msleep(20);
 
 	return 0;
@@ -6702,9 +6715,9 @@ static int it6161_i2c_probe(struct i2c_client *i2c_mipi_rx,
 	if (!it6161)
 		return -ENOMEM;
 
-	//it6161_dump = devm_kzalloc(dev, sizeof(*it6161), GFP_KERNEL);
-	//if (!it6161)
-	//	return -ENOMEM;
+	it6161_bridge = devm_kzalloc(dev, sizeof(*it6161), GFP_KERNEL);
+	if (!it6161_bridge)
+		return -ENOMEM;
 
 	it6161->i2c_mipi_rx = i2c_mipi_rx;
 	it6161->dev = &i2c_mipi_rx->dev;
@@ -6712,11 +6725,13 @@ static int it6161_i2c_probe(struct i2c_client *i2c_mipi_rx,
 	mutex_init(&it6161->mode_lock);
 	//init_completion(&it6161->wait_hdcp_event);
 	init_completion(&it6161->wait_edid_complete);
-	
 
 	//INIT_DELAYED_WORK(&it6161->hdcp_work, hdmi_tx_hdcp_work);
 	//INIT_WORK(&it6161->wait_hdcp_ksv_list, hdmi_tx_hdcp_auth_part2_process);
 	// init_waitqueue_head(&it6161->edid_wait);
+
+	/* set up mipirx restart work*/
+	INIT_DELAYED_WORK(&it6161->restart, mipirx_restart);
 
 	it6161->bridge.of_node = i2c_mipi_rx->dev.of_node;
 
