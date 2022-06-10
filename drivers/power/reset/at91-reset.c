@@ -22,6 +22,8 @@
 #include <soc/at91/at91sam9_ddrsdr.h>
 #include <soc/at91/at91sam9_sdramc.h>
 
+#include <dt-bindings/reset/sama7g5-reset.h>
+
 #define AT91_RSTC_CR	0x00		/* Reset Controller Control Register */
 #define AT91_RSTC_PROCRST	BIT(0)		/* Processor Reset */
 #define AT91_RSTC_PERRST	BIT(2)		/* Peripheral Reset */
@@ -206,6 +208,13 @@ static const struct at91_reset_data samx7 = {
 	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
 };
 
+static const struct at91_reset_data sama7g5 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
+	.n_device_reset = 3,
+	.device_reset_min_id = SAMA7G5_RESET_USB_PHY1,
+	.device_reset_max_id = SAMA7G5_RESET_USB_PHY3,
+};
+
 static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "atmel,at91sam9260-rstc",
@@ -226,6 +235,10 @@ static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "microchip,sam9x60-rstc",
 		.data = &samx7,
+	},
+	{
+		.compatible = "microchip,sama7g5-rstc",
+		.data = &sama7g5,
 	},
 	{ /* sentinel */ }
 };
