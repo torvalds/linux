@@ -124,7 +124,7 @@ static inline struct v9fs_inode *V9FS_I(const struct inode *inode)
 static inline struct fscache_cookie *v9fs_inode_cookie(struct v9fs_inode *v9inode)
 {
 #ifdef CONFIG_9P_FSCACHE
-	return netfs_i_cookie(&v9inode->netfs.inode);
+	return netfs_i_cookie(&v9inode->netfs);
 #else
 	return NULL;
 #endif

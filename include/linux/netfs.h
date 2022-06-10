@@ -206,7 +206,9 @@ struct netfs_io_request {
  */
 struct netfs_request_ops {
 	int (*init_request)(struct netfs_io_request *rreq, struct file *file);
+	void (*free_request)(struct netfs_io_request *rreq);
 	int (*begin_cache_operation)(struct netfs_io_request *rreq);
+
 	void (*expand_readahead)(struct netfs_io_request *rreq);
 	bool (*clamp_length)(struct netfs_io_subrequest *subreq);
 	void (*issue_read)(struct netfs_io_subrequest *subreq);
@@ -214,7 +216,6 @@ struct netfs_request_ops {
 	int (*check_write_begin)(struct file *file, loff_t pos, unsigned len,
 				 struct folio *folio, void **_fsdata);
 	void (*done)(struct netfs_io_request *rreq);
-	void (*cleanup)(struct address_space *mapping, void *netfs_priv);
 };
 
 /*
@@ -277,7 +278,8 @@ struct netfs_cache_ops {
 struct readahead_control;
 extern void netfs_readahead(struct readahead_control *);
 int netfs_read_folio(struct file *, struct folio *);
-extern int netfs_write_begin(struct file *, struct address_space *,
+extern int netfs_write_begin(struct netfs_inode *,
+			     struct file *, struct address_space *,
 			     loff_t, unsigned int, struct folio **,
 			     void **);
 
@@ -302,19 +304,17 @@ static inline struct netfs_inode *netfs_inode(struct inode *inode)
 
 /**
  * netfs_inode_init - Initialise a netfslib inode context
- * @inode: The inode with which the context is associated
+ * @inode: The netfs inode to initialise
  * @ops: The netfs's operations list
  *
  * Initialise the netfs library context struct.  This is expected to follow on
  * directly from the VFS inode struct.
  */
-static inline void netfs_inode_init(struct inode *inode,
+static inline void netfs_inode_init(struct netfs_inode *ctx,
 				    const struct netfs_request_ops *ops)
 {
-	struct netfs_inode *ctx = netfs_inode(inode);
-
 	ctx->ops = ops;
-	ctx->remote_i_size = i_size_read(inode);
+	ctx->remote_i_size = i_size_read(&ctx->inode);
 #if IS_ENABLED(CONFIG_FSCACHE)
 	ctx->cache = NULL;
 #endif
@@ -322,28 +322,25 @@ static inline void netfs_inode_init(struct inode *inode,
 
 /**
  * netfs_resize_file - Note that a file got resized
- * @inode: The inode being resized
+ * @ctx: The netfs inode being resized
  * @new_i_size: The new file size
  *
  * Inform the netfs lib that a file got resized so that it can adjust its state.
  */
-static inline void netfs_resize_file(struct inode *inode, loff_t new_i_size)
+static inline void netfs_resize_file(struct netfs_inode *ctx, loff_t new_i_size)
 {
-	struct netfs_inode *ctx = netfs_inode(inode);
-
 	ctx->remote_i_size = new_i_size;
 }
 
 /**
  * netfs_i_cookie - Get the cache cookie from the inode
- * @inode: The inode to query
+ * @ctx: The netfs inode to query
  *
  * Get the caching cookie (if enabled) from the network filesystem's inode.
  */
-static inline struct fscache_cookie *netfs_i_cookie(struct inode *inode)
+static inline struct fscache_cookie *netfs_i_cookie(struct netfs_inode *ctx)
 {
 #if IS_ENABLED(CONFIG_FSCACHE)
-	struct netfs_inode *ctx = netfs_inode(inode);
 	return ctx->cache;
 #else
 	return NULL;
