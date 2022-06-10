@@ -1190,12 +1190,26 @@ void bch2_do_invalidates(struct bch_fs *c)
 		queue_work(system_long_wq, &c->invalidate_work);
 }
 
+static int bucket_freespace_init(struct btree_trans *trans, struct btree_iter *iter)
+{
+	struct bch_alloc_v4 a;
+	struct bkey_s_c k;
+	int ret;
+
+	k = bch2_btree_iter_peek_slot(iter);
+	ret = bkey_err(k);
+	if (ret)
+		return ret;
+
+	bch2_alloc_to_v4(k, &a);
+	return bch2_bucket_do_index(trans, k, &a, true);
+}
+
 static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 {
 	struct btree_trans trans;
 	struct btree_iter iter;
 	struct bkey_s_c k;
-	struct bch_alloc_v4 a;
 	struct bch_member *m;
 	int ret;
 
@@ -1208,10 +1222,9 @@ static int bch2_dev_freespace_init(struct bch_fs *c, struct bch_dev *ca)
 		if (iter.pos.offset >= ca->mi.nbuckets)
 			break;
 
-		bch2_alloc_to_v4(k, &a);
 		ret = __bch2_trans_do(&trans, NULL, NULL,
 				      BTREE_INSERT_LAZY_RW,
-				 bch2_bucket_do_index(&trans, k, &a, true));
+				 bucket_freespace_init(&trans, &iter));
 		if (ret)
 			break;
 	}
