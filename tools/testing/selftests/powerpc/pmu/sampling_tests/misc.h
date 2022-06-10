@@ -188,7 +188,7 @@ static inline int get_mmcra_sm(u64 mmcra, int pmc)
 	return ((mmcra >> 42) & 0x3);
 }
 
-static inline int get_mmcra_bhrb_disable(u64 mmcra, int pmc)
+static inline u64 get_mmcra_bhrb_disable(u64 mmcra, int pmc)
 {
 	if (pvr == POWER10)
 		return mmcra & BHRB_DISABLE;
