@@ -9088,7 +9088,7 @@ HTE SUBSYSTEM
 M:	Dipen Patel <dipenp@nvidia.com>
 S:	Maintained
 F:	Documentation/devicetree/bindings/timestamp/
-F:	Documentation/hte/
+F:	Documentation/driver-api/hte/
 F:	drivers/hte/
 F:	include/linux/hte.h
 
