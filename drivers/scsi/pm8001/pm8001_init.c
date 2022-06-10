@@ -81,6 +81,18 @@ LIST_HEAD(hba_list);
 
 struct workqueue_struct *pm8001_wq;
 
+static int pm8001_map_queues(struct Scsi_Host *shost)
+{
+	struct sas_ha_struct *sha = SHOST_TO_SAS_HA(shost);
+	struct pm8001_hba_info *pm8001_ha = sha->lldd_ha;
+	struct blk_mq_queue_map *qmap = &shost->tag_set.map[HCTX_TYPE_DEFAULT];
+
+	if (pm8001_ha->number_of_intr > 1)
+		blk_mq_pci_map_queues(qmap, pm8001_ha->pdev, 1);
+
+	return blk_mq_map_queues(qmap);
+}
+
 /*
  * The main structure which LLDD must register for scsi core.
  */
@@ -110,6 +122,7 @@ static struct scsi_host_template pm8001_sht = {
 	.shost_groups		= pm8001_host_groups,
 	.track_queue_depth	= 1,
 	.cmd_per_lun		= 32,
+	.map_queues		= pm8001_map_queues,
 };
 
 /*
@@ -928,31 +941,35 @@ static int pm8001_configure_phy_settings(struct pm8001_hba_info *pm8001_ha)
  */
 static u32 pm8001_setup_msix(struct pm8001_hba_info *pm8001_ha)
 {
-	u32 number_of_intr;
-	int rc, cpu_online_count;
 	unsigned int allocated_irq_vectors;
+	int rc;
 
 	/* SPCv controllers supports 64 msi-x */
 	if (pm8001_ha->chip_id == chip_8001) {
-		number_of_intr = 1;
+		rc = pci_alloc_irq_vectors(pm8001_ha->pdev, 1, 1,
+					   PCI_IRQ_MSIX);
 	} else {
-		number_of_intr = PM8001_MAX_MSIX_VEC;
+		/*
+		 * Queue index #0 is used always for housekeeping, so don't
+		 * include in the affinity spreading.
+		 */
+		struct irq_affinity desc = {
+			.pre_vectors = 1,
+		};
+		rc = pci_alloc_irq_vectors_affinity(
+				pm8001_ha->pdev, 2, PM8001_MAX_MSIX_VEC,
+				PCI_IRQ_MSIX | PCI_IRQ_AFFINITY, &desc);
 	}
 
-	cpu_online_count = num_online_cpus();
-	number_of_intr = min_t(int, cpu_online_count, number_of_intr);
-	rc = pci_alloc_irq_vectors(pm8001_ha->pdev, number_of_intr,
-			number_of_intr, PCI_IRQ_MSIX);
 	allocated_irq_vectors = rc;
 	if (rc < 0)
 		return rc;
 
 	/* Assigns the number of interrupts */
-	number_of_intr = min_t(int, allocated_irq_vectors, number_of_intr);
-	pm8001_ha->number_of_intr = number_of_intr;
+	pm8001_ha->number_of_intr = allocated_irq_vectors;
 
 	/* Maximum queue number updating in HBA structure */
-	pm8001_ha->max_q_num = number_of_intr;
+	pm8001_ha->max_q_num = allocated_irq_vectors;
 
 	pm8001_dbg(pm8001_ha, INIT,
 		   "pci_alloc_irq_vectors request ret:%d no of intr %d\n",
@@ -1123,7 +1140,18 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 	if (rc)
 		goto err_out_enable;
 
+
 	PM8001_CHIP_DISP->chip_post_init(pm8001_ha);
+
+	if (pm8001_ha->number_of_intr > 1) {
+		shost->nr_hw_queues = pm8001_ha->number_of_intr - 1;
+		/*
+		 * For now, ensure we're not sent too many commands by setting
+		 * host_tagset. This is also required if we start using request
+		 * tag.
+		 */
+		shost->host_tagset = 1;
+	}
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)

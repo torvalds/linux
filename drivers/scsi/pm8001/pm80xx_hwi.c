@@ -4351,6 +4351,29 @@ static int check_enc_sat_cmd(struct sas_task *task)
 	return ret;
 }
 
+static u32 pm80xx_chip_get_q_index(struct sas_task *task)
+{
+	struct scsi_cmnd *scmd = NULL;
+	u32 blk_tag;
+
+	if (task->uldd_task) {
+		struct ata_queued_cmd *qc;
+
+		if (dev_is_sata(task->dev)) {
+			qc = task->uldd_task;
+			scmd = qc->scsicmd;
+		} else {
+			scmd = task->uldd_task;
+		}
+	}
+
+	if (!scmd)
+		return 0;
+
+	blk_tag = blk_mq_unique_tag(scsi_cmd_to_rq(scmd));
+	return blk_mq_unique_tag_to_hwq(blk_tag);
+}
+
 /**
  * pm80xx_chip_ssp_io_req - send an SSP task to FW
  * @pm8001_ha: our hba card information.
@@ -4366,7 +4389,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	u32 tag = ccb->ccb_tag;
 	u64 phys_addr, end_addr;
 	u32 end_addr_high, end_addr_low;
-	u32 q_index, cpu_id;
+	u32 q_index;
 	u32 opc = OPC_INB_SSPINIIOSTART;
 
 	memset(&ssp_cmd, 0, sizeof(ssp_cmd));
@@ -4387,8 +4410,7 @@ static int pm80xx_chip_ssp_io_req(struct pm8001_hba_info *pm8001_ha,
 	ssp_cmd.ssp_iu.efb_prio_attr |= (task->ssp_task.task_attr & 7);
 	memcpy(ssp_cmd.ssp_iu.cdb, task->ssp_task.cmd->cmnd,
 		       task->ssp_task.cmd->cmd_len);
-	cpu_id = smp_processor_id();
-	q_index = (u32) (cpu_id) % (pm8001_ha->max_q_num);
+	q_index = pm80xx_chip_get_q_index(task);
 
 	/* Check if encryption is set */
 	if (pm8001_ha->chip->encrypt &&
@@ -4517,8 +4539,7 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	struct domain_device *dev = task->dev;
 	struct pm8001_device *pm8001_ha_dev = dev->lldd_dev;
 	struct ata_queued_cmd *qc = task->uldd_task;
-	u32 tag = ccb->ccb_tag;
-	u32 q_index, cpu_id;
+	u32 tag = ccb->ccb_tag, q_index;
 	struct sata_start_req sata_cmd;
 	u32 hdr_tag, ncg_tag = 0;
 	u64 phys_addr, end_addr;
@@ -4528,8 +4549,8 @@ static int pm80xx_chip_sata_req(struct pm8001_hba_info *pm8001_ha,
 	unsigned long flags;
 	u32 opc = OPC_INB_SATA_HOST_OPSTART;
 	memset(&sata_cmd, 0, sizeof(sata_cmd));
-	cpu_id = smp_processor_id();
-	q_index = (u32) (cpu_id) % (pm8001_ha->max_q_num);
+
+	q_index = pm80xx_chip_get_q_index(task);
 
 	if (task->data_dir == DMA_NONE && !task->ata_task.use_ncq) {
 		ATAP = 0x04; /* no data*/
