@@ -377,7 +377,9 @@ static int dw_mci_rockchip_remove(struct platform_device *pdev)
 	pm_runtime_disable(&pdev->dev);
 	pm_runtime_put_noidle(&pdev->dev);
 
-	return dw_mci_pltfm_remove(pdev);
+	dw_mci_pltfm_remove(pdev);
+
+	return 0;
 }
 
 static const struct dev_pm_ops dw_mci_rockchip_dev_pm_ops = {
