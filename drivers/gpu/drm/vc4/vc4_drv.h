@@ -74,6 +74,8 @@ struct vc4_perfmon {
 struct vc4_dev {
 	struct drm_device base;
 
+	bool is_vc5;
+
 	unsigned int irq;
 
 	struct vc4_hvs *hvs;
@@ -316,6 +318,7 @@ struct vc4_v3d {
 };
 
 struct vc4_hvs {
+	struct vc4_dev *vc4;
 	struct platform_device *pdev;
 	void __iomem *regs;
 	u32 __iomem *dlist;
@@ -333,9 +336,6 @@ struct vc4_hvs {
 	struct drm_mm_node mitchell_netravali_filter;
 
 	struct debugfs_regset32 regset;
-
-	/* HVS version 5 flag, therefore requires updated dlist structures */
-	bool hvs5;
 };
 
 struct vc4_plane {

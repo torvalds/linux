@@ -217,9 +217,12 @@ static int vc4_drm_bind(struct device *dev)
 	struct vc4_dev *vc4;
 	struct device_node *node;
 	struct drm_crtc *crtc;
+	bool is_vc5;
 	int ret = 0;
 
 	dev->coherent_dma_mask = DMA_BIT_MASK(32);
+
+	is_vc5 = of_device_is_compatible(dev->of_node, "brcm,bcm2711-vc5");
 
 	/* If VC4 V3D is missing, don't advertise render nodes. */
 	node = of_find_matching_node_and_match(NULL, vc4_v3d_dt_match, NULL);
@@ -230,6 +233,7 @@ static int vc4_drm_bind(struct device *dev)
 	vc4 = devm_drm_dev_alloc(dev, &vc4_drm_driver, struct vc4_dev, base);
 	if (IS_ERR(vc4))
 		return PTR_ERR(vc4);
+	vc4->is_vc5 = is_vc5;
 
 	drm = &vc4->base;
 	platform_set_drvdata(pdev, drm);
