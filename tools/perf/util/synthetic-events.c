@@ -1719,13 +1719,16 @@ int perf_event__synthesize_id_index(struct perf_tool *tool, perf_event__handler_
 	size_t nr = 0, i = 0, sz, max_nr, n;
 	int err;
 
-	pr_debug2("Synthesizing id index\n");
-
 	max_nr = (UINT16_MAX - sizeof(struct perf_record_id_index)) /
 		 sizeof(struct id_index_entry);
 
 	evlist__for_each_entry(evlist, evsel)
 		nr += evsel->core.ids;
+
+	if (!nr)
+		return 0;
+
+	pr_debug2("Synthesizing id index\n");
 
 	n = nr > max_nr ? max_nr : nr;
 	sz = sizeof(struct perf_record_id_index) + n * sizeof(struct id_index_entry);
