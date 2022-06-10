@@ -315,6 +315,14 @@ static const struct dmi_system_id sof_sdw_quirk_table[] = {
 					RT711_JD2 |
 					SOF_SDW_FOUR_SPK),
 	},
+	/* MeteorLake devices */
+	{
+		.callback = sof_sdw_quirk_cb,
+		.matches = {
+			DMI_MATCH(DMI_PRODUCT_FAMILY, "Intel_mtlrvp"),
+		},
+		.driver_data = (void *)(RT711_JD1 | SOF_SDW_TGL_HDMI),
+	},
 	{}
 };
 
