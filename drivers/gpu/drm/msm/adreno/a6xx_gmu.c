@@ -102,7 +102,8 @@ bool a6xx_gmu_gx_is_on(struct a6xx_gmu *gmu)
 		A6XX_GMU_SPTPRAC_PWR_CLK_STATUS_GX_HM_CLK_OFF));
 }
 
-void a6xx_gmu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp)
+void a6xx_gmu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp,
+		       bool suspended)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
@@ -127,15 +128,16 @@ void a6xx_gmu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp)
 
 	/*
 	 * This can get called from devfreq while the hardware is idle. Don't
-	 * bring up the power if it isn't already active
+	 * bring up the power if it isn't already active. All we're doing here
+	 * is updating the frequency so that when we come back online we're at
+	 * the right rate.
 	 */
-	if (pm_runtime_get_if_in_use(gmu->dev) == 0)
+	if (suspended)
 		return;
 
 	if (!gmu->legacy) {
 		a6xx_hfi_set_freq(gmu, perf_index);
 		dev_pm_opp_set_opp(&gpu->pdev->dev, opp);
-		pm_runtime_put(gmu->dev);
 		return;
 	}
 
@@ -159,7 +161,6 @@ void a6xx_gmu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp)
 		dev_err(gmu->dev, "GMU set GPU frequency error: %d\n", ret);
 
 	dev_pm_opp_set_opp(&gpu->pdev->dev, opp);
-	pm_runtime_put(gmu->dev);
 }
 
 unsigned long a6xx_gmu_get_freq(struct msm_gpu *gpu)
@@ -895,7 +896,7 @@ static void a6xx_gmu_set_initial_freq(struct msm_gpu *gpu, struct a6xx_gmu *gmu)
 		return;
 
 	gmu->freq = 0; /* so a6xx_gmu_set_freq() doesn't exit early */
-	a6xx_gmu_set_freq(gpu, gpu_opp);
+	a6xx_gmu_set_freq(gpu, gpu_opp, false);
 	dev_pm_opp_put(gpu_opp);
 }
 

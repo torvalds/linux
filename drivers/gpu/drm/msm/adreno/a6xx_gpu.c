@@ -1658,27 +1658,21 @@ static u64 a6xx_gpu_busy(struct msm_gpu *gpu, unsigned long *out_sample_rate)
 	/* 19.2MHz */
 	*out_sample_rate = 19200000;
 
-	/* Only read the gpu busy if the hardware is already active */
-	if (pm_runtime_get_if_in_use(a6xx_gpu->gmu.dev) == 0)
-		return 0;
-
 	busy_cycles = gmu_read64(&a6xx_gpu->gmu,
 			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_L,
 			REG_A6XX_GMU_CX_GMU_POWER_COUNTER_XOCLK_0_H);
 
-
-	pm_runtime_put(a6xx_gpu->gmu.dev);
-
 	return busy_cycles;
 }
 
-static void a6xx_gpu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp)
+static void a6xx_gpu_set_freq(struct msm_gpu *gpu, struct dev_pm_opp *opp,
+			      bool suspended)
 {
 	struct adreno_gpu *adreno_gpu = to_adreno_gpu(gpu);
 	struct a6xx_gpu *a6xx_gpu = to_a6xx_gpu(adreno_gpu);
 
 	mutex_lock(&a6xx_gpu->gmu.lock);
-	a6xx_gmu_set_freq(gpu, opp);
+	a6xx_gmu_set_freq(gpu, opp, suspended);
 	mutex_unlock(&a6xx_gpu->gmu.lock);
 }
 
