@@ -164,12 +164,14 @@ static void read_pages(struct readahead_control *rac)
 		while ((folio = readahead_folio(rac)) != NULL) {
 			unsigned long nr = folio_nr_pages(folio);
 
+			folio_get(folio);
 			rac->ra->size -= nr;
 			if (rac->ra->async_size >= nr) {
 				rac->ra->async_size -= nr;
 				filemap_remove_folio(folio);
 			}
 			folio_unlock(folio);
+			folio_put(folio);
 		}
 	} else {
 		while ((folio = readahead_folio(rac)) != NULL)
