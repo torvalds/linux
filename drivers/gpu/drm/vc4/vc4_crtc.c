@@ -776,6 +776,7 @@ struct vc4_async_flip_state {
 	struct drm_pending_vblank_event *event;
 
 	union {
+		struct dma_fence_cb fence;
 		struct vc4_seqno_cb seqno;
 	} cb;
 };
@@ -835,6 +836,50 @@ static void vc4_async_page_flip_seqno_complete(struct vc4_seqno_cb *cb)
 		vc4_bo_dec_usecnt(bo);
 }
 
+static void vc4_async_page_flip_fence_complete(struct dma_fence *fence,
+					       struct dma_fence_cb *cb)
+{
+	struct vc4_async_flip_state *flip_state =
+		container_of(cb, struct vc4_async_flip_state, cb.fence);
+
+	vc4_async_page_flip_complete(flip_state);
+	dma_fence_put(fence);
+}
+
+static int vc4_async_set_fence_cb(struct drm_device *dev,
+				  struct vc4_async_flip_state *flip_state)
+{
+	struct drm_framebuffer *fb = flip_state->fb;
+	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
+	struct vc4_dev *vc4 = to_vc4_dev(dev);
+	struct dma_fence *fence;
+	int ret;
+
+	if (!vc4->is_vc5) {
+		struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
+
+		return vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
+					  vc4_async_page_flip_seqno_complete);
+	}
+
+	ret = dma_resv_get_singleton(cma_bo->base.resv, DMA_RESV_USAGE_READ, &fence);
+	if (ret)
+		return ret;
+
+	/* If there's no fence, complete the page flip immediately */
+	if (!fence) {
+		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
+		return 0;
+	}
+
+	/* If the fence has already been completed, complete the page flip */
+	if (dma_fence_add_callback(fence, &flip_state->cb.fence,
+				   vc4_async_page_flip_fence_complete))
+		vc4_async_page_flip_fence_complete(fence, &flip_state->cb.fence);
+
+	return 0;
+}
+
 static int
 vc4_async_page_flip_common(struct drm_crtc *crtc,
 			   struct drm_framebuffer *fb,
@@ -844,8 +889,6 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 	struct drm_device *dev = crtc->dev;
 	struct drm_plane *plane = crtc->primary;
 	struct vc4_async_flip_state *flip_state;
-	struct drm_gem_cma_object *cma_bo = drm_fb_cma_get_gem_obj(fb, 0);
-	struct vc4_bo *bo = to_vc4_bo(&cma_bo->base);
 
 	flip_state = kzalloc(sizeof(*flip_state), GFP_KERNEL);
 	if (!flip_state)
@@ -876,8 +919,7 @@ vc4_async_page_flip_common(struct drm_crtc *crtc,
 	 */
 	drm_atomic_set_fb_for_plane(plane->state, fb);
 
-	vc4_queue_seqno_cb(dev, &flip_state->cb.seqno, bo->seqno,
-			   vc4_async_page_flip_seqno_complete);
+	vc4_async_set_fence_cb(dev, flip_state);
 
 	/* Driver takes ownership of state on successful async commit. */
 	return 0;
