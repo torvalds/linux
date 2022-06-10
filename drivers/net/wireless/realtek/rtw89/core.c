@@ -1243,7 +1243,7 @@ static int rtw89_core_rx_process_phy_ppdu(struct rtw89_dev *rtwdev,
 					  struct rtw89_rx_phy_ppdu *phy_ppdu)
 {
 	if (RTW89_GET_PHY_STS_LEN(phy_ppdu->buf) << 3 != phy_ppdu->len) {
-		rtw89_warn(rtwdev, "phy ppdu len mismatch\n");
+		rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "phy ppdu len mismatch\n");
 		return -EINVAL;
 	}
 	rtw89_core_update_phy_ppdu(phy_ppdu);

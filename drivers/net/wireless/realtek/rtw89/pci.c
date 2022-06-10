@@ -228,7 +228,8 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 
 	if (fs) {
 		if (new) {
-			rtw89_err(rtwdev, "skb should not be ready before first segment start\n");
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP,
+				    "skb should not be ready before first segment start\n");
 			goto err_sync_device;
 		}
 		if (desc_info->ready) {
@@ -251,7 +252,7 @@ static u32 rtw89_pci_rxbd_deliver_skbs(struct rtw89_dev *rtwdev,
 	} else {
 		offset = sizeof(struct rtw89_pci_rxbd_info);
 		if (!new) {
-			rtw89_warn(rtwdev, "no last skb\n");
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "no last skb\n");
 			goto err_sync_device;
 		}
 	}
@@ -605,7 +606,7 @@ static void rtw89_pci_isr_rxd_unavail(struct rtw89_dev *rtwdev,
 		hw_idx_next = (hw_idx + 1) % bd_ring->len;
 
 		if (hw_idx_next == host_idx)
-			rtw89_warn(rtwdev, "%d RXD unavailable\n", i);
+			rtw89_debug(rtwdev, RTW89_DBG_UNEXP, "%d RXD unavailable\n", i);
 
 		rtw89_debug(rtwdev, RTW89_DBG_TXRX,
 			    "%d RXD unavailable, idx=0x%08x, len=%d\n",
