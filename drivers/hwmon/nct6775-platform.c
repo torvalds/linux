@@ -1200,10 +1200,8 @@ static int __init sensors_nct6775_platform_init(void)
 exit_device_put:
 	platform_device_put(pdev[i]);
 exit_device_unregister:
-	while (--i >= 0) {
-		if (pdev[i])
-			platform_device_unregister(pdev[i]);
-	}
+	while (i--)
+		platform_device_unregister(pdev[i]);
 exit_unregister:
 	platform_driver_unregister(&nct6775_driver);
 	return err;
@@ -1213,10 +1211,8 @@ static void __exit sensors_nct6775_platform_exit(void)
 {
 	int i;
 
-	for (i = 0; i < ARRAY_SIZE(pdev); i++) {
-		if (pdev[i])
-			platform_device_unregister(pdev[i]);
-	}
+	for (i = 0; i < ARRAY_SIZE(pdev); i++)
+		platform_device_unregister(pdev[i]);
 	platform_driver_unregister(&nct6775_driver);
 }
 
