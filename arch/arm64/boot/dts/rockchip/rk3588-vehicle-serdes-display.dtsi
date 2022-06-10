@@ -511,10 +511,6 @@
 	status = "disabled";
 };
 
-&dsi0_panel {
-	status = "disabled";
-};
-
 /*
  * mipi_dcphy1 needs to be enabled
  * when dsi1 is enabled
@@ -542,10 +538,6 @@
 
 &dsi1_in_vp3 {
 	status = "okay";
-};
-
-&dsi1_panel {
-	status = "disabled";
 };
 
 &edp0 {
@@ -1854,12 +1846,12 @@
 };
 
 &route_dsi0 {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp2_out_dsi0>;
 };
 
 &route_dsi1 {
-	status = "disabled";
+	status = "okay";
 	connect = <&vp3_out_dsi1>;
 };
 
