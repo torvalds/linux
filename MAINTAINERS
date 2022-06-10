@@ -9803,7 +9803,10 @@ INTEL ASoC DRIVERS
 M:	Cezary Rojewski <cezary.rojewski@intel.com>
 M:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 M:	Liam Girdwood <liam.r.girdwood@linux.intel.com>
-M:	Jie Yang <yang.jie@linux.intel.com>
+M:	Peter Ujfalusi <peter.ujfalusi@linux.intel.com>
+M:	Bard Liao <yung-chuan.liao@linux.intel.com>
+M:	Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
+M:	Kai Vehmanen <kai.vehmanen@linux.intel.com>
 L:	alsa-devel@alsa-project.org (moderated for non-subscribers)
 S:	Supported
 F:	sound/soc/intel/
@@ -18670,8 +18673,10 @@ F:	sound/soc/
 SOUND - SOUND OPEN FIRMWARE (SOF) DRIVERS
 M:	Pierre-Louis Bossart <pierre-louis.bossart@linux.intel.com>
 M:	Liam Girdwood <lgirdwood@gmail.com>
+M:	Peter Ujfalusi <peter.ujfalusi@linux.intel.com>
+M:	Bard Liao <yung-chuan.liao@linux.intel.com>
 M:	Ranjani Sridharan <ranjani.sridharan@linux.intel.com>
-M:	Kai Vehmanen <kai.vehmanen@linux.intel.com>
+R:	Kai Vehmanen <kai.vehmanen@linux.intel.com>
 M:	Daniel Baluta <daniel.baluta@nxp.com>
 L:	sound-open-firmware@alsa-project.org (moderated for non-subscribers)
 S:	Supported
