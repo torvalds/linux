@@ -270,7 +270,6 @@ static int hda_link_dma_trigger(struct snd_pcm_substream *substream, int cmd)
 	struct hdac_ext_stream *hext_stream = snd_soc_dai_get_dma_data(cpu_dai, substream);
 	int ret;
 
-	dev_dbg(cpu_dai->dev, "%s: cmd=%d\n", __func__, cmd);
 	if (!hext_stream)
 		return 0;
 
@@ -420,13 +419,15 @@ static int ipc3_hda_dai_trigger(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_widget *w;
 	int ret;
 
+	dev_dbg(dai->dev, "%s: cmd=%d dai %s direction %d\n", __func__, cmd,
+		dai->name, substream->stream);
+
 	ret = hda_link_dma_trigger(substream, cmd);
 	if (ret < 0)
 		return ret;
 
 	w = snd_soc_dai_get_widget(dai, substream->stream);
 
-	dev_dbg(dai->dev, "%s: cmd=%d\n", __func__, cmd);
 	switch (cmd) {
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_STOP:
