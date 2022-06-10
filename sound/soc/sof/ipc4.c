@@ -618,7 +618,22 @@ static int sof_ipc4_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool 
 	return sof_ipc4_tx_msg(sdev, &msg, msg.data_size, NULL, 0, false);
 }
 
+/*
+ * The context save callback is used to send a message to the firmware notifying
+ * it that the primary core is going to be turned off, which is used as an
+ * indication to prepare for a full power down, thus preparing for IMR boot
+ * (when supported)
+ *
+ * Note: in IPC4 there is no message used to restore context, thus no context
+ * restore callback is implemented
+ */
+static int sof_ipc4_ctx_save(struct snd_sof_dev *sdev)
+{
+	return sof_ipc4_set_core_state(sdev, SOF_DSP_PRIMARY_CORE, false);
+}
+
 static const struct sof_ipc_pm_ops ipc4_pm_ops = {
+	.ctx_save = sof_ipc4_ctx_save,
 	.set_core_state = sof_ipc4_set_core_state,
 };
 
