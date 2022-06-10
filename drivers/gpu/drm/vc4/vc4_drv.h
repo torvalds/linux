@@ -885,6 +885,7 @@ static inline void vc4_debugfs_add_regset32(struct drm_device *drm,
 
 /* vc4_drv.c */
 void __iomem *vc4_ioremap_regs(struct platform_device *dev, int index);
+int vc4_dumb_fixup_args(struct drm_mode_create_dumb *args);
 
 /* vc4_dpi.c */
 extern struct platform_driver vc4_dpi_driver;

@@ -63,6 +63,19 @@ void __iomem *vc4_ioremap_regs(struct platform_device *pdev, int index)
 	return map;
 }
 
+int vc4_dumb_fixup_args(struct drm_mode_create_dumb *args)
+{
+	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
+
+	if (args->pitch < min_pitch)
+		args->pitch = min_pitch;
+
+	if (args->size < args->pitch * args->height)
+		args->size = args->pitch * args->height;
+
+	return 0;
+}
+
 static int vc4_get_param_ioctl(struct drm_device *dev, void *data,
 			       struct drm_file *file_priv)
 {

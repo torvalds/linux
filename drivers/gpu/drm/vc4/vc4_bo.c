@@ -475,15 +475,12 @@ int vc4_bo_dumb_create(struct drm_file *file_priv,
 		       struct drm_device *dev,
 		       struct drm_mode_create_dumb *args)
 {
-	int min_pitch = DIV_ROUND_UP(args->width * args->bpp, 8);
 	struct vc4_bo *bo = NULL;
 	int ret;
 
-	if (args->pitch < min_pitch)
-		args->pitch = min_pitch;
-
-	if (args->size < args->pitch * args->height)
-		args->size = args->pitch * args->height;
+	ret = vc4_dumb_fixup_args(args);
+	if (ret)
+		return ret;
 
 	bo = vc4_bo_create(dev, args->size, false, VC4_BO_TYPE_DUMB);
 	if (IS_ERR(bo))
