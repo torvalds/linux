@@ -2686,6 +2686,143 @@ TRACE_EVENT(rdev_set_fils_aad,
 		  __entry->kek_len)
 );
 
+TRACE_EVENT(rdev_update_owe_info,
+	    TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		     struct cfg80211_update_owe_info *owe_info),
+	    TP_ARGS(wiphy, netdev, owe_info),
+	    TP_STRUCT__entry(WIPHY_ENTRY
+			     NETDEV_ENTRY
+			     MAC_ENTRY(peer)
+			     __field(u16, status)
+			     __dynamic_array(u8, ie, owe_info->ie_len)),
+	    TP_fast_assign(WIPHY_ASSIGN;
+			   NETDEV_ASSIGN;
+			   MAC_ASSIGN(peer, owe_info->peer);
+			   __entry->status = owe_info->status;
+			   memcpy(__get_dynamic_array(ie),
+				  owe_info->ie, owe_info->ie_len);),
+	    TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT
+		  " status %d", WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer),
+		  __entry->status)
+);
+
+TRACE_EVENT(rdev_probe_mesh_link,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 const u8 *dest, const u8 *buf, size_t len),
+	TP_ARGS(wiphy, netdev, dest, buf, len),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(dest)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(dest, dest);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(dest))
+);
+
+TRACE_EVENT(rdev_set_tid_config,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_tid_config *tid_conf),
+	TP_ARGS(wiphy, netdev, tid_conf),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(peer)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(peer, tid_conf->peer);
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT,
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer))
+);
+
+TRACE_EVENT(rdev_reset_tid_config,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 const u8 *peer, u8 tids),
+	TP_ARGS(wiphy, netdev, peer, tids),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		MAC_ENTRY(peer)
+		__field(u8, tids)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		MAC_ASSIGN(peer, peer);
+		__entry->tids = tids;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT ", tids: 0x%x",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer), __entry->tids)
+);
+
+TRACE_EVENT(rdev_set_sar_specs,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_sar_specs *sar),
+	TP_ARGS(wiphy, sar),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		__field(u16, type)
+		__field(u16, num)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		__entry->type = sar->type;
+		__entry->num = sar->num_sub_specs;
+
+	),
+	TP_printk(WIPHY_PR_FMT ", Set type:%d, num_specs:%d",
+		  WIPHY_PR_ARG, __entry->type, __entry->num)
+);
+
+TRACE_EVENT(rdev_color_change,
+	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
+		 struct cfg80211_color_change_settings *params),
+	TP_ARGS(wiphy, netdev, params),
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		NETDEV_ENTRY
+		__field(u8, count)
+		__field(u16, bcn_ofs)
+		__field(u16, pres_ofs)
+	),
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		NETDEV_ASSIGN;
+		__entry->count = params->count;
+		__entry->bcn_ofs = params->counter_offset_beacon;
+		__entry->pres_ofs = params->counter_offset_presp;
+	),
+	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT
+		  ", count: %u",
+		  WIPHY_PR_ARG, NETDEV_PR_ARG,
+		  __entry->count)
+);
+
+TRACE_EVENT(rdev_set_radar_background,
+	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
+
+	TP_ARGS(wiphy, chandef),
+
+	TP_STRUCT__entry(
+		WIPHY_ENTRY
+		CHAN_DEF_ENTRY
+	),
+
+	TP_fast_assign(
+		WIPHY_ASSIGN;
+		CHAN_DEF_ASSIGN(chandef)
+	),
+
+	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
+		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
 /*************************************************************
  *	     cfg80211 exported functions traces		     *
  *************************************************************/
@@ -3564,26 +3701,6 @@ TRACE_EVENT(cfg80211_pmsr_complete,
 		  (unsigned long long)__entry->cookie)
 );
 
-TRACE_EVENT(rdev_update_owe_info,
-	    TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		     struct cfg80211_update_owe_info *owe_info),
-	    TP_ARGS(wiphy, netdev, owe_info),
-	    TP_STRUCT__entry(WIPHY_ENTRY
-			     NETDEV_ENTRY
-			     MAC_ENTRY(peer)
-			     __field(u16, status)
-			     __dynamic_array(u8, ie, owe_info->ie_len)),
-	    TP_fast_assign(WIPHY_ASSIGN;
-			   NETDEV_ASSIGN;
-			   MAC_ASSIGN(peer, owe_info->peer);
-			   __entry->status = owe_info->status;
-			   memcpy(__get_dynamic_array(ie),
-				  owe_info->ie, owe_info->ie_len);),
-	    TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT
-		  " status %d", WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer),
-		  __entry->status)
-);
-
 TRACE_EVENT(cfg80211_update_owe_info_event,
 	    TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
 		     struct cfg80211_update_owe_info *owe_info),
@@ -3599,104 +3716,6 @@ TRACE_EVENT(cfg80211_update_owe_info_event,
 				  owe_info->ie_len);),
 	    TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT,
 		      WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer))
-);
-
-TRACE_EVENT(rdev_probe_mesh_link,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 const u8 *dest, const u8 *buf, size_t len),
-	TP_ARGS(wiphy, netdev, dest, buf, len),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		NETDEV_ENTRY
-		MAC_ENTRY(dest)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		NETDEV_ASSIGN;
-		MAC_ASSIGN(dest, dest);
-	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", " MAC_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(dest))
-);
-
-TRACE_EVENT(rdev_set_tid_config,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 struct cfg80211_tid_config *tid_conf),
-	TP_ARGS(wiphy, netdev, tid_conf),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		NETDEV_ENTRY
-		MAC_ENTRY(peer)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		NETDEV_ASSIGN;
-		MAC_ASSIGN(peer, tid_conf->peer);
-	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT,
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer))
-);
-
-TRACE_EVENT(rdev_reset_tid_config,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 const u8 *peer, u8 tids),
-	TP_ARGS(wiphy, netdev, peer, tids),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		NETDEV_ENTRY
-		MAC_ENTRY(peer)
-		__field(u8, tids)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		NETDEV_ASSIGN;
-		MAC_ASSIGN(peer, peer);
-		__entry->tids = tids;
-	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", peer: " MAC_PR_FMT ", tids: 0x%x",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG, MAC_PR_ARG(peer), __entry->tids)
-);
-
-TRACE_EVENT(rdev_set_sar_specs,
-	TP_PROTO(struct wiphy *wiphy, struct cfg80211_sar_specs *sar),
-	TP_ARGS(wiphy, sar),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		__field(u16, type)
-		__field(u16, num)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		__entry->type = sar->type;
-		__entry->num = sar->num_sub_specs;
-
-	),
-	TP_printk(WIPHY_PR_FMT ", Set type:%d, num_specs:%d",
-		  WIPHY_PR_ARG, __entry->type, __entry->num)
-);
-
-TRACE_EVENT(rdev_color_change,
-	TP_PROTO(struct wiphy *wiphy, struct net_device *netdev,
-		 struct cfg80211_color_change_settings *params),
-	TP_ARGS(wiphy, netdev, params),
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		NETDEV_ENTRY
-		__field(u8, count)
-		__field(u16, bcn_ofs)
-		__field(u16, pres_ofs)
-	),
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		NETDEV_ASSIGN;
-		__entry->count = params->count;
-		__entry->bcn_ofs = params->counter_offset_beacon;
-		__entry->pres_ofs = params->counter_offset_presp;
-	),
-	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT
-		  ", count: %u",
-		  WIPHY_PR_ARG, NETDEV_PR_ARG,
-		  __entry->count)
 );
 
 TRACE_EVENT(cfg80211_bss_color_notify,
@@ -3719,25 +3738,6 @@ TRACE_EVENT(cfg80211_bss_color_notify,
 	TP_printk(NETDEV_PR_FMT ", cmd: %x, count: %u, bitmap: %llx",
 		  NETDEV_PR_ARG, __entry->cmd, __entry->count,
 		  __entry->color_bitmap)
-);
-
-TRACE_EVENT(rdev_set_radar_background,
-	TP_PROTO(struct wiphy *wiphy, struct cfg80211_chan_def *chandef),
-
-	TP_ARGS(wiphy, chandef),
-
-	TP_STRUCT__entry(
-		WIPHY_ENTRY
-		CHAN_DEF_ENTRY
-	),
-
-	TP_fast_assign(
-		WIPHY_ASSIGN;
-		CHAN_DEF_ASSIGN(chandef)
-	),
-
-	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
-		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
 );
 
 TRACE_EVENT(cfg80211_assoc_comeback,
