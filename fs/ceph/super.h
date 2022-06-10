@@ -316,11 +316,7 @@ struct ceph_inode_xattrs_info {
  * Ceph inode.
  */
 struct ceph_inode_info {
-	struct {
-		/* These must be contiguous */
-		struct inode vfs_inode;
-		struct netfs_i_context netfs_ctx; /* Netfslib context */
-	};
+	struct netfs_inode netfs; /* Netfslib context and vfs inode */
 	struct ceph_vino i_vino;   /* ceph ino + snap */
 
 	spinlock_t i_ceph_lock;
@@ -436,7 +432,7 @@ struct ceph_inode_info {
 static inline struct ceph_inode_info *
 ceph_inode(const struct inode *inode)
 {
-	return container_of(inode, struct ceph_inode_info, vfs_inode);
+	return container_of(inode, struct ceph_inode_info, netfs.inode);
 }
 
 static inline struct ceph_fs_client *
@@ -1316,7 +1312,7 @@ static inline void __ceph_update_quota(struct ceph_inode_info *ci,
 	has_quota = __ceph_has_quota(ci, QUOTA_GET_ANY);
 
 	if (had_quota != has_quota)
-		ceph_adjust_quota_realms_count(&ci->vfs_inode, has_quota);
+		ceph_adjust_quota_realms_count(&ci->netfs.inode, has_quota);
 }
 
 extern void ceph_handle_quota(struct ceph_mds_client *mdsc,

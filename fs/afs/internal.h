@@ -619,12 +619,7 @@ enum afs_lock_state {
  * leak from one inode to another.
  */
 struct afs_vnode {
-	struct {
-		/* These must be contiguous */
-		struct inode	vfs_inode;	/* the VFS's inode record */
-		struct netfs_i_context netfs_ctx; /* Netfslib context */
-	};
-
+	struct netfs_inode	netfs;		/* Netfslib context and vfs inode */
 	struct afs_volume	*volume;	/* volume on which vnode resides */
 	struct afs_fid		fid;		/* the file identifier for this inode */
 	struct afs_file_status	status;		/* AFS status info for this file */
@@ -675,7 +670,7 @@ struct afs_vnode {
 static inline struct fscache_cookie *afs_vnode_cache(struct afs_vnode *vnode)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	return netfs_i_cookie(&vnode->vfs_inode);
+	return netfs_i_cookie(&vnode->netfs.inode);
 #else
 	return NULL;
 #endif
@@ -685,7 +680,7 @@ static inline void afs_vnode_set_cache(struct afs_vnode *vnode,
 				       struct fscache_cookie *cookie)
 {
 #ifdef CONFIG_AFS_FSCACHE
-	vnode->netfs_ctx.cache = cookie;
+	vnode->netfs.cache = cookie;
 #endif
 }
 
@@ -892,7 +887,7 @@ static inline void afs_invalidate_cache(struct afs_vnode *vnode, unsigned int fl
 
 	afs_set_cache_aux(vnode, &aux);
 	fscache_invalidate(afs_vnode_cache(vnode), &aux,
-			   i_size_read(&vnode->vfs_inode), flags);
+			   i_size_read(&vnode->netfs.inode), flags);
 }
 
 /*
@@ -1217,7 +1212,7 @@ static inline struct afs_net *afs_i2net(struct inode *inode)
 
 static inline struct afs_net *afs_v2net(struct afs_vnode *vnode)
 {
-	return afs_i2net(&vnode->vfs_inode);
+	return afs_i2net(&vnode->netfs.inode);
 }
 
 static inline struct afs_net *afs_sock2net(struct sock *sk)
@@ -1593,12 +1588,12 @@ extern void yfs_fs_store_opaque_acl2(struct afs_operation *);
  */
 static inline struct afs_vnode *AFS_FS_I(struct inode *inode)
 {
-	return container_of(inode, struct afs_vnode, vfs_inode);
+	return container_of(inode, struct afs_vnode, netfs.inode);
 }
 
 static inline struct inode *AFS_VNODE_TO_I(struct afs_vnode *vnode)
 {
-	return &vnode->vfs_inode;
+	return &vnode->netfs.inode;
 }
 
 /*
@@ -1621,8 +1616,8 @@ static inline void afs_update_dentry_version(struct afs_operation *op,
  */
 static inline void afs_set_i_size(struct afs_vnode *vnode, u64 size)
 {
-	i_size_write(&vnode->vfs_inode, size);
-	vnode->vfs_inode.i_blocks = ((size + 1023) >> 10) << 1;
+	i_size_write(&vnode->netfs.inode, size);
+	vnode->netfs.inode.i_blocks = ((size + 1023) >> 10) << 1;
 }
 
 /*
