@@ -201,11 +201,11 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
  * @nsegs:    [in,out] Number of segments in the bio being built. Incremented
  *            by the number of segments from @bv that may be appended to that
  *            bio without exceeding @max_segs
- * @sectors:  [in,out] Number of sectors in the bio being built. Incremented
- *            by the number of sectors from @bv that may be appended to that
- *            bio without exceeding @max_sectors
+ * @bytes:    [in,out] Number of bytes in the bio being built. Incremented
+ *            by the number of bytes from @bv that may be appended to that
+ *            bio without exceeding @max_bytes
  * @max_segs: [in] upper bound for *@nsegs
- * @max_sectors: [in] upper bound for *@sectors
+ * @max_bytes: [in] upper bound for *@bytes
  *
  * When splitting a bio, it can happen that a bvec is encountered that is too
  * big to fit in a single segment and hence that it has to be split in the
@@ -216,10 +216,10 @@ static inline unsigned get_max_segment_size(const struct request_queue *q,
  */
 static bool bvec_split_segs(const struct request_queue *q,
 			    const struct bio_vec *bv, unsigned *nsegs,
-			    unsigned *sectors, unsigned max_segs,
-			    unsigned max_sectors)
+			    unsigned *bytes, unsigned max_segs,
+			    unsigned max_bytes)
 {
-	unsigned max_len = (min(max_sectors, UINT_MAX >> 9) - *sectors) << 9;
+	unsigned max_len = min(max_bytes, UINT_MAX) - *bytes;
 	unsigned len = min(bv->bv_len, max_len);
 	unsigned total_len = 0;
 	unsigned seg_size = 0;
@@ -237,7 +237,7 @@ static bool bvec_split_segs(const struct request_queue *q,
 			break;
 	}
 
-	*sectors += total_len >> 9;
+	*bytes += total_len;
 
 	/* tell the caller to split the bvec if it is too big to fit */
 	return len > 0 || bv->bv_len > max_len;
@@ -269,8 +269,8 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 {
 	struct bio_vec bv, bvprv, *bvprvp = NULL;
 	struct bvec_iter iter;
-	unsigned nsegs = 0, sectors = 0;
-	const unsigned max_sectors = get_max_io_size(q, bio);
+	unsigned nsegs = 0, bytes = 0;
+	const unsigned max_bytes = get_max_io_size(q, bio) << 9;
 	const unsigned max_segs = queue_max_segments(q);
 
 	bio_for_each_bvec(bv, bio, iter) {
@@ -282,12 +282,12 @@ static struct bio *blk_bio_segment_split(struct request_queue *q,
 			goto split;
 
 		if (nsegs < max_segs &&
-		    sectors + (bv.bv_len >> 9) <= max_sectors &&
+		    bytes + bv.bv_len <= max_bytes &&
 		    bv.bv_offset + bv.bv_len <= PAGE_SIZE) {
 			nsegs++;
-			sectors += bv.bv_len >> 9;
-		} else if (bvec_split_segs(q, &bv, &nsegs, &sectors, max_segs,
-					 max_sectors)) {
+			bytes += bv.bv_len;
+		} else if (bvec_split_segs(q, &bv, &nsegs, &bytes, max_segs,
+					   max_bytes)) {
 			goto split;
 		}
 
@@ -301,12 +301,19 @@ split:
 	*segs = nsegs;
 
 	/*
+	 * Individual bvecs might not be logical block aligned. Round down the
+	 * split size so that each bio is properly block size aligned, even if
+	 * we do not use the full hardware limits.
+	 */
+	bytes = ALIGN_DOWN(bytes, queue_logical_block_size(q));
+
+	/*
 	 * Bio splitting may cause subtle trouble such as hang when doing sync
 	 * iopoll in direct IO routine. Given performance gain of iopoll for
 	 * big IO can be trival, disable iopoll when split needed.
 	 */
 	bio_clear_polled(bio);
-	return bio_split(bio, sectors, GFP_NOIO, bs);
+	return bio_split(bio, bytes >> SECTOR_SHIFT, GFP_NOIO, bs);
 }
 
 /**
@@ -375,7 +382,7 @@ EXPORT_SYMBOL(blk_queue_split);
 unsigned int blk_recalc_rq_segments(struct request *rq)
 {
 	unsigned int nr_phys_segs = 0;
-	unsigned int nr_sectors = 0;
+	unsigned int bytes = 0;
 	struct req_iterator iter;
 	struct bio_vec bv;
 
@@ -398,7 +405,7 @@ unsigned int blk_recalc_rq_segments(struct request *rq)
 	}
 
 	rq_for_each_bvec(bv, rq, iter)
-		bvec_split_segs(rq->q, &bv, &nr_phys_segs, &nr_sectors,
+		bvec_split_segs(rq->q, &bv, &nr_phys_segs, &bytes,
 				UINT_MAX, UINT_MAX);
 	return nr_phys_segs;
 }
