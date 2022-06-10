@@ -109,6 +109,7 @@ static struct scsi_host_template pm8001_sht = {
 #endif
 	.shost_groups		= pm8001_host_groups,
 	.track_queue_depth	= 1,
+	.cmd_per_lun		= 32,
 };
 
 /*
@@ -605,12 +606,8 @@ static int pm8001_prep_sas_ha_init(struct Scsi_Host *shost,
 
 	shost->transportt = pm8001_stt;
 	shost->max_id = PM8001_MAX_DEVICES;
-	shost->max_lun = 8;
-	shost->max_channel = 0;
 	shost->unique_id = pm8001_id;
 	shost->max_cmd_len = 16;
-	shost->can_queue = PM8001_CAN_QUEUE;
-	shost->cmd_per_lun = 32;
 	return 0;
 exit_free1:
 	kfree(arr_port);
