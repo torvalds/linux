@@ -158,9 +158,11 @@ static void dccg31_disable_dpstreamclk(struct dccg *dccg, int otg_inst)
 	}
 }
 
-void dccg31_set_dpstreamclk(struct dccg *dccg,
-			    enum streamclk_source src,
-			    int otg_inst)
+void dccg31_set_dpstreamclk(
+		struct dccg *dccg,
+		enum streamclk_source src,
+		int otg_inst,
+		int dp_hpo_inst)
 {
 	if (src == REFCLK)
 		dccg31_disable_dpstreamclk(dccg, otg_inst);

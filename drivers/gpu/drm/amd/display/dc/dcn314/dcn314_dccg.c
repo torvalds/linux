@@ -184,7 +184,8 @@ void dccg314_set_dtbclk_dto(
 void dccg314_set_dpstreamclk(
 		struct dccg *dccg,
 		enum streamclk_source src,
-		int otg_inst)
+		int otg_inst,
+		int dp_hpo_inst)
 {
 	struct dcn_dccg *dccg_dcn = TO_DCN_DCCG(dccg);
 
@@ -192,26 +193,26 @@ void dccg314_set_dpstreamclk(
 	dccg314_set_dtbclk_p_src(dccg, src, otg_inst);
 
 	/* enabled to select one of the DTBCLKs for pipe */
-	switch (otg_inst) {
+	switch (dp_hpo_inst) {
 	case 0:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK0_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK0_SRC_SEL, 0);
+					DPSTREAMCLK0_SRC_SEL, otg_inst);
 		break;
 	case 1:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK1_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK1_SRC_SEL, 1);
+					DPSTREAMCLK1_SRC_SEL, otg_inst);
 		break;
 	case 2:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK2_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK2_SRC_SEL, 2);
+					DPSTREAMCLK2_SRC_SEL, otg_inst);
 		break;
 	case 3:
 		REG_UPDATE_2(DPSTREAMCLK_CNTL,
 					DPSTREAMCLK3_EN, (src == REFCLK) ? 0 : 1,
-					DPSTREAMCLK3_SRC_SEL, 3);
+					DPSTREAMCLK3_SRC_SEL, otg_inst);
 		break;
 	default:
 		BREAK_TO_DEBUGGER();
