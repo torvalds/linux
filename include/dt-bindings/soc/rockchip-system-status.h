@@ -49,4 +49,10 @@
 #define DMC_FREQ_LEVEL_MID_HIGH	(0x1 << 2)
 #define DMC_FREQ_LEVEL_HIGH	(0x1 << 3)
 
+#define DMC_WAIT_MODE_NORMAL	(0x1 << 0)
+#define DMC_WAIT_MODE_VOP_VBANK	(0x1 << 1)
+#define DMC_WAIT_MODE_VOP_LINE	(0x1 << 2)
+#define DMC_WAIT_MODE_VOP_AUTO	(0x1 << 3)
+#define DMC_WAIT_MODE_ISP_VBANK	(0x1 << 4)
+
 #endif
