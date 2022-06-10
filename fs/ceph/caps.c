@@ -602,8 +602,8 @@ static void __check_cap_issue(struct ceph_inode_info *ci, struct ceph_cap *cap,
  * @ci: inode to be moved
  * @session: new auth caps session
  */
-static void change_auth_cap_ses(struct ceph_inode_info *ci,
-				struct ceph_mds_session *session)
+void change_auth_cap_ses(struct ceph_inode_info *ci,
+			 struct ceph_mds_session *session)
 {
 	lockdep_assert_held(&ci->i_ceph_lock);
 

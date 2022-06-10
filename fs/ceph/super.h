@@ -767,6 +767,8 @@ extern void ceph_unreserve_caps(struct ceph_mds_client *mdsc,
 extern void ceph_reservation_status(struct ceph_fs_client *client,
 				    int *total, int *avail, int *used,
 				    int *reserved, int *min);
+extern void change_auth_cap_ses(struct ceph_inode_info *ci,
+				struct ceph_mds_session *session);
 
 
 
