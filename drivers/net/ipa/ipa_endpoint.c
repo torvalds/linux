@@ -1368,17 +1368,13 @@ static void ipa_endpoint_status_parse(struct ipa_endpoint *endpoint,
 	}
 }
 
-/* Complete a TX transaction, command or from ipa_endpoint_skb_tx() */
-static void ipa_endpoint_tx_complete(struct ipa_endpoint *endpoint,
-				     struct gsi_trans *trans)
-{
-}
-
-/* Complete transaction initiated in ipa_endpoint_replenish_one() */
-static void ipa_endpoint_rx_complete(struct ipa_endpoint *endpoint,
-				     struct gsi_trans *trans)
+void ipa_endpoint_trans_complete(struct ipa_endpoint *endpoint,
+				 struct gsi_trans *trans)
 {
 	struct page *page;
+
+	if (endpoint->toward_ipa)
+		return;
 
 	if (trans->cancelled)
 		goto done;
@@ -1391,15 +1387,6 @@ static void ipa_endpoint_rx_complete(struct ipa_endpoint *endpoint,
 		trans->data = NULL;	/* Pages have been consumed */
 done:
 	ipa_endpoint_replenish(endpoint);
-}
-
-void ipa_endpoint_trans_complete(struct ipa_endpoint *endpoint,
-				 struct gsi_trans *trans)
-{
-	if (endpoint->toward_ipa)
-		ipa_endpoint_tx_complete(endpoint, trans);
-	else
-		ipa_endpoint_rx_complete(endpoint, trans);
 }
 
 void ipa_endpoint_trans_release(struct ipa_endpoint *endpoint,
