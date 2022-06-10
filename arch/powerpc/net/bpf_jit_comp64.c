@@ -787,17 +787,25 @@ emit_clear:
 			else
 				EMIT(PPC_RAW_LWARX(tmp2_reg, tmp1_reg, dst_reg, 0));
 
+			/* Save old value in _R0 */
+			if (imm & BPF_FETCH)
+				EMIT(PPC_RAW_MR(_R0, tmp2_reg));
+
 			switch (imm) {
 			case BPF_ADD:
+			case BPF_ADD | BPF_FETCH:
 				EMIT(PPC_RAW_ADD(tmp2_reg, tmp2_reg, src_reg));
 				break;
 			case BPF_AND:
+			case BPF_AND | BPF_FETCH:
 				EMIT(PPC_RAW_AND(tmp2_reg, tmp2_reg, src_reg));
 				break;
 			case BPF_OR:
+			case BPF_OR | BPF_FETCH:
 				EMIT(PPC_RAW_OR(tmp2_reg, tmp2_reg, src_reg));
 				break;
 			case BPF_XOR:
+			case BPF_XOR | BPF_FETCH:
 				EMIT(PPC_RAW_XOR(tmp2_reg, tmp2_reg, src_reg));
 				break;
 			default:
@@ -807,13 +815,17 @@ emit_clear:
 				return -EOPNOTSUPP;
 			}
 
-			/* store result back */
+			/* store new value */
 			if (size == BPF_DW)
 				EMIT(PPC_RAW_STDCX(tmp2_reg, tmp1_reg, dst_reg));
 			else
 				EMIT(PPC_RAW_STWCX(tmp2_reg, tmp1_reg, dst_reg));
 			/* we're done if this succeeded */
 			PPC_BCC_SHORT(COND_NE, tmp_idx);
+
+			/* For the BPF_FETCH variant, get old value into src_reg */
+			if (imm & BPF_FETCH)
+				EMIT(PPC_RAW_MR(src_reg, _R0));
 			break;
 
 		/*
