@@ -1389,6 +1389,13 @@ static const struct drm_plane_helper_funcs vc4_plane_helper_funcs = {
 	.atomic_async_update = vc4_plane_atomic_async_update,
 };
 
+static const struct drm_plane_helper_funcs vc5_plane_helper_funcs = {
+	.atomic_check = vc4_plane_atomic_check,
+	.atomic_update = vc4_plane_atomic_update,
+	.atomic_async_check = vc4_plane_atomic_async_check,
+	.atomic_async_update = vc4_plane_atomic_async_update,
+};
+
 static bool vc4_format_mod_supported(struct drm_plane *plane,
 				     uint32_t format,
 				     uint64_t modifier)
@@ -1493,7 +1500,10 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	if (ret)
 		return ERR_PTR(ret);
 
-	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
+	if (vc4->is_vc5)
+		drm_plane_helper_add(plane, &vc5_plane_helper_funcs);
+	else
+		drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
 	drm_plane_create_alpha_property(plane);
 	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
