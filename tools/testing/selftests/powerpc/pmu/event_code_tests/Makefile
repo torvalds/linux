@@ -1,7 +1,7 @@
 # SPDX-License-Identifier: GPL-2.0
 CFLAGS += -m64
 
-TEST_GEN_PROGS :=
+TEST_GEN_PROGS := group_constraint_pmc56_test
 
 top_srcdir = ../../../../../..
 include ../../../lib.mk
