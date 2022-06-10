@@ -408,18 +408,30 @@ rtw89_core_get_tx_type(struct rtw89_dev *rtwdev,
 
 static void
 rtw89_core_tx_update_ampdu_info(struct rtw89_dev *rtwdev,
-				struct rtw89_core_tx_request *tx_req, u8 tid)
+				struct rtw89_core_tx_request *tx_req,
+				enum btc_pkt_type pkt_type)
 {
 	struct ieee80211_sta *sta = tx_req->sta;
 	struct rtw89_tx_desc_info *desc_info = &tx_req->desc_info;
+	struct sk_buff *skb = tx_req->skb;
 	struct rtw89_sta *rtwsta;
 	u8 ampdu_num;
+	u8 tid;
+
+	if (pkt_type == PACKET_EAPOL) {
+		desc_info->bk = true;
+		return;
+	}
+
+	if (!(IEEE80211_SKB_CB(skb)->flags & IEEE80211_TX_CTL_AMPDU))
+		return;
 
 	if (!sta) {
 		rtw89_warn(rtwdev, "cannot set ampdu info without sta\n");
 		return;
 	}
 
+	tid = skb->priority & IEEE80211_QOS_CTL_TAG1D_MASK;
 	rtwsta = (struct rtw89_sta *)sta->drv_priv;
 
 	ampdu_num = (u8)((rtwsta->ampdu_params[tid].agg_num ?
@@ -720,8 +732,6 @@ rtw89_core_tx_update_data_info(struct rtw89_dev *rtwdev,
 	/* enable wd_info for AMPDU */
 	desc_info->en_wd_info = true;
 
-	if (IEEE80211_SKB_CB(skb)->flags & IEEE80211_TX_CTL_AMPDU)
-		rtw89_core_tx_update_ampdu_info(rtwdev, tx_req, tid);
 	if (IEEE80211_SKB_CB(skb)->control.hw_key)
 		rtw89_core_tx_update_sec_key(rtwdev, tx_req);
 
@@ -832,6 +842,7 @@ rtw89_core_tx_update_desc_info(struct rtw89_dev *rtwdev,
 		rtw89_core_tx_update_data_info(rtwdev, tx_req);
 		pkt_type = rtw89_core_tx_btc_spec_pkt_notify(rtwdev, tx_req);
 		rtw89_core_tx_update_he_qos_htc(rtwdev, tx_req, pkt_type);
+		rtw89_core_tx_update_ampdu_info(rtwdev, tx_req, pkt_type);
 		rtw89_core_tx_update_llc_hdr(rtwdev, desc_info, skb);
 		break;
 	case RTW89_CORE_TX_TYPE_FWCMD:
@@ -1857,6 +1868,55 @@ static void rtw89_core_free_sta_pending_ba(struct rtw89_dev *rtwdev,
 	spin_unlock_bh(&rtwdev->ba_lock);
 }
 
+static void rtw89_core_free_sta_pending_forbid_ba(struct rtw89_dev *rtwdev,
+						  struct ieee80211_sta *sta)
+{
+	struct rtw89_txq *rtwtxq, *tmp;
+
+	spin_lock_bh(&rtwdev->ba_lock);
+	list_for_each_entry_safe(rtwtxq, tmp, &rtwdev->forbid_ba_list, list) {
+		struct ieee80211_txq *txq = rtw89_txq_to_txq(rtwtxq);
+
+		if (sta == txq->sta) {
+			clear_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags);
+			list_del_init(&rtwtxq->list);
+		}
+	}
+	spin_unlock_bh(&rtwdev->ba_lock);
+}
+
+static void rtw89_core_stop_tx_ba_session(struct rtw89_dev *rtwdev,
+					  struct rtw89_txq *rtwtxq)
+{
+	struct ieee80211_txq *txq = rtw89_txq_to_txq(rtwtxq);
+	struct ieee80211_sta *sta = txq->sta;
+	struct rtw89_sta *rtwsta = sta_to_rtwsta_safe(sta);
+
+	if (unlikely(!rtwsta) || unlikely(rtwsta->disassoc))
+		return;
+
+	if (!test_bit(RTW89_TXQ_F_AMPDU, &rtwtxq->flags) ||
+	    test_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags))
+		return;
+
+	spin_lock_bh(&rtwdev->ba_lock);
+	if (!list_empty(&rtwtxq->list)) {
+		list_del_init(&rtwtxq->list);
+		goto out;
+	}
+
+	set_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags);
+
+	list_add_tail(&rtwtxq->list, &rtwdev->forbid_ba_list);
+	ieee80211_stop_tx_ba_session(sta, txq->tid);
+	cancel_delayed_work(&rtwdev->forbid_ba_work);
+	ieee80211_queue_delayed_work(rtwdev->hw, &rtwdev->forbid_ba_work,
+				     RTW89_FORBID_BA_TIMER);
+
+out:
+	spin_unlock_bh(&rtwdev->ba_lock);
+}
+
 static void rtw89_core_txq_check_agg(struct rtw89_dev *rtwdev,
 				     struct rtw89_txq *rtwtxq,
 				     struct sk_buff *skb)
@@ -1866,13 +1926,15 @@ static void rtw89_core_txq_check_agg(struct rtw89_dev *rtwdev,
 	struct ieee80211_sta *sta = txq->sta;
 	struct rtw89_sta *rtwsta = sta ? (struct rtw89_sta *)sta->drv_priv : NULL;
 
-	if (unlikely(skb_get_queue_mapping(skb) == IEEE80211_AC_VO))
+	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE))) {
+		rtw89_core_stop_tx_ba_session(rtwdev, rtwtxq);
 		return;
-
-	if (unlikely(skb->protocol == cpu_to_be16(ETH_P_PAE)))
-		return;
+	}
 
 	if (unlikely(!sta))
+		return;
+
+	if (test_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags))
 		return;
 
 	if (unlikely(test_bit(RTW89_TXQ_F_BLOCK_BA, &rtwtxq->flags)))
@@ -2030,6 +2092,20 @@ static void rtw89_core_txq_reinvoke_work(struct work_struct *w)
 						txq_reinvoke_work.work);
 
 	queue_work(rtwdev->txq_wq, &rtwdev->txq_work);
+}
+
+static void rtw89_forbid_ba_work(struct work_struct *w)
+{
+	struct rtw89_dev *rtwdev = container_of(w, struct rtw89_dev,
+						forbid_ba_work.work);
+	struct rtw89_txq *rtwtxq, *tmp;
+
+	spin_lock_bh(&rtwdev->ba_lock);
+	list_for_each_entry_safe(rtwtxq, tmp, &rtwdev->forbid_ba_list, list) {
+		clear_bit(RTW89_TXQ_F_FORBID_BA, &rtwtxq->flags);
+		list_del_init(&rtwtxq->list);
+	}
+	spin_unlock_bh(&rtwdev->ba_lock);
 }
 
 static enum rtw89_tfc_lv rtw89_get_traffic_level(struct rtw89_dev *rtwdev,
@@ -2327,6 +2403,7 @@ int rtw89_core_sta_disconnect(struct rtw89_dev *rtwdev,
 	rtw89_mac_bf_monitor_calc(rtwdev, sta, true);
 	rtw89_mac_bf_disassoc(rtwdev, vif, sta);
 	rtw89_core_free_sta_pending_ba(rtwdev, sta);
+	rtw89_core_free_sta_pending_forbid_ba(rtwdev, sta);
 	if (vif->type == NL80211_IFTYPE_AP || sta->tdls)
 		rtw89_cam_deinit_addr_cam(rtwdev, &rtwsta->addr_cam);
 	if (sta->tdls)
@@ -2839,6 +2916,7 @@ void rtw89_core_stop(struct rtw89_dev *rtwdev)
 	cancel_delayed_work_sync(&rtwdev->coex_bt_devinfo_work);
 	cancel_delayed_work_sync(&rtwdev->coex_rfk_chk_work);
 	cancel_delayed_work_sync(&rtwdev->cfo_track_work);
+	cancel_delayed_work_sync(&rtwdev->forbid_ba_work);
 
 	mutex_lock(&rtwdev->mutex);
 
@@ -2858,6 +2936,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	u8 band;
 
 	INIT_LIST_HEAD(&rtwdev->ba_list);
+	INIT_LIST_HEAD(&rtwdev->forbid_ba_list);
 	INIT_LIST_HEAD(&rtwdev->rtwvifs_list);
 	INIT_LIST_HEAD(&rtwdev->early_h2c_list);
 	for (band = NL80211_BAND_2GHZ; band < NUM_NL80211_BANDS; band++) {
@@ -2873,6 +2952,7 @@ int rtw89_core_init(struct rtw89_dev *rtwdev)
 	INIT_DELAYED_WORK(&rtwdev->coex_bt_devinfo_work, rtw89_coex_bt_devinfo_work);
 	INIT_DELAYED_WORK(&rtwdev->coex_rfk_chk_work, rtw89_coex_rfk_chk_work);
 	INIT_DELAYED_WORK(&rtwdev->cfo_track_work, rtw89_phy_cfo_track_work);
+	INIT_DELAYED_WORK(&rtwdev->forbid_ba_work, rtw89_forbid_ba_work);
 	rtwdev->txq_wq = alloc_workqueue("rtw89_tx_wq", WQ_UNBOUND | WQ_HIGHPRI, 0);
 	spin_lock_init(&rtwdev->ba_lock);
 	spin_lock_init(&rtwdev->rpwm_lock);

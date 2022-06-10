@@ -29,6 +29,7 @@ extern const struct ieee80211_ops rtw89_ops;
 #define INV_RF_DATA 0xffffffff
 
 #define RTW89_TRACK_WORK_PERIOD	round_jiffies_relative(HZ * 2)
+#define RTW89_FORBID_BA_TIMER round_jiffies_relative(HZ * 4)
 #define CFO_TRACK_MAX_USER 64
 #define MAX_RSSI 110
 #define RSSI_FACTOR 1
@@ -144,6 +145,7 @@ enum rtw89_core_rx_type {
 enum rtw89_txq_flags {
 	RTW89_TXQ_F_AMPDU		= 0,
 	RTW89_TXQ_F_BLOCK_BA		= 1,
+	RTW89_TXQ_F_FORBID_BA		= 2,
 };
 
 enum rtw89_net_type {
@@ -3137,10 +3139,12 @@ struct rtw89_dev {
 	struct workqueue_struct *txq_wq;
 	struct work_struct txq_work;
 	struct delayed_work txq_reinvoke_work;
-	/* used to protect ba_list */
+	/* used to protect ba_list and forbid_ba_list */
 	spinlock_t ba_lock;
 	/* txqs to setup ba session */
 	struct list_head ba_list;
+	/* txqs to forbid ba session */
+	struct list_head forbid_ba_list;
 	struct work_struct ba_work;
 	/* used to protect rpwm */
 	spinlock_t rpwm_lock;
@@ -3187,6 +3191,7 @@ struct rtw89_dev {
 	struct delayed_work coex_bt_devinfo_work;
 	struct delayed_work coex_rfk_chk_work;
 	struct delayed_work cfo_track_work;
+	struct delayed_work forbid_ba_work;
 	struct rtw89_ppdu_sts_info ppdu_sts;
 	u8 total_sta_assoc;
 	bool scanning;
