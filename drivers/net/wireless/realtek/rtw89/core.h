@@ -55,6 +55,16 @@ enum htc_om_channel_width {
 #define RTW89_HTC_MASK_HTC_OM_DL_MU_MIMO_RR BIT(16)
 #define RTW89_HTC_MASK_HTC_OM_UL_MU_DATA_DIS BIT(17)
 
+#define RTW89_TF_PAD GENMASK(11, 0)
+#define RTW89_TF_BASIC_USER_INFO_SZ 6
+
+#define RTW89_GET_TF_USER_INFO_AID12(data)	\
+	le32_get_bits(*((const __le32 *)(data)), GENMASK(11, 0))
+#define RTW89_GET_TF_USER_INFO_RUA(data)	\
+	le32_get_bits(*((const __le32 *)(data)), GENMASK(19, 12))
+#define RTW89_GET_TF_USER_INFO_UL_MCS(data)	\
+	le32_get_bits(*((const __le32 *)(data)), GENMASK(24, 21))
+
 enum rtw89_subband {
 	RTW89_CH_2G = 0,
 	RTW89_CH_5G_BAND_1 = 1,
@@ -943,6 +953,10 @@ struct rtw89_traffic_stats {
 	u32 rx_throughput;
 	u32 tx_throughput_raw;
 	u32 rx_throughput_raw;
+
+	u32 rx_tf_acc;
+	u32 rx_tf_periodic;
+
 	enum rtw89_tfc_lv tx_tfc_lv;
 	enum rtw89_tfc_lv rx_tfc_lv;
 	struct ewma_tp tx_ewma_tp;
@@ -2550,9 +2564,24 @@ enum rtw89_sar_sources {
 	RTW89_SAR_SOURCE_NR,
 };
 
+enum rtw89_sar_subband {
+	RTW89_SAR_2GHZ_SUBBAND,
+	RTW89_SAR_5GHZ_SUBBAND_1_2, /* U-NII-1 and U-NII-2 */
+	RTW89_SAR_5GHZ_SUBBAND_2_E, /* U-NII-2-Extended */
+	RTW89_SAR_5GHZ_SUBBAND_3,   /* U-NII-3 */
+	RTW89_SAR_6GHZ_SUBBAND_5_L, /* U-NII-5 lower part */
+	RTW89_SAR_6GHZ_SUBBAND_5_H, /* U-NII-5 higher part */
+	RTW89_SAR_6GHZ_SUBBAND_6,   /* U-NII-6 */
+	RTW89_SAR_6GHZ_SUBBAND_7_L, /* U-NII-7 lower part */
+	RTW89_SAR_6GHZ_SUBBAND_7_H, /* U-NII-7 higher part */
+	RTW89_SAR_6GHZ_SUBBAND_8,   /* U-NII-8 */
+
+	RTW89_SAR_SUBBAND_NR,
+};
+
 struct rtw89_sar_cfg_common {
-	bool set[RTW89_SUBBAND_NR];
-	s32 cfg[RTW89_SUBBAND_NR];
+	bool set[RTW89_SAR_SUBBAND_NR];
+	s32 cfg[RTW89_SAR_SUBBAND_NR];
 };
 
 struct rtw89_sar_info {
@@ -2643,6 +2672,10 @@ struct rtw89_mcc_info {
 };
 
 struct rtw89_lck_info {
+	u8 thermal[RF_PATH_MAX];
+};
+
+struct rtw89_rx_dck_info {
 	u8 thermal[RF_PATH_MAX];
 };
 
@@ -2776,13 +2809,20 @@ enum rtw89_multi_cfo_mode {
 enum rtw89_phy_cfo_status {
 	RTW89_PHY_DCFO_STATE_NORMAL = 0,
 	RTW89_PHY_DCFO_STATE_ENHANCE = 1,
+	RTW89_PHY_DCFO_STATE_HOLD = 2,
 	RTW89_PHY_DCFO_STATE_MAX
+};
+
+enum rtw89_phy_cfo_ul_ofdma_acc_mode {
+	RTW89_CFO_UL_OFDMA_ACC_DISABLE = 0,
+	RTW89_CFO_UL_OFDMA_ACC_ENABLE = 1
 };
 
 struct rtw89_cfo_tracking_info {
 	u16 cfo_timer_ms;
 	bool cfo_trig_by_timer_en;
 	enum rtw89_phy_cfo_status phy_cfo_status;
+	enum rtw89_phy_cfo_ul_ofdma_acc_mode cfo_ul_ofdma_acc_mode;
 	u8 phy_cfo_trk_cnt;
 	bool is_adjust;
 	enum rtw89_multi_cfo_mode rtw89_multi_cfo_mode;
@@ -3125,6 +3165,7 @@ struct rtw89_dev {
 	struct rtw89_dpk_info dpk;
 	struct rtw89_mcc_info mcc;
 	struct rtw89_lck_info lck;
+	struct rtw89_rx_dck_info rx_dck;
 	bool is_tssi_mode[RF_PATH_MAX];
 	bool is_bt_iqk_timeout;
 

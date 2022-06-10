@@ -9,6 +9,9 @@
 
 #define RTW89_SEC_CAM_LEN	20
 
+#define RTW89_BSSID_MATCH_ALL GENMASK(5, 0)
+#define RTW89_BSSID_MATCH_5_BYTES GENMASK(4, 0)
+
 static inline void FWCMD_SET_ADDR_IDX(void *cmd, u32 value)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 1, value, GENMASK(7, 0));
@@ -307,6 +310,11 @@ static inline void FWCMD_SET_ADDR_BSSID_VALID(void *cmd, u32 value)
 static inline void FWCMD_SET_ADDR_BSSID_BB_SEL(void *cmd, u32 value)
 {
 	le32p_replace_bits((__le32 *)(cmd) + 13, value, BIT(1));
+}
+
+static inline void FWCMD_SET_ADDR_BSSID_MASK(void *cmd, u32 value)
+{
+	le32p_replace_bits((__le32 *)(cmd) + 13, value, GENMASK(7, 2));
 }
 
 static inline void FWCMD_SET_ADDR_BSSID_BSS_COLOR(void *cmd, u32 value)

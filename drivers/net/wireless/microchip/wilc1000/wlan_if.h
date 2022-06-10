@@ -85,7 +85,16 @@ enum authtype {
 	WILC_FW_AUTH_OPEN_SYSTEM = 1,
 	WILC_FW_AUTH_SHARED_KEY = 2,
 	WILC_FW_AUTH_ANY = 3,
-	WILC_FW_AUTH_IEEE8021 = 5
+	WILC_FW_AUTH_IEEE8021 = 5,
+	WILC_FW_AUTH_SAE = 7,
+	WILC_FW_AUTH_IEE8021X_SHA256 = 9,
+	WILC_FW_AUTH_OPEN_SYSTEM_SHA256 = 13
+};
+
+enum mfptype {
+	WILC_FW_MFP_NONE = 0x0,
+	WILC_FW_MFP_OPTIONAL = 0x1,
+	WILC_FW_MFP_REQUIRED = 0x2
 };
 
 enum site_survey {
@@ -176,7 +185,8 @@ enum {
 
 enum {
 	WILC_FW_ACTION_FRM_IDX = 0,
-	WILC_FW_PROBE_REQ_IDX = 1
+	WILC_FW_PROBE_REQ_IDX = 1,
+	WILC_FW_AUTH_REQ_IDX = 2
 };
 
 enum wid_type {
@@ -657,6 +667,9 @@ enum {
 	WID_LOG_TERMINAL_SWITCH		= 0x00CD,
 	WID_TX_POWER			= 0x00CE,
 	WID_WOWLAN_TRIGGER		= 0X00CF,
+	WID_SET_MFP                     = 0x00D0,
+
+	WID_DEFAULT_MGMT_KEY_ID		= 0x00D2,
 	/*  EMAC Short WID list */
 	/*  RTS Threshold */
 	/*
@@ -746,6 +759,7 @@ enum {
 	WID_REMOVE_KEY			= 0x301E,
 	WID_ASSOC_REQ_INFO		= 0x301F,
 	WID_ASSOC_RES_INFO		= 0x3020,
+	WID_ADD_IGTK                    = 0x3022,
 	WID_MANUFACTURER		= 0x3026, /* Added for CAPI tool */
 	WID_MODEL_NAME			= 0x3027, /* Added for CAPI tool */
 	WID_MODEL_NUM			= 0x3028, /* Added for CAPI tool */
@@ -789,7 +803,7 @@ enum {
 	WID_ADD_BEACON			= 0x408a,
 
 	WID_SETUP_MULTICAST_FILTER	= 0x408b,
-
+	WID_EXTERNAL_AUTH_PARAM		= 0x408d,
 	/* Miscellaneous WIDs */
 	WID_ALL				= 0x7FFE,
 	WID_MAX				= 0xFFFF

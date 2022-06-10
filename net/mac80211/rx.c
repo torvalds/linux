@@ -6,7 +6,7 @@
  * Copyright 2007-2010	Johannes Berg <johannes@sipsolutions.net>
  * Copyright 2013-2014  Intel Mobile Communications GmbH
  * Copyright(c) 2015 - 2017 Intel Deutschland GmbH
- * Copyright (C) 2018-2021 Intel Corporation
+ * Copyright (C) 2018-2022 Intel Corporation
  */
 
 #include <linux/jiffies.h>
@@ -1009,43 +1009,20 @@ static int ieee80211_get_mmie_keyidx(struct sk_buff *skb)
 	return -1;
 }
 
-static int ieee80211_get_keyid(struct sk_buff *skb,
-			       const struct ieee80211_cipher_scheme *cs)
+static int ieee80211_get_keyid(struct sk_buff *skb)
 {
 	struct ieee80211_hdr *hdr = (struct ieee80211_hdr *)skb->data;
-	__le16 fc;
-	int hdrlen;
-	int minlen;
-	u8 key_idx_off;
-	u8 key_idx_shift;
+	__le16 fc = hdr->frame_control;
+	int hdrlen = ieee80211_hdrlen(fc);
 	u8 keyid;
 
-	fc = hdr->frame_control;
-	hdrlen = ieee80211_hdrlen(fc);
-
-	if (cs) {
-		minlen = hdrlen + cs->hdr_len;
-		key_idx_off = hdrlen + cs->key_idx_off;
-		key_idx_shift = cs->key_idx_shift;
-	} else {
-		/* WEP, TKIP, CCMP and GCMP */
-		minlen = hdrlen + IEEE80211_WEP_IV_LEN;
-		key_idx_off = hdrlen + 3;
-		key_idx_shift = 6;
-	}
-
-	if (unlikely(skb->len < minlen))
+	/* WEP, TKIP, CCMP and GCMP */
+	if (unlikely(skb->len < hdrlen + IEEE80211_WEP_IV_LEN))
 		return -EINVAL;
 
-	skb_copy_bits(skb, key_idx_off, &keyid, 1);
+	skb_copy_bits(skb, hdrlen + 3, &keyid, 1);
 
-	if (cs)
-		keyid &= cs->key_idx_mask;
-	keyid >>= key_idx_shift;
-
-	/* cs could use more than the usual two bits for the keyid */
-	if (unlikely(keyid >= NUM_DEFAULT_KEYS))
-		return -EINVAL;
+	keyid >>= 6;
 
 	return keyid;
 }
@@ -1916,7 +1893,6 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 	struct ieee80211_key *ptk_idx = NULL;
 	int mmie_keyidx = -1;
 	__le16 fc;
-	const struct ieee80211_cipher_scheme *cs = NULL;
 
 	if (ieee80211_is_ext(hdr->frame_control))
 		return RX_CONTINUE;
@@ -1959,8 +1935,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 		if (ieee80211_has_protected(fc) &&
 		    !(status->flag & RX_FLAG_IV_STRIPPED)) {
-			cs = rx->sta->cipher_scheme;
-			keyid = ieee80211_get_keyid(rx->skb, cs);
+			keyid = ieee80211_get_keyid(rx->skb);
 
 			if (unlikely(keyid < 0))
 				return RX_DROP_UNUSABLE;
@@ -2065,7 +2040,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		    (status->flag & RX_FLAG_IV_STRIPPED))
 			return RX_CONTINUE;
 
-		keyidx = ieee80211_get_keyid(rx->skb, cs);
+		keyidx = ieee80211_get_keyid(rx->skb);
 
 		if (unlikely(keyidx < 0))
 			return RX_DROP_UNUSABLE;
@@ -2131,7 +2106,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		result = ieee80211_crypto_gcmp_decrypt(rx);
 		break;
 	default:
-		result = ieee80211_crypto_hw_decrypt(rx);
+		result = RX_DROP_UNUSABLE;
 	}
 
 	/* the hdr variable is invalid after the decrypt handlers */
@@ -2945,7 +2920,7 @@ ieee80211_rx_h_mesh_fwding(struct ieee80211_rx_data *rx)
 		tailroom = IEEE80211_ENCRYPT_TAILROOM;
 
 	fwd_skb = skb_copy_expand(skb, local->tx_headroom +
-				       sdata->encrypt_headroom,
+				       IEEE80211_ENCRYPT_HEADROOM,
 				  tailroom, GFP_ATOMIC);
 	if (!fwd_skb)
 		goto out;
