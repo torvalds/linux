@@ -31,7 +31,7 @@ extern struct gfs2_rgrpd *gfs2_rgrpd_get_next(struct gfs2_rgrpd *rgd);
 extern void gfs2_clear_rgrpd(struct gfs2_sbd *sdp);
 extern int gfs2_rindex_update(struct gfs2_sbd *sdp);
 extern void gfs2_free_clones(struct gfs2_rgrpd *rgd);
-extern int gfs2_rgrp_go_instantiate(struct gfs2_holder *gh);
+extern int gfs2_rgrp_go_instantiate(struct gfs2_glock *gl);
 extern void gfs2_rgrp_brelse(struct gfs2_rgrpd *rgd);
 
 extern struct gfs2_alloc *gfs2_alloc_get(struct gfs2_inode *ip);

@@ -507,7 +507,7 @@ again:
 		goto again;
 	}
 
-	ret = glops->go_instantiate(gh);
+	ret = glops->go_instantiate(gl);
 	if (!ret)
 		clear_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags);
 	clear_and_wake_up_bit(GLF_INSTANTIATE_IN_PROG, &gl->gl_flags);

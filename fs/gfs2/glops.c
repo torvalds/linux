@@ -485,9 +485,8 @@ int gfs2_inode_refresh(struct gfs2_inode *ip)
  * Returns: errno
  */
 
-static int inode_go_instantiate(struct gfs2_holder *gh)
+static int inode_go_instantiate(struct gfs2_glock *gl)
 {
-	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_inode *ip = gl->gl_object;
 
 	if (!ip) /* no inode to populate - read it in later */
