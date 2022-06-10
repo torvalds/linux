@@ -1327,17 +1327,29 @@ static int gsi_irq_init(struct gsi *gsi, struct platform_device *pdev)
 }
 
 /* Return the transaction associated with a transfer completion event */
-static struct gsi_trans *gsi_event_trans(struct gsi_channel *channel,
-					 struct gsi_event *event)
+static struct gsi_trans *
+gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
 {
+	u32 channel_id = event->chid;
+	struct gsi_channel *channel;
+	struct gsi_trans *trans;
 	u32 tre_offset;
 	u32 tre_index;
+
+	channel = &gsi->channel[channel_id];
+	if (WARN(!channel->gsi, "event has bad channel %u\n", channel_id))
+		return NULL;
 
 	/* Event xfer_ptr records the TRE it's associated with */
 	tre_offset = lower_32_bits(le64_to_cpu(event->xfer_ptr));
 	tre_index = gsi_ring_index(&channel->tre_ring, tre_offset);
 
-	return gsi_channel_trans_mapped(channel, tre_index);
+	trans = gsi_channel_trans_mapped(channel, tre_index);
+
+	if (WARN(!trans, "channel %u event with no transaction\n", channel_id))
+		return NULL;
+
+	return trans;
 }
 
 /**
@@ -1381,7 +1393,9 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	 */
 	old_index = ring->index;
 	event = gsi_ring_virt(ring, old_index);
-	trans = gsi_event_trans(channel, event);
+	trans = gsi_event_trans(channel->gsi, event);
+	if (!trans)
+		return;
 
 	/* Compute the number of events to process before we wrap,
 	 * and determine when we'll be done processing events.
@@ -1493,7 +1507,9 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 		return NULL;
 
 	/* Get the transaction for the latest completed event. */
-	trans = gsi_event_trans(channel, gsi_ring_virt(ring, index - 1));
+	trans = gsi_event_trans(gsi, gsi_ring_virt(ring, index - 1));
+	if (!trans)
+		return NULL;
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
