@@ -214,6 +214,31 @@ of calling send directly after a handshake using gnutls.
 Since it doesn't implement a full record layer, control
 messages are not supported.
 
+Optional optimizations
+----------------------
+
+There are certain condition-specific optimizations the TLS ULP can make,
+if requested. Those optimizations are either not universally beneficial
+or may impact correctness, hence they require an opt-in.
+All options are set per-socket using setsockopt(), and their
+state can be checked using getsockopt() and via socket diag (``ss``).
+
+TLS_TX_ZEROCOPY_RO
+~~~~~~~~~~~~~~~~~~
+
+For device offload only. Allow sendfile() data to be transmitted directly
+to the NIC without making an in-kernel copy. This allows true zero-copy
+behavior when device offload is enabled.
+
+The application must make sure that the data is not modified between being
+submitted and transmission completing. In other words this is mostly
+applicable if the data sent on a socket via sendfile() is read-only.
+
+Modifying the data may result in different versions of the data being used
+for the original TCP transmission and TCP retransmissions. To the receiver
+this will look like TLS records had been tampered with and will result
+in record authentication failures.
+
 Statistics
 ==========
 
