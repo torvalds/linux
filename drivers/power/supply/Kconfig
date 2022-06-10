@@ -830,4 +830,12 @@ config CHARGER_RK818
 	  If you say yes here you will get support for the charger of RK818 PMIC.
 	  This driver can give support for Rk818 Charger Interface.
 
+config CHARGER_SGM41542
+	tristate "SGM41542 charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SGM41542 battery charger.
+
 endif # POWER_SUPPLY

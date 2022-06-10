@@ -1,0 +1,32 @@
+Binding for sgm41542 battery charger
+
+Required properties:
+- compatible: "sgm,sgm41542" for sgm41542 Charger Power Supply
+- monitored-battery: phandle of battery characteristics devicetree node
+- input-voltage-limit-microvolt: integer, input voltage level in uV, used to
+				 decrease voltage level when the over current
+				 of the input power source occurs.
+- input-current-limit-microamp: integer, input current value in uA drained by the
+				charger from the power source.Default: 500000 uA (500mA)
+
+child nodes:
+- vbus5v0_typec:
+  Usage: optional
+  Description: Regulator that is used to control the VBUS voltage direction for
+               either USB host mode or for charging on the OTG port.
+
+Example:
+
+sgm41542: sgm41542@3b {
+                compatible = "sgm,sgm41542";
+                reg = <0x3b>;
+                input-voltage-limit-microvolt = <4500000>;
+                input-current-limit-microamp = <3000000>;
+                monitored-battery = <&bat>;
+                regulators {
+                        vbus5v0_typec: vbus5v0-typec {
+                                regulator-compatible = "otg-vbus";
+                                regulator-name = "vbus5v0_typec";
+                        };
+                };
+        };

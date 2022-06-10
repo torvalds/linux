@@ -106,3 +106,4 @@ obj-$(CONFIG_BATTERY_RK817)	+= rk817_battery.o
 obj-$(CONFIG_CHARGER_RK817)	+= rk817_charger.o
 obj-$(CONFIG_BATTERY_RK818)	+= rk818_battery.o
 obj-$(CONFIG_CHARGER_RK818)	+= rk818_charger.o
+obj-$(CONFIG_CHARGER_SGM41542)	+= sgm41542_charger.o
