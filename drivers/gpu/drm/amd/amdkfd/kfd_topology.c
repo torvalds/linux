@@ -1539,7 +1539,10 @@ static int kfd_dev_create_p2p_links(void)
 {
 	struct kfd_topology_device *dev;
 	struct kfd_topology_device *new_dev;
-	uint32_t i, k;
+#if defined(CONFIG_HSA_AMD_P2P)
+	uint32_t i;
+#endif
+	uint32_t k;
 	int ret = 0;
 
 	k = 0;
@@ -1553,7 +1556,6 @@ static int kfd_dev_create_p2p_links(void)
 		return 0;
 
 	k--;
-	i = 0;
 
 	/* create in-direct links */
 	ret = kfd_create_indirect_link_prop(new_dev, k);
@@ -1562,6 +1564,7 @@ static int kfd_dev_create_p2p_links(void)
 
 	/* create p2p links */
 #if defined(CONFIG_HSA_AMD_P2P)
+	i = 0;
 	list_for_each_entry(dev, &topology_device_list, list) {
 		if (dev == new_dev)
 			break;
