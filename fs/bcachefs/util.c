@@ -27,15 +27,18 @@
 
 static const char si_units[] = "?kMGTPEZY";
 
-static int __bch2_strtoh(const char *cp, u64 *res,
-			 u64 t_max, bool t_signed)
-{
-	bool positive = *cp != '-';
-	unsigned u;
-	u64 v = 0;
+/* string_get_size units: */
+static const char *const units_2[] = {
+	"B", "KiB", "MiB", "GiB", "TiB", "PiB", "EiB", "ZiB", "YiB"
+};
+static const char *const units_10[] = {
+	"B", "kB", "MB", "GB", "TB", "PB", "EB", "ZB", "YB"
+};
 
-	if (*cp == '+' || *cp == '-')
-		cp++;
+static int parse_u64(const char *cp, u64 *res)
+{
+	const char *start = cp;
+	u64 v = 0;
 
 	if (!isdigit(*cp))
 		return -EINVAL;
@@ -50,22 +53,122 @@ static int __bch2_strtoh(const char *cp, u64 *res,
 		cp++;
 	} while (isdigit(*cp));
 
+	*res = v;
+	return cp - start;
+}
+
+static int bch2_pow(u64 n, u64 p, u64 *res)
+{
+	*res = 1;
+
+	while (p--) {
+		if (*res > div_u64(U64_MAX, n))
+			return -ERANGE;
+		*res *= n;
+	}
+	return 0;
+}
+
+static int parse_unit_suffix(const char *cp, u64 *res)
+{
+	const char *start = cp;
+	u64 base = 1024;
+	unsigned u;
+	int ret;
+
+	if (*cp == ' ')
+		cp++;
+
 	for (u = 1; u < strlen(si_units); u++)
 		if (*cp == si_units[u]) {
 			cp++;
 			goto got_unit;
 		}
-	u = 0;
+
+	for (u = 0; u < ARRAY_SIZE(units_2); u++)
+		if (!strncmp(cp, units_2[u], strlen(units_2[u]))) {
+			cp += strlen(units_2[u]);
+			goto got_unit;
+		}
+
+	for (u = 0; u < ARRAY_SIZE(units_10); u++)
+		if (!strncmp(cp, units_10[u], strlen(units_10[u]))) {
+			cp += strlen(units_10[u]);
+			base = 1000;
+			goto got_unit;
+		}
+
+	*res = 1;
+	return 0;
 got_unit:
+	ret = bch2_pow(base, u, res);
+	if (ret)
+		return ret;
+
+	return cp - start;
+}
+
+#define parse_or_ret(cp, _f)			\
+do {						\
+	int ret = _f;				\
+	if (ret < 0)				\
+		return ret;			\
+	cp += ret;				\
+} while (0)
+
+static int __bch2_strtou64_h(const char *cp, u64 *res)
+{
+	const char *start = cp;
+	u64 v = 0, b, f_n = 0, f_d = 1;
+	int ret;
+
+	parse_or_ret(cp, parse_u64(cp, &v));
+
+	if (*cp == '.') {
+		cp++;
+		ret = parse_u64(cp, &f_n);
+		if (ret < 0)
+			return ret;
+		cp += ret;
+
+		ret = bch2_pow(10, ret, &f_d);
+		if (ret)
+			return ret;
+	}
+
+	parse_or_ret(cp, parse_unit_suffix(cp, &b));
+
+	if (v > div_u64(U64_MAX, b))
+		return -ERANGE;
+	v *= b;
+
+	if (f_n > div_u64(U64_MAX, b))
+		return -ERANGE;
+
+	f_n = div_u64(f_n * b, f_d);
+	if (v + f_n < v)
+		return -ERANGE;
+	v += f_n;
+
+	*res = v;
+	return cp - start;
+}
+
+static int __bch2_strtoh(const char *cp, u64 *res,
+			 u64 t_max, bool t_signed)
+{
+	bool positive = *cp != '-';
+	u64 v = 0;
+
+	if (*cp == '+' || *cp == '-')
+		cp++;
+
+	parse_or_ret(cp, __bch2_strtou64_h(cp, &v));
+
 	if (*cp == '\n')
 		cp++;
 	if (*cp)
 		return -EINVAL;
-
-	if (fls64(v) + u * 10 > 64)
-		return -ERANGE;
-
-	v <<= u * 10;
 
 	if (positive) {
 		if (v > t_max)
@@ -86,7 +189,7 @@ got_unit:
 #define STRTO_H(name, type)					\
 int bch2_ ## name ## _h(const char *cp, type *res)		\
 {								\
-	u64 v;							\
+	u64 v = 0;						\
 	int ret = __bch2_strtoh(cp, &v, ANYSINT_MAX(type),	\
 			ANYSINT_MAX(type) != ((type) ~0ULL));	\
 	*res = v;						\
