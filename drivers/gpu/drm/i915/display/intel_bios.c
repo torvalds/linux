@@ -2560,9 +2560,9 @@ static bool is_port_valid(struct drm_i915_private *i915, enum port port)
 	return true;
 }
 
-static void parse_ddi_port(struct drm_i915_private *i915,
-			   struct intel_bios_encoder_data *devdata)
+static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 {
+	struct drm_i915_private *i915 = devdata->i915;
 	const struct child_device_config *child = &devdata->child;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
 	int dp_boost_level, dp_max_link_rate, hdmi_boost_level, hdmi_level_shift, max_tmds_clock;
@@ -2658,7 +2658,7 @@ static void parse_ddi_ports(struct drm_i915_private *i915)
 		return;
 
 	list_for_each_entry(devdata, &i915->vbt.display_devices, node)
-		parse_ddi_port(i915, devdata);
+		parse_ddi_port(devdata);
 }
 
 static void
