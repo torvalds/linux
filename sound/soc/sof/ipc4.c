@@ -597,10 +597,36 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 	}
 }
 
+static int sof_ipc4_set_core_state(struct snd_sof_dev *sdev, int core_idx, bool on)
+{
+	struct sof_ipc4_dx_state_info dx_state;
+	struct sof_ipc4_msg msg;
+
+	dx_state.core_mask = BIT(core_idx);
+	if (on)
+		dx_state.dx_mask = BIT(core_idx);
+	else
+		dx_state.dx_mask = 0;
+
+	msg.primary = SOF_IPC4_MSG_TYPE_SET(SOF_IPC4_MOD_SET_DX);
+	msg.primary |= SOF_IPC4_MSG_DIR(SOF_IPC4_MSG_REQUEST);
+	msg.primary |= SOF_IPC4_MSG_TARGET(SOF_IPC4_MODULE_MSG);
+	msg.extension = 0;
+	msg.data_ptr = &dx_state;
+	msg.data_size = sizeof(dx_state);
+
+	return sof_ipc4_tx_msg(sdev, &msg, msg.data_size, NULL, 0, false);
+}
+
+static const struct sof_ipc_pm_ops ipc4_pm_ops = {
+	.set_core_state = sof_ipc4_set_core_state,
+};
+
 const struct sof_ipc_ops ipc4_ops = {
 	.tx_msg = sof_ipc4_tx_msg,
 	.rx_msg = sof_ipc4_rx_msg,
 	.set_get_data = sof_ipc4_set_get_data,
 	.get_reply = sof_ipc4_get_reply,
+	.pm = &ipc4_pm_ops,
 	.fw_loader = &ipc4_loader_ops,
 };
