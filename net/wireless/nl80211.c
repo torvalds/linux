@@ -15556,9 +15556,11 @@ static int nl80211_set_fils_aad(struct sk_buff *skb,
 
 static int nl80211_add_link(struct sk_buff *skb, struct genl_info *info)
 {
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
+	int ret;
 
 	if (!(wdev->wiphy->flags & WIPHY_FLAG_SUPPORTS_MLO))
 		return -EINVAL;
@@ -15578,13 +15580,20 @@ static int nl80211_add_link(struct sk_buff *skb, struct genl_info *info)
 	wdev->valid_links |= BIT(link_id);
 	ether_addr_copy(wdev->links[link_id].addr,
 			nla_data(info->attrs[NL80211_ATTR_MAC]));
+
+	ret = rdev_add_intf_link(rdev, wdev, link_id);
+	if (ret) {
+		wdev->valid_links &= ~BIT(link_id);
+		eth_zero_addr(wdev->links[link_id].addr);
+	}
 	wdev_unlock(wdev);
 
-	return 0;
+	return ret;
 }
 
 static int nl80211_remove_link(struct sk_buff *skb, struct genl_info *info)
 {
+	struct cfg80211_registered_device *rdev = info->user_ptr[0];
 	unsigned int link_id = nl80211_link_id(info->attrs);
 	struct net_device *dev = info->user_ptr[1];
 	struct wireless_dev *wdev = dev->ieee80211_ptr;
@@ -15604,6 +15613,9 @@ static int nl80211_remove_link(struct sk_buff *skb, struct genl_info *info)
 
 	wdev_lock(wdev);
 	wdev->valid_links &= ~BIT(link_id);
+
+	rdev_del_intf_link(rdev, wdev, link_id);
+
 	eth_zero_addr(wdev->links[link_id].addr);
 	wdev_unlock(wdev);
 

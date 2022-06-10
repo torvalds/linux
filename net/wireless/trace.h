@@ -2064,7 +2064,7 @@ TRACE_EVENT(rdev_set_noack_map,
 		  WIPHY_PR_ARG, NETDEV_PR_ARG, __entry->noack_map)
 );
 
-TRACE_EVENT(rdev_get_channel,
+DECLARE_EVENT_CLASS(wiphy_wdev_link_evt,
 	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
 		 unsigned int link_id),
 	TP_ARGS(wiphy, wdev, link_id),
@@ -2080,6 +2080,12 @@ TRACE_EVENT(rdev_get_channel,
 	),
 	TP_printk(WIPHY_PR_FMT ", " WDEV_PR_FMT ", link_id: %u",
 		  WIPHY_PR_ARG, WDEV_PR_ARG, __entry->link_id)
+);
+
+DEFINE_EVENT(wiphy_wdev_link_evt, rdev_get_channel,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 unsigned int link_id),
+	TP_ARGS(wiphy, wdev, link_id)
 );
 
 TRACE_EVENT(rdev_return_chandef,
@@ -2821,6 +2827,18 @@ TRACE_EVENT(rdev_set_radar_background,
 
 	TP_printk(WIPHY_PR_FMT ", " CHAN_DEF_PR_FMT,
 		  WIPHY_PR_ARG, CHAN_DEF_PR_ARG)
+);
+
+DEFINE_EVENT(wiphy_wdev_link_evt, rdev_add_intf_link,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 unsigned int link_id),
+	TP_ARGS(wiphy, wdev, link_id)
+);
+
+DEFINE_EVENT(wiphy_wdev_link_evt, rdev_del_intf_link,
+	TP_PROTO(struct wiphy *wiphy, struct wireless_dev *wdev,
+		 unsigned int link_id),
+	TP_ARGS(wiphy, wdev, link_id)
 );
 
 /*************************************************************

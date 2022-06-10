@@ -1422,4 +1422,30 @@ rdev_set_radar_background(struct cfg80211_registered_device *rdev,
 	return ret;
 }
 
+static inline int
+rdev_add_intf_link(struct cfg80211_registered_device *rdev,
+		   struct wireless_dev *wdev,
+		   unsigned int link_id)
+{
+	int ret = 0;
+
+	trace_rdev_add_intf_link(&rdev->wiphy, wdev, link_id);
+	if (rdev->ops->add_intf_link)
+		ret = rdev->ops->add_intf_link(&rdev->wiphy, wdev, link_id);
+	trace_rdev_return_int(&rdev->wiphy, ret);
+
+	return ret;
+}
+
+static inline void
+rdev_del_intf_link(struct cfg80211_registered_device *rdev,
+		   struct wireless_dev *wdev,
+		   unsigned int link_id)
+{
+	trace_rdev_del_intf_link(&rdev->wiphy, wdev, link_id);
+	if (rdev->ops->add_intf_link)
+		rdev->ops->add_intf_link(&rdev->wiphy, wdev, link_id);
+	trace_rdev_return_void(&rdev->wiphy);
+}
+
 #endif /* __CFG80211_RDEV_OPS */

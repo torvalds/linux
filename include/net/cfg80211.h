@@ -3858,6 +3858,11 @@ struct mgmt_frame_regs {
  *	keep the struct wireless_dev's iftype updated.
  *	This additionally holds the RTNL to be able to do netdev changes.
  *
+ * @add_intf_link: Add a new MLO link to the given interface. Note that
+ *	the wdev->link[] data structure has been updated, so the new link
+ *	address is available.
+ * @del_intf_link: Remove an MLO link from the given interface.
+ *
  * @add_key: add a key with the given parameters. @mac_addr will be %NULL
  *	when adding a group key.
  *
@@ -4211,6 +4216,13 @@ struct cfg80211_ops {
 				       struct net_device *dev,
 				       enum nl80211_iftype type,
 				       struct vif_params *params);
+
+	int	(*add_intf_link)(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
+				 unsigned int link_id);
+	void	(*del_intf_link)(struct wiphy *wiphy,
+				 struct wireless_dev *wdev,
+				 unsigned int link_id);
 
 	int	(*add_key)(struct wiphy *wiphy, struct net_device *netdev,
 			   u8 key_index, bool pairwise, const u8 *mac_addr,
