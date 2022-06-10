@@ -96,6 +96,10 @@ config CAN_CALC_BITTIMING
 	  source clock frequencies. Disabling saves some space, but then the
 	  bit-timing parameters must be specified directly using the Netlink
 	  arguments "tq", "prop_seg", "phase_seg1", "phase_seg2" and "sjw".
+
+	  The additional features selected by this option will be added to the
+	  can-dev module.
+
 	  If unsure, say Y.
 
 config CAN_AT91
