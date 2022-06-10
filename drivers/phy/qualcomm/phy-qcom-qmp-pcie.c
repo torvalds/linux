@@ -2141,8 +2141,8 @@ static int phy_pipe_clk_register(struct qcom_qmp *qmp, struct device_node *np)
 }
 
 static const struct phy_ops qcom_qmp_phy_pcie_ops = {
-	.init		= qcom_qmp_phy_pcie_enable,
-	.exit		= qcom_qmp_phy_pcie_disable,
+	.power_on	= qcom_qmp_phy_pcie_enable,
+	.power_off	= qcom_qmp_phy_pcie_disable,
 	.set_mode	= qcom_qmp_phy_pcie_set_mode,
 	.owner		= THIS_MODULE,
 };
