@@ -48,15 +48,19 @@ config CAN_SLCAN
 	  can be changed by the 'maxdev=xx' module option. This driver can
 	  also be built as a module. If so, the module will be called slcan.
 
-config CAN_DEV
-	tristate "Platform CAN drivers with Netlink support"
+config CAN_NETLINK
+	tristate "CAN device drivers with Netlink support"
 	default y
 	help
-	  Enables the common framework for platform CAN drivers with Netlink
-	  support. This is the standard library for CAN drivers.
-	  If unsure, say Y.
+	  Enables the common framework for CAN device drivers. This is the
+	  standard library and provides features for the Netlink interface such
+	  as bittiming validation, support of CAN error states, device restart
+	  and others.
 
-if CAN_DEV
+	  This is required by all platform and hardware CAN drivers. If you
+	  plan to use such devices or if unsure, say Y.
+
+if CAN_NETLINK
 
 config CAN_CALC_BITTIMING
 	bool "CAN bit-timing calculation"
@@ -164,7 +168,7 @@ source "drivers/net/can/softing/Kconfig"
 source "drivers/net/can/spi/Kconfig"
 source "drivers/net/can/usb/Kconfig"
 
-endif
+endif #CAN_NETLINK
 
 config CAN_DEBUG_DEVICES
 	bool "CAN devices debugging messages"
