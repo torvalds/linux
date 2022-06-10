@@ -792,6 +792,36 @@ static const struct panel_desc ampire_am800480r3tmqwa1h = {
 	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
 };
 
+static const struct display_timing ampire_am800600p5tmqw_tb8h_timing = {
+	.pixelclock = { 34500000, 39600000, 50400000 },
+	.hactive = { 800, 800, 800 },
+	.hfront_porch = { 12, 112, 312 },
+	.hback_porch = { 87, 87, 48 },
+	.hsync_len = { 1, 1, 40 },
+	.vactive = { 600, 600, 600 },
+	.vfront_porch = { 1, 21, 61 },
+	.vback_porch = { 38, 38, 19 },
+	.vsync_len = { 1, 1, 20 },
+	.flags = DISPLAY_FLAGS_HSYNC_LOW | DISPLAY_FLAGS_VSYNC_LOW |
+		DISPLAY_FLAGS_DE_HIGH | DISPLAY_FLAGS_PIXDATA_POSEDGE |
+		DISPLAY_FLAGS_SYNC_POSEDGE,
+};
+
+static const struct panel_desc ampire_am800600p5tmqwtb8h = {
+	.timings = &ampire_am800600p5tmqw_tb8h_timing,
+	.num_timings = 1,
+	.bpc = 6,
+	.size = {
+		.width = 162,
+		.height = 122,
+	},
+	.bus_format = MEDIA_BUS_FMT_RGB666_1X18,
+	.bus_flags = DRM_BUS_FLAG_DE_HIGH |
+		DRM_BUS_FLAG_PIXDATA_SAMPLE_NEGEDGE |
+		DRM_BUS_FLAG_SYNC_SAMPLE_NEGEDGE,
+	.connector_type = DRM_MODE_CONNECTOR_DPI,
+};
+
 static const struct display_timing santek_st0700i5y_rbslw_f_timing = {
 	.pixelclock = { 26400000, 33300000, 46800000 },
 	.hactive = { 800, 800, 800 },
@@ -3792,6 +3822,9 @@ static const struct of_device_id platform_of_match[] = {
 	}, {
 		.compatible = "ampire,am800480r3tmqwa1h",
 		.data = &ampire_am800480r3tmqwa1h,
+	}, {
+		.compatible = "ampire,am800600p5tmqw-tb8h",
+		.data = &ampire_am800600p5tmqwtb8h,
 	}, {
 		.compatible = "arm,rtsm-display",
 		.data = &arm_rtsm,
