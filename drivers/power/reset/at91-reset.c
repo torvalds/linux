@@ -66,6 +66,7 @@ enum reset_type {
  * @rstc_base:		base address for system reset
  * @ramc_base:		array with base addresses of RAM controllers
  * @sclk:		slow clock
+ * @data:		platform specific reset data
  * @nb:			reset notifier block
  * @args:		SoC specific system reset arguments
  * @ramc_lpr:		SDRAM Controller Low Power Register
@@ -74,9 +75,24 @@ struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
 	struct clk *sclk;
+	const struct at91_reset_data *data;
 	struct notifier_block nb;
 	u32 args;
 	u32 ramc_lpr;
+};
+
+/**
+ * struct at91_reset_data - AT91 reset data
+ * @reset_args:			SoC specific system reset arguments
+ * @n_device_reset:		number of device resets
+ * @device_reset_min_id:	min id for device reset
+ * @device_reset_max_id:	max id for device reset
+ */
+struct at91_reset_data {
+	u32 reset_args;
+	u32 n_device_reset;
+	u8 device_reset_min_id;
+	u8 device_reset_max_id;
 };
 
 /*
@@ -115,7 +131,7 @@ static int at91_reset(struct notifier_block *this, unsigned long mode,
 		  "r" (reset->rstc_base),
 		  "r" (1),
 		  "r" cpu_to_le32(AT91_DDRSDRC_LPCB_POWER_DOWN),
-		  "r" (reset->args),
+		  "r" (reset->data->reset_args),
 		  "r" (reset->ramc_lpr)
 		: "r4");
 
@@ -173,29 +189,34 @@ static const struct of_device_id at91_ramc_of_match[] = {
 	{ /* sentinel */ }
 };
 
+static const struct at91_reset_data sam9260 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PERRST | AT91_RSTC_PROCRST,
+};
+
+static const struct at91_reset_data samx7 = {
+	.reset_args = AT91_RSTC_KEY | AT91_RSTC_PROCRST,
+};
+
 static const struct of_device_id at91_reset_of_match[] = {
 	{
 		.compatible = "atmel,at91sam9260-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
-				 AT91_RSTC_PROCRST),
+		.data = &sam9260,
 	},
 	{
 		.compatible = "atmel,at91sam9g45-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
-				 AT91_RSTC_PROCRST)
+		.data = &sam9260,
 	},
 	{
 		.compatible = "atmel,sama5d3-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PERRST |
-				 AT91_RSTC_PROCRST)
+		.data = &sam9260,
 	},
 	{
 		.compatible = "atmel,samx7-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PROCRST)
+		.data = &samx7,
 	},
 	{
 		.compatible = "microchip,sam9x60-rstc",
-		.data = (void *)(AT91_RSTC_KEY | AT91_RSTC_PROCRST)
+		.data = &samx7,
 	},
 	{ /* sentinel */ }
 };
@@ -232,10 +253,12 @@ static int __init at91_reset_probe(struct platform_device *pdev)
 		}
 	}
 
-	match = of_match_node(at91_reset_of_match, pdev->dev.of_node);
+	reset->data = device_get_match_data(&pdev->dev);
+	if (!reset->data)
+		return -ENODEV;
+
 	reset->nb.notifier_call = at91_reset;
 	reset->nb.priority = 192;
-	reset->args = (u32)match->data;
 
 	reset->sclk = devm_clk_get(&pdev->dev, NULL);
 	if (IS_ERR(reset->sclk))
