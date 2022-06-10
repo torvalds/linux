@@ -165,7 +165,7 @@ if [ "${BUILD_VENDOR_DLKM}" == "1" ]; then
   COMBINED_MODULE_LIST=$(mktemp)
 fi
 
-if [[ "${BUILD_SYSTEM_DLKM}" == "1"  && ! -z "${SYSTEM_DLKM_MODULES_LIST}" ]]; then
+if [[ "${PREPARE_SYSTEM_DLKM}" == "1"  && ! -z "${SYSTEM_DLKM_MODULES_LIST}" ]]; then
   {
     awk -F'/' '{print $NF}' ${SYSTEM_DLKM_MODULES_LIST}
     [ -f "${MODULES_LIST}" ] && cat "${MODULES_LIST}"
@@ -200,16 +200,15 @@ if [ "${BUILD_VENDOR_DLKM}" == "1" ]; then
 fi
 
 function prepare_system_dlkm() {
-   if [ -e "${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}" ]; then
-    SYSTEM_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}"
-    cp $SYSTEM_DLKM_MODULES_BLOCKLIST ${DIST_DIR}/system_dlkm.modules.blocklist
+  if [ "${PREPARE_SYSTEM_DLKM}" == "1" ]; then
+    if [ -e "${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}" ]; then
+      SYSTEM_DLKM_MODULES_BLOCKLIST="${KERNEL_DIR}/modules.systemdlkm_blocklist.${CONFIG_TARGET}"
+      cp $SYSTEM_DLKM_MODULES_BLOCKLIST ${DIST_DIR}/system_dlkm.modules.blocklist
+    fi
+    SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/system_dlkm.img")
   fi
-  SUPER_IMAGE_CONTENTS+=("${DIST_DIR}/system_dlkm.img")
 }
-
-if [ "${BUILD_SYSTEM_DLKM}" == "1" ]; then
-  append_cmd DIST_CMDS 'prepare_system_dlkm'
-fi
+append_cmd DIST_CMDS 'prepare_system_dlkm'
 
 KERNEL_BINARY=Image
 
