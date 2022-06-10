@@ -2014,6 +2014,7 @@ static int unuse_pte_range(struct vm_area_struct *vma, pmd_t *pmd,
 		}
 
 		try_to_free_swap(page);
+		trace_android_vh_unuse_swap_page(si, page);
 		unlock_page(page);
 		put_page(page);
 
@@ -2252,6 +2253,7 @@ retry:
 		lock_page(page);
 		wait_on_page_writeback(page);
 		try_to_free_swap(page);
+		trace_android_vh_unuse_swap_page(si, page);
 		unlock_page(page);
 		put_page(page);
 

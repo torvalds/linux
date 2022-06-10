@@ -185,6 +185,9 @@ DECLARE_HOOK(android_vh_page_isolated_for_reclaim,
 DECLARE_HOOK(android_vh_account_swap_pages,
 	TP_PROTO(struct swap_info_struct *si, bool *skip),
 	TP_ARGS(si, skip));
+DECLARE_HOOK(android_vh_unuse_swap_page,
+	TP_PROTO(struct swap_info_struct *si, struct page *page),
+	TP_ARGS(si, page));
 /* macro versions of hooks are no longer required */
 
 #endif /* _TRACE_HOOK_MM_H */
