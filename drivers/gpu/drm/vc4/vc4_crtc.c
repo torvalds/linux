@@ -925,16 +925,31 @@ static int vc4_async_page_flip(struct drm_crtc *crtc,
 	return 0;
 }
 
+static int vc5_async_page_flip(struct drm_crtc *crtc,
+			       struct drm_framebuffer *fb,
+			       struct drm_pending_vblank_event *event,
+			       uint32_t flags)
+{
+	return vc4_async_page_flip_common(crtc, fb, event, flags);
+}
+
 int vc4_page_flip(struct drm_crtc *crtc,
 		  struct drm_framebuffer *fb,
 		  struct drm_pending_vblank_event *event,
 		  uint32_t flags,
 		  struct drm_modeset_acquire_ctx *ctx)
 {
-	if (flags & DRM_MODE_PAGE_FLIP_ASYNC)
-		return vc4_async_page_flip(crtc, fb, event, flags);
-	else
+	if (flags & DRM_MODE_PAGE_FLIP_ASYNC) {
+		struct drm_device *dev = crtc->dev;
+		struct vc4_dev *vc4 = to_vc4_dev(dev);
+
+		if (vc4->is_vc5)
+			return vc5_async_page_flip(crtc, fb, event, flags);
+		else
+			return vc4_async_page_flip(crtc, fb, event, flags);
+	} else {
 		return drm_atomic_helper_page_flip(crtc, fb, event, flags, ctx);
+	}
 }
 
 struct drm_crtc_state *vc4_crtc_duplicate_state(struct drm_crtc *crtc)
