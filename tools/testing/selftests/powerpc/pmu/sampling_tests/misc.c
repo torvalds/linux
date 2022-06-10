@@ -259,12 +259,31 @@ u64 *get_intr_regs(struct event *event, void *sample_buff)
 	u64 *intr_regs;
 	size_t size = 0;
 
-	if ((type ^ PERF_SAMPLE_REGS_INTR))
+	if ((type ^ (PERF_SAMPLE_REGS_INTR | PERF_SAMPLE_BRANCH_STACK)) &&
+			(type  ^ PERF_SAMPLE_REGS_INTR))
 		return NULL;
 
 	intr_regs = (u64 *)perf_read_first_sample(sample_buff, &size);
 	if (!intr_regs)
 		return NULL;
+
+	if (type & PERF_SAMPLE_BRANCH_STACK) {
+		/*
+		 * PERF_RECORD_SAMPLE and PERF_SAMPLE_BRANCH_STACK:
+		 * struct {
+		 *     struct perf_event_header hdr;
+		 *     u64 number_of_branches;
+		 *     struct perf_branch_entry[number_of_branches];
+		 *     u64 data[];
+		 * };
+		 * struct perf_branch_entry {
+		 *     u64	from;
+		 *     u64	to;
+		 *     u64	misc;
+		 * };
+		 */
+		intr_regs += ((*intr_regs) * 3) + 1;
+	}
 
 	/*
 	 * First entry in the sample buffer used to specify
