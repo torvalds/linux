@@ -783,6 +783,7 @@ int kvm_arch_vcpu_ioctl_run(struct kvm_vcpu *vcpu)
 
 	ret = 1;
 	run->exit_reason = KVM_EXIT_UNKNOWN;
+	run->flags = 0;
 	while (ret > 0) {
 		/*
 		 * Check conditions before entering the guest

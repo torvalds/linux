@@ -631,12 +631,17 @@
 			Defaults to zero when built as a module and to
 			10 seconds when built into the kernel.
 
-	clearcpuid=BITNUM[,BITNUM...] [X86]
+	clearcpuid=X[,X...] [X86]
 			Disable CPUID feature X for the kernel. See
 			arch/x86/include/asm/cpufeatures.h for the valid bit
-			numbers. Note the Linux specific bits are not necessarily
-			stable over kernel options, but the vendor specific
+			numbers X. Note the Linux-specific bits are not necessarily
+			stable over kernel options, but the vendor-specific
 			ones should be.
+			X can also be a string as appearing in the flags: line
+			in /proc/cpuinfo which does not have the above
+			instability issue. However, not all features have names
+			in /proc/cpuinfo.
+			Note that using this option will taint your kernel.
 			Also note that user programs calling CPUID directly
 			or using the feature without checking anything
 			will still see it. This just prevents it from
@@ -808,7 +813,7 @@
 			Documentation/admin-guide/kdump/kdump.rst for an example.
 
 	crashkernel=size[KMG],high
-			[KNL, X86-64] range could be above 4G. Allow kernel
+			[KNL, X86-64, ARM64] range could be above 4G. Allow kernel
 			to allocate physical memory region from top, so could
 			be above 4G if system have more than 4G ram installed.
 			Otherwise memory region will be allocated below 4G, if
@@ -821,13 +826,19 @@
 			that require some amount of low memory, e.g. swiotlb
 			requires at least 64M+32K low memory, also enough extra
 			low memory is needed to make sure DMA buffers for 32-bit
-			devices won't run out. Kernel would try to allocate at
+			devices won't run out. Kernel would try to allocate
 			at least 256M below 4G automatically.
-			This one let user to specify own low range under 4G
+			This one lets the user specify own low range under 4G
 			for second kernel instead.
 			0: to disable low allocation.
 			It will be ignored when crashkernel=X,high is not used
 			or memory reserved is below 4G.
+
+			[KNL, ARM64] range in low memory.
+			This one lets the user specify a low range in the
+			DMA zone for the crash dump kernel.
+			It will be ignored when crashkernel=X,high is not used
+			or memory reserved is located in the DMA zones.
 
 	cryptomgr.notests
 			[KNL] Disable crypto self-tests
@@ -2630,14 +2641,14 @@
 			when set.
 			Format: <int>
 
-	libata.force=	[LIBATA] Force configurations.  The format is comma-
-			separated list of "[ID:]VAL" where ID is
-			PORT[.DEVICE].  PORT and DEVICE are decimal numbers
-			matching port, link or device.  Basically, it matches
-			the ATA ID string printed on console by libata.  If
-			the whole ID part is omitted, the last PORT and DEVICE
-			values are used.  If ID hasn't been specified yet, the
-			configuration applies to all ports, links and devices.
+	libata.force=	[LIBATA] Force configurations.  The format is a comma-
+			separated list of "[ID:]VAL" where ID is PORT[.DEVICE].
+			PORT and DEVICE are decimal numbers matching port, link
+			or device.  Basically, it matches the ATA ID string
+			printed on console by libata.  If the whole ID part is
+			omitted, the last PORT and DEVICE values are used.  If
+			ID hasn't been specified yet, the configuration applies
+			to all ports, links and devices.
 
 			If only DEVICE is omitted, the parameter applies to
 			the port and all links and devices behind it.  DEVICE
@@ -2647,7 +2658,7 @@
 			host link and device attached to it.
 
 			The VAL specifies the configuration to force.  As long
-			as there's no ambiguity shortcut notation is allowed.
+			as there is no ambiguity, shortcut notation is allowed.
 			For example, both 1.5 and 1.5G would work for 1.5Gbps.
 			The following configurations can be forced.
 
@@ -2660,19 +2671,58 @@
 			  udma[/][16,25,33,44,66,100,133] notation is also
 			  allowed.
 
+			* nohrst, nosrst, norst: suppress hard, soft and both
+			  resets.
+
+			* rstonce: only attempt one reset during hot-unplug
+			  link recovery.
+
+			* [no]dbdelay: Enable or disable the extra 200ms delay
+			  before debouncing a link PHY and device presence
+			  detection.
+
 			* [no]ncq: Turn on or off NCQ.
 
-			* [no]ncqtrim: Turn off queued DSM TRIM.
+			* [no]ncqtrim: Enable or disable queued DSM TRIM.
 
-			* nohrst, nosrst, norst: suppress hard, soft
-			  and both resets.
+			* [no]ncqati: Enable or disable NCQ trim on ATI chipset.
 
-			* rstonce: only attempt one reset during
-			  hot-unplug link recovery
+			* [no]trim: Enable or disable (unqueued) TRIM.
 
-			* dump_id: dump IDENTIFY data.
+			* trim_zero: Indicate that TRIM command zeroes data.
 
-			* atapi_dmadir: Enable ATAPI DMADIR bridge support
+			* max_trim_128m: Set 128M maximum trim size limit.
+
+			* [no]dma: Turn on or off DMA transfers.
+
+			* atapi_dmadir: Enable ATAPI DMADIR bridge support.
+
+			* atapi_mod16_dma: Enable the use of ATAPI DMA for
+			  commands that are not a multiple of 16 bytes.
+
+			* [no]dmalog: Enable or disable the use of the
+			  READ LOG DMA EXT command to access logs.
+
+			* [no]iddevlog: Enable or disable access to the
+			  identify device data log.
+
+			* [no]logdir: Enable or disable access to the general
+			  purpose log directory.
+
+			* max_sec_128: Set transfer size limit to 128 sectors.
+
+			* max_sec_1024: Set or clear transfer size limit to
+			  1024 sectors.
+
+			* max_sec_lba48: Set or clear transfer size limit to
+			  65535 sectors.
+
+			* [no]lpm: Enable or disable link power management.
+
+			* [no]setxfer: Indicate if transfer speed mode setting
+			  should be skipped.
+
+			* dump_id: Dump IDENTIFY data.
 
 			* disable: Disable this device.
 
@@ -3111,6 +3161,7 @@
 					       mds=off [X86]
 					       tsx_async_abort=off [X86]
 					       kvm.nx_huge_pages=off [X86]
+					       srbds=off [X86,INTEL]
 					       no_entry_flush [PPC]
 					       no_uaccess_flush [PPC]
 
@@ -3447,8 +3498,6 @@
 
 	nocache		[ARM]
 
-	noclflush	[BUGS=X86] Don't use the CLFLUSH instruction
-
 	delayacct	[KNL] Enable per-task delay accounting
 
 	nodsp		[SH] Disable hardware DSP at boot time.
@@ -3459,16 +3508,11 @@
 
 	noexec		[IA-64]
 
-	noexec		[X86]
-			On X86-32 available only on PAE configured kernels.
-			noexec=on: enable non-executable mappings (default)
-			noexec=off: disable non-executable mappings
-
-	nosmap		[X86,PPC]
+	nosmap		[PPC]
 			Disable SMAP (Supervisor Mode Access Prevention)
 			even if it is supported by processor.
 
-	nosmep		[X86,PPC64s]
+	nosmep		[PPC64s]
 			Disable SMEP (Supervisor Mode Execution Prevention)
 			even if it is supported by processor.
 
@@ -3667,8 +3711,6 @@
 			reader made by F.H. Papenmeier (Germany).
 
 	nosbagart	[IA-64]
-
-	nosep		[BUGS=X86-32] Disables x86 SYSENTER/SYSEXIT support.
 
 	nosgx		[X86-64,SGX] Disables Intel SGX kernel support.
 
@@ -4901,6 +4943,18 @@
 
 	rcupdate.rcu_cpu_stall_timeout= [KNL]
 			Set timeout for RCU CPU stall warning messages.
+			The value is in seconds and the maximum allowed
+			value is 300 seconds.
+
+	rcupdate.rcu_exp_cpu_stall_timeout= [KNL]
+			Set timeout for expedited RCU CPU stall warning
+			messages.  The value is in milliseconds
+			and the maximum allowed value is 21000
+			milliseconds. Please note that this value is
+			adjusted to an arch timer tick resolution.
+			Setting this to zero causes the value from
+			rcupdate.rcu_cpu_stall_timeout to be used (after
+			conversion from seconds to milliseconds).
 
 	rcupdate.rcu_expedited= [KNL]
 			Use expedited grace-period primitives, for
@@ -4963,10 +5017,34 @@
 			number avoids disturbing real-time workloads,
 			but lengthens grace periods.
 
+	rcupdate.rcu_task_stall_info= [KNL]
+			Set initial timeout in jiffies for RCU task stall
+			informational messages, which give some indication
+			of the problem for those not patient enough to
+			wait for ten minutes.  Informational messages are
+			only printed prior to the stall-warning message
+			for a given grace period. Disable with a value
+			less than or equal to zero.  Defaults to ten
+			seconds.  A change in value does not take effect
+			until the beginning of the next grace period.
+
+	rcupdate.rcu_task_stall_info_mult= [KNL]
+			Multiplier for time interval between successive
+			RCU task stall informational messages for a given
+			RCU tasks grace period.  This value is clamped
+			to one through ten, inclusive.	It defaults to
+			the value three, so that the first informational
+			message is printed 10 seconds into the grace
+			period, the second at 40 seconds, the third at
+			160 seconds, and then the stall warning at 600
+			seconds would prevent a fourth at 640 seconds.
+
 	rcupdate.rcu_task_stall_timeout= [KNL]
-			Set timeout in jiffies for RCU task stall warning
-			messages.  Disable with a value less than or equal
-			to zero.
+			Set timeout in jiffies for RCU task stall
+			warning messages.  Disable with a value less
+			than or equal to zero.	Defaults to ten minutes.
+			A change in value does not take effect until
+			the beginning of the next grace period.
 
 	rcupdate.rcu_self_test= [KNL]
 			Run the RCU early boot self tests
@@ -5316,6 +5394,8 @@
 
 	serialnumber	[BUGS=X86-32]
 
+	sev=option[,option...] [X86-64] See Documentation/x86/x86_64/boot-options.rst
+
 	shapers=	[NET]
 			Maximal number of shapers.
 
@@ -5384,6 +5464,17 @@
 
 	smart2=		[HW]
 			Format: <io1>[,<io2>[,...,<io8>]]
+
+	smp.csd_lock_timeout= [KNL]
+			Specify the period of time in milliseconds
+			that smp_call_function() and friends will wait
+			for a CPU to release the CSD lock.  This is
+			useful when diagnosing bugs involving CPUs
+			disabling interrupts for extended periods
+			of time.  Defaults to 5,000 milliseconds, and
+			setting a value of zero disables this feature.
+			This feature may be more efficiently disabled
+			using the csdlock_debug- kernel parameter.
 
 	smsc-ircc2.nopnp	[HW] Don't use PNP to discover SMC devices
 	smsc-ircc2.ircc_cfg=	[HW] Device configuration I/O port
@@ -5616,6 +5707,30 @@
 			off:    Disable mitigation and remove
 				performance impact to RDRAND and RDSEED
 
+	srcutree.big_cpu_lim [KNL]
+			Specifies the number of CPUs constituting a
+			large system, such that srcu_struct structures
+			should immediately allocate an srcu_node array.
+			This kernel-boot parameter defaults to 128,
+			but takes effect only when the low-order four
+			bits of srcutree.convert_to_big is equal to 3
+			(decide at boot).
+
+	srcutree.convert_to_big [KNL]
+			Specifies under what conditions an SRCU tree
+			srcu_struct structure will be converted to big
+			form, that is, with an rcu_node tree:
+
+				   0:  Never.
+				   1:  At init_srcu_struct() time.
+				   2:  When rcutorture decides to.
+				   3:  Decide at boot time (default).
+				0x1X:  Above plus if high contention.
+
+			Either way, the srcu_node tree will be sized based
+			on the actual runtime number of CPUs (nr_cpu_ids)
+			instead of the compile-time CONFIG_NR_CPUS.
+
 	srcutree.counter_wrap_check [KNL]
 			Specifies how frequently to check for
 			grace-period sequence counter wrap for the
@@ -5632,6 +5747,14 @@
 			grace period will be considered for automatic
 			expediting.  Set to zero to disable automatic
 			expediting.
+
+	srcutree.small_contention_lim [KNL]
+			Specifies the number of update-side contention
+			events per jiffy will be tolerated before
+			initiating a conversion of an srcu_struct
+			structure to big form.	Note that the value of
+			srcutree.convert_to_big must have the 0x10 bit
+			set for contention-based conversions to occur.
 
 	ssbd=		[ARM64,HW]
 			Speculative Store Bypass Disable control

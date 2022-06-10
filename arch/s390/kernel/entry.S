@@ -53,19 +53,19 @@ STACK_INIT = STACK_SIZE - STACK_FRAME_OVERHEAD - __PT_SIZE
 _LPP_OFFSET	= __LC_LPP
 
 	.macro STBEAR address
-	ALTERNATIVE "", ".insn	s,0xb2010000,\address", 193
+	ALTERNATIVE "nop", ".insn s,0xb2010000,\address", 193
 	.endm
 
 	.macro LBEAR address
-	ALTERNATIVE "", ".insn	s,0xb2000000,\address", 193
+	ALTERNATIVE "nop", ".insn s,0xb2000000,\address", 193
 	.endm
 
 	.macro LPSWEY address,lpswe
-	ALTERNATIVE "b \lpswe", ".insn siy,0xeb0000000071,\address,0", 193
+	ALTERNATIVE "b \lpswe; nopr", ".insn siy,0xeb0000000071,\address,0", 193
 	.endm
 
 	.macro MBEAR reg
-	ALTERNATIVE "", __stringify(mvc __PT_LAST_BREAK(8,\reg),__LC_LAST_BREAK), 193
+	ALTERNATIVE "brcl 0,0", __stringify(mvc __PT_LAST_BREAK(8,\reg),__LC_LAST_BREAK), 193
 	.endm
 
 	.macro	CHECK_STACK savearea
@@ -121,16 +121,16 @@ _LPP_OFFSET	= __LC_LPP
 	.endm
 
 	.macro BPOFF
-	ALTERNATIVE "", ".insn rrf,0xb2e80000,0,0,12,0", 82
+	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,12,0", 82
 	.endm
 
 	.macro BPON
-	ALTERNATIVE "", ".insn rrf,0xb2e80000,0,0,13,0", 82
+	ALTERNATIVE "nop", ".insn rrf,0xb2e80000,0,0,13,0", 82
 	.endm
 
 	.macro BPENTER tif_ptr,tif_mask
 	ALTERNATIVE "TSTMSK \tif_ptr,\tif_mask; jz .+8; .insn rrf,0xb2e80000,0,0,13,0", \
-		    "", 82
+		    "j .+12; nop; nop", 82
 	.endm
 
 	.macro BPEXIT tif_ptr,tif_mask
@@ -172,9 +172,19 @@ _LPP_OFFSET	= __LC_LPP
 	lgr	%r14,\reg
 	larl	%r13,\start
 	slgr	%r14,%r13
-	lghi	%r13,\end - \start
-	clgr	%r14,%r13
+#ifdef CONFIG_AS_IS_LLVM
+	clgfrl	%r14,.Lrange_size\@
+#else
+	clgfi	%r14,\end - \start
+#endif
 	jhe	\outside_label
+#ifdef CONFIG_AS_IS_LLVM
+	.section .rodata, "a"
+	.align 4
+.Lrange_size\@:
+	.long	\end - \start
+	.previous
+#endif
 	.endm
 
 	.macro SIEEXIT
@@ -226,7 +236,7 @@ ENTRY(__switch_to)
 	aghi	%r3,__TASK_pid
 	mvc	__LC_CURRENT_PID(4,%r0),0(%r3)	# store pid of next
 	lmg	%r6,%r15,__SF_GPRS(%r15)	# load gprs of next task
-	ALTERNATIVE "", "lpp _LPP_OFFSET", 40
+	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
 	BR_EX	%r14
 ENDPROC(__switch_to)
 
@@ -473,10 +483,7 @@ ENTRY(\name)
 	mvc	__PT_R8(64,%r11),__LC_SAVE_AREA_ASYNC
 	MBEAR	%r11
 	stmg	%r8,%r9,__PT_PSW(%r11)
-	tm	%r8,0x0001		# coming from user space?
-	jno	1f
-	lctlg	%c1,%c1,__LC_KERNEL_ASCE
-1:	lgr	%r2,%r11		# pass pointer to pt_regs
+	lgr	%r2,%r11		# pass pointer to pt_regs
 	brasl	%r14,\handler
 	mvc	__LC_RETURN_PSW(16),__PT_PSW(%r11)
 	tmhh	%r8,0x0001		# returning to user ?
@@ -602,6 +609,7 @@ ENTRY(mcck_int_handler)
 	mvc	STACK_FRAME_OVERHEAD(__PT_SIZE,%r1),0(%r11)
 	xc	__SF_BACKCHAIN(8,%r1),__SF_BACKCHAIN(%r1)
 	la	%r11,STACK_FRAME_OVERHEAD(%r1)
+	lgr	%r2,%r11
 	lgr	%r15,%r1
 	brasl	%r14,s390_handle_mcck
 .Lmcck_return:
@@ -612,7 +620,7 @@ ENTRY(mcck_int_handler)
 	jno	0f
 	BPEXIT	__TI_flags(%r12),_TIF_ISOLATE_BP
 	stpt	__LC_EXIT_TIMER
-0:	ALTERNATIVE "", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA),193
+0:	ALTERNATIVE "nop", __stringify(lghi %r12,__LC_LAST_BREAK_SAVE_AREA),193
 	LBEAR	0(%r12)
 	lmg	%r11,%r15,__PT_R11(%r11)
 	LPSWEY	__LC_RETURN_MCCK_PSW,__LC_RETURN_MCCK_LPSWE
@@ -648,7 +656,7 @@ ENTRY(mcck_int_handler)
 ENDPROC(mcck_int_handler)
 
 ENTRY(restart_int_handler)
-	ALTERNATIVE "", "lpp _LPP_OFFSET", 40
+	ALTERNATIVE "nop", "lpp _LPP_OFFSET", 40
 	stg	%r15,__LC_SAVE_AREA_RESTART
 	TSTMSK	__LC_RESTART_FLAGS,RESTART_FLAG_CTLREGS,4
 	jz	0f

@@ -357,6 +357,11 @@ static inline u32 efi64_convert_status(efi_status_t status)
 						   runtime),		\
 				    func, __VA_ARGS__))
 
+#define efi_dxe_call(func, ...)						\
+	(efi_is_native()						\
+		? efi_dxe_table->func(__VA_ARGS__)			\
+		: __efi64_thunk_map(efi_dxe_table, func, __VA_ARGS__))
+
 #else /* CONFIG_EFI_MIXED */
 
 static inline bool efi_is_64bit(void)

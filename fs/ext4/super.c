@@ -5474,13 +5474,9 @@ no_journal:
 			goto failed_mount9;
 	}
 
-	if (test_opt(sb, DISCARD)) {
-		struct request_queue *q = bdev_get_queue(sb->s_bdev);
-		if (!blk_queue_discard(q))
-			ext4_msg(sb, KERN_WARNING,
-				 "mounting with \"discard\" option, but "
-				 "the device does not support discard");
-	}
+	if (test_opt(sb, DISCARD) && !bdev_max_discard_sectors(sb->s_bdev))
+		ext4_msg(sb, KERN_WARNING,
+			 "mounting with \"discard\" option, but the device does not support discard");
 
 	if (es->s_error_count)
 		mod_timer(&sbi->s_err_report, jiffies + 300*HZ); /* 5 minutes */
