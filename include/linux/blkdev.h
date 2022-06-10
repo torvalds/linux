@@ -1365,6 +1365,11 @@ static inline int queue_dma_alignment(const struct request_queue *q)
 	return q ? q->dma_alignment : 511;
 }
 
+static inline unsigned int bdev_dma_alignment(struct block_device *bdev)
+{
+	return queue_dma_alignment(bdev_get_queue(bdev));
+}
+
 static inline int blk_rq_aligned(struct request_queue *q, unsigned long addr,
 				 unsigned int len)
 {
