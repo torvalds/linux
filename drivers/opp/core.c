@@ -97,6 +97,18 @@ struct opp_table *_find_opp_table(struct device *dev)
 	return opp_table;
 }
 
+/*
+ * Returns true if multiple clocks aren't there, else returns false with WARN.
+ *
+ * We don't force clk_count == 1 here as there are users who don't have a clock
+ * representation in the OPP table and manage the clock configuration themselves
+ * in an platform specific way.
+ */
+static bool assert_single_clk(struct opp_table *opp_table)
+{
+	return !WARN_ON(opp_table->clk_count > 1);
+}
+
 /**
  * dev_pm_opp_get_voltage() - Gets the voltage corresponding to an opp
  * @opp:	opp for which voltage has to be returned for
@@ -180,6 +192,9 @@ unsigned long dev_pm_opp_get_freq(struct dev_pm_opp *opp)
 		pr_err("%s: Invalid parameters\n", __func__);
 		return 0;
 	}
+
+	if (!assert_single_clk(opp->opp_table))
+		return 0;
 
 	return opp->rates[0];
 }
@@ -601,7 +616,8 @@ static struct dev_pm_opp *_find_key_floor(struct device *dev,
 struct dev_pm_opp *dev_pm_opp_find_freq_exact(struct device *dev,
 		unsigned long freq, bool available)
 {
-	return _find_key_exact(dev, freq, 0, available, _read_freq, NULL);
+	return _find_key_exact(dev, freq, 0, available, _read_freq,
+			       assert_single_clk);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_exact);
 
@@ -609,7 +625,7 @@ static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 						   unsigned long *freq)
 {
 	return _opp_table_find_key_ceil(opp_table, freq, 0, true, _read_freq,
-					NULL);
+					assert_single_clk);
 }
 
 /**
@@ -633,7 +649,7 @@ static noinline struct dev_pm_opp *_find_freq_ceil(struct opp_table *opp_table,
 struct dev_pm_opp *dev_pm_opp_find_freq_ceil(struct device *dev,
 					     unsigned long *freq)
 {
-	return _find_key_ceil(dev, freq, 0, true, _read_freq, NULL);
+	return _find_key_ceil(dev, freq, 0, true, _read_freq, assert_single_clk);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
 
@@ -658,7 +674,7 @@ EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_ceil);
 struct dev_pm_opp *dev_pm_opp_find_freq_floor(struct device *dev,
 					      unsigned long *freq)
 {
-	return _find_key_floor(dev, freq, 0, true, _read_freq, NULL);
+	return _find_key_floor(dev, freq, 0, true, _read_freq, assert_single_clk);
 }
 EXPORT_SYMBOL_GPL(dev_pm_opp_find_freq_floor);
 
@@ -1535,6 +1551,9 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 	if (IS_ERR(opp_table))
 		return;
 
+	if (!assert_single_clk(opp_table))
+		goto put_table;
+
 	mutex_lock(&opp_table->lock);
 
 	list_for_each_entry(iter, &opp_table->opp_list, node) {
@@ -1556,6 +1575,7 @@ void dev_pm_opp_remove(struct device *dev, unsigned long freq)
 			 __func__, freq);
 	}
 
+put_table:
 	/* Drop the reference taken by _find_opp_table() */
 	dev_pm_opp_put_opp_table(opp_table);
 }
@@ -1881,6 +1901,9 @@ int _opp_add_v1(struct opp_table *opp_table, struct device *dev,
 	struct dev_pm_opp *new_opp;
 	unsigned long tol;
 	int ret;
+
+	if (!assert_single_clk(opp_table))
+		return -EINVAL;
 
 	new_opp = _opp_allocate(opp_table);
 	if (!new_opp)
@@ -2735,6 +2758,11 @@ static int _opp_set_availability(struct device *dev, unsigned long freq,
 		return r;
 	}
 
+	if (!assert_single_clk(opp_table)) {
+		r = -EINVAL;
+		goto put_table;
+	}
+
 	mutex_lock(&opp_table->lock);
 
 	/* Do we have the frequency? */
@@ -2806,6 +2834,11 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 		return r;
 	}
 
+	if (!assert_single_clk(opp_table)) {
+		r = -EINVAL;
+		goto put_table;
+	}
+
 	mutex_lock(&opp_table->lock);
 
 	/* Do we have the frequency? */
@@ -2837,11 +2870,11 @@ int dev_pm_opp_adjust_voltage(struct device *dev, unsigned long freq,
 				     opp);
 
 	dev_pm_opp_put(opp);
-	goto adjust_put_table;
+	goto put_table;
 
 adjust_unlock:
 	mutex_unlock(&opp_table->lock);
-adjust_put_table:
+put_table:
 	dev_pm_opp_put_opp_table(opp_table);
 	return r;
 }
