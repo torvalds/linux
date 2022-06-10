@@ -5,6 +5,13 @@
  */
 
 #include <linux/can/dev.h>
+#include <linux/module.h>
+
+#define MOD_DESC "CAN device driver interface"
+
+MODULE_DESCRIPTION(MOD_DESC);
+MODULE_LICENSE("GPL v2");
+MODULE_AUTHOR("Wolfgang Grandegger <wg@grandegger.com>");
 
 /* Local echo of CAN messages
  *

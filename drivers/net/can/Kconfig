@@ -1,5 +1,25 @@
 # SPDX-License-Identifier: GPL-2.0-only
-menu "CAN Device Drivers"
+
+menuconfig CAN_DEV
+	tristate "CAN Device Drivers"
+	default y
+	help
+	  Controller Area Network (CAN) is serial communications protocol up to
+	  1Mbit/s for its original release (now known as Classical CAN) and up
+	  to 8Mbit/s for the more recent CAN with Flexible Data-Rate
+	  (CAN-FD). The CAN bus was originally mainly for automotive, but is now
+	  widely used in marine (NMEA2000), industrial, and medical
+	  applications. More information on the CAN network protocol family
+	  PF_CAN is contained in <Documentation/networking/can.rst>.
+
+	  This section contains all the CAN(-FD) device drivers including the
+	  virtual ones. If you own such devices or plan to use the virtual CAN
+	  interfaces to develop applications, say Y here.
+
+	  To compile as a module, choose M here: the module will be called
+	  can-dev.
+
+if CAN_DEV
 
 config CAN_VCAN
 	tristate "Virtual Local CAN Interface (vcan)"
@@ -49,13 +69,16 @@ config CAN_SLCAN
 	  also be built as a module. If so, the module will be called slcan.
 
 config CAN_NETLINK
-	tristate "CAN device drivers with Netlink support"
+	bool "CAN device drivers with Netlink support"
 	default y
 	help
 	  Enables the common framework for CAN device drivers. This is the
 	  standard library and provides features for the Netlink interface such
 	  as bittiming validation, support of CAN error states, device restart
 	  and others.
+
+	  The additional features selected by this option will be added to the
+	  can-dev module.
 
 	  This is required by all platform and hardware CAN drivers. If you
 	  plan to use such devices or if unsure, say Y.
@@ -178,4 +201,4 @@ config CAN_DEBUG_DEVICES
 	  a problem with CAN support and want to see more of what is going
 	  on.
 
-endmenu
+endif #CAN_DEV
