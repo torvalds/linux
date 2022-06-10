@@ -1016,22 +1016,18 @@ static void clone_endio(struct bio *bio)
 	struct dm_io *io = tio->io;
 	struct mapped_device *md = io->md;
 
-	if (likely(bio->bi_bdev != md->disk->part0)) {
-		struct request_queue *q = bdev_get_queue(bio->bi_bdev);
-
-		if (unlikely(error == BLK_STS_TARGET)) {
-			if (bio_op(bio) == REQ_OP_DISCARD &&
-			    !bdev_max_discard_sectors(bio->bi_bdev))
-				disable_discard(md);
-			else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
-				 !q->limits.max_write_zeroes_sectors)
-				disable_write_zeroes(md);
-		}
-
-		if (static_branch_unlikely(&zoned_enabled) &&
-		    unlikely(blk_queue_is_zoned(q)))
-			dm_zone_endio(io, bio);
+	if (unlikely(error == BLK_STS_TARGET)) {
+		if (bio_op(bio) == REQ_OP_DISCARD &&
+		    !bdev_max_discard_sectors(bio->bi_bdev))
+			disable_discard(md);
+		else if (bio_op(bio) == REQ_OP_WRITE_ZEROES &&
+			 !bdev_write_zeroes_sectors(bio->bi_bdev))
+			disable_write_zeroes(md);
 	}
+
+	if (static_branch_unlikely(&zoned_enabled) &&
+	    unlikely(blk_queue_is_zoned(bdev_get_queue(bio->bi_bdev))))
+		dm_zone_endio(io, bio);
 
 	if (endio) {
 		int r = endio(ti, bio, &error);
