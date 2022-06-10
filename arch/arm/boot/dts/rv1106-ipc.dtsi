@@ -159,8 +159,8 @@
 		lens-focus = <&cam_ircut0>;
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
-		rockchip,camera-module-name = "CMK-OT2117-PC1";
-		rockchip,camera-module-lens-name = "30IRC-F16";
+		rockchip,camera-module-name = "OT01";
+		rockchip,camera-module-lens-name = "40IRC_F16";
 		port {
 			sc4336_out: endpoint {
 				remote-endpoint = <&csi_dphy_input1>;
