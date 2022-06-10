@@ -34,12 +34,10 @@ static inline int _no_printf(const char *format, ...) { return 0; }
 #endif
 
 void print_skip(const char *fmt, ...) __attribute__((format(printf, 1, 2)));
-#define __TEST_REQUIRE(f, fmt, ...)		\
-do {						\
-	if (!(f)) {				\
-		print_skip(fmt, ##__VA_ARGS__);	\
-		exit(KSFT_SKIP);		\
-	}					\
+#define __TEST_REQUIRE(f, fmt, ...)				\
+do {								\
+	if (!(f))						\
+		ksft_exit_skip("- " fmt "\n", ##__VA_ARGS__);	\
 } while (0)
 
 #define TEST_REQUIRE(f) __TEST_REQUIRE(f, "Requirement not met: %s", #f)
