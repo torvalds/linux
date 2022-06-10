@@ -39,6 +39,17 @@
 #define AT91_RSTC_URSTIEN	BIT(4)		/* User Reset Interrupt Enable */
 #define AT91_RSTC_ERSTL		GENMASK(11, 8)	/* External Reset Length */
 
+/**
+ * enum reset_type - reset types
+ * @RESET_TYPE_GENERAL:		first power-up reset
+ * @RESET_TYPE_WAKEUP:		return from backup mode
+ * @RESET_TYPE_WATCHDOG:	watchdog fault
+ * @RESET_TYPE_SOFTWARE:	processor reset required by software
+ * @RESET_TYPE_USER:		NRST pin detected low
+ * @RESET_TYPE_CPU_FAIL:	CPU clock failure detection
+ * @RESET_TYPE_XTAL_FAIL:	32KHz crystal failure dectection fault
+ * @RESET_TYPE_ULP2:		ULP2 reset
+ */
 enum reset_type {
 	RESET_TYPE_GENERAL	= 0,
 	RESET_TYPE_WAKEUP	= 1,
@@ -50,6 +61,15 @@ enum reset_type {
 	RESET_TYPE_ULP2		= 8,
 };
 
+/**
+ * struct at91_reset - AT91 reset specific data structure
+ * @rstc_base:		base address for system reset
+ * @ramc_base:		array with base addresses of RAM controllers
+ * @sclk:		slow clock
+ * @nb:			reset notifier block
+ * @args:		SoC specific system reset arguments
+ * @ramc_lpr:		SDRAM Controller Low Power Register
+ */
 struct at91_reset {
 	void __iomem *rstc_base;
 	void __iomem *ramc_base[2];
