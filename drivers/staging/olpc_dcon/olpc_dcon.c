@@ -383,7 +383,7 @@ static void dcon_set_source(struct dcon_priv *dcon, int arg)
 static void dcon_set_source_sync(struct dcon_priv *dcon, int arg)
 {
 	dcon_set_source(dcon, arg);
-	flush_scheduled_work();
+	flush_work(&dcon->switch_source);
 }
 
 static ssize_t dcon_mode_show(struct device *dev,
