@@ -27,6 +27,7 @@
 #include <linux/math64.h>
 #include <linux/slab.h>
 #include <asm/processor.h>
+#include <asm/mce.h>
 #include <asm/msr.h>
 #include <asm/page.h>
 #include <asm/current.h>
@@ -399,13 +400,20 @@ static inline int apic_lvt_nmi_mode(u32 lvt_val)
 	return (lvt_val & (APIC_MODE_MASK | APIC_LVT_MASKED)) == APIC_DM_NMI;
 }
 
+static inline bool kvm_lapic_lvt_supported(struct kvm_lapic *apic, int lvt_index)
+{
+	return apic->nr_lvt_entries > lvt_index;
+}
+
 void kvm_apic_set_version(struct kvm_vcpu *vcpu)
 {
 	struct kvm_lapic *apic = vcpu->arch.apic;
-	u32 v = APIC_VERSION | ((KVM_APIC_MAX_NR_LVT_ENTRIES - 1) << 16);
+	u32 v = 0;
 
 	if (!lapic_in_kernel(vcpu))
 		return;
+
+	v = APIC_VERSION | ((apic->nr_lvt_entries - 1) << 16);
 
 	/*
 	 * KVM emulates 82093AA datasheet (with in-kernel IOAPIC implementation)
@@ -426,7 +434,8 @@ static const unsigned int apic_lvt_mask[KVM_APIC_MAX_NR_LVT_ENTRIES] = {
 	[LVT_PERFORMANCE_COUNTER] = LVT_MASK | APIC_MODE_MASK,
 	[LVT_LINT0] = LINT_MASK,
 	[LVT_LINT1] = LINT_MASK,
-	[LVT_ERROR] = LVT_MASK
+	[LVT_ERROR] = LVT_MASK,
+	[LVT_CMCI] = LVT_MASK | APIC_MODE_MASK
 };
 
 static int find_highest_vector(void *bitmap)
@@ -1436,6 +1445,9 @@ static int kvm_lapic_reg_read(struct kvm_lapic *apic, u32 offset, int len,
 		APIC_REG_MASK(APIC_TMCCT) |
 		APIC_REG_MASK(APIC_TDCR);
 
+	if (kvm_lapic_lvt_supported(apic, LVT_CMCI))
+		valid_reg_mask |= APIC_REG_MASK(APIC_LVTCMCI);
+
 	/*
 	 * ARBPRI and ICR2 are not valid in x2APIC mode.  WARN if KVM reads ICR
 	 * in x2APIC mode as it's an 8-byte register in x2APIC and needs to be
@@ -2044,6 +2056,16 @@ static void kvm_lapic_xapic_id_updated(struct kvm_lapic *apic)
 	kvm_set_apicv_inhibit(apic->vcpu->kvm, APICV_INHIBIT_REASON_APIC_ID_MODIFIED);
 }
 
+static int get_lvt_index(u32 reg)
+{
+	if (reg == APIC_LVTCMCI)
+		return LVT_CMCI;
+	if (reg < APIC_LVTT || reg > APIC_LVTERR)
+		return -1;
+	return array_index_nospec(
+			(reg - APIC_LVTT) >> 4, KVM_APIC_MAX_NR_LVT_ENTRIES);
+}
+
 static int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 {
 	int ret = 0;
@@ -2090,12 +2112,10 @@ static int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 		apic_set_spiv(apic, val & mask);
 		if (!(val & APIC_SPIV_APIC_ENABLED)) {
 			int i;
-			u32 lvt_val;
 
-			for (i = 0; i < KVM_APIC_MAX_NR_LVT_ENTRIES; i++) {
-				lvt_val = kvm_lapic_get_reg(apic, APIC_LVTx(i));
+			for (i = 0; i < apic->nr_lvt_entries; i++) {
 				kvm_lapic_set_reg(apic, APIC_LVTx(i),
-					     lvt_val | APIC_LVT_MASKED);
+					kvm_lapic_get_reg(apic, APIC_LVTx(i)) | APIC_LVT_MASKED);
 			}
 			apic_update_lvtt(apic);
 			atomic_set(&apic->lapic_timer.pending, 0);
@@ -2124,16 +2144,15 @@ static int kvm_lapic_reg_write(struct kvm_lapic *apic, u32 reg, u32 val)
 	case APIC_LVTTHMR:
 	case APIC_LVTPC:
 	case APIC_LVT1:
-	case APIC_LVTERR: {
-		/* TODO: Check vector */
-		size_t size;
-		u32 index;
-
+	case APIC_LVTERR:
+	case APIC_LVTCMCI: {
+		u32 index = get_lvt_index(reg);
+		if (!kvm_lapic_lvt_supported(apic, index)) {
+			ret = 1;
+			break;
+		}
 		if (!kvm_apic_sw_enabled(apic))
 			val |= APIC_LVT_MASKED;
-		size = ARRAY_SIZE(apic_lvt_mask);
-		index = array_index_nospec(
-				(reg - APIC_LVTT) >> 4, size);
 		val &= apic_lvt_mask[index];
 		kvm_lapic_set_reg(apic, reg, val);
 		break;
@@ -2409,7 +2428,7 @@ void kvm_lapic_reset(struct kvm_vcpu *vcpu, bool init_event)
 		kvm_apic_set_xapic_id(apic, vcpu->vcpu_id);
 	kvm_apic_set_version(apic->vcpu);
 
-	for (i = 0; i < KVM_APIC_MAX_NR_LVT_ENTRIES; i++)
+	for (i = 0; i < apic->nr_lvt_entries; i++)
 		kvm_lapic_set_reg(apic, APIC_LVTx(i), APIC_LVT_MASKED);
 	apic_update_lvtt(apic);
 	if (kvm_vcpu_is_reset_bsp(vcpu) &&

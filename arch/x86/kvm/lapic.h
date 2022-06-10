@@ -35,11 +35,12 @@ enum lapic_lvt_entry {
 	LVT_LINT0,
 	LVT_LINT1,
 	LVT_ERROR,
+	LVT_CMCI,
 
 	KVM_APIC_MAX_NR_LVT_ENTRIES,
 };
 
-#define APIC_LVTx(x) (APIC_LVTT + 0x10 * (x))
+#define APIC_LVTx(x) ((x) == LVT_CMCI ? APIC_LVTCMCI : APIC_LVTT + 0x10 * (x))
 
 struct kvm_timer {
 	struct hrtimer timer;
@@ -78,6 +79,7 @@ struct kvm_lapic {
 	struct gfn_to_hva_cache vapic_cache;
 	unsigned long pending_events;
 	unsigned int sipi_vector;
+	int nr_lvt_entries;
 };
 
 struct dest_map;
