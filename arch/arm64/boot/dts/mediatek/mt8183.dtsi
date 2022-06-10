@@ -1810,6 +1810,7 @@
 			power-domains = <&spm MT8183_POWER_DOMAIN_DISP>;
 			mediatek,gce-events = <CMDQ_EVENT_MUTEX_STREAM_DONE0>,
 					      <CMDQ_EVENT_MUTEX_STREAM_DONE1>;
+			mediatek,gce-client-reg = <&gce SUBSYS_1401XXXX 0x6000 0x1000>;
 		};
 
 		larb0: larb@14017000 {
