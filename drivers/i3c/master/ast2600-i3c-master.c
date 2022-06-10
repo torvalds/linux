@@ -473,6 +473,12 @@ static void aspeed_i3c_master_enable(struct aspeed_i3c_master *master)
 	       master->regs + DEVICE_CTRL);
 }
 
+static void aspeed_i3c_master_resume(struct aspeed_i3c_master *master)
+{
+	writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
+	       master->regs + DEVICE_CTRL);
+}
+
 static void aspeed_i3c_master_set_role(struct aspeed_i3c_master *master)
 {
 	u32 reg;
@@ -868,8 +874,7 @@ static void aspeed_i3c_master_end_xfer_locked(struct aspeed_i3c_master *master, 
 
 	if (ret < 0) {
 		aspeed_i3c_master_dequeue_xfer_locked(master, xfer);
-		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
-		       master->regs + DEVICE_CTRL);
+		aspeed_i3c_master_resume(master);
 	}
 
 	xfer = list_first_entry_or_null(&master->xferqueue.list,
