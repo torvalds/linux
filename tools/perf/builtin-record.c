@@ -3805,6 +3805,9 @@ int cmd_record(int argc, const char **argv)
 		goto out_opts;
 	}
 
+	if (rec->opts.kcore)
+		rec->opts.text_poke = true;
+
 	if (rec->opts.kcore || record__threads_enabled(rec))
 		rec->data.is_dir = true;
 
