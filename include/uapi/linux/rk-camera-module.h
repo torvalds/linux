@@ -156,6 +156,9 @@
 #define RKMODULE_GET_CSI_DPHY_PARAM       \
 	_IOWR('V', BASE_VIDIOC_PRIVATE + 32, struct rkmodule_csi_dphy_param)
 
+#define RKMODULE_GET_CSI_DSI_INFO       \
+	_IOWR('V', BASE_VIDIOC_PRIVATE + 33, __u32)
+
 struct rkmodule_i2cdev_info {
 	u8 slave_addr;
 } __attribute__ ((packed));
@@ -417,6 +420,14 @@ enum hdr_esp_mode {
 	HDR_NORMAL_VC = 0,
 	HDR_LINE_CNT,
 	HDR_ID_CODE,
+};
+
+/*
+ * CSI/DSI input select IOCTL
+ */
+enum rkmodule_csi_dsi_seq {
+	RKMODULE_CSI_INPUT = 0,
+	RKMODULE_DSI_INPUT,
 };
 
 /**

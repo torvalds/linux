@@ -595,7 +595,7 @@ static struct rkcif_sensor_info *sd_to_sensor(struct rkcif_device *dev,
 	return NULL;
 }
 
-static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
+static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en, u8 dsi_input)
 {
 	switch (pixelformat) {
 	/* csi raw8 */
@@ -622,12 +622,15 @@ static unsigned char get_data_type(u32 pixelformat, u8 cmd_mode_en)
 	case MEDIA_BUS_FMT_YUYV8_2X8:
 	case MEDIA_BUS_FMT_YVYU8_2X8:
 		return 0x1e;
-	case MEDIA_BUS_FMT_RGB888_1X24: {
-		if (cmd_mode_en) /* dsi command mode*/
-			return 0x39;
-		else /* dsi video mode */
-			return 0x3e;
-	}
+	case MEDIA_BUS_FMT_RGB888_1X24:
+		if (dsi_input) {
+			if (cmd_mode_en) /* dsi command mode*/
+				return 0x39;
+			else /* dsi video mode */
+				return 0x3e;
+		} else {
+			return 0x24;
+		}
 	case MEDIA_BUS_FMT_EBD_1X8:
 		return 0x12;
 	case MEDIA_BUS_FMT_SPD_2X8:
@@ -2089,6 +2092,7 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 	channel->fmt_val = stream->cif_fmt_out->csi_fmt_val;
 
 	channel->cmd_mode_en = 0; /* default use DSI Video Mode */
+	channel->dsi_input = dev->terminal_sensor.dsi_input_en;
 
 	if (stream->crop_enable) {
 		channel->crop_en = 1;
@@ -2157,10 +2161,12 @@ static int rkcif_csi_channel_init(struct rkcif_stream *stream,
 			channel->data_type = dev->channels[stream->id].data_type;
 		else
 			channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
-							   channel->cmd_mode_en);
+							   channel->cmd_mode_en,
+							   channel->dsi_input);
 	} else {
 		channel->data_type = get_data_type(stream->cif_fmt_in->mbus_code,
-						   channel->cmd_mode_en);
+						   channel->cmd_mode_en,
+						   channel->dsi_input);
 	}
 	channel->csi_fmt_val = get_csi_fmt_val(stream->cif_fmt_in,
 					       &dev->channels[stream->id]);
@@ -3807,6 +3813,13 @@ int rkcif_update_sensor_info(struct rkcif_stream *stream)
 				 "%s: get terminal %s g_frame_interval failed!\n",
 				 __func__, terminal_sensor->sd->name);
 			return ret;
+		}
+		if (v4l2_subdev_call(terminal_sensor->sd, core, ioctl, RKMODULE_GET_CSI_DSI_INFO,
+					&terminal_sensor->dsi_input_en)) {
+			v4l2_dbg(1, rkcif_debug, &stream->cifdev->v4l2_dev,
+				"%s: get terminal %s CSI/DSI sel failed, default csi input!\n",
+				__func__, terminal_sensor->sd->name);
+			terminal_sensor->dsi_input_en = 0;
 		}
 	} else {
 		v4l2_err(&stream->cifdev->v4l2_dev,

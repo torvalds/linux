@@ -220,6 +220,7 @@ struct rkcif_sensor_info {
 	int lanes;
 	struct v4l2_rect raw_rect;
 	struct v4l2_subdev_selection selection;
+	int dsi_input_en;
 };
 
 enum cif_fmt_type {
@@ -283,6 +284,7 @@ struct csi_channel_info {
 	unsigned int virtual_width;
 	unsigned int crop_st_x;
 	unsigned int crop_st_y;
+	unsigned int dsi_input;
 	struct rkmodule_lvds_cfg lvds_cfg;
 };
 

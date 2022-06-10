@@ -156,6 +156,7 @@ struct csi2_dev {
 	int			irq2;
 	bool			is_check_sot_sync;
 	const char		*dev_name;
+	int			dsi_input_en;
 };
 
 u32 rkcif_csi2_get_sof(struct csi2_dev *csi2_dev);
