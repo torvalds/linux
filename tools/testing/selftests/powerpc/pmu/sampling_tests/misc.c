@@ -454,3 +454,53 @@ int get_thresh_cmp_val(struct event event)
 		result = (exp << 8) | value;
 	return result;
 }
+
+/*
+ * Utility function to check for generic compat PMU
+ * by comparing base_platform value from auxv and real
+ * PVR value.
+ */
+static bool auxv_generic_compat_pmu(void)
+{
+	int base_pvr = 0;
+
+	if (!strcmp(auxv_base_platform(), "power9"))
+		base_pvr = POWER9;
+	else if (!strcmp(auxv_base_platform(), "power10"))
+		base_pvr = POWER10;
+
+	return (!base_pvr);
+}
+
+/*
+ * Check for generic compat PMU.
+ * First check for presence of pmu_name from
+ * "/sys/bus/event_source/devices/cpu/caps".
+ * If doesn't exist, fallback to using value
+ * auxv.
+ */
+bool check_for_generic_compat_pmu(void)
+{
+	char pmu_name[256];
+
+	memset(pmu_name, 0, sizeof(pmu_name));
+	if (read_sysfs_file("bus/event_source/devices/cpu/caps/pmu_name",
+		pmu_name, sizeof(pmu_name)) < 0)
+		return auxv_generic_compat_pmu();
+
+	if (!strcmp(pmu_name, "ISAv3"))
+		return true;
+	else
+		return false;
+}
+
+/*
+ * Check if system is booted in compat mode.
+ */
+bool check_for_compat_mode(void)
+{
+	char *platform = auxv_platform();
+	char *base_platform = auxv_base_platform();
+
+	return strcmp(platform, base_platform);
+}
