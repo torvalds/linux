@@ -45,8 +45,8 @@ static unsigned int dio_bio_write_op(struct kiocb *iocb)
 static bool blkdev_dio_unaligned(struct block_device *bdev, loff_t pos,
 			      struct iov_iter *iter)
 {
-	return ((pos | iov_iter_alignment(iter)) &
-	    (bdev_logical_block_size(bdev) - 1));
+	return pos & (bdev_logical_block_size(bdev) - 1) ||
+		!bdev_iter_is_aligned(bdev, iter);
 }
 
 #define DIO_INLINE_BIO_VECS 4
