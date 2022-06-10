@@ -55,7 +55,7 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 	memcpy(&msg->buf[msg->len], buf, payload->len - sizeof(status));
 	msg->len += payload->len - sizeof(status);
 
-	/* if last fragment, notidy and update pointers */
+	/* if last fragment, notify and update pointers */
 	if (status & IBI_STATUS_LAST_FRAG) {
 		/* check pending-read-notification */
 		if (IS_MDB_PENDING_READ_NOTIFY(msg->buf[0])) {
@@ -67,14 +67,6 @@ static void i3c_ibi_mqueue_callback(struct i3c_device *dev,
 				},
 			};
 
-			/*
-			 * Aspeed slave devices need for additional delay for
-			 * preparing the pending data
-			 */
-			if (I3C_PID_MANUF_ID(dev->desc->info.pid) ==
-			    PID_MANUF_ID_ASPEED) {
-				mdelay(10);
-			}
 			i3c_device_do_priv_xfers(dev, xfers, 1);
 
 			msg->len = xfers[0].len;
