@@ -52,6 +52,7 @@ void *__event_read_samples(void *sample_buff, size_t *size, u64 *sample_count);
 int collect_samples(void *sample_buff);
 u64 *get_intr_regs(struct event *event, void *sample_buff);
 u64 get_reg_value(u64 *intr_regs, char *register_name);
+int get_thresh_cmp_val(struct event event);
 
 static inline int get_mmcr0_fc56(u64 mmcr0, int pmc)
 {

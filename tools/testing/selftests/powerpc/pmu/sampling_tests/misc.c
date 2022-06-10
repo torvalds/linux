@@ -60,6 +60,8 @@ static void init_ev_encodes(void)
 
 	switch (pvr) {
 	case POWER10:
+		ev_mask_thd_cmp = 0x3ffff;
+		ev_shift_thd_cmp = 0;
 		ev_mask_rsq = 1;
 		ev_shift_rsq = 9;
 		ev_mask_comb = 3;
@@ -409,4 +411,46 @@ u64 get_reg_value(u64 *intr_regs, char *register_name)
 		return -1;
 
 	return *(intr_regs + register_bit_position);
+}
+
+int get_thresh_cmp_val(struct event event)
+{
+	int exp = 0;
+	u64 result = 0;
+	u64 value;
+
+	if (!have_hwcap2(PPC_FEATURE2_ARCH_3_1))
+		return EV_CODE_EXTRACT(event.attr.config, thd_cmp);
+
+	value = EV_CODE_EXTRACT(event.attr.config1, thd_cmp);
+
+	if (!value)
+		return value;
+
+	/*
+	 * Incase of P10, thresh_cmp value is not part of raw event code
+	 * and provided via attr.config1 parameter. To program threshold in MMCRA,
+	 * take a 18 bit number N and shift right 2 places and increment
+	 * the exponent E by 1 until the upper 10 bits of N are zero.
+	 * Write E to the threshold exponent and write the lower 8 bits of N
+	 * to the threshold mantissa.
+	 * The max threshold that can be written is 261120.
+	 */
+	if (value > 261120)
+		value = 261120;
+	while ((64 - __builtin_clzl(value)) > 8) {
+		exp++;
+		value >>= 2;
+	}
+
+	/*
+	 * Note that it is invalid to write a mantissa with the
+	 * upper 2 bits of mantissa being zero, unless the
+	 * exponent is also zero.
+	 */
+	if (!(value & 0xC0) && exp)
+		result = -1;
+	else
+		result = (exp << 8) | value;
+	return result;
 }
