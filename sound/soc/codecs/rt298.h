@@ -207,7 +207,5 @@ enum {
 	RT298_AIFS,
 };
 
-int rt298_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack);
-
 #endif /* __RT298_H__ */
 

@@ -326,7 +326,8 @@ static void rt298_jack_detect_work(struct work_struct *work)
 		SND_JACK_MICROPHONE | SND_JACK_HEADPHONE);
 }
 
-int rt298_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *jack)
+static int rt298_mic_detect(struct snd_soc_component *component,
+			    struct snd_soc_jack *jack, void *data)
 {
 	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 	struct snd_soc_dapm_context *dapm;
@@ -358,7 +359,6 @@ int rt298_mic_detect(struct snd_soc_component *component, struct snd_soc_jack *j
 
 	return 0;
 }
-EXPORT_SYMBOL_GPL(rt298_mic_detect);
 
 static int is_mclk_mode(struct snd_soc_dapm_widget *source,
 			 struct snd_soc_dapm_widget *sink)
@@ -1011,17 +1011,11 @@ static int rt298_probe(struct snd_soc_component *component)
 	struct rt298_priv *rt298 = snd_soc_component_get_drvdata(component);
 
 	rt298->component = component;
+	INIT_DELAYED_WORK(&rt298->jack_detect_work, rt298_jack_detect_work);
 
-	if (rt298->i2c->irq) {
-		regmap_update_bits(rt298->regmap,
-					RT298_IRQ_CTRL, 0x2, 0x2);
-
-		INIT_DELAYED_WORK(&rt298->jack_detect_work,
-					rt298_jack_detect_work);
+	if (rt298->i2c->irq)
 		schedule_delayed_work(&rt298->jack_detect_work,
-					msecs_to_jiffies(1250));
-	}
-
+				      msecs_to_jiffies(1250));
 	return 0;
 }
 
@@ -1120,6 +1114,7 @@ static const struct snd_soc_component_driver soc_component_dev_rt298 = {
 	.suspend		= rt298_suspend,
 	.resume			= rt298_resume,
 	.set_bias_level		= rt298_set_bias_level,
+	.set_jack		= rt298_mic_detect,
 	.controls		= rt298_snd_controls,
 	.num_controls		= ARRAY_SIZE(rt298_snd_controls),
 	.dapm_widgets		= rt298_dapm_widgets,

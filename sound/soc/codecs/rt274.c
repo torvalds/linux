@@ -980,14 +980,11 @@ static int rt274_probe(struct snd_soc_component *component)
 	struct rt274_priv *rt274 = snd_soc_component_get_drvdata(component);
 
 	rt274->component = component;
+	INIT_DELAYED_WORK(&rt274->jack_detect_work, rt274_jack_detect_work);
 
-	if (rt274->i2c->irq) {
-		INIT_DELAYED_WORK(&rt274->jack_detect_work,
-					rt274_jack_detect_work);
+	if (rt274->i2c->irq)
 		schedule_delayed_work(&rt274->jack_detect_work,
-					msecs_to_jiffies(1250));
-	}
-
+				      msecs_to_jiffies(1250));
 	return 0;
 }
 
