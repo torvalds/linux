@@ -772,7 +772,7 @@ static void set_cluster_next(struct swap_info_struct *si, unsigned long next)
 	this_cpu_write(*si->cluster_next_cpu, next);
 }
 
-static int scan_swap_map_slots(struct swap_info_struct *si,
+int scan_swap_map_slots(struct swap_info_struct *si,
 			       unsigned char usage, int nr,
 			       swp_entry_t slots[])
 {
@@ -988,8 +988,9 @@ no_page:
 	si->flags -= SWP_SCANNING;
 	return n_ret;
 }
+EXPORT_SYMBOL_GPL(scan_swap_map_slots);
 
-static int swap_alloc_cluster(struct swap_info_struct *si, swp_entry_t *slot)
+int swap_alloc_cluster(struct swap_info_struct *si, swp_entry_t *slot)
 {
 	unsigned long idx;
 	struct swap_cluster_info *ci;
@@ -1023,6 +1024,7 @@ static int swap_alloc_cluster(struct swap_info_struct *si, swp_entry_t *slot)
 
 	return 1;
 }
+EXPORT_SYMBOL_GPL(swap_alloc_cluster);
 
 static void swap_free_cluster(struct swap_info_struct *si, unsigned long idx)
 {

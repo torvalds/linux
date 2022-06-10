@@ -90,7 +90,7 @@ void reenable_swap_slots_cache_unlock(void)
 	mutex_unlock(&swap_slots_cache_enable_mutex);
 }
 
-static bool check_cache_active(void)
+bool check_cache_active(void)
 {
 	long pages;
 
@@ -111,6 +111,7 @@ static bool check_cache_active(void)
 out:
 	return swap_slot_cache_active;
 }
+EXPORT_SYMBOL_GPL(check_cache_active);
 
 static int alloc_swap_slot_cache(unsigned int cpu)
 {
