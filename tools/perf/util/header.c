@@ -4349,6 +4349,9 @@ int perf_event__process_event_update(struct perf_tool *tool __maybe_unused,
 	struct evsel *evsel;
 	struct perf_cpu_map *map;
 
+	if (dump_trace)
+		perf_event__fprintf_event_update(event, stdout);
+
 	if (!pevlist || *pevlist == NULL)
 		return -EINVAL;
 

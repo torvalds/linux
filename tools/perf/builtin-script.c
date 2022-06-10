@@ -3633,6 +3633,9 @@ int process_thread_map_event(struct perf_session *session,
 	struct perf_tool *tool = session->tool;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
 
+	if (dump_trace)
+		perf_event__fprintf_thread_map(event, stdout);
+
 	if (script->threads) {
 		pr_warning("Extra thread map event, ignoring.\n");
 		return 0;
@@ -3651,6 +3654,9 @@ int process_cpu_map_event(struct perf_session *session,
 {
 	struct perf_tool *tool = session->tool;
 	struct perf_script *script = container_of(tool, struct perf_script, tool);
+
+	if (dump_trace)
+		perf_event__fprintf_cpu_map(event, stdout);
 
 	if (script->cpus) {
 		pr_warning("Extra cpu map event, ignoring.\n");
