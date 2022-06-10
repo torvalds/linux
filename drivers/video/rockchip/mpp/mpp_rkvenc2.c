@@ -1015,8 +1015,14 @@ static int rkvenc_run(struct mpp_dev *mpp, struct mpp_task *mpp_task)
 	u32 start_val = 0;
 	struct rkvenc_dev *enc = to_rkvenc_dev(mpp);
 	struct rkvenc_task *task = to_rkvenc_task(mpp_task);
+	struct rkvenc_hw_info *hw = enc->hw_info;
 
 	mpp_debug_enter();
+
+	/* Add force clear to avoid pagefault */
+	mpp_write(mpp, hw->enc_clr_base, 0x2);
+	udelay(5);
+	mpp_write(mpp, hw->enc_clr_base, 0x0);
 
 	/* clear hardware counter */
 	mpp_write_relaxed(mpp, 0x5300, 0x2);
