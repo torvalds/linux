@@ -136,6 +136,11 @@
 					 RESET_CTRL_RESP_QUEUE	              |\
 					 RESET_CTRL_CMD_QUEUE	              |\
 					 RESET_CTRL_SOFT)
+#define RESET_CTRL_QUEUES		(RESET_CTRL_IBI_QUEUE	              |\
+					 RESET_CTRL_RX_FIFO	              |\
+					 RESET_CTRL_TX_FIFO	              |\
+					 RESET_CTRL_RESP_QUEUE	              |\
+					 RESET_CTRL_CMD_QUEUE)
 
 #define SLV_EVENT_CTRL			0x38
 #define SLV_EVENT_CTRL_MWL_UPD		BIT(7)
@@ -2140,6 +2145,60 @@ static int aspeed_i3c_master_send_sir(struct i3c_master_controller *m,
 	return 0;
 }
 
+static int aspeed_i3c_master_put_read_data(struct i3c_master_controller *m,
+					   struct i3c_slave_payload *data,
+					   struct i3c_slave_payload *ibi_notify)
+{
+	struct aspeed_i3c_master *master = to_aspeed_i3c_master(m);
+	u32 reg, thld_ctrl;
+	u8 *buf;
+
+	if (!data)
+		return -ENXIO;
+
+	if (ibi_notify) {
+		buf = (u8 *)ibi_notify->data;
+		init_completion(&master->sir_complete);
+
+		reg = readl(master->regs + DEVICE_CTRL);
+		reg &= ~DEV_CTRL_SLAVE_MDB;
+		reg |= FIELD_PREP(DEV_CTRL_SLAVE_MDB, buf[0]) |
+		       FIELD_PREP(DEV_CTRL_SLAVE_PEC_EN, 1);
+		writel(reg, master->regs + DEVICE_CTRL);
+
+		aspeed_i3c_master_wr_tx_fifo(master, buf, ibi_notify->len);
+
+		reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, ibi_notify->len);
+		writel(reg, master->regs + COMMAND_QUEUE_PORT);
+
+		thld_ctrl = readl(master->regs + QUEUE_THLD_CTRL);
+		thld_ctrl &= ~QUEUE_THLD_CTRL_RESP_BUF_MASK;
+		thld_ctrl |= QUEUE_THLD_CTRL_RESP_BUF(1);
+		writel(thld_ctrl, master->regs + QUEUE_THLD_CTRL);
+	}
+
+	buf = (u8 *)data->data;
+	aspeed_i3c_master_wr_tx_fifo(master, buf, data->len);
+
+	reg = FIELD_PREP(COMMAND_PORT_SLAVE_DATA_LEN, data->len);
+	writel(reg, master->regs + COMMAND_QUEUE_PORT);
+
+	if (ibi_notify) {
+		writel(1, master->regs + SLV_INTR_REQ);
+		if (!wait_for_completion_timeout(&master->sir_complete,
+						 XFER_TIMEOUT)) {
+			dev_err(master->dev, "send sir timeout\n");
+			writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
+		}
+
+		reg = readl(master->regs + DEVICE_CTRL);
+		reg &= ~DEV_CTRL_SLAVE_PEC_EN;
+		writel(reg, master->regs + DEVICE_CTRL);
+	}
+
+	return 0;
+}
+
 static int aspeed_i3c_master_timing_config(struct aspeed_i3c_master *master,
 					   struct device_node *np)
 {
@@ -2217,6 +2276,7 @@ static const struct i3c_master_controller_ops aspeed_i3c_ops = {
 	.register_slave = aspeed_i3c_master_register_slave,
 	.unregister_slave = aspeed_i3c_master_unregister_slave,
 	.send_sir = aspeed_i3c_master_send_sir,
+	.put_read_data = aspeed_i3c_master_put_read_data,
 };
 
 static int aspeed_i3c_probe(struct platform_device *pdev)
