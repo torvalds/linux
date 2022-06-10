@@ -2047,9 +2047,8 @@ static int dw_dp_bridge_mode_valid(struct drm_bridge *bridge,
 	return MODE_OK;
 }
 
-static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
+static void _dw_dp_loader_protect(struct dw_dp *dp, bool on)
 {
-	struct dw_dp *dp = encoder_to_dp(encoder);
 	struct dw_dp_link *link = &dp->link;
 	struct drm_connector *conn = &dp->connector;
 	struct drm_display_info *di = &conn->display_info;
@@ -2096,6 +2095,15 @@ static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
 	} else {
 		phy_power_off(dp->phy);
 	}
+}
+
+static void dw_dp_loader_protect(struct drm_encoder *encoder, bool on)
+{
+	struct dw_dp *dp = encoder_to_dp(encoder);
+
+	_dw_dp_loader_protect(dp, on);
+	if (dp->right)
+		_dw_dp_loader_protect(dp->right, on);
 }
 
 static int dw_dp_connector_init(struct dw_dp *dp)
