@@ -603,7 +603,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	if (ring_db || !atomic_read(&channel->trans_info.tre_avail)) {
 		/* Report what we're handing off to hardware for TX channels */
 		if (channel->toward_ipa)
-			gsi_channel_tx_queued(channel);
+			gsi_trans_tx_queued(trans);
 		gsi_channel_doorbell(channel);
 	}
 }
