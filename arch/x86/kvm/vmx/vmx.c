@@ -8299,6 +8299,7 @@ static __init int hardware_setup(void)
 	}
 
 	kvm_caps.supported_mce_cap |= MCG_LMCE_P;
+	kvm_caps.supported_mce_cap |= MCG_CMCI_P;
 
 	if (pt_mode != PT_MODE_SYSTEM && pt_mode != PT_MODE_HOST_GUEST)
 		return -EINVAL;
