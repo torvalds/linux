@@ -285,19 +285,23 @@ static int vc4_drm_bind(struct device *dev)
 	platform_set_drvdata(pdev, drm);
 	INIT_LIST_HEAD(&vc4->debugfs_list);
 
-	mutex_init(&vc4->bin_bo_lock);
+	if (!is_vc5) {
+		mutex_init(&vc4->bin_bo_lock);
 
-	ret = vc4_bo_cache_init(drm);
-	if (ret)
-		return ret;
+		ret = vc4_bo_cache_init(drm);
+		if (ret)
+			return ret;
+	}
 
 	ret = drmm_mode_config_init(drm);
 	if (ret)
 		return ret;
 
-	ret = vc4_gem_init(drm);
-	if (ret)
-		return ret;
+	if (!is_vc5) {
+		ret = vc4_gem_init(drm);
+		if (ret)
+			return ret;
+	}
 
 	node = of_find_compatible_node(NULL, NULL, "raspberrypi,bcm2835-firmware");
 	if (node) {
