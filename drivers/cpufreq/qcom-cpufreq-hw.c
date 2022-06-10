@@ -15,6 +15,7 @@
 #include <linux/pm_opp.h>
 #include <linux/slab.h>
 #include <linux/spinlock.h>
+#include <linux/units.h>
 
 #define LUT_MAX_ENTRIES			40U
 #define LUT_SRC				GENMASK(31, 30)
@@ -25,8 +26,6 @@
 #define LUT_TURBO_IND			1
 
 #define GT_IRQ_STATUS			BIT(2)
-
-#define HZ_PER_KHZ			1000
 
 struct qcom_cpufreq_soc_data {
 	u32 reg_enable;
