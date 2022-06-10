@@ -9,4 +9,4 @@ can-dev-$(CONFIG_CAN_NETLINK) += bittiming.o
 can-dev-$(CONFIG_CAN_NETLINK) += dev.o
 can-dev-$(CONFIG_CAN_NETLINK) += length.o
 can-dev-$(CONFIG_CAN_NETLINK) += netlink.o
-can-dev-$(CONFIG_CAN_NETLINK) += rx-offload.o
+can-dev-$(CONFIG_CAN_RX_OFFLOAD) += rx-offload.o

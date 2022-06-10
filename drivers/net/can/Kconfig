@@ -102,6 +102,9 @@ config CAN_CALC_BITTIMING
 
 	  If unsure, say Y.
 
+config CAN_RX_OFFLOAD
+	bool
+
 config CAN_AT91
 	tristate "Atmel AT91 onchip CAN controller"
 	depends on (ARCH_AT91 || COMPILE_TEST) && HAS_IOMEM
@@ -113,6 +116,7 @@ config CAN_FLEXCAN
 	tristate "Support for Freescale FLEXCAN based chips"
 	depends on OF || COLDFIRE || COMPILE_TEST
 	depends on HAS_IOMEM
+	select CAN_RX_OFFLOAD
 	help
 	  Say Y here if you want to support for Freescale FlexCAN.
 
@@ -162,6 +166,7 @@ config CAN_SUN4I
 config CAN_TI_HECC
 	depends on ARM
 	tristate "TI High End CAN Controller"
+	select CAN_RX_OFFLOAD
 	help
 	  Driver for TI HECC (High End CAN Controller) module found on many
 	  TI devices. The device specifications are available from www.ti.com
