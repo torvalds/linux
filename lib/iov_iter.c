@@ -1328,6 +1328,7 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 		left -= PAGE_SIZE - off;
 		if (left <= 0) {
 			buf->len += maxsize;
+			iov_iter_advance(i, maxsize);
 			return maxsize;
 		}
 		buf->len = PAGE_SIZE;
@@ -1347,7 +1348,9 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 	}
 	if (!npages)
 		return -EFAULT;
-	return maxsize - left;
+	maxsize -= left;
+	iov_iter_advance(i, maxsize);
+	return maxsize;
 }
 
 static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa,
@@ -1397,7 +1400,9 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 	if (nr == 0)
 		return 0;
 
-	return min_t(size_t, nr * PAGE_SIZE - offset, maxsize);
+	maxsize = min_t(size_t, nr * PAGE_SIZE - offset, maxsize);
+	iov_iter_advance(i, maxsize);
+	return maxsize;
 }
 
 /* must be done on non-empty ITER_UBUF or ITER_IOVEC one */
@@ -1469,7 +1474,9 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		res = get_user_pages_fast(addr, n, gup_flags, *pages);
 		if (unlikely(res <= 0))
 			return res;
-		return min_t(size_t, maxsize, res * PAGE_SIZE - *start);
+		maxsize = min_t(size_t, maxsize, res * PAGE_SIZE - *start);
+		iov_iter_advance(i, maxsize);
+		return maxsize;
 	}
 	if (iov_iter_is_bvec(i)) {
 		struct page **p;
@@ -1481,8 +1488,10 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 			return -ENOMEM;
 		p = *pages;
 		for (int k = 0; k < n; k++)
-			get_page(*p++ = page++);
-		return min_t(size_t, maxsize, n * PAGE_SIZE - *start);
+			get_page(p[k] = page + k);
+		maxsize = min_t(size_t, maxsize, n * PAGE_SIZE - *start);
+		iov_iter_advance(i, maxsize);
+		return maxsize;
 	}
 	if (iov_iter_is_pipe(i))
 		return pipe_get_pages(i, pages, maxsize, maxpages, start);
@@ -1491,7 +1500,7 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 	return -EFAULT;
 }
 
-ssize_t iov_iter_get_pages(struct iov_iter *i,
+ssize_t iov_iter_get_pages2(struct iov_iter *i,
 		   struct page **pages, size_t maxsize, unsigned maxpages,
 		   size_t *start)
 {
@@ -1501,9 +1510,9 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 
 	return __iov_iter_get_pages_alloc(i, &pages, maxsize, maxpages, start);
 }
-EXPORT_SYMBOL(iov_iter_get_pages);
+EXPORT_SYMBOL(iov_iter_get_pages2);
 
-ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
+ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i,
 		   struct page ***pages, size_t maxsize,
 		   size_t *start)
 {
@@ -1518,7 +1527,7 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 	}
 	return len;
 }
-EXPORT_SYMBOL(iov_iter_get_pages_alloc);
+EXPORT_SYMBOL(iov_iter_get_pages_alloc2);
 
 size_t csum_and_copy_from_iter(void *addr, size_t bytes, __wsum *csum,
 			       struct iov_iter *i)

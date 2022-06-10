@@ -247,9 +247,9 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction, struct pipe_inode
 void iov_iter_discard(struct iov_iter *i, unsigned int direction, size_t count);
 void iov_iter_xarray(struct iov_iter *i, unsigned int direction, struct xarray *xarray,
 		     loff_t start, size_t count);
-ssize_t iov_iter_get_pages(struct iov_iter *i, struct page **pages,
+ssize_t iov_iter_get_pages2(struct iov_iter *i, struct page **pages,
 			size_t maxsize, unsigned maxpages, size_t *start);
-ssize_t iov_iter_get_pages_alloc(struct iov_iter *i, struct page ***pages,
+ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i, struct page ***pages,
 			size_t maxsize, size_t *start);
 int iov_iter_npages(const struct iov_iter *i, int maxpages);
 void iov_iter_restore(struct iov_iter *i, struct iov_iter_state *state);
@@ -349,26 +349,6 @@ static inline void iov_iter_ubuf(struct iov_iter *i, unsigned int direction,
 		.ubuf = buf,
 		.count = count
 	};
-}
-
-static inline ssize_t iov_iter_get_pages2(struct iov_iter *i, struct page **pages,
-			size_t maxsize, unsigned maxpages, size_t *start)
-{
-	ssize_t res = iov_iter_get_pages(i, pages, maxsize, maxpages, start);
-
-	if (res >= 0)
-		iov_iter_advance(i, res);
-	return res;
-}
-
-static inline ssize_t iov_iter_get_pages_alloc2(struct iov_iter *i, struct page ***pages,
-			size_t maxsize, size_t *start)
-{
-	ssize_t res = iov_iter_get_pages_alloc(i, pages, maxsize, start);
-
-	if (res >= 0)
-		iov_iter_advance(i, res);
-	return res;
 }
 
 #endif
