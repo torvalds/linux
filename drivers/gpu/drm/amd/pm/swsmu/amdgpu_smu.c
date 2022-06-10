@@ -1415,12 +1415,13 @@ static int smu_disable_dpms(struct smu_context *smu)
 	switch (adev->ip_versions[MP1_HWIP][0]) {
 	case IP_VERSION(13, 0, 0):
 	case IP_VERSION(13, 0, 7):
-		ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
-		if (ret) {
-			dev_err(adev->dev, "Fail set mp1 state to UNLOAD!\n");
-			return ret;
+		if (!(adev->in_runpm || amdgpu_in_reset(adev))) {
+			ret = smu_set_mp1_state(smu, PP_MP1_STATE_UNLOAD);
+			if (ret) {
+				dev_err(adev->dev, "Fail set mp1 state to UNLOAD!\n");
+				return ret;
+			}
 		}
-
 		return 0;
 	default:
 		break;
