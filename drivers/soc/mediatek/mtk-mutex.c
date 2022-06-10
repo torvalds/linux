@@ -199,6 +199,7 @@ struct mtk_mutex_data {
 	const unsigned int *mutex_sof;
 	const unsigned int mutex_mod_reg;
 	const unsigned int mutex_sof_reg;
+	const unsigned int *mutex_table_mod;
 	const bool no_clk;
 };
 
@@ -643,6 +644,58 @@ void mtk_mutex_release(struct mtk_mutex *mutex)
 	writel(0, mtx->regs + DISP_REG_MUTEX(mutex->id));
 }
 EXPORT_SYMBOL_GPL(mtk_mutex_release);
+
+int mtk_mutex_write_mod(struct mtk_mutex *mutex,
+			enum mtk_mutex_mod_index idx, bool clear)
+{
+	struct mtk_mutex_ctx *mtx = container_of(mutex, struct mtk_mutex_ctx,
+						 mutex[mutex->id]);
+	unsigned int reg;
+	unsigned int offset;
+
+	WARN_ON(&mtx->mutex[mutex->id] != mutex);
+
+	if (idx < MUTEX_MOD_IDX_MDP_RDMA0 ||
+	    idx >= MUTEX_MOD_IDX_MAX) {
+		dev_err(mtx->dev, "Not supported MOD table index : %d", idx);
+		return -EINVAL;
+	}
+
+	offset = DISP_REG_MUTEX_MOD(mtx->data->mutex_mod_reg,
+				    mutex->id);
+	reg = readl_relaxed(mtx->regs + offset);
+
+	if (clear)
+		reg &= ~BIT(mtx->data->mutex_table_mod[idx]);
+	else
+		reg |= BIT(mtx->data->mutex_table_mod[idx]);
+
+	writel_relaxed(reg, mtx->regs + offset);
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mtk_mutex_write_mod);
+
+int mtk_mutex_write_sof(struct mtk_mutex *mutex,
+			enum mtk_mutex_sof_index idx)
+{
+	struct mtk_mutex_ctx *mtx = container_of(mutex, struct mtk_mutex_ctx,
+						 mutex[mutex->id]);
+
+	WARN_ON(&mtx->mutex[mutex->id] != mutex);
+
+	if (idx < MUTEX_SOF_IDX_SINGLE_MODE ||
+	    idx >= MUTEX_SOF_IDX_MAX) {
+		dev_err(mtx->dev, "Not supported SOF index : %d", idx);
+		return -EINVAL;
+	}
+
+	writel_relaxed(idx, mtx->regs +
+		       DISP_REG_MUTEX_SOF(mtx->data->mutex_sof_reg, mutex->id));
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(mtk_mutex_write_sof);
 
 static int mtk_mutex_probe(struct platform_device *pdev)
 {
