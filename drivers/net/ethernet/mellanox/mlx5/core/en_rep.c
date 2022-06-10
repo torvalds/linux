@@ -950,6 +950,13 @@ err_event_reg:
 	return err;
 }
 
+static void mlx5e_cleanup_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
+{
+	mlx5e_rep_tc_netdevice_event_unregister(rpriv);
+	mlx5e_rep_bond_cleanup(rpriv);
+	mlx5e_rep_tc_cleanup(rpriv);
+}
+
 static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
@@ -961,42 +968,36 @@ static int mlx5e_init_rep_tx(struct mlx5e_priv *priv)
 		return err;
 	}
 
-	err = mlx5e_tc_ht_init(&rpriv->tc_ht);
-	if (err)
-		goto err_ht_init;
-
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK) {
 		err = mlx5e_init_uplink_rep_tx(rpriv);
 		if (err)
 			goto err_init_tx;
 	}
 
+	err = mlx5e_tc_ht_init(&rpriv->tc_ht);
+	if (err)
+		goto err_ht_init;
+
 	return 0;
 
-err_init_tx:
-	mlx5e_tc_ht_cleanup(&rpriv->tc_ht);
 err_ht_init:
+	if (rpriv->rep->vport == MLX5_VPORT_UPLINK)
+		mlx5e_cleanup_uplink_rep_tx(rpriv);
+err_init_tx:
 	mlx5e_destroy_tises(priv);
 	return err;
-}
-
-static void mlx5e_cleanup_uplink_rep_tx(struct mlx5e_rep_priv *rpriv)
-{
-	mlx5e_rep_tc_netdevice_event_unregister(rpriv);
-	mlx5e_rep_bond_cleanup(rpriv);
-	mlx5e_rep_tc_cleanup(rpriv);
 }
 
 static void mlx5e_cleanup_rep_tx(struct mlx5e_priv *priv)
 {
 	struct mlx5e_rep_priv *rpriv = priv->ppriv;
 
-	mlx5e_destroy_tises(priv);
+	mlx5e_tc_ht_cleanup(&rpriv->tc_ht);
 
 	if (rpriv->rep->vport == MLX5_VPORT_UPLINK)
 		mlx5e_cleanup_uplink_rep_tx(rpriv);
 
-	mlx5e_tc_ht_cleanup(&rpriv->tc_ht);
+	mlx5e_destroy_tises(priv);
 }
 
 static void mlx5e_rep_enable(struct mlx5e_priv *priv)
