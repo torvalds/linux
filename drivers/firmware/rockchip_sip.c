@@ -594,6 +594,16 @@ int sip_wdt_config(u32 sub_func, u32 arg1, u32 arg2, u32 arg3)
 }
 EXPORT_SYMBOL_GPL(sip_wdt_config);
 
+int sip_hdcpkey_init(u32 hdcp_id)
+{
+	struct arm_smccc_res res;
+
+	res = __invoke_sip_fn_smc(TRUSTED_OS_HDCPKEY_INIT, hdcp_id, 0, 0);
+
+	return res.a0;
+}
+EXPORT_SYMBOL_GPL(sip_hdcpkey_init);
+
 /******************************************************************************/
 #ifdef CONFIG_ARM
 static __init int sip_firmware_init(void)
