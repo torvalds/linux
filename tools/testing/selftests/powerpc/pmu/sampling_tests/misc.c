@@ -121,11 +121,9 @@ int check_extended_regs_support(void)
 	return -1;
 }
 
-int check_pvr_for_sampling_tests(void)
+int platform_check_for_tests(void)
 {
 	pvr = PVR_VER(mfspr(SPRN_PVR));
-
-	platform_extended_mask = perf_get_platform_reg_mask();
 
 	/*
 	 * Check for supported platforms
@@ -138,19 +136,33 @@ int check_pvr_for_sampling_tests(void)
 	 * Check PMU driver registered by looking for
 	 * PPC_FEATURE2_EBB bit in AT_HWCAP2
 	 */
-	if (!have_hwcap2(PPC_FEATURE2_EBB))
+	if (!have_hwcap2(PPC_FEATURE2_EBB) || !have_hwcap2(PPC_FEATURE2_ARCH_3_00))
 		goto out;
 
+	return 0;
+
+out:
+	printf("%s: Tests unsupported for this platform\n", __func__);
+	return -1;
+}
+
+int check_pvr_for_sampling_tests(void)
+{
+	SKIP_IF(platform_check_for_tests());
+
+	platform_extended_mask = perf_get_platform_reg_mask();
 	/* check if platform supports extended regs */
 	if (check_extended_regs_support())
 		goto out;
 
 	init_ev_encodes();
 	return 0;
+
 out:
 	printf("%s: Sampling tests un-supported\n", __func__);
 	return -1;
 }
+
 /*
  * Allocate mmap buffer of "mmap_pages" number of
  * pages.

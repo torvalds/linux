@@ -55,6 +55,10 @@
 #define PVR_VER(pvr)	(((pvr) >>  16) & 0xFFFF)
 #define SPRN_PVR	0x11F
 
+#define PVR_CFG(pvr)    (((pvr) >>  8) & 0xF)   /* Configuration field */
+#define PVR_MAJ(pvr)    (((pvr) >>  4) & 0xF)   /* Major revision field */
+#define PVR_MIN(pvr)    (((pvr) >>  0) & 0xF)   /* Minor revision field */
+
 #define SPRN_DSCR_PRIV 0x11	/* Privilege State DSCR */
 #define SPRN_DSCR      0x03	/* Data Stream Control Register */
 #define SPRN_PPR       896	/* Program Priority Register */

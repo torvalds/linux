@@ -18,6 +18,8 @@
 #define MMCR1_RSQ       0x200000000000ULL /* radix scope qual field */
 #define BHRB_DISABLE    0x2000000000ULL /* MMCRA BHRB DISABLE bit */
 
+#define ARRAY_SIZE(x) (sizeof(x) / sizeof((x)[0]))
+
 extern int ev_mask_pmcxsel, ev_shift_pmcxsel;
 extern int ev_mask_marked, ev_shift_marked;
 extern int ev_mask_comb, ev_shift_comb;
@@ -36,6 +38,7 @@ extern int ev_mask_mmcr3_src, ev_shift_mmcr3_src;
 extern int pvr;
 extern u64 platform_extended_mask;
 extern int check_pvr_for_sampling_tests(void);
+extern int platform_check_for_tests(void);
 
 /*
  * Event code field extraction macro.
