@@ -1991,6 +1991,10 @@ static void rtw89_core_txq_schedule(struct rtw89_dev *rtwdev, u8 ac, bool *reinv
 		ieee80211_return_txq(hw, txq, sched_txq);
 		if (frame_cnt != 0)
 			rtw89_core_tx_kick_off(rtwdev, rtw89_core_get_qsel(rtwdev, txq->tid));
+
+		/* bound of tx_resource could get stuck due to burst traffic */
+		if (frame_cnt == tx_resource)
+			*reinvoke = true;
 	}
 	ieee80211_txq_schedule_end(hw, ac);
 }
