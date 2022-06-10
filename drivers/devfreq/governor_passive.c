@@ -14,9 +14,8 @@
 #include <linux/slab.h>
 #include <linux/device.h>
 #include <linux/devfreq.h>
+#include <linux/units.h>
 #include "governor.h"
-
-#define HZ_PER_KHZ	1000
 
 static struct devfreq_cpu_data *
 get_parent_cpu_data(struct devfreq_passive_data *p_data,
