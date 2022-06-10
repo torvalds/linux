@@ -39,6 +39,8 @@ enum lapic_lvt_entry {
 	KVM_APIC_MAX_NR_LVT_ENTRIES,
 };
 
+#define APIC_LVTx(x) (APIC_LVTT + 0x10 * (x))
+
 struct kvm_timer {
 	struct hrtimer timer;
 	s64 period; 				/* unit: ns */
