@@ -2560,33 +2560,13 @@ static bool is_port_valid(struct drm_i915_private *i915, enum port port)
 	return true;
 }
 
-static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
+static void print_ddi_port(const struct intel_bios_encoder_data *devdata,
+			   enum port port)
 {
 	struct drm_i915_private *i915 = devdata->i915;
 	const struct child_device_config *child = &devdata->child;
 	bool is_dvi, is_hdmi, is_dp, is_edp, is_crt, supports_typec_usb, supports_tbt;
 	int dp_boost_level, dp_max_link_rate, hdmi_boost_level, hdmi_level_shift, max_tmds_clock;
-	enum port port;
-
-	port = dvo_port_to_port(i915, child->dvo_port);
-	if (port == PORT_NONE)
-		return;
-
-	if (!is_port_valid(i915, port)) {
-		drm_dbg_kms(&i915->drm,
-			    "VBT reports port %c as supported, but that can't be true: skipping\n",
-			    port_name(port));
-		return;
-	}
-
-	if (i915->vbt.ports[port]) {
-		drm_dbg_kms(&i915->drm,
-			    "More than one child device for port %c in VBT, using the first.\n",
-			    port_name(port));
-		return;
-	}
-
-	sanitize_device_type(devdata, port);
 
 	is_dvi = intel_bios_encoder_supports_dvi(devdata);
 	is_dp = intel_bios_encoder_supports_dp(devdata);
@@ -2603,12 +2583,6 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 		    HAS_LSPCON(i915) && child->lspcon,
 		    supports_typec_usb, supports_tbt,
 		    devdata->dsc != NULL);
-
-	if (is_dvi)
-		sanitize_ddc_pin(devdata, port);
-
-	if (is_dp)
-		sanitize_aux_ch(devdata, port);
 
 	hdmi_level_shift = _intel_bios_hdmi_level_shift(devdata);
 	if (hdmi_level_shift >= 0) {
@@ -2641,6 +2615,41 @@ static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
 		drm_dbg_kms(&i915->drm,
 			    "Port %c VBT DP max link rate: %d\n",
 			    port_name(port), dp_max_link_rate);
+}
+
+static void parse_ddi_port(struct intel_bios_encoder_data *devdata)
+{
+	struct drm_i915_private *i915 = devdata->i915;
+	const struct child_device_config *child = &devdata->child;
+	enum port port;
+
+	port = dvo_port_to_port(i915, child->dvo_port);
+	if (port == PORT_NONE)
+		return;
+
+	if (!is_port_valid(i915, port)) {
+		drm_dbg_kms(&i915->drm,
+			    "VBT reports port %c as supported, but that can't be true: skipping\n",
+			    port_name(port));
+		return;
+	}
+
+	if (i915->vbt.ports[port]) {
+		drm_dbg_kms(&i915->drm,
+			    "More than one child device for port %c in VBT, using the first.\n",
+			    port_name(port));
+		return;
+	}
+
+	sanitize_device_type(devdata, port);
+
+	print_ddi_port(devdata, port);
+
+	if (intel_bios_encoder_supports_dvi(devdata))
+		sanitize_ddc_pin(devdata, port);
+
+	if (intel_bios_encoder_supports_dp(devdata))
+		sanitize_aux_ch(devdata, port);
 
 	i915->vbt.ports[port] = devdata;
 }
