@@ -1469,11 +1469,18 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 	} else
 		return -EBUSY;
 
+	return 0;
+}
+
+static void pm80xx_chip_post_init(struct pm8001_hba_info *pm8001_ha)
+{
 	/* send SAS protocol timer configuration page to FW */
-	ret = pm80xx_set_sas_protocol_timer_config(pm8001_ha);
+	pm80xx_set_sas_protocol_timer_config(pm8001_ha);
 
 	/* Check for encryption */
 	if (pm8001_ha->chip->encrypt) {
+		int ret;
+
 		pm8001_dbg(pm8001_ha, INIT, "Checking for encryption\n");
 		ret = pm80xx_get_encrypt_info(pm8001_ha);
 		if (ret == -1) {
@@ -1485,7 +1492,6 @@ static int pm80xx_chip_init(struct pm8001_hba_info *pm8001_ha)
 			}
 		}
 	}
-	return 0;
 }
 
 static int mpi_uninit_check(struct pm8001_hba_info *pm8001_ha)
@@ -5007,6 +5013,7 @@ void pm8001_set_phy_profile_single(struct pm8001_hba_info *pm8001_ha,
 const struct pm8001_dispatch pm8001_80xx_dispatch = {
 	.name			= "pmc80xx",
 	.chip_init		= pm80xx_chip_init,
+	.chip_post_init		= pm80xx_chip_post_init,
 	.chip_soft_rst		= pm80xx_chip_soft_rst,
 	.chip_rst		= pm80xx_hw_chip_rst,
 	.chip_iounmap		= pm8001_chip_iounmap,

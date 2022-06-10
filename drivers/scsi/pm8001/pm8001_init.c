@@ -56,7 +56,7 @@ MODULE_PARM_DESC(link_rate, "Enable link rate.\n"
 		" 8: Link rate 12.0G\n");
 
 static struct scsi_transport_template *pm8001_stt;
-static int pm8001_init_ccb_tag(struct pm8001_hba_info *, struct Scsi_Host *, struct pci_dev *);
+static int pm8001_init_ccb_tag(struct pm8001_hba_info *);
 
 /*
  * chip info structure to identify chip key functionality as
@@ -1119,9 +1119,11 @@ static int pm8001_pci_probe(struct pci_dev *pdev,
 		goto err_out_ha_free;
 	}
 
-	rc = pm8001_init_ccb_tag(pm8001_ha, shost, pdev);
+	rc = pm8001_init_ccb_tag(pm8001_ha);
 	if (rc)
 		goto err_out_enable;
+
+	PM8001_CHIP_DISP->chip_post_init(pm8001_ha);
 
 	rc = scsi_add_host(shost, &pdev->dev);
 	if (rc)
@@ -1172,16 +1174,14 @@ err_out_enable:
 /**
  * pm8001_init_ccb_tag - allocate memory to CCB and tag.
  * @pm8001_ha: our hba card information.
- * @shost: scsi host which has been allocated outside.
- * @pdev: pci device.
  */
-static int
-pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha, struct Scsi_Host *shost,
-			struct pci_dev *pdev)
+static int pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha)
 {
-	int i = 0;
+	struct Scsi_Host *shost = pm8001_ha->shost;
+	struct device *dev = pm8001_ha->dev;
 	u32 max_out_io, ccb_count;
 	u32 can_queue;
+	int i;
 
 	max_out_io = pm8001_ha->main_cfg_tbl.pm80xx_tbl.max_out_io;
 	ccb_count = min_t(int, PM8001_MAX_CCB, max_out_io);
@@ -1204,7 +1204,7 @@ pm8001_init_ccb_tag(struct pm8001_hba_info *pm8001_ha, struct Scsi_Host *shost,
 		goto err_out_noccb;
 	}
 	for (i = 0; i < ccb_count; i++) {
-		pm8001_ha->ccb_info[i].buf_prd = dma_alloc_coherent(&pdev->dev,
+		pm8001_ha->ccb_info[i].buf_prd = dma_alloc_coherent(dev,
 				sizeof(struct pm8001_prd) * PM8001_MAX_DMA_SG,
 				&pm8001_ha->ccb_info[i].ccb_dma_handle,
 				GFP_KERNEL);
