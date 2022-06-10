@@ -489,14 +489,21 @@ static int inode_go_instantiate(struct gfs2_holder *gh)
 {
 	struct gfs2_glock *gl = gh->gh_gl;
 	struct gfs2_inode *ip = gl->gl_object;
+
+	if (!ip) /* no inode to populate - read it in later */
+		return 0;
+
+	return gfs2_inode_refresh(ip);
+}
+
+static int inode_go_held(struct gfs2_holder *gh)
+{
+	struct gfs2_glock *gl = gh->gh_gl;
+	struct gfs2_inode *ip = gl->gl_object;
 	int error = 0;
 
 	if (!ip) /* no inode to populate - read it in later */
-		goto out;
-
-	error = gfs2_inode_refresh(ip);
-	if (error)
-		goto out;
+		return 0;
 
 	if (gh->gh_state != LM_ST_DEFERRED)
 		inode_dio_wait(&ip->i_inode);
@@ -506,7 +513,6 @@ static int inode_go_instantiate(struct gfs2_holder *gh)
 	    (gh->gh_state == LM_ST_EXCLUSIVE))
 		error = gfs2_truncatei_resume(ip);
 
-out:
 	return error;
 }
 
@@ -730,6 +736,7 @@ const struct gfs2_glock_operations gfs2_inode_glops = {
 	.go_inval = inode_go_inval,
 	.go_demote_ok = inode_go_demote_ok,
 	.go_instantiate = inode_go_instantiate,
+	.go_held = inode_go_held,
 	.go_dump = inode_go_dump,
 	.go_type = LM_TYPE_INODE,
 	.go_flags = GLOF_ASPACE | GLOF_LRU | GLOF_LVB,
