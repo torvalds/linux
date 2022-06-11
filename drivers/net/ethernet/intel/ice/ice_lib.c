@@ -2406,7 +2406,7 @@ static void ice_set_agg_vsi(struct ice_vsi *vsi)
 				agg_id);
 			return;
 		}
-		/* aggregator node is created, store the neeeded info */
+		/* aggregator node is created, store the needed info */
 		agg_node->valid = true;
 		agg_node->agg_id = agg_id;
 	}
