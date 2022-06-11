@@ -566,9 +566,3 @@ void __init rtc_dev_init(void)
 	if (err < 0)
 		pr_err("failed to allocate char dev region\n");
 }
-
-void __exit rtc_dev_exit(void)
-{
-	if (rtc_devt)
-		unregister_chrdev_region(rtc_devt, RTC_DEV_MAX);
-}
