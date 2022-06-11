@@ -31,12 +31,20 @@ static const s32 params_pen_some[] = {
 	[UCLOGIC_RDESC_PEN_PH_ID_X_PM] = 0xBB,
 };
 
+static const s32 params_frame_all[UCLOGIC_RDESC_PH_ID_NUM] = {
+	[UCLOGIC_RDESC_FRAME_PH_ID_UM] = 0xFF,
+};
+
 static const __u8 template_empty[] = { };
 static const __u8 template_small[] = { 0x00 };
 static const __u8 template_no_ph[] = { 0xAA, 0xFE, 0xAA, 0xED, 0x1D };
 
 static const __u8 template_pen_ph_end[] = {
 	0xAA, 0xBB, UCLOGIC_RDESC_PEN_PH_HEAD
+};
+
+static const __u8 template_btn_ph_end[] = {
+	0xAA, 0xBB, UCLOGIC_RDESC_FRAME_PH_BTN_HEAD
 };
 
 static const __u8 template_pen_all_params[] = {
@@ -53,6 +61,18 @@ static const __u8 expected_pen_all_params[] = {
 	0x27, 0xCC, 0x00, 0x00, 0x00,
 	0xDD, 0x00, 0x00, 0x00,
 	0x00, 0xEE, 0x00, 0x00, 0x00,
+};
+
+static const __u8 template_frame_all_params[] = {
+	0x01, 0x02,
+	UCLOGIC_RDESC_FRAME_PH_BTN,
+	0x99,
+};
+
+static const __u8 expected_frame_all_params[] = {
+	0x01, 0x02,
+	0x2A, 0xFF, 0x00,
+	0x99,
 };
 
 static const __u8 template_pen_some_params[] = {
@@ -109,12 +129,28 @@ static struct uclogic_template_case uclogic_template_cases[] = {
 		.expected = template_pen_ph_end,
 	},
 	{
+		.name = "Frame button placeholder at the end, without ID",
+		.template = template_btn_ph_end,
+		.template_size = sizeof(template_btn_ph_end),
+		.param_list = params_frame_all,
+		.param_num = ARRAY_SIZE(params_frame_all),
+		.expected = template_btn_ph_end,
+	},
+	{
 		.name = "All params present in the pen template",
 		.template = template_pen_all_params,
 		.template_size = sizeof(template_pen_all_params),
 		.param_list = params_pen_all,
 		.param_num = ARRAY_SIZE(params_pen_all),
 		.expected = expected_pen_all_params,
+	},
+	{
+		.name = "All params present in the frame template",
+		.template = template_frame_all_params,
+		.template_size = sizeof(template_frame_all_params),
+		.param_list = params_frame_all,
+		.param_num = ARRAY_SIZE(params_frame_all),
+		.expected = expected_frame_all_params,
 	},
 	{
 		.name = "Some params present in the pen template (complete param list)",
