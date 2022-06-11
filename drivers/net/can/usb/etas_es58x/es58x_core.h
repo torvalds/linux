@@ -400,8 +400,8 @@ struct es58x_device {
 	const struct es58x_parameters *param;
 	const struct es58x_operators *ops;
 
-	int rx_pipe;
-	int tx_pipe;
+	unsigned int rx_pipe;
+	unsigned int tx_pipe;
 
 	struct usb_anchor rx_urbs;
 	struct usb_anchor tx_urbs_busy;
