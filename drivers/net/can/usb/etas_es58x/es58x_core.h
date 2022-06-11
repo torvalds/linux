@@ -380,7 +380,6 @@ struct es58x_operators {
  * @timestamps: a temporary buffer to store the time stamps before
  *	feeding them to es58x_can_get_echo_skb(). Can only be used
  *	in RX branches.
- * @rx_max_packet_size: Maximum length of bulk-in URB.
  * @num_can_ch: Number of CAN channel (i.e. number of elements of @netdev).
  * @opened_channel_cnt: number of channels opened. Free of race
  *	conditions because its two users (net_device_ops:ndo_open()
@@ -414,7 +413,6 @@ struct es58x_device {
 
 	u64 timestamps[ES58X_ECHO_BULK_MAX];
 
-	u16 rx_max_packet_size;
 	u8 num_can_ch;
 	u8 opened_channel_cnt;
 
