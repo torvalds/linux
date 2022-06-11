@@ -1506,15 +1506,10 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 		maxsize = n;
 	else
 		npages = DIV_ROUND_UP(maxsize + off, PAGE_SIZE);
-	p = get_pages_array(npages);
+	*pages = p = get_pages_array(npages);
 	if (!p)
 		return -ENOMEM;
-	n = __pipe_get_pages(i, maxsize, p, off);
-	if (n > 0)
-		*pages = p;
-	else
-		kvfree(p);
-	return n;
+	return __pipe_get_pages(i, maxsize, p, off);
 }
 
 static ssize_t iter_xarray_get_pages_alloc(struct iov_iter *i,
@@ -1544,10 +1539,9 @@ static ssize_t iter_xarray_get_pages_alloc(struct iov_iter *i,
 			count++;
 	}
 
-	p = get_pages_array(count);
+	*pages = p = get_pages_array(count);
 	if (!p)
 		return -ENOMEM;
-	*pages = p;
 
 	nr = iter_xarray_populate_pages(p, i->xarray, index, count);
 	if (nr == 0)
@@ -1556,7 +1550,7 @@ static ssize_t iter_xarray_get_pages_alloc(struct iov_iter *i,
 	return min_t(size_t, nr * PAGE_SIZE - offset, maxsize);
 }
 
-ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
+static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		   struct page ***pages, size_t maxsize,
 		   size_t *start)
 {
@@ -1583,16 +1577,12 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 		*start = addr % PAGE_SIZE;
 		addr &= PAGE_MASK;
 		n = DIV_ROUND_UP(maxsize + *start, PAGE_SIZE);
-		p = get_pages_array(n);
+		*pages = p = get_pages_array(n);
 		if (!p)
 			return -ENOMEM;
 		res = get_user_pages_fast(addr, n, gup_flags, p);
-		if (unlikely(res <= 0)) {
-			kvfree(p);
-			*pages = NULL;
+		if (unlikely(res <= 0))
 			return res;
-		}
-		*pages = p;
 		return min_t(size_t, maxsize, res * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_bvec(i)) {
@@ -1612,6 +1602,22 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 	if (iov_iter_is_xarray(i))
 		return iter_xarray_get_pages_alloc(i, pages, maxsize, start);
 	return -EFAULT;
+}
+
+ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
+		   struct page ***pages, size_t maxsize,
+		   size_t *start)
+{
+	ssize_t len;
+
+	*pages = NULL;
+
+	len = __iov_iter_get_pages_alloc(i, pages, maxsize, start);
+	if (len <= 0) {
+		kvfree(*pages);
+		*pages = NULL;
+	}
+	return len;
 }
 EXPORT_SYMBOL(iov_iter_get_pages_alloc);
 
