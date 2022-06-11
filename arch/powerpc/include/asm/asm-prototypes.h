@@ -34,12 +34,6 @@ int64_t __opal_call(int64_t a0, int64_t a1, int64_t a2, int64_t a3,
 		    int64_t a4, int64_t a5, int64_t a6, int64_t a7,
 		    int64_t opcode, uint64_t msr);
 
-/* prom_init (OpenFirmware) */
-unsigned long __init prom_init(unsigned long r3, unsigned long r4,
-			       unsigned long pp,
-			       unsigned long r6, unsigned long r7,
-			       unsigned long kbase);
-
 /* misc runtime */
 extern u64 __bswapdi2(u64);
 extern s64 __lshrdi3(s64, int);
