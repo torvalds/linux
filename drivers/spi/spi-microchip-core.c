@@ -580,7 +580,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 
 error_release_hardware:
 	mchp_corespi_disable(spi);
-	clk_prepare_enable(spi->clk);
+	clk_disable_unprepare(spi->clk);
 error_release_master:
 	spi_master_put(master);
 
