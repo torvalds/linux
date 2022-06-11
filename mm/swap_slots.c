@@ -55,6 +55,7 @@ static void deactivate_swap_slots_cache(void)
 {
 	mutex_lock(&swap_slots_cache_mutex);
 	swap_slot_cache_active = false;
+	trace_android_vh_swap_slot_cache_active(false);
 	__drain_swap_slots_cache(SLOTS_CACHE|SLOTS_CACHE_RET);
 	mutex_unlock(&swap_slots_cache_mutex);
 }
@@ -63,6 +64,7 @@ static void reactivate_swap_slots_cache(void)
 {
 	mutex_lock(&swap_slots_cache_mutex);
 	swap_slot_cache_active = true;
+	trace_android_vh_swap_slot_cache_active(true);
 	mutex_unlock(&swap_slots_cache_mutex);
 }
 
