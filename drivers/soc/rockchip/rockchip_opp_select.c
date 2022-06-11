@@ -876,7 +876,8 @@ void rockchip_pvtpll_calibrate_opp(struct rockchip_opp_info *info)
 			delta1 = abs(pvtpll_rate - rate);
 		} while (delta1 < delta0);
 
-		info->opp_table[i].u_volt = volt - cur_step;
+		volt -= cur_step;
+		info->opp_table[i].u_volt = volt;
 	}
 
 	i = 0;
