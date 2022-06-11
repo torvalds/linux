@@ -1,0 +1,29 @@
+rockchip-charger-manager bindings
+~~~~~~~~~~~~~~~~~~~~~~~~
+
+Required properties :
+ - compatible : "rockchip-charger-manager"
+ - cm-chargers : name of charger
+ - cm-fuel-gauge : name of battery fuel gauge
+ - cm-charge-pump : name of battery charge pump
+
+Optional properties :
+ - cm-poll-mode : polling mode - 0 for disabled, 1 for always, 2 for when
+	external power is connected, or 3 for when charging.  If not present,
+	then polling is disabled
+ - cm-poll-interval : polling interval (in ms)
+
+Example :
+	charger-manager {
+		compatible = "rockchip-charger-manager";
+		cm-poll-mode = <2>;
+		cm-poll-interval = <5000>;
+
+		cm-chargers = "sgm4154x-charger";
+		cm-charge-pump = "sc8551-standalone";
+		cm-chargers-phandle = <&usbc0>;
+		cm-fuel-gauge = "test_battery";
+		monitored-battery = <&bat>;
+		extcon = <&u2phy0>;
+	};
+
