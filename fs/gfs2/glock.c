@@ -534,11 +534,11 @@ done:
 
 static int do_promote(struct gfs2_glock *gl)
 {
-	struct gfs2_holder *gh, *tmp, *current_gh;
+	struct gfs2_holder *gh, *current_gh;
 	bool incompat_holders_demoted = false;
 
 	current_gh = find_first_strong_holder(gl);
-	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
+	list_for_each_entry(gh, &gl->gl_holders, gh_list) {
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
 		if (!may_grant(gl, current_gh, gh)) {
