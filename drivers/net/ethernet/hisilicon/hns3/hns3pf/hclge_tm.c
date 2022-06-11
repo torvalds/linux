@@ -681,7 +681,9 @@ static void hclge_tm_vport_tc_info_update(struct hclge_vport *vport)
 	kinfo->num_tqps = hclge_vport_get_tqp_num(vport);
 	vport->dwrr = 100;  /* 100 percent as init */
 	vport->bw_limit = hdev->tm_info.pg_info[0].bw_limit;
-	hdev->rss_cfg.rss_size = kinfo->rss_size;
+
+	if (vport->vport_id == PF_VPORT_ID)
+		hdev->rss_cfg.rss_size = kinfo->rss_size;
 
 	/* when enable mqprio, the tc_info has been updated. */
 	if (kinfo->tc_info.mqprio_active)
