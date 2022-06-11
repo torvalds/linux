@@ -1019,7 +1019,8 @@ static int sock_reserve_memory(struct sock *sk, int bytes)
 		return -ENOMEM;
 
 	/* pre-charge to forward_alloc */
-	allocated = sk_memory_allocated_add(sk, pages);
+	sk_memory_allocated_add(sk, pages);
+	allocated = sk_memory_allocated(sk);
 	/* If the system goes into memory pressure with this
 	 * precharge, give up and return error.
 	 */
@@ -2906,11 +2907,13 @@ EXPORT_SYMBOL(sk_wait_data);
  */
 int __sk_mem_raise_allocated(struct sock *sk, int size, int amt, int kind)
 {
-	struct proto *prot = sk->sk_prot;
-	long allocated = sk_memory_allocated_add(sk, amt);
 	bool memcg_charge = mem_cgroup_sockets_enabled && sk->sk_memcg;
+	struct proto *prot = sk->sk_prot;
 	bool charged = true;
+	long allocated;
 
+	sk_memory_allocated_add(sk, amt);
+	allocated = sk_memory_allocated(sk);
 	if (memcg_charge &&
 	    !(charged = mem_cgroup_charge_skmem(sk->sk_memcg, amt,
 						gfp_memcg_charge())))

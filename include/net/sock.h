@@ -1412,7 +1412,7 @@ sk_memory_allocated(const struct sock *sk)
 /* 1 MB per cpu, in page units */
 #define SK_MEMORY_PCPU_RESERVE (1 << (20 - PAGE_SHIFT))
 
-static inline long
+static inline void
 sk_memory_allocated_add(struct sock *sk, int amt)
 {
 	int local_reserve;
@@ -1424,7 +1424,6 @@ sk_memory_allocated_add(struct sock *sk, int amt)
 		atomic_long_add(local_reserve, sk->sk_prot->memory_allocated);
 	}
 	preempt_enable();
-	return sk_memory_allocated(sk);
 }
 
 static inline void
