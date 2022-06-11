@@ -529,7 +529,7 @@ static int __init __reserved_mem_reserve_reg(unsigned long node,
 			pr_debug("Reserved memory: reserved region for node '%s': base %pa, size %lu MiB\n",
 				uname, &base, (unsigned long)(size / SZ_1M));
 			if (!nomap)
-				kmemleak_alloc_phys(base, size, 0, 0);
+				kmemleak_alloc_phys(base, size, 0);
 		}
 		else
 			pr_info("Reserved memory: failed to reserve memory for node '%s': base %pa, size %lu MiB\n",
