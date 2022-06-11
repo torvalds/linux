@@ -38,7 +38,7 @@
 #include <asm/irq.h>
 #include <asm/hydra.h>
 #include <asm/processor.h>
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/pmac_feature.h>
 #include <asm/macio.h>
 

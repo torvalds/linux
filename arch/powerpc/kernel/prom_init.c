@@ -42,7 +42,7 @@
 #include <asm/iommu.h>
 #include <asm/btext.h>
 #include <asm/sections.h>
-#include <asm/machdep.h>
+#include <asm/setup.h>
 #include <asm/asm-prototypes.h>
 #include <asm/ultravisor-api.h>
 

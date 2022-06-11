@@ -38,6 +38,7 @@
 #include <asm/disassemble.h>
 #include <asm/ppc-opcode.h>
 #include <asm/swiotlb.h>
+#include <asm/setup.h>
 #include <sysdev/fsl_soc.h>
 #include <sysdev/fsl_pci.h>
 

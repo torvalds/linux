@@ -39,6 +39,7 @@
 #include <asm/machdep.h>
 #include <asm/ppc-pci.h>
 #include <asm/eeh.h>
+#include <asm/setup.h>
 
 #include "../../../drivers/pci/pci.h"
 

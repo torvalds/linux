@@ -72,6 +72,7 @@
 #include <asm/svm.h>
 #include <asm/dtl.h>
 #include <asm/hvconsole.h>
+#include <asm/setup.h>
 
 #include "pseries.h"
 

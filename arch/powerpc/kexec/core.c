@@ -19,6 +19,7 @@
 #include <asm/machdep.h>
 #include <asm/pgalloc.h>
 #include <asm/sections.h>
+#include <asm/setup.h>
 
 void machine_kexec_mask_interrupts(void) {
 	unsigned int i;
