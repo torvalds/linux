@@ -19,6 +19,11 @@ properties:
   compatible:
     const: qcom,sc7280-lpass-lpi-pinctrl
 
+  qcom,adsp-bypass-mode:
+    description:
+      Tells ADSP is in bypass mode.
+    type: boolean
+
   reg:
     minItems: 2
     maxItems: 2
