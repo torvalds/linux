@@ -606,8 +606,8 @@
 		reg = <0x18>;
 		interrupt-parent = <&gpio1>;
 		interrupts = <11 IRQ_TYPE_LEVEL_LOW>;
-		spinctrl-names = "default";
-		pinctrl-0 = <&pmic_int>, <&pmic_sleep>;
+		pinctrl-names = "default";
+		pinctrl-0 = <&pmic_int>;
 		rockchip,system-power-controller;
 		wakeup-source;
 		gpio-controller;
