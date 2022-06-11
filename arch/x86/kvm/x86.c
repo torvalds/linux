@@ -3550,21 +3550,17 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		break;
 	case MSR_IA32_MISC_ENABLE: {
 		u64 old_val = vcpu->arch.ia32_misc_enable_msr;
-		u64 pmu_mask = MSR_IA32_MISC_ENABLE_PMU_RO_MASK |
-			MSR_IA32_MISC_ENABLE_EMON;
 
-		/* RO bits */
-		if (!msr_info->host_initiated &&
-		    ((old_val ^ data) & MSR_IA32_MISC_ENABLE_PMU_RO_MASK))
-			return 1;
+		if (!msr_info->host_initiated) {
+			/* RO bits */
+			if ((old_val ^ data) & MSR_IA32_MISC_ENABLE_PMU_RO_MASK)
+				return 1;
 
-		/*
-		 * For a dummy user space, the order of setting vPMU capabilities and
-		 * initialising MSR_IA32_MISC_ENABLE is not strictly guaranteed, so to
-		 * avoid inconsistent functionality we keep the vPMU bits unchanged here.
-		 */
-		data &= ~pmu_mask;
-		data |= old_val & pmu_mask;
+			/* R bits, i.e. writes are ignored, but don't fault. */
+			data = data & ~MSR_IA32_MISC_ENABLE_EMON;
+			data |= old_val & MSR_IA32_MISC_ENABLE_EMON;
+		}
+
 		if (!kvm_check_has_quirk(vcpu->kvm, KVM_X86_QUIRK_MISC_ENABLE_NO_MWAIT) &&
 		    ((old_val ^ data)  & MSR_IA32_MISC_ENABLE_MWAIT)) {
 			if (!guest_cpuid_has(vcpu, X86_FEATURE_XMM3))
@@ -11573,6 +11569,8 @@ void kvm_vcpu_reset(struct kvm_vcpu *vcpu, bool init_event)
 		vcpu->arch.smbase = 0x30000;
 
 		vcpu->arch.msr_misc_features_enables = 0;
+		vcpu->arch.ia32_misc_enable_msr = MSR_IA32_MISC_ENABLE_PEBS_UNAVAIL |
+						  MSR_IA32_MISC_ENABLE_BTS_UNAVAIL;
 
 		__kvm_set_xcr(vcpu, 0, XFEATURE_MASK_FP);
 		__kvm_set_msr(vcpu, MSR_IA32_XSS, 0, true);
