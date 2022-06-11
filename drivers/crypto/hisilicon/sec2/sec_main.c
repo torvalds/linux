@@ -508,16 +508,17 @@ static int sec_engine_init(struct hisi_qm *qm)
 
 	writel(SEC_SAA_ENABLE, qm->io_base + SEC_SAA_EN_REG);
 
-	/* HW V2 enable sm4 extra mode, as ctr/ecb */
-	if (qm->ver < QM_HW_V3)
+	if (qm->ver < QM_HW_V3) {
+		/* HW V2 enable sm4 extra mode, as ctr/ecb */
 		writel_relaxed(SEC_BD_ERR_CHK_EN0,
 			       qm->io_base + SEC_BD_ERR_CHK_EN_REG0);
 
-	/* Enable sm4 xts mode multiple iv */
-	writel_relaxed(SEC_BD_ERR_CHK_EN1,
-		       qm->io_base + SEC_BD_ERR_CHK_EN_REG1);
-	writel_relaxed(SEC_BD_ERR_CHK_EN3,
-		       qm->io_base + SEC_BD_ERR_CHK_EN_REG3);
+		/* HW V2 enable sm4 xts mode multiple iv */
+		writel_relaxed(SEC_BD_ERR_CHK_EN1,
+			       qm->io_base + SEC_BD_ERR_CHK_EN_REG1);
+		writel_relaxed(SEC_BD_ERR_CHK_EN3,
+			       qm->io_base + SEC_BD_ERR_CHK_EN_REG3);
+	}
 
 	/* config endian */
 	sec_set_endian(qm);
