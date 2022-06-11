@@ -179,7 +179,7 @@ static struct kvm_pmc *amd_rdpmc_ecx_to_pmc(struct kvm_vcpu *vcpu,
 	return &counters[idx];
 }
 
-static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr, bool host_initiated)
+static bool amd_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	/* All MSRs refer to exactly one PMC, so msr_idx_to_pmc is enough.  */
 	return false;

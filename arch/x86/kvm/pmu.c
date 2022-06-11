@@ -425,10 +425,10 @@ void kvm_pmu_deliver_pmi(struct kvm_vcpu *vcpu)
 	}
 }
 
-bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr, bool host_initiated)
+bool kvm_pmu_is_valid_msr(struct kvm_vcpu *vcpu, u32 msr)
 {
 	return static_call(kvm_x86_pmu_msr_idx_to_pmc)(vcpu, msr) ||
-		static_call(kvm_x86_pmu_is_valid_msr)(vcpu, msr, host_initiated);
+		static_call(kvm_x86_pmu_is_valid_msr)(vcpu, msr);
 }
 
 static void kvm_pmu_mark_pmc_in_use(struct kvm_vcpu *vcpu, u32 msr)
