@@ -3786,6 +3786,16 @@ int kvm_set_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 		vcpu->arch.guest_fpu.xfd_err = data;
 		break;
 #endif
+	case MSR_IA32_PEBS_ENABLE:
+	case MSR_IA32_DS_AREA:
+	case MSR_PEBS_DATA_CFG:
+		if (kvm_pmu_is_valid_msr(vcpu, msr))
+			return kvm_pmu_set_msr(vcpu, msr_info);
+		/*
+		 * Userspace is allowed to write '0' to MSRs that KVM reports
+		 * as to-be-saved, even if an MSRs isn't fully supported.
+		 */
+		return !msr_info->host_initiated || data;
 	default:
 		if (kvm_pmu_is_valid_msr(vcpu, msr))
 			return kvm_pmu_set_msr(vcpu, msr_info);
@@ -3866,9 +3876,16 @@ int kvm_get_msr_common(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 	case MSR_DRAM_ENERGY_STATUS:	/* DRAM controller */
 		msr_info->data = 0;
 		break;
+	case MSR_IA32_PEBS_ENABLE:
+	case MSR_IA32_DS_AREA:
+	case MSR_PEBS_DATA_CFG:
 	case MSR_F15H_PERF_CTL0 ... MSR_F15H_PERF_CTR5:
 		if (kvm_pmu_is_valid_msr(vcpu, msr_info->index))
 			return kvm_pmu_get_msr(vcpu, msr_info);
+		/*
+		 * Userspace is allowed to read MSRs that KVM reports in
+		 * KVM_GET_MSR_INDEX_LIST, even if an MSR isn't fully supported.
+		 */
 		if (!msr_info->host_initiated)
 			return 1;
 		msr_info->data = 0;
