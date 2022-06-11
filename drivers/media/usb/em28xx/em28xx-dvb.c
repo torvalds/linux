@@ -16,10 +16,6 @@
 // Based on cx88-dvb, saa7134-dvb and videobuf-dvb originally written by:
 //	(c) 2004, 2005 Chris Pascoe <c.pascoe@itee.uq.edu.au>
 //	(c) 2004 Gerd Knorr <kraxel@bytesex.org> [SuSE Labs]
-//
-// This program is free software; you can redistribute it and/or modify
-// it under the terms of the GNU General Public License as published by
-// the Free Software Foundation version 2 of the License.
 
 #include "em28xx.h"
 
