@@ -1100,7 +1100,7 @@ static inline void audit_log_user_recv_msg(struct audit_buffer **ab,
 	audit_log_common_recv_msg(NULL, ab, msg_type);
 }
 
-int is_audit_feature_set(int i)
+static int is_audit_feature_set(int i)
 {
 	return af.features & AUDIT_FEATURE_TO_MASK(i);
 }
