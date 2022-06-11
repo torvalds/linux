@@ -107,7 +107,7 @@ struct mlx5_vdpa_virtqueue {
 
 	/* Resources for implementing the notification channel from the device
 	 * to the driver. fwqp is the firmware end of an RC connection; the
-	 * other end is vqqp used by the driver. cq is is where completions are
+	 * other end is vqqp used by the driver. cq is where completions are
 	 * reported.
 	 */
 	struct mlx5_vdpa_cq cq;
@@ -1814,12 +1814,13 @@ static virtio_net_ctrl_ack handle_ctrl_vlan(struct mlx5_vdpa_dev *mvdev, u8 cmd)
 
 		id = mlx5vdpa16_to_cpu(mvdev, vlan);
 		mac_vlan_del(ndev, ndev->config.mac, id, true);
+		status = VIRTIO_NET_OK;
 		break;
 	default:
-	break;
-}
+		break;
+	}
 
-return status;
+	return status;
 }
 
 static void mlx5_cvq_kick_handler(struct work_struct *work)
