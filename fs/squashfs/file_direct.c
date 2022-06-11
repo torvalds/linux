@@ -47,14 +47,6 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 	if (page == NULL)
 		return res;
 
-	/*
-	 * Create a "page actor" which will kmap and kunmap the
-	 * page cache pages appropriately within the decompressor
-	 */
-	actor = squashfs_page_actor_init_special(page, pages, 0);
-	if (actor == NULL)
-		goto out;
-
 	/* Try to grab all the pages covered by the Squashfs block */
 	for (missing_pages = 0, i = 0, n = start_index; i < pages; i++, n++) {
 		page[i] = (n == target_page->index) ? target_page :
@@ -89,8 +81,19 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 		goto out;
 	}
 
+	/*
+	 * Create a "page actor" which will kmap and kunmap the
+	 * page cache pages appropriately within the decompressor
+	 */
+	actor = squashfs_page_actor_init_special(msblk, page, pages, 0);
+	if (actor == NULL)
+		goto out;
+
 	/* Decompress directly into the page cache buffers */
 	res = squashfs_read_data(inode->i_sb, block, bsize, NULL, actor);
+
+	kfree(actor);
+
 	if (res < 0)
 		goto mark_errored;
 
@@ -116,7 +119,6 @@ int squashfs_readpage_block(struct page *target_page, u64 block, int bsize,
 			put_page(page[i]);
 	}
 
-	kfree(actor);
 	kfree(page);
 
 	return 0;
@@ -135,7 +137,6 @@ mark_errored:
 	}
 
 out:
-	kfree(actor);
 	kfree(page);
 	return res;
 }

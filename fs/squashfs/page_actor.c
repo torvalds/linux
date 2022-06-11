@@ -7,6 +7,8 @@
 #include <linux/kernel.h>
 #include <linux/slab.h>
 #include <linux/pagemap.h>
+#include "squashfs_fs_sb.h"
+#include "decompressor.h"
 #include "page_actor.h"
 
 /*
@@ -57,29 +59,62 @@ struct squashfs_page_actor *squashfs_page_actor_init(void **buffer,
 }
 
 /* Implementation of page_actor for decompressing directly into page cache. */
+static void *handle_next_page(struct squashfs_page_actor *actor)
+{
+	int max_pages = (actor->length + PAGE_SIZE - 1) >> PAGE_SHIFT;
+
+	if (actor->returned_pages == max_pages)
+		return NULL;
+
+	if ((actor->next_page == actor->pages) ||
+			(actor->next_index != actor->page[actor->next_page]->index)) {
+		if (actor->alloc_buffer) {
+			void *tmp_buffer = kmalloc(PAGE_SIZE, GFP_KERNEL);
+
+			if (tmp_buffer) {
+				actor->tmp_buffer = tmp_buffer;
+				actor->next_index++;
+				actor->returned_pages++;
+				return tmp_buffer;
+			}
+		}
+
+		actor->next_index++;
+		actor->returned_pages++;
+		return ERR_PTR(-ENOMEM);
+	}
+
+	actor->next_index++;
+	actor->returned_pages++;
+	return actor->pageaddr = kmap_local_page(actor->page[actor->next_page++]);
+}
+
 static void *direct_first_page(struct squashfs_page_actor *actor)
 {
-	actor->next_page = 1;
-	return actor->pageaddr = kmap_atomic(actor->page[0]);
+	return handle_next_page(actor);
 }
 
 static void *direct_next_page(struct squashfs_page_actor *actor)
 {
 	if (actor->pageaddr)
-		kunmap_atomic(actor->pageaddr);
+		kunmap_local(actor->pageaddr);
 
-	return actor->pageaddr = actor->next_page == actor->pages ? NULL :
-		kmap_atomic(actor->page[actor->next_page++]);
+	kfree(actor->tmp_buffer);
+	actor->pageaddr = actor->tmp_buffer = NULL;
+
+	return handle_next_page(actor);
 }
 
 static void direct_finish_page(struct squashfs_page_actor *actor)
 {
 	if (actor->pageaddr)
-		kunmap_atomic(actor->pageaddr);
+		kunmap_local(actor->pageaddr);
+
+	kfree(actor->tmp_buffer);
 }
 
-struct squashfs_page_actor *squashfs_page_actor_init_special(struct page **page,
-	int pages, int length)
+struct squashfs_page_actor *squashfs_page_actor_init_special(struct squashfs_sb_info *msblk,
+	struct page **page, int pages, int length)
 {
 	struct squashfs_page_actor *actor = kmalloc(sizeof(*actor), GFP_KERNEL);
 
@@ -90,7 +125,11 @@ struct squashfs_page_actor *squashfs_page_actor_init_special(struct page **page,
 	actor->page = page;
 	actor->pages = pages;
 	actor->next_page = 0;
+	actor->returned_pages = 0;
+	actor->next_index = page[0]->index & ~((1 << (msblk->block_log - PAGE_SHIFT)) - 1);
 	actor->pageaddr = NULL;
+	actor->tmp_buffer = NULL;
+	actor->alloc_buffer = msblk->decompressor->alloc_buffer;
 	actor->squashfs_first_page = direct_first_page;
 	actor->squashfs_next_page = direct_next_page;
 	actor->squashfs_finish_page = direct_finish_page;

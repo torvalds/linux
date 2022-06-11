@@ -45,6 +45,11 @@ static inline void squashfs_finish_page(struct squashfs_page_actor *actor)
 {
 	/* empty */
 }
+
+static inline void squashfs_actor_nobuff(struct squashfs_page_actor *actor)
+{
+	/* empty */
+}
 #else
 struct squashfs_page_actor {
 	union {
@@ -52,17 +57,23 @@ struct squashfs_page_actor {
 		struct page	**page;
 	};
 	void	*pageaddr;
+	void	*tmp_buffer;
 	void    *(*squashfs_first_page)(struct squashfs_page_actor *);
 	void    *(*squashfs_next_page)(struct squashfs_page_actor *);
 	void    (*squashfs_finish_page)(struct squashfs_page_actor *);
 	int	pages;
 	int	length;
 	int	next_page;
+	int	alloc_buffer;
+	int	returned_pages;
+	pgoff_t	next_index;
 };
 
-extern struct squashfs_page_actor *squashfs_page_actor_init(void **, int, int);
-extern struct squashfs_page_actor *squashfs_page_actor_init_special(struct page
-							 **, int, int);
+extern struct squashfs_page_actor *squashfs_page_actor_init(void **buffer,
+				int pages, int length);
+extern struct squashfs_page_actor *squashfs_page_actor_init_special(
+				struct squashfs_sb_info *msblk,
+				struct page **page, int pages, int length);
 static inline void *squashfs_first_page(struct squashfs_page_actor *actor)
 {
 	return actor->squashfs_first_page(actor);
@@ -74,6 +85,10 @@ static inline void *squashfs_next_page(struct squashfs_page_actor *actor)
 static inline void squashfs_finish_page(struct squashfs_page_actor *actor)
 {
 	actor->squashfs_finish_page(actor);
+}
+static inline void squashfs_actor_nobuff(struct squashfs_page_actor *actor)
+{
+	actor->alloc_buffer = 0;
 }
 #endif
 #endif
