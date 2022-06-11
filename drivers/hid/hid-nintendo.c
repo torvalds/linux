@@ -1634,6 +1634,7 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 	ctlr->input->id.version = hdev->version;
 	ctlr->input->uniq = ctlr->mac_addr_str;
 	ctlr->input->name = name;
+	ctlr->input->phys = hdev->phys;
 	input_set_drvdata(ctlr->input, ctlr);
 
 	/* set up sticks and buttons */
@@ -1713,6 +1714,7 @@ static int joycon_input_create(struct joycon_ctlr *ctlr)
 	ctlr->imu_input->id.version = hdev->version;
 	ctlr->imu_input->uniq = ctlr->mac_addr_str;
 	ctlr->imu_input->name = imu_name;
+	ctlr->imu_input->phys = hdev->phys;
 	input_set_drvdata(ctlr->imu_input, ctlr);
 
 	/* configure imu axes */
