@@ -310,6 +310,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -537,6 +541,10 @@
  * pin 5 - i2c3_scl_m0, pullup to vcc_3v3
  */
 &i2c3 {
+	status = "okay";
+};
+
+&i2s0_8ch {
 	status = "okay";
 };
 
