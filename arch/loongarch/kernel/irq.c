@@ -22,6 +22,8 @@
 #include <asm/setup.h>
 
 DEFINE_PER_CPU(unsigned long, irq_stack);
+DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
+EXPORT_PER_CPU_SYMBOL(irq_stat);
 
 struct irq_domain *cpu_domain;
 struct irq_domain *liointc_domain;
@@ -56,8 +58,11 @@ int arch_show_interrupts(struct seq_file *p, int prec)
 
 void __init init_IRQ(void)
 {
-	int i, r, ipi_irq;
+	int i;
+#ifdef CONFIG_SMP
+	int r, ipi_irq;
 	static int ipi_dummy_dev;
+#endif
 	unsigned int order = get_order(IRQ_STACK_SIZE);
 	struct page *page;
 

@@ -66,8 +66,6 @@ static cpumask_t cpu_core_setup_map;
 
 struct secondary_data cpuboot_data;
 static DEFINE_PER_CPU(int, cpu_state);
-DEFINE_PER_CPU_SHARED_ALIGNED(irq_cpustat_t, irq_stat);
-EXPORT_PER_CPU_SYMBOL(irq_stat);
 
 enum ipi_msg_type {
 	IPI_RESCHEDULE,
