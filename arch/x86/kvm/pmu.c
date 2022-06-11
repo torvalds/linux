@@ -442,19 +442,11 @@ static void kvm_pmu_mark_pmc_in_use(struct kvm_vcpu *vcpu, u32 msr)
 
 int kvm_pmu_get_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	if (msr_info->host_initiated && !vcpu->kvm->arch.enable_pmu) {
-		msr_info->data = 0;
-		return 0;
-	}
-
 	return static_call(kvm_x86_pmu_get_msr)(vcpu, msr_info);
 }
 
 int kvm_pmu_set_msr(struct kvm_vcpu *vcpu, struct msr_data *msr_info)
 {
-	if (msr_info->host_initiated && !vcpu->kvm->arch.enable_pmu)
-		return !!msr_info->data;
-
 	kvm_pmu_mark_pmc_in_use(vcpu, msr_info->index);
 	return static_call(kvm_x86_pmu_set_msr)(vcpu, msr_info);
 }
