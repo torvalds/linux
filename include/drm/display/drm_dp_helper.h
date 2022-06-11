@@ -372,8 +372,10 @@ struct drm_dp_aux {
 	 * Also note that this callback can be called no matter the
 	 * state @dev is in and also no matter what state the panel is
 	 * in. It's expected:
+	 *
 	 * - If the @dev providing the AUX bus is currently unpowered then
 	 *   it will power itself up for the transfer.
+	 *
 	 * - If we're on eDP (using a drm_panel) and the panel is not in a
 	 *   state where it can respond (it's not powered or it's in a
 	 *   low power state) then this function may return an error, but
