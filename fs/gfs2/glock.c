@@ -478,8 +478,7 @@ find_first_strong_holder(struct gfs2_glock *gl)
  * gfs2_instantiate - Call the glops instantiate function
  * @gh: The glock holder
  *
- * Returns: 0 if instantiate was successful, 2 if type specific operation is
- * underway, or error.
+ * Returns: 0 if instantiate was successful, or error.
  */
 int gfs2_instantiate(struct gfs2_holder *gh)
 {
@@ -524,18 +523,12 @@ again:
  */
 
 static int do_promote(struct gfs2_glock *gl)
-__releases(&gl->gl_lockref.lock)
-__acquires(&gl->gl_lockref.lock)
 {
 	struct gfs2_holder *gh, *tmp, *first_gh;
 	bool incompat_holders_demoted = false;
-	bool lock_released;
-	int ret;
 
-restart:
 	first_gh = find_first_strong_holder(gl);
 	list_for_each_entry_safe(gh, tmp, &gl->gl_holders, gh_list) {
-		lock_released = false;
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags))
 			continue;
 		if (!may_grant(gl, first_gh, gh)) {
@@ -554,32 +547,9 @@ restart:
 			incompat_holders_demoted = true;
 			first_gh = gh;
 		}
-		if (test_bit(GLF_INSTANTIATE_NEEDED, &gl->gl_flags) &&
-		    !(gh->gh_flags & GL_SKIP) && gl->gl_ops->go_instantiate) {
-			lock_released = true;
-			spin_unlock(&gl->gl_lockref.lock);
-			ret = gfs2_instantiate(gh);
-			spin_lock(&gl->gl_lockref.lock);
-			if (ret) {
-				if (ret == 1)
-					return 2;
-				gh->gh_error = ret;
-				list_del_init(&gh->gh_list);
-				trace_gfs2_glock_queue(gh, 0);
-				gfs2_holder_wake(gh);
-				goto restart;
-			}
-		}
 		set_bit(HIF_HOLDER, &gh->gh_iflags);
 		trace_gfs2_promote(gh);
 		gfs2_holder_wake(gh);
-		/*
-		 * If we released the gl_lockref.lock the holders list may have
-		 * changed. For that reason, we start again at the start of
-		 * the holders queue.
-		 */
-		if (lock_released)
-			goto restart;
 	}
 	return 0;
 }
@@ -1314,6 +1284,25 @@ static void gfs2_glock_update_hold_time(struct gfs2_glock *gl,
 }
 
 /**
+ * gfs2_glock_holder_ready - holder is ready and its error code can be collected
+ * @gh: the glock holder
+ *
+ * Called when a glock holder no longer needs to be waited for because it is
+ * now either held (HIF_HOLDER set; gh_error == 0), or acquiring the lock has
+ * failed (gh_error != 0).
+ */
+
+int gfs2_glock_holder_ready(struct gfs2_holder *gh)
+{
+	if (gh->gh_error || (gh->gh_flags & GL_SKIP))
+		return gh->gh_error;
+	gh->gh_error = gfs2_instantiate(gh);
+	if (gh->gh_error)
+		gfs2_glock_dq(gh);
+	return gh->gh_error;
+}
+
+/**
  * gfs2_glock_wait - wait on a glock acquisition
  * @gh: the glock holder
  *
@@ -1327,7 +1316,7 @@ int gfs2_glock_wait(struct gfs2_holder *gh)
 	might_sleep();
 	wait_on_bit(&gh->gh_iflags, HIF_WAIT, TASK_UNINTERRUPTIBLE);
 	gfs2_glock_update_hold_time(gh->gh_gl, start_time);
-	return gh->gh_error;
+	return gfs2_glock_holder_ready(gh);
 }
 
 static int glocks_pending(unsigned int num_gh, struct gfs2_holder *ghs)
@@ -1372,13 +1361,15 @@ int gfs2_glock_async_wait(unsigned int num_gh, struct gfs2_holder *ghs)
 
 	for (i = 0; i < num_gh; i++) {
 		struct gfs2_holder *gh = &ghs[i];
+		int ret2;
 
 		if (test_bit(HIF_HOLDER, &gh->gh_iflags)) {
 			gfs2_glock_update_hold_time(gh->gh_gl,
 						    start_time);
 		}
+		ret2 = gfs2_glock_holder_ready(gh);
 		if (!ret)
-			ret = gh->gh_error;
+			ret = ret2;
 	}
 
 out:
@@ -2233,7 +2224,16 @@ void gfs2_glock_finish_truncate(struct gfs2_inode *ip)
 	spin_lock(&gl->gl_lockref.lock);
 	clear_bit(GLF_LOCK, &gl->gl_flags);
 	run_queue(gl, 1);
+	wake_up_glock(gl);
 	spin_unlock(&gl->gl_lockref.lock);
+}
+
+void gfs2_wait_truncate(struct gfs2_inode *ip)
+{
+	struct gfs2_glock *gl = ip->i_gl;
+	wait_queue_head_t *wq = glock_waitqueue(&gl->gl_name);
+
+	wait_event(*wq, !(ip->i_diskflags & GFS2_DIF_TRUNC_IN_PROG));
 }
 
 static const char *state2str(unsigned state)

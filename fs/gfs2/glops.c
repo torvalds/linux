@@ -510,7 +510,7 @@ static int inode_go_instantiate(struct gfs2_holder *gh)
 			list_add(&ip->i_trunc_list, &sdp->sd_trunc_list);
 		spin_unlock(&sdp->sd_trunc_lock);
 		wake_up(&sdp->sd_quota_wait);
-		error = 1;
+		gfs2_wait_truncate(ip);
 	}
 
 out:
