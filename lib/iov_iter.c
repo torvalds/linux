@@ -1378,7 +1378,8 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 		return 0;
 
 	maxsize = min_t(size_t, nr * PAGE_SIZE - offset, maxsize);
-	iov_iter_advance(i, maxsize);
+	i->iov_offset += maxsize;
+	i->count -= maxsize;
 	return maxsize;
 }
 
@@ -1467,7 +1468,13 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		for (int k = 0; k < n; k++)
 			get_page(p[k] = page + k);
 		maxsize = min_t(size_t, maxsize, n * PAGE_SIZE - *start);
-		iov_iter_advance(i, maxsize);
+		i->count -= maxsize;
+		i->iov_offset += maxsize;
+		if (i->iov_offset == i->bvec->bv_len) {
+			i->iov_offset = 0;
+			i->bvec++;
+			i->nr_segs--;
+		}
 		return maxsize;
 	}
 	if (iov_iter_is_pipe(i))
