@@ -669,8 +669,25 @@
 			};
 
 			blsp1_spi1_default: blsp1-spi1-default {
-				pins = "gpio22", "gpio23", "gpio24", "gpio25";
-				function = "blsp_spi1";
+				mosi {
+					pins = "gpio22";
+					function = "blsp_spi_mosi_a1";
+				};
+
+				miso {
+					pins = "gpio23";
+					function = "blsp_spi_miso_a1";
+				};
+
+				cs_n {
+					pins = "gpio24";
+					function = "blsp_spi_cs_n_a1";
+				};
+
+				clk {
+					pins = "gpio25";
+					function = "blsp_spi_clk_a1";
+				};
 			};
 
 			blsp1_spi2_default: blsp1-spi2-default {
