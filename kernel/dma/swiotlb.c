@@ -282,7 +282,7 @@ retry:
 
 void __init swiotlb_init(bool addressing_limit, unsigned int flags)
 {
-	return swiotlb_init_remap(addressing_limit, flags, NULL);
+	swiotlb_init_remap(addressing_limit, flags, NULL);
 }
 
 /*
