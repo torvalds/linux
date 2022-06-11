@@ -11,6 +11,9 @@ clk-dummy.ko
 dispcc-pineapple.ko
 gcc-pineapple.ko
 videocc-pineapple.ko
+debug-regulator.ko
+proxy-consumer.ko
+rpmh-regulator.ko
 stub-regulator.ko
 gdsc-regulator.ko
 debug-regulator.ko
