@@ -1729,9 +1729,16 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 
 	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
 		return;
-	/* don't recycle if we already did IO to this buffer */
-	if (req->flags & REQ_F_PARTIAL_IO)
+	/*
+	 * For legacy provided buffer mode, don't recycle if we already did
+	 * IO to this buffer. For ring-mapped provided buffer mode, we should
+	 * increment ring->head to explicitly monopolize the buffer to avoid
+	 * multiple use.
+	 */
+	if ((req->flags & REQ_F_BUFFER_SELECTED) &&
+	    (req->flags & REQ_F_PARTIAL_IO))
 		return;
+
 	/*
 	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
 	 * the flag and hence ensure that bl->head doesn't get incremented.
@@ -1739,8 +1746,13 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	 */
 	if (req->flags & REQ_F_BUFFER_RING) {
 		if (req->buf_list) {
-			req->buf_index = req->buf_list->bgid;
-			req->flags &= ~REQ_F_BUFFER_RING;
+			if (req->flags & REQ_F_PARTIAL_IO) {
+				req->buf_list->head++;
+				req->buf_list = NULL;
+			} else {
+				req->buf_index = req->buf_list->bgid;
+				req->flags &= ~REQ_F_BUFFER_RING;
+			}
 		}
 		return;
 	}
