@@ -172,6 +172,8 @@ struct kmemleak_object {
 #define OBJECT_NO_SCAN		(1 << 2)
 /* flag set to fully scan the object when scan_area allocation failed */
 #define OBJECT_FULL_SCAN	(1 << 3)
+/* flag set for object allocated with physical address */
+#define OBJECT_PHYS		(1 << 4)
 
 #define HEX_PREFIX		"    "
 /* number of bytes to print per line; must be 16 or 32 */
@@ -574,8 +576,9 @@ static int __save_stack_trace(unsigned long *trace)
  * Create the metadata (struct kmemleak_object) corresponding to an allocated
  * memory block and add it to the object_list and object_tree_root.
  */
-static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
-					     int min_count, gfp_t gfp)
+static struct kmemleak_object *__create_object(unsigned long ptr, size_t size,
+					     int min_count, gfp_t gfp,
+					     bool is_phys)
 {
 	unsigned long flags;
 	struct kmemleak_object *object, *parent;
@@ -595,7 +598,7 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 	INIT_HLIST_HEAD(&object->area_list);
 	raw_spin_lock_init(&object->lock);
 	atomic_set(&object->use_count, 1);
-	object->flags = OBJECT_ALLOCATED;
+	object->flags = OBJECT_ALLOCATED | (is_phys ? OBJECT_PHYS : 0);
 	object->pointer = ptr;
 	object->size = kfence_ksize((void *)ptr) ?: size;
 	object->excess_ref = 0;
@@ -660,6 +663,20 @@ static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
 out:
 	raw_spin_unlock_irqrestore(&kmemleak_lock, flags);
 	return object;
+}
+
+/* Create kmemleak object which allocated with virtual address. */
+static struct kmemleak_object *create_object(unsigned long ptr, size_t size,
+					     int min_count, gfp_t gfp)
+{
+	return __create_object(ptr, size, min_count, gfp, false);
+}
+
+/* Create kmemleak object which allocated with physical address. */
+static struct kmemleak_object *create_object_phys(unsigned long ptr, size_t size,
+					     int min_count, gfp_t gfp)
+{
+	return __create_object(ptr, size, min_count, gfp, true);
 }
 
 /*
@@ -728,11 +745,11 @@ static void delete_object_part(unsigned long ptr, size_t size)
 	start = object->pointer;
 	end = object->pointer + object->size;
 	if (ptr > start)
-		create_object(start, ptr - start, object->min_count,
-			      GFP_KERNEL);
+		__create_object(start, ptr - start, object->min_count,
+			      GFP_KERNEL, object->flags & OBJECT_PHYS);
 	if (ptr + size < end)
-		create_object(ptr + size, end - ptr - size, object->min_count,
-			      GFP_KERNEL);
+		__create_object(ptr + size, end - ptr - size, object->min_count,
+			      GFP_KERNEL, object->flags & OBJECT_PHYS);
 
 	__delete_object(object);
 }
@@ -1129,9 +1146,14 @@ EXPORT_SYMBOL(kmemleak_no_scan);
  */
 void __ref kmemleak_alloc_phys(phys_addr_t phys, size_t size, gfp_t gfp)
 {
+	pr_debug("%s(0x%pa, %zu)\n", __func__, &phys, size);
+
 	if (PHYS_PFN(phys) >= min_low_pfn && PHYS_PFN(phys) < max_low_pfn)
-		/* assume min_count 0 */
-		kmemleak_alloc(__va(phys), size, 0, gfp);
+		/*
+		 * Create object with OBJECT_PHYS flag and
+		 * assume min_count 0.
+		 */
+		create_object_phys((unsigned long)__va(phys), size, 0, gfp);
 }
 EXPORT_SYMBOL(kmemleak_alloc_phys);
 
