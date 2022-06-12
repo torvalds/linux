@@ -418,9 +418,10 @@ static struct symbol *sym_add_exported(const char *name, struct module *mod,
 		s = new_symbol(name, mod, export);
 	} else if (!external_module || s->module->is_vmlinux ||
 		   s->module == mod) {
-		fatal("%s: '%s' exported twice. Previous export was in %s%s\n",
-		      mod->name, name, s->module->name,
-		      s->module->is_vmlinux ? "" : ".ko");
+		warn("%s: '%s' exported twice. Previous export was in %s%s\n",
+		     mod->name, name, s->module->name,
+		     s->module->is_vmlinux ? "" : ".ko");
+		return s;
 	}
 
 	s->module = mod;
