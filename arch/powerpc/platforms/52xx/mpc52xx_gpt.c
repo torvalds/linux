@@ -753,11 +753,6 @@ static int mpc52xx_gpt_probe(struct platform_device *ofdev)
 	return 0;
 }
 
-static int mpc52xx_gpt_remove(struct platform_device *ofdev)
-{
-	return -EBUSY;
-}
-
 static const struct of_device_id mpc52xx_gpt_match[] = {
 	{ .compatible = "fsl,mpc5200-gpt", },
 
@@ -770,10 +765,10 @@ static const struct of_device_id mpc52xx_gpt_match[] = {
 static struct platform_driver mpc52xx_gpt_driver = {
 	.driver = {
 		.name = "mpc52xx-gpt",
+		.suppress_bind_attrs = true,
 		.of_match_table = mpc52xx_gpt_match,
 	},
 	.probe = mpc52xx_gpt_probe,
-	.remove = mpc52xx_gpt_remove,
 };
 
 static int __init mpc52xx_gpt_init(void)
