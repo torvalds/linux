@@ -3849,10 +3849,8 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	struct io_uring_buf *buf;
 	__u32 head = bl->head;
 
-	if (unlikely(smp_load_acquire(&br->tail) == head)) {
-		io_ring_submit_unlock(req->ctx, issue_flags);
+	if (unlikely(smp_load_acquire(&br->tail) == head))
 		return NULL;
-	}
 
 	head &= bl->mask;
 	if (head < IO_BUFFER_LIST_BUF_PER_PAGE) {
