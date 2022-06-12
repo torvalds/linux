@@ -1,7 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef __PANEL_EVENT_NOTIFIER_H
@@ -23,6 +23,7 @@ enum panel_event_notifier_client {
 	PANEL_EVENT_NOTIFIER_CLIENT_PRIMARY_TOUCH,
 	PANEL_EVENT_NOTIFIER_CLIENT_SECONDARY_TOUCH,
 	PANEL_EVENT_NOTIFIER_CLIENT_ECM,
+	PANEL_EVENT_NOTIFIER_CLIENT_BATTERY_CHARGER,
 	PANEL_EVENT_NOTIFIER_CLIENT_MAX
 };
 
