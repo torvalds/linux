@@ -2788,13 +2788,13 @@ static bool flush_workqueue_prep_pwqs(struct workqueue_struct *wq,
 }
 
 /**
- * flush_workqueue - ensure that any scheduled work has run to completion.
+ * __flush_workqueue - ensure that any scheduled work has run to completion.
  * @wq: workqueue to flush
  *
  * This function sleeps until all work items which were queued on entry
  * have finished execution, but it is not livelocked by new incoming ones.
  */
-void flush_workqueue(struct workqueue_struct *wq)
+void __flush_workqueue(struct workqueue_struct *wq)
 {
 	struct wq_flusher this_flusher = {
 		.list = LIST_HEAD_INIT(this_flusher.list),
@@ -2943,7 +2943,7 @@ void flush_workqueue(struct workqueue_struct *wq)
 out_unlock:
 	mutex_unlock(&wq->mutex);
 }
-EXPORT_SYMBOL(flush_workqueue);
+EXPORT_SYMBOL(__flush_workqueue);
 
 /**
  * drain_workqueue - drain a workqueue
@@ -2971,7 +2971,7 @@ void drain_workqueue(struct workqueue_struct *wq)
 		wq->flags |= __WQ_DRAINING;
 	mutex_unlock(&wq->mutex);
 reflush:
-	flush_workqueue(wq);
+	__flush_workqueue(wq);
 
 	mutex_lock(&wq->mutex);
 
@@ -6111,3 +6111,11 @@ void __init workqueue_init(void)
 	wq_online = true;
 	wq_watchdog_init();
 }
+
+/*
+ * Despite the naming, this is a no-op function which is here only for avoiding
+ * link error. Since compile-time warning may fail to catch, we will need to
+ * emit run-time warning from __flush_workqueue().
+ */
+void __warn_flushing_systemwide_wq(void) { }
+EXPORT_SYMBOL(__warn_flushing_systemwide_wq);
