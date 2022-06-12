@@ -106,8 +106,8 @@ static int dp_parser_misc(struct dp_parser *parser)
 
 	len = drm_of_get_data_lanes_count(of_node, 1, DP_MAX_NUM_DP_LANES);
 	if (len < 0) {
-		DRM_WARN("Invalid property %s, default max DP lanes = %d\n",
-				data_lane_property, DP_MAX_NUM_DP_LANES);
+		DRM_WARN("Invalid property \"data-lanes\", default max DP lanes = %d\n",
+			 DP_MAX_NUM_DP_LANES);
 		len = DP_MAX_NUM_DP_LANES;
 	}
 

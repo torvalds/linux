@@ -21,6 +21,8 @@
 
 #include <video/mipi_display.h>
 
+#include <drm/drm_of.h>
+
 #include "dsi.h"
 #include "dsi.xml.h"
 #include "sfpb.xml.h"
