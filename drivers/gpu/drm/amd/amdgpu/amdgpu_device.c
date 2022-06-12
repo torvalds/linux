@@ -3615,14 +3615,6 @@ int amdgpu_device_init(struct amdgpu_device *adev,
 	if (amdgpu_mcbp)
 		DRM_INFO("MCBP is enabled\n");
 
-	if (adev->asic_type >= CHIP_NAVI10) {
-		if (amdgpu_mes || amdgpu_mes_kiq)
-			adev->enable_mes = true;
-
-		if (amdgpu_mes_kiq)
-			adev->enable_mes_kiq = true;
-	}
-
 	/*
 	 * Reset domain needs to be present early, before XGMI hive discovered
 	 * (if any) and intitialized to use reset sem and in_gpu reset flag
