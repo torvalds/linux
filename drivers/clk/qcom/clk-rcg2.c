@@ -13,6 +13,7 @@
 #include <linux/rational.h>
 #include <linux/regmap.h>
 #include <linux/math64.h>
+#include <linux/minmax.h>
 #include <linux/slab.h>
 
 #include <asm/div64.h>
@@ -461,9 +462,11 @@ static int clk_rcg2_set_duty_cycle(struct clk_hw *hw, struct clk_duty *duty)
 	/* Calculate 2d value */
 	d = DIV_ROUND_CLOSEST(n * duty_per * 2, 100);
 
-	 /* Check bit widths of 2d. If D is too big reduce duty cycle. */
-	if (d > mask)
-		d = mask;
+	/*
+	 * Check bit widths of 2d. If D is too big reduce duty cycle.
+	 * Also make sure it is never zero.
+	 */
+	d = clamp_val(d, 1, mask);
 
 	if ((d / 2) > (n - m))
 		d = (n - m) * 2;
