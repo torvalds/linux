@@ -130,7 +130,7 @@ static void pxa168_pll_init(struct pxa168_clk_unit *pxa_unit)
 static DEFINE_SPINLOCK(uart0_lock);
 static DEFINE_SPINLOCK(uart1_lock);
 static DEFINE_SPINLOCK(uart2_lock);
-static const char * const uart_parent_names[] = {"pll1_3_16", "uart_pll"};
+static const char * const uart_parent_names[] = {"pll1_2_3_16", "uart_pll"};
 
 static DEFINE_SPINLOCK(ssp0_lock);
 static DEFINE_SPINLOCK(ssp1_lock);
@@ -192,20 +192,20 @@ static void pxa168_apb_periph_clk_init(struct pxa168_clk_unit *pxa_unit)
 
 static DEFINE_SPINLOCK(sdh0_lock);
 static DEFINE_SPINLOCK(sdh1_lock);
-static const char * const sdh_parent_names[] = {"pll1_12", "pll1_13"};
+static const char * const sdh_parent_names[] = {"pll1_13", "pll1_12", "pll1_8"};
 
 static DEFINE_SPINLOCK(usb_lock);
 
 static DEFINE_SPINLOCK(disp0_lock);
-static const char * const disp_parent_names[] = {"pll1_2", "pll1_12"};
+static const char * const disp_parent_names[] = {"pll1", "pll1_2"};
 
 static DEFINE_SPINLOCK(ccic0_lock);
-static const char * const ccic_parent_names[] = {"pll1_2", "pll1_12"};
+static const char * const ccic_parent_names[] = {"pll1_4", "pll1_8"};
 static const char * const ccic_phy_parent_names[] = {"pll1_6", "pll1_12"};
 
 static struct mmp_param_mux_clk apmu_mux_clks[] = {
-	{0, "sdh0_mux", sdh_parent_names, ARRAY_SIZE(sdh_parent_names), CLK_SET_RATE_PARENT, APMU_SDH0, 6, 1, 0, &sdh0_lock},
-	{0, "sdh1_mux", sdh_parent_names, ARRAY_SIZE(sdh_parent_names), CLK_SET_RATE_PARENT, APMU_SDH1, 6, 1, 0, &sdh1_lock},
+	{0, "sdh0_mux", sdh_parent_names, ARRAY_SIZE(sdh_parent_names), CLK_SET_RATE_PARENT, APMU_SDH0, 6, 2, 0, &sdh0_lock},
+	{0, "sdh1_mux", sdh_parent_names, ARRAY_SIZE(sdh_parent_names), CLK_SET_RATE_PARENT, APMU_SDH1, 6, 2, 0, &sdh1_lock},
 	{0, "disp0_mux", disp_parent_names, ARRAY_SIZE(disp_parent_names), CLK_SET_RATE_PARENT, APMU_DISP0, 6, 1, 0, &disp0_lock},
 	{0, "ccic0_mux", ccic_parent_names, ARRAY_SIZE(ccic_parent_names), CLK_SET_RATE_PARENT, APMU_CCIC0, 6, 1, 0, &ccic0_lock},
 	{0, "ccic0_phy_mux", ccic_phy_parent_names, ARRAY_SIZE(ccic_phy_parent_names), CLK_SET_RATE_PARENT, APMU_CCIC0, 7, 1, 0, &ccic0_lock},
