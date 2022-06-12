@@ -31,11 +31,15 @@ static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
  * @fid: fid to add
  *
  */
-void v9fs_fid_add(struct dentry *dentry, struct p9_fid *fid)
+void v9fs_fid_add(struct dentry *dentry, struct p9_fid **pfid)
 {
+	struct p9_fid *fid = *pfid;
+
 	spin_lock(&dentry->d_lock);
 	__add_fid(dentry, fid);
 	spin_unlock(&dentry->d_lock);
+
+	*pfid = NULL;
 }
 
 /**
@@ -72,11 +76,15 @@ static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
  *
  */
 
-void v9fs_open_fid_add(struct inode *inode, struct p9_fid *fid)
+void v9fs_open_fid_add(struct inode *inode, struct p9_fid **pfid)
 {
+	struct p9_fid *fid = *pfid;
+
 	spin_lock(&inode->i_lock);
 	hlist_add_head(&fid->ilist, (struct hlist_head *)&inode->i_private);
 	spin_unlock(&inode->i_lock);
+
+	*pfid = NULL;
 }
 
 
@@ -189,13 +197,13 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		else
 			uname = v9ses->uname;
 
-		root_fid = p9_client_attach(v9ses->clnt, NULL, uname, uid,
-					    v9ses->aname);
-		if (IS_ERR(root_fid))
-			return root_fid;
+		fid = p9_client_attach(v9ses->clnt, NULL, uname, uid,
+				       v9ses->aname);
+		if (IS_ERR(fid))
+			return fid;
 
-		p9_fid_get(root_fid);
-		v9fs_fid_add(dentry->d_sb->s_root, root_fid);
+		root_fid = p9_fid_get(fid);
+		v9fs_fid_add(dentry->d_sb->s_root, &fid);
 	}
 	/* If we are root ourself just return that */
 	if (dentry->d_sb->s_root == dentry)

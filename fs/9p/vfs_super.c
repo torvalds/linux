@@ -184,7 +184,7 @@ static struct dentry *v9fs_mount(struct file_system_type *fs_type, int flags,
 	retval = v9fs_get_acl(inode, fid);
 	if (retval)
 		goto release_sb;
-	v9fs_fid_add(root, fid);
+	v9fs_fid_add(root, &fid);
 
 	p9_debug(P9_DEBUG_VFS, " simple set mount, return 0\n");
 	return dget(sb->s_root);

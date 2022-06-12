@@ -399,10 +399,8 @@ void v9fs_evict_inode(struct inode *inode)
 
 	fscache_relinquish_cookie(v9fs_inode_cookie(v9inode), false);
 	/* clunk the fid stashed in writeback_fid */
-	if (v9inode->writeback_fid) {
-		p9_fid_put(v9inode->writeback_fid);
-		v9inode->writeback_fid = NULL;
-	}
+	p9_fid_put(v9inode->writeback_fid);
+	v9inode->writeback_fid = NULL;
 }
 
 static int v9fs_test_inode(struct inode *inode, void *data)
@@ -633,14 +631,12 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 	if (IS_ERR(ofid)) {
 		err = PTR_ERR(ofid);
 		p9_debug(P9_DEBUG_VFS, "p9_client_walk failed %d\n", err);
-		p9_fid_put(dfid);
-		return ERR_PTR(err);
+		goto error;
 	}
 
 	err = p9_client_fcreate(ofid, name, perm, mode, extension);
 	if (err < 0) {
 		p9_debug(P9_DEBUG_VFS, "p9_client_fcreate failed %d\n", err);
-		p9_fid_put(dfid);
 		goto error;
 	}
 
@@ -651,8 +647,6 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 			err = PTR_ERR(fid);
 			p9_debug(P9_DEBUG_VFS,
 				   "p9_client_walk failed %d\n", err);
-			fid = NULL;
-			p9_fid_put(dfid);
 			goto error;
 		}
 		/*
@@ -663,21 +657,17 @@ v9fs_create(struct v9fs_session_info *v9ses, struct inode *dir,
 			err = PTR_ERR(inode);
 			p9_debug(P9_DEBUG_VFS,
 				   "inode creation failed %d\n", err);
-			p9_fid_put(dfid);
 			goto error;
 		}
-		v9fs_fid_add(dentry, fid);
+		v9fs_fid_add(dentry, &fid);
 		d_instantiate(dentry, inode);
 	}
 	p9_fid_put(dfid);
 	return ofid;
 error:
-	if (ofid)
-		p9_fid_put(ofid);
-
-	if (fid)
-		p9_fid_put(fid);
-
+	p9_fid_put(dfid);
+	p9_fid_put(ofid);
+	p9_fid_put(fid);
 	return ERR_PTR(err);
 }
 
@@ -804,9 +794,9 @@ struct dentry *v9fs_vfs_lookup(struct inode *dir, struct dentry *dentry,
 	res = d_splice_alias(inode, dentry);
 	if (!IS_ERR(fid)) {
 		if (!res)
-			v9fs_fid_add(dentry, fid);
+			v9fs_fid_add(dentry, &fid);
 		else if (!IS_ERR(res))
-			v9fs_fid_add(res, fid);
+			v9fs_fid_add(res, &fid);
 		else
 			p9_fid_put(fid);
 	}
@@ -847,7 +837,6 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 						v9fs_proto_dotu(v9ses)));
 	if (IS_ERR(fid)) {
 		err = PTR_ERR(fid);
-		fid = NULL;
 		goto error;
 	}
 
@@ -882,7 +871,7 @@ v9fs_vfs_atomic_open(struct inode *dir, struct dentry *dentry,
 	if (v9ses->cache == CACHE_LOOSE || v9ses->cache == CACHE_FSCACHE)
 		fscache_use_cookie(v9fs_inode_cookie(v9inode),
 				   file->f_mode & FMODE_WRITE);
-	v9fs_open_fid_add(inode, fid);
+	v9fs_open_fid_add(inode, &fid);
 
 	file->f_mode |= FMODE_CREATED;
 out:
@@ -890,8 +879,7 @@ out:
 	return err;
 
 error:
-	if (fid)
-		p9_fid_put(fid);
+	p9_fid_put(fid);
 	goto out;
 }
 
@@ -939,9 +927,9 @@ v9fs_vfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 	struct inode *old_inode;
 	struct inode *new_inode;
 	struct v9fs_session_info *v9ses;
-	struct p9_fid *oldfid, *dfid;
-	struct p9_fid *olddirfid;
-	struct p9_fid *newdirfid;
+	struct p9_fid *oldfid = NULL, *dfid = NULL;
+	struct p9_fid *olddirfid = NULL;
+	struct p9_fid *newdirfid = NULL;
 	struct p9_wstat wstat;
 
 	if (flags)
@@ -958,21 +946,22 @@ v9fs_vfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 
 	dfid = v9fs_parent_fid(old_dentry);
 	olddirfid = clone_fid(dfid);
-	if (dfid && !IS_ERR(dfid))
-		p9_fid_put(dfid);
+	p9_fid_put(dfid);
+	dfid = NULL;
 
 	if (IS_ERR(olddirfid)) {
 		retval = PTR_ERR(olddirfid);
-		goto done;
+		goto error;
 	}
 
 	dfid = v9fs_parent_fid(new_dentry);
 	newdirfid = clone_fid(dfid);
 	p9_fid_put(dfid);
+	dfid = NULL;
 
 	if (IS_ERR(newdirfid)) {
 		retval = PTR_ERR(newdirfid);
-		goto clunk_olddir;
+		goto error;
 	}
 
 	down_write(&v9ses->rename_sem);
@@ -983,7 +972,7 @@ v9fs_vfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 			retval = p9_client_rename(oldfid, newdirfid,
 						  new_dentry->d_name.name);
 		if (retval != -EOPNOTSUPP)
-			goto clunk_newdir;
+			goto error_locked;
 	}
 	if (old_dentry->d_parent != new_dentry->d_parent) {
 		/*
@@ -992,14 +981,14 @@ v9fs_vfs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 
 		p9_debug(P9_DEBUG_ERROR, "old dir and new dir are different\n");
 		retval = -EXDEV;
-		goto clunk_newdir;
+		goto error_locked;
 	}
 	v9fs_blank_wstat(&wstat);
 	wstat.muid = v9ses->uname;
 	wstat.name = new_dentry->d_name.name;
 	retval = p9_client_wstat(oldfid, &wstat);
 
-clunk_newdir:
+error_locked:
 	if (!retval) {
 		if (new_inode) {
 			if (S_ISDIR(new_inode->i_mode))
@@ -1020,12 +1009,10 @@ clunk_newdir:
 		d_move(old_dentry, new_dentry);
 	}
 	up_write(&v9ses->rename_sem);
+
+error:
 	p9_fid_put(newdirfid);
-
-clunk_olddir:
 	p9_fid_put(olddirfid);
-
-done:
 	p9_fid_put(oldfid);
 	return retval;
 }
