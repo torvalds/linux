@@ -29,7 +29,7 @@ static inline struct p9_fid *v9fs_fid_clone(struct dentry *dentry)
 		return fid;
 
 	nfid = clone_fid(fid);
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 	return nfid;
 }
 #endif

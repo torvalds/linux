@@ -237,6 +237,34 @@ static inline int p9_req_try_get(struct p9_req_t *r)
 
 int p9_req_put(struct p9_req_t *r);
 
+/* fid reference counting helpers:
+ *  - fids used for any length of time should always be referenced through
+ *    p9_fid_get(), and released with p9_fid_put()
+ *  - v9fs_fid_lookup() or similar will automatically call get for you
+ *    and also require a put
+ *  - the *_fid_add() helpers will stash the fid in the inode,
+ *    at which point it is the responsibility of evict_inode()
+ *    to call the put
+ *  - the last put will automatically send a clunk to the server
+ */
+static inline struct p9_fid *p9_fid_get(struct p9_fid *fid)
+{
+	refcount_inc(&fid->count);
+
+	return fid;
+}
+
+static inline int p9_fid_put(struct p9_fid *fid)
+{
+	if (!fid || IS_ERR(fid))
+		return 0;
+
+	if (!refcount_dec_and_test(&fid->count))
+		return 0;
+
+	return p9_client_clunk(fid);
+}
+
 void p9_client_cb(struct p9_client *c, struct p9_req_t *req, int status);
 
 int p9_parse_header(struct p9_fcall *pdu, int32_t *size, int8_t *type,

@@ -1228,7 +1228,7 @@ struct p9_fid *p9_client_walk(struct p9_fid *oldfid, uint16_t nwname,
 
 clunk_fid:
 	kfree(wqids);
-	p9_client_clunk(fid);
+	p9_fid_put(fid);
 	fid = NULL;
 
 error:
@@ -1459,15 +1459,6 @@ int p9_client_clunk(struct p9_fid *fid)
 	struct p9_req_t *req;
 	int retries = 0;
 
-	if (!fid || IS_ERR(fid)) {
-		pr_warn("%s (%d): Trying to clunk with invalid fid\n",
-			__func__, task_pid_nr(current));
-		dump_stack();
-		return 0;
-	}
-	if (!refcount_dec_and_test(&fid->count))
-		return 0;
-
 again:
 	p9_debug(P9_DEBUG_9P, ">>> TCLUNK fid %d (try %d)\n",
 		 fid->fid, retries);
@@ -1519,7 +1510,7 @@ int p9_client_remove(struct p9_fid *fid)
 	p9_tag_remove(clnt, req);
 error:
 	if (err == -ERESTARTSYS)
-		p9_client_clunk(fid);
+		p9_fid_put(fid);
 	else
 		p9_fid_destroy(fid);
 	return err;
@@ -2042,7 +2033,7 @@ struct p9_fid *p9_client_xattrwalk(struct p9_fid *file_fid,
 		 attr_fid->fid, *attr_size);
 	return attr_fid;
 clunk_fid:
-	p9_client_clunk(attr_fid);
+	p9_fid_put(attr_fid);
 	attr_fid = NULL;
 error:
 	if (attr_fid && attr_fid != file_fid)

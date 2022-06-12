@@ -63,7 +63,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 
 		err = p9_client_open(fid, omode);
 		if (err < 0) {
-			p9_client_clunk(fid);
+			p9_fid_put(fid);
 			return err;
 		}
 		if ((file->f_flags & O_APPEND) &&
@@ -98,7 +98,7 @@ int v9fs_file_open(struct inode *inode, struct file *file)
 	v9fs_open_fid_add(inode, fid);
 	return 0;
 out_error:
-	p9_client_clunk(file->private_data);
+	p9_fid_put(file->private_data);
 	file->private_data = NULL;
 	return err;
 }

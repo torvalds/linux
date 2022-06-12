@@ -56,7 +56,7 @@ static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
 	h = (struct hlist_head *)&inode->i_private;
 	hlist_for_each_entry(fid, h, ilist) {
 		if (uid_eq(fid->uid, uid)) {
-			refcount_inc(&fid->count);
+			p9_fid_get(fid);
 			ret = fid;
 			break;
 		}
@@ -104,7 +104,7 @@ static struct p9_fid *v9fs_fid_find(struct dentry *dentry, kuid_t uid, int any)
 		hlist_for_each_entry(fid, h, dlist) {
 			if (any || uid_eq(fid->uid, uid)) {
 				ret = fid;
-				refcount_inc(&ret->count);
+				p9_fid_get(ret);
 				break;
 			}
 		}
@@ -172,7 +172,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		old_fid = fid;
 
 		fid = p9_client_walk(old_fid, 1, &dentry->d_name.name, 1);
-		p9_client_clunk(old_fid);
+		p9_fid_put(old_fid);
 		goto fid_out;
 	}
 	up_read(&v9ses->rename_sem);
@@ -194,7 +194,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 		if (IS_ERR(root_fid))
 			return root_fid;
 
-		refcount_inc(&root_fid->count);
+		p9_fid_get(root_fid);
 		v9fs_fid_add(dentry->d_sb->s_root, root_fid);
 	}
 	/* If we are root ourself just return that */
@@ -225,7 +225,7 @@ static struct p9_fid *v9fs_fid_lookup_with_uid(struct dentry *dentry,
 				     old_fid == root_fid /* clone */);
 		/* non-cloning walk will return the same fid */
 		if (fid != old_fid) {
-			p9_client_clunk(old_fid);
+			p9_fid_put(old_fid);
 			old_fid = fid;
 		}
 		if (IS_ERR(fid)) {
@@ -240,11 +240,11 @@ fid_out:
 		spin_lock(&dentry->d_lock);
 		if (d_unhashed(dentry)) {
 			spin_unlock(&dentry->d_lock);
-			p9_client_clunk(fid);
+			p9_fid_put(fid);
 			fid = ERR_PTR(-ENOENT);
 		} else {
 			__add_fid(dentry, fid);
-			refcount_inc(&fid->count);
+			p9_fid_get(fid);
 			spin_unlock(&dentry->d_lock);
 		}
 	}
@@ -301,7 +301,7 @@ struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 	fid = clone_fid(ofid);
 	if (IS_ERR(fid))
 		goto error_out;
-	p9_client_clunk(ofid);
+	p9_fid_put(ofid);
 	/*
 	 * writeback fid will only be used to write back the
 	 * dirty pages. We always request for the open fid in read-write
@@ -310,7 +310,7 @@ struct p9_fid *v9fs_writeback_fid(struct dentry *dentry)
 	 */
 	err = p9_client_open(fid, O_RDWR);
 	if (err < 0) {
-		p9_client_clunk(fid);
+		p9_fid_put(fid);
 		fid = ERR_PTR(err);
 		goto error_out;
 	}
