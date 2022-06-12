@@ -112,16 +112,18 @@ drm_of_lvds_get_data_mapping(const struct device_node *port)
 	return -EINVAL;
 }
 
-int drm_of_get_data_lanes_count(const struct device_node *endpoint,
-				const unsigned int min, const unsigned int max)
+static inline int
+drm_of_get_data_lanes_count(const struct device_node *endpoint,
+			    const unsigned int min, const unsigned int max)
 {
 	return -EINVAL;
 }
 
-int drm_of_get_data_lanes_count_ep(const struct device_node *port,
-				   int port_reg, int reg
-				   const unsigned int min,
-				   const unsigned int max)
+static inline int
+drm_of_get_data_lanes_count_ep(const struct device_node *port,
+			       int port_reg, int reg,
+			       const unsigned int min,
+			       const unsigned int max)
 {
 	return -EINVAL;
 }
