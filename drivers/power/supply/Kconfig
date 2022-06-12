@@ -542,6 +542,14 @@ config CHARGER_SC8551
 	help
 	  Say Y to enable support for the SC8551 battery pump charger.
 
+config CHARGER_SC89890
+	tristate "SC89890 battery charger driver"
+	depends on I2C
+	depends on GPIOLIB || COMPILE_TEST
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SC89890 battery charger.
+
 config CHARGER_MAX14577
 	tristate "Maxim MAX14577/77836 battery charger driver"
 	depends on MFD_MAX14577

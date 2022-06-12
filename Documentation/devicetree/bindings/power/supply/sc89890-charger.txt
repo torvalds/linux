@@ -1,0 +1,40 @@
+Binding for sc8990 Li-Ion Charger
+
+This driver will support the sc89890. There are
+other ICs in the same family but those have not been tested.
+
+Required properties:
+- compatible: "sc,sc89890"
+- reg: integer, i2c address of the device.
+- interrupts: interrupt line;
+- sc,battery-regulation-voltage: integer, maximum charging voltage (in uV);
+- sc,charge-current: integer, maximum charging current (in uA);
+- sc,termination-current: integer, charge will be terminated when current in
+    constant-voltage phase drops below this value (in uA);
+- sc,precharge-current: integer, maximum charge current during precharge
+    phase (in uA);
+- sc,minimum-sys-voltage: integer, when battery is charging and it is below
+    minimum system voltage, the system will be regulated above
+    minimum-sys-voltage setting (in uV);
+- sc,boost-voltage: integer, VBUS voltage level in boost mode (in uV);
+- sc,boost-max-current: integer, maximum allowed current draw in boost mode
+    (in uA).
+
+Example:
+
+sc89890 {
+	compatible = "sc,sc89890";
+	reg = <0x6a>;
+
+	interrupt-parent = <&gpio0>;
+	interrupts = <RK_PD5 IRQ_TYPE_EDGE_FALLING>;
+
+	sc,battery-regulation-voltage = <4200000>;
+	sc,charge-current = <1000000>;
+	sc,termination-current = <50000>;
+	sc,precharge-current = <128000>;
+	sc,minimum-sys-voltage = <3600000>;
+	sc,boost-voltage = <5000000>;
+	sc,boost-max-current = <1000000>;
+	sc,ibatcomp-micro-ohms = <10>;
+};
