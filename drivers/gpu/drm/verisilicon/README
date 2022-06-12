@@ -14,3 +14,33 @@ notes:
 i2c0 i2c1 i2c2 i2c3 sdio1 tdm
 调试hdmi的时候建议在jh7100-common.dtsi文件
 将这些模块的pin的结点进行注释或者将node disabled
+
+
+
+build drm mipi-dsi need to config:
+# CONFIG_DRM_I2C_ADV7511_CEC is not set
+CONFIG_DRM_VERISILICON=y
+#CONFIG_DRM_I2C_ADV7513 is not set
+CONFIG_DRM_LEGACY=y
+CONFIG_STARFIVE_DSI=y
+CONFIG_PHY_M31_DPHY_RX0=y
+#STARFIVE_INNO_HDMI is not set
+# CONFIG_DRM_VGEM is not set
+# CONFIG_DRM_VKMS is not set
+
+notes:
+1.
+测试mipi-dsi时，在编译前需要打开的dts节点有：
+jh7110.dtsi: 
+dc8200, encoder: display-encoder, mipi_dphy, mipi_dsi, mipi_panel
+
+jh7100-common.dtsi:
+&i2c2
+
+
+2.
+evb板子当前与mipi-dsi冲突的gpio有:
+i2c0, i2c3, hdmi(inno), hdmi_output(rgb), sdio1(mmc1)
+
+调试mipi-dsi的时候建议在jh7100-common.dtsi文件
+将这些模块的pin的结点进行注释或者将node disabled

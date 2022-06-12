@@ -26,6 +26,10 @@
 #include <linux/phy/phy-mipi-dphy.h>
 #include <linux/platform_device.h>
 #include <linux/regmap.h>
+#include<linux/reset.h>
+//#include <soc/starfive/jh7110_pmic.h>//20220602 pmic support
+#include <linux/regulator/consumer.h>
+#include "7110-m31-dphy.h"
 
 //syscfg registers
 #define SCFG_DSI_CSI_SEL	        0x2c
@@ -129,14 +133,98 @@ struct sf_dphy {
 	void __iomem *topsys;
 
 	struct clk_bulk_data *clks;
+	//20220601 clk support
+	struct clk * txesc_clk;
+    struct reset_control *sys_rst;
+	struct reset_control *txbytehs_rst;
+	//20220601 clk support
+	void __iomem *aonsys;//7110 aonsys con
 
 	struct phy_configure_opts_mipi_dphy config;
 
 	u8 hsfreq;
 
+	struct regulator *mipitx_1p8;
+	struct regulator *mipitx_0p9;
+
 	struct phy *phy;
 };
 
+static int sf_dphy_clkrst_get(struct device *dev, struct sf_dphy *dphy)
+{
+	//dev_info(dev,"===sf_dphy_clkrst_get begin\n");
+	int ret;
+
+	dphy->txesc_clk = devm_clk_get(dev, "dphy_txesc");
+	if (IS_ERR(dphy->txesc_clk)){
+		dev_err(dev, "===txesc_clk get error\n");
+		return PTR_ERR(dphy->txesc_clk);
+	}
+	dphy->sys_rst = reset_control_get_exclusive(dev, "dphy_sys");
+	if (IS_ERR(dphy->sys_rst)){
+		dev_err(dev, "===sys_rst get error\n");
+		return PTR_ERR(dphy->sys_rst);
+	}
+	//dphy->txbytehs_rst = reset_control_get_exclusive(dev,"dphy_txbytehs");
+	//if (IS_ERR(dphy->txbytehs_rst)){
+	//	dev_err(dev,"===txbytehs_rst get error\n");
+	//	return PTR_ERR(dphy->txbytehs_rst);
+	//}
+	//dev_info(dev,"===sf_dphy_clkrst_get begin\n");
+	return ret;
+}
+static int sf_dphy_clkrst_ena_deas(struct device *dev, struct sf_dphy *dphy)
+{
+	//dev_info(dev,"===sf_dphy_clkrst_ena_deas begin\n");
+	int ret;
+	
+	ret = clk_prepare_enable(dphy->txesc_clk);
+	if (ret) {
+        dev_err(dev, "failed to prepare/enable txesc_clk\n");
+        return ret;
+    }
+	ret = reset_control_deassert(dphy->sys_rst);
+	if (ret < 0) {
+        dev_err(dev, "failed to deassert sys_rst\n");
+        return ret;
+    }
+	//ret = reset_control_deassert(dphy->txbytehs_rst);
+	//if (ret < 0) {
+    //    dev_err(dev, "failed to deassert txbytehs_rst\n");
+    //    return ret;
+    //}
+	//dev_info(dev,"===sf_dphy_clkrst_ena_deas successful\n");
+	return ret;
+}
+
+static int sf_dphy_clkrst_disa_assert(struct device *dev, struct sf_dphy *dphy)
+{
+	//dev_info(dev,"===sf_dphy_clkrst_disa_assert begin\n");
+	int ret;
+	ret = reset_control_assert(dphy->sys_rst);
+	if (ret < 0) {
+        dev_err(dev, "failed to assert sys_rst\n");
+        return ret;
+    }
+	//reset_control_assert(dphy->txbytehs_rst);
+	clk_disable_unprepare(dphy->txesc_clk);
+
+	//dev_info(dev,"===sf_dphy_clkrst_disa_assert successful\n");
+	return ret;
+}
+
+/*
+*static int sf_dphy_remove(struct platform_device *pdev)
+*{
+*	struct sf_dphy *dphy = dev_get_drvdata(&pdev->dev);
+*	reset_control_assert(dphy->sys_rst);
+*	//reset_control_assert(dphy->txbytehs_rst);
+*	clk_disable_unprepare(dphy->txesc_clk);
+*	return 0;
+*}
+*/
+
+#if 0//original
 static u32 top_sys_read32(struct sf_dphy *priv, u32 reg)
 {
 	return ioread32(priv->topsys + reg);
@@ -411,9 +499,10 @@ static void polling_dphy_lock(struct sf_dphy *priv)
 }
 
 static int sf_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
-{
+{	//dev_info(dphy->dev,"--->sf_dphy_configure\n");
 	struct sf_dphy *dphy = phy_get_drvdata(phy);
 	uint32_t bit_rate = 800000000/1000000UL;//new mipi panel clock setting
+	//uint32_t bit_rate = 500000000/1000000UL;//7110 mipi panel clock setting
 
 
 	dphy_config(dphy, bit_rate);
@@ -421,26 +510,180 @@ static int sf_dphy_configure(struct phy *phy, union phy_configure_opts *opts)
 	mdelay(10);
 	polling_dphy_lock(dphy);
 
+	//dev_info(dphy->dev,"--->sf_dphy_configure\n");
 	return 0;
+}
+#endif
+
+static int is_pll_locked(struct sf_dphy *dphy)
+{
+    //int tmp = GET_U0_MIPITX_DPHY_RGS_CDTX_PLL_UNLOCK;
+	int tmp = sf_dphy_get_reg(dphy->topsys + 0x8,
+								RGS_CDTX_PLL_UNLOCK_SHIFT, RGS_CDTX_PLL_UNLOCK_MASK);
+    return !tmp;
+}
+static void reset(int assert, struct sf_dphy *dphy)
+{
+	dev_info(dphy->dev, "1 SET_U0_MIPITX_DPHY_RESETB\n");
+    //SET_U0_MIPITX_DPHY_RESETB((!assert));
+	sf_dphy_set_reg(dphy->topsys + 0x64, (!assert), RESETB_SHIFT, RESETB_MASK);
+	dev_info(dphy->dev, "2 SET_U0_MIPITX_DPHY_RESETB\n");
+
+    if (!assert) {
+		while(!is_pll_locked(dphy));
+		dev_info(dphy->dev, "MIPI dphy-tx # PLL Locked\n");
+    }
+}
+
+static int sys_m31_dphy_tx_configure(struct phy *phy, union phy_configure_opts *opts)
+{
+	//dev_info(dphy->dev,"---sys_m31_dphy_tx_configure begin\n");
+	struct sf_dphy *dphy;
+	uint32_t bitrate;
+	unsigned long alignment;
+	int i;
+	const struct m31_dphy_config *p;
+	const uint32_t AON_POWER_READY_N_active = 0;
+	dphy = phy_get_drvdata(phy);	
+	bitrate = 500000000;
+
+	sf_dphy_set_reg(dphy->topsys + 0x8, 0x10, 
+					RG_CDTX_L0N_HSTX_RES_SHIFT, RG_CDTX_L0N_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0xC, 0x10,
+					RG_CDTX_L0N_HSTX_RES_SHIFT, RG_CDTX_L0N_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0xC, 0x10,
+					RG_CDTX_L2N_HSTX_RES_SHIFT, RG_CDTX_L2N_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0xC, 0x10,
+					RG_CDTX_L3N_HSTX_RES_SHIFT, RG_CDTX_L3N_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0x10, 0x10,
+					RG_CDTX_L4N_HSTX_RES_SHIFT, RG_CDTX_L4N_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0x8, 0x10,
+					RG_CDTX_L0P_HSTX_RES_SHIFT, RG_CDTX_L0P_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0xC, 0x10,
+					RG_CDTX_L1P_HSTX_RES_SHIFT, RG_CDTX_L1P_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0xC, 0x10,
+					RG_CDTX_L2P_HSTX_RES_SHIFT, RG_CDTX_L2P_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0xC, 0x10,
+					RG_CDTX_L3P_HSTX_RES_SHIFT, RG_CDTX_L3P_HSTX_RES_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0x10, 0x10,
+					RG_CDTX_L4P_HSTX_RES_SHIFT, RG_CDTX_L4P_HSTX_RES_MASK);
+
+	dev_info(dphy->dev,"request dphy hs_rate %dMbps\n", bitrate/1000000);
+    //if (is_pll_locked()) {
+	if (is_pll_locked(dphy))
+		dev_info(dphy->dev, "Error: MIPI dphy-tx # PLL is not supposed to be LOCKED\n");
+	else
+		dev_info(dphy->dev, "MIPI dphy-tx # PLL is not LOCKED\n");
+
+    //unsigned long alignment = (bitrate <= M31_DPHY_HS_RATE_80M) ? M31_DPHY_HS_RATE_80M : M31_DPHY_BITRATE_ALIGN;
+    alignment = M31_DPHY_BITRATE_ALIGN;
+    if (bitrate % alignment) {
+        bitrate += alignment - (bitrate % alignment);
+    }
+
+    dev_info(dphy->dev, "want dphy hs_rate %dMbps\n", bitrate/1000000);
+
+    p = m31_dphy_configs;
+    for (i = 0; i < ARRAY_SIZE(m31_dphy_configs); i++, p++) {
+        if (p->bitrate == bitrate) {
+            dev_info(dphy->dev, "config dphy hs_rate %dMbps\n", bitrate/1000000);
+
+            //Clock source and lane setting
+            //SET_U0_MIPITX_DPHY_REFCLK_IN_SEL(M31_DPHY_REFCLK);
+			sf_dphy_set_reg(dphy->topsys + 0x64, M31_DPHY_REFCLK, REFCLK_IN_SEL_SHIFT, REFCLK_IN_SEL_MASK);
+            //const uint32_t AON_POWER_READY_N_active = 0;
+            dev_info(dphy->dev, "MIPI dphy-tx # AON_POWER_READY_N active(%d)\n", AON_POWER_READY_N_active);
+
+
+			sf_dphy_set_reg(dphy->topsys, AON_POWER_READY_N_active,
+							AON_POWER_READY_N_SHIFT, AON_POWER_READY_N_MASK);
+
+			sf_dphy_set_reg(dphy->topsys, 0x0,
+							CFG_L0_SWAP_SEL_SHIFT, CFG_L0_SWAP_SEL_MASK);//Lane setting
+			sf_dphy_set_reg(dphy->topsys, 0x1,
+							CFG_L1_SWAP_SEL_SHIFT, CFG_L1_SWAP_SEL_MASK);
+			sf_dphy_set_reg(dphy->topsys, 0x4,
+							CFG_L2_SWAP_SEL_SHIFT, CFG_L2_SWAP_SEL_MASK);
+			sf_dphy_set_reg(dphy->topsys, 0x2,
+							CFG_L3_SWAP_SEL_SHIFT, CFG_L3_SWAP_SEL_MASK);
+			sf_dphy_set_reg(dphy->topsys, 0x3,
+							CFG_L4_SWAP_SEL_SHIFT, CFG_L4_SWAP_SEL_MASK);
+			//PLL setting
+			sf_dphy_set_reg(dphy->topsys + 0x1c, 0x0,
+							RG_CDTX_PLL_SSC_EN_SHIFT, RG_CDTX_PLL_SSC_EN_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x18, 0x1,
+							RG_CDTX_PLL_LDO_STB_X2_EN_SHIFT, RG_CDTX_PLL_LDO_STB_X2_EN_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x18, 0x1,
+							RG_CDTX_PLL_FM_EN_SHIFT, RG_CDTX_PLL_FM_EN_MASK);
+
+			sf_dphy_set_reg(dphy->topsys + 0x18, p->pll_prev_div,
+							RG_CDTX_PLL_PRE_DIV_SHIFT, RG_CDTX_PLL_PRE_DIV_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x18, p->pll_fbk_int,
+							RG_CDTX_PLL_FBK_INT_SHIFT, RG_CDTX_PLL_FBK_INT_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x14, p->pll_fbk_fra,
+							RG_CDTX_PLL_FBK_FRA_SHIFT, RG_CDTX_PLL_FBK_FRA_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x28, p->extd_cycle_sel,
+							RG_EXTD_CYCLE_SEL_SHIFT, RG_EXTD_CYCLE_SEL_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x24, p->dlane_hs_pre_time,
+							RG_DLANE_HS_PRE_TIME_SHIFT, RG_DLANE_HS_PRE_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x24, p->dlane_hs_pre_time,
+							RG_DLANE_HS_PRE_TIME_SHIFT, RG_DLANE_HS_PRE_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x24, p->dlane_hs_zero_time,
+							RG_DLANE_HS_ZERO_TIME_SHIFT, RG_DLANE_HS_ZERO_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x24, p->dlane_hs_trail_time,
+							RG_DLANE_HS_TRAIL_TIME_SHIFT, RG_DLANE_HS_TRAIL_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x20, p->clane_hs_pre_time,
+							RG_CLANE_HS_PRE_TIME_SHIFT, RG_CLANE_HS_PRE_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x24, p->clane_hs_zero_time,
+							RG_CLANE_HS_ZERO_TIME_SHIFT, RG_CLANE_HS_ZERO_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x20, p->clane_hs_trail_time,
+							RG_CLANE_HS_TRAIL_TIME_SHIFT, RG_CLANE_HS_TRAIL_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x20, p->clane_hs_clk_pre_time,
+							RG_CLANE_HS_CLK_PRE_TIME_SHIFT, RG_CLANE_HS_CLK_PRE_TIME_MASK);
+			sf_dphy_set_reg(dphy->topsys + 0x20, p->clane_hs_clk_post_time,
+							RG_CLANE_HS_CLK_POST_TIME_SHIFT, RG_CLANE_HS_CLK_POST_TIME_MASK);
+
+			break;
+		}
+	}
+
+	//dev_info(dphy->dev,"---sys_m31_dphy_tx_configure end\n");
+	return -ENOTSUPP;
 }
 
 static int sf_dphy_power_on(struct phy *phy)
-{
+{	//dev_info(dphy->dev,"--->sf_dphy_power_on begin\n");
+
+	struct sf_dphy *dphy = phy_get_drvdata(phy);
+	int ret;
+
+	reset(0, dphy);
+	sf_dphy_set_reg(dphy->topsys + 0x30, 0,
+					SCFG_PPI_C_READY_SEL_SHIFT, SCFG_PPI_C_READY_SEL_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0x30, 0,
+					SCFG_DSI_TXREADY_ESC_SEL_SHIFT, SCFG_DSI_TXREADY_ESC_SEL_MASK);
+	sf_dphy_set_reg(dphy->topsys + 0x2c, 0x30,
+					SCFG_C_HS_PRE_ZERO_TIME_SHIFT, SCFG_C_HS_PRE_ZERO_TIME_MASK);
+	//ret = sf_dphy_clkrst_init(&pdev->dev, dphy);//clk rst interface
+	ret = sf_dphy_clkrst_ena_deas(dphy->dev, dphy);//clk rst interface enable and deassert
+
+	//dev_info(dphy->dev,"--->sf_dphy_power_on end\n");
 	return 0;
 }
 
 static int sf_dphy_power_off(struct phy *phy)
 {
+	//dev_info(dphy->dev,"--->sf_dphy_power_off begin\n");
+	struct sf_dphy *dphy = phy_get_drvdata(phy);
+
+	sf_dphy_clkrst_disa_assert(dphy->dev, dphy);
+	reset(1, dphy);
+	//dev_info(dphy->dev,"--->sf_dphy_power_off end\n");
 	return 0;
 }
 
 static int sf_dphy_init(struct phy *phy)
 {
-	struct sf_dphy *dphy = phy_get_drvdata(phy);
-
-	dsi_csi2tx_sel(dphy, 0);
-	dphy_clane_hs_txready_sel(dphy, 0x1);
-
 	return 0;
 }
 
@@ -451,7 +694,10 @@ static int sf_dphy_validate(struct phy *phy, enum phy_mode mode, int submode,
 }
 
 static int sf_dphy_set_mode(struct phy *phy, enum phy_mode mode, int submode)
-{
+{	
+	struct sf_dphy *dphy = phy_get_drvdata(phy);
+
+	dev_info(dphy->dev, "--->sf_dphy_set_mode\n");
 	return 0;
 }
 
@@ -466,7 +712,8 @@ static const struct phy_ops sf_dphy_ops = {
 	.power_off	= sf_dphy_power_off,
 	.init		= sf_dphy_init,
 	.exit		= sf_dphy_exit,
-	.configure	= sf_dphy_configure,
+	//.configure	= sf_dphy_configure,
+	.configure	= sys_m31_dphy_tx_configure,
 	.validate  = sf_dphy_validate,
 	.set_mode  = sf_dphy_set_mode,
 	.owner		= THIS_MODULE,
@@ -481,19 +728,28 @@ static const struct of_device_id sf_dphy_dt_ids[] = {
 MODULE_DEVICE_TABLE(of, sf_dphy_dt_ids);
 
 static int sf_dphy_probe(struct platform_device *pdev)
-{
+{//dev_info(dphy->dev,"====sf_dphy_probe begin\n");
 	struct phy_provider *phy_provider;
 	struct sf_dphy *dphy;
 	struct resource *res;
 	int ret;
+	uint32_t temp;
+
+	dev_info(&pdev->dev, "sf_dphy_probe begin\n");
 	dphy = devm_kzalloc(&pdev->dev, sizeof(*dphy), GFP_KERNEL);
 	if (!dphy)
 		return -ENOMEM;
 	dev_set_drvdata(&pdev->dev, dphy);
 
-	dev_info(&pdev->dev,"===> %s enter, %d \n", __func__, __LINE__);
+	dev_info(&pdev->dev, "===> %s enter, %d \n", __func__, __LINE__);
 
-	dphy->topsys = ioremap(0x12260000, 0x10000);
+	//dphy->topsys = ioremap(0x12260000, 0x10000);
+	//dphy->topsys = ioremap(0x295e0000, 0x10000);
+	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
+	dphy->topsys = devm_ioremap_resource(&pdev->dev, res);
+	if (IS_ERR(dphy->topsys))
+		return PTR_ERR(dphy->topsys);
+
 
 	dphy->phy = devm_phy_create(&pdev->dev, NULL, &sf_dphy_ops);
 	if (IS_ERR(dphy->phy)) {
@@ -502,7 +758,57 @@ static int sf_dphy_probe(struct platform_device *pdev)
 	}
 	phy_set_drvdata(dphy->phy, dphy);
 
+	//dont know need or not. will crash in starup
+	// this power switch control bit was added in ECO, check ECO item "aon psw_en" for detail
+	dev_info(dphy->dev, "control ECO\n");
+	dphy->aonsys = ioremap(0x17010000, 0x10000);
+	temp = 0;
+	//temp = GET_AON_GP_REG;
+	temp = sf_dphy_get_reg(dphy->aonsys, AON_GP_REG_SHIFT,AON_GP_REG_MASK);
+	dev_info(dphy->dev, "GET_AON_GP_REG\n");
+	/*
+	if (!(temp & DPHY_TX_PSW_EN_MASK)) {
+		temp |= DPHY_TX_PSW_EN_MASK;
+		SET_AON_GP_REG(temp);
+	}
+	*/
+	if (!(temp & DPHY_TX_PSW_EN_MASK)) {
+		temp |= DPHY_TX_PSW_EN_MASK;
+		//SET_AON_GP_REG(temp);
+		sf_dphy_set_reg(dphy->aonsys, temp,AON_GP_REG_SHIFT,AON_GP_REG_MASK);
+	}
+	dev_info(dphy->dev, "control ECO\n");
+
+	//mipi_pmic setting
+	dphy->mipitx_1p8 = devm_regulator_get(&pdev->dev, "mipitx_1p8");
+	if (IS_ERR(dphy->mipitx_1p8))
+		return PTR_ERR(dphy->mipitx_1p8);
+
+	dphy->mipitx_0p9 = devm_regulator_get(&pdev->dev, "mipitx_0p9");
+	if (IS_ERR(dphy->mipitx_0p9))
+		return PTR_ERR(dphy->mipitx_0p9);
+
+	//pmic turn on
+	ret = regulator_enable(dphy->mipitx_0p9);
+	if (ret) {
+		dev_err(&pdev->dev, "Cannot enable mipitx_0p9 regulator\n");
+		//goto err_reg_0p9;
+	}
+	udelay(100);	
+	ret = regulator_enable(dphy->mipitx_1p8);
+	if (ret) {
+		dev_err(&pdev->dev, "Cannot enable mipitx_1p8 regulator\n");
+		//goto err_reg_1p8;
+	}
+	udelay(100);
+	//mipi_pmic setting
+
+	//ret = sf_dphy_clkrst_init(&pdev->dev, dphy);//clk rst interface
+	ret = sf_dphy_clkrst_get(&pdev->dev, dphy);
+
 	phy_provider = devm_of_phy_provider_register(&pdev->dev, of_phy_simple_xlate);
+
+	dev_info(&pdev->dev, "sf_dphy_probe end\n");
 
 	return PTR_ERR_OR_ZERO(phy_provider);
 }

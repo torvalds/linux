@@ -1,0 +1,359 @@
+/* SPDX-License-Identifier: GPL-2.0 */
+/*
+ * Copyright (C) 2022 StarFive Technology Co., Ltd. 
+ */
+
+#ifndef __7110_M31_DPHY_H__
+#define __7110_M31_DPHY_H__
+
+#define  AON_POWER_READY_N_WIDTH             0x1U
+#define  AON_POWER_READY_N_SHIFT             0x0U
+#define  AON_POWER_READY_N_MASK              0x1U
+#define  CFG_CKLANE_SET_WIDTH                0x5U
+#define  CFG_CKLANE_SET_SHIFT                0x1U
+#define  CFG_CKLANE_SET_MASK                 0x3EU
+#define  CFG_DATABUS16_SEL_WIDTH             0x1U
+#define  CFG_DATABUS16_SEL_SHIFT             0x6U
+#define  CFG_DATABUS16_SEL_MASK              0x40U
+#define  CFG_DPDN_SWAP_WIDTH                 0x5U
+#define  CFG_DPDN_SWAP_SHIFT                 0x7U
+#define  CFG_DPDN_SWAP_MASK                  0xF80U
+#define  CFG_L0_SWAP_SEL_WIDTH               0x3U
+#define  CFG_L0_SWAP_SEL_SHIFT               0xCU
+#define  CFG_L0_SWAP_SEL_MASK                0x7000U
+#define  CFG_L1_SWAP_SEL_WIDTH               0x3U
+#define  CFG_L1_SWAP_SEL_SHIFT               0xFU
+#define  CFG_L1_SWAP_SEL_MASK                0x38000U
+#define  CFG_L2_SWAP_SEL_WIDTH               0x3U
+#define  CFG_L2_SWAP_SEL_SHIFT               0x12U
+#define  CFG_L2_SWAP_SEL_MASK                0x1C0000U
+#define  CFG_L3_SWAP_SEL_WIDTH               0x3U
+#define  CFG_L3_SWAP_SEL_SHIFT               0x15U
+#define  CFG_L3_SWAP_SEL_MASK                0xE00000U
+#define  CFG_L4_SWAP_SEL_WIDTH               0x3U
+#define  CFG_L4_SWAP_SEL_SHIFT               0x18U
+#define  CFG_L4_SWAP_SEL_MASK                0x7000000U
+#define  MPOSV_31_0__WIDTH                   0x20U
+#define  MPOSV_31_0__SHIFT                   0x0U
+#define  MPOSV_31_0__MASK                    0xFFFFFFFFU
+#define  MPOSV_46_32__WIDTH                  0xFU
+#define  MPOSV_46_32__SHIFT                  0x0U
+#define  MPOSV_46_32__MASK                   0x7FFFU
+#define  RGS_CDTX_PLL_FM_CPLT_WIDTH          0x1U
+#define  RGS_CDTX_PLL_FM_CPLT_SHIFT          0xFU
+#define  RGS_CDTX_PLL_FM_CPLT_MASK           0x8000U
+#define  RGS_CDTX_PLL_FM_OVER_WIDTH          0x1U
+#define  RGS_CDTX_PLL_FM_OVER_SHIFT          0x10U
+#define  RGS_CDTX_PLL_FM_OVER_MASK           0x10000U
+#define  RGS_CDTX_PLL_FM_UNDER_WIDTH         0x1U
+#define  RGS_CDTX_PLL_FM_UNDER_SHIFT         0x11U
+#define  RGS_CDTX_PLL_FM_UNDER_MASK          0x20000U
+#define  RGS_CDTX_PLL_UNLOCK_WIDTH           0x1U
+#define  RGS_CDTX_PLL_UNLOCK_SHIFT           0x12U
+#define  RGS_CDTX_PLL_UNLOCK_MASK            0x40000U
+#define  RG_CDTX_L0N_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L0N_HSTX_RES_SHIFT          0x13U
+#define  RG_CDTX_L0N_HSTX_RES_MASK           0xF80000U
+#define  RG_CDTX_L0P_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L0P_HSTX_RES_SHIFT          0x18U
+#define  RG_CDTX_L0P_HSTX_RES_MASK           0x1F000000U
+
+#define  RG_CDTX_L1N_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L1N_HSTX_RES_SHIFT          0x0U
+#define  RG_CDTX_L1N_HSTX_RES_MASK           0x1FU
+#define  RG_CDTX_L1P_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L1P_HSTX_RES_SHIFT          0x5U
+#define  RG_CDTX_L1P_HSTX_RES_MASK           0x3E0U
+#define  RG_CDTX_L2N_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L2N_HSTX_RES_SHIFT          0xAU
+#define  RG_CDTX_L2N_HSTX_RES_MASK           0x7C00U
+#define  RG_CDTX_L2P_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L2P_HSTX_RES_SHIFT          0xFU
+#define  RG_CDTX_L2P_HSTX_RES_MASK           0xF8000U
+#define  RG_CDTX_L3N_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L3N_HSTX_RES_SHIFT          0x14U
+#define  RG_CDTX_L3N_HSTX_RES_MASK           0x1F00000U
+#define  RG_CDTX_L3P_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L3P_HSTX_RES_SHIFT          0x19U
+#define  RG_CDTX_L3P_HSTX_RES_MASK           0x3E000000U
+
+#define  RG_CDTX_L4N_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L4N_HSTX_RES_SHIFT          0x0U
+#define  RG_CDTX_L4N_HSTX_RES_MASK           0x1FU
+#define  RG_CDTX_L4P_HSTX_RES_WIDTH          0x5U
+#define  RG_CDTX_L4P_HSTX_RES_SHIFT          0x5U
+#define  RG_CDTX_L4P_HSTX_RES_MASK           0x3E0U
+
+#define  RG_CDTX_PLL_FBK_FRA_WIDTH           0x18U
+#define  RG_CDTX_PLL_FBK_FRA_SHIFT           0x0U
+#define  RG_CDTX_PLL_FBK_FRA_MASK            0xFFFFFFU
+
+#define  RG_CDTX_PLL_FBK_INT_WIDTH           0x9U
+#define  RG_CDTX_PLL_FBK_INT_SHIFT           0x0U
+#define  RG_CDTX_PLL_FBK_INT_MASK            0x1FFU
+#define  RG_CDTX_PLL_FM_EN_WIDTH             0x1U
+#define  RG_CDTX_PLL_FM_EN_SHIFT             0x9U
+#define  RG_CDTX_PLL_FM_EN_MASK              0x200U
+#define  RG_CDTX_PLL_LDO_STB_X2_EN_WIDTH     0x1U
+#define  RG_CDTX_PLL_LDO_STB_X2_EN_SHIFT     0xAU
+#define  RG_CDTX_PLL_LDO_STB_X2_EN_MASK      0x400U
+#define  RG_CDTX_PLL_PRE_DIV_WIDTH           0x2U
+#define  RG_CDTX_PLL_PRE_DIV_SHIFT           0xBU
+#define  RG_CDTX_PLL_PRE_DIV_MASK            0x1800U
+#define  RG_CDTX_PLL_SSC_DELTA_WIDTH         0x12U
+#define  RG_CDTX_PLL_SSC_DELTA_SHIFT         0xDU
+#define  RG_CDTX_PLL_SSC_DELTA_MASK          0x7FFFE000U
+
+#define  RG_CDTX_PLL_SSC_DELTA_INIT_WIDTH    0x12U
+#define  RG_CDTX_PLL_SSC_DELTA_INIT_SHIFT    0x0U
+#define  RG_CDTX_PLL_SSC_DELTA_INIT_MASK     0x3FFFFU
+#define  RG_CDTX_PLL_SSC_EN_WIDTH            0x1U
+#define  RG_CDTX_PLL_SSC_EN_SHIFT            0x12U
+#define  RG_CDTX_PLL_SSC_EN_MASK             0x40000U
+#define  RG_CDTX_PLL_SSC_PRD_WIDTH           0xAU
+#define  RG_CDTX_PLL_SSC_PRD_SHIFT           0x13U
+#define  RG_CDTX_PLL_SSC_PRD_MASK            0x1FF80000U
+
+#define  RG_CLANE_HS_CLK_POST_TIME_WIDTH     0x8U
+#define  RG_CLANE_HS_CLK_POST_TIME_SHIFT     0x0U
+#define  RG_CLANE_HS_CLK_POST_TIME_MASK      0xFFU
+#define  RG_CLANE_HS_CLK_PRE_TIME_WIDTH      0x8U
+#define  RG_CLANE_HS_CLK_PRE_TIME_SHIFT      0x8U
+#define  RG_CLANE_HS_CLK_PRE_TIME_MASK       0xFF00U
+#define  RG_CLANE_HS_PRE_TIME_WIDTH          0x8U
+#define  RG_CLANE_HS_PRE_TIME_SHIFT          0x10U
+#define  RG_CLANE_HS_PRE_TIME_MASK           0xFF0000U
+#define  RG_CLANE_HS_TRAIL_TIME_WIDTH        0x8U
+#define  RG_CLANE_HS_TRAIL_TIME_SHIFT        0x18U
+#define  RG_CLANE_HS_TRAIL_TIME_MASK         0xFF000000U
+
+#define  RG_CLANE_HS_ZERO_TIME_WIDTH         0x8U
+#define  RG_CLANE_HS_ZERO_TIME_SHIFT         0x0U
+#define  RG_CLANE_HS_ZERO_TIME_MASK          0xFFU
+#define  RG_DLANE_HS_PRE_TIME_WIDTH          0x8U
+#define  RG_DLANE_HS_PRE_TIME_SHIFT          0x8U
+#define  RG_DLANE_HS_PRE_TIME_MASK           0xFF00U
+#define  RG_DLANE_HS_TRAIL_TIME_WIDTH        0x8U
+#define  RG_DLANE_HS_TRAIL_TIME_SHIFT        0x10U
+#define  RG_DLANE_HS_TRAIL_TIME_MASK         0xFF0000U
+#define  RG_DLANE_HS_ZERO_TIME_WIDTH         0x8U
+#define  RG_DLANE_HS_ZERO_TIME_SHIFT         0x18U
+#define  RG_DLANE_HS_ZERO_TIME_MASK          0xFF000000U
+
+#define  RG_EXTD_CYCLE_SEL_WIDTH             0x3U
+#define  RG_EXTD_CYCLE_SEL_SHIFT             0x0U
+#define  RG_EXTD_CYCLE_SEL_MASK              0x7U
+
+#define  SCFG_C_HS_PRE_ZERO_TIME_WIDTH       0x20U
+#define  SCFG_C_HS_PRE_ZERO_TIME_SHIFT       0x0U
+#define  SCFG_C_HS_PRE_ZERO_TIME_MASK        0xFFFFFFFFU
+
+#define  SCFG_DPHY_SRC_SEL_WIDTH             0x1U
+#define  SCFG_DPHY_SRC_SEL_SHIFT             0x0U
+#define  SCFG_DPHY_SRC_SEL_MASK              0x1U
+#define  SCFG_DSI_TXREADY_ESC_SEL_WIDTH      0x2U
+#define  SCFG_DSI_TXREADY_ESC_SEL_SHIFT      0x1U
+#define  SCFG_DSI_TXREADY_ESC_SEL_MASK       0x6U
+#define  SCFG_PPI_C_READY_SEL_WIDTH          0x2U
+#define  SCFG_PPI_C_READY_SEL_SHIFT          0x3U
+#define  SCFG_PPI_C_READY_SEL_MASK           0x18U
+#define  VCONTROL_WIDTH                      0x5U
+#define  VCONTROL_SHIFT                      0x5U
+#define  VCONTROL_MASK                       0x3E0U
+
+#define  XCFGI_DW00_WIDTH                    0x20U
+#define  XCFGI_DW00_SHIFT                    0x0U
+#define  XCFGI_DW00_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW01_WIDTH                    0x20U
+#define  XCFGI_DW01_SHIFT                    0x0U
+#define  XCFGI_DW01_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW02_WIDTH                    0x20U
+#define  XCFGI_DW02_SHIFT                    0x0U
+#define  XCFGI_DW02_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW03_WIDTH                    0x20U
+#define  XCFGI_DW03_SHIFT                    0x0U
+#define  XCFGI_DW03_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW04_WIDTH                    0x20U
+#define  XCFGI_DW04_SHIFT                    0x0U
+#define  XCFGI_DW04_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW05_WIDTH                    0x20U
+#define  XCFGI_DW05_SHIFT                    0x0U
+#define  XCFGI_DW05_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW06_WIDTH                    0x20U
+#define  XCFGI_DW06_SHIFT                    0x0U
+#define  XCFGI_DW06_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW07_WIDTH                    0x20U
+#define  XCFGI_DW07_SHIFT                    0x0U
+#define  XCFGI_DW07_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW08_WIDTH                    0x20U
+#define  XCFGI_DW08_SHIFT                    0x0U
+#define  XCFGI_DW08_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW09_WIDTH                    0x20U
+#define  XCFGI_DW09_SHIFT                    0x0U
+#define  XCFGI_DW09_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW0A_WIDTH                    0x20U
+#define  XCFGI_DW0A_SHIFT                    0x0U
+#define  XCFGI_DW0A_MASK                     0xFFFFFFFFU
+
+#define  XCFGI_DW0B_WIDTH                    0x20U
+#define  XCFGI_DW0B_SHIFT                    0x0U
+#define  XCFGI_DW0B_MASK                     0xFFFFFFFFU
+
+#define  DBG1_MUX_DOUT_WIDTH                 0x8U
+#define  DBG1_MUX_DOUT_SHIFT                 0x0U
+#define  DBG1_MUX_DOUT_MASK                  0xFFU
+#define  DBG1_MUX_SEL_WIDTH                  0x5U
+#define  DBG1_MUX_SEL_SHIFT                  0x8U
+#define  DBG1_MUX_SEL_MASK                   0x1F00U
+#define  DBG2_MUX_DOUT_WIDTH                 0x8U
+#define  DBG2_MUX_DOUT_SHIFT                 0xDU
+#define  DBG2_MUX_DOUT_MASK                  0x1FE000U
+#define  DBG2_MUX_SEL_WIDTH                  0x5U
+#define  DBG2_MUX_SEL_SHIFT                  0x15U
+#define  DBG2_MUX_SEL_MASK                   0x3E00000U
+#define  REFCLK_IN_SEL_WIDTH                 0x3U
+#define  REFCLK_IN_SEL_SHIFT                 0x1AU
+#define  REFCLK_IN_SEL_MASK                  0x1C000000U
+#define  RESETB_WIDTH                        0x1U
+#define  RESETB_SHIFT                        0x1DU
+#define  RESETB_MASK                         0x20000000U
+
+//aonsys con
+#define AON_GP_REG_WIDTH                                   0x20U
+#define AON_GP_REG_SHIFT                                   0x0U
+#define AON_GP_REG_MASK                                    0xFFFFFFFFU
+
+
+#define M31_DPHY_REFCLK_RESERVED	0
+#define M31_DPHY_REFCLK_12M		1
+#define M31_DPHY_REFCLK_19_2M		2
+#define M31_DPHY_REFCLK_25M		3
+#define M31_DPHY_REFCLK_26M		4
+#define M31_DPHY_REFCLK_27M		5
+#define M31_DPHY_REFCLK_38_4M		6
+#define M31_DPHY_REFCLK_52M		7
+#define M31_DPHY_REFCLK_BUTT		8
+
+#define DPHY_TX_PSW_EN_MASK		(1<<30)
+
+struct m31_dphy_config {
+    int ref_clk;
+    unsigned long bitrate;
+    uint32_t pll_prev_div, pll_fbk_int, pll_fbk_fra, extd_cycle_sel;
+    uint32_t dlane_hs_pre_time, dlane_hs_zero_time, dlane_hs_trail_time;
+    uint32_t clane_hs_pre_time, clane_hs_zero_time, clane_hs_trail_time;
+    uint32_t clane_hs_clk_pre_time, clane_hs_clk_post_time;
+};
+
+#define M31_DPHY_REFCLK         M31_DPHY_REFCLK_12M
+#define M31_DPHY_BITRATE_ALIGN  10000000
+
+
+
+static const struct m31_dphy_config m31_dphy_configs[] = {
+#if (M31_DPHY_REFCLK == M31_DPHY_REFCLK_25M)
+    //25000000,M31_DPHY_HS_RATE_80M,0x1,0x66,0x666666,0x4,0x0E,0x1D,0x15,0x05,0x2B,0x0D,0x0F,0x71, //comment unusual config for simplicity
+    {25000000,  100000000, 0x1, 0x80, 0x000000, 0x4, 0x10, 0x21, 0x17, 0x07, 0x35, 0x0F, 0x0F, 0x73,},
+    {25000000,  200000000, 0x1, 0x80, 0x000000, 0x3, 0x0C, 0x1B, 0x13, 0x07, 0x35, 0x0F, 0x07, 0x3F,},
+    {25000000,  300000000, 0x1, 0xC0, 0x000000, 0x3, 0x11, 0x25, 0x19, 0x0A, 0x50, 0x15, 0x07, 0x45,},
+    {25000000,  400000000, 0x1, 0x80, 0x000000, 0x2, 0x0A, 0x18, 0x11, 0x07, 0x35, 0x0F, 0x03, 0x25,},
+    {25000000,  500000000, 0x1, 0xA0, 0x000000, 0x2, 0x0C, 0x1D, 0x14, 0x09, 0x42, 0x12, 0x03, 0x28,},
+    {25000000,  600000000, 0x1, 0xC0, 0x000000, 0x2, 0x0E, 0x23, 0x17, 0x0A, 0x50, 0x15, 0x03, 0x2B,},
+    {25000000,  700000000, 0x1, 0x70, 0x000000, 0x1, 0x08, 0x14, 0x0F, 0x06, 0x2F, 0x0E, 0x01, 0x16,},
+    {25000000,  800000000, 0x1, 0x80, 0x000000, 0x1, 0x09, 0x17, 0x10, 0x07, 0x35, 0x0F, 0x01, 0x18,},
+    {25000000,  900000000, 0x1, 0x90, 0x000000, 0x1, 0x0A, 0x19, 0x12, 0x08, 0x3C, 0x10, 0x01, 0x19,},
+    {25000000, 1000000000, 0x1, 0xA0, 0x000000, 0x1, 0x0B, 0x1C, 0x13, 0x09, 0x42, 0x12, 0x01, 0x1B,},
+    {25000000, 1100000000, 0x1, 0xB0, 0x000000, 0x1, 0x0C, 0x1E, 0x15, 0x09, 0x4A, 0x14, 0x01, 0x1D,},
+    {25000000, 1200000000, 0x1, 0xC0, 0x000000, 0x1, 0x0E, 0x20, 0x16, 0x0A, 0x50, 0x15, 0x01, 0x1E,},
+    {25000000, 1300000000, 0x1, 0x68, 0x000000, 0x0, 0x07, 0x12, 0x0D, 0x05, 0x2C, 0x0D, 0x00, 0x0F,},
+    {25000000, 1400000000, 0x1, 0x70, 0x000000, 0x0, 0x07, 0x14, 0x0E, 0x06, 0x2F, 0x0E, 0x00, 0x10,},
+    {25000000, 1500000000, 0x1, 0x78, 0x000000, 0x0, 0x08, 0x14, 0x0F, 0x06, 0x32, 0x0E, 0x00, 0x11,},
+    {25000000, 1600000000, 0x1, 0x80, 0x000000, 0x0, 0x09, 0x15, 0x10, 0x07, 0x35, 0x0F, 0x00, 0x12,},
+    {25000000, 1700000000, 0x1, 0x88, 0x000000, 0x0, 0x09, 0x17, 0x10, 0x07, 0x39, 0x10, 0x00, 0x12,},
+    {25000000, 1800000000, 0x1, 0x90, 0x000000, 0x0, 0x0A, 0x18, 0x11, 0x08, 0x3C, 0x10, 0x00, 0x13,},
+    {25000000, 1900000000, 0x1, 0x98, 0x000000, 0x0, 0x0A, 0x1A, 0x12, 0x08, 0x3F, 0x11, 0x00, 0x14,},
+    {25000000, 2000000000, 0x1, 0xA0, 0x000000, 0x0, 0x0B, 0x1B, 0x13, 0x09, 0x42, 0x12, 0x00, 0x15,},
+    {25000000, 2100000000, 0x1, 0xA8, 0x000000, 0x0, 0x0B, 0x1C, 0x13, 0x09, 0x46, 0x13, 0x00, 0x15,},
+    {25000000, 2200000000, 0x1, 0xB0, 0x000000, 0x0, 0x0C, 0x1D, 0x14, 0x09, 0x4A, 0x14, 0x00, 0x16,},
+    {25000000, 2300000000, 0x1, 0xB8, 0x000000, 0x0, 0x0C, 0x1F, 0x15, 0x0A, 0x4C, 0x14, 0x00, 0x17,},
+    {25000000, 2400000000, 0x1, 0xC0, 0x000000, 0x0, 0x0D, 0x20, 0x16, 0x0A, 0x50, 0x15, 0x00, 0x18,},
+    {25000000, 2500000000, 0x1, 0xC8, 0x000000, 0x0, 0x0E, 0x21, 0x16, 0x0B, 0x53, 0x16, 0x00, 0x18,},
+#elif (M31_DPHY_REFCLK == M31_DPHY_REFCLK_12M)
+
+    {12000000, 180000000, 0x0, 0x78, 0x0 << 16 | 0x0<<8 | 0x0, 0x3, 0xb, 0x19, 0x12, 0x6, 0x30, 0xe, 0x7, 0x3e,},
+
+    {12000000, 500000000, 0x0, 0xa6, 0xaa << 16 | 0xaa << 8 | 0xaa, 0x2, 0xc, 0x1d, 0x14, 0x9, 0x42, 0x12, 0x3, 0x28,},
+    {12000000, 510000000, 0x0, 0xaa, 0x0 << 16 | 0x0 << 8 | 0x0, 0x2, 0xc, 0x1e, 0x14, 0x9, 0x44, 0x12, 0x3, 0x28,},
+
+    {12000000, 590000000, 0x0, 0xc4, 0xaa << 16 | 0xaa << 8 | 0xaa, 0x2, 0xe, 0x22, 0x17, 0xa, 0x4f, 0x15, 0x3, 0x2b,},
+
+    {12000000, 690000000, 0x0, 0x73, 0x0 << 16 | 0x0 << 8 | 0x0, 0x1, 0x8, 0x14, 0xe, 0x6, 0x2e, 0xd, 0x1, 0x16,},
+
+    {12000000, 720000000, 0x0, 0x78, 0x0<<16 | 0x0 << 8 | 0x0, 0x1, 0x8, 0x15, 0xf, 0x6, 0x30, 0xe, 0x1, 0x17,},
+
+    {12000000, 840000000, 0x0, 0x8c, 0x0 << 16 | 0x0<<8 | 0x0, 0x1, 0x9, 0x18, 0x11, 0x7, 0x38, 0x10, 0x1, 0x19,},
+
+#endif
+};
+
+static inline u32 sf_dphy_get_reg(void* io_addr, u32 shift, u32 mask)
+{
+	//void __iomem *io_addr = ioremap(addr, 0x10000);
+    u32 tmp;
+    tmp = readl(io_addr);
+    tmp = (tmp & mask) >> shift;
+    return tmp;
+}
+
+static inline void sf_dphy_set_reg(void* io_addr, u32 data, u32 shift, u32 mask)
+{
+	//void __iomem *io_addr = ioremap(addr, 0x10000);
+
+    u32 tmp;
+    tmp = readl(io_addr);
+    tmp &= ~mask;
+    tmp |= (data << shift) & mask;
+    writel(tmp, io_addr);
+}
+
+static inline void sf_dphy_assert_rst(void* io_addr, u32 addr_status, u32 mask)
+{
+	//void __iomem *io_addr = ioremap(addr, 0x4);
+
+    void __iomem *io_addr_status = ioremap(addr_status, 0x4);
+
+    u32 tmp;
+    tmp = readl(io_addr);
+    tmp |= mask;
+    writel(tmp,io_addr);
+    do{
+        tmp = readl(io_addr_status);
+    }while((tmp & mask)!=0);
+}
+
+static inline void sf_dphy_clear_rst (void* io_addr, u32 addr_status, u32 mask)
+{
+	//void __iomem *io_addr = ioremap(addr, 0x4);
+
+    void __iomem *io_addr_status = ioremap(addr_status, 0x4);
+
+    u32 tmp;
+    tmp = readl(io_addr);
+    tmp &= ~mask;
+    writel(tmp, io_addr);
+    do{
+        tmp = readl(io_addr_status);
+    }while((tmp & mask) != mask);
+}
+
+#endif /* __7110_M31_DPHY_H__ */

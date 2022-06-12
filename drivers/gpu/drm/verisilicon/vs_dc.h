@@ -93,8 +93,18 @@ struct vs_dc {
 	struct reset_control *rstn_dc8200_ahb;
 //dc8200 rst
 
+//7110 mp
+struct clk *vout_top_axi;//20220530 for vout_clock
+struct clk *vout_top_lcd;//7110 mp
+//7110 mp
 
 };
 
 extern struct platform_driver dc_platform_driver;
+//20220530
+//extern struct platform_driver simple_encoder_driver;
+extern struct platform_driver starfive_dsi_platform_driver;
+extern int init_seeed_panel(void);
+extern void exit_seeed_panel(void);
+
 #endif /* __VS_DC_H__ */

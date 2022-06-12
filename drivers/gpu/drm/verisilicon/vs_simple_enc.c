@@ -200,15 +200,18 @@ static const struct drm_encoder_helper_funcs encoder_helper_funcs = {
 
 static int encoder_bind(struct device *dev, struct device *master, void *data)
 {
+
 	struct drm_device *drm_dev = data;
 	struct simple_encoder *simple = dev_get_drvdata(dev);
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
+	struct drm_panel *tmp_panel;//20220530
 	int ret;
 
 	encoder = &simple->encoder;
 
 	/* Encoder. */
+
 	ret = drm_encoder_init(drm_dev, encoder, &encoder_funcs,
 				   simple->priv->encoder_type, NULL);
 	if (ret)
@@ -220,10 +223,21 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 			drm_of_find_possible_crtcs(drm_dev, dev->of_node);
 
 	/* output port is port1*/
-	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1, NULL, &bridge);
-	if (ret)
-		goto err;
 
+#ifdef CONFIG_STARFIVE_DSI
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, 0,&tmp_panel, &bridge);
+	if (ret){
+		printk("==no panel, %d\n",ret);
+		//dev_err_probe(dev, ret, "endpoint returns %d\n", ret);
+		goto err;
+	}
+	if (tmp_panel)
+		dev_err(dev, "found panel on endpoint\n");
+#else
+	ret = drm_of_find_panel_or_bridge(dev->of_node, 1, -1, NULL, &bridge);
+		if (ret)
+			goto err;
+#endif
 #if KERNEL_VERSION(5, 7, 0) <= LINUX_VERSION_CODE
 	ret = drm_bridge_attach(encoder, bridge, NULL, 0);
 #else

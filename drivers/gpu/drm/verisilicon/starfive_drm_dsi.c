@@ -26,6 +26,8 @@
 #include <linux/phy/phy-mipi-dphy.h>
 #include "vs_drv.h"
 
+//#include <soc/starfive/jh7110_pmic.h>//20220520 pmic support
+//#include"vs_clock.h"
 
 //sysrst registers
 #define SRST_ASSERT0		0x00
@@ -430,6 +432,11 @@
 #define DSI_NULL_FRAME_OVERHEAD		6
 #define DSI_EOT_PKT_SIZE		4
 
+#if 1	//7110 fw 
+#define ARRAY_SIZE_DSI(x) (sizeof(x) / sizeof((x)[0]))
+#define TEST_CTRL(x)                    (x)
+#endif
+
 struct cdns_dsi_output {
 	struct mipi_dsi_device *dev;
 	struct drm_panel *panel;
@@ -484,6 +491,7 @@ struct cdns_dsi {
 //clk op func----------//
 static int  cdns_dsi_clock_enable(struct cdns_dsi *dsi, struct device *dev)
 {
+	//dev_info(dev,"==cdns_dsi_clock_enable begin\n");
 	int ret;
 	/*clk_prepare_enable(dsi->sys_clk);*/
 	ret = clk_prepare_enable(dsi->dsi_sys_clk);
@@ -506,7 +514,8 @@ static int  cdns_dsi_clock_enable(struct cdns_dsi *dsi, struct device *dev)
 		dev_err(dev, "failed to prepare/enable dpi_clk\n");
 		return ret;
 	}
-
+	
+	//dev_info(dev,"==cdns_dsi_clock_enable successful\n");
 	return ret;
 }
 
@@ -522,6 +531,7 @@ static void  cdns_dsi_clock_disable(struct cdns_dsi *dsi)
 //rst op func--------//
 static int cdns_dsi_resets_deassert(struct cdns_dsi *dsi, struct device *dev)
 {
+	//dev_info(dev,"==cdns_dsi_resets_deassert begin\n");
 	int ret;
 
 	ret = reset_control_deassert(dsi->sys_rst);
@@ -529,11 +539,11 @@ static int cdns_dsi_resets_deassert(struct cdns_dsi *dsi, struct device *dev)
 		dev_err(dev, "failed to deassert sys_rst\n");
 		return ret;
 	}
-	ret = reset_control_deassert(dsi->txbytehs_rst);
-	if (ret < 0) {
-		dev_err(dev, "failed to deassert txbytehs_rst\n");
-		return ret;
-	}
+	//ret = reset_control_deassert(dsi->txbytehs_rst);
+	//if (ret < 0) {
+	//	dev_err(dev, "failed to deassert txbytehs_rst\n");
+	//	return ret;
+	//}
 	ret = reset_control_deassert(dsi->apb_rst);
 	if (ret < 0) {
 		dev_err(dev, "failed to deassert apb_rst\n");
@@ -554,12 +564,13 @@ static int cdns_dsi_resets_deassert(struct cdns_dsi *dsi, struct device *dev)
 		dev_err(dev, "failed to deassert rxesc_rst\n");
 		return ret;
 	}
-
+	//dev_info(dev,"==cdns_dsi_resets_deassert successful\n");
 	return ret;
 }
 
 static int cdns_dsi_resets_assert(struct cdns_dsi *dsi, struct device *dev)
 {
+	//dev_info(dev,"==cdns_dsi_resets_assert begin\n");
 	int ret;
 
 	ret = reset_control_assert(dsi->sys_rst);
@@ -567,11 +578,11 @@ static int cdns_dsi_resets_assert(struct cdns_dsi *dsi, struct device *dev)
 		dev_err(dev, "failed to assert sys_rst\n");
 		return ret;
 	}
-	ret = reset_control_assert(dsi->txbytehs_rst);
-	if (ret < 0) {
-		dev_err(dev, "failed to assert txbytehs_rst\n");
-		return ret;
-	}
+	//ret = reset_control_assert(dsi->txbytehs_rst);
+	//if (ret < 0) {
+	//	dev_err(dev, "failed to assert txbytehs_rst\n");
+	//	return ret;
+	//}
 	ret = reset_control_assert(dsi->apb_rst);
 	if (ret < 0) {
 		dev_err(dev, "failed to assert apb_rst\n");
@@ -592,55 +603,87 @@ static int cdns_dsi_resets_assert(struct cdns_dsi *dsi, struct device *dev)
 		dev_err(dev, "failed to assert dpi_rst\n");
 		return ret;
 	}
-
+	//dev_info(dev,"==cdns_dsi_resets_assert successful\n");
 	return ret;
 }
 
 //get clock func
-static int cdns_dsi_get_clock(struct platform_device *pdev, struct cdns_dsi *dsi)
+static int cdns_dsi_get_clock(struct device *dev, struct cdns_dsi *dsi)
 {
+	//dev_info(dev,"==cdns_dsi_get_clock begin\n");
 	int ret;
 
-	dsi->dsi_sys_clk = devm_clk_get(&pdev->dev, "sys");
-	if (IS_ERR(dsi->dsi_sys_clk))
+	dsi->dsi_sys_clk = devm_clk_get(dev, "sys");
+	if (IS_ERR(dsi->dsi_sys_clk)){
+		dev_err(dev, "failed to get dsi_sys_clk\n");
 		return PTR_ERR(dsi->dsi_sys_clk);
-	dsi->apb_clk = devm_clk_get(&pdev->dev, "apb");
-	if (IS_ERR(dsi->apb_clk))
-		return PTR_ERR(dsi->apb_clk);
-	dsi->txesc_clk = devm_clk_get(&pdev->dev, "txesc");
-	if (IS_ERR(dsi->txesc_clk))
-		return PTR_ERR(dsi->txesc_clk);
-	dsi->dpi_clk = devm_clk_get(&pdev->dev, "dpi");
-	if (IS_ERR(dsi->dpi_clk))
-		return PTR_ERR(dsi->dpi_clk);
+	}
 
+	dsi->apb_clk = devm_clk_get(dev, "apb");
+	if (IS_ERR(dsi->apb_clk)){
+		dev_err(dev, "failed to get apb_clk\n");
+		return PTR_ERR(dsi->apb_clk);
+	}
+
+	dsi->txesc_clk = devm_clk_get(dev, "txesc");
+	if (IS_ERR(dsi->txesc_clk)){
+		dev_err(dev, "failed to get txesc_clk\n");
+		return PTR_ERR(dsi->txesc_clk);
+	}
+
+	dsi->dpi_clk = devm_clk_get(dev, "dpi");
+	if (IS_ERR(dsi->dpi_clk)){
+		dev_err(dev, "failed to get dpi_clk\n");
+		return PTR_ERR(dsi->dpi_clk);
+	}
+
+	//dev_info(dev,"==cdns_dsi_get_clock successful\n");
 	return ret;
 }
 
 //get reset func
-static int cdns_dsi_get_reset(struct platform_device *pdev, struct cdns_dsi *dsi)
+static int cdns_dsi_get_reset(struct device *dev, struct cdns_dsi *dsi)
 {
+	//dev_info(dev,"==cdns_dsi_get_reset begin\n");
 	int ret;
 
-	dsi->dpi_rst = reset_control_get_exclusive(&pdev->dev, "dsi_dpi");
-	if (IS_ERR(dsi->dpi_rst))
+	dsi->dpi_rst = reset_control_get_exclusive(dev, "dsi_dpi");
+	if (IS_ERR(dsi->dpi_rst)){
+		dev_err(dev, "failed to get dpi_rst\n");
 		return PTR_ERR(dsi->dpi_rst);
-	dsi->apb_rst = reset_control_get_exclusive(&pdev->dev, "dsi_apb");
-	if (IS_ERR(dsi->apb_rst))
-		return PTR_ERR(dsi->apb_rst);
-	dsi->rxesc_rst = reset_control_get_exclusive(&pdev->dev, "dsi_rxesc");
-	if (IS_ERR(dsi->rxesc_rst))
-		return PTR_ERR(dsi->rxesc_rst);
-	dsi->sys_rst = reset_control_get_exclusive(&pdev->dev, "dsi_sys");
-	if (IS_ERR(dsi->sys_rst))
-		return PTR_ERR(dsi->sys_rst);
-	dsi->txbytehs_rst = reset_control_get_exclusive(&pdev->dev, "dsi_txbytehs");
-	if (IS_ERR(dsi->txbytehs_rst))
-		return PTR_ERR(dsi->txbytehs_rst);
-	dsi->txesc_rst = reset_control_get_exclusive(&pdev->dev, "dsi_txesc");
-	if (IS_ERR(dsi->txesc_rst))
-		return PTR_ERR(dsi->txesc_rst);
+	}
 
+	dsi->apb_rst = reset_control_get_exclusive(dev, "dsi_apb");
+	if (IS_ERR(dsi->apb_rst)){
+		dev_err(dev, "failed to get apb_rst\n");
+		return PTR_ERR(dsi->apb_rst);
+	}
+
+	dsi->rxesc_rst = reset_control_get_exclusive(dev, "dsi_rxesc");
+	if (IS_ERR(dsi->rxesc_rst)){
+		dev_err(dev, "failed to get rxesc_rst\n");
+		return PTR_ERR(dsi->rxesc_rst);
+	}
+
+	dsi->sys_rst = reset_control_get_exclusive(dev, "dsi_sys");
+	if (IS_ERR(dsi->sys_rst)){
+		dev_err(dev, "failed to get sys_rst\n");
+		return PTR_ERR(dsi->sys_rst);
+	}
+
+	dsi->txbytehs_rst = reset_control_get_exclusive(dev, "dsi_txbytehs");
+	if (IS_ERR(dsi->txbytehs_rst)){
+		dev_err(dev, "failed to get txbytehs_rst\n");
+		return PTR_ERR(dsi->txbytehs_rst);
+	}
+
+	dsi->txesc_rst = reset_control_get_exclusive(dev, "dsi_txesc");
+	if (IS_ERR(dsi->txesc_rst)){
+		dev_err(dev, "failed to get txesc_rst\n");
+		return PTR_ERR(dsi->txesc_rst);
+	}
+
+	//dev_info(dev,"==cdns_dsi_get_reset successful\n");
 	return ret;
 }
 
@@ -726,15 +769,25 @@ static int cdns_dsi_mode2cfg(struct cdns_dsi *dsi,
 	dsi_cfg->hfp = dpi_to_dsi_timing(mode_to_dpi_hfp(mode, mode_valid_check),
 					 bpp, DSI_HFP_FRAME_OVERHEAD);
 	//dpi to dsi transfer can not match , reconfig those parms
+	#if 0
 	if (mode->hdisplay == 800) {
 		dsi_cfg->hsa = 16;	//30-14
 		dsi_cfg->hbp = 73;	//85-12
 		dsi_cfg->hfp = 146; //152-6
 	}
+	#endif
+	#if 1
+	if (mode->hdisplay == 800) {
+		dsi_cfg->hsa = 5;	//19-14
+		dsi_cfg->hbp = 5;	//17-12
+		dsi_cfg->hfp = 102; //108-6
+	}
+	#endif
 
 	return 0;
 }
 
+#if 1//original
 static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 			      struct cdns_dsi_cfg *dsi_cfg,
 			      struct phy_configure_opts_mipi_dphy *phy_cfg,
@@ -785,7 +838,8 @@ static int cdns_dsi_adjust_phy_config(struct cdns_dsi *dsi,
 
 	return 0;
 }
-
+#endif
+#if 1 //original
 static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 			       const struct drm_display_mode *mode,
 			       struct cdns_dsi_cfg *dsi_cfg,
@@ -830,6 +884,7 @@ static int cdns_dsi_check_conf(struct cdns_dsi *dsi,
 
 	return 0;
 }
+#endif
 
 static int cdns_dsi_bridge_attach(struct drm_bridge *bridge,
 				  enum drm_bridge_attach_flags flags)
@@ -838,12 +893,13 @@ static int cdns_dsi_bridge_attach(struct drm_bridge *bridge,
 	struct cdns_dsi *dsi = input_to_dsi(input);
 	struct cdns_dsi_output *output = &dsi->output;
 
+	dev_info(dsi->base.dev, "===>cdns_dsi_bridge_attach begin\n");
 	if (!drm_core_check_feature(bridge->dev, DRIVER_ATOMIC)) {
 		dev_err(dsi->base.dev,
 			"cdns-dsi driver is only compatible with DRM devices supporting atomic updates");
 		return -EOPNOTSUPP;
 	}
-
+	dev_info(dsi->base.dev, "===>cdns_dsi_bridge_attach end\n");
 	return drm_bridge_attach(bridge->encoder, output->bridge, bridge,
 				 flags);
 }
@@ -875,12 +931,51 @@ cdns_dsi_bridge_mode_valid(struct drm_bridge *bridge,
 	if ((mode->hdisplay * bpp) % 32)
 		return MODE_H_ILLEGAL;
 
-	ret = cdns_dsi_check_conf(dsi, mode, &dsi_cfg, true);
-	if (ret)
-		return MODE_BAD;
+	ret = cdns_dsi_check_conf(dsi, mode, &dsi_cfg, true); //original
+	//if (ret)
+	//	return MODE_BAD;
 
 	return MODE_OK;
 }
+
+#if 1	//20220602
+static inline void sys_delay(int cycles)
+{
+    int i = 0;
+
+    while (i++ < cycles);
+}
+int sys_mipi_dsi_set_ppi_txbyte_hs(int enable, struct cdns_dsi *dsi)
+//int sys_mipi_dsi_set_ppi_txbyte_hs(int enable)
+{
+    static int status = 0;
+	int ret;
+    if (!enable && status) {
+        status = 0;
+        //_ASSERT_RESET_RSTGEN_RSTN_U0_CDNS_DSITX_RSTN_TXBYTEHS_;
+		ret = reset_control_assert(dsi->txbytehs_rst);
+		if (ret < 0) {
+			dev_err(dsi->base.dev, "failed to assert txbytehs_rst\n");
+			return ret;
+		}
+        dev_info(dsi->base.dev, "STOP dsi ppi_txbyte_hs\n");
+    } else if (enable && !status) {
+        status = 1;
+        //_CLEAR_RESET_RSTGEN_RSTN_U0_CDNS_DSITX_RSTN_TXBYTEHS_;
+		ret = reset_control_deassert(dsi->txbytehs_rst);
+		if (ret < 0) {
+			dev_err(dsi->base.dev, "failed to deassert txbytehs_rst\n");
+			return ret;
+		}
+
+        dev_info(dsi->base.dev, "START dsi ppi_txbyte_hs\n");
+    }
+
+	dev_info(dsi->base.dev, "sys_mipi_dsi_set_ppi_txbyte_hs\n");
+    sys_delay(100);
+    return 0;
+}
+#endif
 
 static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 {
@@ -897,10 +992,12 @@ static void cdns_dsi_bridge_disable(struct drm_bridge *bridge)
 	val = readl(dsi->regs + MCTL_MAIN_EN) & ~IF_EN(input->id);
 	writel(val, dsi->regs + MCTL_MAIN_EN);
 	pm_runtime_put(dsi->base.dev);
+	sys_mipi_dsi_set_ppi_txbyte_hs(0, dsi);//20220609
 	phy_power_off(dsi->dphy);
 	phy_exit(dsi->dphy);
 }
 
+#if 0 //original
 static void release_txbyte_rst(void)
 {
 	void __iomem *regs = ioremap(0x12250000, 0x10000);
@@ -918,12 +1015,13 @@ static void release_txbyte_rst(void)
 	} while (temp != 0x1);
 	//udelay(1);
 }
+#endif
 
 static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 {
 	struct cdns_dsi_output *output = &dsi->output;
-	u32 dpi_fifo_int = 0;
-
+	//u32 dpi_fifo_int = 0;
+	int ret;
 	/*
 	 * Power all internal DPHY blocks down and maintain their reset line
 	 * asserted before changing the DPHY config.
@@ -936,7 +1034,12 @@ static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 	phy_set_mode(dsi->dphy, PHY_MODE_MIPI_DPHY);
 	phy_configure(dsi->dphy, &output->phy_opts);
 	phy_power_on(dsi->dphy);
-	release_txbyte_rst();
+	//release_txbyte_rst();//20220602 disabled
+	#if 1
+
+	//ret = sys_mipi_dsi_set_ppi_txbyte_hs(1);
+	ret = sys_mipi_dsi_set_ppi_txbyte_hs(1, dsi);
+	#endif
 
 	writel(PLL_LOCKED, dsi->regs + MCTL_MAIN_STS_CLR);
 	writel(DPHY_CMN_PSO | DPHY_ALL_D_PDN | DPHY_C_PDN | DPHY_CMN_PDN,
@@ -947,9 +1050,12 @@ static void cdns_dsi_hs_init(struct cdns_dsi *dsi)
 	       DPHY_D_RSTB(output->dev->lanes) | DPHY_C_RSTB,
 	       dsi->regs + MCTL_DPHY_CFG0);
 
+//20220602 disabled
+/*
 	dpi_fifo_int = readl(dsi->regs + DPI_IRQ_CLR);
 	if (dpi_fifo_int)
 		writel(1, dsi->regs + DPI_IRQ_CLR);
+*/
 }
 
 static void cdns_dsi_init_link(struct cdns_dsi *dsi)
@@ -962,7 +1068,8 @@ static void cdns_dsi_init_link(struct cdns_dsi *dsi)
 	if (dsi->link_initialized)
 		return;
 
-	val = 0;
+	//val = 0;//original
+	val = WAIT_BURST_TIME(0xf);
 	for (i = 1; i < output->dev->lanes; i++)
 		val |= DATA_LANE_EN(i);
 
@@ -976,6 +1083,7 @@ static void cdns_dsi_init_link(struct cdns_dsi *dsi)
 	ulpout = DIV_ROUND_UP(NSEC_PER_MSEC, sysclk_period);
 	writel(CLK_LANE_ULPOUT_TIME(ulpout) | DATA_LANE_ULPOUT_TIME(ulpout),
 		dsi->regs + MCTL_ULPOUT_TIME);
+	//dev_info(dsi->base.dev, "sysclk_period = %ldns, ulpout: 0x%08x\n", sysclk_period, ulpout);
 
 	writel(LINK_EN, dsi->regs + MCTL_MAIN_DATA_CTL);
 
@@ -986,6 +1094,7 @@ static void cdns_dsi_init_link(struct cdns_dsi *dsi)
 	writel(val, dsi->regs + MCTL_MAIN_EN);
 
 	dsi->link_initialized = true;
+
 }
 
 static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
@@ -999,6 +1108,8 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	struct cdns_dsi_cfg dsi_cfg;
 	u32 tmp, reg_wakeup;
 	int nlanes;
+	int vrefresh;
+	u32 div;
 
 	if (WARN_ON(pm_runtime_get_sync(dsi->base.dev) < 0))
 		return;
@@ -1006,22 +1117,56 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	mode = &bridge->encoder->crtc->state->adjusted_mode;
 	nlanes = output->dev->lanes;
 
-	WARN_ON_ONCE(cdns_dsi_check_conf(dsi, mode, &dsi_cfg, false));
+	//WARN_ON_ONCE(cdns_dsi_check_conf(dsi, mode, &dsi_cfg, false));//original //7110 mode illegal,need confirm //cannot disable
+	cdns_dsi_check_conf(dsi, mode, &dsi_cfg, false);
 
 	cdns_dsi_hs_init(dsi);
 	cdns_dsi_init_link(dsi);
+
+#if 0
+    dev_info(dsi->base.dev, "DSI HSA: %d, HBP: %d, HFP: %d, HACT: %d, HTOTAL: %d\n",
+        dsi_cfg.hsa, dsi_cfg.hbp, dsi_cfg.hfp, dsi_cfg.hact, dsi_cfg.htotal);
+#endif
+
+#if 1
+	dsi_cfg.htotal=2544;//7110,0 while testing, must
+	//dev_info(dsi->base.dev, "change HTOTAL: %d\n",dsi_cfg.htotal);
+#endif
 
 	writel(HBP_LEN(dsi_cfg.hbp) | HSA_LEN(dsi_cfg.hsa),
 	       dsi->regs + VID_HSIZE1);
 	writel(HFP_LEN(dsi_cfg.hfp) | HACT_LEN(dsi_cfg.hact),
 	       dsi->regs + VID_HSIZE2);
 
+#if 0
+    dev_info(dsi->base.dev, "DPI HSA: %d, HBP: %d, HFP: %d, HACT: %d, HTOTAL: %d\n",
+		mode->crtc_htotal - mode->crtc_hsync_end, 
+		mode->crtc_hsync_end - mode->crtc_hsync_start, 
+		mode->crtc_hsync_start - mode->crtc_hdisplay, 
+		mode->crtc_hdisplay,
+		mode->crtc_htotal);
+    dev_info(dsi->base.dev, "DPI VSA: %d, VBP: %d, VFP: %d, VACT: %d, VTOTAL: %d\n",
+		mode->crtc_vtotal - mode->crtc_vsync_end, 
+		mode->crtc_vsync_end - mode->crtc_vsync_start, 
+		mode->crtc_vsync_start - mode->crtc_vdisplay-1,
+		mode->crtc_vdisplay,
+		mode->crtc_vtotal);
+#endif
+	#if 0//original
 	writel(VBP_LEN(mode->crtc_vtotal - mode->crtc_vsync_end - 1) |
 	       VFP_LEN(mode->crtc_vsync_start - mode->crtc_vdisplay) |
 	       VSA_LEN(mode->crtc_vsync_end - mode->crtc_vsync_start + 1),
 	       dsi->regs + VID_VSIZE1);
+	#endif
+	
+	#if 1//jh7110
+	writel(VBP_LEN(mode->crtc_vtotal - mode->crtc_vsync_end) |
+	       VFP_LEN(mode->crtc_vsync_start - mode->crtc_vdisplay - 1) |
+	       VSA_LEN(mode->crtc_vsync_end - mode->crtc_vsync_start),
+	       dsi->regs + VID_VSIZE1);
+	
+	#endif
 	writel(mode->crtc_vdisplay, dsi->regs + VID_VSIZE2);
-
 	tmp = dsi_cfg.htotal -
 	      (dsi_cfg.hsa + DSI_BLANKING_FRAME_OVERHEAD +
 	       DSI_HSA_FRAME_OVERHEAD);
@@ -1046,12 +1191,36 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	tx_byte_period = DIV_ROUND_DOWN_ULL((u64)NSEC_PER_SEC * 8,
 					    phy_cfg->hs_clk_rate);
 	reg_wakeup = (phy_cfg->hs_prepare + phy_cfg->hs_zero) / tx_byte_period;
+	//dev_info(dsi->base.dev, "tx_byte_period = %dns, reg_wakeup: 0x%08x\n", tx_byte_period, reg_wakeup);
 	writel(REG_WAKEUP_TIME(reg_wakeup) | REG_LINE_DURATION(tmp),
 	       dsi->regs + VID_DPHY_TIME);
 
+#if 0//original
 	writel(0xafffb, dsi->regs + MCTL_DPHY_TIMEOUT1);
 	writel(0x3ffff, dsi->regs + MCTL_DPHY_TIMEOUT2);
 	writel(0x3ab05, dsi->regs + MCTL_ULPOUT_TIME);
+#endif
+
+#if 1	//7110
+    vrefresh = 49;//display_timing_vrefresh(dpi);
+    tmp = NSEC_PER_SEC / vrefresh;
+	tmp /= tx_byte_period;
+	for (div = 0; div <= CLK_DIV_MAX; div++) {
+		if (tmp <= HSTX_TIMEOUT_MAX)
+			break;
+
+		tmp >>= 1;
+	}
+
+	if (tmp > HSTX_TIMEOUT_MAX)
+		tmp = HSTX_TIMEOUT_MAX;
+
+	writel(CLK_DIV(div) | HSTX_TIMEOUT(tmp),
+	       dsi->regs + MCTL_DPHY_TIMEOUT1);
+    //dev_info(dsi->base.dev, "vrefresh %dHz, HSTX_TIMEOUT %ld, div %d\n", vrefresh, tmp, div);
+
+	writel(LPRX_TIMEOUT(tmp), dsi->regs + MCTL_DPHY_TIMEOUT2);
+#endif
 
 	if (output->dev->mode_flags & MIPI_DSI_MODE_VIDEO) {
 		switch (output->dev->format) {
@@ -1094,7 +1263,7 @@ static void cdns_dsi_bridge_enable(struct drm_bridge *bridge)
 	tmp = readl(dsi->regs + MCTL_MAIN_DATA_CTL);
 	tmp &= ~(IF_VID_SELECT_MASK | HOST_EOT_GEN | IF_VID_MODE);
 
-	if (!(output->dev->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET))
+	if (!(output->dev->mode_flags & MIPI_DSI_MODE_NO_EOT_PACKET))	//MIPI_DSI_MODE_EOT_PACKET" bit(9)
 		tmp |= HOST_EOT_GEN;
 
 	if (output->dev->mode_flags & MIPI_DSI_MODE_VIDEO)
@@ -1176,7 +1345,6 @@ static int cdns_dsi_attach(struct mipi_dsi_host *host,
 	 * in a display pipeline.
 	 */
 	drm_bridge_add(&input->bridge);
-
 	return 0;
 }
 
@@ -1343,6 +1511,7 @@ static int __maybe_unused cdns_dsi_suspend(struct device *dev)
 static UNIVERSAL_DEV_PM_OPS(cdns_dsi_pm_ops, cdns_dsi_suspend, cdns_dsi_resume,
 			    NULL);
 
+#if 0
 static int cdns_dsi_drm_remove(struct platform_device *pdev)
 {
 	struct cdns_dsi *dsi = platform_get_drvdata(pdev);
@@ -1352,11 +1521,35 @@ static int cdns_dsi_drm_remove(struct platform_device *pdev)
 
 	return 0;
 }
+#endif
 
 static const struct of_device_id cdns_dsi_of_match[] = {
 	{ .compatible = "cdns,dsi" },
 	{ },
 };
+
+#if 1
+static int cdns_check_register_access(struct cdns_dsi* dsi)
+{
+	const uint16_t CTRL_PATTERNS[] = {0x0000, 0xffff, 0xa5a5, 0x5a5a};
+	int i;
+	uint32_t rd_val;
+
+	for (i = 0; i < ARRAY_SIZE_DSI(CTRL_PATTERNS); i++) {
+		uint32_t temp = readl(dsi->regs + TEST_GENERIC);
+		temp &= ~0xffff;
+		temp |= TEST_CTRL(CTRL_PATTERNS[i]);
+		writel(temp, dsi->regs + TEST_GENERIC);
+
+		rd_val = readl(dsi->regs + TEST_GENERIC);
+		if (rd_val != temp) {
+			return 1;
+		}
+	}
+
+    return 0;
+}
+#endif
 
 static int starfive_dsi_bind(struct device *dev, struct device *master, void *data)
 {
@@ -1367,6 +1560,7 @@ static int starfive_dsi_bind(struct device *dev, struct device *master, void *da
 	//struct drm_device *drm_dev = data;
 	//struct starfive_drm_private *private = drm_dev->dev_private;
 	int ret;
+	int irq;
 	u32 val;
 
 	dsi = devm_kzalloc(&pdev->dev, sizeof(*dsi), GFP_KERNEL);
@@ -1381,31 +1575,32 @@ static int starfive_dsi_bind(struct device *dev, struct device *master, void *da
 	if (IS_ERR(dsi->regs))
 		return PTR_ERR(dsi->regs);
 
-	ret = cdns_dsi_get_clock(pdev, dsi);//get clock res
+	ret = cdns_dsi_get_clock(dev, dsi);//get clock res
+
+	dev_info(dev, "dsi_sys_clk = %ld\n",clk_get_rate(dsi->dsi_sys_clk));
+
+	ret = cdns_dsi_get_reset(dev, dsi);//get reset res
+
+	ret = cdns_dsi_clock_enable(dsi, dev);
 	if (ret) {
-		dev_err(&pdev->dev, "failed to get clock\n");
+		dev_err(dev, "failed to enable clock\n");
 		return ret;
 	}
-	ret = cdns_dsi_get_reset(pdev, dsi);//get reset res
-	if (ret) {
-		dev_err(&pdev->dev, "failed to get reset\n");
+	ret = cdns_dsi_resets_deassert(dsi, dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to deassert reset\n");
 		return ret;
+	}
+
+    irq = platform_get_irq(pdev, 0);
+		if (irq < 0){
+			dev_err(dev, "---get irq error\n");
+            return irq;
 	}
 
 	dsi->dphy = devm_phy_get(&pdev->dev, "dphy");
 	if (IS_ERR(dsi->dphy))
 		return PTR_ERR(dsi->dphy);
-
-	ret = cdns_dsi_clock_enable(dsi, dev);
-	if (ret) {
-		dev_err(&pdev->dev, "failed to enable clock\n");
-		return ret;
-	}
-	ret = cdns_dsi_resets_deassert(dsi, dev);
-	if (ret < 0) {
-		dev_err(&pdev->dev, "failed to deassert reset\n");
-		return ret;
-	}
 
 	val = readl(dsi->regs + ID_REG);
 
@@ -1414,6 +1609,12 @@ static int starfive_dsi_bind(struct device *dev, struct device *master, void *da
 		ret = -EINVAL;
 		goto err_disable_pclk;
 	}
+
+	ret = cdns_check_register_access(dsi);
+    if (ret) {
+        dev_err(dev, "error: r/w test generic reg failed\n");
+        goto ERROR;
+    }
 
 	val = readl(dsi->regs + IP_CONF);
 	dsi->direct_cmd_fifo_depth = 1 << (DIRCMD_FIFO_DEPTH(val) + 2);
@@ -1440,6 +1641,13 @@ static int starfive_dsi_bind(struct device *dev, struct device *master, void *da
 	writel(0, dsi->regs + TVG_STS_CTL);
 	writel(0, dsi->regs + DPI_IRQ_EN);
 
+	ret = devm_request_irq(&pdev->dev, irq, cdns_dsi_interrupt, 0,
+                               dev_name(&pdev->dev), dsi);
+        if (ret){
+			dev_err(dev, "---devm_request_irq error\n");
+			goto err_disable_pclk;
+	}
+
 	pm_runtime_enable(&pdev->dev);
 	dsi->base.dev = &pdev->dev;
 	dsi->base.ops = &cdns_dsi_ops;
@@ -1449,6 +1657,7 @@ static int starfive_dsi_bind(struct device *dev, struct device *master, void *da
 		goto err_disable_runtime_pm;
 
 	init_seeed_panel();
+	dev_err(dev, "====starfive_dsi_bind end\n");
 	return 0;
 
 err_disable_runtime_pm:
@@ -1457,6 +1666,7 @@ err_disable_runtime_pm:
 err_disable_pclk:
 	//clk_disable_unprepare(dsi->dsi_p_clk);
 
+ERROR:
 	return ret;
 }
 
@@ -1467,11 +1677,13 @@ static void starfive_dsi_unbind(struct device *dev, struct device *master, void 
 
 	int ret;
 
+#if 1
 	ret = cdns_dsi_resets_assert(dsi, dev);
 	if (ret < 0)
 		dev_err(dev, "failed to assert reset\n");
 
 	cdns_dsi_clock_disable(dsi);
+#endif
 
 	exit_seeed_panel();
 	mipi_dsi_host_unregister(&dsi->base);

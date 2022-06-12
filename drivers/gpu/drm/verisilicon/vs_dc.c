@@ -827,6 +827,25 @@ int sys_dispctrl_clk(void)
     return 0;
 }
 
+int drv_config_dc_4_dsi(struct vs_dc *dc, struct device *dev)//for dc_dsi config //only for dc_init
+{
+	int ret;
+
+	dev_info(dev, "====> %s, %d.\n", __func__, __LINE__);
+	/*---------------------mux config------------*/
+	SET_U0_DSITX_DATA_MAPPING_DPI_DP_SEL(0);
+	//SET_U0_DSITX_DATA_MAPPING_DP_MODE(vout_sys->vout_dsitx.dp_color_mode);
+	SET_U1_DISPLAY_PANEL_MUX_PANEL_SEL(0);
+	//_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;
+	ret = clk_prepare_enable(dc->vout_top_lcd);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
+		return ret;
+	}
+	/*----------mux config------------*/
+	dev_info(dev, "====> %s, %d.\n", __func__, __LINE__);
+	return 0;
+}
 
 int sys_dispctrl_init(void)
 {
@@ -874,6 +893,24 @@ static int dc_init(struct device *dev)
 		dev_err(dev, "failed to init vout clk reset: %d\n", ret);
 		return ret;
 	}
+	#ifdef CONFIG_STARFIVE_DSI
+	dc->vout_src = devm_clk_get(dev, "vout_src");
+	if (IS_ERR(dc->vout_src)){
+		dev_err(dev,"failed to get dc->vout_src\n");
+		return PTR_ERR(dc->vout_src);
+	}
+	dc->vout_top_lcd = devm_clk_get(dev, "vout_top_lcd");
+	if (IS_ERR(dc->vout_top_lcd)){
+		dev_err(dev,"failed to get dc->vout_top_lcd\n");
+		return PTR_ERR(dc->vout_top_lcd);
+	}
+	ret = drv_config_dc_4_dsi(dc,dev);
+	if (ret < 0) {
+		dev_err(dev, "failed to drv_config_dc_4_dsi: %d\n", ret);
+		return ret;
+	}
+	#endif
+	printk("====> %s, %d.\n", __func__, __LINE__);
 
 	ret = dc_hw_init(&dc->hw);
 	if (ret) {
@@ -906,6 +943,10 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 	struct vs_crtc_state *crtc_state = to_vs_crtc_state(crtc->state);
 	struct drm_display_mode *mode = &crtc->state->adjusted_mode;
 	struct dc_hw_display display;
+	uint32_t vout_clock;
+	uint32_t div;
+	uint32_t div_new;
+	const uint32_t wanted_pxclk = mode->clock * 1000;
 
 	display.bus_format = crtc_state->output_fmt;
 	display.h_active = mode->hdisplay;
@@ -958,6 +999,24 @@ static void vs_dc_enable(struct device *dev, struct drm_crtc *crtc)
 		//clk_set_rate(dc->pix_clk, mode->clock * 1000);
 		dc->pix_clk_rate = mode->clock;
 	}
+#endif
+
+#ifdef CONFIG_STARFIVE_DSI//7110 mipi
+	/*-----------------div freq clk  sys_dispctrl_clk()----------*/
+	//const uint32_t wanted_pxclk = 20144262;//dpi->pixelclock;
+	//wanted_pxclk = mode->clock * 1000;
+	dev_info(dev, "wanted_pxclk = %d\n",wanted_pxclk);
+    //uint32_t vout_clock = 614400000;
+	vout_clock = clk_get_rate(dc->vout_src);
+	dev_info(dev, "vout_clock = %d\n", vout_clock);	
+	div = _GET_CLOCK_DIVIDE_STATUS_CLK_DC8200_PIX0_;
+	div_new = vout_clock / wanted_pxclk;
+	if (div != div_new) {
+		div = div_new;
+		_DIVIDE_CLOCK_CLK_DC8200_PIX0_(div);
+		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
+	}
+	/*-----------------div freq clk  sys_dispctrl_clk()----------*/
 #endif
 
 	if (crtc_state->encoder_type == DRM_MODE_ENCODER_DSI)
