@@ -19,9 +19,6 @@
 #include "clk.h"
 #include "reset.h"
 
-#define APBC_RTC	0x28
-#define APBC_TWSI0	0x2c
-#define APBC_KPC	0x30
 #define APBC_UART0	0x0
 #define APBC_UART1	0x4
 #define APBC_GPIO	0x8
@@ -29,20 +26,40 @@
 #define APBC_PWM1	0x10
 #define APBC_PWM2	0x14
 #define APBC_PWM3	0x18
+#define APBC_RTC	0x28
+#define APBC_TWSI0	0x2c
+#define APBC_KPC	0x30
 #define APBC_TIMER	0x34
+#define APBC_AIB	0x3c
+#define APBC_SW_JTAG	0x40
+#define APBC_ONEWIRE	0x48
+#define APBC_TWSI1	0x6c
+#define APBC_UART2	0x70
+#define APBC_AC97	0x84
 #define APBC_SSP0	0x81c
 #define APBC_SSP1	0x820
 #define APBC_SSP2	0x84c
 #define APBC_SSP3	0x858
 #define APBC_SSP4	0x85c
-#define APBC_TWSI1	0x6c
-#define APBC_UART2	0x70
+#define APMU_DISP0	0x4c
+#define APMU_CCIC0	0x50
 #define APMU_SDH0	0x54
 #define APMU_SDH1	0x58
 #define APMU_USB	0x5c
-#define APMU_DISP0	0x4c
-#define APMU_CCIC0	0x50
 #define APMU_DFC	0x60
+#define APMU_DMA	0x64
+#define APMU_BUS	0x6c
+#define APMU_GC		0xcc
+#define APMU_SMC	0xd4
+#define APMU_XD		0xdc
+#define APMU_SDH2	0xe0
+#define APMU_SDH3	0xe4
+#define APMU_CF		0xf0
+#define APMU_MSP	0xf4
+#define APMU_CMU	0xf8
+#define APMU_FE		0xfc
+#define APMU_PCIE	0x100
+#define APMU_EPD	0x104
 #define MPMU_UART_PLL	0x14
 
 struct pxa168_clk_unit {
