@@ -51,15 +51,16 @@ DEFINE_EVENT(habanalabs_mmu_template, habanalabs_mmu_unmap,
 	TP_ARGS(dev, virt_addr, phys_addr, page_size, flush_pte));
 
 DECLARE_EVENT_CLASS(habanalabs_dma_alloc_template,
-	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size),
+	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size, const char *caller),
 
-	TP_ARGS(dev, cpu_addr, dma_addr, size),
+	TP_ARGS(dev, cpu_addr, dma_addr, size, caller),
 
 	TP_STRUCT__entry(
 		__string(dname, dev_name(dev))
 		__field(u64, cpu_addr)
 		__field(u64, dma_addr)
 		__field(u32, size)
+		__field(const char *, caller)
 	),
 
 	TP_fast_assign(
@@ -67,22 +68,24 @@ DECLARE_EVENT_CLASS(habanalabs_dma_alloc_template,
 		__entry->cpu_addr = cpu_addr;
 		__entry->dma_addr = dma_addr;
 		__entry->size = size;
+		__entry->caller = caller;
 	),
 
-	TP_printk("%s: cpu_addr: %#llx, dma_addr: %#llx, size: %#x",
+	TP_printk("%s: cpu_addr: %#llx, dma_addr: %#llx, size: %#x, caller: %s",
 		__get_str(dname),
 		__entry->cpu_addr,
 		__entry->dma_addr,
-		__entry->size)
+		__entry->size,
+		__entry->caller)
 );
 
 DEFINE_EVENT(habanalabs_dma_alloc_template, habanalabs_dma_alloc,
-	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size),
-	TP_ARGS(dev, cpu_addr, dma_addr, size));
+	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size, const char *caller),
+	TP_ARGS(dev, cpu_addr, dma_addr, size, caller));
 
 DEFINE_EVENT(habanalabs_dma_alloc_template, habanalabs_dma_free,
-	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size),
-	TP_ARGS(dev, cpu_addr, dma_addr, size));
+	TP_PROTO(struct device *dev, u64 cpu_addr, u64 dma_addr, size_t size, const char *caller),
+	TP_ARGS(dev, cpu_addr, dma_addr, size, caller));
 
 #endif /* if !defined(_TRACE_HABANALABS_H) || defined(TRACE_HEADER_MULTI_READ) */
 
