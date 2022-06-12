@@ -354,7 +354,7 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	sdd->rx_dma.ch = dma_request_chan(&sdd->pdev->dev, "rx");
 	if (IS_ERR(sdd->rx_dma.ch)) {
 		dev_err(&sdd->pdev->dev, "Failed to get RX DMA channel\n");
-		sdd->rx_dma.ch = 0;
+		sdd->rx_dma.ch = NULL;
 		return 0;
 	}
 
@@ -362,8 +362,8 @@ static int s3c64xx_spi_prepare_transfer(struct spi_master *spi)
 	if (IS_ERR(sdd->tx_dma.ch)) {
 		dev_err(&sdd->pdev->dev, "Failed to get TX DMA channel\n");
 		dma_release_channel(sdd->rx_dma.ch);
-		sdd->tx_dma.ch = 0;
-		sdd->rx_dma.ch = 0;
+		sdd->tx_dma.ch = NULL;
+		sdd->rx_dma.ch = NULL;
 		return 0;
 	}
 
@@ -808,8 +808,8 @@ static int s3c64xx_spi_transfer_one(struct spi_master *master,
 	if (sdd->rx_dma.ch && sdd->tx_dma.ch) {
 		dma_release_channel(sdd->rx_dma.ch);
 		dma_release_channel(sdd->tx_dma.ch);
-		sdd->rx_dma.ch = 0;
-		sdd->tx_dma.ch = 0;
+		sdd->rx_dma.ch = NULL;
+		sdd->tx_dma.ch = NULL;
 	}
 
 	return status;
