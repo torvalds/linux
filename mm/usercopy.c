@@ -173,16 +173,14 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 	}
 
 	if (is_vmalloc_addr(ptr)) {
-		struct vm_struct *area = find_vm_area(ptr);
+		struct vmap_area *area = find_vmap_area((unsigned long)ptr);
 		unsigned long offset;
 
-		if (!area) {
+		if (!area)
 			usercopy_abort("vmalloc", "no area", to_user, 0, n);
-			return;
-		}
 
-		offset = ptr - area->addr;
-		if (offset + n > get_vm_area_size(area))
+		offset = (unsigned long)ptr - area->va_start;
+		if ((unsigned long)ptr + n > area->va_end)
 			usercopy_abort("vmalloc", NULL, to_user, offset, n);
 		return;
 	}
