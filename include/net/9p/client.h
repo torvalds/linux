@@ -11,6 +11,7 @@
 
 #include <linux/utsname.h>
 #include <linux/idr.h>
+#include <linux/tracepoint-defs.h>
 
 /* Number of requests per row */
 #define P9_ROW_MAXTAG 255
@@ -237,6 +238,12 @@ static inline int p9_req_try_get(struct p9_req_t *r)
 
 int p9_req_put(struct p9_req_t *r);
 
+/* We cannot have the real tracepoints in header files,
+ * use a wrapper function */
+DECLARE_TRACEPOINT(9p_fid_ref);
+void do_trace_9p_fid_get(struct p9_fid *fid);
+void do_trace_9p_fid_put(struct p9_fid *fid);
+
 /* fid reference counting helpers:
  *  - fids used for any length of time should always be referenced through
  *    p9_fid_get(), and released with p9_fid_put()
@@ -249,6 +256,9 @@ int p9_req_put(struct p9_req_t *r);
  */
 static inline struct p9_fid *p9_fid_get(struct p9_fid *fid)
 {
+	if (tracepoint_enabled(9p_fid_ref))
+		do_trace_9p_fid_get(fid);
+
 	refcount_inc(&fid->count);
 
 	return fid;
@@ -258,6 +268,9 @@ static inline int p9_fid_put(struct p9_fid *fid)
 {
 	if (!fid || IS_ERR(fid))
 		return 0;
+
+	if (tracepoint_enabled(9p_fid_ref))
+		do_trace_9p_fid_put(fid);
 
 	if (!refcount_dec_and_test(&fid->count))
 		return 0;
