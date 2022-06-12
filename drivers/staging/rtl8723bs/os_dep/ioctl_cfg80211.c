@@ -1256,7 +1256,7 @@ static int cfg80211_rtw_scan(struct wiphy *wiphy
 	}
 
 	if (pmlmepriv->LinkDetectInfo.bBusyTraffic == true) {
-		static unsigned long lastscantime = 0;
+		static unsigned long lastscantime;
 		unsigned long passtime;
 
 		passtime = jiffies_to_msecs(jiffies - lastscantime);
