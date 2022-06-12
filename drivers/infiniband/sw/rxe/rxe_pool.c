@@ -197,16 +197,15 @@ void *rxe_pool_get_index(struct rxe_pool *pool, u32 index)
 {
 	struct rxe_pool_elem *elem;
 	struct xarray *xa = &pool->xa;
-	unsigned long flags;
 	void *obj;
 
-	xa_lock_irqsave(xa, flags);
+	rcu_read_lock();
 	elem = xa_load(xa, index);
 	if (elem && kref_get_unless_zero(&elem->ref_cnt))
 		obj = elem->obj;
 	else
 		obj = NULL;
-	xa_unlock_irqrestore(xa, flags);
+	rcu_read_unlock();
 
 	return obj;
 }
@@ -223,7 +222,6 @@ int __rxe_cleanup(struct rxe_pool_elem *elem, bool sleepable)
 	struct rxe_pool *pool = elem->pool;
 	struct xarray *xa = &pool->xa;
 	static int timeout = RXE_POOL_TIMEOUT;
-	unsigned long flags;
 	int ret, err = 0;
 	void *xa_ret;
 
@@ -233,9 +231,7 @@ int __rxe_cleanup(struct rxe_pool_elem *elem, bool sleepable)
 	/* erase xarray entry to prevent looking up
 	 * the pool elem from its index
 	 */
-	xa_lock_irqsave(xa, flags);
-	xa_ret = __xa_erase(xa, elem->index);
-	xa_unlock_irqrestore(xa, flags);
+	xa_ret = xa_erase(xa, elem->index);
 	WARN_ON(xa_err(xa_ret));
 
 	/* if this is the last call to rxe_put complete the
@@ -280,7 +276,7 @@ int __rxe_cleanup(struct rxe_pool_elem *elem, bool sleepable)
 		pool->cleanup(elem);
 
 	if (pool->type == RXE_TYPE_MR)
-		kfree(elem->obj);
+		kfree_rcu(elem->obj);
 
 	atomic_dec(&pool->num_elem);
 
@@ -299,12 +295,8 @@ int __rxe_put(struct rxe_pool_elem *elem)
 
 void __rxe_finalize(struct rxe_pool_elem *elem)
 {
-	struct xarray *xa = &elem->pool->xa;
-	unsigned long flags;
-	void *ret;
+	void *xa_ret;
 
-	xa_lock_irqsave(xa, flags);
-	ret = __xa_store(&elem->pool->xa, elem->index, elem, GFP_KERNEL);
-	xa_unlock_irqrestore(xa, flags);
-	WARN_ON(xa_err(ret));
+	xa_ret = xa_store(&elem->pool->xa, elem->index, elem, GFP_KERNEL);
+	WARN_ON(xa_err(xa_ret));
 }
