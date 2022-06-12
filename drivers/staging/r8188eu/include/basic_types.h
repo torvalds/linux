@@ -9,8 +9,6 @@
 
 typedef void (*proc_t)(void *);
 
-#define FIELD_OFFSET(s, field)	((ssize_t)&((s *)(0))->field)
-
 /* port from fw */
 /*  TODO: Macros Below are Sync from SD7-Driver. It is necessary
  * to check correctness */
