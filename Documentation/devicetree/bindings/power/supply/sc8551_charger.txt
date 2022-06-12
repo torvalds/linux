@@ -1,0 +1,46 @@
+Binding for sc8551 battery charger
+
+Required properties:
+- compatible: "sc,sc8551-standalone" for sc8551 Charger Power Supply
+- monitored-battery: phandle of battery characteristics devicetree node
+- interrupts: Interrupt mapping for GPIO IRQ. Use in conjunction with
+    "interrupt-parent". If an interrupt is not provided the driver will switch
+     automatically to polling.
+
+- input-voltage-limit-microvolt: integer, input voltage level in uV, used to
+				 decrease voltage level when the over current
+				 of the input power source occurs.
+- input-current-limit-microamp: integer, input current value in uA drained by the
+				charger from the power source.Default: 500000 uA (500mA)
+
+- sc,sc8551,bat-ovp-disable: enable the battery over voltage protection
+- sc,sc8551,bat-ocp-disable: enable the battery over current protection
+- sc,sc8551,bus-ocp-disable: enable the bus over voltage protection
+- sc,sc8551,bat-ovp-threshold: Configures the battery over voltage protection voltage (in uV).
+- sc,sc8551,bat-ocp-threshold: Configures the battery over current protection voltage (in uA).
+- sc,sc8551,bus-ovp-threshold: Configures the bus over voltage protection voltage (in uV).
+- sc,sc8551,bus-ocp-threshold: Configures the bus over current protection voltage (in uA).
+- sc,sc8551,ac-ovp-threshold: Configures the AC voltage protection voltage (in uV).
+- sc,sc8551,sense-resistor-mohm: integer, value of a resistor in series with the battery;
+
+Example:
+c8551: sc8551@66 {
+	compatible = "sc,sc8551-standalone";
+	reg = <0x66>;
+	interrupt-parent = <&gpio4>;
+	interrupts = <RK_PB5 IRQ_TYPE_EDGE_FALLING>;
+
+	sc,sc8551,bat-ovp-disable = <0>;
+	sc,sc8551,bat-ocp-disable = <0>;
+	sc,sc8551,bus-ocp-disable = <0>;
+
+	sc,sc8551,bat-ovp-threshold = <4500>;
+	sc,sc8551,bat-ocp-threshold = <4500>;
+
+	sc,sc8551,bus-ovp-threshold = <12000>;
+	sc,sc8551,bus-ocp-threshold = <4000>;
+
+	sc,sc8551,ac-ovp-threshold = <17>;
+	sc,sc8551,sense-resistor-mohm = <2>;
+};
+

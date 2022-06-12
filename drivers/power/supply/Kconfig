@@ -535,6 +535,13 @@ config CHARGER_LT3651
 	  Say Y to include support for the Analog Devices (Linear Technology)
 	  LT3651 battery charger which reports its status via GPIO lines.
 
+config CHARGER_SC8551
+	tristate "SC8551 battery charger pump driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y to enable support for the SC8551 battery pump charger.
+
 config CHARGER_MAX14577
 	tristate "Maxim MAX14577/77836 battery charger driver"
 	depends on MFD_MAX14577
