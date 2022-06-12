@@ -529,7 +529,7 @@ static int tc358775_parse_dt(struct device_node *np, struct tc_data *tc)
 	struct device_node *endpoint;
 	struct device_node *parent;
 	struct device_node *remote;
-	int dsi_lanes;
+	int dsi_lanes = -1;
 
 	/*
 	 * To get the data-lanes of dsi, we need to access the dsi0_out of port1
