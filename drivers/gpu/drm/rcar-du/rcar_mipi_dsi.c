@@ -679,8 +679,6 @@ static const struct mipi_dsi_host_ops rcar_mipi_dsi_host_ops = {
 
 static int rcar_mipi_dsi_parse_dt(struct rcar_mipi_dsi *dsi)
 {
-	struct device_node *ep;
-	u32 data_lanes[4];
 	int ret;
 
 	ret = drm_of_get_data_lanes_count_ep(dsi->dev->of_node, 1, 0, 1, 4);
