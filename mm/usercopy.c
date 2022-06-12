@@ -161,26 +161,27 @@ static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
 static inline void check_heap_object(const void *ptr, unsigned long n,
 				     bool to_user)
 {
+	uintptr_t addr = (uintptr_t)ptr;
 	struct folio *folio;
 
 	if (is_kmap_addr(ptr)) {
-		unsigned long page_end = (unsigned long)ptr | (PAGE_SIZE - 1);
+		unsigned long page_end = addr | (PAGE_SIZE - 1);
 
-		if ((unsigned long)ptr + n - 1 > page_end)
+		if (addr + n - 1 > page_end)
 			usercopy_abort("kmap", NULL, to_user,
 					offset_in_page(ptr), n);
 		return;
 	}
 
 	if (is_vmalloc_addr(ptr)) {
-		struct vmap_area *area = find_vmap_area((unsigned long)ptr);
+		struct vmap_area *area = find_vmap_area(addr);
 		unsigned long offset;
 
 		if (!area)
 			usercopy_abort("vmalloc", "no area", to_user, 0, n);
 
-		offset = (unsigned long)ptr - area->va_start;
-		if ((unsigned long)ptr + n > area->va_end)
+		offset = addr - area->va_start;
+		if (addr + n > area->va_end)
 			usercopy_abort("vmalloc", NULL, to_user, offset, n);
 		return;
 	}
