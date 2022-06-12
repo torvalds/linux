@@ -162,27 +162,26 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 				     bool to_user)
 {
 	uintptr_t addr = (uintptr_t)ptr;
+	unsigned long offset;
 	struct folio *folio;
 
 	if (is_kmap_addr(ptr)) {
-		unsigned long page_end = addr | (PAGE_SIZE - 1);
-
-		if (addr + n - 1 > page_end)
-			usercopy_abort("kmap", NULL, to_user,
-					offset_in_page(ptr), n);
+		offset = offset_in_page(ptr);
+		if (n > PAGE_SIZE - offset)
+			usercopy_abort("kmap", NULL, to_user, offset, n);
 		return;
 	}
 
 	if (is_vmalloc_addr(ptr)) {
 		struct vmap_area *area = find_vmap_area(addr);
-		unsigned long offset;
 
 		if (!area)
 			usercopy_abort("vmalloc", "no area", to_user, 0, n);
 
-		offset = addr - area->va_start;
-		if (addr + n > area->va_end)
+		if (n > area->va_end - addr) {
+			offset = addr - area->va_start;
 			usercopy_abort("vmalloc", NULL, to_user, offset, n);
+		}
 		return;
 	}
 
@@ -195,8 +194,8 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 		/* Check slab allocator for flags and size. */
 		__check_heap_object(ptr, n, folio_slab(folio), to_user);
 	} else if (folio_test_large(folio)) {
-		unsigned long offset = ptr - folio_address(folio);
-		if (offset + n > folio_size(folio))
+		offset = ptr - folio_address(folio);
+		if (n > folio_size(folio) - offset)
 			usercopy_abort("page alloc", NULL, to_user, offset, n);
 	}
 }
