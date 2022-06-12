@@ -1132,6 +1132,13 @@ static const struct i8k_config_data i8k_config_data[] __initconst = {
 
 static const struct dmi_system_id i8k_dmi_table[] __initconst = {
 	{
+		.ident = "Dell G5 5590",
+		.matches = {
+			DMI_MATCH(DMI_SYS_VENDOR, "Dell Inc."),
+			DMI_EXACT_MATCH(DMI_PRODUCT_NAME, "G5 5590"),
+		},
+	},
+	{
 		.ident = "Dell Inspiron",
 		.matches = {
 			DMI_MATCH(DMI_SYS_VENDOR, "Dell Computer"),
