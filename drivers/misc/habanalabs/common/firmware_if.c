@@ -218,8 +218,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 	u32 tmp, expected_ack_val, pi;
 	int rc;
 
-	pkt = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, len,
-								&pkt_dma_addr);
+	pkt = hl_cpu_accessible_dma_pool_alloc(hdev, len, &pkt_dma_addr);
 	if (!pkt) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for packet to CPU\n");
@@ -303,7 +302,7 @@ int hl_fw_send_cpu_message(struct hl_device *hdev, u32 hw_queue_id, u32 *msg,
 out:
 	mutex_unlock(&hdev->send_cpu_message_lock);
 
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, len, pkt);
+	hl_cpu_accessible_dma_pool_free(hdev, len, pkt);
 
 	return rc;
 }
@@ -644,10 +643,8 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 	u64 result;
 	int rc;
 
-	cpucp_info_cpu_addr =
-			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-					sizeof(struct cpucp_info),
-					&cpucp_info_dma_addr);
+	cpucp_info_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, sizeof(struct cpucp_info),
+								&cpucp_info_dma_addr);
 	if (!cpucp_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP info packet\n");
@@ -708,8 +705,7 @@ int hl_fw_cpucp_info_get(struct hl_device *hdev,
 		prop->fw_app_cpu_boot_dev_sts1 = RREG32(sts_boot_dev_sts1_reg);
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-			sizeof(struct cpucp_info), cpucp_info_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, sizeof(struct cpucp_info), cpucp_info_cpu_addr);
 
 	return rc;
 }
@@ -792,9 +788,8 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	u64 result;
 	int rc;
 
-	eeprom_info_cpu_addr =
-			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-					max_size, &eeprom_info_dma_addr);
+	eeprom_info_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, max_size,
+									&eeprom_info_dma_addr);
 	if (!eeprom_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP EEPROM packet\n");
@@ -822,8 +817,7 @@ int hl_fw_get_eeprom_data(struct hl_device *hdev, void *data, size_t max_size)
 	memcpy(data, eeprom_info_cpu_addr, min((size_t)result, max_size));
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, max_size,
-			eeprom_info_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, max_size, eeprom_info_cpu_addr);
 
 	return rc;
 }
@@ -840,8 +834,7 @@ int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
 	int i, rc;
 
 	data_size = sizeof(struct cpucp_monitor_dump);
-	mon_dump_cpu_addr = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev, data_size,
-										&mon_dump_dma_addr);
+	mon_dump_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev, data_size, &mon_dump_dma_addr);
 	if (!mon_dump_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP monitor-dump packet\n");
@@ -871,7 +864,7 @@ int hl_fw_get_monitor_dump(struct hl_device *hdev, void *data)
 	}
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev, data_size, mon_dump_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, data_size, mon_dump_cpu_addr);
 
 	return rc;
 }
@@ -1064,10 +1057,9 @@ int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
 	u64 result;
 	int rc;
 
-	cpucp_repl_rows_info_cpu_addr =
-			hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-					sizeof(struct cpucp_hbm_row_info),
-					&cpucp_repl_rows_info_dma_addr);
+	cpucp_repl_rows_info_cpu_addr = hl_cpu_accessible_dma_pool_alloc(hdev,
+							sizeof(struct cpucp_hbm_row_info),
+							&cpucp_repl_rows_info_dma_addr);
 	if (!cpucp_repl_rows_info_cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate DMA memory for CPU-CP replaced rows info packet\n");
@@ -1092,9 +1084,8 @@ int hl_fw_dram_replaced_row_get(struct hl_device *hdev,
 	memcpy(info, cpucp_repl_rows_info_cpu_addr, sizeof(*info));
 
 out:
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					sizeof(struct cpucp_hbm_row_info),
-					cpucp_repl_rows_info_cpu_addr);
+	hl_cpu_accessible_dma_pool_free(hdev, sizeof(struct cpucp_hbm_row_info),
+						cpucp_repl_rows_info_cpu_addr);
 
 	return rc;
 }

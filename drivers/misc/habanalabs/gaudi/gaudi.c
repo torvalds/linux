@@ -1070,8 +1070,7 @@ again:
 	}
 
 	fw_size = fw->size;
-	cpu_addr = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, fw_size,
-			&dma_handle, GFP_KERNEL | __GFP_ZERO);
+	cpu_addr = hl_asic_dma_alloc_coherent(hdev, fw_size, &dma_handle, GFP_KERNEL | __GFP_ZERO);
 	if (!cpu_addr) {
 		dev_err(hdev->dev,
 			"Failed to allocate %zu of dma memory for TPC kernel\n",
@@ -1084,8 +1083,7 @@ again:
 
 	rc = _gaudi_init_tpc_mem(hdev, dma_handle, fw_size);
 
-	hdev->asic_funcs->asic_dma_free_coherent(hdev, fw->size, cpu_addr,
-			dma_handle);
+	hl_asic_dma_free_coherent(hdev, fw->size, cpu_addr, dma_handle);
 
 out:
 	release_firmware(fw);
@@ -1729,11 +1727,9 @@ static int gaudi_alloc_cpu_accessible_dma_mem(struct hl_device *hdev)
 	 */
 
 	for (i = 0 ; i < GAUDI_ALLOC_CPU_MEM_RETRY_CNT ; i++) {
-		virt_addr_arr[i] =
-			hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-						HL_CPU_ACCESSIBLE_MEM_SIZE,
-						&dma_addr_arr[i],
-						GFP_KERNEL | __GFP_ZERO);
+		virt_addr_arr[i] = hl_asic_dma_alloc_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE,
+								&dma_addr_arr[i],
+								GFP_KERNEL | __GFP_ZERO);
 		if (!virt_addr_arr[i]) {
 			rc = -ENOMEM;
 			goto free_dma_mem_arr;
@@ -1762,9 +1758,7 @@ static int gaudi_alloc_cpu_accessible_dma_mem(struct hl_device *hdev)
 
 free_dma_mem_arr:
 	for (j = 0 ; j < i ; j++)
-		hdev->asic_funcs->asic_dma_free_coherent(hdev,
-						HL_CPU_ACCESSIBLE_MEM_SIZE,
-						virt_addr_arr[j],
+		hl_asic_dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE, virt_addr_arr[j],
 						dma_addr_arr[j]);
 
 	return rc;
@@ -1780,9 +1774,7 @@ static void gaudi_free_internal_qmans_pq_mem(struct hl_device *hdev)
 		q = &gaudi->internal_qmans[i];
 		if (!q->pq_kernel_addr)
 			continue;
-		hdev->asic_funcs->asic_dma_free_coherent(hdev, q->pq_size,
-							q->pq_kernel_addr,
-							q->pq_dma_addr);
+		hl_asic_dma_free_coherent(hdev, q->pq_size, q->pq_kernel_addr, q->pq_dma_addr);
 	}
 }
 
@@ -1817,10 +1809,8 @@ static int gaudi_alloc_internal_qmans_pq_mem(struct hl_device *hdev)
 			goto free_internal_qmans_pq_mem;
 		}
 
-		q->pq_kernel_addr = hdev->asic_funcs->asic_dma_alloc_coherent(
-						hdev, q->pq_size,
-						&q->pq_dma_addr,
-						GFP_KERNEL | __GFP_ZERO);
+		q->pq_kernel_addr = hl_asic_dma_alloc_coherent(hdev, q->pq_size, &q->pq_dma_addr,
+								GFP_KERNEL | __GFP_ZERO);
 		if (!q->pq_kernel_addr) {
 			rc = -ENOMEM;
 			goto free_internal_qmans_pq_mem;
@@ -1961,10 +1951,8 @@ free_cpu_dma_mem:
 	if (!hdev->asic_prop.fw_security_enabled)
 		GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
 					hdev->cpu_pci_msb_addr);
-	hdev->asic_funcs->asic_dma_free_coherent(hdev,
-			HL_CPU_ACCESSIBLE_MEM_SIZE,
-			hdev->cpu_accessible_dma_mem,
-			hdev->cpu_accessible_dma_address);
+	hl_asic_dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE, hdev->cpu_accessible_dma_mem,
+					hdev->cpu_accessible_dma_address);
 free_dma_pool:
 	dma_pool_destroy(hdev->dma_pool);
 free_gaudi_device:
@@ -1984,10 +1972,8 @@ static int gaudi_sw_fini(struct hl_device *hdev)
 		GAUDI_CPU_TO_PCI_ADDR(hdev->cpu_accessible_dma_address,
 					hdev->cpu_pci_msb_addr);
 
-	hdev->asic_funcs->asic_dma_free_coherent(hdev,
-			HL_CPU_ACCESSIBLE_MEM_SIZE,
-			hdev->cpu_accessible_dma_mem,
-			hdev->cpu_accessible_dma_address);
+	hl_asic_dma_free_coherent(hdev, HL_CPU_ACCESSIBLE_MEM_SIZE, hdev->cpu_accessible_dma_mem,
+					hdev->cpu_accessible_dma_address);
 
 	dma_pool_destroy(hdev->dma_pool);
 
@@ -4936,8 +4922,7 @@ static int gaudi_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 
 	fence_val = GAUDI_QMAN0_FENCE_VAL;
 
-	fence_ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL,
-							&fence_dma_addr);
+	fence_ptr = hl_asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL, &fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
 			"Failed to allocate memory for H/W queue %d testing\n",
@@ -4947,9 +4932,8 @@ static int gaudi_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 
 	*fence_ptr = 0;
 
-	fence_pkt = hdev->asic_funcs->asic_dma_pool_zalloc(hdev,
-					sizeof(struct packet_msg_prot),
-					GFP_KERNEL, &pkt_dma_addr);
+	fence_pkt = hl_asic_dma_pool_zalloc(hdev, sizeof(struct packet_msg_prot), GFP_KERNEL,
+						&pkt_dma_addr);
 	if (!fence_pkt) {
 		dev_err(hdev->dev,
 			"Failed to allocate packet for H/W queue %d testing\n",
@@ -4989,11 +4973,9 @@ static int gaudi_test_queue(struct hl_device *hdev, u32 hw_queue_id)
 	}
 
 free_pkt:
-	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_pkt,
-					pkt_dma_addr);
+	hl_asic_dma_pool_free(hdev, (void *) fence_pkt, pkt_dma_addr);
 free_fence_ptr:
-	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
-					fence_dma_addr);
+	hl_asic_dma_pool_free(hdev, (void *) fence_ptr, fence_dma_addr);
 	return rc;
 }
 
@@ -6164,10 +6146,7 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 	bool is_eng_idle;
 	int rc = 0, dma_id;
 
-	kernel_addr = hdev->asic_funcs->asic_dma_alloc_coherent(
-						hdev, SZ_2M,
-						&dma_addr,
-						GFP_KERNEL | __GFP_ZERO);
+	kernel_addr = hl_asic_dma_alloc_coherent(hdev, SZ_2M, &dma_addr, GFP_KERNEL | __GFP_ZERO);
 
 	if (!kernel_addr)
 		return -ENOMEM;
@@ -6256,8 +6235,7 @@ static int gaudi_debugfs_read_dma(struct hl_device *hdev, u64 addr, u32 size,
 out:
 	hdev->asic_funcs->hw_queues_unlock(hdev);
 
-	hdev->asic_funcs->asic_dma_free_coherent(hdev, SZ_2M, kernel_addr,
-						dma_addr);
+	hl_asic_dma_free_coherent(hdev, SZ_2M, kernel_addr, dma_addr);
 
 	return rc;
 }
@@ -6603,8 +6581,7 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 		return -EBUSY;
 	}
 
-	fence_ptr = hdev->asic_funcs->asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL,
-							&fence_dma_addr);
+	fence_ptr = hl_asic_dma_pool_zalloc(hdev, 4, GFP_KERNEL, &fence_dma_addr);
 	if (!fence_ptr) {
 		dev_err(hdev->dev,
 			"Failed to allocate fence memory for QMAN0\n");
@@ -6650,8 +6627,7 @@ static int gaudi_send_job_on_qman0(struct hl_device *hdev,
 free_fence_ptr:
 	WREG32(mmDMA0_CORE_PROT + dma_offset, BIT(DMA0_CORE_PROT_ERR_VAL_SHIFT));
 
-	hdev->asic_funcs->asic_dma_pool_free(hdev, (void *) fence_ptr,
-					fence_dma_addr);
+	hl_asic_dma_pool_free(hdev, (void *) fence_ptr, fence_dma_addr);
 	return rc;
 }
 
@@ -8504,11 +8480,10 @@ static int gaudi_internal_cb_pool_init(struct hl_device *hdev,
 	if (!(gaudi->hw_cap_initialized & HW_CAP_MMU))
 		return 0;
 
-	hdev->internal_cb_pool_virt_addr =
-			hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-					HOST_SPACE_INTERNAL_CB_SZ,
-					&hdev->internal_cb_pool_dma_addr,
-					GFP_KERNEL | __GFP_ZERO);
+	hdev->internal_cb_pool_virt_addr = hl_asic_dma_alloc_coherent(hdev,
+							HOST_SPACE_INTERNAL_CB_SZ,
+							&hdev->internal_cb_pool_dma_addr,
+							GFP_KERNEL | __GFP_ZERO);
 
 	if (!hdev->internal_cb_pool_virt_addr)
 		return -ENOMEM;
@@ -8563,10 +8538,8 @@ unreserve_internal_cb_pool:
 destroy_internal_cb_pool:
 	gen_pool_destroy(hdev->internal_cb_pool);
 free_internal_cb_pool:
-	hdev->asic_funcs->asic_dma_free_coherent(hdev,
-			HOST_SPACE_INTERNAL_CB_SZ,
-			hdev->internal_cb_pool_virt_addr,
-			hdev->internal_cb_pool_dma_addr);
+	hl_asic_dma_free_coherent(hdev, HOST_SPACE_INTERNAL_CB_SZ, hdev->internal_cb_pool_virt_addr,
+					hdev->internal_cb_pool_dma_addr);
 
 	return rc;
 }
@@ -8589,10 +8562,8 @@ static void gaudi_internal_cb_pool_fini(struct hl_device *hdev,
 
 	gen_pool_destroy(hdev->internal_cb_pool);
 
-	hdev->asic_funcs->asic_dma_free_coherent(hdev,
-			HOST_SPACE_INTERNAL_CB_SZ,
-			hdev->internal_cb_pool_virt_addr,
-			hdev->internal_cb_pool_dma_addr);
+	hl_asic_dma_free_coherent(hdev, HOST_SPACE_INTERNAL_CB_SZ, hdev->internal_cb_pool_virt_addr,
+					hdev->internal_cb_pool_dma_addr);
 }
 
 static int gaudi_ctx_init(struct hl_ctx *ctx)

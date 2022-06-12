@@ -403,8 +403,8 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
 {
 	void *p;
 
-	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
-				&q->bus_address, GFP_KERNEL | __GFP_ZERO);
+	p = hl_asic_dma_alloc_coherent(hdev, HL_CQ_SIZE_IN_BYTES, &q->bus_address,
+					GFP_KERNEL | __GFP_ZERO);
 	if (!p)
 		return -ENOMEM;
 
@@ -429,9 +429,7 @@ int hl_cq_init(struct hl_device *hdev, struct hl_cq *q, u32 hw_queue_id)
  */
 void hl_cq_fini(struct hl_device *hdev, struct hl_cq *q)
 {
-	hdev->asic_funcs->asic_dma_free_coherent(hdev, HL_CQ_SIZE_IN_BYTES,
-						 q->kernel_address,
-						 q->bus_address);
+	hl_asic_dma_free_coherent(hdev, HL_CQ_SIZE_IN_BYTES, q->kernel_address, q->bus_address);
 }
 
 void hl_cq_reset(struct hl_device *hdev, struct hl_cq *q)
@@ -464,9 +462,7 @@ int hl_eq_init(struct hl_device *hdev, struct hl_eq *q)
 {
 	void *p;
 
-	p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-							HL_EQ_SIZE_IN_BYTES,
-							&q->bus_address);
+	p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_EQ_SIZE_IN_BYTES, &q->bus_address);
 	if (!p)
 		return -ENOMEM;
 
@@ -490,9 +486,7 @@ void hl_eq_fini(struct hl_device *hdev, struct hl_eq *q)
 {
 	flush_workqueue(hdev->eq_wq);
 
-	hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					HL_EQ_SIZE_IN_BYTES,
-					q->kernel_address);
+	hl_cpu_accessible_dma_pool_free(hdev, HL_EQ_SIZE_IN_BYTES, q->kernel_address);
 }
 
 void hl_eq_reset(struct hl_device *hdev, struct hl_eq *q)

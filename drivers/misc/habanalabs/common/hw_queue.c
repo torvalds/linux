@@ -807,13 +807,9 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 	int rc;
 
 	if (is_cpu_queue)
-		p = hdev->asic_funcs->cpu_accessible_dma_pool_alloc(hdev,
-							HL_QUEUE_SIZE_IN_BYTES,
-							&q->bus_address);
+		p = hl_cpu_accessible_dma_pool_alloc(hdev, HL_QUEUE_SIZE_IN_BYTES, &q->bus_address);
 	else
-		p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-						HL_QUEUE_SIZE_IN_BYTES,
-						&q->bus_address,
+		p = hl_asic_dma_alloc_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, &q->bus_address,
 						GFP_KERNEL | __GFP_ZERO);
 	if (!p)
 		return -ENOMEM;
@@ -839,14 +835,10 @@ static int ext_and_cpu_queue_init(struct hl_device *hdev, struct hl_hw_queue *q,
 
 free_queue:
 	if (is_cpu_queue)
-		hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address);
+		hl_cpu_accessible_dma_pool_free(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address);
 	else
-		hdev->asic_funcs->asic_dma_free_coherent(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address,
-					q->bus_address);
+		hl_asic_dma_free_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address,
+						q->bus_address);
 
 	return rc;
 }
@@ -885,10 +877,8 @@ static int hw_queue_init(struct hl_device *hdev, struct hl_hw_queue *q)
 {
 	void *p;
 
-	p = hdev->asic_funcs->asic_dma_alloc_coherent(hdev,
-						HL_QUEUE_SIZE_IN_BYTES,
-						&q->bus_address,
-						GFP_KERNEL | __GFP_ZERO);
+	p = hl_asic_dma_alloc_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, &q->bus_address,
+					GFP_KERNEL | __GFP_ZERO);
 	if (!p)
 		return -ENOMEM;
 
@@ -1061,14 +1051,10 @@ static void queue_fini(struct hl_device *hdev, struct hl_hw_queue *q)
 	kfree(q->shadow_queue);
 
 	if (q->queue_type == QUEUE_TYPE_CPU)
-		hdev->asic_funcs->cpu_accessible_dma_pool_free(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address);
+		hl_cpu_accessible_dma_pool_free(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address);
 	else
-		hdev->asic_funcs->asic_dma_free_coherent(hdev,
-					HL_QUEUE_SIZE_IN_BYTES,
-					q->kernel_address,
-					q->bus_address);
+		hl_asic_dma_free_coherent(hdev, HL_QUEUE_SIZE_IN_BYTES, q->kernel_address,
+						q->bus_address);
 }
 
 int hl_hw_queues_create(struct hl_device *hdev)
