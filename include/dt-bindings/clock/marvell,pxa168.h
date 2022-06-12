@@ -59,6 +59,7 @@
 #define PXA168_CLK_CCIC0		107
 #define PXA168_CLK_CCIC0_PHY		108
 #define PXA168_CLK_CCIC0_SPHY		109
+#define PXA168_CLK_SDH3			110
 
 #define PXA168_NR_CLKS			200
 #endif
