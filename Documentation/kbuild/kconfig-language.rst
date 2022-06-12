@@ -693,6 +693,8 @@ in documenting basic Kconfig syntax a more precise definition of Kconfig
 semantics is welcomed. One project deduced Kconfig semantics through
 the use of the xconfig configurator [1]_. Work should be done to confirm if
 the deduced semantics matches our intended Kconfig design goals.
+Another project formalized a denotational semantics of a core subset of
+the Kconfig language [10]_.
 
 Having well defined semantics can be useful for tools for practical
 evaluation of dependencies, for instance one such case was work to
@@ -700,6 +702,8 @@ express in boolean abstraction of the inferred semantics of Kconfig to
 translate Kconfig logic into boolean formulas and run a SAT solver on this to
 find dead code / features (always inactive), 114 dead features were found in
 Linux using this methodology [1]_ (Section 8: Threats to validity).
+The kismet tool, based on the semantics in [10]_, finds abuses of reverse
+dependencies and has led to dozens of committed fixes to Linux Kconfig files [11]_.
 
 Confirming this could prove useful as Kconfig stands as one of the leading
 industrial variability modeling languages [1]_ [2]_. Its study would help
@@ -738,3 +742,5 @@ https://kernelnewbies.org/KernelProjects/kconfig-sat
 .. [7] https://vamos.cs.fau.de
 .. [8] https://undertaker.cs.fau.de
 .. [9] https://www4.cs.fau.de/Publications/2011/tartler_11_eurosys.pdf
+.. [10] https://paulgazzillo.com/papers/esecfse21.pdf
+.. [11] https://github.com/paulgazz/kmax
