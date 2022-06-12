@@ -301,11 +301,9 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 {
 	struct iov_iter to;
 	struct kiocb kiocb;
-	unsigned int i_head;
 	int ret;
 
 	iov_iter_pipe(&to, READ, pipe, len);
-	i_head = to.head;
 	init_sync_kiocb(&kiocb, in);
 	kiocb.ki_pos = *ppos;
 	ret = call_read_iter(in, &kiocb, &to);
@@ -313,9 +311,8 @@ ssize_t generic_file_splice_read(struct file *in, loff_t *ppos,
 		*ppos = kiocb.ki_pos;
 		file_accessed(in);
 	} else if (ret < 0) {
-		to.head = i_head;
-		to.iov_offset = 0;
-		iov_iter_advance(&to, 0); /* to free what was emitted */
+		/* free what was emitted */
+		pipe_discard_from(pipe, to.start_head);
 		/*
 		 * callers of ->splice_read() expect -EAGAIN on
 		 * "can't put anything in there", rather than -EFAULT.
