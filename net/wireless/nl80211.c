@@ -3475,16 +3475,19 @@ static int nl80211_set_wiphy(struct sk_buff *skb, struct genl_info *info)
 	}
 
 	if (info->attrs[NL80211_ATTR_WIPHY_FREQ]) {
+		int link_id = nl80211_link_id_or_invalid(info->attrs);
+
 		if (wdev) {
 			wdev_lock(wdev);
 			result = __nl80211_set_channel(
 				rdev,
 				nl80211_can_set_dev_channel(wdev) ? netdev : NULL,
-				info, -1);
+				info, link_id);
 			wdev_unlock(wdev);
 		} else {
-			result = __nl80211_set_channel(rdev, netdev, info, -1);
+			result = __nl80211_set_channel(rdev, netdev, info, link_id);
 		}
+
 		if (result)
 			goto out;
 	}
