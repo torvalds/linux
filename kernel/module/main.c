@@ -2939,24 +2939,25 @@ static void cfi_init(struct module *mod)
 {
 #ifdef CONFIG_CFI_CLANG
 	initcall_t *init;
+#ifdef CONFIG_MODULE_UNLOAD
 	exitcall_t *exit;
+#endif
 
 	rcu_read_lock_sched();
 	mod->cfi_check = (cfi_check_fn)
 		find_kallsyms_symbol_value(mod, "__cfi_check");
 	init = (initcall_t *)
 		find_kallsyms_symbol_value(mod, "__cfi_jt_init_module");
-	exit = (exitcall_t *)
-		find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
-	rcu_read_unlock_sched();
-
 	/* Fix init/exit functions to point to the CFI jump table */
 	if (init)
 		mod->init = *init;
 #ifdef CONFIG_MODULE_UNLOAD
+	exit = (exitcall_t *)
+		find_kallsyms_symbol_value(mod, "__cfi_jt_cleanup_module");
 	if (exit)
 		mod->exit = *exit;
 #endif
+	rcu_read_unlock_sched();
 
 	cfi_module_add(mod, mod_tree.addr_min);
 #endif
