@@ -5553,7 +5553,7 @@ static bool retrieve_link_cap(struct dc_link *link)
 		 * only if required.
 		 */
 		if (link->ep_type == DISPLAY_ENDPOINT_USB4_DPIA &&
-				!link->dc->debug.dpia_debug.bits.disable_force_tbt3_work_around &&
+				link->dc->debug.dpia_debug.bits.enable_force_tbt3_work_around &&
 				link->dpcd_caps.is_branch_dev &&
 				link->dpcd_caps.branch_dev_id == DP_BRANCH_DEVICE_ID_90CC24 &&
 				link->dpcd_caps.branch_hw_revision == DP_BRANCH_HW_REV_10 &&

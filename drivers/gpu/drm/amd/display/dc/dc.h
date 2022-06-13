@@ -542,7 +542,7 @@ union dpia_debug_options {
 		uint32_t force_non_lttpr:1; /* bit 1 */
 		uint32_t extend_aux_rd_interval:1; /* bit 2 */
 		uint32_t disable_mst_dsc_work_around:1; /* bit 3 */
-		uint32_t disable_force_tbt3_work_around:1; /* bit 4 */
+		uint32_t enable_force_tbt3_work_around:1; /* bit 4 */
 		uint32_t reserved:27;
 	} bits;
 	uint32_t raw;
