@@ -666,6 +666,48 @@ static const u32 colorspace_coeffs[2][DRM_COLOR_ENCODING_MAX][3] = {
 	}
 };
 
+static u32 vc4_hvs4_get_alpha_blend_mode(struct drm_plane_state *state)
+{
+	if (!state->fb->format->has_alpha)
+		return VC4_SET_FIELD(SCALER_POS2_ALPHA_MODE_FIXED,
+				     SCALER_POS2_ALPHA_MODE);
+
+	switch (state->pixel_blend_mode) {
+	case DRM_MODE_BLEND_PIXEL_NONE:
+		return VC4_SET_FIELD(SCALER_POS2_ALPHA_MODE_FIXED,
+				     SCALER_POS2_ALPHA_MODE);
+	default:
+	case DRM_MODE_BLEND_PREMULTI:
+		return VC4_SET_FIELD(SCALER_POS2_ALPHA_MODE_PIPELINE,
+				     SCALER_POS2_ALPHA_MODE) |
+			SCALER_POS2_ALPHA_PREMULT;
+	case DRM_MODE_BLEND_COVERAGE:
+		return VC4_SET_FIELD(SCALER_POS2_ALPHA_MODE_PIPELINE,
+				     SCALER_POS2_ALPHA_MODE);
+	}
+}
+
+static u32 vc4_hvs5_get_alpha_blend_mode(struct drm_plane_state *state)
+{
+	if (!state->fb->format->has_alpha)
+		return VC4_SET_FIELD(SCALER5_CTL2_ALPHA_MODE_FIXED,
+				     SCALER5_CTL2_ALPHA_MODE);
+
+	switch (state->pixel_blend_mode) {
+	case DRM_MODE_BLEND_PIXEL_NONE:
+		return VC4_SET_FIELD(SCALER5_CTL2_ALPHA_MODE_FIXED,
+				     SCALER5_CTL2_ALPHA_MODE);
+	default:
+	case DRM_MODE_BLEND_PREMULTI:
+		return VC4_SET_FIELD(SCALER5_CTL2_ALPHA_MODE_PIPELINE,
+				     SCALER5_CTL2_ALPHA_MODE) |
+			SCALER5_CTL2_ALPHA_PREMULT;
+	case DRM_MODE_BLEND_COVERAGE:
+		return VC4_SET_FIELD(SCALER5_CTL2_ALPHA_MODE_PIPELINE,
+				     SCALER5_CTL2_ALPHA_MODE);
+	}
+}
+
 /* Writes out a full display list for an active plane to the plane's
  * private dlist state.
  */
@@ -948,13 +990,8 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		/* Position Word 2: Source Image Size, Alpha */
 		vc4_state->pos2_offset = vc4_state->dlist_count;
 		vc4_dlist_write(vc4_state,
-				VC4_SET_FIELD(fb->format->has_alpha ?
-					      SCALER_POS2_ALPHA_MODE_PIPELINE :
-					      SCALER_POS2_ALPHA_MODE_FIXED,
-					      SCALER_POS2_ALPHA_MODE) |
 				(mix_plane_alpha ? SCALER_POS2_ALPHA_MIX : 0) |
-				(fb->format->has_alpha ?
-						SCALER_POS2_ALPHA_PREMULT : 0) |
+				vc4_hvs4_get_alpha_blend_mode(state) |
 				VC4_SET_FIELD(vc4_state->src_w[0],
 					      SCALER_POS2_WIDTH) |
 				VC4_SET_FIELD(vc4_state->src_h[0],
@@ -999,14 +1036,9 @@ static int vc4_plane_mode_set(struct drm_plane *plane,
 		vc4_dlist_write(vc4_state,
 				VC4_SET_FIELD(state->alpha >> 4,
 					      SCALER5_CTL2_ALPHA) |
-				(fb->format->has_alpha ?
-					SCALER5_CTL2_ALPHA_PREMULT : 0) |
+				vc4_hvs5_get_alpha_blend_mode(state) |
 				(mix_plane_alpha ?
-					SCALER5_CTL2_ALPHA_MIX : 0) |
-				VC4_SET_FIELD(fb->format->has_alpha ?
-				      SCALER5_CTL2_ALPHA_MODE_PIPELINE :
-				      SCALER5_CTL2_ALPHA_MODE_FIXED,
-				      SCALER5_CTL2_ALPHA_MODE)
+					SCALER5_CTL2_ALPHA_MIX : 0)
 			       );
 
 		/* Position Word 1: Scaled Image Dimensions. */
@@ -1491,6 +1523,10 @@ struct drm_plane *vc4_plane_init(struct drm_device *dev,
 	drm_plane_helper_add(plane, &vc4_plane_helper_funcs);
 
 	drm_plane_create_alpha_property(plane);
+	drm_plane_create_blend_mode_property(plane,
+					     BIT(DRM_MODE_BLEND_PIXEL_NONE) |
+					     BIT(DRM_MODE_BLEND_PREMULTI) |
+					     BIT(DRM_MODE_BLEND_COVERAGE));
 	drm_plane_create_rotation_property(plane, DRM_MODE_ROTATE_0,
 					   DRM_MODE_ROTATE_0 |
 					   DRM_MODE_ROTATE_180 |
