@@ -763,6 +763,7 @@ int hda_ctrl_dai_widget_free(struct snd_soc_dapm_widget *w, unsigned int quirk_f
 extern int sof_hda_position_quirk;
 
 void hda_set_dai_drv_ops(struct snd_sof_dev *sdev, struct snd_sof_dsp_ops *ops);
+void hda_ops_free(struct snd_sof_dev *sdev);
 
 /* IPC4 */
 irqreturn_t cnl_ipc4_irq_thread(int irq, void *context);

@@ -644,4 +644,6 @@ const struct sof_ipc_ops ipc4_ops = {
 	.get_reply = sof_ipc4_get_reply,
 	.pm = &ipc4_pm_ops,
 	.fw_loader = &ipc4_loader_ops,
+	.tplg = &ipc4_tplg_ops,
+	.pcm = &ipc4_pcm_ops,
 };
