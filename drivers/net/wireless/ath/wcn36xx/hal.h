@@ -1961,7 +1961,7 @@ struct wcn36xx_hal_config_bss_params {
 
 	/* HAL should update the existing BSS entry, if this flag is set.
 	 * UMAC will set this flag in case of reassoc, where we want to
-	 * resue the the old BSSID and still return success 0 = Add, 1 =
+	 * resue the old BSSID and still return success 0 = Add, 1 =
 	 * Update */
 	u8 action;
 
@@ -2098,7 +2098,7 @@ struct wcn36xx_hal_config_bss_params_v1 {
 
 	/* HAL should update the existing BSS entry, if this flag is set.
 	 * UMAC will set this flag in case of reassoc, where we want to
-	 * resue the the old BSSID and still return success 0 = Add, 1 =
+	 * resue the old BSSID and still return success 0 = Add, 1 =
 	 * Update */
 	u8 action;
 
