@@ -12,6 +12,7 @@
 
 #include "io_uring_types.h"
 #include "io_uring.h"
+#include "kbuf.h"
 #include "net.h"
 
 #if defined(CONFIG_NET)

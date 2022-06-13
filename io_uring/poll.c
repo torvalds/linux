@@ -17,6 +17,7 @@
 #include "io_uring.h"
 #include "refs.h"
 #include "opdef.h"
+#include "kbuf.h"
 #include "poll.h"
 
 struct io_poll_update {

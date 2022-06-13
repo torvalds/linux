@@ -99,42 +99,8 @@ void __io_req_complete_post(struct io_kiocb *req);
 bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 		     u32 cflags);
 void io_cqring_ev_posted(struct io_ring_ctx *ctx);
-void __user *io_buffer_select(struct io_kiocb *req, size_t *len,
-			      unsigned int issue_flags);
-unsigned int io_put_kbuf(struct io_kiocb *req, unsigned issue_flags);
 
-static inline bool io_do_buffer_select(struct io_kiocb *req)
-{
-	if (!(req->flags & REQ_F_BUFFER_SELECT))
-		return false;
-	return !(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING));
-}
-
-void __io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags);
-static inline void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
-{
-	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
-		return;
-	/*
-	 * For legacy provided buffer mode, don't recycle if we already did
-	 * IO to this buffer. For ring-mapped provided buffer mode, we should
-	 * increment ring->head to explicitly monopolize the buffer to avoid
-	 * multiple use.
-	 */
-	if ((req->flags & REQ_F_BUFFER_SELECTED) &&
-	    (req->flags & REQ_F_PARTIAL_IO))
-		return;
-
-	/*
-	 * READV uses fields in `struct io_rw` (len/addr) to stash the selected
-	 * buffer data. However if that buffer is recycled the original request
-	 * data stored in addr is lost. Therefore forbid recycling for now.
-	 */
-	if (req->opcode == IORING_OP_READV)
-		return;
-
-	__io_kbuf_recycle(req, issue_flags);
-}
+struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
 
 struct file *io_file_get_normal(struct io_kiocb *req, int fd);
 struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
