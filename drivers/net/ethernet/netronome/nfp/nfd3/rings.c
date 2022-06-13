@@ -260,6 +260,7 @@ const struct nfp_dp_ops nfp_nfd3_ops = {
 	.version		= NFP_NFD_VER_NFD3,
 	.tx_min_desc_per_pkt	= 1,
 	.cap_mask		= NFP_NFD3_CFG_CTRL_SUPPORTED,
+	.dma_mask		= DMA_BIT_MASK(40),
 	.poll			= nfp_nfd3_poll,
 	.xsk_poll		= nfp_nfd3_xsk_poll,
 	.ctrl_poll		= nfp_nfd3_ctrl_poll,

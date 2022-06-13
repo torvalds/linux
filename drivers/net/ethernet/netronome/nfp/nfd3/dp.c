@@ -282,7 +282,7 @@ netdev_tx_t nfp_nfd3_tx(struct sk_buff *skb, struct net_device *netdev)
 	txd = &tx_ring->txds[wr_idx];
 	txd->offset_eop = (nr_frags ? 0 : NFD3_DESC_TX_EOP) | md_bytes;
 	txd->dma_len = cpu_to_le16(skb_headlen(skb));
-	nfp_desc_set_dma_addr(txd, dma_addr);
+	nfp_desc_set_dma_addr_40b(txd, dma_addr);
 	txd->data_len = cpu_to_le16(skb->len);
 
 	txd->flags = 0;
@@ -320,7 +320,7 @@ netdev_tx_t nfp_nfd3_tx(struct sk_buff *skb, struct net_device *netdev)
 
 			txd = &tx_ring->txds[wr_idx];
 			txd->dma_len = cpu_to_le16(fsize);
-			nfp_desc_set_dma_addr(txd, dma_addr);
+			nfp_desc_set_dma_addr_40b(txd, dma_addr);
 			txd->offset_eop = md_bytes |
 				((f == nr_frags - 1) ? NFD3_DESC_TX_EOP : 0);
 			txd->vals8[1] = second_half;
@@ -562,8 +562,12 @@ nfp_nfd3_rx_give_one(const struct nfp_net_dp *dp,
 	/* Fill freelist descriptor */
 	rx_ring->rxds[wr_idx].fld.reserved = 0;
 	rx_ring->rxds[wr_idx].fld.meta_len_dd = 0;
-	nfp_desc_set_dma_addr(&rx_ring->rxds[wr_idx].fld,
-			      dma_addr + dp->rx_dma_off);
+	/* DMA address is expanded to 48-bit width in freelist for NFP3800,
+	 * so the *_48b macro is used accordingly, it's also OK to fill
+	 * a 40-bit address since the top 8 bits are get set to 0.
+	 */
+	nfp_desc_set_dma_addr_48b(&rx_ring->rxds[wr_idx].fld,
+				  dma_addr + dp->rx_dma_off);
 
 	rx_ring->wr_p++;
 	if (!(rx_ring->wr_p % NFP_NET_FL_BATCH)) {
@@ -817,7 +821,7 @@ nfp_nfd3_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 	txd = &tx_ring->txds[wr_idx];
 	txd->offset_eop = NFD3_DESC_TX_EOP;
 	txd->dma_len = cpu_to_le16(pkt_len);
-	nfp_desc_set_dma_addr(txd, rxbuf->dma_addr + dma_off);
+	nfp_desc_set_dma_addr_40b(txd, rxbuf->dma_addr + dma_off);
 	txd->data_len = cpu_to_le16(pkt_len);
 
 	txd->flags = 0;
@@ -1193,7 +1197,7 @@ nfp_nfd3_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 	txd = &tx_ring->txds[wr_idx];
 	txd->offset_eop = meta_len | NFD3_DESC_TX_EOP;
 	txd->dma_len = cpu_to_le16(skb_headlen(skb));
-	nfp_desc_set_dma_addr(txd, dma_addr);
+	nfp_desc_set_dma_addr_40b(txd, dma_addr);
 	txd->data_len = cpu_to_le16(skb->len);
 
 	txd->flags = 0;

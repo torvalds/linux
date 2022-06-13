@@ -2040,6 +2040,7 @@ nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
 	      void __iomem *ctrl_bar, bool needs_netdev,
 	      unsigned int max_tx_rings, unsigned int max_rx_rings)
 {
+	u64 dma_mask = dma_get_mask(&pdev->dev);
 	struct nfp_net *nn;
 	int err;
 
@@ -2081,6 +2082,14 @@ nfp_net_alloc(struct pci_dev *pdev, const struct nfp_dev_info *dev_info,
 		nn->dp.ops = &nfp_nfdk_ops;
 		break;
 	default:
+		err = -EINVAL;
+		goto err_free_nn;
+	}
+
+	if ((dma_mask & nn->dp.ops->dma_mask) != dma_mask) {
+		dev_err(&pdev->dev,
+			"DMA mask of loaded firmware: %llx, required DMA mask: %llx\n",
+			nn->dp.ops->dma_mask, dma_mask);
 		err = -EINVAL;
 		goto err_free_nn;
 	}

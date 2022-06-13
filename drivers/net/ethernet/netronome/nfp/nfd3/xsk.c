@@ -40,7 +40,7 @@ nfp_nfd3_xsk_tx_xdp(const struct nfp_net_dp *dp, struct nfp_net_r_vector *r_vec,
 	txd = &tx_ring->txds[wr_idx];
 	txd->offset_eop = NFD3_DESC_TX_EOP;
 	txd->dma_len = cpu_to_le16(pkt_len);
-	nfp_desc_set_dma_addr(txd, xrxbuf->dma_addr + pkt_off);
+	nfp_desc_set_dma_addr_40b(txd, xrxbuf->dma_addr + pkt_off);
 	txd->data_len = cpu_to_le16(pkt_len);
 
 	txd->flags = 0;
@@ -361,10 +361,8 @@ static void nfp_nfd3_xsk_tx(struct nfp_net_tx_ring *tx_ring)
 
 			/* Build TX descriptor. */
 			txd = &tx_ring->txds[wr_idx];
-			nfp_desc_set_dma_addr(txd,
-					      xsk_buff_raw_get_dma(xsk_pool,
-								   desc[i].addr
-								   ));
+			nfp_desc_set_dma_addr_40b(txd,
+						  xsk_buff_raw_get_dma(xsk_pool, desc[i].addr));
 			txd->offset_eop = NFD3_DESC_TX_EOP;
 			txd->dma_len = cpu_to_le16(desc[i].len);
 			txd->data_len = cpu_to_le16(desc[i].len);

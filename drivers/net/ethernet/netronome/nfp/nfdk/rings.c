@@ -181,6 +181,7 @@ const struct nfp_dp_ops nfp_nfdk_ops = {
 	.version		= NFP_NFD_VER_NFDK,
 	.tx_min_desc_per_pkt	= NFDK_TX_DESC_PER_SIMPLE_PKT,
 	.cap_mask		= NFP_NFDK_CFG_CTRL_SUPPORTED,
+	.dma_mask		= DMA_BIT_MASK(48),
 	.poll			= nfp_nfdk_poll,
 	.ctrl_poll		= nfp_nfdk_ctrl_poll,
 	.xmit			= nfp_nfdk_tx,
