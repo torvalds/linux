@@ -7996,6 +7996,16 @@ static int verify_one_dev_extent(struct btrfs_fs_info *fs_info,
 		goto out;
 	}
 
+	/*
+	 * Very old mkfs.btrfs (before v4.1) will not respect the reserved
+	 * space. Although kernel can handle it without problem, better to warn
+	 * the users.
+	 */
+	if (physical_offset < BTRFS_DEVICE_RANGE_RESERVED)
+		btrfs_warn(fs_info,
+		"devid %llu physical %llu len %llu inside the reserved space",
+			   devid, physical_offset, physical_len);
+
 	for (i = 0; i < map->num_stripes; i++) {
 		if (map->stripes[i].dev->devid == devid &&
 		    map->stripes[i].physical == physical_offset) {
