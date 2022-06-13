@@ -722,7 +722,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 	struct lpfc_nvmet_tgtport *tgtp;
 	struct nvmefc_tgt_fcp_req *rsp;
 	struct lpfc_async_xchg_ctx *ctxp;
-	uint32_t status, result, op, start_clean, logerr;
+	uint32_t status, result, op, logerr;
 	struct lpfc_wcqe_complete *wcqe = &rspwqe->wcqe_cmpl;
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 	int id;
@@ -820,9 +820,7 @@ lpfc_nvmet_xmt_fcp_op_cmp(struct lpfc_hba *phba, struct lpfc_iocbq *cmdwqe,
 		/* lpfc_nvmet_xmt_fcp_release() will recycle the context */
 	} else {
 		ctxp->entry_cnt++;
-		start_clean = offsetof(struct lpfc_iocbq, cmd_flag);
-		memset(((char *)cmdwqe) + start_clean, 0,
-		       (sizeof(struct lpfc_iocbq) - start_clean));
+		memset_startat(cmdwqe, 0, cmd_flag);
 #ifdef CONFIG_SCSI_LPFC_DEBUG_FS
 		if (ctxp->ts_cmd_nvme) {
 			ctxp->ts_isr_data = cmdwqe->isr_timestamp;
