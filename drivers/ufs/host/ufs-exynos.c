@@ -162,7 +162,6 @@ enum {
 
 #define CNTR_DIV_VAL 40
 
-static struct exynos_ufs_drv_data exynos_ufs_drvs;
 static void exynos_ufs_auto_ctrl_hcc(struct exynos_ufs *ufs, bool en);
 static void exynos_ufs_ctrl_clkstop(struct exynos_ufs *ufs, bool en);
 
@@ -1571,7 +1570,7 @@ static int fsd_ufs_pre_pwr_change(struct exynos_ufs *ufs,
 	return 0;
 }
 
-static struct ufs_hba_variant_ops ufs_hba_exynos_ops = {
+static const struct ufs_hba_variant_ops ufs_hba_exynos_ops = {
 	.name				= "exynos_ufs",
 	.init				= exynos_ufs_init,
 	.hce_enable_notify		= exynos_ufs_hce_enable_notify,
@@ -1643,7 +1642,7 @@ static struct exynos_ufs_uic_attr exynos7_uic_attr = {
 	.pa_dbg_option_suite		= 0x30103,
 };
 
-static struct exynos_ufs_drv_data exynosauto_ufs_drvs = {
+static const struct exynos_ufs_drv_data exynosauto_ufs_drvs = {
 	.uic_attr		= &exynos7_uic_attr,
 	.quirks			= UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
@@ -1659,7 +1658,7 @@ static struct exynos_ufs_drv_data exynosauto_ufs_drvs = {
 	.post_pwr_change	= exynosauto_ufs_post_pwr_change,
 };
 
-static struct exynos_ufs_drv_data exynosauto_ufs_vh_drvs = {
+static const struct exynos_ufs_drv_data exynosauto_ufs_vh_drvs = {
 	.vops			= &ufs_hba_exynosauto_vh_ops,
 	.quirks			= UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_SKIP_RESET_INTR_AGGR |
@@ -1671,7 +1670,7 @@ static struct exynos_ufs_drv_data exynosauto_ufs_vh_drvs = {
 	.opts			= EXYNOS_UFS_OPT_BROKEN_RX_SEL_IDX,
 };
 
-static struct exynos_ufs_drv_data exynos_ufs_drvs = {
+static const struct exynos_ufs_drv_data exynos_ufs_drvs = {
 	.uic_attr		= &exynos7_uic_attr,
 	.quirks			= UFSHCD_QUIRK_PRDT_BYTE_GRAN |
 				  UFSHCI_QUIRK_BROKEN_REQ_LIST_CLR |
