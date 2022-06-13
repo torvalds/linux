@@ -79,7 +79,7 @@ void ieee802154_release_queue(struct ieee802154_local *local)
 	unsigned long flags;
 
 	spin_lock_irqsave(&local->phy->queue_lock, flags);
-	if (!atomic_dec_and_test(&local->phy->hold_txs))
+	if (atomic_dec_and_test(&local->phy->hold_txs))
 		ieee802154_wake_queue(&local->hw);
 	spin_unlock_irqrestore(&local->phy->queue_lock, flags);
 }
