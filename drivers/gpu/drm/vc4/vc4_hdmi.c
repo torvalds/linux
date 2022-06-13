@@ -427,6 +427,7 @@ static int vc4_hdmi_connector_init(struct drm_device *dev,
 
 	connector->interlace_allowed = 1;
 	connector->doublescan_allowed = 0;
+	connector->stereo_allowed = 1;
 
 	if (vc4_hdmi->variant->supports_hdr)
 		drm_connector_attach_hdr_output_metadata_property(connector);
