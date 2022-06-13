@@ -947,7 +947,9 @@ vc4_core_clock_atomic_check(struct drm_atomic_state *state)
 			continue;
 
 		num_outputs++;
-		cob_rate += hvs_new_state->fifo_state[i].fifo_load;
+		cob_rate = max_t(unsigned long,
+				 hvs_new_state->fifo_state[i].fifo_load,
+				 cob_rate);
 	}
 
 	pixel_rate = load_state->hvs_load;
