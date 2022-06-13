@@ -13002,6 +13002,10 @@ static int io_register_pbuf_ring(struct io_ring_ctx *ctx, void __user *arg)
 	if (!is_power_of_2(reg.ring_entries))
 		return -EINVAL;
 
+	/* cannot disambiguate full vs empty due to head/tail size */
+	if (reg.ring_entries >= 65536)
+		return -EINVAL;
+
 	if (unlikely(reg.bgid < BGID_ARRAY && !ctx->io_bl)) {
 		int ret = io_init_bl_list(ctx);
 		if (ret)
