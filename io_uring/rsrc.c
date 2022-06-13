@@ -703,7 +703,7 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 		if (ret < 0)
 			break;
 		if (copy_to_user(&fds[done], &ret, sizeof(ret))) {
-			__io_close_fixed(req, issue_flags, ret);
+			__io_close_fixed(req->ctx, issue_flags, ret);
 			ret = -EFAULT;
 			break;
 		}

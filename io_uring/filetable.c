@@ -58,11 +58,10 @@ void io_free_file_tables(struct io_file_table *table)
 	table->bitmap = NULL;
 }
 
-static int io_install_fixed_file(struct io_kiocb *req, struct file *file,
-				 unsigned int issue_flags, u32 slot_index)
+static int io_install_fixed_file(struct io_ring_ctx *ctx, struct file *file,
+				 u32 slot_index)
 	__must_hold(&req->ctx->uring_lock)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	bool needs_switch = false;
 	struct io_fixed_file *file_slot;
 	int ret;
@@ -108,6 +107,26 @@ err:
 	return ret;
 }
 
+int __io_fixed_fd_install(struct io_ring_ctx *ctx, struct file *file,
+			  unsigned int file_slot)
+{
+	bool alloc_slot = file_slot == IORING_FILE_INDEX_ALLOC;
+	int ret;
+
+	if (alloc_slot) {
+		ret = io_file_bitmap_get(ctx);
+		if (unlikely(ret < 0))
+			return ret;
+		file_slot = ret;
+	} else {
+		file_slot--;
+	}
+
+	ret = io_install_fixed_file(ctx, file, file_slot);
+	if (!ret && alloc_slot)
+		ret = file_slot;
+	return ret;
+}
 /*
  * Note when io_fixed_fd_install() returns error value, it will ensure
  * fput() is called correspondingly.
@@ -115,27 +134,44 @@ err:
 int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 			struct file *file, unsigned int file_slot)
 {
-	bool alloc_slot = file_slot == IORING_FILE_INDEX_ALLOC;
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
 	io_ring_submit_lock(ctx, issue_flags);
-
-	if (alloc_slot) {
-		ret = io_file_bitmap_get(ctx);
-		if (unlikely(ret < 0))
-			goto err;
-		file_slot = ret;
-	} else {
-		file_slot--;
-	}
-
-	ret = io_install_fixed_file(req, file, issue_flags, file_slot);
-	if (!ret && alloc_slot)
-		ret = file_slot;
-err:
+	ret = __io_fixed_fd_install(ctx, file, file_slot);
 	io_ring_submit_unlock(ctx, issue_flags);
+
 	if (unlikely(ret < 0))
 		fput(file);
 	return ret;
+}
+
+int io_fixed_fd_remove(struct io_ring_ctx *ctx, unsigned int offset)
+{
+	struct io_fixed_file *file_slot;
+	struct file *file;
+	int ret;
+
+	if (unlikely(!ctx->file_data))
+		return -ENXIO;
+	if (offset >= ctx->nr_user_files)
+		return -EINVAL;
+	ret = io_rsrc_node_switch_start(ctx);
+	if (ret)
+		return ret;
+
+	offset = array_index_nospec(offset, ctx->nr_user_files);
+	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
+	if (!file_slot->file_ptr)
+		return -EBADF;
+
+	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
+	ret = io_queue_rsrc_removal(ctx->file_data, offset, ctx->rsrc_node, file);
+	if (ret)
+		return ret;
+
+	file_slot->file_ptr = 0;
+	io_file_bitmap_clear(&ctx->file_table, offset);
+	io_rsrc_node_switch(ctx, ctx->file_data);
+	return 0;
 }

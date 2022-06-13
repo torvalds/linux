@@ -173,42 +173,15 @@ void io_open_cleanup(struct io_kiocb *req)
 		putname(open->filename);
 }
 
-int __io_close_fixed(struct io_kiocb *req, unsigned int issue_flags,
+int __io_close_fixed(struct io_ring_ctx *ctx, unsigned int issue_flags,
 		     unsigned int offset)
 {
-	struct io_ring_ctx *ctx = req->ctx;
-	struct io_fixed_file *file_slot;
-	struct file *file;
 	int ret;
 
 	io_ring_submit_lock(ctx, issue_flags);
-	ret = -ENXIO;
-	if (unlikely(!ctx->file_data))
-		goto out;
-	ret = -EINVAL;
-	if (offset >= ctx->nr_user_files)
-		goto out;
-	ret = io_rsrc_node_switch_start(ctx);
-	if (ret)
-		goto out;
-
-	offset = array_index_nospec(offset, ctx->nr_user_files);
-	file_slot = io_fixed_file_slot(&ctx->file_table, offset);
-	ret = -EBADF;
-	if (!file_slot->file_ptr)
-		goto out;
-
-	file = (struct file *)(file_slot->file_ptr & FFS_MASK);
-	ret = io_queue_rsrc_removal(ctx->file_data, offset, ctx->rsrc_node, file);
-	if (ret)
-		goto out;
-
-	file_slot->file_ptr = 0;
-	io_file_bitmap_clear(&ctx->file_table, offset);
-	io_rsrc_node_switch(ctx, ctx->file_data);
-	ret = 0;
-out:
+	ret = io_fixed_fd_remove(ctx, offset);
 	io_ring_submit_unlock(ctx, issue_flags);
+
 	return ret;
 }
 
@@ -216,7 +189,7 @@ static inline int io_close_fixed(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_close *close = io_kiocb_to_cmd(req);
 
-	return __io_close_fixed(req, issue_flags, close->file_slot - 1);
+	return __io_close_fixed(req->ctx, issue_flags, close->file_slot - 1);
 }
 
 int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
