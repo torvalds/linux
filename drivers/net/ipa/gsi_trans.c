@@ -355,7 +355,7 @@ struct gsi_trans *gsi_channel_trans_alloc(struct gsi *gsi, u32 channel_id,
 	trans = gsi_trans_pool_alloc(&trans_info->pool, 1);
 	trans->gsi = gsi;
 	trans->channel_id = channel_id;
-	trans->tre_count = tre_count;
+	trans->rsvd_count = tre_count;
 	init_completion(&trans->completion);
 
 	/* Allocate the scatterlist and (if requested) info entries. */
@@ -405,17 +405,17 @@ void gsi_trans_free(struct gsi_trans *trans)
 	/* Releasing the reserved TREs implicitly frees the sgl[] and
 	 * (if present) info[] arrays, plus the transaction itself.
 	 */
-	gsi_trans_tre_release(trans_info, trans->tre_count);
+	gsi_trans_tre_release(trans_info, trans->rsvd_count);
 }
 
 /* Add an immediate command to a transaction */
 void gsi_trans_cmd_add(struct gsi_trans *trans, void *buf, u32 size,
 		       dma_addr_t addr, enum ipa_cmd_opcode opcode)
 {
-	u32 which = trans->used++;
+	u32 which = trans->used_count++;
 	struct scatterlist *sg;
 
-	WARN_ON(which >= trans->tre_count);
+	WARN_ON(which >= trans->rsvd_count);
 
 	/* Commands are quite different from data transfer requests.
 	 * Their payloads come from a pool whose memory is allocated
@@ -446,9 +446,9 @@ int gsi_trans_page_add(struct gsi_trans *trans, struct page *page, u32 size,
 	struct scatterlist *sg = &trans->sgl[0];
 	int ret;
 
-	if (WARN_ON(trans->tre_count != 1))
+	if (WARN_ON(trans->rsvd_count != 1))
 		return -EINVAL;
-	if (WARN_ON(trans->used))
+	if (WARN_ON(trans->used_count))
 		return -EINVAL;
 
 	sg_set_page(sg, page, size, offset);
@@ -456,7 +456,7 @@ int gsi_trans_page_add(struct gsi_trans *trans, struct page *page, u32 size,
 	if (!ret)
 		return -ENOMEM;
 
-	trans->used++;	/* Transaction now owns the (DMA mapped) page */
+	trans->used_count++;	/* Transaction now owns the (DMA mapped) page */
 
 	return 0;
 }
@@ -465,25 +465,26 @@ int gsi_trans_page_add(struct gsi_trans *trans, struct page *page, u32 size,
 int gsi_trans_skb_add(struct gsi_trans *trans, struct sk_buff *skb)
 {
 	struct scatterlist *sg = &trans->sgl[0];
-	u32 used;
+	u32 used_count;
 	int ret;
 
-	if (WARN_ON(trans->tre_count != 1))
+	if (WARN_ON(trans->rsvd_count != 1))
 		return -EINVAL;
-	if (WARN_ON(trans->used))
+	if (WARN_ON(trans->used_count))
 		return -EINVAL;
 
 	/* skb->len will not be 0 (checked early) */
 	ret = skb_to_sgvec(skb, sg, 0, skb->len);
 	if (ret < 0)
 		return ret;
-	used = ret;
+	used_count = ret;
 
-	ret = dma_map_sg(trans->gsi->dev, sg, used, trans->direction);
+	ret = dma_map_sg(trans->gsi->dev, sg, used_count, trans->direction);
 	if (!ret)
 		return -ENOMEM;
 
-	trans->used += used;	/* Transaction now owns the (DMA mapped) skb */
+	/* Transaction now owns the (DMA mapped) skb */
+	trans->used_count += used_count;
 
 	return 0;
 }
@@ -559,7 +560,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	u32 avail;
 	u32 i;
 
-	WARN_ON(!trans->used);
+	WARN_ON(!trans->used_count);
 
 	/* Consume the entries.  If we cross the end of the ring while
 	 * filling them we'll switch to the beginning to finish.
@@ -569,8 +570,8 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	cmd_opcode = channel->command ? &trans->cmd_opcode[0] : NULL;
 	avail = tre_ring->count - tre_ring->index % tre_ring->count;
 	dest_tre = gsi_ring_virt(tre_ring, tre_ring->index);
-	for_each_sg(trans->sgl, sg, trans->used, i) {
-		bool last_tre = i == trans->used - 1;
+	for_each_sg(trans->sgl, sg, trans->used_count, i) {
+		bool last_tre = i == trans->used_count - 1;
 		dma_addr_t addr = sg_dma_address(sg);
 		u32 len = sg_dma_len(sg);
 
@@ -583,7 +584,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 		gsi_trans_tre_fill(dest_tre, addr, len, last_tre, bei, opcode);
 		dest_tre++;
 	}
-	tre_ring->index += trans->used;
+	tre_ring->index += trans->used_count;
 
 	if (channel->toward_ipa) {
 		/* We record TX bytes when they are sent */
@@ -611,7 +612,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 /* Commit a GSI transaction */
 void gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 {
-	if (trans->used)
+	if (trans->used_count)
 		__gsi_trans_commit(trans, ring_db);
 	else
 		gsi_trans_free(trans);
@@ -620,7 +621,7 @@ void gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 /* Commit a GSI transaction and wait for it to complete */
 void gsi_trans_commit_wait(struct gsi_trans *trans)
 {
-	if (!trans->used)
+	if (!trans->used_count)
 		goto out_trans_free;
 
 	refcount_inc(&trans->refcount);
@@ -638,7 +639,7 @@ void gsi_trans_complete(struct gsi_trans *trans)
 {
 	/* If the entire SGL was mapped when added, unmap it now */
 	if (trans->direction != DMA_NONE)
-		dma_unmap_sg(trans->gsi->dev, trans->sgl, trans->used,
+		dma_unmap_sg(trans->gsi->dev, trans->sgl, trans->used_count,
 			     trans->direction);
 
 	ipa_gsi_trans_complete(trans);

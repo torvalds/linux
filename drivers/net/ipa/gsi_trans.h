@@ -33,8 +33,8 @@ struct gsi_trans_pool;
  * @gsi:	GSI pointer
  * @channel_id: Channel number transaction is associated with
  * @cancelled:	If set by the core code, transaction was cancelled
- * @tre_count:	Number of TREs reserved for this transaction
- * @used:	Number of TREs *used* (could be less than tre_count)
+ * @rsvd_count:	Number of TREs reserved for this transaction
+ * @used_count:	Number of TREs *used* (could be less than rsvd_count)
  * @len:	Total # of transfer bytes represented in sgl[] (set by core)
  * @data:	Preserved but not touched by the core transaction code
  * @cmd_opcode:	Array of command opcodes (command channel only)
@@ -56,8 +56,8 @@ struct gsi_trans {
 
 	bool cancelled;			/* true if transaction was cancelled */
 
-	u8 tre_count;			/* # TREs requested */
-	u8 used;			/* # entries used in sgl[] */
+	u8 rsvd_count;			/* # TREs requested */
+	u8 used_count;			/* # entries used in sgl[] */
 	u32 len;			/* total # bytes across sgl[] */
 
 	union {
