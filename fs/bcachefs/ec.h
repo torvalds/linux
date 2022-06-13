@@ -4,6 +4,7 @@
 
 #include "ec_types.h"
 #include "buckets_types.h"
+#include "extents_types.h"
 #include "keylist_types.h"
 
 int bch2_stripe_invalid(const struct bch_fs *, struct bkey_s_c,
