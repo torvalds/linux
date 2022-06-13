@@ -3800,6 +3800,28 @@ static int nl80211_send_iface(struct sk_buff *msg, u32 portid, u32 seq, int flag
 			goto nla_put_failure;
 	}
 
+	if (wdev->valid_links) {
+		unsigned int link_id;
+		struct nlattr *links = nla_nest_start(msg,
+						      NL80211_ATTR_MLO_LINKS);
+
+		if (!links)
+			goto nla_put_failure;
+
+		for_each_valid_link(wdev, link_id) {
+			struct nlattr *link = nla_nest_start(msg, link_id + 1);
+
+			if (nla_put_u8(msg, NL80211_ATTR_MLO_LINK_ID, link_id))
+				goto nla_put_failure;
+			if (nla_put(msg, NL80211_ATTR_MAC, ETH_ALEN,
+				    wdev->links[link_id].addr))
+				goto nla_put_failure;
+			nla_nest_end(msg, link);
+		}
+
+		nla_nest_end(msg, links);
+	}
+
 	genlmsg_end(msg, hdr);
 	return 0;
 
