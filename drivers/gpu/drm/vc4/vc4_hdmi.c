@@ -145,6 +145,12 @@ static int vc4_hdmi_debugfs_regs(struct seq_file *m, void *unused)
 
 	drm_print_regset32(&p, &vc4_hdmi->hdmi_regset);
 	drm_print_regset32(&p, &vc4_hdmi->hd_regset);
+	drm_print_regset32(&p, &vc4_hdmi->cec_regset);
+	drm_print_regset32(&p, &vc4_hdmi->csc_regset);
+	drm_print_regset32(&p, &vc4_hdmi->dvp_regset);
+	drm_print_regset32(&p, &vc4_hdmi->phy_regset);
+	drm_print_regset32(&p, &vc4_hdmi->ram_regset);
+	drm_print_regset32(&p, &vc4_hdmi->rm_regset);
 
 	return 0;
 }
@@ -2704,6 +2710,7 @@ static int vc5_hdmi_init_resources(struct vc4_hdmi *vc4_hdmi)
 	struct platform_device *pdev = vc4_hdmi->pdev;
 	struct device *dev = &pdev->dev;
 	struct resource *res;
+	int ret;
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, "hdmi");
 	if (!res)
@@ -2799,6 +2806,38 @@ static int vc5_hdmi_init_resources(struct vc4_hdmi *vc4_hdmi)
 		DRM_ERROR("Failed to get HDMI reset line\n");
 		return PTR_ERR(vc4_hdmi->reset);
 	}
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->hdmi_regset, VC4_HDMI);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->hd_regset, VC4_HD);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->cec_regset, VC5_CEC);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->csc_regset, VC5_CSC);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->dvp_regset, VC5_DVP);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->phy_regset, VC5_PHY);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->ram_regset, VC5_RAM);
+	if (ret)
+		return ret;
+
+	ret = vc4_hdmi_build_regset(vc4_hdmi, &vc4_hdmi->rm_regset, VC5_RM);
+	if (ret)
+		return ret;
 
 	return 0;
 }
