@@ -298,8 +298,8 @@ struct io_buffer_list {
 	/* below is for ring provided buffers */
 	__u16 buf_nr_pages;
 	__u16 nr_entries;
-	__u32 head;
-	__u32 mask;
+	__u16 head;
+	__u16 mask;
 };
 
 struct io_buffer {
@@ -3876,7 +3876,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 {
 	struct io_uring_buf_ring *br = bl->buf_ring;
 	struct io_uring_buf *buf;
-	__u32 head = bl->head;
+	__u16 head = bl->head;
 
 	if (unlikely(smp_load_acquire(&br->tail) == head)) {
 		io_ring_submit_unlock(req->ctx, issue_flags);
