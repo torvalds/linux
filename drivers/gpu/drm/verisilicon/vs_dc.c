@@ -25,9 +25,6 @@
 #include <soc/starfive/vic7100.h>
 #include <soc/starfive/jh7110_pmu.h>
 
-//#include "fmux_macro.h"//20220523
-//#include "sys_iomux_cfg_macro.h"//20220523
-
 #if KERNEL_VERSION(5, 5, 0) <= LINUX_VERSION_CODE
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>

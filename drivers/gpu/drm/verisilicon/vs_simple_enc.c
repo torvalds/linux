@@ -205,7 +205,7 @@ static int encoder_bind(struct device *dev, struct device *master, void *data)
 	struct simple_encoder *simple = dev_get_drvdata(dev);
 	struct drm_encoder *encoder;
 	struct drm_bridge *bridge;
-	struct drm_panel *tmp_panel;//20220530
+	struct drm_panel *tmp_panel;
 	int ret;
 
 	encoder = &simple->encoder;

@@ -94,14 +94,13 @@ struct vs_dc {
 //dc8200 rst
 
 //7110 mp
-struct clk *vout_top_axi;//20220530 for vout_clock
-struct clk *vout_top_lcd;//7110 mp
+struct clk *vout_top_axi;
+struct clk *vout_top_lcd;
 //7110 mp
 
 };
 
 extern struct platform_driver dc_platform_driver;
-//20220530
 //extern struct platform_driver simple_encoder_driver;
 extern struct platform_driver starfive_dsi_platform_driver;
 extern int init_seeed_panel(void);

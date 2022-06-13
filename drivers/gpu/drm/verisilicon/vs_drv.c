@@ -309,9 +309,10 @@ static struct platform_driver *drm_sub_drivers[] = {
 #endif
 #ifdef CONFIG_STARFIVE_DSI
 	&starfive_dsi_platform_driver,
+	&simple_encoder_driver,
 #endif
 	/* encoder */
-	&simple_encoder_driver,
+	//&simple_encoder_driver,
 	//&starfive_encoder_driver,
 
 #ifdef CONFIG_VERISILICON_VIRTUAL_DISPLAY

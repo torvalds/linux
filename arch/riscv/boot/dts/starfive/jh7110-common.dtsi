@@ -127,7 +127,7 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
-	status = "okay";
+	status = "disabled";
 
 };
 
@@ -139,7 +139,7 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
-	status = "okay";
+	status = "disabled";
 
 	seeed_plane_i2c@45 {
 		compatible = "seeed_panel";
@@ -626,7 +626,7 @@
 };
 
 &hdmi {
-	status = "okay";//okay
+	status = "okay";
 	pinctrl-names = "default";
 	pinctrl-0 = <&inno_hdmi_pins>;
 
@@ -689,7 +689,7 @@
 };
 
 &encoder {
-	status = "okay";
+	status = "disabled";
 
 	ports {
 		#address-cells = <1>;
@@ -714,7 +714,7 @@
 &mipi_dsi {
 	pinctrl-names = "default";
 	pinctrl-0 = <&mipitx_pins>;
-	status = "okay";
+	status = "disabled";
 };
 
 &co_process {
