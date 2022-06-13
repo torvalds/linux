@@ -6,8 +6,6 @@
  * Authors: Ken Xue <Ken.Xue@amd.com>
  *      Wu, Jeff <Jeff.Wu@amd.com>
  *
- * Contact Information: Nehal Shah <Nehal-bakulchandra.Shah@amd.com>
- *			Shyam Sundar S K <Shyam-sundar.S-k@amd.com>
  */
 
 #include <linux/err.h>
