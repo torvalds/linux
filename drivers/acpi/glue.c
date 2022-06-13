@@ -119,6 +119,7 @@ struct find_child_walk_data {
 	struct acpi_device *adev;
 	u64 address;
 	int score;
+	bool check_sta;
 	bool check_children;
 };
 
@@ -131,9 +132,13 @@ static int check_one_child(struct acpi_device *adev, void *data)
 		return 0;
 
 	if (!wd->adev) {
-		/* This is the first matching object.  Save it and continue. */
+		/*
+		 * This is the first matching object, so save it.  If it is not
+		 * necessary to look for any other matching objects, stop the
+		 * search.
+		 */
 		wd->adev = adev;
-		return 0;
+		return !(wd->check_sta || wd->check_children);
 	}
 
 	/*
@@ -169,12 +174,14 @@ static int check_one_child(struct acpi_device *adev, void *data)
 	return 0;
 }
 
-struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
-					   u64 address, bool check_children)
+static struct acpi_device *acpi_find_child(struct acpi_device *parent,
+					   u64 address, bool check_children,
+					   bool check_sta)
 {
 	struct find_child_walk_data wd = {
 		.address = address,
 		.check_children = check_children,
+		.check_sta = check_sta,
 		.adev = NULL,
 		.score = 0,
 	};
@@ -184,7 +191,20 @@ struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
 
 	return wd.adev;
 }
+
+struct acpi_device *acpi_find_child_device(struct acpi_device *parent,
+					   u64 address, bool check_children)
+{
+	return acpi_find_child(parent, address, check_children, true);
+}
 EXPORT_SYMBOL_GPL(acpi_find_child_device);
+
+struct acpi_device *acpi_find_child_by_adr(struct acpi_device *adev,
+					   acpi_bus_address adr)
+{
+	return acpi_find_child(adev, adr, false, false);
+}
+EXPORT_SYMBOL_GPL(acpi_find_child_by_adr);
 
 static void acpi_physnode_link_name(char *buf, unsigned int node_id)
 {
