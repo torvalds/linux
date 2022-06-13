@@ -195,10 +195,6 @@ static int clk_rpmh_aggregate_state_send_command(struct clk_rpmh *c,
 {
 	int ret;
 
-	/* Nothing required to be done if already off or on */
-	if (enable == c->state)
-		return 0;
-
 	c->state = enable ? c->valid_state_mask : 0;
 	c->aggr_state = c->state | c->peer->state;
 	c->peer->aggr_state = c->aggr_state;
