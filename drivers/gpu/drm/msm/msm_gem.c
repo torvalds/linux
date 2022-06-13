@@ -129,7 +129,7 @@ static struct page **get_pages(struct drm_gem_object *obj)
 		/* For non-cached buffers, ensure the new pages are clean
 		 * because display controller, GPU, etc. are not coherent:
 		 */
-		if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
+		if (msm_obj->flags & MSM_BO_WC)
 			sync_for_device(msm_obj);
 
 		update_inactive(msm_obj);
@@ -160,7 +160,7 @@ static void put_pages(struct drm_gem_object *obj)
 			 * pages are clean because display controller,
 			 * GPU, etc. are not coherent:
 			 */
-			if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
+			if (msm_obj->flags & MSM_BO_WC)
 				sync_for_cpu(msm_obj);
 
 			sg_free_table(msm_obj->sgt);
@@ -213,7 +213,7 @@ void msm_gem_put_pages(struct drm_gem_object *obj)
 
 static pgprot_t msm_gem_pgprot(struct msm_gem_object *msm_obj, pgprot_t prot)
 {
-	if (msm_obj->flags & (MSM_BO_WC|MSM_BO_UNCACHED))
+	if (msm_obj->flags & MSM_BO_WC)
 		return pgprot_writecombine(prot);
 	return prot;
 }
@@ -1106,7 +1106,6 @@ static int msm_gem_new_impl(struct drm_device *dev,
 	struct msm_gem_object *msm_obj;
 
 	switch (flags & MSM_BO_CACHE_MASK) {
-	case MSM_BO_UNCACHED:
 	case MSM_BO_CACHED:
 	case MSM_BO_WC:
 		break;

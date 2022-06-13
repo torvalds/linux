@@ -678,10 +678,23 @@ static int msm_ioctl_gem_new(struct drm_device *dev, void *data,
 		struct drm_file *file)
 {
 	struct drm_msm_gem_new *args = data;
+	uint32_t flags = args->flags;
 
 	if (args->flags & ~MSM_BO_FLAGS) {
 		DRM_ERROR("invalid flags: %08x\n", args->flags);
 		return -EINVAL;
+	}
+
+	/*
+	 * Uncached CPU mappings are deprecated, as of:
+	 *
+	 * 9ef364432db4 ("drm/msm: deprecate MSM_BO_UNCACHED (map as writecombine instead)")
+	 *
+	 * So promote them to WC.
+	 */
+	if (flags & MSM_BO_UNCACHED) {
+		flags &= ~MSM_BO_CACHED;
+		flags |= MSM_BO_WC;
 	}
 
 	return msm_gem_new_handle(dev, file, args->size,
