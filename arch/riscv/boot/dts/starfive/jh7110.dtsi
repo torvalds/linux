@@ -1477,12 +1477,15 @@
 				 <&clkvout JH7110_U0_DC8200_CLK_PIX1>,
 				 <&clkvout JH7110_U0_DC8200_CLK_AXI>,
 				 <&clkvout JH7110_U0_DC8200_CLK_CORE>,
-				 <&clkvout JH7110_U0_DC8200_CLK_AHB>;
+				 <&clkvout JH7110_U0_DC8200_CLK_AHB>,
+				 <&clkgen JH7110_VOUT_TOP_CLK_VOUT_AXI>,
+				 <&clkgen JH7110_DOM_VOUT_TOP_LCD_CLK>;
 			clock-names = "noc_cpu","noc_cfg0","noc_gpu","noc_vdec","noc_venc",
 					"noc_disp","noc_isp","noc_stg","vout_src",
 					"top_vout_axi","ahb1","top_vout_ahb",
 					"top_vout_hdmiTX0","i2stx","pix_clk","vout_pix1",
-					"axi_clk","core_clk","vout_ahb";
+					"axi_clk","core_clk","vout_ahb",
+					"vout_top_axi","vout_top_lcd";
 
 			resets = <&rstgen RSTN_U0_DOM_VOUT_TOP_SRC>,
 				 <&rstgen RSTN_U0_DC8200_AXI>,
@@ -1504,6 +1507,11 @@
 					"rst_noc_disp","rst_noc_isp","rst_noc_stg","rst_noc_ddrc";
 		};
 
+		encoder: display-encoder {
+			compatible = "verisilicon,dsi-encoder";
+			status = "disabled";
+		};
+
 		mipi_dphy: mipi-dphy@295e0000{
 			compatible = "starfive,jh7100-mipi-dphy-tx";
 			reg = <0x0 0x295e0000 0x0 0x10000>;
@@ -1519,6 +1527,7 @@
 		 mipi_dsi: mipi@295d0000 {
 			compatible = "cdns,dsi";
 			reg = <0x0 0x295d0000 0x0 0x10000>;
+			interrupts = <98>;
 			reg-names = "dsi";
 			clocks = <&clkvout JH7110_U0_CDNS_DSITX_CLK_SYS>,
 				 <&clkvout JH7110_U0_CDNS_DSITX_CLK_APB>,
@@ -1538,8 +1547,11 @@
 			status = "disabled";
 
 			port {
-				dsi_out_port: endpoint {
-					/*remote-endpoint = <&panel_dsi_port>;*/
+				dsi_out_port: endpoint@0 {
+					remote-endpoint = <&panel_dsi_port>;
+				};
+				dsi_in_port: endpoint@1 {
+					remote-endpoint = <&mipi_out>;
 				};
 			};
 

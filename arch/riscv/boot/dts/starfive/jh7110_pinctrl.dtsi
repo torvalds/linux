@@ -1103,6 +1103,34 @@
 		};
 	};
 
+	mipitx_pins: mipitx-pins {
+		mipitx-1-pins {
+			sf,pins = <PAD_GPIO36>;
+			sf,pinmux = <PAD_GPIO36_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		mipitx-2-pins {
+			sf,pins = <PAD_GPIO37>;
+			sf,pinmux = <PAD_GPIO37_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		mipitx-3-pins {
+			sf,pins = <PAD_GPIO38>;
+			sf,pinmux = <PAD_GPIO38_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		mipitx-4-pins {
+			sf,pins = <PAD_GPIO39>;
+			sf,pinmux = <PAD_GPIO39_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+		mipitx-5-pins {
+			sf,pins = <PAD_GPIO40>;
+			sf,pinmux = <PAD_GPIO40_FUNC_SEL 1>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+		};
+	};
+
 	pcie0_perst_default: pcie0_perst_default {
 		perst-pins {
 			sf,pins = <PAD_GPIO26>;

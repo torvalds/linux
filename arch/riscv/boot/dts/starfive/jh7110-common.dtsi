@@ -127,7 +127,7 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c1_pins>;
-	status = "okay";
+	status = "disabled";
 
 };
 
@@ -139,7 +139,19 @@
 	auto_calc_scl_lhcnt;
 	pinctrl-names = "default";
 	pinctrl-0 = <&i2c2_pins>;
-	status = "okay";
+	status = "disabled";
+
+	seeed_plane_i2c@45 {
+		compatible = "seeed_panel";
+		reg = <0x45>;
+
+		port {
+			panel_dsi_port: endpoint {
+				remote-endpoint = <&dsi_out_port>;
+			};
+		};
+	};
+
 };
 
 &i2c3 {
@@ -644,6 +656,11 @@
 			reg = <1>;
 			remote-endpoint = <&hdmi_in_lcdc>;
 		};
+		
+		dc_out_dpi2: endpoint@2 {
+			reg = <2>;
+			remote-endpoint = <&mipi_in>;
+		};
 	};
 };
 
@@ -669,6 +686,35 @@
 			};
 		};
 	};
+};
+
+&encoder {
+	status = "disabled";
+
+	ports {
+		#address-cells = <1>;
+		#size-cells = <0>;
+
+		port@0 {
+			reg = <0>;
+			mipi_in: endpoint {
+				remote-endpoint = <&dc_out_dpi2>;
+			};
+		};
+
+		port@1 {
+			reg = <1>;
+			mipi_out: endpoint {
+				remote-endpoint = <&dsi_in_port>;
+			};
+		};
+	};
+};
+
+&mipi_dsi {
+	pinctrl-names = "default";
+	pinctrl-0 = <&mipitx_pins>;
+	status = "disabled";
 };
 
 &co_process {

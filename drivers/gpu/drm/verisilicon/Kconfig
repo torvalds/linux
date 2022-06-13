@@ -55,8 +55,15 @@ config STARFIVE_INNO_HDMI
 	  for the Innosilicon HDMI driver. If you want to enable
 	  HDMI on RK3036 based SoC, you should select this option.
 config STARFIVE_DSI
-	bool "DSI"
+	bool "Starfive MIPI DSI Select"
+	depends on DRM_VERISILICON
+	select DRM_MIPI_DSI
+	select GENERIC_PHY
+	select GENERIC_PHY_MIPI_DPHY
 	help
-	  enable dsi, you should select this option.
+	  This selects support for starfive SoC specific extensions
+	  for the Synopsys DesignWare MIPI driver. If you want to
+	  enable MIPI DSI on VIC7110 based SoC, you should
+	  select this option.
 
 source "drivers/gpu/drm/verisilicon/adv7511/Kconfig"

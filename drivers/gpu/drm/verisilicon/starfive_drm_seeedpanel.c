@@ -220,15 +220,15 @@ static struct seeed_panel_dev *panel_to_seeed(struct drm_panel *panel)
 
 static const struct drm_display_mode seeed_panel_modes[] = {
 	{
-		.clock = 33000000 / 1000,
+		.clock = 20144262 / 1000,
 		.hdisplay = 800,
-		.hsync_start = 800 + 50,
-		.hsync_end = 800 + 50 + 20,
-		.htotal = 800 + 50 + 20 + 10,
+		.hsync_start = 800 + 10,
+		.hsync_end = 800 + 10 + 5,
+		.htotal = 800 + 10 + 5 + 5,
 		.vdisplay = 480,
-		.vsync_start = 480 + 135,
-		.vsync_end = 480 + 135 + 5,
-		.vtotal = 480 + 135 + 5 + 5,
+		.vsync_start = 480 + 4,
+		.vsync_end = 480 + 4 + 5,
+		.vtotal = 480 + 4 + 5 + 5,
 	},
 };
 
