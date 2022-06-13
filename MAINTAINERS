@@ -16199,6 +16199,7 @@ F:	Documentation/driver-api/pwm.rst
 F:	drivers/gpio/gpio-mvebu.c
 F:	drivers/pwm/
 F:	drivers/video/backlight/pwm_bl.c
+F:	include/dt-bindings/pwm/
 F:	include/linux/pwm.h
 F:	include/linux/pwm_backlight.h
 K:	pwm_(config|apply_state|ops)
