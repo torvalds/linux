@@ -39,15 +39,32 @@ static int bucket_offset_cmp(const void *_l, const void *_r, size_t size)
 		cmp_int(l->offset, r->offset);
 }
 
-static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
-				 struct bkey_s_c k,
-				 struct bch_io_opts *io_opts,
-				 struct data_opts *data_opts)
+static bool copygc_pred(struct bch_fs *c, void *arg,
+			struct bkey_s_c k,
+			struct bch_io_opts *io_opts,
+			struct data_update_opts *data_opts)
 {
 	copygc_heap *h = &c->copygc_heap;
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
 	struct extent_ptr_decoded p = { 0 };
+	unsigned i = 0;
+
+	/*
+	 * We need to use the journal reserve here, because
+	 *  - journal reclaim depends on btree key cache
+	 *    flushing to make forward progress,
+	 *  - which has to make forward progress when the
+	 *    journal is pre-reservation full,
+	 *  - and depends on allocation - meaning allocator and
+	 *    copygc
+	 */
+
+	data_opts->rewrite_ptrs		= 0;
+	data_opts->target		= io_opts->background_target;
+	data_opts->extra_replicas	= 0;
+	data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE|
+		JOURNAL_WATERMARK_copygc;
 
 	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 		struct bch_dev *ca = bch_dev_bkey_exists(c, p.ptr.dev);
@@ -55,12 +72,12 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 			.dev	= p.ptr.dev,
 			.offset	= p.ptr.offset,
 		};
-		ssize_t i;
+		ssize_t eytz;
 
 		if (p.ptr.cached)
 			continue;
 
-		i = eytzinger0_find_le(h->data, h->used,
+		eytz = eytzinger0_find_le(h->data, h->used,
 				       sizeof(h->data[0]),
 				       bucket_offset_cmp, &search);
 #if 0
@@ -74,34 +91,16 @@ static enum data_cmd copygc_pred(struct bch_fs *c, void *arg,
 
 		BUG_ON(i != j);
 #endif
-		if (i >= 0 &&
-		    p.ptr.dev == h->data[i].dev &&
-		    p.ptr.offset < h->data[i].offset + ca->mi.bucket_size &&
-		    p.ptr.gen == h->data[i].gen) {
-			/*
-			 * We need to use the journal reserve here, because
-			 *  - journal reclaim depends on btree key cache
-			 *    flushing to make forward progress,
-			 *  - which has to make forward progress when the
-			 *    journal is pre-reservation full,
-			 *  - and depends on allocation - meaning allocator and
-			 *    copygc
-			 */
+		if (eytz >= 0 &&
+		    p.ptr.dev == h->data[eytz].dev &&
+		    p.ptr.offset < h->data[eytz].offset + ca->mi.bucket_size &&
+		    p.ptr.gen == h->data[eytz].gen)
+			data_opts->rewrite_ptrs |= 1U << i;
 
-			data_opts->target		= io_opts->background_target;
-			data_opts->nr_replicas		= 1;
-			data_opts->btree_insert_flags	= BTREE_INSERT_USE_RESERVE|
-				JOURNAL_WATERMARK_copygc;
-			data_opts->rewrite_dev		= p.ptr.dev;
-
-			if (p.has_ec)
-				data_opts->nr_replicas += p.ec.redundancy;
-
-			return DATA_REWRITE;
-		}
+		i++;
 	}
 
-	return DATA_SKIP;
+	return data_opts->rewrite_ptrs != 0;
 }
 
 static inline int fragmentation_cmp(copygc_heap *heap,

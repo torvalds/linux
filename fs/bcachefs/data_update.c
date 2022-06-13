@@ -89,6 +89,16 @@ next:
 	return ret;
 }
 
+static void bch2_bkey_mark_dev_cached(struct bkey_s k, unsigned dev)
+{
+	struct bkey_ptrs ptrs = bch2_bkey_ptrs(k);
+	struct bch_extent_ptr *ptr;
+
+	bkey_for_each_ptr(ptrs, ptr)
+		if (ptr->dev == dev)
+			ptr->cached = true;
+}
+
 int bch2_data_update_index_update(struct bch_write_op *op)
 {
 	struct bch_fs *c = op->c;
@@ -113,6 +123,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 
 	while (1) {
 		struct bkey_s_c k;
+		struct bkey_s_c old = bkey_i_to_s_c(m->k.k);
 		struct bkey_i *insert;
 		struct bkey_i_extent *new;
 		const union bch_extent_entry *entry;
@@ -121,6 +132,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 		bool did_work = false;
 		bool extending = false, should_check_enospc;
 		s64 i_sectors_delta = 0, disk_sectors_delta = 0;
+		unsigned i;
 
 		bch2_trans_begin(&trans);
 
@@ -131,8 +143,7 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 
 		new = bkey_i_to_extent(bch2_keylist_front(keys));
 
-		if (bversion_cmp(k.k->version, new->k.version) ||
-		    !bch2_bkey_matches_ptr(c, k, m->ptr, m->offset))
+		if (!bch2_extents_match(k, old))
 			goto nomatch;
 
 		bkey_reassemble(_insert.k, k);
@@ -146,20 +157,34 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 		bch2_cut_back(new->k.p,		insert);
 		bch2_cut_back(insert->k.p,	&new->k_i);
 
-		if (m->data_cmd == DATA_REWRITE) {
-			struct bch_extent_ptr *new_ptr, *old_ptr = (void *)
-				bch2_bkey_has_device(bkey_i_to_s_c(insert),
-						     m->data_opts.rewrite_dev);
-			if (!old_ptr)
-				goto nomatch;
-
-			if (old_ptr->cached)
-				extent_for_each_ptr(extent_i_to_s(new), new_ptr)
-					new_ptr->cached = true;
-
-			__bch2_bkey_drop_ptr(bkey_i_to_s(insert), old_ptr);
+		/*
+		 * @old: extent that we read from
+		 * @insert: key that we're going to update, initialized from
+		 * extent currently in btree - same as @old unless we raced with
+		 * other updates
+		 * @new: extent with new pointers that we'll be adding to @insert
+		 *
+		 * Fist, drop rewrite_ptrs from @new:
+		 */
+		i = 0;
+		bkey_for_each_ptr_decode(old.k, bch2_bkey_ptrs_c(old), p, entry) {
+			if (((1U << i) & m->data_opts.rewrite_ptrs) &&
+			    bch2_extent_has_ptr(old, p, bkey_i_to_s_c(insert))) {
+				/*
+				 * If we're going to be adding a pointer to the
+				 * same device, we have to drop the old one -
+				 * otherwise, we can just mark it cached:
+				 */
+				if (bch2_bkey_has_device(bkey_i_to_s_c(&new->k_i), p.ptr.dev))
+					bch2_bkey_drop_device_noerror(bkey_i_to_s(insert), p.ptr.dev);
+				else
+					bch2_bkey_mark_dev_cached(bkey_i_to_s(insert), p.ptr.dev);
+			}
+			i++;
 		}
 
+
+		/* Add new ptrs: */
 		extent_for_each_ptr_decode(extent_i_to_s(new), p, entry) {
 			if (bch2_bkey_has_device(bkey_i_to_s_c(insert), p.ptr.dev)) {
 				/*
@@ -177,12 +202,8 @@ int bch2_data_update_index_update(struct bch_write_op *op)
 		if (!did_work)
 			goto nomatch;
 
-		bch2_bkey_narrow_crcs(insert,
-				(struct bch_extent_crc_unpacked) { 0 });
+		bch2_bkey_narrow_crcs(insert, (struct bch_extent_crc_unpacked) { 0 });
 		bch2_extent_normalize(c, bkey_i_to_s(insert));
-		bch2_bkey_mark_replicas_cached(c, bkey_i_to_s(insert),
-					       op->opts.background_target,
-					       op->opts.data_replicas);
 
 		ret = bch2_sum_sector_overwrites(&trans, &iter, insert,
 						 &extending,
@@ -250,134 +271,100 @@ out:
 	return ret;
 }
 
-void bch2_data_update_read_done(struct data_update *m, struct bch_read_bio *rbio)
+void bch2_data_update_read_done(struct data_update *m,
+				struct bch_extent_crc_unpacked crc)
 {
 	/* write bio must own pages: */
 	BUG_ON(!m->op.wbio.bio.bi_vcnt);
 
-	m->ptr		= rbio->pick.ptr;
-	m->offset	= rbio->data_pos.offset - rbio->pick.crc.offset;
-	m->op.devs_have	= rbio->devs_have;
-	m->op.pos	= rbio->data_pos;
-	m->op.version	= rbio->version;
-	m->op.crc	= rbio->pick.crc;
-	m->op.wbio.bio.bi_iter.bi_size = m->op.crc.compressed_size << 9;
+	m->op.crc = crc;
+	m->op.wbio.bio.bi_iter.bi_size = crc.compressed_size << 9;
 
-	if (m->data_cmd == DATA_REWRITE)
-		bch2_dev_list_drop_dev(&m->op.devs_have, m->data_opts.rewrite_dev);
+	closure_call(&m->op.cl, bch2_write, NULL, NULL);
+}
+
+void bch2_data_update_exit(struct data_update *update)
+{
+	struct bch_fs *c = update->op.c;
+
+	bch2_bkey_buf_exit(&update->k, c);
+	bch2_disk_reservation_put(c, &update->op.res);
+	bch2_bio_free_pages_pool(c, &update->op.wbio.bio);
 }
 
 int bch2_data_update_init(struct bch_fs *c, struct data_update *m,
 			  struct write_point_specifier wp,
 			  struct bch_io_opts io_opts,
-			  enum data_cmd data_cmd,
-			  struct data_opts data_opts,
+			  struct data_update_opts data_opts,
 			  enum btree_id btree_id,
 			  struct bkey_s_c k)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
 	const union bch_extent_entry *entry;
-	struct bch_extent_crc_unpacked crc;
 	struct extent_ptr_decoded p;
+	unsigned i, reserve_sectors = k.k->size * data_opts.extra_replicas;
 	int ret;
 
+	bch2_bkey_buf_init(&m->k);
+	bch2_bkey_buf_reassemble(&m->k, c, k);
 	m->btree_id	= btree_id;
-	m->data_cmd	= data_cmd;
 	m->data_opts	= data_opts;
-	m->nr_ptrs_reserved = 0;
 
 	bch2_write_op_init(&m->op, c, io_opts);
-
-	if (!bch2_bkey_is_incompressible(k))
-		m->op.compression_type =
-			bch2_compression_opt_to_type[io_opts.background_compression ?:
-						     io_opts.compression];
-	else
-		m->op.incompressible = true;
-
+	m->op.pos	= bkey_start_pos(k.k);
+	m->op.version	= k.k->version;
 	m->op.target	= data_opts.target,
 	m->op.write_point = wp;
-
-	/*
-	 * op->csum_type is normally initialized from the fs/file's current
-	 * options - but if an extent is encrypted, we require that it stays
-	 * encrypted:
-	 */
-	bkey_for_each_crc(k.k, ptrs, crc, entry)
-		if (bch2_csum_type_is_encryption(crc.csum_type)) {
-			m->op.nonce	= crc.nonce + crc.offset;
-			m->op.csum_type = crc.csum_type;
-			break;
-		}
-
-	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE) {
-		m->op.alloc_reserve = RESERVE_movinggc;
-	} else {
-		/* XXX: this should probably be passed in */
-		m->op.flags |= BCH_WRITE_ONLY_SPECIFIED_DEVS;
-	}
-
-	m->op.flags |= BCH_WRITE_PAGES_STABLE|
+	m->op.flags	|= BCH_WRITE_PAGES_STABLE|
 		BCH_WRITE_PAGES_OWNED|
 		BCH_WRITE_DATA_ENCODED|
 		BCH_WRITE_FROM_INTERNAL|
-		BCH_WRITE_MOVE;
+		BCH_WRITE_MOVE|
+		m->data_opts.write_flags;
+	m->op.compression_type =
+		bch2_compression_opt_to_type[io_opts.background_compression ?:
+					     io_opts.compression];
+	if (m->data_opts.btree_insert_flags & BTREE_INSERT_USE_RESERVE)
+		m->op.alloc_reserve = RESERVE_movinggc;
 
-	m->op.nr_replicas	= data_opts.nr_replicas;
-	m->op.nr_replicas_required = data_opts.nr_replicas;
+	i = 0;
+	bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
+		if (p.ptr.cached)
+			m->data_opts.rewrite_ptrs &= ~(1U << i);
 
-	switch (data_cmd) {
-	case DATA_ADD_REPLICAS: {
+		if (!((1U << i) & m->data_opts.rewrite_ptrs))
+			bch2_dev_list_add_dev(&m->op.devs_have, p.ptr.dev);
+
+		if (((1U << i) & m->data_opts.rewrite_ptrs) &&
+		    crc_is_compressed(p.crc))
+			reserve_sectors += k.k->size;
+
 		/*
-		 * DATA_ADD_REPLICAS is used for moving data to a different
-		 * device in the background, and due to compression the new copy
-		 * might take up more space than the old copy:
+		 * op->csum_type is normally initialized from the fs/file's
+		 * current options - but if an extent is encrypted, we require
+		 * that it stays encrypted:
 		 */
-#if 0
-		int nr = (int) io_opts.data_replicas -
-			bch2_bkey_nr_ptrs_allocated(k);
-#endif
-		int nr = (int) io_opts.data_replicas;
-
-		if (nr > 0) {
-			m->op.nr_replicas = m->nr_ptrs_reserved = nr;
-
-			ret = bch2_disk_reservation_get(c, &m->op.res,
-					k.k->size, m->op.nr_replicas, 0);
-			if (ret)
-				return ret;
+		if (bch2_csum_type_is_encryption(p.crc.csum_type)) {
+			m->op.nonce	= p.crc.nonce + p.crc.offset;
+			m->op.csum_type = p.crc.csum_type;
 		}
-		break;
-	}
-	case DATA_REWRITE: {
-		unsigned compressed_sectors = 0;
 
-		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			if (p.ptr.dev == data_opts.rewrite_dev) {
-				if (p.ptr.cached)
-					m->op.flags |= BCH_WRITE_CACHED;
+		if (p.crc.compression_type == BCH_COMPRESSION_TYPE_incompressible)
+			m->op.incompressible = true;
 
-				if (!p.ptr.cached &&
-				    crc_is_compressed(p.crc))
-					compressed_sectors += p.crc.compressed_size;
-			}
-
-		if (compressed_sectors) {
-			ret = bch2_disk_reservation_add(c, &m->op.res,
-					k.k->size * m->op.nr_replicas,
-					BCH_DISK_RESERVATION_NOFAIL);
-			if (ret)
-				return ret;
-		}
-		break;
-	}
-	case DATA_PROMOTE:
-		m->op.flags	|= BCH_WRITE_ALLOC_NOWAIT;
-		m->op.flags	|= BCH_WRITE_CACHED;
-		break;
-	default:
-		BUG();
+		i++;
 	}
 
+	if (reserve_sectors) {
+		ret = bch2_disk_reservation_add(c, &m->op.res, reserve_sectors,
+				m->data_opts.extra_replicas
+				? 0
+				: BCH_DISK_RESERVATION_NOFAIL);
+		if (ret)
+			return ret;
+	}
+
+	m->op.nr_replicas = m->op.nr_replicas_required =
+		hweight32(m->data_opts.rewrite_ptrs) + m->data_opts.extra_replicas;
 	return 0;
 }

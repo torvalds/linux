@@ -22,62 +22,70 @@
  * returns -1 if it should not be moved, or
  * device of pointer that should be moved, if known, or INT_MAX if unknown
  */
-static int __bch2_rebalance_pred(struct bch_fs *c,
-				 struct bkey_s_c k,
-				 struct bch_io_opts *io_opts)
+static bool rebalance_pred(struct bch_fs *c, void *arg,
+			   struct bkey_s_c k,
+			   struct bch_io_opts *io_opts,
+			   struct data_update_opts *data_opts)
 {
 	struct bkey_ptrs_c ptrs = bch2_bkey_ptrs_c(k);
-	const union bch_extent_entry *entry;
-	struct extent_ptr_decoded p;
+	unsigned i;
+
+	data_opts->rewrite_ptrs		= 0;
+	data_opts->target		= io_opts->background_target;
+	data_opts->extra_replicas	= 0;
+	data_opts->btree_insert_flags	= 0;
 
 	if (io_opts->background_compression &&
-	    !bch2_bkey_is_incompressible(k))
-		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
+	    !bch2_bkey_is_incompressible(k)) {
+		const union bch_extent_entry *entry;
+		struct extent_ptr_decoded p;
+
+		i = 0;
+		bkey_for_each_ptr_decode(k.k, ptrs, p, entry) {
 			if (!p.ptr.cached &&
 			    p.crc.compression_type !=
 			    bch2_compression_opt_to_type[io_opts->background_compression])
-				return p.ptr.dev;
+				data_opts->rewrite_ptrs |= 1U << i;
+			i++;
+		}
+	}
 
-	if (io_opts->background_target)
-		bkey_for_each_ptr_decode(k.k, ptrs, p, entry)
-			if (!p.ptr.cached &&
-			    !bch2_dev_in_target(c, p.ptr.dev, io_opts->background_target))
-				return p.ptr.dev;
+	if (io_opts->background_target) {
+		const struct bch_extent_ptr *ptr;
 
-	return -1;
+		i = 0;
+		bkey_for_each_ptr(ptrs, ptr) {
+			if (!ptr->cached &&
+			    !bch2_dev_in_target(c, ptr->dev, io_opts->background_target))
+				data_opts->rewrite_ptrs |= 1U << i;
+			i++;
+		}
+	}
+
+	return data_opts->rewrite_ptrs != 0;
 }
 
 void bch2_rebalance_add_key(struct bch_fs *c,
 			    struct bkey_s_c k,
 			    struct bch_io_opts *io_opts)
 {
-	atomic64_t *counter;
-	int dev;
+	struct data_update_opts update_opts = { 0 };
+	struct bkey_ptrs_c ptrs;
+	const struct bch_extent_ptr *ptr;
+	unsigned i;
 
-	dev = __bch2_rebalance_pred(c, k, io_opts);
-	if (dev < 0)
+	if (!rebalance_pred(c, NULL, k, io_opts, &update_opts))
 		return;
 
-	counter = dev < INT_MAX
-		? &bch_dev_bkey_exists(c, dev)->rebalance_work
-		: &c->rebalance.work_unknown_dev;
-
-	if (atomic64_add_return(k.k->size, counter) == k.k->size)
-		rebalance_wakeup(c);
-}
-
-static enum data_cmd rebalance_pred(struct bch_fs *c, void *arg,
-				    struct bkey_s_c k,
-				    struct bch_io_opts *io_opts,
-				    struct data_opts *data_opts)
-{
-	if (__bch2_rebalance_pred(c, k, io_opts) >= 0) {
-		data_opts->target		= io_opts->background_target;
-		data_opts->nr_replicas		= 1;
-		data_opts->btree_insert_flags	= 0;
-		return DATA_ADD_REPLICAS;
-	} else {
-		return DATA_SKIP;
+	i = 0;
+	ptrs = bch2_bkey_ptrs_c(k);
+	bkey_for_each_ptr(ptrs, ptr) {
+		if ((1U << i) && update_opts.rewrite_ptrs)
+			if (atomic64_add_return(k.k->size,
+					&bch_dev_bkey_exists(c, ptr->dev)->rebalance_work) ==
+			    k.k->size)
+				rebalance_wakeup(c);
+		i++;
 	}
 }
 
