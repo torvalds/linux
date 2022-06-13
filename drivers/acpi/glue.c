@@ -77,12 +77,22 @@ static struct acpi_bus_type *acpi_get_bus_type(struct device *dev)
 #define FIND_CHILD_MIN_SCORE	1
 #define FIND_CHILD_MAX_SCORE	2
 
+static int match_any(struct acpi_device *adev, void *not_used)
+{
+	return 1;
+}
+
+static bool acpi_dev_has_children(struct acpi_device *adev)
+{
+	return acpi_dev_for_each_child(adev, match_any, NULL) > 0;
+}
+
 static int find_child_checks(struct acpi_device *adev, bool check_children)
 {
 	unsigned long long sta;
 	acpi_status status;
 
-	if (check_children && list_empty(&adev->children))
+	if (check_children && !acpi_dev_has_children(adev))
 		return -ENODEV;
 
 	status = acpi_evaluate_integer(adev->handle, "_STA", NULL, &sta);
