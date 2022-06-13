@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only
  *
  * Copyright (c) 2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #undef TRACE_SYSTEM
@@ -45,6 +46,33 @@ DEFINE_EVENT(clk_state_dump, clk_state,
 	unsigned int enable_count, unsigned long rate, unsigned int vdd_level),
 
 	TP_ARGS(name, prepare_count, enable_count, rate, vdd_level)
+);
+
+DECLARE_EVENT_CLASS(clk_measure_support,
+
+	TP_PROTO(const char *name, unsigned long rate),
+
+	TP_ARGS(name, rate),
+
+	TP_STRUCT__entry(
+		__string(name, name)
+		__field(unsigned long, rate)
+	),
+
+	TP_fast_assign(
+		__assign_str(name, name);
+		__entry->rate = rate;
+	),
+
+	TP_printk("%s rate: %lu",
+		__get_str(name), (unsigned long)__entry->rate)
+);
+
+DEFINE_EVENT(clk_measure_support, clk_measure,
+
+	TP_PROTO(const char *name, unsigned long rate),
+
+	TP_ARGS(name, rate)
 );
 
 #endif /* _TRACE_CLOCK_QCOM */

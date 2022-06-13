@@ -480,6 +480,8 @@ static int clk_debug_measure_get(void *data, u64 *val)
 		*val *= get_mux_divs(measure);
 		disable_debug_clks(measure);
 	}
+
+	trace_clk_measure(clk_hw_get_name(hw), *val);
 exit:
 	mutex_unlock(&clk_debug_lock);
 	clk_runtime_put_debug_mux(meas);
