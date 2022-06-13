@@ -17,6 +17,7 @@
 #include <linux/pm_runtime.h>
 #include <linux/regmap.h>
 
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>

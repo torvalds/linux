@@ -35,6 +35,7 @@
 #include <linux/export.h>
 #include <linux/dma-fence.h>
 #include <linux/uaccess.h>
+#include <drm/drm_blend.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>

@@ -21,6 +21,7 @@
 #include <video/of_videomode.h>
 #include <video/samsung_fimd.h>
 
+#include <drm/drm_blend.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_framebuffer.h>
 #include <drm/drm_vblank.h>
