@@ -365,8 +365,6 @@ struct acpi_device {
 	acpi_handle handle;		/* no handle for fixed hardware */
 	struct fwnode_handle fwnode;
 	struct acpi_device *parent;
-	struct list_head children;
-	struct list_head node;
 	struct list_head wakeup_list;
 	struct list_head del_list;
 	struct acpi_device_status status;

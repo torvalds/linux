@@ -465,8 +465,6 @@ static void acpi_device_del(struct acpi_device *device)
 	struct acpi_device_bus_id *acpi_device_bus_id;
 
 	mutex_lock(&acpi_device_lock);
-	if (device->parent)
-		list_del(&device->node);
 
 	list_for_each_entry(acpi_device_bus_id, &acpi_bus_id_list, node)
 		if (!strcmp(acpi_device_bus_id->bus_id,
@@ -482,6 +480,7 @@ static void acpi_device_del(struct acpi_device *device)
 		}
 
 	list_del(&device->wakeup_list);
+
 	mutex_unlock(&acpi_device_lock);
 
 	acpi_power_add_remove_device(device, false);
@@ -674,8 +673,6 @@ static int __acpi_device_add(struct acpi_device *device,
 	 * -------
 	 * Link this device to its parent and siblings.
 	 */
-	INIT_LIST_HEAD(&device->children);
-	INIT_LIST_HEAD(&device->node);
 	INIT_LIST_HEAD(&device->wakeup_list);
 	INIT_LIST_HEAD(&device->physical_node_list);
 	INIT_LIST_HEAD(&device->del_list);
@@ -715,9 +712,6 @@ static int __acpi_device_add(struct acpi_device *device,
 		list_add_tail(&acpi_device_bus_id->node, &acpi_bus_id_list);
 	}
 
-	if (device->parent)
-		list_add_tail(&device->node, &device->parent->children);
-
 	if (device->wakeup.flags.valid)
 		list_add_tail(&device->wakeup_list, &acpi_wakeup_device_list);
 
@@ -745,9 +739,6 @@ static int __acpi_device_add(struct acpi_device *device,
 
 err:
 	mutex_lock(&acpi_device_lock);
-
-	if (device->parent)
-		list_del(&device->node);
 
 	list_del(&device->wakeup_list);
 
