@@ -414,7 +414,8 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 {
 	struct dma_buf_attachment *attach = NULL;
 	struct sg_table *sgt = NULL;
-	int ret = 0;
+	struct scatterlist *sg = NULL;
+	int i, ret = 0;
 
 	if (dma_buf != NULL) {
 		get_dma_buf(dma_buf);
@@ -441,8 +442,10 @@ int rga_dma_map_buf(struct dma_buf *dma_buf, struct rga_dma_buffer *rga_dma_buff
 	rga_dma_buffer->attach = attach;
 	rga_dma_buffer->sgt = sgt;
 	rga_dma_buffer->iova = sg_dma_address(sgt->sgl);
-	rga_dma_buffer->size = sg_dma_len(sgt->sgl);
 	rga_dma_buffer->dir = dir;
+	rga_dma_buffer->size = 0;
+	for_each_sgtable_sg(sgt, sg, i)
+		rga_dma_buffer->size += sg_dma_len(sg);
 
 	return ret;
 
@@ -462,7 +465,8 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 	struct dma_buf *dma_buf = NULL;
 	struct dma_buf_attachment *attach = NULL;
 	struct sg_table *sgt = NULL;
-	int ret = 0;
+	struct scatterlist *sg = NULL;
+	int i, ret = 0;
 
 	dma_buf = dma_buf_get(fd);
 	if (IS_ERR(dma_buf)) {
@@ -489,8 +493,10 @@ int rga_dma_map_fd(int fd, struct rga_dma_buffer *rga_dma_buffer,
 	rga_dma_buffer->attach = attach;
 	rga_dma_buffer->sgt = sgt;
 	rga_dma_buffer->iova = sg_dma_address(sgt->sgl);
-	rga_dma_buffer->size = sg_dma_len(sgt->sgl);
 	rga_dma_buffer->dir = dir;
+	rga_dma_buffer->size = 0;
+	for_each_sgtable_sg(sgt, sg, i)
+		rga_dma_buffer->size += sg_dma_len(sg);
 
 	return ret;
 
