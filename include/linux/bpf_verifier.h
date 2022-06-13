@@ -299,7 +299,7 @@ struct bpf_verifier_state {
 	 * If is_state_visited() sees a state with branches > 0 it means
 	 * there is a loop. If such state is exactly equal to the current state
 	 * it's an infinite loop. Note states_equal() checks for states
-	 * equvalency, so two states being 'states_equal' does not mean
+	 * equivalency, so two states being 'states_equal' does not mean
 	 * infinite loop. The exact comparison is provided by
 	 * states_maybe_looping() function. It's a stronger pre-check and
 	 * much faster than states_equal().
