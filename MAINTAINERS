@@ -13345,6 +13345,7 @@ F:	Documentation/devicetree/bindings/mips/
 F:	Documentation/mips/
 F:	arch/mips/
 F:	drivers/platform/mips/
+F:	include/dt-bindings/mips/
 
 MIPS BOSTON DEVELOPMENT BOARD
 M:	Paul Burton <paulburton@kernel.org>
