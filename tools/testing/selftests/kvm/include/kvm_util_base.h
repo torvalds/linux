@@ -316,6 +316,31 @@ static inline void read_stats_header(int stats_fd, struct kvm_stats_header *head
 	TEST_ASSERT(ret == sizeof(*header), "Read stats header");
 }
 
+struct kvm_stats_desc *read_stats_descriptors(int stats_fd,
+					      struct kvm_stats_header *header);
+
+static inline ssize_t get_stats_descriptor_size(struct kvm_stats_header *header)
+{
+	 /*
+	  * The base size of the descriptor is defined by KVM's ABI, but the
+	  * size of the name field is variable, as far as KVM's ABI is
+	  * concerned. For a given instance of KVM, the name field is the same
+	  * size for all stats and is provided in the overall stats header.
+	  */
+	return sizeof(struct kvm_stats_desc) + header->name_size;
+}
+
+static inline struct kvm_stats_desc *get_stats_descriptor(struct kvm_stats_desc *stats,
+							  int index,
+							  struct kvm_stats_header *header)
+{
+	/*
+	 * Note, size_desc includes the size of the name field, which is
+	 * variable. i.e. this is NOT equivalent to &stats_desc[i].
+	 */
+	return (void *)stats + index * get_stats_descriptor_size(header);
+}
+
 void vm_create_irqchip(struct kvm_vm *vm);
 
 void vm_set_user_memory_region(struct kvm_vm *vm, uint32_t slot, uint32_t flags,

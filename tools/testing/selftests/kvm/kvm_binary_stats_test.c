@@ -35,7 +35,7 @@ static void stats_test(int stats_fd)
 	/* Read kvm stats header */
 	read_stats_header(stats_fd, &header);
 
-	size_desc = sizeof(*stats_desc) + header.name_size;
+	size_desc = get_stats_descriptor_size(&header);
 
 	/* Read kvm stats id string */
 	id = malloc(header.name_size);
@@ -62,18 +62,12 @@ static void stats_test(int stats_fd)
 							header.data_offset),
 			"Descriptor block is overlapped with data block");
 
-	/* Allocate memory for stats descriptors */
-	stats_desc = calloc(header.num_desc, size_desc);
-	TEST_ASSERT(stats_desc, "Allocate memory for stats descriptors");
 	/* Read kvm stats descriptors */
-	ret = pread(stats_fd, stats_desc,
-			size_desc * header.num_desc, header.desc_offset);
-	TEST_ASSERT(ret == size_desc * header.num_desc,
-			"Read KVM stats descriptors");
+	stats_desc = read_stats_descriptors(stats_fd, &header);
 
 	/* Sanity check for fields in descriptors */
 	for (i = 0; i < header.num_desc; ++i) {
-		pdesc = (void *)stats_desc + i * size_desc;
+		pdesc = get_stats_descriptor(stats_desc, i, &header);
 		/* Check type,unit,base boundaries */
 		TEST_ASSERT((pdesc->flags & KVM_STATS_TYPE_MASK)
 				<= KVM_STATS_TYPE_MAX, "Unknown KVM stats type");
@@ -129,7 +123,7 @@ static void stats_test(int stats_fd)
 			"Data size is not correct");
 	/* Check stats offset */
 	for (i = 0; i < header.num_desc; ++i) {
-		pdesc = (void *)stats_desc + i * size_desc;
+		pdesc = get_stats_descriptor(stats_desc, i, &header);
 		TEST_ASSERT(pdesc->offset < size_data,
 			"Invalid offset (%u) for stats: %s",
 			pdesc->offset, pdesc->name);
@@ -144,7 +138,7 @@ static void stats_test(int stats_fd)
 	/* Read kvm stats data one by one */
 	size_data = 0;
 	for (i = 0; i < header.num_desc; ++i) {
-		pdesc = (void *)stats_desc + i * size_desc;
+		pdesc = get_stats_descriptor(stats_desc, i, &header);
 		ret = pread(stats_fd, stats_data,
 				pdesc->size * sizeof(*stats_data),
 				header.data_offset + size_data);
