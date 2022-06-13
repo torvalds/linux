@@ -1336,6 +1336,8 @@ struct kvm_arch {
 	 * the global KVM_MAX_VCPU_IDS may lead to significant memory waste.
 	 */
 	u32 max_vcpu_ids;
+
+	bool disable_nx_huge_pages;
 };
 
 struct kvm_vm_stat {
