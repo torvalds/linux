@@ -213,6 +213,12 @@ struct vc4_hdmi {
 	struct drm_display_mode saved_adjusted_mode;
 
 	/**
+	 * @packet_ram_enabled: Is the HDMI controller packet RAM currently
+	 * on? Protected by @mutex.
+	 */
+	bool packet_ram_enabled;
+
+	/**
 	 * @scdc_enabled: Is the HDMI controller currently running with
 	 * the scrambler on? Protected by @mutex.
 	 */

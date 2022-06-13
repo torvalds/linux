@@ -602,7 +602,9 @@ static void vc4_hdmi_set_audio_infoframe(struct drm_encoder *encoder)
 	union hdmi_infoframe frame;
 
 	memcpy(&frame.audio, audio, sizeof(*audio));
-	vc4_hdmi_write_infoframe(encoder, &frame);
+
+	if (vc4_hdmi->packet_ram_enabled)
+		vc4_hdmi_write_infoframe(encoder, &frame);
 }
 
 static void vc4_hdmi_set_hdr_infoframe(struct drm_encoder *encoder)
@@ -741,6 +743,8 @@ static void vc4_hdmi_encoder_post_crtc_disable(struct drm_encoder *encoder,
 	unsigned long flags;
 
 	mutex_lock(&vc4_hdmi->mutex);
+
+	vc4_hdmi->packet_ram_enabled = false;
 
 	spin_lock_irqsave(&vc4_hdmi->hw_lock, flags);
 
@@ -1352,6 +1356,7 @@ static void vc4_hdmi_encoder_post_crtc_enable(struct drm_encoder *encoder,
 			   VC4_HDMI_RAM_PACKET_ENABLE);
 
 		spin_unlock_irqrestore(&vc4_hdmi->hw_lock, flags);
+		vc4_hdmi->packet_ram_enabled = true;
 
 		vc4_hdmi_set_infoframes(encoder);
 	}
