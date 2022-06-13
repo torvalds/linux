@@ -11,7 +11,7 @@ maintainers:
   - Stanimir Varbanov <svarbanov@mm-sol.com>
 
 description: |
-  Qualcomm PCIe root complex controller is bansed on the Synopsys DesignWare
+  Qualcomm PCIe root complex controller is based on the Synopsys DesignWare
   PCIe IP.
 
 properties:
