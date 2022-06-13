@@ -37,7 +37,6 @@
 #include <drm/drm_rect.h>
 #include <drm/drm_mode_object.h>
 #include <drm/drm_modes.h>
-#include <drm/drm_connector.h>
 #include <drm/drm_device.h>
 #include <drm/drm_property.h>
 #include <drm/drm_plane.h>
@@ -45,6 +44,7 @@
 #include <drm/drm_debugfs_crc.h>
 #include <drm/drm_mode_config.h>
 
+struct drm_connector;
 struct drm_device;
 struct drm_framebuffer;
 struct drm_mode_set;
