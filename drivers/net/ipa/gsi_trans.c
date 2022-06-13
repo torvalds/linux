@@ -549,7 +549,7 @@ static void gsi_trans_tre_fill(struct gsi_tre *dest_tre, dma_addr_t addr,
 static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
-	struct gsi_ring *ring = &channel->tre_ring;
+	struct gsi_ring *tre_ring = &channel->tre_ring;
 	enum ipa_cmd_opcode opcode = IPA_CMD_NONE;
 	bool bei = channel->toward_ipa;
 	struct gsi_tre *dest_tre;
@@ -567,8 +567,8 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	 * transfer request, whose opcode is IPA_CMD_NONE.
 	 */
 	cmd_opcode = channel->command ? &trans->cmd_opcode[0] : NULL;
-	avail = ring->count - ring->index % ring->count;
-	dest_tre = gsi_ring_virt(ring, ring->index);
+	avail = tre_ring->count - tre_ring->index % tre_ring->count;
+	dest_tre = gsi_ring_virt(tre_ring, tre_ring->index);
 	for_each_sg(trans->sgl, sg, trans->used, i) {
 		bool last_tre = i == trans->used - 1;
 		dma_addr_t addr = sg_dma_address(sg);
@@ -576,14 +576,14 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 
 		byte_count += len;
 		if (!avail--)
-			dest_tre = gsi_ring_virt(ring, 0);
+			dest_tre = gsi_ring_virt(tre_ring, 0);
 		if (cmd_opcode)
 			opcode = *cmd_opcode++;
 
 		gsi_trans_tre_fill(dest_tre, addr, len, last_tre, bei, opcode);
 		dest_tre++;
 	}
-	ring->index += trans->used;
+	tre_ring->index += trans->used;
 
 	if (channel->toward_ipa) {
 		/* We record TX bytes when they are sent */
@@ -595,7 +595,7 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	}
 
 	/* Associate the last TRE with the transaction */
-	gsi_channel_trans_map(channel, ring->index - 1, trans);
+	gsi_channel_trans_map(channel, tre_ring->index - 1, trans);
 
 	gsi_trans_move_pending(trans);
 
@@ -675,7 +675,7 @@ void gsi_channel_trans_cancel_pending(struct gsi_channel *channel)
 int gsi_trans_read_byte(struct gsi *gsi, u32 channel_id, dma_addr_t addr)
 {
 	struct gsi_channel *channel = &gsi->channel[channel_id];
-	struct gsi_ring *ring = &channel->tre_ring;
+	struct gsi_ring *tre_ring = &channel->tre_ring;
 	struct gsi_trans_info *trans_info;
 	struct gsi_tre *dest_tre;
 
@@ -687,10 +687,10 @@ int gsi_trans_read_byte(struct gsi *gsi, u32 channel_id, dma_addr_t addr)
 
 	/* Now fill the the reserved TRE and tell the hardware */
 
-	dest_tre = gsi_ring_virt(ring, ring->index);
+	dest_tre = gsi_ring_virt(tre_ring, tre_ring->index);
 	gsi_trans_tre_fill(dest_tre, addr, 1, true, false, IPA_CMD_NONE);
 
-	ring->index++;
+	tre_ring->index++;
 	gsi_channel_doorbell(channel);
 
 	return 0;
