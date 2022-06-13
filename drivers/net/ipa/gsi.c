@@ -991,6 +991,17 @@ void gsi_resume(struct gsi *gsi)
 	enable_irq(gsi->irq);
 }
 
+void gsi_trans_tx_committed(struct gsi_trans *trans)
+{
+	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
+
+	trans->trans_count = channel->trans_count;
+	trans->byte_count = channel->byte_count;
+
+	channel->trans_count++;
+	channel->byte_count += trans->len;
+}
+
 void gsi_trans_tx_queued(struct gsi_trans *trans)
 {
 	u32 channel_id = trans->channel_id;

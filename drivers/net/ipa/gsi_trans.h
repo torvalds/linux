@@ -35,7 +35,7 @@ struct gsi_trans_pool;
  * @cancelled:	If set by the core code, transaction was cancelled
  * @rsvd_count:	Number of TREs reserved for this transaction
  * @used_count:	Number of TREs *used* (could be less than rsvd_count)
- * @len:	Total # of transfer bytes represented in sgl[] (set by core)
+ * @len:	Number of bytes sent or received by the transaction
  * @data:	Preserved but not touched by the core transaction code
  * @cmd_opcode:	Array of command opcodes (command channel only)
  * @sgl:	An array of scatter/gather entries managed by core code
@@ -45,8 +45,9 @@ struct gsi_trans_pool;
  * @byte_count:	TX channel byte count recorded when transaction committed
  * @trans_count: Channel transaction count when committed (for BQL accounting)
  *
- * The size used for some fields in this structure were chosen to ensure
- * the full structure size is no larger than 128 bytes.
+ * The @len field is set when the transaction is committed.  For RX
+ * transactions it is updated later to reflect the actual number of bytes
+ * received.
  */
 struct gsi_trans {
 	struct list_head links;		/* gsi_channel lists */

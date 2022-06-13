@@ -105,6 +105,15 @@ void gsi_channel_doorbell(struct gsi_channel *channel);
 void *gsi_ring_virt(struct gsi_ring *ring, u32 index);
 
 /**
+ * gsi_trans_tx_committed() - Record bytes committed for transmit
+ * @trans:	TX endpoint transaction being committed
+ *
+ * Report that a TX transaction has been committed.  It updates some
+ * statistics used to manage transmit rates.
+ */
+void gsi_trans_tx_committed(struct gsi_trans *trans);
+
+/**
  * gsi_trans_tx_queued() - Report a queued TX channel transaction
  * @trans:	Transaction being passed to hardware
  *

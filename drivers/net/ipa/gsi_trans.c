@@ -586,14 +586,9 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 	}
 	tre_ring->index += trans->used_count;
 
-	if (channel->toward_ipa) {
-		/* We record TX bytes when they are sent */
-		trans->len = byte_count;
-		trans->trans_count = channel->trans_count;
-		trans->byte_count = channel->byte_count;
-		channel->trans_count++;
-		channel->byte_count += byte_count;
-	}
+	trans->len = byte_count;
+	if (channel->toward_ipa)
+		gsi_trans_tx_committed(trans);
 
 	/* Associate the last TRE with the transaction */
 	gsi_channel_trans_map(channel, tre_ring->index - 1, trans);
