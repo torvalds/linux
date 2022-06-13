@@ -827,8 +827,7 @@ static bool iscsi_conn_auth_required(struct iscsit_conn *conn)
 	 */
 	se_nacl = conn->sess->se_sess->se_node_acl;
 	if (!se_nacl) {
-		pr_debug("Unknown ACL %s is trying to connect\n",
-			 se_nacl->initiatorname);
+		pr_debug("Unknown ACL is trying to connect\n");
 		return true;
 	}
 
