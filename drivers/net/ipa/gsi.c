@@ -1374,8 +1374,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	struct gsi_event *event_done;
 	struct gsi_event *event;
 	struct gsi_trans *trans;
-	u32 trans_count = 0;
-	u32 byte_count = 0;
 	u32 event_avail;
 	u32 old_index;
 
@@ -1399,8 +1397,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	event_done = gsi_ring_virt(ring, index);
 	do {
 		trans->len = __le16_to_cpu(event->len);
-		byte_count += trans->len;
-		trans_count++;
 
 		/* Move on to the next event and transaction */
 		if (--event_avail)
@@ -1409,10 +1405,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 			event = gsi_ring_virt(ring, 0);
 		trans = gsi_trans_pool_next(&trans_info->pool, trans);
 	} while (event != event_done);
-
-	/* We record RX bytes when they are received */
-	channel->byte_count += byte_count;
-	channel->trans_count += trans_count;
 }
 
 /* Initialize a ring, including allocating DMA memory for its entries */
