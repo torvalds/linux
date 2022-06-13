@@ -461,9 +461,11 @@ static void vc4_hdmi_write_infoframe(struct drm_encoder *encoder,
 	const struct vc4_hdmi_register *ram_packet_start =
 		&vc4_hdmi->variant->registers[HDMI_RAM_PACKET_START];
 	u32 packet_reg = ram_packet_start->offset + VC4_HDMI_PACKET_STRIDE * packet_id;
+	u32 packet_reg_next = ram_packet_start->offset +
+		VC4_HDMI_PACKET_STRIDE * (packet_id + 1);
 	void __iomem *base = __vc4_hdmi_get_field_base(vc4_hdmi,
 						       ram_packet_start->reg);
-	uint8_t buffer[VC4_HDMI_PACKET_STRIDE];
+	uint8_t buffer[VC4_HDMI_PACKET_STRIDE] = {};
 	unsigned long flags;
 	ssize_t len, i;
 	int ret;
@@ -498,6 +500,13 @@ static void vc4_hdmi_write_infoframe(struct drm_encoder *encoder,
 		       base + packet_reg);
 		packet_reg += 4;
 	}
+
+	/*
+	 * clear remainder of packet ram as it's included in the
+	 * infoframe and triggers a checksum error on hdmi analyser
+	 */
+	for (; packet_reg < packet_reg_next; packet_reg += 4)
+		writel(0, base + packet_reg);
 
 	HDMI_WRITE(HDMI_RAM_PACKET_CONFIG,
 		   HDMI_READ(HDMI_RAM_PACKET_CONFIG) | BIT(packet_id));
