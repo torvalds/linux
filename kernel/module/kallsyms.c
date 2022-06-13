@@ -457,29 +457,39 @@ unsigned long find_kallsyms_symbol_value(struct module *mod, const char *name)
 	return 0;
 }
 
-/* Look for this name: can be of form module:name. */
-unsigned long module_kallsyms_lookup_name(const char *name)
+static unsigned long __module_kallsyms_lookup_name(const char *name)
 {
 	struct module *mod;
 	char *colon;
-	unsigned long ret = 0;
 
-	/* Don't lock: we're in enough trouble already. */
-	preempt_disable();
 	colon = strnchr(name, MODULE_NAME_LEN, ':');
 	if (colon) {
 		mod = find_module_all(name, colon - name, false);
 		if (mod)
-			ret = find_kallsyms_symbol_value(mod, colon + 1);
-	} else {
-		list_for_each_entry_rcu(mod, &modules, list) {
-			if (mod->state == MODULE_STATE_UNFORMED)
-				continue;
-			ret = find_kallsyms_symbol_value(mod, name);
-			if (ret)
-				break;
-		}
+			return find_kallsyms_symbol_value(mod, colon + 1);
+		return 0;
 	}
+
+	list_for_each_entry_rcu(mod, &modules, list) {
+		unsigned long ret;
+
+		if (mod->state == MODULE_STATE_UNFORMED)
+			continue;
+		ret = find_kallsyms_symbol_value(mod, name);
+		if (ret)
+			return ret;
+	}
+	return 0;
+}
+
+/* Look for this name: can be of form module:name. */
+unsigned long module_kallsyms_lookup_name(const char *name)
+{
+	unsigned long ret;
+
+	/* Don't lock: we're in enough trouble already. */
+	preempt_disable();
+	ret = __module_kallsyms_lookup_name(name);
 	preempt_enable();
 	return ret;
 }
