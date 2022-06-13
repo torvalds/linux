@@ -19586,6 +19586,7 @@ F:	Documentation/ABI/testing/sysfs-class-thermal
 F:	Documentation/devicetree/bindings/thermal/
 F:	Documentation/driver-api/thermal/
 F:	drivers/thermal/
+F:	include/dt-bindings/thermal/
 F:	include/linux/cpu_cooling.h
 F:	include/linux/thermal.h
 F:	include/uapi/linux/thermal.h
