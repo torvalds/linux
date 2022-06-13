@@ -12446,6 +12446,7 @@ F:	Documentation/driver-api/media/
 F:	Documentation/userspace-api/media/
 F:	drivers/media/
 F:	drivers/staging/media/
+F:	include/dt-bindings/media/
 F:	include/linux/platform_data/media/
 F:	include/media/
 F:	include/uapi/linux/dvb/
