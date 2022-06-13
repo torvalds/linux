@@ -1,6 +1,4 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
- */
-
 /*
  * Copyright 2012 Xyratex Technology Limited
  *
