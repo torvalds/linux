@@ -1102,6 +1102,7 @@ static int acpi_dev_for_one_check(struct device *dev, void *context)
 
 	return adwc->fn(to_acpi_device(dev), adwc->data);
 }
+EXPORT_SYMBOL_GPL(acpi_dev_for_each_child);
 
 int acpi_dev_for_each_child(struct acpi_device *adev,
 			    int (*fn)(struct acpi_device *, void *), void *data)
