@@ -1729,9 +1729,16 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 
 	if (!(req->flags & (REQ_F_BUFFER_SELECTED|REQ_F_BUFFER_RING)))
 		return;
-	/* don't recycle if we already did IO to this buffer */
-	if (req->flags & REQ_F_PARTIAL_IO)
+	/*
+	 * For legacy provided buffer mode, don't recycle if we already did
+	 * IO to this buffer. For ring-mapped provided buffer mode, we should
+	 * increment ring->head to explicitly monopolize the buffer to avoid
+	 * multiple use.
+	 */
+	if ((req->flags & REQ_F_BUFFER_SELECTED) &&
+	    (req->flags & REQ_F_PARTIAL_IO))
 		return;
+
 	/*
 	 * We don't need to recycle for REQ_F_BUFFER_RING, we can just clear
 	 * the flag and hence ensure that bl->head doesn't get incremented.
@@ -1739,8 +1746,13 @@ static void io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	 */
 	if (req->flags & REQ_F_BUFFER_RING) {
 		if (req->buf_list) {
-			req->buf_index = req->buf_list->bgid;
-			req->flags &= ~REQ_F_BUFFER_RING;
+			if (req->flags & REQ_F_PARTIAL_IO) {
+				req->buf_list->head++;
+				req->buf_list = NULL;
+			} else {
+				req->buf_index = req->buf_list->bgid;
+				req->flags &= ~REQ_F_BUFFER_RING;
+			}
 		}
 		return;
 	}
@@ -3677,6 +3689,20 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	int ret;
 
 	kiocb->ki_pos = READ_ONCE(sqe->off);
+	/* used for fixed read/write too - just read unconditionally */
+	req->buf_index = READ_ONCE(sqe->buf_index);
+
+	if (req->opcode == IORING_OP_READ_FIXED ||
+	    req->opcode == IORING_OP_WRITE_FIXED) {
+		struct io_ring_ctx *ctx = req->ctx;
+		u16 index;
+
+		if (unlikely(req->buf_index >= ctx->nr_user_bufs))
+			return -EFAULT;
+		index = array_index_nospec(req->buf_index, ctx->nr_user_bufs);
+		req->imu = ctx->user_bufs[index];
+		io_req_set_rsrc_node(req, ctx, 0);
+	}
 
 	ioprio = READ_ONCE(sqe->ioprio);
 	if (ioprio) {
@@ -3689,12 +3715,9 @@ static int io_prep_rw(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 		kiocb->ki_ioprio = get_current_ioprio();
 	}
 
-	req->imu = NULL;
 	req->rw.addr = READ_ONCE(sqe->addr);
 	req->rw.len = READ_ONCE(sqe->len);
 	req->rw.flags = READ_ONCE(sqe->rw_flags);
-	/* used for fixed read/write too - just read unconditionally */
-	req->buf_index = READ_ONCE(sqe->buf_index);
 	return 0;
 }
 
@@ -3826,20 +3849,9 @@ static int __io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter
 static int io_import_fixed(struct io_kiocb *req, int rw, struct iov_iter *iter,
 			   unsigned int issue_flags)
 {
-	struct io_mapped_ubuf *imu = req->imu;
-	u16 index, buf_index = req->buf_index;
-
-	if (likely(!imu)) {
-		struct io_ring_ctx *ctx = req->ctx;
-
-		if (unlikely(buf_index >= ctx->nr_user_bufs))
-			return -EFAULT;
-		io_req_set_rsrc_node(req, ctx, issue_flags);
-		index = array_index_nospec(buf_index, ctx->nr_user_bufs);
-		imu = READ_ONCE(ctx->user_bufs[index]);
-		req->imu = imu;
-	}
-	return __io_import_fixed(req, rw, iter, imu);
+	if (WARN_ON_ONCE(!req->imu))
+		return -EFAULT;
+	return __io_import_fixed(req, rw, iter, req->imu);
 }
 
 static int io_buffer_add_list(struct io_ring_ctx *ctx,
@@ -3878,10 +3890,8 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	struct io_uring_buf *buf;
 	__u16 head = bl->head;
 
-	if (unlikely(smp_load_acquire(&br->tail) == head)) {
-		io_ring_submit_unlock(req->ctx, issue_flags);
+	if (unlikely(smp_load_acquire(&br->tail) == head))
 		return NULL;
-	}
 
 	head &= bl->mask;
 	if (head < IO_BUFFER_LIST_BUF_PER_PAGE) {
@@ -8063,8 +8073,8 @@ static int io_files_update_with_index_alloc(struct io_kiocb *req,
 		if (ret < 0)
 			break;
 		if (copy_to_user(&fds[done], &ret, sizeof(ret))) {
-			ret = -EFAULT;
 			__io_close_fixed(req, issue_flags, ret);
+			ret = -EFAULT;
 			break;
 		}
 	}
@@ -9788,11 +9798,19 @@ static void __io_sqe_files_unregister(struct io_ring_ctx *ctx)
 
 static int io_sqe_files_unregister(struct io_ring_ctx *ctx)
 {
+	unsigned nr = ctx->nr_user_files;
 	int ret;
 
 	if (!ctx->file_data)
 		return -ENXIO;
+
+	/*
+	 * Quiesce may unlock ->uring_lock, and while it's not held
+	 * prevent new requests using the table.
+	 */
+	ctx->nr_user_files = 0;
 	ret = io_rsrc_ref_quiesce(ctx->file_data, ctx);
+	ctx->nr_user_files = nr;
 	if (!ret)
 		__io_sqe_files_unregister(ctx);
 	return ret;
@@ -10690,12 +10708,19 @@ static void __io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 
 static int io_sqe_buffers_unregister(struct io_ring_ctx *ctx)
 {
+	unsigned nr = ctx->nr_user_bufs;
 	int ret;
 
 	if (!ctx->buf_data)
 		return -ENXIO;
 
+	/*
+	 * Quiesce may unlock ->uring_lock, and while it's not held
+	 * prevent new requests using the table.
+	 */
+	ctx->nr_user_bufs = 0;
 	ret = io_rsrc_ref_quiesce(ctx->buf_data, ctx);
+	ctx->nr_user_bufs = nr;
 	if (!ret)
 		__io_sqe_buffers_unregister(ctx);
 	return ret;
