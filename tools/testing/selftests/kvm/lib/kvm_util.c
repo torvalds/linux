@@ -284,10 +284,6 @@ static uint64_t vm_nr_pages_required(enum vm_guest_mode mode,
 	 */
 	nr_pages += (nr_pages + extra_mem_pages) / PTES_PER_MIN_PAGE * 2;
 
-	TEST_ASSERT(nr_runnable_vcpus <= kvm_check_cap(KVM_CAP_MAX_VCPUS),
-		    "Host doesn't support %d vCPUs, max-vcpus = %d",
-		    nr_runnable_vcpus, kvm_check_cap(KVM_CAP_MAX_VCPUS));
-
 	return vm_adjust_num_guest_pages(mode, nr_pages);
 }
 
