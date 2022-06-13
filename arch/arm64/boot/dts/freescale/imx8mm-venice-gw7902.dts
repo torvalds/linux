@@ -651,7 +651,7 @@
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_uart1>, <&pinctrl_uart1_gpio>;
 	rts-gpios = <&gpio4 10 GPIO_ACTIVE_LOW>;
-	cts-gpios = <&gpio4 11 GPIO_ACTIVE_LOW>;
+	cts-gpios = <&gpio4 24 GPIO_ACTIVE_LOW>;
 	uart-has-rtscts;
 	status = "okay";
 };
