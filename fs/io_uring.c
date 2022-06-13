@@ -3888,7 +3888,7 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 		buf = &br->bufs[head];
 	} else {
 		int off = head & (IO_BUFFER_LIST_BUF_PER_PAGE - 1);
-		int index = head / IO_BUFFER_LIST_BUF_PER_PAGE - 1;
+		int index = head / IO_BUFFER_LIST_BUF_PER_PAGE;
 		buf = page_address(bl->buf_pages[index]);
 		buf += off;
 	}
