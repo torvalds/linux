@@ -1240,16 +1240,11 @@ static const struct sdhci_pci_fixes sdhci_intel_byt_sd = {
 #ifdef CONFIG_ACPI
 static void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot)
 {
-	struct acpi_device *device, *child;
+	struct acpi_device *device;
 
 	device = ACPI_COMPANION(&slot->chip->pdev->dev);
-	if (!device)
-		return;
-
-	acpi_device_fix_up_power(device);
-	list_for_each_entry(child, &device->children, node)
-		if (child->status.present && child->status.enabled)
-			acpi_device_fix_up_power(child);
+	if (device)
+		acpi_device_fix_up_power_extended(device);
 }
 #else
 static inline void intel_mrfld_mmc_fix_up_power_slot(struct sdhci_pci_slot *slot) {}
