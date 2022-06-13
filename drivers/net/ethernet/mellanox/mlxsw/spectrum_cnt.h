@@ -8,8 +8,8 @@
 #include "spectrum.h"
 
 enum mlxsw_sp_counter_sub_pool_id {
-	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
 	MLXSW_SP_COUNTER_SUB_POOL_RIF,
+	MLXSW_SP_COUNTER_SUB_POOL_FLOW,
 };
 
 int mlxsw_sp_counter_alloc(struct mlxsw_sp *mlxsw_sp,
