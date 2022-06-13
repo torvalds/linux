@@ -213,12 +213,6 @@ struct vc4_hdmi {
 	struct drm_display_mode saved_adjusted_mode;
 
 	/**
-	 * @output_enabled: Is the HDMI controller currently active?
-	 * Protected by @mutex.
-	 */
-	bool output_enabled;
-
-	/**
 	 * @scdc_enabled: Is the HDMI controller currently running with
 	 * the scrambler on? Protected by @mutex.
 	 */
