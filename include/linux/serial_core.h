@@ -232,7 +232,6 @@ struct uart_port {
 
 	int			hw_stopped;		/* sw-assisted CTS flow state */
 	unsigned int		mctrl;			/* current modem ctrl settings */
-	unsigned int		timeout;		/* character-based timeout */
 	unsigned int		frame_time;		/* frame timing in ns */
 	unsigned int		type;			/* port type */
 	const struct uart_ops	*ops;
@@ -335,10 +334,23 @@ unsigned int uart_get_baud_rate(struct uart_port *port, struct ktermios *termios
 				unsigned int max);
 unsigned int uart_get_divisor(struct uart_port *port, unsigned int baud);
 
+/*
+ * Calculates FIFO drain time.
+ */
+static inline unsigned long uart_fifo_timeout(struct uart_port *port)
+{
+	u64 fifo_timeout = (u64)READ_ONCE(port->frame_time) * port->fifosize;
+
+	/* Add .02 seconds of slop */
+	fifo_timeout += 20 * NSEC_PER_MSEC;
+
+	return max(nsecs_to_jiffies(fifo_timeout), 1UL);
+}
+
 /* Base timer interval for polling */
 static inline int uart_poll_timeout(struct uart_port *port)
 {
-	int timeout = port->timeout;
+	int timeout = uart_fifo_timeout(port);
 
 	return timeout > 6 ? (timeout / 2 - 2) : 1;
 }

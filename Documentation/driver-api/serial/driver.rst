@@ -422,8 +422,9 @@ Other functions
 ---------------
 
 uart_update_timeout(port,cflag,baud)
-	Update the FIFO drain timeout, port->timeout, according to the
-	number of bits, parity, stop bits and baud rate.
+	Update the frame timing information according to the number of bits,
+	parity, stop bits and baud rate. The FIFO drain timeout is derived
+	from the frame timing information.
 
 	Locking: caller is expected to take port->lock
 

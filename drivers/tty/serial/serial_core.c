@@ -327,13 +327,14 @@ static void uart_shutdown(struct tty_struct *tty, struct uart_state *state)
 }
 
 /**
- *	uart_update_timeout - update per-port FIFO timeout.
+ *	uart_update_timeout - update per-port frame timing information.
  *	@port:  uart_port structure describing the port
  *	@cflag: termios cflag value
  *	@baud:  speed of the port
  *
- *	Set the port FIFO timeout value.  The @cflag value should
- *	reflect the actual hardware settings.
+ *	Set the port frame timing information from which the FIFO timeout
+ *	value is derived. The @cflag value should reflect the actual hardware
+ *	settings.
  */
 void
 uart_update_timeout(struct uart_port *port, unsigned int cflag,
@@ -343,13 +344,6 @@ uart_update_timeout(struct uart_port *port, unsigned int cflag,
 	u64 frame_time;
 
 	frame_time = (u64)size * NSEC_PER_SEC;
-	size *= port->fifosize;
-
-	/*
-	 * Figure the timeout to send the above number of bits.
-	 * Add .02 seconds of slop
-	 */
-	port->timeout = (HZ * size) / baud + HZ/50;
 	port->frame_time = DIV64_U64_ROUND_UP(frame_time, baud);
 }
 EXPORT_SYMBOL(uart_update_timeout);
@@ -1698,7 +1692,7 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 {
 	struct uart_state *state = tty->driver_data;
 	struct uart_port *port;
-	unsigned long char_time, expire;
+	unsigned long char_time, expire, fifo_timeout;
 
 	port = uart_port_ref(state);
 	if (!port)
@@ -1728,12 +1722,13 @@ static void uart_wait_until_sent(struct tty_struct *tty, int timeout)
 		 * amount of time to send the entire FIFO, it probably won't
 		 * ever clear.  This assumes the UART isn't doing flow
 		 * control, which is currently the case.  Hence, if it ever
-		 * takes longer than port->timeout, this is probably due to a
+		 * takes longer than FIFO timeout, this is probably due to a
 		 * UART bug of some kind.  So, we clamp the timeout parameter at
-		 * 2*port->timeout.
+		 * 2 * FIFO timeout.
 		 */
-		if (timeout == 0 || timeout > 2 * port->timeout)
-			timeout = 2 * port->timeout;
+		fifo_timeout = uart_fifo_timeout(port);
+		if (timeout == 0 || timeout > 2 * fifo_timeout)
+			timeout = 2 * fifo_timeout;
 	}
 
 	expire = jiffies + timeout;
