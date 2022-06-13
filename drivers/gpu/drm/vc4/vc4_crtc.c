@@ -317,7 +317,9 @@ static void vc4_crtc_config_pv(struct drm_crtc *crtc, struct drm_encoder *encode
 	struct drm_crtc_state *crtc_state = crtc->state;
 	struct drm_display_mode *mode = &crtc_state->adjusted_mode;
 	bool interlace = mode->flags & DRM_MODE_FLAG_INTERLACE;
-	u32 pixel_rep = (mode->flags & DRM_MODE_FLAG_DBLCLK) ? 2 : 1;
+	bool is_hdmi = vc4_encoder->type == VC4_ENCODER_TYPE_HDMI0 ||
+		       vc4_encoder->type == VC4_ENCODER_TYPE_HDMI1;
+	u32 pixel_rep = ((mode->flags & DRM_MODE_FLAG_DBLCLK) && !is_hdmi) ? 2 : 1;
 	bool is_dsi = (vc4_encoder->type == VC4_ENCODER_TYPE_DSI0 ||
 		       vc4_encoder->type == VC4_ENCODER_TYPE_DSI1);
 	bool is_dsi1 = vc4_encoder->type == VC4_ENCODER_TYPE_DSI1;
