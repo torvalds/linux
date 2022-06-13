@@ -551,12 +551,6 @@ struct mlxsw_sp_vr {
 	refcount_t ul_rif_refcnt;
 };
 
-static int mlxsw_sp_router_ll_basic_init(struct mlxsw_sp *mlxsw_sp, u16 vr_id,
-					 enum mlxsw_sp_l3proto proto)
-{
-	return 0;
-}
-
 static int mlxsw_sp_router_ll_basic_ralta_write(struct mlxsw_sp *mlxsw_sp, char *xralta_pl)
 {
 	return mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(ralta),
@@ -585,10 +579,6 @@ static struct mlxsw_sp_fib *mlxsw_sp_fib_create(struct mlxsw_sp *mlxsw_sp,
 	struct mlxsw_sp_lpm_tree *lpm_tree;
 	struct mlxsw_sp_fib *fib;
 	int err;
-
-	err = ll_ops->init(mlxsw_sp, vr->id, proto);
-	if (err)
-		return ERR_PTR(err);
 
 	lpm_tree = mlxsw_sp->router->lpm.proto_trees[proto];
 	fib = kzalloc(sizeof(*fib), GFP_KERNEL);
@@ -7770,7 +7760,6 @@ static void mlxsw_sp_router_fib_event_work(struct work_struct *work)
 		op_ctx->bulk_ok = !list_is_last(&fib_event->list, &fib_event_queue) &&
 				  fib_event->family == next_fib_event->family &&
 				  fib_event->event == next_fib_event->event;
-		op_ctx->event = fib_event->event;
 
 		/* In case family of this and the previous entry are different, context
 		 * reinitialization is going to be needed now, indicate that.
@@ -10534,7 +10523,6 @@ static void __mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 }
 
 static const struct mlxsw_sp_router_ll_ops mlxsw_sp_router_ll_basic_ops = {
-	.init = mlxsw_sp_router_ll_basic_init,
 	.ralta_write = mlxsw_sp_router_ll_basic_ralta_write,
 	.ralst_write = mlxsw_sp_router_ll_basic_ralst_write,
 	.raltb_write = mlxsw_sp_router_ll_basic_raltb_write,
@@ -10646,13 +10634,7 @@ int mlxsw_sp_router_init(struct mlxsw_sp *mlxsw_sp,
 	if (err)
 		goto err_router_ops_init;
 
-	err = mlxsw_sp_router_xm_init(mlxsw_sp);
-	if (err)
-		goto err_xm_init;
-
-	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV4] = mlxsw_sp_router_xm_ipv4_is_supported(mlxsw_sp) ?
-						       &mlxsw_sp_router_ll_xm_ops :
-						       &mlxsw_sp_router_ll_basic_ops;
+	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV4] = &mlxsw_sp_router_ll_basic_ops;
 	router->proto_ll_ops[MLXSW_SP_L3_PROTO_IPV6] = &mlxsw_sp_router_ll_basic_ops;
 
 	err = mlxsw_sp_router_ll_op_ctx_init(router);
@@ -10799,8 +10781,6 @@ err_router_init:
 	cancel_delayed_work_sync(&mlxsw_sp->router->nh_grp_activity_dw);
 	mlxsw_sp_router_ll_op_ctx_fini(router);
 err_ll_op_ctx_init:
-	mlxsw_sp_router_xm_fini(mlxsw_sp);
-err_xm_init:
 err_router_ops_init:
 	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
@@ -10832,7 +10812,6 @@ void mlxsw_sp_router_fini(struct mlxsw_sp *mlxsw_sp)
 	__mlxsw_sp_router_fini(mlxsw_sp);
 	cancel_delayed_work_sync(&mlxsw_sp->router->nh_grp_activity_dw);
 	mlxsw_sp_router_ll_op_ctx_fini(mlxsw_sp->router);
-	mlxsw_sp_router_xm_fini(mlxsw_sp);
 	mutex_destroy(&mlxsw_sp->router->lock);
 	kfree(mlxsw_sp->router);
 }

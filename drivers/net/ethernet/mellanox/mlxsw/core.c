@@ -3151,18 +3151,6 @@ mlxsw_core_port_linecard_get(struct mlxsw_core *mlxsw_core,
 	return mlxsw_core_port->linecard;
 }
 
-bool mlxsw_core_port_is_xm(const struct mlxsw_core *mlxsw_core, u16 local_port)
-{
-	const struct mlxsw_bus_info *bus_info = mlxsw_core->bus_info;
-	int i;
-
-	for (i = 0; i < bus_info->xm_local_ports_count; i++)
-		if (bus_info->xm_local_ports[i] == local_port)
-			return true;
-	return false;
-}
-EXPORT_SYMBOL(mlxsw_core_port_is_xm);
-
 void mlxsw_core_ports_remove_selected(struct mlxsw_core *mlxsw_core,
 				      bool (*selector)(void *priv, u16 local_port),
 				      void *priv)
