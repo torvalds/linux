@@ -406,7 +406,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		 * Do a temporary request on the core clock during the
 		 * modeset.
 		 */
-		clk_set_min_rate(hvs->core_clk, core_rate);
+		WARN_ON(clk_set_min_rate(hvs->core_clk, core_rate));
 	}
 
 	drm_atomic_helper_commit_modeset_disables(dev, state);
@@ -439,7 +439,7 @@ static void vc4_atomic_commit_tail(struct drm_atomic_state *state)
 		 * Request a clock rate based on the current HVS
 		 * requirements.
 		 */
-		clk_set_min_rate(hvs->core_clk, new_hvs_state->core_clock_rate);
+		WARN_ON(clk_set_min_rate(hvs->core_clk, new_hvs_state->core_clock_rate));
 
 		drm_dbg(dev, "Core clock actual rate: %lu Hz\n",
 			clk_get_rate(hvs->core_clk));
