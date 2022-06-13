@@ -1173,11 +1173,16 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 		s64 nr_to_invalidate =
 			should_invalidate_buckets(ca, bch2_dev_usage_read(ca));
 
-		while (!ret && nr_to_invalidate-- >= 0)
+		while (nr_to_invalidate-- >= 0) {
 			ret = __bch2_trans_do(&trans, NULL, NULL,
 					      BTREE_INSERT_USE_RESERVE|
 					      BTREE_INSERT_NOFAIL,
 					invalidate_one_bucket(&trans, ca));
+			if (ret)
+				break;
+
+			this_cpu_inc(c->counters[BCH_COUNTER_bucket_invalidate]);
+		}
 	}
 
 	bch2_trans_exit(&trans);
