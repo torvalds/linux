@@ -5,10 +5,124 @@
 #include <linux/lockdep.h>
 #include "io_uring_types.h"
 
+#ifndef CREATE_TRACE_POINTS
+#include <trace/events/io_uring.h>
+#endif
+
 enum {
 	IOU_OK			= 0,
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 };
+
+bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data, s32 res,
+			      u32 cflags, u64 extra1, u64 extra2);
+
+static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
+{
+	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
+}
+
+/*
+ * writes to the cq entry need to come after reading head; the
+ * control dependency is enough as we're using WRITE_ONCE to
+ * fill the cq entry
+ */
+static inline struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
+{
+	struct io_rings *rings = ctx->rings;
+	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
+	unsigned int shift = 0;
+	unsigned int free, queued, len;
+
+	if (ctx->flags & IORING_SETUP_CQE32)
+		shift = 1;
+
+	/* userspace may cheat modifying the tail, be safe and do min */
+	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
+	free = ctx->cq_entries - queued;
+	/* we need a contiguous range, limit based on the current array offset */
+	len = min(free, ctx->cq_entries - off);
+	if (!len)
+		return NULL;
+
+	ctx->cached_cq_tail++;
+	ctx->cqe_cached = &rings->cqes[off];
+	ctx->cqe_sentinel = ctx->cqe_cached + len;
+	ctx->cqe_cached++;
+	return &rings->cqes[off << shift];
+}
+
+static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
+{
+	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
+		struct io_uring_cqe *cqe = ctx->cqe_cached;
+
+		if (ctx->flags & IORING_SETUP_CQE32) {
+			unsigned int off = ctx->cqe_cached - ctx->rings->cqes;
+
+			cqe += off;
+		}
+
+		ctx->cached_cq_tail++;
+		ctx->cqe_cached++;
+		return cqe;
+	}
+
+	return __io_get_cqe(ctx);
+}
+
+static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
+				     struct io_kiocb *req)
+{
+	struct io_uring_cqe *cqe;
+
+	if (!(ctx->flags & IORING_SETUP_CQE32)) {
+		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
+					req->cqe.res, req->cqe.flags, 0, 0);
+
+		/*
+		 * If we can't get a cq entry, userspace overflowed the
+		 * submission (by quite a lot). Increment the overflow count in
+		 * the ring.
+		 */
+		cqe = io_get_cqe(ctx);
+		if (likely(cqe)) {
+			memcpy(cqe, &req->cqe, sizeof(*cqe));
+			return true;
+		}
+
+		return io_cqring_event_overflow(ctx, req->cqe.user_data,
+						req->cqe.res, req->cqe.flags,
+						0, 0);
+	} else {
+		u64 extra1 = 0, extra2 = 0;
+
+		if (req->flags & REQ_F_CQE32_INIT) {
+			extra1 = req->extra1;
+			extra2 = req->extra2;
+		}
+
+		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
+					req->cqe.res, req->cqe.flags, extra1, extra2);
+
+		/*
+		 * If we can't get a cq entry, userspace overflowed the
+		 * submission (by quite a lot). Increment the overflow count in
+		 * the ring.
+		 */
+		cqe = io_get_cqe(ctx);
+		if (likely(cqe)) {
+			memcpy(cqe, &req->cqe, sizeof(struct io_uring_cqe));
+			WRITE_ONCE(cqe->big_cqe[0], extra1);
+			WRITE_ONCE(cqe->big_cqe[1], extra2);
+			return true;
+		}
+
+		return io_cqring_event_overflow(ctx, req->cqe.user_data,
+				req->cqe.res, req->cqe.flags,
+				extra1, extra2);
+	}
+}
 
 static inline void req_set_fail(struct io_kiocb *req)
 {
@@ -64,6 +178,17 @@ static inline void io_commit_cqring(struct io_ring_ctx *ctx)
 	smp_store_release(&ctx->rings->cq.tail, ctx->cached_cq_tail);
 }
 
+static inline void io_cqring_wake(struct io_ring_ctx *ctx)
+{
+	/*
+	 * wake_up_all() may seem excessive, but io_wake_function() and
+	 * io_should_wake() handle the termination of the loop and only
+	 * wake as many waiters as we need to.
+	 */
+	if (wq_has_sleeper(&ctx->cq_wait))
+		wake_up_all(&ctx->cq_wait);
+}
+
 static inline bool io_sqring_full(struct io_ring_ctx *ctx)
 {
 	struct io_rings *r = ctx->rings;
@@ -100,6 +225,7 @@ void __io_req_complete_post(struct io_kiocb *req);
 bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 		     u32 cflags);
 void io_cqring_ev_posted(struct io_ring_ctx *ctx);
+void __io_commit_cqring_flush(struct io_ring_ctx *ctx);
 
 struct page **io_pin_pages(unsigned long ubuf, unsigned long len, int *npages);
 
@@ -110,7 +236,10 @@ struct file *io_file_get_fixed(struct io_kiocb *req, int fd,
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_work_add(struct io_kiocb *req);
+void io_req_task_prio_work_add(struct io_kiocb *req);
 void io_req_tw_post_queue(struct io_kiocb *req, s32 res, u32 cflags);
+void io_req_task_queue(struct io_kiocb *req);
+void io_queue_iowq(struct io_kiocb *req, bool *dont_use);
 void io_req_task_complete(struct io_kiocb *req, bool *locked);
 void io_req_task_queue_fail(struct io_kiocb *req, int ret);
 void io_req_task_submit(struct io_kiocb *req, bool *locked);
@@ -122,6 +251,8 @@ int io_uring_alloc_task_context(struct task_struct *task,
 int io_poll_issue(struct io_kiocb *req, bool *locked);
 int io_submit_sqes(struct io_ring_ctx *ctx, unsigned int nr);
 int io_do_iopoll(struct io_ring_ctx *ctx, bool force_nonspin);
+void io_free_batch_list(struct io_ring_ctx *ctx, struct io_wq_work_node *node);
+int io_req_prep_async(struct io_kiocb *req);
 
 struct io_wq_work *io_wq_free_work(struct io_wq_work *work);
 void io_wq_submit_work(struct io_wq_work *work);
