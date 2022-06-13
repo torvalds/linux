@@ -920,6 +920,8 @@ properties:
       - description: i.MX8MP based Boards
         items:
           - enum:
+              - dh,imx8mp-dhcom-som       # i.MX8MP DHCOM SoM
+              - dh,imx8mp-dhcom-pdk2      # i.MX8MP DHCOM SoM on PDK2 board
               - fsl,imx8mp-evk            # i.MX8MP EVK Board
               - gateworks,imx8mp-gw74xx   # i.MX8MP Gateworks Board
               - toradex,verdin-imx8mp     # Verdin iMX8M Plus Modules
