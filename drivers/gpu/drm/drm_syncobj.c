@@ -874,8 +874,10 @@ static int drm_syncobj_transfer_to_timeline(struct drm_file *file_private,
 
 	fence = dma_fence_unwrap_merge(tmp);
 	dma_fence_put(tmp);
-	if (!fence)
+	if (!fence) {
+		ret = -ENOMEM;
 		goto err_put_timeline;
+	}
 
 	chain = dma_fence_chain_alloc();
 	if (!chain) {
