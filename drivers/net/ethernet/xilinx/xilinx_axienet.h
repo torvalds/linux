@@ -563,7 +563,7 @@ static inline void axienet_dma_out32(struct axienet_local *lp,
 	iowrite32(value, lp->dma_regs + reg);
 }
 
-#ifdef CONFIG_64BIT
+#if defined(CONFIG_64BIT) && defined(iowrite64)
 /**
  * axienet_dma_out64 - Memory mapped Axi DMA register write.
  * @lp:		Pointer to axienet local structure
@@ -579,8 +579,8 @@ static inline void axienet_dma_out64(struct axienet_local *lp,
 	iowrite64(value, lp->dma_regs + reg);
 }
 
-static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
-				 dma_addr_t addr)
+static inline void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
+					dma_addr_t addr)
 {
 	if (lp->features & XAE_FEATURE_DMA_64BIT)
 		axienet_dma_out64(lp, reg, addr);
@@ -590,7 +590,7 @@ static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
 
 #else /* CONFIG_64BIT */
 
-static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
+static inline void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
 				 dma_addr_t addr)
 {
 	axienet_dma_out32(lp, reg, lower_32_bits(addr));
