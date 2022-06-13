@@ -1886,10 +1886,31 @@ static int dw_dp_encoder_atomic_check(struct drm_encoder *encoder,
 	return 0;
 }
 
+static enum drm_mode_status dw_dp_encoder_mode_valid(struct drm_encoder *encoder,
+						     const struct drm_display_mode *mode)
+{
+	struct drm_crtc *crtc = encoder->crtc;
+	struct drm_device *dev = encoder->dev;
+	struct rockchip_crtc_state *s;
+
+	if (!crtc) {
+		drm_for_each_crtc(crtc, dev) {
+			if (!drm_encoder_crtc_ok(encoder, crtc))
+				continue;
+
+			s = to_rockchip_crtc_state(crtc->state);
+			s->output_type = DRM_MODE_CONNECTOR_DisplayPort;
+		}
+	}
+
+	return MODE_OK;
+}
+
 static const struct drm_encoder_helper_funcs dw_dp_encoder_helper_funcs = {
 	.enable			= dw_dp_encoder_enable,
 	.disable		= dw_dp_encoder_disable,
 	.atomic_check		= dw_dp_encoder_atomic_check,
+	.mode_valid		= dw_dp_encoder_mode_valid,
 };
 
 static int dw_dp_aux_write_data(struct dw_dp *dp, const u8 *buffer, size_t size)
