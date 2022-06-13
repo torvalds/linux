@@ -92,6 +92,7 @@ static inline bool io_run_task_work(void)
 	return false;
 }
 
+int io_run_task_work_sig(void);
 void io_req_complete_failed(struct io_kiocb *req, s32 res);
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);
 void io_req_complete_post(struct io_kiocb *req);
@@ -110,11 +111,6 @@ int io_fixed_fd_install(struct io_kiocb *req, unsigned int issue_flags,
 int io_install_fixed_file(struct io_kiocb *req, struct file *file,
 			  unsigned int issue_flags, u32 slot_index);
 
-int io_rsrc_node_switch_start(struct io_ring_ctx *ctx);
-int io_queue_rsrc_removal(struct io_rsrc_data *data, unsigned idx,
-			  struct io_rsrc_node *node, void *rsrc);
-void io_rsrc_node_switch(struct io_ring_ctx *ctx,
-			 struct io_rsrc_data *data_to_kill);
 bool io_is_uring_fops(struct file *file);
 bool io_alloc_async_data(struct io_kiocb *req);
 void io_req_task_work_add(struct io_kiocb *req);

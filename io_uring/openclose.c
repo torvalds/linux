@@ -14,6 +14,7 @@
 
 #include "io_uring_types.h"
 #include "io_uring.h"
+#include "rsrc.h"
 #include "openclose.h"
 
 struct io_open {
