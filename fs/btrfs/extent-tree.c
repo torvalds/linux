@@ -5976,7 +5976,7 @@ int btrfs_error_unpin_extent_range(struct btrfs_fs_info *fs_info,
  */
 static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 {
-	u64 start = SZ_1M, len = 0, end = 0;
+	u64 start = BTRFS_DEVICE_RANGE_RESERVED, len = 0, end = 0;
 	int ret;
 
 	*trimmed = 0;
@@ -6020,8 +6020,8 @@ static int btrfs_trim_free_extents(struct btrfs_device *device, u64 *trimmed)
 			break;
 		}
 
-		/* Ensure we skip the reserved area in the first 1M */
-		start = max_t(u64, start, SZ_1M);
+		/* Ensure we skip the reserved space on each device. */
+		start = max_t(u64, start, BTRFS_DEVICE_RANGE_RESERVED);
 
 		/*
 		 * If find_first_clear_extent_bit find a range that spans the

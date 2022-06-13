@@ -230,6 +230,13 @@ struct btrfs_root_backup {
 #define BTRFS_SUPER_INFO_SIZE			4096
 
 /*
+ * The reserved space at the beginning of each device.
+ * It covers the primary super block and leaves space for potential use by other
+ * tools like bootloaders or to lower potential damage of accidental overwrite.
+ */
+#define BTRFS_DEVICE_RANGE_RESERVED			(SZ_1M)
+
+/*
  * the super block basically lists the main trees of the FS
  * it currently lacks any block count etc etc
  */
