@@ -444,7 +444,7 @@ void dcn10_log_hw_state(struct dc *dc,
 
 		struct link_enc_state s = {0};
 
-		if (lenc->funcs->read_state) {
+		if (lenc && lenc->funcs->read_state) {
 			lenc->funcs->read_state(lenc, &s);
 			DTN_INFO("[%-3d]: %-12d %-22d %-22d %-25d\n",
 				i,
