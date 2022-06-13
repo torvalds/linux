@@ -547,6 +547,42 @@ static inline void axienet_iow(struct axienet_local *lp, off_t offset,
 	iowrite32(value, lp->regs + offset);
 }
 
+/**
+ * axienet_dma_out32 - Memory mapped Axi DMA register write.
+ * @lp:		Pointer to axienet local structure
+ * @reg:	Address offset from the base address of the Axi DMA core
+ * @value:	Value to be written into the Axi DMA register
+ *
+ * This function writes the desired value into the corresponding Axi DMA
+ * register.
+ */
+
+static inline void axienet_dma_out32(struct axienet_local *lp,
+				     off_t reg, u32 value)
+{
+	iowrite32(value, lp->dma_regs + reg);
+}
+
+#ifdef CONFIG_64BIT
+static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
+				 dma_addr_t addr)
+{
+	axienet_dma_out32(lp, reg, lower_32_bits(addr));
+
+	if (lp->features & XAE_FEATURE_DMA_64BIT)
+		axienet_dma_out32(lp, reg + 4, upper_32_bits(addr));
+}
+
+#else /* CONFIG_64BIT */
+
+static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
+				 dma_addr_t addr)
+{
+	axienet_dma_out32(lp, reg, lower_32_bits(addr));
+}
+
+#endif /* CONFIG_64BIT */
+
 /* Function prototypes visible in xilinx_axienet_mdio.c for other files */
 int axienet_mdio_enable(struct axienet_local *lp);
 void axienet_mdio_disable(struct axienet_local *lp);
