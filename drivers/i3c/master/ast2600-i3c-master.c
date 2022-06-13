@@ -82,7 +82,10 @@
 #define RESPONSE_ERROR_OVER_UNDER_FLOW	6
 #define RESPONSE_ERROR_TRANSF_ABORT	8
 #define RESPONSE_ERROR_I2C_W_NACK_ERR	9
+#define RESPONSE_ERROR_EARLY_TERMINATE	10
 #define RESPONSE_PORT_TID(x)		(((x) & GENMASK(27, 24)) >> 24)
+#define   TID_MASTER_WRITE_DATA		0b1000
+#define   TID_CCC_WRITE_DATA		0b1111
 #define RESPONSE_PORT_DATA_LEN(x)	((x) & GENMASK(15, 0))
 
 #define RX_TX_DATA_PORT			0x14
@@ -1791,7 +1794,7 @@ static void aspeed_i3c_master_detach_i2c_dev(struct i2c_dev_desc *dev)
 	kfree(data);
 }
 
-static void aspeed_i3c_master_slave_event_handler(struct aspeed_i3c_master *master)
+static void aspeed_i3c_slave_event_handler(struct aspeed_i3c_master *master)
 {
 	u32 event = readl(master->regs + SLV_EVENT_CTRL);
 	u32 cm_state =
@@ -1799,8 +1802,7 @@ static void aspeed_i3c_master_slave_event_handler(struct aspeed_i3c_master *mast
 
 	if (cm_state == CM_ST_STS_HALT) {
 		dev_dbg(master->dev, "slave in halt state\n");
-		writel(readl(master->regs + DEVICE_CTRL) | DEV_CTRL_RESUME,
-		       master->regs + DEVICE_CTRL);
+		aspeed_i3c_master_resume(master);
 	}
 
 	dev_dbg(master->dev, "slave event=%08x\n", event);
@@ -1815,6 +1817,52 @@ static void aspeed_i3c_master_slave_event_handler(struct aspeed_i3c_master *mast
 	writel(event, master->regs + SLV_EVENT_CTRL);
 }
 
+static void aspeed_i3c_slave_resp_handler(struct aspeed_i3c_master *master,
+					  u32 status)
+{
+	int i, has_error = 0;
+	u32 resp, nbytes, nresp;
+	u8 error, tid;
+	u32 *buf = master->slave_data.buf;
+	struct i3c_slave_payload payload;
+
+	nresp = readl(master->regs + QUEUE_STATUS_LEVEL);
+	nresp = QUEUE_STATUS_LEVEL_RESP(nresp);
+
+	for (i = 0; i < nresp; i++) {
+		resp = readl(master->regs + RESPONSE_QUEUE_PORT);
+		error = RESPONSE_PORT_ERR_STATUS(resp);
+		nbytes = RESPONSE_PORT_DATA_LEN(resp);
+		tid = RESPONSE_PORT_TID(resp);
+
+		if (error) {
+			has_error = 1;
+			if (error == RESPONSE_ERROR_EARLY_TERMINATE)
+				dev_dbg(master->dev,
+					"early termination, remain length %d\n",
+					nbytes);
+		}
+
+		if (!error && nbytes) {
+			aspeed_i3c_master_read_rx_fifo(master, (u8 *)buf, nbytes);
+
+			payload.len = nbytes;
+			payload.data = buf;
+			/* currently only support master write transfer */
+			if (master->slave_data.callback && (tid == TID_MASTER_WRITE_DATA))
+				master->slave_data.callback(&master->base, &payload);
+		}
+	}
+
+	if (status & INTR_IBI_UPDATED_STAT)
+		complete(&master->sir_complete);
+
+	if (has_error) {
+		writel(RESET_CTRL_QUEUES, master->regs + RESET_CTRL);
+		aspeed_i3c_master_resume(master);
+	}
+}
+
 static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 {
 	struct aspeed_i3c_master *master = dev_id;
@@ -1827,45 +1875,25 @@ static irqreturn_t aspeed_i3c_master_irq_handler(int irq, void *dev_id)
 		return IRQ_NONE;
 	}
 
-	spin_lock(&master->xferqueue.lock);
-	if (!master->secondary)
+	if (master->secondary) {
+		if (status & INTR_READ_REQ_RECV_STAT)
+			dev_dbg(master->dev, "read queue received\n");
+
+		if (status & INTR_RESP_READY_STAT)
+			aspeed_i3c_slave_resp_handler(master, status);
+
+		if (status & INTR_CCC_UPDATED_STAT)
+			aspeed_i3c_slave_event_handler(master);
+	} else {
+		spin_lock(&master->xferqueue.lock);
 		aspeed_i3c_master_end_xfer_locked(master, status);
-	if (status & INTR_TRANSFER_ERR_STAT)
-		writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
-	spin_unlock(&master->xferqueue.lock);
+		if (status & INTR_TRANSFER_ERR_STAT)
+			writel(INTR_TRANSFER_ERR_STAT, master->regs + INTR_STATUS);
+		spin_unlock(&master->xferqueue.lock);
 
-
-	if (master->secondary && (status & INTR_RESP_READY_STAT)) {
-		int i, j;
-		u32 resp, nbytes, nwords;
-		u32 nresp = QUEUE_STATUS_LEVEL_RESP(
-			readl(master->regs + QUEUE_STATUS_LEVEL));
-		u32 *buf = master->slave_data.buf;
-		struct i3c_slave_payload payload;
-
-		for (i = 0; i < nresp; i++) {
-			resp = readl(master->regs + RESPONSE_QUEUE_PORT);
-			nbytes = RESPONSE_PORT_DATA_LEN(resp);
-			nwords = (nbytes + 3) >> 2;
-			for (j = 0; j < nwords; j++)
-				buf[j] = readl(master->regs + RX_TX_DATA_PORT);
-
-			payload.len = nbytes;
-			payload.data = buf;
-			if (master->slave_data.callback)
-				master->slave_data.callback(&master->base,
-							    &payload);
-		}
-
-		if (status & INTR_IBI_UPDATED_STAT)
-			complete(&master->sir_complete);
+		if (status & INTR_IBI_THLD_STAT)
+			aspeed_i3c_master_demux_ibis(master);
 	}
-
-	if (status & INTR_IBI_THLD_STAT)
-		aspeed_i3c_master_demux_ibis(master);
-
-	if (status & INTR_CCC_UPDATED_STAT)
-		aspeed_i3c_master_slave_event_handler(master);
 
 	writel(status, master->regs + INTR_STATUS);
 
