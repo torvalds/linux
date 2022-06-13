@@ -809,4 +809,10 @@ static inline void virt_dump(FILE *stream, struct kvm_vm *vm, uint8_t indent)
 	virt_arch_dump(stream, vm, indent);
 }
 
+
+static inline int __vm_disable_nx_huge_pages(struct kvm_vm *vm)
+{
+	return __vm_enable_cap(vm, KVM_CAP_VM_DISABLE_NX_HUGE_PAGES, 0);
+}
+
 #endif /* SELFTEST_KVM_UTIL_BASE_H */

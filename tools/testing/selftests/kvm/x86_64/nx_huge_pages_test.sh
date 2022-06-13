@@ -20,6 +20,10 @@ function sudo_echo () {
 	echo "$1" | sudo tee -a "$2" > /dev/null
 }
 
+NXECUTABLE="$(dirname $0)/nx_huge_pages_test"
+
+sudo_echo test /dev/null || exit 4 # KSFT_SKIP=4
+
 (
 	set -e
 
@@ -28,7 +32,22 @@ function sudo_echo () {
 	sudo_echo 100 /sys/module/kvm/parameters/nx_huge_pages_recovery_period_ms
 	sudo_echo "$(( $HUGE_PAGES + 3 ))" /sys/kernel/mm/hugepages/hugepages-2048kB/nr_hugepages
 
-	"$(dirname $0)"/nx_huge_pages_test -t 887563923 -p 100
+	# Test with reboot permissions
+	if [ $(whoami) == "root" ] || sudo setcap cap_sys_boot+ep $NXECUTABLE 2> /dev/null; then
+		echo Running test with CAP_SYS_BOOT enabled
+		$NXECUTABLE -t 887563923 -p 100 -r
+		test $(whoami) == "root" || sudo setcap cap_sys_boot-ep $NXECUTABLE
+	else
+		echo setcap failed, skipping nx_huge_pages_test with CAP_SYS_BOOT enabled
+	fi
+
+	# Test without reboot permissions
+	if [ $(whoami) != "root" ] ; then
+		echo Running test with CAP_SYS_BOOT disabled
+		$NXECUTABLE -t 887563923 -p 100
+	else
+		echo Running as root, skipping nx_huge_pages_test with CAP_SYS_BOOT disabled
+	fi
 )
 RET=$?
 

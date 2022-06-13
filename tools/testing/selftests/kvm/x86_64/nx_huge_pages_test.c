@@ -107,53 +107,34 @@ static void wait_for_reclaim(int reclaim_period_ms)
 	nanosleep(&ts, NULL);
 }
 
-static void help(char *name)
+void run_test(int reclaim_period_ms, bool disable_nx_huge_pages,
+	      bool reboot_permissions)
 {
-	puts("");
-	printf("usage: %s [-h] [-p period_ms] [-t token]\n", name);
-	puts("");
-	printf(" -p: The NX reclaim period in miliseconds.\n");
-	printf(" -t: The magic token to indicate environment setup is done.\n");
-	puts("");
-	exit(0);
-}
-
-int main(int argc, char **argv)
-{
-	int reclaim_period_ms = 0, token = 0, opt;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	void *hva;
+	int r;
 
-	while ((opt = getopt(argc, argv, "hp:t:")) != -1) {
-		switch (opt) {
-		case 'p':
-			reclaim_period_ms = atoi(optarg);
-			break;
-		case 't':
-			token = atoi(optarg);
-			break;
-		case 'h':
-		default:
-			help(argv[0]);
-			break;
+	vm = vm_create(1);
+
+	if (disable_nx_huge_pages) {
+		/*
+		 * Cannot run the test without NX huge pages if the kernel
+		 * does not support it.
+		 */
+		if (!kvm_check_cap(KVM_CAP_VM_DISABLE_NX_HUGE_PAGES))
+			return;
+
+		r = __vm_disable_nx_huge_pages(vm);
+		if (reboot_permissions) {
+			TEST_ASSERT(!r, "Disabling NX huge pages should succeed if process has reboot permissions");
+		} else {
+			TEST_ASSERT(r == -1 && errno == EPERM,
+				    "This process should not have permission to disable NX huge pages");
+			return;
 		}
 	}
 
-	if (token != MAGIC_TOKEN) {
-		print_skip("This test must be run with the magic token %d.\n"
-			   "This is done by nx_huge_pages_test.sh, which\n"
-			   "also handles environment setup for the test.",
-			   MAGIC_TOKEN);
-		exit(KSFT_SKIP);
-	}
-
-	if (!reclaim_period_ms) {
-		print_skip("The NX reclaim period must be specified and non-zero");
-		exit(KSFT_SKIP);
-	}
-
-	vm = vm_create(1);
 	vcpu = vm_vcpu_add(vm, 0, guest_code);
 
 	vm_userspace_mem_region_add(vm, VM_MEM_SRC_ANONYMOUS_HUGETLB,
@@ -187,31 +168,38 @@ int main(int argc, char **argv)
 	/*
 	 * Next, the guest will execute from the first huge page, causing it
 	 * to be remapped at 4k.
+	 *
+	 * If NX huge pages are disabled, this should have no effect.
 	 */
 	vcpu_run(vcpu);
-	check_2m_page_count(vm, 1);
-	check_split_count(vm, 1);
+	check_2m_page_count(vm, disable_nx_huge_pages ? 2 : 1);
+	check_split_count(vm, disable_nx_huge_pages ? 0 : 1);
 
 	/*
 	 * Executing from the third huge page (previously unaccessed) will
 	 * cause part to be mapped at 4k.
+	 *
+	 * If NX huge pages are disabled, it should be mapped at 2M.
 	 */
 	vcpu_run(vcpu);
-	check_2m_page_count(vm, 1);
-	check_split_count(vm, 2);
+	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 1);
+	check_split_count(vm, disable_nx_huge_pages ? 0 : 2);
 
 	/* Reading from the first huge page again should have no effect. */
 	vcpu_run(vcpu);
-	check_2m_page_count(vm, 1);
-	check_split_count(vm, 2);
+	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 1);
+	check_split_count(vm, disable_nx_huge_pages ? 0 : 2);
 
 	/* Give recovery thread time to run. */
 	wait_for_reclaim(reclaim_period_ms);
 
 	/*
 	 * Now that the reclaimer has run, all the split pages should be gone.
+	 *
+	 * If NX huge pages are disabled, the relaimer will not run, so
+	 * nothing should change from here on.
 	 */
-	check_2m_page_count(vm, 1);
+	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 1);
 	check_split_count(vm, 0);
 
 	/*
@@ -219,10 +207,62 @@ int main(int argc, char **argv)
 	 * reading from it causes a huge page mapping to be installed.
 	 */
 	vcpu_run(vcpu);
-	check_2m_page_count(vm, 2);
+	check_2m_page_count(vm, disable_nx_huge_pages ? 3 : 2);
 	check_split_count(vm, 0);
 
 	kvm_vm_free(vm);
+}
+
+static void help(char *name)
+{
+	puts("");
+	printf("usage: %s [-h] [-p period_ms] [-t token]\n", name);
+	puts("");
+	printf(" -p: The NX reclaim period in miliseconds.\n");
+	printf(" -t: The magic token to indicate environment setup is done.\n");
+	printf(" -r: The test has reboot permissions and can disable NX huge pages.\n");
+	puts("");
+	exit(0);
+}
+
+int main(int argc, char **argv)
+{
+	int reclaim_period_ms = 0, token = 0, opt;
+	bool reboot_permissions = false;
+
+	while ((opt = getopt(argc, argv, "hp:t:r")) != -1) {
+		switch (opt) {
+		case 'p':
+			reclaim_period_ms = atoi(optarg);
+			break;
+		case 't':
+			token = atoi(optarg);
+			break;
+		case 'r':
+			reboot_permissions = true;
+			break;
+		case 'h':
+		default:
+			help(argv[0]);
+			break;
+		}
+	}
+
+	if (token != MAGIC_TOKEN) {
+		print_skip("This test must be run with the magic token %d.\n"
+			   "This is done by nx_huge_pages_test.sh, which\n"
+			   "also handles environment setup for the test.",
+			   MAGIC_TOKEN);
+		exit(KSFT_SKIP);
+	}
+
+	if (!reclaim_period_ms) {
+		print_skip("The NX reclaim period must be specified and non-zero");
+		exit(KSFT_SKIP);
+	}
+
+	run_test(reclaim_period_ms, false, reboot_permissions);
+	run_test(reclaim_period_ms, true, reboot_permissions);
 
 	return 0;
 }
