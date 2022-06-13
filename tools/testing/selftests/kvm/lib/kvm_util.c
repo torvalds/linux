@@ -1434,7 +1434,7 @@ void vcpu_run_complete_io(struct kvm_vcpu *vcpu)
 /*
  * Get the list of guest registers which are supported for
  * KVM_GET_ONE_REG/KVM_SET_ONE_REG ioctls.  Returns a kvm_reg_list pointer,
- * it is the callers responsibility to free the list.
+ * it is the caller's responsibility to free the list.
  */
 struct kvm_reg_list *vcpu_get_reg_list(struct kvm_vcpu *vcpu)
 {
