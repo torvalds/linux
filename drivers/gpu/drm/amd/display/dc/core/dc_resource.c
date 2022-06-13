@@ -2374,12 +2374,10 @@ enum dc_status resource_map_pool_resources(
 	/* Allocate DP HPO Stream Encoder based on signal, hw capabilities
 	 * and link settings
 	 */
-	if (dc_is_dp_signal(stream->signal) &&
-			dc->caps.dp_hpo) {
-		struct dc_link_settings link_settings = {0};
-
-		decide_link_settings(stream, &link_settings);
-		if (dp_get_link_encoding_format(&link_settings) == DP_128b_132b_ENCODING) {
+	if (dc_is_dp_signal(stream->signal)) {
+		if (!decide_link_settings(stream, &pipe_ctx->link_config.dp_link_settings))
+			return DC_FAIL_DP_LINK_BANDWIDTH;
+		if (dp_get_link_encoding_format(&pipe_ctx->link_config.dp_link_settings) == DP_128b_132b_ENCODING) {
 			pipe_ctx->stream_res.hpo_dp_stream_enc =
 					find_first_free_match_hpo_dp_stream_enc_for_link(
 							&context->res_ctx, pool, stream);

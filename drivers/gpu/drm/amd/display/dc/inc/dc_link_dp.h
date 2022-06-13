@@ -70,7 +70,7 @@ bool decide_edp_link_settings(struct dc_link *link,
 		struct dc_link_settings *link_setting,
 		uint32_t req_bw);
 
-void decide_link_settings(
+bool decide_link_settings(
 	struct dc_stream_state *stream,
 	struct dc_link_settings *link_setting);
 
