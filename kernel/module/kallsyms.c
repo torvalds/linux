@@ -466,14 +466,17 @@ unsigned long module_kallsyms_lookup_name(const char *name)
 
 	/* Don't lock: we're in enough trouble already. */
 	preempt_disable();
-	if ((colon = strnchr(name, MODULE_NAME_LEN, ':')) != NULL) {
-		if ((mod = find_module_all(name, colon - name, false)) != NULL)
+	colon = strnchr(name, MODULE_NAME_LEN, ':');
+	if (colon) {
+		mod = find_module_all(name, colon - name, false);
+		if (mod)
 			ret = find_kallsyms_symbol_value(mod, colon + 1);
 	} else {
 		list_for_each_entry_rcu(mod, &modules, list) {
 			if (mod->state == MODULE_STATE_UNFORMED)
 				continue;
-			if ((ret = find_kallsyms_symbol_value(mod, name)) != 0)
+			ret = find_kallsyms_symbol_value(mod, name);
+			if (ret)
 				break;
 		}
 	}
