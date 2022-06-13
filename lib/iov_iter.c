@@ -231,15 +231,39 @@ Bad:
 #define sanity(i) true
 #endif
 
+static struct page *push_anon(struct pipe_inode_info *pipe, unsigned size)
+{
+	struct page *page = alloc_page(GFP_USER);
+	if (page) {
+		struct pipe_buffer *buf = pipe_buf(pipe, pipe->head++);
+		*buf = (struct pipe_buffer) {
+			.ops = &default_pipe_buf_ops,
+			.page = page,
+			.offset = 0,
+			.len = size
+		};
+	}
+	return page;
+}
+
+static void push_page(struct pipe_inode_info *pipe, struct page *page,
+			unsigned int offset, unsigned int size)
+{
+	struct pipe_buffer *buf = pipe_buf(pipe, pipe->head++);
+	*buf = (struct pipe_buffer) {
+		.ops = &page_cache_pipe_buf_ops,
+		.page = page,
+		.offset = offset,
+		.len = size
+	};
+	get_page(page);
+}
+
 static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	struct pipe_buffer *buf;
-	unsigned int p_tail = pipe->tail;
-	unsigned int p_mask = pipe->ring_size - 1;
-	unsigned int i_head = i->head;
-	size_t off;
+	unsigned int head = pipe->head;
 
 	if (unlikely(bytes > i->count))
 		bytes = i->count;
@@ -250,32 +274,21 @@ static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t by
 	if (!sanity(i))
 		return 0;
 
-	off = i->iov_offset;
-	buf = &pipe->bufs[i_head & p_mask];
-	if (off) {
-		if (offset == off && buf->page == page) {
-			/* merge with the last one */
+	if (offset && i->iov_offset == offset) { // could we merge it?
+		struct pipe_buffer *buf = pipe_buf(pipe, head - 1);
+		if (buf->page == page) {
 			buf->len += bytes;
 			i->iov_offset += bytes;
-			goto out;
+			i->count -= bytes;
+			return bytes;
 		}
-		i_head++;
-		buf = &pipe->bufs[i_head & p_mask];
 	}
-	if (pipe_full(i_head, p_tail, pipe->max_usage))
+	if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
 		return 0;
 
-	buf->ops = &page_cache_pipe_buf_ops;
-	buf->flags = 0;
-	get_page(page);
-	buf->page = page;
-	buf->offset = offset;
-	buf->len = bytes;
-
-	pipe->head = i_head + 1;
+	push_page(pipe, page, offset, bytes);
 	i->iov_offset = offset + bytes;
-	i->head = i_head;
-out:
+	i->head = head;
 	i->count -= bytes;
 	return bytes;
 }
@@ -407,8 +420,6 @@ static size_t push_pipe(struct iov_iter *i, size_t size,
 			int *iter_headp, size_t *offp)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int p_tail = pipe->tail;
-	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int iter_head;
 	size_t off;
 	ssize_t left;
@@ -423,30 +434,23 @@ static size_t push_pipe(struct iov_iter *i, size_t size,
 	*iter_headp = iter_head;
 	*offp = off;
 	if (off) {
+		struct pipe_buffer *buf = pipe_buf(pipe, iter_head);
+
 		left -= PAGE_SIZE - off;
 		if (left <= 0) {
-			pipe->bufs[iter_head & p_mask].len += size;
+			buf->len += size;
 			return size;
 		}
-		pipe->bufs[iter_head & p_mask].len = PAGE_SIZE;
-		iter_head++;
+		buf->len = PAGE_SIZE;
 	}
-	while (!pipe_full(iter_head, p_tail, pipe->max_usage)) {
-		struct pipe_buffer *buf = &pipe->bufs[iter_head & p_mask];
-		struct page *page = alloc_page(GFP_USER);
+	while (!pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
+		struct page *page = push_anon(pipe,
+					      min_t(ssize_t, left, PAGE_SIZE));
 		if (!page)
 			break;
 
-		buf->ops = &default_pipe_buf_ops;
-		buf->flags = 0;
-		buf->page = page;
-		buf->offset = 0;
-		buf->len = min_t(ssize_t, left, PAGE_SIZE);
-		left -= buf->len;
-		iter_head++;
-		pipe->head = iter_head;
-
-		if (left == 0)
+		left -= PAGE_SIZE;
+		if (left <= 0)
 			return size;
 	}
 	return size - left;
