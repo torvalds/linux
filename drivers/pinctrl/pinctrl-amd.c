@@ -1079,16 +1079,11 @@ static int amd_gpio_probe(struct platform_device *pdev)
 
 	raw_spin_lock_init(&gpio_dev->lock);
 
-	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
-	if (!res) {
+	gpio_dev->base = devm_platform_get_and_ioremap_resource(pdev, 0, &res);
+	if (IS_ERR(gpio_dev->base)) {
 		dev_err(&pdev->dev, "Failed to get gpio io resource.\n");
-		return -EINVAL;
+		return PTR_ERR(gpio_dev->base);
 	}
-
-	gpio_dev->base = devm_ioremap(&pdev->dev, res->start,
-						resource_size(res));
-	if (!gpio_dev->base)
-		return -ENOMEM;
 
 	gpio_dev->irq = platform_get_irq(pdev, 0);
 	if (gpio_dev->irq < 0)
