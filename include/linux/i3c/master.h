@@ -702,4 +702,9 @@ int i3c_master_put_read_data(struct i3c_master_controller *master,
 int i3c_slave_mqueue_probe(struct i3c_master_controller *master);
 int i3c_slave_mqueue_remove(struct i3c_master_controller *master);
 #endif
+
+#ifdef CONFIG_I3C_SLAVE_EEPROM
+int i3c_slave_eeprom_probe(struct i3c_master_controller *master);
+int i3c_slave_eeprom_remove(struct i3c_master_controller *master);
+#endif
 #endif /* I3C_MASTER_H */

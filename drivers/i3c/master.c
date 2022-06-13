@@ -2700,6 +2700,11 @@ int i3c_master_register(struct i3c_master_controller *master,
 	if (master->secondary)
 		i3c_slave_mqueue_probe(master);
 #endif
+
+#ifdef CONFIG_I3C_SLAVE_EEPROM
+	if (master->secondary)
+		i3c_slave_eeprom_probe(master);
+#endif
 	i3c_bus_normaluse_unlock(&master->bus);
 
 	return 0;
