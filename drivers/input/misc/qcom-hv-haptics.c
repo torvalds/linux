@@ -27,6 +27,8 @@
 #include <linux/uaccess.h>
 #include <linux/qpnp/qpnp-pbs.h>
 
+#include <linux/soc/qcom/battery_charger.h>
+
 /* status register definitions in HAPTICS_CFG module */
 #define HAP_CFG_REVISION2_REG			0x01
 #define HAP_CFG_V1				0x1
@@ -257,6 +259,7 @@
 #define HAP_BOOST_REVISION2			0x01
 #define HAP_BOOST_V0P0				0x0000
 #define HAP_BOOST_V0P1				0x0001
+#define HAP_BOOST_V0P2				0x0002
 
 #define HAP_BOOST_STATUS4_REG			0x0B
 #define BOOST_DTEST1_STATUS_BIT			BIT(0)
@@ -545,12 +548,14 @@ struct haptics_chip {
 	struct class			hap_class;
 	struct regulator		*hpwr_vreg;
 	struct hrtimer			hbst_off_timer;
+	struct notifier_block		hboost_nb;
 	int				fifo_empty_irq;
 	u32				hpwr_voltage_mv;
 	u32				effects_count;
 	u32				cfg_addr_base;
 	u32				ptn_addr_base;
 	u32				hbst_addr_base;
+	u32				clamped_vmax_mv;
 	u32				wa_flags;
 	u8				cfg_revision;
 	u8				ptn_revision;
@@ -1120,6 +1125,9 @@ static int haptics_set_vmax_mv(struct haptics_chip *chip, u32 vmax_mv)
 					vmax_mv, chip->max_vmax_mv);
 		return -EINVAL;
 	}
+
+	if ((chip->clamped_vmax_mv != 0) && (vmax_mv > chip->clamped_vmax_mv))
+		vmax_mv = chip->clamped_vmax_mv;
 
 	if (chip->clamp_at_5v && (vmax_mv > CLAMPED_VMAX_MV))
 		vmax_mv = CLAMPED_VMAX_MV;
@@ -2912,7 +2920,10 @@ static int haptics_config_wa(struct haptics_chip *chip)
 			TOGGLE_EN_TO_FLUSH_FIFO | RECOVER_SWR_SLAVE;
 		break;
 	case HAP520_MV:
+		break;
 	case HAP525_HV:
+		if (chip->hbst_revision == HAP_BOOST_V0P1)
+			chip->wa_flags |= SW_CTRL_HBST;
 		break;
 	default:
 		dev_err(chip->dev, "HW type %d does not match\n",
@@ -4799,6 +4810,31 @@ static enum hrtimer_restart haptics_disable_hbst_timer(struct hrtimer *timer)
 	return HRTIMER_NORESTART;
 }
 
+static int haptics_boost_notifier(struct notifier_block *nb, unsigned long event, void *val)
+{
+	struct haptics_chip *chip = container_of(nb, struct haptics_chip, hboost_nb);
+	u32 vmax_mv;
+
+	switch (event) {
+	case VMAX_CLAMP:
+		vmax_mv = *(u32 *)val;
+		if (vmax_mv > MAX_HV_VMAX_MV) {
+			dev_err(chip->dev, "voted Vmax (%u mV) is higher than maximum (%u mV)\n",
+					vmax_mv, MAX_HV_VMAX_MV);
+			return -EINVAL;
+		}
+
+		chip->clamped_vmax_mv = vmax_mv;
+		dev_dbg(chip->dev, "Vmax is clamped at %u mV to support hBoost concurrency\n",
+				vmax_mv);
+		break;
+	default:
+		break;
+	}
+
+	return 0;
+}
+
 static int haptics_probe(struct platform_device *pdev)
 {
 	struct haptics_chip *chip;
@@ -4910,6 +4946,8 @@ static int haptics_probe(struct platform_device *pdev)
 		goto destroy_ff;
 	}
 
+	chip->hboost_nb.notifier_call = haptics_boost_notifier;
+	register_hboost_event_notifier(&chip->hboost_nb);
 #ifdef CONFIG_DEBUG_FS
 	rc = haptics_create_debugfs(chip);
 	if (rc < 0)
@@ -4928,6 +4966,7 @@ static int haptics_remove(struct platform_device *pdev)
 	if (chip->pbs_node)
 		of_node_put(chip->pbs_node);
 
+	unregister_hboost_event_notifier(&chip->hboost_nb);
 	class_unregister(&chip->hap_class);
 #ifdef CONFIG_DEBUG_FS
 	debugfs_remove_recursive(chip->debugfs_dir);
