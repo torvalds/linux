@@ -530,11 +530,11 @@ static int k3_j72xx_bandgap_remove(struct platform_device *pdev)
 	return 0;
 }
 
-const struct k3_j72xx_bandgap_data k3_j72xx_bandgap_j721e_data = {
+static const struct k3_j72xx_bandgap_data k3_j72xx_bandgap_j721e_data = {
 	.has_errata_i2128 = 1,
 };
 
-const struct k3_j72xx_bandgap_data k3_j72xx_bandgap_j7200_data = {
+static const struct k3_j72xx_bandgap_data k3_j72xx_bandgap_j7200_data = {
 	.has_errata_i2128 = 0,
 };
 
