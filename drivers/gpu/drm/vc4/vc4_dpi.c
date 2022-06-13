@@ -131,7 +131,7 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 	struct vc4_dpi *dpi = vc4_encoder->dpi;
 	struct drm_connector_list_iter conn_iter;
 	struct drm_connector *connector = NULL, *connector_scan;
-	u32 dpi_c = DPI_ENABLE | DPI_OUTPUT_ENABLE_MODE;
+	u32 dpi_c = DPI_ENABLE;
 	int ret;
 
 	/* Look up the connector attached to DPI so we can get the
@@ -182,15 +182,22 @@ static void vc4_dpi_encoder_enable(struct drm_encoder *encoder)
 		dpi_c |= VC4_SET_FIELD(DPI_FORMAT_24BIT_888_RGB, DPI_FORMAT);
 	}
 
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		dpi_c |= DPI_HSYNC_INVERT;
-	else if (!(mode->flags & DRM_MODE_FLAG_PHSYNC))
-		dpi_c |= DPI_HSYNC_DISABLE;
+	if (mode->flags & DRM_MODE_FLAG_CSYNC) {
+		if (mode->flags & DRM_MODE_FLAG_NCSYNC)
+			dpi_c |= DPI_OUTPUT_ENABLE_INVERT;
+	} else {
+		dpi_c |= DPI_OUTPUT_ENABLE_MODE;
 
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		dpi_c |= DPI_VSYNC_INVERT;
-	else if (!(mode->flags & DRM_MODE_FLAG_PVSYNC))
-		dpi_c |= DPI_VSYNC_DISABLE;
+		if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+			dpi_c |= DPI_HSYNC_INVERT;
+		else if (!(mode->flags & DRM_MODE_FLAG_PHSYNC))
+			dpi_c |= DPI_HSYNC_DISABLE;
+
+		if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+			dpi_c |= DPI_VSYNC_INVERT;
+		else if (!(mode->flags & DRM_MODE_FLAG_PVSYNC))
+			dpi_c |= DPI_VSYNC_DISABLE;
+	}
 
 	DPI_WRITE(DPI_C, dpi_c);
 
