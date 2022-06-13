@@ -24,6 +24,11 @@
 #include <linux/slab.h>
 #include <linux/uaccess.h>
 
+#ifdef CONFIG_PSTORE_MCU_LOG
+#include <linux/pstore_ram.h>
+#include <linux/io.h>
+#endif
+
 #include "internal.h"
 
 #define	PSTORE_NAMELEN	64
@@ -130,7 +135,16 @@ static ssize_t pstore_file_read(struct file *file, char __user *userbuf,
 {
 	struct seq_file *sf = file->private_data;
 	struct pstore_private *ps = sf->private;
+#ifdef CONFIG_PSTORE_MCU_LOG
+	size_t size = 0;
+	struct pstore_record *record = ps->record;
 
+	if (record->type == PSTORE_TYPE_MCU_LOG) {
+		size = ramoops_pstore_read_for_mcu_log(ps->record);
+		size = simple_read_from_buffer(userbuf, count, ppos, record->buf, size);
+		return size;
+	}
+#endif
 	if (ps->record->type == PSTORE_TYPE_FTRACE)
 		return seq_read(file, userbuf, count, ppos);
 	return simple_read_from_buffer(userbuf, count, ppos,

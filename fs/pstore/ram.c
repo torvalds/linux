@@ -81,6 +81,9 @@ struct ramoops_context {
 	struct persistent_ram_zone *cprz;	/* Console zone */
 	struct persistent_ram_zone **fprzs;	/* Ftrace zones */
 	struct persistent_ram_zone *mprz;	/* PMSG zone */
+#ifdef CONFIG_PSTORE_MCU_LOG
+	struct persistent_ram_zone **mcu_przs;	/* MCU log zones */
+#endif
 	phys_addr_t phys_addr;
 	unsigned long size;
 	unsigned int memtype;
@@ -88,6 +91,9 @@ struct ramoops_context {
 	size_t console_size;
 	size_t ftrace_size;
 	size_t pmsg_size;
+#ifdef CONFIG_PSTORE_MCU_LOG
+	size_t mcu_log_size;
+#endif
 	u32 flags;
 	struct persistent_ram_ecc_info ecc_info;
 	unsigned int max_dump_cnt;
@@ -98,6 +104,10 @@ struct ramoops_context {
 	unsigned int max_ftrace_cnt;
 	unsigned int ftrace_read_cnt;
 	unsigned int pmsg_read_cnt;
+#ifdef CONFIG_PSTORE_MCU_LOG
+	unsigned int mcu_log_read_cnt;
+	unsigned int max_mcu_log_cnt;
+#endif
 	struct pstore_info pstore;
 };
 
@@ -173,6 +183,28 @@ static bool prz_ok(struct persistent_ram_zone *prz)
 	return !!prz && !!(persistent_ram_old_size(prz) +
 			   persistent_ram_ecc_string(prz, NULL, 0));
 }
+
+#ifdef CONFIG_PSTORE_MCU_LOG
+ssize_t ramoops_pstore_read_for_mcu_log(struct pstore_record *record)
+{
+	struct ramoops_context *cxt = record->psi->data;
+	struct persistent_ram_zone *prz;
+
+	if (!cxt)
+		return 0;
+
+	prz = cxt->mcu_przs[record->id];
+
+	if (!prz)
+		return 0;
+
+	persistent_ram_free_old(prz);
+	persistent_ram_save_old(prz);
+	record->buf = prz->old_log;
+	record->size = prz->old_log_size;
+	return record->size;
+}
+#endif
 
 static ssize_t ramoops_pstore_read(struct pstore_record *record)
 {
@@ -257,11 +289,26 @@ static ssize_t ramoops_pstore_read(struct pstore_record *record)
 			record->id = 0;
 		}
 	}
-
+#ifdef CONFIG_PSTORE_MCU_LOG
+	if (!prz_ok(prz)) {
+		while (cxt->mcu_log_read_cnt < cxt->max_mcu_log_cnt && !prz) {
+			prz = ramoops_get_next_prz(cxt->mcu_przs, cxt->mcu_log_read_cnt++, record);
+			if (!prz_ok(prz))
+				continue;
+		}
+	}
+#endif
 	if (!prz_ok(prz)) {
 		size = 0;
 		goto out;
 	}
+
+#ifdef CONFIG_PSTORE_MCU_LOG
+	if (record->type == PSTORE_TYPE_MCU_LOG) {
+		persistent_ram_free_old(prz);
+		persistent_ram_save_old(prz);
+	}
+#endif
 
 	size = persistent_ram_old_size(prz) - header_length;
 
@@ -468,6 +515,15 @@ static void ramoops_free_przs(struct ramoops_context *cxt)
 		kfree(cxt->fprzs);
 		cxt->max_ftrace_cnt = 0;
 	}
+#ifdef CONFIG_PSTORE_MCU_LOG
+	/* Free mcu log PRZs */
+	if (cxt->mcu_przs) {
+		for (i = 0; i < cxt->max_mcu_log_cnt; i++)
+			persistent_ram_free(cxt->mcu_przs[i]);
+		kfree(cxt->mcu_przs);
+		cxt->max_mcu_log_cnt = 0;
+	}
+#endif
 }
 
 static int ramoops_init_przs(const char *name,
@@ -687,6 +743,10 @@ static int ramoops_parse_dt(struct platform_device *pdev,
 	parse_u32("ecc-size", pdata->ecc_info.ecc_size, 0);
 	parse_u32("flags", pdata->flags, 0);
 	parse_u32("max-reason", pdata->max_reason, pdata->max_reason);
+#ifdef CONFIG_PSTORE_MCU_LOG
+	parse_u32("mcu-log-size", pdata->mcu_log_size, 0);
+	parse_u32("mcu-log-count", pdata->max_mcu_log_cnt, 0);
+#endif
 
 #undef parse_u32
 
@@ -722,6 +782,9 @@ static int ramoops_probe(struct platform_device *pdev)
 	size_t dump_mem_sz;
 	phys_addr_t paddr;
 	int err = -EINVAL;
+#ifdef CONFIG_PSTORE_MCU_LOG
+	int i = 0;
+#endif
 
 	/*
 	 * Only a single ramoops area allowed at a time, so fail extra
@@ -746,14 +809,21 @@ static int ramoops_probe(struct platform_device *pdev)
 		pr_err("NULL platform data\n");
 		goto fail_out;
 	}
-
+#ifdef CONFIG_PSTORE_MCU_LOG
+	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
+			!pdata->ftrace_size && !pdata->pmsg_size && !pdata->mcu_log_size)) {
+		pr_err("The memory size and the record/console size must be "
+			"non-zero\n");
+		goto fail_out;
+	}
+#else
 	if (!pdata->mem_size || (!pdata->record_size && !pdata->console_size &&
 			!pdata->ftrace_size && !pdata->pmsg_size)) {
 		pr_err("The memory size and the record/console size must be "
 			"non-zero\n");
 		goto fail_out;
 	}
-
+#endif
 	if (pdata->record_size && !is_power_of_2(pdata->record_size))
 		pdata->record_size = rounddown_pow_of_two(pdata->record_size);
 	if (pdata->console_size && !is_power_of_2(pdata->console_size))
@@ -762,7 +832,10 @@ static int ramoops_probe(struct platform_device *pdev)
 		pdata->ftrace_size = rounddown_pow_of_two(pdata->ftrace_size);
 	if (pdata->pmsg_size && !is_power_of_2(pdata->pmsg_size))
 		pdata->pmsg_size = rounddown_pow_of_two(pdata->pmsg_size);
-
+#ifdef CONFIG_PSTORE_MCU_LOG
+	if (pdata->mcu_log_size && !is_power_of_2(pdata->mcu_log_size))
+		pdata->mcu_log_size = rounddown_pow_of_two(pdata->mcu_log_size);
+#endif
 	cxt->size = pdata->mem_size;
 	cxt->phys_addr = pdata->mem_address;
 	cxt->memtype = pdata->mem_type;
@@ -772,11 +845,19 @@ static int ramoops_probe(struct platform_device *pdev)
 	cxt->pmsg_size = pdata->pmsg_size;
 	cxt->flags = pdata->flags;
 	cxt->ecc_info = pdata->ecc_info;
-
+#ifdef CONFIG_PSTORE_MCU_LOG
+	cxt->mcu_log_size = pdata->mcu_log_size;
+	cxt->max_mcu_log_cnt = pdata->max_mcu_log_cnt;
+#endif
 	paddr = cxt->phys_addr;
 
 	dump_mem_sz = cxt->size - cxt->console_size - cxt->ftrace_size
 			- cxt->pmsg_size;
+
+#ifdef CONFIG_PSTORE_MCU_LOG
+	dump_mem_sz -= cxt->mcu_log_size;
+#endif
+
 	err = ramoops_init_przs("dmesg", dev, cxt, &cxt->dprzs, &paddr,
 				dump_mem_sz, cxt->record_size,
 				&cxt->max_dump_cnt, 0, 0);
@@ -804,6 +885,17 @@ static int ramoops_probe(struct platform_device *pdev)
 	if (err)
 		goto fail_init_mprz;
 
+#ifdef CONFIG_PSTORE_MCU_LOG
+	err = ramoops_init_przs("mcu-log", dev, cxt, &cxt->mcu_przs, &paddr,
+				cxt->mcu_log_size, -1,
+				&cxt->max_mcu_log_cnt, 0, 0);
+	for (i = 0; i < cxt->max_mcu_log_cnt; i++)
+		pr_info("mcu%d log start:0x%08x size:0x%08x\n",
+			i, cxt->mcu_przs[i]->paddr, cxt->mcu_przs[i]->size);
+
+	if (err)
+		goto fail_clear;
+#endif
 	cxt->pstore.data = cxt;
 	/*
 	 * Prepare frontend flags based on which areas are initialized.
@@ -822,7 +914,10 @@ static int ramoops_probe(struct platform_device *pdev)
 		cxt->pstore.flags |= PSTORE_FLAGS_FTRACE;
 	if (cxt->pmsg_size)
 		cxt->pstore.flags |= PSTORE_FLAGS_PMSG;
-
+#ifdef CONFIG_PSTORE_MCU_LOG
+	if (cxt->mcu_log_size)
+		cxt->pstore.flags |= PSTORE_FLAGS_MCU_LOG;
+#endif
 	/*
 	 * Since bufsize is only used for dmesg crash dumps, it
 	 * must match the size of the dprz record (after PRZ header

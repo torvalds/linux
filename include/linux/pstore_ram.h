@@ -116,6 +116,9 @@ void *persistent_ram_old(struct persistent_ram_zone *prz);
 void persistent_ram_free_old(struct persistent_ram_zone *prz);
 ssize_t persistent_ram_ecc_string(struct persistent_ram_zone *prz,
 	char *str, size_t len);
+#ifdef CONFIG_PSTORE_MCU_LOG
+ssize_t ramoops_pstore_read_for_mcu_log(struct pstore_record *record);
+#endif
 
 /*
  * Ramoops platform data
@@ -133,6 +136,10 @@ struct ramoops_platform_data {
 	unsigned long	console_size;
 	unsigned long	ftrace_size;
 	unsigned long	pmsg_size;
+#ifdef CONFIG_PSTORE_MCU_LOG
+	unsigned long	mcu_log_size;
+	unsigned long	max_mcu_log_cnt;
+#endif
 	int		max_reason;
 	u32		flags;
 	struct persistent_ram_ecc_info ecc_info;
