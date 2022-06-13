@@ -823,7 +823,7 @@ static void gsi_channel_program(struct gsi_channel *channel, bool doorbell)
 
 	/* Now update the scratch registers for GPI protocol */
 	gpi = &scr.gpi;
-	gpi->max_outstanding_tre = gsi_channel_trans_tre_max(gsi, channel_id) *
+	gpi->max_outstanding_tre = channel->trans_tre_max *
 					GSI_RING_ELEMENT_SIZE;
 	gpi->outstanding_threshold = 2 * GSI_RING_ELEMENT_SIZE;
 
@@ -991,36 +991,22 @@ void gsi_resume(struct gsi *gsi)
 	enable_irq(gsi->irq);
 }
 
-/**
- * gsi_channel_tx_queued() - Report queued TX transfers for a channel
- * @channel:	Channel for which to report
- *
- * Report to the network stack the number of bytes and transactions that
- * have been queued to hardware since last call.  This and the next function
- * supply information used by the network stack for throttling.
- *
- * For each channel we track the number of transactions used and bytes of
- * data those transactions represent.  We also track what those values are
- * each time this function is called.  Subtracting the two tells us
- * the number of bytes and transactions that have been added between
- * successive calls.
- *
- * Calling this each time we ring the channel doorbell allows us to
- * provide accurate information to the network stack about how much
- * work we've given the hardware at any point in time.
- */
-void gsi_channel_tx_queued(struct gsi_channel *channel)
+void gsi_trans_tx_queued(struct gsi_trans *trans)
 {
+	u32 channel_id = trans->channel_id;
+	struct gsi *gsi = trans->gsi;
+	struct gsi_channel *channel;
 	u32 trans_count;
 	u32 byte_count;
+
+	channel = &gsi->channel[channel_id];
 
 	byte_count = channel->byte_count - channel->queued_byte_count;
 	trans_count = channel->trans_count - channel->queued_trans_count;
 	channel->queued_byte_count = channel->byte_count;
 	channel->queued_trans_count = channel->trans_count;
 
-	ipa_gsi_channel_tx_queued(channel->gsi, gsi_channel_id(channel),
-				  trans_count, byte_count);
+	ipa_gsi_channel_tx_queued(gsi, channel_id, trans_count, byte_count);
 }
 
 /**
@@ -1327,17 +1313,29 @@ static int gsi_irq_init(struct gsi *gsi, struct platform_device *pdev)
 }
 
 /* Return the transaction associated with a transfer completion event */
-static struct gsi_trans *gsi_event_trans(struct gsi_channel *channel,
-					 struct gsi_event *event)
+static struct gsi_trans *
+gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
 {
+	u32 channel_id = event->chid;
+	struct gsi_channel *channel;
+	struct gsi_trans *trans;
 	u32 tre_offset;
 	u32 tre_index;
+
+	channel = &gsi->channel[channel_id];
+	if (WARN(!channel->gsi, "event has bad channel %u\n", channel_id))
+		return NULL;
 
 	/* Event xfer_ptr records the TRE it's associated with */
 	tre_offset = lower_32_bits(le64_to_cpu(event->xfer_ptr));
 	tre_index = gsi_ring_index(&channel->tre_ring, tre_offset);
 
-	return gsi_channel_trans_mapped(channel, tre_index);
+	trans = gsi_channel_trans_mapped(channel, tre_index);
+
+	if (WARN(!trans, "channel %u event with no transaction\n", channel_id))
+		return NULL;
+
+	return trans;
 }
 
 /**
@@ -1381,7 +1379,9 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	 */
 	old_index = ring->index;
 	event = gsi_ring_virt(ring, old_index);
-	trans = gsi_event_trans(channel, event);
+	trans = gsi_event_trans(channel->gsi, event);
+	if (!trans)
+		return;
 
 	/* Compute the number of events to process before we wrap,
 	 * and determine when we'll be done processing events.
@@ -1493,7 +1493,9 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 		return NULL;
 
 	/* Get the transaction for the latest completed event. */
-	trans = gsi_event_trans(channel, gsi_ring_virt(ring, index - 1));
+	trans = gsi_event_trans(gsi, gsi_ring_virt(ring, index - 1));
+	if (!trans)
+		return NULL;
 
 	/* For RX channels, update each completed transaction with the number
 	 * of bytes that were actually received.  For TX channels, report
@@ -2001,9 +2003,10 @@ static void gsi_channel_evt_ring_exit(struct gsi_channel *channel)
 	gsi_evt_ring_id_free(gsi, evt_ring_id);
 }
 
-static bool gsi_channel_data_valid(struct gsi *gsi,
+static bool gsi_channel_data_valid(struct gsi *gsi, bool command,
 				   const struct ipa_gsi_endpoint_data *data)
 {
+	const struct gsi_channel_data *channel_data;
 	u32 channel_id = data->channel_id;
 	struct device *dev = gsi->dev;
 
@@ -2019,10 +2022,24 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 		return false;
 	}
 
-	if (!data->channel.tlv_count ||
-	    data->channel.tlv_count > GSI_TLV_MAX) {
+	if (command && !data->toward_ipa) {
+		dev_err(dev, "command channel %u is not TX\n", channel_id);
+		return false;
+	}
+
+	channel_data = &data->channel;
+
+	if (!channel_data->tlv_count ||
+	    channel_data->tlv_count > GSI_TLV_MAX) {
 		dev_err(dev, "channel %u bad tlv_count %u; must be 1..%u\n",
-			channel_id, data->channel.tlv_count, GSI_TLV_MAX);
+			channel_id, channel_data->tlv_count, GSI_TLV_MAX);
+		return false;
+	}
+
+	if (command && IPA_COMMAND_TRANS_TRE_MAX > channel_data->tlv_count) {
+		dev_err(dev, "command TRE max too big for channel %u (%u > %u)\n",
+			channel_id, IPA_COMMAND_TRANS_TRE_MAX,
+			channel_data->tlv_count);
 		return false;
 	}
 
@@ -2031,22 +2048,22 @@ static bool gsi_channel_data_valid(struct gsi *gsi,
 	 * gsi_channel_tre_max() is computed, tre_count has to be almost
 	 * twice the TLV FIFO size to satisfy this requirement.
 	 */
-	if (data->channel.tre_count < 2 * data->channel.tlv_count - 1) {
+	if (channel_data->tre_count < 2 * channel_data->tlv_count - 1) {
 		dev_err(dev, "channel %u TLV count %u exceeds TRE count %u\n",
-			channel_id, data->channel.tlv_count,
-			data->channel.tre_count);
+			channel_id, channel_data->tlv_count,
+			channel_data->tre_count);
 		return false;
 	}
 
-	if (!is_power_of_2(data->channel.tre_count)) {
+	if (!is_power_of_2(channel_data->tre_count)) {
 		dev_err(dev, "channel %u bad tre_count %u; not power of 2\n",
-			channel_id, data->channel.tre_count);
+			channel_id, channel_data->tre_count);
 		return false;
 	}
 
-	if (!is_power_of_2(data->channel.event_count)) {
+	if (!is_power_of_2(channel_data->event_count)) {
 		dev_err(dev, "channel %u bad event_count %u; not power of 2\n",
-			channel_id, data->channel.event_count);
+			channel_id, channel_data->event_count);
 		return false;
 	}
 
@@ -2062,7 +2079,7 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	u32 tre_count;
 	int ret;
 
-	if (!gsi_channel_data_valid(gsi, data))
+	if (!gsi_channel_data_valid(gsi, command, data))
 		return -EINVAL;
 
 	/* Worst case we need an event for every outstanding TRE */
@@ -2080,7 +2097,7 @@ static int gsi_channel_init_one(struct gsi *gsi,
 	channel->gsi = gsi;
 	channel->toward_ipa = data->toward_ipa;
 	channel->command = command;
-	channel->tlv_count = data->channel.tlv_count;
+	channel->trans_tre_max = data->channel.tlv_count;
 	channel->tre_count = tre_count;
 	channel->event_count = data->channel.event_count;
 
@@ -2295,13 +2312,5 @@ u32 gsi_channel_tre_max(struct gsi *gsi, u32 channel_id)
 	struct gsi_channel *channel = &gsi->channel[channel_id];
 
 	/* Hardware limit is channel->tre_count - 1 */
-	return channel->tre_count - (channel->tlv_count - 1);
-}
-
-/* Returns the maximum number of TREs in a single transaction for a channel */
-u32 gsi_channel_trans_tre_max(struct gsi *gsi, u32 channel_id)
-{
-	struct gsi_channel *channel = &gsi->channel[channel_id];
-
-	return channel->tlv_count;
+	return channel->tre_count - (channel->trans_tre_max - 1);
 }
