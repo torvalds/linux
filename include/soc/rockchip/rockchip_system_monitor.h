@@ -28,14 +28,19 @@ struct temp_freq_table {
  * @volt:		Target voltage in microvolt
  * @mem_volt:		Target voltage for memory in microvolt
  * @low_temp_volt:	Target voltage when low temperature, in microvolt
+ * @low_temp_mem_volt:	Target voltage for memory when low temperature,
+ *			in microvolt
  * @max_volt:		Maximum voltage in microvolt
+ * @max_mem_volt:	Maximum voltage for memory in microvolt
  */
 struct temp_opp_table {
 	unsigned long rate;
 	unsigned long volt;
 	unsigned long mem_volt;
 	unsigned long low_temp_volt;
+	unsigned long low_temp_mem_volt;
 	unsigned long max_volt;
+	unsigned long max_mem_volt;
 };
 
 /**
