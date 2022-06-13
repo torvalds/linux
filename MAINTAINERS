@@ -4957,7 +4957,7 @@ F:	drivers/hwmon/lochnagar-hwmon.c
 F:	drivers/mfd/lochnagar-i2c.c
 F:	drivers/pinctrl/cirrus/pinctrl-lochnagar.c
 F:	drivers/regulator/lochnagar-regulator.c
-F:	include/dt-bindings/clk/lochnagar.h
+F:	include/dt-bindings/clock/lochnagar.h
 F:	include/dt-bindings/pinctrl/lochnagar.h
 F:	include/linux/mfd/lochnagar*
 F:	sound/soc/codecs/lochnagar-sc.c
