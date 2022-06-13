@@ -194,6 +194,7 @@ obj-$(CONFIG_VIDEO_IMX586)	+= imx586.o
 obj-$(CONFIG_VIDEO_JX_K17)	+= jx_k17.o
 obj-$(CONFIG_VIDEO_MAX9286)	+= max9286.o
 obj-$(CONFIG_VIDEO_MAX96714)	+= max96714.o
+obj-$(CONFIG_VIDEO_MAX96722)	+= max96722.o
 rdacm20-camera_module-objs	:= rdacm20.o max9271.o
 obj-$(CONFIG_VIDEO_RDACM20)	+= rdacm20-camera_module.o
 obj-$(CONFIG_VIDEO_ST_MIPID02) += st-mipid02.o
