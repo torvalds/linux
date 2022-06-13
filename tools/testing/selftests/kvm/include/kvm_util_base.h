@@ -186,50 +186,55 @@ static inline bool kvm_has_cap(long cap)
 	ioctl(fd, cmd, arg);							\
 })
 
-#define __kvm_ioctl(kvm_fd, cmd, arg)						\
+#define __kvm_ioctl(kvm_fd, cmd, arg)				\
 	kvm_do_ioctl(kvm_fd, cmd, arg)
 
 
-#define _kvm_ioctl(kvm_fd, cmd, name, arg)					\
-({										\
-	int ret = __kvm_ioctl(kvm_fd, cmd, arg);				\
-										\
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));			\
+#define _kvm_ioctl(kvm_fd, cmd, name, arg)			\
+({								\
+	int ret = __kvm_ioctl(kvm_fd, cmd, arg);		\
+								\
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));	\
 })
 
 #define kvm_ioctl(kvm_fd, cmd, arg) \
 	_kvm_ioctl(kvm_fd, cmd, #cmd, arg)
 
-#define __vm_ioctl(vm, cmd, arg)						\
-({										\
-	static_assert(sizeof(*(vm)) == sizeof(struct kvm_vm), "");		\
-	kvm_do_ioctl((vm)->fd, cmd, arg);					\
+static __always_inline void static_assert_is_vm(struct kvm_vm *vm) { }
+
+#define __vm_ioctl(vm, cmd, arg)				\
+({								\
+	static_assert_is_vm(vm);				\
+	kvm_do_ioctl((vm)->fd, cmd, arg);			\
 })
 
-#define _vm_ioctl(vm, cmd, name, arg)						\
-({										\
-	int ret = __vm_ioctl(vm, cmd, arg);					\
-										\
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));			\
+#define _vm_ioctl(vm, cmd, name, arg)				\
+({								\
+	int ret = __vm_ioctl(vm, cmd, arg);			\
+								\
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));	\
 })
 
-#define vm_ioctl(vm, cmd, arg)							\
+#define vm_ioctl(vm, cmd, arg)					\
 	_vm_ioctl(vm, cmd, #cmd, arg)
 
-#define __vcpu_ioctl(vcpu, cmd, arg)						\
-({										\
-	static_assert(sizeof(*(vcpu)) == sizeof(struct kvm_vcpu), "");		\
-	kvm_do_ioctl((vcpu)->fd, cmd, arg);					\
+
+static __always_inline void static_assert_is_vcpu(struct kvm_vcpu *vcpu) { }
+
+#define __vcpu_ioctl(vcpu, cmd, arg)				\
+({								\
+	static_assert_is_vcpu(vcpu);				\
+	kvm_do_ioctl((vcpu)->fd, cmd, arg);			\
 })
 
-#define _vcpu_ioctl(vcpu, cmd, name, arg)					\
-({										\
-	int ret = __vcpu_ioctl(vcpu, cmd, arg);					\
-										\
-	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));			\
+#define _vcpu_ioctl(vcpu, cmd, name, arg)			\
+({								\
+	int ret = __vcpu_ioctl(vcpu, cmd, arg);			\
+								\
+	TEST_ASSERT(!ret, __KVM_IOCTL_ERROR(name, ret));	\
 })
 
-#define vcpu_ioctl(vcpu, cmd, arg)						\
+#define vcpu_ioctl(vcpu, cmd, arg)				\
 	_vcpu_ioctl(vcpu, cmd, #cmd, arg)
 
 /*
