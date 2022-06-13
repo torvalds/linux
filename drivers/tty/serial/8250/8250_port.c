@@ -843,7 +843,7 @@ static int size_fifo(struct uart_8250_port *up)
 	serial_out(up, UART_LCR, UART_LCR_CONF_MODE_A);
 	old_dl = serial_dl_read(up);
 	serial_dl_write(up, 0x0001);
-	serial_out(up, UART_LCR, 0x03);
+	serial_out(up, UART_LCR, UART_LCR_WLEN8);
 	for (count = 0; count < 256; count++)
 		serial_out(up, UART_TX, count);
 	mdelay(20);/* FIXME - schedule_timeout */
