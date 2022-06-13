@@ -1658,8 +1658,10 @@ static int anx7625_parse_dt(struct device *dev,
 
 	pdata->panel_bridge = devm_drm_of_get_bridge(dev, np, 1, 0);
 	if (IS_ERR(pdata->panel_bridge)) {
-		if (PTR_ERR(pdata->panel_bridge) == -ENODEV)
+		if (PTR_ERR(pdata->panel_bridge) == -ENODEV) {
+			pdata->panel_bridge = NULL;
 			return 0;
+		}
 
 		return PTR_ERR(pdata->panel_bridge);
 	}
