@@ -2979,7 +2979,7 @@ static int ts_buff_get_kernel_ts_record(struct hl_mmap_mem_buf *buf,
 	u64 current_cq_counter;
 
 	/* Validate ts_offset not exceeding last max */
-	if (requested_offset_record > cb_last) {
+	if (requested_offset_record >= cb_last) {
 		dev_err(buf->mmg->dev, "Ts offset exceeds max CB offset(0x%llx)\n",
 								(u64)(uintptr_t)cb_last);
 		return -EINVAL;
@@ -3062,6 +3062,13 @@ static int _hl_interrupt_wait_ioctl(struct hl_device *hdev, struct hl_ctx *ctx,
 	if (!cq_cb) {
 		rc = -EINVAL;
 		goto put_ctx;
+	}
+
+	/* Validate the cq offset */
+	if (((u64 *) cq_cb->kernel_address + cq_counters_offset) >=
+			((u64 *) cq_cb->kernel_address + (cq_cb->size / sizeof(u64)))) {
+		rc = -EINVAL;
+		goto put_cq_cb;
 	}
 
 	if (register_ts_record) {
