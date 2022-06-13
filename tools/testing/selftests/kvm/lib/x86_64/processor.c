@@ -991,7 +991,7 @@ struct kvm_x86_state *vcpu_save_state(struct kvm_vcpu *vcpu)
 	vcpu_regs_get(vcpu, &state->regs);
 	vcpu_save_xsave_state(vcpu, state);
 
-	if (kvm_check_cap(KVM_CAP_XCRS))
+	if (kvm_has_cap(KVM_CAP_XCRS))
 		vcpu_xcrs_get(vcpu, &state->xcrs);
 
 	vcpu_sregs_get(vcpu, &state->sregs);
@@ -1022,7 +1022,7 @@ void vcpu_load_state(struct kvm_vcpu *vcpu, struct kvm_x86_state *state)
 	vcpu_sregs_set(vcpu, &state->sregs);
 	vcpu_msrs_set(vcpu, &state->msrs);
 
-	if (kvm_check_cap(KVM_CAP_XCRS))
+	if (kvm_has_cap(KVM_CAP_XCRS))
 		vcpu_xcrs_set(vcpu, &state->xcrs);
 
 	vcpu_xsave_set(vcpu,  state->xsave);

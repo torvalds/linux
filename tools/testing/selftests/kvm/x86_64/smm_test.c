@@ -153,7 +153,7 @@ int main(int argc, char *argv[])
 
 	vcpu_set_msr(vcpu, MSR_IA32_SMBASE, SMRAM_GPA);
 
-	if (kvm_check_cap(KVM_CAP_NESTED_STATE)) {
+	if (kvm_has_cap(KVM_CAP_NESTED_STATE)) {
 		if (nested_svm_supported())
 			vcpu_alloc_svm(vm, &nested_gva);
 		else if (nested_vmx_supported())

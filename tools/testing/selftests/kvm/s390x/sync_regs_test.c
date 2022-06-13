@@ -229,7 +229,7 @@ int main(int argc, char *argv[])
 	struct kvm_vm *vm;
 	int idx;
 
-	TEST_REQUIRE(kvm_check_cap(KVM_CAP_SYNC_REGS));
+	TEST_REQUIRE(kvm_has_cap(KVM_CAP_SYNC_REGS));
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
