@@ -1883,3 +1883,38 @@ struct kvm_stats_desc *read_stats_descriptors(int stats_fd,
 
 	return stats_desc;
 }
+
+/*
+ * Read stat data for a particular stat
+ *
+ * Input Args:
+ *   stats_fd - the file descriptor for the binary stats file from which to read
+ *   header - the binary stats metadata header corresponding to the given FD
+ *   desc - the binary stat metadata for the particular stat to be read
+ *   max_elements - the maximum number of 8-byte values to read into data
+ *
+ * Output Args:
+ *   data - the buffer into which stat data should be read
+ *
+ * Read the data values of a specified stat from the binary stats interface.
+ */
+void read_stat_data(int stats_fd, struct kvm_stats_header *header,
+		    struct kvm_stats_desc *desc, uint64_t *data,
+		    size_t max_elements)
+{
+	size_t nr_elements = min_t(ssize_t, desc->size, max_elements);
+	size_t size = nr_elements * sizeof(*data);
+	ssize_t ret;
+
+	TEST_ASSERT(desc->size, "No elements in stat '%s'", desc->name);
+	TEST_ASSERT(max_elements, "Zero elements requested for stat '%s'", desc->name);
+
+	ret = pread(stats_fd, data, size,
+		    header->data_offset + desc->offset);
+
+	TEST_ASSERT(ret >= 0, "pread() failed on stat '%s', errno: %i (%s)",
+		    desc->name, errno, strerror(errno));
+	TEST_ASSERT(ret == size,
+		    "pread() on stat '%s' read %ld bytes, wanted %lu bytes",
+		    desc->name, size, ret);
+}

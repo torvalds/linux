@@ -147,15 +147,10 @@ static void stats_test(int stats_fd)
 	ret = pread(stats_fd, stats_data, size_data, header.data_offset);
 	TEST_ASSERT(ret == size_data, "Read KVM stats data");
 	/* Read kvm stats data one by one */
-	size_data = 0;
 	for (i = 0; i < header.num_desc; ++i) {
 		pdesc = get_stats_descriptor(stats_desc, i, &header);
-		ret = pread(stats_fd, stats_data,
-				pdesc->size * sizeof(*stats_data),
-				header.data_offset + size_data);
-		TEST_ASSERT(ret == pdesc->size * sizeof(*stats_data),
-				"Read data of KVM stats: %s", pdesc->name);
-		size_data += pdesc->size * sizeof(*stats_data);
+		read_stat_data(stats_fd, &header, pdesc, stats_data,
+			       pdesc->size);
 	}
 
 	free(stats_data);

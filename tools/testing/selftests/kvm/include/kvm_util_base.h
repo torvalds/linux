@@ -341,6 +341,10 @@ static inline struct kvm_stats_desc *get_stats_descriptor(struct kvm_stats_desc 
 	return (void *)stats + index * get_stats_descriptor_size(header);
 }
 
+void read_stat_data(int stats_fd, struct kvm_stats_header *header,
+		    struct kvm_stats_desc *desc, uint64_t *data,
+		    size_t max_elements);
+
 void vm_create_irqchip(struct kvm_vm *vm);
 
 void vm_set_user_memory_region(struct kvm_vm *vm, uint32_t slot, uint32_t flags,
