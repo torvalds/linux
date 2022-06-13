@@ -2679,6 +2679,15 @@ general_render_compute_wa_init(struct intel_engine_cs *engine, struct i915_wa_li
 {
 	struct drm_i915_private *i915 = engine->i915;
 
+	if (IS_PONTEVECCHIO(i915)) {
+		/*
+		 * The following is not actually a "workaround" but rather
+		 * a recommended tuning setting documented in the bspec's
+		 * performance guide section.
+		 */
+		wa_write(wal, XEHPC_L3SCRUB, SCRUB_CL_DWNGRADE_SHARED | SCRUB_RATE_4B_PER_CLK);
+	}
+
 	if (IS_XEHPSDV(i915)) {
 		/* Wa_1409954639 */
 		wa_masked_en(wal,
