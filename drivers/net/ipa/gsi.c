@@ -995,11 +995,11 @@ void gsi_trans_tx_committed(struct gsi_trans *trans)
 {
 	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
 
-	trans->trans_count = channel->trans_count;
-	trans->byte_count = channel->byte_count;
-
 	channel->trans_count++;
 	channel->byte_count += trans->len;
+
+	trans->trans_count = channel->trans_count;
+	trans->byte_count = channel->byte_count;
 }
 
 void gsi_trans_tx_queued(struct gsi_trans *trans)
@@ -1047,13 +1047,11 @@ void gsi_trans_tx_queued(struct gsi_trans *trans)
 static void
 gsi_channel_tx_update(struct gsi_channel *channel, struct gsi_trans *trans)
 {
-	u64 byte_count = trans->byte_count + trans->len;
-	u64 trans_count = trans->trans_count + 1;
+	u64 trans_count = trans->trans_count - channel->compl_trans_count;
+	u64 byte_count = trans->byte_count - channel->compl_byte_count;
 
-	byte_count -= channel->compl_byte_count;
-	channel->compl_byte_count += byte_count;
-	trans_count -= channel->compl_trans_count;
 	channel->compl_trans_count += trans_count;
+	channel->compl_byte_count += byte_count;
 
 	ipa_gsi_channel_tx_completed(channel->gsi, gsi_channel_id(channel),
 				     trans_count, byte_count);
