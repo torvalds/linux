@@ -564,13 +564,28 @@ static inline void axienet_dma_out32(struct axienet_local *lp,
 }
 
 #ifdef CONFIG_64BIT
+/**
+ * axienet_dma_out64 - Memory mapped Axi DMA register write.
+ * @lp:		Pointer to axienet local structure
+ * @reg:	Address offset from the base address of the Axi DMA core
+ * @value:	Value to be written into the Axi DMA register
+ *
+ * This function writes the desired value into the corresponding Axi DMA
+ * register.
+ */
+static inline void axienet_dma_out64(struct axienet_local *lp,
+				     off_t reg, u64 value)
+{
+	iowrite64(value, lp->dma_regs + reg);
+}
+
 static void axienet_dma_out_addr(struct axienet_local *lp, off_t reg,
 				 dma_addr_t addr)
 {
-	axienet_dma_out32(lp, reg, lower_32_bits(addr));
-
 	if (lp->features & XAE_FEATURE_DMA_64BIT)
-		axienet_dma_out32(lp, reg + 4, upper_32_bits(addr));
+		axienet_dma_out64(lp, reg, addr);
+	else
+		axienet_dma_out32(lp, reg, lower_32_bits(addr));
 }
 
 #else /* CONFIG_64BIT */
