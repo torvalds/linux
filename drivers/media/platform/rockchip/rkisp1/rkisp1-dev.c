@@ -111,72 +111,46 @@ struct rkisp1_isr_data {
 
 static int rkisp1_create_links(struct rkisp1_device *rkisp1)
 {
-	struct media_entity *source, *sink;
-	unsigned int flags, source_pad;
-	struct v4l2_subdev *sd;
 	unsigned int i;
 	int ret;
 
-	/* sensor links */
-	flags = MEDIA_LNK_FL_ENABLED;
-	list_for_each_entry(sd, &rkisp1->v4l2_dev.subdevs, list) {
-		if (sd == &rkisp1->isp.sd ||
-		    sd == &rkisp1->resizer_devs[RKISP1_MAINPATH].sd ||
-		    sd == &rkisp1->resizer_devs[RKISP1_SELFPATH].sd)
-			continue;
-
-		ret = media_entity_get_fwnode_pad(&sd->entity, sd->fwnode,
-						  MEDIA_PAD_FL_SOURCE);
-		if (ret < 0) {
-			dev_err(rkisp1->dev, "failed to find src pad for %s\n",
-				sd->name);
-			return ret;
-		}
-		source_pad = ret;
-
-		ret = media_create_pad_link(&sd->entity, source_pad,
-					    &rkisp1->isp.sd.entity,
-					    RKISP1_ISP_PAD_SINK_VIDEO,
-					    flags);
-		if (ret)
-			return ret;
-
-		flags = 0;
-	}
-
-	flags = MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE;
-
 	/* create ISP->RSZ->CAP links */
 	for (i = 0; i < 2; i++) {
-		source = &rkisp1->isp.sd.entity;
-		sink = &rkisp1->resizer_devs[i].sd.entity;
-		ret = media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_VIDEO,
-					    sink, RKISP1_RSZ_PAD_SINK,
+		struct media_entity *resizer =
+			&rkisp1->resizer_devs[i].sd.entity;
+		struct media_entity *capture =
+			&rkisp1->capture_devs[i].vnode.vdev.entity;
+
+		ret = media_create_pad_link(&rkisp1->isp.sd.entity,
+					    RKISP1_ISP_PAD_SOURCE_VIDEO,
+					    resizer, RKISP1_RSZ_PAD_SINK,
 					    MEDIA_LNK_FL_ENABLED);
 		if (ret)
 			return ret;
 
-		source = sink;
-		sink = &rkisp1->capture_devs[i].vnode.vdev.entity;
-		ret = media_create_pad_link(source, RKISP1_RSZ_PAD_SRC,
-					    sink, 0, flags);
+		ret = media_create_pad_link(resizer, RKISP1_RSZ_PAD_SRC,
+					    capture, 0,
+					    MEDIA_LNK_FL_ENABLED |
+					    MEDIA_LNK_FL_IMMUTABLE);
 		if (ret)
 			return ret;
 	}
 
 	/* params links */
-	source = &rkisp1->params.vnode.vdev.entity;
-	sink = &rkisp1->isp.sd.entity;
-	ret = media_create_pad_link(source, 0, sink,
-				    RKISP1_ISP_PAD_SINK_PARAMS, flags);
+	ret = media_create_pad_link(&rkisp1->params.vnode.vdev.entity, 0,
+				    &rkisp1->isp.sd.entity,
+				    RKISP1_ISP_PAD_SINK_PARAMS,
+				    MEDIA_LNK_FL_ENABLED |
+				    MEDIA_LNK_FL_IMMUTABLE);
 	if (ret)
 		return ret;
 
 	/* 3A stats links */
-	source = &rkisp1->isp.sd.entity;
-	sink = &rkisp1->stats.vnode.vdev.entity;
-	return media_create_pad_link(source, RKISP1_ISP_PAD_SOURCE_STATS,
-				     sink, 0, flags);
+	return media_create_pad_link(&rkisp1->isp.sd.entity,
+				     RKISP1_ISP_PAD_SOURCE_STATS,
+				     &rkisp1->stats.vnode.vdev.entity, 0,
+				     MEDIA_LNK_FL_ENABLED |
+				     MEDIA_LNK_FL_IMMUTABLE);
 }
 
 static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
@@ -187,6 +161,7 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 		container_of(notifier, struct rkisp1_device, notifier);
 	struct rkisp1_sensor_async *s_asd =
 		container_of(asd, struct rkisp1_sensor_async, asd);
+	int source_pad;
 
 	s_asd->pixel_rate_ctrl = v4l2_ctrl_find(sd->ctrl_handler,
 						V4L2_CID_PIXEL_RATE);
@@ -206,7 +181,19 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 
 	phy_init(s_asd->dphy);
 
-	return 0;
+	/* Create the link to the sensor. */
+	source_pad = media_entity_get_fwnode_pad(&sd->entity, sd->fwnode,
+						 MEDIA_PAD_FL_SOURCE);
+	if (source_pad < 0) {
+		dev_err(rkisp1->dev, "failed to find source pad for %s\n",
+			sd->name);
+		return source_pad;
+	}
+
+	return media_create_pad_link(&sd->entity, source_pad,
+				     &rkisp1->isp.sd.entity,
+				     RKISP1_ISP_PAD_SINK_VIDEO,
+				     !s_asd->index ? MEDIA_LNK_FL_ENABLED : 0);
 }
 
 static void rkisp1_subdev_notifier_unbind(struct v4l2_async_notifier *notifier,
@@ -248,6 +235,7 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 {
 	struct v4l2_async_notifier *ntf = &rkisp1->notifier;
 	unsigned int next_id = 0;
+	unsigned int index = 0;
 	int ret;
 
 	v4l2_async_nf_init(ntf);
@@ -277,6 +265,7 @@ static int rkisp1_subdev_notifier(struct rkisp1_device *rkisp1)
 			goto err_parse;
 		}
 
+		rk_asd->index = index++;
 		rk_asd->mbus_type = vep.bus_type;
 		rk_asd->mbus_flags = vep.bus.mipi_csi2.flags;
 		rk_asd->lanes = vep.bus.mipi_csi2.num_data_lanes;

@@ -116,6 +116,7 @@ struct rkisp1_info {
  *				of the v4l2-async API
  *
  * @asd:		async_subdev variable for the sensor
+ * @index:		index of the sensor (counting sensor found in DT)
  * @lanes:		number of lanes
  * @mbus_type:		type of bus (currently only CSI2 is supported)
  * @mbus_flags:		media bus (V4L2_MBUS_*) flags
@@ -125,6 +126,7 @@ struct rkisp1_info {
  */
 struct rkisp1_sensor_async {
 	struct v4l2_async_subdev asd;
+	unsigned int index;
 	unsigned int lanes;
 	enum v4l2_mbus_type mbus_type;
 	unsigned int mbus_flags;
