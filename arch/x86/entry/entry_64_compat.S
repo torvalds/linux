@@ -4,7 +4,6 @@
  *
  * Copyright 2000-2002 Andi Kleen, SuSE Labs.
  */
-#include "calling.h"
 #include <asm/asm-offsets.h>
 #include <asm/current.h>
 #include <asm/errno.h>
@@ -17,6 +16,8 @@
 #include <asm/nospec-branch.h>
 #include <linux/linkage.h>
 #include <linux/err.h>
+
+#include "calling.h"
 
 	.section .entry.text, "ax"
 
@@ -73,7 +74,6 @@ SYM_CODE_START(entry_SYSENTER_compat)
 	pushq	$__USER32_CS		/* pt_regs->cs */
 	pushq	$0			/* pt_regs->ip = 0 (placeholder) */
 SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
-	UNTRAIN_RET
 
 	/*
 	 * User tracing code (ptrace or signal handlers) might assume that
@@ -89,6 +89,9 @@ SYM_INNER_LABEL(entry_SYSENTER_compat_after_hwframe, SYM_L_GLOBAL)
 	UNWIND_HINT_REGS
 
 	cld
+
+	IBRS_ENTER
+	UNTRAIN_RET
 
 	/*
 	 * SYSENTER doesn't filter flags, so we need to clear NT and AC
@@ -192,7 +195,6 @@ SYM_CODE_START(entry_SYSCALL_compat)
 
 SYM_INNER_LABEL(entry_SYSCALL_compat_safe_stack, SYM_L_GLOBAL)
 	ANNOTATE_NOENDBR
-	UNTRAIN_RET
 
 	/* Construct struct pt_regs on stack */
 	pushq	$__USER32_DS		/* pt_regs->ss */
@@ -205,6 +207,9 @@ SYM_INNER_LABEL(entry_SYSCALL_compat_after_hwframe, SYM_L_GLOBAL)
 	pushq	%rax			/* pt_regs->orig_ax */
 	PUSH_AND_CLEAR_REGS rcx=%rbp rax=$-ENOSYS
 	UNWIND_HINT_REGS
+
+	IBRS_ENTER
+	UNTRAIN_RET
 
 	movq	%rsp, %rdi
 	call	do_fast_syscall_32
@@ -219,6 +224,8 @@ sysret32_from_system_call:
 	 * stack. So let's erase the thread stack right now.
 	 */
 	STACKLEAK_ERASE
+
+	IBRS_EXIT
 
 	movq	RBX(%rsp), %rbx		/* pt_regs->rbx */
 	movq	RBP(%rsp), %rbp		/* pt_regs->rbp */
@@ -335,11 +342,13 @@ SYM_CODE_START(entry_INT80_compat)
 	pushq	0*8(%rax)		/* regs->orig_ax */
 .Lint80_keep_stack:
 
-	UNTRAIN_RET
 	PUSH_AND_CLEAR_REGS rax=$-ENOSYS
 	UNWIND_HINT_REGS
 
 	cld
+
+	IBRS_ENTER
+	UNTRAIN_RET
 
 	movq	%rsp, %rdi
 	call	do_int80_syscall_32
