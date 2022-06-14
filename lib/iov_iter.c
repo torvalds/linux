@@ -183,13 +183,18 @@ static int copyin(void *to, const void __user *from, size_t n)
 	return n;
 }
 
+static inline struct pipe_buffer *pipe_buf(const struct pipe_inode_info *pipe,
+					   unsigned int slot)
+{
+	return &pipe->bufs[slot & (pipe->ring_size - 1)];
+}
+
 #ifdef PIPE_PARANOIA
 static bool sanity(const struct iov_iter *i)
 {
 	struct pipe_inode_info *pipe = i->pipe;
 	unsigned int p_head = pipe->head;
 	unsigned int p_tail = pipe->tail;
-	unsigned int p_mask = pipe->ring_size - 1;
 	unsigned int p_occupancy = pipe_occupancy(p_head, p_tail);
 	unsigned int i_head = i->head;
 	unsigned int idx;
@@ -201,7 +206,7 @@ static bool sanity(const struct iov_iter *i)
 		if (unlikely(i_head != p_head - 1))
 			goto Bad;	// must be at the last buffer...
 
-		p = &pipe->bufs[i_head & p_mask];
+		p = pipe_buf(pipe, i_head);
 		if (unlikely(p->offset + p->len != i->iov_offset))
 			goto Bad;	// ... at the end of segment
 	} else {
@@ -386,11 +391,10 @@ static inline bool allocated(struct pipe_buffer *buf)
 static inline void data_start(const struct iov_iter *i,
 			      unsigned int *iter_headp, size_t *offp)
 {
-	unsigned int p_mask = i->pipe->ring_size - 1;
 	unsigned int iter_head = i->head;
 	size_t off = i->iov_offset;
 
-	if (off && (!allocated(&i->pipe->bufs[iter_head & p_mask]) ||
+	if (off && (!allocated(pipe_buf(i->pipe, iter_head)) ||
 		    off == PAGE_SIZE)) {
 		iter_head++;
 		off = 0;
@@ -1280,10 +1284,9 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 		return iov_iter_alignment_bvec(i);
 
 	if (iov_iter_is_pipe(i)) {
-		unsigned int p_mask = i->pipe->ring_size - 1;
 		size_t size = i->count;
 
-		if (size && i->iov_offset && allocated(&i->pipe->bufs[i->head & p_mask]))
+		if (size && i->iov_offset && allocated(pipe_buf(i->pipe, i->head)))
 			return size | i->iov_offset;
 		return size;
 	}
