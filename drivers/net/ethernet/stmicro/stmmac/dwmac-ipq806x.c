@@ -66,6 +66,17 @@
 #define NSS_COMMON_CLK_DIV_SGMII_100		4
 #define NSS_COMMON_CLK_DIV_SGMII_10		49
 
+#define QSGMII_PCS_ALL_CH_CTL			0x80
+#define QSGMII_PCS_CH_SPEED_FORCE		BIT(1)
+#define QSGMII_PCS_CH_SPEED_10			0x0
+#define QSGMII_PCS_CH_SPEED_100			BIT(2)
+#define QSGMII_PCS_CH_SPEED_1000		BIT(3)
+#define QSGMII_PCS_CH_SPEED_MASK		(QSGMII_PCS_CH_SPEED_FORCE | \
+						 QSGMII_PCS_CH_SPEED_10 | \
+						 QSGMII_PCS_CH_SPEED_100 | \
+						 QSGMII_PCS_CH_SPEED_1000)
+#define QSGMII_PCS_CH_SPEED_SHIFT(x)		((x) * 4)
+
 #define QSGMII_PCS_CAL_LCKDT_CTL		0x120
 #define QSGMII_PCS_CAL_LCKDT_CTL_RST		BIT(19)
 
@@ -253,6 +264,55 @@ static void ipq806x_gmac_fix_mac_speed(void *priv, unsigned int speed)
 	ipq806x_gmac_set_speed(gmac, speed);
 }
 
+static int
+ipq806x_gmac_configure_qsgmii_pcs_speed(struct ipq806x_gmac *gmac)
+{
+	struct platform_device *pdev = gmac->pdev;
+	struct device *dev = &pdev->dev;
+	struct device_node *dn;
+	int link_speed;
+	int val = 0;
+	int ret;
+
+	/* Some bootloader may apply wrong configuration and cause
+	 * not functioning port. If fixed link is not set,
+	 * reset the force speed bit.
+	 */
+	if (!of_phy_is_fixed_link(pdev->dev.of_node))
+		goto write;
+
+	dn = of_get_child_by_name(pdev->dev.of_node, "fixed-link");
+	ret = of_property_read_u32(dn, "speed", &link_speed);
+	of_node_put(dn);
+	if (ret) {
+		dev_err(dev, "found fixed-link node with no speed");
+		return ret;
+	}
+
+	val = QSGMII_PCS_CH_SPEED_FORCE;
+
+	switch (link_speed) {
+	case SPEED_1000:
+		val |= QSGMII_PCS_CH_SPEED_1000;
+		break;
+	case SPEED_100:
+		val |= QSGMII_PCS_CH_SPEED_100;
+		break;
+	case SPEED_10:
+		val |= QSGMII_PCS_CH_SPEED_10;
+		break;
+	}
+
+write:
+	regmap_update_bits(gmac->qsgmii_csr, QSGMII_PCS_ALL_CH_CTL,
+			   QSGMII_PCS_CH_SPEED_MASK <<
+			   QSGMII_PCS_CH_SPEED_SHIFT(gmac->id),
+			   val <<
+			   QSGMII_PCS_CH_SPEED_SHIFT(gmac->id));
+
+	return 0;
+}
+
 static const struct soc_device_attribute ipq806x_gmac_soc_v1[] = {
 	{
 		.revision = "1.*",
@@ -398,6 +458,10 @@ static int ipq806x_gmac_probe(struct platform_device *pdev)
 
 	if (gmac->phy_mode == PHY_INTERFACE_MODE_SGMII) {
 		err = ipq806x_gmac_configure_qsgmii_params(gmac);
+		if (err)
+			goto err_remove_config_dt;
+
+		err = ipq806x_gmac_configure_qsgmii_pcs_speed(gmac);
 		if (err)
 			goto err_remove_config_dt;
 	}
