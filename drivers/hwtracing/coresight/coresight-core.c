@@ -1382,6 +1382,7 @@ static int coresight_remove_match(struct device *dev, void *data)
 			 * platform data.
 			 */
 			fwnode_handle_put(conn->child_fwnode);
+			conn->child_fwnode = NULL;
 			/* No need to continue */
 			break;
 		}
