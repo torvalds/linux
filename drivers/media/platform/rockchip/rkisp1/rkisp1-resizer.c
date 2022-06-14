@@ -433,14 +433,14 @@ static void rkisp1_rsz_set_src_fmt(struct rkisp1_resizer *rsz,
 				   struct v4l2_mbus_framefmt *format,
 				   unsigned int which)
 {
-	const struct rkisp1_isp_mbus_info *sink_mbus_info;
+	const struct rkisp1_mbus_info *sink_mbus_info;
 	struct v4l2_mbus_framefmt *src_fmt, *sink_fmt;
 
 	sink_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SINK,
 					  which);
 	src_fmt = rkisp1_rsz_get_pad_fmt(rsz, sd_state, RKISP1_RSZ_PAD_SRC,
 					 which);
-	sink_mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
+	sink_mbus_info = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 
 	/* for YUV formats, userspace can change the mbus code on the src pad if it is supported */
 	if (sink_mbus_info->pixel_enc == V4L2_PIXEL_ENC_YUV &&
@@ -462,7 +462,7 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 				     struct v4l2_rect *r,
 				     unsigned int which)
 {
-	const struct rkisp1_isp_mbus_info *mbus_info;
+	const struct rkisp1_mbus_info *mbus_info;
 	struct v4l2_mbus_framefmt *sink_fmt;
 	struct v4l2_rect *sink_crop;
 
@@ -473,7 +473,7 @@ static void rkisp1_rsz_set_sink_crop(struct rkisp1_resizer *rsz,
 					    which);
 
 	/* Not crop for MP bayer raw data */
-	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
+	mbus_info = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 
 	if (rsz->id == RKISP1_MAINPATH &&
 	    mbus_info->pixel_enc == V4L2_PIXEL_ENC_BAYER) {
@@ -500,7 +500,7 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 				    struct v4l2_mbus_framefmt *format,
 				    unsigned int which)
 {
-	const struct rkisp1_isp_mbus_info *mbus_info;
+	const struct rkisp1_mbus_info *mbus_info;
 	struct v4l2_mbus_framefmt *sink_fmt, *src_fmt;
 	struct v4l2_rect *sink_crop;
 
@@ -516,10 +516,10 @@ static void rkisp1_rsz_set_sink_fmt(struct rkisp1_resizer *rsz,
 	else
 		sink_fmt->code = format->code;
 
-	mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
+	mbus_info = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 	if (!mbus_info || !(mbus_info->direction & RKISP1_ISP_SD_SRC)) {
 		sink_fmt->code = RKISP1_DEF_FMT;
-		mbus_info = rkisp1_isp_mbus_info_get(sink_fmt->code);
+		mbus_info = rkisp1_mbus_info_get_by_code(sink_fmt->code);
 	}
 	if (which == V4L2_SUBDEV_FORMAT_ACTIVE)
 		rsz->pixel_enc = mbus_info->pixel_enc;

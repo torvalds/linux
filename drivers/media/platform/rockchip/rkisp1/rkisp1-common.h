@@ -26,7 +26,7 @@
 struct dentry;
 
 /*
- * flags on the 'direction' field in struct 'rkisp1_isp_mbus_info' that indicate
+ * flags on the 'direction' field in struct rkisp1_mbus_info' that indicate
  * on which pad the media bus format is supported
  */
 #define RKISP1_ISP_SD_SRC			BIT(0)
@@ -150,8 +150,8 @@ struct rkisp1_isp {
 	struct v4l2_subdev sd;
 	struct media_pad pads[RKISP1_ISP_PAD_MAX];
 	struct v4l2_subdev_pad_config pad_cfg[RKISP1_ISP_PAD_MAX];
-	const struct rkisp1_isp_mbus_info *sink_fmt;
-	const struct rkisp1_isp_mbus_info *src_fmt;
+	const struct rkisp1_mbus_info *sink_fmt;
+	const struct rkisp1_mbus_info *src_fmt;
 	struct mutex ops_lock; /* serialize the subdevice ops */
 	bool is_dphy_errctrl_disabled;
 	__u32 frame_sequence;
@@ -429,8 +429,8 @@ struct rkisp1_device {
 };
 
 /*
- * struct rkisp1_isp_mbus_info - ISP media bus info, Translates media bus code to hardware
- *				 format values
+ * struct rkisp1_mbus_info - ISP media bus info, Translates media bus code to hardware
+ *			     format values
  *
  * @mbus_code: media bus code
  * @pixel_enc: pixel encoding
@@ -440,7 +440,7 @@ struct rkisp1_device {
  * @bayer_pat: bayer pattern
  * @direction: a bitmask of the flags indicating on which pad the format is supported on
  */
-struct rkisp1_isp_mbus_info {
+struct rkisp1_mbus_info {
 	u32 mbus_code;
 	enum v4l2_pixel_encoding pixel_enc;
 	u32 mipi_dt;
@@ -473,6 +473,13 @@ int rkisp1_cap_enum_mbus_codes(struct rkisp1_capture *cap,
 			       struct v4l2_subdev_mbus_code_enum *code);
 
 /*
+ * rkisp1_mbus_info_get_by_index - Retrieve the ith supported mbus info
+ *
+ * @index: index of the mbus info to fetch
+ */
+const struct rkisp1_mbus_info *rkisp1_mbus_info_get_by_index(unsigned int index);
+
+/*
  * rkisp1_sd_adjust_crop_rect - adjust a rectangle to fit into another rectangle.
  *
  * @crop:   rectangle to adjust.
@@ -491,11 +498,11 @@ void rkisp1_sd_adjust_crop(struct v4l2_rect *crop,
 			   const struct v4l2_mbus_framefmt *bounds);
 
 /*
- * rkisp1_isp_mbus_info - get the isp info of the media bus code
+ * rkisp1_mbus_info_get_by_code - get the isp info of the media bus code
  *
  * @mbus_code: the media bus code
  */
-const struct rkisp1_isp_mbus_info *rkisp1_isp_mbus_info_get(u32 mbus_code);
+const struct rkisp1_mbus_info *rkisp1_mbus_info_get_by_code(u32 mbus_code);
 
 /* rkisp1_params_configure - configure the params when stream starts.
  *			     This function is called by the isp entity upon stream starts.
