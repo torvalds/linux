@@ -42,6 +42,17 @@
 
 #define ALH_MAX_NUMBER_OF_GTW   16
 
+/*
+ * The base of multi-gateways. Multi-gateways addressing starts from
+ * ALH_MULTI_GTW_BASE and there are ALH_MULTI_GTW_COUNT multi-sources
+ * and ALH_MULTI_GTW_COUNT multi-sinks available.
+ * Addressing is continuous from ALH_MULTI_GTW_BASE to
+ * ALH_MULTI_GTW_BASE + ALH_MULTI_GTW_COUNT - 1.
+ */
+#define ALH_MULTI_GTW_BASE	0x50
+/* A magic number from FW */
+#define ALH_MULTI_GTW_COUNT	8
+
 /**
  * struct sof_ipc4_pipeline - pipeline config data
  * @priority: Priority of this pipeline
