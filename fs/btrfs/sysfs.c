@@ -991,6 +991,48 @@ static ssize_t btrfs_sectorsize_show(struct kobject *kobj,
 
 BTRFS_ATTR(, sectorsize, btrfs_sectorsize_show);
 
+static ssize_t btrfs_commit_stats_show(struct kobject *kobj,
+				       struct kobj_attribute *a, char *buf)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+
+	return sysfs_emit(buf,
+		"commits %llu\n"
+		"last_commit_ms %llu\n"
+		"max_commit_ms %llu\n"
+		"total_commit_ms %llu\n",
+		fs_info->commit_stats.commit_count,
+		div_u64(fs_info->commit_stats.last_commit_dur, NSEC_PER_MSEC),
+		div_u64(fs_info->commit_stats.max_commit_dur, NSEC_PER_MSEC),
+		div_u64(fs_info->commit_stats.total_commit_dur, NSEC_PER_MSEC));
+}
+
+static ssize_t btrfs_commit_stats_store(struct kobject *kobj,
+					struct kobj_attribute *a,
+					const char *buf, size_t len)
+{
+	struct btrfs_fs_info *fs_info = to_fs_info(kobj);
+	unsigned long val;
+	int ret;
+
+	if (!fs_info)
+		return -EPERM;
+
+	if (!capable(CAP_SYS_RESOURCE))
+		return -EPERM;
+
+	ret = kstrtoul(buf, 10, &val);
+	if (ret)
+		return ret;
+	if (val)
+		return -EINVAL;
+
+	WRITE_ONCE(fs_info->commit_stats.max_commit_dur, 0);
+
+	return len;
+}
+BTRFS_ATTR_RW(, commit_stats, btrfs_commit_stats_show, btrfs_commit_stats_store);
+
 static ssize_t btrfs_clone_alignment_show(struct kobject *kobj,
 				struct kobj_attribute *a, char *buf)
 {
@@ -1230,6 +1272,7 @@ static const struct attribute *btrfs_attrs[] = {
 	BTRFS_ATTR_PTR(, generation),
 	BTRFS_ATTR_PTR(, read_policy),
 	BTRFS_ATTR_PTR(, bg_reclaim_threshold),
+	BTRFS_ATTR_PTR(, commit_stats),
 	NULL,
 };
 
@@ -2236,4 +2279,3 @@ void __cold btrfs_exit_sysfs(void)
 #endif
 	kset_unregister(btrfs_kset);
 }
-
