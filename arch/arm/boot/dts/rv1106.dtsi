@@ -739,7 +739,7 @@
 			 <&cru CLK_CORE_CRYPTO>, <&cru CLK_PKA_CRYPTO>;
 		clock-names = "aclk", "hclk", "sclk", "pka";
 		assigned-clocks = <&cru CLK_CORE_CRYPTO>, <&cru CLK_PKA_CRYPTO>;
-		assigned-clock-rates = <300000000>, <300000000>;
+		assigned-clock-rates = <200000000>, <200000000>;
 		resets = <&cru SRST_CORE_CRYPTO>;
 		reset-names = "crypto-rst";
 		status = "disabled";
