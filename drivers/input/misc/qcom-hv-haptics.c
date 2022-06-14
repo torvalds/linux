@@ -64,6 +64,10 @@
 #define AUTO_RES_ERROR_BIT			BIT(1)
 #define HPRW_RDY_FAULT_BIT			BIT(0)
 
+/* Only for HAP525_HV */
+#define HAP_CFG_REAL_TIME_LRA_IMPEDANCE_REG	0x0E
+#define LRA_IMPEDANCE_MOHMS_LSB			200
+
 #define HAP_CFG_INT_RT_STS_REG			0x10
 #define FIFO_EMPTY_BIT				BIT(1)
 
@@ -152,6 +156,15 @@
 #define EN_HW_RECOVERY_BIT			BIT(1)
 #define SW_ERR_DRV_FREQ_BIT			BIT(0)
 
+#define HAP_CFG_ISC_CFG_REG			0x65
+#define ILIM_CC_EN_BIT				BIT(7)
+/* Following bits are only for HAP525_HV */
+#define EN_SC_DET_P_HAP525_HV_BIT		BIT(6)
+#define EN_SC_DET_N_HAP525_HV_BIT		BIT(5)
+#define EN_IMP_DET_HAP525_HV_BIT		BIT(4)
+#define ILIM_PULSE_DENSITY_MASK			GENMASK(3, 2)
+#define ILIM_DENSITY_8_OVER_64_CYCLES		0
+
 #define HAP_CFG_FAULT_CLR_REG			0x66
 #define SC_CLR_BIT				BIT(2)
 #define AUTO_RES_ERR_CLR_BIT			BIT(1)
@@ -176,6 +189,16 @@
 #define CAL_RC_CLK_AUTO_VAL			1
 #define CAL_RC_CLK_MANUAL_VAL			2
 
+/* For HAP520_MV and HAP525_HV */
+#define HAP_CFG_ISC_CFG2_REG			0x77
+#define EN_SC_DET_P_HAP520_MV_BIT		BIT(6)
+#define EN_SC_DET_N_HAP520_MV_BIT		BIT(5)
+#define ISC_THRESH_HAP520_MV_MASK		GENMASK(2, 0)
+#define ISC_THRESH_HAP520_MV_140MA		0x01
+#define ISC_THRESH_HAP525_HV_MASK		GENMASK(4, 0)
+#define ISC_THRESH_HAP525_HV_125MA		0x11
+#define ISC_THRESH_HAP525_HV_250MA		0x12
+
 /* These registers are only applicable for HAP520_MV */
 #define HAP_CFG_HW_CONFIG_REG			0x0D
 #define HV_HAP_DRIVER_BIT			BIT(1)
@@ -187,6 +210,13 @@
 
 #define HAP_CFG_VHPWR_REG			0x84
 #define VHPWR_STEP_MV				32
+
+/* Only for HAP525_HV */
+#define HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG	0xA4
+#define LRA_IMPEDANCE_MEAS_EN_BIT		BIT(7)
+#define LRA_IMPEDANCE_MEAS_CURRENT_SEL_BIT	BIT(0)
+#define CURRENT_SEL_VAL_125MA			0
+#define CURRENT_SEL_VAL_250MA			1
 
 /* version register definitions for HAPTICS_PATTERN module */
 #define HAP_PTN_REVISION2_REG			0x01
@@ -274,6 +304,11 @@
 
 #define HAP_BOOST_CLAMP_REG			0x70
 #define CLAMP_5V_BIT				BIT(0)
+
+/* haptics SDAM registers offset definition */
+#define HAP_STATUS_DATA_MSB_SDAM_OFFSET		0x46
+#define HAP_LRA_NOMINAL_OHM_SDAM_OFFSET		0x75
+#define HAP_LRA_DETECTED_OHM_SDAM_OFFSET	0x76
 
 /* constant parameters */
 #define SAMPLES_PER_PATTERN			8
@@ -517,11 +552,13 @@ struct haptics_hw_config {
 	u32			lra_min_mohms;
 	u32			lra_max_mohms;
 	u32			lra_open_mohms;
+	u32			lra_measured_mohms;
 	u32			preload_effect;
 	u32			fifo_empty_thresh;
 	u16			rc_clk_cal_count;
 	enum drv_sig_shape	drv_wf;
 	bool			is_erm;
+	bool			measure_lra_impedance;
 };
 
 struct custom_fifo_data {
@@ -955,9 +992,6 @@ static int haptics_adjust_lra_period(struct haptics_chip *chip, u32 *t_lra_us)
 
 	return 0;
 }
-
-/* The offset of SDAM register which saves STATUS_DATA_MSB value */
-#define HAP_STATUS_DATA_MSB_SDAM_OFFSET		0x46
 
 /* constant definitions for calculating TLRA */
 #define TLRA_AUTO_RES_ERR_NO_CAL_STEP_PSEC	1667000
@@ -3765,177 +3799,169 @@ exit:
 }
 #endif
 
-static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
+static int haptics_parse_effect_pattern_data(struct haptics_chip *chip,
 		struct device_node *node, struct haptics_effect *effect)
 {
 	struct haptics_hw_config *config = &chip->config;
 	u32 data[SAMPLES_PER_PATTERN * 3];
 	int rc, tmp, i;
 
-	if (!effect)
-		return -EINVAL;
-
-	rc = of_property_read_u32(node, "qcom,effect-id", &effect->id);
-	if (rc < 0) {
-		dev_err(chip->dev, "Read qcom,effect-id failed, rc=%d\n",
-				rc);
-		return rc;
-	}
-
-	effect->vmax_mv = config->vmax_mv;
-	rc = of_property_read_u32(node, "qcom,wf-vmax-mv", &tmp);
-	if (rc < 0)
-		dev_dbg(chip->dev, "Read qcom,wf-vmax-mv failed, rc=%d\n",
-				rc);
-	else
-		effect->vmax_mv = tmp;
-
-	if (effect->vmax_mv > MAX_VMAX_MV) {
-		dev_err(chip->dev, "qcom,wf-vmax-mv (%d) exceed the max value: %d\n",
-				effect->vmax_mv, MAX_VMAX_MV);
-		return -EINVAL;
-	}
-
 	effect->t_lra_us = config->t_lra_us;
 	tmp = of_property_count_elems_of_size(node,
 			"qcom,wf-pattern-data", sizeof(u32));
+	if (tmp <= 0) {
+		dev_dbg(chip->dev, "qcom,wf-pattern-data is not defined properly for effect %d\n",
+				effect->id);
+		return 0;
+	}
+
 	if (tmp > SAMPLES_PER_PATTERN * 3) {
 		dev_err(chip->dev, "Pattern src can only play 8 samples at max\n");
 		return -EINVAL;
 	}
 
-	if (tmp > 0) {
-		effect->pattern = devm_kzalloc(chip->dev,
-				sizeof(*effect->pattern), GFP_KERNEL);
-		if (!effect->pattern)
-			return -ENOMEM;
+	effect->pattern = devm_kzalloc(chip->dev,
+			sizeof(*effect->pattern), GFP_KERNEL);
+	if (!effect->pattern)
+		return -ENOMEM;
 
-		rc = of_property_read_u32_array(node,
-				"qcom,wf-pattern-data", data, tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "Read wf-pattern-data failed, rc=%d\n",
-					rc);
-			return rc;
+	rc = of_property_read_u32_array(node,
+			"qcom,wf-pattern-data", data, tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "Read wf-pattern-data failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	for (i = 0; i < tmp / 3; i++) {
+		if (data[3 * i] > 0x1ff || data[3 * i + 1] > T_LRA_X_8
+				|| data[3 * i + 2] > 1) {
+			dev_err(chip->dev, "allowed tuples: [amplitude(<= 0x1ff) period(<=6(T_LRA_X_8)) f_lra_x2(0,1)]\n");
+			return -EINVAL;
 		}
 
-		for (i = 0; i < tmp / 3; i++) {
-			if (data[3 * i] > 0x1ff || data[3 * i + 1] > T_LRA_X_8
-					|| data[3 * i + 2] > 1) {
-				dev_err(chip->dev, "allowed tuples: [amplitude(<= 0x1ff) period(<=6(T_LRA_X_8)) f_lra_x2(0,1)]\n");
-				return -EINVAL;
-			}
+		effect->pattern->samples[i].amplitude =
+			(u16)data[3 * i];
+		effect->pattern->samples[i].period =
+			(enum s_period)data[3 * i + 1];
+		effect->pattern->samples[i].f_lra_x2 =
+			(bool)data[3 * i + 2];
+	}
 
-			effect->pattern->samples[i].amplitude =
-				(u16)data[3 * i];
-			effect->pattern->samples[i].period =
-				(enum s_period)data[3 * i + 1];
-			effect->pattern->samples[i].f_lra_x2 =
-				(bool)data[3 * i + 2];
-		}
-
-		effect->pattern->preload = of_property_read_bool(node,
-				"qcom,wf-pattern-preload");
-		/*
-		 * Use PATTERN1 src by default, effect with preloaded
-		 * pattern will use PATTERN2 by default and only the
-		 * 1st preloaded pattern will be served.
-		 */
-		effect->src = PATTERN1;
-		if (effect->pattern->preload) {
-			if (config->preload_effect != -EINVAL) {
-				dev_err(chip->dev, "effect %d has been defined as preloaded\n",
-						config->preload_effect);
-				effect->pattern->preload = false;
-			} else {
-				config->preload_effect = effect->id;
-				effect->src = PATTERN2;
-			}
+	effect->pattern->preload = of_property_read_bool(node,
+			"qcom,wf-pattern-preload");
+	/*
+	 * Use PATTERN1 src by default, effect with preloaded
+	 * pattern will use PATTERN2 by default and only the
+	 * 1st preloaded pattern will be served.
+	 */
+	effect->src = PATTERN1;
+	if (effect->pattern->preload) {
+		if (config->preload_effect != -EINVAL) {
+			dev_err(chip->dev, "effect %d has been defined as preloaded\n",
+					config->preload_effect);
+			effect->pattern->preload = false;
+		} else {
+			config->preload_effect = effect->id;
+			effect->src = PATTERN2;
 		}
 	}
 
-	tmp = of_property_count_u8_elems(node, "qcom,wf-fifo-data");
-	if (tmp > 0) {
-		effect->fifo = devm_kzalloc(chip->dev,
-				sizeof(*effect->fifo), GFP_KERNEL);
-		if (!effect->fifo)
-			return -ENOMEM;
+	if (config->is_erm)
+		effect->pattern->play_rate_us = DEFAULT_ERM_PLAY_RATE_US;
+	else
+		effect->pattern->play_rate_us = config->t_lra_us;
 
-		effect->fifo->samples = devm_kcalloc(chip->dev,
-				tmp, sizeof(u8), GFP_KERNEL);
-		if (!effect->fifo->samples)
-			return -ENOMEM;
+	rc = of_property_read_u32(node, "qcom,wf-pattern-period-us", &tmp);
+	if (rc < 0)
+		dev_dbg(chip->dev, "Read qcom,wf-pattern-period-us failed, rc=%d\n",
+				rc);
+	else
+		effect->pattern->play_rate_us = tmp;
 
-		rc = of_property_read_u8_array(node, "qcom,wf-fifo-data",
-				effect->fifo->samples, tmp);
-		if (rc < 0) {
-			dev_err(chip->dev, "Read wf-fifo-data failed, rc=%d\n",
-					rc);
-			return rc;
-		}
-
-		effect->fifo->num_s = tmp;
-	}
-
-	if (!effect->pattern && !effect->fifo) {
-		dev_err(chip->dev, "no pattern specified for effect %d\n",
-				effect->id);
+	if (effect->pattern->play_rate_us > TLRA_MAX_US) {
+		dev_err(chip->dev, "qcom,wf-pattern-period-us (%d) exceed the max value: %d\n",
+				effect->pattern->play_rate_us,
+				TLRA_MAX_US);
 		return -EINVAL;
 	}
 
-	if (effect->pattern) {
-		if (config->is_erm)
-			effect->pattern->play_rate_us =
-				DEFAULT_ERM_PLAY_RATE_US;
-		else
-			effect->pattern->play_rate_us = config->t_lra_us;
-
-		rc = of_property_read_u32(node, "qcom,wf-pattern-period-us",
-					&tmp);
-		if (rc < 0)
-			dev_dbg(chip->dev, "Read qcom,wf-pattern-period-us failed, rc=%d\n",
-					rc);
-		else
-			effect->pattern->play_rate_us = tmp;
-
-		if (effect->pattern->play_rate_us > TLRA_MAX_US) {
-			dev_err(chip->dev, "qcom,wf-pattern-period-us (%d) exceed the max value: %d\n",
-					effect->pattern->play_rate_us,
-					TLRA_MAX_US);
-			return -EINVAL;
-		}
-
-		effect->pattern->play_length_us =
-			get_pattern_play_length_us(effect->pattern);
-		if (effect->pattern->play_length_us == -EINVAL) {
-			dev_err(chip->dev, "get pattern play length failed\n");
-			return -EINVAL;
-		}
-
-		if (effect->fifo)
-			dev_dbg(chip->dev, "Ignore FIFO data if pattern is specified!\n");
-
-	} else if (effect->fifo) {
-		effect->fifo->period_per_s = T_LRA;
-		rc = of_property_read_u32(node, "qcom,wf-fifo-period", &tmp);
-		if (tmp > F_48KHZ) {
-			dev_err(chip->dev, "FIFO playing period %d is not supported\n",
-					tmp);
-			return -EINVAL;
-		} else if (!rc) {
-			effect->fifo->period_per_s = tmp;
-		}
-
-		effect->fifo->play_length_us =
-			get_fifo_play_length_us(effect->fifo, config->t_lra_us);
-		if (effect->fifo->play_length_us == -EINVAL) {
-			dev_err(chip->dev, "get fifo play length failed\n");
-			return -EINVAL;
-		}
-
-		effect->src = FIFO;
-		effect->fifo->preload = of_property_read_bool(node,
-						"qcom,wf-fifo-preload");
+	effect->pattern->play_length_us = get_pattern_play_length_us(effect->pattern);
+	if (effect->pattern->play_length_us == -EINVAL) {
+		dev_err(chip->dev, "get pattern play length failed\n");
+		return -EINVAL;
 	}
+
+	return 0;
+}
+
+static int haptics_parse_effect_fifo_data(struct haptics_chip *chip,
+		struct device_node *node, struct haptics_effect *effect)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc, tmp;
+
+	if (effect->pattern) {
+		dev_dbg(chip->dev, "ignore parsing FIFO effect when pattern effect is present\n");
+		return 0;
+	}
+
+	tmp = of_property_count_u8_elems(node, "qcom,wf-fifo-data");
+	if (tmp <= 0) {
+		dev_dbg(chip->dev, "qcom,wf-fifo-data is not defined properly for effect %d\n",
+				effect->id);
+		return 0;
+	}
+
+	effect->fifo = devm_kzalloc(chip->dev,
+			sizeof(*effect->fifo), GFP_KERNEL);
+	if (!effect->fifo)
+		return -ENOMEM;
+
+	effect->fifo->samples = devm_kcalloc(chip->dev,
+			tmp, sizeof(u8), GFP_KERNEL);
+	if (!effect->fifo->samples)
+		return -ENOMEM;
+
+	rc = of_property_read_u8_array(node, "qcom,wf-fifo-data",
+			effect->fifo->samples, tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "Read wf-fifo-data failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	effect->fifo->num_s = tmp;
+	effect->fifo->period_per_s = T_LRA;
+	rc = of_property_read_u32(node, "qcom,wf-fifo-period", &tmp);
+	if (rc < 0) {
+		dev_err(chip->dev, "Get qcom,wf-fifo-period failed, rc=%d\n", rc);
+		return rc;
+	} else if (tmp > F_48KHZ) {
+		dev_err(chip->dev, "FIFO playing period %d is not supported\n",
+				tmp);
+		return -EINVAL;
+	}
+
+	effect->fifo->period_per_s = tmp;
+	effect->fifo->play_length_us =
+		get_fifo_play_length_us(effect->fifo, config->t_lra_us);
+	if (effect->fifo->play_length_us == -EINVAL) {
+		dev_err(chip->dev, "get fifo play length failed\n");
+		return -EINVAL;
+	}
+
+	effect->src = FIFO;
+	effect->fifo->preload = of_property_read_bool(node,
+					"qcom,wf-fifo-preload");
+	return 0;
+}
+
+static int haptics_parse_effect_brake_data(struct haptics_chip *chip,
+		struct device_node *node, struct haptics_effect *effect)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc, tmp;
 
 	effect->brake = devm_kzalloc(chip->dev,
 			sizeof(*effect->brake), GFP_KERNEL);
@@ -3990,12 +4016,66 @@ static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
 	effect->brake->play_length_us =
 		get_brake_play_length_us(effect->brake, config->t_lra_us);
 
-	if (config->is_erm)
-		return 0;
+	return 0;
+}
 
-	/* LRA specific per-effect settings are parsed below */
-	effect->auto_res_disable = of_property_read_bool(node,
-			"qcom,wf-auto-res-disable");
+static int haptics_parse_per_effect_dt(struct haptics_chip *chip,
+		struct device_node *node, struct haptics_effect *effect)
+{
+	struct haptics_hw_config *config = &chip->config;
+	int rc, tmp;
+
+	if (!effect)
+		return -EINVAL;
+
+	rc = of_property_read_u32(node, "qcom,effect-id", &effect->id);
+	if (rc < 0) {
+		dev_err(chip->dev, "read qcom,effect-id failed, rc=%d\n",
+				rc);
+		return rc;
+	}
+
+	effect->vmax_mv = config->vmax_mv;
+	rc = of_property_read_u32(node, "qcom,wf-vmax-mv", &tmp);
+	if (rc < 0)
+		dev_dbg(chip->dev, "read qcom,wf-vmax-mv failed, rc=%d\n",
+				rc);
+	else
+		effect->vmax_mv = tmp;
+
+	if (effect->vmax_mv > MAX_VMAX_MV) {
+		dev_err(chip->dev, "qcom,wf-vmax-mv (%d) exceed the max value: %d\n",
+				effect->vmax_mv, MAX_VMAX_MV);
+		return -EINVAL;
+	}
+
+	rc = haptics_parse_effect_pattern_data(chip, node, effect);
+	if (rc < 0) {
+		dev_err(chip->dev, "parse effect PATTERN data failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	rc = haptics_parse_effect_fifo_data(chip, node, effect);
+	if (rc < 0) {
+		dev_err(chip->dev, "parse effect FIFO data failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	if (!effect->pattern && !effect->fifo) {
+		dev_err(chip->dev, "no pattern specified for effect %d\n",
+				effect->id);
+		return -EINVAL;
+	}
+
+	rc = haptics_parse_effect_brake_data(chip, node, effect);
+	if (rc < 0) {
+		dev_err(chip->dev, "parse effect brake data failed, rc=%d\n", rc);
+		return rc;
+	}
+
+	if (!config->is_erm)
+		effect->auto_res_disable = of_property_read_bool(node,
+				"qcom,wf-auto-res-disable");
 
 	return 0;
 }
@@ -4085,6 +4165,10 @@ static int haptics_parse_lra_dt(struct haptics_chip *chip)
 			return -EINVAL;
 		}
 	}
+
+	if (chip->hw_type == HAP525_HV)
+		config->measure_lra_impedance = of_property_read_bool(node,
+				"qcom,rt-imp-detect");
 
 	return 0;
 }
@@ -4478,23 +4562,162 @@ static int haptics_pbs_trigger_isc_config(struct haptics_chip *chip)
 }
 
 #define MAX_SWEEP_STEPS		5
-#define MAX_IMPEDANCE_MOHM	40000
-#define MIN_ISC_MA		250
 #define MIN_DUTY_MILLI_PCT	0
 #define MAX_DUTY_MILLI_PCT	100000
 #define LRA_CONFIG_REGS		3
 static u32 get_lra_impedance_capable_max(struct haptics_chip *chip)
 {
-	u32 mohms = MAX_IMPEDANCE_MOHM;
+	u32 mohms;
+	u32 max_vmax_mv, min_isc_ma;
 
-	if (chip->clamp_at_5v)
-		mohms = MAX_IMPEDANCE_MOHM / 2;
+	switch (chip->hw_type) {
+	case HAP520:
+		min_isc_ma = 250;
+		if (chip->clamp_at_5v)
+			max_vmax_mv = 5000;
+		else
+			max_vmax_mv = 10000;
+		break;
+	case HAP520_MV:
+		max_vmax_mv = 5000;
+		min_isc_ma = 140;
+		break;
+	case HAP525_HV:
+		if (chip->clamp_at_5v) {
+			max_vmax_mv = 5000;
+			min_isc_ma = 125;
+		} else {
+			max_vmax_mv = 10000;
+			min_isc_ma = 250;
+		}
+		break;
+	default:
+		return 0;
+	}
 
+	mohms = (max_vmax_mv * 1000) / min_isc_ma;
 	if (is_haptics_external_powered(chip))
-		mohms = (chip->hpwr_voltage_mv * 1000) / MIN_ISC_MA;
+		mohms = (chip->hpwr_voltage_mv * 1000) / min_isc_ma;
 
 	dev_dbg(chip->dev, "LRA impedance capable max: %u mohms\n", mohms);
 	return mohms;
+}
+
+#define RT_IMPD_DET_VMAX_DEFAULT_MV		4500
+static int haptics_measure_realtime_lra_impedance(struct haptics_chip *chip)
+{
+	int rc;
+	u8 val, current_sel;
+	u32 vmax_mv, nominal_ohm, current_ma, vmax_margin_mv;
+	struct pattern_cfg pattern = {
+		.samples = {
+			    {0xff, T_LRA, false},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			    {0, 0, 0},
+			   },
+		.play_rate_us = chip->config.t_lra_us + 2000, /* drive off resonance of the LRA */
+		.play_length_us = chip->config.t_lra_us + 2000, /* drive it at least 1 cycle */
+		.preload = false,
+	};
+
+	/* calculate Vmax according to nominal resistance */
+	vmax_mv = RT_IMPD_DET_VMAX_DEFAULT_MV;
+	current_sel = chip->clamp_at_5v ? CURRENT_SEL_VAL_125MA : CURRENT_SEL_VAL_250MA;
+	if (chip->hap_cfg_nvmem != NULL) {
+		rc = nvmem_device_read(chip->hap_cfg_nvmem,
+				HAP_LRA_NOMINAL_OHM_SDAM_OFFSET, 1, &val);
+		if (!rc && val) {
+			nominal_ohm = val;
+			/*
+			 * use 250mA current_sel when nominal impedance is lower than 15 Ohms
+			 * and use 125mA detection when nominal impedance is higher than 40 Ohms
+			 */
+			if (nominal_ohm < 15)
+				current_sel = CURRENT_SEL_VAL_250MA;
+			else if (nominal_ohm > 40)
+				current_sel = CURRENT_SEL_VAL_125MA;
+
+			/*
+			 * give 8 Ohms margin (1000mV / 125mA, or 2000mV / 250mA) for wider
+			 * detectability
+			 */
+			if (current_sel == CURRENT_SEL_VAL_125MA) {
+				current_ma = 125;
+				vmax_margin_mv = 1000;
+			} else {
+				current_ma = 250;
+				vmax_margin_mv = 2000;
+			}
+
+			vmax_mv = max(vmax_mv, nominal_ohm * current_ma + vmax_margin_mv);
+		}
+	}
+
+	dev_dbg(chip->dev, "Set %u mV Vmax for impedance detection\n", vmax_mv);
+	rc = haptics_set_vmax_mv(chip, vmax_mv);
+	if (rc < 0)
+		return rc;
+
+	/* set current for imp_det comparator and enable it */
+	val = LRA_IMPEDANCE_MEAS_EN_BIT | current_sel;
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG,
+			LRA_IMPEDANCE_MEAS_EN_BIT |
+			LRA_IMPEDANCE_MEAS_CURRENT_SEL_BIT, val);
+	if (rc < 0)
+		return rc;
+
+	/* disconnect imp_det comparator to avoid it impact SC behavior */
+	rc = haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_ISC_CFG_REG, EN_IMP_DET_HAP525_HV_BIT, 0);
+	if (rc < 0)
+		goto restore;
+
+	/* play 1 drive cycle using PATTERN1 source */
+	rc = haptics_set_pattern(chip, &pattern, PATTERN1);
+	if (rc < 0)
+		goto restore;
+
+	chip->play.pattern_src = PATTERN1;
+	rc = haptics_enable_play(chip, true);
+	if (rc < 0)
+		goto restore;
+
+	usleep_range(pattern.play_length_us, pattern.play_length_us + 1);
+
+	rc = haptics_enable_play(chip, false);
+	if (rc < 0)
+		goto restore;
+
+	/* read the measured LRA impedance */
+	rc = haptics_read(chip, chip->cfg_addr_base,
+			HAP_CFG_REAL_TIME_LRA_IMPEDANCE_REG, &val, 1);
+	if (rc < 0)
+		goto restore;
+
+	chip->config.lra_measured_mohms = val * LRA_IMPEDANCE_MOHMS_LSB;
+	dev_dbg(chip->dev, "measured LRA impedance: %u mohm",
+			chip->config.lra_measured_mohms);
+	/* store the detected LRA impedance into SDAM for future usage */
+	if (chip->hap_cfg_nvmem != NULL) {
+		rc = nvmem_device_write(chip->hap_cfg_nvmem, HAP_LRA_DETECTED_OHM_SDAM_OFFSET, 1,
+				&chip->config.lra_measured_mohms);
+		if (rc < 0)
+			dev_err(chip->dev, "write measured impedance value into SDAM failed, rc=%d\n",
+					rc);
+	}
+restore:
+	if (rc < 0)
+		dev_err(chip->dev, "measure LRA impedance failed, rc=%d\n", rc);
+
+	return haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG,
+			LRA_IMPEDANCE_MEAS_EN_BIT, 0);
 }
 
 static int haptics_detect_lra_impedance(struct haptics_chip *chip)
@@ -4506,7 +4729,7 @@ static int haptics_detect_lra_impedance(struct haptics_chip *chip)
 		{ HAP_CFG_VMAX_HDRM_REG, 0x00 },
 	};
 	struct haptics_reg_info backup[LRA_CONFIG_REGS];
-	u8 val;
+	u8 val, cfg1, cfg2, reg1, reg2, mask1, mask2, val1, val2;
 	u32 duty_milli_pct, low_milli_pct, high_milli_pct;
 	u32 amplitude, lra_min_mohms, lra_max_mohms, capability_mohms;
 
@@ -4519,10 +4742,61 @@ static int haptics_detect_lra_impedance(struct haptics_chip *chip)
 			return rc;
 	}
 
-	/* Trigger PBS to config 250mA ISC setting */
-	rc = haptics_pbs_trigger_isc_config(chip);
-	if (rc < 0)
-		return rc;
+	if (chip->hw_type == HAP520) {
+		/* Trigger PBS to config 250mA ISC setting */
+		rc = haptics_pbs_trigger_isc_config(chip);
+		if (rc < 0)
+			return rc;
+	} else {
+		 /* Config ISC_CFG settings for LRA impedance_detection */
+		switch (chip->hw_type) {
+		case HAP520_MV:
+			reg1 = HAP_CFG_ISC_CFG_REG;
+			mask1 = ILIM_CC_EN_BIT;
+			val1 = ILIM_CC_EN_BIT;
+			reg2 = HAP_CFG_ISC_CFG2_REG;
+			mask2 = EN_SC_DET_P_HAP520_MV_BIT |
+				EN_SC_DET_N_HAP520_MV_BIT |
+				ISC_THRESH_HAP520_MV_MASK;
+			val2 = EN_SC_DET_P_HAP520_MV_BIT|
+				EN_SC_DET_N_HAP520_MV_BIT|
+				ISC_THRESH_HAP520_MV_140MA;
+			break;
+		case HAP525_HV:
+			reg1 = HAP_CFG_ISC_CFG_REG;
+			mask1 = EN_SC_DET_P_HAP525_HV_BIT | EN_SC_DET_N_HAP525_HV_BIT |
+				EN_IMP_DET_HAP525_HV_BIT | ILIM_PULSE_DENSITY_MASK;
+			val1 = EN_IMP_DET_HAP525_HV_BIT |
+				FIELD_PREP(ILIM_PULSE_DENSITY_MASK, ILIM_DENSITY_8_OVER_64_CYCLES);
+			reg2 = HAP_CFG_RT_LRA_IMPD_MEAS_CFG_REG;
+			mask2 = LRA_IMPEDANCE_MEAS_EN_BIT | LRA_IMPEDANCE_MEAS_CURRENT_SEL_BIT;
+			val2 = chip->clamp_at_5v ? CURRENT_SEL_VAL_125MA : CURRENT_SEL_VAL_250MA;
+			val2 |= LRA_IMPEDANCE_MEAS_EN_BIT;
+			break;
+		default:
+			dev_err(chip->dev, "unsupported HW type: %d\n",
+					chip->hw_type);
+			return -EOPNOTSUPP;
+		}
+
+		 /* save ISC_CFG default settings */
+		rc = haptics_read(chip, chip->cfg_addr_base, reg1, &cfg1, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_read(chip, chip->cfg_addr_base, reg2, &cfg2, 1);
+		if (rc < 0)
+			return rc;
+
+		/* update ISC_CFG settings for the detection */
+		rc = haptics_masked_write(chip, chip->cfg_addr_base, reg1, mask1, val1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_masked_write(chip, chip->cfg_addr_base, reg2, mask2, val2);
+		if (rc < 0)
+			goto restore;
+	}
 
 	/* Set square drive waveform, 10V Vmax, no HDRM */
 	for (i = 0; i < LRA_CONFIG_REGS; i++) {
@@ -4599,10 +4873,21 @@ restore:
 	if (rc < 0)
 		return rc;
 
-	/* Trigger PBS to restore 1500mA ISC setting */
-	rc = haptics_pbs_trigger_isc_config(chip);
-	if (rc < 0)
-		return rc;
+	if (chip->hw_type == HAP520) {
+		/* Trigger PBS to restore 1500mA ISC setting */
+		rc = haptics_pbs_trigger_isc_config(chip);
+		if (rc < 0)
+			return rc;
+	} else {
+		/* restore ISC_CFG settings to default */
+		rc = haptics_write(chip, chip->cfg_addr_base, reg1, &cfg1, 1);
+		if (rc < 0)
+			return rc;
+
+		rc = haptics_write(chip, chip->cfg_addr_base, reg2, &cfg2, 1);
+		if (rc < 0)
+			return rc;
+	}
 
 	/* Restore driver waveform, Vmax, HDRM settings */
 	for (i = 0; i < LRA_CONFIG_REGS; i++) {
@@ -4736,7 +5021,10 @@ static int haptics_start_lra_calibrate(struct haptics_chip *chip)
 
 	/* Sleep at least 4ms to stabilize the LRA from frequency detection */
 	usleep_range(4000, 5000);
-	rc = haptics_detect_lra_impedance(chip);
+	if (chip->config.measure_lra_impedance)
+		rc = haptics_measure_realtime_lra_impedance(chip);
+	else
+		rc = haptics_detect_lra_impedance(chip);
 	if (rc < 0) {
 		dev_err(chip->dev, "Detect LRA impedance failed, rc=%d\n", rc);
 		goto unlock;
@@ -4789,6 +5077,10 @@ static ssize_t lra_impedance_show(struct class *c,
 {
 	struct haptics_chip *chip = container_of(c,
 			struct haptics_chip, hap_class);
+
+	if (chip->config.measure_lra_impedance)
+		return scnprintf(buf, PAGE_SIZE, "measured %u mohms\n",
+				chip->config.lra_measured_mohms);
 
 	if (chip->config.lra_min_mohms == 0 && chip->config.lra_max_mohms == 0)
 		return -EINVAL;
