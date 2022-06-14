@@ -36,10 +36,6 @@
 	};
 };
 
-&cpu0_opp_table {
-	rockchip,avs = <1>;
-};
-
 &rng {
 	status = "okay";
 };

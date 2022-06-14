@@ -7,11 +7,21 @@
 #include "px30.dtsi"
 
 &cpu0_opp_table {
+	/delete-node/ opp-408000000;
+	/delete-node/ opp-600000000;
+	/delete-node/ opp-816000000;
+	/delete-node/ opp-1008000000;
 	/delete-node/ opp-1200000000;
 	/delete-node/ opp-1248000000;
 	/delete-node/ opp-1296000000;
 	/delete-node/ opp-1416000000;
 	/delete-node/ opp-1512000000;
+
+	opp-1008000000 {
+		opp-hz = /bits/ 64 <1008000000>;
+		opp-microvolt = <1125000 1125000 1125000>;
+		clock-latency-ns = <40000>;
+	};
 };
 
 &cru {
@@ -54,14 +64,28 @@
 	};
 };
 
+&dmc_opp_table {
+	/delete-node/ opp-194000000;
+	/delete-node/ opp-328000000;
+	/delete-node/ opp-450000000;
+	/delete-node/ opp-528000000;
+	/delete-node/ opp-666000000;
+
+	opp-666000000 {
+		opp-hz = /bits/ 64 <666000000>;
+		opp-microvolt = <1050000>;
+	};
+};
+
 &gpu_opp_table {
+	/delete-node/ opp-200000000;
+	/delete-node/ opp-300000000;
+	/delete-node/ opp-400000000;
+	/delete-node/ opp-480000000;
+
 	opp-520000000 {
 		opp-hz = /bits/ 64 <520000000>;
-		opp-microvolt = <1175000>;
-		opp-microvolt-L0 = <1175000>;
-		opp-microvolt-L1 = <1150000>;
-		opp-microvolt-L2 = <1100000>;
-		opp-microvolt-L3 = <1050000>;
+		opp-microvolt = <1125000>;
 	};
 };
 
