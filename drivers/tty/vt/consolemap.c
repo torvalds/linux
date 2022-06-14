@@ -214,29 +214,29 @@ struct uni_pagedict {
 
 static struct uni_pagedict *dflt;
 
-static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
+static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *dict,
 	       enum translation_map m)
 {
-	int j, glyph;
 	unsigned short *t = translations[m];
-	unsigned char *q;
+	unsigned char *inv;
 
-	if (!p)
+	if (!dict)
 		return;
-	q = p->inverse_translations[m];
+	inv = dict->inverse_translations[m];
 
-	if (!q) {
-		q = p->inverse_translations[m] = kmalloc(MAX_GLYPH, GFP_KERNEL);
-		if (!q)
+	if (!inv) {
+		inv = dict->inverse_translations[m] = kmalloc(MAX_GLYPH,
+				GFP_KERNEL);
+		if (!inv)
 			return;
 	}
-	memset(q, 0, MAX_GLYPH);
+	memset(inv, 0, MAX_GLYPH);
 
-	for (j = 0; j < ARRAY_SIZE(translations[m]); j++) {
-		glyph = conv_uni_to_pc(conp, t[j]);
-		if (glyph >= 0 && glyph < MAX_GLYPH && q[glyph] < 32) {
+	for (unsigned int ch = 0; ch < ARRAY_SIZE(translations[m]); ch++) {
+		int glyph = conv_uni_to_pc(conp, t[ch]);
+		if (glyph >= 0 && glyph < MAX_GLYPH && inv[glyph] < 32) {
 			/* prefer '-' above SHY etc. */
-			q[glyph] = j;
+			inv[glyph] = ch;
 		}
 	}
 }
