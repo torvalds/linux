@@ -63,11 +63,9 @@ int main(int argc, char *argv[])
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 	struct kvm_sregs sregs;
-	struct kvm_cpuid_entry2 *entry;
 	struct ucall uc;
 
-	entry = kvm_get_supported_cpuid_entry(1);
-	TEST_REQUIRE(entry->ecx & CPUID_XSAVE);
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XSAVE));
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
