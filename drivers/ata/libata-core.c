@@ -93,7 +93,7 @@ struct ata_force_param {
 	const char	*name;
 	u8		cbl;
 	u8		spd_limit;
-	unsigned long	xfer_mask;
+	unsigned int	xfer_mask;
 	unsigned int	horkage_on;
 	unsigned int	horkage_off;
 	u16		lflags_on;
@@ -425,7 +425,7 @@ static void ata_force_xfermask(struct ata_device *dev)
 
 	for (i = ata_force_tbl_size - 1; i >= 0; i--) {
 		const struct ata_force_ent *fe = &ata_force_tbl[i];
-		unsigned long pio_mask, mwdma_mask, udma_mask;
+		unsigned int pio_mask, mwdma_mask, udma_mask;
 
 		if (fe->port != -1 && fe->port != dev->link->ap->print_id)
 			continue;
@@ -803,11 +803,11 @@ int ata_build_rw_tf(struct ata_taskfile *tf, struct ata_device *dev,
  *	RETURNS:
  *	Packed xfer_mask.
  */
-unsigned long ata_pack_xfermask(unsigned long pio_mask,
-				unsigned long mwdma_mask,
-				unsigned long udma_mask)
+unsigned int ata_pack_xfermask(unsigned int pio_mask,
+			       unsigned int mwdma_mask,
+			       unsigned int udma_mask)
 {
-	return ((pio_mask << ATA_SHIFT_PIO) & ATA_MASK_PIO) |
+	return	((pio_mask << ATA_SHIFT_PIO) & ATA_MASK_PIO) |
 		((mwdma_mask << ATA_SHIFT_MWDMA) & ATA_MASK_MWDMA) |
 		((udma_mask << ATA_SHIFT_UDMA) & ATA_MASK_UDMA);
 }
@@ -823,8 +823,8 @@ EXPORT_SYMBOL_GPL(ata_pack_xfermask);
  *	Unpack @xfer_mask into @pio_mask, @mwdma_mask and @udma_mask.
  *	Any NULL destination masks will be ignored.
  */
-void ata_unpack_xfermask(unsigned long xfer_mask, unsigned long *pio_mask,
-			 unsigned long *mwdma_mask, unsigned long *udma_mask)
+void ata_unpack_xfermask(unsigned int xfer_mask, unsigned int *pio_mask,
+			 unsigned int *mwdma_mask, unsigned int *udma_mask)
 {
 	if (pio_mask)
 		*pio_mask = (xfer_mask & ATA_MASK_PIO) >> ATA_SHIFT_PIO;
@@ -857,7 +857,7 @@ static const struct ata_xfer_ent {
  *	RETURNS:
  *	Matching XFER_* value, 0xff if no match found.
  */
-u8 ata_xfer_mask2mode(unsigned long xfer_mask)
+u8 ata_xfer_mask2mode(unsigned int xfer_mask)
 {
 	int highbit = fls(xfer_mask) - 1;
 	const struct ata_xfer_ent *ent;
@@ -881,7 +881,7 @@ EXPORT_SYMBOL_GPL(ata_xfer_mask2mode);
  *	RETURNS:
  *	Matching xfer_mask, 0 if no match found.
  */
-unsigned long ata_xfer_mode2mask(u8 xfer_mode)
+unsigned int ata_xfer_mode2mask(u8 xfer_mode)
 {
 	const struct ata_xfer_ent *ent;
 
@@ -930,7 +930,7 @@ EXPORT_SYMBOL_GPL(ata_xfer_mode2shift);
  *	Constant C string representing highest speed listed in
  *	@mode_mask, or the constant C string "<n/a>".
  */
-const char *ata_mode_string(unsigned long xfer_mask)
+const char *ata_mode_string(unsigned int xfer_mask)
 {
 	static const char * const xfer_mode_str[] = {
 		"PIO0",
@@ -1383,9 +1383,9 @@ static inline void ata_dump_id(struct ata_device *dev, const u16 *id)
  *	RETURNS:
  *	Computed xfermask
  */
-unsigned long ata_id_xfermask(const u16 *id)
+unsigned int ata_id_xfermask(const u16 *id)
 {
-	unsigned long pio_mask, mwdma_mask, udma_mask;
+	unsigned int pio_mask, mwdma_mask, udma_mask;
 
 	/* Usual case. Word 53 indicates word 64 is valid */
 	if (id[ATA_ID_FIELD_VALID] & (1 << 1)) {
@@ -2534,7 +2534,7 @@ int ata_dev_configure(struct ata_device *dev)
 	struct ata_port *ap = dev->link->ap;
 	bool print_info = ata_dev_print_info(dev);
 	const u16 *id = dev->id;
-	unsigned long xfer_mask;
+	unsigned int xfer_mask;
 	unsigned int err_mask;
 	char revbuf[7];		/* XYZ-99\0 */
 	char fwrevbuf[ATA_ID_FW_REV_LEN+1];
@@ -3202,8 +3202,8 @@ u8 ata_timing_cycle2mode(unsigned int xfer_shift, int cycle)
 int ata_down_xfermask_limit(struct ata_device *dev, unsigned int sel)
 {
 	char buf[32];
-	unsigned long orig_mask, xfer_mask;
-	unsigned long pio_mask, mwdma_mask, udma_mask;
+	unsigned int orig_mask, xfer_mask;
+	unsigned int pio_mask, mwdma_mask, udma_mask;
 	int quiet, highbit;
 
 	quiet = !!(sel & ATA_DNXFER_QUIET);
@@ -3381,7 +3381,7 @@ int ata_do_set_mode(struct ata_link *link, struct ata_device **r_failed_dev)
 
 	/* step 1: calculate xfer_mask */
 	ata_for_each_dev(dev, link, ENABLED) {
-		unsigned long pio_mask, dma_mask;
+		unsigned int pio_mask, dma_mask;
 		unsigned int mode_mask;
 
 		mode_mask = ATA_DMA_MASK_ATA;
@@ -4217,7 +4217,7 @@ static void ata_dev_xfermask(struct ata_device *dev)
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
 	struct ata_host *host = ap->host;
-	unsigned long xfer_mask;
+	unsigned int xfer_mask;
 
 	/* controller modes available */
 	xfer_mask = ata_pack_xfermask(ap->pio_mask,
@@ -5776,7 +5776,7 @@ int ata_host_register(struct ata_host *host, struct scsi_host_template *sht)
 	/* set cable, sata_spd_limit and report */
 	for (i = 0; i < host->n_ports; i++) {
 		struct ata_port *ap = host->ports[i];
-		unsigned long xfer_mask;
+		unsigned int xfer_mask;
 
 		/* set SATA cable type if still unset */
 		if (ap->cbl == ATA_CBL_NONE && (ap->flags & ATA_FLAG_SATA))

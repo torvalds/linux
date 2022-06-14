@@ -113,7 +113,7 @@ static u32 hpt3x2n_find_mode(struct ata_port *ap, int speed)
  *	The Marvell bridge chips used on the HighPoint SATA cards do not seem
  *	to support the UltraDMA modes 1, 2, and 3 as well as any MWDMA modes...
  */
-static unsigned long hpt372n_filter(struct ata_device *adev, unsigned long mask)
+static unsigned int hpt372n_filter(struct ata_device *adev, unsigned int mask)
 {
 	if (ata_id_is_sata(adev->id))
 		mask &= ~((0xE << ATA_SHIFT_UDMA) | ATA_MASK_MWDMA);
