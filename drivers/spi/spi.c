@@ -3082,6 +3082,7 @@ int spi_register_controller(struct spi_controller *ctlr)
 	ctlr->pcpu_statistics = spi_alloc_pcpu_stats(dev);
 	if (!ctlr->pcpu_statistics) {
 		dev_err(dev, "Error allocating per-cpu statistics\n");
+		status = -ENOMEM;
 		goto destroy_queue;
 	}
 
