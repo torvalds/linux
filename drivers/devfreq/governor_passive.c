@@ -34,6 +34,20 @@ get_parent_cpu_data(struct devfreq_passive_data *p_data,
 	return NULL;
 }
 
+static void delete_parent_cpu_data(struct devfreq_passive_data *p_data)
+{
+	struct devfreq_cpu_data *parent_cpu_data, *tmp;
+
+	list_for_each_entry_safe(parent_cpu_data, tmp, &p_data->cpu_data_list, node) {
+		list_del(&parent_cpu_data->node);
+
+		if (parent_cpu_data->opp_table)
+			dev_pm_opp_put_opp_table(parent_cpu_data->opp_table);
+
+		kfree(parent_cpu_data);
+	}
+}
+
 static unsigned long get_target_freq_by_required_opp(struct device *p_dev,
 						struct opp_table *p_opp_table,
 						struct opp_table *opp_table,
@@ -222,8 +236,7 @@ static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
 {
 	struct devfreq_passive_data *p_data
 			= (struct devfreq_passive_data *)devfreq->data;
-	struct devfreq_cpu_data *parent_cpu_data;
-	int cpu, ret = 0;
+	int ret;
 
 	if (p_data->nb.notifier_call) {
 		ret = cpufreq_unregister_notifier(&p_data->nb,
@@ -232,27 +245,9 @@ static int cpufreq_passive_unregister_notifier(struct devfreq *devfreq)
 			return ret;
 	}
 
-	for_each_possible_cpu(cpu) {
-		struct cpufreq_policy *policy = cpufreq_cpu_get(cpu);
-		if (!policy) {
-			ret = -EINVAL;
-			continue;
-		}
+	delete_parent_cpu_data(p_data);
 
-		parent_cpu_data = get_parent_cpu_data(p_data, policy);
-		if (!parent_cpu_data) {
-			cpufreq_cpu_put(policy);
-			continue;
-		}
-
-		list_del(&parent_cpu_data->node);
-		if (parent_cpu_data->opp_table)
-			dev_pm_opp_put_opp_table(parent_cpu_data->opp_table);
-		kfree(parent_cpu_data);
-		cpufreq_cpu_put(policy);
-	}
-
-	return ret;
+	return 0;
 }
 
 static int cpufreq_passive_register_notifier(struct devfreq *devfreq)
