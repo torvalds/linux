@@ -597,12 +597,9 @@ static int gpio_twl4030_remove(struct platform_device *pdev)
 
 	gpiochip_remove(&priv->gpio_chip);
 
-	if (is_module())
-		return 0;
-
 	/* REVISIT no support yet for deregistering all the IRQs */
-	WARN_ON(1);
-	return -EIO;
+	WARN_ON(!is_module());
+	return 0;
 }
 
 static const struct of_device_id twl_gpio_match[] = {
