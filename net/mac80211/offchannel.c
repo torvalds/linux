@@ -842,10 +842,24 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 
 	/* Check if the operating channel is the requested channel */
 	if (!need_offchan) {
-		struct ieee80211_chanctx_conf *chanctx_conf;
+		struct ieee80211_chanctx_conf *chanctx_conf = NULL;
+		int i;
 
 		rcu_read_lock();
-		chanctx_conf = rcu_dereference(sdata->vif.bss_conf.chanctx_conf);
+		/* Check all the links first */
+		for (i = 0; i < ARRAY_SIZE(sdata->vif.link_conf); i++) {
+			if (!sdata->vif.link_conf[i])
+				continue;
+
+			chanctx_conf = rcu_dereference(sdata->vif.link_conf[i]->chanctx_conf);
+			if (!chanctx_conf)
+				continue;
+
+			if (ether_addr_equal(sdata->vif.link_conf[i]->addr, mgmt->sa))
+				break;
+
+			chanctx_conf = NULL;
+		}
 
 		if (chanctx_conf) {
 			need_offchan = params->chan &&
