@@ -6,6 +6,7 @@
 #include <linux/inetdevice.h>
 #include <linux/etherdevice.h>
 #include <linux/ethtool.h>
+#include <linux/filter.h>
 #include <linux/mm.h>
 
 #include <net/checksum.h>
@@ -382,6 +383,7 @@ static const struct net_device_ops mana_devops = {
 	.ndo_validate_addr	= eth_validate_addr,
 	.ndo_get_stats64	= mana_get_stats64,
 	.ndo_bpf		= mana_bpf,
+	.ndo_xdp_xmit		= mana_xdp_xmit,
 };
 
 static void mana_cleanup_port_context(struct mana_port_context *apc)
@@ -1120,6 +1122,9 @@ static void mana_rx_skb(void *buf_va, struct mana_rxcomp_oob *cqe,
 
 	act = mana_run_xdp(ndev, rxq, &xdp, buf_va, pkt_len);
 
+	if (act == XDP_REDIRECT && !rxq->xdp_rc)
+		return;
+
 	if (act != XDP_PASS && act != XDP_TX)
 		goto drop_xdp;
 
@@ -1275,10 +1280,13 @@ drop:
 static void mana_poll_rx_cq(struct mana_cq *cq)
 {
 	struct gdma_comp *comp = cq->gdma_comp_buf;
+	struct mana_rxq *rxq = cq->rxq;
 	int comp_read, i;
 
 	comp_read = mana_gd_poll_cq(cq->gdma_cq, comp, CQE_POLLING_BUFFER);
 	WARN_ON_ONCE(comp_read > CQE_POLLING_BUFFER);
+
+	rxq->xdp_flush = false;
 
 	for (i = 0; i < comp_read; i++) {
 		if (WARN_ON_ONCE(comp[i].is_sq))
@@ -1288,8 +1296,11 @@ static void mana_poll_rx_cq(struct mana_cq *cq)
 		if (WARN_ON_ONCE(comp[i].wq_num != cq->rxq->gdma_id))
 			return;
 
-		mana_process_rx_cqe(cq->rxq, cq, &comp[i]);
+		mana_process_rx_cqe(rxq, cq, &comp[i]);
 	}
+
+	if (rxq->xdp_flush)
+		xdp_do_flush();
 }
 
 static void mana_cq_handler(void *context, struct gdma_queue *gdma_queue)

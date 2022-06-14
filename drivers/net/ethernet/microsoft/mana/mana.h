@@ -53,12 +53,14 @@ struct mana_stats_rx {
 	u64 bytes;
 	u64 xdp_drop;
 	u64 xdp_tx;
+	u64 xdp_redirect;
 	struct u64_stats_sync syncp;
 };
 
 struct mana_stats_tx {
 	u64 packets;
 	u64 bytes;
+	u64 xdp_xmit;
 	struct u64_stats_sync syncp;
 };
 
@@ -311,6 +313,8 @@ struct mana_rxq {
 	struct bpf_prog __rcu *bpf_prog;
 	struct xdp_rxq_info xdp_rxq;
 	struct page *xdp_save_page;
+	bool xdp_flush;
+	int xdp_rc; /* XDP redirect return code */
 
 	/* MUST BE THE LAST MEMBER:
 	 * Each receive buffer has an associated mana_recv_buf_oob.
@@ -396,6 +400,8 @@ int mana_probe(struct gdma_dev *gd, bool resuming);
 void mana_remove(struct gdma_dev *gd, bool suspending);
 
 void mana_xdp_tx(struct sk_buff *skb, struct net_device *ndev);
+int mana_xdp_xmit(struct net_device *ndev, int n, struct xdp_frame **frames,
+		  u32 flags);
 u32 mana_run_xdp(struct net_device *ndev, struct mana_rxq *rxq,
 		 struct xdp_buff *xdp, void *buf_va, uint pkt_len);
 struct bpf_prog *mana_xdp_get(struct mana_port_context *apc);
