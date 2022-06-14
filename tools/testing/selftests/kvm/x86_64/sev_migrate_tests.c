@@ -393,23 +393,14 @@ static void test_sev_move_copy(void)
 	kvm_vm_free(sev_vm);
 }
 
-#define X86_FEATURE_SEV (1 << 1)
-#define X86_FEATURE_SEV_ES (1 << 3)
-
 int main(int argc, char *argv[])
 {
-	struct kvm_cpuid_entry2 *cpuid;
-
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM));
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_VM_COPY_ENC_CONTEXT_FROM));
 
-	cpuid = kvm_get_supported_cpuid_entry(0x80000000);
-	TEST_REQUIRE(cpuid->eax >= 0x8000001f);
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SEV));
 
-	cpuid = kvm_get_supported_cpuid_entry(0x8000001f);
-	TEST_REQUIRE(cpuid->eax & X86_FEATURE_SEV);
-
-	have_sev_es = !!(cpuid->eax & X86_FEATURE_SEV_ES);
+	have_sev_es = kvm_cpu_has(X86_FEATURE_SEV_ES);
 
 	if (kvm_has_cap(KVM_CAP_VM_MOVE_ENC_CONTEXT_FROM)) {
 		test_sev_migrate_from(/* es= */ false);
