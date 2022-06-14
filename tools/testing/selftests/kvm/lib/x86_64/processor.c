@@ -663,6 +663,15 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	return vcpu;
 }
 
+struct kvm_vcpu *vm_arch_vcpu_recreate(struct kvm_vm *vm, uint32_t vcpu_id)
+{
+	struct kvm_vcpu *vcpu = __vm_vcpu_add(vm, vcpu_id);
+
+	vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
+
+	return vcpu;
+}
+
 /*
  * Allocate an instance of struct kvm_cpuid2
  *

@@ -424,7 +424,6 @@ int main(int argc, char *argv[])
 
 		/* Restore state in a new VM.  */
 		vcpu = vm_recreate_with_one_vcpu(vm);
-		vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
 		vcpu_load_state(vcpu, state);
 		run = vcpu->run;
 		kvm_x86_state_cleanup(state);

@@ -739,6 +739,15 @@ static inline struct kvm_vcpu *vm_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 	return vm_arch_vcpu_add(vm, vcpu_id, guest_code);
 }
 
+/* Re-create a vCPU after restarting a VM, e.g. for state save/restore tests. */
+struct kvm_vcpu *vm_arch_vcpu_recreate(struct kvm_vm *vm, uint32_t vcpu_id);
+
+static inline struct kvm_vcpu *vm_vcpu_recreate(struct kvm_vm *vm,
+						uint32_t vcpu_id)
+{
+	return vm_arch_vcpu_recreate(vm, vcpu_id);
+}
+
 void virt_arch_pgd_alloc(struct kvm_vm *vm);
 
 static inline void virt_pgd_alloc(struct kvm_vm *vm)

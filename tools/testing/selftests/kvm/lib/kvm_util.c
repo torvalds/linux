@@ -388,11 +388,17 @@ void kvm_vm_restart(struct kvm_vm *vmp)
 	}
 }
 
+__weak struct kvm_vcpu *vm_arch_vcpu_recreate(struct kvm_vm *vm,
+					      uint32_t vcpu_id)
+{
+	return __vm_vcpu_add(vm, vcpu_id);
+}
+
 struct kvm_vcpu *vm_recreate_with_one_vcpu(struct kvm_vm *vm)
 {
 	kvm_vm_restart(vm);
 
-	return __vm_vcpu_add(vm, 0);
+	return vm_vcpu_recreate(vm, 0);
 }
 
 /*
@@ -1812,7 +1818,7 @@ void *addr_gva2hva(struct kvm_vm *vm, vm_vaddr_t gva)
 	return addr_gpa2hva(vm, addr_gva2gpa(vm, gva));
 }
 
-unsigned long __attribute__((weak)) vm_compute_max_gfn(struct kvm_vm *vm)
+unsigned long __weak vm_compute_max_gfn(struct kvm_vm *vm)
 {
 	return ((1ULL << vm->pa_bits) >> vm->page_shift) - 1;
 }
