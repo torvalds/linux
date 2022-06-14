@@ -296,7 +296,7 @@ u16 inverse_translate(const struct vc_data *conp, u16 glyph, bool use_unicode)
 	if (glyph >= MAX_GLYPH)
 		return 0;
 
-	p = *conp->vc_uni_pagedir_loc;
+	p = *conp->uni_pagedict_loc;
 	if (!p)
 		return glyph;
 
@@ -323,7 +323,7 @@ static void update_user_maps(void)
 	for (i = 0; i < MAX_NR_CONSOLES; i++) {
 		if (!vc_cons_allocated(i))
 			continue;
-		p = *vc_cons[i].d->vc_uni_pagedir_loc;
+		p = *vc_cons[i].d->uni_pagedict_loc;
 		if (p && p != q) {
 			set_inverse_transl(vc_cons[i].d, p, USER_MAP);
 			set_inverse_trans_unicode(p);
@@ -445,10 +445,10 @@ void con_free_unimap(struct vc_data *vc)
 {
 	struct uni_pagedict *p;
 
-	p = *vc->vc_uni_pagedir_loc;
+	p = *vc->uni_pagedict_loc;
 	if (!p)
 		return;
-	*vc->vc_uni_pagedir_loc = NULL;
+	*vc->uni_pagedict_loc = NULL;
 	if (--p->refcount)
 		return;
 	con_release_unimap(p);
@@ -463,7 +463,7 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *dict1)
 	for (cons = 0; cons < MAX_NR_CONSOLES; cons++) {
 		if (!vc_cons_allocated(cons))
 			continue;
-		dict2 = *vc_cons[cons].d->vc_uni_pagedir_loc;
+		dict2 = *vc_cons[cons].d->uni_pagedict_loc;
 		if (!dict2 || dict2 == dict1 || dict2->sum != dict1->sum)
 			continue;
 		for (d = 0; d < UNI_DIRS; d++) {
@@ -487,7 +487,7 @@ static int con_unify_unimap(struct vc_data *conp, struct uni_pagedict *dict1)
 		}
 		if (d == UNI_DIRS) {
 			dict2->refcount++;
-			*conp->vc_uni_pagedir_loc = dict2;
+			*conp->uni_pagedict_loc = dict2;
 			con_release_unimap(dict1);
 			kfree(dict1);
 			return 1;
@@ -531,14 +531,14 @@ con_insert_unipair(struct uni_pagedict *p, u_short unicode, u_short fontpos)
 
 static int con_allocate_new(struct vc_data *vc)
 {
-	struct uni_pagedict *new, *old = *vc->vc_uni_pagedir_loc;
+	struct uni_pagedict *new, *old = *vc->uni_pagedict_loc;
 
 	new = kzalloc(sizeof(*new), GFP_KERNEL);
 	if (!new)
 		return -ENOMEM;
 
 	new->refcount = 1;
-	*vc->vc_uni_pagedir_loc = new;
+	*vc->uni_pagedict_loc = new;
 
 	if (old)
 		old->refcount--;
@@ -549,7 +549,7 @@ static int con_allocate_new(struct vc_data *vc)
 /* Caller must hold the lock */
 static int con_do_clear_unimap(struct vc_data *vc)
 {
-	struct uni_pagedict *old = *vc->vc_uni_pagedir_loc;
+	struct uni_pagedict *old = *vc->uni_pagedict_loc;
 
 	if (!old || old->refcount > 1)
 		return con_allocate_new(vc);
@@ -583,7 +583,7 @@ static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
 	if (ret)
 		return ERR_PTR(ret);
 
-	new = *vc->vc_uni_pagedir_loc;
+	new = *vc->uni_pagedict_loc;
 
 	/*
 	 * uni_pgdir is a 32*32*64 table with rows allocated when its first
@@ -616,7 +616,7 @@ static struct uni_pagedict *con_unshare_unimap(struct vc_data *vc,
 				ret = con_insert_unipair(new, uni, row[g]);
 				if (ret) {
 					old->refcount++;
-					*vc->vc_uni_pagedir_loc = old;
+					*vc->uni_pagedict_loc = old;
 					con_release_unimap(new);
 					kfree(new);
 					return ERR_PTR(ret);
@@ -644,7 +644,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 	console_lock();
 
 	/* Save original vc_unipagdir_loc in case we allocate a new one */
-	dict = *vc->vc_uni_pagedir_loc;
+	dict = *vc->uni_pagedict_loc;
 	if (!dict) {
 		err = -EINVAL;
 		goto out_unlock;
@@ -704,12 +704,12 @@ int con_set_default_unimap(struct vc_data *vc)
 	u16 *dfont;
 
 	if (dflt) {
-		dict = *vc->vc_uni_pagedir_loc;
+		dict = *vc->uni_pagedict_loc;
 		if (dict == dflt)
 			return 0;
 
 		dflt->refcount++;
-		*vc->vc_uni_pagedir_loc = dflt;
+		*vc->uni_pagedict_loc = dflt;
 		if (dict && !--dict->refcount) {
 			con_release_unimap(dict);
 			kfree(dict);
@@ -723,7 +723,7 @@ int con_set_default_unimap(struct vc_data *vc)
 	if (err)
 		return err;
 
-	dict = *vc->vc_uni_pagedir_loc;
+	dict = *vc->uni_pagedict_loc;
 	dfont = dfont_unitable;
 
 	for (fontpos = 0; fontpos < 256U; fontpos++)
@@ -734,7 +734,7 @@ int con_set_default_unimap(struct vc_data *vc)
 		}
 
 	if (con_unify_unimap(vc, dict)) {
-		dflt = *vc->vc_uni_pagedir_loc;
+		dflt = *vc->uni_pagedict_loc;
 		return err;
 	}
 
@@ -757,14 +757,14 @@ int con_copy_unimap(struct vc_data *dst_vc, struct vc_data *src_vc)
 {
 	struct uni_pagedict *src;
 
-	if (!*src_vc->vc_uni_pagedir_loc)
+	if (!*src_vc->uni_pagedict_loc)
 		return -EINVAL;
-	if (*dst_vc->vc_uni_pagedir_loc == *src_vc->vc_uni_pagedir_loc)
+	if (*dst_vc->uni_pagedict_loc == *src_vc->uni_pagedict_loc)
 		return 0;
 	con_free_unimap(dst_vc);
-	src = *src_vc->vc_uni_pagedir_loc;
+	src = *src_vc->uni_pagedict_loc;
 	src->refcount++;
-	*dst_vc->vc_uni_pagedir_loc = src;
+	*dst_vc->uni_pagedict_loc = src;
 	return 0;
 }
 EXPORT_SYMBOL(con_copy_unimap);
@@ -791,7 +791,7 @@ int con_get_unimap(struct vc_data *vc, ushort ct, ushort __user *uct,
 	console_lock();
 
 	ect = 0;
-	dict = *vc->vc_uni_pagedir_loc;
+	dict = *vc->uni_pagedict_loc;
 	if (!dict)
 		goto unlock;
 
@@ -873,7 +873,7 @@ int conv_uni_to_pc(struct vc_data *conp, long ucs)
 	else if ((ucs & ~UNI_DIRECT_MASK) == UNI_DIRECT_BASE)
 		return ucs & UNI_DIRECT_MASK;
 
-	dict = *conp->vc_uni_pagedir_loc;
+	dict = *conp->uni_pagedict_loc;
 	if (!dict)
 		return -3;
 
@@ -903,7 +903,7 @@ console_map_init(void)
 	int i;
 
 	for (i = 0; i < MAX_NR_CONSOLES; i++)
-		if (vc_cons_allocated(i) && !*vc_cons[i].d->vc_uni_pagedir_loc)
+		if (vc_cons_allocated(i) && !*vc_cons[i].d->uni_pagedict_loc)
 			con_set_default_unimap(vc_cons[i].d);
 }
 

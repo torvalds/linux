@@ -1063,10 +1063,10 @@ static void visual_init(struct vc_data *vc, int num, int init)
 	__module_get(vc->vc_sw->owner);
 	vc->vc_num = num;
 	vc->vc_display_fg = &master_display_fg;
-	if (vc->vc_uni_pagedir_loc)
+	if (vc->uni_pagedict_loc)
 		con_free_unimap(vc);
-	vc->vc_uni_pagedir_loc = &vc->vc_uni_pagedir;
-	vc->vc_uni_pagedir = NULL;
+	vc->uni_pagedict_loc = &vc->uni_pagedict;
+	vc->uni_pagedict = NULL;
 	vc->vc_hi_font_mask = 0;
 	vc->vc_complement_mask = 0;
 	vc->vc_can_do_color = 0;
@@ -1136,7 +1136,7 @@ int vc_allocate(unsigned int currcons)	/* return 0 on success */
 
 	visual_init(vc, currcons, 1);
 
-	if (!*vc->vc_uni_pagedir_loc)
+	if (!*vc->uni_pagedict_loc)
 		con_set_default_unimap(vc);
 
 	err = -EINVAL;
