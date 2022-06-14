@@ -225,14 +225,14 @@ int main(int argc, char *argv[])
 	for (i = 0; i < max_vm; ++i) {
 		vms[i] = vm_create_barebones();
 		for (j = 0; j < max_vcpu; ++j)
-			vcpus[j * max_vcpu + i] = __vm_vcpu_add(vms[i], j);
+			vcpus[i * max_vcpu + j] = __vm_vcpu_add(vms[i], j);
 	}
 
 	/* Check stats read for every VM and VCPU */
 	for (i = 0; i < max_vm; ++i) {
 		vm_stats_test(vms[i]);
 		for (j = 0; j < max_vcpu; ++j)
-			vcpu_stats_test(vcpus[j * max_vcpu + i]);
+			vcpu_stats_test(vcpus[i * max_vcpu + j]);
 	}
 
 	for (i = 0; i < max_vm; ++i)
