@@ -68,6 +68,13 @@ enum rkisp1_rsz_pad {
 	RKISP1_RSZ_PAD_MAX
 };
 
+/* enum for the csi receiver pads */
+enum rkisp1_csi_pad {
+	RKISP1_CSI_PAD_SINK,
+	RKISP1_CSI_PAD_SRC,
+	RKISP1_CSI_PAD_NUM
+};
+
 /* enum for the capture id */
 enum rkisp1_stream_id {
 	RKISP1_MAINPATH,
@@ -141,11 +148,23 @@ struct rkisp1_sensor_async {
  * @rkisp1: pointer to the rkisp1 device
  * @dphy: a pointer to the phy
  * @is_dphy_errctrl_disabled: if dphy errctrl is disabled (avoid endless interrupt)
+ * @sd: v4l2_subdev variable
+ * @pads: media pads
+ * @pad_cfg: configurations for the pads
+ * @sink_fmt: input format
+ * @lock: protects pad_cfg and sink_fmt
+ * @source: source in-use, set when starting streaming
  */
 struct rkisp1_csi {
 	struct rkisp1_device *rkisp1;
 	struct phy *dphy;
 	bool is_dphy_errctrl_disabled;
+	struct v4l2_subdev sd;
+	struct media_pad pads[RKISP1_CSI_PAD_NUM];
+	struct v4l2_subdev_pad_config pad_cfg[RKISP1_CSI_PAD_NUM];
+	const struct rkisp1_mbus_info *sink_fmt;
+	struct mutex lock;
+	struct v4l2_subdev *source;
 };
 
 /*
