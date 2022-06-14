@@ -123,6 +123,7 @@ struct smp2p_entry {
  * @out:	pointer to the outbound smem item
  * @smem_items:	ids of the two smem items
  * @valid_entries: already scanned inbound entries
+ * @irq_devname: poniter to the smp2p irq devname
  * @local_pid:	processor id of the inbound edge
  * @remote_pid:	processor id of the outbound edge
  * @ipc_regmap:	regmap for the outbound ipc
@@ -147,6 +148,7 @@ struct qcom_smp2p {
 	bool ssr_ack;
 	bool negotiation_done;
 
+	char *irq_devname;
 	unsigned local_pid;
 	unsigned remote_pid;
 
@@ -657,10 +659,15 @@ static int qcom_smp2p_probe(struct platform_device *pdev)
 	qcom_smp2p_kick(smp2p);
 
 	smp2p->irq = irq;
+	smp2p->irq_devname = kasprintf(GFP_KERNEL, "smp2p_%d", smp2p->remote_pid);
+	if (!smp2p->irq_devname) {
+		ret = -ENOMEM;
+		goto unwind_interfaces;
+	}
 	ret = devm_request_threaded_irq(&pdev->dev, irq,
 					NULL, qcom_smp2p_intr,
 					IRQF_ONESHOT,
-					"smp2p", (void *)smp2p);
+					smp2p->irq_devname, (void *)smp2p);
 	if (ret) {
 		dev_err(&pdev->dev, "failed to request interrupt\n");
 		goto unwind_interfaces;
@@ -693,6 +700,8 @@ unwind_interfaces:
 	list_for_each_entry(entry, &smp2p->outbound, node)
 		qcom_smem_state_unregister(entry->state);
 
+	kfree(smp2p->irq_devname);
+
 	smp2p->out->valid_entries = 0;
 
 release_mbox:
@@ -719,6 +728,8 @@ static int qcom_smp2p_remove(struct platform_device *pdev)
 		qcom_smem_state_unregister(entry->state);
 
 	mbox_free_channel(smp2p->mbox_chan);
+
+	kfree(smp2p->irq_devname);
 
 	smp2p->out->valid_entries = 0;
 
