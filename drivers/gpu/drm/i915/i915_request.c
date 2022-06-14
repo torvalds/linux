@@ -60,7 +60,7 @@ static struct kmem_cache *slab_execute_cbs;
 
 static const char *i915_fence_get_driver_name(struct dma_fence *fence)
 {
-	return dev_name(to_request(fence)->engine->i915->drm.dev);
+	return dev_name(to_request(fence)->i915->drm.dev);
 }
 
 static const char *i915_fence_get_timeline_name(struct dma_fence *fence)
@@ -937,6 +937,7 @@ __i915_request_create(struct intel_context *ce, gfp_t gfp)
 	rq->engine = ce->engine;
 	rq->ring = ce->ring;
 	rq->execution_mask = ce->engine->mask;
+	rq->i915 = ce->engine->i915;
 
 	ret = intel_timeline_get_seqno(tl, rq, &seqno);
 	if (ret)
