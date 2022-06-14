@@ -294,10 +294,6 @@ void rq_qos_wait(struct rq_wait *rqw, void *private_data,
 
 void rq_qos_exit(struct request_queue *q)
 {
-	mutex_lock(&q->debugfs_mutex);
-	blk_mq_debugfs_unregister_queue_rqos(q);
-	mutex_unlock(&q->debugfs_mutex);
-
 	while (q->rq_qos) {
 		struct rq_qos *rqos = q->rq_qos;
 		q->rq_qos = rqos->next;

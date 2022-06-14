@@ -35,7 +35,6 @@ void blk_mq_debugfs_unregister_sched_hctx(struct blk_mq_hw_ctx *hctx);
 
 void blk_mq_debugfs_register_rqos(struct rq_qos *rqos);
 void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos);
-void blk_mq_debugfs_unregister_queue_rqos(struct request_queue *q);
 #else
 static inline void blk_mq_debugfs_register(struct request_queue *q)
 {
@@ -80,10 +79,6 @@ static inline void blk_mq_debugfs_register_rqos(struct rq_qos *rqos)
 }
 
 static inline void blk_mq_debugfs_unregister_rqos(struct rq_qos *rqos)
-{
-}
-
-static inline void blk_mq_debugfs_unregister_queue_rqos(struct request_queue *q)
 {
 }
 #endif
