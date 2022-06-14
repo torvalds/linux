@@ -2702,6 +2702,13 @@ static int link_sta_info_hash_add(struct ieee80211_local *local,
 			       link_sta_rht_params);
 }
 
+void ieee80211_sta_free_link(struct sta_info *sta, unsigned int link_id)
+{
+	lockdep_assert_held(&sta->sdata->local->sta_mtx);
+
+	sta_remove_link(sta, link_id, false);
+}
+
 int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;

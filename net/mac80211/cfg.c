@@ -4588,6 +4588,111 @@ static void ieee80211_del_intf_link(struct wiphy *wiphy,
 	ieee80211_vif_set_links(sdata, wdev->valid_links);
 }
 
+static int sta_add_link_station(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				struct link_station_parameters *params)
+{
+	struct sta_info *sta;
+	int ret;
+
+	sta = sta_info_get_bss(sdata, params->mld_mac);
+	if (!sta)
+		return -ENOENT;
+
+	if (sta->sta.valid_links & BIT(params->link_id))
+		return -EALREADY;
+
+	ret = ieee80211_sta_allocate_link(sta, params->link_id);
+	if (ret)
+		return ret;
+
+	ret = sta_link_apply_parameters(local, sta, params);
+	if (ret) {
+		ieee80211_sta_free_link(sta, params->link_id);
+		return ret;
+	}
+
+	/* ieee80211_sta_activate_link frees the link upon failure */
+	return ieee80211_sta_activate_link(sta, params->link_id);
+}
+
+static int
+ieee80211_add_link_station(struct wiphy *wiphy, struct net_device *dev,
+			   struct link_station_parameters *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	int ret;
+
+	mutex_lock(&sdata->local->sta_mtx);
+	ret = sta_add_link_station(local, sdata, params);
+	mutex_unlock(&sdata->local->sta_mtx);
+
+	return ret;
+}
+
+static int sta_mod_link_station(struct ieee80211_local *local,
+				struct ieee80211_sub_if_data *sdata,
+				struct link_station_parameters *params)
+{
+	struct sta_info *sta;
+
+	sta = sta_info_get_bss(sdata, params->mld_mac);
+	if (!sta)
+		return -ENOENT;
+
+	if (!(sta->sta.valid_links & BIT(params->link_id)))
+		return -EINVAL;
+
+	return sta_link_apply_parameters(local, sta, params);
+}
+
+static int
+ieee80211_mod_link_station(struct wiphy *wiphy, struct net_device *dev,
+			   struct link_station_parameters *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	struct ieee80211_local *local = wiphy_priv(wiphy);
+	int ret;
+
+	mutex_lock(&sdata->local->sta_mtx);
+	ret = sta_mod_link_station(local, sdata, params);
+	mutex_unlock(&sdata->local->sta_mtx);
+
+	return ret;
+}
+
+static int sta_del_link_station(struct ieee80211_sub_if_data *sdata,
+				struct link_station_del_parameters *params)
+{
+	struct sta_info *sta;
+
+	sta = sta_info_get_bss(sdata, params->mld_mac);
+	if (!sta)
+		return -ENOENT;
+
+	if (!(sta->sta.valid_links & BIT(params->link_id)))
+		return -EINVAL;
+
+	ieee80211_sta_remove_link(sta, params->link_id);
+
+	return 0;
+}
+
+static int
+ieee80211_del_link_station(struct wiphy *wiphy, struct net_device *dev,
+			   struct link_station_del_parameters *params)
+{
+	struct ieee80211_sub_if_data *sdata = IEEE80211_DEV_TO_SUB_IF(dev);
+	int ret;
+
+	mutex_lock(&sdata->local->sta_mtx);
+	ret = sta_del_link_station(sdata, params);
+	mutex_unlock(&sdata->local->sta_mtx);
+
+	return ret;
+}
+
 const struct cfg80211_ops mac80211_config_ops = {
 	.add_virtual_intf = ieee80211_add_iface,
 	.del_virtual_intf = ieee80211_del_iface,
@@ -4695,4 +4800,7 @@ const struct cfg80211_ops mac80211_config_ops = {
 	.set_radar_background = ieee80211_set_radar_background,
 	.add_intf_link = ieee80211_add_intf_link,
 	.del_intf_link = ieee80211_del_intf_link,
+	.add_link_station = ieee80211_add_link_station,
+	.mod_link_station = ieee80211_mod_link_station,
+	.del_link_station = ieee80211_del_link_station,
 };
