@@ -48,6 +48,7 @@ struct instruction {
 	bool dead_end, ignore, ignore_alts;
 	bool hint;
 	bool retpoline_safe;
+	bool entry;
 	s8 instr;
 	u8 visited;
 	struct alt_group *alt_group;
@@ -61,6 +62,11 @@ struct instruction {
 	struct list_head stack_ops;
 	struct cfi_state *cfi;
 };
+
+#define VISITED_BRANCH		0x01
+#define VISITED_BRANCH_UACCESS	0x02
+#define VISITED_BRANCH_MASK	0x03
+#define VISITED_ENTRY		0x04
 
 static inline bool is_static_jump(struct instruction *insn)
 {

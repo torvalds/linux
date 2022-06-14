@@ -148,7 +148,7 @@ SYM_FUNC_END(xen_read_cr2_direct);
 
 .macro xen_pv_trap name
 SYM_CODE_START(xen_\name)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_ENTRY
 	pop %rcx
 	pop %r11
 	jmp  \name
@@ -277,7 +277,7 @@ SYM_CODE_END(xenpv_restore_regs_and_return_to_usermode)
 
 /* Normal 64-bit system call target */
 SYM_CODE_START(xen_entry_SYSCALL_64)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_ENTRY
 	popq %rcx
 	popq %r11
 
@@ -296,7 +296,7 @@ SYM_CODE_END(xen_entry_SYSCALL_64)
 
 /* 32-bit compat syscall target */
 SYM_CODE_START(xen_entry_SYSCALL_compat)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_ENTRY
 	popq %rcx
 	popq %r11
 
@@ -313,7 +313,7 @@ SYM_CODE_END(xen_entry_SYSCALL_compat)
 
 /* 32-bit compat sysenter target */
 SYM_CODE_START(xen_entry_SYSENTER_compat)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_ENTRY
 	/*
 	 * NB: Xen is polite and clears TF from EFLAGS for us.  This means
 	 * that we don't need to guard against single step exceptions here.
@@ -336,7 +336,7 @@ SYM_CODE_END(xen_entry_SYSENTER_compat)
 
 SYM_CODE_START(xen_entry_SYSCALL_compat)
 SYM_CODE_START(xen_entry_SYSENTER_compat)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_ENTRY
 	lea 16(%rsp), %rsp	/* strip %rcx, %r11 */
 	mov $-ENOSYS, %rax
 	pushq $0
