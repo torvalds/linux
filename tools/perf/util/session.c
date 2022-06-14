@@ -916,30 +916,30 @@ static void perf_event__cpu_map_swap(union perf_event *event,
 				     bool sample_id_all __maybe_unused)
 {
 	struct perf_record_cpu_map_data *data = &event->cpu_map.data;
-	struct cpu_map_entries *cpus;
-	struct perf_record_record_cpu_map *mask;
-	unsigned i;
 
 	data->type = bswap_16(data->type);
 
 	switch (data->type) {
 	case PERF_CPU_MAP__CPUS:
-		cpus = (struct cpu_map_entries *)data->data;
+		data->cpus_data.nr = bswap_16(data->cpus_data.nr);
 
-		cpus->nr = bswap_16(cpus->nr);
-
-		for (i = 0; i < cpus->nr; i++)
-			cpus->cpu[i] = bswap_16(cpus->cpu[i]);
+		for (unsigned i = 0; i < data->cpus_data.nr; i++)
+			data->cpus_data.cpu[i] = bswap_16(data->cpus_data.cpu[i]);
 		break;
 	case PERF_CPU_MAP__MASK:
-		mask = (struct perf_record_record_cpu_map *)data->data;
+		data->mask32_data.long_size = bswap_16(data->mask32_data.long_size);
 
-		mask->nr = bswap_16(mask->nr);
-		mask->long_size = bswap_16(mask->long_size);
-
-		switch (mask->long_size) {
-		case 4: mem_bswap_32(&mask->mask, mask->nr); break;
-		case 8: mem_bswap_64(&mask->mask, mask->nr); break;
+		switch (data->mask32_data.long_size) {
+		case 4:
+			data->mask32_data.nr = bswap_16(data->mask32_data.nr);
+			for (unsigned i = 0; i < data->mask32_data.nr; i++)
+				data->mask32_data.mask[i] = bswap_32(data->mask32_data.mask[i]);
+			break;
+		case 8:
+			data->mask64_data.nr = bswap_16(data->mask64_data.nr);
+			for (unsigned i = 0; i < data->mask64_data.nr; i++)
+				data->mask64_data.mask[i] = bswap_64(data->mask64_data.mask[i]);
+			break;
 		default:
 			pr_err("cpu_map swap: unsupported long size\n");
 		}

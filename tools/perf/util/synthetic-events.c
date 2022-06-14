@@ -1184,27 +1184,33 @@ int perf_event__synthesize_thread_map2(struct perf_tool *tool,
 	return err;
 }
 
-static void synthesize_cpus(struct cpu_map_entries *cpus,
+static void synthesize_cpus(struct perf_record_cpu_map_data *data,
 			    const struct perf_cpu_map *map)
 {
 	int i, map_nr = perf_cpu_map__nr(map);
 
-	cpus->nr = map_nr;
+	data->cpus_data.nr = map_nr;
 
 	for (i = 0; i < map_nr; i++)
-		cpus->cpu[i] = perf_cpu_map__cpu(map, i).cpu;
+		data->cpus_data.cpu[i] = perf_cpu_map__cpu(map, i).cpu;
 }
 
-static void synthesize_mask(struct perf_record_record_cpu_map *mask,
+static void synthesize_mask(struct perf_record_cpu_map_data *data,
 			    const struct perf_cpu_map *map, int max)
 {
-	int i;
+	int idx;
+	struct perf_cpu cpu;
 
-	mask->nr = BITS_TO_LONGS(max);
-	mask->long_size = sizeof(long);
+	/* Due to padding, the 4bytes per entry mask variant is always smaller. */
+	data->mask32_data.nr = BITS_TO_U32(max);
+	data->mask32_data.long_size = 4;
 
-	for (i = 0; i < perf_cpu_map__nr(map); i++)
-		set_bit(perf_cpu_map__cpu(map, i).cpu, mask->mask);
+	perf_cpu_map__for_each_cpu(cpu, idx, map) {
+		int bit_word = cpu.cpu / 32;
+		__u32 bit_mask = 1U << (cpu.cpu & 31);
+
+		data->mask32_data.mask[bit_word] |= bit_mask;
+	}
 }
 
 static size_t cpus_size(const struct perf_cpu_map *map)
@@ -1215,7 +1221,7 @@ static size_t cpus_size(const struct perf_cpu_map *map)
 static size_t mask_size(const struct perf_cpu_map *map, int *max)
 {
 	*max = perf_cpu_map__max(map).cpu;
-	return sizeof(struct perf_record_record_cpu_map) + BITS_TO_LONGS(*max) * sizeof(long);
+	return sizeof(struct perf_record_mask_cpu_map32) + BITS_TO_U32(*max) * sizeof(__u32);
 }
 
 static void *cpu_map_data__alloc(const struct perf_cpu_map *map, size_t *size,
@@ -1248,7 +1254,7 @@ static void *cpu_map_data__alloc(const struct perf_cpu_map *map, size_t *size,
 		*type  = PERF_CPU_MAP__MASK;
 	}
 
-	*size += sizeof(struct perf_record_cpu_map_data);
+	*size += sizeof(__u16); /* For perf_record_cpu_map_data.type. */
 	*size = PERF_ALIGN(*size, sizeof(u64));
 	return zalloc(*size);
 }
@@ -1261,10 +1267,10 @@ static void cpu_map_data__synthesize(struct perf_record_cpu_map_data *data,
 
 	switch (type) {
 	case PERF_CPU_MAP__CPUS:
-		synthesize_cpus((struct cpu_map_entries *) data->data, map);
+		synthesize_cpus(data, map);
 		break;
 	case PERF_CPU_MAP__MASK:
-		synthesize_mask((struct perf_record_record_cpu_map *)data->data, map, max);
+		synthesize_mask(data, map, max);
 	default:
 		break;
 	}
@@ -1272,7 +1278,7 @@ static void cpu_map_data__synthesize(struct perf_record_cpu_map_data *data,
 
 static struct perf_record_cpu_map *cpu_map_event__new(const struct perf_cpu_map *map)
 {
-	size_t size = sizeof(struct perf_record_cpu_map);
+	size_t size = sizeof(struct perf_event_header);
 	struct perf_record_cpu_map *event;
 	int max;
 	u16 type;
