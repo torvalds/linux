@@ -812,6 +812,8 @@ static void cs_timedout(struct work_struct *work)
 		return;
 	}
 
+	hdev = cs->ctx->hdev;
+
 	if (likely(!skip_reset_on_timeout)) {
 		if (hdev->reset_on_lockup)
 			device_reset = true;
@@ -821,8 +823,6 @@ static void cs_timedout(struct work_struct *work)
 		/* Mark the CS is timed out so we won't try to cancel its TDR */
 		cs->timedout = true;
 	}
-
-	hdev = cs->ctx->hdev;
 
 	/* Save only the first CS timeout parameters */
 	rc = atomic_cmpxchg(&hdev->last_error.cs_timeout.write_enable, 1, 0);
