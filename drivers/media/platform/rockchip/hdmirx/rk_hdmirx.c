@@ -331,7 +331,7 @@ static const struct v4l2_dv_timings_cap hdmirx_timings_cap = {
 
 static const struct hdmirx_output_fmt g_out_fmts[] = {
 	{
-		.fourcc = V4L2_PIX_FMT_RGB24,
+		.fourcc = V4L2_PIX_FMT_BGR24,
 		.cplanes = 1,
 		.mplanes = 1,
 		.bpp = { 24 },
@@ -558,7 +558,7 @@ static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 
 	switch (hdmirx_dev->pix_fmt) {
 	case HDMIRX_RGB888:
-		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_RGB24;
+		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_BGR24;
 		break;
 	case HDMIRX_YUV422:
 		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_NV16;
@@ -575,7 +575,7 @@ static void hdmirx_get_pix_fmt(struct rk_hdmirx_dev *hdmirx_dev)
 			"%s: err pix_fmt: %d, set RGB888 as default\n",
 			__func__, hdmirx_dev->pix_fmt);
 		hdmirx_dev->pix_fmt = HDMIRX_RGB888;
-		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_RGB24;
+		hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_BGR24;
 		break;
 	}
 
@@ -1426,7 +1426,7 @@ static u32 hdmirx_align_bits_per_pixel(const struct hdmirx_output_fmt *fmt,
 		case V4L2_PIX_FMT_NV24:
 		case V4L2_PIX_FMT_NV16:
 		case V4L2_PIX_FMT_NV12:
-		case V4L2_PIX_FMT_RGB24:
+		case V4L2_PIX_FMT_BGR24:
 			bpp = fmt->bpp[plane_index];
 			break;
 
@@ -3633,7 +3633,7 @@ static int hdmirx_probe(struct platform_device *pdev)
 	if (ret)
 		goto err_work_queues;
 
-	hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_RGB24;
+	hdmirx_dev->cur_fmt_fourcc = V4L2_PIX_FMT_BGR24;
 	hdmirx_dev->timings = timings_def;
 
 	irq = platform_get_irq_byname(pdev, "hdmi");
