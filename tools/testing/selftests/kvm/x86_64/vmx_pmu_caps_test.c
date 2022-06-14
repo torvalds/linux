@@ -17,7 +17,6 @@
 #include "kvm_util.h"
 #include "vmx.h"
 
-#define X86_FEATURE_PDCM	(1<<15)
 #define PMU_CAP_FW_WRITES	(1ULL << 13)
 #define PMU_CAP_LBR_FMT		0x3f
 
@@ -55,7 +54,6 @@ static void guest_code(void)
 int main(int argc, char *argv[])
 {
 	struct kvm_cpuid2 *cpuid;
-	struct kvm_cpuid_entry2 *entry_1_0;
 	struct kvm_cpuid_entry2 *entry_a_0;
 	struct kvm_vm *vm;
 	struct kvm_vcpu *vcpu;
@@ -70,11 +68,10 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 	cpuid = kvm_get_supported_cpuid();
 
-	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xa);
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_PDCM));
 
-	entry_1_0 = kvm_get_supported_cpuid_index(1, 0);
+	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xa);
 	entry_a_0 = kvm_get_supported_cpuid_index(0xa, 0);
-	TEST_REQUIRE(entry_1_0->ecx & X86_FEATURE_PDCM);
 
 	eax.full = entry_a_0->eax;
 	__TEST_REQUIRE(eax.split.version_id, "PMU is not supported by the vCPU");
