@@ -228,9 +228,9 @@ static const struct rk806_dvs_field rk806_dvs_fields[RK806_ID_END] = {
 };
 
 static const struct linear_range rk806_buck_voltage_ranges[] = {
-	REGULATOR_LINEAR_RANGE(500000, 0, 160, 6250), /* 500mV ~ 1500mV */
-	REGULATOR_LINEAR_RANGE(1500000, 161, 237, 25000), /* 1500mV ~ 3400mV */
-	REGULATOR_LINEAR_RANGE(3400000, 238, 255, 0),
+	REGULATOR_LINEAR_RANGE(500000, 0, 159, 6250), /* 500mV ~ 1500mV */
+	REGULATOR_LINEAR_RANGE(1500000, 160, 236, 25000), /* 1500mV ~ 3400mV */
+	REGULATOR_LINEAR_RANGE(3400000, 237, 255, 0),
 };
 
 static const struct linear_range rk806_ldo_voltage_ranges[] = {
