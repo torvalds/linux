@@ -232,7 +232,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 	}
 	memset(q, 0, MAX_GLYPH);
 
-	for (j = 0; j < E_TABSZ; j++) {
+	for (j = 0; j < ARRAY_SIZE(translations[m]); j++) {
 		glyph = conv_uni_to_pc(conp, t[j]);
 		if (glyph >= 0 && glyph < MAX_GLYPH && q[glyph] < 32) {
 			/* prefer '-' above SHY etc. */
@@ -367,7 +367,7 @@ int con_get_trans_old(unsigned char __user * arg)
 	unsigned char outbuf[E_TABSZ];
 
 	console_lock();
-	for (i = 0; i < E_TABSZ ; i++)
+	for (i = 0; i < ARRAY_SIZE(outbuf); i++)
 	{
 		ch = conv_uni_to_pc(vc_cons[fg_console].d, p[i]);
 		outbuf[i] = (ch & ~0xff) ? 0 : ch;
