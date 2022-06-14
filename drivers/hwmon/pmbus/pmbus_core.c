@@ -104,6 +104,9 @@ struct pmbus_data {
 
 	s16 currpage;	/* current page, -1 for unknown/unset */
 	s16 currphase;	/* current phase, 0xff for all, -1 for unknown/unset */
+
+	int vout_low[PMBUS_PAGES];	/* voltage low margin */
+	int vout_high[PMBUS_PAGES];	/* voltage high margin */
 };
 
 struct pmbus_debugfs_entry {
@@ -2848,6 +2851,58 @@ static int pmbus_regulator_get_error_flags(struct regulator_dev *rdev, unsigned 
 	return 0;
 }
 
+static int pmbus_regulator_get_low_margin(struct i2c_client *client, int page)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	struct pmbus_sensor s = {
+		.page = page,
+		.class = PSC_VOLTAGE_OUT,
+		.convert = true,
+		.data = -1,
+	};
+
+	if (!data->vout_low[page]) {
+		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MIN))
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_MFR_VOUT_MIN);
+		if (s.data < 0) {
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_VOUT_MARGIN_LOW);
+			if (s.data < 0)
+				return s.data;
+		}
+		data->vout_low[page] = pmbus_reg2data(data, &s);
+	}
+
+	return data->vout_low[page];
+}
+
+static int pmbus_regulator_get_high_margin(struct i2c_client *client, int page)
+{
+	struct pmbus_data *data = i2c_get_clientdata(client);
+	struct pmbus_sensor s = {
+		.page = page,
+		.class = PSC_VOLTAGE_OUT,
+		.convert = true,
+		.data = -1,
+	};
+
+	if (!data->vout_high[page]) {
+		if (pmbus_check_word_register(client, page, PMBUS_MFR_VOUT_MAX))
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_MFR_VOUT_MAX);
+		if (s.data < 0) {
+			s.data = _pmbus_read_word_data(client, page, 0xff,
+						       PMBUS_VOUT_MARGIN_HIGH);
+			if (s.data < 0)
+				return s.data;
+		}
+		data->vout_high[page] = pmbus_reg2data(data, &s);
+	}
+
+	return data->vout_high[page];
+}
+
 static int pmbus_regulator_get_voltage(struct regulator_dev *rdev)
 {
 	struct device *dev = rdev_get_dev(rdev);
@@ -2883,24 +2938,13 @@ static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
 
 	*selector = 0;
 
-	if (pmbus_check_word_register(client, s.page, PMBUS_MFR_VOUT_MIN))
-		s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_MFR_VOUT_MIN);
-	if (s.data < 0) {
-		s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_VOUT_MARGIN_LOW);
-		if (s.data < 0)
-			return s.data;
-	}
-	low = pmbus_reg2data(data, &s);
+	low = pmbus_regulator_get_low_margin(client, s.page);
+	if (low < 0)
+		return low;
 
-	s.data = -1;
-	if (pmbus_check_word_register(client, s.page, PMBUS_MFR_VOUT_MAX))
-		s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_MFR_VOUT_MAX);
-	if (s.data < 0) {
-		s.data = _pmbus_read_word_data(client, s.page, 0xff, PMBUS_VOUT_MARGIN_HIGH);
-		if (s.data < 0)
-			return s.data;
-	}
-	high = pmbus_reg2data(data, &s);
+	high = pmbus_regulator_get_high_margin(client, s.page);
+	if (high < 0)
+		return high;
 
 	/* Make sure we are within margins */
 	if (low > val)
