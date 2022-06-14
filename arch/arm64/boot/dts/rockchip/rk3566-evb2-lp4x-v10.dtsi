@@ -78,6 +78,18 @@
 				remote-endpoint = <&gc8034_out>;
 				data-lanes = <1 2 3 4>;
 			};
+
+			mipi_in_ucam1: endpoint@2 {
+				reg = <2>;
+				remote-endpoint = <&ov5695_out>;
+				data-lanes = <1 2>;
+			};
+
+			mipi_in_ucam2: endpoint@3 {
+				reg = <3>;
+				remote-endpoint = <&gc5025_out>;
+				data-lanes = <1 2>;
+			};
 		};
 
 		port@1 {
@@ -112,7 +124,7 @@
 
 			dphy1_in: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&ov5695_out>;
+				//remote-endpoint = <&ov5695_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -149,7 +161,7 @@
 
 			dphy2_in: endpoint@1 {
 				reg = <1>;
-				remote-endpoint = <&gc5025_out>;
+				//remote-endpoint = <&gc5025_out>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -263,7 +275,7 @@
 		rockchip,camera-module-lens-name = "CHT842-MD";
 		port {
 			ov5695_out: endpoint {
-				remote-endpoint = <&dphy1_in>;
+				remote-endpoint = <&mipi_in_ucam1>;
 				data-lanes = <1 2>;
 			};
 		};
@@ -288,7 +300,7 @@
 		rockchip,camera-module-lens-name = "CHT842-MD";
 		port {
 			gc5025_out: endpoint {
-				remote-endpoint = <&dphy2_in>;
+				remote-endpoint = <&mipi_in_ucam2>;
 				data-lanes = <1 2>;
 			};
 		};
