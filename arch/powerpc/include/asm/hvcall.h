@@ -350,6 +350,14 @@
 /* Platform specific hcalls, used by KVM */
 #define H_RTAS			0xf000
 
+/*
+ * Platform specific hcalls, used by QEMU/SLOF. These are ignored by
+ * KVM and only kept here so we can identify them during tracing.
+ */
+#define H_LOGICAL_MEMOP  0xF001
+#define H_CAS            0XF002
+#define H_UPDATE_DT      0XF003
+
 /* "Platform specific hcalls", provided by PHYP */
 #define H_GET_24X7_CATALOG_PAGE	0xF078
 #define H_GET_24X7_DATA		0xF07C
