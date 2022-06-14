@@ -69,12 +69,6 @@ EXPORT_SYMBOL(agp_special_page);
 
 void MMU_init(void);
 
-/*
- * this tells the system to map all of ram with the segregs
- * (i.e. page tables) instead of the bats.
- * -- Cort
- */
-int __map_without_bats;
 int __map_without_ltlbs;
 
 /* max amount of low RAM to map in */
@@ -85,11 +79,6 @@ unsigned long __max_low_memory = MAX_LOW_MEM;
  */
 static void __init MMU_setup(void)
 {
-	/* Check for nobats option (used in mapin_ram). */
-	if (strstr(boot_command_line, "nobats")) {
-		__map_without_bats = 1;
-	}
-
 	if (strstr(boot_command_line, "noltlbs")) {
 		__map_without_ltlbs = 1;
 	}
