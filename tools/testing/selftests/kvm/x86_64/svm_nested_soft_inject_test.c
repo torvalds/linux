@@ -19,7 +19,6 @@
 #include "test_util.h"
 
 #define INT_NR			0x20
-#define X86_FEATURE_NRIPS	BIT(3)
 
 static_assert(ATOMIC_INT_LOCK_FREE == 2, "atomic int is not lockless");
 
@@ -203,7 +202,7 @@ int main(int argc, char *argv[])
 	nested_svm_check_supported();
 
 	cpuid = kvm_get_supported_cpuid_entry(0x8000000a);
-	TEST_ASSERT(cpuid->edx & X86_FEATURE_NRIPS,
+	TEST_ASSERT(cpuid->edx & CPUID_NRIPS,
 		    "KVM with nSVM is supposed to unconditionally advertise nRIP Save\n");
 
 	atomic_init(&nmi_stage, 0);

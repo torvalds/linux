@@ -50,6 +50,7 @@
 #define CPUID_SMX		(1ul << 6)
 #define CPUID_PCID		(1ul << 17)
 #define CPUID_XSAVE		(1ul << 26)
+#define CPUID_OSXSAVE		(1ul << 27)
 
 /* CPUID.7.EBX */
 #define CPUID_FSGSBASE		(1ul << 0)
@@ -63,6 +64,9 @@
 
 /* CPUID.0x8000_0001.EDX */
 #define CPUID_GBPAGES		(1ul << 26)
+
+/* CPUID.0x8000_000A.EDX */
+#define CPUID_NRIPS		BIT(3)
 
 /* Page table bitfield declarations */
 #define PTE_PRESENT_MASK        BIT_ULL(0)

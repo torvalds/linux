@@ -25,9 +25,6 @@
 # error This test is 64-bit only
 #endif
 
-#define X86_FEATURE_XSAVE		(1 << 26)
-#define X86_FEATURE_OSXSAVE		(1 << 27)
-
 #define NUM_TILES			8
 #define TILE_SIZE			1024
 #define XSAVE_SIZE			((NUM_TILES * TILE_SIZE) + PAGE_SIZE)
@@ -128,9 +125,9 @@ static inline void check_cpuid_xsave(void)
 	eax = 1;
 	ecx = 0;
 	cpuid(&eax, &ebx, &ecx, &edx);
-	if (!(ecx & X86_FEATURE_XSAVE))
+	if (!(ecx & CPUID_XSAVE))
 		GUEST_ASSERT(!"cpuid: no CPU xsave support!");
-	if (!(ecx & X86_FEATURE_OSXSAVE))
+	if (!(ecx & CPUID_OSXSAVE))
 		GUEST_ASSERT(!"cpuid: no OS xsave support!");
 }
 
@@ -333,7 +330,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
 	entry = kvm_get_supported_cpuid_entry(1);
-	TEST_REQUIRE(entry->ecx & X86_FEATURE_XSAVE);
+	TEST_REQUIRE(entry->ecx & CPUID_XSAVE);
 
 	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xd);
 

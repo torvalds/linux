@@ -8,7 +8,7 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define X86_FEATURE_MWAIT (1u << 3)
+#define CPUID_MWAIT (1u << 3)
 
 enum monitor_mwait_testcases {
 	MWAIT_QUIRK_DISABLED = BIT(0),
@@ -76,7 +76,7 @@ int main(int argc, char *argv[])
 	cpuid = kvm_get_supported_cpuid();
 
 	entry = kvm_get_supported_cpuid_index(1, 0);
-	entry->ecx &= ~X86_FEATURE_MWAIT;
+	entry->ecx &= ~CPUID_MWAIT;
 	set_cpuid(cpuid, entry);
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);

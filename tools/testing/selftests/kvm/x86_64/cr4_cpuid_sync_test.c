@@ -19,9 +19,6 @@
 #include "kvm_util.h"
 #include "processor.h"
 
-#define X86_FEATURE_XSAVE	(1<<26)
-#define X86_FEATURE_OSXSAVE	(1<<27)
-
 static inline bool cr4_cpuid_is_sync(void)
 {
 	int func, subfunc;
@@ -36,7 +33,7 @@ static inline bool cr4_cpuid_is_sync(void)
 
 	cr4 = get_cr4();
 
-	return (!!(ecx & X86_FEATURE_OSXSAVE)) == (!!(cr4 & X86_CR4_OSXSAVE));
+	return (!!(ecx & CPUID_OSXSAVE)) == (!!(cr4 & X86_CR4_OSXSAVE));
 }
 
 static void guest_code(void)
@@ -70,7 +67,7 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 
 	entry = kvm_get_supported_cpuid_entry(1);
-	TEST_REQUIRE(entry->ecx & X86_FEATURE_XSAVE);
+	TEST_REQUIRE(entry->ecx & CPUID_XSAVE);
 
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
