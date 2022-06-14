@@ -329,6 +329,7 @@
 /* below definitions are only for HAP525_HV */
 #define MMAP_NUM_BYTES				2048
 #define MMAP_FIFO_MIN_SIZE			640
+#define FIFO_PRGM_INIT_SIZE			320
 
 #define is_between(val, min, max)	\
 	(((min) <= (max)) && ((min) <= (val)) && ((val) <= (max)))
@@ -1178,12 +1179,12 @@ static int haptics_set_vmax_mv(struct haptics_chip *chip, u32 vmax_mv)
 	u8 val, vmax_step;
 
 	if (vmax_mv > chip->max_vmax_mv) {
-		dev_err(chip->dev, "vmax (%d) exceed the max value: %d\n",
+		dev_dbg(chip->dev, "vmax (%d) exceed the max value: %d\n",
 					vmax_mv, chip->max_vmax_mv);
-		return -EINVAL;
+		vmax_mv = chip->max_vmax_mv;
 	}
 
-	if ((chip->clamped_vmax_mv != 0) && (vmax_mv > chip->clamped_vmax_mv))
+	if (vmax_mv > chip->clamped_vmax_mv)
 		vmax_mv = chip->clamped_vmax_mv;
 
 	if (chip->clamp_at_5v && (vmax_mv > CLAMPED_VMAX_MV))
@@ -1456,23 +1457,35 @@ static int haptics_enable_hpwr_vreg(struct haptics_chip *chip, bool en)
 	return 0;
 }
 
-static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
+static int haptics_force_vreg_ready(struct haptics_chip *chip, bool ready)
 {
-	int rc = 0;
-	u8 mask, val;
+	u8 mask;
 
 	mask = FORCE_VREG_RDY_BIT;
 	if (chip->hw_type == HAP525_HV)
 		mask |= FORCE_VSET_ACK_BIT;
 
+	return haptics_masked_write(chip, chip->cfg_addr_base,
+			HAP_CFG_VSET_CFG_REG, mask, ready ? mask : 0);
+}
+
+static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
+{
+	int rc = 0;
+	u8 val;
+
 	if ((is_boost_vreg_enabled_in_open_loop(chip) ||
 			chip->hboost_enabled || is_haptics_external_powered(chip)) && en) {
-		/* Force VREG_RDY */
-		val = mask;
-		rc = haptics_masked_write(chip, chip->cfg_addr_base,
-				HAP_CFG_VSET_CFG_REG, mask, val);
-		if (rc < 0)
-			return rc;
+		/*
+		 * Only set force-VREG-ready here if hBoost is not used by charger firmware.
+		 * In the case of charger firmware enabling hBoost, force-VREG-ready will be
+		 * set/reset based on the VMAX_CLAMP notification.
+		 */
+		if (chip->clamped_vmax_mv == MAX_HV_VMAX_MV) {
+			rc = haptics_force_vreg_ready(chip, true);
+			if (rc < 0)
+				return rc;
+		}
 
 		/* Toggle RC_CLK_CAL_EN if it's in auto mode */
 		rc = haptics_read(chip, chip->cfg_addr_base,
@@ -1499,12 +1512,18 @@ static int haptics_open_loop_drive_config(struct haptics_chip *chip, bool en)
 
 			dev_dbg(chip->dev, "Toggle CAL_EN in open-loop-VREG playing\n");
 		}
-	} else if (!is_haptics_external_powered(chip)) {
-		rc = haptics_masked_write(chip, chip->cfg_addr_base,
-				HAP_CFG_VSET_CFG_REG, mask, 0);
+	} else if (!is_haptics_external_powered(chip) &&
+			(chip->clamped_vmax_mv == MAX_HV_VMAX_MV)) {
+		/*
+		 * Reset force-VREG-ready only when hBoost is not
+		 * used by charger firmware.
+		 */
+		rc = haptics_force_vreg_ready(chip, false);
+		if (rc < 0)
+			return rc;
 	}
 
-	return rc;
+	return 0;
 }
 
 #define BOOST_VREG_OFF_DELAY_SECONDS	2
@@ -1977,6 +1996,7 @@ static int haptics_set_fifo(struct haptics_chip *chip, struct fifo_cfg *fifo)
 		return available;
 
 	num = min_t(u32, available, num);
+	num = min_t(u32, num, FIFO_PRGM_INIT_SIZE);
 	/* Keep the FIFO programming 4-byte aligned if FIFO refilling is needed */
 	if ((num < fifo->num_s) && (num % HAP_PTN_FIFO_DIN_NUM))
 		num = round_down(num, HAP_PTN_FIFO_DIN_NUM);
@@ -2998,6 +3018,8 @@ static int haptics_init_vmax_config(struct haptics_chip *chip)
 					MAX_HV_VMAX_MV : MAX_MV_VMAX_MV;
 	}
 
+	/* Set the initial clamped vmax value when hBoost is used by charger firmware */
+	chip->clamped_vmax_mv = MAX_HV_VMAX_MV;
 	/* Config VMAX */
 	return haptics_set_vmax_mv(chip, chip->config.vmax_mv);
 }
@@ -5160,6 +5182,7 @@ static int haptics_boost_notifier(struct notifier_block *nb, unsigned long event
 {
 	struct haptics_chip *chip = container_of(nb, struct haptics_chip, hboost_nb);
 	u32 vmax_mv;
+	int rc;
 
 	switch (event) {
 	case VMAX_CLAMP:
@@ -5173,6 +5196,9 @@ static int haptics_boost_notifier(struct notifier_block *nb, unsigned long event
 		chip->clamped_vmax_mv = vmax_mv;
 		dev_dbg(chip->dev, "Vmax is clamped at %u mV to support hBoost concurrency\n",
 				vmax_mv);
+		rc = haptics_force_vreg_ready(chip, vmax_mv == MAX_HV_VMAX_MV ? false : true);
+		if (rc < 0)
+			return rc;
 		break;
 	default:
 		break;
