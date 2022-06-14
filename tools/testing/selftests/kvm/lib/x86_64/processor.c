@@ -16,6 +16,8 @@
 #define DEFAULT_CODE_SELECTOR 0x8
 #define DEFAULT_DATA_SELECTOR 0x10
 
+#define MAX_NR_CPUID_ENTRIES 100
+
 vm_vaddr_t exception_handlers;
 
 static void regs_dump(FILE *stream, struct kvm_regs *regs, uint8_t indent)
@@ -673,40 +675,6 @@ struct kvm_vcpu *vm_arch_vcpu_recreate(struct kvm_vm *vm, uint32_t vcpu_id)
 }
 
 /*
- * Allocate an instance of struct kvm_cpuid2
- *
- * Input Args: None
- *
- * Output Args: None
- *
- * Return: A pointer to the allocated struct. The caller is responsible
- * for freeing this struct.
- *
- * Since kvm_cpuid2 uses a 0-length array to allow a the size of the
- * array to be decided at allocation time, allocation is slightly
- * complicated. This function uses a reasonable default length for
- * the array and performs the appropriate allocation.
- */
-static struct kvm_cpuid2 *allocate_kvm_cpuid2(void)
-{
-	struct kvm_cpuid2 *cpuid;
-	int nent = 100;
-	size_t size;
-
-	size = sizeof(*cpuid);
-	size += nent * sizeof(struct kvm_cpuid_entry2);
-	cpuid = malloc(size);
-	if (!cpuid) {
-		perror("malloc");
-		abort();
-	}
-
-	cpuid->nent = nent;
-
-	return cpuid;
-}
-
-/*
  * KVM Supported CPUID Get
  *
  * Input Args: None
@@ -725,7 +693,7 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 	if (cpuid)
 		return cpuid;
 
-	cpuid = allocate_kvm_cpuid2();
+	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
 	kvm_fd = open_kvm_dev_path_or_exit();
 
 	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_CPUID, cpuid);
@@ -781,7 +749,7 @@ struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vcpu *vcpu)
 	int max_ent;
 	int rc = -1;
 
-	cpuid = allocate_kvm_cpuid2();
+	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
 	max_ent = cpuid->nent;
 
 	for (cpuid->nent = 1; cpuid->nent <= max_ent; cpuid->nent++) {
@@ -1295,7 +1263,7 @@ struct kvm_cpuid2 *kvm_get_supported_hv_cpuid(void)
 	if (cpuid)
 		return cpuid;
 
-	cpuid = allocate_kvm_cpuid2();
+	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
 	kvm_fd = open_kvm_dev_path_or_exit();
 
 	kvm_ioctl(kvm_fd, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
@@ -1314,9 +1282,7 @@ void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu)
 		cpuid_sys = kvm_get_supported_cpuid();
 		cpuid_hv = kvm_get_supported_hv_cpuid();
 
-		cpuid_full = malloc(sizeof(*cpuid_full) +
-				    (cpuid_sys->nent + cpuid_hv->nent) *
-				    sizeof(struct kvm_cpuid_entry2));
+		cpuid_full = allocate_kvm_cpuid2(cpuid_sys->nent + cpuid_hv->nent);
 		if (!cpuid_full) {
 			perror("malloc");
 			abort();
@@ -1343,7 +1309,7 @@ struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu)
 {
 	static struct kvm_cpuid2 *cpuid;
 
-	cpuid = allocate_kvm_cpuid2();
+	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
 
 	vcpu_ioctl(vcpu, KVM_GET_SUPPORTED_HV_CPUID, cpuid);
 

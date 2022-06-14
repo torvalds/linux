@@ -595,6 +595,29 @@ static inline bool kvm_cpu_has(struct kvm_x86_cpu_feature feature)
 	return kvm_cpuid_has(kvm_get_supported_cpuid(), feature);
 }
 
+static inline size_t kvm_cpuid2_size(int nr_entries)
+{
+	return sizeof(struct kvm_cpuid2) +
+	       sizeof(struct kvm_cpuid_entry2) * nr_entries;
+}
+
+/*
+ * Allocate a "struct kvm_cpuid2* instance, with the 0-length arrary of
+ * entries sized to hold @nr_entries.  The caller is responsible for freeing
+ * the struct.
+ */
+static inline struct kvm_cpuid2 *allocate_kvm_cpuid2(int nr_entries)
+{
+	struct kvm_cpuid2 *cpuid;
+
+	cpuid = malloc(kvm_cpuid2_size(nr_entries));
+	TEST_ASSERT(cpuid, "-ENOMEM when allocating kvm_cpuid2");
+
+	cpuid->nent = nr_entries;
+
+	return cpuid;
+}
+
 struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vcpu *vcpu);
 
 static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu,
