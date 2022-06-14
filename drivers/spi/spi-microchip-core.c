@@ -541,7 +541,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	spi->irq = platform_get_irq(pdev, 0);
 	if (spi->irq <= 0) {
 		dev_err(&pdev->dev, "invalid IRQ %d for SPI controller\n", spi->irq);
-		ret = spi->irq;
+		ret = -ENXIO;
 		goto error_release_master;
 	}
 
