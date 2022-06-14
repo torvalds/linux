@@ -95,15 +95,6 @@ static void guest_main(void)
 	GUEST_DONE();
 }
 
-static void clear_kvm_cpuid_features(struct kvm_cpuid2 *cpuid)
-{
-	struct kvm_cpuid_entry2 ent = {0};
-
-	ent.function = KVM_CPUID_FEATURES;
-	TEST_ASSERT(set_cpuid(cpuid, &ent),
-		    "failed to clear KVM_CPUID_FEATURES leaf");
-}
-
 static void pr_msr(struct ucall *uc)
 {
 	struct msr_data *msr = (struct msr_data *)uc->args[0];
@@ -156,8 +147,7 @@ int main(void)
 
 	vcpu_enable_cap(vcpu, KVM_CAP_ENFORCE_PV_FEATURE_CPUID, 1);
 
-	clear_kvm_cpuid_features(vcpu->cpuid);
-	vcpu_set_cpuid(vcpu);
+	vcpu_clear_cpuid_entry(vcpu, KVM_CPUID_FEATURES);
 
 	vm_init_descriptor_tables(vm);
 	vcpu_init_descriptor_tables(vcpu);
