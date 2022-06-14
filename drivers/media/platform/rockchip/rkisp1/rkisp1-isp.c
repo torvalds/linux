@@ -473,11 +473,7 @@ static int rkisp1_config_path(struct rkisp1_device *rkisp1)
 /* Hardware configure Entry */
 static int rkisp1_config_cif(struct rkisp1_device *rkisp1)
 {
-	u32 cif_id;
 	int ret;
-
-	cif_id = rkisp1_read(rkisp1, RKISP1_CIF_VI_ID);
-	dev_dbg(rkisp1->dev, "CIF_ID 0x%08x\n", cif_id);
 
 	ret = rkisp1_config_isp(rkisp1);
 	if (ret)
