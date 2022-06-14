@@ -1011,15 +1011,9 @@ void kvm_x86_state_cleanup(struct kvm_x86_state *state)
 static bool cpu_vendor_string_is(const char *vendor)
 {
 	const uint32_t *chunk = (const uint32_t *)vendor;
-	int eax, ebx, ecx, edx;
-	const int leaf = 0;
+	uint32_t eax, ebx, ecx, edx;
 
-	__asm__ __volatile__(
-		"cpuid"
-		: /* output */ "=a"(eax), "=b"(ebx),
-		  "=c"(ecx), "=d"(edx)
-		: /* input */ "0"(leaf), "2"(0));
-
+	cpuid(0, &eax, &ebx, &ecx, &edx);
 	return (ebx == chunk[0] && edx == chunk[1] && ecx == chunk[2]);
 }
 
