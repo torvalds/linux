@@ -4,6 +4,7 @@
  */
 
 #include <drm/drm_fourcc.h>
+#include <drm/drm_framebuffer.h>
 
 #include <linux/clk.h>
 #include <linux/component.h>

@@ -7,6 +7,8 @@
 
 #include <linux/debugfs.h>
 
+#include <drm/drm_framebuffer.h>
+
 #include "dpu_encoder_phys.h"
 #include "dpu_formats.h"
 #include "dpu_hw_top.h"
