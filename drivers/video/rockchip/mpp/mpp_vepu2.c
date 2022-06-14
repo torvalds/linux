@@ -885,7 +885,7 @@ static const struct mpp_dev_var vepu_px30_data = {
 };
 
 static const struct mpp_dev_var vepu_ccu_data = {
-	.device_type = MPP_DEVICE_VEPU2,
+	.device_type = MPP_DEVICE_VEPU2_JPEG,
 	.hw_info = &vepu_v2_hw_info,
 	.trans_info = trans_rk_vepu2,
 	.hw_ops = &vepu_v2_hw_ops,
@@ -905,11 +905,11 @@ static const struct of_device_id mpp_vepu2_dt_match[] = {
 #endif
 #ifdef CONFIG_CPU_RK3588
 	{
-		.compatible = "rockchip,vpu-encoder-v2-core",
+		.compatible = "rockchip,vpu-jpege-core",
 		.data = &vepu_ccu_data,
 	},
 	{
-		.compatible = "rockchip,vpu-encoder-v2-ccu",
+		.compatible = "rockchip,vpu-jpege-ccu",
 	},
 #endif
 	{},
