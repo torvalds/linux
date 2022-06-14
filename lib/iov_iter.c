@@ -1304,10 +1304,9 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 		   struct page ***pages, size_t maxsize, unsigned maxpages,
 		   size_t *start)
 {
-	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int npages, off, count;
+	unsigned int npages, count, off, chunk;
 	struct page **p;
-	ssize_t left;
+	size_t left;
 
 	if (!sanity(i))
 		return -EFAULT;
@@ -1319,38 +1318,16 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 	if (!count)
 		return -ENOMEM;
 	p = *pages;
-	left = maxsize;
-	npages = 0;
-	if (off) {
-		struct pipe_buffer *buf = pipe_buf(pipe, pipe->head - 1);
-
-		get_page(*p++ = buf->page);
-		left -= PAGE_SIZE - off;
-		if (left <= 0) {
-			buf->len += maxsize;
-			iov_iter_advance(i, maxsize);
-			return maxsize;
-		}
-		buf->len = PAGE_SIZE;
-		npages = 1;
-	}
-	for ( ; npages < count; npages++) {
-		struct page *page;
-		unsigned int size = min_t(ssize_t, left, PAGE_SIZE);
-
-		if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
-			break;
-		page = push_anon(pipe, size);
+	for (npages = 0, left = maxsize ; npages < count; npages++, left -= chunk) {
+		struct page *page = append_pipe(i, left, &off);
 		if (!page)
 			break;
+		chunk = min_t(size_t, left, PAGE_SIZE - off);
 		get_page(*p++ = page);
-		left -= size;
 	}
 	if (!npages)
 		return -EFAULT;
-	maxsize -= left;
-	iov_iter_advance(i, maxsize);
-	return maxsize;
+	return maxsize - left;
 }
 
 static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa,
