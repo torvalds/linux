@@ -298,7 +298,7 @@ static int logicvc_drm_probe(struct platform_device *pdev)
 	struct logicvc_drm *logicvc;
 	struct device *dev = &pdev->dev;
 	struct drm_device *drm_dev;
-	struct regmap *regmap;
+	struct regmap *regmap = NULL;
 	struct resource res;
 	void __iomem *base;
 	int irq;
