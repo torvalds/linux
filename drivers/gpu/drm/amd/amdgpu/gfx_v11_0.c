@@ -126,6 +126,8 @@ static int gfx_v11_0_wait_for_rlc_autoload_complete(struct amdgpu_device *adev);
 static void gfx_v11_0_ring_invalidate_tlbs(struct amdgpu_ring *ring,
 					   uint16_t pasid, uint32_t flush_type,
 					   bool all_hub, uint8_t dst_sel);
+static void gfx_v11_0_set_safe_mode(struct amdgpu_device *adev);
+static void gfx_v11_0_unset_safe_mode(struct amdgpu_device *adev);
 
 static void gfx11_kiq_set_resources(struct amdgpu_ring *kiq_ring, uint64_t queue_mask)
 {
@@ -4743,63 +4745,143 @@ static int gfx_v11_0_soft_reset(void *handle)
 {
 	u32 grbm_soft_reset = 0;
 	u32 tmp;
+	int i, j, k;
 	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
 
-	/* GRBM_STATUS */
-	tmp = RREG32_SOC15(GC, 0, regGRBM_STATUS);
-	if (tmp & (GRBM_STATUS__PA_BUSY_MASK | GRBM_STATUS__SC_BUSY_MASK |
-		   GRBM_STATUS__BCI_BUSY_MASK | GRBM_STATUS__SX_BUSY_MASK |
-		   GRBM_STATUS__TA_BUSY_MASK | GRBM_STATUS__DB_BUSY_MASK |
-		   GRBM_STATUS__CB_BUSY_MASK | GRBM_STATUS__GDS_BUSY_MASK |
-		   GRBM_STATUS__SPI_BUSY_MASK | GRBM_STATUS__GE_BUSY_NO_DMA_MASK)) {
-		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
-						GRBM_SOFT_RESET, SOFT_RESET_CP,
-						1);
-		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
-						GRBM_SOFT_RESET, SOFT_RESET_GFX,
-						1);
+	tmp = RREG32_SOC15(GC, 0, regCP_INT_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, CMP_BUSY_INT_ENABLE, 0);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, CNTX_BUSY_INT_ENABLE, 0);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, CNTX_EMPTY_INT_ENABLE, 0);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, GFX_IDLE_INT_ENABLE, 0);
+	WREG32_SOC15(GC, 0, regCP_INT_CNTL, tmp);
+
+	gfx_v11_0_set_safe_mode(adev);
+
+	for (i = 0; i < adev->gfx.mec.num_mec; ++i) {
+		for (j = 0; j < adev->gfx.mec.num_queue_per_pipe; j++) {
+			for (k = 0; k < adev->gfx.mec.num_pipe_per_mec; k++) {
+				tmp = RREG32_SOC15(GC, 0, regGRBM_GFX_CNTL);
+				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, MEID, i);
+				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, QUEUEID, j);
+				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, PIPEID, k);
+				WREG32_SOC15(GC, 0, regGRBM_GFX_CNTL, tmp);
+
+				WREG32_SOC15(GC, 0, regCP_HQD_DEQUEUE_REQUEST, 0x2);
+				WREG32_SOC15(GC, 0, regSPI_COMPUTE_QUEUE_RESET, 0x1);
+			}
+		}
+	}
+	for (i = 0; i < adev->gfx.me.num_me; ++i) {
+		for (j = 0; j < adev->gfx.me.num_queue_per_pipe; j++) {
+			for (k = 0; k < adev->gfx.me.num_pipe_per_me; k++) {
+				tmp = RREG32_SOC15(GC, 0, regGRBM_GFX_CNTL);
+				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, MEID, i);
+				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, QUEUEID, j);
+				tmp = REG_SET_FIELD(tmp, GRBM_GFX_CNTL, PIPEID, k);
+				WREG32_SOC15(GC, 0, regGRBM_GFX_CNTL, tmp);
+
+				WREG32_SOC15(GC, 0, regCP_GFX_HQD_DEQUEUE_REQUEST, 0x1);
+			}
+		}
 	}
 
-	if (tmp & (GRBM_STATUS__CP_BUSY_MASK | GRBM_STATUS__CP_COHERENCY_BUSY_MASK)) {
-		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
-						GRBM_SOFT_RESET, SOFT_RESET_CP,
-						1);
+	WREG32_SOC15(GC, 0, regCP_VMID_RESET, 0xfffffffe);
+
+	// Read CP_VMID_RESET register three times.
+	// to get sufficient time for GFX_HQD_ACTIVE reach 0
+	RREG32_SOC15(GC, 0, regCP_VMID_RESET);
+	RREG32_SOC15(GC, 0, regCP_VMID_RESET);
+	RREG32_SOC15(GC, 0, regCP_VMID_RESET);
+
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (!RREG32_SOC15(GC, 0, regCP_HQD_ACTIVE) &&
+		    !RREG32_SOC15(GC, 0, regCP_GFX_HQD_ACTIVE))
+			break;
+		udelay(1);
+	}
+	if (i >= adev->usec_timeout) {
+		printk("Failed to wait all pipes clean\n");
+		return -EINVAL;
 	}
 
-	/* GRBM_STATUS2 */
-	tmp = RREG32_SOC15(GC, 0, regGRBM_STATUS2);
-	if (REG_GET_FIELD(tmp, GRBM_STATUS2, RLC_BUSY))
-		grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset,
-						GRBM_SOFT_RESET,
-						SOFT_RESET_RLC,
-						1);
+	/**********  trigger soft reset  ***********/
+	grbm_soft_reset = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CP, 1);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_GFX, 1);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CPF, 1);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CPC, 1);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CPG, 1);
+	WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, grbm_soft_reset);
+	/**********  exit soft reset  ***********/
+	grbm_soft_reset = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CP, 0);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_GFX, 0);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CPF, 0);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CPC, 0);
+	grbm_soft_reset = REG_SET_FIELD(grbm_soft_reset, GRBM_SOFT_RESET,
+					SOFT_RESET_CPG, 0);
+	WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, grbm_soft_reset);
 
-	if (grbm_soft_reset) {
-		/* stop the rlc */
-		gfx_v11_0_rlc_stop(adev);
+	tmp = RREG32_SOC15(GC, 0, regCP_SOFT_RESET_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_SOFT_RESET_CNTL, CMP_HQD_REG_RESET, 0x1);
+	WREG32_SOC15(GC, 0, regCP_SOFT_RESET_CNTL, tmp);
 
-		/* Disable GFX parsing/prefetching */
-		gfx_v11_0_cp_gfx_enable(adev, false);
+	WREG32_SOC15(GC, 0, regCP_ME_CNTL, 0x0);
+	WREG32_SOC15(GC, 0, regCP_MEC_RS64_CNTL, 0x0);
 
-		/* Disable MEC parsing/prefetching */
-		gfx_v11_0_cp_compute_enable(adev, false);
-
-		tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
-		tmp |= grbm_soft_reset;
-		dev_info(adev->dev, "GRBM_SOFT_RESET=0x%08X\n", tmp);
-		WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, tmp);
-		tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
-
-		udelay(50);
-
-		tmp &= ~grbm_soft_reset;
-		WREG32_SOC15(GC, 0, regGRBM_SOFT_RESET, tmp);
-		tmp = RREG32_SOC15(GC, 0, regGRBM_SOFT_RESET);
-
-		/* Wait a little for things to settle down */
-		udelay(50);
+	for (i = 0; i < adev->usec_timeout; i++) {
+		if (!RREG32_SOC15(GC, 0, regCP_VMID_RESET))
+			break;
+		udelay(1);
 	}
-	return 0;
+	if (i >= adev->usec_timeout) {
+		printk("Failed to wait CP_VMID_RESET to 0\n");
+		return -EINVAL;
+	}
+
+	tmp = RREG32_SOC15(GC, 0, regCP_INT_CNTL);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, CMP_BUSY_INT_ENABLE, 1);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, CNTX_BUSY_INT_ENABLE, 1);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, CNTX_EMPTY_INT_ENABLE, 1);
+	tmp = REG_SET_FIELD(tmp, CP_INT_CNTL, GFX_IDLE_INT_ENABLE, 1);
+	WREG32_SOC15(GC, 0, regCP_INT_CNTL, tmp);
+
+	gfx_v11_0_unset_safe_mode(adev);
+
+	return gfx_v11_0_cp_resume(adev);
+}
+
+static bool gfx_v11_0_check_soft_reset(void *handle)
+{
+	int i, r;
+	struct amdgpu_device *adev = (struct amdgpu_device *)handle;
+	struct amdgpu_ring *ring;
+	long tmo = msecs_to_jiffies(1000);
+
+	for (i = 0; i < adev->gfx.num_gfx_rings; i++) {
+		ring = &adev->gfx.gfx_ring[i];
+		r = amdgpu_ring_test_ib(ring, tmo);
+		if (r)
+			return true;
+	}
+
+	for (i = 0; i < adev->gfx.num_compute_rings; i++) {
+		ring = &adev->gfx.compute_ring[i];
+		r = amdgpu_ring_test_ib(ring, tmo);
+		if (r)
+			return true;
+	}
+
+	return false;
 }
 
 static uint64_t gfx_v11_0_get_gpu_clock_counter(struct amdgpu_device *adev)
@@ -6132,6 +6214,7 @@ static const struct amd_ip_funcs gfx_v11_0_ip_funcs = {
 	.is_idle = gfx_v11_0_is_idle,
 	.wait_for_idle = gfx_v11_0_wait_for_idle,
 	.soft_reset = gfx_v11_0_soft_reset,
+	.check_soft_reset = gfx_v11_0_check_soft_reset,
 	.set_clockgating_state = gfx_v11_0_set_clockgating_state,
 	.set_powergating_state = gfx_v11_0_set_powergating_state,
 	.get_clockgating_state = gfx_v11_0_get_clockgating_state,
