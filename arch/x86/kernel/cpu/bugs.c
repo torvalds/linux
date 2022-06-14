@@ -196,8 +196,8 @@ void __init check_bugs(void)
 }
 
 /*
- * NOTE: For VMX, this function is not called in the vmexit path.
- * It uses vmx_spec_ctrl_restore_host() instead.
+ * NOTE: This function is *only* called for SVM.  VMX spec_ctrl handling is
+ * done in vmenter.S.
  */
 void
 x86_virt_spec_ctrl(u64 guest_spec_ctrl, u64 guest_virt_spec_ctrl, bool setguest)

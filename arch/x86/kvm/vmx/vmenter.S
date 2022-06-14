@@ -1,9 +1,11 @@
 /* SPDX-License-Identifier: GPL-2.0 */
 #include <linux/linkage.h>
 #include <asm/asm.h>
+#include <asm/asm-offsets.h>
 #include <asm/bitsperlong.h>
 #include <asm/kvm_vcpu_regs.h>
 #include <asm/nospec-branch.h>
+#include <asm/percpu.h>
 #include <asm/segment.h>
 #include "run_flags.h"
 
@@ -72,6 +74,33 @@ SYM_FUNC_START(__vmx_vcpu_run)
 
 	lea (%_ASM_SP), %_ASM_ARG2
 	call vmx_update_host_rsp
+
+	ALTERNATIVE "jmp .Lspec_ctrl_done", "", X86_FEATURE_MSR_SPEC_CTRL
+
+	/*
+	 * SPEC_CTRL handling: if the guest's SPEC_CTRL value differs from the
+	 * host's, write the MSR.
+	 *
+	 * IMPORTANT: To avoid RSB underflow attacks and any other nastiness,
+	 * there must not be any returns or indirect branches between this code
+	 * and vmentry.
+	 */
+	mov 2*WORD_SIZE(%_ASM_SP), %_ASM_DI
+	movl VMX_spec_ctrl(%_ASM_DI), %edi
+	movl PER_CPU_VAR(x86_spec_ctrl_current), %esi
+	cmp %edi, %esi
+	je .Lspec_ctrl_done
+	mov $MSR_IA32_SPEC_CTRL, %ecx
+	xor %edx, %edx
+	mov %edi, %eax
+	wrmsr
+
+.Lspec_ctrl_done:
+
+	/*
+	 * Since vmentry is serializing on affected CPUs, there's no need for
+	 * an LFENCE to stop speculation from skipping the wrmsr.
+	 */
 
 	/* Load @regs to RAX. */
 	mov (%_ASM_SP), %_ASM_AX
