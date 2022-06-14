@@ -85,7 +85,7 @@
  */
 
 SYM_CODE_START(entry_SYSCALL_64)
-	UNWIND_HINT_EMPTY
+	UNWIND_HINT_ENTRY
 	ENDBR
 
 	swapgs
@@ -1095,6 +1095,7 @@ SYM_CODE_START_LOCAL(error_entry)
 .Lerror_entry_done_lfence:
 	FENCE_SWAPGS_KERNEL_ENTRY
 	leaq	8(%rsp), %rax			/* return pt_regs pointer */
+	ANNOTATE_UNRET_END
 	RET
 
 .Lbstep_iret:

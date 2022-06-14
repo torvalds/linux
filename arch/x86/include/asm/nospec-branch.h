@@ -82,6 +82,17 @@
 #define ANNOTATE_UNRET_SAFE ANNOTATE_RETPOLINE_SAFE
 
 /*
+ * Abuse ANNOTATE_RETPOLINE_SAFE on a NOP to indicate UNRET_END, should
+ * eventually turn into it's own annotation.
+ */
+.macro ANNOTATE_UNRET_END
+#ifdef CONFIG_DEBUG_ENTRY
+	ANNOTATE_RETPOLINE_SAFE
+	nop
+#endif
+.endm
+
+/*
  * JMP_NOSPEC and CALL_NOSPEC macros can be used instead of a simple
  * indirect jmp/call which may be susceptible to the Spectre variant 2
  * attack.
@@ -131,6 +142,7 @@
  */
 .macro UNTRAIN_RET
 #ifdef CONFIG_RETPOLINE
+	ANNOTATE_UNRET_END
 	ALTERNATIVE_2 "",						\
 	              "call zen_untrain_ret", X86_FEATURE_UNRET,	\
 		      "call entry_ibpb", X86_FEATURE_ENTRY_IBPB
