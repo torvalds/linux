@@ -847,18 +847,13 @@ static void __init retbleed_select_mitigation(void)
 	case RETBLEED_CMD_AUTO:
 	default:
 		if (boot_cpu_data.x86_vendor == X86_VENDOR_AMD ||
-		    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON) {
-
-			if (IS_ENABLED(CONFIG_RETPOLINE) &&
-			    IS_ENABLED(CONFIG_CC_HAS_RETURN_THUNK))
-				retbleed_mitigation = RETBLEED_MITIGATION_UNRET;
-			else
-				retbleed_mitigation = RETBLEED_MITIGATION_IBPB;
-		}
+		    boot_cpu_data.x86_vendor == X86_VENDOR_HYGON)
+			retbleed_mitigation = RETBLEED_MITIGATION_UNRET;
 
 		/*
-		 * The Intel mitigation (IBRS) was already selected in
-		 * spectre_v2_select_mitigation().
+		 * The Intel mitigation (IBRS or eIBRS) was already selected in
+		 * spectre_v2_select_mitigation().  'retbleed_mitigation' will
+		 * be set accordingly below.
 		 */
 
 		break;
