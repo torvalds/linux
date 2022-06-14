@@ -188,7 +188,7 @@ config X86
 	select HAVE_CONTEXT_TRACKING		if X86_64
 	select HAVE_CONTEXT_TRACKING_OFFSTACK	if HAVE_CONTEXT_TRACKING
 	select HAVE_C_RECORDMCOUNT
-	select HAVE_OBJTOOL_MCOUNT		if STACK_VALIDATION
+	select HAVE_OBJTOOL_MCOUNT		if HAVE_OBJTOOL
 	select HAVE_BUILDTIME_MCOUNT_SORT
 	select HAVE_DEBUG_KMEMLEAK
 	select HAVE_DMA_CONTIGUOUS
@@ -212,6 +212,7 @@ config X86
 	select HAVE_IOREMAP_PROT
 	select HAVE_IRQ_EXIT_ON_IRQ_STACK	if X86_64
 	select HAVE_IRQ_TIME_ACCOUNTING
+	select HAVE_JUMP_LABEL_HACK		if HAVE_OBJTOOL
 	select HAVE_KERNEL_BZIP2
 	select HAVE_KERNEL_GZIP
 	select HAVE_KERNEL_LZ4
@@ -230,7 +231,10 @@ config X86
 	select HAVE_MOD_ARCH_SPECIFIC
 	select HAVE_MOVE_PMD
 	select HAVE_MOVE_PUD
+	select HAVE_NOINSTR_HACK		if HAVE_OBJTOOL
 	select HAVE_NMI
+	select HAVE_NOINSTR_VALIDATION		if HAVE_OBJTOOL
+	select HAVE_OBJTOOL			if X86_64
 	select HAVE_OPTPROBES
 	select HAVE_PCSPKR_PLATFORM
 	select HAVE_PERF_EVENTS
@@ -239,17 +243,17 @@ config X86
 	select HAVE_PCI
 	select HAVE_PERF_REGS
 	select HAVE_PERF_USER_STACK_DUMP
-	select MMU_GATHER_RCU_TABLE_FREE		if PARAVIRT
+	select MMU_GATHER_RCU_TABLE_FREE	if PARAVIRT
 	select HAVE_POSIX_CPU_TIMERS_TASK_WORK
 	select HAVE_REGS_AND_STACK_ACCESS_API
-	select HAVE_RELIABLE_STACKTRACE		if X86_64 && (UNWINDER_FRAME_POINTER || UNWINDER_ORC) && STACK_VALIDATION
+	select HAVE_RELIABLE_STACKTRACE		if UNWINDER_ORC || STACK_VALIDATION
 	select HAVE_FUNCTION_ARG_ACCESS_API
 	select HAVE_SETUP_PER_CPU_AREA
 	select HAVE_SOFTIRQ_ON_OWN_STACK
 	select HAVE_STACKPROTECTOR		if CC_HAS_SANE_STACKPROTECTOR
-	select HAVE_STACK_VALIDATION		if X86_64
+	select HAVE_STACK_VALIDATION		if HAVE_OBJTOOL
 	select HAVE_STATIC_CALL
-	select HAVE_STATIC_CALL_INLINE		if HAVE_STACK_VALIDATION
+	select HAVE_STATIC_CALL_INLINE		if HAVE_OBJTOOL
 	select HAVE_PREEMPT_DYNAMIC_CALL
 	select HAVE_RSEQ
 	select HAVE_SYSCALL_TRACEPOINTS
@@ -268,7 +272,6 @@ config X86
 	select RTC_MC146818_LIB
 	select SPARSE_IRQ
 	select SRCU
-	select STACK_VALIDATION			if HAVE_STACK_VALIDATION && (HAVE_STATIC_CALL_INLINE || RETPOLINE)
 	select SYSCTL_EXCEPTION_TRACE
 	select THREAD_INFO_IN_TASK
 	select TRACE_IRQFLAGS_SUPPORT
@@ -459,6 +462,7 @@ config GOLDFISH
 
 config RETPOLINE
 	bool "Avoid speculative indirect branches in kernel"
+	select OBJTOOL if HAVE_OBJTOOL
 	default y
 	help
 	  Compile kernel with the retpoline compiler options to guard against
@@ -472,6 +476,7 @@ config CC_HAS_SLS
 config SLS
 	bool "Mitigate Straight-Line-Speculation"
 	depends on CC_HAS_SLS && X86_64
+	select OBJTOOL if HAVE_OBJTOOL
 	default n
 	help
 	  Compile the kernel with straight-line-speculation options to guard
@@ -877,6 +882,21 @@ config ACRN_GUEST
 	  real-time and safety-criticality in mind. It is built for embedded
 	  IOT with small footprint and real-time features. More details can be
 	  found in https://projectacrn.org/.
+
+config INTEL_TDX_GUEST
+	bool "Intel TDX (Trust Domain Extensions) - Guest Support"
+	depends on X86_64 && CPU_SUP_INTEL
+	depends on X86_X2APIC
+	select ARCH_HAS_CC_PLATFORM
+	select X86_MEM_ENCRYPT
+	select X86_MCE
+	help
+	  Support running as a guest under Intel TDX.  Without this support,
+	  the guest kernel can not boot or run under TDX.
+	  TDX includes memory encryption and integrity capabilities
+	  which protect the confidentiality and integrity of guest
+	  memory contents and CPU state. TDX guests are protected from
+	  some attacks from the VMM.
 
 endif #HYPERVISOR_GUEST
 
@@ -1313,7 +1333,7 @@ config MICROCODE
 
 config MICROCODE_INTEL
 	bool "Intel microcode loading support"
-	depends on MICROCODE
+	depends on CPU_SUP_INTEL && MICROCODE
 	default MICROCODE
 	help
 	  This options enables microcode patch loading support for Intel
@@ -1325,7 +1345,7 @@ config MICROCODE_INTEL
 
 config MICROCODE_AMD
 	bool "AMD microcode loading support"
-	depends on MICROCODE
+	depends on CPU_SUP_AMD && MICROCODE
 	help
 	  If you select this option, microcode patch loading support for AMD
 	  processors will be enabled.
@@ -1816,17 +1836,6 @@ config ARCH_RANDOM
 	  If supported, this is a high bandwidth, cryptographically
 	  secure hardware random number generator.
 
-config X86_SMAP
-	def_bool y
-	prompt "Supervisor Mode Access Prevention" if EXPERT
-	help
-	  Supervisor Mode Access Prevention (SMAP) is a security
-	  feature in newer Intel processors.  There is a small
-	  performance cost if this enabled and turned on; there is
-	  also a small increase in the kernel size if this is enabled.
-
-	  If unsure, say Y.
-
 config X86_UMIP
 	def_bool y
 	prompt "User Mode Instruction Prevention" if EXPERT
@@ -1855,9 +1864,10 @@ config CC_HAS_IBT
 config X86_KERNEL_IBT
 	prompt "Indirect Branch Tracking"
 	bool
-	depends on X86_64 && CC_HAS_IBT && STACK_VALIDATION
+	depends on X86_64 && CC_HAS_IBT && HAVE_OBJTOOL
 	# https://github.com/llvm/llvm-project/commit/9d7001eba9c4cb311e03cd8cdc231f9e579f2d0f
 	depends on !LD_IS_LLD || LLD_VERSION >= 140000
+	select OBJTOOL
 	help
 	  Build the kernel with support for Indirect Branch Tracking, a
 	  hardware support course-grain forward-edge Control Flow Integrity
@@ -2326,27 +2336,15 @@ choice
 	  it can be used to assist security vulnerability exploitation.
 
 	  This setting can be changed at boot time via the kernel command
-	  line parameter vsyscall=[emulate|xonly|none].
+	  line parameter vsyscall=[emulate|xonly|none].  Emulate mode
+	  is deprecated and can only be enabled using the kernel command
+	  line.
 
 	  On a system with recent enough glibc (2.14 or newer) and no
 	  static binaries, you can say None without a performance penalty
 	  to improve security.
 
 	  If unsure, select "Emulate execution only".
-
-	config LEGACY_VSYSCALL_EMULATE
-		bool "Full emulation"
-		help
-		  The kernel traps and emulates calls into the fixed vsyscall
-		  address mapping. This makes the mapping non-executable, but
-		  it still contains readable known contents, which could be
-		  used in certain rare security vulnerability exploits. This
-		  configuration is recommended when using legacy userspace
-		  that still uses vsyscalls along with legacy binary
-		  instrumentation tools that require code to be readable.
-
-		  An example of this type of legacy userspace is running
-		  Pin on an old binary that still uses vsyscalls.
 
 	config LEGACY_VSYSCALL_XONLY
 		bool "Emulate execution only"
@@ -2837,13 +2835,6 @@ config IA32_EMULATION
 	  Include code to run legacy 32-bit programs under a
 	  64-bit kernel. You should likely turn this on, unless you're
 	  100% sure that you don't have any 32-bit programs left.
-
-config IA32_AOUT
-	tristate "IA32 a.out support"
-	depends on IA32_EMULATION
-	depends on BROKEN
-	help
-	  Support old a.out binaries in the 32bit emulation.
 
 config X86_X32_ABI
 	bool "x32 ABI for 64-bit mode"

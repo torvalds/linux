@@ -17,9 +17,14 @@ extern debug_info_t *pci_debug_err_id;
 		debug_text_event(pci_debug_err_id, 0, debug_buffer);		\
 	} while (0)
 
+static inline void zpci_err_hex_level(int level, void *addr, int len)
+{
+	debug_event(pci_debug_err_id, level, addr, len);
+}
+
 static inline void zpci_err_hex(void *addr, int len)
 {
-	debug_event(pci_debug_err_id, 0, addr, len);
+	zpci_err_hex_level(0, addr, len);
 }
 
 #endif

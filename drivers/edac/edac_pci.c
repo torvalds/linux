@@ -29,32 +29,31 @@ static LIST_HEAD(edac_pci_list);
 static atomic_t pci_indexes = ATOMIC_INIT(0);
 
 struct edac_pci_ctl_info *edac_pci_alloc_ctl_info(unsigned int sz_pvt,
-						const char *edac_pci_name)
+						  const char *edac_pci_name)
 {
 	struct edac_pci_ctl_info *pci;
-	void *p = NULL, *pvt;
-	unsigned int size;
 
 	edac_dbg(1, "\n");
 
-	pci = edac_align_ptr(&p, sizeof(*pci), 1);
-	pvt = edac_align_ptr(&p, 1, sz_pvt);
-	size = ((unsigned long)pvt) + sz_pvt;
-
-	/* Alloc the needed control struct memory */
-	pci = kzalloc(size, GFP_KERNEL);
-	if (pci  == NULL)
+	pci = kzalloc(sizeof(struct edac_pci_ctl_info), GFP_KERNEL);
+	if (!pci)
 		return NULL;
 
-	/* Now much private space */
-	pvt = sz_pvt ? ((char *)pci) + ((unsigned long)pvt) : NULL;
+	if (sz_pvt) {
+		pci->pvt_info = kzalloc(sz_pvt, GFP_KERNEL);
+		if (!pci->pvt_info)
+			goto free;
+	}
 
-	pci->pvt_info = pvt;
 	pci->op_state = OP_ALLOC;
 
 	snprintf(pci->name, strlen(edac_pci_name) + 1, "%s", edac_pci_name);
 
 	return pci;
+
+free:
+	kfree(pci);
+	return NULL;
 }
 EXPORT_SYMBOL_GPL(edac_pci_alloc_ctl_info);
 

@@ -2534,7 +2534,7 @@ static struct attribute *asus_fan_curve_attr[] = {
 static umode_t asus_fan_curve_is_visible(struct kobject *kobj,
 					 struct attribute *attr, int idx)
 {
-	struct device *dev = container_of(kobj, struct device, kobj);
+	struct device *dev = kobj_to_dev(kobj);
 	struct asus_wmi *asus = dev_get_drvdata(dev->parent);
 
 	/*
@@ -3114,7 +3114,7 @@ static void asus_wmi_handle_event_code(int code, struct asus_wmi *asus)
 
 	if (!sparse_keymap_report_event(asus->inputdev, code,
 					key_value, autorelease))
-		pr_info("Unknown key %x pressed\n", code);
+		pr_info("Unknown key code 0x%x\n", code);
 }
 
 static void asus_wmi_notify(u32 value, void *context)

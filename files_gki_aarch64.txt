@@ -644,7 +644,6 @@ drivers/base/trace.h
 drivers/base/transport_class.c
 drivers/block/brd.c
 drivers/block/loop.c
-drivers/block/loop.h
 drivers/bluetooth/btbcm.c
 drivers/bluetooth/btbcm.h
 drivers/bluetooth/btintel.h
@@ -1062,7 +1061,6 @@ drivers/irqchip/irq-gic-v3-mbi.c
 drivers/irqchip/irq-gic-v4.c
 drivers/irqchip/irq-mbigen.c
 drivers/irqchip/irq-partition-percpu.c
-drivers/irqchip/irq-sun4i.c
 drivers/irqchip/irq-sun6i-r.c
 drivers/irqchip/irq-sunxi-nmi.c
 drivers/leds/led-class.c
@@ -4008,6 +4006,7 @@ include/trace/events/jbd2.h
 include/trace/events/kmem.h
 include/trace/events/kvm.h
 include/trace/events/kyber.h
+include/trace/events/lock.h
 include/trace/events/mdio.h
 include/trace/events/migrate.h
 include/trace/events/mmap.h
@@ -4071,8 +4070,6 @@ include/trace/hooks/debug.h
 include/trace/hooks/epoch.h
 include/trace/hooks/fpsimd.h
 include/trace/hooks/ftrace_dump.h
-include/trace/hooks/gic.h
-include/trace/hooks/gic_v3.h
 include/trace/hooks/iommu.h
 include/trace/hooks/memory.h
 include/trace/hooks/module.h
@@ -4086,7 +4083,6 @@ include/trace/hooks/selinux.h
 include/trace/hooks/syscall_check.h
 include/trace/hooks/sys.h
 include/trace/hooks/sysrqcrash.h
-include/trace/hooks/timer.h
 include/trace/hooks/topology.h
 include/trace/hooks/ufshcd.h
 include/trace/hooks/vendor_hooks.h

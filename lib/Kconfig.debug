@@ -485,24 +485,25 @@ config FRAME_POINTER
 	  larger and slower, but it gives very useful debugging information
 	  in case of kernel bugs. (precise oopses/stacktraces/warnings)
 
+config OBJTOOL
+	bool
+
 config STACK_VALIDATION
 	bool "Compile-time stack metadata validation"
-	depends on HAVE_STACK_VALIDATION
+	depends on HAVE_STACK_VALIDATION && UNWINDER_FRAME_POINTER
+	select OBJTOOL
 	default n
 	help
-	  Add compile-time checks to validate stack metadata, including frame
-	  pointers (if CONFIG_FRAME_POINTER is enabled).  This helps ensure
-	  that runtime stack traces are more reliable.
-
-	  This is also a prerequisite for generation of ORC unwind data, which
-	  is needed for CONFIG_UNWINDER_ORC.
+	  Validate frame pointer rules at compile-time.  This helps ensure that
+	  runtime stack traces are more reliable.
 
 	  For more information, see
 	  tools/objtool/Documentation/stack-validation.txt.
 
-config VMLINUX_VALIDATION
+config NOINSTR_VALIDATION
 	bool
-	depends on STACK_VALIDATION && DEBUG_ENTRY
+	depends on HAVE_NOINSTR_VALIDATION && DEBUG_ENTRY
+	select OBJTOOL
 	default y
 
 config VMLINUX_MAP
@@ -1616,8 +1617,7 @@ config WARN_ALL_UNSEEDED_RANDOM
 	  so architecture maintainers really need to do what they can
 	  to get the CRNG seeded sooner after the system is booted.
 	  However, since users cannot do anything actionable to
-	  address this, by default the kernel will issue only a single
-	  warning for the first use of unseeded randomness.
+	  address this, by default this option is disabled.
 
 	  Say Y here if you want to receive warnings for all uses of
 	  unseeded randomness.  This will be of use primarily for
@@ -2035,10 +2035,11 @@ config KCOV
 	bool "Code coverage for fuzzing"
 	depends on ARCH_HAS_KCOV
 	depends on CC_HAS_SANCOV_TRACE_PC || GCC_PLUGINS
-	depends on !ARCH_WANTS_NO_INSTR || STACK_VALIDATION || \
+	depends on !ARCH_WANTS_NO_INSTR || HAVE_NOINSTR_HACK || \
 		   GCC_VERSION >= 120000 || CLANG_VERSION >= 130000
 	select DEBUG_FS
 	select GCC_PLUGIN_SANCOV if !CC_HAS_SANCOV_TRACE_PC
+	select OBJTOOL if HAVE_NOINSTR_HACK
 	help
 	  KCOV exposes kernel code coverage information in a form suitable
 	  for coverage-guided fuzzing (randomized testing).

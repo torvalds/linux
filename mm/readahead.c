@@ -113,6 +113,7 @@
  * ->readpage() which may be less efficient.
  */
 
+#include <linux/blkdev.h>
 #include <linux/kernel.h>
 #include <linux/dax.h>
 #include <linux/gfp.h>

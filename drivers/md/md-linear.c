@@ -64,7 +64,6 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 	struct linear_conf *conf;
 	struct md_rdev *rdev;
 	int i, cnt;
-	bool discard_supported = false;
 
 	conf = kzalloc(struct_size(conf, disks, raid_disks), GFP_KERNEL);
 	if (!conf)
@@ -96,20 +95,12 @@ static struct linear_conf *linear_conf(struct mddev *mddev, int raid_disks)
 
 		conf->array_sectors += rdev->sectors;
 		cnt++;
-
-		if (blk_queue_discard(bdev_get_queue(rdev->bdev)))
-			discard_supported = true;
 	}
 	if (cnt != raid_disks) {
 		pr_warn("md/linear:%s: not enough drives present. Aborting!\n",
 			mdname(mddev));
 		goto out;
 	}
-
-	if (!discard_supported)
-		blk_queue_flag_clear(QUEUE_FLAG_DISCARD, mddev->queue);
-	else
-		blk_queue_flag_set(QUEUE_FLAG_DISCARD, mddev->queue);
 
 	/*
 	 * Here we calculate the device offsets.
@@ -252,7 +243,7 @@ static bool linear_make_request(struct mddev *mddev, struct bio *bio)
 		start_sector + data_offset;
 
 	if (unlikely((bio_op(bio) == REQ_OP_DISCARD) &&
-		     !blk_queue_discard(bio->bi_bdev->bd_disk->queue))) {
+		     !bdev_max_discard_sectors(bio->bi_bdev))) {
 		/* Just ignore it */
 		bio_endio(bio);
 	} else {

@@ -405,8 +405,6 @@
   disable_irq
   disable_irq_nosync
   disable_percpu_irq
-  disk_end_io_acct
-  disk_start_io_acct
   divider_get_val
   divider_recalc_rate
   divider_ro_round_rate_parent
@@ -603,12 +601,13 @@
   get_user_ifreq
   get_zeroed_page
   gic_nonsecure_priorities
-  gic_resume
   gov_attr_set_init
   gov_attr_set_put
   governor_sysfs_ops
   gpiochip_add_data_with_key
   gpiochip_add_pin_range
+  gpiochip_disable_irq
+  gpiochip_enable_irq
   gpiochip_generic_free
   gpiochip_generic_request
   gpiochip_get_data
@@ -1252,7 +1251,6 @@
   power_supply_reg_notifier
   power_supply_set_property
   power_supply_unreg_notifier
-  prandom_u32
   preempt_schedule
   preempt_schedule_notrace
   prepare_to_wait_event
@@ -1466,7 +1464,6 @@
   sched_setscheduler
   sched_setscheduler_nocheck
   sched_show_task
-  sched_trace_rd_span
   sched_uclamp_used
   schedule
   schedule_hrtimeout
@@ -1732,14 +1729,12 @@
   __tracepoint_android_vh_ftrace_oops_enter
   __tracepoint_android_vh_ftrace_oops_exit
   __tracepoint_android_vh_ftrace_size_check
-  __tracepoint_android_vh_gic_resume
   __tracepoint_android_vh_ipi_stop
   __tracepoint_android_vh_jiffies_update
   __tracepoint_android_vh_printk_hotplug
   __tracepoint_android_vh_scheduler_tick
   __tracepoint_android_vh_show_resume_epoch_val
   __tracepoint_android_vh_show_suspend_epoch_val
-  __tracepoint_android_vh_timer_calc_index
   __tracepoint_android_vh_ufs_check_int_errors
   __tracepoint_android_vh_ufs_compl_command
   __tracepoint_android_vh_ufs_send_command

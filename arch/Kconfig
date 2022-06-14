@@ -24,6 +24,13 @@ config KEXEC_ELF
 config HAVE_IMA_KEXEC
 	bool
 
+config ARCH_HAS_SUBPAGE_FAULTS
+	bool
+	help
+	  Select if the architecture can check permissions at sub-page
+	  granularity (e.g. arm64 MTE). The probe_user_*() functions
+	  must be implemented.
+
 config HOTPLUG_SMT
 	bool
 
@@ -35,6 +42,7 @@ config KPROBES
 	depends on MODULES
 	depends on HAVE_KPROBES
 	select KALLSYMS
+	select TASKS_RCU if PREEMPTION
 	help
 	  Kprobes allows you to trap at almost any kernel address and
 	  execute a callback function.  register_kprobe() establishes
@@ -46,6 +54,7 @@ config JUMP_LABEL
 	bool "Optimize very unlikely/likely branches"
 	depends on HAVE_ARCH_JUMP_LABEL
 	depends on CC_HAS_ASM_GOTO
+	select OBJTOOL if HAVE_JUMP_LABEL_HACK
 	help
 	 This option enables a transparent branch optimization that
 	 makes certain almost-always-true or almost-always-false branch
@@ -723,10 +732,7 @@ config ARCH_SUPPORTS_CFI_CLANG
 config CFI_CLANG
 	bool "Use Clang's Control Flow Integrity (CFI)"
 	depends on LTO_CLANG && ARCH_SUPPORTS_CFI_CLANG
-	# Clang >= 12:
-	# - https://bugs.llvm.org/show_bug.cgi?id=46258
-	# - https://bugs.llvm.org/show_bug.cgi?id=47479
-	depends on CLANG_VERSION >= 120000
+	depends on CLANG_VERSION >= 140000
 	select KALLSYMS
 	help
 	  This option enables Clang’s forward-edge Control Flow Integrity
@@ -1026,11 +1032,23 @@ config ARCH_WANT_DEFAULT_TOPDOWN_MMAP_LAYOUT
 	depends on MMU
 	select ARCH_HAS_ELF_RANDOMIZE
 
+config HAVE_OBJTOOL
+	bool
+
+config HAVE_JUMP_LABEL_HACK
+	bool
+
+config HAVE_NOINSTR_HACK
+	bool
+
+config HAVE_NOINSTR_VALIDATION
+	bool
+
 config HAVE_STACK_VALIDATION
 	bool
 	help
-	  Architecture supports the 'objtool check' host tool command, which
-	  performs compile-time stack metadata validation.
+	  Architecture supports objtool compile-time frame pointer rule
+	  validation.
 
 config HAVE_RELIABLE_STACKTRACE
 	bool
@@ -1300,6 +1318,7 @@ config HAVE_STATIC_CALL
 config HAVE_STATIC_CALL_INLINE
 	bool
 	depends on HAVE_STATIC_CALL
+	select OBJTOOL
 
 config HAVE_PREEMPT_DYNAMIC
 	bool
