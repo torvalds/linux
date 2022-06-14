@@ -259,6 +259,45 @@ static void push_page(struct pipe_inode_info *pipe, struct page *page,
 	get_page(page);
 }
 
+static inline bool allocated(struct pipe_buffer *buf)
+{
+	return buf->ops == &default_pipe_buf_ops;
+}
+
+static struct page *append_pipe(struct iov_iter *i, size_t size,
+				unsigned int *off)
+{
+	struct pipe_inode_info *pipe = i->pipe;
+	size_t offset = i->iov_offset;
+	struct pipe_buffer *buf;
+	struct page *page;
+
+	if (offset && offset < PAGE_SIZE) {
+		// some space in the last buffer; can we add to it?
+		buf = pipe_buf(pipe, pipe->head - 1);
+		if (allocated(buf)) {
+			size = min_t(size_t, size, PAGE_SIZE - offset);
+			buf->len += size;
+			i->iov_offset += size;
+			i->count -= size;
+			*off = offset;
+			return buf->page;
+		}
+	}
+	// OK, we need a new buffer
+	*off = 0;
+	size = min_t(size_t, size, PAGE_SIZE);
+	if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+		return NULL;
+	page = push_anon(pipe, size);
+	if (!page)
+		return NULL;
+	i->head = pipe->head - 1;
+	i->iov_offset = size;
+	i->count -= size;
+	return page;
+}
+
 static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t bytes,
 			 struct iov_iter *i)
 {
@@ -396,11 +435,6 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 }
 EXPORT_SYMBOL(iov_iter_init);
 
-static inline bool allocated(struct pipe_buffer *buf)
-{
-	return buf->ops == &default_pipe_buf_ops;
-}
-
 static inline void data_start(const struct iov_iter *i,
 			      unsigned int *iter_headp, size_t *offp)
 {
@@ -459,28 +493,24 @@ static size_t push_pipe(struct iov_iter *i, size_t size,
 static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int p_mask = pipe->ring_size - 1;
-	unsigned int i_head;
-	size_t n, off;
+	unsigned int off, chunk;
+
+	if (unlikely(bytes > i->count))
+		bytes = i->count;
+	if (unlikely(!bytes))
+		return 0;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &i_head, &off);
-	if (unlikely(!n))
-		return 0;
-	do {
-		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
-		memcpy_to_page(pipe->bufs[i_head & p_mask].page, off, addr, chunk);
-		i->head = i_head;
-		i->iov_offset = off + chunk;
-		n -= chunk;
+	for (size_t n = bytes; n; n -= chunk) {
+		struct page *page = append_pipe(i, n, &off);
+		chunk = min_t(size_t, n, PAGE_SIZE - off);
+		if (!page)
+			return bytes - n;
+		memcpy_to_page(page, off, addr, chunk);
 		addr += chunk;
-		off = 0;
-		i_head++;
-	} while (n);
-	i->count -= bytes;
+	}
 	return bytes;
 }
 
@@ -494,31 +524,32 @@ static __wsum csum_and_memcpy(void *to, const void *from, size_t len,
 static size_t csum_and_copy_to_pipe_iter(const void *addr, size_t bytes,
 					 struct iov_iter *i, __wsum *sump)
 {
-	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int p_mask = pipe->ring_size - 1;
 	__wsum sum = *sump;
 	size_t off = 0;
-	unsigned int i_head;
-	size_t r;
+	unsigned int chunk, r;
+
+	if (unlikely(bytes > i->count))
+		bytes = i->count;
+	if (unlikely(!bytes))
+		return 0;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = push_pipe(i, bytes, &i_head, &r);
 	while (bytes) {
-		size_t chunk = min_t(size_t, bytes, PAGE_SIZE - r);
-		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
+		struct page *page = append_pipe(i, bytes, &r);
+		char *p;
+
+		if (!page)
+			break;
+		chunk = min_t(size_t, bytes, PAGE_SIZE - r);
+		p = kmap_local_page(page);
 		sum = csum_and_memcpy(p + r, addr + off, chunk, sum, off);
 		kunmap_local(p);
-		i->head = i_head;
-		i->iov_offset = r + chunk;
-		bytes -= chunk;
 		off += chunk;
-		r = 0;
-		i_head++;
+		bytes -= chunk;
 	}
 	*sump = sum;
-	i->count -= off;
 	return off;
 }
 
@@ -550,39 +581,36 @@ static int copyout_mc(void __user *to, const void *from, size_t n)
 static size_t copy_mc_pipe_to_iter(const void *addr, size_t bytes,
 				struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int p_mask = pipe->ring_size - 1;
-	unsigned int i_head;
-	unsigned int valid = pipe->head;
-	size_t n, off, xfer = 0;
+	size_t xfer = 0;
+	unsigned int off, chunk;
+
+	if (unlikely(bytes > i->count))
+		bytes = i->count;
+	if (unlikely(!bytes))
+		return 0;
 
 	if (!sanity(i))
 		return 0;
 
-	n = push_pipe(i, bytes, &i_head, &off);
-	while (n) {
-		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
-		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
+	while (bytes) {
+		struct page *page = append_pipe(i, bytes, &off);
 		unsigned long rem;
+		char *p;
+
+		if (!page)
+			break;
+		chunk = min_t(size_t, bytes, PAGE_SIZE - off);
+		p = kmap_local_page(page);
 		rem = copy_mc_to_kernel(p + off, addr + xfer, chunk);
 		chunk -= rem;
 		kunmap_local(p);
-		if (chunk) {
-			i->head = i_head;
-			i->iov_offset = off + chunk;
-			xfer += chunk;
-			valid = i_head + 1;
-		}
+		xfer += chunk;
+		bytes -= chunk;
 		if (rem) {
-			pipe->bufs[i_head & p_mask].len -= rem;
-			pipe_discard_from(pipe, valid);
+			iov_iter_revert(i, rem);
 			break;
 		}
-		n -= chunk;
-		off = 0;
-		i_head++;
 	}
-	i->count -= xfer;
 	return xfer;
 }
 
@@ -769,30 +797,27 @@ EXPORT_SYMBOL(copy_page_from_iter);
 
 static size_t pipe_zero(size_t bytes, struct iov_iter *i)
 {
-	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int p_mask = pipe->ring_size - 1;
-	unsigned int i_head;
-	size_t n, off;
+	unsigned int chunk, off;
+
+	if (unlikely(bytes > i->count))
+		bytes = i->count;
+	if (unlikely(!bytes))
+		return 0;
 
 	if (!sanity(i))
 		return 0;
 
-	bytes = n = push_pipe(i, bytes, &i_head, &off);
-	if (unlikely(!n))
-		return 0;
+	for (size_t n = bytes; n; n -= chunk) {
+		struct page *page = append_pipe(i, n, &off);
+		char *p;
 
-	do {
-		size_t chunk = min_t(size_t, n, PAGE_SIZE - off);
-		char *p = kmap_local_page(pipe->bufs[i_head & p_mask].page);
+		if (!page)
+			return bytes - n;
+		chunk = min_t(size_t, n, PAGE_SIZE - off);
+		p = kmap_local_page(page);
 		memset(p + off, 0, chunk);
 		kunmap_local(p);
-		i->head = i_head;
-		i->iov_offset = off + chunk;
-		n -= chunk;
-		off = 0;
-		i_head++;
-	} while (n);
-	i->count -= bytes;
+	}
 	return bytes;
 }
 
