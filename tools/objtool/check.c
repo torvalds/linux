@@ -1302,7 +1302,7 @@ static void add_retpoline_call(struct objtool_file *file, struct instruction *in
 	annotate_call_site(file, insn, false);
 }
 
-static void add_return_call(struct objtool_file *file, struct instruction *insn)
+static void add_return_call(struct objtool_file *file, struct instruction *insn, bool add)
 {
 	/*
 	 * Return thunk tail calls are really just returns in disguise,
@@ -1311,7 +1311,8 @@ static void add_return_call(struct objtool_file *file, struct instruction *insn)
 	insn->type = INSN_RETURN;
 	insn->retpoline_safe = true;
 
-	list_add_tail(&insn->call_node, &file->return_thunk_list);
+	if (add)
+		list_add_tail(&insn->call_node, &file->return_thunk_list);
 }
 
 static bool same_function(struct instruction *insn1, struct instruction *insn2)
@@ -1367,7 +1368,7 @@ static int add_jump_destinations(struct objtool_file *file)
 			add_retpoline_call(file, insn);
 			continue;
 		} else if (reloc->sym->return_thunk) {
-			add_return_call(file, insn);
+			add_return_call(file, insn, true);
 			continue;
 		} else if (insn->func) {
 			/*
@@ -1387,6 +1388,21 @@ static int add_jump_destinations(struct objtool_file *file)
 
 		jump_dest = find_insn(file, dest_sec, dest_off);
 		if (!jump_dest) {
+			struct symbol *sym = find_symbol_by_offset(dest_sec, dest_off);
+
+			/*
+			 * This is a special case for zen_untrain_ret().
+			 * It jumps to __x86_return_thunk(), but objtool
+			 * can't find the thunk's starting RET
+			 * instruction, because the RET is also in the
+			 * middle of another instruction.  Objtool only
+			 * knows about the outer instruction.
+			 */
+			if (sym && sym->return_thunk) {
+				add_return_call(file, insn, false);
+				continue;
+			}
+
 			WARN_FUNC("can't find jump dest instruction at %s+0x%lx",
 				  insn->sec, insn->offset, dest_sec->name,
 				  dest_off);

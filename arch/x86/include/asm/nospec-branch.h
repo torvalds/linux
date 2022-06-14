@@ -112,6 +112,22 @@
 #endif
 .endm
 
+/*
+ * Mitigate RETBleed for AMD/Hygon Zen uarch. Requires KERNEL CR3 because the
+ * return thunk isn't mapped into the userspace tables (then again, AMD
+ * typically has NO_MELTDOWN).
+ *
+ * Doesn't clobber any registers but does require a stable stack.
+ *
+ * As such, this must be placed after every *SWITCH_TO_KERNEL_CR3 at a point
+ * where we have a stack but before any RET instruction.
+ */
+.macro UNTRAIN_RET
+#ifdef CONFIG_RETPOLINE
+	ALTERNATIVE "", "call zen_untrain_ret", X86_FEATURE_UNRET
+#endif
+.endm
+
 #else /* __ASSEMBLY__ */
 
 #define ANNOTATE_RETPOLINE_SAFE					\
@@ -124,6 +140,7 @@ typedef u8 retpoline_thunk_t[RETPOLINE_THUNK_SIZE];
 extern retpoline_thunk_t __x86_indirect_thunk_array[];
 
 extern void __x86_return_thunk(void);
+extern void zen_untrain_ret(void);
 
 #ifdef CONFIG_RETPOLINE
 
