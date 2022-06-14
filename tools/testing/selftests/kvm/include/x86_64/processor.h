@@ -142,9 +142,6 @@ struct kvm_x86_cpu_feature {
 #define CPUID_XSAVE		(1ul << 26)
 #define CPUID_OSXSAVE		(1ul << 27)
 
-/* CPUID.0x8000_0001.EDX */
-#define CPUID_GBPAGES		(1ul << 26)
-
 /* CPUID.0x8000_000A.EDX */
 #define CPUID_NRIPS		BIT(3)
 
