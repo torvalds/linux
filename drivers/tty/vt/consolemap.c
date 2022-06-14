@@ -241,8 +241,7 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 	}
 }
 
-static void set_inverse_trans_unicode(struct vc_data *conp,
-				      struct uni_pagedict *p)
+static void set_inverse_trans_unicode(struct uni_pagedict *p)
 {
 	unsigned int d, r, g;
 	u16 *inv;
@@ -327,7 +326,7 @@ static void update_user_maps(void)
 		p = *vc_cons[i].d->vc_uni_pagedir_loc;
 		if (p && p != q) {
 			set_inverse_transl(vc_cons[i].d, p, USER_MAP);
-			set_inverse_trans_unicode(vc_cons[i].d, p);
+			set_inverse_trans_unicode(p);
 			q = p;
 		}
 	}
@@ -678,7 +677,7 @@ int con_set_unimap(struct vc_data *vc, ushort ct, struct unipair __user *list)
 
 	for (enum translation_map m = FIRST_MAP; m <= LAST_MAP; m++)
 		set_inverse_transl(vc, dict, m);
-	set_inverse_trans_unicode(vc, dict);
+	set_inverse_trans_unicode(dict);
 
 out_unlock:
 	console_unlock();
@@ -741,7 +740,7 @@ int con_set_default_unimap(struct vc_data *vc)
 
 	for (enum translation_map m = FIRST_MAP; m <= LAST_MAP; m++)
 		set_inverse_transl(vc, dict, m);
-	set_inverse_trans_unicode(vc, dict);
+	set_inverse_trans_unicode(dict);
 	dflt = dict;
 	return err;
 }
