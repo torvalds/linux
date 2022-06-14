@@ -80,7 +80,7 @@ int main(int argc, char *argv[])
 	set_cpuid(cpuid, entry);
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
-	vcpu_set_cpuid(vcpu, cpuid);
+	vcpu_set_cpuid(vcpu);
 
 	run = vcpu->run;
 

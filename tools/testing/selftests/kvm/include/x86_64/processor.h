@@ -618,18 +618,29 @@ static inline struct kvm_cpuid2 *allocate_kvm_cpuid2(int nr_entries)
 	return cpuid;
 }
 
-struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vcpu *vcpu);
+void vcpu_init_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid);
 
-static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu,
-				   struct kvm_cpuid2 *cpuid)
+static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 {
-	return __vcpu_ioctl(vcpu, KVM_SET_CPUID2, cpuid);
+	int r;
+
+	TEST_ASSERT(vcpu->cpuid, "Must do vcpu_init_cpuid() first");
+	r = __vcpu_ioctl(vcpu, KVM_SET_CPUID2, vcpu->cpuid);
+	if (r)
+		return r;
+
+	/* On success, refresh the cache to pick up adjustments made by KVM. */
+	vcpu_ioctl(vcpu, KVM_GET_CPUID2, vcpu->cpuid);
+	return 0;
 }
 
-static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu,
-				  struct kvm_cpuid2 *cpuid)
+static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 {
-	vcpu_ioctl(vcpu, KVM_SET_CPUID2, cpuid);
+	TEST_ASSERT(vcpu->cpuid, "Must do vcpu_init_cpuid() first");
+	vcpu_ioctl(vcpu, KVM_SET_CPUID2, vcpu->cpuid);
+
+	/* Refresh the cache to pick up adjustments made by KVM. */
+	vcpu_ioctl(vcpu, KVM_GET_CPUID2, vcpu->cpuid);
 }
 
 struct kvm_cpuid_entry2 *

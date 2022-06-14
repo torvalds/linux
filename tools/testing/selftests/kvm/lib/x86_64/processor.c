@@ -648,7 +648,7 @@ struct kvm_vcpu *vm_arch_vcpu_add(struct kvm_vm *vm, uint32_t vcpu_id,
 				     DEFAULT_GUEST_STACK_VADDR_MIN);
 
 	vcpu = __vm_vcpu_add(vm, vcpu_id);
-	vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
+	vcpu_init_cpuid(vcpu, kvm_get_supported_cpuid());
 	vcpu_setup(vm, vcpu);
 
 	/* Setup guest general purpose registers */
@@ -669,9 +669,15 @@ struct kvm_vcpu *vm_arch_vcpu_recreate(struct kvm_vm *vm, uint32_t vcpu_id)
 {
 	struct kvm_vcpu *vcpu = __vm_vcpu_add(vm, vcpu_id);
 
-	vcpu_set_cpuid(vcpu, kvm_get_supported_cpuid());
+	vcpu_init_cpuid(vcpu, kvm_get_supported_cpuid());
 
 	return vcpu;
+}
+
+void vcpu_arch_free(struct kvm_vcpu *vcpu)
+{
+	if (vcpu->cpuid)
+		free(vcpu->cpuid);
 }
 
 /*
@@ -743,30 +749,22 @@ uint64_t kvm_get_feature_msr(uint64_t msr_index)
 	return buffer.entry.data;
 }
 
-struct kvm_cpuid2 *vcpu_get_cpuid(struct kvm_vcpu *vcpu)
+void vcpu_init_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid)
 {
-	struct kvm_cpuid2 *cpuid;
-	int max_ent;
-	int rc = -1;
+	TEST_ASSERT(cpuid != vcpu->cpuid, "@cpuid can't be the vCPU's CPUID");
 
-	cpuid = allocate_kvm_cpuid2(MAX_NR_CPUID_ENTRIES);
-	max_ent = cpuid->nent;
-
-	for (cpuid->nent = 1; cpuid->nent <= max_ent; cpuid->nent++) {
-		rc = __vcpu_ioctl(vcpu, KVM_GET_CPUID2, cpuid);
-		if (!rc)
-			break;
-
-		TEST_ASSERT(rc == -1 && errno == E2BIG,
-			    "KVM_GET_CPUID2 should either succeed or give E2BIG: %d %d",
-			    rc, errno);
+	/* Allow overriding the default CPUID. */
+	if (vcpu->cpuid && vcpu->cpuid->nent < cpuid->nent) {
+		free(vcpu->cpuid);
+		vcpu->cpuid = NULL;
 	}
 
-	TEST_ASSERT(!rc, KVM_IOCTL_ERROR(KVM_GET_CPUID2, rc));
-	return cpuid;
+	if (!vcpu->cpuid)
+		vcpu->cpuid = allocate_kvm_cpuid2(cpuid->nent);
+
+	memcpy(vcpu->cpuid, cpuid, kvm_cpuid2_size(cpuid->nent));
+	vcpu_set_cpuid(vcpu);
 }
-
-
 
 /*
  * Locate a cpuid entry.
@@ -1302,7 +1300,7 @@ void vcpu_set_hv_cpuid(struct kvm_vcpu *vcpu)
 		cpuid_full->nent = nent + cpuid_hv->nent;
 	}
 
-	vcpu_set_cpuid(vcpu, cpuid_full);
+	vcpu_init_cpuid(vcpu, cpuid_full);
 }
 
 struct kvm_cpuid2 *vcpu_get_supported_hv_cpuid(struct kvm_vcpu *vcpu)

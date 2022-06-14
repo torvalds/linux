@@ -50,6 +50,9 @@ struct kvm_vcpu {
 	int fd;
 	struct kvm_vm *vm;
 	struct kvm_run *run;
+#ifdef __x86_64__
+	struct kvm_cpuid2 *cpuid;
+#endif
 	struct kvm_dirty_gfn *dirty_gfns;
 	uint32_t fetch_index;
 	uint32_t dirty_gfns_count;
@@ -747,6 +750,8 @@ static inline struct kvm_vcpu *vm_vcpu_recreate(struct kvm_vm *vm,
 {
 	return vm_arch_vcpu_recreate(vm, vcpu_id);
 }
+
+void vcpu_arch_free(struct kvm_vcpu *vcpu);
 
 void virt_arch_pgd_alloc(struct kvm_vm *vm);
 

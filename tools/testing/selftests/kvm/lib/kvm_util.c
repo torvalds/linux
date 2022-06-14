@@ -472,6 +472,11 @@ kvm_userspace_memory_region_find(struct kvm_vm *vm, uint64_t start,
 	return &region->region;
 }
 
+__weak void vcpu_arch_free(struct kvm_vcpu *vcpu)
+{
+
+}
+
 /*
  * VM VCPU Remove
  *
@@ -501,6 +506,8 @@ static void vm_vcpu_rm(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	TEST_ASSERT(!ret,  __KVM_SYSCALL_ERROR("close()", ret));
 
 	list_del(&vcpu->list);
+
+	vcpu_arch_free(vcpu);
 	free(vcpu);
 }
 
