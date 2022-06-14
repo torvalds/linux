@@ -734,6 +734,28 @@ struct kvm_cpuid2 *kvm_get_supported_cpuid(void)
 	return cpuid;
 }
 
+bool kvm_cpuid_has(const struct kvm_cpuid2 *cpuid,
+		   struct kvm_x86_cpu_feature feature)
+{
+	const struct kvm_cpuid_entry2 *entry;
+	int i;
+
+	for (i = 0; i < cpuid->nent; i++) {
+		entry = &cpuid->entries[i];
+
+		/*
+		 * The output registers in kvm_cpuid_entry2 are in alphabetical
+		 * order, but kvm_x86_cpu_feature matches that mess, so yay
+		 * pointer shenanigans!
+		 */
+		if (entry->function == feature.function &&
+		    entry->index == feature.index)
+			return (&entry->eax)[feature.reg] & BIT(feature.bit);
+	}
+
+	return false;
+}
+
 uint64_t kvm_get_feature_msr(uint64_t msr_index)
 {
 	struct {
