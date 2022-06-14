@@ -60,7 +60,8 @@
 # define DISABLE_RETPOLINE	0
 #else
 # define DISABLE_RETPOLINE	((1 << (X86_FEATURE_RETPOLINE & 31)) | \
-				 (1 << (X86_FEATURE_RETPOLINE_LFENCE & 31)))
+				 (1 << (X86_FEATURE_RETPOLINE_LFENCE & 31)) | \
+				 (1 << (X86_FEATURE_RETHUNK & 31)))
 #endif
 
 /* Force disable because it's broken beyond repair */

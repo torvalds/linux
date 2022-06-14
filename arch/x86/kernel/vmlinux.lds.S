@@ -284,6 +284,13 @@ SECTIONS
 		*(.retpoline_sites)
 		__retpoline_sites_end = .;
 	}
+
+	. = ALIGN(8);
+	.return_sites : AT(ADDR(.return_sites) - LOAD_OFFSET) {
+		__return_sites = .;
+		*(.return_sites)
+		__return_sites_end = .;
+	}
 #endif
 
 	/*
