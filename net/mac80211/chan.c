@@ -1800,8 +1800,6 @@ int ieee80211_link_use_channel(struct ieee80211_link_data *link,
 
 	lockdep_assert_held(&local->mtx);
 
-	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
-
 	mutex_lock(&local->chanctx_mtx);
 
 	ret = cfg80211_chandef_dfs_required(local->hw.wiphy,
@@ -1988,8 +1986,6 @@ int ieee80211_link_change_bandwidth(struct ieee80211_link_data *link,
 void ieee80211_link_release_channel(struct ieee80211_link_data *link)
 {
 	struct ieee80211_sub_if_data *sdata = link->sdata;
-
-	WARN_ON(sdata->dev && netif_carrier_ok(sdata->dev));
 
 	mutex_lock(&sdata->local->chanctx_mtx);
 	if (rcu_access_pointer(link->conf->chanctx_conf)) {
