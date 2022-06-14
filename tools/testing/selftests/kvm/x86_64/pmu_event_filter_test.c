@@ -402,7 +402,7 @@ static bool use_intel_pmu(void)
 {
 	const struct kvm_cpuid_entry2 *entry;
 
-	entry = kvm_get_supported_cpuid_index(0xa, 0);
+	entry = kvm_get_supported_cpuid_entry(0xa);
 	return is_intel_cpu() && check_intel_pmu_leaf(entry);
 }
 
@@ -434,7 +434,7 @@ static bool use_amd_pmu(void)
 {
 	const struct kvm_cpuid_entry2 *entry;
 
-	entry = kvm_get_supported_cpuid_index(1, 0);
+	entry = kvm_get_supported_cpuid_entry(1);
 	return is_amd_cpu() &&
 		(is_zen1(entry->eax) ||
 		 is_zen2(entry->eax) ||

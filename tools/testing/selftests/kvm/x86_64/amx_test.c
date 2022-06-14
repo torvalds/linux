@@ -318,7 +318,7 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XTILEDATA));
 
 	/* Get xsave/restore max size */
-	xsave_restore_size = kvm_get_supported_cpuid_index(0xd, 0)->ecx;
+	xsave_restore_size = kvm_get_supported_cpuid_entry(0xd)->ecx;
 
 	run = vcpu->run;
 	vcpu_regs_get(vcpu, &regs1);
