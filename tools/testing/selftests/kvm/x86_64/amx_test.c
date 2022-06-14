@@ -335,7 +335,8 @@ int main(int argc, char *argv[])
 	TEST_REQUIRE(kvm_get_cpuid_max_basic() >= 0xd);
 
 	entry = kvm_get_supported_cpuid_index(0xd, 0);
-	TEST_REQUIRE(entry->eax & XFEATURE_MASK_XTILE);
+	TEST_REQUIRE(entry->eax & XFEATURE_MASK_XTILECFG);
+	TEST_REQUIRE(entry->eax & XFEATURE_MASK_XTILEDATA);
 
 	/* Get xsave/restore max size */
 	xsave_restore_size = entry->ecx;
