@@ -3465,12 +3465,13 @@ void svm_complete_interrupt_delivery(struct kvm_vcpu *vcpu, int delivery_mode,
 				     int trig_mode, int vector)
 {
 	/*
-	 * vcpu->arch.apicv_active must be read after vcpu->mode.
+	 * apic->apicv_active must be read after vcpu->mode.
 	 * Pairs with smp_store_release in vcpu_enter_guest.
 	 */
 	bool in_guest_mode = (smp_load_acquire(&vcpu->mode) == IN_GUEST_MODE);
 
-	if (!READ_ONCE(vcpu->arch.apicv_active)) {
+	/* Note, this is called iff the local APIC is in-kernel. */
+	if (!READ_ONCE(vcpu->arch.apic->apicv_active)) {
 		/* Process the interrupt via inject_pending_event */
 		kvm_make_request(KVM_REQ_EVENT, vcpu);
 		kvm_vcpu_kick(vcpu);
