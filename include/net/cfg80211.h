@@ -1433,7 +1433,6 @@ enum station_parameters_apply_mask {
 	STATION_PARAM_APPLY_UAPSD = BIT(0),
 	STATION_PARAM_APPLY_CAPABILITY = BIT(1),
 	STATION_PARAM_APPLY_PLINK_STATE = BIT(2),
-	STATION_PARAM_APPLY_STA_TXPOWER = BIT(3),
 };
 
 /**
@@ -1517,9 +1516,6 @@ struct link_station_del_parameters {
  * Used to change and create a new station.
  *
  * @vlan: vlan interface station should belong to
- * @supported_rates: supported rates in IEEE 802.11 format
- *	(or NULL for no change)
- * @supported_rates_len: number of supported rates
  * @sta_flags_mask: station flags that changed
  *	(bitmask of BIT(%NL80211_STA_FLAG_...))
  * @sta_flags_set: station flags values
@@ -1530,8 +1526,6 @@ struct link_station_del_parameters {
  * @peer_aid: mesh peer AID or zero for no change
  * @plink_action: plink action to take
  * @plink_state: set the peer link state for a station
- * @ht_capa: HT capabilities of station
- * @vht_capa: VHT capabilities of station
  * @uapsd_queues: bitmap of queues configured for uapsd. same format
  *	as the AC bitmap in the QoS info field
  * @max_sp: max Service Period. same format as the MAX_SP in the
@@ -1548,19 +1542,11 @@ struct link_station_del_parameters {
  * @supported_channels_len: number of supported channels
  * @supported_oper_classes: supported oper classes in IEEE 802.11 format
  * @supported_oper_classes_len: number of supported operating classes
- * @opmode_notif: operating mode field from Operating Mode Notification
- * @opmode_notif_used: information if operating mode field is used
  * @support_p2p_ps: information if station supports P2P PS mechanism
- * @he_capa: HE capabilities of station
- * @he_capa_len: the length of the HE capabilities
  * @airtime_weight: airtime scheduler weight for this station
- * @txpwr: transmit power for an associated station
- * @he_6ghz_capa: HE 6 GHz Band capabilities of station
- * @eht_capa: EHT capabilities of station
- * @eht_capa_len: the length of the EHT capabilities
+ * @link_sta_params: link related params.
  */
 struct station_parameters {
-	const u8 *supported_rates;
 	struct net_device *vlan;
 	u32 sta_flags_mask, sta_flags_set;
 	u32 sta_modify_mask;
@@ -1568,11 +1554,8 @@ struct station_parameters {
 	u16 aid;
 	u16 vlan_id;
 	u16 peer_aid;
-	u8 supported_rates_len;
 	u8 plink_action;
 	u8 plink_state;
-	const struct ieee80211_ht_cap *ht_capa;
-	const struct ieee80211_vht_cap *vht_capa;
 	u8 uapsd_queues;
 	u8 max_sp;
 	enum nl80211_mesh_power_mode local_pm;
@@ -1583,16 +1566,9 @@ struct station_parameters {
 	u8 supported_channels_len;
 	const u8 *supported_oper_classes;
 	u8 supported_oper_classes_len;
-	u8 opmode_notif;
-	bool opmode_notif_used;
 	int support_p2p_ps;
-	const struct ieee80211_he_cap_elem *he_capa;
-	u8 he_capa_len;
 	u16 airtime_weight;
-	struct sta_txpwr txpwr;
-	const struct ieee80211_he_6ghz_capa *he_6ghz_capa;
-	const struct ieee80211_eht_cap_elem *eht_capa;
-	u8 eht_capa_len;
+	struct link_station_parameters link_sta_params;
 };
 
 /**

@@ -738,7 +738,7 @@ DECLARE_EVENT_CLASS(station_add_change,
 		__array(u8, vht_capa, (int)sizeof(struct ieee80211_vht_cap))
 		__array(char, vlan, IFNAMSIZ)
 		__dynamic_array(u8, supported_rates,
-				params->supported_rates_len)
+				params->link_sta_params.supported_rates_len)
 		__dynamic_array(u8, ext_capab, params->ext_capab_len)
 		__dynamic_array(u8, supported_channels,
 				params->supported_channels_len)
@@ -758,20 +758,23 @@ DECLARE_EVENT_CLASS(station_add_change,
 		__entry->plink_state = params->plink_state;
 		__entry->uapsd_queues = params->uapsd_queues;
 		memset(__entry->ht_capa, 0, sizeof(struct ieee80211_ht_cap));
-		if (params->ht_capa)
-			memcpy(__entry->ht_capa, params->ht_capa,
+		if (params->link_sta_params.ht_capa)
+			memcpy(__entry->ht_capa,
+			       params->link_sta_params.ht_capa,
 			       sizeof(struct ieee80211_ht_cap));
 		memset(__entry->vht_capa, 0, sizeof(struct ieee80211_vht_cap));
-		if (params->vht_capa)
-			memcpy(__entry->vht_capa, params->vht_capa,
+		if (params->link_sta_params.vht_capa)
+			memcpy(__entry->vht_capa,
+			       params->link_sta_params.vht_capa,
 			       sizeof(struct ieee80211_vht_cap));
 		memset(__entry->vlan, 0, sizeof(__entry->vlan));
 		if (params->vlan)
 			memcpy(__entry->vlan, params->vlan->name, IFNAMSIZ);
-		if (params->supported_rates && params->supported_rates_len)
+		if (params->link_sta_params.supported_rates &&
+		    params->link_sta_params.supported_rates_len)
 			memcpy(__get_dynamic_array(supported_rates),
-			       params->supported_rates,
-			       params->supported_rates_len);
+			       params->link_sta_params.supported_rates,
+			       params->link_sta_params.supported_rates_len);
 		if (params->ext_capab && params->ext_capab_len)
 			memcpy(__get_dynamic_array(ext_capab),
 			       params->ext_capab,
@@ -788,8 +791,9 @@ DECLARE_EVENT_CLASS(station_add_change,
 			       params->supported_oper_classes_len);
 		__entry->max_sp = params->max_sp;
 		__entry->capability = params->capability;
-		__entry->opmode_notif = params->opmode_notif;
-		__entry->opmode_notif_used = params->opmode_notif_used;
+		__entry->opmode_notif = params->link_sta_params.opmode_notif;
+		__entry->opmode_notif_used =
+			params->link_sta_params.opmode_notif_used;
 	),
 	TP_printk(WIPHY_PR_FMT ", " NETDEV_PR_FMT ", station mac: " MAC_PR_FMT
 		  ", station flags mask: %u, station flags set: %u, "

@@ -1581,6 +1581,83 @@ static void sta_apply_mesh_params(struct ieee80211_local *local,
 #endif
 }
 
+static int sta_link_apply_parameters(struct ieee80211_local *local,
+				     struct sta_info *sta,
+				     struct link_station_parameters *params)
+{
+	int ret = 0;
+	struct ieee80211_supported_band *sband;
+	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u32 link_id = params->link_id < 0 ? 0 : params->link_id;
+	struct link_sta_info *link_sta =
+		rcu_dereference_protected(sta->link[link_id],
+					  lockdep_is_held(&local->sta_mtx));
+
+	if (!link_sta)
+		return -EINVAL;
+
+	sband = ieee80211_get_link_sband(sdata, link_id);
+	if (!sband)
+		return -EINVAL;
+
+	if (params->link_mac) {
+		memcpy(link_sta->addr, params->link_mac, ETH_ALEN);
+		memcpy(link_sta->pub->addr, params->link_mac, ETH_ALEN);
+	}
+
+	if (params->txpwr_set) {
+		link_sta->pub->txpwr.type = params->txpwr.type;
+		if (params->txpwr.type == NL80211_TX_POWER_LIMITED)
+			link_sta->pub->txpwr.power = params->txpwr.power;
+		ret = drv_sta_set_txpwr(local, sdata, sta);
+		if (ret)
+			return ret;
+	}
+
+	if (params->supported_rates &&
+	    params->supported_rates_len) {
+		ieee80211_parse_bitrates(&sdata->vif.link_conf[link_id]->chandef,
+					 sband, params->supported_rates,
+					 params->supported_rates_len,
+					 &link_sta->pub->supp_rates[sband->band]);
+	}
+
+	if (params->ht_capa)
+		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
+						  params->ht_capa, link_sta);
+
+	/* VHT can override some HT caps such as the A-MSDU max length */
+	if (params->vht_capa)
+		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
+						    params->vht_capa, link_sta);
+
+	if (params->he_capa)
+		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
+						  (void *)params->he_capa,
+						  params->he_capa_len,
+						  (void *)params->he_6ghz_capa,
+						  link_sta);
+
+	if (params->eht_capa)
+		ieee80211_eht_cap_ie_to_sta_eht_cap(sdata, sband,
+						    (u8 *)params->he_capa,
+						    params->he_capa_len,
+						    params->eht_capa,
+						    params->eht_capa_len,
+						    link_sta);
+
+	if (params->opmode_notif_used) {
+		/* returned value is only needed for rc update, but the
+		 * rc isn't initialized here yet, so ignore it
+		 */
+		__ieee80211_vht_handle_opmode(sdata, link_sta,
+					      params->opmode_notif,
+					      sband->band);
+	}
+
+	return ret;
+}
+
 static int sta_apply_parameters(struct ieee80211_local *local,
 				struct sta_info *sta,
 				struct station_parameters *params)
@@ -1588,9 +1665,11 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	int ret = 0;
 	struct ieee80211_supported_band *sband;
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	u32 link_id = params->link_sta_params.link_id < 0 ?
+		      0 : params->link_sta_params.link_id;
 	u32 mask, set;
 
-	sband = ieee80211_get_sband(sdata);
+	sband = ieee80211_get_link_sband(sdata, link_id);
 	if (!sband)
 		return -EINVAL;
 
@@ -1721,56 +1800,9 @@ static int sta_apply_parameters(struct ieee80211_local *local,
 	if (params->listen_interval >= 0)
 		sta->listen_interval = params->listen_interval;
 
-	if (params->sta_modify_mask & STATION_PARAM_APPLY_STA_TXPOWER) {
-		sta->sta.deflink.txpwr.type = params->txpwr.type;
-		if (params->txpwr.type == NL80211_TX_POWER_LIMITED)
-			sta->sta.deflink.txpwr.power = params->txpwr.power;
-		ret = drv_sta_set_txpwr(local, sdata, sta);
-		if (ret)
-			return ret;
-	}
-
-	if (params->supported_rates && params->supported_rates_len) {
-		ieee80211_parse_bitrates(&sdata->vif.bss_conf.chandef,
-					 sband, params->supported_rates,
-					 params->supported_rates_len,
-					 &sta->sta.deflink.supp_rates[sband->band]);
-	}
-
-	if (params->ht_capa)
-		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-						  params->ht_capa,
-						  &sta->deflink);
-
-	/* VHT can override some HT caps such as the A-MSDU max length */
-	if (params->vht_capa)
-		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-						    params->vht_capa,
-						    &sta->deflink);
-
-	if (params->he_capa)
-		ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband,
-						  (void *)params->he_capa,
-						  params->he_capa_len,
-						  (void *)params->he_6ghz_capa,
-						  &sta->deflink);
-
-	if (params->eht_capa)
-		ieee80211_eht_cap_ie_to_sta_eht_cap(sdata, sband,
-						    (u8 *)params->he_capa,
-						    params->he_capa_len,
-						    params->eht_capa,
-						    params->eht_capa_len,
-						    &sta->deflink);
-
-	if (params->opmode_notif_used) {
-		/* returned value is only needed for rc update, but the
-		 * rc isn't initialized here yet, so ignore it
-		 */
-		__ieee80211_vht_handle_opmode(sdata, &sta->deflink,
-					      params->opmode_notif,
-					      sband->band);
-	}
+	ret = sta_link_apply_parameters(local, sta, &params->link_sta_params);
+	if (ret)
+		return ret;
 
 	if (params->support_p2p_ps >= 0)
 		sta->sta.support_p2p_ps = params->support_p2p_ps;
@@ -1821,14 +1853,21 @@ static int ieee80211_add_station(struct wiphy *wiphy, struct net_device *dev,
 	    !sdata->u.mgd.associated)
 		return -EINVAL;
 
-	sta = sta_info_alloc(sdata, mac, -1, GFP_KERNEL);
+	sta = sta_info_alloc(sdata, mac, params->link_sta_params.link_id,
+			     GFP_KERNEL);
 	if (!sta)
 		return -ENOMEM;
 
 	if (params->sta_flags_set & BIT(NL80211_STA_FLAG_TDLS_PEER))
 		sta->sta.tdls = true;
 
+	/* Though the mutex is not needed here (since the station is not
+	 * visible yet), sta_apply_parameters (and inner functions) require
+	 * the mutex due to other paths.
+	 */
+	mutex_lock(&local->sta_mtx);
 	err = sta_apply_parameters(local, sta, params);
+	mutex_unlock(&local->sta_mtx);
 	if (err) {
 		sta_info_free(local, sta);
 		return err;
