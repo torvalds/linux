@@ -768,7 +768,8 @@ static bool dcn32_is_smu_present(struct clk_mgr *clk_mgr_base)
 
 
 static struct clk_mgr_funcs dcn32_funcs = {
-		.get_dp_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
+		.get_dp_ref_clk_frequency = dce12_get_dp_ref_freq_khz,
+		.get_dtb_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 		.update_clocks = dcn32_update_clocks,
 		.dump_clk_registers = dcn32_dump_clk_registers,
 		.init_clocks = dcn32_init_clocks,
