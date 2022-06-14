@@ -879,6 +879,8 @@ int bch2_btree_node_read_done(struct bch_fs *c, struct bch_dev *ca,
 	int ret, retry_read = 0, write = READ;
 
 	b->version_ondisk = U16_MAX;
+	/* We might get called multiple times on read retry: */
+	b->written = 0;
 
 	iter = mempool_alloc(&c->fill_iter, GFP_NOIO);
 	sort_iter_init(iter, b);
