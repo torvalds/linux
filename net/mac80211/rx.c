@@ -4029,6 +4029,7 @@ void ieee80211_release_reorder_timeout(struct sta_info *sta, int tid)
 		/* This is OK -- must be QoS data frame */
 		.security_idx = tid,
 		.seqno_idx = tid,
+		.link_id = -1,
 	};
 	struct tid_ampdu_rx *tid_agg_rx;
 
@@ -4065,6 +4066,7 @@ void ieee80211_mark_rx_ba_filtered_frames(struct ieee80211_sta *pubsta, u8 tid,
 		/* This is OK -- must be QoS data frame */
 		.security_idx = tid,
 		.seqno_idx = tid,
+		.link_id = -1,
 	};
 	int i, diff;
 
@@ -4141,6 +4143,31 @@ static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
 	       is_broadcast_ether_addr(raddr);
 }
 
+static bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
+				  const u8 *addr, int *out_link_id)
+{
+	unsigned int link_id;
+
+	/* non-MLO, or MLD address replaced by hardware */
+	if (ether_addr_equal(sdata->vif.addr, addr))
+		return true;
+
+	if (!sdata->vif.valid_links)
+		return false;
+
+	for (link_id = 0; link_id < ARRAY_SIZE(sdata->vif.link_conf); link_id++) {
+		if (!sdata->vif.link_conf[link_id])
+			continue;
+		if (ether_addr_equal(sdata->vif.link_conf[link_id]->addr, addr)) {
+			if (out_link_id)
+				*out_link_id = link_id;
+			return true;
+		}
+	}
+
+	return false;
+}
+
 static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 {
 	struct ieee80211_sub_if_data *sdata = rx->sdata;
@@ -4159,7 +4186,7 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 			return false;
 		if (multicast)
 			return true;
-		return ether_addr_equal(sdata->vif.addr, hdr->addr1);
+		return ieee80211_is_our_addr(sdata, hdr->addr1, &rx->link_id);
 	case NL80211_IFTYPE_ADHOC:
 		if (!bssid)
 			return false;
@@ -4213,9 +4240,11 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 	case NL80211_IFTYPE_AP_VLAN:
 	case NL80211_IFTYPE_AP:
 		if (!bssid)
-			return ether_addr_equal(sdata->vif.addr, hdr->addr1);
+			return ieee80211_is_our_addr(sdata, hdr->addr1,
+						     &rx->link_id);
 
-		if (!ieee80211_bssid_match(bssid, sdata->vif.addr)) {
+		if (!is_broadcast_ether_addr(bssid) &&
+		    !ieee80211_is_our_addr(sdata, bssid, NULL)) {
 			/*
 			 * Accept public action frames even when the
 			 * BSSID doesn't match, this is used for P2P
@@ -4223,7 +4252,8 @@ static bool ieee80211_accept_frame(struct ieee80211_rx_data *rx)
 			 * itself never looks at these frames.
 			 */
 			if (!multicast &&
-			    !ether_addr_equal(sdata->vif.addr, hdr->addr1))
+			    !ieee80211_is_our_addr(sdata, hdr->addr1,
+						   &rx->link_id))
 				return false;
 			if (ieee80211_is_public_action(hdr, skb->len))
 				return true;
@@ -4741,6 +4771,7 @@ static void __ieee80211_rx_handle_8023(struct ieee80211_hw *hw,
 	rx.skb = skb;
 	rx.local = local;
 	rx.list = list;
+	rx.link_id = -1;
 
 	I802_DEBUG_INC(local->dot11ReceivedFragmentCount);
 
@@ -4763,6 +4794,29 @@ static void __ieee80211_rx_handle_8023(struct ieee80211_hw *hw,
 
 drop:
 	dev_kfree_skb(skb);
+}
+
+static bool ieee80211_rx_for_interface(struct ieee80211_rx_data *rx,
+				       struct sk_buff *skb, bool consume)
+{
+	struct link_sta_info *link_sta;
+	struct ieee80211_hdr *hdr = (void *)skb->data;
+
+	/*
+	 * Look up link station first, in case there's a
+	 * chance that they might have a link address that
+	 * is identical to the MLD address, that way we'll
+	 * have the link information if needed.
+	 */
+	link_sta = link_sta_info_get_bss(rx->sdata, hdr->addr2);
+	if (link_sta) {
+		rx->sta = link_sta->sta;
+		rx->link_id = link_sta->link_id;
+	} else {
+		rx->sta = sta_info_get_bss(rx->sdata, hdr->addr2);
+	}
+
+	return ieee80211_prepare_and_rx_handle(rx, skb, consume);
 }
 
 /*
@@ -4788,6 +4842,7 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 	rx.skb = skb;
 	rx.local = local;
 	rx.list = list;
+	rx.link_id = -1;
 
 	if (ieee80211_is_data(fc) || ieee80211_is_mgmt(fc))
 		I802_DEBUG_INC(local->dot11ReceivedFragmentCount);
@@ -4873,18 +4928,16 @@ static void __ieee80211_rx_handle_packet(struct ieee80211_hw *hw,
 			continue;
 		}
 
-		rx.sta = sta_info_get_bss(prev, hdr->addr2);
 		rx.sdata = prev;
-		ieee80211_prepare_and_rx_handle(&rx, skb, false);
+		ieee80211_rx_for_interface(&rx, skb, false);
 
 		prev = sdata;
 	}
 
 	if (prev) {
-		rx.sta = sta_info_get_bss(prev, hdr->addr2);
 		rx.sdata = prev;
 
-		if (ieee80211_prepare_and_rx_handle(&rx, skb, true))
+		if (ieee80211_rx_for_interface(&rx, skb, true))
 			return;
 	}
 

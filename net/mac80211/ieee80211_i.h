@@ -231,6 +231,8 @@ struct ieee80211_rx_data {
 	 */
 	int security_idx;
 
+	int link_id;
+
 	union {
 		struct {
 			u32 iv32;
