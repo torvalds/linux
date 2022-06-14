@@ -156,6 +156,7 @@ static void __init vstms_init(void)
 
 MACHINE_START(VSTMS, "VSTMS")
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2412,
 
 	.fixup		= vstms_fixup,
 	.init_irq	= s3c2412_init_irq,

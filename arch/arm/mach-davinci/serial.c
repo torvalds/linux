@@ -14,8 +14,8 @@
 #include <linux/clk.h>
 #include <linux/io.h>
 
-#include <mach/serial.h>
-#include <mach/cputype.h>
+#include "serial.h"
+#include "cputype.h"
 
 static inline void serial_write_reg(struct plat_serial8250_port *p, int offset,
 				    int value)

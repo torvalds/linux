@@ -31,6 +31,7 @@ properties:
     type: boolean
 
   function-row-physmap:
+    $ref: /schemas/types.yaml#/definitions/uint32-array
     minItems: 1
     maxItems: 15
     description: |

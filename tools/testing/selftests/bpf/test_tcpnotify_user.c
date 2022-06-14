@@ -19,7 +19,6 @@
 #include <linux/perf_event.h>
 #include <linux/err.h>
 
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 #include "cgroup_helpers.h"
 

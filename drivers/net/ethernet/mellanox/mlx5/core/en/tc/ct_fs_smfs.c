@@ -101,7 +101,7 @@ mlx5_ct_fs_smfs_matcher_create(struct mlx5_ct_fs *fs, struct mlx5dr_table *tbl, 
 	spec->match_criteria_enable = MLX5_MATCH_MISC_PARAMETERS_2 | MLX5_MATCH_OUTER_HEADERS;
 
 	dr_matcher = mlx5_smfs_matcher_create(tbl, priority, spec);
-	kfree(spec);
+	kvfree(spec);
 	if (!dr_matcher)
 		return ERR_PTR(-EINVAL);
 

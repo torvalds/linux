@@ -16,14 +16,13 @@
 #include <linux/irqchip/irq-davinci-cp-intc.h>
 #include <linux/platform_data/gpio-davinci.h>
 
-#include <asm/mach/map.h>
-
-#include <mach/common.h>
-#include <mach/cputype.h>
-#include <mach/da8xx.h>
-
 #include <clocksource/timer-davinci.h>
 
+#include <asm/mach/map.h>
+
+#include "common.h"
+#include "cputype.h"
+#include "da8xx.h"
 #include "irqs.h"
 #include "mux.h"
 

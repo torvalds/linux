@@ -14,6 +14,7 @@ perf-y += kallsyms-parse.o
 perf-y += find-bit-bench.o
 perf-y += inject-buildid.o
 perf-y += evlist-open-close.o
+perf-y += breakpoint.o
 
 perf-$(CONFIG_X86_64) += mem-memcpy-x86-64-asm.o
 perf-$(CONFIG_X86_64) += mem-memset-x86-64-asm.o

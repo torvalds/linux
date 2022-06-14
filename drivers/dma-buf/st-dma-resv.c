@@ -58,8 +58,9 @@ static int sanitycheck(void *arg)
 	return r;
 }
 
-static int test_signaling(void *arg, bool shared)
+static int test_signaling(void *arg)
 {
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_resv resv;
 	struct dma_fence *f;
 	int r;
@@ -75,25 +76,20 @@ static int test_signaling(void *arg, bool shared)
 		goto err_free;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			goto err_unlock;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		goto err_unlock;
 	}
 
-	if (dma_resv_test_signaled(&resv, shared)) {
+	dma_resv_add_fence(&resv, f, usage);
+	if (dma_resv_test_signaled(&resv, usage)) {
 		pr_err("Resv unexpectedly signaled\n");
 		r = -EINVAL;
 		goto err_unlock;
 	}
 	dma_fence_signal(f);
-	if (!dma_resv_test_signaled(&resv, shared)) {
+	if (!dma_resv_test_signaled(&resv, usage)) {
 		pr_err("Resv not reporting signaled\n");
 		r = -EINVAL;
 		goto err_unlock;
@@ -106,18 +102,9 @@ err_free:
 	return r;
 }
 
-static int test_excl_signaling(void *arg)
+static int test_for_each(void *arg)
 {
-	return test_signaling(arg, false);
-}
-
-static int test_shared_signaling(void *arg)
-{
-	return test_signaling(arg, true);
-}
-
-static int test_for_each(void *arg, bool shared)
-{
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_resv_iter cursor;
 	struct dma_fence *f, *fence;
 	struct dma_resv resv;
@@ -134,20 +121,16 @@ static int test_for_each(void *arg, bool shared)
 		goto err_free;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			goto err_unlock;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		goto err_unlock;
 	}
 
+	dma_resv_add_fence(&resv, f, usage);
+
 	r = -ENOENT;
-	dma_resv_for_each_fence(&cursor, &resv, shared, fence) {
+	dma_resv_for_each_fence(&cursor, &resv, usage, fence) {
 		if (!r) {
 			pr_err("More than one fence found\n");
 			r = -EINVAL;
@@ -158,7 +141,7 @@ static int test_for_each(void *arg, bool shared)
 			r = -EINVAL;
 			goto err_unlock;
 		}
-		if (dma_resv_iter_is_exclusive(&cursor) != !shared) {
+		if (dma_resv_iter_usage(&cursor) != usage) {
 			pr_err("Unexpected fence usage\n");
 			r = -EINVAL;
 			goto err_unlock;
@@ -178,18 +161,9 @@ err_free:
 	return r;
 }
 
-static int test_excl_for_each(void *arg)
+static int test_for_each_unlocked(void *arg)
 {
-	return test_for_each(arg, false);
-}
-
-static int test_shared_for_each(void *arg)
-{
-	return test_for_each(arg, true);
-}
-
-static int test_for_each_unlocked(void *arg, bool shared)
-{
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_resv_iter cursor;
 	struct dma_fence *f, *fence;
 	struct dma_resv resv;
@@ -206,22 +180,18 @@ static int test_for_each_unlocked(void *arg, bool shared)
 		goto err_free;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			dma_resv_unlock(&resv);
-			goto err_free;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		dma_resv_unlock(&resv);
+		goto err_free;
 	}
+
+	dma_resv_add_fence(&resv, f, usage);
 	dma_resv_unlock(&resv);
 
 	r = -ENOENT;
-	dma_resv_iter_begin(&cursor, &resv, shared);
+	dma_resv_iter_begin(&cursor, &resv, usage);
 	dma_resv_for_each_fence_unlocked(&cursor, fence) {
 		if (!r) {
 			pr_err("More than one fence found\n");
@@ -237,7 +207,7 @@ static int test_for_each_unlocked(void *arg, bool shared)
 			r = -EINVAL;
 			goto err_iter_end;
 		}
-		if (dma_resv_iter_is_exclusive(&cursor) != !shared) {
+		if (dma_resv_iter_usage(&cursor) != usage) {
 			pr_err("Unexpected fence usage\n");
 			r = -EINVAL;
 			goto err_iter_end;
@@ -247,7 +217,7 @@ static int test_for_each_unlocked(void *arg, bool shared)
 		if (r == -ENOENT) {
 			r = -EINVAL;
 			/* That should trigger an restart */
-			cursor.seq--;
+			cursor.fences = (void*)~0;
 		} else if (r == -EINVAL) {
 			r = 0;
 		}
@@ -263,18 +233,9 @@ err_free:
 	return r;
 }
 
-static int test_excl_for_each_unlocked(void *arg)
+static int test_get_fences(void *arg)
 {
-	return test_for_each_unlocked(arg, false);
-}
-
-static int test_shared_for_each_unlocked(void *arg)
-{
-	return test_for_each_unlocked(arg, true);
-}
-
-static int test_get_fences(void *arg, bool shared)
-{
+	enum dma_resv_usage usage = (unsigned long)arg;
 	struct dma_fence *f, **fences = NULL;
 	struct dma_resv resv;
 	int r, i;
@@ -290,21 +251,17 @@ static int test_get_fences(void *arg, bool shared)
 		goto err_resv;
 	}
 
-	if (shared) {
-		r = dma_resv_reserve_shared(&resv, 1);
-		if (r) {
-			pr_err("Resv shared slot allocation failed\n");
-			dma_resv_unlock(&resv);
-			goto err_resv;
-		}
-
-		dma_resv_add_shared_fence(&resv, f);
-	} else {
-		dma_resv_add_excl_fence(&resv, f);
+	r = dma_resv_reserve_fences(&resv, 1);
+	if (r) {
+		pr_err("Resv shared slot allocation failed\n");
+		dma_resv_unlock(&resv);
+		goto err_resv;
 	}
+
+	dma_resv_add_fence(&resv, f, usage);
 	dma_resv_unlock(&resv);
 
-	r = dma_resv_get_fences(&resv, shared, &i, &fences);
+	r = dma_resv_get_fences(&resv, usage, &i, &fences);
 	if (r) {
 		pr_err("get_fences failed\n");
 		goto err_free;
@@ -326,30 +283,24 @@ err_resv:
 	return r;
 }
 
-static int test_excl_get_fences(void *arg)
-{
-	return test_get_fences(arg, false);
-}
-
-static int test_shared_get_fences(void *arg)
-{
-	return test_get_fences(arg, true);
-}
-
 int dma_resv(void)
 {
 	static const struct subtest tests[] = {
 		SUBTEST(sanitycheck),
-		SUBTEST(test_excl_signaling),
-		SUBTEST(test_shared_signaling),
-		SUBTEST(test_excl_for_each),
-		SUBTEST(test_shared_for_each),
-		SUBTEST(test_excl_for_each_unlocked),
-		SUBTEST(test_shared_for_each_unlocked),
-		SUBTEST(test_excl_get_fences),
-		SUBTEST(test_shared_get_fences),
+		SUBTEST(test_signaling),
+		SUBTEST(test_for_each),
+		SUBTEST(test_for_each_unlocked),
+		SUBTEST(test_get_fences),
 	};
+	enum dma_resv_usage usage;
+	int r;
 
 	spin_lock_init(&fence_lock);
-	return subtests(tests, NULL);
+	for (usage = DMA_RESV_USAGE_KERNEL; usage <= DMA_RESV_USAGE_BOOKKEEP;
+	     ++usage) {
+		r = subtests(tests, (void *)(unsigned long)usage);
+		if (r)
+			return r;
+	}
+	return 0;
 }

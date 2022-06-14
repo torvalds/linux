@@ -36,6 +36,10 @@ s390*)
   GOODREG=%r2
   BADREG=%s2
 ;;
+mips*)
+  GOODREG=%r4
+  BADREG=%r12
+;;
 *)
   echo "Please implement other architecture here"
   exit_untested

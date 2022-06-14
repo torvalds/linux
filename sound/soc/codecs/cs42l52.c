@@ -1086,8 +1086,7 @@ static const struct regmap_config cs42l52_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
-static int cs42l52_i2c_probe(struct i2c_client *i2c_client,
-			     const struct i2c_device_id *id)
+static int cs42l52_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs42l52_private *cs42l52;
 	struct cs42l52_platform_data *pdata = dev_get_platdata(&i2c_client->dev);
@@ -1226,7 +1225,7 @@ static struct i2c_driver cs42l52_i2c_driver = {
 		.of_match_table = cs42l52_of_match,
 	},
 	.id_table = cs42l52_id,
-	.probe =    cs42l52_i2c_probe,
+	.probe_new = cs42l52_i2c_probe,
 };
 
 module_i2c_driver(cs42l52_i2c_driver);

@@ -432,7 +432,7 @@ int avs_ipc_set_dx(struct avs_dev *adev, u32 core_mask, bool powerup)
 	request.data = &dx;
 	request.size = sizeof(dx);
 
-	ret = avs_dsp_send_msg(adev, &request, NULL);
+	ret = avs_dsp_send_pm_msg(adev, &request, NULL, true);
 	if (ret)
 		avs_ipc_err(adev, &request, "set dx", ret);
 
@@ -456,7 +456,7 @@ int avs_ipc_set_d0ix(struct avs_dev *adev, bool enable_pg, bool streaming)
 
 	request.header = msg.val;
 
-	ret = avs_dsp_send_msg(adev, &request, NULL);
+	ret = avs_dsp_send_pm_msg(adev, &request, NULL, false);
 	if (ret)
 		avs_ipc_err(adev, &request, "set d0ix", ret);
 
@@ -675,6 +675,37 @@ int avs_ipc_get_modules_info(struct avs_dev *adev, struct avs_mods_info **info)
 
 	*info = (struct avs_mods_info *)payload;
 	return 0;
+}
+
+int avs_ipc_set_enable_logs(struct avs_dev *adev, u8 *log_info, size_t size)
+{
+	int ret;
+
+	ret = avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+				       AVS_BASEFW_ENABLE_LOGS, log_info, size);
+	if (ret)
+		dev_err(adev->dev, "enable logs failed: %d\n", ret);
+
+	return ret;
+}
+
+int avs_ipc_set_system_time(struct avs_dev *adev)
+{
+	struct avs_sys_time sys_time;
+	int ret;
+	u64 us;
+
+	/* firmware expects UTC time in micro seconds */
+	us = ktime_to_us(ktime_get());
+	sys_time.val_l = us & UINT_MAX;
+	sys_time.val_u = us >> 32;
+
+	ret = avs_ipc_set_large_config(adev, AVS_BASEFW_MOD_ID, AVS_BASEFW_INST_ID,
+				       AVS_BASEFW_SYSTEM_TIME, (u8 *)&sys_time, sizeof(sys_time));
+	if (ret)
+		dev_err(adev->dev, "set system time failed: %d\n", ret);
+
+	return ret;
 }
 
 int avs_ipc_copier_set_sink_format(struct avs_dev *adev, u16 module_id,

@@ -13,7 +13,7 @@ Following tables describe the expected semantics which can also be tested during
 boot via CONFIG_DEBUG_VM_PGTABLE option. All future changes in here or the debug
 test need to be in sync.
 
-======================
+
 PTE Page Table Helpers
 ======================
 
@@ -79,7 +79,7 @@ PTE Page Table Helpers
 | ptep_set_access_flags     | Converts into a more permissive PTE              |
 +---------------------------+--------------------------------------------------+
 
-======================
+
 PMD Page Table Helpers
 ======================
 
@@ -153,7 +153,7 @@ PMD Page Table Helpers
 | pmdp_set_access_flags     | Converts into a more permissive PMD              |
 +---------------------------+--------------------------------------------------+
 
-======================
+
 PUD Page Table Helpers
 ======================
 
@@ -209,7 +209,7 @@ PUD Page Table Helpers
 | pudp_set_access_flags     | Converts into a more permissive PUD              |
 +---------------------------+--------------------------------------------------+
 
-==========================
+
 HugeTLB Page Table Helpers
 ==========================
 
@@ -235,7 +235,7 @@ HugeTLB Page Table Helpers
 | huge_ptep_set_access_flags  | Converts into a more permissive HugeTLB        |
 +---------------------------+--------------------------------------------------+
 
-========================
+
 SWAP Page Table Helpers
 ========================
 

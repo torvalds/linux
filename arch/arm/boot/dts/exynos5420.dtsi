@@ -437,8 +437,6 @@
 			clocks = <&clock_audss EXYNOS_ADMA>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <6>;
-			#dma-requests = <16>;
 			power-domains = <&mau_pd>;
 		};
 
@@ -449,8 +447,6 @@
 			clocks = <&clock CLK_PDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		pdma1: dma-controller@121b0000 {
@@ -460,8 +456,6 @@
 			clocks = <&clock CLK_PDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <32>;
 		};
 
 		mdma0: dma-controller@10800000 {
@@ -471,8 +465,6 @@
 			clocks = <&clock CLK_MDMA0>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <1>;
 		};
 
 		mdma1: dma-controller@11c10000 {
@@ -482,8 +474,6 @@
 			clocks = <&clock CLK_MDMA1>;
 			clock-names = "apb_pclk";
 			#dma-cells = <1>;
-			#dma-channels = <8>;
-			#dma-requests = <1>;
 			/*
 			 * MDMA1 can support both secure and non-secure
 			 * AXI transactions. When this is enabled in

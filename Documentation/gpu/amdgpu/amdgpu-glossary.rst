@@ -8,11 +8,18 @@ we have a dedicated glossary for Display Core at
 
 .. glossary::
 
+    active_cu_number
+      The number of CUs that are active on the system.  The number of active
+      CUs may be less than SE * SH * CU depending on the board configuration.
+
     CP
       Command Processor
 
     CPLIB
       Content Protection Library
+
+    CU
+      Compute Unit
 
     DFS
       Digital Frequency Synthesizer
@@ -73,6 +80,12 @@ we have a dedicated glossary for Display Core at
 
     SDMA
       System DMA
+
+    SE
+      Shader Engine
+
+    SH
+      SHader array
 
     SMU
       System Management Unit

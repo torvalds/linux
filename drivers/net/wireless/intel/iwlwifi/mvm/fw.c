@@ -287,6 +287,9 @@ static bool iwl_wait_phy_db_entry(struct iwl_notif_wait_data *notif_wait,
 
 static void iwl_mvm_print_pd_notification(struct iwl_mvm *mvm)
 {
+#define IWL_FW_PRINT_REG_INFO(reg_name) \
+	IWL_ERR(mvm, #reg_name ": 0x%x\n", iwl_read_umac_prph(trans, reg_name))
+
 	struct iwl_trans *trans = mvm->trans;
 	enum iwl_device_family device_family = trans->trans_cfg->device_family;
 
@@ -294,15 +297,15 @@ static void iwl_mvm_print_pd_notification(struct iwl_mvm *mvm)
 		return;
 
 	if (device_family <= IWL_DEVICE_FAMILY_9000)
-		IWL_ERR(mvm, "WFPM_ARC1_PD_NOTIFICATION: 0x%x\n",
-			iwl_read_umac_prph(trans, WFPM_ARC1_PD_NOTIFICATION));
+		IWL_FW_PRINT_REG_INFO(WFPM_ARC1_PD_NOTIFICATION);
 	else
-		IWL_ERR(mvm, "WFPM_LMAC1_PD_NOTIFICATION: 0x%x\n",
-			iwl_read_umac_prph(trans, WFPM_LMAC1_PD_NOTIFICATION));
+		IWL_FW_PRINT_REG_INFO(WFPM_LMAC1_PD_NOTIFICATION);
 
-	IWL_ERR(mvm, "HPM_SECONDARY_DEVICE_STATE: 0x%x\n",
-		iwl_read_umac_prph(trans, HPM_SECONDARY_DEVICE_STATE));
+	IWL_FW_PRINT_REG_INFO(HPM_SECONDARY_DEVICE_STATE);
 
+	/* print OPT info */
+	IWL_FW_PRINT_REG_INFO(WFPM_MAC_OTP_CFG7_ADDR);
+	IWL_FW_PRINT_REG_INFO(WFPM_MAC_OTP_CFG7_DATA);
 }
 
 static int iwl_mvm_load_ucode_wait_alive(struct iwl_mvm *mvm,

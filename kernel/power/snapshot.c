@@ -326,7 +326,7 @@ static void *chain_alloc(struct chain_allocator *ca, unsigned int size)
 	return ret;
 }
 
-/**
+/*
  * Data types related to memory bitmaps.
  *
  * Memory bitmap is a structure consisting of many linked lists of
@@ -427,6 +427,10 @@ struct memory_bitmap {
 
 /**
  * alloc_rtree_node - Allocate a new node and add it to the radix tree.
+ * @gfp_mask: GFP mask for the allocation.
+ * @safe_needed: Get pages not used before hibernation (restore only)
+ * @ca: Pointer to a linked list of pages ("a chain") to allocate from
+ * @list: Radix Tree node to add.
  *
  * This function is used to allocate inner nodes as well as the
  * leave nodes of the radix tree. It also adds the node to the
@@ -902,7 +906,7 @@ static bool rtree_next_node(struct memory_bitmap *bm)
 }
 
 /**
- * memory_bm_rtree_next_pfn - Find the next set bit in a memory bitmap.
+ * memory_bm_next_pfn - Find the next set bit in a memory bitmap.
  * @bm: Memory bitmap.
  *
  * Starting from the last returned position this function searches for the next
@@ -1937,7 +1941,7 @@ static inline int get_highmem_buffer(int safe_needed)
 }
 
 /**
- * alloc_highmem_image_pages - Allocate some highmem pages for the image.
+ * alloc_highmem_pages - Allocate some highmem pages for the image.
  *
  * Try to allocate as many pages as needed, but if the number of free highmem
  * pages is less than that, allocate them all.
@@ -2224,7 +2228,7 @@ static int check_header(struct swsusp_info *info)
 }
 
 /**
- * load header - Check the image header and copy the data from it.
+ * load_header - Check the image header and copy the data from it.
  */
 static int load_header(struct swsusp_info *info)
 {

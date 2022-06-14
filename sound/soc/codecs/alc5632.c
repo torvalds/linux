@@ -1092,18 +1092,24 @@ static const struct regmap_config alc5632_regmap = {
 	.cache_type = REGCACHE_RBTREE,
 };
 
+static const struct i2c_device_id alc5632_i2c_table[] = {
+	{"alc5632", 0x5c},
+	{}
+};
+MODULE_DEVICE_TABLE(i2c, alc5632_i2c_table);
+
 /*
  * alc5632 2 wire address is determined by A1 pin
  * state during powerup.
  *    low  = 0x1a
  *    high = 0x1b
  */
-static int alc5632_i2c_probe(struct i2c_client *client,
-			     const struct i2c_device_id *id)
+static int alc5632_i2c_probe(struct i2c_client *client)
 {
 	struct alc5632_priv *alc5632;
 	int ret, ret1, ret2;
 	unsigned int vid1, vid2;
+	const struct i2c_device_id *id;
 
 	alc5632 = devm_kzalloc(&client->dev,
 			 sizeof(struct alc5632_priv), GFP_KERNEL);
@@ -1128,6 +1134,8 @@ static int alc5632_i2c_probe(struct i2c_client *client,
 	}
 
 	vid2 >>= 8;
+
+	id = i2c_match_id(alc5632_i2c_table, client);
 
 	if ((vid1 != 0x10EC) || (vid2 != id->driver_data)) {
 		dev_err(&client->dev,
@@ -1161,12 +1169,6 @@ static int alc5632_i2c_probe(struct i2c_client *client,
 	return ret;
 }
 
-static const struct i2c_device_id alc5632_i2c_table[] = {
-	{"alc5632", 0x5c},
-	{}
-};
-MODULE_DEVICE_TABLE(i2c, alc5632_i2c_table);
-
 #ifdef CONFIG_OF
 static const struct of_device_id alc5632_of_match[] = {
 	{ .compatible = "realtek,alc5632", },
@@ -1181,7 +1183,7 @@ static struct i2c_driver alc5632_i2c_driver = {
 		.name = "alc5632",
 		.of_match_table = of_match_ptr(alc5632_of_match),
 	},
-	.probe = alc5632_i2c_probe,
+	.probe_new = alc5632_i2c_probe,
 	.id_table = alc5632_i2c_table,
 };
 

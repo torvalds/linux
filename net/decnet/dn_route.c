@@ -159,7 +159,7 @@ static void dn_dst_ifdown(struct dst_entry *dst, struct net_device *dev, int how
 		struct neighbour *n = rt->n;
 
 		if (n && n->dev == dev) {
-			n->dev = dev_net(dev)->loopback_dev;
+			n->dev = blackhole_netdev;
 			dev_hold(n->dev);
 			dev_put(dev);
 		}

@@ -19,8 +19,7 @@
 #include <linux/gpio.h>
 #include <linux/platform_data/gpio-omap.h>
 
-#include <mach/irqs.h>
-
+#include "irqs.h"
 #include "soc.h"
 
 #define OMAP7XX_GPIO1_BASE		0xfffbc000

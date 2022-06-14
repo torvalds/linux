@@ -6,7 +6,6 @@
 #include "sock_example.h"
 #include <unistd.h>
 #include <arpa/inet.h>
-#include <sys/resource.h>
 
 struct flow_key_record {
 	__be32 src;
