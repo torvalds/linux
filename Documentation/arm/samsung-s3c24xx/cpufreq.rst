@@ -1,4 +1,5 @@
 .. SPDX-License-Identifier: GPL-2.0-only
+
 =======================
 S3C24XX CPUfreq support
 =======================
