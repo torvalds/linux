@@ -1739,6 +1739,10 @@ static int sof_link_load(struct snd_soc_component *scomp, int index, struct snd_
 		token_id = SOF_AFE_TOKENS;
 		num_tuples += token_list[SOF_AFE_TOKENS].count;
 		break;
+	case SOF_DAI_AMD_DMIC:
+		token_id = SOF_ACPDMIC_TOKENS;
+		num_tuples += token_list[SOF_ACPDMIC_TOKENS].count;
+		break;
 	default:
 		break;
 	}
