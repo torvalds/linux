@@ -407,8 +407,7 @@ static int devfreq_passive_event_handler(struct devfreq *devfreq,
 	if (!p_data)
 		return -EINVAL;
 
-	if (!p_data->this)
-		p_data->this = devfreq;
+	p_data->this = devfreq;
 
 	switch (event) {
 	case DEVFREQ_GOV_START:
