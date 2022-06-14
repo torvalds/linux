@@ -59,40 +59,6 @@ struct jh7110_reset {
 	void __iomem *aoncrg;
 	void __iomem *ispcrg;
 	void __iomem *voutcrg;
-	const u32 *asserted;
-};
-
-/*
- * Writing a 1 to the n'th bit of the m'th ASSERT register asserts
- * line 32m + n, and writing a 0 deasserts the same line.
- * Most reset lines have their status inverted so a 0 bit in the STATUS
- * register means the line is asserted and a 1 means it's deasserted. A few
- * lines don't though, so store the expected value of the status registers when
- * all lines are asserted.
- */
-static const u32 jh7110_reset_asserted[8] = {
-	/* SYSCRG_STATUS0 */
-	BIT(RSTN_U0_U7MC_RST_BUS % 32) |
-	BIT(RSTN_U0_U7MC_CORE0 % 32) |
-	BIT(RSTN_U0_U7MC_CORE1 % 32) |
-	BIT(RSTN_U0_U7MC_CORE2 % 32) |
-	BIT(RSTN_U0_U7MC_CORE3 % 32) |
-	BIT(RSTN_U0_U7MC_CORE4 % 32),
-	/* SYSCRG_STATUS1 */
-	0,
-	/* SYSCRG_STATUS2 */
-	0,
-	/* SYSCRG_STATUS3 */
-	0,
-	/* STGCRG */
-	BIT(RSTN_U0_HIFI4_CORE % 32) |
-	BIT(RSTN_U0_E24_CORE % 32),
-	/* AONCRG */
-	0,
-	/* ISPCRG */
-	0,
-	/* VOUTCRG */
-	0,
 };
 
 static inline struct jh7110_reset *
@@ -152,7 +118,7 @@ static int jh7110_reset_update(struct reset_controller_dev *rcdev,
 	struct reset_assert_t reset;
 	void __iomem *reg_assert, *reg_status;
 	unsigned long group, flags;
-	u32 mask, value, done;
+	u32 mask, value, done = 0;
 	int ret;
 
 	group = id / 32;
@@ -160,8 +126,6 @@ static int jh7110_reset_update(struct reset_controller_dev *rcdev,
 	jh7110_get_reset(data, &reset, group);
 	reg_assert = reset.reg_assert;
 	reg_status = reset.reg_status;
-
-	done = data->asserted[group] & mask;
 
 	if (!assert)
 		done ^= mask;
@@ -222,7 +186,7 @@ static int jh7110_reset_status(struct reset_controller_dev *rcdev,
 	jh7110_get_reset(data, &reset, group);
 	val = readl(reset.reg_status);
 
-	return !((val ^ data->asserted[group]) & mask);
+	return !(val & mask);
 }
 
 static const struct reset_control_ops jh7110_reset_ops = {
@@ -239,7 +203,7 @@ static void __iomem *platform_ioremap_iomem_byname(struct platform_device *pdev,
 
 	res = platform_get_resource_byname(pdev, IORESOURCE_MEM, name);
 	if (!res) {
-		dev_err(&pdev->dev, "get %s io base fail.\n",name);
+		dev_err(&pdev->dev, "get %s io base fail.\n", name);
 		return NULL;
 	}
 
@@ -247,8 +211,7 @@ static void __iomem *platform_ioremap_iomem_byname(struct platform_device *pdev,
 }
 
 int __init reset_starfive_jh7110_generic_probe(struct platform_device *pdev,
-					const u32 *asserted,
-					unsigned int nr_resets)
+						unsigned int nr_resets)
 {
 	struct jh7110_reset *data;
 	struct device *dev = &pdev->dev;
@@ -286,16 +249,13 @@ int __init reset_starfive_jh7110_generic_probe(struct platform_device *pdev,
 	data->rcdev.of_node = pdev->dev.of_node;
 	spin_lock_init(&data->lock);
 
-	data->asserted = asserted;
-
 	return devm_reset_controller_register(dev, &data->rcdev);
 }
 EXPORT_SYMBOL_GPL(reset_starfive_jh7110_generic_probe);
 
 static int __init jh7110_reset_probe(struct platform_device *pdev)
 {
-	return reset_starfive_jh7110_generic_probe(pdev, jh7110_reset_asserted,
-							RSTN_JH7110_RESET_END);
+	return reset_starfive_jh7110_generic_probe(pdev, RSTN_JH7110_RESET_END);
 }
 
 static const struct of_device_id jh7110_reset_dt_ids[] = {
