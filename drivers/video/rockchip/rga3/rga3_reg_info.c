@@ -1334,10 +1334,6 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		break;
 	}
 
-	/* default use 2 reg, bot_blend_m1 && bot_alpha_cal_m1 */
-	if (rga_is_alpha_format(req_rga->src.format))
-		req->alpha_mode_1 = 0x0a00;
-
 	req->win0_a_global_val = req_rga->alpha_global_value;
 	req->win1_a_global_val = req_rga->alpha_global_value;
 
@@ -1360,6 +1356,10 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		 *     dst => wr
 		 */
 
+		/* enabled by default bot_blend_m1 && bot_alpha_cal_m1 for src channel(win0) */
+		if (rga_is_alpha_format(req_rga->src.format))
+			req->alpha_mode_1 = 0x0a00;
+
 		set_win_info(&req->win0, &req_rga->src);
 
 		/* enable win0 rotate */
@@ -1381,6 +1381,10 @@ void rga_cmd_to_rga3_cmd(struct rga_req *req_rga, struct rga3_req *req)
 		 *     src1/dst => win0
 		 *     dst => wr
 		 */
+
+		/* enabled by default top_blend_m1 && top_alpha_cal_m1 for src channel(win1) */
+		if (rga_is_alpha_format(req_rga->src.format))
+			req->alpha_mode_1 = 0x0a;
 
 		if (req_rga->pat.yrgb_addr != 0) {
 			if (req_rga->src.yrgb_addr == req_rga->dst.yrgb_addr) {
