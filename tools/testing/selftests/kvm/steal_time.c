@@ -60,9 +60,7 @@ static void guest_code(int cpu)
 
 static bool is_steal_time_supported(struct kvm_vcpu *vcpu)
 {
-	struct kvm_cpuid_entry2 *cpuid = kvm_get_supported_cpuid_entry(KVM_CPUID_FEATURES);
-
-	return cpuid && (cpuid->eax & KVM_FEATURE_STEAL_TIME);
+	return kvm_cpu_has(X86_FEATURE_KVM_STEAL_TIME);
 }
 
 static void steal_time_init(struct kvm_vcpu *vcpu, uint32_t i)
