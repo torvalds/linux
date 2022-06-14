@@ -1141,7 +1141,7 @@ static bool hdptx_phy_clk_pll_calc(unsigned int data_rate,
 	u32 mdiv, sdiv, n = 8;
 	unsigned long k = 0, lc, k_sub, lc_sub;
 
-	for (sdiv = 1; sdiv <= 16; sdiv++) {
+	for (sdiv = 16; sdiv >= 1; sdiv--) {
 		if (sdiv % 2 && sdiv != 1)
 			continue;
 
@@ -1178,7 +1178,7 @@ static bool hdptx_phy_clk_pll_calc(unsigned int data_rate,
 		break;
 	}
 
-	if (sdiv > 16)
+	if (sdiv < 1)
 		return false;
 
 	if (cfg) {
