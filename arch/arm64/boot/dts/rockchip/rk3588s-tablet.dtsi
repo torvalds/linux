@@ -1204,6 +1204,7 @@
 };
 
 &usbdp_phy0_dp {
+	max-link-rate = <5400>;	/* Maximum link rate supported by PHY (in Mbps) */
 	status = "okay";
 };
 
