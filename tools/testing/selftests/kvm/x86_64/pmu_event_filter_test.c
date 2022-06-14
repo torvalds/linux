@@ -384,7 +384,7 @@ static void test_pmu_config_disable(void (*guest_code)(void))
  * counter per logical processor, an EBX bit vector of length greater
  * than 5, and EBX[5] clear.
  */
-static bool check_intel_pmu_leaf(struct kvm_cpuid_entry2 *entry)
+static bool check_intel_pmu_leaf(const struct kvm_cpuid_entry2 *entry)
 {
 	union cpuid10_eax eax = { .full = entry->eax };
 	union cpuid10_ebx ebx = { .full = entry->ebx };
@@ -400,10 +400,10 @@ static bool check_intel_pmu_leaf(struct kvm_cpuid_entry2 *entry)
  */
 static bool use_intel_pmu(void)
 {
-	struct kvm_cpuid_entry2 *entry;
+	const struct kvm_cpuid_entry2 *entry;
 
 	entry = kvm_get_supported_cpuid_index(0xa, 0);
-	return is_intel_cpu() && entry && check_intel_pmu_leaf(entry);
+	return is_intel_cpu() && check_intel_pmu_leaf(entry);
 }
 
 static bool is_zen1(uint32_t eax)
@@ -432,10 +432,10 @@ static bool is_zen3(uint32_t eax)
  */
 static bool use_amd_pmu(void)
 {
-	struct kvm_cpuid_entry2 *entry;
+	const struct kvm_cpuid_entry2 *entry;
 
 	entry = kvm_get_supported_cpuid_index(1, 0);
-	return is_amd_cpu() && entry &&
+	return is_amd_cpu() &&
 		(is_zen1(entry->eax) ||
 		 is_zen2(entry->eax) ||
 		 is_zen3(entry->eax));

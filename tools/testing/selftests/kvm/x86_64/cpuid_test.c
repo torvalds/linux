@@ -66,7 +66,7 @@ static void guest_main(struct kvm_cpuid2 *guest_cpuid)
 	GUEST_DONE();
 }
 
-static bool is_cpuid_mangled(struct kvm_cpuid_entry2 *entrie)
+static bool is_cpuid_mangled(const struct kvm_cpuid_entry2 *entrie)
 {
 	int i;
 
@@ -79,9 +79,10 @@ static bool is_cpuid_mangled(struct kvm_cpuid_entry2 *entrie)
 	return false;
 }
 
-static void compare_cpuids(struct kvm_cpuid2 *cpuid1, struct kvm_cpuid2 *cpuid2)
+static void compare_cpuids(const struct kvm_cpuid2 *cpuid1,
+			   const struct kvm_cpuid2 *cpuid2)
 {
-	struct kvm_cpuid_entry2 *e1, *e2;
+	const struct kvm_cpuid_entry2 *e1, *e2;
 	int i;
 
 	TEST_ASSERT(cpuid1->nent == cpuid2->nent,
@@ -174,7 +175,6 @@ static void set_cpuid_after_run(struct kvm_vcpu *vcpu)
 
 int main(void)
 {
-	struct kvm_cpuid2 *supp_cpuid;
 	struct kvm_vcpu *vcpu;
 	vm_vaddr_t cpuid_gva;
 	struct kvm_vm *vm;
@@ -182,9 +182,7 @@ int main(void)
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_main);
 
-	supp_cpuid = kvm_get_supported_cpuid();
-
-	compare_cpuids(supp_cpuid, vcpu->cpuid);
+	compare_cpuids(kvm_get_supported_cpuid(), vcpu->cpuid);
 
 	vcpu_alloc_cpuid(vm, &cpuid_gva, vcpu->cpuid);
 

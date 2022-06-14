@@ -43,7 +43,7 @@ static bool smt_possible(void)
 	return res;
 }
 
-static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
+static void test_hv_cpuid(const struct kvm_cpuid2 *hv_cpuid_entries,
 			  bool evmcs_expected)
 {
 	int i;
@@ -56,7 +56,7 @@ static void test_hv_cpuid(struct kvm_cpuid2 *hv_cpuid_entries,
 		    nent_expected, hv_cpuid_entries->nent);
 
 	for (i = 0; i < hv_cpuid_entries->nent; i++) {
-		struct kvm_cpuid_entry2 *entry = &hv_cpuid_entries->entries[i];
+		const struct kvm_cpuid_entry2 *entry = &hv_cpuid_entries->entries[i];
 
 		TEST_ASSERT((entry->function >= 0x40000000) &&
 			    (entry->function <= 0x40000082),
@@ -131,7 +131,7 @@ void test_hv_cpuid_e2big(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
-	struct kvm_cpuid2 *hv_cpuid_entries;
+	const struct kvm_cpuid2 *hv_cpuid_entries;
 	struct kvm_vcpu *vcpu;
 
 	/* Tell stdout not to buffer its content */
@@ -146,7 +146,7 @@ int main(int argc, char *argv[])
 
 	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vcpu);
 	test_hv_cpuid(hv_cpuid_entries, false);
-	free(hv_cpuid_entries);
+	free((void *)hv_cpuid_entries);
 
 	if (!kvm_cpu_has(X86_FEATURE_VMX) ||
 	    !kvm_has_cap(KVM_CAP_HYPERV_ENLIGHTENED_VMCS)) {
@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 	vcpu_enable_evmcs(vcpu);
 	hv_cpuid_entries = vcpu_get_supported_hv_cpuid(vcpu);
 	test_hv_cpuid(hv_cpuid_entries, true);
-	free(hv_cpuid_entries);
+	free((void *)hv_cpuid_entries);
 
 do_sys:
 	/* Test system ioctl version */
