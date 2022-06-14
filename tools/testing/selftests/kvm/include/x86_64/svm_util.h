@@ -13,9 +13,6 @@
 #include "svm.h"
 #include "processor.h"
 
-#define CPUID_SVM_BIT		2
-#define CPUID_SVM		BIT_ULL(CPUID_SVM_BIT)
-
 #define SVM_EXIT_EXCP_BASE	0x040
 #define SVM_EXIT_HLT		0x078
 #define SVM_EXIT_MSR		0x07c
@@ -51,16 +48,6 @@ struct svm_test_data {
 struct svm_test_data *vcpu_alloc_svm(struct kvm_vm *vm, vm_vaddr_t *p_svm_gva);
 void generic_svm_setup(struct svm_test_data *svm, void *guest_rip, void *guest_rsp);
 void run_guest(struct vmcb *vmcb, uint64_t vmcb_gpa);
-
-static inline bool cpu_has_svm(void)
-{
-	u32 eax = 0x80000001, ecx;
-
-	asm("cpuid" :
-	    "=a" (eax), "=c" (ecx) : "0" (eax) : "ebx", "edx");
-
-	return ecx & CPUID_SVM;
-}
 
 int open_sev_dev_path_or_exit(void);
 

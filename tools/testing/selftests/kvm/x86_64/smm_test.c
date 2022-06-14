@@ -83,7 +83,7 @@ static void guest_code(void *arg)
 	sync_with_host(4);
 
 	if (arg) {
-		if (cpu_has_svm()) {
+		if (this_cpu_has(X86_FEATURE_SVM)) {
 			generic_svm_setup(svm, l2_guest_code,
 					  &l2_guest_stack[L2_GUEST_STACK_SIZE]);
 		} else {
@@ -99,7 +99,7 @@ static void guest_code(void *arg)
 
 		sync_with_host(7);
 
-		if (cpu_has_svm()) {
+		if (this_cpu_has(X86_FEATURE_SVM)) {
 			run_guest(svm->vmcb, svm->vmcb_gpa);
 			run_guest(svm->vmcb, svm->vmcb_gpa);
 		} else {

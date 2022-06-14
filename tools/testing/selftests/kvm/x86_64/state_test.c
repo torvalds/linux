@@ -142,7 +142,7 @@ static void __attribute__((__flatten__)) guest_code(void *arg)
 	GUEST_SYNC(2);
 
 	if (arg) {
-		if (cpu_has_svm())
+		if (this_cpu_has(X86_FEATURE_SVM))
 			svm_l1_guest_code(arg);
 		else
 			vmx_l1_guest_code(arg);
