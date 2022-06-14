@@ -65,6 +65,11 @@ static struct mcfg_fixup mcfg_quirks[] = {
 	QCOM_ECAM32(6),
 	QCOM_ECAM32(7),
 
+#define RKCP_ECAM(seg, table_id, ops) \
+	{ "RKCP  ", table_id, 0x0000, seg, MCFG_BUS_ANY, ops }
+
+	RKCP_ECAM(0, "RK3588  ", &rk_pcie_ecam_ops), /* pcie3x4: Name (_SEG, Zero) */
+
 #define HISI_QUAD_DOM(table_id, seg, ops) \
 	{ "HISI  ", table_id, 0, (seg) + 0, MCFG_BUS_ANY, ops }, \
 	{ "HISI  ", table_id, 0, (seg) + 1, MCFG_BUS_ANY, ops }, \

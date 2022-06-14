@@ -34,5 +34,6 @@ obj-$(CONFIG_PCIE_DW_ROCKCHIP) += pcie-dw-rockchip.o
 
 ifdef CONFIG_PCI
 obj-$(CONFIG_ARM64) += pcie-al.o
+obj-$(CONFIG_ARM64) += pcie-dw-rockchip-acpi.o
 obj-$(CONFIG_ARM64) += pcie-hisi.o
 endif

@@ -53,6 +53,7 @@ extern const struct pci_ecam_ops pci_generic_ecam_ops;
 extern const struct pci_ecam_ops pci_32b_ops;	/* 32-bit accesses only */
 extern const struct pci_ecam_ops pci_32b_read_ops; /* 32-bit read only */
 extern const struct pci_ecam_ops hisi_pcie_ops;	/* HiSilicon */
+extern const struct pci_ecam_ops rk_pcie_ecam_ops;	/* Rockchip */
 extern const struct pci_ecam_ops thunder_pem_ecam_ops; /* Cavium ThunderX 1.x & 2.x */
 extern const struct pci_ecam_ops pci_thunder_ecam_ops; /* Cavium ThunderX 1.x */
 extern const struct pci_ecam_ops xgene_v1_pcie_ecam_ops; /* APM X-Gene PCIe v1 */
