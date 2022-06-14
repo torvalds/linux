@@ -1962,8 +1962,12 @@ extern unsigned long move_page_tables(struct vm_area_struct *vma,
  * for now all the callers are only use one of the flags at the same
  * time.
  */
-/* Whether we should allow dirty bit accounting */
-#define  MM_CP_DIRTY_ACCT                  (1UL << 0)
+/*
+ * Whether we should manually check if we can map individual PTEs writable,
+ * because something (e.g., COW, uffd-wp) blocks that from happening for all
+ * PTEs automatically in a writable mapping.
+ */
+#define  MM_CP_TRY_CHANGE_WRITABLE	   (1UL << 0)
 /* Whether this protection change is for NUMA hints */
 #define  MM_CP_PROT_NUMA                   (1UL << 1)
 /* Whether this change is for write protecting */
