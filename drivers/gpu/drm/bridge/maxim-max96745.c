@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/platform_device.h>
 #include <linux/err.h>
+#include <linux/extcon-provider.h>
 #include <linux/of.h>
 #include <linux/regmap.h>
 #include <linux/gpio/consumer.h>
@@ -36,9 +37,15 @@ struct max96745_bridge {
 		int irq;
 		atomic_t triggered;
 	} lock;
+	struct extcon_dev *extcon;
 };
 
 #define to_max96745_bridge(x)	container_of(x, struct max96745_bridge, x)
+
+static const unsigned int max96745_bridge_cable[] = {
+	EXTCON_JACK_VIDEO_OUT,
+	EXTCON_NONE,
+};
 
 static int max96745_bridge_connector_get_modes(struct drm_connector *connector)
 {
@@ -128,9 +135,11 @@ static int max96745_bridge_attach(struct drm_bridge *bridge,
 
 	if (max96745_bridge_link_locked(ser)) {
 		connector->status = connector_status_connected;
+		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
 		enable_irq(ser->lock.irq);
 	} else {
 		connector->status = connector_status_disconnected;
+		extcon_set_state(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
 	}
 
 	drm_connector_attach_encoder(connector, bridge->encoder);
@@ -156,6 +165,8 @@ static void max96745_bridge_enable(struct drm_bridge *bridge)
 	if (ser->panel)
 		drm_panel_enable(ser->panel);
 
+	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, true);
+
 	enable_irq(ser->lock.irq);
 }
 
@@ -164,6 +175,8 @@ static void max96745_bridge_disable(struct drm_bridge *bridge)
 	struct max96745_bridge *ser = to_max96745_bridge(bridge);
 
 	disable_irq(ser->lock.irq);
+
+	extcon_set_state_sync(ser->extcon, EXTCON_JACK_VIDEO_OUT, false);
 
 	if (ser->panel)
 		drm_panel_disable(ser->panel);
@@ -245,6 +258,16 @@ static int max96745_bridge_probe(struct platform_device *pdev)
 	if (IS_ERR(ser->lock.gpio))
 		return dev_err_probe(dev, PTR_ERR(ser->lock.gpio),
 				     "failed to get lock GPIO\n");
+
+	ser->extcon = devm_extcon_dev_allocate(dev, max96745_bridge_cable);
+	if (IS_ERR(ser->extcon))
+		return dev_err_probe(dev, PTR_ERR(ser->extcon),
+				     "failed to allocate extcon device\n");
+
+	ret = devm_extcon_dev_register(dev, ser->extcon);
+	if (ret)
+		return dev_err_probe(dev, ret,
+				     "failed to register extcon device\n");
 
 	regmap_update_bits(ser->regmap, 0x7070, MAX_LANE_COUNT,
 			   FIELD_PREP(MAX_LANE_COUNT, 0x04));
