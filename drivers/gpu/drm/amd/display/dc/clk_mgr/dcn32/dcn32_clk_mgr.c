@@ -265,6 +265,25 @@ void dcn32_init_clocks(struct clk_mgr *clk_mgr_base)
 			&clk_mgr_base->bw_params->clk_table.entries[0].dispclk_mhz,
 			&num_levels);
 
+	if (clk_mgr_base->ctx->dc->debug.min_disp_clk_khz) {
+		unsigned int i;
+
+		for (i = 0; i < num_levels; i++)
+			if (clk_mgr_base->bw_params->clk_table.entries[i].dispclk_mhz
+					< khz_to_mhz_ceil(clk_mgr_base->ctx->dc->debug.min_disp_clk_khz))
+				clk_mgr_base->bw_params->clk_table.entries[i].dispclk_mhz
+					= khz_to_mhz_ceil(clk_mgr_base->ctx->dc->debug.min_disp_clk_khz);
+	}
+
+	if (clk_mgr_base->ctx->dc->debug.min_dpp_clk_khz) {
+		unsigned int i;
+
+		for (i = 0; i < num_levels; i++)
+			if (clk_mgr_base->bw_params->clk_table.entries[i].dppclk_mhz
+					< khz_to_mhz_ceil(clk_mgr_base->ctx->dc->debug.min_dpp_clk_khz))
+				clk_mgr_base->bw_params->clk_table.entries[i].dppclk_mhz
+					= khz_to_mhz_ceil(clk_mgr_base->ctx->dc->debug.min_dpp_clk_khz);
+	}
 
 	/* Get UCLK, update bounding box */
 	clk_mgr_base->funcs->get_memclk_states_from_smu(clk_mgr_base);
