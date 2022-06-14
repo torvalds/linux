@@ -72,7 +72,8 @@ struct css_task_iter {
 };
 
 extern struct cgroup_root cgrp_dfl_root;
-extern struct css_set init_css_set;
+extern struct ext_css_set init_ext_css_set;
+#define init_css_set init_ext_css_set.cset
 
 #define SUBSYS(_x) extern struct cgroup_subsys _x ## _cgrp_subsys;
 #include <linux/cgroup_subsys.h>

@@ -282,6 +282,13 @@ struct css_set {
 	struct rcu_head rcu_head;
 };
 
+struct ext_css_set {
+	struct css_set cset;
+
+	struct list_head mg_src_preload_node;
+	struct list_head mg_dst_preload_node;
+};
+
 struct cgroup_base_stat {
 	struct task_cputime cputime;
 };
