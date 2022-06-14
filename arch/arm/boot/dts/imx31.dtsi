@@ -48,7 +48,7 @@
 		reg = <0x68000000 0x100000>;
 	};
 
-	soc {
+	soc: soc {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "simple-bus";
