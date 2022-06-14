@@ -116,7 +116,7 @@ scmi_reset_domain_attributes_get(const struct scmi_protocol_handle *ph,
 		dom_info->latency_us = le32_to_cpu(attr->latency);
 		if (dom_info->latency_us == U32_MAX)
 			dom_info->latency_us = 0;
-		strlcpy(dom_info->name, attr->name, SCMI_MAX_STR_SIZE);
+		strscpy(dom_info->name, attr->name, SCMI_SHORT_NAME_MAX_SIZE);
 	}
 
 	ph->xops->xfer_put(ph, t);
