@@ -194,16 +194,13 @@ done:
 
 int main(int argc, char *argv[])
 {
-	struct kvm_cpuid_entry2 *cpuid;
-
 	/* Tell stdout not to buffer its content */
 	setbuf(stdout, NULL);
 
 	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
 
-	cpuid = kvm_get_supported_cpuid_entry(0x8000000a);
-	TEST_ASSERT(cpuid->edx & CPUID_NRIPS,
-		    "KVM with nSVM is supposed to unconditionally advertise nRIP Save\n");
+	TEST_ASSERT(kvm_cpu_has(X86_FEATURE_NRIPS),
+		    "KVM with nSVM is supposed to unconditionally advertise nRIP Save");
 
 	atomic_init(&nmi_stage, 0);
 
