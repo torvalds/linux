@@ -2279,6 +2279,21 @@ void bpf_prog_array_free(struct bpf_prog_array *progs)
 	kfree_rcu(progs, rcu);
 }
 
+static void __bpf_prog_array_free_sleepable_cb(struct rcu_head *rcu)
+{
+	struct bpf_prog_array *progs;
+
+	progs = container_of(rcu, struct bpf_prog_array, rcu);
+	kfree_rcu(progs, rcu);
+}
+
+void bpf_prog_array_free_sleepable(struct bpf_prog_array *progs)
+{
+	if (!progs || progs == &bpf_empty_prog_array.hdr)
+		return;
+	call_rcu_tasks_trace(&progs->rcu, __bpf_prog_array_free_sleepable_cb);
+}
+
 int bpf_prog_array_length(struct bpf_prog_array *array)
 {
 	struct bpf_prog_array_item *item;
