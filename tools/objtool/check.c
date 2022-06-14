@@ -654,6 +654,52 @@ static int create_retpoline_sites_sections(struct objtool_file *file)
 	return 0;
 }
 
+static int create_return_sites_sections(struct objtool_file *file)
+{
+	struct instruction *insn;
+	struct section *sec;
+	int idx;
+
+	sec = find_section_by_name(file->elf, ".return_sites");
+	if (sec) {
+		WARN("file already has .return_sites, skipping");
+		return 0;
+	}
+
+	idx = 0;
+	list_for_each_entry(insn, &file->return_thunk_list, call_node)
+		idx++;
+
+	if (!idx)
+		return 0;
+
+	sec = elf_create_section(file->elf, ".return_sites", 0,
+				 sizeof(int), idx);
+	if (!sec) {
+		WARN("elf_create_section: .return_sites");
+		return -1;
+	}
+
+	idx = 0;
+	list_for_each_entry(insn, &file->return_thunk_list, call_node) {
+
+		int *site = (int *)sec->data->d_buf + idx;
+		*site = 0;
+
+		if (elf_add_reloc_to_insn(file->elf, sec,
+					  idx * sizeof(int),
+					  R_X86_64_PC32,
+					  insn->sec, insn->offset)) {
+			WARN("elf_add_reloc_to_insn: .return_sites");
+			return -1;
+		}
+
+		idx++;
+	}
+
+	return 0;
+}
+
 static int create_mcount_loc_sections(struct objtool_file *file)
 {
 	struct section *sec;
@@ -932,6 +978,11 @@ __weak bool arch_is_retpoline(struct symbol *sym)
 	return false;
 }
 
+__weak bool arch_is_rethunk(struct symbol *sym)
+{
+	return false;
+}
+
 #define NEGATIVE_RELOC	((void *)-1L)
 
 static struct reloc *insn_reloc(struct objtool_file *file, struct instruction *insn)
@@ -1092,6 +1143,19 @@ static void add_retpoline_call(struct objtool_file *file, struct instruction *in
 
 	annotate_call_site(file, insn, false);
 }
+
+static void add_return_call(struct objtool_file *file, struct instruction *insn)
+{
+	/*
+	 * Return thunk tail calls are really just returns in disguise,
+	 * so convert them accordingly.
+	 */
+	insn->type = INSN_RETURN;
+	insn->retpoline_safe = true;
+
+	list_add_tail(&insn->call_node, &file->return_thunk_list);
+}
+
 /*
  * Find the destination instructions for all jumps.
  */
@@ -1115,6 +1179,9 @@ static int add_jump_destinations(struct objtool_file *file)
 			dest_off = arch_dest_reloc_offset(reloc->addend);
 		} else if (reloc->sym->retpoline_thunk) {
 			add_retpoline_call(file, insn);
+			continue;
+		} else if (reloc->sym->return_thunk) {
+			add_return_call(file, insn);
 			continue;
 		} else if (insn->func) {
 			/* internal or external sibling call (with reloc) */
@@ -1936,6 +2003,9 @@ static int classify_symbols(struct objtool_file *file)
 
 			if (arch_is_retpoline(func))
 				func->retpoline_thunk = true;
+
+			if (arch_is_rethunk(func))
+				func->return_thunk = true;
 
 			if (!strcmp(func->name, "__fentry__"))
 				func->fentry = true;
@@ -3410,6 +3480,11 @@ int check(struct objtool_file *file)
 
 	if (retpoline) {
 		ret = create_retpoline_sites_sections(file);
+		if (ret < 0)
+			goto out;
+		warnings += ret;
+
+		ret = create_return_sites_sections(file);
 		if (ret < 0)
 			goto out;
 		warnings += ret;
