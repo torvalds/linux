@@ -1917,6 +1917,11 @@ static ssize_t srbds_show_state(char *buf)
 	return sprintf(buf, "%s\n", srbds_strings[srbds_mitigation]);
 }
 
+static ssize_t retbleed_show_state(char *buf)
+{
+	return sprintf(buf, "Vulnerable\n");
+}
+
 static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr,
 			       char *buf, unsigned int bug)
 {
@@ -1961,6 +1966,9 @@ static ssize_t cpu_show_common(struct device *dev, struct device_attribute *attr
 
 	case X86_BUG_MMIO_STALE_DATA:
 		return mmio_stale_data_show_state(buf);
+
+	case X86_BUG_RETBLEED:
+		return retbleed_show_state(buf);
 
 	default:
 		break;
@@ -2017,5 +2025,10 @@ ssize_t cpu_show_srbds(struct device *dev, struct device_attribute *attr, char *
 ssize_t cpu_show_mmio_stale_data(struct device *dev, struct device_attribute *attr, char *buf)
 {
 	return cpu_show_common(dev, attr, buf, X86_BUG_MMIO_STALE_DATA);
+}
+
+ssize_t cpu_show_retbleed(struct device *dev, struct device_attribute *attr, char *buf)
+{
+	return cpu_show_common(dev, attr, buf, X86_BUG_RETBLEED);
 }
 #endif
