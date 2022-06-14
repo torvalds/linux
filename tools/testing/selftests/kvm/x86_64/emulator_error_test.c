@@ -150,8 +150,6 @@ static uint64_t process_ucall(struct kvm_vcpu *vcpu)
 
 int main(int argc, char *argv[])
 {
-	struct kvm_cpuid_entry2 *entry;
-	struct kvm_cpuid2 *cpuid;
 	struct kvm_vcpu *vcpu;
 	struct kvm_vm *vm;
 	uint64_t gpa, pte;
@@ -165,13 +163,7 @@ int main(int argc, char *argv[])
 
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
 
-	cpuid = kvm_get_supported_cpuid();
-
-	entry = kvm_get_supported_cpuid_index(0x80000008, 0);
-	entry->eax = (entry->eax & 0xffffff00) | MAXPHYADDR;
-	set_cpuid(cpuid, entry);
-
-	vcpu_init_cpuid(vcpu, cpuid);
+	vcpu_set_cpuid_maxphyaddr(vcpu, MAXPHYADDR);
 
 	rc = kvm_check_cap(KVM_CAP_EXIT_ON_EMULATION_FAILURE);
 	TEST_ASSERT(rc, "KVM_CAP_EXIT_ON_EMULATION_FAILURE is unavailable");
