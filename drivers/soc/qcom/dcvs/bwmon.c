@@ -274,6 +274,9 @@ static BWMON_ATTR_RW(hyst_trigger_count);
 show_attr(hyst_length);
 store_attr(hyst_length, 0U, 90U);
 static BWMON_ATTR_RW(hyst_length);
+show_attr(idle_length);
+store_attr(idle_length, 0U, 90U);
+static BWMON_ATTR_RW(idle_length);
 show_attr(idle_mbps);
 store_attr(idle_mbps, 0U, 2000U);
 static BWMON_ATTR_RW(idle_mbps);
@@ -301,6 +304,7 @@ static struct attribute *bwmon_attrs[] = {
 	&hist_memory.attr,
 	&hyst_trigger_count.attr,
 	&hyst_length.attr,
+	&idle_length.attr,
 	&idle_mbps.attr,
 	&ab_scale.attr,
 	&mbps_zones.attr,
@@ -582,8 +586,13 @@ static unsigned long get_bw_and_set_irq(struct hwmon_node *node,
 	}
 
 	if (node->hyst_en) {
-		if (meas_mbps > node->idle_mbps)
+		if (meas_mbps > node->idle_mbps) {
 			req_mbps = max(req_mbps, node->hyst_mbps);
+			node->idle_en = node->idle_length;
+		} else if (node->idle_en) {
+			req_mbps = max(req_mbps, node->hyst_mbps);
+			node->idle_en--;
+		}
 	}
 
 	/* Stretch the short sample window size, if the traffic is too low */
@@ -816,6 +825,7 @@ static int configure_hwmon_node(struct bw_hwmon *hwmon)
 	node->hist_memory = 0;
 	node->hyst_trigger_count = 3;
 	node->hyst_length = 0;
+	node->idle_length = 0;
 	node->idle_mbps = 400;
 	node->ab_scale = 100;
 	node->mbps_zones[0] = 0;
