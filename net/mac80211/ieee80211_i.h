@@ -1801,12 +1801,6 @@ static inline void init_airtime_info(struct airtime_info *air_info,
 	INIT_LIST_HEAD(&air_info->list);
 }
 
-static inline int ieee80211_bssid_match(const u8 *raddr, const u8 *addr)
-{
-	return ether_addr_equal(raddr, addr) ||
-	       is_broadcast_ether_addr(raddr);
-}
-
 static inline bool
 ieee80211_have_rx_timestamp(struct ieee80211_rx_status *status)
 {
