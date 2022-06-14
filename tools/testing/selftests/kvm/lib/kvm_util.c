@@ -1163,8 +1163,6 @@ va_found:
  *   vm - Virtual Machine
  *   sz - Size in bytes
  *   vaddr_min - Minimum starting virtual address
- *   data_memslot - Memory region slot for data pages
- *   pgd_memslot - Memory region slot for new virtual translation tables
  *
  * Output Args: None
  *
@@ -1250,7 +1248,6 @@ vm_vaddr_t vm_vaddr_alloc_page(struct kvm_vm *vm)
  *   vaddr - Virtuall address to map
  *   paddr - VM Physical Address
  *   npages - The number of pages to map
- *   pgd_memslot - Memory region slot for new virtual translation tables
  *
  * Output Args: None
  *
