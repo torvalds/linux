@@ -578,21 +578,6 @@ static void vcpu_setup(struct kvm_vm *vm, struct kvm_vcpu *vcpu)
 	vcpu_sregs_set(vcpu, &sregs);
 }
 
-#define CPUID_XFD_BIT (1 << 4)
-static bool is_xfd_supported(void)
-{
-	int eax, ebx, ecx, edx;
-	const int leaf = 0xd, subleaf = 0x1;
-
-	__asm__ __volatile__(
-		"cpuid"
-		: /* output */ "=a"(eax), "=b"(ebx),
-		  "=c"(ecx), "=d"(edx)
-		: /* input */ "0"(leaf), "2"(subleaf));
-
-	return !!(eax & CPUID_XFD_BIT);
-}
-
 void vm_xsave_req_perm(int bit)
 {
 	int kvm_fd;
@@ -604,6 +589,8 @@ void vm_xsave_req_perm(int bit)
 		.addr = (unsigned long) &bitmask
 	};
 
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_XFD));
+
 	kvm_fd = open_kvm_dev_path_or_exit();
 	rc = __kvm_ioctl(kvm_fd, KVM_GET_DEVICE_ATTR, &attr);
 	close(kvm_fd);
@@ -613,8 +600,6 @@ void vm_xsave_req_perm(int bit)
 	TEST_ASSERT(rc == 0, "KVM_GET_DEVICE_ATTR(0, KVM_X86_XCOMP_GUEST_SUPP) error: %ld", rc);
 
 	TEST_REQUIRE(bitmask & (1ULL << bit));
-
-	TEST_REQUIRE(is_xfd_supported());
 
 	rc = syscall(SYS_arch_prctl, ARCH_REQ_XCOMP_GUEST_PERM, bit);
 
