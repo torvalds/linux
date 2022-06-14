@@ -141,7 +141,7 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 			     enum v4l2_mbus_type mbus_type, u32 mbus_flags)
 {
 	struct rkisp1_device *rkisp1 = isp->rkisp1;
-	u32 isp_ctrl = 0, irq_mask = 0, acq_mult = 0, signal = 0;
+	u32 isp_ctrl = 0, irq_mask = 0, acq_mult = 0, signal = 0, input_sel = 0;
 	const struct rkisp1_mbus_info *src_fmt, *sink_fmt;
 	struct v4l2_mbus_framefmt *sink_frm;
 	struct v4l2_rect *sink_crop;
@@ -189,6 +189,22 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 	if (mbus_type == V4L2_MBUS_BT656 || mbus_type == V4L2_MBUS_PARALLEL) {
 		if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
 			signal = RKISP1_CIF_ISP_ACQ_PROP_POS_EDGE;
+
+		switch (sink_fmt->bus_width) {
+		case 8:
+			input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_8B_ZERO;
+			break;
+		case 10:
+			input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_10B_ZERO;
+			break;
+		case 12:
+			input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_12B;
+			break;
+		default:
+			dev_err(rkisp1->dev, "Invalid bus width %u\n",
+				sink_fmt->bus_width);
+			return -EINVAL;
+		}
 	}
 
 	if (mbus_type == V4L2_MBUS_PARALLEL) {
@@ -201,7 +217,7 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_CTRL, isp_ctrl);
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ACQ_PROP,
-		     signal | sink_fmt->yuv_seq |
+		     signal | sink_fmt->yuv_seq | input_sel |
 		     RKISP1_CIF_ISP_ACQ_PROP_BAYER_PAT(sink_fmt->bayer_pat) |
 		     RKISP1_CIF_ISP_ACQ_PROP_FIELD_SEL_ALL);
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ACQ_NR_FRAMES, 0);
@@ -238,52 +254,19 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 	return 0;
 }
 
-static int rkisp1_config_dvp(struct rkisp1_isp *isp)
-{
-	struct rkisp1_device *rkisp1 = isp->rkisp1;
-	const struct rkisp1_mbus_info *sink_fmt = isp->sink_fmt;
-	u32 val, input_sel;
-
-	switch (sink_fmt->bus_width) {
-	case 8:
-		input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_8B_ZERO;
-		break;
-	case 10:
-		input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_10B_ZERO;
-		break;
-	case 12:
-		input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_12B;
-		break;
-	default:
-		dev_err(rkisp1->dev, "Invalid bus width\n");
-		return -EINVAL;
-	}
-
-	val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_ACQ_PROP);
-	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ACQ_PROP, val | input_sel);
-
-	return 0;
-}
-
 /* Configure MUX */
-static int rkisp1_config_path(struct rkisp1_isp *isp,
-			      enum v4l2_mbus_type mbus_type)
+static void rkisp1_config_path(struct rkisp1_isp *isp,
+			       enum v4l2_mbus_type mbus_type)
 {
 	struct rkisp1_device *rkisp1 = isp->rkisp1;
 	u32 dpcl = rkisp1_read(rkisp1, RKISP1_CIF_VI_DPCL);
-	int ret = 0;
 
-	if (mbus_type == V4L2_MBUS_BT656 ||
-	    mbus_type == V4L2_MBUS_PARALLEL) {
-		ret = rkisp1_config_dvp(isp);
+	if (mbus_type == V4L2_MBUS_BT656 || mbus_type == V4L2_MBUS_PARALLEL)
 		dpcl |= RKISP1_CIF_VI_DPCL_IF_SEL_PARALLEL;
-	} else if (mbus_type == V4L2_MBUS_CSI2_DPHY) {
+	else if (mbus_type == V4L2_MBUS_CSI2_DPHY)
 		dpcl |= RKISP1_CIF_VI_DPCL_IF_SEL_MIPI;
-	}
 
 	rkisp1_write(rkisp1, RKISP1_CIF_VI_DPCL, dpcl);
-
-	return ret;
 }
 
 /* Hardware configure Entry */
@@ -295,9 +278,8 @@ static int rkisp1_config_cif(struct rkisp1_isp *isp,
 	ret = rkisp1_config_isp(isp, mbus_type, mbus_flags);
 	if (ret)
 		return ret;
-	ret = rkisp1_config_path(isp, mbus_type);
-	if (ret)
-		return ret;
+
+	rkisp1_config_path(isp, mbus_type);
 	rkisp1_config_ism(isp);
 
 	return 0;
