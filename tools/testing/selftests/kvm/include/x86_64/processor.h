@@ -161,7 +161,6 @@ struct kvm_x86_cpu_feature {
 #define X86_FEATURE_KVM_MIGRATION_CONTROL	KVM_X86_CPU_FEATURE(0x40000001, 0, EAX, 17)
 
 /* CPUID.1.ECX */
-#define CPUID_XSAVE		(1ul << 26)
 #define CPUID_OSXSAVE		(1ul << 27)
 
 /* Page table bitfield declarations */
@@ -425,6 +424,17 @@ static inline void cpuid(uint32_t function,
 			 uint32_t *ecx, uint32_t *edx)
 {
 	return __cpuid(function, 0, eax, ebx, ecx, edx);
+}
+
+static inline bool this_cpu_has(struct kvm_x86_cpu_feature feature)
+{
+	uint32_t gprs[4];
+
+	__cpuid(feature.function, feature.index,
+		&gprs[KVM_CPUID_EAX], &gprs[KVM_CPUID_EBX],
+		&gprs[KVM_CPUID_ECX], &gprs[KVM_CPUID_EDX]);
+
+	return gprs[feature.reg] & BIT(feature.bit);
 }
 
 #define SET_XMM(__var, __xmm) \
