@@ -196,6 +196,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -434,6 +438,10 @@
 			mic-in-differential;
 		};
 	};
+};
+
+&i2s0_8ch {
+	status = "okay";
 };
 
 &i2s1_8ch {
