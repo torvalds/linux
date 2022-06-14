@@ -156,7 +156,7 @@ int main(int argc, char *argv[])
 	if (kvm_has_cap(KVM_CAP_NESTED_STATE)) {
 		if (kvm_cpu_has(X86_FEATURE_SVM))
 			vcpu_alloc_svm(vm, &nested_gva);
-		else if (nested_vmx_supported())
+		else if (kvm_cpu_has(X86_FEATURE_VMX))
 			vcpu_alloc_vmx(vm, &nested_gva);
 	}
 

@@ -167,7 +167,7 @@ int main(int argc, char *argv[])
 	 * AMD currently does not implement any VMX features, so for now we
 	 * just early out.
 	 */
-	nested_vmx_check_supported();
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_VMX));
 
 	TEST_REQUIRE(kvm_has_cap(KVM_CAP_NESTED_STATE));
 
