@@ -617,12 +617,8 @@ int avic_init_vcpu(struct vcpu_svm *svm);
 void avic_vcpu_load(struct kvm_vcpu *vcpu, int cpu);
 void avic_vcpu_put(struct kvm_vcpu *vcpu);
 void avic_apicv_post_state_restore(struct kvm_vcpu *vcpu);
-void avic_set_virtual_apic_mode(struct kvm_vcpu *vcpu);
 void avic_refresh_apicv_exec_ctrl(struct kvm_vcpu *vcpu);
 bool avic_check_apicv_inhibit_reasons(enum kvm_apicv_inhibit reason);
-void avic_hwapic_irr_update(struct kvm_vcpu *vcpu, int max_irr);
-void avic_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr);
-bool avic_dy_apicv_has_pending_interrupt(struct kvm_vcpu *vcpu);
 int avic_pi_update_irte(struct kvm *kvm, unsigned int host_irq,
 			uint32_t guest_irq, bool set);
 void avic_vcpu_blocking(struct kvm_vcpu *vcpu);
