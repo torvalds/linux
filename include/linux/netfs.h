@@ -304,7 +304,7 @@ static inline struct netfs_inode *netfs_inode(struct inode *inode)
 
 /**
  * netfs_inode_init - Initialise a netfslib inode context
- * @inode: The netfs inode to initialise
+ * @ctx: The netfs inode to initialise
  * @ops: The netfs's operations list
  *
  * Initialise the netfs library context struct.  This is expected to follow on
