@@ -241,17 +241,17 @@ static void set_inverse_transl(struct vc_data *conp, struct uni_pagedict *p,
 	}
 }
 
-static void set_inverse_trans_unicode(struct uni_pagedict *p)
+static void set_inverse_trans_unicode(struct uni_pagedict *dict)
 {
 	unsigned int d, r, g;
 	u16 *inv;
 
-	if (!p)
+	if (!dict)
 		return;
 
-	inv = p->inverse_trans_unicode;
+	inv = dict->inverse_trans_unicode;
 	if (!inv) {
-		inv = p->inverse_trans_unicode = kmalloc_array(MAX_GLYPH,
+		inv = dict->inverse_trans_unicode = kmalloc_array(MAX_GLYPH,
 				sizeof(*inv), GFP_KERNEL);
 		if (!inv)
 			return;
@@ -259,7 +259,7 @@ static void set_inverse_trans_unicode(struct uni_pagedict *p)
 	memset(inv, 0, MAX_GLYPH * sizeof(*inv));
 
 	for (d = 0; d < UNI_DIRS; d++) {
-		u16 **dir = p->uni_pgdir[d];
+		u16 **dir = dict->uni_pgdir[d];
 		if (!dir)
 			continue;
 		for (r = 0; r < UNI_DIR_ROWS; r++) {
