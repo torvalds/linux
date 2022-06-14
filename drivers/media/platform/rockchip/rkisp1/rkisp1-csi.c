@@ -9,6 +9,7 @@
  * Copyright (C) 2017 Rockchip Electronics Co., Ltd.
  */
 
+#include <linux/delay.h>
 #include <linux/device.h>
 #include <linux/phy/phy.h>
 #include <linux/phy/phy-mipi-dphy.h>
@@ -120,6 +121,12 @@ int rkisp1_csi_start(struct rkisp1_csi *csi,
 	phy_power_on(csi->dphy);
 
 	rkisp1_csi_enable(csi);
+
+	/*
+	 * CIF spec says to wait for sufficient time after enabling
+	 * the MIPI interface and before starting the sensor output.
+	 */
+	usleep_range(1000, 1200);
 
 	return 0;
 }
