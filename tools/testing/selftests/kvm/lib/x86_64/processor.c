@@ -1207,16 +1207,15 @@ void assert_on_unhandled_exception(struct kvm_vcpu *vcpu)
 	}
 }
 
-struct kvm_cpuid_entry2 *get_cpuid(struct kvm_cpuid2 *cpuid, uint32_t function,
-				   uint32_t index)
+struct kvm_cpuid_entry2 *get_cpuid_entry(struct kvm_cpuid2 *cpuid,
+					 uint32_t function, uint32_t index)
 {
 	int i;
 
 	for (i = 0; i < cpuid->nent; i++) {
-		struct kvm_cpuid_entry2 *cur = &cpuid->entries[i];
-
-		if (cur->function == function && cur->index == index)
-			return cur;
+		if (cpuid->entries[i].function == function &&
+		    cpuid->entries[i].index == index)
+			return &cpuid->entries[i];
 	}
 
 	TEST_FAIL("CPUID function 0x%x index 0x%x not found ", function, index);
