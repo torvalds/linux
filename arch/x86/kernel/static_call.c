@@ -11,6 +11,13 @@ enum insn_type {
 	RET = 3,  /* tramp / site cond-tail-call */
 };
 
+/*
+ * ud1 %esp, %ecx - a 3 byte #UD that is unique to trampolines, chosen such
+ * that there is no false-positive trampoline identification while also being a
+ * speculation stop.
+ */
+static const u8 tramp_ud[] = { 0x0f, 0xb9, 0xcc };
+
 static const u8 retinsn[] = { RET_INSN_OPCODE, 0xcc, 0xcc, 0xcc, 0xcc };
 
 static void __ref __static_call_transform(void *insn, enum insn_type type, void *func)
@@ -32,7 +39,10 @@ static void __ref __static_call_transform(void *insn, enum insn_type type, void 
 		break;
 
 	case RET:
-		code = &retinsn;
+		if (cpu_feature_enabled(X86_FEATURE_RETHUNK))
+			code = text_gen_insn(JMP32_INSN_OPCODE, insn, &__x86_return_thunk);
+		else
+			code = &retinsn;
 		break;
 	}
 
@@ -97,3 +107,29 @@ void arch_static_call_transform(void *site, void *tramp, void *func, bool tail)
 	mutex_unlock(&text_mutex);
 }
 EXPORT_SYMBOL_GPL(arch_static_call_transform);
+
+#ifdef CONFIG_RETPOLINE
+/*
+ * This is called by apply_returns() to fix up static call trampolines,
+ * specifically ARCH_DEFINE_STATIC_CALL_NULL_TRAMP which is recorded as
+ * having a return trampoline.
+ *
+ * The problem is that static_call() is available before determining
+ * X86_FEATURE_RETHUNK and, by implication, running alternatives.
+ *
+ * This means that __static_call_transform() above can have overwritten the
+ * return trampoline and we now need to fix things up to be consistent.
+ */
+bool __static_call_fixup(void *tramp, u8 op, void *dest)
+{
+	if (memcmp(tramp+5, tramp_ud, 3)) {
+		/* Not a trampoline site, not our problem. */
+		return false;
+	}
+
+	if (op == RET_INSN_OPCODE || dest == &__x86_return_thunk)
+		__static_call_transform(tramp, RET, NULL);
+
+	return true;
+}
+#endif
