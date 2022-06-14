@@ -112,12 +112,39 @@ static struct perf_cpu_map *cpu_map__from_mask(const struct perf_record_cpu_map_
 
 }
 
+static struct perf_cpu_map *cpu_map__from_range(const struct perf_record_cpu_map_data *data)
+{
+	struct perf_cpu_map *map;
+	unsigned int i = 0;
+
+	map = perf_cpu_map__empty_new(data->range_cpu_data.end_cpu -
+				data->range_cpu_data.start_cpu + 1 + data->range_cpu_data.any_cpu);
+	if (!map)
+		return NULL;
+
+	if (data->range_cpu_data.any_cpu)
+		map->map[i++].cpu = -1;
+
+	for (int cpu = data->range_cpu_data.start_cpu; cpu <= data->range_cpu_data.end_cpu;
+	     i++, cpu++)
+		map->map[i].cpu = cpu;
+
+	return map;
+}
+
 struct perf_cpu_map *cpu_map__new_data(const struct perf_record_cpu_map_data *data)
 {
-	if (data->type == PERF_CPU_MAP__CPUS)
+	switch (data->type) {
+	case PERF_CPU_MAP__CPUS:
 		return cpu_map__from_entries(data);
-	else
+	case PERF_CPU_MAP__MASK:
 		return cpu_map__from_mask(data);
+	case PERF_CPU_MAP__RANGE_CPUS:
+		return cpu_map__from_range(data);
+	default:
+		pr_err("cpu_map__new_data unknown type %d\n", data->type);
+		return NULL;
+	}
 }
 
 size_t cpu_map__fprintf(struct perf_cpu_map *map, FILE *fp)
