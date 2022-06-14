@@ -30,6 +30,8 @@
 #include <linux/firmware.h>
 #include <acpi/video.h>
 
+#include <drm/drm_edid.h>
+
 #include "i915_drv.h"
 #include "intel_acpi.h"
 #include "intel_backlight.h"

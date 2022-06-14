@@ -27,6 +27,7 @@
 #include <linux/delay.h>
 
 #include <drm/drm.h>
+#include <drm/drm_edid.h>
 #include <drm/drm_simple_kms_helper.h>
 
 #include "psb_drv.h"

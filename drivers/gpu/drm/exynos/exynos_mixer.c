@@ -25,6 +25,7 @@
 #include <linux/spinlock.h>
 #include <linux/wait.h>
 
+#include <drm/drm_edid.h>
 #include <drm/drm_fourcc.h>
 #include <drm/drm_vblank.h>
 #include <drm/exynos_drm.h>
