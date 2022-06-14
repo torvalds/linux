@@ -36,7 +36,7 @@ cifs_dump_mem(char *label, void *data, int length)
 void cifs_dump_detail(void *buf, struct TCP_Server_Info *server)
 {
 #ifdef CONFIG_CIFS_DEBUG2
-	struct smb_hdr *smb = (struct smb_hdr *)buf;
+	struct smb_hdr *smb = buf;
 
 	cifs_dbg(VFS, "Cmd: %d Err: 0x%x Flags: 0x%x Flgs2: 0x%x Mid: %d Pid: %d\n",
 		 smb->Command, smb->Status.CifsError,
