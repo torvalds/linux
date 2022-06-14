@@ -239,6 +239,10 @@
 	};
 };
 
+&hdmi_sound {
+	status = "okay";
+};
+
 &i2c0 {
 	status = "okay";
 
@@ -494,6 +498,10 @@
 		reset-gpios = <&gpio0 RK_PB6 GPIO_ACTIVE_HIGH>;
 		VDDIO-supply = <&vcc3v3_lcd0_n>;
 	};
+};
+
+&i2s0_8ch {
+	status = "okay";
 };
 
 &i2s1_8ch {
