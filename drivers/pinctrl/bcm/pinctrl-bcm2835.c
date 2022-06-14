@@ -507,7 +507,7 @@ static void bcm2835_gpio_irq_config(struct bcm2835_pinctrl *pc,
 	}
 }
 
-static void bcm2835_gpio_irq_enable(struct irq_data *data)
+static void bcm2835_gpio_irq_unmask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
@@ -522,7 +522,7 @@ static void bcm2835_gpio_irq_enable(struct irq_data *data)
 	raw_spin_unlock_irqrestore(&pc->irq_lock[bank], flags);
 }
 
-static void bcm2835_gpio_irq_disable(struct irq_data *data)
+static void bcm2835_gpio_irq_mask(struct irq_data *data)
 {
 	struct gpio_chip *chip = irq_data_get_irq_chip_data(data);
 	struct bcm2835_pinctrl *pc = gpiochip_get_data(chip);
@@ -695,12 +695,10 @@ static int bcm2835_gpio_irq_set_wake(struct irq_data *data, unsigned int on)
 
 static struct irq_chip bcm2835_gpio_irq_chip = {
 	.name = MODULE_NAME,
-	.irq_enable = bcm2835_gpio_irq_enable,
-	.irq_disable = bcm2835_gpio_irq_disable,
 	.irq_set_type = bcm2835_gpio_irq_set_type,
 	.irq_ack = bcm2835_gpio_irq_ack,
-	.irq_mask = bcm2835_gpio_irq_disable,
-	.irq_unmask = bcm2835_gpio_irq_enable,
+	.irq_mask = bcm2835_gpio_irq_mask,
+	.irq_unmask = bcm2835_gpio_irq_unmask,
 	.irq_set_wake = bcm2835_gpio_irq_set_wake,
 	.flags = IRQCHIP_MASK_ON_SUSPEND,
 };
