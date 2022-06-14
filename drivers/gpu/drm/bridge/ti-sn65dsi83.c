@@ -344,7 +344,7 @@ static void sn65dsi83_atomic_enable(struct drm_bridge *bridge,
 	}
 
 	/* Deassert reset */
-	gpiod_set_value(ctx->enable_gpio, 1);
+	gpiod_set_value_cansleep(ctx->enable_gpio, 1);
 	usleep_range(1000, 1100);
 
 	/* Get the LVDS format from the bridge state. */
@@ -500,7 +500,7 @@ static void sn65dsi83_atomic_disable(struct drm_bridge *bridge,
 	int ret;
 
 	/* Put the chip in reset, pull EN line low, and assure 10ms reset low timing. */
-	gpiod_set_value(ctx->enable_gpio, 0);
+	gpiod_set_value_cansleep(ctx->enable_gpio, 0);
 	usleep_range(10000, 11000);
 
 	ret = regulator_disable(ctx->vcc);
