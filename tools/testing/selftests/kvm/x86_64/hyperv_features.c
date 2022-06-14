@@ -91,37 +91,28 @@ static void guest_hcall(vm_vaddr_t pgs_gpa, struct hcall_data *hcall)
 	GUEST_DONE();
 }
 
-static void hv_set_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid,
-			 struct kvm_cpuid_entry2 *feat,
-			 struct kvm_cpuid_entry2 *recomm,
-			 struct kvm_cpuid_entry2 *dbg)
+static void vcpu_reset_hv_cpuid(struct kvm_vcpu *vcpu)
 {
-	TEST_ASSERT(set_cpuid(cpuid, feat),
-		    "failed to set KVM_CPUID_FEATURES leaf");
-	TEST_ASSERT(set_cpuid(cpuid, recomm),
-		    "failed to set HYPERV_CPUID_ENLIGHTMENT_INFO leaf");
-	TEST_ASSERT(set_cpuid(cpuid, dbg),
-		    "failed to set HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES leaf");
-	vcpu_init_cpuid(vcpu, cpuid);
+	/*
+	 * Enable all supported Hyper-V features, then clear the leafs holding
+	 * the features that will be tested one by one.
+	 */
+	vcpu_set_hv_cpuid(vcpu);
+
+	vcpu_clear_cpuid_entry(vcpu, HYPERV_CPUID_FEATURES);
+	vcpu_clear_cpuid_entry(vcpu, HYPERV_CPUID_ENLIGHTMENT_INFO);
+	vcpu_clear_cpuid_entry(vcpu, HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES);
 }
 
 static void guest_test_msrs_access(void)
 {
+	struct kvm_cpuid2 *prev_cpuid = NULL;
+	struct kvm_cpuid_entry2 *feat, *dbg;
 	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 	struct ucall uc;
 	int stage = 0;
-	struct kvm_cpuid_entry2 feat = {
-		.function = HYPERV_CPUID_FEATURES
-	};
-	struct kvm_cpuid_entry2 recomm = {
-		.function = HYPERV_CPUID_ENLIGHTMENT_INFO
-	};
-	struct kvm_cpuid_entry2 dbg = {
-		.function = HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
-	};
-	struct kvm_cpuid2 *best;
 	vm_vaddr_t msr_gva;
 	struct msr_data *msr;
 
@@ -135,9 +126,16 @@ static void guest_test_msrs_access(void)
 		vcpu_args_set(vcpu, 1, msr_gva);
 		vcpu_enable_cap(vcpu, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
 
-		vcpu_set_hv_cpuid(vcpu);
+		if (!prev_cpuid) {
+			vcpu_reset_hv_cpuid(vcpu);
 
-		best = kvm_get_supported_hv_cpuid();
+			prev_cpuid = allocate_kvm_cpuid2(vcpu->cpuid->nent);
+		} else {
+			vcpu_init_cpuid(vcpu, prev_cpuid);
+		}
+
+		feat = vcpu_get_cpuid_entry(vcpu, HYPERV_CPUID_FEATURES);
+		dbg = vcpu_get_cpuid_entry(vcpu, HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES);
 
 		vm_init_descriptor_tables(vm);
 		vcpu_init_descriptor_tables(vcpu);
@@ -163,7 +161,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 2:
-			feat.eax |= HV_MSR_HYPERCALL_AVAILABLE;
+			feat->eax |= HV_MSR_HYPERCALL_AVAILABLE;
 			/*
 			 * HV_X64_MSR_GUEST_OS_ID has to be written first to make
 			 * HV_X64_MSR_HYPERCALL available.
@@ -190,7 +188,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 6:
-			feat.eax |= HV_MSR_VP_RUNTIME_AVAILABLE;
+			feat->eax |= HV_MSR_VP_RUNTIME_AVAILABLE;
 			msr->idx = HV_X64_MSR_VP_RUNTIME;
 			msr->write = 0;
 			msr->available = 1;
@@ -209,7 +207,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 9:
-			feat.eax |= HV_MSR_TIME_REF_COUNT_AVAILABLE;
+			feat->eax |= HV_MSR_TIME_REF_COUNT_AVAILABLE;
 			msr->idx = HV_X64_MSR_TIME_REF_COUNT;
 			msr->write = 0;
 			msr->available = 1;
@@ -228,7 +226,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 12:
-			feat.eax |= HV_MSR_VP_INDEX_AVAILABLE;
+			feat->eax |= HV_MSR_VP_INDEX_AVAILABLE;
 			msr->idx = HV_X64_MSR_VP_INDEX;
 			msr->write = 0;
 			msr->available = 1;
@@ -247,7 +245,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 15:
-			feat.eax |= HV_MSR_RESET_AVAILABLE;
+			feat->eax |= HV_MSR_RESET_AVAILABLE;
 			msr->idx = HV_X64_MSR_RESET;
 			msr->write = 0;
 			msr->available = 1;
@@ -265,7 +263,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 18:
-			feat.eax |= HV_MSR_REFERENCE_TSC_AVAILABLE;
+			feat->eax |= HV_MSR_REFERENCE_TSC_AVAILABLE;
 			msr->idx = HV_X64_MSR_REFERENCE_TSC;
 			msr->write = 0;
 			msr->available = 1;
@@ -292,7 +290,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 22:
-			feat.eax |= HV_MSR_SYNIC_AVAILABLE;
+			feat->eax |= HV_MSR_SYNIC_AVAILABLE;
 			msr->idx = HV_X64_MSR_EOM;
 			msr->write = 0;
 			msr->available = 1;
@@ -310,7 +308,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 25:
-			feat.eax |= HV_MSR_SYNTIMER_AVAILABLE;
+			feat->eax |= HV_MSR_SYNTIMER_AVAILABLE;
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
 			msr->write = 0;
 			msr->available = 1;
@@ -329,7 +327,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 28:
-			feat.edx |= HV_STIMER_DIRECT_MODE_AVAILABLE;
+			feat->edx |= HV_STIMER_DIRECT_MODE_AVAILABLE;
 			msr->idx = HV_X64_MSR_STIMER0_CONFIG;
 			msr->write = 1;
 			msr->write_val = 1 << 12;
@@ -342,7 +340,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 30:
-			feat.eax |= HV_MSR_APIC_ACCESS_AVAILABLE;
+			feat->eax |= HV_MSR_APIC_ACCESS_AVAILABLE;
 			msr->idx = HV_X64_MSR_EOI;
 			msr->write = 1;
 			msr->write_val = 1;
@@ -355,7 +353,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 32:
-			feat.eax |= HV_ACCESS_FREQUENCY_MSRS;
+			feat->eax |= HV_ACCESS_FREQUENCY_MSRS;
 			msr->idx = HV_X64_MSR_TSC_FREQUENCY;
 			msr->write = 0;
 			msr->available = 1;
@@ -374,7 +372,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 35:
-			feat.eax |= HV_ACCESS_REENLIGHTENMENT;
+			feat->eax |= HV_ACCESS_REENLIGHTENMENT;
 			msr->idx = HV_X64_MSR_REENLIGHTENMENT_CONTROL;
 			msr->write = 0;
 			msr->available = 1;
@@ -399,7 +397,7 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 39:
-			feat.edx |= HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
+			feat->edx |= HV_FEATURE_GUEST_CRASH_MSR_AVAILABLE;
 			msr->idx = HV_X64_MSR_CRASH_P0;
 			msr->write = 0;
 			msr->available = 1;
@@ -417,8 +415,8 @@ static void guest_test_msrs_access(void)
 			msr->available = 0;
 			break;
 		case 42:
-			feat.edx |= HV_FEATURE_DEBUG_MSRS_AVAILABLE;
-			dbg.eax |= HV_X64_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING;
+			feat->edx |= HV_FEATURE_DEBUG_MSRS_AVAILABLE;
+			dbg->eax |= HV_X64_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING;
 			msr->idx = HV_X64_MSR_SYNDBG_STATUS;
 			msr->write = 0;
 			msr->available = 1;
@@ -435,7 +433,9 @@ static void guest_test_msrs_access(void)
 			return;
 		}
 
-		hv_set_cpuid(vcpu, best, &feat, &recomm, &dbg);
+		vcpu_set_cpuid(vcpu);
+
+		memcpy(prev_cpuid, vcpu->cpuid, kvm_cpuid2_size(vcpu->cpuid->nent));
 
 		pr_debug("Stage %d: testing msr: 0x%x for %s\n", stage,
 			 msr->idx, msr->write ? "write" : "read");
@@ -463,24 +463,15 @@ static void guest_test_msrs_access(void)
 
 static void guest_test_hcalls_access(void)
 {
+	struct kvm_cpuid_entry2 *feat, *recomm, *dbg;
+	struct kvm_cpuid2 *prev_cpuid = NULL;
 	struct kvm_vcpu *vcpu;
 	struct kvm_run *run;
 	struct kvm_vm *vm;
 	struct ucall uc;
 	int stage = 0;
-	struct kvm_cpuid_entry2 feat = {
-		.function = HYPERV_CPUID_FEATURES,
-		.eax = HV_MSR_HYPERCALL_AVAILABLE
-	};
-	struct kvm_cpuid_entry2 recomm = {
-		.function = HYPERV_CPUID_ENLIGHTMENT_INFO
-	};
-	struct kvm_cpuid_entry2 dbg = {
-		.function = HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES
-	};
 	vm_vaddr_t hcall_page, hcall_params;
 	struct hcall_data *hcall;
-	struct kvm_cpuid2 *best;
 
 	while (true) {
 		vm = vm_create_with_one_vcpu(&vcpu, guest_hcall);
@@ -499,14 +490,23 @@ static void guest_test_hcalls_access(void)
 		vcpu_args_set(vcpu, 2, addr_gva2gpa(vm, hcall_page), hcall_params);
 		vcpu_enable_cap(vcpu, KVM_CAP_HYPERV_ENFORCE_CPUID, 1);
 
-		vcpu_set_hv_cpuid(vcpu);
+		if (!prev_cpuid) {
+			vcpu_reset_hv_cpuid(vcpu);
 
-		best = kvm_get_supported_hv_cpuid();
+			prev_cpuid = allocate_kvm_cpuid2(vcpu->cpuid->nent);
+		} else {
+			vcpu_init_cpuid(vcpu, prev_cpuid);
+		}
+
+		feat = vcpu_get_cpuid_entry(vcpu, HYPERV_CPUID_FEATURES);
+		recomm = vcpu_get_cpuid_entry(vcpu, HYPERV_CPUID_ENLIGHTMENT_INFO);
+		dbg = vcpu_get_cpuid_entry(vcpu, HYPERV_CPUID_SYNDBG_PLATFORM_CAPABILITIES);
 
 		run = vcpu->run;
 
 		switch (stage) {
 		case 0:
+			feat->eax |= HV_MSR_HYPERCALL_AVAILABLE;
 			hcall->control = 0xdeadbeef;
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_CODE;
 			break;
@@ -516,7 +516,7 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 2:
-			feat.ebx |= HV_POST_MESSAGES;
+			feat->ebx |= HV_POST_MESSAGES;
 			hcall->control = HVCALL_POST_MESSAGE;
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
@@ -526,7 +526,7 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 4:
-			feat.ebx |= HV_SIGNAL_EVENTS;
+			feat->ebx |= HV_SIGNAL_EVENTS;
 			hcall->control = HVCALL_SIGNAL_EVENT;
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
@@ -536,12 +536,12 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_CODE;
 			break;
 		case 6:
-			dbg.eax |= HV_X64_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING;
+			dbg->eax |= HV_X64_SYNDBG_CAP_ALLOW_KERNEL_DEBUGGING;
 			hcall->control = HVCALL_RESET_DEBUG_SESSION;
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 7:
-			feat.ebx |= HV_DEBUGGING;
+			feat->ebx |= HV_DEBUGGING;
 			hcall->control = HVCALL_RESET_DEBUG_SESSION;
 			hcall->expect = HV_STATUS_OPERATION_DENIED;
 			break;
@@ -551,7 +551,7 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 9:
-			recomm.eax |= HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED;
+			recomm->eax |= HV_X64_REMOTE_TLB_FLUSH_RECOMMENDED;
 			hcall->control = HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE;
 			hcall->expect = HV_STATUS_SUCCESS;
 			break;
@@ -560,7 +560,7 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 11:
-			recomm.eax |= HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED;
+			recomm->eax |= HV_X64_EX_PROCESSOR_MASKS_RECOMMENDED;
 			hcall->control = HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE_EX;
 			hcall->expect = HV_STATUS_SUCCESS;
 			break;
@@ -570,7 +570,7 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 13:
-			recomm.eax |= HV_X64_CLUSTER_IPI_RECOMMENDED;
+			recomm->eax |= HV_X64_CLUSTER_IPI_RECOMMENDED;
 			hcall->control = HVCALL_SEND_IPI;
 			hcall->expect = HV_STATUS_INVALID_HYPERCALL_INPUT;
 			break;
@@ -585,7 +585,7 @@ static void guest_test_hcalls_access(void)
 			hcall->expect = HV_STATUS_ACCESS_DENIED;
 			break;
 		case 16:
-			recomm.ebx = 0xfff;
+			recomm->ebx = 0xfff;
 			hcall->control = HVCALL_NOTIFY_LONG_SPIN_WAIT;
 			hcall->expect = HV_STATUS_SUCCESS;
 			break;
@@ -595,7 +595,7 @@ static void guest_test_hcalls_access(void)
 			hcall->ud_expected = true;
 			break;
 		case 18:
-			feat.edx |= HV_X64_HYPERCALL_XMM_INPUT_AVAILABLE;
+			feat->edx |= HV_X64_HYPERCALL_XMM_INPUT_AVAILABLE;
 			hcall->control = HVCALL_FLUSH_VIRTUAL_ADDRESS_SPACE | HV_HYPERCALL_FAST_BIT;
 			hcall->ud_expected = false;
 			hcall->expect = HV_STATUS_SUCCESS;
@@ -605,7 +605,9 @@ static void guest_test_hcalls_access(void)
 			return;
 		}
 
-		hv_set_cpuid(vcpu, best, &feat, &recomm, &dbg);
+		vcpu_set_cpuid(vcpu);
+
+		memcpy(prev_cpuid, vcpu->cpuid, kvm_cpuid2_size(vcpu->cpuid->nent));
 
 		pr_debug("Stage %d: testing hcall: 0x%lx\n", stage, hcall->control);
 

@@ -1224,24 +1224,6 @@ struct kvm_cpuid_entry2 *get_cpuid_entry(struct kvm_cpuid2 *cpuid,
 	return NULL;
 }
 
-bool set_cpuid(struct kvm_cpuid2 *cpuid,
-	       struct kvm_cpuid_entry2 *ent)
-{
-	int i;
-
-	for (i = 0; i < cpuid->nent; i++) {
-		struct kvm_cpuid_entry2 *cur = &cpuid->entries[i];
-
-		if (cur->function != ent->function || cur->index != ent->index)
-			continue;
-
-		memcpy(cur, ent, sizeof(struct kvm_cpuid_entry2));
-		return true;
-	}
-
-	return false;
-}
-
 uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 		       uint64_t a3)
 {

@@ -801,15 +801,6 @@ uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 void vm_set_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 			     uint64_t vaddr, uint64_t pte);
 
-/*
- * set_cpuid() - overwrites a matching cpuid entry with the provided value.
- *		 matches based on ent->function && ent->index. returns true
- *		 if a match was found and successfully overwritten.
- * @cpuid: the kvm cpuid list to modify.
- * @ent: cpuid entry to insert
- */
-bool set_cpuid(struct kvm_cpuid2 *cpuid, struct kvm_cpuid_entry2 *ent);
-
 uint64_t kvm_hypercall(uint64_t nr, uint64_t a0, uint64_t a1, uint64_t a2,
 		       uint64_t a3);
 
