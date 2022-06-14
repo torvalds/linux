@@ -15,11 +15,11 @@
 #include <linux/of_graph.h>
 #include <linux/of_platform.h>
 #include <linux/pinctrl/consumer.h>
-#include <linux/phy/phy.h>
-#include <linux/phy/phy-mipi-dphy.h>
+#include <linux/pm_runtime.h>
 #include <media/v4l2-fwnode.h>
 
 #include "rkisp1-common.h"
+#include "rkisp1-csi.h"
 
 /*
  * ISP Details
@@ -128,14 +128,6 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	}
 
 	s_asd->sd = sd;
-	s_asd->dphy = devm_phy_get(rkisp1->dev, "dphy");
-	if (IS_ERR(s_asd->dphy)) {
-		if (PTR_ERR(s_asd->dphy) != -EPROBE_DEFER)
-			dev_err(rkisp1->dev, "Couldn't get the MIPI D-PHY\n");
-		return PTR_ERR(s_asd->dphy);
-	}
-
-	phy_init(s_asd->dphy);
 
 	/* Create the link to the sensor. */
 	source_pad = media_entity_get_fwnode_pad(&sd->entity, s_asd->source_ep,
@@ -150,16 +142,6 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 				     &rkisp1->isp.sd.entity,
 				     RKISP1_ISP_PAD_SINK_VIDEO,
 				     !s_asd->index ? MEDIA_LNK_FL_ENABLED : 0);
-}
-
-static void rkisp1_subdev_notifier_unbind(struct v4l2_async_notifier *notifier,
-					  struct v4l2_subdev *sd,
-					  struct v4l2_async_subdev *asd)
-{
-	struct rkisp1_sensor_async *s_asd =
-		container_of(asd, struct rkisp1_sensor_async, asd);
-
-	phy_exit(s_asd->dphy);
 }
 
 static int rkisp1_subdev_notifier_complete(struct v4l2_async_notifier *notifier)
@@ -180,7 +162,6 @@ static void rkisp1_subdev_notifier_destroy(struct v4l2_async_subdev *asd)
 
 static const struct v4l2_async_notifier_operations rkisp1_subdev_notifier_ops = {
 	.bound = rkisp1_subdev_notifier_bound,
-	.unbind = rkisp1_subdev_notifier_unbind,
 	.complete = rkisp1_subdev_notifier_complete,
 	.destroy = rkisp1_subdev_notifier_destroy,
 };
@@ -540,14 +521,20 @@ static int rkisp1_probe(struct platform_device *pdev)
 		goto err_unreg_v4l2_dev;
 	}
 
-	ret = rkisp1_entities_register(rkisp1);
+	ret = rkisp1_csi_init(rkisp1);
 	if (ret)
 		goto err_unreg_media_dev;
+
+	ret = rkisp1_entities_register(rkisp1);
+	if (ret)
+		goto err_cleanup_csi;
 
 	rkisp1_debug_init(rkisp1);
 
 	return 0;
 
+err_cleanup_csi:
+	rkisp1_csi_cleanup(rkisp1);
 err_unreg_media_dev:
 	media_device_unregister(&rkisp1->media_dev);
 err_unreg_v4l2_dev:
@@ -565,6 +552,7 @@ static int rkisp1_remove(struct platform_device *pdev)
 	v4l2_async_nf_cleanup(&rkisp1->notifier);
 
 	rkisp1_entities_unregister(rkisp1);
+	rkisp1_csi_cleanup(rkisp1);
 	rkisp1_debug_cleanup(rkisp1);
 
 	media_device_unregister(&rkisp1->media_dev);

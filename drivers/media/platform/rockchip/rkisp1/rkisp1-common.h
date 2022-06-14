@@ -123,7 +123,6 @@ struct rkisp1_info {
  * @mbus_flags:		media bus (V4L2_MBUS_*) flags
  * @sd:			a pointer to v4l2_subdev struct of the sensor
  * @pixel_rate_ctrl:	pixel rate of the sensor, used to initialize the phy
- * @dphy:		a pointer to the phy
  */
 struct rkisp1_sensor_async {
 	struct v4l2_async_subdev asd;
@@ -134,7 +133,19 @@ struct rkisp1_sensor_async {
 	unsigned int mbus_flags;
 	struct v4l2_subdev *sd;
 	struct v4l2_ctrl *pixel_rate_ctrl;
+};
+
+/*
+ * struct rkisp1_csi - CSI receiver subdev
+ *
+ * @rkisp1: pointer to the rkisp1 device
+ * @dphy: a pointer to the phy
+ * @is_dphy_errctrl_disabled: if dphy errctrl is disabled (avoid endless interrupt)
+ */
+struct rkisp1_csi {
+	struct rkisp1_device *rkisp1;
 	struct phy *dphy;
+	bool is_dphy_errctrl_disabled;
 };
 
 /*
@@ -147,7 +158,6 @@ struct rkisp1_sensor_async {
  * @sink_fmt:			input format
  * @src_fmt:			output format
  * @ops_lock:			ops serialization
- * @is_dphy_errctrl_disabled:	if dphy errctrl is disabled (avoid endless interrupt)
  * @frame_sequence:		used to synchronize frame_id between video devices.
  */
 struct rkisp1_isp {
@@ -157,7 +167,6 @@ struct rkisp1_isp {
 	const struct rkisp1_mbus_info *sink_fmt;
 	const struct rkisp1_mbus_info *src_fmt;
 	struct mutex ops_lock; /* serialize the subdevice ops */
-	bool is_dphy_errctrl_disabled;
 	__u32 frame_sequence;
 };
 
@@ -402,6 +411,7 @@ struct rkisp1_debug {
  * @media_dev:	   media_device variable
  * @notifier:	   a notifier to register on the v4l2-async API to be notified on the sensor
  * @active_sensor: sensor in-use, set when streaming on
+ * @csi:	   internal CSI-2 receiver
  * @isp:	   ISP sub-device
  * @resizer_devs:  resizer sub-devices
  * @capture_devs:  capture devices
@@ -421,6 +431,7 @@ struct rkisp1_device {
 	struct media_device media_dev;
 	struct v4l2_async_notifier notifier;
 	struct rkisp1_sensor_async *active_sensor;
+	struct rkisp1_csi csi;
 	struct rkisp1_isp isp;
 	struct rkisp1_resizer resizer_devs[2];
 	struct rkisp1_capture capture_devs[2];

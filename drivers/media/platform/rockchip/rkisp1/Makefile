@@ -2,6 +2,7 @@
 
 rockchip-isp1-y := rkisp1-capture.o \
 		   rkisp1-common.o \
+		   rkisp1-csi.o \
 		   rkisp1-dev.o \
 		   rkisp1-isp.o \
 		   rkisp1-resizer.o \

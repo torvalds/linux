@@ -9,8 +9,6 @@
  */
 
 #include <linux/iopoll.h>
-#include <linux/phy/phy.h>
-#include <linux/phy/phy-mipi-dphy.h>
 #include <linux/pm_runtime.h>
 #include <linux/videodev2.h>
 #include <linux/vmalloc.h>
@@ -18,6 +16,7 @@
 #include <media/v4l2-event.h>
 
 #include "rkisp1-common.h"
+#include "rkisp1-csi.h"
 
 #define RKISP1_DEF_SINK_PAD_FMT MEDIA_BUS_FMT_SRGGB10_1X10
 #define RKISP1_DEF_SRC_PAD_FMT MEDIA_BUS_FMT_YUYV8_2X8
@@ -265,55 +264,6 @@ static int rkisp1_config_dvp(struct rkisp1_device *rkisp1)
 	return 0;
 }
 
-static int rkisp1_config_mipi(struct rkisp1_device *rkisp1)
-{
-	const struct rkisp1_mbus_info *sink_fmt = rkisp1->isp.sink_fmt;
-	unsigned int lanes = rkisp1->active_sensor->lanes;
-	u32 mipi_ctrl;
-
-	if (lanes < 1 || lanes > 4)
-		return -EINVAL;
-
-	mipi_ctrl = RKISP1_CIF_MIPI_CTRL_NUM_LANES(lanes - 1) |
-		    RKISP1_CIF_MIPI_CTRL_SHUTDOWNLANES(0xf) |
-		    RKISP1_CIF_MIPI_CTRL_ERR_SOT_SYNC_HS_SKIP |
-		    RKISP1_CIF_MIPI_CTRL_CLOCKLANE_ENA;
-
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_CTRL, mipi_ctrl);
-
-	/* V12 could also use a newer csi2-host, but we don't want that yet */
-	if (rkisp1->info->isp_ver == RKISP1_V12)
-		rkisp1_write(rkisp1, RKISP1_CIF_ISP_CSI0_CTRL0, 0);
-
-	/* Configure Data Type and Virtual Channel */
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMG_DATA_SEL,
-		     RKISP1_CIF_MIPI_DATA_SEL_DT(sink_fmt->mipi_dt) |
-		     RKISP1_CIF_MIPI_DATA_SEL_VC(0));
-
-	/* Clear MIPI interrupts */
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_ICR, ~0);
-	/*
-	 * Disable RKISP1_CIF_MIPI_ERR_DPHY interrupt here temporary for
-	 * isp bus may be dead when switch isp.
-	 */
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC,
-		     RKISP1_CIF_MIPI_FRAME_END | RKISP1_CIF_MIPI_ERR_CSI |
-		     RKISP1_CIF_MIPI_ERR_DPHY |
-		     RKISP1_CIF_MIPI_SYNC_FIFO_OVFLW(0x03) |
-		     RKISP1_CIF_MIPI_ADD_DATA_OVFLW);
-
-	dev_dbg(rkisp1->dev, "\n  MIPI_CTRL 0x%08x\n"
-		"  MIPI_IMG_DATA_SEL 0x%08x\n"
-		"  MIPI_STATUS 0x%08x\n"
-		"  MIPI_IMSC 0x%08x\n",
-		rkisp1_read(rkisp1, RKISP1_CIF_MIPI_CTRL),
-		rkisp1_read(rkisp1, RKISP1_CIF_MIPI_IMG_DATA_SEL),
-		rkisp1_read(rkisp1, RKISP1_CIF_MIPI_STATUS),
-		rkisp1_read(rkisp1, RKISP1_CIF_MIPI_IMSC));
-
-	return 0;
-}
-
 /* Configure MUX */
 static int rkisp1_config_path(struct rkisp1_device *rkisp1)
 {
@@ -326,7 +276,7 @@ static int rkisp1_config_path(struct rkisp1_device *rkisp1)
 		ret = rkisp1_config_dvp(rkisp1);
 		dpcl |= RKISP1_CIF_VI_DPCL_IF_SEL_PARALLEL;
 	} else if (sensor->mbus_type == V4L2_MBUS_CSI2_DPHY) {
-		ret = rkisp1_config_mipi(rkisp1);
+		ret = rkisp1_config_mipi(&rkisp1->csi);
 		dpcl |= RKISP1_CIF_VI_DPCL_IF_SEL_MIPI;
 	}
 
@@ -360,17 +310,14 @@ static void rkisp1_isp_stop(struct rkisp1_device *rkisp1)
 	 * Stop ISP(isp) ->wait for ISP isp off
 	 */
 	/* stop and clear MI, MIPI, and ISP interrupts */
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC, 0);
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_ICR, ~0);
-
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_IMSC, 0);
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ICR, ~0);
 
 	rkisp1_write(rkisp1, RKISP1_CIF_MI_IMSC, 0);
 	rkisp1_write(rkisp1, RKISP1_CIF_MI_ICR, ~0);
-	val = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_CTRL);
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_CTRL,
-		     val & (~RKISP1_CIF_MIPI_CTRL_OUTPUT_ENA));
+
+	rkisp1_mipi_stop(&rkisp1->csi);
+
 	/* stop ISP */
 	val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_CTRL);
 	val &= ~(RKISP1_CIF_ISP_CTRL_ISP_INFORM_ENABLE |
@@ -417,11 +364,9 @@ static void rkisp1_isp_start(struct rkisp1_device *rkisp1)
 	rkisp1_config_clk(rkisp1);
 
 	/* Activate MIPI */
-	if (sensor->mbus_type == V4L2_MBUS_CSI2_DPHY) {
-		val = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_CTRL);
-		rkisp1_write(rkisp1, RKISP1_CIF_MIPI_CTRL,
-			     val | RKISP1_CIF_MIPI_CTRL_OUTPUT_ENA);
-	}
+	if (sensor->mbus_type == V4L2_MBUS_CSI2_DPHY)
+		rkisp1_mipi_start(&rkisp1->csi);
+
 	/* Activate ISP */
 	val = rkisp1_read(rkisp1, RKISP1_CIF_ISP_CTRL);
 	val |= RKISP1_CIF_ISP_CTRL_ISP_CFG_UPD |
@@ -814,35 +759,6 @@ static const struct v4l2_subdev_pad_ops rkisp1_isp_pad_ops = {
  * Stream operations
  */
 
-static int rkisp1_mipi_csi2_start(struct rkisp1_isp *isp,
-				  struct rkisp1_sensor_async *sensor)
-{
-	struct rkisp1_device *rkisp1 =
-		container_of(isp->sd.v4l2_dev, struct rkisp1_device, v4l2_dev);
-	union phy_configure_opts opts;
-	struct phy_configure_opts_mipi_dphy *cfg = &opts.mipi_dphy;
-	s64 pixel_clock;
-
-	pixel_clock = v4l2_ctrl_g_ctrl_int64(sensor->pixel_rate_ctrl);
-	if (!pixel_clock) {
-		dev_err(rkisp1->dev, "Invalid pixel rate value\n");
-		return -EINVAL;
-	}
-
-	phy_mipi_dphy_get_default_config(pixel_clock, isp->sink_fmt->bus_width,
-					 sensor->lanes, cfg);
-	phy_set_mode(sensor->dphy, PHY_MODE_MIPI_DPHY);
-	phy_configure(sensor->dphy, &opts);
-	phy_power_on(sensor->dphy);
-
-	return 0;
-}
-
-static void rkisp1_mipi_csi2_stop(struct rkisp1_sensor_async *sensor)
-{
-	phy_power_off(sensor->dphy);
-}
-
 static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rkisp1_device *rkisp1 =
@@ -856,7 +772,7 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 				 false);
 
 		rkisp1_isp_stop(rkisp1);
-		rkisp1_mipi_csi2_stop(rkisp1->active_sensor);
+		rkisp1_mipi_csi2_stop(&rkisp1->csi);
 		return 0;
 	}
 
@@ -878,7 +794,7 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 	if (ret)
 		goto mutex_unlock;
 
-	ret = rkisp1_mipi_csi2_start(&rkisp1->isp, rkisp1->active_sensor);
+	ret = rkisp1_mipi_csi2_start(&rkisp1->csi, rkisp1->active_sensor);
 	if (ret)
 		goto mutex_unlock;
 
@@ -888,7 +804,7 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 			       true);
 	if (ret) {
 		rkisp1_isp_stop(rkisp1);
-		rkisp1_mipi_csi2_stop(rkisp1->active_sensor);
+		rkisp1_mipi_csi2_stop(&rkisp1->csi);
 		goto mutex_unlock;
 	}
 
@@ -992,53 +908,6 @@ void rkisp1_isp_unregister(struct rkisp1_device *rkisp1)
 /* ----------------------------------------------------------------------------
  * Interrupt handlers
  */
-
-irqreturn_t rkisp1_mipi_isr(int irq, void *ctx)
-{
-	struct device *dev = ctx;
-	struct rkisp1_device *rkisp1 = dev_get_drvdata(dev);
-	u32 val, status;
-
-	status = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_MIS);
-	if (!status)
-		return IRQ_NONE;
-
-	rkisp1_write(rkisp1, RKISP1_CIF_MIPI_ICR, status);
-
-	/*
-	 * Disable DPHY errctrl interrupt, because this dphy
-	 * erctrl signal is asserted until the next changes
-	 * of line state. This time is may be too long and cpu
-	 * is hold in this interrupt.
-	 */
-	if (status & RKISP1_CIF_MIPI_ERR_CTRL(0x0f)) {
-		val = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_IMSC);
-		rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC,
-			     val & ~RKISP1_CIF_MIPI_ERR_CTRL(0x0f));
-		rkisp1->isp.is_dphy_errctrl_disabled = true;
-	}
-
-	/*
-	 * Enable DPHY errctrl interrupt again, if mipi have receive
-	 * the whole frame without any error.
-	 */
-	if (status == RKISP1_CIF_MIPI_FRAME_END) {
-		/*
-		 * Enable DPHY errctrl interrupt again, if mipi have receive
-		 * the whole frame without any error.
-		 */
-		if (rkisp1->isp.is_dphy_errctrl_disabled) {
-			val = rkisp1_read(rkisp1, RKISP1_CIF_MIPI_IMSC);
-			val |= RKISP1_CIF_MIPI_ERR_CTRL(0x0f);
-			rkisp1_write(rkisp1, RKISP1_CIF_MIPI_IMSC, val);
-			rkisp1->isp.is_dphy_errctrl_disabled = false;
-		}
-	} else {
-		rkisp1->debug.mipi_error++;
-	}
-
-	return IRQ_HANDLED;
-}
 
 static void rkisp1_isp_queue_event_sof(struct rkisp1_isp *isp)
 {
