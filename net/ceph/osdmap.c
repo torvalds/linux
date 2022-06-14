@@ -571,10 +571,10 @@ static struct crush_map *crush_decode(void *pbyval, void *end)
 			goto bad;
 #endif
 		r = kmalloc(struct_size(r, steps, yes), GFP_NOFS);
-		c->rules[i] = r;
 		if (r == NULL)
 			goto badmem;
 		dout(" rule %d is at %p\n", i, r);
+		c->rules[i] = r;
 		r->len = yes;
 		ceph_decode_copy_safe(p, end, &r->mask, 4, bad); /* 4 u8's */
 		ceph_decode_need(p, end, r->len*3*sizeof(u32), bad);
