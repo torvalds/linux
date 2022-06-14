@@ -618,6 +618,8 @@ static inline struct kvm_cpuid2 *allocate_kvm_cpuid2(int nr_entries)
 	return cpuid;
 }
 
+struct kvm_cpuid_entry2 *get_cpuid_entry(struct kvm_cpuid2 *cpuid,
+					 uint32_t function, uint32_t index);
 void vcpu_init_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid);
 
 static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu)
@@ -643,8 +645,11 @@ static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 	vcpu_ioctl(vcpu, KVM_GET_CPUID2, vcpu->cpuid);
 }
 
-struct kvm_cpuid_entry2 *
-kvm_get_supported_cpuid_index(uint32_t function, uint32_t index);
+static inline struct kvm_cpuid_entry2 *kvm_get_supported_cpuid_index(uint32_t function,
+								     uint32_t index)
+{
+	return get_cpuid_entry(kvm_get_supported_cpuid(), function, index);
+}
 
 static inline struct kvm_cpuid_entry2 *
 kvm_get_supported_cpuid_entry(uint32_t function)
@@ -763,11 +768,6 @@ uint64_t vm_get_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 void vm_set_page_table_entry(struct kvm_vm *vm, struct kvm_vcpu *vcpu,
 			     uint64_t vaddr, uint64_t pte);
 
-/*
- * get_cpuid() - find matching CPUID entry and return pointer to it.
- */
-struct kvm_cpuid_entry2 *get_cpuid_entry(struct kvm_cpuid2 *cpuid,
-					 uint32_t function, uint32_t index);
 /*
  * set_cpuid() - overwrites a matching cpuid entry with the provided value.
  *		 matches based on ent->function && ent->index. returns true
