@@ -269,7 +269,7 @@
 		arm,no-tick-in-suspend;
 	};
 
-	soc@0 {
+	soc: soc@0 {
 		compatible = "fsl,imx8mn-soc", "simple-bus";
 		#address-cells = <1>;
 		#size-cells = <1>;
