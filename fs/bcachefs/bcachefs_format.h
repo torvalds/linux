@@ -1330,7 +1330,8 @@ struct bch_sb_field_disk_groups {
 	x(io_read,		0)			\
 	x(io_write,		1)			\
 	x(io_move,		2)			\
-	x(bucket_invalidate,	3)
+	x(bucket_invalidate,	3)			\
+	x(bucket_discard,	4)
 
 enum bch_persistent_counters {
 #define x(t, n, ...) BCH_COUNTER_##t,

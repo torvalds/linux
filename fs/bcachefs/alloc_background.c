@@ -1052,6 +1052,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 		if (ret)
 			break;
 
+		this_cpu_inc(c->counters[BCH_COUNTER_bucket_discard]);
 		discarded++;
 	}
 	bch2_trans_iter_exit(&trans, &iter);
