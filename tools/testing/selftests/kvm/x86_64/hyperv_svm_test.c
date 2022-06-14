@@ -127,7 +127,7 @@ int main(int argc, char *argv[])
 	struct ucall uc;
 	int stage;
 
-	TEST_REQUIRE(nested_svm_supported());
+	TEST_REQUIRE(kvm_cpu_has(X86_FEATURE_SVM));
 
 	/* Create VM */
 	vm = vm_create_with_one_vcpu(&vcpu, guest_code);
