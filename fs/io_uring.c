@@ -576,7 +576,6 @@ struct io_close {
 	struct file			*file;
 	int				fd;
 	u32				file_slot;
-	u32				flags;
 };
 
 struct io_timeout_data {
@@ -5966,18 +5965,14 @@ static int io_statx(struct io_kiocb *req, unsigned int issue_flags)
 
 static int io_close_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
-	if (sqe->off || sqe->addr || sqe->len || sqe->buf_index)
+	if (sqe->off || sqe->addr || sqe->len || sqe->rw_flags || sqe->buf_index)
 		return -EINVAL;
 	if (req->flags & REQ_F_FIXED_FILE)
 		return -EBADF;
 
 	req->close.fd = READ_ONCE(sqe->fd);
 	req->close.file_slot = READ_ONCE(sqe->file_index);
-	req->close.flags = READ_ONCE(sqe->close_flags);
-	if (req->close.flags & ~IORING_CLOSE_FD_AND_FILE_SLOT)
-		return -EINVAL;
-	if (!(req->close.flags & IORING_CLOSE_FD_AND_FILE_SLOT) &&
-	    req->close.file_slot && req->close.fd)
+	if (req->close.file_slot && req->close.fd)
 		return -EINVAL;
 
 	return 0;
@@ -5993,8 +5988,7 @@ static int io_close(struct io_kiocb *req, unsigned int issue_flags)
 
 	if (req->close.file_slot) {
 		ret = io_close_fixed(req, issue_flags);
-		if (ret || !(req->close.flags & IORING_CLOSE_FD_AND_FILE_SLOT))
-			goto err;
+		goto err;
 	}
 
 	spin_lock(&files->file_lock);
