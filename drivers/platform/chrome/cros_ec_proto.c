@@ -346,7 +346,7 @@ static int cros_ec_get_proto_info(struct cros_ec_device *ec_dev, int devidx)
 		dev_dbg(ec_dev->dev, "found PD chip\n");
 		break;
 	default:
-		dev_dbg(ec_dev->dev, "unknwon passthru index: %d\n", devidx);
+		dev_dbg(ec_dev->dev, "unknown passthru index: %d\n", devidx);
 		break;
 	}
 
