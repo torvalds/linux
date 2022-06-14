@@ -923,24 +923,30 @@ unlock:
 	return ret;
 }
 
+static int rockchip_dp_phy_verify_link_rate(unsigned int link_rate)
+{
+	switch (link_rate) {
+	case 1620:
+	case 2700:
+	case 5400:
+	case 8100:
+		break;
+	default:
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
 static int rockchip_dp_phy_verify_config(struct rockchip_udphy *udphy,
 					 struct phy_configure_opts_dp *dp)
 {
-	int i;
+	int i, ret;
 
 	/* If changing link rate was required, verify it's supported. */
-	if (dp->set_rate) {
-		switch (dp->link_rate) {
-		case 1620:
-		case 2700:
-		case 5400:
-		case 8100:
-			/* valid bit rate */
-			break;
-		default:
-			return -EINVAL;
-		}
-	}
+	ret = rockchip_dp_phy_verify_link_rate(dp->link_rate);
+	if (ret)
+		return ret;
 
 	/* Verify lane count. */
 	switch (dp->lanes) {
@@ -1147,6 +1153,24 @@ static void udphy_typec_mux_unregister(void *data)
 	typec_mux_unregister(udphy->mux);
 }
 
+static u32 udphy_dp_get_max_link_rate(struct rockchip_udphy *udphy, struct device_node *np)
+{
+	u32 max_link_rate;
+	int ret;
+
+	ret = of_property_read_u32(np, "max-link-rate", &max_link_rate);
+	if (ret)
+		return 8100;
+
+	ret = rockchip_dp_phy_verify_link_rate(max_link_rate);
+	if (ret) {
+		dev_warn(udphy->dev, "invalid max-link-rate value:%d\n", max_link_rate);
+		max_link_rate = 8100;
+	}
+
+	return max_link_rate;
+}
+
 static const struct regmap_config rockchip_udphy_pma_regmap_cfg = {
 	.reg_bits = 32,
 	.reg_stride = 4,
@@ -1231,16 +1255,21 @@ static int rockchip_udphy_probe(struct platform_device *pdev)
 
 		if (of_node_name_eq(child_np, "dp-port")) {
 			phy = devm_phy_create(dev, child_np, &rockchip_dp_phy_ops);
-			phy_set_bus_width(phy, udphy_dplane_get(udphy));
-		} else if (of_node_name_eq(child_np, "u3-port"))
-			phy = devm_phy_create(dev, child_np, &rockchip_u3phy_ops);
-		else
-			continue;
+			if (IS_ERR(phy)) {
+				dev_err(dev, "failed to create dp phy: %pOFn\n", child_np);
+				goto put_child;
+			}
 
-		if (IS_ERR(phy)) {
-			dev_err(dev, "failed to create phy: %pOFn\n", child_np);
-			goto put_child;
-		}
+			phy_set_bus_width(phy, udphy_dplane_get(udphy));
+			phy->attrs.max_link_rate = udphy_dp_get_max_link_rate(udphy, child_np);
+		} else if (of_node_name_eq(child_np, "u3-port")) {
+			phy = devm_phy_create(dev, child_np, &rockchip_u3phy_ops);
+			if (IS_ERR(phy)) {
+				dev_err(dev, "failed to create usb phy: %pOFn\n", child_np);
+				goto put_child;
+			}
+		} else
+			continue;
 
 		phy_set_drvdata(phy, udphy);
 	}
