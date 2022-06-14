@@ -23,6 +23,8 @@
  * stack overflow.
  */
 
+#include <linux/bitfield.h>
+#include <linux/bits.h>
 #include <linux/module.h>
 #include <linux/kd.h>
 #include <linux/errno.h>
@@ -190,10 +192,17 @@ static enum translation_map inv_translate[MAX_NR_CONSOLES];
 #define UNI_DIR_ROWS	32U
 #define UNI_ROW_GLYPHS	64U
 
-#define UNI_DIR(uni)		( (uni)                   >> 11)
-#define UNI_ROW(uni)		(((uni) & GENMASK(10, 6)) >>  6)
-#define UNI_GLYPH(uni)		( (uni) & GENMASK( 5, 0))
-#define UNI(dir, row, glyph)	(((dir) << 11) | ((row) << 6) | (glyph))
+#define UNI_DIR_BITS		GENMASK(15, 11)
+#define UNI_ROW_BITS		GENMASK(10,  6)
+#define UNI_GLYPH_BITS		GENMASK( 5,  0)
+
+#define UNI_DIR(uni)		FIELD_GET(UNI_DIR_BITS, (uni))
+#define UNI_ROW(uni)		FIELD_GET(UNI_ROW_BITS, (uni))
+#define UNI_GLYPH(uni)		FIELD_GET(UNI_GLYPH_BITS, (uni))
+
+#define UNI(dir, row, glyph)	(FIELD_PREP(UNI_DIR_BITS, (dir)) | \
+				 FIELD_PREP(UNI_ROW_BITS, (row)) | \
+				 FIELD_PREP(UNI_GLYPH_BITS, (glyph)))
 
 /**
  * struct uni_pagedict -- unicode directory
