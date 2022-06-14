@@ -7847,6 +7847,13 @@ static int vmx_enter_smm(struct kvm_vcpu *vcpu, char *smstate)
 {
 	struct vcpu_vmx *vmx = to_vmx(vcpu);
 
+	/*
+	 * TODO: Implement custom flows for forcing the vCPU out/in of L2 on
+	 * SMI and RSM.  Using the common VM-Exit + VM-Enter routines is wrong
+	 * SMI and RSM only modify state that is saved and restored via SMRAM.
+	 * E.g. most MSRs are left untouched, but many are modified by VM-Exit
+	 * and VM-Enter, and thus L2's values may be corrupted on SMI+RSM.
+	 */
 	vmx->nested.smm.guest_mode = is_guest_mode(vcpu);
 	if (vmx->nested.smm.guest_mode)
 		nested_vmx_vmexit(vcpu, -1, 0, 0);

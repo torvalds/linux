@@ -219,9 +219,18 @@ struct nested_vmx {
 	bool has_preemption_timer_deadline;
 	bool preemption_timer_expired;
 
-	/* to migrate it to L2 if VM_ENTRY_LOAD_DEBUG_CONTROLS is off */
-	u64 vmcs01_debugctl;
-	u64 vmcs01_guest_bndcfgs;
+	/*
+	 * Used to snapshot MSRs that are conditionally loaded on VM-Enter in
+	 * order to propagate the guest's pre-VM-Enter value into vmcs02.  For
+	 * emulation of VMLAUNCH/VMRESUME, the snapshot will be of L1's value.
+	 * For KVM_SET_NESTED_STATE, the snapshot is of L2's value, _if_
+	 * userspace restores MSRs before nested state.  If userspace restores
+	 * MSRs after nested state, the snapshot holds garbage, but KVM can't
+	 * detect that, and the garbage value in vmcs02 will be overwritten by
+	 * MSR restoration in any case.
+	 */
+	u64 pre_vmenter_debugctl;
+	u64 pre_vmenter_bndcfgs;
 
 	/* to migrate it to L1 if L2 writes to L1's CR8 directly */
 	int l1_tpr_threshold;
