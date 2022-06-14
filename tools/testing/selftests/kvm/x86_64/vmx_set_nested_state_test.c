@@ -121,7 +121,7 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	test_nested_state(vcpu, state);
 
 	/* Enable VMX in the guest CPUID. */
-	vcpu_set_cpuid(vcpu);
+	vcpu_set_cpuid_feature(vcpu, X86_FEATURE_VMX);
 
 	/*
 	 * Setting vmxon_pa == -1ull and vmcs_pa == -1ull exits early without
@@ -243,22 +243,6 @@ void test_vmx_nested_state(struct kvm_vcpu *vcpu)
 	free(state);
 }
 
-void disable_vmx(struct kvm_vcpu *vcpu)
-{
-	struct kvm_cpuid2 *cpuid = vcpu->cpuid;
-	int i;
-
-	for (i = 0; i < cpuid->nent; ++i)
-		if (cpuid->entries[i].function == 1 &&
-		    cpuid->entries[i].index == 0)
-			break;
-	TEST_ASSERT(i != cpuid->nent, "CPUID function 1 not found");
-
-	cpuid->entries[i].ecx &= ~CPUID_VMX;
-	vcpu_set_cpuid(vcpu);
-	cpuid->entries[i].ecx |= CPUID_VMX;
-}
-
 int main(int argc, char *argv[])
 {
 	struct kvm_vm *vm;
@@ -280,7 +264,7 @@ int main(int argc, char *argv[])
 	/*
 	 * First run tests with VMX disabled to check error handling.
 	 */
-	disable_vmx(vcpu);
+	vcpu_clear_cpuid_feature(vcpu, X86_FEATURE_VMX);
 
 	/* Passing a NULL kvm_nested_state causes a EFAULT. */
 	test_nested_state_expect_efault(vcpu, NULL);
