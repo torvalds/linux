@@ -1832,6 +1832,11 @@ static void rcu_tasks_initiate_self_tests(void)
 #endif
 }
 
+/*
+ * Return:  0 - test passed
+ *	    1 - test failed, but have not timed out yet
+ *	   -1 - test failed and timed out
+ */
 static int rcu_tasks_verify_self_tests(void)
 {
 	int ret = 0;
@@ -1847,16 +1852,38 @@ static int rcu_tasks_verify_self_tests(void)
 				ret = -1;
 				break;
 			}
-			schedule_timeout_uninterruptible(1);
+			ret = 1;
+			break;
 		}
 	}
-
-	if (ret)
-		WARN_ON(1);
+	WARN_ON(ret < 0);
 
 	return ret;
 }
-late_initcall(rcu_tasks_verify_self_tests);
+
+/*
+ * Repeat the rcu_tasks_verify_self_tests() call once every second until the
+ * test passes or has timed out.
+ */
+static struct delayed_work rcu_tasks_verify_work;
+static void rcu_tasks_verify_work_fn(struct work_struct *work __maybe_unused)
+{
+	int ret = rcu_tasks_verify_self_tests();
+
+	if (ret <= 0)
+		return;
+
+	/* Test fails but not timed out yet, reschedule another check */
+	schedule_delayed_work(&rcu_tasks_verify_work, HZ);
+}
+
+static int rcu_tasks_verify_schedule_work(void)
+{
+	INIT_DELAYED_WORK(&rcu_tasks_verify_work, rcu_tasks_verify_work_fn);
+	rcu_tasks_verify_work_fn(NULL);
+	return 0;
+}
+late_initcall(rcu_tasks_verify_schedule_work);
 #else /* #ifdef CONFIG_PROVE_RCU */
 static void rcu_tasks_initiate_self_tests(void) { }
 #endif /* #else #ifdef CONFIG_PROVE_RCU */
