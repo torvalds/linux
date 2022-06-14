@@ -667,6 +667,18 @@ enum btrfs_exclusive_operation {
 	BTRFS_EXCLOP_SWAP_ACTIVATE,
 };
 
+/* Store data about transaction commits, exported via sysfs. */
+struct btrfs_commit_stats {
+	/* Total number of commits */
+	u64 commit_count;
+	/* The maximum commit duration so far in ns */
+	u64 max_commit_dur;
+	/* The last commit duration in ns */
+	u64 last_commit_dur;
+	/* The total commit duration in ns */
+	u64 total_commit_dur;
+};
+
 struct btrfs_fs_info {
 	u8 chunk_tree_uuid[BTRFS_UUID_SIZE];
 	unsigned long flags;
@@ -1074,6 +1086,9 @@ struct btrfs_fs_info {
 
 	spinlock_t zone_active_bgs_lock;
 	struct list_head zone_active_bgs;
+
+	/* Updates are not protected by any lock */
+	struct btrfs_commit_stats commit_stats;
 
 #ifdef CONFIG_BTRFS_FS_REF_VERIFY
 	spinlock_t ref_verify_lock;
