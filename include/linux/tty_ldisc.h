@@ -187,7 +187,7 @@ int ldsem_down_write_nested(struct ld_semaphore *sem, int subclass,
  *	function for automatic flow control.
  *
  * @lookahead_buf: [DRV] ``void ()(struct tty_struct *tty,
- *			const unsigned char *cp, const char *fp, int count)
+ *			const unsigned char *cp, const char *fp, int count)``
  *
  *	This function is called by the low-level tty driver for characters
  *	not eaten by ->receive_buf() or ->receive_buf2(). It is useful for
