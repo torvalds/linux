@@ -563,8 +563,6 @@ static int con_do_clear_unimap(struct vc_data *vc)
 	if (!old || old->refcount > 1)
 		return con_allocate_new(vc);
 
-	if (old == dflt)
-		dflt = NULL;
 	old->sum = 0;
 	con_release_unimap(old);
 
