@@ -83,17 +83,17 @@ static void ieee80211_get_stats(struct net_device *dev,
 
 #define ADD_STA_STATS(sta)					\
 	do {							\
-		data[i++] += sta->rx_stats.packets;		\
-		data[i++] += sta->rx_stats.bytes;		\
-		data[i++] += sta->rx_stats.num_duplicates;	\
-		data[i++] += sta->rx_stats.fragments;		\
-		data[i++] += sta->rx_stats.dropped;		\
+		data[i++] += (sta)->rx_stats.packets;		\
+		data[i++] += (sta)->rx_stats.bytes;		\
+		data[i++] += (sta)->rx_stats.num_duplicates;	\
+		data[i++] += (sta)->rx_stats.fragments;		\
+		data[i++] += (sta)->rx_stats.dropped;		\
 								\
 		data[i++] += sinfo.tx_packets;			\
 		data[i++] += sinfo.tx_bytes;			\
-		data[i++] += sta->status_stats.filtered;	\
-		data[i++] += sta->status_stats.retry_failed;	\
-		data[i++] += sta->status_stats.retry_count;	\
+		data[i++] += (sta)->status_stats.filtered;	\
+		data[i++] += (sta)->status_stats.retry_failed;	\
+		data[i++] += (sta)->status_stats.retry_count;	\
 	} while (0)
 
 	/* For Managed stations, find the single station based on BSSID
@@ -114,7 +114,7 @@ static void ieee80211_get_stats(struct net_device *dev,
 		sta_set_sinfo(sta, &sinfo, false);
 
 		i = 0;
-		ADD_STA_STATS(sta->link[0]);
+		ADD_STA_STATS(&sta->deflink);
 
 		data[i++] = sta->sta_state;
 
@@ -140,7 +140,7 @@ static void ieee80211_get_stats(struct net_device *dev,
 			memset(&sinfo, 0, sizeof(sinfo));
 			sta_set_sinfo(sta, &sinfo, false);
 			i = 0;
-			ADD_STA_STATS(sta->link[0]);
+			ADD_STA_STATS(&sta->deflink);
 		}
 	}
 
