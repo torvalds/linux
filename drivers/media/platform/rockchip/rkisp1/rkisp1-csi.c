@@ -18,7 +18,7 @@
 #include "rkisp1-common.h"
 #include "rkisp1-csi.h"
 
-static int rkisp1_config_mipi(struct rkisp1_csi *csi)
+static int rkisp1_csi_config(struct rkisp1_csi *csi)
 {
 	struct rkisp1_device *rkisp1 = csi->rkisp1;
 	const struct rkisp1_mbus_info *sink_fmt = rkisp1->isp.sink_fmt;
@@ -69,7 +69,7 @@ static int rkisp1_config_mipi(struct rkisp1_csi *csi)
 	return 0;
 }
 
-static void rkisp1_mipi_start(struct rkisp1_csi *csi)
+static void rkisp1_csi_enable(struct rkisp1_csi *csi)
 {
 	struct rkisp1_device *rkisp1 = csi->rkisp1;
 	u32 val;
@@ -79,7 +79,7 @@ static void rkisp1_mipi_start(struct rkisp1_csi *csi)
 		     val | RKISP1_CIF_MIPI_CTRL_OUTPUT_ENA);
 }
 
-static void rkisp1_mipi_stop(struct rkisp1_csi *csi)
+static void rkisp1_csi_disable(struct rkisp1_csi *csi)
 {
 	struct rkisp1_device *rkisp1 = csi->rkisp1;
 	u32 val;
@@ -93,8 +93,8 @@ static void rkisp1_mipi_stop(struct rkisp1_csi *csi)
 		     val & (~RKISP1_CIF_MIPI_CTRL_OUTPUT_ENA));
 }
 
-int rkisp1_mipi_csi2_start(struct rkisp1_csi *csi,
-			   struct rkisp1_sensor_async *sensor)
+int rkisp1_csi_start(struct rkisp1_csi *csi,
+		     struct rkisp1_sensor_async *sensor)
 {
 	struct rkisp1_device *rkisp1 = csi->rkisp1;
 	union phy_configure_opts opts;
@@ -102,7 +102,7 @@ int rkisp1_mipi_csi2_start(struct rkisp1_csi *csi,
 	s64 pixel_clock;
 	int ret;
 
-	ret = rkisp1_config_mipi(csi);
+	ret = rkisp1_csi_config(csi);
 	if (ret)
 		return ret;
 
@@ -119,19 +119,19 @@ int rkisp1_mipi_csi2_start(struct rkisp1_csi *csi,
 	phy_configure(csi->dphy, &opts);
 	phy_power_on(csi->dphy);
 
-	rkisp1_mipi_start(csi);
+	rkisp1_csi_enable(csi);
 
 	return 0;
 }
 
-void rkisp1_mipi_csi2_stop(struct rkisp1_csi *csi)
+void rkisp1_csi_stop(struct rkisp1_csi *csi)
 {
-	rkisp1_mipi_stop(csi);
+	rkisp1_csi_disable(csi);
 
 	phy_power_off(csi->dphy);
 }
 
-irqreturn_t rkisp1_mipi_isr(int irq, void *ctx)
+irqreturn_t rkisp1_csi_isr(int irq, void *ctx)
 {
 	struct device *dev = ctx;
 	struct rkisp1_device *rkisp1 = dev_get_drvdata(dev);

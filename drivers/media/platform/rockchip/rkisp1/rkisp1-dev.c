@@ -383,7 +383,7 @@ static irqreturn_t rkisp1_isr(int irq, void *ctx)
 	 */
 	rkisp1_capture_isr(irq, ctx);
 	rkisp1_isp_isr(irq, ctx);
-	rkisp1_mipi_isr(irq, ctx);
+	rkisp1_csi_isr(irq, ctx);
 
 	return IRQ_HANDLED;
 }
@@ -398,7 +398,7 @@ static const char * const px30_isp_clks[] = {
 static const struct rkisp1_isr_data px30_isp_isrs[] = {
 	{ "isp", rkisp1_isp_isr },
 	{ "mi", rkisp1_capture_isr },
-	{ "mipi", rkisp1_mipi_isr },
+	{ "mipi", rkisp1_csi_isr },
 };
 
 static const struct rkisp1_info px30_isp_info = {
