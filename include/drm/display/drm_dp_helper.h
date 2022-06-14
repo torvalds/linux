@@ -390,6 +390,36 @@ struct drm_dp_aux {
 			    struct drm_dp_aux_msg *msg);
 
 	/**
+	 * @wait_hpd_asserted: wait for HPD to be asserted
+	 *
+	 * This is mainly useful for eDP panels drivers to wait for an eDP
+	 * panel to finish powering on. This is an optional function.
+	 *
+	 * This function will efficiently wait for the HPD signal to be
+	 * asserted. The `wait_us` parameter that is passed in says that we
+	 * know that the HPD signal is expected to be asserted within `wait_us`
+	 * microseconds. This function could wait for longer than `wait_us` if
+	 * the logic in the DP controller has a long debouncing time. The
+	 * important thing is that if this function returns success that the
+	 * DP controller is ready to send AUX transactions.
+	 *
+	 * This function returns 0 if HPD was asserted or -ETIMEDOUT if time
+	 * expired and HPD wasn't asserted. This function should not print
+	 * timeout errors to the log.
+	 *
+	 * The semantics of this function are designed to match the
+	 * readx_poll_timeout() function. That means a `wait_us` of 0 means
+	 * to wait forever. Like readx_poll_timeout(), this function may sleep.
+	 *
+	 * NOTE: this function specifically reports the state of the HPD pin
+	 * that's associated with the DP AUX channel. This is different from
+	 * the HPD concept in much of the rest of DRM which is more about
+	 * physical presence of a display. For eDP, for instance, a display is
+	 * assumed always present even if the HPD pin is deasserted.
+	 */
+	int (*wait_hpd_asserted)(struct drm_dp_aux *aux, unsigned long wait_us);
+
+	/**
 	 * @i2c_nack_count: Counts I2C NACKs, used for DP validation.
 	 */
 	unsigned i2c_nack_count;
