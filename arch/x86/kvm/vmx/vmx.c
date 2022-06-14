@@ -6566,7 +6566,7 @@ static void vmx_set_apic_access_page_addr(struct kvm_vcpu *vcpu)
 	put_page(page);
 }
 
-static void vmx_hwapic_isr_update(struct kvm_vcpu *vcpu, int max_isr)
+static void vmx_hwapic_isr_update(int max_isr)
 {
 	u16 status;
 	u8 old;
