@@ -601,15 +601,13 @@ static int gc4023_set_gain_reg(struct gc4023 *gc4023, u32 gain)
 
 	if (gain < 64)
 		gain = 64;
-	total = sizeof(gain_level_table) / sizeof(u32) - 1;
+	total = ARRAY_SIZE(gain_level_table) - 1;
 	for (i = 0; i < total; i++) {
 		if (gain_level_table[i] <= gain &&
 		    gain < gain_level_table[i + 1])
 			break;
 	}
 	tol_dig_gain = gain * 64 / gain_level_table[i];
-	if (i >= total)
-		i = total - 1;
 
 	gc4023_write_reg(gc4023->client, 0x614,
 			 GC4023_REG_VALUE_08BIT, reg_val_table_liner[i][0]);
@@ -627,9 +625,9 @@ static int gc4023_set_gain_reg(struct gc4023 *gc4023, u32 gain)
 			 GC4023_REG_VALUE_08BIT, reg_val_table_liner[i][6]);
 
 
-	gc4023_write_reg(gc4023->client, 0x20e,
+	gc4023_write_reg(gc4023->client, 0x64,
 			 GC4023_REG_VALUE_08BIT, (tol_dig_gain >> 6));
-	gc4023_write_reg(gc4023->client, 0x20f,
+	gc4023_write_reg(gc4023->client, 0x65,
 			 GC4023_REG_VALUE_08BIT, ((tol_dig_gain & 0x3f) << 2));
 	return 0;
 }
