@@ -104,33 +104,6 @@ static inline int kmem_cache_sanity_check(const char *name, unsigned int size)
 }
 #endif
 
-void __kmem_cache_free_bulk(struct kmem_cache *s, size_t nr, void **p)
-{
-	size_t i;
-
-	for (i = 0; i < nr; i++) {
-		if (s)
-			kmem_cache_free(s, p[i]);
-		else
-			kfree(p[i]);
-	}
-}
-
-int __kmem_cache_alloc_bulk(struct kmem_cache *s, gfp_t flags, size_t nr,
-								void **p)
-{
-	size_t i;
-
-	for (i = 0; i < nr; i++) {
-		void *x = p[i] = kmem_cache_alloc(s, flags);
-		if (!x) {
-			__kmem_cache_free_bulk(s, i, p);
-			return 0;
-		}
-	}
-	return i;
-}
-
 /*
  * Figure out what the alignment of the objects will be given a set of
  * flags, a user specified alignment and the size of the objects.
