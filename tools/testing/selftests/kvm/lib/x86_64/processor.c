@@ -1301,9 +1301,7 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 
 	/* Before family 17h, the HyperTransport area is just below 1T.  */
 	ht_gfn = (1 << 28) - num_ht_pages;
-	eax = 1;
-	ecx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
+	cpuid(1, &eax, &ebx, &ecx, &edx);
 	if (x86_family(eax) < 0x17)
 		goto done;
 
@@ -1312,18 +1310,15 @@ unsigned long vm_compute_max_gfn(struct kvm_vm *vm)
 	 * reduced due to SME by bits 11:6 of CPUID[0x8000001f].EBX.  Use
 	 * the old conservative value if MAXPHYADDR is not enumerated.
 	 */
-	eax = 0x80000000;
-	cpuid(&eax, &ebx, &ecx, &edx);
+	cpuid(0x80000000, &eax, &ebx, &ecx, &edx);
 	max_ext_leaf = eax;
 	if (max_ext_leaf < 0x80000008)
 		goto done;
 
-	eax = 0x80000008;
-	cpuid(&eax, &ebx, &ecx, &edx);
+	cpuid(0x80000008, &eax, &ebx, &ecx, &edx);
 	max_pfn = (1ULL << ((eax & 0xff) - vm->page_shift)) - 1;
 	if (max_ext_leaf >= 0x8000001f) {
-		eax = 0x8000001f;
-		cpuid(&eax, &ebx, &ecx, &edx);
+		cpuid(0x8000001f, &eax, &ebx, &ecx, &edx);
 		max_pfn >>= (ebx >> 6) & 0x3f;
 	}
 

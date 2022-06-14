@@ -31,10 +31,9 @@ static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
 	u32 eax, ebx, ecx, edx;
 
 	for (i = 0; i < guest_cpuid->nent; i++) {
-		eax = guest_cpuid->entries[i].function;
-		ecx = guest_cpuid->entries[i].index;
-
-		cpuid(&eax, &ebx, &ecx, &edx);
+		__cpuid(guest_cpuid->entries[i].function,
+			guest_cpuid->entries[i].index,
+			&eax, &ebx, &ecx, &edx);
 
 		GUEST_ASSERT(eax == guest_cpuid->entries[i].eax &&
 			     ebx == guest_cpuid->entries[i].ebx &&
@@ -46,9 +45,9 @@ static void test_guest_cpuids(struct kvm_cpuid2 *guest_cpuid)
 
 static void test_cpuid_40000000(struct kvm_cpuid2 *guest_cpuid)
 {
-	u32 eax = 0x40000000, ebx, ecx = 0, edx;
+	u32 eax, ebx, ecx, edx;
 
-	cpuid(&eax, &ebx, &ecx, &edx);
+	cpuid(0x40000000, &eax, &ebx, &ecx, &edx);
 
 	GUEST_ASSERT(eax == 0x40000001);
 }

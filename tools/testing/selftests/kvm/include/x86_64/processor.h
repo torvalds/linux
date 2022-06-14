@@ -404,10 +404,13 @@ static inline void outl(uint16_t port, uint32_t value)
 	__asm__ __volatile__("outl %%eax, %%dx" : : "d"(port), "a"(value));
 }
 
-static inline void cpuid(uint32_t *eax, uint32_t *ebx,
-			 uint32_t *ecx, uint32_t *edx)
+static inline void __cpuid(uint32_t function, uint32_t index,
+			   uint32_t *eax, uint32_t *ebx,
+			   uint32_t *ecx, uint32_t *edx)
 {
-	/* ecx is often an input as well as an output. */
+	*eax = function;
+	*ecx = index;
+
 	asm volatile("cpuid"
 	    : "=a" (*eax),
 	      "=b" (*ebx),
@@ -415,6 +418,13 @@ static inline void cpuid(uint32_t *eax, uint32_t *ebx,
 	      "=d" (*edx)
 	    : "0" (*eax), "2" (*ecx)
 	    : "memory");
+}
+
+static inline void cpuid(uint32_t function,
+			 uint32_t *eax, uint32_t *ebx,
+			 uint32_t *ecx, uint32_t *edx)
+{
+	return __cpuid(function, 0, eax, ebx, ecx, edx);
 }
 
 #define SET_XMM(__var, __xmm) \

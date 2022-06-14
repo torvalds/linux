@@ -122,9 +122,7 @@ static inline void check_cpuid_xsave(void)
 {
 	uint32_t eax, ebx, ecx, edx;
 
-	eax = 1;
-	ecx = 0;
-	cpuid(&eax, &ebx, &ecx, &edx);
+	cpuid(1, &eax, &ebx, &ecx, &edx);
 	if (!(ecx & CPUID_XSAVE))
 		GUEST_ASSERT(!"cpuid: no CPU xsave support!");
 	if (!(ecx & CPUID_OSXSAVE))
@@ -140,10 +138,7 @@ static bool enum_xtile_config(void)
 {
 	u32 eax, ebx, ecx, edx;
 
-	eax = TILE_CPUID;
-	ecx = TILE_PALETTE_CPUID_SUBLEAVE;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid(TILE_CPUID, TILE_PALETTE_CPUID_SUBLEAVE, &eax, &ebx, &ecx, &edx);
 	if (!eax || !ebx || !ecx)
 		return false;
 
@@ -165,10 +160,7 @@ static bool enum_xsave_tile(void)
 {
 	u32 eax, ebx, ecx, edx;
 
-	eax = XSTATE_CPUID;
-	ecx = XFEATURE_XTILEDATA;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid(XSTATE_CPUID, XFEATURE_XTILEDATA, &eax, &ebx, &ecx, &edx);
 	if (!eax || !ebx)
 		return false;
 
@@ -183,10 +175,7 @@ static bool check_xsave_size(void)
 	u32 eax, ebx, ecx, edx;
 	bool valid = false;
 
-	eax = XSTATE_CPUID;
-	ecx = XSTATE_USER_STATE_SUBLEAVE;
-
-	cpuid(&eax, &ebx, &ecx, &edx);
+	__cpuid(XSTATE_CPUID, XSTATE_USER_STATE_SUBLEAVE, &eax, &ebx, &ecx, &edx);
 	if (ebx && ebx <= XSAVE_SIZE)
 		valid = true;
 
