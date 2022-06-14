@@ -768,7 +768,7 @@ int main(int argc, char *argv[])
 
 	extension_cap = kvm_check_cap(KVM_CAP_S390_MEM_OP_EXTENSION);
 	for (idx = 0; idx < ARRAY_SIZE(testlist); idx++) {
-		if (testlist[idx].extension >= extension_cap) {
+		if (extension_cap >= testlist[idx].extension) {
 			testlist[idx].test();
 			ksft_test_result_pass("%s\n", testlist[idx].name);
 		} else {
