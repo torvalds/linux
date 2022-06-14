@@ -1369,13 +1369,14 @@
 	};
 
 	jpege_ccu: jpege-ccu {
-		compatible = "rockchip,vpu-encoder-v2-ccu";
+		compatible = "rockchip,vpu-jpege-ccu";
 		status = "disabled";
 	};
 
 	mpp_srv: mpp-srv {
 		compatible = "rockchip,mpp-service";
 		rockchip,taskqueue-count = <12>;
+		rockchip,resetgroup-count = <1>;
 		status = "disabled";
 	};
 
@@ -2893,6 +2894,27 @@
 		status = "disabled";
 	};
 
+	vepu: vepu@fdb50000 {
+		compatible = "rockchip,vpu-encoder-v2";
+		reg = <0x0 0xfdb50000 0x0 0x400>;
+		interrupts = <GIC_SPI 120 IRQ_TYPE_LEVEL_HIGH>;
+		interrupt-names = "irq_vepu";
+		clocks = <&cru ACLK_VPU>, <&cru HCLK_VPU>;
+		clock-names = "aclk_vcodec", "hclk_vcodec";
+		rockchip,normal-rates = <594000000>, <0>;
+		assigned-clocks = <&cru ACLK_VPU>;
+		assigned-clock-rates = <594000000>;
+		resets = <&cru SRST_A_VPU>, <&cru SRST_H_VPU>;
+		reset-names = "shared_video_a", "shared_video_h";
+		rockchip,skip-pmu-idle-request;
+		iommus = <&vdpu_mmu>;
+		rockchip,srv = <&mpp_srv>;
+		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
+		power-domains = <&power RK3588_PD_VDPU>;
+		status = "disabled";
+	};
+
 	vdpu: vdpu@fdb50400 {
 		compatible = "rockchip,vpu-decoder-v2";
 		reg = <0x0 0xfdb50400 0x0 0x400>;
@@ -2909,6 +2931,7 @@
 		iommus = <&vdpu_mmu>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
 		power-domains = <&power RK3588_PD_VDPU>;
 		status = "disabled";
 	};
@@ -2938,6 +2961,7 @@
 		power-domains = <&power RK3588_PD_VDPU>;
 		rockchip,srv = <&mpp_srv>;
 		rockchip,taskqueue-node = <0>;
+		rockchip,resetgroup-node = <0>;
 		status = "disabled";
 	};
 
@@ -3033,7 +3057,7 @@
 	};
 
 	jpege0: jpege-core@fdba0000 {
-		compatible = "rockchip,vpu-encoder-v2-core";
+		compatible = "rockchip,vpu-jpege-core";
 		reg = <0x0 0xfdba0000 0x0 0x400>;
 		interrupts = <GIC_SPI 122 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpege0";
@@ -3066,7 +3090,7 @@
 	};
 
 	jpege1: jpege-core@fdba4000 {
-		compatible = "rockchip,vpu-encoder-v2-core";
+		compatible = "rockchip,vpu-jpege-core";
 		reg = <0x0 0xfdba4000 0x0 0x400>;
 		interrupts = <GIC_SPI 124 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpege1";
@@ -3099,7 +3123,7 @@
 	};
 
 	jpege2: jpege-core@fdba8000 {
-		compatible = "rockchip,vpu-encoder-v2-core";
+		compatible = "rockchip,vpu-jpege-core";
 		reg = <0x0 0xfdba8000 0x0 0x400>;
 		interrupts = <GIC_SPI 126 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpege2";
@@ -3132,7 +3156,7 @@
 	};
 
 	jpege3: jpege-core@fdbac000 {
-		compatible = "rockchip,vpu-encoder-v2-core";
+		compatible = "rockchip,vpu-jpege-core";
 		reg = <0x0 0xfdbac000 0x0 0x400>;
 		interrupts = <GIC_SPI 128 IRQ_TYPE_LEVEL_HIGH>;
 		interrupt-names = "irq_jpege3";
