@@ -38,7 +38,7 @@
 #include <linux/vt_kern.h>
 #include <linux/string.h>
 
-static unsigned short translations[][256] = {
+static unsigned short translations[][E_TABSZ] = {
   /* 8-bit Latin-1 mapped to Unicode -- trivial mapping */
   [LAT1_MAP] = {
     0x0000, 0x0001, 0x0002, 0x0003, 0x0004, 0x0005, 0x0006, 0x0007,
