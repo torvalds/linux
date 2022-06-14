@@ -194,7 +194,7 @@ struct dcn10_stream_enc_registers {
 #define SE_SF(reg_name, field_name, post_fix)\
 	.field_name = reg_name ## __ ## field_name ## post_fix
 
-#define SE_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh)\
+#define SE_COMMON_MASK_SH_LIST_SOC(mask_sh)\
 	SE_SF(DIG0_AFMT_VBI_PACKET_CONTROL, AFMT_GENERIC_INDEX, mask_sh),\
 	SE_SF(DIG0_AFMT_GENERIC_HDR, AFMT_GENERIC_HB0, mask_sh),\
 	SE_SF(DIG0_AFMT_GENERIC_HDR, AFMT_GENERIC_HB1, mask_sh),\
@@ -211,6 +211,7 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_GC_CONT, mask_sh),\
 	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_GC_SEND, mask_sh),\
 	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_NULL_SEND, mask_sh),\
+	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, mask_sh),\
 	SE_SF(DIG0_HDMI_INFOFRAME_CONTROL0, HDMI_AUDIO_INFO_SEND, mask_sh),\
 	SE_SF(DIG0_AFMT_INFOFRAME_CONTROL0, AFMT_AUDIO_INFO_UPDATE, mask_sh),\
 	SE_SF(DIG0_HDMI_INFOFRAME_CONTROL1, HDMI_AUDIO_INFO_LINE, mask_sh),\
@@ -338,15 +339,6 @@ struct dcn10_stream_enc_registers {
 	SE_SF(DP0_DP_VID_TIMING, DP_VID_N_MUL, mask_sh),\
 	SE_SF(DIG0_DIG_FE_CNTL, DIG_SOURCE_SELECT, mask_sh),\
 	SE_SF(DIG0_DIG_CLOCK_PATTERN, DIG_CLOCK_PATTERN, mask_sh)
-
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
-#define SE_COMMON_MASK_SH_LIST_SOC(mask_sh)\
-	SE_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh),\
-	SE_SF(DIG0_HDMI_VBI_PACKET_CONTROL, HDMI_ACP_SEND, mask_sh)
-#else
-#define SE_COMMON_MASK_SH_LIST_SOC(mask_sh)\
-	SE_COMMON_MASK_SH_LIST_SOC_BASE(mask_sh)
-#endif
 
 #define SE_COMMON_MASK_SH_LIST_DCN10(mask_sh)\
 	SE_COMMON_MASK_SH_LIST_SOC(mask_sh),\
@@ -586,9 +578,7 @@ struct dcn10_stream_enc_registers {
 
 struct dcn10_stream_encoder_shift {
 	SE_REG_FIELD_LIST_DCN1_0(uint8_t);
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	uint8_t HDMI_ACP_SEND;
-#endif
 	SE_REG_FIELD_LIST_DCN2_0(uint8_t);
 	SE_REG_FIELD_LIST_DCN3_0(uint8_t);
 	SE_REG_FIELD_LIST_DCN3_2(uint8_t);
@@ -597,9 +587,7 @@ struct dcn10_stream_encoder_shift {
 
 struct dcn10_stream_encoder_mask {
 	SE_REG_FIELD_LIST_DCN1_0(uint32_t);
-#if defined(CONFIG_DRM_AMD_DC_HDCP)
 	uint32_t HDMI_ACP_SEND;
-#endif
 	SE_REG_FIELD_LIST_DCN2_0(uint32_t);
 	SE_REG_FIELD_LIST_DCN3_0(uint32_t);
 	SE_REG_FIELD_LIST_DCN3_2(uint32_t);

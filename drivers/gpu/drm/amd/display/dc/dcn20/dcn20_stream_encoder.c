@@ -35,7 +35,6 @@
 #define DC_LOGGER \
 		enc1->base.ctx->logger
 
-
 #define REG(reg)\
 	(enc1->regs->reg)
 

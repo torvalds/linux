@@ -486,6 +486,17 @@ void dce_aud_az_configure(
 
 	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_CHANNEL_SPEAKER, value);
 
+	/*  ACP Data - Supports AI  */
+	value = AZ_REG_READ(AZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA);
+
+	set_reg_field_value(
+		value,
+		audio_info->flags.info.SUPPORT_AI,
+		AZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA,
+		SUPPORTS_AI);
+
+	AZ_REG_WRITE(AZALIA_F0_CODEC_PIN_CONTROL_ACP_DATA, value);
+
 	/*  Audio Descriptors   */
 	/* pass through all formats */
 	for (format_index = 0; format_index < AUDIO_FORMAT_CODE_COUNT;
