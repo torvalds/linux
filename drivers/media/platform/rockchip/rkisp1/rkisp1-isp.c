@@ -16,7 +16,6 @@
 #include <media/v4l2-event.h>
 
 #include "rkisp1-common.h"
-#include "rkisp1-csi.h"
 
 #define RKISP1_DEF_SINK_PAD_FMT MEDIA_BUS_FMT_SRGGB10_1X10
 #define RKISP1_DEF_SRC_PAD_FMT MEDIA_BUS_FMT_YUYV8_2X8
@@ -728,17 +727,13 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 {
 	struct rkisp1_isp *isp = to_rkisp1_isp(sd);
 	struct rkisp1_device *rkisp1 = isp->rkisp1;
-	const struct rkisp1_sensor_async *asd;
 	struct media_pad *source_pad;
 	struct media_pad *sink_pad;
 	int ret;
 
 	if (!enable) {
 		v4l2_subdev_call(rkisp1->source, video, s_stream, false);
-
-		rkisp1_csi_stop(&rkisp1->csi);
 		rkisp1_isp_stop(isp);
-
 		return 0;
 	}
 
@@ -756,30 +751,20 @@ static int rkisp1_isp_s_stream(struct v4l2_subdev *sd, int enable)
 		return -EPIPE;
 	}
 
-	asd = container_of(rkisp1->source->asd, struct rkisp1_sensor_async,
-			   asd);
-
-	if (asd->mbus_type != V4L2_MBUS_CSI2_DPHY)
-		return -EINVAL;
+	if (rkisp1->source != &rkisp1->csi.sd)
+		return -EPIPE;
 
 	isp->frame_sequence = -1;
 	mutex_lock(&isp->ops_lock);
-	ret = rkisp1_config_cif(isp, asd->mbus_type, asd->mbus_flags);
+	ret = rkisp1_config_cif(isp, V4L2_MBUS_CSI2_DPHY, 0);
 	if (ret)
 		goto mutex_unlock;
 
 	rkisp1_isp_start(isp);
 
-	ret = rkisp1_csi_start(&rkisp1->csi, asd);
-	if (ret) {
-		rkisp1_isp_stop(isp);
-		goto mutex_unlock;
-	}
-
 	ret = v4l2_subdev_call(rkisp1->source, video, s_stream, true);
 	if (ret) {
 		rkisp1_isp_stop(isp);
-		rkisp1_csi_stop(&rkisp1->csi);
 		goto mutex_unlock;
 	}
 

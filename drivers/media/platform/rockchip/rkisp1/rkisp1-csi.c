@@ -47,6 +47,34 @@ rkisp1_csi_get_pad_fmt(struct rkisp1_csi *csi,
 		return v4l2_subdev_get_try_format(&csi->sd, &state, pad);
 }
 
+int rkisp1_csi_link_sensor(struct rkisp1_device *rkisp1, struct v4l2_subdev *sd,
+			   struct rkisp1_sensor_async *s_asd,
+			   unsigned int source_pad)
+{
+	struct rkisp1_csi *csi = &rkisp1->csi;
+	int ret;
+
+	s_asd->pixel_rate_ctrl = v4l2_ctrl_find(sd->ctrl_handler,
+						V4L2_CID_PIXEL_RATE);
+	if (!s_asd->pixel_rate_ctrl) {
+		dev_err(rkisp1->dev, "No pixel rate control in subdev %s\n",
+			sd->name);
+		return -EINVAL;
+	}
+
+	/* Create the link from the sensor to the CSI receiver. */
+	ret = media_create_pad_link(&sd->entity, source_pad,
+				    &csi->sd.entity, RKISP1_CSI_PAD_SINK,
+				    !s_asd->index ? MEDIA_LNK_FL_ENABLED : 0);
+	if (ret) {
+		dev_err(csi->rkisp1->dev, "failed to link src pad of %s\n",
+			sd->name);
+		return ret;
+	}
+
+	return 0;
+}
+
 static int rkisp1_csi_config(struct rkisp1_csi *csi,
 			     const struct rkisp1_sensor_async *sensor)
 {
@@ -122,8 +150,8 @@ static void rkisp1_csi_disable(struct rkisp1_csi *csi)
 		     val & (~RKISP1_CIF_MIPI_CTRL_OUTPUT_ENA));
 }
 
-int rkisp1_csi_start(struct rkisp1_csi *csi,
-		     const struct rkisp1_sensor_async *sensor)
+static int rkisp1_csi_start(struct rkisp1_csi *csi,
+			    const struct rkisp1_sensor_async *sensor)
 {
 	struct rkisp1_device *rkisp1 = csi->rkisp1;
 	union phy_configure_opts opts;
@@ -158,7 +186,7 @@ int rkisp1_csi_start(struct rkisp1_csi *csi,
 	return 0;
 }
 
-void rkisp1_csi_stop(struct rkisp1_csi *csi)
+static void rkisp1_csi_stop(struct rkisp1_csi *csi)
 {
 	rkisp1_csi_disable(csi);
 
