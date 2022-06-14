@@ -52,6 +52,15 @@ static int v4l2_async_nf_call_complete(struct v4l2_async_notifier *n)
 	return n->ops->complete(n);
 }
 
+static void v4l2_async_nf_call_destroy(struct v4l2_async_notifier *n,
+				       struct v4l2_async_subdev *asd)
+{
+	if (!n->ops || !n->ops->destroy)
+		return;
+
+	n->ops->destroy(asd);
+}
+
 static bool match_i2c(struct v4l2_async_notifier *notifier,
 		      struct v4l2_subdev *sd, struct v4l2_async_subdev *asd)
 {
@@ -633,6 +642,7 @@ static void __v4l2_async_nf_cleanup(struct v4l2_async_notifier *notifier)
 		}
 
 		list_del(&asd->asd_list);
+		v4l2_async_nf_call_destroy(notifier, asd);
 		kfree(asd);
 	}
 }
