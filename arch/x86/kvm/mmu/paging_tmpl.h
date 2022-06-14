@@ -45,7 +45,7 @@
 	#define PT_LVL_ADDR_MASK(lvl) PT32_LVL_ADDR_MASK(lvl)
 	#define PT_LVL_OFFSET_MASK(lvl) PT32_LVL_OFFSET_MASK(lvl)
 	#define PT_INDEX(addr, level) PT32_INDEX(addr, level)
-	#define PT_LEVEL_BITS PT32_LEVEL_BITS
+	#define PT_LEVEL_BITS 10
 	#define PT_MAX_FULL_LEVELS 2
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
@@ -899,7 +899,7 @@ static gpa_t FNAME(get_level1_sp_gpa)(struct kvm_mmu_page *sp)
 	WARN_ON(sp->role.level != PG_LEVEL_4K);
 
 	if (PTTYPE == 32)
-		offset = sp->role.quadrant << PT64_LEVEL_BITS;
+		offset = sp->role.quadrant << SPTE_LEVEL_BITS;
 
 	return gfn_to_gpa(sp->gfn) + offset * sizeof(pt_element_t);
 }
@@ -1034,7 +1034,7 @@ static int FNAME(sync_page)(struct kvm_vcpu *vcpu, struct kvm_mmu_page *sp)
 
 	first_pte_gpa = FNAME(get_level1_sp_gpa)(sp);
 
-	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
 		u64 *sptep, spte;
 		struct kvm_memory_slot *slot;
 		unsigned pte_access;

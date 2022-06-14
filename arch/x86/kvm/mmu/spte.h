@@ -36,12 +36,12 @@ extern bool __read_mostly enable_mmio_caching;
 static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 
 #ifdef CONFIG_DYNAMIC_PHYSICAL_MASK
-#define PT64_BASE_ADDR_MASK (physical_mask & ~(u64)(PAGE_SIZE-1))
+#define SPTE_BASE_ADDR_MASK (physical_mask & ~(u64)(PAGE_SIZE-1))
 #else
-#define PT64_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
+#define SPTE_BASE_ADDR_MASK (((1ULL << 52) - 1) & ~(u64)(PAGE_SIZE-1))
 #endif
 
-#define PT64_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
+#define SPTE_PERM_MASK (PT_PRESENT_MASK | PT_WRITABLE_MASK | shadow_user_mask \
 			| shadow_x_mask | shadow_nx_mask | shadow_me_mask)
 
 #define ACC_EXEC_MASK    1
@@ -50,16 +50,13 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 #define ACC_ALL          (ACC_EXEC_MASK | ACC_WRITE_MASK | ACC_USER_MASK)
 
 /* The mask for the R/X bits in EPT PTEs */
-#define PT64_EPT_READABLE_MASK			0x1ull
-#define PT64_EPT_EXECUTABLE_MASK		0x4ull
+#define SPTE_EPT_READABLE_MASK			0x1ull
+#define SPTE_EPT_EXECUTABLE_MASK		0x4ull
 
-#define PT64_LEVEL_BITS 9
-
-#define PT64_LEVEL_SHIFT(level) __PT_LEVEL_SHIFT(level, PT64_LEVEL_BITS)
-
-#define PT64_INDEX(address, level) __PT_INDEX(address, level, PT64_LEVEL_BITS)
-
-#define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
+#define SPTE_LEVEL_BITS			9
+#define SPTE_LEVEL_SHIFT(level)		__PT_LEVEL_SHIFT(level, SPTE_LEVEL_BITS)
+#define SPTE_INDEX(address, level)	__PT_INDEX(address, level, SPTE_LEVEL_BITS)
+#define SPTE_ENT_PER_PAGE		__PT_ENT_PER_PAGE(SPTE_LEVEL_BITS)
 
 /*
  * The mask/shift to use for saving the original R/X bits when marking the PTE
@@ -68,8 +65,8 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
  * restored only when a write is attempted to the page.  This mask obviously
  * must not overlap the A/D type mask.
  */
-#define SHADOW_ACC_TRACK_SAVED_BITS_MASK (PT64_EPT_READABLE_MASK | \
-					  PT64_EPT_EXECUTABLE_MASK)
+#define SHADOW_ACC_TRACK_SAVED_BITS_MASK (SPTE_EPT_READABLE_MASK | \
+					  SPTE_EPT_EXECUTABLE_MASK)
 #define SHADOW_ACC_TRACK_SAVED_BITS_SHIFT 54
 #define SHADOW_ACC_TRACK_SAVED_MASK	(SHADOW_ACC_TRACK_SAVED_BITS_MASK << \
 					 SHADOW_ACC_TRACK_SAVED_BITS_SHIFT)
@@ -281,7 +278,7 @@ static inline bool is_executable_pte(u64 spte)
 
 static inline kvm_pfn_t spte_to_pfn(u64 pte)
 {
-	return (pte & PT64_BASE_ADDR_MASK) >> PAGE_SHIFT;
+	return (pte & SPTE_BASE_ADDR_MASK) >> PAGE_SHIFT;
 }
 
 static inline bool is_accessed_spte(u64 spte)

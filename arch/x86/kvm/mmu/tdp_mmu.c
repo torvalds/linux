@@ -425,7 +425,7 @@ static void handle_removed_pt(struct kvm *kvm, tdp_ptep_t pt, bool shared)
 
 	tdp_mmu_unlink_sp(kvm, sp, shared);
 
-	for (i = 0; i < PT64_ENT_PER_PAGE; i++) {
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++) {
 		tdp_ptep_t sptep = pt + i;
 		gfn_t gfn = base_gfn + i * KVM_PAGES_PER_HPAGE(level);
 		u64 old_spte;
@@ -1477,7 +1477,7 @@ static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 	 * No need for atomics when writing to sp->spt since the page table has
 	 * not been linked in yet and thus is not reachable from any other CPU.
 	 */
-	for (i = 0; i < PT64_ENT_PER_PAGE; i++)
+	for (i = 0; i < SPTE_ENT_PER_PAGE; i++)
 		sp->spt[i] = make_huge_page_split_spte(huge_spte, level, i);
 
 	/*
@@ -1497,7 +1497,7 @@ static int tdp_mmu_split_huge_page(struct kvm *kvm, struct tdp_iter *iter,
 	 * are overwriting from the page stats. But we have to manually update
 	 * the page stats with the new present child pages.
 	 */
-	kvm_update_page_stats(kvm, level - 1, PT64_ENT_PER_PAGE);
+	kvm_update_page_stats(kvm, level - 1, SPTE_ENT_PER_PAGE);
 
 out:
 	trace_kvm_mmu_split_huge_page(iter->gfn, huge_spte, level, ret);

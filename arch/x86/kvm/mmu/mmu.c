@@ -111,20 +111,6 @@ module_param(dbg, bool, 0644);
 
 #define PTE_PREFETCH_NUM		8
 
-#define PT32_LEVEL_BITS 10
-
-#define PT32_LEVEL_SHIFT(level) __PT_LEVEL_SHIFT(level, PT32_LEVEL_BITS)
-
-#define PT32_LVL_OFFSET_MASK(level) \
-	__PT_LVL_OFFSET_MASK(PT32_BASE_ADDR_MASK, level, PT32_LEVEL_BITS)
-
-#define PT32_INDEX(address, level) __PT_INDEX(address, level, PT32_LEVEL_BITS)
-
-#define PT32_BASE_ADDR_MASK PAGE_MASK
-
-#define PT32_LVL_ADDR_MASK(level) \
-	__PT_LVL_ADDR_MASK(PT32_BASE_ADDR_MASK, level, PT32_LEVEL_BITS)
-
 #include <trace/events/kvm.h>
 
 /* make pte_list_desc fit well in cache lines */
@@ -704,7 +690,7 @@ static gfn_t kvm_mmu_page_get_gfn(struct kvm_mmu_page *sp, int index)
 	if (!sp->role.direct)
 		return sp->gfns[index];
 
-	return sp->gfn + (index << ((sp->role.level - 1) * PT64_LEVEL_BITS));
+	return sp->gfn + (index << ((sp->role.level - 1) * SPTE_LEVEL_BITS));
 }
 
 static void kvm_mmu_page_set_gfn(struct kvm_mmu_page *sp, int index, gfn_t gfn)
@@ -1776,7 +1762,7 @@ static int __mmu_unsync_walk(struct kvm_mmu_page *sp,
 			continue;
 		}
 
-		child = to_shadow_page(ent & PT64_BASE_ADDR_MASK);
+		child = to_shadow_page(ent & SPTE_BASE_ADDR_MASK);
 
 		if (child->unsync_children) {
 			if (mmu_pages_add(pvec, child, i))
@@ -2027,8 +2013,24 @@ static struct kvm_mmu_page *kvm_mmu_get_page(struct kvm_vcpu *vcpu,
 	role.direct = direct;
 	role.access = access;
 	if (role.has_4_byte_gpte) {
-		quadrant = gaddr >> (PAGE_SHIFT + (PT64_PT_BITS * level));
-		quadrant &= (1 << ((PT32_PT_BITS - PT64_PT_BITS) * level)) - 1;
+		/*
+		 * If the guest has 4-byte PTEs then that means it's using 32-bit,
+		 * 2-level, non-PAE paging. KVM shadows such guests with PAE paging
+		 * (i.e. 8-byte PTEs). The difference in PTE size means that KVM must
+		 * shadow each guest page table with multiple shadow page tables, which
+		 * requires extra bookkeeping in the role.
+		 *
+		 * Specifically, to shadow the guest's page directory (which covers a
+		 * 4GiB address space), KVM uses 4 PAE page directories, each mapping
+		 * 1GiB of the address space. @role.quadrant encodes which quarter of
+		 * the address space each maps.
+		 *
+		 * To shadow the guest's page tables (which each map a 4MiB region), KVM
+		 * uses 2 PAE page tables, each mapping a 2MiB region. For these,
+		 * @role.quadrant encodes which half of the region they map.
+		 */
+		quadrant = gaddr >> (PAGE_SHIFT + (SPTE_LEVEL_BITS * level));
+		quadrant &= (1 << level) - 1;
 		role.quadrant = quadrant;
 	}
 	if (level <= vcpu->arch.mmu->cpu_role.base.level)
@@ -2132,7 +2134,7 @@ static void shadow_walk_init_using_root(struct kvm_shadow_walk_iterator *iterato
 
 		iterator->shadow_addr
 			= vcpu->arch.mmu->pae_root[(addr >> 30) & 3];
-		iterator->shadow_addr &= PT64_BASE_ADDR_MASK;
+		iterator->shadow_addr &= SPTE_BASE_ADDR_MASK;
 		--iterator->level;
 		if (!iterator->shadow_addr)
 			iterator->level = 0;
@@ -2151,7 +2153,7 @@ static bool shadow_walk_okay(struct kvm_shadow_walk_iterator *iterator)
 	if (iterator->level < PG_LEVEL_4K)
 		return false;
 
-	iterator->index = SHADOW_PT_INDEX(iterator->addr, iterator->level);
+	iterator->index = SPTE_INDEX(iterator->addr, iterator->level);
 	iterator->sptep	= ((u64 *)__va(iterator->shadow_addr)) + iterator->index;
 	return true;
 }
@@ -2164,7 +2166,7 @@ static void __shadow_walk_next(struct kvm_shadow_walk_iterator *iterator,
 		return;
 	}
 
-	iterator->shadow_addr = spte & PT64_BASE_ADDR_MASK;
+	iterator->shadow_addr = spte & SPTE_BASE_ADDR_MASK;
 	--iterator->level;
 }
 
@@ -2203,7 +2205,7 @@ static void validate_direct_spte(struct kvm_vcpu *vcpu, u64 *sptep,
 		 * so we should update the spte at this point to get
 		 * a new sp with the correct access.
 		 */
-		child = to_shadow_page(*sptep & PT64_BASE_ADDR_MASK);
+		child = to_shadow_page(*sptep & SPTE_BASE_ADDR_MASK);
 		if (child->role.access == direct_access)
 			return;
 
@@ -2224,7 +2226,7 @@ static int mmu_page_zap_pte(struct kvm *kvm, struct kvm_mmu_page *sp,
 		if (is_last_spte(pte, sp->role.level)) {
 			drop_spte(kvm, spte);
 		} else {
-			child = to_shadow_page(pte & PT64_BASE_ADDR_MASK);
+			child = to_shadow_page(pte & SPTE_BASE_ADDR_MASK);
 			drop_parent_pte(child, spte);
 
 			/*
@@ -2250,7 +2252,7 @@ static int kvm_mmu_page_unlink_children(struct kvm *kvm,
 	int zapped = 0;
 	unsigned i;
 
-	for (i = 0; i < PT64_ENT_PER_PAGE; ++i)
+	for (i = 0; i < SPTE_ENT_PER_PAGE; ++i)
 		zapped += mmu_page_zap_pte(kvm, sp, sp->spt + i, invalid_list);
 
 	return zapped;
@@ -2663,7 +2665,7 @@ static int mmu_set_spte(struct kvm_vcpu *vcpu, struct kvm_memory_slot *slot,
 			struct kvm_mmu_page *child;
 			u64 pte = *sptep;
 
-			child = to_shadow_page(pte & PT64_BASE_ADDR_MASK);
+			child = to_shadow_page(pte & SPTE_BASE_ADDR_MASK);
 			drop_parent_pte(child, sptep);
 			flush = true;
 		} else if (pfn != spte_to_pfn(*sptep)) {
@@ -3252,7 +3254,7 @@ static void mmu_free_root_page(struct kvm *kvm, hpa_t *root_hpa,
 	if (!VALID_PAGE(*root_hpa))
 		return;
 
-	sp = to_shadow_page(*root_hpa & PT64_BASE_ADDR_MASK);
+	sp = to_shadow_page(*root_hpa & SPTE_BASE_ADDR_MASK);
 	if (WARN_ON(!sp))
 		return;
 
@@ -3724,7 +3726,7 @@ void kvm_mmu_sync_roots(struct kvm_vcpu *vcpu)
 		hpa_t root = vcpu->arch.mmu->pae_root[i];
 
 		if (IS_VALID_PAE_ROOT(root)) {
-			root &= PT64_BASE_ADDR_MASK;
+			root &= SPTE_BASE_ADDR_MASK;
 			sp = to_shadow_page(root);
 			mmu_sync_children(vcpu, sp, true);
 		}
@@ -5186,11 +5188,11 @@ static bool need_remote_flush(u64 old, u64 new)
 		return false;
 	if (!is_shadow_present_pte(new))
 		return true;
-	if ((old ^ new) & PT64_BASE_ADDR_MASK)
+	if ((old ^ new) & SPTE_BASE_ADDR_MASK)
 		return true;
 	old ^= shadow_nx_mask;
 	new ^= shadow_nx_mask;
-	return (old & ~new & PT64_PERM_MASK) != 0;
+	return (old & ~new & SPTE_PERM_MASK) != 0;
 }
 
 static u64 mmu_pte_write_fetch_gpte(struct kvm_vcpu *vcpu, gpa_t *gpa,

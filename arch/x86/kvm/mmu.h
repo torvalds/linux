@@ -6,11 +6,6 @@
 #include "kvm_cache_regs.h"
 #include "cpuid.h"
 
-#define PT64_PT_BITS 9
-#define PT64_ENT_PER_PAGE __PT_ENT_PER_PAGE(PT64_PT_BITS)
-#define PT32_PT_BITS 10
-#define PT32_ENT_PER_PAGE __PT_ENT_PER_PAGE(PT32_PT_BITS)
-
 #define PT_WRITABLE_SHIFT 1
 #define PT_USER_SHIFT 2
 
