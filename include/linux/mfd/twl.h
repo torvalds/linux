@@ -594,8 +594,6 @@ struct twl4030_gpio_platform_data {
 
 	int		(*setup)(struct device *dev,
 				unsigned gpio, unsigned ngpio);
-	int		(*teardown)(struct device *dev,
-				unsigned gpio, unsigned ngpio);
 };
 
 struct twl4030_madc_platform_data {
