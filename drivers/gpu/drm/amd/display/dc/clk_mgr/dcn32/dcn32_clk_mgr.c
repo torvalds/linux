@@ -531,6 +531,96 @@ static void dcn32_update_clocks(struct clk_mgr *clk_mgr_base,
 				clk_mgr_base->clks.dispclk_khz / 1000 / 7);
 }
 
+static uint32_t dcn32_get_vco_frequency_from_reg(struct clk_mgr_internal *clk_mgr)
+{
+		struct fixed31_32 pll_req;
+		uint32_t pll_req_reg = 0;
+
+		/* get FbMult value */
+		if (ASICREV_IS_GC_11_0_2(clk_mgr->base.ctx->asic_id.hw_internal_rev))
+			pll_req_reg = REG_READ(CLK0_CLK_PLL_REQ);
+		else
+			pll_req_reg = REG_READ(CLK1_CLK_PLL_REQ);
+
+		/* set up a fixed-point number
+		 * this works because the int part is on the right edge of the register
+		 * and the frac part is on the left edge
+		 */
+			pll_req = dc_fixpt_from_int(pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_int);
+		pll_req.value |= pll_req_reg & clk_mgr->clk_mgr_mask->FbMult_frac;
+
+		/* multiply by REFCLK period */
+		pll_req = dc_fixpt_mul_int(pll_req, clk_mgr->dfs_ref_freq_khz);
+
+		return dc_fixpt_floor(pll_req);
+}
+
+static void dcn32_dump_clk_registers(struct clk_state_registers_and_bypass *regs_and_bypass,
+		struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info)
+{
+	struct clk_mgr_internal *clk_mgr = TO_CLK_MGR_INTERNAL(clk_mgr_base);
+	uint32_t dprefclk_did = 0;
+	uint32_t dcfclk_did = 0;
+	uint32_t dtbclk_did = 0;
+	uint32_t dispclk_did = 0;
+	uint32_t dppclk_did = 0;
+	uint32_t target_div = 0;
+
+	if (ASICREV_IS_GC_11_0_2(clk_mgr->base.ctx->asic_id.hw_internal_rev)) {
+		/* DFS Slice 0 is used for DISPCLK */
+		dispclk_did = REG_READ(CLK0_CLK0_DFS_CNTL);
+		/* DFS Slice 1 is used for DPPCLK */
+		dppclk_did = REG_READ(CLK0_CLK1_DFS_CNTL);
+		/* DFS Slice 2 is used for DPREFCLK */
+		dprefclk_did = REG_READ(CLK0_CLK2_DFS_CNTL);
+		/* DFS Slice 3 is used for DCFCLK */
+		dcfclk_did = REG_READ(CLK0_CLK3_DFS_CNTL);
+		/* DFS Slice 4 is used for DTBCLK */
+		dtbclk_did = REG_READ(CLK0_CLK4_DFS_CNTL);
+	} else {
+		/* DFS Slice 0 is used for DISPCLK */
+		dispclk_did = REG_READ(CLK1_CLK0_DFS_CNTL);
+		/* DFS Slice 1 is used for DPPCLK */
+		dppclk_did = REG_READ(CLK1_CLK1_DFS_CNTL);
+		/* DFS Slice 2 is used for DPREFCLK */
+		dprefclk_did = REG_READ(CLK1_CLK2_DFS_CNTL);
+		/* DFS Slice 3 is used for DCFCLK */
+		dcfclk_did = REG_READ(CLK1_CLK3_DFS_CNTL);
+		/* DFS Slice 4 is used for DTBCLK */
+		dtbclk_did = REG_READ(CLK1_CLK4_DFS_CNTL);
+	}
+
+	/* Convert DISPCLK DFS Slice DID to divider*/
+	target_div = dentist_get_divider_from_did(dispclk_did);
+	//Get dispclk in khz
+	regs_and_bypass->dispclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+	/* Convert DISPCLK DFS Slice DID to divider*/
+	target_div = dentist_get_divider_from_did(dppclk_did);
+	//Get dppclk in khz
+	regs_and_bypass->dppclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+	/* Convert DPREFCLK DFS Slice DID to divider*/
+	target_div = dentist_get_divider_from_did(dprefclk_did);
+	//Get dprefclk in khz
+	regs_and_bypass->dprefclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+	/* Convert DCFCLK DFS Slice DID to divider*/
+	target_div = dentist_get_divider_from_did(dcfclk_did);
+	//Get dcfclk in khz
+	regs_and_bypass->dcfclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+
+	/* Convert DTBCLK DFS Slice DID to divider*/
+	target_div = dentist_get_divider_from_did(dtbclk_did);
+	//Get dtbclk in khz
+	regs_and_bypass->dtbclk = (DENTIST_DIVIDER_RANGE_SCALE_FACTOR
+			* clk_mgr->base.dentist_vco_freq_khz) / target_div;
+}
+
 static void dcn32_clock_read_ss_info(struct clk_mgr_internal *clk_mgr)
 {
 	struct dc_bios *bp = clk_mgr->base.ctx->dc_bios;
@@ -680,6 +770,7 @@ static bool dcn32_is_smu_present(struct clk_mgr *clk_mgr_base)
 static struct clk_mgr_funcs dcn32_funcs = {
 		.get_dp_ref_clk_frequency = dcn31_get_dtb_ref_freq_khz,
 		.update_clocks = dcn32_update_clocks,
+		.dump_clk_registers = dcn32_dump_clk_registers,
 		.init_clocks = dcn32_init_clocks,
 		.notify_wm_ranges = dcn32_notify_wm_ranges,
 		.set_hard_min_memclk = dcn32_set_hard_min_memclk,
@@ -730,7 +821,8 @@ void dcn32_clk_mgr_construct(
 	}
 
 	/* integer part is now VCO frequency in kHz */
-	clk_mgr->base.dentist_vco_freq_khz = 4300000;//dcn32_get_vco_frequency_from_reg(clk_mgr);
+	clk_mgr->base.dentist_vco_freq_khz = dcn32_get_vco_frequency_from_reg(clk_mgr);
+
 	/* in case we don't get a value from the register, use default */
 	if (clk_mgr->base.dentist_vco_freq_khz == 0)
 		clk_mgr->base.dentist_vco_freq_khz = 4300000; /* Updated as per HW docs */

@@ -245,6 +245,9 @@ struct clk_mgr_funcs {
 
 	void (*init_clocks)(struct clk_mgr *clk_mgr);
 
+	void (*dump_clk_registers)(struct clk_state_registers_and_bypass *regs_and_bypass,
+			struct clk_mgr *clk_mgr_base, struct clk_log_info *log_info);
+
 	void (*enable_pme_wa) (struct clk_mgr *clk_mgr);
 	void (*get_clock)(struct clk_mgr *clk_mgr,
 			struct dc_state *context,
