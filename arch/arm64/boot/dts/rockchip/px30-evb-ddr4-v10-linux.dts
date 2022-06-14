@@ -1,0 +1,13 @@
+// SPDX-License-Identifier: (GPL-2.0+ OR MIT)
+/*
+ * Copyright (c) 2023 Rockchip Electronics Co., Ltd
+ */
+
+/dts-v1/;
+#include "px30-evb-ddr3-v10-linux.dts"
+#include "px30-ddr4p416dd6-timing.dtsi"
+
+/ {
+	model = "Rockchip linux PX30 evb ddr4 board";
+	compatible = "rockchip,px30-evb-ddr4-v10-linux", "rockchip,px30";
+};
