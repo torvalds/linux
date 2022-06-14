@@ -333,8 +333,8 @@ static bool mmio_write(int size, unsigned long addr, unsigned long val)
 
 static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 {
+	unsigned long *reg, val, vaddr;
 	char buffer[MAX_INSN_SIZE];
-	unsigned long *reg, val;
 	struct insn insn = {};
 	enum mmio_type mmio;
 	int size, extend_size;
@@ -359,6 +359,19 @@ static int handle_mmio(struct pt_regs *regs, struct ve_info *ve)
 		if (!reg)
 			return -EINVAL;
 	}
+
+	/*
+	 * Reject EPT violation #VEs that split pages.
+	 *
+	 * MMIO accesses are supposed to be naturally aligned and therefore
+	 * never cross page boundaries. Seeing split page accesses indicates
+	 * a bug or a load_unaligned_zeropad() that stepped into an MMIO page.
+	 *
+	 * load_unaligned_zeropad() will recover using exception fixups.
+	 */
+	vaddr = (unsigned long)insn_get_addr_ref(&insn, regs);
+	if (vaddr / PAGE_SIZE != (vaddr + size - 1) / PAGE_SIZE)
+		return -EFAULT;
 
 	/* Handle writes first */
 	switch (mmio) {
