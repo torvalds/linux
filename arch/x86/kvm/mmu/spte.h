@@ -55,11 +55,10 @@ static_assert(SPTE_TDP_AD_ENABLED_MASK == 0);
 
 #define PT64_LEVEL_BITS 9
 
-#define PT64_LEVEL_SHIFT(level) \
-		(PAGE_SHIFT + (level - 1) * PT64_LEVEL_BITS)
+#define PT64_LEVEL_SHIFT(level) __PT_LEVEL_SHIFT(level, PT64_LEVEL_BITS)
 
-#define PT64_INDEX(address, level)\
-	(((address) >> PT64_LEVEL_SHIFT(level)) & ((1 << PT64_LEVEL_BITS) - 1))
+#define PT64_INDEX(address, level) __PT_INDEX(address, level, PT64_LEVEL_BITS)
+
 #define SHADOW_PT_INDEX(addr, level) PT64_INDEX(addr, level)
 
 /*
