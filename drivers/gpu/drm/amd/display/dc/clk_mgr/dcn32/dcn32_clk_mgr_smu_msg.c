@@ -34,8 +34,6 @@
 #define mmDAL_ARG_REG  0x16273
 #define mmDAL_RESP_REG 0x16274
 
-#define DALSMC_MSG_TransferTableDram2Smu          0x8
-
 #define REG(reg_name) \
 	mm ## reg_name
 
