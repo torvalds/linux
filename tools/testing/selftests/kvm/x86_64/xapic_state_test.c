@@ -136,9 +136,7 @@ int main(int argc, char *argv[])
 		.vcpu = NULL,
 		.is_x2apic = true,
 	};
-	struct kvm_cpuid2 *cpuid;
 	struct kvm_vm *vm;
-	int i;
 
 	vm = vm_create_with_one_vcpu(&x.vcpu, x2apic_guest_code);
 	test_icr(&x);
@@ -152,13 +150,7 @@ int main(int argc, char *argv[])
 	vm = vm_create_with_one_vcpu(&x.vcpu, xapic_guest_code);
 	x.is_x2apic = false;
 
-	cpuid = x.vcpu->cpuid;
-	for (i = 0; i < cpuid->nent; i++) {
-		if (cpuid->entries[i].function == 1)
-			break;
-	}
-	cpuid->entries[i].ecx &= ~BIT(21);
-	vcpu_set_cpuid(x.vcpu);
+	vcpu_clear_cpuid_feature(x.vcpu, X86_FEATURE_X2APIC);
 
 	virt_pg_map(vm, APIC_DEFAULT_GPA, APIC_DEFAULT_GPA);
 	test_icr(&x);
