@@ -64,7 +64,8 @@ struct gfs2_rgrp_list {
 
 extern void gfs2_rlist_add(struct gfs2_inode *ip, struct gfs2_rgrp_list *rlist,
 			   u64 block);
-extern void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist);
+extern void gfs2_rlist_alloc(struct gfs2_rgrp_list *rlist,
+			     unsigned int state, u16 flags);
 extern void gfs2_rlist_free(struct gfs2_rgrp_list *rlist);
 extern u64 gfs2_ri_total(struct gfs2_sbd *sdp);
 extern void gfs2_rgrp_dump(struct seq_file *seq, struct gfs2_rgrpd *rgd,
