@@ -637,6 +637,18 @@ void cfg80211_mlme_purge_registrations(struct wireless_dev *wdev)
 	cfg80211_mgmt_registrations_update(wdev);
 }
 
+static bool cfg80211_allowed_address(struct wireless_dev *wdev, const u8 *addr)
+{
+	int i;
+
+	for_each_valid_link(wdev, i) {
+		if (ether_addr_equal(addr, wdev->links[i].addr))
+			return true;
+	}
+
+	return ether_addr_equal(addr, wdev_address(wdev));
+}
+
 int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			  struct wireless_dev *wdev,
 			  struct cfg80211_mgmt_tx_params *params, u64 *cookie)
@@ -735,7 +747,7 @@ int cfg80211_mlme_mgmt_tx(struct cfg80211_registered_device *rdev,
 			return err;
 	}
 
-	if (!ether_addr_equal(mgmt->sa, wdev_address(wdev))) {
+	if (!cfg80211_allowed_address(wdev, mgmt->sa)) {
 		/* Allow random TA to be used with Public Action frames if the
 		 * driver has indicated support for this. Otherwise, only allow
 		 * the local address to be used.
