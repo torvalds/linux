@@ -193,8 +193,9 @@ static int paicrypt_event_init(struct perf_event *event)
 	/* PAI crypto PMU registered as PERF_TYPE_RAW, check event type */
 	if (a->type != PERF_TYPE_RAW && event->pmu->type != a->type)
 		return -ENOENT;
-	/* PAI crypto event must be valid */
-	if (a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
+	/* PAI crypto event must be in valid range */
+	if (a->config < PAI_CRYPTO_BASE ||
+	    a->config > PAI_CRYPTO_BASE + paicrypt_cnt)
 		return -EINVAL;
 	/* Allow only CPU wide operation, no process context for now. */
 	if (event->hw.target || event->cpu == -1)
