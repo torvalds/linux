@@ -141,7 +141,7 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 			     enum v4l2_mbus_type mbus_type, u32 mbus_flags)
 {
 	struct rkisp1_device *rkisp1 = isp->rkisp1;
-	u32 isp_ctrl = 0, irq_mask = 0, acq_mult = 0, signal = 0, input_sel = 0;
+	u32 isp_ctrl = 0, irq_mask = 0, acq_mult = 0, acq_prop = 0;
 	const struct rkisp1_mbus_info *src_fmt, *sink_fmt;
 	struct v4l2_mbus_framefmt *sink_frm;
 	struct v4l2_rect *sink_crop;
@@ -188,17 +188,17 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 	/* Set up input acquisition properties */
 	if (mbus_type == V4L2_MBUS_BT656 || mbus_type == V4L2_MBUS_PARALLEL) {
 		if (mbus_flags & V4L2_MBUS_PCLK_SAMPLE_RISING)
-			signal = RKISP1_CIF_ISP_ACQ_PROP_POS_EDGE;
+			acq_prop |= RKISP1_CIF_ISP_ACQ_PROP_POS_EDGE;
 
 		switch (sink_fmt->bus_width) {
 		case 8:
-			input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_8B_ZERO;
+			acq_prop |= RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_8B_ZERO;
 			break;
 		case 10:
-			input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_10B_ZERO;
+			acq_prop |= RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_10B_ZERO;
 			break;
 		case 12:
-			input_sel = RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_12B;
+			acq_prop |= RKISP1_CIF_ISP_ACQ_PROP_IN_SEL_12B;
 			break;
 		default:
 			dev_err(rkisp1->dev, "Invalid bus width %u\n",
@@ -209,15 +209,15 @@ static int rkisp1_config_isp(struct rkisp1_isp *isp,
 
 	if (mbus_type == V4L2_MBUS_PARALLEL) {
 		if (mbus_flags & V4L2_MBUS_VSYNC_ACTIVE_LOW)
-			signal |= RKISP1_CIF_ISP_ACQ_PROP_VSYNC_LOW;
+			acq_prop |= RKISP1_CIF_ISP_ACQ_PROP_VSYNC_LOW;
 
 		if (mbus_flags & V4L2_MBUS_HSYNC_ACTIVE_LOW)
-			signal |= RKISP1_CIF_ISP_ACQ_PROP_HSYNC_LOW;
+			acq_prop |= RKISP1_CIF_ISP_ACQ_PROP_HSYNC_LOW;
 	}
 
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_CTRL, isp_ctrl);
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ACQ_PROP,
-		     signal | sink_fmt->yuv_seq | input_sel |
+		     acq_prop | sink_fmt->yuv_seq |
 		     RKISP1_CIF_ISP_ACQ_PROP_BAYER_PAT(sink_fmt->bayer_pat) |
 		     RKISP1_CIF_ISP_ACQ_PROP_FIELD_SEL_ALL);
 	rkisp1_write(rkisp1, RKISP1_CIF_ISP_ACQ_NR_FRAMES, 0);
