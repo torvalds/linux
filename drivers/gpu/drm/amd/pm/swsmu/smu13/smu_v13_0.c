@@ -731,6 +731,8 @@ int smu_v13_0_get_vbios_bootup_values(struct smu_context *smu)
 			smu->smu_table.boot_values.vclk = smu_info_v3_6->bootup_vclk_10khz;
 			smu->smu_table.boot_values.dclk = smu_info_v3_6->bootup_dclk_10khz;
 			smu->smu_table.boot_values.fclk = smu_info_v3_6->bootup_fclk_10khz;
+		} else if ((frev == 3) && (crev == 1)) {
+			return 0;
 		} else if ((frev == 4) && (crev == 0)) {
 			smu_info_v4_0 = (struct atom_smu_info_v4_0 *)header;
 
