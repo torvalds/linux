@@ -1700,6 +1700,42 @@ static bool mac80211_hwsim_tx_frame_no_nl(struct ieee80211_hw *hw,
 	return ack;
 }
 
+static struct ieee80211_bss_conf *
+mac80211_hwsim_select_tx_link(struct mac80211_hwsim_data *data,
+			      struct ieee80211_vif *vif,
+			      struct ieee80211_sta *sta,
+			      struct ieee80211_hdr *hdr)
+{
+	int i;
+
+	for (i = 0; i < ARRAY_SIZE(vif->link_conf); i++) {
+		struct ieee80211_link_sta *link_sta = NULL;
+		struct ieee80211_bss_conf *bss_conf;
+
+		bss_conf = rcu_dereference(vif->link_conf[i]);
+		if (!bss_conf)
+			continue;
+
+		if (sta) {
+			link_sta = rcu_dereference(sta->link[i]);
+			if (!link_sta)
+				continue;
+		}
+
+		if (!is_multicast_ether_addr(hdr->addr1)) {
+			if (link_sta)
+				ether_addr_copy(hdr->addr1, link_sta->addr);
+			ether_addr_copy(hdr->addr2, bss_conf->addr);
+		} else {
+			/* TODO: Handle multicast frames */
+		}
+
+		return bss_conf;
+	}
+
+	return NULL;
+}
+
 static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 			      struct ieee80211_tx_control *control,
 			      struct sk_buff *skb)
@@ -1726,8 +1762,21 @@ static void mac80211_hwsim_tx(struct ieee80211_hw *hw,
 		channel = data->tmp_chan;
 	} else {
 		struct ieee80211_bss_conf *bss_conf;
+		u8 link = u32_get_bits(IEEE80211_SKB_CB(skb)->control.flags,
+				       IEEE80211_TX_CTRL_MLO_LINK);
 
-		bss_conf = &txi->control.vif->bss_conf;
+		if (link != IEEE80211_LINK_UNSPECIFIED)
+			bss_conf = rcu_dereference(txi->control.vif->link_conf[link]);
+		else
+			bss_conf = mac80211_hwsim_select_tx_link(data,
+								 txi->control.vif,
+								 control->sta,
+								 hdr);
+
+		if (WARN_ON(!bss_conf)) {
+			ieee80211_free_txskb(hw, skb);
+			return;
+		}
 
 		chanctx_conf = rcu_dereference(bss_conf->chanctx_conf);
 		if (chanctx_conf) {
