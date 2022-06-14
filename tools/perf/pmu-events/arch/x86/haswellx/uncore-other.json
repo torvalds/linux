@@ -1,0 +1,3170 @@
+[
+    {
+        "BriefDescription": "Total Write Cache Occupancy; Any Source",
+        "Counter": "0,1",
+        "EventCode": "0x12",
+        "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.ANY",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Total Write Cache Occupancy; Select Source",
+        "Counter": "0,1",
+        "EventCode": "0x12",
+        "EventName": "UNC_I_CACHE_TOTAL_OCCUPANCY.SOURCE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Clocks in the IRP",
+        "Counter": "0,1",
+        "EventName": "UNC_I_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; PCIRdCur",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.PCIRDCUR",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; CRd",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.CRD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; DRd",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.DRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; RFO",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.RFO",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; PCIItoM",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.PCITOM",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; PCIDCAHin5t",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.PCIDCAHINT",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; WbMtoI",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.WBMTOI",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Coherent Ops; CLFlush",
+        "Counter": "0,1",
+        "EventCode": "0x13",
+        "EventName": "UNC_I_COHERENT_OPS.CLFLUSH",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Fastpath Requests",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.FAST_REQ",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Fastpath Rejects",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.FAST_REJ",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Cache Inserts of Read Transactions as Secondary",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.2ND_RD_INSERT",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Cache Inserts of Write Transactions as Secondary",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.2ND_WR_INSERT",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Cache Inserts of Atomic Transactions as Secondary",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.2ND_ATOMIC_INSERT",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Fastpath Transfers From Primary to Secondary",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.FAST_XFER",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Prefetch Ack Hints From Primary to Secondary",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.PF_ACK_HINT",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Slow Transfer of I Line",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.SLOW_I",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Slow Transfer of S Line",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.SLOW_S",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Slow Transfer of E Line",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.SLOW_E",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Slow Transfer of M Line",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.SLOW_M",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.LOST_FWD",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Received Invalid",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.SEC_RCVD_INVLD",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Received Valid",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.SEC_RCVD_VLD",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 1; Data Throttled",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_I_MISC1.DATA_THROTTLE",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "AK Ingress Occupancy",
+        "Counter": "0,1",
+        "EventCode": "0xA",
+        "EventName": "UNC_I_RxR_AK_INSERTS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "UNC_I_RxR_BL_DRS_CYCLES_FULL",
+        "Counter": "0,1",
+        "EventCode": "0x4",
+        "EventName": "UNC_I_RxR_BL_DRS_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "BL Ingress Occupancy - DRS",
+        "Counter": "0,1",
+        "EventCode": "0x1",
+        "EventName": "UNC_I_RxR_BL_DRS_INSERTS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "UNC_I_RxR_BL_DRS_OCCUPANCY",
+        "Counter": "0,1",
+        "EventCode": "0x7",
+        "EventName": "UNC_I_RxR_BL_DRS_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "UNC_I_RxR_BL_NCB_CYCLES_FULL",
+        "Counter": "0,1",
+        "EventCode": "0x5",
+        "EventName": "UNC_I_RxR_BL_NCB_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "BL Ingress Occupancy - NCB",
+        "Counter": "0,1",
+        "EventCode": "0x2",
+        "EventName": "UNC_I_RxR_BL_NCB_INSERTS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "UNC_I_RxR_BL_NCB_OCCUPANCY",
+        "Counter": "0,1",
+        "EventCode": "0x8",
+        "EventName": "UNC_I_RxR_BL_NCB_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "UNC_I_RxR_BL_NCS_CYCLES_FULL",
+        "Counter": "0,1",
+        "EventCode": "0x6",
+        "EventName": "UNC_I_RxR_BL_NCS_CYCLES_FULL",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "BL Ingress Occupancy - NCS",
+        "Counter": "0,1",
+        "EventCode": "0x3",
+        "EventName": "UNC_I_RxR_BL_NCS_INSERTS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "UNC_I_RxR_BL_NCS_OCCUPANCY",
+        "Counter": "0,1",
+        "EventCode": "0x9",
+        "EventName": "UNC_I_RxR_BL_NCS_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; Miss",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.MISS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; Hit I",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.HIT_I",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; Hit E or S",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.HIT_ES",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; Hit M",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.HIT_M",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; SnpCode",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.SNPCODE",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; SnpData",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.SNPDATA",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Snoop Responses; SnpInv",
+        "Counter": "0,1",
+        "EventCode": "0x17",
+        "EventName": "UNC_I_SNOOP_RESP.SNPINV",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Reads",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.READS",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Writes",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.WRITES",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Read Prefetches",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.RD_PREF",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Write Prefetches",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.WR_PREF",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Atomic",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.ATOMIC",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Other",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.OTHER",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Inbound Transaction Count; Select Source",
+        "Counter": "0,1",
+        "EventCode": "0x16",
+        "EventName": "UNC_I_TRANSACTIONS.ORDERINGQ",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "No AD Egress Credit Stalls",
+        "Counter": "0,1",
+        "EventCode": "0x18",
+        "EventName": "UNC_I_TxR_AD_STALL_CREDIT_CYCLES",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "No BL Egress Credit Stalls",
+        "Counter": "0,1",
+        "EventCode": "0x19",
+        "EventName": "UNC_I_TxR_BL_STALL_CREDIT_CYCLES",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Outbound Read Requests",
+        "Counter": "0,1",
+        "EventCode": "0xE",
+        "EventName": "UNC_I_TxR_DATA_INSERTS_NCB",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Outbound Read Requests",
+        "Counter": "0,1",
+        "EventCode": "0xF",
+        "EventName": "UNC_I_TxR_DATA_INSERTS_NCS",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Outbound Request Queue Occupancy",
+        "Counter": "0,1",
+        "EventCode": "0xD",
+        "EventName": "UNC_I_TxR_REQUEST_OCCUPANCY",
+        "PerPkg": "1",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Misc Events - Set 0; Prefetch TimeOut",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_I_MISC0.PF_TIMEOUT",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "IRP"
+    },
+    {
+        "BriefDescription": "Number of uclks in domain",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_R2_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.PRQ_QPI0",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R2_IIO_CREDIT.PRQ_QPI0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.PRQ_QPI1",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R2_IIO_CREDIT.PRQ_QPI1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.ISOCH_QPI0",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R2_IIO_CREDIT.ISOCH_QPI0",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "UNC_R2_IIO_CREDIT.ISOCH_QPI1",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R2_IIO_CREDIT.ISOCH_QPI1",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2PCIe IIO Credit Acquired; DRS",
+        "Counter": "0,1",
+        "EventCode": "0x33",
+        "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2PCIe IIO Credit Acquired; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x33",
+        "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2PCIe IIO Credit Acquired; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x33",
+        "EventName": "UNC_R2_IIO_CREDITS_ACQUIRED.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2PCIe IIO Credits in Use; DRS",
+        "Counter": "0,1",
+        "EventCode": "0x32",
+        "EventName": "UNC_R2_IIO_CREDITS_USED.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2PCIe IIO Credits in Use; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x32",
+        "EventName": "UNC_R2_IIO_CREDITS_USED.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2PCIe IIO Credits in Use; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x32",
+        "EventName": "UNC_R2_IIO_CREDITS_USED.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AD Ring in Use; Clockwise and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_R2_RING_AD_USED.CW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AD Ring in Use; Clockwise and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_R2_RING_AD_USED.CW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AD Ring in Use; Counterclockwise and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_R2_RING_AD_USED.CCW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AD Ring in Use; Counterclockwise and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_R2_RING_AD_USED.CCW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AD Ring in Use; Clockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_R2_RING_AD_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AD Ring in Use; Counterclockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x7",
+        "EventName": "UNC_R2_RING_AD_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "AK Ingress Bounced; Up",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_R2_RING_AK_BOUNCES.UP",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "AK Ingress Bounced; Dn",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_R2_RING_AK_BOUNCES.DN",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AK Ring in Use; Clockwise and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_R2_RING_AK_USED.CW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AK Ring in Use; Clockwise and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_R2_RING_AK_USED.CW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AK Ring in Use; Counterclockwise and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_R2_RING_AK_USED.CCW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AK Ring in Use; Counterclockwise and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_R2_RING_AK_USED.CCW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AK Ring in Use; Clockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_R2_RING_AK_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 AK Ring in Use; Counterclockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x8",
+        "EventName": "UNC_R2_RING_AK_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 BL Ring in Use; Clockwise and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_R2_RING_BL_USED.CW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 BL Ring in Use; Clockwise and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_R2_RING_BL_USED.CW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 BL Ring in Use; Counterclockwise and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_R2_RING_BL_USED.CCW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 BL Ring in Use; Counterclockwise and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_R2_RING_BL_USED.CCW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 BL Ring in Use; Clockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_R2_RING_BL_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 BL Ring in Use; Counterclockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_R2_RING_BL_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 IV Ring in Use; Clockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_R2_RING_IV_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 IV Ring in Use; Counterclockwise",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_R2_RING_IV_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "R2 IV Ring in Use; Any",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_R2_RING_IV_USED.ANY",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress Cycles Not Empty; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_R2_RxR_CYCLES_NE.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress Cycles Not Empty; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_R2_RxR_CYCLES_NE.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R2_RxR_INSERTS.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R2_RxR_INSERTS.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy Accumulator; DRS",
+        "EventCode": "0x13",
+        "EventName": "UNC_R2_RxR_OCCUPANCY.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Acquired; For AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "UNC_R2_SBO0_CREDITS_ACQUIRED.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Acquired; For BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "UNC_R2_SBO0_CREDITS_ACQUIRED.BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Occupancy; For AD Ring",
+        "EventCode": "0x2A",
+        "EventName": "UNC_R2_SBO0_CREDIT_OCCUPANCY.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Occupancy; For BL Ring",
+        "EventCode": "0x2A",
+        "EventName": "UNC_R2_SBO0_CREDIT_OCCUPANCY.BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo0, AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R2_STALL_NO_SBO_CREDIT.SBO0_AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo1, AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R2_STALL_NO_SBO_CREDIT.SBO1_AD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo0, BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R2_STALL_NO_SBO_CREDIT.SBO0_BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo1, BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R2_STALL_NO_SBO_CREDIT.SBO1_BL",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Cycles Full; AD",
+        "EventCode": "0x25",
+        "EventName": "UNC_R2_TxR_CYCLES_FULL.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Cycles Full; AK",
+        "EventCode": "0x25",
+        "EventName": "UNC_R2_TxR_CYCLES_FULL.AK",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Cycles Full; BL",
+        "EventCode": "0x25",
+        "EventName": "UNC_R2_TxR_CYCLES_FULL.BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Cycles Not Empty; AD",
+        "EventCode": "0x23",
+        "EventName": "UNC_R2_TxR_CYCLES_NE.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Cycles Not Empty; AK",
+        "EventCode": "0x23",
+        "EventName": "UNC_R2_TxR_CYCLES_NE.AK",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress Cycles Not Empty; BL",
+        "EventCode": "0x23",
+        "EventName": "UNC_R2_TxR_CYCLES_NE.BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; AD CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R2_TxR_NACK_CW.DN_AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; BL CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R2_TxR_NACK_CW.DN_BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; AK CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R2_TxR_NACK_CW.DN_AK",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; AK CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R2_TxR_NACK_CW.UP_AD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; BL CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R2_TxR_NACK_CW.UP_BL",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; BL CW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R2_TxR_NACK_CW.UP_AK",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R2PCIe"
+    },
+    {
+        "BriefDescription": "Number of uclks in domain",
+        "Counter": "0,1,2",
+        "EventCode": "0x1",
+        "EventName": "UNC_R3_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO8",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO9",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO10",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO11",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO12",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO13",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO14_16",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x1F",
+        "EventName": "UNC_R3_C_HI_AD_CREDITS_EMPTY.CBO_15_17",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO2",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO3",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO4",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO5",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO6",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "CBox AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x22",
+        "EventName": "UNC_R3_C_LO_AD_CREDITS_EMPTY.CBO7",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "HA/R2 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.HA0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "HA/R2 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.HA1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "HA/R2 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.R2_NCB",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "HA/R2 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2D",
+        "EventName": "UNC_R3_HA_R2_BL_CREDITS_EMPTY.R2_NCS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "IOT Backpressure",
+        "Counter": "0,1,2",
+        "EventCode": "0xB",
+        "EventName": "UNC_R3_IOT_BACKPRESSURE.SAT",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "IOT Backpressure",
+        "Counter": "0,1,2",
+        "EventCode": "0xB",
+        "EventName": "UNC_R3_IOT_BACKPRESSURE.HUB",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "IOT Common Trigger Sequencer - Hi",
+        "Counter": "0,1,2",
+        "EventCode": "0xD",
+        "EventName": "UNC_R3_IOT_CTS_HI.CTS2",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "IOT Common Trigger Sequencer - Hi",
+        "Counter": "0,1,2",
+        "EventCode": "0xD",
+        "EventName": "UNC_R3_IOT_CTS_HI.CTS3",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "IOT Common Trigger Sequencer - Lo",
+        "Counter": "0,1,2",
+        "EventCode": "0xC",
+        "EventName": "UNC_R3_IOT_CTS_LO.CTS0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "IOT Common Trigger Sequencer - Lo",
+        "Counter": "0,1,2",
+        "EventCode": "0xC",
+        "EventName": "UNC_R3_IOT_CTS_LO.CTS1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VNA",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN0_HOM",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN0_SNP",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN0_NDR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN1_HOM",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN1_SNP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x20",
+        "EventName": "UNC_R3_QPI0_AD_CREDITS_EMPTY.VN1_NDR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x21",
+        "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VNA",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x21",
+        "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN1_HOM",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x21",
+        "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN1_SNP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI0 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x21",
+        "EventName": "UNC_R3_QPI0_BL_CREDITS_EMPTY.VN1_NDR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VNA",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN1_HOM",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN1_SNP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 AD Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2E",
+        "EventName": "UNC_R3_QPI1_AD_CREDITS_EMPTY.VN1_NDR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VNA",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN0_HOM",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN0_SNP",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN0_NDR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN1_HOM",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN1_SNP",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "QPI1 BL Credits Empty",
+        "Counter": "0,1",
+        "EventCode": "0x2F",
+        "EventName": "UNC_R3_QPI1_BL_CREDITS_EMPTY.VN1_NDR",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AD Ring in Use; Clockwise and Even",
+        "Counter": "0,1,2",
+        "EventCode": "0x7",
+        "EventName": "UNC_R3_RING_AD_USED.CW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AD Ring in Use; Clockwise and Odd",
+        "Counter": "0,1,2",
+        "EventCode": "0x7",
+        "EventName": "UNC_R3_RING_AD_USED.CW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AD Ring in Use; Counterclockwise and Even",
+        "Counter": "0,1,2",
+        "EventCode": "0x7",
+        "EventName": "UNC_R3_RING_AD_USED.CCW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AD Ring in Use; Counterclockwise and Odd",
+        "Counter": "0,1,2",
+        "EventCode": "0x7",
+        "EventName": "UNC_R3_RING_AD_USED.CCW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AD Ring in Use; Clockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0x7",
+        "EventName": "UNC_R3_RING_AD_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AD Ring in Use; Counterclockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0x7",
+        "EventName": "UNC_R3_RING_AD_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AK Ring in Use; Clockwise and Even",
+        "Counter": "0,1,2",
+        "EventCode": "0x8",
+        "EventName": "UNC_R3_RING_AK_USED.CW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AK Ring in Use; Clockwise and Odd",
+        "Counter": "0,1,2",
+        "EventCode": "0x8",
+        "EventName": "UNC_R3_RING_AK_USED.CW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AK Ring in Use; Counterclockwise and Even",
+        "Counter": "0,1,2",
+        "EventCode": "0x8",
+        "EventName": "UNC_R3_RING_AK_USED.CCW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AK Ring in Use; Counterclockwise and Odd",
+        "Counter": "0,1,2",
+        "EventCode": "0x8",
+        "EventName": "UNC_R3_RING_AK_USED.CCW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AK Ring in Use; Clockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0x8",
+        "EventName": "UNC_R3_RING_AK_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 AK Ring in Use; Counterclockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0x8",
+        "EventName": "UNC_R3_RING_AK_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 BL Ring in Use; Clockwise and Even",
+        "Counter": "0,1,2",
+        "EventCode": "0x9",
+        "EventName": "UNC_R3_RING_BL_USED.CW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 BL Ring in Use; Clockwise and Odd",
+        "Counter": "0,1,2",
+        "EventCode": "0x9",
+        "EventName": "UNC_R3_RING_BL_USED.CW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 BL Ring in Use; Counterclockwise and Even",
+        "Counter": "0,1,2",
+        "EventCode": "0x9",
+        "EventName": "UNC_R3_RING_BL_USED.CCW_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 BL Ring in Use; Counterclockwise and Odd",
+        "Counter": "0,1,2",
+        "EventCode": "0x9",
+        "EventName": "UNC_R3_RING_BL_USED.CCW_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 BL Ring in Use; Clockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0x9",
+        "EventName": "UNC_R3_RING_BL_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 BL Ring in Use; Counterclockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0x9",
+        "EventName": "UNC_R3_RING_BL_USED.CCW",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 IV Ring in Use; Clockwise",
+        "Counter": "0,1,2",
+        "EventCode": "0xA",
+        "EventName": "UNC_R3_RING_IV_USED.CW",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "R3 IV Ring in Use; Any",
+        "Counter": "0,1,2",
+        "EventCode": "0xA",
+        "EventName": "UNC_R3_RING_IV_USED.ANY",
+        "PerPkg": "1",
+        "UMask": "0xF",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ring Stop Starved; AK",
+        "Counter": "0,1,2",
+        "EventCode": "0xE",
+        "EventName": "UNC_R3_RING_SINK_STARVED.AK",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Cycles Not Empty; HOM",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_R3_RxR_CYCLES_NE.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Cycles Not Empty; SNP",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_R3_RxR_CYCLES_NE.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Cycles Not Empty; NDR",
+        "Counter": "0,1",
+        "EventCode": "0x10",
+        "EventName": "UNC_R3_RxR_CYCLES_NE.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Cycles Not Empty; HOM",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_R3_RxR_CYCLES_NE_VN1.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Cycles Not Empty; SNP",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_R3_RxR_CYCLES_NE_VN1.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Cycles Not Empty; NDR",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_R3_RxR_CYCLES_NE_VN1.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Cycles Not Empty; DRS",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_R3_RxR_CYCLES_NE_VN1.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Cycles Not Empty; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_R3_RxR_CYCLES_NE_VN1.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Cycles Not Empty; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x14",
+        "EventName": "UNC_R3_RxR_CYCLES_NE_VN1.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; HOM",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R3_RxR_INSERTS.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; SNP",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R3_RxR_INSERTS.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; NDR",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R3_RxR_INSERTS.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; DRS",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R3_RxR_INSERTS.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R3_RxR_INSERTS.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x11",
+        "EventName": "UNC_R3_RxR_INSERTS.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Allocations; HOM",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_R3_RxR_INSERTS_VN1.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Allocations; SNP",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_R3_RxR_INSERTS_VN1.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Allocations; NDR",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_R3_RxR_INSERTS_VN1.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Allocations; DRS",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_R3_RxR_INSERTS_VN1.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Allocations; NCB",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_R3_RxR_INSERTS_VN1.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Allocations; NCS",
+        "Counter": "0,1",
+        "EventCode": "0x15",
+        "EventName": "UNC_R3_RxR_INSERTS_VN1.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Occupancy Accumulator; HOM",
+        "EventCode": "0x13",
+        "EventName": "UNC_R3_RxR_OCCUPANCY_VN1.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Occupancy Accumulator; SNP",
+        "EventCode": "0x13",
+        "EventName": "UNC_R3_RxR_OCCUPANCY_VN1.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Occupancy Accumulator; NDR",
+        "EventCode": "0x13",
+        "EventName": "UNC_R3_RxR_OCCUPANCY_VN1.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Occupancy Accumulator; DRS",
+        "EventCode": "0x13",
+        "EventName": "UNC_R3_RxR_OCCUPANCY_VN1.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Occupancy Accumulator; NCB",
+        "EventCode": "0x13",
+        "EventName": "UNC_R3_RxR_OCCUPANCY_VN1.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Ingress Occupancy Accumulator; NCS",
+        "EventCode": "0x13",
+        "EventName": "UNC_R3_RxR_OCCUPANCY_VN1.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Acquired; For AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "UNC_R3_SBO0_CREDITS_ACQUIRED.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Acquired; For BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x28",
+        "EventName": "UNC_R3_SBO0_CREDITS_ACQUIRED.BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Occupancy; For AD Ring",
+        "EventCode": "0x2A",
+        "EventName": "UNC_R3_SBO0_CREDIT_OCCUPANCY.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo0 Credits Occupancy; For BL Ring",
+        "EventCode": "0x2A",
+        "EventName": "UNC_R3_SBO0_CREDIT_OCCUPANCY.BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo1 Credits Acquired; For AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "UNC_R3_SBO1_CREDITS_ACQUIRED.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo1 Credits Acquired; For BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x29",
+        "EventName": "UNC_R3_SBO1_CREDITS_ACQUIRED.BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo1 Credits Occupancy; For AD Ring",
+        "EventCode": "0x2B",
+        "EventName": "UNC_R3_SBO1_CREDIT_OCCUPANCY.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "SBo1 Credits Occupancy; For BL Ring",
+        "EventCode": "0x2B",
+        "EventName": "UNC_R3_SBO1_CREDIT_OCCUPANCY.BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo0, AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R3_STALL_NO_SBO_CREDIT.SBO0_AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo1, AD Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R3_STALL_NO_SBO_CREDIT.SBO1_AD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo0, BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R3_STALL_NO_SBO_CREDIT.SBO0_BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Stall on No Sbo Credits; For SBo1, BL Ring",
+        "Counter": "0,1",
+        "EventCode": "0x2C",
+        "EventName": "UNC_R3_STALL_NO_SBO_CREDIT.SBO1_BL",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; AD CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R3_TxR_NACK.DN_AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; BL CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R3_TxR_NACK.DN_BL",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; AK CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R3_TxR_NACK.DN_AK",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; AK CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R3_TxR_NACK.UP_AD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; BL CCW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R3_TxR_NACK.UP_BL",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Egress CCW NACK; BL CW",
+        "Counter": "0,1",
+        "EventCode": "0x26",
+        "EventName": "UNC_R3_TxR_NACK.UP_AK",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Acquisition Failed on DRS; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_R3_VN0_CREDITS_REJECT.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Acquisition Failed on DRS; SNP Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_R3_VN0_CREDITS_REJECT.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Acquisition Failed on DRS; NDR Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_R3_VN0_CREDITS_REJECT.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Acquisition Failed on DRS; DRS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_R3_VN0_CREDITS_REJECT.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Acquisition Failed on DRS; NCB Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_R3_VN0_CREDITS_REJECT.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Acquisition Failed on DRS; NCS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x37",
+        "EventName": "UNC_R3_VN0_CREDITS_REJECT.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Used; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x36",
+        "EventName": "UNC_R3_VN0_CREDITS_USED.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Used; SNP Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x36",
+        "EventName": "UNC_R3_VN0_CREDITS_USED.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Used; NDR Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x36",
+        "EventName": "UNC_R3_VN0_CREDITS_USED.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Used; DRS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x36",
+        "EventName": "UNC_R3_VN0_CREDITS_USED.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Used; NCB Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x36",
+        "EventName": "UNC_R3_VN0_CREDITS_USED.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN0 Credit Used; NCS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x36",
+        "EventName": "UNC_R3_VN0_CREDITS_USED.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Acquisition Failed on DRS; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x39",
+        "EventName": "UNC_R3_VN1_CREDITS_REJECT.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Acquisition Failed on DRS; SNP Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x39",
+        "EventName": "UNC_R3_VN1_CREDITS_REJECT.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Acquisition Failed on DRS; NDR Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x39",
+        "EventName": "UNC_R3_VN1_CREDITS_REJECT.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Acquisition Failed on DRS; DRS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x39",
+        "EventName": "UNC_R3_VN1_CREDITS_REJECT.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Acquisition Failed on DRS; NCB Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x39",
+        "EventName": "UNC_R3_VN1_CREDITS_REJECT.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Acquisition Failed on DRS; NCS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x39",
+        "EventName": "UNC_R3_VN1_CREDITS_REJECT.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Used; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x38",
+        "EventName": "UNC_R3_VN1_CREDITS_USED.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Used; SNP Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x38",
+        "EventName": "UNC_R3_VN1_CREDITS_USED.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Used; NDR Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x38",
+        "EventName": "UNC_R3_VN1_CREDITS_USED.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Used; DRS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x38",
+        "EventName": "UNC_R3_VN1_CREDITS_USED.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Used; NCB Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x38",
+        "EventName": "UNC_R3_VN1_CREDITS_USED.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VN1 Credit Used; NCS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x38",
+        "EventName": "UNC_R3_VN1_CREDITS_USED.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA credit Acquisitions; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x33",
+        "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA credit Acquisitions; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x33",
+        "EventName": "UNC_R3_VNA_CREDITS_ACQUIRED.BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA Credit Reject; HOM Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_R3_VNA_CREDITS_REJECT.HOM",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA Credit Reject; SNP Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_R3_VNA_CREDITS_REJECT.SNP",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA Credit Reject; NDR Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_R3_VNA_CREDITS_REJECT.NDR",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA Credit Reject; DRS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_R3_VNA_CREDITS_REJECT.DRS",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA Credit Reject; NCB Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_R3_VNA_CREDITS_REJECT.NCB",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "VNA Credit Reject; NCS Message Class",
+        "Counter": "0,1",
+        "EventCode": "0x34",
+        "EventName": "UNC_R3_VNA_CREDITS_REJECT.NCS",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "R3QPI"
+    },
+    {
+        "BriefDescription": "Bounce Control",
+        "Counter": "0,1,2,3",
+        "EventCode": "0xA",
+        "EventName": "UNC_S_BOUNCE_CONTROL",
+        "PerPkg": "1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Uncore Clocks",
+        "Counter": "0,1,2,3",
+        "EventName": "UNC_S_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "FaST wire asserted",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x9",
+        "EventName": "UNC_S_FAST_ASSERTED",
+        "PerPkg": "1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AD Ring In Use; Up and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_S_RING_AD_USED.UP_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AD Ring In Use; Up and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_S_RING_AD_USED.UP_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AD Ring In Use; Down and Event",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_S_RING_AD_USED.DOWN_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AD Ring In Use; Down and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_S_RING_AD_USED.DOWN_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AD Ring In Use; Up",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_S_RING_AD_USED.UP",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AD Ring In Use; Down",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1B",
+        "EventName": "UNC_S_RING_AD_USED.DOWN",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AK Ring In Use; Up and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_S_RING_AK_USED.UP_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AK Ring In Use; Up and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_S_RING_AK_USED.UP_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AK Ring In Use; Down and Event",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_S_RING_AK_USED.DOWN_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AK Ring In Use; Down and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_S_RING_AK_USED.DOWN_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AK Ring In Use; Up",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_S_RING_AK_USED.UP",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "AK Ring In Use; Down",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1C",
+        "EventName": "UNC_S_RING_AK_USED.DOWN",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Up and Even",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_S_RING_BL_USED.UP_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Up and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_S_RING_BL_USED.UP_ODD",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Down and Event",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_S_RING_BL_USED.DOWN_EVEN",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Down and Odd",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_S_RING_BL_USED.DOWN_ODD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Up",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_S_RING_BL_USED.UP",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Down",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1D",
+        "EventName": "UNC_S_RING_BL_USED.DOWN",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Number of LLC responses that bounced on the Ring",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_S_RING_BOUNCES.AD_CACHE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Acknowledgements to core",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_S_RING_BOUNCES.AK_CORE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Data Responses to core",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_S_RING_BOUNCES.BL_CORE",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Number of LLC responses that bounced on the Ring.; Snoops of processor's cache",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x5",
+        "EventName": "UNC_S_RING_BOUNCES.IV_CORE",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Any",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_S_RING_IV_USED.UP",
+        "PerPkg": "1",
+        "UMask": "0x3",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "BL Ring in Use; Any",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1E",
+        "EventName": "UNC_S_RING_IV_USED.DN",
+        "PerPkg": "1",
+        "UMask": "0xC",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_RING_SINK_STARVED.AD_CACHE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_S_RING_SINK_STARVED.AD_CACHE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_RING_SINK_STARVED.AK_CORE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_S_RING_SINK_STARVED.AK_CORE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_RING_SINK_STARVED.BL_CORE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_S_RING_SINK_STARVED.BL_CORE",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_RING_SINK_STARVED.IV_CORE",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x6",
+        "EventName": "UNC_S_RING_SINK_STARVED.IV_CORE",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_S_RxR_BUSY_STARVED.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_S_RxR_BUSY_STARVED.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_S_RxR_BUSY_STARVED.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x15",
+        "EventName": "UNC_S_RxR_BUSY_STARVED.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Bypass; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_S_RxR_BYPASS.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Bypass; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_S_RxR_BYPASS.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Bypass; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_S_RxR_BYPASS.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Bypass; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_S_RxR_BYPASS.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Bypass; AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_S_RxR_BYPASS.AK",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Bypass; IV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x12",
+        "EventName": "UNC_S_RxR_BYPASS.IV",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.AK",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; IV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.IV",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; IVF Credit",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x14",
+        "EventName": "UNC_S_RxR_CRD_STARVED.IFV",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_S_RxR_INSERTS.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_S_RxR_INSERTS.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_S_RxR_INSERTS.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_S_RxR_INSERTS.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_S_RxR_INSERTS.AK",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Allocations; IV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x13",
+        "EventName": "UNC_S_RxR_INSERTS.IV",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_S_RxR_OCCUPANCY.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_S_RxR_OCCUPANCY.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_S_RxR_OCCUPANCY.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_S_RxR_OCCUPANCY.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy; AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_S_RxR_OCCUPANCY.AK",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Ingress Occupancy; IV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x11",
+        "EventName": "UNC_S_RxR_OCCUPANCY.IV",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_TxR_ADS_USED.AD",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_S_TxR_ADS_USED.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_TxR_ADS_USED.AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_S_TxR_ADS_USED.AK",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "UNC_S_TxR_ADS_USED.BL",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x4",
+        "EventName": "UNC_S_TxR_ADS_USED.BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Allocations; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_S_TxR_INSERTS.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Allocations; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_S_TxR_INSERTS.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Allocations; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_S_TxR_INSERTS.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Allocations; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_S_TxR_INSERTS.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Allocations; AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_S_TxR_INSERTS.AK",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Allocations; IV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x2",
+        "EventName": "UNC_S_TxR_INSERTS.IV",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Occupancy; AD - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_S_TxR_OCCUPANCY.AD_CRD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Occupancy; AD - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_S_TxR_OCCUPANCY.AD_BNC",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Occupancy; BL - Credits",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_S_TxR_OCCUPANCY.BL_CRD",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Occupancy; BL - Bounces",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_S_TxR_OCCUPANCY.BL_BNC",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Occupancy; AK",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_S_TxR_OCCUPANCY.AK",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Egress Occupancy; IV",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x1",
+        "EventName": "UNC_S_TxR_OCCUPANCY.IV",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; Onto AD Ring",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_S_TxR_STARVED.AD",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; Onto AK Ring",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_S_TxR_STARVED.AK",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; Onto BL Ring",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_S_TxR_STARVED.BL",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "Injection Starvation; Onto IV Ring",
+        "Counter": "0,1,2,3",
+        "EventCode": "0x3",
+        "EventName": "UNC_S_TxR_STARVED.IV",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "SBO"
+    },
+    {
+        "BriefDescription": "VLW Received",
+        "Counter": "0,1",
+        "EventCode": "0x42",
+        "EventName": "UNC_U_EVENT_MSG.DOORBELL_RCVD",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Filter Match",
+        "Counter": "0,1",
+        "EventCode": "0x41",
+        "EventName": "UNC_U_FILTER_MATCH.ENABLE",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Filter Match",
+        "Counter": "0,1",
+        "EventCode": "0x41",
+        "EventName": "UNC_U_FILTER_MATCH.DISABLE",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Filter Match",
+        "Counter": "0,1",
+        "EventCode": "0x41",
+        "EventName": "UNC_U_FILTER_MATCH.U2C_ENABLE",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Filter Match",
+        "Counter": "0,1",
+        "EventCode": "0x41",
+        "EventName": "UNC_U_FILTER_MATCH.U2C_DISABLE",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Cycles PHOLD Assert to Ack; Assert to ACK",
+        "Counter": "0,1",
+        "EventCode": "0x45",
+        "EventName": "UNC_U_PHOLD_CYCLES.ASSERT_TO_ACK",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "RACU Request",
+        "Counter": "0,1",
+        "EventCode": "0x46",
+        "EventName": "UNC_U_RACU_REQUESTS",
+        "PerPkg": "1",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Monitor T0",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.MONITOR_T0",
+        "PerPkg": "1",
+        "UMask": "0x1",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Monitor T1",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.MONITOR_T1",
+        "PerPkg": "1",
+        "UMask": "0x2",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Livelock",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.LIVELOCK",
+        "PerPkg": "1",
+        "UMask": "0x4",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; LTError",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.LTERROR",
+        "PerPkg": "1",
+        "UMask": "0x8",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Correctable Machine Check",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.CMC",
+        "PerPkg": "1",
+        "UMask": "0x10",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Uncorrectable Machine Check",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.UMC",
+        "PerPkg": "1",
+        "UMask": "0x20",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Trap",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.TRAP",
+        "PerPkg": "1",
+        "UMask": "0x40",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "Monitor Sent to T0; Other",
+        "Counter": "0,1",
+        "EventCode": "0x43",
+        "EventName": "UNC_U_U2C_EVENTS.OTHER",
+        "PerPkg": "1",
+        "UMask": "0x80",
+        "Unit": "UBOX"
+    },
+    {
+        "BriefDescription": "UNC_U_CLOCKTICKS",
+        "Counter": "0,1",
+        "EventName": "UNC_U_CLOCKTICKS",
+        "PerPkg": "1",
+        "Unit": "UBOX"
+    }
+]
