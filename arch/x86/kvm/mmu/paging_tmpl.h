@@ -50,6 +50,11 @@
 	#define PT_GUEST_DIRTY_SHIFT PT_DIRTY_SHIFT
 	#define PT_GUEST_ACCESSED_SHIFT PT_ACCESSED_SHIFT
 	#define PT_HAVE_ACCESSED_DIRTY(mmu) true
+
+	#define PT32_DIR_PSE36_SIZE 4
+	#define PT32_DIR_PSE36_SHIFT 13
+	#define PT32_DIR_PSE36_MASK \
+		(((1ULL << PT32_DIR_PSE36_SIZE) - 1) << PT32_DIR_PSE36_SHIFT)
 #elif PTTYPE == PTTYPE_EPT
 	#define pt_element_t u64
 	#define guest_walker guest_walkerEPT
@@ -91,6 +96,15 @@ struct guest_walker {
 	gfn_t gfn;
 	struct x86_exception fault;
 };
+
+#if PTTYPE == 32
+static inline gfn_t pse36_gfn_delta(u32 gpte)
+{
+	int shift = 32 - PT32_DIR_PSE36_SHIFT - PAGE_SHIFT;
+
+	return (gpte & PT32_DIR_PSE36_MASK) << shift;
+}
+#endif
 
 static gfn_t gpte_to_gfn_lvl(pt_element_t gpte, int lvl)
 {
@@ -416,8 +430,10 @@ retry_walk:
 	gfn = gpte_to_gfn_lvl(pte, walker->level);
 	gfn += (addr & PT_LVL_OFFSET_MASK(walker->level)) >> PAGE_SHIFT;
 
-	if (PTTYPE == 32 && walker->level > PG_LEVEL_4K && is_cpuid_PSE36())
+#if PTTYPE == 32
+	if (walker->level > PG_LEVEL_4K && is_cpuid_PSE36())
 		gfn += pse36_gfn_delta(pte);
+#endif
 
 	real_gpa = kvm_translate_gpa(vcpu, mmu, gfn_to_gpa(gfn), access, &walker->fault);
 	if (real_gpa == UNMAPPED_GVA)
