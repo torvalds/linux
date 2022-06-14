@@ -138,7 +138,7 @@ static int rkisp1_subdev_notifier_bound(struct v4l2_async_notifier *notifier,
 	phy_init(s_asd->dphy);
 
 	/* Create the link to the sensor. */
-	source_pad = media_entity_get_fwnode_pad(&sd->entity, sd->fwnode,
+	source_pad = media_entity_get_fwnode_pad(&sd->entity, s_asd->source_ep,
 						 MEDIA_PAD_FL_SOURCE);
 	if (source_pad < 0) {
 		dev_err(rkisp1->dev, "failed to find source pad for %s\n",
@@ -170,10 +170,19 @@ static int rkisp1_subdev_notifier_complete(struct v4l2_async_notifier *notifier)
 	return v4l2_device_register_subdev_nodes(&rkisp1->v4l2_dev);
 }
 
+static void rkisp1_subdev_notifier_destroy(struct v4l2_async_subdev *asd)
+{
+	struct rkisp1_sensor_async *rk_asd =
+		container_of(asd, struct rkisp1_sensor_async, asd);
+
+	fwnode_handle_put(rk_asd->source_ep);
+}
+
 static const struct v4l2_async_notifier_operations rkisp1_subdev_notifier_ops = {
 	.bound = rkisp1_subdev_notifier_bound,
 	.unbind = rkisp1_subdev_notifier_unbind,
 	.complete = rkisp1_subdev_notifier_complete,
+	.destroy = rkisp1_subdev_notifier_destroy,
 };
 
 static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
@@ -190,6 +199,7 @@ static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
 			.bus_type = V4L2_MBUS_CSI2_DPHY
 		};
 		struct rkisp1_sensor_async *rk_asd;
+		struct fwnode_handle *source = NULL;
 		struct fwnode_handle *ep;
 
 		ep = fwnode_graph_get_endpoint_by_id(dev_fwnode(rkisp1->dev),
@@ -202,15 +212,24 @@ static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
 		if (ret)
 			goto err_parse;
 
-		rk_asd = v4l2_async_nf_add_fwnode_remote(ntf, ep,
-							 struct
-							 rkisp1_sensor_async);
+		source = fwnode_graph_get_remote_endpoint(ep);
+		if (!source) {
+			dev_err(rkisp1->dev,
+				"endpoint %pfw has no remote endpoint\n",
+				ep);
+			ret = -ENODEV;
+			goto err_parse;
+		}
+
+		rk_asd = v4l2_async_nf_add_fwnode(ntf, source,
+						  struct rkisp1_sensor_async);
 		if (IS_ERR(rk_asd)) {
 			ret = PTR_ERR(rk_asd);
 			goto err_parse;
 		}
 
 		rk_asd->index = index++;
+		rk_asd->source_ep = source;
 		rk_asd->mbus_type = vep.bus_type;
 		rk_asd->mbus_flags = vep.bus.mipi_csi2.flags;
 		rk_asd->lanes = vep.bus.mipi_csi2.num_data_lanes;
@@ -225,6 +244,7 @@ static int rkisp1_subdev_notifier_register(struct rkisp1_device *rkisp1)
 		continue;
 err_parse:
 		fwnode_handle_put(ep);
+		fwnode_handle_put(source);
 		v4l2_async_nf_cleanup(ntf);
 		return ret;
 	}
