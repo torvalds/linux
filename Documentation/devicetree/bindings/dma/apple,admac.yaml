@@ -63,6 +63,11 @@ examples:
     #include <dt-bindings/interrupt-controller/apple-aic.h>
     #include <dt-bindings/interrupt-controller/irq.h>
 
+    aic: interrupt-controller {
+      interrupt-controller;
+      #interrupt-cells = <3>;
+    };
+
     admac: dma-controller@238200000 {
       compatible = "apple,t8103-admac", "apple,admac";
       reg = <0x38200000 0x34000>;
