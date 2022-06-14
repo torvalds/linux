@@ -691,7 +691,7 @@ static int vdec_vp9_slice_tile_offset(int idx, int mi_num, int tile_log2)
 	int sbs = (mi_num + 7) >> 3;
 	int offset = ((idx * sbs) >> tile_log2) << 3;
 
-	return offset < mi_num ? offset : mi_num;
+	return min(offset, mi_num);
 }
 
 static
