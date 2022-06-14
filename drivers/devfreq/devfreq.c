@@ -932,8 +932,9 @@ struct devfreq *devfreq_add_device(struct device *dev,
 	err = devfreq->governor->event_handler(devfreq, DEVFREQ_GOV_START,
 						NULL);
 	if (err) {
-		dev_err(dev, "%s: Unable to start governor for the device\n",
-			__func__);
+		dev_err_probe(dev, err,
+			"%s: Unable to start governor for the device\n",
+			 __func__);
 		goto err_init;
 	}
 	create_sysfs_files(devfreq, devfreq->governor);
