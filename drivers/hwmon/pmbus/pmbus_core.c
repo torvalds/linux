@@ -2957,6 +2957,35 @@ static int pmbus_regulator_set_voltage(struct regulator_dev *rdev, int min_uv,
 	return _pmbus_write_word_data(client, s.page, PMBUS_VOUT_COMMAND, (u16)val);
 }
 
+static int pmbus_regulator_list_voltage(struct regulator_dev *rdev,
+					 unsigned int selector)
+{
+	struct device *dev = rdev_get_dev(rdev);
+	struct i2c_client *client = to_i2c_client(dev->parent);
+	int val, low, high;
+
+	if (selector >= rdev->desc->n_voltages ||
+	    selector < rdev->desc->linear_min_sel)
+		return -EINVAL;
+
+	selector -= rdev->desc->linear_min_sel;
+	val = DIV_ROUND_CLOSEST(rdev->desc->min_uV +
+				(rdev->desc->uV_step * selector), 1000); /* convert to mV */
+
+	low = pmbus_regulator_get_low_margin(client, rdev_get_id(rdev));
+	if (low < 0)
+		return low;
+
+	high = pmbus_regulator_get_high_margin(client, rdev_get_id(rdev));
+	if (high < 0)
+		return high;
+
+	if (val >= low && val <= high)
+		return val * 1000; /* unit is uV */
+
+	return 0;
+}
+
 const struct regulator_ops pmbus_regulator_ops = {
 	.enable = pmbus_regulator_enable,
 	.disable = pmbus_regulator_disable,
@@ -2964,6 +2993,7 @@ const struct regulator_ops pmbus_regulator_ops = {
 	.get_error_flags = pmbus_regulator_get_error_flags,
 	.get_voltage = pmbus_regulator_get_voltage,
 	.set_voltage = pmbus_regulator_set_voltage,
+	.list_voltage = pmbus_regulator_list_voltage,
 };
 EXPORT_SYMBOL_NS_GPL(pmbus_regulator_ops, PMBUS);
 
