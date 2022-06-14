@@ -946,25 +946,6 @@ static inline unsigned int blk_chunk_sectors_left(sector_t offset,
 }
 
 /*
- * Return maximum size of a request at given offset. Only valid for
- * file system requests.
- */
-static inline unsigned int blk_max_size_offset(struct request_queue *q,
-					       sector_t offset,
-					       unsigned int chunk_sectors)
-{
-	if (!chunk_sectors) {
-		if (q->limits.chunk_sectors)
-			chunk_sectors = q->limits.chunk_sectors;
-		else
-			return q->limits.max_sectors;
-	}
-
-	return min(q->limits.max_sectors,
-			blk_chunk_sectors_left(offset, chunk_sectors));
-}
-
-/*
  * Access functions for manipulating queue properties
  */
 extern void blk_cleanup_queue(struct request_queue *);

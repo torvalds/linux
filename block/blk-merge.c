@@ -166,9 +166,14 @@ static inline unsigned get_max_io_size(struct request_queue *q,
 {
 	unsigned pbs = queue_physical_block_size(q) >> SECTOR_SHIFT;
 	unsigned lbs = queue_logical_block_size(q) >> SECTOR_SHIFT;
-	unsigned max_sectors, start, end;
+	unsigned max_sectors = queue_max_sectors(q), start, end;
 
-	max_sectors = blk_max_size_offset(q, bio->bi_iter.bi_sector, 0);
+	if (q->limits.chunk_sectors) {
+		max_sectors = min(max_sectors,
+			blk_chunk_sectors_left(bio->bi_iter.bi_sector,
+					       q->limits.chunk_sectors));
+	}
+
 	start = bio->bi_iter.bi_sector & (pbs - 1);
 	end = (start + max_sectors) & ~(pbs - 1);
 	if (end > start)
