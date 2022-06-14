@@ -622,6 +622,19 @@ struct kvm_cpuid_entry2 *get_cpuid_entry(struct kvm_cpuid2 *cpuid,
 					 uint32_t function, uint32_t index);
 void vcpu_init_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid);
 
+static inline struct kvm_cpuid_entry2 *__vcpu_get_cpuid_entry(struct kvm_vcpu *vcpu,
+							      uint32_t function,
+							      uint32_t index)
+{
+	return get_cpuid_entry(vcpu->cpuid, function, index);
+}
+
+static inline struct kvm_cpuid_entry2 *vcpu_get_cpuid_entry(struct kvm_vcpu *vcpu,
+							    uint32_t function)
+{
+	return __vcpu_get_cpuid_entry(vcpu, function, 0);
+}
+
 static inline int __vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 {
 	int r;
@@ -643,6 +656,23 @@ static inline void vcpu_set_cpuid(struct kvm_vcpu *vcpu)
 
 	/* Refresh the cache to pick up adjustments made by KVM. */
 	vcpu_ioctl(vcpu, KVM_GET_CPUID2, vcpu->cpuid);
+}
+
+void vcpu_set_or_clear_cpuid_feature(struct kvm_vcpu *vcpu,
+				     struct kvm_x86_cpu_feature feature,
+				     bool set);
+
+static inline void vcpu_set_cpuid_feature(struct kvm_vcpu *vcpu,
+					  struct kvm_x86_cpu_feature feature)
+{
+	vcpu_set_or_clear_cpuid_feature(vcpu, feature, true);
+
+}
+
+static inline void vcpu_clear_cpuid_feature(struct kvm_vcpu *vcpu,
+					    struct kvm_x86_cpu_feature feature)
+{
+	vcpu_set_or_clear_cpuid_feature(vcpu, feature, false);
 }
 
 static inline struct kvm_cpuid_entry2 *kvm_get_supported_cpuid_index(uint32_t function,

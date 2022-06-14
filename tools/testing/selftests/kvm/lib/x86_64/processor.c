@@ -766,6 +766,24 @@ void vcpu_init_cpuid(struct kvm_vcpu *vcpu, struct kvm_cpuid2 *cpuid)
 	vcpu_set_cpuid(vcpu);
 }
 
+void vcpu_set_or_clear_cpuid_feature(struct kvm_vcpu *vcpu,
+				     struct kvm_x86_cpu_feature feature,
+				     bool set)
+{
+	struct kvm_cpuid_entry2 *entry;
+	u32 *reg;
+
+	entry = __vcpu_get_cpuid_entry(vcpu, feature.function, feature.index);
+	reg = (&entry->eax) + feature.reg;
+
+	if (set)
+		*reg |= BIT(feature.bit);
+	else
+		*reg &= ~BIT(feature.bit);
+
+	vcpu_set_cpuid(vcpu);
+}
+
 uint64_t vcpu_get_msr(struct kvm_vcpu *vcpu, uint64_t msr_index)
 {
 	struct {
