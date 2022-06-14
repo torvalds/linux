@@ -1366,6 +1366,7 @@ struct ieee80211_local {
 	unsigned long num_sta;
 	struct list_head sta_list;
 	struct rhltable sta_hash;
+	struct rhltable link_sta_hash;
 	struct timer_list sta_cleanup;
 	int sta_generation;
 
