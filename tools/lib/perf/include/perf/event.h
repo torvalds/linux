@@ -233,7 +233,16 @@ struct perf_record_event_update {
 	struct perf_event_header header;
 	__u64			 type;
 	__u64			 id;
-	char			 data[];
+	union {
+		/* Used when type == PERF_EVENT_UPDATE__SCALE. */
+		struct perf_record_event_update_scale scale;
+		/* Used when type == PERF_EVENT_UPDATE__UNIT. */
+		char unit[0];
+		/* Used when type == PERF_EVENT_UPDATE__NAME. */
+		char name[0];
+		/* Used when type == PERF_EVENT_UPDATE__CPUS. */
+		struct perf_record_event_update_cpus cpus;
+	};
 };
 
 #define MAX_EVENT_NAME 64

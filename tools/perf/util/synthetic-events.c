@@ -1955,7 +1955,7 @@ int perf_event__synthesize_event_update_unit(struct perf_tool *tool, struct evse
 	if (ev == NULL)
 		return -ENOMEM;
 
-	strlcpy(ev->data, evsel->unit, size + 1);
+	strlcpy(ev->unit, evsel->unit, size + 1);
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -1972,8 +1972,7 @@ int perf_event__synthesize_event_update_scale(struct perf_tool *tool, struct evs
 	if (ev == NULL)
 		return -ENOMEM;
 
-	ev_data = (struct perf_record_event_update_scale *)ev->data;
-	ev_data->scale = evsel->scale;
+	ev->scale.scale = evsel->scale;
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -1990,7 +1989,7 @@ int perf_event__synthesize_event_update_name(struct perf_tool *tool, struct evse
 	if (ev == NULL)
 		return -ENOMEM;
 
-	strlcpy(ev->data, evsel->name, len + 1);
+	strlcpy(ev->name, evsel->name, len + 1);
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
 	return err;
@@ -1999,7 +1998,7 @@ int perf_event__synthesize_event_update_name(struct perf_tool *tool, struct evse
 int perf_event__synthesize_event_update_cpus(struct perf_tool *tool, struct evsel *evsel,
 					     perf_event__handler_t process)
 {
-	size_t size = sizeof(struct perf_record_event_update);
+	size_t size = sizeof(struct perf_event_header) + sizeof(u64) + sizeof(u64);
 	struct perf_record_event_update *ev;
 	int max, err;
 	u16 type;
@@ -2016,8 +2015,7 @@ int perf_event__synthesize_event_update_cpus(struct perf_tool *tool, struct evse
 	ev->type	= PERF_EVENT_UPDATE__CPUS;
 	ev->id		= evsel->core.id[0];
 
-	cpu_map_data__synthesize((struct perf_record_cpu_map_data *)ev->data,
-				 evsel->core.own_cpus, type, max);
+	cpu_map_data__synthesize(&ev->cpus.cpus, evsel->core.own_cpus, type, max);
 
 	err = process(tool, (union perf_event *)ev, NULL, NULL);
 	free(ev);
