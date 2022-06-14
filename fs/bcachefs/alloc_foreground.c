@@ -526,7 +526,7 @@ static struct open_bucket *bch2_bucket_alloc_trans(struct btree_trans *trans,
 	bool waiting = false;
 again:
 	usage = bch2_dev_usage_read(ca);
-	avail = __dev_buckets_available(ca, usage,reserve);
+	avail = dev_buckets_free(ca, usage,reserve);
 
 	if (usage.d[BCH_DATA_need_discard].buckets > avail)
 		bch2_do_discards(c);
