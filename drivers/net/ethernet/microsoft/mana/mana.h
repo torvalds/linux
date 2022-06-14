@@ -374,6 +374,7 @@ struct mana_port_context {
 	unsigned int num_queues;
 
 	mana_handle_t port_handle;
+	mana_handle_t pf_filter_handle;
 
 	u16 port_idx;
 
@@ -420,6 +421,12 @@ enum mana_command_code {
 	MANA_FENCE_RQ		= 0x20006,
 	MANA_CONFIG_VPORT_RX	= 0x20007,
 	MANA_QUERY_VPORT_CONFIG	= 0x20008,
+
+	/* Privileged commands for the PF mode */
+	MANA_REGISTER_FILTER	= 0x28000,
+	MANA_DEREGISTER_FILTER	= 0x28001,
+	MANA_REGISTER_HW_PORT	= 0x28003,
+	MANA_DEREGISTER_HW_PORT	= 0x28004,
 };
 
 /* Query Device Configuration */
@@ -544,6 +551,63 @@ struct mana_cfg_rx_steer_req {
 }; /* HW DATA */
 
 struct mana_cfg_rx_steer_resp {
+	struct gdma_resp_hdr hdr;
+}; /* HW DATA */
+
+/* Register HW vPort */
+struct mana_register_hw_vport_req {
+	struct gdma_req_hdr hdr;
+	u16 attached_gfid;
+	u8 is_pf_default_vport;
+	u8 reserved1;
+	u8 allow_all_ether_types;
+	u8 reserved2;
+	u8 reserved3;
+	u8 reserved4;
+}; /* HW DATA */
+
+struct mana_register_hw_vport_resp {
+	struct gdma_resp_hdr hdr;
+	mana_handle_t hw_vport_handle;
+}; /* HW DATA */
+
+/* Deregister HW vPort */
+struct mana_deregister_hw_vport_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t hw_vport_handle;
+}; /* HW DATA */
+
+struct mana_deregister_hw_vport_resp {
+	struct gdma_resp_hdr hdr;
+}; /* HW DATA */
+
+/* Register filter */
+struct mana_register_filter_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t vport;
+	u8 mac_addr[6];
+	u8 reserved1;
+	u8 reserved2;
+	u8 reserved3;
+	u8 reserved4;
+	u16 reserved5;
+	u32 reserved6;
+	u32 reserved7;
+	u32 reserved8;
+}; /* HW DATA */
+
+struct mana_register_filter_resp {
+	struct gdma_resp_hdr hdr;
+	mana_handle_t filter_handle;
+}; /* HW DATA */
+
+/* Deregister filter */
+struct mana_deregister_filter_req {
+	struct gdma_req_hdr hdr;
+	mana_handle_t filter_handle;
+}; /* HW DATA */
+
+struct mana_deregister_filter_resp {
 	struct gdma_resp_hdr hdr;
 }; /* HW DATA */
 
