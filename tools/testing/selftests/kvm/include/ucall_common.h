@@ -6,6 +6,7 @@
  */
 #ifndef SELFTEST_KVM_UCALL_COMMON_H
 #define SELFTEST_KVM_UCALL_COMMON_H
+#include "test_util.h"
 
 /* Common ucalls */
 enum {
@@ -63,5 +64,46 @@ enum guest_assert_builtin_args {
 	__GUEST_ASSERT(_condition, #_condition, 4, (arg1), (arg2), (arg3), (arg4))
 
 #define GUEST_ASSERT_EQ(a, b) __GUEST_ASSERT((a) == (b), #a " == " #b, 2, a, b)
+
+#define __REPORT_GUEST_ASSERT(_ucall, fmt, _args...)			\
+	TEST_FAIL("%s at %s:%ld\n" fmt,					\
+		  (const char *)(_ucall).args[GUEST_ERROR_STRING],	\
+		  (const char *)(_ucall).args[GUEST_FILE],		\
+		  (_ucall).args[GUEST_LINE],				\
+		  ##_args)
+
+#define GUEST_ASSERT_ARG(ucall, i) ((ucall).args[GUEST_ASSERT_BUILTIN_NARGS + i])
+
+#define REPORT_GUEST_ASSERT(ucall)		\
+	__REPORT_GUEST_ASSERT((ucall), "")
+
+#define REPORT_GUEST_ASSERT_1(ucall, fmt)			\
+	__REPORT_GUEST_ASSERT((ucall),				\
+			      fmt,				\
+			      GUEST_ASSERT_ARG((ucall), 0))
+
+#define REPORT_GUEST_ASSERT_2(ucall, fmt)			\
+	__REPORT_GUEST_ASSERT((ucall),				\
+			      fmt,				\
+			      GUEST_ASSERT_ARG((ucall), 0),	\
+			      GUEST_ASSERT_ARG((ucall), 1))
+
+#define REPORT_GUEST_ASSERT_3(ucall, fmt)			\
+	__REPORT_GUEST_ASSERT((ucall),				\
+			      fmt,				\
+			      GUEST_ASSERT_ARG((ucall), 0),	\
+			      GUEST_ASSERT_ARG((ucall), 1),	\
+			      GUEST_ASSERT_ARG((ucall), 2))
+
+#define REPORT_GUEST_ASSERT_4(ucall, fmt)			\
+	__REPORT_GUEST_ASSERT((ucall),				\
+			      fmt,				\
+			      GUEST_ASSERT_ARG((ucall), 0),	\
+			      GUEST_ASSERT_ARG((ucall), 1),	\
+			      GUEST_ASSERT_ARG((ucall), 2),	\
+			      GUEST_ASSERT_ARG((ucall), 3))
+
+#define REPORT_GUEST_ASSERT_N(ucall, fmt, args...)	\
+	__REPORT_GUEST_ASSERT((ucall), fmt, ##args)
 
 #endif /* SELFTEST_KVM_UCALL_COMMON_H */
