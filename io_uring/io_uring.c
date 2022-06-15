@@ -1259,23 +1259,24 @@ static int io_iopoll_check(struct io_ring_ctx *ctx, long min)
 	int ret = 0;
 	unsigned long check_cq;
 
+	check_cq = READ_ONCE(ctx->check_cq);
+	if (unlikely(check_cq)) {
+		if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
+			__io_cqring_overflow_flush(ctx, false);
+		/*
+		 * Similarly do not spin if we have not informed the user of any
+		 * dropped CQE.
+		 */
+		if (check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT))
+			return -EBADR;
+	}
 	/*
 	 * Don't enter poll loop if we already have events pending.
 	 * If we do, we can potentially be spinning for commands that
 	 * already triggered a CQE (eg in error).
 	 */
-	check_cq = READ_ONCE(ctx->check_cq);
-	if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
-		__io_cqring_overflow_flush(ctx, false);
 	if (io_cqring_events(ctx))
 		return 0;
-
-	/*
-	 * Similarly do not spin if we have not informed the user of any
-	 * dropped CQE.
-	 */
-	if (unlikely(check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT)))
-		return -EBADR;
 
 	do {
 		/*
@@ -2203,12 +2204,15 @@ static inline int io_cqring_wait_schedule(struct io_ring_ctx *ctx,
 	ret = io_run_task_work_sig();
 	if (ret || io_should_wake(iowq))
 		return ret;
+
 	check_cq = READ_ONCE(ctx->check_cq);
-	/* let the caller flush overflows, retry */
-	if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
-		return 1;
-	if (unlikely(check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT)))
-		return -EBADR;
+	if (unlikely(check_cq)) {
+		/* let the caller flush overflows, retry */
+		if (check_cq & BIT(IO_CHECK_CQ_OVERFLOW_BIT))
+			return 1;
+		if (check_cq & BIT(IO_CHECK_CQ_DROPPED_BIT))
+			return -EBADR;
+	}
 	if (!schedule_hrtimeout(&timeout, HRTIMER_MODE_ABS))
 		return -ETIME;
 	return 1;
