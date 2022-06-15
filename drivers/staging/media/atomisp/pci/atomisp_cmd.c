@@ -42,7 +42,6 @@
 #include "atomisp_ioctl.h"
 #include "atomisp-regs.h"
 #include "atomisp_tables.h"
-#include "atomisp_acc.h"
 #include "atomisp_compat.h"
 #include "atomisp_subdev.h"
 #include "atomisp_dfs_tables.h"
@@ -1302,33 +1301,10 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		struct atomisp_sub_device *asd = &isp->asd[i];
-		struct ia_css_pipeline *acc_pipeline;
-		struct ia_css_pipe *acc_pipe = NULL;
 
 		if (asd->streaming != ATOMISP_DEVICE_STREAMING_ENABLED &&
 		    !asd->stream_prepared)
 			continue;
-
-		/*
-		* AtomISP::waitStageUpdate is blocked when WDT happens.
-		* By calling acc_done() for all loaded fw_handles,
-		* HAL will be unblocked.
-		*/
-		acc_pipe = asd->stream_env[i].pipes[IA_CSS_PIPE_ID_ACC];
-		if (acc_pipe) {
-			acc_pipeline = ia_css_pipe_get_pipeline(acc_pipe);
-			if (acc_pipeline) {
-				struct ia_css_pipeline_stage *stage;
-
-				for (stage = acc_pipeline->stages; stage;
-				     stage = stage->next) {
-					const struct ia_css_fw_info *fw;
-
-					fw = stage->firmware;
-					atomisp_acc_done(asd, fw->handle);
-				}
-			}
-		}
 
 		depth_cnt++;
 
@@ -1349,8 +1325,6 @@ static void __atomisp_css_recover(struct atomisp_device *isp, bool isp_timeout)
 		if (ret)
 			dev_warn(isp->dev,
 				 "can't stop streaming on sensor!\n");
-
-		atomisp_acc_unload_extensions(asd);
 
 		atomisp_clear_css_buffer_counters(asd);
 

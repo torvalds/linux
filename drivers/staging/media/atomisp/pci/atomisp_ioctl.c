@@ -25,7 +25,6 @@
 #include <media/v4l2-event.h>
 #include <media/videobuf-vmalloc.h>
 
-#include "atomisp_acc.h"
 #include "atomisp_cmd.h"
 #include "atomisp_common.h"
 #include "atomisp_fops.h"
@@ -1913,11 +1912,8 @@ static int atomisp_streamon(struct file *file, void *fh,
 
 	css_pipe_id = atomisp_get_css_pipe_id(asd);
 
-	ret = atomisp_acc_load_extensions(asd);
-	if (ret < 0) {
-		dev_err(isp->dev, "acc extension failed to load\n");
-		goto out;
-	}
+	/* Invalidate caches. FIXME: should flush only necessary buffers */
+	wbinvd();
 
 	if (asd->params.css_update_params_needed) {
 		atomisp_apply_css_parameters(asd, &asd->params.css_param);
@@ -2154,7 +2150,6 @@ int __atomisp_streamoff(struct file *file, void *fh, enum v4l2_buf_type type)
 					 video, s_stream, 0);
 
 		rt_mutex_lock(&isp->mutex);
-		atomisp_acc_unload_extensions(asd);
 	}
 
 	spin_lock_irqsave(&isp->lock, flags);

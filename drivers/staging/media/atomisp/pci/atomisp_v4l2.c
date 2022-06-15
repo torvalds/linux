@@ -37,7 +37,6 @@
 #include "atomisp_file.h"
 #include "atomisp_ioctl.h"
 #include "atomisp_internal.h"
-#include "atomisp_acc.h"
 #include "atomisp-regs.h"
 #include "atomisp_dfs_tables.h"
 #include "atomisp_drvfs.h"
@@ -1792,7 +1791,6 @@ request_irq_fail:
 	pm_runtime_get_noresume(&pdev->dev);
 	destroy_workqueue(isp->wdt_work_queue);
 wdt_work_queue_fail:
-	atomisp_acc_cleanup(isp);
 	atomisp_unregister_entities(isp);
 register_entities_fail:
 	atomisp_uninitialize_modules(isp);
@@ -1842,8 +1840,6 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	dev_info(&pdev->dev, "Removing atomisp driver\n");
 
 	atomisp_drvfs_exit();
-
-	atomisp_acc_cleanup(isp);
 
 	ia_css_unload_firmware();
 	hmm_cleanup();

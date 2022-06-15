@@ -31,7 +31,6 @@
 #include "atomisp-regs.h"
 #include "atomisp_fops.h"
 #include "atomisp_ioctl.h"
-#include "atomisp_acc.h"
 
 #include "ia_css_debug.h"
 #include "ia_css_isp_param.h"
@@ -1118,8 +1117,8 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 			ret = -EINVAL;
 			goto stream_err;
 		}
-		/* in_reset == true, extension firmwares are reloaded after the recovery */
-		atomisp_acc_load_extensions(asd);
+		/* Invalidate caches. FIXME: should flush only necessary buffers */
+		wbinvd();
 	}
 
 	/*
@@ -4211,8 +4210,7 @@ int atomisp_css_isr_thread(struct atomisp_device *isp,
 			css_pipe_done[asd->index] = true;
 			break;
 		case IA_CSS_EVENT_TYPE_ACC_STAGE_COMPLETE:
-			dev_dbg(isp->dev, "event: acc stage done");
-			atomisp_acc_done(asd, current_event.event.fw_handle);
+			dev_warn(isp->dev, "unexpected event: acc stage done");
 			break;
 		default:
 			dev_dbg(isp->dev, "unhandled css stored event: 0x%x\n",

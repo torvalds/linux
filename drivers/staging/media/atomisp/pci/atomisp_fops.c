@@ -38,8 +38,6 @@
 #include "type_support.h"
 #include "device_access/device_access.h"
 
-#include "atomisp_acc.h"
-
 #define ISP_LEFT_PAD			128	/* equal to 2*NWAY */
 
 /*
@@ -1013,8 +1011,6 @@ subdev_uninit:
 
 	if (atomisp_dev_users(isp))
 		goto done;
-
-	atomisp_acc_release(asd);
 
 	atomisp_destroy_pipes_stream_force(asd);
 	atomisp_css_uninit(isp);
