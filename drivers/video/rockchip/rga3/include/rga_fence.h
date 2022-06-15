@@ -25,7 +25,7 @@ struct rga_fence_waiter {
 int rga_fence_context_init(struct rga_fence_context **ctx);
 void rga_fence_context_remove(struct rga_fence_context **ctx);
 
-struct dma_fence *rga_dma_fence_alloc(spinlock_t *lock);
+struct dma_fence *rga_dma_fence_alloc(void);
 int rga_dma_fence_get_fd(struct dma_fence *fence);
 struct dma_fence *rga_get_dma_fence_from_fd(int fence_fd);
 int rga_dma_fence_wait(struct dma_fence *fence);
@@ -50,7 +50,7 @@ static inline int rga_dma_fence_get_status(struct dma_fence *fence)
 }
 
 #else
-static inline struct dma_fence *rga_dma_fence_alloc(spinlock_t *lock)
+static inline struct dma_fence *rga_dma_fence_alloc(void)
 {
 	return NULL;
 }
