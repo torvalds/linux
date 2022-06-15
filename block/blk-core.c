@@ -435,7 +435,7 @@ struct request_queue *blk_alloc_queue(int node_id, bool alloc_srcu)
 
 	q->last_merge = NULL;
 
-	q->id = ida_simple_get(&blk_queue_ida, 0, 0, GFP_KERNEL);
+	q->id = ida_alloc(&blk_queue_ida, GFP_KERNEL);
 	if (q->id < 0)
 		goto fail_srcu;
 
@@ -485,7 +485,7 @@ fail_stats:
 fail_split:
 	bioset_exit(&q->bio_split);
 fail_id:
-	ida_simple_remove(&blk_queue_ida, q->id);
+	ida_free(&blk_queue_ida, q->id);
 fail_srcu:
 	if (alloc_srcu)
 		cleanup_srcu_struct(q->srcu);

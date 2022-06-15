@@ -791,7 +791,7 @@ static void blk_release_queue(struct kobject *kobj)
 	if (blk_queue_has_srcu(q))
 		cleanup_srcu_struct(q->srcu);
 
-	ida_simple_remove(&blk_queue_ida, q->id);
+	ida_free(&blk_queue_ida, q->id);
 	call_rcu(&q->rcu_head, blk_free_queue_rcu);
 }
 
