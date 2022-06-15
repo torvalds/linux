@@ -2447,26 +2447,6 @@ static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
 	return true;
 }
 
-static inline bool __io_fill_cqe(struct io_ring_ctx *ctx, u64 user_data,
-				 s32 res, u32 cflags)
-{
-	struct io_uring_cqe *cqe;
-
-	/*
-	 * If we can't get a cq entry, userspace overflowed the
-	 * submission (by quite a lot). Increment the overflow count in
-	 * the ring.
-	 */
-	cqe = io_get_cqe(ctx);
-	if (likely(cqe)) {
-		WRITE_ONCE(cqe->user_data, user_data);
-		WRITE_ONCE(cqe->res, res);
-		WRITE_ONCE(cqe->flags, cflags);
-		return true;
-	}
-	return io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
-}
-
 static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 				     struct io_kiocb *req)
 {
@@ -2523,9 +2503,24 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 static noinline bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data,
 				     s32 res, u32 cflags)
 {
+	struct io_uring_cqe *cqe;
+
 	ctx->cq_extra++;
 	trace_io_uring_complete(ctx, NULL, user_data, res, cflags, 0, 0);
-	return __io_fill_cqe(ctx, user_data, res, cflags);
+
+	/*
+	 * If we can't get a cq entry, userspace overflowed the
+	 * submission (by quite a lot). Increment the overflow count in
+	 * the ring.
+	 */
+	cqe = io_get_cqe(ctx);
+	if (likely(cqe)) {
+		WRITE_ONCE(cqe->user_data, user_data);
+		WRITE_ONCE(cqe->res, res);
+		WRITE_ONCE(cqe->flags, cflags);
+		return true;
+	}
+	return io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
 }
 
 static void __io_req_complete_put(struct io_kiocb *req)
