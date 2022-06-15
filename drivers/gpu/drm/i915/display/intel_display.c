@@ -9897,11 +9897,46 @@ static struct intel_connector *intel_encoder_find_connector(struct intel_encoder
 	return NULL;
 }
 
+static void intel_sanitize_fifo_underrun_reporting(const struct intel_crtc_state *crtc_state)
+{
+	struct intel_crtc *crtc = to_intel_crtc(crtc_state->uapi.crtc);
+	struct drm_i915_private *i915 = to_i915(crtc->base.dev);
+
+	if (!crtc_state->hw.active && !HAS_GMCH(i915))
+		return;
+
+	/*
+	 * We start out with underrun reporting disabled to avoid races.
+	 * For correct bookkeeping mark this on active crtcs.
+	 *
+	 * Also on gmch platforms we dont have any hardware bits to
+	 * disable the underrun reporting. Which means we need to start
+	 * out with underrun reporting disabled also on inactive pipes,
+	 * since otherwise we'll complain about the garbage we read when
+	 * e.g. coming up after runtime pm.
+	 *
+	 * No protection against concurrent access is required - at
+	 * worst a fifo underrun happens which also sets this to false.
+	 */
+	crtc->cpu_fifo_underrun_disabled = true;
+
+	/*
+	 * We track the PCH trancoder underrun reporting state
+	 * within the crtc. With crtc for pipe A housing the underrun
+	 * reporting state for PCH transcoder A, crtc for pipe B housing
+	 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
+	 * and marking underrun reporting as disabled for the non-existing
+	 * PCH transcoders B and C would prevent enabling the south
+	 * error interrupt (see cpt_can_enable_serr_int()).
+	 */
+	if (intel_has_pch_trancoder(i915, crtc->pipe))
+		crtc->pch_fifo_underrun_disabled = true;
+}
+
 static void intel_sanitize_crtc(struct intel_crtc *crtc,
 				struct drm_modeset_acquire_ctx *ctx)
 {
 	struct drm_device *dev = crtc->base.dev;
-	struct drm_i915_private *dev_priv = to_i915(dev);
 	struct intel_crtc_state *crtc_state = to_intel_crtc_state(crtc->base.state);
 
 	if (crtc_state->hw.active) {
@@ -9928,33 +9963,7 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 	    !intel_crtc_is_bigjoiner_slave(crtc_state))
 		intel_crtc_disable_noatomic(crtc, ctx);
 
-	if (crtc_state->hw.active || HAS_GMCH(dev_priv)) {
-		/*
-		 * We start out with underrun reporting disabled to avoid races.
-		 * For correct bookkeeping mark this on active crtcs.
-		 *
-		 * Also on gmch platforms we dont have any hardware bits to
-		 * disable the underrun reporting. Which means we need to start
-		 * out with underrun reporting disabled also on inactive pipes,
-		 * since otherwise we'll complain about the garbage we read when
-		 * e.g. coming up after runtime pm.
-		 *
-		 * No protection against concurrent access is required - at
-		 * worst a fifo underrun happens which also sets this to false.
-		 */
-		crtc->cpu_fifo_underrun_disabled = true;
-		/*
-		 * We track the PCH trancoder underrun reporting state
-		 * within the crtc. With crtc for pipe A housing the underrun
-		 * reporting state for PCH transcoder A, crtc for pipe B housing
-		 * it for PCH transcoder B, etc. LPT-H has only PCH transcoder A,
-		 * and marking underrun reporting as disabled for the non-existing
-		 * PCH transcoders B and C would prevent enabling the south
-		 * error interrupt (see cpt_can_enable_serr_int()).
-		 */
-		if (intel_has_pch_trancoder(dev_priv, crtc->pipe))
-			crtc->pch_fifo_underrun_disabled = true;
-	}
+	intel_sanitize_fifo_underrun_reporting(crtc_state);
 }
 
 static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
