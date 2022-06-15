@@ -567,7 +567,7 @@ static int __io_sqe_buffers_update(struct io_ring_ctx *ctx,
 				io_buffer_unmap(ctx, &imu);
 				break;
 			}
-			ctx->user_bufs[i] = NULL;
+			ctx->user_bufs[i] = ctx->dummy_ubuf;
 			needs_switch = true;
 		}
 
@@ -1203,14 +1203,11 @@ static int io_sqe_buffer_register(struct io_ring_ctx *ctx, struct iovec *iov,
 	size_t size;
 	int ret, nr_pages, i;
 
-	if (!iov->iov_base) {
-		*pimu = ctx->dummy_ubuf;
+	*pimu = ctx->dummy_ubuf;
+	if (!iov->iov_base)
 		return 0;
-	}
 
-	*pimu = NULL;
 	ret = -ENOMEM;
-
 	pages = io_pin_pages((unsigned long) iov->iov_base, iov->iov_len,
 				&nr_pages);
 	if (IS_ERR(pages)) {
