@@ -139,6 +139,8 @@
 			macb0: ethernet@f8008000 {
 				pinctrl-names = "default";
 				pinctrl-0 = <&pinctrl_macb0_default &pinctrl_macb0_phy_irq>;
+				#address-cells = <1>;
+				#size-cells = <0>;
 				phy-mode = "rmii";
 				status = "okay";
 

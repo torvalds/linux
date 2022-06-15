@@ -384,8 +384,6 @@
 				interrupts = <5  IRQ_TYPE_LEVEL_HIGH 3		/* Queue 0 */
 					      66 IRQ_TYPE_LEVEL_HIGH 3          /* Queue 1 */
 					      67 IRQ_TYPE_LEVEL_HIGH 3>;        /* Queue 2 */
-				#address-cells = <1>;
-				#size-cells = <0>;
 				clocks = <&pmc PMC_TYPE_PERIPHERAL 5>, <&pmc PMC_TYPE_PERIPHERAL 5>;
 				clock-names = "hclk", "pclk";
 				status = "disabled";
