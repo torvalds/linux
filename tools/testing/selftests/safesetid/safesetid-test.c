@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <errno.h>
 #include <pwd.h>
+#include <grp.h>
 #include <string.h>
 #include <syscall.h>
 #include <sys/capability.h>
@@ -120,12 +121,40 @@ static void ensure_user_exists(uid_t uid)
 		snprintf(name_str, 10, "user %d", uid);
 		p.pw_name=name_str;
 		p.pw_uid=uid;
+		p.pw_gid=uid;
 		p.pw_gecos="Test account";
 		p.pw_dir="/dev/null";
 		p.pw_shell="/bin/false";
 		int value = putpwent(&p,fd);
 		if (value != 0)
 			die("putpwent failed\n");
+		if (fclose(fd))
+			die("fclose failed\n");
+	}
+}
+
+static void ensure_group_exists(gid_t gid)
+{
+	struct group g;
+
+	FILE *fd;
+	char name_str[10];
+
+	if (getgrgid(gid) == NULL) {
+		memset(&g,0x00,sizeof(g));
+		fd=fopen("/etc/group","a");
+		if (fd == NULL)
+			die("couldn't open group file\n");
+		if (fseek(fd, 0, SEEK_END))
+			die("couldn't fseek group file\n");
+		snprintf(name_str, 10, "group %d", gid);
+		g.gr_name=name_str;
+		g.gr_gid=gid;
+		g.gr_passwd=NULL;
+		g.gr_mem=NULL;
+		int value = putgrent(&g,fd);
+		if (value != 0)
+			die("putgrent failed\n");
 		if (fclose(fd))
 			die("fclose failed\n");
 	}
@@ -174,6 +203,31 @@ static void write_uid_policies()
 			add_uid_whitelist_policy_file, strerror(errno));
 	}
 }
+
+static void write_gid_policies()
+{
+	static char *policy_str = UGID_POLICY_STRING;
+	ssize_t written;
+	int fd;
+
+	fd = open(add_gid_whitelist_policy_file, O_WRONLY);
+	if (fd < 0)
+		die("can't open add_gid_whitelist_policy file\n");
+	written = write(fd, policy_str, strlen(policy_str));
+	if (written != strlen(policy_str)) {
+		if (written >= 0) {
+			die("short write to %s\n", add_gid_whitelist_policy_file);
+		} else {
+			die("write to %s failed: %s\n",
+				add_gid_whitelist_policy_file, strerror(errno));
+		}
+	}
+	if (close(fd) != 0) {
+		die("close of %s failed: %s\n",
+			add_gid_whitelist_policy_file, strerror(errno));
+	}
+}
+
 
 static bool test_userns(bool expect_success)
 {
@@ -265,6 +319,63 @@ static void test_setuid(uid_t child_uid, bool expect_success)
 	die("should not reach here\n");
 }
 
+static void test_setgid(gid_t child_gid, bool expect_success)
+{
+	pid_t cpid, w;
+	int wstatus;
+
+	cpid = fork();
+	if (cpid == -1) {
+		die("fork\n");
+	}
+
+	if (cpid == 0) {	    /* Code executed by child */
+		if (setgid(child_gid) < 0)
+			exit(EXIT_FAILURE);
+		if (getgid() == child_gid)
+			exit(EXIT_SUCCESS);
+		else
+			exit(EXIT_FAILURE);
+	} else {		 /* Code executed by parent */
+		do {
+			w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
+			if (w == -1) {
+				die("waitpid\n");
+			}
+
+			if (WIFEXITED(wstatus)) {
+				if (WEXITSTATUS(wstatus) == EXIT_SUCCESS) {
+					if (expect_success) {
+						return;
+					} else {
+						die("unexpected success\n");
+					}
+				} else {
+					if (expect_success) {
+						die("unexpected failure\n");
+					} else {
+						return;
+					}
+				}
+			} else if (WIFSIGNALED(wstatus)) {
+				if (WTERMSIG(wstatus) == 9) {
+					if (expect_success)
+						die("killed unexpectedly\n");
+					else
+						return;
+				} else {
+					die("unexpected signal: %d\n", wstatus);
+				}
+			} else {
+				die("unexpected status: %d\n", wstatus);
+			}
+		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+	}
+
+	die("should not reach here\n");
+}
+
+
 static void ensure_users_exist(void)
 {
 	ensure_user_exists(ROOT_UGID);
@@ -272,6 +383,15 @@ static void ensure_users_exist(void)
 	ensure_user_exists(ALLOWED_CHILD1_UGID);
 	ensure_user_exists(ALLOWED_CHILD2_UGID);
 	ensure_user_exists(NO_POLICY_UGID);
+}
+
+static void ensure_groups_exist(void)
+{
+	ensure_group_exists(ROOT_UGID);
+	ensure_group_exists(RESTRICTED_PARENT_UGID);
+	ensure_group_exists(ALLOWED_CHILD1_UGID);
+	ensure_group_exists(ALLOWED_CHILD2_UGID);
+	ensure_group_exists(NO_POLICY_UGID);
 }
 
 static void drop_caps(bool setid_retained)
@@ -290,9 +410,11 @@ static void drop_caps(bool setid_retained)
 
 int main(int argc, char **argv)
 {
+	ensure_groups_exist();
 	ensure_users_exist();
 	ensure_securityfs_mounted();
 	write_uid_policies();
+	write_gid_policies();
 
 	if (prctl(PR_SET_KEEPCAPS, 1L))
 		die("Error with set keepcaps\n");
@@ -325,6 +447,12 @@ int main(int argc, char **argv)
 	test_setuid(ALLOWED_CHILD2_UGID, true);
 	test_setuid(NO_POLICY_UGID, false);
 
+	test_setgid(ROOT_UGID, false);
+	test_setgid(ALLOWED_CHILD1_UGID, true);
+	test_setgid(ALLOWED_CHILD2_UGID, true);
+	test_setgid(NO_POLICY_UGID, false);
+
+
 	if (!test_userns(false)) {
 		die("test_userns worked when it should fail\n");
 	}
@@ -334,6 +462,9 @@ int main(int argc, char **argv)
 	test_setuid(2, false);
 	test_setuid(3, false);
 	test_setuid(4, false);
+	test_setgid(2, false);
+	test_setgid(3, false);
+	test_setgid(4, false);
 
 	// NOTE: this test doesn't clean up users that were created in
 	// /etc/passwd or flush policies that were added to the LSM.
