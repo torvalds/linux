@@ -77,8 +77,7 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 	unsigned int height,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
-	unsigned int raw_bit_depth,
-	bool contiguous);
+	unsigned int raw_bit_depth);
 
 static struct ia_css_frame *frame_create(unsigned int width,
 	unsigned int height,
@@ -137,7 +136,7 @@ int ia_css_frame_allocate(struct ia_css_frame **frame,
 			    width, height, format, padded_width, raw_bit_depth);
 
 	err = frame_allocate_with_data(frame, width, height, format,
-				       padded_width, raw_bit_depth, false);
+				       padded_width, raw_bit_depth);
 
 	if ((*frame) && err == 0)
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -773,8 +772,7 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 	unsigned int height,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
-	unsigned int raw_bit_depth,
-	bool contiguous)
+	unsigned int raw_bit_depth)
 {
 	int err;
 	struct ia_css_frame *me = frame_create(width,
@@ -782,7 +780,7 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 					       format,
 					       padded_width,
 					       raw_bit_depth,
-					       contiguous,
+					       false,
 					       true);
 
 	if (!me)
