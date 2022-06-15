@@ -11,7 +11,7 @@ def clang_has_option(option):
     return [o for o in cc_output if ((b"unknown argument" in o) or (b"is not supported" in o))] == [ ]
 
 if cc_is_clang:
-    from distutils.sysconfig import get_config_vars
+    from sysconfig import get_config_vars
     vars = get_config_vars()
     for var in ('CFLAGS', 'OPT'):
         vars[var] = sub("-specs=[^ ]+", "", vars[var])
@@ -28,10 +28,10 @@ if cc_is_clang:
         if not clang_has_option("-ffat-lto-objects"):
             vars[var] = sub("-ffat-lto-objects", "", vars[var])
 
-from distutils.core import setup, Extension
+from setuptools import setup, Extension
 
-from distutils.command.build_ext   import build_ext   as _build_ext
-from distutils.command.install_lib import install_lib as _install_lib
+from setuptools.command.build_ext   import build_ext   as _build_ext
+from setuptools.command.install_lib import install_lib as _install_lib
 
 class build_ext(_build_ext):
     def finalize_options(self):
