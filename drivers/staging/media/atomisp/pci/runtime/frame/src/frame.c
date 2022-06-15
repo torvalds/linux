@@ -146,7 +146,6 @@ int ia_css_frame_allocate(struct ia_css_frame **frame,
 int ia_css_frame_map(struct ia_css_frame **frame,
 				 const struct ia_css_frame_info *info,
 				 const void __user *data,
-				 u16 attribute,
 				 unsigned int pgnr)
 {
 	int err = 0;
@@ -172,9 +171,7 @@ int ia_css_frame_map(struct ia_css_frame **frame,
 		goto error;
 	}
 
-	me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data,
-			     attribute & ATOMISP_MAP_FLAG_CACHED);
-
+	me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data, 0);
 	if (me->data == mmgr_NULL)
 		err = -EINVAL;
 
