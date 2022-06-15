@@ -202,16 +202,6 @@
 };
 
 &iomuxc {
-	/*
-	 * Mux the Apalis GPIOs
-	 */
-	pinctrl-names = "default";
-	pinctrl-0 = <&pinctrl_apalis_gpio1 &pinctrl_apalis_gpio2
-		     &pinctrl_apalis_gpio3 &pinctrl_apalis_gpio4
-		     &pinctrl_apalis_gpio5 &pinctrl_apalis_gpio6
-		     &pinctrl_apalis_gpio7 &pinctrl_apalis_gpio8
-		    >;
-
 	pinctrl_leds_ixora: ledsixoragrp {
 		fsl,pins = <
 			MX6QDL_PAD_SD2_DAT1__GPIO1_IO14 0x1b0b0
