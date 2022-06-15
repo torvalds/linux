@@ -301,6 +301,7 @@ struct rkisp_meshbuf_size {
 	u32 unite_isp_id;
 	u32 meas_width;
 	u32 meas_height;
+	int buf_cnt;
 } __attribute__ ((packed));
 
 struct isp2x_mesh_head {
