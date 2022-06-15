@@ -9962,8 +9962,6 @@ static void intel_sanitize_crtc(struct intel_crtc *crtc,
 	if (crtc_state->hw.active && !intel_crtc_has_encoders(crtc) &&
 	    !intel_crtc_is_bigjoiner_slave(crtc_state))
 		intel_crtc_disable_noatomic(crtc, ctx);
-
-	intel_sanitize_fifo_underrun_reporting(crtc_state);
 }
 
 static bool has_bogus_dpll_config(const struct intel_crtc_state *crtc_state)
@@ -10362,6 +10360,8 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 	for_each_intel_crtc(&dev_priv->drm, crtc) {
 		struct intel_crtc_state *crtc_state =
 			to_intel_crtc_state(crtc->base.state);
+
+		intel_sanitize_fifo_underrun_reporting(crtc_state);
 
 		drm_crtc_vblank_reset(&crtc->base);
 
