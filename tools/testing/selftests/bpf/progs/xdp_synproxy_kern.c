@@ -7,6 +7,9 @@
 #include <bpf/bpf_endian.h>
 #include <asm/errno.h>
 
+#define TC_ACT_OK 0
+#define TC_ACT_SHOT 2
+
 #define NSEC_PER_SEC 1000000000L
 
 #define ETH_ALEN 6
@@ -79,6 +82,12 @@ extern struct nf_conn *bpf_xdp_ct_lookup(struct xdp_md *xdp_ctx,
 					 __u32 len_tuple,
 					 struct bpf_ct_opts *opts,
 					 __u32 len_opts) __ksym;
+
+extern struct nf_conn *bpf_skb_ct_lookup(struct __sk_buff *skb_ctx,
+					 struct bpf_sock_tuple *bpf_tuple,
+					 u32 len_tuple,
+					 struct bpf_ct_opts *opts,
+					 u32 len_opts) __ksym;
 
 extern void bpf_ct_release(struct nf_conn *ct) __ksym;
 
@@ -382,7 +391,7 @@ static __always_inline int tcp_dissect(void *data, void *data_end,
 	return XDP_TX;
 }
 
-static __always_inline int tcp_lookup(struct xdp_md *ctx, struct header_pointers *hdr)
+static __always_inline int tcp_lookup(void *ctx, struct header_pointers *hdr, bool xdp)
 {
 	struct bpf_ct_opts ct_lookup_opts = {
 		.netns_id = BPF_F_CURRENT_NETNS,
@@ -416,7 +425,10 @@ static __always_inline int tcp_lookup(struct xdp_md *ctx, struct header_pointers
 		 */
 		return XDP_ABORTED;
 	}
-	ct = bpf_xdp_ct_lookup(ctx, &tup, tup_size, &ct_lookup_opts, sizeof(ct_lookup_opts));
+	if (xdp)
+		ct = bpf_xdp_ct_lookup(ctx, &tup, tup_size, &ct_lookup_opts, sizeof(ct_lookup_opts));
+	else
+		ct = bpf_skb_ct_lookup(ctx, &tup, tup_size, &ct_lookup_opts, sizeof(ct_lookup_opts));
 	if (ct) {
 		unsigned long status = ct->status;
 
@@ -529,8 +541,9 @@ static __always_inline void tcpv6_gen_synack(struct header_pointers *hdr,
 }
 
 static __always_inline int syncookie_handle_syn(struct header_pointers *hdr,
-						struct xdp_md *ctx,
-						void *data, void *data_end)
+						void *ctx,
+						void *data, void *data_end,
+						bool xdp)
 {
 	__u32 old_pkt_size, new_pkt_size;
 	/* Unlike clang 10, clang 11 and 12 generate code that doesn't pass the
@@ -666,8 +679,13 @@ static __always_inline int syncookie_handle_syn(struct header_pointers *hdr,
 	/* Set the new packet size. */
 	old_pkt_size = data_end - data;
 	new_pkt_size = sizeof(*hdr->eth) + ip_len + hdr->tcp->doff * 4;
-	if (bpf_xdp_adjust_tail(ctx, new_pkt_size - old_pkt_size))
-		return XDP_ABORTED;
+	if (xdp) {
+		if (bpf_xdp_adjust_tail(ctx, new_pkt_size - old_pkt_size))
+			return XDP_ABORTED;
+	} else {
+		if (bpf_skb_change_tail(ctx, new_pkt_size, 0))
+			return XDP_ABORTED;
+	}
 
 	values_inc_synacks();
 
@@ -693,71 +711,123 @@ static __always_inline int syncookie_handle_ack(struct header_pointers *hdr)
 	return XDP_PASS;
 }
 
+static __always_inline int syncookie_part1(void *ctx, void *data, void *data_end,
+					   struct header_pointers *hdr, bool xdp)
+{
+	struct bpf_ct_opts ct_lookup_opts = {
+		.netns_id = BPF_F_CURRENT_NETNS,
+		.l4proto = IPPROTO_TCP,
+	};
+	int ret;
+
+	ret = tcp_dissect(data, data_end, hdr);
+	if (ret != XDP_TX)
+		return ret;
+
+	ret = tcp_lookup(ctx, hdr, xdp);
+	if (ret != XDP_TX)
+		return ret;
+
+	/* Packet is TCP and doesn't belong to an established connection. */
+
+	if ((hdr->tcp->syn ^ hdr->tcp->ack) != 1)
+		return XDP_DROP;
+
+	/* Grow the TCP header to TCP_MAXLEN to be able to pass any hdr->tcp_len
+	 * to bpf_tcp_raw_gen_syncookie_ipv{4,6} and pass the verifier.
+	 */
+	if (xdp) {
+		if (bpf_xdp_adjust_tail(ctx, TCP_MAXLEN - hdr->tcp_len))
+			return XDP_ABORTED;
+	} else {
+		/* Without volatile the verifier throws this error:
+		 * R9 32-bit pointer arithmetic prohibited
+		 */
+		volatile u64 old_len = data_end - data;
+
+		if (bpf_skb_change_tail(ctx, old_len + TCP_MAXLEN - hdr->tcp_len, 0))
+			return XDP_ABORTED;
+	}
+
+	return XDP_TX;
+}
+
+static __always_inline int syncookie_part2(void *ctx, void *data, void *data_end,
+					   struct header_pointers *hdr, bool xdp)
+{
+	if (hdr->ipv4) {
+		hdr->eth = data;
+		hdr->ipv4 = (void *)hdr->eth + sizeof(*hdr->eth);
+		/* IPV4_MAXLEN is needed when calculating checksum.
+		 * At least sizeof(struct iphdr) is needed here to access ihl.
+		 */
+		if ((void *)hdr->ipv4 + IPV4_MAXLEN > data_end)
+			return XDP_ABORTED;
+		hdr->tcp = (void *)hdr->ipv4 + hdr->ipv4->ihl * 4;
+	} else if (hdr->ipv6) {
+		hdr->eth = data;
+		hdr->ipv6 = (void *)hdr->eth + sizeof(*hdr->eth);
+		hdr->tcp = (void *)hdr->ipv6 + sizeof(*hdr->ipv6);
+	} else {
+		return XDP_ABORTED;
+	}
+
+	if ((void *)hdr->tcp + TCP_MAXLEN > data_end)
+		return XDP_ABORTED;
+
+	/* We run out of registers, tcp_len gets spilled to the stack, and the
+	 * verifier forgets its min and max values checked above in tcp_dissect.
+	 */
+	hdr->tcp_len = hdr->tcp->doff * 4;
+	if (hdr->tcp_len < sizeof(*hdr->tcp))
+		return XDP_ABORTED;
+
+	return hdr->tcp->syn ? syncookie_handle_syn(hdr, ctx, data, data_end, xdp) :
+			       syncookie_handle_ack(hdr);
+}
+
 SEC("xdp")
 int syncookie_xdp(struct xdp_md *ctx)
 {
 	void *data_end = (void *)(long)ctx->data_end;
 	void *data = (void *)(long)ctx->data;
 	struct header_pointers hdr;
-	__s64 value;
 	int ret;
 
-	struct bpf_ct_opts ct_lookup_opts = {
-		.netns_id = BPF_F_CURRENT_NETNS,
-		.l4proto = IPPROTO_TCP,
-	};
-
-	ret = tcp_dissect(data, data_end, &hdr);
+	ret = syncookie_part1(ctx, data, data_end, &hdr, true);
 	if (ret != XDP_TX)
 		return ret;
-
-	ret = tcp_lookup(ctx, &hdr);
-	if (ret != XDP_TX)
-		return ret;
-
-	/* Packet is TCP and doesn't belong to an established connection. */
-
-	if ((hdr.tcp->syn ^ hdr.tcp->ack) != 1)
-		return XDP_DROP;
-
-	/* Grow the TCP header to TCP_MAXLEN to be able to pass any hdr.tcp_len
-	 * to bpf_tcp_raw_gen_syncookie_ipv{4,6} and pass the verifier.
-	 */
-	if (bpf_xdp_adjust_tail(ctx, TCP_MAXLEN - hdr.tcp_len))
-		return XDP_ABORTED;
 
 	data_end = (void *)(long)ctx->data_end;
 	data = (void *)(long)ctx->data;
 
-	if (hdr.ipv4) {
-		hdr.eth = data;
-		hdr.ipv4 = (void *)hdr.eth + sizeof(*hdr.eth);
-		/* IPV4_MAXLEN is needed when calculating checksum.
-		 * At least sizeof(struct iphdr) is needed here to access ihl.
-		 */
-		if ((void *)hdr.ipv4 + IPV4_MAXLEN > data_end)
-			return XDP_ABORTED;
-		hdr.tcp = (void *)hdr.ipv4 + hdr.ipv4->ihl * 4;
-	} else if (hdr.ipv6) {
-		hdr.eth = data;
-		hdr.ipv6 = (void *)hdr.eth + sizeof(*hdr.eth);
-		hdr.tcp = (void *)hdr.ipv6 + sizeof(*hdr.ipv6);
-	} else {
-		return XDP_ABORTED;
+	return syncookie_part2(ctx, data, data_end, &hdr, true);
+}
+
+SEC("tc")
+int syncookie_tc(struct __sk_buff *skb)
+{
+	void *data_end = (void *)(long)skb->data_end;
+	void *data = (void *)(long)skb->data;
+	struct header_pointers hdr;
+	int ret;
+
+	ret = syncookie_part1(skb, data, data_end, &hdr, false);
+	if (ret != XDP_TX)
+		return ret == XDP_PASS ? TC_ACT_OK : TC_ACT_SHOT;
+
+	data_end = (void *)(long)skb->data_end;
+	data = (void *)(long)skb->data;
+
+	ret = syncookie_part2(skb, data, data_end, &hdr, false);
+	switch (ret) {
+	case XDP_PASS:
+		return TC_ACT_OK;
+	case XDP_TX:
+		return bpf_redirect(skb->ifindex, 0);
+	default:
+		return TC_ACT_SHOT;
 	}
-
-	if ((void *)hdr.tcp + TCP_MAXLEN > data_end)
-		return XDP_ABORTED;
-
-	/* We run out of registers, tcp_len gets spilled to the stack, and the
-	 * verifier forgets its min and max values checked above in tcp_dissect.
-	 */
-	hdr.tcp_len = hdr.tcp->doff * 4;
-	if (hdr.tcp_len < sizeof(*hdr.tcp))
-		return XDP_ABORTED;
-
-	return hdr.tcp->syn ? syncookie_handle_syn(&hdr, ctx, data, data_end) :
-			      syncookie_handle_ack(&hdr);
 }
 
 char _license[] SEC("license") = "GPL";
