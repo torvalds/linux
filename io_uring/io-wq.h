@@ -155,6 +155,7 @@ struct io_wq_work_node *wq_stack_extract(struct io_wq_work_node *stack)
 struct io_wq_work {
 	struct io_wq_work_node list;
 	unsigned flags;
+	/* place it here instead of io_kiocb as it fills padding and saves 4B */
 	int cancel_seq;
 };
 
