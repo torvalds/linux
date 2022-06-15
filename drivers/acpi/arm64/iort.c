@@ -806,15 +806,13 @@ static struct acpi_iort_node *iort_get_msi_resv_iommu(struct device *dev)
 	return NULL;
 }
 
-/**
- * iort_iommu_msi_get_resv_regions - Reserved region driver helper
- * @dev: Device from iommu_get_resv_regions()
- * @head: Reserved region list from iommu_get_resv_regions()
- *
+/*
+ * Retrieve platform specific HW MSI reserve regions.
  * The ITS interrupt translation spaces (ITS_base + SZ_64K, SZ_64K)
  * associated with the device are the HW MSI reserved regions.
  */
-void iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
+static void iort_iommu_msi_get_resv_regions(struct device *dev,
+					    struct list_head *head)
 {
 	struct iommu_fwspec *fwspec = dev_iommu_fwspec_get(dev);
 	struct acpi_iort_its_group *its;
@@ -861,6 +859,16 @@ void iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
 				list_add_tail(&region->list, head);
 		}
 	}
+}
+
+/**
+ * iort_iommu_get_resv_regions - Generic helper to retrieve reserved regions.
+ * @dev: Device from iommu_get_resv_regions()
+ * @head: Reserved region list from iommu_get_resv_regions()
+ */
+void iort_iommu_get_resv_regions(struct device *dev, struct list_head *head)
+{
+	iort_iommu_msi_get_resv_regions(dev, head);
 }
 
 static inline bool iort_iommu_driver_enabled(u8 type)
@@ -1027,7 +1035,7 @@ int iort_iommu_configure_id(struct device *dev, const u32 *id_in)
 }
 
 #else
-void iort_iommu_msi_get_resv_regions(struct device *dev, struct list_head *head)
+void iort_iommu_get_resv_regions(struct device *dev, struct list_head *head)
 { }
 int iort_iommu_configure_id(struct device *dev, const u32 *input_id)
 { return -ENODEV; }
