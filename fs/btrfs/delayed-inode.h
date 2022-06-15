@@ -147,7 +147,7 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 				     u64 last_index,
 				     struct list_head *ins_list,
 				     struct list_head *del_list);
-void btrfs_readdir_put_delayed_items(struct inode *inode,
+void btrfs_readdir_put_delayed_items(struct btrfs_inode *inode,
 				     struct list_head *ins_list,
 				     struct list_head *del_list);
 int btrfs_should_delete_dir_index(const struct list_head *del_list,

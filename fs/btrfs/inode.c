@@ -6037,7 +6037,7 @@ nopos:
 	ret = 0;
 err:
 	if (put)
-		btrfs_readdir_put_delayed_items(inode, &ins_list, &del_list);
+		btrfs_readdir_put_delayed_items(BTRFS_I(inode), &ins_list, &del_list);
 	btrfs_free_path(path);
 	return ret;
 }

@@ -1730,7 +1730,7 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	return true;
 }
 
-void btrfs_readdir_put_delayed_items(struct inode *inode,
+void btrfs_readdir_put_delayed_items(struct btrfs_inode *inode,
 				     struct list_head *ins_list,
 				     struct list_head *del_list)
 {
@@ -1752,7 +1752,7 @@ void btrfs_readdir_put_delayed_items(struct inode *inode,
 	 * The VFS is going to do up_read(), so we need to downgrade back to a
 	 * read lock.
 	 */
-	downgrade_write(&inode->i_rwsem);
+	downgrade_write(&inode->vfs_inode.i_rwsem);
 }
 
 int btrfs_should_delete_dir_index(const struct list_head *del_list,
