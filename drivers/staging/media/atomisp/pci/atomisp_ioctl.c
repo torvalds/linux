@@ -3118,38 +3118,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 			err = -EINVAL;
 		break;
 
-	case ATOMISP_IOC_ACC_LOAD:
-		err = atomisp_acc_load(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_LOAD_TO_PIPE:
-		err = atomisp_acc_load_to_pipe(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_UNLOAD:
-		err = atomisp_acc_unload(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_START:
-		err = atomisp_acc_start(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_WAIT:
-		err = atomisp_acc_wait(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_MAP:
-		err = atomisp_acc_map(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_UNMAP:
-		err = atomisp_acc_unmap(asd, arg);
-		break;
-
-	case ATOMISP_IOC_ACC_S_MAPPED_ARG:
-		err = atomisp_acc_s_mapped_arg(asd, arg);
-		break;
-
 	case ATOMISP_IOC_S_ISP_SHD_TAB:
 		err = atomisp_set_shading_table(asd, arg);
 		break;
@@ -3197,12 +3165,6 @@ static long atomisp_vidioc_default(struct file *file, void *fh,
 		break;
 	case ATOMISP_IOC_S_EXPOSURE_WINDOW:
 		err = atomisp_s_ae_window(asd, arg);
-		break;
-	case ATOMISP_IOC_S_ACC_STATE:
-		err = atomisp_acc_set_state(asd, arg);
-		break;
-	case ATOMISP_IOC_G_ACC_STATE:
-		err = atomisp_acc_get_state(asd, arg);
 		break;
 	case ATOMISP_IOC_INJECT_A_FAKE_EVENT:
 		err = atomisp_inject_a_fake_event(asd, arg);

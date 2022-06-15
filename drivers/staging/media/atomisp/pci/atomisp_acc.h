@@ -41,52 +41,6 @@ void atomisp_acc_cleanup(struct atomisp_device *isp);
  */
 void atomisp_acc_release(struct atomisp_sub_device *asd);
 
-/* Load acceleration binary. DEPRECATED. */
-int atomisp_acc_load(struct atomisp_sub_device *asd,
-		     struct atomisp_acc_fw_load *fw);
-
-/* Load acceleration binary with specified properties */
-int atomisp_acc_load_to_pipe(struct atomisp_sub_device *asd,
-			     struct atomisp_acc_fw_load_to_pipe *fw);
-
-/* Unload specified acceleration binary */
-int atomisp_acc_unload(struct atomisp_sub_device *asd,
-		       unsigned int *handle);
-
-/*
- * Map a memory region into ISP memory space.
- */
-int atomisp_acc_map(struct atomisp_sub_device *asd,
-		    struct atomisp_acc_map *map);
-
-/*
- * Unmap a mapped memory region.
- */
-int atomisp_acc_unmap(struct atomisp_sub_device *asd,
-		      struct atomisp_acc_map *map);
-
-/*
- * Set acceleration binary argument to a previously mapped memory region.
- */
-int atomisp_acc_s_mapped_arg(struct atomisp_sub_device *asd,
-			     struct atomisp_acc_s_mapped_arg *arg);
-
-/*
- * Start acceleration.
- * Return immediately, acceleration is left running in background.
- * Specify either acceleration binary or pipeline which to start.
- */
-int atomisp_acc_start(struct atomisp_sub_device *asd,
-		      unsigned int *handle);
-
-/*
- * Wait until acceleration finishes.
- * This MUST be called after each acceleration has been started.
- * Specify either acceleration binary or pipeline handle.
- */
-int atomisp_acc_wait(struct atomisp_sub_device *asd,
-		     unsigned int *handle);
-
 /*
  * Used by ISR to notify ACC stage finished.
  * This is internally used and does not export as IOCTL.
@@ -104,17 +58,5 @@ int atomisp_acc_load_extensions(struct atomisp_sub_device *asd);
  * unloads any loaded acceleration extensions.
  */
 void atomisp_acc_unload_extensions(struct atomisp_sub_device *asd);
-
-/*
- * Set acceleration firmware flags.
- */
-int atomisp_acc_set_state(struct atomisp_sub_device *asd,
-			  struct atomisp_acc_state *arg);
-
-/*
- * Get acceleration firmware flags.
- */
-int atomisp_acc_get_state(struct atomisp_sub_device *asd,
-			  struct atomisp_acc_state *arg);
 
 #endif /* __ATOMISP_ACC_H__ */
