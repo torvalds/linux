@@ -203,6 +203,12 @@ struct rkcif_dummy_buffer {
 	bool is_need_dmafd;
 };
 
+struct rkcif_tools_buffer {
+	struct vb2_v4l2_buffer *vb;
+	struct list_head list;
+	int use_cnt;
+};
+
 extern int rkcif_debug;
 
 /*
@@ -499,6 +505,7 @@ struct rkcif_stream {
 	unsigned int			fs_cnt_in_single_frame;
 	unsigned int			capture_mode;
 	struct rkcif_scale_vdev		*scale_vdev;
+	struct rkcif_tools_vdev		*tools_vdev;
 	int				dma_en;
 	int				to_en_dma;
 	int				to_stop_dma;
@@ -680,6 +687,63 @@ int rkcif_register_scale_vdevs(struct rkcif_device *cif_dev,
 void rkcif_unregister_scale_vdevs(struct rkcif_device *cif_dev,
 				   int stream_num);
 
+#define TOOLS_DRIVER_NAME		"rkcif_tools"
+
+#define RKCIF_TOOLS_CH0		0
+#define RKCIF_TOOLS_CH1		1
+#define RKCIF_TOOLS_CH2		2
+#define RKCIF_MAX_TOOLS_CH	3
+
+#define CIF_TOOLS_CH0_VDEV_NAME CIF_DRIVER_NAME	"_tools_id0"
+#define CIF_TOOLS_CH1_VDEV_NAME CIF_DRIVER_NAME	"_tools_id1"
+#define CIF_TOOLS_CH2_VDEV_NAME CIF_DRIVER_NAME	"_tools_id2"
+
+struct rkcif_tools_work_struct {
+	struct work_struct	work;
+	struct rkcif_buffer *active_buf;
+	unsigned int frame_idx;
+	unsigned long timestamp;
+};
+
+/*
+ * struct rkcif_tools_vdev - CIF Capture device
+ *
+ * @irq_lock: buffer queue lock
+ * @stat: stats buffer list
+ * @readout_wq: workqueue for statistics information read
+ */
+struct rkcif_tools_vdev {
+	unsigned int ch:3;
+	struct rkcif_device *cifdev;
+	struct rkcif_vdev_node vnode;
+	struct rkcif_stream *stream;
+	struct list_head buf_head;
+	struct list_head src_buf_head;
+	spinlock_t vbq_lock; /* vfd lock */
+	wait_queue_head_t wq_stopped;
+	struct v4l2_pix_format_mplane	pixm;
+	const struct cif_output_fmt *tools_out_fmt;
+	struct rkcif_buffer *curr_buf;
+	struct rkcif_tools_work_struct tools_work;
+	enum rkcif_state state;
+	int frame_phase;
+	unsigned int frame_idx;
+	bool stopping;
+};
+
+static inline
+struct rkcif_tools_vdev *to_rkcif_tools_vdev(struct rkcif_vdev_node *vnode)
+{
+	return container_of(vnode, struct rkcif_tools_vdev, vnode);
+}
+
+void rkcif_init_tools_vdev(struct rkcif_device *cif_dev, u32 ch);
+int rkcif_register_tools_vdevs(struct rkcif_device *cif_dev,
+				int stream_num,
+				bool is_multi_input);
+void rkcif_unregister_tools_vdevs(struct rkcif_device *cif_dev,
+				   int stream_num);
+
 /*
  * struct rkcif_device - ISP platform device
  * @base_addr: base register address
@@ -700,6 +764,7 @@ struct rkcif_device {
 
 	struct rkcif_stream		stream[RKCIF_MULTI_STREAMS_NUM];
 	struct rkcif_scale_vdev		scale_vdev[RKCIF_MULTI_STREAMS_NUM];
+	struct rkcif_tools_vdev		tools_vdev[RKCIF_MAX_TOOLS_CH];
 	struct rkcif_pipeline		pipe;
 
 	struct csi_channel_info		channels[RKCIF_MAX_CSI_CHANNEL];
@@ -709,6 +774,7 @@ struct rkcif_device {
 	atomic_t			power_cnt;
 	struct mutex			stream_lock; /* lock between streams */
 	struct mutex			scale_lock; /* lock between scale dev */
+	struct mutex                    tools_lock; /* lock between tools dev */
 	enum rkcif_workmode		workmode;
 	bool				can_be_reset;
 	struct rkmodule_hdr_cfg		hdr;
@@ -753,6 +819,9 @@ void rkcif_do_stop_stream(struct rkcif_stream *stream,
 				enum rkcif_stream_mode mode);
 void rkcif_irq_handle_scale(struct rkcif_device *cif_dev,
 				  unsigned int intstat_glb);
+void rkcif_buf_queue(struct vb2_buffer *vb);
+void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
+				  struct vb2_v4l2_buffer *vb_done);
 
 int rkcif_scale_start(struct rkcif_scale_vdev *scale_vdev);
 

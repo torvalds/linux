@@ -20,9 +20,9 @@
  */
 #define CSI2_SINK_PAD			0
 #define CSI2_NUM_SINK_PADS		4
-#define CSI2_NUM_SRC_PADS		8
+#define CSI2_NUM_SRC_PADS		11
 #define CSI2_NUM_PADS			5
-#define CSI2_NUM_PADS_MAX		9
+#define CSI2_NUM_PADS_MAX		12
 #define CSI2_NUM_PADS_SINGLE_LINK	2
 #define MAX_CSI2_SENSORS		2
 

@@ -3107,7 +3107,7 @@ static void rkcif_check_buffer_update_pingpong(struct rkcif_stream *stream,
  * The vb2_buffer are stored in rkcif_buffer, in order to unify
  * mplane buffer and none-mplane buffer.
  */
-static void rkcif_buf_queue(struct vb2_buffer *vb)
+void rkcif_buf_queue(struct vb2_buffer *vb)
 {
 	struct vb2_v4l2_buffer *vbuf = to_vb2_v4l2_buffer(vb);
 	struct rkcif_buffer *cifbuf = to_rkcif_buffer(vbuf);
@@ -3116,8 +3116,30 @@ static void rkcif_buf_queue(struct vb2_buffer *vb)
 	struct v4l2_pix_format_mplane *pixm = &stream->pixm;
 	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
 	struct rkcif_hw *hw_dev = stream->cifdev->hw_dev;
+	struct rkcif_tools_buffer *tools_buf;
+	struct rkcif_tools_vdev *tools_vdev = stream->tools_vdev;
 	unsigned long flags;
 	int i;
+	bool is_find_tools_buf = false;
+
+	spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
+	if (tools_vdev && !list_empty(&tools_vdev->src_buf_head)) {
+		list_for_each_entry(tools_buf, &tools_vdev->src_buf_head, list) {
+			if (tools_buf->vb == vbuf) {
+				is_find_tools_buf = true;
+				break;
+			}
+		}
+		if (is_find_tools_buf) {
+			if (tools_buf->use_cnt)
+				tools_buf->use_cnt--;
+			if (tools_buf->use_cnt) {
+				spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+				return;
+			}
+		}
+	}
+	spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
 
 	memset(cifbuf->buff_addr, 0, sizeof(cifbuf->buff_addr));
 	/* If mplanes > 1, every c-plane has its own m-plane,
@@ -6038,9 +6060,8 @@ void rkcif_unregister_dvp_sof_subdev(struct rkcif_device *dev)
 	v4l2_device_unregister_subdev(sd);
 }
 
-
-static void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
-				   struct vb2_v4l2_buffer *vb_done)
+void rkcif_vb_done_oneframe(struct rkcif_stream *stream,
+				  struct vb2_v4l2_buffer *vb_done)
 {
 	const struct cif_output_fmt *fmt = stream->cif_fmt_out;
 	u32 i;
@@ -6565,6 +6586,8 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 	u32 denominator, numerator;
 	u64 l_ts, m_ts, s_ts, time = 30000000LL;
 	int ret, fps = -1;
+	int i = 0;
+	unsigned long flags;
 
 	if (dev->hdr.hdr_mode == HDR_X2) {
 		if (stream->id != RKCIF_STREAM_MIPI_ID1 ||
@@ -6622,12 +6645,28 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 			}
 			dev->rdbk_buf[RDBK_M]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
 			dev->rdbk_buf[RDBK_S]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
-			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID0],
-					       &dev->rdbk_buf[RDBK_L]->vb);
-			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID1],
-					       &dev->rdbk_buf[RDBK_M]->vb);
-			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID2],
-					       &dev->rdbk_buf[RDBK_S]->vb);
+			if (dev->stream[RKCIF_STREAM_MIPI_ID0].tools_vdev->state == RKCIF_STATE_STREAMING &&
+			    dev->stream[RKCIF_STREAM_MIPI_ID1].tools_vdev->state == RKCIF_STATE_STREAMING &&
+			    dev->stream[RKCIF_STREAM_MIPI_ID2].tools_vdev->state == RKCIF_STATE_STREAMING) {
+				for (i = 0; i < 3; i++) {
+					spin_lock_irqsave(&dev->stream[i].tools_vdev->vbq_lock, flags);
+					dev->stream[i].tools_vdev->tools_work.active_buf = dev->rdbk_buf[i];
+					dev->stream[i].tools_vdev->tools_work.frame_idx = dev->rdbk_buf[i]->vb.sequence;
+					dev->stream[i].tools_vdev->tools_work.timestamp = dev->rdbk_buf[i]->vb.vb2_buf.timestamp;
+					if (!work_busy(&dev->stream[i].tools_vdev->tools_work.work))
+						schedule_work(&dev->stream[i].tools_vdev->tools_work.work);
+					else
+						rkcif_vb_done_oneframe(&dev->stream[i], &dev->rdbk_buf[i]->vb);
+					spin_unlock_irqrestore(&dev->stream[i].tools_vdev->vbq_lock, flags);
+				}
+			} else {
+				rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID0],
+						       &dev->rdbk_buf[RDBK_L]->vb);
+				rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID1],
+						       &dev->rdbk_buf[RDBK_M]->vb);
+				rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID2],
+						       &dev->rdbk_buf[RDBK_S]->vb);
+			}
 		} else {
 			if (!dev->rdbk_buf[RDBK_L])
 				v4l2_err(&dev->v4l2_dev, "lost long frames\n");
@@ -6670,10 +6709,25 @@ static void rkcif_rdbk_frame_end(struct rkcif_stream *stream)
 				}
 			}
 			dev->rdbk_buf[RDBK_M]->vb.sequence = dev->rdbk_buf[RDBK_L]->vb.sequence;
-			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID0],
-					       &dev->rdbk_buf[RDBK_L]->vb);
-			rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID1],
-					       &dev->rdbk_buf[RDBK_M]->vb);
+			if (dev->stream[RKCIF_STREAM_MIPI_ID0].tools_vdev->state == RKCIF_STATE_STREAMING &&
+			    dev->stream[RKCIF_STREAM_MIPI_ID1].tools_vdev->state == RKCIF_STATE_STREAMING) {
+				for (i = 0; i < 2; i++) {
+					spin_lock_irqsave(&dev->stream[i].tools_vdev->vbq_lock, flags);
+					dev->stream[i].tools_vdev->tools_work.active_buf = dev->rdbk_buf[i];
+					dev->stream[i].tools_vdev->tools_work.frame_idx = dev->rdbk_buf[i]->vb.sequence;
+					dev->stream[i].tools_vdev->tools_work.timestamp = dev->rdbk_buf[i]->vb.vb2_buf.timestamp;
+					if (!work_busy(&dev->stream[i].tools_vdev->tools_work.work))
+						schedule_work(&dev->stream[i].tools_vdev->tools_work.work);
+					else
+						rkcif_vb_done_oneframe(&dev->stream[i], &dev->rdbk_buf[i]->vb);
+					spin_unlock_irqrestore(&dev->stream[i].tools_vdev->vbq_lock, flags);
+				}
+			} else {
+				rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID0],
+						       &dev->rdbk_buf[RDBK_L]->vb);
+				rkcif_vb_done_oneframe(&dev->stream[RKCIF_STREAM_MIPI_ID1],
+						       &dev->rdbk_buf[RDBK_M]->vb);
+			}
 		} else {
 			if (!dev->rdbk_buf[RDBK_L])
 				v4l2_err(&dev->v4l2_dev, "lost long frames\n");
@@ -6737,11 +6791,37 @@ static void rkcif_buf_done_prepare(struct rkcif_stream *stream,
 
 	if (cif_dev->hdr.hdr_mode == NO_HDR) {
 		if (stream->cif_fmt_in->field == V4L2_FIELD_INTERLACED) {
-			if (stream->frame_phase == CIF_CSI_FRAME1_READY && active_buf)
-				rkcif_vb_done_oneframe(stream, vb_done);
+			if (stream->frame_phase == CIF_CSI_FRAME1_READY && active_buf) {
+				if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+					spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
+					stream->tools_vdev->tools_work.active_buf = active_buf;
+					stream->tools_vdev->tools_work.frame_idx = active_buf->vb.sequence;
+					stream->tools_vdev->tools_work.timestamp = active_buf->vb.vb2_buf.timestamp;
+					if (!work_busy(&stream->tools_vdev->tools_work.work))
+						schedule_work(&stream->tools_vdev->tools_work.work);
+					else
+						rkcif_vb_done_oneframe(stream, vb_done);
+					spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+				} else {
+					rkcif_vb_done_oneframe(stream, vb_done);
+				}
+			}
 		} else {
-			if (active_buf)
-				rkcif_vb_done_oneframe(stream, vb_done);
+			if (active_buf) {
+				if (stream->tools_vdev->state == RKCIF_STATE_STREAMING) {
+					spin_lock_irqsave(&stream->tools_vdev->vbq_lock, flags);
+					stream->tools_vdev->tools_work.active_buf = active_buf;
+					stream->tools_vdev->tools_work.frame_idx = active_buf->vb.sequence;
+					stream->tools_vdev->tools_work.timestamp = active_buf->vb.vb2_buf.timestamp;
+					if (!work_busy(&stream->tools_vdev->tools_work.work))
+						schedule_work(&stream->tools_vdev->tools_work.work);
+					else
+						rkcif_vb_done_oneframe(stream, vb_done);
+					spin_unlock_irqrestore(&stream->tools_vdev->vbq_lock, flags);
+				} else {
+					rkcif_vb_done_oneframe(stream, vb_done);
+				}
+			}
 		}
 	} else {
 		if (cif_dev->is_start_hdr) {
