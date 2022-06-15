@@ -811,7 +811,6 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q,
 	struct mqd_manager *mqd_mgr;
 	struct kfd_process_device *pdd;
 	bool prev_active = false;
-	bool add_queue = false;
 
 	dqm_lock(dqm);
 	pdd = kfd_get_process_device_data(q->device, q->process);
@@ -887,7 +886,7 @@ static int update_queue(struct device_queue_manager *dqm, struct queue *q,
 	if (dqm->sched_policy != KFD_SCHED_POLICY_NO_HWS) {
 		if (!dqm->dev->shared_resources.enable_mes)
 			retval = map_queues_cpsch(dqm);
-		else if (add_queue)
+		else if (q->properties.is_active)
 			retval = add_queue_mes(dqm, q, &pdd->qpd);
 	} else if (q->properties.is_active &&
 		 (q->properties.type == KFD_QUEUE_TYPE_COMPUTE ||
