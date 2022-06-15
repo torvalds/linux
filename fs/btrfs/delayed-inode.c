@@ -1682,7 +1682,7 @@ int btrfs_inode_delayed_dir_index_count(struct btrfs_inode *inode)
 	return 0;
 }
 
-bool btrfs_readdir_get_delayed_items(struct inode *inode,
+bool btrfs_readdir_get_delayed_items(struct btrfs_inode *inode,
 				     u64 last_index,
 				     struct list_head *ins_list,
 				     struct list_head *del_list)
@@ -1690,7 +1690,7 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	struct btrfs_delayed_node *delayed_node;
 	struct btrfs_delayed_item *item;
 
-	delayed_node = btrfs_get_delayed_node(BTRFS_I(inode));
+	delayed_node = btrfs_get_delayed_node(inode);
 	if (!delayed_node)
 		return false;
 
@@ -1698,8 +1698,8 @@ bool btrfs_readdir_get_delayed_items(struct inode *inode,
 	 * We can only do one readdir with delayed items at a time because of
 	 * item->readdir_list.
 	 */
-	btrfs_inode_unlock(BTRFS_I(inode), BTRFS_ILOCK_SHARED);
-	btrfs_inode_lock(BTRFS_I(inode), 0);
+	btrfs_inode_unlock(inode, BTRFS_ILOCK_SHARED);
+	btrfs_inode_lock(inode, 0);
 
 	mutex_lock(&delayed_node->mutex);
 	item = __btrfs_first_delayed_insertion_item(delayed_node);

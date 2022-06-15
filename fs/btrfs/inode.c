@@ -5947,7 +5947,7 @@ static int btrfs_real_readdir(struct file *file, struct dir_context *ctx)
 	addr = private->filldir_buf;
 	path->reada = READA_FORWARD;
 
-	put = btrfs_readdir_get_delayed_items(inode, private->last_index,
+	put = btrfs_readdir_get_delayed_items(BTRFS_I(inode), private->last_index,
 					      &ins_list, &del_list);
 
 again:

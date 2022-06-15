@@ -143,7 +143,7 @@ void btrfs_kill_all_delayed_nodes(struct btrfs_root *root);
 void btrfs_destroy_delayed_inodes(struct btrfs_fs_info *fs_info);
 
 /* Used for readdir() */
-bool btrfs_readdir_get_delayed_items(struct inode *inode,
+bool btrfs_readdir_get_delayed_items(struct btrfs_inode *inode,
 				     u64 last_index,
 				     struct list_head *ins_list,
 				     struct list_head *del_list);
