@@ -259,7 +259,7 @@ static const struct ec_board_info board_info[] = {
 	},
 	{
 		.board_names = {
-			"ROG CROSSHAIR VIII FORMULA"
+			"ROG CROSSHAIR VIII FORMULA",
 			"ROG CROSSHAIR VIII HERO",
 			"ROG CROSSHAIR VIII HERO (WI-FI)",
 		},
