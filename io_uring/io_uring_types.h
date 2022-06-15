@@ -181,8 +181,6 @@ struct io_ring_ctx {
 		struct xarray		io_bl_xa;
 		struct list_head	io_buffers_cache;
 
-		struct list_head	timeout_list;
-		struct list_head	ltimeout_list;
 		struct list_head	cq_overflow_list;
 		struct list_head	apoll_cache;
 		struct xarray		personalities;
@@ -215,14 +213,10 @@ struct io_ring_ctx {
 		struct io_ev_fd	__rcu	*io_ev_fd;
 		struct wait_queue_head	cq_wait;
 		unsigned		cq_extra;
-		atomic_t		cq_timeouts;
-		unsigned		cq_last_tm_flush;
 	} ____cacheline_aligned_in_smp;
 
 	struct {
 		spinlock_t		completion_lock;
-
-		spinlock_t		timeout_lock;
 
 		/*
 		 * ->iopoll_list is protected by the ctx->uring_lock for
@@ -254,6 +248,15 @@ struct io_ring_ctx {
 
 		struct list_head	io_buffers_pages;
 	};
+
+	/* timeouts */
+	struct {
+		spinlock_t		timeout_lock;
+		atomic_t		cq_timeouts;
+		struct list_head	timeout_list;
+		struct list_head	ltimeout_list;
+		unsigned		cq_last_tm_flush;
+	} ____cacheline_aligned_in_smp;
 
 	/* Keep this last, we don't need it for the fast path */
 	struct {
