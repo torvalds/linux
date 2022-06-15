@@ -436,18 +436,20 @@ void iov_iter_init(struct iov_iter *i, unsigned int direction,
 }
 EXPORT_SYMBOL(iov_iter_init);
 
-static inline void data_start(const struct iov_iter *i,
-			      unsigned int *iter_headp, size_t *offp)
+// returns the offset in partial buffer (if any)
+static inline unsigned int pipe_npages(const struct iov_iter *i, int *npages)
 {
+	struct pipe_inode_info *pipe = i->pipe;
+	int used = pipe->head - pipe->tail;
 	int off = i->last_offset;
 
+	*npages = max((int)pipe->max_usage - used, 0);
+
 	if (off > 0 && off < PAGE_SIZE) { // anon and not full
-		*iter_headp = i->pipe->head - 1;
-		*offp = off;
-	} else {
-		*iter_headp = i->pipe->head;
-		*offp = 0;
+		(*npages)++;
+		return off;
 	}
+	return 0;
 }
 
 static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
@@ -1318,18 +1320,16 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 		   struct page **pages, size_t maxsize, unsigned maxpages,
 		   size_t *start)
 {
-	unsigned int iter_head, npages;
+	unsigned int npages, off;
 	size_t capacity;
 
 	if (!sanity(i))
 		return -EFAULT;
 
-	data_start(i, &iter_head, start);
-	/* Amount of free space: some of this one + all after this one */
-	npages = pipe_space_for_user(iter_head, i->pipe->tail, i->pipe);
-	capacity = min(npages, maxpages) * PAGE_SIZE - *start;
+	*start = off = pipe_npages(i, &npages);
+	capacity = min(npages, maxpages) * PAGE_SIZE - off;
 
-	return __pipe_get_pages(i, min(maxsize, capacity), pages, *start);
+	return __pipe_get_pages(i, min(maxsize, capacity), pages, off);
 }
 
 static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa,
@@ -1494,24 +1494,22 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 		   size_t *start)
 {
 	struct page **p;
-	unsigned int iter_head, npages;
+	unsigned int npages, off;
 	ssize_t n;
 
 	if (!sanity(i))
 		return -EFAULT;
 
-	data_start(i, &iter_head, start);
-	/* Amount of free space: some of this one + all after this one */
-	npages = pipe_space_for_user(iter_head, i->pipe->tail, i->pipe);
-	n = npages * PAGE_SIZE - *start;
+	*start = off = pipe_npages(i, &npages);
+	n = npages * PAGE_SIZE - off;
 	if (maxsize > n)
 		maxsize = n;
 	else
-		npages = DIV_ROUND_UP(maxsize + *start, PAGE_SIZE);
+		npages = DIV_ROUND_UP(maxsize + off, PAGE_SIZE);
 	p = get_pages_array(npages);
 	if (!p)
 		return -ENOMEM;
-	n = __pipe_get_pages(i, maxsize, p, *start);
+	n = __pipe_get_pages(i, maxsize, p, off);
 	if (n > 0)
 		*pages = p;
 	else
@@ -1739,16 +1737,12 @@ int iov_iter_npages(const struct iov_iter *i, int maxpages)
 	if (iov_iter_is_bvec(i))
 		return bvec_npages(i, maxpages);
 	if (iov_iter_is_pipe(i)) {
-		unsigned int iter_head;
 		int npages;
-		size_t off;
 
 		if (!sanity(i))
 			return 0;
 
-		data_start(i, &iter_head, &off);
-		/* some of this one + all after this one */
-		npages = pipe_space_for_user(iter_head, i->pipe->tail, i->pipe);
+		pipe_npages(i, &npages);
 		return min(npages, maxpages);
 	}
 	if (iov_iter_is_xarray(i)) {
