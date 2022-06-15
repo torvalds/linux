@@ -865,12 +865,6 @@ dev_init:
 		goto error;
 	}
 
-	if (dypool_enable) {
-		ret = hmm_pool_register(dypool_pgnr, HMM_POOL_TYPE_DYNAMIC);
-		if (ret)
-			dev_err(isp->dev, "Failed to register dynamic memory pool.\n");
-	}
-
 	/* Init ISP */
 	if (atomisp_css_init(isp)) {
 		ret = -EINVAL;
@@ -910,7 +904,6 @@ css_error:
 	atomisp_css_uninit(isp);
 	pm_runtime_put(vdev->v4l2_dev->dev);
 error:
-	hmm_pool_unregister(HMM_POOL_TYPE_DYNAMIC);
 	rt_mutex_unlock(&isp->mutex);
 	return ret;
 }
@@ -1031,8 +1024,6 @@ subdev_uninit:
 		isp->css_env.isp_css_fw.data = NULL;
 		isp->css_env.isp_css_fw.bytes = 0;
 	}
-
-	hmm_pool_unregister(HMM_POOL_TYPE_DYNAMIC);
 
 	ret = v4l2_subdev_call(isp->flash, core, s_power, 0);
 	if (ret < 0 && ret != -ENODEV && ret != -ENOIOCTLCMD)

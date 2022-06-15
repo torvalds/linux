@@ -1771,12 +1771,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	pm_runtime_allow(&pdev->dev);
 
 	hmm_init_mem_stat(repool_pgnr, dypool_enable, dypool_pgnr);
-	err = hmm_pool_register(repool_pgnr, HMM_POOL_TYPE_RESERVED);
-	if (err) {
-		dev_err(&pdev->dev, "Failed to register reserved memory pool.\n");
-		goto hmm_pool_fail;
-	}
-
 	/* Init ISP memory management */
 	hmm_init();
 
@@ -1813,8 +1807,6 @@ css_init_fail:
 	devm_free_irq(&pdev->dev, pdev->irq, isp);
 request_irq_fail:
 	hmm_cleanup();
-	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
-hmm_pool_fail:
 	pm_runtime_get_noresume(&pdev->dev);
 	destroy_workqueue(isp->wdt_work_queue);
 wdt_work_queue_fail:
@@ -1885,8 +1877,6 @@ static void atomisp_pci_remove(struct pci_dev *pdev)
 	atomisp_file_input_cleanup(isp);
 
 	release_firmware(isp->firmware);
-
-	hmm_pool_unregister(HMM_POOL_TYPE_RESERVED);
 }
 
 static const struct pci_device_id atomisp_pci_tbl[] = {
