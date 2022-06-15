@@ -650,8 +650,7 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 }
 
 /*Allocate pages which will be used only by ISP*/
-static int alloc_private_pages(struct hmm_buffer_object *bo,
-			       int from_highmem)
+static int alloc_private_pages(struct hmm_buffer_object *bo)
 {
 	int ret;
 	unsigned int pgnr, order, blk_pgnr, alloc_pgnr;
@@ -661,9 +660,6 @@ static int alloc_private_pages(struct hmm_buffer_object *bo,
 	int failure_number = 0;
 	bool reduce_order = false;
 	bool lack_mem = true;
-
-	if (from_highmem)
-		gfp |= __GFP_HIGHMEM;
 
 	pgnr = bo->pgnr;
 
@@ -881,9 +877,6 @@ out_of_mem:
  * type indicate where are the pages from. currently we have 3 types
  * of memory: HMM_BO_PRIVATE, HMM_BO_USER, HMM_BO_SHARE.
  *
- * from_highmem is only valid when type is HMM_BO_PRIVATE, it will
- * try to alloc memory from highmem if from_highmem is set.
- *
  * userptr is only valid when type is HMM_BO_USER, it indicates
  * the start address from user space task.
  *
@@ -891,7 +884,7 @@ out_of_mem:
  * HMM_BO_SHARE.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
-		       enum hmm_bo_type type, int from_highmem,
+		       enum hmm_bo_type type,
 		       const void __user *userptr)
 {
 	int ret = -EINVAL;
@@ -906,7 +899,7 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 	 * add HMM_BO_USER type
 	 */
 	if (type == HMM_BO_PRIVATE) {
-		ret = alloc_private_pages(bo, from_highmem);
+		ret = alloc_private_pages(bo);
 	} else if (type == HMM_BO_USER) {
 		ret = alloc_user_pages(bo, userptr);
 	} else {

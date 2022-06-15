@@ -130,7 +130,6 @@ struct hmm_buffer_object {
 	struct mutex		mutex;
 	enum hmm_bo_type	type;
 	struct hmm_page_object	*page_obj;	/* physical pages */
-	int		from_highmem;
 	int		mmap_count;
 	int		status;
 	int		mem_type;
@@ -214,13 +213,12 @@ void hmm_bo_unref(struct hmm_buffer_object *bo);
 int hmm_bo_allocated(struct hmm_buffer_object *bo);
 
 /*
- * allocate/free physical pages for the bo. will try to alloc mem
- * from highmem if from_highmem is set, and type indicate that the
+ * Allocate/Free physical pages for the bo. Type indicates if the
  * pages will be allocated by using video driver (for share buffer)
  * or by ISP driver itself.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
-		       enum hmm_bo_type type, int from_highmem,
+		       enum hmm_bo_type type,
 		       const void __user *userptr);
 void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
