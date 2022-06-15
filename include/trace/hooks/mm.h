@@ -14,6 +14,24 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+#ifdef __GENKSYMS__
+struct slabinfo;
+struct cgroup_subsys_state;
+struct device;
+struct mem_cgroup;
+struct readahead_control;
+#else
+/* struct slabinfo */
+#include <../mm/slab.h>
+/* struct cgroup_subsys_state */
+#include <linux/cgroup-defs.h>
+/* struct device */
+#include <linux/device.h>
+/* struct mem_cgroup */
+#include <linux/memcontrol.h>
+/* struct readahead_control */
+#include <linux/pagemap.h>
+#endif /* __GENKSYMS__ */
 struct cma;
 
 DECLARE_RESTRICTED_HOOK(android_rvh_set_skip_swapcache_flags,
@@ -68,7 +86,6 @@ DECLARE_HOOK(android_vh_include_reserved_zone,
 DECLARE_HOOK(android_vh_show_mem,
 	TP_PROTO(unsigned int filter, nodemask_t *nodemask),
 	TP_ARGS(filter, nodemask));
-struct slabinfo;
 struct dirty_throttle_control;
 DECLARE_HOOK(android_vh_mm_dirty_limits,
 	TP_PROTO(struct dirty_throttle_control *const gdtc, bool strictlimit,
@@ -88,7 +105,6 @@ DECLARE_HOOK(android_vh_show_stack_hash,
 DECLARE_HOOK(android_vh_save_track_hash,
 	TP_PROTO(bool alloc, unsigned long p),
 	TP_ARGS(alloc, p));
-struct mem_cgroup;
 DECLARE_HOOK(android_vh_vmpressure,
 	TP_PROTO(struct mem_cgroup *memcg, bool *bypass),
 	TP_ARGS(memcg, bypass));
@@ -101,7 +117,6 @@ DECLARE_HOOK(android_vh_mem_cgroup_free,
 DECLARE_HOOK(android_vh_mem_cgroup_id_remove,
 	TP_PROTO(struct mem_cgroup *memcg),
 	TP_ARGS(memcg));
-struct cgroup_subsys_state;
 DECLARE_HOOK(android_vh_mem_cgroup_css_online,
 	TP_PROTO(struct cgroup_subsys_state *css, struct mem_cgroup *memcg),
 	TP_ARGS(css, memcg));
@@ -128,11 +143,9 @@ DECLARE_HOOK(android_vh_cma_drain_all_pages_bypass,
 DECLARE_HOOK(android_vh_pcplist_add_cma_pages_bypass,
 	TP_PROTO(int migratetype, bool *bypass),
 	TP_ARGS(migratetype, bypass));
-struct device;
 DECLARE_HOOK(android_vh_subpage_dma_contig_alloc,
 	TP_PROTO(bool *allow_subpage_alloc, struct device *dev, size_t *size),
 	TP_ARGS(allow_subpage_alloc, dev, size));
-struct readahead_control;
 DECLARE_HOOK(android_vh_ra_tuning_max_page,
 	TP_PROTO(struct readahead_control *ractl, unsigned long *max_page),
 	TP_ARGS(ractl, max_page));

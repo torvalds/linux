@@ -10,8 +10,15 @@
  * Following tracepoints are not exported in tracefs and provide a
  * mechanism for vendor modules to hook and extend functionality
  */
-struct irq_data;
+#ifdef __GENKSYMS__
 struct cpumask;
+struct irq_data;
+#else
+/* struct cpumask */
+#include <linux/cpumask.h>
+/* struct irq_data */
+#include <linux/irq.h>
+#endif /* __GENKSYMS__ */
 DECLARE_RESTRICTED_HOOK(android_rvh_gic_v3_set_affinity,
 	TP_PROTO(struct irq_data *d, const struct cpumask *mask_val,
 		 u64 *affinity, bool force, void __iomem *base),

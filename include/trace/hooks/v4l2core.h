@@ -10,12 +10,26 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+#ifdef __GENKSYMS__
+struct v4l2_subdev;
+struct v4l2_subdev_pad_config;
+struct v4l2_subdev_format;
+struct v4l2_subdev_frame_interval;
+struct v4l2_subdev_selection;
+struct v4l2_fmtdesc;
 struct v4l2_format;
+#else
+/* struct v4l2_subdev, struct v4l2_subdev_pad_config */
+#include <media/v4l2-subdev.h>
+/* struct v4l2_subdev_format, struct v4l2_subdev_frame_interval, struct v4l2_subdev_selection */
+#include <uapi/linux/v4l2-subdev.h>
+/* struct v4l2_fmtdesc, struct v4l2_format */
+#include <uapi/linux/videodev2.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_clear_reserved_fmt_fields,
 	TP_PROTO(struct v4l2_format *fmt, int *ret),
 	TP_ARGS(fmt, ret));
 
-struct v4l2_fmtdesc;
 DECLARE_HOOK(android_vh_fill_ext_fmtdesc,
 	TP_PROTO(struct v4l2_fmtdesc *fmtd, const char **descr),
 	TP_ARGS(fmtd, descr));
@@ -24,21 +38,16 @@ DECLARE_HOOK(android_vh_clear_mask_adjust,
 	TP_PROTO(unsigned int ctrl, int *n),
 	TP_ARGS(ctrl, n));
 
-struct v4l2_subdev;
-struct v4l2_subdev_pad_config;
-struct v4l2_subdev_selection;
 DECLARE_HOOK(android_vh_v4l2subdev_set_selection,
 	TP_PROTO(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *pad,
 	struct v4l2_subdev_selection *sel, int *ret),
 	TP_ARGS(sd, pad, sel, ret));
 
-struct v4l2_subdev_format;
 DECLARE_HOOK(android_vh_v4l2subdev_set_fmt,
 	TP_PROTO(struct v4l2_subdev *sd, struct v4l2_subdev_pad_config *pad,
 	struct v4l2_subdev_format *format, int *ret),
 	TP_ARGS(sd, pad, format, ret));
 
-struct v4l2_subdev_frame_interval;
 DECLARE_HOOK(android_vh_v4l2subdev_set_frame_interval,
 	TP_PROTO(struct v4l2_subdev *sd, struct v4l2_subdev_frame_interval *fi,
 	int *ret),

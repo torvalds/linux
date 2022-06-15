@@ -8,7 +8,12 @@
 #include <linux/tracepoint.h>
 #include <trace/hooks/vendor_hooks.h>
 
+#ifdef __GENKSYMS__
 struct page;
+#else
+/* struct page */
+#include <linux/mm_types.h>
+#endif /* __GENKSYMS__ */
 DECLARE_HOOK(android_vh_shmem_alloc_page,
 	TP_PROTO(struct page **page),
 	TP_ARGS(page));
