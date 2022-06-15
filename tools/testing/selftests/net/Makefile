@@ -59,7 +59,6 @@ TEST_GEN_FILES += toeplitz
 TEST_GEN_FILES += cmsg_sender
 TEST_GEN_FILES += stress_reuseport_listen
 TEST_PROGS += test_vxlan_vnifiltering.sh
-TEST_GEN_FILES += bind_bhash_test
 
 TEST_FILES := settings
 
@@ -70,5 +69,4 @@ include bpf/Makefile
 
 $(OUTPUT)/reuseport_bpf_numa: LDLIBS += -lnuma
 $(OUTPUT)/tcp_mmap: LDLIBS += -lpthread
-$(OUTPUT)/bind_bhash_test: LDLIBS += -lpthread
 $(OUTPUT)/tcp_inq: LDLIBS += -lpthread
