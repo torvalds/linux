@@ -48,12 +48,6 @@ static void frame_init_raw_single_plane(
     unsigned int subpixels_per_line,
     unsigned int bits_per_pixel);
 
-static void frame_init_mipi_plane(struct ia_css_frame *frame,
-				  struct ia_css_frame_plane *plane,
-				  unsigned int height,
-				  unsigned int subpixels_per_line,
-				  unsigned int bytes_per_pixel);
-
 static void frame_init_nv_planes(struct ia_css_frame *frame,
 				 unsigned int horizontal_decimation,
 				 unsigned int vertical_decimation,
@@ -297,11 +291,9 @@ int ia_css_frame_init_planes(struct ia_css_frame *frame)
 
 	switch (frame->info.format) {
 	case IA_CSS_FRAME_FORMAT_MIPI:
-		frame_init_mipi_plane(frame, &frame->planes.raw,
-				      frame->info.res.height,
-				      frame->info.padded_width,
-				      frame->info.raw_bit_depth <= 8 ? 1 : 2);
-		break;
+		dev_err(atomisp_dev,
+			"%s: unexpected use of IA_CSS_FRAME_FORMAT_MIPI\n", __func__);
+		return -EINVAL;
 	case IA_CSS_FRAME_FORMAT_RAW_PACKED:
 		frame_init_raw_single_plane(frame, &frame->planes.raw,
 					    frame->info.res.height,
@@ -618,22 +610,6 @@ static void frame_init_raw_single_plane(
 		 CEIL_DIV(subpixels_per_line,
 			  HIVE_ISP_DDR_WORD_BITS / bits_per_pixel);
 	frame->data_bytes = stride * height;
-	frame_init_plane(plane, subpixels_per_line, stride, height, 0);
-	return;
-}
-
-static void frame_init_mipi_plane(struct ia_css_frame *frame,
-				  struct ia_css_frame_plane *plane,
-				  unsigned int height,
-				  unsigned int subpixels_per_line,
-				  unsigned int bytes_per_pixel)
-{
-	unsigned int stride;
-
-	stride = subpixels_per_line * bytes_per_pixel;
-	frame->data_bytes = 8388608; /* 8*1024*1024 */
-	frame->valid = false;
-	frame->contiguous = true;
 	frame_init_plane(plane, subpixels_per_line, stride, height, 0);
 	return;
 }
