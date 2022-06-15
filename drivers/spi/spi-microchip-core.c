@@ -433,6 +433,8 @@ static int mchp_corespi_calculate_clkgen(struct mchp_corespi *spi,
 	unsigned long clk_hz, spi_hz, clk_gen;
 
 	clk_hz = clk_get_rate(spi->clk);
+	if (!clk_hz)
+		return -EINVAL;
 	spi_hz = min(target_hz, clk_hz);
 
 	/*
@@ -553,7 +555,7 @@ static int mchp_corespi_probe(struct platform_device *pdev)
 	}
 
 	spi->clk = devm_clk_get(&pdev->dev, NULL);
-	if (!spi->clk || IS_ERR(spi->clk)) {
+	if (IS_ERR(spi->clk)) {
 		ret = PTR_ERR(spi->clk);
 		dev_err(&pdev->dev, "could not get clk: %d\n", ret);
 		goto error_release_master;
