@@ -4479,6 +4479,7 @@ static int ath11k_mac_station_add(struct ath11k *ar,
 		}
 	}
 
+	ewma_avg_rssi_init(&arsta->avg_rssi);
 	return 0;
 
 free_tx_stats:
@@ -7799,6 +7800,7 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 {
 	struct ath11k_vif *arvif = (void *)vif->drv_priv;
 	struct cfg80211_chan_def def;
+	struct ath11k_pdev_cap *cap;
 	struct ath11k *ar = arvif->ar;
 	enum nl80211_band band;
 	const u8 *ht_mcs_mask;
@@ -7819,10 +7821,11 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 		return -EPERM;
 
 	band = def.chan->band;
+	cap = &ar->pdev->cap;
 	ht_mcs_mask = mask->control[band].ht_mcs;
 	vht_mcs_mask = mask->control[band].vht_mcs;
 	he_mcs_mask = mask->control[band].he_mcs;
-	ldpc = !!(ar->ht_cap_info & WMI_HT_CAP_LDPC);
+	ldpc = !!(cap->band[band].ht_cap_info & WMI_HT_CAP_TX_LDPC);
 
 	sgi = mask->control[band].gi;
 	if (sgi == NL80211_TXRATE_FORCE_LGI)
@@ -7832,7 +7835,7 @@ ath11k_mac_op_set_bitrate_mask(struct ieee80211_hw *hw,
 	he_ltf = mask->control[band].he_ltf;
 
 	/* mac80211 doesn't support sending a fixed HT/VHT MCS alone, rather it
-	 * requires passing atleast one of used basic rates along with them.
+	 * requires passing at least one of used basic rates along with them.
 	 * Fixed rate setting across different preambles(legacy, HT, VHT) is
 	 * not supported by the FW. Hence use of FIXED_RATE vdev param is not
 	 * suitable for setting single HT/VHT rates.
@@ -8161,6 +8164,10 @@ static void ath11k_mac_op_sta_statistics(struct ieee80211_hw *hw,
 		sinfo->signal = db2dbm ? signal : signal + ATH11K_DEFAULT_NOISE_FLOOR;
 		sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL);
 	}
+
+	sinfo->signal_avg = ewma_avg_rssi_read(&arsta->avg_rssi) +
+		ATH11K_DEFAULT_NOISE_FLOOR;
+	sinfo->filled |= BIT_ULL(NL80211_STA_INFO_SIGNAL_AVG);
 }
 
 #if IS_ENABLED(CONFIG_IPV6)
@@ -8297,22 +8304,20 @@ static int ath11k_mac_op_set_bios_sar_specs(struct ieee80211_hw *hw,
 					    const struct cfg80211_sar_specs *sar)
 {
 	struct ath11k *ar = hw->priv;
-	const struct cfg80211_sar_sub_specs *sspec = sar->sub_specs;
+	const struct cfg80211_sar_sub_specs *sspec;
 	int ret, index;
 	u8 *sar_tbl;
 	u32 i;
+
+	if (!sar || sar->type != NL80211_SAR_TYPE_POWER ||
+	    sar->num_sub_specs == 0)
+		return -EINVAL;
 
 	mutex_lock(&ar->conf_mutex);
 
 	if (!test_bit(WMI_TLV_SERVICE_BIOS_SAR_SUPPORT, ar->ab->wmi_ab.svc_map) ||
 	    !ar->ab->hw_params.bios_sar_capa) {
 		ret = -EOPNOTSUPP;
-		goto exit;
-	}
-
-	if (!sar || sar->type != NL80211_SAR_TYPE_POWER ||
-	    sar->num_sub_specs == 0) {
-		ret = -EINVAL;
 		goto exit;
 	}
 
@@ -8328,6 +8333,7 @@ static int ath11k_mac_op_set_bios_sar_specs(struct ieee80211_hw *hw,
 		goto exit;
 	}
 
+	sspec = sar->sub_specs;
 	for (i = 0; i < sar->num_sub_specs; i++) {
 		if (sspec->freq_range_index >= (BIOS_SAR_TABLE_LEN >> 1)) {
 			ath11k_warn(ar->ab, "Ignore bad frequency index %u, max allowed %u\n",
