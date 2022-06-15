@@ -3175,15 +3175,6 @@ static int is_diag_enabled(struct usb_composite_dev *cdev)
 	return 0;
 }
 
-static int dwc3_device_core_soft_reset(struct dwc3_msm *mdwc)
-{
-	struct dwc3 *dwc = platform_get_drvdata(mdwc->dwc3);
-
-	dwc3_msm_notify_event(dwc, DWC3_GSI_EVT_BUF_SETUP, 0);
-
-	return 0;
-}
-
 static void dwc3_msm_update_imem_pid(struct dwc3 *dwc)
 {
 	struct usb_composite_dev	*cdev = NULL;
@@ -3442,9 +3433,6 @@ void dwc3_msm_notify_event(struct dwc3 *dwc,
 		break;
 	case DWC3_IMEM_UPDATE_PID:
 		dwc3_msm_update_imem_pid(dwc);
-		break;
-	case DWC3_CONTROLLER_SOFT_RESET:
-		dwc3_device_core_soft_reset(mdwc);
 		break;
 	default:
 		dev_dbg(mdwc->dev, "unknown dwc3 event\n");

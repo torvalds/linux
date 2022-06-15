@@ -135,7 +135,11 @@ static int entry___dwc3_gadget_start(struct kretprobe_instance *ri,
 {
 	struct dwc3 *dwc = (struct dwc3 *)regs->regs[0];
 
-	dwc3_msm_notify_event(dwc, DWC3_CONTROLLER_SOFT_RESET, 0);
+	/*
+	 * Setup USB GSI event buffer as controller soft reset has cleared
+	 * configured event buffer.
+	 */
+	dwc3_msm_notify_event(dwc, DWC3_GSI_EVT_BUF_SETUP, 0);
 
 	return 0;
 }
