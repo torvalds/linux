@@ -211,13 +211,6 @@ void hmm_bo_ref(struct hmm_buffer_object *bo);
  */
 void hmm_bo_unref(struct hmm_buffer_object *bo);
 
-/*
- * allocate/free physical pages for the bo. will try to alloc mem
- * from highmem if from_highmem is set, and type indicate that the
- * pages will be allocated by using video driver (for share buffer)
- * or by ISP driver itself.
- */
-
 int hmm_bo_allocated(struct hmm_buffer_object *bo);
 
 /*
