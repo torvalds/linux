@@ -341,11 +341,9 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 
 	list_for_each_entry_reverse(p, &src_rq->cfs_tasks, se.group_node) {
 
-		if (!cpumask_test_cpu(dst_cpu, p->cpus_ptr))
-			continue;
-
 		if (task_running(src_rq, p)) {
-			if (need_active_lb(p, dst_cpu, src_cpu)) {
+			if (cpumask_test_cpu(dst_cpu, p->cpus_ptr)
+				&& need_active_lb(p, dst_cpu, src_cpu)) {
 				bool success;
 				active_balance = true;
 				src_rq->active_balance = 1;
@@ -371,12 +369,8 @@ static int walt_lb_pull_tasks(int dst_cpu, int src_cpu)
 
 				return 0; /* we did not pull any task here */
 			}
-			continue;
+			goto unlock;
 		}
-
-		walt_detach_task(p, src_rq, dst_rq);
-		pulled_task = p;
-		goto unlock;
 	}
 unlock:
 	/* lock must be dropped before waking the stopper */
