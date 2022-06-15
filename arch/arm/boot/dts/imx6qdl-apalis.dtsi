@@ -82,6 +82,18 @@
 		};
 	};
 
+	panel_lvds: panel-lvds {
+		compatible = "panel-lvds";
+		backlight = <&backlight>;
+		status = "disabled";
+
+		port {
+			lvds_panel_in: endpoint {
+				remote-endpoint = <&lvds0_out>;
+			};
+		};
+	};
+
 	reg_module_3v3: regulator-module-3v3 {
 		compatible = "regulator-fixed";
 		regulator-name = "+V3.3";
@@ -622,6 +634,30 @@
 
 &ipu1_di1_disp1 {
 	remote-endpoint = <&lcd_display_in>;
+};
+
+&ldb {
+	lvds-channel@0 {
+		port@4 {
+			reg = <4>;
+
+			lvds0_out: endpoint {
+				remote-endpoint = <&lvds_panel_in>;
+			};
+		};
+	};
+
+	lvds-channel@1 {
+		fsl,data-mapping = "spwg";
+		fsl,data-width = <18>;
+
+		port@4 {
+			reg = <4>;
+
+			lvds1_out: endpoint {
+			};
+		};
+	};
 };
 
 &pwm1 {

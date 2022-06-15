@@ -94,10 +94,6 @@
 	status = "okay";
 };
 
-&ldb {
-	status = "okay";
-};
-
 &pcie {
 	pinctrl-names = "default";
 	pinctrl-0 = <&pinctrl_reset_moci>;
