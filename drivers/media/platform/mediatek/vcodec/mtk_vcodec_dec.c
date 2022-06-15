@@ -68,7 +68,7 @@ static bool mtk_vdec_get_cap_fmt(struct mtk_vcodec_ctx *ctx, int format_index)
 	default:
 		ret = true;
 		break;
-	};
+	}
 
 	return ret;
 }
