@@ -24,7 +24,12 @@
 		};
 
 		ramdisk_c: ramdisk@1900000 {
-			reg = <0x001900000 (5 * 0x00100000)>;
+			reg = <0x01900000 (5 * 0x00100000)>;
+		};
+
+		rkisp_thunderboot: rkisp@1e00000 {
+			/*  NV12 (w*h*1.5*2) w and h 16 align, eg:1920x1088 */
+			reg = <0x01e00000 0x0>;
 		};
 	};
 
@@ -60,4 +65,8 @@
 &hw_decompress {
 	status = "okay";
 	memory-region = <&ramdisk_c>;
+};
+
+&rkisp_vir0 {
+	memory-region-thunderboot = <&rkisp_thunderboot>;
 };
