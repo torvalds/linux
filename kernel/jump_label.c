@@ -332,17 +332,13 @@ static int __jump_label_text_reserved(struct jump_entry *iter_start,
 	return 0;
 }
 
-/*
- * Update code which is definitely not currently executing.
- * Architectures which need heavyweight synchronization to modify
- * running code can override this to make the non-live update case
- * cheaper.
- */
-void __weak __init_or_module arch_jump_label_transform_static(struct jump_entry *entry,
-					    enum jump_label_type type)
+#ifndef arch_jump_label_transform_static
+static void arch_jump_label_transform_static(struct jump_entry *entry,
+					     enum jump_label_type type)
 {
-	arch_jump_label_transform(entry, type);
+	/* nothing to do on most architectures */
 }
+#endif
 
 static inline struct jump_entry *static_key_entries(struct static_key *key)
 {

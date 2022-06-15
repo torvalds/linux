@@ -8,6 +8,8 @@
 #ifndef _ASM_MIPS_JUMP_LABEL_H
 #define _ASM_MIPS_JUMP_LABEL_H
 
+#define arch_jump_label_transform_static arch_jump_label_transform
+
 #ifndef __ASSEMBLY__
 
 #include <linux/types.h>

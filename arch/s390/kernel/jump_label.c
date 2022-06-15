@@ -80,8 +80,3 @@ void arch_jump_label_transform_apply(void)
 {
 	text_poke_sync();
 }
-
-void __init_or_module arch_jump_label_transform_static(struct jump_entry *entry,
-						       enum jump_label_type type)
-{
-}
