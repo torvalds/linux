@@ -1208,6 +1208,8 @@ int __init mpc5121_clk_init(void)
 	/* register as an OF clock provider */
 	mpc5121_clk_register_of_provider(clk_np);
 
+	of_node_put(clk_np);
+
 	/*
 	 * unbreak not yet adjusted peripheral drivers during migration
 	 * towards fully operational common clock support, and allow
