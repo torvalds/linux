@@ -825,6 +825,8 @@ mempool_t		bio_bounce_pages;
 	copygc_heap		copygc_heap;
 	struct write_point	copygc_write_point;
 	s64			copygc_wait;
+	bool			copygc_running;
+	wait_queue_head_t	copygc_running_wq;
 
 	/* DATA PROGRESS STATS */
 	struct list_head	data_progress_list;

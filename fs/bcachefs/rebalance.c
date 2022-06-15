@@ -255,7 +255,7 @@ static int bch2_rebalance_thread(void *arg)
 			       NULL, /*  &r->pd.rate, */
 			       writepoint_ptr(&c->rebalance_write_point),
 			       rebalance_pred, NULL,
-			       &move_stats);
+			       &move_stats, true);
 	}
 
 	return 0;

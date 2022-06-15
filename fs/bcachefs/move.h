@@ -35,7 +35,8 @@ int bch2_move_data(struct bch_fs *,
 		   struct bch_ratelimit *,
 		   struct write_point_specifier,
 		   move_pred_fn, void *,
-		   struct bch_move_stats *);
+		   struct bch_move_stats *,
+		   bool);
 
 int bch2_data_job(struct bch_fs *,
 		  struct bch_move_stats *,
