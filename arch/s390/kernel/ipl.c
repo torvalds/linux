@@ -1646,8 +1646,8 @@ static void dump_reipl_run(struct shutdown_trigger *trigger)
 
 	csum = (__force unsigned int)
 	       csum_partial(reipl_block_actual, reipl_block_actual->hdr.len, 0);
-	mem_assign_absolute(S390_lowcore.ipib, ipib);
-	mem_assign_absolute(S390_lowcore.ipib_checksum, csum);
+	put_abs_lowcore(ipib, ipib);
+	put_abs_lowcore(ipib_checksum, csum);
 	dump_run(trigger);
 }
 

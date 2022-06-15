@@ -434,7 +434,7 @@
 };
 
 &mcspi1 {
-	s25fl256@0 {
+	flash@0 {
 		#address-cells = <1>;
 		#size-cells = <1>;
 		compatible = "jedec,spi-nor";

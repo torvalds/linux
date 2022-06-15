@@ -82,6 +82,24 @@ xfs_prealloc_blocks(
 }
 
 /*
+ * The number of blocks per AG that we withhold from xfs_mod_fdblocks to
+ * guarantee that we can refill the AGFL prior to allocating space in a nearly
+ * full AG.  Although the the space described by the free space btrees, the
+ * blocks used by the freesp btrees themselves, and the blocks owned by the
+ * AGFL are counted in the ondisk fdblocks, it's a mistake to let the ondisk
+ * free space in the AG drop so low that the free space btrees cannot refill an
+ * empty AGFL up to the minimum level.  Rather than grind through empty AGs
+ * until the fs goes down, we subtract this many AG blocks from the incore
+ * fdblocks to ensure user allocation does not overcommit the space the
+ * filesystem needs for the AGFLs.  The rmap btree uses a per-AG reservation to
+ * withhold space from xfs_mod_fdblocks, so we do not account for that here.
+ */
+#define XFS_ALLOCBT_AGFL_RESERVE	4
+
+/*
+ * Compute the number of blocks that we set aside to guarantee the ability to
+ * refill the AGFL and handle a full bmap btree split.
+ *
  * In order to avoid ENOSPC-related deadlock caused by out-of-order locking of
  * AGF buffer (PV 947395), we place constraints on the relationship among
  * actual allocations for data blocks, freelist blocks, and potential file data
@@ -93,14 +111,14 @@ xfs_prealloc_blocks(
  * extents need to be actually allocated. To get around this, we explicitly set
  * aside a few blocks which will not be reserved in delayed allocation.
  *
- * We need to reserve 4 fsbs _per AG_ for the freelist and 4 more to handle a
- * potential split of the file's bmap btree.
+ * For each AG, we need to reserve enough blocks to replenish a totally empty
+ * AGFL and 4 more to handle a potential split of the file's bmap btree.
  */
 unsigned int
 xfs_alloc_set_aside(
 	struct xfs_mount	*mp)
 {
-	return mp->m_sb.sb_agcount * (XFS_ALLOC_AGFL_RESERVE + 4);
+	return mp->m_sb.sb_agcount * (XFS_ALLOCBT_AGFL_RESERVE + 4);
 }
 
 /*
@@ -124,12 +142,12 @@ xfs_alloc_ag_max_usable(
 	unsigned int		blocks;
 
 	blocks = XFS_BB_TO_FSB(mp, XFS_FSS_TO_BB(mp, 4)); /* ag headers */
-	blocks += XFS_ALLOC_AGFL_RESERVE;
+	blocks += XFS_ALLOCBT_AGFL_RESERVE;
 	blocks += 3;			/* AGF, AGI btree root blocks */
 	if (xfs_has_finobt(mp))
 		blocks++;		/* finobt root block */
 	if (xfs_has_rmapbt(mp))
-		blocks++; 		/* rmap root block */
+		blocks++;		/* rmap root block */
 	if (xfs_has_reflink(mp))
 		blocks++;		/* refcount root block */
 
@@ -2493,7 +2511,7 @@ __xfs_free_extent_later(
 
 	ASSERT(bno != NULLFSBLOCK);
 	ASSERT(len > 0);
-	ASSERT(len <= MAXEXTLEN);
+	ASSERT(len <= XFS_MAX_BMBT_EXTLEN);
 	ASSERT(!isnullstartblock(bno));
 	agno = XFS_FSB_TO_AGNO(mp, bno);
 	agbno = XFS_FSB_TO_AGBNO(mp, bno);
@@ -2759,7 +2777,7 @@ xfs_alloc_get_freelist(
 	xfs_agblock_t		bno;
 	__be32			*agfl_bno;
 	int			error;
-	int			logflags;
+	uint32_t		logflags;
 	struct xfs_mount	*mp = tp->t_mountp;
 	struct xfs_perag	*pag;
 
@@ -2812,9 +2830,9 @@ xfs_alloc_get_freelist(
  */
 void
 xfs_alloc_log_agf(
-	xfs_trans_t	*tp,	/* transaction pointer */
-	struct xfs_buf	*bp,	/* buffer for a.g. freelist header */
-	int		fields)	/* mask of fields to be logged (XFS_AGF_...) */
+	struct xfs_trans	*tp,
+	struct xfs_buf		*bp,
+	uint32_t		fields)
 {
 	int	first;		/* first byte offset */
 	int	last;		/* last byte offset */
@@ -2884,7 +2902,7 @@ xfs_alloc_put_freelist(
 	struct xfs_perag	*pag;
 	__be32			*blockp;
 	int			error;
-	int			logflags;
+	uint32_t		logflags;
 	__be32			*agfl_bno;
 	int			startoff;
 

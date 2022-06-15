@@ -84,6 +84,7 @@ if SND_SOC_SOF_PCI
 config SND_SOC_SOF_MERRIFIELD
 	tristate "SOF support for Tangier/Merrifield"
 	default SND_SOC_SOF_PCI
+	select SND_SOC_SOF_PCI_DEV
 	select SND_SOC_SOF_INTEL_ATOM_HIFI_EP
 	help
 	  This adds support for Sound Open Firmware for Intel(R) platforms
@@ -259,7 +260,7 @@ config SND_SOC_SOF_HDA
 	  'select' statements at a higher level.
 
 config SND_SOC_SOF_HDA_PROBES
-	bool
+	tristate
 	select SND_SOC_SOF_DEBUG_PROBES
 	help
 	  The option enables the data probing for Intel(R) Skylake and newer

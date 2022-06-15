@@ -31,12 +31,17 @@ Required properties:
 		(base address and length)
 - clocks:	clocks for this module
 - clockdomains:	clockdomains for this module
+- #clock-cells: From common clock binding
+- clock-output-names: From common clock binding
+
 
 Example:
 
-cm: cm@48004000 {
+cm: clock@48004000 {
 	compatible = "ti,omap3-cm";
 	reg = <0x48004000 0x4000>;
+	#clock-cells = <0>;
+	clock-output-names = "cm";
 
 	cm_clocks: clocks {
 		#address-cells = <1>;

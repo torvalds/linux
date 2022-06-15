@@ -258,6 +258,12 @@
 	vdd-gfx-supply = <&vdd_gfx>;
 };
 
+&mss_pil {
+	status = "okay";
+	pll-supply = <&vreg_l12a_1p8>;
+	firmware-name = "qcom/apq8096/mba.mbn", "qcom/apq8096/modem.mbn";
+};
+
 &pm8994_resin {
 	status = "okay";
 	linux,code = <KEY_VOLUMEDOWN>;

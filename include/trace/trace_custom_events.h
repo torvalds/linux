@@ -35,7 +35,7 @@
 
 /* Stage 1 creates the structure of the recorded event layout */
 
-#include "stages/stage1_defines.h"
+#include "stages/stage1_struct_define.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(name, proto, args, tstruct, assign, print) \
@@ -56,7 +56,7 @@
 
 /* Stage 2 creates the custom class */
 
-#include "stages/stage2_defines.h"
+#include "stages/stage2_data_offsets.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print)	\
@@ -71,7 +71,7 @@
 
 /* Stage 3 create the way to print the custom event */
 
-#include "stages/stage3_defines.h"
+#include "stages/stage3_trace_output.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \
@@ -102,7 +102,7 @@ static struct trace_event_functions trace_custom_event_type_funcs_##call = { \
 
 /* Stage 4 creates the offset layout for the fields */
 
-#include "stages/stage4_defines.h"
+#include "stages/stage4_event_fields.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, func, print)	\
@@ -114,7 +114,7 @@ static struct trace_event_fields trace_custom_event_fields_##call[] = {	\
 
 /* Stage 5 creates the helper function for dynamic fields */
 
-#include "stages/stage5_defines.h"
+#include "stages/stage5_get_offsets.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \
@@ -134,7 +134,7 @@ static inline notrace int trace_custom_event_get_offsets_##call(	\
 
 /* Stage 6 creates the probe function that records the event */
 
-#include "stages/stage6_defines.h"
+#include "stages/stage6_event_callback.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \
@@ -182,7 +182,7 @@ static inline void ftrace_test_custom_probe_##call(void)		\
 
 /* Stage 7 creates the actual class and event structure for the custom event */
 
-#include "stages/stage7_defines.h"
+#include "stages/stage7_class_define.h"
 
 #undef DECLARE_CUSTOM_EVENT_CLASS
 #define DECLARE_CUSTOM_EVENT_CLASS(call, proto, args, tstruct, assign, print) \

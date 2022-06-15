@@ -42,6 +42,7 @@ Required properties:
 - reg : register offset for register controlling adjustable mux
 
 Optional properties:
+- clock-output-names : from common clock binding.
 - ti,bit-shift : number of bits to shift the bit-mask, defaults to
   0 if not present
 - ti,index-starts-at-one : valid input select programming starts at 1, not

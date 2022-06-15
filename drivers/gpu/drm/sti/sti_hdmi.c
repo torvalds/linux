@@ -183,7 +183,7 @@ void hdmi_write(struct sti_hdmi *hdmi, u32 val, int offset)
 	writel(val, hdmi->regs + offset);
 }
 
-/**
+/*
  * HDMI interrupt handler threaded
  *
  * @irq: irq number
@@ -215,7 +215,7 @@ static irqreturn_t hdmi_irq_thread(int irq, void *arg)
 	return IRQ_HANDLED;
 }
 
-/**
+/*
  * HDMI interrupt handler
  *
  * @irq: irq number
@@ -237,7 +237,7 @@ static irqreturn_t hdmi_irq(int irq, void *arg)
 	return IRQ_WAKE_THREAD;
 }
 
-/**
+/*
  * Set hdmi active area depending on the drm display mode selected
  *
  * @hdmi: pointer on the hdmi internal structure
@@ -258,7 +258,7 @@ static void hdmi_active_area(struct sti_hdmi *hdmi)
 	hdmi_write(hdmi, ymax, HDMI_ACTIVE_VID_YMAX);
 }
 
-/**
+/*
  * Overall hdmi configuration
  *
  * @hdmi: pointer on the hdmi internal structure
@@ -336,7 +336,7 @@ static void hdmi_infoframe_reset(struct sti_hdmi *hdmi,
 		hdmi_write(hdmi, 0x0, pack_offset + i);
 }
 
-/**
+/*
  * Helper to concatenate infoframe in 32 bits word
  *
  * @ptr: pointer on the hdmi internal structure
@@ -353,7 +353,7 @@ static inline unsigned int hdmi_infoframe_subpack(const u8 *ptr, size_t size)
 	return value;
 }
 
-/**
+/*
  * Helper to write info frame
  *
  * @hdmi: pointer on the hdmi internal structure
@@ -423,7 +423,7 @@ static void hdmi_infoframe_write_infopack(struct sti_hdmi *hdmi,
 	hdmi_write(hdmi, val, HDMI_SW_DI_CFG);
 }
 
-/**
+/*
  * Prepare and configure the AVI infoframe
  *
  * AVI infoframe are transmitted at least once per two video field and
@@ -466,7 +466,7 @@ static int hdmi_avi_infoframe_config(struct sti_hdmi *hdmi)
 	return 0;
 }
 
-/**
+/*
  * Prepare and configure the AUDIO infoframe
  *
  * AUDIO infoframe are transmitted once per frame and
@@ -551,7 +551,7 @@ static int hdmi_vendor_infoframe_config(struct sti_hdmi *hdmi)
 
 #define HDMI_TIMEOUT_SWRESET  100   /*milliseconds */
 
-/**
+/*
  * Software reset of the hdmi subsystem
  *
  * @hdmi: pointer on the hdmi internal structure
@@ -785,7 +785,7 @@ static void sti_hdmi_disable(struct drm_bridge *bridge)
 	cec_notifier_set_phys_addr(hdmi->notifier, CEC_PHYS_ADDR_INVALID);
 }
 
-/**
+/*
  * sti_hdmi_audio_get_non_coherent_n() - get N parameter for non-coherent
  * clocks. None-coherent clocks means that audio and TMDS clocks have not the
  * same source (drifts between clocks). In this case assumption is that CTS is
@@ -892,7 +892,7 @@ static void sti_hdmi_pre_enable(struct drm_bridge *bridge)
 	if (clk_prepare_enable(hdmi->clk_tmds))
 		DRM_ERROR("Failed to prepare/enable hdmi_tmds clk\n");
 	if (clk_prepare_enable(hdmi->clk_phy))
-		DRM_ERROR("Failed to prepare/enable hdmi_rejec_pll clk\n");
+		DRM_ERROR("Failed to prepare/enable hdmi_rejection_pll clk\n");
 
 	hdmi->enabled = true;
 

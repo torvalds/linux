@@ -54,9 +54,11 @@ properties:
 
 
   ref-clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: Reference clock frequency.
 
   tcxo-clock-frequency:
+    $ref: /schemas/types.yaml#/definitions/uint32
     description: TCXO clock frequency.
 
   clock-xtal:

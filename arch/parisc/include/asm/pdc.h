@@ -94,6 +94,9 @@ int pdc_sti_call(unsigned long func, unsigned long flags,
                  unsigned long glob_cfg);
 
 int __pdc_cpu_rendezvous(void);
+void pdc_cpu_rendezvous_lock(void);
+void pdc_cpu_rendezvous_unlock(void);
+
 static inline char * os_id_to_string(u16 os_id) {
 	switch(os_id) {
 	case OS_ID_NONE:	return "No OS";

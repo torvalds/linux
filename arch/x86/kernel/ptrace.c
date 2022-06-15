@@ -13,7 +13,6 @@
 #include <linux/errno.h>
 #include <linux/slab.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/elf.h>
 #include <linux/security.h>
@@ -171,9 +170,9 @@ static u16 get_segment_reg(struct task_struct *task, unsigned long offset)
 		retval = *pt_regs_access(task_pt_regs(task), offset);
 	else {
 		if (task == current)
-			retval = get_user_gs(task_pt_regs(task));
+			savesegment(gs, retval);
 		else
-			retval = task_user_gs(task);
+			retval = task->thread.gs;
 	}
 	return retval;
 }
@@ -211,7 +210,7 @@ static int set_segment_reg(struct task_struct *task,
 		break;
 
 	case offsetof(struct user_regs_struct, gs):
-		task_user_gs(task) = value;
+		task->thread.gs = value;
 	}
 
 	return 0;

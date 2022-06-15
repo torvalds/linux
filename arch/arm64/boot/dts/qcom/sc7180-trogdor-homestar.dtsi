@@ -5,9 +5,6 @@
  * Copyright 2021 Google LLC.
  */
 
-ap_ec_spi: &spi6 {};
-ap_h1_spi: &spi0 {};
-
 #include "sc7180-trogdor.dtsi"
 
 / {
@@ -86,10 +83,6 @@ ap_h1_spi: &spi0 {};
 			};
 		};
 	};
-};
-
-&ap_tp_i2c {
-	status = "disabled";
 };
 
 ap_ts_pen_1v8: &i2c4 {

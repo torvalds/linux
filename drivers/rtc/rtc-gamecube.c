@@ -235,6 +235,7 @@ static int gamecube_rtc_read_offset_from_sram(struct priv *d)
 	}
 
 	ret = of_address_to_resource(np, 0, &res);
+	of_node_put(np);
 	if (ret) {
 		pr_err("no io memory range found\n");
 		return -1;
@@ -266,6 +267,7 @@ static int gamecube_rtc_read_offset_from_sram(struct priv *d)
 	ret = regmap_read(d->regmap, RTC_SRAM_BIAS, &d->rtc_bias);
 	if (ret) {
 		pr_err("failed to get the RTC bias\n");
+		iounmap(hw_srnprot);
 		return -1;
 	}
 

@@ -212,19 +212,7 @@ bool sparx5_mact_find(struct sparx5 *sparx5,
 
 	mutex_unlock(&sparx5->lock);
 
-	return ret == 0;
-}
-
-static int sparx5_mact_lookup(struct sparx5 *sparx5,
-			      const unsigned char mac[ETH_ALEN],
-			      u16 vid)
-{
-	u32 pcfg2;
-
-	if (sparx5_mact_find(sparx5, mac, vid, &pcfg2))
-		return 1;
-
-	return 0;
+	return ret;
 }
 
 int sparx5_mact_forget(struct sparx5 *sparx5,
@@ -305,9 +293,10 @@ int sparx5_add_mact_entry(struct sparx5 *sparx5,
 {
 	struct sparx5_mact_entry *mact_entry;
 	int ret;
+	u32 cfg2;
 
-	ret = sparx5_mact_lookup(sparx5, addr, vid);
-	if (ret)
+	ret = sparx5_mact_find(sparx5, addr, vid, &cfg2);
+	if (!ret)
 		return 0;
 
 	/* In case the entry already exists, don't add it again to SW,

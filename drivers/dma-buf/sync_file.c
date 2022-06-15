@@ -5,6 +5,7 @@
  * Copyright (C) 2012 Google, Inc.
  */
 
+#include <linux/dma-fence-unwrap.h>
 #include <linux/export.h>
 #include <linux/file.h>
 #include <linux/fs.h>
@@ -156,9 +157,15 @@ static int sync_file_set_fence(struct sync_file *sync_file,
 	 * we already own a new reference to the fence. For num_fence > 1
 	 * we own the reference of the dma_fence_array creation.
 	 */
-	if (num_fences == 1) {
+
+	if (num_fences == 0) {
+		sync_file->fence = dma_fence_get_stub();
+		kfree(fences);
+
+	} else if (num_fences == 1) {
 		sync_file->fence = fences[0];
 		kfree(fences);
+
 	} else {
 		array = dma_fence_array_create(num_fences, fences,
 					       dma_fence_context_alloc(1),
@@ -170,20 +177,6 @@ static int sync_file_set_fence(struct sync_file *sync_file,
 	}
 
 	return 0;
-}
-
-static struct dma_fence **get_fences(struct sync_file *sync_file,
-				     int *num_fences)
-{
-	if (dma_fence_is_array(sync_file->fence)) {
-		struct dma_fence_array *array = to_dma_fence_array(sync_file->fence);
-
-		*num_fences = array->num_fences;
-		return array->fences;
-	}
-
-	*num_fences = 1;
-	return &sync_file->fence;
 }
 
 static void add_fence(struct dma_fence **fences,
@@ -210,86 +203,84 @@ static void add_fence(struct dma_fence **fences,
 static struct sync_file *sync_file_merge(const char *name, struct sync_file *a,
 					 struct sync_file *b)
 {
+	struct dma_fence *a_fence, *b_fence, **fences;
+	struct dma_fence_unwrap a_iter, b_iter;
+	unsigned int index, num_fences;
 	struct sync_file *sync_file;
-	struct dma_fence **fences = NULL, **nfences, **a_fences, **b_fences;
-	int i = 0, i_a, i_b, num_fences, a_num_fences, b_num_fences;
 
 	sync_file = sync_file_alloc();
 	if (!sync_file)
 		return NULL;
 
-	a_fences = get_fences(a, &a_num_fences);
-	b_fences = get_fences(b, &b_num_fences);
-	if (a_num_fences > INT_MAX - b_num_fences)
-		goto err;
+	num_fences = 0;
+	dma_fence_unwrap_for_each(a_fence, &a_iter, a->fence)
+		++num_fences;
+	dma_fence_unwrap_for_each(b_fence, &b_iter, b->fence)
+		++num_fences;
 
-	num_fences = a_num_fences + b_num_fences;
+	if (num_fences > INT_MAX)
+		goto err_free_sync_file;
 
 	fences = kcalloc(num_fences, sizeof(*fences), GFP_KERNEL);
 	if (!fences)
-		goto err;
+		goto err_free_sync_file;
 
 	/*
-	 * Assume sync_file a and b are both ordered and have no
-	 * duplicates with the same context.
+	 * We can't guarantee that fences in both a and b are ordered, but it is
+	 * still quite likely.
 	 *
-	 * If a sync_file can only be created with sync_file_merge
-	 * and sync_file_create, this is a reasonable assumption.
+	 * So attempt to order the fences as we pass over them and merge fences
+	 * with the same context.
 	 */
-	for (i_a = i_b = 0; i_a < a_num_fences && i_b < b_num_fences; ) {
-		struct dma_fence *pt_a = a_fences[i_a];
-		struct dma_fence *pt_b = b_fences[i_b];
 
-		if (pt_a->context < pt_b->context) {
-			add_fence(fences, &i, pt_a);
+	index = 0;
+	for (a_fence = dma_fence_unwrap_first(a->fence, &a_iter),
+	     b_fence = dma_fence_unwrap_first(b->fence, &b_iter);
+	     a_fence || b_fence; ) {
 
-			i_a++;
-		} else if (pt_a->context > pt_b->context) {
-			add_fence(fences, &i, pt_b);
+		if (!b_fence) {
+			add_fence(fences, &index, a_fence);
+			a_fence = dma_fence_unwrap_next(&a_iter);
 
-			i_b++;
+		} else if (!a_fence) {
+			add_fence(fences, &index, b_fence);
+			b_fence = dma_fence_unwrap_next(&b_iter);
+
+		} else if (a_fence->context < b_fence->context) {
+			add_fence(fences, &index, a_fence);
+			a_fence = dma_fence_unwrap_next(&a_iter);
+
+		} else if (b_fence->context < a_fence->context) {
+			add_fence(fences, &index, b_fence);
+			b_fence = dma_fence_unwrap_next(&b_iter);
+
+		} else if (__dma_fence_is_later(a_fence->seqno, b_fence->seqno,
+						a_fence->ops)) {
+			add_fence(fences, &index, a_fence);
+			a_fence = dma_fence_unwrap_next(&a_iter);
+			b_fence = dma_fence_unwrap_next(&b_iter);
+
 		} else {
-			if (__dma_fence_is_later(pt_a->seqno, pt_b->seqno,
-						 pt_a->ops))
-				add_fence(fences, &i, pt_a);
-			else
-				add_fence(fences, &i, pt_b);
-
-			i_a++;
-			i_b++;
+			add_fence(fences, &index, b_fence);
+			a_fence = dma_fence_unwrap_next(&a_iter);
+			b_fence = dma_fence_unwrap_next(&b_iter);
 		}
 	}
 
-	for (; i_a < a_num_fences; i_a++)
-		add_fence(fences, &i, a_fences[i_a]);
-
-	for (; i_b < b_num_fences; i_b++)
-		add_fence(fences, &i, b_fences[i_b]);
-
-	if (i == 0)
-		fences[i++] = dma_fence_get(a_fences[0]);
-
-	if (num_fences > i) {
-		nfences = krealloc_array(fences, i, sizeof(*fences), GFP_KERNEL);
-		if (!nfences)
-			goto err;
-
-		fences = nfences;
-	}
-
-	if (sync_file_set_fence(sync_file, fences, i) < 0)
-		goto err;
+	if (sync_file_set_fence(sync_file, fences, index) < 0)
+		goto err_put_fences;
 
 	strlcpy(sync_file->user_name, name, sizeof(sync_file->user_name));
 	return sync_file;
 
-err:
-	while (i)
-		dma_fence_put(fences[--i]);
+err_put_fences:
+	while (index)
+		dma_fence_put(fences[--index]);
 	kfree(fences);
+
+err_free_sync_file:
 	fput(sync_file->file);
 	return NULL;
-
 }
 
 static int sync_file_release(struct inode *inode, struct file *file)
@@ -398,11 +389,13 @@ static int sync_fill_fence_info(struct dma_fence *fence,
 static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 				       unsigned long arg)
 {
-	struct sync_file_info info;
 	struct sync_fence_info *fence_info = NULL;
-	struct dma_fence **fences;
+	struct dma_fence_unwrap iter;
+	struct sync_file_info info;
+	unsigned int num_fences;
+	struct dma_fence *fence;
+	int ret;
 	__u32 size;
-	int num_fences, ret, i;
 
 	if (copy_from_user(&info, (void __user *)arg, sizeof(info)))
 		return -EFAULT;
@@ -410,7 +403,9 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	if (info.flags || info.pad)
 		return -EINVAL;
 
-	fences = get_fences(sync_file, &num_fences);
+	num_fences = 0;
+	dma_fence_unwrap_for_each(fence, &iter, sync_file->fence)
+		++num_fences;
 
 	/*
 	 * Passing num_fences = 0 means that userspace doesn't want to
@@ -433,8 +428,11 @@ static long sync_file_ioctl_fence_info(struct sync_file *sync_file,
 	if (!fence_info)
 		return -ENOMEM;
 
-	for (i = 0; i < num_fences; i++) {
-		int status = sync_fill_fence_info(fences[i], &fence_info[i]);
+	num_fences = 0;
+	dma_fence_unwrap_for_each(fence, &iter, sync_file->fence) {
+		int status;
+
+		status = sync_fill_fence_info(fence, &fence_info[num_fences++]);
 		info.status = info.status <= 0 ? info.status : status;
 	}
 

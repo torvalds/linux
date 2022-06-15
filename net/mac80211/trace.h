@@ -860,8 +860,8 @@ TRACE_EVENT(drv_sta_set_txpwr,
 		LOCAL_ASSIGN;
 		VIF_ASSIGN;
 		STA_ASSIGN;
-		__entry->txpwr = sta->txpwr.power;
-		__entry->type = sta->txpwr.type;
+		__entry->txpwr = sta->deflink.txpwr.power;
+		__entry->type = sta->deflink.txpwr.type;
 	),
 
 	TP_printk(

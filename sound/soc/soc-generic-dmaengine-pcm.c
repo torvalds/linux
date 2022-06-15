@@ -79,29 +79,19 @@ static int dmaengine_pcm_hw_params(struct snd_soc_component *component,
 {
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct dma_chan *chan = snd_dmaengine_pcm_get_chan(substream);
-	int (*prepare_slave_config)(struct snd_pcm_substream *substream,
-			struct snd_pcm_hw_params *params,
-			struct dma_slave_config *slave_config);
 	struct dma_slave_config slave_config;
+	int ret;
+
+	if (!pcm->config->prepare_slave_config)
+		return 0;
 
 	memset(&slave_config, 0, sizeof(slave_config));
 
-	if (pcm->config && pcm->config->prepare_slave_config)
-		prepare_slave_config = pcm->config->prepare_slave_config;
-	else
-		prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config;
+	ret = pcm->config->prepare_slave_config(substream, params, &slave_config);
+	if (ret)
+		return ret;
 
-	if (prepare_slave_config) {
-		int ret = prepare_slave_config(substream, params, &slave_config);
-		if (ret)
-			return ret;
-
-		ret = dmaengine_slave_config(chan, &slave_config);
-		if (ret)
-			return ret;
-	}
-
-	return 0;
+	return dmaengine_slave_config(chan, &slave_config);
 }
 
 static int
@@ -121,7 +111,7 @@ dmaengine_pcm_set_runtime_hwparams(struct snd_soc_component *component,
 		return -EINVAL;
 	}
 
-	if (pcm->config && pcm->config->pcm_hardware)
+	if (pcm->config->pcm_hardware)
 		return snd_soc_set_runtime_hwparams(substream,
 				pcm->config->pcm_hardware);
 
@@ -188,7 +178,6 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 {
 	struct dmaengine_pcm *pcm = soc_component_to_pcm(component);
 	struct snd_dmaengine_dai_dma_data *dma_data;
-	dma_filter_fn fn = NULL;
 
 	if (rtd->num_cpus > 1) {
 		dev_err(rtd->dev,
@@ -201,13 +190,11 @@ static struct dma_chan *dmaengine_pcm_compat_request_channel(
 	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_HALF_DUPLEX) && pcm->chan[0])
 		return pcm->chan[0];
 
-	if (pcm->config && pcm->config->compat_request_channel)
+	if (pcm->config->compat_request_channel)
 		return pcm->config->compat_request_channel(rtd, substream);
 
-	if (pcm->config)
-		fn = pcm->config->compat_filter_fn;
-
-	return snd_dmaengine_pcm_request_channel(fn, dma_data->filter_data);
+	return snd_dmaengine_pcm_request_channel(pcm->config->compat_filter_fn,
+						 dma_data->filter_data);
 }
 
 static bool dmaengine_pcm_can_report_residue(struct device *dev,
@@ -239,12 +226,12 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 	size_t max_buffer_size;
 	unsigned int i;
 
-	if (config && config->prealloc_buffer_size)
+	if (config->prealloc_buffer_size)
 		prealloc_buffer_size = config->prealloc_buffer_size;
 	else
 		prealloc_buffer_size = prealloc_buffer_size_kbytes * 1024;
 
-	if (config && config->pcm_hardware && config->pcm_hardware->buffer_bytes_max)
+	if (config->pcm_hardware && config->pcm_hardware->buffer_bytes_max)
 		max_buffer_size = config->pcm_hardware->buffer_bytes_max;
 	else
 		max_buffer_size = SIZE_MAX;
@@ -254,7 +241,7 @@ static int dmaengine_pcm_new(struct snd_soc_component *component,
 		if (!substream)
 			continue;
 
-		if (!pcm->chan[i] && config && config->chan_names[i])
+		if (!pcm->chan[i] && config->chan_names[i])
 			pcm->chan[i] = dma_request_slave_channel(dev,
 				config->chan_names[i]);
 
@@ -367,10 +354,10 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 	struct dma_chan *chan;
 
 	if ((pcm->flags & SND_DMAENGINE_PCM_FLAG_NO_DT) || (!dev->of_node &&
-	    !(config && config->dma_dev && config->dma_dev->of_node)))
+	    !(config->dma_dev && config->dma_dev->of_node)))
 		return 0;
 
-	if (config && config->dma_dev) {
+	if (config->dma_dev) {
 		/*
 		 * If this warning is seen, it probably means that your Linux
 		 * device structure does not match your HW device structure.
@@ -387,7 +374,7 @@ static int dmaengine_pcm_request_chan_of(struct dmaengine_pcm *pcm,
 			name = "rx-tx";
 		else
 			name = dmaengine_pcm_dma_channel_names[i];
-		if (config && config->chan_names[i])
+		if (config->chan_names[i])
 			name = config->chan_names[i];
 		chan = dma_request_chan(dev, name);
 		if (IS_ERR(chan)) {
@@ -425,6 +412,10 @@ static void dmaengine_pcm_release_chan(struct dmaengine_pcm *pcm)
 	}
 }
 
+static const struct snd_dmaengine_pcm_config snd_dmaengine_pcm_default_config = {
+	.prepare_slave_config = snd_dmaengine_pcm_prepare_slave_config,
+};
+
 /**
  * snd_dmaengine_pcm_register - Register a dmaengine based PCM device
  * @dev: The parent device for the PCM device
@@ -445,6 +436,8 @@ int snd_dmaengine_pcm_register(struct device *dev,
 #ifdef CONFIG_DEBUG_FS
 	pcm->component.debugfs_prefix = "dma";
 #endif
+	if (!config)
+		config = &snd_dmaengine_pcm_default_config;
 	pcm->config = config;
 	pcm->flags = flags;
 
@@ -452,7 +445,7 @@ int snd_dmaengine_pcm_register(struct device *dev,
 	if (ret)
 		goto err_free_dma;
 
-	if (config && config->process)
+	if (config->process)
 		driver = &dmaengine_pcm_component_process;
 	else
 		driver = &dmaengine_pcm_component;

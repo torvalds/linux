@@ -424,7 +424,7 @@ sub get_kernel_version() {
 sub print_lineno {
     my $lineno = shift;
     if ($enable_lineno && defined($lineno)) {
-        print "#define LINENO " . $lineno . "\n";
+        print ".. LINENO " . $lineno . "\n";
     }
 }
 ##
@@ -2478,7 +2478,7 @@ May be specified multiple times.
 
 =item -enable-lineno
 
-Enable output of #define LINENO lines.
+Enable output of .. LINENO lines.
 
 =back
 

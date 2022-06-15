@@ -425,6 +425,12 @@ static int vxlan_vnifilter_dump(struct sk_buff *skb, struct netlink_callback *cb
 			err = -ENODEV;
 			goto out_err;
 		}
+		if (!netif_is_vxlan(dev)) {
+			NL_SET_ERR_MSG(cb->extack,
+				       "The device is not a vxlan device");
+			err = -EINVAL;
+			goto out_err;
+		}
 		err = vxlan_vnifilter_dump_dev(dev, skb, cb);
 		/* if the dump completed without an error we return 0 here */
 		if (err != -EMSGSIZE)

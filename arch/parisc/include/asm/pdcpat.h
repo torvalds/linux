@@ -83,6 +83,7 @@
 #define PDC_PAT_CPU_RENDEZVOUS      	6L /* Rendezvous CPU */
 #define PDC_PAT_CPU_GET_CLOCK_INFO  	7L /* Return CPU Clock info */
 #define PDC_PAT_CPU_GET_RENDEZVOUS_STATE 8L /* Return Rendezvous State */
+#define PDC_PAT_CPU_GET_PDC_ENTRYPOINT	11L /* Return PDC Entry point */
 #define PDC_PAT_CPU_PLUNGE_FABRIC 	128L /* Plunge Fabric */
 #define PDC_PAT_CPU_UPDATE_CACHE_CLEANSING 129L /* Manipulate Cache 
                                                  * Cleansing Mode */
@@ -356,7 +357,7 @@ struct pdc_pat_cell_mod_maddr_block {	/* PDC_PAT_CELL_MODULE */
 
 typedef struct pdc_pat_cell_mod_maddr_block pdc_pat_cell_mod_maddr_block_t;
 
-
+extern int pdc_pat_get_PDC_entrypoint(unsigned long *pdc_entry);
 extern int pdc_pat_chassis_send_log(unsigned long status, unsigned long data);
 extern int pdc_pat_cell_get_number(struct pdc_pat_cell_num *cell_info);
 extern int pdc_pat_cell_info(struct pdc_pat_cell_info_rtn_block *info,

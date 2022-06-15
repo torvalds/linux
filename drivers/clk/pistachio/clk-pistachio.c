@@ -154,7 +154,7 @@ static struct pistachio_pll pistachio_plls[] __initdata = {
 PNAME(mux_debug) = { "mips_pll_mux", "rpu_v_pll_mux",
 		     "rpu_l_pll_mux", "sys_pll_mux",
 		     "wifi_pll_mux", "bt_pll_mux" };
-static u32 mux_debug_idx[] = { 0x0, 0x1, 0x2, 0x4, 0x8, 0x10 };
+static const u32 mux_debug_idx[] = { 0x0, 0x1, 0x2, 0x4, 0x8, 0x10 };
 
 static unsigned int pistachio_critical_clks_core[] __initdata = {
 	CLK_MIPS

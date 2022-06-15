@@ -8,6 +8,7 @@
 
 #include "ufs.h"
 #include "ufs-sysfs.h"
+#include "ufshcd-priv.h"
 
 static const char *ufshcd_uic_link_state_to_string(
 			enum uic_link_state state)

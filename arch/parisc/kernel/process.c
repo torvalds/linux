@@ -26,6 +26,7 @@
 #include <linux/module.h>
 #include <linux/personality.h>
 #include <linux/ptrace.h>
+#include <linux/reboot.h>
 #include <linux/sched.h>
 #include <linux/sched/debug.h>
 #include <linux/sched/task.h>
@@ -38,6 +39,7 @@
 #include <linux/rcupdate.h>
 #include <linux/random.h>
 #include <linux/nmi.h>
+#include <linux/sched/hotplug.h>
 
 #include <asm/io.h>
 #include <asm/asm-offsets.h>
@@ -46,6 +48,7 @@
 #include <asm/pdc_chassis.h>
 #include <asm/unwind.h>
 #include <asm/sections.h>
+#include <asm/cacheflush.h>
 
 #define COMMAND_GLOBAL  F_EXTEND(0xfffe0030)
 #define CMD_RESET       5       /* reset any module */
@@ -114,8 +117,7 @@ void machine_power_off(void)
 	pdc_chassis_send_status(PDC_CHASSIS_DIRECT_SHUTDOWN);
 
 	/* ipmi_poweroff may have been installed. */
-	if (pm_power_off)
-		pm_power_off();
+	do_kernel_power_off();
 		
 	/* It seems we have no way to power the system off via
 	 * software. The user has to press the button himself. */
@@ -158,10 +160,29 @@ void release_thread(struct task_struct *dead_task)
 int running_on_qemu __ro_after_init;
 EXPORT_SYMBOL(running_on_qemu);
 
-void __cpuidle arch_cpu_idle_dead(void)
+/*
+ * Called from the idle thread for the CPU which has been shutdown.
+ */
+void arch_cpu_idle_dead(void)
 {
-	/* nop on real hardware, qemu will offline CPU. */
-	asm volatile("or %%r31,%%r31,%%r31\n":::);
+#ifdef CONFIG_HOTPLUG_CPU
+	idle_task_exit();
+
+	local_irq_disable();
+
+	/* Tell __cpu_die() that this CPU is now safe to dispose of. */
+	(void)cpu_report_death();
+
+	/* Ensure that the cache lines are written out. */
+	flush_cache_all_local();
+	flush_tlb_all_local(NULL);
+
+	/* Let PDC firmware put CPU into firmware idle loop. */
+	__pdc_cpu_rendezvous();
+
+	pr_warn("PDC does not provide rendezvous function.\n");
+#endif
+	while (1);
 }
 
 void __cpuidle arch_cpu_idle(void)

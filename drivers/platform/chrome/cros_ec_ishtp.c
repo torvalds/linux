@@ -521,7 +521,9 @@ static int cros_ec_pkt_xfer_ish(struct cros_ec_device *ec_dev,
 	out_msg->hdr.status = 0;
 
 	ec_dev->dout += OUT_MSG_EC_REQUEST_PREAMBLE;
-	cros_ec_prepare_tx(ec_dev, msg);
+	rv = cros_ec_prepare_tx(ec_dev, msg);
+	if (rv < 0)
+		goto end_error;
 	ec_dev->dout -= OUT_MSG_EC_REQUEST_PREAMBLE;
 
 	dev_dbg(dev,

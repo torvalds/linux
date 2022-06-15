@@ -9,6 +9,7 @@
 /dts-v1/;
 
 /include/ "amd-seattle-soc.dtsi"
+/include/ "amd-seattle-cpus.dtsi"
 
 / {
 	model = "AMD Seattle (Rev.B0) Development Board (Overdrive)";
@@ -33,14 +34,6 @@
  * NOTE: In Rev.B, gpio0 is reserved.
  */
 &gpio1 {
-	status = "ok";
-};
-
-&gpio2 {
-	status = "ok";
-};
-
-&gpio3 {
 	status = "ok";
 };
 
@@ -77,10 +70,6 @@
 		pl022,rx-level-trig = <0>;
 		pl022,tx-level-trig = <0>;
 	};
-};
-
-&ipmi_kcs {
-	status = "ok";
 };
 
 &smb0 {

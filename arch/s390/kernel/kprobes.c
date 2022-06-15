@@ -284,11 +284,11 @@ NOKPROBE_SYMBOL(pop_kprobe);
 
 void arch_prepare_kretprobe(struct kretprobe_instance *ri, struct pt_regs *regs)
 {
-	ri->ret_addr = (kprobe_opcode_t *) regs->gprs[14];
-	ri->fp = NULL;
+	ri->ret_addr = (kprobe_opcode_t *)regs->gprs[14];
+	ri->fp = (void *)regs->gprs[15];
 
 	/* Replace the return addr with trampoline addr */
-	regs->gprs[14] = (unsigned long) &__kretprobe_trampoline;
+	regs->gprs[14] = (unsigned long)&__kretprobe_trampoline;
 }
 NOKPROBE_SYMBOL(arch_prepare_kretprobe);
 
@@ -385,7 +385,7 @@ NOKPROBE_SYMBOL(arch_kretprobe_fixup_return);
  */
 void trampoline_probe_handler(struct pt_regs *regs)
 {
-	kretprobe_trampoline_handler(regs, NULL);
+	kretprobe_trampoline_handler(regs, (void *)regs->gprs[15]);
 }
 NOKPROBE_SYMBOL(trampoline_probe_handler);
 

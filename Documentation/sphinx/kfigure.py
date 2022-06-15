@@ -212,7 +212,7 @@ def setupTools(app):
         if convert_cmd:
             kernellog.verbose(app, "use convert(1) from: " + convert_cmd)
         else:
-            kernellog.warn(app,
+            kernellog.verbose(app,
                 "Neither inkscape(1) nor convert(1) found.\n"
                 "For SVG to PDF conversion, "
                 "install either Inkscape (https://inkscape.org/) (preferred) or\n"
@@ -296,8 +296,10 @@ def convert_image(img_node, translator, src_fname=None):
 
         if translator.builder.format == 'latex':
             if not inkscape_cmd and convert_cmd is None:
-                kernellog.verbose(app,
-                                  "no SVG to PDF conversion available / include SVG raw.")
+                kernellog.warn(app,
+                                  "no SVG to PDF conversion available / include SVG raw."
+                                  "\nIncluding large raw SVGs can cause xelatex error."
+                                  "\nInstall Inkscape (preferred) or ImageMagick.")
                 img_node.replace_self(file2literal(src_fname))
             else:
                 dst_fname = path.join(translator.builder.outdir, fname + '.pdf')

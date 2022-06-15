@@ -1339,23 +1339,25 @@ TRACE_EVENT(kvm_hv_stimer_cleanup,
 		  __entry->vcpu_id, __entry->timer_index)
 );
 
-TRACE_EVENT(kvm_apicv_update_request,
-	    TP_PROTO(bool activate, unsigned long bit),
-	    TP_ARGS(activate, bit),
+TRACE_EVENT(kvm_apicv_inhibit_changed,
+	    TP_PROTO(int reason, bool set, unsigned long inhibits),
+	    TP_ARGS(reason, set, inhibits),
 
 	TP_STRUCT__entry(
-		__field(bool, activate)
-		__field(unsigned long, bit)
+		__field(int, reason)
+		__field(bool, set)
+		__field(unsigned long, inhibits)
 	),
 
 	TP_fast_assign(
-		__entry->activate = activate;
-		__entry->bit = bit;
+		__entry->reason = reason;
+		__entry->set = set;
+		__entry->inhibits = inhibits;
 	),
 
-	TP_printk("%s bit=%lu",
-		  __entry->activate ? "activate" : "deactivate",
-		  __entry->bit)
+	TP_printk("%s reason=%u, inhibits=0x%lx",
+		  __entry->set ? "set" : "cleared",
+		  __entry->reason, __entry->inhibits)
 );
 
 TRACE_EVENT(kvm_apicv_accept_irq,
@@ -1455,6 +1457,26 @@ TRACE_EVENT(kvm_avic_ga_log,
 
 	TP_printk("vmid=%u, vcpuid=%u",
 		  __entry->vmid, __entry->vcpuid)
+);
+
+TRACE_EVENT(kvm_avic_kick_vcpu_slowpath,
+	    TP_PROTO(u32 icrh, u32 icrl, u32 index),
+	    TP_ARGS(icrh, icrl, index),
+
+	TP_STRUCT__entry(
+		__field(u32, icrh)
+		__field(u32, icrl)
+		__field(u32, index)
+	),
+
+	TP_fast_assign(
+		__entry->icrh = icrh;
+		__entry->icrl = icrl;
+		__entry->index = index;
+	),
+
+	TP_printk("icrh:icrl=%#08x:%08x, index=%u",
+		  __entry->icrh, __entry->icrl, __entry->index)
 );
 
 TRACE_EVENT(kvm_hv_timer_state,

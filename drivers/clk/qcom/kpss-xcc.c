@@ -17,7 +17,7 @@ static const char *aux_parents[] = {
 	"pxo",
 };
 
-static unsigned int aux_parent_map[] = {
+static const u32 aux_parent_map[] = {
 	3,
 	0,
 };

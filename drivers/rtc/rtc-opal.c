@@ -250,7 +250,7 @@ static int opal_rtc_probe(struct platform_device *pdev)
 	rtc->ops = &opal_rtc_ops;
 	rtc->range_min = RTC_TIMESTAMP_BEGIN_0000;
 	rtc->range_max = RTC_TIMESTAMP_END_9999;
-	rtc->uie_unsupported = 1;
+	clear_bit(RTC_FEATURE_UPDATE_INTERRUPT, rtc->features);
 
 	return devm_rtc_register_device(rtc);
 }

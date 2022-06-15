@@ -56,7 +56,9 @@ static inline bool fscache_set_cache_state_maybe(struct fscache_cache *cache,
  * cookie.c
  */
 extern struct kmem_cache *fscache_cookie_jar;
+#ifdef CONFIG_PROC_FS
 extern const struct seq_operations fscache_cookies_seq_ops;
+#endif
 extern struct timer_list fscache_cookie_lru_timer;
 
 extern void fscache_print_cookie(struct fscache_cookie *cookie, char prefix);
@@ -68,17 +70,6 @@ static inline void fscache_see_cookie(struct fscache_cookie *cookie,
 {
 	trace_fscache_cookie(cookie->debug_id, refcount_read(&cookie->ref),
 			     where);
-}
-
-/*
- * io.c
- */
-static inline void fscache_end_operation(struct netfs_cache_resources *cres)
-{
-	const struct netfs_cache_ops *ops = fscache_operation_valid(cres);
-
-	if (ops)
-		ops->end_operation(cres);
 }
 
 /*
@@ -148,7 +139,9 @@ int fscache_stats_show(struct seq_file *m, void *v);
 /*
  * volume.c
  */
+#ifdef CONFIG_PROC_FS
 extern const struct seq_operations fscache_volumes_seq_ops;
+#endif
 
 struct fscache_volume *fscache_get_volume(struct fscache_volume *volume,
 					  enum fscache_volume_trace where);

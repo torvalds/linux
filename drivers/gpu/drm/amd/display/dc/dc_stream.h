@@ -131,6 +131,7 @@ union stream_update_flags {
 		uint32_t wb_update:1;
 		uint32_t dsc_changed : 1;
 		uint32_t mst_bw : 1;
+		uint32_t crtc_timing_adjust : 1;
 	} bits;
 
 	uint32_t raw;
@@ -161,7 +162,7 @@ struct dc_stream_state {
 	struct dc_info_packet vrr_infopacket;
 	struct dc_info_packet vsc_infopacket;
 	struct dc_info_packet vsp_infopacket;
-
+	uint8_t dsc_packed_pps[128];
 	struct rect src; /* composition area */
 	struct rect dst; /* stream addressable area */
 
@@ -245,6 +246,7 @@ struct dc_stream_state {
 
 	bool apply_edp_fast_boot_optimization;
 	bool apply_seamless_boot_optimization;
+	uint32_t apply_boot_odm_mode;
 
 	uint32_t stream_id;
 
@@ -289,6 +291,7 @@ struct dc_stream_update {
 	struct dc_3dlut *lut3d_func;
 
 	struct test_pattern *pending_test_pattern;
+	struct dc_crtc_timing_adjust *crtc_timing_adjust;
 };
 
 bool dc_is_stream_unchanged(

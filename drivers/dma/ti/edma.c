@@ -118,10 +118,10 @@
 
 /*
  * Max of 20 segments per channel to conserve PaRAM slots
- * Also note that MAX_NR_SG should be atleast the no.of periods
+ * Also note that MAX_NR_SG should be at least the no.of periods
  * that are required for ASoC, otherwise DMA prep calls will
  * fail. Today davinci-pcm is the only user of this driver and
- * requires atleast 17 slots, so we setup the default to 20.
+ * requires at least 17 slots, so we setup the default to 20.
  */
 #define MAX_NR_SG		20
 #define EDMA_MAX_SLOTS		MAX_NR_SG
@@ -976,7 +976,7 @@ static int edma_config_pset(struct dma_chan *chan, struct edma_pset *epset,
 		 * and quotient respectively of the division of:
 		 * (dma_length / acnt) by (SZ_64K -1). This is so
 		 * that in case bcnt over flows, we have ccnt to use.
-		 * Note: In A-sync tranfer only, bcntrld is used, but it
+		 * Note: In A-sync transfer only, bcntrld is used, but it
 		 * only applies for sg_dma_len(sg) >= SZ_64K.
 		 * In this case, the best way adopted is- bccnt for the
 		 * first frame will be the remainder below. Then for
@@ -1203,7 +1203,7 @@ static struct dma_async_tx_descriptor *edma_prep_dma_memcpy(
 		 * slot2: the remaining amount of data after slot1.
 		 *	  ACNT = full_length - length1, length2 = ACNT
 		 *
-		 * When the full_length is multibple of 32767 one slot can be
+		 * When the full_length is a multiple of 32767 one slot can be
 		 * used to complete the transfer.
 		 */
 		width = array_size;
@@ -1814,7 +1814,7 @@ static void edma_issue_pending(struct dma_chan *chan)
  * This limit exists to avoid a possible infinite loop when waiting for proof
  * that a particular transfer is completed. This limit can be hit if there
  * are large bursts to/from slow devices or the CPU is never able to catch
- * the DMA hardware idle. On an AM335x transfering 48 bytes from the UART
+ * the DMA hardware idle. On an AM335x transferring 48 bytes from the UART
  * RX-FIFO, as many as 55 loops have been seen.
  */
 #define EDMA_MAX_TR_WAIT_LOOPS 1000

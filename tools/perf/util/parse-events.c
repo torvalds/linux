@@ -154,6 +154,21 @@ struct event_symbol event_symbols_sw[PERF_COUNT_SW_MAX] = {
 	},
 };
 
+struct event_symbol event_symbols_tool[PERF_TOOL_MAX] = {
+	[PERF_TOOL_DURATION_TIME] = {
+		.symbol = "duration_time",
+		.alias  = "",
+	},
+	[PERF_TOOL_USER_TIME] = {
+		.symbol = "user_time",
+		.alias  = "",
+	},
+	[PERF_TOOL_SYSTEM_TIME] = {
+		.symbol = "system_time",
+		.alias  = "",
+	},
+};
+
 #define __PERF_EVENT_FIELD(config, name) \
 	((config & PERF_EVENT_##name##_MASK) >> PERF_EVENT_##name##_SHIFT)
 
@@ -350,7 +365,7 @@ __add_event(struct list_head *list, int *idx,
 	(*idx)++;
 	evsel->core.cpus = cpus;
 	evsel->core.own_cpus = perf_cpu_map__get(cpus);
-	evsel->core.system_wide = pmu ? pmu->is_uncore : false;
+	evsel->core.requires_cpu = pmu ? pmu->is_uncore : false;
 	evsel->auto_merge_stats = auto_merge_stats;
 
 	if (name)
@@ -402,14 +417,16 @@ static int add_event_tool(struct list_head *list, int *idx,
 	if (!evsel)
 		return -ENOMEM;
 	evsel->tool_event = tool_event;
-	if (tool_event == PERF_TOOL_DURATION_TIME) {
+	if (tool_event == PERF_TOOL_DURATION_TIME
+	    || tool_event == PERF_TOOL_USER_TIME
+	    || tool_event == PERF_TOOL_SYSTEM_TIME) {
 		free((char *)evsel->unit);
 		evsel->unit = strdup("ns");
 	}
 	return 0;
 }
 
-static int parse_aliases(char *str, const char *names[][EVSEL__MAX_ALIASES], int size)
+static int parse_aliases(char *str, const char *const names[][EVSEL__MAX_ALIASES], int size)
 {
 	int i, j;
 	int n, longest = -1;
@@ -1523,7 +1540,9 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 	bool use_uncore_alias;
 	LIST_HEAD(config_terms);
 
-	if (verbose > 1) {
+	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
+
+	if (verbose > 1 && !(pmu && pmu->selectable)) {
 		fprintf(stderr, "Attempting to add event pmu '%s' with '",
 			name);
 		if (head_config) {
@@ -1536,7 +1555,6 @@ int parse_events_add_pmu(struct parse_events_state *parse_state,
 		fprintf(stderr, "' that may result in non-fatal errors\n");
 	}
 
-	pmu = parse_state->fake_pmu ?: perf_pmu__find(name);
 	if (!pmu) {
 		char *err_str;
 
@@ -3055,21 +3073,34 @@ out_enomem:
 	return evt_num;
 }
 
-static void print_tool_event(const char *name, const char *event_glob,
+static void print_tool_event(const struct event_symbol *syms, const char *event_glob,
 			     bool name_only)
 {
-	if (event_glob && !strglobmatch(name, event_glob))
+	if (syms->symbol == NULL)
 		return;
-	if (name_only)
-		printf("%s ", name);
-	else
-		printf("  %-50s [%s]\n", name, "Tool event");
 
+	if (event_glob && !(strglobmatch(syms->symbol, event_glob) ||
+	      (syms->alias && strglobmatch(syms->alias, event_glob))))
+		return;
+
+	if (name_only)
+		printf("%s ", syms->symbol);
+	else {
+		char name[MAX_NAME_LEN];
+		if (syms->alias && strlen(syms->alias))
+			snprintf(name, MAX_NAME_LEN, "%s OR %s", syms->symbol, syms->alias);
+		else
+			strlcpy(name, syms->symbol, MAX_NAME_LEN);
+		printf("  %-50s [%s]\n", name, "Tool event");
+	}
 }
 
 void print_tool_events(const char *event_glob, bool name_only)
 {
-	print_tool_event("duration_time", event_glob, name_only);
+	// Start at 1 because the first enum entry symbols no tool event
+	for (int i = 1; i < PERF_TOOL_MAX; ++i) {
+		print_tool_event(event_symbols_tool + i, event_glob, name_only);
+	}
 	if (pager_in_use())
 		printf("\n");
 }

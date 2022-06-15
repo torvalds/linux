@@ -120,7 +120,7 @@ static struct kmem_cache *flash_block_cache = NULL;
 /*
  * Local copy of the flash block list.
  *
- * The rtas_firmware_flash_list varable will be
+ * The rtas_firmware_flash_list variable will be
  * set once the data is fully read.
  *
  * For convenience as we build the list we use virtual addrs,

@@ -21,8 +21,15 @@ properties:
 
       - items:
           - enum:
+              - renesas,r9a06g032-wdt    # RZ/N1D
+          - const: renesas,rzn1-wdt      # RZ/N1
+
+      - items:
+          - enum:
+              - renesas,r9a07g043-wdt    # RZ/G2UL
               - renesas,r9a07g044-wdt    # RZ/G2{L,LC}
-          - const: renesas,rzg2l-wdt     # RZ/G2L
+              - renesas,r9a07g054-wdt    # RZ/V2L
+          - const: renesas,rzg2l-wdt
 
       - items:
           - enum:
@@ -52,8 +59,13 @@ properties:
               - renesas,r8a77980-wdt     # R-Car V3H
               - renesas,r8a77990-wdt     # R-Car E3
               - renesas,r8a77995-wdt     # R-Car D3
-              - renesas,r8a779a0-wdt     # R-Car V3U
           - const: renesas,rcar-gen3-wdt # R-Car Gen3 and RZ/G2
+
+      - items:
+          - enum:
+              - renesas,r8a779a0-wdt     # R-Car V3U
+              - renesas,r8a779f0-wdt     # R-Car S4-8
+          - const: renesas,rcar-gen4-wdt # R-Car Gen4
 
   reg:
     maxItems: 1
@@ -89,6 +101,7 @@ allOf:
             contains:
               enum:
                 - renesas,rza-wdt
+                - renesas,rzn1-wdt
     then:
       required:
         - power-domains

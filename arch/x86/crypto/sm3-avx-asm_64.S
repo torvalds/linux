@@ -513,5 +513,5 @@ SYM_FUNC_START(sm3_transform_avx)
 
 	movq %rbp, %rsp;
 	popq %rbp;
-	ret;
+	RET;
 SYM_FUNC_END(sm3_transform_avx)

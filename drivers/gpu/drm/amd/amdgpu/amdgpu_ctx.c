@@ -237,6 +237,7 @@ static int amdgpu_ctx_init(struct amdgpu_device *adev,
 
 	kref_init(&ctx->refcount);
 	spin_lock_init(&ctx->ring_lock);
+	mutex_init(&ctx->lock);
 
 	ctx->reset_counter = atomic_read(&adev->gpu_reset_counter);
 	ctx->reset_counter_query = ctx->reset_counter;
@@ -295,6 +296,7 @@ static int amdgpu_ctx_set_stable_pstate(struct amdgpu_ctx *ctx,
 {
 	struct amdgpu_device *adev = ctx->adev;
 	enum amd_dpm_forced_level level;
+	u32 current_stable_pstate;
 	int r;
 
 	mutex_lock(&adev->pm.stable_pstate_ctx_lock);
@@ -302,6 +304,10 @@ static int amdgpu_ctx_set_stable_pstate(struct amdgpu_ctx *ctx,
 		r = -EBUSY;
 		goto done;
 	}
+
+	r = amdgpu_ctx_get_stable_pstate(ctx, &current_stable_pstate);
+	if (r || (stable_pstate == current_stable_pstate))
+		goto done;
 
 	switch (stable_pstate) {
 	case AMDGPU_CTX_STABLE_PSTATE_NONE:
@@ -357,6 +363,7 @@ static void amdgpu_ctx_fini(struct kref *ref)
 		drm_dev_exit(idx);
 	}
 
+	mutex_destroy(&ctx->lock);
 	kfree(ctx);
 }
 

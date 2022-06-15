@@ -54,6 +54,14 @@ void hubp31_soft_reset(struct hubp *hubp, bool reset)
 	REG_UPDATE(DCHUBP_CNTL, HUBP_SOFT_RESET, reset);
 }
 
+static void hubp31_program_extended_blank(struct hubp *hubp,
+					  unsigned int min_dst_y_next_start_optimized)
+{
+	struct dcn20_hubp *hubp2 = TO_DCN20_HUBP(hubp);
+
+	REG_SET(BLANK_OFFSET_1, 0, MIN_DST_Y_NEXT_START, min_dst_y_next_start_optimized);
+}
+
 static struct hubp_funcs dcn31_hubp_funcs = {
 	.hubp_enable_tripleBuffer = hubp2_enable_triplebuffer,
 	.hubp_is_triplebuffer_enabled = hubp2_is_triplebuffer_enabled,
@@ -80,6 +88,7 @@ static struct hubp_funcs dcn31_hubp_funcs = {
 	.set_unbounded_requesting = hubp31_set_unbounded_requesting,
 	.hubp_soft_reset = hubp31_soft_reset,
 	.hubp_in_blank = hubp1_in_blank,
+	.program_extended_blank = hubp31_program_extended_blank,
 };
 
 bool hubp31_construct(

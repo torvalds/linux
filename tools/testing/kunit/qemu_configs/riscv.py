@@ -21,11 +21,12 @@ CONFIG_SOC_VIRT=y
 CONFIG_SERIAL_8250=y
 CONFIG_SERIAL_8250_CONSOLE=y
 CONFIG_SERIAL_OF_PLATFORM=y
+CONFIG_RISCV_SBI_V01=y
 CONFIG_SERIAL_EARLYCON_RISCV_SBI=y''',
 			   qemu_arch='riscv64',
 			   kernel_path='arch/riscv/boot/Image',
 			   kernel_command_line='console=ttyS0',
 			   extra_qemu_params=[
-					   '-machine virt',
-					   '-cpu rv64',
-					   '-bios opensbi-riscv64-generic-fw_dynamic.bin'])
+					   '-machine', 'virt',
+					   '-cpu', 'rv64',
+					   '-bios', 'opensbi-riscv64-generic-fw_dynamic.bin'])

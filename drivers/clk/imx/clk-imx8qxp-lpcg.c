@@ -248,7 +248,7 @@ static int imx_lpcg_parse_clks_from_dt(struct platform_device *pdev,
 
 	for (i = 0; i < count; i++) {
 		idx = bit_offset[i] / 4;
-		if (idx > IMX_LPCG_MAX_CLKS) {
+		if (idx >= IMX_LPCG_MAX_CLKS) {
 			dev_warn(&pdev->dev, "invalid bit offset of clock %d\n",
 				 i);
 			ret = -EINVAL;

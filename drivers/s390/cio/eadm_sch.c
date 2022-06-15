@@ -112,16 +112,10 @@ static void eadm_subchannel_set_timeout(struct subchannel *sch, int expires)
 {
 	struct eadm_private *private = get_eadm_private(sch);
 
-	if (expires == 0) {
+	if (expires == 0)
 		del_timer(&private->timer);
-		return;
-	}
-	if (timer_pending(&private->timer)) {
-		if (mod_timer(&private->timer, jiffies + expires))
-			return;
-	}
-	private->timer.expires = jiffies + expires;
-	add_timer(&private->timer);
+	else
+		mod_timer(&private->timer, jiffies + expires);
 }
 
 static void eadm_subchannel_irq(struct subchannel *sch)

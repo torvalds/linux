@@ -391,6 +391,11 @@ static struct dentry *ovl_lookup_real_one(struct dentry *connected,
 	 * pointer because we hold no lock on the real dentry.
 	 */
 	take_dentry_name_snapshot(&name, real);
+	/*
+	 * No mnt_userns handling here: it's an internal lookup.  Could skip
+	 * permission checking altogether, but for now just use non-mnt_userns
+	 * transformed ids.
+	 */
 	this = lookup_one_len(name.name.name, connected, name.name.len);
 	release_dentry_name_snapshot(&name);
 	err = PTR_ERR(this);

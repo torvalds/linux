@@ -34,7 +34,7 @@
  * and assume that the IP, that needs m and n, has also its own
  * prescaler, which is capable to divide by 2^scale. In this way
  * we get the denominator to satisfy the desired range (2) and
- * at the same time much much better result of m and n than simple
+ * at the same time a much better result of m and n than simple
  * saturated values.
  */
 

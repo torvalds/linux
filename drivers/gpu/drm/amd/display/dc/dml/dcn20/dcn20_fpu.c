@@ -722,8 +722,10 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 {
 	int plane_count;
 	int i;
+	unsigned int optimized_min_dst_y_next_start_us;
 
 	plane_count = 0;
+	optimized_min_dst_y_next_start_us = 0;
 	for (i = 0; i < dc->res_pool->pipe_count; i++) {
 		if (context->res_ctx.pipe_ctx[i].plane_state)
 			plane_count++;
@@ -744,11 +746,22 @@ static enum dcn_zstate_support_state  decide_zstate_support(struct dc *dc, struc
 		struct dc_link *link = context->streams[0]->sink->link;
 		struct dc_stream_status *stream_status = &context->stream_status[0];
 
+		if (dc_extended_blank_supported(dc)) {
+			for (i = 0; i < dc->res_pool->pipe_count; i++) {
+				if (context->res_ctx.pipe_ctx[i].stream == context->streams[0]
+					&& context->res_ctx.pipe_ctx[i].stream->adjust.v_total_min == context->res_ctx.pipe_ctx[i].stream->adjust.v_total_max
+					&& context->res_ctx.pipe_ctx[i].stream->adjust.v_total_min > context->res_ctx.pipe_ctx[i].stream->timing.v_total) {
+						optimized_min_dst_y_next_start_us =
+							context->res_ctx.pipe_ctx[i].dlg_regs.optimized_min_dst_y_next_start_us;
+						break;
+				}
+			}
+		}
 		/* zstate only supported on PWRSEQ0  and when there's <2 planes*/
 		if (link->link_index != 0 || stream_status->plane_count > 1)
 			return DCN_ZSTATE_SUPPORT_DISALLOW;
 
-		if (context->bw_ctx.dml.vba.StutterPeriod > 5000.0)
+		if (context->bw_ctx.dml.vba.StutterPeriod > 5000.0 || optimized_min_dst_y_next_start_us > 5000)
 			return DCN_ZSTATE_SUPPORT_ALLOW;
 		else if (link->psr_settings.psr_version == DC_PSR_VERSION_1 && !dc->debug.disable_psr)
 			return DCN_ZSTATE_SUPPORT_ALLOW_Z10_ONLY;
@@ -785,8 +798,6 @@ void dcn20_calculate_dlg_params(
 		context->bw_ctx.dml.vba.DRAMClockChangeSupport[vlevel][context->bw_ctx.dml.vba.maxMpcComb]
 							!= dm_dram_clock_change_unsupported;
 	context->bw_ctx.bw.dcn.clk.dppclk_khz = 0;
-
-	context->bw_ctx.bw.dcn.clk.zstate_support = decide_zstate_support(dc, context);
 
 	context->bw_ctx.bw.dcn.clk.dtbclk_en = is_dtbclk_required(dc, context);
 
@@ -843,6 +854,7 @@ void dcn20_calculate_dlg_params(
 				&pipes[pipe_idx].pipe);
 		pipe_idx++;
 	}
+	context->bw_ctx.bw.dcn.clk.zstate_support = decide_zstate_support(dc, context);
 }
 
 static void swizzle_to_dml_params(
@@ -1290,9 +1302,7 @@ int dcn20_populate_dml_pipes_from_context(
 	}
 
 	/* populate writeback information */
-	DC_FP_START();
 	dc->res_pool->funcs->populate_dml_writeback_from_context(dc, res_ctx, pipes);
-	DC_FP_END();
 
 	return pipe_cnt;
 }

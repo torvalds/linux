@@ -1492,19 +1492,19 @@ static void cdc_ncm_txpath_bh(struct tasklet_struct *t)
 	struct cdc_ncm_ctx *ctx = from_tasklet(ctx, t, bh);
 	struct usbnet *dev = ctx->dev;
 
-	spin_lock_bh(&ctx->mtx);
+	spin_lock(&ctx->mtx);
 	if (ctx->tx_timer_pending != 0) {
 		ctx->tx_timer_pending--;
 		cdc_ncm_tx_timeout_start(ctx);
-		spin_unlock_bh(&ctx->mtx);
+		spin_unlock(&ctx->mtx);
 	} else if (dev->net != NULL) {
 		ctx->tx_reason_timeout++;	/* count reason for transmitting */
-		spin_unlock_bh(&ctx->mtx);
+		spin_unlock(&ctx->mtx);
 		netif_tx_lock_bh(dev->net);
 		usbnet_start_xmit(NULL, dev->net);
 		netif_tx_unlock_bh(dev->net);
 	} else {
-		spin_unlock_bh(&ctx->mtx);
+		spin_unlock(&ctx->mtx);
 	}
 }
 

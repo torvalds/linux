@@ -20,9 +20,10 @@
 #include <linux/export.h>
 #include <linux/nvram.h>
 #include <linux/pgtable.h>
+#include <linux/of_fdt.h>
+#include <linux/irq.h>
 
 #include <asm/io.h>
-#include <asm/prom.h>
 #include <asm/processor.h>
 #include <asm/setup.h>
 #include <asm/smp.h>

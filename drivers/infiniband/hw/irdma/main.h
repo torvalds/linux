@@ -338,7 +338,6 @@ struct irdma_device {
 	u32 roce_ackcreds;
 	u32 vendor_id;
 	u32 vendor_part_id;
-	u32 device_cap_flags;
 	u32 push_mode;
 	u32 rcv_wnd;
 	u16 mac_ip_table_idx;

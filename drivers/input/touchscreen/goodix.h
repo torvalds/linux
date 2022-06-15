@@ -94,6 +94,7 @@ struct goodix_ts_data {
 	u16 version;
 	bool reset_controller_at_probe;
 	bool load_cfg_from_disk;
+	int pen_input_registered;
 	struct completion firmware_loading_complete;
 	unsigned long irq_flags;
 	enum goodix_irq_pin_access_method irq_pin_access_method;

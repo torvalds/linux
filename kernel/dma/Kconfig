@@ -110,15 +110,10 @@ config DMA_GLOBAL_POOL
 	select DMA_DECLARE_COHERENT
 	bool
 
-config DMA_REMAP
-	bool
-	depends on MMU
-	select DMA_NONCOHERENT_MMAP
-
 config DMA_DIRECT_REMAP
 	bool
-	select DMA_REMAP
 	select DMA_COHERENT_POOL
+	select DMA_NONCOHERENT_MMAP
 
 config DMA_CMA
 	bool "DMA Contiguous Memory Allocator"

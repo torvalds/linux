@@ -14,10 +14,11 @@
 #include <linux/string.h>
 #include <linux/init.h>
 #include <linux/pgtable.h>
+#include <linux/of_address.h>
+#include <linux/of_fdt.h>
 
 #include <asm/io.h>
 #include <asm/irq.h>
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #include <asm/pci-bridge.h>
 #include <asm/iommu.h>

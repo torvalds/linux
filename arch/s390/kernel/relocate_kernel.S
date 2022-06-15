@@ -14,6 +14,7 @@
  * moves the new kernel to its destination...
  * %r2 = pointer to first kimage_entry_t
  * %r3 = start address - where to jump to after the job is done...
+ * %r4 = subcode
  *
  * %r5 will be used as temp. storage
  * %r6 holds the destination address
@@ -56,7 +57,7 @@ ENTRY(relocate_kernel)
 		jo	0b
 		j	.base
 	.done:
-		sgr	%r0,%r0		# clear register r0
+		lgr	%r0,%r4		# subcode
 		cghi	%r3,0
 		je	.diag
 		la	%r4,load_psw-.base(%r13)	# load psw-address into the register

@@ -57,8 +57,6 @@
 #define INVALID_GRANT_REF          ((grant_ref_t)-1)
 #define INVALID_GRANT_HANDLE       ((grant_handle_t)-1)
 
-#define GNTTAB_RESERVED_XENSTORE 1
-
 /* NR_GRANT_FRAMES must be less than or equal to that configured in Xen */
 #define NR_GRANT_FRAMES 4
 

@@ -42,7 +42,7 @@ export LD_BFD
 
 # Set default 32 bits cross compilers for vdso
 CC_ARCHES_32 = hppa hppa2.0 hppa1.1
-CC_SUFFIXES  = linux linux-gnu unknown-linux-gnu
+CC_SUFFIXES  = linux linux-gnu unknown-linux-gnu suse-linux
 CROSS32_COMPILE := $(call cc-cross-prefix, \
 	$(foreach a,$(CC_ARCHES_32), \
 	$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
@@ -52,7 +52,7 @@ export CROSS32CC
 # Set default cross compiler for kernel build
 ifdef cross_compiling
 	ifeq ($(CROSS_COMPILE),)
-		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu
+		CC_SUFFIXES = linux linux-gnu unknown-linux-gnu suse-linux
 		CROSS_COMPILE := $(call cc-cross-prefix, \
 			$(foreach a,$(CC_ARCHES), \
 			$(foreach s,$(CC_SUFFIXES),$(a)-$(s)-)))
@@ -184,12 +184,11 @@ vdso_install:
 	$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso $@
 	$(if $(CONFIG_COMPAT_VDSO), \
 		$(Q)$(MAKE) $(build)=arch/parisc/kernel/vdso32 $@)
-install:
-	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
-			$(KERNELRELEASE) vmlinux System.map "$(INSTALL_PATH)"
-zinstall:
-	$(CONFIG_SHELL) $(srctree)/arch/parisc/install.sh \
-			$(KERNELRELEASE) vmlinuz System.map "$(INSTALL_PATH)"
+
+install: KBUILD_IMAGE := vmlinux
+zinstall: KBUILD_IMAGE := vmlinuz
+install zinstall:
+	$(call cmd,install)
 
 CLEAN_FILES	+= lifimage
 MRPROPER_FILES	+= palo.conf

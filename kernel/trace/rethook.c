@@ -65,7 +65,7 @@ static void rethook_free_rcu(struct rcu_head *head)
  */
 void rethook_free(struct rethook *rh)
 {
-	rcu_assign_pointer(rh->handler, NULL);
+	WRITE_ONCE(rh->handler, NULL);
 
 	call_rcu(&rh->rcu, rethook_free_rcu);
 }

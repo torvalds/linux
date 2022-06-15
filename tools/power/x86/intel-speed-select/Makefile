@@ -42,12 +42,12 @@ ISST_IN := $(OUTPUT)intel-speed-select-in.o
 $(ISST_IN): prepare FORCE
 	$(Q)$(MAKE) $(build)=intel-speed-select
 $(OUTPUT)intel-speed-select: $(ISST_IN)
-	$(QUIET_LINK)$(CC) $(CFLAGS) $(LDFLAGS) $< -o $@
+	$(QUIET_LINK)$(CC) $(CFLAGS) $< $(LDFLAGS) -o $@
 
 clean:
 	rm -f $(ALL_PROGRAMS)
 	rm -rf $(OUTPUT)include/linux/isst_if.h
-	find $(if $(OUTPUT),$(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
+	find $(or $(OUTPUT),.) -name '*.o' -delete -o -name '\.*.d' -delete
 
 install: $(ALL_PROGRAMS)
 	install -d -m 755 $(DESTDIR)$(bindir);		\

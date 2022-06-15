@@ -15,7 +15,6 @@
 #include <linux/elf.h>
 #include <linux/errno.h>
 #include <linux/ptrace.h>
-#include <linux/tracehook.h>
 #include <linux/user.h>
 #include <linux/personality.h>
 #include <linux/regset.h>
@@ -316,7 +315,7 @@ long compat_arch_ptrace(struct task_struct *child, compat_long_t request,
 long do_syscall_trace_enter(struct pt_regs *regs)
 {
 	if (test_thread_flag(TIF_SYSCALL_TRACE)) {
-		int rc = tracehook_report_syscall_entry(regs);
+		int rc = ptrace_report_syscall_entry(regs);
 
 		/*
 		 * As tracesys_next does not set %r28 to -ENOSYS
@@ -327,7 +326,7 @@ long do_syscall_trace_enter(struct pt_regs *regs)
 		if (rc) {
 			/*
 			 * A nonzero return code from
-			 * tracehook_report_syscall_entry() tells us
+			 * ptrace_report_syscall_entry() tells us
 			 * to prevent the syscall execution.  Skip
 			 * the syscall call and the syscall restart handling.
 			 *
@@ -381,7 +380,7 @@ void do_syscall_trace_exit(struct pt_regs *regs)
 #endif
 
 	if (stepping || test_thread_flag(TIF_SYSCALL_TRACE))
-		tracehook_report_syscall_exit(regs, stepping);
+		ptrace_report_syscall_exit(regs, stepping);
 }
 
 

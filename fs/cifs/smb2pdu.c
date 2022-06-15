@@ -163,7 +163,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		return 0;
 
 	spin_lock(&cifs_tcp_ses_lock);
-	if (tcon->tidStatus == CifsExiting) {
+	if (tcon->status == TID_EXITING) {
 		/*
 		 * only tree disconnect, open, and write,
 		 * (and ulogoff which does not have tcon)
@@ -179,7 +179,7 @@ smb2_reconnect(__le16 smb2_command, struct cifs_tcon *tcon,
 		}
 	}
 	spin_unlock(&cifs_tcp_ses_lock);
-	if ((!tcon->ses) || (tcon->ses->status == CifsExiting) ||
+	if ((!tcon->ses) || (tcon->ses->ses_status == SES_EXITING) ||
 	    (!tcon->ses->server) || !server)
 		return -EIO;
 
@@ -2734,13 +2734,10 @@ int smb311_posix_mkdir(const unsigned int xid, struct inode *inode,
 		goto err_free_req;
 	}
 
-	trace_smb3_posix_mkdir_done(xid, le64_to_cpu(rsp->PersistentFileId),
-				    tcon->tid,
-				    ses->Suid, CREATE_NOT_FILE,
-				    FILE_WRITE_ATTRIBUTES);
+	trace_smb3_posix_mkdir_done(xid, rsp->PersistentFileId, tcon->tid, ses->Suid,
+				    CREATE_NOT_FILE, FILE_WRITE_ATTRIBUTES);
 
-	SMB2_close(xid, tcon, le64_to_cpu(rsp->PersistentFileId),
-		   le64_to_cpu(rsp->VolatileFileId));
+	SMB2_close(xid, tcon, rsp->PersistentFileId, rsp->VolatileFileId);
 
 	/* Eventually save off posix specific response info and timestaps */
 
@@ -3009,14 +3006,12 @@ SMB2_open(const unsigned int xid, struct cifs_open_parms *oparms, __le16 *path,
 	} else if (rsp == NULL) /* unlikely to happen, but safer to check */
 		goto creat_exit;
 	else
-		trace_smb3_open_done(xid, le64_to_cpu(rsp->PersistentFileId),
-				     tcon->tid,
-				     ses->Suid, oparms->create_options,
-				     oparms->desired_access);
+		trace_smb3_open_done(xid, rsp->PersistentFileId, tcon->tid, ses->Suid,
+				     oparms->create_options, oparms->desired_access);
 
 	atomic_inc(&tcon->num_remote_opens);
-	oparms->fid->persistent_fid = le64_to_cpu(rsp->PersistentFileId);
-	oparms->fid->volatile_fid = le64_to_cpu(rsp->VolatileFileId);
+	oparms->fid->persistent_fid = rsp->PersistentFileId;
+	oparms->fid->volatile_fid = rsp->VolatileFileId;
 	oparms->fid->access = oparms->desired_access;
 #ifdef CONFIG_CIFS_DEBUG2
 	oparms->fid->mid = le64_to_cpu(rsp->hdr.MessageId);
@@ -3313,8 +3308,8 @@ SMB2_close_init(struct cifs_tcon *tcon, struct TCP_Server_Info *server,
 	if (rc)
 		return rc;
 
-	req->PersistentFileId = cpu_to_le64(persistent_fid);
-	req->VolatileFileId = cpu_to_le64(volatile_fid);
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
 	if (query_attrs)
 		req->Flags = SMB2_CLOSE_FLAG_POSTQUERY_ATTRIB;
 	else
@@ -3677,8 +3672,8 @@ SMB2_notify_init(const unsigned int xid, struct smb_rqst *rqst,
 	if (rc)
 		return rc;
 
-	req->PersistentFileId = cpu_to_le64(persistent_fid);
-	req->VolatileFileId = cpu_to_le64(volatile_fid);
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
 	/* See note 354 of MS-SMB2, 64K max */
 	req->OutputBufferLength =
 		cpu_to_le32(SMB2_MAX_BUFFER_SIZE - MAX_SMB2_HDR_SIZE);
@@ -3858,12 +3853,14 @@ void smb2_reconnect_server(struct work_struct *work)
 	tcon = kzalloc(sizeof(struct cifs_tcon), GFP_KERNEL);
 	if (!tcon) {
 		resched = true;
-		list_del_init(&ses->rlist);
-		cifs_put_smb_ses(ses);
+		list_for_each_entry_safe(ses, ses2, &tmp_ses_list, rlist) {
+			list_del_init(&ses->rlist);
+			cifs_put_smb_ses(ses);
+		}
 		goto done;
 	}
 
-	tcon->tidStatus = CifsGood;
+	tcon->status = TID_GOOD;
 	tcon->retry = false;
 	tcon->need_reconnect = false;
 
@@ -3902,7 +3899,8 @@ SMB2_echo(struct TCP_Server_Info *server)
 	cifs_dbg(FYI, "In echo request for conn_id %lld\n", server->conn_id);
 
 	spin_lock(&cifs_tcp_ses_lock);
-	if (server->tcpStatus == CifsNeedNegotiate) {
+	if (server->ops->need_neg &&
+	    server->ops->need_neg(server)) {
 		spin_unlock(&cifs_tcp_ses_lock);
 		/* No need to send echo on newly established connections */
 		mod_delayed_work(cifsiod_wq, &server->reconnect, 0);
@@ -3951,8 +3949,8 @@ SMB2_flush_init(const unsigned int xid, struct smb_rqst *rqst,
 	if (rc)
 		return rc;
 
-	req->PersistentFileId = cpu_to_le64(persistent_fid);
-	req->VolatileFileId = cpu_to_le64(volatile_fid);
+	req->PersistentFileId = persistent_fid;
+	req->VolatileFileId = volatile_fid;
 
 	iov[0].iov_base = (char *)req;
 	iov[0].iov_len = total_len;
@@ -4033,8 +4031,8 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 	shdr = &req->hdr;
 	shdr->Id.SyncId.ProcessId = cpu_to_le32(io_parms->pid);
 
-	req->PersistentFileId = cpu_to_le64(io_parms->persistent_fid);
-	req->VolatileFileId = cpu_to_le64(io_parms->volatile_fid);
+	req->PersistentFileId = io_parms->persistent_fid;
+	req->VolatileFileId = io_parms->volatile_fid;
 	req->ReadChannelInfoOffset = 0; /* reserved */
 	req->ReadChannelInfoLength = 0; /* reserved */
 	req->Channel = 0; /* reserved */
@@ -4094,8 +4092,8 @@ smb2_new_read_req(void **buf, unsigned int *total_len,
 			 */
 			shdr->SessionId = cpu_to_le64(0xFFFFFFFFFFFFFFFF);
 			shdr->Id.SyncId.TreeId = cpu_to_le32(0xFFFFFFFF);
-			req->PersistentFileId = cpu_to_le64(0xFFFFFFFFFFFFFFFF);
-			req->VolatileFileId = cpu_to_le64(0xFFFFFFFFFFFFFFFF);
+			req->PersistentFileId = (u64)-1;
+			req->VolatileFileId = (u64)-1;
 		}
 	}
 	if (remaining_bytes > io_parms->length)
@@ -4307,21 +4305,19 @@ SMB2_read(const unsigned int xid, struct cifs_io_parms *io_parms,
 			cifs_stats_fail_inc(io_parms->tcon, SMB2_READ_HE);
 			cifs_dbg(VFS, "Send error in read = %d\n", rc);
 			trace_smb3_read_err(xid,
-					    le64_to_cpu(req->PersistentFileId),
+					    req->PersistentFileId,
 					    io_parms->tcon->tid, ses->Suid,
 					    io_parms->offset, io_parms->length,
 					    rc);
 		} else
-			trace_smb3_read_done(xid,
-					     le64_to_cpu(req->PersistentFileId),
-					     io_parms->tcon->tid, ses->Suid,
-					     io_parms->offset, 0);
+			trace_smb3_read_done(xid, req->PersistentFileId, io_parms->tcon->tid,
+					     ses->Suid, io_parms->offset, 0);
 		free_rsp_buf(resp_buftype, rsp_iov.iov_base);
 		cifs_small_buf_release(req);
 		return rc == -ENODATA ? 0 : rc;
 	} else
 		trace_smb3_read_done(xid,
-				     le64_to_cpu(req->PersistentFileId),
+				    req->PersistentFileId,
 				    io_parms->tcon->tid, ses->Suid,
 				    io_parms->offset, io_parms->length);
 
@@ -4463,8 +4459,8 @@ smb2_async_writev(struct cifs_writedata *wdata,
 	shdr = (struct smb2_hdr *)req;
 	shdr->Id.SyncId.ProcessId = cpu_to_le32(wdata->cfile->pid);
 
-	req->PersistentFileId = cpu_to_le64(wdata->cfile->fid.persistent_fid);
-	req->VolatileFileId = cpu_to_le64(wdata->cfile->fid.volatile_fid);
+	req->PersistentFileId = wdata->cfile->fid.persistent_fid;
+	req->VolatileFileId = wdata->cfile->fid.volatile_fid;
 	req->WriteChannelInfoOffset = 0;
 	req->WriteChannelInfoLength = 0;
 	req->Channel = 0;
@@ -4562,7 +4558,7 @@ smb2_async_writev(struct cifs_writedata *wdata,
 
 	if (rc) {
 		trace_smb3_write_err(0 /* no xid */,
-				     le64_to_cpu(req->PersistentFileId),
+				     req->PersistentFileId,
 				     tcon->tid, tcon->ses->Suid, wdata->offset,
 				     wdata->bytes, rc);
 		kref_put(&wdata->refcount, release);
@@ -4615,8 +4611,8 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 
 	req->hdr.Id.SyncId.ProcessId = cpu_to_le32(io_parms->pid);
 
-	req->PersistentFileId = cpu_to_le64(io_parms->persistent_fid);
-	req->VolatileFileId = cpu_to_le64(io_parms->volatile_fid);
+	req->PersistentFileId = io_parms->persistent_fid;
+	req->VolatileFileId = io_parms->volatile_fid;
 	req->WriteChannelInfoOffset = 0;
 	req->WriteChannelInfoLength = 0;
 	req->Channel = 0;
@@ -4645,7 +4641,7 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 
 	if (rc) {
 		trace_smb3_write_err(xid,
-				     le64_to_cpu(req->PersistentFileId),
+				     req->PersistentFileId,
 				     io_parms->tcon->tid,
 				     io_parms->tcon->ses->Suid,
 				     io_parms->offset, io_parms->length, rc);
@@ -4654,7 +4650,7 @@ SMB2_write(const unsigned int xid, struct cifs_io_parms *io_parms,
 	} else {
 		*nbytes = le32_to_cpu(rsp->DataLength);
 		trace_smb3_write_done(xid,
-				      le64_to_cpu(req->PersistentFileId),
+				      req->PersistentFileId,
 				      io_parms->tcon->tid,
 				      io_parms->tcon->ses->Suid,
 				      io_parms->offset, *nbytes);

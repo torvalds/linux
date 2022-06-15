@@ -417,30 +417,68 @@ struct gpio_irq_chip inside struct gpio_chip before adding the gpio_chip.
 If you do this, the additional irq_chip will be set up by gpiolib at the
 same time as setting up the rest of the GPIO functionality. The following
 is a typical example of a chained cascaded interrupt handler using
-the gpio_irq_chip:
+the gpio_irq_chip. Note how the mask/unmask (or disable/enable) functions
+call into the core gpiolib code:
 
 .. code-block:: c
 
-  /* Typical state container with dynamic irqchip */
+  /* Typical state container */
   struct my_gpio {
       struct gpio_chip gc;
-      struct irq_chip irq;
+  };
+
+  static void my_gpio_mask_irq(struct irq_data *d)
+  {
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+      /*
+       * Perform any necessary action to mask the interrupt,
+       * and then call into the core code to synchronise the
+       * state.
+       */
+
+      gpiochip_disable_irq(gc, hwirq);
+  }
+
+  static void my_gpio_unmask_irq(struct irq_data *d)
+  {
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+      gpiochip_enable_irq(gc, hwirq);
+
+      /*
+       * Perform any necessary action to unmask the interrupt,
+       * after having called into the core code to synchronise
+       * the state.
+       */
+  }
+
+  /*
+   * Statically populate the irqchip. Note that it is made const
+   * (further indicated by the IRQCHIP_IMMUTABLE flag), and that
+   * the GPIOCHIP_IRQ_RESOURCE_HELPER macro adds some extra
+   * callbacks to the structure.
+   */
+  static const struct irq_chip my_gpio_irq_chip = {
+      .name		= "my_gpio_irq",
+      .irq_ack		= my_gpio_ack_irq,
+      .irq_mask		= my_gpio_mask_irq,
+      .irq_unmask	= my_gpio_unmask_irq,
+      .irq_set_type	= my_gpio_set_irq_type,
+      .flags		= IRQCHIP_IMMUTABLE,
+      /* Provide the gpio resource callbacks */
+      GPIOCHIP_IRQ_RESOURCE_HELPERS,
   };
 
   int irq; /* from platform etc */
   struct my_gpio *g;
   struct gpio_irq_chip *girq;
 
-  /* Set up the irqchip dynamically */
-  g->irq.name = "my_gpio_irq";
-  g->irq.irq_ack = my_gpio_ack_irq;
-  g->irq.irq_mask = my_gpio_mask_irq;
-  g->irq.irq_unmask = my_gpio_unmask_irq;
-  g->irq.irq_set_type = my_gpio_set_irq_type;
-
   /* Get a pointer to the gpio_irq_chip */
   girq = &g->gc.irq;
-  girq->chip = &g->irq;
+  gpio_irq_chip_set_chip(girq, &my_gpio_irq_chip);
   girq->parent_handler = ftgpio_gpio_irq_handler;
   girq->num_parents = 1;
   girq->parents = devm_kcalloc(dev, 1, sizeof(*girq->parents),
@@ -458,22 +496,59 @@ the interrupt separately and go with it:
 
 .. code-block:: c
 
-  /* Typical state container with dynamic irqchip */
+  /* Typical state container */
   struct my_gpio {
       struct gpio_chip gc;
-      struct irq_chip irq;
+  };
+
+  static void my_gpio_mask_irq(struct irq_data *d)
+  {
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+      /*
+       * Perform any necessary action to mask the interrupt,
+       * and then call into the core code to synchronise the
+       * state.
+       */
+
+      gpiochip_disable_irq(gc, hwirq);
+  }
+
+  static void my_gpio_unmask_irq(struct irq_data *d)
+  {
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+      gpiochip_enable_irq(gc, hwirq);
+
+      /*
+       * Perform any necessary action to unmask the interrupt,
+       * after having called into the core code to synchronise
+       * the state.
+       */
+  }
+
+  /*
+   * Statically populate the irqchip. Note that it is made const
+   * (further indicated by the IRQCHIP_IMMUTABLE flag), and that
+   * the GPIOCHIP_IRQ_RESOURCE_HELPER macro adds some extra
+   * callbacks to the structure.
+   */
+  static const struct irq_chip my_gpio_irq_chip = {
+      .name		= "my_gpio_irq",
+      .irq_ack		= my_gpio_ack_irq,
+      .irq_mask		= my_gpio_mask_irq,
+      .irq_unmask	= my_gpio_unmask_irq,
+      .irq_set_type	= my_gpio_set_irq_type,
+      .flags		= IRQCHIP_IMMUTABLE,
+      /* Provide the gpio resource callbacks */
+      GPIOCHIP_IRQ_RESOURCE_HELPERS,
   };
 
   int irq; /* from platform etc */
   struct my_gpio *g;
   struct gpio_irq_chip *girq;
-
-  /* Set up the irqchip dynamically */
-  g->irq.name = "my_gpio_irq";
-  g->irq.irq_ack = my_gpio_ack_irq;
-  g->irq.irq_mask = my_gpio_mask_irq;
-  g->irq.irq_unmask = my_gpio_unmask_irq;
-  g->irq.irq_set_type = my_gpio_set_irq_type;
 
   ret = devm_request_threaded_irq(dev, irq, NULL,
 		irq_thread_fn, IRQF_ONESHOT, "my-chip", g);
@@ -482,7 +557,7 @@ the interrupt separately and go with it:
 
   /* Get a pointer to the gpio_irq_chip */
   girq = &g->gc.irq;
-  girq->chip = &g->irq;
+  gpio_irq_chip_set_chip(girq, &my_gpio_irq_chip);
   /* This will let us handle the parent IRQ in the driver */
   girq->parent_handler = NULL;
   girq->num_parents = 0;
@@ -500,24 +575,63 @@ In this case the typical set-up will look like this:
   /* Typical state container with dynamic irqchip */
   struct my_gpio {
       struct gpio_chip gc;
-      struct irq_chip irq;
       struct fwnode_handle *fwnode;
   };
 
-  int irq; /* from platform etc */
+  static void my_gpio_mask_irq(struct irq_data *d)
+  {
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+      /*
+       * Perform any necessary action to mask the interrupt,
+       * and then call into the core code to synchronise the
+       * state.
+       */
+
+      gpiochip_disable_irq(gc, hwirq);
+      irq_mask_mask_parent(d);
+  }
+
+  static void my_gpio_unmask_irq(struct irq_data *d)
+  {
+      struct gpio_chip *gc = irq_data_get_irq_chip_data(d);
+      irq_hw_number_t hwirq = irqd_to_hwirq(d);
+
+      gpiochip_enable_irq(gc, hwirq);
+
+      /*
+       * Perform any necessary action to unmask the interrupt,
+       * after having called into the core code to synchronise
+       * the state.
+       */
+
+      irq_mask_unmask_parent(d);
+  }
+
+  /*
+   * Statically populate the irqchip. Note that it is made const
+   * (further indicated by the IRQCHIP_IMMUTABLE flag), and that
+   * the GPIOCHIP_IRQ_RESOURCE_HELPER macro adds some extra
+   * callbacks to the structure.
+   */
+  static const struct irq_chip my_gpio_irq_chip = {
+      .name		= "my_gpio_irq",
+      .irq_ack		= my_gpio_ack_irq,
+      .irq_mask		= my_gpio_mask_irq,
+      .irq_unmask	= my_gpio_unmask_irq,
+      .irq_set_type	= my_gpio_set_irq_type,
+      .flags		= IRQCHIP_IMMUTABLE,
+      /* Provide the gpio resource callbacks */
+      GPIOCHIP_IRQ_RESOURCE_HELPERS,
+  };
+
   struct my_gpio *g;
   struct gpio_irq_chip *girq;
 
-  /* Set up the irqchip dynamically */
-  g->irq.name = "my_gpio_irq";
-  g->irq.irq_ack = my_gpio_ack_irq;
-  g->irq.irq_mask = my_gpio_mask_irq;
-  g->irq.irq_unmask = my_gpio_unmask_irq;
-  g->irq.irq_set_type = my_gpio_set_irq_type;
-
   /* Get a pointer to the gpio_irq_chip */
   girq = &g->gc.irq;
-  girq->chip = &g->irq;
+  gpio_irq_chip_set_chip(girq, &my_gpio_irq_chip);
   girq->default_type = IRQ_TYPE_NONE;
   girq->handler = handle_bad_irq;
   girq->fwnode = g->fwnode;
@@ -605,8 +719,9 @@ When implementing an irqchip inside a GPIO driver, these two functions should
 typically be called in the .irq_disable() and .irq_enable() callbacks from the
 irqchip.
 
-When using the gpiolib irqchip helpers, these callbacks are automatically
-assigned.
+When IRQCHIP_IMMUTABLE is not advertised by the irqchip, these callbacks
+are automatically assigned. This behaviour is deprecated and on its way
+to be removed from the kernel.
 
 
 Real-Time compliance for GPIO IRQ chips

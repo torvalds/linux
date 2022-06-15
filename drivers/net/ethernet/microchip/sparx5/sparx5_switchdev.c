@@ -396,6 +396,11 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 	u32 mact_entry;
 	int res, err;
 
+	if (netif_is_bridge_master(v->obj.orig_dev)) {
+		sparx5_mact_learn(spx5, PGID_CPU, v->addr, v->vid);
+		return 0;
+	}
+
 	/* When VLAN unaware the vlan value is not parsed and we receive vid 0.
 	 * Fall back to bridge vid 1.
 	 */
@@ -406,11 +411,11 @@ static int sparx5_handle_port_mdb_add(struct net_device *dev,
 
 	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
 
-	if (res) {
+	if (res == 0) {
 		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
 
-		/* MC_IDX has an offset of 65 in the PGID table. */
-		pgid_idx += PGID_MCAST_START;
+		/* MC_IDX starts after the port masks in the PGID table */
+		pgid_idx += SPX5_PORTS;
 		sparx5_pgid_update_mask(port, pgid_idx, true);
 	} else {
 		err = sparx5_pgid_alloc_mcast(spx5, &pgid_idx);
@@ -461,6 +466,11 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 	u32 mact_entry, res, pgid_entry[3];
 	int err;
 
+	if (netif_is_bridge_master(v->obj.orig_dev)) {
+		sparx5_mact_forget(spx5, v->addr, v->vid);
+		return 0;
+	}
+
 	if (!br_vlan_enabled(spx5->hw_bridge_dev))
 		vid = 1;
 	else
@@ -468,17 +478,15 @@ static int sparx5_handle_port_mdb_del(struct net_device *dev,
 
 	res = sparx5_mact_find(spx5, v->addr, vid, &mact_entry);
 
-	if (res) {
+	if (res == 0) {
 		pgid_idx = LRN_MAC_ACCESS_CFG_2_MAC_ENTRY_ADDR_GET(mact_entry);
 
-		/* MC_IDX has an offset of 65 in the PGID table. */
-		pgid_idx += PGID_MCAST_START;
+		/* MC_IDX starts after the port masks in the PGID table */
+		pgid_idx += SPX5_PORTS;
 		sparx5_pgid_update_mask(port, pgid_idx, false);
 
-		pgid_entry[0] = spx5_rd(spx5, ANA_AC_PGID_CFG(pgid_idx));
-		pgid_entry[1] = spx5_rd(spx5, ANA_AC_PGID_CFG1(pgid_idx));
-		pgid_entry[2] = spx5_rd(spx5, ANA_AC_PGID_CFG2(pgid_idx));
-		if (pgid_entry[0] == 0 && pgid_entry[1] == 0 && pgid_entry[2] == 0) {
+		sparx5_pgid_read_mask(spx5, pgid_idx, pgid_entry);
+		if (bitmap_empty((unsigned long *)pgid_entry, SPX5_PORTS)) {
 			/* No ports are in MC group. Remove entry */
 			err = sparx5_mdb_del_entry(dev, spx5, v->addr, vid, pgid_idx);
 			if (err)
@@ -502,6 +510,7 @@ static int sparx5_handle_port_obj_add(struct net_device *dev,
 						  SWITCHDEV_OBJ_PORT_VLAN(obj));
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
 		err = sparx5_handle_port_mdb_add(dev, nb,
 						 SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;
@@ -554,6 +563,7 @@ static int sparx5_handle_port_obj_del(struct net_device *dev,
 						  SWITCHDEV_OBJ_PORT_VLAN(obj)->vid);
 		break;
 	case SWITCHDEV_OBJ_ID_PORT_MDB:
+	case SWITCHDEV_OBJ_ID_HOST_MDB:
 		err = sparx5_handle_port_mdb_del(dev, nb,
 						 SWITCHDEV_OBJ_PORT_MDB(obj));
 		break;

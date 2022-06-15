@@ -10,12 +10,9 @@ menuconfig LIBNVDIMM
 	  ACPI-6-NFIT defined resources.  On platforms that define an
 	  NFIT, or otherwise can discover NVDIMM resources, a libnvdimm
 	  bus is registered to advertise PMEM (persistent memory)
-	  namespaces (/dev/pmemX) and BLK (sliding mmio window(s))
-	  namespaces (/dev/ndblkX.Y). A PMEM namespace refers to a
+	  namespaces (/dev/pmemX). A PMEM namespace refers to a
 	  memory resource that may span multiple DIMMs and support DAX
-	  (see CONFIG_DAX).  A BLK namespace refers to an NVDIMM control
-	  region which exposes an mmio register set for windowed access
-	  mode to non-volatile memory.
+	  (see CONFIG_DAX).
 
 if LIBNVDIMM
 
@@ -38,19 +35,6 @@ config BLK_DEV_PMEM
 
 	  Say Y if you want to use an NVDIMM
 
-config ND_BLK
-	tristate "BLK: Block data window (aperture) device support"
-	default LIBNVDIMM
-	select ND_BTT if BTT
-	help
-	  Support NVDIMMs, or other devices, that implement a BLK-mode
-	  access capability.  BLK-mode access uses memory-mapped-i/o
-	  apertures to access persistent media.
-
-	  Say Y if your platform firmware emits an ACPI.NFIT table
-	  (CONFIG_ACPI_NFIT), or otherwise exposes BLK-mode
-	  capabilities.
-
 config ND_CLAIM
 	bool
 
@@ -67,9 +51,8 @@ config BTT
 	  applications that rely on sector writes not being torn (a
 	  guarantee that typical disks provide) can continue to do so.
 	  The BTT manifests itself as an alternate personality for an
-	  NVDIMM namespace, i.e. a namespace can be in raw mode (pmemX,
-	  ndblkX.Y, etc...), or 'sectored' mode, (pmemXs, ndblkX.Ys,
-	  etc...).
+	  NVDIMM namespace, i.e. a namespace can be in raw mode pmemX,
+	  or 'sectored' mode.
 
 	  Select Y if unsure
 

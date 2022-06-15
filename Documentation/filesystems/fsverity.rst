@@ -70,12 +70,23 @@ must live on a read-write filesystem because they are independently
 updated and potentially user-installed, so dm-verity cannot be used.
 
 The base fs-verity feature is a hashing mechanism only; actually
-authenticating the files is up to userspace.  However, to meet some
-users' needs, fs-verity optionally supports a simple signature
-verification mechanism where users can configure the kernel to require
-that all fs-verity files be signed by a key loaded into a keyring; see
-`Built-in signature verification`_.  Support for fs-verity file hashes
-in IMA (Integrity Measurement Architecture) policies is also planned.
+authenticating the files may be done by:
+
+* Userspace-only
+
+* Builtin signature verification + userspace policy
+
+  fs-verity optionally supports a simple signature verification
+  mechanism where users can configure the kernel to require that
+  all fs-verity files be signed by a key loaded into a keyring;
+  see `Built-in signature verification`_.
+
+* Integrity Measurement Architecture (IMA)
+
+  IMA supports including fs-verity file digests and signatures in the
+  IMA measurement list and verifying fs-verity based file signatures
+  stored as security.ima xattrs, based on policy.
+
 
 User API
 ========
@@ -548,8 +559,8 @@ already verified).  Below, we describe how filesystems implement this.
 Pagecache
 ~~~~~~~~~
 
-For filesystems using Linux's pagecache, the ``->readpage()`` and
-``->readpages()`` methods must be modified to verify pages before they
+For filesystems using Linux's pagecache, the ``->read_folio()`` and
+``->readahead()`` methods must be modified to verify pages before they
 are marked Uptodate.  Merely hooking ``->read_iter()`` would be
 insufficient, since ``->read_iter()`` is not used for memory maps.
 
@@ -611,7 +622,7 @@ workqueue, and then the workqueue work does the decryption or
 verification.  Finally, pages where no decryption or verity error
 occurred are marked Uptodate, and the pages are unlocked.
 
-Files on ext4 and f2fs may contain holes.  Normally, ``->readpages()``
+Files on ext4 and f2fs may contain holes.  Normally, ``->readahead()``
 simply zeroes holes and sets the corresponding pages Uptodate; no bios
 are issued.  To prevent this case from bypassing fs-verity, these
 filesystems use fsverity_verify_page() to verify hole pages.
@@ -653,12 +664,12 @@ weren't already directly answered in other parts of this document.
     hashed and what to do with those hashes, such as log them,
     authenticate them, or add them to a measurement list.
 
-    IMA is planned to support the fs-verity hashing mechanism as an
-    alternative to doing full file hashes, for people who want the
-    performance and security benefits of the Merkle tree based hash.
-    But it doesn't make sense to force all uses of fs-verity to be
-    through IMA.  As a standalone filesystem feature, fs-verity
-    already meets many users' needs, and it's testable like other
+    IMA supports the fs-verity hashing mechanism as an alternative
+    to full file hashes, for those who want the performance and
+    security benefits of the Merkle tree based hash.  However, it
+    doesn't make sense to force all uses of fs-verity to be through
+    IMA.  fs-verity already meets many users' needs even as a
+    standalone filesystem feature, and it's testable like other
     filesystem features e.g. with xfstests.
 
 :Q: Isn't fs-verity useless because the attacker can just modify the
@@ -778,7 +789,7 @@ weren't already directly answered in other parts of this document.
     - To prevent bypassing verification, pages must not be marked
       Uptodate until they've been verified.  Currently, each
       filesystem is responsible for marking pages Uptodate via
-      ``->readpages()``.  Therefore, currently it's not possible for
+      ``->readahead()``.  Therefore, currently it's not possible for
       the VFS to do the verification on its own.  Changing this would
       require significant changes to the VFS and all filesystems.
 

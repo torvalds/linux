@@ -45,35 +45,34 @@ int test_core_existence(void *ctx)
 	struct core_reloc_existence_output *out = (void *)&data.out;
 
 	out->a_exists = bpf_core_field_exists(in->a);
-	if (bpf_core_field_exists(in->a))
+	if (bpf_core_field_exists(struct core_reloc_existence, a))
 		out->a_value = BPF_CORE_READ(in, a);
 	else
 		out->a_value = 0xff000001u;
 
 	out->b_exists = bpf_core_field_exists(in->b);
-	if (bpf_core_field_exists(in->b))
+	if (bpf_core_field_exists(struct core_reloc_existence, b))
 		out->b_value = BPF_CORE_READ(in, b);
 	else
 		out->b_value = 0xff000002u;
 
 	out->c_exists = bpf_core_field_exists(in->c);
-	if (bpf_core_field_exists(in->c))
+	if (bpf_core_field_exists(struct core_reloc_existence, c))
 		out->c_value = BPF_CORE_READ(in, c);
 	else
 		out->c_value = 0xff000003u;
 
 	out->arr_exists = bpf_core_field_exists(in->arr);
-	if (bpf_core_field_exists(in->arr))
+	if (bpf_core_field_exists(struct core_reloc_existence, arr))
 		out->arr_value = BPF_CORE_READ(in, arr[0]);
 	else
 		out->arr_value = 0xff000004u;
 
 	out->s_exists = bpf_core_field_exists(in->s);
-	if (bpf_core_field_exists(in->s))
+	if (bpf_core_field_exists(struct core_reloc_existence, s))
 		out->s_value = BPF_CORE_READ(in, s.x);
 	else
 		out->s_value = 0xff000005u;
 
 	return 0;
 }
-

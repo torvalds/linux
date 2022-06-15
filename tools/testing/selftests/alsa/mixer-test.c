@@ -27,7 +27,7 @@
 
 #include "../kselftest.h"
 
-#define TESTS_PER_CONTROL 6
+#define TESTS_PER_CONTROL 7
 
 struct card_data {
 	snd_ctl_t *handle;
@@ -453,6 +453,44 @@ static void test_ctl_get_value(struct ctl_data *ctl)
 
 out:
 	ksft_test_result(err >= 0, "get_value.%d.%d\n",
+			 ctl->card->card, ctl->elem);
+}
+
+static bool strend(const char *haystack, const char *needle)
+{
+	size_t haystack_len = strlen(haystack);
+	size_t needle_len = strlen(needle);
+
+	if (needle_len > haystack_len)
+		return false;
+	return strcmp(haystack + haystack_len - needle_len, needle) == 0;
+}
+
+static void test_ctl_name(struct ctl_data *ctl)
+{
+	bool name_ok = true;
+	bool check;
+
+	/* Only boolean controls should end in Switch */
+	if (strend(ctl->name, " Switch")) {
+		if (snd_ctl_elem_info_get_type(ctl->info) != SND_CTL_ELEM_TYPE_BOOLEAN) {
+			ksft_print_msg("%d.%d %s ends in Switch but is not boolean\n",
+				       ctl->card->card, ctl->elem, ctl->name);
+			name_ok = false;
+		}
+	}
+
+	/* Writeable boolean controls should end in Switch */
+	if (snd_ctl_elem_info_get_type(ctl->info) == SND_CTL_ELEM_TYPE_BOOLEAN &&
+	    snd_ctl_elem_info_is_writable(ctl->info)) {
+		if (!strend(ctl->name, " Switch")) {
+			ksft_print_msg("%d.%d %s is a writeable boolean but not a Switch\n",
+				       ctl->card->card, ctl->elem, ctl->name);
+			name_ok = false;
+		}
+	}
+
+	ksft_test_result(name_ok, "name.%d.%d\n",
 			 ctl->card->card, ctl->elem);
 }
 
@@ -1062,6 +1100,7 @@ int main(void)
 		 * test stores the default value for later cleanup.
 		 */
 		test_ctl_get_value(ctl);
+		test_ctl_name(ctl);
 		test_ctl_write_default(ctl);
 		test_ctl_write_valid(ctl);
 		test_ctl_write_invalid(ctl);

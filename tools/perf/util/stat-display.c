@@ -610,6 +610,19 @@ static bool hybrid_uniquify(struct evsel *evsel)
 	return perf_pmu__has_hybrid() && !is_uncore(evsel);
 }
 
+static bool hybrid_merge(struct evsel *counter, struct perf_stat_config *config,
+			 bool check)
+{
+	if (hybrid_uniquify(counter)) {
+		if (check)
+			return config && config->hybrid_merge;
+		else
+			return config && !config->hybrid_merge;
+	}
+
+	return false;
+}
+
 static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 			    void (*cb)(struct perf_stat_config *config, struct evsel *counter, void *data,
 				       bool first),
@@ -618,9 +631,9 @@ static bool collect_data(struct perf_stat_config *config, struct evsel *counter,
 	if (counter->merged_stat)
 		return false;
 	cb(config, counter, data, true);
-	if (config->no_merge || hybrid_uniquify(counter))
+	if (config->no_merge || hybrid_merge(counter, config, false))
 		uniquify_event_name(counter);
-	else if (counter->auto_merge_stats)
+	else if (counter->auto_merge_stats || hybrid_merge(counter, config, true))
 		collect_all_aliases(config, counter, cb, data);
 	return true;
 }
@@ -751,11 +764,11 @@ static int cmp_val(const void *a, const void *b)
 
 static struct perf_aggr_thread_value *sort_aggr_thread(
 					struct evsel *counter,
-					int nthreads, int ncpus,
 					int *ret,
 					struct target *_target)
 {
-	int cpu, thread, i = 0;
+	int nthreads = perf_thread_map__nr(counter->core.threads);
+	int i = 0;
 	double uval;
 	struct perf_aggr_thread_value *buf;
 
@@ -763,13 +776,17 @@ static struct perf_aggr_thread_value *sort_aggr_thread(
 	if (!buf)
 		return NULL;
 
-	for (thread = 0; thread < nthreads; thread++) {
+	for (int thread = 0; thread < nthreads; thread++) {
+		int idx;
 		u64 ena = 0, run = 0, val = 0;
 
-		for (cpu = 0; cpu < ncpus; cpu++) {
-			val += perf_counts(counter->counts, cpu, thread)->val;
-			ena += perf_counts(counter->counts, cpu, thread)->ena;
-			run += perf_counts(counter->counts, cpu, thread)->run;
+		perf_cpu_map__for_each_idx(idx, evsel__cpus(counter)) {
+			struct perf_counts_values *counts =
+				perf_counts(counter->counts, idx, thread);
+
+			val += counts->val;
+			ena += counts->ena;
+			run += counts->run;
 		}
 
 		uval = val * counter->scale;
@@ -804,13 +821,11 @@ static void print_aggr_thread(struct perf_stat_config *config,
 			      struct evsel *counter, char *prefix)
 {
 	FILE *output = config->output;
-	int nthreads = perf_thread_map__nr(counter->core.threads);
-	int ncpus = perf_cpu_map__nr(counter->core.cpus);
 	int thread, sorted_threads;
 	struct aggr_cpu_id id;
 	struct perf_aggr_thread_value *buf;
 
-	buf = sort_aggr_thread(counter, nthreads, ncpus, &sorted_threads, _target);
+	buf = sort_aggr_thread(counter, &sorted_threads, _target);
 	if (!buf) {
 		perror("cannot sort aggr thread");
 		return;
@@ -929,12 +944,10 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 	int all_idx;
 	struct perf_cpu cpu;
 
-	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.cpus) {
+	perf_cpu_map__for_each_cpu(cpu, all_idx, evlist->core.user_requested_cpus) {
 		struct evsel *counter;
 		bool first = true;
 
-		if (prefix)
-			fputs(prefix, config->output);
 		evlist__for_each_entry(evlist, counter) {
 			u64 ena, run, val;
 			double uval;
@@ -946,6 +959,8 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 
 			id = aggr_cpu_id__cpu(cpu, /*data=*/NULL);
 			if (first) {
+				if (prefix)
+					fputs(prefix, config->output);
 				aggr_printout(config, counter, id, 0);
 				first = false;
 			}
@@ -957,7 +972,8 @@ static void print_no_aggr_metric(struct perf_stat_config *config,
 			printout(config, id, 0, counter, uval, prefix,
 				 run, ena, 1.0, &rt_stat);
 		}
-		fputc('\n', config->output);
+		if (!first)
+			fputc('\n', config->output);
 	}
 }
 

@@ -430,6 +430,11 @@ void perf_debuginfod_setup(struct perf_debuginfod *di)
 		setenv("DEBUGINFOD_URLS", di->urls, 1);
 
 	pr_debug("DEBUGINFOD_URLS=%s\n", getenv("DEBUGINFOD_URLS"));
+
+#ifndef HAVE_DEBUGINFOD_SUPPORT
+	if (di->set)
+		pr_warning("WARNING: debuginfod support requested, but perf is not built with it\n");
+#endif
 }
 
 /*
