@@ -194,7 +194,7 @@ static bool test_userns(bool expect_success)
 			printf("preparing file name string failed");
 			return false;
 		}
-		success = write_file(map_file_name, "0 0 1", uid);
+		success = write_file(map_file_name, "0 %d 1", uid);
 		return success == expect_success;
 	}
 
