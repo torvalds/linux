@@ -624,11 +624,6 @@ unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 	return sum;
 }
 
-unsigned int atomisp_is_acc_enabled(struct atomisp_device *isp)
-{
-	return 0;
-}
-
 /*
  * get input are used to get current primary/secondary camera
  */

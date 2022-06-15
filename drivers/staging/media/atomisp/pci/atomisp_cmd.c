@@ -538,7 +538,7 @@ irqreturn_t atomisp_isr(int irq, void *dev)
 
 	clear_irq_reg(isp);
 
-	if (!atomisp_streaming_count(isp) && !atomisp_is_acc_enabled(isp))
+	if (!atomisp_streaming_count(isp))
 		goto out_nowake;
 
 	for (i = 0; i < isp->num_of_streams; i++) {
@@ -1837,7 +1837,7 @@ irqreturn_t atomisp_isr_thread(int irq, void *isp_ptr)
 
 	spin_lock_irqsave(&isp->lock, flags);
 
-	if (!atomisp_streaming_count(isp) && !atomisp_is_acc_enabled(isp)) {
+	if (!atomisp_streaming_count(isp)) {
 		spin_unlock_irqrestore(&isp->lock, flags);
 		return IRQ_HANDLED;
 	}
