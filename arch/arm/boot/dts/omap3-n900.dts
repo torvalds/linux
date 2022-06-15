@@ -9,6 +9,7 @@
 #include "omap34xx.dtsi"
 #include <dt-bindings/input/input.h>
 #include <dt-bindings/leds/common.h>
+#include <dt-bindings/media/video-interfaces.h>
 
 /*
  * Default secure signed bootloader (Nokia X-Loader) does not enable L3 firewall
@@ -194,7 +195,7 @@
 
 			csi_isp: endpoint {
 				remote-endpoint = <&csi_cam1>;
-				bus-type = <3>; /* CCP2 */
+				bus-type = <MEDIA_BUS_TYPE_CCP2>;
 				clock-lanes = <1>;
 				data-lanes = <0>;
 				lane-polarity = <0 0>;
@@ -835,7 +836,7 @@
 
 		port {
 			csi_cam1: endpoint {
-				bus-type = <3>; /* CCP2 */
+				bus-type = <MEDIA_BUS_TYPE_CCP2>;
 				strobe = <1>;
 				clock-inv = <0>;
 				crc = <1>;
