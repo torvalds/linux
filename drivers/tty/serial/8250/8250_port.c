@@ -1949,7 +1949,7 @@ int serial8250_handle_irq(struct uart_port *port, unsigned int iir)
 	if ((status & UART_LSR_THRE) && (up->ier & UART_IER_THRI)) {
 		if (!up->dma || up->dma->tx_err)
 			serial8250_tx_chars(up);
-		else
+		else if (!up->dma->tx_running)
 			__stop_tx(up);
 	}
 
