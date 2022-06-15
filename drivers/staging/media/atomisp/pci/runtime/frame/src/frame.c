@@ -84,7 +84,6 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
 	unsigned int raw_bit_depth,
-	bool contiguous,
 	bool valid);
 
 static unsigned
@@ -215,7 +214,6 @@ int ia_css_frame_create_from_info(struct ia_css_frame **frame,
 			  info->format,
 			  info->padded_width,
 			  info->raw_bit_depth,
-			  false,
 			  false);
 	if (!me) {
 		ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
@@ -492,7 +490,7 @@ int ia_css_frame_allocate_with_buffer_size(struct ia_css_frame **frame,
 	int err;
 	struct ia_css_frame *me = frame_create(0, 0,
 					       IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
-					       0, 0, false, false);
+					       0, 0, false);
 
 	if (!me)
 		return -ENOMEM;
@@ -780,7 +778,6 @@ static int frame_allocate_with_data(struct ia_css_frame **frame,
 					       format,
 					       padded_width,
 					       raw_bit_depth,
-					       false,
 					       true);
 
 	if (!me)
@@ -810,7 +807,6 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	enum ia_css_frame_format format,
 	unsigned int padded_width,
 	unsigned int raw_bit_depth,
-	bool contiguous,
 	bool valid)
 {
 	struct ia_css_frame *me = kvmalloc(sizeof(*me), GFP_KERNEL);
@@ -824,7 +820,7 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	me->info.format = format;
 	me->info.padded_width = padded_width;
 	me->info.raw_bit_depth = raw_bit_depth;
-	me->contiguous = contiguous;
+	me->contiguous = false;
 	me->valid = valid;
 	me->data_bytes = 0;
 	me->data = mmgr_NULL;
