@@ -21,6 +21,7 @@
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 
+#include <drm/drm_aperture.h>
 #include <drm/drm_atomic_helper.h>
 #include <drm/drm_crtc.h>
 #include <drm/drm_debugfs.h>
@@ -312,6 +313,15 @@ static int hdlcd_drm_bind(struct device *dev)
 	if (ret < 0) {
 		DRM_ERROR("failed to initialise vblank\n");
 		goto err_vblank;
+	}
+
+	/*
+	 * If EFI left us running, take over from simple framebuffer
+	 * drivers. Read HDLCD_REG_COMMAND to see if we are enabled.
+	 */
+	if (hdlcd_read(hdlcd, HDLCD_REG_COMMAND)) {
+		hdlcd_write(hdlcd, HDLCD_REG_COMMAND, 0);
+		drm_aperture_remove_framebuffers(false, &hdlcd_driver);
 	}
 
 	drm_mode_config_reset(drm);
