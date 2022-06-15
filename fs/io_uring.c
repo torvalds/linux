@@ -844,6 +844,7 @@ enum {
 	REQ_F_SINGLE_POLL_BIT,
 	REQ_F_DOUBLE_POLL_BIT,
 	REQ_F_PARTIAL_IO_BIT,
+	REQ_F_CQE32_INIT_BIT,
 	REQ_F_APOLL_MULTISHOT_BIT,
 	/* keep async read/write and isreg together and in order */
 	REQ_F_SUPPORT_NOWAIT_BIT,
@@ -913,6 +914,8 @@ enum {
 	REQ_F_PARTIAL_IO	= BIT(REQ_F_PARTIAL_IO_BIT),
 	/* fast poll multishot mode */
 	REQ_F_APOLL_MULTISHOT	= BIT(REQ_F_APOLL_MULTISHOT_BIT),
+	/* ->extra1 and ->extra2 are initialised */
+	REQ_F_CQE32_INIT	= BIT(REQ_F_CQE32_INIT_BIT),
 };
 
 struct async_poll {
@@ -2488,8 +2491,12 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 						req->cqe.res, req->cqe.flags,
 						0, 0);
 	} else {
-		u64 extra1 = req->extra1;
-		u64 extra2 = req->extra2;
+		u64 extra1 = 0, extra2 = 0;
+
+		if (req->flags & REQ_F_CQE32_INIT) {
+			extra1 = req->extra1;
+			extra2 = req->extra2;
+		}
 
 		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
 					req->cqe.res, req->cqe.flags, extra1, extra2);
@@ -5019,6 +5026,7 @@ static inline void io_req_set_cqe32_extra(struct io_kiocb *req,
 {
 	req->extra1 = extra1;
 	req->extra2 = extra2;
+	req->flags |= REQ_F_CQE32_INIT;
 }
 
 /*
