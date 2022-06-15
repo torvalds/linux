@@ -2653,7 +2653,7 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 				   &p_info);
 	if (ret) {
 		dev_err(isp->dev, "can't get info from pipe\n");
-		goto stream_err;
+		goto get_info_err;
 	}
 
 	switch (type) {
@@ -2684,6 +2684,8 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 
 	return 0;
 
+get_info_err:
+	__destroy_streams(asd, true);
 stream_err:
 	__destroy_pipes(asd, true);
 	return -EINVAL;
