@@ -26,6 +26,8 @@
 
 #include <linux/iio/iio.h>
 #include <linux/iio/sysfs.h>
+#include <linux/gpio.h>
+#include <linux/of_gpio.h>
 
 #define VL6180_DRV_NAME "vl6180"
 
@@ -87,6 +89,8 @@ struct vl6180_data {
 	struct mutex lock;
 	unsigned int als_gain_milli;
 	unsigned int als_it_ms;
+	struct gpio_desc *avdd;
+	struct gpio_desc *chip_enable;
 };
 
 enum { VL6180_ALS, VL6180_RANGE, VL6180_PROX };
@@ -439,10 +443,39 @@ static const struct iio_info vl6180_info = {
 	.attrs = &vl6180_attribute_group,
 };
 
+static int vl6180_power_enable(struct vl6180_data *data)
+{
+	/* Enable power supply. */
+	if (!IS_ERR_OR_NULL(data->avdd))
+		gpiod_set_value_cansleep(data->avdd, 1);
+
+	/* Power-up default is chip enable (CE). */
+	if (!IS_ERR_OR_NULL(data->chip_enable)) {
+		gpiod_set_value_cansleep(data->chip_enable, 0);
+		usleep_range(500, 1000);
+		gpiod_set_value_cansleep(data->chip_enable, 1);
+	}
+
+	return 0;
+}
+
 static int vl6180_init(struct vl6180_data *data)
 {
 	struct i2c_client *client = data->client;
 	int ret;
+
+	ret = vl6180_power_enable(data);
+	if (ret) {
+		dev_err(&client->dev, "failed to configure power\n");
+		return ret;
+	}
+
+	/*
+	 * After the MCU boot sequence the device enters software standby,
+	 * host initialization can commence immediately after entering
+	 * software standby.
+	 */
+	usleep_range(500, 1000);
 
 	ret = vl6180_read_byte(client, VL6180_MODEL_ID);
 	if (ret < 0)
@@ -514,6 +547,15 @@ static int vl6180_probe(struct i2c_client *client,
 	indio_dev->num_channels = ARRAY_SIZE(vl6180_channels);
 	indio_dev->name = VL6180_DRV_NAME;
 	indio_dev->modes = INDIO_DIRECT_MODE;
+
+	/*
+	 * NOTE: If the power is controlled by gpio, the power
+	 * configuration should match the power-up timing.
+	 */
+	data->avdd = devm_gpiod_get_optional(&client->dev, "avdd",
+					     GPIOD_OUT_HIGH);
+	data->chip_enable = devm_gpiod_get_optional(&client->dev, "chip-enable",
+						    GPIOD_OUT_HIGH);
 
 	ret = vl6180_init(data);
 	if (ret < 0)
