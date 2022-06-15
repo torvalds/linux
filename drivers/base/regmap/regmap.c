@@ -2221,6 +2221,28 @@ int regmap_field_update_bits_base(struct regmap_field *field,
 EXPORT_SYMBOL_GPL(regmap_field_update_bits_base);
 
 /**
+ * regmap_field_test_bits() - Check if all specified bits are set in a
+ *                            register field.
+ *
+ * @field: Register field to operate on
+ * @bits: Bits to test
+ *
+ * Returns -1 if the underlying regmap_field_read() fails, 0 if at least one of the
+ * tested bits is not set and 1 if all tested bits are set.
+ */
+int regmap_field_test_bits(struct regmap_field *field, unsigned int bits)
+{
+	unsigned int val, ret;
+
+	ret = regmap_field_read(field, &val);
+	if (ret)
+		return ret;
+
+	return (val & bits) == bits;
+}
+EXPORT_SYMBOL_GPL(regmap_field_test_bits);
+
+/**
  * regmap_fields_update_bits_base() - Perform a read/modify/write cycle a
  *                                    register field with port ID
  *
