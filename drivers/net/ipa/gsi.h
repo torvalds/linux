@@ -117,9 +117,9 @@ struct gsi_channel {
 	struct gsi_ring tre_ring;
 	u32 evt_ring_id;
 
+	/* The following counts are used only for TX endpoints */
 	u64 byte_count;			/* total # bytes transferred */
 	u64 trans_count;		/* total # transactions */
-	/* The following counts are used only for TX endpoints */
 	u64 queued_byte_count;		/* last reported queued byte count */
 	u64 queued_trans_count;		/* ...and queued trans count */
 	u64 compl_byte_count;		/* last reported completed byte count */

@@ -991,6 +991,17 @@ void gsi_resume(struct gsi *gsi)
 	enable_irq(gsi->irq);
 }
 
+void gsi_trans_tx_committed(struct gsi_trans *trans)
+{
+	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
+
+	channel->trans_count++;
+	channel->byte_count += trans->len;
+
+	trans->trans_count = channel->trans_count;
+	trans->byte_count = channel->byte_count;
+}
+
 void gsi_trans_tx_queued(struct gsi_trans *trans)
 {
 	u32 channel_id = trans->channel_id;
@@ -1010,42 +1021,36 @@ void gsi_trans_tx_queued(struct gsi_trans *trans)
 }
 
 /**
- * gsi_channel_tx_update() - Report completed TX transfers
- * @channel:	Channel that has completed transmitting packets
- * @trans:	Last transation known to be complete
+ * gsi_trans_tx_completed() - Report completed TX transactions
+ * @trans:	TX channel transaction that has completed
  *
- * Compute the number of transactions and bytes that have been transferred
- * over a TX channel since the given transaction was committed.  Report this
- * information to the network stack.
+ * Report that a transaction on a TX channel has completed.  At the time a
+ * transaction is committed, we record *in the transaction* its channel's
+ * committed transaction and byte counts.  Transactions are completed in
+ * order, and the difference between the channel's byte/transaction count
+ * when the transaction was committed and when it completes tells us
+ * exactly how much data has been transferred while the transaction was
+ * pending.
  *
- * At the time a transaction is committed, we record its channel's
- * committed transaction and byte counts *in the transaction*.
- * Completions are signaled by the hardware with an interrupt, and
- * we can determine the latest completed transaction at that time.
- *
- * The difference between the byte/transaction count recorded in
- * the transaction and the count last time we recorded a completion
- * tells us exactly how much data has been transferred between
- * completions.
- *
- * Calling this each time we learn of a newly-completed transaction
- * allows us to provide accurate information to the network stack
- * about how much work has been completed by the hardware at a given
- * point in time.
+ * We report this information to the network stack, which uses it to manage
+ * the rate at which data is sent to hardware.
  */
-static void
-gsi_channel_tx_update(struct gsi_channel *channel, struct gsi_trans *trans)
+static void gsi_trans_tx_completed(struct gsi_trans *trans)
 {
-	u64 byte_count = trans->byte_count + trans->len;
-	u64 trans_count = trans->trans_count + 1;
+	u32 channel_id = trans->channel_id;
+	struct gsi *gsi = trans->gsi;
+	struct gsi_channel *channel;
+	u32 trans_count;
+	u32 byte_count;
 
-	byte_count -= channel->compl_byte_count;
-	channel->compl_byte_count += byte_count;
-	trans_count -= channel->compl_trans_count;
+	channel = &gsi->channel[channel_id];
+	trans_count = trans->trans_count - channel->compl_trans_count;
+	byte_count = trans->byte_count - channel->compl_byte_count;
+
 	channel->compl_trans_count += trans_count;
+	channel->compl_byte_count += byte_count;
 
-	ipa_gsi_channel_tx_completed(channel->gsi, gsi_channel_id(channel),
-				     trans_count, byte_count);
+	ipa_gsi_channel_tx_completed(gsi, channel_id, trans_count, byte_count);
 }
 
 /* Channel control interrupt handler */
@@ -1365,8 +1370,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	struct gsi_event *event_done;
 	struct gsi_event *event;
 	struct gsi_trans *trans;
-	u32 trans_count = 0;
-	u32 byte_count = 0;
 	u32 event_avail;
 	u32 old_index;
 
@@ -1390,8 +1393,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	event_done = gsi_ring_virt(ring, index);
 	do {
 		trans->len = __le16_to_cpu(event->len);
-		byte_count += trans->len;
-		trans_count++;
 
 		/* Move on to the next event and transaction */
 		if (--event_avail)
@@ -1400,10 +1401,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 			event = gsi_ring_virt(ring, 0);
 		trans = gsi_trans_pool_next(&trans_info->pool, trans);
 	} while (event != event_done);
-
-	/* We record RX bytes when they are received */
-	channel->byte_count += byte_count;
-	channel->trans_count += trans_count;
 }
 
 /* Initialize a ring, including allocating DMA memory for its entries */
@@ -1503,7 +1500,7 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	 * up the network stack.
 	 */
 	if (channel->toward_ipa)
-		gsi_channel_tx_update(channel, trans);
+		gsi_trans_tx_completed(trans);
 	else
 		gsi_evt_ring_rx_update(evt_ring, index);
 
