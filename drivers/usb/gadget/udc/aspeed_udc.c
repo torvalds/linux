@@ -903,7 +903,7 @@ static void ast_udc_epn_handle_desc(struct ast_udc_dev *udc, u16 ep_num)
 	int i;
 
 	if (list_empty(&ep->queue)) {
-		dev_warn(dev, "%s reqest queue empty !\n", ep->ep.name);
+		dev_warn(dev, "%s request queue empty!\n", ep->ep.name);
 		return;
 	}
 
@@ -1035,7 +1035,7 @@ static void ast_udc_ep0_handle_setup(struct ast_udc_dev *udc)
 
 	memcpy_fromio(&crq, udc->creq, sizeof(crq));
 
-	SETUP_DBG(udc, "SETEUP packet: %02x/%02x/%04x/%04x/%04x\n",
+	SETUP_DBG(udc, "SETUP packet: %02x/%02x/%04x/%04x/%04x\n",
 		  crq.bRequestType, crq.bRequest, le16_to_cpu(crq.wValue),
 		  le16_to_cpu(crq.wIndex), le16_to_cpu(crq.wLength));
 
