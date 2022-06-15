@@ -31,6 +31,7 @@
 #include <linux/bitops.h>
 #include <linux/pinctrl/pinconf.h>
 #include <linux/pinctrl/pinconf-generic.h>
+#include <linux/pinctrl/pinmux.h>
 
 #include "core.h"
 #include "pinctrl-utils.h"
@@ -955,13 +956,114 @@ static const struct dev_pm_ops amd_gpio_pm_ops = {
 };
 #endif
 
+static int amd_get_functions_count(struct pinctrl_dev *pctldev)
+{
+	return ARRAY_SIZE(pmx_functions);
+}
+
+static const char *amd_get_fname(struct pinctrl_dev *pctrldev, unsigned int selector)
+{
+	return pmx_functions[selector].name;
+}
+
+static int amd_get_groups(struct pinctrl_dev *pctrldev, unsigned int selector,
+			  const char * const **groups,
+			  unsigned int * const num_groups)
+{
+	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctrldev);
+
+	if (!gpio_dev->iomux_base) {
+		dev_err(&gpio_dev->pdev->dev, "iomux function %d group not supported\n", selector);
+		return -EINVAL;
+	}
+
+	*groups = pmx_functions[selector].groups;
+	*num_groups = pmx_functions[selector].ngroups;
+	return 0;
+}
+
+static int amd_set_mux(struct pinctrl_dev *pctrldev, unsigned int function, unsigned int group)
+{
+	struct amd_gpio *gpio_dev = pinctrl_dev_get_drvdata(pctrldev);
+	struct device *dev = &gpio_dev->pdev->dev;
+	struct pin_desc *pd;
+	int ind, index;
+
+	if (!gpio_dev->iomux_base)
+		return -EINVAL;
+
+	for (index = 0; index < NSELECTS; index++) {
+		if (strcmp(gpio_dev->groups[group].name,  pmx_functions[function].groups[index]))
+			continue;
+
+		if (readb(gpio_dev->iomux_base + pmx_functions[function].index) ==
+				FUNCTION_INVALID) {
+			dev_err(dev, "IOMUX_GPIO 0x%x not present or supported\n",
+				pmx_functions[function].index);
+			return -EINVAL;
+		}
+
+		writeb(index, gpio_dev->iomux_base + pmx_functions[function].index);
+
+		if (index != (readb(gpio_dev->iomux_base + pmx_functions[function].index) &
+					FUNCTION_MASK)) {
+			dev_err(dev, "IOMUX_GPIO 0x%x not present or supported\n",
+				pmx_functions[function].index);
+			return -EINVAL;
+		}
+
+		for (ind = 0; ind < gpio_dev->groups[group].npins; ind++) {
+			if (strncmp(gpio_dev->groups[group].name, "IMX_F", strlen("IMX_F")))
+				continue;
+
+			pd = pin_desc_get(gpio_dev->pctrl, gpio_dev->groups[group].pins[ind]);
+			pd->mux_owner = gpio_dev->groups[group].name;
+		}
+		break;
+	}
+
+	return 0;
+}
+
+static const struct pinmux_ops amd_pmxops = {
+	.get_functions_count = amd_get_functions_count,
+	.get_function_name = amd_get_fname,
+	.get_function_groups = amd_get_groups,
+	.set_mux = amd_set_mux,
+};
+
 static struct pinctrl_desc amd_pinctrl_desc = {
 	.pins	= kerncz_pins,
 	.npins = ARRAY_SIZE(kerncz_pins),
 	.pctlops = &amd_pinctrl_ops,
+	.pmxops = &amd_pmxops,
 	.confops = &amd_pinconf_ops,
 	.owner = THIS_MODULE,
 };
+
+static void amd_get_iomux_res(struct amd_gpio *gpio_dev)
+{
+	struct pinctrl_desc *desc = &amd_pinctrl_desc;
+	struct device *dev = &gpio_dev->pdev->dev;
+	int index;
+
+	index = device_property_match_string(dev, "pinctrl-resource-names",  "iomux");
+	if (index < 0) {
+		dev_warn(dev, "failed to get iomux index\n");
+		goto out_no_pinmux;
+	}
+
+	gpio_dev->iomux_base = devm_platform_ioremap_resource(gpio_dev->pdev, index);
+	if (IS_ERR(gpio_dev->iomux_base)) {
+		dev_warn(dev, "Failed to get iomux %d io resource\n", index);
+		goto out_no_pinmux;
+	}
+
+	return;
+
+out_no_pinmux:
+	desc->pmxops = NULL;
+}
 
 static int amd_gpio_probe(struct platform_device *pdev)
 {
@@ -1020,6 +1122,7 @@ static int amd_gpio_probe(struct platform_device *pdev)
 	gpio_dev->ngroups = ARRAY_SIZE(kerncz_groups);
 
 	amd_pinctrl_desc.name = dev_name(&pdev->dev);
+	amd_get_iomux_res(gpio_dev);
 	gpio_dev->pctrl = devm_pinctrl_register(&pdev->dev, &amd_pinctrl_desc,
 						gpio_dev);
 	if (IS_ERR(gpio_dev->pctrl)) {
