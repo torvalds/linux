@@ -40,12 +40,17 @@
 #define VL6180_MODEL_ID_VAL 0xb4
 
 /* Configuration registers */
+#define VL6180_SYS_MODE_GPIO1 0x011
 #define VL6180_INTR_CONFIG 0x014
 #define VL6180_INTR_CLEAR 0x015
 #define VL6180_OUT_OF_RESET 0x016
 #define VL6180_HOLD 0x017
 #define VL6180_RANGE_START 0x018
+#define VL6180_RANGE_INTER_MES_PERIOD 0x01b
 #define VL6180_ALS_START 0x038
+#define VL6180_ALS_THRESH_HIGH 0x03a
+#define VL6180_ALS_THRESH_LOW 0x03c
+#define VL6180_ALS_INTER_MES_PERIOD 0x03e
 #define VL6180_ALS_GAIN 0x03f
 #define VL6180_ALS_IT 0x040
 
@@ -58,6 +63,23 @@
 #define VL6180_ALS_VALUE 0x050
 #define VL6180_RANGE_VALUE 0x062
 #define VL6180_RANGE_RATE 0x066
+
+#define VL6180_RANGE_THRESH_HIGH 0x019
+#define VL6180_RANGE_THRESH_LOW 0x01a
+#define VL6180_RANGE_MAX_CONVERGENCE_TIME 0x01c
+#define VL6180_RANGE_CROSSTALK_COMPENSATION_RATE 0x01e
+#define VL6180_RANGE_PART_TO_PART_RANGE_OFFSET 0x024
+#define VL6180_RANGE_RANGE_IGNORE_VALID_HEIGHT 0x025
+#define VL6180_RANGE_RANGE_IGNORE_THRESHOLD 0x026
+#define VL6180_RANGE_MAX_AMBIENT_LEVEL_MULT 0x02c
+#define VL6180_RANGE_RANGE_CHECK_ENABLES 0x02d
+#define VL6180_RANGE_VHV_RECALIBRATE 0x02e
+#define VL6180_RANGE_VHV_REPEAT_RATE 0x031
+#define VL6180_READOUT_AVERAGING_SAMPLE_PERIOD 0x10a
+
+/* bits of the SYS_MODE_GPIO1 register */
+#define VL6180_SYS_GPIO1_POLARITY BIT(5) /* active high */
+#define VL6180_SYS_GPIO1_SELECT BIT(4) /* configure GPIO interrupt output */
 
 /* bits of the RANGE_START and ALS_START register */
 #define VL6180_MODE_CONT BIT(1) /* continuous mode */
@@ -147,6 +169,49 @@ static const struct vl6180_chan_regs vl6180_chan_regs_table[] = {
 		.value_reg = VL6180_RANGE_RATE,
 		.word = true,
 	},
+};
+
+/**
+ * struct vl6180_custom_data - Data for custom initialization
+ * @reg:			Register
+ * @val:			Value
+ */
+struct vl6180_custom_data {
+	u16 reg;
+	u8 val;
+};
+
+static const struct vl6180_custom_data vl6180_custom_data_table[] = {
+	{ .reg = 0x207, .val = 0x01, },
+	{ .reg = 0x208, .val = 0x01, },
+	{ .reg = 0x096, .val = 0x00, },
+	{ .reg = 0x097, .val = 0xfd, },
+	{ .reg = 0x0e3, .val = 0x00, },
+	{ .reg = 0x0e4, .val = 0x04, },
+	{ .reg = 0x0e5, .val = 0x02, },
+	{ .reg = 0x0e6, .val = 0x01, },
+	{ .reg = 0x0e7, .val = 0x03, },
+	{ .reg = 0x0f5, .val = 0x02, },
+	{ .reg = 0x0d9, .val = 0x05, },
+	{ .reg = 0x0db, .val = 0xce, },
+	{ .reg = 0x0dc, .val = 0x03, },
+	{ .reg = 0x0dd, .val = 0xf8, },
+	{ .reg = 0x09f, .val = 0x00, },
+	{ .reg = 0x0a3, .val = 0x3c, },
+	{ .reg = 0x0b7, .val = 0x00, },
+	{ .reg = 0x0bb, .val = 0x3c, },
+	{ .reg = 0x0b2, .val = 0x09, },
+	{ .reg = 0x0ca, .val = 0x09, },
+	{ .reg = 0x198, .val = 0x01, },
+	{ .reg = 0x1b0, .val = 0x17, },
+	{ .reg = 0x1ad, .val = 0x00, },
+	{ .reg = 0x0ff, .val = 0x05, },
+	{ .reg = 0x100, .val = 0x05, },
+	{ .reg = 0x199, .val = 0x05, },
+	{ .reg = 0x1a6, .val = 0x1b, },
+	{ .reg = 0x1ac, .val = 0x3e, },
+	{ .reg = 0x1a7, .val = 0x1f, },
+	{ .reg = 0x030, .val = 0x00, },
 };
 
 static int vl6180_read(struct i2c_client *client, u16 cmd, void *databuf,
@@ -498,6 +563,178 @@ static int vl6180_power_enable(struct vl6180_data *data)
 	return 0;
 }
 
+static int vl6180_custom_init(struct vl6180_data *data)
+{
+	struct i2c_client *client = data->client;
+	int ret;
+	int i;
+
+	/* REGISTER_TUNING_SR03_270514_CustomerView.txt */
+	for (i = 0; i < ARRAY_SIZE(vl6180_custom_data_table); ++i) {
+		ret = vl6180_write_byte(client,
+					vl6180_custom_data_table[i].reg,
+					vl6180_custom_data_table[i].val);
+
+		if (ret < 0)
+			break;
+	}
+
+	return ret;
+}
+
+static int vl6180_range_init(struct vl6180_data *data)
+{
+	struct i2c_client *client = data->client;
+	int ret;
+	u8 enables;
+	u8 offset;
+	u8 xtalk = 3;
+
+	/* Enables polling for ‘New Sample ready’ when measurement completes */
+	ret = vl6180_write_byte(client, VL6180_SYS_MODE_GPIO1,
+				(VL6180_SYS_GPIO1_POLARITY |
+				 VL6180_SYS_GPIO1_SELECT));
+	if (ret < 0)
+		goto out;
+
+	/* Set the averaging sample period (compromise between lower noise and
+	 * increased execution time), 0x30 equals to 4.3 ms.
+	 */
+	ret = vl6180_write_byte(client, VL6180_READOUT_AVERAGING_SAMPLE_PERIOD,
+				0x30);
+	if (ret < 0)
+		goto out;
+
+	/* Sets the # of range measurements after which auto calibration of
+	 * system is performed
+	 */
+	ret = vl6180_write_byte(client, VL6180_RANGE_VHV_REPEAT_RATE, 0xff);
+	if (ret < 0)
+		goto out;
+
+	/* Perform a single temperature calibration of the ranging sensor */
+	ret = vl6180_write_byte(client, VL6180_RANGE_VHV_RECALIBRATE, 0x01);
+	if (ret < 0)
+		goto out;
+
+	/* Set SNR limit to 0.06 */
+	ret = vl6180_write_byte(client, VL6180_RANGE_MAX_AMBIENT_LEVEL_MULT,
+				0xff);
+	if (ret < 0)
+		goto out;
+
+	/* Set default ranging inter-measurement period to 100ms */
+	ret = vl6180_write_byte(client, VL6180_RANGE_INTER_MES_PERIOD, 0x09);
+	if (ret < 0)
+		goto out;
+
+	/* Copy registers */
+	/* NOTE: 0x0da, 0x027, 0x0db, 0x028, 0x0dc, 0x029 and 0x0dd are
+	 * unavailable on the datasheet.
+	 */
+	ret = vl6180_read_byte(client, VL6180_RANGE_RANGE_IGNORE_THRESHOLD);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, 0x0da, ret);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_read_byte(client, 0x027);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, 0x0db, ret);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_read_byte(client, 0x028);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, 0x0dc, ret);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_read_byte(client, 0x029);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, 0x0dd, ret);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_RANGE_MAX_CONVERGENCE_TIME, 0x32);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_read_byte(client, VL6180_RANGE_RANGE_CHECK_ENABLES);
+	if (ret < 0)
+		goto out;
+
+	/* Disable early convergence */
+	enables = ret & 0xfe;
+	ret = vl6180_write_byte(client, VL6180_RANGE_RANGE_CHECK_ENABLES, enables);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_RANGE_THRESH_HIGH, 0xc8);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_RANGE_THRESH_LOW, 0x00);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_ALS_IT, VL6180_ALS_IT_100);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_ALS_INTER_MES_PERIOD, 0x13);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_ALS_GAIN, VL6180_ALS_GAIN_1);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_ALS_THRESH_LOW, 0x00);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, VL6180_ALS_THRESH_HIGH, 0xff);
+	if (ret < 0)
+		goto out;
+
+	/* Cover glass ignore */
+	ret = vl6180_write_byte(client,
+				VL6180_RANGE_RANGE_IGNORE_VALID_HEIGHT, 0xff);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_read_byte(client, VL6180_RANGE_PART_TO_PART_RANGE_OFFSET);
+	if (ret < 0)
+		goto out;
+
+	/* Apply default calibration on part to part offset */
+	offset = ret / 4;
+	ret = vl6180_write_byte(client, VL6180_RANGE_PART_TO_PART_RANGE_OFFSET,
+				offset);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client,
+				VL6180_RANGE_CROSSTALK_COMPENSATION_RATE,
+				0x00);
+	if (ret < 0)
+		goto out;
+
+	ret = vl6180_write_byte(client, 0x01f, xtalk);
+
+out:
+	return ret;
+}
+
 static int vl6180_init(struct vl6180_data *data)
 {
 	struct i2c_client *client = data->client;
@@ -549,6 +786,19 @@ static int vl6180_init(struct vl6180_data *data)
 	/* ALS gain: 1 */
 	data->als_gain_milli = 1000;
 	ret = vl6180_write_byte(client, VL6180_ALS_GAIN, VL6180_ALS_GAIN_1);
+	if (ret < 0)
+		return ret;
+
+	ret = vl6180_custom_init(data);
+	if (ret < 0)
+		return ret;
+
+	ret = vl6180_range_init(data);
+	if (ret < 0)
+		return ret;
+
+	ret = vl6180_write_byte(client, VL6180_RANGE_START,
+				(VL6180_STARTSTOP | VL6180_MODE_CONT));
 	if (ret < 0)
 		return ret;
 
