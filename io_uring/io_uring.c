@@ -1314,7 +1314,6 @@ inline void io_req_task_complete(struct io_kiocb *req, bool *locked)
 {
 	if (*locked) {
 		req->cqe.flags |= io_put_kbuf(req, 0);
-		req->flags |= REQ_F_COMPLETE_INLINE;
 		io_req_add_compl_list(req);
 	} else {
 		req->cqe.flags |= io_put_kbuf(req, IO_URING_F_UNLOCKED);
