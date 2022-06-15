@@ -226,6 +226,19 @@
 	mem-supply = <&vdd_cpu_big1_mem_s0>;
 };
 
+&dmc {
+	system-status-level = <
+		/*system status         freq level*/
+		SYS_STATUS_NORMAL       DMC_FREQ_LEVEL_MID_HIGH
+		SYS_STATUS_REBOOT       DMC_FREQ_LEVEL_HIGH
+		SYS_STATUS_SUSPEND      DMC_FREQ_LEVEL_LOW
+		SYS_STATUS_BOOST        DMC_FREQ_LEVEL_HIGH
+		SYS_STATUS_ISP          DMC_FREQ_LEVEL_HIGH
+		SYS_STATUS_PERFORMANCE  DMC_FREQ_LEVEL_HIGH
+		SYS_STATUS_DUALVIEW     DMC_FREQ_LEVEL_HIGH
+	>;
+};
+
 &dp0 {
 	status = "disabled";
 };
