@@ -146,6 +146,14 @@ struct iommu_resv_region {
 	void (*free)(struct device *dev, struct iommu_resv_region *region);
 };
 
+struct iommu_iort_rmr_data {
+	struct iommu_resv_region rr;
+
+	/* Stream IDs associated with IORT RMR entry */
+	const u32 *sids;
+	u32 num_sids;
+};
+
 /**
  * enum iommu_dev_features - Per device IOMMU features
  * @IOMMU_DEV_FEAT_SVA: Shared Virtual Addresses
