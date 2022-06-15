@@ -364,6 +364,9 @@ static int get_syms(char ***symsp, size_t *cntp)
 			continue;
 		if (!strncmp(name, "rcu_", 4))
 			continue;
+		if (!strncmp(name, "__ftrace_invalid_address__",
+			     sizeof("__ftrace_invalid_address__") - 1))
+			continue;
 		err = hashmap__add(map, name, NULL);
 		if (err) {
 			free(name);
