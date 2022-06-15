@@ -129,16 +129,6 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	if (!call)
 		return NULL;
 
-	call->rxtx_buffer = kcalloc(RXRPC_RXTX_BUFF_SIZE,
-				    sizeof(struct sk_buff *),
-				    gfp);
-	if (!call->rxtx_buffer)
-		goto nomem;
-
-	call->rxtx_annotations = kcalloc(RXRPC_RXTX_BUFF_SIZE, sizeof(u8), gfp);
-	if (!call->rxtx_annotations)
-		goto nomem_2;
-
 	mutex_init(&call->user_mutex);
 
 	/* Prevent lockdep reporting a deadlock false positive between the afs
@@ -183,12 +173,6 @@ struct rxrpc_call *rxrpc_alloc_call(struct rxrpc_sock *rx, gfp_t gfp,
 	call->rtt_avail = RXRPC_CALL_RTT_AVAIL_MASK;
 	atomic_inc(&rxnet->nr_calls);
 	return call;
-
-nomem_2:
-	kfree(call->rxtx_buffer);
-nomem:
-	kmem_cache_free(rxrpc_call_jar, call);
-	return NULL;
 }
 
 /*
@@ -516,12 +500,6 @@ void rxrpc_get_call(struct rxrpc_call *call, enum rxrpc_call_trace op)
  */
 static void rxrpc_cleanup_ring(struct rxrpc_call *call)
 {
-	int i;
-
-	for (i = 0; i < RXRPC_RXTX_BUFF_SIZE; i++) {
-		rxrpc_free_skb(call->rxtx_buffer[i], rxrpc_skb_cleaned);
-		call->rxtx_buffer[i] = NULL;
-	}
 	skb_queue_purge(&call->recvmsg_queue);
 	skb_queue_purge(&call->rx_oos_queue);
 }
@@ -658,8 +636,6 @@ static void rxrpc_destroy_call(struct work_struct *work)
 
 	rxrpc_put_connection(call->conn);
 	rxrpc_put_peer(call->peer);
-	kfree(call->rxtx_buffer);
-	kfree(call->rxtx_annotations);
 	kmem_cache_free(rxrpc_call_jar, call);
 	if (atomic_dec_and_test(&rxnet->nr_calls))
 		wake_up_var(&rxnet->nr_calls);

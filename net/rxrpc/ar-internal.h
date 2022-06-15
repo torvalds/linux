@@ -617,21 +617,6 @@ struct rxrpc_call {
 	unsigned short		rx_pkt_offset;	/* Current recvmsg packet offset */
 	unsigned short		rx_pkt_len;	/* Current recvmsg packet len */
 
-	/* Rx/Tx circular buffer, depending on phase.
-	 *
-	 * In the Rx phase, packets are annotated with 0 or the number of the
-	 * segment of a jumbo packet each buffer refers to.  There can be up to
-	 * 47 segments in a maximum-size UDP packet.
-	 *
-	 * In the Tx phase, packets are annotated with which buffers have been
-	 * acked.
-	 */
-#define RXRPC_RXTX_BUFF_SIZE	64
-#define RXRPC_RXTX_BUFF_MASK	(RXRPC_RXTX_BUFF_SIZE - 1)
-#define RXRPC_INIT_RX_WINDOW_SIZE 63
-	struct sk_buff		**rxtx_buffer;
-	u8			*rxtx_annotations;
-
 	/* Transmitted data tracking. */
 	spinlock_t		tx_lock;	/* Transmit queue lock */
 	struct list_head	tx_buffer;	/* Buffer of transmissible packets */
