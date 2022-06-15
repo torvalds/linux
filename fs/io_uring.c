@@ -2518,6 +2518,11 @@ static noinline bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data,
 		WRITE_ONCE(cqe->user_data, user_data);
 		WRITE_ONCE(cqe->res, res);
 		WRITE_ONCE(cqe->flags, cflags);
+
+		if (ctx->flags & IORING_SETUP_CQE32) {
+			WRITE_ONCE(cqe->big_cqe[0], 0);
+			WRITE_ONCE(cqe->big_cqe[1], 0);
+		}
 		return true;
 	}
 	return io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
