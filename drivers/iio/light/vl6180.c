@@ -12,7 +12,7 @@
  * ALS: < 1 Lux up to 100 kLux
  * IR: 850nm
  *
- * TODO: irq, threshold events, continuous mode, hardware buffer
+ * TODO: threshold events, continuous mode
  */
 
 #include <linux/module.h>
@@ -28,6 +28,10 @@
 #include <linux/iio/sysfs.h>
 #include <linux/gpio.h>
 #include <linux/of_gpio.h>
+#include <linux/interrupt.h>
+#include <linux/iio/triggered_buffer.h>
+#include <linux/iio/kfifo_buf.h>
+#include <linux/iio/buffer.h>
 
 #define VL6180_DRV_NAME "vl6180"
 
@@ -60,8 +64,17 @@
 #define VL6180_STARTSTOP BIT(0) /* start measurement, auto-reset */
 
 /* bits of the INTR_STATUS and INTR_CONFIG register */
+#define VL6180_ALS_LEVEL_LOW BIT(3)
+#define VL6180_ALS_LEVEL_HIGH BIT(4)
+#define VL6180_ALS_OUT_OF_WINDOW (BIT(3) | BIT(4))
 #define VL6180_ALS_READY BIT(5)
+#define VL6180_RANGE_LEVEL_LOW BIT(0)
+#define VL6180_RANGE_LEVEL_HIGH BIT(1)
+#define VL6180_RANGE_OUT_OF_WINDOW (BIT(0) | BIT(1))
 #define VL6180_RANGE_READY BIT(2)
+#define VL6180_INT_RANGE_GPIO_MASK GENMASK(2, 0)
+#define VL6180_INT_ALS_GPIO_MASK GENMASK(5, 3)
+#define VL6180_INT_ERR_GPIO_MASK GENMASK(7, 6)
 
 /* bits of the INTR_CLEAR register */
 #define VL6180_CLEAR_ERROR BIT(2)
@@ -91,6 +104,13 @@ struct vl6180_data {
 	unsigned int als_it_ms;
 	struct gpio_desc *avdd;
 	struct gpio_desc *chip_enable;
+
+	/* Ensure natural alignment of timestamp */
+	struct {
+		u16 channels[3];
+		u16 reserved;
+		s64 ts;
+	} scan;
 };
 
 enum { VL6180_ALS, VL6180_RANGE, VL6180_PROX };
@@ -267,16 +287,35 @@ static const struct iio_chan_spec vl6180_channels[] = {
 			BIT(IIO_CHAN_INFO_INT_TIME) |
 			BIT(IIO_CHAN_INFO_SCALE) |
 			BIT(IIO_CHAN_INFO_HARDWAREGAIN),
+		.scan_index = 0,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+		}
 	}, {
 		.type = IIO_DISTANCE,
 		.address = VL6180_RANGE,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW) |
 			BIT(IIO_CHAN_INFO_SCALE),
+		.scan_index = 1,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+		}
 	}, {
 		.type = IIO_PROXIMITY,
 		.address = VL6180_PROX,
 		.info_mask_separate = BIT(IIO_CHAN_INFO_RAW),
-	}
+		.scan_index = 2,
+		.scan_type = {
+			.sign = 'u',
+			.realbits = 16,
+			.storagebits = 16,
+		}
+	},
+	IIO_CHAN_SOFT_TIMESTAMP(3),
 };
 
 /*
@@ -501,12 +540,6 @@ static int vl6180_init(struct vl6180_data *data)
 	if (ret != 0x01)
 		dev_info(&client->dev, "device is not fresh out of reset\n");
 
-	/* Enable ALS and Range ready interrupts */
-	ret = vl6180_write_byte(client, VL6180_INTR_CONFIG,
-				VL6180_ALS_READY | VL6180_RANGE_READY);
-	if (ret < 0)
-		return ret;
-
 	/* ALS integration time: 100ms */
 	data->als_it_ms = 100;
 	ret = vl6180_write_word(client, VL6180_ALS_IT, VL6180_ALS_IT_100);
@@ -526,11 +559,97 @@ static int vl6180_init(struct vl6180_data *data)
 	return vl6180_hold(data, false);
 }
 
+static irqreturn_t vl6180_irq_thread(int irq, void *priv)
+{
+	struct vl6180_data *data = priv;
+	struct i2c_client *client = data->client;
+	struct iio_dev *indio_dev = i2c_get_clientdata(client);
+	int ret;
+	u8 val = 0;
+
+	ret = vl6180_read_byte(client, VL6180_INTR_STATUS);
+	if (ret < 0)
+		goto out;
+
+	if (ret & VL6180_INT_ALS_GPIO_MASK)
+		val |= VL6180_CLEAR_ALS;
+
+	if (ret & VL6180_INT_RANGE_GPIO_MASK)
+		val |= VL6180_CLEAR_RANGE;
+
+	if (ret & VL6180_INT_ERR_GPIO_MASK)
+		val |= VL6180_CLEAR_ERROR;
+
+	vl6180_write_byte(client, VL6180_INTR_CLEAR, val);
+
+	ret = vl6180_read_word(client, VL6180_ALS_VALUE);
+	if (ret < 0)
+		goto out;
+	data->scan.channels[VL6180_ALS] = ret;
+
+	ret = vl6180_read_byte(client, VL6180_RANGE_VALUE);
+	if (ret < 0)
+		goto out;
+	data->scan.channels[VL6180_RANGE] = ret;
+
+	ret = vl6180_read_word(client, VL6180_RANGE_RATE);
+	if (ret < 0)
+		goto out;
+	data->scan.channels[VL6180_PROX] = ret;
+
+	iio_push_to_buffers_with_timestamp(indio_dev, &data->scan,
+					   ktime_get_boottime_ns());
+
+out:
+	return IRQ_HANDLED;
+}
+
+static int vl6180_buffer_preenable(struct iio_dev *indio_dev)
+{
+	struct vl6180_data *data = iio_priv(indio_dev);
+	u8 val;
+	int ret;
+
+	ret = vl6180_read_byte(data->client, VL6180_INTR_CONFIG);
+	if (ret < 0)
+		return ret;
+
+	/* Enable ALS and Range ready interrupts */
+	val = ret | VL6180_ALS_READY | VL6180_RANGE_READY;
+	ret = vl6180_write_byte(data->client, VL6180_INTR_CONFIG, val);
+
+	return ret;
+}
+
+static int vl6180_buffer_postdisable(struct iio_dev *indio_dev)
+{
+	struct vl6180_data *data = iio_priv(indio_dev);
+	u8 val;
+	int ret;
+
+	ret = vl6180_read_byte(data->client, VL6180_INTR_CONFIG);
+	if (ret < 0)
+		return ret;
+
+	/* Disable ALS and Range ready interrupts */
+	val = ret & ~(VL6180_ALS_READY | VL6180_RANGE_READY);
+	ret = vl6180_write_byte(data->client, VL6180_INTR_CONFIG, val);
+
+	return ret;
+}
+
+static const struct iio_buffer_setup_ops vl6180_buffer_setup_ops = {
+	.preenable = vl6180_buffer_preenable,
+	.postdisable = vl6180_buffer_postdisable,
+};
+
 static int vl6180_probe(struct i2c_client *client,
 			  const struct i2c_device_id *id)
 {
 	struct vl6180_data *data;
 	struct iio_dev *indio_dev;
+	struct iio_buffer *buffer;
+	u32 type;
 	int ret;
 
 	indio_dev = devm_iio_device_alloc(&client->dev, sizeof(*data));
@@ -560,6 +679,27 @@ static int vl6180_probe(struct i2c_client *client,
 	ret = vl6180_init(data);
 	if (ret < 0)
 		return ret;
+
+	if (client->irq) {
+		buffer = devm_iio_kfifo_allocate(&client->dev);
+		if (!buffer)
+			return -ENOMEM;
+
+		iio_device_attach_buffer(indio_dev, buffer);
+		indio_dev->modes |= INDIO_BUFFER_SOFTWARE;
+		indio_dev->setup_ops = &vl6180_buffer_setup_ops;
+
+		type = irqd_get_trigger_type(irq_get_irq_data(client->irq));
+		ret = devm_request_threaded_irq(&client->dev, client->irq,
+						NULL, vl6180_irq_thread,
+						type | IRQF_ONESHOT, "vl6180",
+						data);
+		if (ret) {
+			dev_err(&client->dev,
+				"failed to request vl6180 IRQ\n");
+			return ret;
+		}
+	}
 
 	return devm_iio_device_register(&client->dev, indio_dev);
 }
