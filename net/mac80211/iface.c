@@ -1525,7 +1525,8 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 			sta = sta_info_get_bss(sdata, mgmt->sa);
 
 			if (sta)
-				ieee80211_vht_handle_opmode(sdata, sta, 0,
+				ieee80211_vht_handle_opmode(sdata,
+							    &sta->deflink,
 							    opmode, band);
 
 			mutex_unlock(&local->sta_mtx);

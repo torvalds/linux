@@ -516,6 +516,7 @@ struct ieee80211_fragment_cache {
  * @status_stats.last_ack_signal: last ACK signal
  * @status_stats.ack_signal_filled: last ACK signal validity
  * @status_stats.avg_ack_signal: average ACK signal
+ * @pub: public (driver visible) link STA data
  * TODO Move other link params from sta_info as required for MLD operation
  */
 struct link_sta_info {
@@ -561,6 +562,8 @@ struct link_sta_info {
 	} tx_stats;
 
 	enum ieee80211_sta_rx_bandwidth cur_max_bandwidth;
+
+	struct ieee80211_link_sta *pub;
 };
 
 /**
@@ -708,7 +711,7 @@ struct sta_info {
 	struct ieee80211_fragment_cache frags;
 
 	struct link_sta_info deflink;
-	struct link_sta_info *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct link_sta_info __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 	/* keep last! */
 	struct ieee80211_sta sta;

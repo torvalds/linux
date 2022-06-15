@@ -67,6 +67,7 @@
 struct sta_link_alloc {
 	struct link_sta_info info;
 	struct ieee80211_link_sta sta;
+	struct rcu_head rcu_head;
 };
 
 static const struct rhashtable_params sta_rht_params = {
@@ -258,19 +259,23 @@ static void sta_info_free_link(struct link_sta_info *link_sta)
 static void sta_remove_link(struct sta_info *sta, unsigned int link_id)
 {
 	struct sta_link_alloc *alloc = NULL;
+	struct link_sta_info *link_sta;
 
-	if (WARN_ON(!sta->link[link_id]))
+	link_sta = rcu_dereference_protected(sta->link[link_id],
+					     lockdep_is_held(&sta->local->sta_mtx));
+
+	if (WARN_ON(!link_sta))
 		return;
 
-	if (sta->link[link_id] != &sta->deflink)
-		alloc = container_of(sta->link[link_id], typeof(*alloc), info);
+	if (link_sta != &sta->deflink)
+		alloc = container_of(link_sta, typeof(*alloc), info);
 
 	sta->sta.valid_links &= ~BIT(link_id);
-	sta->link[link_id] = NULL;
-	sta->sta.link[link_id] = NULL;
+	RCU_INIT_POINTER(sta->link[link_id], NULL);
+	RCU_INIT_POINTER(sta->sta.link[link_id], NULL);
 	if (alloc) {
 		sta_info_free_link(&alloc->info);
-		kfree(alloc);
+		kfree_rcu(alloc, rcu_head);
 	}
 }
 
@@ -404,8 +409,9 @@ static void sta_info_add_link(struct sta_info *sta,
 {
 	link_info->sta = sta;
 	link_info->link_id = link_id;
-	sta->link[link_id] = link_info;
-	sta->sta.link[link_id] = link_sta;
+	link_info->pub = link_sta;
+	rcu_assign_pointer(sta->link[link_id], link_info);
+	rcu_assign_pointer(sta->sta.link[link_id], link_sta);
 }
 
 struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
@@ -2682,13 +2688,15 @@ int ieee80211_sta_allocate_link(struct sta_info *sta, unsigned int link_id)
 int ieee80211_sta_activate_link(struct sta_info *sta, unsigned int link_id)
 {
 	struct ieee80211_sub_if_data *sdata = sta->sdata;
+	struct link_sta_info *link_sta;
 	u16 old_links = sta->sta.valid_links;
 	u16 new_links = old_links | BIT(link_id);
 	int ret;
 
-	lockdep_assert_held(&sdata->local->sta_mtx);
+	link_sta = rcu_dereference_protected(sta->link[link_id],
+					     lockdep_is_held(&sdata->local->sta_mtx));
 
-	if (WARN_ON(old_links == new_links || !sta->link[link_id]))
+	if (WARN_ON(old_links == new_links || !link_sta))
 		return -EINVAL;
 
 	sta->sta.valid_links = new_links;

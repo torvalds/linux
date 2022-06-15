@@ -3391,11 +3391,11 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			if (chanwidth == IEEE80211_HT_CHANWIDTH_20MHZ)
 				max_bw = IEEE80211_STA_RX_BW_20;
 			else
-				max_bw = ieee80211_sta_cap_rx_bw(rx->sta, 0);
+				max_bw = ieee80211_sta_cap_rx_bw(&rx->sta->deflink);
 
 			/* set cur_max_bandwidth and recalc sta bw */
 			rx->sta->deflink.cur_max_bandwidth = max_bw;
-			new_bw = ieee80211_sta_cur_vht_bw(rx->sta, 0);
+			new_bw = ieee80211_sta_cur_vht_bw(&rx->sta->deflink);
 
 			if (rx->sta->sta.deflink.bandwidth == new_bw)
 				goto handled;
@@ -3403,7 +3403,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			rx->sta->sta.deflink.bandwidth = new_bw;
 			sband = rx->local->hw.wiphy->bands[status->band];
 			sta_opmode.bw =
-				ieee80211_sta_rx_bw_to_chan_width(rx->sta, 0);
+				ieee80211_sta_rx_bw_to_chan_width(&rx->sta->deflink);
 			sta_opmode.changed = STA_OPMODE_MAX_BW_CHANGED;
 
 			rate_control_rate_update(local, sband, rx->sta, 0,

@@ -438,16 +438,18 @@ static void mesh_sta_info_init(struct ieee80211_sub_if_data *sdata,
 	sta->sta.deflink.supp_rates[sband->band] = rates;
 
 	if (ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-					      elems->ht_cap_elem, sta, 0))
+					      elems->ht_cap_elem,
+					      &sta->deflink))
 		changed |= IEEE80211_RC_BW_CHANGED;
 
 	ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-					    elems->vht_cap_elem, sta, 0);
+					    elems->vht_cap_elem,
+					    &sta->deflink);
 
 	ieee80211_he_cap_ie_to_sta_he_cap(sdata, sband, elems->he_cap,
 					  elems->he_cap_len,
 					  elems->he_6ghz_capa,
-					  sta, 0);
+					  &sta->deflink);
 
 	if (bw != sta->sta.deflink.bandwidth)
 		changed |= IEEE80211_RC_BW_CHANGED;

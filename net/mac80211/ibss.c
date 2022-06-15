@@ -1051,7 +1051,7 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 		memcpy(&htcap_ie, elems->ht_cap_elem, sizeof(htcap_ie));
 		rates_updated |= ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
 								   &htcap_ie,
-								   sta, 0);
+								   &sta->deflink);
 
 		if (elems->vht_operation && elems->vht_cap_elem &&
 		    sdata->u.ibss.chandef.width != NL80211_CHAN_WIDTH_20 &&
@@ -1068,7 +1068,8 @@ static void ieee80211_update_sta_info(struct ieee80211_sub_if_data *sdata,
 						   &chandef);
 			memcpy(&cap_ie, elems->vht_cap_elem, sizeof(cap_ie));
 			ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
-							    &cap_ie, sta, 0);
+							    &cap_ie,
+							    &sta->deflink);
 			if (memcmp(&cap, &sta->sta.deflink.vht_cap, sizeof(cap)))
 				rates_updated |= true;
 		}

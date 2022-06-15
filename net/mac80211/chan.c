@@ -207,16 +207,20 @@ ieee80211_find_reservation_chanctx(struct ieee80211_local *local,
 static enum nl80211_chan_width ieee80211_get_sta_bw(struct sta_info *sta,
 						    unsigned int link_id)
 {
-	enum ieee80211_sta_rx_bandwidth width =
-		ieee80211_sta_cap_rx_bw(sta, link_id);
+	enum ieee80211_sta_rx_bandwidth width;
+	struct link_sta_info *link_sta;
+
+	link_sta = rcu_dereference(sta->link[link_id]);
 
 	/* no effect if this STA has no presence on this link */
-	if (!sta->sta.link[link_id])
+	if (!link_sta)
 		return NL80211_CHAN_WIDTH_20_NOHT;
+
+	width = ieee80211_sta_cap_rx_bw(link_sta);
 
 	switch (width) {
 	case IEEE80211_STA_RX_BW_20:
-		if (sta->sta.link[link_id]->ht_cap.ht_supported)
+		if (link_sta->pub->ht_cap.ht_supported)
 			return NL80211_CHAN_WIDTH_20;
 		else
 			return NL80211_CHAN_WIDTH_20_NOHT;
@@ -416,6 +420,7 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 		for (link_id = 0; link_id < ARRAY_SIZE(sta->sdata->link); link_id++) {
 			struct ieee80211_bss_conf *link_conf =
 				sdata->vif.link_conf[link_id];
+			struct link_sta_info *link_sta;
 
 			if (!link_conf)
 				continue;
@@ -423,18 +428,22 @@ static void ieee80211_chan_bw_change(struct ieee80211_local *local,
 			if (rcu_access_pointer(link_conf->chanctx_conf) != &ctx->conf)
 				continue;
 
-			new_sta_bw = ieee80211_sta_cur_vht_bw(sta, link_id);
+			link_sta = rcu_dereference(sta->link[link_id]);
+			if (!link_sta)
+				continue;
+
+			new_sta_bw = ieee80211_sta_cur_vht_bw(link_sta);
 
 			/* nothing change */
-			if (new_sta_bw == sta->sta.link[link_id]->bandwidth)
+			if (new_sta_bw == link_sta->pub->bandwidth)
 				continue;
 
 			/* vif changed to narrow BW and narrow BW for station wasn't
 			 * requested or vise versa */
-			if ((new_sta_bw < sta->sta.link[link_id]->bandwidth) == !narrowed)
+			if ((new_sta_bw < link_sta->pub->bandwidth) == !narrowed)
 				continue;
 
-			sta->sta.link[link_id]->bandwidth = new_sta_bw;
+			link_sta->pub->bandwidth = new_sta_bw;
 			rate_control_rate_update(local, sband, sta, link_id,
 						 IEEE80211_RC_BW_CHANGED);
 		}

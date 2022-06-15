@@ -3566,12 +3566,13 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 	/* Set up internal HT/VHT capabilities */
 	if (elems->ht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_HT))
 		ieee80211_ht_cap_ie_to_sta_ht_cap(sdata, sband,
-						  elems->ht_cap_elem, sta, 0);
+						  elems->ht_cap_elem,
+						  &sta->deflink);
 
 	if (elems->vht_cap_elem && !(ifmgd->flags & IEEE80211_STA_DISABLE_VHT))
 		ieee80211_vht_cap_ie_to_sta_vht_cap(sdata, sband,
 						    elems->vht_cap_elem,
-						    sta, 0);
+						    &sta->deflink);
 
 	if (elems->he_operation && !(ifmgd->flags & IEEE80211_STA_DISABLE_HE) &&
 	    elems->he_cap) {
@@ -3579,7 +3580,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 						  elems->he_cap,
 						  elems->he_cap_len,
 						  elems->he_6ghz_capa,
-						  sta, 0);
+						  &sta->deflink);
 
 		bss_conf->he_support = sta->sta.deflink.he_cap.has_he;
 		if (elems->rsnx && elems->rsnx_len &&
@@ -3599,7 +3600,7 @@ static bool ieee80211_assoc_success(struct ieee80211_sub_if_data *sdata,
 							    elems->he_cap_len,
 							    elems->eht_cap,
 							    elems->eht_cap_len,
-							    sta, 0);
+							    &sta->deflink);
 
 			bss_conf->eht_support = sta->sta.deflink.eht_cap.has_eht;
 		} else {
@@ -4378,7 +4379,8 @@ static void ieee80211_rx_mgmt_beacon(struct ieee80211_sub_if_data *sdata,
 	}
 
 	if (sta && elems->opmode_notif)
-		ieee80211_vht_handle_opmode(sdata, sta, 0,
+		ieee80211_vht_handle_opmode(sdata,
+					    &sta->deflink,
 					    *elems->opmode_notif,
 					    rx_status->band);
 	mutex_unlock(&local->sta_mtx);
