@@ -581,8 +581,11 @@ static int __destroy_pipes(struct atomisp_sub_device *asd, bool force)
 
 void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd)
 {
-	__destroy_streams(asd, true);
-	__destroy_pipes(asd, true);
+	if (__destroy_streams(asd, true))
+		dev_warn(asd->isp->dev, "destroy stream failed.\n");
+
+	if (__destroy_pipes(asd, true))
+		dev_warn(asd->isp->dev, "destroy pipe failed.\n");
 }
 
 static void __apply_additional_pipe_config(
