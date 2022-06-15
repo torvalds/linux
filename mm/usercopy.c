@@ -161,29 +161,27 @@ static inline void check_bogus_address(const unsigned long ptr, unsigned long n,
 static inline void check_heap_object(const void *ptr, unsigned long n,
 				     bool to_user)
 {
+	uintptr_t addr = (uintptr_t)ptr;
+	unsigned long offset;
 	struct folio *folio;
 
 	if (is_kmap_addr(ptr)) {
-		unsigned long page_end = (unsigned long)ptr | (PAGE_SIZE - 1);
-
-		if ((unsigned long)ptr + n - 1 > page_end)
-			usercopy_abort("kmap", NULL, to_user,
-					offset_in_page(ptr), n);
+		offset = offset_in_page(ptr);
+		if (n > PAGE_SIZE - offset)
+			usercopy_abort("kmap", NULL, to_user, offset, n);
 		return;
 	}
 
 	if (is_vmalloc_addr(ptr)) {
-		struct vm_struct *area = find_vm_area(ptr);
-		unsigned long offset;
+		struct vmap_area *area = find_vmap_area(addr);
 
-		if (!area) {
+		if (!area)
 			usercopy_abort("vmalloc", "no area", to_user, 0, n);
-			return;
-		}
 
-		offset = ptr - area->addr;
-		if (offset + n > get_vm_area_size(area))
+		if (n > area->va_end - addr) {
+			offset = addr - area->va_start;
 			usercopy_abort("vmalloc", NULL, to_user, offset, n);
+		}
 		return;
 	}
 
@@ -196,8 +194,8 @@ static inline void check_heap_object(const void *ptr, unsigned long n,
 		/* Check slab allocator for flags and size. */
 		__check_heap_object(ptr, n, folio_slab(folio), to_user);
 	} else if (folio_test_large(folio)) {
-		unsigned long offset = ptr - folio_address(folio);
-		if (offset + n > folio_size(folio))
+		offset = ptr - folio_address(folio);
+		if (n > folio_size(folio) - offset)
 			usercopy_abort("page alloc", NULL, to_user, offset, n);
 	}
 }
