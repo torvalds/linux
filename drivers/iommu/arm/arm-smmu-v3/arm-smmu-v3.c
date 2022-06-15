@@ -3754,6 +3754,36 @@ static void __iomem *arm_smmu_ioremap(struct device *dev, resource_size_t start,
 	return devm_ioremap_resource(dev, &res);
 }
 
+static void arm_smmu_rmr_install_bypass_ste(struct arm_smmu_device *smmu)
+{
+	struct list_head rmr_list;
+	struct iommu_resv_region *e;
+
+	INIT_LIST_HEAD(&rmr_list);
+	iort_get_rmr_sids(dev_fwnode(smmu->dev), &rmr_list);
+
+	list_for_each_entry(e, &rmr_list, list) {
+		__le64 *step;
+		struct iommu_iort_rmr_data *rmr;
+		int ret, i;
+
+		rmr = container_of(e, struct iommu_iort_rmr_data, rr);
+		for (i = 0; i < rmr->num_sids; i++) {
+			ret = arm_smmu_init_sid_strtab(smmu, rmr->sids[i]);
+			if (ret) {
+				dev_err(smmu->dev, "RMR SID(0x%x) bypass failed\n",
+					rmr->sids[i]);
+				continue;
+			}
+
+			step = arm_smmu_get_step_for_sid(smmu, rmr->sids[i]);
+			arm_smmu_init_bypass_stes(step, 1, true);
+		}
+	}
+
+	iort_put_rmr_sids(dev_fwnode(smmu->dev), &rmr_list);
+}
+
 static int arm_smmu_device_probe(struct platform_device *pdev)
 {
 	int irq, ret;
@@ -3836,6 +3866,9 @@ static int arm_smmu_device_probe(struct platform_device *pdev)
 
 	/* Record our private device structure */
 	platform_set_drvdata(pdev, smmu);
+
+	/* Check for RMRs and install bypass STEs if any */
+	arm_smmu_rmr_install_bypass_ste(smmu);
 
 	/* Reset the device */
 	ret = arm_smmu_device_reset(smmu, bypass);
