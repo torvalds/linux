@@ -37,4 +37,6 @@ struct io_op_def {
 };
 
 extern const struct io_op_def io_op_defs[];
+
+void io_uring_optable_init(void);
 #endif

@@ -3,6 +3,8 @@
 
 #include <linux/blkdev.h>
 #include <linux/task_work.h>
+#include <linux/bitmap.h>
+#include <uapi/linux/io_uring.h>
 
 #include "io-wq.h"
 #include "filetable.h"
