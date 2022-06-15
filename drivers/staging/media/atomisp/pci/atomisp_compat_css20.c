@@ -3823,11 +3823,6 @@ void atomisp_css_set_cont_prev_start_time(struct atomisp_device *isp,
 	return;
 }
 
-void atomisp_css_acc_done(struct atomisp_sub_device *asd)
-{
-	complete(&asd->acc.acc_done);
-}
-
 /* Set the ACC binary arguments */
 int atomisp_css_set_acc_parameters(struct atomisp_acc_fw *acc_fw)
 {

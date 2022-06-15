@@ -322,10 +322,6 @@ struct atomisp_sub_device {
 
 	struct v4l2_ctrl *disable_dz;
 
-	struct {
-		struct completion acc_done;
-	} acc;
-
 	struct atomisp_subdev_params params;
 
 	struct atomisp_stream_env stream_env[ATOMISP_INPUT_STREAM_NUM];
