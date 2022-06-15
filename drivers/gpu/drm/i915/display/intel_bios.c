@@ -745,11 +745,10 @@ static int get_panel_type(struct drm_i915_private *i915,
 /* Parse general panel options */
 static void
 parse_panel_options(struct drm_i915_private *i915,
-		    struct intel_panel *panel,
-		    const struct edid *edid)
+		    struct intel_panel *panel)
 {
 	const struct bdb_lvds_options *lvds_options;
-	int panel_type;
+	int panel_type = panel->vbt.panel_type;
 	int drrs_mode;
 
 	lvds_options = find_section(i915, BDB_LVDS_OPTIONS);
@@ -757,10 +756,6 @@ parse_panel_options(struct drm_i915_private *i915,
 		return;
 
 	panel->vbt.lvds_dither = lvds_options->pixel_dither;
-
-	panel_type = get_panel_type(i915, edid);
-
-	panel->vbt.panel_type = panel_type;
 
 	drrs_mode = (lvds_options->dps_panel_type_bits
 				>> (panel_type * 2)) & MODE_MASK;
@@ -3116,7 +3111,9 @@ void intel_bios_init_panel(struct drm_i915_private *i915,
 {
 	init_vbt_panel_defaults(panel);
 
-	parse_panel_options(i915, panel, edid);
+	panel->vbt.panel_type = get_panel_type(i915, edid);
+
+	parse_panel_options(i915, panel);
 	parse_generic_dtd(i915, panel);
 	parse_lfp_data(i915, panel);
 	parse_lfp_backlight(i915, panel);
