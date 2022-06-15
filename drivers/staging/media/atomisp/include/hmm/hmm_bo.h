@@ -81,12 +81,6 @@ enum hmm_bo_type {
 	HMM_BO_LAST,
 };
 
-enum hmm_page_type {
-	HMM_PAGE_TYPE_RESERVED,
-	HMM_PAGE_TYPE_DYNAMIC,
-	HMM_PAGE_TYPE_GENERAL,
-};
-
 #define	HMM_BO_MASK		0x1
 #define	HMM_BO_FREE		0x0
 #define	HMM_BO_ALLOCED	0x1
@@ -123,7 +117,6 @@ struct hmm_bo_device {
 
 struct hmm_page_object {
 	struct page		*page;
-	enum hmm_page_type	type;
 };
 
 struct hmm_buffer_object {

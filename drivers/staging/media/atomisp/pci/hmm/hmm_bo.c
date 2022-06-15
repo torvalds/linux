@@ -631,32 +631,22 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 	int i, ret;
 
 	for (i = 0; i < free_pgnr; i++) {
-		switch (bo->page_obj[i].type) {
-		case HMM_PAGE_TYPE_RESERVED:
-			break;
-		case HMM_PAGE_TYPE_DYNAMIC:
-		case HMM_PAGE_TYPE_GENERAL:
-		default:
-			ret = set_pages_wb(bo->page_obj[i].page, 1);
-			if (ret)
-				dev_err(atomisp_dev,
-					"set page to WB err ...ret = %d\n",
-					ret);
-			/*
-			W/A: set_pages_wb seldom return value = -EFAULT
-			indicate that address of page is not in valid
-			range(0xffff880000000000~0xffffc7ffffffffff)
-			then, _free_pages would panic; Do not know why page
-			address be valid,it maybe memory corruption by lowmemory
-			*/
-			if (!ret) {
-				__free_pages(bo->page_obj[i].page, 0);
-			}
-			break;
+		ret = set_pages_wb(bo->page_obj[i].page, 1);
+		if (ret)
+			dev_err(atomisp_dev,
+				"set page to WB err ...ret = %d\n",
+				ret);
+		/*
+		W/A: set_pages_wb seldom return value = -EFAULT
+		indicate that address of page is not in valid
+		range(0xffff880000000000~0xffffc7ffffffffff)
+		then, _free_pages would panic; Do not know why page
+		address be valid,it maybe memory corruption by lowmemory
+		*/
+		if (!ret) {
+			__free_pages(bo->page_obj[i].page, 0);
 		}
 	}
-
-	return;
 }
 
 /*Allocate pages which will be used only by ISP*/
@@ -755,9 +745,8 @@ retry:
 				}
 			}
 
-			for (j = 0; j < blk_pgnr; j++) {
+			for (j = 0; j < blk_pgnr; j++, i++) {
 				bo->page_obj[i].page = pages + j;
-				bo->page_obj[i++].type = HMM_PAGE_TYPE_GENERAL;
 			}
 
 			pgnr -= blk_pgnr;
@@ -878,7 +867,6 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 
 	for (i = 0; i < bo->pgnr; i++) {
 		bo->page_obj[i].page = pages[i];
-		bo->page_obj[i].type = HMM_PAGE_TYPE_GENERAL;
 	}
 
 	return 0;
