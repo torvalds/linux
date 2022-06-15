@@ -20,8 +20,9 @@ struct io_uring_task {
 	struct io_wq_work_list	task_list;
 	struct io_wq_work_list	prio_task_list;
 	struct callback_head	task_work;
-	struct file		**registered_rings;
 	bool			task_running;
+
+	struct file		*registered_rings[IO_RINGFD_REG_MAX];
 };
 
 struct io_tctx_node {
