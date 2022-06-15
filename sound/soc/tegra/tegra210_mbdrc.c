@@ -775,7 +775,9 @@ int tegra210_mbdrc_hw_params(struct snd_soc_component *cmpnt)
 
 	regmap_read(ope->mbdrc_regmap, TEGRA210_MBDRC_CFG, &val);
 
-	if (val & TEGRA210_MBDRC_CFG_MBDRC_MODE_BYPASS)
+	val &= TEGRA210_MBDRC_CFG_MBDRC_MODE_MASK;
+
+	if (val == TEGRA210_MBDRC_CFG_MBDRC_MODE_BYPASS)
 		return 0;
 
 	for (i = 0; i < MBDRC_NUM_BAND; i++) {
