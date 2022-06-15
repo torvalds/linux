@@ -87,8 +87,6 @@ ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr);
  */
 int hmm_mmap(struct vm_area_struct *vma, ia_css_ptr virt);
 
-extern bool dypool_enable;
-extern unsigned int dypool_pgnr;
 extern struct hmm_bo_device bo_device;
 
 #endif
