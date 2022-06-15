@@ -156,11 +156,6 @@ struct sun8i_hdmi_phy_variant {
 	const struct dw_hdmi_phy_config *phy_cfg;
 	const struct dw_hdmi_phy_ops *phy_ops;
 	void (*phy_init)(struct sun8i_hdmi_phy *phy);
-	void (*phy_disable)(struct dw_hdmi *hdmi,
-			    struct sun8i_hdmi_phy *phy);
-	int  (*phy_config)(struct dw_hdmi *hdmi,
-			   struct sun8i_hdmi_phy *phy,
-			   unsigned int clk_rate);
 };
 
 struct sun8i_hdmi_phy {
