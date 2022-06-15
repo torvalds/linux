@@ -16,7 +16,7 @@ enum {
 	UCALL_UNHANDLED,
 };
 
-#define UCALL_MAX_ARGS 6
+#define UCALL_MAX_ARGS 7
 
 struct ucall {
 	uint64_t cmd;
