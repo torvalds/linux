@@ -39,7 +39,6 @@
 #include <sound/soc-dapm.h>
 
 #define DRV_NAME "rk-multicodecs"
-#define MAX_CODECS	2
 #define WAIT_CARDS	(SNDRV_CARDS - 1)
 #define DEFAULT_MCLK_FS	256
 
@@ -620,7 +619,7 @@ static int rk_multicodecs_probe(struct platform_device *pdev)
 	card->num_aux_devs = 0;
 
 	count = of_count_phandle_with_args(np, "rockchip,codec", NULL);
-	if (count < 0 || count > MAX_CODECS)
+	if (count < 0)
 		return -EINVAL;
 
 	/* refine codecs, remove unavailable node */
