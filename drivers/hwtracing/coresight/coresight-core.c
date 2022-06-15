@@ -1485,7 +1485,8 @@ static ssize_t sink_name_store(struct device *dev,
 			const char *buf, size_t size)
 {
 	u32 hash;
-	char *sink_name;
+
+	char sink_name[MAX_SINK_NAME] = "";
 	struct coresight_device *new_sink, *current_sink;
 	struct coresight_device *csdev = to_coresight_device(dev);
 
@@ -1497,10 +1498,8 @@ static ssize_t sink_name_store(struct device *dev,
 		return size;
 	}
 
-	sink_name = kstrdup(buf, GFP_KERNEL);
-	if (!sink_name)
-		return -ENOMEM;
-	sink_name[size-1] = 0;
+	if (sscanf(buf, "%s", sink_name) != 1)
+		return -EINVAL;
 
 	hash = hashlen_hash(hashlen_string(NULL, sink_name));
 	new_sink = coresight_get_sink_by_id(hash);
@@ -1510,13 +1509,11 @@ static ssize_t sink_name_store(struct device *dev,
 				new_sink && current_sink->type !=
 				new_sink->type)) {
 		dev_err(&csdev->dev,
-			"Sink name is invalid or another type sink is enabled.\n");
-		kfree(sink_name);
+			"Sink name [%s] is invalid or another type sink is enabled.\n", sink_name);
 		return -EINVAL;
 	}
 
 	csdev->def_sink = new_sink;
-	kfree(sink_name);
 
 	return size;
 }
