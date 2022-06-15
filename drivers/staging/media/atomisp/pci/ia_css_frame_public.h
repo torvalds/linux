@@ -169,7 +169,6 @@ struct ia_css_frame {
 	/** exposure id, see ia_css_event_public.h for more detail */
 	u32 isp_config_id; /** Unique ID to track which config was actually applied to a particular frame */
 	bool valid; /** First video output frame is not valid */
-	bool contiguous; /** memory is allocated physically contiguously */
 	union {
 		unsigned int	_initialisation_dummy;
 		struct ia_css_frame_plane raw;

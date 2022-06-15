@@ -732,10 +732,7 @@ static int frame_allocate_buffer_data(struct ia_css_frame *frame)
 	IA_CSS_ENTER_LEAVE_PRIVATE("frame->data_bytes=%d\n", frame->data_bytes);
 #endif
 	frame->data = hmm_alloc(frame->data_bytes,
-				HMM_BO_PRIVATE, 0, NULL,
-				frame->contiguous ?
-				ATOMISP_MAP_FLAG_CONTIGUOUS : 0);
-
+				HMM_BO_PRIVATE, 0, NULL, 0);
 	if (frame->data == mmgr_NULL)
 		return -ENOMEM;
 	return 0;
@@ -796,7 +793,6 @@ static struct ia_css_frame *frame_create(unsigned int width,
 	me->info.format = format;
 	me->info.padded_width = padded_width;
 	me->info.raw_bit_depth = raw_bit_depth;
-	me->contiguous = false;
 	me->valid = valid;
 	me->data_bytes = 0;
 	me->data = mmgr_NULL;
