@@ -40,7 +40,10 @@ struct iov_iter {
 	bool nofault;
 	bool data_source;
 	bool user_backed;
-	size_t iov_offset;
+	union {
+		size_t iov_offset;
+		int last_offset;
+	};
 	size_t count;
 	union {
 		const struct iovec *iov;

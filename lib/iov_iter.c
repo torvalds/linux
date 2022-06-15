@@ -199,7 +199,7 @@ static bool sanity(const struct iov_iter *i)
 	unsigned int i_head = i->head;
 	unsigned int idx;
 
-	if (i->iov_offset) {
+	if (i->last_offset) {
 		struct pipe_buffer *p;
 		if (unlikely(p_occupancy == 0))
 			goto Bad;	// pipe must be non-empty
@@ -207,7 +207,7 @@ static bool sanity(const struct iov_iter *i)
 			goto Bad;	// must be at the last buffer...
 
 		p = pipe_buf(pipe, i_head);
-		if (unlikely(p->offset + p->len != i->iov_offset))
+		if (unlikely(p->offset + p->len != abs(i->last_offset)))
 			goto Bad;	// ... at the end of segment
 	} else {
 		if (i_head != p_head)
@@ -215,7 +215,7 @@ static bool sanity(const struct iov_iter *i)
 	}
 	return true;
 Bad:
-	printk(KERN_ERR "idx = %d, offset = %zd\n", i_head, i->iov_offset);
+	printk(KERN_ERR "idx = %d, offset = %d\n", i_head, i->last_offset);
 	printk(KERN_ERR "head = %d, tail = %d, buffers = %d\n",
 			p_head, p_tail, pipe->ring_size);
 	for (idx = 0; idx < pipe->ring_size; idx++)
@@ -259,30 +259,31 @@ static void push_page(struct pipe_inode_info *pipe, struct page *page,
 	get_page(page);
 }
 
-static inline bool allocated(struct pipe_buffer *buf)
+static inline int last_offset(const struct pipe_buffer *buf)
 {
-	return buf->ops == &default_pipe_buf_ops;
+	if (buf->ops == &default_pipe_buf_ops)
+		return buf->len;	// buf->offset is 0 for those
+	else
+		return -(buf->offset + buf->len);
 }
 
 static struct page *append_pipe(struct iov_iter *i, size_t size,
 				unsigned int *off)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	size_t offset = i->iov_offset;
+	int offset = i->last_offset;
 	struct pipe_buffer *buf;
 	struct page *page;
 
-	if (offset && offset < PAGE_SIZE) {
-		// some space in the last buffer; can we add to it?
+	if (offset > 0 && offset < PAGE_SIZE) {
+		// some space in the last buffer; add to it
 		buf = pipe_buf(pipe, pipe->head - 1);
-		if (allocated(buf)) {
-			size = min_t(size_t, size, PAGE_SIZE - offset);
-			buf->len += size;
-			i->iov_offset += size;
-			i->count -= size;
-			*off = offset;
-			return buf->page;
-		}
+		size = min_t(size_t, size, PAGE_SIZE - offset);
+		buf->len += size;
+		i->last_offset += size;
+		i->count -= size;
+		*off = offset;
+		return buf->page;
 	}
 	// OK, we need a new buffer
 	*off = 0;
@@ -293,7 +294,7 @@ static struct page *append_pipe(struct iov_iter *i, size_t size,
 	if (!page)
 		return NULL;
 	i->head = pipe->head - 1;
-	i->iov_offset = size;
+	i->last_offset = size;
 	i->count -= size;
 	return page;
 }
@@ -313,11 +314,11 @@ static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t by
 	if (!sanity(i))
 		return 0;
 
-	if (offset && i->iov_offset == offset) { // could we merge it?
+	if (offset && i->last_offset == -offset) { // could we merge it?
 		struct pipe_buffer *buf = pipe_buf(pipe, head - 1);
 		if (buf->page == page) {
 			buf->len += bytes;
-			i->iov_offset += bytes;
+			i->last_offset -= bytes;
 			i->count -= bytes;
 			return bytes;
 		}
@@ -326,7 +327,7 @@ static size_t copy_page_to_iter_pipe(struct page *page, size_t offset, size_t by
 		return 0;
 
 	push_page(pipe, page, offset, bytes);
-	i->iov_offset = offset + bytes;
+	i->last_offset = -(offset + bytes);
 	i->head = head;
 	i->count -= bytes;
 	return bytes;
@@ -438,16 +439,15 @@ EXPORT_SYMBOL(iov_iter_init);
 static inline void data_start(const struct iov_iter *i,
 			      unsigned int *iter_headp, size_t *offp)
 {
-	unsigned int iter_head = i->head;
-	size_t off = i->iov_offset;
+	int off = i->last_offset;
 
-	if (off && (!allocated(pipe_buf(i->pipe, iter_head)) ||
-		    off == PAGE_SIZE)) {
-		iter_head++;
-		off = 0;
+	if (off > 0 && off < PAGE_SIZE) { // anon and not full
+		*iter_headp = i->pipe->head - 1;
+		*offp = off;
+	} else {
+		*iter_headp = i->pipe->head;
+		*offp = 0;
 	}
-	*iter_headp = iter_head;
-	*offp = off;
 }
 
 static size_t copy_pipe_to_iter(const void *addr, size_t bytes,
@@ -819,7 +819,7 @@ EXPORT_SYMBOL(copy_page_from_iter_atomic);
 static void pipe_advance(struct iov_iter *i, size_t size)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	unsigned int off = i->iov_offset;
+	int off = i->last_offset;
 
 	if (!off && !size) {
 		pipe_discard_from(pipe, i->start_head); // discard everything
@@ -829,10 +829,10 @@ static void pipe_advance(struct iov_iter *i, size_t size)
 	while (1) {
 		struct pipe_buffer *buf = pipe_buf(pipe, i->head);
 		if (off) /* make it relative to the beginning of buffer */
-			size += off - buf->offset;
+			size += abs(off) - buf->offset;
 		if (size <= buf->len) {
 			buf->len = size;
-			i->iov_offset = buf->offset + size;
+			i->last_offset = last_offset(buf);
 			break;
 		}
 		size -= buf->len;
@@ -916,7 +916,7 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 			struct pipe_buffer *b = pipe_buf(pipe, --head);
 			if (unroll < b->len) {
 				b->len -= unroll;
-				i->iov_offset = b->offset + b->len;
+				i->last_offset = last_offset(b);
 				i->head = head;
 				return;
 			}
@@ -924,7 +924,7 @@ void iov_iter_revert(struct iov_iter *i, size_t unroll)
 			pipe_buf_release(pipe, b);
 			pipe->head--;
 		}
-		i->iov_offset = 0;
+		i->last_offset = 0;
 		i->head = head;
 		return;
 	}
@@ -1027,7 +1027,7 @@ void iov_iter_pipe(struct iov_iter *i, unsigned int direction,
 		.pipe = pipe,
 		.head = pipe->head,
 		.start_head = pipe->head,
-		.iov_offset = 0,
+		.last_offset = 0,
 		.count = count
 	};
 }
@@ -1158,13 +1158,12 @@ bool iov_iter_is_aligned(const struct iov_iter *i, unsigned addr_mask,
 		return iov_iter_aligned_bvec(i, addr_mask, len_mask);
 
 	if (iov_iter_is_pipe(i)) {
-		unsigned int p_mask = i->pipe->ring_size - 1;
 		size_t size = i->count;
 
 		if (size & len_mask)
 			return false;
-		if (size && allocated(&i->pipe->bufs[i->head & p_mask])) {
-			if (i->iov_offset & addr_mask)
+		if (size && i->last_offset > 0) {
+			if (i->last_offset & addr_mask)
 				return false;
 		}
 
@@ -1243,8 +1242,8 @@ unsigned long iov_iter_alignment(const struct iov_iter *i)
 	if (iov_iter_is_pipe(i)) {
 		size_t size = i->count;
 
-		if (size && i->iov_offset && allocated(pipe_buf(i->pipe, i->head)))
-			return size | i->iov_offset;
+		if (size && i->last_offset > 0)
+			return size | i->last_offset;
 		return size;
 	}
 
