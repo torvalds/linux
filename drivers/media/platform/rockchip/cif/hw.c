@@ -1385,7 +1385,11 @@ static void __exit rk_cif_plat_drv_exit(void)
 	rkcif_csi2_plat_drv_exit();
 }
 
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+subsys_initcall(rk_cif_plat_drv_init);
+#else
 module_init(rk_cif_plat_drv_init);
+#endif
 module_exit(rk_cif_plat_drv_exit);
 
 MODULE_AUTHOR("Rockchip Camera/ISP team");
