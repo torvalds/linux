@@ -345,7 +345,7 @@ static int rpc_alloc_clid(struct rpc_clnt *clnt)
 {
 	int clid;
 
-	clid = ida_simple_get(&rpc_clids, 0, 0, GFP_KERNEL);
+	clid = ida_alloc(&rpc_clids, GFP_KERNEL);
 	if (clid < 0)
 		return clid;
 	clnt->cl_clid = clid;
@@ -354,7 +354,7 @@ static int rpc_alloc_clid(struct rpc_clnt *clnt)
 
 static void rpc_free_clid(struct rpc_clnt *clnt)
 {
-	ida_simple_remove(&rpc_clids, clnt->cl_clid);
+	ida_free(&rpc_clids, clnt->cl_clid);
 }
 
 static struct rpc_clnt * rpc_new_client(const struct rpc_create_args *args,

@@ -1788,7 +1788,7 @@ static int xprt_alloc_id(struct rpc_xprt *xprt)
 {
 	int id;
 
-	id = ida_simple_get(&rpc_xprt_ids, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&rpc_xprt_ids, GFP_KERNEL);
 	if (id < 0)
 		return id;
 
@@ -1798,7 +1798,7 @@ static int xprt_alloc_id(struct rpc_xprt *xprt)
 
 static void xprt_free_id(struct rpc_xprt *xprt)
 {
-	ida_simple_remove(&rpc_xprt_ids, xprt->id);
+	ida_free(&rpc_xprt_ids, xprt->id);
 }
 
 struct rpc_xprt *xprt_alloc(struct net *net, size_t size,
