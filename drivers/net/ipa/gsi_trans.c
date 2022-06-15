@@ -214,10 +214,14 @@ void *gsi_trans_pool_alloc_dma(struct gsi_trans_pool *pool, dma_addr_t *addr)
 	return pool->base + offset;
 }
 
-/* Map a given ring entry index to the transaction associated with it */
-static void gsi_channel_trans_map(struct gsi_channel *channel, u32 index,
-				  struct gsi_trans *trans)
+/* Map a TRE ring entry index to the transaction it is associated with */
+static void gsi_trans_map(struct gsi_trans *trans, u32 index)
 {
+	struct gsi_channel *channel = &trans->gsi->channel[trans->channel_id];
+
+	/* The completion event will indicate the last TRE used */
+	index += trans->used_count - 1;
+
 	/* Note: index *must* be used modulo the ring count here */
 	channel->trans_info.map[index % channel->tre_ring.count] = trans;
 }
@@ -568,14 +572,14 @@ static void __gsi_trans_commit(struct gsi_trans *trans, bool ring_db)
 		gsi_trans_tre_fill(dest_tre, addr, len, last_tre, bei, opcode);
 		dest_tre++;
 	}
+	/* Associate the TRE with the transaction */
+	gsi_trans_map(trans, tre_ring->index);
+
 	tre_ring->index += trans->used_count;
 
 	trans->len = byte_count;
 	if (channel->toward_ipa)
 		gsi_trans_tx_committed(trans);
-
-	/* Associate the last TRE with the transaction */
-	gsi_channel_trans_map(channel, tre_ring->index - 1, trans);
 
 	gsi_trans_move_pending(trans);
 
