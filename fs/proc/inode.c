@@ -26,8 +26,6 @@
 #include <linux/mount.h>
 #include <linux/bug.h>
 
-#include <linux/uaccess.h>
-
 #include "internal.h"
 
 static void proc_evict_inode(struct inode *inode)
