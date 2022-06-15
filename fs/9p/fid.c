@@ -28,7 +28,7 @@ static inline void __add_fid(struct dentry *dentry, struct p9_fid *fid)
 /**
  * v9fs_fid_add - add a fid to a dentry
  * @dentry: dentry that the fid is being added to
- * @fid: fid to add
+ * @pfid: fid to add, NULLed out
  *
  */
 void v9fs_fid_add(struct dentry *dentry, struct p9_fid **pfid)
@@ -72,7 +72,7 @@ static struct p9_fid *v9fs_fid_find_inode(struct inode *inode, kuid_t uid)
 /**
  * v9fs_open_fid_add - add an open fid to an inode
  * @inode: inode that the fid is being added to
- * @fid: fid to add
+ * @pfid: fid to add, NULLed out
  *
  */
 
