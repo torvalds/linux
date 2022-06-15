@@ -124,7 +124,19 @@ static const struct dw_hdmi_phy_config sun50i_h6_phy_config[] = {
 };
 
 static void sun8i_hdmi_phy_set_polarity(struct sun8i_hdmi_phy *phy,
-					const struct drm_display_mode *mode);
+					const struct drm_display_mode *mode)
+{
+	u32 val = 0;
+
+	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
+		val |= SUN8I_HDMI_PHY_DBG_CTRL_POL_NHSYNC;
+
+	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
+		val |= SUN8I_HDMI_PHY_DBG_CTRL_POL_NVSYNC;
+
+	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_DBG_CTRL_REG,
+			   SUN8I_HDMI_PHY_DBG_CTRL_POL_MASK, val);
+};
 
 static int sun8i_a83t_hdmi_phy_config(struct dw_hdmi *hdmi, void *data,
 				      const struct drm_display_info *display,
@@ -192,6 +204,25 @@ static int sun8i_a83t_hdmi_phy_config(struct dw_hdmi *hdmi, void *data,
 
 	return 0;
 }
+
+static void sun8i_a83t_hdmi_phy_disable(struct dw_hdmi *hdmi, void *data)
+{
+	struct sun8i_hdmi_phy *phy = data;
+
+	dw_hdmi_phy_gen2_txpwron(hdmi, 0);
+	dw_hdmi_phy_gen2_pddq(hdmi, 1);
+
+	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_REXT_CTRL_REG,
+			   SUN8I_HDMI_PHY_REXT_CTRL_REXT_EN, 0);
+}
+
+static const struct dw_hdmi_phy_ops sun8i_a83t_hdmi_phy_ops = {
+	.init		= sun8i_a83t_hdmi_phy_config,
+	.disable	= sun8i_a83t_hdmi_phy_disable,
+	.read_hpd	= dw_hdmi_phy_read_hpd,
+	.update_hpd	= dw_hdmi_phy_update_hpd,
+	.setup_hpd	= dw_hdmi_phy_setup_hpd,
+};
 
 static int sun8i_h3_hdmi_phy_config(struct dw_hdmi *hdmi, void *data,
 				    const struct drm_display_info *display,
@@ -348,32 +379,6 @@ static int sun8i_h3_hdmi_phy_config(struct dw_hdmi *hdmi, void *data,
 	return 0;
 }
 
-static void sun8i_hdmi_phy_set_polarity(struct sun8i_hdmi_phy *phy,
-					const struct drm_display_mode *mode)
-{
-	u32 val = 0;
-
-	if (mode->flags & DRM_MODE_FLAG_NHSYNC)
-		val |= SUN8I_HDMI_PHY_DBG_CTRL_POL_NHSYNC;
-
-	if (mode->flags & DRM_MODE_FLAG_NVSYNC)
-		val |= SUN8I_HDMI_PHY_DBG_CTRL_POL_NVSYNC;
-
-	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_DBG_CTRL_REG,
-			   SUN8I_HDMI_PHY_DBG_CTRL_POL_MASK, val);
-};
-
-static void sun8i_a83t_hdmi_phy_disable(struct dw_hdmi *hdmi, void *data)
-{
-	struct sun8i_hdmi_phy *phy = data;
-
-	dw_hdmi_phy_gen2_txpwron(hdmi, 0);
-	dw_hdmi_phy_gen2_pddq(hdmi, 1);
-
-	regmap_update_bits(phy->regs, SUN8I_HDMI_PHY_REXT_CTRL_REG,
-			   SUN8I_HDMI_PHY_REXT_CTRL_REXT_EN, 0);
-}
-
 static void sun8i_h3_hdmi_phy_disable(struct dw_hdmi *hdmi, void *data)
 {
 	struct sun8i_hdmi_phy *phy = data;
@@ -384,14 +389,6 @@ static void sun8i_h3_hdmi_phy_disable(struct dw_hdmi *hdmi, void *data)
 		     SUN8I_HDMI_PHY_ANA_CFG1_ENBI);
 	regmap_write(phy->regs, SUN8I_HDMI_PHY_PLL_CFG1_REG, 0);
 }
-
-static const struct dw_hdmi_phy_ops sun8i_a83t_hdmi_phy_ops = {
-	.init		= sun8i_a83t_hdmi_phy_config,
-	.disable	= sun8i_a83t_hdmi_phy_disable,
-	.read_hpd	= dw_hdmi_phy_read_hpd,
-	.update_hpd	= dw_hdmi_phy_update_hpd,
-	.setup_hpd	= dw_hdmi_phy_setup_hpd,
-};
 
 static const struct dw_hdmi_phy_ops sun8i_h3_hdmi_phy_ops = {
 	.init		= sun8i_h3_hdmi_phy_config,
