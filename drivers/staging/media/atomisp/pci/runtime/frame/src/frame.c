@@ -486,16 +486,14 @@ void ia_css_frame_free_multiple(unsigned int num_frames,
 	}
 }
 
-int ia_css_frame_allocate_with_buffer_size(
-    struct ia_css_frame **frame,
-    const unsigned int buffer_size_bytes,
-    const bool contiguous)
+int ia_css_frame_allocate_with_buffer_size(struct ia_css_frame **frame,
+					   const unsigned int buffer_size_bytes)
 {
 	/* AM: Body coppied from frame_allocate_with_data(). */
 	int err;
 	struct ia_css_frame *me = frame_create(0, 0,
 					       IA_CSS_FRAME_FORMAT_NUM,/* Not valid format yet */
-					       0, 0, contiguous, false);
+					       0, 0, false, false);
 
 	if (!me)
 		return -ENOMEM;
