@@ -230,8 +230,6 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	bool cached = attrs & ATOMISP_MAP_FLAG_CACHED;
 	int ret;
 
-	WARN_ON(attrs & ATOMISP_MAP_FLAG_CONTIGUOUS);
-
 	/*
 	 * Check if we are initialized. In the ideal world we wouldn't need
 	 * this but we can tackle it once the driver is a lot cleaner
