@@ -1470,7 +1470,7 @@ static void ata_qc_complete_internal(struct ata_queued_cmd *qc)
 static unsigned ata_exec_internal_sg(struct ata_device *dev,
 				     struct ata_taskfile *tf, const u8 *cdb,
 				     int dma_dir, struct scatterlist *sgl,
-				     unsigned int n_elem, unsigned long timeout)
+				     unsigned int n_elem, unsigned int timeout)
 {
 	struct ata_link *link = dev->link;
 	struct ata_port *ap = link->ap;
@@ -1645,7 +1645,7 @@ static unsigned ata_exec_internal_sg(struct ata_device *dev,
 unsigned ata_exec_internal(struct ata_device *dev,
 			   struct ata_taskfile *tf, const u8 *cdb,
 			   int dma_dir, void *buf, unsigned int buflen,
-			   unsigned long timeout)
+			   unsigned int timeout)
 {
 	struct scatterlist *psg = NULL, sg;
 	unsigned int n_elem = 0;
@@ -4342,7 +4342,7 @@ unsigned int ata_dev_set_feature(struct ata_device *dev, u8 enable, u8 feature)
 {
 	struct ata_taskfile tf;
 	unsigned int err_mask;
-	unsigned long timeout = 0;
+	unsigned int timeout = 0;
 
 	/* set up set-features taskfile */
 	ata_dev_dbg(dev, "set features - SATA features\n");
