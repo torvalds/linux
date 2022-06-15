@@ -137,9 +137,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 			pr_hcall(&uc);
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld, vector = %lu",
-				  (const char *)uc.args[0], __FILE__,
-				  uc.args[1], uc.args[2]);
+			REPORT_GUEST_ASSERT_1(uc, "vector = %lu");
 			return;
 		case UCALL_DONE:
 			return;

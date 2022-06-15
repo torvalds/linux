@@ -41,11 +41,12 @@ enum guest_assert_builtin_args {
 	GUEST_ASSERT_BUILTIN_NARGS
 };
 
-#define __GUEST_ASSERT(_condition, _condstr, _nargs, _args...) do {    \
-	if (!(_condition))                                              \
-		ucall(UCALL_ABORT, 2 + _nargs,                          \
-			"Failed guest assert: "                         \
-			_condstr, __LINE__, _args);                     \
+#define __GUEST_ASSERT(_condition, _condstr, _nargs, _args...)		\
+do {									\
+	if (!(_condition))						\
+		ucall(UCALL_ABORT, GUEST_ASSERT_BUILTIN_NARGS + _nargs,	\
+		      "Failed guest assert: " _condstr,			\
+		      __FILE__, __LINE__, ##_args);			\
 } while (0)
 
 #define GUEST_ASSERT(_condition) \

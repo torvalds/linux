@@ -782,9 +782,7 @@ static void test_vgic(uint32_t nr_irqs, bool level_sensitive, bool eoi_split)
 			run_guest_cmd(vcpu, gic_fd, &inject_args, &args);
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld\n\tvalues: %#lx, %#lx",
-					(const char *)uc.args[0],
-					__FILE__, uc.args[1], uc.args[2], uc.args[3]);
+			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
 			break;
 		case UCALL_DONE:
 			goto done;

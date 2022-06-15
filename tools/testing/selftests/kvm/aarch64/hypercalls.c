@@ -291,9 +291,10 @@ static void test_run(void)
 			guest_done = true;
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld\n\tvalues: 0x%lx, 0x%lx; 0x%lx, stage: %u",
-			(const char *)uc.args[0], __FILE__, uc.args[1],
-			uc.args[2], uc.args[3], uc.args[4], stage);
+			REPORT_GUEST_ASSERT_N(uc, "values: 0x%lx, 0x%lx; 0x%lx, stage: %u",
+					      GUEST_ASSERT_ARG(uc, 0),
+					      GUEST_ASSERT_ARG(uc, 1),
+					      GUEST_ASSERT_ARG(uc, 2), stage);
 			break;
 		default:
 			TEST_FAIL("Unexpected guest exit\n");

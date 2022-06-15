@@ -447,9 +447,7 @@ static void guest_test_msrs_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld, MSR = %lx, vector = %lx",
-				  (const char *)uc.args[0], __FILE__,
-				  uc.args[1], uc.args[2], uc.args[3]);
+			REPORT_GUEST_ASSERT_2(uc, "MSR = %lx, vector = %lx");
 			return;
 		case UCALL_DONE:
 			break;
@@ -618,9 +616,7 @@ static void guest_test_hcalls_access(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld, arg1 = %lx, arg2 = %lx",
-				  (const char *)uc.args[0], __FILE__,
-				  uc.args[1], uc.args[2], uc.args[3]);
+			REPORT_GUEST_ASSERT_2(uc, "arg1 = %lx, arg2 = %lx");
 			return;
 		case UCALL_DONE:
 			break;

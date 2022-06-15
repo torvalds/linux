@@ -234,8 +234,7 @@ int main(void)
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0],
-				  __FILE__, uc.args[1]);
+			REPORT_GUEST_ASSERT(uc);
 			/* NOT REACHED */
 		case UCALL_SYNC:
 			break;

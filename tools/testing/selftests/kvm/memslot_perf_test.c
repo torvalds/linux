@@ -162,9 +162,7 @@ static void *vcpu_worker(void *__data)
 				goto done;
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld, val = %lu",
-					(const char *)uc.args[0],
-					__FILE__, uc.args[1], uc.args[2]);
+			REPORT_GUEST_ASSERT_1(uc, "val = %lu");
 			break;
 		case UCALL_DONE:
 			goto done;

@@ -194,7 +194,7 @@ int main(int argc, char *argv[])
 
 		switch (get_ucall(vcpu, &uc)) {
 		case UCALL_ABORT:
-			TEST_FAIL("%s", (const char *) uc.args[0]);
+			REPORT_GUEST_ASSERT(uc);
 		case UCALL_SYNC:
 			switch (uc.args[0]) {
 			case USLEEP:

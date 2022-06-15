@@ -113,7 +113,7 @@ int main(int argc, char *argv[])
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		TEST_FAIL("%s", (const char *)uc.args[0]);
+		REPORT_GUEST_ASSERT(uc);
 		break;
 		/* NOT REACHED */
 	case UCALL_DONE:

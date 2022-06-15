@@ -83,8 +83,7 @@ static void handle_sync(struct ucall *uc, uint64_t start, uint64_t end)
 
 static void handle_abort(struct ucall *uc)
 {
-	TEST_FAIL("%s at %s:%ld", (const char *)uc->args[0],
-		  __FILE__, uc->args[1]);
+	REPORT_GUEST_ASSERT(*uc);
 }
 
 static void enter_guest(struct kvm_vcpu *vcpu)

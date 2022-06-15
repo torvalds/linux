@@ -94,8 +94,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 
 	vcpu_run(vcpu);
 	if (get_ucall(vcpu, &uc) == UCALL_ABORT)
-		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__,
-			  uc.args[1]);
+		REPORT_GUEST_ASSERT(uc);
 }
 
 static void assert_vcpu_reset(struct kvm_vcpu *vcpu)

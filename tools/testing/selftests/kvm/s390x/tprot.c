@@ -181,20 +181,18 @@ static void guest_code(void)
 	GUEST_SYNC(perform_next_stage(&i, mapped_0));
 }
 
-#define HOST_SYNC_NO_TAP(vcpup, stage)						\
-({										\
-	struct kvm_vcpu *__vcpu = (vcpup);					\
-	struct ucall uc;							\
-	int __stage = (stage);							\
-										\
-	vcpu_run(__vcpu);							\
-	get_ucall(__vcpu, &uc);							\
-	if (uc.cmd == UCALL_ABORT) {						\
-		TEST_FAIL("line %lu: %s, hints: %lu, %lu", uc.args[1],		\
-			  (const char *)uc.args[0], uc.args[2], uc.args[3]);	\
-	}									\
-	ASSERT_EQ(uc.cmd, UCALL_SYNC);						\
-	ASSERT_EQ(uc.args[1], __stage);						\
+#define HOST_SYNC_NO_TAP(vcpup, stage)				\
+({								\
+	struct kvm_vcpu *__vcpu = (vcpup);			\
+	struct ucall uc;					\
+	int __stage = (stage);					\
+								\
+	vcpu_run(__vcpu);					\
+	get_ucall(__vcpu, &uc);					\
+	if (uc.cmd == UCALL_ABORT)				\
+		REPORT_GUEST_ASSERT_2(uc, "hints: %lu, %lu");	\
+	ASSERT_EQ(uc.cmd, UCALL_SYNC);				\
+	ASSERT_EQ(uc.args[1], __stage);				\
 })
 
 #define HOST_SYNC(vcpu, stage)			\

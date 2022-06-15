@@ -82,7 +82,7 @@ int main(void)
 	case UCALL_DONE:
 		break;
 	case UCALL_ABORT:
-		TEST_FAIL("%s", (const char *)uc.args[0]);
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_FAIL("Unexpected ucall: %lu", uc.cmd);
 	}

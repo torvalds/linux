@@ -112,7 +112,7 @@ static void enter_guest(struct kvm_vcpu *vcpu)
 	case UCALL_DONE:
 		return;
 	case UCALL_ABORT:
-		TEST_FAIL("%s at %s:%ld", (const char *)uc.args[0], __FILE__, uc.args[1]);
+		REPORT_GUEST_ASSERT(uc);
 	default:
 		TEST_FAIL("Unhandled ucall: %ld\nexit_reason: %u (%s)",
 			  uc.cmd, run->exit_reason, exit_reason_str(run->exit_reason));

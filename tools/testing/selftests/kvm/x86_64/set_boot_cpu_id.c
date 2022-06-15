@@ -65,9 +65,7 @@ static void run_vcpu(struct kvm_vcpu *vcpu)
 					stage);
 			break;
 		case UCALL_ABORT:
-			TEST_ASSERT(false, "%s at %s:%ld\n\tvalues: %#lx, %#lx",
-						(const char *)uc.args[0], __FILE__,
-						uc.args[1], uc.args[2], uc.args[3]);
+			REPORT_GUEST_ASSERT_2(uc, "values: %#lx, %#lx");
 		default:
 			TEST_ASSERT(false, "Unexpected exit: %s",
 				    exit_reason_str(vcpu->run->exit_reason));

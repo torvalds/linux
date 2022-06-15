@@ -181,8 +181,7 @@ static void run_test(bool is_nmi)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		TEST_FAIL("%s at %s:%ld, vals = 0x%lx 0x%lx 0x%lx", (const char *)uc.args[0],
-			  __FILE__, uc.args[1], uc.args[2], uc.args[3], uc.args[4]);
+		REPORT_GUEST_ASSERT_3(uc, "vals = 0x%lx 0x%lx 0x%lx");
 		break;
 		/* NOT REACHED */
 	case UCALL_DONE:

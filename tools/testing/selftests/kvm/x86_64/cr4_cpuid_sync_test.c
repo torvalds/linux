@@ -94,7 +94,7 @@ int main(int argc, char *argv[])
 			vcpu_sregs_set(vcpu, &sregs);
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("Guest CR4 bit (OSXSAVE) unsynchronized with CPUID bit.");
+			REPORT_GUEST_ASSERT(uc);
 			break;
 		case UCALL_DONE:
 			goto done;

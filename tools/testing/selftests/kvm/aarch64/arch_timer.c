@@ -231,10 +231,13 @@ static void *test_vcpu_run(void *arg)
 		break;
 	case UCALL_ABORT:
 		sync_global_from_guest(vm, *shared_data);
-		TEST_FAIL("%s at %s:%ld\n\tvalues: %lu, %lu; %lu, vcpu: %u; stage: %u; iter: %u",
-			(const char *)uc.args[0], __FILE__, uc.args[1],
-			uc.args[2], uc.args[3], uc.args[4], vcpu_idx,
-			shared_data->guest_stage, shared_data->nr_iter);
+		REPORT_GUEST_ASSERT_N(uc, "values: %lu, %lu; %lu, vcpu %u; stage; %u; iter: %u",
+				      GUEST_ASSERT_ARG(uc, 0),
+				      GUEST_ASSERT_ARG(uc, 1),
+				      GUEST_ASSERT_ARG(uc, 2),
+				      vcpu_idx,
+				      shared_data->guest_stage,
+				      shared_data->nr_iter);
 		break;
 	default:
 		TEST_FAIL("Unexpected guest exit\n");

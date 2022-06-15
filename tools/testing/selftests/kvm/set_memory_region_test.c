@@ -88,8 +88,7 @@ static void *vcpu_worker(void *data)
 	}
 
 	if (run->exit_reason == KVM_EXIT_IO && cmd == UCALL_ABORT)
-		TEST_FAIL("%s at %s:%ld, val = %lu", (const char *)uc.args[0],
-			  __FILE__, uc.args[1], uc.args[2]);
+		REPORT_GUEST_ASSERT_1(uc, "val = %lu");
 
 	return NULL;
 }

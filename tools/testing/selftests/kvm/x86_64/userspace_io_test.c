@@ -98,9 +98,7 @@ int main(int argc, char *argv[])
 	case UCALL_DONE:
 		break;
 	case UCALL_ABORT:
-		TEST_FAIL("%s at %s:%ld : argN+1 = 0x%lx, argN+2 = 0x%lx",
-			  (const char *)uc.args[0], __FILE__, uc.args[1],
-			  uc.args[2], uc.args[3]);
+		REPORT_GUEST_ASSERT_2(uc, "argN+1 = 0x%lx, argN+2 = 0x%lx");
 	default:
 		TEST_FAIL("Unknown ucall %lu", uc.cmd);
 	}

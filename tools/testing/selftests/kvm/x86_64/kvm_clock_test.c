@@ -71,8 +71,7 @@ static void handle_sync(struct ucall *uc, struct kvm_clock_data *start,
 
 static void handle_abort(struct ucall *uc)
 {
-	TEST_FAIL("%s at %s:%ld", (const char *)uc->args[0],
-		  __FILE__, uc->args[1]);
+	REPORT_GUEST_ASSERT(*uc);
 }
 
 static void setup_clock(struct kvm_vm *vm, struct test_case *test_case)

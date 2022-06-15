@@ -100,9 +100,7 @@ int main(int argc, char *argv[])
 			testcase = uc.args[1];
 			break;
 		case UCALL_ABORT:
-			TEST_FAIL("%s at %s:%ld, testcase = %lx, vector = %ld",
-				  (const char *)uc.args[0], __FILE__,
-				  uc.args[1], uc.args[2], uc.args[3]);
+			REPORT_GUEST_ASSERT_2(uc, "testcase = %lx, vector = %ld");
 			goto done;
 		case UCALL_DONE:
 			goto done;

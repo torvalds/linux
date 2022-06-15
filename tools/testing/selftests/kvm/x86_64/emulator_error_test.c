@@ -92,8 +92,7 @@ static void process_exit_on_emulation_error(struct kvm_vcpu *vcpu)
 
 static void do_guest_assert(struct ucall *uc)
 {
-	TEST_FAIL("%s at %s:%ld", (const char *)uc->args[0], __FILE__,
-		  uc->args[1]);
+	REPORT_GUEST_ASSERT(*uc);
 }
 
 static void check_for_guest_assert(struct kvm_vcpu *vcpu)

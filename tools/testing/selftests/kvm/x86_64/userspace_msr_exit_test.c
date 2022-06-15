@@ -400,8 +400,7 @@ static void check_for_guest_assert(struct kvm_vcpu *vcpu)
 
 	if (vcpu->run->exit_reason == KVM_EXIT_IO &&
 	    get_ucall(vcpu, &uc) == UCALL_ABORT) {
-		TEST_FAIL("%s at %s:%ld",
-			  (const char *)uc.args[0], __FILE__, uc.args[1]);
+		REPORT_GUEST_ASSERT(uc);
 	}
 }
 
@@ -610,7 +609,7 @@ static int handle_ucall(struct kvm_vcpu *vcpu)
 
 	switch (get_ucall(vcpu, &uc)) {
 	case UCALL_ABORT:
-		TEST_FAIL("Guest assertion not met");
+		REPORT_GUEST_ASSERT(uc);
 		break;
 	case UCALL_SYNC:
 		vm_ioctl(vcpu->vm, KVM_X86_SET_MSR_FILTER, &no_filter_deny);
