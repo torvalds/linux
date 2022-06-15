@@ -325,7 +325,6 @@ struct atomisp_sub_device {
 	struct {
 		struct ia_css_pipe *pipeline;
 		struct completion acc_done;
-		void *acc_stages;
 	} acc;
 
 	struct atomisp_subdev_params params;
