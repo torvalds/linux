@@ -5,7 +5,6 @@
  * Common part of most Semtech SAR sensor.
  */
 
-#include <linux/acpi.h>
 #include <linux/bitops.h>
 #include <linux/byteorder/generic.h>
 #include <linux/delay.h>
@@ -519,8 +518,6 @@ int sx_common_probe(struct i2c_client *client,
 	if (ret)
 		return dev_err_probe(dev, ret, "error reading WHOAMI\n");
 
-	ACPI_COMPANION_SET(&indio_dev->dev, ACPI_COMPANION(dev));
-	indio_dev->dev.of_node = client->dev.of_node;
 	indio_dev->modes = INDIO_DIRECT_MODE;
 
 	indio_dev->channels =  data->chip_info->iio_channels;
