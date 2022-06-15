@@ -7,9 +7,22 @@ Required properties:
 	-compatible: should be "st,vl6180"
 	-reg: the I2C address of the sensor
 
+Optional properties:
+	-avdd-gpio: gpio to enable or disable the digital/analog power supply
+	-chip-enable-gpio: gpio to enable or disable chip select (CE)
+
 Example:
 
 vl6180@29 {
 	compatible = "st,vl6180";
 	reg = <0x29>;
+};
+
+Here an example with power controlled by gpio:
+
+vl6180@29 {
+	compatible = "st,vl6180";
+	reg = <0x29>;
+	avdd-gpio = <&gpio1 2 GPIO_ACTIVE_HIGH>;
+	chip-enable-gpio = <&gpio1 3 GPIO_ACTIVE_HIGH>;
 };
