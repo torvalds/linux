@@ -1,9 +1,11 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022, Qualcomm Innovation Center, Inc. All rights reserved.
  *
  */
 
+#include <linux/bitfield.h>
 #include <linux/dma-mapping.h>
 #include <linux/kernel.h>
 #include <linux/slab.h>
@@ -11,9 +13,15 @@
 #include <linux/qcom-iommu-util.h>
 #include "qcom-iommu-debug.h"
 
+#ifdef CONFIG_64BIT
 #define kstrtoux kstrtou64
 #define kstrtox_from_user kstrtoull_from_user
 #define kstrtosize_t kstrtoul
+#else
+#define kstrtoux kstrtou32
+#define kstrtox_from_user kstrtouint_from_user
+#define kstrtosize_t kstrtouint
+#endif
 
 static void *test_virt_addr;
 static DEFINE_MUTEX(test_virt_addr_lock);

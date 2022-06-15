@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2019-2021, The Linux Foundation. All rights reserved.
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #include <linux/acpi.h>
@@ -502,7 +503,7 @@ static const struct arm_smmu_impl qcom_smmu_impl = {
 #define QTB_OVR_ECATS_STATUS_DONE	BIT(0)
 
 #define QTB_OVR_ECATS_OUTFLD0			0x458
-#define QTB_OVR_ECATS_OUTFLD0_PA		GENMASK(63, 12)
+#define QTB_OVR_ECATS_OUTFLD0_PA		GENMASK_ULL(63, 12)
 #define QTB_OVR_ECATS_OUTFLD0_FAULT_TYPE	GENMASK(5, 4)
 #define QTB_OVR_ECATS_OUTFLD0_FAULT		BIT(0)
 

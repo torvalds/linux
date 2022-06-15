@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: GPL-2.0-only
 /*
  * Copyright (c) 2015-2021, The Linux Foundation. All rights reserved.
- *
+ * Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #define pr_fmt(fmt) "iommu-debug: %s: " fmt, __func__
 
+#include <linux/bitfield.h>
 #include <linux/debugfs.h>
 #include <linux/iommu.h>
 #include <linux/module.h>
