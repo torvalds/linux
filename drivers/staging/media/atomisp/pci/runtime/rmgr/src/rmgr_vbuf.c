@@ -282,8 +282,7 @@ void ia_css_rmgr_acq_vbuf(struct ia_css_rmgr_vbuf_pool *pool,
 			}
 			if ((*handle)->vptr == 0x0) {
 				/* we need to allocate */
-				(*handle)->vptr = hmm_alloc((*handle)->size,
-							     HMM_BO_PRIVATE, 0, NULL, 0);
+				(*handle)->vptr = hmm_alloc((*handle)->size);
 			} else {
 				/* we popped a buffer */
 				return;

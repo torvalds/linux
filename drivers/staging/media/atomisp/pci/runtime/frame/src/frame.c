@@ -728,8 +728,7 @@ static int frame_allocate_buffer_data(struct ia_css_frame *frame)
 #ifdef ISP2401
 	IA_CSS_ENTER_LEAVE_PRIVATE("frame->data_bytes=%d\n", frame->data_bytes);
 #endif
-	frame->data = hmm_alloc(frame->data_bytes,
-				HMM_BO_PRIVATE, 0, NULL, 0);
+	frame->data = hmm_alloc(frame->data_bytes);
 	if (frame->data == mmgr_NULL)
 		return -ENOMEM;
 	return 0;

@@ -141,7 +141,7 @@ int hmm_init(void)
 	 * at the beginning, to avoid hmm_alloc return 0 in the
 	 * further allocation.
 	 */
-	dummy_ptr = hmm_alloc(1, HMM_BO_PRIVATE, 0, NULL, 0);
+	dummy_ptr = hmm_alloc(1);
 
 	if (!ret) {
 		ret = sysfs_create_group(&atomisp_dev->kobj,
@@ -168,9 +168,7 @@ void hmm_cleanup(void)
 	hmm_initialized = false;
 }
 
-ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
-		     int from_highmem, const void __user *userptr,
-		     const uint16_t attrs)
+static ia_css_ptr __hmm_alloc(size_t bytes, enum hmm_bo_type type, const void __user *userptr)
 {
 	unsigned int pgnr;
 	struct hmm_buffer_object *bo;
@@ -194,7 +192,7 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	}
 
 	/* Allocate pages for memory */
-	ret = hmm_bo_alloc_pages(bo, type, from_highmem, userptr);
+	ret = hmm_bo_alloc_pages(bo, type, false, userptr);
 	if (ret) {
 		dev_err(atomisp_dev, "hmm_bo_alloc_pages failed.\n");
 		goto alloc_page_err;
@@ -208,8 +206,8 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 	}
 
 	dev_dbg(atomisp_dev,
-		"%s: pages: 0x%08x (%zu bytes), type: %d from highmem %d, user ptr %p\n",
-		__func__, bo->start, bytes, type, from_highmem, userptr);
+		"%s: pages: 0x%08x (%zu bytes), type: %d, user ptr %p\n",
+		__func__, bo->start, bytes, type, userptr);
 
 	return bo->start;
 
@@ -221,9 +219,14 @@ create_bo_err:
 	return 0;
 }
 
+ia_css_ptr hmm_alloc(size_t bytes)
+{
+	return __hmm_alloc(bytes, HMM_BO_PRIVATE, NULL);
+}
+
 ia_css_ptr hmm_create_from_userdata(size_t bytes, const void __user *userptr)
 {
-	return hmm_alloc(bytes, HMM_BO_USER, 0, userptr, 0);
+	return __hmm_alloc(bytes, HMM_BO_USER, userptr);
 }
 
 void hmm_free(ia_css_ptr virt)
