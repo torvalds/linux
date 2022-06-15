@@ -217,6 +217,28 @@ static inline bool io_run_task_work(void)
 	return false;
 }
 
+static inline void io_req_complete_state(struct io_kiocb *req)
+{
+	req->flags |= REQ_F_COMPLETE_INLINE;
+}
+
+static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
+{
+	if (!*locked) {
+		mutex_lock(&ctx->uring_lock);
+		*locked = true;
+	}
+}
+
+static inline void io_req_add_compl_list(struct io_kiocb *req)
+{
+	struct io_submit_state *state = &req->ctx->submit_state;
+
+	if (!(req->flags & REQ_F_CQE_SKIP))
+		state->flush_cqes = true;
+	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
+}
+
 int io_run_task_work_sig(void);
 void io_req_complete_failed(struct io_kiocb *req, s32 res);
 void __io_req_complete(struct io_kiocb *req, unsigned issue_flags);

@@ -160,14 +160,6 @@ struct sock *io_uring_get_socket(struct file *file)
 }
 EXPORT_SYMBOL(io_uring_get_socket);
 
-static inline void io_tw_lock(struct io_ring_ctx *ctx, bool *locked)
-{
-	if (!*locked) {
-		mutex_lock(&ctx->uring_lock);
-		*locked = true;
-	}
-}
-
 static inline void io_submit_flush_completions(struct io_ring_ctx *ctx)
 {
 	if (!wq_list_empty(&ctx->submit_state.compl_reqs))
@@ -421,15 +413,6 @@ static void io_prep_async_link(struct io_kiocb *req)
 		io_for_each_link(cur, req)
 			io_prep_async_work(cur);
 	}
-}
-
-static inline void io_req_add_compl_list(struct io_kiocb *req)
-{
-	struct io_submit_state *state = &req->ctx->submit_state;
-
-	if (!(req->flags & REQ_F_CQE_SKIP))
-		state->flush_cqes = true;
-	wq_list_add_tail(&req->comp_list, &state->compl_reqs);
 }
 
 void io_queue_iowq(struct io_kiocb *req, bool *dont_use)
