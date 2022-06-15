@@ -86,44 +86,25 @@ static int mga_gpio_getscl(void *data)
 	return (mga_i2c_read_gpio(mdev) & i2c->clock) ? 1 : 0;
 }
 
-struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
+static void mgag200_i2c_release(void *res)
 {
-	struct mga_device *mdev = to_mga_device(dev);
-	struct mga_i2c_chan *i2c;
+	struct mga_i2c_chan *i2c = res;
+
+	i2c_del_adapter(&i2c->adapter);
+}
+
+int mgag200_i2c_init(struct mga_device *mdev, struct mga_i2c_chan *i2c)
+{
+	struct drm_device *dev = &mdev->base;
+	const struct mgag200_device_info *info = mdev->info;
 	int ret;
-	int data, clock;
 
 	WREG_DAC(MGA1064_GEN_IO_CTL2, 1);
 	WREG_DAC(MGA1064_GEN_IO_DATA, 0xff);
 	WREG_DAC(MGA1064_GEN_IO_CTL, 0);
 
-	switch (mdev->type) {
-	case G200_SE_A:
-	case G200_SE_B:
-	case G200_EV:
-	case G200_WB:
-	case G200_EW3:
-		data = 1;
-		clock = 2;
-		break;
-	case G200_EH:
-	case G200_EH3:
-	case G200_ER:
-		data = 2;
-		clock = 1;
-		break;
-	default:
-		data = 2;
-		clock = 8;
-		break;
-	}
-
-	i2c = kzalloc(sizeof(struct mga_i2c_chan), GFP_KERNEL);
-	if (!i2c)
-		return NULL;
-
-	i2c->data = data;
-	i2c->clock = clock;
+	i2c->data = BIT(info->i2c.data_bit);
+	i2c->clock = BIT(info->i2c.clock_bit);
 	i2c->adapter.owner = THIS_MODULE;
 	i2c->adapter.class = I2C_CLASS_DDC;
 	i2c->adapter.dev.parent = dev->dev;
@@ -142,18 +123,8 @@ struct mga_i2c_chan *mgag200_i2c_create(struct drm_device *dev)
 	i2c->bit.getscl		= mga_gpio_getscl;
 
 	ret = i2c_bit_add_bus(&i2c->adapter);
-	if (ret) {
-		kfree(i2c);
-		i2c = NULL;
-	}
-	return i2c;
-}
+	if (ret)
+		return ret;
 
-void mgag200_i2c_destroy(struct mga_i2c_chan *i2c)
-{
-	if (!i2c)
-		return;
-	i2c_del_adapter(&i2c->adapter);
-	kfree(i2c);
+	return devm_add_action_or_reset(dev->dev, mgag200_i2c_release, i2c);
 }
-

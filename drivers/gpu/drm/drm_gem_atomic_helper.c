@@ -169,8 +169,10 @@ int drm_gem_plane_helper_prepare_fb(struct drm_plane *plane,
 		struct drm_gem_object *obj = drm_gem_fb_get_obj(state->fb, i);
 		struct dma_fence *new;
 
-		if (WARN_ON_ONCE(!obj))
-			continue;
+		if (!obj) {
+			ret = -EINVAL;
+			goto error;
+		}
 
 		ret = dma_resv_get_singleton(obj->resv, usage, &new);
 		if (ret)

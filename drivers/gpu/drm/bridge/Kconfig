@@ -78,6 +78,7 @@ config DRM_DISPLAY_CONNECTOR
 config DRM_FSL_LDB
 	tristate "Freescale i.MX8MP LDB bridge"
 	depends on OF
+	depends on ARCH_MXC || COMPILE_TEST
 	select DRM_KMS_HELPER
 	select DRM_PANEL_BRIDGE
 	help
@@ -320,6 +321,22 @@ config DRM_TOSHIBA_TC358775
 	select DRM_MIPI_DSI
 	help
 	  Toshiba TC358775 DSI/LVDS bridge chip driver.
+
+config DRM_TI_DLPC3433
+	tristate "TI DLPC3433 Display controller"
+	depends on DRM && DRM_PANEL
+	depends on OF
+	select DRM_MIPI_DSI
+	help
+	  TI DLPC3433 is a MIPI DSI based display controller bridge
+	  for processing high resolution DMD based projectors.
+
+	  It has a flexible configuration of MIPI DSI and DPI signal
+	  input that produces a DMD output in RGB565, RGB666, RGB888
+	  formats.
+
+	  It supports upto 720p resolution with 60 and 120 Hz refresh
+	  rates.
 
 config DRM_TI_TFP410
 	tristate "TI TFP410 DVI/HDMI bridge"

@@ -13,6 +13,7 @@ static int mgag200_pixpll_compute_g200(struct mgag200_pll *pixpll, long clock,
 {
 	struct mga_device *mdev = pixpll->mdev;
 	struct drm_device *dev = &mdev->base;
+	struct mgag200_g200_device *g200 = to_mgag200_g200_device(dev);
 	const int post_div_max = 7;
 	const int in_div_min = 1;
 	const int in_div_max = 6;
@@ -23,9 +24,9 @@ static int mgag200_pixpll_compute_g200(struct mgag200_pll *pixpll, long clock,
 	long f_vco;
 	long computed;
 	long delta, tmp_delta;
-	long ref_clk = mdev->model.g200.ref_clk;
-	long p_clk_min = mdev->model.g200.pclk_min;
-	long p_clk_max =  mdev->model.g200.pclk_max;
+	long ref_clk = g200->ref_clk;
+	long p_clk_min = g200->pclk_min;
+	long p_clk_max = g200->pclk_max;
 
 	if (clock > p_clk_max) {
 		drm_err(dev, "Pixel Clock %ld too high\n", clock);
@@ -951,6 +952,7 @@ static const struct mgag200_pll_funcs mgag200_pixpll_funcs_g200ew3 = {
 int mgag200_pixpll_init(struct mgag200_pll *pixpll, struct mga_device *mdev)
 {
 	struct drm_device *dev = &mdev->base;
+	struct mgag200_g200se_device *g200se;
 
 	pixpll->mdev = mdev;
 
@@ -961,7 +963,9 @@ int mgag200_pixpll_init(struct mgag200_pll *pixpll, struct mga_device *mdev)
 		break;
 	case G200_SE_A:
 	case G200_SE_B:
-		if (mdev->model.g200se.unique_rev_id >= 0x04)
+		g200se = to_mgag200_g200se_device(dev);
+
+		if (g200se->unique_rev_id >= 0x04)
 			pixpll->funcs = &mgag200_pixpll_funcs_g200se_04;
 		else
 			pixpll->funcs = &mgag200_pixpll_funcs_g200se_00;
