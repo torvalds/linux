@@ -3729,7 +3729,9 @@ static bool printer_should_wake(struct console *con, u64 seq)
 		return true;
 
 	if (con->blocked ||
-	    console_kthreads_atomically_blocked()) {
+	    console_kthreads_atomically_blocked() ||
+	    system_state > SYSTEM_RUNNING ||
+	    oops_in_progress) {
 		return false;
 	}
 
