@@ -3857,8 +3857,7 @@ static struct atomisp_sub_device *__get_atomisp_subdev(
 
 	for (i = 0; i < isp->num_of_streams; i++) {
 		asd = &isp->asd[i];
-		if (asd->streaming == ATOMISP_DEVICE_STREAMING_DISABLED &&
-		    !asd->acc.pipeline)
+		if (asd->streaming == ATOMISP_DEVICE_STREAMING_DISABLED)
 			continue;
 		for (j = 0; j < ATOMISP_INPUT_STREAM_NUM; j++) {
 			stream_env = &asd->stream_env[j];

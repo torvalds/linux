@@ -323,7 +323,6 @@ struct atomisp_sub_device {
 	struct v4l2_ctrl *disable_dz;
 
 	struct {
-		struct ia_css_pipe *pipeline;
 		struct completion acc_done;
 	} acc;
 

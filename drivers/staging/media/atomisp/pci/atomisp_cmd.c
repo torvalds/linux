@@ -1888,9 +1888,6 @@ out:
 		    && isp->sw_contex.file_input)
 			v4l2_subdev_call(isp->inputs[asd->input_curr].camera,
 					 video, s_stream, 1);
-		/* FIXME! FIX ACC implementation */
-		if (asd->acc.pipeline && css_pipe_done[asd->index])
-			atomisp_css_acc_done(asd);
 	}
 	dev_dbg(isp->dev, "<%s\n", __func__);
 

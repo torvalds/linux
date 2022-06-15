@@ -626,12 +626,6 @@ unsigned int atomisp_streaming_count(struct atomisp_device *isp)
 
 unsigned int atomisp_is_acc_enabled(struct atomisp_device *isp)
 {
-	unsigned int i;
-
-	for (i = 0; i < isp->num_of_streams; i++)
-		if (isp->asd[i].acc.pipeline)
-			return 1;
-
 	return 0;
 }
 
