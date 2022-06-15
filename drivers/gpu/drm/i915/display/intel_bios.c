@@ -757,6 +757,14 @@ parse_panel_options(struct drm_i915_private *i915,
 
 	panel->vbt.lvds_dither = lvds_options->pixel_dither;
 
+	/*
+	 * Empirical evidence indicates the block size can be
+	 * either 4,14,16,24+ bytes. For older VBTs no clear
+	 * relationship between the block size vs. BDB version.
+	 */
+	if (get_blocksize(lvds_options) < 16)
+		return;
+
 	drrs_mode = (lvds_options->dps_panel_type_bits
 				>> (panel_type * 2)) & MODE_MASK;
 	/*
