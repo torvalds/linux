@@ -214,22 +214,6 @@ void *gsi_trans_pool_alloc_dma(struct gsi_trans_pool *pool, dma_addr_t *addr)
 	return pool->base + offset;
 }
 
-/* Return the pool element that immediately follows the one given.
- * This only works done if elements are allocated one at a time.
- */
-void *gsi_trans_pool_next(struct gsi_trans_pool *pool, void *element)
-{
-	void *end = pool->base + pool->count * pool->size;
-
-	WARN_ON(element < pool->base);
-	WARN_ON(element >= end);
-	WARN_ON(pool->max_alloc != 1);
-
-	element += pool->size;
-
-	return element < end ? element : pool->base;
-}
-
 /* Map a given ring entry index to the transaction associated with it */
 static void gsi_channel_trans_map(struct gsi_channel *channel, u32 index,
 				  struct gsi_trans *trans)

@@ -1366,14 +1366,10 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 {
 	struct gsi_channel *channel = evt_ring->channel;
 	struct gsi_ring *ring = &evt_ring->ring;
-	struct gsi_trans_info *trans_info;
 	struct gsi_event *event_done;
 	struct gsi_event *event;
-	struct gsi_trans *trans;
 	u32 event_avail;
 	u32 old_index;
-
-	trans_info = &channel->trans_info;
 
 	/* We'll start with the oldest un-processed event.  RX channels
 	 * replenish receive buffers in single-TRE transactions, so we
@@ -1382,9 +1378,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	 */
 	old_index = ring->index;
 	event = gsi_ring_virt(ring, old_index);
-	trans = gsi_event_trans(channel->gsi, event);
-	if (!trans)
-		return;
 
 	/* Compute the number of events to process before we wrap,
 	 * and determine when we'll be done processing events.
@@ -1392,6 +1385,12 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	event_avail = ring->count - old_index % ring->count;
 	event_done = gsi_ring_virt(ring, index);
 	do {
+		struct gsi_trans *trans;
+
+		trans = gsi_event_trans(channel->gsi, event);
+		if (!trans)
+			return;
+
 		trans->len = __le16_to_cpu(event->len);
 
 		/* Move on to the next event and transaction */
@@ -1399,7 +1398,6 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 			event++;
 		else
 			event = gsi_ring_virt(ring, 0);
-		trans = gsi_trans_pool_next(&trans_info->pool, trans);
 	} while (event != event_done);
 }
 
