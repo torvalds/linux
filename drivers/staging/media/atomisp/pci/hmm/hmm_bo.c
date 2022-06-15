@@ -651,7 +651,6 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 			*/
 			if (!ret) {
 				__free_pages(bo->page_obj[i].page, 0);
-				hmm_mem_stat.sys_size--;
 			}
 			break;
 		}
@@ -762,7 +761,6 @@ retry:
 			}
 
 			pgnr -= blk_pgnr;
-			hmm_mem_stat.sys_size += blk_pgnr;
 
 			/*
 			 * if order is not reduced this time, clear
@@ -795,8 +793,6 @@ static void free_user_pages(struct hmm_buffer_object *bo,
 			    unsigned int page_nr)
 {
 	int i;
-
-	hmm_mem_stat.usr_size -= bo->pgnr;
 
 	if (bo->mem_type == HMM_BO_MEM_TYPE_PFN) {
 		unpin_user_pages(bo->pages, page_nr);
@@ -869,8 +865,6 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 		__func__,
 		bo->pgnr,
 		bo->mem_type == HMM_BO_MEM_TYPE_USER ? "user" : "pfn", page_nr);
-
-	hmm_mem_stat.usr_size += bo->pgnr;
 
 	/* can be written by caller, not forced */
 	if (page_nr != bo->pgnr) {

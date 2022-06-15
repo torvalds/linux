@@ -1770,7 +1770,6 @@ static int atomisp_pci_probe(struct pci_dev *pdev, const struct pci_device_id *i
 	pm_runtime_put_noidle(&pdev->dev);
 	pm_runtime_allow(&pdev->dev);
 
-	hmm_init_mem_stat(repool_pgnr, dypool_enable, dypool_pgnr);
 	/* Init ISP memory management */
 	hmm_init();
 

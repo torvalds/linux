@@ -38,7 +38,6 @@
 struct hmm_bo_device bo_device;
 static ia_css_ptr dummy_ptr = mmgr_EXCEPTION;
 static bool hmm_initialized;
-struct _hmm_mem_stat hmm_mem_stat;
 
 /*
  * p: private
@@ -209,8 +208,6 @@ ia_css_ptr hmm_alloc(size_t bytes, enum hmm_bo_type type,
 		goto bind_err;
 	}
 
-	hmm_mem_stat.tol_cnt += pgnr;
-
 	if (attrs & ATOMISP_MAP_FLAG_CLEARED)
 		hmm_set(bo->start, 0, bytes);
 
@@ -245,8 +242,6 @@ void hmm_free(ia_css_ptr virt)
 			(unsigned int)virt);
 		return;
 	}
-
-	hmm_mem_stat.tol_cnt -= bo->pgnr;
 
 	hmm_bo_unbind(bo);
 	hmm_bo_free_pages(bo);
@@ -636,35 +631,4 @@ ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr)
 		"can not find buffer object whose kernel virtual address is %p\n",
 		ptr);
 	return 0;
-}
-
-void hmm_show_mem_stat(const char *func, const int line)
-{
-	pr_info("tol_cnt=%d usr_size=%d res_size=%d res_cnt=%d sys_size=%d  dyc_thr=%d dyc_size=%d.\n",
-		hmm_mem_stat.tol_cnt,
-		hmm_mem_stat.usr_size, hmm_mem_stat.res_size,
-		hmm_mem_stat.res_cnt, hmm_mem_stat.sys_size,
-		hmm_mem_stat.dyc_thr, hmm_mem_stat.dyc_size);
-}
-
-void hmm_init_mem_stat(int res_pgnr, int dyc_en, int dyc_pgnr)
-{
-	hmm_mem_stat.res_size = res_pgnr;
-	/* If reserved mem pool is not enabled, set its "mem stat" values as -1. */
-	if (hmm_mem_stat.res_size == 0) {
-		hmm_mem_stat.res_size = -1;
-		hmm_mem_stat.res_cnt = -1;
-	}
-
-	/* If dynamic memory pool is not enabled, set its "mem stat" values as -1. */
-	if (!dyc_en) {
-		hmm_mem_stat.dyc_size = -1;
-		hmm_mem_stat.dyc_thr = -1;
-	} else {
-		hmm_mem_stat.dyc_size = 0;
-		hmm_mem_stat.dyc_thr = dyc_pgnr;
-	}
-	hmm_mem_stat.usr_size = 0;
-	hmm_mem_stat.sys_size = 0;
-	hmm_mem_stat.tol_cnt = 0;
 }
