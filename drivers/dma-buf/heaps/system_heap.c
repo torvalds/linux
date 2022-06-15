@@ -239,7 +239,7 @@ static int system_heap_sgl_sync_range(struct device *dev,
 	for_each_sg(sgl, sg, nents, i) {
 		unsigned int sg_offset, sg_left, size = 0;
 
-		sg_dma_addr = sg_phys(sg);
+		sg_dma_addr = sg_dma_address(sg);
 
 		len += sg->length;
 		if (len <= offset)
