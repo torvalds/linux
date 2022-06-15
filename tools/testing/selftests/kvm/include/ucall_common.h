@@ -32,6 +32,14 @@ uint64_t get_ucall(struct kvm_vcpu *vcpu, struct ucall *uc);
 				ucall(UCALL_SYNC, 6, "hello", stage, arg1, arg2, arg3, arg4)
 #define GUEST_SYNC(stage)	ucall(UCALL_SYNC, 2, "hello", stage)
 #define GUEST_DONE()		ucall(UCALL_DONE, 0)
+
+enum guest_assert_builtin_args {
+	GUEST_ERROR_STRING,
+	GUEST_FILE,
+	GUEST_LINE,
+	GUEST_ASSERT_BUILTIN_NARGS
+};
+
 #define __GUEST_ASSERT(_condition, _condstr, _nargs, _args...) do {    \
 	if (!(_condition))                                              \
 		ucall(UCALL_ABORT, 2 + _nargs,                          \
