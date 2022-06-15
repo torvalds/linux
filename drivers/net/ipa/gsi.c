@@ -1345,8 +1345,9 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
 
 /**
  * gsi_evt_ring_rx_update() - Record lengths of received data
- * @evt_ring:	Event ring associated with channel that received packets
- * @index:	Event index in ring reported by hardware
+ * @gsi:		GSI pointer
+ * @evt_ring_id:	Event ring ID
+ * @index:		Event index in ring reported by hardware
  *
  * Events for RX channels contain the actual number of bytes received into
  * the buffer.  Every event has a transaction associated with it, and here
@@ -1362,9 +1363,9 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
  *
  * Note that @index always refers to an element *within* the event ring.
  */
-static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
+static void gsi_evt_ring_rx_update(struct gsi *gsi, u32 evt_ring_id, u32 index)
 {
-	struct gsi_channel *channel = evt_ring->channel;
+	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct gsi_ring *ring = &evt_ring->ring;
 	struct gsi_event *event_done;
 	struct gsi_event *event;
@@ -1387,7 +1388,7 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	do {
 		struct gsi_trans *trans;
 
-		trans = gsi_event_trans(channel->gsi, event);
+		trans = gsi_event_trans(gsi, event);
 		if (!trans)
 			return;
 
@@ -1500,7 +1501,7 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	if (channel->toward_ipa)
 		gsi_trans_tx_completed(trans);
 	else
-		gsi_evt_ring_rx_update(evt_ring, index);
+		gsi_evt_ring_rx_update(gsi, evt_ring_id, index);
 
 	gsi_trans_move_complete(trans);
 
