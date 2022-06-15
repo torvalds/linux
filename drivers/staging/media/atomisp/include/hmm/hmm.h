@@ -67,17 +67,6 @@ void hmm_vunmap(ia_css_ptr virt);
 void hmm_flush_vmap(ia_css_ptr virt);
 
 /*
- * Address translation from ISP shared memory address to kernel virtual address
- * if the memory is not vmmaped,  then do it.
- */
-void *hmm_isp_vaddr_to_host_vaddr(ia_css_ptr ptr, bool cached);
-
-/*
- * Address translation from kernel virtual address to ISP shared memory address
- */
-ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr);
-
-/*
  * map ISP memory starts with virt to specific vma.
  *
  * used for mmap operation.

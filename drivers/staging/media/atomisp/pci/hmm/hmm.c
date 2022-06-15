@@ -608,23 +608,3 @@ void hmm_vunmap(ia_css_ptr virt)
 
 	hmm_bo_vunmap(bo);
 }
-
-void *hmm_isp_vaddr_to_host_vaddr(ia_css_ptr ptr, bool cached)
-{
-	return hmm_vmap(ptr, cached);
-	/* vmunmap will be done in hmm_bo_release() */
-}
-
-ia_css_ptr hmm_host_vaddr_to_hrt_vaddr(const void *ptr)
-{
-	struct hmm_buffer_object *bo;
-
-	bo = hmm_bo_device_search_vmap_start(&bo_device, ptr);
-	if (bo)
-		return bo->start;
-
-	dev_err(atomisp_dev,
-		"can not find buffer object whose kernel virtual address is %p\n",
-		ptr);
-	return 0;
-}
