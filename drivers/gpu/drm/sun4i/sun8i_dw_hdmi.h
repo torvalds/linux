@@ -173,7 +173,7 @@ struct sun8i_hdmi_phy {
 	unsigned int			rcal;
 	struct regmap			*regs;
 	struct reset_control		*rst_phy;
-	struct sun8i_hdmi_phy_variant	*variant;
+	const struct sun8i_hdmi_phy_variant *variant;
 };
 
 struct sun8i_dw_hdmi_quirks {

@@ -565,7 +565,7 @@ void sun8i_hdmi_phy_deinit(struct sun8i_hdmi_phy *phy)
 void sun8i_hdmi_phy_set_ops(struct sun8i_hdmi_phy *phy,
 			    struct dw_hdmi_plat_data *plat_data)
 {
-	struct sun8i_hdmi_phy_variant *variant = phy->variant;
+	const struct sun8i_hdmi_phy_variant *variant = phy->variant;
 
 	if (variant->is_custom_phy) {
 		plat_data->phy_ops = &sun8i_hdmi_phy_ops;
@@ -672,7 +672,6 @@ int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 
 static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 {
-	const struct of_device_id *match;
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct sun8i_hdmi_phy *phy;
@@ -680,17 +679,11 @@ static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 	void __iomem *regs;
 	int ret;
 
-	match = of_match_node(sun8i_hdmi_phy_of_table, node);
-	if (!match) {
-		dev_err(dev, "Incompatible HDMI PHY\n");
-		return -EINVAL;
-	}
-
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
 		return -ENOMEM;
 
-	phy->variant = (struct sun8i_hdmi_phy_variant *)match->data;
+	phy->variant = of_device_get_match_data(dev);
 	phy->dev = dev;
 
 	ret = of_address_to_resource(node, 0, &res);
