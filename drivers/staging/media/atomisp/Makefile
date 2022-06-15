@@ -45,9 +45,7 @@ atomisp-objs += \
 	pci/camera/pipe/src/pipe_util.o \
 	pci/camera/util/src/util.o \
 	pci/hmm/hmm_bo.o \
-	pci/hmm/hmm_dynamic_pool.o \
 	pci/hmm/hmm.o \
-	pci/hmm/hmm_reserved_pool.o \
 	pci/ia_css_device_access.o \
 	pci/ia_css_isp_configs.o \
 	pci/ia_css_isp_states.o \
