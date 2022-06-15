@@ -40,3 +40,4 @@ icc-test.ko
 qcom_hwspinlock.ko
 smem.ko
 socinfo.ko
+qcom-reboot-reason.ko
