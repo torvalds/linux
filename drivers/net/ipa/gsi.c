@@ -1392,7 +1392,8 @@ static void gsi_evt_ring_rx_update(struct gsi *gsi, u32 evt_ring_id, u32 index)
 		if (!trans)
 			return;
 
-		trans->len = __le16_to_cpu(event->len);
+		if (trans->direction == DMA_FROM_DEVICE)
+			trans->len = __le16_to_cpu(event->len);
 
 		/* Move on to the next event and transaction */
 		if (--event_avail)
@@ -1500,8 +1501,7 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	 */
 	if (channel->toward_ipa)
 		gsi_trans_tx_completed(trans);
-	else
-		gsi_evt_ring_rx_update(gsi, evt_ring_id, index);
+	gsi_evt_ring_rx_update(gsi, evt_ring_id, index);
 
 	gsi_trans_move_complete(trans);
 
