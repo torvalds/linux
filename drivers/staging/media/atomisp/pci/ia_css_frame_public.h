@@ -245,44 +245,6 @@ ia_css_frame_allocate_from_info(struct ia_css_frame **frame,
 void
 ia_css_frame_free(struct ia_css_frame *frame);
 
-/* @brief Allocate a contiguous CSS frame structure
- *
- * @param	frame		The allocated frame.
- * @param	width		The width (in pixels) of the frame.
- * @param	height		The height (in lines) of the frame.
- * @param	format		The frame format.
- * @param	stride		The padded stride, in pixels.
- * @param	raw_bit_depth	The raw bit depth, in bits.
- * @return			The error code.
- *
- * Contiguous frame allocation, only for FPGA display driver which needs
- * physically contiguous memory.
- * Deprecated.
- */
-int
-ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
-				 unsigned int width,
-				 unsigned int height,
-				 enum ia_css_frame_format format,
-				 unsigned int stride,
-				 unsigned int raw_bit_depth);
-
-/* @brief Allocate a contiguous CSS frame from a frame info structure.
- *
- * @param	frame	The allocated frame.
- * @param[in]	info	The frame info structure.
- * @return		The error code.
- *
- * Allocate a frame using the resolution and format from a frame info struct.
- * This is a convenience function, implemented on top of
- * ia_css_frame_allocate_contiguous().
- * Only for FPGA display driver which needs physically contiguous memory.
- * Deprecated.
- */
-int
-ia_css_frame_allocate_contiguous_from_info(struct ia_css_frame **frame,
-	const struct ia_css_frame_info *info);
-
 /* @brief Allocate a CSS frame structure using a frame info structure.
  *
  * @param	frame	The allocated frame.

@@ -270,49 +270,6 @@ int ia_css_frame_set_data(struct ia_css_frame *frame,
 	return err;
 }
 
-int ia_css_frame_allocate_contiguous(struct ia_css_frame **frame,
-	unsigned int width,
-	unsigned int height,
-	enum ia_css_frame_format format,
-	unsigned int padded_width,
-	unsigned int raw_bit_depth)
-{
-	int err = 0;
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous() enter: width=%d, height=%d, format=%d, padded_width=%d, raw_bit_depth=%d\n",
-			    width, height, format, padded_width, raw_bit_depth);
-
-	err = frame_allocate_with_data(frame, width, height, format,
-				       padded_width, raw_bit_depth, true);
-
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous() leave: frame=%p\n",
-			    frame ? *frame : (void *)-1);
-
-	return err;
-}
-
-int ia_css_frame_allocate_contiguous_from_info(
-    struct ia_css_frame **frame,
-    const struct ia_css_frame_info *info)
-{
-	int err = 0;
-
-	assert(frame);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous_from_info() enter:\n");
-	err = ia_css_frame_allocate_contiguous(frame,
-					       info->res.width,
-					       info->res.height,
-					       info->format,
-					       info->padded_width,
-					       info->raw_bit_depth);
-	ia_css_debug_dtrace(IA_CSS_DEBUG_TRACE,
-			    "ia_css_frame_allocate_contiguous_from_info() leave:\n");
-	return err;
-}
-
 void ia_css_frame_free(struct ia_css_frame *frame)
 {
 	IA_CSS_ENTER_PRIVATE("frame = %p", frame);
