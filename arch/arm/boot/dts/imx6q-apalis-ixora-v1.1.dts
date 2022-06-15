@@ -81,10 +81,6 @@
 	status = "okay";
 };
 
-&hdmi {
-	status = "okay";
-};
-
 /* I2C1_SDA/SCL on MXM3 209/211 (e.g. RTC on carrier board) */
 &i2c1 {
 	status = "okay";
