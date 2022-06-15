@@ -22,6 +22,7 @@
 #include <linux/fs.h>
 #include <linux/namei.h>
 #include <linux/pagemap.h>
+#include <linux/sched/mm.h>
 #include <linux/fsnotify.h>
 #include <linux/personality.h>
 #include <linux/security.h>
@@ -729,13 +730,6 @@ static bool legitimize_links(struct nameidata *nd)
 
 static bool legitimize_root(struct nameidata *nd)
 {
-	/*
-	 * For scoped-lookups (where nd->root has been zeroed), we need to
-	 * restart the whole lookup from scratch -- because set_root() is wrong
-	 * for these lookups (nd->dfd is the root, not the filesystem root).
-	 */
-	if (!nd->root.mnt && (nd->flags & LOOKUP_IS_SCOPED))
-		return false;
 	/* Nothing to do if nd->root is zero or is managed by the VFS user. */
 	if (!nd->root.mnt || (nd->state & ND_ROOT_PRESET))
 		return true;
@@ -797,7 +791,7 @@ out:
  * @seq: seq number to check @dentry against
  * Returns: true on success, false on failure
  *
- * Similar to to try_to_unlazy(), but here we have the next dentry already
+ * Similar to try_to_unlazy(), but here we have the next dentry already
  * picked by rcu-walk and want to legitimize that in addition to the current
  * nd->path and nd->root for ref-walk mode.  Must be called from rcu-walk context.
  * Nothing should touch nameidata between try_to_unlazy_next() failure and
@@ -1031,7 +1025,7 @@ static struct ctl_table namei_sysctls[] = {
 		.procname	= "protected_symlinks",
 		.data		= &sysctl_protected_symlinks,
 		.maxlen		= sizeof(int),
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
@@ -1040,7 +1034,7 @@ static struct ctl_table namei_sysctls[] = {
 		.procname	= "protected_hardlinks",
 		.data		= &sysctl_protected_hardlinks,
 		.maxlen		= sizeof(int),
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_ONE,
@@ -1049,7 +1043,7 @@ static struct ctl_table namei_sysctls[] = {
 		.procname	= "protected_fifos",
 		.data		= &sysctl_protected_fifos,
 		.maxlen		= sizeof(int),
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
@@ -1058,7 +1052,7 @@ static struct ctl_table namei_sysctls[] = {
 		.procname	= "protected_regular",
 		.data		= &sysctl_protected_regular,
 		.maxlen		= sizeof(int),
-		.mode		= 0600,
+		.mode		= 0644,
 		.proc_handler	= proc_dointvec_minmax,
 		.extra1		= SYSCTL_ZERO,
 		.extra2		= SYSCTL_TWO,
@@ -1754,7 +1748,7 @@ static int reserve_stack(struct nameidata *nd, struct path *link, unsigned seq)
 		// unlazy even if we fail to grab the link - cleanup needs it
 		bool grabbed_link = legitimize_path(nd, link, seq);
 
-		if (!try_to_unlazy(nd) != 0 || !grabbed_link)
+		if (!try_to_unlazy(nd) || !grabbed_link)
 			return -ECHILD;
 
 		if (nd_alloc_stack(nd))
@@ -2768,6 +2762,72 @@ struct dentry *lookup_one(struct user_namespace *mnt_userns, const char *name,
 EXPORT_SYMBOL(lookup_one);
 
 /**
+ * lookup_one_unlocked - filesystem helper to lookup single pathname component
+ * @mnt_userns:	idmapping of the mount the lookup is performed from
+ * @name:	pathname component to lookup
+ * @base:	base directory to lookup from
+ * @len:	maximum length @len should be interpreted to
+ *
+ * Note that this routine is purely a helper for filesystem usage and should
+ * not be called by generic code.
+ *
+ * Unlike lookup_one_len, it should be called without the parent
+ * i_mutex held, and will take the i_mutex itself if necessary.
+ */
+struct dentry *lookup_one_unlocked(struct user_namespace *mnt_userns,
+				   const char *name, struct dentry *base,
+				   int len)
+{
+	struct qstr this;
+	int err;
+	struct dentry *ret;
+
+	err = lookup_one_common(mnt_userns, name, base, len, &this);
+	if (err)
+		return ERR_PTR(err);
+
+	ret = lookup_dcache(&this, base, 0);
+	if (!ret)
+		ret = lookup_slow(&this, base, 0);
+	return ret;
+}
+EXPORT_SYMBOL(lookup_one_unlocked);
+
+/**
+ * lookup_one_positive_unlocked - filesystem helper to lookup single
+ *				  pathname component
+ * @mnt_userns:	idmapping of the mount the lookup is performed from
+ * @name:	pathname component to lookup
+ * @base:	base directory to lookup from
+ * @len:	maximum length @len should be interpreted to
+ *
+ * This helper will yield ERR_PTR(-ENOENT) on negatives. The helper returns
+ * known positive or ERR_PTR(). This is what most of the users want.
+ *
+ * Note that pinned negative with unlocked parent _can_ become positive at any
+ * time, so callers of lookup_one_unlocked() need to be very careful; pinned
+ * positives have >d_inode stable, so this one avoids such problems.
+ *
+ * Note that this routine is purely a helper for filesystem usage and should
+ * not be called by generic code.
+ *
+ * The helper should be called without i_mutex held.
+ */
+struct dentry *lookup_one_positive_unlocked(struct user_namespace *mnt_userns,
+					    const char *name,
+					    struct dentry *base, int len)
+{
+	struct dentry *ret = lookup_one_unlocked(mnt_userns, name, base, len);
+
+	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
+		dput(ret);
+		ret = ERR_PTR(-ENOENT);
+	}
+	return ret;
+}
+EXPORT_SYMBOL(lookup_one_positive_unlocked);
+
+/**
  * lookup_one_len_unlocked - filesystem helper to lookup single pathname component
  * @name:	pathname component to lookup
  * @base:	base directory to lookup from
@@ -2782,18 +2842,7 @@ EXPORT_SYMBOL(lookup_one);
 struct dentry *lookup_one_len_unlocked(const char *name,
 				       struct dentry *base, int len)
 {
-	struct qstr this;
-	int err;
-	struct dentry *ret;
-
-	err = lookup_one_common(&init_user_ns, name, base, len, &this);
-	if (err)
-		return ERR_PTR(err);
-
-	ret = lookup_dcache(&this, base, 0);
-	if (!ret)
-		ret = lookup_slow(&this, base, 0);
-	return ret;
+	return lookup_one_unlocked(&init_user_ns, name, base, len);
 }
 EXPORT_SYMBOL(lookup_one_len_unlocked);
 
@@ -2808,12 +2857,7 @@ EXPORT_SYMBOL(lookup_one_len_unlocked);
 struct dentry *lookup_positive_unlocked(const char *name,
 				       struct dentry *base, int len)
 {
-	struct dentry *ret = lookup_one_len_unlocked(name, base, len);
-	if (!IS_ERR(ret) && d_flags_negative(smp_load_acquire(&ret->d_flags))) {
-		dput(ret);
-		ret = ERR_PTR(-ENOENT);
-	}
-	return ret;
+	return lookup_one_positive_unlocked(&init_user_ns, name, base, len);
 }
 EXPORT_SYMBOL(lookup_positive_unlocked);
 
@@ -3673,18 +3717,14 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 {
 	struct dentry *dentry = ERR_PTR(-EEXIST);
 	struct qstr last;
+	bool want_dir = lookup_flags & LOOKUP_DIRECTORY;
+	unsigned int reval_flag = lookup_flags & LOOKUP_REVAL;
+	unsigned int create_flags = LOOKUP_CREATE | LOOKUP_EXCL;
 	int type;
 	int err2;
 	int error;
-	bool is_dir = (lookup_flags & LOOKUP_DIRECTORY);
 
-	/*
-	 * Note that only LOOKUP_REVAL and LOOKUP_DIRECTORY matter here. Any
-	 * other flags passed in are ignored!
-	 */
-	lookup_flags &= LOOKUP_REVAL;
-
-	error = filename_parentat(dfd, name, lookup_flags, path, &last, &type);
+	error = filename_parentat(dfd, name, reval_flag, path, &last, &type);
 	if (error)
 		return ERR_PTR(error);
 
@@ -3698,11 +3738,13 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	/* don't fail immediately if it's r/o, at least try to report other errors */
 	err2 = mnt_want_write(path->mnt);
 	/*
-	 * Do the final lookup.
+	 * Do the final lookup.  Suppress 'create' if there is a trailing
+	 * '/', and a directory wasn't requested.
 	 */
-	lookup_flags |= LOOKUP_CREATE | LOOKUP_EXCL;
+	if (last.name[last.len] && !want_dir)
+		create_flags = 0;
 	inode_lock_nested(path->dentry->d_inode, I_MUTEX_PARENT);
-	dentry = __lookup_hash(&last, path->dentry, lookup_flags);
+	dentry = __lookup_hash(&last, path->dentry, reval_flag | create_flags);
 	if (IS_ERR(dentry))
 		goto unlock;
 
@@ -3716,7 +3758,7 @@ static struct dentry *filename_create(int dfd, struct filename *name,
 	 * all is fine. Let's be bastards - you had / on the end, you've
 	 * been asking for (non-existent) directory. -ENOENT for you.
 	 */
-	if (unlikely(!is_dir && last.name[last.len])) {
+	if (unlikely(!create_flags)) {
 		error = -ENOENT;
 		goto fail;
 	}
@@ -5003,28 +5045,28 @@ int page_readlink(struct dentry *dentry, char __user *buffer, int buflen)
 }
 EXPORT_SYMBOL(page_readlink);
 
-/*
- * The nofs argument instructs pagecache_write_begin to pass AOP_FLAG_NOFS
- */
-int __page_symlink(struct inode *inode, const char *symname, int len, int nofs)
+int page_symlink(struct inode *inode, const char *symname, int len)
 {
 	struct address_space *mapping = inode->i_mapping;
+	const struct address_space_operations *aops = mapping->a_ops;
+	bool nofs = !mapping_gfp_constraint(mapping, __GFP_FS);
 	struct page *page;
 	void *fsdata;
 	int err;
-	unsigned int flags = 0;
-	if (nofs)
-		flags |= AOP_FLAG_NOFS;
+	unsigned int flags;
 
 retry:
-	err = pagecache_write_begin(NULL, mapping, 0, len-1,
-				flags, &page, &fsdata);
+	if (nofs)
+		flags = memalloc_nofs_save();
+	err = aops->write_begin(NULL, mapping, 0, len-1, &page, &fsdata);
+	if (nofs)
+		memalloc_nofs_restore(flags);
 	if (err)
 		goto fail;
 
 	memcpy(page_address(page), symname, len-1);
 
-	err = pagecache_write_end(NULL, mapping, 0, len-1, len-1,
+	err = aops->write_end(NULL, mapping, 0, len-1, len-1,
 							page, fsdata);
 	if (err < 0)
 		goto fail;
@@ -5035,13 +5077,6 @@ retry:
 	return 0;
 fail:
 	return err;
-}
-EXPORT_SYMBOL(__page_symlink);
-
-int page_symlink(struct inode *inode, const char *symname, int len)
-{
-	return __page_symlink(inode, symname, len,
-			!mapping_gfp_constraint(inode->i_mapping, __GFP_FS));
 }
 EXPORT_SYMBOL(page_symlink);
 

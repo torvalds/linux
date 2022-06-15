@@ -12,7 +12,6 @@
 #include <linux/pci.h>
 #include <linux/of_platform.h>
 #include <linux/io.h>
-#include <asm/prom.h>
 #include <asm/time.h>
 #include <asm/ipic.h>
 #include <asm/udbg.h>

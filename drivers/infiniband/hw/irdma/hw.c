@@ -61,7 +61,7 @@ static void irdma_iwarp_ce_handler(struct irdma_sc_cq *iwcq)
 	struct irdma_cq *cq = iwcq->back_cq;
 
 	if (!cq->user_mode)
-		cq->armed = false;
+		atomic_set(&cq->armed, 0);
 	if (cq->ibcq.comp_handler)
 		cq->ibcq.comp_handler(&cq->ibcq, cq->ibcq.cq_context);
 }
@@ -1827,10 +1827,6 @@ int irdma_rt_init_hw(struct irdma_device *iwdev,
 			rf->rsrc_created = true;
 		}
 
-		iwdev->device_cap_flags = IB_DEVICE_LOCAL_DMA_LKEY |
-					  IB_DEVICE_MEM_WINDOW |
-					  IB_DEVICE_MEM_MGT_EXTENSIONS;
-
 		if (iwdev->rf->sc_dev.hw_attrs.uk_attrs.hw_rev == IRDMA_GEN_1)
 			irdma_alloc_set_mac(iwdev);
 		irdma_add_ip(iwdev);
@@ -2693,24 +2689,29 @@ void irdma_flush_wqes(struct irdma_qp *iwqp, u32 flush_mask)
 	info.sq = flush_mask & IRDMA_FLUSH_SQ;
 	info.rq = flush_mask & IRDMA_FLUSH_RQ;
 
-	if (flush_mask & IRDMA_REFLUSH) {
-		if (info.sq)
-			iwqp->sc_qp.flush_sq = false;
-		if (info.rq)
-			iwqp->sc_qp.flush_rq = false;
-	}
-
 	/* Generate userflush errors in CQE */
 	info.sq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.sq_minor_code = FLUSH_GENERAL_ERR;
 	info.rq_major_code = IRDMA_FLUSH_MAJOR_ERR;
 	info.rq_minor_code = FLUSH_GENERAL_ERR;
 	info.userflushcode = true;
-	if (flush_code) {
-		if (info.sq && iwqp->sc_qp.sq_flush_code)
-			info.sq_minor_code = flush_code;
-		if (info.rq && iwqp->sc_qp.rq_flush_code)
-			info.rq_minor_code = flush_code;
+
+	if (flush_mask & IRDMA_REFLUSH) {
+		if (info.sq)
+			iwqp->sc_qp.flush_sq = false;
+		if (info.rq)
+			iwqp->sc_qp.flush_rq = false;
+	} else {
+		if (flush_code) {
+			if (info.sq && iwqp->sc_qp.sq_flush_code)
+				info.sq_minor_code = flush_code;
+			if (info.rq && iwqp->sc_qp.rq_flush_code)
+				info.rq_minor_code = flush_code;
+		}
+		if (!iwqp->user_mode)
+			queue_delayed_work(iwqp->iwdev->cleanup_wq,
+					   &iwqp->dwork_flush,
+					   msecs_to_jiffies(IRDMA_FLUSH_DELAY_MS));
 	}
 
 	/* Issue flush */

@@ -57,7 +57,7 @@ static struct drm_plane_state *mtk_plane_duplicate_state(struct drm_plane *plane
 	struct mtk_plane_state *old_state = to_mtk_plane_state(plane->state);
 	struct mtk_plane_state *state;
 
-	state = kzalloc(sizeof(*state), GFP_KERNEL);
+	state = kmalloc(sizeof(*state), GFP_KERNEL);
 	if (!state)
 		return NULL;
 

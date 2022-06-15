@@ -856,11 +856,9 @@ static int omap_mbox_probe(struct platform_device *pdev)
 	platform_set_drvdata(pdev, mdev);
 	pm_runtime_enable(mdev->dev);
 
-	ret = pm_runtime_get_sync(mdev->dev);
-	if (ret < 0) {
-		pm_runtime_put_noidle(mdev->dev);
+	ret = pm_runtime_resume_and_get(mdev->dev);
+	if (ret < 0)
 		goto unregister;
-	}
 
 	/*
 	 * just print the raw revision register, the format is not

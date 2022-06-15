@@ -59,9 +59,6 @@
 #define ATH10K_KEEPALIVE_MAX_IDLE 3895
 #define ATH10K_KEEPALIVE_MAX_UNRESPONSIVE 3900
 
-/* NAPI poll budget */
-#define ATH10K_NAPI_BUDGET      64
-
 /* SMBIOS type containing Board Data File Name Extension */
 #define ATH10K_SMBIOS_BDF_EXT_TYPE 0xF8
 

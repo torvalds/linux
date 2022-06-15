@@ -241,6 +241,7 @@ static struct clk_init_data rtc_32k_init_data = {
 	.ops		= &ccu_mux_ops,
 	.parent_hws	= rtc_32k_parents,
 	.num_parents	= ARRAY_SIZE(rtc_32k_parents), /* updated during probe */
+	.flags		= CLK_IS_CRITICAL,
 };
 
 static struct ccu_mux rtc_32k_clk = {
@@ -297,10 +298,6 @@ static const struct sunxi_ccu_desc sun6i_rtc_ccu_desc = {
 	.hw_clks	= &sun6i_rtc_ccu_hw_clks,
 };
 
-static const struct clk_parent_data sun50i_h6_osc32k_fanout_parents[] = {
-	{ .hw = &osc32k_clk.common.hw },
-};
-
 static const struct clk_parent_data sun50i_h616_osc32k_fanout_parents[] = {
 	{ .hw = &osc32k_clk.common.hw },
 	{ .fw_name = "pll-32k" },
@@ -311,13 +308,6 @@ static const struct clk_parent_data sun50i_r329_osc32k_fanout_parents[] = {
 	{ .hw = &osc32k_clk.common.hw },
 	{ .hw = &ext_osc32k_gate_clk.common.hw },
 	{ .hw = &osc24M_32k_clk.common.hw }
-};
-
-static const struct sun6i_rtc_match_data sun50i_h6_rtc_ccu_data = {
-	.have_ext_osc32k	= true,
-	.have_iosc_calibration	= true,
-	.osc32k_fanout_parents	= sun50i_h6_osc32k_fanout_parents,
-	.osc32k_fanout_nparents	= ARRAY_SIZE(sun50i_h6_osc32k_fanout_parents),
 };
 
 static const struct sun6i_rtc_match_data sun50i_h616_rtc_ccu_data = {
@@ -335,10 +325,6 @@ static const struct sun6i_rtc_match_data sun50i_r329_rtc_ccu_data = {
 
 static const struct of_device_id sun6i_rtc_ccu_match[] = {
 	{
-		.compatible	= "allwinner,sun50i-h6-rtc",
-		.data		= &sun50i_h6_rtc_ccu_data,
-	},
-	{
 		.compatible	= "allwinner,sun50i-h616-rtc",
 		.data		= &sun50i_h616_rtc_ccu_data,
 	},
@@ -346,6 +332,7 @@ static const struct of_device_id sun6i_rtc_ccu_match[] = {
 		.compatible	= "allwinner,sun50i-r329-rtc",
 		.data		= &sun50i_r329_rtc_ccu_data,
 	},
+	{},
 };
 
 int sun6i_rtc_ccu_probe(struct device *dev, void __iomem *reg)

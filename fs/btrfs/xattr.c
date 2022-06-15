@@ -262,7 +262,8 @@ int btrfs_setxattr_trans(struct inode *inode, const char *name,
 	inode_inc_iversion(inode);
 	inode->i_ctime = current_time(inode);
 	ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
-	BUG_ON(ret);
+	if (ret)
+		btrfs_abort_transaction(trans, ret);
 out:
 	if (start_trans)
 		btrfs_end_transaction(trans);
@@ -271,10 +272,12 @@ out:
 
 ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 {
+	struct btrfs_key found_key;
 	struct btrfs_key key;
 	struct inode *inode = d_inode(dentry);
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_path *path;
+	int iter_ret = 0;
 	int ret = 0;
 	size_t total_size = 0, size_left = size;
 
@@ -293,36 +296,15 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 	path->reada = READA_FORWARD;
 
 	/* search for our xattrs */
-	ret = btrfs_search_slot(NULL, root, &key, path, 0, 0);
-	if (ret < 0)
-		goto err;
-
-	while (1) {
+	btrfs_for_each_slot(root, &key, &found_key, path, iter_ret) {
 		struct extent_buffer *leaf;
 		int slot;
 		struct btrfs_dir_item *di;
-		struct btrfs_key found_key;
 		u32 item_size;
 		u32 cur;
 
 		leaf = path->nodes[0];
 		slot = path->slots[0];
-
-		/* this is where we start walking through the path */
-		if (slot >= btrfs_header_nritems(leaf)) {
-			/*
-			 * if we've reached the last slot in this leaf we need
-			 * to go to the next leaf and reset everything
-			 */
-			ret = btrfs_next_leaf(root, path);
-			if (ret < 0)
-				goto err;
-			else if (ret > 0)
-				break;
-			continue;
-		}
-
-		btrfs_item_key_to_cpu(leaf, &found_key, slot);
 
 		/* check to make sure this item is what we want */
 		if (found_key.objectid != key.objectid)
@@ -330,7 +312,7 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 		if (found_key.type > BTRFS_XATTR_ITEM_KEY)
 			break;
 		if (found_key.type < BTRFS_XATTR_ITEM_KEY)
-			goto next_item;
+			continue;
 
 		di = btrfs_item_ptr(leaf, slot, struct btrfs_dir_item);
 		item_size = btrfs_item_size(leaf, slot);
@@ -350,8 +332,8 @@ ssize_t btrfs_listxattr(struct dentry *dentry, char *buffer, size_t size)
 				goto next;
 
 			if (!buffer || (name_len + 1) > size_left) {
-				ret = -ERANGE;
-				goto err;
+			        iter_ret = -ERANGE;
+				break;
 			}
 
 			read_extent_buffer(leaf, buffer, name_ptr, name_len);
@@ -363,12 +345,13 @@ next:
 			cur += this_len;
 			di = (struct btrfs_dir_item *)((char *)di + this_len);
 		}
-next_item:
-		path->slots[0]++;
 	}
-	ret = total_size;
 
-err:
+	if (iter_ret < 0)
+		ret = iter_ret;
+	else
+		ret = total_size;
+
 	btrfs_free_path(path);
 
 	return ret;
@@ -403,9 +386,12 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 
 	name = xattr_full_name(handler, name);
-	ret = btrfs_validate_prop(name, value, size);
+	ret = btrfs_validate_prop(BTRFS_I(inode), name, value, size);
 	if (ret)
 		return ret;
+
+	if (btrfs_ignore_prop(BTRFS_I(inode), name))
+		return 0;
 
 	trans = btrfs_start_transaction(root, 2);
 	if (IS_ERR(trans))
@@ -416,7 +402,8 @@ static int btrfs_xattr_handler_set_prop(const struct xattr_handler *handler,
 		inode_inc_iversion(inode);
 		inode->i_ctime = current_time(inode);
 		ret = btrfs_update_inode(trans, root, BTRFS_I(inode));
-		BUG_ON(ret);
+		if (ret)
+			btrfs_abort_transaction(trans, ret);
 	}
 
 	btrfs_end_transaction(trans);

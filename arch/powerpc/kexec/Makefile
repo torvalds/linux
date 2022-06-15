@@ -13,3 +13,5 @@ obj-$(CONFIG_KEXEC_FILE)	+= file_load.o ranges.o file_load_$(BITS).o elf_$(BITS)
 GCOV_PROFILE_core_$(BITS).o := n
 KCOV_INSTRUMENT_core_$(BITS).o := n
 UBSAN_SANITIZE_core_$(BITS).o := n
+KASAN_SANITIZE_core.o := n
+KASAN_SANITIZE_core_$(BITS) := n

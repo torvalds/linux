@@ -11,10 +11,10 @@
 #include <linux/module.h>
 #include <linux/delay.h>
 #include <linux/fs.h>
+#include <linux/of.h>
 
 #include <linux/uaccess.h>
 #include <asm/sections.h>
-#include <asm/prom.h>
 #include <asm/io.h>
 
 #include "ans-lcd.h"

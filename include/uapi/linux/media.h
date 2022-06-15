@@ -20,9 +20,6 @@
 #ifndef __LINUX_MEDIA_H
 #define __LINUX_MEDIA_H
 
-#ifndef __KERNEL__
-#include <stdint.h>
-#endif
 #include <linux/ioctl.h>
 #include <linux/types.h>
 
@@ -226,6 +223,7 @@ struct media_pad_desc {
 #define MEDIA_LNK_FL_LINK_TYPE			(0xf << 28)
 #  define MEDIA_LNK_FL_DATA_LINK		(0 << 28)
 #  define MEDIA_LNK_FL_INTERFACE_LINK		(1 << 28)
+#  define MEDIA_LNK_FL_ANCILLARY_LINK		(2 << 28)
 
 struct media_link_desc {
 	struct media_pad_desc source;

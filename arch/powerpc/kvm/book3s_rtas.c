@@ -229,9 +229,9 @@ int kvmppc_rtas_hcall(struct kvm_vcpu *vcpu)
 	 */
 	args_phys = kvmppc_get_gpr(vcpu, 4) & KVM_PAM;
 
-	vcpu->srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+	kvm_vcpu_srcu_read_lock(vcpu);
 	rc = kvm_read_guest(vcpu->kvm, args_phys, &args, sizeof(args));
-	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->srcu_idx);
+	kvm_vcpu_srcu_read_unlock(vcpu);
 	if (rc)
 		goto fail;
 

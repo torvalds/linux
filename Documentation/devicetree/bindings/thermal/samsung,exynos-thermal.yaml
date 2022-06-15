@@ -7,7 +7,7 @@ $schema: http://devicetree.org/meta-schemas/core.yaml#
 title: Samsung Exynos SoC Thermal Management Unit (TMU)
 
 maintainers:
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 description: |
   For multi-instance tmu each instance should have an alias correctly numbered

@@ -36,15 +36,51 @@
 #define IBMVNIC_TSO_BUFS	64
 #define IBMVNIC_TSO_POOL_MASK	0x80000000
 
-#define IBMVNIC_MAX_LTB_SIZE ((1 << (MAX_ORDER - 1)) * PAGE_SIZE)
-#define IBMVNIC_BUFFER_HLEN 500
+/* A VNIC adapter has set of Rx and Tx pools (aka queues). Each Rx/Tx pool
+ * has a set of buffers. The size of each buffer is determined by the MTU.
+ *
+ * Each Rx/Tx pool is also associated with a DMA region that is shared
+ * with the "hardware" (VIOS) and used to send/receive packets. The DMA
+ * region is also referred to as a Long Term Buffer or LTB.
+ *
+ * The size of the DMA region required for an Rx/Tx pool depends on the
+ * number and size (MTU) of the buffers in the pool. At the max levels
+ * of 4096 jumbo frames (MTU=9000) we will need about 9K*4K = 36MB plus
+ * some padding.
+ *
+ * But the size of a single DMA region is limited by MAX_ORDER in the
+ * kernel (about 16MB currently).  To support say 4K Jumbo frames, we
+ * use a set of LTBs (struct ltb_set) per pool.
+ *
+ * IBMVNIC_ONE_LTB_MAX  - max size of each LTB supported by kernel
+ * IBMVNIC_ONE_LTB_SIZE - current max size of each LTB in an ltb_set
+ * (must be <= IBMVNIC_ONE_LTB_MAX)
+ * IBMVNIC_LTB_SET_SIZE - current size of all LTBs in an ltb_set
+ *
+ * Each VNIC can have upto 16 Rx, 16 Tx and 16 TSO pools. The TSO pools
+ * are of fixed length (IBMVNIC_TSO_BUF_SZ * IBMVNIC_TSO_BUFS) of 4MB.
+ *
+ * The Rx and Tx pools can have upto 4096 buffers. The max size of these
+ * buffers is about 9588 (for jumbo frames, including IBMVNIC_BUFFER_HLEN).
+ * So, setting the IBMVNIC_LTB_SET_SIZE for a pool to 4096 * 9588 ~= 38MB.
+ *
+ * There is a trade-off in setting IBMVNIC_ONE_LTB_SIZE. If it is large,
+ * the allocation of the LTB can fail when system is low in memory. If
+ * its too small, we would need several mappings for each of the Rx/
+ * Tx/TSO pools but there is a limit of 255 mappings per vnic in the
+ * VNIC protocol.
+ *
+ * So setting IBMVNIC_ONE_LTB_SIZE to 8MB. With IBMVNIC_LTB_SET_SIZE set
+ * to 38MB, we will need 5 LTBs per Rx and Tx pool and 1 LTB per TSO
+ * pool for the 4MB. Thus the 16 Rx and Tx queues require 32 * 5 = 160
+ * plus 16 for the TSO pools for a total of 176 LTB mappings per VNIC.
+ */
+#define IBMVNIC_ONE_LTB_MAX	((u32)((1 << (MAX_ORDER - 1)) * PAGE_SIZE))
+#define IBMVNIC_ONE_LTB_SIZE	min((u32)(8 << 20), IBMVNIC_ONE_LTB_MAX)
+#define IBMVNIC_LTB_SET_SIZE	(38 << 20)
 
+#define IBMVNIC_BUFFER_HLEN		500
 #define IBMVNIC_RESET_DELAY 100
-
-static const char ibmvnic_priv_flags[][ETH_GSTRING_LEN] = {
-#define IBMVNIC_USE_SERVER_MAXES 0x1
-	"use-server-maxes"
-};
 
 struct ibmvnic_login_buffer {
 	__be32 len;
@@ -798,6 +834,11 @@ struct ibmvnic_long_term_buff {
 	u8 map_id;
 };
 
+struct ibmvnic_ltb_set {
+	int num_ltbs;
+	struct ibmvnic_long_term_buff *ltbs;
+};
+
 struct ibmvnic_tx_buff {
 	struct sk_buff *skb;
 	int index;
@@ -810,7 +851,7 @@ struct ibmvnic_tx_pool {
 	int *free_map;
 	int consumer_index;
 	int producer_index;
-	struct ibmvnic_long_term_buff long_term_buff;
+	struct ibmvnic_ltb_set ltb_set;
 	int num_buffers;
 	int buf_size;
 } ____cacheline_aligned;
@@ -833,7 +874,7 @@ struct ibmvnic_rx_pool {
 	int next_free;
 	int next_alloc;
 	int active;
-	struct ibmvnic_long_term_buff long_term_buff;
+	struct ibmvnic_ltb_set ltb_set;
 } ____cacheline_aligned;
 
 struct ibmvnic_vpd {
@@ -883,7 +924,6 @@ struct ibmvnic_adapter {
 	struct ibmvnic_control_ip_offload_buffer ip_offload_ctrl;
 	dma_addr_t ip_offload_ctrl_tok;
 	u32 msg_enable;
-	u32 priv_flags;
 
 	/* Vital Product Data (VPD) */
 	struct ibmvnic_vpd *vpd;

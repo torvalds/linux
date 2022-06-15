@@ -979,6 +979,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 	struct inet6_dev *idev = __in6_dev_get(dev);
 	struct inet6_ifaddr *ifp;
 	struct neighbour *neigh;
+	u8 new_state;
 
 	if (skb->len < sizeof(struct nd_msg)) {
 		ND_PRINTK(2, warn, "NA: packet too short\n");
@@ -999,6 +1000,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 	/* For some 802.11 wireless deployments (and possibly other networks),
 	 * there will be a NA proxy and unsolicitd packets are attacks
 	 * and thus should not be accepted.
+	 * drop_unsolicited_na takes precedence over accept_untracked_na
 	 */
 	if (!msg->icmph.icmp6_solicited && idev &&
 	    idev->cnf.drop_unsolicited_na)
@@ -1039,9 +1041,33 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		in6_ifa_put(ifp);
 		return;
 	}
+
 	neigh = neigh_lookup(&nd_tbl, &msg->target, dev);
 
-	if (neigh) {
+	/* RFC 9131 updates original Neighbour Discovery RFC 4861.
+	 * NAs with Target LL Address option without a corresponding
+	 * entry in the neighbour cache can now create a STALE neighbour
+	 * cache entry on routers.
+	 *
+	 *   entry accept  fwding  solicited        behaviour
+	 * ------- ------  ------  ---------    ----------------------
+	 * present      X       X         0     Set state to STALE
+	 * present      X       X         1     Set state to REACHABLE
+	 *  absent      0       X         X     Do nothing
+	 *  absent      1       0         X     Do nothing
+	 *  absent      1       1         X     Add a new STALE entry
+	 *
+	 * Note that we don't do a (daddr == all-routers-mcast) check.
+	 */
+	new_state = msg->icmph.icmp6_solicited ? NUD_REACHABLE : NUD_STALE;
+	if (!neigh && lladdr &&
+	    idev && idev->cnf.forwarding &&
+	    idev->cnf.accept_untracked_na) {
+		neigh = neigh_create(&nd_tbl, &msg->target, dev);
+		new_state = NUD_STALE;
+	}
+
+	if (neigh && !IS_ERR(neigh)) {
 		u8 old_flags = neigh->flags;
 		struct net *net = dev_net(dev);
 
@@ -1061,7 +1087,7 @@ static void ndisc_recv_na(struct sk_buff *skb)
 		}
 
 		ndisc_update(dev, neigh, lladdr,
-			     msg->icmph.icmp6_solicited ? NUD_REACHABLE : NUD_STALE,
+			     new_state,
 			     NEIGH_UPDATE_F_WEAK_OVERRIDE|
 			     (msg->icmph.icmp6_override ? NEIGH_UPDATE_F_OVERRIDE : 0)|
 			     NEIGH_UPDATE_F_OVERRIDE_ISROUTER|

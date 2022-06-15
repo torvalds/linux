@@ -315,7 +315,10 @@ struct kvm_vcpu {
 	int cpu;
 	int vcpu_id; /* id given by userspace at creation */
 	int vcpu_idx; /* index in kvm->vcpus array */
-	int srcu_idx;
+	int ____srcu_idx; /* Don't use this directly.  You've been warned. */
+#ifdef CONFIG_PROVE_RCU
+	int srcu_depth;
+#endif
 	int mode;
 	u64 requests;
 	unsigned long guest_debug;
@@ -450,7 +453,7 @@ static __always_inline void guest_state_enter_irqoff(void)
 {
 	instrumentation_begin();
 	trace_hardirqs_on_prepare();
-	lockdep_hardirqs_on_prepare(CALLER_ADDR0);
+	lockdep_hardirqs_on_prepare();
 	instrumentation_end();
 
 	guest_context_enter_irqoff();
@@ -611,7 +614,8 @@ struct kvm_hv_sint {
 
 struct kvm_xen_evtchn {
 	u32 port;
-	u32 vcpu;
+	u32 vcpu_id;
+	int vcpu_idx;
 	u32 priority;
 };
 
@@ -724,6 +728,7 @@ struct kvm {
 	 * and is accessed atomically.
 	 */
 	atomic_t online_vcpus;
+	int max_vcpus;
 	int created_vcpus;
 	int last_boosted_vcpu;
 	struct list_head vm_list;
@@ -839,6 +844,25 @@ static inline void kvm_vm_bugged(struct kvm *kvm)
 		kvm_vm_bugged(kvm);				\
 	unlikely(__ret);					\
 })
+
+static inline void kvm_vcpu_srcu_read_lock(struct kvm_vcpu *vcpu)
+{
+#ifdef CONFIG_PROVE_RCU
+	WARN_ONCE(vcpu->srcu_depth++,
+		  "KVM: Illegal vCPU srcu_idx LOCK, depth=%d", vcpu->srcu_depth - 1);
+#endif
+	vcpu->____srcu_idx = srcu_read_lock(&vcpu->kvm->srcu);
+}
+
+static inline void kvm_vcpu_srcu_read_unlock(struct kvm_vcpu *vcpu)
+{
+	srcu_read_unlock(&vcpu->kvm->srcu, vcpu->____srcu_idx);
+
+#ifdef CONFIG_PROVE_RCU
+	WARN_ONCE(--vcpu->srcu_depth,
+		  "KVM: Illegal vCPU srcu_idx UNLOCK, depth=%d", vcpu->srcu_depth);
+#endif
+}
 
 static inline bool kvm_dirty_log_manual_protect_and_init_set(struct kvm *kvm)
 {
@@ -2196,6 +2220,8 @@ static inline long kvm_arch_vcpu_async_ioctl(struct file *filp,
 
 void kvm_arch_mmu_notifier_invalidate_range(struct kvm *kvm,
 					    unsigned long start, unsigned long end);
+
+void kvm_arch_guest_memory_reclaimed(struct kvm *kvm);
 
 #ifdef CONFIG_HAVE_KVM_VCPU_RUN_PID_CHANGE
 int kvm_arch_vcpu_run_pid_change(struct kvm_vcpu *vcpu);

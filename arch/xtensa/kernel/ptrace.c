@@ -171,8 +171,7 @@ static int tie_set(struct task_struct *target,
 
 #if XTENSA_HAVE_COPROCESSORS
 	/* Flush all coprocessors before we overwrite them. */
-	coprocessor_flush_all(ti);
-	coprocessor_release_all(ti);
+	coprocessor_flush_release_all(ti);
 	ti->xtregs_cp.cp0 = newregs->cp0;
 	ti->xtregs_cp.cp1 = newregs->cp1;
 	ti->xtregs_cp.cp2 = newregs->cp2;
@@ -225,12 +224,12 @@ const struct user_regset_view *task_user_regset_view(struct task_struct *task)
 
 void user_enable_single_step(struct task_struct *child)
 {
-	child->ptrace |= PT_SINGLESTEP;
+	set_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 void user_disable_single_step(struct task_struct *child)
 {
-	child->ptrace &= ~PT_SINGLESTEP;
+	clear_tsk_thread_flag(child, TIF_SINGLESTEP);
 }
 
 /*

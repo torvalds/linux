@@ -274,7 +274,7 @@ u64 *get_intr_regs(struct event *event, void *sample_buff)
 	return intr_regs;
 }
 
-static const unsigned int __perf_reg_mask(const char *register_name)
+static const int __perf_reg_mask(const char *register_name)
 {
 	if (!strcmp(register_name, "R0"))
 		return 0;

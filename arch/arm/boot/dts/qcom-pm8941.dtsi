@@ -131,7 +131,7 @@
 			qcom,external-resistor-micro-ohms = <10000>;
 		};
 
-		coincell@2800 {
+		pm8941_coincell: coincell@2800 {
 			compatible = "qcom,pm8941-coincell";
 			reg = <0x2800>;
 			status = "disabled";

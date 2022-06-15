@@ -941,22 +941,19 @@ static int omap_prm_probe(struct platform_device *pdev)
 	struct resource *res;
 	const struct omap_prm_data *data;
 	struct omap_prm *prm;
-	const struct of_device_id *match;
 	int ret;
 
 	res = platform_get_resource(pdev, IORESOURCE_MEM, 0);
 	if (!res)
 		return -ENODEV;
 
-	match = of_match_device(omap_prm_id_table, &pdev->dev);
-	if (!match)
+	data = of_device_get_match_data(&pdev->dev);
+	if (!data)
 		return -ENOTSUPP;
 
 	prm = devm_kzalloc(&pdev->dev, sizeof(*prm), GFP_KERNEL);
 	if (!prm)
 		return -ENOMEM;
-
-	data = match->data;
 
 	while (data->base != res->start) {
 		if (!data->base)

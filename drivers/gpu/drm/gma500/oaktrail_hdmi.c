@@ -654,7 +654,6 @@ void oaktrail_hdmi_init(struct drm_device *dev,
 	connector->display_info.subpixel_order = SubPixelHorizontalRGB;
 	connector->interlace_allowed = false;
 	connector->doublescan_allowed = false;
-	drm_connector_register(connector);
 	dev_info(dev->dev, "HDMI initialised.\n");
 
 	return;

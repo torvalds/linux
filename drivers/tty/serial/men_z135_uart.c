@@ -833,7 +833,6 @@ static int men_z135_probe(struct mcb_device *mdev,
 	uart->port.iotype = UPIO_MEM;
 	uart->port.ops = &men_z135_ops;
 	uart->port.irq = mcb_get_irq(mdev);
-	uart->port.iotype = UPIO_MEM;
 	uart->port.flags = UPF_BOOT_AUTOCONF | UPF_IOREMAP;
 	uart->port.line = line++;
 	uart->port.dev = dev;

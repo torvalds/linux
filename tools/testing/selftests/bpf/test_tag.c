@@ -20,7 +20,6 @@
 #include <bpf/bpf.h>
 
 #include "../../../include/linux/filter.h"
-#include "bpf_rlimit.h"
 #include "testing_helpers.h"
 
 static struct bpf_insn prog[BPF_MAXINSNS];
@@ -188,6 +187,9 @@ int main(void)
 	LIBBPF_OPTS(bpf_map_create_opts, opts, .map_flags = BPF_F_NO_PREALLOC);
 	uint32_t tests = 0;
 	int i, fd_map;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	fd_map = bpf_map_create(BPF_MAP_TYPE_HASH, NULL, sizeof(int),
 				sizeof(int), 1, &opts);

@@ -314,7 +314,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
-	nfp_desc_set_dma_addr(txd, dma_addr);
+	nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
 
 	/* starts at bit 0 */
 	BUILD_BUG_ON(!(NFDK_DESC_TX_DMA_LEN_HEAD & 1));
@@ -339,7 +339,7 @@ netdev_tx_t nfp_nfdk_tx(struct sk_buff *skb, struct net_device *netdev)
 			dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
 
 			txd->dma_len_type = cpu_to_le16(dlen_type);
-			nfp_desc_set_dma_addr(txd, dma_addr);
+			nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
 
 			dma_len -= dlen_type;
 			dma_addr += dlen_type + 1;
@@ -929,7 +929,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
-	nfp_desc_set_dma_addr(txd, dma_addr);
+	nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
 
 	tmp_dlen = dlen_type & NFDK_DESC_TX_DMA_LEN_HEAD;
 	dma_len -= tmp_dlen;
@@ -940,7 +940,7 @@ nfp_nfdk_tx_xdp_buf(struct nfp_net_dp *dp, struct nfp_net_rx_ring *rx_ring,
 		dma_len -= 1;
 		dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
 		txd->dma_len_type = cpu_to_le16(dlen_type);
-		nfp_desc_set_dma_addr(txd, dma_addr);
+		nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
 
 		dlen_type &= NFDK_DESC_TX_DMA_LEN;
 		dma_len -= dlen_type;
@@ -1332,7 +1332,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 		    FIELD_PREP(NFDK_DESC_TX_TYPE_HEAD, type);
 
 	txd->dma_len_type = cpu_to_le16(dlen_type);
-	nfp_desc_set_dma_addr(txd, dma_addr);
+	nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
 
 	tmp_dlen = dlen_type & NFDK_DESC_TX_DMA_LEN_HEAD;
 	dma_len -= tmp_dlen;
@@ -1343,7 +1343,7 @@ nfp_nfdk_ctrl_tx_one(struct nfp_net *nn, struct nfp_net_r_vector *r_vec,
 		dma_len -= 1;
 		dlen_type = FIELD_PREP(NFDK_DESC_TX_DMA_LEN, dma_len);
 		txd->dma_len_type = cpu_to_le16(dlen_type);
-		nfp_desc_set_dma_addr(txd, dma_addr);
+		nfp_nfdk_tx_desc_set_dma_addr(txd, dma_addr);
 
 		dlen_type &= NFDK_DESC_TX_DMA_LEN;
 		dma_len -= dlen_type;

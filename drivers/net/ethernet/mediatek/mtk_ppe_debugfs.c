@@ -32,7 +32,6 @@ static const char *mtk_foe_pkt_type_str(int type)
 	static const char * const type_str[] = {
 		[MTK_PPE_PKT_TYPE_IPV4_HNAPT] = "IPv4 5T",
 		[MTK_PPE_PKT_TYPE_IPV4_ROUTE] = "IPv4 3T",
-		[MTK_PPE_PKT_TYPE_BRIDGE] = "L2",
 		[MTK_PPE_PKT_TYPE_IPV4_DSLITE] = "DS-LITE",
 		[MTK_PPE_PKT_TYPE_IPV6_ROUTE_3T] = "IPv6 3T",
 		[MTK_PPE_PKT_TYPE_IPV6_ROUTE_5T] = "IPv6 5T",

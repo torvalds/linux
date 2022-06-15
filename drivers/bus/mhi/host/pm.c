@@ -129,13 +129,20 @@ enum mhi_pm_state __must_check mhi_tryset_pm_state(struct mhi_controller *mhi_cn
 
 void mhi_set_mhi_state(struct mhi_controller *mhi_cntrl, enum mhi_state state)
 {
+	struct device *dev = &mhi_cntrl->mhi_dev->dev;
+	int ret;
+
 	if (state == MHI_STATE_RESET) {
-		mhi_write_reg_field(mhi_cntrl, mhi_cntrl->regs, MHICTRL,
-				    MHICTRL_RESET_MASK, 1);
+		ret = mhi_write_reg_field(mhi_cntrl, mhi_cntrl->regs, MHICTRL,
+					  MHICTRL_RESET_MASK, 1);
 	} else {
-		mhi_write_reg_field(mhi_cntrl, mhi_cntrl->regs, MHICTRL,
-				    MHICTRL_MHISTATE_MASK, state);
+		ret = mhi_write_reg_field(mhi_cntrl, mhi_cntrl->regs, MHICTRL,
+					  MHICTRL_MHISTATE_MASK, state);
 	}
+
+	if (ret)
+		dev_err(dev, "Failed to set MHI state to: %s\n",
+			mhi_state_str(state));
 }
 
 /* NOP for backward compatibility, host allowed to ring DB in M2 state */
@@ -476,6 +483,15 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 		 * hence re-program it
 		 */
 		mhi_write_reg(mhi_cntrl, mhi_cntrl->bhi, BHI_INTVEC, 0);
+
+		if (!MHI_IN_PBL(mhi_get_exec_env(mhi_cntrl))) {
+			/* wait for ready to be set */
+			ret = mhi_poll_reg_field(mhi_cntrl, mhi_cntrl->regs,
+						 MHISTATUS,
+						 MHISTATUS_READY_MASK, 1, 25000);
+			if (ret)
+				dev_err(dev, "Device failed to enter READY state\n");
+		}
 	}
 
 	dev_dbg(dev,

@@ -297,6 +297,20 @@ static int ice_clear_promisc(struct ice_vsi *vsi, u8 promisc_m)
 }
 
 /**
+ * ice_get_devlink_port - Get devlink port from netdev
+ * @netdev: the netdevice structure
+ */
+static struct devlink_port *ice_get_devlink_port(struct net_device *netdev)
+{
+	struct ice_pf *pf = ice_netdev_to_pf(netdev);
+
+	if (!ice_is_switchdev_running(pf))
+		return NULL;
+
+	return &pf->devlink_port;
+}
+
+/**
  * ice_vsi_sync_fltr - Update the VSI filter list to the HW
  * @vsi: ptr to the VSI
  *
@@ -2510,6 +2524,13 @@ static int ice_vsi_req_irq_msix(struct ice_vsi *vsi, char *basename)
 		irq_set_affinity_hint(irq_num, &q_vector->affinity_mask);
 	}
 
+	err = ice_set_cpu_rx_rmap(vsi);
+	if (err) {
+		netdev_err(vsi->netdev, "Failed to setup CPU RMAP on VSI %u: %pe\n",
+			   vsi->vsi_num, ERR_PTR(err));
+		goto free_q_irqs;
+	}
+
 	vsi->irqs_ready = true;
 	return 0;
 
@@ -3329,7 +3350,9 @@ static void ice_set_netdev_features(struct net_device *netdev)
 			      vlano_features | tso_features;
 
 	/* add support for HW_CSUM on packets with MPLS header */
-	netdev->mpls_features =  NETIF_F_HW_CSUM;
+	netdev->mpls_features =  NETIF_F_HW_CSUM |
+				 NETIF_F_TSO     |
+				 NETIF_F_TSO6;
 
 	/* enable features */
 	netdev->features |= netdev->hw_features;
@@ -3692,20 +3715,12 @@ static int ice_setup_pf_sw(struct ice_pf *pf)
 	 */
 	ice_napi_add(vsi);
 
-	status = ice_set_cpu_rx_rmap(vsi);
-	if (status) {
-		dev_err(dev, "Failed to set CPU Rx map VSI %d error %d\n",
-			vsi->vsi_num, status);
-		goto unroll_napi_add;
-	}
 	status = ice_init_mac_fltr(pf);
 	if (status)
-		goto free_cpu_rx_map;
+		goto unroll_napi_add;
 
 	return 0;
 
-free_cpu_rx_map:
-	ice_free_cpu_rx_rmap(vsi);
 unroll_napi_add:
 	ice_tc_indir_block_unregister(vsi);
 unroll_cfg_netdev:
@@ -3770,6 +3785,7 @@ u16 ice_get_avail_rxq_count(struct ice_pf *pf)
 static void ice_deinit_pf(struct ice_pf *pf)
 {
 	ice_service_task_stop(pf);
+	mutex_destroy(&pf->adev_mutex);
 	mutex_destroy(&pf->sw_mutex);
 	mutex_destroy(&pf->tc_mutex);
 	mutex_destroy(&pf->avail_q_mutex);
@@ -3848,6 +3864,7 @@ static int ice_init_pf(struct ice_pf *pf)
 
 	mutex_init(&pf->sw_mutex);
 	mutex_init(&pf->tc_mutex);
+	mutex_init(&pf->adev_mutex);
 
 	INIT_HLIST_HEAD(&pf->aq_wait_list);
 	spin_lock_init(&pf->aq_wait_lock);
@@ -5167,7 +5184,6 @@ static int __maybe_unused ice_suspend(struct device *dev)
 			continue;
 		ice_vsi_free_q_vectors(pf->vsi[v]);
 	}
-	ice_free_cpu_rx_rmap(ice_get_main_vsi(pf));
 	ice_clear_interrupt_scheme(pf);
 
 	pci_save_state(pdev);
@@ -5674,11 +5690,12 @@ ice_fdb_add(struct ndmsg *ndm, struct nlattr __always_unused *tb[],
  * @dev: the net device pointer
  * @addr: the MAC address entry being added
  * @vid: VLAN ID
+ * @extack: netlink extended ack
  */
 static int
 ice_fdb_del(struct ndmsg *ndm, __always_unused struct nlattr *tb[],
 	    struct net_device *dev, const unsigned char *addr,
-	    __always_unused u16 vid)
+	    __always_unused u16 vid, struct netlink_ext_ack *extack)
 {
 	int err;
 
@@ -6172,9 +6189,10 @@ static int ice_up_complete(struct ice_vsi *vsi)
 			ice_ptp_link_change(pf, pf->hw.pf_id, true);
 	}
 
-	/* clear this now, and the first stats read will be used as baseline */
-	vsi->stat_offsets_loaded = false;
-
+	/* Perform an initial read of the statistics registers now to
+	 * set the baseline so counters are ready when interface is up
+	 */
+	ice_update_eth_stats(vsi);
 	ice_service_task_schedule(pf);
 
 	return 0;
@@ -6931,12 +6949,15 @@ static void ice_rebuild(struct ice_pf *pf, enum ice_reset_req reset_type)
 
 	dev_dbg(dev, "rebuilding PF after reset_type=%d\n", reset_type);
 
+#define ICE_EMP_RESET_SLEEP_MS 5000
 	if (reset_type == ICE_RESET_EMPR) {
 		/* If an EMP reset has occurred, any previously pending flash
 		 * update will have completed. We no longer know whether or
 		 * not the NVM update EMP reset is restricted.
 		 */
 		pf->fw_emp_reset_disabled = false;
+
+		msleep(ICE_EMP_RESET_SLEEP_MS);
 	}
 
 	err = ice_init_all_ctrlq(hw);
@@ -8923,4 +8944,5 @@ static const struct net_device_ops ice_netdev_ops = {
 	.ndo_bpf = ice_xdp,
 	.ndo_xdp_xmit = ice_xdp_xmit,
 	.ndo_xsk_wakeup = ice_xsk_wakeup,
+	.ndo_get_devlink_port = ice_get_devlink_port,
 };

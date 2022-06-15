@@ -2113,7 +2113,6 @@ static int sec_skcipher_decrypt(struct skcipher_request *sk_req)
 		.cra_driver_name = "hisi_sec_"sec_cra_name,\
 		.cra_priority = SEC_PRIORITY,\
 		.cra_flags = CRYPTO_ALG_ASYNC |\
-		 CRYPTO_ALG_ALLOCATES_MEMORY |\
 		 CRYPTO_ALG_NEED_FALLBACK,\
 		.cra_blocksize = blk_size,\
 		.cra_ctxsize = sizeof(struct sec_ctx),\
@@ -2366,7 +2365,6 @@ static int sec_aead_decrypt(struct aead_request *a_req)
 		.cra_driver_name = "hisi_sec_"sec_cra_name,\
 		.cra_priority = SEC_PRIORITY,\
 		.cra_flags = CRYPTO_ALG_ASYNC |\
-		 CRYPTO_ALG_ALLOCATES_MEMORY |\
 		 CRYPTO_ALG_NEED_FALLBACK,\
 		.cra_blocksize = blk_size,\
 		.cra_ctxsize = sizeof(struct sec_ctx),\

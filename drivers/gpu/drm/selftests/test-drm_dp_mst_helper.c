@@ -7,10 +7,10 @@
 
 #include <linux/random.h>
 
-#include <drm/dp/drm_dp_mst_helper.h>
+#include <drm/display/drm_dp_mst_helper.h>
 #include <drm/drm_print.h>
 
-#include "../dp/drm_dp_mst_topology_internal.h"
+#include "../display/drm_dp_mst_topology_internal.h"
 #include "test-drm_modeset_common.h"
 
 int igt_dp_mst_calc_pbn_mode(void *ignored)

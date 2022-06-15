@@ -123,6 +123,10 @@ static int test__perf_time_to_tsc(struct test_suite *test __maybe_unused, int su
 		evsel->core.attr.enable_on_exec = 0;
 	}
 
+	if (evlist__open(evlist) == -ENOENT) {
+		err = TEST_SKIP;
+		goto out_err;
+	}
 	CHECK__(evlist__open(evlist));
 
 	CHECK__(evlist__mmap(evlist, UINT_MAX));

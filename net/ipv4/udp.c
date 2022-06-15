@@ -1726,7 +1726,7 @@ int udp_ioctl(struct sock *sk, int cmd, unsigned long arg)
 EXPORT_SYMBOL(udp_ioctl);
 
 struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
-			       int noblock, int *off, int *err)
+			       int *off, int *err)
 {
 	struct sk_buff_head *sk_queue = &sk->sk_receive_queue;
 	struct sk_buff_head *queue;
@@ -1735,7 +1735,6 @@ struct sk_buff *__skb_recv_udp(struct sock *sk, unsigned int flags,
 	int error;
 
 	queue = &udp_sk(sk)->reader_queue;
-	flags |= noblock ? MSG_DONTWAIT : 0;
 	timeo = sock_rcvtimeo(sk, flags & MSG_DONTWAIT);
 	do {
 		struct sk_buff *skb;
@@ -1805,7 +1804,7 @@ int udp_read_sock(struct sock *sk, read_descriptor_t *desc,
 		struct sk_buff *skb;
 		int err, used;
 
-		skb = skb_recv_udp(sk, 0, 1, &err);
+		skb = skb_recv_udp(sk, MSG_DONTWAIT, &err);
 		if (!skb)
 			return err;
 
@@ -1843,8 +1842,8 @@ EXPORT_SYMBOL(udp_read_sock);
  * 	return it, otherwise we block.
  */
 
-int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
-		int flags, int *addr_len)
+int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int flags,
+		int *addr_len)
 {
 	struct inet_sock *inet = inet_sk(sk);
 	DECLARE_SOCKADDR(struct sockaddr_in *, sin, msg->msg_name);
@@ -1859,7 +1858,7 @@ int udp_recvmsg(struct sock *sk, struct msghdr *msg, size_t len, int noblock,
 
 try_again:
 	off = sk_peek_offset(sk, flags);
-	skb = __skb_recv_udp(sk, flags, noblock, &off, &err);
+	skb = __skb_recv_udp(sk, flags, &off, &err);
 	if (!skb)
 		return err;
 
@@ -1910,7 +1909,7 @@ try_again:
 		UDP_INC_STATS(sock_net(sk),
 			      UDP_MIB_INDATAGRAMS, is_udplite);
 
-	sock_recv_ts_and_drops(msg, sk, skb);
+	sock_recv_cmsgs(msg, sk, skb);
 
 	/* Copy the address. */
 	if (sin) {
@@ -2564,8 +2563,7 @@ static struct sock *__udp4_lib_demux_lookup(struct net *net,
 	struct sock *sk;
 
 	udp_portaddr_for_each_entry_rcu(sk, &hslot2->head) {
-		if (INET_MATCH(sk, net, acookie, rmt_addr,
-			       loc_addr, ports, dif, sdif))
+		if (inet_match(net, sk, acookie, ports, dif, sdif))
 			return sk;
 		/* Only check first socket in chain */
 		break;

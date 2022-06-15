@@ -24,7 +24,6 @@
 #include <asm/spu_priv1.h>
 #include <asm/spu_csa.h>
 #include <asm/xmon.h>
-#include <asm/prom.h>
 #include <asm/kexec.h>
 
 const struct spu_management_ops *spu_management_ops;

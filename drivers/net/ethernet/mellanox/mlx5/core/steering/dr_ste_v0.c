@@ -420,7 +420,7 @@ dr_ste_v0_set_actions_tx(struct mlx5dr_domain *dmn,
 	 * encapsulation. The reason for that is that we support
 	 * modify headers for outer headers only
 	 */
-	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
+	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR] && attr->modify_actions) {
 		dr_ste_v0_set_entry_type(last_ste, DR_STE_TYPE_MODIFY_PKT);
 		dr_ste_v0_set_rewrite_actions(last_ste,
 					      attr->modify_actions,
@@ -513,7 +513,7 @@ dr_ste_v0_set_actions_rx(struct mlx5dr_domain *dmn,
 		}
 	}
 
-	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR]) {
+	if (action_type_set[DR_ACTION_TYP_MODIFY_HDR] && attr->modify_actions) {
 		if (dr_ste_v0_get_entry_type(last_ste) == DR_STE_TYPE_MODIFY_PKT)
 			dr_ste_v0_arr_init_next(&last_ste,
 						added_stes,

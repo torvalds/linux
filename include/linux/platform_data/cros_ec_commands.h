@@ -51,10 +51,14 @@
 /*
  * The actual block is 0x800-0x8ff, but some BIOSes think it's 0x880-0x8ff
  * and they tell the kernel that so we have to think of it as two parts.
+ *
+ * Other BIOSes report only the I/O port region spanned by the Microchip
+ * MEC series EC; an attempt to address a larger region may fail.
  */
-#define EC_HOST_CMD_REGION0    0x800
-#define EC_HOST_CMD_REGION1    0x880
-#define EC_HOST_CMD_REGION_SIZE 0x80
+#define EC_HOST_CMD_REGION0       0x800
+#define EC_HOST_CMD_REGION1       0x880
+#define EC_HOST_CMD_REGION_SIZE    0x80
+#define EC_HOST_CMD_MEC_REGION_SIZE 0x8
 
 /* EC command register bit functions */
 #define EC_LPC_CMDR_DATA	BIT(0)  /* Data ready for host to read */

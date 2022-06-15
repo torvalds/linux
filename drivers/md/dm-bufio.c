@@ -611,7 +611,8 @@ static void bio_complete(struct bio *bio)
 {
 	struct dm_buffer *b = bio->bi_private;
 	blk_status_t status = bio->bi_status;
-	bio_put(bio);
+	bio_uninit(bio);
+	kfree(bio);
 	b->end_io(b, status);
 }
 
@@ -626,16 +627,14 @@ static void use_bio(struct dm_buffer *b, int rw, sector_t sector,
 	if (unlikely(b->c->sectors_per_block_bits < PAGE_SHIFT - SECTOR_SHIFT))
 		vec_size += 2;
 
-	bio = bio_kmalloc(GFP_NOWAIT | __GFP_NORETRY | __GFP_NOWARN, vec_size);
+	bio = bio_kmalloc(vec_size, GFP_NOWAIT | __GFP_NORETRY | __GFP_NOWARN);
 	if (!bio) {
 dmio:
 		use_dmio(b, rw, sector, n_sectors, offset);
 		return;
 	}
-
+	bio_init(bio, b->c->bdev, bio->bi_inline_vecs, vec_size, rw);
 	bio->bi_iter.bi_sector = sector;
-	bio_set_dev(bio, b->c->bdev);
-	bio_set_op_attrs(bio, rw, 0);
 	bio->bi_end_io = bio_complete;
 	bio->bi_private = b;
 

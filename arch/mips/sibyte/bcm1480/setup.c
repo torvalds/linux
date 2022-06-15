@@ -34,8 +34,6 @@ static char *pass_str;
 
 static int __init setup_bcm1x80_bcm1x55(void)
 {
-	int ret = 0;
-
 	switch (soc_pass) {
 	case K_SYS_REVISION_BCM1480_S0:
 		periph_rev = 1;
@@ -64,7 +62,7 @@ static int __init setup_bcm1x80_bcm1x55(void)
 		break;
 	}
 
-	return ret;
+	return 0;
 }
 
 /* Setup code likely to be common to all SiByte platforms */

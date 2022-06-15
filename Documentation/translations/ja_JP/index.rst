@@ -5,7 +5,7 @@
 	\kerneldocCJKon
 	\kerneldocBeginJP{
 
-Japanese translations
+日本語訳
 =====================
 
 .. toctree::

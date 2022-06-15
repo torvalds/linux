@@ -280,9 +280,7 @@ static void flakey_map_bio(struct dm_target *ti, struct bio *bio)
 	struct flakey_c *fc = ti->private;
 
 	bio_set_dev(bio, fc->dev->bdev);
-	if (bio_sectors(bio) || op_is_zone_mgmt(bio_op(bio)))
-		bio->bi_iter.bi_sector =
-			flakey_map_sector(ti, bio->bi_iter.bi_sector);
+	bio->bi_iter.bi_sector = flakey_map_sector(ti, bio->bi_iter.bi_sector);
 }
 
 static void corrupt_bio_data(struct bio *bio, struct flakey_c *fc)

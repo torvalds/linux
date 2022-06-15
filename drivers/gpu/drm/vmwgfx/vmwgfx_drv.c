@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: GPL-2.0 OR MIT
 /**************************************************************************
  *
- * Copyright 2009-2016 VMware, Inc., Palo Alto, CA., USA
+ * Copyright 2009-2022 VMware, Inc., Palo Alto, CA., USA
  *
  * Permission is hereby granted, free of charge, to any person obtaining a
  * copy of this software and associated documentation files (the
@@ -848,11 +848,15 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 
 
 	dev_priv->capabilities = vmw_read(dev_priv, SVGA_REG_CAPABILITIES);
-
+	vmw_print_bitmap(&dev_priv->drm, "Capabilities",
+			 dev_priv->capabilities,
+			 cap1_names, ARRAY_SIZE(cap1_names));
 	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER) {
 		dev_priv->capabilities2 = vmw_read(dev_priv, SVGA_REG_CAP2);
+		vmw_print_bitmap(&dev_priv->drm, "Capabilities2",
+				 dev_priv->capabilities2,
+				 cap2_names, ARRAY_SIZE(cap2_names));
 	}
-
 
 	ret = vmw_dma_select_mode(dev_priv);
 	if (unlikely(ret != 0)) {
@@ -939,14 +943,6 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		 "MOB limits: max mob size = %u kB, max mob pages = %u\n",
 		 dev_priv->max_mob_size / 1024, dev_priv->max_mob_pages);
 
-	vmw_print_bitmap(&dev_priv->drm, "Capabilities",
-			 dev_priv->capabilities,
-			 cap1_names, ARRAY_SIZE(cap1_names));
-	if (dev_priv->capabilities & SVGA_CAP_CAP2_REGISTER)
-		vmw_print_bitmap(&dev_priv->drm, "Capabilities2",
-				 dev_priv->capabilities2,
-				 cap2_names, ARRAY_SIZE(cap2_names));
-
 	ret = vmw_dma_masks(dev_priv);
 	if (unlikely(ret != 0))
 		goto out_err0;
@@ -984,7 +980,7 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 	}
 
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK) {
-		ret = vmw_irq_install(&dev_priv->drm, pdev->irq);
+		ret = vmw_irq_install(dev_priv);
 		if (ret != 0) {
 			drm_err(&dev_priv->drm,
 				"Failed installing irq: %d\n", ret);
@@ -998,13 +994,10 @@ static int vmw_driver_load(struct vmw_private *dev_priv, u32 pci_id)
 		goto out_no_fman;
 	}
 
-	drm_vma_offset_manager_init(&dev_priv->vma_manager,
-				    DRM_FILE_PAGE_OFFSET_START,
-				    DRM_FILE_PAGE_OFFSET_SIZE);
 	ret = ttm_device_init(&dev_priv->bdev, &vmw_bo_driver,
 			      dev_priv->drm.dev,
 			      dev_priv->drm.anon_inode->i_mapping,
-			      &dev_priv->vma_manager,
+			      dev_priv->drm.vma_offset_manager,
 			      dev_priv->map_mode == vmw_dma_alloc_coherent,
 			      false);
 	if (unlikely(ret != 0)) {
@@ -1174,7 +1167,6 @@ static void vmw_driver_unload(struct drm_device *dev)
 	vmw_devcaps_destroy(dev_priv);
 	vmw_vram_manager_fini(dev_priv);
 	ttm_device_fini(&dev_priv->bdev);
-	drm_vma_offset_manager_destroy(&dev_priv->vma_manager);
 	vmw_release_device_late(dev_priv);
 	vmw_fence_manager_takedown(dev_priv->fman);
 	if (dev_priv->capabilities & SVGA_CAP_IRQMASK)
@@ -1389,6 +1381,23 @@ static void vmw_remove(struct pci_dev *pdev)
 	vmw_driver_unload(dev);
 }
 
+static void vmw_debugfs_resource_managers_init(struct vmw_private *vmw)
+{
+	struct drm_minor *minor = vmw->drm.primary;
+	struct dentry *root = minor->debugfs_root;
+
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, TTM_PL_SYSTEM),
+					    root, "system_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, TTM_PL_VRAM),
+					    root, "vram_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, VMW_PL_GMR),
+					    root, "gmr_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, VMW_PL_MOB),
+					    root, "mob_ttm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&vmw->bdev, VMW_PL_SYSTEM),
+					    root, "system_mob_ttm");
+}
+
 static unsigned long
 vmw_get_unmapped_area(struct file *file, unsigned long uaddr,
 		      unsigned long len, unsigned long pgoff,
@@ -1398,7 +1407,7 @@ vmw_get_unmapped_area(struct file *file, unsigned long uaddr,
 	struct vmw_private *dev_priv = vmw_priv(file_priv->minor->dev);
 
 	return drm_get_unmapped_area(file, uaddr, len, pgoff, flags,
-				     &dev_priv->vma_manager);
+				     dev_priv->drm.vma_offset_manager);
 }
 
 static int vmwgfx_pm_notifier(struct notifier_block *nb, unsigned long val,
@@ -1636,6 +1645,7 @@ static int vmw_probe(struct pci_dev *pdev, const struct pci_device_id *ent)
 		goto out_unload;
 
 	vmw_debugfs_gem_init(vmw);
+	vmw_debugfs_resource_managers_init(vmw);
 
 	return 0;
 out_unload:

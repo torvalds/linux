@@ -377,8 +377,9 @@ static void sunxi_mmc_init_idma_des(struct sunxi_mmc_host *host,
 		pdes[i].buf_addr_ptr1 =
 			cpu_to_le32(sg_dma_address(&data->sg[i]) >>
 				    host->cfg->idma_des_shift);
-		pdes[i].buf_addr_ptr2 = cpu_to_le32((u32)next_desc >>
-						    host->cfg->idma_des_shift);
+		pdes[i].buf_addr_ptr2 =
+			cpu_to_le32(next_desc >>
+				    host->cfg->idma_des_shift);
 	}
 
 	pdes[0].config |= cpu_to_le32(SDXC_IDMAC_DES0_FD);
@@ -1115,7 +1116,7 @@ static const struct mmc_host_ops sunxi_mmc_ops = {
 	.get_cd		 = mmc_gpio_get_cd,
 	.enable_sdio_irq = sunxi_mmc_enable_sdio_irq,
 	.start_signal_voltage_switch = sunxi_mmc_volt_switch,
-	.hw_reset	 = sunxi_mmc_hw_reset,
+	.card_hw_reset	 = sunxi_mmc_hw_reset,
 	.card_busy	 = sunxi_mmc_card_busy,
 };
 

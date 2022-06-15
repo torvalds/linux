@@ -619,6 +619,15 @@ unsigned int
 cifs_ses_get_chan_index(struct cifs_ses *ses,
 			struct TCP_Server_Info *server);
 void
+cifs_chan_set_in_reconnect(struct cifs_ses *ses,
+			     struct TCP_Server_Info *server);
+void
+cifs_chan_clear_in_reconnect(struct cifs_ses *ses,
+			       struct TCP_Server_Info *server);
+bool
+cifs_chan_in_reconnect(struct cifs_ses *ses,
+			  struct TCP_Server_Info *server);
+void
 cifs_chan_set_need_reconnect(struct cifs_ses *ses,
 			     struct TCP_Server_Info *server);
 void

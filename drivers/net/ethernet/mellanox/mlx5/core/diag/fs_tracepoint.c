@@ -259,6 +259,9 @@ const char *parse_fs_dst(struct trace_seq *p,
 	case MLX5_FLOW_DESTINATION_TYPE_PORT:
 		trace_seq_printf(p, "port\n");
 		break;
+	case MLX5_FLOW_DESTINATION_TYPE_NONE:
+		trace_seq_printf(p, "none\n");
+		break;
 	}
 
 	trace_seq_putc(p, 0);

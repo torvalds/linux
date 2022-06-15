@@ -45,7 +45,7 @@ bnxt_dl_flash_update(struct devlink *dl,
 	}
 
 	devlink_flash_update_status_notify(dl, "Preparing to flash", NULL, 0, 0);
-	rc = bnxt_flash_package_from_fw_obj(bp->dev, params->fw, 0);
+	rc = bnxt_flash_package_from_fw_obj(bp->dev, params->fw, 0, extack);
 	if (!rc)
 		devlink_flash_update_status_notify(dl, "Flashing done", NULL, 0, 0);
 	else

@@ -191,7 +191,8 @@ static int smc_nl_ueid_dumpinfo(struct sk_buff *skb, u32 portid, u32 seq,
 			  flags, SMC_NETLINK_DUMP_UEID);
 	if (!hdr)
 		return -ENOMEM;
-	snprintf(ueid_str, sizeof(ueid_str), "%s", ueid);
+	memcpy(ueid_str, ueid, SMC_MAX_EID_LEN);
+	ueid_str[SMC_MAX_EID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_EID_TABLE_ENTRY, ueid_str)) {
 		genlmsg_cancel(skb, hdr);
 		return -EMSGSIZE;
@@ -252,7 +253,8 @@ int smc_nl_dump_seid(struct sk_buff *skb, struct netlink_callback *cb)
 		goto end;
 
 	smc_ism_get_system_eid(&seid);
-	snprintf(seid_str, sizeof(seid_str), "%s", seid);
+	memcpy(seid_str, seid, SMC_MAX_EID_LEN);
+	seid_str[SMC_MAX_EID_LEN] = 0;
 	if (nla_put_string(skb, SMC_NLA_SEID_ENTRY, seid_str))
 		goto err;
 	read_lock(&smc_clc_eid_table.lock);

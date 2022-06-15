@@ -868,7 +868,7 @@ brcms_ops_ampdu_action(struct ieee80211_hw *hw,
 		spin_lock_bh(&wl->lock);
 		brcms_c_ampdu_tx_operational(wl->wlc, tid, buf_size,
 			(1 << (IEEE80211_HT_MAX_AMPDU_FACTOR +
-			 sta->ht_cap.ampdu_factor)) - 1);
+			 sta->deflink.ht_cap.ampdu_factor)) - 1);
 		spin_unlock_bh(&wl->lock);
 		/* Power save wakeup */
 		break;

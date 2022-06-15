@@ -8,6 +8,7 @@
 
 #include <net/mac80211.h>
 #include <net/cfg80211.h>
+#include "wmi.h"
 
 struct ath11k;
 struct ath11k_base;
@@ -130,7 +131,7 @@ extern const struct htt_rx_ring_tlv_filter ath11k_mac_mon_status_filter_default;
 #define ATH11K_SCAN_11D_INTERVAL		600000
 #define ATH11K_11D_INVALID_VDEV_ID		0xFFFF
 
-void ath11k_mac_11d_scan_start(struct ath11k *ar, u32 vdev_id, bool wait);
+void ath11k_mac_11d_scan_start(struct ath11k *ar, u32 vdev_id);
 void ath11k_mac_11d_scan_stop(struct ath11k *ar);
 void ath11k_mac_11d_scan_stop_all(struct ath11k_base *ab);
 
@@ -172,4 +173,8 @@ enum hal_encrypt_type ath11k_dp_tx_get_encrypt_type(u32 cipher);
 void ath11k_mac_handle_beacon(struct ath11k *ar, struct sk_buff *skb);
 void ath11k_mac_handle_beacon_miss(struct ath11k *ar, u32 vdev_id);
 void ath11k_mac_bcn_tx_event(struct ath11k_vif *arvif);
+int ath11k_mac_wait_tx_complete(struct ath11k *ar);
+int ath11k_mac_vif_set_keepalive(struct ath11k_vif *arvif,
+				 enum wmi_sta_keepalive_method method,
+				 u32 interval);
 #endif

@@ -1,0 +1,51 @@
+// SPDX-License-Identifier: GPL-2.0 or MIT
+/*
+ * Copyright (c) 2022, Arm Limited. All rights reserved.
+ * Copyright (c) 2022, Linaro Limited. All rights reserved.
+ *
+ */
+
+/dts-v1/;
+
+#include "corstone1000.dtsi"
+
+/ {
+	model = "ARM Corstone1000 FVP (Fixed Virtual Platform)";
+	compatible = "arm,corstone1000-fvp";
+
+	smsc: ethernet@4010000 {
+		compatible = "smsc,lan91c111";
+		reg = <0x40100000 0x10000>;
+		phy-mode = "mii";
+		interrupts = <GIC_SPI 116 IRQ_TYPE_LEVEL_HIGH>;
+		reg-io-width = <2>;
+	};
+
+	vmmc_v3_3d: fixed_v3_3d {
+		compatible = "regulator-fixed";
+		regulator-name = "vmmc_supply";
+		regulator-min-microvolt = <3300000>;
+		regulator-max-microvolt = <3300000>;
+		regulator-always-on;
+	};
+
+	sdmmc0: mmc@40300000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		reg = <0x40300000 0x1000>;
+		interrupts = <GIC_SPI 117 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <12000000>;
+		vmmc-supply = <&vmmc_v3_3d>;
+		clocks = <&smbclk>, <&refclk100mhz>;
+		clock-names = "smclk", "apb_pclk";
+	};
+
+	sdmmc1: mmc@50000000 {
+		compatible = "arm,pl18x", "arm,primecell";
+		reg = <0x50000000 0x10000>;
+		interrupts = <GIC_SPI 115 IRQ_TYPE_LEVEL_HIGH>;
+		max-frequency = <12000000>;
+		vmmc-supply = <&vmmc_v3_3d>;
+		clocks = <&smbclk>, <&refclk100mhz>;
+		clock-names = "smclk", "apb_pclk";
+	};
+};

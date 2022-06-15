@@ -10,6 +10,8 @@
 #include <string.h>
 #include <sys/ioctl.h>
 
+#include <linux/bits.h>
+
 #include "test_util.h"
 #include "kvm_util.h"
 
@@ -194,6 +196,7 @@ static int err_memop_ioctl(struct test_vcpu vcpu, struct kvm_s390_mem_op *ksmo)
 #define SIDA_OFFSET(o) ._sida_offset = 1, .sida_offset = (o)
 #define AR(a) ._ar = 1, .ar = (a)
 #define KEY(a) .f_key = 1, .key = (a)
+#define INJECT .f_inject = 1
 
 #define CHECK_N_DO(f, ...) ({ f(__VA_ARGS__, CHECK_ONLY); f(__VA_ARGS__); })
 
@@ -430,9 +433,18 @@ static void test_copy_key_fetch_prot(void)
 	TEST_ASSERT(rv == 4, "Should result in protection exception");		\
 })
 
+static void guest_error_key(void)
+{
+	GUEST_SYNC(STAGE_INITED);
+	set_storage_key_range(mem1, PAGE_SIZE, 0x18);
+	set_storage_key_range(mem1 + PAGE_SIZE, sizeof(mem1) - PAGE_SIZE, 0x98);
+	GUEST_SYNC(STAGE_SKEYS_SET);
+	GUEST_SYNC(STAGE_IDLED);
+}
+
 static void test_errors_key(void)
 {
-	struct test_default t = test_default_init(guest_copy_key_fetch_prot);
+	struct test_default t = test_default_init(guest_error_key);
 
 	HOST_SYNC(t.vcpu, STAGE_INITED);
 	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
@@ -442,6 +454,37 @@ static void test_errors_key(void)
 	CHECK_N_DO(ERR_PROT_MOP, t.vcpu, LOGICAL, READ, mem2, t.size, GADDR_V(mem2), KEY(2));
 	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, WRITE, mem1, t.size, GADDR_V(mem1), KEY(2));
 	CHECK_N_DO(ERR_PROT_MOP, t.vm, ABSOLUTE, READ, mem2, t.size, GADDR_V(mem2), KEY(2));
+
+	kvm_vm_free(t.kvm_vm);
+}
+
+static void test_termination(void)
+{
+	struct test_default t = test_default_init(guest_error_key);
+	uint64_t prefix;
+	uint64_t teid;
+	uint64_t teid_mask = BIT(63 - 56) | BIT(63 - 60) | BIT(63 - 61);
+	uint64_t psw[2];
+
+	HOST_SYNC(t.vcpu, STAGE_INITED);
+	HOST_SYNC(t.vcpu, STAGE_SKEYS_SET);
+
+	/* vcpu, mismatching keys after first page */
+	ERR_PROT_MOP(t.vcpu, LOGICAL, WRITE, mem1, t.size, GADDR_V(mem1), KEY(1), INJECT);
+	/*
+	 * The memop injected a program exception and the test needs to check the
+	 * Translation-Exception Identification (TEID). It is necessary to run
+	 * the guest in order to be able to read the TEID from guest memory.
+	 * Set the guest program new PSW, so the guest state is not clobbered.
+	 */
+	prefix = t.run->s.regs.prefix;
+	psw[0] = t.run->psw_mask;
+	psw[1] = t.run->psw_addr;
+	MOP(t.vm, ABSOLUTE, WRITE, psw, sizeof(psw), GADDR(prefix + 464));
+	HOST_SYNC(t.vcpu, STAGE_IDLED);
+	MOP(t.vm, ABSOLUTE, READ, &teid, sizeof(teid), GADDR(prefix + 168));
+	/* Bits 56, 60, 61 form a code, 0 being the only one allowing for termination */
+	ASSERT_EQ(teid & teid_mask, 0);
 
 	kvm_vm_free(t.kvm_vm);
 }
@@ -668,6 +711,7 @@ int main(int argc, char *argv[])
 		test_copy_key_fetch_prot();
 		test_copy_key_fetch_prot_override();
 		test_errors_key();
+		test_termination();
 		test_errors_key_storage_prot_override();
 		test_errors_key_fetch_prot_override_not_enabled();
 		test_errors_key_fetch_prot_override_enabled();
