@@ -339,6 +339,7 @@ static void d2l_read(struct i2c_client *i2c, u16 addr, u32 *val)
 		goto fail;
 
 	pr_debug("d2l: I2C : addr:%04x value:%08x\n", addr, *val);
+	return;
 
 fail:
 	dev_err(&i2c->dev, "Error %d reading from subaddress 0x%x\n",
