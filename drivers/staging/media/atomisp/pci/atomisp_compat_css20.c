@@ -418,23 +418,13 @@ static void __dump_stream_config(struct atomisp_sub_device *asd,
 }
 
 static int __destroy_stream(struct atomisp_sub_device *asd,
-			    struct atomisp_stream_env *stream_env, bool force)
+			    struct atomisp_stream_env *stream_env)
 {
 	struct atomisp_device *isp = asd->isp;
-	int i;
 	unsigned long timeout;
 
 	if (!stream_env->stream)
 		return 0;
-
-	if (!force) {
-		for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++)
-			if (stream_env->update_pipe[i])
-				break;
-
-		if (i == IA_CSS_PIPE_ID_NUM)
-			return 0;
-	}
 
 	if (stream_env->stream_state == CSS_STREAM_STARTED
 	    && ia_css_stream_stop(stream_env->stream) != 0) {
@@ -469,12 +459,12 @@ static int __destroy_stream(struct atomisp_sub_device *asd,
 	return 0;
 }
 
-static int __destroy_streams(struct atomisp_sub_device *asd, bool force)
+static int __destroy_streams(struct atomisp_sub_device *asd)
 {
 	int ret, i;
 
 	for (i = 0; i < ATOMISP_INPUT_STREAM_NUM; i++) {
-		ret = __destroy_stream(asd, &asd->stream_env[i], force);
+		ret = __destroy_stream(asd, &asd->stream_env[i]);
 		if (ret)
 			return ret;
 	}
@@ -529,21 +519,19 @@ static int __create_streams(struct atomisp_sub_device *asd)
 	return 0;
 rollback:
 	for (i--; i >= 0; i--)
-		__destroy_stream(asd, &asd->stream_env[i], true);
+		__destroy_stream(asd, &asd->stream_env[i]);
 	return ret;
 }
 
 static int __destroy_stream_pipes(struct atomisp_sub_device *asd,
-				  struct atomisp_stream_env *stream_env,
-				  bool force)
+				  struct atomisp_stream_env *stream_env)
 {
 	struct atomisp_device *isp = asd->isp;
 	int ret = 0;
 	int i;
 
 	for (i = 0; i < IA_CSS_PIPE_ID_NUM; i++) {
-		if (!stream_env->pipes[i] ||
-		    !(force || stream_env->update_pipe[i]))
+		if (!stream_env->pipes[i])
 			continue;
 		if (ia_css_pipe_destroy(stream_env->pipes[i])
 		    != 0) {
@@ -557,7 +545,7 @@ static int __destroy_stream_pipes(struct atomisp_sub_device *asd,
 	return ret;
 }
 
-static int __destroy_pipes(struct atomisp_sub_device *asd, bool force)
+static int __destroy_pipes(struct atomisp_sub_device *asd)
 {
 	struct atomisp_device *isp = asd->isp;
 	int i;
@@ -571,7 +559,7 @@ static int __destroy_pipes(struct atomisp_sub_device *asd, bool force)
 			continue;
 		}
 
-		ret = __destroy_stream_pipes(asd, &asd->stream_env[i], force);
+		ret = __destroy_stream_pipes(asd, &asd->stream_env[i]);
 		if (ret)
 			return ret;
 	}
@@ -581,10 +569,10 @@ static int __destroy_pipes(struct atomisp_sub_device *asd, bool force)
 
 void atomisp_destroy_pipes_stream_force(struct atomisp_sub_device *asd)
 {
-	if (__destroy_streams(asd, true))
+	if (__destroy_streams(asd))
 		dev_warn(asd->isp->dev, "destroy stream failed.\n");
 
-	if (__destroy_pipes(asd, true))
+	if (__destroy_pipes(asd))
 		dev_warn(asd->isp->dev, "destroy pipe failed.\n");
 }
 
@@ -801,7 +789,7 @@ int atomisp_create_pipes_stream(struct atomisp_sub_device *asd)
 	ret = __create_streams(asd);
 	if (ret) {
 		dev_warn(asd->isp->dev, "create stream failed %d.\n", ret);
-		__destroy_pipes(asd, true);
+		__destroy_pipes(asd);
 		return ret;
 	}
 
