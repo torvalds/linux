@@ -171,7 +171,7 @@ int ia_css_frame_map(struct ia_css_frame **frame,
 		goto error;
 	}
 
-	me->data = hmm_alloc(me->data_bytes, HMM_BO_USER, 0, data, 0);
+	me->data = hmm_create_from_userdata(me->data_bytes, data);
 	if (me->data == mmgr_NULL)
 		err = -EINVAL;
 

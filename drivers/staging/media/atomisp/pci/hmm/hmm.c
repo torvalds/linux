@@ -221,6 +221,11 @@ create_bo_err:
 	return 0;
 }
 
+ia_css_ptr hmm_create_from_userdata(size_t bytes, const void __user *userptr)
+{
+	return hmm_alloc(bytes, HMM_BO_USER, 0, userptr, 0);
+}
+
 void hmm_free(ia_css_ptr virt)
 {
 	struct hmm_buffer_object *bo;
