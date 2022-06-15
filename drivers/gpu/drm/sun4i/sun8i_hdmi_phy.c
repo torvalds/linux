@@ -673,10 +673,8 @@ int sun8i_hdmi_phy_get(struct sun8i_dw_hdmi *hdmi, struct device_node *node)
 static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *node = dev->of_node;
 	struct sun8i_hdmi_phy *phy;
 	void __iomem *regs;
-	int ret;
 
 	phy = devm_kzalloc(dev, sizeof(*phy), GFP_KERNEL);
 	if (!phy)
@@ -686,88 +684,52 @@ static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 	phy->dev = dev;
 
 	regs = devm_platform_ioremap_resource(pdev, 0);
-	if (IS_ERR(regs)) {
-		dev_err(dev, "Couldn't map the HDMI PHY registers\n");
-		return PTR_ERR(regs);
-	}
+	if (IS_ERR(regs))
+		return dev_err_probe(dev, PTR_ERR(regs),
+				     "Couldn't map the HDMI PHY registers\n");
 
 	phy->regs = devm_regmap_init_mmio(dev, regs,
 					  &sun8i_hdmi_phy_regmap_config);
-	if (IS_ERR(phy->regs)) {
-		dev_err(dev, "Couldn't create the HDMI PHY regmap\n");
-		return PTR_ERR(phy->regs);
-	}
+	if (IS_ERR(phy->regs))
+		return dev_err_probe(dev, PTR_ERR(phy->regs),
+				     "Couldn't create the HDMI PHY regmap\n");
 
-	phy->clk_bus = of_clk_get_by_name(node, "bus");
-	if (IS_ERR(phy->clk_bus)) {
-		dev_err(dev, "Could not get bus clock\n");
-		return PTR_ERR(phy->clk_bus);
-	}
+	phy->clk_bus = devm_clk_get(dev, "bus");
+	if (IS_ERR(phy->clk_bus))
+		return dev_err_probe(dev, PTR_ERR(phy->clk_bus),
+				     "Could not get bus clock\n");
 
-	phy->clk_mod = of_clk_get_by_name(node, "mod");
-	if (IS_ERR(phy->clk_mod)) {
-		dev_err(dev, "Could not get mod clock\n");
-		ret = PTR_ERR(phy->clk_mod);
-		goto err_put_clk_bus;
-	}
+	phy->clk_mod = devm_clk_get(dev, "mod");
+	if (IS_ERR(phy->clk_mod))
+		return dev_err_probe(dev, PTR_ERR(phy->clk_mod),
+				     "Could not get mod clock\n");
 
 	if (phy->variant->has_phy_clk) {
-		phy->clk_pll0 = of_clk_get_by_name(node, "pll-0");
-		if (IS_ERR(phy->clk_pll0)) {
-			dev_err(dev, "Could not get pll-0 clock\n");
-			ret = PTR_ERR(phy->clk_pll0);
-			goto err_put_clk_mod;
-		}
+		phy->clk_pll0 = devm_clk_get(dev, "pll-0");
+		if (IS_ERR(phy->clk_pll0))
+			return dev_err_probe(dev, PTR_ERR(phy->clk_pll0),
+					     "Could not get pll-0 clock\n");
 
 		if (phy->variant->has_second_pll) {
-			phy->clk_pll1 = of_clk_get_by_name(node, "pll-1");
-			if (IS_ERR(phy->clk_pll1)) {
-				dev_err(dev, "Could not get pll-1 clock\n");
-				ret = PTR_ERR(phy->clk_pll1);
-				goto err_put_clk_pll0;
-			}
+			phy->clk_pll1 = devm_clk_get(dev, "pll-1");
+			if (IS_ERR(phy->clk_pll1))
+				return dev_err_probe(dev, PTR_ERR(phy->clk_pll1),
+						     "Could not get pll-1 clock\n");
 		}
 	}
 
-	phy->rst_phy = of_reset_control_get_shared(node, "phy");
-	if (IS_ERR(phy->rst_phy)) {
-		dev_err(dev, "Could not get phy reset control\n");
-		ret = PTR_ERR(phy->rst_phy);
-		goto err_put_clk_pll1;
-	}
+	phy->rst_phy = devm_reset_control_get_shared(dev, "phy");
+	if (IS_ERR(phy->rst_phy))
+		return dev_err_probe(dev, PTR_ERR(phy->rst_phy),
+				     "Could not get phy reset control\n");
 
 	platform_set_drvdata(pdev, phy);
 
-	return 0;
-
-err_put_clk_pll1:
-	clk_put(phy->clk_pll1);
-err_put_clk_pll0:
-	clk_put(phy->clk_pll0);
-err_put_clk_mod:
-	clk_put(phy->clk_mod);
-err_put_clk_bus:
-	clk_put(phy->clk_bus);
-
-	return ret;
-}
-
-static int sun8i_hdmi_phy_remove(struct platform_device *pdev)
-{
-	struct sun8i_hdmi_phy *phy = platform_get_drvdata(pdev);
-
-	reset_control_put(phy->rst_phy);
-
-	clk_put(phy->clk_pll0);
-	clk_put(phy->clk_pll1);
-	clk_put(phy->clk_mod);
-	clk_put(phy->clk_bus);
 	return 0;
 }
 
 struct platform_driver sun8i_hdmi_phy_driver = {
 	.probe  = sun8i_hdmi_phy_probe,
-	.remove = sun8i_hdmi_phy_remove,
 	.driver = {
 		.name = "sun8i-hdmi-phy",
 		.of_match_table = sun8i_hdmi_phy_of_table,
