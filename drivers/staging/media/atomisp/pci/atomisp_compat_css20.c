@@ -785,10 +785,24 @@ pipe_err:
 	return -EINVAL;
 }
 
-void atomisp_create_pipes_stream(struct atomisp_sub_device *asd)
+int atomisp_create_pipes_stream(struct atomisp_sub_device *asd)
 {
-	__create_pipes(asd);
-	__create_streams(asd);
+	int ret;
+
+	ret = __create_pipes(asd);
+	if (ret) {
+		dev_err(asd->isp->dev, "create pipe failed %d.\n", ret);
+		return ret;
+	}
+
+	ret = __create_streams(asd);
+	if (ret) {
+		dev_warn(asd->isp->dev, "create stream failed %d.\n", ret);
+		__destroy_pipes(asd, true);
+		return ret;
+	}
+
+	return 0;
 }
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd)
