@@ -1105,21 +1105,10 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 	int ret = 0, i = 0;
 
 	if (in_reset) {
-		if (__destroy_streams(asd, true))
-			dev_warn(isp->dev, "destroy stream failed.\n");
+		ret = atomisp_css_update_stream(asd);
+		if (ret)
+			return ret;
 
-		if (__destroy_pipes(asd, true))
-			dev_warn(isp->dev, "destroy pipe failed.\n");
-
-		if (__create_pipes(asd)) {
-			dev_err(isp->dev, "create pipe error.\n");
-			return -EINVAL;
-		}
-		if (__create_streams(asd)) {
-			dev_err(isp->dev, "create stream error.\n");
-			ret = -EINVAL;
-			goto stream_err;
-		}
 		/* Invalidate caches. FIXME: should flush only necessary buffers */
 		wbinvd();
 	}
@@ -1178,7 +1167,6 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 
 start_err:
 	__destroy_streams(asd, true);
-stream_err:
 	__destroy_pipes(asd, true);
 
 	/* css 2.0 API limitation: ia_css_stop_sp() could be only called after
@@ -2630,21 +2618,9 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 	struct ia_css_pipe_info p_info;
 
 	/* FIXME! No need to destroy/recreate all streams */
-	if (__destroy_streams(asd, true))
-		dev_warn(isp->dev, "destroy stream failed.\n");
-
-	if (__destroy_pipes(asd, true))
-		dev_warn(isp->dev, "destroy pipe failed.\n");
-
-	if (__create_pipes(asd)) {
-		dev_err(isp->dev, "can't create pipes\n");
-		return -EINVAL;
-	}
-
-	if (__create_streams(asd)) {
-		dev_err(isp->dev, "can't create streams\n");
-		goto stream_err;
-	}
+	ret = atomisp_css_update_stream(asd);
+	if (ret)
+		return ret;
 
 	ret = ia_css_pipe_get_info(asd->stream_env[stream_index].pipes[pipe_id],
 				   &p_info);
@@ -2683,7 +2659,6 @@ static int __get_frame_info(struct atomisp_sub_device *asd,
 
 get_info_err:
 	__destroy_streams(asd, true);
-stream_err:
 	__destroy_pipes(asd, true);
 	return -EINVAL;
 }
