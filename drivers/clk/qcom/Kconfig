@@ -744,6 +744,15 @@ config SM_VIDEOCC_PINEAPPLE
 	  Say Y if you want to support video devices and functionality such as
 	  video encode/decode.
 
+config SM_TCSRCC_PINEAPPLE
+	tristate "Pineapple Top-Level CSR Clock Controller"
+	depends on SM_GCC_PINEAPPLE
+	help
+	  Support for the TCSR clock controller on Qualcomm Technologies, Inc
+	  Pineapple devices.
+	  Say Y if you want to support miscellaneous top-level clocks
+	  such as for the PHY references.
+
 config SPMI_PMIC_CLKDIV
 	tristate "SPMI PMIC clkdiv Support"
 	depends on SPMI || COMPILE_TEST
