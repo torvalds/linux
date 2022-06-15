@@ -209,6 +209,12 @@ static int paicrypt_event_init(struct perf_event *event)
 	if (rc)
 		return rc;
 
+	/* Event initialization sets last_tag to 0. When later on the events
+	 * are deleted and re-added, do not reset the event count value to zero.
+	 * Events are added, deleted and re-added when 2 or more events
+	 * are active at the same time.
+	 */
+	event->hw.last_tag = 0;
 	cpump->event = event;
 	event->destroy = paicrypt_event_destroy;
 
@@ -243,9 +249,12 @@ static void paicrypt_start(struct perf_event *event, int flags)
 {
 	u64 sum;
 
-	sum = paicrypt_getall(event);		/* Get current value */
-	local64_set(&event->hw.prev_count, sum);
-	local64_set(&event->count, 0);
+	if (!event->hw.last_tag) {
+		event->hw.last_tag = 1;
+		sum = paicrypt_getall(event);		/* Get current value */
+		local64_set(&event->count, 0);
+		local64_set(&event->hw.prev_count, sum);
+	}
 }
 
 static int paicrypt_add(struct perf_event *event, int flags)
