@@ -74,7 +74,7 @@ bool btrfs_is_subpage(const struct btrfs_fs_info *fs_info, struct address_space 
 	 * mapping. And if page->mapping->host is data inode, it's subpage.
 	 * As we have ruled our sectorsize >= PAGE_SIZE case already.
 	 */
-	if (!mapping || !mapping->host || is_data_inode(mapping->host))
+	if (!mapping || !mapping->host || is_data_inode(BTRFS_I(mapping->host)))
 		return true;
 
 	/*
@@ -283,7 +283,7 @@ void btrfs_subpage_end_reader(const struct btrfs_fs_info *fs_info,
 	bool last;
 
 	btrfs_subpage_assert(fs_info, folio, start, len);
-	is_data = is_data_inode(folio->mapping->host);
+	is_data = is_data_inode(BTRFS_I(folio->mapping->host));
 
 	spin_lock_irqsave(&subpage->lock, flags);
 

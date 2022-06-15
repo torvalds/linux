@@ -860,7 +860,7 @@ static void submit_extent_page(struct btrfs_bio_ctrl *bio_ctrl,
 		/* Cap to the current ordered extent boundary if there is one. */
 		if (len > bio_ctrl->len_to_oe_boundary) {
 			ASSERT(bio_ctrl->compress_type == BTRFS_COMPRESS_NONE);
-			ASSERT(is_data_inode(&inode->vfs_inode));
+			ASSERT(is_data_inode(inode));
 			len = bio_ctrl->len_to_oe_boundary;
 		}
 

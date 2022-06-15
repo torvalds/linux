@@ -418,9 +418,9 @@ static inline bool btrfs_is_free_space_inode(const struct btrfs_inode *inode)
 	return test_bit(BTRFS_INODE_FREE_SPACE_INODE, &inode->runtime_flags);
 }
 
-static inline bool is_data_inode(const struct inode *inode)
+static inline bool is_data_inode(const struct btrfs_inode *inode)
 {
-	return btrfs_ino(BTRFS_I(inode)) != BTRFS_BTREE_INODE_OBJECTID;
+	return btrfs_ino(inode) != BTRFS_BTREE_INODE_OBJECTID;
 }
 
 static inline void btrfs_mod_outstanding_extents(struct btrfs_inode *inode,

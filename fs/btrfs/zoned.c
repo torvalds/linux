@@ -1723,7 +1723,7 @@ bool btrfs_use_zone_append(struct btrfs_bio *bbio)
 	if (!btrfs_is_zoned(fs_info))
 		return false;
 
-	if (!inode || !is_data_inode(&inode->vfs_inode))
+	if (!inode || !is_data_inode(inode))
 		return false;
 
 	if (btrfs_op(&bbio->bio) != BTRFS_MAP_WRITE)
