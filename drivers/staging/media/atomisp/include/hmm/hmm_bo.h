@@ -76,7 +76,6 @@
 
 enum hmm_bo_type {
 	HMM_BO_PRIVATE,
-	HMM_BO_SHARE,
 	HMM_BO_USER,
 	HMM_BO_LAST,
 };

@@ -875,13 +875,10 @@ out_of_mem:
  * allocate/free physical pages for the bo.
  *
  * type indicate where are the pages from. currently we have 3 types
- * of memory: HMM_BO_PRIVATE, HMM_BO_USER, HMM_BO_SHARE.
+ * of memory: HMM_BO_PRIVATE, HMM_BO_USER.
  *
  * userptr is only valid when type is HMM_BO_USER, it indicates
  * the start address from user space task.
- *
- * from_highmem and userptr will both be ignored when type is
- * HMM_BO_SHARE.
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		       enum hmm_bo_type type,
