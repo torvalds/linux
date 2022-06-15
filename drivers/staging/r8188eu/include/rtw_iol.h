@@ -47,10 +47,8 @@ int rtw_IOL_append_WW_cmd(struct xmit_frame *xmit_frame, u16 addr,
 			  u16 value, u16 mask);
 int rtw_IOL_append_WD_cmd(struct xmit_frame *xmit_frame, u16 addr,
 			  u32 value, u32 mask);
-int _rtw_IOL_append_WRF_cmd(struct xmit_frame *xmit_frame, u8 rf_path,
-			    u16 addr, u32 value, u32 mask);
-#define rtw_IOL_append_WRF_cmd(xmit_frame, rf_path, addr, value, mask)	\
-	_rtw_IOL_append_WRF_cmd((xmit_frame),(rf_path), (addr), (value), (mask))
+int rtw_IOL_append_WRF_cmd(struct xmit_frame *xmit_frame, u8 rf_path,
+			   u16 addr, u32 value, u32 mask);
 
 u8 rtw_IOL_cmd_boundary_handle(struct xmit_frame *pxmit_frame);
 
