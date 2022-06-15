@@ -742,6 +742,16 @@ static int get_panel_type(struct drm_i915_private *i915,
 	return panel_types[i].panel_type;
 }
 
+static unsigned int panel_bits(unsigned int value, int panel_type, int num_bits)
+{
+	return (value >> (panel_type * num_bits)) & (BIT(num_bits) - 1);
+}
+
+static bool panel_bool(unsigned int value, int panel_type)
+{
+	return panel_bits(value, panel_type, 1);
+}
+
 /* Parse general panel options */
 static void
 parse_panel_options(struct drm_i915_private *i915,
@@ -765,8 +775,8 @@ parse_panel_options(struct drm_i915_private *i915,
 	if (get_blocksize(lvds_options) < 16)
 		return;
 
-	drrs_mode = (lvds_options->dps_panel_type_bits
-				>> (panel_type * 2)) & MODE_MASK;
+	drrs_mode = panel_bits(lvds_options->dps_panel_type_bits,
+			       panel_type, 2);
 	/*
 	 * VBT has static DRRS = 0 and seamless DRRS = 2.
 	 * The below piece of code is required to adjust vbt.drrs_type
@@ -1312,7 +1322,7 @@ parse_power_conservation_features(struct drm_i915_private *i915,
 	if (!power)
 		return;
 
-	panel->vbt.psr.enable = power->psr & BIT(panel_type);
+	panel->vbt.psr.enable = panel_bool(power->psr, panel_type);
 
 	/*
 	 * If DRRS is not supported, drrs_type has to be set to 0.
@@ -1320,22 +1330,23 @@ parse_power_conservation_features(struct drm_i915_private *i915,
 	 * static DRRS is 0 and DRRS not supported is represented by
 	 * power->drrs & BIT(panel_type)=false
 	 */
-	if (!(power->drrs & BIT(panel_type)) && panel->vbt.drrs_type != DRRS_TYPE_NONE) {
+	if (!panel_bool(power->drrs, panel_type) && panel->vbt.drrs_type != DRRS_TYPE_NONE) {
 		/*
 		 * FIXME Should DMRRS perhaps be treated as seamless
 		 * but without the automatic downclocking?
 		 */
-		if (power->dmrrs & BIT(panel_type))
+		if (panel_bool(power->dmrrs, panel_type))
 			panel->vbt.drrs_type = DRRS_TYPE_STATIC;
 		else
 			panel->vbt.drrs_type = DRRS_TYPE_NONE;
 	}
 
 	if (i915->vbt.version >= 232)
-		panel->vbt.edp.hobl = power->hobl & BIT(panel_type);
+		panel->vbt.edp.hobl = panel_bool(power->hobl, panel_type);
 
 	if (i915->vbt.version >= 233)
-		panel->vbt.vrr = power->vrr_feature_enabled & BIT(panel_type);
+		panel->vbt.vrr = panel_bool(power->vrr_feature_enabled,
+					    panel_type);
 }
 
 static void
@@ -1351,7 +1362,7 @@ parse_edp(struct drm_i915_private *i915,
 	if (!edp)
 		return;
 
-	switch ((edp->color_depth >> (panel_type * 2)) & 3) {
+	switch (panel_bits(edp->color_depth, panel_type, 2)) {
 	case EDP_18BPP:
 		panel->vbt.edp.bpp = 18;
 		break;
@@ -1462,7 +1473,7 @@ parse_edp(struct drm_i915_private *i915,
 	}
 
 	panel->vbt.edp.drrs_msa_timing_delay =
-		(edp->sdrrs_msa_timing_delay >> (panel_type * 2)) & 3;
+		panel_bits(edp->sdrrs_msa_timing_delay, panel_type, 2);
 
 	if (i915->vbt.version >= 244)
 		panel->vbt.edp.max_link_rate =
@@ -1545,7 +1556,7 @@ parse_psr(struct drm_i915_private *i915,
 	if (i915->vbt.version >= 226) {
 		u32 wakeup_time = psr->psr2_tp2_tp3_wakeup_time;
 
-		wakeup_time = (wakeup_time >> (2 * panel_type)) & 0x3;
+		wakeup_time = panel_bits(wakeup_time, panel_type, 2);
 		switch (wakeup_time) {
 		case 0:
 			wakeup_time = 500;

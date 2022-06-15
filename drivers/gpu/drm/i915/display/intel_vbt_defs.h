@@ -704,9 +704,6 @@ struct bdb_edp {
  * Block 40 - LFP Data Block
  */
 
-/* Mask for DRRS / Panel Channel / SSC / BLT control bits extraction */
-#define MODE_MASK		0x3
-
 struct bdb_lvds_options {
 	u8 panel_type;
 	u8 panel_type2;						/* 212 */
