@@ -162,7 +162,6 @@ struct io_ring_ctx {
 		struct io_uring_sqe	*sq_sqes;
 		unsigned		cached_sq_head;
 		unsigned		sq_entries;
-		struct list_head	defer_list;
 
 		/*
 		 * Fixed resources fast path, should be accessed only under
@@ -274,8 +273,12 @@ struct io_ring_ctx {
 		struct work_struct		exit_work;
 		struct list_head		tctx_list;
 		struct completion		ref_comp;
+
+		/* io-wq management, e.g. thread count */
 		u32				iowq_limits[2];
 		bool				iowq_limits_set;
+
+		struct list_head		defer_list;
 	};
 };
 
