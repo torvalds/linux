@@ -152,6 +152,9 @@
  *  29 Apr 2022 : 1. Added variable for tracking port release status and Lock for syncing linkdown, port rlease and release of offloaded DMA channels
  *		  2. Version update.
  *  VERSION     : 01-00-51
+ *  15 Jun 2022 : 1. Added debugfs support for module specific register dump
+ *		  2. Version update.
+ *  VERSION     : 01-00-52 
  */
 
 #ifndef __TC956XMAC_H__
@@ -207,7 +210,7 @@
 #define IRQ_DEV_NAME(x)		(((x) == RM_PF0_ID) ? ("eth0") : ("eth1"))
 #define WOL_IRQ_DEV_NAME(x)	(((x) == RM_PF0_ID) ? ("eth0_wol") : ("eth1_wol"))
 
-#define DRV_MODULE_VERSION	"V_01-00-51"
+#define DRV_MODULE_VERSION	"V_01-00-52"
 #define TC956X_FW_MAX_SIZE	(64*1024)
 
 #define ATR_AXI4_SLV_BASE		0x0800
@@ -697,6 +700,9 @@ struct tc956xmac_priv {
 	struct mutex port_ld_release_lock; /* Mutex lock to handle (set and clear) flag to notify 
 						appropriate sequence of link down & up */
 	struct tc956x_gpio_config saved_gpio_config[GPIO_12 + 1]; /* Only GPIO0- GPIO06, GPI010-GPIO12 are used */
+#ifdef CONFIG_DEBUG_FS
+	struct dentry *debugfs_dir; /* debugfs structure pointer for port specific */
+#endif
 };
 
 struct tc956x_version {

@@ -1,7 +1,7 @@
 # Toshiba Electronic Devices & Storage Corporation TC956X PCIe Ethernet Host Driver
-Release Date: 29 Apr 2022
+Release Date: 15 Jun 2022
 
-Release Version: V_01-00-51 : Limited-tested version
+Release Version: V_01-00-52 : Limited-tested version
 
 TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
@@ -264,6 +264,24 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 
 	If invalid values are passed as kernel module parameter, the default value will be selected.
 
+17. Debufs directory will be created for port specific in debug path of kernel i.e. "/sys/kernel/debug" in x86 Linux platfrom.
+    Under port specific debugfs directory (tc956x_port0_debug/tc956x_port1_debug), module specific files are created to get dump of debug information related to module.
+	Example: 
+	config_stats	--> Registers related to CONFIG module
+	mac_stats	--> Registers related to MAC block
+	mtl_stats	--> Registers related to MTL block
+	dma_stats	--> Registers related to DMA block
+	m3_stats	--> Debug information related to M3 Firmware
+	interrupt_stats	--> Registers related to MSI & INT blocks
+	other_stats	--> Information related to Driver & Firmware, TAMAP, Flexible Receiver Parser, mmc counters
+	reg_dump	--> Dumps all registers of MAC, MTL, DMA and CNFG modules
+    
+    Information will be printed to "dmesg" console, when files related to specific module are invoked.
+    
+    debugfs file can be invoked by using "cat" command.
+	Example:
+	cat /sys/kernel/debug/tc956x_port0_debug/config_stats
+
 # Release Versions:
 
 ## TC956X_Host_Driver_20210326_V_01-00:
@@ -509,3 +527,6 @@ TC956X PCIe EMAC driver is based on "Fedora 30, kernel-5.4.19".
 3. Triggering Power saving at Link down after releasing of Offloaded DMA channels.
 4. Added kernel Module parameter for selecting Power saving at Link down and default is disabled.
 5. Added Lock for syncing linkdown, port rlease and release of offloaded DMA channels.
+
+## TC956X_Host_Driver_20220615_V_01-00-52:
+1. Added debugfs support for module specific register dump.
