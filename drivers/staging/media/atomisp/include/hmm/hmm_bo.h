@@ -114,10 +114,6 @@ struct hmm_bo_device {
 	struct kmem_cache *bo_cache;
 };
 
-struct hmm_page_object {
-	struct page		*page;
-};
-
 struct hmm_buffer_object {
 	struct hmm_bo_device	*bdev;
 	struct list_head	list;
@@ -128,7 +124,6 @@ struct hmm_buffer_object {
 	/* mutex protecting this BO */
 	struct mutex		mutex;
 	enum hmm_bo_type	type;
-	struct hmm_page_object	*page_obj;	/* physical pages */
 	int		mmap_count;
 	int		status;
 	int		mem_type;

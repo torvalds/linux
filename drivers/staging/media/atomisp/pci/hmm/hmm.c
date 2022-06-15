@@ -295,7 +295,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data,
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		src = (char *)kmap(bo->page_obj[idx].page) + offset;
+		src = (char *)kmap(bo->pages[idx]) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
@@ -314,7 +314,7 @@ static int load_and_flush_by_kmap(ia_css_ptr virt, void *data,
 
 		clflush_cache_range(src, len);
 
-		kunmap(bo->page_obj[idx].page);
+		kunmap(bo->pages[idx]);
 	}
 
 	return 0;
@@ -428,9 +428,9 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
 		if (in_atomic())
-			des = (char *)kmap_atomic(bo->page_obj[idx].page);
+			des = (char *)kmap_atomic(bo->pages[idx]);
 		else
-			des = (char *)kmap(bo->page_obj[idx].page);
+			des = (char *)kmap(bo->pages[idx]);
 
 		if (!des) {
 			dev_err(atomisp_dev,
@@ -464,7 +464,7 @@ int hmm_store(ia_css_ptr virt, const void *data, unsigned int bytes)
 			 */
 			kunmap_atomic(des - offset);
 		else
-			kunmap(bo->page_obj[idx].page);
+			kunmap(bo->pages[idx]);
 	}
 
 	return 0;
@@ -508,7 +508,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 		idx = (virt - bo->start) >> PAGE_SHIFT;
 		offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-		des = (char *)kmap(bo->page_obj[idx].page) + offset;
+		des = (char *)kmap(bo->pages[idx]) + offset;
 
 		if ((bytes + offset) >= PAGE_SIZE) {
 			len = PAGE_SIZE - offset;
@@ -524,7 +524,7 @@ int hmm_set(ia_css_ptr virt, int c, unsigned int bytes)
 
 		clflush_cache_range(des, len);
 
-		kunmap(bo->page_obj[idx].page);
+		kunmap(bo->pages[idx]);
 	}
 
 	return 0;
@@ -547,7 +547,7 @@ phys_addr_t hmm_virt_to_phys(ia_css_ptr virt)
 	idx = (virt - bo->start) >> PAGE_SHIFT;
 	offset = (virt - bo->start) - (idx << PAGE_SHIFT);
 
-	return page_to_phys(bo->page_obj[idx].page) + offset;
+	return page_to_phys(bo->pages[idx]) + offset;
 }
 
 int hmm_mmap(struct vm_area_struct *vma, ia_css_ptr virt)

@@ -631,7 +631,7 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 	int i, ret;
 
 	for (i = 0; i < free_pgnr; i++) {
-		ret = set_pages_wb(bo->page_obj[i].page, 1);
+		ret = set_pages_wb(bo->pages[i], 1);
 		if (ret)
 			dev_err(atomisp_dev,
 				"set page to WB err ...ret = %d\n",
@@ -644,7 +644,7 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 		address be valid,it maybe memory corruption by lowmemory
 		*/
 		if (!ret) {
-			__free_pages(bo->page_obj[i].page, 0);
+			__free_pages(bo->pages[i], 0);
 		}
 	}
 }
@@ -662,11 +662,6 @@ static int alloc_private_pages(struct hmm_buffer_object *bo)
 	bool lack_mem = true;
 
 	pgnr = bo->pgnr;
-
-	bo->page_obj = kmalloc_array(pgnr, sizeof(struct hmm_page_object),
-				     GFP_KERNEL);
-	if (unlikely(!bo->page_obj))
-		return -ENOMEM;
 
 	i = 0;
 	alloc_pgnr = 0;
@@ -739,7 +734,7 @@ retry:
 			}
 
 			for (j = 0; j < blk_pgnr; j++, i++) {
-				bo->page_obj[i].page = pages + j;
+				bo->pages[i] = pages + j;
 			}
 
 			pgnr -= blk_pgnr;
@@ -759,16 +754,7 @@ retry:
 cleanup:
 	alloc_pgnr = i;
 	free_private_bo_pages(bo, alloc_pgnr);
-
-	kfree(bo->page_obj);
-
 	return -ENOMEM;
-}
-
-static void free_private_pages(struct hmm_buffer_object *bo)
-{
-	free_private_bo_pages(bo, bo->pgnr);
-	kfree(bo->page_obj);
 }
 
 static void free_user_pages(struct hmm_buffer_object *bo,
@@ -782,8 +768,6 @@ static void free_user_pages(struct hmm_buffer_object *bo,
 		for (i = 0; i < page_nr; i++)
 			put_page(bo->pages[i]);
 	}
-	kfree(bo->pages);
-	kfree(bo->page_obj);
 }
 
 /*
@@ -793,20 +777,7 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 			    const void __user *userptr)
 {
 	int page_nr;
-	int i;
 	struct vm_area_struct *vma;
-	struct page **pages;
-
-	pages = kmalloc_array(bo->pgnr, sizeof(struct page *), GFP_KERNEL);
-	if (unlikely(!pages))
-		return -ENOMEM;
-
-	bo->page_obj = kmalloc_array(bo->pgnr, sizeof(struct hmm_page_object),
-				     GFP_KERNEL);
-	if (unlikely(!bo->page_obj)) {
-		kfree(pages);
-		return -ENOMEM;
-	}
 
 	mutex_unlock(&bo->mutex);
 	mmap_read_lock(current->mm);
@@ -814,8 +785,6 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 	mmap_read_unlock(current->mm);
 	if (!vma) {
 		dev_err(atomisp_dev, "find_vma failed\n");
-		kfree(bo->page_obj);
-		kfree(pages);
 		mutex_lock(&bo->mutex);
 		return -EFAULT;
 	}
@@ -827,18 +796,16 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 
 	userptr = untagged_addr(userptr);
 
-	bo->pages = pages;
-
 	if (vma->vm_flags & (VM_IO | VM_PFNMAP)) {
 		page_nr = pin_user_pages((unsigned long)userptr, bo->pgnr,
 					 FOLL_LONGTERM | FOLL_WRITE,
-					 pages, NULL);
+					 bo->pages, NULL);
 		bo->mem_type = HMM_BO_MEM_TYPE_PFN;
 	} else {
 		/*Handle frame buffer allocated in user space*/
 		mutex_unlock(&bo->mutex);
 		page_nr = get_user_pages_fast((unsigned long)userptr,
-					      (int)(bo->pgnr), 1, pages);
+					      (int)(bo->pgnr), 1, bo->pages);
 		mutex_lock(&bo->mutex);
 		bo->mem_type = HMM_BO_MEM_TYPE_USER;
 	}
@@ -856,10 +823,6 @@ static int alloc_user_pages(struct hmm_buffer_object *bo,
 		if (page_nr < 0)
 			page_nr = 0;
 		goto out_of_mem;
-	}
-
-	for (i = 0; i < bo->pgnr; i++) {
-		bo->page_obj[i].page = pages[i];
 	}
 
 	return 0;
@@ -891,6 +854,12 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 	mutex_lock(&bo->mutex);
 	check_bo_status_no_goto(bo, HMM_BO_PAGE_ALLOCED, status_err);
 
+	bo->pages = kmalloc_array(bo->pgnr, sizeof(struct page *), GFP_KERNEL);
+	if (unlikely(!bo->pages)) {
+		ret = -ENOMEM;
+		goto alloc_err;
+	}
+
 	/*
 	 * TO DO:
 	 * add HMM_BO_USER type
@@ -915,6 +884,7 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 	return 0;
 
 alloc_err:
+	kfree(bo->pages);
 	mutex_unlock(&bo->mutex);
 	dev_err(atomisp_dev, "alloc pages err...\n");
 	return ret;
@@ -940,11 +910,13 @@ void hmm_bo_free_pages(struct hmm_buffer_object *bo)
 	bo->status &= (~HMM_BO_PAGE_ALLOCED);
 
 	if (bo->type == HMM_BO_PRIVATE)
-		free_private_pages(bo);
+		free_private_bo_pages(bo, bo->pgnr);
 	else if (bo->type == HMM_BO_USER)
 		free_user_pages(bo, bo->pgnr);
 	else
 		dev_err(atomisp_dev, "invalid buffer type.\n");
+
+	kfree(bo->pages);
 	mutex_unlock(&bo->mutex);
 
 	return;
@@ -989,7 +961,7 @@ int hmm_bo_bind(struct hmm_buffer_object *bo)
 	for (i = 0; i < bo->pgnr; i++) {
 		ret =
 		    isp_mmu_map(&bdev->mmu, virt,
-				page_to_phys(bo->page_obj[i].page), 1);
+				page_to_phys(bo->pages[i]), 1);
 		if (ret)
 			goto map_err;
 		virt += (1 << PAGE_SHIFT);
@@ -1103,9 +1075,6 @@ int hmm_bo_binded(struct hmm_buffer_object *bo)
 
 void *hmm_bo_vmap(struct hmm_buffer_object *bo, bool cached)
 {
-	struct page **pages;
-	int i;
-
 	check_bo_null_return(bo, NULL);
 
 	mutex_lock(&bo->mutex);
@@ -1122,26 +1091,14 @@ void *hmm_bo_vmap(struct hmm_buffer_object *bo, bool cached)
 		bo->status &= ~(HMM_BO_VMAPED | HMM_BO_VMAPED_CACHED);
 	}
 
-	pages = kmalloc_array(bo->pgnr, sizeof(*pages), GFP_KERNEL);
-	if (unlikely(!pages)) {
-		mutex_unlock(&bo->mutex);
-		return NULL;
-	}
-
-	for (i = 0; i < bo->pgnr; i++)
-		pages[i] = bo->page_obj[i].page;
-
-	bo->vmap_addr = vmap(pages, bo->pgnr, VM_MAP,
+	bo->vmap_addr = vmap(bo->pages, bo->pgnr, VM_MAP,
 			     cached ? PAGE_KERNEL : PAGE_KERNEL_NOCACHE);
 	if (unlikely(!bo->vmap_addr)) {
-		kfree(pages);
 		mutex_unlock(&bo->mutex);
 		dev_err(atomisp_dev, "vmap failed...\n");
 		return NULL;
 	}
 	bo->status |= (cached ? HMM_BO_VMAPED_CACHED : HMM_BO_VMAPED);
-
-	kfree(pages);
 
 	mutex_unlock(&bo->mutex);
 	return bo->vmap_addr;
@@ -1272,7 +1229,7 @@ int hmm_bo_mmap(struct vm_area_struct *vma, struct hmm_buffer_object *bo)
 
 	virt = vma->vm_start;
 	for (i = 0; i < pgnr; i++) {
-		pfn = page_to_pfn(bo->page_obj[i].page);
+		pfn = page_to_pfn(bo->pages[i]);
 		if (remap_pfn_range(vma, virt, pfn, PAGE_SIZE, PAGE_SHARED)) {
 			dev_warn(atomisp_dev,
 				 "remap_pfn_range failed: virt = 0x%x, pfn = 0x%x, mapped_pgnr = %d\n",
