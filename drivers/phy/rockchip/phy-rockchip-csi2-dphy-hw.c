@@ -946,7 +946,16 @@ static struct platform_driver rockchip_csi2_dphy_hw_driver = {
 		.of_match_table = rockchip_csi2_dphy_hw_match_id,
 	},
 };
+#if defined(CONFIG_VIDEO_ROCKCHIP_THUNDER_BOOT_ISP) && !defined(CONFIG_INITCALL_ASYNC)
+static int __init rockchip_csi2_dphy_hw_init(void)
+{
+	return platform_driver_register(&rockchip_csi2_dphy_hw_driver);
+}
+
+subsys_initcall(rockchip_csi2_dphy_hw_init);
+#else
 module_platform_driver(rockchip_csi2_dphy_hw_driver);
+#endif
 
 MODULE_AUTHOR("Rockchip Camera/ISP team");
 MODULE_DESCRIPTION("Rockchip MIPI CSI2 DPHY HW driver");
