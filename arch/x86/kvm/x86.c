@@ -7593,8 +7593,19 @@ static int emulator_pio_in_out(struct kvm_vcpu *vcpu, int size,
 			r = kvm_io_bus_read(vcpu, KVM_PIO_BUS, port, size, data);
 		else
 			r = kvm_io_bus_write(vcpu, KVM_PIO_BUS, port, size, data);
-		if (r)
-			goto userspace_io;
+
+		if (r) {
+			if (i == 0)
+				goto userspace_io;
+
+			/*
+			 * Userspace must have unregistered the device while PIO
+			 * was running.  Drop writes / read as 0 (the buffer
+			 * was zeroed in __emulator_pio_in).
+			 */
+			break;
+		}
+
 		data += size;
 	}
 	return 1;
@@ -7606,7 +7617,6 @@ userspace_io:
 	vcpu->run->io.data_offset = KVM_PIO_PAGE_OFFSET * PAGE_SIZE;
 	vcpu->run->io.count = count;
 	vcpu->run->io.port = port;
-
 	return 0;
 }
 
