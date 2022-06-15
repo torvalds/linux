@@ -976,32 +976,6 @@ int hmm_bo_page_allocated(struct hmm_buffer_object *bo)
 }
 
 /*
- * get physical page info of the bo.
- */
-int hmm_bo_get_page_info(struct hmm_buffer_object *bo,
-			 struct hmm_page_object **page_obj, int *pgnr)
-{
-	check_bo_null_return(bo, -EINVAL);
-
-	mutex_lock(&bo->mutex);
-
-	check_bo_status_yes_goto(bo, HMM_BO_PAGE_ALLOCED, status_err);
-
-	*page_obj = bo->page_obj;
-	*pgnr = bo->pgnr;
-
-	mutex_unlock(&bo->mutex);
-
-	return 0;
-
-status_err:
-	dev_err(atomisp_dev,
-		"buffer object not page allocated yet.\n");
-	mutex_unlock(&bo->mutex);
-	return -EINVAL;
-}
-
-/*
  * bind the physical pages to a virtual address space.
  */
 int hmm_bo_bind(struct hmm_buffer_object *bo)

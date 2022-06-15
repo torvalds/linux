@@ -233,12 +233,6 @@ void hmm_bo_free_pages(struct hmm_buffer_object *bo);
 int hmm_bo_page_allocated(struct hmm_buffer_object *bo);
 
 /*
- * get physical page info of the bo.
- */
-int hmm_bo_get_page_info(struct hmm_buffer_object *bo,
-			 struct hmm_page_object **page_obj, int *pgnr);
-
-/*
  * bind/unbind the physical pages to a virtual address space.
  */
 int hmm_bo_bind(struct hmm_buffer_object *bo);
