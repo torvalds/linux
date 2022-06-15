@@ -7,7 +7,13 @@
 
 / {
 	compatible = "rockchip,rv1103";
+
+	aliases {
+		/delete-property/ gpio2;
+	};
 };
+
+/delete-node/ &gpio2;
 
 &acodec {
 	compatible = "rockchip,rv1103-codec";
@@ -36,6 +42,16 @@
 		<100000000>, <300000000>,
 		<100000000>, <100000000>,
 		<200000000>, <264000000>;
+};
+
+&i2c3 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m1_xfer>;
+};
+
+&i2c4 {
+	pinctrl-names = "default";
+	pinctrl-0 = <&i2c3m1_xfer>;
 };
 
 &u2phy_otg {
