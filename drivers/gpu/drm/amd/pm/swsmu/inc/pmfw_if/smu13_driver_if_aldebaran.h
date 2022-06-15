@@ -521,12 +521,13 @@ typedef struct {
 typedef struct {
 	uint64_t mca_umc_status;
 	uint64_t mca_umc_addr;
-	uint64_t mca_ceumc_addr;
 
 	uint16_t ce_count_lo_chip;
 	uint16_t ce_count_hi_chip;
 
 	uint32_t eccPadding;
+
+	uint64_t mca_ceumc_addr;
 } EccInfo_V2_t;
 
 typedef struct {
