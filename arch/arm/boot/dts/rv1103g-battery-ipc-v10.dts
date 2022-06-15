@@ -13,6 +13,38 @@
 	model = "Rockchip RV1103G Anker V10 Board";
 	compatible = "rockchip,rv1103g-anker-v10", "rockchip,rv1103";
 
+	aliases {
+		/delete-property/ csi2dphy1;
+		/delete-property/ csi2dphy2;
+		/delete-property/ ethernet0;
+		/delete-property/ i2c0;
+		/delete-property/ i2c1;
+		/delete-property/ i2c2;
+		/delete-property/ i2c3;
+		/delete-property/ mmc0;
+		/delete-property/ mmc1;
+		/delete-property/ pwm0;
+		/delete-property/ pwm1;
+		/delete-property/ pwm2;
+		/delete-property/ pwm3;
+		/delete-property/ pwm4;
+		/delete-property/ pwm5;
+		/delete-property/ pwm6;
+		/delete-property/ pwm7;
+		/delete-property/ pwm8;
+		/delete-property/ pwm9;
+		/delete-property/ pwm10;
+		/delete-property/ pwm11;
+		/delete-property/ rkcif_mipi_lvds1;
+		/delete-property/ serial0;
+		/delete-property/ serial1;
+		/delete-property/ serial3;
+		/delete-property/ serial4;
+		/delete-property/ serial5;
+		/delete-property/ spi0;
+		/delete-property/ spi1;
+	};
+
 	chosen {
 		bootargs = "loglevel=0 console=ttyFIQ0 root=/dev/rd0 snd_soc_core.prealloc_buffer_size_kbytes=16 coherent_pool=0 driver_async_probe=dwmmc_rockchip rk_dma_heap_cma=24M storagemedia=mtd androidboot.storagemedia=mtd androidboot.mode=normal mtdparts=sfc_nor:64K(env),256K@64K(idblock),256K(uboot),64K(vnvm),8M(boot),3M(userdata)";
 	};
@@ -38,17 +70,39 @@
 		regulator-min-microvolt = <1800000>;
 		regulator-max-microvolt = <1800000>;
 	};
-
-	vcc_3v3: vcc-3v3 {
-		compatible = "regulator-fixed";
-		regulator-name = "vcc_3v3";
-		regulator-always-on;
-		regulator-boot-on;
-		regulator-min-microvolt = <3300000>;
-		regulator-max-microvolt = <3300000>;
-	};
 };
 
+/delete-node/ &dsm;
+/delete-node/ &i2c0;
+/delete-node/ &i2c1;
+/delete-node/ &i2c2;
+/delete-node/ &i2c3;
+/delete-node/ &emmc;
+/delete-node/ &gmac;
+/delete-node/ &pwm0;
+/delete-node/ &pwm1;
+/delete-node/ &pwm2;
+/delete-node/ &pwm3;
+/delete-node/ &pwm4;
+/delete-node/ &pwm5;
+/delete-node/ &pwm6;
+/delete-node/ &pwm7;
+/delete-node/ &pwm8;
+/delete-node/ &pwm9;
+/delete-node/ &pwm10;
+/delete-node/ &pwm11;
+/delete-node/ &rkcif_dvp;
+/delete-node/ &rkcif_dvp_sditf;
+/delete-node/ &rkcif_mipi_lvds1;
+/delete-node/ &rkcif_mipi_lvds1_sditf;
+/delete-node/ &sdmmc;
+/delete-node/ &spi0;
+/delete-node/ &spi1;
+/delete-node/ &uart0;
+/delete-node/ &uart1;
+/delete-node/ &uart3;
+/delete-node/ &uart4;
+/delete-node/ &uart5;
 
 &acodec {
 	#sound-dai-cells = <0>;
