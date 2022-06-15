@@ -531,14 +531,12 @@ static unsigned long count_mm_mlocked_page_nr(struct mm_struct *mm,
 	unsigned long end;
 	VMA_ITERATOR(vmi, mm, start);
 
-	if (mm == NULL)
-		mm = current->mm;
-
 	/* Don't overflow past ULONG_MAX */
 	if (unlikely(ULONG_MAX - len < start))
 		end = ULONG_MAX;
 	else
 		end = start + len;
+
 	for_each_vma_range(vmi, vma, end) {
 		if (vma->vm_flags & VM_LOCKED) {
 			if (start > vma->vm_start)
