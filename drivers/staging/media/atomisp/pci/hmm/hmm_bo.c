@@ -651,8 +651,7 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 
 /*Allocate pages which will be used only by ISP*/
 static int alloc_private_pages(struct hmm_buffer_object *bo,
-			       int from_highmem,
-			       bool cached)
+			       int from_highmem)
 {
 	int ret;
 	unsigned int pgnr, order, blk_pgnr, alloc_pgnr;
@@ -730,19 +729,17 @@ retry:
 		} else {
 			blk_pgnr = order_to_nr(order);
 
-			if (!cached) {
-				/*
-				 * set memory to uncacheable -- UC_MINUS
-				 */
-				ret = set_pages_uc(pages, blk_pgnr);
-				if (ret) {
-					dev_err(atomisp_dev,
-						"set page uncacheablefailed.\n");
+			/*
+			 * set memory to uncacheable -- UC_MINUS
+			 */
+			ret = set_pages_uc(pages, blk_pgnr);
+			if (ret) {
+				dev_err(atomisp_dev,
+					"set page uncacheablefailed.\n");
 
-					__free_pages(pages, order);
+				__free_pages(pages, order);
 
-					goto cleanup;
-				}
+				goto cleanup;
 			}
 
 			for (j = 0; j < blk_pgnr; j++, i++) {
@@ -797,7 +794,7 @@ static void free_user_pages(struct hmm_buffer_object *bo,
  * Convert user space virtual address into pages list
  */
 static int alloc_user_pages(struct hmm_buffer_object *bo,
-			    const void __user *userptr, bool cached)
+			    const void __user *userptr)
 {
 	int page_nr;
 	int i;
@@ -895,7 +892,7 @@ out_of_mem:
  */
 int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 		       enum hmm_bo_type type, int from_highmem,
-		       const void __user *userptr, bool cached)
+		       const void __user *userptr)
 {
 	int ret = -EINVAL;
 
@@ -909,9 +906,9 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 	 * add HMM_BO_USER type
 	 */
 	if (type == HMM_BO_PRIVATE) {
-		ret = alloc_private_pages(bo, from_highmem, cached);
+		ret = alloc_private_pages(bo, from_highmem);
 	} else if (type == HMM_BO_USER) {
-		ret = alloc_user_pages(bo, userptr, cached);
+		ret = alloc_user_pages(bo, userptr);
 	} else {
 		dev_err(atomisp_dev, "invalid buffer type.\n");
 		ret = -EINVAL;
