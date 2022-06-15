@@ -810,7 +810,6 @@ int atomisp_create_pipes_stream(struct atomisp_sub_device *asd)
 
 int atomisp_css_update_stream(struct atomisp_sub_device *asd)
 {
-	int ret;
 	struct atomisp_device *isp = asd->isp;
 
 	if (__destroy_streams(asd, true))
@@ -819,20 +818,7 @@ int atomisp_css_update_stream(struct atomisp_sub_device *asd)
 	if (__destroy_pipes(asd, true))
 		dev_warn(isp->dev, "destroy pipe failed.\n");
 
-	ret = __create_pipes(asd);
-	if (ret) {
-		dev_err(isp->dev, "create pipe failed %d.\n", ret);
-		return -EIO;
-	}
-
-	ret = __create_streams(asd);
-	if (ret) {
-		dev_warn(isp->dev, "create stream failed %d.\n", ret);
-		__destroy_pipes(asd, true);
-		return -EIO;
-	}
-
-	return 0;
+	return atomisp_create_pipes_stream(asd);
 }
 
 int atomisp_css_init(struct atomisp_device *isp)
@@ -1150,15 +1136,9 @@ int atomisp_css_start(struct atomisp_sub_device *asd,
 	 * recreated in the next stream on.
 	 */
 	if (!asd->stream_prepared) {
-		if (__create_pipes(asd)) {
-			dev_err(isp->dev, "create pipe error.\n");
-			return -EINVAL;
-		}
-		if (__create_streams(asd)) {
-			dev_err(isp->dev, "create stream error.\n");
-			ret = -EINVAL;
-			goto stream_err;
-		}
+		ret = atomisp_create_pipes_stream(asd);
+		if (ret)
+			return ret;
 	}
 	/*
 	 * SP can only be started one time
