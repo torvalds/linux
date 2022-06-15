@@ -858,8 +858,15 @@ static void print_bad_events(int bad, int total)
 {
 	/* Output for debug, this have to be removed */
 	int i;
+	int broken = 0;
 	const char *name[4] =
 		{ "acquire", "acquired", "contended", "release" };
+
+	for (i = 0; i < BROKEN_MAX; i++)
+		broken += bad_hist[i];
+
+	if (broken == 0 && !verbose)
+		return;
 
 	pr_info("\n=== output for debug===\n\n");
 	pr_info("bad: %d, total: %d\n", bad, total);
