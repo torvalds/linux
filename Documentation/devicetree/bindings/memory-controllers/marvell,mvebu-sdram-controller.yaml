@@ -8,7 +8,7 @@ title: Marvell MVEBU SDRAM controller
 
 maintainers:
   - Jan Luebbe <jlu@pengutronix.de>
-  - Krzysztof Kozlowski <krzysztof.kozlowski@canonical.com>
+  - Krzysztof Kozlowski <krzk@kernel.org>
 
 properties:
   compatible:

@@ -727,16 +727,14 @@ static int setup_gpi_dma(struct geni_i2c_dev *gi2c)
 	if (IS_ERR(gi2c->tx_c)) {
 		ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->tx_c),
 				    "Failed to get tx DMA ch\n");
-		if (ret < 0)
-			goto err_tx;
+		goto err_tx;
 	}
 
 	gi2c->rx_c = dma_request_chan(gi2c->se.dev, "rx");
 	if (IS_ERR(gi2c->rx_c)) {
 		ret = dev_err_probe(gi2c->se.dev, PTR_ERR(gi2c->rx_c),
 				    "Failed to get rx DMA ch\n");
-		if (ret < 0)
-			goto err_rx;
+		goto err_rx;
 	}
 
 	dev_dbg(gi2c->se.dev, "Grabbed GPI dma channels\n");
@@ -843,10 +841,8 @@ static int geni_i2c_probe(struct platform_device *pdev)
 		/* FIFO is disabled, so we can only use GPI DMA */
 		gi2c->gpi_mode = true;
 		ret = setup_gpi_dma(gi2c);
-		if (ret) {
-			dev_err(dev, "Failed to setup GPI DMA mode:%d ret\n", ret);
-			return ret;
-		}
+		if (ret)
+			return dev_err_probe(dev, ret, "Failed to setup GPI DMA mode\n");
 
 		dev_dbg(dev, "Using GPI DMA mode for I2C\n");
 	} else {

@@ -329,7 +329,7 @@ static int mipsxx_pmu_alloc_counter(struct cpu_hw_events *cpuc,
 	for (i = mipspmu.num_counters - 1; i >= 0; i--) {
 		/*
 		 * Note that some MIPS perf events can be counted by both
-		 * even and odd counters, wheresas many other are only by
+		 * even and odd counters, whereas many other are only by
 		 * even _or_ odd counters. This introduces an issue that
 		 * when the former kind of event takes the counter the
 		 * latter kind of event wants to use, then the "counter

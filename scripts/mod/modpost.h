@@ -1,4 +1,5 @@
 /* SPDX-License-Identifier: GPL-2.0 */
+#include <stdbool.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdarg.h>
@@ -10,6 +11,7 @@
 #include <unistd.h>
 #include <elf.h>
 
+#include "list.h"
 #include "elfconfig.h"
 
 /* On BSD-alike OSes elf.h defines these according to host's word size */
@@ -95,6 +97,9 @@ static inline void __endian(const void *src, void *dest, unsigned int size)
 #endif
 
 #define NOFAIL(ptr)   do_nofail((ptr), #ptr)
+
+#define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
+
 void *do_nofail(void *ptr, const char *expr);
 
 struct buffer {
@@ -109,26 +114,22 @@ buf_printf(struct buffer *buf, const char *fmt, ...);
 void
 buf_write(struct buffer *buf, const char *s, int len);
 
-struct namespace_list {
-	struct namespace_list *next;
-	char namespace[];
-};
-
 struct module {
-	struct module *next;
-	int gpl_compatible;
-	struct symbol *unres;
-	int from_dump;  /* 1 if module was loaded from *.symvers */
-	int is_vmlinux;
-	int seen;
-	int has_init;
-	int has_cleanup;
+	struct list_head list;
+	struct list_head exported_symbols;
+	struct list_head unresolved_symbols;
+	bool is_gpl_compatible;
+	bool from_dump;		/* true if module was loaded from *.symvers */
+	bool is_vmlinux;
+	bool seen;
+	bool has_init;
+	bool has_cleanup;
 	struct buffer dev_table_buf;
 	char	     srcversion[25];
 	// Missing namespace dependencies
-	struct namespace_list *missing_namespaces;
+	struct list_head missing_namespaces;
 	// Actual imported namespaces
-	struct namespace_list *imported_namespaces;
+	struct list_head imported_namespaces;
 	char name[];
 };
 
@@ -138,8 +139,6 @@ struct elf_info {
 	Elf_Shdr     *sechdrs;
 	Elf_Sym      *symtab_start;
 	Elf_Sym      *symtab_stop;
-	Elf_Section  export_sec;
-	Elf_Section  export_gpl_sec;
 	char         *strtab;
 	char	     *modinfo;
 	unsigned int modinfo_len;
@@ -178,7 +177,6 @@ static inline unsigned int get_secindex(const struct elf_info *info,
 }
 
 /* file2alias.c */
-extern unsigned int cross_build;
 void handle_moddevtable(struct module *mod, struct elf_info *info,
 			Elf_Sym *sym, const char *symname);
 void add_moddevtable(struct buffer *buf, struct module *mod);

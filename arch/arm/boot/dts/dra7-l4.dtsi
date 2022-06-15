@@ -4188,11 +4188,11 @@
 			reg = <0x1d0010 0x4>;
 			reg-names = "sysc";
 			ti,sysc-midle = <SYSC_IDLE_FORCE>,
-					<SYSC_IDLE_NO>,
-					<SYSC_IDLE_SMART>;
+					<SYSC_IDLE_NO>;
 			ti,sysc-sidle = <SYSC_IDLE_FORCE>,
 					<SYSC_IDLE_NO>,
 					<SYSC_IDLE_SMART>;
+			power-domains = <&prm_vpe>;
 			clocks = <&vpe_clkctrl DRA7_VPE_VPE_CLKCTRL 0>;
 			clock-names = "fck";
 			#address-cells = <1>;

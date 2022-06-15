@@ -33,17 +33,16 @@ static s32 iol_execute(struct adapter *padapter, u8 control)
 {
 	s32 status = _FAIL;
 	u8 reg_0x88 = 0;
-	u32 start = 0, passing_time = 0;
+	unsigned long timeout;
 
 	control = control & 0x0f;
 	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
 	rtw_write8(padapter, REG_HMEBOX_E0,  reg_0x88 | control);
 
-	start = jiffies;
+	timeout = jiffies + msecs_to_jiffies(1000);
 	while ((reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0)) & control &&
-	       (passing_time = rtw_get_passing_time_ms(start)) < 1000) {
+		time_before(jiffies, timeout))
 		;
-	}
 
 	reg_0x88 = rtw_read8(padapter, REG_HMEBOX_E0);
 	status = (reg_0x88 & control) ? _FAIL : _SUCCESS;
@@ -187,8 +186,8 @@ static void efuse_read_phymap_from_txpktbuf(
 	u16 *size	/* for efuse content: the max byte to read. will update to byte read */
 	)
 {
+	unsigned long timeout;
 	u16 dbg_addr = 0;
-	u32 start  = 0, passing_time = 0;
 	__le32 lo32 = 0, hi32 = 0;
 	u16 len = 0, count = 0;
 	int i = 0;
@@ -207,9 +206,8 @@ static void efuse_read_phymap_from_txpktbuf(
 		rtw_write16(adapter, REG_PKTBUF_DBG_ADDR, dbg_addr + i);
 
 		rtw_write8(adapter, REG_TXPKTBUF_DBG, 0);
-		start = jiffies;
-		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) &&
-		       (passing_time = rtw_get_passing_time_ms(start)) < 1000)
+		timeout = jiffies + msecs_to_jiffies(1000);
+		while (!rtw_read8(adapter, REG_TXPKTBUF_DBG) && time_before(jiffies, timeout))
 			rtw_usleep_os(100);
 
 		/* data from EEPROM needs to be in LE */
@@ -505,7 +503,6 @@ void rtl8188e_read_chip_version(struct adapter *padapter)
 
 	ChipVersion.VendorType = ((value32 & VENDOR_ID) ? CHIP_VENDOR_UMC : CHIP_VENDOR_TSMC);
 	ChipVersion.CUTVersion = (value32 & CHIP_VER_RTL_MASK) >> CHIP_VER_RTL_SHIFT; /*  IC version (CUT) */
-	ChipVersion.ROMVer = 0;	/*  ROM code version. */
 
 	dump_chip_info(ChipVersion);
 

@@ -38,10 +38,10 @@
 #include <linux/kthread.h>
 #include <linux/platform_device.h>
 #include <linux/mutex.h>
+#include <linux/of.h>
 
 #include <linux/uaccess.h>
 #ifdef CONFIG_PPC
-#include <asm/prom.h>
 #include <asm/machdep.h>
 #endif
 

@@ -177,7 +177,7 @@ static u8 ftpm_tee_tpm_op_status(struct tpm_chip *chip)
 
 static bool ftpm_tee_tpm_req_canceled(struct tpm_chip *chip, u8 status)
 {
-	return 0;
+	return false;
 }
 
 static const struct tpm_class_ops ftpm_tee_tpm_ops = {

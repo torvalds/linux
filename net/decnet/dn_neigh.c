@@ -426,7 +426,8 @@ int dn_neigh_router_hello(struct net *net, struct sock *sk, struct sk_buff *skb)
 			if (!dn_db->router) {
 				dn_db->router = neigh_clone(neigh);
 			} else {
-				if (msg->priority > ((struct dn_neigh *)dn_db->router)->priority)
+				if (msg->priority > container_of(dn_db->router,
+								 struct dn_neigh, n)->priority)
 					neigh_release(xchg(&dn_db->router, neigh_clone(neigh)));
 			}
 		}

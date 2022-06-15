@@ -7,6 +7,7 @@ Description:	UVC function directory
 		streaming_maxburst	0..15 (ss only)
 		streaming_maxpacket	1..1023 (fs), 1..3072 (hs/ss)
 		streaming_interval	1..16
+		function_name		string [32]
 		===================	=============================
 
 What:		/config/usb-gadget/gadget/functions/uvc.name/control

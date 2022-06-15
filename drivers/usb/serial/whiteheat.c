@@ -30,10 +30,6 @@
 #include <linux/usb/ezusb.h>
 #include "whiteheat.h"			/* WhiteHEAT specific commands */
 
-#ifndef CMSPAR
-#define CMSPAR 0
-#endif
-
 /*
  * Version Information
  */
@@ -584,9 +580,8 @@ static int firm_send_command(struct usb_serial_port *port, __u8 command,
 		switch (command) {
 		case WHITEHEAT_GET_DTR_RTS:
 			info = usb_get_serial_port_data(port);
-			memcpy(&info->mcr, command_info->result_buffer,
-					sizeof(struct whiteheat_dr_info));
-				break;
+			info->mcr = command_info->result_buffer[0];
+			break;
 		}
 	}
 exit:

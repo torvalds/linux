@@ -633,7 +633,7 @@ static void _rtl92e_dm_tx_power_tracking_callback_tssi(struct net_device *dev)
 	rtl92e_writeb(dev, FW_Busy_Flag, 0);
 	priv->rtllib->bdynamic_txpower_enable = false;
 
-	powerlevelOFDM24G = (u8)(priv->Pwr_Track>>24);
+	powerlevelOFDM24G = priv->Pwr_Track >> 24;
 	RF_Type = priv->rf_type;
 	Value = (RF_Type<<8) | powerlevelOFDM24G;
 
@@ -833,7 +833,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 					    bMaskDWord);
 		for (i = 0; i < OFDM_Table_Length; i++) {
 			if (tmpRegA == OFDMSwingTable[i]) {
-				priv->OFDM_index[0] = (u8)i;
+				priv->OFDM_index[0] = i;
 				RT_TRACE(COMP_POWER_TRACKING,
 					 "Initial reg0x%x = 0x%x, OFDM_index = 0x%x\n",
 					 rOFDM0_XATxIQImbalance, tmpRegA,
@@ -844,7 +844,7 @@ static void _rtl92e_dm_tx_power_tracking_cb_thermal(struct net_device *dev)
 		TempCCk = rtl92e_get_bb_reg(dev, rCCK0_TxFilter1, bMaskByte2);
 		for (i = 0; i < CCK_Table_length; i++) {
 			if (TempCCk == (u32)CCKSwingTable_Ch1_Ch13[i][0]) {
-				priv->CCK_index = (u8) i;
+				priv->CCK_index = i;
 				RT_TRACE(COMP_POWER_TRACKING,
 					 "Initial reg0x%x = 0x%x, CCK_index = 0x%x\n",
 					 rCCK0_TxFilter1, TempCCk,
@@ -1041,7 +1041,7 @@ static void _rtl92e_dm_cck_tx_power_adjust_tssi(struct net_device *dev,
 {
 	u32 TempVal;
 	struct r8192_priv *priv = rtllib_priv(dev);
-	u8 attenuation = (u8)priv->CCKPresentAttentuation;
+	u8 attenuation = priv->CCKPresentAttentuation;
 
 	TempVal = 0;
 	if (!bInCH14) {
@@ -1245,10 +1245,10 @@ void rtl92e_dm_backup_state(struct net_device *dev)
 		return;
 
 	rtl92e_set_bb_reg(dev, UFWP, bMaskByte1, 0x8);
-	priv->initgain_backup.xaagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1, bit_mask);
-	priv->initgain_backup.xbagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1, bit_mask);
-	priv->initgain_backup.xcagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1, bit_mask);
-	priv->initgain_backup.xdagccore1 = (u8)rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1, bit_mask);
+	priv->initgain_backup.xaagccore1 = rtl92e_get_bb_reg(dev, rOFDM0_XAAGCCore1, bit_mask);
+	priv->initgain_backup.xbagccore1 = rtl92e_get_bb_reg(dev, rOFDM0_XBAGCCore1, bit_mask);
+	priv->initgain_backup.xcagccore1 = rtl92e_get_bb_reg(dev, rOFDM0_XCAGCCore1, bit_mask);
+	priv->initgain_backup.xdagccore1 = rtl92e_get_bb_reg(dev, rOFDM0_XDAGCCore1, bit_mask);
 	bit_mask  = bMaskByte2;
 	priv->initgain_backup.cca = (u8)rtl92e_get_bb_reg(dev, rCCK0_CCA, bit_mask);
 
@@ -1535,7 +1535,7 @@ static void _rtl92e_dm_initial_gain(struct net_device *dev)
 
 	if ((dm_digtable.pre_ig_value != dm_digtable.cur_ig_value)
 	    || !initialized || force_write) {
-		initial_gain = (u8)dm_digtable.cur_ig_value;
+		initial_gain = dm_digtable.cur_ig_value;
 		rtl92e_writeb(dev, rOFDM0_XAAGCCore1, initial_gain);
 		rtl92e_writeb(dev, rOFDM0_XBAGCCore1, initial_gain);
 		rtl92e_writeb(dev, rOFDM0_XCAGCCore1, initial_gain);
@@ -2513,5 +2513,5 @@ static void _rtl92e_dm_send_rssi_to_fw(struct net_device *dev)
 {
 	struct r8192_priv *priv = rtllib_priv(dev);
 
-	rtl92e_writeb(dev, DRIVER_RSSI, (u8)priv->undecorated_smoothed_pwdb);
+	rtl92e_writeb(dev, DRIVER_RSSI, priv->undecorated_smoothed_pwdb);
 }

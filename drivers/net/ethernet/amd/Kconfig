@@ -130,16 +130,6 @@ config PCMCIA_NMCLAN
 	  To compile this driver as a module, choose M here: the module will be
 	  called nmclan_cs.  If unsure, say N.
 
-config NI65
-	tristate "NI6510 support"
-	depends on ISA && ISA_DMA_API && !ARM && !PPC32
-	select NETDEV_LEGACY_INIT
-	help
-	  If you have a network (Ethernet) card of this type, say Y here.
-
-	  To compile this driver as a module, choose M here. The module
-	  will be called ni65.
-
 config SUN3LANCE
 	tristate "Sun3/Sun3x on-board LANCE support"
 	depends on (SUN3 || SUN3X)

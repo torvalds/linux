@@ -1707,6 +1707,7 @@ static void lm90_restore_conf(void *_data)
 
 static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 {
+	struct device_node *np = client->dev.of_node;
 	int config, convrate;
 
 	convrate = lm90_read_reg(client, LM90_REG_R_CONVRATE);
@@ -1727,6 +1728,9 @@ static int lm90_init_client(struct i2c_client *client, struct lm90_data *data)
 
 	/* Check Temperature Range Select */
 	if (data->flags & LM90_HAVE_EXTENDED_TEMP) {
+		if (of_property_read_bool(np, "ti,extended-range-enable"))
+			config |= 0x04;
+
 		if (config & 0x04)
 			data->flags |= LM90_FLAG_ADT7461_EXT;
 	}

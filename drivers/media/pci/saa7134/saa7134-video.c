@@ -1475,7 +1475,6 @@ int saa7134_querycap(struct file *file, void *priv,
 	strscpy(cap->driver, "saa7134", sizeof(cap->driver));
 	strscpy(cap->card, saa7134_boards[dev->board].name,
 		sizeof(cap->card));
-	sprintf(cap->bus_info, "PCI:%s", pci_name(dev->pci));
 	cap->capabilities = V4L2_CAP_READWRITE | V4L2_CAP_STREAMING |
 			    V4L2_CAP_RADIO | V4L2_CAP_VIDEO_CAPTURE |
 			    V4L2_CAP_VBI_CAPTURE | V4L2_CAP_DEVICE_CAPS;
@@ -1833,8 +1832,7 @@ static int saa7134_overlay(struct file *file, void *priv, unsigned int on)
 		spin_lock_irqsave(&dev->slock, flags);
 		start_preview(dev);
 		spin_unlock_irqrestore(&dev->slock, flags);
-	}
-	if (!on) {
+	} else {
 		if (priv != dev->overlay_owner)
 			return -EINVAL;
 		spin_lock_irqsave(&dev->slock, flags);

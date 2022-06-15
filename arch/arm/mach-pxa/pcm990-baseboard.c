@@ -26,7 +26,7 @@
 
 #include <asm/mach/map.h>
 #include "pxa27x.h"
-#include <mach/audio.h>
+#include <linux/platform_data/asoc-pxa.h>
 #include <linux/platform_data/mmc-pxamci.h>
 #include <linux/platform_data/usb-ohci-pxa27x.h>
 #include "pcm990_baseboard.h"

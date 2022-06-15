@@ -23,16 +23,20 @@
 #ifndef __AMDGPU_CTX_H__
 #define __AMDGPU_CTX_H__
 
+#include <linux/ktime.h>
+#include <linux/types.h>
+
 #include "amdgpu_ring.h"
 
 struct drm_device;
 struct drm_file;
 struct amdgpu_fpriv;
+struct amdgpu_ctx_mgr;
 
 #define AMDGPU_MAX_ENTITY_NUM 4
-#define AMDGPU_CTX_FENCE_USAGE_MIN_RATIO(max, total) ((max) > 16384ULL*(total))
 
 struct amdgpu_ctx_entity {
+	uint32_t		hw_ip;
 	uint64_t		sequence;
 	struct drm_sched_entity	entity;
 	struct dma_fence	*fences[];
@@ -40,7 +44,7 @@ struct amdgpu_ctx_entity {
 
 struct amdgpu_ctx {
 	struct kref			refcount;
-	struct amdgpu_device		*adev;
+	struct amdgpu_ctx_mgr		*mgr;
 	unsigned			reset_counter;
 	unsigned			reset_counter_query;
 	uint32_t			vram_lost_counter;
@@ -49,6 +53,7 @@ struct amdgpu_ctx {
 	bool				preamble_presented;
 	int32_t				init_priority;
 	int32_t				override_priority;
+	struct mutex			lock;
 	atomic_t			guilty;
 	unsigned long			ras_counter_ce;
 	unsigned long			ras_counter_ue;
@@ -60,6 +65,7 @@ struct amdgpu_ctx_mgr {
 	struct mutex		lock;
 	/* protected by lock */
 	struct idr		ctx_handles;
+	atomic64_t		time_spend[AMDGPU_HW_IP_NUM];
 };
 
 extern const unsigned int amdgpu_ctx_num_entities[AMDGPU_HW_IP_NUM];
@@ -69,9 +75,9 @@ int amdgpu_ctx_put(struct amdgpu_ctx *ctx);
 
 int amdgpu_ctx_get_entity(struct amdgpu_ctx *ctx, u32 hw_ip, u32 instance,
 			  u32 ring, struct drm_sched_entity **entity);
-void amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
-			  struct drm_sched_entity *entity,
-			  struct dma_fence *fence, uint64_t *seq);
+uint64_t amdgpu_ctx_add_fence(struct amdgpu_ctx *ctx,
+			      struct drm_sched_entity *entity,
+			      struct dma_fence *fence);
 struct dma_fence *amdgpu_ctx_get_fence(struct amdgpu_ctx *ctx,
 				       struct drm_sched_entity *entity,
 				       uint64_t seq);
@@ -84,10 +90,12 @@ int amdgpu_ctx_ioctl(struct drm_device *dev, void *data,
 int amdgpu_ctx_wait_prev_fence(struct amdgpu_ctx *ctx,
 			       struct drm_sched_entity *entity);
 
-void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr);
+void amdgpu_ctx_mgr_init(struct amdgpu_ctx_mgr *mgr,
+			 struct amdgpu_device *adev);
 void amdgpu_ctx_mgr_entity_fini(struct amdgpu_ctx_mgr *mgr);
 long amdgpu_ctx_mgr_entity_flush(struct amdgpu_ctx_mgr *mgr, long timeout);
 void amdgpu_ctx_mgr_fini(struct amdgpu_ctx_mgr *mgr);
-ktime_t amdgpu_ctx_mgr_fence_usage(struct amdgpu_ctx_mgr *mgr, uint32_t hwip,
-		uint32_t idx, uint64_t *elapsed);
+void amdgpu_ctx_mgr_usage(struct amdgpu_ctx_mgr *mgr,
+			  ktime_t usage[AMDGPU_HW_IP_NUM]);
+
 #endif

@@ -207,6 +207,8 @@ static void *xas_descend(struct xa_state *xas, struct xa_node *node)
 	if (xa_is_sibling(entry)) {
 		offset = xa_to_sibling(entry);
 		entry = xa_entry(xas->xa, node, offset);
+		if (node->shift && xa_is_node(entry))
+			entry = XA_RETRY_ENTRY;
 	}
 
 	xas->xa_offset = offset;
@@ -262,9 +264,10 @@ static void xa_node_free(struct xa_node *node)
  * xas_destroy() - Free any resources allocated during the XArray operation.
  * @xas: XArray operation state.
  *
- * This function is now internal-only.
+ * Most users will not need to call this function; it is called for you
+ * by xas_nomem().
  */
-static void xas_destroy(struct xa_state *xas)
+void xas_destroy(struct xa_state *xas)
 {
 	struct xa_node *next, *node = xas->xa_alloc;
 

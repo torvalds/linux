@@ -18,6 +18,7 @@
 #include <linux/kernel.h>
 #include <linux/init.h>
 #include <linux/delay.h>
+#include <linux/of_device.h>
 #include <asm/pmac_feature.h>
 
 #include "orinoco.h"

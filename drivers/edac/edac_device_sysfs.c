@@ -208,10 +208,7 @@ static void edac_device_ctrl_master_release(struct kobject *kobj)
 	/* decrement the EDAC CORE module ref count */
 	module_put(edac_dev->owner);
 
-	/* free the control struct containing the 'main' kobj
-	 * passed in to this routine
-	 */
-	kfree(edac_dev);
+	__edac_device_free_ctl_info(edac_dev);
 }
 
 /* ktype for the main (master) kobject */

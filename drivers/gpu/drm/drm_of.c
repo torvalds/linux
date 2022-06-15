@@ -214,29 +214,6 @@ int drm_of_encoder_active_endpoint(struct device_node *node,
 }
 EXPORT_SYMBOL_GPL(drm_of_encoder_active_endpoint);
 
-static int find_panel_or_bridge(struct device_node *node,
-				struct drm_panel **panel,
-				struct drm_bridge **bridge)
-{
-	if (panel) {
-		*panel = of_drm_find_panel(node);
-		if (!IS_ERR(*panel))
-			return 0;
-
-		/* Clear the panel pointer in case of error. */
-		*panel = NULL;
-	}
-
-	/* No panel found yet, check for a bridge next. */
-	if (bridge) {
-		*bridge = of_drm_find_bridge(node);
-		if (*bridge)
-			return 0;
-	}
-
-	return -EPROBE_DEFER;
-}
-
 /**
  * drm_of_find_panel_or_bridge - return connected panel or bridge device
  * @np: device tree node containing encoder output ports
@@ -259,44 +236,49 @@ int drm_of_find_panel_or_bridge(const struct device_node *np,
 				struct drm_panel **panel,
 				struct drm_bridge **bridge)
 {
-	struct device_node *node;
-	int ret;
+	int ret = -EPROBE_DEFER;
+	struct device_node *remote;
 
 	if (!panel && !bridge)
 		return -EINVAL;
-
 	if (panel)
 		*panel = NULL;
-	if (bridge)
-		*bridge = NULL;
 
-	/* Check for a graph on the device node first. */
-	if (of_graph_is_present(np)) {
-		node = of_graph_get_remote_node(np, port, endpoint);
-		if (node) {
-			ret = find_panel_or_bridge(node, panel, bridge);
-			of_node_put(node);
+	/*
+	 * of_graph_get_remote_node() produces a noisy error message if port
+	 * node isn't found and the absence of the port is a legit case here,
+	 * so at first we silently check whether graph presents in the
+	 * device-tree node.
+	 */
+	if (!of_graph_is_present(np))
+		return -ENODEV;
 
-			if (!ret)
-				return 0;
+	remote = of_graph_get_remote_node(np, port, endpoint);
+	if (!remote)
+		return -ENODEV;
+
+	if (panel) {
+		*panel = of_drm_find_panel(remote);
+		if (!IS_ERR(*panel))
+			ret = 0;
+		else
+			*panel = NULL;
+	}
+
+	/* No panel found yet, check for a bridge next. */
+	if (bridge) {
+		if (ret) {
+			*bridge = of_drm_find_bridge(remote);
+			if (*bridge)
+				ret = 0;
+		} else {
+			*bridge = NULL;
 		}
+
 	}
 
-	/* Otherwise check for any child node other than port/ports. */
-	for_each_available_child_of_node(np, node) {
-		if (of_node_name_eq(node, "port") ||
-		    of_node_name_eq(node, "ports"))
-			continue;
-
-		ret = find_panel_or_bridge(node, panel, bridge);
-		of_node_put(node);
-
-		/* Stop at the first found occurrence. */
-		if (!ret)
-			return 0;
-	}
-
-	return -EPROBE_DEFER;
+	of_node_put(remote);
+	return ret;
 }
 EXPORT_SYMBOL_GPL(drm_of_find_panel_or_bridge);
 

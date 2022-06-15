@@ -4,6 +4,11 @@
 #ifndef __RTW_FW_H__
 #define __RTW_FW_H__
 
+struct rt_firmware {
+	u8 *data;
+	u32 size;
+};
+
 #include "drv_types.h"
 
 int rtl8188e_firmware_download(struct adapter *padapter);

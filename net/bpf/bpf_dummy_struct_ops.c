@@ -72,13 +72,16 @@ static int dummy_ops_call_op(void *image, struct bpf_dummy_ops_test_args *args)
 		    args->args[3], args->args[4]);
 }
 
+extern const struct bpf_link_ops bpf_struct_ops_link_lops;
+
 int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 			    union bpf_attr __user *uattr)
 {
 	const struct bpf_struct_ops *st_ops = &bpf_bpf_dummy_ops;
 	const struct btf_type *func_proto;
 	struct bpf_dummy_ops_test_args *args;
-	struct bpf_tramp_progs *tprogs;
+	struct bpf_tramp_links *tlinks;
+	struct bpf_tramp_link *link = NULL;
 	void *image = NULL;
 	unsigned int op_idx;
 	int prog_ret;
@@ -92,8 +95,8 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	if (IS_ERR(args))
 		return PTR_ERR(args);
 
-	tprogs = kcalloc(BPF_TRAMP_MAX, sizeof(*tprogs), GFP_KERNEL);
-	if (!tprogs) {
+	tlinks = kcalloc(BPF_TRAMP_MAX, sizeof(*tlinks), GFP_KERNEL);
+	if (!tlinks) {
 		err = -ENOMEM;
 		goto out;
 	}
@@ -105,8 +108,17 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 	}
 	set_vm_flush_reset_perms(image);
 
+	link = kzalloc(sizeof(*link), GFP_USER);
+	if (!link) {
+		err = -ENOMEM;
+		goto out;
+	}
+	/* prog doesn't take the ownership of the reference from caller */
+	bpf_prog_inc(prog);
+	bpf_link_init(&link->link, BPF_LINK_TYPE_STRUCT_OPS, &bpf_struct_ops_link_lops, prog);
+
 	op_idx = prog->expected_attach_type;
-	err = bpf_struct_ops_prepare_trampoline(tprogs, prog,
+	err = bpf_struct_ops_prepare_trampoline(tlinks, link,
 						&st_ops->func_models[op_idx],
 						image, image + PAGE_SIZE);
 	if (err < 0)
@@ -124,7 +136,9 @@ int bpf_struct_ops_test_run(struct bpf_prog *prog, const union bpf_attr *kattr,
 out:
 	kfree(args);
 	bpf_jit_free_exec(image);
-	kfree(tprogs);
+	if (link)
+		bpf_link_put(&link->link);
+	kfree(tlinks);
 	return err;
 }
 

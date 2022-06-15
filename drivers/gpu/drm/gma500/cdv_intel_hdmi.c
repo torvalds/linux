@@ -242,12 +242,12 @@ static enum drm_mode_status cdv_hdmi_mode_valid(struct drm_connector *connector,
 
 static void cdv_hdmi_destroy(struct drm_connector *connector)
 {
+	struct gma_connector *gma_connector = to_gma_connector(connector);
 	struct gma_encoder *gma_encoder = gma_attached_encoder(connector);
 
 	psb_intel_i2c_destroy(gma_encoder->i2c_bus);
-	drm_connector_unregister(connector);
 	drm_connector_cleanup(connector);
-	kfree(connector);
+	kfree(gma_connector);
 }
 
 static const struct drm_encoder_helper_funcs cdv_hdmi_helper_funcs = {
@@ -352,7 +352,6 @@ void cdv_hdmi_init(struct drm_device *dev,
 
 	hdmi_priv->hdmi_i2c_adapter = &(gma_encoder->i2c_bus->adapter);
 	hdmi_priv->dev = dev;
-	drm_connector_register(connector);
 	return;
 
 failed_ddc:

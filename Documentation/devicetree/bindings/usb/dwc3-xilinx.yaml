@@ -71,6 +71,10 @@ properties:
         - usb2-phy
         - usb3-phy
 
+  reset-gpios:
+    description: GPIO used for the reset ulpi-phy
+    maxItems: 1
+
 # Required child node:
 
 patternProperties:

@@ -29,7 +29,6 @@
 #include <linux/errno.h>
 #include <linux/netdevice.h>
 #include <linux/platform_device.h>
-#include <linux/can/led.h>
 #include <linux/can/dev.h>
 #include <linux/clk.h>
 #include <linux/of.h>
@@ -1128,7 +1127,6 @@ static void rcar_canfd_tx_done(struct net_device *ndev)
 	/* Clear interrupt */
 	rcar_canfd_write(priv->base, RCANFD_CFSTS(gpriv, ch, RCANFD_CFFIFO_IDX),
 			 sts & ~RCANFD_CFSTS_CFTXIF);
-	can_led_event(ndev, CAN_LED_EVENT_TX);
 }
 
 static void rcar_canfd_handle_global_err(struct rcar_canfd_global *gpriv, u32 ch)
@@ -1419,7 +1417,6 @@ static int rcar_canfd_open(struct net_device *ndev)
 	if (err)
 		goto out_close;
 	netif_start_queue(ndev);
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	return 0;
 out_close:
 	napi_disable(&priv->napi);
@@ -1469,7 +1466,6 @@ static int rcar_canfd_close(struct net_device *ndev)
 	napi_disable(&priv->napi);
 	clk_disable_unprepare(gpriv->can_clk);
 	close_candev(ndev);
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 	return 0;
 }
 
@@ -1618,8 +1614,6 @@ static void rcar_canfd_rx_pkt(struct rcar_canfd_channel *priv)
 	 * pointer of the Rx FIFO
 	 */
 	rcar_canfd_write(priv->base, RCANFD_RFPCTR(gpriv, ridx), 0xff);
-
-	can_led_event(priv->ndev, CAN_LED_EVENT_RX);
 
 	if (!(cf->can_id & CAN_RTR_FLAG))
 		stats->rx_bytes += cf->len;
@@ -1789,10 +1783,9 @@ static int rcar_canfd_channel_probe(struct rcar_canfd_global *gpriv, u32 ch,
 	priv->gpriv = gpriv;
 	SET_NETDEV_DEV(ndev, &pdev->dev);
 
-	netif_napi_add(ndev, &priv->napi, rcar_canfd_rx_poll,
-		       RCANFD_NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &priv->napi, rcar_canfd_rx_poll,
+			      RCANFD_NAPI_WEIGHT);
 	spin_lock_init(&priv->tx_lock);
-	devm_can_led_init(ndev);
 	gpriv->ch[priv->channel] = priv;
 	err = register_candev(ndev);
 	if (err) {

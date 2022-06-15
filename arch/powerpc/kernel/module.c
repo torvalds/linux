@@ -64,13 +64,13 @@ int module_finalize(const Elf_Ehdr *hdr,
 				  (void *)sect->sh_addr + sect->sh_size);
 #endif /* CONFIG_PPC64 */
 
-#ifdef PPC64_ELF_ABI_v1
+#ifdef CONFIG_PPC64_ELF_ABI_V1
 	sect = find_section(hdr, sechdrs, ".opd");
 	if (sect != NULL) {
 		me->arch.start_opd = sect->sh_addr;
 		me->arch.end_opd = sect->sh_addr + sect->sh_size;
 	}
-#endif /* PPC64_ELF_ABI_v1 */
+#endif /* CONFIG_PPC64_ELF_ABI_V1 */
 
 #ifdef CONFIG_PPC_BARRIER_NOSPEC
 	sect = find_section(hdr, sechdrs, "__spec_barrier_fixup");
@@ -101,7 +101,7 @@ __module_alloc(unsigned long size, unsigned long start, unsigned long end, bool 
 	 * too.
 	 */
 	return __vmalloc_node_range(size, 1, start, end, gfp, prot,
-				    VM_FLUSH_RESET_PERMS | VM_NO_HUGE_VMAP,
+				    VM_FLUSH_RESET_PERMS,
 				    NUMA_NO_NODE, __builtin_return_address(0));
 }
 

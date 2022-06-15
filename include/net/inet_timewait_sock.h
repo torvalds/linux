@@ -71,7 +71,6 @@ struct inet_timewait_sock {
 				tw_tos		: 8;
 	u32			tw_txhash;
 	u32			tw_priority;
-	u32			tw_bslot; /* bind bucket slot */
 	struct timer_list	tw_timer;
 	struct inet_bind_bucket	*tw_tb;
 };
@@ -109,6 +108,8 @@ static inline void inet_twsk_reschedule(struct inet_timewait_sock *tw, int timeo
 }
 
 void inet_twsk_deschedule_put(struct inet_timewait_sock *tw);
+
+void inet_twsk_purge(struct inet_hashinfo *hashinfo, int family);
 
 static inline
 struct net *twsk_net(const struct inet_timewait_sock *twsk)

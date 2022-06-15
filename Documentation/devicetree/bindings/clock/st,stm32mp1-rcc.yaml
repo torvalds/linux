@@ -41,6 +41,7 @@ description: |
 
   The list of valid indices for STM32MP1 is available in:
   include/dt-bindings/reset-controller/stm32mp1-resets.h
+  include/dt-bindings/reset-controller/stm32mp13-resets.h
 
   This file implements defines like:
   #define LTDC_R	3072
@@ -57,7 +58,10 @@ properties:
       - enum:
           - st,stm32mp1-rcc-secure
           - st,stm32mp1-rcc
+          - st,stm32mp13-rcc
       - const: syscon
+  clocks: true
+  clock-names: true
 
   reg:
     maxItems: 1
@@ -68,14 +72,53 @@ required:
   - compatible
   - reg
 
+if:
+  properties:
+    compatible:
+      contains:
+        enum:
+          - st,stm32mp1-rcc-secure
+then:
+  properties:
+    clocks:
+      description: Specifies oscillators.
+      maxItems: 5
+
+    clock-names:
+      items:
+        - const: hse
+        - const: hsi
+        - const: csi
+        - const: lse
+        - const: lsi
+  required:
+    - clocks
+    - clock-names
+else:
+  properties:
+    clocks:
+      description:
+        Specifies the external RX clock for ethernet MAC.
+      maxItems: 1
+
+    clock-names:
+      const: ETH_RX_CLK/ETH_REF_CLK
+
 additionalProperties: false
 
 examples:
   - |
+    #include <dt-bindings/clock/stm32mp1-clks.h>
     rcc: rcc@50000000 {
         compatible = "st,stm32mp1-rcc-secure", "syscon";
         reg = <0x50000000 0x1000>;
         #clock-cells = <1>;
         #reset-cells = <1>;
+        clock-names = "hse", "hsi", "csi", "lse", "lsi";
+        clocks = <&scmi_clk CK_SCMI_HSE>,
+                 <&scmi_clk CK_SCMI_HSI>,
+                 <&scmi_clk CK_SCMI_CSI>,
+                 <&scmi_clk CK_SCMI_LSE>,
+                 <&scmi_clk CK_SCMI_LSI>;
     };
 ...

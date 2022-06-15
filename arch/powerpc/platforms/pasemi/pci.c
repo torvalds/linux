@@ -12,6 +12,7 @@
 
 
 #include <linux/kernel.h>
+#include <linux/of_address.h>
 #include <linux/pci.h>
 
 #include <asm/pci-bridge.h>

@@ -32,6 +32,7 @@
 
 #include <drm/amdgpu_drm.h>
 #include <drm/drm_debugfs.h>
+#include <drm/drm_drv.h>
 
 #include "amdgpu.h"
 #include "amdgpu_vm.h"
@@ -54,58 +55,49 @@ static const char *amdgpu_ip_name[AMDGPU_HW_IP_NUM] = {
 
 void amdgpu_show_fdinfo(struct seq_file *m, struct file *f)
 {
-	struct amdgpu_fpriv *fpriv;
-	uint32_t bus, dev, fn, i, domain;
-	uint64_t vram_mem = 0, gtt_mem = 0, cpu_mem = 0;
 	struct drm_file *file = f->private_data;
 	struct amdgpu_device *adev = drm_to_adev(file->minor->dev);
-	struct amdgpu_bo *root;
+	struct amdgpu_fpriv *fpriv = file->driver_priv;
+	struct amdgpu_vm *vm = &fpriv->vm;
+
+	uint64_t vram_mem = 0, gtt_mem = 0, cpu_mem = 0;
+	ktime_t usage[AMDGPU_HW_IP_NUM];
+	uint32_t bus, dev, fn, domain;
+	unsigned int hw_ip;
 	int ret;
 
-	ret = amdgpu_file_to_fpriv(f, &fpriv);
-	if (ret)
-		return;
 	bus = adev->pdev->bus->number;
 	domain = pci_domain_nr(adev->pdev->bus);
 	dev = PCI_SLOT(adev->pdev->devfn);
 	fn = PCI_FUNC(adev->pdev->devfn);
 
-	root = amdgpu_bo_ref(fpriv->vm.root.bo);
-	if (!root)
+	ret = amdgpu_bo_reserve(vm->root.bo, false);
+	if (ret)
 		return;
 
-	ret = amdgpu_bo_reserve(root, false);
-	if (ret) {
-		DRM_ERROR("Fail to reserve bo\n");
-		return;
-	}
-	amdgpu_vm_get_memory(&fpriv->vm, &vram_mem, &gtt_mem, &cpu_mem);
-	amdgpu_bo_unreserve(root);
-	amdgpu_bo_unref(&root);
+	amdgpu_vm_get_memory(vm, &vram_mem, &gtt_mem, &cpu_mem);
+	amdgpu_bo_unreserve(vm->root.bo);
 
-	seq_printf(m, "pdev:\t%04x:%02x:%02x.%d\npasid:\t%u\n", domain, bus,
-			dev, fn, fpriv->vm.pasid);
-	seq_printf(m, "vram mem:\t%llu kB\n", vram_mem/1024UL);
-	seq_printf(m, "gtt mem:\t%llu kB\n", gtt_mem/1024UL);
-	seq_printf(m, "cpu mem:\t%llu kB\n", cpu_mem/1024UL);
-	for (i = 0; i < AMDGPU_HW_IP_NUM; i++) {
-		uint32_t count = amdgpu_ctx_num_entities[i];
-		int idx = 0;
-		uint64_t total = 0, min = 0;
-		uint32_t perc, frac;
+	amdgpu_ctx_mgr_usage(&fpriv->ctx_mgr, usage);
 
-		for (idx = 0; idx < count; idx++) {
-			total = amdgpu_ctx_mgr_fence_usage(&fpriv->ctx_mgr,
-				i, idx, &min);
-			if ((total == 0) || (min == 0))
-				continue;
+	/*
+	 * ******************************************************************
+	 * For text output format description please see drm-usage-stats.rst!
+	 * ******************************************************************
+	 */
 
-			perc = div64_u64(10000 * total, min);
-			frac = perc % 100;
+	seq_printf(m, "pasid:\t%u\n", fpriv->vm.pasid);
+	seq_printf(m, "drm-driver:\t%s\n", file->minor->dev->driver->name);
+	seq_printf(m, "drm-pdev:\t%04x:%02x:%02x.%d\n", domain, bus, dev, fn);
+	seq_printf(m, "drm-client-id:\t%Lu\n", vm->immediate.fence_context);
+	seq_printf(m, "drm-memory-vram:\t%llu KiB\n", vram_mem/1024UL);
+	seq_printf(m, "drm-memory-gtt: \t%llu KiB\n", gtt_mem/1024UL);
+	seq_printf(m, "drm-memory-cpu: \t%llu KiB\n", cpu_mem/1024UL);
+	for (hw_ip = 0; hw_ip < AMDGPU_HW_IP_NUM; ++hw_ip) {
+		if (!usage[hw_ip])
+			continue;
 
-			seq_printf(m, "%s%d:\t%d.%d%%\n",
-					amdgpu_ip_name[i],
-					idx, perc/100, frac);
-		}
+		seq_printf(m, "drm-engine-%s:\t%Ld ns\n", amdgpu_ip_name[hw_ip],
+			   ktime_to_ns(usage[hw_ip]));
 	}
 }

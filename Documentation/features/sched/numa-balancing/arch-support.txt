@@ -11,9 +11,9 @@
     |         arm: |  ..  |
     |       arm64: |  ok  |
     |        csky: |  ..  |
-    |       h8300: |  ..  |
     |     hexagon: |  ..  |
     |        ia64: | TODO |
+    |       loong: |  ok  |
     |        m68k: |  ..  |
     |  microblaze: |  ..  |
     |        mips: | TODO |

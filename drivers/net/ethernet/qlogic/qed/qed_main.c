@@ -823,7 +823,6 @@ static void qed_slowpath_irq_free(struct qed_dev *cdev)
 		for_each_hwfn(cdev, i) {
 			if (!cdev->hwfns[i].b_int_requested)
 				break;
-			synchronize_irq(cdev->int_params.msix_table[i].vector);
 			free_irq(cdev->int_params.msix_table[i].vector,
 				 &cdev->hwfns[i].sp_dpc);
 		}

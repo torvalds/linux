@@ -10,11 +10,12 @@
 #include <linux/err.h>
 #include <linux/iio/consumer.h>
 #include <linux/iio/iio.h>
+#include <linux/mod_devicetable.h>
 #include <linux/module.h>
 #include <linux/mutex.h>
 #include <linux/mux/consumer.h>
-#include <linux/of.h>
 #include <linux/platform_device.h>
+#include <linux/property.h>
 
 struct mux_ext_info_cache {
 	char *data;
@@ -324,36 +325,20 @@ static int mux_configure_channel(struct device *dev, struct mux *mux,
 	return 0;
 }
 
-/*
- * Same as of_property_for_each_string(), but also keeps track of the
- * index of each string.
- */
-#define of_property_for_each_string_index(np, propname, prop, s, i)	\
-	for (prop = of_find_property(np, propname, NULL),		\
-	     s = of_prop_next_string(prop, NULL),			\
-	     i = 0;							\
-	     s;								\
-	     s = of_prop_next_string(prop, s),				\
-	     i++)
-
 static int mux_probe(struct platform_device *pdev)
 {
 	struct device *dev = &pdev->dev;
-	struct device_node *np = pdev->dev.of_node;
 	struct iio_dev *indio_dev;
 	struct iio_channel *parent;
 	struct mux *mux;
-	struct property *prop;
-	const char *label;
+	const char **labels;
+	int all_children;
+	int children;
 	u32 state;
 	int sizeof_ext_info;
-	int children;
 	int sizeof_priv;
 	int i;
 	int ret;
-
-	if (!np)
-		return -ENODEV;
 
 	parent = devm_iio_channel_get(dev, "parent");
 	if (IS_ERR(parent))
@@ -366,9 +351,21 @@ static int mux_probe(struct platform_device *pdev)
 		sizeof_ext_info *= sizeof(*mux->ext_info);
 	}
 
+	all_children = device_property_string_array_count(dev, "channels");
+	if (all_children < 0)
+		return all_children;
+
+	labels = devm_kmalloc_array(dev, all_children, sizeof(*labels), GFP_KERNEL);
+	if (!labels)
+		return -ENOMEM;
+
+	ret = device_property_read_string_array(dev, "channels", labels, all_children);
+	if (ret < 0)
+		return ret;
+
 	children = 0;
-	of_property_for_each_string(np, "channels", prop, label) {
-		if (*label)
+	for (state = 0; state < all_children; state++) {
+		if (*labels[state])
 			children++;
 	}
 	if (children <= 0) {
@@ -395,7 +392,7 @@ static int mux_probe(struct platform_device *pdev)
 	mux->cached_state = -1;
 
 	mux->delay_us = 0;
-	of_property_read_u32(np, "settle-time-us", &mux->delay_us);
+	device_property_read_u32(dev, "settle-time-us", &mux->delay_us);
 
 	indio_dev->name = dev_name(dev);
 	indio_dev->info = &mux_info;
@@ -426,11 +423,11 @@ static int mux_probe(struct platform_device *pdev)
 	}
 
 	i = 0;
-	of_property_for_each_string_index(np, "channels", prop, label, state) {
-		if (!*label)
+	for (state = 0; state < all_children; state++) {
+		if (!*labels[state])
 			continue;
 
-		ret = mux_configure_channel(dev, mux, state, label, i++);
+		ret = mux_configure_channel(dev, mux, state, labels[state], i++);
 		if (ret < 0)
 			return ret;
 	}

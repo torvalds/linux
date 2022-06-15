@@ -799,8 +799,8 @@ void ocelot_fdma_netdev_init(struct ocelot *ocelot, struct net_device *dev)
 		return;
 
 	fdma->ndev = dev;
-	netif_napi_add(dev, &fdma->napi, ocelot_fdma_napi_poll,
-		       OCELOT_FDMA_WEIGHT);
+	netif_napi_add_weight(dev, &fdma->napi, ocelot_fdma_napi_poll,
+			      OCELOT_FDMA_WEIGHT);
 }
 
 void ocelot_fdma_netdev_deinit(struct ocelot *ocelot, struct net_device *dev)

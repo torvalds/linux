@@ -18,6 +18,8 @@
 #include <asm/initialize_mmu.h>
 #include <asm/io.h>
 
+DEFINE_PER_CPU(unsigned long, asid_cache) = ASID_USER_FIRST;
+
 #if defined(CONFIG_HIGHMEM)
 static void * __init init_pmd(unsigned long vaddr, unsigned long n_pages)
 {

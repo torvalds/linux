@@ -820,10 +820,8 @@ struct ata_port {
 	unsigned int		cbl;	/* cable type; ATA_CBL_xxx */
 
 	struct ata_queued_cmd	qcmd[ATA_MAX_QUEUE + 1];
-	unsigned long		sas_tag_allocated; /* for sas tag allocation only */
 	u64			qc_active;
 	int			nr_active_links; /* #links with active qcs */
-	unsigned int		sas_last_tag;	/* track next tag hw expects */
 
 	struct ata_link		link;		/* host default link */
 	struct ata_link		*slave_link;	/* see ata_slave_link_init() */
@@ -1111,7 +1109,7 @@ extern void ata_unpack_xfermask(unsigned long xfer_mask,
 			unsigned long *udma_mask);
 extern u8 ata_xfer_mask2mode(unsigned long xfer_mask);
 extern unsigned long ata_xfer_mode2mask(u8 xfer_mode);
-extern int ata_xfer_mode2shift(unsigned long xfer_mode);
+extern int ata_xfer_mode2shift(u8 xfer_mode);
 extern const char *ata_mode_string(unsigned long xfer_mask);
 extern unsigned long ata_id_xfermask(const u16 *id);
 extern int ata_std_qc_defer(struct ata_queued_cmd *qc);

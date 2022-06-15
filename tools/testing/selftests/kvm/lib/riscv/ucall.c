@@ -60,8 +60,9 @@ void ucall(uint64_t cmd, int nargs, ...)
 		uc.args[i] = va_arg(va, uint64_t);
 	va_end(va);
 
-	sbi_ecall(KVM_RISCV_SELFTESTS_SBI_EXT, 0, (vm_vaddr_t)&uc,
-		  0, 0, 0, 0, 0);
+	sbi_ecall(KVM_RISCV_SELFTESTS_SBI_EXT,
+		  KVM_RISCV_SELFTESTS_SBI_UCALL,
+		  (vm_vaddr_t)&uc, 0, 0, 0, 0, 0);
 }
 
 uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
@@ -73,14 +74,24 @@ uint64_t get_ucall(struct kvm_vm *vm, uint32_t vcpu_id, struct ucall *uc)
 		memset(uc, 0, sizeof(*uc));
 
 	if (run->exit_reason == KVM_EXIT_RISCV_SBI &&
-	    run->riscv_sbi.extension_id == KVM_RISCV_SELFTESTS_SBI_EXT &&
-	    run->riscv_sbi.function_id == 0) {
-		memcpy(&ucall, addr_gva2hva(vm, run->riscv_sbi.args[0]),
-			sizeof(ucall));
+	    run->riscv_sbi.extension_id == KVM_RISCV_SELFTESTS_SBI_EXT) {
+		switch (run->riscv_sbi.function_id) {
+		case KVM_RISCV_SELFTESTS_SBI_UCALL:
+			memcpy(&ucall, addr_gva2hva(vm,
+			       run->riscv_sbi.args[0]), sizeof(ucall));
 
-		vcpu_run_complete_io(vm, vcpu_id);
-		if (uc)
-			memcpy(uc, &ucall, sizeof(ucall));
+			vcpu_run_complete_io(vm, vcpu_id);
+			if (uc)
+				memcpy(uc, &ucall, sizeof(ucall));
+
+			break;
+		case KVM_RISCV_SELFTESTS_SBI_UNEXP:
+			vcpu_dump(stderr, vm, vcpu_id, 2);
+			TEST_ASSERT(0, "Unexpected trap taken by guest");
+			break;
+		default:
+			break;
+		}
 	}
 
 	return ucall.cmd;

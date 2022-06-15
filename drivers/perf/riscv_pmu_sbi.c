@@ -35,7 +35,7 @@ union sbi_pmu_ctr_info {
 	};
 };
 
-/**
+/*
  * RISC-V doesn't have hetergenous harts yet. This need to be part of
  * per_cpu in case of harts with different pmu counters
  */
@@ -477,7 +477,7 @@ static int pmu_sbi_get_ctrinfo(int nctr)
 
 static inline void pmu_sbi_stop_all(struct riscv_pmu *pmu)
 {
-	/**
+	/*
 	 * No need to check the error because we are disabling all the counters
 	 * which may include counters that are not enabled yet.
 	 */
@@ -494,7 +494,7 @@ static inline void pmu_sbi_stop_hw_ctrs(struct riscv_pmu *pmu)
 		  cpu_hw_evt->used_hw_ctrs[0], 0, 0, 0, 0);
 }
 
-/**
+/*
  * This function starts all the used counters in two step approach.
  * Any counter that did not overflow can be start in a single step
  * while the overflowed counters need to be started with updated initialization
@@ -563,7 +563,7 @@ static irqreturn_t pmu_sbi_ovf_handler(int irq, void *dev)
 	/* Overflow status register should only be read after counter are stopped */
 	overflow = csr_read(CSR_SSCOUNTOVF);
 
-	/**
+	/*
 	 * Overflow interrupt pending bit should only be cleared after stopping
 	 * all the counters to avoid any race condition.
 	 */

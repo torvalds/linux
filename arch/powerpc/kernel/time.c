@@ -54,8 +54,10 @@
 #include <linux/of_clk.h>
 #include <linux/suspend.h>
 #include <linux/processor.h>
-#include <asm/trace.h>
+#include <linux/mc146818rtc.h>
+#include <linux/platform_device.h>
 
+#include <asm/trace.h>
 #include <asm/interrupt.h>
 #include <asm/io.h>
 #include <asm/nvram.h>
@@ -63,7 +65,6 @@
 #include <asm/machdep.h>
 #include <linux/uaccess.h>
 #include <asm/time.h>
-#include <asm/prom.h>
 #include <asm/irq.h>
 #include <asm/div64.h>
 #include <asm/smp.h>
@@ -156,10 +157,6 @@ bool tb_invalid;
 u64 __cputime_usec_factor;
 EXPORT_SYMBOL(__cputime_usec_factor);
 
-#ifdef CONFIG_PPC_SPLPAR
-void (*dtl_consumer)(struct dtl_entry *, u64);
-#endif
-
 static void calc_cputime_factors(void)
 {
 	struct div_result res;
@@ -184,6 +181,8 @@ static inline unsigned long read_spurr(unsigned long tb)
 #ifdef CONFIG_PPC_SPLPAR
 
 #include <asm/dtl.h>
+
+void (*dtl_consumer)(struct dtl_entry *, u64);
 
 /*
  * Scan the dispatch trace log and count up the stolen time.
@@ -615,23 +614,22 @@ DEFINE_INTERRUPT_HANDLER_ASYNC(timer_interrupt)
 		return;
 	}
 
-	/* Conditionally hard-enable interrupts. */
-	if (should_hard_irq_enable()) {
-		/*
-		 * Ensure a positive value is written to the decrementer, or
-		 * else some CPUs will continue to take decrementer exceptions.
-		 * When the PPC_WATCHDOG (decrementer based) is configured,
-		 * keep this at most 31 bits, which is about 4 seconds on most
-		 * systems, which gives the watchdog a chance of catching timer
-		 * interrupt hard lockups.
-		 */
-		if (IS_ENABLED(CONFIG_PPC_WATCHDOG))
-			set_dec(0x7fffffff);
-		else
-			set_dec(decrementer_max);
+	/*
+	 * Ensure a positive value is written to the decrementer, or
+	 * else some CPUs will continue to take decrementer exceptions.
+	 * When the PPC_WATCHDOG (decrementer based) is configured,
+	 * keep this at most 31 bits, which is about 4 seconds on most
+	 * systems, which gives the watchdog a chance of catching timer
+	 * interrupt hard lockups.
+	 */
+	if (IS_ENABLED(CONFIG_PPC_WATCHDOG))
+		set_dec(0x7fffffff);
+	else
+		set_dec(decrementer_max);
 
+	/* Conditionally hard-enable interrupts. */
+	if (should_hard_irq_enable())
 		do_hard_irq_enable();
-	}
 
 #if defined(CONFIG_PPC32) && defined(CONFIG_PPC_PMAC)
 	if (atomic_read(&ppc_n_lost_interrupts) != 0)
@@ -830,7 +828,7 @@ static void __read_persistent_clock(struct timespec64 *ts)
 	static int first = 1;
 
 	ts->tv_nsec = 0;
-	/* XXX this is a litle fragile but will work okay in the short term */
+	/* XXX this is a little fragile but will work okay in the short term */
 	if (first) {
 		first = 0;
 		if (ppc_md.time_init)
@@ -975,7 +973,7 @@ void secondary_cpu_time_init(void)
 	 */
 	start_cpu_decrementer();
 
-	/* FIME: Should make unrelatred change to move snapshot_timebase
+	/* FIME: Should make unrelated change to move snapshot_timebase
 	 * call here ! */
 	register_decrementer_clockevent(smp_processor_id());
 }

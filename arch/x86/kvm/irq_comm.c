@@ -181,7 +181,7 @@ int kvm_arch_set_irq_inatomic(struct kvm_kernel_irq_routing_entry *e,
 		if (!level)
 			return -1;
 
-		return kvm_xen_set_evtchn_fast(e, kvm);
+		return kvm_xen_set_evtchn_fast(&e->xen_evtchn, kvm);
 #endif
 	default:
 		break;

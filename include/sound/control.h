@@ -23,7 +23,7 @@ typedef int (snd_kcontrol_tlv_rw_t)(struct snd_kcontrol *kcontrol,
 				    unsigned int __user *tlv);
 
 /* internal flag for skipping validations */
-#ifdef CONFIG_SND_CTL_VALIDATION
+#ifdef CONFIG_SND_CTL_DEBUG
 #define SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK	(1 << 24)
 #define snd_ctl_skip_validation(info) \
 	((info)->access & SNDRV_CTL_ELEM_ACCESS_SKIP_CHECK)

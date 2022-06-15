@@ -66,6 +66,8 @@ const char *ras_block_string[] = {
 	"mp1",
 	"fuse",
 	"mca",
+	"vcn",
+	"jpeg",
 };
 
 const char *ras_mca_block_string[] = {
@@ -194,6 +196,13 @@ static ssize_t amdgpu_ras_debugfs_read(struct file *f, char __user *buf,
 
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
+
+	/* Hardware counter will be reset automatically after the query on Vega20 and Arcturus */
+	if (obj->adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
+	    obj->adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
+		if (amdgpu_ras_reset_error_status(obj->adev, info.head.block))
+			dev_warn(obj->adev->dev, "Failed to reset error counter and error status");
+	}
 
 	s = snprintf(val, sizeof(val), "%s: %lu\n%s: %lu\n",
 			"ue", info.ue_count,
@@ -548,9 +557,10 @@ static ssize_t amdgpu_ras_sysfs_read(struct device *dev,
 	if (amdgpu_ras_query_error_status(obj->adev, &info))
 		return -EINVAL;
 
-	if (obj->adev->asic_type == CHIP_ALDEBARAN) {
+	if (obj->adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
+	    obj->adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
 		if (amdgpu_ras_reset_error_status(obj->adev, info.head.block))
-			DRM_WARN("Failed to reset error counter and error status");
+			dev_warn(obj->adev->dev, "Failed to reset error counter and error status");
 	}
 
 	return sysfs_emit(buf, "%s: %lu\n%s: %lu\n", "ue", info.ue_count,
@@ -724,7 +734,9 @@ int amdgpu_ras_feature_enable(struct amdgpu_device *adev,
 	/* Do not enable if it is not allowed. */
 	WARN_ON(enable && !amdgpu_ras_is_feature_allowed(adev, head));
 
-	if (!amdgpu_ras_intr_triggered()) {
+	/* Only enable ras feature operation handle on host side */
+	if (!amdgpu_sriov_vf(adev) &&
+		!amdgpu_ras_intr_triggered()) {
 		ret = psp_ras_enable_features(&adev->psp, info, enable);
 		if (ret) {
 			dev_err(adev->dev, "ras %s %s failed poison:%d ret:%d\n",
@@ -1023,9 +1035,6 @@ int amdgpu_ras_query_error_status(struct amdgpu_device *adev,
 		}
 	}
 
-	if (!amdgpu_persistent_edc_harvesting_supported(adev))
-		amdgpu_ras_reset_error_status(adev, info->head.block);
-
 	return 0;
 }
 
@@ -1144,6 +1153,12 @@ int amdgpu_ras_query_error_count(struct amdgpu_device *adev,
 		res = amdgpu_ras_query_error_status(adev, &info);
 		if (res)
 			return res;
+
+		if (adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
+		    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
+			if (amdgpu_ras_reset_error_status(adev, info.head.block))
+				dev_warn(adev->dev, "Failed to reset error counter and error status");
+		}
 
 		ce += info.ce_count;
 		ue += info.ue_count;
@@ -1513,12 +1528,108 @@ static int amdgpu_ras_fs_fini(struct amdgpu_device *adev)
 /* ras fs end */
 
 /* ih begin */
+
+/* For the hardware that cannot enable bif ring for both ras_controller_irq
+ * and ras_err_evnet_athub_irq ih cookies, the driver has to poll status
+ * register to check whether the interrupt is triggered or not, and properly
+ * ack the interrupt if it is there
+ */
+void amdgpu_ras_interrupt_fatal_error_handler(struct amdgpu_device *adev)
+{
+	/* Fatal error events are handled on host side */
+	if (amdgpu_sriov_vf(adev) ||
+		!amdgpu_ras_is_supported(adev, AMDGPU_RAS_BLOCK__PCIE_BIF))
+		return;
+
+	if (adev->nbio.ras &&
+	    adev->nbio.ras->handle_ras_controller_intr_no_bifring)
+		adev->nbio.ras->handle_ras_controller_intr_no_bifring(adev);
+
+	if (adev->nbio.ras &&
+	    adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring)
+		adev->nbio.ras->handle_ras_err_event_athub_intr_no_bifring(adev);
+}
+
+static void amdgpu_ras_interrupt_poison_consumption_handler(struct ras_manager *obj,
+				struct amdgpu_iv_entry *entry)
+{
+	bool poison_stat = false;
+	struct amdgpu_device *adev = obj->adev;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+	struct amdgpu_ras_block_object *block_obj =
+		amdgpu_ras_get_ras_block(adev, obj->head.block, 0);
+
+	if (!block_obj || !block_obj->hw_ops)
+		return;
+
+	/* both query_poison_status and handle_poison_consumption are optional,
+	 * but at least one of them should be implemented if we need poison
+	 * consumption handler
+	 */
+	if (block_obj->hw_ops->query_poison_status) {
+		poison_stat = block_obj->hw_ops->query_poison_status(adev);
+		if (!poison_stat) {
+			/* Not poison consumption interrupt, no need to handle it */
+			dev_info(adev->dev, "No RAS poison status in %s poison IH.\n",
+					block_obj->ras_comm.name);
+
+			return;
+		}
+	}
+
+	if (!adev->gmc.xgmi.connected_to_cpu)
+		amdgpu_umc_poison_handler(adev, &err_data, false);
+
+	if (block_obj->hw_ops->handle_poison_consumption)
+		poison_stat = block_obj->hw_ops->handle_poison_consumption(adev);
+
+	/* gpu reset is fallback for failed and default cases */
+	if (poison_stat) {
+		dev_info(adev->dev, "GPU reset for %s RAS poison consumption is issued!\n",
+				block_obj->ras_comm.name);
+		amdgpu_ras_reset_gpu(adev);
+	}
+}
+
+static void amdgpu_ras_interrupt_poison_creation_handler(struct ras_manager *obj,
+				struct amdgpu_iv_entry *entry)
+{
+	dev_info(obj->adev->dev,
+		"Poison is created, no user action is needed.\n");
+}
+
+static void amdgpu_ras_interrupt_umc_handler(struct ras_manager *obj,
+				struct amdgpu_iv_entry *entry)
+{
+	struct ras_ih_data *data = &obj->ih_data;
+	struct ras_err_data err_data = {0, 0, 0, NULL};
+	int ret;
+
+	if (!data->cb)
+		return;
+
+	/* Let IP handle its data, maybe we need get the output
+	 * from the callback to update the error type/count, etc
+	 */
+	ret = data->cb(obj->adev, &err_data, entry);
+	/* ue will trigger an interrupt, and in that case
+	 * we need do a reset to recovery the whole system.
+	 * But leave IP do that recovery, here we just dispatch
+	 * the error.
+	 */
+	if (ret == AMDGPU_RAS_SUCCESS) {
+		/* these counts could be left as 0 if
+		 * some blocks do not count error number
+		 */
+		obj->err_data.ue_count += err_data.ue_count;
+		obj->err_data.ce_count += err_data.ce_count;
+	}
+}
+
 static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 {
 	struct ras_ih_data *data = &obj->ih_data;
 	struct amdgpu_iv_entry entry;
-	int ret;
-	struct ras_err_data err_data = {0, 0, 0, NULL};
 
 	while (data->rptr != data->wptr) {
 		rmb();
@@ -1529,30 +1640,17 @@ static void amdgpu_ras_interrupt_handler(struct ras_manager *obj)
 		data->rptr = (data->aligned_element_size +
 				data->rptr) % data->ring_size;
 
-		if (data->cb) {
-			if (amdgpu_ras_is_poison_mode_supported(obj->adev) &&
-			    obj->head.block == AMDGPU_RAS_BLOCK__UMC)
-				dev_info(obj->adev->dev,
-						"Poison is created, no user action is needed.\n");
-			else {
-				/* Let IP handle its data, maybe we need get the output
-				 * from the callback to udpate the error type/count, etc
-				 */
-				memset(&err_data, 0, sizeof(err_data));
-				ret = data->cb(obj->adev, &err_data, &entry);
-				/* ue will trigger an interrupt, and in that case
-				 * we need do a reset to recovery the whole system.
-				 * But leave IP do that recovery, here we just dispatch
-				 * the error.
-				 */
-				if (ret == AMDGPU_RAS_SUCCESS) {
-					/* these counts could be left as 0 if
-					 * some blocks do not count error number
-					 */
-					obj->err_data.ue_count += err_data.ue_count;
-					obj->err_data.ce_count += err_data.ce_count;
-				}
-			}
+		if (amdgpu_ras_is_poison_mode_supported(obj->adev)) {
+			if (obj->head.block == AMDGPU_RAS_BLOCK__UMC)
+				amdgpu_ras_interrupt_poison_creation_handler(obj, &entry);
+			else
+				amdgpu_ras_interrupt_poison_consumption_handler(obj, &entry);
+		} else {
+			if (obj->head.block == AMDGPU_RAS_BLOCK__UMC)
+				amdgpu_ras_interrupt_umc_handler(obj, &entry);
+			else
+				dev_warn(obj->adev->dev,
+					"No RAS interrupt handler for non-UMC block with poison disabled.\n");
 		}
 	}
 }
@@ -1705,6 +1803,12 @@ static void amdgpu_ras_log_on_err_counter(struct amdgpu_device *adev)
 			continue;
 
 		amdgpu_ras_query_error_status(adev, &info);
+
+		if (adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 2) &&
+		    adev->ip_versions[MP0_HWIP][0] != IP_VERSION(11, 0, 4)) {
+			if (amdgpu_ras_reset_error_status(adev, info.head.block))
+				dev_warn(adev->dev, "Failed to reset error counter and error status");
+		}
 	}
 }
 
@@ -1847,7 +1951,6 @@ static int amdgpu_ras_realloc_eh_data_space(struct amdgpu_device *adev,
 	void *bps = kmalloc(align_space * sizeof(*data->bps), GFP_KERNEL);
 
 	if (!bps) {
-		kfree(bps);
 		return -ENOMEM;
 	}
 
@@ -2188,8 +2291,13 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 {
 	adev->ras_hw_enabled = adev->ras_enabled = 0;
 
-	if (amdgpu_sriov_vf(adev) || !adev->is_atom_fw ||
+	if (!adev->is_atom_fw ||
 	    !amdgpu_ras_asic_supported(adev))
+		return;
+
+	/* If driver run on sriov guest side, only enable ras for aldebaran */
+	if (amdgpu_sriov_vf(adev) &&
+		adev->ip_versions[MP1_HWIP][0] != IP_VERSION(13, 0, 2))
 		return;
 
 	if (!adev->gmc.xgmi.connected_to_cpu) {
@@ -2203,8 +2311,21 @@ static void amdgpu_ras_check_supported(struct amdgpu_device *adev)
 
 		if (amdgpu_atomfirmware_sram_ecc_supported(adev)) {
 			dev_info(adev->dev, "SRAM ECC is active.\n");
-			adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
-						    1 << AMDGPU_RAS_BLOCK__DF);
+			if (!amdgpu_sriov_vf(adev)) {
+				adev->ras_hw_enabled |= ~(1 << AMDGPU_RAS_BLOCK__UMC |
+							    1 << AMDGPU_RAS_BLOCK__DF);
+
+				if (adev->ip_versions[VCN_HWIP][0] == IP_VERSION(2, 6, 0))
+					adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__VCN |
+							1 << AMDGPU_RAS_BLOCK__JPEG);
+				else
+					adev->ras_hw_enabled &= ~(1 << AMDGPU_RAS_BLOCK__VCN |
+							1 << AMDGPU_RAS_BLOCK__JPEG);
+			} else {
+				adev->ras_hw_enabled |= (1 << AMDGPU_RAS_BLOCK__PCIE_BIF |
+								1 << AMDGPU_RAS_BLOCK__SDMA |
+								1 << AMDGPU_RAS_BLOCK__GFX);
+			}
 		} else {
 			dev_info(adev->dev, "SRAM ECC is not presented.\n");
 		}
@@ -2436,7 +2557,9 @@ int amdgpu_ras_block_late_init(struct amdgpu_device *adev,
 		return 0;
 
 	ras_obj = container_of(ras_block, struct amdgpu_ras_block_object, ras_comm);
-	if (ras_obj->ras_cb) {
+	if (ras_obj->ras_cb || (ras_obj->hw_ops &&
+	    (ras_obj->hw_ops->query_poison_status ||
+	    ras_obj->hw_ops->handle_poison_consumption))) {
 		r = amdgpu_ras_interrupt_add_handler(adev, ras_block);
 		if (r)
 			goto cleanup;
@@ -2545,6 +2668,10 @@ int amdgpu_ras_late_init(struct amdgpu_device *adev)
 	struct amdgpu_ras_block_list *node, *tmp;
 	struct amdgpu_ras_block_object *obj;
 	int r;
+
+	/* Guest side doesn't need init ras feature */
+	if (amdgpu_sriov_vf(adev))
+		return 0;
 
 	list_for_each_entry_safe(node, tmp, &adev->ras_list, node) {
 		if (!node->ras_obj) {
