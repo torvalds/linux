@@ -434,7 +434,7 @@ static void sx_common_regulator_disable(void *_data)
 
 #define SX_COMMON_SOFT_RESET				0xde
 
-static int sx_common_init_device(struct iio_dev *indio_dev)
+static int sx_common_init_device(struct device *dev, struct iio_dev *indio_dev)
 {
 	struct sx_common_data *data = iio_priv(indio_dev);
 	struct sx_common_reg_default tmp;
@@ -456,8 +456,7 @@ static int sx_common_init_device(struct iio_dev *indio_dev)
 
 	/* Program defaults from constant or BIOS. */
 	for (i = 0; i < data->chip_info->num_default_regs; i++) {
-		initval = data->chip_info->ops.get_default_reg(&indio_dev->dev,
-							       i, &tmp);
+		initval = data->chip_info->ops.get_default_reg(dev, i, &tmp);
 		ret = regmap_write(data->regmap, initval->reg, initval->def);
 		if (ret)
 			return ret;
@@ -530,7 +529,7 @@ int sx_common_probe(struct i2c_client *client,
 
 	i2c_set_clientdata(client, indio_dev);
 
-	ret = sx_common_init_device(indio_dev);
+	ret = sx_common_init_device(dev, indio_dev);
 	if (ret)
 		return dev_err_probe(dev, ret, "Unable to initialize sensor\n");
 
