@@ -215,10 +215,10 @@ static int tegra210_i2s_set_fmt(struct snd_soc_dai *dai,
 
 	mask = I2S_CTRL_MASTER_EN_MASK;
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
-	case SND_SOC_DAIFMT_BP_FP:
+	case SND_SOC_DAIFMT_BC_FC:
 		val = 0;
 		break;
-	case SND_SOC_DAIFMT_BC_FC:
+	case SND_SOC_DAIFMT_BP_FP:
 		val = I2S_CTRL_MASTER_EN;
 		break;
 	default:
