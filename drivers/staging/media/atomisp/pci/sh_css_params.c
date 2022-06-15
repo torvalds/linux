@@ -2585,13 +2585,11 @@ sh_css_params_init(void)
 			xmem_sp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
 						  hmm_alloc(sizeof(struct sh_css_sp_stage),
-							    HMM_BO_PRIVATE, 0, NULL,
-							    ATOMISP_MAP_FLAG_CLEARED));
+							    HMM_BO_PRIVATE, 0, NULL, 0));
 			xmem_isp_stage_ptrs[p][i] =
 			ia_css_refcount_increment(-1,
 						  hmm_alloc(sizeof(struct sh_css_sp_stage),
-							    HMM_BO_PRIVATE, 0, NULL,
-							    ATOMISP_MAP_FLAG_CLEARED));
+							    HMM_BO_PRIVATE, 0, NULL, 0));
 
 			if ((xmem_sp_stage_ptrs[p][i] == mmgr_NULL) ||
 			    (xmem_isp_stage_ptrs[p][i] == mmgr_NULL)) {
@@ -2599,6 +2597,9 @@ sh_css_params_init(void)
 				IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
 				return -ENOMEM;
 			}
+
+			hmm_set(xmem_sp_stage_ptrs[p][i], 0, sizeof(struct sh_css_sp_stage));
+			hmm_set(xmem_isp_stage_ptrs[p][i], 0, sizeof(struct sh_css_sp_stage));
 		}
 	}
 
@@ -2610,12 +2611,10 @@ sh_css_params_init(void)
 	sp_ddr_ptrs = ia_css_refcount_increment(-1,
 						hmm_alloc(CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
 								   HIVE_ISP_DDR_WORD_BYTES),
-							  HMM_BO_PRIVATE, 0, NULL,
-							  ATOMISP_MAP_FLAG_CLEARED));
+							  HMM_BO_PRIVATE, 0, NULL, 0));
 	xmem_sp_group_ptrs = ia_css_refcount_increment(-1,
 						       hmm_alloc(sizeof(struct sh_css_sp_group),
-								 HMM_BO_PRIVATE, 0, NULL,
-								 ATOMISP_MAP_FLAG_CLEARED));
+								 HMM_BO_PRIVATE, 0, NULL, 0));
 
 	if ((sp_ddr_ptrs == mmgr_NULL) ||
 	    (xmem_sp_group_ptrs == mmgr_NULL)) {
@@ -2623,6 +2622,9 @@ sh_css_params_init(void)
 		IA_CSS_LEAVE_ERR_PRIVATE(-ENOMEM);
 		return -ENOMEM;
 	}
+	hmm_set(sp_ddr_ptrs, 0, CEIL_MUL(sizeof(struct sh_css_ddr_address_map),
+					 HIVE_ISP_DDR_WORD_BYTES));
+	hmm_set(xmem_sp_group_ptrs, 0, sizeof(struct sh_css_sp_group));
 	IA_CSS_LEAVE_ERR_PRIVATE(0);
 	return 0;
 }

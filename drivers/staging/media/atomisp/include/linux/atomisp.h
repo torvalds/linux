@@ -827,7 +827,6 @@ struct atomisp_s_runmode {
 
 #define ATOMISP_MAP_FLAG_NOFLUSH	0x0001	/* Do not flush cache */
 #define ATOMISP_MAP_FLAG_CACHED		0x0002	/* Enable cache */
-#define ATOMISP_MAP_FLAG_CLEARED	0x0004
 
 struct atomisp_update_exposure {
 	unsigned int gain;
