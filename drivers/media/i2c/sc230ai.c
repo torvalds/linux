@@ -1210,8 +1210,6 @@ static int __sc230ai_power_on(struct sc230ai *sc230ai)
 	u32 delay_us;
 	struct device *dev = &sc230ai->client->dev;
 
-	if (sc230ai->is_thunderboot)
-		return 0;
 	if (!IS_ERR_OR_NULL(sc230ai->pins_default)) {
 		ret = pinctrl_select_state(sc230ai->pinctrl,
 					   sc230ai->pins_default);
@@ -1228,6 +1226,9 @@ static int __sc230ai_power_on(struct sc230ai *sc230ai)
 		dev_err(dev, "Failed to enable xvclk\n");
 		return ret;
 	}
+	if (sc230ai->is_thunderboot)
+		return 0;
+
 	if (!IS_ERR(sc230ai->reset_gpio))
 		gpiod_set_value_cansleep(sc230ai->reset_gpio, 0);
 
@@ -1266,6 +1267,7 @@ static void __sc230ai_power_off(struct sc230ai *sc230ai)
 	int ret;
 	struct device *dev = &sc230ai->client->dev;
 
+	clk_disable_unprepare(sc230ai->xvclk);
 	if (sc230ai->is_thunderboot) {
 		if (sc230ai->is_first_streamoff) {
 			sc230ai->is_thunderboot = false;
@@ -1276,7 +1278,6 @@ static void __sc230ai_power_off(struct sc230ai *sc230ai)
 	}
 	if (!IS_ERR(sc230ai->pwdn_gpio))
 		gpiod_set_value_cansleep(sc230ai->pwdn_gpio, 0);
-	clk_disable_unprepare(sc230ai->xvclk);
 	if (!IS_ERR(sc230ai->reset_gpio))
 		gpiod_set_value_cansleep(sc230ai->reset_gpio, 0);
 	if (!IS_ERR_OR_NULL(sc230ai->pins_sleep)) {
