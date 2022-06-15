@@ -825,18 +825,6 @@ struct atomisp_s_runmode {
 	__u32 mode;
 };
 
-#define ATOMISP_ACC_FW_LOAD_FL_PREVIEW		BIT(0)
-#define ATOMISP_ACC_FW_LOAD_FL_COPY		BIT(1)
-#define ATOMISP_ACC_FW_LOAD_FL_VIDEO		BIT(2)
-#define ATOMISP_ACC_FW_LOAD_FL_CAPTURE		BIT(3)
-#define ATOMISP_ACC_FW_LOAD_FL_ACC		BIT(4)
-#define ATOMISP_ACC_FW_LOAD_FL_ENABLE		BIT(16)
-
-#define ATOMISP_ACC_FW_LOAD_TYPE_NONE		0 /* Normal binary: don't use */
-#define ATOMISP_ACC_FW_LOAD_TYPE_OUTPUT		1 /* Stage on output */
-#define ATOMISP_ACC_FW_LOAD_TYPE_VIEWFINDER	2 /* Stage on viewfinder */
-#define ATOMISP_ACC_FW_LOAD_TYPE_STANDALONE	3 /* Stand-alone acceleration */
-
 #define ATOMISP_MAP_FLAG_NOFLUSH	0x0001	/* Do not flush cache */
 #define ATOMISP_MAP_FLAG_CACHED		0x0002	/* Enable cache */
 #define ATOMISP_MAP_FLAG_CLEARED	0x0004
