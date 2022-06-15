@@ -105,11 +105,11 @@ static struct intel_memory_region *setup_lmem(struct intel_gt *gt)
 		resource_size_t lmem_range;
 		u64 tile_stolen, flat_ccs_base;
 
-		lmem_range = intel_gt_read_register(&i915->gt0, XEHPSDV_TILE0_ADDR_RANGE) & 0xFFFF;
+		lmem_range = intel_gt_mcr_read_any(&i915->gt0, XEHPSDV_TILE0_ADDR_RANGE) & 0xFFFF;
 		lmem_size = lmem_range >> XEHPSDV_TILE_LMEM_RANGE_SHIFT;
 		lmem_size *= SZ_1G;
 
-		flat_ccs_base = intel_gt_read_register(gt, XEHPSDV_FLAT_CCS_BASE_ADDR);
+		flat_ccs_base = intel_gt_mcr_read_any(gt, XEHPSDV_FLAT_CCS_BASE_ADDR);
 		flat_ccs_base = (flat_ccs_base >> XEHPSDV_CCS_BASE_SHIFT) * SZ_64K;
 
 		/* FIXME: Remove this when we have small-bar enabled */

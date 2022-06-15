@@ -134,23 +134,22 @@ void intel_gt_mcr_init(struct intel_gt *gt)
 	}
 }
 
-/**
- * uncore_rw_with_mcr_steering_fw - Access a register after programming
- *				    the MCR selector register.
+/*
+ * rw_with_mcr_steering_fw - Access a register with specific MCR steering
  * @uncore: pointer to struct intel_uncore
  * @reg: register being accessed
  * @rw_flag: FW_REG_READ for read access or FW_REG_WRITE for write access
- * @slice: slice number (ignored for multi-cast write)
- * @subslice: sub-slice number (ignored for multi-cast write)
+ * @group: group number (documented as "sliceid" on older platforms)
+ * @instance: instance number (documented as "subsliceid" on older platforms)
  * @value: register value to be written (ignored for read)
  *
  * Return: 0 for write access. register value for read access.
  *
  * Caller needs to make sure the relevant forcewake wells are up.
  */
-static u32 uncore_rw_with_mcr_steering_fw(struct intel_uncore *uncore,
-					  i915_reg_t reg, u8 rw_flag,
-					  int slice, int subslice, u32 value)
+static u32 rw_with_mcr_steering_fw(struct intel_uncore *uncore,
+				   i915_reg_t reg, u8 rw_flag,
+				   int group, int instance, u32 value)
 {
 	u32 mcr_mask, mcr_ss, mcr, old_mcr, val = 0;
 
@@ -158,7 +157,7 @@ static u32 uncore_rw_with_mcr_steering_fw(struct intel_uncore *uncore,
 
 	if (GRAPHICS_VER(uncore->i915) >= 11) {
 		mcr_mask = GEN11_MCR_SLICE_MASK | GEN11_MCR_SUBSLICE_MASK;
-		mcr_ss = GEN11_MCR_SLICE(slice) | GEN11_MCR_SUBSLICE(subslice);
+		mcr_ss = GEN11_MCR_SLICE(group) | GEN11_MCR_SUBSLICE(instance);
 
 		/*
 		 * Wa_22013088509
@@ -176,7 +175,7 @@ static u32 uncore_rw_with_mcr_steering_fw(struct intel_uncore *uncore,
 			mcr_mask |= GEN11_MCR_MULTICAST;
 	} else {
 		mcr_mask = GEN8_MCR_SLICE_MASK | GEN8_MCR_SUBSLICE_MASK;
-		mcr_ss = GEN8_MCR_SLICE(slice) | GEN8_MCR_SUBSLICE(subslice);
+		mcr_ss = GEN8_MCR_SLICE(group) | GEN8_MCR_SUBSLICE(instance);
 	}
 
 	old_mcr = mcr = intel_uncore_read_fw(uncore, GEN8_MCR_SELECTOR);
@@ -198,10 +197,10 @@ static u32 uncore_rw_with_mcr_steering_fw(struct intel_uncore *uncore,
 	return val;
 }
 
-static u32 uncore_rw_with_mcr_steering(struct intel_uncore *uncore,
-				       i915_reg_t reg, u8 rw_flag,
-				       int slice, int subslice,
-				       u32 value)
+static u32 rw_with_mcr_steering(struct intel_uncore *uncore,
+				i915_reg_t reg, u8 rw_flag,
+				int group, int instance,
+				u32 value)
 {
 	enum forcewake_domains fw_domains;
 	u32 val;
@@ -215,8 +214,7 @@ static u32 uncore_rw_with_mcr_steering(struct intel_uncore *uncore,
 	spin_lock_irq(&uncore->lock);
 	intel_uncore_forcewake_get__locked(uncore, fw_domains);
 
-	val = uncore_rw_with_mcr_steering_fw(uncore, reg, rw_flag,
-					     slice, subslice, value);
+	val = rw_with_mcr_steering_fw(uncore, reg, rw_flag, group, instance, value);
 
 	intel_uncore_forcewake_put__locked(uncore, fw_domains);
 	spin_unlock_irq(&uncore->lock);
@@ -224,31 +222,73 @@ static u32 uncore_rw_with_mcr_steering(struct intel_uncore *uncore,
 	return val;
 }
 
-u32 intel_uncore_read_with_mcr_steering_fw(struct intel_uncore *uncore,
-					   i915_reg_t reg, int slice, int subslice)
+/**
+ * intel_gt_mcr_read - read a specific instance of an MCR register
+ * @gt: GT structure
+ * @reg: the MCR register to read
+ * @group: the MCR group
+ * @instance: the MCR instance
+ *
+ * Returns the value read from an MCR register after steering toward a specific
+ * group/instance.
+ */
+u32 intel_gt_mcr_read(struct intel_gt *gt,
+		      i915_reg_t reg,
+		      int group, int instance)
 {
-	return uncore_rw_with_mcr_steering_fw(uncore, reg, FW_REG_READ,
-					      slice, subslice, 0);
-}
-
-u32 intel_uncore_read_with_mcr_steering(struct intel_uncore *uncore,
-					i915_reg_t reg, int slice, int subslice)
-{
-	return uncore_rw_with_mcr_steering(uncore, reg, FW_REG_READ,
-					   slice, subslice, 0);
-}
-
-void intel_uncore_write_with_mcr_steering(struct intel_uncore *uncore,
-					  i915_reg_t reg, u32 value,
-					  int slice, int subslice)
-{
-	uncore_rw_with_mcr_steering(uncore, reg, FW_REG_WRITE,
-				    slice, subslice, value);
+	return rw_with_mcr_steering(gt->uncore, reg, FW_REG_READ, group, instance, 0);
 }
 
 /**
- * intel_gt_reg_needs_read_steering - determine whether a register read
- *     requires explicit steering
+ * intel_gt_mcr_unicast_write - write a specific instance of an MCR register
+ * @gt: GT structure
+ * @reg: the MCR register to write
+ * @value: value to write
+ * @group: the MCR group
+ * @instance: the MCR instance
+ *
+ * Write an MCR register in unicast mode after steering toward a specific
+ * group/instance.
+ */
+void intel_gt_mcr_unicast_write(struct intel_gt *gt, i915_reg_t reg, u32 value,
+				int group, int instance)
+{
+	rw_with_mcr_steering(gt->uncore, reg, FW_REG_WRITE, group, instance, value);
+}
+
+/**
+ * intel_gt_mcr_multicast_write - write a value to all instances of an MCR register
+ * @gt: GT structure
+ * @reg: the MCR register to write
+ * @value: value to write
+ *
+ * Write an MCR register in multicast mode to update all instances.
+ */
+void intel_gt_mcr_multicast_write(struct intel_gt *gt,
+				i915_reg_t reg, u32 value)
+{
+	intel_uncore_write(gt->uncore, reg, value);
+}
+
+/**
+ * intel_gt_mcr_multicast_write_fw - write a value to all instances of an MCR register
+ * @gt: GT structure
+ * @reg: the MCR register to write
+ * @value: value to write
+ *
+ * Write an MCR register in multicast mode to update all instances.  This
+ * function assumes the caller is already holding any necessary forcewake
+ * domains; use intel_gt_mcr_multicast_write() in cases where forcewake should
+ * be obtained automatically.
+ */
+void intel_gt_mcr_multicast_write_fw(struct intel_gt *gt, i915_reg_t reg, u32 value)
+{
+	intel_uncore_write_fw(gt->uncore, reg, value);
+}
+
+/*
+ * reg_needs_read_steering - determine whether a register read requires
+ *     explicit steering
  * @gt: GT structure
  * @reg: the register to check steering requirements for
  * @type: type of multicast steering to check
@@ -260,14 +300,14 @@ void intel_uncore_write_with_mcr_steering(struct intel_uncore *uncore,
  * steering type, or if the default (subslice-based) steering IDs are suitable
  * for @type steering too.
  */
-static bool intel_gt_reg_needs_read_steering(struct intel_gt *gt,
-					     i915_reg_t reg,
-					     enum intel_steering_type type)
+static bool reg_needs_read_steering(struct intel_gt *gt,
+				    i915_reg_t reg,
+				    enum intel_steering_type type)
 {
 	const u32 offset = i915_mmio_reg_offset(reg);
 	const struct intel_mmio_range *entry;
 
-	if (likely(!intel_gt_needs_read_steering(gt, type)))
+	if (likely(!gt->steering_table[type]))
 		return false;
 
 	for (entry = gt->steering_table[type]; entry->end; entry++) {
@@ -278,29 +318,29 @@ static bool intel_gt_reg_needs_read_steering(struct intel_gt *gt,
 	return false;
 }
 
-/**
- * intel_gt_get_valid_steering - determines valid IDs for a class of MCR steering
+/*
+ * get_nonterminated_steering - determines valid IDs for a class of MCR steering
  * @gt: GT structure
  * @type: multicast register type
- * @sliceid: Slice ID returned
- * @subsliceid: Subslice ID returned
+ * @group: Group ID returned
+ * @instance: Instance ID returned
  *
- * Determines sliceid and subsliceid values that will steer reads
- * of a specific multicast register class to a valid value.
+ * Determines group and instance values that will steer reads of the specified
+ * MCR class to a non-terminated instance.
  */
-static void intel_gt_get_valid_steering(struct intel_gt *gt,
-					enum intel_steering_type type,
-					u8 *sliceid, u8 *subsliceid)
+static void get_nonterminated_steering(struct intel_gt *gt,
+				       enum intel_steering_type type,
+				       u8 *group, u8 *instance)
 {
 	switch (type) {
 	case L3BANK:
-		*sliceid = 0;		/* unused */
-		*subsliceid = __ffs(gt->info.l3bank_mask);
+		*group = 0;		/* unused */
+		*instance = __ffs(gt->info.l3bank_mask);
 		break;
 	case MSLICE:
 		GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
-		*sliceid = __ffs(gt->info.mslice_mask);
-		*subsliceid = 0;	/* unused */
+		*group = __ffs(gt->info.mslice_mask);
+		*instance = 0;	/* unused */
 		break;
 	case LNCF:
 		/*
@@ -308,96 +348,105 @@ static void intel_gt_get_valid_steering(struct intel_gt *gt,
 		 * can safely just steer to LNCF 0 in all cases.
 		 */
 		GEM_WARN_ON(!HAS_MSLICE_STEERING(gt->i915));
-		*sliceid = __ffs(gt->info.mslice_mask) << 1;
-		*subsliceid = 0;	/* unused */
+		*group = __ffs(gt->info.mslice_mask) << 1;
+		*instance = 0;	/* unused */
 		break;
 	case INSTANCE0:
 		/*
 		 * There are a lot of MCR types for which instance (0, 0)
 		 * will always provide a non-terminated value.
 		 */
-		*sliceid = 0;
-		*subsliceid = 0;
+		*group = 0;
+		*instance = 0;
 		break;
 	default:
 		MISSING_CASE(type);
-		*sliceid = 0;
-		*subsliceid = 0;
+		*group = 0;
+		*instance = 0;
 	}
 }
 
 /**
- * intel_gt_get_valid_steering_for_reg - get a valid steering for a register
+ * intel_gt_mcr_get_nonterminated_steering - find group/instance values that
+ *    will steer a register to a non-terminated instance
  * @gt: GT structure
  * @reg: register for which the steering is required
- * @sliceid: return variable for slice steering
- * @subsliceid: return variable for subslice steering
+ * @group: return variable for group steering
+ * @instance: return variable for instance steering
  *
- * This function returns a slice/subslice pair that is guaranteed to work for
+ * This function returns a group/instance pair that is guaranteed to work for
  * read steering of the given register. Note that a value will be returned even
  * if the register is not replicated and therefore does not actually require
  * steering.
  */
-void intel_gt_get_valid_steering_for_reg(struct intel_gt *gt, i915_reg_t reg,
-					 u8 *sliceid, u8 *subsliceid)
+void intel_gt_mcr_get_nonterminated_steering(struct intel_gt *gt,
+					     i915_reg_t reg,
+					     u8 *group, u8 *instance)
 {
 	int type;
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, sliceid,
-						    subsliceid);
+		if (reg_needs_read_steering(gt, reg, type)) {
+			get_nonterminated_steering(gt, type, group, instance);
 			return;
 		}
 	}
 
-	*sliceid = gt->default_steering.groupid;
-	*subsliceid = gt->default_steering.instanceid;
+	*group = gt->default_steering.groupid;
+	*instance = gt->default_steering.instanceid;
 }
 
 /**
- * intel_gt_read_register_fw - reads a GT register with support for multicast
+ * intel_gt_mcr_read_any_fw - reads one instance of an MCR register
  * @gt: GT structure
  * @reg: register to read
  *
- * This function will read a GT register.  If the register is a multicast
- * register, the read will be steered to a valid instance (i.e., one that
- * isn't fused off or powered down by power gating).
+ * Reads a GT MCR register.  The read will be steered to a non-terminated
+ * instance (i.e., one that isn't fused off or powered down by power gating).
+ * This function assumes the caller is already holding any necessary forcewake
+ * domains; use intel_gt_mcr_read_any() in cases where forcewake should be
+ * obtained automatically.
  *
- * Returns the value from a valid instance of @reg.
+ * Returns the value from a non-terminated instance of @reg.
  */
-u32 intel_gt_read_register_fw(struct intel_gt *gt, i915_reg_t reg)
+u32 intel_gt_mcr_read_any_fw(struct intel_gt *gt, i915_reg_t reg)
 {
 	int type;
-	u8 sliceid, subsliceid;
+	u8 group, instance;
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, &sliceid,
-						    &subsliceid);
-			return intel_uncore_read_with_mcr_steering_fw(gt->uncore,
-								      reg,
-								      sliceid,
-								      subsliceid);
+		if (reg_needs_read_steering(gt, reg, type)) {
+			get_nonterminated_steering(gt, type, &group, &instance);
+			return rw_with_mcr_steering_fw(gt->uncore, reg,
+						       FW_REG_READ,
+						       group, instance, 0);
 		}
 	}
 
 	return intel_uncore_read_fw(gt->uncore, reg);
 }
 
-u32 intel_gt_read_register(struct intel_gt *gt, i915_reg_t reg)
+/**
+ * intel_gt_mcr_read_any - reads one instance of an MCR register
+ * @gt: GT structure
+ * @reg: register to read
+ *
+ * Reads a GT MCR register.  The read will be steered to a non-terminated
+ * instance (i.e., one that isn't fused off or powered down by power gating).
+ *
+ * Returns the value from a non-terminated instance of @reg.
+ */
+u32 intel_gt_mcr_read_any(struct intel_gt *gt, i915_reg_t reg)
 {
 	int type;
-	u8 sliceid, subsliceid;
+	u8 group, instance;
 
 	for (type = 0; type < NUM_STEERING_TYPES; type++) {
-		if (intel_gt_reg_needs_read_steering(gt, reg, type)) {
-			intel_gt_get_valid_steering(gt, type, &sliceid,
-						    &subsliceid);
-			return intel_uncore_read_with_mcr_steering(gt->uncore,
-								   reg,
-								   sliceid,
-								   subsliceid);
+		if (reg_needs_read_steering(gt, reg, type)) {
+			get_nonterminated_steering(gt, type, &group, &instance);
+			return rw_with_mcr_steering(gt->uncore, reg,
+						    FW_REG_READ,
+						    group, instance, 0);
 		}
 	}
 
@@ -410,7 +459,7 @@ static void report_steering_type(struct drm_printer *p,
 				 bool dump_table)
 {
 	const struct intel_mmio_range *entry;
-	u8 slice, subslice;
+	u8 group, instance;
 
 	BUILD_BUG_ON(ARRAY_SIZE(intel_steering_types) != NUM_STEERING_TYPES);
 
@@ -420,9 +469,9 @@ static void report_steering_type(struct drm_printer *p,
 		return;
 	}
 
-	intel_gt_get_valid_steering(gt, type, &slice, &subslice);
-	drm_printf(p, "%s steering: sliceid=0x%x, subsliceid=0x%x\n",
-		   intel_steering_types[type], slice, subslice);
+	get_nonterminated_steering(gt, type, &group, &instance);
+	drm_printf(p, "%s steering: group=0x%x, instance=0x%x\n",
+		   intel_steering_types[type], group, instance);
 
 	if (!dump_table)
 		return;
@@ -431,10 +480,10 @@ static void report_steering_type(struct drm_printer *p,
 		drm_printf(p, "\t0x%06x - 0x%06x\n", entry->start, entry->end);
 }
 
-void intel_gt_report_steering(struct drm_printer *p, struct intel_gt *gt,
-			      bool dump_table)
+void intel_gt_mcr_report_steering(struct drm_printer *p, struct intel_gt *gt,
+				  bool dump_table)
 {
-	drm_printf(p, "Default steering: sliceid=0x%x, subsliceid=0x%x\n",
+	drm_printf(p, "Default steering: group=0x%x, instance=0x%x\n",
 		   gt->default_steering.groupid,
 		   gt->default_steering.instanceid);
 

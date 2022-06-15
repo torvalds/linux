@@ -1428,14 +1428,6 @@ void intel_engine_cancel_stop_cs(struct intel_engine_cs *engine)
 	ENGINE_WRITE_FW(engine, RING_MI_MODE, _MASKED_BIT_DISABLE(STOP_RING));
 }
 
-static u32
-read_subslice_reg(const struct intel_engine_cs *engine,
-		  int slice, int subslice, i915_reg_t reg)
-{
-	return intel_uncore_read_with_mcr_steering(engine->uncore, reg,
-						   slice, subslice);
-}
-
 /* NB: please notice the memset */
 void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 			       struct intel_instdone *instdone)
@@ -1469,28 +1461,33 @@ void intel_engine_get_instdone(const struct intel_engine_cs *engine,
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 50)) {
 			for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice) {
 				instdone->sampler[slice][subslice] =
-					read_subslice_reg(engine, slice, subslice,
-							  GEN7_SAMPLER_INSTDONE);
+					intel_gt_mcr_read(engine->gt,
+							  GEN7_SAMPLER_INSTDONE,
+							  slice, subslice);
 				instdone->row[slice][subslice] =
-					read_subslice_reg(engine, slice, subslice,
-							  GEN7_ROW_INSTDONE);
+					intel_gt_mcr_read(engine->gt,
+							  GEN7_ROW_INSTDONE,
+							  slice, subslice);
 			}
 		} else {
 			for_each_instdone_slice_subslice(i915, sseu, slice, subslice) {
 				instdone->sampler[slice][subslice] =
-					read_subslice_reg(engine, slice, subslice,
-							  GEN7_SAMPLER_INSTDONE);
+					intel_gt_mcr_read(engine->gt,
+							  GEN7_SAMPLER_INSTDONE,
+							  slice, subslice);
 				instdone->row[slice][subslice] =
-					read_subslice_reg(engine, slice, subslice,
-							  GEN7_ROW_INSTDONE);
+					intel_gt_mcr_read(engine->gt,
+							  GEN7_ROW_INSTDONE,
+							  slice, subslice);
 			}
 		}
 
 		if (GRAPHICS_VER_FULL(i915) >= IP_VER(12, 55)) {
 			for_each_instdone_gslice_dss_xehp(i915, sseu, iter, slice, subslice)
 				instdone->geom_svg[slice][subslice] =
-					read_subslice_reg(engine, slice, subslice,
-							  XEHPG_INSTDONE_GEOM_SVG);
+					intel_gt_mcr_read(engine->gt,
+							  XEHPG_INSTDONE_GEOM_SVG,
+							  slice, subslice);
 		}
 	} else if (GRAPHICS_VER(i915) >= 7) {
 		instdone->instdone =

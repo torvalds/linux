@@ -314,7 +314,7 @@ static long __must_check guc_mmio_reg_add(struct intel_gt *gt,
 	 * tracking, it is easier to just program the default steering for all
 	 * regs that don't need a non-default one.
 	 */
-	intel_gt_get_valid_steering_for_reg(gt, reg, &group, &inst);
+	intel_gt_mcr_get_nonterminated_steering(gt, reg, &group, &inst);
 	entry.flags |= GUC_REGSET_STEERING(group, inst);
 
 	slot = __mmio_reg_add(regset, &entry);

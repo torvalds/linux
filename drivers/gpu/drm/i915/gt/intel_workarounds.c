@@ -1083,7 +1083,7 @@ static void __add_mcr_wa(struct intel_gt *gt, struct i915_wa_list *wal,
 	gt->default_steering.instanceid = subslice;
 
 	if (drm_debug_enabled(DRM_UT_DRIVER))
-		intel_gt_report_steering(&p, gt, false);
+		intel_gt_mcr_report_steering(&p, gt, false);
 }
 
 static void
@@ -1624,13 +1624,13 @@ wa_list_apply(struct intel_gt *gt, const struct i915_wa_list *wal)
 		u32 val, old = 0;
 
 		/* open-coded rmw due to steering */
-		old = wa->clr ? intel_gt_read_register_fw(gt, wa->reg) : 0;
+		old = wa->clr ? intel_gt_mcr_read_any_fw(gt, wa->reg) : 0;
 		val = (old & ~wa->clr) | wa->set;
 		if (val != old || !wa->clr)
 			intel_uncore_write_fw(uncore, wa->reg, val);
 
 		if (IS_ENABLED(CONFIG_DRM_I915_DEBUG_GEM))
-			wa_verify(wa, intel_gt_read_register_fw(gt, wa->reg),
+			wa_verify(wa, intel_gt_mcr_read_any_fw(gt, wa->reg),
 				  wal->name, "application");
 	}
 
@@ -1661,7 +1661,7 @@ static bool wa_list_verify(struct intel_gt *gt,
 
 	for (i = 0, wa = wal->list; i < wal->count; i++, wa++)
 		ok &= wa_verify(wa,
-				intel_gt_read_register_fw(gt, wa->reg),
+				intel_gt_mcr_read_any_fw(gt, wa->reg),
 				wal->name, from);
 
 	intel_uncore_forcewake_put__locked(uncore, fw);
