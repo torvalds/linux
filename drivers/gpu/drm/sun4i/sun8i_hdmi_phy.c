@@ -675,7 +675,6 @@ static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 	struct device *dev = &pdev->dev;
 	struct device_node *node = dev->of_node;
 	struct sun8i_hdmi_phy *phy;
-	struct resource res;
 	void __iomem *regs;
 	int ret;
 
@@ -686,13 +685,7 @@ static int sun8i_hdmi_phy_probe(struct platform_device *pdev)
 	phy->variant = of_device_get_match_data(dev);
 	phy->dev = dev;
 
-	ret = of_address_to_resource(node, 0, &res);
-	if (ret) {
-		dev_err(dev, "phy: Couldn't get our resources\n");
-		return ret;
-	}
-
-	regs = devm_ioremap_resource(dev, &res);
+	regs = devm_platform_ioremap_resource(pdev, 0);
 	if (IS_ERR(regs)) {
 		dev_err(dev, "Couldn't map the HDMI PHY registers\n");
 		return PTR_ERR(regs);
