@@ -2469,21 +2469,48 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 {
 	struct io_uring_cqe *cqe;
 
-	trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags, 0, 0);
-
-	/*
-	 * If we can't get a cq entry, userspace overflowed the
-	 * submission (by quite a lot). Increment the overflow count in
-	 * the ring.
-	 */
-	cqe = io_get_cqe(ctx);
-	if (likely(cqe)) {
-		memcpy(cqe, &req->cqe, sizeof(*cqe));
-		return true;
-	}
-	return io_cqring_event_overflow(ctx, req->cqe.user_data,
+	if (!(ctx->flags & IORING_SETUP_CQE32)) {
+		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
 					req->cqe.res, req->cqe.flags, 0, 0);
+
+		/*
+		 * If we can't get a cq entry, userspace overflowed the
+		 * submission (by quite a lot). Increment the overflow count in
+		 * the ring.
+		 */
+		cqe = io_get_cqe(ctx);
+		if (likely(cqe)) {
+			memcpy(cqe, &req->cqe, sizeof(*cqe));
+			return true;
+		}
+
+		return io_cqring_event_overflow(ctx, req->cqe.user_data,
+						req->cqe.res, req->cqe.flags,
+						0, 0);
+	} else {
+		u64 extra1 = req->extra1;
+		u64 extra2 = req->extra2;
+
+		trace_io_uring_complete(req->ctx, req, req->cqe.user_data,
+					req->cqe.res, req->cqe.flags, extra1, extra2);
+
+		/*
+		 * If we can't get a cq entry, userspace overflowed the
+		 * submission (by quite a lot). Increment the overflow count in
+		 * the ring.
+		 */
+		cqe = io_get_cqe(ctx);
+		if (likely(cqe)) {
+			memcpy(cqe, &req->cqe, sizeof(struct io_uring_cqe));
+			WRITE_ONCE(cqe->big_cqe[0], extra1);
+			WRITE_ONCE(cqe->big_cqe[1], extra2);
+			return true;
+		}
+
+		return io_cqring_event_overflow(ctx, req->cqe.user_data,
+				req->cqe.res, req->cqe.flags,
+				extra1, extra2);
+	}
 }
 
 static inline bool __io_fill_cqe32_req(struct io_ring_ctx *ctx,
@@ -3175,12 +3202,8 @@ static void __io_submit_flush_completions(struct io_ring_ctx *ctx)
 			struct io_kiocb *req = container_of(node, struct io_kiocb,
 						    comp_list);
 
-			if (!(req->flags & REQ_F_CQE_SKIP)) {
-				if (!(ctx->flags & IORING_SETUP_CQE32))
-					__io_fill_cqe_req(ctx, req);
-				else
-					__io_fill_cqe32_req(ctx, req);
-			}
+			if (!(req->flags & REQ_F_CQE_SKIP))
+				__io_fill_cqe_req(ctx, req);
 		}
 
 		io_commit_cqring(ctx);
