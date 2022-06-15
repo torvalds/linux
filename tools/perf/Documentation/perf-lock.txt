@@ -46,6 +46,13 @@ COMMON OPTIONS
 --force::
 	Don't complain, do it.
 
+--vmlinux=<file>::
+        vmlinux pathname
+
+--kallsyms=<file>::
+        kallsyms pathname
+
+
 REPORT OPTIONS
 --------------
 
