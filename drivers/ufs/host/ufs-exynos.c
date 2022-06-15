@@ -651,8 +651,9 @@ static void exynos_ufs_config_phy_cap_attr(struct exynos_ufs *ufs)
 
 			if (attr->rx_min_actv_time_cap)
 				ufshcd_dme_set(hba,
-					UIC_ARG_MIB_SEL(RX_MIN_ACTIVATETIME_CAP,
-						i), attr->rx_min_actv_time_cap);
+					UIC_ARG_MIB_SEL(
+					RX_MIN_ACTIVATETIME_CAPABILITY, i),
+					attr->rx_min_actv_time_cap);
 
 			if (attr->rx_hibern8_time_cap)
 				ufshcd_dme_set(hba,
