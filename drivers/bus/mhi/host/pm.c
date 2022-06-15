@@ -473,8 +473,13 @@ static void mhi_pm_disable_transition(struct mhi_controller *mhi_cntrl)
 
 	mutex_lock(&mhi_cntrl->pm_mutex);
 
-	/* Trigger MHI RESET so that the device will not access host memory */
-	if (!MHI_PM_IN_FATAL_STATE(mhi_cntrl->pm_state)) {
+	/*
+	 * Trigger MHI RESET so that the device will not access host memory.
+	 * skip MHI reset if device is in RDDM.
+	 */
+	if ((!MHI_PM_IN_FATAL_STATE(mhi_cntrl->pm_state)) &&
+	    (mhi_cntrl->rddm_image &&
+	    mhi_get_exec_env(mhi_cntrl) != MHI_EE_RDDM)) {
 		dev_dbg(dev, "Triggering MHI Reset in device\n");
 		mhi_set_mhi_state(mhi_cntrl, MHI_STATE_RESET);
 
