@@ -1597,7 +1597,11 @@ static int __init rk3x_i2c_driver_init(void)
 {
 	return platform_driver_register(&rk3x_i2c_driver);
 }
+#ifdef CONFIG_INITCALL_ASYNC
 subsys_initcall_sync(rk3x_i2c_driver_init);
+#else
+subsys_initcall(rk3x_i2c_driver_init);
+#endif
 
 static void __exit rk3x_i2c_driver_exit(void)
 {
