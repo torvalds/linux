@@ -1252,12 +1252,6 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 		mlxsw_cmd_mbox_config_profile_kvd_hash_double_size_set(mbox,
 					MLXSW_RES_GET(res, KVD_DOUBLE_SIZE));
 	}
-	if (profile->used_kvh_xlt_cache_mode) {
-		mlxsw_cmd_mbox_config_profile_set_kvh_xlt_cache_mode_set(
-			mbox, 1);
-		mlxsw_cmd_mbox_config_profile_kvh_xlt_cache_mode_set(
-			mbox, profile->kvh_xlt_cache_mode);
-	}
 
 	for (i = 0; i < MLXSW_CONFIG_PROFILE_SWID_COUNT; i++)
 		mlxsw_pci_config_profile_swid_config(mlxsw_pci, mbox, i,
@@ -1271,30 +1265,6 @@ static int mlxsw_pci_config_profile(struct mlxsw_pci *mlxsw_pci, char *mbox,
 	return mlxsw_cmd_config_profile_set(mlxsw_pci->core, mbox);
 }
 
-static int mlxsw_pci_boardinfo_xm_process(struct mlxsw_pci *mlxsw_pci,
-					  struct mlxsw_bus_info *bus_info,
-					  char *mbox)
-{
-	int count = mlxsw_cmd_mbox_boardinfo_xm_num_local_ports_get(mbox);
-	int i;
-
-	if (!mlxsw_cmd_mbox_boardinfo_xm_exists_get(mbox))
-		return 0;
-
-	bus_info->xm_exists = true;
-
-	if (count > MLXSW_BUS_INFO_XM_LOCAL_PORTS_MAX) {
-		dev_err(&mlxsw_pci->pdev->dev, "Invalid number of XM local ports\n");
-		return -EINVAL;
-	}
-	bus_info->xm_local_ports_count = count;
-	for (i = 0; i < count; i++)
-		bus_info->xm_local_ports[i] =
-			mlxsw_cmd_mbox_boardinfo_xm_local_port_entry_get(mbox,
-									 i);
-	return 0;
-}
-
 static int mlxsw_pci_boardinfo(struct mlxsw_pci *mlxsw_pci, char *mbox)
 {
 	struct mlxsw_bus_info *bus_info = &mlxsw_pci->bus_info;
@@ -1306,8 +1276,7 @@ static int mlxsw_pci_boardinfo(struct mlxsw_pci *mlxsw_pci, char *mbox)
 		return err;
 	mlxsw_cmd_mbox_boardinfo_vsd_memcpy_from(mbox, bus_info->vsd);
 	mlxsw_cmd_mbox_boardinfo_psid_memcpy_from(mbox, bus_info->psid);
-
-	return mlxsw_pci_boardinfo_xm_process(mlxsw_pci, bus_info, mbox);
+	return 0;
 }
 
 static int mlxsw_pci_fw_area_init(struct mlxsw_pci *mlxsw_pci, char *mbox,
