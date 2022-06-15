@@ -185,7 +185,6 @@ struct io_ring_ctx {
 		struct list_head	apoll_cache;
 		struct xarray		personalities;
 		u32			pers_next;
-		unsigned		sq_thread_idle;
 	} ____cacheline_aligned_in_smp;
 
 	/* IRQ completion list, under ->completion_lock */
@@ -232,23 +231,6 @@ struct io_ring_ctx {
 		struct list_head	io_buffers_comp;
 	} ____cacheline_aligned_in_smp;
 
-	struct io_restriction		restrictions;
-
-	/* slow path rsrc auxilary data, used by update/register */
-	struct {
-		struct io_rsrc_node		*rsrc_backup_node;
-		struct io_mapped_ubuf		*dummy_ubuf;
-		struct io_rsrc_data		*file_data;
-		struct io_rsrc_data		*buf_data;
-
-		struct delayed_work		rsrc_put_work;
-		struct llist_head		rsrc_put_llist;
-		struct list_head		rsrc_ref_list;
-		spinlock_t			rsrc_ref_lock;
-
-		struct list_head	io_buffers_pages;
-	};
-
 	/* timeouts */
 	struct {
 		spinlock_t		timeout_lock;
@@ -259,30 +241,45 @@ struct io_ring_ctx {
 	} ____cacheline_aligned_in_smp;
 
 	/* Keep this last, we don't need it for the fast path */
-	struct {
-		#if defined(CONFIG_UNIX)
-			struct socket		*ring_sock;
-		#endif
-		/* hashed buffered write serialization */
-		struct io_wq_hash		*hash_map;
 
-		/* Only used for accounting purposes */
-		struct user_struct		*user;
-		struct mm_struct		*mm_account;
+	struct io_restriction		restrictions;
 
-		/* ctx exit and cancelation */
-		struct llist_head		fallback_llist;
-		struct delayed_work		fallback_work;
-		struct work_struct		exit_work;
-		struct list_head		tctx_list;
-		struct completion		ref_comp;
+	/* slow path rsrc auxilary data, used by update/register */
+	struct io_rsrc_node		*rsrc_backup_node;
+	struct io_mapped_ubuf		*dummy_ubuf;
+	struct io_rsrc_data		*file_data;
+	struct io_rsrc_data		*buf_data;
 
-		/* io-wq management, e.g. thread count */
-		u32				iowq_limits[2];
-		bool				iowq_limits_set;
+	struct delayed_work		rsrc_put_work;
+	struct llist_head		rsrc_put_llist;
+	struct list_head		rsrc_ref_list;
+	spinlock_t			rsrc_ref_lock;
 
-		struct list_head		defer_list;
-	};
+	struct list_head		io_buffers_pages;
+
+	#if defined(CONFIG_UNIX)
+		struct socket		*ring_sock;
+	#endif
+	/* hashed buffered write serialization */
+	struct io_wq_hash		*hash_map;
+
+	/* Only used for accounting purposes */
+	struct user_struct		*user;
+	struct mm_struct		*mm_account;
+
+	/* ctx exit and cancelation */
+	struct llist_head		fallback_llist;
+	struct delayed_work		fallback_work;
+	struct work_struct		exit_work;
+	struct list_head		tctx_list;
+	struct completion		ref_comp;
+
+	/* io-wq management, e.g. thread count */
+	u32				iowq_limits[2];
+	bool				iowq_limits_set;
+
+	struct list_head		defer_list;
+	unsigned			sq_thread_idle;
 };
 
 enum {
