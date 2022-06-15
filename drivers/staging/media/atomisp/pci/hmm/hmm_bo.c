@@ -42,7 +42,6 @@
 
 #include "atomisp_internal.h"
 #include "hmm/hmm_common.h"
-#include "hmm/hmm_pool.h"
 #include "hmm/hmm_bo.h"
 
 static unsigned int order_to_nr(unsigned int order)
@@ -627,8 +626,6 @@ found:
 }
 
 static void free_private_bo_pages(struct hmm_buffer_object *bo,
-				  struct hmm_pool *dypool,
-				  struct hmm_pool *repool,
 				  int free_pgnr)
 {
 	int i, ret;
@@ -636,36 +633,9 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 	for (i = 0; i < free_pgnr; i++) {
 		switch (bo->page_obj[i].type) {
 		case HMM_PAGE_TYPE_RESERVED:
-			if (repool->pops
-			    && repool->pops->pool_free_pages) {
-				repool->pops->pool_free_pages(repool->pool_info,
-							      &bo->page_obj[i]);
-				hmm_mem_stat.res_cnt--;
-			}
 			break;
-		/*
-		 * HMM_PAGE_TYPE_GENERAL indicates that pages are from system
-		 * memory, so when free them, they should be put into dynamic
-		 * pool.
-		 */
 		case HMM_PAGE_TYPE_DYNAMIC:
 		case HMM_PAGE_TYPE_GENERAL:
-			if (dypool->pops
-			    && dypool->pops->pool_inited
-			    && dypool->pops->pool_inited(dypool->pool_info)) {
-				if (dypool->pops->pool_free_pages)
-					dypool->pops->pool_free_pages(
-					    dypool->pool_info,
-					    &bo->page_obj[i]);
-				break;
-			}
-
-			fallthrough;
-
-		/*
-		 * if dynamic memory pool doesn't exist, need to free
-		 * pages to system directly.
-		 */
 		default:
 			ret = set_pages_wb(bo->page_obj[i].page, 1);
 			if (ret)
@@ -693,9 +663,7 @@ static void free_private_bo_pages(struct hmm_buffer_object *bo,
 /*Allocate pages which will be used only by ISP*/
 static int alloc_private_pages(struct hmm_buffer_object *bo,
 			       int from_highmem,
-			       bool cached,
-			       struct hmm_pool *dypool,
-			       struct hmm_pool *repool)
+			       bool cached)
 {
 	int ret;
 	unsigned int pgnr, order, blk_pgnr, alloc_pgnr;
@@ -718,37 +686,6 @@ static int alloc_private_pages(struct hmm_buffer_object *bo,
 
 	i = 0;
 	alloc_pgnr = 0;
-
-	/*
-	 * get physical pages from dynamic pages pool.
-	 */
-	if (dypool->pops && dypool->pops->pool_alloc_pages) {
-		alloc_pgnr = dypool->pops->pool_alloc_pages(dypool->pool_info,
-			     bo->page_obj, pgnr,
-			     cached);
-		hmm_mem_stat.dyc_size -= alloc_pgnr;
-
-		if (alloc_pgnr == pgnr)
-			return 0;
-	}
-
-	pgnr -= alloc_pgnr;
-	i += alloc_pgnr;
-
-	/*
-	 * get physical pages from reserved pages pool for atomisp.
-	 */
-	if (repool->pops && repool->pops->pool_alloc_pages) {
-		alloc_pgnr = repool->pops->pool_alloc_pages(repool->pool_info,
-			     &bo->page_obj[i], pgnr,
-			     cached);
-		hmm_mem_stat.res_cnt += alloc_pgnr;
-		if (alloc_pgnr == pgnr)
-			return 0;
-	}
-
-	pgnr -= alloc_pgnr;
-	i += alloc_pgnr;
 
 	while (pgnr) {
 		order = nr_to_order_bottom(pgnr);
@@ -841,19 +778,16 @@ retry:
 	return 0;
 cleanup:
 	alloc_pgnr = i;
-	free_private_bo_pages(bo, dypool, repool, alloc_pgnr);
+	free_private_bo_pages(bo, alloc_pgnr);
 
 	kfree(bo->page_obj);
 
 	return -ENOMEM;
 }
 
-static void free_private_pages(struct hmm_buffer_object *bo,
-			       struct hmm_pool *dypool,
-			       struct hmm_pool *repool)
+static void free_private_pages(struct hmm_buffer_object *bo)
 {
-	free_private_bo_pages(bo, dypool, repool, bo->pgnr);
-
+	free_private_bo_pages(bo, bo->pgnr);
 	kfree(bo->page_obj);
 }
 
@@ -993,8 +927,7 @@ int hmm_bo_alloc_pages(struct hmm_buffer_object *bo,
 	 * add HMM_BO_USER type
 	 */
 	if (type == HMM_BO_PRIVATE) {
-		ret = alloc_private_pages(bo, from_highmem,
-					  cached, &dynamic_pool, &reserved_pool);
+		ret = alloc_private_pages(bo, from_highmem, cached);
 	} else if (type == HMM_BO_USER) {
 		ret = alloc_user_pages(bo, userptr, cached);
 	} else {
@@ -1038,7 +971,7 @@ void hmm_bo_free_pages(struct hmm_buffer_object *bo)
 	bo->status &= (~HMM_BO_PAGE_ALLOCED);
 
 	if (bo->type == HMM_BO_PRIVATE)
-		free_private_pages(bo, &dynamic_pool, &reserved_pool);
+		free_private_pages(bo);
 	else if (bo->type == HMM_BO_USER)
 		free_user_pages(bo, bo->pgnr);
 	else

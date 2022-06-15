@@ -26,7 +26,8 @@
 #include <linux/slab.h>
 #include <linux/mm.h>
 
-#include "hmm/hmm_pool.h"
+#include "hmm_common.h"
+#include "hmm/hmm_bo.h"
 #include "ia_css_types.h"
 
 #define mmgr_NULL              ((ia_css_ptr)0)

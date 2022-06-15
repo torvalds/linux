@@ -280,9 +280,6 @@ void hmm_bo_vunmap(struct hmm_buffer_object *bo);
 int hmm_bo_mmap(struct vm_area_struct *vma,
 		struct hmm_buffer_object *bo);
 
-extern struct hmm_pool	dynamic_pool;
-extern struct hmm_pool	reserved_pool;
-
 /*
  * find the buffer object by its virtual address vaddr.
  * return NULL if no such buffer object found.

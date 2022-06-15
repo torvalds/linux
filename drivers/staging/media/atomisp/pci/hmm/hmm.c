@@ -28,7 +28,6 @@
 #include <linux/sysfs.h>
 
 #include "hmm/hmm.h"
-#include "hmm/hmm_pool.h"
 #include "hmm/hmm_bo.h"
 
 #include "atomisp_internal.h"
@@ -37,8 +36,6 @@
 #include "mmu/sh_mmu_mrfld.h"
 
 struct hmm_bo_device bo_device;
-struct hmm_pool	dynamic_pool;
-struct hmm_pool	reserved_pool;
 static ia_css_ptr dummy_ptr = mmgr_EXCEPTION;
 static bool hmm_initialized;
 struct _hmm_mem_stat hmm_mem_stat;
@@ -113,62 +110,13 @@ static ssize_t free_bo_show(struct device *dev, struct device_attribute *attr,
 	return bo_show(dev, attr, buf, &bo_device.entire_bo_list, false);
 }
 
-static ssize_t reserved_pool_show(struct device *dev,
-				  struct device_attribute *attr,
-				  char *buf)
-{
-	ssize_t ret = 0;
-
-	struct hmm_reserved_pool_info *pinfo = reserved_pool.pool_info;
-	unsigned long flags;
-
-	if (!pinfo || !pinfo->initialized)
-		return 0;
-
-	spin_lock_irqsave(&pinfo->list_lock, flags);
-	ret = scnprintf(buf, PAGE_SIZE, "%d out of %d pages available\n",
-			pinfo->index, pinfo->pgnr);
-	spin_unlock_irqrestore(&pinfo->list_lock, flags);
-
-	if (ret > 0)
-		ret++; /* Add trailing zero, not included by scnprintf */
-
-	return ret;
-};
-
-static ssize_t dynamic_pool_show(struct device *dev,
-				 struct device_attribute *attr,
-				 char *buf)
-{
-	ssize_t ret = 0;
-
-	struct hmm_dynamic_pool_info *pinfo = dynamic_pool.pool_info;
-	unsigned long flags;
-
-	if (!pinfo || !pinfo->initialized)
-		return 0;
-
-	spin_lock_irqsave(&pinfo->list_lock, flags);
-	ret = scnprintf(buf, PAGE_SIZE, "%d (max %d) pages available\n",
-			pinfo->pgnr, pinfo->pool_size);
-	spin_unlock_irqrestore(&pinfo->list_lock, flags);
-
-	if (ret > 0)
-		ret++; /* Add trailing zero, not included by scnprintf */
-
-	return ret;
-};
 
 static DEVICE_ATTR_RO(active_bo);
 static DEVICE_ATTR_RO(free_bo);
-static DEVICE_ATTR_RO(reserved_pool);
-static DEVICE_ATTR_RO(dynamic_pool);
 
 static struct attribute *sysfs_attrs_ctrl[] = {
 	&dev_attr_active_bo.attr,
 	&dev_attr_free_bo.attr,
-	&dev_attr_reserved_pool.attr,
-	&dev_attr_dynamic_pool.attr,
 	NULL
 };
 
