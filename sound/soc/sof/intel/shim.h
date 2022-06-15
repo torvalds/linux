@@ -20,6 +20,7 @@ enum sof_intel_hw_ip_version {
 	SOF_INTEL_CAVS_1_8,	/* CannonLake, CometLake, CoffeeLake */
 	SOF_INTEL_CAVS_2_0,	/* IceLake, JasperLake */
 	SOF_INTEL_CAVS_2_5,	/* TigerLake, AlderLake */
+	SOF_INTEL_ACE_1_0,	/* MeteorLake */
 };
 
 /*

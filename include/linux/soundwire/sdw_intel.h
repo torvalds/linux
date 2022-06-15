@@ -9,6 +9,8 @@
 
 #define SDW_SHIM_BASE			0x2C000
 #define SDW_ALH_BASE			0x2C800
+#define SDW_SHIM_BASE_ACE		0x38000
+#define SDW_ALH_BASE_ACE		0x24000
 #define SDW_LINK_BASE			0x30000
 #define SDW_LINK_SIZE			0x10000
 

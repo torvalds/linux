@@ -714,6 +714,8 @@ extern struct snd_sof_dsp_ops sof_tgl_ops;
 int sof_tgl_ops_init(struct snd_sof_dev *sdev);
 extern struct snd_sof_dsp_ops sof_icl_ops;
 int sof_icl_ops_init(struct snd_sof_dev *sdev);
+extern struct snd_sof_dsp_ops sof_mtl_ops;
+int sof_mtl_ops_init(struct snd_sof_dev *sdev);
 
 extern const struct sof_intel_dsp_desc apl_chip_info;
 extern const struct sof_intel_dsp_desc cnl_chip_info;
@@ -723,6 +725,7 @@ extern const struct sof_intel_dsp_desc tglh_chip_info;
 extern const struct sof_intel_dsp_desc ehl_chip_info;
 extern const struct sof_intel_dsp_desc jsl_chip_info;
 extern const struct sof_intel_dsp_desc adls_chip_info;
+extern const struct sof_intel_dsp_desc mtl_chip_info;
 
 /* Probes support */
 #if IS_ENABLED(CONFIG_SND_SOC_SOF_HDA_PROBES)
