@@ -9,6 +9,7 @@
 #include "util/symbol.h"
 #include "util/thread.h"
 #include "util/header.h"
+#include "util/callchain.h"
 
 #include <subcmd/pager.h>
 #include <subcmd/parse-options.h>
@@ -19,6 +20,7 @@
 #include "util/tool.h"
 #include "util/data.h"
 #include "util/string2.h"
+#include "util/map.h"
 
 #include <sys/types.h>
 #include <sys/prctl.h>
@@ -32,6 +34,7 @@
 #include <linux/kernel.h>
 #include <linux/zalloc.h>
 #include <linux/err.h>
+#include <linux/stringify.h>
 
 static struct perf_session *session;
 
@@ -119,6 +122,24 @@ static struct rb_root		thread_stats;
 
 static bool combine_locks;
 static bool show_thread_stats;
+
+/*
+ * CONTENTION_STACK_DEPTH
+ * Number of stack trace entries to find callers
+ */
+#define CONTENTION_STACK_DEPTH  8
+
+/*
+ * CONTENTION_STACK_SKIP
+ * Number of stack trace entries to skip when finding callers.
+ * The first few entries belong to the locking implementation itself.
+ */
+#define CONTENTION_STACK_SKIP  3
+
+static u64 sched_text_start;
+static u64 sched_text_end;
+static u64 lock_text_start;
+static u64 lock_text_end;
 
 static struct thread_stat *thread_stat_find(u32 tid)
 {
@@ -839,6 +860,116 @@ end:
 	return 0;
 }
 
+static bool is_lock_function(u64 addr)
+{
+	if (!sched_text_start) {
+		struct machine *machine = &session->machines.host;
+		struct map *kmap;
+		struct symbol *sym;
+
+		sym = machine__find_kernel_symbol_by_name(machine,
+							  "__sched_text_start",
+							  &kmap);
+		if (!sym) {
+			/* to avoid retry */
+			sched_text_start = 1;
+			return false;
+		}
+
+		sched_text_start = kmap->unmap_ip(kmap, sym->start);
+
+		/* should not fail from here */
+		sym = machine__find_kernel_symbol_by_name(machine,
+							  "__sched_text_end",
+							  &kmap);
+		sched_text_end = kmap->unmap_ip(kmap, sym->start);
+
+		sym = machine__find_kernel_symbol_by_name(machine,
+							  "__lock_text_start",
+							  &kmap);
+		lock_text_start = kmap->unmap_ip(kmap, sym->start);
+
+		sym = machine__find_kernel_symbol_by_name(machine,
+							  "__lock_text_end",
+							  &kmap);
+		lock_text_start = kmap->unmap_ip(kmap, sym->start);
+	}
+
+	/* failed to get kernel symbols */
+	if (sched_text_start == 1)
+		return false;
+
+	/* mutex and rwsem functions are in sched text section */
+	if (sched_text_start <= addr && addr < sched_text_end)
+		return true;
+
+	/* spinlock functions are in lock text section */
+	if (lock_text_start <= addr && addr < lock_text_end)
+		return true;
+
+	return false;
+}
+
+static int lock_contention_caller(struct evsel *evsel, struct perf_sample *sample,
+				  char *buf, int size)
+{
+	struct thread *thread;
+	struct callchain_cursor *cursor = &callchain_cursor;
+	struct symbol *sym;
+	int skip = 0;
+	int ret;
+
+	/* lock names will be replaced to task name later */
+	if (show_thread_stats)
+		return -1;
+
+	thread = machine__findnew_thread(&session->machines.host,
+					 -1, sample->pid);
+	if (thread == NULL)
+		return -1;
+
+	/* use caller function name from the callchain */
+	ret = thread__resolve_callchain(thread, cursor, evsel, sample,
+					NULL, NULL, CONTENTION_STACK_DEPTH);
+	if (ret != 0) {
+		thread__put(thread);
+		return -1;
+	}
+
+	callchain_cursor_commit(cursor);
+	thread__put(thread);
+
+	while (true) {
+		struct callchain_cursor_node *node;
+
+		node = callchain_cursor_current(cursor);
+		if (node == NULL)
+			break;
+
+		/* skip first few entries - for lock functions */
+		if (++skip <= CONTENTION_STACK_SKIP)
+			goto next;
+
+		sym = node->ms.sym;
+		if (sym && !is_lock_function(node->ip)) {
+			struct map *map = node->ms.map;
+			u64 offset;
+
+			offset = map->map_ip(map, node->ip) - sym->start;
+
+			if (offset)
+				scnprintf(buf, size, "%s+%#lx", sym->name, offset);
+			else
+				strlcpy(buf, sym->name, size);
+			return 0;
+		}
+
+next:
+		callchain_cursor_advance(cursor);
+	}
+	return -1;
+}
+
 static int report_lock_contention_begin_event(struct evsel *evsel,
 					      struct perf_sample *sample)
 {
@@ -850,9 +981,18 @@ static int report_lock_contention_begin_event(struct evsel *evsel,
 	if (show_thread_stats)
 		addr = sample->tid;
 
-	ls = lock_stat_findnew(addr, "No name");
-	if (!ls)
-		return -ENOMEM;
+	ls = lock_stat_find(addr);
+	if (!ls) {
+		char buf[128];
+		const char *caller = buf;
+
+		if (lock_contention_caller(evsel, sample, buf, sizeof(buf)) < 0)
+			caller = "Unknown";
+
+		ls = lock_stat_findnew(addr, caller);
+		if (!ls)
+			return -ENOMEM;
+	}
 
 	ts = thread_stat_findnew(sample->tid);
 	if (!ts)
@@ -1233,6 +1373,7 @@ static int __cmd_report(bool display_info)
 	struct perf_tool eops = {
 		.sample		 = process_sample_event,
 		.comm		 = perf_event__process_comm,
+		.mmap		 = perf_event__process_mmap,
 		.namespaces	 = perf_event__process_namespaces,
 		.ordered_events	 = true,
 	};
@@ -1248,6 +1389,8 @@ static int __cmd_report(bool display_info)
 		return PTR_ERR(session);
 	}
 
+	/* for lock function check */
+	symbol_conf.sort_by_name = true;
 	symbol__init(&session->header.env);
 
 	if (!perf_session__has_traces(session, "lock record"))
@@ -1292,8 +1435,12 @@ static int __cmd_record(int argc, const char **argv)
 	const char *record_args[] = {
 		"record", "-R", "-m", "1024", "-c", "1", "--synth", "task",
 	};
+	const char *callgraph_args[] = {
+		"--call-graph", "fp," __stringify(CONTENTION_STACK_DEPTH),
+	};
 	unsigned int rec_argc, i, j, ret;
 	unsigned int nr_tracepoints;
+	unsigned int nr_callgraph_args = 0;
 	const char **rec_argv;
 	bool has_lock_stat = true;
 
@@ -1318,8 +1465,10 @@ static int __cmd_record(int argc, const char **argv)
 		}
 	}
 
+	nr_callgraph_args = ARRAY_SIZE(callgraph_args);
+
 setup_args:
-	rec_argc = ARRAY_SIZE(record_args) + argc - 1;
+	rec_argc = ARRAY_SIZE(record_args) + nr_callgraph_args + argc - 1;
 
 	if (has_lock_stat)
 		nr_tracepoints = ARRAY_SIZE(lock_tracepoints);
@@ -1350,6 +1499,9 @@ setup_args:
 		rec_argv[i++] = "-e";
 		rec_argv[i++] = ev_name;
 	}
+
+	for (j = 0; j < nr_callgraph_args; j++, i++)
+		rec_argv[i] = callgraph_args[j];
 
 	for (j = 1; j < (unsigned int)argc; j++, i++)
 		rec_argv[i] = argv[j];
