@@ -120,7 +120,7 @@ static int vcn_v4_0_sw_init(void *handle)
 		sprintf(ring->name, "vcn_unified_%d", i);
 
 		r = amdgpu_ring_init(adev, ring, 512, &adev->vcn.inst[i].irq, 0,
-				  AMDGPU_RING_PRIO_0, &adev->vcn.inst[i].sched_score);
+						AMDGPU_RING_PRIO_0, &adev->vcn.inst[i].sched_score);
 		if (r)
 			return r;
 
@@ -907,7 +907,7 @@ static int vcn_v4_0_start_dpg_mode(struct amdgpu_device *adev, int inst_idx, boo
 	WREG32_SOC15(VCN, inst_idx, regUVD_RB_RPTR, 0);
 	WREG32_SOC15(VCN, inst_idx, regUVD_RB_WPTR, 0);
 
-	tmp= RREG32_SOC15(VCN, inst_idx, regUVD_RB_RPTR);
+	tmp = RREG32_SOC15(VCN, inst_idx, regUVD_RB_RPTR);
 	WREG32_SOC15(VCN, inst_idx, regUVD_RB_WPTR, tmp);
 	ring->wptr = RREG32_SOC15(VCN, inst_idx, regUVD_RB_WPTR);
 
@@ -1048,8 +1048,8 @@ static int vcn_v4_0_start(struct amdgpu_device *adev)
 
 				dev_err(adev->dev, "VCN[%d] is not responding, trying to reset the VCPU!!!\n", i);
 				WREG32_P(SOC15_REG_OFFSET(VCN, i, regUVD_VCPU_CNTL),
-						UVD_VCPU_CNTL__BLK_RST_MASK,
-						~UVD_VCPU_CNTL__BLK_RST_MASK);
+							UVD_VCPU_CNTL__BLK_RST_MASK,
+							~UVD_VCPU_CNTL__BLK_RST_MASK);
 				mdelay(10);
 				WREG32_P(SOC15_REG_OFFSET(VCN, i, regUVD_VCPU_CNTL), 0,
 						~UVD_VCPU_CNTL__BLK_RST_MASK);

@@ -730,8 +730,8 @@ error:
 	return r;
 }
 
-static uint32_t * amdgpu_vcn_unified_ring_ib_header(struct amdgpu_ib *ib,
-					  uint32_t ib_pack_in_dw, bool enc)
+static uint32_t *amdgpu_vcn_unified_ring_ib_header(struct amdgpu_ib *ib,
+						uint32_t ib_pack_in_dw, bool enc)
 {
 	uint32_t *ib_checksum;
 
@@ -749,7 +749,7 @@ static uint32_t * amdgpu_vcn_unified_ring_ib_header(struct amdgpu_ib *ib,
 }
 
 static void amdgpu_vcn_unified_ring_ib_checksum(uint32_t **ib_checksum,
-				        uint32_t ib_pack_in_dw)
+						uint32_t ib_pack_in_dw)
 {
 	uint32_t i;
 	uint32_t checksum = 0;
@@ -790,7 +790,7 @@ static int amdgpu_vcn_dec_sw_send_msg(struct amdgpu_ring *ring,
 	/* single queue headers */
 	if (sq) {
 		ib_pack_in_dw = sizeof(struct amdgpu_vcn_decode_buffer) / sizeof(uint32_t)
-			                     + 4 + 2; /* engine info + decoding ib in dw */
+						+ 4 + 2; /* engine info + decoding ib in dw */
 		ib_checksum = amdgpu_vcn_unified_ring_ib_header(ib, ib_pack_in_dw, false);
 	}
 
@@ -896,7 +896,7 @@ static int amdgpu_vcn_enc_get_create_msg(struct amdgpu_ring *ring, uint32_t hand
 					 struct amdgpu_ib *ib_msg,
 					 struct dma_fence **fence)
 {
-	unsigned ib_size_dw = 16;
+	unsigned int ib_size_dw = 16;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
@@ -962,7 +962,7 @@ static int amdgpu_vcn_enc_get_destroy_msg(struct amdgpu_ring *ring, uint32_t han
 					  struct amdgpu_ib *ib_msg,
 					  struct dma_fence **fence)
 {
-	unsigned ib_size_dw = 16;
+	unsigned int ib_size_dw = 16;
 	struct amdgpu_job *job;
 	struct amdgpu_ib *ib;
 	struct dma_fence *f = NULL;
