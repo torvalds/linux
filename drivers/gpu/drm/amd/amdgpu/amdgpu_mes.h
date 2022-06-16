@@ -119,6 +119,10 @@ struct amdgpu_mes {
 	uint32_t			query_status_fence_offs;
 	uint64_t			query_status_fence_gpu_addr;
 	uint64_t			*query_status_fence_ptr;
+	uint32_t                        read_val_offs;
+	uint64_t			read_val_gpu_addr;
+	uint32_t			*read_val_ptr;
+
 	uint32_t			saved_flags;
 
 	/* initialize kiq pipe */
@@ -246,6 +250,36 @@ struct mes_resume_gang_input {
 	uint64_t	gang_context_addr;
 };
 
+enum mes_misc_opcode {
+	MES_MISC_OP_WRITE_REG,
+	MES_MISC_OP_READ_REG,
+	MES_MISC_OP_WRM_REG_WAIT,
+	MES_MISC_OP_WRM_REG_WR_WAIT,
+};
+
+struct mes_misc_op_input {
+	enum mes_misc_opcode op;
+
+	union {
+		struct {
+			uint32_t                  reg_offset;
+			uint64_t                  buffer_addr;
+		} read_reg;
+
+		struct {
+			uint32_t                  reg_offset;
+			uint32_t                  reg_value;
+		} write_reg;
+
+		struct {
+			uint32_t                   ref;
+			uint32_t                   mask;
+			uint32_t                   reg0;
+			uint32_t                   reg1;
+		} wrm_reg;
+	};
+};
+
 struct amdgpu_mes_funcs {
 	int (*add_hw_queue)(struct amdgpu_mes *mes,
 			    struct mes_add_queue_input *input);
@@ -261,6 +295,9 @@ struct amdgpu_mes_funcs {
 
 	int (*resume_gang)(struct amdgpu_mes *mes,
 			   struct mes_resume_gang_input *input);
+
+	int (*misc_op)(struct amdgpu_mes *mes,
+		       struct mes_misc_op_input *input);
 };
 
 #define amdgpu_mes_kiq_hw_init(adev) (adev)->mes.kiq_hw_init((adev))
@@ -292,6 +329,15 @@ int amdgpu_mes_unmap_legacy_queue(struct amdgpu_device *adev,
 				  struct amdgpu_ring *ring,
 				  enum amdgpu_unmap_queues_action action,
 				  u64 gpu_addr, u64 seq);
+
+uint32_t amdgpu_mes_rreg(struct amdgpu_device *adev, uint32_t reg);
+int amdgpu_mes_wreg(struct amdgpu_device *adev,
+		    uint32_t reg, uint32_t val);
+int amdgpu_mes_reg_wait(struct amdgpu_device *adev, uint32_t reg,
+			uint32_t val, uint32_t mask);
+int amdgpu_mes_reg_write_reg_wait(struct amdgpu_device *adev,
+				  uint32_t reg0, uint32_t reg1,
+				  uint32_t ref, uint32_t mask);
 
 int amdgpu_mes_add_ring(struct amdgpu_device *adev, int gang_id,
 			int queue_type, int idx,
