@@ -155,8 +155,8 @@ static int lan743x_otp_write(struct lan743x_adapter *adapter, u32 offset,
 	return 0;
 }
 
-static int lan743x_hs_syslock_acquire(struct lan743x_adapter *adapter,
-				      u16 timeout)
+int lan743x_hs_syslock_acquire(struct lan743x_adapter *adapter,
+			       u16 timeout)
 {
 	u16 timeout_cnt = 0;
 	u32 val;
@@ -192,7 +192,7 @@ static int lan743x_hs_syslock_acquire(struct lan743x_adapter *adapter,
 	return 0;
 }
 
-static void lan743x_hs_syslock_release(struct lan743x_adapter *adapter)
+void lan743x_hs_syslock_release(struct lan743x_adapter *adapter)
 {
 	u32 val;
 
