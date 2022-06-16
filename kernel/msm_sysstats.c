@@ -19,7 +19,6 @@
 #include <linux/fdtable.h>
 #include <linux/dma-buf.h>
 #include <linux/dma-resv.h>
-#include <linux/msm_kgsl.h>
 
 struct tgid_iter {
 	unsigned int tgid;
@@ -192,9 +191,6 @@ static unsigned long get_system_unreclaimble_info(void)
 	}
 	rcu_read_unlock();
 
-	/* Account the kgsl information. */
-	size += (kgsl_get_stats(-1) >> PAGE_SHIFT);
-
 	return size;
 }
 static char *nla_strdup_cust(const struct nlattr *nla, gfp_t flags)
@@ -266,8 +262,7 @@ static int sysstats_task_cmd_attr_pid(struct genl_info *info)
 		stats->file_rss = K(get_mm_counter(p->mm, MM_FILEPAGES));
 		stats->shmem_rss = K(get_mm_counter(p->mm, MM_SHMEMPAGES));
 		stats->swap_rss = K(get_mm_counter(p->mm, MM_SWAPENTS));
-		stats->unreclaimable = K(get_task_unreclaimable_info(p)) +
-					(kgsl_get_stats(stats->pid) >> 10);
+		stats->unreclaimable = K(get_task_unreclaimable_info(p));
 #undef K
 		task_unlock(p);
 	}
