@@ -1329,6 +1329,8 @@ static unsigned long rockchip_rk3588_pll_recalc_rate(struct clk_hw *hw,
 		return pll->scaling;
 
 	rockchip_rk3588_pll_get_params(pll, &cur);
+	if (cur.p == 0)
+		return prate;
 
 	rate64 *= cur.m;
 	do_div(rate64, cur.p);
@@ -1337,7 +1339,8 @@ static unsigned long rockchip_rk3588_pll_recalc_rate(struct clk_hw *hw,
 		/* fractional mode */
 		u64 frac_rate64 = prate * cur.k;
 
-		postdiv = cur.p * 65536;
+		postdiv = cur.p;
+		postdiv *= 65536;
 		do_div(frac_rate64, postdiv);
 		rate64 += frac_rate64;
 	}
