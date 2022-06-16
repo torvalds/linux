@@ -9,6 +9,16 @@
 #include "io-wq.h"
 #include "filetable.h"
 
+struct io_hash_bucket {
+	spinlock_t		lock;
+	struct hlist_head	list;
+} ____cacheline_aligned_in_smp;
+
+struct io_hash_table {
+	struct io_hash_bucket	*hbs;
+	unsigned		hash_bits;
+};
+
 struct io_uring {
 	u32 head ____cacheline_aligned_in_smp;
 	u32 tail ____cacheline_aligned_in_smp;
@@ -224,8 +234,7 @@ struct io_ring_ctx {
 		 * manipulate the list, hence no extra locking is needed there.
 		 */
 		struct io_wq_work_list	iopoll_list;
-		struct io_hash_bucket	*cancel_hash;
-		unsigned		cancel_hash_bits;
+		struct io_hash_table	cancel_table;
 		bool			poll_multi_queue;
 
 		struct list_head	io_buffers_comp;
