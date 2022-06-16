@@ -91,7 +91,6 @@ struct stfcamss {
 	struct stf_csi_dev *csi_dev;   // subdev
 	int csiphy_num;
 	struct stf_csiphy_dev *csiphy_dev;   // subdev
-	int isp_num;
 	struct stf_isp_dev *isp_dev;   // subdev
 	struct v4l2_async_notifier notifier;
 	struct clk_bulk_data *sys_clk;

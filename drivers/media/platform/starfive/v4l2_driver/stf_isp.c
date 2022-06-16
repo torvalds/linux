@@ -82,12 +82,11 @@ static const struct isp_format_table isp_formats_st7110[] = {
 	{ isp_formats_st7110_raw, ARRAY_SIZE(isp_formats_st7110_raw) },   // 3
 };
 
-int stf_isp_subdev_init(struct stfcamss *stfcamss, int id)
+int stf_isp_subdev_init(struct stfcamss *stfcamss)
 {
-	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[id];
+	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
 
 	isp_dev->sdev_type = ISP_DEV_TYPE;
-	isp_dev->id = id;
 	isp_dev->hw_ops = &isp_ops;
 	isp_dev->stfcamss = stfcamss;
 	isp_dev->formats = isp_formats_st7110;
@@ -1358,7 +1357,7 @@ int stf_isp_register(struct stf_isp_dev *isp_dev,
 	sd->internal_ops = &isp_v4l2_internal_ops;
 	sd->flags |= V4L2_SUBDEV_FL_HAS_DEVNODE | V4L2_SUBDEV_FL_HAS_EVENTS;
 	snprintf(sd->name, ARRAY_SIZE(sd->name), "%s%d",
-		STF_ISP_NAME, isp_dev->id);
+		STF_ISP_NAME, 0);
 	v4l2_set_subdevdata(sd, isp_dev);
 
 	ret = isp_init_formats(sd, NULL);

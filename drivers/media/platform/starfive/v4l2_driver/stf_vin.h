@@ -103,26 +103,21 @@ struct vin_hw_ops {
 			dma_addr_t addr);
 	void (*vin_wr_get_ping_pong_status)(struct stf_vin2_dev *vin_dev);
 	void (*vin_isp_set_yuv_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id,
 			dma_addr_t y_addr, dma_addr_t uv_addr);
 	void (*vin_isp_set_raw_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id, dma_addr_t raw_addr);
+			dma_addr_t raw_addr);
 	void (*vin_isp_set_ss0_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id,
 			dma_addr_t y_addr, dma_addr_t uv_addr);
 	void (*vin_isp_set_ss1_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id,
 			dma_addr_t y_addr, dma_addr_t uv_addr);
 	void (*vin_isp_set_itiw_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id,
 			dma_addr_t y_addr, dma_addr_t uv_addr);
 	void (*vin_isp_set_itir_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id,
 			dma_addr_t y_addr, dma_addr_t uv_addr);
 	void (*vin_isp_set_scd_addr)(struct stf_vin2_dev *vin_dev,
-			int isp_id, dma_addr_t yhist_addr,
+			dma_addr_t yhist_addr,
 			dma_addr_t scd_addr, int scd_type);
-	int (*vin_isp_get_scd_type)(struct stf_vin2_dev *vin_dev, int isp_id);
+	int (*vin_isp_get_scd_type)(struct stf_vin2_dev *vin_dev);
 	irqreturn_t (*vin_wr_irq_handler)(int irq, void *priv);
 	irqreturn_t (*vin_isp_irq_handler)(int irq, void *priv);
 	irqreturn_t (*vin_isp_csi_irq_handler)(int irq, void *priv);

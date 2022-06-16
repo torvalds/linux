@@ -305,14 +305,12 @@ static int stfcamss_init_subdevices(struct stfcamss *stfcamss)
 	}
 #endif
 
-	for (i = 0; i < stfcamss->isp_num; i++) {
-		ret = stf_isp_subdev_init(stfcamss, i);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to init stf_isp sub-device: %d\n",
-				ret);
-			return ret;
-		}
+	ret = stf_isp_subdev_init(stfcamss);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to init stf_isp sub-device: %d\n",
+			ret);
+		return ret;
 	}
 
 	ret = stf_vin_subdev_init(stfcamss);
@@ -366,15 +364,13 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 	}
 #endif
 
-	for (i = 0; i < stfcamss->isp_num; i++) {
-		ret = stf_isp_register(&isp_dev[i],
-				&stfcamss->v4l2_dev);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to register stf isp%d entity: %d\n",
-				i, ret);
-			goto err_reg_isp;
-		}
+	ret = stf_isp_register(isp_dev,
+			&stfcamss->v4l2_dev);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to register stf isp%d entity: %d\n",
+			i, ret);
+		goto err_reg_isp;
 	}
 
 	ret = stf_vin_register(vin_dev, &stfcamss->v4l2_dev);
@@ -433,157 +429,160 @@ static int stfcamss_register_subdevices(struct stfcamss *stfcamss)
 		}
 	}
 #endif
-	for (i = 0; i < stfcamss->isp_num; i++) {
-		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
 
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC,
+		&vin_dev->line[VIN_LINE_ISP].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[VIN_LINE_ISP]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC_SS0,
+		&vin_dev->line[VIN_LINE_ISP_SS0].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[i + VIN_LINE_ISP_SS0]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC_SS1,
+		&vin_dev->line[VIN_LINE_ISP_SS1].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[VIN_LINE_ISP_SS1]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC_ITIW,
+		&vin_dev->line[VIN_LINE_ISP_ITIW].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[VIN_LINE_ISP_ITIW]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC_ITIR,
+		&vin_dev->line[VIN_LINE_ISP_ITIR].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[VIN_LINE_ISP_ITIR]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC_RAW,
+		&vin_dev->line[VIN_LINE_ISP_RAW].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[VIN_LINE_ISP_RAW]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SRC_SCD_Y,
+		&vin_dev->line[VIN_LINE_ISP_SCD_Y].subdev.entity,
+		STF_VIN_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			isp_dev->subdev.entity.name,
+			vin_dev->line[VIN_LINE_ISP_SCD_Y]
+			.subdev.entity.name,
+			ret);
+		goto err_link;
+	}
+
+	ret = media_create_pad_link(
+		&dvp_dev->subdev.entity,
+		STF_DVP_PAD_SRC,
+		&isp_dev->subdev.entity,
+		STF_ISP_PAD_SINK,
+		0);
+	if (ret < 0) {
+		st_err(ST_CAMSS,
+			"Failed to link %s->%s entities: %d\n",
+			dvp_dev->subdev.entity.name,
+			isp_dev->subdev.entity.name,
+		ret);
+		goto err_link;
+	}
+
+#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
+	for (j = 0; j < stfcamss->csi_num; j++) {
 		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC_SS0,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SS0].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP_SS0]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
-		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC_SS1,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SS1].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SS1]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
-		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC_ITIW,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_ITIW].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP_ITIW]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
-		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC_ITIR,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_ITIR].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP_ITIR]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
-		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC_RAW,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_RAW].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP_RAW]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
-		ret = media_create_pad_link(
-			&isp_dev[i].subdev.entity,
-			STF_ISP_PAD_SRC_SCD_Y,
-			&vin_dev->line[i * STF_ISP_LINE_MAX + VIN_LINE_ISP_SCD_Y].subdev.entity,
-			STF_VIN_PAD_SINK,
-			0);
-		if (ret < 0) {
-			st_err(ST_CAMSS,
-				"Failed to link %s->%s entities: %d\n",
-				isp_dev[i].subdev.entity.name,
-				vin_dev->line[i + VIN_LINE_ISP_SCD_Y]
-				.subdev.entity.name,
-				ret);
-			goto err_link;
-		}
-		ret = media_create_pad_link(
-			&dvp_dev->subdev.entity,
-			STF_DVP_PAD_SRC,
-			&isp_dev[i].subdev.entity,
+			&csi_dev[j].subdev.entity,
+			STF_CSI_PAD_SRC,
+			&isp_dev->subdev.entity,
 			STF_ISP_PAD_SINK,
 			0);
 		if (ret < 0) {
 			st_err(ST_CAMSS,
 				"Failed to link %s->%s entities: %d\n",
-				dvp_dev->subdev.entity.name,
-				isp_dev[i].subdev.entity.name,
-			ret);
+				csi_dev[j].subdev.entity.name,
+				isp_dev->subdev.entity.name,
+				ret);
 			goto err_link;
 		}
-	#ifndef CONFIG_VIDEO_CADENCE_CSI2RX
-		for (j = 0; j < stfcamss->csi_num; j++) {
-			ret = media_create_pad_link(
-				&csi_dev[j].subdev.entity,
-				STF_CSI_PAD_SRC,
-				&isp_dev[i].subdev.entity,
-				STF_ISP_PAD_SINK,
-				0);
-			if (ret < 0) {
-				st_err(ST_CAMSS,
-					"Failed to link %s->%s entities: %d\n",
-					csi_dev[j].subdev.entity.name,
-					isp_dev[i].subdev.entity.name,
-					ret);
-				goto err_link;
-			}
-		}
-	#endif
 	}
+#endif
 
 	return ret;
 
 err_link:
 	stf_vin_unregister(stfcamss->vin_dev);
 err_reg_vin:
-	i = stfcamss->isp_num;
+	stf_isp_unregister(stfcamss->isp_dev);
 err_reg_isp:
-	for (i--; i >= 0; i--)
-		stf_isp_unregister(&stfcamss->isp_dev[i]);
-
 #ifndef CONFIG_VIDEO_CADENCE_CSI2RX
 	i = stfcamss->csi_num;
 err_reg_csi:
@@ -617,9 +616,7 @@ static void stfcamss_unregister_subdevices(struct stfcamss *stfcamss)
 		stf_csi_unregister(&stfcamss->csi_dev[i]);
 #endif
 
-	i = stfcamss->isp_num;
-	for (i--; i >= 0; i--)
-		stf_isp_unregister(&stfcamss->isp_dev[i]);
+	stf_isp_unregister(stfcamss->isp_dev);
 
 	stf_vin_unregister(stfcamss->vin_dev);
 }
@@ -687,7 +684,6 @@ static int stfcamss_subdev_notifier_bound(struct v4l2_async_notifier *async,
 	case CSI2RX0_PORT_NUMBER:
 	case CSI2RX1_PORT_NUMBER:
 		id = port - CSI2RX0_PORT_NUMBER;
-		isp_dev = &isp_dev[id];
 		subdev->host_priv = &isp_dev->subdev.entity;
 		break;
 	case DVP_SENSOR_PORT_NUMBER:
@@ -795,7 +791,7 @@ static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 	struct stfcamss *stfcamss = dev_get_drvdata(dev);
 	struct stf_vin_dev *vin = stfcamss->vin;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
-	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[0];
+	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
 	struct stf_csi_dev *csi0_dev = &stfcamss->csi_dev[0];
 	struct stf_csi_dev *csi1_dev = &stfcamss->csi_dev[1];
 
@@ -814,7 +810,7 @@ static ssize_t vin_debug_read(struct file *file, char __user *user_buf,
 		mutex_lock(&isp_dev->stream_lock);
 		if (isp_dev->stream_count > 0) {
 			reg_base = vin->isp_base;
-			dump_isp_reg(reg_base, 0);
+			dump_isp_reg(reg_base);
 		}
 		mutex_unlock(&isp_dev->stream_lock);
 		break;
@@ -853,7 +849,7 @@ static void set_reg_val(struct stfcamss *stfcamss, int id, u32 offset, u32 val)
 {
 	struct stf_vin_dev *vin = stfcamss->vin;
 	struct stf_vin2_dev *vin_dev = stfcamss->vin_dev;
-	struct stf_isp_dev *isp_dev = &stfcamss->isp_dev[0];
+	struct stf_isp_dev *isp_dev = stfcamss->isp_dev;
 	struct stf_csi_dev *csi0_dev = &stfcamss->csi_dev[0];
 	struct stf_csi_dev *csi1_dev = &stfcamss->csi_dev[1];
 	void __iomem *reg_base;
@@ -1017,7 +1013,6 @@ static int stfcamss_probe(struct platform_device *pdev)
 	if (!stfcamss)
 		return -ENOMEM;
 
-	stfcamss->isp_num = 1;
 	stfcamss->csi_num = 2;
 #ifndef CONFIG_VIDEO_CADENCE_CSI2RX
 	stfcamss->csiphy_num = 2;
@@ -1049,7 +1044,7 @@ static int stfcamss_probe(struct platform_device *pdev)
 	}
 
 	stfcamss->isp_dev = devm_kzalloc(dev,
-		stfcamss->isp_num * sizeof(*stfcamss->isp_dev),
+		sizeof(*stfcamss->isp_dev),
 		GFP_KERNEL);
 	if (!stfcamss->isp_dev) {
 		ret = -ENOMEM;

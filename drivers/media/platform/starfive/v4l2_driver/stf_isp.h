@@ -191,7 +191,6 @@ enum {
 struct stf_isp_dev {
 	enum subdev_type sdev_type;  // must be frist
 	struct stfcamss *stfcamss;
-	u8 id;
 	struct v4l2_subdev subdev;
 	struct media_pad pads[STF_ISP_PAD_MAX];
 	struct v4l2_mbus_framefmt fmt[STF_ISP_PAD_MAX];
@@ -210,11 +209,11 @@ struct stf_isp_dev {
 	struct isp_setfile setfile;
 };
 
-extern int stf_isp_subdev_init(struct stfcamss *stfcamss, int id);
+extern int stf_isp_subdev_init(struct stfcamss *stfcamss);
 extern int stf_isp_register(struct stf_isp_dev *isp_dev,
 		struct v4l2_device *v4l2_dev);
 extern int stf_isp_unregister(struct stf_isp_dev *isp_dev);
 extern struct isp_hw_ops isp_ops;
-extern void dump_isp_reg(void *__iomem ispbase, int id);
+extern void dump_isp_reg(void *__iomem ispbase);
 
 #endif /* STF_ISP_H */

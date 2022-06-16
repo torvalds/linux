@@ -764,13 +764,9 @@ static int stf_isp_clk_enable(struct stf_isp_dev *isp_dev)
 {
 	struct stfcamss *stfcamss = isp_dev->stfcamss;
 
-	if (isp_dev->id == 0) {
-		clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
-		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
-		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
-	} else {
-		st_err(ST_ISP, "please check isp id :%d\n", isp_dev->id);
-	}
+	clk_prepare_enable(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
 
 	return 0;
 }
@@ -779,19 +775,14 @@ static int stf_isp_clk_disable(struct stf_isp_dev *isp_dev)
 {
 	struct stfcamss *stfcamss = isp_dev->stfcamss;
 
-	if (isp_dev->id == 0) {
-		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
-		reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
-		clk_disable_unprepare(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
-	} else {
-		st_err(ST_ISP, "please check isp id :%d\n", isp_dev->id);
-	}
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_C].rstc);
+	reset_control_deassert(stfcamss->sys_rst[STFRST_WRAPPER_P].rstc);
+	clk_disable_unprepare(stfcamss->sys_clk[STFCLK_WRAPPER_CLK_C].clk);
 
 	return 0;
 }
 
-static  void __iomem *stf_isp_get_ispbase(
-		unsigned int isp_id, struct stf_vin_dev *vin)
+static  void __iomem *stf_isp_get_ispbase(struct stf_vin_dev *vin)
 {
 	void __iomem *base = vin->isp_base;
 
@@ -803,7 +794,7 @@ static int stf_isp_reset(struct stf_isp_dev *isp_dev)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase;
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(1), BIT(1));
 	reg_set_bit(ispbase, ISP_REG_ISP_CTRL_0, BIT(1), 0);
@@ -816,9 +807,9 @@ static int stf_isp_config_set(struct stf_isp_dev *isp_dev)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase;
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
-	st_debug(ST_ISP, "%s, isp_id = %d\n", __func__, isp_dev->id);
+	st_debug(ST_ISP, "%s\n", __func__);
 
 #if defined(USE_NEW_CONFIG_SETTING)
 	mutex_lock(&isp_dev->setfile_lock);
@@ -866,7 +857,7 @@ static int stf_isp_set_format(struct stf_isp_dev *isp_dev,
 	void __iomem *ispbase;
 	u32 val, val1;
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	st_debug(ST_ISP, "interface type is %d(%s)\n",
 			type, type == CSI_SENSOR ? "CSI" : "DVP");
@@ -999,7 +990,7 @@ static int stf_isp_stream_set(struct stf_isp_dev *isp_dev, int on)
 
 	void __iomem *ispbase;
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	if (on) {
 #if defined(USE_NEW_CONFIG_SETTING)
@@ -1029,7 +1020,7 @@ static int stf_isp_reg_read(struct stf_isp_dev *isp_dev, void *arg)
 		return -EINVAL;
 	}
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	size = 0;
 	switch (reg_param->reg_info.method) {
@@ -1197,7 +1188,7 @@ static int stf_isp_soft_rdma(struct stf_isp_dev *isp_dev, u32 rdma_addr)
 	u32 offset;
 	int ret = 0;
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	rdma_info = phys_to_virt(rdma_addr);
 	while (1) {
@@ -1252,7 +1243,7 @@ static int stf_isp_reg_write(struct stf_isp_dev *isp_dev, void *arg)
 		return -EINVAL;
 	}
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	size = 0;
 	switch (reg_param->reg_info.method) {
@@ -1441,7 +1432,7 @@ static int stf_isp_shadow_trigger(struct stf_isp_dev *isp_dev)
 	struct stf_vin_dev *vin = isp_dev->stfcamss->vin;
 	void __iomem *ispbase;
 
-	ispbase = stf_isp_get_ispbase(isp_dev->id, vin);
+	ispbase = stf_isp_get_ispbase(vin);
 
 	// shadow update
 	reg_set_bit(ispbase, ISP_REG_CSIINTS_ADDR, (BIT(17) | BIT(16)), 0x30000);
@@ -1449,12 +1440,12 @@ static int stf_isp_shadow_trigger(struct stf_isp_dev *isp_dev)
 	return 0;
 }
 
-void dump_isp_reg(void *__iomem ispbase, int id)
+void dump_isp_reg(void *__iomem ispbase)
 {
 	int j;
 	u32 addr, val;
 
-	st_debug(ST_ISP, "DUMP ISP%d register:\n", id);
+	st_debug(ST_ISP, "DUMP ISP register:\n");
 
 	for (j = 0; j < isp_reg_init_settings->regval_num; j++) {
 		addr = isp_reg_init_settings->regval[j].addr;
