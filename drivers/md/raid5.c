@@ -5902,68 +5902,69 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 
 		sh = raid5_get_active_stripe(conf, new_sector, previous,
 				       (bi->bi_opf & REQ_RAHEAD), 0);
-		if (sh) {
-			if (unlikely(previous)) {
-				/* expansion might have moved on while waiting for a
-				 * stripe, so we must do the range check again.
-				 * Expansion could still move past after this
-				 * test, but as we are holding a reference to
-				 * 'sh', we know that if that happens,
-				 *  STRIPE_EXPANDING will get set and the expansion
-				 * won't proceed until we finish with the stripe.
-				 */
-				int must_retry = 0;
-				spin_lock_irq(&conf->device_lock);
-				if (!ahead_of_reshape(mddev, logical_sector,
-						      conf->reshape_progress))
-					/* mismatch, need to try again */
-					must_retry = 1;
-				spin_unlock_irq(&conf->device_lock);
-				if (must_retry) {
-					raid5_release_stripe(sh);
-					schedule();
-					do_prepare = true;
-					goto retry;
-				}
-			}
-			if (read_seqcount_retry(&conf->gen_lock, seq)) {
-				/* Might have got the wrong stripe_head
-				 * by accident
-				 */
-				raid5_release_stripe(sh);
-				goto retry;
-			}
+		if (unlikely(!sh)) {
+			/* cannot get stripe, just give-up */
+			bi->bi_status = BLK_STS_IOERR;
+			break;
+		}
 
-			if (test_bit(STRIPE_EXPANDING, &sh->state) ||
-			    !add_stripe_bio(sh, bi, dd_idx, rw, previous)) {
-				/* Stripe is busy expanding or
-				 * add failed due to overlap.  Flush everything
-				 * and wait a while
-				 */
-				md_wakeup_thread(mddev->thread);
+		if (unlikely(previous)) {
+			/* expansion might have moved on while waiting for a
+			 * stripe, so we must do the range check again.
+			 * Expansion could still move past after this
+			 * test, but as we are holding a reference to
+			 * 'sh', we know that if that happens,
+			 *  STRIPE_EXPANDING will get set and the expansion
+			 * won't proceed until we finish with the stripe.
+			 */
+			int must_retry = 0;
+			spin_lock_irq(&conf->device_lock);
+			if (!ahead_of_reshape(mddev, logical_sector,
+					      conf->reshape_progress))
+				/* mismatch, need to try again */
+				must_retry = 1;
+			spin_unlock_irq(&conf->device_lock);
+			if (must_retry) {
 				raid5_release_stripe(sh);
 				schedule();
 				do_prepare = true;
 				goto retry;
 			}
-			if (do_flush) {
-				set_bit(STRIPE_R5C_PREFLUSH, &sh->state);
-				/* we only need flush for one stripe */
-				do_flush = false;
-			}
-
-			set_bit(STRIPE_HANDLE, &sh->state);
-			clear_bit(STRIPE_DELAYED, &sh->state);
-			if ((!sh->batch_head || sh == sh->batch_head) &&
-			    (bi->bi_opf & REQ_SYNC) &&
-			    !test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
-				atomic_inc(&conf->preread_active_stripes);
-			release_stripe_plug(mddev, sh);
-		} else {
-			/* cannot get stripe for read-ahead, just give-up */
-			bi->bi_status = BLK_STS_IOERR;
-			break;
 		}
+
+		if (read_seqcount_retry(&conf->gen_lock, seq)) {
+			/* Might have got the wrong stripe_head by accident */
+			raid5_release_stripe(sh);
+			goto retry;
+		}
+
+		if (test_bit(STRIPE_EXPANDING, &sh->state) ||
+		    !add_stripe_bio(sh, bi, dd_idx, rw, previous)) {
+			/*
+			 * Stripe is busy expanding or add failed due to
+			 * overlap. Flush everything and wait a while.
+			 */
+			md_wakeup_thread(mddev->thread);
+			raid5_release_stripe(sh);
+			schedule();
+			do_prepare = true;
+			goto retry;
+		}
+
+		if (do_flush) {
+			set_bit(STRIPE_R5C_PREFLUSH, &sh->state);
+			/* we only need flush for one stripe */
+			do_flush = false;
+		}
+
+		set_bit(STRIPE_HANDLE, &sh->state);
+		clear_bit(STRIPE_DELAYED, &sh->state);
+		if ((!sh->batch_head || sh == sh->batch_head) &&
+		    (bi->bi_opf & REQ_SYNC) &&
+		    !test_and_set_bit(STRIPE_PREREAD_ACTIVE, &sh->state))
+			atomic_inc(&conf->preread_active_stripes);
+
+		release_stripe_plug(mddev, sh);
 	}
 	finish_wait(&conf->wait_for_overlap, &w);
 
