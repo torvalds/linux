@@ -8008,6 +8008,9 @@ static int raid5_run(struct mddev *mddev)
 		 */
 		blk_queue_max_hw_sectors(mddev->queue,
 			RAID5_MAX_REQ_STRIPES << RAID5_STRIPE_SHIFT(conf));
+
+		/* No restrictions on the number of segments in the request */
+		blk_queue_max_segments(mddev->queue, USHRT_MAX);
 	}
 
 	if (log_init(conf, journal_dev, raid5_has_ppl(conf)))
