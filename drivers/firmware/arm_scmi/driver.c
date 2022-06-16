@@ -1223,6 +1223,7 @@ static int scmi_iterator_run(void *iter)
 		if (ret)
 			break;
 
+		st->rx_len = i->t->rx.len;
 		ret = iops->update_state(st, i->resp, i->priv);
 		if (ret)
 			break;
