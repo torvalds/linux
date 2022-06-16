@@ -49,7 +49,7 @@
 		pinctrl-0 = <&hall_int_l>;
 		pinctrl-names = "default";
 
-		cover {
+		switch-cover {
 			label = "cover";
 			gpios = <&gpio0 RK_PC7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;
