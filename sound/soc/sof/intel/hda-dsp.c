@@ -743,7 +743,7 @@ int hda_dsp_resume(struct snd_sof_dev *sdev)
 			if (hlink->ref_count) {
 				ret = snd_hdac_ext_bus_link_power_up(hlink);
 				if (ret < 0) {
-					dev_dbg(sdev->dev,
+					dev_err(sdev->dev,
 						"error %d in %s: failed to power up links",
 						ret, __func__);
 					return ret;
@@ -871,7 +871,7 @@ int hda_dsp_suspend(struct snd_sof_dev *sdev, u32 target_state)
 		/* no link can be powered in s0ix state */
 		ret = snd_hdac_ext_bus_link_power_down_all(bus);
 		if (ret < 0) {
-			dev_dbg(sdev->dev,
+			dev_err(sdev->dev,
 				"error %d in %s: failed to power down links",
 				ret, __func__);
 			return ret;
