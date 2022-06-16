@@ -1807,6 +1807,8 @@
 #define regDCHUBBUB_DET2_CTRL_BASE_IDX                                                                  2
 #define regDCHUBBUB_DET3_CTRL                                                                           0x04be
 #define regDCHUBBUB_DET3_CTRL_BASE_IDX                                                                  2
+#define regDCHUBBUB_DEBUG_CTRL_0                                                                        0x04c5
+#define regDCHUBBUB_DEBUG_CTRL_0_BASE_IDX                                                               2
 #define regDCHUBBUB_MEM_PWR_MODE_CTRL                                                                   0x04c0
 #define regDCHUBBUB_MEM_PWR_MODE_CTRL_BASE_IDX                                                          2
 #define regCOMPBUF_MEM_PWR_CTRL_1                                                                       0x04c1

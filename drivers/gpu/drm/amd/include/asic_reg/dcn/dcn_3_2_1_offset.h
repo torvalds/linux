@@ -1817,6 +1817,8 @@
 #define regDCHUBBUB_MEM_PWR_STATUS_BASE_IDX                                                             2
 #define regCOMPBUF_RESERVED_SPACE                                                                       0x04c4
 #define regCOMPBUF_RESERVED_SPACE_BASE_IDX                                                              2
+#define regDCHUBBUB_DEBUG_CTRL_0                                                                        0x04c5
+#define regDCHUBBUB_DEBUG_CTRL_0_BASE_IDX                                                               2
 
 
 // addressBlock: dce_dc_dchubbubl_hubbub_vmrq_if_dispdec
