@@ -121,6 +121,44 @@ DEFINE_SMB3_RW_DONE_EVENT(query_dir_done);
 DEFINE_SMB3_RW_DONE_EVENT(zero_done);
 DEFINE_SMB3_RW_DONE_EVENT(falloc_done);
 
+/* For logging successful set EOF (truncate) */
+DECLARE_EVENT_CLASS(smb3_eof_class,
+	TP_PROTO(unsigned int xid,
+		__u64	fid,
+		__u32	tid,
+		__u64	sesid,
+		__u64	offset),
+	TP_ARGS(xid, fid, tid, sesid, offset),
+	TP_STRUCT__entry(
+		__field(unsigned int, xid)
+		__field(__u64, fid)
+		__field(__u32, tid)
+		__field(__u64, sesid)
+		__field(__u64, offset)
+	),
+	TP_fast_assign(
+		__entry->xid = xid;
+		__entry->fid = fid;
+		__entry->tid = tid;
+		__entry->sesid = sesid;
+		__entry->offset = offset;
+	),
+	TP_printk("xid=%u sid=0x%llx tid=0x%x fid=0x%llx offset=0x%llx",
+		__entry->xid, __entry->sesid, __entry->tid, __entry->fid,
+		__entry->offset)
+)
+
+#define DEFINE_SMB3_EOF_EVENT(name)         \
+DEFINE_EVENT(smb3_eof_class, smb3_##name,   \
+	TP_PROTO(unsigned int xid,		\
+		__u64	fid,			\
+		__u32	tid,			\
+		__u64	sesid,			\
+		__u64	offset),		\
+	TP_ARGS(xid, fid, tid, sesid, offset))
+
+DEFINE_SMB3_EOF_EVENT(set_eof);
+
 /*
  * For handle based calls other than read and write, and get/set info
  */
