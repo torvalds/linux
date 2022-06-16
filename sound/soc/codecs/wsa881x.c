@@ -749,11 +749,9 @@ static int wsa881x_put_pa_gain(struct snd_kcontrol *kc,
 	unsigned int mask = (1 << fls(max)) - 1;
 	int val, ret, min_gain, max_gain;
 
-	ret = pm_runtime_get_sync(comp->dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(comp->dev);
+	ret = pm_runtime_resume_and_get(comp->dev);
+	if (ret < 0 && ret != -EACCES)
 		return ret;
-	}
 
 	max_gain = (max - ucontrol->value.integer.value[0]) & mask;
 	/*
