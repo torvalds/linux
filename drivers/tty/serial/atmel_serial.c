@@ -2617,7 +2617,6 @@ static void __init atmel_console_get_options(struct uart_port *port, int *baud,
 
 static int __init atmel_console_setup(struct console *co, char *options)
 {
-	int ret;
 	struct uart_port *port = &atmel_ports[co->index].uart;
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	int baud = 115200;
@@ -2629,10 +2628,6 @@ static int __init atmel_console_setup(struct console *co, char *options)
 		/* Port not initialized yet - delay setup */
 		return -ENODEV;
 	}
-
-	ret = clk_prepare_enable(atmel_ports[co->index].clk);
-	if (ret)
-		return ret;
 
 	atmel_uart_writel(port, ATMEL_US_IDR, -1);
 	atmel_uart_writel(port, ATMEL_US_CR, ATMEL_US_RSTSTA | ATMEL_US_RSTRX);
@@ -2913,17 +2908,6 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	ret = uart_add_one_port(&atmel_uart, &atmel_port->uart);
 	if (ret)
 		goto err_add_port;
-
-#ifdef CONFIG_SERIAL_ATMEL_CONSOLE
-	if (uart_console(&atmel_port->uart)
-			&& ATMEL_CONSOLE_DEVICE->flags & CON_ENABLED) {
-		/*
-		 * The serial core enabled the clock for us, so undo
-		 * the clk_prepare_enable() in atmel_console_setup()
-		 */
-		clk_disable_unprepare(atmel_port->clk);
-	}
-#endif
 
 	device_init_wakeup(&pdev->dev, 1);
 	platform_set_drvdata(pdev, atmel_port);
