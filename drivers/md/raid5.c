@@ -5842,7 +5842,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	if ((bi->bi_opf & REQ_NOWAIT) &&
 	    (conf->reshape_progress != MaxSector) &&
 	    (mddev->reshape_backwards
-	    ? (logical_sector > conf->reshape_progress && logical_sector <= conf->reshape_safe)
+	    ? (logical_sector >= conf->reshape_progress && logical_sector < conf->reshape_safe)
 	    : (logical_sector >= conf->reshape_safe && logical_sector < conf->reshape_progress))) {
 		bio_wouldblock_error(bi);
 		if (rw == WRITE)
