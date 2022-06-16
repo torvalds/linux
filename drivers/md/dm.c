@@ -715,18 +715,18 @@ static void dm_put_live_table_fast(struct mapped_device *md) __releases(RCU)
 }
 
 static inline struct dm_table *dm_get_live_table_bio(struct mapped_device *md,
-						     int *srcu_idx, struct bio *bio)
+						     int *srcu_idx, unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		return dm_get_live_table_fast(md);
 	else
 		return dm_get_live_table(md, srcu_idx);
 }
 
 static inline void dm_put_live_table_bio(struct mapped_device *md, int srcu_idx,
-					 struct bio *bio)
+					 unsigned bio_opf)
 {
-	if (bio->bi_opf & REQ_NOWAIT)
+	if (bio_opf & REQ_NOWAIT)
 		dm_put_live_table_fast(md);
 	else
 		dm_put_live_table(md, srcu_idx);
@@ -1715,8 +1715,9 @@ static void dm_submit_bio(struct bio *bio)
 	struct mapped_device *md = bio->bi_bdev->bd_disk->private_data;
 	int srcu_idx;
 	struct dm_table *map;
+	unsigned bio_opf = bio->bi_opf;
 
-	map = dm_get_live_table_bio(md, &srcu_idx, bio);
+	map = dm_get_live_table_bio(md, &srcu_idx, bio_opf);
 
 	/* If suspended, or map not yet available, queue this IO for later */
 	if (unlikely(test_bit(DMF_BLOCK_IO_FOR_SUSPEND, &md->flags)) ||
@@ -1732,7 +1733,7 @@ static void dm_submit_bio(struct bio *bio)
 
 	dm_split_and_process_bio(md, map, bio);
 out:
-	dm_put_live_table_bio(md, srcu_idx, bio);
+	dm_put_live_table_bio(md, srcu_idx, bio_opf);
 }
 
 static bool dm_poll_dm_io(struct dm_io *io, struct io_comp_batch *iob,
