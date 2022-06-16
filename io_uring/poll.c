@@ -93,6 +93,32 @@ static void io_poll_req_delete(struct io_kiocb *req, struct io_ring_ctx *ctx)
 	spin_unlock(lock);
 }
 
+static void io_poll_req_insert_locked(struct io_kiocb *req)
+{
+	struct io_hash_table *table = &req->ctx->cancel_table_locked;
+	u32 index = hash_long(req->cqe.user_data, table->hash_bits);
+
+	hlist_add_head(&req->hash_node, &table->hbs[index].list);
+}
+
+static void io_poll_tw_hash_eject(struct io_kiocb *req, bool *locked)
+{
+	struct io_ring_ctx *ctx = req->ctx;
+
+	if (req->flags & REQ_F_HASH_LOCKED) {
+		/*
+		 * ->cancel_table_locked is protected by ->uring_lock in
+		 * contrast to per bucket spinlocks. Likely, tctx_task_work()
+		 * already grabbed the mutex for us, but there is a chance it
+		 * failed.
+		 */
+		io_tw_lock(ctx, locked);
+		hash_del(&req->hash_node);
+	} else {
+		io_poll_req_delete(req, ctx);
+	}
+}
+
 static void io_init_poll_iocb(struct io_poll *poll, __poll_t events,
 			      wait_queue_func_t wake_func)
 {
@@ -217,7 +243,6 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 
 static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 {
-	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
 
 	ret = io_poll_check_events(req, locked);
@@ -234,7 +259,8 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 	}
 
 	io_poll_remove_entries(req);
-	io_poll_req_delete(req, ctx);
+	io_poll_tw_hash_eject(req, locked);
+
 	io_req_set_res(req, req->cqe.res, 0);
 	io_req_task_complete(req, locked);
 }
@@ -248,7 +274,7 @@ static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
 		return;
 
 	io_poll_remove_entries(req);
-	io_poll_req_delete(req, req->ctx);
+	io_poll_tw_hash_eject(req, locked);
 
 	if (!ret)
 		io_req_task_submit(req, locked);
@@ -444,7 +470,10 @@ static int __io_arm_poll_handler(struct io_kiocb *req,
 		return 0;
 	}
 
-	io_poll_req_insert(req);
+	if (req->flags & REQ_F_HASH_LOCKED)
+		io_poll_req_insert_locked(req);
+	else
+		io_poll_req_insert(req);
 
 	if (mask && (poll->events & EPOLLET)) {
 		/* can't multishot if failed, just queue the event we've got */
@@ -484,6 +513,15 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	struct io_poll_table ipt;
 	__poll_t mask = POLLPRI | POLLERR | EPOLLET;
 	int ret;
+
+	/*
+	 * apoll requests already grab the mutex to complete in the tw handler,
+	 * so removal from the mutex-backed hash is free, use it by default.
+	 */
+	if (issue_flags & IO_URING_F_UNLOCKED)
+		req->flags &= ~REQ_F_HASH_LOCKED;
+	else
+		req->flags |= REQ_F_HASH_LOCKED;
 
 	if (!def->pollin && !def->pollout)
 		return IO_APOLL_ABORTED;
@@ -534,13 +572,10 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	return IO_APOLL_OK;
 }
 
-/*
- * Returns true if we found and killed one or more poll requests
- */
-__cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
-			       bool cancel_all)
+static __cold bool io_poll_remove_all_table(struct task_struct *tsk,
+					    struct io_hash_table *table,
+					    bool cancel_all)
 {
-	struct io_hash_table *table = &ctx->cancel_table;
 	unsigned nr_buckets = 1U << table->hash_bits;
 	struct hlist_node *tmp;
 	struct io_kiocb *req;
@@ -561,6 +596,17 @@ __cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 		spin_unlock(&hb->lock);
 	}
 	return found;
+}
+
+/*
+ * Returns true if we found and killed one or more poll requests
+ */
+__cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
+			       bool cancel_all)
+	__must_hold(&ctx->uring_lock)
+{
+	return io_poll_remove_all_table(tsk, &ctx->cancel_table, cancel_all) |
+	       io_poll_remove_all_table(tsk, &ctx->cancel_table_locked, cancel_all);
 }
 
 static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
@@ -622,13 +668,15 @@ static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
 	return NULL;
 }
 
-static bool io_poll_disarm(struct io_kiocb *req)
+static int io_poll_disarm(struct io_kiocb *req)
 {
+	if (!req)
+		return -ENOENT;
 	if (!io_poll_get_ownership(req))
-		return false;
+		return -EALREADY;
 	io_poll_remove_entries(req);
 	hash_del(&req->hash_node);
-	return true;
+	return 0;
 }
 
 static int __io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
@@ -652,7 +700,16 @@ static int __io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		   unsigned issue_flags)
 {
-	return __io_poll_cancel(ctx, cd, &ctx->cancel_table);
+	int ret;
+
+	ret = __io_poll_cancel(ctx, cd, &ctx->cancel_table);
+	if (ret != -ENOENT)
+		return ret;
+
+	io_ring_submit_lock(ctx, issue_flags);
+	ret = __io_poll_cancel(ctx, cd, &ctx->cancel_table_locked);
+	io_ring_submit_unlock(ctx, issue_flags);
+	return ret;
 }
 
 static __poll_t io_poll_parse_events(const struct io_uring_sqe *sqe,
@@ -727,6 +784,16 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags)
 
 	ipt.pt._qproc = io_poll_queue_proc;
 
+	/*
+	 * If sqpoll or single issuer, there is no contention for ->uring_lock
+	 * and we'll end up holding it in tw handlers anyway.
+	 */
+	if (!(issue_flags & IO_URING_F_UNLOCKED) &&
+	    (req->ctx->flags & (IORING_SETUP_SQPOLL | IORING_SETUP_SINGLE_ISSUER)))
+		req->flags |= REQ_F_HASH_LOCKED;
+	else
+		req->flags &= ~REQ_F_HASH_LOCKED;
+
 	ret = __io_arm_poll_handler(req, poll, &ipt, poll->events);
 	if (ret) {
 		io_req_set_res(req, ret, 0);
@@ -751,20 +818,28 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	bool locked;
 
 	preq = io_poll_find(ctx, true, &cd, &ctx->cancel_table, &bucket);
-	if (preq)
-		ret2 = io_poll_disarm(preq);
+	ret2 = io_poll_disarm(preq);
 	if (bucket)
 		spin_unlock(&bucket->lock);
-
-	if (!preq) {
-		ret = -ENOENT;
-		goto out;
-	}
-	if (!ret2) {
-		ret = -EALREADY;
+	if (!ret2)
+		goto found;
+	if (ret2 != -ENOENT) {
+		ret = ret2;
 		goto out;
 	}
 
+	io_ring_submit_lock(ctx, issue_flags);
+	preq = io_poll_find(ctx, true, &cd, &ctx->cancel_table_locked, &bucket);
+	ret2 = io_poll_disarm(preq);
+	if (bucket)
+		spin_unlock(&bucket->lock);
+	io_ring_submit_unlock(ctx, issue_flags);
+	if (ret2) {
+		ret = ret2;
+		goto out;
+	}
+
+found:
 	if (poll_update->update_events || poll_update->update_user_data) {
 		/* only mask one event flags, keep behavior flags */
 		if (poll_update->update_events) {
