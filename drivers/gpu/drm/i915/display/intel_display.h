@@ -563,9 +563,6 @@ bool intel_crtc_get_pipe_config(struct intel_crtc_state *crtc_state);
 bool intel_pipe_config_compare(const struct intel_crtc_state *current_config,
 			       const struct intel_crtc_state *pipe_config,
 			       bool fastset);
-void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
-			    struct intel_atomic_state *state,
-			    const char *context);
 
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);

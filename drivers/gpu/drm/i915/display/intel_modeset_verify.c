@@ -10,6 +10,7 @@
 #include "i915_drv.h"
 #include "intel_atomic.h"
 #include "intel_crtc.h"
+#include "intel_crtc_state_dump.h"
 #include "intel_display.h"
 #include "intel_display_types.h"
 #include "intel_fdi.h"
@@ -216,8 +217,8 @@ verify_crtc_state(struct intel_crtc *crtc,
 	if (!intel_pipe_config_compare(new_crtc_state,
 				       pipe_config, false)) {
 		I915_STATE_WARN(1, "pipe state doesn't match!\n");
-		intel_dump_pipe_config(pipe_config, NULL, "[hw state]");
-		intel_dump_pipe_config(new_crtc_state, NULL, "[sw state]");
+		intel_crtc_state_dump(pipe_config, NULL, "[hw state]");
+		intel_crtc_state_dump(new_crtc_state, NULL, "[sw state]");
 	}
 }
 
