@@ -161,6 +161,8 @@ struct sun4i_i2s;
  * @field_clkdiv_mclk_en: regmap field to enable mclk output.
  * @field_fmt_wss: regmap field to set word select size.
  * @field_fmt_sr: regmap field to set sample resolution.
+ * @num_din_pins: input pins
+ * @num_dout_pins: output pins (currently set but unused)
  * @bclk_dividers: bit clock dividers array
  * @num_bclk_dividers: number of bit clock dividers
  * @mclk_dividers: mclk dividers array
