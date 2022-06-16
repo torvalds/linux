@@ -3521,8 +3521,9 @@ static void __add_stripe_bio(struct stripe_head *sh, struct bio *bi,
 				sh->overwrite_disks++;
 	}
 
-	pr_debug("added bi b#%llu to stripe s#%llu, disk %d.\n",
-		 (*bip)->bi_iter.bi_sector, sh->sector, dd_idx);
+	pr_debug("added bi b#%llu to stripe s#%llu, disk %d, logical %llu\n",
+		 (*bip)->bi_iter.bi_sector, sh->sector, dd_idx,
+		 sh->dev[dd_idx].sector);
 
 	if (conf->mddev->bitmap && firstwrite) {
 		/* Cannot hold spinlock over bitmap_startwrite,
@@ -6093,6 +6094,9 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	bitmap_set(ctx.sectors_to_do, 0,
 		   DIV_ROUND_UP_SECTOR_T(ctx.last_sector - logical_sector,
 					 RAID5_STRIPE_SECTORS(conf)));
+
+	pr_debug("raid456: %s, logical %llu to %llu\n", __func__,
+		 bi->bi_iter.bi_sector, ctx.last_sector);
 
 	/* Bail out if conflicts with reshape and REQ_NOWAIT is set */
 	if ((bi->bi_opf & REQ_NOWAIT) &&
