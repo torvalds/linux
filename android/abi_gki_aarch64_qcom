@@ -944,6 +944,7 @@
   memory_read_from_buffer
   memparse
   memremap
+  mem_section
   memset
   memset64
   __memset_io
