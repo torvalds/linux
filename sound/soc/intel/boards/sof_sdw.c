@@ -1447,7 +1447,7 @@ static int mc_probe(struct platform_device *pdev)
 	int amp_num = 0, i;
 	int ret;
 
-	dev_dbg(&pdev->dev, "Entry %s\n", __func__);
+	dev_dbg(&pdev->dev, "Entry\n");
 
 	ctx = devm_kzalloc(&pdev->dev, sizeof(*ctx), GFP_KERNEL);
 	if (!ctx)
