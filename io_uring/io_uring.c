@@ -254,12 +254,12 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 
 	/*
 	 * Use 5 bits less than the max cq entries, that should give us around
-	 * 32 entries per hash list if totally full and uniformly spread.
+	 * 32 entries per hash list if totally full and uniformly spread, but
+	 * don't keep too many buckets to not overconsume memory.
 	 */
-	hash_bits = ilog2(p->cq_entries);
-	hash_bits -= 5;
-	if (hash_bits <= 0)
-		hash_bits = 1;
+	hash_bits = ilog2(p->cq_entries) - 5;
+	hash_bits = clamp(hash_bits, 1, 8);
+
 	ctx->cancel_hash_bits = hash_bits;
 	ctx->cancel_hash =
 		kmalloc((1U << hash_bits) * sizeof(struct io_hash_bucket),
