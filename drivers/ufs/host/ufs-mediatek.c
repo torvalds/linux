@@ -712,6 +712,29 @@ static int ufs_mtk_vreg_fix_vcc(struct ufs_hba *hba)
 	return err;
 }
 
+static void ufs_mtk_vreg_fix_vccqx(struct ufs_hba *hba)
+{
+	struct ufs_vreg_info *info = &hba->vreg_info;
+	struct ufs_vreg **vreg_on, **vreg_off;
+
+	if (hba->dev_info.wspecversion >= 0x0300) {
+		vreg_on = &info->vccq;
+		vreg_off = &info->vccq2;
+	} else {
+		vreg_on = &info->vccq2;
+		vreg_off = &info->vccq;
+	}
+
+	if (*vreg_on)
+		(*vreg_on)->always_on = true;
+
+	if (*vreg_off) {
+		regulator_disable((*vreg_off)->reg);
+		devm_kfree(hba->dev, (*vreg_off)->name);
+		devm_kfree(hba->dev, *vreg_off);
+	}
+}
+
 /**
  * ufs_mtk_init - find other essential mmio bases
  * @hba: host controller instance
@@ -1241,6 +1264,7 @@ static void ufs_mtk_fixup_dev_quirks(struct ufs_hba *hba)
 	}
 
 	ufs_mtk_vreg_fix_vcc(hba);
+	ufs_mtk_vreg_fix_vccqx(hba);
 }
 
 static void ufs_mtk_event_notify(struct ufs_hba *hba,
