@@ -574,7 +574,7 @@ static void sof_ipc4_rx_msg(struct snd_sof_dev *sdev)
 		data_size = sizeof(struct sof_ipc4_notify_resource_data);
 		break;
 	default:
-		dev_dbg(sdev->dev, "%s: Unhandled DSP message: %#x|%#x\n", __func__,
+		dev_dbg(sdev->dev, "Unhandled DSP message: %#x|%#x\n",
 			ipc4_msg->primary, ipc4_msg->extension);
 		break;
 	}
