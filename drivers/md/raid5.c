@@ -5801,14 +5801,16 @@ struct stripe_request_ctx {
 
 static enum stripe_result make_stripe_request(struct mddev *mddev,
 		struct r5conf *conf, struct stripe_request_ctx *ctx,
-		sector_t logical_sector, struct bio *bi, int seq)
+		sector_t logical_sector, struct bio *bi)
 {
 	const int rw = bio_data_dir(bi);
 	enum stripe_result ret;
 	struct stripe_head *sh;
 	sector_t new_sector;
 	int previous = 0;
-	int dd_idx;
+	int seq, dd_idx;
+
+	seq = read_seqcount_begin(&conf->gen_lock);
 
 	if (unlikely(conf->reshape_progress != MaxSector)) {
 		/*
@@ -5974,13 +5976,9 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	md_account_bio(mddev, &bi);
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
 	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
-		int seq;
-
 	retry:
-		seq = read_seqcount_begin(&conf->gen_lock);
-
 		res = make_stripe_request(mddev, conf, &ctx, logical_sector,
-					  bi, seq);
+					  bi);
 		if (res == STRIPE_FAIL)
 			break;
 
