@@ -90,7 +90,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_keys_default>;
 
-		vol-down {
+		button-vol-down {
 			label = "Volume down";
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEDOWN>;
@@ -98,7 +98,7 @@
 			wakeup-source;
 		};
 
-		vol-up {
+		button-vol-up {
 			label = "Volume up";
 			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;
 			linux,code = <KEY_VOLUMEUP>;
@@ -114,7 +114,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hall_sensor_default>;
 
-		hall-sensor {
+		event-hall-sensor {
 			label = "Hall Effect Sensor";
 			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;

@@ -331,7 +331,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&pen_pdct_l>;
 
-		pen_insert: pen-insert {
+		pen_insert: switch-pen-insert {
 			label = "Pen Insert";
 
 			/* Insert = low, eject = high */

@@ -87,13 +87,13 @@
 		pinctrl-0 = <&imx300_vana_default>;
 	};
 
-	gpio_keys {
+	gpio-keys {
 		status = "okay";
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
 
-		camera_focus {
+		key-camera-focus {
 			label = "Camera Focus";
 			gpios = <&tlmm 64 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -101,7 +101,7 @@
 			debounce-interval = <15>;
 		};
 
-		camera_snapshot {
+		key-camera-snapshot {
 			label = "Camera Snapshot";
 			gpios = <&tlmm 113 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -109,7 +109,7 @@
 			debounce-interval = <15>;
 		};
 
-		vol_down {
+		key-vol-down {
 			label = "Volume Down";
 			gpios = <&pm660l_gpios 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;

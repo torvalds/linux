@@ -45,7 +45,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_up_pin_a>;
 
-		vol-up {
+		key-vol-up {
 			label = "Volume Up";
 			linux,code = <KEY_VOLUMEUP>;
 			gpios = <&pm8998_gpio 6 GPIO_ACTIVE_LOW>;

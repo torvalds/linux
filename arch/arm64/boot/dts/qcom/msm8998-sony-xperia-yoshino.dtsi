@@ -101,7 +101,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&vol_down_pin_a>, <&cam_focus_pin_a>,
 			    <&cam_snapshot_pin_a>;
-		vol-down {
+		button-vol-down {
 			label = "Volume Down";
 			gpios = <&pm8998_gpio 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
@@ -110,7 +110,7 @@
 			debounce-interval = <15>;
 		};
 
-		camera-snapshot {
+		button-camera-snapshot {
 			label = "Camera Snapshot";
 			gpios = <&pm8998_gpio 7 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
@@ -118,7 +118,7 @@
 			debounce-interval = <15>;
 		};
 
-		camera-focus {
+		button-camera-focus {
 			label = "Camera Focus";
 			gpios = <&pm8998_gpio 8 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_KEY>;
@@ -133,7 +133,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&hall_sensor0_default>;
 
-		hall-sensor0 {
+		event-hall-sensor0 {
 			label = "Cover Hall Sensor";
 			gpios = <&tlmm 124 GPIO_ACTIVE_LOW>;
 			linux,input-type = <EV_SW>;

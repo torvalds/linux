@@ -64,7 +64,7 @@
 		compatible = "gpio-keys";
 		autorepeat;
 
-		volupkey {
+		volup-key {
 			label = "Volume Up";
 			gpios = <&pm8994_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -73,7 +73,7 @@
 			debounce-interval = <15>;
 		};
 
-		camsnapkey {
+		camsnap-key {
 			label = "Camera Snapshot";
 			gpios = <&pm8994_gpios 4 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -82,7 +82,7 @@
 			debounce-interval = <15>;
 		};
 
-		camfocuskey {
+		camfocus-key {
 			label = "Camera Focus";
 			gpios = <&pm8994_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -100,7 +100,7 @@
 
 		label = "GPIO Hall Effect Sensor";
 
-		hall-front-sensor {
+		event-hall-front-sensor {
 			label = "Hall Effect Front Sensor";
 			gpios = <&tlmm 42 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;
@@ -108,7 +108,7 @@
 			linux,can-disable;
 		};
 
-		hall-back-sensor {
+		event-hall-back-sensor {
 			label = "Hall Effect Back Sensor";
 			gpios = <&tlmm 75 GPIO_ACTIVE_HIGH>;
 			linux,input-type = <EV_SW>;

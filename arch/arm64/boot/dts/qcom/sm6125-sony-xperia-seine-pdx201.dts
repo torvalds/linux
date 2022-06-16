@@ -46,7 +46,7 @@
 		#size-cells = <0>;
 		autorepeat;
 
-		vol-dn {
+		key-vol-dn {
 			label = "Volume Down";
 			gpios = <&tlmm 47 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;

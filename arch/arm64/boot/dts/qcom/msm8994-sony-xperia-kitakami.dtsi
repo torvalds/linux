@@ -27,7 +27,7 @@
 	/* Kitakami firmware doesn't support PSCI */
 	/delete-node/ psci;
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
