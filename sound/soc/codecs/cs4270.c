@@ -663,7 +663,6 @@ static int cs4270_i2c_remove(struct i2c_client *i2c_client)
 /**
  * cs4270_i2c_probe - initialize the I2C interface of the CS4270
  * @i2c_client: the I2C client object
- * @id: the I2C device ID (ignored)
  *
  * This function is called whenever the I2C subsystem finds a device that
  * matches the device ID given via a prior call to i2c_add_driver().
