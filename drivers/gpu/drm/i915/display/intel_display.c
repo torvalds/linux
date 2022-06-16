@@ -7091,7 +7091,7 @@ static int intel_atomic_check(struct drm_device *dev,
 
 		intel_crtc_state_dump(new_crtc_state, state,
 				      intel_crtc_needs_modeset(new_crtc_state) ?
-				      "[modeset]" : "[fastset]");
+				      "modeset" : "fastset");
 	}
 
 	return 0;
@@ -7106,7 +7106,7 @@ static int intel_atomic_check(struct drm_device *dev,
 	 */
 	for_each_oldnew_intel_crtc_in_state(state, crtc, old_crtc_state,
 					    new_crtc_state, i)
-		intel_crtc_state_dump(new_crtc_state, state, "[failed]");
+		intel_crtc_state_dump(new_crtc_state, state, "failed");
 
 	return ret;
 }
@@ -9595,7 +9595,7 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 			to_intel_crtc_state(crtc->base.state);
 
 		intel_sanitize_crtc(crtc, ctx);
-		intel_crtc_state_dump(crtc_state, NULL, "[setup_hw_state]");
+		intel_crtc_state_dump(crtc_state, NULL, "setup_hw_state");
 	}
 
 	intel_modeset_update_connector_atomic_state(dev);

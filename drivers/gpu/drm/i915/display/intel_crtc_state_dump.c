@@ -154,7 +154,7 @@ void intel_crtc_state_dump(const struct intel_crtc_state *pipe_config,
 	char buf[64];
 	int i;
 
-	drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s] enable: %s %s\n",
+	drm_dbg_kms(&dev_priv->drm, "[CRTC:%d:%s] enable: %s [%s]\n",
 		    crtc->base.base.id, crtc->base.name,
 		    str_yes_no(pipe_config->hw.enable), context);
 

@@ -217,8 +217,8 @@ verify_crtc_state(struct intel_crtc *crtc,
 	if (!intel_pipe_config_compare(new_crtc_state,
 				       pipe_config, false)) {
 		I915_STATE_WARN(1, "pipe state doesn't match!\n");
-		intel_crtc_state_dump(pipe_config, NULL, "[hw state]");
-		intel_crtc_state_dump(new_crtc_state, NULL, "[sw state]");
+		intel_crtc_state_dump(pipe_config, NULL, "hw state");
+		intel_crtc_state_dump(new_crtc_state, NULL, "sw state");
 	}
 }
 
