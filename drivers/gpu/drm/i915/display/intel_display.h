@@ -559,6 +559,13 @@ bool intel_crtc_is_bigjoiner_slave(const struct intel_crtc_state *crtc_state);
 bool intel_crtc_is_bigjoiner_master(const struct intel_crtc_state *crtc_state);
 u8 intel_crtc_bigjoiner_slave_pipes(const struct intel_crtc_state *crtc_state);
 struct intel_crtc *intel_master_crtc(const struct intel_crtc_state *crtc_state);
+bool intel_crtc_get_pipe_config(struct intel_crtc_state *crtc_state);
+bool intel_pipe_config_compare(const struct intel_crtc_state *current_config,
+			       const struct intel_crtc_state *pipe_config,
+			       bool fastset);
+void intel_dump_pipe_config(const struct intel_crtc_state *pipe_config,
+			    struct intel_atomic_state *state,
+			    const char *context);
 
 void intel_plane_destroy(struct drm_plane *plane);
 void intel_enable_transcoder(const struct intel_crtc_state *new_crtc_state);
@@ -583,6 +590,8 @@ int intel_display_suspend(struct drm_device *dev);
 void intel_encoder_destroy(struct drm_encoder *encoder);
 struct drm_display_mode *
 intel_encoder_current_mode(struct intel_encoder *encoder);
+void intel_encoder_get_config(struct intel_encoder *encoder,
+			      struct intel_crtc_state *crtc_state);
 bool intel_phy_is_combo(struct drm_i915_private *dev_priv, enum phy phy);
 bool intel_phy_is_tc(struct drm_i915_private *dev_priv, enum phy phy);
 bool intel_phy_is_snps(struct drm_i915_private *dev_priv, enum phy phy);
