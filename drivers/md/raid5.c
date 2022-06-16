@@ -5975,22 +5975,23 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	}
 	md_account_bio(mddev, &bi);
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
-	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
-	retry:
+	while (logical_sector < last_sector) {
 		res = make_stripe_request(mddev, conf, &ctx, logical_sector,
 					  bi);
 		if (res == STRIPE_FAIL)
 			break;
 
 		if (res == STRIPE_RETRY)
-			goto retry;
+			continue;
 
 		if (res == STRIPE_SCHEDULE_AND_RETRY) {
 			schedule();
 			prepare_to_wait(&conf->wait_for_overlap, &w,
 					TASK_UNINTERRUPTIBLE);
-			goto retry;
+			continue;
 		}
+
+		logical_sector += RAID5_STRIPE_SECTORS(conf);
 	}
 
 	finish_wait(&conf->wait_for_overlap, &w);
