@@ -1613,7 +1613,12 @@ static blk_status_t __split_and_process_bio(struct clone_info *ci)
 	ti = dm_table_find_target(ci->map, ci->sector);
 	if (unlikely(!ti))
 		return BLK_STS_IOERR;
-	else if (unlikely(ci->is_abnormal_io))
+
+	if (unlikely((ci->bio->bi_opf & REQ_NOWAIT) != 0) &&
+	    unlikely(!dm_target_supports_nowait(ti->type)))
+		return BLK_STS_NOTSUPP;
+
+	if (unlikely(ci->is_abnormal_io))
 		return __process_abnormal_io(ci, ti);
 
 	/*
