@@ -238,6 +238,9 @@ nandc_set_reg(chip, reg,			\
  * @bam_ce - the array of BAM command elements
  * @cmd_sgl - sgl for NAND BAM command pipe
  * @data_sgl - sgl for NAND BAM consumer/producer pipe
+ * @last_data_desc - last DMA desc in data channel (tx/rx).
+ * @last_cmd_desc - last DMA desc in command channel.
+ * @txn_done - completion for NAND transfer.
  * @bam_ce_pos - the index in bam_ce which is available for next sgl
  * @bam_ce_start - the index in bam_ce which marks the start position ce
  *		   for current sgl. It will be used for size calculation
@@ -250,14 +253,14 @@ nandc_set_reg(chip, reg,			\
  * @rx_sgl_start - start index in data sgl for rx.
  * @wait_second_completion - wait for second DMA desc completion before making
  *			     the NAND transfer completion.
- * @txn_done - completion for NAND transfer.
- * @last_data_desc - last DMA desc in data channel (tx/rx).
- * @last_cmd_desc - last DMA desc in command channel.
  */
 struct bam_transaction {
 	struct bam_cmd_element *bam_ce;
 	struct scatterlist *cmd_sgl;
 	struct scatterlist *data_sgl;
+	struct dma_async_tx_descriptor *last_data_desc;
+	struct dma_async_tx_descriptor *last_cmd_desc;
+	struct completion txn_done;
 	u32 bam_ce_pos;
 	u32 bam_ce_start;
 	u32 cmd_sgl_pos;
@@ -267,25 +270,23 @@ struct bam_transaction {
 	u32 rx_sgl_pos;
 	u32 rx_sgl_start;
 	bool wait_second_completion;
-	struct completion txn_done;
-	struct dma_async_tx_descriptor *last_data_desc;
-	struct dma_async_tx_descriptor *last_cmd_desc;
 };
 
 /*
  * This data type corresponds to the nand dma descriptor
+ * @dma_desc - low level DMA engine descriptor
  * @list - list for desc_info
- * @dir - DMA transfer direction
+ *
  * @adm_sgl - sgl which will be used for single sgl dma descriptor. Only used by
  *	      ADM
  * @bam_sgl - sgl which will be used for dma descriptor. Only used by BAM
  * @sgl_cnt - number of SGL in bam_sgl. Only used by BAM
- * @dma_desc - low level DMA engine descriptor
+ * @dir - DMA transfer direction
  */
 struct desc_info {
+	struct dma_async_tx_descriptor *dma_desc;
 	struct list_head node;
 
-	enum dma_data_direction dir;
 	union {
 		struct scatterlist adm_sgl;
 		struct {
@@ -293,7 +294,7 @@ struct desc_info {
 			int sgl_cnt;
 		};
 	};
-	struct dma_async_tx_descriptor *dma_desc;
+	enum dma_data_direction dir;
 };
 
 /*
@@ -337,51 +338,63 @@ struct nandc_regs {
 /*
  * NAND controller data struct
  *
+ * @dev:			parent device
+ *
+ * @base:			MMIO base
+ *
+ * @core_clk:			controller clock
+ * @aon_clk:			another controller clock
+ *
+ * @regs:			a contiguous chunk of memory for DMA register
+ *				writes. contains the register values to be
+ *				written to controller
+ *
+ * @props:			properties of current NAND controller,
+ *				initialized via DT match data
+ *
  * @controller:			base controller structure
  * @host_list:			list containing all the chips attached to the
  *				controller
- * @dev:			parent device
- * @base:			MMIO base
- * @base_phys:			physical base address of controller registers
- * @base_dma:			dma base address of controller registers
- * @core_clk:			controller clock
- * @aon_clk:			another controller clock
  *
  * @chan:			dma channel
  * @cmd_crci:			ADM DMA CRCI for command flow control
  * @data_crci:			ADM DMA CRCI for data flow control
+ *
  * @desc_list:			DMA descriptor list (list of desc_infos)
  *
  * @data_buffer:		our local DMA buffer for page read/writes,
  *				used when we can't use the buffer provided
  *				by upper layers directly
+ * @reg_read_buf:		local buffer for reading back registers via DMA
+ *
+ * @base_phys:			physical base address of controller registers
+ * @base_dma:			dma base address of controller registers
+ * @reg_read_dma:		contains dma address for register read buffer
+ *
  * @buf_size/count/start:	markers for chip->legacy.read_buf/write_buf
  *				functions
- * @reg_read_buf:		local buffer for reading back registers via DMA
- * @reg_read_dma:		contains dma address for register read buffer
- * @reg_read_pos:		marker for data read in reg_read_buf
- *
- * @regs:			a contiguous chunk of memory for DMA register
- *				writes. contains the register values to be
- *				written to controller
- * @cmd1/vld:			some fixed controller register values
- * @props:			properties of current NAND controller,
- *				initialized via DT match data
  * @max_cwperpage:		maximum QPIC codewords required. calculated
  *				from all connected NAND devices pagesize
+ *
+ * @reg_read_pos:		marker for data read in reg_read_buf
+ *
+ * @cmd1/vld:			some fixed controller register values
  */
 struct qcom_nand_controller {
-	struct nand_controller controller;
-	struct list_head host_list;
-
 	struct device *dev;
 
 	void __iomem *base;
-	phys_addr_t base_phys;
-	dma_addr_t base_dma;
 
 	struct clk *core_clk;
 	struct clk *aon_clk;
+
+	struct nandc_regs *regs;
+	struct bam_transaction *bam_txn;
+
+	const struct qcom_nandc_props *props;
+
+	struct nand_controller controller;
+	struct list_head host_list;
 
 	union {
 		/* will be used only by QPIC for BAM DMA */
@@ -400,22 +413,22 @@ struct qcom_nand_controller {
 	};
 
 	struct list_head desc_list;
-	struct bam_transaction *bam_txn;
 
 	u8		*data_buffer;
+	__le32		*reg_read_buf;
+
+	phys_addr_t base_phys;
+	dma_addr_t base_dma;
+	dma_addr_t reg_read_dma;
+
 	int		buf_size;
 	int		buf_count;
 	int		buf_start;
 	unsigned int	max_cwperpage;
 
-	__le32 *reg_read_buf;
-	dma_addr_t reg_read_dma;
 	int reg_read_pos;
 
-	struct nandc_regs *regs;
-
 	u32 cmd1, vld;
-	const struct qcom_nandc_props *props;
 };
 
 /*
@@ -431,19 +444,21 @@ struct qcom_nand_controller {
  *				and reserved bytes
  * @cw_data:			the number of bytes within a codeword protected
  *				by ECC
- * @use_ecc:			request the controller to use ECC for the
- *				upcoming read/write
- * @bch_enabled:		flag to tell whether BCH ECC mode is used
  * @ecc_bytes_hw:		ECC bytes used by controller hardware for this
  *				chip
- * @status:			value to be returned if NAND_CMD_STATUS command
- *				is executed
+ *
  * @last_command:		keeps track of last command on this chip. used
  *				for reading correct status
  *
  * @cfg0, cfg1, cfg0_raw..:	NANDc register configurations needed for
  *				ecc/non-ecc mode for the current nand flash
  *				device
+ *
+ * @status:			value to be returned if NAND_CMD_STATUS command
+ *				is executed
+ * @use_ecc:			request the controller to use ECC for the
+ *				upcoming read/write
+ * @bch_enabled:		flag to tell whether BCH ECC mode is used
  */
 struct qcom_nand_host {
 	struct nand_chip chip;
@@ -452,12 +467,10 @@ struct qcom_nand_host {
 	int cs;
 	int cw_size;
 	int cw_data;
-	bool use_ecc;
-	bool bch_enabled;
 	int ecc_bytes_hw;
 	int spare_bytes;
 	int bbm_size;
-	u8 status;
+
 	int last_command;
 
 	u32 cfg0, cfg1;
@@ -466,23 +479,27 @@ struct qcom_nand_host {
 	u32 ecc_bch_cfg;
 	u32 clrflashstatus;
 	u32 clrreadstatus;
+
+	u8 status;
+	bool use_ecc;
+	bool bch_enabled;
 };
 
 /*
  * This data type corresponds to the NAND controller properties which varies
  * among different NAND controllers.
  * @ecc_modes - ecc mode for NAND
+ * @dev_cmd_reg_start - NAND_DEV_CMD_* registers starting offset
  * @is_bam - whether NAND controller is using BAM
  * @is_qpic - whether NAND CTRL is part of qpic IP
  * @qpic_v2 - flag to indicate QPIC IP version 2
- * @dev_cmd_reg_start - NAND_DEV_CMD_* registers starting offset
  */
 struct qcom_nandc_props {
 	u32 ecc_modes;
+	u32 dev_cmd_reg_start;
 	bool is_bam;
 	bool is_qpic;
 	bool qpic_v2;
-	u32 dev_cmd_reg_start;
 };
 
 /* Frees the BAM transaction memory */
