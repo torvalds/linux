@@ -244,6 +244,8 @@ static __cold void io_fallback_req_func(struct work_struct *work)
 static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 {
 	struct io_ring_ctx *ctx;
+	unsigned hash_buckets;
+	size_t hash_size;
 	int hash_bits;
 
 	ctx = kzalloc(sizeof(*ctx), GFP_KERNEL);
@@ -259,15 +261,15 @@ static __cold struct io_ring_ctx *io_ring_ctx_alloc(struct io_uring_params *p)
 	 */
 	hash_bits = ilog2(p->cq_entries) - 5;
 	hash_bits = clamp(hash_bits, 1, 8);
+	hash_buckets = 1U << hash_bits;
+	hash_size = hash_buckets * sizeof(struct io_hash_bucket);
 
 	ctx->cancel_hash_bits = hash_bits;
-	ctx->cancel_hash =
-		kmalloc((1U << hash_bits) * sizeof(struct io_hash_bucket),
-			GFP_KERNEL);
+	ctx->cancel_hash = kmalloc(hash_size, GFP_KERNEL);
 	if (!ctx->cancel_hash)
 		goto err;
 
-	init_hash_table(ctx->cancel_hash, 1U << hash_bits);
+	init_hash_table(ctx->cancel_hash, hash_buckets);
 
 	ctx->dummy_ubuf = kzalloc(sizeof(*ctx->dummy_ubuf), GFP_KERNEL);
 	if (!ctx->dummy_ubuf)
