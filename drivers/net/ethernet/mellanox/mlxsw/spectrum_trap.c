@@ -953,16 +953,16 @@ static const struct mlxsw_sp_trap_item mlxsw_sp_trap_items_arr[] = {
 		.trap = MLXSW_SP_TRAP_CONTROL(ARP_REQUEST, NEIGH_DISCOVERY,
 					      MIRROR),
 		.listeners_arr = {
-			MLXSW_SP_RXL_MARK(ARPBC, NEIGH_DISCOVERY, MIRROR_TO_CPU,
-					  false),
+			MLXSW_SP_RXL_MARK(ROUTER_ARPBC, NEIGH_DISCOVERY,
+					  TRAP_TO_CPU, false),
 		},
 	},
 	{
 		.trap = MLXSW_SP_TRAP_CONTROL(ARP_RESPONSE, NEIGH_DISCOVERY,
 					      MIRROR),
 		.listeners_arr = {
-			MLXSW_SP_RXL_MARK(ARPUC, NEIGH_DISCOVERY, MIRROR_TO_CPU,
-					  false),
+			MLXSW_SP_RXL_MARK(ROUTER_ARPUC, NEIGH_DISCOVERY,
+					  TRAP_TO_CPU, false),
 		},
 	},
 	{
