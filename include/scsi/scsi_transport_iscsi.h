@@ -162,7 +162,7 @@ struct iscsi_transport {
  * transport registration upcalls
  */
 extern struct scsi_transport_template *iscsi_register_transport(struct iscsi_transport *tt);
-extern int iscsi_unregister_transport(struct iscsi_transport *tt);
+extern void iscsi_unregister_transport(struct iscsi_transport *tt);
 
 /*
  * control plane upcalls
