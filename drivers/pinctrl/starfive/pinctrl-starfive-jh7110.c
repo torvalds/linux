@@ -1635,11 +1635,11 @@ static const struct starfive_pinctrl_soc_info starfive_jh7110_aon_pinctrl_info =
 
 static const struct of_device_id starfive_jh7110_pinctrl_of_match[] = {
 	{
-		.compatible = "starfive_jh7110-sys-pinctrl",
+		.compatible = "starfive,jh7110-sys-pinctrl",
 		.data = &starfive_jh7110_sys_pinctrl_info,
 	},
 	{
-		.compatible = "starfive_jh7110-aon-pinctrl",
+		.compatible = "starfive,jh7110-aon-pinctrl",
 		.data = &starfive_jh7110_aon_pinctrl_info,
 	},
 	{ /* sentinel */ }
