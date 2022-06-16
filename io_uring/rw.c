@@ -207,15 +207,6 @@ static bool __io_complete_rw_common(struct io_kiocb *req, long res)
 	return false;
 }
 
-static void __io_complete_rw(struct io_kiocb *req, long res,
-			     unsigned int issue_flags)
-{
-	if (__io_complete_rw_common(req, res))
-		return;
-	io_req_set_res(req, req->cqe.res, io_put_kbuf(req, issue_flags));
-	__io_req_complete(req, issue_flags);
-}
-
 static void io_complete_rw(struct kiocb *kiocb, long res)
 {
 	struct io_rw *rw = container_of(kiocb, struct io_rw, kiocb);
@@ -247,7 +238,7 @@ static void io_complete_rw_iopoll(struct kiocb *kiocb, long res)
 	smp_store_release(&req->iopoll_completed, 1);
 }
 
-static void kiocb_done(struct io_kiocb *req, ssize_t ret,
+static int kiocb_done(struct io_kiocb *req, ssize_t ret,
 		       unsigned int issue_flags)
 {
 	struct io_async_rw *io = req->async_data;
@@ -263,10 +254,15 @@ static void kiocb_done(struct io_kiocb *req, ssize_t ret,
 
 	if (req->flags & REQ_F_CUR_POS)
 		req->file->f_pos = rw->kiocb.ki_pos;
-	if (ret >= 0 && (rw->kiocb.ki_complete == io_complete_rw))
-		__io_complete_rw(req, ret, issue_flags);
-	else
+	if (ret >= 0 && (rw->kiocb.ki_complete == io_complete_rw)) {
+		if (!__io_complete_rw_common(req, ret)) {
+			io_req_set_res(req, req->cqe.res,
+				       io_put_kbuf(req, issue_flags));
+			return IOU_OK;
+		}
+	} else {
 		io_rw_done(&rw->kiocb, ret);
+	}
 
 	if (req->flags & REQ_F_REISSUE) {
 		req->flags &= ~REQ_F_REISSUE;
@@ -275,6 +271,7 @@ static void kiocb_done(struct io_kiocb *req, ssize_t ret,
 		else
 			io_req_task_queue_fail(req, ret);
 	}
+	return IOU_ISSUE_SKIP_COMPLETE;
 }
 
 static int __io_import_fixed(struct io_kiocb *req, int ddir,
@@ -847,7 +844,9 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 			goto done;
 		ret = 0;
 	} else if (ret == -EIOCBQUEUED) {
-		goto out_free;
+		if (iovec)
+			kfree(iovec);
+		return IOU_ISSUE_SKIP_COMPLETE;
 	} else if (ret == req->cqe.res || ret <= 0 || !force_nonblock ||
 		   (req->flags & REQ_F_NOWAIT) || !need_read_all(req)) {
 		/* read all, failed, already did sync or don't want to retry */
@@ -905,12 +904,10 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 		iov_iter_restore(&s->iter, &s->iter_state);
 	} while (ret > 0);
 done:
-	kiocb_done(req, ret, issue_flags);
-out_free:
 	/* it's faster to check here then delegate to kfree */
 	if (iovec)
 		kfree(iovec);
-	return IOU_ISSUE_SKIP_COMPLETE;
+	return kiocb_done(req, ret, issue_flags);
 }
 
 int io_write(struct io_kiocb *req, unsigned int issue_flags)
@@ -960,8 +957,10 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 	ppos = io_kiocb_update_pos(req);
 
 	ret = rw_verify_area(WRITE, req->file, ppos, req->cqe.res);
-	if (unlikely(ret))
-		goto out_free;
+	if (unlikely(ret)) {
+		kfree(iovec);
+		return ret;
+	}
 
 	/*
 	 * Open-code file_start_write here to grab freeze protection,
@@ -1003,15 +1002,13 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		if (ret2 == -EAGAIN && (req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto copy_iov;
 done:
-		kiocb_done(req, ret2, issue_flags);
-		ret = IOU_ISSUE_SKIP_COMPLETE;
+		ret = kiocb_done(req, ret2, issue_flags);
 	} else {
 copy_iov:
 		iov_iter_restore(&s->iter, &s->iter_state);
 		ret = io_setup_async_rw(req, iovec, s, false);
 		return ret ?: -EAGAIN;
 	}
-out_free:
 	/* it's reportedly faster than delegating the null check to kfree() */
 	if (iovec)
 		kfree(iovec);
