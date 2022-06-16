@@ -739,7 +739,7 @@ static u16 ia_eeprom_get (IADEV *iadev, u32 addr)
         u32	t;
 	int	i;
 	/*
-	 * Read the first bit that was clocked with the falling edge of the
+	 * Read the first bit that was clocked with the falling edge of
 	 * the last command data clock
 	 */
 	NVRAM_CMD(IAREAD + addr);
