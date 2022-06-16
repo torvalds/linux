@@ -11,92 +11,92 @@
 
 #include "vimc-common.h"
 
-#define VIMC_LEN_MAX_FOCUS_POS	1023
-#define VIMC_LEN_MAX_FOCUS_STEP	1
+#define VIMC_LENS_MAX_FOCUS_POS	1023
+#define VIMC_LENS_MAX_FOCUS_STEP	1
 
-struct vimc_len_device {
+struct vimc_lens_device {
 	struct vimc_ent_device ved;
 	struct v4l2_subdev sd;
 	struct v4l2_ctrl_handler hdl;
 	u32 focus_absolute;
 };
 
-static const struct v4l2_subdev_core_ops vimc_len_core_ops = {
+static const struct v4l2_subdev_core_ops vimc_lens_core_ops = {
 	.log_status = v4l2_ctrl_subdev_log_status,
 	.subscribe_event = v4l2_ctrl_subdev_subscribe_event,
 	.unsubscribe_event = v4l2_event_subdev_unsubscribe,
 };
 
-static const struct v4l2_subdev_ops vimc_len_ops = {
-	.core = &vimc_len_core_ops
+static const struct v4l2_subdev_ops vimc_lens_ops = {
+	.core = &vimc_lens_core_ops
 };
 
-static int vimc_len_s_ctrl(struct v4l2_ctrl *ctrl)
+static int vimc_lens_s_ctrl(struct v4l2_ctrl *ctrl)
 {
-	struct vimc_len_device *vlen =
-		container_of(ctrl->handler, struct vimc_len_device, hdl);
+	struct vimc_lens_device *vlens =
+		container_of(ctrl->handler, struct vimc_lens_device, hdl);
 	if (ctrl->id == V4L2_CID_FOCUS_ABSOLUTE) {
-		vlen->focus_absolute = ctrl->val;
+		vlens->focus_absolute = ctrl->val;
 		return 0;
 	}
 	return -EINVAL;
 }
 
-static const struct v4l2_ctrl_ops vimc_len_ctrl_ops = {
-	.s_ctrl = vimc_len_s_ctrl,
+static const struct v4l2_ctrl_ops vimc_lens_ctrl_ops = {
+	.s_ctrl = vimc_lens_s_ctrl,
 };
 
-static struct vimc_ent_device *vimc_len_add(struct vimc_device *vimc,
-					    const char *vcfg_name)
+static struct vimc_ent_device *vimc_lens_add(struct vimc_device *vimc,
+					     const char *vcfg_name)
 {
 	struct v4l2_device *v4l2_dev = &vimc->v4l2_dev;
-	struct vimc_len_device *vlen;
+	struct vimc_lens_device *vlens;
 	int ret;
 
-	/* Allocate the vlen struct */
-	vlen = kzalloc(sizeof(*vlen), GFP_KERNEL);
-	if (!vlen)
+	/* Allocate the vlens struct */
+	vlens = kzalloc(sizeof(*vlens), GFP_KERNEL);
+	if (!vlens)
 		return ERR_PTR(-ENOMEM);
 
-	v4l2_ctrl_handler_init(&vlen->hdl, 1);
+	v4l2_ctrl_handler_init(&vlens->hdl, 1);
 
-	v4l2_ctrl_new_std(&vlen->hdl, &vimc_len_ctrl_ops,
+	v4l2_ctrl_new_std(&vlens->hdl, &vimc_lens_ctrl_ops,
 			  V4L2_CID_FOCUS_ABSOLUTE, 0,
-			  VIMC_LEN_MAX_FOCUS_POS, VIMC_LEN_MAX_FOCUS_STEP, 0);
-	vlen->sd.ctrl_handler = &vlen->hdl;
-	if (vlen->hdl.error) {
-		ret = vlen->hdl.error;
-		goto err_free_vlen;
+			  VIMC_LENS_MAX_FOCUS_POS, VIMC_LENS_MAX_FOCUS_STEP, 0);
+	vlens->sd.ctrl_handler = &vlens->hdl;
+	if (vlens->hdl.error) {
+		ret = vlens->hdl.error;
+		goto err_free_vlens;
 	}
-	vlen->ved.dev = vimc->mdev.dev;
+	vlens->ved.dev = vimc->mdev.dev;
 
-	ret = vimc_ent_sd_register(&vlen->ved, &vlen->sd, v4l2_dev,
+	ret = vimc_ent_sd_register(&vlens->ved, &vlens->sd, v4l2_dev,
 				   vcfg_name, MEDIA_ENT_F_LENS, 0,
-				   NULL, &vimc_len_ops);
+				   NULL, &vimc_lens_ops);
 	if (ret)
 		goto err_free_hdl;
 
-	return &vlen->ved;
+	return &vlens->ved;
 
 err_free_hdl:
-	v4l2_ctrl_handler_free(&vlen->hdl);
-err_free_vlen:
-	kfree(vlen);
+	v4l2_ctrl_handler_free(&vlens->hdl);
+err_free_vlens:
+	kfree(vlens);
 
 	return ERR_PTR(ret);
 }
 
-static void vimc_len_release(struct vimc_ent_device *ved)
+static void vimc_lens_release(struct vimc_ent_device *ved)
 {
-	struct vimc_len_device *vlen =
-		container_of(ved, struct vimc_len_device, ved);
+	struct vimc_lens_device *vlens =
+		container_of(ved, struct vimc_lens_device, ved);
 
-	v4l2_ctrl_handler_free(&vlen->hdl);
-	media_entity_cleanup(vlen->ved.ent);
-	kfree(vlen);
+	v4l2_ctrl_handler_free(&vlens->hdl);
+	media_entity_cleanup(vlens->ved.ent);
+	kfree(vlens);
 }
 
-struct vimc_ent_type vimc_len_type = {
-	.add = vimc_len_add,
-	.release = vimc_len_release
+struct vimc_ent_type vimc_lens_type = {
+	.add = vimc_lens_add,
+	.release = vimc_lens_release
 };

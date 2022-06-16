@@ -69,48 +69,48 @@ struct vimc_pipeline_config {
 static struct vimc_ent_config ent_config[] = {
 	{
 		.name = "Sensor A",
-		.type = &vimc_sen_type
+		.type = &vimc_sensor_type
 	},
 	{
 		.name = "Sensor B",
-		.type = &vimc_sen_type
+		.type = &vimc_sensor_type
 	},
 	{
 		.name = "Debayer A",
-		.type = &vimc_deb_type
+		.type = &vimc_debayer_type
 	},
 	{
 		.name = "Debayer B",
-		.type = &vimc_deb_type
+		.type = &vimc_debayer_type
 	},
 	{
 		.name = "Raw Capture 0",
-		.type = &vimc_cap_type
+		.type = &vimc_capture_type
 	},
 	{
 		.name = "Raw Capture 1",
-		.type = &vimc_cap_type
+		.type = &vimc_capture_type
 	},
 	{
 		/* TODO: change this to vimc-input when it is implemented */
 		.name = "RGB/YUV Input",
-		.type = &vimc_sen_type
+		.type = &vimc_sensor_type
 	},
 	{
 		.name = "Scaler",
-		.type = &vimc_sca_type
+		.type = &vimc_scaler_type
 	},
 	{
 		.name = "RGB/YUV Capture",
-		.type = &vimc_cap_type
+		.type = &vimc_capture_type
 	},
 	{
 		.name = "Lens A",
-		.type = &vimc_len_type
+		.type = &vimc_lens_type
 	},
 	{
 		.name = "Lens B",
-		.type = &vimc_len_type
+		.type = &vimc_lens_type
 	},
 };
 
