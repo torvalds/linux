@@ -163,7 +163,8 @@ struct dc_color_caps {
 };
 
 struct dc_dmub_caps {
-    bool psr;
+	bool psr;
+	bool mclk_sw;
 };
 
 struct dc_caps {
@@ -359,6 +360,8 @@ enum visual_confirm {
 	VISUAL_CONFIRM_HDR = 2,
 	VISUAL_CONFIRM_MPCTREE = 4,
 	VISUAL_CONFIRM_PSR = 5,
+	VISUAL_CONFIRM_SWAPCHAIN = 6,
+	VISUAL_CONFIRM_FAMS = 7,
 	VISUAL_CONFIRM_SWIZZLE = 9,
 };
 
@@ -441,6 +444,7 @@ struct dc_clocks {
 	bool fclk_prev_p_state_change_support;
 	int num_ways;
 	bool fw_based_mclk_switching;
+	bool fw_based_mclk_switching_shut_down;
 	int prev_num_ways;
 	enum dtm_pstate dtm_level;
 	int max_supported_dppclk_khz;
@@ -726,6 +730,7 @@ struct dc_debug_options {
 
 	/* Enable dmub aux for legacy ddc */
 	bool enable_dmub_aux_for_legacy_ddc;
+	bool disable_fams;
 	bool optimize_edp_link_rate; /* eDP ILR */
 	/* FEC/PSR1 sequence enable delay in 100us */
 	uint8_t fec_enable_delay_in100us;
@@ -1451,6 +1456,9 @@ void dc_enable_dcmode_clk_limit(struct dc *dc, bool enable);
 
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc);
+
+/* disables fw based mclk switch */
+void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc);
 
 bool dc_set_psr_allow_active(struct dc *dc, bool enable);
 void dc_z10_restore(const struct dc *dc);

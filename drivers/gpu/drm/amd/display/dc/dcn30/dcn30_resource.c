@@ -1899,6 +1899,176 @@ validate_out:
 	return out;
 }
 
+int get_refresh_rate(struct dc_state *context)
+{
+	int refresh_rate = 0;
+	int h_v_total = 0;
+	struct dc_crtc_timing *timing = NULL;
+
+	if (context == NULL || context->streams[0] == NULL)
+		return 0;
+
+	/* check if refresh rate at least 120hz */
+	timing = &context->streams[0]->timing;
+	if (timing == NULL)
+		return 0;
+
+	h_v_total = timing->h_total * timing->v_total;
+	if (h_v_total == 0)
+		return 0;
+
+	refresh_rate = ((timing->pix_clk_100hz * 100) / (h_v_total)) + 1;
+	return refresh_rate;
+}
+
+#define MAX_STRETCHED_V_BLANK 500 // in micro-seconds
+/*
+ * Scaling factor for v_blank stretch calculations considering timing in
+ * micro-seconds and pixel clock in 100hz.
+ * Note: the parenthesis are necessary to ensure the correct order of
+ * operation where V_SCALE is used.
+ */
+#define V_SCALE (10000 / MAX_STRETCHED_V_BLANK)
+
+int get_frame_rate_at_max_stretch_100hz(struct dc_state *context)
+{
+	struct dc_crtc_timing *timing = NULL;
+	uint32_t sec_per_100_lines;
+	uint32_t max_v_blank;
+	uint32_t curr_v_blank;
+	uint32_t v_stretch_max;
+	uint32_t stretched_frame_pix_cnt;
+	uint32_t scaled_stretched_frame_pix_cnt;
+	uint32_t scaled_refresh_rate;
+
+	if (context == NULL || context->streams[0] == NULL)
+		return 0;
+
+	/* check if refresh rate at least 120hz */
+	timing = &context->streams[0]->timing;
+	if (timing == NULL)
+		return 0;
+
+	sec_per_100_lines = timing->pix_clk_100hz / timing->h_total + 1;
+	max_v_blank = sec_per_100_lines / V_SCALE + 1;
+	curr_v_blank = timing->v_total - timing->v_addressable;
+	v_stretch_max = (max_v_blank > curr_v_blank) ? (max_v_blank - curr_v_blank) : (0);
+	stretched_frame_pix_cnt = (v_stretch_max + timing->v_total) * timing->h_total;
+	scaled_stretched_frame_pix_cnt = stretched_frame_pix_cnt / 10000;
+	scaled_refresh_rate = (timing->pix_clk_100hz) / scaled_stretched_frame_pix_cnt + 1;
+
+	return scaled_refresh_rate;
+}
+
+bool is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(struct dc_state *context)
+{
+	int refresh_rate_max_stretch_100hz;
+	int min_refresh_100hz;
+
+	if (context == NULL || context->streams[0] == NULL)
+		return false;
+
+	refresh_rate_max_stretch_100hz = get_frame_rate_at_max_stretch_100hz(context);
+	min_refresh_100hz = context->streams[0]->timing.min_refresh_in_uhz / 10000;
+
+	if (refresh_rate_max_stretch_100hz < min_refresh_100hz)
+		return false;
+
+	return true;
+}
+
+bool dcn30_can_support_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context)
+{
+	int refresh_rate = 0;
+	const int minimum_refreshrate_supported = 120;
+
+	if (context == NULL || context->streams[0] == NULL)
+		return false;
+
+	if (context->streams[0]->sink->edid_caps.panel_patch.disable_fams)
+		return false;
+
+	if (dc->debug.disable_fams)
+		return false;
+
+	if (!dc->caps.dmub_caps.mclk_sw)
+		return false;
+
+	if (context->bw_ctx.bw.dcn.clk.fw_based_mclk_switching_shut_down)
+		return false;
+
+	/* more then 1 monitor connected */
+	if (context->stream_count != 1)
+		return false;
+
+	refresh_rate = get_refresh_rate(context);
+	if (refresh_rate < minimum_refreshrate_supported)
+		return false;
+
+	if (!is_refresh_rate_support_mclk_switch_using_fw_based_vblank_stretch(context))
+		return false;
+
+	// check if freesync enabled
+	if (!context->streams[0]->allow_freesync)
+		return false;
+
+	if (context->streams[0]->vrr_active_variable)
+		return false;
+
+	return true;
+}
+
+/*
+ * set up FPO watermarks, pstate, dram latency
+ */
+void dcn30_setup_mclk_switch_using_fw_based_vblank_stretch(struct dc *dc, struct dc_state *context)
+{
+	ASSERT(dc != NULL && context != NULL);
+	if (dc == NULL || context == NULL)
+		return;
+
+	/* Set wm_a.pstate so high natural MCLK switches are impossible: 4 seconds */
+	context->bw_ctx.bw.dcn.watermarks.a.cstate_pstate.pstate_change_ns = 4U * 1000U * 1000U * 1000U;
+}
+
+/*
+ * Finds dummy_latency_index when MCLK switching using firmware based
+ * vblank stretch is enabled. This function will iterate through the
+ * table of dummy pstate latencies until the lowest value that allows
+ * dm_allow_self_refresh_and_mclk_switch to happen is found
+ */
+int dcn30_find_dummy_latency_index_for_fw_based_mclk_switch(struct dc *dc, struct dc_state *context,
+		display_e2e_pipe_params_st *pipes, int pipe_cnt, int vlevel)
+{
+	const int max_latency_table_entries = 4;
+	int dummy_latency_index = 0;
+
+	while (dummy_latency_index < max_latency_table_entries) {
+		context->bw_ctx.dml.soc.dram_clock_change_latency_us =
+				dc->clk_mgr->bw_params->dummy_pstate_table[dummy_latency_index].dummy_pstate_latency_us;
+		dcn30_internal_validate_bw(dc, context, pipes, &pipe_cnt, &vlevel, false);
+
+		if (context->bw_ctx.dml.soc.allow_dram_self_refresh_or_dram_clock_change_in_vblank ==
+			dm_allow_self_refresh_and_mclk_switch)
+			break;
+
+		dummy_latency_index++;
+	}
+
+	if (dummy_latency_index == max_latency_table_entries) {
+		ASSERT(dummy_latency_index != max_latency_table_entries);
+		/* If the execution gets here, it means dummy p_states are
+		 * not possible. This should never happen and would mean
+		 * something is severely wrong.
+		 * Here we reset dummy_latency_index to 3, because it is
+		 * better to have underflows than system crashes.
+		 */
+		dummy_latency_index = 3;
+	}
+
+	return dummy_latency_index;
+}
+
 void dcn30_update_soc_for_wm_a(struct dc *dc, struct dc_state *context)
 {
 	DC_FP_START();

@@ -252,6 +252,93 @@ void dc_dmub_trace_event_control(struct dc *dc, bool enable)
 	dm_helpers_dmub_outbox_interrupt_control(dc->ctx, enable);
 }
 
+void dc_dmub_srv_drr_update_cmd(struct dc *dc, uint32_t tg_inst, uint32_t vtotal_min, uint32_t vtotal_max)
+{
+	union dmub_rb_cmd cmd = { 0 };
+
+	cmd.drr_update.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+	cmd.drr_update.header.sub_type = DMUB_CMD__FAMS_DRR_UPDATE;
+	cmd.drr_update.dmub_optc_state_req.v_total_max = vtotal_max;
+	cmd.drr_update.dmub_optc_state_req.v_total_min = vtotal_min;
+	cmd.drr_update.dmub_optc_state_req.tg_inst = tg_inst;
+
+	cmd.drr_update.header.payload_bytes = sizeof(cmd.drr_update) - sizeof(cmd.drr_update.header);
+
+	// Send the command to the DMCUB.
+	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+}
+
+uint8_t dc_dmub_srv_get_pipes_for_stream(struct dc *dc, struct dc_stream_state *stream)
+{
+	uint8_t pipes = 0;
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg)
+			pipes = i;
+	}
+	return pipes;
+}
+
+int dc_dmub_srv_get_timing_generator_offset(struct dc *dc, struct dc_stream_state *stream)
+{
+	int  tg_inst = 0;
+	int i = 0;
+
+	for (i = 0; i < MAX_PIPES; i++) {
+		struct pipe_ctx *pipe = &dc->current_state->res_ctx.pipe_ctx[i];
+
+		if (pipe->stream == stream && pipe->stream_res.tg) {
+			tg_inst = pipe->stream_res.tg->inst;
+			break;
+		}
+	}
+	return tg_inst;
+}
+
+bool dc_dmub_srv_p_state_delegate(struct dc *dc, bool should_manage_pstate, struct dc_state *context)
+{
+	union dmub_rb_cmd cmd = { 0 };
+	struct dmub_cmd_fw_assisted_mclk_switch_config *config_data = &cmd.fw_assisted_mclk_switch.config_data;
+	int i = 0;
+	int ramp_up_num_steps = 1; // TODO: Ramp is currently disabled. Reenable it.
+	uint8_t visual_confirm_enabled = dc->debug.visual_confirm == VISUAL_CONFIRM_FAMS;
+
+	if (dc == NULL)
+		return false;
+
+	// Format command.
+	cmd.fw_assisted_mclk_switch.header.type = DMUB_CMD__FW_ASSISTED_MCLK_SWITCH;
+	cmd.fw_assisted_mclk_switch.header.sub_type = DMUB_CMD__FAMS_SETUP_FW_CTRL;
+	cmd.fw_assisted_mclk_switch.config_data.fams_enabled = should_manage_pstate;
+	cmd.fw_assisted_mclk_switch.config_data.visual_confirm_enabled = visual_confirm_enabled;
+
+	for (i = 0; context && i < context->stream_count; i++) {
+		struct dc_stream_state *stream = context->streams[i];
+		uint8_t min_refresh_in_hz = (stream->timing.min_refresh_in_uhz + 999999) / 1000000;
+		int  tg_inst = dc_dmub_srv_get_timing_generator_offset(dc, stream);
+
+		config_data->pipe_data[tg_inst].pix_clk_100hz = stream->timing.pix_clk_100hz;
+		config_data->pipe_data[tg_inst].min_refresh_in_hz = min_refresh_in_hz;
+		config_data->pipe_data[tg_inst].max_ramp_step = ramp_up_num_steps;
+		config_data->pipe_data[tg_inst].pipes = dc_dmub_srv_get_pipes_for_stream(dc, stream);
+	}
+
+	cmd.fw_assisted_mclk_switch.header.payload_bytes =
+		sizeof(cmd.fw_assisted_mclk_switch) - sizeof(cmd.fw_assisted_mclk_switch.header);
+
+	// Send the command to the DMCUB.
+	dc_dmub_srv_cmd_queue(dc->ctx->dmub_srv, &cmd);
+	dc_dmub_srv_cmd_execute(dc->ctx->dmub_srv);
+	dc_dmub_srv_wait_idle(dc->ctx->dmub_srv);
+
+	return true;
+}
+
 void dc_dmub_srv_query_caps_cmd(struct dmub_srv *dmub)
 {
 	union dmub_rb_cmd cmd = { 0 };

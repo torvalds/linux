@@ -3842,8 +3842,16 @@ bool dc_is_plane_eligible_for_idle_optimizations(struct dc *dc, struct dc_plane_
 /* cleanup on driver unload */
 void dc_hardware_release(struct dc *dc)
 {
+	dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(dc);
+
 	if (dc->hwss.hardware_release)
 		dc->hwss.hardware_release(dc);
+}
+
+void dc_mclk_switch_using_fw_based_vblank_stretch_shut_down(struct dc *dc)
+{
+	if (dc->current_state)
+		dc->current_state->bw_ctx.bw.dcn.clk.fw_based_mclk_switching_shut_down = true;
 }
 
 /*

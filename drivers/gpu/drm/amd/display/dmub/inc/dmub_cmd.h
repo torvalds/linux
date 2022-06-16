@@ -242,7 +242,8 @@ struct dmub_feature_caps {
 	 * Max PSR version supported by FW.
 	 */
 	uint8_t psr;
-	uint8_t reserved[7];
+	uint8_t fw_assisted_mclk_switch;
+	uint8_t reserved[6];
 };
 
 #if defined(__cplusplus)
@@ -2773,6 +2774,26 @@ struct dmub_rb_cmd_drr_update {
 		struct dmub_optc_state dmub_optc_state_req;
 };
 
+struct dmub_cmd_fw_assisted_mclk_switch_pipe_data {
+	uint32_t pix_clk_100hz;
+	uint8_t max_ramp_step;
+	uint8_t pipes;
+	uint8_t min_refresh_in_hz;
+	uint8_t padding[1];
+};
+
+struct dmub_cmd_fw_assisted_mclk_switch_config {
+	uint8_t fams_enabled;
+	uint8_t visual_confirm_enabled;
+	uint8_t padding[2];
+	struct dmub_cmd_fw_assisted_mclk_switch_pipe_data pipe_data[DMUB_MAX_STREAMS];
+};
+
+struct dmub_rb_cmd_fw_assisted_mclk_switch {
+	struct dmub_cmd_header header;
+	struct dmub_cmd_fw_assisted_mclk_switch_config config_data;
+};
+
 /**
  * enum dmub_cmd_panel_cntl_type - Panel control command.
  */
@@ -3111,6 +3132,8 @@ union dmub_rb_cmd {
 	 */
 	struct dmub_rb_cmd_query_feature_caps query_feature_caps;
 	struct dmub_rb_cmd_drr_update drr_update;
+	struct dmub_rb_cmd_fw_assisted_mclk_switch fw_assisted_mclk_switch;
+
 	/**
 	 * Definition of a DMUB_CMD__VBIOS_LVTMA_CONTROL command.
 	 */
