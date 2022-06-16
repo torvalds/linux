@@ -843,7 +843,8 @@ static bool stripe_can_batch(struct stripe_head *sh)
 }
 
 /* we only do back search */
-static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh)
+static void stripe_add_to_batch_list(struct r5conf *conf,
+		struct stripe_head *sh, struct stripe_head *last_sh)
 {
 	struct stripe_head *head;
 	sector_t head_sector, tmp_sec;
@@ -856,15 +857,20 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 		return;
 	head_sector = sh->sector - RAID5_STRIPE_SECTORS(conf);
 
-	hash = stripe_hash_locks_hash(conf, head_sector);
-	spin_lock_irq(conf->hash_locks + hash);
-	head = find_get_stripe(conf, head_sector, conf->generation, hash);
-	spin_unlock_irq(conf->hash_locks + hash);
-
-	if (!head)
-		return;
-	if (!stripe_can_batch(head))
-		goto out;
+	if (last_sh && head_sector == last_sh->sector) {
+		head = last_sh;
+		atomic_inc(&head->count);
+	} else {
+		hash = stripe_hash_locks_hash(conf, head_sector);
+		spin_lock_irq(conf->hash_locks + hash);
+		head = find_get_stripe(conf, head_sector, conf->generation,
+				       hash);
+		spin_unlock_irq(conf->hash_locks + hash);
+		if (!head)
+			return;
+		if (!stripe_can_batch(head))
+			goto out;
+	}
 
 	lock_two_stripes(head, sh);
 	/* clear_batch_ready clear the flag */
@@ -5795,6 +5801,8 @@ enum stripe_result {
 };
 
 struct stripe_request_ctx {
+	/* a reference to the last stripe_head for batching */
+	struct stripe_head *batch_last;
 	/* the request had REQ_PREFLUSH, cleared after the first stripe_head */
 	bool do_flush;
 };
@@ -5889,8 +5897,13 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 		goto out_release;
 	}
 
-	if (stripe_can_batch(sh))
-		stripe_add_to_batch_list(conf, sh);
+	if (stripe_can_batch(sh)) {
+		stripe_add_to_batch_list(conf, sh, ctx->batch_last);
+		if (ctx->batch_last)
+			raid5_release_stripe(ctx->batch_last);
+		atomic_inc(&sh->count);
+		ctx->batch_last = sh;
+	}
 
 	if (ctx->do_flush) {
 		set_bit(STRIPE_R5C_PREFLUSH, &sh->state);
@@ -5985,6 +5998,18 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 			continue;
 
 		if (res == STRIPE_SCHEDULE_AND_RETRY) {
+			/*
+			 * Must release the reference to batch_last before
+			 * scheduling and waiting for work to be done,
+			 * otherwise the batch_last stripe head could prevent
+			 * raid5_activate_delayed() from making progress
+			 * and thus deadlocking.
+			 */
+			if (ctx.batch_last) {
+				raid5_release_stripe(ctx.batch_last);
+				ctx.batch_last = NULL;
+			}
+
 			schedule();
 			prepare_to_wait(&conf->wait_for_overlap, &w,
 					TASK_UNINTERRUPTIBLE);
@@ -5995,6 +6020,9 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	}
 
 	finish_wait(&conf->wait_for_overlap, &w);
+
+	if (ctx.batch_last)
+		raid5_release_stripe(ctx.batch_last);
 
 	if (rw == WRITE)
 		md_write_end(mddev);
