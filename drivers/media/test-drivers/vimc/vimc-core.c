@@ -46,6 +46,21 @@ struct vimc_data_link {
 	u32 flags;
 };
 
+/* Enum to improve clarity when defining vimc_data_links */
+enum vimc_data_link_ents {
+	SENSOR_A,
+	SENSOR_B,
+	DEBAYER_A,
+	DEBAYER_B,
+	RAW_CAPTURE_0,
+	RAW_CAPTURE_1,
+	RGB_YUV_INPUT,
+	SCALER,
+	RGB_YUV_CAPTURE,
+	LENS_A,
+	LENS_B,
+};
+
 /* Structure which describes ancillary links between entities */
 struct vimc_ancillary_link {
 	unsigned int primary_ent;
@@ -116,21 +131,26 @@ static struct vimc_ent_config ent_config[] = {
 
 static const struct vimc_data_link data_links[] = {
 	/* Link: Sensor A (Pad 0)->(Pad 0) Debayer A */
-	VIMC_DATA_LINK(0, 0, 2, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_A, 0, DEBAYER_A, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Sensor A (Pad 0)->(Pad 0) Raw Capture 0 */
-	VIMC_DATA_LINK(0, 0, 4, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_A, 0, RAW_CAPTURE_0, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Sensor B (Pad 0)->(Pad 0) Debayer B */
-	VIMC_DATA_LINK(1, 0, 3, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_B, 0, DEBAYER_B, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Sensor B (Pad 0)->(Pad 0) Raw Capture 1 */
-	VIMC_DATA_LINK(1, 0, 5, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SENSOR_B, 0, RAW_CAPTURE_1, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 	/* Link: Debayer A (Pad 1)->(Pad 0) Scaler */
-	VIMC_DATA_LINK(2, 1, 7, 0, MEDIA_LNK_FL_ENABLED),
+	VIMC_DATA_LINK(DEBAYER_A, 1, SCALER, 0, MEDIA_LNK_FL_ENABLED),
 	/* Link: Debayer B (Pad 1)->(Pad 0) Scaler */
-	VIMC_DATA_LINK(3, 1, 7, 0, 0),
+	VIMC_DATA_LINK(DEBAYER_B, 1, SCALER, 0, 0),
 	/* Link: RGB/YUV Input (Pad 0)->(Pad 0) Scaler */
-	VIMC_DATA_LINK(6, 0, 7, 0, 0),
+	VIMC_DATA_LINK(RGB_YUV_INPUT, 0, SCALER, 0, 0),
 	/* Link: Scaler (Pad 1)->(Pad 0) RGB/YUV Capture */
-	VIMC_DATA_LINK(7, 1, 8, 0, MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
+	VIMC_DATA_LINK(SCALER, 1, RGB_YUV_CAPTURE, 0,
+		       MEDIA_LNK_FL_ENABLED | MEDIA_LNK_FL_IMMUTABLE),
 };
 
 static const struct vimc_ancillary_link ancillary_links[] = {
