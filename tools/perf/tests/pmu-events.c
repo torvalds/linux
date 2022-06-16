@@ -63,33 +63,33 @@ static const struct perf_pmu_test_event bp_l2_btb_correct = {
 static const struct perf_pmu_test_event segment_reg_loads_any = {
 	.event = {
 		.name = "segment_reg_loads.any",
-		.event = "umask=0x80,period=200000,event=0x6",
+		.event = "event=0x6,period=200000,umask=0x80",
 		.desc = "Number of segment register loads",
 		.topic = "other",
 	},
-	.alias_str = "umask=0x80,period=0x30d40,event=0x6",
+	.alias_str = "event=0x6,period=0x30d40,umask=0x80",
 	.alias_long_desc = "Number of segment register loads",
 };
 
 static const struct perf_pmu_test_event dispatch_blocked_any = {
 	.event = {
 		.name = "dispatch_blocked.any",
-		.event = "umask=0x20,period=200000,event=0x9",
+		.event = "event=0x9,period=200000,umask=0x20",
 		.desc = "Memory cluster signals to block micro-op dispatch for any reason",
 		.topic = "other",
 	},
-	.alias_str = "umask=0x20,period=0x30d40,event=0x9",
+	.alias_str = "event=0x9,period=0x30d40,umask=0x20",
 	.alias_long_desc = "Memory cluster signals to block micro-op dispatch for any reason",
 };
 
 static const struct perf_pmu_test_event eist_trans = {
 	.event = {
 		.name = "eist_trans",
-		.event = "umask=0x0,period=200000,event=0x3a",
+		.event = "event=0x3a,period=200000,umask=0x0",
 		.desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
 		.topic = "other",
 	},
-	.alias_str = "umask=0,period=0x30d40,event=0x3a",
+	.alias_str = "event=0x3a,period=0x30d40,umask=0",
 	.alias_long_desc = "Number of Enhanced Intel SpeedStep(R) Technology (EIST) transitions",
 };
 
@@ -132,13 +132,13 @@ static const struct perf_pmu_test_event uncore_hisi_ddrc_flux_wcmd = {
 static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 	.event = {
 		.name = "unc_cbo_xsnp_response.miss_eviction",
-		.event = "umask=0x81,event=0x22",
-		.desc = "Unit: uncore_cbox A cross-core snoop resulted from L3 Eviction which misses in some processor core",
+		.event = "event=0x22,umask=0x81",
+		.desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core. Unit: uncore_cbox ",
 		.topic = "uncore",
 		.long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 		.pmu = "uncore_cbox",
 	},
-	.alias_str = "umask=0x81,event=0x22",
+	.alias_str = "event=0x22,umask=0x81",
 	.alias_long_desc = "A cross-core snoop resulted from L3 Eviction which misses in some processor core",
 	.matching_pmu = "uncore_cbox_0",
 };
@@ -146,13 +146,13 @@ static const struct perf_pmu_test_event unc_cbo_xsnp_response_miss_eviction = {
 static const struct perf_pmu_test_event uncore_hyphen = {
 	.event = {
 		.name = "event-hyphen",
-		.event = "umask=0x00,event=0xe0",
-		.desc = "Unit: uncore_cbox UNC_CBO_HYPHEN",
+		.event = "event=0xe0,umask=0x00",
+		.desc = "UNC_CBO_HYPHEN. Unit: uncore_cbox ",
 		.topic = "uncore",
 		.long_desc = "UNC_CBO_HYPHEN",
 		.pmu = "uncore_cbox",
 	},
-	.alias_str = "umask=0,event=0xe0",
+	.alias_str = "event=0xe0,umask=0",
 	.alias_long_desc = "UNC_CBO_HYPHEN",
 	.matching_pmu = "uncore_cbox_0",
 };
@@ -160,13 +160,13 @@ static const struct perf_pmu_test_event uncore_hyphen = {
 static const struct perf_pmu_test_event uncore_two_hyph = {
 	.event = {
 		.name = "event-two-hyph",
-		.event = "umask=0x00,event=0xc0",
-		.desc = "Unit: uncore_cbox UNC_CBO_TWO_HYPH",
+		.event = "event=0xc0,umask=0x00",
+		.desc = "UNC_CBO_TWO_HYPH. Unit: uncore_cbox ",
 		.topic = "uncore",
 		.long_desc = "UNC_CBO_TWO_HYPH",
 		.pmu = "uncore_cbox",
 	},
-	.alias_str = "umask=0,event=0xc0",
+	.alias_str = "event=0xc0,umask=0",
 	.alias_long_desc = "UNC_CBO_TWO_HYPH",
 	.matching_pmu = "uncore_cbox_0",
 };

@@ -4,8 +4,11 @@
 #include <pthread.h>
 #include <sched.h>
 #include <sys/syscall.h>
+#include <sys/mman.h>
 #include <unistd.h>
 #include <test_progs.h>
+#include <network_helpers.h>
+#include <bpf/btf.h>
 #include "test_bpf_cookie.skel.h"
 #include "kprobe_multi.skel.h"
 
@@ -410,6 +413,88 @@ cleanup:
 	bpf_link__destroy(link);
 }
 
+static void tracing_subtest(struct test_bpf_cookie *skel)
+{
+	__u64 cookie;
+	int prog_fd;
+	int fentry_fd = -1, fexit_fd = -1, fmod_ret_fd = -1;
+	LIBBPF_OPTS(bpf_test_run_opts, opts);
+	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
+
+	skel->bss->fentry_res = 0;
+	skel->bss->fexit_res = 0;
+
+	cookie = 0x10000000000000L;
+	prog_fd = bpf_program__fd(skel->progs.fentry_test1);
+	link_opts.tracing.cookie = cookie;
+	fentry_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_FENTRY, &link_opts);
+	if (!ASSERT_GE(fentry_fd, 0, "fentry.link_create"))
+		goto cleanup;
+
+	cookie = 0x20000000000000L;
+	prog_fd = bpf_program__fd(skel->progs.fexit_test1);
+	link_opts.tracing.cookie = cookie;
+	fexit_fd = bpf_link_create(prog_fd, 0, BPF_TRACE_FEXIT, &link_opts);
+	if (!ASSERT_GE(fexit_fd, 0, "fexit.link_create"))
+		goto cleanup;
+
+	cookie = 0x30000000000000L;
+	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
+	link_opts.tracing.cookie = cookie;
+	fmod_ret_fd = bpf_link_create(prog_fd, 0, BPF_MODIFY_RETURN, &link_opts);
+	if (!ASSERT_GE(fmod_ret_fd, 0, "fmod_ret.link_create"))
+		goto cleanup;
+
+	prog_fd = bpf_program__fd(skel->progs.fentry_test1);
+	bpf_prog_test_run_opts(prog_fd, &opts);
+
+	prog_fd = bpf_program__fd(skel->progs.fmod_ret_test);
+	bpf_prog_test_run_opts(prog_fd, &opts);
+
+	ASSERT_EQ(skel->bss->fentry_res, 0x10000000000000L, "fentry_res");
+	ASSERT_EQ(skel->bss->fexit_res, 0x20000000000000L, "fexit_res");
+	ASSERT_EQ(skel->bss->fmod_ret_res, 0x30000000000000L, "fmod_ret_res");
+
+cleanup:
+	if (fentry_fd >= 0)
+		close(fentry_fd);
+	if (fexit_fd >= 0)
+		close(fexit_fd);
+	if (fmod_ret_fd >= 0)
+		close(fmod_ret_fd);
+}
+
+int stack_mprotect(void);
+
+static void lsm_subtest(struct test_bpf_cookie *skel)
+{
+	__u64 cookie;
+	int prog_fd;
+	int lsm_fd = -1;
+	LIBBPF_OPTS(bpf_link_create_opts, link_opts);
+
+	skel->bss->lsm_res = 0;
+
+	cookie = 0x90000000000090L;
+	prog_fd = bpf_program__fd(skel->progs.test_int_hook);
+	link_opts.tracing.cookie = cookie;
+	lsm_fd = bpf_link_create(prog_fd, 0, BPF_LSM_MAC, &link_opts);
+	if (!ASSERT_GE(lsm_fd, 0, "lsm.link_create"))
+		goto cleanup;
+
+	stack_mprotect();
+	if (!ASSERT_EQ(errno, EPERM, "stack_mprotect"))
+		goto cleanup;
+
+	usleep(1);
+
+	ASSERT_EQ(skel->bss->lsm_res, 0x90000000000090L, "fentry_res");
+
+cleanup:
+	if (lsm_fd >= 0)
+		close(lsm_fd);
+}
+
 void test_bpf_cookie(void)
 {
 	struct test_bpf_cookie *skel;
@@ -432,6 +517,10 @@ void test_bpf_cookie(void)
 		tp_subtest(skel);
 	if (test__start_subtest("perf_event"))
 		pe_subtest(skel);
+	if (test__start_subtest("trampoline"))
+		tracing_subtest(skel);
+	if (test__start_subtest("lsm"))
+		lsm_subtest(skel);
 
 	test_bpf_cookie__destroy(skel);
 }

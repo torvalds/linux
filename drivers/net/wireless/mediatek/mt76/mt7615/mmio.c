@@ -145,7 +145,7 @@ static void mt7615_irq_tasklet(struct tasklet_struct *t)
 		return;
 
 	dev->reset_state = mcu_int;
-	ieee80211_queue_work(mt76_hw(dev), &dev->reset_work);
+	queue_work(dev->mt76.wq, &dev->reset_work);
 	wake_up(&dev->reset_wait);
 }
 

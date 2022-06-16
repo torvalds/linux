@@ -14,7 +14,6 @@
 
 #include "cgroup_helpers.h"
 #include <bpf/bpf_endian.h>
-#include "bpf_rlimit.h"
 #include "bpf_util.h"
 
 #define CG_PATH		"/foo"
@@ -493,7 +492,7 @@ static int run_test_case(int cgfd, const struct sock_test *test)
 			goto err;
 	}
 
-	if (attach_sock_prog(cgfd, progfd, test->attach_type) == -1) {
+	if (attach_sock_prog(cgfd, progfd, test->attach_type) < 0) {
 		if (test->result == ATTACH_REJECT)
 			goto out;
 		else
@@ -540,6 +539,9 @@ int main(int argc, char **argv)
 	cgfd = cgroup_setup_and_join(CG_PATH);
 	if (cgfd < 0)
 		goto err;
+
+	/* Use libbpf 1.0 API mode */
+	libbpf_set_strict_mode(LIBBPF_STRICT_ALL);
 
 	if (run_tests(cgfd))
 		goto err;

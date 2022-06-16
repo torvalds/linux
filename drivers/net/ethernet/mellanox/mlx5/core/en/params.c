@@ -5,8 +5,7 @@
 #include "en/txrx.h"
 #include "en/port.h"
 #include "en_accel/en_accel.h"
-#include "accel/ipsec.h"
-#include "fpga/ipsec.h"
+#include "en_accel/ipsec.h"
 
 static bool mlx5e_rx_is_xdp(struct mlx5e_params *params,
 			    struct mlx5e_xsk_param *xsk)
@@ -207,7 +206,7 @@ u16 mlx5e_calc_sq_stop_room(struct mlx5_core_dev *mdev, struct mlx5e_params *par
 	bool is_mpwqe = MLX5E_GET_PFLAG(params, MLX5E_PFLAG_SKB_TX_MPWQE);
 	u16 stop_room;
 
-	stop_room  = mlx5e_tls_get_stop_room(mdev, params);
+	stop_room  = mlx5e_ktls_get_stop_room(mdev, params);
 	stop_room += mlx5e_stop_room_for_max_wqe(mdev);
 	if (is_mpwqe)
 		/* A MPWQE can take up to the maximum-sized WQE + all the normal
@@ -327,9 +326,6 @@ bool mlx5e_striding_rq_possible(struct mlx5_core_dev *mdev,
 	if (!mlx5e_check_fragmented_striding_rq_cap(mdev))
 		return false;
 
-	if (mlx5_fpga_is_ipsec_device(mdev))
-		return false;
-
 	if (params->xdp_prog) {
 		/* XSK params are not considered here. If striding RQ is in use,
 		 * and an XSK is being opened, mlx5e_rx_mpwqe_is_linear_skb will
@@ -422,9 +418,6 @@ static int mlx5e_build_rq_frags_info(struct mlx5_core_dev *mdev,
 	u16 headroom;
 	int max_mtu;
 	int i;
-
-	if (mlx5_fpga_is_ipsec_device(mdev))
-		byte_count += MLX5E_METADATA_ETHER_LEN;
 
 	if (mlx5e_rx_is_linear_skb(params, xsk)) {
 		int frag_stride;
@@ -572,8 +565,7 @@ static void mlx5e_build_rx_cq_param(struct mlx5_core_dev *mdev,
 static u8 rq_end_pad_mode(struct mlx5_core_dev *mdev, struct mlx5e_params *params)
 {
 	bool lro_en = params->packet_merge.type == MLX5E_PACKET_MERGE_LRO;
-	bool ro = pcie_relaxed_ordering_enabled(mdev->pdev) &&
-		MLX5_CAP_GEN(mdev, relaxed_ordering_write);
+	bool ro = MLX5_CAP_GEN(mdev, relaxed_ordering_write);
 
 	return ro && lro_en ?
 		MLX5_WQ_END_PAD_MODE_NONE : MLX5_WQ_END_PAD_MODE_ALIGN;
@@ -696,8 +688,8 @@ void mlx5e_build_sq_param(struct mlx5_core_dev *mdev,
 	void *wq = MLX5_ADDR_OF(sqc, sqc, wq);
 	bool allow_swp;
 
-	allow_swp = mlx5_geneve_tx_allowed(mdev) ||
-		    !!MLX5_IPSEC_DEV(mdev);
+	allow_swp =
+		mlx5_geneve_tx_allowed(mdev) || !!mlx5_ipsec_device_caps(mdev);
 	mlx5e_build_sq_param_common(mdev, param);
 	MLX5_SET(wq, wq, log_wq_sz, params->log_sq_size);
 	MLX5_SET(sqc, sqc, allow_swp, allow_swp);
@@ -804,7 +796,7 @@ static u8 mlx5e_build_icosq_log_wq_sz(struct mlx5_core_dev *mdev,
 
 static u8 mlx5e_build_async_icosq_log_wq_sz(struct mlx5_core_dev *mdev)
 {
-	if (mlx5e_accel_is_ktls_rx(mdev))
+	if (mlx5e_is_ktls_rx(mdev))
 		return MLX5E_PARAMS_DEFAULT_LOG_SQ_SIZE;
 
 	return MLX5E_PARAMS_MINIMUM_LOG_SQ_SIZE;
@@ -833,7 +825,7 @@ static void mlx5e_build_async_icosq_param(struct mlx5_core_dev *mdev,
 
 	mlx5e_build_sq_param_common(mdev, param);
 	param->stop_room = mlx5e_stop_room_for_wqe(mdev, 1); /* for XSK NOP */
-	param->is_tls = mlx5e_accel_is_ktls_rx(mdev);
+	param->is_tls = mlx5e_is_ktls_rx(mdev);
 	if (param->is_tls)
 		param->stop_room += mlx5e_stop_room_for_wqe(mdev, 1); /* for TLS RX resync NOP */
 	MLX5_SET(sqc, sqc, reg_umr, MLX5_CAP_ETH(mdev, reg_umr_sq));

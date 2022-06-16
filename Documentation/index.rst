@@ -103,7 +103,6 @@ needed).
    block/index
    cdrom/index
    cpu-freq/index
-   ide/index
    fb/index
    fpga/index
    hid/index
@@ -169,7 +168,6 @@ to ReStructured Text format, or are simply too old.
 
    tools/index
    staging/index
-   watch_queue
 
 
 Translations

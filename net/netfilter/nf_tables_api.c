@@ -8358,10 +8358,8 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 	if (chain->blob_next || !nft_is_active_next(net, chain))
 		return 0;
 
-	rule = list_entry(&chain->rules, struct nft_rule, list);
-
 	data_size = 0;
-	list_for_each_entry_continue(rule, &chain->rules, list) {
+	list_for_each_entry(rule, &chain->rules, list) {
 		if (nft_is_active_next(net, rule)) {
 			data_size += sizeof(*prule) + rule->dlen;
 			if (data_size > INT_MAX)
@@ -8378,7 +8376,7 @@ static int nf_tables_commit_chain_prepare(struct net *net, struct nft_chain *cha
 	data_boundary = data + data_size;
 	size = 0;
 
-	list_for_each_entry_continue(rule, &chain->rules, list) {
+	list_for_each_entry(rule, &chain->rules, list) {
 		if (!nft_is_active_next(net, rule))
 			continue;
 

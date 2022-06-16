@@ -259,7 +259,7 @@ static bool drm_crtc_supports_legacy_gamma(struct drm_crtc *crtc)
  * @crtc: CRTC object
  * @red: red correction table
  * @green: green correction table
- * @blue: green correction table
+ * @blue: blue correction table
  * @size: size of the tables
  * @ctx: lock acquire context
  *

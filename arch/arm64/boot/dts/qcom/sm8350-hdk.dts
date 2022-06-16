@@ -213,6 +213,10 @@
 	firmware-name = "qcom/sm8350/cdsp.mbn";
 };
 
+&gpi_dma1 {
+	status = "okay";
+};
+
 &mpss {
 	status = "okay";
 	firmware-name = "qcom/sm8350/modem.mbn";

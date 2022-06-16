@@ -123,7 +123,7 @@
 	pinctrl-0 = <&pinctrl_qspi2>;
 	status = "okay";
 
-	flash0: s25fl128s@0 {
+	flash0: flash@0 {
 		reg = <0>;
 		#address-cells = <1>;
 		#size-cells = <1>;
@@ -133,7 +133,7 @@
 		spi-tx-bus-width = <4>;
 	};
 
-	flash1: s25fl128s@2 {
+	flash1: flash@2 {
 		reg = <2>;
 		#address-cells = <1>;
 		#size-cells = <1>;

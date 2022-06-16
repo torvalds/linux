@@ -5,6 +5,7 @@
  */
 
 #include <linux/prime_numbers.h>
+#include <linux/string_helpers.h>
 
 #include "gem/i915_gem_internal.h"
 #include "gem/i915_gem_pm.h"
@@ -700,7 +701,7 @@ static int igt_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name,
-				       yesno(i915_gem_context_has_full_ppgtt(ctx)),
+				       str_yes_no(i915_gem_context_has_full_ppgtt(ctx)),
 				       err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -834,7 +835,7 @@ static int igt_shared_ctx_exec(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       engine->name,
-				       yesno(i915_gem_context_has_full_ppgtt(ctx)),
+				       str_yes_no(i915_gem_context_has_full_ppgtt(ctx)),
 				       err);
 				intel_context_put(ce);
 				kernel_context_close(ctx);
@@ -1415,7 +1416,7 @@ static int igt_ctx_readonly(void *arg)
 				pr_err("Failed to fill dword %lu [%lu/%lu] with gpu (%s) [full-ppgtt? %s], err=%d\n",
 				       ndwords, dw, max_dwords(obj),
 				       ce->engine->name,
-				       yesno(i915_gem_context_has_full_ppgtt(ctx)),
+				       str_yes_no(i915_gem_context_has_full_ppgtt(ctx)),
 				       err);
 				i915_gem_context_unlock_engines(ctx);
 				goto out_file;

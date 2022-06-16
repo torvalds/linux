@@ -1271,8 +1271,8 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		/* data bounce buffer */
 		host->bounce_buf_size = mmc->max_req_size;
 		host->bounce_buf =
-			dma_alloc_coherent(host->dev, host->bounce_buf_size,
-					   &host->bounce_dma_addr, GFP_KERNEL);
+			dmam_alloc_coherent(host->dev, host->bounce_buf_size,
+					    &host->bounce_dma_addr, GFP_KERNEL);
 		if (host->bounce_buf == NULL) {
 			dev_err(host->dev, "Unable to map allocate DMA bounce buffer.\n");
 			ret = -ENOMEM;
@@ -1280,12 +1280,12 @@ static int meson_mmc_probe(struct platform_device *pdev)
 		}
 	}
 
-	host->descs = dma_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
-		      &host->descs_dma_addr, GFP_KERNEL);
+	host->descs = dmam_alloc_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
+					  &host->descs_dma_addr, GFP_KERNEL);
 	if (!host->descs) {
 		dev_err(host->dev, "Allocating descriptor DMA buffer failed\n");
 		ret = -ENOMEM;
-		goto err_bounce_buf;
+		goto err_free_irq;
 	}
 
 	mmc->ops = &meson_mmc_ops;
@@ -1293,10 +1293,6 @@ static int meson_mmc_probe(struct platform_device *pdev)
 
 	return 0;
 
-err_bounce_buf:
-	if (!host->dram_access_quirk)
-		dma_free_coherent(host->dev, host->bounce_buf_size,
-				  host->bounce_buf, host->bounce_dma_addr);
 err_free_irq:
 	free_irq(host->irq, host);
 err_init_clk:
@@ -1317,13 +1313,6 @@ static int meson_mmc_remove(struct platform_device *pdev)
 	/* disable interrupts */
 	writel(0, host->regs + SD_EMMC_IRQ_EN);
 	free_irq(host->irq, host);
-
-	dma_free_coherent(host->dev, SD_EMMC_DESC_BUF_LEN,
-			  host->descs, host->descs_dma_addr);
-
-	if (!host->dram_access_quirk)
-		dma_free_coherent(host->dev, host->bounce_buf_size,
-				  host->bounce_buf, host->bounce_dma_addr);
 
 	clk_disable_unprepare(host->mmc_clk);
 	clk_disable_unprepare(host->core_clk);

@@ -70,6 +70,10 @@ struct sk_skb_cb {
 	 * when dst_reg == src_reg.
 	 */
 	u64 temp_reg;
+	struct tls_msg {
+		u8 control;
+		u8 decrypted;
+	} tls;
 };
 
 static inline struct strp_msg *strp_msg(struct sk_buff *skb)

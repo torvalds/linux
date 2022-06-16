@@ -554,10 +554,7 @@ void ufs_qcom_print_hw_debug_reg_all(struct ufs_hba *hba, void *priv,
 
 static inline bool ufs_qcom_cap_qunipro(struct ufs_qcom_host *host)
 {
-	if (host->caps & UFS_QCOM_CAP_QUNIPRO)
-		return true;
-	else
-		return false;
+	return host->caps & UFS_QCOM_CAP_QUNIPRO;
 }
 
 static inline bool ufs_qcom_cap_qunipro_clk_gating(struct ufs_qcom_host *host)

@@ -6,10 +6,10 @@
 //          Amadeusz Slawinski <amadeuszx.slawinski@linux.intel.com>
 //
 
-#include <linux/module.h>
 #include <sound/hdaudio_ext.h>
 #include "avs.h"
 #include "registers.h"
+#include "trace.h"
 
 #define AVS_ADSPCS_INTERVAL_US		500
 #define AVS_ADSPCS_TIMEOUT_US		50000
@@ -18,6 +18,9 @@ int avs_dsp_core_power(struct avs_dev *adev, u32 core_mask, bool power)
 {
 	u32 value, mask, reg;
 	int ret;
+
+	value = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPCS);
+	trace_avs_dsp_core_op(value, core_mask, "power", power);
 
 	mask = AVS_ADSPCS_SPA_MASK(core_mask);
 	value = power ? mask : 0;
@@ -43,6 +46,9 @@ int avs_dsp_core_reset(struct avs_dev *adev, u32 core_mask, bool reset)
 	u32 value, mask, reg;
 	int ret;
 
+	value = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPCS);
+	trace_avs_dsp_core_op(value, core_mask, "reset", reset);
+
 	mask = AVS_ADSPCS_CRST_MASK(core_mask);
 	value = reset ? mask : 0;
 
@@ -63,6 +69,9 @@ int avs_dsp_core_stall(struct avs_dev *adev, u32 core_mask, bool stall)
 {
 	u32 value, mask, reg;
 	int ret;
+
+	value = snd_hdac_adsp_readl(adev, AVS_ADSP_REG_ADSPCS);
+	trace_avs_dsp_core_op(value, core_mask, "stall", stall);
 
 	mask = AVS_ADSPCS_CSTALL_MASK(core_mask);
 	value = stall ? mask : 0;
@@ -152,6 +161,15 @@ static int avs_dsp_get_core(struct avs_dev *adev, u32 core_id)
 
 	adev->core_refs[core_id]++;
 	if (adev->core_refs[core_id] == 1) {
+		/*
+		 * No cores other than main-core can be running for DSP
+		 * to achieve d0ix. Conscious SET_D0IX IPC failure is permitted,
+		 * simply d0ix power state will no longer be attempted.
+		 */
+		ret = avs_dsp_disable_d0ix(adev);
+		if (ret && ret != -AVS_EIPC)
+			goto err_disable_d0ix;
+
 		ret = avs_dsp_enable(adev, mask);
 		if (ret)
 			goto err_enable_dsp;
@@ -160,6 +178,8 @@ static int avs_dsp_get_core(struct avs_dev *adev, u32 core_id)
 	return 0;
 
 err_enable_dsp:
+	avs_dsp_enable_d0ix(adev);
+err_disable_d0ix:
 	adev->core_refs[core_id]--;
 err:
 	dev_err(adev->dev, "get core %d failed: %d\n", core_id, ret);
@@ -185,6 +205,9 @@ static int avs_dsp_put_core(struct avs_dev *adev, u32 core_id)
 		ret = avs_dsp_disable(adev, mask);
 		if (ret)
 			goto err;
+
+		/* Match disable_d0ix in avs_dsp_get_core(). */
+		avs_dsp_enable_d0ix(adev);
 	}
 
 	return 0;
@@ -298,5 +321,3 @@ int avs_dsp_delete_pipeline(struct avs_dev *adev, u8 instance_id)
 	ida_free(&adev->ppl_ida, instance_id);
 	return ret;
 }
-
-MODULE_LICENSE("GPL");

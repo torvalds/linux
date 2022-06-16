@@ -1,0 +1,2 @@
+drivers/block/zram/zram.ko
+mm/zsmalloc.ko

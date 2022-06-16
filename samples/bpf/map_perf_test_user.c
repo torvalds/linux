@@ -13,7 +13,6 @@
 #include <signal.h>
 #include <string.h>
 #include <time.h>
-#include <sys/resource.h>
 #include <arpa/inet.h>
 #include <errno.h>
 

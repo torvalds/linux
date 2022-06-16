@@ -6,6 +6,7 @@
 #include <errno.h>
 #include <bpf/bpf.h>
 #include <bpf/libbpf.h>
+#include "test_progs.h"
 #include "testing_helpers.h"
 
 int parse_num_list(const char *s, bool **num_set, int *num_set_len)
@@ -60,13 +61,101 @@ int parse_num_list(const char *s, bool **num_set, int *num_set_len)
 			set[i] = true;
 	}
 
-	if (!set)
+	if (!set || parsing_end)
 		return -EINVAL;
 
 	*num_set = set;
 	*num_set_len = set_len;
 
 	return 0;
+}
+
+int parse_test_list(const char *s,
+		    struct test_filter_set *set,
+		    bool is_glob_pattern)
+{
+	char *input, *state = NULL, *next;
+	struct test_filter *tmp, *tests = NULL;
+	int i, j, cnt = 0;
+
+	input = strdup(s);
+	if (!input)
+		return -ENOMEM;
+
+	while ((next = strtok_r(state ? NULL : input, ",", &state))) {
+		char *subtest_str = strchr(next, '/');
+		char *pattern = NULL;
+		int glob_chars = 0;
+
+		tmp = realloc(tests, sizeof(*tests) * (cnt + 1));
+		if (!tmp)
+			goto err;
+		tests = tmp;
+
+		tests[cnt].subtest_cnt = 0;
+		tests[cnt].subtests = NULL;
+
+		if (is_glob_pattern) {
+			pattern = "%s";
+		} else {
+			pattern = "*%s*";
+			glob_chars = 2;
+		}
+
+		if (subtest_str) {
+			char **tmp_subtests = NULL;
+			int subtest_cnt = tests[cnt].subtest_cnt;
+
+			*subtest_str = '\0';
+			subtest_str += 1;
+			tmp_subtests = realloc(tests[cnt].subtests,
+					       sizeof(*tmp_subtests) *
+					       (subtest_cnt + 1));
+			if (!tmp_subtests)
+				goto err;
+			tests[cnt].subtests = tmp_subtests;
+
+			tests[cnt].subtests[subtest_cnt] =
+				malloc(strlen(subtest_str) + glob_chars + 1);
+			if (!tests[cnt].subtests[subtest_cnt])
+				goto err;
+			sprintf(tests[cnt].subtests[subtest_cnt],
+				pattern,
+				subtest_str);
+
+			tests[cnt].subtest_cnt++;
+		}
+
+		tests[cnt].name = malloc(strlen(next) + glob_chars + 1);
+		if (!tests[cnt].name)
+			goto err;
+		sprintf(tests[cnt].name, pattern, next);
+
+		cnt++;
+	}
+
+	tmp = realloc(set->tests, sizeof(*tests) * (cnt + set->cnt));
+	if (!tmp)
+		goto err;
+
+	memcpy(tmp +  set->cnt, tests, sizeof(*tests) * cnt);
+	set->tests = tmp;
+	set->cnt += cnt;
+
+	free(tests);
+	free(input);
+	return 0;
+
+err:
+	for (i = 0; i < cnt; i++) {
+		for (j = 0; j < tests[i].subtest_cnt; j++)
+			free(tests[i].subtests[j]);
+
+		free(tests[i].name);
+	}
+	free(tests);
+	free(input);
+	return -ENOMEM;
 }
 
 __u32 link_info_prog_id(const struct bpf_link *link, struct bpf_link_info *info)

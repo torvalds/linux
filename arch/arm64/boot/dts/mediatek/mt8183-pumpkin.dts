@@ -55,7 +55,7 @@
 		};
 	};
 
-	ntc {
+	thermistor {
 		compatible = "murata,ncp03wf104";
 		pullup-uv = <1800000>;
 		pullup-ohm = <390000>;

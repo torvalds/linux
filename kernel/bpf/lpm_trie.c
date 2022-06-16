@@ -14,6 +14,7 @@
 #include <linux/vmalloc.h>
 #include <net/ipv6.h>
 #include <uapi/linux/btf.h>
+#include <linux/btf_ids.h>
 
 /* Intermediate node */
 #define LPM_TREE_NODE_FLAG_IM BIT(0)
@@ -719,7 +720,7 @@ static int trie_check_btf(const struct bpf_map *map,
 	       -EINVAL : 0;
 }
 
-static int trie_map_btf_id;
+BTF_ID_LIST_SINGLE(trie_map_btf_ids, struct, lpm_trie)
 const struct bpf_map_ops trie_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc = trie_alloc,
@@ -732,6 +733,5 @@ const struct bpf_map_ops trie_map_ops = {
 	.map_update_batch = generic_map_update_batch,
 	.map_delete_batch = generic_map_delete_batch,
 	.map_check_btf = trie_check_btf,
-	.map_btf_name = "lpm_trie",
-	.map_btf_id = &trie_map_btf_id,
+	.map_btf_id = &trie_map_btf_ids[0],
 };

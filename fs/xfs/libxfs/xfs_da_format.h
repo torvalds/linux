@@ -277,6 +277,7 @@ xfs_dir2_sf_firstentry(struct xfs_dir2_sf_hdr *hdr)
  * Directory address space divided into sections,
  * spaces separated by 32GB.
  */
+#define	XFS_DIR2_MAX_SPACES	3
 #define	XFS_DIR2_SPACE_SIZE	(1ULL << (32 + XFS_DIR2_DATA_ALIGN_LOG))
 #define	XFS_DIR2_DATA_SPACE	0
 #define	XFS_DIR2_DATA_OFFSET	(XFS_DIR2_DATA_SPACE * XFS_DIR2_SPACE_SIZE)
@@ -688,10 +689,10 @@ struct xfs_attr3_leafblock {
 #define	XFS_ATTR_ROOT_BIT	1	/* limit access to trusted attrs */
 #define	XFS_ATTR_SECURE_BIT	2	/* limit access to secure attrs */
 #define	XFS_ATTR_INCOMPLETE_BIT	7	/* attr in middle of create/delete */
-#define XFS_ATTR_LOCAL		(1 << XFS_ATTR_LOCAL_BIT)
-#define XFS_ATTR_ROOT		(1 << XFS_ATTR_ROOT_BIT)
-#define XFS_ATTR_SECURE		(1 << XFS_ATTR_SECURE_BIT)
-#define XFS_ATTR_INCOMPLETE	(1 << XFS_ATTR_INCOMPLETE_BIT)
+#define XFS_ATTR_LOCAL		(1u << XFS_ATTR_LOCAL_BIT)
+#define XFS_ATTR_ROOT		(1u << XFS_ATTR_ROOT_BIT)
+#define XFS_ATTR_SECURE		(1u << XFS_ATTR_SECURE_BIT)
+#define XFS_ATTR_INCOMPLETE	(1u << XFS_ATTR_INCOMPLETE_BIT)
 #define XFS_ATTR_NSP_ONDISK_MASK	(XFS_ATTR_ROOT | XFS_ATTR_SECURE)
 
 /*

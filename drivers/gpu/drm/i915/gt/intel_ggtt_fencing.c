@@ -3,6 +3,8 @@
  * Copyright © 2008-2015 Intel Corporation
  */
 
+#include <linux/highmem.h>
+
 #include "i915_drv.h"
 #include "i915_reg.h"
 #include "i915_scatterlist.h"

@@ -918,7 +918,6 @@ static bool dce112_program_pix_clk(
 	struct dce110_clk_src *clk_src = TO_DCE110_CLK_SRC(clock_source);
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 	if (IS_FPGA_MAXIMUS_DC(clock_source->ctx->dce_environment)) {
 		unsigned int inst = pix_clk_params->controller_id - CONTROLLER_ID_D0;
 		unsigned dp_dto_ref_100hz = 7000000;
@@ -932,7 +931,6 @@ static bool dce112_program_pix_clk(
 		REG_UPDATE(PIXEL_RATE_CNTL[inst], DP_DTO0_ENABLE, 1);
 		return true;
 	}
-#endif
 	/* First disable SS
 	 * ATOMBIOS will enable by default SS on PLL for DP,
 	 * do not disable it here
@@ -971,7 +969,6 @@ static bool dce112_program_pix_clk(
 	return true;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static bool dcn31_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
@@ -985,7 +982,7 @@ static bool dcn31_program_pix_clk(
 	struct bp_pixel_clock_parameters bp_pc_params = {0};
 	enum transmitter_color_depth bp_pc_colour_depth = TRANSMITTER_COLOR_DEPTH_24;
 	// For these signal types Driver to program DP_DTO without calling VBIOS Command table
-	if (dc_is_dp_signal(pix_clk_params->signal_type)) {
+	if (dc_is_dp_signal(pix_clk_params->signal_type) || dc_is_virtual_signal(pix_clk_params->signal_type)) {
 		if (e) {
 			/* Set DTO values: phase = target clock, modulo = reference clock*/
 			REG_WRITE(PHASE[inst], e->target_pixel_rate_khz * e->mult_factor);
@@ -1062,7 +1059,6 @@ static bool dcn31_program_pix_clk(
 
 	return true;
 }
-#endif
 
 static bool dce110_clock_source_power_down(
 		struct clock_source *clk_src)
@@ -1121,7 +1117,6 @@ static bool get_pixel_clk_frequency_100hz(
 	return false;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 /* this table is use to find *1.001 and /1.001 pixel rates from non-precise pixel rate */
 const struct pixel_rate_range_table_entry video_optimized_pixel_rates[] = {
 	// /1.001 rates
@@ -1171,7 +1166,6 @@ const struct pixel_rate_range_table_entry *look_up_in_video_optimized_rate_tlb(
 
 	return NULL;
 }
-#endif
 
 static bool dcn20_program_pix_clk(
 		struct clock_source *clock_source,
@@ -1218,7 +1212,6 @@ static const struct clock_source_funcs dcn20_clk_src_funcs = {
 	.override_dp_pix_clk = dcn20_override_dp_pix_clk
 };
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 static bool dcn3_program_pix_clk(
 		struct clock_source *clock_source,
 		struct pixel_clk_params *pix_clk_params,
@@ -1254,7 +1247,7 @@ static uint32_t dcn3_get_pix_clk_dividers(
 		struct pixel_clk_params *pix_clk_params,
 		struct pll_settings *pll_settings)
 {
-	unsigned long long actual_pix_clk_100Hz = pix_clk_params->requested_pix_clk_100hz;
+	unsigned long long actual_pix_clk_100Hz = pix_clk_params ? pix_clk_params->requested_pix_clk_100hz : 0;
 	struct dce110_clk_src *clk_src;
 
 	clk_src = TO_DCE110_CLK_SRC(cs);
@@ -1304,7 +1297,7 @@ static const struct clock_source_funcs dcn31_clk_src_funcs = {
 	.get_pix_clk_dividers = dcn3_get_pix_clk_dividers,
 	.get_pixel_clk_frequency_100hz = get_pixel_clk_frequency_100hz
 };
-#endif
+
 /*****************************************/
 /* Constructor                           */
 /*****************************************/
@@ -1690,7 +1683,6 @@ bool dcn20_clk_src_construct(
 	return ret;
 }
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dcn3_clk_src_construct(
 	struct dce110_clk_src *clk_src,
 	struct dc_context *ctx,
@@ -1706,9 +1698,7 @@ bool dcn3_clk_src_construct(
 
 	return ret;
 }
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dcn31_clk_src_construct(
 	struct dce110_clk_src *clk_src,
 	struct dc_context *ctx,
@@ -1724,9 +1714,7 @@ bool dcn31_clk_src_construct(
 
 	return ret;
 }
-#endif
 
-#if defined(CONFIG_DRM_AMD_DC_DCN)
 bool dcn301_clk_src_construct(
 	struct dce110_clk_src *clk_src,
 	struct dc_context *ctx,
@@ -1742,4 +1730,3 @@ bool dcn301_clk_src_construct(
 
 	return ret;
 }
-#endif

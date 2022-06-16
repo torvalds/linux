@@ -485,6 +485,8 @@ again:
 	 * immediately move it to the to-be-rendered queue.
 	 */
 	if (exec->ct0ca != exec->ct0ea) {
+		trace_vc4_submit_cl(dev, false, exec->seqno, exec->ct0ca,
+				    exec->ct0ea);
 		submit_cl(dev, 0, exec->ct0ca, exec->ct0ea);
 	} else {
 		struct vc4_exec_info *next;
@@ -519,6 +521,7 @@ vc4_submit_next_render_job(struct drm_device *dev)
 	 */
 	vc4_flush_texture_caches(dev);
 
+	trace_vc4_submit_cl(dev, true, exec->seqno, exec->ct1ca, exec->ct1ea);
 	submit_cl(dev, 1, exec->ct1ca, exec->ct1ea);
 }
 
@@ -543,7 +546,8 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 		bo = to_vc4_bo(&exec->bo[i]->base);
 		bo->seqno = seqno;
 
-		dma_resv_add_shared_fence(bo->base.base.resv, exec->fence);
+		dma_resv_add_fence(bo->base.base.resv, exec->fence,
+				   DMA_RESV_USAGE_READ);
 	}
 
 	list_for_each_entry(bo, &exec->unref_list, unref_head) {
@@ -554,7 +558,8 @@ vc4_update_bo_seqnos(struct vc4_exec_info *exec, uint64_t seqno)
 		bo = to_vc4_bo(&exec->rcl_write_bo[i]->base);
 		bo->write_seqno = seqno;
 
-		dma_resv_add_excl_fence(bo->base.base.resv, exec->fence);
+		dma_resv_add_fence(bo->base.base.resv, exec->fence,
+				   DMA_RESV_USAGE_WRITE);
 	}
 }
 
@@ -641,7 +646,7 @@ retry:
 	for (i = 0; i < exec->bo_count; i++) {
 		bo = &exec->bo[i]->base;
 
-		ret = dma_resv_reserve_shared(bo->resv, 1);
+		ret = dma_resv_reserve_fences(bo->resv, 1);
 		if (ret) {
 			vc4_unlock_bo_reservations(dev, exec, acquire_ctx);
 			return ret;
@@ -1134,6 +1139,10 @@ vc4_submit_cl_ioctl(struct drm_device *dev, void *data,
 	struct ww_acquire_ctx acquire_ctx;
 	struct dma_fence *in_fence;
 	int ret = 0;
+
+	trace_vc4_submit_cl_ioctl(dev, args->bin_cl_size,
+				  args->shader_rec_size,
+				  args->bo_handle_count);
 
 	if (!vc4->v3d) {
 		DRM_DEBUG("VC4_SUBMIT_CL with no VC4 V3D probed\n");

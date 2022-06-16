@@ -4,6 +4,7 @@ config DRM_EXYNOS
 	depends on OF && DRM && COMMON_CLK
 	depends on ARCH_S3C64XX || ARCH_S5PV210 || ARCH_EXYNOS || ARCH_MULTIPLATFORM || COMPILE_TEST
 	depends on MMU
+	select DRM_DISPLAY_HELPER if DRM_EXYNOS_DP
 	select DRM_KMS_HELPER
 	select VIDEOMODE_HELPERS
 	select SND_SOC_HDMI_CODEC if SND_SOC
@@ -66,7 +67,7 @@ config DRM_EXYNOS_DP
 	bool "Exynos specific extensions for Analogix DP driver"
 	depends on DRM_EXYNOS_FIMD || DRM_EXYNOS7_DECON
 	select DRM_ANALOGIX_DP
-	select DRM_DP_HELPER
+	select DRM_DISPLAY_DP_HELPER
 	default DRM_EXYNOS
 	select DRM_PANEL
 	help

@@ -223,6 +223,7 @@ struct fsl_sai_soc_data {
 	unsigned int pins;
 	unsigned int reg_offset;
 	unsigned int flags;
+	unsigned int max_register;
 };
 
 /**

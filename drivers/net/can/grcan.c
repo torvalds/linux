@@ -1609,7 +1609,7 @@ static int grcan_setup_netdev(struct platform_device *ofdev,
 		timer_setup(&priv->hang_timer, grcan_initiate_running_reset, 0);
 	}
 
-	netif_napi_add(dev, &priv->napi, grcan_poll, GRCAN_NAPI_WEIGHT);
+	netif_napi_add_weight(dev, &priv->napi, grcan_poll, GRCAN_NAPI_WEIGHT);
 
 	SET_NETDEV_DEV(dev, &ofdev->dev);
 	dev_info(&ofdev->dev, "regs=0x%p, irq=%d, clock=%d\n",

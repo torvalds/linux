@@ -1,14 +1,14 @@
 .. SPDX-License-Identifier: GPL-2.0
 .. Copyright © 2017-2020 Mickaël Salaün <mic@digikod.net>
 .. Copyright © 2019-2020 ANSSI
-.. Copyright © 2021 Microsoft Corporation
+.. Copyright © 2021-2022 Microsoft Corporation
 
 =====================================
 Landlock: unprivileged access control
 =====================================
 
 :Author: Mickaël Salaün
-:Date: March 2021
+:Date: May 2022
 
 The goal of Landlock is to enable to restrict ambient rights (e.g. global
 filesystem access) for a set of processes.  Because Landlock is a stackable
@@ -17,6 +17,13 @@ in addition to the existing system-wide access-controls. This kind of sandbox
 is expected to help mitigate the security impact of bugs or
 unexpected/malicious behaviors in user space applications.  Landlock empowers
 any process, including unprivileged ones, to securely restrict themselves.
+
+We can quickly make sure that Landlock is enabled in the running system by
+looking for "landlock: Up and running" in kernel logs (as root): ``dmesg | grep
+landlock || journalctl -kg landlock`` .  Developers can also easily check for
+Landlock support with a :ref:`related system call <landlock_abi_versions>`.  If
+Landlock is not currently supported, we need to :ref:`configure the kernel
+appropriately <kernel_support>`.
 
 Landlock rules
 ==============
@@ -29,14 +36,15 @@ the thread enforcing it, and its future children.
 Defining and enforcing a security policy
 ----------------------------------------
 
-We first need to create the ruleset that will contain our rules.  For this
+We first need to define the ruleset that will contain our rules.  For this
 example, the ruleset will contain rules that only allow read actions, but write
 actions will be denied.  The ruleset then needs to handle both of these kind of
-actions.
+actions.  This is required for backward and forward compatibility (i.e. the
+kernel and user space may not know each other's supported restrictions), hence
+the need to be explicit about the denied-by-default access rights.
 
 .. code-block:: c
 
-    int ruleset_fd;
     struct landlock_ruleset_attr ruleset_attr = {
         .handled_access_fs =
             LANDLOCK_ACCESS_FS_EXECUTE |
@@ -51,8 +59,33 @@ actions.
             LANDLOCK_ACCESS_FS_MAKE_SOCK |
             LANDLOCK_ACCESS_FS_MAKE_FIFO |
             LANDLOCK_ACCESS_FS_MAKE_BLOCK |
-            LANDLOCK_ACCESS_FS_MAKE_SYM,
+            LANDLOCK_ACCESS_FS_MAKE_SYM |
+            LANDLOCK_ACCESS_FS_REFER,
     };
+
+Because we may not know on which kernel version an application will be
+executed, it is safer to follow a best-effort security approach.  Indeed, we
+should try to protect users as much as possible whatever the kernel they are
+using.  To avoid binary enforcement (i.e. either all security features or
+none), we can leverage a dedicated Landlock command to get the current version
+of the Landlock ABI and adapt the handled accesses.  Let's check if we should
+remove the `LANDLOCK_ACCESS_FS_REFER` access right which is only supported
+starting with the second version of the ABI.
+
+.. code-block:: c
+
+    int abi;
+
+    abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    if (abi < 2) {
+        ruleset_attr.handled_access_fs &= ~LANDLOCK_ACCESS_FS_REFER;
+    }
+
+This enables to create an inclusive ruleset that will contain our rules.
+
+.. code-block:: c
+
+    int ruleset_fd;
 
     ruleset_fd = landlock_create_ruleset(&ruleset_attr, sizeof(ruleset_attr), 0);
     if (ruleset_fd < 0) {
@@ -92,6 +125,11 @@ descriptor.
         return 1;
     }
 
+It may also be required to create rules following the same logic as explained
+for the ruleset creation, by filtering access rights according to the Landlock
+ABI version.  In this example, this is not required because
+`LANDLOCK_ACCESS_FS_REFER` is not allowed by any rule.
+
 We now have a ruleset with one rule allowing read access to ``/usr`` while
 denying all other handled accesses for the filesystem.  The next step is to
 restrict the current thread from gaining more privileges (e.g. thanks to a SUID
@@ -124,6 +162,27 @@ now in a new Landlock domain, merge of their parent one (if any) with the new
 ruleset.
 
 Full working code can be found in `samples/landlock/sandboxer.c`_.
+
+Good practices
+--------------
+
+It is recommended setting access rights to file hierarchy leaves as much as
+possible.  For instance, it is better to be able to have ``~/doc/`` as a
+read-only hierarchy and ``~/tmp/`` as a read-write hierarchy, compared to
+``~/`` as a read-only hierarchy and ``~/tmp/`` as a read-write hierarchy.
+Following this good practice leads to self-sufficient hierarchies that don't
+depend on their location (i.e. parent directories).  This is particularly
+relevant when we want to allow linking or renaming.  Indeed, having consistent
+access rights per directory enables to change the location of such directory
+without relying on the destination directory access rights (except those that
+are required for this operation, see `LANDLOCK_ACCESS_FS_REFER` documentation).
+Having self-sufficient hierarchies also helps to tighten the required access
+rights to the minimal set of data.  This also helps avoid sinkhole directories,
+i.e.  directories where data can be linked to but not linked from.  However,
+this depends on data organization, which might not be controlled by developers.
+In this case, granting read-write access to ``~/tmp/``, instead of write-only
+access, would potentially allow to move ``~/tmp/`` to a non-readable directory
+and still keep the ability to list the content of ``~/tmp/``.
 
 Layers of file path access rights
 ---------------------------------
@@ -192,6 +251,58 @@ To be allowed to use :manpage:`ptrace(2)` and related syscalls on a target
 process, a sandboxed process should have a subset of the target process rules,
 which means the tracee must be in a sub-domain of the tracer.
 
+Compatibility
+=============
+
+Backward and forward compatibility
+----------------------------------
+
+Landlock is designed to be compatible with past and future versions of the
+kernel.  This is achieved thanks to the system call attributes and the
+associated bitflags, particularly the ruleset's `handled_access_fs`.  Making
+handled access right explicit enables the kernel and user space to have a clear
+contract with each other.  This is required to make sure sandboxing will not
+get stricter with a system update, which could break applications.
+
+Developers can subscribe to the `Landlock mailing list
+<https://subspace.kernel.org/lists.linux.dev.html>`_ to knowingly update and
+test their applications with the latest available features.  In the interest of
+users, and because they may use different kernel versions, it is strongly
+encouraged to follow a best-effort security approach by checking the Landlock
+ABI version at runtime and only enforcing the supported features.
+
+.. _landlock_abi_versions:
+
+Landlock ABI versions
+---------------------
+
+The Landlock ABI version can be read with the sys_landlock_create_ruleset()
+system call:
+
+.. code-block:: c
+
+    int abi;
+
+    abi = landlock_create_ruleset(NULL, 0, LANDLOCK_CREATE_RULESET_VERSION);
+    if (abi < 0) {
+        switch (errno) {
+        case ENOSYS:
+            printf("Landlock is not supported by the current kernel.\n");
+            break;
+        case EOPNOTSUPP:
+            printf("Landlock is currently disabled.\n");
+            break;
+        }
+        return 0;
+    }
+    if (abi >= 2) {
+        printf("Landlock supports LANDLOCK_ACCESS_FS_REFER.\n");
+    }
+
+The following kernel interfaces are implicitly supported by the first ABI
+version.  Features only supported from a specific version are explicitly marked
+as such.
+
 Kernel interface
 ================
 
@@ -228,21 +339,6 @@ Enforcing a ruleset
 Current limitations
 ===================
 
-File renaming and linking
--------------------------
-
-Because Landlock targets unprivileged access controls, it is needed to properly
-handle composition of rules.  Such property also implies rules nesting.
-Properly handling multiple layers of ruleset, each one of them able to restrict
-access to files, also implies to inherit the ruleset restrictions from a parent
-to its hierarchy.  Because files are identified and restricted by their
-hierarchy, moving or linking a file from one directory to another implies to
-propagate the hierarchy constraints.  To protect against privilege escalations
-through renaming or linking, and for the sake of simplicity, Landlock currently
-limits linking and renaming to the same directory.  Future Landlock evolutions
-will enable more flexibility for renaming and linking, with dedicated ruleset
-flags.
-
 Filesystem topology modification
 --------------------------------
 
@@ -267,8 +363,8 @@ restrict such paths with dedicated ruleset flags.
 Ruleset layers
 --------------
 
-There is a limit of 64 layers of stacked rulesets.  This can be an issue for a
-task willing to enforce a new ruleset in complement to its 64 inherited
+There is a limit of 16 layers of stacked rulesets.  This can be an issue for a
+task willing to enforce a new ruleset in complement to its 16 inherited
 rulesets.  Once this limit is reached, sys_landlock_restrict_self() returns
 E2BIG.  It is then strongly suggested to carefully build rulesets once in the
 life of a thread, especially for applications able to launch other applications
@@ -280,6 +376,44 @@ Memory usage
 
 Kernel memory allocated to create rulesets is accounted and can be restricted
 by the Documentation/admin-guide/cgroup-v1/memory.rst.
+
+Previous limitations
+====================
+
+File renaming and linking (ABI 1)
+---------------------------------
+
+Because Landlock targets unprivileged access controls, it needs to properly
+handle composition of rules.  Such property also implies rules nesting.
+Properly handling multiple layers of rulesets, each one of them able to
+restrict access to files, also implies inheritance of the ruleset restrictions
+from a parent to its hierarchy.  Because files are identified and restricted by
+their hierarchy, moving or linking a file from one directory to another implies
+propagation of the hierarchy constraints, or restriction of these actions
+according to the potentially lost constraints.  To protect against privilege
+escalations through renaming or linking, and for the sake of simplicity,
+Landlock previously limited linking and renaming to the same directory.
+Starting with the Landlock ABI version 2, it is now possible to securely
+control renaming and linking thanks to the new `LANDLOCK_ACCESS_FS_REFER`
+access right.
+
+.. _kernel_support:
+
+Kernel support
+==============
+
+Landlock was first introduced in Linux 5.13 but it must be configured at build
+time with `CONFIG_SECURITY_LANDLOCK=y`.  Landlock must also be enabled at boot
+time as the other security modules.  The list of security modules enabled by
+default is set with `CONFIG_LSM`.  The kernel configuration should then
+contains `CONFIG_LSM=landlock,[...]` with `[...]`  as the list of other
+potentially useful security modules for the running system (see the
+`CONFIG_LSM` help).
+
+If the running kernel doesn't have `landlock` in `CONFIG_LSM`, then we can
+still enable it by adding ``lsm=landlock,[...]`` to
+Documentation/admin-guide/kernel-parameters.rst thanks to the bootloader
+configuration.
 
 Questions and answers
 =====================

@@ -380,9 +380,8 @@ static struct prop_handler prop_handlers[] = {
 	},
 };
 
-static int inherit_props(struct btrfs_trans_handle *trans,
-			 struct inode *inode,
-			 struct inode *parent)
+int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
+			      struct inode *inode, struct inode *parent)
 {
 	struct btrfs_root *root = BTRFS_I(inode)->root;
 	struct btrfs_fs_info *fs_info = root->fs_info;
@@ -455,41 +454,6 @@ static int inherit_props(struct btrfs_trans_handle *trans,
 	}
 
 	return 0;
-}
-
-int btrfs_inode_inherit_props(struct btrfs_trans_handle *trans,
-			      struct inode *inode,
-			      struct inode *dir)
-{
-	if (!dir)
-		return 0;
-
-	return inherit_props(trans, inode, dir);
-}
-
-int btrfs_subvol_inherit_props(struct btrfs_trans_handle *trans,
-			       struct btrfs_root *root,
-			       struct btrfs_root *parent_root)
-{
-	struct super_block *sb = root->fs_info->sb;
-	struct inode *parent_inode, *child_inode;
-	int ret;
-
-	parent_inode = btrfs_iget(sb, BTRFS_FIRST_FREE_OBJECTID, parent_root);
-	if (IS_ERR(parent_inode))
-		return PTR_ERR(parent_inode);
-
-	child_inode = btrfs_iget(sb, BTRFS_FIRST_FREE_OBJECTID, root);
-	if (IS_ERR(child_inode)) {
-		iput(parent_inode);
-		return PTR_ERR(child_inode);
-	}
-
-	ret = inherit_props(trans, child_inode, parent_inode);
-	iput(child_inode);
-	iput(parent_inode);
-
-	return ret;
 }
 
 void __init btrfs_props_init(void)

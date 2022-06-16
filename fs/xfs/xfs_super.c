@@ -843,9 +843,11 @@ xfs_fs_statfs(
 
 	if (XFS_IS_REALTIME_MOUNT(mp) &&
 	    (ip->i_diflags & (XFS_DIFLAG_RTINHERIT | XFS_DIFLAG_REALTIME))) {
+		s64	freertx;
+
 		statp->f_blocks = sbp->sb_rblocks;
-		statp->f_bavail = statp->f_bfree =
-			sbp->sb_frextents * sbp->sb_rextsize;
+		freertx = percpu_counter_sum_positive(&mp->m_frextents);
+		statp->f_bavail = statp->f_bfree = freertx * sbp->sb_rextsize;
 	}
 
 	return 0;
@@ -1015,8 +1017,14 @@ xfs_init_percpu_counters(
 	if (error)
 		goto free_fdblocks;
 
+	error = percpu_counter_init(&mp->m_frextents, 0, GFP_KERNEL);
+	if (error)
+		goto free_delalloc;
+
 	return 0;
 
+free_delalloc:
+	percpu_counter_destroy(&mp->m_delalloc_blks);
 free_fdblocks:
 	percpu_counter_destroy(&mp->m_fdblocks);
 free_ifree:
@@ -1033,6 +1041,7 @@ xfs_reinit_percpu_counters(
 	percpu_counter_set(&mp->m_icount, mp->m_sb.sb_icount);
 	percpu_counter_set(&mp->m_ifree, mp->m_sb.sb_ifree);
 	percpu_counter_set(&mp->m_fdblocks, mp->m_sb.sb_fdblocks);
+	percpu_counter_set(&mp->m_frextents, mp->m_sb.sb_frextents);
 }
 
 static void
@@ -1045,6 +1054,7 @@ xfs_destroy_percpu_counters(
 	ASSERT(xfs_is_shutdown(mp) ||
 	       percpu_counter_sum(&mp->m_delalloc_blks) == 0);
 	percpu_counter_destroy(&mp->m_delalloc_blks);
+	percpu_counter_destroy(&mp->m_frextents);
 }
 
 static int
@@ -1634,6 +1644,10 @@ xfs_fs_fill_super(
 		error = -EINVAL;
 		goto out_filestream_unmount;
 	}
+
+	if (xfs_has_large_extent_counts(mp))
+		xfs_warn(mp,
+	"EXPERIMENTAL Large extent counts feature in use. Use at your own risk!");
 
 	error = xfs_mountfs(mp);
 	if (error)

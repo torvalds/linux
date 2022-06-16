@@ -12,6 +12,7 @@
 
 struct drm_i915_private;
 struct drm_file;
+struct i915_drm_client;
 
 struct drm_i915_file_private {
 	struct drm_i915_private *dev_priv;
@@ -103,6 +104,8 @@ struct drm_i915_file_private {
 	/** ban_score: Accumulated score of all ctx bans and fast hangs. */
 	atomic_t ban_score;
 	unsigned long hang_timestamp;
+
+	struct i915_drm_client *client;
 };
 
 #endif /* __I915_FILE_PRIVATE_H__ */

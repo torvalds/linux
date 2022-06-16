@@ -15,8 +15,7 @@
 
 #include "pcm3168a.h"
 
-static int pcm3168a_i2c_probe(struct i2c_client *i2c,
-			     const struct i2c_device_id *id)
+static int pcm3168a_i2c_probe(struct i2c_client *i2c)
 {
 	struct regmap *regmap;
 
@@ -47,7 +46,7 @@ static const struct of_device_id pcm3168a_of_match[] = {
 MODULE_DEVICE_TABLE(of, pcm3168a_of_match);
 
 static struct i2c_driver pcm3168a_i2c_driver = {
-	.probe		= pcm3168a_i2c_probe,
+	.probe_new	= pcm3168a_i2c_probe,
 	.remove		= pcm3168a_i2c_remove,
 	.id_table	= pcm3168a_i2c_id,
 	.driver		= {

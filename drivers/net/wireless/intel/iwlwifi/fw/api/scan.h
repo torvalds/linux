@@ -1165,7 +1165,7 @@ struct iwl_scan_offload_profiles_query_v1 {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match_v1 matches[0];
+	struct iwl_scan_offload_profile_match_v1 matches[];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_2 */
 
 /**
@@ -1209,7 +1209,7 @@ struct iwl_scan_offload_profiles_query {
 	u8 resume_while_scanning;
 	u8 self_recovery;
 	__le16 reserved;
-	struct iwl_scan_offload_profile_match matches[0];
+	struct iwl_scan_offload_profile_match matches[];
 } __packed; /* SCAN_OFFLOAD_PROFILES_QUERY_RSP_S_VER_3 */
 
 /**

@@ -20,7 +20,7 @@
 
 int dlm_slots_version(struct dlm_header *h)
 {
-	if ((h->h_version & 0x0000FFFF) < DLM_HEADER_SLOTS)
+	if ((le32_to_cpu(h->h_version) & 0x0000FFFF) < DLM_HEADER_SLOTS)
 		return 0;
 	return 1;
 }
@@ -120,18 +120,13 @@ int dlm_slots_copy_in(struct dlm_ls *ls)
 
 	ro0 = (struct rcom_slot *)(rc->rc_buf + sizeof(struct rcom_config));
 
-	for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
-		ro->ro_nodeid = le32_to_cpu(ro->ro_nodeid);
-		ro->ro_slot = le16_to_cpu(ro->ro_slot);
-	}
-
 	log_slots(ls, gen, num_slots, ro0, NULL, 0);
 
 	list_for_each_entry(memb, &ls->ls_nodes, list) {
 		for (i = 0, ro = ro0; i < num_slots; i++, ro++) {
-			if (ro->ro_nodeid != memb->nodeid)
+			if (le32_to_cpu(ro->ro_nodeid) != memb->nodeid)
 				continue;
-			memb->slot = ro->ro_slot;
+			memb->slot = le16_to_cpu(ro->ro_slot);
 			memb->slot_prev = memb->slot;
 			break;
 		}

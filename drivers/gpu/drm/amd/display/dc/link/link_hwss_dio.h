@@ -34,6 +34,7 @@ void set_dio_throttled_vcp_size(struct pipe_ctx *pipe_ctx,
 		struct fixed31_32 throttled_vcp_size);
 void setup_dio_stream_encoder(struct pipe_ctx *pipe_ctx);
 void reset_dio_stream_encoder(struct pipe_ctx *pipe_ctx);
+void setup_dio_stream_attribute(struct pipe_ctx *pipe_ctx);
 void enable_dio_dp_link_output(struct dc_link *link,
 		const struct link_resource *link_res,
 		enum signal_type signal,

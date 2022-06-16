@@ -1344,7 +1344,8 @@ static bool amdgpu_ttm_bo_eviction_valuable(struct ttm_buffer_object *bo,
 	 * If true, then return false as any KFD process needs all its BOs to
 	 * be resident to run successfully
 	 */
-	dma_resv_for_each_fence(&resv_cursor, bo->base.resv, true, f) {
+	dma_resv_for_each_fence(&resv_cursor, bo->base.resv,
+				DMA_RESV_USAGE_BOOKKEEP, f) {
 		if (amdkfd_fence_check_mm(f, current->mm))
 			return false;
 	}
@@ -1547,7 +1548,6 @@ static struct ttm_device_funcs amdgpu_bo_driver = {
 	.io_mem_reserve = &amdgpu_ttm_io_mem_reserve,
 	.io_mem_pfn = amdgpu_ttm_io_mem_pfn,
 	.access_memory = &amdgpu_ttm_access_memory,
-	.del_from_lru_notify = &amdgpu_vm_del_from_lru_notify
 };
 
 /*
@@ -2161,17 +2161,6 @@ int amdgpu_ttm_evict_resources(struct amdgpu_device *adev, int mem_type)
 
 #if defined(CONFIG_DEBUG_FS)
 
-static int amdgpu_mm_vram_table_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
-							    TTM_PL_VRAM);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
 static int amdgpu_ttm_page_pool_show(struct seq_file *m, void *unused)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
@@ -2179,55 +2168,6 @@ static int amdgpu_ttm_page_pool_show(struct seq_file *m, void *unused)
 	return ttm_pool_debugfs(&adev->mman.bdev.pool, m);
 }
 
-static int amdgpu_mm_tt_table_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
-							    TTM_PL_TT);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
-static int amdgpu_mm_gds_table_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
-							    AMDGPU_PL_GDS);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
-static int amdgpu_mm_gws_table_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
-							    AMDGPU_PL_GWS);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
-static int amdgpu_mm_oa_table_show(struct seq_file *m, void *unused)
-{
-	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
-	struct ttm_resource_manager *man = ttm_manager_type(&adev->mman.bdev,
-							    AMDGPU_PL_OA);
-	struct drm_printer p = drm_seq_file_printer(m);
-
-	ttm_resource_manager_debug(man, &p);
-	return 0;
-}
-
-DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_vram_table);
-DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_tt_table);
-DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_gds_table);
-DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_gws_table);
-DEFINE_SHOW_ATTRIBUTE(amdgpu_mm_oa_table);
 DEFINE_SHOW_ATTRIBUTE(amdgpu_ttm_page_pool);
 
 /*
@@ -2437,17 +2377,23 @@ void amdgpu_ttm_debugfs_init(struct amdgpu_device *adev)
 				 &amdgpu_ttm_vram_fops, adev->gmc.mc_vram_size);
 	debugfs_create_file("amdgpu_iomem", 0444, root, adev,
 			    &amdgpu_ttm_iomem_fops);
-	debugfs_create_file("amdgpu_vram_mm", 0444, root, adev,
-			    &amdgpu_mm_vram_table_fops);
-	debugfs_create_file("amdgpu_gtt_mm", 0444, root, adev,
-			    &amdgpu_mm_tt_table_fops);
-	debugfs_create_file("amdgpu_gds_mm", 0444, root, adev,
-			    &amdgpu_mm_gds_table_fops);
-	debugfs_create_file("amdgpu_gws_mm", 0444, root, adev,
-			    &amdgpu_mm_gws_table_fops);
-	debugfs_create_file("amdgpu_oa_mm", 0444, root, adev,
-			    &amdgpu_mm_oa_table_fops);
 	debugfs_create_file("ttm_page_pool", 0444, root, adev,
 			    &amdgpu_ttm_page_pool_fops);
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&adev->mman.bdev,
+							     TTM_PL_VRAM),
+					    root, "amdgpu_vram_mm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&adev->mman.bdev,
+							     TTM_PL_TT),
+					    root, "amdgpu_gtt_mm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&adev->mman.bdev,
+							     AMDGPU_PL_GDS),
+					    root, "amdgpu_gds_mm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&adev->mman.bdev,
+							     AMDGPU_PL_GWS),
+					    root, "amdgpu_gws_mm");
+	ttm_resource_manager_create_debugfs(ttm_manager_type(&adev->mman.bdev,
+							     AMDGPU_PL_OA),
+					    root, "amdgpu_oa_mm");
+
 #endif
 }

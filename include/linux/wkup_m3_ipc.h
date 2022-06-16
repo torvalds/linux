@@ -33,7 +33,13 @@ struct wkup_m3_ipc {
 
 	int mem_type;
 	unsigned long resume_addr;
+	int vtt_conf;
+	int isolation_conf;
 	int state;
+	u32 halt;
+
+	unsigned long volt_scale_offsets;
+	const char *sd_fw_name;
 
 	struct completion sync_complete;
 	struct mbox_client mbox_client;
@@ -41,12 +47,19 @@ struct wkup_m3_ipc {
 
 	struct wkup_m3_ipc_ops *ops;
 	int is_rtc_only;
+	struct dentry *dbg_path;
 };
 
 struct wkup_m3_wakeup_src {
 	int irq_nr;
 	char src[10];
 };
+
+struct wkup_m3_scale_data_header {
+	u16 magic;
+	u8 sleep_offset;
+	u8 wake_offset;
+} __packed;
 
 struct wkup_m3_ipc_ops {
 	void (*set_mem_type)(struct wkup_m3_ipc *m3_ipc, int mem_type);

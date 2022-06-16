@@ -126,7 +126,7 @@ static void set_params(struct hantro_ctx *ctx, struct vb2_v4l2_buffer *src_buf)
 
 static void set_ref(struct hantro_ctx *ctx)
 {
-	const u8 *b0_reflist, *b1_reflist, *p_reflist;
+	const struct v4l2_h264_reference *b0_reflist, *b1_reflist, *p_reflist;
 	struct hantro_dev *vpu = ctx->dev;
 	int reg_num;
 	u32 reg;
@@ -157,12 +157,12 @@ static void set_ref(struct hantro_ctx *ctx)
 	 */
 	reg_num = 0;
 	for (i = 0; i < 15; i += 3) {
-		reg = G1_REG_BD_REF_PIC_BINIT_RLIST_F0(b0_reflist[i]) |
-		      G1_REG_BD_REF_PIC_BINIT_RLIST_F1(b0_reflist[i + 1]) |
-		      G1_REG_BD_REF_PIC_BINIT_RLIST_F2(b0_reflist[i + 2]) |
-		      G1_REG_BD_REF_PIC_BINIT_RLIST_B0(b1_reflist[i]) |
-		      G1_REG_BD_REF_PIC_BINIT_RLIST_B1(b1_reflist[i + 1]) |
-		      G1_REG_BD_REF_PIC_BINIT_RLIST_B2(b1_reflist[i + 2]);
+		reg = G1_REG_BD_REF_PIC_BINIT_RLIST_F0(b0_reflist[i].index) |
+		      G1_REG_BD_REF_PIC_BINIT_RLIST_F1(b0_reflist[i + 1].index) |
+		      G1_REG_BD_REF_PIC_BINIT_RLIST_F2(b0_reflist[i + 2].index) |
+		      G1_REG_BD_REF_PIC_BINIT_RLIST_B0(b1_reflist[i].index) |
+		      G1_REG_BD_REF_PIC_BINIT_RLIST_B1(b1_reflist[i + 1].index) |
+		      G1_REG_BD_REF_PIC_BINIT_RLIST_B2(b1_reflist[i + 2].index);
 		vdpu_write_relaxed(vpu, reg, G1_REG_BD_REF_PIC(reg_num++));
 	}
 
@@ -171,12 +171,12 @@ static void set_ref(struct hantro_ctx *ctx)
 	 * of forward and backward reference picture lists and first 4 entries
 	 * of P forward picture list.
 	 */
-	reg = G1_REG_BD_P_REF_PIC_BINIT_RLIST_F15(b0_reflist[15]) |
-	      G1_REG_BD_P_REF_PIC_BINIT_RLIST_B15(b1_reflist[15]) |
-	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F0(p_reflist[0]) |
-	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F1(p_reflist[1]) |
-	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F2(p_reflist[2]) |
-	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F3(p_reflist[3]);
+	reg = G1_REG_BD_P_REF_PIC_BINIT_RLIST_F15(b0_reflist[15].index) |
+	      G1_REG_BD_P_REF_PIC_BINIT_RLIST_B15(b1_reflist[15].index) |
+	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F0(p_reflist[0].index) |
+	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F1(p_reflist[1].index) |
+	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F2(p_reflist[2].index) |
+	      G1_REG_BD_P_REF_PIC_PINIT_RLIST_F3(p_reflist[3].index);
 	vdpu_write_relaxed(vpu, reg, G1_REG_BD_P_REF_PIC);
 
 	/*
@@ -185,12 +185,12 @@ static void set_ref(struct hantro_ctx *ctx)
 	 */
 	reg_num = 0;
 	for (i = 4; i < HANTRO_H264_DPB_SIZE; i += 6) {
-		reg = G1_REG_FWD_PIC_PINIT_RLIST_F0(p_reflist[i]) |
-		      G1_REG_FWD_PIC_PINIT_RLIST_F1(p_reflist[i + 1]) |
-		      G1_REG_FWD_PIC_PINIT_RLIST_F2(p_reflist[i + 2]) |
-		      G1_REG_FWD_PIC_PINIT_RLIST_F3(p_reflist[i + 3]) |
-		      G1_REG_FWD_PIC_PINIT_RLIST_F4(p_reflist[i + 4]) |
-		      G1_REG_FWD_PIC_PINIT_RLIST_F5(p_reflist[i + 5]);
+		reg = G1_REG_FWD_PIC_PINIT_RLIST_F0(p_reflist[i].index) |
+		      G1_REG_FWD_PIC_PINIT_RLIST_F1(p_reflist[i + 1].index) |
+		      G1_REG_FWD_PIC_PINIT_RLIST_F2(p_reflist[i + 2].index) |
+		      G1_REG_FWD_PIC_PINIT_RLIST_F3(p_reflist[i + 3].index) |
+		      G1_REG_FWD_PIC_PINIT_RLIST_F4(p_reflist[i + 4].index) |
+		      G1_REG_FWD_PIC_PINIT_RLIST_F5(p_reflist[i + 5].index);
 		vdpu_write_relaxed(vpu, reg, G1_REG_FWD_PIC(reg_num++));
 	}
 

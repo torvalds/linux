@@ -96,7 +96,7 @@
 					 <&clks IMX27_CLK_DMA_AHB_GATE>;
 				clock-names = "ipg", "ahb";
 				#dma-cells = <1>;
-				#dma-channels = <16>;
+				dma-channels = <16>;
 			};
 
 			wdog: watchdog@10002000 {

@@ -38,6 +38,7 @@
 #include "amdgpu_umr.h"
 
 #include "amdgpu_reset.h"
+#include "amdgpu_psp_ta.h"
 
 #if defined(CONFIG_DEBUG_FS)
 
@@ -730,7 +731,7 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 		return -ENOMEM;
 
 	/* version, increment each time something is added */
-	config[no_regs++] = 4;
+	config[no_regs++] = 5;
 	config[no_regs++] = adev->gfx.config.max_shader_engines;
 	config[no_regs++] = adev->gfx.config.max_tile_pipes;
 	config[no_regs++] = adev->gfx.config.max_cu_per_sh;
@@ -757,8 +758,8 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 
 	/* rev==1 */
 	config[no_regs++] = adev->rev_id;
-	config[no_regs++] = adev->pg_flags;
-	config[no_regs++] = adev->cg_flags;
+	config[no_regs++] = lower_32_bits(adev->pg_flags);
+	config[no_regs++] = lower_32_bits(adev->cg_flags);
 
 	/* rev==2 */
 	config[no_regs++] = adev->family;
@@ -772,6 +773,10 @@ static ssize_t amdgpu_debugfs_gca_config_read(struct file *f, char __user *buf,
 
 	/* rev==4 APU flag */
 	config[no_regs++] = adev->flags & AMD_IS_APU ? 1 : 0;
+
+	/* rev==5 PG/CG flag upper 32bit */
+	config[no_regs++] = upper_32_bits(adev->pg_flags);
+	config[no_regs++] = upper_32_bits(adev->cg_flags);
 
 	while (size && (*pos < no_regs * 4)) {
 		uint32_t value;
@@ -1763,6 +1768,7 @@ int amdgpu_debugfs_init(struct amdgpu_device *adev)
 		DRM_ERROR("registering register debugfs failed (%d).\n", r);
 
 	amdgpu_debugfs_firmware_init(adev);
+	amdgpu_ta_if_debugfs_init(adev);
 
 #if defined(CONFIG_DRM_AMD_DC)
 	if (amdgpu_device_has_dc_support(adev))

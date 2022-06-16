@@ -66,7 +66,8 @@ static const struct cg_flag_name clocks[] = {
 	{AMD_CG_SUPPORT_HDP_SD, "Host Data Path Shutdown"},
 	{AMD_CG_SUPPORT_IH_CG, "Interrupt Handler Clock Gating"},
 	{AMD_CG_SUPPORT_JPEG_MGCG, "JPEG Medium Grain Clock Gating"},
-
+	{AMD_CG_SUPPORT_REPEATER_FGCG, "Repeater Fine Grain Clock Gating"},
+	{AMD_CG_SUPPORT_GFX_PERF_CLK, "Perfmon Clock Gating"},
 	{AMD_CG_SUPPORT_ATHUB_MGCG, "Address Translation Hub Medium Grain Clock Gating"},
 	{AMD_CG_SUPPORT_ATHUB_LS, "Address Translation Hub Light Sleep"},
 	{0, NULL},
@@ -88,7 +89,8 @@ const char * const amdgpu_pp_profile_name[] = {
 	"VIDEO",
 	"VR",
 	"COMPUTE",
-	"CUSTOM"
+	"CUSTOM",
+	"WINDOW_3D",
 };
 
 /**
@@ -1732,22 +1734,11 @@ out:
 	return size;
 }
 
-/**
- * DOC: smartshift_apu_power
- *
- * The amdgpu driver provides a sysfs API for reporting APU power
- * share if it supports smartshift. The value is expressed as
- * the proportion of stapm limit where stapm limit is the total APU
- * power limit. The result is in percentage. If APU power is 130% of
- * STAPM, then APU is using 30% of the dGPU's headroom.
- */
-
-static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device_attribute *attr,
-					       char *buf)
+static int amdgpu_device_read_powershift(struct amdgpu_device *adev,
+						uint32_t *ss_power, bool dgpu_share)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = drm_to_adev(ddev);
-	uint32_t ss_power, size;
+	struct drm_device *ddev = adev_to_drm(adev);
+	uint32_t size;
 	int r = 0;
 
 	if (amdgpu_in_reset(adev))
@@ -1761,61 +1752,77 @@ static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device
 		return r;
 	}
 
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
-				   (void *)&ss_power, &size);
-	if (r)
-		goto out;
+	if (dgpu_share)
+		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
+				   (void *)ss_power, &size);
+	else
+		r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
+				   (void *)ss_power, &size);
 
-	r = sysfs_emit(buf, "%u%%\n", ss_power);
-
-out:
 	pm_runtime_mark_last_busy(ddev->dev);
 	pm_runtime_put_autosuspend(ddev->dev);
 	return r;
 }
 
+static int amdgpu_show_powershift_percent(struct device *dev,
+					char *buf, bool dgpu_share)
+{
+	struct drm_device *ddev = dev_get_drvdata(dev);
+	struct amdgpu_device *adev = drm_to_adev(ddev);
+	uint32_t ss_power;
+	int r = 0, i;
+
+	r = amdgpu_device_read_powershift(adev, &ss_power, dgpu_share);
+	if (r == -EOPNOTSUPP) {
+		/* sensor not available on dGPU, try to read from APU */
+		adev = NULL;
+		mutex_lock(&mgpu_info.mutex);
+		for (i = 0; i < mgpu_info.num_gpu; i++) {
+			if (mgpu_info.gpu_ins[i].adev->flags & AMD_IS_APU) {
+				adev = mgpu_info.gpu_ins[i].adev;
+				break;
+			}
+		}
+		mutex_unlock(&mgpu_info.mutex);
+		if (adev)
+			r = amdgpu_device_read_powershift(adev, &ss_power, dgpu_share);
+	}
+
+	if (!r)
+		r = sysfs_emit(buf, "%u%%\n", ss_power);
+
+	return r;
+}
+/**
+ * DOC: smartshift_apu_power
+ *
+ * The amdgpu driver provides a sysfs API for reporting APU power
+ * shift in percentage if platform supports smartshift. Value 0 means that
+ * there is no powershift and values between [1-100] means that the power
+ * is shifted to APU, the percentage of boost is with respect to APU power
+ * limit on the platform.
+ */
+
+static ssize_t amdgpu_get_smartshift_apu_power(struct device *dev, struct device_attribute *attr,
+					       char *buf)
+{
+	return amdgpu_show_powershift_percent(dev, buf, false);
+}
+
 /**
  * DOC: smartshift_dgpu_power
  *
- * The amdgpu driver provides a sysfs API for reporting the dGPU power
- * share if the device is in HG and supports smartshift. The value
- * is expressed as the proportion of stapm limit where stapm limit
- * is the total APU power limit. The value is in percentage. If dGPU
- * power is 20% higher than STAPM power(120%), it's using 20% of the
- * APU's power headroom.
+ * The amdgpu driver provides a sysfs API for reporting dGPU power
+ * shift in percentage if platform supports smartshift. Value 0 means that
+ * there is no powershift and values between [1-100] means that the power is
+ * shifted to dGPU, the percentage of boost is with respect to dGPU power
+ * limit on the platform.
  */
 
 static ssize_t amdgpu_get_smartshift_dgpu_power(struct device *dev, struct device_attribute *attr,
 						char *buf)
 {
-	struct drm_device *ddev = dev_get_drvdata(dev);
-	struct amdgpu_device *adev = drm_to_adev(ddev);
-	uint32_t ss_power, size;
-	int r = 0;
-
-	if (amdgpu_in_reset(adev))
-		return -EPERM;
-	if (adev->in_suspend && !adev->in_runpm)
-		return -EPERM;
-
-	r = pm_runtime_get_sync(ddev->dev);
-	if (r < 0) {
-		pm_runtime_put_autosuspend(ddev->dev);
-		return r;
-	}
-
-	r = amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
-				   (void *)&ss_power, &size);
-
-	if (r)
-		goto out;
-
-	r = sysfs_emit(buf, "%u%%\n", ss_power);
-
-out:
-	pm_runtime_mark_last_busy(ddev->dev);
-	pm_runtime_put_autosuspend(ddev->dev);
-	return r;
+	return amdgpu_show_powershift_percent(dev, buf, true);
 }
 
 /**
@@ -1882,18 +1889,7 @@ out:
 static int ss_power_attr_update(struct amdgpu_device *adev, struct amdgpu_device_attr *attr,
 				uint32_t mask, enum amdgpu_device_attr_states *states)
 {
-	uint32_t ss_power, size;
-
-	if (!amdgpu_acpi_is_power_shift_control_supported())
-		*states = ATTR_STATE_UNSUPPORTED;
-	else if ((adev->flags & AMD_IS_PX) &&
-		 !amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
-		*states = ATTR_STATE_UNSUPPORTED;
-	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_APU_SHARE,
-		 (void *)&ss_power, &size))
-		*states = ATTR_STATE_UNSUPPORTED;
-	else if (amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_SS_DGPU_SHARE,
-		 (void *)&ss_power, &size))
+	if (!amdgpu_device_supports_smart_shift(adev_to_drm(adev)))
 		*states = ATTR_STATE_UNSUPPORTED;
 
 	return 0;
@@ -1954,8 +1950,9 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 			       uint32_t mask, enum amdgpu_device_attr_states *states)
 {
 	struct device_attribute *dev_attr = &attr->dev_attr;
+	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 	const char *attr_name = dev_attr->attr.name;
-	enum amd_asic_type asic_type = adev->asic_type;
 
 	if (!(attr->flags & mask)) {
 		*states = ATTR_STATE_UNSUPPORTED;
@@ -1965,58 +1962,82 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 #define DEVICE_ATTR_IS(_name)	(!strcmp(attr_name, #_name))
 
 	if (DEVICE_ATTR_IS(pp_dpm_socclk)) {
-		if (asic_type < CHIP_VEGA10)
+		if (gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
-		if (asic_type < CHIP_VEGA10 ||
-		    asic_type == CHIP_ARCTURUS ||
-		    asic_type == CHIP_ALDEBARAN)
+		if (gc_ver < IP_VERSION(9, 0, 0) ||
+		    gc_ver == IP_VERSION(9, 4, 1) ||
+		    gc_ver == IP_VERSION(9, 4, 2))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_fclk)) {
-		if (asic_type < CHIP_VEGA20)
+		if (mp1_ver < IP_VERSION(10, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_od_clk_voltage)) {
 		*states = ATTR_STATE_UNSUPPORTED;
 		if (amdgpu_dpm_is_overdrive_supported(adev))
 			*states = ATTR_STATE_SUPPORTED;
 	} else if (DEVICE_ATTR_IS(mem_busy_percent)) {
-		if (adev->flags & AMD_IS_APU || asic_type == CHIP_VEGA10)
+		if (adev->flags & AMD_IS_APU || gc_ver == IP_VERSION(9, 0, 1))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pcie_bw)) {
 		/* PCIe Perf counters won't work on APU nodes */
 		if (adev->flags & AMD_IS_APU)
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(unique_id)) {
-		if (asic_type != CHIP_VEGA10 &&
-		    asic_type != CHIP_VEGA20 &&
-		    asic_type != CHIP_ARCTURUS &&
-		    asic_type != CHIP_ALDEBARAN)
+		switch (gc_ver) {
+		case IP_VERSION(9, 0, 1):
+		case IP_VERSION(9, 4, 0):
+		case IP_VERSION(9, 4, 1):
+		case IP_VERSION(9, 4, 2):
+		case IP_VERSION(10, 3, 0):
+		case IP_VERSION(11, 0, 0):
+			*states = ATTR_STATE_SUPPORTED;
+			break;
+		default:
 			*states = ATTR_STATE_UNSUPPORTED;
+		}
 	} else if (DEVICE_ATTR_IS(pp_features)) {
-		if (adev->flags & AMD_IS_APU || asic_type < CHIP_VEGA10)
+		if (adev->flags & AMD_IS_APU || gc_ver < IP_VERSION(9, 0, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(gpu_metrics)) {
-		if (asic_type < CHIP_VEGA12)
+		if (gc_ver < IP_VERSION(9, 1, 0))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_vclk)) {
-		if (!(asic_type == CHIP_VANGOGH || asic_type == CHIP_SIENNA_CICHLID))
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 0) ||
+		      gc_ver == IP_VERSION(10, 1, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 2)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_dpm_dclk)) {
-		if (!(asic_type == CHIP_VANGOGH || asic_type == CHIP_SIENNA_CICHLID))
+		if (!(gc_ver == IP_VERSION(10, 3, 1) ||
+		      gc_ver == IP_VERSION(10, 3, 0) ||
+		      gc_ver == IP_VERSION(10, 1, 2) ||
+		      gc_ver == IP_VERSION(11, 0, 0) ||
+		      gc_ver == IP_VERSION(11, 0, 2)))
 			*states = ATTR_STATE_UNSUPPORTED;
 	} else if (DEVICE_ATTR_IS(pp_power_profile_mode)) {
 		if (amdgpu_dpm_get_power_profile_mode(adev, NULL) == -EOPNOTSUPP)
 			*states = ATTR_STATE_UNSUPPORTED;
+		else if (gc_ver == IP_VERSION(10, 3, 0) && amdgpu_sriov_vf(adev))
+			*states = ATTR_STATE_UNSUPPORTED;
 	}
 
-	switch (asic_type) {
-	case CHIP_ARCTURUS:
-	case CHIP_ALDEBARAN:
+	switch (gc_ver) {
+	case IP_VERSION(9, 4, 1):
+	case IP_VERSION(9, 4, 2):
 		/* the Mi series card does not support standalone mclk/socclk/fclk level setting */
 		if (DEVICE_ATTR_IS(pp_dpm_mclk) ||
 		    DEVICE_ATTR_IS(pp_dpm_socclk) ||
 		    DEVICE_ATTR_IS(pp_dpm_fclk)) {
 			dev_attr->attr.mode &= ~S_IWUGO;
+			dev_attr->store = NULL;
+		}
+		break;
+	case IP_VERSION(10, 3, 0):
+		if (DEVICE_ATTR_IS(power_dpm_force_performance_level) &&
+		    amdgpu_sriov_vf(adev)) {
+			dev_attr->attr.mode &= ~0222;
 			dev_attr->store = NULL;
 		}
 		break;
@@ -2026,7 +2047,7 @@ static int default_attr_update(struct amdgpu_device *adev, struct amdgpu_device_
 
 	if (DEVICE_ATTR_IS(pp_dpm_dcefclk)) {
 		/* SMU MP1 does not support dcefclk level setting */
-		if (asic_type >= CHIP_NAVI10) {
+		if (gc_ver >= IP_VERSION(10, 0, 0)) {
 			dev_attr->attr.mode &= ~S_IWUGO;
 			dev_attr->store = NULL;
 		}
@@ -2864,8 +2885,9 @@ static ssize_t amdgpu_hwmon_show_power_label(struct device *dev,
 					 char *buf)
 {
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 
-	if (adev->asic_type == CHIP_VANGOGH)
+	if (gc_ver == IP_VERSION(10, 3, 1))
 		return sysfs_emit(buf, "%s\n",
 				  to_sensor_dev_attr(attr)->index == PP_PWR_TYPE_FAST ?
 				  "fastPPT" : "slowPPT");
@@ -3177,6 +3199,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	struct device *dev = kobj_to_dev(kobj);
 	struct amdgpu_device *adev = dev_get_drvdata(dev);
 	umode_t effective_mode = attr->mode;
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 
 	/* under multi-vf mode, the hwmon attributes are all not supported */
 	if (amdgpu_sriov_vf(adev) && !amdgpu_sriov_is_pp_one_vf(adev))
@@ -3245,18 +3268,18 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 	      attr == &sensor_dev_attr_pwm1_enable.dev_attr.attr)) /* can't manage state */
 		effective_mode &= ~S_IWUSR;
 
+	/* not implemented yet for GC 10.3.1 APUs */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
-		 ((adev->flags & AMD_IS_APU) &&
-	      (adev->asic_type != CHIP_VANGOGH))) &&	/* not implemented yet */
+	     ((adev->flags & AMD_IS_APU) && (gc_ver != IP_VERSION(10, 3, 1)))) &&
 	    (attr == &sensor_dev_attr_power1_cap_max.dev_attr.attr ||
-	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr||
+	     attr == &sensor_dev_attr_power1_cap_min.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power1_cap_default.dev_attr.attr))
 		return 0;
 
+	/* not implemented yet for APUs having <= GC 9.3.0 */
 	if (((adev->family == AMDGPU_FAMILY_SI) ||
-	     ((adev->flags & AMD_IS_APU) &&
-	      (adev->asic_type < CHIP_RENOIR))) &&	/* not implemented yet */
+	     ((adev->flags & AMD_IS_APU) && (gc_ver < IP_VERSION(9, 3, 0)))) &&
 	    (attr == &sensor_dev_attr_power1_average.dev_attr.attr))
 		return 0;
 
@@ -3294,8 +3317,7 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* only SOC15 dGPUs support hotspot and mem temperatures */
-	if (((adev->flags & AMD_IS_APU) ||
-	     adev->asic_type < CHIP_VEGA10) &&
+	if (((adev->flags & AMD_IS_APU) || gc_ver < IP_VERSION(9, 0, 0)) &&
 	    (attr == &sensor_dev_attr_temp2_crit.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp2_crit_hyst.dev_attr.attr ||
 	     attr == &sensor_dev_attr_temp3_crit.dev_attr.attr ||
@@ -3310,13 +3332,13 @@ static umode_t hwmon_attributes_visible(struct kobject *kobj,
 		return 0;
 
 	/* only Vangogh has fast PPT limit and power labels */
-	if (!(adev->asic_type == CHIP_VANGOGH) &&
+	if (!(gc_ver == IP_VERSION(10, 3, 1)) &&
 	    (attr == &sensor_dev_attr_power2_average.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_cap_max.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power2_cap_max.dev_attr.attr ||
 	     attr == &sensor_dev_attr_power2_cap_min.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_cap.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_cap_default.dev_attr.attr ||
-		 attr == &sensor_dev_attr_power2_label.dev_attr.attr))
+	     attr == &sensor_dev_attr_power2_cap.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power2_cap_default.dev_attr.attr ||
+	     attr == &sensor_dev_attr_power2_label.dev_attr.attr))
 		return 0;
 
 	return effective_mode;
@@ -3421,6 +3443,8 @@ static void amdgpu_debugfs_prints_cpu_info(struct seq_file *m,
 
 static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *adev)
 {
+	uint32_t mp1_ver = adev->ip_versions[MP1_HWIP][0];
+	uint32_t gc_ver = adev->ip_versions[GC_HWIP][0];
 	uint32_t value;
 	uint64_t value64 = 0;
 	uint32_t query = 0;
@@ -3467,7 +3491,8 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_ENABLED_SMC_FEATURES_MASK, (void *)&value64, &size))
 		seq_printf(m, "SMC Feature Mask: 0x%016llx\n", value64);
 
-	if (adev->asic_type > CHIP_VEGA20) {
+	/* ASICs greater than CHIP_VEGA20 supports these sensors */
+	if (gc_ver != IP_VERSION(9, 4, 0) && mp1_ver > IP_VERSION(9, 0, 0)) {
 		/* VCN clocks */
 		if (!amdgpu_dpm_read_sensor(adev, AMDGPU_PP_SENSOR_VCN_POWER_STATE, (void *)&value, &size)) {
 			if (!value) {
@@ -3511,7 +3536,7 @@ static int amdgpu_debugfs_pm_info_pp(struct seq_file *m, struct amdgpu_device *a
 	return 0;
 }
 
-static void amdgpu_parse_cg_state(struct seq_file *m, u32 flags)
+static void amdgpu_parse_cg_state(struct seq_file *m, u64 flags)
 {
 	int i;
 
@@ -3524,7 +3549,7 @@ static int amdgpu_debugfs_pm_info_show(struct seq_file *m, void *unused)
 {
 	struct amdgpu_device *adev = (struct amdgpu_device *)m->private;
 	struct drm_device *dev = adev_to_drm(adev);
-	u32 flags = 0;
+	u64 flags = 0;
 	int r;
 
 	if (amdgpu_in_reset(adev))
@@ -3546,7 +3571,7 @@ static int amdgpu_debugfs_pm_info_show(struct seq_file *m, void *unused)
 
 	amdgpu_device_ip_get_clockgating_state(adev, &flags);
 
-	seq_printf(m, "Clock Gating Flags Mask: 0x%x\n", flags);
+	seq_printf(m, "Clock Gating Flags Mask: 0x%llx\n", flags);
 	amdgpu_parse_cg_state(m, flags);
 	seq_printf(m, "\n");
 

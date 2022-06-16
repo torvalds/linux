@@ -86,12 +86,30 @@ static void ksz9477_spi_shutdown(struct spi_device *spi)
 }
 
 static const struct of_device_id ksz9477_dt_ids[] = {
-	{ .compatible = "microchip,ksz9477" },
-	{ .compatible = "microchip,ksz9897" },
-	{ .compatible = "microchip,ksz9893" },
-	{ .compatible = "microchip,ksz9563" },
-	{ .compatible = "microchip,ksz8563" },
-	{ .compatible = "microchip,ksz9567" },
+	{
+		.compatible = "microchip,ksz9477",
+		.data = &ksz_switch_chips[KSZ9477]
+	},
+	{
+		.compatible = "microchip,ksz9897",
+		.data = &ksz_switch_chips[KSZ9897]
+	},
+	{
+		.compatible = "microchip,ksz9893",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz8563",
+		.data = &ksz_switch_chips[KSZ9893]
+	},
+	{
+		.compatible = "microchip,ksz9567",
+		.data = &ksz_switch_chips[KSZ9567]
+	},
 	{},
 };
 MODULE_DEVICE_TABLE(of, ksz9477_dt_ids);

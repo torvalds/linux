@@ -585,8 +585,6 @@ static int vpif_querycap(struct file *file, void  *priv,
 	struct vpif_display_config *config = vpif_dev->platform_data;
 
 	strscpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(vpif_dev));
 	strscpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;
@@ -1286,8 +1284,7 @@ static __init int vpif_probe(struct platform_device *pdev)
 			goto probe_subdev_out;
 		}
 
-		if (vpif_obj.sd[i])
-			vpif_obj.sd[i]->grp_id = 1 << i;
+		vpif_obj.sd[i]->grp_id = 1 << i;
 	}
 	err = vpif_probe_complete();
 	if (err)

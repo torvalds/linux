@@ -1394,8 +1394,7 @@ err_remove:
 	bdisp_debugfs_remove(bdisp);
 	v4l2_device_unregister(&bdisp->v4l2_dev);
 err_clk:
-	if (!IS_ERR(bdisp->clock))
-		clk_unprepare(bdisp->clock);
+	clk_unprepare(bdisp->clock);
 err_wq:
 	destroy_workqueue(bdisp->work_queue);
 	return ret;

@@ -71,7 +71,6 @@ AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCE12)
 ###############################################################################
 # DCN 1x
 ###############################################################################
-ifdef CONFIG_DRM_AMD_DC_DCN
 IRQ_DCN1 = irq_service_dcn10.o
 
 AMD_DAL_IRQ_DCN1 = $(addprefix $(AMDDALPATH)/dc/irq/dcn10/,$(IRQ_DCN1))
@@ -136,7 +135,7 @@ IRQ_DCN31 = irq_service_dcn31.o
 AMD_DAL_IRQ_DCN31= $(addprefix $(AMDDALPATH)/dc/irq/dcn31/,$(IRQ_DCN31))
 
 AMD_DISPLAY_FILES += $(AMD_DAL_IRQ_DCN31)
-endif
+
 ###############################################################################
 # DCN 315
 ###############################################################################

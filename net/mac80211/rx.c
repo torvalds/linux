@@ -221,7 +221,7 @@ static void __ieee80211_queue_skb_to_iface(struct ieee80211_sub_if_data *sdata,
 	skb_queue_tail(&sdata->skb_queue, skb);
 	ieee80211_queue_work(&sdata->local->hw, &sdata->work);
 	if (sta)
-		sta->rx_stats.packets++;
+		sta->deflink.rx_stats.packets++;
 }
 
 static void ieee80211_queue_skb_to_iface(struct ieee80211_sub_if_data *sdata,
@@ -1464,7 +1464,7 @@ ieee80211_rx_h_check_dup(struct ieee80211_rx_data *rx)
 	if (unlikely(ieee80211_has_retry(hdr->frame_control) &&
 		     rx->sta->last_seq_ctrl[rx->seqno_idx] == hdr->seq_ctrl)) {
 		I802_DEBUG_INC(rx->local->dot11FrameDuplicateCount);
-		rx->sta->rx_stats.num_duplicates++;
+		rx->sta->deflink.rx_stats.num_duplicates++;
 		return RX_DROP_UNUSABLE;
 	} else if (!(status->flag & RX_FLAG_AMSDU_MORE)) {
 		rx->sta->last_seq_ctrl[rx->seqno_idx] = hdr->seq_ctrl;
@@ -1760,46 +1760,47 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 						NL80211_IFTYPE_ADHOC);
 		if (ether_addr_equal(bssid, rx->sdata->u.ibss.bssid) &&
 		    test_sta_flag(sta, WLAN_STA_AUTHORIZED)) {
-			sta->rx_stats.last_rx = jiffies;
+			sta->deflink.rx_stats.last_rx = jiffies;
 			if (ieee80211_is_data(hdr->frame_control) &&
 			    !is_multicast_ether_addr(hdr->addr1))
-				sta->rx_stats.last_rate =
+				sta->deflink.rx_stats.last_rate =
 					sta_stats_encode_rate(status);
 		}
 	} else if (rx->sdata->vif.type == NL80211_IFTYPE_OCB) {
-		sta->rx_stats.last_rx = jiffies;
+		sta->deflink.rx_stats.last_rx = jiffies;
 	} else if (!ieee80211_is_s1g_beacon(hdr->frame_control) &&
 		   !is_multicast_ether_addr(hdr->addr1)) {
 		/*
 		 * Mesh beacons will update last_rx when if they are found to
 		 * match the current local configuration when processed.
 		 */
-		sta->rx_stats.last_rx = jiffies;
+		sta->deflink.rx_stats.last_rx = jiffies;
 		if (ieee80211_is_data(hdr->frame_control))
-			sta->rx_stats.last_rate = sta_stats_encode_rate(status);
+			sta->deflink.rx_stats.last_rate = sta_stats_encode_rate(status);
 	}
 
-	sta->rx_stats.fragments++;
+	sta->deflink.rx_stats.fragments++;
 
-	u64_stats_update_begin(&rx->sta->rx_stats.syncp);
-	sta->rx_stats.bytes += rx->skb->len;
-	u64_stats_update_end(&rx->sta->rx_stats.syncp);
+	u64_stats_update_begin(&rx->sta->deflink.rx_stats.syncp);
+	sta->deflink.rx_stats.bytes += rx->skb->len;
+	u64_stats_update_end(&rx->sta->deflink.rx_stats.syncp);
 
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
-		sta->rx_stats.last_signal = status->signal;
-		ewma_signal_add(&sta->rx_stats_avg.signal, -status->signal);
+		sta->deflink.rx_stats.last_signal = status->signal;
+		ewma_signal_add(&sta->deflink.rx_stats_avg.signal,
+				-status->signal);
 	}
 
 	if (status->chains) {
-		sta->rx_stats.chains = status->chains;
+		sta->deflink.rx_stats.chains = status->chains;
 		for (i = 0; i < ARRAY_SIZE(status->chain_signal); i++) {
 			int signal = status->chain_signal[i];
 
 			if (!(status->chains & BIT(i)))
 				continue;
 
-			sta->rx_stats.chain_signal_last[i] = signal;
-			ewma_signal_add(&sta->rx_stats_avg.chain_signal[i],
+			sta->deflink.rx_stats.chain_signal_last[i] = signal;
+			ewma_signal_add(&sta->deflink.rx_stats_avg.chain_signal[i],
 					-signal);
 		}
 	}
@@ -1860,7 +1861,7 @@ ieee80211_rx_h_sta_process(struct ieee80211_rx_data *rx)
 		 * Update counter and free packet here to avoid
 		 * counting this as a dropped packed.
 		 */
-		sta->rx_stats.packets++;
+		sta->deflink.rx_stats.packets++;
 		dev_kfree_skb(rx->skb);
 		return RX_QUEUED;
 	}
@@ -1892,11 +1893,11 @@ ieee80211_rx_get_bigtk(struct ieee80211_rx_data *rx, int idx)
 	}
 
 	if (rx->sta)
-		key = rcu_dereference(rx->sta->gtk[idx]);
+		key = rcu_dereference(rx->sta->deflink.gtk[idx]);
 	if (!key)
 		key = rcu_dereference(sdata->keys[idx]);
 	if (!key && rx->sta)
-		key = rcu_dereference(rx->sta->gtk[idx2]);
+		key = rcu_dereference(rx->sta->deflink.gtk[idx2]);
 	if (!key)
 		key = rcu_dereference(sdata->keys[idx2]);
 
@@ -2011,7 +2012,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 			    test_sta_flag(rx->sta, WLAN_STA_MFP))
 				return RX_DROP_MONITOR;
 
-			rx->key = rcu_dereference(rx->sta->gtk[mmie_keyidx]);
+			rx->key = rcu_dereference(rx->sta->deflink.gtk[mmie_keyidx]);
 		}
 		if (!rx->key)
 			rx->key = rcu_dereference(rx->sdata->keys[mmie_keyidx]);
@@ -2034,7 +2035,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 		} else {
 			if (rx->sta) {
 				for (i = 0; i < NUM_DEFAULT_KEYS; i++) {
-					key = rcu_dereference(rx->sta->gtk[i]);
+					key = rcu_dereference(rx->sta->deflink.gtk[i]);
 					if (key)
 						break;
 				}
@@ -2071,7 +2072,7 @@ ieee80211_rx_h_decrypt(struct ieee80211_rx_data *rx)
 
 		/* check per-station GTK first, if multicast packet */
 		if (is_multicast_ether_addr(hdr->addr1) && rx->sta)
-			rx->key = rcu_dereference(rx->sta->gtk[keyidx]);
+			rx->key = rcu_dereference(rx->sta->deflink.gtk[keyidx]);
 
 		/* if not found, try default key */
 		if (!rx->key) {
@@ -2397,7 +2398,7 @@ ieee80211_rx_h_defragment(struct ieee80211_rx_data *rx)
  out:
 	ieee80211_led_rx(rx->local);
 	if (rx->sta)
-		rx->sta->rx_stats.packets++;
+		rx->sta->deflink.rx_stats.packets++;
 	return RX_CONTINUE;
 }
 
@@ -2644,9 +2645,9 @@ ieee80211_deliver_skb(struct ieee80211_rx_data *rx)
 		 * for non-QoS-data frames. Here we know it's a data
 		 * frame, so count MSDUs.
 		 */
-		u64_stats_update_begin(&rx->sta->rx_stats.syncp);
-		rx->sta->rx_stats.msdu[rx->seqno_idx]++;
-		u64_stats_update_end(&rx->sta->rx_stats.syncp);
+		u64_stats_update_begin(&rx->sta->deflink.rx_stats.syncp);
+		rx->sta->deflink.rx_stats.msdu[rx->seqno_idx]++;
+		u64_stats_update_end(&rx->sta->deflink.rx_stats.syncp);
 	}
 
 	if ((sdata->vif.type == NL80211_IFTYPE_AP ||
@@ -3177,6 +3178,49 @@ static void ieee80211_process_sa_query_req(struct ieee80211_sub_if_data *sdata,
 	ieee80211_tx_skb(sdata, skb);
 }
 
+static void
+ieee80211_rx_check_bss_color_collision(struct ieee80211_rx_data *rx)
+{
+	struct ieee80211_mgmt *mgmt = (void *)rx->skb->data;
+	const struct element *ie;
+	size_t baselen;
+
+	if (!wiphy_ext_feature_isset(rx->local->hw.wiphy,
+				     NL80211_EXT_FEATURE_BSS_COLOR))
+		return;
+
+	if (ieee80211_hw_check(&rx->local->hw, DETECTS_COLOR_COLLISION))
+		return;
+
+	if (rx->sdata->vif.csa_active)
+		return;
+
+	baselen = mgmt->u.beacon.variable - rx->skb->data;
+	if (baselen > rx->skb->len)
+		return;
+
+	ie = cfg80211_find_ext_elem(WLAN_EID_EXT_HE_OPERATION,
+				    mgmt->u.beacon.variable,
+				    rx->skb->len - baselen);
+	if (ie && ie->datalen >= sizeof(struct ieee80211_he_operation) &&
+	    ie->datalen >= ieee80211_he_oper_size(ie->data + 1)) {
+		struct ieee80211_bss_conf *bss_conf = &rx->sdata->vif.bss_conf;
+		const struct ieee80211_he_operation *he_oper;
+		u8 color;
+
+		he_oper = (void *)(ie->data + 1);
+		if (le32_get_bits(he_oper->he_oper_params,
+				  IEEE80211_HE_OPERATION_BSS_COLOR_DISABLED))
+			return;
+
+		color = le32_get_bits(he_oper->he_oper_params,
+				      IEEE80211_HE_OPERATION_BSS_COLOR_MASK);
+		if (color == bss_conf->he_bss_color.color)
+			ieeee80211_obss_color_collision_notify(&rx->sdata->vif,
+							       BIT_ULL(color));
+	}
+}
+
 static ieee80211_rx_result debug_noinline
 ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 {
@@ -3201,6 +3245,9 @@ ieee80211_rx_h_mgmt_check(struct ieee80211_rx_data *rx)
 	    ieee80211_is_beacon(mgmt->frame_control) &&
 	    !(rx->flags & IEEE80211_RX_BEACON_REPORTED)) {
 		int sig = 0;
+
+		/* sw bss color collision detection */
+		ieee80211_rx_check_bss_color_collision(rx);
 
 		if (ieee80211_hw_check(&rx->local->hw, SIGNAL_DBM) &&
 		    !(status->flag & RX_FLAG_NO_SIGNAL_VAL))
@@ -3295,7 +3342,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 	switch (mgmt->u.action.category) {
 	case WLAN_CATEGORY_HT:
 		/* reject HT action frames from stations not supporting HT */
-		if (!rx->sta->sta.ht_cap.ht_supported)
+		if (!rx->sta->sta.deflink.ht_cap.ht_supported)
 			goto invalid;
 
 		if (sdata->vif.type != NL80211_IFTYPE_STATION &&
@@ -3359,7 +3406,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 			struct sta_opmode_info sta_opmode = {};
 
 			/* If it doesn't support 40 MHz it can't change ... */
-			if (!(rx->sta->sta.ht_cap.cap &
+			if (!(rx->sta->sta.deflink.ht_cap.cap &
 					IEEE80211_HT_CAP_SUP_WIDTH_20_40))
 				goto handled;
 
@@ -3369,13 +3416,13 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 				max_bw = ieee80211_sta_cap_rx_bw(rx->sta);
 
 			/* set cur_max_bandwidth and recalc sta bw */
-			rx->sta->cur_max_bandwidth = max_bw;
+			rx->sta->deflink.cur_max_bandwidth = max_bw;
 			new_bw = ieee80211_sta_cur_vht_bw(rx->sta);
 
-			if (rx->sta->sta.bandwidth == new_bw)
+			if (rx->sta->sta.deflink.bandwidth == new_bw)
 				goto handled;
 
-			rx->sta->sta.bandwidth = new_bw;
+			rx->sta->sta.deflink.bandwidth = new_bw;
 			sband = rx->local->hw.wiphy->bands[status->band];
 			sta_opmode.bw =
 				ieee80211_sta_rx_bw_to_chan_width(rx->sta);
@@ -3572,7 +3619,7 @@ ieee80211_rx_h_action(struct ieee80211_rx_data *rx)
 
  handled:
 	if (rx->sta)
-		rx->sta->rx_stats.packets++;
+		rx->sta->deflink.rx_stats.packets++;
 	dev_kfree_skb(rx->skb);
 	return RX_QUEUED;
 
@@ -3606,7 +3653,7 @@ ieee80211_rx_h_userspace_mgmt(struct ieee80211_rx_data *rx)
 				 ieee80211_rx_status_to_khz(status), sig,
 				 rx->skb->data, rx->skb->len, 0)) {
 		if (rx->sta)
-			rx->sta->rx_stats.packets++;
+			rx->sta->deflink.rx_stats.packets++;
 		dev_kfree_skb(rx->skb);
 		return RX_QUEUED;
 	}
@@ -3644,7 +3691,7 @@ ieee80211_rx_h_action_post_userspace(struct ieee80211_rx_data *rx)
 
  handled:
 	if (rx->sta)
-		rx->sta->rx_stats.packets++;
+		rx->sta->deflink.rx_stats.packets++;
 	dev_kfree_skb(rx->skb);
 	return RX_QUEUED;
 }
@@ -3864,7 +3911,7 @@ static void ieee80211_rx_handlers_result(struct ieee80211_rx_data *rx,
 	case RX_DROP_MONITOR:
 		I802_DEBUG_INC(rx->sdata->local->rx_handlers_drop);
 		if (rx->sta)
-			rx->sta->rx_stats.dropped++;
+			rx->sta->deflink.rx_stats.dropped++;
 		fallthrough;
 	case RX_CONTINUE: {
 		struct ieee80211_rate *rate = NULL;
@@ -3883,7 +3930,7 @@ static void ieee80211_rx_handlers_result(struct ieee80211_rx_data *rx,
 	case RX_DROP_UNUSABLE:
 		I802_DEBUG_INC(rx->sdata->local->rx_handlers_drop);
 		if (rx->sta)
-			rx->sta->rx_stats.dropped++;
+			rx->sta->deflink.rx_stats.dropped++;
 		dev_kfree_skb(rx->skb);
 		break;
 	case RX_QUEUED:
@@ -4435,15 +4482,15 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
 	void *sa = skb->data + ETH_ALEN;
 	void *da = skb->data;
 
-	stats = &sta->rx_stats;
+	stats = &sta->deflink.rx_stats;
 	if (fast_rx->uses_rss)
-		stats = this_cpu_ptr(sta->pcpu_rx_stats);
+		stats = this_cpu_ptr(sta->deflink.pcpu_rx_stats);
 
 	/* statistics part of ieee80211_rx_h_sta_process() */
 	if (!(status->flag & RX_FLAG_NO_SIGNAL_VAL)) {
 		stats->last_signal = status->signal;
 		if (!fast_rx->uses_rss)
-			ewma_signal_add(&sta->rx_stats_avg.signal,
+			ewma_signal_add(&sta->deflink.rx_stats_avg.signal,
 					-status->signal);
 	}
 
@@ -4459,7 +4506,7 @@ static void ieee80211_rx_8023(struct ieee80211_rx_data *rx,
 
 			stats->chain_signal_last[i] = signal;
 			if (!fast_rx->uses_rss)
-				ewma_signal_add(&sta->rx_stats_avg.chain_signal[i],
+				ewma_signal_add(&sta->deflink.rx_stats_avg.chain_signal[i],
 						-signal);
 		}
 	}
@@ -4535,7 +4582,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
 		u8 da[ETH_ALEN];
 		u8 sa[ETH_ALEN];
 	} addrs __aligned(2);
-	struct ieee80211_sta_rx_stats *stats = &sta->rx_stats;
+	struct ieee80211_sta_rx_stats *stats = &sta->deflink.rx_stats;
 
 	/* for parallel-rx, we need to have DUP_VALIDATED, otherwise we write
 	 * to a common data structure; drivers can implement that per queue
@@ -4637,7 +4684,7 @@ static bool ieee80211_invoke_fast_rx(struct ieee80211_rx_data *rx,
  drop:
 	dev_kfree_skb(skb);
 	if (fast_rx->uses_rss)
-		stats = this_cpu_ptr(sta->pcpu_rx_stats);
+		stats = this_cpu_ptr(sta->deflink.pcpu_rx_stats);
 
 	stats->dropped++;
 	return true;

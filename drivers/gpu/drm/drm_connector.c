@@ -1486,40 +1486,6 @@ int drm_connector_attach_content_type_property(struct drm_connector *connector)
 }
 EXPORT_SYMBOL(drm_connector_attach_content_type_property);
 
-
-/**
- * drm_hdmi_avi_infoframe_content_type() - fill the HDMI AVI infoframe
- *                                         content type information, based
- *                                         on correspondent DRM property.
- * @frame: HDMI AVI infoframe
- * @conn_state: DRM display connector state
- *
- */
-void drm_hdmi_avi_infoframe_content_type(struct hdmi_avi_infoframe *frame,
-					 const struct drm_connector_state *conn_state)
-{
-	switch (conn_state->content_type) {
-	case DRM_MODE_CONTENT_TYPE_GRAPHICS:
-		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
-		break;
-	case DRM_MODE_CONTENT_TYPE_CINEMA:
-		frame->content_type = HDMI_CONTENT_TYPE_CINEMA;
-		break;
-	case DRM_MODE_CONTENT_TYPE_GAME:
-		frame->content_type = HDMI_CONTENT_TYPE_GAME;
-		break;
-	case DRM_MODE_CONTENT_TYPE_PHOTO:
-		frame->content_type = HDMI_CONTENT_TYPE_PHOTO;
-		break;
-	default:
-		/* Graphics is the default(0) */
-		frame->content_type = HDMI_CONTENT_TYPE_GRAPHICS;
-	}
-
-	frame->itc = conn_state->content_type != DRM_MODE_CONTENT_TYPE_NO_DATA;
-}
-EXPORT_SYMBOL(drm_hdmi_avi_infoframe_content_type);
-
 /**
  * drm_connector_attach_tv_margin_properties - attach TV connector margin
  * 	properties

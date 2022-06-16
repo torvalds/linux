@@ -345,9 +345,6 @@ static int ifi_canfd_do_rx_poll(struct net_device *ndev, int quota)
 		rxst = readl(priv->base + IFI_CANFD_RXSTCMD);
 	}
 
-	if (pkts)
-		can_led_event(ndev, CAN_LED_EVENT_RX);
-
 	return pkts;
 }
 
@@ -626,7 +623,6 @@ static irqreturn_t ifi_canfd_isr(int irq, void *dev_id)
 	if (isr & IFI_CANFD_INTERRUPT_TXFIFO_REMOVE) {
 		stats->tx_bytes += can_get_echo_skb(ndev, 0, NULL);
 		stats->tx_packets++;
-		can_led_event(ndev, CAN_LED_EVENT_TX);
 	}
 
 	if (isr & tx_irq_mask)
@@ -830,7 +826,6 @@ static int ifi_canfd_open(struct net_device *ndev)
 
 	ifi_canfd_start(ndev);
 
-	can_led_event(ndev, CAN_LED_EVENT_OPEN);
 	napi_enable(&priv->napi);
 	netif_start_queue(ndev);
 
@@ -852,8 +847,6 @@ static int ifi_canfd_close(struct net_device *ndev)
 	free_irq(ndev->irq, ndev);
 
 	close_candev(ndev);
-
-	can_led_event(ndev, CAN_LED_EVENT_STOP);
 
 	return 0;
 }
@@ -1003,8 +996,6 @@ static int ifi_canfd_plat_probe(struct platform_device *pdev)
 		dev_err(dev, "Failed to register (ret=%d)\n", ret);
 		goto err_reg;
 	}
-
-	devm_can_led_init(ndev);
 
 	dev_info(dev, "Driver registered: regs=%p, irq=%d, clock=%d\n",
 		 priv->base, ndev->irq, priv->can.clock.freq);

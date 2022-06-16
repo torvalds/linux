@@ -765,6 +765,7 @@ static const struct snd_soc_component_driver soc_codec_dev_rt715_sdca = {
 	.num_dapm_widgets = ARRAY_SIZE(rt715_sdca_dapm_widgets),
 	.dapm_routes = rt715_sdca_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt715_sdca_audio_map),
+	.endianness = 1,
 };
 
 static int rt715_sdca_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,

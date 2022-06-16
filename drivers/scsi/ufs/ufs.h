@@ -415,11 +415,6 @@ enum ufs_ref_clk_freq {
 	REF_CLK_FREQ_INVAL	= -1,
 };
 
-struct ufs_ref_clk {
-	unsigned long freq_hz;
-	enum ufs_ref_clk_freq val;
-};
-
 /* Query response result code */
 enum {
 	QUERY_RESULT_SUCCESS                    = 0x00,
@@ -562,15 +557,6 @@ struct ufs_query_res {
 	struct utp_upiu_query upiu_res;
 };
 
-#define UFS_VREG_VCC_MIN_UV	   2700000 /* uV */
-#define UFS_VREG_VCC_MAX_UV	   3600000 /* uV */
-#define UFS_VREG_VCC_1P8_MIN_UV    1700000 /* uV */
-#define UFS_VREG_VCC_1P8_MAX_UV    1950000 /* uV */
-#define UFS_VREG_VCCQ_MIN_UV	   1140000 /* uV */
-#define UFS_VREG_VCCQ_MAX_UV	   1260000 /* uV */
-#define UFS_VREG_VCCQ2_MIN_UV	   1700000 /* uV */
-#define UFS_VREG_VCCQ2_MAX_UV	   1950000 /* uV */
-
 /*
  * VCCQ & VCCQ2 current requirement when UFS device is in sleep state
  * and link is in Hibern8 state.
@@ -582,8 +568,6 @@ struct ufs_vreg {
 	const char *name;
 	bool always_on;
 	bool enabled;
-	int min_uV;
-	int max_uV;
 	int max_uA;
 };
 
@@ -635,24 +619,5 @@ enum ufs_trace_str_t {
 enum ufs_trace_tsf_t {
 	UFS_TSF_CDB, UFS_TSF_OSF, UFS_TSF_TM_INPUT, UFS_TSF_TM_OUTPUT
 };
-
-/**
- * ufs_is_valid_unit_desc_lun - checks if the given LUN has a unit descriptor
- * @dev_info: pointer of instance of struct ufs_dev_info
- * @lun: LU number to check
- * @return: true if the lun has a matching unit descriptor, false otherwise
- */
-static inline bool ufs_is_valid_unit_desc_lun(struct ufs_dev_info *dev_info,
-		u8 lun, u8 param_offset)
-{
-	if (!dev_info || !dev_info->max_lu_supported) {
-		pr_err("Max General LU supported by UFS isn't initialized\n");
-		return false;
-	}
-	/* WB is available only for the logical unit from 0 to 7 */
-	if (param_offset == UNIT_DESC_PARAM_WB_BUF_ALLOC_UNITS)
-		return lun < UFS_UPIU_MAX_WB_LUN_ID;
-	return lun == UFS_UPIU_RPMB_WLUN || (lun < dev_info->max_lu_supported);
-}
 
 #endif /* End of Header */

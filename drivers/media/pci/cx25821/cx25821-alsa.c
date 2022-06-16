@@ -728,8 +728,8 @@ static int cx25821_audio_initdev(struct cx25821_dev *dev)
 
 	chip->irq = dev->pci->irq;
 
-	err = request_irq(dev->pci->irq, cx25821_irq,
-			  IRQF_SHARED, chip->dev->name, chip);
+	err = devm_request_irq(&dev->pci->dev, dev->pci->irq, cx25821_irq,
+			       IRQF_SHARED, chip->dev->name, chip);
 
 	if (err < 0) {
 		pr_err("ERROR %s: can't get IRQ %d for ALSA\n", chip->dev->name,

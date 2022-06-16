@@ -764,7 +764,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 			 "hwmon: '%s' is not a valid name attribute, please fix\n",
 			 name);
 
-	id = ida_simple_get(&hwmon_ida, 0, 0, GFP_KERNEL);
+	id = ida_alloc(&hwmon_ida, GFP_KERNEL);
 	if (id < 0)
 		return ERR_PTR(id);
 
@@ -856,7 +856,7 @@ __hwmon_device_register(struct device *dev, const char *name, void *drvdata,
 free_hwmon:
 	hwmon_dev_release(hdev);
 ida_remove:
-	ida_simple_remove(&hwmon_ida, id);
+	ida_free(&hwmon_ida, id);
 	return ERR_PTR(err);
 }
 
@@ -886,11 +886,12 @@ EXPORT_SYMBOL_GPL(hwmon_device_register_with_groups);
 
 /**
  * hwmon_device_register_with_info - register w/ hwmon
- * @dev: the parent device
- * @name: hwmon name attribute
- * @drvdata: driver data to attach to created device
- * @chip: pointer to hwmon chip information
+ * @dev: the parent device (mandatory)
+ * @name: hwmon name attribute (mandatory)
+ * @drvdata: driver data to attach to created device (optional)
+ * @chip: pointer to hwmon chip information (mandatory)
  * @extra_groups: pointer to list of additional non-standard attribute groups
+ *	(optional)
  *
  * hwmon_device_unregister() must be called when the device is no
  * longer needed.
@@ -903,18 +904,40 @@ hwmon_device_register_with_info(struct device *dev, const char *name,
 				const struct hwmon_chip_info *chip,
 				const struct attribute_group **extra_groups)
 {
-	if (!name)
+	if (!dev || !name || !chip)
 		return ERR_PTR(-EINVAL);
 
-	if (chip && (!chip->ops || !chip->ops->is_visible || !chip->info))
-		return ERR_PTR(-EINVAL);
-
-	if (chip && !dev)
+	if (!chip->ops || !chip->ops->is_visible || !chip->info)
 		return ERR_PTR(-EINVAL);
 
 	return __hwmon_device_register(dev, name, drvdata, chip, extra_groups);
 }
 EXPORT_SYMBOL_GPL(hwmon_device_register_with_info);
+
+/**
+ * hwmon_device_register_for_thermal - register hwmon device for thermal subsystem
+ * @dev: the parent device
+ * @name: hwmon name attribute
+ * @drvdata: driver data to attach to created device
+ *
+ * The use of this function is restricted. It is provided for legacy reasons
+ * and must only be called from the thermal subsystem.
+ *
+ * hwmon_device_unregister() must be called when the device is no
+ * longer needed.
+ *
+ * Returns the pointer to the new device.
+ */
+struct device *
+hwmon_device_register_for_thermal(struct device *dev, const char *name,
+				  void *drvdata)
+{
+	if (!name || !dev)
+		return ERR_PTR(-EINVAL);
+
+	return __hwmon_device_register(dev, name, drvdata, NULL, NULL);
+}
+EXPORT_SYMBOL_NS_GPL(hwmon_device_register_for_thermal, HWMON_THERMAL);
 
 /**
  * hwmon_device_register - register w/ hwmon
@@ -945,7 +968,7 @@ void hwmon_device_unregister(struct device *dev)
 
 	if (likely(sscanf(dev_name(dev), HWMON_ID_FORMAT, &id) == 1)) {
 		device_unregister(dev);
-		ida_simple_remove(&hwmon_ida, id);
+		ida_free(&hwmon_ida, id);
 	} else
 		dev_dbg(dev->parent,
 			"hwmon_device_unregister() failed: bad class ID!\n");
@@ -1056,6 +1079,59 @@ void devm_hwmon_device_unregister(struct device *dev)
 	WARN_ON(devres_release(dev, devm_hwmon_release, devm_hwmon_match, dev));
 }
 EXPORT_SYMBOL_GPL(devm_hwmon_device_unregister);
+
+static char *__hwmon_sanitize_name(struct device *dev, const char *old_name)
+{
+	char *name, *p;
+
+	if (dev)
+		name = devm_kstrdup(dev, old_name, GFP_KERNEL);
+	else
+		name = kstrdup(old_name, GFP_KERNEL);
+	if (!name)
+		return ERR_PTR(-ENOMEM);
+
+	for (p = name; *p; p++)
+		if (hwmon_is_bad_char(*p))
+			*p = '_';
+
+	return name;
+}
+
+/**
+ * hwmon_sanitize_name - Replaces invalid characters in a hwmon name
+ * @name: NUL-terminated name
+ *
+ * Allocates a new string where any invalid characters will be replaced
+ * by an underscore. It is the responsibility of the caller to release
+ * the memory.
+ *
+ * Returns newly allocated name, or ERR_PTR on error.
+ */
+char *hwmon_sanitize_name(const char *name)
+{
+	return __hwmon_sanitize_name(NULL, name);
+}
+EXPORT_SYMBOL_GPL(hwmon_sanitize_name);
+
+/**
+ * devm_hwmon_sanitize_name - resource managed hwmon_sanitize_name()
+ * @dev: device to allocate memory for
+ * @name: NUL-terminated name
+ *
+ * Allocates a new string where any invalid characters will be replaced
+ * by an underscore.
+ *
+ * Returns newly allocated name, or ERR_PTR on error.
+ */
+char *devm_hwmon_sanitize_name(struct device *dev, const char *name)
+{
+	if (!dev)
+		return ERR_PTR(-EINVAL);
+
+	return __hwmon_sanitize_name(dev, name);
+}
+EXPORT_SYMBOL_GPL(devm_hwmon_sanitize_name);
 
 static void __init hwmon_pci_quirks(void)
 {

@@ -3,7 +3,7 @@
  * Copyright © 2021 Intel Corporation
  */
 
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dsc.h>
 
 #include "i915_utils.h"
 #include "intel_qp_tables.h"

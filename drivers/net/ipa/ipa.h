@@ -62,6 +62,7 @@ struct ipa_interrupt;
  * @initialized:	Bit mask indicating endpoints initialized
  * @set_up:		Bit mask indicating endpoints set up
  * @enabled:		Bit mask indicating endpoints enabled
+ * @modem_tx_count:	Number of defined modem TX endoints
  * @endpoint:		Array of endpoint information
  * @channel_map:	Mapping of GSI channel to IPA endpoint
  * @name_map:		Mapping of IPA endpoint name to IPA endpoint
@@ -114,6 +115,7 @@ struct ipa {
 	u32 set_up;
 	u32 enabled;
 
+	u32 modem_tx_count;
 	struct ipa_endpoint endpoint[IPA_ENDPOINT_MAX];
 	struct ipa_endpoint *channel_map[GSI_CHANNEL_COUNT_MAX];
 	struct ipa_endpoint *name_map[IPA_ENDPOINT_COUNT];

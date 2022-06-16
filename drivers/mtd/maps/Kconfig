@@ -300,15 +300,6 @@ config MTD_DC21285
 	  21285 bridge used with Intel's StrongARM processors. More info at
 	  <https://www.intel.com/design/bridge/docs/21285_documentation.htm>.
 
-config MTD_IXP4XX
-	tristate "CFI Flash device mapped on Intel IXP4xx based systems"
-	depends on MTD_CFI && MTD_COMPLEX_MAPPINGS && ARCH_IXP4XX && MTD_CFI_ADV_OPTIONS
-	help
-	  This enables MTD access to flash devices on platforms based
-	  on Intel's IXP4xx family of network processors such as the
-	  IXDP425 and Coyote. If you have an IXP4xx based board and
-	  would like to use the flash chips on it, say 'Y'.
-
 config MTD_IMPA7
 	tristate "JEDEC Flash device mapped on impA7"
 	depends on ARM && MTD_JEDECPROBE

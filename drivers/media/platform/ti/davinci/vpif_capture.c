@@ -1067,8 +1067,6 @@ static int vpif_querycap(struct file *file, void  *priv,
 	struct vpif_capture_config *config = vpif_dev->platform_data;
 
 	strscpy(cap->driver, VPIF_DRIVER_NAME, sizeof(cap->driver));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(vpif_dev));
 	strscpy(cap->card, config->card_name, sizeof(cap->card));
 
 	return 0;

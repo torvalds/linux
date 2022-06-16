@@ -124,10 +124,10 @@ static int rk_init(struct snd_soc_pcm_runtime *runtime)
 
 	/* Enable Headset Jack detection */
 	if (gpio_is_valid(machine->gpio_hp_det)) {
-		snd_soc_card_jack_new(runtime->card, "Headphone Jack",
-				      SND_JACK_HEADPHONE, &headphone_jack,
-				      headphone_jack_pins,
-				      ARRAY_SIZE(headphone_jack_pins));
+		snd_soc_card_jack_new_pins(runtime->card, "Headphone Jack",
+					   SND_JACK_HEADPHONE, &headphone_jack,
+					   headphone_jack_pins,
+					   ARRAY_SIZE(headphone_jack_pins));
 		rk_hp_jack_gpio.gpio = machine->gpio_hp_det;
 		snd_soc_jack_add_gpios(&headphone_jack, 1, &rk_hp_jack_gpio);
 	}

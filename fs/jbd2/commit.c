@@ -62,6 +62,7 @@ static void journal_end_buffer_io_sync(struct buffer_head *bh, int uptodate)
  */
 static void release_buffer_page(struct buffer_head *bh)
 {
+	struct folio *folio;
 	struct page *page;
 
 	if (buffer_dirty(bh))
@@ -71,18 +72,19 @@ static void release_buffer_page(struct buffer_head *bh)
 	page = bh->b_page;
 	if (!page)
 		goto nope;
-	if (page->mapping)
+	folio = page_folio(page);
+	if (folio->mapping)
 		goto nope;
 
 	/* OK, it's a truncated page */
-	if (!trylock_page(page))
+	if (!folio_trylock(folio))
 		goto nope;
 
-	get_page(page);
+	folio_get(folio);
 	__brelse(bh);
-	try_to_free_buffers(page);
-	unlock_page(page);
-	put_page(page);
+	try_to_free_buffers(folio);
+	folio_unlock(folio);
+	folio_put(folio);
 	return;
 
 nope:

@@ -12,6 +12,7 @@
 #include <linux/slab.h>
 #include <linux/stat.h>
 #include <linux/pm_runtime.h>
+#include <linux/random.h>
 #include <linux/sysfs.h>
 
 #include <linux/mmc/host.h>
@@ -70,6 +71,12 @@ static const unsigned int taac_mant[] = {
 static int mmc_decode_cid(struct mmc_card *card)
 {
 	u32 *resp = card->raw_cid;
+
+	/*
+	 * Add the raw card ID (cid) data to the entropy pool. It doesn't
+	 * matter that not all of it is unique, it's just bonus entropy.
+	 */
+	add_device_randomness(&card->raw_cid, sizeof(card->raw_cid));
 
 	/*
 	 * The selection of the format here is based upon published
@@ -2240,11 +2247,11 @@ static int _mmc_hw_reset(struct mmc_host *host)
 	 */
 	_mmc_flush_cache(host);
 
-	if ((host->caps & MMC_CAP_HW_RESET) && host->ops->hw_reset &&
+	if ((host->caps & MMC_CAP_HW_RESET) && host->ops->card_hw_reset &&
 	     mmc_can_reset(card)) {
 		/* If the card accept RST_n signal, send it. */
 		mmc_set_clock(host, host->f_init);
-		host->ops->hw_reset(host);
+		host->ops->card_hw_reset(host);
 		/* Set initial state and call mmc_set_ios */
 		mmc_set_initial_state(host);
 	} else {

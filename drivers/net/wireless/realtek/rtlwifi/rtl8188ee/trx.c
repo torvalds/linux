@@ -58,7 +58,7 @@ static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
 		cck_agc_rpt = cck_buf->cck_agc_rpt;
 
 		/* (1)Hardware does not provide RSSI for CCK
-		 * (2)PWDB, Average PWDB cacluated by
+		 * (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		if (ppsc->rfpwr_state == ERFON)
@@ -187,7 +187,7 @@ static void _rtl88ee_query_rxphystatus(struct ieee80211_hw *hw,
 				pstatus->rx_mimo_signalstrength[i] = (u8)rssi;
 		}
 
-		/* (2)PWDB, Average PWDB cacluated by
+		/* (2)PWDB, Average PWDB calculated by
 		 * hardware (for rate adaptive)
 		 */
 		rx_pwr_all = ((p_drvinfo->pwdb_all >> 1) & 0x7f) - 110;
@@ -504,7 +504,7 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 	} else if (mac->opmode == NL80211_IFTYPE_AP ||
 		mac->opmode == NL80211_IFTYPE_ADHOC) {
 		if (sta)
-			bw_40 = sta->ht_cap.cap &
+			bw_40 = sta->deflink.ht_cap.cap &
 				IEEE80211_HT_CAP_SUP_WIDTH_20_40;
 	}
 	seq_number = (le16_to_cpu(hdr->seq_ctrl) & IEEE80211_SCTL_SEQ) >> 4;
@@ -591,7 +591,7 @@ void rtl88ee_tx_fill_desc(struct ieee80211_hw *hw,
 		set_tx_desc_linip(pdesc, 0);
 		set_tx_desc_pkt_size(pdesc, (u16)skb_len);
 		if (sta) {
-			u8 ampdu_density = sta->ht_cap.ampdu_density;
+			u8 ampdu_density = sta->deflink.ht_cap.ampdu_density;
 			set_tx_desc_ampdu_density(pdesc, ampdu_density);
 		}
 		if (info->control.hw_key) {

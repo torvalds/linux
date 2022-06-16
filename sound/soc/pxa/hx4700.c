@@ -122,9 +122,9 @@ static int hx4700_ak4641_init(struct snd_soc_pcm_runtime *rtd)
 	int err;
 
 	/* Jack detection API stuff */
-	err = snd_soc_card_jack_new(rtd->card, "Headphone Jack",
-				    SND_JACK_HEADPHONE, &hs_jack, hs_jack_pin,
-				    ARRAY_SIZE(hs_jack_pin));
+	err = snd_soc_card_jack_new_pins(rtd->card, "Headphone Jack",
+					 SND_JACK_HEADPHONE, &hs_jack,
+					 hs_jack_pin, ARRAY_SIZE(hs_jack_pin));
 	if (err)
 		return err;
 

@@ -538,9 +538,13 @@ retry:
  out_unlock:
 	mutex_unlock(&nf_ct_proto_mutex);
 
-	if (fixup_needed)
-		nf_ct_iterate_cleanup_net(net, nf_ct_tcp_fixup,
-					  (void *)(unsigned long)nfproto, 0, 0);
+	if (fixup_needed) {
+		struct nf_ct_iter_data iter_data = {
+			.net	= net,
+			.data	= (void *)(unsigned long)nfproto,
+		};
+		nf_ct_iterate_cleanup_net(nf_ct_tcp_fixup, &iter_data);
+	}
 
 	return err;
 }

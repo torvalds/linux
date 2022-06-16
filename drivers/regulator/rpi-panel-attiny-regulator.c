@@ -364,7 +364,6 @@ static int attiny_i2c_probe(struct i2c_client *i2c,
 	state->gc.parent = &i2c->dev;
 	state->gc.label = i2c->name;
 	state->gc.owner = THIS_MODULE;
-	state->gc.of_node = i2c->dev.of_node;
 	state->gc.base = -1;
 	state->gc.ngpio = NUM_GPIO;
 

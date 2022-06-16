@@ -39,5 +39,6 @@ struct rcar_gen4_sysc_info {
 
 extern const struct rcar_gen4_sysc_info r8a779a0_sysc_info;
 extern const struct rcar_gen4_sysc_info r8a779f0_sysc_info;
+extern const struct rcar_gen4_sysc_info r8a779g0_sysc_info;
 
 #endif /* __SOC_RENESAS_RCAR_GEN4_SYSC_H__ */

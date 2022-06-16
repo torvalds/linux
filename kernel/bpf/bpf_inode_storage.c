@@ -90,7 +90,7 @@ void bpf_inode_storage_free(struct inode *inode)
 		 */
 		bpf_selem_unlink_map(selem);
 		free_inode_storage = bpf_selem_unlink_storage_nolock(
-			local_storage, selem, false);
+			local_storage, selem, false, false);
 	}
 	raw_spin_unlock_bh(&local_storage->lock);
 	rcu_read_unlock();
@@ -149,7 +149,7 @@ static int inode_storage_delete(struct inode *inode, struct bpf_map *map)
 	if (!sdata)
 		return -ENOENT;
 
-	bpf_selem_unlink(SELEM(sdata));
+	bpf_selem_unlink(SELEM(sdata), true);
 
 	return 0;
 }
@@ -245,7 +245,8 @@ static void inode_storage_map_free(struct bpf_map *map)
 	bpf_local_storage_map_free(smap, NULL);
 }
 
-static int inode_storage_map_btf_id;
+BTF_ID_LIST_SINGLE(inode_storage_map_btf_ids, struct,
+		   bpf_local_storage_map)
 const struct bpf_map_ops inode_storage_map_ops = {
 	.map_meta_equal = bpf_map_meta_equal,
 	.map_alloc_check = bpf_local_storage_map_alloc_check,
@@ -256,8 +257,7 @@ const struct bpf_map_ops inode_storage_map_ops = {
 	.map_update_elem = bpf_fd_inode_storage_update_elem,
 	.map_delete_elem = bpf_fd_inode_storage_delete_elem,
 	.map_check_btf = bpf_local_storage_map_check_btf,
-	.map_btf_name = "bpf_local_storage_map",
-	.map_btf_id = &inode_storage_map_btf_id,
+	.map_btf_id = &inode_storage_map_btf_ids[0],
 	.map_owner_storage_ptr = inode_storage_ptr,
 };
 

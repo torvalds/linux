@@ -853,6 +853,7 @@ static const struct snd_soc_component_driver soc_codec_dev_rt700 = {
 	.dapm_routes = rt700_audio_map,
 	.num_dapm_routes = ARRAY_SIZE(rt700_audio_map),
 	.set_jack = rt700_set_jack_detect,
+	.endianness = 1,
 };
 
 static int rt700_set_sdw_stream(struct snd_soc_dai *dai, void *sdw_stream,

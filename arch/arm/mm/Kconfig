@@ -738,15 +738,29 @@ config SWP_EMULATE
 
 	  If unsure, say Y.
 
+choice
+	prompt "CPU Endianess"
+	default CPU_LITTLE_ENDIAN
+
+config CPU_LITTLE_ENDIAN
+	bool "Built little-endian kernel"
+	help
+	  Say Y if you plan on running a kernel in little-endian mode.
+	  This is the default and is used in practically all modern user
+	  space builds.
+
 config CPU_BIG_ENDIAN
 	bool "Build big-endian kernel"
-	depends on ARCH_SUPPORTS_BIG_ENDIAN
 	depends on !LD_IS_LLD
 	help
 	  Say Y if you plan on running a kernel in big-endian mode.
-	  Note that your board must be properly built and your board
-	  port must properly enable any big-endian related features
-	  of your chipset/board/processor.
+	  This works on many machines using ARMv6 or newer processors
+	  but requires big-endian user space.
+
+	  The only ARMv5 platform with big-endian support is
+	  Intel IXP4xx.
+
+endchoice
 
 config CPU_ENDIAN_BE8
 	bool
@@ -1121,12 +1135,6 @@ config ARM_DMA_MEM_BUFFERABLE
 
 config ARM_HEAVY_MB
 	bool
-
-config ARCH_SUPPORTS_BIG_ENDIAN
-	bool
-	help
-	  This option specifies the architecture can support big endian
-	  operation.
 
 config DEBUG_ALIGN_RODATA
 	bool "Make rodata strictly non-executable"

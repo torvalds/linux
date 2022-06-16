@@ -10,7 +10,7 @@
 #include <linux/types.h>
 
 #include "i915_gem.h" /* GEM_BUG_ON */
-
+#include "intel_gt_regs.h"
 #include "intel_gpu_commands.h"
 
 struct i915_request;
@@ -31,12 +31,21 @@ int gen8_emit_bb_start(struct i915_request *rq,
 		       u64 offset, u32 len,
 		       const unsigned int flags);
 
+int gen125_emit_bb_start_noarb(struct i915_request *rq,
+			       u64 offset, u32 len,
+			       const unsigned int flags);
+int gen125_emit_bb_start(struct i915_request *rq,
+			 u64 offset, u32 len,
+			 const unsigned int flags);
+
 u32 *gen8_emit_fini_breadcrumb_xcs(struct i915_request *rq, u32 *cs);
 u32 *gen12_emit_fini_breadcrumb_xcs(struct i915_request *rq, u32 *cs);
 
 u32 *gen8_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs);
 u32 *gen11_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs);
 u32 *gen12_emit_fini_breadcrumb_rcs(struct i915_request *rq, u32 *cs);
+
+u32 *gen12_emit_aux_table_inv(u32 *cs, const i915_reg_t inv_reg);
 
 static inline u32 *
 __gen8_emit_pipe_control(u32 *batch, u32 flags0, u32 flags1, u32 offset)

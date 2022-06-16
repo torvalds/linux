@@ -108,6 +108,11 @@ struct runtime_stat {
 	struct rblist value_list;
 };
 
+struct rusage_stats {
+	struct stats ru_utime_usec_stat;
+	struct stats ru_stime_usec_stat;
+};
+
 typedef struct aggr_cpu_id (*aggr_get_id_t)(struct perf_stat_config *config, struct perf_cpu cpu);
 
 struct perf_stat_config {
@@ -122,6 +127,7 @@ struct perf_stat_config {
 	bool			 ru_display;
 	bool			 big_num;
 	bool			 no_merge;
+	bool			 hybrid_merge;
 	bool			 walltime_run_table;
 	bool			 all_kernel;
 	bool			 all_user;
@@ -148,6 +154,7 @@ struct perf_stat_config {
 	const char		*csv_sep;
 	struct stats		*walltime_nsecs_stats;
 	struct rusage		 ru_data;
+	struct rusage_stats		 *ru_stats;
 	struct cpu_aggr_map	*aggr_map;
 	aggr_get_id_t		 aggr_get_id;
 	struct cpu_aggr_map	*cpus_aggr_map;
@@ -177,6 +184,20 @@ static inline void init_stats(struct stats *stats)
 	stats->max  = 0;
 }
 
+static inline void init_rusage_stats(struct rusage_stats *ru_stats) {
+	init_stats(&ru_stats->ru_utime_usec_stat);
+	init_stats(&ru_stats->ru_stime_usec_stat);
+}
+
+static inline void update_rusage_stats(struct rusage_stats *ru_stats, struct rusage* rusage) {
+	const u64 us_to_ns = 1000;
+	const u64 s_to_ns = 1000000000;
+	update_stats(&ru_stats->ru_utime_usec_stat,
+	             (rusage->ru_utime.tv_usec * us_to_ns + rusage->ru_utime.tv_sec * s_to_ns));
+	update_stats(&ru_stats->ru_stime_usec_stat,
+	             (rusage->ru_stime.tv_usec * us_to_ns + rusage->ru_stime.tv_sec * s_to_ns));
+}
+
 struct evsel;
 struct evlist;
 
@@ -196,6 +217,7 @@ bool __perf_stat_evsel__is(struct evsel *evsel, enum perf_stat_evsel_id id);
 
 extern struct runtime_stat rt_stat;
 extern struct stats walltime_nsecs_stats;
+extern struct rusage_stats ru_stats;
 
 typedef void (*print_metric_t)(struct perf_stat_config *config,
 			       void *ctx, const char *color, const char *unit,

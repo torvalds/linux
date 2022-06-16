@@ -1,6 +1,8 @@
 # SPDX-License-Identifier: GPL-2.0-only
 config DRM_DW_HDMI
 	tristate
+	select DRM_DISPLAY_HDMI_HELPER
+	select DRM_DISPLAY_HELPER
 	select DRM_KMS_HELPER
 	select REGMAP_MMIO
 	select CEC_CORE if CEC_NOTIFIER
@@ -23,6 +25,16 @@ config DRM_DW_HDMI_I2S_AUDIO
 	select SND_SOC_HDMI_CODEC
 	help
 	  Support the I2S Audio interface which is part of the Synopsys
+	  Designware HDMI block.
+
+config DRM_DW_HDMI_GP_AUDIO
+	tristate "Synopsys Designware GP Audio interface"
+	depends on DRM_DW_HDMI && SND
+	select SND_PCM
+	select SND_PCM_ELD
+	select SND_PCM_IEC958
+	help
+	  Support the GP Audio interface which is part of the Synopsys
 	  Designware HDMI block.
 
 config DRM_DW_HDMI_CEC

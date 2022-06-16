@@ -1373,7 +1373,7 @@ static int lpc_eth_drv_probe(struct platform_device *pdev)
 	pldat->duplex = DUPLEX_FULL;
 	__lpc_params_setup(pldat);
 
-	netif_napi_add(ndev, &pldat->napi, lpc_eth_poll, NAPI_WEIGHT);
+	netif_napi_add_weight(ndev, &pldat->napi, lpc_eth_poll, NAPI_WEIGHT);
 
 	ret = register_netdev(ndev);
 	if (ret) {

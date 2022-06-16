@@ -22,6 +22,7 @@
  *
  */
 
+#include <linux/highmem.h>
 #include <linux/sched/mm.h>
 
 #include <drm/drm_cache.h>
@@ -605,6 +606,9 @@ bool i915_gem_object_can_migrate(struct drm_i915_gem_object *obj,
 	if (!mr)
 		return false;
 
+	if (!IS_ALIGNED(obj->base.size, mr->min_page_size))
+		return false;
+
 	if (obj->mm.region == mr)
 		return true;
 
@@ -741,30 +745,19 @@ static const struct drm_gem_object_funcs i915_gem_object_funcs = {
 /**
  * i915_gem_object_get_moving_fence - Get the object's moving fence if any
  * @obj: The object whose moving fence to get.
+ * @fence: The resulting fence
  *
  * A non-signaled moving fence means that there is an async operation
  * pending on the object that needs to be waited on before setting up
  * any GPU- or CPU PTEs to the object's pages.
  *
- * Return: A refcounted pointer to the object's moving fence if any,
- * NULL otherwise.
+ * Return: Negative error code or 0 for success.
  */
-struct dma_fence *
-i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj)
+int i915_gem_object_get_moving_fence(struct drm_i915_gem_object *obj,
+				     struct dma_fence **fence)
 {
-	return dma_fence_get(i915_gem_to_ttm(obj)->moving);
-}
-
-void i915_gem_object_set_moving_fence(struct drm_i915_gem_object *obj,
-				      struct dma_fence *fence)
-{
-	struct dma_fence **moving = &i915_gem_to_ttm(obj)->moving;
-
-	if (*moving == fence)
-		return;
-
-	dma_fence_put(*moving);
-	*moving = dma_fence_get(fence);
+	return dma_resv_get_singleton(obj->base.resv, DMA_RESV_USAGE_KERNEL,
+				      fence);
 }
 
 /**
@@ -782,23 +775,16 @@ void i915_gem_object_set_moving_fence(struct drm_i915_gem_object *obj,
 int i915_gem_object_wait_moving_fence(struct drm_i915_gem_object *obj,
 				      bool intr)
 {
-	struct dma_fence *fence = i915_gem_to_ttm(obj)->moving;
-	int ret;
+	long ret;
 
 	assert_object_held(obj);
-	if (!fence)
-		return 0;
 
-	ret = dma_fence_wait(fence, intr);
-	if (ret)
-		return ret;
+	ret = dma_resv_wait_timeout(obj->base. resv, DMA_RESV_USAGE_KERNEL,
+				    intr, MAX_SCHEDULE_TIMEOUT);
+	if (!ret)
+		ret = -ETIME;
 
-	if (fence->error)
-		return fence->error;
-
-	i915_gem_to_ttm(obj)->moving = NULL;
-	dma_fence_put(fence);
-	return 0;
+	return ret < 0 ? ret : 0;
 }
 
 #if IS_ENABLED(CONFIG_DRM_I915_SELFTEST)

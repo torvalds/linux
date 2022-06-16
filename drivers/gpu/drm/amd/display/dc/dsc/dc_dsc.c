@@ -22,10 +22,10 @@
  * Author: AMD
  */
 
-#include <drm/drm_dsc.h>
+#include <drm/display/drm_dp_helper.h>
+#include <drm/display/drm_dsc_helper.h>
 #include "dc_hw_types.h"
 #include "dsc.h"
-#include <drm/dp/drm_dp_helper.h>
 #include "dc.h"
 #include "rc_calc.h"
 #include "fixed31_32.h"

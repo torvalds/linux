@@ -1254,19 +1254,19 @@ __lpfc_sli_get_els_sglq(struct lpfc_hba *phba, struct lpfc_iocbq *piocbq)
 
 	cmnd = get_job_cmnd(phba, piocbq);
 
-	if (piocbq->cmd_flag &  LPFC_IO_FCP) {
-		lpfc_cmd = (struct lpfc_io_buf *) piocbq->context1;
+	if (piocbq->cmd_flag & LPFC_IO_FCP) {
+		lpfc_cmd = piocbq->io_buf;
 		ndlp = lpfc_cmd->rdata->pnode;
 	} else  if ((cmnd == CMD_GEN_REQUEST64_CR) &&
 			!(piocbq->cmd_flag & LPFC_IO_LIBDFC)) {
-		ndlp = piocbq->context_un.ndlp;
+		ndlp = piocbq->ndlp;
 	} else  if (piocbq->cmd_flag & LPFC_IO_LIBDFC) {
 		if (piocbq->cmd_flag & LPFC_IO_LOOPBACK)
 			ndlp = NULL;
 		else
-			ndlp = piocbq->context_un.ndlp;
+			ndlp = piocbq->ndlp;
 	} else {
-		ndlp = piocbq->context1;
+		ndlp = piocbq->ndlp;
 	}
 
 	spin_lock(&phba->sli4_hba.sgl_list_lock);
@@ -1373,7 +1373,7 @@ static void
 __lpfc_sli_release_iocbq_s4(struct lpfc_hba *phba, struct lpfc_iocbq *iocbq)
 {
 	struct lpfc_sglq *sglq;
-	size_t start_clean = offsetof(struct lpfc_iocbq, iocb);
+	size_t start_clean = offsetof(struct lpfc_iocbq, wqe);
 	unsigned long iflag = 0;
 	struct lpfc_sli_ring *pring;
 
@@ -1996,9 +1996,9 @@ initpath:
 
 	sync_buf->vport = phba->pport;
 	sync_buf->cmd_cmpl = lpfc_cmf_sync_cmpl;
-	sync_buf->context1 = NULL;
-	sync_buf->context2 = NULL;
-	sync_buf->context3 = NULL;
+	sync_buf->cmd_dmabuf = NULL;
+	sync_buf->rsp_dmabuf = NULL;
+	sync_buf->bpl_dmabuf = NULL;
 	sync_buf->sli4_xritag = NO_XRI;
 
 	sync_buf->cmd_flag |= LPFC_IO_CMF;
@@ -2848,18 +2848,10 @@ void
 lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 {
 	struct lpfc_vport  *vport = pmb->vport;
-	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct Scsi_Host *shost;
 	uint16_t rpi, vpi;
 	int rc;
-
-	mp = (struct lpfc_dmabuf *)(pmb->ctx_buf);
-
-	if (mp) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-	}
 
 	/*
 	 * If a REG_LOGIN succeeded  after node is destroyed or node
@@ -2893,8 +2885,6 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (pmb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 		ndlp = (struct lpfc_nodelist *)pmb->ctx_ndlp;
 		lpfc_nlp_put(ndlp);
-		pmb->ctx_buf = NULL;
-		pmb->ctx_ndlp = NULL;
 	}
 
 	if (pmb->u.mb.mbxCommand == MBX_UNREG_LOGIN) {
@@ -2945,7 +2935,7 @@ lpfc_sli_def_mbox_cmpl(struct lpfc_hba *phba, LPFC_MBOXQ_t *pmb)
 	if (bf_get(lpfc_mqe_command, &pmb->u.mqe) == MBX_SLI4_CONFIG)
 		lpfc_sli4_mbox_cmd_free(phba, pmb);
 	else
-		mempool_free(pmb, phba->mbox_mem_pool);
+		lpfc_mbox_rsrc_cleanup(phba, pmb, MBOX_THD_UNLOCKED);
 }
  /**
  * lpfc_sli4_unreg_rpi_cmpl_clr - mailbox completion handler
@@ -3197,7 +3187,7 @@ lpfc_nvme_unsol_ls_handler(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 	uint32_t oxid, sid, did, fctl, size;
 	int ret = 1;
 
-	d_buf = piocb->context2;
+	d_buf = piocb->cmd_dmabuf;
 
 	nvmebuf = container_of(d_buf, struct hbq_dmabuf, dbuf);
 	fc_hdr = nvmebuf->hbuf.virt;
@@ -3478,9 +3468,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if (phba->sli3_options & LPFC_SLI3_HBQ_ENABLED) {
 		if (irsp->ulpBdeCount != 0) {
-			saveq->context2 = lpfc_sli_get_buff(phba, pring,
+			saveq->cmd_dmabuf = lpfc_sli_get_buff(phba, pring,
 						irsp->un.ulpWord[3]);
-			if (!saveq->context2)
+			if (!saveq->cmd_dmabuf)
 				lpfc_printf_log(phba,
 					KERN_ERR,
 					LOG_SLI,
@@ -3490,9 +3480,9 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 					irsp->un.ulpWord[3]);
 		}
 		if (irsp->ulpBdeCount == 2) {
-			saveq->context3 = lpfc_sli_get_buff(phba, pring,
+			saveq->bpl_dmabuf = lpfc_sli_get_buff(phba, pring,
 						irsp->unsli3.sli3Words[7]);
-			if (!saveq->context3)
+			if (!saveq->bpl_dmabuf)
 				lpfc_printf_log(phba,
 					KERN_ERR,
 					LOG_SLI,
@@ -3504,10 +3494,10 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		list_for_each_entry(iocbq, &saveq->list, list) {
 			irsp = &iocbq->iocb;
 			if (irsp->ulpBdeCount != 0) {
-				iocbq->context2 = lpfc_sli_get_buff(phba,
+				iocbq->cmd_dmabuf = lpfc_sli_get_buff(phba,
 							pring,
 							irsp->un.ulpWord[3]);
-				if (!iocbq->context2)
+				if (!iocbq->cmd_dmabuf)
 					lpfc_printf_log(phba,
 						KERN_ERR,
 						LOG_SLI,
@@ -3517,10 +3507,10 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 						irsp->un.ulpWord[3]);
 			}
 			if (irsp->ulpBdeCount == 2) {
-				iocbq->context3 = lpfc_sli_get_buff(phba,
+				iocbq->bpl_dmabuf = lpfc_sli_get_buff(phba,
 						pring,
 						irsp->unsli3.sli3Words[7]);
-				if (!iocbq->context3)
+				if (!iocbq->bpl_dmabuf)
 					lpfc_printf_log(phba,
 						KERN_ERR,
 						LOG_SLI,
@@ -3534,12 +3524,12 @@ lpfc_sli_process_unsol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	} else {
 		paddr = getPaddr(irsp->un.cont64[0].addrHigh,
 				 irsp->un.cont64[0].addrLow);
-		saveq->context2 = lpfc_sli_ringpostbuf_get(phba, pring,
+		saveq->cmd_dmabuf = lpfc_sli_ringpostbuf_get(phba, pring,
 							     paddr);
 		if (irsp->ulpBdeCount == 2) {
 			paddr = getPaddr(irsp->un.cont64[1].addrHigh,
 					 irsp->un.cont64[1].addrLow);
-			saveq->context3 = lpfc_sli_ringpostbuf_get(phba,
+			saveq->bpl_dmabuf = lpfc_sli_ringpostbuf_get(phba,
 								   pring,
 								   paddr);
 		}
@@ -3717,7 +3707,6 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 			  struct lpfc_iocbq *saveq)
 {
 	struct lpfc_iocbq *cmdiocbp;
-	int rc = 1;
 	unsigned long iflag;
 	u32 ulp_command, ulp_status, ulp_word4, ulp_context, iotag;
 
@@ -3857,7 +3846,7 @@ lpfc_sli_process_sol_iocb(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 		}
 	}
 
-	return rc;
+	return 1;
 }
 
 /**
@@ -5275,6 +5264,7 @@ lpfc_sli_brdrestart_s4(struct lpfc_hba *phba)
 	phba->pport->stopped = 0;
 	phba->link_state = LPFC_INIT_START;
 	phba->hba_flag = 0;
+	phba->sli4_hba.fawwpn_flag = 0;
 	spin_unlock_irq(&phba->hbalock);
 
 	memset(&psli->lnk_stat_offsets, 0, sizeof(psli->lnk_stat_offsets));
@@ -5851,26 +5841,20 @@ lpfc_sli4_read_fcoe_params(struct lpfc_hba *phba)
 			mboxq->mcqe.trailer);
 
 	if (rc) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
 		rc = -EIO;
 		goto out_free_mboxq;
 	}
 	data_length = mqe->un.mb_words[5];
 	if (data_length > DMP_RGN23_SIZE) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
 		rc = -EIO;
 		goto out_free_mboxq;
 	}
 
 	lpfc_parse_fcoe_conf(phba, mp->virt, data_length);
-	lpfc_mbuf_free(phba, mp->virt, mp->phys);
-	kfree(mp);
 	rc = 0;
 
 out_free_mboxq:
-	mempool_free(mboxq, phba->mbox_mem_pool);
+	lpfc_mbox_rsrc_cleanup(phba, mboxq, MBOX_THD_UNLOCKED);
 	return rc;
 }
 
@@ -7994,10 +7978,6 @@ lpfc_cmf_setup(struct lpfc_hba *phba)
 
 	sli4_params = &phba->sli4_hba.pc_sli4_params;
 
-	/* Are we forcing MI off via module parameter? */
-	if (!phba->cfg_enable_mi)
-		sli4_params->mi_ver = 0;
-
 	/* Always try to enable MI feature if we can */
 	if (sli4_params->mi_ver) {
 		lpfc_set_features(phba, mboxq, LPFC_SET_ENABLE_MI);
@@ -8543,8 +8523,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 	}
 
 	/*
-	 * This memory was allocated by the lpfc_read_sparam routine. Release
-	 * it to the mbuf pool.
+	 * This memory was allocated by the lpfc_read_sparam routine but is
+	 * no longer needed.  It is released and ctx_buf NULLed to prevent
+	 * unintended pointer access as the mbox is reused.
 	 */
 	lpfc_mbuf_free(phba, mp->virt, mp->phys);
 	kfree(mp);
@@ -8863,6 +8844,9 @@ lpfc_sli4_hba_setup(struct lpfc_hba *phba)
 		}
 	}
 	mempool_free(mboxq, phba->mbox_mem_pool);
+
+	/* Enable RAS FW log support */
+	lpfc_sli4_ras_setup(phba);
 
 	phba->hba_flag |= HBA_SETUP;
 	return rc;
@@ -10343,8 +10327,7 @@ __lpfc_sli_issue_fcp_io_s4(struct lpfc_hba *phba, uint32_t ring_number,
 			   struct lpfc_iocbq *piocb, uint32_t flag)
 {
 	int rc;
-	struct lpfc_io_buf *lpfc_cmd =
-		(struct lpfc_io_buf *)piocb->context1;
+	struct lpfc_io_buf *lpfc_cmd = piocb->io_buf;
 
 	lpfc_prep_embed_io(phba, lpfc_cmd);
 	rc = lpfc_sli4_issue_wqe(phba, lpfc_cmd->hdwq, piocb);
@@ -10394,11 +10377,11 @@ lpfc_prep_embed_io(struct lpfc_hba *phba, struct lpfc_io_buf *lpfc_cmd)
 
 	/* add the VMID tags as per switch response */
 	if (unlikely(piocb->cmd_flag & LPFC_IO_VMID)) {
-		if (phba->pport->vmid_priority_tagging) {
+		if (phba->pport->vmid_flag & LPFC_VMID_TYPE_PRIO) {
 			bf_set(wqe_ccpe, &wqe->fcp_iwrite.wqe_com, 1);
 			bf_set(wqe_ccp, &wqe->fcp_iwrite.wqe_com,
 					(piocb->vmid_tag.cs_ctl_vmid));
-		} else {
+		} else if (phba->cfg_vmid_app_header) {
 			bf_set(wqe_appid, &wqe->fcp_iwrite.wqe_com, 1);
 			bf_set(wqe_wqes, &wqe->fcp_iwrite.wqe_com, 1);
 			wqe->words[31] = piocb->vmid_tag.app_id;
@@ -10599,6 +10582,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 	struct lpfc_hba  *phba = vport->phba;
 	union lpfc_wqe128 *wqe;
 	struct ulp_bde64_le *bde;
+	u8 els_id;
 
 	wqe = &cmdiocbq->wqe;
 	memset(wqe, 0, sizeof(*wqe));
@@ -10611,7 +10595,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 	bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BDE_64);
 
 	if (expect_rsp) {
-		bf_set(wqe_cmnd, &wqe->els_req.wqe_com, CMD_ELS_REQUEST64_CR);
+		bf_set(wqe_cmnd, &wqe->els_req.wqe_com, CMD_ELS_REQUEST64_WQE);
 
 		/* Transfer length */
 		wqe->els_req.payload_len = cmd_size;
@@ -10619,6 +10603,30 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 
 		/* DID */
 		bf_set(wqe_els_did, &wqe->els_req.wqe_dest, did);
+
+		/* Word 11 - ELS_ID */
+		switch (elscmd) {
+		case ELS_CMD_PLOGI:
+			els_id = LPFC_ELS_ID_PLOGI;
+			break;
+		case ELS_CMD_FLOGI:
+			els_id = LPFC_ELS_ID_FLOGI;
+			break;
+		case ELS_CMD_LOGO:
+			els_id = LPFC_ELS_ID_LOGO;
+			break;
+		case ELS_CMD_FDISC:
+			if (!vport->fc_myDID) {
+				els_id = LPFC_ELS_ID_FDISC;
+				break;
+			}
+			fallthrough;
+		default:
+			els_id = LPFC_ELS_ID_DEFAULT;
+			break;
+		}
+
+		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
 	} else {
 		/* DID */
 		bf_set(wqe_els_did, &wqe->xmit_els_rsp.wqe_dest, did);
@@ -10627,7 +10635,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 		wqe->xmit_els_rsp.response_payload_len = cmd_size;
 
 		bf_set(wqe_cmnd, &wqe->xmit_els_rsp.wqe_com,
-		       CMD_XMIT_ELS_RSP64_CX);
+		       CMD_XMIT_ELS_RSP64_WQE);
 	}
 
 	bf_set(wqe_tmo, &wqe->generic.wqe_com, tmo);
@@ -10643,7 +10651,7 @@ __lpfc_sli_prep_els_req_rsp_s4(struct lpfc_iocbq *cmdiocbq,
 		if (expect_rsp) {
 			bf_set(els_req64_sid, &wqe->els_req, vport->fc_myDID);
 
-			/* For ELS_REQUEST64_CR, use the VPI by default */
+			/* For ELS_REQUEST64_WQE, use the VPI by default */
 			bf_set(wqe_ctxt_tag, &wqe->els_req.wqe_com,
 			       phba->vpi_ids[vport->vpi]);
 		}
@@ -10800,24 +10808,15 @@ __lpfc_sli_prep_xmit_seq64_s4(struct lpfc_iocbq *cmdiocbq,
 {
 	union lpfc_wqe128 *wqe;
 	struct ulp_bde64 *bpl;
-	struct ulp_bde64_le *bde;
 
 	wqe = &cmdiocbq->wqe;
 	memset(wqe, 0, sizeof(*wqe));
 
 	/* Words 0 - 2 */
 	bpl = (struct ulp_bde64 *)bmp->virt;
-	if (cmdiocbq->cmd_flag & (LPFC_IO_LIBDFC | LPFC_IO_LOOPBACK)) {
-		wqe->xmit_sequence.bde.addrHigh = bpl->addrHigh;
-		wqe->xmit_sequence.bde.addrLow = bpl->addrLow;
-		wqe->xmit_sequence.bde.tus.w = bpl->tus.w;
-	} else {
-		bde = (struct ulp_bde64_le *)&wqe->xmit_sequence.bde;
-		bde->addr_low = cpu_to_le32(putPaddrLow(bmp->phys));
-		bde->addr_high = cpu_to_le32(putPaddrHigh(bmp->phys));
-		bde->type_size = cpu_to_le32(bpl->tus.f.bdeSize);
-		bde->type_size |= cpu_to_le32(ULP_BDE64_TYPE_BDE_64);
-	}
+	wqe->xmit_sequence.bde.addrHigh = bpl->addrHigh;
+	wqe->xmit_sequence.bde.addrLow = bpl->addrLow;
+	wqe->xmit_sequence.bde.tus.w = bpl->tus.w;
 
 	/* Word 5 */
 	bf_set(wqe_ls, &wqe->xmit_sequence.wge_ctl, last_seq);
@@ -10990,7 +10989,7 @@ lpfc_sli4_calc_ring(struct lpfc_hba *phba, struct lpfc_iocbq *piocb)
 		 * be setup based on what work queue we used.
 		 */
 		if (!(piocb->cmd_flag & LPFC_USE_FCPWQIDX)) {
-			lpfc_cmd = (struct lpfc_io_buf *)piocb->context1;
+			lpfc_cmd = piocb->io_buf;
 			piocb->hba_wqidx = lpfc_cmd->hdwq_no;
 		}
 		return phba->sli4_hba.hdwq[piocb->hba_wqidx].io_wq->pring;
@@ -12064,8 +12063,9 @@ void
 lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 		     struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_nodelist *ndlp = NULL;
+	struct lpfc_nodelist *ndlp = cmdiocb->ndlp;
 	IOCB_t *irsp;
+	LPFC_MBOXQ_t *mbox;
 	u32 ulp_command, ulp_status, ulp_word4, iotag;
 
 	ulp_command = get_job_cmnd(phba, cmdiocb);
@@ -12077,25 +12077,32 @@ lpfc_ignore_els_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	} else {
 		irsp = &rspiocb->iocb;
 		iotag = irsp->ulpIoTag;
+
+		/* It is possible a PLOGI_RJT for NPIV ports to get aborted.
+		 * The MBX_REG_LOGIN64 mbox command is freed back to the
+		 * mbox_mem_pool here.
+		 */
+		if (cmdiocb->context_un.mbox) {
+			mbox = cmdiocb->context_un.mbox;
+			lpfc_mbox_rsrc_cleanup(phba, mbox, MBOX_THD_UNLOCKED);
+			cmdiocb->context_un.mbox = NULL;
+		}
 	}
 
 	/* ELS cmd tag <ulpIoTag> completes */
 	lpfc_printf_log(phba, KERN_INFO, LOG_ELS,
 			"0139 Ignoring ELS cmd code x%x completion Data: "
-			"x%x x%x x%x\n",
-			ulp_command, ulp_status, ulp_word4, iotag);
-
+			"x%x x%x x%x x%px\n",
+			ulp_command, ulp_status, ulp_word4, iotag,
+			cmdiocb->ndlp);
 	/*
 	 * Deref the ndlp after free_iocb. sli_release_iocb will access the ndlp
 	 * if exchange is busy.
 	 */
-	if (ulp_command == CMD_GEN_REQUEST64_CR) {
-		ndlp = cmdiocb->context_un.ndlp;
+	if (ulp_command == CMD_GEN_REQUEST64_CR)
 		lpfc_ct_free_iocb(phba, cmdiocb);
-	} else {
-		ndlp = (struct lpfc_nodelist *) cmdiocb->context1;
+	else
 		lpfc_els_free_iocb(phba, cmdiocb);
-	}
 
 	lpfc_nlp_put(ndlp);
 }
@@ -12176,7 +12183,7 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 	} else {
 		iotag = cmdiocb->iocb.ulpIoTag;
 		if (pring->ringno == LPFC_ELS_RING) {
-			ndlp = (struct lpfc_nodelist *)(cmdiocb->context1);
+			ndlp = cmdiocb->ndlp;
 			ulp_context = ndlp->nlp_rpi;
 		} else {
 			ulp_context = cmdiocb->iocb.ulpContext;
@@ -12185,7 +12192,8 @@ lpfc_sli_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_sli_ring *pring,
 
 	if (phba->link_state < LPFC_LINK_UP ||
 	    (phba->sli_rev == LPFC_SLI_REV4 &&
-	     phba->sli4_hba.link_state.status == LPFC_FC_LA_TYPE_LINK_DOWN))
+	     phba->sli4_hba.link_state.status == LPFC_FC_LA_TYPE_LINK_DOWN) ||
+	    (phba->link_flag & LS_EXTERNAL_LOOPBACK))
 		ia = true;
 	else
 		ia = false;
@@ -12634,7 +12642,7 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		} else {
 			iotag = iocbq->iocb.ulpIoTag;
 			if (pring->ringno == LPFC_ELS_RING) {
-				ndlp = (struct lpfc_nodelist *)(iocbq->context1);
+				ndlp = iocbq->ndlp;
 				ulp_context = ndlp->nlp_rpi;
 			} else {
 				ulp_context = iocbq->iocb.ulpContext;
@@ -12644,7 +12652,8 @@ lpfc_sli_abort_taskmgmt(struct lpfc_vport *vport, struct lpfc_sli_ring *pring,
 		ndlp = lpfc_cmd->rdata->pnode;
 
 		if (lpfc_is_link_up(phba) &&
-		    (ndlp && ndlp->nlp_state == NLP_STE_MAPPED_NODE))
+		    (ndlp && ndlp->nlp_state == NLP_STE_MAPPED_NODE) &&
+		    !(phba->link_flag & LS_EXTERNAL_LOOPBACK))
 			ia = false;
 		else
 			ia = true;
@@ -12739,8 +12748,8 @@ lpfc_sli_wake_iocb_wait(struct lpfc_hba *phba,
 
 	/* Copy the contents of the local rspiocb into the caller's buffer. */
 	cmdiocbq->cmd_flag |= LPFC_IO_WAKE;
-	if (cmdiocbq->context2 && rspiocbq)
-		memcpy((char *)cmdiocbq->context2 + offset,
+	if (cmdiocbq->rsp_iocb && rspiocbq)
+		memcpy((char *)cmdiocbq->rsp_iocb + offset,
 		       (char *)rspiocbq + offset, sizeof(*rspiocbq) - offset);
 
 	/* Set the exchange busy flag for task management commands */
@@ -12848,13 +12857,13 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	} else
 		pring = &phba->sli.sli3_ring[ring_number];
 	/*
-	 * If the caller has provided a response iocbq buffer, then context2
+	 * If the caller has provided a response iocbq buffer, then rsp_iocb
 	 * is NULL or its an error.
 	 */
 	if (prspiocbq) {
-		if (piocb->context2)
+		if (piocb->rsp_iocb)
 			return IOCB_ERROR;
-		piocb->context2 = prspiocbq;
+		piocb->rsp_iocb = prspiocbq;
 	}
 
 	piocb->wait_cmd_cmpl = piocb->cmd_cmpl;
@@ -12938,7 +12947,7 @@ lpfc_sli_issue_iocb_wait(struct lpfc_hba *phba,
 	}
 
 	if (prspiocbq)
-		piocb->context2 = NULL;
+		piocb->rsp_iocb = NULL;
 
 	piocb->context_un.wait_queue = NULL;
 	piocb->cmd_cmpl = NULL;
@@ -15732,7 +15741,6 @@ lpfc_modify_hba_eq_delay(struct lpfc_hba *phba, uint32_t startq,
 
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	mbox->ctx_buf = NULL;
 	mbox->ctx_ndlp = NULL;
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
 	shdr = (union lpfc_sli4_cfg_shdr *) &eq_delay->header.cfg_shdr;
@@ -18107,7 +18115,6 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 	case FC_RCTL_ELS_REP:	/* extended link services reply */
 	case FC_RCTL_ELS4_REQ:	/* FC-4 ELS request */
 	case FC_RCTL_ELS4_REP:	/* FC-4 ELS reply */
-	case FC_RCTL_BA_NOP:  	/* basic link service NOP */
 	case FC_RCTL_BA_ABTS: 	/* basic link service abort */
 	case FC_RCTL_BA_RMC: 	/* remove connection */
 	case FC_RCTL_BA_ACC:	/* basic accept */
@@ -18128,6 +18135,7 @@ lpfc_fc_frame_check(struct lpfc_hba *phba, struct fc_frame_header *fc_hdr)
 		fc_vft_hdr = (struct fc_vft_header *)fc_hdr;
 		fc_hdr = &((struct fc_frame_header *)fc_vft_hdr)[1];
 		return lpfc_fc_frame_check(phba, fc_hdr);
+	case FC_RCTL_BA_NOP:	/* basic link service NOP */
 	default:
 		goto drop;
 	}
@@ -18512,11 +18520,8 @@ lpfc_sli4_seq_abort_rsp_cmpl(struct lpfc_hba *phba,
 			     struct lpfc_iocbq *cmd_iocbq,
 			     struct lpfc_iocbq *rsp_iocbq)
 {
-	struct lpfc_nodelist *ndlp;
-
 	if (cmd_iocbq) {
-		ndlp = (struct lpfc_nodelist *)cmd_iocbq->context1;
-		lpfc_nlp_put(ndlp);
+		lpfc_nlp_put(cmd_iocbq->ndlp);
 		lpfc_sli_release_iocbq(phba, cmd_iocbq);
 	}
 
@@ -18600,8 +18605,8 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 	/* Extract the F_CTL field from FC_HDR */
 	fctl = sli4_fctl_from_fc_hdr(fc_hdr);
 
-	ctiocb->context1 = lpfc_nlp_get(ndlp);
-	if (!ctiocb->context1) {
+	ctiocb->ndlp = lpfc_nlp_get(ndlp);
+	if (!ctiocb->ndlp) {
 		lpfc_sli_release_iocbq(phba, ctiocb);
 		return;
 	}
@@ -18677,13 +18682,11 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 	       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 	bf_set(wqe_cmnd, &icmd->generic.wqe_com, CMD_XMIT_BLS_RSP64_CX);
 
-
 	/* Xmit CT abts response on exchange <xid> */
 	lpfc_printf_vlog(vport, KERN_INFO, LOG_ELS,
 			 "1200 Send BLS cmd x%x on oxid x%x Data: x%x\n",
 			 ctiocb->abort_rctl, oxid, phba->link_state);
 
-	lpfc_sli_prep_wqe(phba, ctiocb);
 	rc = lpfc_sli_issue_iocb(phba, LPFC_ELS_RING, ctiocb, 0);
 	if (rc == IOCB_ERROR) {
 		lpfc_printf_vlog(vport, KERN_ERR, LOG_TRACE_EVENT,
@@ -18692,7 +18695,7 @@ lpfc_sli4_seq_abort_rsp(struct lpfc_vport *vport,
 				 ctiocb->abort_rctl, oxid,
 				 phba->link_state);
 		lpfc_nlp_put(ndlp);
-		ctiocb->context1 = NULL;
+		ctiocb->ndlp = NULL;
 		lpfc_sli_release_iocbq(phba, ctiocb);
 	}
 }
@@ -18844,8 +18847,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 		tot_len = bf_get(lpfc_rcqe_length,
 				 &seq_dmabuf->cq_event.cqe.rcqe_cmpl);
 
-		first_iocbq->context2 = &seq_dmabuf->dbuf;
-		first_iocbq->context3 = NULL;
+		first_iocbq->cmd_dmabuf = &seq_dmabuf->dbuf;
+		first_iocbq->bpl_dmabuf = NULL;
 		/* Keep track of the BDE count */
 		first_iocbq->wcqe_cmpl.word3 = 1;
 
@@ -18869,8 +18872,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 			lpfc_in_buf_free(vport->phba, d_buf);
 			continue;
 		}
-		if (!iocbq->context3) {
-			iocbq->context3 = d_buf;
+		if (!iocbq->bpl_dmabuf) {
+			iocbq->bpl_dmabuf = d_buf;
 			iocbq->wcqe_cmpl.word3++;
 			/* We need to get the size out of the right CQE */
 			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
@@ -18896,8 +18899,8 @@ lpfc_prep_seq(struct lpfc_vport *vport, struct hbq_dmabuf *seq_dmabuf)
 			hbq_buf = container_of(d_buf, struct hbq_dmabuf, dbuf);
 			len = bf_get(lpfc_rcqe_length,
 				       &hbq_buf->cq_event.cqe.rcqe_cmpl);
-			iocbq->context2 = d_buf;
-			iocbq->context3 = NULL;
+			iocbq->cmd_dmabuf = d_buf;
+			iocbq->bpl_dmabuf = NULL;
 			iocbq->wcqe_cmpl.word3 = 1;
 
 			if (len > LPFC_DATA_BUF_SIZE)
@@ -18942,12 +18945,14 @@ lpfc_sli4_send_seq_to_ulp(struct lpfc_vport *vport,
 	if (!lpfc_complete_unsol_iocb(phba,
 				      phba->sli4_hba.els_wq->pring,
 				      iocbq, fc_hdr->fh_r_ctl,
-				      fc_hdr->fh_type))
+				      fc_hdr->fh_type)) {
 		lpfc_printf_log(phba, KERN_ERR, LOG_TRACE_EVENT,
 				"2540 Ring %d handler: unexpected Rctl "
 				"x%x Type x%x received\n",
 				LPFC_ELS_RING,
 				fc_hdr->fh_r_ctl, fc_hdr->fh_type);
+		lpfc_in_buf_free(phba, &seq_dmabuf->dbuf);
+	}
 
 	/* Free iocb created in lpfc_prep_seq */
 	list_for_each_entry_safe(curr_iocb, next_iocb,
@@ -18962,7 +18967,7 @@ static void
 lpfc_sli4_mds_loopback_cmpl(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 			    struct lpfc_iocbq *rspiocb)
 {
-	struct lpfc_dmabuf *pcmd = cmdiocb->context2;
+	struct lpfc_dmabuf *pcmd = cmdiocb->cmd_dmabuf;
 
 	if (pcmd && pcmd->virt)
 		dma_pool_free(phba->lpfc_drb_pool, pcmd->virt, pcmd->phys);
@@ -19013,7 +19018,7 @@ lpfc_sli4_handle_mds_loopback(struct lpfc_vport *vport,
 	/* copyin the payload */
 	memcpy(pcmd->virt, dmabuf->dbuf.virt, frame_len);
 
-	iocbq->context2 = pcmd;
+	iocbq->cmd_dmabuf = pcmd;
 	iocbq->vport = vport;
 	iocbq->cmd_flag &= ~LPFC_FIP_ELS_ID_MASK;
 	iocbq->cmd_flag |= LPFC_USE_FCPWQIDX;
@@ -20332,11 +20337,7 @@ lpfc_sli4_get_config_region23(struct lpfc_hba *phba, char *rgn23_data)
 	}
 	lpfc_sli_pcimem_bcopy((char *)mp->virt, rgn23_data, data_length);
 out:
-	mempool_free(mboxq, phba->mbox_mem_pool);
-	if (mp) {
-		lpfc_mbuf_free(phba, mp->virt, mp->phys);
-		kfree(mp);
-	}
+	lpfc_mbox_rsrc_cleanup(phba, mboxq, MBOX_THD_UNLOCKED);
 	return data_length;
 }
 
@@ -20651,7 +20652,6 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 {
 	struct lpfc_hba *phba = vport->phba;
 	LPFC_MBOXQ_t *mb, *nextmb;
-	struct lpfc_dmabuf *mp;
 	struct lpfc_nodelist *ndlp;
 	struct lpfc_nodelist *act_mbx_ndlp = NULL;
 	LIST_HEAD(mbox_cmd_list);
@@ -20677,8 +20677,12 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 			mb->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
 			act_mbx_ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
-			/* Put reference count for delayed processing */
+
+			/* This reference is local to this routine.  The
+			 * reference is removed at routine exit.
+			 */
 			act_mbx_ndlp = lpfc_nlp_get(act_mbx_ndlp);
+
 			/* Unregister the RPI when mailbox complete */
 			mb->mbox_flag |= LPFC_MBX_IMED_UNREG;
 		}
@@ -20721,12 +20725,6 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 	while (!list_empty(&mbox_cmd_list)) {
 		list_remove_head(&mbox_cmd_list, mb, LPFC_MBOXQ_t, list);
 		if (mb->u.mb.mbxCommand == MBX_REG_LOGIN64) {
-			mp = (struct lpfc_dmabuf *)(mb->ctx_buf);
-			if (mp) {
-				__lpfc_mbuf_free(phba, mp->virt, mp->phys);
-				kfree(mp);
-			}
-			mb->ctx_buf = NULL;
 			ndlp = (struct lpfc_nodelist *)mb->ctx_ndlp;
 			mb->ctx_ndlp = NULL;
 			if (ndlp) {
@@ -20736,7 +20734,7 @@ lpfc_cleanup_pending_mbox(struct lpfc_vport *vport)
 				lpfc_nlp_put(ndlp);
 			}
 		}
-		mempool_free(mb, phba->mbox_mem_pool);
+		lpfc_mbox_rsrc_cleanup(phba, mb, MBOX_THD_UNLOCKED);
 	}
 
 	/* Release the ndlp with the cleaned-up active mailbox command */
@@ -20888,8 +20886,8 @@ lpfc_wqe_bpl2sgl(struct lpfc_hba *phba, struct lpfc_iocbq *pwqeq,
 		 * have not been byteswapped yet so there is no
 		 * need to swap them back.
 		 */
-		if (pwqeq->context3)
-			dmabuf = (struct lpfc_dmabuf *)pwqeq->context3;
+		if (pwqeq->bpl_dmabuf)
+			dmabuf = pwqeq->bpl_dmabuf;
 		else
 			return xritag;
 
@@ -21041,7 +21039,7 @@ lpfc_sli4_issue_wqe(struct lpfc_hba *phba, struct lpfc_sli4_hdw_queue *qp,
 		wq = qp->io_wq;
 		pring = wq->pring;
 
-		ctxp = pwqe->context2;
+		ctxp = pwqe->context_un.axchg;
 		sglq = ctxp->ctxbuf->sglq;
 		if (pwqe->sli4_xritag ==  NO_XRI) {
 			pwqe->sli4_lxritag = sglq->sli4_lxritag;
@@ -21107,7 +21105,7 @@ lpfc_sli4_issue_abort_iotag(struct lpfc_hba *phba, struct lpfc_iocbq *cmdiocb,
 	abtswqe = &abtsiocb->wqe;
 	memset(abtswqe, 0, sizeof(*abtswqe));
 
-	if (!lpfc_is_link_up(phba))
+	if (!lpfc_is_link_up(phba) || (phba->link_flag & LS_EXTERNAL_LOOPBACK))
 		bf_set(abort_cmd_ia, &abtswqe->abort_cmd, 1);
 	bf_set(abort_cmd_criteria, &abtswqe->abort_cmd, T_XRI_TAG);
 	abtswqe->abort_cmd.rsrvd5 = 0;
@@ -21883,7 +21881,6 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 
 	mbox->vport = phba->pport;
 	mbox->mbox_cmpl = lpfc_sli_def_mbox_cmpl;
-	mbox->ctx_buf = NULL;
 	mbox->ctx_ndlp = NULL;
 
 	rc = lpfc_sli_issue_mbox(phba, mbox, MBX_POLL);
@@ -21920,9 +21917,12 @@ lpfc_read_object(struct lpfc_hba *phba, char *rdobject, uint32_t *datap,
 	}
 
  exit:
+	/* This is an embedded SLI4 mailbox with an external buffer allocated.
+	 * Free the pcmd and then cleanup with the correct routine.
+	 */
 	lpfc_mbuf_free(phba, pcmd->virt, pcmd->phys);
 	kfree(pcmd);
-	mempool_free(mbox, phba->mbox_mem_pool);
+	lpfc_sli4_mbox_cmd_free(phba, mbox);
 	return byte_cnt;
 }
 
@@ -22114,7 +22114,7 @@ lpfc_get_cmd_rsp_buf_per_hdwq(struct lpfc_hba *phba,
 			return NULL;
 		}
 
-		tmp->fcp_cmnd = dma_pool_alloc(phba->lpfc_cmd_rsp_buf_pool,
+		tmp->fcp_cmnd = dma_pool_zalloc(phba->lpfc_cmd_rsp_buf_pool,
 						GFP_ATOMIC,
 						&tmp->fcp_cmd_rsp_dma_handle);
 
@@ -22236,8 +22236,6 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 	u32 fip, abort_tag;
 	struct lpfc_nodelist *ndlp = NULL;
 	union lpfc_wqe128 *wqe = &job->wqe;
-	struct lpfc_dmabuf *context2;
-	u32 els_id = LPFC_ELS_ID_DEFAULT;
 	u8 command_type = ELS_COMMAND_NON_FIP;
 
 	fip = phba->hba_flag & HBA_FIP_SUPPORT;
@@ -22254,21 +22252,12 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 
 	switch (cmnd) {
 	case CMD_ELS_REQUEST64_WQE:
-		if (job->cmd_flag & LPFC_IO_LIBDFC)
-			ndlp = job->context_un.ndlp;
-		else
-			ndlp = (struct lpfc_nodelist *)job->context1;
-
-		/* CCP CCPE PV PRI in word10 were set in the memcpy */
-		if (command_type == ELS_COMMAND_FIP)
-			els_id = ((job->cmd_flag & LPFC_FIP_ELS_ID_MASK)
-				  >> LPFC_FIP_ELS_ID_SHIFT);
+		ndlp = job->ndlp;
 
 		if_type = bf_get(lpfc_sli_intf_if_type,
 				 &phba->sli4_hba.sli_intf);
 		if (if_type >= LPFC_SLI_INTF_IF_TYPE_2) {
-			context2 = (struct lpfc_dmabuf *)job->context2;
-			pcmd = (u32 *)context2->virt;
+			pcmd = (u32 *)job->cmd_dmabuf->virt;
 			if (pcmd && (*pcmd == ELS_CMD_FLOGI ||
 				     *pcmd == ELS_CMD_SCR ||
 				     *pcmd == ELS_CMD_RDF ||
@@ -22301,7 +22290,6 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 		bf_set(wqe_temp_rpi, &wqe->els_req.wqe_com,
 		       phba->sli4_hba.rpi_ids[ndlp->nlp_rpi]);
 
-		bf_set(wqe_els_id, &wqe->els_req.wqe_com, els_id);
 		bf_set(wqe_dbde, &wqe->els_req.wqe_com, 1);
 		bf_set(wqe_iod, &wqe->els_req.wqe_com, LPFC_WQE_IOD_READ);
 		bf_set(wqe_qosd, &wqe->els_req.wqe_com, 1);
@@ -22309,7 +22297,7 @@ lpfc_sli_prep_wqe(struct lpfc_hba *phba, struct lpfc_iocbq *job)
 		bf_set(wqe_ebde_cnt, &wqe->els_req.wqe_com, 0);
 		break;
 	case CMD_XMIT_ELS_RSP64_WQE:
-		ndlp = (struct lpfc_nodelist *)job->context1;
+		ndlp = job->ndlp;
 
 		/* word4 */
 		wqe->xmit_els_rsp.word4 = 0;

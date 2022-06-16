@@ -793,6 +793,7 @@ static void __init h1940_init(void)
 MACHINE_START(H1940, "IPAQ-H1940")
 	/* Maintainer: Ben Dooks <ben-linux@fluff.org> */
 	.atag_offset	= 0x100,
+	.nr_irqs	= NR_IRQS_S3C2410,
 	.map_io		= h1940_map_io,
 	.reserve	= h1940_reserve,
 	.init_irq	= s3c2410_init_irq,

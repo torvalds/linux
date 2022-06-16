@@ -2189,7 +2189,7 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 	u32 bw = U32_MAX;
 	enum nl80211_chan_width confbw = NL80211_CHAN_WIDTH_20_NOHT;
 
-	switch (sta->bandwidth) {
+	switch (sta->deflink.bandwidth) {
 #define C(_bw) case IEEE80211_STA_RX_BW_##_bw: bw = _bw; break
 	C(20);
 	C(40);
@@ -2214,7 +2214,7 @@ mac80211_hwsim_sta_rc_update(struct ieee80211_hw *hw,
 
 	WARN(bw > hwsim_get_chanwidth(confbw),
 	     "intf %pM: bad STA %pM bandwidth %d MHz (%d) > channel config %d MHz (%d)\n",
-	     vif->addr, sta->addr, bw, sta->bandwidth,
+	     vif->addr, sta->addr, bw, sta->deflink.bandwidth,
 	     hwsim_get_chanwidth(data->bw), data->bw);
 }
 

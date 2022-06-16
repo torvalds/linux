@@ -524,7 +524,7 @@ void rtmsg_fib(int event, __be32 key, struct fib_alias *fa,
 	fri.tb_id = tb_id;
 	fri.dst = key;
 	fri.dst_len = dst_len;
-	fri.tos = inet_dscp_to_dsfield(fa->fa_dscp);
+	fri.dscp = fa->fa_dscp;
 	fri.type = fa->fa_type;
 	fri.offload = READ_ONCE(fa->offload);
 	fri.trap = READ_ONCE(fa->trap);
@@ -1781,7 +1781,7 @@ int fib_dump_info(struct sk_buff *skb, u32 portid, u32 seq, int event,
 	rtm->rtm_family = AF_INET;
 	rtm->rtm_dst_len = fri->dst_len;
 	rtm->rtm_src_len = 0;
-	rtm->rtm_tos = fri->tos;
+	rtm->rtm_tos = inet_dscp_to_dsfield(fri->dscp);
 	if (tb_id < 256)
 		rtm->rtm_table = tb_id;
 	else

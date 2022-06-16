@@ -14,6 +14,7 @@
 #include <drm/drm_drv.h>
 #include <drm/drm_file.h>
 #include <drm/drm_ioctl.h>
+#include <drm/drm_managed.h>
 #include <drm/drm_module.h>
 #include <drm/drm_pciids.h>
 
@@ -65,6 +66,11 @@ static int mgag200_regs_init(struct mga_device *mdev)
 	struct pci_dev *pdev = to_pci_dev(dev->dev);
 	u32 option, option2;
 	u8 crtcext3;
+	int ret;
+
+	ret = drmm_mutex_init(dev, &mdev->rmmio_lock);
+	if (ret)
+		return ret;
 
 	switch (mdev->type) {
 	case G200_PCI:

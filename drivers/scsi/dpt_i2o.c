@@ -1000,7 +1000,6 @@ static int adpt_install_hba(struct scsi_host_template* sht, struct pci_dev* pDev
 
 	// Initializing the spinlocks
 	spin_lock_init(&pHba->state_lock);
-	spin_lock_init(&adpt_post_wait_lock);
 
 	if(raptorFlag == 0){
 		printk(KERN_INFO "Adaptec I2O RAID controller"

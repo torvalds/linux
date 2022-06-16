@@ -188,6 +188,23 @@
 	};
 };
 
+&blsp1_i2c6 {
+	status = "okay";
+
+	nfc@28 {
+		compatible = "nxp,nxp-nci-i2c";
+		reg = <0x28>;
+
+		interrupt-parent = <&tlmm>;
+		interrupts = <92 IRQ_TYPE_LEVEL_HIGH>;
+
+		enable-gpios = <&tlmm 116 GPIO_ACTIVE_HIGH>;
+
+		pinctrl-names = "default";
+		pinctrl-0 = <&nfc_int_active &nfc_enable_active>;
+	};
+};
+
 &blsp1_uart3 {
 	status = "okay";
 
@@ -460,6 +477,20 @@
 		pins = "gpio89";
 		function = "gpio";
 		drive-strength = <8>;
+		bias-pull-up;
+	};
+
+	nfc_int_active: nfc-int-active {
+		pins = "gpio92";
+		function = "gpio";
+		drive-strength = <6>;
+		bias-pull-up;
+	};
+
+	nfc_enable_active: nfc-enable-active {
+		pins = "gpio12", "gpio116";
+		function = "gpio";
+		drive-strength = <6>;
 		bias-pull-up;
 	};
 };

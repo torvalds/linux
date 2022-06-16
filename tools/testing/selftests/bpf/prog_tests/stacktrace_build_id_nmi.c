@@ -27,7 +27,7 @@ void test_stacktrace_build_id_nmi(void)
 		.type = PERF_TYPE_HARDWARE,
 		.config = PERF_COUNT_HW_CPU_CYCLES,
 	};
-	__u32 key, previous_key, val, duration = 0;
+	__u32 key, prev_key, val, duration = 0;
 	char buf[256];
 	int i, j;
 	struct bpf_stack_build_id id_offs[PERF_MAX_STACK_DEPTH];
@@ -100,7 +100,7 @@ retry:
 		  "err %d errno %d\n", err, errno))
 		goto cleanup;
 
-	err = bpf_map_get_next_key(stackmap_fd, NULL, &key);
+	err = bpf_map__get_next_key(skel->maps.stackmap, NULL, &key, sizeof(key));
 	if (CHECK(err, "get_next_key from stackmap",
 		  "err %d, errno %d\n", err, errno))
 		goto cleanup;
@@ -108,7 +108,8 @@ retry:
 	do {
 		char build_id[64];
 
-		err = bpf_map_lookup_elem(stackmap_fd, &key, id_offs);
+		err = bpf_map__lookup_elem(skel->maps.stackmap, &key, sizeof(key),
+					   id_offs, sizeof(id_offs), 0);
 		if (CHECK(err, "lookup_elem from stackmap",
 			  "err %d, errno %d\n", err, errno))
 			goto cleanup;
@@ -121,8 +122,8 @@ retry:
 				if (strstr(buf, build_id) != NULL)
 					build_id_matches = 1;
 			}
-		previous_key = key;
-	} while (bpf_map_get_next_key(stackmap_fd, &previous_key, &key) == 0);
+		prev_key = key;
+	} while (bpf_map__get_next_key(skel->maps.stackmap, &prev_key, &key, sizeof(key)) == 0);
 
 	/* stack_map_get_build_id_offset() is racy and sometimes can return
 	 * BPF_STACK_BUILD_ID_IP instead of BPF_STACK_BUILD_ID_VALID;

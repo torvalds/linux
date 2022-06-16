@@ -2655,8 +2655,7 @@ static const struct snd_soc_component_driver soc_component_dev_da7219 = {
  * I2C layer
  */
 
-static int da7219_i2c_probe(struct i2c_client *i2c,
-			    const struct i2c_device_id *id)
+static int da7219_i2c_probe(struct i2c_client *i2c)
 {
 	struct device *dev = &i2c->dev;
 	struct da7219_priv *da7219;
@@ -2711,7 +2710,7 @@ static struct i2c_driver da7219_i2c_driver = {
 		.of_match_table = of_match_ptr(da7219_of_match),
 		.acpi_match_table = ACPI_PTR(da7219_acpi_match),
 	},
-	.probe		= da7219_i2c_probe,
+	.probe_new	= da7219_i2c_probe,
 	.remove		= da7219_i2c_remove,
 	.id_table	= da7219_i2c_id,
 };

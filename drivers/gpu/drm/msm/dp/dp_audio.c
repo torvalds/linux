@@ -8,7 +8,7 @@
 
 #include <linux/of_platform.h>
 
-#include <drm/dp/drm_dp_helper.h>
+#include <drm/display/drm_dp_helper.h>
 #include <drm/drm_edid.h>
 
 #include "dp_catalog.h"
@@ -26,6 +26,7 @@
 struct dp_audio_private {
 	struct platform_device *audio_pdev;
 	struct platform_device *pdev;
+	struct drm_device *drm_dev;
 	struct dp_catalog *catalog;
 	struct dp_panel *panel;
 
@@ -136,7 +137,8 @@ static void dp_audio_stream_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_1_BIT)
 			| (parity_byte << PARITY_BYTE_1_BIT));
-	DRM_DEBUG_DP("Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_STREAM, DP_AUDIO_SDP_HEADER_1);
@@ -148,7 +150,8 @@ static void dp_audio_stream_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_2_BIT)
 			| (parity_byte << PARITY_BYTE_2_BIT));
-	DRM_DEBUG_DP("Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 
 	dp_audio_set_header(catalog, value,
@@ -162,7 +165,8 @@ static void dp_audio_stream_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_3_BIT)
 			| (parity_byte << PARITY_BYTE_3_BIT));
-	DRM_DEBUG_DP("Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
 		value, parity_byte);
 
 	dp_audio_set_header(catalog, value,
@@ -183,8 +187,9 @@ static void dp_audio_timestamp_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_1_BIT)
 			| (parity_byte << PARITY_BYTE_1_BIT));
-	DRM_DEBUG_DP("Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
-		value, parity_byte);
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
+			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_TIMESTAMP, DP_AUDIO_SDP_HEADER_1);
 
@@ -196,7 +201,8 @@ static void dp_audio_timestamp_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_2_BIT)
 			| (parity_byte << PARITY_BYTE_2_BIT));
-	DRM_DEBUG_DP("Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_TIMESTAMP, DP_AUDIO_SDP_HEADER_2);
@@ -209,7 +215,8 @@ static void dp_audio_timestamp_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_3_BIT)
 			| (parity_byte << PARITY_BYTE_3_BIT));
-	DRM_DEBUG_DP("Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_TIMESTAMP, DP_AUDIO_SDP_HEADER_3);
@@ -229,7 +236,8 @@ static void dp_audio_infoframe_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_1_BIT)
 			| (parity_byte << PARITY_BYTE_1_BIT));
-	DRM_DEBUG_DP("Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_INFOFRAME, DP_AUDIO_SDP_HEADER_1);
@@ -242,7 +250,8 @@ static void dp_audio_infoframe_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_2_BIT)
 			| (parity_byte << PARITY_BYTE_2_BIT));
-	DRM_DEBUG_DP("Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_INFOFRAME, DP_AUDIO_SDP_HEADER_2);
@@ -255,7 +264,8 @@ static void dp_audio_infoframe_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_3_BIT)
 			| (parity_byte << PARITY_BYTE_3_BIT));
-	DRM_DEBUG_DP("Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
 			new_value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_INFOFRAME, DP_AUDIO_SDP_HEADER_3);
@@ -275,7 +285,8 @@ static void dp_audio_copy_management_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_1_BIT)
 			| (parity_byte << PARITY_BYTE_1_BIT));
-	DRM_DEBUG_DP("Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_COPYMANAGEMENT, DP_AUDIO_SDP_HEADER_1);
@@ -288,7 +299,8 @@ static void dp_audio_copy_management_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_2_BIT)
 			| (parity_byte << PARITY_BYTE_2_BIT));
-	DRM_DEBUG_DP("Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_COPYMANAGEMENT, DP_AUDIO_SDP_HEADER_2);
@@ -301,7 +313,8 @@ static void dp_audio_copy_management_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_3_BIT)
 			| (parity_byte << PARITY_BYTE_3_BIT));
-	DRM_DEBUG_DP("Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 3: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_COPYMANAGEMENT, DP_AUDIO_SDP_HEADER_3);
@@ -321,7 +334,8 @@ static void dp_audio_isrc_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_1_BIT)
 			| (parity_byte << PARITY_BYTE_1_BIT));
-	DRM_DEBUG_DP("Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 1: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_ISRC, DP_AUDIO_SDP_HEADER_1);
@@ -334,7 +348,8 @@ static void dp_audio_isrc_sdp(struct dp_audio_private *audio)
 	parity_byte = dp_audio_calculate_parity(new_value);
 	value |= ((new_value << HEADER_BYTE_2_BIT)
 			| (parity_byte << PARITY_BYTE_2_BIT));
-	DRM_DEBUG_DP("Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
+	drm_dbg_dp(audio->drm_dev,
+			"Header Byte 2: value = 0x%x, parity_byte = 0x%x\n",
 			value, parity_byte);
 	dp_audio_set_header(catalog, value,
 		DP_AUDIO_SDP_ISRC, DP_AUDIO_SDP_HEADER_2);
@@ -370,7 +385,7 @@ static void dp_audio_setup_acr(struct dp_audio_private *audio)
 		select = 3;
 		break;
 	default:
-		DRM_DEBUG_DP("Unknown link rate\n");
+		drm_dbg_dp(audio->drm_dev, "Unknown link rate\n");
 		select = 0;
 		break;
 	}
@@ -395,7 +410,8 @@ static void dp_audio_safe_to_exit_level(struct dp_audio_private *audio)
 		safe_to_exit_level = 5;
 		break;
 	default:
-		DRM_DEBUG_DP("setting the default safe_to_exit_level = %u\n",
+		drm_dbg_dp(audio->drm_dev,
+				"setting the default safe_to_exit_level = %u\n",
 				safe_to_exit_level);
 		safe_to_exit_level = 14;
 		break;

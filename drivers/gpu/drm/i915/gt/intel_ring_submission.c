@@ -767,7 +767,7 @@ static int mi_set_context(struct i915_request *rq,
 	if (GRAPHICS_VER(i915) == 7) {
 		if (num_engines) {
 			struct intel_engine_cs *signaller;
-			i915_reg_t last_reg = {}; /* keep gcc quiet */
+			i915_reg_t last_reg = INVALID_MMIO_REG; /* keep gcc quiet */
 
 			*cs++ = MI_LOAD_REGISTER_IMM(num_engines);
 			for_each_engine(signaller, engine->gt, id) {

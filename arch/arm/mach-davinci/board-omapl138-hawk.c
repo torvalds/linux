@@ -27,9 +27,9 @@
 #include <asm/mach-types.h>
 #include <asm/mach/arch.h>
 
-#include <mach/common.h>
-#include <mach/da8xx.h>
-#include <mach/mux.h>
+#include "common.h"
+#include "da8xx.h"
+#include "mux.h"
 
 #define HAWKBOARD_PHY_ID		"davinci_mdio-0:07"
 

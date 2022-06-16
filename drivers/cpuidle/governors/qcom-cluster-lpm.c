@@ -250,6 +250,7 @@ static void update_cluster_history(struct lpm_cluster *cluster_gov)
 static void cluster_power_down(struct lpm_cluster *cluster_gov)
 {
 	struct generic_pm_domain *genpd = cluster_gov->genpd;
+	struct genpd_governor_data *gd = genpd->gd;
 	int idx = genpd->state_idx;
 	uint32_t residency;
 
@@ -258,7 +259,7 @@ static void cluster_power_down(struct lpm_cluster *cluster_gov)
 
 	cluster_gov->entry_time = cluster_gov->now;
 	cluster_gov->entry_idx = idx;
-	trace_cluster_pred_select(genpd->state_idx, genpd->next_wakeup,
+	trace_cluster_pred_select(genpd->state_idx, gd->next_wakeup,
 				  0, cluster_gov->predicted, cluster_gov->next_wakeup);
 	if (idx >= genpd->state_count - 1) {
 		clear_cpu_predict_history();

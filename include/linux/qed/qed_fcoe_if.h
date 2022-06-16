@@ -76,7 +76,7 @@ void qed_fcoe_set_pf_params(struct qed_dev *cdev,
  * @fill_dev_info:	fills FCoE specific information
  *			@param cdev
  *			@param info
- *			@return 0 on sucesss, otherwise error value.
+ *			@return 0 on success, otherwise error value.
  * @register_ops:	register FCoE operations
  *			@param cdev
  *			@param ops - specified using qed_iscsi_cb_ops
@@ -96,7 +96,7 @@ void qed_fcoe_set_pf_params(struct qed_dev *cdev,
  *				connection.
  *			@param p_doorbell - qed will fill the address of the
  *				doorbell.
- *			return 0 on sucesss, otherwise error value.
+ *			return 0 on success, otherwise error value.
  * @release_conn:	release a previously acquired fcoe connection
  *			@param cdev
  *			@param handle - the connection handle.

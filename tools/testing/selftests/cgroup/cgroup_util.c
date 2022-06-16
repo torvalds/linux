@@ -190,6 +190,18 @@ int cg_write(const char *cgroup, const char *control, char *buf)
 	return -1;
 }
 
+int cg_write_numeric(const char *cgroup, const char *control, long value)
+{
+	char buf[64];
+	int ret;
+
+	ret = sprintf(buf, "%lu", value);
+	if (ret < 0)
+		return ret;
+
+	return cg_write(cgroup, control, buf);
+}
+
 int cg_find_unified_root(char *root, size_t len)
 {
 	char buf[10 * PAGE_SIZE];

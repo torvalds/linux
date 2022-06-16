@@ -1302,9 +1302,7 @@ int dcn20_populate_dml_pipes_from_context(
 	}
 
 	/* populate writeback information */
-	DC_FP_START();
 	dc->res_pool->funcs->populate_dml_writeback_from_context(dc, res_ctx, pipes);
-	DC_FP_END();
 
 	return pipe_cnt;
 }

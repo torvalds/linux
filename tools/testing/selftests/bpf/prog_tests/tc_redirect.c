@@ -949,7 +949,6 @@ fail:
 	return -1;
 }
 
-#define MAX(a, b) ((a) > (b) ? (a) : (b))
 enum {
 	SRC_TO_TARGET = 0,
 	TARGET_TO_SRC = 1,

@@ -8,6 +8,7 @@
  *	Vinayak Holikatti <h.vinayak@samsung.com>
  */
 
+#include <linux/module.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
 #include <linux/of.h>
@@ -297,18 +298,20 @@ EXPORT_SYMBOL_GPL(ufshcd_get_pwr_dev_param);
 
 void ufshcd_init_pwr_dev_param(struct ufs_dev_params *dev_param)
 {
-	dev_param->tx_lanes = 2;
-	dev_param->rx_lanes = 2;
-	dev_param->hs_rx_gear = UFS_HS_G3;
-	dev_param->hs_tx_gear = UFS_HS_G3;
-	dev_param->pwm_rx_gear = UFS_PWM_G4;
-	dev_param->pwm_tx_gear = UFS_PWM_G4;
-	dev_param->rx_pwr_pwm = SLOW_MODE;
-	dev_param->tx_pwr_pwm = SLOW_MODE;
-	dev_param->rx_pwr_hs = FAST_MODE;
-	dev_param->tx_pwr_hs = FAST_MODE;
-	dev_param->hs_rate = PA_HS_MODE_B;
-	dev_param->desired_working_mode = UFS_HS_MODE;
+	*dev_param = (struct ufs_dev_params){
+		.tx_lanes = 2,
+		.rx_lanes = 2,
+		.hs_rx_gear = UFS_HS_G3,
+		.hs_tx_gear = UFS_HS_G3,
+		.pwm_rx_gear = UFS_PWM_G4,
+		.pwm_tx_gear = UFS_PWM_G4,
+		.rx_pwr_pwm = SLOW_MODE,
+		.tx_pwr_pwm = SLOW_MODE,
+		.rx_pwr_hs = FAST_MODE,
+		.tx_pwr_hs = FAST_MODE,
+		.hs_rate = PA_HS_MODE_B,
+		.desired_working_mode = UFS_HS_MODE,
+	};
 }
 EXPORT_SYMBOL_GPL(ufshcd_init_pwr_dev_param);
 
@@ -341,7 +344,7 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	err = ufshcd_alloc_host(dev, &hba);
 	if (err) {
-		dev_err(&pdev->dev, "Allocation failed\n");
+		dev_err(dev, "Allocation failed\n");
 		goto out;
 	}
 
@@ -349,13 +352,13 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 
 	err = ufshcd_parse_clock_info(hba);
 	if (err) {
-		dev_err(&pdev->dev, "%s: clock parse failed %d\n",
+		dev_err(dev, "%s: clock parse failed %d\n",
 				__func__, err);
 		goto dealloc_host;
 	}
 	err = ufshcd_parse_regulator_info(hba);
 	if (err) {
-		dev_err(&pdev->dev, "%s: regulator init failed %d\n",
+		dev_err(dev, "%s: regulator init failed %d\n",
 				__func__, err);
 		goto dealloc_host;
 	}
@@ -368,8 +371,8 @@ int ufshcd_pltfrm_init(struct platform_device *pdev,
 		goto dealloc_host;
 	}
 
-	pm_runtime_set_active(&pdev->dev);
-	pm_runtime_enable(&pdev->dev);
+	pm_runtime_set_active(dev);
+	pm_runtime_enable(dev);
 
 	return 0;
 
@@ -384,4 +387,3 @@ MODULE_AUTHOR("Santosh Yaragnavi <santosh.sy@samsung.com>");
 MODULE_AUTHOR("Vinayak Holikatti <h.vinayak@samsung.com>");
 MODULE_DESCRIPTION("UFS host controller Platform bus based glue driver");
 MODULE_LICENSE("GPL");
-MODULE_VERSION(UFSHCD_DRIVER_VERSION);

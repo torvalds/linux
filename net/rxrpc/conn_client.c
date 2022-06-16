@@ -102,7 +102,7 @@ void rxrpc_destroy_client_conn_ids(void)
 	if (!idr_is_empty(&rxrpc_client_conn_ids)) {
 		idr_for_each_entry(&rxrpc_client_conn_ids, conn, id) {
 			pr_err("AF_RXRPC: Leaked client conn %p {%d}\n",
-			       conn, atomic_read(&conn->usage));
+			       conn, refcount_read(&conn->ref));
 		}
 		BUG();
 	}
@@ -122,7 +122,7 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_conn_parameters *cp,
 	if (bundle) {
 		bundle->params = *cp;
 		rxrpc_get_peer(bundle->params.peer);
-		atomic_set(&bundle->usage, 1);
+		refcount_set(&bundle->ref, 1);
 		spin_lock_init(&bundle->channel_lock);
 		INIT_LIST_HEAD(&bundle->waiting_calls);
 	}
@@ -131,7 +131,7 @@ static struct rxrpc_bundle *rxrpc_alloc_bundle(struct rxrpc_conn_parameters *cp,
 
 struct rxrpc_bundle *rxrpc_get_bundle(struct rxrpc_bundle *bundle)
 {
-	atomic_inc(&bundle->usage);
+	refcount_inc(&bundle->ref);
 	return bundle;
 }
 
@@ -144,10 +144,13 @@ static void rxrpc_free_bundle(struct rxrpc_bundle *bundle)
 void rxrpc_put_bundle(struct rxrpc_bundle *bundle)
 {
 	unsigned int d = bundle->debug_id;
-	unsigned int u = atomic_dec_return(&bundle->usage);
+	bool dead;
+	int r;
 
-	_debug("PUT B=%x %u", d, u);
-	if (u == 0)
+	dead = __refcount_dec_and_test(&bundle->ref, &r);
+
+	_debug("PUT B=%x %d", d, r);
+	if (dead)
 		rxrpc_free_bundle(bundle);
 }
 
@@ -169,7 +172,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 		return ERR_PTR(-ENOMEM);
 	}
 
-	atomic_set(&conn->usage, 1);
+	refcount_set(&conn->ref, 1);
 	conn->bundle		= bundle;
 	conn->params		= bundle->params;
 	conn->out_clientflag	= RXRPC_CLIENT_INITIATED;
@@ -195,7 +198,7 @@ rxrpc_alloc_client_connection(struct rxrpc_bundle *bundle, gfp_t gfp)
 	key_get(conn->params.key);
 
 	trace_rxrpc_conn(conn->debug_id, rxrpc_conn_new_client,
-			 atomic_read(&conn->usage),
+			 refcount_read(&conn->ref),
 			 __builtin_return_address(0));
 
 	atomic_inc(&rxnet->nr_client_conns);
@@ -966,14 +969,13 @@ void rxrpc_put_client_conn(struct rxrpc_connection *conn)
 {
 	const void *here = __builtin_return_address(0);
 	unsigned int debug_id = conn->debug_id;
-	int n;
+	bool dead;
+	int r;
 
-	n = atomic_dec_return(&conn->usage);
-	trace_rxrpc_conn(debug_id, rxrpc_conn_put_client, n, here);
-	if (n <= 0) {
-		ASSERTCMP(n, >=, 0);
+	dead = __refcount_dec_and_test(&conn->ref, &r);
+	trace_rxrpc_conn(debug_id, rxrpc_conn_put_client, r - 1, here);
+	if (dead)
 		rxrpc_kill_client_conn(conn);
-	}
 }
 
 /*

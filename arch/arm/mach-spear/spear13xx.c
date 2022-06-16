@@ -21,7 +21,7 @@
 #include <linux/of.h>
 #include <asm/hardware/cache-l2x0.h>
 #include <asm/mach/map.h>
-#include <mach/spear.h>
+#include "spear.h"
 #include "generic.h"
 
 void __init spear13xx_l2x0_init(void)

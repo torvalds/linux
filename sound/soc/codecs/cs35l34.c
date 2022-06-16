@@ -994,8 +994,7 @@ static const char * const cs35l34_core_supplies[] = {
 	"VP",
 };
 
-static int cs35l34_i2c_probe(struct i2c_client *i2c_client,
-			      const struct i2c_device_id *id)
+static int cs35l34_i2c_probe(struct i2c_client *i2c_client)
 {
 	struct cs35l34_private *cs35l34;
 	struct cs35l34_platform_data *pdata =
@@ -1217,7 +1216,7 @@ static struct i2c_driver cs35l34_i2c_driver = {
 
 		},
 	.id_table = cs35l34_id,
-	.probe = cs35l34_i2c_probe,
+	.probe_new = cs35l34_i2c_probe,
 	.remove = cs35l34_i2c_remove,
 
 };

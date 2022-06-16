@@ -165,9 +165,8 @@ out:		/* free if the candidate is valid */
 	return candidate;
 }
 
-int erofs_namei(struct inode *dir,
-		struct qstr *name,
-		erofs_nid_t *nid, unsigned int *d_type)
+int erofs_namei(struct inode *dir, const struct qstr *name, erofs_nid_t *nid,
+		unsigned int *d_type)
 {
 	int ndirents;
 	struct erofs_buf buf = __EROFS_BUF_INITIALIZER;

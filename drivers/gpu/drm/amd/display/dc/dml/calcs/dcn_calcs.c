@@ -639,7 +639,6 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 {
 	bool updated = false;
 
-	DC_FP_START();
 	if ((int)(dc->dcn_soc->sr_exit_time * 1000) != dc->debug.sr_exit_time_ns
 			&& dc->debug.sr_exit_time_ns) {
 		updated = true;
@@ -675,7 +674,6 @@ static bool dcn_bw_apply_registry_override(struct dc *dc)
 		dc->dcn_soc->dram_clock_change_latency =
 				dc->debug.dram_clock_change_latency_ns / 1000.0;
 	}
-	DC_FP_END();
 
 	return updated;
 }
@@ -764,7 +762,7 @@ static unsigned int get_highest_allowed_voltage_level(uint32_t chip_family,
 	return 4;
 }
 
-bool dcn10_validate_bandwidth(
+bool dcn_validate_bandwidth(
 		struct dc *dc,
 		struct dc_state *context,
 		bool fast_validate)
@@ -790,7 +788,6 @@ bool dcn10_validate_bandwidth(
 		dcn_bw_sync_calcs_and_dml(dc);
 
 	memset(v, 0, sizeof(*v));
-	DC_FP_START();
 
 	v->sr_exit_time = dc->dcn_soc->sr_exit_time;
 	v->sr_enter_plus_exit_time = dc->dcn_soc->sr_enter_plus_exit_time;
@@ -1323,8 +1320,6 @@ bool dcn10_validate_bandwidth(
 	bw_limit = dc->dcn_soc->percent_disp_bw_limit * v->fabric_and_dram_bandwidth_vmax0p9;
 	bw_limit_pass = (v->total_data_read_bandwidth / 1000.0) < bw_limit;
 
-	DC_FP_END();
-
 	PERFORMANCE_TRACE_END();
 	BW_VAL_TRACE_FINISH();
 
@@ -1495,8 +1490,6 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 	res = dm_pp_get_clock_levels_by_type_with_voltage(
 			ctx, DM_PP_CLOCK_TYPE_FCLK, &fclks);
 
-	DC_FP_START();
-
 	if (res)
 		res = verify_clock_values(&fclks);
 
@@ -1526,12 +1519,8 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 	} else
 		BREAK_TO_DEBUGGER();
 
-	DC_FP_END();
-
 	res = dm_pp_get_clock_levels_by_type_with_voltage(
 			ctx, DM_PP_CLOCK_TYPE_DCFCLK, &dcfclks);
-
-	DC_FP_START();
 
 	if (res)
 		res = verify_clock_values(&dcfclks);
@@ -1543,8 +1532,6 @@ void dcn_bw_update_from_pplib(struct dc *dc)
 		dc->dcn_soc->dcfclkv_max0p9 = dcfclks.data[dcfclks.num_levels - 1].clocks_in_khz / 1000.0;
 	} else
 		BREAK_TO_DEBUGGER();
-
-	DC_FP_END();
 }
 
 void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
@@ -1559,11 +1546,9 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 	if (!pp || !pp->set_wm_ranges)
 		return;
 
-	DC_FP_START();
 	min_fclk_khz = dc->dcn_soc->fabric_and_dram_bandwidth_vmin0p65 * 1000000 / 32;
 	min_dcfclk_khz = dc->dcn_soc->dcfclkv_min0p65 * 1000;
 	socclk_khz = dc->dcn_soc->socclk * 1000;
-	DC_FP_END();
 
 	/* Now notify PPLib/SMU about which Watermarks sets they should select
 	 * depending on DPM state they are in. And update BW MGR GFX Engine and
@@ -1614,7 +1599,6 @@ void dcn_bw_notify_pplib_of_wm_ranges(struct dc *dc)
 
 void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 {
-	DC_FP_START();
 	DC_LOG_BANDWIDTH_CALCS("sr_exit_time: %f ns\n"
 			"sr_enter_plus_exit_time: %f ns\n"
 			"urgent_latency: %f ns\n"
@@ -1803,5 +1787,4 @@ void dcn_bw_sync_calcs_and_dml(struct dc *dc)
 	dc->dml.ip.bug_forcing_LC_req_same_size_fixed =
 		dc->dcn_ip->bug_forcing_luma_and_chroma_request_to_same_size_fixed == dcn_bw_yes;
 	dc->dml.ip.dcfclk_cstate_latency = dc->dcn_ip->dcfclk_cstate_latency;
-	DC_FP_END();
 }

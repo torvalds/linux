@@ -137,8 +137,6 @@ static int mtk_jpeg_querycap(struct file *file, void *priv,
 
 	strscpy(cap->driver, jpeg->variant->dev_name, sizeof(cap->driver));
 	strscpy(cap->card, jpeg->variant->dev_name, sizeof(cap->card));
-	snprintf(cap->bus_info, sizeof(cap->bus_info), "platform:%s",
-		 dev_name(jpeg->dev));
 
 	return 0;
 }

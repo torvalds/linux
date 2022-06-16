@@ -75,7 +75,6 @@
 
 	r_gpio_keys {
 		compatible = "gpio-keys";
-		input-name = "k1";
 
 		k1 {
 			label = "k1";

@@ -100,7 +100,7 @@ int mlx5_ib_create_gsi(struct ib_pd *pd, struct mlx5_ib_qp *mqp,
 				 port_type) == MLX5_CAP_PORT_TYPE_IB)
 			num_qps = pd->device->attrs.max_pkeys;
 		else if (dev->lag_active)
-			num_qps = MLX5_MAX_PORTS;
+			num_qps = dev->lag_ports;
 	}
 
 	gsi = &mqp->gsi;

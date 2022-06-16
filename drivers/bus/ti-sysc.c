@@ -3049,7 +3049,7 @@ static const struct soc_device_attribute sysc_soc_match[] = {
 	SOC_FLAG("AM43*", SOC_AM4),
 	SOC_FLAG("DRA7*", SOC_DRA7),
 
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 /*
@@ -3070,7 +3070,7 @@ static const struct soc_device_attribute sysc_soc_feat_match[] = {
 	SOC_FLAG("OMAP3615/AM3715", DIS_IVA),
 	SOC_FLAG("OMAP3621", DIS_ISP),
 
-	{ /* sentinel */ },
+	{ /* sentinel */ }
 };
 
 static int sysc_add_disabled(unsigned long base)
