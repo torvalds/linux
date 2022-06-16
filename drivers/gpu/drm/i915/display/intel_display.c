@@ -6583,85 +6583,6 @@ intel_verify_planes(struct intel_atomic_state *state)
 }
 
 static void
-verify_single_dpll_state(struct drm_i915_private *dev_priv,
-			 struct intel_shared_dpll *pll,
-			 struct intel_crtc *crtc,
-			 struct intel_crtc_state *new_crtc_state)
-{
-	struct intel_dpll_hw_state dpll_hw_state;
-	u8 pipe_mask;
-	bool active;
-
-	memset(&dpll_hw_state, 0, sizeof(dpll_hw_state));
-
-	drm_dbg_kms(&dev_priv->drm, "%s\n", pll->info->name);
-
-	active = intel_dpll_get_hw_state(dev_priv, pll, &dpll_hw_state);
-
-	if (!(pll->info->flags & INTEL_DPLL_ALWAYS_ON)) {
-		I915_STATE_WARN(!pll->on && pll->active_mask,
-		     "pll in active use but not on in sw tracking\n");
-		I915_STATE_WARN(pll->on && !pll->active_mask,
-		     "pll is on but not used by any active pipe\n");
-		I915_STATE_WARN(pll->on != active,
-		     "pll on state mismatch (expected %i, found %i)\n",
-		     pll->on, active);
-	}
-
-	if (!crtc) {
-		I915_STATE_WARN(pll->active_mask & ~pll->state.pipe_mask,
-				"more active pll users than references: 0x%x vs 0x%x\n",
-				pll->active_mask, pll->state.pipe_mask);
-
-		return;
-	}
-
-	pipe_mask = BIT(crtc->pipe);
-
-	if (new_crtc_state->hw.active)
-		I915_STATE_WARN(!(pll->active_mask & pipe_mask),
-				"pll active mismatch (expected pipe %c in active mask 0x%x)\n",
-				pipe_name(crtc->pipe), pll->active_mask);
-	else
-		I915_STATE_WARN(pll->active_mask & pipe_mask,
-				"pll active mismatch (didn't expect pipe %c in active mask 0x%x)\n",
-				pipe_name(crtc->pipe), pll->active_mask);
-
-	I915_STATE_WARN(!(pll->state.pipe_mask & pipe_mask),
-			"pll enabled crtcs mismatch (expected 0x%x in 0x%x)\n",
-			pipe_mask, pll->state.pipe_mask);
-
-	I915_STATE_WARN(pll->on && memcmp(&pll->state.hw_state,
-					  &dpll_hw_state,
-					  sizeof(dpll_hw_state)),
-			"pll hw state mismatch\n");
-}
-
-static void
-verify_shared_dpll_state(struct intel_crtc *crtc,
-			 struct intel_crtc_state *old_crtc_state,
-			 struct intel_crtc_state *new_crtc_state)
-{
-	struct drm_i915_private *dev_priv = to_i915(crtc->base.dev);
-
-	if (new_crtc_state->shared_dpll)
-		verify_single_dpll_state(dev_priv, new_crtc_state->shared_dpll, crtc, new_crtc_state);
-
-	if (old_crtc_state->shared_dpll &&
-	    old_crtc_state->shared_dpll != new_crtc_state->shared_dpll) {
-		u8 pipe_mask = BIT(crtc->pipe);
-		struct intel_shared_dpll *pll = old_crtc_state->shared_dpll;
-
-		I915_STATE_WARN(pll->active_mask & pipe_mask,
-				"pll active mismatch (didn't expect pipe %c in active mask (0x%x))\n",
-				pipe_name(crtc->pipe), pll->active_mask);
-		I915_STATE_WARN(pll->state.pipe_mask & pipe_mask,
-				"pll enabled crtcs mismatch (found %x in enabled mask (0x%x))\n",
-				pipe_name(crtc->pipe), pll->state.pipe_mask);
-	}
-}
-
-static void
 verify_mpllb_state(struct intel_atomic_state *state,
 		   struct intel_crtc_state *new_crtc_state)
 {
@@ -6719,19 +6640,8 @@ intel_modeset_verify_crtc(struct intel_crtc *crtc,
 	intel_wm_state_verify(crtc, new_crtc_state);
 	verify_connector_state(state, crtc);
 	verify_crtc_state(crtc, old_crtc_state, new_crtc_state);
-	verify_shared_dpll_state(crtc, old_crtc_state, new_crtc_state);
+	intel_shared_dpll_state_verify(crtc, old_crtc_state, new_crtc_state);
 	verify_mpllb_state(state, new_crtc_state);
-}
-
-static void
-verify_disabled_dpll_state(struct drm_i915_private *dev_priv)
-{
-	int i;
-
-	for (i = 0; i < dev_priv->dpll.num_shared_dpll; i++)
-		verify_single_dpll_state(dev_priv,
-					 &dev_priv->dpll.shared_dplls[i],
-					 NULL, NULL);
 }
 
 static void
@@ -6740,7 +6650,7 @@ intel_modeset_verify_disabled(struct drm_i915_private *dev_priv,
 {
 	verify_encoder_state(dev_priv, state);
 	verify_connector_state(state, NULL);
-	verify_disabled_dpll_state(dev_priv);
+	intel_shared_dpll_verify_disabled(dev_priv);
 }
 
 int intel_modeset_all_pipes(struct intel_atomic_state *state)
