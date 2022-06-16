@@ -6,3 +6,8 @@
 
 #include "rk3566-evb2-lp4x-v10.dtsi"
 #include "rk3568-linux.dtsi"
+#include <dt-bindings/display/rockchip_vop.h>
+
+&vp0 {
+	cursor-win-id = <ROCKCHIP_VOP2_CLUSTER0>;
+};
