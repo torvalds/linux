@@ -766,7 +766,7 @@ static int bmg160_write_event_config(struct iio_dev *indio_dev,
 		return 0;
 	}
 	/*
-	 * We will expect the enable and disable to do operation in
+	 * We will expect the enable and disable to do operation
 	 * in reverse order. This will happen here anyway as our
 	 * resume operation uses sync mode runtime pm calls, the
 	 * suspend operation will be delayed by autosuspend delay
