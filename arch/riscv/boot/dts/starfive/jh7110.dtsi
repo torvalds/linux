@@ -515,7 +515,7 @@
 		};
 
 		gpio: gpio@13040000 {
-			compatible = "starfive_jh7110-sys-pinctrl";
+			compatible = "starfive,jh7110-sys-pinctrl";
 			reg = <0x0 0x13040000 0x0 0x10000>;
 			reg-names = "control";
 			clocks = <&clkgen JH7110_SYS_IOMUX_PCLK>;
@@ -528,7 +528,7 @@
 		};
 
 		gpioa: gpio@17020000 {
-			compatible = "starfive_jh7110-aon-pinctrl";
+			compatible = "starfive,jh7110-aon-pinctrl";
 			reg = <0x0 0x17020000 0x0 0x10000>;
 			reg-names = "control";
 			resets = <&rstgen RSTN_U0_AON_IOMUX_PRESETN>;
