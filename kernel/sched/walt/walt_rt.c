@@ -329,6 +329,9 @@ static void walt_rt_find_lowest_rq(void *unused, struct task_struct *task,
 {
 	int packing_cpu;
 
+	if (unlikely(walt_disabled))
+		return;
+
 	/* create a fastpath for finding a packing cpu */
 	packing_cpu = walt_find_cluster_packing_cpu(task_cpu(task));
 	if (walt_choose_packing_cpu(packing_cpu, task)) {

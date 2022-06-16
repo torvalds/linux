@@ -4530,6 +4530,9 @@ static void walt_do_sched_yield(void *unused, struct rq *rq)
 	struct task_struct *curr = rq->curr;
 	struct walt_task_struct *wts = (struct walt_task_struct *) curr->android_vendor_data1;
 
+	if (unlikely(walt_disabled))
+		return;
+
 	lockdep_assert_held(&rq->__lock);
 	if (!list_empty(&wts->mvp_list) && wts->mvp_list.next)
 		walt_cfs_deactivate_mvp_task(rq, curr);
