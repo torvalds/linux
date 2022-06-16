@@ -5819,6 +5819,40 @@ static bool ahead_of_reshape(struct mddev *mddev, sector_t sector,
 					  sector >= reshape_sector;
 }
 
+static bool range_ahead_of_reshape(struct mddev *mddev, sector_t min,
+				   sector_t max, sector_t reshape_sector)
+{
+	return mddev->reshape_backwards ? max < reshape_sector :
+					  min >= reshape_sector;
+}
+
+static bool stripe_ahead_of_reshape(struct mddev *mddev, struct r5conf *conf,
+				    struct stripe_head *sh)
+{
+	sector_t max_sector = 0, min_sector = MaxSector;
+	bool ret = false;
+	int dd_idx;
+
+	for (dd_idx = 0; dd_idx < sh->disks; dd_idx++) {
+		if (dd_idx == sh->pd_idx)
+			continue;
+
+		min_sector = min(min_sector, sh->dev[dd_idx].sector);
+		max_sector = min(max_sector, sh->dev[dd_idx].sector);
+	}
+
+	spin_lock_irq(&conf->device_lock);
+
+	if (!range_ahead_of_reshape(mddev, min_sector, max_sector,
+				     conf->reshape_progress))
+		/* mismatch, need to try again */
+		ret = true;
+
+	spin_unlock_irq(&conf->device_lock);
+
+	return ret;
+}
+
 enum stripe_result {
 	STRIPE_SUCCESS = 0,
 	STRIPE_RETRY,
@@ -5883,27 +5917,18 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 		return STRIPE_FAIL;
 	}
 
-	if (unlikely(previous)) {
+	if (unlikely(previous) &&
+	    stripe_ahead_of_reshape(mddev, conf, sh)) {
 		/*
-		 * Expansion might have moved on while waiting for a
-		 * stripe, so we must do the range check again.
+		 * Expansion moved on while waiting for a stripe.
 		 * Expansion could still move past after this
 		 * test, but as we are holding a reference to
 		 * 'sh', we know that if that happens,
 		 *  STRIPE_EXPANDING will get set and the expansion
 		 * won't proceed until we finish with the stripe.
 		 */
-		int must_retry = 0;
-		spin_lock_irq(&conf->device_lock);
-		if (!ahead_of_reshape(mddev, logical_sector,
-				      conf->reshape_progress))
-			/* mismatch, need to try again */
-			must_retry = 1;
-		spin_unlock_irq(&conf->device_lock);
-		if (must_retry) {
-			ret = STRIPE_SCHEDULE_AND_RETRY;
-			goto out_release;
-		}
+		ret = STRIPE_SCHEDULE_AND_RETRY;
+		goto out_release;
 	}
 
 	if (read_seqcount_retry(&conf->gen_lock, seq)) {
