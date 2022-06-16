@@ -61,6 +61,8 @@
 #define cpu_to_group(cpu) cpu_to_node(cpu)
 #define ANY_GROUP NUMA_NO_NODE
 
+#define RAID5_MAX_REQ_STRIPES 256
+
 static bool devices_handle_discard_safely = false;
 module_param(devices_handle_discard_safely, bool, 0644);
 MODULE_PARM_DESC(devices_handle_discard_safely,
@@ -5863,9 +5865,68 @@ enum stripe_result {
 struct stripe_request_ctx {
 	/* a reference to the last stripe_head for batching */
 	struct stripe_head *batch_last;
+
+	/* first sector in the request */
+	sector_t first_sector;
+
+	/* last sector in the request */
+	sector_t last_sector;
+
+	/* bitmap to track stripe sectors that have been added to stripes */
+	DECLARE_BITMAP(sectors_to_do, RAID5_MAX_REQ_STRIPES);
+
 	/* the request had REQ_PREFLUSH, cleared after the first stripe_head */
 	bool do_flush;
 };
+
+static int add_all_stripe_bios(struct r5conf *conf,
+		struct stripe_request_ctx *ctx, struct stripe_head *sh,
+		struct bio *bi, int forwrite, int previous)
+{
+	int dd_idx;
+	int ret = 1;
+
+	spin_lock_irq(&sh->stripe_lock);
+
+	for (dd_idx = 0; dd_idx < sh->disks; dd_idx++) {
+		struct r5dev *dev = &sh->dev[dd_idx];
+
+		if (dd_idx == sh->pd_idx || dd_idx == sh->qd_idx)
+			continue;
+
+		if (dev->sector < ctx->first_sector ||
+		    dev->sector >= ctx->last_sector)
+			continue;
+
+		if (stripe_bio_overlaps(sh, bi, dd_idx, forwrite)) {
+			set_bit(R5_Overlap, &dev->flags);
+			ret = 0;
+			continue;
+		}
+	}
+
+	if (!ret)
+		goto out;
+
+	for (dd_idx = 0; dd_idx < sh->disks; dd_idx++) {
+		struct r5dev *dev = &sh->dev[dd_idx];
+
+		if (dd_idx == sh->pd_idx || dd_idx == sh->qd_idx)
+			continue;
+
+		if (dev->sector < ctx->first_sector ||
+		    dev->sector >= ctx->last_sector)
+			continue;
+
+		__add_stripe_bio(sh, bi, dd_idx, forwrite, previous);
+		clear_bit((dev->sector - ctx->first_sector) >>
+			  RAID5_STRIPE_SHIFT(conf), ctx->sectors_to_do);
+	}
+
+out:
+	spin_unlock_irq(&sh->stripe_lock);
+	return ret;
+}
 
 static enum stripe_result make_stripe_request(struct mddev *mddev,
 		struct r5conf *conf, struct stripe_request_ctx *ctx,
@@ -5938,7 +5999,7 @@ static enum stripe_result make_stripe_request(struct mddev *mddev,
 	}
 
 	if (test_bit(STRIPE_EXPANDING, &sh->state) ||
-	    !add_stripe_bio(sh, bi, dd_idx, rw, previous)) {
+	    !add_all_stripe_bios(conf, ctx, sh, bi, rw, previous)) {
 		/*
 		 * Stripe is busy expanding or add failed due to
 		 * overlap. Flush everything and wait a while.
@@ -5980,11 +6041,12 @@ out_release:
 static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 {
 	struct r5conf *conf = mddev->private;
-	sector_t logical_sector, last_sector;
+	sector_t logical_sector;
 	struct stripe_request_ctx ctx = {};
 	const int rw = bio_data_dir(bi);
 	enum stripe_result res;
 	DEFINE_WAIT(w);
+	int s;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
 		int ret = log_handle_flush_request(conf, bi);
@@ -6024,8 +6086,13 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	}
 
 	logical_sector = bi->bi_iter.bi_sector & ~((sector_t)RAID5_STRIPE_SECTORS(conf)-1);
-	last_sector = bio_end_sector(bi);
+	ctx.first_sector = logical_sector;
+	ctx.last_sector = bio_end_sector(bi);
 	bi->bi_next = NULL;
+
+	bitmap_set(ctx.sectors_to_do, 0,
+		   DIV_ROUND_UP_SECTOR_T(ctx.last_sector - logical_sector,
+					 RAID5_STRIPE_SECTORS(conf)));
 
 	/* Bail out if conflicts with reshape and REQ_NOWAIT is set */
 	if ((bi->bi_opf & REQ_NOWAIT) &&
@@ -6039,7 +6106,7 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	}
 	md_account_bio(mddev, &bi);
 	prepare_to_wait(&conf->wait_for_overlap, &w, TASK_UNINTERRUPTIBLE);
-	while (logical_sector < last_sector) {
+	while (1) {
 		res = make_stripe_request(mddev, conf, &ctx, logical_sector,
 					  bi);
 		if (res == STRIPE_FAIL)
@@ -6067,7 +6134,12 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 			continue;
 		}
 
-		logical_sector += RAID5_STRIPE_SECTORS(conf);
+		s = find_first_bit(ctx.sectors_to_do, RAID5_MAX_REQ_STRIPES);
+		if (s == RAID5_MAX_REQ_STRIPES)
+			break;
+
+		logical_sector = ctx.first_sector +
+			(s << RAID5_STRIPE_SHIFT(conf));
 	}
 
 	finish_wait(&conf->wait_for_overlap, &w);
@@ -7926,7 +7998,12 @@ static int raid5_run(struct mddev *mddev)
 		    mddev->queue->limits.discard_granularity < stripe)
 			blk_queue_max_discard_sectors(mddev->queue, 0);
 
-		blk_queue_max_hw_sectors(mddev->queue, UINT_MAX);
+		/*
+		 * Requests require having a bitmap for each stripe.
+		 * Limit the max sectors based on this.
+		 */
+		blk_queue_max_hw_sectors(mddev->queue,
+			RAID5_MAX_REQ_STRIPES << RAID5_STRIPE_SHIFT(conf));
 	}
 
 	if (log_init(conf, journal_dev, raid5_has_ppl(conf)))
