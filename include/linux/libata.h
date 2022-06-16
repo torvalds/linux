@@ -847,7 +847,7 @@ struct ata_port {
 	enum ata_lpm_policy	target_lpm_policy;
 
 	struct timer_list	fastdrain_timer;
-	unsigned long		fastdrain_cnt;
+	unsigned int		fastdrain_cnt;
 
 	async_cookie_t		cookie;
 
