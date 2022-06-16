@@ -2984,6 +2984,7 @@ int dcn32_populate_dml_pipes_from_context(
 	int i, pipe_cnt;
 	struct resource_context *res_ctx = &context->res_ctx;
 	struct pipe_ctx *pipe;
+	bool subvp_in_use = false;
 
 	dcn20_populate_dml_pipes_from_context(dc, context, pipes, fast_validate);
 
@@ -3006,6 +3007,7 @@ int dcn32_populate_dml_pipes_from_context(
 		switch (pipe->stream->mall_stream_config.type) {
 		case SUBVP_MAIN:
 			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_sub_viewport;
+			subvp_in_use = true;
 			break;
 		case SUBVP_PHANTOM:
 			pipes[pipe_cnt].pipe.src.use_mall_for_pstate_change = dm_use_mall_pstate_change_phantom_pipe;
@@ -3075,6 +3077,14 @@ int dcn32_populate_dml_pipes_from_context(
 	}
 
 	dcn32_update_det_override_for_mpo(dc, context, pipes);
+
+	// In general cases we want to keep the dram clock change requirement
+	// (prefer configs that support MCLK switch). Only override to false
+	// for SubVP
+	if (subvp_in_use)
+		context->bw_ctx.dml.soc.dram_clock_change_requirement_final = false;
+	else
+		context->bw_ctx.dml.soc.dram_clock_change_requirement_final = true;
 
 	return pipe_cnt;
 }
