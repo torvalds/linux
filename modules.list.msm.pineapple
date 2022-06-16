@@ -4,6 +4,9 @@ qcom-pdc.ko
 qcom_iommu_util.ko
 arm_smmu.ko
 secure_buffer.ko
+mem_buf_dev.ko
+mem_buf_msgq.ko
+mem_buf.ko
 qcom-scm.ko
 pinctrl-msm.ko
 pinctrl-pineapple.ko
