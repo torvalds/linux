@@ -32,8 +32,12 @@ static struct rkisp_stream *rkisp_rockit_get_stream(struct rockit_cfg *input_roc
 	struct rkisp_stream *stream = NULL;
 	u8 i;
 
-	if (rockit_cfg == NULL) {
-		pr_err("rockit_cfg is null get stream failed");
+	if (!rockit_cfg) {
+		pr_err("rockit_cfg is null get stream failed\n");
+		return NULL;
+	}
+	if (!input_rockit_cfg) {
+		pr_err("input is null get stream failed\n");
 		return NULL;
 	}
 
@@ -211,9 +215,11 @@ int rkisp_rockit_buf_done(struct rkisp_stream *stream, int cmd)
 	u32 seq, dev_id = stream->ispdev->dev_id;
 	u64 ns = 0;
 
-	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
+	if (!rockit_cfg || !rockit_cfg->rkisp_rockit_mpibuf_done)
+		return -EINVAL;
 
-	if (!rockit_cfg->rkisp_rockit_mpibuf_done)
+	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
+	if (!stream_cfg)
 		return -EINVAL;
 
 	if (cmd == ROCKIT_DVBM_END) {
@@ -378,6 +384,9 @@ int rkisp_rockit_buf_free(struct rkisp_stream *stream)
 	const struct vb2_mem_ops *g_ops = stream->ispdev->hw_dev->mem_ops;
 	struct rkisp_stream_cfg *stream_cfg = NULL;
 
+	if (!rockit_cfg)
+		return -EINVAL;
+
 	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[stream->id];
 	if (stream_cfg) {
 		stream_cfg->is_discard = false;
@@ -433,6 +442,10 @@ void rkisp_rockit_fps_set(int *dst_fps, struct rkisp_stream *stream)
 		return;
 	}
 
+	if (!rockit_cfg ||
+	    !rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id])
+		return;
+
 	rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id]->dst_fps = *dst_fps;
 	rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id]->fps_cnt = *dst_fps;
 }
@@ -452,6 +465,10 @@ void rkisp_rockit_fps_get(int *dst_fps, struct rkisp_stream *stream)
 		return;
 	}
 
+	if (!rockit_cfg ||
+	    !rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id])
+		return;
+
 	*dst_fps = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id]->cur_fps;
 }
 
@@ -460,15 +477,21 @@ bool rkisp_rockit_ctrl_fps(struct rkisp_stream *stream)
 	struct rkisp_device *dev = stream->ispdev;
 	struct rkisp_sensor_info *sensor = NULL;
 	int dev_id = stream->ispdev->dev_id, id = stream->id;
-	struct rkisp_stream_cfg *stream_cfg =
-		rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id];
-	int *fps_cnt = &stream_cfg->fps_cnt;
-	int ret, dst_fps;
+	struct rkisp_stream_cfg *stream_cfg;
+	int ret, dst_fps, *fps_cnt;
 	static int fps_in, cur_fps[ROCKIT_STREAM_NUM_MAX];
 	u32 denominator = 0, numerator = 0;
-	bool *is_discard = &stream_cfg->is_discard;
-	u64 cur_time, *old_time = &stream_cfg->old_time;
+	bool *is_discard;
+	u64 cur_time, *old_time;
 
+	if (!rockit_cfg)
+		return false;
+	stream_cfg = rockit_cfg->rkisp_dev_cfg[dev_id].rkisp_stream_cfg[id];
+	if (!stream_cfg)
+		return false;
+	fps_cnt = &stream_cfg->fps_cnt;
+	is_discard = &stream_cfg->is_discard;
+	old_time = &stream_cfg->old_time;
 	dst_fps = stream_cfg->dst_fps;
 	if (dst_fps == 0 || !stream->streaming) {
 		*is_discard  = false;
