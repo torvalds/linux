@@ -783,9 +783,6 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 	if (unlikely(walt_disabled))
 		return;
 
-	/*Cluster isn't initialized until after WALT is enabled*/
-	order_index = wrq->cluster->id;
-
 	/*
 	 * newly idle load balance is completely handled here, so
 	 * set done to skip the load balance by the caller.
@@ -805,6 +802,12 @@ static void walt_newidle_balance(void *unused, struct rq *this_rq,
 
 	if (cpu_halted(this_cpu))
 		return;
+
+	if (is_reserved(this_cpu))
+		return;
+
+	/*Cluster isn't initialized until after WALT is enabled*/
+	order_index = wrq->cluster->id;
 
 	rq_unpin_lock(this_rq, rf);
 
