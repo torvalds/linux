@@ -1176,6 +1176,7 @@ static int do_read_toc(struct fsg_common *common, struct fsg_buffhd *bh)
 
 	switch (format) {
 	case 0:
+	case 1:
 		/* Formatted TOC */
 		len = 4 + 2*8;		/* 4 byte header + 2 descriptors */
 		memset(buf, 0, len);
