@@ -5017,7 +5017,7 @@ void io_uring_cmd_complete_in_task(struct io_uring_cmd *ioucmd,
 
 	req->uring_cmd.task_work_cb = task_work_cb;
 	req->io_task_work.func = io_uring_cmd_work;
-	io_req_task_prio_work_add(req);
+	io_req_task_work_add(req);
 }
 EXPORT_SYMBOL_GPL(io_uring_cmd_complete_in_task);
 
