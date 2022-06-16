@@ -393,7 +393,7 @@ static int hda_dai_prepare(struct snd_pcm_substream *substream, struct snd_soc_d
 	if (hext_stream && hext_stream->link_prepared)
 		return 0;
 
-	dev_dbg(sdev->dev, "%s: prepare stream dir %d\n", __func__, substream->stream);
+	dev_dbg(sdev->dev, "prepare stream dir %d\n", substream->stream);
 
 	ret = hda_link_dma_prepare(substream);
 	if (ret < 0)
@@ -419,7 +419,7 @@ static int ipc3_hda_dai_trigger(struct snd_pcm_substream *substream,
 	struct snd_soc_dapm_widget *w;
 	int ret;
 
-	dev_dbg(dai->dev, "%s: cmd=%d dai %s direction %d\n", __func__, cmd,
+	dev_dbg(dai->dev, "cmd=%d dai %s direction %d\n", cmd,
 		dai->name, substream->stream);
 
 	ret = hda_link_dma_trigger(substream, cmd);
@@ -468,7 +468,7 @@ static int ipc4_hda_dai_trigger(struct snd_pcm_substream *substream,
 	struct snd_soc_dai *cpu_dai;
 	int ret;
 
-	dev_dbg(dai->dev, "%s: cmd=%d dai %s direction %d\n", __func__, cmd,
+	dev_dbg(dai->dev, "cmd=%d dai %s direction %d\n", cmd,
 		dai->name, substream->stream);
 
 	hstream = substream->runtime->private_data;
