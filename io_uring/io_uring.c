@@ -742,10 +742,7 @@ void io_req_complete_post(struct io_kiocb *req)
 
 inline void __io_req_complete(struct io_kiocb *req, unsigned issue_flags)
 {
-	if (issue_flags & IO_URING_F_COMPLETE_DEFER)
-		req->flags |= REQ_F_COMPLETE_INLINE;
-	else
-		io_req_complete_post(req);
+	io_req_complete_post(req);
 }
 
 void io_req_complete_failed(struct io_kiocb *req, s32 res)
@@ -1581,9 +1578,12 @@ static int io_issue_sqe(struct io_kiocb *req, unsigned int issue_flags)
 	if (creds)
 		revert_creds(creds);
 
-	if (ret == IOU_OK)
-		__io_req_complete(req, issue_flags);
-	else if (ret != IOU_ISSUE_SKIP_COMPLETE)
+	if (ret == IOU_OK) {
+		if (issue_flags & IO_URING_F_COMPLETE_DEFER)
+			io_req_add_compl_list(req);
+		else
+			io_req_complete_post(req);
+	} else if (ret != IOU_ISSUE_SKIP_COMPLETE)
 		return ret;
 
 	/* If the op doesn't have a file, we're not polling for it */
@@ -1749,10 +1749,6 @@ static inline void io_queue_sqe(struct io_kiocb *req)
 
 	ret = io_issue_sqe(req, IO_URING_F_NONBLOCK|IO_URING_F_COMPLETE_DEFER);
 
-	if (req->flags & REQ_F_COMPLETE_INLINE) {
-		io_req_add_compl_list(req);
-		return;
-	}
 	/*
 	 * We async punt it if the file wasn't marked NOWAIT, or if the file
 	 * doesn't support non-blocking read/write attempts
