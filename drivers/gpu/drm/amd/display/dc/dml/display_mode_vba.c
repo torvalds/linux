@@ -343,7 +343,7 @@ static void fetch_socbb_params(struct display_mode_lib *mode_lib)
 	mode_lib->vba.MaxAveragePercentOfIdealDRAMBWDisplayCanUseInNormalSystemOperationSTROBE =
 			soc->max_avg_dram_bw_use_normal_strobe_percent;
 
-	mode_lib->vba.DRAMClockChangeRequirementFinal = 1;
+	mode_lib->vba.DRAMClockChangeRequirementFinal = soc->dram_clock_change_requirement_final;
 	mode_lib->vba.FCLKChangeRequirementFinal = 1;
 	mode_lib->vba.USRRetrainingRequiredFinal = 1;
 	mode_lib->vba.ConfigurableDETSizeEnFinal = 0;

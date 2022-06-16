@@ -184,6 +184,7 @@ struct _vcs_dpi_soc_bounding_box_st {
 	double max_avg_fabric_bw_use_normal_percent;
 	double max_avg_dram_bw_use_normal_strobe_percent;
 	enum dm_prefetch_modes allow_for_pstate_or_stutter_in_vblank_final;
+	bool dram_clock_change_requirement_final;
 	double writeback_latency_us;
 	double ideal_dram_bw_after_urgent_percent;
 	double pct_ideal_dram_sdp_bw_after_urgent_pixel_only; // PercentOfIdealDRAMFabricAndSDPPortBWReceivedAfterUrgLatencyPixelDataOnly
