@@ -2262,7 +2262,7 @@
 	gpio-keys {
 		compatible = "gpio-keys";
 
-		force-recovery {
+		key-force-recovery {
 			label = "Force Recovery";
 			gpios = <&gpio TEGRA194_MAIN_GPIO(G, 0)
 				       GPIO_ACTIVE_LOW>;
@@ -2271,7 +2271,7 @@
 			debounce-interval = <10>;
 		};
 
-		power {
+		key-power {
 			label = "Power";
 			gpios = <&gpio_aon TEGRA194_AON_GPIO(EE, 4)
 					   GPIO_ACTIVE_LOW>;
