@@ -142,7 +142,7 @@ static bool sof_ipc4_volume_put(struct snd_sof_control *scontrol,
 
 	if (!widget_found) {
 		dev_err(scomp->dev, "Failed to find widget for kcontrol %s\n", scontrol->name);
-		return -ENOENT;
+		return false;
 	}
 
 	ret = sof_ipc4_set_volume_data(sdev, swidget, scontrol);
