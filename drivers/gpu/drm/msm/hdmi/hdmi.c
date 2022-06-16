@@ -9,6 +9,7 @@
 #include <linux/of_gpio.h>
 
 #include <drm/drm_bridge_connector.h>
+#include <drm/drm_of.h>
 
 #include <sound/hdmi-codec.h>
 #include "hdmi.h"
@@ -132,6 +133,10 @@ static struct hdmi *msm_hdmi_init(struct platform_device *pdev)
 	hdmi->pdev = pdev;
 	hdmi->config = config;
 	spin_lock_init(&hdmi->reg_lock);
+
+	ret = drm_of_find_panel_or_bridge(pdev->dev.of_node, 1, 0, NULL, &hdmi->next_bridge);
+	if (ret && ret != -ENODEV)
+		goto fail;
 
 	hdmi->mmio = msm_ioremap(pdev, config->mmio_name);
 	if (IS_ERR(hdmi->mmio)) {
@@ -306,6 +311,15 @@ int msm_hdmi_modeset_init(struct hdmi *hdmi,
 		DRM_DEV_ERROR(dev->dev, "failed to create HDMI bridge: %d\n", ret);
 		hdmi->bridge = NULL;
 		goto fail;
+	}
+
+	if (hdmi->next_bridge) {
+		ret = drm_bridge_attach(hdmi->encoder, hdmi->next_bridge, hdmi->bridge,
+					DRM_BRIDGE_ATTACH_NO_CONNECTOR);
+		if (ret) {
+			DRM_DEV_ERROR(dev->dev, "failed to attach next HDMI bridge: %d\n", ret);
+			goto fail;
+		}
 	}
 
 	hdmi->connector = drm_bridge_connector_init(hdmi->dev, encoder);

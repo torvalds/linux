@@ -62,6 +62,8 @@ struct hdmi {
 	struct drm_connector *connector;
 	struct drm_bridge *bridge;
 
+	struct drm_bridge *next_bridge;
+
 	/* the encoder we are hooked to (outside of hdmi block) */
 	struct drm_encoder *encoder;
 
