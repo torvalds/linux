@@ -12,7 +12,7 @@
 	model = "Laird Workgroup Bridge 45N - Atmel AT91SAM (dt)";
 	compatible = "laird,wb45n", "laird,wbxx", "atmel,at91sam9x5", "atmel,at91sam9";
 
-	gpio_keys {
+	gpio-keys {
 		compatible = "gpio-keys";
 		#address-cells = <1>;
 		#size-cells = <0>;
