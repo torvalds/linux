@@ -604,6 +604,14 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 	const char *tplg_filename;
 	int ret;
 
+	/*
+	 * make sure the device is pm_runtime_active before loading the
+	 * topology and initiating IPC or bus transactions
+	 */
+	ret = pm_runtime_resume_and_get(component->dev);
+	if (ret < 0 && ret != -EACCES)
+		return ret;
+
 	/* load the default topology */
 	sdev->component = component;
 
@@ -620,6 +628,9 @@ static int sof_pcm_probe(struct snd_soc_component *component)
 			ret);
 		return ret;
 	}
+
+	pm_runtime_mark_last_busy(component->dev);
+	pm_runtime_put_autosuspend(component->dev);
 
 	return ret;
 }
