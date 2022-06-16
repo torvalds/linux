@@ -437,9 +437,13 @@ static int mp_config_mi(struct rkisp_stream *stream)
 	rkisp_write(dev, stream->config->mi.y_size_init, val, false);
 
 	val = out_fmt->plane_fmt[1].sizeimage;
+	if (dev->cap_dev.wrap_line)
+		val = out_fmt->plane_fmt[0].bytesperline * height / 2;
 	rkisp_write(dev, stream->config->mi.cb_size_init, val, false);
 
 	val = out_fmt->plane_fmt[2].sizeimage;
+	if (dev->cap_dev.wrap_line)
+		val = out_fmt->plane_fmt[0].bytesperline * height / 2;
 	rkisp_write(dev, stream->config->mi.cr_size_init, val, false);
 
 	val = stream->out_isp_fmt.uv_swap ? ISP3X_MI_XTD_FORMAT_MP_UV_SWAP : 0;
