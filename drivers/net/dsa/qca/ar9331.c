@@ -818,7 +818,7 @@ static int __ar9331_mdio_write(struct mii_bus *sbus, u8 mode, u16 reg, u16 val)
 		FIELD_GET(AR9331_SW_LOW_ADDR_PHY, reg);
 	r = FIELD_GET(AR9331_SW_LOW_ADDR_REG, reg);
 
-	return mdiobus_write(sbus, p, r, val);
+	return __mdiobus_write(sbus, p, r, val);
 }
 
 static int __ar9331_mdio_read(struct mii_bus *sbus, u16 reg)
@@ -829,7 +829,7 @@ static int __ar9331_mdio_read(struct mii_bus *sbus, u16 reg)
 		FIELD_GET(AR9331_SW_LOW_ADDR_PHY, reg);
 	r = FIELD_GET(AR9331_SW_LOW_ADDR_REG, reg);
 
-	return mdiobus_read(sbus, p, r);
+	return __mdiobus_read(sbus, p, r);
 }
 
 static int ar9331_mdio_read(void *ctx, const void *reg_buf, size_t reg_len,
@@ -849,6 +849,8 @@ static int ar9331_mdio_read(void *ctx, const void *reg_buf, size_t reg_len,
 		return 0;
 	}
 
+	mutex_lock_nested(&sbus->mdio_lock, MDIO_MUTEX_NESTED);
+
 	ret = __ar9331_mdio_read(sbus, reg);
 	if (ret < 0)
 		goto error;
@@ -860,9 +862,13 @@ static int ar9331_mdio_read(void *ctx, const void *reg_buf, size_t reg_len,
 
 	*(u32 *)val_buf |= ret << 16;
 
+	mutex_unlock(&sbus->mdio_lock);
+
 	return 0;
 error:
+	mutex_unlock(&sbus->mdio_lock);
 	dev_err_ratelimited(&sbus->dev, "Bus error. Failed to read register.\n");
+
 	return ret;
 }
 
@@ -872,11 +878,14 @@ static int ar9331_mdio_write(void *ctx, u32 reg, u32 val)
 	struct mii_bus *sbus = priv->sbus;
 	int ret;
 
+	mutex_lock_nested(&sbus->mdio_lock, MDIO_MUTEX_NESTED);
 	if (reg == AR9331_SW_REG_PAGE) {
 		ret = __ar9331_mdio_write(sbus, AR9331_SW_MDIO_PHY_MODE_PAGE,
 					  0, val);
 		if (ret < 0)
 			goto error;
+
+		mutex_unlock(&sbus->mdio_lock);
 
 		return 0;
 	}
@@ -897,10 +906,14 @@ static int ar9331_mdio_write(void *ctx, u32 reg, u32 val)
 	if (ret < 0)
 		goto error;
 
+	mutex_unlock(&sbus->mdio_lock);
+
 	return 0;
 
 error:
+	mutex_unlock(&sbus->mdio_lock);
 	dev_err_ratelimited(&sbus->dev, "Bus error. Failed to write register.\n");
+
 	return ret;
 }
 
