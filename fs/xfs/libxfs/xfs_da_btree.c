@@ -22,6 +22,7 @@
 #include "xfs_trace.h"
 #include "xfs_buf_item.h"
 #include "xfs_log.h"
+#include "xfs_errortag.h"
 
 /*
  * xfs_da_btree.c
@@ -481,6 +482,9 @@ xfs_da3_split(
 	int			i;
 
 	trace_xfs_da_split(state->args);
+
+	if (XFS_TEST_ERROR(false, state->mp, XFS_ERRTAG_DA_LEAF_SPLIT))
+		return -EIO;
 
 	/*
 	 * Walk back up the tree splitting/inserting/adjusting as necessary.

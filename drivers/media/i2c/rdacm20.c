@@ -47,11 +47,11 @@
 #define OV10635_VTS			933
 
 /*
- * As the drivers supports a single MEDIA_BUS_FMT_UYVY8_2X8 format we
+ * As the drivers supports a single MEDIA_BUS_FMT_UYVY8_1X16 format we
  * can harcode the pixel rate.
  *
  * PCLK is fed through the system clock, programmed @88MHz.
- * MEDIA_BUS_FMT_UYVY8_2X8 format = 2 samples per pixel.
+ * MEDIA_BUS_FMT_UYVY8_1X16 format = 2 samples per pixel.
  *
  * Pixelrate = PCLK / 2
  * FPS = (OV10635_VTS * OV10635_HTS) / PixelRate
@@ -409,7 +409,7 @@ static int rdacm20_enum_mbus_code(struct v4l2_subdev *sd,
 	if (code->pad || code->index > 0)
 		return -EINVAL;
 
-	code->code = MEDIA_BUS_FMT_UYVY8_2X8;
+	code->code = MEDIA_BUS_FMT_UYVY8_1X16;
 
 	return 0;
 }
@@ -425,7 +425,7 @@ static int rdacm20_get_fmt(struct v4l2_subdev *sd,
 
 	mf->width		= OV10635_WIDTH;
 	mf->height		= OV10635_HEIGHT;
-	mf->code		= MEDIA_BUS_FMT_UYVY8_2X8;
+	mf->code		= MEDIA_BUS_FMT_UYVY8_1X16;
 	mf->colorspace		= V4L2_COLORSPACE_RAW;
 	mf->field		= V4L2_FIELD_NONE;
 	mf->ycbcr_enc		= V4L2_YCBCR_ENC_601;
@@ -611,7 +611,7 @@ static int rdacm20_probe(struct i2c_client *client)
 		goto error_free_ctrls;
 
 	dev->pad.flags = MEDIA_PAD_FL_SOURCE;
-	dev->sd.entity.flags |= MEDIA_ENT_F_CAM_SENSOR;
+	dev->sd.entity.function = MEDIA_ENT_F_CAM_SENSOR;
 	ret = media_entity_pads_init(&dev->sd.entity, 1, &dev->pad);
 	if (ret < 0)
 		goto error_free_ctrls;

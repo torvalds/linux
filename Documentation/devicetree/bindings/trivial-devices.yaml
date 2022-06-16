@@ -87,6 +87,8 @@ properties:
           - devantech,srf08
             # Devantech SRF10 ultrasonic ranger
           - devantech,srf10
+            # DH electronics GmbH on-board CPLD trivial SPI device
+          - dh,dhcom-board
             # DA9053: flexible system level PMIC with multicore support
           - dlg,da9053
             # DA9063: system PMIC for quad-core application processors
@@ -143,6 +145,10 @@ properties:
           - infineon,xdpe12254
             # Infineon Multi-phase Digital VR Controller xdpe12284
           - infineon,xdpe12284
+            # Infineon Multi-phase Digital VR Controller xdpe15284
+          - infineon,xdpe15284
+            # Infineon Multi-phase Digital VR Controller xdpe152c4
+          - infineon,xdpe152c4
             # Injoinic IP5108 2.0A Power Bank IC with I2C
           - injoinic,ip5108
             # Injoinic IP5109 2.1A Power Bank IC with I2C
@@ -215,6 +221,8 @@ properties:
           - memsic,mxc6255
             # MEMSIC 3-axis accelerometer
           - memsic,mxc6655
+            # Menlo on-board CPLD trivial SPI device
+          - menlo,m53cpld
             # Microchip differential I2C ADC, 1 Channel, 18 bit
           - microchip,mcp3421
             # Microchip differential I2C ADC, 2 Channel, 18 bit

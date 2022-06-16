@@ -11,6 +11,10 @@
 #define AQ_RING_H
 
 #include "aq_common.h"
+#include "aq_vec.h"
+
+#define AQ_XDP_HEADROOM		ALIGN(max(NET_SKB_PAD, XDP_PACKET_HEADROOM), 8)
+#define AQ_XDP_TAILROOM		SKB_DATA_ALIGN(sizeof(struct skb_shared_info))
 
 struct page;
 struct aq_nic_cfg_s;
@@ -51,6 +55,7 @@ struct __packed aq_ring_buff_s {
 		struct {
 			dma_addr_t pa_eop;
 			struct sk_buff *skb;
+			struct xdp_frame *xdpf;
 		};
 		/* TxC */
 		struct {
@@ -101,6 +106,12 @@ struct aq_ring_stats_rx_s {
 	u64 pg_losts;
 	u64 pg_flips;
 	u64 pg_reuses;
+	u64 xdp_aborted;
+	u64 xdp_drop;
+	u64 xdp_pass;
+	u64 xdp_tx;
+	u64 xdp_invalid;
+	u64 xdp_redirect;
 };
 
 struct aq_ring_stats_tx_s {
@@ -132,10 +143,15 @@ struct aq_ring_s {
 	unsigned int size;	/* descriptors number */
 	unsigned int dx_size;	/* TX or RX descriptor size,  */
 				/* stored here for fater math */
-	unsigned int page_order;
+	u16 page_order;
+	u16 page_offset;
+	u16 frame_max;
+	u16 tail_size;
 	union aq_ring_stats_s stats;
 	dma_addr_t dx_ring_pa;
+	struct bpf_prog *xdp_prog;
 	enum atl_ring_type ring_type;
+	struct xdp_rxq_info xdp_rxq;
 };
 
 struct aq_ring_param_s {
@@ -175,6 +191,7 @@ struct aq_ring_s *aq_ring_rx_alloc(struct aq_ring_s *self,
 				   struct aq_nic_s *aq_nic,
 				   unsigned int idx,
 				   struct aq_nic_cfg_s *aq_nic_cfg);
+
 int aq_ring_init(struct aq_ring_s *self, const enum atl_ring_type ring_type);
 void aq_ring_rx_deinit(struct aq_ring_s *self);
 void aq_ring_free(struct aq_ring_s *self);
@@ -182,6 +199,8 @@ void aq_ring_update_queue_state(struct aq_ring_s *ring);
 void aq_ring_queue_wake(struct aq_ring_s *ring);
 void aq_ring_queue_stop(struct aq_ring_s *ring);
 bool aq_ring_tx_clean(struct aq_ring_s *self);
+int aq_xdp_xmit(struct net_device *dev, int num_frames,
+		struct xdp_frame **frames, u32 flags);
 int aq_ring_rx_clean(struct aq_ring_s *self,
 		     struct napi_struct *napi,
 		     int *work_done,

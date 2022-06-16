@@ -59,4 +59,19 @@ static inline u32 tcf_gact_goto_chain_index(const struct tc_action *a)
 	return READ_ONCE(a->tcfa_action) & TC_ACT_EXT_VAL_MASK;
 }
 
+static inline bool is_tcf_gact_continue(const struct tc_action *a)
+{
+	return __is_tcf_gact_act(a, TC_ACT_UNSPEC, false);
+}
+
+static inline bool is_tcf_gact_reclassify(const struct tc_action *a)
+{
+	return __is_tcf_gact_act(a, TC_ACT_RECLASSIFY, false);
+}
+
+static inline bool is_tcf_gact_pipe(const struct tc_action *a)
+{
+	return __is_tcf_gact_act(a, TC_ACT_PIPE, false);
+}
+
 #endif /* __NET_TC_GACT_H */

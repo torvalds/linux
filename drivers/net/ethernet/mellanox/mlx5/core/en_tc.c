@@ -1740,6 +1740,9 @@ static void mlx5e_tc_del_fdb_flow(struct mlx5e_priv *priv,
 
 	free_flow_post_acts(flow);
 
+	if (flow->attr->lag.count)
+		mlx5_lag_del_mpesw_rule(esw->dev);
+
 	kvfree(attr->esw_attr->rx_tun_attr);
 	kvfree(attr->parse_attr);
 	kfree(flow->attr);
@@ -3788,10 +3791,23 @@ static bool is_lag_dev(struct mlx5e_priv *priv,
 		 same_hw_reps(priv, peer_netdev));
 }
 
+static bool is_multiport_eligible(struct mlx5e_priv *priv, struct net_device *out_dev)
+{
+	if (mlx5e_eswitch_uplink_rep(out_dev) &&
+	    MLX5_CAP_PORT_SELECTION(priv->mdev, port_select_flow_table) &&
+	    MLX5_CAP_GEN(priv->mdev, create_lag_when_not_master_up))
+		return true;
+
+	return false;
+}
+
 bool mlx5e_is_valid_eswitch_fwd_dev(struct mlx5e_priv *priv,
 				    struct net_device *out_dev)
 {
 	if (is_merged_eswitch_vfs(priv, out_dev))
+		return true;
+
+	if (is_multiport_eligible(priv, out_dev))
 		return true;
 
 	if (is_lag_dev(priv, out_dev))
@@ -4050,6 +4066,7 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 		     struct mlx5_core_dev *in_mdev)
 {
 	struct flow_rule *rule = flow_cls_offload_flow_rule(f);
+	struct mlx5_eswitch *esw = priv->mdev->priv.eswitch;
 	struct netlink_ext_ack *extack = f->common.extack;
 	struct mlx5e_tc_flow_parse_attr *parse_attr;
 	struct mlx5e_tc_flow *flow;
@@ -4085,17 +4102,26 @@ __mlx5e_add_fdb_flow(struct mlx5e_priv *priv,
 	if (err)
 		goto err_free;
 
+	if (flow->attr->lag.count) {
+		err = mlx5_lag_add_mpesw_rule(esw->dev);
+		if (err)
+			goto err_free;
+	}
+
 	err = mlx5e_tc_add_fdb_flow(priv, flow, extack);
 	complete_all(&flow->init_done);
 	if (err) {
 		if (!(err == -ENETUNREACH && mlx5_lag_is_multipath(in_mdev)))
-			goto err_free;
+			goto err_lag;
 
 		add_unready_flow(flow);
 	}
 
 	return flow;
 
+err_lag:
+	if (flow->attr->lag.count)
+		mlx5_lag_del_mpesw_rule(esw->dev);
 err_free:
 	mlx5e_flow_put(priv, flow);
 out:

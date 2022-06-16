@@ -212,12 +212,13 @@ static struct snd_soc_dai_driver lochnagar_sc_dai[] = {
 };
 
 static const struct snd_soc_component_driver lochnagar_sc_driver = {
-	.non_legacy_dai_naming = 1,
-
 	.dapm_widgets = lochnagar_sc_widgets,
 	.num_dapm_widgets = ARRAY_SIZE(lochnagar_sc_widgets),
 	.dapm_routes = lochnagar_sc_routes,
 	.num_dapm_routes = ARRAY_SIZE(lochnagar_sc_routes),
+
+	.non_legacy_dai_naming = 1,
+	.endianness = 1,
 };
 
 static int lochnagar_sc_probe(struct platform_device *pdev)

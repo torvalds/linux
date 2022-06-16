@@ -1611,9 +1611,8 @@ static void __spi_pump_messages(struct spi_controller *ctlr, bool in_kthread)
 	mutex_lock(&ctlr->io_mutex);
 
 	if (!was_busy && ctlr->auto_runtime_pm) {
-		ret = pm_runtime_get_sync(ctlr->dev.parent);
+		ret = pm_runtime_resume_and_get(ctlr->dev.parent);
 		if (ret < 0) {
-			pm_runtime_put_noidle(ctlr->dev.parent);
 			dev_err(&ctlr->dev, "Failed to power device: %d\n",
 				ret);
 			mutex_unlock(&ctlr->io_mutex);
@@ -3475,7 +3474,7 @@ static int __spi_validate_bits_per_word(struct spi_controller *ctlr,
 int spi_setup(struct spi_device *spi)
 {
 	unsigned	bad_bits, ugly_bits;
-	int		status;
+	int		status = 0;
 
 	/*
 	 * Check mode to prevent that any two of DUAL, QUAD and NO_MOSI/MISO
@@ -3518,13 +3517,18 @@ int spi_setup(struct spi_device *spi)
 		return -EINVAL;
 	}
 
-	if (!spi->bits_per_word)
+	if (!spi->bits_per_word) {
 		spi->bits_per_word = 8;
-
-	status = __spi_validate_bits_per_word(spi->controller,
-					      spi->bits_per_word);
-	if (status)
-		return status;
+	} else {
+		/*
+		 * Some controllers may not support the default 8 bits-per-word
+		 * so only perform the check when this is explicitly provided.
+		 */
+		status = __spi_validate_bits_per_word(spi->controller,
+						      spi->bits_per_word);
+		if (status)
+			return status;
+	}
 
 	if (spi->controller->max_speed_hz &&
 	    (!spi->max_speed_hz ||
@@ -3544,10 +3548,9 @@ int spi_setup(struct spi_device *spi)
 	}
 
 	if (spi->controller->auto_runtime_pm && spi->controller->set_cs) {
-		status = pm_runtime_get_sync(spi->controller->dev.parent);
+		status = pm_runtime_resume_and_get(spi->controller->dev.parent);
 		if (status < 0) {
 			mutex_unlock(&spi->controller->io_mutex);
-			pm_runtime_put_noidle(spi->controller->dev.parent);
 			dev_err(&spi->controller->dev, "Failed to power device: %d\n",
 				status);
 			return status;

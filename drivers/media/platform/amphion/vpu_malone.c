@@ -170,6 +170,7 @@ enum {
 	VID_API_EVENT_DEC_CHECK_RES		= 0x24,
 	VID_API_EVENT_DEC_CFG_INFO		= 0x25,
 	VID_API_EVENT_UNSUPPORTED_STREAM	= 0x26,
+	VID_API_EVENT_PIC_SKIPPED		= 0x27,
 	VID_API_EVENT_STR_SUSPENDED		= 0x30,
 	VID_API_EVENT_SNAPSHOT_DONE		= 0x40,
 	VID_API_EVENT_FW_STATUS                 = 0xF0,
@@ -703,6 +704,7 @@ static struct vpu_pair malone_msgs[] = {
 	{VPU_MSG_ID_BS_ERROR, VID_API_EVENT_BS_ERROR},
 	{VPU_MSG_ID_UNSUPPORTED, VID_API_EVENT_UNSUPPORTED_STREAM},
 	{VPU_MSG_ID_FIRMWARE_XCPT, VID_API_EVENT_FIRMWARE_XCPT},
+	{VPU_MSG_ID_PIC_SKIPPED, VID_API_EVENT_PIC_SKIPPED},
 };
 
 static void vpu_malone_pack_fs_alloc(struct vpu_rpc_event *pkt,
@@ -1556,7 +1558,7 @@ int vpu_malone_input_frame(struct vpu_shared_addr *shared,
 	 * merge the data to next frame
 	 */
 	vbuf = to_vb2_v4l2_buffer(vb);
-	if (vpu_vb_is_codecconfig(vbuf) && (s64)vb->timestamp < 0) {
+	if (vpu_vb_is_codecconfig(vbuf)) {
 		inst->extra_size += size;
 		return 0;
 	}

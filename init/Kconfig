@@ -715,8 +715,7 @@ config IKHEADERS
 
 config LOG_BUF_SHIFT
 	int "Kernel log buffer size (16 => 64KB, 17 => 128KB)"
-	range 12 25 if !H8300
-	range 12 19 if H8300
+	range 12 25
 	default 17
 	depends on PRINTK
 	help
@@ -1875,6 +1874,7 @@ config SLUB_DEBUG
 	default y
 	bool "Enable SLUB debugging support" if EXPERT
 	depends on SLUB && SYSFS
+	select STACKDEPOT if STACKTRACE_SUPPORT
 	help
 	  SLUB has extensive debug support features. Disabling these can
 	  result in significant savings in code size. This also disables
@@ -2150,20 +2150,6 @@ config MODULE_SRCVERSION_ALL
 	  others sometimes change the module source without updating
 	  the version).  With this option, such a "srcversion" field
 	  will be created for all modules.  If unsure, say N.
-
-config MODULE_SCMVERSION
-	bool "SCM version for modules"
-	depends on LOCALVERSION_AUTO
-	help
-	  This enables the module attribute "scmversion" which can be used
-	  by developers to identify the SCM version of a given module, e.g.
-	  git sha1 or hg sha1. The SCM version can be queried by modinfo or
-	  via the sysfs node: /sys/modules/MODULENAME/scmversion. This is
-	  useful when the kernel or kernel modules are updated separately
-	  since that causes the vermagic of the kernel and the module to
-	  differ.
-
-	  If unsure, say N.
 
 config MODULE_SIG
 	bool "Module signature verification"

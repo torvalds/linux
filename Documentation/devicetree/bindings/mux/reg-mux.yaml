@@ -25,8 +25,12 @@ properties:
     const: 1
 
   mux-reg-masks:
-    description: an array of register offset and pre-shifted bitfield mask
-      pairs, each describing a single mux control.
+    $ref: /schemas/types.yaml#/definitions/uint32-matrix
+    items:
+      items:
+        - description: register offset
+        - description: pre-shifted bitfield mask
+    description: Each entry pair describes a single mux control.
 
   idle-states: true
 

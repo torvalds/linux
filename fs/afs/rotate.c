@@ -292,6 +292,10 @@ bool afs_select_fileserver(struct afs_operation *op)
 		op->error = error;
 		goto iterate_address;
 
+	case -ENETRESET:
+		pr_warn("kAFS: Peer reset %s (op=%x)\n",
+			op->type ? op->type->name : "???", op->debug_id);
+		fallthrough;
 	case -ECONNRESET:
 		_debug("call reset");
 		op->error = error;

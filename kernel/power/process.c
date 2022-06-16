@@ -6,9 +6,6 @@
  * Originally from swsusp.
  */
 
-
-#undef DEBUG
-
 #include <linux/interrupt.h>
 #include <linux/oom.h>
 #include <linux/suspend.h>

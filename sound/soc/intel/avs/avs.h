@@ -11,12 +11,18 @@
 
 #include <linux/device.h>
 #include <linux/firmware.h>
+#include <linux/kfifo.h>
 #include <sound/hda_codec.h>
 #include <sound/hda_register.h>
+#include <sound/soc-component.h>
 #include "messages.h"
 #include "registers.h"
 
 struct avs_dev;
+struct avs_tplg;
+struct avs_tplg_library;
+struct avs_soc_component;
+struct avs_ipc_msg;
 
 /*
  * struct avs_dsp_ops - Platform-specific DSP operations
@@ -38,10 +44,20 @@ struct avs_dsp_ops {
 	int (* const load_basefw)(struct avs_dev *, struct firmware *);
 	int (* const load_lib)(struct avs_dev *, struct firmware *, u32);
 	int (* const transfer_mods)(struct avs_dev *, bool, struct avs_module_entry *, u32);
+	int (* const enable_logs)(struct avs_dev *, enum avs_log_enable, u32, u32, unsigned long,
+				  u32 *);
+	int (* const log_buffer_offset)(struct avs_dev *, u32);
+	int (* const log_buffer_status)(struct avs_dev *, union avs_notify_msg *);
+	int (* const coredump)(struct avs_dev *, union avs_notify_msg *);
+	bool (* const d0ix_toggle)(struct avs_dev *, struct avs_ipc_msg *, bool);
+	int (* const set_d0ix)(struct avs_dev *, bool);
 };
 
 #define avs_dsp_op(adev, op, ...) \
 	((adev)->spec->dsp_ops->op(adev, ## __VA_ARGS__))
+
+extern const struct avs_dsp_ops skl_dsp_ops;
+extern const struct avs_dsp_ops apl_dsp_ops;
 
 #define AVS_PLATATTR_CLDMA		BIT_ULL(0)
 #define AVS_PLATATTR_IMR		BIT_ULL(1)
@@ -68,6 +84,16 @@ struct avs_fw_entry {
 	const struct firmware *fw;
 
 	struct list_head node;
+};
+
+struct avs_debug {
+	struct kfifo trace_fifo;
+	spinlock_t fifo_lock;	/* serialize I/O for trace_fifo */
+	spinlock_t trace_lock;	/* serialize debug window I/O between each LOG_BUFFER_STATUS */
+	wait_queue_head_t trace_waitq;
+	u32 aging_timer_period;
+	u32 fifo_full_timer_period;
+	u32 logged_resources;	/* context dependent: core or library */
 };
 
 /*
@@ -103,6 +129,16 @@ struct avs_dev {
 	char **lib_names;
 
 	struct completion fw_ready;
+	struct work_struct probe_work;
+
+	struct nhlt_acpi_table *nhlt;
+	struct list_head comp_list;
+	struct mutex comp_list_mutex;
+	struct list_head path_list;
+	spinlock_t path_list_lock;
+	struct mutex path_mutex;
+
+	struct avs_debug dbg;
 };
 
 /* from hda_bus to avs_dev */
@@ -153,12 +189,18 @@ struct avs_ipc {
 	struct avs_ipc_msg rx;
 	u32 default_timeout_ms;
 	bool ready;
+	atomic_t recovering;
 
 	bool rx_completed;
 	spinlock_t rx_lock;
 	struct mutex msg_mutex;
 	struct completion done_completion;
 	struct completion busy_completion;
+
+	struct work_struct recovery_work;
+	struct delayed_work d0ix_work;
+	atomic_t d0ix_disable_depth;
+	bool in_d0ix;
 };
 
 #define AVS_EIPC	EREMOTEIO
@@ -195,12 +237,22 @@ int avs_dsp_send_msg_timeout(struct avs_dev *adev,
 			     struct avs_ipc_msg *reply, int timeout);
 int avs_dsp_send_msg(struct avs_dev *adev,
 		     struct avs_ipc_msg *request, struct avs_ipc_msg *reply);
+/* Two variants below are for messages that control DSP power states. */
+int avs_dsp_send_pm_msg_timeout(struct avs_dev *adev, struct avs_ipc_msg *request,
+				struct avs_ipc_msg *reply, int timeout, bool wake_d0i0);
+int avs_dsp_send_pm_msg(struct avs_dev *adev, struct avs_ipc_msg *request,
+			struct avs_ipc_msg *reply, bool wake_d0i0);
 int avs_dsp_send_rom_msg_timeout(struct avs_dev *adev,
 				 struct avs_ipc_msg *request, int timeout);
 int avs_dsp_send_rom_msg(struct avs_dev *adev, struct avs_ipc_msg *request);
 void avs_dsp_interrupt_control(struct avs_dev *adev, bool enable);
 int avs_ipc_init(struct avs_ipc *ipc, struct device *dev);
 void avs_ipc_block(struct avs_ipc *ipc);
+
+int avs_dsp_disable_d0ix(struct avs_dev *adev);
+int avs_dsp_enable_d0ix(struct avs_dev *adev);
+
+int skl_log_buffer_offset(struct avs_dev *adev, u32 core);
 
 /* Firmware resources management */
 
@@ -232,6 +284,7 @@ void avs_hda_clock_gating_enable(struct avs_dev *adev, bool enable);
 void avs_hda_power_gating_enable(struct avs_dev *adev, bool enable);
 void avs_hda_l1sen_enable(struct avs_dev *adev, bool enable);
 
+int avs_dsp_load_libraries(struct avs_dev *adev, struct avs_tplg_library *libs, u32 num_libs);
 int avs_dsp_boot_firmware(struct avs_dev *adev, bool purge);
 int avs_dsp_first_boot_firmware(struct avs_dev *adev);
 
@@ -243,5 +296,54 @@ int avs_hda_load_basefw(struct avs_dev *adev, struct firmware *fw);
 int avs_hda_load_library(struct avs_dev *adev, struct firmware *lib, u32 id);
 int avs_hda_transfer_modules(struct avs_dev *adev, bool load,
 			     struct avs_module_entry *mods, u32 num_mods);
+
+/* Soc component members */
+
+struct avs_soc_component {
+	struct snd_soc_component base;
+	struct avs_tplg *tplg;
+
+	struct list_head node;
+};
+
+#define to_avs_soc_component(comp) \
+	container_of(comp, struct avs_soc_component, base)
+
+extern const struct snd_soc_dai_ops avs_dai_fe_ops;
+
+int avs_dmic_platform_register(struct avs_dev *adev, const char *name);
+int avs_i2s_platform_register(struct avs_dev *adev, const char *name, unsigned long port_mask,
+			      unsigned long *tdms);
+int avs_hda_platform_register(struct avs_dev *adev, const char *name);
+
+int avs_register_all_boards(struct avs_dev *adev);
+void avs_unregister_all_boards(struct avs_dev *adev);
+
+/* Firmware tracing helpers */
+
+unsigned int __kfifo_fromio_locked(struct kfifo *fifo, const void __iomem *src, unsigned int len,
+				   spinlock_t *lock);
+
+#define avs_log_buffer_size(adev) \
+	((adev)->fw_cfg.trace_log_bytes / (adev)->hw_cfg.dsp_cores)
+
+#define avs_log_buffer_addr(adev, core) \
+({ \
+	s32 __offset = avs_dsp_op(adev, log_buffer_offset, core); \
+	(__offset < 0) ? NULL : \
+			 (avs_sram_addr(adev, AVS_DEBUG_WINDOW) + __offset); \
+})
+
+struct apl_log_buffer_layout {
+	u32 read_ptr;
+	u32 write_ptr;
+	u8 buffer[];
+} __packed;
+
+#define apl_log_payload_size(adev) \
+	(avs_log_buffer_size(adev) - sizeof(struct apl_log_buffer_layout))
+
+#define apl_log_payload_addr(addr) \
+	(addr + sizeof(struct apl_log_buffer_layout))
 
 #endif /* __SOUND_SOC_INTEL_AVS_H */

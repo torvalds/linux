@@ -32,6 +32,8 @@
 #define TSU_SS		0x10
 
 #define OTPTSUTRIM_REG(n)	(0x18 + ((n) * 0x4))
+#define OTPTSUTRIM_EN_MASK	BIT(31)
+#define OTPTSUTRIM_MASK		GENMASK(11, 0)
 
 /* Sensor Mode Register(TSU_SM) */
 #define TSU_SM_EN_TS		BIT(0)
@@ -183,11 +185,15 @@ static int rzg2l_thermal_probe(struct platform_device *pdev)
 	pm_runtime_get_sync(dev);
 
 	priv->calib0 = rzg2l_thermal_read(priv, OTPTSUTRIM_REG(0));
-	if (!priv->calib0)
+	if (priv->calib0 & OTPTSUTRIM_EN_MASK)
+		priv->calib0 &= OTPTSUTRIM_MASK;
+	else
 		priv->calib0 = SW_CALIB0_VAL;
 
 	priv->calib1 = rzg2l_thermal_read(priv, OTPTSUTRIM_REG(1));
-	if (!priv->calib1)
+	if (priv->calib1 & OTPTSUTRIM_EN_MASK)
+		priv->calib1 &= OTPTSUTRIM_MASK;
+	else
 		priv->calib1 = SW_CALIB1_VAL;
 
 	platform_set_drvdata(pdev, priv);

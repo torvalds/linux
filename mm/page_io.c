@@ -336,7 +336,7 @@ int swap_readpage(struct page *page, bool synchronous)
 		struct file *swap_file = sis->swap_file;
 		struct address_space *mapping = swap_file->f_mapping;
 
-		ret = mapping->a_ops->readpage(swap_file, page);
+		ret = mapping->a_ops->read_folio(swap_file, page_folio(page));
 		if (!ret)
 			count_vm_event(PSWPIN);
 		goto out;

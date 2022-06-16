@@ -48,10 +48,9 @@
 #include "en_rep.h"
 #include "en/rep/tc.h"
 #include "ipoib/ipoib.h"
-#include "accel/ipsec.h"
-#include "fpga/ipsec.h"
+#include "en_accel/ipsec.h"
 #include "en_accel/ipsec_rxtx.h"
-#include "en_accel/tls_rxtx.h"
+#include "en_accel/ktls_txrx.h"
 #include "en/xdp.h"
 #include "en/xsk/rx.h"
 #include "en/health.h"
@@ -1416,7 +1415,8 @@ static inline void mlx5e_build_rx_skb(struct mlx5_cqe64 *cqe,
 
 	skb->mac_len = ETH_HLEN;
 
-	mlx5e_tls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
+	if (unlikely(get_cqe_tls_offload(cqe)))
+		mlx5e_ktls_handle_rx_skb(rq, skb, cqe, &cqe_bcnt);
 
 	if (unlikely(mlx5_ipsec_is_rx_flow(cqe)))
 		mlx5e_ipsec_offload_handle_rx_skb(netdev, skb, cqe);
@@ -1521,8 +1521,8 @@ static void mlx5e_fill_xdp_buff(struct mlx5e_rq *rq, void *va, u16 headroom,
 }
 
 static struct sk_buff *
-mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			  struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt)
+mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi,
+			  u32 cqe_bcnt)
 {
 	struct mlx5e_dma_info *di = wi->di;
 	u16 rx_headroom = rq->buff.headroom;
@@ -1565,8 +1565,8 @@ mlx5e_skb_from_cqe_linear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
 }
 
 static struct sk_buff *
-mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe,
-			     struct mlx5e_wqe_frag_info *wi, u32 cqe_bcnt)
+mlx5e_skb_from_cqe_nonlinear(struct mlx5e_rq *rq, struct mlx5e_wqe_frag_info *wi,
+			     u32 cqe_bcnt)
 {
 	struct mlx5e_rq_frag_info *frag_info = &rq->wqe.info.arr[0];
 	struct mlx5e_wqe_frag_info *head_wi = wi;
@@ -1709,7 +1709,7 @@ static void mlx5e_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
 			      mlx5e_skb_from_cqe_linear,
 			      mlx5e_skb_from_cqe_nonlinear,
-			      rq, cqe, wi, cqe_bcnt);
+			      rq, wi, cqe_bcnt);
 	if (!skb) {
 		/* probably for XDP */
 		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
@@ -1762,7 +1762,7 @@ static void mlx5e_handle_rx_cqe_rep(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
 			      mlx5e_skb_from_cqe_linear,
 			      mlx5e_skb_from_cqe_nonlinear,
-			      rq, cqe, wi, cqe_bcnt);
+			      rq, wi, cqe_bcnt);
 	if (!skb) {
 		/* probably for XDP */
 		if (__test_and_clear_bit(MLX5E_RQ_FLAG_XDP_XMIT, rq->flags)) {
@@ -2038,7 +2038,7 @@ mlx5e_hw_gro_skb_has_enough_space(struct sk_buff *skb, u16 data_bcnt)
 {
 	int nr_frags = skb_shinfo(skb)->nr_frags;
 
-	return PAGE_SIZE * nr_frags + data_bcnt <= GSO_MAX_SIZE;
+	return PAGE_SIZE * nr_frags + data_bcnt <= GRO_LEGACY_MAX_SIZE;
 }
 
 static void
@@ -2361,7 +2361,7 @@ static void mlx5i_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
 	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
 			      mlx5e_skb_from_cqe_linear,
 			      mlx5e_skb_from_cqe_nonlinear,
-			      rq, cqe, wi, cqe_bcnt);
+			      rq, wi, cqe_bcnt);
 	if (!skb)
 		goto wq_free_wqe;
 
@@ -2383,46 +2383,6 @@ const struct mlx5e_rx_handlers mlx5i_rx_handlers = {
 };
 #endif /* CONFIG_MLX5_CORE_IPOIB */
 
-#ifdef CONFIG_MLX5_EN_IPSEC
-
-static void mlx5e_ipsec_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe)
-{
-	struct mlx5_wq_cyc *wq = &rq->wqe.wq;
-	struct mlx5e_wqe_frag_info *wi;
-	struct sk_buff *skb;
-	u32 cqe_bcnt;
-	u16 ci;
-
-	ci       = mlx5_wq_cyc_ctr2ix(wq, be16_to_cpu(cqe->wqe_counter));
-	wi       = get_frag(rq, ci);
-	cqe_bcnt = be32_to_cpu(cqe->byte_cnt);
-
-	if (unlikely(MLX5E_RX_ERR_CQE(cqe))) {
-		rq->stats->wqe_err++;
-		goto wq_free_wqe;
-	}
-
-	skb = INDIRECT_CALL_2(rq->wqe.skb_from_cqe,
-			      mlx5e_skb_from_cqe_linear,
-			      mlx5e_skb_from_cqe_nonlinear,
-			      rq, cqe, wi, cqe_bcnt);
-	if (unlikely(!skb)) /* a DROP, save the page-reuse checks */
-		goto wq_free_wqe;
-
-	skb = mlx5e_ipsec_handle_rx_skb(rq->netdev, skb, &cqe_bcnt);
-	if (unlikely(!skb))
-		goto wq_free_wqe;
-
-	mlx5e_complete_rx_cqe(rq, cqe, cqe_bcnt, skb);
-	napi_gro_receive(rq->cq.napi, skb);
-
-wq_free_wqe:
-	mlx5e_free_rx_wqe(rq, wi, true);
-	mlx5_wq_cyc_pop(wq);
-}
-
-#endif /* CONFIG_MLX5_EN_IPSEC */
-
 int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool xsk)
 {
 	struct net_device *netdev = rq->netdev;
@@ -2439,10 +2399,6 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 		rq->post_wqes = mlx5e_post_rx_mpwqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_mpwqe;
 
-		if (mlx5_fpga_is_ipsec_device(mdev)) {
-			netdev_err(netdev, "MPWQE RQ with Innova IPSec offload not supported\n");
-			return -EINVAL;
-		}
 		if (params->packet_merge.type == MLX5E_PACKET_MERGE_SHAMPO) {
 			rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe_mpwqe_shampo;
 			if (!rq->handle_rx_cqe) {
@@ -2466,14 +2422,7 @@ int mlx5e_rq_set_handlers(struct mlx5e_rq *rq, struct mlx5e_params *params, bool
 				mlx5e_skb_from_cqe_nonlinear;
 		rq->post_wqes = mlx5e_post_rx_wqes;
 		rq->dealloc_wqe = mlx5e_dealloc_rx_wqe;
-
-#ifdef CONFIG_MLX5_EN_IPSEC
-		if ((mlx5_fpga_ipsec_device_caps(mdev) & MLX5_ACCEL_IPSEC_CAP_DEVICE) &&
-		    priv->ipsec)
-			rq->handle_rx_cqe = mlx5e_ipsec_handle_rx_cqe;
-		else
-#endif
-			rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe;
+		rq->handle_rx_cqe = priv->profile->rx_handlers->handle_rx_cqe;
 		if (!rq->handle_rx_cqe) {
 			netdev_err(netdev, "RX handler of RQ is not set\n");
 			return -EINVAL;
@@ -2504,7 +2453,7 @@ static void mlx5e_trap_handle_rx_cqe(struct mlx5e_rq *rq, struct mlx5_cqe64 *cqe
 		goto free_wqe;
 	}
 
-	skb = mlx5e_skb_from_cqe_nonlinear(rq, cqe, wi, cqe_bcnt);
+	skb = mlx5e_skb_from_cqe_nonlinear(rq, wi, cqe_bcnt);
 	if (!skb)
 		goto free_wqe;
 

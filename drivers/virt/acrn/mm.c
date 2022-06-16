@@ -192,7 +192,7 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 
 	/* Get the page number of the map region */
 	nr_pages = memmap->len >> PAGE_SHIFT;
-	pages = vzalloc(nr_pages * sizeof(struct page *));
+	pages = vzalloc(array_size(nr_pages, sizeof(*pages)));
 	if (!pages)
 		return -ENOMEM;
 
@@ -244,16 +244,15 @@ int acrn_vm_ram_map(struct acrn_vm *vm, struct acrn_vm_memmap *memmap)
 	}
 
 	/* Prepare the vm_memory_region_batch */
-	regions_info = kzalloc(sizeof(*regions_info) +
-			       sizeof(*vm_region) * nr_regions,
-			       GFP_KERNEL);
+	regions_info = kzalloc(struct_size(regions_info, regions_op,
+					   nr_regions), GFP_KERNEL);
 	if (!regions_info) {
 		ret = -ENOMEM;
 		goto unmap_kernel_map;
 	}
 
 	/* Fill each vm_memory_region_op */
-	vm_region = (struct vm_memory_region_op *)(regions_info + 1);
+	vm_region = regions_info->regions_op;
 	regions_info->vmid = vm->vmid;
 	regions_info->regions_num = nr_regions;
 	regions_info->regions_gpa = virt_to_phys(vm_region);

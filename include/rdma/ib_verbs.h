@@ -2497,15 +2497,7 @@ struct ib_device_ops {
 				       struct ib_flow_attr *flow_attr,
 				       struct ib_udata *udata);
 	int (*destroy_flow)(struct ib_flow *flow_id);
-	struct ib_flow_action *(*create_flow_action_esp)(
-		struct ib_device *device,
-		const struct ib_flow_action_attrs_esp *attr,
-		struct uverbs_attr_bundle *attrs);
 	int (*destroy_flow_action)(struct ib_flow_action *action);
-	int (*modify_flow_action_esp)(
-		struct ib_flow_action *action,
-		const struct ib_flow_action_attrs_esp *attr,
-		struct uverbs_attr_bundle *attrs);
 	int (*set_vf_link_state)(struct ib_device *device, int vf, u32 port,
 				 int state);
 	int (*get_vf_config)(struct ib_device *device, int vf, u32 port,

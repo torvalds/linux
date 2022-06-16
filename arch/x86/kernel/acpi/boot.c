@@ -435,7 +435,7 @@ static void __init mp_override_legacy_irq(u8 bus_irq, u8 polarity, u8 trigger,
 	isa_irq_to_gsi[bus_irq] = gsi;
 }
 
-static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
+static void mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 			int polarity)
 {
 #ifdef CONFIG_X86_MPPARSE
@@ -447,9 +447,9 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 	u8 pin;
 
 	if (!acpi_ioapic)
-		return 0;
+		return;
 	if (!dev || !dev_is_pci(dev))
-		return 0;
+		return;
 
 	pdev = to_pci_dev(dev);
 	number = pdev->bus->number;
@@ -468,7 +468,6 @@ static int mp_config_acpi_gsi(struct device *dev, u32 gsi, int trigger,
 
 	mp_save_irq(&mp_irq);
 #endif
-	return 0;
 }
 
 static int __init mp_register_ioapic_irq(u8 bus_irq, u8 polarity,
@@ -1863,7 +1862,7 @@ int __acpi_release_global_lock(unsigned int *lock)
 
 void __init arch_reserve_mem_area(acpi_physical_address addr, size_t size)
 {
-	e820__range_add(addr, size, E820_TYPE_ACPI);
+	e820__range_add(addr, size, E820_TYPE_NVS);
 	e820__update_table_print();
 }
 

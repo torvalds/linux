@@ -41,7 +41,7 @@ static int afs_symlink(struct user_namespace *mnt_userns, struct inode *dir,
 static int afs_rename(struct user_namespace *mnt_userns, struct inode *old_dir,
 		      struct dentry *old_dentry, struct inode *new_dir,
 		      struct dentry *new_dentry, unsigned int flags);
-static int afs_dir_releasepage(struct page *page, gfp_t gfp_flags);
+static bool afs_dir_release_folio(struct folio *folio, gfp_t gfp_flags);
 static void afs_dir_invalidate_folio(struct folio *folio, size_t offset,
 				   size_t length);
 
@@ -75,7 +75,7 @@ const struct inode_operations afs_dir_inode_operations = {
 
 const struct address_space_operations afs_dir_aops = {
 	.dirty_folio	= afs_dir_dirty_folio,
-	.releasepage	= afs_dir_releasepage,
+	.release_folio	= afs_dir_release_folio,
 	.invalidate_folio = afs_dir_invalidate_folio,
 };
 
@@ -2002,9 +2002,8 @@ error:
  * Release a directory folio and clean up its private state if it's not busy
  * - return true if the folio can now be released, false if not
  */
-static int afs_dir_releasepage(struct page *subpage, gfp_t gfp_flags)
+static bool afs_dir_release_folio(struct folio *folio, gfp_t gfp_flags)
 {
-	struct folio *folio = page_folio(subpage);
 	struct afs_vnode *dvnode = AFS_FS_I(folio_inode(folio));
 
 	_enter("{{%llx:%llu}[%lu]}", dvnode->fid.vid, dvnode->fid.vnode, folio_index(folio));

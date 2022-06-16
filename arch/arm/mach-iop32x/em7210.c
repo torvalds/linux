@@ -223,6 +223,7 @@ static void __init em7210_init_machine(void)
 
 MACHINE_START(EM7210, "Lanner EM7210")
 	.atag_offset	= 0x100,
+	.nr_irqs	= IOP32X_NR_IRQS,
 	.map_io		= em7210_map_io,
 	.init_irq	= iop32x_init_irq,
 	.init_time	= em7210_timer_init,

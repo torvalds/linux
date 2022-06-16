@@ -597,6 +597,7 @@ static const struct snd_soc_component_driver soc_component_sdw_rt1316 = {
 	.num_dapm_widgets = ARRAY_SIZE(rt1316_dapm_widgets),
 	.dapm_routes = rt1316_dapm_routes,
 	.num_dapm_routes = ARRAY_SIZE(rt1316_dapm_routes),
+	.endianness = 1,
 };
 
 static const struct snd_soc_dai_ops rt1316_aif_dai_ops = {

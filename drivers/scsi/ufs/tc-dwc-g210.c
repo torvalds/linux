@@ -7,6 +7,8 @@
  * Authors: Joao Pinto <jpinto@synopsys.com>
  */
 
+#include <linux/module.h>
+
 #include "ufshcd.h"
 #include "unipro.h"
 

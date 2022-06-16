@@ -8,7 +8,7 @@ config NET_VENDOR_SMSC
 	default y
 	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
 		   ISA || MAC || MIPS || NIOS2 || PCI || \
-		   PCMCIA || SUPERH || XTENSA || H8300 || COMPILE_TEST
+		   PCMCIA || SUPERH || XTENSA || COMPILE_TEST
 	help
 	  If you have a network (Ethernet) card belonging to this class, say Y.
 
@@ -40,7 +40,7 @@ config SMC91X
 	select MII
 	depends on !OF || GPIOLIB
 	depends on ARM || ARM64 || ATARI_ETHERNAT || COLDFIRE || \
-		   MIPS || NIOS2 || SUPERH || XTENSA || H8300 || COMPILE_TEST
+		   MIPS || NIOS2 || SUPERH || XTENSA || COMPILE_TEST
 	help
 	  This is a driver for SMC's 91x series of Ethernet chipsets,
 	  including the SMC91C94 and the SMC91C111. Say Y if you want it
