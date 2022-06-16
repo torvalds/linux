@@ -641,7 +641,7 @@ static inline int io_iter_do_read(struct io_rw *rw, struct iov_iter *iter)
 		return -EINVAL;
 }
 
-static bool need_read_all(struct io_kiocb *req)
+static bool need_complete_io(struct io_kiocb *req)
 {
 	return req->flags & REQ_F_ISREG ||
 		S_ISBLK(file_inode(req->file)->i_mode);
@@ -775,7 +775,7 @@ int io_read(struct io_kiocb *req, unsigned int issue_flags)
 			kfree(iovec);
 		return IOU_ISSUE_SKIP_COMPLETE;
 	} else if (ret == req->cqe.res || ret <= 0 || !force_nonblock ||
-		   (req->flags & REQ_F_NOWAIT) || !need_read_all(req)) {
+		   (req->flags & REQ_F_NOWAIT) || !need_complete_io(req)) {
 		/* read all, failed, already did sync or don't want to retry */
 		goto done;
 	}
@@ -870,9 +870,10 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		if (unlikely(!io_file_supports_nowait(req)))
 			goto copy_iov;
 
-		/* file path doesn't support NOWAIT for non-direct_IO */
-		if (force_nonblock && !(kiocb->ki_flags & IOCB_DIRECT) &&
-		    (req->flags & REQ_F_ISREG))
+		/* File path supports NOWAIT for non-direct_IO only for block devices. */
+		if (!(kiocb->ki_flags & IOCB_DIRECT) &&
+			!(kiocb->ki_filp->f_mode & FMODE_BUF_WASYNC) &&
+			(req->flags & REQ_F_ISREG))
 			goto copy_iov;
 
 		kiocb->ki_flags |= IOCB_NOWAIT;
@@ -928,6 +929,24 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		/* IOPOLL retry should happen for io-wq threads */
 		if (ret2 == -EAGAIN && (req->ctx->flags & IORING_SETUP_IOPOLL))
 			goto copy_iov;
+
+		if (ret2 != req->cqe.res && ret2 >= 0 && need_complete_io(req)) {
+			struct io_async_rw *rw;
+
+			/* This is a partial write. The file pos has already been
+			 * updated, setup the async struct to complete the request
+			 * in the worker. Also update bytes_done to account for
+			 * the bytes already written.
+			 */
+			iov_iter_save_state(&s->iter, &s->iter_state);
+			ret = io_setup_async_rw(req, iovec, s, true);
+
+			rw = req->async_data;
+			if (rw)
+				rw->bytes_done += ret2;
+
+			return ret ? ret : -EAGAIN;
+		}
 done:
 		ret = kiocb_done(req, ret2, issue_flags);
 	} else {
