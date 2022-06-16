@@ -271,7 +271,7 @@ int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag)
 					HDA_VS_INTEL_EM2_L1SEN, HDA_VS_INTEL_EM2_L1SEN);
 
 	if (!found) {
-		dev_dbg(sdev->dev, "%s: stream_tag %d not opened!\n",
+		dev_err(sdev->dev, "%s: stream_tag %d not opened!\n",
 			__func__, stream_tag);
 		return -ENODEV;
 	}
