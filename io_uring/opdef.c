@@ -8,7 +8,6 @@
 #include <linux/file.h>
 #include <linux/io_uring.h>
 
-#include "io_uring_types.h"
 #include "io_uring.h"
 #include "opdef.h"
 #include "refs.h"
