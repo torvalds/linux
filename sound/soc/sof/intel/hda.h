@@ -565,6 +565,9 @@ int hda_dsp_stream_setup_bdl(struct snd_sof_dev *sdev,
 bool hda_dsp_check_ipc_irq(struct snd_sof_dev *sdev);
 bool hda_dsp_check_stream_irq(struct snd_sof_dev *sdev);
 
+snd_pcm_uframes_t hda_dsp_stream_get_position(struct hdac_stream *hstream,
+					      int direction, bool can_sleep);
+
 struct hdac_ext_stream *
 	hda_dsp_stream_get(struct snd_sof_dev *sdev, int direction, u32 flags);
 int hda_dsp_stream_put(struct snd_sof_dev *sdev, int direction, int stream_tag);
