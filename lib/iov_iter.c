@@ -1318,14 +1318,13 @@ EXPORT_SYMBOL(iov_iter_gap_alignment);
 static inline ssize_t __pipe_get_pages(struct iov_iter *i,
 				size_t maxsize,
 				struct page **pages,
-				int iter_head,
 				size_t off)
 {
 	struct pipe_inode_info *pipe = i->pipe;
 	ssize_t left = maxsize;
 
 	if (off) {
-		struct pipe_buffer *buf = pipe_buf(pipe, iter_head);
+		struct pipe_buffer *buf = pipe_buf(pipe, pipe->head - 1);
 
 		get_page(*pages++ = buf->page);
 		left -= PAGE_SIZE - off;
@@ -1363,7 +1362,7 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 	npages = pipe_space_for_user(iter_head, i->pipe->tail, i->pipe);
 	capacity = min(npages, maxpages) * PAGE_SIZE - *start;
 
-	return __pipe_get_pages(i, min(maxsize, capacity), pages, iter_head, *start);
+	return __pipe_get_pages(i, min(maxsize, capacity), pages, *start);
 }
 
 static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa,
@@ -1545,7 +1544,7 @@ static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
 	p = get_pages_array(npages);
 	if (!p)
 		return -ENOMEM;
-	n = __pipe_get_pages(i, maxsize, p, iter_head, *start);
+	n = __pipe_get_pages(i, maxsize, p, *start);
 	if (n > 0)
 		*pages = p;
 	else
