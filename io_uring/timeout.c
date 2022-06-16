@@ -115,8 +115,7 @@ static void io_fail_links(struct io_kiocb *req)
 		nxt = link->link;
 		link->link = NULL;
 
-		trace_io_uring_fail_link(req->ctx, req, req->cqe.user_data,
-					req->opcode, link);
+		trace_io_uring_fail_link(req, link);
 
 		if (ignore_cqes)
 			link->flags |= REQ_F_CQE_SKIP;

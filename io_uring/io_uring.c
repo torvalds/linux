@@ -452,9 +452,7 @@ void io_queue_iowq(struct io_kiocb *req, bool *dont_use)
 	if (WARN_ON_ONCE(!same_thread_group(req->task, current)))
 		req->work.flags |= IO_WQ_WORK_CANCEL;
 
-	trace_io_uring_queue_async_work(req->ctx, req, req->cqe.user_data,
-					req->opcode, req->flags, &req->work,
-					io_wq_is_hashed(&req->work));
+	trace_io_uring_queue_async_work(req, io_wq_is_hashed(&req->work));
 	io_wq_enqueue(tctx->io_wq, &req->work);
 	if (link)
 		io_queue_linked_timeout(link);
@@ -1583,7 +1581,7 @@ fail:
 		goto queue;
 	}
 
-	trace_io_uring_defer(ctx, req, req->cqe.user_data, req->opcode);
+	trace_io_uring_defer(req);
 	de->req = req;
 	de->seq = seq;
 	list_add_tail(&de->list, &ctx->defer_list);
@@ -1783,7 +1781,7 @@ struct file *io_file_get_normal(struct io_kiocb *req, int fd)
 {
 	struct file *file = fget(fd);
 
-	trace_io_uring_file_get(req->ctx, req, req->cqe.user_data, fd);
+	trace_io_uring_file_get(req, fd);
 
 	/* we don't allow fixed io_uring files */
 	if (file && io_is_uring_fops(file))
@@ -2006,7 +2004,7 @@ static __cold int io_submit_fail_init(const struct io_uring_sqe *sqe,
 	struct io_submit_link *link = &ctx->submit_state.link;
 	struct io_kiocb *head = link->head;
 
-	trace_io_uring_req_failed(sqe, ctx, req, ret);
+	trace_io_uring_req_failed(sqe, req, ret);
 
 	/*
 	 * Avoid breaking links in the middle as it renders links with SQPOLL
@@ -2048,9 +2046,7 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		return io_submit_fail_init(sqe, req, ret);
 
 	/* don't need @sqe from now on */
-	trace_io_uring_submit_sqe(ctx, req, req->cqe.user_data, req->opcode,
-				  req->flags, true,
-				  ctx->flags & IORING_SETUP_SQPOLL);
+	trace_io_uring_submit_sqe(req, true);
 
 	/*
 	 * If we already have a head request, queue this one for async
@@ -2064,7 +2060,7 @@ static inline int io_submit_sqe(struct io_ring_ctx *ctx, struct io_kiocb *req,
 		if (unlikely(ret))
 			return io_submit_fail_init(sqe, req, ret);
 
-		trace_io_uring_link(ctx, req, link->head);
+		trace_io_uring_link(req, link->head);
 		link->last->link = req;
 		link->last = req;
 

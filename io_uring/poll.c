@@ -288,7 +288,7 @@ static void __io_poll_execute(struct io_kiocb *req, int mask,
 	else
 		req->io_task_work.func = io_apoll_task_func;
 
-	trace_io_uring_task_add(req->ctx, req, req->cqe.user_data, req->opcode, mask);
+	trace_io_uring_task_add(req, mask);
 	io_req_task_work_add(req);
 }
 
@@ -558,8 +558,7 @@ int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags)
 	if (ret || ipt.error)
 		return ret ? IO_APOLL_READY : IO_APOLL_ABORTED;
 
-	trace_io_uring_poll_arm(ctx, req, req->cqe.user_data, req->opcode,
-				mask, apoll->poll.events);
+	trace_io_uring_poll_arm(req, mask, apoll->poll.events);
 	return IO_APOLL_OK;
 }
 
