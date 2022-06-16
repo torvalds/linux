@@ -1178,6 +1178,49 @@ static int lan743x_ethtool_set_wol(struct net_device *netdev,
 }
 #endif /* CONFIG_PM */
 
+static void lan743x_common_regs(struct net_device *dev,
+				struct ethtool_regs *regs, void *p)
+
+{
+	struct lan743x_adapter *adapter = netdev_priv(dev);
+	u32 *rb = p;
+
+	memset(p, 0, (MAX_LAN743X_ETH_REGS * sizeof(u32)));
+
+	rb[ETH_PRIV_FLAGS] = adapter->flags;
+	rb[ETH_ID_REV]     = lan743x_csr_read(adapter, ID_REV);
+	rb[ETH_FPGA_REV]   = lan743x_csr_read(adapter, FPGA_REV);
+	rb[ETH_STRAP_READ] = lan743x_csr_read(adapter, STRAP_READ);
+	rb[ETH_INT_STS]    = lan743x_csr_read(adapter, INT_STS);
+	rb[ETH_HW_CFG]     = lan743x_csr_read(adapter, HW_CFG);
+	rb[ETH_PMT_CTL]    = lan743x_csr_read(adapter, PMT_CTL);
+	rb[ETH_E2P_CMD]    = lan743x_csr_read(adapter, E2P_CMD);
+	rb[ETH_E2P_DATA]   = lan743x_csr_read(adapter, E2P_DATA);
+	rb[ETH_MAC_CR]     = lan743x_csr_read(adapter, MAC_CR);
+	rb[ETH_MAC_RX]     = lan743x_csr_read(adapter, MAC_RX);
+	rb[ETH_MAC_TX]     = lan743x_csr_read(adapter, MAC_TX);
+	rb[ETH_FLOW]       = lan743x_csr_read(adapter, MAC_FLOW);
+	rb[ETH_MII_ACC]    = lan743x_csr_read(adapter, MAC_MII_ACC);
+	rb[ETH_MII_DATA]   = lan743x_csr_read(adapter, MAC_MII_DATA);
+	rb[ETH_EEE_TX_LPI_REQ_DLY]  = lan743x_csr_read(adapter,
+						       MAC_EEE_TX_LPI_REQ_DLY_CNT);
+	rb[ETH_WUCSR]      = lan743x_csr_read(adapter, MAC_WUCSR);
+	rb[ETH_WK_SRC]     = lan743x_csr_read(adapter, MAC_WK_SRC);
+}
+
+static int lan743x_get_regs_len(struct net_device *dev)
+{
+	return MAX_LAN743X_ETH_REGS * sizeof(u32);
+}
+
+static void lan743x_get_regs(struct net_device *dev,
+			     struct ethtool_regs *regs, void *p)
+{
+	regs->version = LAN743X_ETH_REG_VERSION;
+
+	lan743x_common_regs(dev, regs, p);
+}
+
 const struct ethtool_ops lan743x_ethtool_ops = {
 	.get_drvinfo = lan743x_ethtool_get_drvinfo,
 	.get_msglevel = lan743x_ethtool_get_msglevel,
@@ -1202,6 +1245,8 @@ const struct ethtool_ops lan743x_ethtool_ops = {
 	.set_eee = lan743x_ethtool_set_eee,
 	.get_link_ksettings = phy_ethtool_get_link_ksettings,
 	.set_link_ksettings = phy_ethtool_set_link_ksettings,
+	.get_regs_len = lan743x_get_regs_len,
+	.get_regs = lan743x_get_regs,
 #ifdef CONFIG_PM
 	.get_wol = lan743x_ethtool_get_wol,
 	.set_wol = lan743x_ethtool_set_wol,
