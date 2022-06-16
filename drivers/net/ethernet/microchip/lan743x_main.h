@@ -43,6 +43,11 @@
 #define STRAP_READ_ADV_PM_DISABLE_	BIT(0)
 
 #define HW_CFG					(0x010)
+#define HW_CFG_RST_PROTECT_PCIE_		BIT(19)
+#define HW_CFG_HOT_RESET_DIS_			BIT(15)
+#define HW_CFG_D3_VAUX_OVR_			BIT(14)
+#define HW_CFG_D3_RESET_DIS_			BIT(13)
+#define HW_CFG_RST_PROTECT_			BIT(12)
 #define HW_CFG_RELOAD_TYPE_ALL_			(0x00000FC0)
 #define HW_CFG_EE_OTP_RELOAD_			BIT(4)
 #define HW_CFG_LRST_				BIT(1)
@@ -214,6 +219,7 @@
 #define MAC_EEE_TX_LPI_REQ_DLY_CNT		(0x130)
 
 #define MAC_WUCSR				(0x140)
+#define MAC_MP_SO_EN_				BIT(21)
 #define MAC_WUCSR_RFE_WAKE_EN_			BIT(14)
 #define MAC_WUCSR_PFDA_EN_			BIT(3)
 #define MAC_WUCSR_WAKE_EN_			BIT(2)
@@ -221,6 +227,8 @@
 #define MAC_WUCSR_BCST_EN_			BIT(0)
 
 #define MAC_WK_SRC				(0x144)
+#define MAC_MP_SO_HI				(0x148)
+#define MAC_MP_SO_LO				(0x14C)
 
 #define MAC_WUF_CFG0			(0x150)
 #define MAC_NUM_OF_WUF_CFG		(32)
@@ -912,6 +920,7 @@ struct lan743x_adapter {
 	int                     msg_enable;
 #ifdef CONFIG_PM
 	u32			wolopts;
+	u8			sopass[SOPASS_MAX];
 #endif
 	struct pci_dev		*pdev;
 	struct lan743x_csr      csr;
@@ -937,6 +946,7 @@ struct lan743x_adapter {
 
 #define LAN743X_ADAPTER_FLAG_OTP		BIT(0)
 	u32			flags;
+	u32			hw_cfg;
 };
 
 #define LAN743X_COMPONENT_FLAG_RX(channel)  BIT(20 + (channel))

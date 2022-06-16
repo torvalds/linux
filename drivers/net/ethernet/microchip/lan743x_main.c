@@ -3124,6 +3124,7 @@ static void lan743x_pm_set_wol(struct lan743x_adapter *adapter)
 	const u8 ipv6_multicast[3] = { 0x33, 0x33 };
 	const u8 arp_type[2] = { 0x08, 0x06 };
 	int mask_index;
+	u32 sopass;
 	u32 pmtctl;
 	u32 wucsr;
 	u32 macrx;
@@ -3218,6 +3219,14 @@ static void lan743x_pm_set_wol(struct lan743x_adapter *adapter)
 		pmtctl |= PMT_CTL_RX_FCT_RFE_D3_CLK_OVR_;
 	}
 
+	if (adapter->wolopts & WAKE_MAGICSECURE) {
+		sopass = *(u32 *)adapter->sopass;
+		lan743x_csr_write(adapter, MAC_MP_SO_LO, sopass);
+		sopass = *(u16 *)&adapter->sopass[4];
+		lan743x_csr_write(adapter, MAC_MP_SO_HI, sopass);
+		wucsr |= MAC_MP_SO_EN_;
+	}
+
 	lan743x_csr_write(adapter, MAC_WUCSR, wucsr);
 	lan743x_csr_write(adapter, PMT_CTL, pmtctl);
 	lan743x_csr_write(adapter, MAC_RX, macrx);
@@ -3228,6 +3237,7 @@ static int lan743x_pm_suspend(struct device *dev)
 	struct pci_dev *pdev = to_pci_dev(dev);
 	struct net_device *netdev = pci_get_drvdata(pdev);
 	struct lan743x_adapter *adapter = netdev_priv(netdev);
+	u32 data;
 
 	lan743x_pcidev_shutdown(pdev);
 
@@ -3238,6 +3248,18 @@ static int lan743x_pm_suspend(struct device *dev)
 
 	if (adapter->wolopts)
 		lan743x_pm_set_wol(adapter);
+
+	if (adapter->is_pci11x1x) {
+		/* Save HW_CFG to config again in PM resume */
+		data = lan743x_csr_read(adapter, HW_CFG);
+		adapter->hw_cfg = data;
+		data |= (HW_CFG_RST_PROTECT_PCIE_ |
+			 HW_CFG_D3_RESET_DIS_ |
+			 HW_CFG_D3_VAUX_OVR_ |
+			 HW_CFG_HOT_RESET_DIS_ |
+			 HW_CFG_RST_PROTECT_);
+		lan743x_csr_write(adapter, HW_CFG, data);
+	}
 
 	/* Host sets PME_En, put D3hot */
 	return pci_prepare_to_sleep(pdev);
@@ -3253,6 +3275,10 @@ static int lan743x_pm_resume(struct device *dev)
 	pci_set_power_state(pdev, PCI_D0);
 	pci_restore_state(pdev);
 	pci_save_state(pdev);
+
+	/* Restore HW_CFG that was saved during pm suspend */
+	if (adapter->is_pci11x1x)
+		lan743x_csr_write(adapter, HW_CFG, adapter->hw_cfg);
 
 	ret = lan743x_hardware_init(adapter, pdev);
 	if (ret) {
@@ -3270,6 +3296,9 @@ static int lan743x_pm_resume(struct device *dev)
 		lan743x_netdev_open(netdev);
 
 	netif_device_attach(netdev);
+	ret = lan743x_csr_read(adapter, MAC_WK_SRC);
+	netif_info(adapter, drv, adapter->netdev,
+		   "Wakeup source : 0x%08X\n", ret);
 
 	return 0;
 }

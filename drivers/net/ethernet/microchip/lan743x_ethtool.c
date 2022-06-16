@@ -1149,7 +1149,12 @@ static void lan743x_ethtool_get_wol(struct net_device *netdev,
 	wol->supported |= WAKE_BCAST | WAKE_UCAST | WAKE_MCAST |
 		WAKE_MAGIC | WAKE_PHY | WAKE_ARP;
 
+	if (adapter->is_pci11x1x)
+		wol->supported |= WAKE_MAGICSECURE;
+
 	wol->wolopts |= adapter->wolopts;
+	if (adapter->wolopts & WAKE_MAGICSECURE)
+		memcpy(wol->sopass, adapter->sopass, sizeof(wol->sopass));
 }
 
 static int lan743x_ethtool_set_wol(struct net_device *netdev,
@@ -1170,6 +1175,13 @@ static int lan743x_ethtool_set_wol(struct net_device *netdev,
 		adapter->wolopts |= WAKE_PHY;
 	if (wol->wolopts & WAKE_ARP)
 		adapter->wolopts |= WAKE_ARP;
+	if (wol->wolopts & WAKE_MAGICSECURE &&
+	    wol->wolopts & WAKE_MAGIC) {
+		memcpy(adapter->sopass, wol->sopass, sizeof(wol->sopass));
+		adapter->wolopts |= WAKE_MAGICSECURE;
+	} else {
+		memset(adapter->sopass, 0, sizeof(u8) * SOPASS_MAX);
+	}
 
 	device_set_wakeup_enable(&adapter->pdev->dev, (bool)wol->wolopts);
 
