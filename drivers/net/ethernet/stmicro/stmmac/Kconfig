@@ -83,7 +83,6 @@ config DWMAC_IPQ806X
 	default ARCH_QCOM
 	depends on OF && (ARCH_QCOM || COMPILE_TEST)
 	select MFD_SYSCON
-	select QCOM_SOCINFO
 	help
 	  Support for QCA IPQ806X DWMAC Ethernet.
 
@@ -91,6 +90,9 @@ config DWMAC_IPQ806X
 	  device driver. This driver does not use any of the hardware
 	  acceleration features available on this SoC. Network devices
 	  will behave like standard non-accelerated ethernet interfaces.
+
+	  Select the QCOM_SOCINFO config flag to enable specific dwmac
+	  fixup based on the ipq806x SoC revision.
 
 config DWMAC_LPC18XX
 	tristate "NXP LPC18xx/43xx DWMAC support"
