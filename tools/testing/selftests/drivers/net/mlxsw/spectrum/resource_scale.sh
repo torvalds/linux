@@ -47,12 +47,21 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
 			# changed following the test setup.
 			target=$(${current_test}_get_target "$should_fail")
 			${current_test}_test "$target" "$should_fail"
-			${current_test}_cleanup
 			if [[ "$should_fail" -eq 0 ]]; then
 				log_test "'$current_test' [$profile] $target"
+
+				if ((!RET)); then
+					tt=${current_test}_traffic_test
+					if [[ $(type -t $tt) == "function" ]]
+					then
+						$tt "$target"
+						log_test "'$current_test' [$profile] $target traffic test"
+					fi
+				fi
 			else
 				log_test "'$current_test' [$profile] overflow $target"
 			fi
+			${current_test}_cleanup
 			RET_FIN=$(( RET_FIN || RET ))
 		done
 	done
