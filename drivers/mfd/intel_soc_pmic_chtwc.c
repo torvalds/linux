@@ -179,18 +179,13 @@ static int cht_wc_probe(struct i2c_client *client)
 	int ret;
 
 	status = acpi_evaluate_integer(ACPI_HANDLE(dev), "_HRV", NULL, &hrv);
-	if (ACPI_FAILURE(status)) {
-		dev_err(dev, "Failed to get PMIC hardware revision\n");
-		return -ENODEV;
-	}
-	if (hrv != CHT_WC_HRV) {
-		dev_err(dev, "Invalid PMIC hardware revision: %llu\n", hrv);
-		return -ENODEV;
-	}
-	if (client->irq < 0) {
-		dev_err(dev, "Invalid IRQ\n");
-		return -EINVAL;
-	}
+	if (ACPI_FAILURE(status))
+		return dev_err_probe(dev, -ENODEV, "Failed to get PMIC hardware revision\n");
+	if (hrv != CHT_WC_HRV)
+		return dev_err_probe(dev, -ENODEV, "Invalid PMIC hardware revision: %llu\n", hrv);
+
+	if (client->irq < 0)
+		return dev_err_probe(dev, -EINVAL, "Invalid IRQ\n");
 
 	pmic = devm_kzalloc(dev, sizeof(*pmic), GFP_KERNEL);
 	if (!pmic)
