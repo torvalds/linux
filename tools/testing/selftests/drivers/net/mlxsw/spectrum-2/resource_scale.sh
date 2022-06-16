@@ -60,7 +60,7 @@ for current_test in ${TESTS:-$ALL_TESTS}; do
 		else
 			log_test "'$current_test' overflow $target"
 		fi
-		${current_test}_cleanup
+		${current_test}_cleanup $target
 		devlink_reload
 		RET_FIN=$(( RET_FIN || RET ))
 	done
