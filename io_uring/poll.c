@@ -649,7 +649,8 @@ static int __io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 	return req ? 0 : -ENOENT;
 }
 
-int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd)
+int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
+		   unsigned issue_flags)
 {
 	return __io_poll_cancel(ctx, cd, &ctx->cancel_table);
 }

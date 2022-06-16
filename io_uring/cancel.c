@@ -78,7 +78,8 @@ static int io_async_cancel_one(struct io_uring_task *tctx,
 	return ret;
 }
 
-int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd)
+int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd,
+		  unsigned issue_flags)
 {
 	struct io_ring_ctx *ctx = req->ctx;
 	int ret;
@@ -93,7 +94,7 @@ int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd)
 	if (!ret)
 		return 0;
 
-	ret = io_poll_cancel(ctx, cd);
+	ret = io_poll_cancel(ctx, cd, issue_flags);
 	if (ret != -ENOENT)
 		return ret;
 
@@ -136,7 +137,7 @@ static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
 	int ret, nr = 0;
 
 	do {
-		ret = io_try_cancel(req, cd);
+		ret = io_try_cancel(req, cd, issue_flags);
 		if (ret == -ENOENT)
 			break;
 		if (!all)
