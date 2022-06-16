@@ -832,7 +832,7 @@ intel_plane_fence_y_offset(const struct intel_plane_state *plane_state)
 }
 
 static int
-__intel_display_resume(struct drm_device *dev,
+__intel_display_resume(struct drm_i915_private *i915,
 		       struct drm_atomic_state *state,
 		       struct drm_modeset_acquire_ctx *ctx)
 {
@@ -840,8 +840,8 @@ __intel_display_resume(struct drm_device *dev,
 	struct drm_crtc *crtc;
 	int i, ret;
 
-	intel_modeset_setup_hw_state(dev, ctx);
-	intel_vga_redisable(to_i915(dev));
+	intel_modeset_setup_hw_state(&i915->drm, ctx);
+	intel_vga_redisable(i915);
 
 	if (!state)
 		return 0;
@@ -861,12 +861,13 @@ __intel_display_resume(struct drm_device *dev,
 	}
 
 	/* ignore any reset values/BIOS leftovers in the WM registers */
-	if (!HAS_GMCH(to_i915(dev)))
+	if (!HAS_GMCH(i915))
 		to_intel_atomic_state(state)->skip_intermediate_wm = true;
 
 	ret = drm_atomic_helper_commit_duplicated_state(state, ctx);
 
-	drm_WARN_ON(dev, ret == -EDEADLK);
+	drm_WARN_ON(&i915->drm, ret == -EDEADLK);
+
 	return ret;
 }
 
@@ -939,56 +940,55 @@ void intel_display_prepare_reset(struct drm_i915_private *dev_priv)
 	state->acquire_ctx = ctx;
 }
 
-void intel_display_finish_reset(struct drm_i915_private *dev_priv)
+void intel_display_finish_reset(struct drm_i915_private *i915)
 {
-	struct drm_device *dev = &dev_priv->drm;
-	struct drm_modeset_acquire_ctx *ctx = &dev_priv->reset_ctx;
+	struct drm_modeset_acquire_ctx *ctx = &i915->reset_ctx;
 	struct drm_atomic_state *state;
 	int ret;
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(i915))
 		return;
 
 	/* reset doesn't touch the display */
-	if (!test_bit(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags))
+	if (!test_bit(I915_RESET_MODESET, &to_gt(i915)->reset.flags))
 		return;
 
-	state = fetch_and_zero(&dev_priv->modeset_restore_state);
+	state = fetch_and_zero(&i915->modeset_restore_state);
 	if (!state)
 		goto unlock;
 
 	/* reset doesn't touch the display */
-	if (!gpu_reset_clobbers_display(dev_priv)) {
+	if (!gpu_reset_clobbers_display(i915)) {
 		/* for testing only restore the display */
-		ret = __intel_display_resume(dev, state, ctx);
+		ret = __intel_display_resume(i915, state, ctx);
 		if (ret)
-			drm_err(&dev_priv->drm,
+			drm_err(&i915->drm,
 				"Restoring old state failed with %i\n", ret);
 	} else {
 		/*
 		 * The display has been reset as well,
 		 * so need a full re-initialization.
 		 */
-		intel_pps_unlock_regs_wa(dev_priv);
-		intel_modeset_init_hw(dev_priv);
-		intel_init_clock_gating(dev_priv);
-		intel_hpd_init(dev_priv);
+		intel_pps_unlock_regs_wa(i915);
+		intel_modeset_init_hw(i915);
+		intel_init_clock_gating(i915);
+		intel_hpd_init(i915);
 
-		ret = __intel_display_resume(dev, state, ctx);
+		ret = __intel_display_resume(i915, state, ctx);
 		if (ret)
-			drm_err(&dev_priv->drm,
+			drm_err(&i915->drm,
 				"Restoring old state failed with %i\n", ret);
 
-		intel_hpd_poll_disable(dev_priv);
+		intel_hpd_poll_disable(i915);
 	}
 
 	drm_atomic_state_put(state);
 unlock:
 	drm_modeset_drop_locks(ctx);
 	drm_modeset_acquire_fini(ctx);
-	mutex_unlock(&dev->mode_config.mutex);
+	mutex_unlock(&i915->drm.mode_config.mutex);
 
-	clear_bit_unlock(I915_RESET_MODESET, &to_gt(dev_priv)->reset.flags);
+	clear_bit_unlock(I915_RESET_MODESET, &to_gt(i915)->reset.flags);
 }
 
 static void icl_set_pipe_chicken(const struct intel_crtc_state *crtc_state)
@@ -9632,15 +9632,15 @@ intel_modeset_setup_hw_state(struct drm_device *dev,
 
 void intel_display_resume(struct drm_device *dev)
 {
-	struct drm_i915_private *dev_priv = to_i915(dev);
-	struct drm_atomic_state *state = dev_priv->modeset_restore_state;
+	struct drm_i915_private *i915 = to_i915(dev);
+	struct drm_atomic_state *state = i915->modeset_restore_state;
 	struct drm_modeset_acquire_ctx ctx;
 	int ret;
 
-	if (!HAS_DISPLAY(dev_priv))
+	if (!HAS_DISPLAY(i915))
 		return;
 
-	dev_priv->modeset_restore_state = NULL;
+	i915->modeset_restore_state = NULL;
 	if (state)
 		state->acquire_ctx = &ctx;
 
@@ -9655,14 +9655,14 @@ void intel_display_resume(struct drm_device *dev)
 	}
 
 	if (!ret)
-		ret = __intel_display_resume(dev, state, &ctx);
+		ret = __intel_display_resume(i915, state, &ctx);
 
-	intel_enable_ipc(dev_priv);
+	intel_enable_ipc(i915);
 	drm_modeset_drop_locks(&ctx);
 	drm_modeset_acquire_fini(&ctx);
 
 	if (ret)
-		drm_err(&dev_priv->drm,
+		drm_err(&i915->drm,
 			"Restoring old state failed with %i\n", ret);
 	if (state)
 		drm_atomic_state_put(state);
