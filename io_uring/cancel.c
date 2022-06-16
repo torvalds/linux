@@ -95,12 +95,12 @@ int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd)
 
 	ret = io_poll_cancel(ctx, cd);
 	if (ret != -ENOENT)
-		goto out;
+		return ret;
+
 	spin_lock(&ctx->completion_lock);
 	if (!(cd->flags & IORING_ASYNC_CANCEL_FD))
 		ret = io_timeout_cancel(ctx, cd);
 	spin_unlock(&ctx->completion_lock);
-out:
 	return ret;
 }
 
