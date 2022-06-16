@@ -98,7 +98,7 @@
 		vin-supply = <&v1_5dreg>;
 	};
 
-	gpio_keys: gpio_keys {
+	gpio_keys: gpio-keys {
 		compatible = "gpio-keys";
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pins_default>;
