@@ -209,10 +209,10 @@ static void admac_cyclic_write_one_desc(struct admac_data *ad, int channo,
 	dev_dbg(ad->dev, "ch%d descriptor: addr=0x%pad len=0x%zx flags=0x%lx\n",
 		channo, &addr, tx->period_len, FLAG_DESC_NOTIFY);
 
-	writel_relaxed(addr,             ad->base + REG_DESC_WRITE(channo));
-	writel_relaxed(addr >> 32,       ad->base + REG_DESC_WRITE(channo));
-	writel_relaxed(tx->period_len,   ad->base + REG_DESC_WRITE(channo));
-	writel_relaxed(FLAG_DESC_NOTIFY, ad->base + REG_DESC_WRITE(channo));
+	writel_relaxed(lower_32_bits(addr), ad->base + REG_DESC_WRITE(channo));
+	writel_relaxed(upper_32_bits(addr), ad->base + REG_DESC_WRITE(channo));
+	writel_relaxed(tx->period_len,      ad->base + REG_DESC_WRITE(channo));
+	writel_relaxed(FLAG_DESC_NOTIFY,    ad->base + REG_DESC_WRITE(channo));
 
 	tx->submitted_pos += tx->period_len;
 	tx->submitted_pos %= 2 * tx->buf_len;
