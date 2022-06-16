@@ -104,7 +104,7 @@ Whenever possible, use the PHY side RGMII delay for these reasons:
 
 * PHY device drivers in PHYLIB being reusable by nature, being able to
   configure correctly a specified delay enables more designs with similar delay
-  requirements to be operate correctly
+  requirements to be operated correctly
 
 For cases where the PHY is not capable of providing this delay, but the
 Ethernet MAC driver is capable of doing so, the correct phy_interface_t value
