@@ -624,6 +624,49 @@ static struct stripe_head *__find_stripe(struct r5conf *conf, sector_t sector,
 	return NULL;
 }
 
+static struct stripe_head *find_get_stripe(struct r5conf *conf,
+		sector_t sector, short generation, int hash)
+{
+	int inc_empty_inactive_list_flag;
+	struct stripe_head *sh;
+
+	sh = __find_stripe(conf, sector, generation);
+	if (!sh)
+		return NULL;
+
+	if (atomic_inc_not_zero(&sh->count))
+		return sh;
+
+	/*
+	 * Slow path. The reference count is zero which means the stripe must
+	 * be on a list (sh->lru). Must remove the stripe from the list that
+	 * references it with the device_lock held.
+	 */
+
+	spin_lock(&conf->device_lock);
+	if (!atomic_read(&sh->count)) {
+		if (!test_bit(STRIPE_HANDLE, &sh->state))
+			atomic_inc(&conf->active_stripes);
+		BUG_ON(list_empty(&sh->lru) &&
+		       !test_bit(STRIPE_EXPANDING, &sh->state));
+		inc_empty_inactive_list_flag = 0;
+		if (!list_empty(conf->inactive_list + hash))
+			inc_empty_inactive_list_flag = 1;
+		list_del_init(&sh->lru);
+		if (list_empty(conf->inactive_list + hash) &&
+		    inc_empty_inactive_list_flag)
+			atomic_inc(&conf->empty_inactive_list_nr);
+		if (sh->group) {
+			sh->group->stripes_cnt--;
+			sh->group = NULL;
+		}
+	}
+	atomic_inc(&sh->count);
+	spin_unlock(&conf->device_lock);
+
+	return sh;
+}
+
 /*
  * Need to check if array has failed when deciding whether to:
  *  - start an array
@@ -716,7 +759,6 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 {
 	struct stripe_head *sh;
 	int hash = stripe_hash_locks_hash(conf, sector);
-	int inc_empty_inactive_list_flag;
 
 	pr_debug("get_stripe, sector %llu\n", (unsigned long long)sector);
 
@@ -726,57 +768,34 @@ raid5_get_active_stripe(struct r5conf *conf, sector_t sector,
 		wait_event_lock_irq(conf->wait_for_quiescent,
 				    conf->quiesce == 0 || noquiesce,
 				    *(conf->hash_locks + hash));
-		sh = __find_stripe(conf, sector, conf->generation - previous);
-		if (!sh) {
-			if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state)) {
-				sh = get_free_stripe(conf, hash);
-				if (!sh && !test_bit(R5_DID_ALLOC,
-						     &conf->cache_state))
-					set_bit(R5_ALLOC_MORE,
-						&conf->cache_state);
-			}
-			if (noblock && sh == NULL)
-				break;
+		sh = find_get_stripe(conf, sector, conf->generation - previous,
+				     hash);
+		if (sh)
+			break;
 
-			r5c_check_stripe_cache_usage(conf);
-			if (!sh) {
-				set_bit(R5_INACTIVE_BLOCKED,
-					&conf->cache_state);
-				r5l_wake_reclaim(conf->log, 0);
-				wait_event_lock_irq(
-					conf->wait_for_stripe,
+		if (!test_bit(R5_INACTIVE_BLOCKED, &conf->cache_state)) {
+			sh = get_free_stripe(conf, hash);
+			if (!sh && !test_bit(R5_DID_ALLOC, &conf->cache_state))
+				set_bit(R5_ALLOC_MORE, &conf->cache_state);
+		}
+		if (noblock && !sh)
+			break;
+
+		r5c_check_stripe_cache_usage(conf);
+		if (!sh) {
+			set_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
+			r5l_wake_reclaim(conf->log, 0);
+			wait_event_lock_irq(conf->wait_for_stripe,
 					!list_empty(conf->inactive_list + hash) &&
 					(atomic_read(&conf->active_stripes)
 					 < (conf->max_nr_stripes * 3 / 4)
 					 || !test_bit(R5_INACTIVE_BLOCKED,
 						      &conf->cache_state)),
 					*(conf->hash_locks + hash));
-				clear_bit(R5_INACTIVE_BLOCKED,
-					  &conf->cache_state);
-			} else {
-				init_stripe(sh, sector, previous);
-				atomic_inc(&sh->count);
-			}
-		} else if (!atomic_inc_not_zero(&sh->count)) {
-			spin_lock(&conf->device_lock);
-			if (!atomic_read(&sh->count)) {
-				if (!test_bit(STRIPE_HANDLE, &sh->state))
-					atomic_inc(&conf->active_stripes);
-				BUG_ON(list_empty(&sh->lru) &&
-				       !test_bit(STRIPE_EXPANDING, &sh->state));
-				inc_empty_inactive_list_flag = 0;
-				if (!list_empty(conf->inactive_list + hash))
-					inc_empty_inactive_list_flag = 1;
-				list_del_init(&sh->lru);
-				if (list_empty(conf->inactive_list + hash) && inc_empty_inactive_list_flag)
-					atomic_inc(&conf->empty_inactive_list_nr);
-				if (sh->group) {
-					sh->group->stripes_cnt--;
-					sh->group = NULL;
-				}
-			}
+			clear_bit(R5_INACTIVE_BLOCKED, &conf->cache_state);
+		} else {
+			init_stripe(sh, sector, previous);
 			atomic_inc(&sh->count);
-			spin_unlock(&conf->device_lock);
 		}
 	} while (sh == NULL);
 
@@ -830,7 +849,6 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 	sector_t head_sector, tmp_sec;
 	int hash;
 	int dd_idx;
-	int inc_empty_inactive_list_flag;
 
 	/* Don't cross chunks, so stripe pd_idx/qd_idx is the same */
 	tmp_sec = sh->sector;
@@ -840,28 +858,7 @@ static void stripe_add_to_batch_list(struct r5conf *conf, struct stripe_head *sh
 
 	hash = stripe_hash_locks_hash(conf, head_sector);
 	spin_lock_irq(conf->hash_locks + hash);
-	head = __find_stripe(conf, head_sector, conf->generation);
-	if (head && !atomic_inc_not_zero(&head->count)) {
-		spin_lock(&conf->device_lock);
-		if (!atomic_read(&head->count)) {
-			if (!test_bit(STRIPE_HANDLE, &head->state))
-				atomic_inc(&conf->active_stripes);
-			BUG_ON(list_empty(&head->lru) &&
-			       !test_bit(STRIPE_EXPANDING, &head->state));
-			inc_empty_inactive_list_flag = 0;
-			if (!list_empty(conf->inactive_list + hash))
-				inc_empty_inactive_list_flag = 1;
-			list_del_init(&head->lru);
-			if (list_empty(conf->inactive_list + hash) && inc_empty_inactive_list_flag)
-				atomic_inc(&conf->empty_inactive_list_nr);
-			if (head->group) {
-				head->group->stripes_cnt--;
-				head->group = NULL;
-			}
-		}
-		atomic_inc(&head->count);
-		spin_unlock(&conf->device_lock);
-	}
+	head = find_get_stripe(conf, head_sector, conf->generation, hash);
 	spin_unlock_irq(conf->hash_locks + hash);
 
 	if (!head)
