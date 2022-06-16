@@ -1207,6 +1207,16 @@ int rockchip_dmcfreq_wait_complete(void)
 	wait_event_timeout(wait_ctrl.wait_wq, (wait_ctrl.wait_flag == 0),
 			   msecs_to_jiffies(wait_ctrl.wait_time_out_ms));
 
+	/*
+	 * If waiting for wait_ctrl.complt_irq times out, clear the IRQ and stop the MCU by
+	 * sip_smc_dram(DRAM_POST_SET_RATE).
+	 */
+	if (wait_ctrl.dcf_en == 2 && wait_ctrl.wait_flag != 0) {
+		res = sip_smc_dram(SHARE_PAGE_TYPE_DDR, 0, ROCKCHIP_SIP_CONFIG_DRAM_POST_SET_RATE);
+		if (res.a0)
+			pr_err("%s: dram post set rate error:%lx\n", __func__, res.a0);
+	}
+
 	cpu_latency_qos_update_request(&pm_qos, PM_QOS_DEFAULT_VALUE);
 	disable_irq(wait_ctrl.complt_irq);
 
