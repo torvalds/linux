@@ -16,6 +16,7 @@
 #include <linux/of.h>
 #include <linux/platform_device.h>
 #include <linux/pm_runtime.h>
+#include <linux/string_helpers.h>
 
 #include "stm32-dac-core.h"
 
@@ -81,8 +82,7 @@ static int stm32_dac_set_enable_state(struct iio_dev *indio_dev, int ch,
 	ret = regmap_update_bits(dac->common->regmap, STM32_DAC_CR, msk, en);
 	mutex_unlock(&dac->lock);
 	if (ret < 0) {
-		dev_err(&indio_dev->dev, "%s failed\n", en ?
-			"Enable" : "Disable");
+		dev_err(&indio_dev->dev, "%s failed\n", str_enable_disable(en));
 		goto err_put_pm;
 	}
 
