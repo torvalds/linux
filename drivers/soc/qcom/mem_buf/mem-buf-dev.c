@@ -168,3 +168,4 @@ module_exit(mem_buf_dev_exit);
 
 MODULE_DESCRIPTION("Qualcomm Technologies, Inc. Memory Buffer Sharing driver");
 MODULE_LICENSE("GPL");
+MODULE_IMPORT_NS(DMA_BUF);
