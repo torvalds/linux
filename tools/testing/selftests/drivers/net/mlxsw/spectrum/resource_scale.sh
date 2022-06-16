@@ -22,7 +22,16 @@ cleanup()
 devlink_sp_read_kvd_defaults
 trap cleanup EXIT
 
-ALL_TESTS="router tc_flower mirror_gre tc_police port rif_mac_profile"
+ALL_TESTS="
+	router
+	tc_flower
+	mirror_gre
+	tc_police
+	port
+	rif_mac_profile
+	rif_counter
+"
+
 for current_test in ${TESTS:-$ALL_TESTS}; do
 	RET_FIN=0
 	source ${current_test}_scale.sh
