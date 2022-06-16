@@ -25,7 +25,7 @@
 		pinctrl-names = "default";
 		pinctrl-0 = <&gpio_keys_pin_a>;
 
-		volume-down {
+		key-volume-down {
 			label = "volume_down";
 			gpios = <&pma8084_gpios 2 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -33,7 +33,7 @@
 			debounce-interval = <15>;
 		};
 
-		home-key {
+		key-home {
 			label = "home_key";
 			gpios = <&pma8084_gpios 3 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
@@ -42,7 +42,7 @@
 			debounce-interval = <15>;
 		};
 
-		volume-up {
+		key-volume-up {
 			label = "volume_up";
 			gpios = <&pma8084_gpios 5 GPIO_ACTIVE_LOW>;
 			linux,input-type = <1>;
