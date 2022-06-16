@@ -222,7 +222,7 @@ static void cht_wc_shutdown(struct i2c_client *client)
 	disable_irq(pmic->irq);
 }
 
-static int __maybe_unused cht_wc_suspend(struct device *dev)
+static int cht_wc_suspend(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
@@ -231,7 +231,7 @@ static int __maybe_unused cht_wc_suspend(struct device *dev)
 	return 0;
 }
 
-static int __maybe_unused cht_wc_resume(struct device *dev)
+static int cht_wc_resume(struct device *dev)
 {
 	struct intel_soc_pmic *pmic = dev_get_drvdata(dev);
 
@@ -239,7 +239,7 @@ static int __maybe_unused cht_wc_resume(struct device *dev)
 
 	return 0;
 }
-static SIMPLE_DEV_PM_OPS(cht_wc_pm_ops, cht_wc_suspend, cht_wc_resume);
+static DEFINE_SIMPLE_DEV_PM_OPS(cht_wc_pm_ops, cht_wc_suspend, cht_wc_resume);
 
 static const struct i2c_device_id cht_wc_i2c_id[] = {
 	{ }
@@ -253,7 +253,7 @@ static const struct acpi_device_id cht_wc_acpi_ids[] = {
 static struct i2c_driver cht_wc_driver = {
 	.driver	= {
 		.name	= "CHT Whiskey Cove PMIC",
-		.pm     = &cht_wc_pm_ops,
+		.pm     = pm_sleep_ptr(&cht_wc_pm_ops),
 		.acpi_match_table = cht_wc_acpi_ids,
 	},
 	.probe_new = cht_wc_probe,
