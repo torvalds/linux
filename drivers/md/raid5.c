@@ -5919,7 +5919,6 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	const int rw = bio_data_dir(bi);
 	enum stripe_result res;
 	DEFINE_WAIT(w);
-	bool do_prepare;
 
 	if (unlikely(bi->bi_opf & REQ_PREFLUSH)) {
 		int ret = log_handle_flush_request(conf, bi);
@@ -5977,12 +5976,8 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 	for (; logical_sector < last_sector; logical_sector += RAID5_STRIPE_SECTORS(conf)) {
 		int seq;
 
-		do_prepare = false;
 	retry:
 		seq = read_seqcount_begin(&conf->gen_lock);
-		if (do_prepare)
-			prepare_to_wait(&conf->wait_for_overlap, &w,
-				TASK_UNINTERRUPTIBLE);
 
 		res = make_stripe_request(mddev, conf, &ctx, logical_sector,
 					  bi, seq);
@@ -5994,7 +5989,8 @@ static bool raid5_make_request(struct mddev *mddev, struct bio * bi)
 
 		if (res == STRIPE_SCHEDULE_AND_RETRY) {
 			schedule();
-			do_prepare = true;
+			prepare_to_wait(&conf->wait_for_overlap, &w,
+					TASK_UNINTERRUPTIBLE);
 			goto retry;
 		}
 	}
