@@ -375,6 +375,71 @@ static void test_setgid(gid_t child_gid, bool expect_success)
 	die("should not reach here\n");
 }
 
+static void test_setgroups(gid_t* child_groups, size_t len, bool expect_success)
+{
+	pid_t cpid, w;
+	int wstatus;
+	gid_t groupset[len];
+	int i, j;
+
+	cpid = fork();
+	if (cpid == -1) {
+		die("fork\n");
+	}
+
+	if (cpid == 0) {	    /* Code executed by child */
+		if (setgroups(len, child_groups) != 0)
+			exit(EXIT_FAILURE);
+		if (getgroups(len, groupset) != len)
+			exit(EXIT_FAILURE);
+		for (i = 0; i < len; i++) {
+			for (j = 0; j < len; j++) {
+				if (child_groups[i] == groupset[j])
+					break;
+				if (j == len - 1)
+					exit(EXIT_FAILURE);
+			}
+		}
+		exit(EXIT_SUCCESS);
+	} else {		 /* Code executed by parent */
+		do {
+			w = waitpid(cpid, &wstatus, WUNTRACED | WCONTINUED);
+			if (w == -1) {
+				die("waitpid\n");
+			}
+
+			if (WIFEXITED(wstatus)) {
+				if (WEXITSTATUS(wstatus) == EXIT_SUCCESS) {
+					if (expect_success) {
+						return;
+					} else {
+						die("unexpected success\n");
+					}
+				} else {
+					if (expect_success) {
+						die("unexpected failure\n");
+					} else {
+						return;
+					}
+				}
+			} else if (WIFSIGNALED(wstatus)) {
+				if (WTERMSIG(wstatus) == 9) {
+					if (expect_success)
+						die("killed unexpectedly\n");
+					else
+						return;
+				} else {
+					die("unexpected signal: %d\n", wstatus);
+				}
+			} else {
+				die("unexpected status: %d\n", wstatus);
+			}
+		} while (!WIFEXITED(wstatus) && !WIFSIGNALED(wstatus));
+	}
+
+	die("should not reach here\n");
+}
+
 
 static void ensure_users_exist(void)
 {
@@ -452,6 +517,10 @@ int main(int argc, char **argv)
 	test_setgid(ALLOWED_CHILD2_UGID, true);
 	test_setgid(NO_POLICY_UGID, false);
 
+	gid_t allowed_supp_groups[2] = {ALLOWED_CHILD1_UGID, ALLOWED_CHILD2_UGID};
+	gid_t disallowed_supp_groups[2] = {ROOT_UGID, NO_POLICY_UGID};
+	test_setgroups(allowed_supp_groups, 2, true);
+	test_setgroups(disallowed_supp_groups, 2, false);
 
 	if (!test_userns(false)) {
 		die("test_userns worked when it should fail\n");
