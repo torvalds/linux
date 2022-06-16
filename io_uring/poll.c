@@ -565,11 +565,14 @@ __cold bool io_poll_remove_all(struct io_ring_ctx *ctx, struct task_struct *tsk,
 }
 
 static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
-				     struct io_cancel_data *cd)
+				     struct io_cancel_data *cd,
+				     struct io_hash_bucket **out_bucket)
 {
 	struct io_kiocb *req;
 	u32 index = hash_long(cd->data, ctx->cancel_hash_bits);
 	struct io_hash_bucket *hb = &ctx->cancel_hash[index];
+
+	*out_bucket = NULL;
 
 	spin_lock(&hb->lock);
 	hlist_for_each_entry(req, &hb->list, hash_node) {
@@ -582,6 +585,7 @@ static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
 				continue;
 			req->work.cancel_seq = cd->seq;
 		}
+		*out_bucket = hb;
 		return req;
 	}
 	spin_unlock(&hb->lock);
@@ -589,10 +593,13 @@ static struct io_kiocb *io_poll_find(struct io_ring_ctx *ctx, bool poll_only,
 }
 
 static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
-					  struct io_cancel_data *cd)
+					  struct io_cancel_data *cd,
+					  struct io_hash_bucket **out_bucket)
 {
 	struct io_kiocb *req;
 	int i;
+
+	*out_bucket = NULL;
 
 	for (i = 0; i < (1U << ctx->cancel_hash_bits); i++) {
 		struct io_hash_bucket *hb = &ctx->cancel_hash[i];
@@ -605,6 +612,7 @@ static struct io_kiocb *io_poll_file_find(struct io_ring_ctx *ctx,
 			if (cd->seq == req->work.cancel_seq)
 				continue;
 			req->work.cancel_seq = cd->seq;
+			*out_bucket = hb;
 			return req;
 		}
 		spin_unlock(&hb->lock);
@@ -623,23 +631,19 @@ static bool io_poll_disarm(struct io_kiocb *req)
 
 int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd)
 {
+	struct io_hash_bucket *bucket;
 	struct io_kiocb *req;
-	u32 index;
-	spinlock_t *lock;
 
 	if (cd->flags & (IORING_ASYNC_CANCEL_FD|IORING_ASYNC_CANCEL_ANY))
-		req = io_poll_file_find(ctx, cd);
+		req = io_poll_file_find(ctx, cd, &bucket);
 	else
-		req = io_poll_find(ctx, false, cd);
-	if (!req) {
-		return -ENOENT;
-	} else {
-		index = hash_long(req->cqe.user_data, ctx->cancel_hash_bits);
-		lock = &ctx->cancel_hash[index].lock;
-	}
-	io_poll_cancel_req(req);
-	spin_unlock(lock);
-	return 0;
+		req = io_poll_find(ctx, false, cd, &bucket);
+
+	if (req)
+		io_poll_cancel_req(req);
+	if (bucket)
+		spin_unlock(&bucket->lock);
+	return req ? 0 : -ENOENT;
 }
 
 static __poll_t io_poll_parse_events(const struct io_uring_sqe *sqe,
@@ -732,19 +736,21 @@ int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags)
 	struct io_poll_update *poll_update = io_kiocb_to_cmd(req);
 	struct io_cancel_data cd = { .data = poll_update->old_user_data, };
 	struct io_ring_ctx *ctx = req->ctx;
-	u32 index = hash_long(cd.data, ctx->cancel_hash_bits);
-	spinlock_t *lock = &ctx->cancel_hash[index].lock;
+	struct io_hash_bucket *bucket;
 	struct io_kiocb *preq;
 	int ret2, ret = 0;
 	bool locked;
 
-	preq = io_poll_find(ctx, true, &cd);
+	preq = io_poll_find(ctx, true, &cd, &bucket);
+	if (preq)
+		ret2 = io_poll_disarm(preq);
+	if (bucket)
+		spin_unlock(&bucket->lock);
+
 	if (!preq) {
 		ret = -ENOENT;
 		goto out;
 	}
-	ret2 = io_poll_disarm(preq);
-	spin_unlock(lock);
 	if (!ret2) {
 		ret = -EALREADY;
 		goto out;
