@@ -12,13 +12,16 @@ struct mlx5_dm {
 	spinlock_t lock;
 	unsigned long *steering_sw_icm_alloc_blocks;
 	unsigned long *header_modify_sw_icm_alloc_blocks;
+	unsigned long *header_modify_pattern_sw_icm_alloc_blocks;
 };
 
 struct mlx5_dm *mlx5_dm_create(struct mlx5_core_dev *dev)
 {
+	u64 header_modify_pattern_icm_blocks = 0;
 	u64 header_modify_icm_blocks = 0;
 	u64 steering_icm_blocks = 0;
 	struct mlx5_dm *dm;
+	bool support_v2;
 
 	if (!(MLX5_CAP_GEN_64(dev, general_obj_types) & MLX5_GENERAL_OBJ_TYPES_CAP_SW_ICM))
 		return NULL;
@@ -53,7 +56,26 @@ struct mlx5_dm *mlx5_dm_create(struct mlx5_core_dev *dev)
 			goto err_modify_hdr;
 	}
 
+	support_v2 = MLX5_CAP_FLOWTABLE_NIC_RX(dev, sw_owner_v2) &&
+		     MLX5_CAP_FLOWTABLE_NIC_TX(dev, sw_owner_v2) &&
+		     MLX5_CAP64_DEV_MEM(dev, header_modify_pattern_sw_icm_start_address);
+
+	if (support_v2) {
+		header_modify_pattern_icm_blocks =
+			BIT(MLX5_CAP_DEV_MEM(dev, log_header_modify_pattern_sw_icm_size) -
+			    MLX5_LOG_SW_ICM_BLOCK_SIZE(dev));
+
+		dm->header_modify_pattern_sw_icm_alloc_blocks =
+			kcalloc(BITS_TO_LONGS(header_modify_pattern_icm_blocks),
+				sizeof(unsigned long), GFP_KERNEL);
+		if (!dm->header_modify_pattern_sw_icm_alloc_blocks)
+			goto err_pattern;
+	}
+
 	return dm;
+
+err_pattern:
+	kfree(dm->header_modify_sw_icm_alloc_blocks);
 
 err_modify_hdr:
 	kfree(dm->steering_sw_icm_alloc_blocks);
@@ -84,6 +106,14 @@ void mlx5_dm_cleanup(struct mlx5_core_dev *dev)
 							   log_header_modify_sw_icm_size) -
 				      MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))));
 		kfree(dm->header_modify_sw_icm_alloc_blocks);
+	}
+
+	if (dm->header_modify_pattern_sw_icm_alloc_blocks) {
+		WARN_ON(!bitmap_empty(dm->header_modify_pattern_sw_icm_alloc_blocks,
+				      BIT(MLX5_CAP_DEV_MEM(dev,
+							   log_header_modify_pattern_sw_icm_size) -
+					  MLX5_LOG_SW_ICM_BLOCK_SIZE(dev))));
+		kfree(dm->header_modify_pattern_sw_icm_alloc_blocks);
 	}
 
 	kfree(dm);
@@ -129,6 +159,13 @@ int mlx5_dm_sw_icm_alloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type,
 		log_icm_size = MLX5_CAP_DEV_MEM(dev,
 						log_header_modify_sw_icm_size);
 		block_map = dm->header_modify_sw_icm_alloc_blocks;
+		break;
+	case MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN:
+		icm_start_addr = MLX5_CAP64_DEV_MEM(dev,
+						    header_modify_pattern_sw_icm_start_address);
+		log_icm_size = MLX5_CAP_DEV_MEM(dev,
+						log_header_modify_pattern_sw_icm_size);
+		block_map = dm->header_modify_pattern_sw_icm_alloc_blocks;
 		break;
 	default:
 		return -EINVAL;
@@ -202,6 +239,11 @@ int mlx5_dm_sw_icm_dealloc(struct mlx5_core_dev *dev, enum mlx5_sw_icm_type type
 	case MLX5_SW_ICM_TYPE_HEADER_MODIFY:
 		icm_start_addr = MLX5_CAP64_DEV_MEM(dev, header_modify_sw_icm_start_address);
 		block_map = dm->header_modify_sw_icm_alloc_blocks;
+		break;
+	case MLX5_SW_ICM_TYPE_HEADER_MODIFY_PATTERN:
+		icm_start_addr = MLX5_CAP64_DEV_MEM(dev,
+						    header_modify_pattern_sw_icm_start_address);
+		block_map = dm->header_modify_pattern_sw_icm_alloc_blocks;
 		break;
 	default:
 		return -EINVAL;
