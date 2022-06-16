@@ -234,12 +234,8 @@ static void io_poll_task_func(struct io_kiocb *req, bool *locked)
 
 	io_poll_remove_entries(req);
 	io_poll_req_delete(req, ctx);
-	spin_lock(&ctx->completion_lock);
-	req->cqe.flags = 0;
-	__io_req_complete_post(req);
-	io_commit_cqring(ctx);
-	spin_unlock(&ctx->completion_lock);
-	io_cqring_ev_posted(ctx);
+	io_req_set_res(req, req->cqe.res, 0);
+	io_req_task_complete(req, locked);
 }
 
 static void io_apoll_task_func(struct io_kiocb *req, bool *locked)
