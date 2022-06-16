@@ -2,7 +2,7 @@
 #define IOU_REQ_REF_H
 
 #include <linux/atomic.h>
-#include "io_uring_types.h"
+#include <linux/io_uring_types.h>
 
 /*
  * Shamelessly stolen from the mm implementation of page reference checking,

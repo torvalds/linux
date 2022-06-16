@@ -22,17 +22,6 @@ struct io_kiocb;
 #endif
 #define FFS_MASK		~(FFS_NOWAIT|FFS_ISREG|FFS_SCM)
 
-struct io_fixed_file {
-	/* file * with additional FFS_* flags */
-	unsigned long file_ptr;
-};
-
-struct io_file_table {
-	struct io_fixed_file *files;
-	unsigned long *bitmap;
-	unsigned int alloc_hint;
-};
-
 bool io_alloc_file_tables(struct io_file_table *table, unsigned nr_files);
 void io_free_file_tables(struct io_file_table *table);
 

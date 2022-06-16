@@ -2,6 +2,7 @@
 #define INTERNAL_IO_WQ_H
 
 #include <linux/refcount.h>
+#include <linux/io_uring_types.h>
 
 struct io_wq;
 
@@ -18,15 +19,6 @@ enum io_wq_cancel {
 	IO_WQ_CANCEL_OK,	/* cancelled before started */
 	IO_WQ_CANCEL_RUNNING,	/* found, running, and attempted cancelled */
 	IO_WQ_CANCEL_NOTFOUND,	/* work not found */
-};
-
-struct io_wq_work_node {
-	struct io_wq_work_node *next;
-};
-
-struct io_wq_work_list {
-	struct io_wq_work_node *first;
-	struct io_wq_work_node *last;
 };
 
 #define wq_list_for_each(pos, prv, head)			\
@@ -151,13 +143,6 @@ struct io_wq_work_node *wq_stack_extract(struct io_wq_work_node *stack)
 	stack->next = node->next;
 	return node;
 }
-
-struct io_wq_work {
-	struct io_wq_work_node list;
-	unsigned flags;
-	/* place it here instead of io_kiocb as it fills padding and saves 4B */
-	int cancel_seq;
-};
 
 static inline struct io_wq_work *wq_next_work(struct io_wq_work *work)
 {

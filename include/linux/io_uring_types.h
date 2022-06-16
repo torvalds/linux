@@ -6,8 +6,32 @@
 #include <linux/bitmap.h>
 #include <uapi/linux/io_uring.h>
 
-#include "io-wq.h"
-#include "filetable.h"
+struct io_wq_work_node {
+	struct io_wq_work_node *next;
+};
+
+struct io_wq_work_list {
+	struct io_wq_work_node *first;
+	struct io_wq_work_node *last;
+};
+
+struct io_wq_work {
+	struct io_wq_work_node list;
+	unsigned flags;
+	/* place it here instead of io_kiocb as it fills padding and saves 4B */
+	int cancel_seq;
+};
+
+struct io_fixed_file {
+	/* file * with additional FFS_* flags */
+	unsigned long file_ptr;
+};
+
+struct io_file_table {
+	struct io_fixed_file *files;
+	unsigned long *bitmap;
+	unsigned int alloc_hint;
+};
 
 struct io_hash_bucket {
 	spinlock_t		lock;

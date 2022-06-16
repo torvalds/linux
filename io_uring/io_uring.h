@@ -3,7 +3,9 @@
 
 #include <linux/errno.h>
 #include <linux/lockdep.h>
-#include "io_uring_types.h"
+#include <linux/io_uring_types.h>
+#include "io-wq.h"
+#include "filetable.h"
 
 #ifndef CREATE_TRACE_POINTS
 #include <trace/events/io_uring.h>
