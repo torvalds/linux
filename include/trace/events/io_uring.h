@@ -630,6 +630,31 @@ TRACE_EVENT(io_uring_task_work_run,
 		 __entry->tctx, __entry->count, __entry->loops)
 );
 
+TRACE_EVENT(io_uring_short_write,
+
+	TP_PROTO(void *ctx, u64 fpos, u64 wanted, u64 got),
+
+	TP_ARGS(ctx, fpos, wanted, got),
+
+	TP_STRUCT__entry(
+		__field(void *,	ctx)
+		__field(u64,	fpos)
+		__field(u64,	wanted)
+		__field(u64,	got)
+	),
+
+	TP_fast_assign(
+		__entry->ctx	= ctx;
+		__entry->fpos	= fpos;
+		__entry->wanted	= wanted;
+		__entry->got	= got;
+	),
+
+	TP_printk("ring %p, fpos %lld, wanted %lld, got %lld",
+			  __entry->ctx, __entry->fpos,
+			  __entry->wanted, __entry->got)
+);
+
 #endif /* _TRACE_IO_URING_H */
 
 /* This part must be outside protection */

@@ -933,6 +933,9 @@ int io_write(struct io_kiocb *req, unsigned int issue_flags)
 		if (ret2 != req->cqe.res && ret2 >= 0 && need_complete_io(req)) {
 			struct io_async_rw *rw;
 
+			trace_io_uring_short_write(req->ctx, kiocb->ki_pos - ret2,
+						req->cqe.res, ret2);
+
 			/* This is a partial write. The file pos has already been
 			 * updated, setup the async struct to complete the request
 			 * in the worker. Also update bytes_done to account for
