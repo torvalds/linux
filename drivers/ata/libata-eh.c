@@ -802,11 +802,11 @@ void ata_port_wait_eh(struct ata_port *ap)
 }
 EXPORT_SYMBOL_GPL(ata_port_wait_eh);
 
-static int ata_eh_nr_in_flight(struct ata_port *ap)
+static unsigned int ata_eh_nr_in_flight(struct ata_port *ap)
 {
 	struct ata_queued_cmd *qc;
 	unsigned int tag;
-	int nr = 0;
+	unsigned int nr = 0;
 
 	/* count only non-internal commands */
 	ata_qc_for_each(ap, qc, tag) {
@@ -821,7 +821,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
 {
 	struct ata_port *ap = from_timer(ap, t, fastdrain_timer);
 	unsigned long flags;
-	int cnt;
+	unsigned int cnt;
 
 	spin_lock_irqsave(ap->lock, flags);
 
@@ -870,7 +870,7 @@ void ata_eh_fastdrain_timerfn(struct timer_list *t)
  */
 static void ata_eh_set_pending(struct ata_port *ap, int fastdrain)
 {
-	int cnt;
+	unsigned int cnt;
 
 	/* already scheduled? */
 	if (ap->pflags & ATA_PFLAG_EH_PENDING)
