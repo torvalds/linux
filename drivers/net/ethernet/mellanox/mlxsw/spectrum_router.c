@@ -8134,6 +8134,7 @@ mlxsw_sp_rif_create(struct mlxsw_sp *mlxsw_sp,
 		mlxsw_sp_rif_counters_alloc(rif);
 	}
 
+	atomic_inc(&mlxsw_sp->router->rifs_count);
 	return rif;
 
 err_stats_enable:
@@ -8163,6 +8164,7 @@ static void mlxsw_sp_rif_destroy(struct mlxsw_sp_rif *rif)
 	struct mlxsw_sp_vr *vr;
 	int i;
 
+	atomic_dec(&mlxsw_sp->router->rifs_count);
 	mlxsw_sp_router_rif_gone_sync(mlxsw_sp, rif);
 	vr = &mlxsw_sp->router->vrs[rif->vr_id];
 
@@ -9652,6 +9654,7 @@ mlxsw_sp_ul_rif_create(struct mlxsw_sp *mlxsw_sp, struct mlxsw_sp_vr *vr,
 	if (err)
 		goto ul_rif_op_err;
 
+	atomic_inc(&mlxsw_sp->router->rifs_count);
 	return ul_rif;
 
 ul_rif_op_err:
@@ -9664,6 +9667,7 @@ static void mlxsw_sp_ul_rif_destroy(struct mlxsw_sp_rif *ul_rif)
 {
 	struct mlxsw_sp *mlxsw_sp = ul_rif->mlxsw_sp;
 
+	atomic_dec(&mlxsw_sp->router->rifs_count);
 	mlxsw_sp_rif_ipip_lb_ul_rif_op(ul_rif, false);
 	mlxsw_sp->router->rifs[ul_rif->rif_index] = NULL;
 	kfree(ul_rif);
@@ -9819,6 +9823,7 @@ static int mlxsw_sp_rifs_init(struct mlxsw_sp *mlxsw_sp)
 
 	idr_init(&mlxsw_sp->router->rif_mac_profiles_idr);
 	atomic_set(&mlxsw_sp->router->rif_mac_profiles_count, 0);
+	atomic_set(&mlxsw_sp->router->rifs_count, 0);
 	devlink_resource_occ_get_register(devlink,
 					  MLXSW_SP_RESOURCE_RIF_MAC_PROFILES,
 					  mlxsw_sp_rif_mac_profiles_occ_get,
@@ -9832,6 +9837,7 @@ static void mlxsw_sp_rifs_fini(struct mlxsw_sp *mlxsw_sp)
 	struct devlink *devlink = priv_to_devlink(mlxsw_sp->core);
 	int i;
 
+	WARN_ON_ONCE(atomic_read(&mlxsw_sp->router->rifs_count));
 	for (i = 0; i < MLXSW_CORE_RES_GET(mlxsw_sp->core, MAX_RIFS); i++)
 		WARN_ON_ONCE(mlxsw_sp->router->rifs[i]);
 
