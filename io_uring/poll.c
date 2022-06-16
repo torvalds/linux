@@ -689,7 +689,6 @@ int io_poll_add_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	if ((flags & IORING_POLL_ADD_MULTI) && (req->flags & REQ_F_CQE_SKIP))
 		return -EINVAL;
 
-	io_req_set_refcount(req);
 	poll->events = io_poll_parse_events(sqe, flags);
 	return 0;
 }
