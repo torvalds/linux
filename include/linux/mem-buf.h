@@ -1,6 +1,7 @@
 /* SPDX-License-Identifier: GPL-2.0-only */
 /*
  *  Copyright (c) 2020-2021, The Linux Foundation. All rights reserved.
+ *  Copyright (c) 2022 Qualcomm Innovation Center, Inc. All rights reserved.
  */
 
 #ifndef _MEM_BUF_H
@@ -38,6 +39,7 @@ int mem_buf_dma_buf_set_destructor(struct dma_buf *dmabuf,
  * @nr_acl_entries: The number of ACL entries in @acl_list
  * @acl_list: A list of VMID and permission pairs that describe what VMIDs will
  * have access to the memory, and with what permissions
+ * @trans_type: One of GH_RM_TRANS_TYPE_DONATE/LEND/SHARE
  * @src_mem_type: The type of memory that the remote VM should allocate
  * (e.g. ION memory)
  * @src_data: A pointer to memory type specific data that the remote VM may need
@@ -52,6 +54,7 @@ struct mem_buf_allocation_data {
 	unsigned int nr_acl_entries;
 	int *vmids;
 	int *perms;
+	u32 trans_type;
 	enum mem_buf_mem_type src_mem_type;
 	void *src_data;
 	enum mem_buf_mem_type dst_mem_type;

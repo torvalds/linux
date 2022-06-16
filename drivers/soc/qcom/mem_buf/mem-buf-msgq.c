@@ -88,10 +88,12 @@ static void mem_buf_populate_alloc_req_arb_payload(void *dst, void *src,
  *            with what permissions.
  * @src_mem_type: The type of memory that will be used to satisfy the allocation.
  * @src_data: A pointer to auxiliary data required to satisfy the allocation.
+ * @trans_type: One of GH_RM_TRANS_TYPE_DONATE/LEND/SHARE
  */
 void *mem_buf_construct_alloc_req(void *mem_buf_txn, size_t alloc_size,
 				  struct gh_acl_desc *acl_desc,
-				  enum mem_buf_mem_type src_mem_type, void *src_data)
+				  enum mem_buf_mem_type src_mem_type, void *src_data,
+				  u32 trans_type)
 {
 	size_t tot_size, alloc_req_size, acl_desc_size;
 	void *req_buf, *arb_payload;
@@ -116,6 +118,7 @@ void *mem_buf_construct_alloc_req(void *mem_buf_txn, size_t alloc_size,
 	req->hdr.msg_size = tot_size;
 	req->size = alloc_size;
 	req->src_mem_type = src_mem_type;
+	req->trans_type = trans_type;
 	acl_desc_size = offsetof(struct gh_acl_desc,
 				 acl_entries[nr_acl_entries]);
 	memcpy(&req->acl_desc, acl_desc, acl_desc_size);
@@ -134,11 +137,10 @@ EXPORT_SYMBOL(mem_buf_construct_alloc_req);
  * @req_msg: The request message that is being replied to.
  * @alloc_ret: The return code of the allocation.
  * @memparcel_hdl: The memparcel handle that corresponds to the memory that was allocated.
- * @trans_type: The type of memory transfer associated with the response (i.e. donation,
  * sharing, or lending).
  */
 void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
-				   gh_memparcel_handle_t memparcel_hdl, u32 trans_type)
+				   gh_memparcel_handle_t memparcel_hdl)
 {
 	struct mem_buf_alloc_req *req = req_msg;
 	struct mem_buf_alloc_resp *resp_msg = kzalloc(sizeof(*resp_msg), GFP_KERNEL);
@@ -151,7 +153,6 @@ void *mem_buf_construct_alloc_resp(void *req_msg, s32 alloc_ret,
 	resp_msg->hdr.msg_size = sizeof(*resp_msg);
 	resp_msg->ret = alloc_ret;
 	resp_msg->hdl = memparcel_hdl;
-	resp_msg->trans_type = trans_type;
 
 	return resp_msg;
 }

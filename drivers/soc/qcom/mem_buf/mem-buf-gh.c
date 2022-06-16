@@ -355,7 +355,7 @@ static struct mem_buf_xfer_mem *mem_buf_process_alloc_req(void *req)
 		goto err_rmt_alloc;
 
 	if (!xfer_mem->secure_alloc) {
-		xfer_type = GH_RM_TRANS_TYPE_DONATE;
+		xfer_type = get_alloc_req_xfer_type(req);
 
 		arg.nr_acl_entries = xfer_mem->nr_acl_entries;
 		arg.vmids = xfer_mem->dst_vmids;
@@ -430,7 +430,6 @@ static void mem_buf_alloc_req_work(struct work_struct *work)
 	void *resp_msg;
 	struct mem_buf_xfer_mem *xfer_mem;
 	gh_memparcel_handle_t hdl = 0;
-	int trans_type = 0;
 	int ret;
 
 	trace_receive_alloc_req(req_msg);
@@ -443,10 +442,9 @@ static void mem_buf_alloc_req_work(struct work_struct *work)
 	} else {
 		ret = 0;
 		hdl = xfer_mem->hdl;
-		trans_type = xfer_mem->trans_type;
 	}
 
-	resp_msg = mem_buf_construct_alloc_resp(req_msg, ret, hdl, trans_type);
+	resp_msg = mem_buf_construct_alloc_resp(req_msg, ret, hdl);
 	kfree(rmt_msg->msg);
 	kfree(rmt_msg);
 	if (IS_ERR(resp_msg))
@@ -521,7 +519,6 @@ static int mem_buf_alloc_resp_hdlr(void *hdlr_data, void *msg_buf, size_t size, 
 		pr_err("%s remote allocation failed rc: %d\n", __func__, ret);
 	} else {
 		membuf->memparcel_hdl = get_alloc_resp_hdl(alloc_resp);
-		membuf->trans_type = get_alloc_resp_trans_type(alloc_resp);
 	}
 
 	kfree(msg_buf);
@@ -577,7 +574,8 @@ static int mem_buf_request_mem(struct mem_buf_desc *membuf)
 	int ret;
 
 	alloc_req_msg = mem_buf_construct_alloc_req(membuf->txn, membuf->size, membuf->acl_desc,
-						    membuf->src_mem_type, membuf->src_data);
+						    membuf->src_mem_type, membuf->src_data,
+						    membuf->trans_type);
 	if (IS_ERR(alloc_req_msg)) {
 		ret = PTR_ERR(alloc_req_msg);
 		goto out;
@@ -882,7 +880,6 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 	struct file *filp;
 	struct mem_buf_desc *membuf;
 	struct gh_sgl_desc *sgl_desc;
-	int op;
 	int perms = PERM_READ | PERM_WRITE | PERM_EXEC;
 
 	if (!(mem_buf_capability & MEM_BUF_CAP_CONSUMER))
@@ -907,6 +904,7 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 		ret = PTR_ERR(membuf->acl_desc);
 		goto err_alloc_acl_list;
 	}
+	membuf->trans_type = alloc_data->trans_type;
 	membuf->src_mem_type = alloc_data->src_mem_type;
 	membuf->dst_mem_type = alloc_data->dst_mem_type;
 
@@ -938,8 +936,8 @@ static void *mem_buf_alloc(struct mem_buf_allocation_data *alloc_data)
 	if (ret)
 		goto err_mem_req;
 
-	op = membuf->trans_type;
-	sgl_desc = mem_buf_map_mem_s2(op, &membuf->memparcel_hdl, membuf->acl_desc, VMID_HLOS);
+	sgl_desc = mem_buf_map_mem_s2(membuf->trans_type, &membuf->memparcel_hdl,
+				      membuf->acl_desc, VMID_HLOS);
 	if (IS_ERR(sgl_desc))
 		goto err_map_mem_s2;
 	membuf->sgl_desc = sgl_desc;
@@ -1174,6 +1172,7 @@ static int mem_buf_prep_alloc_data(struct mem_buf_allocation_data *alloc_data,
 	if (ret)
 		goto err_acl;
 
+	/* alloc_data->trans_type set later according to src&dest_mem_type */
 	alloc_data->src_mem_type = allocation_args->src_mem_type;
 	alloc_data->dst_mem_type = allocation_args->dst_mem_type;
 
@@ -1236,6 +1235,8 @@ int mem_buf_alloc_fd(struct mem_buf_alloc_ioctl_arg *allocation_args)
 	if (ret < 0)
 		return ret;
 
+	/* Only donate is supported currently */
+	alloc_data.trans_type = GH_RM_TRANS_TYPE_DONATE;
 	membuf = mem_buf_alloc(&alloc_data);
 	if (IS_ERR(membuf)) {
 		ret = PTR_ERR(membuf);
