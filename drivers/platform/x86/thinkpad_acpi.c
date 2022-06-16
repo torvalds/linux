@@ -64,6 +64,7 @@
 #include <linux/seq_file.h>
 #include <linux/slab.h>
 #include <linux/string.h>
+#include <linux/string_helpers.h>
 #include <linux/sysfs.h>
 #include <linux/types.h>
 #include <linux/uaccess.h>
@@ -262,8 +263,6 @@ enum tpacpi_hkey_event_t {
 #define TPACPI_DBG_BRGHT	0x0020
 #define TPACPI_DBG_MIXER	0x0040
 
-#define onoff(status, bit) ((status) & (1 << (bit)) ? "on" : "off")
-#define enabled(status, bit) ((status) & (1 << (bit)) ? "enabled" : "disabled")
 #define strlencmp(a, b) (strncmp((a), (b), strlen(b)))
 
 
@@ -1317,9 +1316,7 @@ static int tpacpi_rfk_procfs_read(const enum tpacpi_rfk_id id, struct seq_file *
 				return status;
 		}
 
-		seq_printf(m, "status:\t\t%s\n",
-				(status == TPACPI_RFK_RADIO_ON) ?
-					"enabled" : "disabled");
+		seq_printf(m, "status:\t\t%s\n", str_enabled_disabled(status == TPACPI_RFK_RADIO_ON));
 		seq_printf(m, "commands:\tenable, disable\n");
 	}
 
@@ -1346,8 +1343,7 @@ static int tpacpi_rfk_procfs_write(const enum tpacpi_rfk_id id, char *buf)
 
 	if (status != -1) {
 		tpacpi_disclose_usertask("procfs", "attempt to %s %s\n",
-				(status == TPACPI_RFK_RADIO_ON) ?
-						"enable" : "disable",
+				str_enable_disable(status == TPACPI_RFK_RADIO_ON),
 				tpacpi_rfkill_names[id]);
 		res = (tpacpi_rfkill_switches[id]->ops->set_status)(status);
 		tpacpi_rfk_update_swstate(tpacpi_rfkill_switches[id]);
@@ -3504,8 +3500,7 @@ static int __init hotkey_init(struct ibm_init_struct *iibm)
 	if (acpi_evalf(hkey_handle, &status, "WLSW", "qd")) {
 		tp_features.hotkey_wlsw = 1;
 		radiosw_state = !!status;
-		pr_info("radio switch found; radios are %s\n",
-			enabled(status, 0));
+		pr_info("radio switch found; radios are %s\n", str_enabled_disabled(status & BIT(0)));
 	}
 
 	tabletsw_state = hotkey_init_tablet_mode();
@@ -4165,7 +4160,7 @@ static int hotkey_read(struct seq_file *m)
 	if (res)
 		return res;
 
-	seq_printf(m, "status:\t\t%s\n", enabled(status, 0));
+	seq_printf(m, "status:\t\t%s\n", str_enabled_disabled(status & BIT(0)));
 	if (hotkey_all_mask) {
 		seq_printf(m, "mask:\t\t0x%08x\n", hotkey_user_mask);
 		seq_printf(m, "commands:\tenable, disable, reset, <mask>\n");
@@ -4298,9 +4293,8 @@ static int bluetooth_set_status(enum tpacpi_rfkill_state state)
 {
 	int status;
 
-	vdbg_printk(TPACPI_DBG_RFKILL,
-		"will attempt to %s bluetooth\n",
-		(state == TPACPI_RFK_RADIO_ON) ? "enable" : "disable");
+	vdbg_printk(TPACPI_DBG_RFKILL, "will attempt to %s bluetooth\n",
+		    str_enable_disable(state == TPACPI_RFK_RADIO_ON));
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_bluetoothemul) {
@@ -4664,9 +4658,8 @@ static int wan_set_status(enum tpacpi_rfkill_state state)
 {
 	int status;
 
-	vdbg_printk(TPACPI_DBG_RFKILL,
-		"will attempt to %s wwan\n",
-		(state == TPACPI_RFK_RADIO_ON) ? "enable" : "disable");
+	vdbg_printk(TPACPI_DBG_RFKILL, "will attempt to %s wwan\n",
+		    str_enable_disable(state == TPACPI_RFK_RADIO_ON));
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_wwanemul) {
@@ -4842,9 +4835,8 @@ static int uwb_set_status(enum tpacpi_rfkill_state state)
 {
 	int status;
 
-	vdbg_printk(TPACPI_DBG_RFKILL,
-		"will attempt to %s UWB\n",
-		(state == TPACPI_RFK_RADIO_ON) ? "enable" : "disable");
+	vdbg_printk(TPACPI_DBG_RFKILL, "will attempt to %s UWB\n",
+		    str_enable_disable(state == TPACPI_RFK_RADIO_ON));
 
 #ifdef CONFIG_THINKPAD_ACPI_DEBUGFACILITIES
 	if (dbg_uwbemul) {
@@ -5198,11 +5190,11 @@ static int video_read(struct seq_file *m)
 		return autosw;
 
 	seq_printf(m, "status:\t\tsupported\n");
-	seq_printf(m, "lcd:\t\t%s\n", enabled(status, 0));
-	seq_printf(m, "crt:\t\t%s\n", enabled(status, 1));
+	seq_printf(m, "lcd:\t\t%s\n", str_enabled_disabled(status & BIT(0)));
+	seq_printf(m, "crt:\t\t%s\n", str_enabled_disabled(status & BIT(1)));
 	if (video_supported == TPACPI_VIDEO_NEW)
-		seq_printf(m, "dvi:\t\t%s\n", enabled(status, 3));
-	seq_printf(m, "auto:\t\t%s\n", enabled(autosw, 0));
+		seq_printf(m, "dvi:\t\t%s\n", str_enabled_disabled(status & BIT(3)));
+	seq_printf(m, "auto:\t\t%s\n", str_enabled_disabled(autosw & BIT(0)));
 	seq_printf(m, "commands:\tlcd_enable, lcd_disable\n");
 	seq_printf(m, "commands:\tcrt_enable, crt_disable\n");
 	if (video_supported == TPACPI_VIDEO_NEW)
@@ -5633,7 +5625,7 @@ static int light_read(struct seq_file *m)
 		status = light_get_status();
 		if (status < 0)
 			return status;
-		seq_printf(m, "status:\t\t%s\n", onoff(status, 0));
+		seq_printf(m, "status:\t\t%s\n", str_on_off(status & BIT(0)));
 		seq_printf(m, "commands:\ton, off\n");
 	}
 
@@ -6089,9 +6081,7 @@ static int __init led_init(struct ibm_init_struct *iibm)
 	return 0;
 }
 
-#define str_led_status(s) \
-	((s) == TPACPI_LED_OFF ? "off" : \
-		((s) == TPACPI_LED_ON ? "on" : "blinking"))
+#define str_led_status(s)	((s) >= TPACPI_LED_BLINK ? "blinking" : str_on_off(s))
 
 static int led_read(struct seq_file *m)
 {
@@ -6108,8 +6098,7 @@ static int led_read(struct seq_file *m)
 			status = led_get_status(i);
 			if (status < 0)
 				return -EIO;
-			seq_printf(m, "%d:\t\t%s\n",
-				       i, str_led_status(status));
+			seq_printf(m, "%d:\t\t%s\n", i, str_led_status(status));
 		}
 	}
 
@@ -7831,8 +7820,7 @@ static int volume_read(struct seq_file *m)
 			seq_printf(m, "level:\t\t%d\n",
 					status & TP_EC_AUDIO_LVL_MSK);
 
-		seq_printf(m, "mute:\t\t%s\n",
-				onoff(status, TP_EC_AUDIO_MUTESW));
+		seq_printf(m, "mute:\t\t%s\n", str_on_off(status & BIT(TP_EC_AUDIO_MUTESW)));
 
 		if (volume_control_allowed) {
 			seq_printf(m, "commands:\tunmute, mute\n");
@@ -9061,7 +9049,7 @@ static int fan_read(struct seq_file *m)
 
 		seq_printf(m, "status:\t\t%s\n"
 			       "level:\t\t%d\n",
-			       (status != 0) ? "enabled" : "disabled", status);
+			       str_enabled_disabled(status), status);
 		break;
 
 	case TPACPI_FAN_RD_TPEC:
@@ -9070,8 +9058,7 @@ static int fan_read(struct seq_file *m)
 		if (rc)
 			return rc;
 
-		seq_printf(m, "status:\t\t%s\n",
-			       (status != 0) ? "enabled" : "disabled");
+		seq_printf(m, "status:\t\t%s\n", str_enabled_disabled(status));
 
 		rc = fan_get_speed(&speed);
 		if (rc < 0)
