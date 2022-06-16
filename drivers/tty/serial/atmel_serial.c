@@ -166,7 +166,6 @@ struct atmel_uart_port {
 	unsigned int		fidi_min;
 	unsigned int		fidi_max;
 
-#ifdef CONFIG_PM
 	struct {
 		u32		cr;
 		u32		mr;
@@ -177,7 +176,6 @@ struct atmel_uart_port {
 		u32		fmr;
 		u32		fimr;
 	} cache;
-#endif
 
 	int (*prepare_rx)(struct uart_port *port);
 	int (*prepare_tx)(struct uart_port *port);
@@ -2718,7 +2716,6 @@ static struct uart_driver atmel_uart = {
 	.cons		= ATMEL_CONSOLE_DEVICE,
 };
 
-#ifdef CONFIG_PM
 static bool atmel_serial_clk_will_stop(void)
 {
 #ifdef CONFIG_ARCH_AT91
@@ -2728,10 +2725,9 @@ static bool atmel_serial_clk_will_stop(void)
 #endif
 }
 
-static int atmel_serial_suspend(struct platform_device *pdev,
-				pm_message_t state)
+static int __maybe_unused atmel_serial_suspend(struct device *dev)
 {
-	struct uart_port *port = platform_get_drvdata(pdev);
+	struct uart_port *port = dev_get_drvdata(dev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 
 	if (uart_console(port) && console_suspend_enabled) {
@@ -2756,14 +2752,14 @@ static int atmel_serial_suspend(struct platform_device *pdev,
 	}
 
 	/* we can not wake up if we're running on slow clock */
-	atmel_port->may_wakeup = device_may_wakeup(&pdev->dev);
+	atmel_port->may_wakeup = device_may_wakeup(dev);
 	if (atmel_serial_clk_will_stop()) {
 		unsigned long flags;
 
 		spin_lock_irqsave(&atmel_port->lock_suspended, flags);
 		atmel_port->suspended = true;
 		spin_unlock_irqrestore(&atmel_port->lock_suspended, flags);
-		device_set_wakeup_enable(&pdev->dev, 0);
+		device_set_wakeup_enable(dev, 0);
 	}
 
 	uart_suspend_port(&atmel_uart, port);
@@ -2771,9 +2767,9 @@ static int atmel_serial_suspend(struct platform_device *pdev,
 	return 0;
 }
 
-static int atmel_serial_resume(struct platform_device *pdev)
+static int __maybe_unused atmel_serial_resume(struct device *dev)
 {
-	struct uart_port *port = platform_get_drvdata(pdev);
+	struct uart_port *port = dev_get_drvdata(dev);
 	struct atmel_uart_port *atmel_port = to_atmel_uart_port(port);
 	unsigned long flags;
 
@@ -2808,14 +2804,10 @@ static int atmel_serial_resume(struct platform_device *pdev)
 	spin_unlock_irqrestore(&atmel_port->lock_suspended, flags);
 
 	uart_resume_port(&atmel_uart, port);
-	device_set_wakeup_enable(&pdev->dev, atmel_port->may_wakeup);
+	device_set_wakeup_enable(dev, atmel_port->may_wakeup);
 
 	return 0;
 }
-#else
-#define atmel_serial_suspend NULL
-#define atmel_serial_resume NULL
-#endif
 
 static void atmel_serial_probe_fifos(struct atmel_uart_port *atmel_port,
 				     struct platform_device *pdev)
@@ -3019,14 +3011,16 @@ static int atmel_serial_remove(struct platform_device *pdev)
 	return ret;
 }
 
+static SIMPLE_DEV_PM_OPS(atmel_serial_pm_ops, atmel_serial_suspend,
+			 atmel_serial_resume);
+
 static struct platform_driver atmel_serial_driver = {
 	.probe		= atmel_serial_probe,
 	.remove		= atmel_serial_remove,
-	.suspend	= atmel_serial_suspend,
-	.resume		= atmel_serial_resume,
 	.driver		= {
 		.name			= "atmel_usart_serial",
 		.of_match_table		= of_match_ptr(atmel_serial_dt_ids),
+		.pm			= pm_ptr(&atmel_serial_pm_ops),
 	},
 };
 
