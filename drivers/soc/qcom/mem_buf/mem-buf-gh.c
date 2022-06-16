@@ -339,43 +339,6 @@ static int mem_buf_get_mem_xfer_type_gh(struct gh_acl_desc *acl_desc, int owner_
 	return GH_RM_TRANS_TYPE_LEND;
 }
 
-/*
- * Check whether donate operation is supported. If not, use
- * lend instead. Share is not supported for remotealloc.
- */
-static u32 get_alloc_req_xfer_type(struct mem_buf_xfer_mem *xfer_mem)
-{
-	static bool initialized;
-	static int alloc_req_xfer_type;
-	struct mem_buf_lend_kernel_arg arg;
-	int vmids[] = {VMID_TUIVM};
-	int perms[] = {PERM_READ | PERM_WRITE | PERM_EXEC};
-	int ret;
-
-	if (initialized)
-		return alloc_req_xfer_type;
-
-	arg.nr_acl_entries = ARRAY_SIZE(vmids);
-	arg.vmids = vmids;
-	arg.perms = perms;
-	arg.flags = 0;
-	arg.label = 0;
-
-	ret = mem_buf_assign_mem(GH_RM_TRANS_TYPE_DONATE, xfer_mem->mem_sgt, &arg);
-	if (ret) {
-		initialized = true;
-		alloc_req_xfer_type = GH_RM_TRANS_TYPE_LEND;
-	} else {
-		initialized = true;
-		alloc_req_xfer_type = GH_RM_TRANS_TYPE_DONATE;
-
-		mem_buf_unassign_mem(xfer_mem->mem_sgt, vmids, ARRAY_SIZE(vmids),
-				     arg.memparcel_hdl);
-	}
-	pr_info("%s: xfer_type set to %d\n", __func__, alloc_req_xfer_type);
-	return alloc_req_xfer_type;
-}
-
 static struct mem_buf_xfer_mem *mem_buf_process_alloc_req(void *req)
 {
 	int ret;
@@ -392,7 +355,7 @@ static struct mem_buf_xfer_mem *mem_buf_process_alloc_req(void *req)
 		goto err_rmt_alloc;
 
 	if (!xfer_mem->secure_alloc) {
-		xfer_type = get_alloc_req_xfer_type(xfer_mem);
+		xfer_type = GH_RM_TRANS_TYPE_DONATE;
 
 		arg.nr_acl_entries = xfer_mem->nr_acl_entries;
 		arg.vmids = xfer_mem->dst_vmids;
