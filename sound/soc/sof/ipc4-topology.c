@@ -804,8 +804,8 @@ static int sof_ipc4_init_audio_fmt(struct snd_sof_dev *sdev,
 		valid_bits = SOF_IPC4_AUDIO_FORMAT_CFG_V_BIT_DEPTH(fmt->fmt_cfg);
 		if (params_rate(params) == rate && params_channels(params) == channels &&
 		    sample_valid_bits == valid_bits) {
-			dev_dbg(sdev->dev, "%s: matching audio format index for %uHz, %ubit, %u channels: %d\n",
-				__func__, rate, valid_bits, channels, i);
+			dev_dbg(sdev->dev, "matching audio format index for %uHz, %ubit, %u channels: %d\n",
+				rate, valid_bits, channels, i);
 
 			/* copy ibs/obs and input format */
 			memcpy(base_config, &available_fmt->base_config[i],
@@ -919,8 +919,8 @@ static int snd_sof_get_hw_config_params(struct snd_sof_dev *sdev, struct snd_sof
 	*channel_count = le32_to_cpu(hw_config->tdm_slots);
 	*sample_rate = le32_to_cpu(hw_config->fsync_rate);
 
-	dev_dbg(sdev->dev, "%s: sample rate: %d sample width: %d channels: %d\n",
-		__func__, *sample_rate, *bit_depth, *channel_count);
+	dev_dbg(sdev->dev, "sample rate: %d sample width: %d channels: %d\n",
+		*sample_rate, *bit_depth, *channel_count);
 
 	return 0;
 }
@@ -954,8 +954,8 @@ static int snd_sof_get_nhlt_endpoint_data(struct snd_sof_dev *sdev, struct snd_s
 		return 0;
 	}
 
-	dev_dbg(sdev->dev, "%s: dai index %d nhlt type %d direction %d\n",
-		__func__, dai_index, nhlt_type, dir);
+	dev_dbg(sdev->dev, "dai index %d nhlt type %d direction %d\n",
+		dai_index, nhlt_type, dir);
 
 	/* find NHLT blob with matching params */
 	cfg = intel_nhlt_get_endpoint_blob(sdev->dev, ipc4_data->nhlt, dai_index, nhlt_type,
@@ -1005,7 +1005,7 @@ sof_ipc4_prepare_copier_module(struct snd_sof_widget *swidget,
 	u32 **data;
 	int ipc_size, ret;
 
-	dev_dbg(sdev->dev, "%s: copier %s, type %d", __func__, swidget->widget->name, swidget->id);
+	dev_dbg(sdev->dev, "copier %s, type %d", swidget->widget->name, swidget->id);
 
 	switch (swidget->id) {
 	case snd_soc_dapm_aif_in:
@@ -1446,7 +1446,7 @@ static int sof_ipc4_route_setup(struct snd_sof_dev *sdev, struct snd_sof_route *
 	int dst_queue = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "%s: bind %s -> %s\n", __func__,
+	dev_dbg(sdev->dev, "bind %s -> %s\n",
 		src_widget->widget->name, sink_widget->widget->name);
 
 	header = src_fw_module->man4_module_entry.id;
@@ -1483,7 +1483,7 @@ static int sof_ipc4_route_free(struct snd_sof_dev *sdev, struct snd_sof_route *s
 	int dst_queue = 0;
 	int ret;
 
-	dev_dbg(sdev->dev, "%s: unbind modules %s -> %s\n", __func__,
+	dev_dbg(sdev->dev, "unbind modules %s -> %s\n",
 		src_widget->widget->name, sink_widget->widget->name);
 
 	header = src_fw_module->man4_module_entry.id;
