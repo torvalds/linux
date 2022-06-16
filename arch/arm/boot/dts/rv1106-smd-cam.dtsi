@@ -171,7 +171,7 @@
 		rockchip,camera-module-index = <0>;
 		rockchip,camera-module-facing = "back";
 		rockchip,camera-module-name = "SIDA209300461";
-		rockchip,camera-module-lens-name = "VB";
+		rockchip,camera-module-lens-name = "60IRC_F20";
 
 		ir-cut = <&cam_ircut0>;
 
