@@ -179,7 +179,6 @@ void lpt_program_iclkip(const struct intel_crtc_state *crtc_state)
 	lpt_disable_iclkip(dev_priv);
 
 	lpt_compute_iclkip(&p, clock);
-	drm_WARN_ON(&dev_priv->drm, lpt_iclkip_freq(&p) != clock);
 
 	/* This should not happen with any sane values */
 	drm_WARN_ON(&dev_priv->drm, SBI_SSCDIVINTPHASE_DIVSEL(p.divsel) &
