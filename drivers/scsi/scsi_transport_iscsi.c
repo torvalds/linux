@@ -2261,6 +2261,16 @@ static int iscsi_if_stop_conn(struct iscsi_cls_conn *conn, int flag)
 {
 	ISCSI_DBG_TRANS_CONN(conn, "iscsi if conn stop.\n");
 	/*
+	 * For offload, iscsid may not know about the ep like when iscsid is
+	 * restarted or for kernel based session shutdown iscsid is not even
+	 * up. For these cases, we do the disconnect now.
+	 */
+	mutex_lock(&conn->ep_mutex);
+	if (conn->ep)
+		iscsi_if_disconnect_bound_ep(conn, conn->ep, true);
+	mutex_unlock(&conn->ep_mutex);
+
+	/*
 	 * If this is a termination we have to call stop_conn with that flag
 	 * so the correct states get set. If we haven't run the work yet try to
 	 * avoid the extra run.
@@ -2269,16 +2279,6 @@ static int iscsi_if_stop_conn(struct iscsi_cls_conn *conn, int flag)
 		cancel_work_sync(&conn->cleanup_work);
 		iscsi_stop_conn(conn, flag);
 	} else {
-		/*
-		 * For offload, when iscsid is restarted it won't know about
-		 * existing endpoints so it can't do a ep_disconnect. We clean
-		 * it up here for userspace.
-		 */
-		mutex_lock(&conn->ep_mutex);
-		if (conn->ep)
-			iscsi_if_disconnect_bound_ep(conn, conn->ep, true);
-		mutex_unlock(&conn->ep_mutex);
-
 		/*
 		 * Figure out if it was the kernel or userspace initiating this.
 		 */
