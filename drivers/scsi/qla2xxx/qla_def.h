@@ -1173,6 +1173,12 @@ static inline bool qla2xxx_is_valid_mbs(unsigned int mbs)
 
 /* ISP mailbox loopback echo diagnostic error code */
 #define MBS_LB_RESET	0x17
+
+/* AEN mailbox Port Diagnostics test */
+#define AEN_START_DIAG_TEST		0x0	/* start the diagnostics */
+#define AEN_DONE_DIAG_TEST_WITH_NOERR	0x1	/* Done with no errors */
+#define AEN_DONE_DIAG_TEST_WITH_ERR	0x2	/* Done with error.*/
+
 /*
  * Firmware options 1, 2, 3.
  */
@@ -5019,6 +5025,10 @@ typedef struct scsi_qla_host {
 	u64 short_link_down_cnt;
 	struct edif_dbell e_dbell;
 	struct pur_core pur_cinfo;
+
+#define DPORT_DIAG_IN_PROGRESS                 BIT_0
+#define DPORT_DIAG_CHIP_RESET_IN_PROGRESS      BIT_1
+	uint16_t dport_status;
 } scsi_qla_host_t;
 
 struct qla27xx_image_status {

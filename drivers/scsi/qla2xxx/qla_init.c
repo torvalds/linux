@@ -7208,6 +7208,9 @@ qla2x00_abort_isp(scsi_qla_host_t *vha)
 	if (vha->flags.online) {
 		qla2x00_abort_isp_cleanup(vha);
 
+		vha->dport_status |= DPORT_DIAG_CHIP_RESET_IN_PROGRESS;
+		vha->dport_status &= ~DPORT_DIAG_IN_PROGRESS;
+
 		if (vha->hw->flags.port_isolated)
 			return status;
 

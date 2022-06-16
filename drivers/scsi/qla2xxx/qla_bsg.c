@@ -2425,6 +2425,89 @@ qla2x00_do_dport_diagnostics(struct bsg_job *bsg_job)
 }
 
 static int
+qla2x00_do_dport_diagnostics_v2(struct bsg_job *bsg_job)
+{
+	struct fc_bsg_reply *bsg_reply = bsg_job->reply;
+	struct Scsi_Host *host = fc_bsg_to_shost(bsg_job);
+	scsi_qla_host_t *vha = shost_priv(host);
+	int rval;
+	struct qla_dport_diag_v2 *dd;
+	mbx_cmd_t mc;
+	mbx_cmd_t *mcp = &mc;
+	uint16_t options;
+
+	if (!IS_DPORT_CAPABLE(vha->hw))
+		return -EPERM;
+
+	dd = kzalloc(sizeof(*dd), GFP_KERNEL);
+	if (!dd)
+		return -ENOMEM;
+
+	sg_copy_to_buffer(bsg_job->request_payload.sg_list,
+			bsg_job->request_payload.sg_cnt, dd, sizeof(*dd));
+
+	options  = dd->options;
+
+	/*  Check dport Test in progress */
+	if (options == QLA_GET_DPORT_RESULT_V2 &&
+	    vha->dport_status & DPORT_DIAG_IN_PROGRESS) {
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
+					EXT_STATUS_DPORT_DIAG_IN_PROCESS;
+		goto dportcomplete;
+	}
+
+	/*  Check chip reset in progress and start/restart requests arrive */
+	if (vha->dport_status & DPORT_DIAG_CHIP_RESET_IN_PROGRESS &&
+	    (options == QLA_START_DPORT_TEST_V2 ||
+	     options == QLA_RESTART_DPORT_TEST_V2)) {
+		vha->dport_status &= ~DPORT_DIAG_CHIP_RESET_IN_PROGRESS;
+	}
+
+	/*  Check chip reset in progress and get result request arrive */
+	if (vha->dport_status & DPORT_DIAG_CHIP_RESET_IN_PROGRESS &&
+	    options == QLA_GET_DPORT_RESULT_V2) {
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
+					EXT_STATUS_DPORT_DIAG_NOT_RUNNING;
+		goto dportcomplete;
+	}
+
+	rval = qla26xx_dport_diagnostics_v2(vha, dd, mcp);
+
+	if (rval == QLA_SUCCESS) {
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
+					EXT_STATUS_OK;
+		if (options == QLA_START_DPORT_TEST_V2 ||
+		    options == QLA_RESTART_DPORT_TEST_V2) {
+			dd->mbx1 = mcp->mb[0];
+			dd->mbx2 = mcp->mb[1];
+			vha->dport_status |=  DPORT_DIAG_IN_PROGRESS;
+		} else if (options == QLA_GET_DPORT_RESULT_V2) {
+			dd->mbx1 = vha->dport_data[1];
+			dd->mbx2 = vha->dport_data[2];
+		}
+	} else {
+		dd->mbx1 = mcp->mb[0];
+		dd->mbx2 = mcp->mb[1];
+		bsg_reply->reply_data.vendor_reply.vendor_rsp[0] =
+				EXT_STATUS_DPORT_DIAG_ERR;
+	}
+
+dportcomplete:
+	sg_copy_from_buffer(bsg_job->reply_payload.sg_list,
+			    bsg_job->reply_payload.sg_cnt, dd, sizeof(*dd));
+
+	bsg_reply->reply_payload_rcv_len = sizeof(*dd);
+	bsg_job->reply_len = sizeof(*bsg_reply);
+	bsg_reply->result = DID_OK << 16;
+	bsg_job_done(bsg_job, bsg_reply->result,
+		     bsg_reply->reply_payload_rcv_len);
+
+	kfree(dd);
+
+	return 0;
+}
+
+static int
 qla2x00_get_flash_image_status(struct bsg_job *bsg_job)
 {
 	scsi_qla_host_t *vha = shost_priv(fc_bsg_to_shost(bsg_job));
@@ -2859,6 +2942,9 @@ qla2x00_process_vendor_specific(struct scsi_qla_host *vha, struct bsg_job *bsg_j
 
 	case QL_VND_DPORT_DIAGNOSTICS:
 		return qla2x00_do_dport_diagnostics(bsg_job);
+
+	case QL_VND_DPORT_DIAGNOSTICS_V2:
+		return qla2x00_do_dport_diagnostics_v2(bsg_job);
 
 	case QL_VND_EDIF_MGMT:
 		return qla_edif_app_mgmt(bsg_job);

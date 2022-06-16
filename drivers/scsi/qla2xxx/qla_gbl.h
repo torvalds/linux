@@ -555,6 +555,10 @@ qla2x00_dump_mctp_data(scsi_qla_host_t *, dma_addr_t, uint32_t, uint32_t);
 extern int
 qla26xx_dport_diagnostics(scsi_qla_host_t *, void *, uint, uint);
 
+extern int
+qla26xx_dport_diagnostics_v2(scsi_qla_host_t *,
+			     struct qla_dport_diag_v2 *,  mbx_cmd_t *);
+
 int qla24xx_send_mb_cmd(struct scsi_qla_host *, mbx_cmd_t *);
 int qla24xx_gpdb_wait(struct scsi_qla_host *, fc_port_t *, u8);
 int qla24xx_gidlist_wait(struct scsi_qla_host *, void *, dma_addr_t,

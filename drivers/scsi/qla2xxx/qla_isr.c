@@ -1761,6 +1761,9 @@ global_port_update:
 		break;
 
 	case MBA_DPORT_DIAGNOSTICS:
+		if ((mb[1] & 0xF) == AEN_DONE_DIAG_TEST_WITH_NOERR ||
+		    (mb[1] & 0xF) == AEN_DONE_DIAG_TEST_WITH_ERR)
+			vha->dport_status &= ~DPORT_DIAG_IN_PROGRESS;
 		ql_dbg(ql_dbg_async, vha, 0x5052,
 		    "D-Port Diagnostics: %04x %04x %04x %04x\n",
 		    mb[0], mb[1], mb[2], mb[3]);
