@@ -1013,10 +1013,30 @@ static int ufs_mtk_link_set_lpm(struct ufs_hba *hba)
 	return 0;
 }
 
-static void ufs_mtk_vreg_set_lpm(struct ufs_hba *hba, bool lpm)
+static void ufs_mtk_vccqx_set_lpm(struct ufs_hba *hba, bool lpm)
 {
 	struct ufs_vreg *vccqx = NULL;
 
+	if (hba->vreg_info.vccq)
+		vccqx = hba->vreg_info.vccq;
+	else
+		vccqx = hba->vreg_info.vccq2;
+
+	regulator_set_mode(vccqx->reg,
+			   lpm ? REGULATOR_MODE_IDLE : REGULATOR_MODE_NORMAL);
+}
+
+static void ufs_mtk_vsx_set_lpm(struct ufs_hba *hba, bool lpm)
+{
+	struct arm_smccc_res res;
+
+	ufs_mtk_device_pwr_ctrl(!lpm,
+				(unsigned long)hba->dev_info.wspecversion,
+				res);
+}
+
+static void ufs_mtk_dev_vreg_set_lpm(struct ufs_hba *hba, bool lpm)
+{
 	if (!hba->vreg_info.vccq && !hba->vreg_info.vccq2)
 		return;
 
@@ -1032,13 +1052,13 @@ static void ufs_mtk_vreg_set_lpm(struct ufs_hba *hba, bool lpm)
 	if (lpm && hba->vreg_info.vcc->enabled)
 		return;
 
-	if (hba->vreg_info.vccq)
-		vccqx = hba->vreg_info.vccq;
-	else
-		vccqx = hba->vreg_info.vccq2;
-
-	regulator_set_mode(vccqx->reg,
-			   lpm ? REGULATOR_MODE_IDLE : REGULATOR_MODE_NORMAL);
+	if (lpm) {
+		ufs_mtk_vccqx_set_lpm(hba, lpm);
+		ufs_mtk_vsx_set_lpm(hba, lpm);
+	} else {
+		ufs_mtk_vsx_set_lpm(hba, lpm);
+		ufs_mtk_vccqx_set_lpm(hba, lpm);
+	}
 }
 
 static void ufs_mtk_auto_hibern8_disable(struct ufs_hba *hba)
@@ -1105,7 +1125,7 @@ static int ufs_mtk_resume(struct ufs_hba *hba, enum ufs_pm_op pm_op)
 	int err;
 
 	if (hba->ufshcd_state != UFSHCD_STATE_OPERATIONAL)
-		ufs_mtk_vreg_set_lpm(hba, false);
+		ufs_mtk_dev_vreg_set_lpm(hba, false);
 
 	err = ufs_mtk_mphy_power_on(hba, true);
 	if (err)
@@ -1284,7 +1304,7 @@ int ufs_mtk_system_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ufs_mtk_vreg_set_lpm(hba, true);
+	ufs_mtk_dev_vreg_set_lpm(hba, true);
 
 	return 0;
 }
@@ -1293,7 +1313,7 @@ int ufs_mtk_system_resume(struct device *dev)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	ufs_mtk_vreg_set_lpm(hba, false);
+	ufs_mtk_dev_vreg_set_lpm(hba, false);
 
 	return ufshcd_system_resume(dev);
 }
@@ -1307,7 +1327,7 @@ int ufs_mtk_runtime_suspend(struct device *dev)
 	if (ret)
 		return ret;
 
-	ufs_mtk_vreg_set_lpm(hba, true);
+	ufs_mtk_dev_vreg_set_lpm(hba, true);
 
 	return 0;
 }
@@ -1316,7 +1336,7 @@ int ufs_mtk_runtime_resume(struct device *dev)
 {
 	struct ufs_hba *hba = dev_get_drvdata(dev);
 
-	ufs_mtk_vreg_set_lpm(hba, false);
+	ufs_mtk_dev_vreg_set_lpm(hba, false);
 
 	return ufshcd_runtime_resume(dev);
 }
