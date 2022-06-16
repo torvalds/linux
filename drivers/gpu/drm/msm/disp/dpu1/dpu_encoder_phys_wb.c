@@ -20,8 +20,6 @@
 #include "dpu_crtc.h"
 #include "disp/msm_disp_snapshot.h"
 
-#define DEFAULT_MAX_WRITEBACK_WIDTH 2048
-
 #define to_dpu_encoder_phys_wb(x) \
 	container_of(x, struct dpu_encoder_phys_wb, base)
 
@@ -278,9 +276,9 @@ static int dpu_encoder_phys_wb_atomic_check(
 		DPU_ERROR("invalid fb h=%d, mode h=%d\n", fb->height,
 				  mode->vdisplay);
 		return -EINVAL;
-	} else if (fb->width > DEFAULT_MAX_WRITEBACK_WIDTH) {
+	} else if (fb->width > phys_enc->hw_wb->caps->maxlinewidth) {
 		DPU_ERROR("invalid fb w=%d, maxlinewidth=%u\n",
-				  fb->width, DEFAULT_MAX_WRITEBACK_WIDTH);
+				  fb->width, phys_enc->hw_wb->caps->maxlinewidth);
 		return -EINVAL;
 	}
 
