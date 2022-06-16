@@ -133,6 +133,8 @@ static void __init ksi8560_setup_arch(void)
 	else
 		printk(KERN_ERR "Can't find CPLD in device tree\n");
 
+	of_node_put(cpld);
+
 	if (ppc_md.progress)
 		ppc_md.progress("ksi8560_setup_arch()", 0);
 
