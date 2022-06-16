@@ -1542,7 +1542,6 @@ static int ast_udc_probe(struct platform_device *pdev)
 	/* Find interrupt and install handler */
 	udc->irq = platform_get_irq(pdev, 0);
 	if (udc->irq < 0) {
-		dev_err(&pdev->dev, "Failed to get interrupt\n");
 		rc = udc->irq;
 		goto err;
 	}
