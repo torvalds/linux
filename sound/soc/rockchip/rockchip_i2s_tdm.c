@@ -404,11 +404,9 @@ static int rockchip_i2s_tdm_set_fmt(struct snd_soc_dai *cpu_dai,
 	int ret;
 	bool is_tdm = i2s_tdm->tdm_mode;
 
-	ret = pm_runtime_get_sync(cpu_dai->dev);
-	if (ret < 0 && ret != -EACCES) {
-		pm_runtime_put_noidle(cpu_dai->dev);
+	ret = pm_runtime_resume_and_get(cpu_dai->dev);
+	if (ret < 0 && ret != -EACCES)
 		return ret;
-	}
 
 	mask = I2S_CKR_MSS_MASK;
 	switch (fmt & SND_SOC_DAIFMT_CLOCK_PROVIDER_MASK) {
