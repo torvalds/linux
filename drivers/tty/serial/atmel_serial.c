@@ -2508,24 +2508,7 @@ static int atmel_init_port(struct atmel_uart_port *atmel_port,
 	if (ret)
 		return ret;
 
-	/* for console, the clock could already be configured */
-	if (!atmel_port->clk) {
-		atmel_port->clk = clk_get(&mpdev->dev, "usart");
-		if (IS_ERR(atmel_port->clk)) {
-			ret = PTR_ERR(atmel_port->clk);
-			atmel_port->clk = NULL;
-			return ret;
-		}
-		ret = clk_prepare_enable(atmel_port->clk);
-		if (ret) {
-			clk_put(atmel_port->clk);
-			atmel_port->clk = NULL;
-			return ret;
-		}
-		port->uartclk = clk_get_rate(atmel_port->clk);
-		clk_disable_unprepare(atmel_port->clk);
-		/* only enable clock when USART is in use */
-	}
+	port->uartclk = clk_get_rate(atmel_port->clk);
 
 	/*
 	 * Use TXEMPTY for interrupt when rs485 or ISO7816 else TXRDY or
@@ -2896,14 +2879,23 @@ static int atmel_serial_probe(struct platform_device *pdev)
 	atomic_set(&atmel_port->tasklet_shutdown, 0);
 	spin_lock_init(&atmel_port->lock_suspended);
 
+	atmel_port->clk = devm_clk_get(&pdev->dev, "usart");
+	if (IS_ERR(atmel_port->clk)) {
+		ret = PTR_ERR(atmel_port->clk);
+		goto err;
+	}
+	ret = clk_prepare_enable(atmel_port->clk);
+	if (ret)
+		goto err;
+
 	ret = atmel_init_port(atmel_port, pdev);
 	if (ret)
-		goto err_clear_bit;
+		goto err_clk_disable_unprepare;
 
 	atmel_port->gpios = mctrl_gpio_init(&atmel_port->uart, 0);
 	if (IS_ERR(atmel_port->gpios)) {
 		ret = PTR_ERR(atmel_port->gpios);
-		goto err_clear_bit;
+		goto err_clk_disable_unprepare;
 	}
 
 	if (!atmel_use_pdc_rx(&atmel_port->uart)) {
@@ -2912,7 +2904,7 @@ static int atmel_serial_probe(struct platform_device *pdev)
 				     sizeof(struct atmel_uart_char),
 				     GFP_KERNEL);
 		if (!data)
-			goto err_alloc_ring;
+			goto err_clk_disable_unprepare;
 		atmel_port->rx_ring.buf = data;
 	}
 
@@ -2935,12 +2927,6 @@ static int atmel_serial_probe(struct platform_device *pdev)
 
 	device_init_wakeup(&pdev->dev, 1);
 	platform_set_drvdata(pdev, atmel_port);
-
-	/*
-	 * The peripheral clock has been disabled by atmel_init_port():
-	 * enable it before accessing I/O registers
-	 */
-	clk_prepare_enable(atmel_port->clk);
 
 	if (rs485_enabled) {
 		atmel_uart_writel(&atmel_port->uart, ATMEL_US_MR,
@@ -2965,12 +2951,8 @@ static int atmel_serial_probe(struct platform_device *pdev)
 err_add_port:
 	kfree(atmel_port->rx_ring.buf);
 	atmel_port->rx_ring.buf = NULL;
-err_alloc_ring:
-	if (!uart_console(&atmel_port->uart)) {
-		clk_put(atmel_port->clk);
-		atmel_port->clk = NULL;
-	}
-err_clear_bit:
+err_clk_disable_unprepare:
+	clk_disable_unprepare(atmel_port->clk);
 	clear_bit(atmel_port->uart.line, atmel_ports_in_use);
 err:
 	return ret;
@@ -3004,8 +2986,6 @@ static int atmel_serial_remove(struct platform_device *pdev)
 
 	clear_bit(port->line, atmel_ports_in_use);
 
-	clk_put(atmel_port->clk);
-	atmel_port->clk = NULL;
 	pdev->dev.of_node = NULL;
 
 	return ret;
