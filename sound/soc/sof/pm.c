@@ -23,6 +23,9 @@ static u32 snd_sof_dsp_power_target(struct snd_sof_dev *sdev)
 	u32 target_dsp_state;
 
 	switch (sdev->system_suspend_target) {
+	case SOF_SUSPEND_S5:
+	case SOF_SUSPEND_S4:
+		/* DSP should be in D3 if the system is suspending to S3+ */
 	case SOF_SUSPEND_S3:
 		/* DSP should be in D3 if the system is suspending to S3 */
 		target_dsp_state = SOF_DSP_PM_D3;
@@ -343,6 +346,12 @@ int snd_sof_prepare(struct device *dev)
 	case ACPI_STATE_S2:
 	case ACPI_STATE_S3:
 		sdev->system_suspend_target = SOF_SUSPEND_S3;
+		break;
+	case ACPI_STATE_S4:
+		sdev->system_suspend_target = SOF_SUSPEND_S4;
+		break;
+	case ACPI_STATE_S5:
+		sdev->system_suspend_target = SOF_SUSPEND_S5;
 		break;
 	default:
 		break;
