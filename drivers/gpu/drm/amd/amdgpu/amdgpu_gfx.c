@@ -699,6 +699,9 @@ uint32_t amdgpu_kiq_rreg(struct amdgpu_device *adev, uint32_t reg)
 	if (amdgpu_device_skip_hw_access(adev))
 		return 0;
 
+	if (adev->mes.ring.sched.ready)
+		return amdgpu_mes_rreg(adev, reg);
+
 	BUG_ON(!ring->funcs->emit_rreg);
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
@@ -765,6 +768,11 @@ void amdgpu_kiq_wreg(struct amdgpu_device *adev, uint32_t reg, uint32_t v)
 
 	if (amdgpu_device_skip_hw_access(adev))
 		return;
+
+	if (adev->mes.ring.sched.ready) {
+		amdgpu_mes_wreg(adev, reg, v);
+		return;
+	}
 
 	spin_lock_irqsave(&kiq->ring_lock, flags);
 	amdgpu_ring_alloc(ring, 32);

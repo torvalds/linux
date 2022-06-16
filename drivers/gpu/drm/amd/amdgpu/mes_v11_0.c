@@ -1193,6 +1193,7 @@ static int mes_v11_0_hw_init(void *handle)
 	 * with MES enabled.
 	 */
 	adev->gfx.kiq.ring.sched.ready = false;
+	adev->mes.ring.sched.ready = true;
 
 	return 0;
 
