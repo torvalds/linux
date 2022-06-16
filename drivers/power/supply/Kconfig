@@ -138,6 +138,16 @@ config BATTERY_CW2017
 	  This driver can also be built as a module. If so, the module will be
 	  called cw2017_battery.
 
+config BATTERY_CW221X
+	tristate "CW221x Battery driver"
+	depends on I2C
+	select REGMAP_I2C
+	help
+	  Say Y hereto enable support for the cellwise cw221x
+	  battery fuel gauge (used in the Pinebook Pro & others)
+	  This driver can also be built as a module. If so, the module will be
+	  called cw221x_battery.
+
 config BATTERY_DS2760
 	tristate "DS2760 battery driver (HP iPAQ & others)"
 	depends on W1
