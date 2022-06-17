@@ -193,6 +193,12 @@ struct ksz_dev_ops {
 			  bool ingress, struct netlink_ext_ack *extack);
 	void (*mirror_del)(struct ksz_device *dev, int port,
 			   struct dsa_mall_mirror_tc_entry *mirror);
+	int (*mdb_add)(struct ksz_device *dev, int port,
+		       const struct switchdev_obj_port_mdb *mdb,
+		       struct dsa_db db);
+	int (*mdb_del)(struct ksz_device *dev, int port,
+		       const struct switchdev_obj_port_mdb *mdb,
+		       struct dsa_db db);
 	void (*get_caps)(struct ksz_device *dev, int port,
 			 struct phylink_config *config);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);

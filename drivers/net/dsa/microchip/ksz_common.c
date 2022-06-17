@@ -814,44 +814,11 @@ int ksz_port_mdb_add(struct dsa_switch *ds, int port,
 		     struct dsa_db db)
 {
 	struct ksz_device *dev = ds->priv;
-	struct alu_struct alu;
-	int index;
-	int empty = 0;
 
-	alu.port_forward = 0;
-	for (index = 0; index < dev->info->num_statics; index++) {
-		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
-			/* Found one already in static MAC table. */
-			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
-			    alu.fid == mdb->vid)
-				break;
-		/* Remember the first empty entry. */
-		} else if (!empty) {
-			empty = index + 1;
-		}
-	}
+	if (!dev->dev_ops->mdb_add)
+		return -EOPNOTSUPP;
 
-	/* no available entry */
-	if (index == dev->info->num_statics && !empty)
-		return -ENOSPC;
-
-	/* add entry */
-	if (index == dev->info->num_statics) {
-		index = empty - 1;
-		memset(&alu, 0, sizeof(alu));
-		memcpy(alu.mac, mdb->addr, ETH_ALEN);
-		alu.is_static = true;
-	}
-	alu.port_forward |= BIT(port);
-	if (mdb->vid) {
-		alu.is_use_fid = true;
-
-		/* Need a way to map VID to FID. */
-		alu.fid = mdb->vid;
-	}
-	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
-
-	return 0;
+	return dev->dev_ops->mdb_add(dev, port, mdb, db);
 }
 EXPORT_SYMBOL_GPL(ksz_port_mdb_add);
 
@@ -860,30 +827,11 @@ int ksz_port_mdb_del(struct dsa_switch *ds, int port,
 		     struct dsa_db db)
 {
 	struct ksz_device *dev = ds->priv;
-	struct alu_struct alu;
-	int index;
 
-	for (index = 0; index < dev->info->num_statics; index++) {
-		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
-			/* Found one already in static MAC table. */
-			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
-			    alu.fid == mdb->vid)
-				break;
-		}
-	}
+	if (!dev->dev_ops->mdb_del)
+		return -EOPNOTSUPP;
 
-	/* no available entry */
-	if (index == dev->info->num_statics)
-		goto exit;
-
-	/* clear port */
-	alu.port_forward &= ~BIT(port);
-	if (!alu.port_forward)
-		alu.is_static = false;
-	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
-
-exit:
-	return 0;
+	return dev->dev_ops->mdb_del(dev, port, mdb, db);
 }
 EXPORT_SYMBOL_GPL(ksz_port_mdb_del);
 
