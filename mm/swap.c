@@ -765,6 +765,21 @@ static void lru_add_drain_per_cpu(struct work_struct *dummy)
 	lru_add_and_bh_lrus_drain();
 }
 
+static bool cpu_needs_drain(unsigned int cpu)
+{
+	struct cpu_fbatches *fbatches = &per_cpu(cpu_fbatches, cpu);
+
+	/* Check these in order of likelihood that they're not zero */
+	return folio_batch_count(&fbatches->lru_add) ||
+		data_race(folio_batch_count(&per_cpu(lru_rotate.fbatch, cpu))) ||
+		folio_batch_count(&fbatches->lru_deactivate_file) ||
+		folio_batch_count(&fbatches->lru_deactivate) ||
+		folio_batch_count(&fbatches->lru_lazyfree) ||
+		folio_batch_count(&fbatches->activate) ||
+		need_mlock_page_drain(cpu) ||
+		has_bh_in_lru(cpu, NULL);
+}
+
 /*
  * Doesn't need any cpu hotplug locking because we do rely on per-cpu
  * kworkers being shut down before our page_alloc_cpu_dead callback is
@@ -849,14 +864,7 @@ static inline void __lru_add_drain_all(bool force_all_cpus)
 	for_each_online_cpu(cpu) {
 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
 
-		if (folio_batch_count(&per_cpu(cpu_fbatches.lru_add, cpu)) ||
-		    data_race(folio_batch_count(&per_cpu(lru_rotate.fbatch, cpu))) ||
-		    folio_batch_count(&per_cpu(cpu_fbatches.lru_deactivate_file, cpu)) ||
-		    folio_batch_count(&per_cpu(cpu_fbatches.lru_deactivate, cpu)) ||
-		    folio_batch_count(&per_cpu(cpu_fbatches.lru_lazyfree, cpu)) ||
-		    folio_batch_count(&per_cpu(cpu_fbatches.activate, cpu)) ||
-		    need_mlock_page_drain(cpu) ||
-		    has_bh_in_lru(cpu, NULL)) {
+		if (cpu_needs_drain(cpu)) {
 			INIT_WORK(work, lru_add_drain_per_cpu);
 			queue_work_on(cpu, mm_percpu_wq, work);
 			__cpumask_set_cpu(cpu, &has_work);
