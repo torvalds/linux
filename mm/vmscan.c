@@ -26,8 +26,7 @@
 #include <linux/file.h>
 #include <linux/writeback.h>
 #include <linux/blkdev.h>
-#include <linux/buffer_head.h>	/* for try_to_release_page(),
-					buffer_heads_over_limit */
+#include <linux/buffer_head.h>	/* for buffer_heads_over_limit */
 #include <linux/mm_inline.h>
 #include <linux/backing-dev.h>
 #include <linux/rmap.h>
@@ -2483,21 +2482,21 @@ shrink_inactive_list(unsigned long nr_to_scan, struct lruvec *lruvec,
 }
 
 /*
- * shrink_active_list() moves pages from the active LRU to the inactive LRU.
+ * shrink_active_list() moves folios from the active LRU to the inactive LRU.
  *
- * We move them the other way if the page is referenced by one or more
+ * We move them the other way if the folio is referenced by one or more
  * processes.
  *
- * If the pages are mostly unmapped, the processing is fast and it is
+ * If the folios are mostly unmapped, the processing is fast and it is
  * appropriate to hold lru_lock across the whole operation.  But if
- * the pages are mapped, the processing is slow (folio_referenced()), so
- * we should drop lru_lock around each page.  It's impossible to balance
- * this, so instead we remove the pages from the LRU while processing them.
- * It is safe to rely on PG_active against the non-LRU pages in here because
- * nobody will play with that bit on a non-LRU page.
+ * the folios are mapped, the processing is slow (folio_referenced()), so
+ * we should drop lru_lock around each folio.  It's impossible to balance
+ * this, so instead we remove the folios from the LRU while processing them.
+ * It is safe to rely on the active flag against the non-LRU folios in here
+ * because nobody will play with that bit on a non-LRU folio.
  *
- * The downside is that we have to touch page->_refcount against each page.
- * But we had to alter page->flags anyway.
+ * The downside is that we have to touch folio->_refcount against each folio.
+ * But we had to alter folio->flags anyway.
  */
 static void shrink_active_list(unsigned long nr_to_scan,
 			       struct lruvec *lruvec,
@@ -2507,7 +2506,7 @@ static void shrink_active_list(unsigned long nr_to_scan,
 	unsigned long nr_taken;
 	unsigned long nr_scanned;
 	unsigned long vm_flags;
-	LIST_HEAD(l_hold);	/* The pages which were snipped off */
+	LIST_HEAD(l_hold);	/* The folios which were snipped off */
 	LIST_HEAD(l_active);
 	LIST_HEAD(l_inactive);
 	unsigned nr_deactivate, nr_activate;
@@ -2532,23 +2531,21 @@ static void shrink_active_list(unsigned long nr_to_scan,
 
 	while (!list_empty(&l_hold)) {
 		struct folio *folio;
-		struct page *page;
 
 		cond_resched();
 		folio = lru_to_folio(&l_hold);
 		list_del(&folio->lru);
-		page = &folio->page;
 
-		if (unlikely(!page_evictable(page))) {
-			putback_lru_page(page);
+		if (unlikely(!folio_evictable(folio))) {
+			folio_putback_lru(folio);
 			continue;
 		}
 
 		if (unlikely(buffer_heads_over_limit)) {
-			if (page_has_private(page) && trylock_page(page)) {
-				if (page_has_private(page))
-					try_to_release_page(page, 0);
-				unlock_page(page);
+			if (folio_get_private(folio) && folio_trylock(folio)) {
+				if (folio_get_private(folio))
+					filemap_release_folio(folio, 0);
+				folio_unlock(folio);
 			}
 		}
 
@@ -2556,34 +2553,34 @@ static void shrink_active_list(unsigned long nr_to_scan,
 		if (folio_referenced(folio, 0, sc->target_mem_cgroup,
 				     &vm_flags) != 0) {
 			/*
-			 * Identify referenced, file-backed active pages and
+			 * Identify referenced, file-backed active folios and
 			 * give them one more trip around the active list. So
 			 * that executable code get better chances to stay in
-			 * memory under moderate memory pressure.  Anon pages
+			 * memory under moderate memory pressure.  Anon folios
 			 * are not likely to be evicted by use-once streaming
-			 * IO, plus JVM can create lots of anon VM_EXEC pages,
+			 * IO, plus JVM can create lots of anon VM_EXEC folios,
 			 * so we ignore them here.
 			 */
-			if ((vm_flags & VM_EXEC) && page_is_file_lru(page)) {
-				nr_rotated += thp_nr_pages(page);
-				list_add(&page->lru, &l_active);
+			if ((vm_flags & VM_EXEC) && folio_is_file_lru(folio)) {
+				nr_rotated += folio_nr_pages(folio);
+				list_add(&folio->lru, &l_active);
 				continue;
 			}
 		}
 
-		ClearPageActive(page);	/* we are de-activating */
-		SetPageWorkingset(page);
-		list_add(&page->lru, &l_inactive);
+		folio_clear_active(folio);	/* we are de-activating */
+		folio_set_workingset(folio);
+		list_add(&folio->lru, &l_inactive);
 	}
 
 	/*
-	 * Move pages back to the lru list.
+	 * Move folios back to the lru list.
 	 */
 	spin_lock_irq(&lruvec->lru_lock);
 
 	nr_activate = move_pages_to_lru(lruvec, &l_active);
 	nr_deactivate = move_pages_to_lru(lruvec, &l_inactive);
-	/* Keep all free pages in l_active list */
+	/* Keep all free folios in l_active list */
 	list_splice(&l_inactive, &l_active);
 
 	__count_vm_events(PGDEACTIVATE, nr_deactivate);
