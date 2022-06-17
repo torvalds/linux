@@ -132,31 +132,14 @@ int ieee802154_sync_and_hold_queue(struct ieee802154_local *local)
 	return ret;
 }
 
-static bool ieee802154_netif_is_down(struct ieee802154_local *local)
-{
-	struct ieee802154_sub_if_data *sdata;
-	bool is_down = true;
-
-	rcu_read_lock();
-	list_for_each_entry_rcu(sdata, &local->interfaces, list) {
-		if (!sdata->dev)
-			continue;
-
-		is_down = !netif_running(sdata->dev);
-		if (is_down)
-			break;
-	}
-	rcu_read_unlock();
-
-	return is_down;
-}
-
 int ieee802154_mlme_op_pre(struct ieee802154_local *local)
 {
 	return ieee802154_sync_and_hold_queue(local);
 }
 
-int ieee802154_mlme_tx(struct ieee802154_local *local, struct sk_buff *skb)
+int ieee802154_mlme_tx(struct ieee802154_local *local,
+		       struct ieee802154_sub_if_data *sdata,
+		       struct sk_buff *skb)
 {
 	int ret;
 
@@ -174,7 +157,7 @@ int ieee802154_mlme_tx(struct ieee802154_local *local, struct sk_buff *skb)
 	/* Warn if the ieee802154 core thinks MLME frames can be sent while the
 	 * net interface expects this cannot happen.
 	 */
-	if (WARN_ON_ONCE(ieee802154_netif_is_down(local))) {
+	if (WARN_ON_ONCE(!netif_running(sdata->dev))) {
 		rtnl_unlock();
 		return -ENETDOWN;
 	}
@@ -192,12 +175,14 @@ void ieee802154_mlme_op_post(struct ieee802154_local *local)
 	ieee802154_release_queue(local);
 }
 
-int ieee802154_mlme_tx_one(struct ieee802154_local *local, struct sk_buff *skb)
+int ieee802154_mlme_tx_one(struct ieee802154_local *local,
+			   struct ieee802154_sub_if_data *sdata,
+			   struct sk_buff *skb)
 {
 	int ret;
 
 	ieee802154_mlme_op_pre(local);
-	ret = ieee802154_mlme_tx(local, skb);
+	ret = ieee802154_mlme_tx(local, sdata, skb);
 	ieee802154_mlme_op_post(local);
 
 	return ret;

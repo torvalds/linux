@@ -126,9 +126,13 @@ void ieee802154_rx(struct ieee802154_local *local, struct sk_buff *skb);
 void ieee802154_xmit_sync_worker(struct work_struct *work);
 int ieee802154_sync_and_hold_queue(struct ieee802154_local *local);
 int ieee802154_mlme_op_pre(struct ieee802154_local *local);
-int ieee802154_mlme_tx(struct ieee802154_local *local, struct sk_buff *skb);
+int ieee802154_mlme_tx(struct ieee802154_local *local,
+		       struct ieee802154_sub_if_data *sdata,
+		       struct sk_buff *skb);
 void ieee802154_mlme_op_post(struct ieee802154_local *local);
-int ieee802154_mlme_tx_one(struct ieee802154_local *local, struct sk_buff *skb);
+int ieee802154_mlme_tx_one(struct ieee802154_local *local,
+			   struct ieee802154_sub_if_data *sdata,
+			   struct sk_buff *skb);
 netdev_tx_t
 ieee802154_monitor_start_xmit(struct sk_buff *skb, struct net_device *dev);
 netdev_tx_t
