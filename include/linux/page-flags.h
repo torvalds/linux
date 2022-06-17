@@ -193,6 +193,11 @@ enum pageflags {
 
 	/* Only valid for buddy pages. Used to track pages that are reported */
 	PG_reported = PG_uptodate,
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+	/* For self-hosted memmap pages */
+	PG_vmemmap_self_hosted = PG_owner_priv_1,
+#endif
 };
 
 #define PAGEFLAGS_MASK		((1UL << NR_PAGEFLAGS) - 1)
@@ -627,6 +632,12 @@ PAGEFLAG_FALSE(SkipKASanPoison, skip_kasan_poison)
  * any possible races on the setting or clearing of the bit.
  */
 __PAGEFLAG(Reported, reported, PF_NO_COMPOUND)
+
+#ifdef CONFIG_MEMORY_HOTPLUG
+PAGEFLAG(VmemmapSelfHosted, vmemmap_self_hosted, PF_ANY)
+#else
+PAGEFLAG_FALSE(VmemmapSelfHosted, vmemmap_self_hosted)
+#endif
 
 /*
  * On an anonymous page mapped into a user virtual memory area,
