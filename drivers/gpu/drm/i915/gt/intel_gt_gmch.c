@@ -134,7 +134,7 @@ static void gen5_ggtt_insert_page(struct i915_address_space *vm,
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
-	intel_gtt_insert_page(addr, offset >> PAGE_SHIFT, flags);
+	intel_gmch_gtt_insert_page(addr, offset >> PAGE_SHIFT, flags);
 }
 
 static void gen6_ggtt_insert_page(struct i915_address_space *vm,
@@ -175,8 +175,8 @@ static void gen5_ggtt_insert_entries(struct i915_address_space *vm,
 	unsigned int flags = (cache_level == I915_CACHE_NONE) ?
 		AGP_USER_MEMORY : AGP_USER_CACHED_MEMORY;
 
-	intel_gtt_insert_sg_entries(vma_res->bi.pages, vma_res->start >> PAGE_SHIFT,
-				    flags);
+	intel_gmch_gtt_insert_sg_entries(vma_res->bi.pages, vma_res->start >> PAGE_SHIFT,
+					 flags);
 }
 
 /*
@@ -306,18 +306,18 @@ static void bxt_vtd_ggtt_insert_entries__BKL(struct i915_address_space *vm,
 
 void intel_gt_gmch_gen5_chipset_flush(struct intel_gt *gt)
 {
-	intel_gtt_chipset_flush();
+	intel_gmch_gtt_flush();
 }
 
 static void gmch_ggtt_invalidate(struct i915_ggtt *ggtt)
 {
-	intel_gtt_chipset_flush();
+	intel_gmch_gtt_flush();
 }
 
 static void gen5_ggtt_clear_range(struct i915_address_space *vm,
 					 u64 start, u64 length)
 {
-	intel_gtt_clear_range(start >> PAGE_SHIFT, length >> PAGE_SHIFT);
+	intel_gmch_gtt_clear_range(start >> PAGE_SHIFT, length >> PAGE_SHIFT);
 }
 
 static void gen6_ggtt_clear_range(struct i915_address_space *vm,
@@ -494,7 +494,7 @@ int intel_gt_gmch_gen5_probe(struct i915_ggtt *ggtt)
 		return -EIO;
 	}
 
-	intel_gtt_get(&ggtt->vm.total, &gmadr_base, &ggtt->mappable_end);
+	intel_gmch_gtt_get(&ggtt->vm.total, &gmadr_base, &ggtt->mappable_end);
 
 	ggtt->gmadr =
 		(struct resource)DEFINE_RES_MEM(gmadr_base, ggtt->mappable_end);
@@ -647,7 +647,7 @@ int intel_gt_gmch_gen8_probe(struct i915_ggtt *ggtt)
 
 int intel_gt_gmch_gen5_enable_hw(struct drm_i915_private *i915)
 {
-	if (GRAPHICS_VER(i915) < 6 && !intel_enable_gtt())
+	if (GRAPHICS_VER(i915) < 6 && !intel_gmch_enable_gtt())
 		return -EIO;
 
 	return 0;
