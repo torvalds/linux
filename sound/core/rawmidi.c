@@ -712,11 +712,19 @@ static int resize_runtime_buffer(struct snd_rawmidi_substream *substream,
 int snd_rawmidi_output_params(struct snd_rawmidi_substream *substream,
 			      struct snd_rawmidi_params *params)
 {
-	if (substream->append && substream->use_count > 1)
-		return -EBUSY;
+	int err;
+
 	snd_rawmidi_drain_output(substream);
-	substream->active_sensing = !params->no_active_sensing;
-	return resize_runtime_buffer(substream, params, false);
+	mutex_lock(&substream->rmidi->open_mutex);
+	if (substream->append && substream->use_count > 1)
+		err = -EBUSY;
+	else
+		err = resize_runtime_buffer(substream, params, false);
+
+	if (!err)
+		substream->active_sensing = !params->no_active_sensing;
+	mutex_unlock(&substream->rmidi->open_mutex);
+	return err;
 }
 EXPORT_SYMBOL(snd_rawmidi_output_params);
 
@@ -727,19 +735,22 @@ int snd_rawmidi_input_params(struct snd_rawmidi_substream *substream,
 	unsigned int clock_type = params->mode & SNDRV_RAWMIDI_MODE_CLOCK_MASK;
 	int err;
 
-	if (framing == SNDRV_RAWMIDI_MODE_FRAMING_NONE && clock_type != SNDRV_RAWMIDI_MODE_CLOCK_NONE)
-		return -EINVAL;
-	else if (clock_type > SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC_RAW)
-		return -EINVAL;
-	if (framing > SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP)
-		return -EINVAL;
 	snd_rawmidi_drain_input(substream);
-	err = resize_runtime_buffer(substream, params, true);
-	if (err < 0)
-		return err;
+	mutex_lock(&substream->rmidi->open_mutex);
+	if (framing == SNDRV_RAWMIDI_MODE_FRAMING_NONE && clock_type != SNDRV_RAWMIDI_MODE_CLOCK_NONE)
+		err = -EINVAL;
+	else if (clock_type > SNDRV_RAWMIDI_MODE_CLOCK_MONOTONIC_RAW)
+		err = -EINVAL;
+	else if (framing > SNDRV_RAWMIDI_MODE_FRAMING_TSTAMP)
+		err = -EINVAL;
+	else
+		err = resize_runtime_buffer(substream, params, true);
 
-	substream->framing = framing;
-	substream->clock_type = clock_type;
+	if (!err) {
+		substream->framing = framing;
+		substream->clock_type = clock_type;
+	}
+	mutex_unlock(&substream->rmidi->open_mutex);
 	return 0;
 }
 EXPORT_SYMBOL(snd_rawmidi_input_params);
