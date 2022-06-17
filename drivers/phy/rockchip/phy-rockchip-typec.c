@@ -628,7 +628,6 @@ static const struct phy_config tcphy_default_config[3][4] = {
 };
 
 enum phy_dp_power_state {
-	PHY_DP_POWER_STATE_DISABLED = -1,
 	PHY_DP_POWER_STATE_A0,
 	PHY_DP_POWER_STATE_A1,
 	PHY_DP_POWER_STATE_A2,
