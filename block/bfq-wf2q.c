@@ -1472,9 +1472,6 @@ static struct bfq_entity *bfq_lookup_next_entity(struct bfq_sched_data *sd,
 			break;
 	}
 
-	if (!entity)
-		return NULL;
-
 	return entity;
 }
 
