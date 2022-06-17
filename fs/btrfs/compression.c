@@ -593,9 +593,7 @@ blk_status_t btrfs_submit_compressed_write(struct btrfs_inode *inode, u64 start,
 			}
 
 			ASSERT(bio->bi_iter.bi_size);
-			ret = btrfs_map_bio(fs_info, bio, 0);
-			if (ret)
-				goto finish_cb;
+			btrfs_submit_bio(fs_info, bio, 0);
 			bio = NULL;
 		}
 		cond_resched();
@@ -931,9 +929,7 @@ void btrfs_submit_compressed_read(struct inode *inode, struct bio *bio,
 			sums += fs_info->csum_size * nr_sectors;
 
 			ASSERT(comp_bio->bi_iter.bi_size);
-			ret = btrfs_map_bio(fs_info, comp_bio, mirror_num);
-			if (ret)
-				goto finish_cb;
+			btrfs_submit_bio(fs_info, comp_bio, mirror_num);
 			comp_bio = NULL;
 		}
 	}

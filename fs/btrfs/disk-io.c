@@ -731,7 +731,6 @@ static void run_one_async_done(struct btrfs_work *work)
 {
 	struct async_submit_bio *async;
 	struct inode *inode;
-	blk_status_t ret;
 
 	async = container_of(work, struct  async_submit_bio, work);
 	inode = async->inode;
@@ -749,11 +748,7 @@ static void run_one_async_done(struct btrfs_work *work)
 	 * This changes nothing when cgroups aren't in use.
 	 */
 	async->bio->bi_opf |= REQ_CGROUP_PUNT;
-	ret = btrfs_map_bio(btrfs_sb(inode->i_sb), async->bio, async->mirror_num);
-	if (ret) {
-		async->bio->bi_status = ret;
-		bio_endio(async->bio);
-	}
+	btrfs_submit_bio(btrfs_sb(inode->i_sb), async->bio, async->mirror_num);
 }
 
 static void run_one_async_free(struct btrfs_work *work)
@@ -817,7 +812,7 @@ static blk_status_t btree_submit_bio_start(struct inode *inode, struct bio *bio,
 {
 	/*
 	 * when we're called for a write, we're already in the async
-	 * submission context.  Just jump into btrfs_map_bio
+	 * submission context.  Just jump into btrfs_submit_bio.
 	 */
 	return btree_csum_one_bio(bio);
 }
@@ -842,11 +837,15 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 	bio->bi_opf |= REQ_META;
 
 	if (btrfs_op(bio) != BTRFS_MAP_WRITE) {
-		ret = btrfs_map_bio(fs_info, bio, mirror_num);
-	} else if (!should_async_write(fs_info, BTRFS_I(inode))) {
+		btrfs_submit_bio(fs_info, bio, mirror_num);
+		return;
+	}
+	if (!should_async_write(fs_info, BTRFS_I(inode))) {
 		ret = btree_csum_one_bio(bio);
-		if (!ret)
-			ret = btrfs_map_bio(fs_info, bio, mirror_num);
+		if (!ret) {
+			btrfs_submit_bio(fs_info, bio, mirror_num);
+			return;
+		}
 	} else {
 		/*
 		 * kthread helpers are used to submit writes so that

@@ -2687,7 +2687,8 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 			goto out;
 		}
 	}
-	ret = btrfs_map_bio(fs_info, bio, mirror_num);
+	btrfs_submit_bio(fs_info, bio, mirror_num);
+	return;
 out:
 	if (ret) {
 		bio->bi_status = ret;
@@ -2715,14 +2716,13 @@ void btrfs_submit_data_read_bio(struct inode *inode, struct bio *bio,
 	 * not, which is why we ignore skip_sum here.
 	 */
 	ret = btrfs_lookup_bio_sums(inode, bio, NULL);
-	if (ret)
-		goto out;
-	ret = btrfs_map_bio(fs_info, bio, mirror_num);
-out:
 	if (ret) {
 		bio->bi_status = ret;
 		bio_endio(bio);
+		return;
 	}
+
+	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
 /*
@@ -7945,8 +7945,7 @@ static void submit_dio_repair_bio(struct inode *inode, struct bio *bio,
 	BUG_ON(bio_op(bio) == REQ_OP_WRITE);
 
 	refcount_inc(&dip->refs);
-	if (btrfs_map_bio(fs_info, bio, mirror_num))
-		refcount_dec(&dip->refs);
+	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
 static blk_status_t btrfs_check_read_dio_bio(struct btrfs_dio_private *dip,
@@ -8046,7 +8045,8 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 						      file_offset - dip->file_offset);
 	}
 map:
-	return btrfs_map_bio(fs_info, bio, 0);
+	btrfs_submit_bio(fs_info, bio, 0);
+	return BLK_STS_OK;
 }
 
 static void btrfs_submit_direct(const struct iomap_iter *iter,
@@ -10330,7 +10330,6 @@ static blk_status_t submit_encoded_read_bio(struct btrfs_inode *inode,
 					    struct bio *bio, int mirror_num)
 {
 	struct btrfs_encoded_read_private *priv = bio->bi_private;
-	struct btrfs_bio *bbio = btrfs_bio(bio);
 	struct btrfs_fs_info *fs_info = inode->root->fs_info;
 	blk_status_t ret;
 
@@ -10341,12 +10340,8 @@ static blk_status_t submit_encoded_read_bio(struct btrfs_inode *inode,
 	}
 
 	atomic_inc(&priv->pending);
-	ret = btrfs_map_bio(fs_info, bio, mirror_num);
-	if (ret) {
-		atomic_dec(&priv->pending);
-		btrfs_bio_free_csum(bbio);
-	}
-	return ret;
+	btrfs_submit_bio(fs_info, bio, mirror_num);
+	return BLK_STS_OK;
 }
 
 static blk_status_t btrfs_encoded_read_verify_csum(struct btrfs_bio *bbio)
