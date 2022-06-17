@@ -470,7 +470,7 @@ static int ipc3_dtrace_enable(struct snd_sof_dev *sdev)
 		dev_err(sdev->dev, "Host dtrace init failed: %d\n", ret);
 		return ret;
 	}
-	dev_dbg(sdev->dev, "%s: stream_tag: %d\n", __func__, params.stream_tag);
+	dev_dbg(sdev->dev, "stream_tag: %d\n", params.stream_tag);
 
 	/* send IPC to the DSP */
 	priv->dtrace_state = SOF_DTRACE_INITIALIZING;
@@ -544,8 +544,7 @@ static int ipc3_dtrace_init(struct snd_sof_dev *sdev)
 		goto table_err;
 
 	priv->dma_trace_pages = ret;
-	dev_dbg(sdev->dev, "%s: dma_trace_pages: %d\n", __func__,
-		priv->dma_trace_pages);
+	dev_dbg(sdev->dev, "dma_trace_pages: %d\n", priv->dma_trace_pages);
 
 	if (sdev->first_boot) {
 		ret = debugfs_create_dtrace(sdev);

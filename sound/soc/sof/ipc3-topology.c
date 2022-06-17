@@ -1452,8 +1452,8 @@ static int sof_ipc3_widget_setup_comp_dai(struct snd_sof_widget *swidget)
 	if (ret < 0)
 		goto free;
 
-	dev_dbg(scomp->dev, "%s dai %s: type %d index %d\n",
-		__func__, swidget->widget->name, comp_dai->type, comp_dai->dai_index);
+	dev_dbg(scomp->dev, "dai %s: type %d index %d\n",
+		swidget->widget->name, comp_dai->type, comp_dai->dai_index);
 	sof_dbg_comp_config(scomp, &comp_dai->config);
 
 	/* now update DAI config */

@@ -540,8 +540,7 @@ static irqreturn_t mtl_ipc_irq_thread(int irq, void *context)
 
 	if (!ipc_irq) {
 		/* This interrupt is not shared so no need to return IRQ_NONE. */
-		dev_dbg_ratelimited(sdev->dev, "%s nothing to do in IPC IRQ thread\n",
-				    __func__);
+		dev_dbg_ratelimited(sdev->dev, "nothing to do in IPC IRQ thread\n");
 	}
 
 	return IRQ_HANDLED;
