@@ -1107,7 +1107,6 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 {
 	u32			command, temp = 0;
 	struct usb_hcd		*hcd = xhci_to_hcd(xhci);
-	struct usb_hcd		*secondary_hcd;
 	int			retval = 0;
 	bool			comp_timer_running = false;
 	bool			pending_portevent = false;
@@ -1214,23 +1213,19 @@ int xhci_resume(struct xhci_hcd *xhci, bool hibernated)
 		 * first with the primary HCD, and then with the secondary HCD.
 		 * If we don't do the same, the host will never be started.
 		 */
-		if (!usb_hcd_is_primary_hcd(hcd))
-			secondary_hcd = hcd;
-		else
-			secondary_hcd = xhci->shared_hcd;
-
 		xhci_dbg(xhci, "Initialize the xhci_hcd\n");
-		retval = xhci_init(hcd->primary_hcd);
+		retval = xhci_init(hcd);
 		if (retval)
 			return retval;
 		comp_timer_running = true;
 
 		xhci_dbg(xhci, "Start the primary HCD\n");
-		retval = xhci_run(hcd->primary_hcd);
-		if (!retval && secondary_hcd) {
+		retval = xhci_run(hcd);
+		if (!retval && xhci->shared_hcd) {
 			xhci_dbg(xhci, "Start the secondary HCD\n");
-			retval = xhci_run(secondary_hcd);
+			retval = xhci_run(xhci->shared_hcd);
 		}
+
 		hcd->state = HC_STATE_SUSPENDED;
 		if (xhci->shared_hcd)
 			xhci->shared_hcd->state = HC_STATE_SUSPENDED;
