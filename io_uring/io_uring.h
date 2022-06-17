@@ -45,19 +45,17 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 				req->cqe.res, req->cqe.flags,
 				(req->flags & REQ_F_CQE32_INIT) ? req->extra1 : 0,
 				(req->flags & REQ_F_CQE32_INIT) ? req->extra2 : 0);
+	/*
+	 * If we can't get a cq entry, userspace overflowed the
+	 * submission (by quite a lot). Increment the overflow count in
+	 * the ring.
+	 */
+	cqe = io_get_cqe(ctx);
+	if (unlikely(!cqe))
+		return io_req_cqe_overflow(req);
+	memcpy(cqe, &req->cqe, sizeof(*cqe));
 
-	if (!(ctx->flags & IORING_SETUP_CQE32)) {
-		/*
-		 * If we can't get a cq entry, userspace overflowed the
-		 * submission (by quite a lot). Increment the overflow count in
-		 * the ring.
-		 */
-		cqe = io_get_cqe(ctx);
-		if (likely(cqe)) {
-			memcpy(cqe, &req->cqe, sizeof(*cqe));
-			return true;
-		}
-	} else {
+	if (ctx->flags & IORING_SETUP_CQE32) {
 		u64 extra1 = 0, extra2 = 0;
 
 		if (req->flags & REQ_F_CQE32_INIT) {
@@ -65,20 +63,10 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 			extra2 = req->extra2;
 		}
 
-		/*
-		 * If we can't get a cq entry, userspace overflowed the
-		 * submission (by quite a lot). Increment the overflow count in
-		 * the ring.
-		 */
-		cqe = io_get_cqe(ctx);
-		if (likely(cqe)) {
-			memcpy(cqe, &req->cqe, sizeof(struct io_uring_cqe));
-			WRITE_ONCE(cqe->big_cqe[0], extra1);
-			WRITE_ONCE(cqe->big_cqe[1], extra2);
-			return true;
-		}
+		WRITE_ONCE(cqe->big_cqe[0], extra1);
+		WRITE_ONCE(cqe->big_cqe[1], extra2);
 	}
-	return io_req_cqe_overflow(req);
+	return true;
 }
 
 static inline void req_set_fail(struct io_kiocb *req)
