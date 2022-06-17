@@ -34,7 +34,6 @@ int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 {
 	struct io_msg *msg = io_kiocb_to_cmd(req);
 	struct io_ring_ctx *target_ctx;
-	bool filled;
 	int ret;
 
 	ret = -EBADFD;
@@ -43,16 +42,8 @@ int io_msg_ring(struct io_kiocb *req, unsigned int issue_flags)
 
 	ret = -EOVERFLOW;
 	target_ctx = req->file->private_data;
-
-	spin_lock(&target_ctx->completion_lock);
-	filled = io_fill_cqe_aux(target_ctx, msg->user_data, msg->len, 0);
-	io_commit_cqring(target_ctx);
-	spin_unlock(&target_ctx->completion_lock);
-
-	if (filled) {
-		io_cqring_ev_posted(target_ctx);
+	if (io_post_aux_cqe(target_ctx, msg->user_data, msg->len, 0))
 		ret = 0;
-	}
 
 done:
 	if (ret < 0)

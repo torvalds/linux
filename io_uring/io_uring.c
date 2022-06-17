@@ -676,8 +676,8 @@ bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 	return true;
 }
 
-bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
-		     u32 cflags)
+static bool io_fill_cqe_aux(struct io_ring_ctx *ctx,
+			    u64 user_data, s32 res, u32 cflags)
 {
 	struct io_uring_cqe *cqe;
 
@@ -702,6 +702,20 @@ bool io_fill_cqe_aux(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 		return true;
 	}
 	return io_cqring_event_overflow(ctx, user_data, res, cflags, 0, 0);
+}
+
+bool io_post_aux_cqe(struct io_ring_ctx *ctx,
+		     u64 user_data, s32 res, u32 cflags)
+{
+	bool filled;
+
+	spin_lock(&ctx->completion_lock);
+	filled = io_fill_cqe_aux(ctx, user_data, res, cflags);
+	io_commit_cqring(ctx);
+	spin_unlock(&ctx->completion_lock);
+	if (filled)
+		io_cqring_ev_posted(ctx);
+	return filled;
 }
 
 static void __io_req_complete_put(struct io_kiocb *req)

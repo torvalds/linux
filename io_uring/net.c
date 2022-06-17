@@ -644,22 +644,12 @@ retry:
 		io_req_set_res(req, ret, 0);
 		return IOU_OK;
 	}
-	if (ret >= 0) {
-		bool filled;
 
-		spin_lock(&ctx->completion_lock);
-		filled = io_fill_cqe_aux(ctx, req->cqe.user_data, ret,
-					 IORING_CQE_F_MORE);
-		io_commit_cqring(ctx);
-		spin_unlock(&ctx->completion_lock);
-		if (filled) {
-			io_cqring_ev_posted(ctx);
-			goto retry;
-		}
-		ret = -ECANCELED;
-	}
-
-	return ret;
+	if (ret < 0)
+		return ret;
+	if (io_post_aux_cqe(ctx, req->cqe.user_data, ret, IORING_CQE_F_MORE))
+		goto retry;
+	return -ECANCELED;
 }
 
 int io_socket_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)

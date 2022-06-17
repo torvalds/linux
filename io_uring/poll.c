@@ -214,23 +214,15 @@ static int io_poll_check_events(struct io_kiocb *req, bool *locked)
 		if (!(req->flags & REQ_F_APOLL_MULTISHOT)) {
 			__poll_t mask = mangle_poll(req->cqe.res &
 						    req->apoll_events);
-			bool filled;
 
-			spin_lock(&ctx->completion_lock);
-			filled = io_fill_cqe_aux(ctx, req->cqe.user_data,
-						 mask, IORING_CQE_F_MORE);
-			io_commit_cqring(ctx);
-			spin_unlock(&ctx->completion_lock);
-			if (filled) {
-				io_cqring_ev_posted(ctx);
-				continue;
-			}
-			return -ECANCELED;
+			if (!io_post_aux_cqe(ctx, req->cqe.user_data,
+					     mask, IORING_CQE_F_MORE))
+				return -ECANCELED;
+		} else {
+			ret = io_poll_issue(req, locked);
+			if (ret)
+				return ret;
 		}
-
-		ret = io_poll_issue(req, locked);
-		if (ret)
-			return ret;
 
 		/*
 		 * Release all references, retry if someone tried to restart

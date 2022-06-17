@@ -174,17 +174,13 @@ static void __io_rsrc_put_work(struct io_rsrc_node *ref_node)
 		list_del(&prsrc->list);
 
 		if (prsrc->tag) {
-			if (ctx->flags & IORING_SETUP_IOPOLL)
+			if (ctx->flags & IORING_SETUP_IOPOLL) {
 				mutex_lock(&ctx->uring_lock);
-
-			spin_lock(&ctx->completion_lock);
-			io_fill_cqe_aux(ctx, prsrc->tag, 0, 0);
-			io_commit_cqring(ctx);
-			spin_unlock(&ctx->completion_lock);
-			io_cqring_ev_posted(ctx);
-
-			if (ctx->flags & IORING_SETUP_IOPOLL)
+				io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
 				mutex_unlock(&ctx->uring_lock);
+			} else {
+				io_post_aux_cqe(ctx, prsrc->tag, 0, 0);
+			}
 		}
 
 		rsrc_data->do_put(ctx, prsrc);
