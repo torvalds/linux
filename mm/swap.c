@@ -941,8 +941,7 @@ void release_pages(struct page **pages, int nr)
 	unsigned int lock_batch;
 
 	for (i = 0; i < nr; i++) {
-		struct page *page = pages[i];
-		struct folio *folio = page_folio(page);
+		struct folio *folio = page_folio(pages[i]);
 
 		/*
 		 * Make sure the IRQ-safe lock-holding time does not get
@@ -954,35 +953,34 @@ void release_pages(struct page **pages, int nr)
 			lruvec = NULL;
 		}
 
-		page = &folio->page;
-		if (is_huge_zero_page(page))
+		if (is_huge_zero_page(&folio->page))
 			continue;
 
-		if (is_zone_device_page(page)) {
+		if (folio_is_zone_device(folio)) {
 			if (lruvec) {
 				unlock_page_lruvec_irqrestore(lruvec, flags);
 				lruvec = NULL;
 			}
-			if (put_devmap_managed_page(page))
+			if (put_devmap_managed_page(&folio->page))
 				continue;
-			if (put_page_testzero(page))
-				free_zone_device_page(page);
+			if (folio_put_testzero(folio))
+				free_zone_device_page(&folio->page);
 			continue;
 		}
 
-		if (!put_page_testzero(page))
+		if (!folio_put_testzero(folio))
 			continue;
 
-		if (PageCompound(page)) {
+		if (folio_test_large(folio)) {
 			if (lruvec) {
 				unlock_page_lruvec_irqrestore(lruvec, flags);
 				lruvec = NULL;
 			}
-			__put_compound_page(page);
+			__put_compound_page(&folio->page);
 			continue;
 		}
 
-		if (PageLRU(page)) {
+		if (folio_test_lru(folio)) {
 			struct lruvec *prev_lruvec = lruvec;
 
 			lruvec = folio_lruvec_relock_irqsave(folio, lruvec,
@@ -990,8 +988,8 @@ void release_pages(struct page **pages, int nr)
 			if (prev_lruvec != lruvec)
 				lock_batch = 0;
 
-			del_page_from_lru_list(page, lruvec);
-			__clear_page_lru_flags(page);
+			lruvec_del_folio(lruvec, folio);
+			__folio_clear_lru_flags(folio);
 		}
 
 		/*
@@ -1000,13 +998,13 @@ void release_pages(struct page **pages, int nr)
 		 * found set here.  This does not indicate a problem, unless
 		 * "unevictable_pgs_cleared" appears worryingly large.
 		 */
-		if (unlikely(PageMlocked(page))) {
-			__ClearPageMlocked(page);
-			dec_zone_page_state(page, NR_MLOCK);
+		if (unlikely(folio_test_mlocked(folio))) {
+			__folio_clear_mlocked(folio);
+			zone_stat_sub_folio(folio, NR_MLOCK);
 			count_vm_event(UNEVICTABLE_PGCLEARED);
 		}
 
-		list_add(&page->lru, &pages_to_free);
+		list_add(&folio->lru, &pages_to_free);
 	}
 	if (lruvec)
 		unlock_page_lruvec_irqrestore(lruvec, flags);
