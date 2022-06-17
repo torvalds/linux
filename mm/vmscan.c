@@ -2041,7 +2041,7 @@ keep:
 }
 
 unsigned int reclaim_clean_pages_from_list(struct zone *zone,
-					    struct list_head *page_list)
+					    struct list_head *folio_list)
 {
 	struct scan_control sc = {
 		.gfp_mask = GFP_KERNEL,
@@ -2049,16 +2049,16 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 	};
 	struct reclaim_stat stat;
 	unsigned int nr_reclaimed;
-	struct page *page, *next;
-	LIST_HEAD(clean_pages);
+	struct folio *folio, *next;
+	LIST_HEAD(clean_folios);
 	unsigned int noreclaim_flag;
 
-	list_for_each_entry_safe(page, next, page_list, lru) {
-		if (!PageHuge(page) && page_is_file_lru(page) &&
-		    !PageDirty(page) && !__PageMovable(page) &&
-		    !PageUnevictable(page)) {
-			ClearPageActive(page);
-			list_move(&page->lru, &clean_pages);
+	list_for_each_entry_safe(folio, next, folio_list, lru) {
+		if (!folio_test_hugetlb(folio) && folio_is_file_lru(folio) &&
+		    !folio_test_dirty(folio) && !__folio_test_movable(folio) &&
+		    !folio_test_unevictable(folio)) {
+			folio_clear_active(folio);
+			list_move(&folio->lru, &clean_folios);
 		}
 	}
 
@@ -2069,11 +2069,11 @@ unsigned int reclaim_clean_pages_from_list(struct zone *zone,
 	 * change in the future.
 	 */
 	noreclaim_flag = memalloc_noreclaim_save();
-	nr_reclaimed = shrink_page_list(&clean_pages, zone->zone_pgdat, &sc,
+	nr_reclaimed = shrink_page_list(&clean_folios, zone->zone_pgdat, &sc,
 					&stat, true);
 	memalloc_noreclaim_restore(noreclaim_flag);
 
-	list_splice(&clean_pages, page_list);
+	list_splice(&clean_folios, folio_list);
 	mod_node_page_state(zone->zone_pgdat, NR_ISOLATED_FILE,
 			    -(long)nr_reclaimed);
 	/*
