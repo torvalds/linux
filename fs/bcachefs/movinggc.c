@@ -255,7 +255,28 @@ static int bch2_copygc(struct bch_fs *c)
 	}
 
 	if (!h->used) {
-		bch_err_ratelimited(c, "copygc requested to run but found no buckets to move!");
+		s64 wait = S64_MAX, dev_wait;
+		u64 dev_min_wait_fragmented = 0;
+		u64 dev_min_wait_allowed = 0;
+		int dev_min_wait = -1;
+
+		for_each_rw_member(ca, c, dev_idx) {
+			struct bch_dev_usage usage = bch2_dev_usage_read(ca);
+			s64 allowed = ((__dev_buckets_available(ca, usage, RESERVE_none) *
+					       ca->mi.bucket_size) >> 1);
+			s64 fragmented = usage.d[BCH_DATA_user].fragmented;
+
+			dev_wait = max(0LL, allowed - fragmented);
+
+			if (dev_min_wait < 0 || dev_wait < wait) {
+				dev_min_wait = dev_idx;
+				dev_min_wait_fragmented = fragmented;
+				dev_min_wait_allowed	= allowed;
+			}
+		}
+
+		bch_err_ratelimited(c, "copygc requested to run but found no buckets to move! dev %u fragmented %llu allowed %llu",
+				    dev_min_wait, dev_min_wait_fragmented, dev_min_wait_allowed);
 		return 0;
 	}
 
