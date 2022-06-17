@@ -114,8 +114,8 @@ static int fsl_asrc_dma_trigger(struct snd_soc_component *component,
 	case SNDRV_PCM_TRIGGER_STOP:
 	case SNDRV_PCM_TRIGGER_SUSPEND:
 	case SNDRV_PCM_TRIGGER_PAUSE_PUSH:
-		dmaengine_terminate_all(pair->dma_chan[OUT]);
-		dmaengine_terminate_all(pair->dma_chan[IN]);
+		dmaengine_terminate_async(pair->dma_chan[OUT]);
+		dmaengine_terminate_async(pair->dma_chan[IN]);
 		break;
 	default:
 		return -EINVAL;
