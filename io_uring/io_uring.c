@@ -643,8 +643,8 @@ static __cold void io_uring_drop_tctx_refs(struct task_struct *task)
 	}
 }
 
-bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data, s32 res,
-			      u32 cflags, u64 extra1, u64 extra2)
+static bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data,
+				     s32 res, u32 cflags, u64 extra1, u64 extra2)
 {
 	struct io_overflow_cqe *ocqe;
 	size_t ocq_size = sizeof(struct io_overflow_cqe);
@@ -679,6 +679,17 @@ bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 	}
 	list_add_tail(&ocqe->list, &ctx->cq_overflow_list);
 	return true;
+}
+
+bool io_req_cqe_overflow(struct io_kiocb *req)
+{
+	if (!(req->flags & REQ_F_CQE32_INIT)) {
+		req->extra1 = 0;
+		req->extra2 = 0;
+	}
+	return io_cqring_event_overflow(req->ctx, req->cqe.user_data,
+					req->cqe.res, req->cqe.flags,
+					req->extra1, req->extra2);
 }
 
 /*

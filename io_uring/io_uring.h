@@ -15,8 +15,7 @@ enum {
 };
 
 struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx);
-bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data, s32 res,
-			      u32 cflags, u64 extra1, u64 extra2);
+bool io_req_cqe_overflow(struct io_kiocb *req);
 
 static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
 {
@@ -56,10 +55,6 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 			memcpy(cqe, &req->cqe, sizeof(*cqe));
 			return true;
 		}
-
-		return io_cqring_event_overflow(ctx, req->cqe.user_data,
-						req->cqe.res, req->cqe.flags,
-						0, 0);
 	} else {
 		u64 extra1 = 0, extra2 = 0;
 
@@ -83,11 +78,8 @@ static inline bool __io_fill_cqe_req(struct io_ring_ctx *ctx,
 			WRITE_ONCE(cqe->big_cqe[1], extra2);
 			return true;
 		}
-
-		return io_cqring_event_overflow(ctx, req->cqe.user_data,
-				req->cqe.res, req->cqe.flags,
-				extra1, extra2);
 	}
+	return io_req_cqe_overflow(req);
 }
 
 static inline void req_set_fail(struct io_kiocb *req)
