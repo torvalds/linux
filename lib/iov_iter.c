@@ -1284,6 +1284,11 @@ unsigned long iov_iter_gap_alignment(const struct iov_iter *i)
 }
 EXPORT_SYMBOL(iov_iter_gap_alignment);
 
+static struct page **get_pages_array(size_t n)
+{
+	return kvmalloc_array(n, sizeof(struct page *), GFP_KERNEL);
+}
+
 static inline ssize_t __pipe_get_pages(struct iov_iter *i,
 				size_t maxsize,
 				struct page **pages,
@@ -1317,10 +1322,11 @@ static inline ssize_t __pipe_get_pages(struct iov_iter *i,
 }
 
 static ssize_t pipe_get_pages(struct iov_iter *i,
-		   struct page **pages, size_t maxsize, unsigned maxpages,
+		   struct page ***pages, size_t maxsize, unsigned maxpages,
 		   size_t *start)
 {
 	unsigned int npages, off;
+	struct page **p;
 	size_t capacity;
 
 	if (!sanity(i))
@@ -1328,8 +1334,15 @@ static ssize_t pipe_get_pages(struct iov_iter *i,
 
 	*start = off = pipe_npages(i, &npages);
 	capacity = min(npages, maxpages) * PAGE_SIZE - off;
+	maxsize = min(maxsize, capacity);
+	p = *pages;
+	if (!p) {
+		*pages = p = get_pages_array(DIV_ROUND_UP(maxsize + off, PAGE_SIZE));
+		if (!p)
+			return -ENOMEM;
+	}
 
-	return __pipe_get_pages(i, min(maxsize, capacity), pages, off);
+	return __pipe_get_pages(i, maxsize, p, off);
 }
 
 static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa,
@@ -1475,40 +1488,12 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 		return min_t(size_t, maxsize, n * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_pipe(i))
-		return pipe_get_pages(i, pages, maxsize, maxpages, start);
+		return pipe_get_pages(i, &pages, maxsize, maxpages, start);
 	if (iov_iter_is_xarray(i))
 		return iter_xarray_get_pages(i, pages, maxsize, maxpages, start);
 	return -EFAULT;
 }
 EXPORT_SYMBOL(iov_iter_get_pages);
-
-static struct page **get_pages_array(size_t n)
-{
-	return kvmalloc_array(n, sizeof(struct page *), GFP_KERNEL);
-}
-
-static ssize_t pipe_get_pages_alloc(struct iov_iter *i,
-		   struct page ***pages, size_t maxsize,
-		   size_t *start)
-{
-	struct page **p;
-	unsigned int npages, off;
-	ssize_t n;
-
-	if (!sanity(i))
-		return -EFAULT;
-
-	*start = off = pipe_npages(i, &npages);
-	n = npages * PAGE_SIZE - off;
-	if (maxsize > n)
-		maxsize = n;
-	else
-		npages = DIV_ROUND_UP(maxsize + off, PAGE_SIZE);
-	*pages = p = get_pages_array(npages);
-	if (!p)
-		return -ENOMEM;
-	return __pipe_get_pages(i, maxsize, p, off);
-}
 
 static ssize_t iter_xarray_get_pages_alloc(struct iov_iter *i,
 					   struct page ***pages, size_t maxsize,
@@ -1593,7 +1578,7 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		return min_t(size_t, maxsize, n * PAGE_SIZE - *start);
 	}
 	if (iov_iter_is_pipe(i))
-		return pipe_get_pages_alloc(i, pages, maxsize, start);
+		return pipe_get_pages(i, pages, maxsize, ~0U, start);
 	if (iov_iter_is_xarray(i))
 		return iter_xarray_get_pages_alloc(i, pages, maxsize, start);
 	return -EFAULT;
