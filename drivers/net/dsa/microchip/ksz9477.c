@@ -276,9 +276,8 @@ static void ksz9477_port_init_cnt(struct ksz_device *dev, int port)
 	mutex_unlock(&mib->cnt_mutex);
 }
 
-static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
+static void ksz9477_r_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 *data)
 {
-	struct ksz_device *dev = ds->priv;
 	u16 val = 0xffff;
 
 	/* No real PHY after this. Simulate the PHY.
@@ -323,24 +322,20 @@ static int ksz9477_phy_read16(struct dsa_switch *ds, int addr, int reg)
 		ksz_pread16(dev, addr, 0x100 + (reg << 1), &val);
 	}
 
-	return val;
+	*data = val;
 }
 
-static int ksz9477_phy_write16(struct dsa_switch *ds, int addr, int reg,
-			       u16 val)
+static void ksz9477_w_phy(struct ksz_device *dev, u16 addr, u16 reg, u16 val)
 {
-	struct ksz_device *dev = ds->priv;
-
 	/* No real PHY after this. */
 	if (addr >= dev->phy_port_cnt)
-		return 0;
+		return;
 
 	/* No gigabit support.  Do not write to this register. */
 	if (!(dev->features & GBIT_SUPPORT) && reg == MII_CTRL1000)
-		return 0;
-	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
+		return;
 
-	return 0;
+	ksz_pwrite16(dev, addr, 0x100 + (reg << 1), val);
 }
 
 static void ksz9477_cfg_port_member(struct ksz_device *dev, int port,
@@ -1316,8 +1311,8 @@ static int ksz9477_setup(struct dsa_switch *ds)
 static const struct dsa_switch_ops ksz9477_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
 	.setup			= ksz9477_setup,
-	.phy_read		= ksz9477_phy_read16,
-	.phy_write		= ksz9477_phy_write16,
+	.phy_read		= ksz_phy_read16,
+	.phy_write		= ksz_phy_write16,
 	.phylink_mac_link_down	= ksz_mac_link_down,
 	.phylink_get_caps	= ksz9477_get_caps,
 	.port_enable		= ksz_enable_port,
@@ -1405,6 +1400,8 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.cfg_port_member = ksz9477_cfg_port_member,
 	.flush_dyn_mac_table = ksz9477_flush_dyn_mac_table,
 	.port_setup = ksz9477_port_setup,
+	.r_phy = ksz9477_r_phy,
+	.w_phy = ksz9477_w_phy,
 	.r_mib_cnt = ksz9477_r_mib_cnt,
 	.r_mib_pkt = ksz9477_r_mib_pkt,
 	.r_mib_stat64 = ksz_r_mib_stats64,
