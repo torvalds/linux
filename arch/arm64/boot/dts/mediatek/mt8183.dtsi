@@ -607,7 +607,7 @@
 		compatible = "simple-bus";
 		ranges;
 
-		soc_data: soc_data@8000000 {
+		soc_data: efuse@8000000 {
 			compatible = "mediatek,mt8183-efuse",
 				     "mediatek,efuse";
 			reg = <0 0x08000000 0 0x0010>;
