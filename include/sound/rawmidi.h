@@ -63,7 +63,6 @@ struct snd_rawmidi_runtime {
 	size_t xruns;		/* over/underruns counter */
 	int buffer_ref;		/* buffer reference count */
 	/* misc */
-	spinlock_t lock;
 	wait_queue_head_t sleep;
 	/* event handler (new bytes, input only) */
 	void (*event)(struct snd_rawmidi_substream *substream);
@@ -85,6 +84,7 @@ struct snd_rawmidi_substream {
 	unsigned int clock_type;	/* clock source to use for input framing */
 	int use_count;			/* use counter (for output) */
 	size_t bytes;
+	spinlock_t lock;
 	struct snd_rawmidi *rmidi;
 	struct snd_rawmidi_str *pstr;
 	char name[32];
