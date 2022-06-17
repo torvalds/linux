@@ -77,31 +77,30 @@ static DEFINE_PER_CPU(struct cpu_fbatches, cpu_fbatches) = {
  * This path almost never happens for VM activity - pages are normally freed
  * via pagevecs.  But it gets used by networking - and for compound pages.
  */
-static void __page_cache_release(struct page *page)
+static void __page_cache_release(struct folio *folio)
 {
-	if (PageLRU(page)) {
-		struct folio *folio = page_folio(page);
+	if (folio_test_lru(folio)) {
 		struct lruvec *lruvec;
 		unsigned long flags;
 
 		lruvec = folio_lruvec_lock_irqsave(folio, &flags);
-		del_page_from_lru_list(page, lruvec);
-		__clear_page_lru_flags(page);
+		lruvec_del_folio(lruvec, folio);
+		__folio_clear_lru_flags(folio);
 		unlock_page_lruvec_irqrestore(lruvec, flags);
 	}
-	/* See comment on PageMlocked in release_pages() */
-	if (unlikely(PageMlocked(page))) {
-		int nr_pages = thp_nr_pages(page);
+	/* See comment on folio_test_mlocked in release_pages() */
+	if (unlikely(folio_test_mlocked(folio))) {
+		long nr_pages = folio_nr_pages(folio);
 
-		__ClearPageMlocked(page);
-		mod_zone_page_state(page_zone(page), NR_MLOCK, -nr_pages);
+		__folio_clear_mlocked(folio);
+		zone_stat_mod_folio(folio, NR_MLOCK, -nr_pages);
 		count_vm_events(UNEVICTABLE_PGCLEARED, nr_pages);
 	}
 }
 
 static void __folio_put_small(struct folio *folio)
 {
-	__page_cache_release(&folio->page);
+	__page_cache_release(folio);
 	mem_cgroup_uncharge(folio);
 	free_unref_page(&folio->page, 0);
 }
@@ -115,7 +114,7 @@ static void __folio_put_large(struct folio *folio)
 	 * be called for hugetlb (it has a separate hugetlb_cgroup.)
 	 */
 	if (!folio_test_hugetlb(folio))
-		__page_cache_release(&folio->page);
+		__page_cache_release(folio);
 	destroy_compound_page(&folio->page);
 }
 
@@ -199,14 +198,14 @@ static void lru_add_fn(struct lruvec *lruvec, struct folio *folio)
 
 	/*
 	 * Is an smp_mb__after_atomic() still required here, before
-	 * folio_evictable() tests PageMlocked, to rule out the possibility
+	 * folio_evictable() tests the mlocked flag, to rule out the possibility
 	 * of stranding an evictable folio on an unevictable LRU?  I think
-	 * not, because __munlock_page() only clears PageMlocked while the LRU
-	 * lock is held.
+	 * not, because __munlock_page() only clears the mlocked flag
+	 * while the LRU lock is held.
 	 *
 	 * (That is not true of __page_cache_release(), and not necessarily
-	 * true of release_pages(): but those only clear PageMlocked after
-	 * put_page_testzero() has excluded any other users of the page.)
+	 * true of release_pages(): but those only clear the mlocked flag after
+	 * folio_put_testzero() has excluded any other users of the folio.)
 	 */
 	if (folio_evictable(folio)) {
 		if (was_unevictable)
