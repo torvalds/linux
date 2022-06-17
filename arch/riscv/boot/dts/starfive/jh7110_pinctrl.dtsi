@@ -258,8 +258,8 @@
 
 	i2c3_pins: i2c3-pins {
 		i2c3-pins-scl {
-			sf,pins = <PAD_GPIO38>;
-			sf,pinmux = <PAD_GPIO38_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO27>;
+			sf,pinmux = <PAD_GPIO27_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C3_IC_CLK_OE>;
@@ -267,8 +267,8 @@
 		};
 
 		i2c3-pins-sda {
-			sf,pins = <PAD_GPIO39>;
-			sf,pinmux = <PAD_GPIO39_FUNC_SEL 0>;
+			sf,pins = <PAD_GPIO26>;
+			sf,pinmux = <PAD_GPIO26_FUNC_SEL 0>;
 			sf,pin-ioconfig = <IO(GPIO_IE(1)|(GPIO_PU(1)))>;
 			sf,pin-gpio-dout = <GPO_LOW>;
 			sf,pin-gpio-doen = <OEN_I2C3_IC_DATA_OE>;
@@ -930,7 +930,7 @@
 		rgb-0-pins {
 			sf,pins = <PAD_GPIO36>;
 			sf,pinmux = <PAD_GPIO36_FUNC_SEL 1>;
-			sf,pin-ioconfig = <IO(GPIO_IE(0))>;
+			sf,pin-ioconfig = <IO(GPIO_IE(0)|GPIO_SLEW(1)|GPIO_DS(3))>;
 		};
 		rgb-1-pins {
 			sf,pins = <PAD_GPIO37>;

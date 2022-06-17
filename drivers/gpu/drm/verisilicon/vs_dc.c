@@ -805,6 +805,11 @@ static int dc_vout_clk_rst_init(struct device *dev, struct vs_dc *dc)
 
 int sys_vout_mux_config(void)
 {
+	#ifdef CONFIG_DRM_I2C_NXP_TDA998X//tda998x-rgb2hdmi
+		SET_U0_LCD_DATA_MAPPING_DPI_DP_SEL(0);//DC8200_INTERFACE_DPI
+		SET_U0_LCD_DATA_MAPPING_DP_RGB_FMT(0);//0-RGB888
+		SET_U0_DISPLAY_PANEL_MUX_PANEL_SEL(0);//panel 0
+	#else
     if(1){
 		SET_U0_HDMI_DATA_MAPPING_DPI_DP_SEL(0);
 		SET_U0_HDMI_DATA_MAPPING_DPI_BIT_DEPTH(0);
@@ -813,13 +818,20 @@ int sys_vout_mux_config(void)
 		SET_U2_DISPLAY_PANEL_MUX_PANEL_SEL(0);
 
     }
+	#endif
     return 0;
 }
 
 int sys_dispctrl_clk(void)
 {
-	_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
-	//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
+	#ifdef CONFIG_DRM_I2C_NXP_TDA998X//tda998x-rgb2hdmi
+		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX1_SOURCE_CLK_HDMITX0_PIXELCLK_;
+		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
+		//_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;//disabled standard
+	#else
+		_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_HDMITX0_PIXELCLK_;
+		//_SWITCH_CLOCK_CLK_U0_DC8200_CLK_PIX0_SOURCE_CLK_DC8200_PIX0_;
+	#endif
 
     return 0;
 }
@@ -891,6 +903,7 @@ static int dc_init(struct device *dev)
 		return ret;
 	}
 	#ifdef CONFIG_STARFIVE_DSI
+	dev_info(dev, "dc mipi channel\n");
 	dc->vout_src = devm_clk_get(dev, "vout_src");
 	if (IS_ERR(dc->vout_src)){
 		dev_err(dev,"failed to get dc->vout_src\n");
@@ -906,6 +919,23 @@ static int dc_init(struct device *dev)
 		dev_err(dev, "failed to drv_config_dc_4_dsi: %d\n", ret);
 		return ret;
 	}
+	#endif
+
+	#ifdef CONFIG_DRM_I2C_NXP_TDA998X
+	_ENABLE_CLOCK_CLK_DOM_VOUT_TOP_LCD_CLK_;
+	/*
+	dev_info(dev, "dc rgb2hdmi channel\n");
+	dc->vout_top_lcd = devm_clk_get(dev, "vout_top_lcd");
+	if (IS_ERR(dc->vout_top_lcd)){
+		dev_err(dev,"failed to get dc->vout_top_lcd\n");
+		return PTR_ERR(dc->vout_top_lcd);
+	}
+	ret = clk_prepare_enable(dc->vout_top_lcd);
+	if (ret) {
+		dev_err(dev, "failed to prepare/enable vout_top_lcd\n");
+		return ret;
+	}
+	*/
 	#endif
 	printk("====> %s, %d.\n", __func__, __LINE__);
 
