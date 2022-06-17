@@ -115,7 +115,7 @@ static void __folio_put_large(struct folio *folio)
 	 */
 	if (!folio_test_hugetlb(folio))
 		__page_cache_release(folio);
-	destroy_compound_page(&folio->page);
+	destroy_large_folio(folio);
 }
 
 void __folio_put(struct folio *folio)

@@ -1979,7 +1979,7 @@ free_it:
 		 * appear not as the counts should be low
 		 */
 		if (unlikely(folio_test_large(folio)))
-			destroy_compound_page(&folio->page);
+			destroy_large_folio(folio);
 		else
 			list_add(&folio->lru, &free_pages);
 		continue;
@@ -2348,7 +2348,7 @@ static unsigned int move_pages_to_lru(struct lruvec *lruvec,
 
 			if (unlikely(folio_test_large(folio))) {
 				spin_unlock_irq(&lruvec->lru_lock);
-				destroy_compound_page(&folio->page);
+				destroy_large_folio(folio);
 				spin_lock_irq(&lruvec->lru_lock);
 			} else
 				list_add(&folio->lru, &folios_to_free);
