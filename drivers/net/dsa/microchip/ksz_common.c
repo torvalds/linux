@@ -954,6 +954,43 @@ enum dsa_tag_protocol ksz_get_tag_protocol(struct dsa_switch *ds,
 }
 EXPORT_SYMBOL_GPL(ksz_get_tag_protocol);
 
+int ksz_port_vlan_filtering(struct dsa_switch *ds, int port,
+			    bool flag, struct netlink_ext_ack *extack)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->vlan_filtering)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->vlan_filtering(dev, port, flag, extack);
+}
+EXPORT_SYMBOL_GPL(ksz_port_vlan_filtering);
+
+int ksz_port_vlan_add(struct dsa_switch *ds, int port,
+		      const struct switchdev_obj_port_vlan *vlan,
+		      struct netlink_ext_ack *extack)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->vlan_add)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->vlan_add(dev, port, vlan, extack);
+}
+EXPORT_SYMBOL_GPL(ksz_port_vlan_add);
+
+int ksz_port_vlan_del(struct dsa_switch *ds, int port,
+		      const struct switchdev_obj_port_vlan *vlan)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->vlan_del)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->vlan_del(dev, port, vlan);
+}
+EXPORT_SYMBOL_GPL(ksz_port_vlan_del);
+
 static int ksz_switch_detect(struct ksz_device *dev)
 {
 	u8 id1, id2;
