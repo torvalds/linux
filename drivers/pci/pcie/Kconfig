@@ -110,6 +110,12 @@ config PCIEASPM_PERFORMANCE
 	  Disable PCI Express ASPM L0s and L1, even if the BIOS enabled them.
 endchoice
 
+config PCIEASPM_EXT
+	tristate "Extend ASPM function"
+	depends on PCIEASPM
+	help
+	  This enables the extensions APIs for ASPM control.
+
 config PCIE_PME
 	def_bool y
 	depends on PCIEPORTBUS && PM
