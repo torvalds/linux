@@ -3101,7 +3101,6 @@ void cpu_set_feature(unsigned int num)
 	WARN_ON(num >= MAX_CPU_FEATURES);
 	elf_hwcap |= BIT(num);
 }
-EXPORT_SYMBOL_GPL(cpu_set_feature);
 
 bool cpu_have_feature(unsigned int num)
 {
