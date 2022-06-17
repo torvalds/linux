@@ -218,6 +218,13 @@
 
 #define PMQOS_CPU_LATENCY   BIT(0)
 
+/* Max number of dataline */
+#define FSL_SAI_DL_NUM		(8)
+/* default dataline type is zero */
+#define FSL_SAI_DL_DEFAULT	(0)
+#define FSL_SAI_DL_I2S		BIT(0)
+#define FSL_SAI_DL_PDM		BIT(1)
+
 struct fsl_sai_soc_data {
 	bool use_imx_pcm;
 	bool use_edma;
@@ -253,6 +260,14 @@ struct fsl_sai_param {
 	u32 dataline;
 };
 
+struct fsl_sai_dl_cfg {
+	unsigned int type;
+	unsigned int pins[2];
+	unsigned int mask[2];
+	unsigned int start_off[2];
+	unsigned int next_off[2];
+};
+
 struct fsl_sai {
 	struct platform_device *pdev;
 	struct regmap *regmap;
@@ -265,6 +280,8 @@ struct fsl_sai {
 	bool is_dsp_mode;
 	bool is_pdm_mode;
 	bool synchronous[2];
+	struct fsl_sai_dl_cfg *dl_cfg;
+	unsigned int dl_cfg_cnt;
 
 	unsigned int mclk_id[2];
 	unsigned int mclk_streams;
