@@ -2199,12 +2199,11 @@ cleanup:
  * so we assume the bio they send down corresponds to a failed part
  * of the drive.
  */
-int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
-			  int mirror_num, int generic_io)
+void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
+			   int mirror_num, bool generic_io)
 {
 	struct btrfs_fs_info *fs_info = bioc->fs_info;
 	struct btrfs_raid_bio *rbio;
-	int ret;
 
 	if (generic_io) {
 		ASSERT(bioc->mirror_num == mirror_num);
@@ -2213,9 +2212,8 @@ int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 
 	rbio = alloc_rbio(fs_info, bioc);
 	if (IS_ERR(rbio)) {
-		if (generic_io)
-			btrfs_put_bioc(bioc);
-		return PTR_ERR(rbio);
+		bio->bi_status = errno_to_blk_status(PTR_ERR(rbio));
+		goto out_end_bio;
 	}
 
 	rbio->operation = BTRFS_RBIO_READ_REBUILD;
@@ -2227,10 +2225,9 @@ int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 "%s could not find the bad stripe in raid56 so that we cannot recover any more (bio has logical %llu len %llu, bioc has map_type %llu)",
 			   __func__, bio->bi_iter.bi_sector << 9,
 			   (u64)bio->bi_iter.bi_size, bioc->map_type);
-		if (generic_io)
-			btrfs_put_bioc(bioc);
 		kfree(rbio);
-		return -EIO;
+		bio->bi_status = BLK_STS_IOERR;
+		goto out_end_bio;
 	}
 
 	if (generic_io) {
@@ -2257,24 +2254,20 @@ int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 			rbio->failb--;
 	}
 
-	ret = lock_stripe_add(rbio);
+	if (lock_stripe_add(rbio))
+		return;
 
 	/*
-	 * __raid56_parity_recover will end the bio with
-	 * any errors it hits.  We don't want to return
-	 * its error value up the stack because our caller
-	 * will end up calling bio_endio with any nonzero
-	 * return
+	 * This adds our rbio to the list of rbios that will be handled after
+	 * the current lock owner is done.
 	 */
-	if (ret == 0)
-		__raid56_parity_recover(rbio);
-	/*
-	 * our rbio has been added to the list of
-	 * rbios that will be handled after the
-	 * currently lock owner is done
-	 */
-	return 0;
+	__raid56_parity_recover(rbio);
+	return;
 
+out_end_bio:
+	if (generic_io)
+		btrfs_put_bioc(bioc);
+	bio_endio(bio);
 }
 
 static void rmw_work(struct work_struct *work)

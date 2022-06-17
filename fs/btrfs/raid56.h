@@ -165,8 +165,8 @@ static inline int nr_data_stripes(const struct map_lookup *map)
 
 struct btrfs_device;
 
-int raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
-			  int mirror_num, int generic_io);
+void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
+			   int mirror_num, bool generic_io);
 void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc);
 
 void raid56_add_scrub_pages(struct btrfs_raid_bio *rbio, struct page *page,

@@ -6764,7 +6764,7 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 		if (btrfs_op(bio) == BTRFS_MAP_WRITE)
 			raid56_parity_write(bio, bioc);
 		else
-			ret = raid56_parity_recover(bio, bioc, mirror_num, 1);
+			raid56_parity_recover(bio, bioc, mirror_num, true);
 		goto out_dec;
 	}
 
