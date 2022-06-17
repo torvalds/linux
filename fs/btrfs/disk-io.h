@@ -114,9 +114,9 @@ int btrfs_buffer_uptodate(struct extent_buffer *buf, u64 parent_transid,
 			  int atomic);
 int btrfs_read_extent_buffer(struct extent_buffer *buf, u64 parent_transid,
 			     int level, struct btrfs_key *first_key);
-blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
-				 int mirror_num, u64 dio_file_offset,
-				 extent_submit_bio_start_t *submit_bio_start);
+bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
+			 u64 dio_file_offset,
+			 extent_submit_bio_start_t *submit_bio_start);
 blk_status_t btrfs_submit_bio_done(void *private_data, struct bio *bio,
 			  int mirror_num);
 int btrfs_alloc_log_tree_node(struct btrfs_trans_handle *trans,

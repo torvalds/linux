@@ -759,16 +759,23 @@ static void run_one_async_free(struct btrfs_work *work)
 	kfree(async);
 }
 
-blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
-				 int mirror_num, u64 dio_file_offset,
-				 extent_submit_bio_start_t *submit_bio_start)
+/*
+ * Submit bio to an async queue.
+ *
+ * Retrun:
+ * - true if the work has been succesfuly submitted
+ * - false in case of error
+ */
+bool btrfs_wq_submit_bio(struct inode *inode, struct bio *bio, int mirror_num,
+			 u64 dio_file_offset,
+			 extent_submit_bio_start_t *submit_bio_start)
 {
 	struct btrfs_fs_info *fs_info = BTRFS_I(inode)->root->fs_info;
 	struct async_submit_bio *async;
 
 	async = kmalloc(sizeof(*async), GFP_NOFS);
 	if (!async)
-		return BLK_STS_RESOURCE;
+		return false;
 
 	async->inode = inode;
 	async->bio = bio;
@@ -786,7 +793,7 @@ blk_status_t btrfs_wq_submit_bio(struct inode *inode, struct bio *bio,
 		btrfs_queue_work(fs_info->hipri_workers, &async->work);
 	else
 		btrfs_queue_work(fs_info->workers, &async->work);
-	return 0;
+	return true;
 }
 
 static blk_status_t btree_csum_one_bio(struct bio *bio)
@@ -840,25 +847,23 @@ void btrfs_submit_metadata_bio(struct inode *inode, struct bio *bio, int mirror_
 		btrfs_submit_bio(fs_info, bio, mirror_num);
 		return;
 	}
-	if (!should_async_write(fs_info, BTRFS_I(inode))) {
-		ret = btree_csum_one_bio(bio);
-		if (!ret) {
-			btrfs_submit_bio(fs_info, bio, mirror_num);
-			return;
-		}
-	} else {
-		/*
-		 * kthread helpers are used to submit writes so that
-		 * checksumming can happen in parallel across all CPUs
-		 */
-		ret = btrfs_wq_submit_bio(inode, bio, mirror_num, 0,
-					  btree_submit_bio_start);
-	}
 
+	/*
+	 * Kthread helpers are used to submit writes so that checksumming can
+	 * happen in parallel across all CPUs.
+	 */
+	if (should_async_write(fs_info, BTRFS_I(inode)) &&
+	    btrfs_wq_submit_bio(inode, bio, mirror_num, 0, btree_submit_bio_start))
+		return;
+
+	ret = btree_csum_one_bio(bio);
 	if (ret) {
 		bio->bi_status = ret;
 		bio_endio(bio);
+		return;
 	}
+
+	btrfs_submit_bio(fs_info, bio, mirror_num);
 }
 
 #ifdef CONFIG_MIGRATION

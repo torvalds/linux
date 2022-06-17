@@ -2674,11 +2674,10 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 	if (!(bi->flags & BTRFS_INODE_NODATASUM) &&
 	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
 	    !btrfs_is_data_reloc_root(bi->root)) {
-		if (!atomic_read(&bi->sync_writers)) {
-			ret = btrfs_wq_submit_bio(inode, bio, mirror_num, 0,
-						  btrfs_submit_bio_start);
-			goto out;
-		}
+		if (!atomic_read(&bi->sync_writers) &&
+		    btrfs_wq_submit_bio(inode, bio, mirror_num, 0,
+					btrfs_submit_bio_start))
+			return;
 
 		ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
 		if (ret)
@@ -8027,9 +8026,11 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 
 	if (btrfs_op(bio) == BTRFS_MAP_WRITE) {
 		/* Check btrfs_submit_data_write_bio() for async submit rules */
-		if (async_submit && !atomic_read(&BTRFS_I(inode)->sync_writers))
-			return btrfs_wq_submit_bio(inode, bio, 0, file_offset,
-					btrfs_submit_bio_start_direct_io);
+		if (async_submit && !atomic_read(&BTRFS_I(inode)->sync_writers) &&
+		    btrfs_wq_submit_bio(inode, bio, 0, file_offset,
+					btrfs_submit_bio_start_direct_io))
+			return BLK_STS_OK;
+
 		/*
 		 * If we aren't doing async submit, calculate the csum of the
 		 * bio now.
