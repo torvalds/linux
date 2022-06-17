@@ -1289,60 +1289,61 @@ static struct page **get_pages_array(size_t n)
 	return kvmalloc_array(n, sizeof(struct page *), GFP_KERNEL);
 }
 
-static inline ssize_t __pipe_get_pages(struct iov_iter *i,
-				size_t maxsize,
-				struct page **pages,
-				size_t off)
+static ssize_t pipe_get_pages(struct iov_iter *i,
+		   struct page ***pages, size_t maxsize, unsigned maxpages,
+		   size_t *start)
 {
 	struct pipe_inode_info *pipe = i->pipe;
-	ssize_t left = maxsize;
+	unsigned int npages, off;
+	struct page **p;
+	ssize_t left;
+	int count;
 
+	if (!sanity(i))
+		return -EFAULT;
+
+	*start = off = pipe_npages(i, &npages);
+	count = DIV_ROUND_UP(maxsize + off, PAGE_SIZE);
+	if (count > npages)
+		count = npages;
+	if (count > maxpages)
+		count = maxpages;
+	p = *pages;
+	if (!p) {
+		*pages = p = get_pages_array(count);
+		if (!p)
+			return -ENOMEM;
+	}
+
+	left = maxsize;
+	npages = 0;
 	if (off) {
 		struct pipe_buffer *buf = pipe_buf(pipe, pipe->head - 1);
 
-		get_page(*pages++ = buf->page);
+		get_page(*p++ = buf->page);
 		left -= PAGE_SIZE - off;
 		if (left <= 0) {
 			buf->len += maxsize;
 			return maxsize;
 		}
 		buf->len = PAGE_SIZE;
+		npages = 1;
 	}
-	while (!pipe_full(pipe->head, pipe->tail, pipe->max_usage)) {
-		struct page *page = push_anon(pipe,
-					      min_t(ssize_t, left, PAGE_SIZE));
+	for ( ; npages < count; npages++) {
+		struct page *page;
+		unsigned int size = min_t(ssize_t, left, PAGE_SIZE);
+
+		if (pipe_full(pipe->head, pipe->tail, pipe->max_usage))
+			break;
+		page = push_anon(pipe, size);
 		if (!page)
 			break;
-		get_page(*pages++ = page);
-		left -= PAGE_SIZE;
-		if (left <= 0)
-			return maxsize;
+		get_page(*p++ = page);
+		left -= size;
 	}
-	return maxsize - left ? : -EFAULT;
-}
-
-static ssize_t pipe_get_pages(struct iov_iter *i,
-		   struct page ***pages, size_t maxsize, unsigned maxpages,
-		   size_t *start)
-{
-	unsigned int npages, off;
-	struct page **p;
-	size_t capacity;
-
-	if (!sanity(i))
+	if (!npages)
 		return -EFAULT;
-
-	*start = off = pipe_npages(i, &npages);
-	capacity = min(npages, maxpages) * PAGE_SIZE - off;
-	maxsize = min(maxsize, capacity);
-	p = *pages;
-	if (!p) {
-		*pages = p = get_pages_array(DIV_ROUND_UP(maxsize + off, PAGE_SIZE));
-		if (!p)
-			return -ENOMEM;
-	}
-
-	return __pipe_get_pages(i, maxsize, p, off);
+	return maxsize - left;
 }
 
 static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa,
