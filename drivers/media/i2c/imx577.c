@@ -5,6 +5,8 @@
  * Copyright (C) 2022 Rockchip Electronics Co., Ltd.
  *
  * V0.0X01.0X00 first version.
+ * V0.0X01.0X01 add full size 30fps.
+ * V0.0X01.0X02 fix gain and exposure setting.
  *
  */
 
@@ -31,13 +33,14 @@
 #include <linux/of_graph.h>
 #include <linux/pinctrl/consumer.h>
 
-#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x00)
+#define DRIVER_VERSION			KERNEL_VERSION(0, 0x01, 0x02)
 
 #ifndef V4L2_CID_DIGITAL_GAIN
 #define V4L2_CID_DIGITAL_GAIN		V4L2_CID_GAIN
 #endif
 
 #define IMX577_LINK_FREQ_1050MHZ	1050000000U
+#define IMX577_LINK_FREQ_498MHZ		498000000U
 /* pixel rate = link frequency * 2 * lanes / BITS_PER_SAMPLE */
 #define IMX577_PIXEL_RATE_1050M_10BIT		(IMX577_LINK_FREQ_1050MHZ * 2LL * 4LL / 10LL)
 #define IMX577_PIXEL_RATE_1050M_12BIT		(IMX577_LINK_FREQ_1050MHZ * 2LL * 4LL / 12LL)
@@ -51,23 +54,30 @@
 #define IMX577_MODE_SW_STANDBY		0x0
 #define IMX577_MODE_STREAMING		BIT(0)
 
-#define IMX577_REG_EXPOSURE		0x0202
+#define IMX577_REG_EXPOSURE_H		0x0202
+#define IMX577_REG_EXPOSURE_L		0x0203
 #define	IMX577_EXPOSURE_MIN		4
 #define	IMX577_EXPOSURE_STEP		1
 #define IMX577_VTS_MAX			0xffff
 
 #define IMX577_REG_GAIN_H		0x0204
 #define IMX577_REG_GAIN_L		0x0205
-#define IMX577_GAIN_MIN			0x400
-#define IMX577_GAIN_MAX			0x5800
-#define IMX577_GAIN_STEP		0x400
-#define IMX577_GAIN_DEFAULT		0x800
+#define IMX577_GAIN_MIN			0x10
+#define IMX577_GAIN_MAX			0x160
+#define IMX577_GAIN_STEP		0x1
+#define IMX577_GAIN_DEFAULT		0x20
 
 #define IMX577_REG_TEST_PATTERN		0x0600
 #define	IMX577_TEST_PATTERN_ENABLE	0x02
 #define	IMX577_TEST_PATTERN_DISABLE	0x0
 
 #define IMX577_REG_VTS			0x0340
+
+#define IMX577_FETCH_EXP_H(VAL)		(((VAL) >> 8) & 0xFF)
+#define IMX577_FETCH_EXP_L(VAL)		((VAL) & 0xFF)
+
+#define IMX577_FETCH_AGAIN_H(VAL)	(((VAL) >> 8) & 0x03)
+#define IMX577_FETCH_AGAIN_L(VAL)	((VAL) & 0xFF)
 
 #define REG_NULL			0xFFFF
 
@@ -385,6 +395,127 @@ static const struct regval imx577_linear_10bit_4056x3040_60fps_regs[] = {
 	{REG_NULL, 0x00},
 };
 
+static const struct regval imx577_linear_10bit_4056x3040_30fps_regs[] = {
+	{0x0112, 0x0A},
+	{0x0113, 0x0A},
+	{0x0114, 0x03},
+	{0x0342, 0x23},
+	{0x0343, 0x18},
+	{0x0340, 0x0C},
+	{0x0341, 0x2c},
+	{0x3210, 0x00},
+	{0x0344, 0x00},
+	{0x0345, 0x00},
+	{0x0346, 0x00},
+	{0x0347, 0x00},
+	{0x0348, 0x0F},
+	{0x0349, 0xD7},
+	{0x034A, 0x0B},
+	{0x034B, 0xDF},
+	{0x00E3, 0x00},
+	{0x00E4, 0x00},
+	{0x00E5, 0x01},
+	{0x00FC, 0x0A},
+	{0x00FD, 0x0A},
+	{0x00FE, 0x0A},
+	{0x00FF, 0x0A},
+	{0x0220, 0x00},
+	{0x0221, 0x11},
+	{0x0381, 0x01},
+	{0x0383, 0x01},
+	{0x0385, 0x01},
+	{0x0387, 0x01},
+	{0x0900, 0x00},
+	{0x0901, 0x11},
+	{0x0902, 0x00},
+	{0x3140, 0x02},
+	{0x3241, 0x11},
+	{0x3250, 0x03},
+	{0x3E10, 0x00},
+	{0x3E11, 0x00},
+	{0x3F0D, 0x00},
+	{0x3F42, 0x00},
+	{0x3F43, 0x00},
+	{0x0401, 0x00},
+	{0x0404, 0x00},
+	{0x0405, 0x10},
+	{0x0408, 0x00},
+	{0x0409, 0x00},
+	{0x040A, 0x00},
+	{0x040B, 0x00},
+	{0x040C, 0x0F},
+	{0x040D, 0xD8},
+	{0x040E, 0x0B},
+	{0x040F, 0xE0},
+	{0x034C, 0x0F},
+	{0x034D, 0xD8},
+	{0x034E, 0x0B},
+	{0x034F, 0xE0},
+	{0x0301, 0x05},
+	{0x0303, 0x02},
+	{0x0305, 0x04},
+	{0x0306, 0x01},
+	{0x0307, 0x5E},
+	{0x0309, 0x0A},
+	{0x030B, 0x02},
+	{0x030D, 0x02},
+	{0x030E, 0x00},
+	{0x030F, 0xA6},
+	{0x0310, 0x01},
+	{0x0820, 0x0F},
+	{0x0821, 0x90},
+	{0x0822, 0x00},
+	{0x0823, 0x00},
+	{0x3E20, 0x01},
+	{0x3E37, 0x00},
+	{0x3F50, 0x00},
+	{0x3F56, 0x00},
+	{0x3F57, 0x41},
+	{0x3C0A, 0x5A},
+	{0x3C0B, 0x55},
+	{0x3C0C, 0x28},
+	{0x3C0D, 0x07},
+	{0x3C0E, 0xFF},
+	{0x3C0F, 0x00},
+	{0x3C10, 0x00},
+	{0x3C11, 0x02},
+	{0x3C12, 0x00},
+	{0x3C13, 0x03},
+	{0x3C14, 0x00},
+	{0x3C15, 0x00},
+	{0x3C16, 0x0C},
+	{0x3C17, 0x0C},
+	{0x3C18, 0x0C},
+	{0x3C19, 0x0A},
+	{0x3C1A, 0x0A},
+	{0x3C1B, 0x0A},
+	{0x3C1C, 0x00},
+	{0x3C1D, 0x00},
+	{0x3C1E, 0x00},
+	{0x3C1F, 0x00},
+	{0x3C20, 0x00},
+	{0x3C21, 0x00},
+	{0x3C22, 0x3F},
+	{0x3C23, 0x0A},
+	{0x3E35, 0x01},
+	{0x3F4A, 0x03},
+	{0x3F4B, 0xBF},
+	{0x3F26, 0x00},
+	{0x0202, 0x0C},
+	{0x0203, 0x16},
+	{0x0204, 0x00},
+	{0x0205, 0x00},
+	{0x020E, 0x01},
+	{0x020F, 0x00},
+	{0x0210, 0x01},
+	{0x0211, 0x00},
+	{0x0212, 0x01},
+	{0x0213, 0x00},
+	{0x0214, 0x01},
+	{0x0215, 0x00},
+	{REG_NULL, 0x00},
+};
+
 static const struct regval imx577_linear_12bit_4056x3040_40fps_regs[] = {
 	{0x0112, 0x0C},
 	{0x0113, 0x0C},
@@ -513,6 +644,23 @@ static const struct imx577_mode supported_modes[] = {
 		.height = 3040,
 		.max_fps = {
 			.numerator = 10000,
+			.denominator = 300000,
+		},
+		.exp_def = 0x0c10,
+		.hts_def = 0x2318,
+		.vts_def = 0x0c2c,
+		.bpp = 10,
+		.bus_fmt = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.reg_list = imx577_linear_10bit_4056x3040_30fps_regs,
+		.hdr_mode = NO_HDR,
+		.link_freq_idx = 1,
+		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
+	},
+	{
+		.width = 4056,
+		.height = 3040,
+		.max_fps = {
+			.numerator = 10000,
 			.denominator = 600000,
 		},
 		.exp_def = 0x0c10,
@@ -546,6 +694,7 @@ static const struct imx577_mode supported_modes[] = {
 
 static const s64 link_freq_items[] = {
 	IMX577_LINK_FREQ_1050MHZ,
+	IMX577_LINK_FREQ_498MHZ,
 };
 
 static const char * const imx577_test_pattern_menu[] = {
@@ -1270,28 +1419,6 @@ static const struct v4l2_subdev_ops imx577_subdev_ops = {
 	.pad	= &imx577_pad_ops,
 };
 
-static int imx577_set_gain_reg(struct imx577 *imx577, u32 a_gain)
-{
-	int ret = 0;
-	u32 gain_reg = 0;
-
-	gain_reg = (1024 - (1024 * 1024 / a_gain));
-	if (gain_reg > 978)
-		gain_reg = 978;
-
-	ret = imx577_write_reg(imx577->client,
-		IMX577_REG_GAIN_H,
-		IMX577_REG_VALUE_08BIT,
-		((gain_reg & 0x300) >> 8));
-
-	ret |= imx577_write_reg(imx577->client,
-		IMX577_REG_GAIN_L,
-		IMX577_REG_VALUE_08BIT,
-		(gain_reg & 0xff));
-
-	return ret;
-}
-
 static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 {
 	struct imx577 *imx577 = container_of(ctrl->handler,
@@ -1299,6 +1426,7 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	struct i2c_client *client = imx577->client;
 	s64 max;
 	int ret = 0;
+	u32 again = 0;
 
 	/* Propagate change of current control to all related controls */
 	switch (ctrl->id) {
@@ -1319,12 +1447,37 @@ static int imx577_set_ctrl(struct v4l2_ctrl *ctrl)
 	case V4L2_CID_EXPOSURE:
 		/* 4 least significant bits of expsoure are fractional part */
 		ret = imx577_write_reg(imx577->client,
-					IMX577_REG_EXPOSURE,
-					IMX577_REG_VALUE_16BIT,
-					ctrl->val);
+				       IMX577_REG_EXPOSURE_H,
+				       IMX577_REG_VALUE_08BIT,
+				       IMX577_FETCH_EXP_H(ctrl->val));
+		ret |= imx577_write_reg(imx577->client,
+					IMX577_REG_EXPOSURE_L,
+					IMX577_REG_VALUE_08BIT,
+					IMX577_FETCH_EXP_L(ctrl->val));
+		dev_dbg(&client->dev, "set exposure 0x%x\n",
+			ctrl->val);
 		break;
 	case V4L2_CID_ANALOGUE_GAIN:
-		ret = imx577_set_gain_reg(imx577, ctrl->val);
+		/* gain_reg = 1024 - 1024 / gain_ana
+		 * manual multiple 16 to add accuracy:
+		 * then formula change to:
+		 * gain_reg = 1024 - 1024 * 16 / (gain_ana * 16)
+		 */
+		if (ctrl->val > 0x160)
+			ctrl->val = 0x160;
+		if (ctrl->val < 0x10)
+			ctrl->val = 0x10;
+
+		again = 1024 - 1024 * 16 / ctrl->val;
+		ret = imx577_write_reg(imx577->client, IMX577_REG_GAIN_H,
+				       IMX577_REG_VALUE_08BIT,
+				       IMX577_FETCH_AGAIN_H(again));
+		ret |= imx577_write_reg(imx577->client, IMX577_REG_GAIN_L,
+					IMX577_REG_VALUE_08BIT,
+					IMX577_FETCH_AGAIN_L(again));
+
+		dev_dbg(&client->dev, "set analog gain 0x%x\n",
+			ctrl->val);
 		break;
 	case V4L2_CID_VBLANK:
 		ret = imx577_write_reg(imx577->client,
