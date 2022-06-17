@@ -1568,16 +1568,15 @@ unlock_out:
 	return ret;
 }
 
-static bool page_swapped(struct page *page)
+static bool folio_swapped(struct folio *folio)
 {
 	swp_entry_t entry;
 	struct swap_info_struct *si;
 
-	if (!IS_ENABLED(CONFIG_THP_SWAP) || likely(!PageTransCompound(page)))
-		return page_swapcount(page) != 0;
+	if (!IS_ENABLED(CONFIG_THP_SWAP) || likely(!folio_test_large(folio)))
+		return page_swapcount(&folio->page) != 0;
 
-	page = compound_head(page);
-	entry.val = page_private(page);
+	entry = folio_swap_entry(folio);
 	si = _swap_info_get(entry);
 	if (si)
 		return swap_page_trans_huge_swapped(si, entry);
@@ -1590,13 +1589,14 @@ static bool page_swapped(struct page *page)
  */
 int try_to_free_swap(struct page *page)
 {
-	VM_BUG_ON_PAGE(!PageLocked(page), page);
+	struct folio *folio = page_folio(page);
+	VM_BUG_ON_FOLIO(!folio_test_locked(folio), folio);
 
-	if (!PageSwapCache(page))
+	if (!folio_test_swapcache(folio))
 		return 0;
-	if (PageWriteback(page))
+	if (folio_test_writeback(folio))
 		return 0;
-	if (page_swapped(page))
+	if (folio_swapped(folio))
 		return 0;
 
 	/*
@@ -1617,9 +1617,8 @@ int try_to_free_swap(struct page *page)
 	if (pm_suspended_storage())
 		return 0;
 
-	page = compound_head(page);
-	delete_from_swap_cache(page);
-	SetPageDirty(page);
+	delete_from_swap_cache(&folio->page);
+	folio_set_dirty(folio);
 	return 1;
 }
 
