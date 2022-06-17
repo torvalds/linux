@@ -295,6 +295,9 @@ static void gpy_update_interface(struct phy_device *phydev)
 				   ret);
 		break;
 	}
+
+	if (phydev->speed == SPEED_2500 || phydev->speed == SPEED_1000)
+		genphy_read_master_slave(phydev);
 }
 
 static int gpy_read_status(struct phy_device *phydev)
