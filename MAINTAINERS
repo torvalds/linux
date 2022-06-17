@@ -19249,8 +19249,9 @@ F:	Documentation/devicetree/bindings/gpio/snps,creg-gpio.txt
 F:	drivers/gpio/gpio-creg-snps.c
 
 SYNOPSYS DESIGNWARE 8250 UART DRIVER
+M:	Ilpo Järvinen <ilpo.jarvinen@linux.intel.com>
 R:	Andy Shevchenko <andriy.shevchenko@linux.intel.com>
-S:	Maintained
+S:	Supported
 F:	drivers/tty/serial/8250/8250_dw.c
 F:	drivers/tty/serial/8250/8250_dwlib.*
 F:	drivers/tty/serial/8250/8250_lpss.c
