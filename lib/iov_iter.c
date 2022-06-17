@@ -1373,7 +1373,7 @@ static ssize_t iter_xarray_populate_pages(struct page **pages, struct xarray *xa
 }
 
 static ssize_t iter_xarray_get_pages(struct iov_iter *i,
-				     struct page **pages, size_t maxsize,
+				     struct page ***pages, size_t maxsize,
 				     unsigned maxpages, size_t *_start_offset)
 {
 	unsigned nr, offset;
@@ -1398,7 +1398,13 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 	if (count > maxpages)
 		count = maxpages;
 
-	nr = iter_xarray_populate_pages(pages, i->xarray, index, count);
+	if (!*pages) {
+		*pages = get_pages_array(count);
+		if (!*pages)
+			return -ENOMEM;
+	}
+
+	nr = iter_xarray_populate_pages(*pages, i->xarray, index, count);
 	if (nr == 0)
 		return 0;
 
@@ -1490,45 +1496,10 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 	if (iov_iter_is_pipe(i))
 		return pipe_get_pages(i, &pages, maxsize, maxpages, start);
 	if (iov_iter_is_xarray(i))
-		return iter_xarray_get_pages(i, pages, maxsize, maxpages, start);
+		return iter_xarray_get_pages(i, &pages, maxsize, maxpages, start);
 	return -EFAULT;
 }
 EXPORT_SYMBOL(iov_iter_get_pages);
-
-static ssize_t iter_xarray_get_pages_alloc(struct iov_iter *i,
-					   struct page ***pages, size_t maxsize,
-					   size_t *_start_offset)
-{
-	struct page **p;
-	unsigned nr, offset;
-	pgoff_t index, count;
-	size_t size = maxsize;
-	loff_t pos;
-
-	pos = i->xarray_start + i->iov_offset;
-	index = pos >> PAGE_SHIFT;
-	offset = pos & ~PAGE_MASK;
-	*_start_offset = offset;
-
-	count = 1;
-	if (size > PAGE_SIZE - offset) {
-		size -= PAGE_SIZE - offset;
-		count += size >> PAGE_SHIFT;
-		size &= ~PAGE_MASK;
-		if (size)
-			count++;
-	}
-
-	*pages = p = get_pages_array(count);
-	if (!p)
-		return -ENOMEM;
-
-	nr = iter_xarray_populate_pages(p, i->xarray, index, count);
-	if (nr == 0)
-		return 0;
-
-	return min_t(size_t, nr * PAGE_SIZE - offset, maxsize);
-}
 
 static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 		   struct page ***pages, size_t maxsize,
@@ -1580,7 +1551,7 @@ static ssize_t __iov_iter_get_pages_alloc(struct iov_iter *i,
 	if (iov_iter_is_pipe(i))
 		return pipe_get_pages(i, pages, maxsize, ~0U, start);
 	if (iov_iter_is_xarray(i))
-		return iter_xarray_get_pages_alloc(i, pages, maxsize, start);
+		return iter_xarray_get_pages(i, pages, maxsize, ~0U, start);
 	return -EFAULT;
 }
 
