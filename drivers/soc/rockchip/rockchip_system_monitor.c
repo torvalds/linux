@@ -1456,7 +1456,7 @@ static int rockchip_system_monitor_parse_dt(struct system_monitor *monitor)
 	const char *tz_name, *buf = NULL;
 
 	if (of_property_read_string(np, "rockchip,video-4k-offline-cpus", &buf))
-		cpumask_clear(&system_monitor->video_4k_offline_cpus);
+		cpumask_clear(&monitor->video_4k_offline_cpus);
 	else
 		cpulist_parse(buf, &monitor->video_4k_offline_cpus);
 
