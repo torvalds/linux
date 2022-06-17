@@ -1362,11 +1362,29 @@ static u32 ksz9477_get_port_addr(int port, int offset)
 
 static int ksz9477_switch_detect(struct ksz_device *dev)
 {
-	u8 data8;
-	u8 id_hi;
-	u8 id_lo;
 	u32 id32;
 	int ret;
+
+	/* read chip id */
+	ret = ksz_read32(dev, REG_CHIP_ID0__1, &id32);
+	if (ret)
+		return ret;
+
+	dev_dbg(dev->dev, "Switch detect: ID=%08x\n", id32);
+
+	dev->chip_id = id32 & 0x00FFFF00;
+
+	return 0;
+}
+
+static int ksz9477_switch_init(struct ksz_device *dev)
+{
+	u8 data8;
+	int ret;
+
+	dev->ds->ops = &ksz9477_switch_ops;
+
+	dev->port_mask = (1 << dev->info->port_cnt) - 1;
 
 	/* turn off SPI DO Edge select */
 	ret = ksz_read8(dev, REG_SW_GLOBAL_SERIAL_CTRL_0, &data8);
@@ -1378,10 +1396,6 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 	if (ret)
 		return ret;
 
-	/* read chip id */
-	ret = ksz_read32(dev, REG_CHIP_ID0__1, &id32);
-	if (ret)
-		return ret;
 	ret = ksz_read8(dev, REG_GLOBAL_OPTIONS, &data8);
 	if (ret)
 		return ret;
@@ -1392,10 +1406,7 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 	/* Default capability is gigabit capable. */
 	dev->features = GBIT_SUPPORT;
 
-	dev_dbg(dev->dev, "Switch detect: ID=%08x%02x\n", id32, data8);
-	id_hi = (u8)(id32 >> 16);
-	id_lo = (u8)(id32 >> 8);
-	if ((id_lo & 0xf) == 3) {
+	if (dev->chip_id == KSZ9893_CHIP_ID) {
 		/* Chip is from KSZ9893 design. */
 		dev_info(dev->dev, "Found KSZ9893\n");
 		dev->features |= IS_9893;
@@ -1413,21 +1424,6 @@ static int ksz9477_switch_detect(struct ksz_device *dev)
 		if (!(data8 & SW_GIGABIT_ABLE))
 			dev->features &= ~GBIT_SUPPORT;
 	}
-
-	/* Change chip id to known ones so it can be matched against them. */
-	id32 = (id_hi << 16) | (id_lo << 8);
-
-	dev->chip_id = id32;
-
-	return 0;
-}
-
-static int ksz9477_switch_init(struct ksz_device *dev)
-{
-	dev->ds->ops = &ksz9477_switch_ops;
-
-	dev->port_mask = (1 << dev->info->port_cnt) - 1;
-
 	return 0;
 }
 
