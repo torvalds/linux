@@ -561,14 +561,13 @@ i915_page_dir_dma_addr(const struct i915_ppgtt *ppgtt, const unsigned int n)
 
 void ppgtt_init(struct i915_ppgtt *ppgtt, struct intel_gt *gt,
 		unsigned long lmem_pt_obj_flags);
-
 void intel_ggtt_bind_vma(struct i915_address_space *vm,
-			  struct i915_vm_pt_stash *stash,
-			  struct i915_vma_resource *vma_res,
-			  enum i915_cache_level cache_level,
-			  u32 flags);
+			 struct i915_vm_pt_stash *stash,
+			 struct i915_vma_resource *vma_res,
+			 enum i915_cache_level cache_level,
+			 u32 flags);
 void intel_ggtt_unbind_vma(struct i915_address_space *vm,
-			    struct i915_vma_resource *vma_res);
+			   struct i915_vma_resource *vma_res);
 
 int i915_ggtt_probe_hw(struct drm_i915_private *i915);
 int i915_ggtt_init_hw(struct drm_i915_private *i915);
@@ -651,7 +650,6 @@ release_pd_entry(struct i915_page_directory * const pd,
 		 struct i915_page_table * const pt,
 		 const struct drm_i915_gem_object * const scratch);
 void gen6_ggtt_invalidate(struct i915_ggtt *ggtt);
-void gen8_ggtt_invalidate(struct i915_ggtt *ggtt);
 
 void ppgtt_bind_vma(struct i915_address_space *vm,
 		    struct i915_vm_pt_stash *stash,

@@ -13,13 +13,6 @@
 struct drm_i915_private;
 struct drm_printer;
 
-struct insert_entries {
-	struct i915_address_space *vm;
-	struct i915_vma_resource *vma_res;
-	enum i915_cache_level level;
-	u32 flags;
-};
-
 #define GT_TRACE(gt, fmt, ...) do {					\
 	const struct intel_gt *gt__ __maybe_unused = (gt);		\
 	GEM_TRACE("%s " fmt, dev_name(gt__->i915->drm.dev),		\
@@ -109,7 +102,5 @@ void intel_gt_info_print(const struct intel_gt_info *info,
 void intel_gt_watchdog_work(struct work_struct *work);
 
 void intel_gt_invalidate_tlbs(struct intel_gt *gt);
-
-struct resource intel_pci_resource(struct pci_dev *pdev, int bar);
 
 #endif /* __INTEL_GT_H__ */
