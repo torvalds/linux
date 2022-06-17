@@ -898,18 +898,6 @@ static void ksz8_w_phy(struct ksz_device *dev, u16 phy, u16 reg, u16 val)
 	}
 }
 
-static u32 ksz8_sw_get_phy_flags(struct dsa_switch *ds, int port)
-{
-	/* Silicon Errata Sheet (DS80000830A):
-	 * Port 1 does not work with LinkMD Cable-Testing.
-	 * Port 1 does not respond to received PAUSE control frames.
-	 */
-	if (!port)
-		return MICREL_KSZ8_P1_ERRATA;
-
-	return 0;
-}
-
 static void ksz8_cfg_port_member(struct ksz_device *dev, int port, u8 member)
 {
 	u8 data;
@@ -1470,7 +1458,7 @@ static void ksz8_get_caps(struct ksz_device *dev, int port,
 
 static const struct dsa_switch_ops ksz8_switch_ops = {
 	.get_tag_protocol	= ksz_get_tag_protocol,
-	.get_phy_flags		= ksz8_sw_get_phy_flags,
+	.get_phy_flags		= ksz_get_phy_flags,
 	.setup			= ksz8_setup,
 	.phy_read		= ksz_phy_read16,
 	.phy_write		= ksz_phy_write16,

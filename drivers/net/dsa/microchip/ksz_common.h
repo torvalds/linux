@@ -200,6 +200,8 @@ struct ksz_dev_ops {
 		       struct dsa_db db);
 	void (*get_caps)(struct ksz_device *dev, int port,
 			 struct phylink_config *config);
+	int (*change_mtu)(struct ksz_device *dev, int port, int mtu);
+	int (*max_mtu)(struct ksz_device *dev, int port);
 	void (*freeze_mib)(struct ksz_device *dev, int port, bool freeze);
 	void (*port_init_cnt)(struct ksz_device *dev, int port);
 	int (*shutdown)(struct ksz_device *dev);
@@ -227,6 +229,7 @@ extern const struct ksz_chip_data ksz_switch_chips[];
 
 int ksz_phy_read16(struct dsa_switch *ds, int addr, int reg);
 int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val);
+u32 ksz_get_phy_flags(struct dsa_switch *ds, int port);
 void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 		       phy_interface_t interface);
 int ksz_sset_count(struct dsa_switch *ds, int port, int sset);
@@ -267,6 +270,8 @@ int ksz_port_mirror_add(struct dsa_switch *ds, int port,
 			bool ingress, struct netlink_ext_ack *extack);
 void ksz_port_mirror_del(struct dsa_switch *ds, int port,
 			 struct dsa_mall_mirror_tc_entry *mirror);
+int ksz_change_mtu(struct dsa_switch *ds, int port, int mtu);
+int ksz_max_mtu(struct dsa_switch *ds, int port);
 
 /* Common register access functions */
 

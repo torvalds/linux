@@ -16,6 +16,7 @@
 #include <linux/if_bridge.h>
 #include <linux/of_device.h>
 #include <linux/of_net.h>
+#include <linux/micrel_phy.h>
 #include <net/dsa.h>
 #include <net/switchdev.h>
 
@@ -705,6 +706,23 @@ int ksz_phy_write16(struct dsa_switch *ds, int addr, int reg, u16 val)
 }
 EXPORT_SYMBOL_GPL(ksz_phy_write16);
 
+u32 ksz_get_phy_flags(struct dsa_switch *ds, int port)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->chip_id == KSZ8830_CHIP_ID) {
+		/* Silicon Errata Sheet (DS80000830A):
+		 * Port 1 does not work with LinkMD Cable-Testing.
+		 * Port 1 does not respond to received PAUSE control frames.
+		 */
+		if (!port)
+			return MICREL_KSZ8_P1_ERRATA;
+	}
+
+	return 0;
+}
+EXPORT_SYMBOL_GPL(ksz_get_phy_flags);
+
 void ksz_mac_link_down(struct dsa_switch *ds, int port, unsigned int mode,
 		       phy_interface_t interface)
 {
@@ -983,6 +1001,28 @@ void ksz_port_mirror_del(struct dsa_switch *ds, int port,
 		dev->dev_ops->mirror_del(dev, port, mirror);
 }
 EXPORT_SYMBOL_GPL(ksz_port_mirror_del);
+
+int ksz_change_mtu(struct dsa_switch *ds, int port, int mtu)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->change_mtu)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->change_mtu(dev, port, mtu);
+}
+EXPORT_SYMBOL_GPL(ksz_change_mtu);
+
+int ksz_max_mtu(struct dsa_switch *ds, int port)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->max_mtu)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->max_mtu(dev, port);
+}
+EXPORT_SYMBOL_GPL(ksz_max_mtu);
 
 static int ksz_switch_detect(struct ksz_device *dev)
 {
