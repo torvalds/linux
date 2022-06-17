@@ -1196,9 +1196,12 @@ static void vsc9959_tas_gcl_set(struct ocelot *ocelot, const u32 gcl_ix,
 static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 				    struct tc_taprio_qopt_offload *taprio)
 {
+	struct ocelot_port *ocelot_port = ocelot->ports[port];
 	struct timespec64 base_ts;
 	int ret, i;
 	u32 val;
+
+	mutex_lock(&ocelot->tas_lock);
 
 	if (!taprio->enable) {
 		ocelot_rmw_rix(ocelot,
@@ -1207,15 +1210,20 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
 			       QSYS_TAG_CONFIG, port);
 
+		mutex_unlock(&ocelot->tas_lock);
 		return 0;
 	}
 
 	if (taprio->cycle_time > NSEC_PER_SEC ||
-	    taprio->cycle_time_extension >= NSEC_PER_SEC)
-		return -EINVAL;
+	    taprio->cycle_time_extension >= NSEC_PER_SEC) {
+		ret = -EINVAL;
+		goto err;
+	}
 
-	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX)
-		return -ERANGE;
+	if (taprio->num_entries > VSC9959_TAS_GCL_ENTRY_MAX) {
+		ret = -ERANGE;
+		goto err;
+	}
 
 	/* Enable guard band. The switch will schedule frames without taking
 	 * their length into account. Thus we'll always need to enable the
@@ -1236,8 +1244,10 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 	 * config is pending, need reset the TAS module
 	 */
 	val = ocelot_read(ocelot, QSYS_PARAM_STATUS_REG_8);
-	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING)
-		return  -EBUSY;
+	if (val & QSYS_PARAM_STATUS_REG_8_CONFIG_PENDING) {
+		ret = -EBUSY;
+		goto err;
+	}
 
 	ocelot_rmw_rix(ocelot,
 		       QSYS_TAG_CONFIG_ENABLE |
@@ -1247,6 +1257,8 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 		       QSYS_TAG_CONFIG_INIT_GATE_STATE_M |
 		       QSYS_TAG_CONFIG_SCH_TRAFFIC_QUEUES_M,
 		       QSYS_TAG_CONFIG, port);
+
+	ocelot_port->base_time = taprio->base_time;
 
 	vsc9959_new_base_time(ocelot, taprio->base_time,
 			      taprio->cycle_time, &base_ts);
@@ -1271,7 +1283,65 @@ static int vsc9959_qos_port_tas_set(struct ocelot *ocelot, int port,
 				 !(val & QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE),
 				 10, 100000);
 
+err:
+	mutex_unlock(&ocelot->tas_lock);
+
 	return ret;
+}
+
+static void vsc9959_tas_clock_adjust(struct ocelot *ocelot)
+{
+	struct ocelot_port *ocelot_port;
+	struct timespec64 base_ts;
+	u64 cycletime;
+	int port;
+	u32 val;
+
+	mutex_lock(&ocelot->tas_lock);
+
+	for (port = 0; port < ocelot->num_phys_ports; port++) {
+		val = ocelot_read_rix(ocelot, QSYS_TAG_CONFIG, port);
+		if (!(val & QSYS_TAG_CONFIG_ENABLE))
+			continue;
+
+		ocelot_rmw(ocelot,
+			   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM(port),
+			   QSYS_TAS_PARAM_CFG_CTRL_PORT_NUM_M,
+			   QSYS_TAS_PARAM_CFG_CTRL);
+
+		ocelot_rmw_rix(ocelot,
+			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF),
+			       QSYS_TAG_CONFIG_ENABLE |
+			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
+			       QSYS_TAG_CONFIG, port);
+
+		cycletime = ocelot_read(ocelot, QSYS_PARAM_CFG_REG_4);
+		ocelot_port = ocelot->ports[port];
+
+		vsc9959_new_base_time(ocelot, ocelot_port->base_time,
+				      cycletime, &base_ts);
+
+		ocelot_write(ocelot, base_ts.tv_nsec, QSYS_PARAM_CFG_REG_1);
+		ocelot_write(ocelot, lower_32_bits(base_ts.tv_sec),
+			     QSYS_PARAM_CFG_REG_2);
+		val = upper_32_bits(base_ts.tv_sec);
+		ocelot_rmw(ocelot,
+			   QSYS_PARAM_CFG_REG_3_BASE_TIME_SEC_MSB(val),
+			   QSYS_PARAM_CFG_REG_3_BASE_TIME_SEC_MSB_M,
+			   QSYS_PARAM_CFG_REG_3);
+
+		ocelot_rmw(ocelot, QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
+			   QSYS_TAS_PARAM_CFG_CTRL_CONFIG_CHANGE,
+			   QSYS_TAS_PARAM_CFG_CTRL);
+
+		ocelot_rmw_rix(ocelot,
+			       QSYS_TAG_CONFIG_INIT_GATE_STATE(0xFF) |
+			       QSYS_TAG_CONFIG_ENABLE,
+			       QSYS_TAG_CONFIG_ENABLE |
+			       QSYS_TAG_CONFIG_INIT_GATE_STATE_M,
+			       QSYS_TAG_CONFIG, port);
+	}
+	mutex_unlock(&ocelot->tas_lock);
 }
 
 static int vsc9959_qos_port_cbs_set(struct dsa_switch *ds, int port,
@@ -2210,6 +2280,7 @@ static const struct ocelot_ops vsc9959_ops = {
 	.psfp_filter_del	= vsc9959_psfp_filter_del,
 	.psfp_stats_get		= vsc9959_psfp_stats_get,
 	.cut_through_fwd	= vsc9959_cut_through_fwd,
+	.tas_clock_adjust	= vsc9959_tas_clock_adjust,
 };
 
 static const struct felix_info felix_info_vsc9959 = {
