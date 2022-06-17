@@ -930,6 +930,72 @@ void ksz_port_stp_state_set(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL_GPL(ksz_port_stp_state_set);
 
+static int ksz_switch_detect(struct ksz_device *dev)
+{
+	u8 id1, id2;
+	u16 id16;
+	u32 id32;
+	int ret;
+
+	/* read chip id */
+	ret = ksz_read16(dev, REG_CHIP_ID0, &id16);
+	if (ret)
+		return ret;
+
+	id1 = FIELD_GET(SW_FAMILY_ID_M, id16);
+	id2 = FIELD_GET(SW_CHIP_ID_M, id16);
+
+	switch (id1) {
+	case KSZ87_FAMILY_ID:
+		if (id2 == KSZ87_CHIP_ID_95) {
+			u8 val;
+
+			dev->chip_id = KSZ8795_CHIP_ID;
+
+			ksz_read8(dev, KSZ8_PORT_STATUS_0, &val);
+			if (val & KSZ8_PORT_FIBER_MODE)
+				dev->chip_id = KSZ8765_CHIP_ID;
+		} else if (id2 == KSZ87_CHIP_ID_94) {
+			dev->chip_id = KSZ8794_CHIP_ID;
+		} else {
+			return -ENODEV;
+		}
+		break;
+	case KSZ88_FAMILY_ID:
+		if (id2 == KSZ88_CHIP_ID_63)
+			dev->chip_id = KSZ8830_CHIP_ID;
+		else
+			return -ENODEV;
+		break;
+	default:
+		ret = ksz_read32(dev, REG_CHIP_ID0, &id32);
+		if (ret)
+			return ret;
+
+		dev->chip_rev = FIELD_GET(SW_REV_ID_M, id32);
+		id32 &= ~0xFF;
+
+		switch (id32) {
+		case KSZ9477_CHIP_ID:
+		case KSZ9897_CHIP_ID:
+		case KSZ9893_CHIP_ID:
+		case KSZ9567_CHIP_ID:
+		case LAN9370_CHIP_ID:
+		case LAN9371_CHIP_ID:
+		case LAN9372_CHIP_ID:
+		case LAN9373_CHIP_ID:
+		case LAN9374_CHIP_ID:
+			dev->chip_id = id32;
+			break;
+		default:
+			dev_err(dev->dev,
+				"unsupported switch detected %x)\n", id32);
+			return -ENODEV;
+		}
+	}
+	return 0;
+}
+
 struct ksz_device *ksz_switch_alloc(struct device *base, void *priv)
 {
 	struct dsa_switch *ds;
@@ -986,10 +1052,9 @@ int ksz_switch_register(struct ksz_device *dev,
 	mutex_init(&dev->alu_mutex);
 	mutex_init(&dev->vlan_mutex);
 
-	dev->dev_ops = ops;
-
-	if (dev->dev_ops->detect(dev))
-		return -EINVAL;
+	ret = ksz_switch_detect(dev);
+	if (ret)
+		return ret;
 
 	info = ksz_lookup_info(dev->chip_id);
 	if (!info)
@@ -998,9 +1063,14 @@ int ksz_switch_register(struct ksz_device *dev,
 	/* Update the compatible info with the probed one */
 	dev->info = info;
 
+	dev_info(dev->dev, "found switch: %s, rev %i\n",
+		 dev->info->dev_name, dev->chip_rev);
+
 	ret = ksz_check_device_id(dev);
 	if (ret)
 		return ret;
+
+	dev->dev_ops = ops;
 
 	ret = dev->dev_ops->init(dev);
 	if (ret)

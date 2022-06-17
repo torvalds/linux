@@ -1360,23 +1360,6 @@ static u32 ksz9477_get_port_addr(int port, int offset)
 	return PORT_CTRL_ADDR(port, offset);
 }
 
-static int ksz9477_switch_detect(struct ksz_device *dev)
-{
-	u32 id32;
-	int ret;
-
-	/* read chip id */
-	ret = ksz_read32(dev, REG_CHIP_ID0__1, &id32);
-	if (ret)
-		return ret;
-
-	dev_dbg(dev->dev, "Switch detect: ID=%08x\n", id32);
-
-	dev->chip_id = id32 & 0x00FFFF00;
-
-	return 0;
-}
-
 static int ksz9477_switch_init(struct ksz_device *dev)
 {
 	u8 data8;
@@ -1407,8 +1390,6 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 	dev->features = GBIT_SUPPORT;
 
 	if (dev->chip_id == KSZ9893_CHIP_ID) {
-		/* Chip is from KSZ9893 design. */
-		dev_info(dev->dev, "Found KSZ9893\n");
 		dev->features |= IS_9893;
 
 		/* Chip does not support gigabit. */
@@ -1416,7 +1397,6 @@ static int ksz9477_switch_init(struct ksz_device *dev)
 			dev->features &= ~GBIT_SUPPORT;
 		dev->phy_port_cnt = 2;
 	} else {
-		dev_info(dev->dev, "Found KSZ9477 or compatible\n");
 		/* Chip uses new XMII register definitions. */
 		dev->features |= NEW_XMII;
 
@@ -1443,7 +1423,6 @@ static const struct ksz_dev_ops ksz9477_dev_ops = {
 	.freeze_mib = ksz9477_freeze_mib,
 	.port_init_cnt = ksz9477_port_init_cnt,
 	.shutdown = ksz9477_reset_switch,
-	.detect = ksz9477_switch_detect,
 	.init = ksz9477_switch_init,
 	.exit = ksz9477_switch_exit,
 };

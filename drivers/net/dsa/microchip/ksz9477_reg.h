@@ -25,7 +25,6 @@
 
 #define REG_CHIP_ID2__1			0x0002
 
-#define CHIP_ID_63			0x63
 #define CHIP_ID_66			0x66
 #define CHIP_ID_67			0x67
 #define CHIP_ID_77			0x77
