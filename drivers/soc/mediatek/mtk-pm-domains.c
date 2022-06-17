@@ -428,6 +428,9 @@ generic_pm_domain *scpsys_add_one_domain(struct scpsys *scpsys, struct device_no
 			dev_err(scpsys->dev, "%pOF: failed to power on domain: %d\n", node, ret);
 			goto err_put_subsys_clocks;
 		}
+
+		if (MTK_SCPD_CAPS(pd, MTK_SCPD_ALWAYS_ON))
+			pd->genpd.flags |= GENPD_FLAG_ALWAYS_ON;
 	}
 
 	if (scpsys->domains[id]) {
