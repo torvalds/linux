@@ -1368,9 +1368,6 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 	size_t size = maxsize;
 	loff_t pos;
 
-	if (!size || !maxpages)
-		return 0;
-
 	pos = i->xarray_start + i->iov_offset;
 	index = pos >> PAGE_SHIFT;
 	offset = pos & ~PAGE_MASK;
@@ -1440,10 +1437,11 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 
 	if (maxsize > i->count)
 		maxsize = i->count;
-	if (!maxsize)
+	if (!maxsize || !maxpages)
 		return 0;
 	if (maxsize > MAX_RW_COUNT)
 		maxsize = MAX_RW_COUNT;
+	BUG_ON(!pages);
 
 	if (likely(user_backed_iter(i))) {
 		unsigned int gup_flags = 0;
@@ -1521,9 +1519,6 @@ static ssize_t iter_xarray_get_pages_alloc(struct iov_iter *i,
 	pgoff_t index, count;
 	size_t size = maxsize;
 	loff_t pos;
-
-	if (!size)
-		return 0;
 
 	pos = i->xarray_start + i->iov_offset;
 	index = pos >> PAGE_SHIFT;
