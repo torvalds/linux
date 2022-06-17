@@ -79,7 +79,7 @@ To help deal with the per-inode context, a number helper functions are
 provided.  Firstly, a function to perform basic initialisation on a context and
 set the operations table pointer::
 
-	void netfs_inode_init(struct inode *inode,
+	void netfs_inode_init(struct netfs_inode *ctx,
 			      const struct netfs_request_ops *ops);
 
 then a function to cast from the VFS inode structure to the netfs context::
@@ -89,7 +89,7 @@ then a function to cast from the VFS inode structure to the netfs context::
 and finally, a function to get the cache cookie pointer from the context
 attached to an inode (or NULL if fscache is disabled)::
 
-	struct fscache_cookie *netfs_i_cookie(struct inode *inode);
+	struct fscache_cookie *netfs_i_cookie(struct netfs_inode *ctx);
 
 
 Buffered Read Helpers
@@ -136,8 +136,9 @@ Three read helpers are provided::
 
 	void netfs_readahead(struct readahead_control *ractl);
 	int netfs_read_folio(struct file *file,
-			   struct folio *folio);
-	int netfs_write_begin(struct file *file,
+			     struct folio *folio);
+	int netfs_write_begin(struct netfs_inode *ctx,
+			      struct file *file,
 			      struct address_space *mapping,
 			      loff_t pos,
 			      unsigned int len,
@@ -157,9 +158,10 @@ The helpers manage the read request, calling back into the network filesystem
 through the suppplied table of operations.  Waits will be performed as
 necessary before returning for helpers that are meant to be synchronous.
 
-If an error occurs and netfs_priv is non-NULL, ops->cleanup() will be called to
-deal with it.  If some parts of the request are in progress when an error
-occurs, the request will get partially completed if sufficient data is read.
+If an error occurs, the ->free_request() will be called to clean up the
+netfs_io_request struct allocated.  If some parts of the request are in
+progress when an error occurs, the request will get partially completed if
+sufficient data is read.
 
 Additionally, there is::
 
@@ -207,8 +209,7 @@ The above fields are the ones the netfs can use.  They are:
  * ``netfs_priv``
 
    The network filesystem's private data.  The value for this can be passed in
-   to the helper functions or set during the request.  The ->cleanup() op will
-   be called if this is non-NULL at the end.
+   to the helper functions or set during the request.
 
  * ``start``
  * ``len``
@@ -293,6 +294,7 @@ through which it can issue requests and negotiate::
 
 	struct netfs_request_ops {
 		void (*init_request)(struct netfs_io_request *rreq, struct file *file);
+		void (*free_request)(struct netfs_io_request *rreq);
 		int (*begin_cache_operation)(struct netfs_io_request *rreq);
 		void (*expand_readahead)(struct netfs_io_request *rreq);
 		bool (*clamp_length)(struct netfs_io_subrequest *subreq);
@@ -301,7 +303,6 @@ through which it can issue requests and negotiate::
 		int (*check_write_begin)(struct file *file, loff_t pos, unsigned len,
 					 struct folio *folio, void **_fsdata);
 		void (*done)(struct netfs_io_request *rreq);
-		void (*cleanup)(struct address_space *mapping, void *netfs_priv);
 	};
 
 The operations are as follows:
@@ -309,7 +310,12 @@ The operations are as follows:
  * ``init_request()``
 
    [Optional] This is called to initialise the request structure.  It is given
-   the file for reference and can modify the ->netfs_priv value.
+   the file for reference.
+
+ * ``free_request()``
+
+   [Optional] This is called as the request is being deallocated so that the
+   filesystem can clean up any state it has attached there.
 
  * ``begin_cache_operation()``
 
@@ -382,11 +388,6 @@ The operations are as follows:
 
    [Optional] This is called after the folios in the request have all been
    unlocked (and marked uptodate if applicable).
-
- * ``cleanup``
-
-   [Optional] This is called as the request is being deallocated so that the
-   filesystem can clean up ->netfs_priv.
 
 
 

@@ -58,7 +58,7 @@ static noinline void dump_vnode(struct afs_vnode *vnode, struct afs_vnode *paren
  */
 static void afs_set_netfs_context(struct afs_vnode *vnode)
 {
-	netfs_inode_init(&vnode->netfs.inode, &afs_req_ops);
+	netfs_inode_init(&vnode->netfs, &afs_req_ops);
 }
 
 /*
