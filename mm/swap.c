@@ -620,7 +620,8 @@ static void lru_lazyfree_fn(struct lruvec *lruvec, struct folio *folio)
  */
 void lru_add_drain_cpu(int cpu)
 {
-	struct folio_batch *fbatch = &per_cpu(cpu_fbatches.lru_add, cpu);
+	struct cpu_fbatches *fbatches = &per_cpu(cpu_fbatches, cpu);
+	struct folio_batch *fbatch = &fbatches->lru_add;
 
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_add_fn);
@@ -636,15 +637,15 @@ void lru_add_drain_cpu(int cpu)
 		local_unlock_irqrestore(&lru_rotate.lock, flags);
 	}
 
-	fbatch = &per_cpu(cpu_fbatches.lru_deactivate_file, cpu);
+	fbatch = &fbatches->lru_deactivate_file;
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_deactivate_file_fn);
 
-	fbatch = &per_cpu(cpu_fbatches.lru_deactivate, cpu);
+	fbatch = &fbatches->lru_deactivate;
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_deactivate_fn);
 
-	fbatch = &per_cpu(cpu_fbatches.lru_lazyfree, cpu);
+	fbatch = &fbatches->lru_lazyfree;
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_lazyfree_fn);
 
