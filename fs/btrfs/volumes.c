@@ -6471,7 +6471,10 @@ static int __btrfs_map_block(struct btrfs_fs_info *fs_info,
 			num_stripes = map->num_stripes;
 			max_errors = btrfs_chunk_max_errors(map);
 
-			*length = map->stripe_len;
+			/* Return the length to the full stripe end */
+			*length = min(logical + *length,
+				      raid56_full_stripe_start + em->start +
+				      data_stripes * stripe_len) - logical;
 			stripe_index = 0;
 			stripe_offset = 0;
 		} else {
