@@ -202,7 +202,7 @@ static void generic_ops_unregister(void)
 }
 
 #ifdef CONFIG_EFI_CUSTOM_SSDT_OVERLAYS
-#define EFIVAR_SSDT_NAME_MAX	16
+#define EFIVAR_SSDT_NAME_MAX	16UL
 static char efivar_ssdt[EFIVAR_SSDT_NAME_MAX] __initdata;
 static int __init efivar_ssdt_setup(char *str)
 {
@@ -219,83 +219,62 @@ static int __init efivar_ssdt_setup(char *str)
 }
 __setup("efivar_ssdt=", efivar_ssdt_setup);
 
-static __init int efivar_ssdt_iter(efi_char16_t *name, efi_guid_t vendor,
-				   unsigned long name_size, void *data)
-{
-	struct efivar_entry *entry;
-	struct list_head *list = data;
-	char utf8_name[EFIVAR_SSDT_NAME_MAX];
-	int limit = min_t(unsigned long, EFIVAR_SSDT_NAME_MAX, name_size);
-
-	ucs2_as_utf8(utf8_name, name, limit - 1);
-	if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
-		return 0;
-
-	entry = kmalloc(sizeof(*entry), GFP_KERNEL);
-	if (!entry)
-		return 0;
-
-	memcpy(entry->var.VariableName, name, name_size);
-	memcpy(&entry->var.VendorGuid, &vendor, sizeof(efi_guid_t));
-
-	efivar_entry_add(entry, list);
-
-	return 0;
-}
-
 static __init int efivar_ssdt_load(void)
 {
-	LIST_HEAD(entries);
-	struct efivar_entry *entry, *aux;
-	unsigned long size;
-	void *data;
-	int ret;
+	unsigned long name_size = 256;
+	efi_char16_t *name = NULL;
+	efi_status_t status;
+	efi_guid_t guid;
 
 	if (!efivar_ssdt[0])
 		return 0;
 
-	ret = efivar_init(efivar_ssdt_iter, &entries, true, &entries);
+	name = kzalloc(name_size, GFP_KERNEL);
+	if (!name)
+		return -ENOMEM;
 
-	list_for_each_entry_safe(entry, aux, &entries, list) {
-		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt,
-			&entry->var.VendorGuid);
+	for (;;) {
+		char utf8_name[EFIVAR_SSDT_NAME_MAX];
+		unsigned long data_size = 0;
+		void *data;
+		int limit;
 
-		list_del(&entry->list);
-
-		ret = efivar_entry_size(entry, &size);
-		if (ret) {
-			pr_err("failed to get var size\n");
-			goto free_entry;
+		status = efi.get_next_variable(&name_size, name, &guid);
+		if (status == EFI_NOT_FOUND) {
+			break;
+		} else if (status == EFI_BUFFER_TOO_SMALL) {
+			name = krealloc(name, name_size, GFP_KERNEL);
+			if (!name)
+				return -ENOMEM;
+			continue;
 		}
 
-		data = kmalloc(size, GFP_KERNEL);
-		if (!data) {
-			ret = -ENOMEM;
-			goto free_entry;
+		limit = min(EFIVAR_SSDT_NAME_MAX, name_size);
+		ucs2_as_utf8(utf8_name, name, limit - 1);
+		if (strncmp(utf8_name, efivar_ssdt, limit) != 0)
+			continue;
+
+		pr_info("loading SSDT from variable %s-%pUl\n", efivar_ssdt, &guid);
+
+		status = efi.get_variable(name, &guid, NULL, &data_size, NULL);
+		if (status != EFI_BUFFER_TOO_SMALL || !data_size)
+			return -EIO;
+
+		data = kmalloc(data_size, GFP_KERNEL);
+		if (!data)
+			return -ENOMEM;
+
+		status = efi.get_variable(name, &guid, NULL, &data_size, data);
+		if (status == EFI_SUCCESS) {
+			acpi_status ret = acpi_load_table(data, NULL);
+			if (ret)
+				pr_err("failed to load table: %u\n", ret);
+		} else {
+			pr_err("failed to get var data: 0x%lx\n", status);
 		}
-
-		ret = efivar_entry_get(entry, NULL, &size, data);
-		if (ret) {
-			pr_err("failed to get var data\n");
-			goto free_data;
-		}
-
-		ret = acpi_load_table(data, NULL);
-		if (ret) {
-			pr_err("failed to load table: %d\n", ret);
-			goto free_data;
-		}
-
-		goto free_entry;
-
-free_data:
 		kfree(data);
-
-free_entry:
-		kfree(entry);
 	}
-
-	return ret;
+	return 0;
 }
 #else
 static inline int efivar_ssdt_load(void) { return 0; }
