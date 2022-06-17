@@ -14,43 +14,9 @@ enum {
 	IOU_ISSUE_SKIP_COMPLETE	= -EIOCBQUEUED,
 };
 
+struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx);
 bool io_cqring_event_overflow(struct io_ring_ctx *ctx, u64 user_data, s32 res,
 			      u32 cflags, u64 extra1, u64 extra2);
-
-static inline unsigned int __io_cqring_events(struct io_ring_ctx *ctx)
-{
-	return ctx->cached_cq_tail - READ_ONCE(ctx->rings->cq.head);
-}
-
-/*
- * writes to the cq entry need to come after reading head; the
- * control dependency is enough as we're using WRITE_ONCE to
- * fill the cq entry
- */
-static inline struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
-{
-	struct io_rings *rings = ctx->rings;
-	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
-	unsigned int shift = 0;
-	unsigned int free, queued, len;
-
-	if (ctx->flags & IORING_SETUP_CQE32)
-		shift = 1;
-
-	/* userspace may cheat modifying the tail, be safe and do min */
-	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
-	free = ctx->cq_entries - queued;
-	/* we need a contiguous range, limit based on the current array offset */
-	len = min(free, ctx->cq_entries - off);
-	if (!len)
-		return NULL;
-
-	ctx->cached_cq_tail++;
-	ctx->cqe_cached = &rings->cqes[off];
-	ctx->cqe_sentinel = ctx->cqe_cached + len;
-	ctx->cqe_cached++;
-	return &rings->cqes[off << shift];
-}
 
 static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
 {
