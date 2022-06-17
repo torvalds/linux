@@ -6750,8 +6750,12 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 	btrfs_bio_counter_inc_blocked(fs_info);
 	ret = __btrfs_map_block(fs_info, btrfs_op(bio), logical,
 				&map_length, &bioc, mirror_num, 1);
-	if (ret)
-		goto out_dec;
+	if (ret) {
+		btrfs_bio_counter_dec(fs_info);
+		bio->bi_status = errno_to_blk_status(ret);
+		bio_endio(bio);
+		return;
+	}
 
 	total_devs = bioc->num_stripes;
 	bioc->orig_bio = bio;
@@ -6765,7 +6769,7 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 			raid56_parity_write(bio, bioc);
 		else
 			raid56_parity_recover(bio, bioc, mirror_num, true);
-		goto out_dec;
+		return;
 	}
 
 	if (map_length < length) {
@@ -6780,12 +6784,7 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 
 		submit_stripe_bio(bioc, bio, dev_nr, should_clone);
 	}
-out_dec:
 	btrfs_bio_counter_dec(fs_info);
-	if (ret) {
-		bio->bi_status = errno_to_blk_status(ret);
-		bio_endio(bio);
-	}
 }
 
 static bool dev_args_match_fs_devices(const struct btrfs_dev_lookup_args *args,

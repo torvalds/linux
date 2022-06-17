@@ -1815,12 +1815,11 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	if (IS_ERR(rbio)) {
 		btrfs_put_bioc(bioc);
 		ret = PTR_ERR(rbio);
-		goto out;
+		goto out_dec_counter;
 	}
 	rbio->operation = BTRFS_RBIO_WRITE;
 	rbio_add_bio(rbio, bio);
 
-	btrfs_bio_counter_inc_noblocked(fs_info);
 	rbio->generic_bio_cnt = 1;
 
 	/*
@@ -1852,7 +1851,6 @@ void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 
 out_dec_counter:
 	btrfs_bio_counter_dec(fs_info);
-out:
 	bio->bi_status = errno_to_blk_status(ret);
 	bio_endio(bio);
 }
@@ -2208,6 +2206,8 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 	if (generic_io) {
 		ASSERT(bioc->mirror_num == mirror_num);
 		btrfs_bio(bio)->mirror_num = mirror_num;
+	} else {
+		btrfs_get_bioc(bioc);
 	}
 
 	rbio = alloc_rbio(fs_info, bioc);
@@ -2230,12 +2230,8 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 		goto out_end_bio;
 	}
 
-	if (generic_io) {
-		btrfs_bio_counter_inc_noblocked(fs_info);
+	if (generic_io)
 		rbio->generic_bio_cnt = 1;
-	} else {
-		btrfs_get_bioc(bioc);
-	}
 
 	/*
 	 * Loop retry:
@@ -2265,8 +2261,8 @@ void raid56_parity_recover(struct bio *bio, struct btrfs_io_context *bioc,
 	return;
 
 out_end_bio:
-	if (generic_io)
-		btrfs_put_bioc(bioc);
+	btrfs_bio_counter_dec(fs_info);
+	btrfs_put_bioc(bioc);
 	bio_endio(bio);
 }
 
