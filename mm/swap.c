@@ -99,11 +99,11 @@ static void __page_cache_release(struct page *page)
 	}
 }
 
-static void __put_single_page(struct page *page)
+static void __folio_put_small(struct folio *folio)
 {
-	__page_cache_release(page);
-	mem_cgroup_uncharge(page_folio(page));
-	free_unref_page(page, 0);
+	__page_cache_release(&folio->page);
+	mem_cgroup_uncharge(folio);
+	free_unref_page(&folio->page, 0);
 }
 
 static void __put_compound_page(struct page *page)
@@ -126,7 +126,7 @@ void __folio_put(struct folio *folio)
 	else if (unlikely(folio_test_large(folio)))
 		__put_compound_page(&folio->page);
 	else
-		__put_single_page(&folio->page);
+		__folio_put_small(folio);
 }
 EXPORT_SYMBOL(__folio_put);
 
