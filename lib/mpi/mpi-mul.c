@@ -82,6 +82,7 @@ void mpi_mul(MPI w, MPI u, MPI v)
 	if (tmp_limb)
 		mpi_free_limb_space(tmp_limb);
 }
+EXPORT_SYMBOL_GPL(mpi_mul);
 
 void mpi_mulm(MPI w, MPI u, MPI v, MPI m)
 {
