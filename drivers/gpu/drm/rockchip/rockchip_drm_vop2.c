@@ -1276,19 +1276,30 @@ static int32_t vop2_pending_done_bits(struct vop2_video_port *vp)
 		uint32_t first_vp_left_vcnt, second_vp_left_vcnt;
 		uint32_t first_vp_left_time, second_vp_left_time;
 		uint32_t first_vp_safe_time, second_vp_safe_time;
+		unsigned int vrefresh;
 
 		first_vp_id = ffs(done_bits) - 1;
 		first_done_vp = &vop2->vps[first_vp_id];
 		first_mode = &first_done_vp->rockchip_crtc.crtc.state->adjusted_mode;
 		/* set last 1/8 frame time as safe section */
-		first_vp_safe_time = 1000000 / drm_mode_vrefresh(first_mode) >> 3;
+		vrefresh = drm_mode_vrefresh(first_mode);
+		if (!vrefresh) {
+			WARN(1, "%s first vp:%d vrefresh is zero\n", __func__, first_vp_id);
+			vrefresh = 60;
+		}
+		first_vp_safe_time = (1000000 / vrefresh) >> 3;
 
 		done_bits &= ~BIT(first_vp_id);
 		second_vp_id = ffs(done_bits) - 1;
 		second_done_vp = &vop2->vps[second_vp_id];
 		second_mode = &second_done_vp->rockchip_crtc.crtc.state->adjusted_mode;
 		/* set last 1/8 frame time as safe section */
-		second_vp_safe_time = 1000000 / drm_mode_vrefresh(second_mode) >> 3;
+		vrefresh = drm_mode_vrefresh(second_mode);
+		if (!vrefresh) {
+			WARN(1, "%s second vp:%d vrefresh is zero\n", __func__, second_vp_id);
+			vrefresh = 60;
+		}
+		second_vp_safe_time = (1000000 / vrefresh) >> 3;
 
 		first_vp_vcnt = vop2_read_vcnt(first_done_vp);
 		if (first_mode->flags & DRM_MODE_FLAG_INTERLACE)
@@ -1981,7 +1992,7 @@ static uint32_t vop2_afbc_transform_offset(struct vop2_plane_state *vpstate, int
 	struct drm_rect *src = &vpstate->src;
 	struct drm_framebuffer *fb = vpstate->base.fb;
 	uint32_t bpp = rockchip_drm_get_bpp(fb->format);
-	uint32_t vir_width = (fb->pitches[0] << 3) / bpp;
+	uint32_t vir_width = (fb->pitches[0] << 3) / (bpp ? bpp : 1);
 	uint32_t width = drm_rect_width(src) >> 16;
 	uint32_t height = drm_rect_height(src) >> 16;
 	uint32_t act_xoffset = src->x1 >> 16;
@@ -4418,6 +4429,10 @@ static void vop2_win_atomic_update(struct vop2_win *win, struct drm_rect *src, s
 		/* AFBC pic_vir_width is count by pixel, this is different
 		 * with WIN_VIR_STRIDE.
 		 */
+		if (!bpp) {
+			WARN(1, "bpp is zero\n");
+			bpp = 1;
+		}
 		stride = (fb->pitches[0] << 3) / bpp;
 		if ((stride & 0x3f) &&
 		    (vpstate->xmirror_en || vpstate->rotate_90_en || vpstate->rotate_270_en))
