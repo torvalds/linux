@@ -89,7 +89,7 @@ static inline void bch2_dev_list_add_dev(struct bch_devs_list *devs,
 					 unsigned dev)
 {
 	BUG_ON(bch2_dev_list_has_dev(*devs, dev));
-	BUG_ON(devs->nr >= BCH_REPLICAS_MAX);
+	BUG_ON(devs->nr >= ARRAY_SIZE(devs->devs));
 	devs->devs[devs->nr++] = dev;
 }
 
