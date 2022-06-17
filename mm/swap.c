@@ -46,10 +46,10 @@
 /* How many pages do we try to swap or page in/out together? */
 int page_cluster;
 
-/* Protecting only lru_rotate.pvec which requires disabling interrupts */
+/* Protecting only lru_rotate.fbatch which requires disabling interrupts */
 struct lru_rotate {
 	local_lock_t lock;
-	struct pagevec pvec;
+	struct folio_batch fbatch;
 };
 static DEFINE_PER_CPU(struct lru_rotate, lru_rotate) = {
 	.lock = INIT_LOCAL_LOCK(lock),
@@ -214,18 +214,6 @@ static void pagevec_lru_move_fn(struct pagevec *pvec,
 	pagevec_reinit(pvec);
 }
 
-static void pagevec_move_tail_fn(struct page *page, struct lruvec *lruvec)
-{
-	struct folio *folio = page_folio(page);
-
-	if (!folio_test_unevictable(folio)) {
-		lruvec_del_folio(lruvec, folio);
-		folio_clear_active(folio);
-		lruvec_add_folio_tail(lruvec, folio);
-		__count_vm_events(PGROTATED, folio_nr_pages(folio));
-	}
-}
-
 /* return true if pagevec needs to drain */
 static bool pagevec_add_and_need_flush(struct pagevec *pvec, struct page *page)
 {
@@ -236,6 +224,52 @@ static bool pagevec_add_and_need_flush(struct pagevec *pvec, struct page *page)
 		ret = true;
 
 	return ret;
+}
+
+typedef void (*move_fn_t)(struct lruvec *lruvec, struct folio *folio);
+
+static void folio_batch_move_lru(struct folio_batch *fbatch, move_fn_t move_fn)
+{
+	int i;
+	struct lruvec *lruvec = NULL;
+	unsigned long flags = 0;
+
+	for (i = 0; i < folio_batch_count(fbatch); i++) {
+		struct folio *folio = fbatch->folios[i];
+
+		/* block memcg migration while the folio moves between lru */
+		if (!folio_test_clear_lru(folio))
+			continue;
+
+		lruvec = folio_lruvec_relock_irqsave(folio, lruvec, &flags);
+		move_fn(lruvec, folio);
+
+		folio_set_lru(folio);
+	}
+
+	if (lruvec)
+		unlock_page_lruvec_irqrestore(lruvec, flags);
+	folios_put(fbatch->folios, folio_batch_count(fbatch));
+	folio_batch_init(fbatch);
+}
+
+static void folio_batch_add_and_move(struct folio_batch *fbatch,
+		struct folio *folio, move_fn_t move_fn)
+{
+	if (folio_batch_add(fbatch, folio) && !folio_test_large(folio) &&
+	    !lru_cache_disabled())
+		return;
+	folio_batch_move_lru(fbatch, move_fn);
+}
+
+static void lru_move_tail_fn(struct lruvec *lruvec, struct folio *folio)
+{
+	if (!folio_test_unevictable(folio)) {
+		lruvec_del_folio(lruvec, folio);
+		folio_clear_active(folio);
+		lruvec_add_folio_tail(lruvec, folio);
+		__count_vm_events(PGROTATED, folio_nr_pages(folio));
+	}
 }
 
 /*
@@ -249,14 +283,13 @@ void folio_rotate_reclaimable(struct folio *folio)
 {
 	if (!folio_test_locked(folio) && !folio_test_dirty(folio) &&
 	    !folio_test_unevictable(folio) && folio_test_lru(folio)) {
-		struct pagevec *pvec;
+		struct folio_batch *fbatch;
 		unsigned long flags;
 
 		folio_get(folio);
 		local_lock_irqsave(&lru_rotate.lock, flags);
-		pvec = this_cpu_ptr(&lru_rotate.pvec);
-		if (pagevec_add_and_need_flush(pvec, &folio->page))
-			pagevec_lru_move_fn(pvec, pagevec_move_tail_fn);
+		fbatch = this_cpu_ptr(&lru_rotate.fbatch);
+		folio_batch_add_and_move(fbatch, folio, lru_move_tail_fn);
 		local_unlock_irqrestore(&lru_rotate.lock, flags);
 	}
 }
@@ -595,19 +628,20 @@ static void lru_lazyfree_fn(struct page *page, struct lruvec *lruvec)
  */
 void lru_add_drain_cpu(int cpu)
 {
+	struct folio_batch *fbatch;
 	struct pagevec *pvec = &per_cpu(lru_pvecs.lru_add, cpu);
 
 	if (pagevec_count(pvec))
 		__pagevec_lru_add(pvec);
 
-	pvec = &per_cpu(lru_rotate.pvec, cpu);
+	fbatch = &per_cpu(lru_rotate.fbatch, cpu);
 	/* Disabling interrupts below acts as a compiler barrier. */
-	if (data_race(pagevec_count(pvec))) {
+	if (data_race(folio_batch_count(fbatch))) {
 		unsigned long flags;
 
 		/* No harm done if a racing interrupt already did this */
 		local_lock_irqsave(&lru_rotate.lock, flags);
-		pagevec_lru_move_fn(pvec, pagevec_move_tail_fn);
+		folio_batch_move_lru(fbatch, lru_move_tail_fn);
 		local_unlock_irqrestore(&lru_rotate.lock, flags);
 	}
 
@@ -824,7 +858,7 @@ static inline void __lru_add_drain_all(bool force_all_cpus)
 		struct work_struct *work = &per_cpu(lru_add_drain_work, cpu);
 
 		if (pagevec_count(&per_cpu(lru_pvecs.lru_add, cpu)) ||
-		    data_race(pagevec_count(&per_cpu(lru_rotate.pvec, cpu))) ||
+		    data_race(folio_batch_count(&per_cpu(lru_rotate.fbatch, cpu))) ||
 		    pagevec_count(&per_cpu(lru_pvecs.lru_deactivate_file, cpu)) ||
 		    pagevec_count(&per_cpu(lru_pvecs.lru_deactivate, cpu)) ||
 		    pagevec_count(&per_cpu(lru_pvecs.lru_lazyfree, cpu)) ||
