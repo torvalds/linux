@@ -61,9 +61,9 @@ struct page *swap_cluster_readahead(swp_entry_t entry, gfp_t flag,
 struct page *swapin_readahead(swp_entry_t entry, gfp_t flag,
 			      struct vm_fault *vmf);
 
-static inline unsigned int page_swap_flags(struct page *page)
+static inline unsigned int folio_swap_flags(struct folio *folio)
 {
-	return page_swap_info(page)->flags;
+	return page_swap_info(&folio->page)->flags;
 }
 #else /* CONFIG_SWAP */
 struct swap_iocb;
@@ -149,7 +149,7 @@ static inline void clear_shadow_from_swap_cache(int type, unsigned long begin,
 {
 }
 
-static inline unsigned int page_swap_flags(struct page *page)
+static inline unsigned int folio_swap_flags(struct folio *folio)
 {
 	return 0;
 }

@@ -1572,7 +1572,7 @@ static bool may_enter_fs(struct folio *folio, gfp_t gfp_mask)
 	 * but that will never affect SWP_FS_OPS, so the data_race
 	 * is safe.
 	 */
-	return !data_race(page_swap_flags(&folio->page) & SWP_FS_OPS);
+	return !data_race(folio_swap_flags(folio) & SWP_FS_OPS);
 }
 
 /*
