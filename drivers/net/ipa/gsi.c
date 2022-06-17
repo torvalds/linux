@@ -1344,13 +1344,18 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
 }
 
 /**
- * gsi_evt_ring_rx_update() - Record lengths of received data
- * @evt_ring:	Event ring associated with channel that received packets
- * @index:	Event index in ring reported by hardware
+ * gsi_evt_ring_update() - Update transaction state from hardware
+ * @gsi:		GSI pointer
+ * @evt_ring_id:	Event ring ID
+ * @index:		Event index in ring reported by hardware
  *
  * Events for RX channels contain the actual number of bytes received into
  * the buffer.  Every event has a transaction associated with it, and here
  * we update transactions to record their actual received lengths.
+ *
+ * When an event for a TX channel arrives we use information in the
+ * transaction to report the number of requests and bytes have been
+ * transferred.
  *
  * This function is called whenever we learn that the GSI hardware has filled
  * new events since the last time we checked.  The ring's index field tells
@@ -1362,29 +1367,24 @@ gsi_event_trans(struct gsi *gsi, struct gsi_event *event)
  *
  * Note that @index always refers to an element *within* the event ring.
  */
-static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
+static void gsi_evt_ring_update(struct gsi *gsi, u32 evt_ring_id, u32 index)
 {
-	struct gsi_channel *channel = evt_ring->channel;
+	struct gsi_evt_ring *evt_ring = &gsi->evt_ring[evt_ring_id];
 	struct gsi_ring *ring = &evt_ring->ring;
-	struct gsi_trans_info *trans_info;
 	struct gsi_event *event_done;
 	struct gsi_event *event;
-	struct gsi_trans *trans;
 	u32 event_avail;
 	u32 old_index;
 
-	trans_info = &channel->trans_info;
-
-	/* We'll start with the oldest un-processed event.  RX channels
-	 * replenish receive buffers in single-TRE transactions, so we
-	 * can just map that event to its transaction.  Transactions
-	 * associated with completion events are consecutive.
+	/* Starting with the oldest un-processed event, determine which
+	 * transaction (and which channel) is associated with the event.
+	 * For RX channels, update each completed transaction with the
+	 * number of bytes that were actually received.  For TX channels
+	 * associated with a network device, report to the network stack
+	 * the number of transfers and bytes this completion represents.
 	 */
 	old_index = ring->index;
 	event = gsi_ring_virt(ring, old_index);
-	trans = gsi_event_trans(channel->gsi, event);
-	if (!trans)
-		return;
 
 	/* Compute the number of events to process before we wrap,
 	 * and determine when we'll be done processing events.
@@ -1392,15 +1392,28 @@ static void gsi_evt_ring_rx_update(struct gsi_evt_ring *evt_ring, u32 index)
 	event_avail = ring->count - old_index % ring->count;
 	event_done = gsi_ring_virt(ring, index);
 	do {
-		trans->len = __le16_to_cpu(event->len);
+		struct gsi_trans *trans;
+
+		trans = gsi_event_trans(gsi, event);
+		if (!trans)
+			return;
+
+		if (trans->direction == DMA_FROM_DEVICE)
+			trans->len = __le16_to_cpu(event->len);
+		else
+			gsi_trans_tx_completed(trans);
+
+		gsi_trans_move_complete(trans);
 
 		/* Move on to the next event and transaction */
 		if (--event_avail)
 			event++;
 		else
 			event = gsi_ring_virt(ring, 0);
-		trans = gsi_trans_pool_next(&trans_info->pool, trans);
 	} while (event != event_done);
+
+	/* Tell the hardware we've handled these events */
+	gsi_evt_ring_doorbell(gsi, evt_ring_id, index);
 }
 
 /* Initialize a ring, including allocating DMA memory for its entries */
@@ -1499,15 +1512,7 @@ static struct gsi_trans *gsi_channel_update(struct gsi_channel *channel)
 	 * the number of transactions and bytes this completion represents
 	 * up the network stack.
 	 */
-	if (channel->toward_ipa)
-		gsi_trans_tx_completed(trans);
-	else
-		gsi_evt_ring_rx_update(evt_ring, index);
-
-	gsi_trans_move_complete(trans);
-
-	/* Tell the hardware we've handled these events */
-	gsi_evt_ring_doorbell(gsi, evt_ring_id, index);
+	gsi_evt_ring_update(gsi, evt_ring_id, index);
 
 	return gsi_channel_trans_complete(channel);
 }
