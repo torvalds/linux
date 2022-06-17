@@ -4913,8 +4913,8 @@ static int macb_probe(struct platform_device *pdev)
 
 	/* MTU range: 68 - 1500 or 10240 */
 	dev->min_mtu = GEM_MTU_MIN_SIZE;
-	if (bp->caps & MACB_CAPS_JUMBO)
-		dev->max_mtu = gem_readl(bp, JML) - ETH_HLEN - ETH_FCS_LEN;
+	if ((bp->caps & MACB_CAPS_JUMBO) && bp->jumbo_max_len)
+		dev->max_mtu = bp->jumbo_max_len - ETH_HLEN - ETH_FCS_LEN;
 	else
 		dev->max_mtu = ETH_DATA_LEN;
 
