@@ -100,14 +100,16 @@ static int vlv_drpc(struct seq_file *m)
 {
 	struct intel_gt *gt = m->private;
 	struct intel_uncore *uncore = gt->uncore;
-	u32 rcctl1, pw_status;
+	u32 rcctl1, pw_status, mt_fwake_req;
 
+	mt_fwake_req = intel_uncore_read_fw(uncore, FORCEWAKE_MT);
 	pw_status = intel_uncore_read(uncore, VLV_GTLC_PW_STATUS);
 	rcctl1 = intel_uncore_read(uncore, GEN6_RC_CONTROL);
 
 	seq_printf(m, "RC6 Enabled: %s\n",
 		   str_yes_no(rcctl1 & (GEN7_RC_CTL_TO_MODE |
 					GEN6_RC_CTL_EI_MODE(1))));
+	seq_printf(m, "Multi-threaded Forcewake Request: 0x%x\n", mt_fwake_req);
 	seq_printf(m, "Render Power Well: %s\n",
 		   (pw_status & VLV_GTLC_PW_RENDER_STATUS_MASK) ? "Up" : "Down");
 	seq_printf(m, "Media Power Well: %s\n",
@@ -124,9 +126,10 @@ static int gen6_drpc(struct seq_file *m)
 	struct intel_gt *gt = m->private;
 	struct drm_i915_private *i915 = gt->i915;
 	struct intel_uncore *uncore = gt->uncore;
-	u32 gt_core_status, rcctl1, rc6vids = 0;
+	u32 gt_core_status, mt_fwake_req, rcctl1, rc6vids = 0;
 	u32 gen9_powergate_enable = 0, gen9_powergate_status = 0;
 
+	mt_fwake_req = intel_uncore_read_fw(uncore, FORCEWAKE_MT);
 	gt_core_status = intel_uncore_read_fw(uncore, GEN6_GT_CORE_STATUS);
 
 	rcctl1 = intel_uncore_read(uncore, GEN6_RC_CONTROL);
@@ -178,6 +181,7 @@ static int gen6_drpc(struct seq_file *m)
 
 	seq_printf(m, "Core Power Down: %s\n",
 		   str_yes_no(gt_core_status & GEN6_CORE_CPD_STATE_MASK));
+	seq_printf(m, "Multi-threaded Forcewake Request: 0x%x\n", mt_fwake_req);
 	if (GRAPHICS_VER(i915) >= 9) {
 		seq_printf(m, "Render Power Well: %s\n",
 			   (gen9_powergate_status &
