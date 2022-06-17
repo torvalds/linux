@@ -156,10 +156,6 @@ int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 int snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int count);
 int snd_rawmidi_transmit(struct snd_rawmidi_substream *substream,
 			 unsigned char *buffer, int count);
-int __snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
-			      unsigned char *buffer, int count);
-int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream,
-			       int count);
 int snd_rawmidi_proceed(struct snd_rawmidi_substream *substream);
 
 /* main midi functions */

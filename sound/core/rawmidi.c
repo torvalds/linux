@@ -1258,7 +1258,7 @@ int snd_rawmidi_transmit_empty(struct snd_rawmidi_substream *substream)
 }
 EXPORT_SYMBOL(snd_rawmidi_transmit_empty);
 
-/**
+/*
  * __snd_rawmidi_transmit_peek - copy data from the internal buffer
  * @substream: the rawmidi substream
  * @buffer: the buffer pointer
@@ -1266,8 +1266,8 @@ EXPORT_SYMBOL(snd_rawmidi_transmit_empty);
  *
  * This is a variant of snd_rawmidi_transmit_peek() without spinlock.
  */
-int __snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
-			      unsigned char *buffer, int count)
+static int __snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
+				       unsigned char *buffer, int count)
 {
 	int result, count1;
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
@@ -1304,7 +1304,6 @@ int __snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
       __skip:
 	return result;
 }
-EXPORT_SYMBOL(__snd_rawmidi_transmit_peek);
 
 /**
  * snd_rawmidi_transmit_peek - copy data from the internal buffer
@@ -1334,14 +1333,15 @@ int snd_rawmidi_transmit_peek(struct snd_rawmidi_substream *substream,
 }
 EXPORT_SYMBOL(snd_rawmidi_transmit_peek);
 
-/**
+/*
  * __snd_rawmidi_transmit_ack - acknowledge the transmission
  * @substream: the rawmidi substream
  * @count: the transferred count
  *
  * This is a variant of __snd_rawmidi_transmit_ack() without spinlock.
  */
-int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int count)
+static int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream,
+				      int count)
 {
 	struct snd_rawmidi_runtime *runtime = substream->runtime;
 
@@ -1361,7 +1361,6 @@ int __snd_rawmidi_transmit_ack(struct snd_rawmidi_substream *substream, int coun
 	}
 	return count;
 }
-EXPORT_SYMBOL(__snd_rawmidi_transmit_ack);
 
 /**
  * snd_rawmidi_transmit_ack - acknowledge the transmission
