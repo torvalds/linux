@@ -2664,28 +2664,25 @@ void btrfs_submit_data_write_bio(struct inode *inode, struct bio *bio, int mirro
 	}
 
 	/*
-	 * Rules for async/sync submit:
-	 *   a) write without checksum:			sync submit
-	 *   b) write with checksum:
-	 *      b-1) if bio is issued by fsync:		sync submit
-	 *           (sync_writers != 0)
-	 *      b-2) if root is reloc root:		sync submit
-	 *           (only in case of buffered IO)
-	 *      b-3) otherwise:				async submit
+	 * If we need to checksum, and the I/O is not issued by fsync and
+	 * friends, that is ->sync_writers != 0, defer the submission to a
+	 * workqueue to parallelize it.
+	 *
+	 * Csum items for reloc roots have already been cloned at this point,
+	 * so they are handled as part of the no-checksum case.
 	 */
 	if (!(bi->flags & BTRFS_INODE_NODATASUM) &&
-	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state)) {
-		if (atomic_read(&bi->sync_writers)) {
-			ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
-			if (ret)
-				goto out;
-		} else if (btrfs_is_data_reloc_root(bi->root)) {
-			; /* Csum items have already been cloned */
-		} else {
+	    !test_bit(BTRFS_FS_STATE_NO_CSUMS, &fs_info->fs_state) &&
+	    !btrfs_is_data_reloc_root(bi->root)) {
+		if (!atomic_read(&bi->sync_writers)) {
 			ret = btrfs_wq_submit_bio(inode, bio, mirror_num, 0,
 						  btrfs_submit_bio_start);
 			goto out;
 		}
+
+		ret = btrfs_csum_one_bio(bi, bio, (u64)-1, false);
+		if (ret)
+			goto out;
 	}
 	btrfs_submit_bio(fs_info, bio, mirror_num);
 	return;
