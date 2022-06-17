@@ -66,7 +66,7 @@ struct lru_pvecs {
 	struct folio_batch lru_deactivate;
 	struct folio_batch lru_lazyfree;
 #ifdef CONFIG_SMP
-	struct pagevec activate_page;
+	struct folio_batch activate;
 #endif
 };
 static DEFINE_PER_CPU(struct lru_pvecs, lru_pvecs) = {
@@ -187,44 +187,6 @@ int get_kernel_pages(const struct kvec *kiov, int nr_segs, int write,
 	return seg;
 }
 EXPORT_SYMBOL_GPL(get_kernel_pages);
-
-static void pagevec_lru_move_fn(struct pagevec *pvec,
-	void (*move_fn)(struct page *page, struct lruvec *lruvec))
-{
-	int i;
-	struct lruvec *lruvec = NULL;
-	unsigned long flags = 0;
-
-	for (i = 0; i < pagevec_count(pvec); i++) {
-		struct page *page = pvec->pages[i];
-		struct folio *folio = page_folio(page);
-
-		/* block memcg migration during page moving between lru */
-		if (!TestClearPageLRU(page))
-			continue;
-
-		lruvec = folio_lruvec_relock_irqsave(folio, lruvec, &flags);
-		(*move_fn)(page, lruvec);
-
-		SetPageLRU(page);
-	}
-	if (lruvec)
-		unlock_page_lruvec_irqrestore(lruvec, flags);
-	release_pages(pvec->pages, pvec->nr);
-	pagevec_reinit(pvec);
-}
-
-/* return true if pagevec needs to drain */
-static bool pagevec_add_and_need_flush(struct pagevec *pvec, struct page *page)
-{
-	bool ret = false;
-
-	if (!pagevec_add(pvec, page) || PageCompound(page) ||
-			lru_cache_disabled())
-		ret = true;
-
-	return ret;
-}
 
 typedef void (*move_fn_t)(struct lruvec *lruvec, struct folio *folio);
 
@@ -380,7 +342,7 @@ void lru_note_cost_folio(struct folio *folio)
 			folio_nr_pages(folio));
 }
 
-static void __folio_activate(struct folio *folio, struct lruvec *lruvec)
+static void folio_activate_fn(struct lruvec *lruvec, struct folio *folio)
 {
 	if (!folio_test_active(folio) && !folio_test_unevictable(folio)) {
 		long nr_pages = folio_nr_pages(folio);
@@ -397,41 +359,30 @@ static void __folio_activate(struct folio *folio, struct lruvec *lruvec)
 }
 
 #ifdef CONFIG_SMP
-static void __activate_page(struct page *page, struct lruvec *lruvec)
+static void folio_activate_drain(int cpu)
 {
-	return __folio_activate(page_folio(page), lruvec);
-}
+	struct folio_batch *fbatch = &per_cpu(lru_pvecs.activate, cpu);
 
-static void activate_page_drain(int cpu)
-{
-	struct pagevec *pvec = &per_cpu(lru_pvecs.activate_page, cpu);
-
-	if (pagevec_count(pvec))
-		pagevec_lru_move_fn(pvec, __activate_page);
-}
-
-static bool need_activate_page_drain(int cpu)
-{
-	return pagevec_count(&per_cpu(lru_pvecs.activate_page, cpu)) != 0;
+	if (folio_batch_count(fbatch))
+		folio_batch_move_lru(fbatch, folio_activate_fn);
 }
 
 static void folio_activate(struct folio *folio)
 {
 	if (folio_test_lru(folio) && !folio_test_active(folio) &&
 	    !folio_test_unevictable(folio)) {
-		struct pagevec *pvec;
+		struct folio_batch *fbatch;
 
 		folio_get(folio);
 		local_lock(&lru_pvecs.lock);
-		pvec = this_cpu_ptr(&lru_pvecs.activate_page);
-		if (pagevec_add_and_need_flush(pvec, &folio->page))
-			pagevec_lru_move_fn(pvec, __activate_page);
+		fbatch = this_cpu_ptr(&lru_pvecs.activate);
+		folio_batch_add_and_move(fbatch, folio, folio_activate_fn);
 		local_unlock(&lru_pvecs.lock);
 	}
 }
 
 #else
-static inline void activate_page_drain(int cpu)
+static inline void folio_activate_drain(int cpu)
 {
 }
 
@@ -441,7 +392,7 @@ static void folio_activate(struct folio *folio)
 
 	if (folio_test_clear_lru(folio)) {
 		lruvec = folio_lruvec_lock_irq(folio);
-		__folio_activate(folio, lruvec);
+		folio_activate_fn(lruvec, folio);
 		unlock_page_lruvec_irq(lruvec);
 		folio_set_lru(folio);
 	}
@@ -500,9 +451,9 @@ void folio_mark_accessed(struct folio *folio)
 		 */
 	} else if (!folio_test_active(folio)) {
 		/*
-		 * If the page is on the LRU, queue it for activation via
-		 * lru_pvecs.activate_page. Otherwise, assume the page is on a
-		 * pagevec, mark it active and it'll be moved to the active
+		 * If the folio is on the LRU, queue it for activation via
+		 * lru_pvecs.activate. Otherwise, assume the folio is in a
+		 * folio_batch, mark it active and it'll be moved to the active
 		 * LRU on the next drain.
 		 */
 		if (folio_test_lru(folio))
@@ -697,7 +648,7 @@ void lru_add_drain_cpu(int cpu)
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_lazyfree_fn);
 
-	activate_page_drain(cpu);
+	folio_activate_drain(cpu);
 }
 
 /**
@@ -901,7 +852,7 @@ static inline void __lru_add_drain_all(bool force_all_cpus)
 		    folio_batch_count(&per_cpu(lru_pvecs.lru_deactivate_file, cpu)) ||
 		    folio_batch_count(&per_cpu(lru_pvecs.lru_deactivate, cpu)) ||
 		    folio_batch_count(&per_cpu(lru_pvecs.lru_lazyfree, cpu)) ||
-		    need_activate_page_drain(cpu) ||
+		    folio_batch_count(&per_cpu(lru_pvecs.activate, cpu)) ||
 		    need_mlock_page_drain(cpu) ||
 		    has_bh_in_lru(cpu, NULL)) {
 			INIT_WORK(work, lru_add_drain_per_cpu);
