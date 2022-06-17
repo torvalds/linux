@@ -1153,7 +1153,9 @@ static int inno_hdmi_bind(struct device *dev, struct device *master,
 		goto err_disable_clk;
 	}
 	//inno_hdmi_set_pinmux();//20220601 disable for testing dts pinctrl setting
-	//inno_hdmi_init(hdmi);
+#ifdef CONFIG_DRM_I2C_NXP_TDA998X
+	inno_hdmi_init(hdmi);
+#endif
 	//inno_hdmi_get_edid(hdmi,51200000, data);//20220525
 	inno_hdmi_reset(hdmi);
 

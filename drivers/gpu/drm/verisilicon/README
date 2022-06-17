@@ -1,4 +1,4 @@
-build drm need to config：
+build drm need to config:
 # CONFIG_DRM_I2C_ADV7511_CEC is not set
 CONFIG_DRM_VERISILICON=y
 CONFIG_DRM_I2C_ADV7513=y
@@ -8,7 +8,7 @@ CONFIG_DRM_LEGACY=y
 
 
 notes:
-1、DC8200 rgbpad GPIO 和其他模块存在大规模冲突，需要等evb板子做进一步确认
+1、DC8200 rgbpad GPIO 和其他模块存在大规模冲突, 需要等evb板子做进一步确认
 
 2、evb板子当前与hdmi冲突的gpio有
 i2c0 i2c1 i2c2 i2c3 sdio1 tdm
@@ -16,6 +16,8 @@ i2c0 i2c1 i2c2 i2c3 sdio1 tdm
 将这些模块的pin的结点进行注释或者将node disabled
 
 
+
+===============================================================================================
 
 build drm mipi-dsi need to config:
 # CONFIG_DRM_I2C_ADV7511_CEC is not set
@@ -25,12 +27,13 @@ CONFIG_DRM_LEGACY=y
 CONFIG_STARFIVE_DSI=y
 CONFIG_PHY_M31_DPHY_RX0=y
 #STARFIVE_INNO_HDMI is not set
+#CONFIG_DRM_I2C_NXP_TDA998X is not set
 # CONFIG_DRM_VGEM is not set
 # CONFIG_DRM_VKMS is not set
 
 notes:
 1.
-测试mipi-dsi时，在编译前需要打开的dts节点有：
+测试mipi-dsi时,在编译前需要打开的dts节点有:
 jh7110.dtsi: 
 dc8200, encoder: display-encoder, mipi_dphy, mipi_dsi, mipi_panel
 
@@ -40,7 +43,75 @@ jh7100-common.dtsi:
 
 2.
 evb板子当前与mipi-dsi冲突的gpio有:
-i2c0, i2c3, hdmi(inno), hdmi_output(rgb), sdio1(mmc1)
+sdio1(mmc1)
 
 调试mipi-dsi的时候建议在jh7100-common.dtsi文件
 将这些模块的pin的结点进行注释或者将node disabled
+
+3.
+mipi-dsi通路目前和rgb2hdmi通路是互斥的,
+不能同时打开。使用某一个时需要关闭另一个
+如：
+使用mipi-dsi需要关闭
+CONFIG_DRM_I2C_NXP_TDA998X
+
+
+===============================================================================================
+
+
+build rgb2hdmi channel need to config:
+
+CONFIG_DRM=y
+CONFIG_DRM_I2C_NXP_TDA998X=y
+CONFIG_DRM_VERISILICON=y
+CONFIG_STARFIVE_INNO_HDMI=y
+# CONFIG_DRM_IMG_NULLDISP is not set
+CONFIG_DRM_LEGACY=y
+# CONFIG_STARFIVE_DSI is not set
+
+
+notes:
+1.
+evb板子当前与tda998x-rgb2hdmi通路存在gpio冲突的模块有
+pdm0, i2srx_3ch, pwmdac, spi0~spi6, inno_hdmi, tdm, i2c0, can1, ptc, vin_sysctl, pcie0
+调试tda998x-rgb2hdmi通路的时候建议在jh7110-common.dtsi文件
+将这些模块的pin的结点进行注释或者将node disabled(&hdmi节点比较特殊,详见3)
+
+2.
+mipi-dsi通路目前和rgb2hdmi通路是互斥的
+不能同时打开。使用某一个时需要关闭另一个
+如：
+使用rgb2hdmi需要关闭
+CONFIG_STARFIVE_DSI
+
+3.
+关于&hdmi节点
+在使用rgb2hdmi时需要将其打开(status = "okay";)
+并将其引用的pin(pinctrl-0 = <&inno_hdmi_pins>;) 注释掉
+如:
+&hdmi {
+	status = "okay";//okay				//rgb need this, connector/encoder problem
+	//pinctrl-names = "default";		//if rgb, comment them
+	//pinctrl-0 = <&inno_hdmi_pins>;	//if rgb, comment them
+
+	hdmi_in: port {
+		#address-cells = <1>;
+		#size-cells = <0>;
+		hdmi_in_lcdc: endpoint@0 {
+			reg = <0>;
+			remote-endpoint = <&dc_out_dpi1>;
+		};
+	};
+};
+
+4.
+测试rgb2hdmi需要打开的dts节点有:
+jh7110.dtsi:
+hdmi_output, hdmi, dc8200
+
+jh7110-common.dtsi:
+&hdmi_output, &hdmi(详见3), &dc8200, &i2c2
+
+关闭节点:
+jh7100-common.dtsi:
+&encoder

@@ -314,6 +314,9 @@ static struct platform_driver *drm_sub_drivers[] = {
 	/* encoder */
 	//&simple_encoder_driver,
 	//&starfive_encoder_driver,
+#ifdef CONFIG_DRM_I2C_NXP_TDA998X
+	&simple_encoder_driver,
+#endif
 
 #ifdef CONFIG_VERISILICON_VIRTUAL_DISPLAY
 	&virtual_display_platform_driver,

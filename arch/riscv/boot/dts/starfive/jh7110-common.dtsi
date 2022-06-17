@@ -666,6 +666,8 @@
 
 &hdmi_output {
 	status = "okay";
+	pinctrl-names = "default";
+	pinctrl-0 = <&rgb_pad_pins>;
 
 	ports {
 		#address-cells = <1>;
@@ -712,8 +714,8 @@
 };
 
 &mipi_dsi {
-	pinctrl-names = "default";
-	pinctrl-0 = <&mipitx_pins>;
+	//pinctrl-names = "default";
+	//pinctrl-0 = <&mipitx_pins>;
 	status = "disabled";
 };
 
