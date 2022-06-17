@@ -22,6 +22,13 @@
 #include "intel_gtt.h"
 #include "gen8_ppgtt.h"
 
+static inline bool suspend_retains_ptes(struct i915_address_space *vm)
+{
+	return GRAPHICS_VER(vm->i915) >= 8 &&
+		!HAS_LMEM(vm->i915) &&
+		vm->is_ggtt;
+}
+
 static void i915_ggtt_color_adjust(const struct drm_mm_node *node,
 				   unsigned long color,
 				   u64 *start,
@@ -93,6 +100,23 @@ int i915_ggtt_init_hw(struct drm_i915_private *i915)
 	return 0;
 }
 
+/*
+ * Return the value of the last GGTT pte cast to an u64, if
+ * the system is supposed to retain ptes across resume. 0 otherwise.
+ */
+static u64 read_last_pte(struct i915_address_space *vm)
+{
+	struct i915_ggtt *ggtt = i915_vm_to_ggtt(vm);
+	gen8_pte_t __iomem *ptep;
+
+	if (!suspend_retains_ptes(vm))
+		return 0;
+
+	GEM_BUG_ON(GRAPHICS_VER(vm->i915) < 8);
+	ptep = (typeof(ptep))ggtt->gsm + (ggtt_total_entries(ggtt) - 1);
+	return readq(ptep);
+}
+
 /**
  * i915_ggtt_suspend_vm - Suspend the memory mappings for a GGTT or DPT VM
  * @vm: The VM to suspend the mappings for
@@ -156,7 +180,10 @@ retry:
 		i915_gem_object_unlock(obj);
 	}
 
-	vm->clear_range(vm, 0, vm->total);
+	if (!suspend_retains_ptes(vm))
+		vm->clear_range(vm, 0, vm->total);
+	else
+		i915_vm_to_ggtt(vm)->probed_pte = read_last_pte(vm);
 
 	vm->skip_pte_rewrite = save_skip_rewrite;
 
@@ -298,6 +325,8 @@ static int init_ggtt(struct i915_ggtt *ggtt)
 	unsigned long hole_start, hole_end;
 	struct drm_mm_node *entry;
 	int ret;
+
+	ggtt->pte_lost = true;
 
 	/*
 	 * GuC requires all resources that we're sharing with it to be placed in
@@ -675,11 +704,20 @@ bool i915_ggtt_resume_vm(struct i915_address_space *vm)
 {
 	struct i915_vma *vma;
 	bool write_domain_objs = false;
+	bool retained_ptes;
 
 	drm_WARN_ON(&vm->i915->drm, !vm->is_ggtt && !vm->is_dpt);
 
-	/* First fill our portion of the GTT with scratch pages */
-	vm->clear_range(vm, 0, vm->total);
+	/*
+	 * First fill our portion of the GTT with scratch pages if
+	 * they were not retained across suspend.
+	 */
+	retained_ptes = suspend_retains_ptes(vm) &&
+		!i915_vm_to_ggtt(vm)->pte_lost &&
+		!GEM_WARN_ON(i915_vm_to_ggtt(vm)->probed_pte != read_last_pte(vm));
+
+	if (!retained_ptes)
+		vm->clear_range(vm, 0, vm->total);
 
 	/* clflush objects bound into the GGTT and rebind them. */
 	list_for_each_entry(vma, &vm->bound_list, vm_link) {
@@ -688,9 +726,10 @@ bool i915_ggtt_resume_vm(struct i915_address_space *vm)
 			atomic_read(&vma->flags) & I915_VMA_BIND_MASK;
 
 		GEM_BUG_ON(!was_bound);
-		vma->ops->bind_vma(vm, NULL, vma->resource,
-				   obj ? obj->cache_level : 0,
-				   was_bound);
+		if (!retained_ptes)
+			vma->ops->bind_vma(vm, NULL, vma->resource,
+					   obj ? obj->cache_level : 0,
+					   was_bound);
 		if (obj) { /* only used during resume => exclusive access */
 			write_domain_objs |= fetch_and_zero(&obj->write_domain);
 			obj->read_domains |= I915_GEM_DOMAIN_GTT;
@@ -717,4 +756,9 @@ void i915_ggtt_resume(struct i915_ggtt *ggtt)
 		setup_private_pat(ggtt->vm.gt->uncore);
 
 	intel_ggtt_restore_fences(ggtt);
+}
+
+void i915_ggtt_mark_pte_lost(struct drm_i915_private *i915, bool val)
+{
+	to_gt(i915)->ggtt->pte_lost = val;
 }
