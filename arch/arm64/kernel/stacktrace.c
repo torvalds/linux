@@ -38,6 +38,8 @@
  * @kr_cur:      When KRETPROBES is selected, holds the kretprobe instance
  *               associated with the most recently encountered replacement lr
  *               value.
+ *
+ * @task:        The task being unwound.
  */
 struct unwind_state {
 	unsigned long fp;
@@ -48,10 +50,13 @@ struct unwind_state {
 #ifdef CONFIG_KRETPROBES
 	struct llist_node *kr_cur;
 #endif
+	struct task_struct *task;
 };
 
-static void unwind_init_common(struct unwind_state *state)
+static void unwind_init_common(struct unwind_state *state,
+			       struct task_struct *task)
 {
+	state->task = task;
 #ifdef CONFIG_KRETPROBES
 	state->kr_cur = NULL;
 #endif
@@ -80,7 +85,7 @@ static void unwind_init_common(struct unwind_state *state)
 static inline void unwind_init_from_regs(struct unwind_state *state,
 					 struct pt_regs *regs)
 {
-	unwind_init_common(state);
+	unwind_init_common(state, current);
 
 	state->fp = regs->regs[29];
 	state->pc = regs->pc;
@@ -96,7 +101,7 @@ static inline void unwind_init_from_regs(struct unwind_state *state,
  */
 static __always_inline void unwind_init_from_caller(struct unwind_state *state)
 {
-	unwind_init_common(state);
+	unwind_init_common(state, current);
 
 	state->fp = (unsigned long)__builtin_frame_address(1);
 	state->pc = (unsigned long)__builtin_return_address(0);
@@ -115,7 +120,7 @@ static __always_inline void unwind_init_from_caller(struct unwind_state *state)
 static inline void unwind_init_from_task(struct unwind_state *state,
 					 struct task_struct *task)
 {
-	unwind_init_common(state);
+	unwind_init_common(state, task);
 
 	state->fp = thread_saved_fp(task);
 	state->pc = thread_saved_pc(task);
@@ -128,9 +133,9 @@ static inline void unwind_init_from_task(struct unwind_state *state,
  * records (e.g. a cycle), determined based on the location and fp value of A
  * and the location (but not the fp value) of B.
  */
-static int notrace unwind_next(struct task_struct *tsk,
-			       struct unwind_state *state)
+static int notrace unwind_next(struct unwind_state *state)
 {
+	struct task_struct *tsk = state->task;
 	unsigned long fp = state->fp;
 	struct stack_info info;
 
@@ -204,8 +209,7 @@ static int notrace unwind_next(struct task_struct *tsk,
 }
 NOKPROBE_SYMBOL(unwind_next);
 
-static void notrace unwind(struct task_struct *tsk,
-			   struct unwind_state *state,
+static void notrace unwind(struct unwind_state *state,
 			   stack_trace_consume_fn consume_entry, void *cookie)
 {
 	while (1) {
@@ -213,7 +217,7 @@ static void notrace unwind(struct task_struct *tsk,
 
 		if (!consume_entry(cookie, state->pc))
 			break;
-		ret = unwind_next(tsk, state);
+		ret = unwind_next(state);
 		if (ret < 0)
 			break;
 	}
@@ -259,12 +263,15 @@ noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 {
 	struct unwind_state state;
 
-	if (regs)
+	if (regs) {
+		if (task != current)
+			return;
 		unwind_init_from_regs(&state, regs);
-	else if (task == current)
+	} else if (task == current) {
 		unwind_init_from_caller(&state);
-	else
+	} else {
 		unwind_init_from_task(&state, task);
+	}
 
-	unwind(task, &state, consume_entry, cookie);
+	unwind(&state, consume_entry, cookie);
 }
