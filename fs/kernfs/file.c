@@ -484,7 +484,6 @@ static int kernfs_fop_mmap(struct file *file, struct vm_area_struct *vma)
 	 * It is not possible to successfully wrap close.
 	 * So error if someone is trying to use close.
 	 */
-	rc = -EINVAL;
 	if (vma->vm_ops && vma->vm_ops->close)
 		goto out_put;
 
