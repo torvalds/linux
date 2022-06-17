@@ -3241,13 +3241,19 @@ static int virtnet_probe(struct virtio_device *vdev)
 		}
 	}
 
-	err = register_netdev(dev);
+	/* serialize netdev register + virtio_device_ready() with ndo_open() */
+	rtnl_lock();
+
+	err = register_netdevice(dev);
 	if (err) {
 		pr_debug("virtio_net: registering device failed\n");
+		rtnl_unlock();
 		goto free_failover;
 	}
 
 	virtio_device_ready(vdev);
+
+	rtnl_unlock();
 
 	err = virtnet_cpu_notif_add(vi);
 	if (err) {
