@@ -22,14 +22,10 @@ static inline struct io_uring_cqe *io_get_cqe(struct io_ring_ctx *ctx)
 	if (likely(ctx->cqe_cached < ctx->cqe_sentinel)) {
 		struct io_uring_cqe *cqe = ctx->cqe_cached;
 
-		if (ctx->flags & IORING_SETUP_CQE32) {
-			unsigned int off = ctx->cqe_cached - ctx->rings->cqes;
-
-			cqe += off;
-		}
-
 		ctx->cached_cq_tail++;
 		ctx->cqe_cached++;
+		if (ctx->flags & IORING_SETUP_CQE32)
+			ctx->cqe_cached++;
 		return cqe;
 	}
 

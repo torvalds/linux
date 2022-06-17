@@ -701,11 +701,8 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 {
 	struct io_rings *rings = ctx->rings;
 	unsigned int off = ctx->cached_cq_tail & (ctx->cq_entries - 1);
-	unsigned int shift = 0;
 	unsigned int free, queued, len;
 
-	if (ctx->flags & IORING_SETUP_CQE32)
-		shift = 1;
 
 	/* userspace may cheat modifying the tail, be safe and do min */
 	queued = min(__io_cqring_events(ctx), ctx->cq_entries);
@@ -715,11 +712,19 @@ struct io_uring_cqe *__io_get_cqe(struct io_ring_ctx *ctx)
 	if (!len)
 		return NULL;
 
-	ctx->cached_cq_tail++;
+	if (ctx->flags & IORING_SETUP_CQE32) {
+		off <<= 1;
+		len <<= 1;
+	}
+
 	ctx->cqe_cached = &rings->cqes[off];
 	ctx->cqe_sentinel = ctx->cqe_cached + len;
+
+	ctx->cached_cq_tail++;
 	ctx->cqe_cached++;
-	return &rings->cqes[off << shift];
+	if (ctx->flags & IORING_SETUP_CQE32)
+		ctx->cqe_cached++;
+	return &rings->cqes[off];
 }
 
 static bool io_fill_cqe_aux(struct io_ring_ctx *ctx,
