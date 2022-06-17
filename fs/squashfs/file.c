@@ -496,6 +496,41 @@ out:
 	return 0;
 }
 
+static int squashfs_readahead_fragment(struct page **page,
+	unsigned int pages, unsigned int expected)
+{
+	struct inode *inode = page[0]->mapping->host;
+	struct squashfs_cache_entry *buffer = squashfs_get_fragment(inode->i_sb,
+		squashfs_i(inode)->fragment_block,
+		squashfs_i(inode)->fragment_size);
+	struct squashfs_sb_info *msblk = inode->i_sb->s_fs_info;
+	unsigned int n, mask = (1 << (msblk->block_log - PAGE_SHIFT)) - 1;
+
+	if (buffer->error)
+		goto out;
+
+	expected += squashfs_i(inode)->fragment_offset;
+
+	for (n = 0; n < pages; n++) {
+		unsigned int base = (page[n]->index & mask) << PAGE_SHIFT;
+		unsigned int offset = base + squashfs_i(inode)->fragment_offset;
+
+		if (expected > offset) {
+			unsigned int avail = min_t(unsigned int, expected -
+				offset, PAGE_SIZE);
+
+			squashfs_fill_page(page[n], buffer, offset, avail);
+		}
+
+		unlock_page(page[n]);
+		put_page(page[n]);
+	}
+
+out:
+	squashfs_cache_put(buffer);
+	return buffer->error;
+}
+
 static void squashfs_readahead(struct readahead_control *ractl)
 {
 	struct inode *inode = ractl->mapping->host;
@@ -511,9 +546,6 @@ static void squashfs_readahead(struct readahead_control *ractl)
 	unsigned int max_pages = 1UL << shift;
 
 	readahead_expand(ractl, start, (len | mask) + 1);
-
-	if (file_end == 0)
-		return;
 
 	pages = kmalloc_array(max_pages, sizeof(void *), GFP_KERNEL);
 	if (!pages)
@@ -539,6 +571,15 @@ static void squashfs_readahead(struct readahead_control *ractl)
 		expected = index == file_end ?
 			   (i_size_read(inode) & (msblk->block_size - 1)) :
 			    msblk->block_size;
+
+		if (index == file_end && squashfs_i(inode)->fragment_block !=
+						SQUASHFS_INVALID_BLK) {
+			res = squashfs_readahead_fragment(pages, nr_pages,
+							  expected);
+			if (res)
+				goto skip_pages;
+			continue;
+		}
 
 		bsize = read_blocklist(inode, index, &block);
 		if (bsize == 0)
