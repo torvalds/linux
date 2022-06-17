@@ -469,6 +469,9 @@ void ksz_phylink_get_caps(struct dsa_switch *ds, int port,
 	if (dev->info->internal_phy[port])
 		__set_bit(PHY_INTERFACE_MODE_INTERNAL,
 			  config->supported_interfaces);
+
+	if (dev->dev_ops->get_caps)
+		dev->dev_ops->get_caps(dev, port, config);
 }
 EXPORT_SYMBOL_GPL(ksz_phylink_get_caps);
 
