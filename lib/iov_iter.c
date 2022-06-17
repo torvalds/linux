@@ -1293,22 +1293,19 @@ static ssize_t iter_xarray_get_pages(struct iov_iter *i,
 }
 
 /* must be done on non-empty ITER_IOVEC one */
-static unsigned long first_iovec_segment(const struct iov_iter *i,
-					 size_t *size, size_t *start)
+static unsigned long first_iovec_segment(const struct iov_iter *i, size_t *size)
 {
 	size_t skip;
 	long k;
 
 	for (k = 0, skip = i->iov_offset; k < i->nr_segs; k++, skip = 0) {
-		unsigned long addr = (unsigned long)i->iov[k].iov_base + skip;
 		size_t len = i->iov[k].iov_len - skip;
 
 		if (unlikely(!len))
 			continue;
 		if (*size > len)
 			*size = len;
-		*start = addr % PAGE_SIZE;
-		return addr & PAGE_MASK;
+		return (unsigned long)i->iov[k].iov_base + skip;
 	}
 	BUG(); // if it had been empty, we wouldn't get called
 }
@@ -1351,7 +1348,9 @@ ssize_t iov_iter_get_pages(struct iov_iter *i,
 		if (i->nofault)
 			gup_flags |= FOLL_NOFAULT;
 
-		addr = first_iovec_segment(i, &maxsize, start);
+		addr = first_iovec_segment(i, &maxsize);
+		*start = addr % PAGE_SIZE;
+		addr &= PAGE_MASK;
 		n = DIV_ROUND_UP(maxsize + *start, PAGE_SIZE);
 		if (n > maxpages)
 			n = maxpages;
@@ -1482,7 +1481,9 @@ ssize_t iov_iter_get_pages_alloc(struct iov_iter *i,
 		if (i->nofault)
 			gup_flags |= FOLL_NOFAULT;
 
-		addr = first_iovec_segment(i, &maxsize, start);
+		addr = first_iovec_segment(i, &maxsize);
+		*start = addr % PAGE_SIZE;
+		addr &= PAGE_MASK;
 		n = DIV_ROUND_UP(maxsize + *start, PAGE_SIZE);
 		p = get_pages_array(n);
 		if (!p)
