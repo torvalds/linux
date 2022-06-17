@@ -1803,18 +1803,19 @@ static void rbio_add_bio(struct btrfs_raid_bio *rbio, struct bio *orig_bio)
 /*
  * our main entry point for writes from the rest of the FS.
  */
-int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
+void raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 {
 	struct btrfs_fs_info *fs_info = bioc->fs_info;
 	struct btrfs_raid_bio *rbio;
 	struct btrfs_plug_cb *plug = NULL;
 	struct blk_plug_cb *cb;
-	int ret;
+	int ret = 0;
 
 	rbio = alloc_rbio(fs_info, bioc);
 	if (IS_ERR(rbio)) {
 		btrfs_put_bioc(bioc);
-		return PTR_ERR(rbio);
+		ret = PTR_ERR(rbio);
+		goto out;
 	}
 	rbio->operation = BTRFS_RBIO_WRITE;
 	rbio_add_bio(rbio, bio);
@@ -1829,8 +1830,8 @@ int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 	if (rbio_is_full(rbio)) {
 		ret = full_stripe_write(rbio);
 		if (ret)
-			btrfs_bio_counter_dec(fs_info);
-		return ret;
+			goto out_dec_counter;
+		return;
 	}
 
 	cb = blk_check_plugged(btrfs_raid_unplug, fs_info, sizeof(*plug));
@@ -1841,13 +1842,19 @@ int raid56_parity_write(struct bio *bio, struct btrfs_io_context *bioc)
 			INIT_LIST_HEAD(&plug->rbio_list);
 		}
 		list_add_tail(&rbio->plug_list, &plug->rbio_list);
-		ret = 0;
 	} else {
 		ret = __raid56_parity_write(rbio);
 		if (ret)
-			btrfs_bio_counter_dec(fs_info);
+			goto out_dec_counter;
 	}
-	return ret;
+
+	return;
+
+out_dec_counter:
+	btrfs_bio_counter_dec(fs_info);
+out:
+	bio->bi_status = errno_to_blk_status(ret);
+	bio_endio(bio);
 }
 
 /*

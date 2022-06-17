@@ -6762,7 +6762,7 @@ void btrfs_submit_bio(struct btrfs_fs_info *fs_info, struct bio *bio, int mirror
 	if ((bioc->map_type & BTRFS_BLOCK_GROUP_RAID56_MASK) &&
 	    ((btrfs_op(bio) == BTRFS_MAP_WRITE) || (mirror_num > 1))) {
 		if (btrfs_op(bio) == BTRFS_MAP_WRITE)
-			ret = raid56_parity_write(bio, bioc);
+			raid56_parity_write(bio, bioc);
 		else
 			ret = raid56_parity_recover(bio, bioc, mirror_num, 1);
 		goto out_dec;
