@@ -63,7 +63,7 @@ struct lru_pvecs {
 	local_lock_t lock;
 	struct folio_batch lru_add;
 	struct folio_batch lru_deactivate_file;
-	struct pagevec lru_deactivate;
+	struct folio_batch lru_deactivate;
 	struct pagevec lru_lazyfree;
 #ifdef CONFIG_SMP
 	struct pagevec activate_page;
@@ -623,15 +623,15 @@ static void lru_deactivate_file_fn(struct lruvec *lruvec, struct folio *folio)
 	}
 }
 
-static void lru_deactivate_fn(struct page *page, struct lruvec *lruvec)
+static void lru_deactivate_fn(struct lruvec *lruvec, struct folio *folio)
 {
-	if (PageActive(page) && !PageUnevictable(page)) {
-		int nr_pages = thp_nr_pages(page);
+	if (folio_test_active(folio) && !folio_test_unevictable(folio)) {
+		long nr_pages = folio_nr_pages(folio);
 
-		del_page_from_lru_list(page, lruvec);
-		ClearPageActive(page);
-		ClearPageReferenced(page);
-		add_page_to_lru_list(page, lruvec);
+		lruvec_del_folio(lruvec, folio);
+		folio_clear_active(folio);
+		folio_clear_referenced(folio);
+		lruvec_add_folio(lruvec, folio);
 
 		__count_vm_events(PGDEACTIVATE, nr_pages);
 		__count_memcg_events(lruvec_memcg(lruvec), PGDEACTIVATE,
@@ -690,9 +690,9 @@ void lru_add_drain_cpu(int cpu)
 	if (folio_batch_count(fbatch))
 		folio_batch_move_lru(fbatch, lru_deactivate_file_fn);
 
-	pvec = &per_cpu(lru_pvecs.lru_deactivate, cpu);
-	if (pagevec_count(pvec))
-		pagevec_lru_move_fn(pvec, lru_deactivate_fn);
+	fbatch = &per_cpu(lru_pvecs.lru_deactivate, cpu);
+	if (folio_batch_count(fbatch))
+		folio_batch_move_lru(fbatch, lru_deactivate_fn);
 
 	pvec = &per_cpu(lru_pvecs.lru_lazyfree, cpu);
 	if (pagevec_count(pvec))
@@ -736,14 +736,16 @@ void deactivate_file_folio(struct folio *folio)
  */
 void deactivate_page(struct page *page)
 {
-	if (PageLRU(page) && PageActive(page) && !PageUnevictable(page)) {
-		struct pagevec *pvec;
+	struct folio *folio = page_folio(page);
 
+	if (folio_test_lru(folio) && folio_test_active(folio) &&
+	    !folio_test_unevictable(folio)) {
+		struct folio_batch *fbatch;
+
+		folio_get(folio);
 		local_lock(&lru_pvecs.lock);
-		pvec = this_cpu_ptr(&lru_pvecs.lru_deactivate);
-		get_page(page);
-		if (pagevec_add_and_need_flush(pvec, page))
-			pagevec_lru_move_fn(pvec, lru_deactivate_fn);
+		fbatch = this_cpu_ptr(&lru_pvecs.lru_deactivate);
+		folio_batch_add_and_move(fbatch, folio, lru_deactivate_fn);
 		local_unlock(&lru_pvecs.lock);
 	}
 }
@@ -896,7 +898,7 @@ static inline void __lru_add_drain_all(bool force_all_cpus)
 		if (folio_batch_count(&per_cpu(lru_pvecs.lru_add, cpu)) ||
 		    data_race(folio_batch_count(&per_cpu(lru_rotate.fbatch, cpu))) ||
 		    folio_batch_count(&per_cpu(lru_pvecs.lru_deactivate_file, cpu)) ||
-		    pagevec_count(&per_cpu(lru_pvecs.lru_deactivate, cpu)) ||
+		    folio_batch_count(&per_cpu(lru_pvecs.lru_deactivate, cpu)) ||
 		    pagevec_count(&per_cpu(lru_pvecs.lru_lazyfree, cpu)) ||
 		    need_activate_page_drain(cpu) ||
 		    need_mlock_page_drain(cpu) ||
