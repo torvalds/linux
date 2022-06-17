@@ -1,7 +1,8 @@
 build drm need to config:
 # CONFIG_DRM_I2C_ADV7511_CEC is not set
 CONFIG_DRM_VERISILICON=y
-CONFIG_DRM_I2C_ADV7513=y
+#CONFIG_DRM_I2C_ADV7513 is not set
+CONFIG_STARFIVE_INNO_HDMI=y
 CONFIG_DRM_LEGACY=y
 # CONFIG_DRM_VGEM is not set
 # CONFIG_DRM_VKMS is not set
@@ -11,7 +12,7 @@ notes:
 1、DC8200 rgbpad GPIO 和其他模块存在大规模冲突, 需要等evb板子做进一步确认
 
 2、evb板子当前与hdmi冲突的gpio有
-i2c0 i2c1 i2c2 i2c3 sdio1 tdm
+i2c1 sdio1 tdm
 调试hdmi的时候建议在jh7100-common.dtsi文件
 将这些模块的pin的结点进行注释或者将node disabled
 
