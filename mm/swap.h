@@ -38,7 +38,7 @@ int add_to_swap_cache(struct page *page, swp_entry_t entry,
 		      gfp_t gfp, void **shadowp);
 void __delete_from_swap_cache(struct page *page,
 			      swp_entry_t entry, void *shadow);
-void delete_from_swap_cache(struct page *page);
+void delete_from_swap_cache(struct folio *folio);
 void clear_shadow_from_swap_cache(int type, unsigned long begin,
 				  unsigned long end);
 void free_swap_cache(struct page *page);
@@ -140,7 +140,7 @@ static inline void __delete_from_swap_cache(struct page *page,
 {
 }
 
-static inline void delete_from_swap_cache(struct page *page)
+static inline void delete_from_swap_cache(struct folio *folio)
 {
 }
 

@@ -222,22 +222,22 @@ fail:
 }
 
 /*
- * This must be called only on pages that have
+ * This must be called only on folios that have
  * been verified to be in the swap cache and locked.
- * It will never put the page into the free list,
- * the caller has a reference on the page.
+ * It will never put the folio into the free list,
+ * the caller has a reference on the folio.
  */
-void delete_from_swap_cache(struct page *page)
+void delete_from_swap_cache(struct folio *folio)
 {
-	swp_entry_t entry = { .val = page_private(page) };
+	swp_entry_t entry = folio_swap_entry(folio);
 	struct address_space *address_space = swap_address_space(entry);
 
 	xa_lock_irq(&address_space->i_pages);
-	__delete_from_swap_cache(page, entry, NULL);
+	__delete_from_swap_cache(&folio->page, entry, NULL);
 	xa_unlock_irq(&address_space->i_pages);
 
-	put_swap_page(page, entry);
-	page_ref_sub(page, thp_nr_pages(page));
+	put_swap_page(&folio->page, entry);
+	folio_ref_sub(folio, folio_nr_pages(folio));
 }
 
 void clear_shadow_from_swap_cache(int type, unsigned long begin,
