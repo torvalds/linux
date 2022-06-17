@@ -140,6 +140,23 @@ static inline void snd_rawmidi_buffer_unref(struct snd_rawmidi_runtime *runtime)
 	runtime->buffer_ref--;
 }
 
+static void snd_rawmidi_buffer_ref_sync(struct snd_rawmidi_substream *substream)
+{
+	int loop = HZ;
+
+	spin_lock_irq(&substream->lock);
+	while (substream->runtime->buffer_ref) {
+		spin_unlock_irq(&substream->lock);
+		if (!--loop) {
+			rmidi_err(substream->rmidi, "Buffer ref sync timeout\n");
+			return;
+		}
+		schedule_timeout_uninterruptible(1);
+		spin_lock_irq(&substream->lock);
+	}
+	spin_unlock_irq(&substream->lock);
+}
+
 static int snd_rawmidi_runtime_create(struct snd_rawmidi_substream *substream)
 {
 	struct snd_rawmidi_runtime *runtime;
@@ -222,15 +239,27 @@ EXPORT_SYMBOL(snd_rawmidi_drop_output);
 
 int snd_rawmidi_drain_output(struct snd_rawmidi_substream *substream)
 {
-	int err;
+	int err = 0;
 	long timeout;
-	struct snd_rawmidi_runtime *runtime = substream->runtime;
+	struct snd_rawmidi_runtime *runtime;
 
-	err = 0;
-	runtime->drain = 1;
+	spin_lock_irq(&substream->lock);
+	runtime = substream->runtime;
+	if (!substream->opened || !runtime || !runtime->buffer) {
+		err = -EINVAL;
+	} else {
+		snd_rawmidi_buffer_ref(runtime);
+		runtime->drain = 1;
+	}
+	spin_unlock_irq(&substream->lock);
+	if (err < 0)
+		return err;
+
 	timeout = wait_event_interruptible_timeout(runtime->sleep,
 				(runtime->avail >= runtime->buffer_size),
 				10*HZ);
+
+	spin_lock_irq(&substream->lock);
 	if (signal_pending(current))
 		err = -ERESTARTSYS;
 	if (runtime->avail < runtime->buffer_size && !timeout) {
@@ -240,6 +269,8 @@ int snd_rawmidi_drain_output(struct snd_rawmidi_substream *substream)
 		err = -EIO;
 	}
 	runtime->drain = 0;
+	spin_unlock_irq(&substream->lock);
+
 	if (err != -ERESTARTSYS) {
 		/* we need wait a while to make sure that Tx FIFOs are empty */
 		if (substream->ops->drain)
@@ -248,6 +279,11 @@ int snd_rawmidi_drain_output(struct snd_rawmidi_substream *substream)
 			msleep(50);
 		snd_rawmidi_drop_output(substream);
 	}
+
+	spin_lock_irq(&substream->lock);
+	snd_rawmidi_buffer_unref(runtime);
+	spin_unlock_irq(&substream->lock);
+
 	return err;
 }
 EXPORT_SYMBOL(snd_rawmidi_drain_output);
@@ -522,6 +558,7 @@ static void close_substream(struct snd_rawmidi *rmidi,
 			if (snd_rawmidi_drain_output(substream) == -ERESTARTSYS)
 				snd_rawmidi_output_trigger(substream, 0);
 		}
+		snd_rawmidi_buffer_ref_sync(substream);
 	}
 	spin_lock_irq(&substream->lock);
 	substream->opened = 0;
