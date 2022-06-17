@@ -183,17 +183,16 @@ int snd_soc_info_volsw(struct snd_kcontrol *kcontrol,
 	if (mc->platform_max && mc->platform_max < max)
 		max = mc->platform_max;
 
-	/* Even two value controls ending in Volume should always be integer */
 	if (max == 1) {
+		/* Even two value controls ending in Volume should always be integer */
 		vol_string = strstr(kcontrol->id.name, " Volume");
-		if (vol_string && strcmp(vol_string, " Volume"))
-			vol_string = NULL;
-	}
-
-	if (!vol_string)
-		uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
-	else
+		if (vol_string && !strcmp(vol_string, " Volume"))
+			uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+		else
+			uinfo->type = SNDRV_CTL_ELEM_TYPE_BOOLEAN;
+	} else {
 		uinfo->type = SNDRV_CTL_ELEM_TYPE_INTEGER;
+	}
 
 	uinfo->count = snd_soc_volsw_is_stereo(mc) ? 2 : 1;
 	uinfo->value.integer.min = 0;
