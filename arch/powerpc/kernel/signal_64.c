@@ -377,9 +377,12 @@ static long notrace __unsafe_restore_sigcontext(struct task_struct *tsk, sigset_
 		unsafe_get_user(set->sig[0], &sc->oldmask, efault_out);
 
 	/*
-	 * Force reload of FP/VEC.
-	 * This has to be done before copying stuff into tsk->thread.fpr/vr
-	 * for the reasons explained in the previous comment.
+	 * Force reload of FP/VEC/VSX so userspace sees any changes.
+	 * Clear these bits from the user process' MSR before copying into the
+	 * thread struct. If we are rescheduled or preempted and another task
+	 * uses FP/VEC/VSX, and this process has the MSR bits set, then the
+	 * context switch code will save the current CPU state into the
+	 * thread_struct - possibly overwriting the data we are updating here.
 	 */
 	regs_set_return_msr(regs, regs->msr & ~(MSR_FP | MSR_FE0 | MSR_FE1 | MSR_VEC | MSR_VSX));
 
