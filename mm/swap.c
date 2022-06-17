@@ -119,16 +119,16 @@ static void __put_compound_page(struct page *page)
 	destroy_compound_page(page);
 }
 
-void __put_page(struct page *page)
+void __folio_put(struct folio *folio)
 {
-	if (unlikely(is_zone_device_page(page)))
-		free_zone_device_page(page);
-	else if (unlikely(PageCompound(page)))
-		__put_compound_page(page);
+	if (unlikely(folio_is_zone_device(folio)))
+		free_zone_device_page(&folio->page);
+	else if (unlikely(folio_test_large(folio)))
+		__put_compound_page(&folio->page);
 	else
-		__put_single_page(page);
+		__put_single_page(&folio->page);
 }
-EXPORT_SYMBOL(__put_page);
+EXPORT_SYMBOL(__folio_put);
 
 /**
  * put_pages_list() - release a list of pages

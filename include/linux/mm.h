@@ -855,7 +855,7 @@ static inline struct folio *virt_to_folio(const void *x)
 	return page_folio(page);
 }
 
-void __put_page(struct page *page);
+void __folio_put(struct folio *folio);
 
 void put_pages_list(struct list_head *pages);
 
@@ -1197,7 +1197,7 @@ static inline __must_check bool try_get_page(struct page *page)
 static inline void folio_put(struct folio *folio)
 {
 	if (folio_put_testzero(folio))
-		__put_page(&folio->page);
+		__folio_put(folio);
 }
 
 /**
@@ -1217,7 +1217,7 @@ static inline void folio_put(struct folio *folio)
 static inline void folio_put_refs(struct folio *folio, int refs)
 {
 	if (folio_ref_sub_and_test(folio, refs))
-		__put_page(&folio->page);
+		__folio_put(folio);
 }
 
 void release_pages(struct page **pages, int nr);
