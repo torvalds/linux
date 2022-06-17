@@ -53,7 +53,7 @@ static void aspeed_set_ssif_bmc_status(struct ssif_bmc_ctx *ssif_bmc, unsigned i
 	if (!bus)
 		return;
 
-#ifdef CONFIG_I2C_NEW_ASPEED
+#ifdef CONFIG_I2C_AST2600
 	current_config = readl(bus->base + AST_I2CS_ADDR_CTRL);
 	if (status & SSIF_BMC_BUSY)
 		writel(current_config & ~AST_I2CS_ADDR1_ENABLE, bus->base + AST_I2CS_ADDR_CTRL);
