@@ -8690,6 +8690,7 @@ static void io_queue_async(struct io_kiocb *req, int ret)
 		 * Queued up for async execution, worker will release
 		 * submit reference when the iocb is actually submitted.
 		 */
+		io_kbuf_recycle(req, 0);
 		io_queue_iowq(req, NULL);
 		break;
 	case IO_APOLL_OK:
