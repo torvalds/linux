@@ -50,11 +50,8 @@ struct unwind_state {
 #endif
 };
 
-static notrace void unwind_init(struct unwind_state *state, unsigned long fp,
-				unsigned long pc)
+static void unwind_init_common(struct unwind_state *state)
 {
-	state->fp = fp;
-	state->pc = pc;
 #ifdef CONFIG_KRETPROBES
 	state->kr_cur = NULL;
 #endif
@@ -72,7 +69,57 @@ static notrace void unwind_init(struct unwind_state *state, unsigned long fp,
 	state->prev_fp = 0;
 	state->prev_type = STACK_TYPE_UNKNOWN;
 }
-NOKPROBE_SYMBOL(unwind_init);
+
+/*
+ * Start an unwind from a pt_regs.
+ *
+ * The unwind will begin at the PC within the regs.
+ *
+ * The regs must be on a stack currently owned by the calling task.
+ */
+static inline void unwind_init_from_regs(struct unwind_state *state,
+					 struct pt_regs *regs)
+{
+	unwind_init_common(state);
+
+	state->fp = regs->regs[29];
+	state->pc = regs->pc;
+}
+
+/*
+ * Start an unwind from a caller.
+ *
+ * The unwind will begin at the caller of whichever function this is inlined
+ * into.
+ *
+ * The function which invokes this must be noinline.
+ */
+static __always_inline void unwind_init_from_caller(struct unwind_state *state)
+{
+	unwind_init_common(state);
+
+	state->fp = (unsigned long)__builtin_frame_address(1);
+	state->pc = (unsigned long)__builtin_return_address(0);
+}
+
+/*
+ * Start an unwind from a blocked task.
+ *
+ * The unwind will begin at the blocked tasks saved PC (i.e. the caller of
+ * cpu_switch_to()).
+ *
+ * The caller should ensure the task is blocked in cpu_switch_to() for the
+ * duration of the unwind, or the unwind will be bogus. It is never valid to
+ * call this for the current task.
+ */
+static inline void unwind_init_from_task(struct unwind_state *state,
+					 struct task_struct *task)
+{
+	unwind_init_common(state);
+
+	state->fp = thread_saved_fp(task);
+	state->pc = thread_saved_pc(task);
+}
 
 /*
  * Unwind from one frame record (A) to the next frame record (B).
@@ -213,14 +260,11 @@ noinline notrace void arch_stack_walk(stack_trace_consume_fn consume_entry,
 	struct unwind_state state;
 
 	if (regs)
-		unwind_init(&state, regs->regs[29], regs->pc);
+		unwind_init_from_regs(&state, regs);
 	else if (task == current)
-		unwind_init(&state,
-				(unsigned long)__builtin_frame_address(1),
-				(unsigned long)__builtin_return_address(0));
+		unwind_init_from_caller(&state);
 	else
-		unwind_init(&state, thread_saved_fp(task),
-				thread_saved_pc(task));
+		unwind_init_from_task(&state, task);
 
 	unwind(task, &state, consume_entry, cookie);
 }
