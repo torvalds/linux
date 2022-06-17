@@ -1178,7 +1178,7 @@ static void rk817_bat_init_coulomb_cap(struct rk817_battery_device *battery,
 	buf = (cap >> 0) & 0xff;
 	rk817_bat_field_write(battery, Q_INIT_L0, buf);
 
-	battery->rsoc = capacity * 1000 * 100 / battery->fcc;
+	battery->rsoc = capacity * 1000 * 100 / DIV(battery->fcc);
 	battery->remain_cap = capacity * 1000;
 	DBG("new remaincap: %d\n", battery->remain_cap);
 	fuel_gauge_q_init_info(battery);
