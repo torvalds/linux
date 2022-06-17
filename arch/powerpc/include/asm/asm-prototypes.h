@@ -2,8 +2,9 @@
 #ifndef _ASM_POWERPC_ASM_PROTOTYPES_H
 #define _ASM_POWERPC_ASM_PROTOTYPES_H
 /*
- * This file is for prototypes of C functions that are only called
- * from asm, and any associated variables.
+ * This file is for C prototypes of asm symbols that are EXPORTed.
+ * It allows the modversions logic to see their prototype and
+ * generate proper CRCs for them.
  *
  * Copyright 2016, Daniel Axtens, IBM Corporation.
  */
