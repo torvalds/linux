@@ -45,188 +45,6 @@ enum {
 	P_MMPLL4,
 };
 
-static const struct parent_map mmss_xo_hdmi_map[] = {
-	{ P_XO, 0 },
-	{ P_HDMIPLL, 1 }
-};
-
-static const char * const mmss_xo_hdmi[] = {
-	"xo",
-	"hdmipll"
-};
-
-static const struct parent_map mmss_xo_dsi0pll_dsi1pll_map[] = {
-	{ P_XO, 0 },
-	{ P_DSI0PLL, 1 },
-	{ P_DSI1PLL, 2 }
-};
-
-static const char * const mmss_xo_dsi0pll_dsi1pll[] = {
-	"xo",
-	"dsi0pll",
-	"dsi1pll"
-};
-
-static const struct parent_map mmss_xo_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_gpll0_gpll0_div[] = {
-	"xo",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_dsibyte_map[] = {
-	{ P_XO, 0 },
-	{ P_DSI0PLL_BYTE, 1 },
-	{ P_DSI1PLL_BYTE, 2 }
-};
-
-static const char * const mmss_xo_dsibyte[] = {
-	"xo",
-	"dsi0pllbyte",
-	"dsi1pllbyte"
-};
-
-static const struct parent_map mmss_xo_mmpll0_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL1, 2 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"mmpll1",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll3_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL3, 3 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll3_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"mmpll3",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL5, 2 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"mmpll5",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll4_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL4, 3 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll4_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"mmpll4",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL9, 2 },
-	{ P_MMPLL2, 3 },
-	{ P_MMPLL8, 4 },
-	{ P_GPLL0, 5 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0[] = {
-	"xo",
-	"mmpll0",
-	"mmpll9",
-	"mmpll2",
-	"mmpll8",
-	"gpll0"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL9, 2 },
-	{ P_MMPLL2, 3 },
-	{ P_MMPLL8, 4 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"mmpll9",
-	"mmpll2",
-	"mmpll8",
-	"gpll0",
-	"gpll0_div"
-};
-
-static const struct parent_map mmss_xo_mmpll0_mmpll1_mmpll4_mmpll3_gpll0_gpll0_div_map[] = {
-	{ P_XO, 0 },
-	{ P_MMPLL0, 1 },
-	{ P_MMPLL1, 2 },
-	{ P_MMPLL4, 3 },
-	{ P_MMPLL3, 4 },
-	{ P_GPLL0, 5 },
-	{ P_GPLL0_DIV, 6 }
-};
-
-static const char * const mmss_xo_mmpll0_mmpll1_mmpll4_mmpll3_gpll0_gpll0_div[] = {
-	"xo",
-	"mmpll0",
-	"mmpll1",
-	"mmpll4",
-	"mmpll3",
-	"gpll0",
-	"gpll0_div"
-};
-
 static struct clk_fixed_factor gpll0_div = {
 	.mult = 1,
 	.div = 2,
@@ -469,6 +287,188 @@ static struct clk_alpha_pll_postdiv mmpll9 = {
 		.ops = &clk_alpha_pll_postdiv_ops,
 		.flags = CLK_SET_RATE_PARENT,
 	},
+};
+
+static const struct parent_map mmss_xo_hdmi_map[] = {
+	{ P_XO, 0 },
+	{ P_HDMIPLL, 1 }
+};
+
+static const char * const mmss_xo_hdmi[] = {
+	"xo",
+	"hdmipll"
+};
+
+static const struct parent_map mmss_xo_dsi0pll_dsi1pll_map[] = {
+	{ P_XO, 0 },
+	{ P_DSI0PLL, 1 },
+	{ P_DSI1PLL, 2 }
+};
+
+static const char * const mmss_xo_dsi0pll_dsi1pll[] = {
+	"xo",
+	"dsi0pll",
+	"dsi1pll"
+};
+
+static const struct parent_map mmss_xo_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_gpll0_gpll0_div[] = {
+	"xo",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_dsibyte_map[] = {
+	{ P_XO, 0 },
+	{ P_DSI0PLL_BYTE, 1 },
+	{ P_DSI1PLL_BYTE, 2 }
+};
+
+static const char * const mmss_xo_dsibyte[] = {
+	"xo",
+	"dsi0pllbyte",
+	"dsi1pllbyte"
+};
+
+static const struct parent_map mmss_xo_mmpll0_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll1_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"mmpll1",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll3_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL3, 3 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll3_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"mmpll3",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL5, 2 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll5_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"mmpll5",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll4_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL4, 3 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll4_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"mmpll4",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL9, 2 },
+	{ P_MMPLL2, 3 },
+	{ P_MMPLL8, 4 },
+	{ P_GPLL0, 5 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0[] = {
+	"xo",
+	"mmpll0",
+	"mmpll9",
+	"mmpll2",
+	"mmpll8",
+	"gpll0"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL9, 2 },
+	{ P_MMPLL2, 3 },
+	{ P_MMPLL8, 4 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll9_mmpll2_mmpll8_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"mmpll9",
+	"mmpll2",
+	"mmpll8",
+	"gpll0",
+	"gpll0_div"
+};
+
+static const struct parent_map mmss_xo_mmpll0_mmpll1_mmpll4_mmpll3_gpll0_gpll0_div_map[] = {
+	{ P_XO, 0 },
+	{ P_MMPLL0, 1 },
+	{ P_MMPLL1, 2 },
+	{ P_MMPLL4, 3 },
+	{ P_MMPLL3, 4 },
+	{ P_GPLL0, 5 },
+	{ P_GPLL0_DIV, 6 }
+};
+
+static const char * const mmss_xo_mmpll0_mmpll1_mmpll4_mmpll3_gpll0_gpll0_div[] = {
+	"xo",
+	"mmpll0",
+	"mmpll1",
+	"mmpll4",
+	"mmpll3",
+	"gpll0",
+	"gpll0_div"
 };
 
 static const struct freq_tbl ftbl_ahb_clk_src[] = {
