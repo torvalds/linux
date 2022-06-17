@@ -138,19 +138,19 @@ EXPORT_SYMBOL(__put_page);
  */
 void put_pages_list(struct list_head *pages)
 {
-	struct page *page, *next;
+	struct folio *folio, *next;
 
-	list_for_each_entry_safe(page, next, pages, lru) {
-		if (!put_page_testzero(page)) {
-			list_del(&page->lru);
+	list_for_each_entry_safe(folio, next, pages, lru) {
+		if (!folio_put_testzero(folio)) {
+			list_del(&folio->lru);
 			continue;
 		}
-		if (PageHead(page)) {
-			list_del(&page->lru);
-			__put_compound_page(page);
+		if (folio_test_large(folio)) {
+			list_del(&folio->lru);
+			__put_compound_page(&folio->page);
 			continue;
 		}
-		/* Cannot be PageLRU because it's passed to us using the lru */
+		/* LRU flag must be clear because it's passed using the lru */
 	}
 
 	free_unref_page_list(pages);
