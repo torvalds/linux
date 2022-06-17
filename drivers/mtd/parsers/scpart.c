@@ -219,6 +219,7 @@ static int scpart_parse(struct mtd_info *master,
 	of_node_put(pp);
 
 free:
+	of_node_put(ofpart_node);
 	kfree(scpart_map);
 	if (res <= 0)
 		kfree(parts);
