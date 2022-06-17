@@ -52,6 +52,13 @@ void __io_kbuf_recycle(struct io_kiocb *req, unsigned issue_flags)
 	if (req->flags & REQ_F_BUFFER_RING) {
 		if (req->buf_list) {
 			if (req->flags & REQ_F_PARTIAL_IO) {
+				/*
+				 * If we end up here, then the io_uring_lock has
+				 * been kept held since we retrieved the buffer.
+				 * For the io-wq case, we already cleared
+				 * req->buf_list when the buffer was retrieved,
+				 * hence it cannot be set here for that case.
+				 */
 				req->buf_list->head++;
 				req->buf_list = NULL;
 			} else {
@@ -163,12 +170,13 @@ static void __user *io_ring_buffer_select(struct io_kiocb *req, size_t *len,
 	if (issue_flags & IO_URING_F_UNLOCKED || !file_can_poll(req->file)) {
 		/*
 		 * If we came in unlocked, we have no choice but to consume the
-		 * buffer here. This does mean it'll be pinned until the IO
-		 * completes. But coming in unlocked means we're in io-wq
-		 * context, hence there should be no further retry. For the
-		 * locked case, the caller must ensure to call the commit when
-		 * the transfer completes (or if we get -EAGAIN and must poll
-		 * or retry).
+		 * buffer here, otherwise nothing ensures that the buffer won't
+		 * get used by others. This does mean it'll be pinned until the
+		 * IO completes, coming in unlocked means we're being called from
+		 * io-wq context and there may be further retries in async hybrid
+		 * mode. For the locked case, the caller must call commit when
+		 * the transfer completes (or if we get -EAGAIN and must poll of
+		 * retry).
 		 */
 		req->buf_list = NULL;
 		bl->head++;
