@@ -1336,7 +1336,8 @@ iee80211_tdls_recalc_ht_protection(struct ieee80211_sub_if_data *sdata,
 		return;
 
 	sdata->vif.bss_conf.ht_operation_mode = opmode;
-	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_HT);
+	ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+					  BSS_CHANGED_HT);
 }
 
 int ieee80211_tdls_oper(struct wiphy *wiphy, struct net_device *dev,

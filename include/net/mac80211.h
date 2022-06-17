@@ -1789,7 +1789,7 @@ struct ieee80211_vif {
 	enum nl80211_iftype type;
 	struct ieee80211_vif_cfg cfg;
 	struct ieee80211_bss_conf bss_conf;
-	struct ieee80211_bss_conf *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct ieee80211_bss_conf __rcu *link_conf[IEEE80211_MLD_MAX_NUM_LINKS];
 	u16 valid_links;
 	u8 addr[ETH_ALEN] __aligned(2);
 	bool p2p;
@@ -4082,7 +4082,9 @@ struct ieee80211_ops {
 				u64 changed);
 	void (*link_info_changed)(struct ieee80211_hw *hw,
 				  struct ieee80211_vif *vif,
-				  unsigned int link_id, u64 changed);
+				  struct ieee80211_bss_conf *info,
+				  unsigned int link_id,
+				  u64 changed);
 
 	int (*start_ap)(struct ieee80211_hw *hw, struct ieee80211_vif *vif,
 			unsigned int link_id);

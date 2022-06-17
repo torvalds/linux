@@ -80,7 +80,7 @@ void ieee80211_recalc_txpower(struct ieee80211_sub_if_data *sdata,
 {
 	if (__ieee80211_recalc_txpower(sdata) ||
 	    (update_bss && ieee80211_sdata_running(sdata)))
-		ieee80211_link_info_change_notify(sdata, 0,
+		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
 						  BSS_CHANGED_TXPOWER);
 }
 
@@ -480,7 +480,7 @@ static void ieee80211_do_stop(struct ieee80211_sub_if_data *sdata, bool going_do
 		chandef = sdata->vif.bss_conf.chandef;
 		WARN_ON(local->suspended);
 		mutex_lock(&local->mtx);
-		ieee80211_link_release_channel(sdata->link[0]);
+		ieee80211_link_release_channel(&sdata->deflink);
 		mutex_unlock(&local->mtx);
 		cfg80211_cac_event(sdata->dev, &chandef,
 				   NL80211_RADAR_CAC_ABORTED,
@@ -1031,11 +1031,12 @@ static void ieee80211_link_init(struct ieee80211_sub_if_data *sdata,
 	if (link_id < 0)
 		link_id = 0;
 
-	sdata->vif.link_conf[link_id] = link_conf;
-	sdata->link[link_id] = link;
+	rcu_assign_pointer(sdata->vif.link_conf[link_id], link_conf);
+	rcu_assign_pointer(sdata->link[link_id], link);
 
 	link->sdata = sdata;
 	link->link_id = link_id;
+	link->conf = link_conf;
 
 	INIT_WORK(&link->csa_finalize_work,
 		  ieee80211_csa_finalize_work);
@@ -1128,7 +1129,7 @@ int ieee80211_add_virtual_monitor(struct ieee80211_local *local)
 	mutex_unlock(&local->iflist_mtx);
 
 	mutex_lock(&local->mtx);
-	ret = ieee80211_link_use_channel(sdata->link[0], &local->monitor_chandef,
+	ret = ieee80211_link_use_channel(&sdata->deflink, &local->monitor_chandef,
 					 IEEE80211_CHANCTX_EXCLUSIVE);
 	mutex_unlock(&local->mtx);
 	if (ret) {
@@ -1173,7 +1174,7 @@ void ieee80211_del_virtual_monitor(struct ieee80211_local *local)
 	synchronize_net();
 
 	mutex_lock(&local->mtx);
-	ieee80211_link_release_channel(sdata->link[0]);
+	ieee80211_link_release_channel(&sdata->deflink);
 	mutex_unlock(&local->mtx);
 
 	drv_remove_interface(local, sdata);
@@ -1279,7 +1280,7 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 	case NL80211_IFTYPE_AP_VLAN:
 		/* no need to tell driver, but set carrier and chanctx */
 		if (sdata->bss->active) {
-			ieee80211_link_vlan_copy_chanctx(sdata->link[0]);
+			ieee80211_link_vlan_copy_chanctx(&sdata->deflink);
 			netif_carrier_on(dev);
 			ieee80211_set_vif_encap_ops(sdata);
 		} else {
@@ -1351,7 +1352,8 @@ int ieee80211_do_open(struct wireless_dev *wdev, bool coming_up)
 		if (sdata->vif.type != NL80211_IFTYPE_P2P_DEVICE &&
 		    sdata->vif.type != NL80211_IFTYPE_NAN)
 			changed |= ieee80211_reset_erp_info(sdata);
-		ieee80211_link_info_change_notify(sdata, 0, changed);
+		ieee80211_link_info_change_notify(sdata, &sdata->deflink,
+						  changed);
 
 		switch (sdata->vif.type) {
 		case NL80211_IFTYPE_STATION:
@@ -1535,7 +1537,8 @@ static void ieee80211_iface_process_skb(struct ieee80211_local *local,
 			break;
 		}
 		case WLAN_VHT_ACTION_GROUPID_MGMT:
-			ieee80211_process_mu_groups(sdata, 0, mgmt);
+			ieee80211_process_mu_groups(sdata, &sdata->deflink,
+						    mgmt);
 			break;
 		default:
 			WARN_ON(1);
@@ -1689,7 +1692,7 @@ static void ieee80211_recalc_smps_work(struct work_struct *work)
 	struct ieee80211_sub_if_data *sdata =
 		container_of(work, struct ieee80211_sub_if_data, recalc_smps);
 
-	ieee80211_recalc_smps(sdata, 0);
+	ieee80211_recalc_smps(sdata, &sdata->deflink);
 }
 
 /*
@@ -2364,6 +2367,7 @@ int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
 	struct {
 		struct ieee80211_link_data data;
 		struct ieee80211_bss_conf conf;
+		struct rcu_head rcu_head;
 	} *links[IEEE80211_MLD_MAX_NUM_LINKS] = {}, *link;
 	struct ieee80211_bss_conf *old[IEEE80211_MLD_MAX_NUM_LINKS];
 	struct ieee80211_link_data *old_data[IEEE80211_MLD_MAX_NUM_LINKS];
@@ -2394,15 +2398,15 @@ int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
 	/* link them into data structures */
 	for_each_set_bit(link_id, &add, IEEE80211_MLD_MAX_NUM_LINKS) {
 		WARN_ON(!use_deflink &&
-			sdata->link[link_id] == &sdata->deflink);
+			rcu_access_pointer(sdata->link[link_id]) == &sdata->deflink);
 
 		link = links[link_id];
 		ieee80211_link_init(sdata, link_id, &link->data, &link->conf);
 	}
 
 	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
-		sdata->link[link_id] = NULL;
-		sdata->vif.link_conf[link_id] = NULL;
+		RCU_INIT_POINTER(sdata->link[link_id], NULL);
+		RCU_INIT_POINTER(sdata->vif.link_conf[link_id], NULL);
 	}
 
 	sdata->vif.valid_links = new_links;
@@ -2426,20 +2430,20 @@ int ieee80211_vif_set_links(struct ieee80211_sub_if_data *sdata,
 	/* now use this to free the old links */
 	memset(links, 0, sizeof(links));
 	for_each_set_bit(link_id, &rem, IEEE80211_MLD_MAX_NUM_LINKS) {
-		if (sdata->link[link_id] == &sdata->deflink)
+		if (rcu_access_pointer(sdata->link[link_id]) == &sdata->deflink)
 			continue;
 		/*
 		 * we must have allocated the data through this path so
 		 * we know we can free both at the same time
 		 */
-		links[link_id] = container_of(sdata->link[link_id],
+		links[link_id] = container_of(rcu_access_pointer(sdata->link[link_id]),
 					      typeof(*links[link_id]),
 					      data);
 	}
 
 free:
 	for (link_id = 0; link_id < IEEE80211_MLD_MAX_NUM_LINKS; link_id++)
-		kfree(links[link_id]);
+		kfree_rcu(links[link_id], rcu_head);
 	if (use_deflink)
 		ieee80211_link_init(sdata, -1, &sdata->deflink,
 				    &sdata->vif.bss_conf);

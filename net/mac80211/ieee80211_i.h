@@ -961,6 +961,8 @@ struct ieee80211_link_data {
 		struct ieee80211_link_data_managed mgd;
 		struct ieee80211_link_data_ap ap;
 	} u;
+
+	struct ieee80211_bss_conf *conf;
 };
 
 struct ieee80211_sub_if_data {
@@ -1045,7 +1047,7 @@ struct ieee80211_sub_if_data {
 	} u;
 
 	struct ieee80211_link_data deflink;
-	struct ieee80211_link_data *link[IEEE80211_MLD_MAX_NUM_LINKS];
+	struct ieee80211_link_data __rcu *link[IEEE80211_MLD_MAX_NUM_LINKS];
 
 #ifdef CONFIG_MAC80211_DEBUGFS
 	struct {
@@ -1544,16 +1546,14 @@ ieee80211_get_sband(struct ieee80211_sub_if_data *sdata)
 }
 
 static inline struct ieee80211_supported_band *
-ieee80211_get_link_sband(struct ieee80211_sub_if_data *sdata, u32 link_id)
+ieee80211_get_link_sband(struct ieee80211_link_data *link)
 {
-	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_local *local = link->sdata->local;
 	struct ieee80211_chanctx_conf *chanctx_conf;
 	enum nl80211_band band;
 
 	rcu_read_lock();
-	chanctx_conf =
-		rcu_dereference(sdata->vif.link_conf[link_id]->chanctx_conf);
-
+	chanctx_conf = rcu_dereference(link->conf->chanctx_conf);
 	if (!chanctx_conf) {
 		rcu_read_unlock();
 		return NULL;
@@ -1721,7 +1721,8 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 void ieee80211_vif_cfg_change_notify(struct ieee80211_sub_if_data *sdata,
 				     u64 changed);
 void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
-				       int link_id, u64 changed);
+				       struct ieee80211_link_data *link,
+				       u64 changed);
 void ieee80211_configure_filter(struct ieee80211_local *local);
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata);
 
@@ -2002,7 +2003,7 @@ ieee80211_chan_width_to_rx_bw(enum nl80211_chan_width width);
 enum nl80211_chan_width
 ieee80211_sta_cap_chan_bw(struct link_sta_info *link_sta);
 void ieee80211_process_mu_groups(struct ieee80211_sub_if_data *sdata,
-				 unsigned int link_id,
+				 struct ieee80211_link_data *link,
 				 struct ieee80211_mgmt *mgmt);
 u32 __ieee80211_vht_handle_opmode(struct ieee80211_sub_if_data *sdata,
 				  struct link_sta_info *sta,
@@ -2277,10 +2278,10 @@ u32 ieee80211_sta_get_rates(struct ieee80211_sub_if_data *sdata,
 			    struct ieee802_11_elems *elems,
 			    enum nl80211_band band, u32 *basic_rates);
 int __ieee80211_request_smps_mgd(struct ieee80211_sub_if_data *sdata,
-				 unsigned int link_id,
+				 struct ieee80211_link_data *link,
 				 enum ieee80211_smps_mode smps_mode);
 void ieee80211_recalc_smps(struct ieee80211_sub_if_data *sdata,
-			   unsigned int link_id);
+			   struct ieee80211_link_data *link);
 void ieee80211_recalc_min_chandef(struct ieee80211_sub_if_data *sdata);
 
 size_t ieee80211_ie_split_vendor(const u8 *ies, size_t ielen, size_t offset);

@@ -119,7 +119,8 @@ void ieee80211_offchannel_stop_vifs(struct ieee80211_local *local)
 				&sdata->state);
 			sdata->vif.bss_conf.enable_beacon = false;
 			ieee80211_link_info_change_notify(
-				sdata, 0, BSS_CHANGED_BEACON_ENABLED);
+				sdata, &sdata->deflink,
+				BSS_CHANGED_BEACON_ENABLED);
 		}
 
 		if (sdata->vif.type == NL80211_IFTYPE_STATION &&
@@ -156,7 +157,8 @@ void ieee80211_offchannel_return(struct ieee80211_local *local)
 				       &sdata->state)) {
 			sdata->vif.bss_conf.enable_beacon = true;
 			ieee80211_link_info_change_notify(
-				sdata, 0, BSS_CHANGED_BEACON_ENABLED);
+				sdata, &sdata->deflink,
+				BSS_CHANGED_BEACON_ENABLED);
 		}
 	}
 	mutex_unlock(&local->iflist_mtx);
@@ -848,14 +850,17 @@ int ieee80211_mgmt_tx(struct wiphy *wiphy, struct wireless_dev *wdev,
 		rcu_read_lock();
 		/* Check all the links first */
 		for (i = 0; i < ARRAY_SIZE(sdata->vif.link_conf); i++) {
-			if (!sdata->vif.link_conf[i])
+			struct ieee80211_bss_conf *conf;
+
+			conf = rcu_dereference(sdata->vif.link_conf[i]);
+			if (!conf)
 				continue;
 
-			chanctx_conf = rcu_dereference(sdata->vif.link_conf[i]->chanctx_conf);
+			chanctx_conf = rcu_dereference(conf->chanctx_conf);
 			if (!chanctx_conf)
 				continue;
 
-			if (ether_addr_equal(sdata->vif.link_conf[i]->addr, mgmt->sa))
+			if (ether_addr_equal(conf->addr, mgmt->sa))
 				break;
 
 			chanctx_conf = NULL;

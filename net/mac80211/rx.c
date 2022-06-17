@@ -4156,9 +4156,13 @@ static bool ieee80211_is_our_addr(struct ieee80211_sub_if_data *sdata,
 		return false;
 
 	for (link_id = 0; link_id < ARRAY_SIZE(sdata->vif.link_conf); link_id++) {
-		if (!sdata->vif.link_conf[link_id])
+		struct ieee80211_bss_conf *conf;
+
+		conf = rcu_dereference(sdata->vif.link_conf[link_id]);
+
+		if (!conf)
 			continue;
-		if (ether_addr_equal(sdata->vif.link_conf[link_id]->addr, addr)) {
+		if (ether_addr_equal(conf->addr, addr)) {
 			if (out_link_id)
 				*out_link_id = link_id;
 			return true;

@@ -246,9 +246,11 @@ void ieee80211_bss_info_change_notify(struct ieee80211_sub_if_data *sdata,
 		u64 ch = changed & ~BSS_CHANGED_VIF_CFG_FLAGS;
 
 		/* FIXME: should be for each link */
-		trace_drv_link_info_changed(local, sdata, 0, changed);
+		trace_drv_link_info_changed(local, sdata, &sdata->vif.bss_conf,
+					    0, changed);
 		if (local->ops->link_info_changed)
 			local->ops->link_info_changed(&local->hw, &sdata->vif,
+						      &sdata->vif.bss_conf,
 						      0, ch);
 	}
 
@@ -272,7 +274,8 @@ void ieee80211_vif_cfg_change_notify(struct ieee80211_sub_if_data *sdata,
 }
 
 void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
-				       int link_id, u64 changed)
+				       struct ieee80211_link_data *link,
+				       u64 changed)
 {
 	struct ieee80211_local *local = sdata->local;
 
@@ -284,7 +287,7 @@ void ieee80211_link_info_change_notify(struct ieee80211_sub_if_data *sdata,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	drv_link_info_changed(local, sdata, link_id, changed);
+	drv_link_info_changed(local, sdata, link->conf, link->link_id, changed);
 }
 
 u32 ieee80211_reset_erp_info(struct ieee80211_sub_if_data *sdata)

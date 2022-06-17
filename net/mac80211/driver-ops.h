@@ -167,6 +167,7 @@ static inline void drv_vif_cfg_changed(struct ieee80211_local *local,
 
 static inline void drv_link_info_changed(struct ieee80211_local *local,
 					 struct ieee80211_sub_if_data *sdata,
+					 struct ieee80211_bss_conf *info,
 					 int link_id, u64 changed)
 {
 	might_sleep();
@@ -189,13 +190,13 @@ static inline void drv_link_info_changed(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return;
 
-	trace_drv_link_info_changed(local, sdata, link_id, changed);
+	trace_drv_link_info_changed(local, sdata, info, link_id, changed);
 	if (local->ops->link_info_changed)
 		local->ops->link_info_changed(&local->hw, &sdata->vif,
-					      link_id, changed);
+					      info, link_id, changed);
 	else if (local->ops->bss_info_changed)
 		local->ops->bss_info_changed(&local->hw, &sdata->vif,
-					     &sdata->vif.bss_conf, changed);
+					     info, changed);
 	trace_drv_return_void(local);
 }
 
@@ -995,8 +996,7 @@ static inline int drv_start_ap(struct ieee80211_local *local,
 	if (!check_sdata_in_driver(sdata))
 		return -EIO;
 
-	trace_drv_start_ap(local, sdata, sdata->vif.link_conf[link_id],
-			   link_id);
+	trace_drv_start_ap(local, sdata, link_id);
 	if (local->ops->start_ap)
 		ret = local->ops->start_ap(&local->hw, &sdata->vif, link_id);
 	trace_drv_return_int(local, ret);

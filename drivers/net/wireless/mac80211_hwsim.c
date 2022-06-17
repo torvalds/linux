@@ -1477,9 +1477,10 @@ static void mac80211_hwsim_tx_iter(void *_data, u8 *addr,
 	int i;
 
 	for (i = 0; i < ARRAY_SIZE(vif->link_conf); i++) {
-		struct ieee80211_bss_conf *conf = vif->link_conf[i];
+		struct ieee80211_bss_conf *conf;
 		struct ieee80211_chanctx_conf *chanctx;
 
+		conf = rcu_dereference(vif->link_conf[i]);
 		if (!conf)
 			continue;
 
@@ -1917,7 +1918,7 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 {
 	struct mac80211_hwsim_link_data *link_data = arg;
 	u32 link_id = link_data->link_id;
-	struct ieee80211_bss_conf *link_conf = vif->link_conf[link_id];
+	struct ieee80211_bss_conf *link_conf;
 	struct mac80211_hwsim_data *data =
 		container_of(link_data, struct mac80211_hwsim_data,
 			     link_data[link_id]);
@@ -1930,6 +1931,10 @@ static void mac80211_hwsim_beacon_tx(void *arg, u8 *mac,
 	int bitrate = 100;
 
 	hwsim_check_magic(vif);
+
+	link_conf = rcu_dereference(vif->link_conf[link_id]);
+	if (!link_conf)
+		return;
 
 	if (vif->type != NL80211_IFTYPE_AP &&
 	    vif->type != NL80211_IFTYPE_MESH_POINT &&
@@ -2155,12 +2160,11 @@ static void mac80211_hwsim_vif_info_changed(struct ieee80211_hw *hw,
 
 static void mac80211_hwsim_link_info_changed(struct ieee80211_hw *hw,
 					     struct ieee80211_vif *vif,
-					     u32 link_id,
-					     u64 changed)
+					     struct ieee80211_bss_conf *info,
+					     u32 link_id, u64 changed)
 {
 	struct hwsim_vif_priv *vp = (void *)vif->drv_priv;
 	struct mac80211_hwsim_data *data = hw->priv;
-	struct ieee80211_bss_conf *info = vif->link_conf[link_id];
 	struct mac80211_hwsim_link_data *link_data = &data->link_data[link_id];
 
 	hwsim_check_magic(vif);
