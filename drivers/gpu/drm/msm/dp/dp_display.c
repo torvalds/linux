@@ -618,7 +618,7 @@ static int dp_hpd_plug_handle(struct dp_display_private *dp, u32 data)
 	return 0;
 };
 
-static int dp_display_enable(struct dp_display_private *dp, u32 data);
+static int dp_display_enable(struct dp_display_private *dp, bool force_link_train);
 static int dp_display_disable(struct dp_display_private *dp, u32 data);
 
 static void dp_display_handle_plugged_change(struct msm_dp *dp_display,
@@ -867,7 +867,7 @@ static int dp_display_set_mode(struct msm_dp *dp_display,
 	return 0;
 }
 
-static int dp_display_enable(struct dp_display_private *dp, u32 data)
+static int dp_display_enable(struct dp_display_private *dp, bool force_link_train)
 {
 	int rc = 0;
 	struct msm_dp *dp_display = &dp->dp_display;
@@ -878,7 +878,7 @@ static int dp_display_enable(struct dp_display_private *dp, u32 data)
 		return 0;
 	}
 
-	rc = dp_ctrl_on_stream(dp->ctrl, data);
+	rc = dp_ctrl_on_stream(dp->ctrl, force_link_train);
 	if (!rc)
 		dp_display->power_on = true;
 
