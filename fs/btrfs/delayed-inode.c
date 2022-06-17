@@ -864,11 +864,13 @@ static int btrfs_batch_delete_items(struct btrfs_trans_handle *trans,
 				    struct btrfs_path *path,
 				    struct btrfs_delayed_item *item)
 {
+	struct btrfs_fs_info *fs_info = root->fs_info;
 	struct btrfs_delayed_item *curr, *next;
 	struct extent_buffer *leaf = path->nodes[0];
 	LIST_HEAD(batch_list);
 	int nitems, slot, last_slot;
 	int ret;
+	u64 total_reserved_size = item->bytes_reserved;
 
 	ASSERT(leaf != NULL);
 
@@ -905,14 +907,27 @@ static int btrfs_batch_delete_items(struct btrfs_trans_handle *trans,
 		nitems++;
 		curr = next;
 		list_add_tail(&curr->tree_list, &batch_list);
+		total_reserved_size += curr->bytes_reserved;
 	}
 
 	ret = btrfs_del_items(trans, root, path, path->slots[0], nitems);
 	if (ret)
 		return ret;
 
+	/* In case of BTRFS_FS_LOG_RECOVERING items won't have reserved space */
+	if (total_reserved_size > 0) {
+		/*
+		 * Check btrfs_delayed_item_reserve_metadata() to see why we
+		 * don't need to release/reserve qgroup space.
+		 */
+		trace_btrfs_space_reservation(fs_info, "delayed_item",
+					      item->key.objectid, total_reserved_size,
+					      0);
+		btrfs_block_rsv_release(fs_info, &fs_info->delayed_block_rsv,
+					total_reserved_size, NULL);
+	}
+
 	list_for_each_entry_safe(curr, next, &batch_list, tree_list) {
-		btrfs_delayed_item_release_metadata(root, curr);
 		list_del(&curr->tree_list);
 		btrfs_release_delayed_item(curr);
 	}
