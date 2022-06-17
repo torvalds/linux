@@ -8014,8 +8014,8 @@ static void btrfs_end_dio_bio(struct bio *bio)
 	btrfs_dio_private_put(dip);
 }
 
-static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
-		struct inode *inode, u64 file_offset, int async_submit)
+static void btrfs_submit_dio_bio(struct bio *bio, struct inode *inode,
+				 u64 file_offset, int async_submit)
 {
 	struct btrfs_fs_info *fs_info = btrfs_sb(inode->i_sb);
 	struct btrfs_dio_private *dip = bio->bi_private;
@@ -8029,22 +8029,24 @@ static inline blk_status_t btrfs_submit_dio_bio(struct bio *bio,
 		if (async_submit && !atomic_read(&BTRFS_I(inode)->sync_writers) &&
 		    btrfs_wq_submit_bio(inode, bio, 0, file_offset,
 					btrfs_submit_bio_start_direct_io))
-			return BLK_STS_OK;
+			return;
 
 		/*
 		 * If we aren't doing async submit, calculate the csum of the
 		 * bio now.
 		 */
 		ret = btrfs_csum_one_bio(BTRFS_I(inode), bio, file_offset, false);
-		if (ret)
-			return ret;
+		if (ret) {
+			bio->bi_status = ret;
+			bio_endio(bio);
+			return;
+		}
 	} else {
 		btrfs_bio(bio)->csum = btrfs_csum_ptr(fs_info, dip->csums,
 						      file_offset - dip->file_offset);
 	}
 map:
 	btrfs_submit_bio(fs_info, bio, 0);
-	return BLK_STS_OK;
 }
 
 static void btrfs_submit_direct(const struct iomap_iter *iter,
@@ -8157,14 +8159,7 @@ static void btrfs_submit_direct(const struct iomap_iter *iter,
 				async_submit = 1;
 		}
 
-		status = btrfs_submit_dio_bio(bio, inode, file_offset,
-						async_submit);
-		if (status) {
-			bio_put(bio);
-			if (submit_len > 0)
-				refcount_dec(&dip->refs);
-			goto out_err_em;
-		}
+		btrfs_submit_dio_bio(bio, inode, file_offset, async_submit);
 
 		dio_data->submitted += clone_len;
 		clone_offset += clone_len;
