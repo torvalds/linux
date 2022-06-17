@@ -1183,7 +1183,7 @@ static void rk806_regulator_shutdown(struct platform_device *pdev)
 			pinctrl_select_state(rk806->pins->p, rk806->pins->power_off);
 
 	if (system_state == SYSTEM_RESTART)
-		if ((rk806->pins->p) && (rk806->pins->power_off))
+		if ((rk806->pins->p) && (rk806->pins->reset))
 			pinctrl_select_state(rk806->pins->p, rk806->pins->reset);
 
 }
