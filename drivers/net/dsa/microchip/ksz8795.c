@@ -953,6 +953,34 @@ static void ksz8_flush_dyn_mac_table(struct ksz_device *dev, int port)
 	}
 }
 
+static int ksz8_fdb_dump(struct ksz_device *dev, int port,
+			 dsa_fdb_dump_cb_t *cb, void *data)
+{
+	int ret = 0;
+	u16 i = 0;
+	u16 entries = 0;
+	u8 timestamp = 0;
+	u8 fid;
+	u8 member;
+	struct alu_struct alu;
+
+	do {
+		alu.is_static = false;
+		ret = ksz8_r_dyn_mac_table(dev, i, alu.mac, &fid, &member,
+					   &timestamp, &entries);
+		if (!ret && (member & BIT(port))) {
+			ret = cb(alu.mac, alu.fid, alu.is_static, data);
+			if (ret)
+				break;
+		}
+		i++;
+	} while (i < entries);
+	if (i >= entries)
+		ret = 0;
+
+	return ret;
+}
+
 static int ksz8_mdb_add(struct ksz_device *dev, int port,
 			const struct switchdev_obj_port_mdb *mdb,
 			struct dsa_db db)
@@ -963,7 +991,7 @@ static int ksz8_mdb_add(struct ksz_device *dev, int port,
 
 	alu.port_forward = 0;
 	for (index = 0; index < dev->info->num_statics; index++) {
-		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
+		if (!ksz8_r_sta_mac_table(dev, index, &alu)) {
 			/* Found one already in static MAC table. */
 			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
 			    alu.fid == mdb->vid)
@@ -992,7 +1020,7 @@ static int ksz8_mdb_add(struct ksz_device *dev, int port,
 		/* Need a way to map VID to FID. */
 		alu.fid = mdb->vid;
 	}
-	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
+	ksz8_w_sta_mac_table(dev, index, &alu);
 
 	return 0;
 }
@@ -1005,7 +1033,7 @@ static int ksz8_mdb_del(struct ksz_device *dev, int port,
 	int index;
 
 	for (index = 0; index < dev->info->num_statics; index++) {
-		if (!dev->dev_ops->r_sta_mac_table(dev, index, &alu)) {
+		if (!ksz8_r_sta_mac_table(dev, index, &alu)) {
 			/* Found one already in static MAC table. */
 			if (!memcmp(alu.mac, mdb->addr, ETH_ALEN) &&
 			    alu.fid == mdb->vid)
@@ -1021,7 +1049,7 @@ static int ksz8_mdb_del(struct ksz_device *dev, int port,
 	alu.port_forward &= ~BIT(port);
 	if (!alu.port_forward)
 		alu.is_static = false;
-	dev->dev_ops->w_sta_mac_table(dev, index, &alu);
+	ksz8_w_sta_mac_table(dev, index, &alu);
 
 exit:
 	return 0;
@@ -1516,13 +1544,11 @@ static const struct ksz_dev_ops ksz8_dev_ops = {
 	.port_setup = ksz8_port_setup,
 	.r_phy = ksz8_r_phy,
 	.w_phy = ksz8_w_phy,
-	.r_dyn_mac_table = ksz8_r_dyn_mac_table,
-	.r_sta_mac_table = ksz8_r_sta_mac_table,
-	.w_sta_mac_table = ksz8_w_sta_mac_table,
 	.r_mib_cnt = ksz8_r_mib_cnt,
 	.r_mib_pkt = ksz8_r_mib_pkt,
 	.freeze_mib = ksz8_freeze_mib,
 	.port_init_cnt = ksz8_port_init_cnt,
+	.fdb_dump = ksz8_fdb_dump,
 	.mdb_add = ksz8_mdb_add,
 	.mdb_del = ksz8_mdb_del,
 	.vlan_filtering = ksz8_port_vlan_filtering,

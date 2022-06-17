@@ -778,34 +778,39 @@ void ksz_port_fast_age(struct dsa_switch *ds, int port)
 }
 EXPORT_SYMBOL_GPL(ksz_port_fast_age);
 
+int ksz_port_fdb_add(struct dsa_switch *ds, int port,
+		     const unsigned char *addr, u16 vid, struct dsa_db db)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->fdb_add)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->fdb_add(dev, port, addr, vid, db);
+}
+EXPORT_SYMBOL_GPL(ksz_port_fdb_add);
+
+int ksz_port_fdb_del(struct dsa_switch *ds, int port,
+		     const unsigned char *addr, u16 vid, struct dsa_db db)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->fdb_del)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->fdb_del(dev, port, addr, vid, db);
+}
+EXPORT_SYMBOL_GPL(ksz_port_fdb_del);
+
 int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 		      void *data)
 {
 	struct ksz_device *dev = ds->priv;
-	int ret = 0;
-	u16 i = 0;
-	u16 entries = 0;
-	u8 timestamp = 0;
-	u8 fid;
-	u8 member;
-	struct alu_struct alu;
 
-	do {
-		alu.is_static = false;
-		ret = dev->dev_ops->r_dyn_mac_table(dev, i, alu.mac, &fid,
-						    &member, &timestamp,
-						    &entries);
-		if (!ret && (member & BIT(port))) {
-			ret = cb(alu.mac, alu.fid, alu.is_static, data);
-			if (ret)
-				break;
-		}
-		i++;
-	} while (i < entries);
-	if (i >= entries)
-		ret = 0;
+	if (!dev->dev_ops->fdb_dump)
+		return -EOPNOTSUPP;
 
-	return ret;
+	return dev->dev_ops->fdb_dump(dev, port, cb, data);
 }
 EXPORT_SYMBOL_GPL(ksz_port_fdb_dump);
 

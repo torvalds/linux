@@ -169,13 +169,6 @@ struct ksz_dev_ops {
 	void (*port_setup)(struct ksz_device *dev, int port, bool cpu_port);
 	void (*r_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 *val);
 	void (*w_phy)(struct ksz_device *dev, u16 phy, u16 reg, u16 val);
-	int (*r_dyn_mac_table)(struct ksz_device *dev, u16 addr, u8 *mac_addr,
-			       u8 *fid, u8 *src_port, u8 *timestamp,
-			       u16 *entries);
-	int (*r_sta_mac_table)(struct ksz_device *dev, u16 addr,
-			       struct alu_struct *alu);
-	void (*w_sta_mac_table)(struct ksz_device *dev, u16 addr,
-				struct alu_struct *alu);
 	void (*r_mib_cnt)(struct ksz_device *dev, int port, u16 addr,
 			  u64 *cnt);
 	void (*r_mib_pkt)(struct ksz_device *dev, int port, u16 addr,
@@ -193,6 +186,12 @@ struct ksz_dev_ops {
 			  bool ingress, struct netlink_ext_ack *extack);
 	void (*mirror_del)(struct ksz_device *dev, int port,
 			   struct dsa_mall_mirror_tc_entry *mirror);
+	int (*fdb_add)(struct ksz_device *dev, int port,
+		       const unsigned char *addr, u16 vid, struct dsa_db db);
+	int (*fdb_del)(struct ksz_device *dev, int port,
+		       const unsigned char *addr, u16 vid, struct dsa_db db);
+	int (*fdb_dump)(struct ksz_device *dev, int port,
+			dsa_fdb_dump_cb_t *cb, void *data);
 	int (*mdb_add)(struct ksz_device *dev, int port,
 		       const struct switchdev_obj_port_mdb *mdb,
 		       struct dsa_db db);
@@ -239,6 +238,10 @@ void ksz_port_bridge_leave(struct dsa_switch *ds, int port,
 			   struct dsa_bridge bridge);
 void ksz_port_stp_state_set(struct dsa_switch *ds, int port, u8 state);
 void ksz_port_fast_age(struct dsa_switch *ds, int port);
+int ksz_port_fdb_add(struct dsa_switch *ds, int port,
+		     const unsigned char *addr, u16 vid, struct dsa_db db);
+int ksz_port_fdb_del(struct dsa_switch *ds, int port,
+		     const unsigned char *addr, u16 vid, struct dsa_db db);
 int ksz_port_fdb_dump(struct dsa_switch *ds, int port, dsa_fdb_dump_cb_t *cb,
 		      void *data);
 int ksz_port_mdb_add(struct dsa_switch *ds, int port,
