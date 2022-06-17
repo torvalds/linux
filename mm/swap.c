@@ -106,7 +106,7 @@ static void __folio_put_small(struct folio *folio)
 	free_unref_page(&folio->page, 0);
 }
 
-static void __put_compound_page(struct page *page)
+static void __folio_put_large(struct folio *folio)
 {
 	/*
 	 * __page_cache_release() is supposed to be called for thp, not for
@@ -114,9 +114,9 @@ static void __put_compound_page(struct page *page)
 	 * (it's never listed to any LRU lists) and no memcg routines should
 	 * be called for hugetlb (it has a separate hugetlb_cgroup.)
 	 */
-	if (!PageHuge(page))
-		__page_cache_release(page);
-	destroy_compound_page(page);
+	if (!folio_test_hugetlb(folio))
+		__page_cache_release(&folio->page);
+	destroy_compound_page(&folio->page);
 }
 
 void __folio_put(struct folio *folio)
@@ -124,7 +124,7 @@ void __folio_put(struct folio *folio)
 	if (unlikely(folio_is_zone_device(folio)))
 		free_zone_device_page(&folio->page);
 	else if (unlikely(folio_test_large(folio)))
-		__put_compound_page(&folio->page);
+		__folio_put_large(folio);
 	else
 		__folio_put_small(folio);
 }
@@ -147,7 +147,7 @@ void put_pages_list(struct list_head *pages)
 		}
 		if (folio_test_large(folio)) {
 			list_del(&folio->lru);
-			__put_compound_page(&folio->page);
+			__folio_put_large(folio);
 			continue;
 		}
 		/* LRU flag must be clear because it's passed using the lru */
@@ -976,7 +976,7 @@ void release_pages(struct page **pages, int nr)
 				unlock_page_lruvec_irqrestore(lruvec, flags);
 				lruvec = NULL;
 			}
-			__put_compound_page(&folio->page);
+			__folio_put_large(folio);
 			continue;
 		}
 
