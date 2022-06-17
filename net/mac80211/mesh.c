@@ -993,8 +993,7 @@ ieee80211_mesh_rebuild_beacon(struct ieee80211_sub_if_data *sdata)
 	struct beacon_data *old_bcn;
 	int ret;
 
-	old_bcn = rcu_dereference_protected(sdata->u.mesh.beacon,
-					    lockdep_is_held(&sdata->wdev.mtx));
+	old_bcn = sdata_dereference(sdata->u.mesh.beacon, sdata);
 	ret = ieee80211_mesh_build_beacon(&sdata->u.mesh);
 	if (ret)
 		/* just reuse old beacon */
@@ -1084,8 +1083,7 @@ void ieee80211_stop_mesh(struct ieee80211_sub_if_data *sdata)
 	ieee80211_link_info_change_notify(sdata, 0, BSS_CHANGED_BEACON_ENABLED);
 
 	/* remove beacon */
-	bcn = rcu_dereference_protected(ifmsh->beacon,
-					lockdep_is_held(&sdata->wdev.mtx));
+	bcn = sdata_dereference(ifmsh->beacon, sdata);
 	RCU_INIT_POINTER(ifmsh->beacon, NULL);
 	kfree_rcu(bcn, rcu_head);
 
@@ -1380,8 +1378,7 @@ int ieee80211_mesh_finish_csa(struct ieee80211_sub_if_data *sdata)
 	ifmsh->chsw_ttl = 0;
 
 	/* Remove the CSA and MCSP elements from the beacon */
-	tmp_csa_settings = rcu_dereference_protected(ifmsh->csa,
-					    lockdep_is_held(&sdata->wdev.mtx));
+	tmp_csa_settings = sdata_dereference(ifmsh->csa, sdata);
 	RCU_INIT_POINTER(ifmsh->csa, NULL);
 	if (tmp_csa_settings)
 		kfree_rcu(tmp_csa_settings, rcu_head);

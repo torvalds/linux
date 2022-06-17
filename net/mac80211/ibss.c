@@ -255,8 +255,7 @@ static void __ieee80211_sta_join_ibss(struct ieee80211_sub_if_data *sdata,
 		drv_leave_ibss(local, sdata);
 	}
 
-	presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	presp = sdata_dereference(ifibss->presp, sdata);
 	RCU_INIT_POINTER(ifibss->presp, NULL);
 	if (presp)
 		kfree_rcu(presp, rcu_head);
@@ -509,8 +508,7 @@ int ieee80211_ibss_csa_beacon(struct ieee80211_sub_if_data *sdata,
 	rcu_read_unlock();
 	cfg80211_put_bss(sdata->local->hw.wiphy, cbss);
 
-	old_presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	old_presp = sdata_dereference(ifibss->presp, sdata);
 
 	presp = ieee80211_ibss_build_presp(sdata,
 					   sdata->vif.bss_conf.beacon_int,
@@ -714,8 +712,7 @@ static void ieee80211_ibss_disconnect(struct ieee80211_sub_if_data *sdata)
 	sdata->vif.cfg.ssid_len = 0;
 
 	/* remove beacon */
-	presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	presp = sdata_dereference(ifibss->presp, sdata);
 	RCU_INIT_POINTER(sdata->u.ibss.presp, NULL);
 	if (presp)
 		kfree_rcu(presp, rcu_head);
@@ -1530,8 +1527,7 @@ static void ieee80211_rx_mgmt_probe_req(struct ieee80211_sub_if_data *sdata,
 
 	sdata_assert_lock(sdata);
 
-	presp = rcu_dereference_protected(ifibss->presp,
-					  lockdep_is_held(&sdata->wdev.mtx));
+	presp = sdata_dereference(ifibss->presp, sdata);
 
 	if (ifibss->state != IEEE80211_IBSS_MLME_JOINED ||
 	    len < 24 + 2 || !presp)
