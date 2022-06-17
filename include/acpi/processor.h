@@ -442,8 +442,12 @@ static inline int acpi_processor_hotplug(struct acpi_processor *pr)
 
 /* in processor_thermal.c */
 int acpi_processor_get_limit_info(struct acpi_processor *pr);
+int acpi_processor_thermal_init(struct acpi_processor *pr,
+				struct acpi_device *device);
+void acpi_processor_thermal_exit(struct acpi_processor *pr,
+				 struct acpi_device *device);
 extern const struct thermal_cooling_device_ops processor_cooling_ops;
-#if defined(CONFIG_ACPI_CPU_FREQ_PSS) & defined(CONFIG_CPU_FREQ)
+#ifdef CONFIG_CPU_FREQ
 void acpi_thermal_cpufreq_init(struct cpufreq_policy *policy);
 void acpi_thermal_cpufreq_exit(struct cpufreq_policy *policy);
 #else
@@ -455,6 +459,6 @@ static inline void acpi_thermal_cpufreq_exit(struct cpufreq_policy *policy)
 {
 	return;
 }
-#endif	/* CONFIG_ACPI_CPU_FREQ_PSS */
+#endif	/* CONFIG_CPU_FREQ */
 
 #endif
