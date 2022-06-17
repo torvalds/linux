@@ -991,6 +991,29 @@ int ksz_port_vlan_del(struct dsa_switch *ds, int port,
 }
 EXPORT_SYMBOL_GPL(ksz_port_vlan_del);
 
+int ksz_port_mirror_add(struct dsa_switch *ds, int port,
+			struct dsa_mall_mirror_tc_entry *mirror,
+			bool ingress, struct netlink_ext_ack *extack)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (!dev->dev_ops->mirror_add)
+		return -EOPNOTSUPP;
+
+	return dev->dev_ops->mirror_add(dev, port, mirror, ingress, extack);
+}
+EXPORT_SYMBOL_GPL(ksz_port_mirror_add);
+
+void ksz_port_mirror_del(struct dsa_switch *ds, int port,
+			 struct dsa_mall_mirror_tc_entry *mirror)
+{
+	struct ksz_device *dev = ds->priv;
+
+	if (dev->dev_ops->mirror_del)
+		dev->dev_ops->mirror_del(dev, port, mirror);
+}
+EXPORT_SYMBOL_GPL(ksz_port_mirror_del);
+
 static int ksz_switch_detect(struct ksz_device *dev)
 {
 	u8 id1, id2;
