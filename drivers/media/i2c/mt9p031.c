@@ -682,6 +682,37 @@ static int mt9p031_set_selection(struct v4l2_subdev *subdev,
 	return 0;
 }
 
+static int mt9p031_init_cfg(struct v4l2_subdev *subdev,
+			    struct v4l2_subdev_state *sd_state)
+{
+	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
+	struct v4l2_mbus_framefmt *format;
+	struct v4l2_rect *crop;
+	const int which = sd_state == NULL ? V4L2_SUBDEV_FORMAT_ACTIVE :
+					     V4L2_SUBDEV_FORMAT_TRY;
+
+	crop = __mt9p031_get_pad_crop(mt9p031, sd_state, 0, which);
+	v4l2_subdev_get_try_crop(subdev, sd_state, 0);
+	crop->left = MT9P031_COLUMN_START_DEF;
+	crop->top = MT9P031_ROW_START_DEF;
+	crop->width = MT9P031_WINDOW_WIDTH_DEF;
+	crop->height = MT9P031_WINDOW_HEIGHT_DEF;
+
+	format = __mt9p031_get_pad_format(mt9p031, sd_state, 0, which);
+
+	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
+		format->code = MEDIA_BUS_FMT_Y12_1X12;
+	else
+		format->code = MEDIA_BUS_FMT_SGRBG12_1X12;
+
+	format->width = MT9P031_WINDOW_WIDTH_DEF;
+	format->height = MT9P031_WINDOW_HEIGHT_DEF;
+	format->field = V4L2_FIELD_NONE;
+	format->colorspace = V4L2_COLORSPACE_SRGB;
+
+	return 0;
+}
+
 /* -----------------------------------------------------------------------------
  * V4L2 subdev control operations
  */
@@ -980,28 +1011,6 @@ static int mt9p031_registered(struct v4l2_subdev *subdev)
 
 static int mt9p031_open(struct v4l2_subdev *subdev, struct v4l2_subdev_fh *fh)
 {
-	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
-	struct v4l2_mbus_framefmt *format;
-	struct v4l2_rect *crop;
-
-	crop = v4l2_subdev_get_try_crop(subdev, fh->state, 0);
-	crop->left = MT9P031_COLUMN_START_DEF;
-	crop->top = MT9P031_ROW_START_DEF;
-	crop->width = MT9P031_WINDOW_WIDTH_DEF;
-	crop->height = MT9P031_WINDOW_HEIGHT_DEF;
-
-	format = v4l2_subdev_get_try_format(subdev, fh->state, 0);
-
-	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
-		format->code = MEDIA_BUS_FMT_Y12_1X12;
-	else
-		format->code = MEDIA_BUS_FMT_SGRBG12_1X12;
-
-	format->width = MT9P031_WINDOW_WIDTH_DEF;
-	format->height = MT9P031_WINDOW_HEIGHT_DEF;
-	format->field = V4L2_FIELD_NONE;
-	format->colorspace = V4L2_COLORSPACE_SRGB;
-
 	return mt9p031_set_power(subdev, 1);
 }
 
@@ -1019,6 +1028,7 @@ static const struct v4l2_subdev_video_ops mt9p031_subdev_video_ops = {
 };
 
 static const struct v4l2_subdev_pad_ops mt9p031_subdev_pad_ops = {
+	.init_cfg = mt9p031_init_cfg,
 	.enum_mbus_code = mt9p031_enum_mbus_code,
 	.enum_frame_size = mt9p031_enum_frame_size,
 	.get_fmt = mt9p031_get_format,
@@ -1166,20 +1176,9 @@ static int mt9p031_probe(struct i2c_client *client,
 
 	mt9p031->subdev.flags |= V4L2_SUBDEV_FL_HAS_DEVNODE;
 
-	mt9p031->crop.width = MT9P031_WINDOW_WIDTH_DEF;
-	mt9p031->crop.height = MT9P031_WINDOW_HEIGHT_DEF;
-	mt9p031->crop.left = MT9P031_COLUMN_START_DEF;
-	mt9p031->crop.top = MT9P031_ROW_START_DEF;
-
-	if (mt9p031->model == MT9P031_MODEL_MONOCHROME)
-		mt9p031->format.code = MEDIA_BUS_FMT_Y12_1X12;
-	else
-		mt9p031->format.code = MEDIA_BUS_FMT_SGRBG12_1X12;
-
-	mt9p031->format.width = MT9P031_WINDOW_WIDTH_DEF;
-	mt9p031->format.height = MT9P031_WINDOW_HEIGHT_DEF;
-	mt9p031->format.field = V4L2_FIELD_NONE;
-	mt9p031->format.colorspace = V4L2_COLORSPACE_SRGB;
+	ret = mt9p031_init_cfg(&mt9p031->subdev, NULL);
+	if (ret)
+		goto done;
 
 	mt9p031->reset = devm_gpiod_get_optional(&client->dev, "reset",
 						 GPIOD_OUT_HIGH);
