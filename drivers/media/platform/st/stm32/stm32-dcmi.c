@@ -1631,6 +1631,54 @@ static const struct dcmi_format dcmi_formats[] = {
 		.fourcc = V4L2_PIX_FMT_SRGGB8,
 		.mbus_code = MEDIA_BUS_FMT_SRGGB8_1X8,
 		.bpp = 1,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR10,
+		.mbus_code = MEDIA_BUS_FMT_SBGGR10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG10,
+		.mbus_code = MEDIA_BUS_FMT_SGBRG10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG10,
+		.mbus_code = MEDIA_BUS_FMT_SGRBG10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB10,
+		.mbus_code = MEDIA_BUS_FMT_SRGGB10_1X10,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR12,
+		.mbus_code = MEDIA_BUS_FMT_SBGGR12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG12,
+		.mbus_code = MEDIA_BUS_FMT_SGBRG12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG12,
+		.mbus_code = MEDIA_BUS_FMT_SGRBG12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB12,
+		.mbus_code = MEDIA_BUS_FMT_SRGGB12_1X12,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SBGGR14,
+		.mbus_code = MEDIA_BUS_FMT_SBGGR14_1X14,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGBRG14,
+		.mbus_code = MEDIA_BUS_FMT_SGBRG14_1X14,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SGRBG14,
+		.mbus_code = MEDIA_BUS_FMT_SGRBG14_1X14,
+		.bpp = 2,
+	}, {
+		.fourcc = V4L2_PIX_FMT_SRGGB14,
+		.mbus_code = MEDIA_BUS_FMT_SRGGB14_1X14,
+		.bpp = 2,
 	},
 };
 
