@@ -418,7 +418,7 @@ static void recover_worker(struct kthread_work *work)
 		 * one more to clear the faulting submit
 		 */
 		if (ring == cur_ring)
-			fence++;
+			ring->memptrs->fence = ++fence;
 
 		msm_update_fence(ring->fctx, fence);
 	}
