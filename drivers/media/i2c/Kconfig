@@ -88,8 +88,10 @@ config VIDEO_HI847
 
 config VIDEO_IMX208
 	tristate "Sony IMX208 sensor support"
-	depends on I2C && VIDEO_DEV && VIDEO_V4L2_SUBDEV_API
+	depends on I2C && VIDEO_DEV
 	depends on MEDIA_CAMERA_SUPPORT
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	  This is a Video4Linux2 sensor driver for the Sony
 	  IMX208 camera.

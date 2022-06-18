@@ -20,12 +20,14 @@ config VIDEO_ATMEL_ISC
 config VIDEO_ATMEL_XISC
 	tristate "ATMEL eXtended Image Sensor Controller (XISC) support"
 	depends on V4L_PLATFORM_DRIVERS
-	depends on VIDEO_DEV && COMMON_CLK && VIDEO_V4L2_SUBDEV_API
+	depends on VIDEO_DEV && COMMON_CLK
 	depends on ARCH_AT91 || COMPILE_TEST
 	select VIDEOBUF2_DMA_CONTIG
 	select REGMAP_MMIO
 	select V4L2_FWNODE
 	select VIDEO_ATMEL_ISC_BASE
+	select MEDIA_CONTROLLER
+	select VIDEO_V4L2_SUBDEV_API
 	help
 	   This module makes the ATMEL eXtended Image Sensor Controller
 	   available as a v4l2 device.
