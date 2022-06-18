@@ -1186,8 +1186,7 @@ do_write:
 	*_dst = dst;
 	return more;
 csum_err:
-	bch_err(c, "error verifying existing checksum while "
-		"rewriting existing data (memory corruption?)");
+	bch_err(c, "error verifying existing checksum while rewriting existing data (memory corruption?)");
 	ret = -EIO;
 err:
 	if (to_wbio(dst)->bounce)
@@ -1977,9 +1976,9 @@ csum_err:
 	}
 
 	bch2_dev_inum_io_error(ca, rbio->read_pos.inode, (u64) rbio->bvec_iter.bi_sector,
-		"data checksum error: expected %0llx:%0llx got %0llx:%0llx (type %u)",
+		"data checksum error: expected %0llx:%0llx got %0llx:%0llx (type %s)",
 		rbio->pick.crc.csum.hi, rbio->pick.crc.csum.lo,
-		csum.hi, csum.lo, crc.csum_type);
+		csum.hi, csum.lo, bch2_csum_types[crc.csum_type]);
 	bch2_rbio_error(rbio, READ_RETRY_AVOID, BLK_STS_IOERR);
 	goto out;
 decompression_err:

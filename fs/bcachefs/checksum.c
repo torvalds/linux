@@ -425,8 +425,17 @@ int bch2_rechecksum_bio(struct bch_fs *c, struct bio *bio,
 		merged = bch2_checksum_bio(c, crc_old.csum_type,
 				extent_nonce(version, crc_old), bio);
 
-	if (bch2_crc_cmp(merged, crc_old.csum))
+	if (bch2_crc_cmp(merged, crc_old.csum)) {
+		bch_err(c, "checksum error in bch2_rechecksum_bio() (memory corruption or bug?)\n"
+			"expected %0llx:%0llx got %0llx:%0llx (old type %s new type %s)",
+			crc_old.csum.hi,
+			crc_old.csum.lo,
+			merged.hi,
+			merged.lo,
+			bch2_csum_types[crc_old.csum_type],
+			bch2_csum_types[new_csum_type]);
 		return -EIO;
+	}
 
 	for (i = splits; i < splits + ARRAY_SIZE(splits); i++) {
 		if (i->crc)
