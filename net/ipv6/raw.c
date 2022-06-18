@@ -61,9 +61,7 @@
 
 #define	ICMPV6_HDRLEN	4	/* ICMPv6 header, RFC 4443 Section 2.1 */
 
-struct raw_hashinfo raw_v6_hashinfo = {
-	.lock = __RW_LOCK_UNLOCKED(raw_v6_hashinfo.lock),
-};
+struct raw_hashinfo raw_v6_hashinfo;
 EXPORT_SYMBOL_GPL(raw_v6_hashinfo);
 
 bool raw_v6_match(struct net *net, struct sock *sk, unsigned short num,
@@ -143,9 +141,10 @@ EXPORT_SYMBOL(rawv6_mh_filter_unregister);
 static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 {
 	struct net *net = dev_net(skb->dev);
+	struct hlist_nulls_head *hlist;
+	struct hlist_nulls_node *hnode;
 	const struct in6_addr *saddr;
 	const struct in6_addr *daddr;
-	struct hlist_head *head;
 	struct sock *sk;
 	bool delivered = false;
 	__u8 hash;
@@ -154,11 +153,9 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 	daddr = saddr + 1;
 
 	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
-	head = &raw_v6_hashinfo.ht[hash];
-	if (hlist_empty(head))
-		return false;
-	read_lock(&raw_v6_hashinfo.lock);
-	sk_for_each(sk, head) {
+	hlist = &raw_v6_hashinfo.ht[hash];
+	rcu_read_lock();
+	hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
 		int filtered;
 
 		if (!raw_v6_match(net, sk, nexthdr, daddr, saddr,
@@ -203,7 +200,7 @@ static bool ipv6_raw_deliver(struct sk_buff *skb, int nexthdr)
 			}
 		}
 	}
-	read_unlock(&raw_v6_hashinfo.lock);
+	rcu_read_unlock();
 	return delivered;
 }
 
@@ -337,14 +334,15 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 {
 	const struct in6_addr *saddr, *daddr;
 	struct net *net = dev_net(skb->dev);
-	struct hlist_head *head;
+	struct hlist_nulls_head *hlist;
+	struct hlist_nulls_node *hnode;
 	struct sock *sk;
 	int hash;
 
 	hash = nexthdr & (RAW_HTABLE_SIZE - 1);
-	head = &raw_v6_hashinfo.ht[hash];
-	read_lock(&raw_v6_hashinfo.lock);
-	sk_for_each(sk, head) {
+	hlist = &raw_v6_hashinfo.ht[hash];
+	rcu_read_lock();
+	hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
 		/* Note: ipv6_hdr(skb) != skb->data */
 		const struct ipv6hdr *ip6h = (const struct ipv6hdr *)skb->data;
 		saddr = &ip6h->saddr;
@@ -355,7 +353,7 @@ void raw6_icmp_error(struct sk_buff *skb, int nexthdr,
 			continue;
 		rawv6_err(sk, skb, NULL, type, code, inner_offset, info);
 	}
-	read_unlock(&raw_v6_hashinfo.lock);
+	rcu_read_unlock();
 }
 
 static inline int rawv6_rcv_skb(struct sock *sk, struct sk_buff *skb)

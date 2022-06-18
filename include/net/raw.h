@@ -33,8 +33,17 @@ int raw_rcv(struct sock *, struct sk_buff *);
 
 struct raw_hashinfo {
 	rwlock_t lock;
-	struct hlist_head ht[RAW_HTABLE_SIZE];
+	struct hlist_nulls_head ht[RAW_HTABLE_SIZE];
 };
+
+static inline void raw_hashinfo_init(struct raw_hashinfo *hashinfo)
+{
+	int i;
+
+	rwlock_init(&hashinfo->lock);
+	for (i = 0; i < RAW_HTABLE_SIZE; i++)
+		INIT_HLIST_NULLS_HEAD(&hashinfo->ht[i], i);
+}
 
 #ifdef CONFIG_PROC_FS
 int raw_proc_init(void);

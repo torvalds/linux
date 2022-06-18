@@ -85,20 +85,19 @@ struct raw_frag_vec {
 	int hlen;
 };
 
-struct raw_hashinfo raw_v4_hashinfo = {
-	.lock = __RW_LOCK_UNLOCKED(raw_v4_hashinfo.lock),
-};
+struct raw_hashinfo raw_v4_hashinfo;
 EXPORT_SYMBOL_GPL(raw_v4_hashinfo);
 
 int raw_hash_sk(struct sock *sk)
 {
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
-	struct hlist_head *head;
+	struct hlist_nulls_head *hlist;
 
-	head = &h->ht[inet_sk(sk)->inet_num & (RAW_HTABLE_SIZE - 1)];
+	hlist = &h->ht[inet_sk(sk)->inet_num & (RAW_HTABLE_SIZE - 1)];
 
 	write_lock_bh(&h->lock);
-	sk_add_node(sk, head);
+	hlist_nulls_add_head_rcu(&sk->sk_nulls_node, hlist);
+	sock_set_flag(sk, SOCK_RCU_FREE);
 	write_unlock_bh(&h->lock);
 	sock_prot_inuse_add(sock_net(sk), sk->sk_prot, 1);
 
@@ -111,7 +110,7 @@ void raw_unhash_sk(struct sock *sk)
 	struct raw_hashinfo *h = sk->sk_prot->h.raw_hash;
 
 	write_lock_bh(&h->lock);
-	if (sk_del_node_init(sk))
+	if (__sk_nulls_del_node_init_rcu(sk))
 		sock_prot_inuse_add(sock_net(sk), sk->sk_prot, -1);
 	write_unlock_bh(&h->lock);
 }
@@ -164,17 +163,16 @@ static int icmp_filter(const struct sock *sk, const struct sk_buff *skb)
 static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 {
 	struct net *net = dev_net(skb->dev);
+	struct hlist_nulls_head *hlist;
+	struct hlist_nulls_node *hnode;
 	int sdif = inet_sdif(skb);
 	int dif = inet_iif(skb);
-	struct hlist_head *head;
 	int delivered = 0;
 	struct sock *sk;
 
-	head = &raw_v4_hashinfo.ht[hash];
-	if (hlist_empty(head))
-		return 0;
-	read_lock(&raw_v4_hashinfo.lock);
-	sk_for_each(sk, head) {
+	hlist = &raw_v4_hashinfo.ht[hash];
+	rcu_read_lock();
+	hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
 		if (!raw_v4_match(net, sk, iph->protocol,
 				  iph->saddr, iph->daddr, dif, sdif))
 			continue;
@@ -189,7 +187,7 @@ static int raw_v4_input(struct sk_buff *skb, const struct iphdr *iph, int hash)
 				raw_rcv(sk, clone);
 		}
 	}
-	read_unlock(&raw_v4_hashinfo.lock);
+	rcu_read_unlock();
 	return delivered;
 }
 
@@ -265,25 +263,26 @@ static void raw_err(struct sock *sk, struct sk_buff *skb, u32 info)
 void raw_icmp_error(struct sk_buff *skb, int protocol, u32 info)
 {
 	struct net *net = dev_net(skb->dev);;
+	struct hlist_nulls_head *hlist;
+	struct hlist_nulls_node *hnode;
 	int dif = skb->dev->ifindex;
 	int sdif = inet_sdif(skb);
-	struct hlist_head *head;
 	const struct iphdr *iph;
 	struct sock *sk;
 	int hash;
 
 	hash = protocol & (RAW_HTABLE_SIZE - 1);
-	head = &raw_v4_hashinfo.ht[hash];
+	hlist = &raw_v4_hashinfo.ht[hash];
 
-	read_lock(&raw_v4_hashinfo.lock);
-	sk_for_each(sk, head) {
+	rcu_read_lock();
+	hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
 		iph = (const struct iphdr *)skb->data;
 		if (!raw_v4_match(net, sk, iph->protocol,
 				  iph->saddr, iph->daddr, dif, sdif))
 			continue;
 		raw_err(sk, skb, info);
 	}
-	read_unlock(&raw_v4_hashinfo.lock);
+	rcu_read_unlock();
 }
 
 static int raw_rcv_skb(struct sock *sk, struct sk_buff *skb)
@@ -944,44 +943,41 @@ struct proto raw_prot = {
 };
 
 #ifdef CONFIG_PROC_FS
-static struct sock *raw_get_first(struct seq_file *seq)
+static struct sock *raw_get_first(struct seq_file *seq, int bucket)
 {
-	struct sock *sk;
 	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
+	struct hlist_nulls_head *hlist;
+	struct hlist_nulls_node *hnode;
+	struct sock *sk;
 
-	for (state->bucket = 0; state->bucket < RAW_HTABLE_SIZE;
+	for (state->bucket = bucket; state->bucket < RAW_HTABLE_SIZE;
 			++state->bucket) {
-		sk_for_each(sk, &h->ht[state->bucket])
+		hlist = &h->ht[state->bucket];
+		hlist_nulls_for_each_entry(sk, hnode, hlist, sk_nulls_node) {
 			if (sock_net(sk) == seq_file_net(seq))
-				goto found;
+				return sk;
+		}
 	}
-	sk = NULL;
-found:
-	return sk;
+	return NULL;
 }
 
 static struct sock *raw_get_next(struct seq_file *seq, struct sock *sk)
 {
-	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
 	struct raw_iter_state *state = raw_seq_private(seq);
 
 	do {
-		sk = sk_next(sk);
-try_again:
-		;
+		sk = sk_nulls_next(sk);
 	} while (sk && sock_net(sk) != seq_file_net(seq));
 
-	if (!sk && ++state->bucket < RAW_HTABLE_SIZE) {
-		sk = sk_head(&h->ht[state->bucket]);
-		goto try_again;
-	}
+	if (!sk)
+		return raw_get_first(seq, state->bucket + 1);
 	return sk;
 }
 
 static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 {
-	struct sock *sk = raw_get_first(seq);
+	struct sock *sk = raw_get_first(seq, 0);
 
 	if (sk)
 		while (pos && (sk = raw_get_next(seq, sk)) != NULL)
@@ -990,11 +986,9 @@ static struct sock *raw_get_idx(struct seq_file *seq, loff_t pos)
 }
 
 void *raw_seq_start(struct seq_file *seq, loff_t *pos)
-	__acquires(&h->lock)
+	__acquires(RCU)
 {
-	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
-
-	read_lock(&h->lock);
+	rcu_read_lock();
 	return *pos ? raw_get_idx(seq, *pos - 1) : SEQ_START_TOKEN;
 }
 EXPORT_SYMBOL_GPL(raw_seq_start);
@@ -1004,7 +998,7 @@ void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 	struct sock *sk;
 
 	if (v == SEQ_START_TOKEN)
-		sk = raw_get_first(seq);
+		sk = raw_get_first(seq, 0);
 	else
 		sk = raw_get_next(seq, v);
 	++*pos;
@@ -1013,11 +1007,9 @@ void *raw_seq_next(struct seq_file *seq, void *v, loff_t *pos)
 EXPORT_SYMBOL_GPL(raw_seq_next);
 
 void raw_seq_stop(struct seq_file *seq, void *v)
-	__releases(&h->lock)
+	__releases(RCU)
 {
-	struct raw_hashinfo *h = pde_data(file_inode(seq->file));
-
-	read_unlock(&h->lock);
+	rcu_read_unlock();
 }
 EXPORT_SYMBOL_GPL(raw_seq_stop);
 
@@ -1079,6 +1071,7 @@ static __net_initdata struct pernet_operations raw_net_ops = {
 
 int __init raw_proc_init(void)
 {
+
 	return register_pernet_subsys(&raw_net_ops);
 }
 

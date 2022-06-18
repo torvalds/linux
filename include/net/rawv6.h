@@ -3,6 +3,7 @@
 #define _NET_RAWV6_H
 
 #include <net/protocol.h>
+#include <net/raw.h>
 
 extern struct raw_hashinfo raw_v6_hashinfo;
 bool raw_v6_match(struct net *net, struct sock *sk, unsigned short num,
