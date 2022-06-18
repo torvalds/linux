@@ -1108,7 +1108,7 @@ int __bch2_trans_commit(struct btree_trans *trans)
 	}
 
 	if (!(trans->flags & BTREE_INSERT_NOCHECK_RW) &&
-	    unlikely(!percpu_ref_tryget(&c->writes))) {
+	    unlikely(!percpu_ref_tryget_live(&c->writes))) {
 		ret = bch2_trans_commit_get_rw_cold(trans);
 		if (ret)
 			goto out_reset;

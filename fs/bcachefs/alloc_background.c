@@ -1072,7 +1072,7 @@ static void bch2_do_discards_work(struct work_struct *work)
 
 void bch2_do_discards(struct bch_fs *c)
 {
-	if (percpu_ref_tryget(&c->writes) &&
+	if (percpu_ref_tryget_live(&c->writes) &&
 	    !queue_work(system_long_wq, &c->discard_work))
 		percpu_ref_put(&c->writes);
 }
@@ -1192,7 +1192,7 @@ static void bch2_do_invalidates_work(struct work_struct *work)
 
 void bch2_do_invalidates(struct bch_fs *c)
 {
-	if (percpu_ref_tryget(&c->writes))
+	if (percpu_ref_tryget_live(&c->writes))
 		queue_work(system_long_wq, &c->invalidate_work);
 }
 

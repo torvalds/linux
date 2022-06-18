@@ -729,7 +729,7 @@ err:
 
 static void bch2_delete_dead_snapshots(struct bch_fs *c)
 {
-	if (unlikely(!percpu_ref_tryget(&c->writes)))
+	if (unlikely(!percpu_ref_tryget_live(&c->writes)))
 		return;
 
 	if (!queue_work(system_long_wq, &c->snapshot_delete_work))
@@ -931,7 +931,7 @@ int bch2_subvolume_wait_for_pagecache_and_delete_hook(struct btree_trans *trans,
 	if (ret)
 		return ret;
 
-	if (unlikely(!percpu_ref_tryget(&c->writes)))
+	if (unlikely(!percpu_ref_tryget_live(&c->writes)))
 		return -EROFS;
 
 	if (!queue_work(system_long_wq, &c->snapshot_wait_for_pagecache_and_delete_work))

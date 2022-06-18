@@ -939,7 +939,7 @@ static void ec_stripe_create(struct ec_stripe_new *s)
 
 	BUG_ON(!s->allocated);
 
-	if (!percpu_ref_tryget(&c->writes))
+	if (!percpu_ref_tryget_live(&c->writes))
 		goto err;
 
 	ec_generate_ec(&s->new_stripe);

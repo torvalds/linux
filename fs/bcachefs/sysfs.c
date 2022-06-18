@@ -676,7 +676,7 @@ STORE(bch2_fs_opts_dir)
 	 * We don't need to take c->writes for correctness, but it eliminates an
 	 * unsightly error message in the dmesg log when we're RO:
 	 */
-	if (unlikely(!percpu_ref_tryget(&c->writes)))
+	if (unlikely(!percpu_ref_tryget_live(&c->writes)))
 		return -EROFS;
 
 	tmp = kstrdup(buf, GFP_KERNEL);

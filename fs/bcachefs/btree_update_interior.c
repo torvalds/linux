@@ -1897,7 +1897,7 @@ void bch2_btree_node_rewrite_async(struct bch_fs *c, struct btree *b)
 {
 	struct async_btree_rewrite *a;
 
-	if (!percpu_ref_tryget(&c->writes))
+	if (!percpu_ref_tryget_live(&c->writes))
 		return;
 
 	a = kmalloc(sizeof(*a), GFP_NOFS);

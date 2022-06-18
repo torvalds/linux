@@ -3105,7 +3105,7 @@ long bch2_fallocate_dispatch(struct file *file, int mode,
 	struct bch_fs *c = inode->v.i_sb->s_fs_info;
 	long ret;
 
-	if (!percpu_ref_tryget(&c->writes))
+	if (!percpu_ref_tryget_live(&c->writes))
 		return -EROFS;
 
 	inode_lock(&inode->v);
