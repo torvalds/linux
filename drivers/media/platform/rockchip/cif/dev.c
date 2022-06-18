@@ -1117,25 +1117,6 @@ err_stream_off:
 	return ret;
 }
 
-static int rkcif_pipeline_set_power(struct rkcif_pipeline *p, bool on)
-{
-	int i, ret;
-
-	/* phy -> sensor */
-	for (i = 0; i < p->num_subdevs; i++) {
-		ret = v4l2_subdev_call(p->subdevs[i], core, s_power, on);
-		if (on && ret < 0 && ret != -ENOIOCTLCMD && ret != -ENODEV)
-			goto err_power_off;
-	}
-
-	return 0;
-
-err_power_off:
-	for (--i; i >= 0; --i)
-		v4l2_subdev_call(p->subdevs[i], core, s_power, false);
-	return ret;
-}
-
 static int rkcif_create_link(struct rkcif_device *dev,
 			     struct rkcif_sensor_info *sensor,
 			     u32 stream_num,
@@ -2036,7 +2017,8 @@ static int __maybe_unused rkcif_runtime_suspend(struct device *dev)
 
 	if (atomic_dec_return(&cif_dev->power_cnt))
 		return 0;
-	rkcif_pipeline_set_power(&cif_dev->pipe, false);
+
+	v4l2_pipeline_pm_put(&cif_dev->stream[0].vnode.vdev.entity);
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_put_sync(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
@@ -2050,9 +2032,9 @@ static int __maybe_unused rkcif_runtime_resume(struct device *dev)
 
 	if (atomic_inc_return(&cif_dev->power_cnt) > 1)
 		return 0;
-	ret = rkcif_pipeline_set_power(&cif_dev->pipe, true);
-	if (ret)
-		return ret;
+
+	v4l2_pipeline_pm_get(&cif_dev->stream[0].vnode.vdev.entity);
+
 	mutex_lock(&cif_dev->hw_dev->dev_lock);
 	ret = pm_runtime_resume_and_get(cif_dev->hw_dev->dev);
 	mutex_unlock(&cif_dev->hw_dev->dev_lock);
