@@ -1261,7 +1261,7 @@ static void efx_mcdi_ev_death(struct efx_nic *efx, int rc)
 }
 
 /* The MC is going down in to BIST mode. set the BIST flag to block
- * new MCDI, cancel any outstanding MCDI and and schedule a BIST-type reset
+ * new MCDI, cancel any outstanding MCDI and schedule a BIST-type reset
  * (which doesn't actually execute a reset, it waits for the controlling
  * function to reset it).
  */
