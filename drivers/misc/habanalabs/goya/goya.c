@@ -5461,7 +5461,6 @@ static const struct hl_asic_funcs goya_funcs = {
 	.hl_dma_unmap_sgtable = hl_dma_unmap_sgtable,
 	.cs_parser = goya_cs_parser,
 	.asic_dma_map_sgtable = hl_dma_map_sgtable,
-	.get_dma_desc_list_size = goya_get_dma_desc_list_size,
 	.add_end_of_cb_packets = goya_add_end_of_cb_packets,
 	.update_eq_ci = goya_update_eq_ci,
 	.context_switch = goya_context_switch,

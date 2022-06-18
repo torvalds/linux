@@ -1260,7 +1260,6 @@ struct fw_load_mgr {
  * @hl_dma_unmap_sgtable: DMA unmap scatter-gather table.
  * @cs_parser: parse Command Submission.
  * @asic_dma_map_sgtable: DMA map scatter-gather table.
- * @get_dma_desc_list_size: get number of LIN_DMA packets required for CB.
  * @add_end_of_cb_packets: Add packets to the end of CB, if device requires it.
  * @update_eq_ci: update event queue CI.
  * @context_switch: called upon ASID context switch.
@@ -1379,8 +1378,6 @@ struct hl_asic_funcs {
 	int (*cs_parser)(struct hl_device *hdev, struct hl_cs_parser *parser);
 	int (*asic_dma_map_sgtable)(struct hl_device *hdev, struct sg_table *sgt,
 				enum dma_data_direction dir);
-	u32 (*get_dma_desc_list_size)(struct hl_device *hdev,
-					struct sg_table *sgt);
 	void (*add_end_of_cb_packets)(struct hl_device *hdev,
 					void *kernel_address, u32 len,
 					u64 cq_addr, u32 cq_val, u32 msix_num,
