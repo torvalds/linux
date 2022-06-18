@@ -4086,6 +4086,9 @@ static struct drm_crtc_state *vop_crtc_duplicate_state(struct drm_crtc *crtc)
 {
 	struct rockchip_crtc_state *rockchip_state, *old_state;
 
+	if (WARN_ON(!crtc->state))
+		return NULL;
+
 	old_state = to_rockchip_crtc_state(crtc->state);
 	rockchip_state = kmemdup(old_state, sizeof(*old_state), GFP_KERNEL);
 	if (!rockchip_state)
