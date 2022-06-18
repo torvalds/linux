@@ -1465,7 +1465,7 @@ netdev_tx_t emac_mac_tx_buf_send(struct emac_adapter *adpt,
 	/* Make sure the are enough free descriptors to hold one
 	 * maximum-sized SKB.  We need one desc for each fragment,
 	 * one for the checksum (emac_tso_csum), one for TSO, and
-	 * and one for the SKB header.
+	 * one for the SKB header.
 	 */
 	if (emac_tpd_num_free_descs(tx_q) < (MAX_SKB_FRAGS + 3))
 		netif_stop_queue(adpt->netdev);
