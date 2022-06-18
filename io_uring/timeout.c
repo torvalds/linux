@@ -274,7 +274,7 @@ static void io_req_task_link_timeout(struct io_kiocb *req, bool *locked)
 				.data		= prev->cqe.user_data,
 			};
 
-			ret = io_try_cancel(req, &cd, issue_flags);
+			ret = io_try_cancel(req->task->io_uring, &cd, issue_flags);
 		}
 		io_req_set_res(req, ret ?: -ETIME, 0);
 		io_req_complete_post(req);

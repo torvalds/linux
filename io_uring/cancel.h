@@ -16,6 +16,6 @@ struct io_cancel_data {
 int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags);
 
-int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd,
+int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 		  unsigned int issue_flags);
 void init_hash_table(struct io_hash_table *table, unsigned size);

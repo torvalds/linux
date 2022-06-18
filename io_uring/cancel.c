@@ -77,15 +77,15 @@ static int io_async_cancel_one(struct io_uring_task *tctx,
 	return ret;
 }
 
-int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd,
+int io_try_cancel(struct io_uring_task *tctx, struct io_cancel_data *cd,
 		  unsigned issue_flags)
 {
-	struct io_ring_ctx *ctx = req->ctx;
+	struct io_ring_ctx *ctx = cd->ctx;
 	int ret;
 
-	WARN_ON_ONCE(!io_wq_current_is_worker() && req->task != current);
+	WARN_ON_ONCE(!io_wq_current_is_worker() && tctx != current->io_uring);
 
-	ret = io_async_cancel_one(req->task->io_uring, cd);
+	ret = io_async_cancel_one(tctx, cd);
 	/*
 	 * Fall-through even for -EALREADY, as we may have poll armed
 	 * that need unarming.
@@ -103,7 +103,6 @@ int io_try_cancel(struct io_kiocb *req, struct io_cancel_data *cd,
 	spin_unlock(&ctx->completion_lock);
 	return ret;
 }
-
 
 int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 {
@@ -127,7 +126,8 @@ int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe)
 	return 0;
 }
 
-static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
+static int __io_async_cancel(struct io_cancel_data *cd,
+			     struct io_uring_task *tctx,
 			     unsigned int issue_flags)
 {
 	bool all = cd->flags & (IORING_ASYNC_CANCEL_ALL|IORING_ASYNC_CANCEL_ANY);
@@ -136,7 +136,7 @@ static int __io_async_cancel(struct io_cancel_data *cd, struct io_kiocb *req,
 	int ret, nr = 0;
 
 	do {
-		ret = io_try_cancel(req, cd, issue_flags);
+		ret = io_try_cancel(tctx, cd, issue_flags);
 		if (ret == -ENOENT)
 			break;
 		if (!all)
@@ -170,6 +170,7 @@ int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 		.flags	= cancel->flags,
 		.seq	= atomic_inc_return(&req->ctx->cancel_seq),
 	};
+	struct io_uring_task *tctx = req->task->io_uring;
 	int ret;
 
 	if (cd.flags & IORING_ASYNC_CANCEL_FD) {
@@ -185,7 +186,7 @@ int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 		cd.file = req->file;
 	}
 
-	ret = __io_async_cancel(&cd, req, issue_flags);
+	ret = __io_async_cancel(&cd, tctx, issue_flags);
 done:
 	if (ret < 0)
 		req_set_fail(req);
