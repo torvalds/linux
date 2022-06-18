@@ -559,7 +559,7 @@ static const struct sc230ai_mode supported_modes[] = {
 		.reg_list = sc230ai_linear_10_1920x1080_regs,
 		.hdr_mode = NO_HDR,
 		.bpp = 10,
-		.mipi_freq_idx = 0,
+		.mipi_freq_idx = 1,
 		.vc[PAD0] = V4L2_MBUS_CSI2_CHANNEL_0,
 	}, {
 		.width = 640,
