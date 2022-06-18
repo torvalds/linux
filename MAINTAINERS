@@ -15540,6 +15540,14 @@ L:	linux-pci@vger.kernel.org
 S:	Maintained
 F:	drivers/pci/controller/dwc/*spear*
 
+PCI DRIVER FOR XILINX VERSAL CPM
+M:	Bharat Kumar Gogada <bharat.kumar.gogada@amd.com>
+M:	Michal Simek <michal.simek@amd.com>
+L:	linux-pci@vger.kernel.org
+S:	Maintained
+F:	Documentation/devicetree/bindings/pci/xilinx-versal-cpm.yaml
+F:	drivers/pci/controller/pcie-xilinx-cpm.c
+
 PCMCIA SUBSYSTEM
 M:	Dominik Brodowski <linux@dominikbrodowski.net>
 S:	Odd Fixes
