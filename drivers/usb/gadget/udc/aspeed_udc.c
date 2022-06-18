@@ -476,8 +476,8 @@ static int ast_dma_descriptor_setup(struct ast_udc_ep *ep, u32 dma_buf,
 {
 	struct ast_udc_dev *udc = ep->udc;
 	struct device *dev = &udc->pdev->dev;
-	u32 offset, chunk;
-	int count, last;
+	int chunk, count;
+	u32 offset;
 
 	if (!ep->descs) {
 		dev_warn(dev, "%s: Empty DMA descs list failure\n",
@@ -486,30 +486,28 @@ static int ast_dma_descriptor_setup(struct ast_udc_ep *ep, u32 dma_buf,
 	}
 
 	chunk = tx_len;
-	offset = count = last = 0;
+	offset = count = 0;
 
 	EP_DBG(ep, "req @%p, %s:%d, %s:0x%x, %s:0x%x\n", req,
 	       "wptr", ep->descs_wptr, "dma_buf", dma_buf,
 	       "tx_len", tx_len);
 
 	/* Create Descriptor Lists */
-	while (chunk >= 0 && !last && count < AST_UDC_DESCS_COUNT) {
+	while (chunk > 0 && count < AST_UDC_DESCS_COUNT) {
 
 		ep->descs[ep->descs_wptr].des_0 = dma_buf + offset;
 
-		if (chunk <= ep->chunk_max) {
-			ep->descs[ep->descs_wptr].des_1 = chunk;
-			last = 1;
-		} else {
+		if (chunk > ep->chunk_max)
 			ep->descs[ep->descs_wptr].des_1 = ep->chunk_max;
-			chunk -= ep->chunk_max;
-		}
+		else
+			ep->descs[ep->descs_wptr].des_1 = chunk;
 
-		EP_DBG(ep, "descs[%d]: 0x%x 0x%x, last:%d\n",
+		chunk -= ep->chunk_max;
+
+		EP_DBG(ep, "descs[%d]: 0x%x 0x%x\n",
 		       ep->descs_wptr,
 		       ep->descs[ep->descs_wptr].des_0,
-		       ep->descs[ep->descs_wptr].des_1,
-		       last);
+		       ep->descs[ep->descs_wptr].des_1);
 
 		if (count == 0)
 			req->saved_dma_wptr = ep->descs_wptr;
