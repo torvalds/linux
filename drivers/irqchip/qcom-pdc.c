@@ -30,7 +30,7 @@
 
 #define IRQ_ENABLE_BANK		0x10
 #define IRQ_i_CFG		0x110
-#define IRQ_i_CFG_IRQ_ENABLE	BIT(3)
+#define IRQ_i_CFG_IRQ_ENABLE	3
 #define IRQ_i_CFG_TYPE_MASK	0x7
 
 #define VERSION			0x1000
@@ -388,7 +388,7 @@ static int pdc_setup_pin_mapping(struct device_node *np)
 	} else {
 		for (i = 0; i < max_irq; i++) {
 			val = pdc_reg_read(IRQ_i_CFG, i);
-			val &= ~IRQ_i_CFG_IRQ_ENABLE;
+			val &= ~BIT(IRQ_i_CFG_IRQ_ENABLE);
 			pdc_reg_write(IRQ_i_CFG, i, val);
 		}
 	}
