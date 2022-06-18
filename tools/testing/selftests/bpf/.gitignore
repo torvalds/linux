@@ -43,3 +43,4 @@ test_cpp
 *.tmp
 xdpxceiver
 xdp_redirect_multi
+xdp_synproxy

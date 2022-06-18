@@ -1936,7 +1936,7 @@ int perf_event_attach_bpf_prog(struct perf_event *event,
 	event->prog = prog;
 	event->bpf_cookie = bpf_cookie;
 	rcu_assign_pointer(event->tp_event->prog_array, new_array);
-	bpf_prog_array_free(old_array);
+	bpf_prog_array_free_sleepable(old_array);
 
 unlock:
 	mutex_unlock(&bpf_event_mutex);
@@ -1962,7 +1962,7 @@ void perf_event_detach_bpf_prog(struct perf_event *event)
 		bpf_prog_array_delete_safe(old_array, event->prog);
 	} else {
 		rcu_assign_pointer(event->tp_event->prog_array, new_array);
-		bpf_prog_array_free(old_array);
+		bpf_prog_array_free_sleepable(old_array);
 	}
 
 	bpf_prog_put(event->prog);

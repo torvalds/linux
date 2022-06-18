@@ -41,20 +41,20 @@ int handler64_unsigned(void *regs)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 	void *payload = payload1;
-	u64 len;
+	long len;
 
 	/* ignore irrelevant invocations */
 	if (test_pid != pid || !capture)
 		return 0;
 
 	len = bpf_probe_read_kernel_str(payload, MAX_LEN, &buf_in1[0]);
-	if (len <= MAX_LEN) {
+	if (len >= 0) {
 		payload += len;
 		payload1_len1 = len;
 	}
 
 	len = bpf_probe_read_kernel_str(payload, MAX_LEN, &buf_in2[0]);
-	if (len <= MAX_LEN) {
+	if (len >= 0) {
 		payload += len;
 		payload1_len2 = len;
 	}
@@ -123,7 +123,7 @@ int handler32_signed(void *regs)
 {
 	int pid = bpf_get_current_pid_tgid() >> 32;
 	void *payload = payload4;
-	int len;
+	long len;
 
 	/* ignore irrelevant invocations */
 	if (test_pid != pid || !capture)

@@ -127,7 +127,7 @@ BPF_XOR | BPF_K | BPF_ALU64 means::
 Byte swap instructions
 ----------------------
 
-The byte swap instructions use an instruction class of ``BFP_ALU`` and a 4-bit
+The byte swap instructions use an instruction class of ``BPF_ALU`` and a 4-bit
 code field of ``BPF_END``.
 
 The byte swap instructions operate on the destination register

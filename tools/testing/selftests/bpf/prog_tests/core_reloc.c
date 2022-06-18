@@ -84,6 +84,7 @@ static int duration = 0;
 #define NESTING_ERR_CASE(name) {					\
 	NESTING_CASE_COMMON(name),					\
 	.fails = true,							\
+	.run_btfgen_fails = true,							\
 }
 
 #define ARRAYS_DATA(struct_name) STRUCT_TO_CHAR_PTR(struct_name) {	\
@@ -258,12 +259,14 @@ static int duration = 0;
 	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_probed.o",	\
 			      "probed:", name),				\
 	.fails = true,							\
+	.run_btfgen_fails = true,							\
 	.raw_tp_name = "sys_enter",					\
 	.prog_name = "test_core_bitfields",				\
 }, {									\
 	BITFIELDS_CASE_COMMON("test_core_reloc_bitfields_direct.o",	\
 			      "direct:", name),				\
 	.fails = true,							\
+	.run_btfgen_fails = true,							\
 	.prog_name = "test_core_bitfields_direct",			\
 }
 
@@ -304,6 +307,7 @@ static int duration = 0;
 #define SIZE_ERR_CASE(name) {						\
 	SIZE_CASE_COMMON(name),						\
 	.fails = true,							\
+	.run_btfgen_fails = true,							\
 }
 
 #define TYPE_BASED_CASE_COMMON(name)					\
@@ -363,6 +367,25 @@ static int duration = 0;
 	.fails = true,							\
 }
 
+#define ENUM64VAL_CASE_COMMON(name)					\
+	.case_name = #name,						\
+	.bpf_obj_file = "test_core_reloc_enum64val.o",			\
+	.btf_src_file = "btf__core_reloc_" #name ".o",			\
+	.raw_tp_name = "sys_enter",					\
+	.prog_name = "test_core_enum64val"
+
+#define ENUM64VAL_CASE(name, ...) {					\
+	ENUM64VAL_CASE_COMMON(name),					\
+	.output = STRUCT_TO_CHAR_PTR(core_reloc_enum64val_output)	\
+			__VA_ARGS__,					\
+	.output_len = sizeof(struct core_reloc_enum64val_output),	\
+}
+
+#define ENUM64VAL_ERR_CASE(name) {					\
+	ENUM64VAL_CASE_COMMON(name),					\
+	.fails = true,							\
+}
+
 struct core_reloc_test_case;
 
 typedef int (*setup_test_fn)(struct core_reloc_test_case *test);
@@ -377,6 +400,7 @@ struct core_reloc_test_case {
 	const char *output;
 	int output_len;
 	bool fails;
+	bool run_btfgen_fails;
 	bool needs_testmod;
 	bool relaxed_core_relocs;
 	const char *prog_name;
@@ -831,6 +855,45 @@ static const struct core_reloc_test_case test_cases[] = {
 		.anon_val2 = 0x222,
 	}),
 	ENUMVAL_ERR_CASE(enumval___err_missing),
+
+	/* 64bit enumerator value existence and value relocations */
+	ENUM64VAL_CASE(enum64val, {
+		.unsigned_val1_exists = true,
+		.unsigned_val2_exists = true,
+		.unsigned_val3_exists = true,
+		.signed_val1_exists = true,
+		.signed_val2_exists = true,
+		.signed_val3_exists = true,
+		.unsigned_val1 = 0x1ffffffffULL,
+		.unsigned_val2 = 0x2,
+		.signed_val1 = 0x1ffffffffLL,
+		.signed_val2 = -2,
+	}),
+	ENUM64VAL_CASE(enum64val___diff, {
+		.unsigned_val1_exists = true,
+		.unsigned_val2_exists = true,
+		.unsigned_val3_exists = true,
+		.signed_val1_exists = true,
+		.signed_val2_exists = true,
+		.signed_val3_exists = true,
+		.unsigned_val1 = 0x101ffffffffULL,
+		.unsigned_val2 = 0x202ffffffffULL,
+		.signed_val1 = -101,
+		.signed_val2 = -202,
+	}),
+	ENUM64VAL_CASE(enum64val___val3_missing, {
+		.unsigned_val1_exists = true,
+		.unsigned_val2_exists = true,
+		.unsigned_val3_exists = false,
+		.signed_val1_exists = true,
+		.signed_val2_exists = true,
+		.signed_val3_exists = false,
+		.unsigned_val1 = 0x111ffffffffULL,
+		.unsigned_val2 = 0x222,
+		.signed_val1 = 0x111ffffffffLL,
+		.signed_val2 = -222,
+	}),
+	ENUM64VAL_ERR_CASE(enum64val___err_missing),
 };
 
 struct data {
@@ -894,7 +957,7 @@ static void run_core_reloc_tests(bool use_btfgen)
 		/* generate a "minimal" BTF file and use it as source */
 		if (use_btfgen) {
 
-			if (!test_case->btf_src_file || test_case->fails) {
+			if (!test_case->btf_src_file || test_case->run_btfgen_fails) {
 				test__skip();
 				continue;
 			}

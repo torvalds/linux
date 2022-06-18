@@ -474,6 +474,9 @@ static void codegen_asserts(struct bpf_object *obj, const char *obj_name)
 	const struct btf_type *sec;
 	char map_ident[256], var_ident[256];
 
+	if (!btf)
+		return;
+
 	codegen("\
 		\n\
 		__attribute__((unused)) static void			    \n\
@@ -1747,6 +1750,7 @@ btfgen_mark_type(struct btfgen_info *info, unsigned int type_id, bool follow_poi
 	case BTF_KIND_INT:
 	case BTF_KIND_FLOAT:
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 	case BTF_KIND_STRUCT:
 	case BTF_KIND_UNION:
 		break;

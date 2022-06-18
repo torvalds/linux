@@ -407,8 +407,8 @@ _bpftool()
                             return 0
                             ;;
                         5)
-                            local BPFTOOL_PROG_ATTACH_TYPES='msg_verdict \
-                                skb_verdict stream_verdict stream_parser \
+                            local BPFTOOL_PROG_ATTACH_TYPES='sk_msg_verdict \
+                                sk_skb_verdict sk_skb_stream_verdict sk_skb_stream_parser \
                                 flow_dissector'
                             COMPREPLY=( $( compgen -W "$BPFTOOL_PROG_ATTACH_TYPES" -- "$cur" ) )
                             return 0
@@ -1039,12 +1039,14 @@ _bpftool()
                     return 0
                     ;;
                 attach|detach)
-                    local BPFTOOL_CGROUP_ATTACH_TYPES='ingress egress \
-                        sock_create sock_ops device \
-                        bind4 bind6 post_bind4 post_bind6 connect4 connect6 \
-                        getpeername4 getpeername6 getsockname4 getsockname6 \
-                        sendmsg4 sendmsg6 recvmsg4 recvmsg6 sysctl getsockopt \
-                        setsockopt sock_release'
+                    local BPFTOOL_CGROUP_ATTACH_TYPES='cgroup_inet_ingress cgroup_inet_egress \
+                        cgroup_inet_sock_create cgroup_sock_ops cgroup_device cgroup_inet4_bind \
+                        cgroup_inet6_bind cgroup_inet4_post_bind cgroup_inet6_post_bind \
+                        cgroup_inet4_connect cgroup_inet6_connect cgroup_inet4_getpeername \
+                        cgroup_inet6_getpeername cgroup_inet4_getsockname cgroup_inet6_getsockname \
+                        cgroup_udp4_sendmsg cgroup_udp6_sendmsg cgroup_udp4_recvmsg \
+                        cgroup_udp6_recvmsg cgroup_sysctl cgroup_getsockopt cgroup_setsockopt \
+                        cgroup_inet_sock_release'
                     local ATTACH_FLAGS='multi override'
                     local PROG_TYPE='id pinned tag name'
                     # Check for $prev = $command first

@@ -57,7 +57,7 @@ static int xdp_umem_addr_map(struct xdp_umem *umem, struct page **pages,
 static void xdp_umem_release(struct xdp_umem *umem)
 {
 	umem->zc = false;
-	ida_simple_remove(&umem_ida, umem->id);
+	ida_free(&umem_ida, umem->id);
 
 	xdp_umem_addr_unmap(umem);
 	xdp_umem_unpin_pages(umem);
@@ -242,7 +242,7 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 	if (!umem)
 		return ERR_PTR(-ENOMEM);
 
-	err = ida_simple_get(&umem_ida, 0, 0, GFP_KERNEL);
+	err = ida_alloc(&umem_ida, GFP_KERNEL);
 	if (err < 0) {
 		kfree(umem);
 		return ERR_PTR(err);
@@ -251,7 +251,7 @@ struct xdp_umem *xdp_umem_create(struct xdp_umem_reg *mr)
 
 	err = xdp_umem_reg(umem, mr);
 	if (err) {
-		ida_simple_remove(&umem_ida, umem->id);
+		ida_free(&umem_ida, umem->id);
 		kfree(umem);
 		return ERR_PTR(err);
 	}

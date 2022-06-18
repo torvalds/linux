@@ -182,6 +182,32 @@ static int btf_dumper_enum(const struct btf_dumper *d,
 	return 0;
 }
 
+static int btf_dumper_enum64(const struct btf_dumper *d,
+			     const struct btf_type *t,
+			     const void *data)
+{
+	const struct btf_enum64 *enums = btf_enum64(t);
+	__u32 val_lo32, val_hi32;
+	__u64 value;
+	__u16 i;
+
+	value = *(__u64 *)data;
+	val_lo32 = (__u32)value;
+	val_hi32 = value >> 32;
+
+	for (i = 0; i < btf_vlen(t); i++) {
+		if (val_lo32 == enums[i].val_lo32 && val_hi32 == enums[i].val_hi32) {
+			jsonw_string(d->jw,
+				     btf__name_by_offset(d->btf,
+							 enums[i].name_off));
+			return 0;
+		}
+	}
+
+	jsonw_int(d->jw, value);
+	return 0;
+}
+
 static bool is_str_array(const struct btf *btf, const struct btf_array *arr,
 			 const char *s)
 {
@@ -542,6 +568,8 @@ static int btf_dumper_do_type(const struct btf_dumper *d, __u32 type_id,
 		return btf_dumper_array(d, type_id, data);
 	case BTF_KIND_ENUM:
 		return btf_dumper_enum(d, t, data);
+	case BTF_KIND_ENUM64:
+		return btf_dumper_enum64(d, t, data);
 	case BTF_KIND_PTR:
 		btf_dumper_ptr(d, t, data);
 		return 0;
@@ -618,6 +646,7 @@ static int __btf_dumper_type_only(const struct btf *btf, __u32 type_id,
 			      btf__name_by_offset(btf, t->name_off));
 		break;
 	case BTF_KIND_ENUM:
+	case BTF_KIND_ENUM64:
 		BTF_PRINT_ARG("enum %s ",
 			      btf__name_by_offset(btf, t->name_off));
 		break;

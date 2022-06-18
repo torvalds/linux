@@ -16,6 +16,7 @@
 #include <linux/namei.h>
 #include <linux/string.h>
 #include <linux/rculist.h>
+#include <linux/filter.h>
 
 #include "trace_dynevent.h"
 #include "trace_probe.h"
@@ -1346,9 +1347,7 @@ static void __uprobe_perf_func(struct trace_uprobe *tu,
 	if (bpf_prog_array_valid(call)) {
 		u32 ret;
 
-		preempt_disable();
-		ret = trace_call_bpf(call, regs);
-		preempt_enable();
+		ret = bpf_prog_run_array_sleepable(call->prog_array, regs, bpf_prog_run);
 		if (!ret)
 			return;
 	}

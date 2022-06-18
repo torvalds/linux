@@ -21,25 +21,43 @@
 #define HELP_SPEC_ATTACH_FLAGS						\
 	"ATTACH_FLAGS := { multi | override }"
 
-#define HELP_SPEC_ATTACH_TYPES						       \
-	"       ATTACH_TYPE := { ingress | egress | sock_create |\n"	       \
-	"                        sock_ops | device | bind4 | bind6 |\n"	       \
-	"                        post_bind4 | post_bind6 | connect4 |\n"       \
-	"                        connect6 | getpeername4 | getpeername6 |\n"   \
-	"                        getsockname4 | getsockname6 | sendmsg4 |\n"   \
-	"                        sendmsg6 | recvmsg4 | recvmsg6 |\n"           \
-	"                        sysctl | getsockopt | setsockopt |\n"	       \
-	"                        sock_release }"
+#define HELP_SPEC_ATTACH_TYPES						\
+	"       ATTACH_TYPE := { cgroup_inet_ingress | cgroup_inet_egress |\n" \
+	"                        cgroup_inet_sock_create | cgroup_sock_ops |\n" \
+	"                        cgroup_device | cgroup_inet4_bind |\n" \
+	"                        cgroup_inet6_bind | cgroup_inet4_post_bind |\n" \
+	"                        cgroup_inet6_post_bind | cgroup_inet4_connect |\n" \
+	"                        cgroup_inet6_connect | cgroup_inet4_getpeername |\n" \
+	"                        cgroup_inet6_getpeername | cgroup_inet4_getsockname |\n" \
+	"                        cgroup_inet6_getsockname | cgroup_udp4_sendmsg |\n" \
+	"                        cgroup_udp6_sendmsg | cgroup_udp4_recvmsg |\n" \
+	"                        cgroup_udp6_recvmsg | cgroup_sysctl |\n" \
+	"                        cgroup_getsockopt | cgroup_setsockopt |\n" \
+	"                        cgroup_inet_sock_release }"
 
 static unsigned int query_flags;
 
 static enum bpf_attach_type parse_attach_type(const char *str)
 {
+	const char *attach_type_str;
 	enum bpf_attach_type type;
 
-	for (type = 0; type < __MAX_BPF_ATTACH_TYPE; type++) {
-		if (attach_type_name[type] &&
-		    is_prefix(str, attach_type_name[type]))
+	for (type = 0; ; type++) {
+		attach_type_str = libbpf_bpf_attach_type_str(type);
+		if (!attach_type_str)
+			break;
+		if (!strcmp(str, attach_type_str))
+			return type;
+	}
+
+	/* Also check traditionally used attach type strings. For these we keep
+	 * allowing prefixed usage.
+	 */
+	for (type = 0; ; type++) {
+		attach_type_str = bpf_attach_type_input_str(type);
+		if (!attach_type_str)
+			break;
+		if (is_prefix(str, attach_type_str))
 			return type;
 	}
 
@@ -52,6 +70,7 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 {
 	char prog_name[MAX_PROG_FULL_NAME];
 	struct bpf_prog_info info = {};
+	const char *attach_type_str;
 	__u32 info_len = sizeof(info);
 	int prog_fd;
 
@@ -64,13 +83,13 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 		return -1;
 	}
 
+	attach_type_str = libbpf_bpf_attach_type_str(attach_type);
 	get_prog_full_name(&info, prog_fd, prog_name, sizeof(prog_name));
 	if (json_output) {
 		jsonw_start_object(json_wtr);
 		jsonw_uint_field(json_wtr, "id", info.id);
-		if (attach_type < ARRAY_SIZE(attach_type_name))
-			jsonw_string_field(json_wtr, "attach_type",
-					   attach_type_name[attach_type]);
+		if (attach_type_str)
+			jsonw_string_field(json_wtr, "attach_type", attach_type_str);
 		else
 			jsonw_uint_field(json_wtr, "attach_type", attach_type);
 		jsonw_string_field(json_wtr, "attach_flags",
@@ -79,8 +98,8 @@ static int show_bpf_prog(int id, enum bpf_attach_type attach_type,
 		jsonw_end_object(json_wtr);
 	} else {
 		printf("%s%-8u ", level ? "    " : "", info.id);
-		if (attach_type < ARRAY_SIZE(attach_type_name))
-			printf("%-15s", attach_type_name[attach_type]);
+		if (attach_type_str)
+			printf("%-15s", attach_type_str);
 		else
 			printf("type %-10u", attach_type);
 		printf(" %-15s %-15s\n", attach_flags_str, prog_name);

@@ -167,7 +167,7 @@ static bool core_relo_is_enumval_based(enum bpf_core_relo_kind kind)
  * just a parsed access string representation): [0, 1, 2, 3].
  *
  * High-level spec will capture only 3 points:
- *   - intial zero-index access by pointer (&s->... is the same as &s[0]...);
+ *   - initial zero-index access by pointer (&s->... is the same as &s[0]...);
  *   - field 'a' access (corresponds to '2' in low-level spec);
  *   - array element #3 access (corresponds to '3' in low-level spec).
  *
@@ -186,7 +186,7 @@ int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 	struct bpf_core_accessor *acc;
 	const struct btf_type *t;
 	const char *name, *spec_str;
-	__u32 id;
+	__u32 id, name_off;
 	__s64 sz;
 
 	spec_str = btf__name_by_offset(btf, relo->access_str_off);
@@ -231,11 +231,13 @@ int bpf_core_parse_spec(const char *prog_name, const struct btf *btf,
 	spec->len++;
 
 	if (core_relo_is_enumval_based(relo->kind)) {
-		if (!btf_is_enum(t) || spec->raw_len > 1 || access_idx >= btf_vlen(t))
+		if (!btf_is_any_enum(t) || spec->raw_len > 1 || access_idx >= btf_vlen(t))
 			return -EINVAL;
 
 		/* record enumerator name in a first accessor */
-		acc->name = btf__name_by_offset(btf, btf_enum(t)[access_idx].name_off);
+		name_off = btf_is_enum(t) ? btf_enum(t)[access_idx].name_off
+					  : btf_enum64(t)[access_idx].name_off;
+		acc->name = btf__name_by_offset(btf, name_off);
 		return 0;
 	}
 
@@ -340,7 +342,7 @@ recur:
 
 	if (btf_is_composite(local_type) && btf_is_composite(targ_type))
 		return 1;
-	if (btf_kind(local_type) != btf_kind(targ_type))
+	if (!btf_kind_core_compat(local_type, targ_type))
 		return 0;
 
 	switch (btf_kind(local_type)) {
@@ -348,6 +350,7 @@ recur:
 	case BTF_KIND_FLOAT:
 		return 1;
 	case BTF_KIND_FWD:
+	case BTF_KIND_ENUM64:
 	case BTF_KIND_ENUM: {
 		const char *local_name, *targ_name;
 		size_t local_len, targ_len;
@@ -477,6 +480,7 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 	const struct bpf_core_accessor *local_acc;
 	struct bpf_core_accessor *targ_acc;
 	int i, sz, matched;
+	__u32 name_off;
 
 	memset(targ_spec, 0, sizeof(*targ_spec));
 	targ_spec->btf = targ_btf;
@@ -494,18 +498,22 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 
 	if (core_relo_is_enumval_based(local_spec->relo_kind)) {
 		size_t local_essent_len, targ_essent_len;
-		const struct btf_enum *e;
 		const char *targ_name;
 
 		/* has to resolve to an enum */
 		targ_type = skip_mods_and_typedefs(targ_spec->btf, targ_id, &targ_id);
-		if (!btf_is_enum(targ_type))
+		if (!btf_is_any_enum(targ_type))
 			return 0;
 
 		local_essent_len = bpf_core_essential_name_len(local_acc->name);
 
-		for (i = 0, e = btf_enum(targ_type); i < btf_vlen(targ_type); i++, e++) {
-			targ_name = btf__name_by_offset(targ_spec->btf, e->name_off);
+		for (i = 0; i < btf_vlen(targ_type); i++) {
+			if (btf_is_enum(targ_type))
+				name_off = btf_enum(targ_type)[i].name_off;
+			else
+				name_off = btf_enum64(targ_type)[i].name_off;
+
+			targ_name = btf__name_by_offset(targ_spec->btf, name_off);
 			targ_essent_len = bpf_core_essential_name_len(targ_name);
 			if (targ_essent_len != local_essent_len)
 				continue;
@@ -583,7 +591,7 @@ static int bpf_core_spec_match(struct bpf_core_spec *local_spec,
 static int bpf_core_calc_field_relo(const char *prog_name,
 				    const struct bpf_core_relo *relo,
 				    const struct bpf_core_spec *spec,
-				    __u32 *val, __u32 *field_sz, __u32 *type_id,
+				    __u64 *val, __u32 *field_sz, __u32 *type_id,
 				    bool *validate)
 {
 	const struct bpf_core_accessor *acc;
@@ -680,8 +688,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 		*val = byte_sz;
 		break;
 	case BPF_CORE_FIELD_SIGNED:
-		/* enums will be assumed unsigned */
-		*val = btf_is_enum(mt) ||
+		*val = (btf_is_any_enum(mt) && BTF_INFO_KFLAG(mt->info)) ||
 		       (btf_int_encoding(mt) & BTF_INT_SIGNED);
 		if (validate)
 			*validate = true; /* signedness is never ambiguous */
@@ -708,7 +715,7 @@ static int bpf_core_calc_field_relo(const char *prog_name,
 
 static int bpf_core_calc_type_relo(const struct bpf_core_relo *relo,
 				   const struct bpf_core_spec *spec,
-				   __u32 *val, bool *validate)
+				   __u64 *val, bool *validate)
 {
 	__s64 sz;
 
@@ -751,10 +758,9 @@ static int bpf_core_calc_type_relo(const struct bpf_core_relo *relo,
 
 static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
 				      const struct bpf_core_spec *spec,
-				      __u32 *val)
+				      __u64 *val)
 {
 	const struct btf_type *t;
-	const struct btf_enum *e;
 
 	switch (relo->kind) {
 	case BPF_CORE_ENUMVAL_EXISTS:
@@ -764,8 +770,10 @@ static int bpf_core_calc_enumval_relo(const struct bpf_core_relo *relo,
 		if (!spec)
 			return -EUCLEAN; /* request instruction poisoning */
 		t = btf_type_by_id(spec->btf, spec->spec[0].type_id);
-		e = btf_enum(t) + spec->spec[0].idx;
-		*val = e->val;
+		if (btf_is_enum(t))
+			*val = btf_enum(t)[spec->spec[0].idx].val;
+		else
+			*val = btf_enum64_value(btf_enum64(t) + spec->spec[0].idx);
 		break;
 	default:
 		return -EOPNOTSUPP;
@@ -929,7 +937,7 @@ int bpf_core_patch_insn(const char *prog_name, struct bpf_insn *insn,
 			int insn_idx, const struct bpf_core_relo *relo,
 			int relo_idx, const struct bpf_core_relo_res *res)
 {
-	__u32 orig_val, new_val;
+	__u64 orig_val, new_val;
 	__u8 class;
 
 	class = BPF_CLASS(insn->code);
@@ -954,28 +962,30 @@ poison:
 		if (BPF_SRC(insn->code) != BPF_K)
 			return -EINVAL;
 		if (res->validate && insn->imm != orig_val) {
-			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %u, exp %u -> %u\n",
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (ALU/ALU64) value: got %u, exp %llu -> %llu\n",
 				prog_name, relo_idx,
-				insn_idx, insn->imm, orig_val, new_val);
+				insn_idx, insn->imm, (unsigned long long)orig_val,
+				(unsigned long long)new_val);
 			return -EINVAL;
 		}
 		orig_val = insn->imm;
 		insn->imm = new_val;
-		pr_debug("prog '%s': relo #%d: patched insn #%d (ALU/ALU64) imm %u -> %u\n",
+		pr_debug("prog '%s': relo #%d: patched insn #%d (ALU/ALU64) imm %llu -> %llu\n",
 			 prog_name, relo_idx, insn_idx,
-			 orig_val, new_val);
+			 (unsigned long long)orig_val, (unsigned long long)new_val);
 		break;
 	case BPF_LDX:
 	case BPF_ST:
 	case BPF_STX:
 		if (res->validate && insn->off != orig_val) {
-			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDX/ST/STX) value: got %u, exp %u -> %u\n",
-				prog_name, relo_idx, insn_idx, insn->off, orig_val, new_val);
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDX/ST/STX) value: got %u, exp %llu -> %llu\n",
+				prog_name, relo_idx, insn_idx, insn->off, (unsigned long long)orig_val,
+				(unsigned long long)new_val);
 			return -EINVAL;
 		}
 		if (new_val > SHRT_MAX) {
-			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) value too big: %u\n",
-				prog_name, relo_idx, insn_idx, new_val);
+			pr_warn("prog '%s': relo #%d: insn #%d (LDX/ST/STX) value too big: %llu\n",
+				prog_name, relo_idx, insn_idx, (unsigned long long)new_val);
 			return -ERANGE;
 		}
 		if (res->fail_memsz_adjust) {
@@ -987,8 +997,9 @@ poison:
 
 		orig_val = insn->off;
 		insn->off = new_val;
-		pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) off %u -> %u\n",
-			 prog_name, relo_idx, insn_idx, orig_val, new_val);
+		pr_debug("prog '%s': relo #%d: patched insn #%d (LDX/ST/STX) off %llu -> %llu\n",
+			 prog_name, relo_idx, insn_idx, (unsigned long long)orig_val,
+			 (unsigned long long)new_val);
 
 		if (res->new_sz != res->orig_sz) {
 			int insn_bytes_sz, insn_bpf_sz;
@@ -1024,20 +1035,20 @@ poison:
 			return -EINVAL;
 		}
 
-		imm = insn[0].imm + ((__u64)insn[1].imm << 32);
+		imm = (__u32)insn[0].imm | ((__u64)insn[1].imm << 32);
 		if (res->validate && imm != orig_val) {
-			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDIMM64) value: got %llu, exp %u -> %u\n",
+			pr_warn("prog '%s': relo #%d: unexpected insn #%d (LDIMM64) value: got %llu, exp %llu -> %llu\n",
 				prog_name, relo_idx,
 				insn_idx, (unsigned long long)imm,
-				orig_val, new_val);
+				(unsigned long long)orig_val, (unsigned long long)new_val);
 			return -EINVAL;
 		}
 
 		insn[0].imm = new_val;
-		insn[1].imm = 0; /* currently only 32-bit values are supported */
-		pr_debug("prog '%s': relo #%d: patched insn #%d (LDIMM64) imm64 %llu -> %u\n",
+		insn[1].imm = new_val >> 32;
+		pr_debug("prog '%s': relo #%d: patched insn #%d (LDIMM64) imm64 %llu -> %llu\n",
 			 prog_name, relo_idx, insn_idx,
-			 (unsigned long long)imm, new_val);
+			 (unsigned long long)imm, (unsigned long long)new_val);
 		break;
 	}
 	default:
@@ -1057,7 +1068,6 @@ poison:
 int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *spec)
 {
 	const struct btf_type *t;
-	const struct btf_enum *e;
 	const char *s;
 	__u32 type_id;
 	int i, len = 0;
@@ -1086,10 +1096,23 @@ int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *s
 
 	if (core_relo_is_enumval_based(spec->relo_kind)) {
 		t = skip_mods_and_typedefs(spec->btf, type_id, NULL);
-		e = btf_enum(t) + spec->raw_spec[0];
-		s = btf__name_by_offset(spec->btf, e->name_off);
+		if (btf_is_enum(t)) {
+			const struct btf_enum *e;
+			const char *fmt_str;
 
-		append_buf("::%s = %u", s, e->val);
+			e = btf_enum(t) + spec->raw_spec[0];
+			s = btf__name_by_offset(spec->btf, e->name_off);
+			fmt_str = BTF_INFO_KFLAG(t->info) ? "::%s = %d" : "::%s = %u";
+			append_buf(fmt_str, s, e->val);
+		} else {
+			const struct btf_enum64 *e;
+			const char *fmt_str;
+
+			e = btf_enum64(t) + spec->raw_spec[0];
+			s = btf__name_by_offset(spec->btf, e->name_off);
+			fmt_str = BTF_INFO_KFLAG(t->info) ? "::%s = %lld" : "::%s = %llu";
+			append_buf(fmt_str, s, (unsigned long long)btf_enum64_value(e));
+		}
 		return len;
 	}
 
@@ -1148,11 +1171,11 @@ int bpf_core_format_spec(char *buf, size_t buf_sz, const struct bpf_core_spec *s
  * 3. It is supported and expected that there might be multiple flavors
  *    matching the spec. As long as all the specs resolve to the same set of
  *    offsets across all candidates, there is no error. If there is any
- *    ambiguity, CO-RE relocation will fail. This is necessary to accomodate
- *    imprefection of BTF deduplication, which can cause slight duplication of
+ *    ambiguity, CO-RE relocation will fail. This is necessary to accommodate
+ *    imperfection of BTF deduplication, which can cause slight duplication of
  *    the same BTF type, if some directly or indirectly referenced (by
  *    pointer) type gets resolved to different actual types in different
- *    object files. If such situation occurs, deduplicated BTF will end up
+ *    object files. If such a situation occurs, deduplicated BTF will end up
  *    with two (or more) structurally identical types, which differ only in
  *    types they refer to through pointer. This should be OK in most cases and
  *    is not an error.
@@ -1261,10 +1284,12 @@ int bpf_core_calc_relo_insn(const char *prog_name,
 			 * decision and value, otherwise it's dangerous to
 			 * proceed due to ambiguity
 			 */
-			pr_warn("prog '%s': relo #%d: relocation decision ambiguity: %s %u != %s %u\n",
+			pr_warn("prog '%s': relo #%d: relocation decision ambiguity: %s %llu != %s %llu\n",
 				prog_name, relo_idx,
-				cand_res.poison ? "failure" : "success", cand_res.new_val,
-				targ_res->poison ? "failure" : "success", targ_res->new_val);
+				cand_res.poison ? "failure" : "success",
+				(unsigned long long)cand_res.new_val,
+				targ_res->poison ? "failure" : "success",
+				(unsigned long long)targ_res->new_val);
 			return -EINVAL;
 		}
 
