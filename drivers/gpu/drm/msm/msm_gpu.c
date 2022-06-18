@@ -164,24 +164,6 @@ int msm_gpu_hw_init(struct msm_gpu *gpu)
 	return ret;
 }
 
-static void update_fences(struct msm_gpu *gpu, struct msm_ringbuffer *ring,
-		uint32_t fence)
-{
-	struct msm_gem_submit *submit;
-	unsigned long flags;
-
-	spin_lock_irqsave(&ring->submit_lock, flags);
-	list_for_each_entry(submit, &ring->submits, node) {
-		if (fence_after(submit->seqno, fence))
-			break;
-
-		msm_update_fence(submit->ring->fctx,
-			submit->hw_fence->seqno);
-		dma_fence_signal(submit->hw_fence);
-	}
-	spin_unlock_irqrestore(&ring->submit_lock, flags);
-}
-
 #ifdef CONFIG_DEV_COREDUMP
 static ssize_t msm_gpu_devcoredump_read(char *buffer, loff_t offset,
 		size_t count, void *data, size_t datalen)
@@ -438,7 +420,7 @@ static void recover_worker(struct kthread_work *work)
 		if (ring == cur_ring)
 			fence++;
 
-		update_fences(gpu, ring, fence);
+		msm_update_fence(ring->fctx, fence);
 	}
 
 	if (msm_gpu_active(gpu)) {
@@ -736,7 +718,7 @@ void msm_gpu_retire(struct msm_gpu *gpu)
 	int i;
 
 	for (i = 0; i < gpu->nr_rings; i++)
-		update_fences(gpu, gpu->rb[i], gpu->rb[i]->memptrs->fence);
+		msm_update_fence(gpu->rb[i]->fctx, gpu->rb[i]->memptrs->fence);
 
 	kthread_queue_work(gpu->worker, &gpu->retire_work);
 	update_sw_cntrs(gpu);
