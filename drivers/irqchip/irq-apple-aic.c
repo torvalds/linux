@@ -228,7 +228,7 @@
 #define AIC_TMR_EL02_PHYS	AIC_TMR_GUEST_PHYS
 #define AIC_TMR_EL02_VIRT	AIC_TMR_GUEST_VIRT
 
-DEFINE_STATIC_KEY_TRUE(use_fast_ipi);
+static DEFINE_STATIC_KEY_TRUE(use_fast_ipi);
 
 struct aic_info {
 	int version;
