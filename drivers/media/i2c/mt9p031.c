@@ -1214,6 +1214,7 @@ static int mt9p031_remove(struct i2c_client *client)
 }
 
 static const struct i2c_device_id mt9p031_id[] = {
+	{ "mt9p006", MT9P031_MODEL_COLOR },
 	{ "mt9p031", MT9P031_MODEL_COLOR },
 	{ "mt9p031m", MT9P031_MODEL_MONOCHROME },
 	{ }
@@ -1222,6 +1223,7 @@ MODULE_DEVICE_TABLE(i2c, mt9p031_id);
 
 #if IS_ENABLED(CONFIG_OF)
 static const struct of_device_id mt9p031_of_match[] = {
+	{ .compatible = "aptina,mt9p006", },
 	{ .compatible = "aptina,mt9p031", },
 	{ .compatible = "aptina,mt9p031m", },
 	{ /* sentinel */ },
