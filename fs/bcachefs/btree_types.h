@@ -386,7 +386,7 @@ struct btree_trans {
 	u8			locking_btree_id;
 	u8			locking_level;
 	u8			locking_lock_type;
-	pid_t			pid;
+	struct task_struct	*task;
 	int			srcu_idx;
 
 	u8			nr_sorted;

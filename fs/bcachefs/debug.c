@@ -529,6 +529,78 @@ static const struct file_operations cached_btree_nodes_ops = {
 	.read		= bch2_cached_btree_nodes_read,
 };
 
+#ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
+static int prt_backtrace(struct printbuf *out, struct task_struct *task)
+{
+	unsigned long entries[32];
+	unsigned i, nr_entries;
+	int ret;
+
+	ret = down_read_killable(&task->signal->exec_update_lock);
+	if (ret)
+		return ret;
+
+	nr_entries = stack_trace_save_tsk(task, entries, ARRAY_SIZE(entries), 0);
+	for (i = 0; i < nr_entries; i++) {
+		prt_printf(out, "[<0>] %pB", (void *)entries[i]);
+		prt_newline(out);
+	}
+
+	up_read(&task->signal->exec_update_lock);
+	return 0;
+}
+
+static ssize_t bch2_btree_transactions_read(struct file *file, char __user *buf,
+					    size_t size, loff_t *ppos)
+{
+	struct dump_iter *i = file->private_data;
+	struct bch_fs *c = i->c;
+	struct btree_trans *trans;
+	int err;
+
+	i->ubuf = buf;
+	i->size	= size;
+	i->ret	= 0;
+
+	mutex_lock(&c->btree_trans_lock);
+	list_for_each_entry(trans, &c->btree_trans_list, list) {
+		if (trans->task->pid <= i->iter)
+			continue;
+
+		err = flush_buf(i);
+		if (err)
+			return err;
+
+		if (!i->size)
+			break;
+
+		bch2_btree_trans_to_text(&i->buf, trans);
+
+		prt_printf(&i->buf, "backtrace:");
+		prt_newline(&i->buf);
+		printbuf_indent_add(&i->buf, 2);
+		prt_backtrace(&i->buf, trans->task);
+		printbuf_indent_sub(&i->buf, 2);
+		prt_newline(&i->buf);
+
+		i->iter = trans->task->pid;
+	}
+	mutex_unlock(&c->btree_trans_lock);
+
+	if (i->buf.allocation_failure)
+		return -ENOMEM;
+
+	return i->ret;
+}
+
+static const struct file_operations btree_transactions_ops = {
+	.owner		= THIS_MODULE,
+	.open		= bch2_dump_open,
+	.release	= bch2_dump_release,
+	.read		= bch2_btree_transactions_read,
+};
+#endif /* CONFIG_BCACHEFS_DEBUG_TRANSACTIONS */
+
 static ssize_t bch2_journal_pins_read(struct file *file, char __user *buf,
 				      size_t size, loff_t *ppos)
 {
@@ -587,6 +659,11 @@ void bch2_fs_debug_init(struct bch_fs *c)
 
 	debugfs_create_file("cached_btree_nodes", 0400, c->fs_debug_dir,
 			    c->btree_debug, &cached_btree_nodes_ops);
+
+#ifdef CONFIG_BCACHEFS_DEBUG_TRANSACTIONS
+	debugfs_create_file("btree_transactions", 0400, c->fs_debug_dir,
+			    c->btree_debug, &btree_transactions_ops);
+#endif
 
 	debugfs_create_file("journal_pins", 0400, c->fs_debug_dir,
 			    c->btree_debug, &journal_pins_ops);

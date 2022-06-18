@@ -33,6 +33,7 @@ const char * const bch2_sb_compat[] = {
 
 const char * const bch2_btree_ids[] = {
 	BCH_BTREE_IDS()
+	"interior btree node",
 	NULL
 };
 
