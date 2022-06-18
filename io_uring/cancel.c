@@ -24,7 +24,7 @@ struct io_cancel {
 };
 
 #define CANCEL_FLAGS	(IORING_ASYNC_CANCEL_ALL | IORING_ASYNC_CANCEL_FD | \
-			 IORING_ASYNC_CANCEL_ANY)
+			 IORING_ASYNC_CANCEL_ANY | IORING_ASYNC_CANCEL_FD_FIXED)
 
 static bool io_cancel_cb(struct io_wq_work *work, void *data)
 {
@@ -174,11 +174,14 @@ int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags)
 	int ret;
 
 	if (cd.flags & IORING_ASYNC_CANCEL_FD) {
-		if (req->flags & REQ_F_FIXED_FILE)
+		if (req->flags & REQ_F_FIXED_FILE ||
+		    cd.flags & IORING_ASYNC_CANCEL_FD_FIXED) {
+			req->flags |= REQ_F_FIXED_FILE;
 			req->file = io_file_get_fixed(req, cancel->fd,
 							issue_flags);
-		else
+		} else {
 			req->file = io_file_get_normal(req, cancel->fd);
+		}
 		if (!req->file) {
 			ret = -EBADF;
 			goto done;
