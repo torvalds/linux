@@ -1081,23 +1081,7 @@ static void xpcs_link_up_sgmii(struct dw_xpcs *xpcs, unsigned int mode,
 	if (phylink_autoneg_inband(mode))
 		return;
 
-	switch (speed) {
-	case SPEED_1000:
-		val = BMCR_SPEED1000;
-		break;
-	case SPEED_100:
-		val = BMCR_SPEED100;
-		break;
-	case SPEED_10:
-		val = BMCR_SPEED10;
-		break;
-	default:
-		return;
-	}
-
-	if (duplex == DUPLEX_FULL)
-		val |= BMCR_FULLDPLX;
-
+	val = mii_bmcr_encode_fixed(speed, duplex);
 	ret = xpcs_write(xpcs, MDIO_MMD_VEND2, MDIO_CTRL1, val);
 	if (ret)
 		pr_err("%s: xpcs_write returned %pe\n", __func__, ERR_PTR(ret));
