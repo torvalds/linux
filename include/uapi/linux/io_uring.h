@@ -10,6 +10,7 @@
 
 #include <linux/fs.h>
 #include <linux/types.h>
+#include <linux/time_types.h>
 
 /*
  * IO submission data structure (Submission Queue Entry)
@@ -428,6 +429,9 @@ enum {
 	IORING_REGISTER_PBUF_RING		= 22,
 	IORING_UNREGISTER_PBUF_RING		= 23,
 
+	/* sync cancelation API */
+	IORING_REGISTER_SYNC_CANCEL		= 24,
+
 	/* this goes last */
 	IORING_REGISTER_LAST
 };
@@ -561,6 +565,17 @@ struct io_uring_getevents_arg {
 	__u32	sigmask_sz;
 	__u32	pad;
 	__u64	ts;
+};
+
+/*
+ * Argument for IORING_REGISTER_SYNC_CANCEL
+ */
+struct io_uring_sync_cancel_reg {
+	__u64				addr;
+	__s32				fd;
+	__u32				flags;
+	struct __kernel_timespec	timeout;
+	__u64				pad[4];
 };
 
 #endif

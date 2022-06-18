@@ -3871,6 +3871,12 @@ static int __io_uring_register(struct io_ring_ctx *ctx, unsigned opcode,
 			break;
 		ret = io_unregister_pbuf_ring(ctx, arg);
 		break;
+	case IORING_REGISTER_SYNC_CANCEL:
+		ret = -EINVAL;
+		if (!arg || nr_args != 1)
+			break;
+		ret = io_sync_cancel(ctx, arg);
+		break;
 	default:
 		ret = -EINVAL;
 		break;
