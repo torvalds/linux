@@ -1062,12 +1062,12 @@ static void acpi_device_remove(struct device *dev)
 	struct acpi_device *acpi_dev = to_acpi_device(dev);
 	struct acpi_driver *acpi_drv = acpi_dev->driver;
 
-	if (acpi_drv) {
-		if (acpi_drv->ops.notify)
-			acpi_device_remove_notify_handler(acpi_dev);
-		if (acpi_drv->ops.remove)
-			acpi_drv->ops.remove(acpi_dev);
-	}
+	if (acpi_drv->ops.notify)
+		acpi_device_remove_notify_handler(acpi_dev);
+
+	if (acpi_drv->ops.remove)
+		acpi_drv->ops.remove(acpi_dev);
+
 	acpi_dev->driver = NULL;
 	acpi_dev->driver_data = NULL;
 
