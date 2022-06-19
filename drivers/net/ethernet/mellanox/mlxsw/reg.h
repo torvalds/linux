@@ -9099,6 +9099,64 @@ mlxsw_reg_rmft2_ipv6_pack(char *payload, bool v, u16 offset, u16 virtual_router,
 	mlxsw_reg_rmft2_sip6_mask_memcpy_to(payload, (void *)&sip6_mask);
 }
 
+/* REIV - Router Egress Interface to VID Register
+ * ----------------------------------------------
+ * The REIV register maps {eRIF, egress_port} -> VID.
+ * This mapping is done at the egress, after the ACLs.
+ * This mapping always takes effect after router, regardless of cast
+ * (for unicast/multicast/port-base multicast), regardless of eRIF type and
+ * regardless of bridge decisions (e.g. SFD for unicast or SMPE).
+ * Reserved when the RIF is a loopback RIF.
+ *
+ * Note: Reserved when legacy bridge model is used.
+ */
+#define MLXSW_REG_REIV_ID 0x8034
+#define MLXSW_REG_REIV_BASE_LEN 0x20 /* base length, without records */
+#define MLXSW_REG_REIV_REC_LEN 0x04 /* record length */
+#define MLXSW_REG_REIV_REC_MAX_COUNT 256 /* firmware limitation */
+#define MLXSW_REG_REIV_LEN (MLXSW_REG_REIV_BASE_LEN +	\
+			    MLXSW_REG_REIV_REC_LEN *	\
+			    MLXSW_REG_REIV_REC_MAX_COUNT)
+
+MLXSW_REG_DEFINE(reiv, MLXSW_REG_REIV_ID, MLXSW_REG_REIV_LEN);
+
+/* reg_reiv_port_page
+ * Port page - elport_record[0] is 256*port_page.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, reiv, port_page, 0x00, 0, 4);
+
+/* reg_reiv_erif
+ * Egress RIF.
+ * Range is 0..cap_max_router_interfaces-1.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, reiv, erif, 0x04, 0, 16);
+
+/* reg_reiv_rec_update
+ * Update enable (when write):
+ * 0 - Do not update the entry.
+ * 1 - Update the entry.
+ * Access: OP
+ */
+MLXSW_ITEM32_INDEXED(reg, reiv, rec_update, MLXSW_REG_REIV_BASE_LEN, 31, 1,
+		     MLXSW_REG_REIV_REC_LEN, 0x00, false);
+
+/* reg_reiv_rec_evid
+ * Egress VID.
+ * Range is 0..4095.
+ * Access: RW
+ */
+MLXSW_ITEM32_INDEXED(reg, reiv, rec_evid, MLXSW_REG_REIV_BASE_LEN, 0, 12,
+		     MLXSW_REG_REIV_REC_LEN, 0x00, false);
+
+static inline void mlxsw_reg_reiv_pack(char *payload, u8 port_page, u16 erif)
+{
+	MLXSW_REG_ZERO(reiv, payload);
+	mlxsw_reg_reiv_port_page_set(payload, port_page);
+	mlxsw_reg_reiv_erif_set(payload, erif);
+}
+
 /* MFCR - Management Fan Control Register
  * --------------------------------------
  * This register controls the settings of the Fan Speed PWM mechanism.
@@ -12606,6 +12664,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(rigr2),
 	MLXSW_REG(recr2),
 	MLXSW_REG(rmft2),
+	MLXSW_REG(reiv),
 	MLXSW_REG(mfcr),
 	MLXSW_REG(mfsc),
 	MLXSW_REG(mfsm),
