@@ -2065,6 +2065,45 @@ static inline void mlxsw_reg_spevet_pack(char *payload, u16 local_port,
 	mlxsw_reg_spevet_et_vlan_set(payload, et_vlan);
 }
 
+/* SMPE - Switch Multicast Port to Egress VID
+ * ------------------------------------------
+ * The switch multicast port to egress VID maps
+ * {egress_port, SMPE index} -> {VID}.
+ */
+#define MLXSW_REG_SMPE_ID 0x202B
+#define MLXSW_REG_SMPE_LEN 0x0C
+
+MLXSW_REG_DEFINE(smpe, MLXSW_REG_SMPE_ID, MLXSW_REG_SMPE_LEN);
+
+/* reg_smpe_local_port
+ * Local port number.
+ * CPU port is not supported.
+ * Access: Index
+ */
+MLXSW_ITEM32_LP(reg, smpe, 0x00, 16, 0x00, 12);
+
+/* reg_smpe_smpe_index
+ * Switch multicast port to egress VID.
+ * Range is 0..cap_max_rmpe-1.
+ * Access: Index
+ */
+MLXSW_ITEM32(reg, smpe, smpe_index, 0x04, 0, 16);
+
+/* reg_smpe_evid
+ * Egress VID.
+ * Access: RW
+ */
+MLXSW_ITEM32(reg, smpe, evid, 0x08, 0, 12);
+
+static inline void mlxsw_reg_smpe_pack(char *payload, u16 local_port,
+				       u16 smpe_index, u16 evid)
+{
+	MLXSW_REG_ZERO(smpe, payload);
+	mlxsw_reg_smpe_local_port_set(payload, local_port);
+	mlxsw_reg_smpe_smpe_index_set(payload, smpe_index);
+	mlxsw_reg_smpe_evid_set(payload, evid);
+}
+
 /* SFTR-V2 - Switch Flooding Table Version 2 Register
  * --------------------------------------------------
  * The switch flooding table is used for flooding packet replication. The table
@@ -12409,6 +12448,7 @@ static const struct mlxsw_reg_info *mlxsw_reg_infos[] = {
 	MLXSW_REG(spvmlr),
 	MLXSW_REG(spvc),
 	MLXSW_REG(spevet),
+	MLXSW_REG(smpe),
 	MLXSW_REG(sftr2),
 	MLXSW_REG(smid2),
 	MLXSW_REG(cwtp),
