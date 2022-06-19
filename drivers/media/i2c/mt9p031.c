@@ -623,12 +623,22 @@ static int mt9p031_get_selection(struct v4l2_subdev *subdev,
 {
 	struct mt9p031 *mt9p031 = to_mt9p031(subdev);
 
-	if (sel->target != V4L2_SEL_TGT_CROP)
-		return -EINVAL;
+	switch (sel->target) {
+	case V4L2_SEL_TGT_CROP_BOUNDS:
+		sel->r.left = MT9P031_COLUMN_START_MIN;
+		sel->r.top = MT9P031_ROW_START_MIN;
+		sel->r.width = MT9P031_WINDOW_WIDTH_MAX;
+		sel->r.height = MT9P031_WINDOW_HEIGHT_MAX;
+		return 0;
 
-	sel->r = *__mt9p031_get_pad_crop(mt9p031, sd_state, sel->pad,
-					 sel->which);
-	return 0;
+	case V4L2_SEL_TGT_CROP:
+		sel->r = *__mt9p031_get_pad_crop(mt9p031, sd_state,
+						 sel->pad, sel->which);
+		return 0;
+
+	default:
+		return -EINVAL;
+	}
 }
 
 static int mt9p031_set_selection(struct v4l2_subdev *subdev,
