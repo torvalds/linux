@@ -1032,7 +1032,7 @@ static inline void mlxsw_reg_spaft_pack(char *payload, u16 local_port,
  * to packet types used for flooding.
  */
 #define MLXSW_REG_SFGC_ID 0x2011
-#define MLXSW_REG_SFGC_LEN 0x10
+#define MLXSW_REG_SFGC_LEN 0x14
 
 MLXSW_REG_DEFINE(sfgc, MLXSW_REG_SFGC_ID, MLXSW_REG_SFGC_LEN);
 
@@ -1089,12 +1089,6 @@ MLXSW_ITEM32(reg, sfgc, table_type, 0x04, 16, 3);
  */
 MLXSW_ITEM32(reg, sfgc, flood_table, 0x04, 0, 6);
 
-/* reg_sfgc_mid
- * The multicast ID for the swid. Not supported for Spectrum
- * Access: RW
- */
-MLXSW_ITEM32(reg, sfgc, mid, 0x08, 0, 16);
-
 /* reg_sfgc_counter_set_type
  * Counter Set Type for flow counters.
  * Access: RW
@@ -1107,6 +1101,14 @@ MLXSW_ITEM32(reg, sfgc, counter_set_type, 0x0C, 24, 8);
  */
 MLXSW_ITEM32(reg, sfgc, counter_index, 0x0C, 0, 24);
 
+/* reg_sfgc_mid_base
+ * MID Base.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used.
+ */
+MLXSW_ITEM32(reg, sfgc, mid_base, 0x10, 0, 16);
+
 static inline void
 mlxsw_reg_sfgc_pack(char *payload, enum mlxsw_reg_sfgc_type type,
 		    enum mlxsw_reg_sfgc_bridge_type bridge_type,
@@ -1118,7 +1120,6 @@ mlxsw_reg_sfgc_pack(char *payload, enum mlxsw_reg_sfgc_type type,
 	mlxsw_reg_sfgc_bridge_type_set(payload, bridge_type);
 	mlxsw_reg_sfgc_table_type_set(payload, table_type);
 	mlxsw_reg_sfgc_flood_table_set(payload, flood_table);
-	mlxsw_reg_sfgc_mid_set(payload, MLXSW_PORT_MID);
 }
 
 /* SFDF - Switch Filtering DB Flush
