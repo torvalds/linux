@@ -29,6 +29,11 @@
 
 #define MT_MSDU_ID_VALID		BIT(15)
 
+#define MT_TXD_LEN_LAST			BIT(15)
+#define MT_TXD_LEN_MASK			GENMASK(11, 0)
+#define MT_TXD_LEN_MSDU_LAST		BIT(14)
+#define MT_TXD_LEN_AMSDU_LAST		BIT(15)
+
 enum {
 	CMD_CBW_20MHZ = IEEE80211_STA_RX_BW_20,
 	CMD_CBW_40MHZ = IEEE80211_STA_RX_BW_40,
@@ -319,6 +324,9 @@ mt76_connac_mutex_release(struct mt76_dev *dev, struct mt76_connac_pm *pm)
 	mutex_unlock(&dev->mutex);
 }
 
+void mt76_connac_write_hw_txp(struct mt76_dev *dev,
+			      struct mt76_tx_info *tx_info,
+			      void *txp_ptr, u32 id);
 void mt76_connac_tx_complete_skb(struct mt76_dev *mdev,
 				 struct mt76_queue_entry *e);
 void mt76_connac_pm_queue_skb(struct ieee80211_hw *hw,

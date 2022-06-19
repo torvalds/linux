@@ -15,44 +15,6 @@
 #include "mac.h"
 
 static void
-mt7615_write_hw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
-		    void *txp_ptr, u32 id)
-{
-	struct mt76_connac_hw_txp *txp = txp_ptr;
-	struct mt76_connac_txp_ptr *ptr = &txp->ptr[0];
-	int i, nbuf = tx_info->nbuf - 1;
-	u32 last_mask;
-
-	tx_info->buf[0].len = MT_TXD_SIZE + sizeof(*txp);
-	tx_info->nbuf = 1;
-
-	txp->msdu_id[0] = cpu_to_le16(id | MT_MSDU_ID_VALID);
-
-	if (is_mt7663(&dev->mt76))
-		last_mask = MT_TXD_LEN_LAST;
-	else
-		last_mask = MT_TXD_LEN_AMSDU_LAST |
-			    MT_TXD_LEN_MSDU_LAST;
-
-	for (i = 0; i < nbuf; i++) {
-		u16 len = tx_info->buf[i + 1].len & MT_TXD_LEN_MASK;
-		u32 addr = tx_info->buf[i + 1].addr;
-
-		if (i == nbuf - 1)
-			len |= last_mask;
-
-		if (i & 1) {
-			ptr->buf1 = cpu_to_le32(addr);
-			ptr->len1 = cpu_to_le16(len);
-			ptr++;
-		} else {
-			ptr->buf0 = cpu_to_le32(addr);
-			ptr->len0 = cpu_to_le16(len);
-		}
-	}
-}
-
-static void
 mt7615_write_fw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
 		    void *txp_ptr, u32 id)
 {
@@ -141,7 +103,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	if (is_mt7615(&dev->mt76))
 		mt7615_write_fw_txp(dev, tx_info, txp, id);
 	else
-		mt7615_write_hw_txp(dev, tx_info, txp, id);
+		mt76_connac_write_hw_txp(mdev, tx_info, txp, id);
 
 	tx_info->skb = DMA_DUMMY_DATA;
 
