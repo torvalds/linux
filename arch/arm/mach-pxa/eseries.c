@@ -86,11 +86,10 @@ int eseries_tmio_enable(struct platform_device *dev)
 	return 0;
 }
 
-int eseries_tmio_disable(struct platform_device *dev)
+void eseries_tmio_disable(struct platform_device *dev)
 {
 	gpio_set_value(GPIO_ESERIES_TMIO_SUSPEND, 0);
 	gpio_set_value(GPIO_ESERIES_TMIO_PCLR, 0);
-	return 0;
 }
 
 int eseries_tmio_suspend(struct platform_device *dev)
