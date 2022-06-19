@@ -672,7 +672,6 @@ void mt7915_mac_write_txwi(struct mt76_dev *dev, __le32 *txwi,
 
 	mt76_connac2_mac_write_txwi(dev, txwi, skb, wcid, key, pid, changed);
 
-
 	if (mt76_testmode_enabled(mphy))
 		mt7915_mac_write_txwi_tm(mphy->priv, txwi, skb);
 }
