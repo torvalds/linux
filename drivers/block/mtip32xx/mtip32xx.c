@@ -141,11 +141,8 @@ static bool mtip_check_surprise_removal(struct driver_data *dd)
 	pci_read_config_word(dd->pdev, 0x00, &vendor_id);
 	if (vendor_id == 0xFFFF) {
 		dd->sr = true;
-		if (dd->queue)
-			blk_queue_flag_set(QUEUE_FLAG_DEAD, dd->queue);
-		else
-			dev_warn(&dd->pdev->dev,
-				"%s: dd->queue is NULL\n", __func__);
+		if (dd->disk)
+			blk_mark_disk_dead(dd->disk);
 		return true; /* device removed */
 	}
 
@@ -3185,26 +3182,12 @@ static int mtip_block_getgeo(struct block_device *dev,
 	return 0;
 }
 
-static int mtip_block_open(struct block_device *dev, fmode_t mode)
+static void mtip_block_free_disk(struct gendisk *disk)
 {
-	struct driver_data *dd;
+	struct driver_data *dd = disk->private_data;
 
-	if (dev && dev->bd_disk) {
-		dd = (struct driver_data *) dev->bd_disk->private_data;
-
-		if (dd) {
-			if (test_bit(MTIP_DDF_REMOVAL_BIT,
-							&dd->dd_flag)) {
-				return -ENODEV;
-			}
-			return 0;
-		}
-	}
-	return -ENODEV;
-}
-
-static void mtip_block_release(struct gendisk *disk, fmode_t mode)
-{
+	ida_free(&rssd_index_ida, dd->index);
+	kfree(dd);
 }
 
 /*
@@ -3214,13 +3197,12 @@ static void mtip_block_release(struct gendisk *disk, fmode_t mode)
  * layer.
  */
 static const struct block_device_operations mtip_block_ops = {
-	.open		= mtip_block_open,
-	.release	= mtip_block_release,
 	.ioctl		= mtip_block_ioctl,
 #ifdef CONFIG_COMPAT
 	.compat_ioctl	= mtip_block_compat_ioctl,
 #endif
 	.getgeo		= mtip_block_getgeo,
+	.free_disk	= mtip_block_free_disk,
 	.owner		= THIS_MODULE
 };
 
@@ -3561,72 +3543,6 @@ protocol_init_error:
 	return rv;
 }
 
-static bool mtip_no_dev_cleanup(struct request *rq, void *data, bool reserv)
-{
-	struct mtip_cmd *cmd = blk_mq_rq_to_pdu(rq);
-
-	cmd->status = BLK_STS_IOERR;
-	blk_mq_complete_request(rq);
-	return true;
-}
-
-/*
- * Block layer deinitialization function.
- *
- * Called by the PCI layer as each P320 device is removed.
- *
- * @dd Pointer to the driver data structure.
- *
- * return value
- *	0
- */
-static int mtip_block_remove(struct driver_data *dd)
-{
-	mtip_hw_debugfs_exit(dd);
-
-	if (dd->mtip_svc_handler) {
-		set_bit(MTIP_PF_SVC_THD_STOP_BIT, &dd->port->flags);
-		wake_up_interruptible(&dd->port->svc_wait);
-		kthread_stop(dd->mtip_svc_handler);
-	}
-
-	if (!dd->sr) {
-		/*
-		 * Explicitly wait here for IOs to quiesce,
-		 * as mtip_standby_drive usually won't wait for IOs.
-		 */
-		if (!mtip_quiesce_io(dd->port, MTIP_QUIESCE_IO_TIMEOUT_MS))
-			mtip_standby_drive(dd);
-	}
-	else
-		dev_info(&dd->pdev->dev, "device %s surprise removal\n",
-						dd->disk->disk_name);
-
-	blk_freeze_queue_start(dd->queue);
-	blk_mq_quiesce_queue(dd->queue);
-	blk_mq_tagset_busy_iter(&dd->tags, mtip_no_dev_cleanup, dd);
-	blk_mq_unquiesce_queue(dd->queue);
-
-	if (dd->disk) {
-		if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag))
-			del_gendisk(dd->disk);
-		if (dd->disk->queue) {
-			blk_cleanup_queue(dd->queue);
-			blk_mq_free_tag_set(&dd->tags);
-			dd->queue = NULL;
-		}
-		put_disk(dd->disk);
-	}
-	dd->disk  = NULL;
-
-	ida_free(&rssd_index_ida, dd->index);
-
-	/* De-initialize the protocol layer. */
-	mtip_hw_exit(dd);
-
-	return 0;
-}
-
 /*
  * Function called by the PCI layer when just before the
  * machine shuts down.
@@ -3643,23 +3559,15 @@ static int mtip_block_shutdown(struct driver_data *dd)
 {
 	mtip_hw_shutdown(dd);
 
-	/* Delete our gendisk structure, and cleanup the blk queue. */
-	if (dd->disk) {
-		dev_info(&dd->pdev->dev,
-			"Shutting down %s ...\n", dd->disk->disk_name);
+	dev_info(&dd->pdev->dev,
+		"Shutting down %s ...\n", dd->disk->disk_name);
 
-		if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag))
-			del_gendisk(dd->disk);
-		if (dd->disk->queue) {
-			blk_cleanup_queue(dd->queue);
-			blk_mq_free_tag_set(&dd->tags);
-		}
-		put_disk(dd->disk);
-		dd->disk  = NULL;
-		dd->queue = NULL;
-	}
+	if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag))
+		del_gendisk(dd->disk);
 
-	ida_free(&rssd_index_ida, dd->index);
+	blk_cleanup_queue(dd->queue);
+	blk_mq_free_tag_set(&dd->tags);
+	put_disk(dd->disk);
 	return 0;
 }
 
@@ -3966,8 +3874,6 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 	struct driver_data *dd = pci_get_drvdata(pdev);
 	unsigned long to;
 
-	set_bit(MTIP_DDF_REMOVAL_BIT, &dd->dd_flag);
-
 	mtip_check_surprise_removal(dd);
 	synchronize_irq(dd->pdev->irq);
 
@@ -3983,11 +3889,36 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 			"Completion workers still active!\n");
 	}
 
-	blk_mark_disk_dead(dd->disk);
 	set_bit(MTIP_DDF_REMOVE_PENDING_BIT, &dd->dd_flag);
 
-	/* Clean up the block layer. */
-	mtip_block_remove(dd);
+	if (test_bit(MTIP_DDF_INIT_DONE_BIT, &dd->dd_flag))
+		del_gendisk(dd->disk);
+
+	mtip_hw_debugfs_exit(dd);
+
+	if (dd->mtip_svc_handler) {
+		set_bit(MTIP_PF_SVC_THD_STOP_BIT, &dd->port->flags);
+		wake_up_interruptible(&dd->port->svc_wait);
+		kthread_stop(dd->mtip_svc_handler);
+	}
+
+	if (!dd->sr) {
+		/*
+		 * Explicitly wait here for IOs to quiesce,
+		 * as mtip_standby_drive usually won't wait for IOs.
+		 */
+		if (!mtip_quiesce_io(dd->port, MTIP_QUIESCE_IO_TIMEOUT_MS))
+			mtip_standby_drive(dd);
+	}
+	else
+		dev_info(&dd->pdev->dev, "device %s surprise removal\n",
+						dd->disk->disk_name);
+
+	blk_cleanup_queue(dd->queue);
+	blk_mq_free_tag_set(&dd->tags);
+
+	/* De-initialize the protocol layer. */
+	mtip_hw_exit(dd);
 
 	if (dd->isr_workq) {
 		destroy_workqueue(dd->isr_workq);
@@ -3998,10 +3929,10 @@ static void mtip_pci_remove(struct pci_dev *pdev)
 
 	pci_disable_msi(pdev);
 
-	kfree(dd);
-
 	pcim_iounmap_regions(pdev, 1 << MTIP_ABAR);
 	pci_set_drvdata(pdev, NULL);
+
+	put_disk(dd->disk);
 }
 
 /*
