@@ -877,7 +877,7 @@ int mt7615_mac_write_txwi(struct mt7615_dev *dev, __le32 *txwi,
 EXPORT_SYMBOL_GPL(mt7615_mac_write_txwi);
 
 static void
-mt7615_txp_skb_unmap_fw(struct mt76_dev *dev, struct mt7615_fw_txp *txp)
+mt7615_txp_skb_unmap_fw(struct mt76_dev *dev, struct mt76_connac_fw_txp *txp)
 {
 	int i;
 
@@ -922,7 +922,7 @@ void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 {
 	struct mt7615_txp_common *txp;
 
-	txp = mt7615_txwi_to_txp(dev, t);
+	txp = mt76_connac_txwi_to_txp(dev, t);
 	if (is_mt7615(dev))
 		mt7615_txp_skb_unmap_fw(dev, &txp->fw);
 	else

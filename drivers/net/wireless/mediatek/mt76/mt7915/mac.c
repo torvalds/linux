@@ -686,8 +686,8 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_vif *vif = info->control.vif;
+	struct mt76_connac_fw_txp *txp;
 	struct mt76_txwi_cache *t;
-	struct mt7915_txp *txp;
 	int id, i, nbuf = tx_info->nbuf - 1;
 	u8 *txwi = (u8 *)txwi_ptr;
 	int pid;
@@ -719,7 +719,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	pid = mt76_tx_status_skb_add(mdev, wcid, tx_info->skb);
 	mt7915_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, pid, key, 0);
 
-	txp = (struct mt7915_txp *)(txwi + MT_TXD_SIZE);
+	txp = (struct mt76_connac_fw_txp *)(txwi + MT_TXD_SIZE);
 	for (i = 0; i < nbuf; i++) {
 		txp->buf[i] = cpu_to_le32(tx_info->buf[i + 1].addr);
 		txp->len[i] = cpu_to_le16(tx_info->buf[i + 1].len);
@@ -758,7 +758,7 @@ int mt7915_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 
 u32 mt7915_wed_init_buf(void *ptr, dma_addr_t phys, int token_id)
 {
-	struct mt7915_txp *txp = ptr + MT_TXD_SIZE;
+	struct mt76_connac_fw_txp *txp = ptr + MT_TXD_SIZE;
 	__le32 *txwi = ptr;
 	u32 val;
 
@@ -807,10 +807,10 @@ mt7915_tx_check_aggr(struct ieee80211_sta *sta, __le32 *txwi)
 static void
 mt7915_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
-	struct mt7915_txp *txp;
+	struct mt76_connac_fw_txp *txp;
 	int i;
 
-	txp = mt7915_txwi_to_txp(dev, t);
+	txp = mt76_connac_txwi_to_txp(dev, t);
 	for (i = 0; i < txp->nbuf; i++)
 		dma_unmap_single(dev->dma_dev, le32_to_cpu(txp->buf[i]),
 				 le16_to_cpu(txp->len[i]), DMA_TO_DEVICE);
@@ -1120,10 +1120,10 @@ void mt7915_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 
 	/* error path */
 	if (e->skb == DMA_DUMMY_DATA) {
+		struct mt76_connac_fw_txp *txp;
 		struct mt76_txwi_cache *t;
-		struct mt7915_txp *txp;
 
-		txp = mt7915_txwi_to_txp(mdev, e->txwi);
+		txp = mt76_connac_txwi_to_txp(mdev, e->txwi);
 		t = mt76_token_put(mdev, le16_to_cpu(txp->token));
 		e->skb = t ? t->skb : NULL;
 	}

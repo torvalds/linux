@@ -32,12 +32,6 @@ enum {
 	MT_LMAC_PSMP0,
 };
 
-#define MT_TXD_SIZE			(8 * 4)
-#define MT_SDIO_TXD_SIZE		(MT_TXD_SIZE + 8 * 4)
-#define MT_SDIO_TAIL_SIZE		8
-#define MT_SDIO_HDR_SIZE		4
-#define MT_USB_TAIL_SIZE		4
-
 #define MT_TXD0_Q_IDX			GENMASK(31, 25)
 #define MT_TXD0_PKT_FMT			GENMASK(24, 23)
 #define MT_TXD0_ETH_TYPE_OFFSET		GENMASK(22, 16)
@@ -305,5 +299,12 @@ enum {
 #define MT_CRXV_FOE_LO		GENMASK(31, 19)
 #define MT_CRXV_FOE_HI		GENMASK(6, 0)
 #define MT_CRXV_FOE_SHIFT	13
+
+#define MT_CT_INFO_APPLY_TXD		BIT(0)
+#define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
+#define MT_CT_INFO_MGMT_FRAME		BIT(2)
+#define MT_CT_INFO_NONE_CIPHER_FRAME	BIT(3)
+#define MT_CT_INFO_HSR2_TX		BIT(4)
+#define MT_CT_INFO_FROM_HOST		BIT(7)
 
 #endif /* __MT76_CONNAC2_MAC_H */

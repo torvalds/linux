@@ -165,12 +165,6 @@ enum tx_phy_bandwidth {
 #define MT_CT_INFO_NONE_CIPHER_FRAME	BIT(3)
 #define MT_CT_INFO_HSR2_TX		BIT(4)
 
-#define MT_TXD_SIZE			(8 * 4)
-
-#define MT_USB_TXD_SIZE			(MT_TXD_SIZE + 8 * 4)
-#define MT_USB_HDR_SIZE			4
-#define MT_USB_TAIL_SIZE		4
-
 #define MT_TXD0_P_IDX			BIT(31)
 #define MT_TXD0_Q_IDX			GENMASK(30, 26)
 #define MT_TXD0_UDP_TCP_SUM		BIT(24)
@@ -250,7 +244,6 @@ enum tx_phy_bandwidth {
 #define MT_TX_RATE_MODE			GENMASK(8, 6)
 #define MT_TX_RATE_IDX			GENMASK(5, 0)
 
-#define MT_TXP_MAX_BUF_NUM		6
 #define MT_HW_TXP_MAX_MSDU_NUM		4
 #define MT_HW_TXP_MAX_BUF_NUM		4
 
@@ -274,20 +267,9 @@ struct mt7615_hw_txp {
 	struct mt7615_txp_ptr ptr[MT_HW_TXP_MAX_BUF_NUM / 2];
 } __packed __aligned(4);
 
-struct mt7615_fw_txp {
-	__le16 flags;
-	__le16 token;
-	u8 bss_idx;
-	u8 rept_wds_wcid;
-	u8 rsv;
-	u8 nbuf;
-	__le32 buf[MT_TXP_MAX_BUF_NUM];
-	__le16 len[MT_TXP_MAX_BUF_NUM];
-} __packed __aligned(4);
-
 struct mt7615_txp_common {
 	union {
-		struct mt7615_fw_txp fw;
+		struct mt76_connac_fw_txp fw;
 		struct mt7615_hw_txp hw;
 	};
 };
@@ -384,19 +366,6 @@ struct mt7615_dfs_radar_spec {
 	struct mt7615_dfs_pulse pulse_th;
 	struct mt7615_dfs_pattern radar_pattern[16];
 };
-
-static inline struct mt7615_txp_common *
-mt7615_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
-{
-	u8 *txwi;
-
-	if (!t)
-		return NULL;
-
-	txwi = mt76_get_txwi_ptr(dev, t);
-
-	return (struct mt7615_txp_common *)(txwi + MT_TXD_SIZE);
-}
 
 static inline u32 mt7615_mac_wtbl_addr(struct mt7615_dev *dev, int wcid)
 {

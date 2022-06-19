@@ -17,6 +17,16 @@
 #define MT76_CONNAC_COREDUMP_TIMEOUT		(HZ / 20)
 #define MT76_CONNAC_COREDUMP_SZ			(1300 * 1024)
 
+#define MT_TXD_SIZE				(8 * 4)
+
+#define MT_USB_TXD_SIZE				(MT_TXD_SIZE + 8 * 4)
+#define MT_USB_HDR_SIZE				4
+#define MT_USB_TAIL_SIZE			4
+
+#define MT_SDIO_TXD_SIZE			(MT_TXD_SIZE + 8 * 4)
+#define MT_SDIO_TAIL_SIZE			8
+#define MT_SDIO_HDR_SIZE			4
+
 enum {
 	CMD_CBW_20MHZ = IEEE80211_STA_RX_BW_20,
 	CMD_CBW_40MHZ = IEEE80211_STA_RX_BW_40,
@@ -91,6 +101,18 @@ struct mt76_connac_sta_key_conf {
 	s8 keyidx;
 	u8 key[16];
 };
+
+#define MT_TXP_MAX_BUF_NUM		6
+
+struct mt76_connac_fw_txp {
+	__le16 flags;
+	__le16 token;
+	u8 bss_idx;
+	__le16 rept_wds_wcid;
+	u8 nbuf;
+	__le32 buf[MT_TXP_MAX_BUF_NUM];
+	__le16 len[MT_TXP_MAX_BUF_NUM];
+} __packed __aligned(4);
 
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
@@ -170,6 +192,19 @@ static inline u8 mt76_connac_lmac_mapping(u8 ac)
 {
 	/* LMAC uses the reverse order of mac80211 AC indexes */
 	return 3 - ac;
+}
+
+static inline void *
+mt76_connac_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
+{
+	u8 *txwi;
+
+	if (!t)
+		return NULL;
+
+	txwi = mt76_get_txwi_ptr(dev, t);
+
+	return (void *)(txwi + MT_TXD_SIZE);
 }
 
 int mt76_connac_pm_wake(struct mt76_phy *phy, struct mt76_connac_pm *pm);

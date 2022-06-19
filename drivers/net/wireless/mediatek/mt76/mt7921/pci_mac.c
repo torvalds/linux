@@ -90,7 +90,7 @@ mt7921_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 	struct mt7921_txp_common *txp;
 	int i;
 
-	txp = mt7921_txwi_to_txp(dev, t);
+	txp = mt76_connac_txwi_to_txp(dev, t);
 
 	for (i = 0; i < ARRAY_SIZE(txp->hw.ptr); i++) {
 		struct mt7921_txp_ptr *ptr = &txp->hw.ptr[i];
@@ -275,7 +275,7 @@ void mt7921e_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 		struct mt7921_txp_common *txp;
 		u16 token;
 
-		txp = mt7921_txwi_to_txp(mdev, e->txwi);
+		txp = mt76_connac_txwi_to_txp(mdev, e->txwi);
 		token = le16_to_cpu(txp->hw.msdu_id[0]) & ~MT_MSDU_ID_VALID;
 		t = mt76_token_put(mdev, token);
 		e->skb = t ? t->skb : NULL;

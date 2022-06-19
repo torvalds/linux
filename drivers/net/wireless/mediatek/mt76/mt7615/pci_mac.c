@@ -29,7 +29,7 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 		u16 token;
 
 		dev = container_of(mdev, struct mt7615_dev, mt76);
-		txp = mt7615_txwi_to_txp(mdev, e->txwi);
+		txp = mt76_connac_txwi_to_txp(mdev, e->txwi);
 
 		if (is_mt7615(&dev->mt76))
 			token = le16_to_cpu(txp->fw.token);
@@ -91,7 +91,8 @@ mt7615_write_fw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
 	struct ieee80211_vif *vif = info->control.vif;
-	struct mt7615_fw_txp *txp = txp_ptr;
+	struct mt76_connac_fw_txp *txp = txp_ptr;
+	u8 *rept_wds_wcid = (u8 *)&txp->rept_wds_wcid;
 	int nbuf = tx_info->nbuf - 1;
 	int i;
 
@@ -122,7 +123,7 @@ mt7615_write_fw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
 	}
 
 	txp->token = cpu_to_le16(id);
-	txp->rept_wds_wcid = 0xff;
+	*rept_wds_wcid = 0xff;
 }
 
 int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,

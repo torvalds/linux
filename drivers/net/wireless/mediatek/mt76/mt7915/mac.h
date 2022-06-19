@@ -42,25 +42,6 @@ enum tx_mcu_port_q_idx {
 	MT_TX_MCU_PORT_RX_FWDL = 0x3e
 };
 
-#define MT_CT_INFO_APPLY_TXD		BIT(0)
-#define MT_CT_INFO_COPY_HOST_TXD_ALL	BIT(1)
-#define MT_CT_INFO_MGMT_FRAME		BIT(2)
-#define MT_CT_INFO_NONE_CIPHER_FRAME	BIT(3)
-#define MT_CT_INFO_HSR2_TX		BIT(4)
-#define MT_CT_INFO_FROM_HOST		BIT(7)
-
-#define MT_TXP_MAX_BUF_NUM		6
-
-struct mt7915_txp {
-	__le16 flags;
-	__le16 token;
-	u8 bss_idx;
-	__le16 rept_wds_wcid;
-	u8 nbuf;
-	__le32 buf[MT_TXP_MAX_BUF_NUM];
-	__le16 len[MT_TXP_MAX_BUF_NUM];
-} __packed __aligned(4);
-
 struct mt7915_tx_free {
 	__le16 rx_byte_cnt;
 	__le16 ctrl;
@@ -136,18 +117,5 @@ struct mt7915_dfs_radar_spec {
 	struct mt7915_dfs_pulse pulse_th;
 	struct mt7915_dfs_pattern radar_pattern[16];
 };
-
-static inline struct mt7915_txp *
-mt7915_txwi_to_txp(struct mt76_dev *dev, struct mt76_txwi_cache *t)
-{
-	u8 *txwi;
-
-	if (!t)
-		return NULL;
-
-	txwi = mt76_get_txwi_ptr(dev, t);
-
-	return (struct mt7915_txp *)(txwi + MT_TXD_SIZE);
-}
 
 #endif
