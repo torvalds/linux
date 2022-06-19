@@ -339,9 +339,10 @@ static bool tb_dp_is_usb4(const struct tb_switch *sw)
 	return tb_switch_is_usb4(sw) || tb_switch_is_titan_ridge(sw);
 }
 
-static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
+static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out,
+			      int timeout_msec)
 {
-	int timeout = 10;
+	ktime_t timeout = ktime_add_ms(ktime_get(), timeout_msec);
 	u32 val;
 	int ret;
 
@@ -368,8 +369,8 @@ static int tb_dp_cm_handshake(struct tb_port *in, struct tb_port *out)
 			return ret;
 		if (!(val & DP_STATUS_CTRL_CMHS))
 			return 0;
-		usleep_range(10, 100);
-	} while (timeout--);
+		usleep_range(100, 150);
+	} while (ktime_before(ktime_get(), timeout));
 
 	return -ETIMEDOUT;
 }
@@ -519,7 +520,7 @@ static int tb_dp_xchg_caps(struct tb_tunnel *tunnel)
 	 * Perform connection manager handshake between IN and OUT ports
 	 * before capabilities exchange can take place.
 	 */
-	ret = tb_dp_cm_handshake(in, out);
+	ret = tb_dp_cm_handshake(in, out, 1500);
 	if (ret)
 		return ret;
 
