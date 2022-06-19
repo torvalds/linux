@@ -2198,6 +2198,23 @@ MLXSW_ITEM32(reg, smid2, swid, 0x00, 24, 8);
  */
 MLXSW_ITEM32(reg, smid2, mid, 0x00, 0, 16);
 
+/* reg_smid2_smpe_valid
+ * SMPE is valid.
+ * When not valid, the egress VID will not be modified by the SMPE table.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used and on Spectrum-2.
+ */
+MLXSW_ITEM32(reg, smid2, smpe_valid, 0x08, 20, 1);
+
+/* reg_smid2_smpe
+ * Switch multicast port to egress VID.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used and on Spectrum-2.
+ */
+MLXSW_ITEM32(reg, smid2, smpe, 0x08, 0, 16);
+
 /* reg_smid2_port
  * Local port memebership (1 bit per port).
  * Access: RW
@@ -2211,13 +2228,15 @@ MLXSW_ITEM_BIT_ARRAY(reg, smid2, port, 0x20, 0x80, 1);
 MLXSW_ITEM_BIT_ARRAY(reg, smid2, port_mask, 0xA0, 0x80, 1);
 
 static inline void mlxsw_reg_smid2_pack(char *payload, u16 mid, u16 port,
-					bool set)
+					bool set, bool smpe_valid, u16 smpe)
 {
 	MLXSW_REG_ZERO(smid2, payload);
 	mlxsw_reg_smid2_swid_set(payload, 0);
 	mlxsw_reg_smid2_mid_set(payload, mid);
 	mlxsw_reg_smid2_port_set(payload, port, set);
 	mlxsw_reg_smid2_port_mask_set(payload, port, 1);
+	mlxsw_reg_smid2_smpe_valid_set(payload, smpe_valid);
+	mlxsw_reg_smid2_smpe_set(payload, smpe_valid ? smpe : 0);
 }
 
 /* CWTP - Congetion WRED ECN TClass Profile

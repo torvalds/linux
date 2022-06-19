@@ -887,7 +887,7 @@ static int mlxsw_sp_smid_router_port_set(struct mlxsw_sp *mlxsw_sp,
 		return -ENOMEM;
 
 	mlxsw_reg_smid2_pack(smid2_pl, mid_idx,
-			     mlxsw_sp_router_port(mlxsw_sp), add);
+			     mlxsw_sp_router_port(mlxsw_sp), add, false, 0);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);
 	kfree(smid2_pl);
 	return err;
@@ -1584,7 +1584,7 @@ static int mlxsw_sp_port_smid_full_entry(struct mlxsw_sp *mlxsw_sp, u16 mid_idx,
 	if (!smid2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_smid2_pack(smid2_pl, mid_idx, 0, false);
+	mlxsw_reg_smid2_pack(smid2_pl, mid_idx, 0, false, false, 0);
 	for (i = 1; i < mlxsw_core_max_ports(mlxsw_sp->core); i++) {
 		if (mlxsw_sp->ports[i])
 			mlxsw_reg_smid2_port_mask_set(smid2_pl, i, 1);
@@ -1615,7 +1615,8 @@ static int mlxsw_sp_port_smid_set(struct mlxsw_sp_port *mlxsw_sp_port,
 	if (!smid2_pl)
 		return -ENOMEM;
 
-	mlxsw_reg_smid2_pack(smid2_pl, mid_idx, mlxsw_sp_port->local_port, add);
+	mlxsw_reg_smid2_pack(smid2_pl, mid_idx, mlxsw_sp_port->local_port, add,
+			     false, 0);
 	err = mlxsw_reg_write(mlxsw_sp->core, MLXSW_REG(smid2), smid2_pl);
 	kfree(smid2_pl);
 	return err;
