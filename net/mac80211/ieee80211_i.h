@@ -1543,6 +1543,28 @@ ieee80211_get_sband(struct ieee80211_sub_if_data *sdata)
 	return local->hw.wiphy->bands[band];
 }
 
+static inline struct ieee80211_supported_band *
+ieee80211_get_link_sband(struct ieee80211_sub_if_data *sdata, u32 link_id)
+{
+	struct ieee80211_local *local = sdata->local;
+	struct ieee80211_chanctx_conf *chanctx_conf;
+	enum nl80211_band band;
+
+	rcu_read_lock();
+	chanctx_conf =
+		rcu_dereference(sdata->vif.link_conf[link_id]->chanctx_conf);
+
+	if (!chanctx_conf) {
+		rcu_read_unlock();
+		return NULL;
+	}
+
+	band = chanctx_conf->def.chan->band;
+	rcu_read_unlock();
+
+	return local->hw.wiphy->bands[band];
+}
+
 /* this struct holds the value parsing from channel switch IE  */
 struct ieee80211_csa_ie {
 	struct cfg80211_chan_def chandef;
