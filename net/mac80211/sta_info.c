@@ -616,36 +616,6 @@ struct sta_info *sta_info_alloc(struct ieee80211_sub_if_data *sdata,
 	}
 
 	sta->sta.smps_mode = IEEE80211_SMPS_OFF;
-	if (sdata->vif.type == NL80211_IFTYPE_AP ||
-	    sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
-		struct ieee80211_supported_band *sband;
-		u8 smps;
-
-		sband = ieee80211_get_sband(sdata);
-		if (!sband)
-			goto free_txq;
-
-		smps = (sband->ht_cap.cap & IEEE80211_HT_CAP_SM_PS) >>
-			IEEE80211_HT_CAP_SM_PS_SHIFT;
-		/*
-		 * Assume that hostapd advertises our caps in the beacon and
-		 * this is the known_smps_mode for a station that just assciated
-		 */
-		switch (smps) {
-		case WLAN_HT_SMPS_CONTROL_DISABLED:
-			sta->known_smps_mode = IEEE80211_SMPS_OFF;
-			break;
-		case WLAN_HT_SMPS_CONTROL_STATIC:
-			sta->known_smps_mode = IEEE80211_SMPS_STATIC;
-			break;
-		case WLAN_HT_SMPS_CONTROL_DYNAMIC:
-			sta->known_smps_mode = IEEE80211_SMPS_DYNAMIC;
-			break;
-		default:
-			WARN_ON(1);
-		}
-	}
-
 	sta->sta.max_rc_amsdu_len = IEEE80211_MAX_MPDU_LEN_HT_BA;
 
 	sta->cparams.ce_threshold = CODEL_DISABLED_THRESHOLD;

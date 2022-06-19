@@ -225,9 +225,6 @@ static void ieee80211_frame_acked(struct sta_info *sta, struct sk_buff *skb)
 			 */
 			sdata->deflink.smps_mode = smps_mode;
 			ieee80211_queue_work(&local->hw, &sdata->recalc_smps);
-		} else if (sdata->vif.type == NL80211_IFTYPE_AP ||
-			   sdata->vif.type == NL80211_IFTYPE_AP_VLAN) {
-			sta->known_smps_mode = smps_mode;
 		}
 	}
 }
