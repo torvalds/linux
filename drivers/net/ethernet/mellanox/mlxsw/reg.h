@@ -1761,7 +1761,7 @@ static inline void mlxsw_reg_svpe_pack(char *payload, u16 local_port,
  * Creates and configures FIDs.
  */
 #define MLXSW_REG_SFMR_ID 0x201F
-#define MLXSW_REG_SFMR_LEN 0x18
+#define MLXSW_REG_SFMR_LEN 0x30
 
 MLXSW_REG_DEFINE(sfmr, MLXSW_REG_SFMR_ID, MLXSW_REG_SFMR_LEN);
 
@@ -1857,6 +1857,25 @@ MLXSW_ITEM32(reg, sfmr, irif_v, 0x14, 24, 1);
  * Note: Reserved when legacy bridge model is used and when irif_v=0.
  */
 MLXSW_ITEM32(reg, sfmr, irif, 0x14, 0, 16);
+
+/* reg_sfmr_smpe_valid
+ * SMPE is valid.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used, when flood_rsp=1 and on
+ * Spectrum-1.
+ */
+MLXSW_ITEM32(reg, sfmr, smpe_valid, 0x28, 20, 1);
+
+/* reg_sfmr_smpe
+ * Switch multicast port to egress VID.
+ * Range is 0..cap_max_rmpe-1
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used, when flood_rsp=1 and on
+ * Spectrum-1.
+ */
+MLXSW_ITEM32(reg, sfmr, smpe, 0x28, 0, 16);
 
 static inline void mlxsw_reg_sfmr_pack(char *payload,
 				       enum mlxsw_reg_sfmr_op op, u16 fid,
