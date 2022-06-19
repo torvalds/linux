@@ -186,7 +186,7 @@ int mt7615_mmio_probe(struct device *pdev, void __iomem *mem_base,
 {
 	static const struct mt76_driver_ops drv_ops = {
 		/* txwi_size = txd size + txp size */
-		.txwi_size = MT_TXD_SIZE + sizeof(struct mt7615_txp_common),
+		.txwi_size = MT_TXD_SIZE + sizeof(struct mt76_connac_txp_common),
 		.drv_flags = MT_DRV_TXWI_NO_FREE | MT_DRV_HW_MGMT_TXQ,
 		.survey_flags = SURVEY_INFO_TIME_TX |
 				SURVEY_INFO_TIME_RX |

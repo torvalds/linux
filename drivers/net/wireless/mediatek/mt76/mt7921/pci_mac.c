@@ -9,8 +9,8 @@ static void
 mt7921_write_hw_txp(struct mt7921_dev *dev, struct mt76_tx_info *tx_info,
 		    void *txp_ptr, u32 id)
 {
-	struct mt7921_hw_txp *txp = txp_ptr;
-	struct mt7921_txp_ptr *ptr = &txp->ptr[0];
+	struct mt76_connac_hw_txp *txp = txp_ptr;
+	struct mt76_connac_txp_ptr *ptr = &txp->ptr[0];
 	int i, nbuf = tx_info->nbuf - 1;
 
 	tx_info->buf[0].len = MT_TXD_SIZE + sizeof(*txp);
@@ -44,8 +44,8 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	struct mt7921_dev *dev = container_of(mdev, struct mt7921_dev, mt76);
 	struct ieee80211_tx_info *info = IEEE80211_SKB_CB(tx_info->skb);
 	struct ieee80211_key_conf *key = info->control.hw_key;
+	struct mt76_connac_hw_txp *txp;
 	struct mt76_txwi_cache *t;
-	struct mt7921_txp_common *txp;
 	int id, pid;
 	u8 *txwi = (u8 *)txwi_ptr;
 
@@ -75,8 +75,8 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 	mt76_connac2_mac_write_txwi(mdev, txwi_ptr, tx_info->skb, wcid, key,
 				    pid, 0);
 
-	txp = (struct mt7921_txp_common *)(txwi + MT_TXD_SIZE);
-	memset(txp, 0, sizeof(struct mt7921_txp_common));
+	txp = (struct mt76_connac_hw_txp *)(txwi + MT_TXD_SIZE);
+	memset(txp, 0, sizeof(struct mt76_connac_hw_txp));
 	mt7921_write_hw_txp(dev, tx_info, txp, id);
 
 	tx_info->skb = DMA_DUMMY_DATA;
@@ -87,13 +87,13 @@ int mt7921e_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 static void
 mt7921_txp_skb_unmap(struct mt76_dev *dev, struct mt76_txwi_cache *t)
 {
-	struct mt7921_txp_common *txp;
+	struct mt76_connac_txp_common *txp;
 	int i;
 
 	txp = mt76_connac_txwi_to_txp(dev, t);
 
 	for (i = 0; i < ARRAY_SIZE(txp->hw.ptr); i++) {
-		struct mt7921_txp_ptr *ptr = &txp->hw.ptr[i];
+		struct mt76_connac_txp_ptr *ptr = &txp->hw.ptr[i];
 		bool last;
 		u16 len;
 
@@ -271,8 +271,8 @@ void mt7921e_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 
 	/* error path */
 	if (e->skb == DMA_DUMMY_DATA) {
+		struct mt76_connac_txp_common *txp;
 		struct mt76_txwi_cache *t;
-		struct mt7921_txp_common *txp;
 		u16 token;
 
 		txp = mt76_connac_txwi_to_txp(mdev, e->txwi);

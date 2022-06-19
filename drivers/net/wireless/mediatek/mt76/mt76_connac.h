@@ -114,6 +114,28 @@ struct mt76_connac_fw_txp {
 	__le16 len[MT_TXP_MAX_BUF_NUM];
 } __packed __aligned(4);
 
+#define MT_HW_TXP_MAX_MSDU_NUM		4
+#define MT_HW_TXP_MAX_BUF_NUM		4
+
+struct mt76_connac_txp_ptr {
+	__le32 buf0;
+	__le16 len0;
+	__le16 len1;
+	__le32 buf1;
+} __packed __aligned(4);
+
+struct mt76_connac_hw_txp {
+	__le16 msdu_id[MT_HW_TXP_MAX_MSDU_NUM];
+	struct mt76_connac_txp_ptr ptr[MT_HW_TXP_MAX_BUF_NUM / 2];
+} __packed __aligned(4);
+
+struct mt76_connac_txp_common {
+	union {
+		struct mt76_connac_fw_txp fw;
+		struct mt76_connac_hw_txp hw;
+	};
+};
+
 extern const struct wiphy_wowlan_support mt76_connac_wowlan_support;
 
 static inline bool is_mt7922(struct mt76_dev *dev)

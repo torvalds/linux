@@ -23,9 +23,9 @@ void mt7615_tx_complete_skb(struct mt76_dev *mdev, struct mt76_queue_entry *e)
 
 	/* error path */
 	if (e->skb == DMA_DUMMY_DATA) {
+		struct mt76_connac_txp_common *txp;
 		struct mt76_txwi_cache *t;
 		struct mt7615_dev *dev;
-		struct mt7615_txp_common *txp;
 		u16 token;
 
 		dev = container_of(mdev, struct mt7615_dev, mt76);
@@ -49,8 +49,8 @@ static void
 mt7615_write_hw_txp(struct mt7615_dev *dev, struct mt76_tx_info *tx_info,
 		    void *txp_ptr, u32 id)
 {
-	struct mt7615_hw_txp *txp = txp_ptr;
-	struct mt7615_txp_ptr *ptr = &txp->ptr[0];
+	struct mt76_connac_hw_txp *txp = txp_ptr;
+	struct mt76_connac_txp_ptr *ptr = &txp->ptr[0];
 	int i, nbuf = tx_info->nbuf - 1;
 	u32 last_mask;
 
@@ -168,7 +168,7 @@ int mt7615_tx_prepare_skb(struct mt76_dev *mdev, void *txwi_ptr,
 			      pid, key, false);
 
 	txp = txwi + MT_TXD_SIZE;
-	memset(txp, 0, sizeof(struct mt7615_txp_common));
+	memset(txp, 0, sizeof(struct mt76_connac_txp_common));
 	if (is_mt7615(&dev->mt76))
 		mt7615_write_fw_txp(dev, tx_info, txp, id);
 	else

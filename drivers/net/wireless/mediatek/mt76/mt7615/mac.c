@@ -887,7 +887,7 @@ mt7615_txp_skb_unmap_fw(struct mt76_dev *dev, struct mt76_connac_fw_txp *txp)
 }
 
 static void
-mt7615_txp_skb_unmap_hw(struct mt76_dev *dev, struct mt7615_hw_txp *txp)
+mt7615_txp_skb_unmap_hw(struct mt76_dev *dev, struct mt76_connac_hw_txp *txp)
 {
 	u32 last_mask;
 	int i;
@@ -895,7 +895,7 @@ mt7615_txp_skb_unmap_hw(struct mt76_dev *dev, struct mt7615_hw_txp *txp)
 	last_mask = is_mt7663(dev) ? MT_TXD_LEN_LAST : MT_TXD_LEN_MSDU_LAST;
 
 	for (i = 0; i < ARRAY_SIZE(txp->ptr); i++) {
-		struct mt7615_txp_ptr *ptr = &txp->ptr[i];
+		struct mt76_connac_txp_ptr *ptr = &txp->ptr[i];
 		bool last;
 		u16 len;
 
@@ -920,7 +920,7 @@ mt7615_txp_skb_unmap_hw(struct mt76_dev *dev, struct mt7615_hw_txp *txp)
 void mt7615_txp_skb_unmap(struct mt76_dev *dev,
 			  struct mt76_txwi_cache *t)
 {
-	struct mt7615_txp_common *txp;
+	struct mt76_connac_txp_common *txp;
 
 	txp = mt76_connac_txwi_to_txp(dev, t);
 	if (is_mt7615(dev))
