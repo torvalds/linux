@@ -2581,7 +2581,7 @@ static int hl_cs_poll_fences(struct multi_cs_data *mcs_data, struct multi_cs_com
 			 * For this we have to validate that the timestamp is
 			 * earliest of all timestamps so far.
 			 */
-			if (mcs_data->update_ts &&
+			if (fence && mcs_data->update_ts &&
 					(ktime_compare(fence->timestamp, first_cs_time) < 0))
 				first_cs_time = fence->timestamp;
 			break;
