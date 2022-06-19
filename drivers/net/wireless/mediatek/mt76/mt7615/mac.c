@@ -1638,7 +1638,8 @@ mt7615_mac_tx_free_token(struct mt7615_dev *dev, u16 token)
 
 static void mt7615_mac_tx_free(struct mt7615_dev *dev, void *data, int len)
 {
-	struct mt7615_tx_free *free = (struct mt7615_tx_free *)data;
+	struct mt76_connac_tx_free *free = data;
+	void *tx_token = data + sizeof(*free);
 	void *end = data + len;
 	u8 i, count;
 
@@ -1652,7 +1653,7 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, void *data, int len)
 
 	count = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_ID_CNT);
 	if (is_mt7615(&dev->mt76)) {
-		__le16 *token = &free->token[0];
+		__le16 *token = tx_token;
 
 		if (WARN_ON_ONCE((void *)&token[count] > end))
 			return;
@@ -1660,7 +1661,7 @@ static void mt7615_mac_tx_free(struct mt7615_dev *dev, void *data, int len)
 		for (i = 0; i < count; i++)
 			mt7615_mac_tx_free_token(dev, le16_to_cpu(token[i]));
 	} else {
-		__le32 *token = (__le32 *)&free->token[0];
+		__le32 *token = tx_token;
 
 		if (WARN_ON_ONCE((void *)&token[count] > end))
 			return;

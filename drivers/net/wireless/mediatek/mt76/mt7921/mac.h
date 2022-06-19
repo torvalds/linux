@@ -42,14 +42,6 @@ enum tx_mcu_port_q_idx {
 	MT_TX_MCU_PORT_RX_FWDL = 0x3e
 };
 
-struct mt7921_tx_free {
-	__le16 rx_byte_cnt;
-	__le16 ctrl;
-	u8 txd_cnt;
-	u8 rsv[3];
-	__le32 info[];
-} __packed __aligned(4);
-
 #define MT_TX_FREE_MSDU_CNT		GENMASK(9, 0)
 #define MT_TX_FREE_WLAN_ID		GENMASK(23, 14)
 #define MT_TX_FREE_LATENCY		GENMASK(12, 0)

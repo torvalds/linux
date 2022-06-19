@@ -150,7 +150,8 @@ out:
 static void
 mt7921e_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 {
-	struct mt7921_tx_free *free = (struct mt7921_tx_free *)data;
+	struct mt76_connac_tx_free *free = data;
+	__le32 *tx_info = (__le32 *)(data + sizeof(*free));
 	struct mt76_dev *mdev = &dev->mt76;
 	struct mt76_txwi_cache *txwi;
 	struct ieee80211_sta *sta = NULL;
@@ -165,11 +166,11 @@ mt7921e_mac_tx_free(struct mt7921_dev *dev, void *data, int len)
 	mt76_queue_tx_cleanup(dev, dev->mphy.q_tx[MT_TXQ_BE], false);
 
 	count = le16_get_bits(free->ctrl, MT_TX_FREE_MSDU_CNT);
-	if (WARN_ON_ONCE((void *)&free->info[count] > end))
+	if (WARN_ON_ONCE((void *)&tx_info[count] > end))
 		return;
 
 	for (i = 0; i < count; i++) {
-		u32 msdu, info = le32_to_cpu(free->info[i]);
+		u32 msdu, info = le32_to_cpu(tx_info[i]);
 		u8 stat;
 
 		/* 1'b1: new wcid pair.

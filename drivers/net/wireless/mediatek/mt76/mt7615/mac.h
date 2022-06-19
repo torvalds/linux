@@ -252,14 +252,6 @@ enum tx_phy_bandwidth {
 /* mt7663 */
 #define MT_TXD_LEN_LAST			BIT(15)
 
-struct mt7615_tx_free {
-	__le16 rx_byte_cnt;
-	__le16 ctrl;
-	u8 txd_cnt;
-	u8 rsv[3];
-	__le16 token[];
-} __packed __aligned(4);
-
 #define MT_TX_FREE_MSDU_ID_CNT		GENMASK(6, 0)
 
 #define MT_TXS0_PID			GENMASK(31, 24)
