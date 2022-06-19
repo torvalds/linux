@@ -6911,11 +6911,20 @@ MLXSW_ITEM32(reg, ritr, if_vrrp_id_ipv4, 0x1C, 0, 8);
 
 /* VLAN Interface */
 
-/* reg_ritr_vlan_if_vid
+/* reg_ritr_vlan_if_vlan_id
  * VLAN ID.
  * Access: RW
  */
-MLXSW_ITEM32(reg, ritr, vlan_if_vid, 0x08, 0, 12);
+MLXSW_ITEM32(reg, ritr, vlan_if_vlan_id, 0x08, 0, 12);
+
+/* reg_ritr_vlan_if_efid
+ * Egress FID.
+ * Used to connect the RIF to a bridge.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used and on Spectrum-1.
+ */
+MLXSW_ITEM32(reg, ritr, vlan_if_efid, 0x0C, 0, 16);
 
 /* FID Interface */
 
@@ -6935,7 +6944,7 @@ static inline void mlxsw_reg_ritr_fid_set(char *payload,
 	if (rif_type == MLXSW_REG_RITR_FID_IF)
 		mlxsw_reg_ritr_fid_if_fid_set(payload, fid);
 	else
-		mlxsw_reg_ritr_vlan_if_vid_set(payload, fid);
+		mlxsw_reg_ritr_vlan_if_vlan_id_set(payload, fid);
 }
 
 /* Sub-port Interface */
@@ -7137,6 +7146,20 @@ static inline void mlxsw_reg_ritr_pack(char *payload, bool enable,
 static inline void mlxsw_reg_ritr_mac_pack(char *payload, const char *mac)
 {
 	mlxsw_reg_ritr_if_mac_memcpy_to(payload, mac);
+}
+
+static inline void
+mlxsw_reg_ritr_vlan_if_pack(char *payload, bool enable, u16 rif, u16 vr_id,
+			    u16 mtu, const char *mac, u8 mac_profile_id,
+			    u16 vlan_id, u16 efid)
+{
+	enum mlxsw_reg_ritr_if_type type = MLXSW_REG_RITR_VLAN_IF;
+
+	mlxsw_reg_ritr_pack(payload, enable, type, rif, vr_id, mtu);
+	mlxsw_reg_ritr_if_mac_memcpy_to(payload, mac);
+	mlxsw_reg_ritr_if_mac_profile_id_set(payload, mac_profile_id);
+	mlxsw_reg_ritr_vlan_if_vlan_id_set(payload, vlan_id);
+	mlxsw_reg_ritr_vlan_if_efid_set(payload, efid);
 }
 
 static inline void
