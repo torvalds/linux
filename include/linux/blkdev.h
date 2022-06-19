@@ -148,6 +148,7 @@ struct gendisk {
 #define GD_NATIVE_CAPACITY		3
 #define GD_ADDED			4
 #define GD_SUPPRESS_PART_SCAN		5
+#define GD_OWNS_QUEUE			6
 
 	struct mutex open_mutex;	/* open/close mutex */
 	unsigned open_partitions;	/* number of open partitions */
@@ -815,8 +816,6 @@ static inline u64 sb_bdev_nr_blocks(struct super_block *sb)
 
 int bdev_disk_changed(struct gendisk *disk, bool invalidate);
 
-struct gendisk *__alloc_disk_node(struct request_queue *q, int node_id,
-		struct lock_class_key *lkclass);
 void put_disk(struct gendisk *disk);
 struct gendisk *__blk_alloc_disk(int node, struct lock_class_key *lkclass);
 
@@ -933,7 +932,6 @@ static inline unsigned int blk_chunk_sectors_left(sector_t offset,
 /*
  * Access functions for manipulating queue properties
  */
-extern void blk_cleanup_queue(struct request_queue *);
 void blk_queue_bounce_limit(struct request_queue *q, enum blk_bounce limit);
 extern void blk_queue_max_hw_sectors(struct request_queue *, unsigned int);
 extern void blk_queue_chunk_sectors(struct request_queue *, unsigned int);

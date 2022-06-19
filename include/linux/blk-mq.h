@@ -686,10 +686,13 @@ struct gendisk *__blk_mq_alloc_disk(struct blk_mq_tag_set *set, void *queuedata,
 									\
 	__blk_mq_alloc_disk(set, queuedata, &__key);			\
 })
+struct gendisk *blk_mq_alloc_disk_for_queue(struct request_queue *q,
+		struct lock_class_key *lkclass);
 struct request_queue *blk_mq_init_queue(struct blk_mq_tag_set *);
 int blk_mq_init_allocated_queue(struct blk_mq_tag_set *set,
 		struct request_queue *q);
 void blk_mq_unregister_dev(struct device *, struct request_queue *);
+void blk_mq_destroy_queue(struct request_queue *);
 
 int blk_mq_alloc_tag_set(struct blk_mq_tag_set *set);
 int blk_mq_alloc_sq_tag_set(struct blk_mq_tag_set *set,

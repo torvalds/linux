@@ -2392,7 +2392,7 @@ nvme_fc_ctrl_free(struct kref *ref)
 	unsigned long flags;
 
 	if (ctrl->ctrl.tagset) {
-		blk_cleanup_queue(ctrl->ctrl.connect_q);
+		blk_mq_destroy_queue(ctrl->ctrl.connect_q);
 		blk_mq_free_tag_set(&ctrl->tag_set);
 	}
 
@@ -2402,8 +2402,8 @@ nvme_fc_ctrl_free(struct kref *ref)
 	spin_unlock_irqrestore(&ctrl->rport->lock, flags);
 
 	nvme_start_admin_queue(&ctrl->ctrl);
-	blk_cleanup_queue(ctrl->ctrl.admin_q);
-	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
+	blk_mq_destroy_queue(ctrl->ctrl.admin_q);
+	blk_mq_destroy_queue(ctrl->ctrl.fabrics_q);
 	blk_mq_free_tag_set(&ctrl->admin_tag_set);
 
 	kfree(ctrl->queues);
@@ -2953,7 +2953,7 @@ nvme_fc_create_io_queues(struct nvme_fc_ctrl *ctrl)
 out_delete_hw_queues:
 	nvme_fc_delete_hw_io_queues(ctrl);
 out_cleanup_blk_queue:
-	blk_cleanup_queue(ctrl->ctrl.connect_q);
+	blk_mq_destroy_queue(ctrl->ctrl.connect_q);
 out_free_tag_set:
 	blk_mq_free_tag_set(&ctrl->tag_set);
 	nvme_fc_free_io_queues(ctrl);
@@ -3642,9 +3642,9 @@ fail_ctrl:
 	return ERR_PTR(-EIO);
 
 out_cleanup_admin_q:
-	blk_cleanup_queue(ctrl->ctrl.admin_q);
+	blk_mq_destroy_queue(ctrl->ctrl.admin_q);
 out_cleanup_fabrics_q:
-	blk_cleanup_queue(ctrl->ctrl.fabrics_q);
+	blk_mq_destroy_queue(ctrl->ctrl.fabrics_q);
 out_free_admin_tag_set:
 	blk_mq_free_tag_set(&ctrl->admin_tag_set);
 out_free_queues:

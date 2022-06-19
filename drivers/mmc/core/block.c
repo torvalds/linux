@@ -2509,7 +2509,6 @@ static struct mmc_blk_data *mmc_blk_alloc_req(struct mmc_card *card,
 	return md;
 
  err_cleanup_queue:
-	blk_cleanup_queue(md->disk->queue);
 	blk_mq_free_tag_set(&md->queue.tag_set);
  err_kfree:
 	kfree(md);

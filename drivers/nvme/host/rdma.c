@@ -840,8 +840,8 @@ static void nvme_rdma_destroy_admin_queue(struct nvme_rdma_ctrl *ctrl,
 		bool remove)
 {
 	if (remove) {
-		blk_cleanup_queue(ctrl->ctrl.admin_q);
-		blk_cleanup_queue(ctrl->ctrl.fabrics_q);
+		blk_mq_destroy_queue(ctrl->ctrl.admin_q);
+		blk_mq_destroy_queue(ctrl->ctrl.fabrics_q);
 		blk_mq_free_tag_set(ctrl->ctrl.admin_tagset);
 	}
 	if (ctrl->async_event_sqe.data) {
@@ -935,10 +935,10 @@ out_stop_queue:
 	nvme_cancel_admin_tagset(&ctrl->ctrl);
 out_cleanup_queue:
 	if (new)
-		blk_cleanup_queue(ctrl->ctrl.admin_q);
+		blk_mq_destroy_queue(ctrl->ctrl.admin_q);
 out_cleanup_fabrics_q:
 	if (new)
-		blk_cleanup_queue(ctrl->ctrl.fabrics_q);
+		blk_mq_destroy_queue(ctrl->ctrl.fabrics_q);
 out_free_tagset:
 	if (new)
 		blk_mq_free_tag_set(ctrl->ctrl.admin_tagset);
@@ -957,7 +957,7 @@ static void nvme_rdma_destroy_io_queues(struct nvme_rdma_ctrl *ctrl,
 		bool remove)
 {
 	if (remove) {
-		blk_cleanup_queue(ctrl->ctrl.connect_q);
+		blk_mq_destroy_queue(ctrl->ctrl.connect_q);
 		blk_mq_free_tag_set(ctrl->ctrl.tagset);
 	}
 	nvme_rdma_free_io_queues(ctrl);
@@ -1012,7 +1012,7 @@ out_wait_freeze_timed_out:
 out_cleanup_connect_q:
 	nvme_cancel_tagset(&ctrl->ctrl);
 	if (new)
-		blk_cleanup_queue(ctrl->ctrl.connect_q);
+		blk_mq_destroy_queue(ctrl->ctrl.connect_q);
 out_free_tag_set:
 	if (new)
 		blk_mq_free_tag_set(ctrl->ctrl.tagset);

@@ -1294,7 +1294,6 @@ static void mspro_block_remove(struct memstick_dev *card)
 	del_gendisk(msb->disk);
 	dev_dbg(&card->dev, "mspro block remove\n");
 
-	blk_cleanup_queue(msb->queue);
 	blk_mq_free_tag_set(&msb->tag_set);
 	msb->queue = NULL;
 

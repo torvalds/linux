@@ -1755,7 +1755,7 @@ static void rnbd_destroy_sessions(void)
 		list_for_each_entry_safe(dev, tn, &sess->devs_list, list) {
 			/*
 			 * Here unmap happens in parallel for only one reason:
-			 * blk_cleanup_queue() takes around half a second, so
+			 * del_gendisk() takes around half a second, so
 			 * on huge amount of devices the whole module unload
 			 * procedure takes minutes.
 			 */

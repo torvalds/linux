@@ -4103,7 +4103,6 @@ static void nvme_ns_remove(struct nvme_ns *ns)
 	if (!nvme_ns_head_multipath(ns->head))
 		nvme_cdev_del(&ns->cdev, &ns->cdev_device);
 	del_gendisk(ns->disk);
-	blk_cleanup_queue(ns->queue);
 
 	down_write(&ns->ctrl->namespaces_rwsem);
 	list_del_init(&ns->list);

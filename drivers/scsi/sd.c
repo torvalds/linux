@@ -3440,8 +3440,8 @@ static int sd_probe(struct device *dev)
 	if (!sdkp)
 		goto out;
 
-	gd = __alloc_disk_node(sdp->request_queue, NUMA_NO_NODE,
-			       &sd_bio_compl_lkclass);
+	gd = blk_mq_alloc_disk_for_queue(sdp->request_queue,
+					 &sd_bio_compl_lkclass);
 	if (!gd)
 		goto out_free;
 

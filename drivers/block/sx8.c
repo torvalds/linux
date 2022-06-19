@@ -1536,7 +1536,7 @@ err_out_free_majors:
 		clear_bit(0, &carm_major_alloc);
 	else if (host->major == 161)
 		clear_bit(1, &carm_major_alloc);
-	blk_cleanup_queue(host->oob_q);
+	blk_mq_destroy_queue(host->oob_q);
 	blk_mq_free_tag_set(&host->tag_set);
 err_out_dma_free:
 	dma_free_coherent(&pdev->dev, CARM_SHM_SIZE, host->shm, host->shm_dma);
@@ -1570,7 +1570,7 @@ static void carm_remove_one (struct pci_dev *pdev)
 		clear_bit(0, &carm_major_alloc);
 	else if (host->major == 161)
 		clear_bit(1, &carm_major_alloc);
-	blk_cleanup_queue(host->oob_q);
+	blk_mq_destroy_queue(host->oob_q);
 	blk_mq_free_tag_set(&host->tag_set);
 	dma_free_coherent(&pdev->dev, CARM_SHM_SIZE, host->shm, host->shm_dma);
 	iounmap(host->mmio);

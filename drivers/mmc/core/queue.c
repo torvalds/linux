@@ -494,7 +494,6 @@ void mmc_cleanup_queue(struct mmc_queue *mq)
 	if (blk_queue_quiesced(q))
 		blk_mq_unquiesce_queue(q);
 
-	blk_cleanup_queue(q);
 	blk_mq_free_tag_set(&mq->tag_set);
 
 	/*

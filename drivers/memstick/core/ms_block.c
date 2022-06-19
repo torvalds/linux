@@ -2187,7 +2187,6 @@ static void msb_remove(struct memstick_dev *card)
 
 	/* Remove the disk */
 	del_gendisk(msb->disk);
-	blk_cleanup_queue(msb->queue);
 	blk_mq_free_tag_set(&msb->tag_set);
 	msb->queue = NULL;
 

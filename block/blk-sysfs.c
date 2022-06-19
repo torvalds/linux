@@ -755,11 +755,6 @@ static void blk_free_queue_rcu(struct rcu_head *rcu_head)
  * decremented with blk_put_queue(). Once the refcount reaches 0 this function
  * is called.
  *
- * For drivers that have a request_queue on a gendisk and added with
- * __device_add_disk() the refcount to request_queue will reach 0 with
- * the last put_disk() called by the driver. For drivers which don't use
- * __device_add_disk() this happens with blk_cleanup_queue().
- *
  * Drivers exist which depend on the release of the request_queue to be
  * synchronous, it should not be deferred.
  *

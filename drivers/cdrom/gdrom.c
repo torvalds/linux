@@ -831,7 +831,6 @@ probe_fail_no_mem:
 
 static int remove_gdrom(struct platform_device *devptr)
 {
-	blk_cleanup_queue(gd.gdrom_rq);
 	blk_mq_free_tag_set(&gd.tag_set);
 	free_irq(HW_EVENT_GDROM_CMD, &gd);
 	free_irq(HW_EVENT_GDROM_DMA, &gd);

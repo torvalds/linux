@@ -285,43 +285,6 @@ void blk_queue_start_drain(struct request_queue *q)
 }
 
 /**
- * blk_cleanup_queue - shutdown a request queue
- * @q: request queue to shutdown
- *
- * Mark @q DYING, drain all pending requests, mark @q DEAD, destroy and
- * put it.  All future requests will be failed immediately with -ENODEV.
- *
- * Context: can sleep
- */
-void blk_cleanup_queue(struct request_queue *q)
-{
-	/* cannot be called from atomic context */
-	might_sleep();
-
-	WARN_ON_ONCE(blk_queue_registered(q));
-
-	/* mark @q DYING, no new request or merges will be allowed afterwards */
-	blk_queue_flag_set(QUEUE_FLAG_DYING, q);
-	blk_queue_start_drain(q);
-
-	/*
-	 * Drain all requests queued before DYING marking. Set DEAD flag to
-	 * prevent that blk_mq_run_hw_queues() accesses the hardware queues
-	 * after draining finished.
-	 */
-	blk_freeze_queue(q);
-	blk_sync_queue(q);
-	if (queue_is_mq(q)) {
-		blk_mq_cancel_work_sync(q);
-		blk_mq_exit_queue(q);
-	}
-
-	/* @q is and will stay empty, shutdown and put */
-	blk_put_queue(q);
-}
-EXPORT_SYMBOL(blk_cleanup_queue);
-
-/**
  * blk_queue_enter() - try to increase q->q_usage_counter
  * @q: request queue pointer
  * @flags: BLK_MQ_REQ_NOWAIT and/or BLK_MQ_REQ_PM
