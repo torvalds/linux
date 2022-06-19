@@ -1516,7 +1516,7 @@ static inline void mlxsw_reg_spmlr_pack(char *payload, u16 local_port,
  * virtualized ports.
  */
 #define MLXSW_REG_SVFA_ID 0x201C
-#define MLXSW_REG_SVFA_LEN 0x10
+#define MLXSW_REG_SVFA_LEN 0x18
 
 MLXSW_REG_DEFINE(svfa, MLXSW_REG_SVFA_ID, MLXSW_REG_SVFA_LEN);
 
@@ -1585,6 +1585,26 @@ MLXSW_ITEM32(reg, svfa, counter_set_type, 0x08, 24, 8);
  * Note: Reserved for SwitchX-2.
  */
 MLXSW_ITEM32(reg, svfa, counter_index, 0x08, 0, 24);
+
+/* reg_svfa_irif_v
+ * Ingress RIF valid.
+ * 0 - Ingress RIF is not valid, no ingress RIF assigned.
+ * 1 - Ingress RIF valid.
+ * Must not be set for a non enabled RIF.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used.
+ */
+MLXSW_ITEM32(reg, svfa, irif_v, 0x14, 24, 1);
+
+/* reg_svfa_irif
+ * Ingress RIF (Router Interface).
+ * Range is 0..cap_max_router_interfaces-1.
+ * Access: RW
+ *
+ * Note: Reserved when legacy bridge model is used and when irif_v=0.
+ */
+MLXSW_ITEM32(reg, svfa, irif, 0x14, 0, 16);
 
 static inline void mlxsw_reg_svfa_pack(char *payload, u16 local_port,
 				       enum mlxsw_reg_svfa_mt mt, bool valid,
