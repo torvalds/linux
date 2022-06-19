@@ -20,9 +20,8 @@
 extern struct proto raw_prot;
 
 extern struct raw_hashinfo raw_v4_hashinfo;
-struct sock *__raw_v4_lookup(struct net *net, struct sock *sk,
-			     unsigned short num, __be32 raddr,
-			     __be32 laddr, int dif, int sdif);
+bool raw_v4_match(struct net *net, struct sock *sk, unsigned short num,
+		  __be32 raddr, __be32 laddr, int dif, int sdif);
 
 int raw_abort(struct sock *sk, int err);
 void raw_icmp_error(struct sk_buff *, int, u32);
@@ -34,8 +33,17 @@ int raw_rcv(struct sock *, struct sk_buff *);
 
 struct raw_hashinfo {
 	rwlock_t lock;
-	struct hlist_head ht[RAW_HTABLE_SIZE];
+	struct hlist_nulls_head ht[RAW_HTABLE_SIZE];
 };
+
+static inline void raw_hashinfo_init(struct raw_hashinfo *hashinfo)
+{
+	int i;
+
+	rwlock_init(&hashinfo->lock);
+	for (i = 0; i < RAW_HTABLE_SIZE; i++)
+		INIT_HLIST_NULLS_HEAD(&hashinfo->ht[i], i);
+}
 
 #ifdef CONFIG_PROC_FS
 int raw_proc_init(void);

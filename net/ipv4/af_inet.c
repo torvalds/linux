@@ -1929,6 +1929,8 @@ static int __init inet_init(void)
 
 	sock_skb_cb_check_size(sizeof(struct inet_skb_parm));
 
+	raw_hashinfo_init(&raw_v4_hashinfo);
+
 	rc = proto_register(&tcp_prot, 1);
 	if (rc)
 		goto out;
