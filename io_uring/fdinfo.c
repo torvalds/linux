@@ -13,6 +13,7 @@
 #include "sqpoll.h"
 #include "fdinfo.h"
 #include "cancel.h"
+#include "rsrc.h"
 
 #ifdef CONFIG_PROC_FS
 static __cold int io_uring_show_cred(struct seq_file *m, unsigned int id,

@@ -1,5 +1,18 @@
 // SPDX-License-Identifier: GPL-2.0
 
+#include <linux/io_uring_types.h>
+
+struct io_cancel_data {
+	struct io_ring_ctx *ctx;
+	union {
+		u64 data;
+		struct file *file;
+	};
+	u32 flags;
+	int seq;
+};
+
+
 int io_async_cancel_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_async_cancel(struct io_kiocb *req, unsigned int issue_flags);
 

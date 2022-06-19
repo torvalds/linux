@@ -24,6 +24,7 @@ int io_poll_add(struct io_kiocb *req, unsigned int issue_flags);
 int io_poll_remove_prep(struct io_kiocb *req, const struct io_uring_sqe *sqe);
 int io_poll_remove(struct io_kiocb *req, unsigned int issue_flags);
 
+struct io_cancel_data;
 int io_poll_cancel(struct io_ring_ctx *ctx, struct io_cancel_data *cd,
 		   unsigned issue_flags);
 int io_arm_poll_handler(struct io_kiocb *req, unsigned issue_flags);
